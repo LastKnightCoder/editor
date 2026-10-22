@@ -4,6 +4,8 @@
  * DEVELOPMENT.md。调用方先确认插件已安装并启用（否则迁入的数据会被当作孤儿回收）。
  *
  * - 单事务；失败整体回滚、旧表原样保留，下次重试。成功后删除旧表（D-091 最后升级）。
+ * - 动手前在库旁生成 `<数据库路径>.pre-question-plugin-migration-v1-<UUID>.bak` 快照（含已提交的 WAL），
+ *   备份失败不迁移。
  * - 实体 key、记录与关联 ID 由旧 ID 推出（legacy-…），旧表因同步回到库里时再次执行不会重复。
  * - 独立答案本来就是 contents 行：直接作为答案实体的正文，问题关联持有的那份引用计数转给实体；
  *   其余材料的保活引用释放，已删除、只靠问题撑着的材料随之回收。
@@ -13,6 +15,7 @@
  */
 
 import type Database from "better-sqlite3";
+import { randomUUID } from "node:crypto";
 import { basename } from "node:path";
 import type { Descendant } from "slate";
 import { groupTone } from "@/utils/groupTone";
@@ -206,6 +209,10 @@ export function migrateQuestionsToPlugin(
   now = Date.now()
 ): QuestionMigrationResult | null {
   if (!hasLegacyQuestions(db)) return null;
+  if (db.name !== ":memory:")
+    db.prepare("VACUUM INTO ?").run(
+      `${db.name}.pre-question-plugin-migration-v1-${randomUUID()}.bak`
+    );
   return db.transaction(() => {
     const pluginId = QUESTIONS_PLUGIN_ID;
     const result: QuestionMigrationResult = {

@@ -1,4 +1,7 @@
 import Database from "better-sqlite3";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import {
@@ -338,5 +341,31 @@ describe("migrateQuestionsToPlugin", () => {
     expect(() => migrateQuestionsToPlugin(db)).toThrow();
     expect(get<{ n: number }>(`SELECT COUNT(*) AS n FROM questions`).n).toBe(2);
     expect(get<{ n: number }>(`SELECT COUNT(*) AS n FROM plugin_entities`).n).toBe(0);
+  });
+
+  it("动手前在库旁留一份含旧表的快照", () => {
+    const dir = mkdtempSync(join(tmpdir(), "question-migration-"));
+    try {
+      db.close();
+      db = new Database(join(dir, "data.db"));
+      db.exec(MAIN_SCHEMA_SQL);
+      db.exec(LEGACY_QUESTION_SQL);
+      seed();
+      migrateQuestionsToPlugin(db);
+      const backups = readdirSync(dir).filter(name =>
+        /^data\.db\.pre-question-plugin-migration-v1-[\w-]+\.bak$/.test(name)
+      );
+      expect(backups).toHaveLength(1);
+      const snapshot = new Database(join(dir, backups[0]), { readonly: true });
+      expect(snapshot.prepare(`SELECT COUNT(*) AS n FROM questions`).get()).toEqual({ n: 2 });
+      snapshot.close();
+      expect(
+        get<{ n: number }>(`SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'questions'`).n
+      ).toBe(0);
+    } finally {
+      db.close();
+      db = new Database(":memory:");
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
