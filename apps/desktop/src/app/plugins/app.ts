@@ -16,6 +16,7 @@ import {
   planPluginNotebook,
   pluginRefExists,
   resolvePluginContentInput,
+  getPluginSharedContent,
 } from "@/commands/plugin-data";
 import type { MentionRef } from "@tau/shared";
 import type { LineageNode } from "@/entity/lineage";
@@ -130,11 +131,13 @@ export interface PluginCardCreateRequest extends PluginActionBase {
   settle(cardId: number): void;
 }
 
-/** 插入到项目：复制正文为新的项目文档，项目与位置由用户在弹窗里选 */
+/** 插入到项目：复制正文为新的项目文档，或与插件内容共用正文；项目与位置由用户在弹窗里选 */
 export interface PluginDocumentInsertRequest extends PluginActionBase {
   action: "project.insertDocument";
   title: string;
   content: Descendant[];
+  /** shareOf：新文档引用这份正文 */
+  sharedContentId?: number;
   settle(documentId: number): void;
 }
 
@@ -394,13 +397,22 @@ async function runAction(
     }));
   }
   if (request.action === "project.insertDocument") {
-    const nodes = await resolve(request.content);
+    const source = toContentSource(request.content);
+    const sharedContentId =
+      "shareOf" in source
+        ? await bindDatabaseCommands(
+            { getPluginSharedContent },
+            { databaseName, signal: context.signal }
+          ).getPluginSharedContent(databaseName, context.pluginId, source.shareOf)
+        : undefined;
+    const nodes = sharedContentId === undefined ? await resolve(request.content) : [];
     return showAction<PluginEntityRef | null>(context, null, (finish, id) => ({
       id,
       plugin,
       action: "project.insertDocument",
       title: request.title ?? "未命名文档",
       content: nodes.length ? nodes : structuredClone(DEFAULT_CARD_CONTENT),
+      ...(sharedContentId !== undefined ? { sharedContentId } : {}),
       close: () => finish(null),
       settle: documentId => finish({ kind: "document", id: String(documentId) }),
     }));

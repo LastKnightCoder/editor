@@ -595,7 +595,13 @@ export default class ArticleTable {
     return this.getArticleById(db, result.id);
   }
 
-  static buildArticleFromContent(db: Database.Database, contentId: number, title = ""): IArticle {
+  /** 用已有正文建文章（共用同一份正文）；这份正文已经是未删除的文章时返回那篇文章 */
+  static buildArticleFromContent(
+    db: Database.Database,
+    contentId: number,
+    title = "",
+    tags: string[] = []
+  ): IArticle {
     // 先检查是否已有文章
     const existingStmt = db.prepare(
       "SELECT id FROM articles WHERE content_id = ? AND is_delete = 0"
@@ -611,7 +617,7 @@ export default class ArticleTable {
       "INSERT INTO articles (create_time, update_time, tags, title, content_id, banner_bg, banner_position, is_delete, is_top) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
     );
     const now = Date.now();
-    const res = stmt.run(now, now, JSON.stringify([]), title, contentId, "", "center", 0, 0);
+    const res = stmt.run(now, now, JSON.stringify(tags), title, contentId, "", "center", 0, 0);
     const articleId = res.lastInsertRowid;
     Operation.insertOperation(db, "article", "insert", articleId, now);
     return this.getArticleById(db, articleId);

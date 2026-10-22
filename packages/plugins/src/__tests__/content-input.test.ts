@@ -26,6 +26,18 @@ describe("正文输入", () => {
     expect(() => readContentInput({ copyOf: "" }, { allowEmpty: true })).toThrow("copyOf");
   });
 
+  it("shareOf 只在新建宿主内容的入口接受", () => {
+    expect(readContentInput({ shareOf: "7:100" }, { allowEmpty: false, share: true })).toEqual({
+      shareOf: "7:100",
+    });
+    expect(() => readContentInput({ shareOf: "7:100" }, { allowEmpty: true })).toThrow(
+      "shareOf 只能用于新建卡片、文章、项目文档与插入到项目"
+    );
+    expect(() => readContentInput({ shareOf: 7 }, { allowEmpty: true, share: true })).toThrow(
+      "shareOf 正文引用无效"
+    );
+  });
+
   it("节点被复制，之后修改传入对象不影响结果", () => {
     const nodes = [paragraph("原文")];
     const input = readContentInput({ nodes }, { allowEmpty: false });

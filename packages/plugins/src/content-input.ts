@@ -15,7 +15,12 @@ export type PluginContentInput =
   /** 编辑器节点，原样写入，与 content.read 的 nodes 格式相同 */
   | { nodes: Descendant[] }
   /** 整份复制一份已有正文：只需要目标的写入权限，插件拿不到正文 */
-  | { copyOf: PluginContentRef };
+  | { copyOf: PluginContentRef }
+  /**
+   * 与本插件的一项内容共用同一份正文，任一处的修改在另一处实时可见；只能用于新建卡片、文章、
+   * 项目文档与「插入到项目」。删除其中一处不影响另一处。
+   */
+  | { shareOf: PluginContentRef };
 
 export const CONTENT_INPUT_LIMITS = Object.freeze({
   markdown: 2_000_000,
@@ -53,14 +58,24 @@ export function assertContentNodes(value: unknown): asserts value is Descendant[
 const isEmptyInput = (input: PluginContentInput) =>
   "markdown" in input ? !input.markdown.trim() : "nodes" in input ? !input.nodes.length : false;
 
-/** 读取并复制插件传入的正文输入；allowEmpty 为 false 时拒绝空 Markdown 与空节点数组。 */
+const readRef = (value: unknown, label: string): PluginContentRef => {
+  if (typeof value !== "string" || !value || value.length > 200)
+    throw new Error(`${label} 正文引用无效`);
+  return value;
+};
+
+/**
+ * 读取并复制插件传入的正文输入；allowEmpty 为 false 时拒绝空 Markdown 与空节点数组，
+ * share 为 true 时才接受 shareOf（新建宿主内容的入口）。
+ */
 export function readContentInput(
   value: unknown,
-  options: { allowEmpty: boolean }
+  options: { allowEmpty: boolean; share?: boolean }
 ): PluginContentInput {
   if (!isRecord(value)) throw new Error("正文输入无效");
   const keys = Object.keys(value).filter(key => value[key] !== undefined);
-  if (keys.length !== 1) throw new Error("正文输入必须且只能提供 markdown、nodes 或 copyOf 之一");
+  const kinds = options.share ? "markdown、nodes、copyOf 或 shareOf" : "markdown、nodes 或 copyOf";
+  if (keys.length !== 1) throw new Error(`正文输入必须且只能提供 ${kinds} 之一`);
   let input: PluginContentInput;
   if (keys[0] === "markdown") {
     const markdown = value.markdown;
@@ -73,10 +88,12 @@ export function readContentInput(
     assertContentNodes(nodes);
     input = { nodes };
   } else if (keys[0] === "copyOf") {
-    const ref = value.copyOf;
-    if (typeof ref !== "string" || !ref || ref.length > 200) throw new Error("copyOf 正文引用无效");
-    input = { copyOf: ref };
-  } else throw new Error("正文输入必须且只能提供 markdown、nodes 或 copyOf 之一");
+    input = { copyOf: readRef(value.copyOf, "copyOf") };
+  } else if (keys[0] === "shareOf" && options.share) {
+    input = { shareOf: readRef(value.shareOf, "shareOf") };
+  } else if (keys[0] === "shareOf") {
+    throw new Error("shareOf 只能用于新建卡片、文章、项目文档与插入到项目");
+  } else throw new Error(`正文输入必须且只能提供 ${kinds} 之一`);
   if (!options.allowEmpty && isEmptyInput(input)) throw new Error("正文不能为空");
   return input;
 }

@@ -69,6 +69,13 @@ export const resolvePluginContentInput = (
   content: PluginContentSource
 ): Promise<Descendant[]> => invoke("plugin-data:resolve-content", { databaseName, content });
 
+/** 核对 shareOf 的来源是这个插件内容的正文，返回正文 ID，只在宿主「插入到项目」弹窗中使用 */
+export const getPluginSharedContent = (
+  databaseName: string,
+  pluginId: string,
+  source: { contentId: number; createdAt: number }
+): Promise<number> => invoke("plugin-data:shared-content", { databaseName, pluginId, source });
+
 export const readPluginContent = (
   databaseName: string,
   contentId: number,

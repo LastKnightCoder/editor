@@ -4,7 +4,7 @@ import { basename } from "node:path";
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import type { Descendant } from "slate";
 import { getMarkdownText } from "../../services/content-conversion";
-import { resolvePluginContent } from "./plugin-content-input";
+import { resolvePluginContent, sharedContentId } from "./plugin-content-input";
 import { readPageQuery, toPage } from "./plugin-data-page";
 import { DEFAULT_CARD_CONTENT } from "@/constants/card";
 import type {
@@ -148,6 +148,7 @@ export default class PluginDataTable {
       "plugin-data:get": this.get.bind(this),
       "plugin-data:content": asynchronousDatabaseCommand(this.content.bind(this)),
       "plugin-data:resolve-content": asynchronousDatabaseCommand(this.resolveContent.bind(this)),
+      "plugin-data:shared-content": this.sharedContent.bind(this),
       "plugin-data:create": asynchronousDatabaseCommand(this.create.bind(this)),
       "plugin-data:project-tree": this.projectTree.bind(this),
       "plugin-data:create-document": asynchronousDatabaseCommand(this.createDocument.bind(this)),
@@ -264,6 +265,18 @@ export default class PluginDataTable {
     return resolvePluginContent(db, request.content, []);
   }
 
+  /** 「插入到项目」的 shareOf：核对来源是本插件内容的正文，返回正文 ID 交给宿主弹窗 */
+  static sharedContent(
+    db: Database.Database,
+    request: PluginDataScope & {
+      pluginId: string;
+      source: { contentId: number; createdAt: number };
+    }
+  ): number {
+    this.assertDatabase(db, request);
+    return sharedContentId(db, request.pluginId, request.source);
+  }
+
   /** 有协作会话时为会话文档的版本，否则为正文的修改时间 */
   private static contentRevision(db: Database.Database, contentId: number): string {
     const content = ContentTable.getContentById(db, contentId);
@@ -310,6 +323,13 @@ export default class PluginDataTable {
     const { input } = request;
     if (request.entity === "whiteboard" || request.entity === "project")
       return this.createObject(db, { ...request, entity: request.entity });
+    if (input.content && "shareOf" in input.content)
+      return this.createShared(
+        db,
+        { ...request, entity: request.entity },
+        input.content.shareOf,
+        ctx
+      );
     const content = await resolvePluginContent(db, input.content, DEFAULT_CARD_CONTENT);
     this.assertDatabase(db, request);
     if (!db.open) throw new Error("数据库连接已失效");
@@ -343,6 +363,52 @@ export default class PluginDataTable {
       [request.entity === "card" ? "cardId" : "articleId"]: id,
     });
     return this.get(db, { ...request, entity: request.entity, id }) as PluginDataRecord;
+  }
+
+  /**
+   * 与本插件内容共用正文的卡片或文章：引用同一份正文并增加引用计数，任一处删除不影响另一处。
+   * 一份正文只对应一张卡片、一篇未删除的文章，已有时拒绝，不返回已有的那一项。
+   */
+  private static createShared(
+    db: Database.Database,
+    request: PluginDataScope & {
+      pluginId: string;
+      entity: "card" | "article";
+      input: PluginDataCreateInput;
+    },
+    source: { contentId: number; createdAt: number },
+    ctx: CommandContext
+  ): PluginDataRecord {
+    const { input } = request;
+    const id = db.transaction(() =>
+      writeAsPlugin(request.pluginId, () => {
+        const contentId = sharedContentId(db, request.pluginId, source);
+        if (request.entity === "card") {
+          if (db.prepare("SELECT 1 FROM cards WHERE content_id = ?").get(contentId))
+            throw new Error("这份正文已经是卡片");
+          return CardTable.buildCardFromContent(db, contentId, {
+            tags: input.tags ?? [],
+            isTop: Boolean(input.pinned),
+          }).id;
+        }
+        if (
+          db.prepare("SELECT 1 FROM articles WHERE content_id = ? AND is_delete = 0").get(contentId)
+        )
+          throw new Error("这份正文已经是文章");
+        return ArticleTable.buildArticleFromContent(
+          db,
+          contentId,
+          input.title ?? "",
+          input.tags ?? []
+        ).id;
+      })
+    )();
+    const channel = request.entity === "card" ? "card:updated" : "article:updated";
+    ctx.broadcastAll(channel, {
+      databaseName: basename(db.name),
+      [request.entity === "card" ? "cardId" : "articleId"]: id,
+    });
+    return this.get(db, { ...request, id }) as PluginDataRecord;
   }
 
   /** 白板带一张空白画板页，项目为空项目；两者都没有写入广播，列表在渲染端按查询失效刷新 */
@@ -448,7 +514,10 @@ export default class PluginDataTable {
   ): Promise<PluginDataRecord> {
     this.assertDatabase(db, request);
     const { input } = request;
-    const content = await resolvePluginContent(db, input.content, DEFAULT_CARD_CONTENT);
+    const shared = input.content && "shareOf" in input.content ? input.content.shareOf : null;
+    const content = shared
+      ? []
+      : await resolvePluginContent(db, input.content, DEFAULT_CARD_CONTENT);
     this.assertDatabase(db, request);
     if (!db.open) throw new Error("数据库连接已失效");
     const id = db.transaction(() =>
@@ -457,6 +526,8 @@ export default class PluginDataTable {
         const item = {
           title: input.title,
           content,
+          // 共用正文：项目文档引用同一份正文（建文档时增加引用计数）
+          ...(shared ? { contentId: sharedContentId(db, request.pluginId, shared) } : {}),
           children: [],
           refType: "",
           refId: 0,

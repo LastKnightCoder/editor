@@ -266,7 +266,7 @@ try {
 
 ## 正文输入
 
-新建卡片、文章、插件内容，以及修改正文时，正文都用同一种写法 `content`，三选一：
+新建卡片、文章、插件内容，以及修改正文时，正文都用同一种写法 `content`，从下面几种里选一种：
 
 ```ts
 // Markdown：适合 AI 生成或外部导入的文字
@@ -278,6 +278,9 @@ await context.data.cards.create({ content: { nodes: source!.nodes! } });
 
 // 复制一份已有正文：Tau 内部整份复制，插件拿不到正文内容
 await context.data.articles.create({ title: "副本", content: { copyOf: card.contentRef } });
+
+// 共用本插件内容的正文：新卡片与插件内容是同一份正文，改一处另一处同步变化
+await context.data.cards.create({ content: { shareOf: answer.contentRef } });
 ```
 
 | 写法       | 什么时候用                                                                 | 注意                                                 |
@@ -285,11 +288,13 @@ await context.data.articles.create({ title: "副本", content: { copyOf: card.co
 | `markdown` | 写入纯文字、AI 输出、外部导入                                              | 高亮、颜色、白板嵌入等 Markdown 表达不了的格式会丢失 |
 | `nodes`    | 把读到的正文改写后写回，或在多份正文之间搬运内容                           | 结构不对时报错并给出出错节点的路径                   |
 | `copyOf`   | 把一份正文完整复制到新卡片、新文章或插件内容里，例如「把这条笔记存为卡片」 | 只需要目标的写入权限，不需要来源的读取权限           |
+| `shareOf`  | 让插件内容同时也是一张卡片、一篇文章或一篇项目文档，在哪里改都是同一份正文 | 只用于新建卡片、文章、项目文档与「插入到项目」       |
 
 - `nodes` 只检查结构：顶层是元素，元素有 `type` 和非空的 `children`，文字节点有 `text`。Tau 不认识的节点类型（例如来自未安装的插件）原样保存，安装对应插件后即可正常显示。
 - `content.read({ format: "nodes" })` 的结果带 `schemaVersion`。节点结构有不兼容的变化时它会增加，插件可以与 `EDITOR_NODE_SCHEMA_VERSION` 比较，判断自己是否认得这些节点。
 - 正文中的待办勾选项由 Tau 维护身份，复制或搬运后各自独立，不需要插件处理。
 - `copyOf` 的来源可以是卡片、文章、项目文档或任一插件内容的正文。复制的是当前内容，之后两份互不影响。
+- `shareOf` 的来源只能是本插件内容的正文。用户在卡片、文章或项目文档里修改，插件内容同步变化，反之亦然；删除其中一处，另一处照常保留。一份正文最多是一张卡片、一篇文章，已经有了再新建会报错，可以先用 `content.read` 返回的 `owners` 判断。插件内容自己（`entities.create`）和修改正文（`content.edit`）不能用 `shareOf`。
 - 新建时省略 `content` 得到空正文。
 
 ## 读写正文
@@ -487,14 +492,14 @@ function CardRow({ card }: { card: PluginCard }) {
 | `content.present`        | `ref`                                                                     | 全屏演示                                                       | 无                                         |
 | `content.share`          | `ref`                                                                     | 打开「内容协作」窗口，由用户确认发起共享                       | 无                                         |
 | `card.create`            | `content?`（见[正文输入](#正文输入)）、`tags?`                            | 打开新建卡片窗口并预填，用户可修改后保存                       | 新卡片的引用 `{ kind: "card", id }`        |
-| `project.insertDocument` | `content`、`title?`（默认「未命名文档」）                                 | 打开「插入到项目」窗口，用户选择项目与位置后复制正文为新文档   | 新文档的引用 `{ kind: "document", id }`    |
+| `project.insertDocument` | `content`、`title?`（默认「未命名文档」）                                 | 打开「插入到项目」窗口，用户选择项目与位置后新建文档           | 新文档的引用 `{ kind: "document", id }`    |
 | `notebook.create`        | `title`、`sources?`（最多 200 项）、`from?`                               | 确认后新建 Notebook，`sources` 作为资料带入，`from` 记为来源   | Notebook 的引用 `{ kind: "notebook", id }` |
 | `chat.start`             | `prompt?`、`context?`（最多 20 项）、`placement?`：`page`（默认）、`dock` | 在对话页或右侧停靠栏开一个新对话，预填输入框与引用，由用户发送 | 对话的引用 `{ kind: "chat-session", id }`  |
 
 - 不需要数据权限：界面和确认都由 Tau 提供，用户在界面里确认即同意。插件拿不到正文。新建类返回的引用和用户在 `pick` 中选择的一样：不需要权限就能用 `describe` 读标题、用 `<EntityRef>` 显示、`open` 打开、`links.add` 关联；读取正文仍需要对应的读取权限（如 `cards:read`）。
 - 用户关闭界面后才返回：导出、演示、协作在窗口关闭或演示结束时返回；新建类在保存后返回新内容的引用，用户取消时返回 `null`。插件停用时界面会被撤下。
 - 只能在用户操作之后调用；同一时间只能打开一个，前一个还没关闭时抛错。内容已删除时抛出「内容不存在」。
-- `copyOf` 只复制正文，不会改动来源。`project.insertDocument` 总是复制一份新正文，不与来源共用。
+- `copyOf` 只复制正文，不会改动来源。`project.insertDocument` 的 `content` 用 `shareOf` 时，新文档与插件内容共用正文；其他写法都是新的一份正文。`card.create` 的窗口里用户可以修改预填内容，不接受 `shareOf`。
 - `notebook.create` 的资料一次性带入，之后原内容的修改不会同步：卡片、文章、项目文档、日记和插件内容成为笔记资料；划线与 PDF 标注合并为一份，剪藏各一份；其他类型和已删除的内容不带入，确认框里会告诉用户数量。
 - `from` 是这个 Notebook 由什么立项，显示在 Notebook 页顶部，用户点击可以打开。可以是卡片、文章、项目文档、日记、材料、对话、Notebook 或插件内容（`PLUGIN_NOTEBOOK_FROM_KINDS`），不存在时抛出「来源不存在」。
 - `chat.start` 不会替用户发送：`prompt` 进入输入框，`context` 作为引用插在后面，用户可以修改。用户发出第一条消息后才返回对话的引用；没发送就切到别的对话、离开对话页、收起停靠栏或插件停用时返回 `null`。`context` 只支持卡片、文章、项目文档（`PLUGIN_CHAT_CONTEXT_KINDS`），其他内容请写进 `prompt`。

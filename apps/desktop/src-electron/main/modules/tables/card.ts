@@ -399,7 +399,12 @@ export default class CardTable {
     return this.getCardById(db, result.id);
   }
 
-  static buildCardFromContent(db: Database.Database, contentId: number): ICard {
+  /** 用已有正文建卡片（共用同一份正文）；这份正文已经是卡片时返回那张卡片 */
+  static buildCardFromContent(
+    db: Database.Database,
+    contentId: number,
+    fields: { tags?: string[]; isTop?: boolean } = {}
+  ): ICard {
     const existingStmt = db.prepare("SELECT id FROM cards WHERE content_id = ?");
     const existing = existingStmt.get(contentId) as { id: number } | undefined;
     if (existing) {
@@ -409,7 +414,14 @@ export default class CardTable {
       "INSERT INTO cards (create_time, update_time, tags, links, content_id, is_top) VALUES (?, ?, ?, ?, ?, ?)"
     );
     const now = Date.now();
-    const res = insertStmt.run(now, now, JSON.stringify([]), JSON.stringify([]), contentId, 0);
+    const res = insertStmt.run(
+      now,
+      now,
+      JSON.stringify(fields.tags ?? []),
+      JSON.stringify([]),
+      contentId,
+      fields.isTop ? 1 : 0
+    );
     const cardId = res.lastInsertRowid;
     ContentTable.incrementRefCount(db, contentId);
     Operation.insertOperation(db, "card", "insert", cardId, now);

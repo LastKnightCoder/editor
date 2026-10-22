@@ -103,6 +103,79 @@ describe("PluginEntityTable", () => {
     expect(refCount(copy.contentId)).toBe(1);
   });
 
+  it("共用正文：卡片、文章、项目文档引用插件内容的同一份正文，删除插件内容不影响它们", async () => {
+    const ctx = { broadcastOthers: vi.fn(), broadcastAll: vi.fn() };
+    const answer = await PluginEntityTable.create(db, {
+      ...scope,
+      input: {
+        kind: "answer",
+        key: "a1",
+        title: "结论",
+        meta: {},
+        content: { markdown: "扇出大" },
+      },
+    });
+    const shareOf = { contentId: answer.contentId, createdAt: answer.contentCreatedAt };
+    const create = (entity: "card" | "article", extra: Record<string, unknown> = {}) =>
+      PluginDataTable.create(
+        db,
+        { ...scope, entity, input: { content: { shareOf }, ...extra } },
+        ctx
+      );
+    const card = await create("card", { tags: ["答案"], pinned: true });
+    expect(card).toMatchObject({ contentId: answer.contentId, tags: ["答案"], pinned: true });
+    await expect(create("card")).rejects.toThrow("这份正文已经是卡片");
+    const article = await create("article", { title: "B+ 树", tags: ["数据库"] });
+    expect(article).toMatchObject({
+      contentId: answer.contentId,
+      title: "B+ 树",
+      tags: ["数据库"],
+    });
+    await expect(create("article", { title: "再来" })).rejects.toThrow("这份正文已经是文章");
+    const project = await PluginDataTable.create(
+      db,
+      { ...scope, entity: "project", input: { title: "课题" } },
+      ctx
+    );
+    const doc = await PluginDataTable.createDocument(db, {
+      ...scope,
+      input: { projectId: project.id, title: "答案", content: { shareOf } },
+    });
+    expect(doc.contentId).toBe(answer.contentId);
+    expect(refCount(answer.contentId)).toBe(4);
+    expect(PluginDataTable.sharedContent(db, { ...scope, source: shareOf })).toBe(answer.contentId);
+
+    // 只能共用本插件、仍然存在的内容
+    await expect(
+      PluginDataTable.create(
+        db,
+        {
+          ...scope,
+          pluginId: "other",
+          entity: "article",
+          input: { title: "x", content: { shareOf } },
+        },
+        ctx
+      )
+    ).rejects.toThrow("只能共用本插件内容的正文");
+    const stale = { contentId: answer.contentId, createdAt: answer.contentCreatedAt + 1 };
+    expect(() => PluginDataTable.sharedContent(db, { ...scope, source: stale })).toThrow(
+      "只能共用本插件内容的正文"
+    );
+    await expect(
+      PluginEntityTable.create(db, {
+        ...scope,
+        input: { kind: "answer", key: "a2", title: "", meta: {}, content: { shareOf } },
+      })
+    ).rejects.toThrow("shareOf 只能用于");
+
+    PluginEntityTable.remove(db, { ...scope, id: answer.id, expectedRevision: answer.revision });
+    expect(refCount(answer.contentId)).toBe(3);
+    expect(PluginDataTable.get(db, { ...scope, entity: "card", id: card.id })?.contentId).toBe(
+      answer.contentId
+    );
+  });
+
   it("按创建时间倒序分页，修改校验 revision", async () => {
     const first = await note("a");
     await note("b");
