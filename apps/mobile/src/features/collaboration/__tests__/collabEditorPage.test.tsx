@@ -23,7 +23,10 @@ vi.mock("@tau/editor", async importOriginal => {
     props: Record<string, unknown>,
     ref: unknown
   ) {
-    React.useImperativeHandle(ref as never, () => ({ getEditor: () => ({ selection: null }) }));
+    React.useImperativeHandle(ref as never, () => ({
+      getEditor: () => ({ selection: null }),
+      getEditableElement: () => null,
+    }));
     capturedEditorProps.value = props;
     return React.createElement("div", {
       "data-testid": "collab-editor",
@@ -81,10 +84,6 @@ vi.mock("../components/CollaborationUI", () => ({
 vi.mock("../../cards/editorExtensions/ContentLinkPickerSheet", () => ({
   __esModule: true,
   default: () => null,
-}));
-
-vi.mock("@tau/editor/toolbar", () => ({
-  calculateFloatingPosition: () => ({ left: 8, top: 8, placement: "top" }),
 }));
 
 vi.mock("../../../hooks/useKeyboardViewport", () => ({

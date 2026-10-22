@@ -12,21 +12,30 @@ import {
 } from "slate";
 import { ReactEditor } from "slate-react";
 import { useNavigator } from "../../router";
-import { useKeyboardViewport } from "../../components/KeyboardViewportProvider";
+import {
+  KEYBOARD_RESERVE_RELEASE_RATIO,
+  resolvePanelHeight,
+  useKeyboardReservation,
+  useKeyboardViewport,
+} from "../../components/KeyboardViewportProvider";
 import { getMobileContentKit } from "../../services/editorKit";
 import {
   applyHeaderBlock,
   restoreSelectionAndFocus,
   toggleMark,
 } from "../cards/editorToolbar/toolbarActions";
+import {
+  DEFAULT_KEYBOARD_SWAP_STRATEGY,
+  clearKeyboardSwap,
+  hideKeyboard,
+  showKeyboard,
+  type KeyboardSwapStrategy,
+} from "../cards/editorToolbar/keyboardSwap";
 import { createLabSampleContent } from "./labSampleContent";
 import { useLabLog } from "./useLabLog";
 import { measureSwapSettle, type SwapDirection } from "./swapSettle";
 
 type FocusTiming = "sync" | "raf";
-
-/** 收键盘策略：blur 失焦；inputmode 设置 inputmode="none" 保留焦点 */
-type DismissStrategy = "blur" | "inputmode";
 
 type PanelAction = "bold" | "italic" | "heading-one";
 
@@ -39,11 +48,6 @@ const DOUBLE_TAP_SLOP_PX = 24;
 const KEYBOARD_WAIT_MS = 1500;
 const RECENT_LOG_COUNT = 6;
 const ACCESSORY_BAR_HEIGHT = 46;
-const MIN_MEASURED_KEYBOARD_PX = 100;
-const FALLBACK_PANEL_RATIO = 0.38;
-const RESERVE_RELEASE_RATIO = 0.9;
-const RESERVE_RELEASE_TIMEOUT_MS = 600;
-const INPUTMODE_FALLBACK_MS = 300;
 const SELECTION_CHECK_MS = 300;
 const IME_RECHECK_MS = 700;
 
@@ -53,7 +57,7 @@ const PANEL_ACTIONS: { id: PanelAction; label: string }[] = [
   { id: "heading-one", label: "H1" },
 ];
 
-const DISMISS_STRATEGIES: DismissStrategy[] = ["blur", "inputmode"];
+const SWAP_STRATEGIES: KeyboardSwapStrategy[] = ["blur", "inputmode"];
 
 type WindowWithNativeKeyboard = Window & { __TAU_NATIVE_KB_HEIGHT?: unknown };
 
@@ -109,7 +113,10 @@ function textAround(editor: SlateEditor, point: { path: number[]; offset: number
 
 export function EditorLabPage() {
   const pageNavigator = useNavigator();
-  const { viewportHeight, keyboardHeight } = useKeyboardViewport();
+  const keyboardViewport = useKeyboardViewport();
+  const { viewportHeight, keyboardHeight, rawKeyboardHeight, reservedHeight, lastKeyboardHeight } =
+    keyboardViewport;
+  const reservation = useKeyboardReservation();
   const { log, clear, entries, buildReport } = useLabLog();
   const editorRef = useRef<EditorRef | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -121,22 +128,19 @@ export function EditorLabPage() {
   const [editorFocused, setEditorFocused] = useState(false);
   const [stripOpen, setStripOpen] = useState(true);
   const [focusTiming, setFocusTiming] = useState<FocusTiming>("sync");
-  const [strategy, setStrategy] = useState<DismissStrategy>("blur");
+  const [strategy, setStrategy] = useState<KeyboardSwapStrategy>(DEFAULT_KEYBOARD_SWAP_STRATEGY);
   const [manualReport, setManualReport] = useState<string | null>(null);
-  // 底部预留高度（面板高度），与键盘高度取大者作为底部占位
-  const [reservedInset, setReservedInset] = useState(0);
   const [panelOpen, setPanelOpen] = useState(false);
   const panelOpenRef = useRef(false);
-  const keyboardHeightRef = useRef(keyboardHeight);
-  keyboardHeightRef.current = keyboardHeight;
-  const measuredKeyboardRef = useRef<number | null>(null);
-  const keyboardPeakRef = useRef(0);
+  const rawKeyboardHeightRef = useRef(rawKeyboardHeight);
+  rawKeyboardHeightRef.current = rawKeyboardHeight;
+  const previousReservedRef = useRef(reservedHeight);
+  const exitReleaseRef = useRef(false);
   const lastSelectionRef = useRef<BaseSelection | null>(null);
   const savedSelectionRef = useRef<BaseSelection | null>(null);
-  const openStrategyRef = useRef<DismissStrategy>("blur");
+  const openStrategyRef = useRef<KeyboardSwapStrategy>(DEFAULT_KEYBOARD_SWAP_STRATEGY);
   const composingRef = useRef(false);
-  const releasePendingRef = useRef(false);
-  const releaseTimerRef = useRef(0);
+  const cancelShowKeyboardRef = useRef<(() => void) | null>(null);
   const cancelSwapMeasureRef = useRef<(() => void) | null>(null);
   const timersRef = useRef(new Set<number>());
   const lastTapRef = useRef<{ time: number; x: number; y: number } | null>(null);
@@ -144,36 +148,40 @@ export function EditorLabPage() {
     null
   );
 
-  const layoutHeight = viewportHeight + keyboardHeight;
-  const bottomInset = Math.max(keyboardHeight, reservedInset);
-  const showAccessoryBar = editing && (keyboardHeight > 0 || panelOpen || reservedInset > 0);
+  // 有效键盘高度已包含底部预留
+  const showAccessoryBar = editing && (keyboardHeight > 0 || panelOpen);
 
   useEffect(() => {
     const viewport = window.visualViewport;
-    // 取每轮键盘显示期间的峰值，避免收起动画中的中间值被当成键盘高度
-    if (keyboardHeight === 0) {
-      keyboardPeakRef.current = 0;
-    } else if (keyboardHeight > MIN_MEASURED_KEYBOARD_PX) {
-      keyboardPeakRef.current = Math.max(keyboardPeakRef.current, keyboardHeight);
-      measuredKeyboardRef.current = keyboardPeakRef.current;
-    }
     log("kb", {
-      keyboardHeight,
+      keyboardHeight: rawKeyboardHeight,
       source: hasNativeKeyboardHeight() ? "native" : "viewport",
       vvHeight: viewport?.height ?? null,
       innerHeight: window.innerHeight,
     });
     const pending = keyboardWaitRef.current;
-    if (pending && keyboardHeight > 0) {
+    if (pending && rawKeyboardHeight > 0) {
       window.clearTimeout(pending.timer);
       keyboardWaitRef.current = null;
       log("kb-shown", {
         trigger: pending.trigger,
         ms: Math.round(performance.now() - pending.startedAt),
-        keyboardHeight,
+        keyboardHeight: rawKeyboardHeight,
       });
     }
-  }, [keyboardHeight, log]);
+  }, [rawKeyboardHeight, log]);
+
+  // 预留从有值变为 0 时记录：原始键盘达到释放比例为 keyboard，否则为 timeout；退出编辑为 exit
+  useEffect(() => {
+    const previous = previousReservedRef.current;
+    previousReservedRef.current = reservedHeight;
+    if (previous <= 0 || reservedHeight > 0) return;
+    const keyboardHeight = rawKeyboardHeightRef.current;
+    const reachedRatio = keyboardHeight >= previous * KEYBOARD_RESERVE_RELEASE_RATIO;
+    const reason = exitReleaseRef.current ? "exit" : reachedRatio ? "keyboard" : "timeout";
+    exitReleaseRef.current = false;
+    log("reserve-release", { reason, keyboardHeight, reservedBefore: previous });
+  }, [reservedHeight, log]);
 
   useEffect(() => {
     const viewport = window.visualViewport;
@@ -211,7 +219,7 @@ export function EditorLabPage() {
     const timers = timersRef.current;
     return () => {
       if (keyboardWaitRef.current) window.clearTimeout(keyboardWaitRef.current.timer);
-      window.clearTimeout(releaseTimerRef.current);
+      cancelShowKeyboardRef.current?.();
       cancelSwapMeasureRef.current?.();
       timers.forEach(timer => window.clearTimeout(timer));
       timers.clear();
@@ -226,30 +234,16 @@ export function EditorLabPage() {
     timersRef.current.add(timer);
   };
 
-  const releaseReserve = (reason: "keyboard" | "timeout") => {
-    if (!releasePendingRef.current) return;
-    releasePendingRef.current = false;
-    window.clearTimeout(releaseTimerRef.current);
-    log("reserve-release", { reason, keyboardHeight: keyboardHeightRef.current });
-    setReservedInset(0);
-  };
-
-  const cancelReserveRelease = () => {
-    releasePendingRef.current = false;
-    window.clearTimeout(releaseTimerRef.current);
-  };
-
-  // 回到键盘后，键盘升到预留高度的 90% 即释放预留
-  useEffect(() => {
-    if (!releasePendingRef.current || reservedInset <= 0) return;
-    if (keyboardHeight >= reservedInset * RESERVE_RELEASE_RATIO) releaseReserve("keyboard");
-  });
-
   const waitForKeyboard = (trigger: string) => {
     if (keyboardWaitRef.current) window.clearTimeout(keyboardWaitRef.current.timer);
-    if (keyboardHeight > 0) {
+    if (rawKeyboardHeight > 0) {
       keyboardWaitRef.current = null;
-      log("kb-shown", { trigger, ms: 0, keyboardHeight, alreadyVisible: true });
+      log("kb-shown", {
+        trigger,
+        ms: 0,
+        keyboardHeight: rawKeyboardHeight,
+        alreadyVisible: true,
+      });
       return;
     }
     const startedAt = performance.now();
@@ -283,12 +277,13 @@ export function EditorLabPage() {
 
   const exitEditing = () => {
     const editor = editorRef.current?.getEditor();
-    editorRef.current?.getEditableElement()?.removeAttribute("inputmode");
-    cancelReserveRelease();
+    clearKeyboardSwap(editorRef.current?.getEditableElement());
+    cancelShowKeyboardRef.current?.();
     cancelSwapMeasureRef.current?.();
     panelOpenRef.current = false;
     setPanelOpen(false);
-    setReservedInset(0);
+    if (reservedHeight > 0) exitReleaseRef.current = true;
+    reservation.releaseNow();
     setEditing(false);
     if (!editor) return;
     lastSelectionRef.current = editor.selection ?? savedSelectionRef.current;
@@ -364,7 +359,7 @@ export function EditorLabPage() {
       reference: reference.name,
       readReferenceTop: reference.readTop,
       readRootHeight: () => rootRef.current?.getBoundingClientRect().height ?? 0,
-      readKeyboardHeight: () => keyboardHeightRef.current,
+      readKeyboardHeight: () => rawKeyboardHeightRef.current,
       onDone: result => {
         cancelSwapMeasureRef.current = null;
         log("swap-settle", result);
@@ -378,25 +373,20 @@ export function EditorLabPage() {
     const saved = editor.selection ?? lastSelectionRef.current;
     savedSelectionRef.current = saved;
     openStrategyRef.current = strategy;
-    const measured = measuredKeyboardRef.current;
-    const panelHeight = measured ?? Math.round(layoutHeight * FALLBACK_PANEL_RATIO);
-    const keyboardBefore = keyboardHeight;
-    cancelReserveRelease();
+    const panelHeight = resolvePanelHeight(keyboardViewport);
+    const keyboardBefore = rawKeyboardHeight;
+    cancelShowKeyboardRef.current?.();
     startSwapMeasure(editor, "open");
     panelOpenRef.current = true;
     flushSync(() => {
-      setReservedInset(panelHeight);
+      reservation.reserve(panelHeight);
       setPanelOpen(true);
     });
-    if (strategy === "blur") {
-      ReactEditor.blur(editor as ReactEditor);
-    } else {
-      editorRef.current?.getEditableElement()?.setAttribute("inputmode", "none");
-    }
+    hideKeyboard(editor, strategy, editorRef.current?.getEditableElement());
     log("panel-open", {
       strategy,
       panelHeight,
-      panelHeightSource: measured ? "measured" : "fallback",
+      panelHeightSource: panelHeight === lastKeyboardHeight ? "measured" : "fallback",
       keyboardBefore,
       saved,
     });
@@ -411,31 +401,37 @@ export function EditorLabPage() {
     }
   };
 
-  /** 面板关闭的共同收尾：隐藏面板、按键盘高度或超时释放预留、采样位移并检查选区 */
-  const closePanel = (trigger: PanelCloseTrigger, focusKeyboard: (editor: SlateEditor) => void) => {
+  /** 面板关闭的共同收尾：回到键盘、隐藏面板、按键盘高度或超时释放预留、采样位移并检查选区 */
+  const closePanel = (trigger: PanelCloseTrigger) => {
     const editor = editorRef.current?.getEditor();
     if (!editor || !panelOpenRef.current) return;
-    // 先置位，focusKeyboard 触发的编辑器 focus 不再进入 tap-editor 路径
+    // 先置位，回键盘触发的编辑器 focus 不再进入 tap-editor 路径
     panelOpenRef.current = false;
     const saved = savedSelectionRef.current;
     const openStrategy = openStrategyRef.current;
-    const keyboardBefore = keyboardHeight;
+    const keyboardBefore = rawKeyboardHeight;
     startSwapMeasure(editor, "close");
-    if (openStrategy === "inputmode") {
-      editorRef.current?.getEditableElement()?.removeAttribute("inputmode");
-    }
-    focusKeyboard(editor);
-    setPanelOpen(false);
-    releasePendingRef.current = true;
-    window.clearTimeout(releaseTimerRef.current);
-    releaseTimerRef.current = window.setTimeout(
-      () => releaseReserve("timeout"),
-      RESERVE_RELEASE_TIMEOUT_MS
+    cancelShowKeyboardRef.current?.();
+    // 用户点正文时选区由点击位置决定，不恢复保存的选区
+    cancelShowKeyboardRef.current = showKeyboard(
+      editor,
+      openStrategy,
+      editorRef.current?.getEditableElement(),
+      saved,
+      {
+        restoreSelection: trigger === "keyboard-button",
+        isKeyboardShown: () => rawKeyboardHeightRef.current > 0,
+        onFallback: () => {
+          log("inputmode-fallback", { trigger, keyboardHeight: rawKeyboardHeightRef.current });
+        },
+      }
     );
+    setPanelOpen(false);
+    reservation.releaseWhenKeyboardShown();
     log("panel-close", {
       trigger,
       strategy: openStrategy,
-      panelHeight: reservedInset,
+      panelHeight: reservedHeight,
       keyboardBefore,
       saved,
     });
@@ -451,26 +447,9 @@ export function EditorLabPage() {
     }, SELECTION_CHECK_MS);
   };
 
-  const returnToKeyboard = () => {
-    closePanel("keyboard-button", editor => {
-      const saved = savedSelectionRef.current;
-      if (openStrategyRef.current !== "inputmode") {
-        restoreSelectionAndFocus(editor, saved);
-        return;
-      }
-      later(() => {
-        if (keyboardHeightRef.current > 0) return;
-        editorRef.current?.getEditableElement()?.blur();
-        restoreSelectionAndFocus(editor, saved);
-        log("inputmode-fallback", { keyboardHeight: keyboardHeightRef.current });
-      }, INPUTMODE_FALLBACK_MS);
-    });
-  };
+  const returnToKeyboard = () => closePanel("keyboard-button");
 
-  // 用户点正文：选区由点击位置决定，不恢复保存的选区
-  const closePanelByEditorTap = () => {
-    closePanel("tap-editor", () => undefined);
-  };
+  const closePanelByEditorTap = () => closePanel("tap-editor");
 
   const runPanelAction = (action: PanelAction) => {
     const editor = editorRef.current?.getEditor();
@@ -556,7 +535,7 @@ export function EditorLabPage() {
     <div
       ref={rootRef}
       className="bg-page text-ink-1 fixed inset-x-0 top-0 flex flex-col"
-      style={{ height: Math.max(0, layoutHeight - bottomInset) }}
+      style={{ height: viewportHeight }}
     >
       <header className="border-line-1 flex shrink-0 items-center gap-2 border-b px-2 pb-2 pt-[calc(var(--mobile-safe-top)+6px)]">
         <button
@@ -595,7 +574,8 @@ export function EditorLabPage() {
               vv.h={viewport ? Math.round(viewport.height) : "-"} vv.top=
               {viewport ? Math.round(viewport.offsetTop) : "-"} native=
               {String(hasNativeKeyboardHeight())} focus={String(focusInEditor)}/
-              {String(editorFocused)} inset={bottomInset} reserved={reservedInset}
+              {String(editorFocused)} raw={rawKeyboardHeight} reserved={reservedHeight} effective=
+              {keyboardHeight} last={lastKeyboardHeight}
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               <button
@@ -624,7 +604,7 @@ export function EditorLabPage() {
               </button>
               <span className="border-line-1 inline-flex items-center overflow-hidden rounded border">
                 <span className="px-1.5 py-0.5">策略</span>
-                {DISMISS_STRATEGIES.map(option => (
+                {SWAP_STRATEGIES.map(option => (
                   <button
                     key={option}
                     type="button"
@@ -738,7 +718,7 @@ export function EditorLabPage() {
       {panelOpen ? (
         <div
           className="bg-surface fixed inset-x-0 bottom-0 flex flex-col gap-3 px-4 py-3"
-          style={{ height: reservedInset }}
+          style={{ height: reservedHeight }}
           onPointerDown={keepEditorFocus}
           onMouseDown={keepEditorFocus}
         >
@@ -755,7 +735,7 @@ export function EditorLabPage() {
             ))}
           </div>
           <p className="text-ink-2 font-mono text-[11px]">
-            策略：{openStrategyRef.current} · 高度 {reservedInset}px
+            策略：{openStrategyRef.current} · 高度 {reservedHeight}px
           </p>
         </div>
       ) : null}

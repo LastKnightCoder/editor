@@ -19,7 +19,7 @@ import { genId } from "./cardDraft";
 import { toggleBlank } from "./blank/flashcardBlankTransforms";
 import {
   MobileEditorBottomToolbar,
-  type ToolbarButtonId,
+  type AccessoryItemId,
 } from "../cards/editorToolbar/MobileEditorBottomToolbar";
 import { useMobileEditorToolbarController } from "../cards/editorToolbar/useMobileEditorToolbarController";
 import { createEmptyEditorContent, isEditorContentEmpty } from "../cards/editorContentUtils";
@@ -38,17 +38,23 @@ const bareInputClass =
 const editorClass =
   "bg-transparent text-ink-1 min-h-[110px] w-full px-1 py-1.5 text-[16px] font-bold leading-[1.7] outline-none";
 
-/** 工具栏裁剪为基础格式集，且与复习渲染器 RichContent 的能力对齐（能编辑的就能渲染）；
- *  颜色/高亮/链接/图片/插入面板（表格/公式等重节点）不在其中，仍可在桌面端插入 */
-const FLASHCARD_TOOLBAR_BUTTONS = new Set<ToolbarButtonId>([
+/** 配件栏与 Aa 面板裁剪为基础格式集，且与复习渲染器 RichContent 的能力对齐（能编辑的就能渲染）；
+ *  高亮/链接/图片/插入面板（表格/公式等重节点）不在其中，仍可在桌面端插入 */
+const FLASHCARD_TOOLBAR_BUTTONS = new Set<AccessoryItemId>([
+  "style",
+  "bulleted-list",
+  "outdent",
+  "indent",
+  "undo",
   "bold",
   "italic",
-  "strikethrough",
   "underline",
-  "heading",
-  "bulleted-list",
-  "numbered-list",
-  "quote",
+  "strikethrough",
+  "block-paragraph",
+  "block-heading",
+  "block-bulleted-list",
+  "block-numbered-list",
+  "block-quote",
 ]);
 
 type CardEditPageProps = {

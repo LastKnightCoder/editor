@@ -237,6 +237,28 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 - `RouterDevTools`（`src/router/devtools/`）：开发模式右下角面板，可视化
   screen/overlay 栈与 query 缓存（总数/stale 数）；生产构建零引入
 
+## 编辑器配件栏与键盘预留
+
+编辑页的格式工具是贴住键盘上沿的配件栏 `MobileEditorBottomToolbar`（`features/cards/editorToolbar/`），
+动作与选区由 `useMobileEditorToolbarController` 管理，宿主页面只传 controller / portalContainer / readonly / visibleButtons。
+
+- **键盘预留**：`KeyboardViewportProvider` 对外的 `keyboardHeight` / `viewportHeight` 与 `--kb-height` /
+  `--kb-viewport-height` 都是有效值 = max(真实键盘, 预留)；原始值见 `rawKeyboardHeight`，每轮键盘峰值见
+  `lastKeyboardHeight`（不足 100px 不记录）。`useKeyboardReservation()` 提供 reserve / releaseWhenKeyboardShown
+  （真实键盘升到 0.9 倍预留或 600ms 后释放）/ releaseNow。页面的键盘避让无需感知预留。
+- **面板占用键盘位置**：点 Aa（`StylePanel`）或 +（`InsertPanel`）时，先 reserve(面板高度) 再收键盘，面板
+  `fixed` 在视口底部、高度 = 预留；回键盘时先聚焦再关面板、按上述条件释放预留，切换期间页面高度不变。
+  面板高度取 `resolvePanelHeight`（最近键盘高度，未测到取视口 38%）。插入面板搜索时面板移到键盘上方，
+  预留 = max(原面板高度, 键盘 + 220px)。
+- **收键盘策略**：`keyboardSwap.ts` 封装 `blur`（默认）与 `inputmode`（`inputmode="none"` 保留焦点）两种。
+- **面板态的动作**：面板打开期间编辑器已失焦，controller 的动作作用于打开时保存的 `panelSelection` 且不聚焦，
+  执行后选区写回 `panelSelection`；需要输入浮层的动作（链接、批注）先回键盘再执行。点正文 = 只关面板，
+  选区落在点击处。
+- **两种模式**：折叠选区为通用模式（+ / Aa / 待办 / 列表 / 缩进 / 关联内容 / 图片 / 撤销）；有展开选区时切为格式模式
+  （行内样式，左端「格式」标签点击折叠选区）。`visibleButtons` 以 `AccessoryItemId` 同时过滤配件栏与 Aa 面板。
+- **开发实验页**：`features/editorLab/`（仅开发构建注册，入口 RouterDevTools「editor lab」）用同一套预留与收键盘策略，
+  可切换策略并复制键盘、位移、输入法、选区恢复日志，用于真机验证。
+
 ## 主题与样式
 
 移动端不自带主题，主题、明暗与色值全部来自 `@tau/themes`，与桌面端同一套（机制见 [design-system.md](/docs/architecture/design-system.md) §2.4）：

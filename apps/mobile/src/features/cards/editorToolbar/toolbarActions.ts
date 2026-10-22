@@ -229,6 +229,82 @@ export function toggleQuoteBlock(editor: Editor): void {
   );
 }
 
+/** 「转换为」面板识别的当前块类型 */
+export type CurrentBlockKind =
+  | "paragraph"
+  | "h1"
+  | "h2"
+  | "h3"
+  | "check-list"
+  | "bulleted-list"
+  | "numbered-list"
+  | "quote"
+  | "other";
+
+const BLOCK_CONTAINER_TYPES = new Set(["list-item", "check-list-item", "blockquote"]);
+
+/** 列表项 / 待办项 / 引用容器映射为块类型；列表项取父容器的列表类型 */
+function containerBlockKind(editor: Editor, node: TypedElement, path: Path): CurrentBlockKind {
+  if (node.type === "check-list-item") return "check-list";
+  if (node.type === "blockquote") return "quote";
+  const parentType = (Node.parent(editor, path) as TypedElement).type;
+  return parentType === "bulleted-list" || parentType === "numbered-list" ? parentType : "other";
+}
+
+/** 取选区锚点所在最内层文本块判断块类型：标题看 level，段落再看最近的列表项 / 待办项 / 引用祖先 */
+export function getBlockKindAt(editor: Editor, selection: BaseSelection): CurrentBlockKind {
+  if (!selection || !Node.has(editor, selection.anchor.path)) return "other";
+  const blockEntry = Editor.above<TypedElement>(editor, {
+    at: selection.anchor,
+    mode: "lowest",
+    match: node => Element.isElement(node) && Editor.isBlock(editor, node),
+  });
+  if (!blockEntry) return "other";
+  const [block, blockPath] = blockEntry;
+  if (block.type === "header") {
+    if (block.level === 1) return "h1";
+    if (block.level === 2) return "h2";
+    if (block.level === 3) return "h3";
+    return "other";
+  }
+  if (BLOCK_CONTAINER_TYPES.has(block.type ?? "")) {
+    return containerBlockKind(editor, block, blockPath);
+  }
+  if (block.type !== "paragraph") return "other";
+  const containerEntry = Editor.above<TypedElement>(editor, {
+    at: blockPath,
+    mode: "lowest",
+    match: node =>
+      Element.isElement(node) && BLOCK_CONTAINER_TYPES.has((node as TypedElement).type ?? ""),
+  });
+  return containerEntry
+    ? containerBlockKind(editor, containerEntry[0], containerEntry[1])
+    : "paragraph";
+}
+
+/**
+ * 读取选区文本 marks 用于面板选中态。折叠选区以光标处文本 marks 为底，叠加待输入 marks 中已设置的键：
+ * 对选区应用样式后会折叠并清掉待输入 marks（避免续写沾色），只读待输入 marks 会丢失刚应用的样式。
+ */
+export function getSelectionMarks(editor: Editor): Record<string, unknown> | null {
+  if (!editor.selection) return null;
+  if (Range.isExpanded(editor.selection) || !editor.marks) {
+    return (Editor.marks(editor) as Record<string, unknown> | null) ?? null;
+  }
+  const pending = editor.marks as Record<string, unknown>;
+  editor.marks = null;
+  try {
+    const textMarks = (Editor.marks(editor) as Record<string, unknown> | null) ?? {};
+    const merged: Record<string, unknown> = { ...textMarks };
+    for (const [key, value] of Object.entries(pending)) {
+      if (value) merged[key] = value;
+    }
+    return merged;
+  } finally {
+    editor.marks = pending as Editor["marks"];
+  }
+}
+
 /** 在当前块后插入分割线（void 块） */
 export function insertDividerBlock(editor: Editor): void {
   Transforms.insertNodes(

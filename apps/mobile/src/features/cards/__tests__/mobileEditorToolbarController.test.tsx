@@ -2,7 +2,14 @@ import { act, useEffect, type RefObject } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EditorRef } from "@tau/editor";
-import { Editor, Element, createEditor, type BaseSelection, type Descendant } from "slate";
+import {
+  Editor,
+  Element,
+  Transforms,
+  createEditor,
+  type BaseSelection,
+  type Descendant,
+} from "slate";
 import { ReactEditor } from "slate-react";
 
 const { openLocalMediaPickerMock, openMediaUrlInputMock } = vi.hoisted(() => ({
@@ -18,6 +25,16 @@ vi.mock("@tau/editor/extensions/media", async importOriginal => ({
   ...(await importOriginal<typeof import("@tau/editor/extensions/media")>()),
   openLocalMediaPicker: (...args: unknown[]) => openLocalMediaPickerMock(...args),
   openMediaUrlInput: (...args: unknown[]) => openMediaUrlInputMock(...args),
+}));
+
+const reservation = vi.hoisted(() => ({
+  reserve: vi.fn(),
+  releaseWhenKeyboardShown: vi.fn(),
+  releaseNow: vi.fn(),
+}));
+vi.mock("../../../components/KeyboardViewportProvider", async importOriginal => ({
+  ...(await importOriginal<typeof import("../../../components/KeyboardViewportProvider")>()),
+  useKeyboardReservation: () => reservation,
 }));
 
 import type { ContentLinkPickerResult } from "../editorExtensions/ContentLinkPickerSheet";
@@ -409,10 +426,7 @@ describe("useMobileEditorToolbarController", () => {
     const mediaController = mountController(mediaEditor);
     act(() => {
       mediaController.syncSelection();
-      mediaController.handleOpenInsertSheet();
-      vi.runAllTimers();
     });
-    expect(requireController(latestController).isInsertSheetOpen).toBe(true);
 
     openLocalMediaPickerMock.mockClear();
     act(() => {
@@ -453,7 +467,6 @@ describe("useMobileEditorToolbarController", () => {
     insertCase("table", "table");
     insertCase("check-list", "check-list");
     insertCase("divider", "divide-line");
-    insertCase("kbd", "kbd");
     // 扩充的桌面 slash 菜单子集：块结构 / 高级块
     insertCase("tabs", "tabs");
     insertCase("details", "detail");
@@ -461,12 +474,6 @@ describe("useMobileEditorToolbarController", () => {
     insertCase("callout", "callout");
     insertCase("math", "block-math");
     insertCase("mermaid", "mermaid");
-
-    const sheetController = requireController(latestController);
-    act(() => {
-      sheetController.handleCloseInsertSheet();
-    });
-    expect(requireController(latestController).isInsertSheetOpen).toBe(false);
   });
 
   it("handleInsertImage 应直达选图入口", () => {
@@ -539,5 +546,357 @@ describe("useMobileEditorToolbarController", () => {
       controller.handleEditorBlur();
     });
     expect(requireController(latestController).isEditorFocused).toBe(false);
+  });
+
+  function renderController(editor: Editor) {
+    const editorRef = createEditorRef(editor);
+    let latestController: MobileEditorToolbarController | null = null;
+    act(() => {
+      root.render(
+        <ControllerProbe
+          editorRef={editorRef}
+          onController={controller => {
+            latestController = controller;
+          }}
+        />
+      );
+    });
+    return () => requireController(latestController);
+  }
+
+  function createListEditor(
+    listType: "bulleted-list" | "check-list",
+    selection: BaseSelection
+  ): Editor {
+    const itemType = listType === "check-list" ? "check-list-item" : "list-item";
+    const editor = createEditor();
+    editor.children = [
+      {
+        type: listType,
+        children: ["第一项", "第二项"].map(text => ({
+          type: itemType,
+          children: [{ type: "paragraph", children: [{ type: "formatted", text }] }],
+        })),
+      },
+    ] as unknown as Descendant[];
+    editor.selection = selection;
+    return editor;
+  }
+
+  it("打开面板：保存选区、预留高度并收起键盘；面板期间失焦仍显示配件栏", () => {
+    reservation.reserve.mockClear();
+    const editor = createFormattedEditor();
+    const savedSelection = editor.selection;
+    const getController = renderController(editor);
+
+    act(() => {
+      getController().handleEditorFocus();
+    });
+    act(() => {
+      getController().openPanel("style", 280);
+    });
+    act(() => {
+      getController().handleEditorBlur();
+    });
+
+    const controller = getController();
+    expect(reservation.reserve).toHaveBeenCalledWith(280);
+    expect(ReactEditor.blur).toHaveBeenCalled();
+    expect(controller.activePanel).toBe("style");
+    expect(controller.panelSelection).toEqual(savedSelection);
+    expect(controller.isEditorFocused).toBe(false);
+    expect(controller.isToolbarVisible).toBe(true);
+
+    // 切换到另一面板不再重复预留
+    act(() => {
+      getController().togglePanel("insert", 280);
+    });
+    expect(getController().activePanel).toBe("insert");
+    expect(reservation.reserve).toHaveBeenCalledTimes(1);
+  });
+
+  it("同一面板再点回到键盘：恢复选区并聚焦，等键盘弹出后释放预留", () => {
+    reservation.releaseWhenKeyboardShown.mockClear();
+    const editor = createFormattedEditor();
+    const savedSelection = editor.selection;
+    const getController = renderController(editor);
+
+    act(() => {
+      getController().openPanel("insert", 280);
+    });
+    editor.selection = null;
+    vi.mocked(ReactEditor.focus).mockClear();
+
+    act(() => {
+      getController().togglePanel("insert", 280);
+    });
+    // 回键盘触发的 focus 不再走点正文路径
+    act(() => {
+      getController().handleEditorFocus();
+    });
+
+    expect(editor.selection).toEqual(savedSelection);
+    expect(ReactEditor.focus).toHaveBeenCalled();
+    expect(getController().activePanel).toBeNull();
+    expect(getController().isToolbarVisible).toBe(true);
+    expect(reservation.releaseWhenKeyboardShown).toHaveBeenCalledTimes(1);
+  });
+
+  it("面板打开时点正文：只关面板，不恢复选区也不主动聚焦", () => {
+    reservation.releaseWhenKeyboardShown.mockClear();
+    const editor = createFormattedEditor();
+    const getController = renderController(editor);
+
+    act(() => {
+      getController().openPanel("style", 280);
+    });
+    const tappedSelection = {
+      anchor: { path: [0, 0], offset: 8 },
+      focus: { path: [0, 0], offset: 8 },
+    };
+    editor.selection = tappedSelection;
+    vi.mocked(ReactEditor.focus).mockClear();
+
+    act(() => {
+      getController().handleEditorFocus();
+    });
+
+    expect(getController().activePanel).toBeNull();
+    expect(getController().isEditorFocused).toBe(true);
+    expect(editor.selection).toEqual(tappedSelection);
+    expect(ReactEditor.focus).not.toHaveBeenCalled();
+    expect(reservation.releaseWhenKeyboardShown).toHaveBeenCalledTimes(1);
+  });
+
+  it("runInPanel 与面板期间的配件栏动作作用于面板选区且不聚焦", () => {
+    const editor = createFormattedEditor();
+    const getController = renderController(editor);
+
+    act(() => {
+      getController().openPanel("style", 280);
+    });
+    editor.selection = null;
+    vi.mocked(ReactEditor.focus).mockClear();
+
+    act(() => {
+      getController().runInPanel(panelEditor => {
+        Editor.addMark(panelEditor, "italic", true);
+        Transforms.select(panelEditor, {
+          anchor: { path: [0, 0], offset: 0 },
+          focus: { path: [0, 0], offset: 2 },
+        });
+      });
+    });
+    expect(Editor.marks(editor)).toMatchObject({ italic: true });
+    expect(getController().panelSelection).toEqual({
+      anchor: { path: [0, 0], offset: 0 },
+      focus: { path: [0, 0], offset: 2 },
+    });
+
+    editor.selection = null;
+    act(() => {
+      getController().executeAction("bold");
+    });
+    expect(editor.children).toMatchObject([
+      { children: [{ text: "he", italic: true, bold: true }, { text: "llo", italic: true }, {}] },
+    ]);
+    expect(ReactEditor.focus).not.toHaveBeenCalled();
+  });
+
+  it("插入面板内插入块：作用于面板选区且不聚焦，面板选区同步为插入后的选区", () => {
+    const editor = createFormattedEditor();
+    const getController = renderController(editor);
+
+    act(() => {
+      getController().openPanel("insert", 280);
+    });
+    editor.selection = null;
+    vi.mocked(ReactEditor.focus).mockClear();
+
+    act(() => {
+      getController().handleSelectInsertItem("divider");
+    });
+    expect(hasNodeType(editor, "divide-line")).toBe(true);
+    expect(ReactEditor.focus).not.toHaveBeenCalled();
+    const insertedSelection = editor.selection;
+    expect(insertedSelection).toBeTruthy();
+    expect(getController().panelSelection).toEqual(insertedSelection);
+
+    act(() => {
+      getController().closePanel({ showKeyboard: true, restoreSelection: true });
+    });
+    expect(editor.selection).toEqual(insertedSelection);
+    expect(ReactEditor.focus).toHaveBeenCalled();
+    expect(getController().activePanel).toBeNull();
+  });
+
+  it("exitEditing 关面板、立即释放预留并失焦", () => {
+    reservation.releaseNow.mockClear();
+    const editor = createFormattedEditor();
+    const getController = renderController(editor);
+
+    act(() => {
+      getController().openPanel("style", 280);
+    });
+    vi.mocked(ReactEditor.blur).mockClear();
+    vi.mocked(ReactEditor.isFocused).mockReturnValue(true);
+    act(() => {
+      getController().exitEditing();
+    });
+
+    expect(getController().activePanel).toBeNull();
+    expect(reservation.releaseNow).toHaveBeenCalled();
+    expect(ReactEditor.blur).toHaveBeenCalled();
+  });
+
+  it("hasExpandedSelection 随选区刷新，collapseSelectionToFocus 折叠到焦点端", () => {
+    const editor = createFormattedEditor();
+    const getController = renderController(editor);
+
+    act(() => {
+      getController().syncSelection();
+    });
+    expect(getController().hasExpandedSelection).toBe(true);
+
+    act(() => {
+      getController().collapseSelectionToFocus();
+    });
+    expect(editor.selection).toEqual({
+      anchor: { path: [0, 0], offset: 5 },
+      focus: { path: [0, 0], offset: 5 },
+    });
+    expect(getController().hasExpandedSelection).toBe(false);
+  });
+
+  it("缩进按最内层列表项类型选命令，在列表项开头执行后回到原选区", () => {
+    const caret = {
+      anchor: { path: [0, 1, 0, 0], offset: 2 },
+      focus: { path: [0, 1, 0, 0], offset: 2 },
+    };
+    const editor = createListEditor("bulleted-list", caret);
+    const selectionsAtExecute: BaseSelection[] = [];
+    const execute = vi.fn<(id: string) => boolean>(() => {
+      selectionsAtExecute.push(editor.selection);
+      return true;
+    });
+    editor.commands = { execute };
+    const getController = renderController(editor);
+
+    act(() => {
+      getController().indent();
+    });
+    expect(execute).toHaveBeenCalledWith("tau.list-item.indent");
+    expect(selectionsAtExecute[0]).toEqual({
+      anchor: { path: [0, 1, 0, 0], offset: 0 },
+      focus: { path: [0, 1, 0, 0], offset: 0 },
+    });
+    expect(editor.selection).toEqual(caret);
+    expect(getController().canIndent).toBe(true);
+
+    const checkEditor = createListEditor("check-list", caret);
+    const checkExecute = vi.fn<(id: string) => boolean>(() => true);
+    checkEditor.commands = { execute: checkExecute };
+    const getCheckController = renderController(checkEditor);
+    act(() => {
+      getCheckController().outdent();
+    });
+    expect(checkExecute).toHaveBeenCalledWith("tau.check-list.outdent");
+  });
+
+  it("光标不在列表项内时缩进不执行命令", () => {
+    const editor = createFormattedEditor();
+    const execute = vi.fn<(id: string) => boolean>(() => true);
+    editor.commands = { execute };
+    const getController = renderController(editor);
+
+    act(() => {
+      getController().indent();
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+  it("getCurrentBlockKind 取最内层相关块类型，面板打开时按面板选区", () => {
+    const paragraph = (text: string) => ({
+      type: "paragraph",
+      children: [{ type: "formatted", text }],
+    });
+    const list = (listType: string, itemType: string, text: string) => ({
+      type: listType,
+      children: [{ type: itemType, children: [paragraph(text)] }],
+    });
+    const editor = createEditor();
+    editor.children = [
+      paragraph("正文"),
+      { type: "header", level: 1, children: [{ type: "formatted", text: "一" }] },
+      { type: "header", level: 3, children: [{ type: "formatted", text: "三" }] },
+      list("bulleted-list", "list-item", "无序"),
+      list("numbered-list", "list-item", "编号"),
+      list("check-list", "check-list-item", "待办"),
+      { type: "blockquote", children: [paragraph("引用")] },
+      { type: "blockquote", children: [list("numbered-list", "list-item", "引用内列表")] },
+      { type: "header", level: 4, children: [{ type: "formatted", text: "四" }] },
+      { type: "code-block", children: [{ type: "formatted", text: "code" }] },
+    ] as unknown as Descendant[];
+    const caretAt = (path: number[]): BaseSelection => ({
+      anchor: { path, offset: 0 },
+      focus: { path, offset: 0 },
+    });
+    editor.selection = caretAt([0, 0]);
+    const getController = renderController(editor);
+
+    const cases: Array<[number[], string]> = [
+      [[0, 0], "paragraph"],
+      [[1, 0], "h1"],
+      [[2, 0], "h3"],
+      [[3, 0, 0, 0], "bulleted-list"],
+      [[4, 0, 0, 0], "numbered-list"],
+      [[5, 0, 0, 0], "check-list"],
+      [[6, 0, 0], "quote"],
+      [[7, 0, 0, 0, 0], "numbered-list"],
+      [[8, 0], "other"],
+      [[9, 0], "other"],
+    ];
+    for (const [path, kind] of cases) {
+      editor.selection = caretAt(path);
+      act(() => {
+        getController().syncSelection();
+      });
+      expect(getController().getCurrentBlockKind(), path.join(".")).toBe(kind);
+    }
+
+    editor.selection = caretAt([1, 0]);
+    act(() => {
+      getController().openPanel("style", 280);
+    });
+    // 面板打开期间编辑器选区被清空，仍按面板选区判断
+    editor.selection = null;
+    act(() => {
+      getController().handleEditorBlur();
+    });
+    expect(getController().getCurrentBlockKind()).toBe("h1");
+  });
+
+  it("getCurrentMarks 含刚应用到选区与光标处的样式，无选区为 null", () => {
+    const editor = createFormattedEditor("hello", {
+      anchor: { path: [0, 0], offset: 0 },
+      focus: { path: [0, 0], offset: 5 },
+    });
+    const getController = renderController(editor);
+    act(() => {
+      getController().applyHighlightMark("green");
+    });
+    expect(getController().getCurrentMarks()).toMatchObject({ highlight: "green" });
+    // 光标处应用的待输入样式同样计入
+    act(() => {
+      getController().applyColorMark("#e33a32", "#fa7873");
+    });
+    expect(getController().getCurrentMarks()).toMatchObject({
+      highlight: "green",
+      color: "#e33a32",
+    });
+    editor.selection = null;
+    act(() => {
+      getController().syncSelection();
+    });
+    expect(getController().getCurrentMarks()).toBeNull();
   });
 });

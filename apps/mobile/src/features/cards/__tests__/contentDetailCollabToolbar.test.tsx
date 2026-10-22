@@ -53,9 +53,6 @@ vi.mock("../editorExtensions/ContentLinkPickerSheet", () => ({
   __esModule: true,
   default: () => null,
 }));
-vi.mock("@tau/editor/toolbar", () => ({
-  calculateFloatingPosition: () => ({ left: 8, top: 8, placement: "top" }),
-}));
 
 /** 模拟内核 Editor：ref 暴露 getEditor，焦点回调直连（与 @tau/editor 一致） */
 // 页面测试不渲染真实编辑器，kit 也不必真实构造
@@ -70,7 +67,11 @@ vi.mock("@tau/editor", async importOriginal => {
     props: Record<string, unknown>,
     ref: unknown
   ) {
-    React.useImperativeHandle(ref as never, () => ({ getEditor: () => harness.slateEditor }), []);
+    React.useImperativeHandle(
+      ref as never,
+      () => ({ getEditor: () => harness.slateEditor, getEditableElement: () => null }),
+      []
+    );
     harness.documents.push(props.document);
     return React.createElement("div", {
       "data-testid": "editor",
@@ -178,8 +179,8 @@ describe("ContentDetailPage 协作态的底部工具条", () => {
     await focusCollabEditor();
     const toolbar = document.querySelector(TOOLBAR_SELECTOR);
     expect(toolbar).not.toBeNull();
-    // 控制器拿到的是协作编辑器：格式按钮随之可用（此前 ref 为空时按钮全哑）
-    expect(toolbar?.querySelector('[aria-label="加粗"]')).not.toBeNull();
+    // 控制器拿到的是协作编辑器：配件栏按钮随之可用（此前 ref 为空时按钮全哑）
+    expect(toolbar?.querySelector('[aria-label="无序列表"]')).not.toBeNull();
   });
 
   it("失焦后收起工具条", async () => {
