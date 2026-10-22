@@ -50,6 +50,21 @@ describe("对象动作", () => {
     registered[0].run({ kind: "card", id: "7", extra: 1 } as never);
     expect(run).toHaveBeenCalledWith({ kind: "card", id: "7" });
     expect(Object.isFrozen(run.mock.calls[0][0])).toBe(true);
+    context.actions.register({ id: "msg", title: "记下", targets: ["chat-message"], run });
+    registered[1].run({
+      kind: "chat-message",
+      session: { kind: "chat-session", id: "s1", title: "x" } as never,
+      messageIds: ["e1", "e2"],
+      role: "assistant",
+      text: "回答",
+    });
+    expect(run).toHaveBeenLastCalledWith({
+      kind: "chat-message",
+      session: { kind: "chat-session", id: "s1" },
+      messageIds: ["e1", "e2"],
+      role: "assistant",
+      text: "回答",
+    });
     await host.dispose();
   });
 

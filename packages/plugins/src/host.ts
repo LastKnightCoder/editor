@@ -33,7 +33,12 @@ import {
   type PluginSidebarItemUpdate,
 } from "./sidebar";
 import type { PluginHomePanelDefinition } from "./home";
-import { PLUGIN_ACTION_TARGET_KINDS, type PluginActionDefinition } from "./actions";
+import {
+  PLUGIN_ACTION_TARGET_KINDS,
+  snapshotActionTarget,
+  type PluginActionDefinition,
+  type PluginActionTargetKind,
+} from "./actions";
 import {
   CONTENT_INPUT_LIMITS,
   EDITOR_NODE_SCHEMA_VERSION,
@@ -2947,8 +2952,9 @@ export class PluginHost {
         dragType: (type: string) => sidebarDragType(scope.pluginId, type),
       }),
       actions: Object.freeze({
-        register: (definition: PluginActionDefinition) => {
+        register: <K extends PluginActionTargetKind>(input: PluginActionDefinition<K>) => {
           this.assertActive(entry, activation);
+          const definition = input as unknown as PluginActionDefinition;
           assertLocalId(definition.id);
           if (typeof definition.title !== "string" || !definition.title.trim())
             throw new Error("对象动作标题不能为空");
@@ -2976,7 +2982,7 @@ export class PluginHost {
                 run: (target: Parameters<PluginActionDefinition["run"]>[0]) => {
                   this.assertActive(entry, activation);
                   if (removed) throw new Error("对象动作已注销");
-                  return run(Object.freeze({ kind: target.kind, id: target.id }));
+                  return run(snapshotActionTarget(target));
                 },
               })
             )

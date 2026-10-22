@@ -6,6 +6,8 @@
 
 import type { ReactNode } from "react";
 import { Menu } from "@tau/ui";
+import type { PluginActionTarget } from "@tau/plugins";
+import { pluginActionIcon, usePluginActions } from "@/app/plugins/action-menu";
 
 export interface MenuEntry {
   key: string;
@@ -43,4 +45,52 @@ export function renderMenuEntries(
       </Menu.Item>
     )
   );
+}
+
+/** 插件对象动作在「⋯」菜单里的 key 前缀，其后为动作的 ID */
+export const PLUGIN_ACTION_KEY_PREFIX = "plugin-action:";
+
+/** 插件动作排在内置项之后、删除之前，自带一条分隔线 */
+export function insertPluginActionEntries(
+  entries: MenuEntryList,
+  actions: readonly { id: string; label: string; icon?: ReactNode }[]
+): MenuEntryList {
+  if (!actions.length) return entries;
+  const plugin: MenuEntryList = [
+    { key: `${PLUGIN_ACTION_KEY_PREFIX}divider`, label: "", divider: true },
+    ...actions.map(action => ({
+      key: `${PLUGIN_ACTION_KEY_PREFIX}${action.id}`,
+      label: action.label,
+      icon: action.icon,
+    })),
+  ];
+  const index = entries.findIndex(entry => entry.key === "remove-divider");
+  return index < 0
+    ? [...entries, ...plugin]
+    : [...entries.slice(0, index), ...plugin, ...entries.slice(index)];
+}
+
+/** 数据驱动的菜单接插件对象动作：insert 加条目，select 处理插件条目（返回 true 表示已处理） */
+export function usePluginMenuEntries(target: PluginActionTarget | null): {
+  insert(entries: MenuEntryList): MenuEntryList;
+  select(key: string): boolean;
+} {
+  const { actions, run } = usePluginActions(target);
+  return {
+    insert: entries =>
+      insertPluginActionEntries(
+        entries,
+        actions.map(action => ({
+          id: action.id,
+          label: action.definition.title,
+          icon: pluginActionIcon(action),
+        }))
+      ),
+    select: key => {
+      if (!key.startsWith(PLUGIN_ACTION_KEY_PREFIX)) return false;
+      const action = actions.find(item => item.id === key.slice(PLUGIN_ACTION_KEY_PREFIX.length));
+      if (action) run(action);
+      return true;
+    },
+  };
 }

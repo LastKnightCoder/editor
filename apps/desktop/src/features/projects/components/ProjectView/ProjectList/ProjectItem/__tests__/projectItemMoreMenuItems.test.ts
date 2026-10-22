@@ -13,11 +13,8 @@ const electronMocks = vi.hoisted(() => ({
 }));
 vi.mock("@/electron", () => electronMocks);
 
-import {
-  getProjectItemMoreMenuItems,
-  insertPluginActionEntries,
-  projectItemActionTarget,
-} from "../projectItemMoreMenuItems";
+import { getProjectItemMoreMenuItems, projectItemActionTarget } from "../projectItemMoreMenuItems";
+import { insertPluginActionEntries } from "../../../shared/menuEntries";
 
 describe("getProjectItemMoreMenuItems", () => {
   const getKeys = (items: ReturnType<typeof getProjectItemMoreMenuItems>) =>
