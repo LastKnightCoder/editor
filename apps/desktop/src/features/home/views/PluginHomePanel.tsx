@@ -1,5 +1,5 @@
 /**
- * 插件首页面板（PS-046 2.8b）：宿主画面板外框与标题（含「⋯」），插件组件只渲染正文；
+ * 插件首页面板（PS-046 2.8b）：宿主画面板外框与标题，插件组件只渲染正文；
  * 正文为空时整块不显示（HomePanels 按 [data-home-panel-body]:empty 隐藏外层）。
  * 渲染出错只影响这一块，可重试。
  */
@@ -9,7 +9,6 @@ import { RecoverableBoundary } from "@/components/ErrorState";
 import { PluginComponentScope } from "@/app/plugins/content-components";
 import type { RegisteredPluginHomePanel } from "@/app/plugins/runtime";
 import type { HomePanelDefinition } from "../layout";
-import { HomePanelMenu } from "./HomePanels";
 
 function PluginHomePanel({ panel }: { panel: RegisteredPluginHomePanel }) {
   const Component = panel.definition.component;
@@ -17,7 +16,6 @@ function PluginHomePanel({ panel }: { panel: RegisteredPluginHomePanel }) {
     <Panel variant="outline" pad="compact">
       <PanelTitle className="mb-2.5">
         <span className="min-w-0 truncate">{panel.definition.title}</span>
-        <HomePanelMenu />
       </PanelTitle>
       <RecoverableBoundary
         key={panel.mountId}

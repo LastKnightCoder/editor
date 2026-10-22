@@ -8,7 +8,6 @@ import { usePage } from "@/page/PageProvider";
 import { EmptyNote, Panel, PanelAction, PanelNote, PanelTitle } from "@tau/ui";
 import { useHomeSnapshot } from "../../queries";
 import type { ReviewDeckLite } from "../../types";
-import { HomePanelMenu } from "../HomePanels";
 
 const ROW =
   "rounded-tau-sm ease-tau-out hover:bg-hover w-full text-left transition-[background] duration-[160ms]";
@@ -29,7 +28,6 @@ export function ReviewPanel() {
           前往复习
           <ChevronRight size={13} strokeWidth={1.75} />
         </PanelAction>
-        <HomePanelMenu />
       </PanelTitle>
       {data.reviewDecks.length > 0 ? (
         data.reviewDecks.map(deck => (
@@ -59,7 +57,6 @@ export function TodosPanel() {
           前往待办
           <ChevronRight size={13} strokeWidth={1.75} />
         </PanelAction>
-        <HomePanelMenu />
       </PanelTitle>
       {data.todos.length > 0 ? (
         data.todos.map(todo => (
@@ -108,7 +105,6 @@ export function SchedulePanel() {
           前往日程
           <ChevronRight size={13} strokeWidth={1.75} />
         </PanelAction>
-        <HomePanelMenu />
       </PanelTitle>
       {data.events.length > 0 ? (
         <div className="before:bg-sunken relative pl-3.5 before:absolute before:bottom-2.5 before:left-[3.5px] before:top-2.5 before:w-[1.5px] before:rounded-[1px] before:content-['']">

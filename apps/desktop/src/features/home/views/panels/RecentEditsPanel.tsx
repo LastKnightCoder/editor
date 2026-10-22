@@ -7,7 +7,6 @@ import { usePage } from "@/page/PageProvider";
 import { EmptyNote, Panel, PanelNote, PanelTitle } from "@tau/ui";
 import { useHomeSnapshot } from "../../queries";
 import type { RecentEdit } from "../../types";
-import { HomePanelMenu } from "../HomePanels";
 
 const KIND_LABEL = {
   card: "卡片",
@@ -47,7 +46,6 @@ export function RecentEditsPanel() {
       <PanelTitle className="mb-2.5">
         最近编辑
         <PanelNote>卡片 · 文章 · 日记 · 项目</PanelNote>
-        <HomePanelMenu />
       </PanelTitle>
       <div className="@max-[1180px]:grid-cols-2 @max-[860px]:grid-cols-1 grid grid-cols-3 gap-x-6 gap-y-0">
         {data.recentEdits.length > 0 ? (

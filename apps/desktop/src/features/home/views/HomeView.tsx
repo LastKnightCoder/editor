@@ -1,7 +1,7 @@
 /**
  * 今日视图（原统计页并入）—— 一整张纸：纸顶固定问候与今天的数字（hero，不是面板），
- * 下方按首页布局渲染面板（D-182）：内置面板见 ../panels.ts，用户经面板「⋯」调整顺序与隐藏，
- * 布局随笔记库保存。同一份数据全页只出现一次；每一行点击都落到具体项，目标页经页面参数定位。
+ * 下方按首页布局渲染面板（D-182）：内置面板见 ../panels.ts，用户经纸顶「调整首页」进入编辑模式，
+ * 拖动调整顺序与隐藏，布局随笔记库保存。同一份数据全页只出现一次；每一行点击都落到具体项，目标页经页面参数定位。
  *
  * 模块分工：专注 = 番茄钟（pomodoro 页 / pomodoro 命令）；
  * 日程 = calendar 命令 + schedule page。两者独立，勿混用。
@@ -11,8 +11,9 @@
  */
 
 import { useState } from "react";
-import { usePage } from "@/page/PageProvider";
-import { Loading, FadeScroll } from "@tau/ui";
+import { LayoutDashboard } from "lucide-react";
+import { usePage, useOverlayDismiss } from "@/page/PageProvider";
+import { Button, IconButton, Loading, FadeScroll, cn } from "@tau/ui";
 import { useHomeSnapshot, minutesToHM } from "../queries";
 import { useHomeLayout } from "../layoutQueries";
 import { BUILTIN_HOME_PANELS } from "../panels";
@@ -31,6 +32,9 @@ export function HomeView() {
     ...BUILTIN_HOME_PANELS,
     ...(plugins?.listHomePanels() ?? []).map(pluginHomePanel),
   ];
+  // 编辑模式：拖动调整面板，Esc 经浮层仲裁退出（D-003）
+  const [editing, setEditing] = useState(false);
+  useOverlayDismiss(() => setEditing(false), editing);
   // 纸内滚动容器：回顾段懒加载以它为可见性根（state 而非 ref，挂载后触发回顾段重新接线）
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
 
@@ -71,7 +75,34 @@ export function HomeView() {
             条<span className="text-ink-3 mx-2">·</span>连续活跃{" "}
             <b className="text-accent-text font-semibold">{data.heatmap.streak}</b> 天
           </span>
+          <IconButton
+            aria-label="调整首页"
+            aria-pressed={editing}
+            title={editing ? "完成调整" : "调整首页"}
+            onClick={() => setEditing(!editing)}
+            className={cn("-my-1 size-7 shrink-0 self-center", editing && "bg-selected text-ink-1")}
+          >
+            <LayoutDashboard className="size-[15px]" strokeWidth={1.75} />
+          </IconButton>
         </header>
+        {editing && (
+          <div className="bg-accent-soft rounded-tau-sm mx-8 mb-2 flex flex-none items-center gap-3 px-3 py-1.5">
+            <span className="text-tau-meta text-ink-2 min-w-0 truncate">
+              拖动面板调整顺序，拖到末尾「已隐藏」区即隐藏；把手获得焦点时也可用方向键移动
+            </span>
+            <Button size="sm" variant="ghost" className="ml-auto shrink-0" onClick={() => save([])}>
+              恢复默认
+            </Button>
+            <Button
+              size="sm"
+              variant="primary"
+              className="shrink-0"
+              onClick={() => setEditing(false)}
+            >
+              完成
+            </Button>
+          </div>
+        )}
 
         {/* 滚动区：FadeScroll（右侧 6px 透明边 + pr-[26px] = 左侧 pl-8），离纸底 16px */}
         <FadeScroll
@@ -79,7 +110,7 @@ export function HomeView() {
           className="mb-4 flex min-h-0 flex-1 flex-col gap-3 pb-2 pl-8 pr-[26px] pt-1"
         >
           <HomeScrollRootContext.Provider value={scrollEl}>
-            <HomePanels panels={panels} layout={layout} onChange={save} />
+            <HomePanels panels={panels} layout={layout} editing={editing} onChange={save} />
           </HomeScrollRootContext.Provider>
         </FadeScroll>
       </div>

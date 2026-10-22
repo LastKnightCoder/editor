@@ -26,7 +26,6 @@ import type { KnowledgeEndpoint } from "@/types/knowledge-insights";
 import { relativeDay } from "@/features/questions/model";
 import { useTodayInsights } from "../insightQueries";
 import type { TodayInsight, TodayInsightKind } from "../insightItems";
-import { HomePanelMenu } from "./HomePanels";
 
 /** 默认露出的条数 */
 const VISIBLE_COUNT = 2;
@@ -88,7 +87,6 @@ export function InsightCard() {
         <Sparkles className="text-accent size-3.5" strokeWidth={1.75} />
         洞见
         <PanelNote>{items.length} 条新发现</PanelNote>
-        <HomePanelMenu />
       </PanelTitle>
       <ul className="-mx-2 flex flex-col gap-2">
         {shown.map(item => (

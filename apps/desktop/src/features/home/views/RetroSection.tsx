@@ -31,7 +31,7 @@ import {
 } from "../types";
 import { RetroTrend } from "./RetroTrend";
 import { SectionHeading } from "./SectionHeading";
-import { HomePanelMenu, HomeScrollRootContext } from "./HomePanels";
+import { HomeScrollRootContext } from "./HomePanels";
 
 const RANGE_LABEL: Record<RetroRange, string> = {
   d30: "近 30 天",
@@ -84,7 +84,6 @@ export function RetroSection({
             <Segmented.Item key={r.key} value={r.key} label={r.label} />
           ))}
         </Segmented>
-        <HomePanelMenu />
       </SectionHeading>
 
       <div className="grid grid-flow-row-dense grid-cols-12 gap-3">
