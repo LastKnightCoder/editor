@@ -29,7 +29,8 @@ PS-046 问题管理插件化第三期需要的 SDK 变化（方案见 81）：`@
 
 - `minAppVersion` 保持 0.59.0（用户裁决：客户端尚未对外发布，开发版 0.59.0 已含 `shareOf` 与宿主迁移）。
 - 新建公开仓库 [tau-plugin-questions](https://github.com/LastKnightCoder/tau-plugin-questions)，先推 `main` 再推 tag。`b789ff9` / [v0.1.0](https://github.com/LastKnightCoder/tau-plugin-questions/releases/tag/v0.1.0) 的发布工作流在 GitHub 干净环境中冻结安装、测试、构建并创建 Release。正式 ZIP 46,823 字节，SHA-256 `0a00488522d51717ccbaf74c343253b5ba65b79c49e105d37d75b6c77821a04a`，与本地构建逐文件一致。
-- 插件中心：自动提交返回「插件尚未在门户首次提交」，需用户在门户网页首次提交以绑定仓库，之后打 tag 即自动提交。
+- 插件中心：自动提交返回「插件尚未在门户首次提交」，需用户在门户网页首次提交以绑定仓库，之后打 tag 即自动提交。用户提交后插件中心已发布（`published`，SHA-256 与 Release ZIP 一致）。
+- `minAppVersion` 0.59.0 的依据：其他用户都在 0.58.0（没有插件功能），装不上；0.59.0 起的客户端都含 `shareOf` 与宿主迁移。
 
 ## tau-blog 0.6.0、官方博客模板 1.5.0 与起步仓库（同日）
 
@@ -42,4 +43,4 @@ PS-046 问题管理插件化第三期需要的 SDK 变化（方案见 81）：`@
 
 ## 未完成
 
-- 用户在插件门户首次提交问题插件 0.1.0。
+- 无。
