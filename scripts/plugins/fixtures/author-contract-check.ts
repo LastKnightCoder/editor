@@ -354,6 +354,8 @@ export async function checkDataContract(context: PluginContext) {
     content: { copyOf: entity.contentRef },
     title: entity.title,
   });
+  await context.app.run("project.insertDocument", { content: { shareOf: entity.contentRef } });
+  await context.data.cards.create({ content: { shareOf: entity.contentRef } });
   if (inserted?.kind === "document") await context.app.describe([inserted]);
   const notebook = await context.app.run("notebook.create", {
     title: entity.title,

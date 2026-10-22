@@ -35,6 +35,9 @@ export default function PluginContentActionView({ request }: { request: PluginAc
         open
         noteTitle={request.title}
         noteContent={request.content}
+        {...(request.sharedContentId !== undefined
+          ? { insertMode: "shared-content" as const, sourceContentId: request.sharedContentId }
+          : {})}
         onCancel={request.close}
         onSuccess={item => (item ? request.settle(item.id) : request.close())}
       />

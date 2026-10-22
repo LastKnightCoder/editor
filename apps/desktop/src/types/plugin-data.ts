@@ -86,11 +86,12 @@ export interface PluginContentOwner {
   title: string;
 }
 
-/** 插件正文输入的 IPC 形式：copyOf 的 ContentRef 由渲染端解码为正文 ID 与创建时间 */
+/** 插件正文输入的 IPC 形式：copyOf、shareOf 的 ContentRef 由渲染端解码为正文 ID 与创建时间 */
 export type PluginContentSource =
   | { markdown: string }
   | { nodes: unknown[] }
-  | { copyOf: { contentId: number; createdAt: number } };
+  | { copyOf: { contentId: number; createdAt: number } }
+  | { shareOf: { contentId: number; createdAt: number } };
 
 export interface PluginDataCreateInput {
   content?: PluginContentSource;

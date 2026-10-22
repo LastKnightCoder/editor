@@ -580,6 +580,10 @@ describe("插件业务数据与权限", () => {
       context().app.run("card.create", { content: { html: "x" } } as never)
     ).rejects.toThrow();
     await expect(context().app.run("card.create", { tags: "x" } as never)).rejects.toThrow("标签");
+    // 新建卡片窗口里用户会改动正文，不接受共用
+    await expect(
+      context().app.run("card.create", { content: { shareOf: "9:100" } })
+    ).rejects.toThrow("shareOf 只能用于");
   });
 
   it("chat.start：补默认位置，校验提示词、上下文类型与数量，返回对话引用或 null", async () => {
@@ -672,6 +676,11 @@ describe("插件业务数据与权限", () => {
         { action: "project.insertDocument", content: { copyOf: "7:100" }, title: "读书笔记" },
       ],
     ]);
+    await context().app.run("project.insertDocument", { content: { shareOf: "9:100" } });
+    expect(calls.filter(call => call[0] === "run").at(-1)?.[2]).toEqual({
+      action: "project.insertDocument",
+      content: { shareOf: "9:100" },
+    });
     await expect(context().app.run("project.insertDocument", {} as never)).rejects.toThrow(
       "缺少要插入的正文"
     );
@@ -707,6 +716,9 @@ describe("插件业务数据与权限", () => {
     await expect(
       context().entities.create({ kind: "note", key: "x", meta: [] as never })
     ).rejects.toThrow("meta");
+    await expect(
+      context().entities.create({ kind: "note", key: "x", content: { shareOf: "9:100" } })
+    ).rejects.toThrow("shareOf 只能用于");
     expect(await context().entities.find("note", "2026-W43")).toMatchObject({ id: "1" });
     await context().entities.query({ kind: "note" });
     await context().entities.update("1", { title: "改名" }, { expectedRevision: "1" });

@@ -1,5 +1,9 @@
 # 更新记录
 
+## 未发布
+
+- 正文输入新增 `{ shareOf: contentRef }`：与本插件的一项内容共用同一份正文，任一处的修改在另一处实时可见，删除其中一处不影响另一处。只能用于 `cards.create`、`articles.create`、`documents.create` 与 `app.run("project.insertDocument")`，来源必须是本插件内容的正文；一份正文只能有一张卡片、一篇文章，已有时报错。
+
 ## 0.34.0
 
 - 新增统一的正文输入 `PluginContentInput`，三选一：`{ markdown }`、`{ nodes }`（编辑器节点，格式完整保留）、`{ copyOf: contentRef }`（Tau 内部整份复制已有正文，只需要目标的写入权限）。

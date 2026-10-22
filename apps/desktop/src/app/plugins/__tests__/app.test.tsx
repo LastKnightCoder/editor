@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   resolveContent: vi.fn(),
   createCard: vi.fn(),
   insertDocument: vi.fn(),
+  sharedContent: vi.fn(),
   planNotebook: vi.fn(),
   createNotebook: vi.fn(),
   startChat: vi.fn(),
@@ -38,10 +39,17 @@ vi.mock("@/components/InsertNoteToTreeModal", () => ({
   default: (props: {
     noteTitle: string;
     noteContent: unknown;
+    insertMode?: string;
+    sourceContentId?: number;
     onSuccess: (item: { id: number } | null) => void;
     onCancel: () => void;
   }) => {
-    mocks.insertDocument(props.noteTitle, props.noteContent);
+    mocks.insertDocument(
+      props.noteTitle,
+      props.noteContent,
+      props.insertMode,
+      props.sourceContentId
+    );
     return (
       <>
         <button onClick={() => props.onSuccess({ id: 31 })}>插入文档</button>
@@ -57,6 +65,7 @@ vi.mock("@/commands/plugin-data", () => ({
   grantPluginRefs: mocks.grant,
   describePluginRefs: mocks.describe,
   resolvePluginContentInput: mocks.resolveContent,
+  getPluginSharedContent: mocks.sharedContent,
   planPluginNotebook: mocks.planNotebook,
 }));
 vi.mock("@/features/cards/components/CreateCardDialog", () => ({
@@ -490,7 +499,7 @@ describe("插件选择与打开", () => {
       }
     });
 
-    it("插入到项目：复制解析后的正文，插入后返回项目文档引用，取消返回 null", async () => {
+    it("插入到项目：复制解析后的正文或共用插件内容的正文，插入后返回项目文档引用，取消返回 null", async () => {
       const { settle, click, unmount } = await mount();
       const app = createDesktopApp("data.db");
       mocks.resolveContent.mockResolvedValue(nodes);
@@ -504,16 +513,49 @@ describe("插件选择与打开", () => {
         expect(mocks.resolveContent).toHaveBeenCalledWith("data.db", {
           copyOf: { contentId: 8, createdAt: 100 },
         });
-        expect(mocks.insertDocument).toHaveBeenLastCalledWith("读书笔记", nodes);
+        expect(mocks.insertDocument).toHaveBeenLastCalledWith(
+          "读书笔记",
+          nodes,
+          undefined,
+          undefined
+        );
         await click("插入文档");
         expect(await inserted).toEqual({ kind: "document", id: "31" });
+
+        // 共用正文：主进程核对来源后交给弹窗的共用模式，不解析节点
+        mocks.resolveContent.mockClear();
+        mocks.sharedContent.mockResolvedValue(9);
+        const shared = app.run(context(), plugin, {
+          action: "project.insertDocument",
+          content: { shareOf: "9:200" },
+          title: "答案",
+        });
+        await settle();
+        expect(mocks.sharedContent).toHaveBeenCalledWith("data.db", "canvas", {
+          contentId: 9,
+          createdAt: 200,
+        });
+        expect(mocks.resolveContent).not.toHaveBeenCalled();
+        expect(mocks.insertDocument).toHaveBeenLastCalledWith(
+          "答案",
+          expect.any(Array),
+          "shared-content",
+          9
+        );
+        await click("插入文档");
+        expect(await shared).toEqual({ kind: "document", id: "31" });
 
         const cancelled = app.run(context(), plugin, {
           action: "project.insertDocument",
           content: { markdown: "" },
         });
         await settle();
-        expect(mocks.insertDocument).toHaveBeenLastCalledWith("未命名文档", expect.any(Array));
+        expect(mocks.insertDocument).toHaveBeenLastCalledWith(
+          "未命名文档",
+          expect.any(Array),
+          undefined,
+          undefined
+        );
         await click("取消插入");
         expect(await cancelled).toBeNull();
         expect(usePluginActionUi.getState().request).toBeNull();

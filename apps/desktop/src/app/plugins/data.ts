@@ -65,12 +65,19 @@ export async function mapConflict<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-/** 正文输入转成 IPC 形式：copyOf 的 ContentRef 在这里解码，主进程只认数字身份 */
+/** 正文输入转成 IPC 形式：copyOf、shareOf 的 ContentRef 在这里解码，主进程只认数字身份 */
 export function toContentSource(input: PluginContentInput): PluginContentSource {
-  if (!("copyOf" in input)) return input;
-  const decoded = decodeContentRef(input.copyOf);
-  if (!decoded) throw new Error("copyOf 正文引用无效");
-  return { copyOf: decoded };
+  if ("copyOf" in input) {
+    const decoded = decodeContentRef(input.copyOf);
+    if (!decoded) throw new Error("copyOf 正文引用无效");
+    return { copyOf: decoded };
+  }
+  if ("shareOf" in input) {
+    const decoded = decodeContentRef(input.shareOf);
+    if (!decoded) throw new Error("shareOf 正文引用无效");
+    return { shareOf: decoded };
+  }
+  return input;
 }
 
 function toEditRequest(edit: PluginContentEdit): PluginContentEditRequest {

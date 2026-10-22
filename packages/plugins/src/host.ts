@@ -728,7 +728,7 @@ function readRunRequest(action: unknown, options: unknown): PluginAppRunRequest 
     if (content === undefined) throw new Error("缺少要插入的正文");
     return {
       action,
-      content: readContentInput(content, { allowEmpty: true }),
+      content: readContentInput(content, { allowEmpty: true, share: true }),
       ...(title !== undefined ? { title: readText(title, "标题", MAX_TITLE) } : {}),
     };
   }
@@ -1640,8 +1640,9 @@ export class PluginHost {
               ? readFields<PluginCardInput>(fields, { tags: "tags", pinned: "boolean" })
               : {}
             : readFields<PluginArticleInput>(fields, { title: MAX_TITLE, tags: "tags" }, ["title"]);
-        // copyOf 只核对目标的写入权限：正文不离开用户的库，插件也拿不到内容
-        if (content !== undefined) value.content = readContentInput(content, { allowEmpty: true });
+        // copyOf、shareOf 只核对目标的写入权限：正文不离开用户的库，插件也拿不到内容
+        if (content !== undefined)
+          value.content = readContentInput(content, { allowEmpty: true, share: true });
         await guard(WRITE_PERMISSIONS[entity]);
         return deliver<never>(await dataAdapter().create(context, entity, value));
       },
@@ -2253,7 +2254,7 @@ export class PluginHost {
               projectId: readId(projectId),
               ...(parentId !== undefined ? { parentId: readId(parentId) } : {}),
               ...(content !== undefined
-                ? { content: readContentInput(content, { allowEmpty: true }) }
+                ? { content: readContentInput(content, { allowEmpty: true, share: true }) }
                 : {}),
             };
             await guard(WRITE_PERMISSIONS.document);
