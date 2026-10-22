@@ -6,15 +6,11 @@ import { useUpdateStore } from "@/stores/useUpdateStore";
 import { AboutSection } from "../sections/AboutSection";
 
 const mocks = vi.hoisted(() => ({
-  installCli: vi.fn(async () => ({ success: true })),
   openExternal: vi.fn(),
 }));
 
 vi.mock("@/commands", () => ({
   getVersions: vi.fn(async () => ({ app: "3.8.2" })),
-  getCliStatus: vi.fn(async () => ({ installed: false, path: "" })),
-  installCli: mocks.installCli,
-  uninstallCli: vi.fn(),
   openExternal: mocks.openExternal,
 }));
 vi.mock("@/commands/updater", () => ({
@@ -83,13 +79,9 @@ it("有可用更新：状态签、立即更新、手动下载与新版本内容�
   expect(mocks.openExternal).toHaveBeenCalledWith("https://example.com/tau");
 });
 
-it("下载中显示进度，命令行工具可安装", async () => {
+it("下载中显示进度", async () => {
   useUpdateStore.setState({ status: "downloading", newVersion: "3.9.0", progress: 42 });
   await render();
   expect(text()).toContain("正在下载 42%");
   expect(button("检查更新")).toBeUndefined();
-  expect(text()).toContain("命令行工具");
-  expect(text()).toContain("未安装");
-  await act(async () => button("安装").click());
-  expect(mocks.installCli).toHaveBeenCalled();
 });

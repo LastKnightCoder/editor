@@ -145,7 +145,7 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
       {
         key: "app",
         label: "关于与更新",
-        description: "版本、更新与命令行工具",
+        description: "版本与更新",
         icon: Info,
         component: AboutSection,
       },

@@ -33,7 +33,7 @@ interface WsServer extends WebSocketServer {
   };
 }
 
-// 固定端口为跨应用契约（browser-extension、cli 硬编码 24678 发现本应用，
+// 固定端口为跨应用契约（browser-extension 硬编码 24678 发现本应用，
 // convertFileSrc 产出的资产 URL 会持久化进用户文档），不可动态分配
 export const RPC_SERVER_PORT = 24678;
 
@@ -164,7 +164,7 @@ class ServerModule implements Module {
           wss.emit("connection", ws, request, { isServer });
         });
       });
-      // 固定端口为跨应用契约（browser-extension、cli 硬编码 24678 发现本应用，
+      // 固定端口为跨应用契约（browser-extension 硬编码 24678 发现本应用，
       // convertFileSrc 产出的资产 URL 会持久化进用户文档），不可动态分配；
       // 占用失败时给出可定位的诊断，init 失败由 ModuleInitManager 记录为模块 ERROR
       this.server.on("error", (error: NodeJS.ErrnoException) => {
