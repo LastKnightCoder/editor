@@ -1,5 +1,12 @@
 # 决策记录（轻量 ADR）
 
+## D-183 退役 tau CLI（2026-10-22）
+
+- 背景：`apps/cli`（commander + ink 的终端查询 / TUI 工具）当初与桌面同步联动而建，CLI 同步已随 55 纠偏方案删除，剩余查询 / 编辑能力无不可替代价值，用户裁决整体退役。
+- 删除范围：`apps/cli` 目录；桌面 backendServer 上 CLI 专属 WS handler（`open-card/article/project-item-in-new-window`、`search-content`，及 CLI 同步退役后已无消费者的 `close-database` / `reconnect-database-fast` WS 版，同名 IPC 通道保留）；设置页「命令行工具」卡片与 `cli:get-status/install/uninstall` 契约；打包链（prebuild 构建、electron-builder extraResources、verify-native-runtime 的 tau-cli 检查）；只为打包版 CLI 供给的 `proxy-agent` 依赖。commander、ink 等随之退出 lockfile；better-sqlite3、node-llama-cpp、sqlite-vec、proper-lockfile 由桌面与 db-schema 继续持有。
+- 24678 端口的 BackendWebSocketServer 保留：浏览器扩展硬编码该端口发现本应用，`todo:broadcast-mutation` 等仍有活跃消费者。
+- 用户机器残留不做自动清理：macOS `/usr/local/bin/tau` 符号链接与 Windows PATH 中的 cli 目录条目在升级后悬空 / 失效，属无害状态；清理需管理员提权，打扰大于收益。不恢复任何 CLI 兼容层。
+
 ## D-182 首页改为统一面板布局，用户可调整（2026-10-22）
 
 - 背景：插件首页挂载点（PS-046 2.8）原拟固定在「继续」段末尾、漫步之前，只因「探究中的问题」现在在那里。用户指出这是按单个插件定的位置；把今天 / 继续 / 重温 / 回顾做成插件可声明的段也不行——四段是排版选择，不够稳定，而且内置面板不走同一机制，插件就没有参照。
