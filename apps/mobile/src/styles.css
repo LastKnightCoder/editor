@@ -566,7 +566,7 @@ code {
   display: none;
 }
 
-/* ── 圆润卡片（杏子风） ── */
+/* ── 圆润卡片 ── */
 .card {
   background-color: var(--tau-bg-surface);
   border-radius: var(--radius-card, 20px);
