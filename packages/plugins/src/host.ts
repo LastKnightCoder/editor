@@ -33,6 +33,7 @@ import {
   type PluginSidebarItemUpdate,
 } from "./sidebar";
 import type { PluginHomePanelDefinition } from "./home";
+import { PLUGIN_ACTION_TARGET_KINDS, type PluginActionDefinition } from "./actions";
 import {
   CONTENT_INPUT_LIMITS,
   EDITOR_NODE_SCHEMA_VERSION,
@@ -186,6 +187,11 @@ export interface HomeAdapter {
     context: PluginContext,
     definition: Readonly<Required<PluginHomePanelDefinition>>
   ): Disposable;
+}
+
+export interface ActionsAdapter {
+  /** 定义已冻结；run 已包装，插件停用或动作注销后调用会抛错 */
+  register(context: PluginContext, definition: Readonly<PluginActionDefinition>): Disposable;
 }
 
 export interface SidebarAdapter {
@@ -976,7 +982,8 @@ export type PluginContributionKind =
   | "editor"
   | "whiteboard"
   | "excerpts"
-  | "home";
+  | "home"
+  | "action";
 
 export interface PluginInfo {
   backend?: import("./package").PluginBackendManifest;
@@ -1080,6 +1087,7 @@ export class PluginHost {
       };
       sidebar?: SidebarAdapter;
       home?: HomeAdapter;
+      actions?: ActionsAdapter;
       excerpts?: ExcerptsAdapter;
       materials?: MaterialsAdapter;
       flashcards?: FlashcardsAdapter;
@@ -2937,6 +2945,49 @@ export class PluginHost {
           return Object.freeze(handle);
         },
         dragType: (type: string) => sidebarDragType(scope.pluginId, type),
+      }),
+      actions: Object.freeze({
+        register: (definition: PluginActionDefinition) => {
+          this.assertActive(entry, activation);
+          assertLocalId(definition.id);
+          if (typeof definition.title !== "string" || !definition.title.trim())
+            throw new Error("对象动作标题不能为空");
+          if (definition.icon !== undefined && typeof definition.icon !== "function")
+            throw new Error("对象动作图标必须是 React 组件");
+          if (typeof definition.run !== "function") throw new Error("对象动作必须提供 run");
+          const targets = definition.targets;
+          if (!Array.isArray(targets) || !targets.length)
+            throw new Error("对象动作至少要有一类目标");
+          for (const target of targets)
+            if (!PLUGIN_ACTION_TARGET_KINDS.includes(target))
+              throw new Error(`不支持的对象动作目标：${String(target)}`);
+          if (!this.options.actions) throw new Error("当前宿主不支持对象动作");
+          const run = definition.run;
+          let removed = false;
+          const owned = registerAs(
+            "action",
+            this.options.actions.register(
+              context,
+              Object.freeze({
+                id: definition.id,
+                title: definition.title,
+                ...(definition.icon ? { icon: definition.icon } : {}),
+                targets: Object.freeze([...new Set(targets)]),
+                run: (target: Parameters<PluginActionDefinition["run"]>[0]) => {
+                  this.assertActive(entry, activation);
+                  if (removed) throw new Error("对象动作已注销");
+                  return run(Object.freeze({ kind: target.kind, id: target.id }));
+                },
+              })
+            )
+          );
+          return {
+            dispose: () => {
+              removed = true;
+              return owned.dispose();
+            },
+          };
+        },
       }),
       home: Object.freeze({
         registerPanel: (definition: PluginHomePanelDefinition) => {

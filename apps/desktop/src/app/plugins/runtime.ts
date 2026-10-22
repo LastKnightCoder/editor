@@ -23,6 +23,9 @@ import type {
   PluginSidebarIcon,
   PluginOwnEntityKind,
   PluginHomePanelDefinition,
+  PluginActionDefinition,
+  PluginActionTarget,
+  PluginActionTargetKind,
 } from "@tau/plugins";
 import {
   notifyPluginPackagesChanged,
@@ -107,6 +110,14 @@ export interface RegisteredPluginHomePanel {
   mountId: number;
 }
 
+/** 对象动作：run 已由 PluginHost 包装，经 runAction 调用 */
+export interface RegisteredPluginAction {
+  /** plugin:<pluginId>:<id> */
+  id: string;
+  definition: Readonly<PluginActionDefinition>;
+  context: PluginContext;
+}
+
 export interface RegisteredPluginPage {
   definition: PluginPageDefinition;
   context: PluginContext;
@@ -145,6 +156,7 @@ export class DesktopPluginRuntime {
     }
   >();
   private readonly homePanels = new Map<string, RegisteredPluginHomePanel>();
+  private readonly actions = new Map<string, RegisteredPluginAction>();
   private readonly editorContributions = new Map<
     string,
     { context: PluginContext; contribution: PluginEditorContribution }
@@ -179,6 +191,8 @@ export class DesktopPluginRuntime {
       records?: RecordsAdapter;
       links?: LinksAdapter;
       transaction?: TransactionAdapter;
+      /** 用户对某个对象运行插件动作时，把它登记为插件选择过的引用（同 pick） */
+      grantRefs?: (pluginId: string, refs: PluginActionTarget[]) => Promise<void>;
       /** 卸载并清除数据时删除插件在当前库的私有存储 */
       purgeStorage?: (pluginId: string) => Promise<void>;
       restartRequired?: Set<string>;
@@ -220,6 +234,7 @@ export class DesktopPluginRuntime {
       restartRequired: options.restartRequired,
       pages: { register: (context, definition) => this.registerPage(context, definition) },
       home: { registerPanel: (context, definition) => this.registerHomePanel(context, definition) },
+      actions: { register: (context, definition) => this.registerAction(context, definition) },
       sidebar: {
         registerGroup: (context, definition) => this.registerSidebarGroup(context, definition),
         registerItem: (context, definition, pageId) =>
@@ -295,6 +310,25 @@ export class DesktopPluginRuntime {
     );
   }
 
+  /** 某类对象可用的插件动作，按注册顺序 */
+  listActions(kind: PluginActionTargetKind): RegisteredPluginAction[] {
+    if (this.disposed) return [];
+    return [...this.actions.values()].filter(
+      ({ context, definition }) =>
+        definition.targets.includes(kind) &&
+        !context.signal.aborted &&
+        this.host.getState(context.pluginId) === "active"
+    );
+  }
+
+  /** 先登记引用再调用插件；插件停用或动作已注销时抛错 */
+  async runAction(action: RegisteredPluginAction, target: PluginActionTarget): Promise<void> {
+    if (!this.listActions(target.kind).includes(action)) throw new Error("插件动作不可用");
+    const ref = { kind: target.kind, id: target.id };
+    await this.options.grantRefs?.(action.context.pluginId, [ref]);
+    await action.definition.run(ref);
+  }
+
   getEditorContributions(): PluginEditorContribution[] {
     if (this.disposed) return [];
     return [...this.editorContributions.values()]
@@ -339,6 +373,22 @@ export class DesktopPluginRuntime {
           subscribe: entry.subscribe,
           getState: entry.getState,
         })),
+    };
+  }
+
+  private registerAction(context: PluginContext, definition: Readonly<PluginActionDefinition>) {
+    if (this.disposed) throw new Error("插件运行时已关闭");
+    const id = `plugin:${context.pluginId}:${definition.id}`;
+    if (this.actions.has(id)) throw new Error(`对象动作已注册：${definition.id}`);
+    const action = { id, definition, context };
+    this.actions.set(id, action);
+    this.publish();
+    return {
+      dispose: () => {
+        if (this.actions.get(id) !== action) return;
+        this.actions.delete(id);
+        this.publish();
+      },
     };
   }
 
@@ -514,6 +564,7 @@ export class DesktopPluginRuntime {
       this.sidebarItems.clear();
       this.editorContributions.clear();
       this.homePanels.clear();
+      this.actions.clear();
       this.options.permissions?.dispose();
       this.unsubscribe();
       this.publish();

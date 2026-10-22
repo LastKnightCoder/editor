@@ -96,6 +96,7 @@ import { ComposeSessionContext, createComposeSession } from "@/features/compose/
 import { useComposeWriting } from "@/features/compose/useComposeWriting";
 import { getEditorText } from "@/utils/editor";
 import { exportContentAsMarkdown } from "@/services/content-transfer";
+import { PluginActionMenuItems } from "@/app/plugins/action-menu";
 
 /** copy utils 的 MessageApi 是结构类型，toast 同形适配（不引 antd message） */
 const toastAdapter = {
@@ -426,6 +427,7 @@ export function ArticleDetailView() {
             {editingArticle.podcast ? "编辑播客" : "生成播客"}
           </Menu.Item>
         </Menu.Submenu>
+        <PluginActionMenuItems target={{ kind: "article", id: String(editingArticle.id) }} />
         <Menu.Separator />
         <Menu.Item
           danger

@@ -32,7 +32,13 @@ import {
 import { EProjectItemType, ProjectItem } from "@/types";
 import { useMemoizedFn } from "ahooks";
 import useContentShared from "@/hooks/useContentShared";
-import { getProjectItemMoreMenuItems } from "./projectItemMoreMenuItems";
+import {
+  PLUGIN_ACTION_KEY_PREFIX,
+  getProjectItemMoreMenuItems,
+  insertPluginActionEntries,
+  projectItemActionTarget,
+} from "./projectItemMoreMenuItems";
+import { pluginActionIcon, usePluginActions } from "@/app/plugins/action-menu";
 import { toast } from "@tau/ui";
 import { useProjectContext } from "../../ProjectContext";
 import { exportContentAsMarkdown } from "@/services/content-transfer";
@@ -91,9 +97,18 @@ export const useProjectItemMoreActions = (
   } = useProjectWebLinkMeta(projectItem);
 
   const shared = useContentShared(projectItem?.contentId);
-  const moreMenuItems: MenuEntryList = useMemo(
+  const builtinMenuItems: MenuEntryList = useMemo(
     () => getProjectItemMoreMenuItems(projectItem, shared),
     [projectItem?.projectItemType, projectItem?.refType, projectItem?.podcast, shared]
+  );
+  const pluginActions = usePluginActions(projectItemActionTarget(projectItem));
+  const moreMenuItems = insertPluginActionEntries(
+    builtinMenuItems,
+    pluginActions.actions.map(action => ({
+      id: action.id,
+      label: action.definition.title,
+      icon: pluginActionIcon(action),
+    }))
   );
 
   const publishProjectItemUpdate = useMemoizedFn((nextProjectItem: ProjectItem) => {
@@ -198,6 +213,13 @@ export const useProjectItemMoreActions = (
 
   const handleMoreMenuClick = useMemoizedFn(async (key: string) => {
     if (!projectItem) return;
+
+    if (key.startsWith(PLUGIN_ACTION_KEY_PREFIX)) {
+      const id = key.slice(PLUGIN_ACTION_KEY_PREFIX.length);
+      const action = pluginActions.actions.find(item => item.id === id);
+      if (action) pluginActions.run(action);
+      return;
+    }
 
     if (key === "immersive-mode" || key === "collaboration") {
       requestDocumentAction?.({
