@@ -40,6 +40,7 @@
 - 对象动作新增目标 `material`（PDF 标注的工具条与标注列表、网页剪藏的「⋯」菜单）与 `chat-message`（对话消息动作行末尾的「⋯」，收到所在会话、消息记录 ID、角色与正文，会话登记为选择过的引用）。`run` 的参数随 `targets` 收窄。新增导出类型 `PluginActionTargetOf`、`PluginActionEntityTarget`、`PluginChatMessageTarget`。
 - 对象动作新增目标 `text`：用户在命令面板输入文字后，「记录」组末尾出现「动作标题：输入的文字」，回车时 `run` 收到 `{ kind: "text", text }`。新增导出类型 `PluginTextTarget`。
 - `context.materials.actions` 不再包含「转为问题」，只有 Tau 自己的动作，也不包含其他插件注册的对象动作。
+- 新增 `context.views.registerEntityPanel({ id, kinds, component })`：在卡片、文章、项目文档详情的正文上方放一小块内容，组件收到 `context` 与对象引用 `target`，返回 `null` 时不占位；读内容仍按权限。新增导出 `PLUGIN_ENTITY_PANEL_KINDS` 与类型 `PluginEntityPanelDefinition`、`PluginEntityPanelProps`、`PluginEntityPanelTarget`。
 
 - 编辑器扩展只接受文档列出的字段，带其他字段（例如 `marks`、`decorations`）的扩展会在加载或注册时报错，不再被悄悄使用。
 

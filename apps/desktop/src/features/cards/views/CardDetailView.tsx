@@ -85,6 +85,7 @@ import { usePatternCardDraft } from "../usePatternCardDraft";
 import { CardContentPreview } from "../components/CardContentPreview";
 import { exportContentAsMarkdown } from "@/services/content-transfer";
 import { PluginActionMenuItems } from "@/app/plugins/action-menu";
+import { PluginEntityPanels } from "@/app/plugins/entity-panels";
 
 /** copy utils 的 MessageApi 是结构类型，toast 同形适配（不引 antd message） */
 const toastAdapter = {
@@ -428,6 +429,7 @@ export function CardDetailView() {
               )}
 
               {insights.report && <div className="-mt-1 mb-5">{insights.report}</div>}
+              <PluginEntityPanels target={{ kind: "card", id: String(card.id) }} className="mb-5" />
 
               {/* 正文：常编辑态（无预览/编辑切换），协作绑定 card 源 */}
               {insights.frame(

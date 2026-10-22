@@ -24,6 +24,7 @@ import type {
   PluginSidebarChild,
   PluginHomePanelProps,
   PluginActionTargetOf,
+  PluginEntityPanelProps,
   PluginSidebarItemHandle,
 } from "@tau/plugins";
 
@@ -107,6 +108,17 @@ export function checkActionsContract(context: PluginContext) {
     targets: ["text"],
     run: target => void target.text.trim(),
   });
+}
+
+export function checkEntityPanelContract(context: PluginContext) {
+  const Related = ({ context: ctx, target }: PluginEntityPanelProps) =>
+    target.kind === "document" ? null : createElement("p", null, ctx.pluginId, target.id);
+  const panel = context.views.registerEntityPanel({
+    id: "related",
+    kinds: ["card", "article", "document"],
+    component: Related,
+  });
+  void panel.dispose();
 }
 
 export function checkNotificationsContract(context: PluginContext) {
