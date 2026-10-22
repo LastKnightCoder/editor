@@ -27,23 +27,6 @@
 - 当开始处理一个新任务时，使用一次任务更新，将前一个任务标记为 COMPLETE，并将新任务标记为 IN_PROGRESS。
 - 如果用户反馈表明先前已完成的解决方案存在问题，将相关任务状态改回 IN_PROGRESS，并继续处理反馈。
 
-# 进行修改(Making edits)：`apply_patch`
-
-在进行编辑时，请使用 `apply_patch` 工具——不要直接覆盖写入新文件，也不要在没有上下文的情况下整体重写大文件。
-
-在使用 `apply_patch` 之前：
-
-- 先收集足够的信息，以确保修改操作是安全的(例如通过 `read_file` / `get_symbol_definition` / `find_symbol_references` 等)。
-- 避免进行大范围扫描和批量替换；只有在确有直接依赖或存在歧义时才扩大范围。
-- 如果修改涉及某个类的实例，请先收集该类的信息。
-- 如果修改涉及某个类的属性，请先收集该类及该属性的相关信息。
-
-使用原则：
-
-- 优先使用“小补丁”，只修改必要的几行，而不是重写整个文件。
-- 如果需要新增文件，使用 `apply_patch` 的 Add File 模式；如果需要重命名文件，使用 Move to 能力；删除文件则使用 Delete File 模式。
-- 每次补丁应专注于一个逻辑变更(例如“修复一个 bug”或“实现一个小功能”)，避免一次补丁混合多个无关修改。
-
 # 遵循惯例(Following Conventions)
 
 在更改或新增代码时，应尽量遵循现有项目的惯例和模式，而不是引入完全不同的风格。
@@ -61,7 +44,7 @@
 ## 基础规范
 
 - 除非用户特别要求，否则不要添加过于详细的注释；如需注释，应以一句话简洁解释“为什么”这么做，而不是“做了什么”。
-- 代码注释不写决策过程元数据（「方案 X 定稿」「用户裁决」「裁决日期」「mockups/xxx 路径」）——方案对比与裁决上下文属于 DECISIONS.md，代码注释只陈述代码事实（是什么、行为边界、怎么用）；`D-0XX` 编号引用仅限指向活约束的出处。
+- 代码注释不写决策过程元数据（「方案 X 定稿」「用户裁决」「裁决日期」「mockups/xxx 路径」）——方案对比与裁决上下文属于任务文档或 git 历史，代码注释只陈述代码事实（是什么、行为边界、怎么用）。
 - 优先通过改进代码本身来提高清晰度，使其尽量不依赖注释；确保注释与代码保持同步，避免过时注释。
 - 变量、函数和类的命名应清晰地表达其用途，避免使用模糊或过于简单的名称(如 `a`、`b`、`temp` 等)。
 
@@ -244,6 +227,25 @@ pnpm add -D
 - 技术文档用中文撰写
 - 用户指南用中文说明
 
+# 文档维护规则
+
+docs/ 按文档生命周期分区，落笔前先答三问：什么类型？唯一位置在哪？退出条件是什么？
+
+| 类型       | 位置                            | 承载与维护                                                                                                                       | 退役                                                                                                                                       |
+| ---------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| 架构事实   | `docs/architecture/<子系统>.md` | 子系统当前事实（结构/协议/边界/数据流）；替换式更新，只写「现在是什么」，禁止追加日期式历史叙述与进度状态                        | 子系统消亡或文件被替代时删除                                                                                                               |
+| 裁决规则   | `docs/decisions.md`             | 跨任务长期有效的**通用裁决**：按主题分节，条目一两句话、无编号，规则变化原地改写；任务内的技术方案与过程决策跟任务走，不进本清单 | 规则被推翻或失效即删除                                                                                                                     |
+| 操作指南   | `docs/guides/`                  | 运维（`ops-*`）与开发手册，只写步骤与判据，不写论证                                                                              | 流程废弃时删除                                                                                                                             |
+| 个人偏好   | `docs/preferences.md`           | 用户偏好与工作方式                                                                                                               | 原地改写                                                                                                                                   |
+| 任务文档   | `docs/tasks/<名>/`              | 进行中任务，**自含**：一句话目标、需求、技术方案、任务内用户决策、进度、验证；方案与决策不外链                                   | 完成或放弃必做三步：沉淀（方案的现状进 architecture、通用偏好进 preferences/decisions、流程进 guides）→删目录→更新 docs/README；期限 90 天 |
+| 一次性产物 | `docs/notes/`                   | 调研快照/审查报告/方案对比；文件名日期前缀（`2026-10-xx-*.md`）；禁止被任何活文档或代码引用                                      | 随时可删；超 90 天体检脚本提示                                                                                                             |
+
+- 查找路径：架构→`docs/architecture/`；规则→`docs/decisions.md`（按主题检索）；操作→`docs/guides/`；进行中→`docs/tasks/`；偏好→`docs/preferences.md`。包级使用说明贴代码放（`packages/*/README.md` 等），docs 只放跨包系统知识。
+- 单一事实源：一个事实只有一个权威位置，其他地方放链接不放副本。
+- 链接路径：同目录及其子目录用相对路径；跨目录一律用仓库根路径（如 `/docs/guides/ops-build-size.md`），禁止多层 `../`。
+- 任务域（以工程命名的目录）在任务收尾时解散，产物四路分流：方案沉淀为架构事实→architecture 或对应代码包；通用裁决→decisions.md；流程→guides；其余过程内容直接删。docs/ 顶层只允许功能域与常设目录，不允许任务域长期存在。
+- 任务收尾三步（沉淀→退役→索引）是完成定义的一部分，缺一不可提交；提交前运行 `pnpm check:docs`（死链硬失败；notes/tasks 超期、活文档出现状态字样为警告）。
+
 ## 数据库 Schema 维护规则
 
 - 当修改 `packages/db-schema/schema/main*.sql` 或 `packages/db-schema/schema/main/*.sql` 中的库表、索引定义时，必须同步检查并更新 `scripts/db/check-schema-parity.mjs` 里的数量常量与相关断言。
@@ -251,57 +253,41 @@ pnpm add -D
 - 禁止只改 schema SQL 而不更新校验脚本；如果表数量或索引数量发生变化，必须在同一提交中同时更新脚本常量。
 - 新增、删除或修改表的字段后，必须同步 `apps/desktop/src/constants/internal-skills/database-schema.md` 对应小节（表清单 + 全字段，顺序同建表语句）；`apps/desktop/src/constants/internal-skills/__tests__/database-schema.test.ts` 会对账二者，漂移即测试失败。
 
-## 移动端浮层与返回手势规范
+## 桌面端开发规范（Page 架构）
 
-背景：返回手势（Android 物理返回/手势、边缘侧滑）必须"先关浮层、再弹页面栈"，仲裁权统一收口在 `apps/mobile/src/router/`，详见 `apps/mobile/docs/移动端页面栈与返回策略.md` 的「浮层返回拦截」一节。为防止腐化，新增/修改移动端浮层时必须遵守：
-
-- 新增浮层一律优先使用通用容器组件（`BottomSheet` / `ActionSheet` / `SnapSheet` / `MobileConfirmDialog`），它们已内置返回拦截，业务代码无需接线。
-- `BottomSheet` / `ActionSheet` 已内置退场缓冲：所有关闭请求（遮罩点击、返回手势、下拉、选项点击）先播完退场动画，动画完成后才回调 `onClose`。因此 `onClose` 中直接 `goBack()` 是安全的，且返回手势关闭与遮罩关闭一样有完整动画。
-- 确需自建 `createPortal` 浮层时，必须在组件内接入 `useSheetBackDismiss(open, dismiss)`（需要关闭前确认时传 `confirm` 选项）；禁止只实现遮罩点击关闭而漏掉返回手势。
-- `layer: "overlay"` 路由页的主体面板（open 恒为 true、关闭即弹栈的那个容器）：常规场景用默认 `backDismiss`（返回手势经退场缓冲先播动画再 `onClose` → `goBack`，无死锁）；以下场景必须传 `backDismiss={false}`，返回/关闭语义由页面表达（`useBackHandler` 消费、`usePageGuard` 未保存守卫）——此路径的返回直接弹栈，无组件退场动画：
-  - 返回前需要自定义处理（如 quickCapture 冲洗落库）；
-  - 使用 `pushForResult`/`finish`/`cancel` 进行结果回传——内置返回拦截会消费 `finish` 的弹栈请求，导致 settle 未落账、调用方拿不到结果。
-- 禁止任何业务代码自行监听 `onBackButtonPress` / `popstate` / `history.back` 处理返回；返回一律经 `navigator.goBack(source)`。
-- 页面内本地 `useState` 控制浮层 open 时，返回手势对该浮层"失明"是缺陷特征（历史遗留存量），发现即按上述规则接入，不要新增此类用法。
-
-## 桌面端重构规范（Page 架构）
+桌面端架构：Page 协议（声明式页面 definePage + 纯函数栈机 + Activity 保活 + 自有设计系统），权威交接文档为 `/docs/architecture/desktop.md`。
 
 ### 验证分工
 
-- Agent 不进行视觉验证、截图对照或浏览器视觉走查；视觉验收由用户后续完成。
-- 视觉问题记录到清单，后续按 bug 修复，不阻塞架构清理；仍须完成类型检查、行为测试、构建及必要的结构检查。
-
-背景：桌面端已从旧 Tab 系统迁移到 Page 协议（声明式页面 definePage + 纯函数栈机 + Activity 保活 + 自有设计系统，命名对齐移动端，见 DECISIONS.md D-002）。旧主界面、Tab 骨架、双主题源及已调查的旧业务 store 已退役；当前约束以 03 指南为准，清理执行与保留边界见 `apps/desktop/docs/redesign/05-桌面端清理调研.md`。
+- Agent 不进行视觉验证、截图对照或浏览器视觉走查；视觉验收由用户后续完成。视觉问题记录到清单，后续按 bug 修复；仍须完成类型检查、行为测试、构建及必要的结构检查。
 
 **上手顺序（写桌面端代码前必做）**：
 
-1. 读 `apps/desktop/docs/redesign/03-架构实现指南.md` 全文（≈10 分钟，权威交接文档：协议用法 + 铁律 + 迁移流程）；
+1. 读 `/docs/architecture/desktop.md` 全文（≈10 分钟，协议用法 + 铁律）；
 2. 参考实现照抄结构，不要自创：页面域样板 = `apps/desktop/src/features/home/`（page 声明 / views / queries / types 四件套 + react-query 数据协议）；壳层改 `src/app/`；导航框架勿动 `src/page/`；
-3. 背景与取舍看 `01-重构蓝图.md`，历史裁决查 `DECISIONS.md`（推翻已有做法必须先记录），删旧代码查 `04-删除清单.md`。
+3. 通用裁决查 `/docs/decisions.md`（推翻已有做法必须先记录）。
 
-**文档保鲜义务**：03 指南是代码的持久投影——每次改 page 框架、主题机制、数据协议或壳层行为，必须在同一提交里同步 03 指南对应小节（必要时 DECISIONS.md 追加条目）；发现文档与代码不一致时，先修一致再继续开发，禁止让文档腐化。
+**文档保鲜义务**：`/docs/architecture/desktop.md` 是代码的持久投影——每次改 page 框架、主题机制、数据协议或壳层行为，必须在同一提交里同步对应小节（必要时 `/docs/decisions.md` 增补规则）；发现文档与代码不一致时，先修一致再继续开发，禁止让文档腐化。
 
 为防止腐化，新增/修改桌面端代码必须遵守：
 
 ### 分层与导航
 
 - `page/`（导航框架）与 `packages/ui/`（设计系统）零业务依赖，禁止 import `features/`、`app/`、`pages/`、`layouts/` 的任何代码。
-- 新页面一律在 `features/<域>/pages/<key>.page.tsx` 用 `definePage` 声明（文件即注册，Vite glob 自动收集），禁止中心登记表；`key` 与 `app/navigation.ts` 一致即接管侧边栏入口。definePage 只承载页面——dialog/drawer 等浮层不经本协议（D-002），如需浮层导航先在 DECISIONS.md 裁决承载方式。
+- 新页面一律在 `features/<域>/pages/<key>.page.tsx` 用 `definePage` 声明（文件即注册，Vite glob 自动收集），禁止中心登记表；`key` 与 `app/navigation.ts` 一致即接管侧边栏入口。definePage 只承载页面——dialog/drawer 等浮层不经本协议，如需浮层导航先在 `/docs/decisions.md` 记录承载方式。
 - `features/` 域之间不得 import 彼此的 store；共享的口径工具放 `src/utils/`（如 statistic 快照差分）。
-- 导航只经 `navigator.push/replace/back/forward/popToTop`；Esc 只承担浮层退场（无浮层时无操作，「Esc=后退」已移除，见 DECISIONS.md D-003 追记）、Alt+←/→=后退/前进由 PageProvider/Titlebar 统一仲裁，业务代码禁止自行监听这些键；Alt+方向键必须让位编辑上下文（`isEditableTarget`）与输入法组合（`e.isComposing`）。
+- 导航只经 `navigator.push/replace/back/forward/popToTop`；Esc 只承担浮层退场（无浮层时无操作，「Esc=后退」已移除）、Alt+←/→=后退/前进由 PageProvider/Titlebar 统一仲裁，业务代码禁止自行监听这些键；Alt+方向键必须让位编辑上下文（`isEditableTarget`）与输入法组合（`e.isComposing`）。
 - 全局浮层（命令面板等）按 D-003 模式承载：feature 级组件由壳层挂载（不经路由/页面栈），并经 `useOverlayDismiss` 接入 Esc 仲裁（LIFO 先关浮层、优先于编辑上下文）；浮层业务代码禁止自行监听 Esc。
 - `match: "single"/"params"` 的 page 重复 push 由栈机去重（栈顶同参 no-op、异参原位更新），不要在调用侧再做"是否已激活"判断。
-- Page 迁移状态已退役（D-081），不得恢复 status/legacy 占位或未接线的协议字段；新增页面能力应先实现运行时与验证，再声明接口。
 
 ### UI 与主题
 
 - 样式载体 Tailwind 优先（D-001）：颜色只允许消费 `--tau-*` 变量或 Tailwind 语义类（`bg-page` / `text-ink-1` / `bg-accent-soft`…）；尺度用 tau 命名空间词（`text-tau-*` / `rounded-tau-*` / `shadow-card` / `ease-tau-out`，词表见 02 规范 §3/§4）。禁止裸色值、内联十六进制、antd token。新增 token 词汇必须先进 `packages/themes/src/tokenContract.ts`。
-- UI 使用 `@tau/ui` + Tailwind，图标使用 lucide-react；迁移完成后，编辑器数量基线、扩展边界独立扫描与 antd 专项检查已退役，不再维护这些迁移门禁。现有 ESLint 架构规则、类型检查和行为测试继续执行。禁止新增 CSS Modules/Less。手写 CSS 只保留根基础规则与 .app reset、keyframes、主题数据块、复杂伪元素/遮罩（D-087）；组件布局使用静态 Tailwind，外观仍由用户验收。
+- UI 使用 `@tau/ui` + Tailwind，图标使用 lucide-react；现有 ESLint 架构规则、类型检查和行为测试继续执行。禁止新增 CSS Modules/Less。手写 CSS 只保留根基础规则与 .app reset、keyframes、主题数据块、复杂伪元素/遮罩（D-087）；组件布局使用静态 Tailwind，外观仍由用户验收。
 - 跨域复用的视觉模式收口 `packages/ui/src/primitives/` 组件（Panel/IconButton…，组件内写 Tailwind），不要在多个域重复同一段类串。
 - 组件默认样式允许被调用方 `className` 覆盖时，合并必须用 `packages/ui/src/cn.ts` 的 `cn()`（D-008）——裸 clsx 的先后顺序会被 Tailwind 生成顺序吃掉，覆盖静默失效；新增尺度 token 必须同步登记进 cn 的词表（`packages/ui/src/__tests__/cn.test.ts` 守护）。
 - 新主题用 `defineTheme` 声明（tokens 全键强制），且必须同步在 `tokens.css` 补 `[data-theme="<key>"]` 数据块——`theme-parity.test.ts` 守护二者一致（含 AA 对比度断言），codegen 落地后改为生成。
 - 主题唯一归属 `@tau/themes`（契约与主题定义走根入口，React 运行时走 `@tau/themes/react`，CSS 走 `@tau/themes/tokens.css` + `tailwind.css`），`@tau/ui/theme*` 已删除且 ESLint 禁止；app 显式初始化并清理运行时；业务代码禁止自行操作 data-theme。新增主题在 `packages/themes` 注册并同步 tokens.css；首帧脚本由共享解析器生成，不维护 HTML 白名单。
-- mockups HTML（direction-a-soft / home-final）是视觉参考（对照截图用），不是导出源；调视觉直接改组件 Tailwind 类。
 - 侧边栏条目只改 `app/navigation.ts`，禁止在 Sidebar/Titlebar 硬编码。
 
 ### 数据层
@@ -316,7 +302,7 @@ pnpm add -D
 - 后台模块的启动竞态与失败重试使用 `ensureModule`/`withModule`（`src/commands/module-init.ts`），不把当前就绪保障当作旧架构兼容删除。
 - 模块 `init()` 无防重入（重复注册 handler 会抛 `Attempted to register a second handler`），防重入只在 `ModuleInitManager`，故渲染端并发去重必须走 `ensureModule`，不要自行 `invoke("module-init:init-module")`。
 
-### 迁移流程
+### 删码与数据升级
 
-- 清理存量实现前按 04 模板记录消费者与保留边界，删前 `rg` 复核消费者清零；G1/G2 已完成，不再创建迁移占位或旧承载。修改数据/主题/壳层协议时同步 03。当前版本需为存量数据完成最后升级，失败不放行；全部数据与配置转换完成后的版本应拒绝旧格式并删除历史转换代码，不长期保留兼容层（D-091）。
-- 禁止恢复 `/legacy` 路由或旧 Tab 系统承载新功能；存量代码改造遵循新架构，并在消费者清零后删除旧实现。
+- 删除存量实现前先记录消费者与保留边界，删前 `rg` 复核消费者清零；消费者清零后删除旧实现，不留兼容层。
+- 数据升级收尾（D-091）：当前版本需为存量数据完成最后升级，失败不放行；全部数据与配置转换完成后的版本应拒绝旧格式并删除历史转换代码。

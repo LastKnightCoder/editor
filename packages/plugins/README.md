@@ -14,7 +14,7 @@
 
 - `@tau/plugins`：definePlugin、插件实例、上下文、命令、JSON 和资源清理契约。
 - `context.mcp.register`：注册多个 MCP，本地 tools 与外部 stdio / streamable-http 互斥；复用应用 MCP 页面、快捷面板及开关，激活成功才发布，停用自动回收。作者说明见 [mcp.md](../../scripts/plugins/template/docs/mcp.md)。
-- `context.notifications.send`（SDK 0.28.0）：发送应用内、独立窗口或按焦点自动分流的通知；返回单条撤销句柄，停用时自动回收。用法见 [通知能力](../../docs/plugin-system/通知能力.md)。
+- `context.notifications.send`（SDK 0.28.0）：发送应用内、独立窗口或按焦点自动分流的通知；返回单条撤销句柄，停用时自动回收。用法见 [通知能力](/docs/architecture/plugin-system/通知能力.md)。
 - `@tau/plugins/host`：PluginHost、存储适配器及内存存储。插件代码不应导入此入口。
 - `@tau/plugins/node`：Node 私有文件存储适配器，由宿主选择目录；不进入插件公开上下文。
 
@@ -28,11 +28,11 @@
 
 页面组件还可通过 `PluginPageProps.pageContext.register(() => value)` 提供当前页面上下文。value 的 JSON 形状完全由作者决定；在组件 effect 中注册并注销，现有 `get_current_context` 将当前实例返回值原样放入 `page.pluginContext`。页面操作继续独立使用 `context.mcp.register`。需要包含此能力的 SDK 和客户端构建。
 
-核心仅使用 React 的类型，根入口没有 React/DOM 运行时依赖。桌面适配及双入口示例见 [C03 文档](../../docs/plugin-system/12-C03桌面页面与UI接入.md)。内部 host 入口还提供 createBrowserStorage，要求宿主显式注入 Storage，不在模块加载时访问 window。
+核心仅使用 React 的类型，根入口没有 React/DOM 运行时依赖。桌面适配及双入口示例见 [C03 文档](/docs/architecture/plugin-system/12-C03桌面页面与UI接入.md)。内部 host 入口还提供 createBrowserStorage，要求宿主显式注入 Storage，不在模块加载时访问 window。
 
 宿主可通过 subscribe/getRevision 响应状态与命令变化，listPlugins/listCommands 供开发台和命令面板使用；这些不是作者的公共业务 API。
 
-C08-A 为 activate 设置 10 秒期限；取消后最多再等 5 秒，不延长原期限。deactivate 和全部逆序资源清理共用 5 秒预算，超时后仍调用其余清理函数。激活超时或清理失败进入 restart-required，普通激活错误且清理成功仍可重试；listPlugins 的 error 保留失败原因。宿主重建时通过内部 restartRequired 集合共享隔离身份，不能通过注销/重新登记绕过；桌面在窗口内保留该集合，并等旧宿主收尾后建立新宿主。提前调用 dispose 的资源仍跟踪其 Promise，不把未决清理当成成功。详见 [C08](../../docs/plugin-system/18-C08生命周期与管理收口.md)。
+C08-A 为 activate 设置 10 秒期限；取消后最多再等 5 秒，不延长原期限。deactivate 和全部逆序资源清理共用 5 秒预算，超时后仍调用其余清理函数。激活超时或清理失败进入 restart-required，普通激活错误且清理成功仍可重试；listPlugins 的 error 保留失败原因。宿主重建时通过内部 restartRequired 集合共享隔离身份，不能通过注销/重新登记绕过；桌面在窗口内保留该集合，并等旧宿主收尾后建立新宿主。提前调用 dispose 的资源仍跟踪其 Promise，不把未决清理当成成功。生命周期与收口语义以 `packages/plugins` 实现为准。
 
 插件只通过注入的 `PluginContext` 注册命令和使用自己的存储。`register` 管理订阅等资源；命令自动登记清理。`deactivate` 用于释放业务资源，调用时 signal 已取消，不能用它进行新的存储写入。应在正常操作期间完成保存。
 
@@ -44,7 +44,7 @@ C08-A 为 activate 设置 10 秒期限；取消后最多再等 5 秒，不延长
 
 同一插件内局部 id 不得重复；打开已注销/停用的句柄或在无适配器宿主注册会报错。桌面统一从「设置 → 插件」进入，每插件有宿主管理详情，注册的分区作为详情内分组；open 仍定位原分组，不进入 Page。停用后管理信息和启用按钮保留，自定义组件和 Portal 卸载；重新启用读取原值。每次挂载拥有独立查询缓存与局部错误边界，防止旧异步结果污染新分区。对象级配置与单次操作参数留在业务页面。
 
-首个样本采用即时保存，保存成功后更新 UI，失败显示错误并可重试。这里只保存本机工作区偏好，没有通用未保存草稿守卫、同步或凭证服务。见 [C05](../../docs/plugin-system/14-C05自定义设置接入.md)。
+首个样本采用即时保存，保存成功后更新 UI，失败显示错误并可重试。这里只保存本机工作区偏好，没有通用未保存草稿守卫、同步或凭证服务。
 
 ## 编辑器
 
@@ -54,7 +54,7 @@ C08-A 为 activate 设置 10 秒期限；取消后最多再等 5 秒，不延长
 
 宿主缺少编辑器适配器或场景不受支持时明确报错。桌面开发台统一检查注册冲突，并为编辑器命令补上只读和旧插件作用域守卫；异步任务仍须主动取消，不能持有旧编辑器在 await 后直接写入。生产正文、Y.Doc 协作、外部历史和异步编辑提交 API 尚未接入。
 
-开发台按贡献集合变化重建 Slate 实例，保存并恢复原始正文、历史与选区；组件本地状态、焦点和在途操作不迁移。详情及可复现路径见 [C04](../../docs/plugin-system/13-C04编辑器扩展接入.md)。
+开发台按贡献集合变化重建 Slate 实例，保存并恢复原始正文、历史与选区；组件本地状态、焦点和在途操作不迁移。
 
 ## 标准 fetch
 
@@ -62,7 +62,7 @@ context.fetch 的类型直接是 typeof globalThis.fetch，使用 RequestInit、
 
 宿主注入 fetch 执行器；SDK 只将激活期 signal 与调用方信号合并，停用取消请求及响应流。桌面底层使用主进程原生 fetch，通过内部 IPC 按需传输；旧 nodeFetch 及其选项/IPC/消费者已迁移，不保留兼容层。内部 hasBody 等元信息不导出为作者 API。
 
-执行环境是宿主 Node，不自动继承页面 Cookie/CORS；认证由业务负责。微信读书样本通过业务依赖取得已有账号配置并以标准请求头认证，不在 SDK 增加全局凭证接口。支持二进制、multipart 与流，见 [C06](../../docs/plugin-system/15-C06真实服务API与微信读书书单.md)。实际账号尚未联调。
+执行环境是宿主 Node，不自动继承页面 Cookie/CORS；认证由业务负责。微信读书样本通过业务依赖取得已有账号配置并以标准请求头认证，不在 SDK 增加全局凭证接口。支持二进制、multipart 与流。实际账号尚未联调。
 
 ## 摘录提供方与材料动作
 
