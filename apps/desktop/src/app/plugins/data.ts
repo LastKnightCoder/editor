@@ -283,6 +283,10 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
         input
       );
       refreshLists(entity);
+      // 插件自己新建的内容与 app.run 新建的一样登记：不需要读取权限也能显示与关联
+      await bound(context).grantPluginRefs(databaseName, context.pluginId, [
+        { kind: entity, id: String(record.id) },
+      ]);
       return toEntity(record);
     },
     async update(context, entity, id, patch, expectedRevision) {
@@ -485,6 +489,9 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
         ...(content ? { content: toContentSource(content) } : {}),
       });
       refreshLists("project");
+      await bound(context).grantPluginRefs(databaseName, context.pluginId, [
+        { kind: "document", id: String(record.id) },
+      ]);
       return toEntity(record);
     },
     async moveDocument(context, id, { projectId, from, to, index }, expectedRevision) {

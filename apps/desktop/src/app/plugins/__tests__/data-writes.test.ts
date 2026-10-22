@@ -82,6 +82,41 @@ describe("插件写入适配", () => {
     ).rejects.toMatchObject({ name: "PluginConflictError", message: "数据已被修改" });
   });
 
+  it("插件新建的内容登记为它能看到的引用，之后不需要读取权限也能关联", async () => {
+    const record = (id: number) => ({
+      id,
+      revision: "1",
+      title: "新文章",
+      tags: [],
+      wordCount: 0,
+      createdAt: 1,
+      updatedAt: 1,
+      contentId: null,
+      contentCreatedAt: null,
+    });
+    electron.invoke.mockImplementation(async (channel: string) => {
+      if (channel === "plugin-data:create") return record(8);
+      if (channel === "plugin-data:create-document") return record(9);
+      if (channel === "plugin-refs:grant") return 1;
+      throw new Error(`未预期的调用 ${channel}`);
+    });
+    const data = createDesktopData(DATABASE);
+    await data.create(context, "article", { title: "新文章" });
+    await data.createDocument(context, { projectId: "3", title: "文档" });
+    expect(
+      electron.invoke.mock.calls.filter(([channel]) => channel === "plugin-refs:grant")
+    ).toEqual([
+      [
+        "plugin-refs:grant",
+        { databaseName: DATABASE, pluginId: "weekly", refs: [{ kind: "article", id: "8" }] },
+      ],
+      [
+        "plugin-refs:grant",
+        { databaseName: DATABASE, pluginId: "weekly", refs: [{ kind: "document", id: "9" }] },
+      ],
+    ]);
+  });
+
   it("删除待办后登记撤销凭据，恢复走助理撤销", async () => {
     electron.invoke.mockImplementation(async (channel: string, ...args: unknown[]) => {
       if (channel === "task-assistant:read") return { items: [task], nextCursor: null };
