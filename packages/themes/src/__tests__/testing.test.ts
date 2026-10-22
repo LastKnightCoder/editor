@@ -16,6 +16,13 @@ describe("@tau/themes/testing", () => {
     expect(withImport.get('[data-theme="p"]')?.get("--a")).toBe("1");
   });
 
+  it("多行书写的取值规整为单行", () => {
+    const multiline = collectCssVars(
+      ":root {\n  --shadow:\n    0 1px 2px red,\n    0 4px 8px blue;\n}"
+    );
+    expect(multiline.get(":root")?.get("--shadow")).toBe("0 1px 2px red, 0 4px 8px blue");
+  });
+
   it("逗号选择器分别登记，注释被忽略", () => {
     expect(blocks.get(":root")?.get("--base")).toBe("#111");
     expect(blocks.get('[data-theme="a"]')?.get("--alias")).toBe("var(--base)");

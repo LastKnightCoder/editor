@@ -36,8 +36,9 @@ describe("theme 数据块与 defineTheme 产物一致", () => {
               missing.push(word);
               continue;
             }
-            if (match[1].trim() !== tokens[word])
-              drifted.push(`${word}: css=${match[1].trim()} theme=${tokens[word]}`);
+            // prettier 会把多值阴影折成多行，按规整空白后的值比较
+            const value = match[1].trim().replace(/\s+/g, " ");
+            if (value !== tokens[word]) drifted.push(`${word}: css=${value} theme=${tokens[word]}`);
           }
           expect(missing, `数据块缺少 token：${missing.join(", ")}`).toEqual([]);
           expect(drifted, `token 取值漂移：\n${drifted.join("\n")}`).toEqual([]);

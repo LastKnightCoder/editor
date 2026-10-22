@@ -22,7 +22,8 @@ export function collectCssVars(css: string): CssVarBlocks {
     for (const [, name, value] of match[2].matchAll(declaration)) {
       for (const selector of selectors) {
         const vars = blocks.get(selector) ?? new Map<string, string>();
-        vars.set(name, value.trim());
+        // 多行书写的取值（如 prettier 折行的多值阴影）规整为单行
+        vars.set(name, value.trim().replace(/\s+/g, " "));
         blocks.set(selector, vars);
       }
     }
