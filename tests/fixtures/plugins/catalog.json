@@ -17,18 +17,18 @@
   },
   {
     "repository": "https://github.com/LastKnightCoder/tau-plugin-weread",
-    "artifact": "releases/weread/1.0.8",
+    "artifact": "releases/weread/1.0.9",
     "id": "weread",
-    "version": "1.0.8",
-    "sourceRevision": "64000dac68f42c5de385e94213197b832b8aea83",
-    "archiveSha256": "d511e16d5a1ab70ba65ff3973b25f78f7248150340f9a5664a4338651b3b07ed",
+    "version": "1.0.9",
+    "sourceRevision": "892010577fe0023acc9053e84c6db522fb8d433c",
+    "archiveSha256": "04082a759a3a7147a967d2c44ab667d20990210234cb9a360fa79fab47497cd8",
     "files": {
-      "CHANGELOG.md": "a5f0db1f3682cc62262e476d8589bbbae843d09dafb9054d1c47bcc61543d270",
+      "CHANGELOG.md": "418cfe0d1dfb60017af9245abc59f4e9ea33afe605c1121ead100903f0e2a0aa",
       "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
       "main.css": "de1925ef61fae3ba60767c340fd019db86ed19ef007d047a3c2ae40f29f7bfab",
-      "main.js": "39f7c37a5db84b6ccdb761062347a3e9ce3fc7fc1b022bda9dda07e23840faec",
-      "manifest.json": "9101fdf8efe982fe08bb1fefaa5da557c9e84c02be1ec977b783cbda718a8964",
-      "README.md": "6870ce9f2b501a9cf449afbaabb4cae42fc195020e5e03de222b0222a6e2c77a"
+      "main.js": "30606c87a5848dbf46259f3f546b8b7c45e5037a38be234512d188315a6b6d05",
+      "manifest.json": "1d131a4b2bdcc9704183ead41aedbc1f8d06bb231344e88d18eea07f6dcd9858",
+      "README.md": "be641d2eea3a9c2164d8fee033303ce1fd5f58cd440093425f12a18d7bbbe815"
     }
   },
   {

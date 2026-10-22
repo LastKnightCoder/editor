@@ -22,8 +22,8 @@ PS-046 问题管理插件化第一、二期的宿主能力（方案见 81）的�
 
 - 发布前：SDK 230 项测试；依赖列表与 0.33.0 相同；包内作者文档与维护源逐字节一致；`verify-editor-author.mjs` 以本地归档安装、测试、构建通过；`npm publish --dry-run` 通过。
 - npm 回读，与本地归档一致：tau-plugins 0.34.0 `sha512-2MfTKvNi3mJuvhuvn7RC6OtNRkuIngOzUO6gm7hfyT1MsBKHPFoh/Fsp9OQNwPcNYx1G6QXRbesTSjIfrm6vtQ==`，267 个文件，`latest` 已指向 0.34.0。
-- 插件作者模板：维护源 `scripts/plugins/template` 按公开 npm 重新解析锁文件（只有 SDK 版本变化），全新 store 冻结安装与构建通过；官方仓库 `tau-plugin-template` 本地提交 `b20ef2d`，`docs/` 取自 0.34.0 包内文档（维护源的 `user-data.md` 已含未发布的 `shareOf`，不同步），全新 store 冻结安装与构建通过。
-- 微信读书 `tau-plugin-weread` 本地提交 `892010577`：依赖改为 0.34.0 / UI 0.3.0，版本 1.0.9，类型检查、29 项测试、构建通过。
+- 插件作者模板：维护源 `scripts/plugins/template` 按公开 npm 重新解析锁文件（只有 SDK 版本变化），全新 store 冻结安装与构建通过；官方仓库 [`tau-plugin-template`](https://github.com/LastKnightCoder/tau-plugin-template/commit/b20ef2d) `b20ef2d` 已推送，`docs/` 取自 0.34.0 包内文档（维护源的 `user-data.md` 已含未发布的 `shareOf`，不同步），全新 store 冻结安装与构建通过。
+- 微信读书 `892010577` / [v1.0.9](https://github.com/LastKnightCoder/tau-plugin-weread/releases/tag/v1.0.9)：依赖改为 0.34.0 / UI 0.3.0，本地类型检查、29 项测试、构建通过；推送并打 tag 后 CI 检查与构建、发布工作流均成功，插件中心 approved（自动批准）。正式 ZIP 44,772 字节，SHA-256 `04082a759a3a7147a967d2c44ab667d20990210234cb9a360fa79fab47497cd8`，与本地构建逐文件一致；已用 `pin-test-fixture.mjs` 把测试夹具改固定为 1.0.9（删 1.0.8），桌面插件相关 1518 项测试通过。
 
 ## 过程记录
 
@@ -31,4 +31,4 @@ PS-046 问题管理插件化第一、二期的宿主能力（方案见 81）的�
 
 ## 未完成
 
-- 推送官方作者模板 `b20ef2d`；推送微信读书并打 `v1.0.9`，由 CI 发布 Release 并提交插件中心，之后用 `pin-test-fixture.mjs` 把主仓库测试夹具固定为 1.0.9。均为对外动作，待用户确认。
+- 无。第三期的 `shareOf` 与发布数据去掉 `quest` 随 0.35.0 发布。
