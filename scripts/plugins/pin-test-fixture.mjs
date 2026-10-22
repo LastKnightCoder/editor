@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, writeFile, rename, rm, stat, cp } from "node:
 import path from "node:path";
 import os from "node:os";
 import { validatePluginManifest } from "../../packages/plugins/src/package.ts";
-import { readPluginFixtures } from "./test-support/package-fixtures.ts";
+import { isPackagePath, readPluginFixtures } from "./test-support/package-fixtures.ts";
 
 const [archive, sourceRevision, repository] = process.argv.slice(2);
 if (
@@ -27,14 +27,7 @@ const manifest = validatePluginManifest(JSON.parse(manifestEntry.getData().toStr
 const prefix = manifestEntry.entryName.slice(0, -"manifest.json".length);
 for (const entry of entries) {
   const name = entry.entryName.slice(prefix.length);
-  if (
-    !entry.entryName.startsWith(prefix) ||
-    !name ||
-    name === "." ||
-    name === ".." ||
-    /[\\/]/.test(name) ||
-    files.has(name)
-  )
+  if (!entry.entryName.startsWith(prefix) || !isPackagePath(name) || files.has(name))
     throw new Error("ZIP 文件布局无效或重复");
   files.set(name, entry.getData());
 }
@@ -54,7 +47,10 @@ const temporary = await mkdtemp(path.join(os.tmpdir(), "tau-plugin-release-"));
 try {
   const staged = path.join(temporary, artifact);
   await mkdir(staged, { recursive: true });
-  for (const [name, bytes] of files) await writeFile(path.join(staged, name), bytes);
+  for (const [name, bytes] of files) {
+    await mkdir(path.dirname(path.join(staged, name)), { recursive: true });
+    await writeFile(path.join(staged, name), bytes);
+  }
   const check = path.join(temporary, "distribution.json");
   await writeFile(check, JSON.stringify([release]));
   await readPluginFixtures(check);

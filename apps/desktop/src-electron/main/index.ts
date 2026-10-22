@@ -15,24 +15,14 @@ import {
   createMainWindow,
   createQuickCardWindow,
   initWindows,
-  openEditorWindow,
   openMarkdownWindow,
   showOrCreateMainWindow,
 } from "./windows";
-import databaseModule, { type DatabaseReconnectSource } from "./modules/database";
 import trayModule from "./modules/tray";
 import recentProjectsModule from "./modules/recent-projects";
 import PathUtil from "./utils/PathUtil";
 import BackendWebSocketServer from "./utils/BackendWebSocketServer";
-import {
-  RpcMessageType,
-  type RpcRequestMessage,
-  type RpcResponseMessage,
-  type SearchParams,
-} from "@/types";
-import FTSTable from "./modules/tables/fts";
-import userSettingModule from "./modules/user-setting";
-import { resolveEmbeddingConfig } from "./utils/embedding-config";
+import { RpcMessageType, type RpcRequestMessage, type RpcResponseMessage } from "@/types";
 import moduleInitManager from "./module-init/ModuleInitManager";
 import { RPC_SERVER_PORT } from "./modules/server";
 import { setupQuitController } from "./app-quit-controller";
@@ -221,121 +211,6 @@ if (!gotTheLock) {
               return response;
             }
           );
-          // CLI（tau card/article/project-item edit）经 ws 请求在编辑窗口打开
-          const editorWindowRequests = [
-            ["open-card-in-new-window", "card"],
-            ["open-article-in-new-window", "article"],
-            ["open-project-item-in-new-window", "project-item"],
-          ] as const;
-          for (const [method, kind] of editorWindowRequests) {
-            backendServer.addMessageHandler(method, async (message: RpcRequestMessage) => {
-              const [databaseName, id] = message.params as unknown as [string, number];
-              log.info(`[ws] ${method}: db=${databaseName}, id=${id}`);
-              openEditorWindow({ kind, databaseName, id });
-              const response: RpcResponseMessage = {
-                id: message.id,
-                type: RpcMessageType.Response,
-                method: message.method,
-                result: { ok: true },
-                error: null,
-              };
-              return response;
-            });
-          }
-          backendServer.addMessageHandler("close-database", async (message: RpcRequestMessage) => {
-            const [name] = message.params as unknown as [string];
-            log.info(`[ws] close-database: db=${name}`);
-            const checkpointOk = databaseModule.forceCheckpoint(name);
-            if (!checkpointOk) {
-              log.error(`[ws] close-database: checkpoint failed for db=${name}, aborting`);
-              const response: RpcResponseMessage = {
-                id: message.id,
-                type: RpcMessageType.Response,
-                method: message.method,
-                result: null,
-                error: {
-                  code: -1,
-                  message:
-                    "Checkpoint failed: WAL has uncommitted data. Cannot safely close database for sync.",
-                },
-              };
-              return response;
-            }
-            const database = databaseModule.getDatabase(name);
-            if (database) {
-              database.close();
-              databaseModule.databases.delete(name);
-            }
-            const response: RpcResponseMessage = {
-              id: message.id,
-              type: RpcMessageType.Response,
-              method: message.method,
-              result: { ok: true },
-              error: null,
-            };
-            return response;
-          });
-          backendServer.addMessageHandler(
-            "reconnect-database-fast",
-            async (message: RpcRequestMessage) => {
-              const [name, source] = message.params as unknown as [
-                string,
-                DatabaseReconnectSource | undefined,
-              ];
-              log.info(`[ws] reconnect-database-fast: db=${name}, source=${source}`);
-              await databaseModule.reconnectForSync(name, source || "sync_upload_reconnect");
-              const response: RpcResponseMessage = {
-                id: message.id,
-                type: RpcMessageType.Response,
-                method: message.method,
-                result: { ok: true },
-                error: null,
-              };
-              return response;
-            }
-          );
-          backendServer.addMessageHandler("search-content", async (message: RpcRequestMessage) => {
-            const [searchParams] = message.params as unknown as [SearchParams];
-
-            if (!searchParams.modelInfo) {
-              const setting = await userSettingModule.getSettingSnapshot();
-              const embeddingConfig = resolveEmbeddingConfig(setting as any);
-              if (embeddingConfig) {
-                searchParams.modelInfo = {
-                  configId: embeddingConfig.configId,
-                  providerType: embeddingConfig.providerType,
-                  model: embeddingConfig.model,
-                  distance: embeddingConfig.distance,
-                  dimensions: embeddingConfig.dimensions,
-                  batchSize: embeddingConfig.batchSize,
-                  devicePolicy: embeddingConfig.devicePolicy,
-                  localModelDir: embeddingConfig.localModelDir,
-                  key: embeddingConfig.apiKey,
-                  baseUrl: embeddingConfig.baseUrl,
-                };
-              }
-            }
-
-            const dbName = databaseModule.getCurrentDatabaseName();
-            const mainDb = databaseModule.getDatabase(dbName);
-            const indexDb = databaseModule.getCurrentIndexDatabase();
-
-            let results: any[] = [];
-            if (mainDb && indexDb) {
-              results = await FTSTable.searchHybridContent(mainDb, indexDb, searchParams);
-            } else if (mainDb) {
-              results = await FTSTable.searchContent(mainDb, mainDb, searchParams);
-            }
-
-            const response: RpcResponseMessage = {
-              id: message.id,
-              type: RpcMessageType.Response,
-              method: message.method,
-              result: results,
-              error: null,
-            };
-            return response;
-          });
           moduleInitManager.setBackendServer(backendServer);
           await moduleInitManager.initWebSocketDependentModules();
 

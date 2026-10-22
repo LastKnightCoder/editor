@@ -20,7 +20,11 @@ vi.mock("@/commands/plugin-kv", () => ({
   },
 }));
 
-import { createDatabaseStorage, migrateLegacyPluginStorage } from "../kv-storage";
+import {
+  createDatabaseStorage,
+  migrateLegacyPluginStorage,
+  migratePluginPreferences,
+} from "../kv-storage";
 
 const legacyKey = (workspace: string, plugin: string, key: string) =>
   `tau-plugin-prefs:${JSON.stringify([workspace, plugin, key])}`;
@@ -76,5 +80,35 @@ describe("插件私有存储入主库", () => {
       "tau-local-plugin-enabled:v1:p",
     ]);
     expect(await migrateLegacyPluginStorage(local, "w1", "data.db")).toBe(0);
+  });
+});
+
+describe("偏好从库名迁到稳定工作区身份", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("旧偏好迁到稳定身份，已有目标值优先，其他库保持原样", () => {
+    localStorage.setItem(legacyKey("A.db", "p", "count"), "1");
+    localStorage.setItem(legacyKey("B.db", "p", "count"), "2");
+    localStorage.setItem(legacyKey("identity", "p", "count"), "3");
+    migratePluginPreferences(localStorage, "A.db", "identity");
+    expect(localStorage.getItem(legacyKey("identity", "p", "count"))).toBe("3");
+    expect(localStorage.getItem(legacyKey("A.db", "p", "count"))).toBeNull();
+    expect(localStorage.getItem(legacyKey("B.db", "p", "count"))).toBe("2");
+  });
+
+  it("写入失败保留旧值，重试可完成", () => {
+    localStorage.setItem(legacyKey("A.db", "p", "count"), "5");
+    const write = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("存储已满");
+    });
+    try {
+      expect(() => migratePluginPreferences(localStorage, "A.db", "stable")).toThrow("存储已满");
+      expect(localStorage.getItem(legacyKey("A.db", "p", "count"))).toBe("5");
+    } finally {
+      write.mockRestore();
+    }
+    migratePluginPreferences(localStorage, "A.db", "stable");
+    expect(localStorage.getItem(legacyKey("stable", "p", "count"))).toBe("5");
+    expect(localStorage.getItem(legacyKey("A.db", "p", "count"))).toBeNull();
   });
 });

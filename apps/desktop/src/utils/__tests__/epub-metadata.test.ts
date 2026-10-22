@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Descendant } from "slate";
-import { buildDefaultEpubMetadata } from "../epub-export/metadata";
+import { BUILTIN_CONTENT_RESOURCES } from "@tau/db-schema/content-resources";
+import { buildDefaultEpubMetadata, extractImageSources } from "../epub-export/metadata";
 
 vi.mock("@/utils/editor", () => ({
   getEditorText: (content: Descendant[]) => {
@@ -81,5 +82,24 @@ describe("epub metadata defaults", () => {
     expect(metadata.language).toBe("en-US");
     expect(metadata.description).toBe("");
     expect(metadata.coverImageSrc).toBe("https://example.com/cover.png");
+  });
+
+  it("图片来源按资源声明收集，插件图册里的图一并计入", () => {
+    const content = [
+      {
+        type: "example.gallery",
+        images: [{ url: "a.png" }, { url: " b.png " }, { url: "" }],
+        children: [{ type: "formatted", text: "" }],
+      },
+      { type: "inline-image", url: "a.png", children: [{ type: "formatted", text: "" }] },
+      { type: "video", src: "v.mp4", children: [{ type: "formatted", text: "" }] },
+    ] as unknown as Descendant[];
+    const declarations = {
+      ...BUILTIN_CONTENT_RESOURCES,
+      "example.gallery": [{ path: "images[].url", kind: "image" as const }],
+    };
+    expect(extractImageSources(content, 12, declarations)).toEqual(["a.png", "b.png"]);
+    expect(extractImageSources(content, 1, declarations)).toEqual(["a.png"]);
+    expect(extractImageSources(content)).toEqual(["a.png"]);
   });
 });

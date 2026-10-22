@@ -7,14 +7,21 @@ import { PluginRuntimeContext, PluginRuntimeErrorContext } from "./context";
 import { desktopFetch } from "@/commands/fetch";
 import { isElectron, on, off } from "@/electron";
 import { getPluginWorkspace } from "@/commands/plugin-local";
-import { migratePluginPreferences } from "./development-manager";
 import { createDesktopExcerpts } from "./excerpts";
 import { createDesktopData } from "./data";
 import { createDesktopEvents } from "./events";
 import { createDesktopApp } from "./app";
 import { createDesktopEntities } from "./entities";
-import { createDatabaseStorage, migrateLegacyPluginStorage } from "./kv-storage";
+import { createDesktopRecords } from "./records";
+import { createDesktopLinks } from "./links";
+import { createDesktopTransaction } from "./transaction";
+import {
+  createDatabaseStorage,
+  migrateLegacyPluginStorage,
+  migratePluginPreferences,
+} from "./kv-storage";
 import { clearPluginKv } from "@/commands/plugin-kv";
+import { clearPluginRefGrants, grantPluginRefs } from "@/commands/plugin-data";
 import { DesktopPermissionBroker } from "./permissions";
 import { createDesktopFlashcards } from "./flashcards";
 import { desktopPluginServices } from "./services";
@@ -26,9 +33,10 @@ import { connectImagesRenderer } from "./images-bridge";
 import { connectVideoRenderer, rendererVideoRegistry } from "./video-bridge";
 import { connectPublishRenderer } from "./publish-bridge";
 import { registerPluginMCP } from "@/tools/pluginMCP";
+import { declareContentPluginResources } from "./element-resources";
+import { migrateQuestionsToPlugin } from "./question-migration";
 
 const restartRequired = new Set<string>();
-const reloadCounts = new Map<string, number>();
 let pendingCleanup: Promise<void> = Promise.resolve();
 
 export function DesktopPluginProvider({ children }: { children: ReactNode }) {
@@ -42,6 +50,12 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
   const workspaceId = useSettingStore(state => state.setting.database.active);
   const [runtime, setRuntime] = useState<DesktopPluginRuntime | null>(null);
   const [error, setError] = useState("");
+  useEffect(() => {
+    if (!isElectron) return;
+    declareContentPluginResources(workspaceId).catch(error =>
+      console.warn("插件节点的资源声明未保存", error)
+    );
+  }, [workspaceId]);
   useEffect(() => {
     let current: DesktopPluginRuntime | undefined;
     let cancelled = false;
@@ -88,16 +102,24 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           events: createDesktopEvents(workspaceId),
           app: createDesktopApp(workspaceId),
           entities: createDesktopEntities(workspaceId),
+          records: createDesktopRecords(workspaceId),
+          links: createDesktopLinks(workspaceId),
+          transaction: createDesktopTransaction(workspaceId),
           ...(isElectron
             ? {
-                purgeStorage: async (pluginId: string) =>
-                  void (await clearPluginKv(workspaceId, pluginId)),
+                // 私有存储与用户为它选择过的引用一并清除；插件内容、记录与关联按卸载宽限另行回收
+                grantRefs: async (pluginId, refs) => {
+                  await grantPluginRefs(workspaceId, pluginId, refs);
+                },
+                purgeStorage: async (pluginId: string) => {
+                  await clearPluginKv(workspaceId, pluginId);
+                  await clearPluginRefGrants(workspaceId, pluginId);
+                },
               }
             : {}),
           ...(permissions ? { permissions } : {}),
           flashcards: createDesktopFlashcards(workspaceId),
           restartRequired,
-          reloadCounts,
           validateEditor: composePluginEditor,
           openSettings: (key, target) =>
             target === "sync"
@@ -120,12 +142,18 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
         });
         const local = isElectron ? current.attachLocal(window.localStorage) : undefined;
         setRuntime(current);
-        if (local)
+        if (local) {
+          const runtimeForMigration = current;
           void local
             .refresh()
             .catch(() => undefined)
-            .finally(() => rendererVideoRegistry.markReady());
-        else rendererVideoRegistry.markReady();
+            .finally(() => {
+              rendererVideoRegistry.markReady();
+              // 旧问题数据迁入问题插件（PS-046）：没有旧数据时只查一次
+              if (!cancelled)
+                void migrateQuestionsToPlugin(runtimeForMigration, workspaceId, () => cancelled);
+            });
+        } else rendererVideoRegistry.markReady();
       })
       .catch(error => {
         if (!cancelled) setError(error instanceof Error ? error.message : "插件初始化失败");

@@ -93,6 +93,6 @@ export interface PluginMaterialAction {
 }
 
 export interface PluginMaterials {
-  /** 客户端对该材料当前可执行的动作（转为卡片、转为问题…）；动作随客户端增加 */
+  /** 客户端对该材料当前可执行的动作（转为卡片…），不含其他插件注册的对象动作；动作随客户端增加 */
   actions(ref: PluginMaterialRef): Promise<PluginMaterialAction[]>;
 }

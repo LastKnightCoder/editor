@@ -2,7 +2,6 @@ import { Editor, Transforms } from "slate";
 import { v4 as getUuid } from "uuid";
 import { setOrInsertNode } from "@tau/editor/api";
 import type { ImageElement, InlineImageElement, AudioElement, VideoElement } from "../types";
-import { EGalleryMode } from "../constants/gallery";
 
 interface ImageParams {
   url: string;
@@ -87,18 +86,4 @@ export const insertInlineImage = (editor: Editor, params: InlineImageParams) => 
   } else {
     Transforms.insertNodes(editor, inlineImage, { at: Editor.end(editor, []) });
   }
-};
-
-export const insertImageGallery = (editor: Editor) => {
-  return setOrInsertNode(editor, {
-    type: "image-gallery",
-    mode: EGalleryMode.Horizontal,
-    images: [],
-    children: [
-      {
-        type: "formatted",
-        text: "",
-      },
-    ],
-  });
 };

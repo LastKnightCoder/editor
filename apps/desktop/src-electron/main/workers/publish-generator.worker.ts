@@ -106,13 +106,13 @@ async function buildSearchIndex(
   input: import("../modules/publish-search-index").BuildPublishSearchIndexInput
 ): Promise<import("@tau/plugins/publish-data").SearchFile> {
   const documents: import("@tau/plugins/publish-data").SearchDocument[] = [];
-  let batch: typeof input = { cards: [], articles: [], docs: [], quests: [] };
+  let batch: typeof input = { cards: [], articles: [], docs: [] };
   let size = 0,
     count = 0;
   const flush = async () => {
     if (!count) return;
     const current = batch;
-    batch = { cards: [], articles: [], docs: [], quests: [] };
+    batch = { cards: [], articles: [], docs: [] };
     size = 0;
     count = 0;
     const result = await new Promise<import("@tau/plugins/publish-data").SearchFile>(
@@ -126,7 +126,7 @@ async function buildSearchIndex(
       throw new Error("发布搜索数据协议无效");
     documents.push(...result.documents);
   };
-  for (const key of ["cards", "articles", "docs", "quests"] as const) {
+  for (const key of ["cards", "articles", "docs"] as const) {
     for (const item of input[key]) {
       const bytes = Buffer.byteLength(JSON.stringify(item));
       if (count && (size + bytes > 4 * 1024 * 1024 || count >= 32)) await flush();
@@ -143,5 +143,6 @@ async function buildSearchIndex(
 }
 
 run().catch(error => {
-  post({ type: "error", message: error instanceof Error ? error.message : String(error) });
+  if (error instanceof Error) post({ type: "error", message: error.message, stack: error.stack });
+  else post({ type: "error", message: String(error) });
 });

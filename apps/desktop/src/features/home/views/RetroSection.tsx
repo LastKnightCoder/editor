@@ -7,7 +7,7 @@
  */
 
 import clsx from "clsx";
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { usePage } from "@/page/PageProvider";
 import {
   EmptyNote,
@@ -21,7 +21,7 @@ import {
   YearHeatmap,
 } from "@tau/ui";
 import { useRetroSnapshot } from "../retroQueries";
-import { minutesToHM } from "../queries";
+import { minutesToHM, useHomeSnapshot } from "../queries";
 import {
   RETRO_RANGES,
   type HeatmapStats,
@@ -31,6 +31,7 @@ import {
 } from "../types";
 import { RetroTrend } from "./RetroTrend";
 import { SectionHeading } from "./SectionHeading";
+import { HomeScrollRootContext } from "./HomePanels";
 
 const RANGE_LABEL: Record<RetroRange, string> = {
   d30: "近 30 天",
@@ -38,6 +39,14 @@ const RANGE_LABEL: Record<RetroRange, string> = {
   year: "今年",
   all: "全部",
 };
+
+/** 首页面板：热力图取首页快照，懒加载以首页滚动容器为可见性根 */
+export function RetroPanel() {
+  const { data } = useHomeSnapshot();
+  const scrollRoot = useContext(HomeScrollRootContext);
+  if (!data) return null;
+  return <RetroSection heatmap={data.heatmap} scrollRoot={scrollRoot} />;
+}
 
 export function RetroSection({
   heatmap,
@@ -69,7 +78,7 @@ export function RetroSection({
 
   return (
     <section ref={rootRef} className="flex flex-col gap-3">
-      <SectionHeading title="回顾" className="pt-3">
+      <SectionHeading title="回顾">
         <Segmented label="回顾时间窗" value={range} onValueChange={(v: RetroRange) => setRange(v)}>
           {RETRO_RANGES.map(r => (
             <Segmented.Item key={r.key} value={r.key} label={r.label} />

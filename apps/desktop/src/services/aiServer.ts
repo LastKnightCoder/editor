@@ -260,7 +260,7 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
   }
 
   const browserToolNames = new Set((browserTools || []).map(t => t.function.name));
-  // 外部（浏览器扩展 / CLI）经 aiServer 发起的一次性运行，按请求的功能槽归属
+  // 外部（浏览器扩展）经 aiServer 发起的一次性运行，按请求的功能槽归属
   const usageSource = { feature: `aiServer:${feature || "chat"}` };
 
   // 单发路径（无工具，行内问答）：pi 原生事件直消费，turnId 固定

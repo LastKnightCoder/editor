@@ -46,6 +46,9 @@ const SEARCH_SQL: Record<RowKind, (kw: boolean) => string> = {
   project:
     kw => `SELECT id, update_time AS t FROM project WHERE archived = 0 ${kw ? "AND title LIKE @kw" : ""}
     ORDER BY update_time DESC LIMIT @limit`,
+  notebook:
+    kw => `SELECT id, update_time AS t FROM vibe_learning_project WHERE archived = 0 ${kw ? "AND title LIKE @kw" : ""}
+    ORDER BY update_time DESC LIMIT @limit`,
   white_board: kw => `SELECT id, update_time AS t FROM white_boards
     ${kw ? "WHERE title LIKE @kw OR description LIKE @kw" : ""} ORDER BY update_time DESC LIMIT @limit`,
   "diary-moment": kw => `SELECT s.id, MAX(s.update_time, ct.update_time) AS t FROM diary_segments s
@@ -331,6 +334,16 @@ export default class EntitySearchTable {
           title: project.title || "无标题项目",
           excerpt: blockLines(parseJsonArray(project.d)).join(" ").slice(0, EXCERPT),
           meta: `${parseJsonArray(project.children).length} 篇文档`,
+        };
+      }
+      case "notebook": {
+        const notebook = get(`SELECT title, "desc" AS d FROM vibe_learning_project WHERE id = ?`);
+        if (!notebook) return null;
+        return {
+          ...base,
+          contentId: null,
+          title: notebook.title || "无标题 Notebook",
+          excerpt: (notebook.d || "").slice(0, EXCERPT),
         };
       }
       case "white_board": {

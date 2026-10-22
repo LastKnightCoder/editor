@@ -14,7 +14,8 @@ import {
 } from "./commands";
 import blockPanelItems from "./block-panel-items";
 import hoveringBarConfigs from "./hovering-bar-configs";
-import { normalizeInlineMath } from "./behaviors";
+import { convertDollarsToBlockMath, normalizeInlineMath } from "./behaviors";
+import { inlineMathInputRules } from "./inputRules";
 export type { InlineMathElement, BlockMathElement } from "./types";
 export { insertBlockMath, wrapInlineMath, unWrapInlineMath } from "./insert";
 
@@ -36,6 +37,7 @@ export const inlineMathExtension = defineExtension({
       ),
     }),
   ],
+  inputRules: inlineMathInputRules,
   toolbar: hoveringBarConfigs,
   blockPanel: blockPanelItems,
   commands: inlineMathCommands,
@@ -62,6 +64,9 @@ export const blockMathExtension = defineExtension({
   ],
   commands: blockMathCommands,
   hotkeys: blockMathHotkeys,
+  behaviorsFor: {
+    paragraph: { insertBreak: convertDollarsToBlockMath },
+  },
 });
 
 export const mathExtensions = [inlineMathExtension, blockMathExtension] as const;

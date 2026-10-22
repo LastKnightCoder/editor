@@ -84,6 +84,8 @@ import { cardMorphKey } from "../morph";
 import { usePatternCardDraft } from "../usePatternCardDraft";
 import { CardContentPreview } from "../components/CardContentPreview";
 import { exportContentAsMarkdown } from "@/services/content-transfer";
+import { PluginActionMenuItems } from "@/app/plugins/action-menu";
+import { PluginEntityPanels } from "@/app/plugins/entity-panels";
 
 /** copy utils 的 MessageApi 是结构类型，toast 同形适配（不引 antd message） */
 const toastAdapter = {
@@ -150,7 +152,6 @@ export function CardDetailView() {
   const insights = useInsightsView({
     ref: { kind: "card", id: card?.id ?? 0 },
     contentId: card?.contentId ?? 0,
-    sourceLabel: `卡片：${cardTitle}`,
     getEditor: useCallback(() => editorRef.current?.getEditor(), []),
   });
 
@@ -402,6 +403,7 @@ export function CardDetailView() {
                         {card.podcast ? "编辑播客" : "生成播客"}
                       </Menu.Item>
                     </Menu.Submenu>
+                    <PluginActionMenuItems target={{ kind: "card", id: String(card.id) }} />
                     <Menu.Separator />
                     <Menu.Item
                       danger
@@ -426,6 +428,7 @@ export function CardDetailView() {
               )}
 
               {insights.report && <div className="-mt-1 mb-5">{insights.report}</div>}
+              <PluginEntityPanels target={{ kind: "card", id: String(card.id) }} className="mb-5" />
 
               {/* 正文：常编辑态（无预览/编辑切换），协作绑定 card 源 */}
               {insights.frame(

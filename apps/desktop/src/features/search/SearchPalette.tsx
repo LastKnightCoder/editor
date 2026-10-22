@@ -9,13 +9,11 @@
  * 类型筛选（chips 单选/Ctrl+点击多选/Shift+←→、前缀「卡片:」追加、全角冒号、
  * 空输入退格删筛选、Esc 分层退场）与 IME 让位行为见 D-003。
  *
- * 输入即记录：任何查询都附带「添加待办：…」「记为问题：…」两行（识别出日期 / 时刻时再加
- * 「添加日程：…」），回车落库。日期时刻词表与日程 / 待办快速添加同源（utils/quickDateTime），
- * #名称 分别匹配待办项目 / 日历 / 问题分组。
- * 像问题的输入（以问号结尾或带 #分组）记录组置顶；否则放在末尾（↑ 从首项回绕即达），不抢搜索的回车。
- * 前缀「待办:」「日程:」「问题:」或对应命令进入收集模式，列表只剩该收集行。
- * 「转为问题」（划线、PDF 标注、对话消息）经 services/question-capture 唤起记问题模式并带来源 chip，
- * 回车后来源成为问题的第一条材料 / 探究对话。
+ * 输入即记录：任何查询都附带「添加待办：…」一行（识别出日期 / 时刻时再加「添加日程：…」），
+ * 放在末尾（↑ 从首项回绕即达），不抢搜索的回车；回车落库。日期时刻词表与日程 / 待办快速添加同源
+ * （utils/quickDateTime），#名称 分别匹配待办项目 / 日历。
+ * 插件注册的 text 对象动作排在记录组末尾，不按输入内容调整位置；回车把输入的文字交给插件。
+ * 前缀「待办:」「日程:」或对应命令进入收集模式，列表只剩该收集行。
  */
 
 import {
@@ -32,9 +30,9 @@ import {
   Search,
   CornerDownLeft,
   CircleDashed,
-  CircleHelp,
   CalendarPlus,
   ListPlus,
+  Plug,
   X,
 } from "lucide-react";
 import clsx from "clsx";
@@ -60,8 +58,9 @@ import {
 } from "./searchMeta";
 import { useSearchContent, resultDisplay, relativeTime } from "./queries";
 import { useSettingsStore } from "@/app/settingsStore";
-import useSettingStore from "@/stores/useSettingStore";
 import { useDesktopPlugins } from "@/app/plugins/context";
+import { usePluginActions } from "@/app/plugins/action-menu";
+import type { RegisteredPluginAction } from "@/app/plugins/runtime";
 import { useTransferStore } from "@/app/transferStore";
 import { useShellStore } from "@/app/shellStore";
 import { toggleAssistFor } from "@/app/assistOwner";
@@ -72,13 +71,6 @@ import { exportPerfSnapshot } from "@/commands/perf";
 import { openFeedbackWindow } from "@/commands/feedback";
 import type { SearchResult } from "@/types";
 import { openMaterialTarget } from "@/services/open-material";
-import { captureQuestion } from "@/commands/question";
-import {
-  submitQuestionCapture,
-  subscribeQuestionCapture,
-  type QuestionCaptureDraft,
-} from "@/services/question-capture";
-import { looksLikeQuestion, parseCapture } from "@/features/questions/capture";
 import { describeQuickAdd, parseQuickAdd as parseTodoQuickAdd } from "@/features/todos/quickAdd";
 import { createTodoFromQuickAdd, useTodoGroups } from "@/features/todos/queries";
 import { dayWord } from "@/features/todos/model";
@@ -103,16 +95,11 @@ const WORD_TO_SCOPE: Record<string, PaletteScope> = {
 const PREFIX_RE = new RegExp(
   `^(${TYPE_WORDS.join("|")})((?:[,、]\\s*(?:${TYPE_WORDS.join("|")}))*)[:：]\\s*(.*)$`
 );
-/** 收集模式前缀：「问题:」「记问题:」「待办:」「任务:」「日程:」 */
-const CAPTURE_RE = /^(记?问题|待办|任务|日程)[:：]\s*(.*)$/;
+/** 收集模式前缀：「待办:」「任务:」「日程:」 */
+const CAPTURE_RE = /^(待办|任务|日程)[:：]\s*(.*)$/;
 
-type CaptureKind = "question" | "todo" | "event";
+type CaptureKind = "todo" | "event";
 const CAPTURE_META: Record<CaptureKind, { chip: string; group: string; placeholder: string }> = {
-  question: {
-    chip: "记问题",
-    group: "记为问题",
-    placeholder: "学习时冒出的疑问… #分组 指定分组",
-  },
   todo: {
     chip: "待办",
     group: "添加待办",
@@ -124,8 +111,7 @@ const CAPTURE_META: Record<CaptureKind, { chip: string; group: string; placehold
     placeholder: "明天下午3点到5点 评审 #日历、下周六 爬山…",
   },
 };
-const captureKindOf = (word: string): CaptureKind =>
-  word === "日程" ? "event" : word === "待办" || word === "任务" ? "todo" : "question";
+const captureKindOf = (word: string): CaptureKind => (word === "日程" ? "event" : "todo");
 
 /* ---------- 面板行模型（分组渲染 + 扁平导航共用） ---------- */
 
@@ -173,9 +159,6 @@ export function SearchPalette() {
   const [query, setQuery] = useState("");
   const [scopes, setScopes] = useState<Set<PaletteScope>>(() => new Set());
   const [capture, setCapture] = useState<CaptureKind | null>(null);
-  /** 「转为问题」带来的来源；退出记问题模式即丢弃 */
-  const [captureSource, setCaptureSource] = useState<QuestionCaptureDraft | null>(null);
-  const openPalette = useSearchStore(s => s.openPalette);
   const [sel, setSel] = useState(0);
   const selectionSource = useRef<"pointer" | "keyboard" | "results">("results");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -193,6 +176,13 @@ export function SearchPalette() {
 
   const contentQuery = useSearchContent(debouncedQ, activeTypes);
   const plugins = useDesktopPlugins();
+  // 插件的 text 动作：输入任何文字都在「记录」组末尾列出，回车把文字交给插件
+  const textActions = usePluginActions(trimmedQ ? { kind: "text", text: trimmedQ } : null);
+  const pluginNames = new Map(
+    textActions.actions.length
+      ? (plugins?.host.listPlugins() ?? []).map(plugin => [plugin.id, plugin.name])
+      : []
+  );
   const pluginRevision = plugins?.getRevision() ?? 0;
   const pluginCommands = useMemo(
     () => (plugins ? pluginPaletteCommands(plugins.host) : []),
@@ -242,8 +232,6 @@ export function SearchPalette() {
       closeAnd(() => useSettingsStore.getState().openSettings());
     } else if (action === "toggle-assist") {
       closeAnd(() => toggleAssistFor(currentPageKey, useShellStore.getState().toggleAssist));
-    } else if (action === "capture-question") {
-      enterCapture("question");
     } else if (action === "capture-todo") {
       enterCapture("todo");
     } else if (action === "capture-event") {
@@ -287,62 +275,15 @@ export function SearchPalette() {
     inputRef.current?.focus();
   };
 
-  const captureRow = (text: string): Row => {
-    const { title, groupHint } = parseCapture(text);
-    const source = capture === "question" ? captureSource : null;
+  const pluginTextRow = (action: RegisteredPluginAction, text: string): Row => {
+    const Icon = action.definition.icon ?? Plug;
     return {
-      key: "capture:question",
-      icon: CircleHelp,
-      title: title ? `记为问题：${title}` : "输入问题，回车收集到问题页",
-      sub:
-        [source ? `来源：${source.sourceLabel}` : "", groupHint ? `#${groupHint}` : ""]
-          .filter(Boolean)
-          .join(" · ") || "#分组 可指定分组",
-      tag: { label: "问题", cls: "bg-accent-soft text-accent-text" },
-      hint: !title,
-      run: () => {
-        if (!title) return;
-        const databaseName = useSettingStore.getState().setting.database.active;
-        const signal =
-          source && (source.source.kind === "material" || source.source.kind === "materials")
-            ? source.source.signal
-            : undefined;
-        closeAnd(() => {
-          (source
-            ? submitQuestionCapture(source.source, title, groupHint)
-            : captureQuestion(title, groupHint)
-          )
-            .then(({ question, groupTitle }) => {
-              if (
-                signal?.aborted ||
-                useSettingStore.getState().setting.database.active !== databaseName
-              )
-                return;
-              toast.success(`已收集到「${groupTitle}」`, {
-                action: {
-                  label: "查看",
-                  onClick: () => {
-                    if (
-                      signal?.aborted ||
-                      useSettingStore.getState().setting.database.active !== databaseName
-                    ) {
-                      toast.error("数据库已切换，请在原工作区查看问题");
-                      return;
-                    }
-                    navigator.push("questions", { selectedId: question.id });
-                  },
-                },
-              });
-            })
-            .catch(error =>
-              toast.error(
-                error instanceof Error && error.message === "来源已不存在"
-                  ? "来源已不存在，未创建问题"
-                  : "收集问题失败"
-              )
-            );
-        });
-      },
+      key: `capture:plugin:${action.id}`,
+      icon: props => <Icon {...props} aria-hidden="true" />,
+      title: `${action.definition.title}：${text}`,
+      sub: `来自「${pluginNames.get(action.context.pluginId) ?? action.context.pluginId}」`,
+      tag: { label: "插件", cls: "bg-hover text-ink-2" },
+      run: () => closeAnd(() => textActions.run(action)),
     };
   };
 
@@ -438,7 +379,7 @@ export function SearchPalette() {
   };
 
   const captureRowOf = (kind: CaptureKind, text: string) =>
-    kind === "todo" ? todoRow(text) : kind === "event" ? eventRow(text) : captureRow(text);
+    kind === "todo" ? todoRow(text) : eventRow(text);
 
   // 检索失败反馈（isError 翻真时触发一次；重试成功自动复位）
   useEffect(() => {
@@ -604,19 +545,15 @@ export function SearchPalette() {
       }
     }
 
-    // 输入即记录：像问题的输入置顶，否则垫底（不抢搜索结果的回车）；识别出日期 / 时刻才给日程行
+    // 输入即记录：垫底（不抢搜索结果的回车）；识别出日期 / 时刻才给日程行
     if (scopes.size === 0) {
-      const question = looksLikeQuestion(trimmedQ);
-      const questionRow = captureRow(trimmedQ);
       const rows = [todoRow(trimmedQ)];
       const { date, startTime } = extractDateTime(trimmedQ);
       if (date !== null || startTime !== null) rows.push(eventRow(trimmedQ));
-      const record = {
+      out.push({
         label: "记录",
-        rows: question ? [questionRow, ...rows] : [...rows, questionRow],
-      };
-      if (question) out.unshift(record);
-      else out.push(record);
+        rows: [...rows, ...textActions.actions.map(action => pluginTextRow(action, trimmedQ))],
+      });
     }
 
     if (contentQuery.isFetching && !contentQuery.data?.length && wantContent) {
@@ -639,7 +576,6 @@ export function SearchPalette() {
     trimmedQ,
     scopes,
     capture,
-    captureSource,
     commands,
     todoGroups,
     calendars,
@@ -649,6 +585,7 @@ export function SearchPalette() {
     visits,
     mode,
     pluginEntityMeta,
+    textActions.actions,
   ]);
 
   const flat = useMemo(() => groups.flatMap(g => g.rows), [groups]);
@@ -692,25 +629,6 @@ export function SearchPalette() {
     inputRef.current?.blur();
     setCapture(null);
   }, [open]);
-
-  useEffect(() => {
-    if (capture !== "question") setCaptureSource(null);
-  }, [capture]);
-
-  useEffect(
-    () =>
-      subscribeQuestionCapture(draft => {
-        setCapture("question");
-        setCaptureSource(draft);
-        setScopes(new Set());
-        const title = draft.defaultTitle ?? "";
-        setQuery(title);
-        if (inputRef.current) inputRef.current.value = title;
-        openPalette();
-        inputRef.current?.focus();
-      }),
-    [openPalette]
-  );
 
   useEffect(() => {
     const onKeydown = (e: KeyboardEvent) => {
@@ -876,14 +794,6 @@ export function SearchPalette() {
                 <X size={12} strokeWidth={2} />
               </button>
             )}
-            {capture === "question" && captureSource && (
-              <span
-                title={captureSource.sourceLabel}
-                className="bg-hover text-ink-2 text-tau-sm flex h-6 min-w-0 max-w-[220px] flex-none items-center rounded-lg px-2.5"
-              >
-                <span className="truncate">{captureSource.sourceLabel}</span>
-              </span>
-            )}
             {[...scopes].map(s => (
               <button
                 key={s}
@@ -909,7 +819,7 @@ export function SearchPalette() {
               placeholder={
                 capture
                   ? CAPTURE_META[capture].placeholder
-                  : "搜索内容，或「卡片:」限定类型，「待办:」「日程:」「问题:」快速记录…"
+                  : "搜索内容，或「卡片:」限定类型，「待办:」「日程:」快速记录…"
               }
               autoComplete="off"
               spellCheck={false}

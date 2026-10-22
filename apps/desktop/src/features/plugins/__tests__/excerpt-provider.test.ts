@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   invoke: vi.fn(),
   openExternal: vi.fn(),
   convert: vi.fn(),
-  question: vi.fn(),
 }));
 vi.mock("@/electron", () => ({ invoke: mocks.invoke, isElectron: true }));
 vi.mock("@/commands/extra", () => ({ openExternal: mocks.openExternal }));
@@ -17,7 +16,6 @@ vi.mock("@/stores/useSettingStore", () => ({
   default: { getState: () => ({ setting: { database: { active: "A.db" } } }) },
 }));
 vi.mock("@/services/material-to-card", () => ({ convertMaterialToCard: mocks.convert }));
-vi.mock("@/services/question-capture", () => ({ requestMaterialQuestionCapture: mocks.question }));
 
 const target = {
   page: "excerpt-provider" as const,
@@ -138,12 +136,11 @@ describe("桌面摘录提供方适配", () => {
   it("材料动作走客户端既有流程，非法地址拒绝", async () => {
     const { context } = await setup();
     const actions = await context().materials.actions({ kind: "excerpt", id: 7 });
-    expect(actions.map(action => action.id)).toEqual(["card", "question"]);
+    // 只有宿主自己的动作：「转为问题」不由宿主提供
+    expect(actions.map(action => action.id)).toEqual(["card"]);
     await actions[0].run();
-    await actions[1].run();
     const scope = { databaseName: "A.db", signal: context().signal };
     expect(mocks.convert).toHaveBeenCalledWith({ kind: "excerpt", id: 7 }, scope);
-    expect(mocks.question).toHaveBeenCalledWith({ kind: "excerpt", id: 7 }, scope);
     await expect(context().materials.actions({ kind: "card", id: 1 })).rejects.toThrow(
       "材料地址无效"
     );

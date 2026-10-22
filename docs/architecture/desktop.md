@@ -1,0 +1,1022 @@
+# 桌面端架构（权威交接文档）
+
+> 给接手的上下文/协作者：本文档是桌面端代码的权威说明，读完即可按既有架构、UI 与交互风格继续开发。token 与组件规范见 [design-system.md](./design-system.md)。
+
+---
+
+## 0. 上手顺序
+
+1. 读本文档全文（≈10 分钟）；
+2. 打开 `apps/desktop/src/app/AppShell.tsx` → `Sidebar.tsx` → `page/` 目录过一遍；
+3. 跑 `pnpm dev`（desktop），主窗口即新壳层。
+
+## 1. 结构现状
+
+- 主窗口 = AppShell + PageProvider + Activity 保活；33 个 Page 由 `features/**/pages/*.page.tsx` 自动注册（Vite glob），侧栏与命令面板走新入口；设置是壳层浮层；独立编辑、Markdown、快捷卡片、番茄是独立 feature 窗口。
+- 今日页接真实数据（统计并入今日页）；项目只承载文档树，数据库与 Notebook 是独立模块。
+- 主题唯一归属 `@tau/themes`，UI 原语唯一归属 `@tau/ui`；样式载体 Tailwind，手写 CSS 仅限 §4 的四类白名单；Less 与 antd 全仓为零且有门禁。
+- 壳层启动时序：必须等设置 store 的 `inited` 再连接活动数据库——缓存已有库名不代表设置初始化完成；初始化期间保持等待，就绪后自动连接；真实开库失败继续显示错误并支持重试，不得以绕过失败代替连接成功。
+- 窗口角色由 preload 的 `window.electron.windowRole` 提供，不在隔离渲染上下文读取 `process.argv`；设置完整初始化与微信读书启动校验只在主窗口执行。辅助窗口经 `setting-replica` 的 BroadcastChannel 请求主窗口运行时快照后置 `inited`（保留已校验状态、不回灌保存），各窗口仍订阅后端设置变更并可提交本地修改；无主窗口响应的独立窗口 1.5 秒后只读后端快照兜底，迟到响应不覆盖已收快照。主进程设置文件的首次并发读取共享在途任务，失败后允许重试。
+- 切库按活动库名重建壳层与页面栈；`ensureDatabaseReady` 在连接成功且确认仍为当前库后、发布 ready 前清空全局查询缓存，并取消旧查询的结果接收——未带库名的查询不得跨库复用新鲜缓存或在途请求，迟到的旧连接结果不得清除当前库缓存（只作用于查询，不清 mutation 状态）。
+- 交互聊天与一次性带工具运行共用消息准备入口：图片传路径或 data URL、文件传本地定位提示；系统提示中的退役代理片段只从系统提示移除，用户正文保持原样。
+
+## 2. 目录结构与文件职责
+
+### 知识库退役与项目数据升级
+
+知识库已经合并为普通文档树项目（D-039）。主库只使用 project / project_item；条目增加 tags，正文继续复用 contents 的原 ID。原知识库简介和根正文按顺序并入项目富文本描述。正常业务不再注册知识库命令、页面、独立窗口、事件或检索类型。
+
+知识库合并的最后升级链已随清洁版物理删除（D-091 追记）。桌面开库与下载校验共用数据基线门禁：`assertNoLegacyTables` 按共享旧表黑名单（`packages/db-schema/src/legacy-tables.json`，与 parity 脚本同源）拒绝未完成升级的旧库，报错码 `DB_LEGACY_SCHEMA`；移动端当前 `MAIN_SCHEMA_VERSION=9`，对 4–8 版本执行显式升级（v9 显式删除已迁入问题插件的五张旧问题表，PS-046），更早的非空库拒绝。`migration_meta` 保留项目域共用实体序列，以及任务、日程、正文的非复用编号高水位。
+
+协作房间、contentId 和正文身份保持；恢复与投影直接消费当前引用格式，不再转换旧来源与 Yjs 属性。侧栏、历史入口、首页、统计、发布和插件只消费项目。旧博客路径不跳转，新产物上传失败时不删除旧文件；局部发布的未选祖先只保留目录，不发布正文。
+
+同步沿用原目录，元信息携带 dataModelVersion。所有旧端必须在版本切换前停用；新版不能阻止旧端覆盖同一路径。下载旧库先完成迁移验证再启用，旧备份恢复也执行升级，不自动上传。
+
+### 数据基线与旧输入拒绝（D-091 追记 / D-116）
+
+用户确认所有用户已完成当前版本升级，清洁版已物理删除全部历史迁移、退役与旧格式转换
+代码（含读取期兼容，见 D-116）。开库、备份恢复与同步下载写入前执行统一基线门禁：
+
+- 桌面：`assertNoLegacyTables` 探测共享旧表黑名单（`legacy-tables.json`），
+  命中即抛 `DB_LEGACY_SCHEMA`，提示先用最后升级版本打开该库完成升级；
+- 移动端：`MAIN_SCHEMA_VERSION=9`，高于当前版本拒绝降级（`DB_SCHEMA_INCOMPATIBLE`），
+  4–8 版本执行显式升级，更早非空库拒绝（`DB_LEGACY_SCHEMA`）；下载验证走同一门禁；
+- 数据库下载与新快照发布只接受同步信封版本 5；版本探测和上传前的父版本读取允许历史元信息（0–5），不下载或转换旧数据，未来协议拒绝。已升级且数据完整的本地库可在不落后远端时上传协议 5 快照，完成云端升级；读端允许沿历史后继记录到达新提交。版本 5 包含正文任务高级属性、周期实例历史和操作回执，不能由旧端按旧任务语义回写。
+
+后续 schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护）；移动端版本号
+递增并编写显式迁移，同版本 hash 变化仅补建新表与新索引。聊天会话的事实源是 pi JSONL
+文件与 chat_session 目录表，按库共用的连接/重连在途任务去重保留。
+
+### 订阅域退役边界（D-042）
+
+RSS、稍后读和博客 RSS 输出已全部移除，不创建新 Page。旧 feed/rssSubscription/readLater Tab、模块配置与搜索记录在恢复时过滤；rss-store/read-later-store 缓存随设置初始化清除。扩展保留剪藏，移除稍后读及其 RPC。
+
+共享 schema 不含 rss_feed、rss_subscription、rss_entry、read_later 及其九个显式索引。retireSubscriptions 已随清洁版删除；残留旧表的库由数据基线门禁拒绝（D-091 追记），不再有开库退役与专属备份。已另存正文、文章、项目、视频笔记及实际文件保持不变。
+
+博客不再生成 rss.xml、rss 初始化字段及自动发现链接；publicUrl 保留用于打开站点。旧 rss.xml 根据发布历史进入下次正常发布的删除计划，失败保留历史以便重试；不自动部署或扫描远端。恢复旧功能须停止所有同库客户端，使用升级前快照及匹配旧版本；仅回退代码不能找回旧表，新版恢复旧备份仍会执行退役清理。
+
+### 编辑器引用块退役（D-050）
+
+对话引用和问题引用／创建扩展已移除，独立对话保留；问题、答案及关联记录已迁入问题插件（PS-046）。`@tau/db-schema` 的共享纯函数深度优先清理 `chat-reference`、`question`、`question-card` 节点及对应协作占位符，覆盖 children、旧 tabsContent、折叠内容和嵌套正文；仅识别具有 children 的节点，不替换普通文本。升级负责清理旧数据；编辑器加载、规范化和 Markdown 导入不再识别退役名单，不安装退役兼容扩展（见仓库 `docs/editor-refactor/03-决策记录.md` ER-047）。下述数据库与协作存储清理目前仍保留。
+
+退役编辑块的数据库与协作清理已随清洁版删除（D-116）：`retireEditorBlocks`、连接级 TEMP 触发器、协作读取期剥离与各端备份链全部退役；导入与协作写入按当前节点协议处理，旧导出文件中的退役块按未知节点规则呈现，不再静默剥离。
+
+### AI 代理统一（D-049）
+
+桌面各聊天入口与浏览器扩展只运行现有本地代理，不提供代理选择；模型菜单和服务商配置继续生效。主进程不再注册 Codex 模块，扩展不再查询 Codex 可用性或传递代理线程 ID。
+
+对话工作目录（D-093）：可选目录只属于主对话（对话页 / 停靠栏），pi 的 cwd 按对话记录在 `chat_session.cwd`。设置「工具权限 → 工作目录」的 `agentWorkspace.defaultCwd` 只决定主对话的新对话：草稿首轮登记时写入草稿选的目录或当时的默认目录，之后改默认不影响已有对话；目录行为空（早于本功能的对话）跟随默认。取值统一走 `useChatSessionStore` 的 `resolveChatCwd` / `useChatCwd`，ChatContainer 每轮传给 `ensureChatSession`（非主对话传空），cwd 变化与模型变化一样按会话文件重建宿主（pi 内置工具装配时绑定 cwd）；子代理经工具上下文的 `cwd` 继承。宿主请求同时带 `chatScope`（含所属对象），主进程 `pi-workspace.ts` 的 `resolveSessionCwd` 据此解析：学习项目对话固定在资料 Markdown 目录（`vibeLearningMarkdownDir`，与资料转换落盘共用约定），其余空或不存在的目录落到应用数据目录（`~/.editor`，PDF / 视频笔记即此）；另经 `pi-session:workspace-info / workspace-branches / workspace-checkout` 提供仓库分支读取与切换。对话页与停靠栏输入框正上方的 `WorkspaceBar`（经 ChatContainer 的 `composerAccessory` 插槽，排在编辑横幅之前）（数据走 `features/chat/workspaceQueries.ts`，聚焦刷新）显示目录与分支，对话进行中禁用切换。浏览器扩展对话不传 cwd，仍在应用数据目录。
+
+旧聊天表的代理兼容列已随表一起删除（pi 迁移 M8）。系统消息的 TAU_CODEX_CONTEXT 仅在请求规范化阶段剥离；正文与自定义提示不改写。历史 Codex 工具统一通过通用折叠行只读展示，不保留专用渲染器、注册项或 showcase 示例，模型上下文使用助手文本承载旧工具结果；通用工具配对修复继续生效。旧问答操作不自动续接，旧 waiting_input 任务恢复为 interrupted，支持用户用本地代理重试。设置初始化清理 chat-agent-type 与 chat-agent-working-directory。
+
+### 资源管理退役边界
+
+资源管理页面（`resources` / `resourceManagement`）、资源库选择器及主库资源登记、扫描、分组、引用计数已移除。聊天附件直接消费上传返回的路径；历史消息的可选 resourceId 不再用于查表，图片和 PDF 输入使用消息自带路径。旧 Tab、搜索历史和模块设置在恢复时过滤退役入口。
+
+桌面主库维护升级及移动端主库升级事务删除 resources、resource_group、resource_scan_version 和资源操作记录；失败回滚并上报，实际文件不删除。协作缓存数据库中的 resources 表、Vibe Learning 资源、通用文件与媒体服务、上传设置和资源同步均保留。旧同步设置的黑名单文件选择使用 `resource-sync:list-local-files` 扫描本地同步目录，不依赖主库索引。
+
+### 音频笔记退役边界
+
+项目条目类型 `audio-note` 已移除（D-078）。编辑器 `:::audio`、三端音频插槽、播客、TTS、背景音与视频 / 学习项目共享转写保留。旧库清理由 `feature-table-retirement` 接入桌面开库与下载校验，移动端在主库升级事务内执行；先备份，实际删除 `audio_notes` / `audio_note_item` 及其索引，失败回滚。音频节点的普通后代按原顺序提升并去重，parents / projects 同步修复；释放专属正文引用，仍被其它实体引用的正文保留。树变换 SQL 在 `packages/db-schema/src/audio-note-retirement-sql.json` 跨端共用。
+
+独立内容索引开库时按主库退役记录清理 FTS / 向量数据；已复用 ID 的新文档不删，失败下次重试。`audio_note_chats` 仍由历史聊天退役流程负责，不并入音频笔记表清理。内置数据库 Skill 的表清单与字段顺序由 SQLite 元信息对账测试守护，修改表结构须同步文档。
+
+```text
+apps/desktop/src/
+├── app/                 # 壳层、导航清单、布局与全局浮层装配
+├── page/                # definePage、双注册表、栈机、Provider、Activity 保活
+├── features/
+│   ├── home/            # 今日与统计；pages / views / queries / types
+│   ├── projects/        # 文档树列表、详情与条目工作台
+│   ├── databases/       # 数据库列表与详情
+│   ├── vibe-learning/   # Notebook 列表、详情、生成与测验
+│   ├── cards/           # 卡片墙、详情及快捷卡片窗口（图谱已移到 knowledge-map）
+│   ├── flashcards/      # 复习页、编辑与复习会话
+│   ├── walk/            # 随机漫步：随机抽旧内容重温，顺岔路（双链/语义/同标签）走到相邻内容
+│   ├── pdfs/            # PDF 列表、阅读器及页面作用域对话
+│   ├── search/          # 命令面板与检索
+│   ├── settings/        # 设置浮层、分区单源与各子页
+│   ├── editor-window/   # 卡片、文章与项目文档的独立编辑窗口
+│   └── markdown-window/ # 文件窗口、文件树与源码模式
+├── components/          # 应用级业务共享层；消费者决定归属
+├── services/            # Page 导航、正文入口、pi 运行时与内容编辑协议
+└── pages.ts             # Vite glob 自动注册 Page
+
+packages/ui/src/         # 公共原语、浮层底盘、hooks、cn
+packages/themes/src/     # token 契约、主题定义、运行时与 CSS
+packages/database/src/   # 多视图 Database、投影、store 与通用字段插件
+```
+
+目录示意只列高频域。新增页面在 features 内声明；原 pages 目录已清空，背景音归 pomodoro/windows，测验题面归 vibe-learning/components/quiz，卡组表单归 flashcards/components/DeckSelectorDialog。
+
+高频入口：`app/navigation.ts`、`app/navSlots.tsx`、`features/settings/sections.tsx` 与各域 queries。
+
+### 插件页面开发接入（D-140）
+
+插件页面从 `PluginPageProps.pageContext` 取得实例级上下文登记接口，在组件 `useEffect` 中 `register(() => value)` 并在清理时 dispose。value 是作者自定义的任意有限 JSON，宿主不规定业务字段或结构；现有 `get_current_context` 在 `page.pluginContext` 原样返回当前实例的快照，未登记、未就绪或异常时为 null。同一 `pageContext` 另有 `isActive()`（即实例的 mounted 状态：PluginPageView 在 Activity 可见时的 layout effect 里 `mount()`，隐藏时清理，等价于在栈顶）与 `registerDismiss(dismiss)`：登记项在页面显示时经 `usePage().registerOverlayDismiss` 挂到 D-003 的 Esc 仲裁上，隐藏时摘下、再显示时按登记顺序重挂，插件停用（signal abort）时全部清除，插件回调抛错不影响宿主。不提供显示状态的变化通知：Activity 隐藏时插件组件的 effect 已被清理，effect 生命周期即显示状态。`services/plugin-page-context.ts` 管理登记与读取，PluginPageView 按页面身份、完整参数和插件激活实例注入；Activity 隐藏时清理，恢复重登，卸载、停用和切库兜底回收，旧句柄不能删除新登记。普通页面的上下文结构不变；页面操作仍由作者自行注册 MCP，不增加工具分发或导航协议。
+
+聊天工具展示的唯一注册表仍归 `@tau/chat-ui/renderers`。作者在 async activate 中 `await ctx.chat.registerToolRenderer({ mcpId, toolName, component })`，只引用本插件 MCP 的原始工具名。PluginHost 在激活前校验目标、成功后发布；桌面 `app/plugins/chat.tsx` 复用 `tools/plugin-tool-name.ts` 的既有 SHA-256 算法，不改变历史工具名和偏好键。展示不受 MCP 执行开关/连接状态影响；signal 失效立即卸载组件，切库由 Provider 先清理旧运行时。工具行自身订阅注册表，动态登记和撤销不依赖消息对象变化；带归属句柄拒绝冲突，旧句柄不清理新登记；错误边界按登记代次重建，无关工具登记不重挂当前组件。
+
+本地工具返回 `{ content, render?: { version, data } }`，展示数据为有限 JSON、正整数版本，由宿主固定 rendererKey 后经 pi details 保存；transport 不接收任意展示路由或数据字段，只提供现有 output。实时 `tool_execution_end`、`turn_end` 兜底与历史投影均保留 details。失败/取消回到通用工具行，审批仍由宿主承担；未知数据版本由插件调用 renderDefault 回退，延迟组件加载经工具行内 Suspense 显示同一默认回退。不新增聊天 schema、内置工具覆盖或 MCP Apps 运行器。作者协议及验收见 `docs/plugin-system/聊天工具自定义渲染调研.md` 与模板 MCP.md。
+
+渲染选择再次校验绑定：插件登记仅按实际 execution.toolName 命中，其他工具的 metadata 不能调用它，也不能用 metadata 改选该绑定工具的渲染器；内置项保留既有 metadata 路由。插件接收 execution 的独立快照，不能通过传入引用改写宿主实时消息或历史投影。注册表订阅异常逐个隔离，不能打断登记或回收；turn_end 兜底收敛全部非终态，但不覆盖已确认的成功/失败/取消。
+
+TTS仅使用渲染进程插件：context.tts实例只在主窗口渲染端创建，主进程plugin-local转发会话、请求、取消及关闭通知；同插件的账号配置按ttsProviders实例ID隔离。target:tts分区接收ttsConfig，不写插件级共享Key，设置页复刻显式传入编辑中的账号与模型。播客从脚本到结果提交固定实例，只消费textInstructions；会话关闭会使后续上传和保存失效，普通失败行保留空片段与零时长，重生成不挪错行。旧MiniMax/Qwen适配、主进程tts模块与重复集成入口已删除。首次加载设置经tts-settings-migration先备份，再将旧账号逐项转换并原子保存；失败不发布新状态，未识别的旧提供方报错而不丢弃。配置、选择与插件安装状态分离，未安装时提示安装，不自动改用其他账号或启用插件。SDK 0.13.0；范围与验证见docs/plugin-system/65-TTS插件拆分调研与方案.md。
+
+设置提交使用user-setting现有串行队列：先原子落盘，再发布内存快照、广播与监听通知；失败保留已提交快照，后续提交可重试。按账号修改的操作在队列执行时合并最新值，统一全量设置RPC等待保存完成后回执。前端通用即时设置仍为乐观编辑，不把失败提示误称为自动回滚；TTS配置表单成功保存后才提交本地值。
+
+图片能力沿用 TTS 模式（D-171）：SDK 的 `context.images.register` 注册按配置与模型创建的实例，生成和编辑至少实现一项，输出图片字节与实际 MIME；插件 `target: "images"` 配置视图接收当前账号的 `imageConfig`，字段与校验由插件决定。主窗口渲染注册表执行，`plugin-local:images-*` 只转发任务、取消和关闭通知，辅助窗口不运行插件。聊天、编辑器和白板共用 `services/image-generation.ts` 的文件解析、上传及取消检查。输入和输出最多 16 张、总字节分别不超过 128 MiB；只接收 PNG/JPEG/WebP。能力状态按配置和激活代次异步刷新，配置或插件变化会重新注册可用工具，执行时再次复核。设置加载的 `image-settings-migration` 备份后逐账号转换旧 OpenAI 配置，不自动安装插件；新安装没有预设账号，删除或失效选择不切到其他付费账号。历史工具来源和结果键保持稳定，已生成图片无需插件即可展示。接口和实际验证见 `docs/plugin-system/70-图片生成与编辑插件化调研.md`。
+
+在线视频归视频提供方插件（D-174）：SDK 的 `context.video.register` 注册按插件配置创建的实例，实现 `matches / resolve / cacheKey / getPlayback`，返回播放源描述（`file` 单流、`split` 音视频分离、`extract` 交给宿主 yt-dlp），不传视频字节。宿主不含任何平台代码：主窗口 `app/plugins/video-registry.ts` 执行并逐字段归一插件结果，`plugin-local:video-*` 只转发请求、取消与已启用提供方列表（`ready` 前缺提供方不视为未安装），主进程自身经 `pluginVideoRelay.call` 调用。下载、合并、缓存统一在主进程 `online-video-cache` 模块，缓存身份为「插件 ID + cacheKey」的摘要，已缓存时不向插件取流；`services.videoExtractor.probe` 开放 yt-dlp 格式查询。视频元数据 `metaInfo.type`（学习资料为 `source_type`）即插件 ID，`type/title/thumbnail` 由宿主占用，其余字段是插件的引用；`local/remote`（学习资料另有 `note/material`）之外的 type 都按在线视频分发。编辑器、白板、视频笔记、学习资料共用 `useOnlineVideo` 取源、`OnlineVideoSelectModal`（`useOnlineVideoResolver`）选择与 `OnlineVideoLoader` 进度浮层。添加入口按插件生成，每个启用的插件一项、名称取插件名：编辑器 `IMediaInsertSources` 注册为函数（`MediaInsertSourceList`，每次组装菜单时读取），白板 `createVideoExtension({ videoSources })` 生成右键与工具栏项（动作 `source:<id>`），项目菜单由 `buildAddMenuItems` 生成，学习资料在多个插件时提供来源下拉；弹窗只用该插件解析，链接属于其他插件时提示改用对应入口。界面文案不出现「视频插件」等技术统称：能用来源名处用来源名，需要统称时叫「在线视频」（设置分组、缓存筛选），降级提示只写「请在桌面端查看」。插件配置表单挂在「账号与连接 · 在线视频」。设置加载的 `video-settings-migration` 把旧 `integration.bilibili/youtube` 迁入 `onlineVideo.configurations`；移动端、博客与浏览器扩展只显示统一降级提示。接口与验证见 `docs/plugin-system/74-在线视频提供方插件化.md`。
+
+插件 MCP：`ctx.mcp.register` 可注册多项本地 tools 或外部 transport（stdio / streamable-http），两者互斥；不另设工具组协议。PluginHost 激活成功才发布，失败/停用/切库回收。`tools/pluginMCP.ts` 按插件和 MCP 局部 ID 隔离来源，生成稳定工具名，激活/重连代次进入执行身份；执行时复核实例、数据库、整项与逐工具开关，合并取消信号并限制 60 秒。主进程 pi 沿用 execute 审批，ctx.ai 文本接口不变。现有 MCP 页面和聊天快捷面板通过 useMcpServers 同源展示在自定义区，仅注明插件来源；外部项复用配置/日志/重连，本地项只展示工具。偏好沿用 providerStates/disabledTools，外部连接覆盖存本机 pluginTransports，不把运行注册项写入 customServers。插件外部连接绑定窗口，握手与重连退避撤销也有效，窗口关闭/崩溃/导航断开，不改变手动服务器生命周期。作者契约与验证见 `docs/plugin-system/54-C31插件MCP.md`。
+
+插件 AI 服务支持两条路径：自定义功能由 ai.features 声明并独立分配模型；context.ai.requestCapability(name) 复用应用已有分配，无需自定义声明。全部 12 项 llmUsageSettings 分配由 SDK 的 PLUGIN_AI_CAPABILITIES 提供能力名与显示名，并派生 ai:<能力名> 权限。PluginHost 统一校验声明、懒申请、每次调用检查与撤权取消；同一激活期按能力缓存宿主客户端。DesktopPluginAI.bindCapability 只绑定主进程会话和固定能力名，业务适配器不另建授权或取消链。主进程 BACKGROUND 模块 plugin-ai 解析当前应用分配（或自定义分配），使用同一插件额度、并发和审计执行 pi-ai；不同能力分别授权，用量按插件聚合。模型解析前即登记取消句柄，准备前后核对分配一致。chat/stream 支持文本与 user 图片，图片与正文不入审计；图片总大小有界。插件设置对宿主能力只显示继承模型说明和额度，自定义功能仍独立分配；运行统计可取消请求，撤销宿主能力在权限页处理。能力类型与 ISetting.llmUsageSettings 的键集合由测试对账，新增内置分配不得遗漏 SDK。作者用法见 scripts/plugins/template/docs/ai.md；这些闸门不是恶意同环境代码的安全隔离。
+
+插件生产装配按D-166：DesktopPluginProvider不默认注册任何业务插件，主题切换示例仅在features/plugins/**tests**/fixtures中供测试使用；正常主题设置保留。桌面用户从插件中心安装，生产包禁用ZIP安装入口；开发模式保留ZIP调试。已安装目录继续由本地管理器发现，已有启用意图与私有数据不变，不静默删除用户已有包。
+
+插件作者从 `@tau/plugins` 使用定义、上下文与页面 API，从 `@tau/ui` 使用组件。`ctx.pages.register` 返回可打开和注销的页面句柄；页面组件接收所属插件上下文和本实例参数，不直接导入 Page/store。SDK 根入口只引入 React 类型，不加载 UI/DOM；Node 命令样本继续可运行。
+
+开发构建在命令面板提供「插件开发台」，由features/plugins/pages/plugin-workbench.page.tsx声明；开发和正式构建均从空插件集合创建宿主，再发现约定目录中的用户安装包。页面、设置、主题等样本仅由测试显式装配。PluginProvider在壳层进入工作区后创建宿主，切库/卸载回收；开发台和编辑器实验装配仍仅开发构建加载，不恢复目录选择或生产默认样本。
+
+插件页面统一经 `features/plugins/pages/plugin-page.page.tsx` 承载，动态定义只在 `DesktopPluginRuntime` 中登记；Page 栈机和双注册表不改动。承载参数为 pluginId/pageId/instanceId 和标量参数 JSON，single 页每个插件页面一实例，params 页默认按完整参数去重、可自定义 getId。`open()` 缺省传空参数；返回/前进保留栈条目自己的参数。
+
+停用先取消上下文，当前页面改为不可用提示并卸载组件与 UI Portal；隐藏 Activity 的副作用已停驻，恢复时检查当前注册，不重新激活旧组件。重新启用以新 mountId 创建组件；局部错误边界也按该代次重建，修复插件后可恢复。页面及导航条目保留，不为卸载修改底层栈；当前没有通用未保存守卫，样本只包含即时保存的偏好操作。
+
+插件私有存储（`context.storage`）在 Electron 中存于当前库的 `plugin_kv`（`app/plugins/kv-storage.ts` 的 `createDatabaseStorage`，命令固定到宿主创建时的库并带实例 signal，随云同步，见 PS-042 M4d）；浏览器预览仍用 `createBrowserStorage`。Node 文件适配器不进入渲染端。样本数据走 react-query，缺失偏好归一化为布尔默认值，失败显示错误并可重读，不把 undefined 交给 query。UI 通过 UiProvider 继承全局主题并管理 Portal，不自行修改 data-theme。窗口级宿主不负责跨窗口后台任务；这些能力留给后续真实服务接入。
+
+公共基础设施已经整体迁出桌面：`packages/ui/src/` 包含 primitives、hooks 和 cn；主题契约与运行时归 `packages/themes`。
+
+### 静态编辑器插件与博客发布（D-165）
+
+独立后台协议（PS-043，实施进度见插件专题 78）：格式 2 的 `backend` 与渲染入口分开构建、静态核验；主进程 `plugin-backend` 管理器为已授权包启动独立 utilityProcess，`ctx.backend` 只取得本插件连接。支持请求/事件/取消、版本摘要授权、进程超时回收与失败熔断；外部工具由宿主监督，Node 插件本身仍是高信任代码，不作为 OS 沙箱。详情页「本机后台」管理授权与重启，业务数据权限不自动授予后台。
+
+后台按 application/workspace 作用域支持按需和就绪激活，持久授权才跨重启自动生效。宿主本机偏好 `background-preferences.json` 管理登录后隐藏与关窗保活；系统登录项读取系统真实状态。设置位于「关于与更新 → 启动与后台运行」，托盘可暂停/恢复；无可用托盘时不保留不可见入口。受控退出先登记回执并通知窗口收尾，在共享期限内保留已授权后台调用，使退出同步可以完成；回执结束或超时后再拒绝新调用、停止自动激活并回收后台，随后完成协作落盘，强制退出有同步终止兜底。Windows Job Object 与各平台登录启动须在对应安装包实机验收。
+
+异步数据库命令在表的 getListenEvents 中使用 `asynchronousDatabaseCommand` 声明，IPC 经 `executeDatabaseCommand` 分发：同步命令使用 better-sqlite3 同步事务/保存点，异步编排不包外层事务，内容转换及网络等待之后由领域写入方法开启同步事务并重查修订。索引异步写入同样不跨等待持有主库或索引库事务，最终索引写入使用自身同步事务。后台会话被授权变更、撤销或停用关闭时通知渲染端丢弃令牌，授予权限后恢复仍有效的订阅；失败的业务 RPC 不自动重放。
+
+内容转换统一经 `ContentExecutor`：独立 `content-runtime.html` 使用 sandbox、禁用 Node 和业务 preload，不调用插件 create/activate。查询、全文回退、分段、向量及资料索引通过异步转换消费固定包快照；发布 worker 经内容请求获得同一快照的搜索产物，搜索生成算法保持不变。队列、超时与取消有界，写入前复核库连接与修订，失败不写入过时结果。无插件快照时可在主进程使用纯内置转换。生产主进程与 Node worker 已删除插件定义求值；`pnpm check:plugin-process-boundaries` 守护边界，scripts 中可信样本求值只用于验收。
+
+插件中心后台版本必须经人工系统能力审核，CI 不自动批准；客户端来源记录绑定 Release、版本和 ZIP 摘要，本机授权再绑定安装路径、完整清单与来源。审核来源在详情页展示，本地包明确显示未经中心审核。联网状态缓存最多一分钟，运行后台及插件 stdio MCP 定期复核，已知下架落盘并停止；离线不能感知尚未获取的撤回。插件 stdio MCP 必须匹配 backend.tools 并获得后台授权，使用宿主监督器；撤权、停用、切库和窗口退出取消其租约。更新有任务、订阅或 MCP 租约时拒绝切换；空闲后阻止新启动并结束旧实例，整包原子切换，新版本等待独立授权，不继承旧摘要的执行权。
+
+C27 下载统计：插件中心按 downloads7d/downloadsTotal/updated 排序，目录由 API 分页、主进程按页读取完整结果供发现/更新/详情共用，按 pluginId 去重；renderer 查询缓存60秒。匿名凭证由主进程保存在 userData/plugin-center，按 API origin 区分、权限0600，跨工作区复用，不经 IPC 返回。下载自动附带凭证，申请失败仍可下载；旧服务未提供统计窗口时禁用排行榜切换并显示统计不可用，不展示虚构零值。
+
+桌面与博客的插件贡献由@tau/plugins/content的ContentPluginRegistry保存只读快照；桌面shared/content-plugins.ts服务普通窗口和独立内容渲染进程，博客发布保持按用户已安装版本收集main.js/CSS并在浏览器加载。移动端和浏览器扩展不依赖@tau/plugins，只使用各自原生EditorKit和Markdown处理器，不提供插件渲染；未知节点按编辑器既有通用保护保留原数据。
+
+所有正式插件源码在独立GitHub仓库维护，桌面通过插件中心下载并安装到~/.editor/plugins。产品plugins目录、随包构建/安装、旧S3随包替换和portable编译注入已退役。固定包仅在tests/fixtures/plugins作为集成测试输入，由catalog.json校验来源、版本和摘要，不进入任何客户端构建。博客仍从用户安装目录获取发布依赖，不读取测试清单。维护与验证见docs/plugin-system/63-插件分发边界清理.md。
+
+`SourceBlockEditor/useSourceBlock` 由 SDK 提供，内部复用 PreviewWithEditor。宿主共享模块映射初始化 source-editor-host，作者入口保持只依赖 SDK，不单独引用内部适配器。发布器按扩展 styleSources 读取节点源码编译 Tailwind；htmlSerializers 仅供静态导出，不改变博客渲染。
+
+HTML 行内与块级节点按 D-170 共同归 tau.html 插件，@tau/editor-html 内置包退役。SDK 0.17.0 的独立 useInlineSource 提供只读状态、可选样式编译器和受守卫保护的更新/删除；insertInlineSource、InlineSourceBoundary 复用宿主插入与浏览器行内边界。插件不得打包自己的 Slate。原生 HTML 的 Markdown 认领归已启用插件，缺包时保留文本或未知节点 JSON。两类 HTML 的博客及静态导出 CSS 都按 styleSources 收集，宿主没有专属类型名单；缺包静态导出保留转义源码。客户端仍为 0.59.0。
+
+ABC 乐谱按 D-169 完整迁入 tau-plugin-abc：内置 diagram 仅保留 Mermaid、PlantUML，abc 节点与围栏由插件贡献，abcjs 只在插件包内。桌面 HTML 导出优先用插件输出 SVG，插件缺失时保留转义源码；Markdown 缺 codec 时沿用 tau-node 保真。博客复用同版本组件，移动端与浏览器扩展只保留未知节点数据。客户端版本仍为尚未发布的 0.59.0，不增加 ABC 编译服务或 SDK API。
+
+静态插件组件通过独立 usePluginServices 获取已有 PluginServices。main.tsx 的 DesktopPluginServicesProvider 为所有桌面窗口提供窗口/工作区作用域，内容插件装配只包裹所属元素的 React 渲染函数；普通组件、博客和后台 codec 没有服务。组件取消信号与作用域取消信号由既有 bindPluginServices 合并，窗口关闭、切库和旧句柄失效后拒绝迟到结果。独立内容编辑窗口使用 URL 指定的数据库固定作用域，不随主窗口切库失效。此接线不执行 activate，不改 useSourceBlock 或 EditorKit。Typst 按 D-168 保留宿主原生编译和旧聊天，预览挂载不写文档，仅用户编辑源码编译成功后持久化缓存；博客使用缓存或源码回退。
+
+插件 Skill 是包内 `skills/<id>/` 目录（D-180）：manifest.skills 列出目录，文件进入 integrity，由插件扫描与安装事务校验；没有 main、只声明 skills 的是独立 Skill 包，与模板一样不进入 PluginHost、不参与启停，插件页以 `packageKind: "skills"` 展示。主进程 skill 模块读取 `~/.editor/plugins/*/manifest.json` 收集声明的目录，与我的、关联目录一起经 `skill:list` 返回（来源 plugin / package，标识 `pluginId:skillId`），读取、目录树与脚本执行只放行这些声明目录。渲染端 useSkillStore 保留主进程完整列表，插件来源按本窗口 PluginHost 的 active 状态过滤（skill-registry 闸门，宿主变化重新过滤，本地包刷新重新列出），Skill 包始终可见；`$` 点名的磁盘 Skill 在注入前读取 SKILL.md。带脚本的 Skill 与本机后台共用 `requiresSystemReview`：门户不能自动批准，下载与安装核对 systemReviewed；脚本执行沿用 run_skill_script 的 execute 确认。PluginHost 只按 manifest.skills 计入 skill 贡献数。
+
+主进程 plugin-local 在开库前按 .enabled.json 静态读取已启用内容包，并交独立内容渲染进程校验定义；database 显式依赖该模块。主进程只保存通过校验的包快照，发布线程不求值插件。codec 在浏览器内保留函数闭包，第三方规则与内置规则使用同一转换协议；旧 plugin-codecs 和 index-content Node worker 已删除。
+
+SDK 0.6.0 的 editorExtensions/editorCodecs 是正式静态贡献，包声明 manifest.editor:true。主进程初始化固定启用包快照；main.tsx 在 React 挂载前调用 initializeContentPlugins 读取该快照，校验类型冲突并装配 CSS/codec。createDesktopKit 在底座上 extend 贡献，不重建打开中的编辑器。开发台 context.editor.register 仍只用于实验。
+
+已安装本地插件的启用意图统一经 plugin-local:set-enabled 写入主进程的 plugins/.enabled.json，窗口localStorage仅为镜像，不能驱动后台状态。首次迁移先导入旧.editor-enabled.json，再一次性导入普通本地插件的窗口偏好，主进程已有值优先；落盘成功后才改变窗口实例。每次写入广播plugin-local:state-changed，各窗口重新读取权威快照。SDK的Node入口local-state只读同一份状态，桌面主进程为唯一写入者。普通页面插件即时启停；静态内容插件完整重启后生效。活跃内容插件须停用并重启后卸载；切库不改变编辑器快照，静态渲染不得依赖activate上下文。内置主题及开发台夹具保持原管理方式。
+
+发布命令附带当前编辑器的内置类型、插件节点归属与 JS/CSS 摘要。主进程重新读取并验证磁盘包，worker 中的 `PublishPluginCatalog` 只处理数据和文件，不执行作者代码。缺少渲染支持的节点只按类型汇总警告，经计划预览回传并提示，不阻止发布；节点数据原样输出，网站由编辑器既有未知节点保护显示占位，不静默删除正文。已声明插件的磁盘包摘要、路径与归属等完整性校验仍失败即中止。每份内容数据声明实际使用的插件依赖，产物写入带版本与摘要的 `plugin-assets/`；入口与样式以所属数据文件 URL 解析，摘要键仍取 manifest.main/styles。新链路不要求 `plugin-runtime.json`，模板自行消费既有 C23 产物协议。
+
+发布线程另外从请求的包快照装配定义和纯 codec，供搜索摘要等转换使用；因此不能将 Catalog 的纯数据职责描述成整个 worker 都不求值插件代码。
+
+博客模板使用静态分发分支 `template: {protocolVersion:1,root,entries}`，只含静态站点产物：声明 main/format/styles/editor/whiteboard 等代码入口的模板包直接拒绝，不进入 PluginHost 生命周期。沿用中心安装、更新与恢复事务；发布设置从已安装模板选择，主进程冻结全部资产并校验 SHA-256。宿主保留 `_tau/`、`data/`、`plugin-assets/` 协议目录，其余目录与公开 URL 由作者决定。只替换已存在入口 HTML 真实属性里的 `__TAU_MANIFEST__`/`__TAU_BASE__`，未知占位符直接报错；JS/CSS 资产字节不变，不执行模板构建或按内容生成 HTML。深链由模板自己处理（官方模板把与入口相同的 404.html 列为第二个入口）。站点配置分两层（D-179）：宿主只保留标题、图标与发布目标的公开 URL；其余字段由模板在 `template.siteFields` 声明（text/textarea/url/select/switch），宿主校验后在「站点设置 · 博客模板」按声明渲染，值按模板 id 存在 `publish.site.fields`，发布时经 `resolveSiteFields` 只输出已声明键并回落默认值，写入清单 `site.fields`。站点设置抽屉的连接状态与测试连接归宿主，发布插件表单按宿主行式渲染并自动保存（PUBLISH.md）。
+
+宿主输出六类摘要 JSON、ContentRef、`version/documents` 纯文本搜索索引和内容插件产物；不提供阅读器、mountContent、预览 UI、路由、React 依赖映射或站点脚本。站点级数据（发布外观设置、项目列表、卡片标签树、项目目录树）只写入清单一次；内容文件只含自身正文、资源依赖和 `links`（本文正文里已发布的站内链接目标），增删一条内容只影响链接到它的内容文件。公开类型从 `@tau/plugins/publish-data` 消费，数据客户端由 `@tau/blog` 或 `@tau/plugins/publish-client` 提供。动态 CSS 过渡为 `data/styles/<sha256>.css`，按原文全局生效；图标在 `_tau/site/`，不占用作者根目录文件名。
+
+同一项目内共享文档可出现在多个目录分支，目录入口全部保留；发布正文、前后篇及搜索记录按文档 ID 去重，面包屑取深度优先遍历的首次出现位置。不同项目的文档 key 仍按项目 ID 隔离。
+
+`project-card-list` 在发布生成阶段保留卡片节点，按其 `projectItemId` 读取直属子条目，按项目树顺序生成本次已发布文档的卡片快照（标题、80 字摘要、ContentRef）；未选择的子文档不会被自动发布。`@tau/blog` 内置对应渲染，与桌面共用 `@tau/ui` 的 DocumentCard / DocumentCardGrid，保持网格、图标、标题、两行摘要及悬停样式；卡片整面使用模板 `hrefFor` 解析的链接，空列表沿用「暂无子文档」。嵌套正文同样处理，搜索只提取卡片文字，原数据库正文不改写；不降级为 `content-link`，也不在宿主拼接模板路由。已有静态模板需使用包含此渲染能力的新版 `@tau/blog` 重新构建。
+
+发布计划在 worker 计算，只向主进程回传路径、摘要与依赖描述；实际发布按物理目标单独记录成功资源，增量上传依赖后才更新入口，依赖失败不更新入口。失败后重新执行完整发布计划，不保留绕开目标锁、依赖顺序及发布记录的按文件重试接口。`publish-releases/` 仅保留当前、前一轮有产物变化的成功发布元信息及待清理资源，不做通用历史快照。撤下内容时清理旧正文、聚合数据与搜索索引，优先于缓存保留；删除失败留待重试。Git 发布只提交计划内文件，按字面处理特殊文件名，不清空仓库或强推覆盖远端；S3 仅为协议保证的摘要资源设不可变缓存。
+
+官方博客在独立 `tau-blog-template` 工程中保留原页面、样式、主题、正文、搜索与预览，原 `apps/blog` 作为保留工程不改造。官方模板选择路径路由（深链经 404.html 回退）和自己的 `projects/<projectId>/<nodeId>` 路由，按 key 取数；正文、预览及引用型答案各持数据上下文与 EditorKit，关闭释放资源，全页 HTML 在模板自己的子文档中运行。这些均不是第三方模板准入要求。Tailwind 发布编译仍是过渡生产者，后续按 64 号方案迁至插件产物再完整移除。实施与验证见 `docs/plugin-system/72-博客模板插件化实施记录.md`。
+
+### 博客发布提供方（D-173）
+
+GitHub 与 S3 发布由独立 tau.publish-github、tau.publish-s3 提供，SDK 0.21.0 的 context.publish 注册文件式或快照式实例。发布页只消费活动注册及 target:publish 配置表单，publishConfig 按应用级插件身份保存；本地导出内置，直接使用模板与内容生成器，不要求安装发布插件。缺失或停用保留配置和选择，不回落其他提供方。
+
+渲染端 app/plugins/publish-registry 与常驻 publish-bridge 执行作者代码，主进程 PluginPublishSessions 绑定发起窗口、固定配置及任务 signal，只转发 open/call/close 和字节。发布占用阻止启停、更新、恢复、卸载及重启；切库回收实例，窗口关闭拒绝迟到回复。离开发布页不会释放壳层会话。文件式并发受提供方上限约束，依赖成功后才更新入口；快照式在整轮远端确认后才记账。
+
+Git Push 使用受控 services.git.publishSnapshot：主进程只执行固定 Git 流程，输入是本轮临时发布句柄、不含凭据的 HTTPS 远端、分支、提交者及缓存授权 ID。目录选择由宿主返回句柄，插件不能传任意 cwd、shell 或读取其他文件。认证通过任务级 askpass 环境传递，不写入 URL、参数或 .git/config；拒绝非快进，按计划暂存文件，保留其他路径。主进程没有 GitHub 专属请求或工厂。
+
+旧 publish.github/s3 与 integration.github/s3 由最后升级链备份并转换，原 GitHub/S3 物理身份字符串及 publish-releases 文件名保持，不另造多文件迁移事务。已有插件配置优先，缺插件不自动安装启用；新写入拒绝旧字段。无目标账本时完整上传且不借用其他数据库全局历史进行删除。通用增量和本地导出仍在核心；移动端原生配置、根部署脚本和 pi 工作区 Git 能力保留。实际包与验证记录见插件专题 73。
+
+### 插件编译与转换服务
+
+`context.services` 提供 Tailwind、Typst HTML、Markdown 与 Descendant[] 双向转换及 HTML 渲染、FFmpeg 处理。SDK 0.14.0 移除 TikZ 服务，编译器和字体归独立 tau.tikz 插件，不保留转发入口（D-167）；0.13.0 的 TTS 与上传接口完整保留。Provider 注入 `app/plugins/services.ts`，SDK 合并调用方 signal 和实例 signal，停用不返回迟到结果。服务不读写业务内容、不选择或保存用户文件。
+
+主进程 `plugin-services` 是 BACKGROUND 模块，任务按 WebContents 归属，关闭或导航取消任务；调用前走 ensureModule。编译器和媒体进程独占任务临时目录，完成/失败/取消后回收。Typst 原 IPC 与 SDK 共用 TS worker，Tailwind 复用现有 worker。FFmpeg 复用客户端二进制准备（按需下载），不随包分发探测二进制。
+
+TikZ 文档与博客使用插件自己的节点组件和内部编译模块，不依赖 activate/context；源码变化或组件卸载取消独立 iframe 中的编译。旧聊天 TikzBlockRenderer 保留类型、围栏别名与缩放壳，通过 createDesktopKit 的插件贡献只读展示内存节点；缺插件时保留源码并跳转插件中心。主项目的 diagram 扩展和 codec 集合不再包含 TikZ，移动端/扩展不另设替代编译器，通用未知节点保护继续保留原数据。
+
+Markdown 复用 desktopCodecComposition；单次 codecs 不改变编辑器注册，也不隐式收集开发台贡献。HTML 沿用现有序列化器，可能保留原始 HTML、外部资源和图表源码回落；不是净化器或附件打包器。完整作者契约见 `scripts/plugins/template/docs/services.md`，实现记录见插件专题 39。
+
+### 插件摘录提供方（D-157）
+
+`context.excerpts` 由 `app/plugins/excerpts.ts` 适配：来源类型即插件 ID，所有调用经 `bindDatabaseCommands` 固定到 Provider 创建宿主时的库并带实例 signal；`register` 异步登记名称（首次写入前等待，失败随写入报出）并按需登记打开函数，停用即注销。主进程 `excerpt:register-provider / replace / patch / sources / items` 在 `tables/excerpt.ts` 校验参数（`entity/excerpt/provider.ts`，保留名 `web` 拒绝），写入事件进 `EXCERPT_WRITE_EVENTS` 统一驱动索引与脉络刷新。`context.materials.actions` 按需加载 `services/material-actions.ts`，避免插件宿主启动拉起卡片、问题等业务模块。
+
+微信读书（D-158）：内置实现已删除，由 `plugins/weread` 插件经上述接口提供；主窗口的 `window.open` / `target="_blank"` 统一经 `windows/open-handler.ts` 交给系统浏览器（仅 http(s)），不开子窗口。
+
+材料动作沿插件创建时的 databaseName 和 signal 传递：读取及创建前校验，切库/停用后的迟到结果不唤起新工作区界面。创建请求一旦发出，后续谱系仍绑定原库完成，不因取消转写当前库；跨库的结果提示和“查看/打开”动作不能使用旧 ID 导航到新库。
+
+### 插件业务数据与授权（D-176）
+
+- SDK 0.25.0 的 `context.data`（cards / articles / documents 的 `get`、`query`，todos / calendar 的 `query`）与 `context.content.read` 由 `app/plugins/data.ts` 适配：命令经 `bindDatabaseCommands` 固定到 Provider 创建宿主时的库并带实例 signal。卡片、文章、项目文档走主进程只读表 `tables/plugin-data.ts`（`plugin-data:query / get / content`，统一投影、按「排序时间:ID」游标分页、上限 200 条，引用型项目条目不计）；待办与日程复用 `task-assistant:read` 的 `query_todos / query_calendar_events`。ID 与 ContentRef（正文 ID + 创建时间）对插件不透明，IPC 契约在 `types/plugin-data.ts`。Notebook、材料与对话只读（`context.data.notebooks / materials / chats`），走单独的主进程表 `tables/plugin-data-readonly.ts`（`plugin-data:readonly-query / readonly-get / notebook-resources`），直接返回 SDK 形状（只读对象没有正文与版本，无需渲染端转换）；分页的时间范围与「排序时间:键」游标抽到 `tables/plugin-data-page.ts` 与 `plugin-data:query` 共用。Notebook 只给信息与资料清单（来源、类型、大小、时长，笔记 / 材料快照带原内容引用；不含说明、本机路径、转换后的文字、笔记与测验），材料三表合并分页、标题与出处复用 `MaterialTable.resolve`（软删除的划线与所在 PDF 已删除的标注不可见，`plugin-refs` 的存在判断同此口径），对话只给 `chat_session` 中四个场景的信息、不读 pi 会话文件。
+- 权限：manifest `permissions` 是申请上限（`@tau/plugins/package` 的 `PLUGIN_PERMISSIONS`，客户端丢弃未知值、门户严格）。PluginHost 先拒绝未声明的调用，再经 `PermissionsAdapter.ensure` 询问；正文读取需要任一所属实体的读取权限，无所属实体按不存在处理。桌面 `app/plugins/permissions.ts` 的 `DesktopPermissionBroker` 按工作区创建：「始终允许 / 已阻止」由 BACKGROUND 模块 `plugin-permissions` 存于 `userData/plugin-permissions.json`（按插件 × 工作区，变更广播 `plugin-permissions:changed`，卸载插件时清除）；「仅这次」与本次拒绝只属于当前激活实例；连续拒绝 3 次转为已阻止。窗口不在前台时不弹窗，请求进入 `usePluginPermissionUi.pending`，侧栏「插件」显示 `plugin-permission-requests` 徽标，由插件详情页「权限」页签处理。调用计数 5 秒批量写入，详情页显示最近 7 天。
+- 写入（M2）：卡片 / 文章的 create、update、delete，项目文档的 update（标题、标签），以及正文 `content.edit` 走 `plugin-data:create / update / delete / edit-content`。白板与项目（`context.data.whiteboards / projects`）同样走 `plugin-data:query / get / create / update`：`BASE_SQL` 增加两类投影（说明、页数 / 根文档数、归档），新建白板经 `WhiteboardTable.createWhiteboard` 带一张 `emptyWhiteboardPage`（主进程镜像 `WHITEBOARD_DOCUMENT_VERSION`，`white-board-content.test.ts` 对账），修改只走 `updateWhiteboardMeta` 不碰画板页；项目新建为空项目、修改经 `updateProject` 保留目录。两者没有写入广播，渲染端写入后按 `["whiteboards"]` / `["projects"]` 失效本窗口查询。项目目录 `projects.tree` 走 `plugin-data:project-tree`（从 `project.children` 逐层批量读 `project_item`，沿路径去重防环，最多展开 5000 个节点，多处挂载的文档在多处列出、引用卡片 / 文章的条目带 `ref`）；`documents.create` 走异步命令 `plugin-data:create-document`（正文经 `resolvePluginContent`；`shareOf` 经 `sharedContentId` 核对来源是本插件内容的正文后以 `contentId` 引用同一份正文，卡片 / 文章的 `shareOf` 同样核对后走 `buildCardFromContent` / `buildArticleFromContent`，一份正文已有卡片或未删除的文章时拒绝，`addRootProjectItem` / `addChildProjectItem`，父文档须已在该项目中）；`documents.move` 走 `plugin-data:move-document`，换算成项目页拖拽的 `moveProjectTreeItem` 参数（`insertParentId` + `insertIndex`，同父后移时按拖动前列表多算一格），复用其环与重复挂载校验。三者写入后失效 `["projects"]`。白板、项目、项目文档的插件删除同样写 `plugin_operations` 快照、7 天内可在「最近删除」恢复：白板删除让画板页进入新表 `white_board_content_pending_releases`（`WhiteBoardContentTable.deleteWhiteboard` 只减引用并登记，`incrementRefCount` 撤销登记，开库维护 `collectPendingReleases` 在正文回收之前删除超宽限期且仍无引用的页并释放页内嵌入正文，遗留的零引用页先补登记再等满宽限期——这也修复了此前页清理从未在生产中调用、页一直残留的问题），恢复时要求页仍在并重新持有；项目只能删除空项目；项目文档有子文档时拒绝、视频笔记不由插件删除，删除前记下它在各项目根目录与父文档中的位置（`placements`），从所有挂载处摘除后以 `deleteProjectItem(..., { deferContent: true })` 延迟释放正文，恢复时只挂回仍存在的位置并按其重算 `parents` / `projects`。持有正文的实体另有类型 `ContentOwnerEntity`（卡片 / 文章 / 项目文档），正文权限与反链只按它判断。正文输入统一为 SDK `PluginContentInput`（`markdown` / `nodes` / `copyOf`，`packages/plugins/src/content-input.ts`）：渲染端 `toContentSource` 把 `copyOf` 的 ContentRef 解码成正文 ID 与创建时间（IPC 形式 `PluginContentSource`），主进程 `tables/plugin-content-input.ts` 的 `resolvePluginContent` 统一解析——Markdown 经 `content-conversion`，`nodes` 用 SDK 的 `assertContentNodes` 复核结构后原样写入（未知节点类型按 ER-006 保留，不做类型白名单），`copyOf` 只接受卡片 / 文章 / 项目文档 / 插件实体持有的正文并深拷贝当前内容（有会话时取会话内容），只核对目标写入权限；文档待办的 taskId 由 doc-tasks 索引在写入后统一补齐，不在此重建。主进程复用 `CardTable` / `ArticleTable` / `ProjectTable` 与 `ContentTable.updateContent`（有会话时 `replaceSessionContent`，正文带 revision 乐观锁），实体 revision 为表的 `update_time`，过期抛 `PLUGIN_CONFLICT:` 前缀错误，渲染端 `app/plugins/data.ts` 转成 `PluginConflictError`。卡片 / 文章写入经 `broadcastAll` 发 `card:updated` / `article:updated`（含发起窗口），文章列表另按 `["articles"]` 失效，卡片删除在本窗口补发 `card:deleted`。待办与日程映射到 `task-assistant:preflight → write`（conversationKey 为 `plugin:<id>`），助理 `VERSION_CONFLICT` 同样转为冲突错误。删除可恢复：卡片 / 文章删除前存行快照到主库 `plugin_operations`，正文改为 `releaseDeferred`（7 天宽限），`plugin-data:restore` 原 ID 未被占用时沿用并 retain 正文；待办 / 日程删除登记助理 operationId，恢复走 `undo_task_operation`。插件详情页「权限」页签列出「最近删除」并可恢复，调用计数分读取 / 修改 / 删除。插件对正文的修改是会话之外的写入，不进入编辑器的 UndoManager（只跟踪本地 origin）。
+- 事件来源：`domain-event-origin.ts` 的 `writeAsPlugin` 在同步写入期间标记插件，触发器回调据此给出 `pluginId`；协作投影延迟落库的正文按 `markContentOrigin` 登记 5 秒。渲染端转成 `origin: { kind: "plugin", pluginId } | { kind: "app" }`。
+- 关联与打开（M3a）：`context.app.pick` 由 `app/plugins/app.ts` 写入 `usePluginPickerUi`，壳层挂载的 `PluginEntityPickerHost` 复用 `EntityPicker`（`entity:search`），一次只显示一个请求，插件停用即返回空选择；`entity:search` 为此增加 `todo`（非系统分组、未归档的独立待办）与 `calendar-event`（排除系统分组日历的截止 / 周期标记）候选，候选带 `createdAt`，转成与 `context.data` 一致的待办 / 日程 ID。`context.app.open` 先经 `plugin-data:exists` 核对目标（待办、日程、正文待办同时核对创建时间，只返回是否存在），再按类型走 `openEntity`（卡片 / 文章 / 项目文档 / 日记）、`whiteboard-detail`、`todos`（`selectedId`）、`schedule`（`eventId`），正文待办经 `entity:locate` 找到所在文档后带 `at: { taskId }` 打开。两者都要求 `navigator.userActivation.isActive`，不需要数据权限。引用类型另有 `project` / `notebook` / `material`（ID 为 `类型:ID`，选择器对应划线 / PDF 标注 / 剪藏三类）/ `chat-session`（会话 ID）/ `plugin-entity`：`PICKER_KINDS` 为一对多映射，`entity:search` 为此增加 `notebook` 候选；`open` 对项目、Notebook 走 `project-detail` / `vibe-learning-detail`，材料走 `openMaterial`，对话只放行 main-chat（`chat`），插件内容走 `openEntity`。引用的存在判断、选择登记与描述集中在主进程 `tables/plugin-refs.ts`（`plugin-refs:exists / grant / describe / clear`，取代原 `plugin-data:exists`）：`pick` 结束后先 `grant` 再交给插件，主库 `plugin_ref_grants` 按插件记下所选引用与目标创建时间（编号复用时授权不落到新内容）；`context.app.describe` 由 PluginHost 只查询（不弹窗）已获准的读取权限得到 `readable`，主进程对 readable 类型、已登记引用与本插件自己的插件实体给出标题，其余为 denied 且不透露是否存在。SDK `EntityRef` 由 `app/plugins/entity-ref-view.tsx` 实现（同一轮渲染按插件合并成一次 describe，作用域上下文拆在 `component-scope.tsx`）；卸载并清除数据时 `purgeStorage` 一并 `plugin-refs:clear`。
+- 正文组件（M3）：SDK `ContentEditor` / `ContentPreview` 为占位，`app/plugins/content-components.tsx`（经 `app/plugins/shared-modules.ts` 引入）调用 `configureContentComponents` 注入实现，重组件 `content-components-view.tsx` 按需加载。`PluginPageView` 用 `PluginComponentScope` 提供插件上下文，作用域外渲染说明。`content-target.ts` 的 `resolvePluginContentTarget` 由 ContentRef 经 `plugin-data:content`（核对创建时间与所属实体）与 `entity:locate` 得到正文 ID、所属实体与快照；编辑器交给桌面 `ContentEditor`（`source` + 可编辑时的 `editingContext`），预览用 `getContentKit` 只读渲染前 N 块并随 `content:updated` 重读。权限候选与正文接口共用 SDK 的 `contentPermissions`，挂载只 `permissions.query`、点击「允许访问」才 `request`，订阅 `DesktopPermissionBroker` 修订号刷新。
+- 媒体资源与组件（PS-048 M1）：SDK `useResource` / `useResourceUpload` / `useMediaAppearance` / `MediaImage` / `MediaVideo` / `MediaAudio` 为占位，`app/plugins/media-runtime.tsx`（经 `shared-modules.ts` 引入）调用 `configureMedia` 注入。组件取当前编辑器 kit 的 `IEditorSlots`，编辑器外回落 `desktopEditorSlots`；解析与内置 LocalImage / LocalVideo / LocalAudio 共用 `utils/mediaSource.ts` 的 `resolveMediaSource`（协作资源经作用域 `IResourceService.remoteResourceToLocal`，远程缓存策略按类型：图片、音频取设置，视频始终缓存），图片解析结果与 LocalImage 共用同一份预览缓存；上传取作用域 `IResourceService.upload`，只读编辑器返回 undefined；外观直接取设置 `appearance.image`。发布站由 `packages/blog/src/media-runtime.tsx` 直接并入插件模块：地址原样使用、不提供上传，外观读 kit 注册的 `IMediaAppearance`（发布设置）。
+- 节点资源声明（PS-048 M2a）：哪些字段是图片 / 视频 / 音频 / 文件只看 `ElementSpec.resources`（类型与内置声明在 `@tau/db-schema/content-resources`），宿主不按字段名推断。渲染端取 `services/content-resources.ts` 的 `contentResourceDeclarations()`（内置 + 已加载内容插件），编辑器内取 `getElementResources(editor)`；导出打包、EPUB、灯箱、插件说明文档、审阅合并都经它。`DesktopPluginProvider` 按当前库把内容插件的声明写入 `plugin_element_resources`（`app/plugins/element-resources.ts` → `plugin-element-resources:declare`）；主进程协作用 `PluginElementResourcesTable.catalog(db)` 在发起 / 结束共享与投影时补写协作文档的 `resources` 映射，上传、改写、本地化与服务端校验只按文档携带的声明。
+- 插件块能力（PS-048 M2b）：SDK `useElement` / `useMediaViewer` / `BlockToolbar*` 由 `@tau/plugins/source-editor-host`（经 `app/plugins/shared-modules.ts` 引入）注入 `@tau/editor/source` 的 `elementRuntime`；`ElementSpec.frame` 由编辑器内核外框实现，宿主无需接线。
+- 宿主动作（M3）：`context.app.run` 由 `app/plugins/app.ts` 实现，先经 `resolvePluginContentTarget` 与 `plugin-data:get` 取正文快照与实体标题；Markdown 导出直接调用 `exportContentAsMarkdown`，图片 / PDF / EPUB 导出、演示与协作共享写入 `usePluginActionUi`，由壳层 `PluginContentActionHost` 懒加载 `PluginContentActionView`（复用 `ContentExportModal` / `PdfExportModal` / `EpubExportModal`、`PresentationMode`、`ContentCollaborationControl` 的 `open()` + `onClose`）。`card.create` 先经 `plugin-data:resolve-content`（主进程 `resolvePluginContent`，只返回节点给宿主渲染端，不写入）把插件的正文输入解析为节点，再以 `PluginCardCreateRequest` 打开卡片页同一个 `CreateCardDialog`；弹窗的 `initial` 为预填模式，内容放组件内状态，不读写 `card-edit-content` / `card-edit-tags` 草稿，保存后以 `onCreated` 的卡片 ID 交还 `{ kind: "card", id }`。`project.insertDocument` 同样先解析正文，再以 `PluginDocumentInsertRequest` 打开 `InsertNoteToTreeModal` 的复制模式（不传 `sourceContentId`，正文即解析结果）；正文输入为 `shareOf` 时改经 `plugin-data:shared-content` 核对来源是本插件内容的正文，以 `sharedContentId` 打开共用正文模式（`insertMode: "shared-content"`），弹窗的 `onSuccess` 交出新建的 `ProjectItem`，据此返回 `{ kind: "document", id }`。`notebook.create` 先经 `plugin-refs:notebook-plan` 把 sources 换算成资料计划（有正文的卡片 / 文章 / 项目文档 / 日记 / 插件内容为笔记资源，划线与 PDF 标注合并、剪藏各一份，其余计入 skipped），`from` 经 `plugin-refs:exists` 核对后转成谱系端点；确认框 `ConfirmDialog` 与问题「以此立项」共用 `services/notebook-creation.ts` 的影响行与 `createNotebookWithResources`（建 Notebook、记 `upgraded_to`、逐份带入，单份失败不回滚），问题的 `question-to-notebook` 只保留材料到计划的换算与状态推进。Notebook 页顶部来源行 `SourceRow` 经 `vibe-learning-project:source`（`entity-context/context-lineage.ts` 的 `notebookSourceOf`，与脉络来源同一解析）显示任意来源，点击走 `openContextTarget`；原问题专用的 `question:source-of-notebook` 已删除。`chat.start` 不走动作界面：先用 `plugin-data:get` 把 context（卡片 / 文章 / 项目文档）换成对话输入框的 `MentionRef`，再交给 `features/chat/chatStart.ts` 的 `startChat`（单个待发起请求，打开对话页或停靠栏）；对话页 `ChatArea` 与停靠栏 `RightChatPanel` 各用 `useChatStartConsumer` 认领本位置的请求：可见时换新草稿，经 `ChatContainerHandle` 的 `setInputValue` / `appendMentions`（新增）/ `focusInput` 预填（等懒加载的输入框就绪），`onChatCreated` 收到该草稿登记时交回会话 ID；离开该草稿、页面隐藏（Activity 拆 effect）、停靠栏收起或插件 signal 取消时交回 null。不替用户发送；对话页原 `seedQuestion` 参数已删除（PS-046 3.3b），从问题发起对话只经 `chat.start`。`context.app.open` 的第三个参数为 PluginHost 校验过的 `{ placement, at? }`（窗口只开卡片 / 文章 / 项目文档、停靠栏只开主对话、定位只对有正文的内容，且不与窗口同用）：`window` 走 `commands/window` 的 `openEditorWindow`，`dock` 在核对 main-chat 后走 `openChatInDock`，`at: { block }` 交给 `openEntity` 的 `at`（插件内容透传给插件页面参数 `at`）。SDK `ContentEditor` / `ContentPreview` 的 `kit: "compact"` 由 `content-components-view.tsx` 映射为 `getDescriptionKit()`（编辑器经宿主 `ContentEditor` 的 `kit`，仍走协作派生；预览直接传给只读 `Editor`），缺省为完整套件 `getContentKit()`。请求经 `showAction` 统一承载：界面关闭（`close`）或插件 signal 取消后 `run` 才返回，新建类以 `null` 表示取消；同时只显示一个请求，已有界面打开时新请求直接报错（不再替换），避免丢掉用户正在填的内容。需要用户手势，不需要数据权限。
+- 插件实体（M4a）：主库 `plugin_entities`（`tables/plugin-entity.ts`，`plugin-entities:create / get / find / query / update`，按插件 ID 隔离，每项建一份正文并持有引用；`create` 是异步命令，初始正文经 `resolvePluginContent` 解析，缺省为空段落），渲染端 `app/plugins/entities.ts` 适配 `context.entities`，冲突经 `mapConflict` 转 `PluginConflictError`。`plugin-data:content` 附 `pluginOwners`（插件 ID、实体 ID、标题），数据适配给出 `own`，PluginHost 对本插件实体的正文跳过业务权限；`resolvePluginContentTarget` 带插件 ID 解析，组件与 `app.run` 对自有正文直接放行，协作来源 `{ sourceType: "content", sourceId: 正文 ID }`、不登记 `editingContext`。查询与计数（`plugin-entities:query / count`）由 PluginHost 先按类型声明的 `indexes` 校验条件与排序（`@tau/plugins/query` 的 `readWhere` / `readOrderBy`），主进程 `tables/plugin-query.ts` 拼 SQL：索引字段经 `json_type` 守卫后 `json_extract`（类型不符视为 NULL，不建表达式索引），排序以 ID 兜底，键集游标为排序值 + 查询指纹的 base64url，NULL 按 SQLite 顺序（升序最前、降序最后）参与比较；写入时 `create` / `update` 带上类型的索引声明，主进程用 `assertIndexedValues` 核对 meta。实体与记录的写入都包在 `writeAsPlugin` 里，`entity.*` / `record.*` 事件的 origin 为本插件。开库维护在正文回收前执行 `PluginEntityTable.collectOrphans`：`~/.editor/plugins` 子目录即已安装插件，缺失记 `orphaned_time`，重新出现或插件再读写即撤销，超 `CONTENT_RELEASE_GRACE_MS` 删除并 `releaseDeferred` 正文。
+- 插件记录（第二期 2.2）：主库 `plugin_records(id TEXT, plugin_id, collection, data JSON, …, orphaned_time)`，`tables/plugin-records.ts`（`plugin-records:insert / get / query / count / update / delete`），渲染端 `app/plugins/records.ts` 适配 `context.records`。集合声明（名称与 `indexes`）只在 PluginHost 内存中，写入时随请求带给主进程核对；ID 由 PluginHost 用 `crypto.randomUUID()` 生成（为 2.4 原子提交预先拿到 ID），主进程只校验格式与唯一。查询复用 `tables/plugin-query.ts`，默认按创建时间升序。删除直接删行，不写 `plugin_operations`。孤儿处理与实体共用 `adoptPluginData` / `markOrphans`（`ORPHAN_TABLES`）：插件再读写实体或记录即同时撤销两张表的孤儿标记，开库维护在实体之后调用 `PluginRecordTable.collectOrphans`，宽限期同为 `CONTENT_RELEASE_GRACE_MS`；卸载时的「清除数据」不删记录。事件由 `domain-events` 的 `plugin_records` 触发器产生，`record.*` 带 `owner` 与 `collection`，渲染端只交给所属插件。
+- 插件关联（第二期 2.3）：主库 `plugin_links(id TEXT, plugin_id, from_id → plugin_entities.id, to_kind / to_id 为插件引用, to_created_at, role, sort_index, data JSON, create_time)`，`tables/plugin-links.ts`（`plugin-links:add / list / remove / reorder`），渲染端 `app/plugins/links.ts` 适配 `context.links`。目标可见性与 `describe` 共用 `plugin-refs.ts` 的 `accessPluginRef`（readable 由 PluginHost 按已有授权算出，不弹窗）：不可见一律报「不能关联」，不区分是否存在；`to_created_at` 供脉络判断编号复用。`app.run` 的新建类结果在 `app/plugins/app.ts` 的 `run` 里经 `grantPluginRefs` 登记为选择过的引用，`context.data` 的 `create` / `createDocument` 在 `app/plugins/data.ts` 里同样登记。实体模块只依赖不含引用解析的 `tables/plugin-link-rows.ts`（行级快照、删除、插回），不要从实体模块导入 `plugin-links.ts`，否则依赖链经 `plugin-refs` 拉进待办文档模块。来源实体删除时 `PluginEntityTable.remove` 先快照并删除出边（payload 的 `links`），再删实体（事件仍能读到类型），`restoreDeleted` 插回；`collectOrphans` 删除超期实体前先删其出边。`domain-events` 的 `plugin_links` 触发器把边的变化记为来源实体的 `entity.updated`，`record()` 合并时保留先前取到的 owner / kind。
+- 问题管理迁入插件（PS-046 3.2，D-091 一次性升级）：渲染端 `app/plugins/question-migration.ts` 在插件运行时 `local.refresh()` 之后调用（`PluginProvider`）：主进程 `question-migration:pending` 判断库里有没有旧问题数据（问题或自建分组），有则按插件 ID 经 `plugin-local:versions` 取最新兼容发布并 `stage-release` 安装、`local.enable` 等到激活，再 `question-migration:run`。主进程 `question-plugin-migration.ts` 单事务直接写插件表（实体 key、记录与关联 ID 用 `legacy-…`，旧表随同步回来时不重复）：问题与独立答案为实体（答案沿用原 contents 行，问题关联持有的引用计数转给实体），分组、轨迹为记录（插件已建的默认分组沿用），材料、答案、对话、立项 Notebook 为关联并登记可见引用（`plugin_ref_grants`），谱系 `question` 端点改为 `plugin-entity`，首页布局 `questions` 改为 `plugin:tau.questions:active`，发布站 quest 选择删除；材料保活释放后删旧表；动手前先 `VACUUM INTO` 在库旁留 `<数据库路径>.pre-question-plugin-migration-v1-<UUID>.bak`，备份失败不迁移。失败整体回滚，弹一条带「重试」的通知（id `question-plugin-migration`），下次启动重试。插件引用的创建时间查询（`NUMERIC_KINDS`、`MATERIAL_SQL`）在无业务依赖的 `tables/plugin-ref-kinds.ts`。主库 schema 已不再建这五张旧表（3.3c），迁移只处理同步回来或尚未迁移的旧库；全部设备迁移后随清洁版删除迁移代码，旧表名进 `legacy-tables.json`。
+- 插件原子提交（第二期 2.4）：`context.transaction` 由 PluginHost 在渲染端缓冲写入，每条写入按单独调用的规则校验后记为 `PluginTransactionOp`；回调结束并等齐所有写入后，经 `app/plugins/transaction.ts` 一次调用 `plugin-transaction:commit`（`tables/plugin-transaction.ts`，异步命令：先在事务外解析全部初始正文，再在一个 `db.transaction` 里按顺序调用 `PluginEntityTable.insertResolved / update / remove`、`PluginRecordTable`、`PluginLinkTable` 的同一套方法，任一条抛错整体回滚）。事务里新建实体的 ID 经 `plugin-entities:reserve-id` 预留（推进不复用的序列，主进程内存登记「库 + ID → 插件」，提交时消费，未提交即作废）；记录与关联 ID 由 PluginHost 生成。修改与删除的 `expectedRevision` 在主进程两张表上都改为可选，单独调用的路径仍由 PluginHost 强制要求。新增写入类型时须同时加进 `PluginTransactionOp`、`PluginTransactionCommitOp` 与 `PluginTransactionTable.apply`。
+- 插件内容进入搜索（M4b）：索引类型 `plugin-entity` 走与卡片相同的全文 / 向量 / 详情链路，标题与正文由 `PluginEntityTable.indexDocs` 提供（含已停用与宽限期内的内容）。新增索引类型须同时改 `IndexType`、共享 `entity-ref`、`MAIN_CONTENT_INDEX_TYPES`、`index-candidates`、全文队列的对账分组与增量分支、`fts.ts` 的 LIKE 兜底、`search-details.ts`、`EntitySearchTable` 与 `openEntity`。插件声明的类型经运行时登记到 `services/plugin-entity-kinds.ts`（`registerPluginEntityKind`，插件停用即注销），检索结果标签与打开只读这张表：已登记按声明推导 `navigator.push(PLUGIN_PAGE_KEY, …)` 并把 `at` 并入页面参数（不参与实例身份），未登记打开 `features/plugins/pages/plugin-entity.page.tsx` 只读页。搜索面板对 `plugin-entity` 不设范围 chip（`scopeOfType` 返回 null）；白板文档卡与创作模式经 `isBoardDocumentRef` 排除插件内容。
+- 插件内容的 @ 与反链（M4c）：MentionPanel 检索类型含 `plugin-entity`，结果经 `services/plugin-entity-kinds.ts` 的 `isMentionableResult` 过滤（插件运行中且声明 `mentionable`）；引用索引经共享 `entity-ref` 识别，`REF_INDEX_VERSION` = 6。`context.entities.backlinks` 由 `app/plugins/entities.ts` 先核对实体归属，再按需加载 `getEntityContext({ kind: "plugin-entity" })` 取被引用（调用前后核对仍是宿主创建时的库），来源映射为卡片 / 文章 / 项目文档，其余交给 PluginHost 计入 `omitted`；PluginHost 按已获准的读取权限过滤，不弹窗。
+- 插件内容的删除与类型外观（M4 后续）：`plugin-entities:delete` 把整行快照写入 `plugin_operations`（登记逻辑在 `tables/plugin-operations.ts`，与卡片 / 文章共用）并 `releaseDeferred` 正文，`plugin-data:restore` 对 `plugin-entity` 经 `PluginEntityTable.restoreDeleted` 原样插回并重发正文写入事件；`plugin_entities` 的 ID 由 `getNextTaskEntityId` 高水位分配，删除后不复用。类型外观存主库 `plugin_entity_kinds`：`app/plugins/entities.ts` 的 `registerKind` 经 `icon-markup.ts`（按需加载 `react-dom/server`）把图标渲染成单个 SVG 文本，与类型名一起 `plugin-entities:declare-kind` 写库，注销不删除；开库维护清理已卸载且无内容的插件的外观。显示一律经 `components/EntityKind`：`useEntityKindMeta(ref, fallback)` 对 `plugin-entity` 先经 `plugin-entities:owners`（同一轮渲染合并成一次）找到插件与类型，`usePluginEntityMetaResolver` 供检索结果逐项解析，`EntityKindIcon` / `EntityKindLabel` 供列表直接放置，`useEntityKindMetaResolver(refs)` 供在 `useMemo` 里拼文本的列表一次取齐（卡片数据库连接列），组件之外用 `loadPluginEntityAppearances(库名)`（`search_knowledge` 的 `typeName`）；外观由 `services/plugin-entity-kinds.ts` 的 `usePluginEntityAppearances` 合并运行中登记的类型名与库里保存的声明，查询显式用全局 `queryClient`，声明、删除、恢复后 `invalidatePluginEntityAppearance`。插件图标只作 CSS `mask-image` + `currentColor` 渲染，不插入 DOM。新增展示内容类型的地方必须经此解析，不得再直接写死「插件内容」。
+- 插件私有存储入主库（M4d）：`plugin_kv(plugin_id, key, value JSON 文本, update_time)`，`tables/plugin-kv.ts`（`plugin-kv:get / set / delete / import / clear`，单值上限 1 MB）。PluginProvider 在 `migratePluginPreferences` 之后执行 `migrateLegacyPluginStorage`：把 localStorage `tau-plugin-prefs:[工作区 UUID, 插件, 键]` 一次导入当前库（库里已有的键保留库值），成功后删除旧键，失败中止插件初始化、旧键保留待下次重试（D-091 当前版本的最后升级；后续清洁版删除这段转换）。卸载选择清除数据时 `purgeStorage` 删当前库的 `plugin_kv`，并清除其他工作区尚未迁移的旧键；插件内容（`plugin_entities`）不随之删除，仍走 7 天宽限。
+- 业务事件：BACKGROUND 模块 `domain-events` 在每个主库连接上注册自定义函数 `tau_domain_change` 与 TEMP 触发器，触发器由 `rowTriggers` 规格表生成：cards、articles（软删）、非引用型 project_item、white_boards、project、vibe_learning_project（vibe_learning_resources 的增删改计入所属 Notebook）、excerpt（软删）/ pdf_annotations / web_clip（ID 为 `excerpt:12` 形式的材料 ID）、插件可见场景的 chat_session、plugin_entities（`orphaned_time` 按软删，事件带所属插件与类型），以及 contents.content。规格的 `changed` 列表限定修改触发的列：打开时间、白板当前页、资料转换进度等查看状态写入不发事件，新增表时须按对插件可见的字段列出。按库合并 500ms（最长 2 秒）后向所有窗口广播 `domain-events`（`types/domain-events.ts`）；正文修改经 `locateAll` 计入所属卡片、文章、项目文档或未成孤儿的插件实体的 updated，待办与日程由 `onDatabaseChangeBroadcast` 把 `schedule:changed`、`task-assistant:changed`、`doc-tasks:changed` 转为集合级事件，同步下载重连只发 `workspace.reset`。触发器在事务内执行，回滚也可能产生事件，事件不携带数据。渲染端 `app/plugins/events.ts` 按库过滤，`entity.*` 只交给 `owner` 等于本插件的订阅，其余交给 PluginHost，宿主按类型与已获准的读取权限串行投递（不弹窗，`entity.*` 不需要权限）。
+- 授权弹窗 `features/plugins/permissions/PluginPermissionPrompt` 由壳层挂载，一次显示队首请求，同一插件排队中的请求合并；关闭即拒绝，插件停用或切库时撤下弹窗且不计为拒绝。插件与应用同环境执行，弹窗与详情页文案如实说明插件可联网，不得描述为安全隔离。
+
+### 插件中心与管理页（D-164）
+
+C28 匿名评论与喜欢：中心已发布插件的详情增加 `community` 标签，仅选中时读取，每页20条，查询键为 `["plugins","community",pluginId]`，窗口聚焦刷新，写入后失效该插件查询。IPC仍归plugin-local（community/like/comment/delete-comment），主进程复用安装级匿名凭证，渲染端只接收liked/canDelete，不接收token。匿名身份失败阻断社区操作，不改变下载容错。评论草稿和请求ID在当前标签内存保存，失败重试不重复发表；离开标签会清空草稿。删除复用ConfirmDialog，正文仅作纯文本显示。网站和桌面身份独立，清除应用数据后无法恢复旧身份的管理权。
+
+插件中心与已安装管理是独立页面：`features/plugins/pages/plugins.page.tsx`（`plugins`，参数 `tab` = discover / installed / updates）与 `plugin-detail.page.tsx`（`plugin-detail`，`match: "params"` 按 pluginId 去重，参数 `tab` = readme / settings / changelog / versions / community、`section` = 设置分组 key）。侧栏底部「插件」入口在设置上方，命令面板自动收录。设置弹窗不再保留插件分区或跳转占位页；插件启停与自定义设置统一从独立插件页进入。`SettingsLocation` 不含 `plugins` 或 `plugin:*`。
+
+- 目录、详情、下载经主进程 plugin-local（`plugin-local:catalog / release / stage-release / uninstall / relaunch`，`services/plugin-center.ts` 用 `net.fetch`，门户 CORS 不放行客户端）；渲染端数据走 `features/plugins/queries.ts` 的 react-query，目录键 `["plugins","catalog",q,sort]`、60秒新鲜期，离线显示重试空态，不回退演示数据。
+- ZIP 安装允许插件 ID 目录内附带未声明的普通文件（如第三方许可说明），随包保存但不自动加载；模板发布仅收集 integrity 声明的资产。所有条目仍检查安全路径、链接、重复与文件/目录覆盖冲突以及容量，必需资源存在性与摘要由包读取器校验，不维护附带文件名白名单。
+- 安装 = 下载 → 按发布记录核对大小与 SHA-256 → 复用 C17 可恢复事务立即提交；所有来源的新包默认停用，由用户到「已安装」主动启用（D-172）。来源（中心 releaseId 等）随事务提交写入 `plugin-updates/sources/<id>.json`，扫描结果带 `source`。更新与恢复上一版保留已有启用意图，同 ID 不跨来源接管。普通插件即时启停与更新；涉及已加载内容快照或将要启用的新内容贡献时，更新保留暂存并提示重启。
+- 卸载经 `LocalPluginManager.uninstall(id, purgeData)`：先停用，主进程删包、备份与来源，再清启用偏好；`purgeData` 时 `clearBrowserPluginStorage` 删该插件所有工作区私有数据。内置插件不可卸载。
+- 安装按钮状态机与来源判定是 `features/plugins/model.ts` 纯函数（`installState`、`installedPlugins`）；启停 / 恢复 / 取消 / 卸载统一走 `usePluginControl`，按来源分派到 development / local / builtin 管理器。版本标签由 `model.ts` 的 `versionRows` 合并中心全部已发布版本（主进程 `plugin-local:versions` 翻页读取，按当前客户端标出可用性）与本机当前 / 待生效 / 上一版备份。README / CHANGELOG 用 `PluginMarkdown`：只读 `Editor`（`getPluginDocumentKit`）渲染，内容先经 `pluginDocument.ts` 的 `toPluginDocument` 按白名单过滤——原始 HTML 丢弃，图片音视频不加载，插件块与 mermaid/tikz 等源码块按代码块展示，应用内资源节点退化为文本，链接只保留 http(s) 并交给系统浏览器。
+- Markdown 导入解析后先按 `ignoreTypes` 递归过滤整棵语法树，再进行节点转换、文本格式与插件认领；父节点、子节点和同级上下文共用过滤后的树，不为某个类型增加过滤特例。`utils/markdown-composition.ts` 保存不读取插件注册表的内置组合，`utils/markdown.ts` 在其上装配正常笔记所需的插件贡献并保留原导出接口。资料使用由内置组合构造、按 `codec.fence` 排除领域围栏认领的独立处理器，通过 `["html", "yaml"]` 在语法层过滤原始 HTML 与元信息；所有语言围栏统一展示源码，不调用插件的导入、规范化或序列化函数，不维护插件节点黑名单。输出仍受内置展示白名单约束，未知节点与应用内资源节点只保留可读文本；围栏代码、行内代码和转义标签仍作为示例文本保留。
+- 插件 `context.settings.register(...).open()` 由 Provider 的 `openSettings` 接到 `navigator.push("plugin-detail", { pluginId, tab: "settings", section })`，设置组件只在插件启用且详情页挂载时渲染，生命周期与下文 D-142/D-143 规则相同。
+
+### 插件管理与设置接入（D-142 / D-143，承载位置已由 D-164 改为插件详情页）
+
+兼容与升级（D-156 / D-172）：0.58.0 起 `readPluginPackage` 检查 manifest.minAppVersion，固定目录扫描与安装共用；旧包可省略。plugin-local 初始化时通过 TS PluginUpdates 恢复中断事务、应用暂存包，然后注册 IPC。安装、更新和恢复上一版先暂存校验，再由 `PluginUpdates.apply` 使用同一事务立即提交；已加载内容插件及已启用的新内容贡献继续等待完整启动。提交后广播 `plugin-local:state-changed`，窗口重新扫描并串行切换普通插件实例。扫描返回待生效版本、备份版本及恢复错误，未恢复事务对应包不加载。根目录仍为 ~/.editor/plugins，事务/备份位于同级 plugin-updates。文件恢复不回退私有数据；普通插件激活失败尝试恢复旧内存快照，清理失败保留重启隔离。
+
+侧边栏图标（D-155）：registerItem 的 icon 为可选 React SVG 组件（PluginSidebarIcon/PluginSidebarIconProps），随插件构建打包；runtime 快照保留引用，navigation 未收到图标时回落 Plug。Sidebar 为内置和插件图标统一传入 size、strokeWidth、className 与 aria-hidden；自定义 SVG 使用 currentColor，展开/折叠和选中态复用同一渲染路径。不添加新的图标资源协议。
+
+侧边栏贡献（D-154）：作者通过 context.sidebar.registerGroup/registerItem 关联本次启用的页面句柄。SDK 的 SIDEBAR_GROUPS 暴露 daily/knowledge/learning/ai/sharing/plugins 稳定 ID；navigation.ts 的 composeNavSections 合并静态分组与动态贡献，缺省或未知分组回落“插件”，空插件分组隐藏。条目使用现有 Sidebar 按钮与折叠逻辑，点击沿页面句柄导航；高亮匹配 pluginId/pageId/instanceId，命令打开同一页面也一致。内置组保留按原 label 保存的折叠偏好，自建组按命名空间 ID 保存，重名互不影响。PluginHost 托管贡献清理并校验页面句柄归属；页面注销、停用、激活失败或切库后入口消失，分组注销后剩余条目回落默认组。不提供修改内置或其他插件分组的能力，不改变 page 框架。
+
+插件侧栏条目的角标与子项（PS-046 2.7）：`registerItem` 返回句柄 `update({ badge, children, action })`，SDK `snapshotSidebarUpdate` 校验并冻结，回调由 PluginHost 包装（每次调用先 `assertActive`，条目移除后拒绝）。runtime 把状态存在条目上、单独 `subscribe/getState`，不经 `publish`——角标高频更新只重渲染 `app/PluginNavEntry.tsx` 这一条目，不触发整个 Sidebar。Sidebar 对插件条目整体交给 `PluginNavEntry`：条目页面在栈顶（`isNavItemActive`）或当前页参数包含某个子项的 `params` 时展开，选中子项时父项降为「所在区」；再点选中的子项回到条目自身参数。子项行与问题分组共用 `components/NavChild.tsx`，条目按钮在 `app/NavItemButton.tsx`（插件角标由调用方传入）。右键菜单最多 8 条，危险条目前自动加分隔；拖拽类型由 `sidebar.dragType` 加插件命名空间（`application/x-tau-plugin.<pluginId>.<type>`，全小写），宿主和其他插件的拖拽落不到插件子项上。插件回调同步抛错或异步失败都只弹 `appNotify`。色点 `tone` 复用 `utils/groupTone.ts` 的 7 色板。
+
+插件对象动作（PS-046 2.9a）：`context.actions.register` 经 PluginHost 校验并包装 `run`（每次调用先 `assertActive`，注销后拒绝），runtime 以 `plugin:<pluginId>:<id>` 登记，`listActions(kind)` 按目标类型列出启用中的动作，`runAction` 先经 `grantRefs` 把对象登记为插件选择过的引用（同 pick，`plugin-refs:grant`），再调用插件。菜单渲染收口 `app/plugins/action-menu.tsx`：手写 JSX 的菜单放 `<PluginActionMenuItems target={…} />`（自带前置分隔线，无动作时不渲染），位置在内置项之后、删除分隔线之前——卡片 `CardActionMenu`（卡面、列表、预览共用）与 `CardDetailView`、文章 `ArticleItemOps` 与 `ArticleDetailView`；数据驱动的项目文档菜单用 `usePluginActions` + `insertPluginActionEntries`（key 前缀 `plugin-action:`，插在 `remove-divider` 之前），目标由 `projectItemActionTarget` 决定：普通文档为 `document`，引用型条目为被引用的卡片 / 文章，其余类型没有插件动作。独立编辑窗口没有插件运行时，`useDesktopPlugins()` 为 null，自然不列。新增菜单接插件动作时照此放置，不要在业务域里直接读 runtime。2.9b 加了材料与对话消息：数据驱动菜单的插件条目收口 `projects/.../shared/menuEntries.tsx` 的 `usePluginMenuEntries(target)`（`insert` + `select`，文档树行与网页剪藏共用，剪藏成功后目标为 `material web-clip:<id>`）；只有图标按钮的地方用 `PluginActionsMenu`（只有插件动作的「⋯」，触发器由调用方给样式）——PDF 标注的浮动工具条经 `FloatToolbar` 的 `extra` 槽位（删除之前），左侧标注列表在悬停按钮组末尾，目标 `material pdf-annotation:<id>`；对话消息经 `@tau/chat-ui` `MessageView` 的通用 `renderExtraActions(text)`（删除之前，收到消息纯文本），`MessageItem` 收到 `pluginSessionId`（`ChatContainer` 只在插件可见的四个场景传，同主进程 `CHAT_SCENES`）且消息有 `piEntryIds` 时才列。对话消息目标登记所在会话，`runAction` 按目标取要登记的引用。宿主 `services/material-actions.ts` 只给自己的动作（「转为卡片」），不含「转为问题」也不含插件动作（插件之间互不依赖）。2.9c：`text` 目标只在命令面板——`SearchPalette` 用 `usePluginActions({ kind: "text", text })`，在「记录」组末尾每个动作一行（`capture:plugin:<id>`，副标题「来自「插件名」」），位置不随输入内容变化，文字不登记为引用。编辑器选区不经对象动作（由插件编辑器扩展负责，目前不开放选区工具条）；PDF 选区暂不做。
+
+插件详情区块（PS-046 2.10）：`context.views.registerEntityPanel` 经 PluginHost 校验，runtime 以 `plugin:<pluginId>:<id>` 登记，`listEntityPanels(kind)` 列出启用中的区块。渲染收口 `app/plugins/entity-panels.tsx` 的 `<PluginEntityPanels target className />`：放在三个详情页 `insights.report` 之后、正文之前（`CardDetailView`、`ArticleDetailView`、`EditProjectItem`，后者目标经 `projectItemActionTarget`，引用型条目为被引用的卡片 / 文章），`className` 给与洞见报告一致的外边距。每块包在 `RecoverableBoundary`（`resetKeys` 为目标）、`UiProvider`、`PluginComponentScope` 里；`[data-plugin-entity-panel]` 放在 UiProvider 里面并 `empty:hidden`，组件返回 null 时不占位；key 用注册的 `mountId`，换对象只换 `target` 不重新挂载。宿主不加外框与标题，也不因挂载自动登记引用或放宽读取权限。
+
+插件详情页依据 host.listPlugins 显示版本、来源、状态和启停；停用插件仍能打开详情并重新启用。自定义设置来自活动贡献，收拢为详情页「设置」标签内的分组。作者使用 @tau/plugins 的 context.settings.register 和 PluginSettingsProps，UI 使用 @tau/ui，保存使用 context.storage；API 不变。
+
+`plugin:<pluginId>:<sectionId>` 作为详情页参数 `section` 精确定位分组。停用后保留宿主管理，自定义组件退出；重新启用后恢复。分组单项注销显示不可用，插件定义注销后详情显示「此插件已不可用」并可返回列表。每次自定义分组挂载使用独立查询缓存与按 mountId 重置的错误边界；页面保活隐藏时浮层随 Activity 停驻清理。
+
+「自定义设置示例」仅保留为测试夹具，不再默认出现在插件管理中。开发台保留调试命令、实验编辑器和打开统一管理的入口。插件默认偏好在统一设置页，局部对象配置留在业务页面；入口统一不改变数据作用域。即时保存、失败重试、旧 signal 校验和数据保留规则不变，没有新增业务 schema 或通用草稿守卫。完整范围见 `docs/plugin-system/14-C05自定义设置接入.md`。
+
+### 外部开发插件（D-145）
+
+现行入口已由 D-153 改为固定目录发现：开发/正式构建均调用 BACKGROUND 的 plugin-local，经 withModule 获取稳定工作区 UUID、扫描 PathUtil.getAppDir()/plugins。只扫描直接子目录，目录名须等于 manifest.id；坏包单独显示，不阻断好包。插件页 ⋯ 菜单提供“从 ZIP 安装”“打开插件目录”和“重新扫描”，不再提供选择目录；旧 plugin-development 选择/重载协议已删除（D-181）。
+
+app/plugins/package-loader 将静态元信息登记为延迟定义，启用才在同一渲染环境执行 CJS 入口。LocalPluginManager 复用此加载器与正式 PluginHost；启用意图和内置插件共用 PluginActivationManager，本地插件偏好镜像为应用级 tau-local-plugin-enabled:v1:<id>。新包默认停用，重启/切库恢复；根扫描失败保留原列表，缺失目录在刷新时回收对应实例，保留私有数据与意图。普通活动包变化时先回收旧实例、登记新定义，再按原意图恢复；失败尝试恢复旧实例。内容快照与 restart-required 身份不热替换。作者仍从 @tau/plugins/@tau/ui 导入，React/UI 共享，CSS 随 signal/dispose 回收；没有新增 SDK API。
+
+旧开发登记不再作为普通启动的代码来源，不自动搬移作者目录。本机 UUID 仍从原 userData/plugin-development/registry.json 沿用（见下文本机工作区身份），避免改变私有数据身份；正式本地插件按固定目录读取。历史开发合同见 17/19，当前本地流程见 docs/plugin-system/29-C13固定目录自动发现.md。ZIP 安装、完整升级回滚和最低客户端版本新协议后续实现；安全与发布平台暂停。
+
+### 插件异常生命周期收尾（D-146）
+
+PluginHost 激活等待最多 10 秒；停用立即取消 signal，未决激活最多再等 5 秒且不延长原期限。deactivate 与全部逆序资源清理共用 5 秒预算，超时后继续调用剩余清理；提前手动 dispose 的资源仍追踪同一 Promise。普通激活失败且清理成功可重试，激活超时或清理失败进入 restart-required，管理页显示重启提示并禁用启用按钮，失败原因由宿主保留。
+
+DesktopPluginProvider 在窗口内保存需要重启的插件 ID，等待旧宿主有界收尾后才创建新宿主，注销重登记或切库不能绕过。此集合不落盘。超时只能结束宿主等待，不能抢占同步死循环或撤销任意全局副作用；旧上下文、贡献及迟到结果继续失效。详见 docs/plugin-system/18-C08生命周期与管理收口.md。
+
+### 本机工作区身份（D-147，D-181 收口）
+
+主进程 `services/plugin-registry.ts` 的 PluginWorkspaceRegistry 在 userData/plugin-development/registry.json 串行暂存写入再 rename，按本机规范化库名（去 .db）分配 UUID，只存 name 与 id；plugin-local（`plugin-local:workspace`）与 plugin-backend 经 `getPluginRegistry().open(name)` 共用同一实例。这是本机工作区槽位身份，不是数据库同步身份：同步替换或删除后重建同名库都沿用身份，未提供改名或注销接口。旧文件里的开发插件登记在下次写入时丢弃。
+
+PluginProvider 启动时先 `migratePluginPreferences`（kv-storage.ts）把以库名为工作区的旧 localStorage 键改挂到 UUID，先复制全部再删旧键、失败保留旧值以便重试，再执行 `migrateLegacyPluginStorage` 导入主库。
+
+开发插件登记、手动重载与自动监听（原 D-147/D-148/D-149 的 plugin-development 模块、DevelopmentPluginManager、PluginBuildWatcher）已按 D-181 删除；作者流程为 `pnpm install:local` 后在插件页点「重新扫描」，热替换语义见上文 LocalPluginManager。作者模板仍写 `dist/tau-build-<pluginId>.json` 指针，仅供构建与验收脚本定位产物，宿主不再消费。
+
+### 标准 fetch 与插件服务接入（D-144）
+
+资源上传：默认本地，远端由渲染进程插件通过 context.upload.register 提供，设置分区 target: "upload" 挂载到「资源存储」。宿主负责压缩、唯一命名与配置快照；独立编辑/Markdown窗口经 plugin-local IPC 转发到已连接的主窗口渲染宿主，主进程不加载插件，不创建隐藏窗口。多主窗口优先使用发起窗口自己的宿主，辅助窗口使用已连接宿主；窗口关闭、导航、宿主释放或插件停用后拒绝在途结果。Markdown本地模式仍写入文档同目录，其余本地上传仍落入应用resources目录。GitHub/OSS/S3旧图床退出，WebDAV图床与鉴权下载删除；同步插件不变。GitHub/S3 博客账号已按 D-173 迁到发布插件配置，桌面集成页不再持有这些账号。迁移、删除边界与验证见 docs/plugin-system/61-资源上传插件拆分.md。
+
+插件通过 @tau/plugins 的 PluginContext 使用 context.fetch；其他桌面调用使用 commands/fetch 的 desktopFetch。类型为原生 fetch，使用 RequestInit/Headers/FormData/AbortSignal，返回原生 Response；不导出方法枚举、连接 ID 或 JSON DTO。旧 nodeFetch、NodeFetchRawResponse、自定义选项和 IPC 已删除，消费者直接迁移，没有兼容层。
+
+新 fetch 模块为 BACKGROUND，ensureModule 保证就绪。主进程原生 fetch 执行；内部 IPC 元信息和按需字节传输支持上传/响应流及取消，恢复 URL、redirected、type 和完整响应头。普通窗口销毁或文档导航回收，keepalive 按显式意图完成；请求属于发起窗口，控制消息不经过命令取消守卫，内部 hasBody 不暴露给作者。
+
+执行环境是宿主 Node，不自动继承页面 Cookie/CORS；显式 Cookie/Referer 和 Set-Cookie 须保留，不能在 Chromium 构造阶段被丢弃。业务自行决定认证、超时及 HTTP 状态处理，主通道不加额外限制。微信读书验证插件通过业务依赖取得已有账号配置，以 context.fetch 手动读取书单；不持久化或改变同步标记。Node 和实际 Electron 隐藏窗口验证流、二进制、FormData、头部与取消；真实账号和视觉留待用户验收。详见 docs/plugin-system/15-C06真实服务API与微信读书书单.md。
+
+### 插件编辑器开发接入（D-141）
+
+编辑器提醒块样本现为测试夹具，不再由应用自动装配。作者仍可通过 @tau/plugins 的 defineEditorExtension/defineEditorElement/context.editor.register 注册，UI 使用 @tau/ui；SDK 内部复用原编辑器契约。当前仅支持 workbench 场景，不向 ContentEditor、生产正文或白板富文本自动注入扩展。
+
+DesktopPluginProvider 动态加载装配器并注入注册校验；运行时拒绝类型/命令/codec 冲突，activate 成功后发布贡献，signal 取消立即撤销，不等待异步 deactivate。每个 PluginEditorSession 只在贡献集合变化时重建 Slate：从活跃实例复制正文、选区和 history，挂载后恢复；普通重绘不重建，不用 Markdown 中转数据。旧代次回调不能覆盖新会话，旧实例按既有机制结束提交作用域。停用节点继续由内核保留与展示未知占位，重新启用恢复渲染。
+
+实验编辑器由宿主工作台承载，独立于被停用插件的页面，沿用 App 的 DndProvider；不同实例的内容/历史隔离。实验文档只在页面内存保存，关闭页面/切库清空，界面明确提示。组件局部状态、焦点、输入法组合及在途任务不迁移；不将此方式用于 Y.Doc 或 external history。样本 codec 可无 DOM 独立导入，但尚未进入生产主进程装配。完整 API、验证和限制见 `docs/plugin-system/13-C04编辑器扩展接入.md`。
+
+### Whiteboard 公共画布与扩展装配（D-119 / D-127 / D-129 / D-130 / D-131 / D-134）
+
+C25 M2：缩放统一由 InteractionManager/ResizingState 管理，ResizeCircle/useResize 与分栏侧边手柄只发起手势，不再各自监听 document 或保留节流尾调用。保留原几何/吸附算法，预览只收集同步字段变化，完成经 Board.recordHistory 同一入口提交单个历史分组；取消/失活/只读/销毁回退自身字段，删除或冲突更新先终止手势，无关字段修改不回滚。不得为插件再建立一套缩放历史或复制 CommonPlugin。
+
+C25 M3：第三方创建工具可声明 panel，在「扩展工具」内先选参数，再经 run(payload) 激活；返回、关闭、错误边界和迟到回调由宿主处理。DesktopWhiteboard 经 extensionServices 为每个已校验插件的扩展派生子服务注册表，IPluginStorage 复用 PluginHost 当前激活上下文的 storage；按插件与工作区隔离，不暴露整个 PluginContext。画布失活/销毁/只读、切库、插件失活及激活实例替换时拒绝旧交互；静态渲染与缩略图仍不依赖 activate。公开 SketchPopover 与内置单选属性栏共用实现，公共作者类型依赖图继续禁止 Board/CommonPlugin。
+
+元素 interaction 声明控制宿主角点/边点和矩形箭头连接，内部 ElementInteraction 复用 CommonPlugin，隔离导出不挂载交互层。presentation 供图层名称/图标/搜索统一使用；sketch:true 与 useSketch/SketchPaths/纯 sketch 原语复用现有画风；schematic 从静态定义投影既有 SchematicShape，DesktopPageSchematic 统一连接列表/选择器/引用卡片的启动定义目录，导出弹窗使用当前 Board 目录。缩略图不创建隐藏 Board、不运行 activate；完整导出仍使用实际画布。人物专属逻辑已在 C25 M4 退出宿主，只存在于独立插件；不做旧火柴人格式兼容。
+
+C25 M1：插件定义以 whiteboardExtensions 提供静态扩展，包声明 whiteboard:true；作者只从 @tau/plugins/whiteboard 取受控 API，不导入 Board/CommonPlugin。元素定义统一放 WhiteboardExtension.elements，create(api) 只返回每个画布的交互贡献，动态返回 elements 明确拒绝并清理。ContentPluginRegistry 聚合静态白板目录，DesktopWhiteboard 从同一启动快照装配，启停/更新重启生效；沿用现有主进程偏好文件，不新建一份白板启用存储。博客发布上下文只筛选编辑器贡献，不因白板单独启停阻断。
+
+公开数据类型位于 types/element.ts、containment.ts 等纯类型文件，extensions/api.ts 与 events.ts 直接依赖它们。types/board.ts 保留内部 Board/IBoardPlugin，仅重新导出同一份元素类型供内部消费者使用，不重复定义数据；作者子入口的含类型依赖图由 check-whiteboard-boundaries.mjs 检查，禁止进入内核和编辑器实现。M1/M2 方块和 M3/M4 独立火柴人均完成包级验收。火柴人作为独立插件从中心安装，不默认随客户端提供。白板核心不携带人物代码；相关发布包只保留在tests/fixtures/plugins做集成测试。博客发布仍只收集编辑器贡献，不额外增加移动端/扩展端白板插件支持。
+
+通用白板归 `@tau/whiteboard`：根入口提供画布、受控 API 和通用组件，`/extensions` 提供扩展工厂，CSS 使用 `styles.css`。WhiteBoard 必须显式传稳定的 extensions；元素、工具、命令、属性面板、导入与界面层由扩展贡献，核心运行时不加载 Slate、EditorKit、Markdown 或截图实现。桌面入口统一使用 `features/shared/whiteboard/DesktopWhiteboard`，列表、多页管理、查询及 400ms 防抖、串行保存、离页 flush 继续由白板域负责；flush 失败必须拒绝，依赖保存的页面复制中止。拖动/连续移动的手势帧不触发 onChange（宿主落库防抖不被高频重置），手势结束统一补发一次最终快照；仅选区变化（点选/框选）同样不触发 onChange（视口变化仍通知，停顿后落库一次以记住视图位置）。元素级选中态经 useSelectState 按元素 id 布尔订阅 selection:change（通知侧短路，未翻转不重渲），只关心缩放的组件经 useZoom 订阅 viewport:change（纯平移零重渲），静态元素层独立 memo，截图树的选区隔离由 useBoardCapture 在树根挂 StaticSelectionContext。视口剔除保持精确盒（不量化扩边），元素渲染统一经 memo 的 ElementHost 包装（按 element 引用与子元素集合浅比较，剔除/分层每帧重建包装时未变子树整体 bail out），剔除追赶经 useDeferredValue 低优先级执行、紧急渲染只更新 viewBox。全库列表接口返回投影数据（剔除媒体地址与选区，保留示意图所需结构），画布保存后就地 patch 列表缓存中该页的元素数与更新时间、不失效整表重拉；打开画布始终走单页全量通道。
+
+每个 Board 创建独立扩展运行时和脑图预览状态；宿主能力经服务注册表注入（D-134）：DesktopWhiteboard 用 `createServiceRegistry` 注册 `IWhiteboardRichText`、`IResourceService`、`IMediaInfoService`、`IDownloadService`（随数据库重建）并经 `WhiteBoard` 的 `services` 传入，扩展按 requires/optional 声明后从扩展 api 获取（缺失 requires 拒绝装配、optional 降级），不恢复全局 services/slots 集合；导出截图与业务弹窗等纯 UI 配置仍为工厂参数。正文编辑、低缩放订阅与测量使用富文本服务提供的同一套 Kit/文档绑定。包外 useBoard 返回受控 API，快照不可写且按对象身份共享副本，不公开历史栈和插件实例。桌面命令固定初始数据库；异步提交在只读切换、隐藏、卸载或目标删除后失效。Activity 暂停 activate 副作用，真正卸载时 dispose 并销毁 Board。
+
+隐藏时取消临时指针和键盘手势、计时器与吸附反馈，保留画布与历史。指针按发起实例和 pointerId 路由到释放或取消，跨实例移动不转移手势归属；结束事件在捕获阶段收尾，避免被其他控件的 stopPropagation 拦截，同次事件只收尾一次，隐藏/卸载清理归属。取消脑图笔记关联若引用已减少但画布提交失效，在原数据库补偿引用；同时校验目标仍关联原正文，避免覆盖新关联。本地上传菜单由媒体扩展显式声明可用动作，选择器通过扩展界面层承载；工具通过命令 ID 执行，导入按规则只认领一次。
+
+元素的编辑标记是瞬态状态：失焦立即释放，删除元素及其子树、渲染卸载和页面停驻时兜底清理；不能因残留标记阻断整板的 Delete / Backspace。文本输入焦点内仍由编辑器处理删除。
+
+FadeScroll、可拖宽侧栏、If、ErrorBoundary、PortalToBody 和编辑目标判断统一归 `@tau/ui`，禁止复制到白板包。实体/媒体类型、颜色和摘要纯工具经 shared 公开入口复用。元素树开关与宽度沿用 `tau-whiteboard-outline`，实际占宽归所属页面。
+
+宿主提供主题运行时、UiProvider、DndProvider 和 Tailwind 扫描。缺失扩展时没有其创建入口；未知元素保留数据和子树，显示通用占位，并支持元素树定位与删除。状态和快照先提交，再逐个隔离通知观察者，扩展异常不得阻断保存通知。扩展数据契约见 D-129：扩展 id 与元素/命令/贡献按命名空间隔离（`tau` 保留），装配失败只禁用该扩展并清理其贡献；元素私有数据收敛在 `element.data`，由定义的 schema（Standard Schema v1，仅同步）与 schemaVersion+migrate 负责校验和迁移；快照带必填顶层 `version`，文档版本高于当前应用时画布强制只读、不回调 onChange。创建交互开放见 D-130：元素经 `create` 声明创建方式（click/drag/自定义手势），内核统一负责约束、预览与提交（预览不写文档）；工具模型为 activeTool（`tau.select` 为显式选择工具，旧创建类型枚举与兼容层已删除），受控 API 提供 setActiveTool / onActiveToolChange、坐标转换与 canContain。事件分层与快捷键仲裁见 D-131：内核事件只有内核能发、扩展只能监听，扩展事件按命名空间隔离（`tau.*` 归内置，界面操作统一为 `tau.modal.open` 这类扩展事件，`internal:` 包内专用），快捷键只是「按键 → 命令」（内置优先，命令 enabled 不满足不拦截），mod+k/p/j、alt+方向、escape 为宿主保留键，显示文字统一经 `getShortcut` 取。独立 `@example/whiteboard` 构建、`pnpm check:whiteboard-boundaries` 与 pre-commit 守护源码和运行时模块图边界；Schema 不变（文档快照新增顶层 version 字段，D-129；卡片元素改为文档卡见下节），视觉验收由用户完成。
+
+**文档卡与阅读纸（D-122 / D-123）**：卡片 / 文章 / 项目文档 / 日记在白板上是 `document` 元素（`entityRef` + `title` 快照，不存 contentId；日记直接存 `{ kind: "diary-moment", id: 片段id }`，不额外存 segmentId，选择器经 EntityPicker 逐条检索），包内 `DocumentPlugin` 负责外壳（选中、缩放、连线、手绘框）与展开请求（双击 / ↵ / 属性条 / 右键 → `board.emit(DOCUMENT_OPEN_EVENT, id)`），纸面由宿主 `createDocumentExtension({ Body })` 渲染，阅读纸由 `position: "canvas"` 承载；两者在 `features/shared/whiteboard/components/Document/`：`source.ts`（react-query 按 entityRef 读元信息，日记按片段 id 取正文与所属日期信息，正文变化走 `useContentDocument`）、`DocumentPaper`（卡片与阅读纸共用的版式，版宽固定，形变只做 transform）、`DocumentCard`、`DocumentReader`（居中 / 停靠、形变、Esc 经 `DesktopEditorOverlayDismiss`；日记编辑时节流 `updateDiarySegment` 并失效同窗口的日记缓存）、`readerStore`（摆放方式全局偏好 + 按 Board 隔离的展开状态）、`DocumentSelectorModal`（工具条与右键共用）、`DocumentHostContext`（嵌白板的宿主定制：`allowDock` 关掉停靠、`cardAccessory` 往卡面上叠宿主内容，创作模式在用）。`position: "canvas"` 渲染在画布容器内：宿主浮层根节点必须带 `CANVAS_OVERLAY_ATTR`，其中的按键、剪贴板、指针、滚轮不归画布；不要用 stopPropagation 截断，否则 document 上的 Esc 仲裁与编辑器弹层的外部点击会收不到事件。旧 `card` 元素由开库升级 `whiteboard-document-upgrade.ts` 一次性改写，随下一次清洁版删除。
+
+**日记正文身份与搜索（D-123）**：EntityKind、EntityRefKind 与 ContentIndexType 均使用 `diary-moment`，id 为 `diary_segments.id`，界面类型 label 仍为「日记」；`diary_entries` 仅承载日期、天气心情与分组，不能作为正文搜索结果。实体候选、FTS 回退与全文/向量索引、内容链接、白板引用和脉络均落在同一条正文；`entity:locate` 返回片段 id + diaryId/date，`openEntity` 通过 date + moment + at 精确回跳。日记页的搜索命中集合使用片段 id。新增或删除片段及正文编辑继续触发现有索引对账。开库由 `diary-entity-upgrade.ts` 单事务转换旧日级引用，不改正文编辑时间、引用计数；不存在的目标保留原数据，不猜测。已有 Yjs 会话打开时也增量修正旧链接属性，防止缓存快照回写旧身份。索引库以 `diary_entity_version=moment-1` 清除旧日级 FTS/向量/节索引、标记重建；引用解析版本为 5、白板引用为 3。全部设备升级后删除主库与会话转换代码。移动端独立索引不在本次改动范围。
+
+### 2.1 公共 UI
+
+日记页搜索走 react-query（`["diary", "search", 关键字]`，300ms 防抖），日记变更失效同域查询；结果按片段 id 筛选，旧关键字的迟到响应不能覆盖当前查询。
+
+DatabaseWorkspace 与编辑器数据库块只按表身份建立实例，不再按活动视图重挂载。包内使用独立 `DatabaseView/CreateDatabaseView`，不读取表身份、正文引用、引用计数或创建/更新时间；宿主经 `toDatabaseView` 投影存储记录，在创建回调闭包中补齐 tableId。视图切换由实例栈与投影完成。
+卸载后的标题、属性与正文通过 `onDetachedRowPatch` 提交字段补丁；主进程事务检查最新表/行、字段和预期旧值，拒绝删除或冲突目标，不恢复行、不写旧整表快照。正文无法关联时不删除，留给开库回收（D-136）。常规桌面保存通过 shared hook 的 `updateDataTableChanges` 能力在最新数据上合并字段差量，新增 ID 显式标记，行删除时正文引用由主进程差集交给延迟回收；不提供该能力的宿主保持既有保存方式。确认快照由桌面适配经 external `rows.receive` 接回实例，保留其他本地草稿。
+桌面适配的保存与行清理回调固定实例所属库；切库后旧回调拒绝继续保存或释放引用，异步正文创建后也再次检查库身份与所属行。
+文本、数字和链接的 Enter 提交后安全归还所属实例焦点，外部输入/其他实例/浮层已获得焦点时不抢焦点。画廊正文查询 staleTime=0、聚焦刷新，正文事件只触发按原库命令重读，不直接缓存缺少库身份的事件正文；预览内容变化建立新的只读编辑器实例。
+
+通用 Database 归 `@tau/database`（D-117），所有组件、类型、插件与 hooks 经根入口消费；桌面三个宿主统一使用 `features/shared/database/DesktopDatabase`。视图（含扩展视图）、store 与查询投影在包内：每个实例持运行时 `ViewRegistry`，内置四视图与扩展贡献的视图走同一注册路径，视图定义合并元数据与组件（`views/<View>/definition.ts`，`builtInViews.ts` 聚合），持久化 hook 与卡片偏好仍在宿主。残留的未知视图类型渲染通用占位（标签可见、可删除、可改类型，数据与 viewOptions 原样保留）。宿主提供 DndProvider、UiProvider、主题初始化与 Tailwind @source；包内键盘监听按实例根节点仲裁，并让位输入法与导航组合键。Cmd/Ctrl+Z 撤销、Shift+Cmd/Ctrl+Z 或 Ctrl+Y 重做只覆盖行与列数据（产生 user 变更落库，视图配置不回滚）；外部数据更新到达时撤销栈以新数据重建基线。`pnpm check:database-boundaries` 和独立 `@example/database` 构建守护无桌面依赖与私有深引。
+
+Database 的字段插件、视图、聚合算子、命令与插槽只经 `extensions`（`defineDatabaseExtension`，D-135 / D-137）装配，集合必须引用稳定；字段类型、覆盖目标、插槽键、视图类型、聚合算子与命令 id 重复均报错，扩展视图 type、聚合算子 op 与命令 id 必须带命名空间（含 "."）。扩展贡献的表尾聚合算子（`aggregates`）经每实例 `AggregateRegistry` 与内置 9 个同路径登记，仅表尾可用——公式（含表尾组合表达式）仍只认内置 `AggregateOp`（D-121），配置了未登记算子的表尾格显示为空、配置原样保留。扩展命令（`commands`）出现在行菜单（「删除」前）与列头菜单（「编辑」后），经受控 `DatabaseCommandApi` 读写（批量写只产生一次撤销步），readonly 实例不显示；toolbar 无现成溢出菜单承载点、暂不渲染；内置编辑/删除保持原确认流程不改为命令。正文、图片与画廊预览由扩展插槽提供，组件不读取宿主正文。桌面扩展 `tau.desktop`（`features/shared/database/desktopExtension.tsx`）贡献资源字段、link 渲染覆盖、正文会话与应用内链接，由 `DesktopDatabase` 默认装配；卡片视图另加 `tau.cards`。可信的桌面扩展直接使用宿主模块，Database 包不提供宿主能力。store 删除行只调用宿主的 `onRowCleanup`。行详情关闭或切换前等待正文插槽的 `flush()`，宿主绑定原数据库并在创建完成后复核所属行，已删除行或被拒补丁的迟到正文不重新建行，留给开库回收。无正文插槽时仅提供通用属性编辑。
+
+**数据表正文引用（D-136）**：存活的数据表（`data_tables.ref_count > 0`）对声明了 `contentRefs` 的字段单元格（rich-text 单元格 contentId）与行 `detailContentId` 的每次出现各持有一份 contents 引用，已删除的表不持有。收集口径由字段 model 的 `contentRefs` 声明（D-137）：`@tau/database/model` 的 `collectContentRefs`/`diffContentRefs`，主进程 `modules/tables/field-models.ts` 登记内置与桌面字段 model；主进程 `DataTableTable` 每条写路径（create / update / patchRow / applyChanges / remove / incrementRefCount）在同一事务内按新旧差集 `retain` / `releaseDeferred`。渲染端不增减或删除这类正文引用，新建正文一律 `createPendingContent`（ref 0 + 待回收登记，进表时 retain）。释放到 0 只登记 `content_pending_releases`，开库（maintenance）回收超过 `CONTENT_RELEASE_GRACE_MS`（7 天）且仍为 0 的正文，删除级联同 `deleteContent`；宽限期内的撤销、粘贴与块复活会重新引用并撤销登记。没有 tableId 的宿主（卡片视图）行不带 detailContentId，删行即删除对应实体；`DesktopDatabase` 不再自行删除行正文，只在库仍为当前库时转发 `onRowCleanup`。
+
+**数据表物理回收（D-136 追记）**：`data_tables.ref_count` 只是提示，不作删除依据（协作撤销删块、删除正文与项目条目都不回写计数）。`remove` 下限为 0，1→0 时登记 `data_table_pending_releases`，`incrementRefCount` 0→1 撤销登记。开库 maintenance 先执行 `DataTableTable.collectPendingTables`、后执行正文回收（复活的表 retain 正文，救回同批待回收正文）：存量 ref_count ≤ 0 的表补登记并归零；到期登记按实际引用对账——`database_item`、`project_item(ref_type='data-table')`、正文 JSON 中 `database` 节点的 `tableId`（一次调用只扫描一遍）以及本机协作会话私有块（协作模块经 `modules/extra-table-refs.ts` 注册 provider，按会话 `source.databaseName` 归属）。仍有引用的按引用数复活并告警，无引用才删除表与视图；provider 未就绪或读取失败时整批跳过，不能确认就不删。新增任何持有 tableId 的位置，必须同时接入这份对账。
+
+- EditText 与 EditTextHandle 从 `@tau/ui` 消费；占位符样式同归 UI。日期周起始与日历事件布局纯函数经 `@tau/shared/calendar-utils` 共用，不依赖桌面日程类型。
+
+- 所有新设计系统消费者使用 `@tau/ui` 单一入口；原桌面 ui 目录已删除，不保留转发。组件、`cn`、hooks 一律从桶入口导入（`import { Button, cn } from "@tau/ui"`）——包 exports 不提供组件子路径（曾因 exports 登记落后于 primitives 增长导致桶/子路径混用，2026-09-22 收敛为单一入口并全量清理消费方）；例外仅 CSS（`@tau/ui/styles.css`）；主题不在本包，一律从 `@tau/themes` 导入（ER-011），新增控件只需在 `primitives/` 落文件并在 `index.ts` re-export。颜色/尺度词表与 cn、主题测试均在公共包，新增控件同步样板间档案。
+- Popover 已包含锚点定位、嵌套外点仲裁和 Portal 支持；表单内 Tab 顺序移动，到末项才退出。输入法组合让位，busy 时关闭请求被拒绝。
+- `UiProvider` 提供局部主题与 body Portal 根。主题运行时显式初始化，可清理；`createThemeRuntime` 可注入存储、DOM 根及系统媒体查询。首帧通过 Vite 注入 `createThemeBootstrapScript()`，与运行时共用解析和主题清单，不再维护 HTML 白名单。
+
+### 内容导入导出与资源搬运（D-160）
+
+- 单一入口 `services/content-transfer.ts`：单篇导出 `exportContentAsMarkdown`（卡片 / 文章 / 项目文档 / 独立编辑窗口），Markdown 文件导入 `importMarkdownFiles(create)`（卡片页、文章页、项目文档树两处菜单；落库由调用方传入）。业务代码不再自行 `getMarkdown` + `downloadMarkdown` 或 `readTextFile` + `importFromMarkdown`。Markdown 窗口原地编辑本机 .md，不经此入口。
+- 资源字段只看节点的资源声明（`ElementSpec.resources`，内置声明在 `@tau/db-schema/content-resources`）；`utils/content-transfer/assets.ts` 的 `mapAssetUrls` 按声明改写，只有 file-attachment 的本机副本与 isLocal 保留专门逻辑。新增带资源的块只需在元素上声明，否则导出不打包、导入不入库。
+- 导出：本机资源与 data URI 收进包根 `assets/`（按来源去重、同名加 -2），正文改为相对路径；远程地址原样保留；读取失败保留原地址并汇总为警告。单篇与合并 Markdown 无本机资源时存 .md，有则存 .zip；项目 Markdown 包内 `content-link` 指向包内项目文档时改为相对 .md 链接，其余（含单篇、合并）降为标题文本——导出物不含数据库 id。
+- 导入：相对路径以 .md 所在目录为基准（兼容 `~`、`file://`、URL 编码），读出后经 `uploadResource` 走当前资源存储；附件入库后 `isLocal=false`（与插入附件时选「上传」一致）。
+- PDF：导出页面从 `data:` 地址加载，`buildPdfHtml` 与批量 PDF 在序列化前用 `inlineLocalImages` 把本机图片内联为 data URI。
+- 批量导入（文件夹 / .zip → 项目 / 文章 / 卡片，D-161）：`utils/content-transfer/source.ts` 把两种来源统一为相对路径读取（跳过隐藏目录与 `__MACOSX`，压缩包剥掉唯一同名根目录，上限 2 万文件）；`batch-import.ts` 先 `scanImportSource` 只读扫描成计划（资源按 .md 目录定位并去重、缺失资源与未解析的 .md 链接单列、同级 `X.md` + `X/` 合并为带子级的文档），再 `runImport` 三遍执行：① 选中文档引用的资源去重上传 ② 建文档（项目按树、文章取顶层文件夹为标签、卡片取完整文件夹路径为层级标签，可叠加 frontmatter tags）③ 回填指向本批文档的链接为 `content-link`。每次写库前校验仍是开始时的数据库；停止或出错保留已写部分。宿主接线与整批撤销在 `services/batch-import.ts`，导入记录存 `stores/useImportHistoryStore`（本机、按库区分，撤销 = 删除建出的项目 / 文章 / 卡片，资源文件保留）。
+- 来源方言（D-162）`utils/content-transfer/dialects.ts`：扫描前把私有写法改写成标准 Markdown，扫描与执行不感知方言；自动识别（`logseq/config.edn` > 根目录 `.obsidian` > 过半文件名带 Notion 32 位 id > 通用），向导可手动切换并用已读入的来源重扫。Obsidian：`[[笔记|别名]]` / `![[附件]]` 按名称定位（大小写不敏感，重名取同目录再取最短路径）后改写为相对路径链接 / 图片 / 音视频 / 附件，`[[#标题]]` 与解析不到的降为文字；callout、`==高亮==`、`%%注释%%`、行尾 `^块标识`、正文 `#标签`。Notion：去掉文件 / 目录名的 id 与首行重复标题，`Tags:` 属性行转标签，CSV 导入为「数据库」模块的表格（列均为文本，`X_all.csv` 优先）。Logseq：只导 `pages/`（摊平到根）与 `journals/`（显示为「日志」），页面名按 `___` / `%2F` 还原命名空间，`title::` / 日志日期（`Jan 15th, 2024` 等）可被引用，页面属性与块属性不导入，任务标记转勾选项（换用 `*` 列表符自成任务列表），`((块引用))` 移除并记入报告。所有方言改写只作用于代码之外。相对路径失效的资源与 .md 链接再按来源根、再按文件名定位。
+- 向导 `features/transfer/ImportWizard`：来源与去向 → 预览（勾选树用公共 `components/CheckTree`，与整体导出共用）→ 执行（三阶段进度、可停止）→ 报告（打开 / 撤销）。
+- Markdown 导出包（迁出，D-163）：`services/markdown-export.ts` 按范围（项目 / 文章 / 卡片 / 全部）组装导出树，包内目录即选择树——项目按文档树，文章与卡片按首个标签逐级分文件夹，「全部」再分三组；节点 id 是本次导出的临时编号，实体身份记在 `ref`，跨范围的 content-link 照常改写；文章正文经 `loadContent` 导出时才取。打包共用 `buildMarkdownZipBytes`（项目整体导出的 Markdown 包走同一函数，选项缺省即旧行为），选项：互链写法（相对 .md / `[[文件名]]`，重名时写包内路径 / 纯文字）、本地资源（打包进 assets/ 或保留原地址）、同时下载远程图片（`remoteResourceToLocal` 缓存后打包）、frontmatter（title / tags / created / updated）。偏好存 localStorage `markdown-export-settings`。项目的 PDF / EPUB 仍只在项目卡片 ⋯ 的「整体导出」。
+- 入口（低频，不占常驻位）：命令面板「批量导入文件夹 / 压缩包…」「导出为 Markdown 压缩包…」（项目详情页唤起时范围为项目、只勾选当前项目）、设置 › 数据 ›「导入与导出」（含导入记录与撤销）、卡片 / 文章页「导入 ▾」下拉、把文件夹或 .zip 拖到卡片 / 文章 / 项目页纸面（`useImportDrop`，经 preload 的 `getPathForFile` 取本机路径）。全部经 `app/transferStore` 打开壳层挂载的 `MarkdownExportHost` / `ImportWizardHost`；设置页只做启动台，不承载流程。
+
+### Page 导航入口与服务层接线（2026-09-23）
+
+- 已迁移功能禁止再调用 `useTabStore` 或 `utils/navigation`。组件使用 `usePage().navigator`；共享编辑器入口与非 React 服务使用 `services/page-navigation.ts` 的 `openPage`，由 AppShell 内的 `PageNavigationBridge` 注入真实 navigator 和当前栈，卸载／切库时注销，不创建旧 Tab 兼容层。未就绪、目标未注册／仍为占位、参数无效时明确报错。
+- “新 Tab 打开”入口现为“在应用内打开”，不再尝试旧分栏。网页由 `features/web` 的 `webview` 页面承载（按 URL 去重）；内嵌白板由 `features/whiteboards` 的 `whiteboard-content` 页面承载（按内容 ID 去重，返回由 Page 栈负责）。白板数据使用 react-query，保存按数据库及 ID 串行，400ms 防抖（拖动手势帧不触发落库信号，见 Whiteboard 小节），离页提交尾部修改，切库拒绝旧写入。
+- 正文内容链接和项目文档列表共用 `services/open-content.ts`：卡片、文章、项目文档进入对应 Page；多项目共享文档优先保留当前所属项目。异步查找期间切库则取消打开，不跳空占位页。
+- MCP 页面查询以真实 Page 栈为源，现有内容序列化器只用于取正文，不读取旧 panes。编辑目标以显式 contentId 或当前 Page 为准，不再回退到后台旧编辑会话。工具协议名称暂保留，响应中的页面类型为 Page key；不提供正文的页面返回明确说明。创建内容后的响应使用 `activatedPage`；若内容已落库但页面打开失败，保留创建成功结果并单独返回 `navigationError`，避免调用方重试造成重复创建。
+- 结构化分析通过 `sql_query` 只读工具执行，当前主库表结构由内置 `database-schema` Skill（`src/constants/internal-skills/database-schema.md`）描述，事实来源为 `packages/db-schema/schema/main.sql`，表结构变化时须同步更新该 Skill。工具只允许单条 SELECT/WITH/EXPLAIN 和受限结构探查 PRAGMA，默认限制返回行数、响应大小与执行时间。任务交互例外（D-126）：`query_todos` 统一查询独立、周期和正文待办，`query_calendar_events` 查询日程及周期投影，结果带身份、版本和专用卡片；复杂聚合继续使用 SQL。正文 Markdown、编辑快照、语义索引、PDF/视频检索和 Page 上下文继续使用专用工具；不提供通用 SQL 写入。
+- 知识库搜索结果卡片（KnowledgeSearchRenderer）的预览消费工具输出快照做纯渲染，不按 contentId 回源拉实时内容——搜索后内容被编辑时预览不更新；点进详情弹窗才按需取实时内容。
+- AI RPC 服务随 PageNavigationBridge 启停。桌面与扩展统一使用 `content.open` 打开卡片／文章／项目引用（type/id），不注册旧 `tab.open`；块预览只走 `block.preview.open`，进入 `features/previews` 的 `block-preview` 页面。尚无承载的类型（如日记）返回明确错误，不伪报打开成功。
+
+## 2.5 主进程模块就绪（跨进程能力）
+
+主进程能力定义在 `src-electron/main/module-init/module-config.ts`，只有两个启动阶段：
+IMMEDIATE（窗口显示前）/ BACKGROUND（窗口显示后并行）。所有模块随应用启动，ON_DEMAND
+层级、窗口分组和无消费者的批量／状态／Layer1 接口与完成广播已删除（D-090）。
+
+**铁律：新增模块一律 ****`BACKGROUND`****。** `module-init/__tests__/module-layering.test.ts`
+守护启动分层，禁止恢复窗口入口隐式拉起模块的行为。
+
+`ensureModule` / `withModule`（`src/commands/module-init.ts`）保障后台启动尚未完成时的等待与
+失败重试；主进程统一防重入，渲染端并发共用任务。当前 IPC 只保留 `module-init:init-module`；
+未使用的全状态查询、状态类型、时间戳及 WebSocket 状态名单已删除，内部只记录已就绪模块。
+
+注：`@/electron` 的 `invoke` 已内置启动竞态重试（遇 "No handler registered" 每 500ms 重试、
+上限 5s，收到过成功响应即停止），它只覆盖「注册晚于调用」的窗口期，**不覆盖「从未注册」**。
+
+**卡顿诊断（perf-monitor）**：BACKGROUND 模块 `src-electron/main/modules/perf-monitor.ts`
+持续采集主进程事件循环直方图（启动前 15s 每秒、之后每 15s 采样 mean/p99/max）、内存与 CPU 趋势、慢 IPC 与慢 SQL
+（契约桥 `register` 包装与 database 事件注册循环计时，>100ms / >50ms 记明细，IPC 另按分钟
+聚合计数检测洪水）；渲染端 `src/utils/perf-observer.ts`（init.ts 安装）采集事件循环心跳
+延迟、longtask 脚本归因、掉帧片段、JS 堆曲线与 react-query 刷新率，经
+`perf-monitor:renderer-event` 独立通道按窗口汇聚（不走 logger 的 sendLog，避开限流）。
+数据只存内存 ring buffer；「导出性能快照」由命令面板（`export-perf-snapshot` 动作）或
+托盘/Dock 菜单触发（渲染端冻结时的兜底入口），落盘 `~/.editor/logs/perf-snapshot-*.json`
+后打开所在文件夹并高亮该文件（shell.showItemInFolder），文件夹本身即结果反馈，不另发通知。`recordIpcCall` / `recordSqlCall` 在 command-bridge-install（主入口首个
+import）注册期即被调用，因此记录数据挂在模块级、import 期可用；`init()` 只启动采样器。
+
+启动诊断参数 `--tau-profile-startup` 按需开启主进程 CPU profile：入口依赖加载阶段启动进程内 inspector，约 10 秒后保存 `~/.editor/logs/startup-main-*.cpuprofile`，不开调试端口；普通启动不采集。需完整退出后带参数重启，第二实例转发参数不会为已运行进程补录启动。性能快照 `main.startupCpuProfile` 包含采集状态与文件路径；持续阻塞可能延后停止计时器，实际时长以 profile 为准。
+
+知识地图读取 `knowledge-map:get` 显式接入 IPC 计时；快照的 `renderer[*].stages` 记录加载、建图及超过 50ms 的绘制，`main.stages` 记录向量候选扫描，只有阶段、耗时与规模，不记录正文。渲染事件携带发生时间，避免主进程积压把接收时间当作起点；堆采样每次重新读取 memory。长帧的 renderMs 为 renderStart 到帧末，styleLayoutMs 为 styleAndLayoutStart 到帧末（含后续渲染），无法取得的 paintMs 为 null，不能当成零开销。
+
+主内容全文队列（`main-content-fts-index-queue`）在连库对账之外订阅正文写入总线：按库合并 1 秒（持续写入最长 5 秒），经 `EntitySearchTable.locateAll` 找到引用这些正文的卡片 / 文章 / 项目文档 / 日记逐个重建，正文清空则移除。索引未就绪（构建中或待重建）时跳过，交给对账；实体删除和标题等元数据变化仍由连库对账处理。
+
+主内容向量队列先读取实体 ID、正文 ID、实体/正文较新修订号，按已索引修订筛选后才读全文。候选收集与覆盖率合并扫描；未变的已索引正文不转换，空正文修订按数据库连接缓存。变化正文的 JSON 解析、Markdown 转换与分节经 `IndexContentClient` 逐篇交给 `ContentExecutor` 的浏览器进程执行；每轮扫描持有独立取消作用域，finally 回收会话，共用内容进程不随每轮销毁。元数据扫描每批让出事件循环。统计入口不分节、不准备嵌入任务；未索引或变化项仍需转换确认正文非空，以保留纯媒体等可索引内容的口径。切库或代次失效后不清理候选外向量。
+
+离线知识地图只构建显式边、邻接与标签，不重复运行社区发现和种子布局。主题/子主题世界几何按场景身份缓存，替换地图即失效；静态地图命中树只在场景变化时重建，平移与缩放不失效。动态链接图仍按帧更新命中树与几何，不能共用静态缓存。
+
+本地嵌入由 `local-inference/client.ts` 懒建独立 Electron `utilityProcess`，模型加载、分词、480 token 分窗推理和向量合并只在 `local-inference-worker` 执行；主进程不加载 node-llama-cpp。CPU 推理线程数为可用核心的一半，最少 1、最多 4；context 固定 512 token，与现有分窗上限一致，避免为短窗口分配模型的完整上下文。后台重建每条文本之间让出 10ms，查询在文本边界优先调度，不中断正在计算的文本；主内容、PDF、Notebook、视频检索均显式标记交互优先级。子进程启动握手、请求超时或退出时拒绝在途及排队任务，下次请求可重新启动；应用 `quit` 时终止进程（受控退出用 `app.exit`，不能依赖 `will-quit`）。向量输入与合并算法不变，不提升嵌入指纹版本。同步数据库写入仍由主进程持有。
+
+### 产品埋点（2026-10-18）
+
+`telemetry` 仍为 BACKGROUND 模块，`commands/telemetry.ts` 的 `trackEvent` 经 `withModule` 等待就绪。主进程使用 `@tau/analytics/client` 生成安装/会话/事件 UUID、冻结发生时间和版本上下文，串行原子保存 `~/.editor/analytics.json` 后批量发送至 `analytics.taunote.app/v1/events/batch`；回执按条确认，重试由服务端幂等去重。旧 `telemetry.json` 只沿用安装 ID，旧缺上下文队列不混入新统计；旧文件保留，不删除用户文件。开发队列单独存储、默认不上报，`TAU_TELEMETRY_DEBUG=1` 开启 development；`TAU_TELEMETRY_DISABLED=1` 停用。
+
+事件白名单、版本和属性规则归 `apps/analytics/contracts/events.ts`，新增事件先发布服务端；渲染端继续调用原 `trackEvent(name,data)`，禁止上报正文、路径等内容。窗口聚焦累计值表示前台时长，心跳/退出按会话累计最大值统计，不表示真实操作时长。协议、R2下载口径与迁移顺序见 `apps/analytics/docs/DESIGN.md`；新能力只追加可选字段/事件/查询，不重解释既有 v1 数据。
+
+## 2.6 通知分流（D-138）
+
+插件通过 `context.notifications.send` 发送纯文本通知：`mode` 为 `auto`（默认，按插件所在窗口焦点分流）、`in-app`（固定应用内）或 `system`（固定独立通知窗口）。桌面适配仍经 `appNotify`，来源由宿主填写插件名，通知 ID 由宿主生成；返回的 `Disposable` 只能撤销本条通知，停用、激活失败和切库自动清理。最多两个操作按钮，回调留在插件所在渲染窗口，执行前校验激活与句柄有效性。没有新增业务数据权限或后台进程通知入口。作者示例见 `docs/plugin-system/通知能力.md`。
+
+通知按来源窗口焦点分流（聚焦进应用内卡栈、失焦进系统通知窗口；两栈互不同步，详见
+DECISIONS.md D-138）。接入口径：
+
+- **渲染端业务一律 `appNotify`**（`features/notifications/notify.ts`），禁止直接调用
+  `@tau/ui` 的 `notify`（showcase 样板间与系统通知窗口页除外，ESLint 守护）。`icon` 传
+  注册表键（`features/notifications/icons.ts` 的 `NOTIFICATION_ICONS`），不传组件；
+  主进程侧 icon 字符串键与注册表的对账由
+  `features/notifications/__tests__/main-process-icons.test.ts` 守护。
+- **主进程用 `routeNotification(payload, origin)`**（`src-electron/main/windows/`），
+  禁止 `new Notification(...)` 原生通知（ESLint 守护）；按钮回调放 `origin.handlers`，
+  收尾放 `origin.onClose`，关闭走 `dismissNotification(id)`。
+
+## 3. 三大协议（照抄即用）
+
+**新增页面**（如卡片库）：
+
+```TSX
+// features/cards/pages/cards.page.tsx —— 文件即注册，无需改任何登记表
+const schema = createPageSchema({ keyword: paramOptional(paramString()) });
+type CardsParams = typeof schema.type;
+
+export default definePage({
+  key: "cards", // 与 navigation.ts 的 key 一致即接管侧边栏入口
+  match: "single", // 功能页用 single；详情页用 "params" + getId: p => `card-${p.cardId}`
+  label: "卡片库",
+  params: schema.schema,
+  component: CardsView, // 视图组件放 ../views/
+});
+```
+
+导航：`navigator.push("cards", { keyword: "..." })`；视图内读**本实例** params 用 `usePageParams<T>()`（PageHost 按栈条目注入，T 声明与 page 定义 schema 一致的形状）。params 页禁止从 `usePage().state` 的全局栈顶取参——多个 params 实例保活时，被隐藏实例会读到栈顶（别人）的 params，引发数据串台与节流落盘写错行（回归测试见 `page/__tests__/pageParams.test.tsx`）。
+`match: "single"/"params"` 的去重由栈机承担：重复 push 同 key 同参 = no-op、异参 = 原位更新，调用侧不要再做"是否已激活"判断。push **不带参数**（净化后空对象）= 未指定字段，激活已有实例时沿用其现有参数——侧栏主入口 / 首页入口进入不清掉页内筛选；要显式清空必须带字段（如 `{ id: "" }`，整体替换语义）。条目只存在于 forward 缓冲（back 刚离开）时同样命中：复活压回栈顶并沿用参数，forward 清空（push 语义）。
+
+**新增页面数据**（features/<域>/queries.ts，照抄 features/home 的形状）：
+
+```TypeScript
+export function useXxxSnapshot() {
+  const query = useQuery({
+    queryKey: ["<域>", "snapshot"],
+    queryFn: fetchXxxSnapshot, // 并行 Promise.allSettled + 单项降级，整体不 reject
+    staleTime: 60_000,
+    refetchOnWindowFocus: true, // 全局默认是关，"今日"类数据按页面开启
+  });
+  return {
+    data: query.data ?? null,
+    loading: query.isPending,
+    refresh: () => void query.refetch(),
+  };
+}
+```
+
+禁止手写 useEffect+useState 拉取；列表展示 N 条禁止为此全量拉大表（用渐进窗口凑满即停，或主进程聚合命令——参考最近编辑 14→30→90→365 天的实现）。
+
+**聊天消息模型（单一来源，D-064）**：消息 / 会话 / 流式块类型统一维护在 `packages/shared/src/chat-core/messages.ts`（`AssistantBlock` 系列、`RequestMessage`/`ResponseMessage`、`ChatSessionRecord`、`ToolCallPayload`/`ToolCallExecutionState`、`Role`），桌面 `src/types/llm.ts`、`src/types/chat-message.ts`、`src/types/tool.ts`、`src/constants/llm.ts` 仅 re-export（桌面以 `ChatMessage` 别名消费 `ChatSessionRecord`）；浏览器插件与桌面端共用同一模型，两端禁止再各自定义同名类型。这套模型是**展示投影**：事实源是 pi 会话文件（见下），主进程 `pi-session-transcript.ts` 把 pi entries 投影成它。流式块组装（`assistantBlocks.ts`）与流事件归约器（`applyChatStreamEvent`，快照语义 + turnId）同在 chat-core；扩展与桌面之间走 AI 运行协议 v2（`chat-core/aiRunProtocol.ts`，`ai.run.*`），两端用同一个归约器。
+
+**聊天会话数据（pi 迁移 M4，D-065）**：对话内容的事实源是 pi JSONL（`~/.editor/sessions/<库名>/`），sqlite 只有目录表 `chat_session`（id = pi 会话 id；`scope` + `domainRef` 区分主聊天 / PDF / 视频笔记 / 学习项目；只存元数据）。读对话走 `pi-session:transcript` 投影，改历史（回退、分叉、切版本、删除消息）走 `pi-session:edit`，都按消息上的 `piEntryIds` 定位——不要按下标或 clientId。分支在同一文件的会话树上，不新建目录行。删除所属对象（PDF、视频笔记、学习项目）时用 `ChatSessionTable.removeByDomain` 连会话文件一起删，渲染端先 `releaseBucket` 释放宿主。**禁止**再往 sqlite 写消息载荷或新建聊天表。
+
+**新增主题**：`packages/themes/src/themes/<name>.theme.ts` 用 defineTheme 声明（tokens 全键强制，漏键编译不过），在 `register.ts` import 之，**并同步在 ****`tokens.css`**** 补 ****`[data-theme="<key>"]`**** 数据块**（取值运行时由该块级联，`theme-parity.test.ts` 守护两处一致；codegen 落地后改为生成）。派生逻辑写在 tokens() 里。
+
+Vite 开发、样板间及构建命令统一使用 `--configLoader runner`，由 Vite 转译配置依赖的工作区 TypeScript 源码，配置中继续通过 `@tau/themes` 公共入口生成首帧脚本。默认 bundle 加载器会将此包外部化，交给不支持原生 TypeScript 的 Node 后报 `ERR_UNKNOWN_FILE_EXTENSION`。配置按标准 ESM 使用 `fileURLToPath(import.meta.url)` 获取自身目录，不依赖 bundle 加载器注入的 `__dirname`；直接执行 Vite 命令时也须带该加载器参数。
+
+桌面消费的编辑器扩展包、`@tau/ui` 和 `@tau/themes` 由 Vite 编入产物，统一声明在桌面 `devDependencies`；各包自身的依赖声明不变。不要仅因拆包就把它们放入桌面 `dependencies`，否则 electron-builder 会再收集整条生产依赖链，重复携带图标、表情数据及共享包源码。运行时从磁盘加载的外置模块与原生依赖继续保留生产声明；调整后须检查实际安装包和原生运行时。
+
+安装包排除依赖的 `.js.map` / `.mjs.map` / `.cjs.map`，afterPack 补复制的依赖执行相同规则；不泛删 `.map` 数据文件或类型声明。`verify:native-runtime` 同时用包内 Electron 和包内依赖执行 pi 工具调用、中文路径读写及插话冒烟，临时工作区隔离。逐批体积与验证记录见 06。
+
+macOS 的 `pnpm build` 同时生成 Intel（x64）和 Apple 芯片（arm64）的 DMG、ZIP，文件名为 `Tau-v<版本>-darwin-<架构>.<扩展名>`，共用一份 `latest-mac.yml`；DMG 供官网下载，ZIP 供自动更新。`pnpm-workspace.yaml` 的 `supportedArchitectures.cpu` 须同时包含 x64 与 arm64，调整后执行 `pnpm install`。afterPack 按目标平台与架构裁剪原生依赖和 llama.cpp 后端；构建结束恢复本机 better-sqlite3，避免开发环境残留另一架构。验证逐个检查两份应用的二进制架构与原生模块加载；Apple 芯片机器借助 Rosetta 运行 Intel 包，Intel 机器仅能静态校验 arm64 包，须另在 Apple 芯片机器完成运行验收。发布前校验清单引用的文件、大小、摘要字段及双架构四件套，禁止半套产物覆盖更新源。官网由 Pages 在访问首页时读取发布清单，最多缓存 60 秒，自动更新版本与下载入口；未发布的芯片显示「即将推出」，发布源故障时保留构建快照。发布客户端后无需重新部署官网。
+
+macOS 双架构发行构建通过 `run-mac-builder.mjs` 的 `platformPackagerFactory` 扩展调度：先顺序构建、签名 x64 与 arm64（原生依赖原地重编，禁止并发），再并行执行 electron-builder 原有的公证与票据附加，全部成功后才调度原有 DMG / ZIP target。blockmap、摘要与合并的 `latest-mac.yml` 继续由同一个 electron-builder / PublishManager 实例生成，不在生成后改包或手工合并清单。任一签名、公证失败或取消均不生成本轮双架构发行产物；已有 release 文件不会自动删除。凭据仍读取 electron-builder 支持的环境变量（本机推荐 `APPLE_KEYCHAIN_PROFILE`），并保留 `electron-builder.env` 加载；单架构、MAS、预打包及显式关闭公证沿用原调度，Windows / Linux 不变。调度与更新清单回归运行 `node --test scripts/parallel-mac-packager.test.mjs scripts/release-artifacts.test.mjs`。
+
+双架构公证使用 electron-builder 的凭据解析器生成选项，再直接调用其依赖的 `@electron/notarize` 完成提交、等待与附票。缺少凭据或任一应用缺少签名／公证任务时直接失败，不把可选公证入口的正常返回当作通过；只有实际公证并附票成功后才输出成功日志。已有终端未加载配置时，可用 `APPLE_KEYCHAIN_PROFILE="tau-notary" pnpm --filter desktop build` 显式传入钥匙串名称。
+
+桌面使用 pi SDK，不打包其独立 CLI bundle 与专属 esbuild；保留 SDK、chord 上下文模块、模型 SDK 和动态扩展所需内容。打包前 `pi-packaging-boundary.mjs` 检查已审核版本以及桌面/相关 pi SDK 的消费者；版本或引用边界变化必须重新审核。包内冒烟还覆盖 TypeScript 扩展加载与调用、JSONL 会话恢复，不能只验证开发目录依赖。
+
+主进程 Vite 的 `resolve.dedupe` 统一使用桌面入口的 `@earendil-works/pi-ai`，避免同版本因 peer 解析不同而重复进入 bundle、触发 Anthropic SDK 命名空间代码生成错误；约束仅作用于主进程打包，不改变安装依赖或全局版本策略。
+
+分词词典统一由外置 `@node-rs/jieba/dict` 从包内加载，保留包自身的 dict.txt/idf.txt，不再复制到主进程构建目录或 Resources 根目录，也不劫持 require.resolve。包内验证使用 `Jieba.withDict(dict)` 检查词级分词。
+
+**主题模式与切换**：`@tau/themes/react` 提供 `createThemeRuntime` 和默认 `useThemeStore/initThemeRuntime`；mode 可以是已注册主题 key 或 system。AppShell 挂载运行时并在清理时释放系统监听，Titlebar 消费同一 store。DOM 应用由公共主题实现负责，业务代码不操作 data-theme。Vite 构建入口调用 `createThemeBootstrapScript()` 注入首帧脚本，新增主题只需注册定义并同步 CSS 数据块；公共包 theme-parity 测试检查 token 对齐与 AA 对比度。桌面侧栏、标题栏尺寸保留在 app/base.css，不作为公共主题尺度。
+
+**编辑器主题与实例协议（Editor P8）**：`data-theme` 是主题族 key，明暗由 `data-mode` 与主题运行时管理。编辑器已删除 EditorProvider/全局 config，宿主显式传场景 EditorKit，取色走 `--ed-*`/`--tau-*` 与 ThemeService；`useEditorTheme` 订阅明暗、主题族和通知修订号，同明暗换主题或仅 token 更新也刷新 ECharts 等取色组件。新 editor 实例有独立 Slate 挂载键、内容/选区快照，规范化和 onInit 重新执行；同谱系文档换源保留实例，光标发送开关随换源更新。新页面不以 documentId 为 key 强制重建内容编辑器。详见 `docs/editor-refactor/01-目标架构.md`。
+
+**局部强制明暗**：编辑器子树用 `<EditorThemeOverride mode="light|dark">`；整块区域换主题族（导出图片）时节点同时写 `data-theme` / `data-mode`，编辑器包 `<EditorThemeOverride mode themeKey>`；非编辑器 UI 使用同一主题族的 data-theme/data-mode，颜色来自 tau token，不再使用旧 th 变量或 th-scope 类。演示和沉浸舞台通过 PortalScope 挂回 UI 浮层，避免继承 body 的明暗。dark 变体当前承诺单层局部作用域，多层嵌套由用户后续视觉验收并按 bug 修复。
+
+**主题结构收尾**：JavaScript 明暗统一消费 `useThemeStore(s => s.mode)`；useTheme 是其薄包装，不监听旧 data-theme 字面值。设置不再保留 darkMode 与 accent，图片圆角/阴影仍在 appearance.image。useThemeColors/useBackgroundMode/useSyncTheme、accent 预设与 theme-colors.css 已删除。Agent 不进行视觉验证，仍执行类型、行为测试、构建及旧主题防回流检查。
+
+**字体设置生效链路（2026-09-21 修复 + 全局化裁决）**：`fontSetting` → `useSyncFont()`（在 App 根挂载一次，所有窗口共用）→ **root（documentElement）级覆盖**。用户字体/字号是**应用级默认**（界面与编辑器统一生效）：① 字体族覆盖 `--tau-font` / `--tau-font-mono`（font-tau / font-tau-mono 的底层，壳层 UI 即时换字体）；② 字号按 13px 基准（`--tau-text-body` 定义值）**阻尼**缩放 `--tau-text-*` 全部档位（半速率传导，2026-09-23 裁决与内容区解耦：宿主可用 `--font-size` 为内容容器提供原始字号，Editor 继承所在容器；排版层级保持，间距圆角不动——例外：侧边栏条目行高/图标按 em 向文字档位折算，见 DECISIONS 2026-09-23 追记）；③ `--font / --font-size / --mono-font` 一并写 root（legacy 样式与编辑器包的既有变量）。默认字体变量定义在 :root，body 不重复声明，设置 store 不写字体 DOM，根 hook 清除旧 body 覆盖。Editor 根节点不声明字体族或字号，不直接读取宿主全局字体变量；普通编辑、演示和预览均继承所在容器的排版，演示容器的 `40px` 与全览 Editor 调用方的 `8px` 决定各自 em 缩放基准。**Tailwind v4 陷阱**：`@theme inline` 对字面值会把值内联进工具类（`font-size: 13px`），运行时覆盖 CSS 变量无效——字号 token 必须经 `:root` 字面值层（`--tau-text-*`）+ `@theme inline` var 桥接（tokens.css 已改，颜色 token 的既有模式），`useSyncFont` 覆盖的是 `--tau-text-*` 字面值层。
+
+**颜色与尺度消费（D-001 Tailwind 优先）**：组件样式一律 Tailwind 工具类。颜色写语义类（`bg-page / bg-surface / text-ink-1 / text-ink-2 / text-ink-3 / hover:bg-hover / bg-accent-soft / text-accent / bg-ok-soft / text-warn …`）；尺度写 tau 命名空间词（`text-tau-body / text-tau-meta / rounded-tau-sm|md|lg / shadow-card / shadow-lift / shadow-float / shadow-paper / ease-tau-out / font-tau / font-tau-mono / font-tau-hand`，词表见 02 规范 §3/§4；`font-tau-hand` 只用于白板手绘模式的文字，D-107）。**禁止**：裸色值、antd token、内联十六进制、新增手写 CSS 类（白名单见 §4）。数据驱动的动态值（进度宽度/格子高度）允许 inline style，但色值仍走语义类；一次性展示字号用 `text-[24px]` 类任意值；热力图色阶这类"主题 accent 定稿值的 alpha 派生"暂以 arbitrary 注明出处。跨域复用的视觉模式收口 `packages/ui/src/primitives/`（Panel/IconButton…），不要在多域重复同一段类串。**不存在 bg-group**（D-034 退役）：小面积填充（Tag 灰档、徽章、kbd 提示、次级按钮）用 `bg-hover`；容器 = 透明底 + `border-line-1` 描边、输入控件 = `bg-surface` + 描边（D-007 表单家族），嵌套底色叠层是常见腐化点。
+
+**Editor 与发布渲染分层**：packages/editor/src/core 仅内建段落和通用机制，23 个仍内置功能在 src/extensions，组合在 presets；默认 Editor 装配通用组合/内部 UI，createEditorKit 仍显式装配。packages/blog 单向依赖 Editor 与数据 SDK，对外 @tau/blog 根入口提供 ContentRenderer/createClient；Editor 源码不引用发布 SDK 或渲染包。scripts/blog/package-blog.mjs 将必要实现、类型、CSS 和相对资源收拢为一份 npm 交付，模板无需额外安装 Editor/SDK。模板自己选择页面、Router、搜索 UI、预览、Tooltip 与 toast，不接触编辑器装配，也不要求页面挂载内部 Provider。渲染器按实例处理插件与样式，原样使用贡献，不加入 HTML/iframe 特判或实例资源接口。旧 apps/blog 已退出活跃工作区；验证与发布状态见实施记录 72。
+
+**编辑器扩展拆包与 Markdown 组合**：场景 Kit 显式追加 diagram、code-block、math 等内置扩展；源码预览归 editor-source-view，代码块保持 textarea＋Shiki。HTML、custom-block、ABC、TikZ、Typst 通过独立应用插件装配，不回到内置数组。内核不得重导出领域渲染器；宿主按服务契约注入编译能力。Markdown 处理器在底座 codec 上组合插件贡献，后台从同一包快照加载；禁止恢复固定插件 codec 名单。React/Slate/DnD 继续去重。
+
+**渲染交付收敛**：Editor 的拖拽环境不随 kit 分支变化，UI 原语沿用外层 Portal 或默认挂载点，不再另包 UiProvider。渲染包只有根入口和三份 CSS 出口，不公开编辑器装配：ContentRenderer 内置发布内容的完整组合（内置节点、网页嵌入、源码预览、播放器、发布设置的图片外观、站内链接），模板只提供 hrefFor 及可选的 renderLink（链接展示）、onOutline（目录）。发布 CSS 校验后按原文加载与清理，不改写选择器或动画；内容插件自行定义样式范围。@tau/blog 的 styles.css 全部处于级联层：主题变量在 theme 层，编辑器样式及其工具类在 components 层，模板工具类可覆盖、preflight 不会盖过；壳层全局滚动条（@tau/ui scrollbar.css）不进入该包。版本与验证状态见 72。
+
+编辑器共用宿主能力的 IResourceService/IFileService/IOpenerService 及接口统一从 `@tau/shared/host-services` 引用，核心入口已收回这些别名。desktop 的 editorRegistry 仍组合实际实现；协作与 Markdown 文件场景通过 kit.extend 覆盖同一 token，资源解析保持读取当前服务作用域。媒体已归 `@tau/editor/extensions/media`（packages/editor/src/extensions/media），Provider/插槽 token 从 `/services`、默认插槽从 `/slots`、类型从 `/types` 消费。产品组合在packages/editor/src/presets/standard.ts，core 不反向引用；四端显式合入 `/markdown` codec 并扫描新目录样式，详见 ER-036。
+
+编辑器标记展示经 EditorExtension.marks 组合，核心持有 Slate 叶子属性；桌面 DiffHighlightedEditor 只通过 leafWrapper 包装已经完成标准格式的 children，不再使用 customRenderLeaf 或深引 FormattedText。标准格式由 textFormattingExtension 提供，产品场景在 services/editorKit.ts 显式装配；createEditorKit 仅内建段落，白板箭头使用同一工厂＋行内公式/链接/格式，元素仍为原三个。格式热键声明 fallback，领域热键先消费，宿主 Esc 仲裁不变；显示与纯编解码、装配边界见 editor-refactor 的 ER-029/030/031。
+
+编辑器纯编解码组合已增加 textCodecs，desktop 渲染端与主进程共用绑定 processor 的叶子方法，不从 @tau/markdown 根导入固定格式函数。标准格式运行时/纯入口分别为 @tau/editor/extensions/text-formatting 与其 /markdown；下划线和样式文本分别由 @tau/editor/extensions/underline、@tau/editor/extensions/styled-text 提供，旧核心出口已删除。四端显式加载格式包 styles.css，微信导出从 /palette 消费纯色值；紧凑工具条由 compactGroup 声明分组，扩展使用公开工具条状态/子面板。未知文本字段使用新版 tau-node 文本载体保真，旧端不能重存此语法。纯类型和 Node 加载独立验证，详见 ER-030/037；聊天数据模型不随之迁移。
+
+链接/注释/批注/键盘标签/分割线/Front Matter 分别由 @tau/editor/extensions/link、@tau/editor/extensions/annotation、@tau/editor/extensions/comment、@tau/editor/extensions/kbd、@tau/editor/extensions/divide-line、@tau/editor/extensions/front-matter 提供。批注侧栏从 comment/types 与 comment/comments 消费模型和纯工具，全局样式显式加载 comment/styles.css；五个领域 codec 从各自 /markdown 组合，批注仍经 tau-node 保真。配对 HTML 标签由 codec.inlineHtmlWrapper 声明，Markdown 框架不再特判 kbd，详见 ER-038。
+
+标题从 @tau/editor/extensions/header 显式安装，纯 codec 走 /markdown，核心旧标题出口已删除。目录定位使用 resolveHeaderAnchor(editor, index)，平滑滚动使用 scrollHeaderIntoView(editor, index)；核心 EditorRef 不再提供标题方法，ContentOutline 保留宿主侧别名并复用标题包实现。禁用折叠会完整展开，readonly 下的折叠只改变当前视图，详见 ER-039。
+
+列表系由 @tau/editor/extensions/list 的 listExtensions 成组安装，Markdown 组合 /markdown 的 listMarkdownCodecs，样式显式导入 /styles.css 并扫描 src。五种列表节点、操作和图标选择器均归该包，核心旧出口与 emoji-mart 临时例外删除；Vitest 的 emoji-mart 解析基点也改为列表包。普通列表不要求上传服务，只读不执行结构折叠或任务勾选，详见 ER-040。
+
+表格由 @tau/editor/extensions/table 的 tableExtensions 成组安装，/markdown 提供 tableMarkdownCodecs，核心不再转出表格类型和操作。菜单按当前表格生效，行拖拽在落下时重查原节点路径；行手柄在首个单元格内，避免非法表格 DOM。表格末格退出和删除最后一列均保证段落输入落点，详见 ER-041。
+
+引用、Callout、详情与高亮块分别从 @tau/editor/extensions/blockquote、@tau/editor/extensions/callout、@tau/editor/extensions/detail、@tau/editor/extensions/highlight-block 安装；codec 使用各包 /markdown，Callout 样式与五个 SVG 由 /styles.css 提供并显式导入。核心旧容器出口已删除；详情只读展开不写文档，标题和菜单写入验证当前节点，详见 ER-042。
+
+Tabs 由 @tau/editor/extensions/tabs 的 tabsExtensions 成组安装，样式扫描 src；旧核心类型/插入出口已删除。只读切换仅改变当前视图，编辑时选区跟随活动面板；拖拽按 tabs 实例隔离。Markdown 保持通用 tau-node 载体，核心默认块导航改为读取 isolateBlockNavigation 声明，详见 ER-043。
+
+当前通用内置功能集中在 packages/editor/src/extensions，原独立功能工作区包与顶层 editor-extensions 已删除，入口统一为 @tau/editor/extensions/<功能>。HTML、custom-block、ABC、TikZ、Typst 继续由独立应用插件提供；source-view/collab 留 packages 维护。通用源码/行内组件实现由 @tau/editor/source 公开，SDK source-editor-host 只接线既有注入入口，不复制实现或恢复私有类型出口。
+
+编辑器 src 别名/通配包出口已删除，宿主组件从 @tau/editor、扩展能力从 /api 导入，工具条布局从 /toolbar 导入。桌面元素类型通过 /api 的 ExtensionElementMap/ExtensionInlineElementMap 登记，旧 External*Map 不再存在。IExtensionBaseProps 改为 ElementRenderProps；默认菜单可从根入口显式装配，详见 editor-refactor/10-公开入口与迁移对照.md。
+
+图片灯箱、裁剪与媒体属性条均归 @tau/editor/extensions/media，并通过扩展 layers 挂载灯箱；只读、异步目标、隐藏/卸载和返回手势保护仍生效。属性条“更多”使用 /api 的 ElementMenu，只传目标元素与位置，不能深引 Kit 或低层菜单。网络媒体地址输入改用 IEditorNotifier.prompt，默认 PromptHost 归核心，移动端由 BottomSheet 承接；引用块新样式 token 随 blockquote 包归属。合并证据见 editor-refactor/12-desktop分支合并记录.md。
+
+元素菜单经既有 OverlayBackDismiss 接入宿主返回仲裁，局部 Esc 关闭后归还焦点，Portal 继承当前 UI 作用域。块删除、移动执行前核验目标身份，菜单路径仅作定位提示。异步写入从 /api 使用 captureElementSubmission；剪切默认要求完整快照未变，媒体以 accept 检查资源字段，同目标资源操作互斥。只读、Activity 隐藏、卸载、文档换源和整体内容重设永久废弃旧操作；恢复后不会复活。services 声明本操作依赖的服务，无关主题派生不取消操作。commit 回调必须同步，正常失效返回 discarded，真实异常继续抛出，finally 调用 dispose。
+
+网络媒体输入经 captureInsertionSubmission 固定发起时的段落与选区，不追随确认时的新光标。notifierOf/useNotifier 复用会话守卫；EditorPromptOptions.signal 由默认及移动宿主响应。媒体上传忙态归实例运行时，新操作不写 uploading/pasteUploading=true；成功和失败收尾也必须经过守卫，不能为清理忙态而写入只读文档。入口矩阵、保留边界和验证规则见 editor-refactor/13-异步写入入口与提交守卫.md（ER-050）。
+
+Markdown 文件视图使用 `editor-collab/local` 的本地 Y.Doc 会话，富文本绑定、源码回写及外部文件更新共用正文与撤销。文件外部更新按节点语义增量对账，未修改的 Y.XmlText 与组件实例保留；源码切换不卸载 Editor，`binding.wrap` 内的 Activity 仅停驻视图效果，文档连接持续接收更新，同时只读切换取消旧异步操作。原始 Markdown 和规范化缓存位于同一 Y.Doc，未修改不改写文件。`useTextFileSession` 继续负责磁盘冲突和保存；迟到的文件读取不能回写已关闭的视图或覆盖读取期间已保存的内容。转换不支持时保留原文并展示源码模式，详见 ER-051 与 `docs/editor-refactor/14-Markdown文件YDoc会话.md`。
+
+编辑器的命令式整体设值已删除（ER-052）。ContentEditor 的正文更新只由文档绑定接管；列表预览更新使用新的值文档，表单清空／恢复草稿通过新的 key 建立会话，重置旧选区、撤销与异步操作。闪卡富文本仅接收初始值，参考资料使用稳定表单身份，禁止用下标复用编辑状态。网页剪藏、视频电子书的生成草稿使用本地 Y.Doc 增量更新；生成轮次隔离，取消后拒绝旧结果，网页保存交接期间只读。`useLocalEditorDocument` 仅管理纯内存文档，Activity 停驻保留文档及历史、解绑视图，随 React 状态回收。完整消费者清单见 `docs/editor-refactor/15-整体设值接口退役.md`。
+
+桌面旧 useEditContent 已退役（ER-053），不得恢复正文直接写库、旧事件订阅和文档会话并存的更新链。页面字数与业务快照只消费 ContentEditor.onChange；会话 store 只缓存身份和状态，不再缓存全文。白板低缩放下未挂载编辑器时，通过文档源订阅内容快照，按 contentId 隔离；移动端现役本地保存与协作离线处理不在此次删除范围。
+
+内容编辑工具的整篇替换必须携带当前文档修订号，并在原 Y.Doc 上提交一次事务；跨文档复制正文经 Slate 节点转换保留嵌套类型与属性，禁止直接使用 `Y.XmlText.clone()`（该方法不复制节点属性）。独立源码字段仍写入 fields，共享私有块继续以占位和本机真实节点分别保存。
+
+源码预览块使用 editor-source-view 的卡片内编辑与单份预览（ER-054 追记）：全屏工作台、全屏菜单命令与 fluid 参数已移除。CodeMirror 与语法模式首次进入编辑时懒加载，退出编辑释放实例并立即提交防抖草稿；方向键和插入聚焦等待实例就绪后应用。编辑器内部滚动维持有限可视区，高亮按短时间片执行。错误上报、源码输入与预览状态归该支撑包。浮动工具条从 @tau/editor/api 导入；缩放几何与 OverlayBackDismiss 仍供图片等其他消费者使用。Mermaid 主题映射和渲染核心归 diagram 的 /mermaid 入口，shared 只提供通用文档主题订阅，不重新导出领域渲染器。原 desktop 分支的 ER-021 在此分支重编号为 ER-054，避免覆盖服务契约决策。
+
+### pi 聊天运行时与工具审批（2026-09-27）
+
+聊天操作区区分「重试」与「重新生成」：末尾用户问题尚无正文、工具调用时原位重试，复用原用户 entry（含附件与展示信息），不增加问题版本或分支。主进程重新核验当前投影，以隐藏的 `desktop-retry` 自定义消息触发 pi 完整运行与 settled 流程，空失败回答通过 context_edit 省略，系统提示仍取当前配置。上次在用户消息写入前失败则正常提交一次。已有正文、工具调用或后续追问时仍回退重发并保留旧版本；编辑重发不走失败重试。
+
+视频学习台与白板视频抽屉共用 `VideoNoteChatPanel`，经 `useScopedChat` 接入 pi 会话；旧独立总结入口已移除，总结由视频对话承载。视频检索只保留页面作用域工具，不恢复全局视频笔记 MCP 工具。转录优化与电子书重写统一消费 `useLLMConfig` 的 `provider/model`，缺少配置时经 `openLLMSettingsSection` 打开新设置分区。
+
+纯聊天模型、消息迁移、归约器与运行协议经公共子入口 `@tau/shared/chat-core` 消费；该入口不加载 React/DOM，主进程可直接使用。调用方禁止导入 `@tau/shared/src/chat-core/*`，包内部文件布局由共享包自行维护。
+
+会话键包含数据库身份，投影、树编辑和目录补丁显式携带创建时的库名。宿主在异步装配前占用文件租约；图片准备也是忙态，释放会话先取消并等待在途操作。删除后不得发布迟到的投影或标题。PDF / 学习项目工具的执行快照归会话持有，不依赖页面继续挂载；运行时 LRU 同时释放已打开投影。
+
+同步仍用整包：数据库与带摘要清单的会话 ZIP 上传到唯一对象名，最后原子创建唯一后继版本记录（同步信封版本 4，内部模型版本仍为 1）。版本指针只加速读取，读端沿后继记录取得最新提交；并发和响应丢失由提交身份仲裁，禁止 GET 后普通覆盖。版本探测与上传只读取历史元信息，下载前独立执行版本 4 门禁，不能因旧父版本阻断升级上传。设置页缓存远端版本及协议，旧协议显示「需升级云端」并禁用拉取，未来协议显示「协议不兼容」，读取失败显示「检查失败」。下载校验摘要、目录身份、会话树后在主进程成对安装，回滚日志由开库入口先恢复；会话运行中拒绝同步，锁持有到维护重连完成。迁移各阶段独立判断完成度，旧行身份写入 migration_meta，崩溃重试不重新分配 ID。
+
+桌面配对同步使用公共 Node 入口 `@tau/db-schema/sync` 的会话打包、SQLite/JSONL校验、回滚日志与数据库锁。CLI已整体退役（D-183）；数据库访问仍检查维护锁并保留必要的崩溃恢复，不允许并发写入正在维护的数据库。
+
+同步存储插件只在渲染进程通过 `context.sync.register` 注册五方法提供方，沿用 main.js，不读取旧 manifest.sync 入口；新的显式 backend 独立声明与授权，不自动承载同步提供方。S3使用浏览器SDK构建，网络经已有context.fetch由宿主传输；主进程不执行同步插件代码。同步设置target/syncConfig及应用级配置保留。数据库与用量流程直接调用渲染端提供方；资源扫描、计划、账本和重试仍在主进程，存储操作按任务转发给发起窗口。PluginSyncSessions只登记任务与归属并转发数据，任务期间阻止停用、卸载和更新；窗口断开时拒绝待响应请求、清理任务，不转移到Node执行。CLI同步命令、TUI入口、Provider及cli-sync协调接口已删除；通用数据库维护锁保留。S3旧包不再从安装包中自动替换；用户从中心选择新版后仍走原安装事务，配置与启用意图不变。OSS也已按同一渲染进程边界拆分，使用ali-oss官方浏览器构建和宿主fetch；旧配置及资源账本经migrateSyncPluginSettings一次性迁移。旧OSS同步Provider、资源Adapter及同步IPC已删除，资源上传/列桶及其共享凭据仍保留。WebDAV同步同样使用独立插件与官方浏览器客户端，通过SDK公开传输扩展绑定context.fetch；旧配置与账本由同一迁移入口接管，旧Provider/Adapter和exists/list同步IPC已删除。宿主upload/download仍服务资源上传下载。条件创建正确返回412失败，列举仅忽略404；所有插件资源调度统一使用现有插件参数，不按插件身份特判。WebDAV验收见 `docs/plugin-system/57-WebDAV渲染进程拆分.md`。GitHub同步也已通过context.fetch调用原Contents API，普通写入先取SHA，条件创建不传SHA；旧配置与资源账本迁入tau.sync-github，旧同步Provider/Adapter与同步专用工具已删除。四种同步方式现统一为插件，设置页只显示插件配置，GitHub CDN 历史地址转换保留；桌面账号及博客查询工具已随 D-173 迁入发布插件，移动端仍有独立原生消费者。资源调度复用通用插件参数（并发配置5，经现有执行器上限收敛为3），无插件身份特判。GitHub验收见docs/plugin-system/58-GitHub渲染进程拆分.md。codec 的既有 Node 执行链已由 PS-043 M4 迁入独立内容渲染进程，现行边界与验证见插件专题 78。OSS实现与验收见 `docs/plugin-system/56-OSS渲染进程拆分.md`；执行边界见 `docs/plugin-system/55-插件渲染进程边界纠偏.md`。
+
+渲染端纯信封与发布协议使用 `@tau/db-schema/sync-protocol`，不得深路径导入 Node 包内部。锁的 5 秒心跳在独立线程运行，120 秒过期；同步 I/O 不会阻塞续租，失锁后拒绝旧租约。后端原子创建要求与 OSS 桶版本控制限制见 D-065。移动端记录下载基底对应的会话对象，上传不拼接其他版本的包。
+
+工具清单与执行器在创建宿主前一次性捕获，不能在 await 创建后再查页面注册表，也不能在执行时按名称获取后来注册的工具。`ToolExecutionContext` 的 `databaseName/signal` 贯穿普通工具、作用域工具及子代理；业务调用用 `bindDatabaseCommands` 绑定命令封装，每次调用只捕获同步进入 `invoke` 的上下文，不能把异步业务函数当作命令绑定。内容提案和检查点也须带库名。工具中止经 `pi-tool-cancel` 到渲染端，MCP 再传给 SDK；每次执行带独立 `executionId`，迟到结果、错误与进度不能认领重用同一 `toolCallId` 的新执行。失败使用 pi 工具拒绝语义，不把错误藏在成功结果 metadata 中。
+
+MCP 连接配置的摘要进入工具定义身份，渲染层重载后也不能把旧来源的授权交给同名新来源。学习项目生成工具启动的后台任务，其占位、流式保存、最终正文、测验和播客记录都使用原库命令客户端；任务投影带库名，不能仅在工具入口绑定数据库。
+
+`bindDatabaseCommands` 以可写副本承载代理，读取与调用仍委托原命令对象；禁止直接代理生产构建冻结的模块并替换函数返回值，否则会触发 Proxy 只读属性约束。回归测试须覆盖冻结导出、嵌套调用、异常恢复及取消后的数据库上下文隔离。
+
+未知模型容量必须补齐后才能运行，不使用猜测窗口；Shell 兜底按平台处理，macOS/Linux 保留系统 shell。
+
+上下文用量按 `providerId + modelId` 匹配，显示名不参与新数据身份判定；旧 `modelName` 兼容读取 ID 或名称。
+用量取最近一次模型调用（不累加工具循环），输入包含 pi 独立报告的缓存读写 token，流式与会话投影保持一致。
+内置模型的聊天容量从当前目录解析，已保存设置仅作兜底；K 按 1000 换算。
+容量随 pi 目录升级，不在业务代码中按模型名称添加容量特判。
+
+桌面带工具调用统一使用主进程 pi 会话（D-065）。`piChatRuntime` 按 conversationKey 常驻持有聊天容器、
+事件归约器、待发送队列与插话，组件只负责输入与展示；切页/卸载不能停止归约。一轮结束（settled）后
+重读会话文件的投影回写容器。单发生成走 `services/piLLM.ts`（`pi-ai:single-shot`），一次性带工具的
+任务走 `services/piAgentRunner.ts`。新增 AI 入口不得再引入自研协议适配或直连服务商 SDK；集成设置的
+Key 连接测试用 `pi-ai:verify-key`。
+
+工具权限在主进程 `PiToolPermissions` 包装 pi 原生 `beforeToolCall`，保留扩展决定并使用
+AbortSignal 取消等待。read/grep/find/ls 为只读，edit/write 为写入，bash/powershell 与远端
+MCP 默认为执行；自定义工具清单携带 risk/source。手动确认、自动编辑、Bypass 的口径沿用
+D-060。交互聊天的内容编辑工具已有审阅卡，不重复审批；一次性入口无审批界面时明确拒绝
+需要确认的操作。新增带工具入口必须显式说明是否能承载审批，不得默认开启交互等待。
+
+未声明风险按 execute 处理；只读工具必须显式声明 read，不能在渲染端把缺省风险降为 read。
+
+待审批与会话授权由 pi 宿主持有，审批回传校验创建窗口与随机 requestId；窗口销毁、会话
+释放或原生 signal 中止时结束等待。渲染端 `services/piInteractions.ts` 只投影带递增版本的快照（审批与
+提问合并在一份 `PiSessionInteractionSnapshot` 里），ToolApprovalBar
+按 sessionId + toolCallId 定位，展示主进程确认的最终参数。piChatRuntime 根据宿主快照投影等待卡，渲染层
+重载后所有对话均按 scope 收养宿主，不以历史消息是否包含未完成工具调用作为恢复条件。
+find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘的回答快照；恢复期间保持发送等待，
+先恢复工具 turn 与续流监听，再开放按钮。订阅后复核宿主状态，补齐恢复间隙开始的回答快照或最终投影；
+复核期间已收到新事件时以事件为准，迟到的空闲快照不能覆盖新一轮运行态。
+授权不写数据库，pi 会话重建、宿主空闲 30 分钟回收或主进程重启后失效；重开时悬挂的工具调用标为已中断。
+
+## 4. UI 风格铁律（A2 校准结论，评审对照）
+
+> **视觉基准与样式载体（D-001，2026-09-15 起）**：视觉基准 = `mockups/direction-a-soft.html`（A2 柔和版）+ `mockups/home-final.html`（今日页定稿），**降级为参考物**（浏览器打开对照截图），不再是导出源；调视觉直接改组件里的 Tailwind 类。样式载体 = **Tailwind v4 工具类优先**，组件 className 语义化、就地可读；跨域视觉模式抽 `packages/ui/src/primitives/` 组件。CSS 仅保留四类白名单（逐例裁决、默认不许）：① `app/base.css` 的根基础规则与 `.app` reset；② `@keyframes`（经 `tokens.css` 的 `--animate-*` 消费）；③ `tokens.css` 主题数据块；④ Tailwind 表达不了的复杂伪元素/全局状态（现存唯一实例：home.css 的 edge-fade mask + page 根高度链）。原"模板类名 1:1 / 禁手改 shell.css / 先改模板再导出"工作流已废弃（导出脚本从未入库，不可复现）；shell.css/stats.css 已删除，约 90 个无消费者的预置模板类不迁移，将来做对应页面时用 Tailwind 语义类重写。
+
+1. **融合骨架**：侧栏透明融于 bg-page、整高贯通窗口；标题栏/状态栏只属于右列；不出现横贯全宽的条。数据库连接启动屏的内容须用 `col-span-full` 横跨壳层全部列并居中；Loading 使用 `minHeight={0}` 与 `h-auto`，只显示「正在连接数据库…」，历史迁移退役后不再显示备份与迁移说明。
+2. **零横线**：分组靠底色容器（bg-surface 圆角面板 + shadow-card）与留白；禁止用 border 分隔区块（border 只允许 ≤2px 控件级细节，如勾选圈）。
+3. **宽度利用**：内容区 max-w 1680 宽容器；窄列只允许出现在正文阅读列（~72ch）；详情页用双栏（正文+信息栏）。PDF 阅读页不设工作区最大宽度，铺满壳层可用空间并保留边缘留白，纸张尺寸由阅读器缩放控制（D-070）。
+4. **反馈语言**：hover = bg-hover 淡墨底；**激活（侧栏）= bg-selected（accent 叠层）+ 左缘 3px accent 竖标**（2026-09-17 改，D-006：选中是状态、悬停是反馈，原先借用 5% 墨的 hover 底，对 page 只有 1.086、扫不出当前在哪一页）；浮起（卡片）= shadow-card，卡片 hover = shadow-lift 轻抬（2026-09-23 校准：不借用 float 浮层档——40px 大模糊在卡片上又大又重；shadow-float 只给 Menu/Dialog 等真浮层；shadow-paper 只给白板上浮起的文档纸——贴边细描线 + 接触影 + 远投影，与贴在画布上的富文本、图形拉开层次）；按钮无描边。注意：`hover:` 变体已用 `@custom-variant hover (&:hover)` 去掉 v4 默认的 `@media (hover: hover)` 包裹（D-016，两个 CSS 入口同改）——否则触摸屏设备（hover:none 判定）会静默杀掉全应用 hover 反馈。
+5. **圆角**：面板/卡片 var(--tau-radius-lg)=16，控件 md=12，小元素 sm=8。
+6. **数字** tabular-nums；字号体系以模板为准（25/14/13.5/12.5/11.5）。
+7. **滚动条**：不出现系统滚动条——4px 细墨条仅在「活跃」时显形（hover 滚动容器或滚动中；停止 700ms 且鼠标不在时隐藏，移出窗口立即隐藏）。实现 = `base.css` 的 `.app` 作用域样式（`scrollbar-live` 类控制 thumb）+ `@tau/ui` 的 initScrollbarAutoHide 事件委托（AppShell 初始化一次，全部内部滚动区自动生效）。**位置**：细条画在滚动容器 border-box 的右缘，容器满宽时它就贴死窗口右缘——用 `-mr/pr` 借位把 border-box 撑进容器自身的右留白（内容盒右缘因此不动、与相邻列仍对齐），细条落进留白里；home-scroll 与样板间内容列同为 `-mr-6 pr-6`，离窗口右缘 16px。两个坑别踩：① 禁止改回 `:hover` 伪类驱动——Chromium 滚动条伪元素不随 `:hover` 重算，显形后会冻结不消失；② 旧 main.less 已删除，滚动条唯一规则归公共 UI；避免重复定义不同名的阴影属性留下常显残影。
+8. **className 覆盖必须走 ****`cn()`****（D-008）**：组件默认样式要让调用方覆盖（`IconButton` 的 `size-[27px]`、样板间 `MatrixRow` 的 `trayClassName="items-center"`）时，合并一律用 `@tau/ui` 的 `cn()` 而非裸 clsx——Tailwind 同属性工具类的胜负由生成顺序决定，clsx 的先后顺序无效，覆盖会静默失效。项目自有尺度词（`text-tau-*`/`rounded-tau-*`/`shadow-card`/`ease-tau-out` 等）已在 cn 内登记；新增尺度 token 必须同步登记（`packages/ui/src/__tests__/cn.test.ts` 守护与 `tokens.css` 一致）。
+
+## 5. 交互规范（已定案）
+
+- 命令面板选中状态按实际查询/筛选和结果行身份更新，不以临时数组引用作为重置条件；插件命令快照随宿主修订刷新。鼠标悬停只改变高亮，键盘上下键负责把选中行滚入视口，避免点击前列表跳回顶部（D-152）。
+
+- 页面经 `usePageBreadcrumb(key, node)` 注入标题栏面包屑；仅活动页的槽位显示，卸载自动清理，node 经 useMemo 稳定化，传 null 回到默认 label。Titlebar 为可交互内容加 `app-region-no-drag`。底部信息由页面自身布局承载，壳层不提供状态栏槽位。
+- 右侧辅助栏：壳层在正文右侧提供一张可开合的纸（`app/AssistDock.tsx`），当前只承载 AI 对话；开合 = 标题栏按钮 / `Ctrl+J` / 命令面板，宽度 360–560 持久化在 shellStore。空间不足时由 `assistLayout.ts` 先自动收起侧栏（关闭时还原，用户手动切侧栏即接管）、再退化为覆盖浮层（Esc 退场）。页面本身就是对话时（`chat` 在栈顶）隐藏。页面不要自行在右侧再造常驻栏——例外是「这份内容专属的会话」（D-070，如 PDF 阅读页的纸内对话）：页面用 `app/assistOwner.ts` 的 `useOwnAssist(pageKey, toggle)` 接管开关，Ctrl/⌘+J 与命令面板「AI 对话」改为开合页面自己的栏，标题栏按钮与停靠栏在该页隐藏；不要自己监听 Ctrl/⌘+J。进入页面收起全局侧栏用 `app/useSidebarCollapsedWhile(active)`（离开 / 保活隐藏即还原）。
+- 对话 UI（D-048 / D-108）：消息 / 思考 / 工具调用 / 代码块 / markdown 排版在 `@tau/chat-ui`（`components/Message/`），输入框的 ＋ 面板、上下文用量环、工具行 chip 在 `@tau/shared`（`components/ChatComposer/`），桌面与浏览器扩展共用；桌面 `src/components/ChatUI` 只放依赖桌面能力的部分（带工具确认条的 `ToolCallBlock`、markdown 代码与链接渲染 `useChatMarkdownComponents`），对话页、停靠栏、项目 / PDF / 视频笔记 / 内联 AI 共用；工具 renderer 的唯一契约与登记表经 `@tau/chat-ui/renderers` 消费，不在 shared 或桌面另建类型与注册对象。shared 只保留消息模型、展示归约、输入控件与输入框部件。过程信息（思考、工具调用）一律用 `FoldRow` 折叠行，视觉轻于正文；工具渲染器用 `tool-call-renderers/ui.tsx` 的 ToolCard 等公共件（line-1 内框、不投影、零横线），颜色只走语义类，`isDark` 形参保留但不参与取色；代码高亮用 `tauPrismTheme`（引用 `--tau-*`，随主题切换）。
+- 导航：栈 + forward buffer（push 清空 forward）；`Alt+←/→` 后退/前进；`Esc` 只承担浮层退场（PageProvider 的 `useOverlayDismiss` 注册表，LIFO，**优先于编辑上下文**，D-003），无浮层时无操作——「Esc=后退」已于 2026-09-20 用户裁决移除（详情页误触即整页回退丢编辑上下文），后退由 Alt+←/→ 与标题栏按钮承担。
+- 编辑器源码全屏、行内公式、图片预览与网络地址弹窗经 `@tau/editor/api` 的 `OverlayBackDismiss` 接宿主服务，`DesktopEditorOverlayDismiss` 在当前 PageProvider 上登记 Esc 退场；服务对象稳定，关闭、卸载和 Activity 隐藏注销。媒体根 UI 由扩展 layers 挂载，readOnly 由核心传入，store 按 editor 归属及清理。适配 Layer 不渲染浮层、不新增监听或页面栈；无 Page 上下文不登记，保留关闭按钮与局部焦点链。此接线不代表全部编辑器浮层已迁移，也不取代设计系统控件的焦点链关闭。
+- 设置页（D-028，全窗口双栏）：壳层浮层与命令面板同族——AppShell 挂载，`fixed inset-0 z-[90]` 铺满窗口（低于命令面板 100，设置页内仍可 Ctrl+K；子页 Dialog/Select 层级更高），自带窗口控制（mac 信号灯在设置侧栏头部、Win/Linux 三键在右栏标题栏区）与拖拽区；打开期间 `useFindOwner` 吞掉 Ctrl/⌘+F（不对被遮住的页面做页内查找）、开闭态在 `app/settingsStore.ts`（features 域互引 store 禁令）、Esc 走注册表、关闭还焦、`Ctrl+,` 全局 toggle；入口 = Sidebar 底部（navigation.ts `opensOverlay` 标记，浮层入口不 push 不显激活态）+ 命令面板 `open-settings` 动作。分区导航/子页映射单源在 `features/settings/sections.tsx`（改这里=改设置导航，勿在容器组件里散写条目）；子页即时保存、无应答区；新增设置子页 = sections.tsx 登记条目 + `sections/` 下建组件（未设计的用 PendingSection 占位）。
+- 反馈窗口：独立的单例置顶小窗（路由 `/feedback`，`windows/utility-windows.ts` 的 `showFeedbackWindow`），不是壳层浮层——用户要一边操作主窗口复现问题一边截图。入口 = Sidebar 底部（navigation.ts `opensWindow: "feedback"`，与 `opensOverlay` 同为不 push、无激活态）+ 命令面板 `send-feedback` / `capture-feedback`（后者先截发起窗口）+ 托盘菜单；三者都经 `commands/feedback.ts` 的 `openFeedbackWindow` 并带上当前页面 key。截图走主进程 `webContents.capturePage()`（只截所选 Tau 窗口自身，不需屏幕录制权限），打码/框选在渲染端 OffscreenCanvas 涂进图片后压成 WebP；提交、日志收集与匿名凭证只在主进程 `modules/app-feedback.ts`。`ErrorState` 在 Electron 下于「技术详情」行提供「发送错误报告」（附错误详情、环境与本次运行日志，同一错误重试复用请求 ID），因此三层错误兜底都自带上报入口。协议见 `apps/plugin-portal/docs/协议.md`「桌面端用户反馈（0010）」。
+- 反馈模块在 BACKGROUND 初始化完成 IPC 注册后，调用 `prepareFeedbackWindow` 隐藏预热反馈窗口（开发工具关闭），点击入口仅显示和聚焦。关闭请求经 `app-feedback:close-requested` 交给渲染端：未发送内容仍需确认，确认放弃或关闭成功页后清空表单并经 `app-feedback:hide` 隐藏复用、还原标注尺寸；应用退出才销毁，隐藏最后一个可见窗口仍遵循后台保活偏好。首次显示时决定锚点位置，环境信息和日志大小在窗口重新聚焦时刷新；正文计数只保留 Textarea 内置的一处。
+- Ctrl/⌘+F 归全局页内查找条 `GlobalFindBar`（document 捕获阶段拦截）；自带查找的页面 / 浮层用 `components/GlobalFindBar/findOwner.ts` 的 `useFindOwner(open, active)` 接管（LIFO，后打开的浮层优先），**不要自己监听 Ctrl/⌘+F**——监听不到（D-070 追记 ⑨）。
+- 键盘仲裁收口在框架层（PageProvider/Titlebar 的全局监听），业务代码禁止自行监听这些键；两处都已让位编辑上下文（输入框/文本域/contentEditable，`page/dom.ts`）与输入法组合（`e.isComposing`）。
+- 栈操作为 action 式 reducer（连续导航由 React 串行归约，不丢更新）；注册表（pageMeta/组件 registry/defineTheme）重复注册策略统一为 dev 覆盖+warn（HMR 兼容）、prod 抛错（真冲突）。
+- 后退/前进按钮：**禁用而非隐藏**（面包屑旁，Titlebar）。
+- 侧栏：拖宽（130–340，持久化，窄态长标签 truncate 省略）+ 折叠（58px 图标列；折叠按钮同位镜像反转 `»↔«`；双击拖宽条也可折叠）；**拖宽条跨阈值切换展开/收起**（业界通行语义：收起态拉宽 ≥130 即展开且宽度即时跟随鼠标、展开态拖窄 ≤110 即收起，20px 迟滞防边界抖动；收起态未过阈值的拖拽不落宽度，保留展开记忆宽；拖拽中经 `resizing` prop 关宽度过渡、pointer capture 保证拖出窗口不丢事件，见 `AppShell.tsx` 的 SidebarResizer）；**导航组头可点击折叠收纳**（chevron 旋转 + grid-rows 过渡 + 折叠处显条目数，`shellStore.navSectionCollapsed` 持久化，方案来源 mockups/sidebar-responsive 方案二；图标列态无组头不受影响）；导航列表滚动带**边缘渐隐**（`base.css` 的 `.edge-fade-scroll` 通用类 + `useEdgeFade` hook；home-scroll 的 mask 协议已抽通用）；**壳层根允许按视口收缩**，横向溢出由主区 `overflow-x-hidden` 截断；窗口的最小尺寸由主进程按缩放比例维护，渲染层不要再用固定 `min-width` 撑宽页面。Mac 自绘信号灯在侧栏头部（`isMac` 条件渲染，`WindowControls.tsx` 的 `MacTrafficLights`——原生信号灯已被主进程移出屏幕，自绘可点击、命令走 IPC；**全屏下隐藏**，状态经 `app/useFullScreen`（`platform.window.onFullScreenChange`）订阅）；Windows/Linux 三键 `isWinOrLinux` 条件渲染。
+- 拖拽区（`app-region-drag`，Titlebar/侧栏头部）内的一切可交互元素必须加 `app-region-no-drag`——Electron 会吞掉 drag 区的鼠标事件（侧栏折叠按钮曾因此点击失效）；页面级加载态统一用 `ui/primitives/Loading`（Spinner 可单独行内用）。
+- 保活：`<Activity>`（React 有效版本为 19.2.0，由 pnpm-workspace.yaml overrides 统一；使用 Activity，无降级路径），LRU 上限 12；激活页包装为 `flow-root h-full`（非激活 `display:none`）：h-full 打通视图根高度链，flow-root 建立 BFC 兜住视图根外边距——视图根写 `mt-*` 不会折叠出包装、撑出壳层 main 的滚动条（`page/__tests__/pageHostLayout.test.tsx` 守护）。视图根外距仍首选 `h-full` + padding，避免 margin + `calc` 手算高度；
+- 图标：**lucide-react**（线性，stroke 1.75，`navigation.ts` 直接引用 LucideIcon 组件）；多色图标用 **react-icons**（桌面已有依赖）；
+- 侧栏条目以 app/navigation.ts 为准（21 个主导航条目及设置入口）；页面迁移已完成，订阅入口已退役（D-042）。
+- tsc 全绿。挂载：主窗口 `/` 默认重定向 `/shell`（旧主界面已退役，根路径重定向仍待收尾）。
+
+### 共享元素形变（D-106）
+
+- 默认页面切换即时、无转场；只有「同一个对象在新旧两处都出现」时才做形变（`page/morph.ts`，原生 View Transitions API，不用 React `<ViewTransition>`）。
+- 元素用 `data-morph-key="<对象 key>"` 声明自己代表谁（卡片是 `features/cards/morph.ts` 的 `cardMorphKey`）。运行时只在转场时给一对元素临时挂名（`page-morph`），不要自己写 `view-transition-name`；样式在 `app/base.css`，与对话页 ⇄ 停靠栏的 `assist-chat` 共用一组规则。
+- 业务发起的变化（打开浮层、push 新页）调 `morph({ from, update, to })`：`from` 是旧画面的元素，`update` 里同步改状态 / 导航（运行时 flushSync），`to` 返回新画面的元素，未就绪返回 null，最多等 400ms。找元素用 `queryActivePageMorph(key)`（当前激活页内）或 `queryMorphElement(scope, key)`。源元素缺失、目标超时或不在视口时自动退化（直接切换 / 源元素淡出），调用侧不用判断。
+- **转场里不能等慢资源**：更新回调期间画面冻结，`to` 等待的应是「数据已在缓存、一两次提交内就能渲染」的目标。正文会话这类慢资源要先用只读渲染占位（ContentEditor 的 `fallback`），必要时悬停预取数据；不要让目标等到编辑器初始化才出现，否则点击会卡顿，超时还会退化成淡出。
+- 后退 / 前进由 PageProvider 统一处理：当前页和保活中的目标页都有同 key 元素才形变，业务不要为此监听后退键。新页（未挂载）的 push 只能由业务发起。
+- 新画面截图是实时的：转场期间目标页的任何重排都会被播出来。保活页恢复显示时 Activity 会重跑全部 effect（含 layout effect），「某值变化时做 X」的 effect 必须比对上次的值，不能把重跑当成变化（滚动归零用 `hooks/useScrollTopOnChange`）。
+- 转场期间根元素带 `data-morph`，更新回调执行时 rAF 不触发。靠 rAF 或 CSS 过渡播入场的浮层必须用 `[[data-morph]_&]` 变体直接渲染终态，否则会被截成透明或半途态（Dialog、AssistDock 已接）。
+- 只有一个旧状态时用 `startPageTransition(update)`（不配对，如 `app/assistMorph.ts` 的静态命名）；嵌套在另一次转场的 update 里发起的转场直接执行，不会互相打断。
+- 形式：`page-morph` 是放大缩小（新旧截图按容器宽度等比缩放、顶边对齐，超出的高度裁掉；不用 cover，宽高比悬殊时会剧烈缩放滑动。380ms，旧图 180ms 先淡出）；`assist-chat` 是容器裁切、内容不缩放。新场景按语义选用，不要再造第三套。
+- 已接入：卡片墙条目卡 / 置顶横卡 / 列表行 ⇄ 预览弹窗（`CardPreviewDialog` 的 `ref` 指向卡体，`data-state="open"` 即就绪）⇄ 详情页的纸；卡面「进入详情」直接由卡形变到纸；详情页后退缩回原卡。表格视图不形变。卡面悬停经 `actions.onPrefetch` 预取单卡全文；弹窗与详情页的正文在会话就绪前由 `CardContentPreview blocks={Infinity}` 只读占位。文章：网格卡 / 列表行 ⇄ 详情页的纸（`features/articles/morph.ts`），纸面在文章读到后声明 key，正文会话就绪前由 `ArticleBodyFallback` 只读渲染开头 24 块。
+
+### Button 使用边界
+
+- 变体六档是一个动作的全部音量（D-013，`mockups/button/` 方案 B）：primary（accent 实心，**每屏至多一枚**，层级是评审纪律不进 API）/ secondary（surface 亮底 + 描边，取消与表单的默认档，即原 ConfirmDialog 应答区皮）/ soft（accent-soft 平底，工具栏次级强调）/ ghost（无底 hover 淡墨，与 IconButton 同反馈语言）/ danger（确认位实心红）/ danger-soft（列表与工具栏位）；danger 两档对齐 D-011 危险分级。
+- `loading` 是内建语义：aria-busy + Spinner + `loadingText` 文案切换 + 一并 disabled（原生属性封锁指针与 Tab 队列）；Spinner 替换左位图标，不与 `icon` 同时显示；调用方不再手动拼 Spinner（ConfirmDialog 已迁移）。
+- 图标仅左位 16px（`icon={Plus}`，lucide stroke 1.75）；icon-only 一律 IconButton，Button 不设该档；`block` 满宽给空态 CTA；type 默认 "button"，form 提交位显式传 submit。
+- antd 迁移映射：type=primary → variant="primary"；type=default → "secondary"；type=text → "ghost"；danger 布尔 → "danger"/"danger-soft"（按确认位/列表位分档）；type=link 是文字链语义，不建变体。
+
+### Menu / ContextMenu 使用边界
+
+- 项目文档详情采用外层滚动结构：标题、时间与正文一起滚动；右侧目录初始与标题顶部齐平，`sticky top-5` 与外层 `pt-5` 同为 20px，滚动即保持吸附位置。滚动容器包住正文和目录，滚动条位于目录右侧、距内容区右缘 16px，并接 `useEdgeFade`。编辑区保留 `@container/editor` 宽度查询，目录通过 `ResizeObserver` 读取正文滚动容器的 `clientHeight`，高度上限为该值减 40px（上下各留 20px），不启用会影响宿主尺寸计算的双轴 size containment，超长目录经 `overflow-y-auto` 独立滚动并接 `useEdgeFade`，`overscroll-y-contain` 避免触边后带动正文。文章与项目共用 `src/components/ContentOutline/`（标题提取、实时编辑器锚点解析、点击定位与滚动高亮）；项目内容区不足 960px 时隐藏目录；正文没有标题条目时不渲染目录容器，也不保留目录列，正文按 720px 最大宽度单栏居中。旧 EditorOutline / Outline 的最后消费者已迁移并删除；网页项目条目也使用 ContentOutline。字数在文档标题下的信息行展示，随正文滚动；协作与沉浸入口仍由左侧文档更多菜单承载。
+
+- Menu 触发器优先使用原生 `button type="button"`，保证键盘可达及菜单关闭后的焦点归还。
+- Menu、子菜单与 ContextMenu 默认按内容自适应宽度，最小宽度为 160px；上限为 320px 且不超过视口减去两侧各 8px，长标签省略。需要固定宽度时通过浮层 `className`（如 `w-[280px]`）覆盖。
+- 菜单外壳承载圆角、边框和四周 6px 留白，内部列表独立滚动并保留右内边距 6px，使滚动条与左侧高亮区域、右侧边框内缘各隔 6px，避免贴边与侵入上下圆角；默认整体高度上限 300px，`className` 可覆盖；`fit` 让主层与各级子层上限放到视口高度（画布右键菜单用）。样板间「长菜单与滚动留白」覆盖主菜单、子菜单与右键菜单。
+- Menu 使用复合组件声明命令、开关、单选组和子菜单；命令项关闭整树，checkbox/radio 保持打开。`Menu.Submenu disabled` 禁止鼠标与键盘展开，已展开的头项再次点击收起并还焦父层。
+- `Menu.className` 与 `ContextMenu.className` 都控制浮层；ContextMenu 的内容区采用 `display:contents` 包裹，宽度等布局类应放在 children 的真实元素上。
+- `useMenuTree` 统一整树关闭、外点判定与跨实例互斥。Esc/左方向键按层收起；任意层 Tab/Shift+Tab 关闭整树，还焦触发位置后由浏览器继续移动焦点。子层键盘事件不会重复驱动父层。
+- type-ahead 读取声明树中直接可见的文本，不解析自定义组件的渲染结果；需要按文本导航时应直接传文本标签。
+
+### Dialog / ConfirmDialog 使用边界
+
+- Dialog 是模态决策容器（三段固定：标题/徽标 + 正文 + 影响行/应答区），footer 按钮序列由调用方提供（主按钮恒在最右）；ConfirmDialog 是确认语义预设——`danger`（焦点落取消）与 `typeToConfirm`（输入解锁，只给真·不可逆）两档内建。家族分工（D-003）：Menu 不做确认，确认归 ConfirmDialog、撤销归 Toast。
+- 关闭矩阵：`dismissible`（默认，×/Esc/遮罩可关）/ `critical`（无 ×、遮罩与 Esc 抖动拒绝）/ `locked`（异步 loading 封锁一切）。Esc 仅 open 态在卡片 DOM 消费（焦点链 LIFO，不进 D-003 注册表——同 Select/Menu 口径，ui 不反向依赖 page/）；打开即 Tab 圈闭、关闭归还触发元素焦点。
+- Dialog 内通过公共 `PortalScope` 提供局部浮层挂载点，位于当前遮罩内部、正文滚动区外；Select/Menu/字段编辑器等继承该挂载点，避免被遮罩盖住或被正文裁切，业务无需自行提高 z-index。
+- 初始焦点落卡片内 `data-autofocus` 元素（无则卡片自身）——表单放首输入框，danger 放取消按钮；ConfirmDialog 自动标记。Enter 默认应答只在 ConfirmDialog 内建（焦点在按钮上走原生）。
+- `onAfterClose` 在退场完成、子树卸载后触发；需要清空内容或草稿时使用此回调，关闭请求只改变 open。退场期间重新打开会取消本轮关闭回调。
+- 宿主页面被 Activity 保活停驻时（「关弹窗 + push」同批提交，或弹窗开着直接侧栏导航）：退场 effect 停驻、卸载定时器被清，而 portal 挂在页面外不随 `display:none` 隐藏。Dialog 内建渲染期短路兜底——动画类由 `open && contentReady && shown` 派生，`!visible` 时遮罩 `opacity-0 + pointer-events-none`，冻结残骸不可见不可点；页面重新激活后 effect 补跑完成卸载与 `onAfterClose`。新写浮层组件若也用 effect 管退场，须遵守同一口径（回归测试见 `Dialog.test.tsx`「Activity 保活停驻」用例）。
+- `contentReady={false}` 可提前隐藏挂载异步内容，期间不接管焦点、不锁滚动、不可交互；内容就绪后设为 true，再显示完整弹窗。加载失败也必须放行展示错误，避免一直隐藏。
+- 卡体带 `data-state="open|closed"`（open = `open && contentReady`），供共享元素形变判断就绪；`ref` 指向卡体。根上 `data-morph` 期间开合一步到位、不播过渡（D-106）。
+- 尺寸档 `sm 380 / md 440（默认）/ lg 560` 只改宽度；`width` 像素数覆盖档位（预设不是牢笼）。长内容正文区独立滚动（上限 78vh）+ `edge-fade-scroll` + `useEdgeFade`（壳层同款边缘渐隐）。遮罩 `bg-overlay + backdrop-blur-[4px]`，容器 z-[340]。
+- 头部信息一处一责：标题讲动作、`context` 徽标记对象（surface 亮底 + 描边，D-009 口径）、正文讲事实、`impact` 念后果、按钮文案不带数量；阻断通知纯文字头部（无 icon）。
+- `header` 插槽整体替换内建标题行与 ×（D-084）：只给自带导航头的工作台型弹窗（如数据库行详情的「视图 › 行标题 · N / M · 上下条 · 更多 · 关闭」），关闭入口由 header 自己提供，`title` 转为 `aria-label`；焦点圈闭、Esc、PortalScope、退场动画照旧由 Dialog 负责，不要为换头部另写模态壳。
+- 无 footer / impact 时，正文滚动区底部保留 16px 外间距，避开容器圆角；配合 6px 内边距维持内容原有的 22px 底部留白。
+
+### Popover 使用边界
+
+- Popover 是锚定式可交互内容浮层（非模态，D-014 方案 B 形制）：无标题栏内容卡，`Popover.Header`（头行随需，icon + 标题 + ghost ×，挂 aria-labelledby）/ `Popover.Body`（独立滚动上限 60vh + edge fade）/ `Popover.Footer`（应答区随需，按钮右对齐）复合声明，trigger 克隆注入（协议同 Tooltip/Menu：必须透传 props 与 ref）。
+- 触发只有 click toggle（内建，不设 trigger props）：hover 说明归 Tooltip、右键归 ContextMenu——antd 存量 `trigger="hover"` 迁 Tooltip，placement 12 向同名直映（迁移口径见 D-014）。
+- 关闭矩阵：点外 / Esc / × / Tab 移出皆可关；Esc 与 Tab 还焦触发器；非模态不圈闭焦点。Esc 仅 open 态消费（焦点链 LIFO，同 Select/Menu/Dialog 口径）。初始焦点落 `data-autofocus`（无则卡片自身）。
+- 定位走 anchoredPosition 引擎全 placement 12 向（首个全表消费者）+ flip/shift，gap 8、宽随内容（180–340，`className` 覆盖）；浮层内开的 Menu/Select/二级 Popover 经 useLayerDismiss 嵌套链共存（点子层不误伤父层、Esc 逐层退场），开新顶层浮层自动收旧的。
+- 浮层公共底盘（D-014 抽取，新浮层组件一律消费勿再手写）：`useAnchoredPosition`（定位生命周期）、`FloatingArrow`（菱形箭头，宿主标 `group/float` + `data-side`）、`mergeRefs`（触发器克隆的 ref 合并）、`useLayerDismiss`（外点/嵌套/互斥——MenuSurface 走 registerDismissLayer 直登）。
+
+### Tooltip 使用边界
+
+- 侧栏收起为图标列时，导航条目（含底部入口）与展开按钮使用 `placement="right"` 的 Tooltip；展开态通过 `disabled` 暂停。收起态移除原生 `title` 避免双重提示，按钮保留 `aria-label`；提示通过 Portal 展示，不受列表滚动裁切与边缘渐隐影响。
+- 条件暂停提示（如标题未截断或正在编辑）使用 `disabled`，不要在 `open={false}` 与不传 `open` 之间切换。禁用会隐藏提示、取消显示延迟并清空内部打开状态；重新启用后由新的悬停或聚焦触发。
+- `disabled` 优先于受控 `open`，不修改调用方的状态、不触发 `onOpenChange`，也不禁用子元素本身；受控模式重新启用后仍按调用方的 `open` 显示。
+
+### 演示模式（D-072）
+
+- 入口组件 `src/components/PresentationMode`（文章 / 卡片 / 项目共用，白板有自己的演示模式），接口 `{ content: Descendant[]; onExit }`：调用方只管开关，不传任何排版参数。需在 PageProvider 内渲染（Esc 走 `useOverlayDismiss`）。
+- 进入即窗口全屏（退出还原）；放大靠舞台整体缩放：`frame.ts` 的 `fitStage` 给出逻辑尺寸（宽 1000 固定、高随窗口比例）与缩放比，舞台里按编辑器常规字号排版、正文列 768 居中，外层 `transform: scale` 铺满窗口。**编辑器块的样式单位（px / em / rem）与演示无关**，不要为了演示改块的写法，也不要在演示容器上改字号。
+- 分节（`sections.ts`）：分割线优先；否则按出现两次以上的最高级标题断；都没有则整篇一节。一节放不进画框时由 `cameraPlan.ts` 生成镜头计划（居中 / 缩小到 ≥80% / 按块边界逐屏推进）。两者都是纯函数并配有单测，调规则改这里，不要在渲染层打补丁。
+- 画框自测块高（`ReactEditor.toDOMNode` 取顶层块 + ResizeObserver 跟踪异步撑高）；放映与全览共用 `SlideFrame`（传入放映舞台的逻辑尺寸，缩略图比例与放映一致），缩略图只是 `scale` 更小，不要另写一套缩略渲染。
+- 深浅色（`D`）只作用于演示层：根节点写 `data-theme` / `data-mode`，内容包 `EditorThemeOverride`；不要改全局偏好或 `<html>`。HUD 显隐由鼠标位置驱动（底部 140px 带内显示），不要改回「静止即隐藏」。
+- 键盘：推进键在 window 捕获阶段接管并阻止冒泡；Esc 不在组件内监听（注册表逐层退场：帮助 → 全览 → 退出）；修饰键组合、编辑上下文、输入法组合放行。新增快捷键加在 `handleKey` 一处，并同步 `HelpPanel`。
+- 与沉浸写作共用的舞台件：`hooks/useFullScreenWhileMounted`（挂载即全屏、卸载还原到进入前状态）、`components/Stage` 的 `StageHud` / `StageHudButton` / `StageHudDivider`（底部胶囊控制条）与 `useStageTheme`（局部深浅色的根节点属性 + scope 类）。新的全屏舞台类浮层直接复用，不要再复制一份。
+
+### 沉浸写作（D-074）
+
+- 入口组件 `src/components/ImmersiveEditorMode`（文章 / 卡片 / 项目文档共用），接口 `{ contentId, initValue, initialSelection?, extensions?, onChange, onInit?, onExit({ selection }) }`；调用方在退出后 remount 正文并用回传选区恢复光标。字数与「本次 +N」由组件从自身编辑器内容实时计算，调用方不传。
+- 放大 = 版心整列 CSS `zoom`（`layout.ts` 的 `fitZoom` 按屏宽自适应，控制条 ±10% 微调）；**不用 transform**：可编辑场景要真实布局，光标命中、滚动高度、Portal 浮层（按 getBoundingClientRect 定位）才无需换算。同样不改字号、不对块的样式单位做假设。编辑器 DOM 内自行 `position: fixed` 且按视口坐标写 left/top 的元素，必须按 `currentCSSZoom` 反除（文件落点指示线、协作光标层 `editor-collab/cursorOverlay.ts` 已处理），新写此类元素走 Portal 或照此处理。
+- 光标跟随（`useCaretFollow` + 纯函数 `caretScrollDelta`）：打字机模式光标行钉在视口 45%，关闭时只在越出 20%–75% 舒适带时跟随；只响应键盘引起的光标移动，鼠标点击 / 滚轮回看不拉回。上下留白放在 zoom 之外（45vh / 55vh），首末行也能到视线位。
+- 段落聚焦 = 编辑器通用能力 `<Editor focusMode>`（`packages/editor/src/components/FocusPath`），沉浸层只传开关并在容器上设 `--ed-focus-dim`（打字机开 0.26、只开聚焦 0.42）。规则只看文档结构：纯函数 `focusPathOf` / `focusRoleOf` 从选区求光标的元素祖先链；标记是**渲染输出**——`renderElement` 最外层的 `FocusAttributes` 让每个元素订阅自己的角色（`useSlateSelector`，角色变了才重渲染；**按节点对象身份判断，不用 `findPath`**——协作同步会整体替换节点对象，渲染期维护的节点索引在重渲染前是过期的，按路径判断会卡住旧标记，由 editor-collab 的 `focus-mode.test.tsx` 守护），把 `data-focus-path`（聚焦单元另加 `data-focus-unit`）并进 Slate 的 `attributes`，与 `data-slate-node` 落在同一 DOM 上，不在 effect 里命令式改 DOM（会被重挂载 / 重渲染冲掉）；样式让「不在链上、且不在另一个已退后元素或聚焦单元之内」的元素退后——链外即同级兄弟，顶层块、列表项、表格单元格、引用里的段落一视同仁。**不要在宿主层按元素类型或渲染 DOM（拖拽容器、chunk 容器、ul/li）写聚焦规则**：新元素类型无需任何接线。
+- 控制条显隐位置驱动（底部 140px 带 / 悬停 / 进场 3.2s），一输入即收起并隐藏指针；点控制条 `preventDefault` 不抢编辑器焦点。Esc 经 `useOverlayDismiss`（编辑器斜杠菜单等在 document 捕获阶段先消费 Esc）；编辑器内的 Esc 热键只在真有事可做时消费（如 `tau.edit.clear-marks` 仅在光标处有标记时拦截），否则必须放行，不然宿主的退场仲裁收不到；`useFindOwner` 吞掉 Ctrl/⌘+F。缩放不占键盘：`Ctrl+=` / `Ctrl+-` 已由主进程注册为整窗缩放全局快捷键。
+
+### 滚动区标准接法（手写三件套）
+
+- 设置页右栏：标题栏高度的拖拽区下方是整列滚动视口（`FadeScroll`：内缩细滚动条、轨道上下各留 10px，外加 `mr-1.5` 不贴窗口右缘），内容列 `max-w-[880px]` 居中，页头（分区 label + description）随正文一起滚动；切换分区时回顶。关态只做 `opacity-0 + pointer-events-none` 时**必须同时撤掉 `app-region-drag`**——Electron 的拖拽区不理会 pointer-events 与透明度，隐藏的拖拽区会盖住底下侧栏头部 / 标题栏的按钮（常驻挂载的全窗口浮层同此）。
+- 滚动区 = `edge-fade-scroll` 类 + `useEdgeFade(el)` + callback ref（el 经 state 触发挂载后接线），`overflow-y-auto` 自带写；滚动条样式走全局规则（4px 细墨条，hover/滚动中显形——scrollbarAutoHide 的 document 级委托），挂上类即生效，无组件侧接线（Scroller 收口曾于 D-012 引入、当日被用户裁决删除，勿再建）。
+- 两类规则已全局化（原 .app 前缀盖不到 body 级 Portal，曾受旧全局滚动条规则影响）：`::-webkit-scrollbar` 系列与 `.edge-fade-scroll`；Home 的 home-scroll 是带自定义 padding 协议的历史变体。
+
+## 6. 新增页面与清理存量组件
+
+1. 在 `features/<域>/pages/<key>.page.tsx` 声明 Page；侧栏入口改 navigation.ts，页面文件自动注册。
+2. 视图按 §4/§5 编写，数据接 queries.ts；没有数据源时返回 null 与空态，不造示例数据。
+3. 复用已有业务组件时就地改造；纯视觉模式使用公共 UI 原语，不复制旧实现。
+4. 改造前在 04 清单登记实际消费者和删除条件；消费者清零再删代码、测试、样式、导出和依赖。
+5. 改框架、壳层、主题或数据协议时同步本指南；推翻既有约束先记录 DECISIONS。
+
+### 6.1 组件归属
+
+- 单域业务件归 `features/<域>/components`；跨域业务件留 `src/components`；纯视觉件归 `packages/ui/primitives`。
+- features 可引用应用共享 components、hooks、utils，禁止新增 `@/pages` 依赖；共享 components 不反向 import features。
+- 纯搬家与行为修改分开；修改 props 时检查现有宿主和独立窗口，不能以旧页面退役为由破坏仍活跃的消费者。
+- 数据来自服务器时用 react-query；输入、筛选、作答会话和计时运行镜像保留各自合适的状态协议，不把所有 zustand 状态当作旧缓存删除。
+
+## 7. 今日页数据（已全部接线，features/home/queries.ts）
+
+### 学习测验的数据与作答会话（D-085）
+
+- `features/vibe-learning/quizQueries.ts` 查询测验集、题目、历史和最高分；键包含数据库及项目/测验身份，命令绑定原库。最高分走主进程 `vl-quiz:best-scores` 聚合，完整历史仅在记录浮层打开时读取，不再逐测验预取全部记录。
+- `quizSession.ts` 的控制器由每个 QuizTestModal 的 `useQuizSession` 独立创建；持有开始时的项目、测验及题目快照，答案和游标不持久化。重复完成复用同一在途请求，提交期间冻结作答/导航，失败保留答案可重试；取消、重开及切库后的旧结果不能完成新会话。Activity 停驻不清空当前作答。
+- 题目/名称编辑与删除成功才更新/失效原库缓存，null/false 结果视为失败；错误表单和确认框留在原地。成绩提交由主进程校验测验仍存在且归属项目一致，已删除测验不能继续写入生成题目或成绩。
+- 数据库 IPC 提交后以 `vl-quiz:changed` 携带库名通知全部窗口；与日程复用 `database-notifications.ts` 底盘。后台 runner 保持离页生成与原库写入，只失效原库查询，不再拉取全局测验列表或设置选中测验。笔记等其他任务的状态协议保留。
+- `useVLQuizStore`、未接线的全局 QuizTestSession/QuizTestStatus 类型已删除；`vl-quiz-store` 的项目/测验 ID 没有数据库身份，设置初始化直接清除，不迁移到新会话。测验业务表、成绩记录、生成执行器和题面组件保留。
+
+### 日程数据、偏好与变更通知（D-083）
+
+- `features/schedule/queries.ts` 承载日历/分组目录、日期窗口事件、单条定位、备注和待办来源状态；查询键包含数据库名，事件键另含完整月网格/周/日范围及排序后的可见日历 ID。全部隐藏时不发送空筛选查询。SearchPalette 复用目录及创建 mutation，不依赖日程 store。
+- 命令通过 `bindDatabaseCommands` 绑定原库；切库后的旧闭包拒绝新写入，在途响应只回写和失效原库。日历显隐只有数据库 visible 字段一个事实源；写入失败不更新缓存、不关闭表单。备注加载失败禁止保存并允许重试，迟到备注不覆盖已输入的标题。
+- 数据库 IPC 事务提交后以 `schedule:changed` 携带库名通知全部窗口，覆盖日历直接写入、待办同步及番茄历史修改；番茄结束直接写表时补同一通知。只失效对应库的目录、事件与来源查询，编辑中的备注快照不随通知重载；聚焦和 Activity 恢复仍刷新查询。合并数量通过主进程 COUNT 聚合，不拉取全部日程。
+- `uiStore.ts` 只管理日期、视图、分区展开、当日面板、草稿和合并会话。偏好存入 tau-schedule-preferences，旧 calendar-store 的合法偏好先迁移再删除；不迁移数据库 ID 或记录。切库清除草稿、速览和合并选择，保活切页保留会话。useCalendarStore 与旧 useCalendarEvents 包装已删除；历史表升级和当前日历命令保留。
+- 域外取日程：`useCalendarEvents` 依赖日程页 uiStore，域外不得使用；取某天日程用 `useEventsOfDay(day)`，日历角色用 `useCalendarRoles`（都不碰 uiStore，随 `schedule:changed` 失效）。
+
+### 番茄绑定与跨域启动（D-113）
+
+- 会话可选绑定一条日历事件或一条待办：`pomodoro_sessions.bound_event_id / bound_todo_id / bound_title`。主进程 `PomodoroSessionTable.resolveBinding` 解析（待办来源事件反查待办），结束时 `refreshBinding` 取最新标题，对象已删则用快照。番茄写日历的标题只经 `pomodoroEventTitle`（结束写入与改时长重建同一规则）。
+- 读取绑定须容忍悬空 id：移动端编辑待办会删除重建其日历事件。按待办聚合用 `bound_todo_id`（`pomodoro:summary-by-todo`）。
+- 跨域启动（日程事件抽屉、待办抽屉）用 `features/pomodoro/components/FocusStartButton`：只经命令层 `startPomodoroSession({ presetId, target })` / `updatePomodoroBinding` 与共享 hook `useActivePomodoro`，不 import 番茄 timerStore；每次须选预设，主进程不自动挑。番茄页「专注于…」的选择是页面会话态，任何开始入口都带上。
+- 日程渲染：`ledger.ts` 的 `absorbFocus` 把专注完整落在绑定事件内的番茄收进该事件画专注条（不设容差，超出即独立成块），绑定由 `usePomodoroBindings` 经 `pomodoro_calendar_mapping` 查得。
+
+### 待办安排与日程编辑（D-114）
+
+- 任务型日程 = 用户日历里 `calendar_event.todo_item_id` 非空的事件，只经 `calendar-event:create-for-todo`（拖入）或 `todo:create-with-schedule`（快速添加写了时段）产生；`calendar-event:update` 整行更新**不改**该列。识别一律看 `todoItemId`，不按日历名；系统待办日历只剩截止 / 周期（标记）。
+- 安排概况用 `useTodoSchedules(ids)`（schedule 域查询，随 `schedule:changed` 失效；待安排面板与待办详情共用），不要为此全量拉事件。
+- 可编辑判定统一 `eventTone.ts` 的 `isEditableEvent`（非系统分组日历），表单与周视图拖动共用。拖动手势 `hooks/useEventDrag`：pointer + 指针捕获，阈值内仍是点击（`consumeClick` 判别）；进行中按 Esc 在 capture 阶段取消并消费，属于手势局部消费，不进 `useOverlayDismiss`。
+- 待办拖入用 HTML5 DnD，类型常量 `TODO_DRAG_TYPE`（`features/todos/model.ts`），落点与回执集中在 `features/schedule/todoDrop.ts`。
+- 月视图在网格容器接收待办拖入，按指针坐标确定日期（含邻月及日程覆盖层），松手即建当天全天安排，不改变当前日期或月份；悬停高亮在离开、落下及 dragend 时清除。`useScheduleTodo` 开始时间为 null 时创建全天安排，数字仍创建定时安排；`CreateTodoSchedule` 由命令封装、查询 mutation 与主进程共用，全天落库的起止时间为 null。成功回执包含「全天」及撤销，默认用户日历与跨库写入保护沿用现有协议。
+- 删除日程走 `pendingDeleteStore`：隐藏 + Toast 撤销，到时或 ScheduleView 卸载才落库；过滤在 `useCalendarEvents` 里统一做。不得改回「先删再重建」（删除会连带备注 content）。
+- 日程侧勾选完成待办后必须 `emitTodoMutation`，否则待办快照（待办页、待安排面板）不刷新。
+
+### 文档待办（D-120）
+
+个人助理任务工具（D-126）在 `task-assistant` 主进程模块与同名 provider 中承载。写入按项校验、事务提交和幂等回执；正文路径使用内容层节点补丁与同步会话落盘，跨正文/主库失败返回 pending 并恢复。工具与卡片操作支持 30 天持久化撤销，检查后续修改和原位置，不回写整篇旧快照。数据库、日程、正文编号经持久化高水位分配，不复用被删除对象的编号。批量为逐项成功，不承诺全局回滚。工具风险沿用既有权限模式。
+
+正文勾选项可携带 `taskReminder`、`taskRecurrence`、`taskOccurrenceState`、归档与完成时间；它们随正文保存，索引的 `doc_task_attributes` 仅为可重建投影。文档待办关联安排走 `doc_task_calendar_link`，不创建隐藏的 todo_item。工具可按 taskId 增删改和移动同正文子项；正文自身编辑仍是主路径。周期单次身份固定原始日期，改期只改变安排日期；勾选周期正文任务只完成当天实例。副本分配新 taskId 并清除原实例历史。
+
+- 正文里的勾选项（`check-list-item`）是唯一真相源，待办页读索引库镜像 `doc_tasks`：后台模块 `src-electron/main/modules/doc-tasks/`（BACKGROUND）订阅正文写入总线增量重算、连库对账，项目增删改名后只按已存原文重算归属；变化广播 `doc-tasks:changed`，渲染端 `src/hooks/useDocTasks.ts` 按库失效。抽取是纯函数 `src/entity/doc-tasks.ts`（`#项目名` 按完整标题、长者优先；日期正文写带年份的绝对日期，相对词以首次收集时刻为锚不漂移）。
+- 勾选项身份是 `taskId`，归 `@tau/editor/extensions/list`：规范化补齐、重复时文档序靠后者换新；不经编辑器写入的正文由索引静默补 id。**不得用协作层 collabId 作身份，doc-tasks 模块不 import 协作代码。**
+- 写回正文只经内容层 `ContentTable.patchNodes(db, contentId, patcher, { silent? })`：有编辑会话时 `patchSessionNodes` 在 Y.Doc 上就地 `setAttribute`（元素原位、与并发输入合并、不打断光标与撤销），否则改 JSON 落库并广播；共享内容拒绝写入。需要「按节点改属性」的新入口复用它，不要整篇 `updateContent`。
+- 待办页：侧栏子项「文档中」= 页面参数 `id="docs"`（`DOC_TASKS_NAV_ID`），按文档分组；按日期 / 按项目议程把未完成文档条目并入对应段（行尾显示来源）。文档条目在待办页保留勾选、打开原文、转为独立待办、本文不收集入口；标题、日期、项目、删除可在原文或助理工具中修改，两者均回写正文。
+- 打开定位 `EntityLocation` 增加 `{ taskId }`：`resolveLocationNode` 在任意嵌套层找到该勾选项，找不到退到首块；`useContentLocation` 与日记 `MomentItem` 共用。
+- 数据层在 `src/hooks/useDocTasks.ts`（待办页与正文底部状态条共用，不放 features/todos）。用户选择（本文不收集 / 已转为独立待办）存主库 `doc_task_settings`，不进可重建的索引库；快照与状态条按它过滤。
+- `patchNodes` 的 `text` 保留叶子补丁，`paragraph` 在完整段落计算最小编辑再映射到叶子与行内元素（保留格式及并发输入）。项目改名使用主库曾用名与正文归属提示，把 `#旧名` 改成 `#新名`；镜像只负责启动升级时补充此前记录，不再是改名依据的唯一来源。
+- 编辑器扩展 `src/editor-extensions/doc-tasks/` 只装在 content kit：勾选项首段的 `#项目` / 日期经扩展装饰（`@tau/editor/api` 的 `DecorationSpec`，ER-055）渲染为胶囊；`#` 候选、相对日期按空格绝对化、胶囊菜单都是改原文文字。项目能力由宿主服务 `IDocTaskGroups`（`src/services/docTaskGroups.ts`）注入，扩展不依赖待办域。日期文案归 `src/utils/dayWords.ts`。
+- 正文底部状态条 `ContentEditor/DocTasksStatusBar`：只对声明了编辑身份且可解析为卡片／文章／项目文档／日记来源的正文出现，白板文本和 Notebook 等孤立正文不宣称已收集。
+
+审查修复后的约束（DT-011）：
+
+- 连接正文的 Kit 经列表包 `ITaskIdSource` 让内容来源接管身份，预览不补 id；内容层补齐已有会话时使用稳定初始化键，定位和写回仍只认正文 `taskId`，禁止使用 `collabId`。冻结时暂缓。
+- 项目旧名存主库 `doc_task_group_names`，按项目创建时间隔离 id 重用；正文 `taskGroup` 在词仍匹配时保护旧名复用，改词重新解析。连库与增量先恢复正文改名，再抽取归属，失败保留重试。
+- 相对日期首次解析以正文 `taskDateAnchor` 固定锚点及带年份日期，安全时写回绝对日期。视图正在编辑时不自动改文字；镜像和胶囊消费同一正文语义，索引重建不能改变日期。元信息补齐不计用户操作，文字变化重算字数并走写入总线。
+- `patchNodes` 的 `paragraph` 补丁在完整段落上计算最小编辑，映射到格式叶子和行内元素；不得整篇替换。身份静默补齐也通知视图刷新缓存，避免只读定位使用旧值。
+- 调度按库隔离、合并有上限的一秒窗口，初始化补对账已有连接；失败或未补齐的正文不登记完成时间并重试。索引版本 2 首次强制对账。
+- 所有 doc-tasks 命令固定发起库，IPC 等待前后校验窗口及连接对象；旧回调不能跨库。项目缓存按库和请求修订管理，切库／只读／停驻后的异步编辑不复活。
+- 来源用批量轻表查询，日记带片段 id；已完成条目可打开，已转出项统一隐藏。转出读取当前正文并在事务内幂等登记，复用已转出子项，提交后通知原库日程刷新。
+- 扩展装饰可声明 `subscribe(editor, invalidate)`，生命周期由核心清理；正文待办按段落计算完整 Range，胶囊校验 taskId 与原词，项目补全固定原输入范围并用提交守卫。
+
+### 闪卡数据与跨域制卡入口
+
+闪卡的查询和写入统一在 features/flashcards/queries.ts：查询键按数据库分区，命令通过 bindDatabaseCommands 绑定原库。卡组选择只读取轻表；在途写入只回写原库缓存，切库后的旧回调拒绝再次写入，跨窗口通知失效对应库。
+
+闪卡快照加载失败时记录所属数据库及原始异常（不记录卡片正文），继续抛给 react-query 管理错误与重试。页面首次加载失败展示具体错误原因和重试入口，不能只显示固定失败文案；已有快照的后台刷新失败保留当前内容。
+
+制卡、卡组选择、对话制卡和 AI 生成弹窗归 features/flashcards，源页面只消费该域组件和 hooks；旧 useFlashcardStore 与 flashcard-center 缓存退出。跨域手动制卡复用 CardEditorDialog，来源引用在首次与连续创建中保留。生成请求按版本丢弃迟到流和结果，重置、切库与卸载释放短任务；独立聊天会话的常驻 pi 运行时不受影响。
+
+卡片、文章、项目文档与漫步的手动/AI 制卡入口统一调用 `services/flashcard-creation.ts` 的 `openFlashcardCreation`，由 AppShell 常驻的 `features/flashcards/FlashcardCreationHost` 承载选择卡组、编辑、生成预览与草稿编辑；来源页面不再挂载四组弹窗。请求固定内容快照、数据库与可选取消信号，同一窗口仅允许一个制卡会话，关闭回传已保存记录；切库或插件停用清理请求，不撤销已提交写入。Dialog 沿用公共浮层的 Esc 仲裁，不新增 Page。
+
+插件 SDK 0.27.0 的 context.flashcards 经 app/plugins/flashcards.ts 注入：查询卡组走 flashcards:read，直接创建和自动保存走 flashcards:write，异步准备后及每张卡写入前复核授权；openCreate 要求用户操作，窗口内保存由用户确认。AI 制卡仅调用通用 context.ai.requestCapability("flashcardGeneration")，对应 ai:flashcardGeneration，无闪卡专用授权、客户端缓存或模型分配分支；窗口与直接生成共用返回的能力客户端。应用自身制卡保持原行为。generate 只返回草稿，自动保存逐项返回 cards/failed，取消或拒绝授权停止后续写入。参数在授权等待前复制，返回前复核激活代次。作者用法见 scripts/plugins/template/docs/flashcards.md。
+
+插件直接写入后必须经 `invalidateFlashcardViews` 刷新来源窗口的原库查询（主进程通知排除来源窗口）；批量已提交部分记录后，即使后续取消或失败也执行刷新。所有创建结果（含窗口回执）经 `services/flashcard-results.ts` 转换为 SDK 草稿结构，自定义引用使用 `customContent`，已有正文使用不透明 `contentRef`。插件输入经 `context.content.read` 核对正文身份和读取授权（本插件自有正文免业务权限），再映射为内部 `contentId`；公共引用编码只维护在 `utils/plugin-content-ref.ts`，调用方直接导入。数据库与内部制卡继续使用既有数字 ID。填空题的节点标识、答案、备选答案和标识唯一性由 `editorModel.validate` 统一校验，插件与模型解析共用该约束。
+
+Page 声明只承载实际接线的页面身份、匹配、参数和组件；status、data/store/canLeave、keepAlive 策略字段已删除（D-081）。Activity 与 LRU 保活仍保持原行为，缺失组件使用通用错误兜底。
+
+**数据库与学习项目列表统计**：行数与资料数由列表查询聚合。渲染端 `commands/data-table.ts` 在携带 rows 的更新成功后失效 `["databases", "list"]`；`commands/vibe-learning.ts` 在资料创建、笔记转资料实际新增、资料删除成功后失效 `["vibe-learning", "list"]`，覆盖详情、内嵌表格和生成产物入口。笔记转资料在落库后立即通知，不等待索引入队；失败写入不通知。返回保活列表时不再受 60 秒新鲜期限制。
+
+**卡片库数据协议**：`features/cards/queries.ts` 按 `["cards", databaseName, "all"]`
+隔离缓存，仅在数据库连接就绪时读取。列表走主进程轻表（content 为截好的预览块，
+不 JOIN 播客表）；单卡全文/播客按需经 `["cards", db, "detail", id]` 获取
+（预览弹窗、导出与演示动作）。写入与卡片创建/更新/删除事件按 id 单卡并入缓存
+（事件载荷即全量卡片，跨窗口由 useItemUpdateListener 按 id 回查后广播），
+不做整域失效——全量重拉只剩显式 refresh 与窗口聚焦。
+壳层按活动数据库重建并重新连接，清理旧页面的预览与确认状态。
+卡片库的新建、导入、预览标签、置顶和表格编辑统一经域内 mutations；
+`cards:*` 命令在主进程校验数据库身份，元数据只提交字段补丁，在当前记录上合并，
+拒绝跨库或已删除卡片写入，失败向调用方传播。域内 CardDatabaseView 通过必传的
+`onUpdateCard(id, patch)` 接入宿主写入（标签 / 置顶），不再直接全量更新卡片。排序全集用于表格，
+连接列数据另走 `useContentLinksByContentIds`（content_links，主进程解析标题），
+筛选结果只用于列表展示；时间组采用本地自然日、周一开始的自然周和自然月。
+卡片标签持久化为名称字符串；表格保存标签补丁时，必须按本次变更快照的列选项将选项 ID 转回名称，不能直接保存通用多选组件新建选项的 UUID。
+
+卡片页的视图与列表排序由 `features/cards/preferences.ts` 按数据库名持久化；视图切换经
+`usePageBreadcrumb` 挂在标题栏面包屑（「卡片库 / [卡片墙 ▾]」，Menu 命令项，选中即关并把焦点还给触发器）。
+卡片分类概念已移除（D-104）：筛选只剩标签条件，三个视图（卡片墙 / 列表 / 表格，图谱已移到全局知识地图 KL-022）共用同一会话查询；数据库视图将其与内置视图筛选叠加，会话条件不写入用户保存的视图。浮层状态只保留在当前页面。
+**卡片详情页（card-detail，2026-09-20 · mockups/card-detail A 素卡 v2）**：
+`features/cards/pages/card-detail.page.tsx`（match "params" 按 id 去重；连接 chip 跳转经
+栈机异参原位更新）。数据 = `useCardDetail` 单卡全量（含 `linkCount` 显式连接数）；
+正文由 ContentEditor 的文档会话持久化，元数据（标签/置顶）每次操作即时 patch。
+显式连接不经卡片元数据：存主库 `content_links`（绑定 contentId，见 D-124），脉络浮层
+「连接」分区与 ⋯ 菜单「添加连接」都走 `content-links:add/remove` 命令（原子双边）。
+版面单栏 640 居中：卡头 meta（编号/pin/时间/
+⋯ 菜单 + 「N 处关联」脉络入口）+ 正文 + 标签行。无任何关联时脉络入口不渲染。⋯ 菜单（时间右侧）承载生成（制卡/播客）/ 连接（添加链接）/ 导出与复制 /
+场景（演示/新窗口）/ 删除；底栏纯状态（协作 · 字数）。面包屑静态无速切器、暂不做闪卡
+关联与图谱入口（2026-09-20 裁决）；沉浸模式见 §5「沉浸写作」。播客经 usePodcastAttachment
+（提示反馈由 hook 内部直接走 @tau/ui toast，调用方不再注入 message）。
+**脉络（features/context，D-094 / D-124）**：卡片、文章、项目文档详情的元信息行挂 `ContextBadge`（文章经 `ArticleHero` 的 `extraMeta` 插槽）。数据走 `useEntityContext(ref)` → 主进程 `entity-context:get`（连接、被引用、共用正文（含 Notebook 笔记）、被关联）；「被关联」由 `entity-context/context-plugin-links.ts` 按自身与共用正文的身份查 `plugin_links` 入边（`to_created_at` 须等于目标当前创建时间，孤儿实体与自我关联不算），来源显示为插件内容，类型名与图标经 `useEntityKindMeta` 取插件声明；数字 ID 引用类型的创建时间查询放在无业务依赖的 `tables/plugin-ref-kinds.ts`，脉络与 `plugin-refs` 共用，脉络不导入 `plugin-refs`。移动端 `apps/mobile/src-tauri/src/database/entity_context.rs` 的 `plugin_links_of` 同口径，改规则时两端一起改。问题与材料的关系只经问题插件的关联在「被关联」显示，宿主不再有「相关问题」分区（D-185）。插件写入（`plugin-entities:*`、`plugin-links:*`、`plugin-transaction:commit`、`plugin-data:restore`）已在脉络写事件白名单；「连接」分区（content_links 显式连接 ∪ 正文内联引用，去重）内建于浮层、四种内容实体通用，添加 / 解除动作由脉络域持有（`ContextLinksSection` + `ContentSelectorModal`，四种实体互连、按 contentId 排除自身与已连），旧 outlinks 分区与 leading / hideOutlinks / onConnect 插槽已随 D-124 退役；被引用来自索引库 `entity_refs`，由后台模块 `entity-context` 在连库时对账、经正文写入总线（`src-electron/main/modules/content-events.ts`）增量维护；白板对笔记的使用来自索引库 `whiteboard_refs`（按白板元素类型解析，连库对账 + 白板写事件防抖对账）；来源 / 衍生来自主库谱系 `entity_lineage`（只记复制、从对话存下、剪藏等推导不出的事实，写入经 `commands/lineage.ts` 的 `recordLineage`，弱引用不级联删除），闪卡、Notebook 投影与资源、待办关联在查询时推导。变化时广播 `entity-context:changed` 按库失效查询（正文连接写入经 `content-links:add/remove`，已在脉络写事件白名单）。点击条目经 `features/context/open.ts` 按目标打开；其他域往浮层加分区复用 `ContextSection` / `ContextRow`。新增「把 A 的内容复制 / 存成 B」的入口须记谱系（共用正文的投影不记）。外部材料（摘录、PDF 标注、剪藏，D-097）的地址是 `MaterialRef`（`src/entity/material.ts`），由谱系端点 `LineageNode` 收纳、不扩 `EntityRef`；展示信息由主进程 `material:resolve`（`tables/material.ts`）统一解析，打开经 `services/open-material.ts`；材料转成卡片记谱系 `excerpt_of`，卡片的「来源」显示出处，源端删除后保留引文不可打开。知识地图同一思路「写成卡片」（`services/pattern-card.ts`）新建空卡片，长文端记 `distilled_from`（那篇 → 新卡）、卡片端建正文显式连接（content_links）；详情页真正关闭时正文仍为空即撤回（连同连接与谱系），保活隐藏不算关闭。新增材料类型要同步：`MATERIAL_KINDS`、`tables/material.ts` 的解析、`material-index.ts` 的索引候选与 `search-details.ts`、`open-material.ts` 的打开目标。摘录按提供方驱动（D-157）：展示只用提供方名称（`excerpt_provider`）· `source_title` · `location`，纯函数在 `entity/excerpt/display.ts`（主进程、索引共用，移动端 `entity_context.rs` 同口径）；打开目标 `excerpt-provider` 经 `services/excerpt-providers.ts` 交给登记的提供方，未登记回落 `url`。不要再按 `source_type` 写展示或跳转分支；新来源 = 新提供方（内置用保留名，插件用插件 ID），写入经 `ExcerptTable.syncSource / patchSource`。材料动作清单单一来源在 `services/material-actions.ts`，插件经 `context.materials.actions` 取同一组。新增「指向笔记」的白板元素：指向正文实体时在元素上存 `entityRef: { kind, id }`（白板引用索引通用识别），直接持有正文时存 `contentId` 并在 `src/entity/whiteboard-refs.ts` 为该类型加 case；改动白板解析规则须把 `whiteboard-indexer.ts` 的 `WHITEBOARD_REF_VERSION` 加一（引用索引同理为 `ref-indexer.ts` 的 `REF_INDEX_VERSION`），否则已索引的数据不会重解析。
+
+**笔记元信息与卡片 AI 标题（D-100）**：主库 `content_ai_meta` 按 `content_id` 存每份卡片 / 文章 / 项目文档正文的 AI 元信息（标题、要点、概念、主张，带 `schema_ver` 与生成时的正文 MinHash 指纹）。只由主进程后台模块 `content-ai-queue` 写入：功能槽 `contentMetadata` 配上即处理全部、清空即停止，没有别的开关；连库对账 + 正文写入总线静置 10 分钟后判断，纯文本相似度低于 `DIGEST_RECOMPUTE_THRESHOLD`（`entity/text-digest.ts`）才重算；正文真正删除时 `ContentTable.deleteContent` 同事务删除。写入后经 `notifyExternalWrite("content-ai-meta:changed")` 补发写事件（在脉络写事件白名单里），广播载荷带 `contentIds`。**卡片标题**一律经取标题函数：主进程 `contentTitles` / `contentTitle`（`tables/content-ai-meta.ts`，AI 标题 → 正文第一块前 N 字，按批 LEFT JOIN，禁止逐条请求），卡片表查询返回 `aiTitle`；渲染端 `utils/card-title.ts` 的 `cardTitle(card, n)`。只用于「当作卡片标题」的地方（面包屑、连接行、数据库视图标题列、导出标题、编辑器窗口标题）；摘要、预览文字仍取正文。AI 标题只用于卡片，文章 / 项目文档用用户标题；不提供手动改标题。元信息变化后卡片缓存由 `features/cards/queries.ts` 的 `patchCardAiTitles` 原地补标题，不整表重拉。设置页进度经 `content-ai:status`。
+
+**脉络「相关」（D-100）**：浮层末尾「相关」分区（`entity-context:related`，`useEntityRelated(ref, open)` 只在浮层打开时取）：节向量均值前 50 近邻（`KnowledgeMapTable.neighborsOf`），排除已有关系（自身与共用正文、正文显式连接、引用了 / 被引用、谱系两端），相似度高于随机对 p95（`index_meta.related_similarity_threshold`，按嵌入指纹与向量规模重新抽样），最多 5 条，每行标题 + AI 要点，不显示相似度，**不计入关联数**。「相关」里的内容行（四种实体）可直接添加连接（脉络域内的 content-links 命令，连接后该条因「已有关系」从相关移除）。新增排除关系时改 `context-related.ts` 的 `relatedExclusions`。
+
+**AI 洞见（洞见视图，D-101）**：卡片、文章、项目文档详情的元信息行「✦ AI 洞见」（功能槽 `contentInsights` 没配时不出现）。点击后正文就地进入洞见视图，平时正文里不出现任何洞见。详情页从 `features/insights/useInsightsView` 拿四件东西摆到自己的位置：`button`（元信息行）、`report`（正文上方报告卡）、`frame(children)`（包住编辑器：定位容器、段尾淡注、气泡、逐条看操作条）、`editorProps`（`decorate` + `leafWrapper`，展开传给 `ContentEditor`）。分析只在用户点击或「重新分析」时由主进程 `content-insights` 做一次（本地向量宽候选 + 一次模型调用 + 原文片段逐字核对），结果与每条的处理状态存主库 `content_ai_insights`；标记 = 编辑器装饰（「块序号 + 原文片段」→ Range，`features/insights/anchors.ts`），不改正文；「连接」把片段包成 content-link（`connect.ts`，与手动链接同一种节点）。视图里不切编辑器只读，而是点正文或开始输入即退出；Esc 经 `useOverlayDismiss` 分层退出（先关气泡 / 逐条看，再退出视图）。新增其他实体接入时同样照这四件接线，不在详情页自建洞见状态。
+
+**创作模式（左白板右写作，D-125）**：文章与项目文档详情页参数 `layout`（`compose` = 创作模式，省略 = 普通详情），元信息行的 `ComposeModeToggle` 开关切换；切换走 `navigator.push`（`article-detail` 传 `id`、`project-detail` 传 `id` + `itemId`），栈机按 id 去重原位更新，编辑器不重挂（`features/compose/components/ComposeLayout` 的正文栏子树在开关两态间键控不变，正文栏宽度是全局偏好，窄窗收起白板）。素材板 = 一页 `white_board_contents` + 主库 `compose_boards`（按 `content_id` 绑定，存写作意图与「不要」），**不建 `white_boards` 行，因此不出现在任何白板列表**；正文删除经 `ContentTable.deleteContent` 释放，脉络「被使用」显示为「创作白板」并带 `compose` 打开回创作模式。召集资料由 BACKGROUND 模块 `compose-gather` 做（意图嵌入查节级近邻 + 7a 概念补召回 → 槽 `contentInsights` 一次调用分组；`compose:gather` / `compose:cancel` / `compose:gather-phase`），段落亮起只比白板上的资料（`compose:paragraph-similarity`，不调模型）。建板时先把脉络「连接」（`getEntityContext().links`）摆成「已关联」一组（`layoutGather(..., { gathered: false })`，删掉不记「不要」），召集在主进程同样排除已关联。白板与正文两栏经 `features/compose/session.ts` 的会话 store 共享状态；嵌入白板的宿主定制文档卡走 `features/shared/whiteboard/components/Document/DocumentHostContext`（`allowDock`、`cardAccessory`），白板包与共享白板都不认识创作模式。白板 → 正文只有卡面「引用」小签（没有拖拽），`features/compose/insert.ts` 的 `insertEntityLink` / `removeEntityLinks` 插入 / 撤掉 content-link。素材板资料不进脉络分区：普通详情经 `ContextBadge` 的 `extra` 插槽在浮层末尾放 `ComposeBoardEntry`（`compose-board:summary` 计数），脉络域不依赖 compose 域。检查连接复用 7b：`useInsightsView` 的 `getSeed`（白板资料一定进候选，主进程 `findCandidates(..., { seed })`）、`reportExtra`（报告卡开头一句）、`targetAction`、`copy`（按钮文案「标出可引用处」）。项目文档详情（`EditProjectItem`）已同样接入：包 `ComposeLayout`、放开关、传 `useComposeInsightOptions` 给出的这几个选项，数据不改；其目录在创作模式下让位（同文章），白板栏在项目纸面内的文档区右缘展开。
+
+**主题与全局层 AI 洞见（D-102）**：后台由主进程 BACKGROUND 模块 `topic-insights`（`knowledge-insights-module.ts` 调度与 IPC；引擎 `topic-insights.ts`、候选 `topic-insights-candidates.ts`、提示词 `topic-insights-prompt.ts`、项目回顾 `project-review.ts`）顺着知识地图「子主题 → 主题 → 全局」只读 7a 元信息分层生成，结果与处理状态存主库 `knowledge_ai_insights`（一行一层或一个项目回顾，成员快照对应主题身份）；按变化量三档重算（< 10% 不动、10%–40% 增量、≥ 40% 或连续增量 3 次完整重写），全局后台每 6 小时最多一次，元信息覆盖率 ≥ 80% 才开始，地图过时先 `knowledge-map-builder.ensureFresh`。功能槽复用 `contentInsights`，没配时所有入口不出现。主对话的用户提问作为 `chat-prompt` 向量进索引库（只服务「问了但没写」，不进全文、检索结果与覆盖率；不限类型的向量检索显式排除它）。三个落点：① 知识地图标题行「✦ AI 洞见」→ `features/knowledge-map/insights/useMapInsights`，报告卡在筛选行下，标记经 LinkGraph 的 `overlay` / `overlayRef`（`GraphOverlayApi`：每帧回调、节点与主题岛的画布坐标、飞到主题 / 全图）画在覆盖层上，点有发现的主题名飞进主题层，Esc 按层退出；页面参数 `insight` 打开即点亮那一处。② 今日页「继续」段首 `InsightCard`（直接展开的列表，默认露 2 条；每条带理由与证据——问过的原话打开那次主对话、涉及的笔记 `openEntity` 打开到命中块，D-128；内容 `features/home/insightItems.ts`）。③ 项目详情 `features/projects/review/`：项目名右边「✦ 回顾 / 结项回顾」，报告卡在当前文档上方，文档树每个条目后的 `ProjectReviewSlot` 长出「可能属于这里」与「还薄」，引用到这里 = 在那一支下加引用型条目；页面参数 `review=1` 打开即展开。连接：两端都是卡片时主进程一个事务写正文显式连接（`knowledge-insights:link-cards`，content_links 单行边）；有一端是长文时经 `services/insight-focus.ts` 登记一处再打开那篇，7b 洞见视图只画这一处，结果回写地图。主动作按类型（`model.ts` 的 `primaryAction`，D-186）：呼应 / 重复连接；同一思路、缺一环、问了没写、还缺（`WRITE_CARD_KINDS`）写成卡片（`services/pattern-card.ts`，主进程 `pattern-card.ts` 建空卡并连上涉及的笔记）；矛盾与「可以继续想」聊一聊（`services/insight-chat.ts`，经 `startChat` 在停靠栏开对话、预填提问与引用，用户发出后标为已处理）。文档洞见的可以展开、项目回顾的还薄是「去补写」。处理状态只有 open / linked / dismissed，存量 questioned 由开库升级 `insights-questioned-upgrade.ts` 改为 dismissed。vec0 按 `prefixed_id` 过滤不走索引，读一批笔记的向量要合成一条 `IN` 查询（`loadNoteVectors`），不要逐个查。
+
+**长文按节检索与定位（D-099）**：长文按节切块（`entity/sections.ts`，分节级别 = 出现两次以上的最高级标题，超长节节内再切），嵌入文本带「实体标题 › 标题路径」；节信息（位置与节文本）在索引库 `content_sections`，按（实体, `update_time`）分版本存：全文与向量各自引用自己索引时的正文版本，互不删除，写入后经 `pruneContentSections` 清理无人引用的版本；向量 / 全文带 `chunk_index`。卡片、摘录整篇一节，但超过 2000 字仍按长度切块（远程嵌入输入上限）。向量检索按块多取再按实体去重；知识地图近邻用实体节向量均值查一次。切块规则一变必须升 `entity/chunk-version.ts` 的口径版本（并入嵌入指纹，整表静默重建）。检索结果带命中节，命令面板与 `search_knowledge` 用它展示与引用。`openEntity(ref, { at })` 的 `at` 只有顶层块序号，详情页实时编辑器就绪后滚动与闪烁，越界退到文首；日记沿 moment 定位到条目后再定位块；对话页参数 `entry`（pi entry id）是一次性导航意图：在当前分支就滚到该消息，不在则只提示（不替用户切分支），都算消费。卡片、摘录、PDF 标注的命中不带打开定位（`entity/section-location.ts`）；对话 `:ref` 的 `block` 由 `@tau/shared` 的 `remarkDocumentReference` 输出 `data-block`。不提供从正文抽成卡片、选区转为问题这类「输出转输出 / 输出转问题」的入口（KL-052）。
+
+节级索引由 `entity/sections.ts` 共用：重复最高级标题断节，1200 字再切、80 字短节向后合并，卡片整张。`MAIN_CHUNK_VERSION` 拼入主内容指纹，口径变化静默重嵌（不影响 Notebook / 视频）；索引库 content_sections 保存位置，全文与向量带 chunk_index，结果带 SearchResult.section。全文独立于向量重建状态；某篇重切使旧向量失效，向量完成后与全文、位置同事务替换。REF_INDEX_VERSION 已升至 4，后续改规则仍须升版本。
+
+重嵌恢复将物理表当前构建口径记为 `main_content_building_fingerprint`，仅全量成功才推进完成指纹；部分失败或中断后启动 / 连库增量续跑，保留成功向量，禁止用旧完成指纹反复清表。外部摘录与 PDF 标注读写均一条一块，不能在结果解析时再按长文切分。
+
+卡片墙的普通卡片与置顶卡片共用 `CardContentPreview`，直接用只读 Editor 渲染批量查询返回的前 3 个正文块，不打开或订阅协作会话。摘要变化时重建只读实例；列表同时监听 `content:updated`，按 contentId 更新列表及已有详情缓存中的正文、字数和修改时间，不重拉列表。预览编辑弹窗继续使用 ContentEditor 建立协作绑定并保留默认协作光标能力。
+预览请求由选中的卡片 ID 控制；等待单卡全文与本地编辑状态就绪后才展示弹窗，不展示加载占位，避免从空内容到正文的跳动；读取失败时展示错误并允许重试。
+卡片列表和表格共用同一预览：卡片数据就绪后先隐藏挂载 ContentEditor，等待正文会话及编辑器 `onInit` 完成才显示；会话加载失败时放行错误展示。
+关闭预览时保留正文、标题和标签，等 Dialog 的 `onAfterClose`（退场完成且子树卸载后）再清理编辑状态；不在关闭请求时清空内容，避免退场中高度塌缩。
+**知识地图（features/knowledge-map，D-095）**：全局页面 `knowledge-map`，入口在标题栏（`KnowledgeMapToggle`，详情页点击带 `focus` 节点键），不进侧边栏；命令面板有页面命令。数据 = `useKnowledgeMap` → 主进程 `knowledge-map:get`，返回离线地图与节点展示信息 `items`（标题、类型、项目、显式边），地图页用 `toGraphItems` 转成 `LinkGraph` 的 `GraphItem`（场景内 id 为下标）。节点为卡片、未删文章、非引用型且有正文的项目文档，共用正文只出一个；边 = 正文显式连接 content_links（跨类型，D-124）+ 引用索引 `entity_refs`；语义近邻有入度上限（防长文成为枢纽）。筛选（类型 pill + 项目 Menu）只降淡未命中。生长动画与里程碑在 `milestones.ts`。
+图谱实例不依赖条目数组的引用：仅节点键、下标与有效连线参与拓扑比较，标题变化不重建画布。
+高亮按差量批量提交；拓扑变化在现有实例上更新节点和边，保留已有节点位置及视口，不重跑全图布局。
+卡片库不设页内搜索（D-024 追记）：页内只做标签筛选，语义检索走全局命令面板（Ctrl K），空态文案引导同一入口。
+卡片墙提供回顶按钮，标签筛选变化后回顶。卡片页不预设聊天拖拽协议。
+**Database 不受控边界**：`data/columns/viewConfig` 作为初始值，内部 store 管理编辑、选择与视图配置，不监听这些 props 覆盖状态。
+ViewTabs 右侧工具栏为方案 B 定稿（D-027）：搜索折叠图标钮（清空 + 失焦收回、跨视图清空不保留）+ 筛选/排序/分组胶囊钮（激活计数）；
+三面板保留「取消/确定」暂存逻辑，底部统一「清空 | 取消 | 确定」；日期分组带二级粒度（`GroupRule.granularity`，DatePlugin 按本地自然日/周一起始周/自然月聚合，默认按月）。
+查询只有一个执行入口：`core/projection.ts` 合并持久化 `viewConfig` 与会话 `query`（text、filters、searchResults、grouping），
+由 store 在数据、查询或视图配置提交时计算一次 `projection`，选择变化不重算。
+注册视图直接消费投影；键盘导航消费相同的 rowIds/columnIds，隐藏列和被过滤行不会获得选择。
+投影的分组行为由视图定义的 `grouping` 声明：缺省走通用 groupBy（表格/画廊）；`"none"` 禁用通用分组（日历）；`"view"` / 函数形态由视图自带分组（看板的选项分桶是函数形态，`grouped` 恒为 true），`core/projection.ts` 不出现任何视图类型字符串；日历在查询结果上投影日期事件。
+拖拽传记录 ID，不把过滤后的索引当作原始索引；相关性排序或字段排序生效时禁止手动行重排。
+公式列（D-121）在 `projectDatabase` 开头由 `deriveFormulaRows` 派生，四种视图与筛选 / 排序看到的都是派生行；store 行与保存回调不含公式值，行详情单独派生显示值。表尾汇总消费 `projection.rows`（筛选后），配置在 `viewConfig.footer`；字段经 `CellPlugin.valueType/toScalar/formatScalar` 参与运算，引擎 `core/formula` 不认识具体插件。桌面扩展以 hook 插槽 `useFormulaAssist` 提供对话模型（未配置时返回 undefined，构造器不显示 AI 输入框）。宿主持久化视图配置须保留 `footer`（主进程 `normalizeConfig` 白名单已登记）。
+Database 视觉已全量 tau 化（D-026）：样式只消费 `--tau-*` 语义类与 tau primitives，antd 零依赖；评分控件保留既有 react-icons 星形与半星交互，颜色消费 warn token。
+select 选项值统一 Tag（七色词与 TAG_COLORS 恒等），弹窗走 Dialog/ConfirmDialog。
+
+**行详情（D-084）**：`components/RowDetailModal` 是 Dialog（1120 宽、`header` 插槽）里的双栏——左标题 + 正文，右属性栏（封面 = 第一个有图的图片列，点开 ImagePreview，底下垫 `coverGradientOfKey(row.id)` 派生渐变——加载中与加载失败时露出，与画廊卡同色；属性列表；添加属性 / 空属性折叠）。弹窗内容宽度 < 960（编辑器独立窗口里的数据库块）时退化为单栏「标题 → 属性 → 正文」：两种形态是同一棵树，靠 `@container/row-detail` 容器查询与 `order` / `display:contents` 重排，切换时编辑器不重挂载、未落库的正文草稿不丢。
+
+- 入参只有 `rowId`，行数据从 store 实时读；四个视图经 `hooks/useRowDetail` 管开合（宿主传 `onRowDetailOpen` 时由宿主接管），删除行经 `onDeleteRow` 走视图自己的确认流程，行消失后详情自动关闭。
+- 上一条 / 下一条（头部按钮与 J / K，编辑上下文与输入法组合让行）按 `projection.rowIds`，即当前视图筛选、排序、分组后的行序；当前行被筛出视图时不显示位置、不能切换。
+- 实时保存：属性值走与表格单元格相同的草稿 + 校验 + `transformBeforeSave`，编辑完成即写 store；标题本地草稿，失焦 / 回车提交。关闭或切换行时编辑器直接卸载、不经失焦，`TitleField` 与 `PropertyRow` 在卸载时补存，并且写回所属那一行（`rowId` 由组件自己持有，不读父组件的当前行）。没有 `detailContentId` 的行，正文在离开（关闭或切换）时才 `createPendingContent` 并回写 id。
+- 空属性折叠只折叠有 Editor 的字段（星级、勾选、图片等渲染器本身即控件的照常展示）；折叠集合在进入某行时定格，填了又清空的字段不会跳走。
+
+宿主经 `DatabaseRef.setQuery` 提供会话查询，标签条件使用既有 FilterGroup 协议，搜索结果提供有序 ID；
+是否保留分组由 grouping 显式指定，不借排序开关暗中关闭分组。会话查询不写入持久视图，清空即恢复原配置。
+CardDatabaseView 只接收全集与标签条件，不再同时接收“全集+过滤后数组”；旧 searchResults/ref 端口已删除，通用 Database 的查询投影能力继续保留。
+
+**卡片数据库视图配置（D-086）**：`features/cards/components/CardDatabaseView` 与专属链接插件仅服务卡片页；通用 Database 仍留共享层。`databasePreferences.ts` 将视图、筛选/排序/分组、活动视图及列宽按库持久化在 tau-card-database-views，库名统一去除 .db 后缀。旧 card-database-views 保留为首次初始化模板，各库深拷贝后独立修改，已有配置优先；新状态写入成功后删除旧键，存储不可写或旧 JSON 损坏时保留旧键以便恢复。操作前合并最新本机快照，避免未收到 storage 事件的窗口覆盖其他库配置。
+
+CardDatabaseView 整个实例按库重建，旧实例迟到回调只持有原库动作与 ref，不认领新库同 ID 的视图或行。跨窗口配置经 `view.receive/remove`、`views.reorder` 与新增 `column.resize` external 命令接入；不监听 props 覆盖通用 Database 内部状态，不回调保存、不清除编辑草稿。列宽更新同时对齐 columns、columnWidths 和当前 viewConfig。视图重排忽略未知/重复 ID 并保留遗漏的现存视图，新增本地 ID 防同毫秒冲突；旧 useCardDatabaseViewStore 已删除。
+
+所有状态变更经实例提交入口计算投影与变更事件。宿主经 `dispatch(command, "external")` 接入确认更新：
+`rows.apply` 提交字段差量，`rows.receive` 提交确认快照（核心相对前次确认基线提取差量，保留其他本地编辑），
+`column.configure` 更新选项，`view.receive/remove` 和 `views.reorder` 更新实例视图。
+变更事件显式携带 user/external 来源与字段差量；保存回调只消费 user 事件，取消依赖调用栈的回写抑制标志。
+卡片宿主只映射事件涉及的元数据字段，不再为每次保存扫描整张表反推修改。
+
+数据契约见 types.ts；来源与降级策略：
+
+- reviewDueCount ← `listFlashcardDecks()` Σ stats.dueCount；
+- todos / todoRemainingCount ← `listTodoItemsByType("all")` 未完成（逾期 > 今日到期排序，取 3）；
+- events ← `getEventsForDay(Date.now())`（排序：非全天在前、按 startTime）；
+- recentEdits ← `getCardsByDateRange` + `getArticlesByDateRange`（渐进窗口 14→30→90→365 天，凑满 12 条即停；Slate 正文提文本截断）+ 文档/项目全量轻表按窗口过滤 + 最新日记，混排取 12；
+- focus ← `summaryPomodoroToday()`；weekly 叠加本周聚合；
+- todayStats/weekly/trend ← `getAllStatistic` 全量快照差分（口径见 `utils/statistic.ts` 的 diffSeries，与统计页共用）；
+- heatmap ← `getCalendarHeatmap(今年)` → 全年每日操作数（圆点式，`ui/primitives/YearHeatmap`，home/stats 共用）。
+  主进程按 operation 主键每批最多 1000 行扫描、批次间让出事件循环，在进程内按本地日期和 operation_id 去重，只经 IPC 返回每日计数；同连接同年在途请求合并。该只读命令不跨批持有数据库入口事务，扫描固定起始最大 ID，新插入记录在下次刷新计入；扫描期间删除／修改按读取时状态反映，不承诺跨批事务快照。年度范围为本地当年元旦至次年元旦（右开），包括年末最后一秒。
+  并行 `Promise.allSettled`，单项失败降级为空值并 console.warn，不阻塞整页。
+  新增区块时：types.ts 加字段 → queries.ts 分项函数 → 写面板组件并登记到 `panels.ts`。
+  数据入口一律走 react-query（`useQuery`）：`useHomeSnapshot` / `useStatsSnapshot` 带 staleTime 与窗口聚焦刷新（覆盖全局默认的 refetchOnWindowFocus: false），`refresh()` 即 `query.refetch()`——新页面禁止再手写 useEffect 拉取。
+
+**今日页面板布局（D-182，features/home/layout.ts + panels.ts + views/HomePanels.tsx）**：纸顶 hero（问候与今天的数字）固定，不是面板；其余全部是面板，内置面板登记在 `panels.ts`（`HomePanelDefinition`：固定 `id`、`title`、`size`、`component`，数组顺序即默认布局；ID 随库保存，不要改名）。`HomeView` 只渲染 hero 与 `HomePanels`。布局 = 有序的 `{ id, hidden }` 列表，存主库 `home_panel_layout`（`home-layout:get` / `home-layout:save` 整份读写，`layoutQueries.ts` 的 `useHomeLayout` 乐观写缓存、失败回滚）；`mergeLayout` 让保存过的顺序在前（暂时没注册的面板也保留位置），没保存过的面板按默认顺序追加在末尾。`HomePanels` 是一个 `flex-wrap` 流式容器：`wide` 占整行（`basis-full`），`compact` 为 `flex-[1_1_340px]`，按可用宽度一行排一到多个、排不满的行伸展填满、同行等高，不预设栏数。组件返回 null 时外层不占位（`[data-home-panel-content]` 为空即隐藏外层）。编辑模式由 `HomeView` 持有（纸顶「调整首页」按钮、提示条的「恢复默认」= 保存空布局、`useOverlayDismiss` 让 Esc 退出），传给 `HomePanels`：外层 `draggable`，内容 `inert` 变淡；`dragover` 按紧凑面板左右半边、整行面板上下半边算插入位置（`data-home-panel-drop` 插入线），拖动类型 `application/x-tau-home-panel`；把手 `[data-home-panel-handle]` 上的方向键移动，重排后经 effect 把焦点还给同一把手；空面板在编辑模式里显示 `[data-home-panel-placeholder]` 占位卡（`group-has-*` 判断）；末尾 `[data-home-hidden-panels]` 区列出隐藏的面板（点击恢复到末尾、拖回任意位置、拖进即隐藏），平时不显示。回顾段是一组面板，保留自己的「回顾」标题行承载时间窗，懒加载的滚动根经 `HomeScrollRootContext` 取得。插件面板（PS-046 2.8b）：`context.home.registerPanel` 经 runtime `registerHomePanel` 登记为 `RegisteredPluginHomePanel`（布局 ID `plugin:<pluginId>:<id>`），`HomeView` 把 `runtime.listHomePanels()` 排在内置面板之后作为默认顺序；`views/PluginHomePanel.tsx` 的 `pluginHomePanel` 按注册对象缓存包装组件（WeakMap），运行时其他变更不会让插件面板重新挂载。宿主画 Panel 外框与标题，插件组件包在 `RecoverableBoundary`、`UiProvider`、`PluginComponentScope` 里只渲染正文；正文容器 `[data-home-panel-body]` 放在 UiProvider 里面（它自己会渲染一层 div），为空时外层经 `has-[[data-home-panel-body]:empty]:hidden` 隐藏，编辑模式里同样显示占位卡。插件停用后面板从注册表消失，布局里的位置保留。
+
+**今日漫步牌堆（今日页面板 `walk`，features/home/walkDeckQueries.ts + views/WalkDeckPanel.tsx）**：每天固定几张旧内容翻完即止。`useTodayWalkDeck` 按 `["home","walk-deck", 本地日期]` 查询（每天 render 重算日期作 key，跨零点自然换新一天；窗口聚焦刷新开启）。翻牌与重抽在组件侧乐观写回同一缓存（`setQueryData`），落库分别走 `random-walk:daily-advance`（绝对 cursor）与 `random-walk:daily-reroll`（排除当天已出现过的、cursor 归零）；当前牌首次露出调 mark-seen，组件本地 ref 按 `kind:id` 去重。打开原文统一走 `features/walk/open.ts` 的 `openWalkItem`（PDF 批注走 openMaterial、其余走 openEntity，漫步页与牌堆共用）；「从这里继续走」push `walk` 页并带 `from: "kind:id"` 以该条为起点。牌堆池为空（items 为空）时整块不渲染；翻牌动画在 `prefers-reduced-motion` 时跳过。
+
+**统计页数据（features/stats/queries.ts，Bento 面板 · 2026-09-16 重写）**：`useStatsSnapshot(range)` 的 queryKey 携带窗口（`d30/d90/year/all`），各窗口独立缓存。来源与口径：
+
+- 趋势/环比 ← `getAllStatistic` + `getAllDiaryEntries` 快照差分（`diffSeries` 窗口参数化；环比 = 等长前置窗口同法聚合，all 无上一窗口为 null）；
+- 总量/构成 ← 当日快照存量 + 日记全量字数 + `getAllProjectItems` 轻表字数（`fetchTotals`；构成四分类 = 卡片/文章/项目/日记；历史知识库快照按各日期前值合并到项目，不制造迁移日产出；切窗口 `placeholderData: keepPreviousData` 不闪 Loading）；
+- 热力图/streak ← `getCalendarHeatmap(今年)`，连续活跃与活跃天数前端派生（今天无活动从昨天起算）；
+- 记忆保持 ← **主进程聚合命令 ********`flashcard:review-stats`**（`flashcard_reviews` GROUP BY rating + `flashcards.due_time` 未来 7 天分桶，tables/flashcard.ts）；评分四档为 easy/normal/struggle/hard，UI 文案映射 轻松/记得/模糊/忘记，保持率 = (normal+easy)/total；
+- 专注节律 ← `listPomodoroSessions({ start: sinceTs })` 渲染端按 `startTime` 分 24 桶 + focus/pause 聚合（峰值时段/平均单次/中断率）。
+
+### 闪卡复习的职责边界与写入协议
+
+- `features/flashcards/views/FlashcardsView.tsx` 负责页面编排；会话流程、快捷键、延迟删除和沉浸侧栏分别位于 `hooks/`。侧栏折叠由副作用管理，Activity 隐藏时恢复、重新激活时再次折叠。
+- `components/review/` 按题面、答案、评分、AI 评判、资料抽屉与完成摘要拆分；编辑弹窗只管理表单生命周期，内容区与属性区独立成组件，初始化与校验集中在 `editorModel.ts`。菜单使用渲染函数直接返回 Menu 子项，保留组件库对声明树的键盘导航解析。
+- 作答输入框隔离空格、字母、数字和撤销等按键，外层复习快捷键同时检查事件目标与当前输入焦点；空输入框也不触发复习撤销。问答保留 Ctrl/⌘+Enter 提交、普通 Enter 换行，填空保留 Enter 跳空/提交，输入法组合期间不提交；Esc 仍交给页面浮层仲裁。
+- 暂停与移动在主进程写入成功后更新缓存；失败保留原状态。评分、撤销和暂停互斥，写入期间禁止跳过与结束；AI 评判通过请求版本丢弃换卡后迟到的响应。输入框不自行拦截 Esc，退场统一经页面浮层仲裁。
+- `flashcard:submit-review` 在事务中更新排期并写入复习记录，返回卡片及 `undo` 凭据（记录 ID、主进程读取的评分前排期）。`flashcard:undo-review` 只接受仍指向最新评分的凭据，校验、删除记录与恢复排期在同一事务中完成，拒绝旧凭据与重复撤销。
+
+### PDF 列表、阅读页与阅读状态（D-069 / D-070）
+
+- `features/pdfs`：列表页 `pdfs`（封面 / 列表排布，照抄 weread 书架结构）+ 阅读页 `pdf-detail`（params `pdfId`）。列表数据只走 `pdf:library`（Pdf 行 + 标注数 + 缩略图 + 本地文件是否丢失，主进程一次聚合）与 `pdf-index:status-batch`（只查已有索引库；不要逐个调 `pdf-index:status`，它会为没建过索引的文件新建库）；有文件在建索引时状态查询 3s 轮询。
+- 阅读状态（`last_open_time` / `last_page`）只经 `pdf:record-open` / `pdf:record-page` 写，**不改 update_time**：阅读器以 `pdf.id + updateTime` 作重载键，用 `update-pdf` 写进度会让阅读器整个重挂载。页数由缩略图生成时顺带写入（`pdf:save-thumbnail`），`pageCount == null` 即「从未生成过缩略图」。
+- 缩略图在渲染端用 pdfjs 生成（`features/pdfs/thumbnails.ts`，懒加载 pdfjs + worker），主进程落盘到 `<编辑器目录>/pdf-thumbnails/<库名>/<id>.webp`；列表页只为本地文件补生成，远程文件等打开阅读页、文件缓存到本地后再生成。
+- 阅读器（`features/pdfs/reader/`）：embedpdf 引擎。`PdfReaderView` 由宿主注入文件（`usePdfFile`）与索引（`usePdfIndex`）——阅读页要与对话栏共用；`PdfReader` 独立使用（项目里的 PDF 条目，无对话，左面板开关放进 HUD）。页面上的交互在 `ReaderLayout` 编排，每页叠加层（书签 / 查找命中 / 跳转闪烁 / 区域标注框 / 页边笔记图钉 / 浮动工具条 / 笔记卡）经 `ReaderContext` 取状态；文本标注的工具条挂在引擎 `AnnotationLayer` 的 `selectionMenu`。阅读区视口、左面板缩略图列表都是引擎组件（ref 被它占用），分别经 `data-pdf-viewport` / `data-pdf-thumbs` 取元素接 `FADE_SCROLL_CLASS` + `useEdgeFade`；对话栏拖宽用 `@tau/ui` 的 `ResizeHandle`（与壳层停靠栏同一件）。**页内浮层必须带 `overlayProps`（`data-pdf-overlay`）**：引擎在页面元素上挂原生指针监听，只有登记过的排除属性才不会把点浮层当成页面点击（清掉选区、开始新划线）。
+- 标注数据（`reader/data.ts`，react-query 按库分 key）：写后直接改缓存、标注数变化才失效列表；同一引擎标注的写入串行。引擎事件 ↔ 记录由 `useAnnotationSync` 同步（导入引起的事件跳过）；区域标注不进引擎，由叠加层画。颜色：文本标注以 PDF 对象里的十六进制为准（`COLOR_SPECS[*].pdfHex`，属于文件数据、不随主题），界面色块映射主题数据色 `tag-*`；外来颜色经 `colorFromHex` 按最近距离归档。新建只给高亮 / 下划线 5 色，旧的波浪线 / 删除线 / 粉色照常显示与编辑。
+- 其他域引用 PDF 一律经 PDF 域：选择已有 PDF 用 `features/pdfs/components/SelectPdfDialog`，建记录用 `features/pdfs/queries` 的 `useCreatePdfRecord`，读单个 PDF 用 `usePdfDetail`，阅读用 `reader/PdfReader`——不要另建 PDF store 或卡片（项目域的 `usePdfsStore` / `SelectPdfModal` / `PdfCard` 已删）。
+- 对话（`features/pdfs/chat/PdfChatPanel`）：`useScopedChat({ scope: "pdf-chat", domainRef: String(pdfId) })`，页面专属工具经 `usePdfChatTools` 注册到 toolScope；「问 AI」的引用经 `ChatContainer` 的 `composerAccessory` 显示成 chip、`prepareUserContent` 在发送时并进消息（`annotationModel.applyQuote`）。阅读页对话栏的开合是本机偏好（`readerPrefs.chatOpen`），经 `useOwnAssist` 接管 Ctrl/⌘+J。
+
+### 驾驶舱列表排布与打开记录（D-092）
+
+- 项目 / 数据库 / Notebook 三个列表页共用 `features/shared/cockpit`：`EntityCockpit` 承载纸面、工具栏（`CockpitToolbar`：排序 + 视图两个「按钮 + Menu」）、网格时的「最近打开」续读行、全部区（网格卡或行式列表）、归档折叠段与新建 / 编辑 / 删除弹层；条目三形态在 `EntityCards`。模块只提供 `CockpitItem[]`（含 `createTime / openedAt / lastItemTitle`）、文案与身份色，不另写列表组件。
+- 排布与排序是本机偏好，按 `prefsKey` 分模块存（`prefs.ts`，persist key `tau-cockpit-prefs`）；排序与时间展示是纯函数（`model.ts`），置顶在任何排序下都排最前。
+- 打开记录各模块一条 `*:record-open` 命令，由详情页的 `useRecord*Open` 触发，**不改 update_time、不记 operation**：
+  - 项目：`project:record-open`（进入或切换文档；不带 `itemId` 只刷新时间、保留上次文档），读取走 `project:open-states`（独立 queryKey `["projects","open-states"]`，记录后只失效这一项），`useProjectsSnapshot` 合并成 `openedAt / lastItemId / lastItemTitle`；从列表打开时有 `lastItemId` 就带上它定位。
+  - 数据库：`database-item:record-open`（进入时），`database-item:list` 直接带 `openedAt`。
+  - Notebook：`vibe-learning-project:record-open`（随 `VibeLearningView` 的 `opened` 变化：资料 / 笔记记为上次条目，其余只刷新时间），`vibe-learning-project:list` 直接带 `openedAt / lastItemTitle`。详情页恢复仍读本机 `vibe-learning-opened-<id>`，数据库记录只供列表展示。
+
+### 文章 / 卡片库的列表排布（D-105）
+
+- 通用控件在 `features/shared/list/ListControls.tsx`：`CommandMenu`（工具栏「按钮 + Menu」）、`LayoutMenu`（网格 / 列表）、`SortHeader`（列头排序，每列方向固定）、`ListTags`（两枚 + `+N`）。驾驶舱的 `CockpitToolbar` 与列表列头也用它们。
+- 卡片库：`CardsViewMode` 增加 `list`（速切器顺序 卡片墙 / 列表 / 表格），`CardListView` 平铺行、定高虚拟滚动、列头吸顶；排序（创建 / 更新 / 字数 / 连接，置顶在前；连接数来自轻表 `linkCount`）是 `listModel.ts` 纯函数，在内存全集上排。行标题 AI 标题优先，没有时取首个非空块，摘要取其余块（`cardListText`）。点行打开预览弹窗，操作复用 `CardActionMenu`。
+- 文章：工具栏 `LayoutMenu` 切排布，偏好在 `features/articles/preferences.ts`（本机，不分库）。网格仍按更新时间分月；列表平铺 + 列头排序（字数 / 更新 / 创建），排序经 `get-article-page` 第 5 个参数 `sort` 下推主进程（白名单映射 ORDER BY，非自有键回落 `updated`），**调用方必须显式传**——主进程包装层在参数尾部追加命令上下文。列表一页 30 条（网格 12），首屏未填满时直接续页。条目操作（置顶 + ⋯）收口 `ArticleItemOps`，网格卡与列表行共用。不提供标题排序：SQLite 按码位排中文，分页在主进程，前端无法补救。
+
+## 8. 与移动端的源码映射（移植参考）
+
+| 桌面（已移植）         | 移动端蓝本                  | 待移植                                                           |
+| ---------------------- | --------------------------- | ---------------------------------------------------------------- |
+| page/core/stackMachine | router/core/stackMachine.ts | 已含核心；popTo/多 pane                                          |
+| page/core/paramsSchema | router/core/paramsSchema.ts | oneOf/object 描述子                                              |
+| page/PageProvider      | router/RouterProvider.tsx   | history 适配（**桌面不需要**）、守卫、pushForResult、overlay 栈  |
+| page/PageHost          | router/PageHost.tsx         | 转场（桌面只做共享元素形变，D-106）、手势（不需要）              |
+| ——                     | router/query/ + store/      | PageQueryProvider / PageStoreScope（桌面未实现，不声明预留字段） |
+
+## 9. 禁止事项（防腐化）
+
+- 不在 page/、ui/ 引业务代码；features 域之间不 import 彼此 store；
+- 可被调用方覆盖默认样式的组件，不裸用 clsx 合并 className（走 `cn()`，§4.8）。
+- UI 使用 `@tau/ui` + Tailwind，图标使用 lucide-react；不写 CSS Modules；不画横线分隔区块；
+- 不在 Sidebar/Titlebar 硬编码模块条目（改 navigation.ts）；
+- 新主进程模块一律 BACKGROUND；启动竞态与失败重试使用 ensureModule/withModule（§2.5）；
+- 业务通知走 appNotify / routeNotification（§2.6），禁止直连 `@tau/ui` 的 notify 或 Electron 原生 `Notification`；
+- 不造假演示数据（未接线就 null+空态）；
+- 主题/页面必须走 defineXxx 协议注册（禁止中心登记表与散装 CSS）。
+
+迁移期的编辑器数量基线、扩展边界独立扫描与 antd 专项检查已退役（D-177），不再执行 `check:editor-refactor` / `check:editor-boundaries` / `check:antd`。现有 ESLint 架构规则、类型、行为、主题契约、数据一致性和其他模块边界仍按变更范围验证。

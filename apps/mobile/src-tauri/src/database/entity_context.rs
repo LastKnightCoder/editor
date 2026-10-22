@@ -1,5 +1,5 @@
-//! 移动端脉络查询：对齐桌面端 entity-context 模块（context-query.ts / context-lineage.ts）的
-//! 分区口径，纯本地 SQL 组装，查询时不发起任何 AI 调用。数据来自整库同步的主库与本地
+//! 移动端脉络查询：对齐桌面端 entity-context 模块（context-query.ts / context-lineage.ts /
+//! context-plugin-links.ts）的分区口径，纯本地 SQL 组装，查询时不发起任何 AI 调用。数据来自整库同步的主库与本地
 //! 重建的 entity_refs 索引。与桌面端的裁剪差异：「相关」分区（向量在索引库、不同步）与
 //! 「被使用 · 白板」（移动端无白板浏览）不做；「连接」分区的内联引用由前端解析
 //! （@tau/shared/inline-refs）后经 entity_context_resolve_entities 补身份合并。
@@ -17,7 +17,7 @@ use crate::setting::{get_active_database_name, load_or_init_setting};
 const CONTEXT_LIMIT: usize = 50;
 const SNIPPETS_PER_SOURCE: usize = 3;
 const TITLE_CHARS: usize = 80;
-/** IN 列表每批的正文数（locate 的 UNION 语句同一批参数绑定 4 次，需低于 SQLite 变量上限） */
+/** IN 列表每批的正文数（locate 的 UNION 语句同一批参数绑定 5 次，需低于 SQLite 变量上限） */
 const LOCATE_BATCH: usize = 200;
 
 const CHAT_SCOPE_LABEL: &[(&str, &str)] = &[
@@ -32,13 +32,13 @@ const KIND_LABEL: &[(&str, &str)] = &[
     ("article", "文章"),
     ("project-item", "项目文档"),
     ("diary-moment", "日记"),
+    ("plugin-entity", "插件内容"),
     ("excerpt", "摘录"),
     ("pdf-annotation", "PDF 标注"),
     ("chat-session", "对话"),
     ("vl-note", "Notebook 笔记"),
     ("web-clip", "解析文档"),
     ("flashcard", "闪卡"),
-    ("question", "问题"),
     ("vl-project", "Notebook"),
 ];
 
@@ -50,13 +50,14 @@ fn kind_label(kind: &str) -> String {
         .unwrap_or_else(|| kind.to_string())
 }
 
-/** 同一份正文被多个实体共用时，选哪个身份作代表：卡片 > 文章 > 项目文档 > 日记 */
+/** 同一份正文被多个实体共用时，选哪个身份作代表：卡片 > 文章 > 项目文档 > 日记 > 插件内容 */
 fn ref_priority(kind: &str) -> i32 {
     match kind {
         "card" => 0,
         "article" => 1,
         "project-item" => 2,
         "diary-moment" => 3,
+        "plugin-entity" => 4,
         _ => 9,
     }
 }
@@ -149,6 +150,8 @@ pub struct ContextEntityData {
     pub meta: String,
     /// 日记条目的定位信息（跳转到当天的该片段）；其余类型由前端按 kind 映射
     pub diary: Option<DiaryLocator>,
+    /// 插件内容的类型名（插件声明，随库保存）；其余类型为空，前端按 kind 取
+    pub kind_label: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -171,14 +174,6 @@ pub struct RefSnippetData {
 pub struct ContextBacklinkData {
     pub source: ContextEntityData,
     pub snippets: Vec<RefSnippetData>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ContextQuestionData {
-    pub id: i64,
-    pub title: String,
-    pub status: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -220,7 +215,8 @@ pub struct EntityContextResponse {
     pub projections: Vec<ContextEntityData>,
     pub backlinks: Vec<ContextBacklinkData>,
     pub backlink_total: i64,
-    pub questions: Vec<ContextQuestionData>,
+    /// 哪些插件内容关联了我（或共用正文的身份），按最近关联排序
+    pub plugin_links: Vec<ContextEntityData>,
     pub sources: Vec<ContextLineageItemData>,
     pub derived: Vec<ContextLineageItemData>,
     pub notebook_projections: Vec<ContextLineageItemData>,
@@ -237,6 +233,79 @@ pub struct ResolveRefInput {
     pub id: i64,
 }
 
+/** 正文实体在插件引用（plugin_links.to_kind）里的类型与创建时间查询 */
+fn plugin_ref_kind(kind: &str) -> Option<(&'static str, &'static str)> {
+    match kind {
+        "card" => Some(("card", "SELECT create_time FROM cards WHERE id = ?1")),
+        "article" => Some((
+            "article",
+            "SELECT create_time FROM articles WHERE id = ?1 AND is_delete = 0",
+        )),
+        "project-item" => Some((
+            "document",
+            "SELECT create_time FROM project_item WHERE id = ?1",
+        )),
+        "diary-moment" => Some((
+            "diary",
+            "SELECT create_time FROM diary_segments WHERE id = ?1",
+        )),
+        "plugin-entity" => Some((
+            "plugin-entity",
+            "SELECT create_time FROM plugin_entities WHERE id = ?1",
+        )),
+        _ => None,
+    }
+}
+
+/**
+ * 「被关联」：哪些插件内容（plugin_links）关联了这个实体或共用正文的身份，对齐桌面
+ * context-plugin-links.ts——同一来源合并、按最近关联排序；关联记下的目标创建时间与当前不一致
+ * （编号被复用）、来源插件已卸载（孤儿）、插件内容关联自己时不算。
+ */
+fn plugin_links_of(conn: &Connection, identities: &[EntityRefLite]) -> Vec<ContextEntityData> {
+    let Ok(mut inbound) = conn.prepare(
+        "SELECT l.from_id, MAX(l.create_time) FROM plugin_links l
+         JOIN plugin_entities e ON e.id = l.from_id AND e.orphaned_time IS NULL
+         WHERE l.to_kind = ?1 AND l.to_id = ?2 AND l.to_created_at = ?3
+         GROUP BY l.from_id",
+    ) else {
+        return vec![];
+    };
+    let mut sources: HashMap<i64, i64> = HashMap::new();
+    for identity in identities {
+        let Some((kind, created_sql)) = plugin_ref_kind(&identity.kind) else {
+            continue;
+        };
+        let Ok(created) = conn.query_row(created_sql, params![identity.id], |row| {
+            row.get::<_, i64>(0)
+        }) else {
+            continue;
+        };
+        let rows = inbound
+            .query_map(params![kind, identity.id.to_string(), created], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?))
+            })
+            .map(|rows| rows.filter_map(Result::ok).collect::<Vec<_>>())
+            .unwrap_or_default();
+        for (from_id, linked) in rows {
+            let entry = sources.entry(from_id).or_insert(linked);
+            *entry = (*entry).max(linked);
+        }
+    }
+    for identity in identities {
+        if identity.kind == "plugin-entity" {
+            sources.remove(&identity.id);
+        }
+    }
+    let mut ordered: Vec<(i64, i64)> = sources.into_iter().collect();
+    ordered.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+    ordered
+        .into_iter()
+        .filter_map(|(id, _)| resolve_entity(conn, "plugin-entity", id))
+        .take(CONTEXT_LIMIT)
+        .collect()
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResolveEntitiesPayload {
@@ -250,6 +319,7 @@ fn content_ids_of_entity(conn: &Connection, kind: &str, id: i64) -> Vec<i64> {
         "article" => "SELECT content_id FROM articles WHERE id = ?1 AND is_delete = 0",
         "project-item" => "SELECT content_id FROM project_item WHERE id = ?1",
         "diary-moment" => "SELECT content_id FROM diary_segments WHERE id = ?1",
+        "plugin-entity" => "SELECT content_id FROM plugin_entities WHERE id = ?1",
         _ => return vec![],
     };
     conn.query_row(sql, params![id], |row| row.get::<_, Option<i64>>(0))
@@ -278,13 +348,14 @@ fn locate_all(conn: &Connection, content_ids: &[i64]) -> HashMap<i64, Vec<Entity
              UNION ALL SELECT 'article', id, content_id FROM articles WHERE content_id IN ({marks}) AND is_delete = 0
              UNION ALL SELECT 'project-item', id, content_id FROM project_item WHERE content_id IN ({marks})
              UNION ALL SELECT DISTINCT 'diary-moment', s.id, s.content_id FROM diary_segments s
-               JOIN diary_entries d ON d.id = s.diary_id WHERE s.content_id IN ({marks})"
+               JOIN diary_entries d ON d.id = s.diary_id WHERE s.content_id IN ({marks})
+             UNION ALL SELECT 'plugin-entity', id, content_id FROM plugin_entities WHERE content_id IN ({marks})"
         );
         let Ok(mut stmt) = conn.prepare(&sql) else {
             continue;
         };
-        let mut bind: Vec<i64> = Vec::with_capacity(batch.len() * 4);
-        for _ in 0..4 {
+        let mut bind: Vec<i64> = Vec::with_capacity(batch.len() * 5);
+        for _ in 0..5 {
             bind.extend_from_slice(batch);
         }
         let rows = stmt
@@ -364,6 +435,7 @@ fn resolve_entity(conn: &Connection, kind: &str, id: i64) -> Option<ContextEntit
                 title,
                 meta: String::new(),
                 diary: None,
+                kind_label: None,
             })
         }
         "article" => {
@@ -386,6 +458,7 @@ fn resolve_entity(conn: &Connection, kind: &str, id: i64) -> Option<ContextEntit
                 },
                 meta: String::new(),
                 diary: None,
+                kind_label: None,
             })
         }
         "project-item" => {
@@ -429,6 +502,7 @@ fn resolve_entity(conn: &Connection, kind: &str, id: i64) -> Option<ContextEntit
                 },
                 meta,
                 diary: None,
+                kind_label: None,
             })
         }
         "diary-moment" => {
@@ -464,6 +538,44 @@ fn resolve_entity(conn: &Connection, kind: &str, id: i64) -> Option<ContextEntit
                     date,
                     moment_id: id,
                 }),
+                kind_label: None,
+            })
+        }
+        "plugin-entity" => {
+            let row = conn
+                .query_row(
+                    "SELECT e.title, e.content_id, k.label FROM plugin_entities e
+                     LEFT JOIN plugin_entity_kinds k ON k.plugin_id = e.plugin_id AND k.kind = e.kind
+                     WHERE e.id = ?1",
+                    params![id],
+                    |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, i64>(1)?,
+                            row.get::<_, Option<String>>(2)?,
+                        ))
+                    },
+                )
+                .ok()?;
+            let (title, content_id, label) = row;
+            let title = if title.trim().is_empty() {
+                let first = content_first_text(content_raw_of(conn, content_id), TITLE_CHARS);
+                if first.is_empty() {
+                    "无标题".to_string()
+                } else {
+                    first
+                }
+            } else {
+                title
+            };
+            Some(ContextEntityData {
+                kind: kind.to_string(),
+                id,
+                content_id: Some(content_id),
+                title,
+                meta: String::new(),
+                diary: None,
+                kind_label: label.filter(|label| !label.trim().is_empty()),
             })
         }
         _ => None,
@@ -708,74 +820,6 @@ impl rusqlite::ToSql for StringOrInt {
     }
 }
 
-fn question_target_type(kind: &str) -> Option<&'static str> {
-    match kind {
-        "card" => Some("card"),
-        "article" => Some("article"),
-        "project-item" => Some("project_item"),
-        _ => None,
-    }
-}
-
-/** 「相关问题」分区：问题材料按目标身份关联，答案正文被投影时按 answer:contentId 关联 */
-fn questions_of(
-    conn: &Connection,
-    identities: &[EntityRefLite],
-    content_ids: &[i64],
-) -> Vec<ContextQuestionData> {
-    let mut rows: Vec<(i64, String, String)> = Vec::new();
-    for reference in identities {
-        let Some(target_type) = question_target_type(&reference.kind) else {
-            continue;
-        };
-        let sql = "SELECT q.id, q.question_content, q.status FROM question_link l
-                   JOIN questions q ON q.id = l.question_id
-                   WHERE l.target_type = ?1 AND l.target_id = ?2 ORDER BY q.update_time DESC";
-        if let Ok(found) = conn.prepare(sql).and_then(|mut stmt| {
-            stmt.query_map(params![target_type, reference.id], |row| {
-                Ok((
-                    row.get::<_, i64>(0)?,
-                    row.get::<_, Option<String>>(1)?.unwrap_or_default(),
-                    row.get::<_, String>(2)?,
-                ))
-            })
-            .map(|rows| rows.filter_map(Result::ok).collect::<Vec<_>>())
-        }) {
-            rows.extend(found);
-        }
-    }
-    if !content_ids.is_empty() {
-        let marks = vec!["?"; content_ids.len()].join(",");
-        let sql = format!(
-            "SELECT q.id, q.question_content, q.status FROM question_link l
-             JOIN questions q ON q.id = l.question_id
-             WHERE l.target_type = 'answer' AND l.target_id IN ({marks}) ORDER BY q.update_time DESC"
-        );
-        if let Ok(found) = conn.prepare(&sql).and_then(|mut stmt| {
-            stmt.query_map(params_from_iter(content_ids.iter().copied()), |row| {
-                Ok((
-                    row.get::<_, i64>(0)?,
-                    row.get::<_, Option<String>>(1)?.unwrap_or_default(),
-                    row.get::<_, String>(2)?,
-                ))
-            })
-            .map(|rows| rows.filter_map(Result::ok).collect::<Vec<_>>())
-        }) {
-            rows.extend(found);
-        }
-    }
-    let mut seen: HashSet<i64> = HashSet::new();
-    let mut questions: Vec<ContextQuestionData> = Vec::new();
-    for (id, title, status) in rows {
-        if questions.len() >= CONTEXT_LIMIT || seen.contains(&id) {
-            continue;
-        }
-        seen.insert(id);
-        questions.push(ContextQuestionData { id, title, status });
-    }
-    questions
-}
-
 struct LineageEdgeRow {
     kind: String,
     node_id: String,
@@ -795,13 +839,7 @@ fn parse_lineage_node(kind: &str, id: &str) -> Option<(String, String)> {
     }
     if matches!(
         kind,
-        "excerpt"
-            | "pdf-annotation"
-            | "web-clip"
-            | "vl-note"
-            | "flashcard"
-            | "question"
-            | "vl-project"
+        "excerpt" | "pdf-annotation" | "web-clip" | "vl-note" | "flashcard" | "vl-project"
     ) {
         return Some((kind.to_string(), numeric.to_string()));
     }
@@ -1069,23 +1107,6 @@ fn resolve_lineage_node(conn: &Connection, kind: &str, node_id: &str) -> Option<
             Some(ResolvedNode {
                 title,
                 meta: format!("闪卡 · {}", row.1),
-            })
-        }
-        "question" => {
-            let title = conn
-                .query_row(
-                    "SELECT question_content FROM questions WHERE id = ?1",
-                    params![numeric],
-                    |row| row.get::<_, Option<String>>(0),
-                )
-                .ok()??;
-            Some(ResolvedNode {
-                title: clip_title(if title.trim().is_empty() {
-                    "未命名问题"
-                } else {
-                    &title
-                }),
-                meta: "问题".to_string(),
             })
         }
         "vl-project" => {
@@ -1405,7 +1426,7 @@ pub fn entity_context_get(
     let links = explicit_links_of(&conn, &content_ids, &seen);
     let index_conn = open_index_connection(&app)?;
     let (backlinks, backlink_total) = backlinks_of(&conn, &index_conn, &kind, id, &content_ids);
-    let questions = questions_of(&conn, &identities, &content_ids);
+    let plugin_links = plugin_links_of(&conn, &identities);
     let sources = sources_of(&conn, &identities);
     let derived = derived_of(&conn, &identities, &content_ids);
     let notebook_projections = notebook_projections_of(&conn, &content_ids);
@@ -1420,7 +1441,7 @@ pub fn entity_context_get(
         projections,
         backlinks,
         backlink_total,
-        questions,
+        plugin_links,
         sources,
         derived,
         notebook_projections,
@@ -1496,6 +1517,89 @@ mod tests {
             params![id, content_id],
         )
         .unwrap();
+    }
+
+    #[test]
+    fn plugin_links_list_linking_plugin_entities_with_declared_label() {
+        let conn = main_db();
+        insert_content(&conn, 10, 1, "[]");
+        insert_content(&conn, 20, 1, "[]");
+        insert_content(&conn, 21, 1, "[]");
+        insert_content(&conn, 22, 1, "[]");
+        insert_card(&conn, 1, 10);
+        conn.execute(
+            "INSERT INTO plugin_entity_kinds (plugin_id, kind, label, update_time) VALUES ('tau.questions', 'question', '问题', 1)",
+            [],
+        )
+        .unwrap();
+        for (id, plugin, content, title, orphaned) in [
+            (5i64, "tau.questions", 20i64, "为什么会这样", None::<i64>),
+            (6, "tau.questions", 21, "", None),
+            (7, "gone", 22, "已卸载", Some(1)),
+        ] {
+            conn.execute(
+                "INSERT INTO plugin_entities (id, plugin_id, kind, key, title, content_id, create_time, update_time, orphaned_time)
+                 VALUES (?1, ?2, 'question', ?1, ?3, ?4, 1, 1, ?5)",
+                params![id, plugin, title, content, orphaned],
+            )
+            .unwrap();
+        }
+        let card_created: i64 = conn
+            .query_row("SELECT create_time FROM cards WHERE id = 1", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        for (link, from, created, at) in [
+            ("a", 5i64, card_created, 10i64),
+            ("b", 6, card_created, 20),
+            ("c", 7, card_created, 30),
+            // 编号被复用前建立的关联
+            ("d", 5, card_created - 1, 40),
+        ] {
+            conn.execute(
+                "INSERT INTO plugin_links (id, plugin_id, from_id, to_kind, to_id, to_created_at, role, sort_index, create_time)
+                 VALUES (?1, 'tau.questions', ?2, 'card', '1', ?3, ?1, 0, ?4)",
+                params![link, from, created, at],
+            )
+            .unwrap();
+        }
+        let identities = vec![EntityRefLite {
+            kind: "card".to_string(),
+            id: 1,
+        }];
+        let linked = plugin_links_of(&conn, &identities);
+        let rows: Vec<(i64, &str, Option<&str>)> = linked
+            .iter()
+            .map(|entity| {
+                (
+                    entity.id,
+                    entity.title.as_str(),
+                    entity.kind_label.as_deref(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            rows,
+            vec![
+                (6, "无标题", Some("问题")),
+                (5, "为什么会这样", Some("问题"))
+            ]
+        );
+        // 插件内容自身的脉络不列出自己
+        let own = vec![EntityRefLite {
+            kind: "plugin-entity".to_string(),
+            id: 5,
+        }];
+        conn.execute(
+            "INSERT INTO plugin_links (id, plugin_id, from_id, to_kind, to_id, to_created_at, sort_index, create_time)
+             VALUES ('e', 'tau.questions', 5, 'plugin-entity', '5', 1, 0, 50)",
+            [],
+        )
+        .unwrap();
+        assert!(plugin_links_of(&conn, &own).is_empty());
+        // 共用正文时插件内容也是一个身份，排在正文实体之后
+        let located = locate_all(&conn, &[20]);
+        assert_eq!(located[&20][0].kind, "plugin-entity");
     }
 
     #[test]
@@ -1578,40 +1682,6 @@ mod tests {
         assert_eq!(backlinks.len(), 1);
         assert_eq!(backlinks[0].source.id, 9);
         assert_eq!(backlinks[0].snippets.len(), 2);
-    }
-
-    #[test]
-    fn questions_map_target_types_and_answer_projection() {
-        let conn = main_db();
-        conn.execute(
-            "INSERT INTO questions (id, create_time, update_time, question_content, status) VALUES (11, 1, 1, '问题甲', 'not_started')",
-            [],
-        )
-        .unwrap();
-        conn.execute(
-            "INSERT INTO questions (id, create_time, update_time, question_content, status) VALUES (12, 1, 1, '问题乙', 'resolved')",
-            [],
-        )
-        .unwrap();
-        conn.execute(
-            "INSERT INTO question_link (question_id, target_type, target_id, create_time) VALUES (11, 'card', 1, 1)",
-            [],
-        )
-        .unwrap();
-        conn.execute(
-            "INSERT INTO question_link (question_id, target_type, target_id, create_time) VALUES (12, 'answer', 10, 1)",
-            [],
-        )
-        .unwrap();
-        let identities = vec![EntityRefLite {
-            kind: "card".to_string(),
-            id: 1,
-        }];
-        let questions = questions_of(&conn, &identities, &[10]);
-        let titles: Vec<&str> = questions.iter().map(|q| q.title.as_str()).collect();
-        assert_eq!(titles.len(), 2);
-        assert!(titles.contains(&"问题甲"));
-        assert!(titles.contains(&"问题乙"));
     }
 
     #[test]

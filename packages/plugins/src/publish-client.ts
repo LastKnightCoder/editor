@@ -114,8 +114,11 @@ export function createClient({ manifestUrl }: { manifestUrl: string }): DataClie
         const keys = new Set<string>();
         assert(
           typeof value.site.title === "string" &&
-            typeof value.site.description === "string" &&
-            typeof value.site.basePath === "string",
+            typeof value.site.basePath === "string" &&
+            record(value.site.fields) &&
+            Object.values(value.site.fields).every(
+              field => typeof field === "string" || typeof field === "boolean"
+            ),
           "INVALID_DATA",
           "站点数据缺失"
         );
@@ -133,7 +136,7 @@ export function createClient({ manifestUrl }: { manifestUrl: string }): DataClie
           );
           keys.add(item.key);
           assert(
-            ["home", "card", "article", "doc", "quest", "list"].includes(String(item.type)) &&
+            ["home", "card", "article", "doc", "list"].includes(String(item.type)) &&
               typeof item.title === "string",
             "INVALID_DATA",
             "数据类型或标题无效"
@@ -185,7 +188,7 @@ export function createClient({ manifestUrl }: { manifestUrl: string }): DataClie
             "搜索 key 未闭合或重复"
           );
           assert(
-            ["card", "article", "doc", "quest"].includes(String(document.type)),
+            ["card", "article", "doc"].includes(String(document.type)),
             "INVALID_DATA",
             "搜索类型错误"
           );

@@ -1,6 +1,6 @@
 // 复习热力图（GitHub 贡献图式）：每格一天，五档品牌色色阶（styles.css --heat-0..4）。
 // 数据复用 flashcard_review_stats（按本地时区 dayStarts 聚合）；连续天数由前端推导。
-// 点格在区块内展开当日详情（设计稿 docs/flashcard-mobile-ui-demos/flashcard-heatmap-design.html 画框⑥四种形态）。
+// 点格在区块内展开当日详情（四种形态）。
 
 import { useMemo, useState } from "react";
 import { REVIEW_RATINGS } from "./constants";

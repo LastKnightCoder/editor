@@ -23,6 +23,7 @@ import {
 } from "@/commands/piSession";
 import { getToolRegistryAgentTools } from "@/agent/toolRegistryAgentTools";
 import { resolveAgentSkills } from "@/agent/desktopSkillAdapter";
+import { getSkillReadme } from "@/commands/skill";
 import {
   initPiToolBridge,
   registerPiToolSessionContext,
@@ -382,6 +383,23 @@ const formatSkillsList = (skills: Skill[]) =>
   - Path: ${skill.path || "unknown"}`
     )
     .join("\n");
+
+/** 点名的磁盘 Skill（我的、关联目录、插件包）没有内联正文，注入前先读取 SKILL.md。 */
+export async function withForcedSkillReadmes(
+  skills: Skill[],
+  forcedSkills: string[]
+): Promise<Skill[]> {
+  return Promise.all(
+    skills.map(async skill =>
+      skill.readmeContent === undefined && forcedSkills.includes(skill.folderName)
+        ? {
+            ...skill,
+            readmeContent: (await getSkillReadme(skill.path).catch(() => null)) ?? undefined,
+          }
+        : skill
+    )
+  );
+}
 
 /**
  * 会话 systemPrompt = 基础 system + Skills 注入（SkillMessageContributor 的 pi 等价物）：

@@ -49,6 +49,8 @@
   --animate-float: float 3s ease-in-out infinite;
   --animate-fadeIn: fadeIn 120ms ease-out;
   --animate-collab-pulse: collab-pulse 1.8s ease-in-out infinite;
+  /* 无法计量的进度：一段色块从左到右循环扫过轨道 */
+  --animate-progress-flow: progress-flow 1.4s ease-in-out infinite;
   /* AI 洞见视图：标记依次画出、读的过程中一道光扫过正文 */
   --animate-insight-draw: insight-draw 550ms ease-out both;
   --animate-insight-line: insight-line 550ms ease-out both;
@@ -137,6 +139,15 @@
     100% {
       top: 100%;
       opacity: 0;
+    }
+  }
+
+  @keyframes progress-flow {
+    0% {
+      left: -33%;
+    }
+    100% {
+      left: 100%;
     }
   }
 

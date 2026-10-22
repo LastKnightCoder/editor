@@ -1,58 +1,92 @@
-import { expect, it } from "vitest";
-import { registerPluginSkill } from "@/app/plugins/skill-registry";
-import useSkillStore, { isSkillEnabled, getSkillInvocation } from "@/stores/useSkillStore";
-import { toSkillItems } from "@/features/skills/useSkills";
-import { skillToolsProvider } from "@/mcp/providers/skill-tools";
+import { beforeEach, expect, it, vi } from "vitest";
+import type { Skill } from "@/types";
 
-it("技能有插件来源、命名空间和正文，模式偏好保留，卸载从 AI 与页面共享列表移除", () => {
-  const definition = { id: "authoring", name: "示例", description: "编写示例", content: "# SKILL" };
-  const first = registerPluginSkill({ id: "test.one", name: "插件一" }, definition);
-  const second = registerPluginSkill({ id: "test.two", name: "插件二" }, definition);
-  try {
-    const store = useSkillStore.getState();
-    const skill = store.getSkillByFolderName("test.one:authoring")!;
-    expect(skill.readmeContent).toBe("# SKILL");
-    expect(skill.pluginName).toBe("插件一");
-    expect(toSkillItems([skill], {}, {})[0]).toMatchObject({ source: "plugin", readonly: true });
-    store.setInvocation(skill.folderName, "manual");
-    expect(getSkillInvocation(skill, useSkillStore.getState().preferences)).toBe("manual");
-    store.setEnabled(skill.folderName, false);
-    expect(isSkillEnabled(skill, useSkillStore.getState().preferences)).toBe(false);
-    first.dispose();
-    expect(store.getSkillByFolderName(skill.folderName)).toBeUndefined();
-    expect(store.getSkillByFolderName("test.two:authoring")).toBeDefined();
-  } finally {
-    first.dispose();
-    second.dispose();
-  }
+const listed = vi.hoisted(() => ({ skills: [] as Skill[] }));
+vi.mock("@/commands/skill", () => ({
+  listSkills: vi.fn(async () => listed.skills),
+  getSkillReadme: vi.fn(async () => "# 插件指南"),
+  getSkillTree: vi.fn(),
+  readSkillFile: vi.fn(),
+  runSkillScript: vi.fn(),
+  cancelSkillScript: vi.fn(),
+  createSkill: vi.fn(),
+  deleteSkill: vi.fn(),
+}));
+
+const pluginSkill: Skill = {
+  folderName: "test.writer:guide",
+  name: "写作指南",
+  description: "写作时使用",
+  path: "/plugins/test.writer/skills/guide",
+  source: "plugin",
+  pluginId: "test.writer",
+  pluginName: "写作",
+};
+const packageSkill: Skill = {
+  folderName: "test.pack:style",
+  name: "风格",
+  description: "统一风格",
+  path: "/plugins/test.pack/skills/style",
+  source: "package",
+  pluginId: "test.pack",
+  pluginName: "风格包",
+};
+
+beforeEach(() => {
+  vi.resetModules();
+  listed.skills = [pluginSkill, packageSkill];
 });
 
-it("AI 工具能读取插件正文，停用后不可再次加载", async () => {
-  useSkillStore.setState({ loaded: true });
-  const registration = registerPluginSkill(
-    { id: "test.reader", name: "阅读器" },
-    {
-      id: "guide",
-      name: "指南",
-      description: "编写时使用",
-      content: "# 插件指南",
-    }
+const load = async () => {
+  const registry = await import("@/app/plugins/skill-registry");
+  const { default: useSkillStore } = await import("@/stores/useSkillStore");
+  await useSkillStore.getState().loadSkills();
+  return { registry, useSkillStore };
+};
+
+it("插件 Skill 随插件启停显示，Skill 包安装即可用", async () => {
+  const active = new Set<string>();
+  const { registry, useSkillStore } = await load();
+  registry.setPluginSkillGate(id => active.has(id));
+  const names = () => useSkillStore.getState().skills.map(skill => skill.folderName);
+  expect(names()).toContain("test.pack:style");
+  expect(names()).not.toContain("test.writer:guide");
+  active.add("test.writer");
+  registry.notifyPluginSkillGateChanged();
+  expect(names()).toContain("test.writer:guide");
+  active.delete("test.writer");
+  registry.notifyPluginSkillGateChanged();
+  expect(names()).not.toContain("test.writer:guide");
+});
+
+it("插件包变化后重新列出 Skill", async () => {
+  const { registry, useSkillStore } = await load();
+  registry.setPluginSkillGate(() => true);
+  listed.skills = [pluginSkill];
+  registry.notifyPluginPackagesChanged();
+  await vi.waitFor(() =>
+    expect(useSkillStore.getState().getSkillByFolderName("test.pack:style")).toBeUndefined()
   );
-  const read = skillToolsProvider.tools().find(tool => tool.name === "read_skill_file")!;
-  const input = { folderName: "test.reader:guide", relativePath: "SKILL.md" };
-  const readResult = async () => {
-    const result = await read.executor(input);
-    if (!result || typeof result === "string") throw new Error("技能工具未返回结构化结果");
-    return JSON.parse(result.content);
-  };
-  try {
-    expect(await readResult()).toMatchObject({
-      success: true,
-      content: "# 插件指南",
-    });
-    useSkillStore.getState().setEnabled(input.folderName, false);
-    expect((await readResult()).success).toBe(false);
-  } finally {
-    registration.dispose();
-  }
+  expect(useSkillStore.getState().getSkillByFolderName("test.writer:guide")).toBeDefined();
+});
+
+it("插件 Skill 按磁盘目录读取，点名时注入 SKILL.md 正文", async () => {
+  const { registry, useSkillStore } = await load();
+  registry.setPluginSkillGate(() => true);
+  const { skillToolsProvider } = await import("@/mcp/providers/skill-tools");
+  const read = skillToolsProvider.tools().find(tool => tool.name === "get_skill_readme")!;
+  const result = await read.executor({ folderName: "test.writer:guide" });
+  if (!result || typeof result === "string") throw new Error("未返回结构化结果");
+  expect(JSON.parse(result.content)).toMatchObject({ success: true, content: "# 插件指南" });
+
+  const { withForcedSkillReadmes } = await import("@/services/piChatSession");
+  const skills = await withForcedSkillReadmes(useSkillStore.getState().skills, [
+    "test.writer:guide",
+  ]);
+  expect(skills.find(skill => skill.folderName === "test.writer:guide")?.readmeContent).toBe(
+    "# 插件指南"
+  );
+  expect(skills.find(skill => skill.folderName === "test.pack:style")?.readmeContent).toBe(
+    undefined
+  );
 });

@@ -195,3 +195,20 @@ export interface UpdateVLNote {
   title?: string;
   podcastId?: number | null;
 }
+
+/** 带资料新建 Notebook 的计划：笔记资源、合并为一份的摘录与 PDF 标注、各成一份的剪藏 */
+export interface NotebookNotePlan {
+  contentId: number;
+  title: string;
+  /** 来源类型，记在资源元数据里：card / article / project-item / plugin-entity 等 */
+  noteType: string;
+  originalId: number;
+}
+
+export interface NotebookPlan {
+  notes: NotebookNotePlan[];
+  excerpts: MaterialRef[];
+  clips: Array<{ ref: MaterialRef; title: string }>;
+  /** 不能带入的条目数（没有对应资源类型的内容，以及已删除的） */
+  skipped: number;
+}

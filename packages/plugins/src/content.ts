@@ -2,6 +2,10 @@ import type { PluginDefinition } from "./contract";
 import type { WhiteboardElementDefinition } from "./whiteboard";
 import type { DevelopmentPluginPackage } from "./package";
 import { createMarkdownProcessor, type MarkdownProcessor } from "@tau/markdown";
+import type {
+  ContentResourceDeclarations,
+  ContentResourceSpec,
+} from "@tau/db-schema/content-resources";
 import {
   evaluatePluginPackage,
   getPluginNodeTypes,
@@ -16,13 +20,19 @@ export class ContentPluginRegistry {
     codecs: NonNullable<PluginDefinition["editorCodecs"]>;
     whiteboardExtensions: NonNullable<PluginDefinition["whiteboardExtensions"]>;
     whiteboardElements: readonly WhiteboardElementDefinition[];
+    resources: ContentResourceDeclarations;
   } = {
     definitions: Object.freeze([]),
     extensions: Object.freeze([]),
     codecs: Object.freeze([]),
     whiteboardExtensions: Object.freeze([]),
     whiteboardElements: Object.freeze([]),
+    resources: Object.freeze({}),
   };
+  /** 插件节点的资源声明（节点类型 → 资源字段） */
+  get resources() {
+    return this.snapshot.resources;
+  }
   get whiteboardExtensions() {
     return this.snapshot.whiteboardExtensions;
   }
@@ -53,6 +63,11 @@ export class ContentPluginRegistry {
     }
     const codecs = definitions.flatMap(definition => definition.editorCodecs ?? []);
     assertUniqueEditorCodecs(codecs);
+    const resources: Record<string, readonly ContentResourceSpec[]> = {};
+    for (const definition of definitions)
+      for (const extension of definition.editorExtensions ?? [])
+        for (const element of extension.elements ?? [])
+          if (element.resources?.length) resources[element.type] = element.resources;
     this.snapshot = {
       definitions: Object.freeze([...definitions]),
       extensions: Object.freeze(
@@ -68,6 +83,7 @@ export class ContentPluginRegistry {
             definition.whiteboardExtensions?.flatMap(extension => extension.elements ?? []) ?? []
         )
       ),
+      resources: Object.freeze(resources),
     };
   }
   load(artifacts: readonly DevelopmentPluginPackage[], modules: Readonly<Record<string, unknown>>) {

@@ -63,7 +63,7 @@ export function createDesktopKit(extras: readonly AnyExtension[] = []): EditorKi
         ...extras,
       ],
       services: [desktopEditorServices],
-      // createImageExtensions 按 type 替换内置 image / image-gallery
+      // createImageExtensions 按 type 替换内置 image
       override: true,
     });
     byExtras.set(key, kit);

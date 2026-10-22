@@ -16,6 +16,10 @@ type PluginFixtureEntry = {
   repository: string;
 };
 
+/** 包内相对路径：/ 分隔，每段非空且不是 . 或 ..，不含反斜杠。 */
+export const isPackagePath = (name: string) =>
+  !name.includes("\\") && name.split("/").every(part => part && part !== "." && part !== "..");
+
 /** 仅供测试读取固定发布包，生产构建不得依赖此目录。 */
 export async function readPluginFixtures(catalogFile: string) {
   const entries: PluginFixtureEntry[] = JSON.parse(await readFile(catalogFile, "utf8"));
@@ -32,18 +36,22 @@ export async function readPluginFixtures(catalogFile: string) {
     const relative = path.relative(directory, source);
     if (!relative || relative.startsWith("..") || path.isAbsolute(relative))
       throw new Error("固定插件产物必须位于测试目录内");
-    const files = await readdir(source, { withFileTypes: true });
+    // 包内可有子目录（如 skills/<id>/SKILL.md），清单键为 / 分隔的相对路径
+    const files = await readdir(source, { withFileTypes: true, recursive: true });
     if (
-      files.some(file => !file.isFile()) ||
+      files.some(file => !file.isFile() && !file.isDirectory()) ||
       files
-        .map(file => file.name)
+        .filter(file => file.isFile())
+        .map(file =>
+          path.relative(source, path.join(file.parentPath, file.name)).split(path.sep).join("/")
+        )
         .sort()
         .join("\n") !== Object.keys(entry.files).sort().join("\n")
     )
       throw new Error("固定插件产物文件清单不匹配");
     if (!entry.files["manifest.json"]) throw new Error("固定插件缺少 manifest 摘要");
     for (const [file, digest] of Object.entries(entry.files)) {
-      if (path.basename(file) !== file || !/^[a-f0-9]{64}$/.test(digest))
+      if (!isPackagePath(file) || !/^[a-f0-9]{64}$/.test(digest))
         throw new Error("固定插件文件或摘要无效");
       if (
         createHash("sha256")

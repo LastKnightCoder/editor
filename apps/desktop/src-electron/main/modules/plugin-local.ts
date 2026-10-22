@@ -12,7 +12,7 @@ import {
   protectPluginBackendChange,
 } from "./plugin-backend";
 import { PluginUpdates } from "../services/plugin-updates";
-import { isTemplatePackage, readPluginPackage } from "../services/plugin-package";
+import { isSkillPackage, isTemplatePackage, readPluginPackage } from "../services/plugin-package";
 import { PluginContentStartup } from "../services/plugin-content-startup";
 import {
   appendContentPluginArtifact,
@@ -104,9 +104,10 @@ export default {
           updates.apply(installed.id, async (artifact, replacing) => {
             if (await contentStartup.uses(installed.id)) return false;
             if (!replacing) await preferences.set(installed.id, false);
-            // 模板不是内容插件，安装后即可在发布设置中选择。
+            // 模板与 Skill 包不是内容插件，安装后立即可用。
             const deferred =
               !isTemplatePackage(artifact) &&
+              !isSkillPackage(artifact) &&
               isContentPlugin(artifact.manifest) &&
               preferences.enabled(installed.id, false);
             if (!deferred) await stopPluginBackend(installed.id);

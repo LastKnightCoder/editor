@@ -17,6 +17,7 @@ import { PageProvider, usePage } from "@/page/PageProvider";
 import { PageHost } from "@/page/PageHost";
 import { definePage } from "@/page/definePage";
 import { useShellStore } from "@/app/shellStore";
+import type { PluginSidebarItemHandle } from "@tau/plugins";
 import "../pages/plugin-page.page";
 
 vi.mock("@/app/navSlots", () => ({
@@ -26,7 +27,8 @@ vi.mock("@/app/navSlots", () => ({
 }));
 vi.mock("@/app/WindowControls", () => ({ MacTrafficLights: () => null }));
 vi.mock("@/app/useFullScreen", () => ({ useFullScreen: () => false }));
-vi.mock("@/features/notifications/notify", () => ({ appNotify: vi.fn() }));
+const notify = vi.hoisted(() => vi.fn());
+vi.mock("@/features/notifications/notify", () => ({ appNotify: notify }));
 
 definePage({ key: "home", label: "首页", params: {}, component: () => <p>首页</p> });
 const runtimes: DesktopPluginRuntime[] = [];
@@ -281,6 +283,150 @@ describe("插件侧边栏", () => {
       expect(button()?.getAttribute("aria-current")).toBe("page");
       await act(async () => runtime.host.disable("ui"));
       expect(button()).toBeNull();
+    } finally {
+      await act(async () => {
+        await runtime?.dispose();
+        root.unmount();
+      });
+      container.remove();
+    }
+  });
+  it("角标、子项与动作行：选中、再点返回、右键菜单、命名空间拖放，回调出错只通知", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    let runtime!: DesktopPluginRuntime;
+    function App() {
+      const { navigator, state } = usePage();
+      runtime ??= new DesktopPluginRuntime({
+        workspaceId: "children",
+        navigator,
+        storage: createMemoryStorage(),
+        plugins: [],
+      });
+      return (
+        <PluginRuntimeContext.Provider value={runtime}>
+          <Sidebar resizing={false} />
+          <PageHost state={state} />
+        </PluginRuntimeContext.Provider>
+      );
+    }
+    const removeGroup = vi.fn();
+    const dropped = vi.fn();
+    const create = vi.fn(() => {
+      throw new Error("创建失败");
+    });
+    let handle!: PluginSidebarItemHandle;
+    let ctx!: PluginContext;
+    const button = (label: string) =>
+      [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+        b => b.getAttribute("aria-label") === label || b.textContent?.replace(/\d+$/, "") === label
+      );
+    const click = (label: string) =>
+      act(async () => {
+        const target = button(label);
+        if (!target) throw new Error(`缺少按钮：${label}`);
+        target.click();
+      });
+    try {
+      useShellStore.setState({ sidebarCollapsed: false, navSectionCollapsed: {} });
+      await act(async () =>
+        root.render(
+          <PageProvider initialKey="home">
+            <App />
+          </PageProvider>
+        )
+      );
+      runtimes.push(runtime);
+      await act(async () => {
+        ctx = await activate(runtime, "author.q", context => {
+          const page = context.pages.register({
+            id: "page",
+            title: "问题",
+            component: ({ params }) => <p>分组：{String(params.group ?? "全部")}</p>,
+          });
+          handle = context.sidebar.registerItem({ id: "q", title: "问题", page });
+        });
+      });
+      const revision = runtime.getRevision();
+      await act(async () =>
+        handle.update({
+          badge: 2,
+          children: [
+            {
+              id: "g1",
+              title: "编辑器",
+              params: { group: "g1" },
+              tone: "blue",
+              count: 3,
+              menu: [
+                { title: "编辑分组", run: () => {} },
+                { title: "删除分组", danger: true, run: removeGroup },
+              ],
+              onDrop: { type: "question", run: dropped },
+            },
+            { id: "g2", title: "数据库", params: { group: "g2" } },
+          ],
+          action: { title: "新建分组", run: create },
+        })
+      );
+      // 插件 update 不经运行时 publish
+      expect(runtime.getRevision()).toBe(revision);
+      expect(button("问题")?.textContent).toContain("2");
+      // 页面不在栈顶时不展开
+      expect(button("编辑器")).toBeUndefined();
+      await click("问题");
+      expect(container.textContent).toContain("分组：全部");
+      expect(button("编辑器")?.textContent).toContain("3");
+      expect(button("新建分组")).toBeDefined();
+
+      await click("编辑器");
+      expect(container.textContent).toContain("分组：g1");
+      expect(button("编辑器")?.getAttribute("aria-current")).toBe("page");
+      expect(button("问题")?.getAttribute("aria-current")).toBe("page");
+      expect(button("问题")?.className).toContain("text-accent-text");
+      // 再点选中的子项回到条目本身
+      await click("编辑器");
+      expect(container.textContent).toContain("分组：全部");
+      expect(button("编辑器")?.getAttribute("aria-current")).toBeNull();
+
+      await act(async () => {
+        button("编辑器")?.dispatchEvent(
+          new MouseEvent("contextmenu", { bubbles: true, clientX: 1, clientY: 1 })
+        );
+      });
+      const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
+        el => el.textContent === "删除分组"
+      );
+      expect(document.querySelector('[role="separator"]')).not.toBeNull();
+      await act(async () => item?.click());
+      expect(removeGroup).toHaveBeenCalledTimes(1);
+
+      const drop = (type: string) =>
+        act(async () => {
+          const data = new Map([[type, "42"]]);
+          const event = new Event("drop", { bubbles: true }) as DragEvent;
+          Object.defineProperty(event, "dataTransfer", {
+            value: { types: [...data.keys()], getData: (key: string) => data.get(key) ?? "" },
+          });
+          button("编辑器")?.dispatchEvent(event);
+        });
+      await drop(ctx.sidebar.dragType("question"));
+      expect(dropped).toHaveBeenCalledWith("42");
+      // 数据库没有声明拖放，不接收
+      expect(button("数据库")?.ondrop).toBeNull();
+
+      await click("新建分组");
+      expect(create).toHaveBeenCalled();
+      expect(notify).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "插件操作失败", body: "创建失败", tone: "danger" })
+      );
+
+      await act(async () => handle.update({ badge: null, children: [], action: null }));
+      expect(button("问题")?.textContent).toBe("问题");
+      expect(button("新建分组")).toBeUndefined();
+      await act(async () => runtime.host.disable("author.q"));
+      expect(button("问题")).toBeUndefined();
     } finally {
       await act(async () => {
         await runtime?.dispose();

@@ -1,6 +1,11 @@
 import { createElement, Suspense, type ReactElement } from "react";
+import type {
+  ContentResourceDeclarations,
+  ContentResourceSpec,
+} from "@tau/db-schema/content-resources";
 import type { Editor } from "slate";
 import type { RenderElementProps } from "slate-react";
+import { ElementFrame } from "../components/ElementFrame";
 
 import type { EditorExtension, ElementBehaviors, ElementSpec } from "../api/extension";
 import { CommandRegistry, type EditorHotkey } from "../api/command";
@@ -14,6 +19,7 @@ import { registerElementEmpty } from "./elementEmpty";
 import { registerBlockNavigationBoundaries } from "../utils/blockNavigation";
 import type { RegisteredCopy } from "../api/copy";
 import type { RegisteredDecoration, RegisteredMark } from "../api/marks";
+import type { RegisteredInputRule } from "../api/inputRules";
 import type { RegisteredLayer } from "../components/ExtensionLayers";
 
 /** 一个扩展贡献的插件：内核按扩展逐组应用，出错隔离到组（extensionGuard.ts） */
@@ -55,8 +61,27 @@ const schemaPlugin =
   };
 
 /** `lazy()` 组件加载期间的空壳：保留 attributes / children，Slate 的 DOM 映射不断 */
+const FRAMED_ATTRIBUTES = Object.freeze({}) as RenderElementProps["attributes"];
+
 const renderSpec = (spec: ElementSpec): ElementRenderer => {
   const tag = spec.kind === "inline" ? "span" : "div";
+  if (spec.frame) {
+    if (spec.kind !== "block" || !spec.isVoid)
+      throw new Error(`[editor] 元素 "${spec.type}" 的外框只适用于 void 块`);
+    const options = spec.frame === true ? {} : spec.frame;
+    return ({ attributes, element, children }) =>
+      createElement(ElementFrame, {
+        attributes,
+        element,
+        children,
+        options,
+        content: createElement(
+          Suspense,
+          { fallback: null },
+          createElement(spec.render, { attributes: FRAMED_ATTRIBUTES, element, children: null })
+        ),
+      });
+  }
   return ({ attributes, element, children }) =>
     createElement(
       Suspense,
@@ -93,11 +118,14 @@ export class ExtensionAssembly {
   readonly ingestSources: readonly IngestSource[];
   /** 本装配能渲染的元素类型（按扩展顺序） */
   readonly elementTypes: readonly string[];
+  /** 元素类型 → 资源字段声明 */
+  readonly resources: ContentResourceDeclarations;
   /** 元素类型 → 行为列表：该类型自己的在前，其他扩展经 behaviorsFor 挂上来的按扩展顺序在后 */
   readonly behaviors: ReadonlyMap<string, readonly ElementBehaviorEntry[]>;
   readonly copyPolicies: ReadonlyMap<string, RegisteredCopy>;
   readonly marks: readonly RegisteredMark[];
   readonly decorations: readonly RegisteredDecoration[];
+  readonly inputRules: readonly RegisteredInputRule[];
   readonly layers: readonly RegisteredLayer[];
   private readonly renderers = new Map<string, ElementRenderer>();
   private readonly owners = new Map<string, EditorExtension>();
@@ -184,6 +212,34 @@ export class ExtensionAssembly {
       }
     }
     this.marks = marks;
+    const inputRuleIds = new Set<string>();
+    const inlineTypes = new Set(
+      this.extensions.flatMap(extension =>
+        (extension.elements ?? []).filter(spec => spec.kind === "inline").map(spec => spec.type)
+      )
+    );
+    this.inputRules = this.extensions.flatMap(extension =>
+      (extension.inputRules ?? []).map(rule => {
+        if (!rule.id || inputRuleIds.has(rule.id)) {
+          throw new Error(`[editor] 输入规则 id 缺失或重复：${rule.id}`);
+        }
+        inputRuleIds.add(rule.id);
+        if (!rule.delimiter || [...rule.delimiter].some(char => char !== rule.delimiter[0])) {
+          throw new Error(`[editor] 输入规则 ${rule.id} 的定界符须由同一字符重复组成`);
+        }
+        if (!rule.marks === !rule.inline) {
+          throw new Error(`[editor] 输入规则 ${rule.id} 须且只能声明 marks 或 inline 之一`);
+        }
+        if (rule.inline && !inlineTypes.has(rule.inline.type)) {
+          throw new Error(`[editor] 输入规则 ${rule.id} 引用了未声明的行内元素`);
+        }
+        const keys = Object.keys(rule.marks ?? {});
+        if (rule.marks && (!keys.length || keys.some(key => !markKeys.has(key)))) {
+          throw new Error(`[editor] 输入规则 ${rule.id} 引用了未声明的标记字段`);
+        }
+        return { owner: extension.id, rule };
+      })
+    );
     const decorationIds = new Set<string>();
     this.decorations = this.extensions.flatMap(extension =>
       (extension.decorations ?? []).map(spec => {
@@ -224,6 +280,14 @@ export class ExtensionAssembly {
     this.behaviors = behaviors;
     this.copyPolicies = copyPolicies;
     this.elementTypes = [...this.renderers.keys()];
+    const resources: Record<string, readonly ContentResourceSpec[]> = {};
+    for (const type of this.elementTypes) {
+      const spec = this.owners
+        .get(type)
+        ?.elements?.find(element => element.type === type)?.resources;
+      if (spec?.length) resources[type] = spec;
+    }
+    this.resources = Object.freeze(resources);
   }
 
   /** 先把一个扩展的全部贡献收齐，中途抛错则整个扩展都不装，不留半截 */

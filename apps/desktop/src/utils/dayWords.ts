@@ -43,3 +43,13 @@ export function dayWord(ts: number, now: number): string {
   if (diff > 0 && diff <= daysLeftInWeek(now)) return WEEKDAY_CN[new Date(ts).getDay()];
   return monthDay(ts);
 }
+
+/** 过去的日期：今天 / 昨天 / N 天前（一周内）/ M月D日（跨年带年份） */
+export function pastDayWord(ts: number, now: number): string {
+  const diff = -dayDiff(ts, now);
+  if (diff <= 0) return "今天";
+  if (diff === 1) return "昨天";
+  if (diff < 7) return `${diff} 天前`;
+  const sameYear = new Date(ts).getFullYear() === new Date(now).getFullYear();
+  return `${sameYear ? "" : `${new Date(ts).getFullYear()}年`}${monthDay(ts)}`;
+}

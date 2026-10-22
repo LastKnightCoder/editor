@@ -1,3 +1,4 @@
+import { BUILTIN_CONTENT_RESOURCES } from "@tau/db-schema/content-resources";
 import { defineElement, defineExtension } from "@tau/editor/api";
 
 import { type AudioElement } from "../../types/index";
@@ -10,6 +11,7 @@ const audioExtension = defineExtension({
   elements: [
     defineElement<AudioElement>({
       type: "audio",
+      resources: BUILTIN_CONTENT_RESOURCES["audio"],
       kind: "block",
       isVoid: true,
       render: Audio,

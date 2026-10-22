@@ -16,6 +16,9 @@ import {
 } from "@tau/chat-ui";
 import { ToolCallBlock } from "@/components/ChatUI";
 import { getAssistantContentBlocks } from "@/services/assistantMessageBlocks";
+import { PluginActionsMenu } from "@/app/plugins/action-menu";
+import { IconButton } from "@tau/ui";
+import { MoreHorizontal } from "lucide-react";
 
 interface MessageItemProps {
   message: ChatSessionMessage;
@@ -27,7 +30,8 @@ interface MessageItemProps {
   regenerateLabel?: string;
   onEditMessage?: (messageIndex: number, content: string) => void;
   onCreateBranch?: (messageIndex: number) => void;
-  onToQuestion?: (messageIndex: number) => void;
+  /** 插件可见的对话里传会话 ID：消息动作行末尾出现插件对象动作的「⋯」 */
+  pluginSessionId?: string;
   onSwitchVersion?: (messageIndex: number, versionIndex: number) => void;
   messageIndex: number;
   messageMeta?: MarkdownMessageMeta;
@@ -102,7 +106,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     regenerateLabel,
     onEditMessage,
     onCreateBranch,
-    onToQuestion,
+    pluginSessionId,
     onSwitchVersion,
     messageIndex,
     messageMeta,
@@ -161,6 +165,35 @@ const MessageItem: React.FC<MessageItemProps> = memo(
 
     const rendererContext = useMemo(() => ({ markdownComponents }), [markdownComponents]);
 
+    // 消息还没保存（没有记录 ID）时不列插件动作
+    const messageIds = message.piEntryIds;
+    const renderExtraActions = useMemo(
+      () =>
+        pluginSessionId && messageIds?.length
+          ? (text: string) => (
+              <PluginActionsMenu
+                target={{
+                  kind: "chat-message",
+                  session: { kind: "chat-session", id: pluginSessionId },
+                  messageIds,
+                  role: isUser ? "user" : "assistant",
+                  text,
+                }}
+                trigger={
+                  <IconButton
+                    aria-label="更多操作"
+                    title="更多操作"
+                    className="size-[26px] [&_svg]:size-3.5"
+                  >
+                    <MoreHorizontal strokeWidth={1.75} />
+                  </IconButton>
+                }
+              />
+            )
+          : undefined,
+      [pluginSessionId, messageIds, isUser]
+    );
+
     return (
       <>
         <MessageView
@@ -175,7 +208,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
           regenerateLabel={regenerateLabel}
           onEditUserMessage={onEditMessage}
           onCreateBranch={onCreateBranch}
-          onToQuestion={onToQuestion}
+          renderExtraActions={renderExtraActions}
           {...(versions ? { versions } : {})}
           onSwitchVersion={onSwitchVersion}
           onOpenFile={file => void openFileInExplorer(file)}

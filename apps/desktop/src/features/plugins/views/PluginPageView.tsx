@@ -70,14 +70,16 @@ export function PluginPageView() {
 function PluginPageContent({ page }: { page: RegisteredPluginPage }) {
   const runtime = useDesktopPlugins();
   const params = usePageParams();
+  const { registerOverlayDismiss } = usePage();
   const scope = useMemo(
     () =>
       createPluginPageContext({
         params,
         signal: page.context.signal,
         isAvailable: () => runtime?.getPage(page.context.pluginId, page.definition.id) === page,
+        registerOverlayDismiss,
       }),
-    [page, runtime, params]
+    [page, runtime, params, registerOverlayDismiss]
   );
   useLayoutEffect(() => scope.mount(), [scope]);
   const Component = page.definition.component;

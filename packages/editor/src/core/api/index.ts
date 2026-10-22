@@ -11,6 +11,7 @@ export {
   type EditorExtension,
   type ExtensionDefinition,
   type ElementSpec,
+  type ElementFrame,
   type ElementEmptyContext,
   type ElementBehaviors,
   type ElementRenderProps,
@@ -19,12 +20,25 @@ export {
 export type { AnyExtension } from "./legacy";
 export type { CopyDecision, CopyContext, ElementCopy } from "./copy";
 export type { MarkSpec, MarkRenderProps, DecorationSpec } from "./marks";
+export type { InputRule, MarkInputRule, InlineInputRule } from "./inputRules";
 export { useToolbarState } from "./toolbar";
 export { default as ToolbarSubmenu } from "../components/HoveringToolbar/FloatingSubmenu";
 export { Tooltip as EditorTooltip } from "../ui/Tooltip";
 export { CaretRight as EditorCaretRight } from "../ui/CaretRight";
 export { getParagraphShortcutEntry } from "../utils/paragraphShortcut";
 export type { IngestContext, ElementIngestSpec } from "./ingest";
+export { getElementResources } from "./resources";
+export {
+  ELEMENT_SELECTED_OUTLINE_CLASS,
+  useElementFrame,
+  type ElementFrameState,
+} from "../components/ElementFrame";
+export { isOverlayTarget, isTextTarget, shouldIgnoreBlockKey } from "../utils/blockKeyTarget";
+export type {
+  ContentResourceSpec,
+  ContentResourceKind,
+  ContentResourceDeclarations,
+} from "@tau/db-schema/content-resources";
 export {
   CommandRegistry,
   createCommandDispatcher,

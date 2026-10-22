@@ -1,9 +1,9 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   ArrowUpCircle,
   Check,
   Download,
-  FlaskConical,
   Lock,
   MoreHorizontal,
   Package,
@@ -13,21 +13,24 @@ import {
 import { Button, Checkbox, ConfirmDialog, IconButton, Menu, cn } from "@tau/ui";
 import { useDesktopPlugins } from "@/app/plugins/context";
 import { relaunchForPlugins } from "@/commands/plugin-local";
-import { SOURCE_LABELS, type InstallState, type PluginSourceKind } from "../model";
-import { useInstallRelease } from "../queries";
+import type { PluginBackendManifest } from "@tau/plugins/package";
+import {
+  SOURCE_LABELS,
+  SYSTEM_ACCESS_LABELS,
+  readSkipInstallNotice,
+  saveSkipInstallNotice,
+  type InstallState,
+  type PluginSourceKind,
+} from "../model";
+import { pluginReleaseQuery, useInstallRelease } from "../queries";
 
 const CHIP = "text-tau-sm inline-flex h-5 items-center gap-1 whitespace-nowrap rounded-full px-2";
 
 export function SourceChip({ source }: { source: PluginSourceKind }) {
-  const Icon = { center: Store, zip: Package, development: FlaskConical, builtin: null }[source];
+  const Icon = { center: Store, zip: Package }[source];
   return (
-    <span
-      className={cn(
-        CHIP,
-        source === "development" ? "bg-warn-soft text-warn" : "bg-hover text-ink-2"
-      )}
-    >
-      {Icon && <Icon className="size-3" strokeWidth={1.75} />}
+    <span className={cn(CHIP, "bg-hover text-ink-2")}>
+      <Icon className="size-3" strokeWidth={1.75} />
       {SOURCE_LABELS[source]}
     </span>
   );
@@ -42,7 +45,15 @@ export function StagedChip({ version }: { version?: string }) {
   );
 }
 
-/** 安装后默认停用；只有需要更新启动快照的变更显示重启提示。 */
+const INSTALL_NOTICE =
+  "插件在完整应用环境中运行，可以读取和修改你的笔记数据。插件中心审核功能与来源，但不保证没有缺陷，请只安装你信任的插件。安装后默认停用，请到「已安装」中主动启用。普通插件即时生效，编辑器和白板内容插件启用后需重启应用。";
+
+type InstallConfirm = { kind: "plain" } | { kind: "backend"; backend: PluginBackendManifest };
+
+/**
+ * 安装后默认停用；只有需要更新启动快照的变更显示重启提示。
+ * 安装前先读发布记录判定是否含后台：含后台每次提示，普通插件可勾选不再提示。
+ */
 export function InstallButton({
   state,
   name,
@@ -54,7 +65,11 @@ export function InstallButton({
 }) {
   const runtime = useDesktopPlugins();
   const install = useInstallRelease(runtime);
+  const client = useQueryClient();
+  const [confirm, setConfirm] = useState<InstallConfirm>({ kind: "plain" });
   const [confirming, setConfirming] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [skipNotice, setSkipNotice] = useState(false);
   if (state.kind === "staged")
     return (
       <span className="flex items-center gap-1">
@@ -84,19 +99,29 @@ export function InstallButton({
     );
   const update = state.kind === "update";
   const start = () => install.mutate(state.releaseId);
+  const request = async () => {
+    setChecking(true);
+    // 读不到发布记录时无法确认是否含后台，按普通提示处理，安装本身会在主进程再校验。
+    const release = await client.fetchQuery(pluginReleaseQuery(state.releaseId)).catch(() => null);
+    setChecking(false);
+    const backend = release?.content.manifest.backend;
+    if (!backend && release && readSkipInstallNotice()) return start();
+    setConfirm(backend ? { kind: "backend", backend } : { kind: "plain" });
+    setConfirming(true);
+  };
   return (
     <span className="flex flex-col items-end gap-1">
       <Button
         variant={update ? "soft" : "secondary"}
         size="sm"
         icon={update ? ArrowUpCircle : Download}
-        loading={install.isPending}
-        loadingText="下载校验中"
+        loading={install.isPending || checking}
+        loadingText={checking ? "读取中" : "下载校验中"}
         aria-label={update ? `更新 ${name} 到 ${state.version}` : `安装 ${name}`}
         onClick={event => {
           event.stopPropagation();
           if (update) start();
-          else setConfirming(true);
+          else void request();
         }}
       >
         {update ? `更新到 ${state.version}` : "安装"}
@@ -108,11 +133,43 @@ export function InstallButton({
       )}
       <ConfirmDialog
         open={confirming}
-        onOpenChange={setConfirming}
+        onOpenChange={open => {
+          setConfirming(open);
+          if (!open) setSkipNotice(false);
+        }}
+        danger={confirm.kind === "backend"}
         title={`安装「${name}」${state.version}？`}
-        description="插件在完整应用环境中运行，可以读取和修改你的笔记数据。插件中心审核功能与来源，但不保证没有缺陷，请只安装你信任的插件。安装后默认停用，请到「已安装」中主动启用。普通插件即时生效，编辑器和白板内容插件启用后需重启应用。"
+        description={
+          confirm.kind === "backend" ? (
+            <div className="flex flex-col gap-3">
+              <p>
+                此插件包含本机后台代码，可使用当前用户的系统权限。独立进程不限制它对文件和网络的访问，插件中心已审核此版本的系统能力，但不保证没有缺陷。
+              </p>
+              <p className="text-ink-1">{confirm.backend.reason}</p>
+              <p>
+                系统用途：
+                {confirm.backend.systemAccess
+                  .map(value => SYSTEM_ACCESS_LABELS[value])
+                  .join("、") || "系统信息与计算"}
+              </p>
+              <p>{INSTALL_NOTICE}</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <p>{INSTALL_NOTICE}</p>
+              <Checkbox
+                checked={skipNotice}
+                onChange={event => setSkipNotice(event.target.checked)}
+                label="以后安装不再提示（含后台的插件仍会提示，可在插件页「⋯」中恢复）"
+              />
+            </div>
+          )
+        }
         confirmText="安装"
-        onConfirm={start}
+        onConfirm={() => {
+          if (confirm.kind === "plain" && skipNotice) saveSkipInstallNotice(true);
+          start();
+        }}
       />
     </span>
   );

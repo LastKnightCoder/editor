@@ -36,7 +36,7 @@ interface RawRow {
 }
 
 const EMPTY: ContentInsightsResult = { lead: "", marks: [], asks: [], candidates: 0 };
-const STATUSES: ReadonlySet<string> = new Set(["open", "linked", "questioned", "dismissed"]);
+const STATUSES: ReadonlySet<string> = new Set(["open", "linked", "dismissed"]);
 
 function parseResult(raw: string): ContentInsightsResult {
   try {

@@ -1,7 +1,7 @@
 // 移动端脉络的类型：与 Rust entity_context.rs 的 serde 输出（camelCase）一一对应。
 // 分区口径对齐桌面端 types/entity-context.ts，裁剪差异：无「相关」与「被使用 · 白板」。
 
-export type EntityKind = "card" | "article" | "project-item" | "diary-moment";
+export type EntityKind = "card" | "article" | "project-item" | "diary-moment" | "plugin-entity";
 
 /** 日记条目的定位（跳转到当天的该片段）；其余类型由前端按 kind 映射目标页 */
 export interface DiaryLocator {
@@ -16,6 +16,8 @@ export interface ContextEntity {
   title: string;
   meta: string;
   diary: DiaryLocator | null;
+  /** 插件内容的类型名（插件声明，随库保存）；其余类型为空 */
+  kindLabel?: string | null;
 }
 
 export interface ContextLink {
@@ -32,12 +34,6 @@ export interface RefSnippet {
 export interface ContextBacklink {
   source: ContextEntity;
   snippets: RefSnippet[];
-}
-
-export interface ContextQuestion {
-  id: number;
-  title: string;
-  status: string;
 }
 
 /** 谱系条目：kind 覆盖实体与外部材料（摘录、PDF 标注、对话、闪卡、问题、Notebook 等） */
@@ -71,7 +67,8 @@ export interface EntityContext {
   projections: ContextEntity[];
   backlinks: ContextBacklink[];
   backlinkTotal: number;
-  questions: ContextQuestion[];
+  /** 哪些插件内容关联了我（或共用正文的身份），按最近关联排序；移动端只读展示 */
+  pluginLinks: ContextEntity[];
   sources: ContextLineageItem[];
   derived: ContextLineageItem[];
   notebookProjections: ContextLineageItem[];

@@ -1,0 +1,30 @@
+/*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
+@layer theme {
+  :root, :host {
+    --cb-spacing: 0.25rem;
+  }
+}
+@layer utilities {
+  .cb\:relative {
+    position: relative;
+  }
+  .cb\:cursor-pointer {
+    cursor: pointer;
+  }
+  .cb\:p-4 {
+    padding: calc(var(--cb-spacing) * 4);
+  }
+  .cb\:px-\[1em\] {
+    padding-inline: 1em;
+  }
+  .cb\:py-\[0\.875em\] {
+    padding-block: 0.875em;
+  }
+  .cb\:text-tau-body {
+    font-size: var(--tau-text-body);
+    line-height: var(--tw-leading, 1.65);
+  }
+  .cb\:text-danger {
+    color: var(--tau-danger);
+  }
+}

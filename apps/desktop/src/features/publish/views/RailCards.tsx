@@ -297,6 +297,8 @@ export function ActionCard({
 
   if (run.kind === "running") {
     const { progress } = run;
+    // 快照推送是一次性的，没有中间进度，用流动条代替百分比
+    const pushing = progress?.phase === "pushing";
     const percent =
       progress && progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
     return (
@@ -306,17 +308,23 @@ export function ActionCard({
           <PanelNote className="truncate">{hint}</PanelNote>
         </PanelTitle>
         <Steps phase={progress?.phase ?? null} />
-        <div className="bg-track h-1.5 overflow-hidden rounded-full">
-          <i
-            className="bg-accent block h-full rounded-full transition-[width] duration-300"
-            style={{ width: `${percent}%` }}
-          />
+        <div className="bg-track relative h-1.5 overflow-hidden rounded-full">
+          {pushing ? (
+            <i className="bg-accent animate-progress-flow absolute inset-y-0 block w-1/3 rounded-full" />
+          ) : (
+            <i
+              className="bg-accent block h-full rounded-full transition-[width] duration-300"
+              style={{ width: `${percent}%` }}
+            />
+          )}
         </div>
         <div className="text-tau-micro text-ink-3 mt-2 flex justify-between gap-3">
           <span className="font-tau-mono text-ink-2 truncate">
-            {progress?.currentFile ?? (progress ? "" : "正在准备模板…")}
+            {pushing
+              ? `推送 ${progress.total} 个文件`
+              : (progress?.currentFile ?? (progress ? "" : "正在准备模板…"))}
           </span>
-          {progress && progress.total > 0 && (
+          {!pushing && progress && progress.total > 0 && (
             <span className="font-tau-mono flex-none">
               {progress.current} / {progress.total}
             </span>
@@ -480,10 +488,10 @@ function SiteRow({ label, value, mono }: { label: string; value: string; mono?: 
 }
 
 export function SiteCard({ config, onOpen }: { config: PublishConfig; onOpen: () => void }) {
-  const { publish } = config;
   const rows: { label: string; value: string; mono?: boolean }[] = [
     { label: "发布目标", value: config.providerLabel },
     { label: "访问路径", value: config.basePath, mono: true },
+    { label: "博客模板", value: config.templateName },
   ];
 
   return (
@@ -500,7 +508,6 @@ export function SiteCard({ config, onOpen }: { config: PublishConfig; onOpen: ()
         {rows.map(row => (
           <SiteRow key={row.label} {...row} />
         ))}
-        <SiteRow label="站点描述" value={publish.site.description} />
       </div>
     </RailSection>
   );

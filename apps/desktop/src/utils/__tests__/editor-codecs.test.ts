@@ -27,7 +27,6 @@ describe("内置扩展 codec 覆盖", () => {
       "blockquote",
       "image",
       "inline-image",
-      "image-gallery",
       "block-math",
       "inline-math",
       "bulleted-list",
@@ -194,7 +193,7 @@ describe("导出：块级", () => {
     ).toBe("---\ntitle: t\n---");
   });
 
-  it("image / inline-image / image-gallery", () => {
+  it("image / inline-image", () => {
     expect(
       exportOne({
         type: "image",
@@ -220,13 +219,6 @@ describe("导出：块级", () => {
         children: [{ type: "formatted", text: "" }],
       })
     ).toBe("![](a.png)");
-    expect(
-      exportOne({
-        type: "image-gallery",
-        images: [{ url: "1.png" }, { url: "2.png" }],
-        children: [{ type: "formatted", text: "" }],
-      })
-    ).toBe("![](1.png)\n![](2.png)");
   });
 
   it("block-math / inline-math", () => {

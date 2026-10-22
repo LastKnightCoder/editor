@@ -10,6 +10,8 @@ import {
   type ContentNode,
   type SharedContent,
 } from "./protocol";
+import { readDocumentResources } from "./resources";
+import { contentResourceValues, forEachContentResource } from "@tau/db-schema/content-resources";
 
 export const SOURCE_FIELDS: Record<string, string[]> = {
   "code-block": ["code"],
@@ -30,15 +32,6 @@ export const SOURCE_FIELDS: Record<string, string[]> = {
 // 其余本地实体块整体剥离为占位符，原始数据保存在创建者设备。
 export const PRIVATE_BLOCKS = new Set(["whiteboard", "database", "project-card-list"]);
 export const LOCAL_FIELDS = new Set(["activeKey", "isFold", "compiledFrom", "compiledAt", "svg"]);
-export const RESOURCE_FIELDS = new Set([
-  "url",
-  "src",
-  "filePath",
-  "poster",
-  "bannerBg",
-  "previewUrl",
-  "localFilePath",
-]);
 
 export const getBody = (doc: Y.Doc) => doc.get("content", Y.XmlText);
 export const getFields = (doc: Y.Doc) => doc.getMap<Y.Map<unknown>>("fields");
@@ -335,15 +328,14 @@ export function validateDocument(doc: Y.Doc, maxBytes = 8 * 1024 * 1024) {
     throw new CollaborationError("INVALID_CONTENT", "协作文档超过大小限制");
   const article = readSharedContent(doc);
   if (article.title.length > 500) throw new CollaborationError("INVALID_CONTENT", "共享名称过长");
+  const unsafe = () =>
+    new CollaborationError("INVALID_CONTENT", "共享内容不能包含本地路径或私有资源地址");
+  if (!isSafeResource(article.bannerBg, "bannerBg")) throw unsafe();
   let count = 0;
-  const visit = (value: unknown, depth: number, key = "") => {
+  const visit = (value: unknown, depth: number) => {
     if (depth > 64 || ++count > 150000)
       throw new CollaborationError("INVALID_CONTENT", "文档结构超过限制");
-    if (typeof value === "string") {
-      if (RESOURCE_FIELDS.has(key) && !isSafeResource(value, key))
-        throw new CollaborationError("INVALID_CONTENT", "共享内容不能包含本地路径或私有资源地址");
-      return;
-    }
+    if (typeof value === "string") return;
     if (Array.isArray(value)) {
       value.forEach(entry => visit(entry, depth + 1));
       return;
@@ -355,10 +347,14 @@ export function validateDocument(doc: Y.Doc, maxBytes = 8 * 1024 * 1024) {
       for (const [name, entry] of Object.entries(object)) {
         if (UNSAFE_KEYS.includes(name))
           throw new CollaborationError("INVALID_CONTENT", "文档包含无效属性");
-        visit(entry, depth + 1, name);
+        visit(entry, depth + 1);
       }
     }
   };
   visit(article, 0);
+  // 资源只按文档携带的声明检查：未声明的字段原样同步，由节点的声明方负责
+  forEachContentResource(article.content, readDocumentResources(doc, true), ({ slot }) => {
+    for (const value of contentResourceValues(slot)) if (!isSafeResource(value)) throw unsafe();
+  });
   return article;
 }

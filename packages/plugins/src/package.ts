@@ -4,6 +4,7 @@ import { comparePluginVersions } from "./version.ts";
 import { readCatalogFields, type PluginCategory } from "./categories.ts";
 import { readPermissionsField, type PluginPermission } from "./permissions.ts";
 import { validateBackendManifest, type PluginBackendManifest } from "./backend-manifest.ts";
+import { readSkillFiles, readSkillsField } from "./skills.ts";
 export {
   validateBackendManifest,
   PLUGIN_SYSTEM_ACCESS,
@@ -55,6 +56,8 @@ export interface PluginManifest {
   keywords?: readonly string[];
   /** 可申请的业务数据权限上限；实际授权由用户在调用时决定。 */
   permissions?: readonly PluginPermission[];
+  /** 包内 `skills/<id>/` 目录，随插件启停。 */
+  skills?: readonly string[];
   integrity: Record<string, string>;
 }
 
@@ -126,6 +129,12 @@ export function validatePluginManifest(
       throw new Error("插件产物缺少有效的完整性摘要");
     integrity[name] = hash;
   }
+  const skills = readSkillsField(item.skills);
+  if (skills)
+    Object.assign(
+      integrity,
+      readSkillFiles(skills, (item.integrity ?? {}) as Record<string, unknown>)
+    );
   return Object.freeze({
     formatVersion: item.formatVersion,
     id: item.id,
@@ -141,6 +150,7 @@ export function validatePluginManifest(
     ...(item.whiteboard === true ? { whiteboard: true as const } : {}),
     ...catalog,
     ...permissions,
+    ...(skills ? { skills } : {}),
     integrity: Object.freeze(integrity),
     ...(styles === undefined ? {} : { styles }),
   });

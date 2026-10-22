@@ -22,7 +22,7 @@ function contextOf(overrides: Partial<EntityContext> = {}): EntityContext {
     projections: [],
     backlinks: [],
     backlinkTotal: 0,
-    questions: [],
+    pluginLinks: [],
     sources: [],
     derived: [],
     notebookProjections: [],

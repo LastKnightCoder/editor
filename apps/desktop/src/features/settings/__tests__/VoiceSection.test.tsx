@@ -107,7 +107,10 @@ it("语音合成：无服务商时显示空态，配置后展示多服务商面�
       },
     }));
   });
+  // 插件未启用的服务商照常显示，配置保留，可在此删除
   expect(text()).toContain("Minimax");
+  expect(text()).toContain("插件设置暂不可用");
+  expect(text()).toContain("删除服务商");
   expect(text()).toContain("插件");
   expect(text()).toContain("模型");
   expect(text()).toContain("当前服务");

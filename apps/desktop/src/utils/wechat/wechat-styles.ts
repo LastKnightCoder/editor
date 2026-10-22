@@ -3,7 +3,10 @@
  * Strictly based on editor extensions styles from packages/editor/src/extensions/
  */
 
-import { INLINE_PALETTE, exportHighlightColors } from "@tau/editor/extensions/text-formatting/palette";
+import {
+  INLINE_PALETTE,
+  exportHighlightColors,
+} from "@tau/editor/extensions/text-formatting/palette";
 
 /** 高亮 / 下划线色取编辑器统一行内色板（导出为浅色版） */
 const inlinePaletteHighlightStyles = INLINE_PALETTE.map(({ id }) => {
@@ -244,43 +247,6 @@ export const wechatBaseStyles = `
   max-width: 100%;
   height: auto;
   border-radius: 4px;
-}
-
-.imageflow-layer1 {
-  margin: 20px 0 10px;
-  overflow: hidden;
-}
-
-.imageflow-layer2 {
-  display: flex;
-  flex-wrap: nowrap;
-  overflow-x: scroll;
-}
-
-.imageflow-layer3 {
-  flex: 0 0 100%;
-}
-
-.gallery-image {
-  margin: 0 auto;
-  width: 100%;
-  height: 200px;
-  object-fit: contain;
-  display: block;
-  border-radius: 8px;
-}
-
-.imageflow-caption {
-  text-align: center;
-  margin: 0;
-  padding: 0;
-}
-
-.imageflow-caption span {
-  display: block;
-  color: #888;
-  font-size: 14px;
-  line-height: 1.8em;
 }
 
 /* ========== Bulleted List (from bulleted-list/components/BulletedList) ========== */

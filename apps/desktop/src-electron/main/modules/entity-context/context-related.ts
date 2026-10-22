@@ -2,7 +2,7 @@
  * 脉络「相关」（KL-057）：语义相近、但还没有任何关系的卡片、文章、项目文档。纯本地近邻，不调模型。
  *
  * 1. 实体的节向量均值查前 NEIGHBOR_K 个近邻（与知识地图 neighborsOf 同一口径）；
- * 2. 排除已有关系：自身与共用正文、卡片双向链接、引用了 / 被引用、谱系两端、同一问题的材料；
+ * 2. 排除已有关系：自身与共用正文、正文显式连接、引用了 / 被引用、谱系两端；
  * 3. 相似度高于当前库「随机对 p95」才算相关（阈值按嵌入指纹存 index_meta，换模型自动重算）；
  * 4. 最多 RELATED_LIMIT 条，带 AI 要点（有元信息时）。不计入元信息行的关联数（KL-015）。
  */
@@ -27,11 +27,6 @@ const RESAMPLE_RATIO = 2;
 /** 参与「相关」的向量类型（与知识地图一致：我的思考） */
 const RELATED_TYPES = ["card", "article", "project-item"] as const;
 const TYPE_SQL = RELATED_TYPES.map(type => `'${type}'`).join(",");
-const QUESTION_KIND: Record<string, EntityRef["kind"]> = {
-  card: "card",
-  article: "article",
-  project_item: "project-item",
-};
 
 const marks = (values: unknown[]) => values.map(() => "?").join(",");
 
@@ -250,32 +245,6 @@ export function relatedExclusions(
     }
   }
 
-  // 同一问题的其他材料
-  const targetClauses: string[] = [];
-  const params: Array<string | number> = [];
-  for (const ref of identities) {
-    const type = Object.keys(QUESTION_KIND).find(key => QUESTION_KIND[key] === ref.kind);
-    if (!type) continue;
-    targetClauses.push(`(target_type = ? AND target_id = ?)`);
-    params.push(type, ref.id);
-  }
-  if (contentIds.length) {
-    targetClauses.push(`(target_type = 'answer' AND target_id IN (${marks(contentIds)}))`);
-    params.push(...contentIds);
-  }
-  if (targetClauses.length) {
-    const materials = mainDb
-      .prepare(
-        `SELECT target_type, target_id FROM question_link WHERE question_id IN (
-           SELECT question_id FROM question_link WHERE ${targetClauses.join(" OR ")})`
-      )
-      .all(...params) as Array<{ target_type: string; target_id: number }>;
-    for (const row of materials) {
-      if (row.target_type === "answer") contents.add(row.target_id);
-      else if (QUESTION_KIND[row.target_type])
-        addKey(QUESTION_KIND[row.target_type], row.target_id);
-    }
-  }
   return { keys, contents };
 }
 

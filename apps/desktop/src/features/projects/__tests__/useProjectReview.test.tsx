@@ -10,7 +10,6 @@ const mocks = vi.hoisted(() => ({
   markSeen: vi.fn(),
   addChild: vi.fn(async () => [{ id: 11, children: [99] }, { id: 99 }]),
   publish: vi.fn(),
-  capture: vi.fn(),
   openEntity: vi.fn(async () => {}),
   push: vi.fn(),
   dismiss: null as null | (() => void),
@@ -35,7 +34,7 @@ vi.mock("@/page/PageProvider", () => ({
     mocks.dismiss = active ? dismiss : null;
   },
 }));
-vi.mock("@/services/question-capture", () => ({ requestQuestionCapture: mocks.capture }));
+vi.mock("@/services/insight-chat", () => ({ discussInsight: vi.fn(async () => true) }));
 vi.mock("@/services/open-content", () => ({ openEntity: mocks.openEntity }));
 
 import { ProjectReviewContext, ProjectReviewSlot } from "../review/ProjectReviewContext";
@@ -169,17 +168,16 @@ describe("项目回顾", () => {
     expect(mocks.setStatus).toHaveBeenCalledWith({ nodeId: 4, itemId: "p1", status: "linked" });
   });
 
-  it("还薄记为问题（来源是项目）；Esc 先关气泡再收起", async () => {
+  it("还薄「去补写」打开那一支并收起回顾；Esc 先关气泡再收起", async () => {
     mocks.data = growth(200);
     await render();
     await click(button("回顾"));
     await click(host.querySelector('[data-review-mark="p2"]'));
-    await click(button("记为问题"));
-    expect(mocks.capture).toHaveBeenCalledWith({
-      source: { kind: "none" },
-      sourceLabel: "项目：浏览器渲染",
-      defaultTitle: "只讲了工具",
-    });
+    await click(button("去补写"));
+    expect(mocks.setStatus).toHaveBeenCalledWith({ nodeId: 4, itemId: "p2", status: "linked" });
+    expect(mocks.openEntity).toHaveBeenCalledWith({ kind: "project-item", id: 12 });
+    expect(host.querySelector("[data-review-mark]")).toBeNull();
+    await click(button("回顾"));
     await click(host.querySelector('[data-review-mark="p1"]'));
     await act(async () => mocks.dismiss?.());
     expect(document.querySelector("[data-review-popover]")).toBeNull();

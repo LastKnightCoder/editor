@@ -64,7 +64,7 @@ describe("content_ai_insights", () => {
       100
     );
     expect(ContentAiInsightsTable.setStatus(db, contentId, "m1", "dismissed")).toBe(true);
-    expect(ContentAiInsightsTable.setStatus(db, contentId, "q1", "questioned")).toBe(true);
+    expect(ContentAiInsightsTable.setStatus(db, contentId, "q1", "linked")).toBe(true);
     expect(ContentAiInsightsTable.setStatus(db, contentId, "nope", "linked")).toBe(false);
     expect(ContentAiInsightsTable.get(db, contentId)!.updateTime).toBe(100);
 
@@ -82,7 +82,7 @@ describe("content_ai_insights", () => {
       ["强制同步布局", "dismissed"],
       ["关键渲染路径", "open"],
     ]);
-    expect(row.result.asks[0].status).toBe("questioned");
+    expect(row.result.asks[0].status).toBe("linked");
     expect(row).toMatchObject({ createTime: 100, updateTime: 200, textDigest: "d2", model: "p/n" });
   });
 

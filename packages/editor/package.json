@@ -161,6 +161,7 @@
     "vite": "^5.0.0"
   },
   "dependencies": {
+    "@tau/db-schema": "workspace:*",
     "@tau/markdown": "workspace:*",
     "@tau/shared": "workspace:*",
     "@tau/ui": "workspace:*",
@@ -183,7 +184,6 @@
     "yaml": "^2.7.1",
     "katex": "^0.16.25",
     "motion": "12.26.2",
-    "swiper": "^11.0.3",
     "zustand": "^4.3.8",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",

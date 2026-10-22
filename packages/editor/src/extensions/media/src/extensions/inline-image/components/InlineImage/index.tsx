@@ -16,7 +16,7 @@ import {
   MEDIA_CORNER_POSITION_CLASS,
   MEDIA_SELECTED_OUTLINE_CLASS,
 } from "../../../../utils/mediaFrameClasses";
-import { shouldIgnoreBlockKey } from "../../../../utils/keyboardTarget";
+import { shouldIgnoreBlockKey } from "@tau/editor/api";
 
 interface InlineImageProps extends RenderElementProps {
   element: InlineImageElement;

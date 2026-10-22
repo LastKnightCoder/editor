@@ -1,35 +1,39 @@
-# AI 开发指南
+# AI 编程助手指引
 
-- 先阅读 DEVELOPMENT.md、API.md、manifest.json 和 src/index.tsx，理解现有示例后再修改。
-- 定义文档节点前阅读 EDITOR.md，使用静态 editorExtensions 并声明 manifest.editor；渲染代码须能在浏览器运行，不为移动端或网页另写渲染组件。
-- 本模板使用 SDK 0.29.0、Tau 0.59.0。SDK 版本不代表客户端已实现全部能力，领域接口还需对应客户端构建。白板扩展见 WHITEBOARD.md；同步存储插件见 SYNC.md；编译与转换接口见 SERVICES.md。静态组件通过独立 usePluginServices 获取可选服务；行内源码使用 useInlineSource，不改变 useSourceBlock 的职责。
-- 页面上下文见 API.md（SDK 0.29.0）：页面组件在 effect 中通过 pageContext.register 提供任意 JSON，形状由作者决定，清理时 dispose；现有 get_current_context 只读取当前实例，操作另用 context.mcp.register。
-- 发送通知先阅读 NOTIFICATIONS.md（SDK 0.28.0）：使用 context.notifications.send，支持应用内、独立窗口与按来源窗口焦点自动分流；通知随插件生命周期清理，不直接调用 @tau/ui notify 或系统原生 Notification。
-- SDK 0.24.0 已移除 services.typst；Typst 编译由独立插件实现，不调用旧宿主接口。
-- 业务数据、权限、正文组件、插件实体与宿主动作见 API.md；SDK 0.25.0 的 context.storage 随笔记库同步，单个值不超过 1 MB。修改和删除业务数据时使用读取所得 revision，正确处理拒绝授权与冲突。
-- 本机后台先阅读 BACKEND.md；SDK 0.25.0 提供格式 2 双入口与 @tau/plugins/backend，需对应客户端及本机执行授权。普通插件仍用格式 1，不在渲染入口导入后台代码。
-- SDK 0.23.0 已移除 ffmpeg.probe，不再调用或声明该方法；ffmpeg.run 保留，视频页面信息使用 services.videoExtractor.probe，不能用它探测本地媒体。
-- 博客发布提供方先阅读 PUBLISH.md，使用 context.publish 和 publishConfig；独立站点的数据接入见 PUBLISH-DATA.md，不在普通插件中打包 SDK 根入口运行时。
-- 自定义 AI 功能先阅读 AI.md，通过 ai.features 声明，由用户分配模型并授权，经 context.ai 调用。闪卡制作直接使用 FLASHCARDS.md 的宿主能力与应用模型；两种方式都不索取用户的 API Key，处理取消、未授权和额度不足，不循环重试。
-- 申请应用已有 AI 分配先阅读 AI.md（SDK 0.27.0）：manifest 声明 ai:<能力名>，调用 context.ai.requestCapability 获取 chat/stream 客户端，无需声明 ai.features 或另配模型；全部内置大模型功能分配已开放，按能力分别授权，用量与额度归插件。
-- 创建闪卡、卡组前阅读 FLASHCARDS.md：直接读写需声明并申请 flashcards:read/write；openCreate 只允许用户操作触发，窗口内由用户确认保存。AI 制卡内部申请 ai:flashcardGeneration，复用上述通用机制；现有正文来源使用 contentRef，不解析或传入数字 ID。
-- 提供 AI 工具前阅读 MCP.md，通过 context.mcp.register 注册本地 tools 或外部 transport；需要 SDK 0.13.0 和对应客户端。
-- 聊天自定义工具展示需 SDK 0.15.0 及支持该能力的客户端；在 async activate 内 await context.chat.registerToolRenderer，只绑定本插件 MCP 原始工具名，并检查客户端能力。
-- README.md 写给第一次使用插件的用户：能做什么、怎么开始、常见问题；不写开发过程、内部实现或迁移历史。它随 ZIP 打包，manifest.description 填一句话简介。
-- CHANGELOG.md 同样写给用户，显示在插件详情的「更新日志」，也会作为 GitHub Release 说明：每版用「## 版本号」开头，逐条写用户能感知的变化（能做什么了、修好了什么、要注意什么），用界面上的叫法；不写 SDK、构建、仓库、CI、内部模块或字段。没有可感知变化的版本只写「维护更新，使用上没有变化」。
-- 语音合成和音色复刻先阅读 TTS.md；多账号配置通过 ttsConfig 保存，上传参考音频使用 context.upload.uploadRemote 并传递取消信号。
-- 接入视频来源（视频网站、自建服务器等）先阅读 VIDEO.md；使用 context.video 注册提供方，只返回播放源描述，不下载视频或启动外部程序；引用须可长期保存，不放直链与凭据。需要 SDK 0.22.0。
-- 图片生成与编辑先阅读 IMAGES.md；使用 context.images 注册提供方，target:images 配置视图通过 imageConfig 保存当前账号，不共享多账号凭据。
-- 使用 pnpm 管理依赖，提交 pnpm-lock.yaml；不要混用 npm 或 yarn 及其锁文件。
-- 功能代码使用 TypeScript/TSX。优先使用 API.md 中说明的能力，结合已安装 SDK 的类型提示确认参数，不编造接口。
-- 插件身份在 manifest.json 中修改，入口沿用 `__PLUGIN_META__`。插件 ID 变更会改变数据归属，不要为日常升级修改 ID。
-- 数据通过 context.storage 保存；读取后校验类型，提供缺省值与错误反馈。
-- 异步任务处理取消和失败；自定义订阅、计时器等通过 context.register 回收。
-- 使用模板已有的构建配置与依赖版本。只有任务需要时才调整构建工具。
-- 完成修改后执行 `pnpm build`。说明实际验证结果，不能把构建成功描述成客户端功能验收成功。
-- 安装到用户目录前检查目标插件 ID。已有目录须先停用、备份，不得静默覆盖。
-- 在 Tau 中验证启用、命令、页面或设置、数据保存、停用和重启恢复。未验证的项目如实列出。
-- 不把密钥、令牌或机器特定路径写入源码与插件包。
-- 发布前同步manifest.json和package.json版本；推送对应版本tag会触发GitHub Actions构建并上传ZIP，流程见DEVELOPMENT.md。
+这是一个 Tau 桌面端插件项目，用 TypeScript 和 React 编写，`pnpm build` 打包成 ZIP 后安装到 Tau 中运行。
 
-- 资源上传提供方先阅读 UPLOAD.md；使用 context.upload 与 target: "upload" 设置分区，不把上传和同步混为同一接口。
+## 开始之前
+
+1. 读 `docs/README.md`，按任务找到对应的文档并读完。所有插件都要先读 `docs/plugin-basics.md`。
+2. 读 `manifest.json` 和 `src/index.tsx`，理解现有代码。
+3. 以已安装 SDK 的类型（`node_modules/@tau/plugins`）为准确认接口和参数，不要编造接口。
+
+## 代码
+
+- 使用 TypeScript/TSX。插件接口从 `@tau/plugins` 导入，界面组件从 `@tau/ui` 导入。
+- 插件身份只在 `manifest.json` 中修改，入口沿用 `__PLUGIN_META__`。不要为日常升级修改插件 ID，改了 ID 用户的数据就找不回来了。
+- 运行状态放在 `create` 返回的闭包或组件里，不放在模块顶层。不要缓存 `context` 留到下次启用。
+- 通过 `context` 注册的东西会自动清理；自己创建的计时器、监听、连接交给 `context.register`。异步任务响应 `context.signal`，写回界面前检查 `context.signal.aborted`。
+- 网络请求用 `context.fetch`，检查 `response.ok`。存储、网络响应、用户配置等外部数据读取后先校验类型。
+- 插件代码运行在浏览器环境，不能导入 Node.js 模块；需要 Node.js 时按 `docs/backend.md` 添加本机后台。
+- 编辑器块和白板元素的渲染代码也会在博客中运行，不能依赖 `activate` 或 `context`，见 `docs/editor.md`。
+- 编辑器块里的图片、视频、音频用 `MediaImage` 等宿主组件显示，存地址的字段写进节点的 `resources`，见 `docs/editor.md`。
+- 样式选择器加插件专属前缀；用 Tailwind 时用 `prefix()` 给全部类名加前缀，见 `docs/ui.md`。
+- 访问用户数据要在 manifest 中声明权限，并处理 `PluginPermissionError`。修改、删除时传入读到的 `revision`，处理 `PluginConflictError`。
+- 服务提供方的账号配置用配置表单的 `save` 保存，不要存进 `context.storage`。
+- 给 AI 的使用说明写成 `skills/<id>/SKILL.md`（front matter 必须有 description），构建时自动打包，不在插件代码里声明，见 `docs/skills.md`。
+- 不要把密钥、令牌或机器特定路径写进源码和插件包。
+
+## 依赖与构建
+
+- 用 pnpm 管理依赖并提交 `pnpm-lock.yaml`，不要混用 npm 或 yarn。
+- 保持模板的构建配置和依赖版本，尤其是 `build.mjs` 的 external 列表和 React 版本。只有任务确实需要时才调整构建工具。
+- 完成修改后运行 `pnpm build`。如实说明验证结果：构建成功只代表类型和打包通过，不代表功能在 Tau 中可用。
+- 安装到 Tau 前检查目标插件 ID。`~/.editor/plugins/` 下已有同名目录时，先停用插件、备份，不要静默覆盖。
+- 在 Tau 中验证启用、功能、数据保存、停用和重启后恢复，未验证的项目如实列出。
+
+## 用户可见的文字
+
+- `README.md` 写给第一次使用插件的用户：能做什么、怎么开始、常见问题。不写开发过程、内部实现或迁移历史。`manifest.json` 的 `description` 填一句话简介。
+- `CHANGELOG.md` 同样写给用户：每个版本以 `## 版本号` 开头，逐条写用户能感知的变化，用界面上的叫法。不写 SDK、构建、仓库、CI、内部模块或字段。没有可感知的变化时只写「维护更新，使用上没有变化」。
+- 发布前同步 `manifest.json` 和 `package.json` 的版本，流程见 `docs/release.md`。

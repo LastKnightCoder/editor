@@ -3,15 +3,17 @@ import {
   BookOpen,
   ChevronDown,
   CloudOff,
+  Download,
   ExternalLink,
   FolderOpen,
   LayoutGrid,
   Package,
   RefreshCw,
   Search,
+  ShieldAlert,
   SearchX,
 } from "lucide-react";
-import { Button, FadeScroll, Input, Menu, Select, Switch, Tabs, cn } from "@tau/ui";
+import { Button, FadeScroll, Input, Loading, Menu, Select, Switch, Tabs, cn } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import { useDesktopPluginError, useDesktopPlugins } from "@/app/plugins/context";
 import type { DesktopPluginRuntime } from "@/app/plugins/runtime";
@@ -23,12 +25,15 @@ import {
   PLUGIN_PORTAL_URL,
   PLUGIN_TEMPLATE_URL,
   STATE_LABELS,
+  STATIC_PACKAGE_LABELS,
   catalogCategories,
   pendingCount,
   installState,
   installedPlugins,
   matchesQuery,
   needsAttention,
+  saveSkipInstallNotice,
+  useSkipInstallNotice,
   type InstalledPlugin,
 } from "../model";
 import { usePluginCatalog } from "../queries";
@@ -57,6 +62,7 @@ export function PluginsView() {
   const [actionError, setActionError] = useState("");
   const [sort, setSort] = useState<PluginCatalogSort>("downloads7d");
   const [category, setCategory] = useState<PluginCategory | null>(null);
+  const skipInstallNotice = useSkipInstallNotice();
   const catalog = usePluginCatalog("", tab === "discover" ? sort : "updated");
   const installed = runtime ? installedPlugins(runtime) : [];
   const updates = (catalog.data?.items ?? []).flatMap(entry => {
@@ -143,6 +149,14 @@ export function PluginsView() {
                   <Menu.Separator />
                 </>
               )}
+              <Menu.CheckboxItem
+                icon={<ShieldAlert strokeWidth={1.75} />}
+                checked={!skipInstallNotice}
+                onCheckedChange={checked => saveSkipInstallNotice(!checked)}
+              >
+                安装插件前提示风险
+              </Menu.CheckboxItem>
+              <Menu.Separator />
               <Menu.Item
                 icon={<BookOpen strokeWidth={1.75} />}
                 onSelect={() => void openExternal(PLUGIN_TEMPLATE_URL)}
@@ -271,7 +285,7 @@ function Discover({
   onOpen: (id: string) => void;
   onClearCategory: () => void;
 }) {
-  if (catalog.loading) return <p className="text-tau-body text-ink-2">正在读取插件中心…</p>;
+  if (catalog.loading) return <Loading label="正在加载插件…" />;
   if (!catalog.data)
     return (
       <Empty icon={<CloudOff />} title="暂时连不上插件中心">
@@ -360,19 +374,26 @@ function CatalogCard({
           <div className="truncate text-[14px] font-semibold">{entry.name}</div>
           <div className="text-tau-sm text-ink-3 truncate">@{entry.publisher.login}</div>
         </div>
+        {installed && !installed.packageKind && (
+          <span className="ml-auto flex-none" onClick={event => event.stopPropagation()}>
+            <CardEnableSwitch runtime={runtime} plugin={installed} />
+          </span>
+        )}
       </div>
       <p className="text-tau-meta text-ink-2 line-clamp-2">{entry.description}</p>
       <CategoryTags categories={entry.categories} />
-      <p
-        className="text-tau-sm text-ink-3"
-        title="同一设备、同一版本、同一 UTC 日计一次；近 7 日含今日，不代表安装人数"
-      >
-        {typeof entry.downloadsTotal === "number"
-          ? `累计 ${entry.downloadsTotal.toLocaleString()} 次 · 近 7 日 ${entry.downloads7d.toLocaleString()} 次`
-          : "下载统计暂不可用"}
-      </p>
       <div className="text-tau-sm text-ink-3 mt-auto flex items-center gap-2">
         <span className="tabular-nums">{entry.latest.version}</span>
+        {typeof entry.downloadsTotal === "number" && (
+          <span
+            className="flex items-center gap-1 tabular-nums"
+            aria-label={`下载 ${entry.downloadsTotal.toLocaleString()} 次`}
+            title={`下载 ${entry.downloadsTotal.toLocaleString()} 次，近 7 日 ${entry.downloads7d.toLocaleString()} 次`}
+          >
+            <Download className="size-3.5" strokeWidth={1.75} aria-hidden />
+            {entry.downloadsTotal.toLocaleString()}
+          </span>
+        )}
         <span className="ml-auto" onClick={event => event.stopPropagation()}>
           <InstallButton
             name={entry.name}
@@ -382,6 +403,26 @@ function CatalogCard({
         </span>
       </div>
     </article>
+  );
+}
+
+function CardEnableSwitch({
+  runtime,
+  plugin,
+}: {
+  runtime: DesktopPluginRuntime;
+  plugin: InstalledPlugin;
+}) {
+  const control = usePluginControl(runtime, plugin);
+  return (
+    <Switch
+      size="sm"
+      aria-label={`${plugin.enabled ? "停用" : "启用"} ${plugin.info.name}`}
+      title={control.error || undefined}
+      checked={plugin.enabled}
+      disabled={!control.canToggle}
+      onCheckedChange={() => void control.toggle()}
+    />
   );
 }
 
@@ -398,8 +439,7 @@ function Installed({
 }) {
   const shown = installed.filter(item => matchesQuery([item.info.id, item.info.name], query));
   const attention = shown.filter(needsAttention);
-  const development = shown.filter(item => item.source === "development" && !needsAttention(item));
-  const normal = shown.filter(item => item.source !== "development" && !needsAttention(item));
+  const normal = shown.filter(item => !needsAttention(item));
   const issues = runtime.local?.issues ?? [];
   return (
     <>
@@ -432,13 +472,6 @@ function Installed({
           ))
         )}
       </Group>
-      {development.length > 0 && (
-        <Group title="开发中" hint="登记的构建目录，可监听自动重载">
-          {development.map(item => (
-            <InstalledRow key={item.info.id} runtime={runtime} plugin={item} onOpen={onOpen} />
-          ))}
-        </Group>
-      )}
       {runtime.local && (
         <p className="text-tau-meta text-ink-2 flex items-center gap-2 px-1">
           <FolderOpen className="text-ink-3 size-4" strokeWidth={1.75} />
@@ -490,7 +523,9 @@ export function InstalledRow({
             </p>
           ) : (
             <p className="text-tau-meta text-ink-2 truncate">
-              {plugin.template ? "模板已安装" : STATE_LABELS[info.state]}
+              {plugin.packageKind
+                ? STATIC_PACKAGE_LABELS[plugin.packageKind].state
+                : STATE_LABELS[info.state]}
             </p>
           )}
         </div>
@@ -499,8 +534,10 @@ export function InstalledRow({
           onClick={event => event.stopPropagation()}
         >
           {plugin.update?.pendingVersion && <StagedChip version={plugin.update.pendingVersion} />}
-          {plugin.template ? (
-            <span className="text-tau-meta text-ink-2">博客模板</span>
+          {plugin.packageKind ? (
+            <span className="text-tau-meta text-ink-2">
+              {STATIC_PACKAGE_LABELS[plugin.packageKind].kind}
+            </span>
           ) : (
             <Switch
               size="sm"
@@ -558,15 +595,6 @@ export function PluginMenu({
         >
           恢复上一版 {update.previousVersion}
         </Menu.Item>
-      )}
-      {plugin.source === "development" && (
-        <>
-          <Menu.Item onSelect={() => void control.toggleWatch()}>
-            {control.watching ? "停止监听" : "监听构建"}
-          </Menu.Item>
-          <Menu.Item onSelect={() => void control.reload()}>重载构建</Menu.Item>
-          <Menu.Item onSelect={() => void control.removeRegistration()}>移除登记</Menu.Item>
-        </>
       )}
       {local && (
         <>

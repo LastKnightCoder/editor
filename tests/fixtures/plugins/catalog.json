@@ -17,34 +17,35 @@
   },
   {
     "repository": "https://github.com/LastKnightCoder/tau-plugin-weread",
-    "artifact": "releases/weread/1.0.4",
+    "artifact": "releases/weread/1.0.9",
     "id": "weread",
-    "version": "1.0.4",
-    "sourceRevision": "77bb5879fc5101e3f4c38d10b5d865f5f66f335f",
-    "archiveSha256": "14c572a2ce8015344936c84990f032ec8b29225b88bf1548ac0f59d7a1799e66",
+    "version": "1.0.9",
+    "sourceRevision": "892010577fe0023acc9053e84c6db522fb8d433c",
+    "archiveSha256": "04082a759a3a7147a967d2c44ab667d20990210234cb9a360fa79fab47497cd8",
     "files": {
-      "CHANGELOG.md": "89f362595f492653987a138aa1092de90c1baed54d5c7a0447e1d84f001232b0",
+      "CHANGELOG.md": "418cfe0d1dfb60017af9245abc59f4e9ea33afe605c1121ead100903f0e2a0aa",
       "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
-      "main.css": "f9c88325da920d36efae9004ba36ee18c150e2f1a6ed7b20b86df2ba4cd5752b",
-      "main.js": "4369319b3513ee1160b7ecabf178c2f0380f2d619cc895a6af17988f6643a330",
-      "manifest.json": "19272426825058ca488456d754b669be23af619cf5e674d5cda80710f6953b1c",
-      "README.md": "1d6133f3be8406809284dc9fc3e627d7c5d4ce277db5cadc0639378604e9d8f9"
+      "main.css": "de1925ef61fae3ba60767c340fd019db86ed19ef007d047a3c2ae40f29f7bfab",
+      "main.js": "30606c87a5848dbf46259f3f546b8b7c45e5037a38be234512d188315a6b6d05",
+      "manifest.json": "1d131a4b2bdcc9704183ead41aedbc1f8d06bb231344e88d18eea07f6dcd9858",
+      "README.md": "be641d2eea3a9c2164d8fee033303ce1fd5f58cd440093425f12a18d7bbbe815"
     }
   },
   {
     "repository": "https://github.com/LastKnightCoder/tau-plugin-custom-block",
-    "artifact": "releases/tau.custom-block/1.0.2",
+    "artifact": "releases/tau.custom-block/1.0.8",
     "id": "tau.custom-block",
-    "version": "1.0.2",
-    "sourceRevision": "1533d2d670f544517217acf71a448b1c6d68e46c",
-    "archiveSha256": "83d47be071484f978c38b33f4ea647d492b8808692342724d53e04684c97cabd",
+    "version": "1.0.8",
+    "sourceRevision": "f2b83606aac828c5775b90bff6af54ff12ddfb28",
+    "archiveSha256": "5dbb4731b58da87ae15dab67b3be7422521f0617387b66a93890f8bb8b32617d",
     "files": {
-      "CHANGELOG.md": "01974f93e01ac6975a59384cfe3da7ddc6fe5fabee9bfcefe40c9b48373ccc15",
+      "CHANGELOG.md": "a4d07add803c25dc433775d41dff4c98268ef88d65530d5b2fbad0f636736dd2",
       "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
-      "main.css": "81c82e3a83b2f61f71f63a6a09114d08283e4e91a3aad458d873edb43fd37f5f",
-      "main.js": "25f07c7ed0cbf5ea6b946497bc4cae36ef3bdbd9d8dadfbacff84d3f5ff6d402",
-      "manifest.json": "a5ea5afb542e86f9c3c3b728b53c42472f4b5c73e0c11f6cb594516781edaf5d",
-      "README.md": "c4cea500e178071493d62395ac84401d55247d47012c861e0eb36c62b38d12d2"
+      "main.css": "d6bd0ab4cd6e810a26bc98cba3ea419b7a289f9dc22f86af55e03f0bcf5e0ace",
+      "main.js": "07de37c10570773db966b07959189914dd9f2e052bf6f753d52a81b878a2ae71",
+      "manifest.json": "d6cf22209b79635a3abd192a5337673d1ac0f3bdd52ffb6d840eb8148413c162",
+      "README.md": "4f92da06bbc1e5196939c431ae3eb3e5e5580cdf150b9e37b9335fcbd28818ce",
+      "skills/authoring/SKILL.md": "3baf3cf1402c1b01dfdb155ad3e1210d02d4093f737ea10044b460c533be9089"
     }
   },
   {
@@ -173,19 +174,36 @@
     }
   },
   {
-    "repository": "https://github.com/LastKnightCoder/tau-plugin-weekly-review",
-    "artifact": "releases/tau.weekly-review/0.5.0",
-    "id": "tau.weekly-review",
-    "version": "0.5.0",
-    "sourceRevision": "712fc8cf3240518a369e68d22b94ffb8a6a5b6ec",
-    "archiveSha256": "2aeb5db0720c4248abd263f1c1e385c7a86e7555e404cd7a0b30c317789ad706",
+    "repository": "https://github.com/LastKnightCoder/tau-plugin-image-gallery",
+    "artifact": "releases/tau.image-gallery/0.1.1",
+    "id": "tau.image-gallery",
+    "version": "0.1.1",
+    "sourceRevision": "b2c7bb8c1609fdeaca72649bfe9173fc6c49db88",
+    "archiveSha256": "1a2466d439f01bf0c3bac1a50db9795ed924e7a06492a52e7d79682e4151fa27",
     "files": {
-      "CHANGELOG.md": "422a82f855eabd5b453f888a70310ea3f234fb6c05a81965d6b71822e40d3b91",
+      "CHANGELOG.md": "54277ee8297675a7a2719c4a47c874f5b239e444369b55d68294366f90cf4359",
       "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
-      "main.css": "e7365bf439181d7c53a0472a2b879e01b7cf69e9fca4c017dfa81d54fe0ac093",
-      "main.js": "fa80553df8d0d301e38e38523a7076eb3a246c62e40db25d492e1459c56b5bbb",
-      "manifest.json": "db15fa9cb00b6a6d54d36d0a7081887b3fda762e4d9fa6e2c39a57b6a2b677e1",
-      "README.md": "11eac814b4dbfb35b9c27f165e73e2bbe664c57fb0d574fab3959c35bdaccc4d"
+      "main.css": "7a0578deb79e92ea2d3369dc1b7d1efcd983be15e84491bbabfb544e62aab0f8",
+      "main.js": "19222cec064744d0074266278c8f3ab0bc3a98d1aa071fe2e86c3edf48cf4d58",
+      "manifest.json": "38e6398232554ab7ef61386b7932e056c73e691c3f0656ee6c14e72c8ad1045b",
+      "README.md": "1e5211f117c6743712d5502b3ffa799732b52567f52bfcae748d61f1d7620ecd"
+    }
+  },
+  {
+    "repository": "https://github.com/LastKnightCoder/tau-plugin-questions",
+    "artifact": "releases/tau.questions/0.1.1",
+    "id": "tau.questions",
+    "version": "0.1.1",
+    "sourceRevision": "36b7ff1b15c12a37c158382f9e1bdf27491f9409",
+    "archiveSha256": "a2715a3564798bc59181cd7d7fd03efc97511b0484b4797085e7beae59ee69cd",
+    "files": {
+      "CHANGELOG.md": "87cd0c775f71bbb3e1f0a95f625a07554cc6adf765a54c5fa40f615bf1ffe496",
+      "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
+      "main.css": "3591551a619a4a16bed19fd6b72d26c270d101bffb66e30350a28ea3aa40c81a",
+      "main.js": "28c68fd43b7c4f50e355a4ee1abc78f0af655238c43f5ce13ecf59ef3b150657",
+      "manifest.json": "ca7d122922941d87fdcb3477e6e067150904f04cc9c3f0be3be3d5e7bca4a7ea",
+      "README.md": "abf59e163d6174f25d03b86d2c5dd3d7ef69957514ed04b160ebb4b5470bb7b4",
+      "skills/questions/SKILL.md": "d4fb22f097254a57bcb4c5f1c4b8a8cd18c95a067adb7934bfeb4fd5e81dfaf4"
     }
   }
 ]

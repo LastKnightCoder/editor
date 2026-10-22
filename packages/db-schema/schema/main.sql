@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS content_ai_meta (
         update_time INTEGER NOT NULL
       );
 -- 正文的 AI 洞见（用户点「AI 洞见」时生成，按 content_id）：result 为 JSON（lead、marks[]、asks[]，
--- 每条带处理状态 open / linked / questioned / dismissed）；text_digest 为分析时的正文指纹。
+-- 每条带处理状态 open / linked / dismissed）；text_digest 为分析时的正文指纹。
 -- 删除与孤儿清理同 content_ai_meta。
 CREATE TABLE IF NOT EXISTS content_ai_insights (
         content_id INTEGER PRIMARY KEY,
@@ -84,6 +84,11 @@ CREATE TABLE IF NOT EXISTS white_board_contents (
         data TEXT,
         ref_count INTEGER DEFAULT 0
       , img_url TEXT DEFAULT '');
+-- 引用归零的白板页：登记释放时间，超过宽限期且仍无引用时才删除，期间被重新引用（撤销、恢复）即撤销登记
+CREATE TABLE IF NOT EXISTS white_board_content_pending_releases (
+  content_id INTEGER PRIMARY KEY,
+  released_at INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS white_boards (
             id INTEGER PRIMARY KEY NOT NULL,
             create_time INTEGER NOT NULL,
@@ -185,6 +190,13 @@ CREATE TABLE IF NOT EXISTS diary_tag_settings (
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL
       );
+-- 首页面板布局：用户调整过的顺序与隐藏；没有记录的面板按默认顺序排在末尾
+CREATE TABLE IF NOT EXISTS home_panel_layout (
+        panel_id TEXT PRIMARY KEY NOT NULL,
+        sort INTEGER NOT NULL,
+        hidden INTEGER NOT NULL DEFAULT 0,
+        update_time INTEGER NOT NULL
+      );
 CREATE TABLE IF NOT EXISTS operation (
             id INTEGER PRIMARY KEY,
             operation_time INTEGER NOT NULL,
@@ -248,52 +260,6 @@ CREATE TABLE IF NOT EXISTS chat_session (
         message_count INTEGER NOT NULL DEFAULT 0,
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL
-      );
-CREATE TABLE IF NOT EXISTS question_group (
-        id INTEGER PRIMARY KEY,
-        title TEXT NOT NULL,
-        color TEXT,
-        sort_index INTEGER NOT NULL DEFAULT 0,
-        is_default INTEGER NOT NULL DEFAULT 0 CHECK(is_default IN (0,1)),
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      );
-CREATE TABLE IF NOT EXISTS questions (
-        id INTEGER PRIMARY KEY,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        question_content TEXT,
-        answers TEXT DEFAULT '[]'
-      , group_id INTEGER, sort_index INTEGER NOT NULL DEFAULT 0, resolved_time INTEGER, status TEXT NOT NULL DEFAULT 'not_started', description TEXT);
--- 问题的探究材料：多态关联（target_type = card | article | project_item | project | white_board | answer
--- | excerpt | pdf-annotation | web-clip；answer 的 target_id 为 contents.id，其余为各实体表主键，均为整数）。
--- content_id = 本关联持有引用计数的 contents.id（卡片 / 文章 / 项目文档 / 独立答案有值，项目、白板与外部材料为 NULL），
--- 目标实体被删后仍可据此释放引用。对话不在此表，见 question_chat。
-CREATE TABLE IF NOT EXISTS question_link (
-        id INTEGER PRIMARY KEY,
-        question_id INTEGER NOT NULL,
-        target_type TEXT NOT NULL,
-        target_id INTEGER NOT NULL,
-        content_id INTEGER,
-        sort_index INTEGER NOT NULL DEFAULT 0,
-        create_time INTEGER NOT NULL
-      );
--- 问题的探究对话：session_id = chat_session.id（pi 会话 UUID）；message_ids 为 JSON 数组，记录问题从哪几条消息转来（可空）。
--- 弱引用：对话被删不级联，解析时降级；删除问题时一并删除。
-CREATE TABLE IF NOT EXISTS question_chat (
-        id INTEGER PRIMARY KEY,
-        question_id INTEGER NOT NULL,
-        session_id TEXT NOT NULL,
-        message_ids TEXT,
-        create_time INTEGER NOT NULL
-      );
--- 问题的探究轨迹：type = create | status | link | unlink | note，payload 为 JSON
-CREATE TABLE IF NOT EXISTS question_event (
-        id INTEGER PRIMARY KEY,
-        question_id INTEGER NOT NULL,
-        type TEXT NOT NULL,
-        payload TEXT NOT NULL DEFAULT '{}',
-        create_time INTEGER NOT NULL
       );
 -- 正文之间的显式连接（无向边，一行一条；content_id 规范化为较小一侧）。
 -- 连接绑定 contents.id：共用同一份正文的身份（卡片、文章、项目文档、日记，及从卡片创建
@@ -915,6 +881,7 @@ CREATE TABLE IF NOT EXISTS plugin_entities (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_plugin_entities_key ON plugin_entities(plugin_id, kind, key);
 CREATE INDEX IF NOT EXISTS idx_plugin_entities_content ON plugin_entities(content_id);
+CREATE INDEX IF NOT EXISTS idx_plugin_entities_created ON plugin_entities(plugin_id, kind, create_time, id);
 
 -- 插件声明的内容类型外观（类型名与图标 SVG）：随库保存，插件停用、卸载宽限期内与其他设备上照样显示
 CREATE TABLE IF NOT EXISTS plugin_entity_kinds (
@@ -926,6 +893,15 @@ CREATE TABLE IF NOT EXISTS plugin_entity_kinds (
   PRIMARY KEY (plugin_id, kind)
 );
 
+-- 插件节点的资源声明（哪些字段是图片、视频、音频或文件）：随库保存，供协作上传与 CLI 在插件不运行时读取
+CREATE TABLE IF NOT EXISTS plugin_element_resources (
+  plugin_id TEXT NOT NULL,
+  type TEXT NOT NULL,
+  resources TEXT NOT NULL,
+  update_time INTEGER NOT NULL,
+  PRIMARY KEY (plugin_id, type)
+);
+
 -- 插件私有存储（context.storage）：按插件与键保存 JSON，随主库云同步
 CREATE TABLE IF NOT EXISTS plugin_kv (
   plugin_id TEXT NOT NULL,
@@ -933,6 +909,49 @@ CREATE TABLE IF NOT EXISTS plugin_kv (
   value TEXT NOT NULL,
   update_time INTEGER NOT NULL,
   PRIMARY KEY (plugin_id, key)
+);
+
+-- 插件记录（context.records）：插件内部的结构化数据，按插件与集合保存 JSON，随主库云同步；
+-- orphaned_time 非空表示插件已不在本机，与插件实体一同在宽限期后删除
+CREATE TABLE IF NOT EXISTS plugin_records (
+  id TEXT PRIMARY KEY,
+  plugin_id TEXT NOT NULL,
+  collection TEXT NOT NULL,
+  data TEXT NOT NULL DEFAULT '{}',
+  create_time INTEGER NOT NULL,
+  update_time INTEGER NOT NULL,
+  orphaned_time INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_plugin_records_created ON plugin_records(plugin_id, collection, create_time, id);
+
+-- 插件关联（context.links）：从插件实体指向任意可引用内容的有序边，随主库云同步；
+-- to_kind / to_id 为插件引用的类型与 ID，to_created_at 为建立时目标的创建时间（编号被复用时判为已删除）。
+-- 来源实体删除时一并删除（快照随实体进「最近删除」），目标删除时保留
+CREATE TABLE IF NOT EXISTS plugin_links (
+  id TEXT PRIMARY KEY,
+  plugin_id TEXT NOT NULL,
+  from_id INTEGER NOT NULL,
+  to_kind TEXT NOT NULL,
+  to_id TEXT NOT NULL,
+  to_created_at INTEGER NOT NULL,
+  role TEXT NOT NULL DEFAULT '',
+  sort_index INTEGER NOT NULL,
+  data TEXT NOT NULL DEFAULT '{}',
+  create_time INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_plugin_links_unique ON plugin_links(from_id, to_kind, to_id, role);
+CREATE INDEX IF NOT EXISTS idx_plugin_links_from ON plugin_links(from_id, role, sort_index);
+CREATE INDEX IF NOT EXISTS idx_plugin_links_to ON plugin_links(to_kind, to_id);
+
+-- 用户在插件选择窗口中亲手选过的内容：插件此后读取这些引用的标题不需要读取权限；
+-- target_created_at 是选择时目标的创建时间，编号被新内容复用时授权不会落到新内容上
+CREATE TABLE IF NOT EXISTS plugin_ref_grants (
+  plugin_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  ref_id TEXT NOT NULL,
+  target_created_at INTEGER NOT NULL,
+  create_time INTEGER NOT NULL,
+  PRIMARY KEY (plugin_id, kind, ref_id)
 );
 
 -- 主库索引
@@ -953,18 +972,6 @@ CREATE INDEX IF NOT EXISTS idx_chat_group_order_index ON chat_group(order_index)
 CREATE INDEX IF NOT EXISTS idx_chat_session_scope ON chat_session(scope, domain_ref);
 CREATE INDEX IF NOT EXISTS idx_chat_session_update_time ON chat_session(update_time);
 CREATE INDEX IF NOT EXISTS idx_chat_session_group_id ON chat_session(group_id);
-CREATE INDEX IF NOT EXISTS idx_question_group_sort ON question_group(sort_index);
-CREATE INDEX IF NOT EXISTS idx_question_group_default ON question_group(is_default);
-CREATE INDEX IF NOT EXISTS idx_questions_group_id ON questions(group_id);
-CREATE INDEX IF NOT EXISTS idx_questions_sort_index ON questions(sort_index);
-CREATE INDEX IF NOT EXISTS idx_questions_create_time ON questions(create_time);
-CREATE INDEX IF NOT EXISTS idx_questions_resolved_time ON questions(resolved_time);
-CREATE INDEX IF NOT EXISTS idx_questions_status ON questions(status);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_question_link_unique ON question_link(question_id, target_type, target_id);
-CREATE INDEX IF NOT EXISTS idx_question_link_target ON question_link(target_type, target_id);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_question_chat_unique ON question_chat(question_id, session_id);
-CREATE INDEX IF NOT EXISTS idx_question_chat_session ON question_chat(session_id);
-CREATE INDEX IF NOT EXISTS idx_question_event_question ON question_event(question_id, create_time);
 CREATE INDEX IF NOT EXISTS idx_data_table_views_table_id
       ON data_table_views(table_id);
 CREATE INDEX IF NOT EXISTS idx_project_item_podcast_id ON project_item(podcast_id);

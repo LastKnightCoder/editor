@@ -44,3 +44,8 @@ export const htmlDefinition = evaluatePluginPackage(
   sharedPluginModules
 );
 export const htmlExtension = htmlDefinition.editorExtensions![0];
+export const galleryDefinition = evaluatePluginPackage(
+  pluginArtifact("tau.image-gallery"),
+  sharedPluginModules
+);
+export const galleryExtension = galleryDefinition.editorExtensions![0];

@@ -1,5 +1,85 @@
 # 更新记录
 
+## 0.35.0
+
+- 插件用 `cards.create`、`articles.create`、`documents.create`、`whiteboards.create`、`projects.create` 新建的内容，之后不需要读取权限也能 `describe`、`EntityRef` 显示、`open` 与 `links.add`，与 `pick` 选择和 `app.run` 新建的结果一致。
+- 正文输入新增 `{ shareOf: contentRef }`：与本插件的一项内容共用同一份正文，任一处的修改在另一处实时可见，删除其中一处不影响另一处。只能用于 `cards.create`、`articles.create`、`documents.create` 与 `app.run("project.insertDocument")`，来源必须是本插件内容的正文；一份正文只能有一张卡片、一篇文章，已有时报错。
+- 发布数据不再包含求索录：数据类型 `quest` 与 `QuestData`、`QuestStatus`、`QuestAnswer`、`QuestMaterial`、`QuestTrail` 已删除，`DataKind`、`ManifestItem.collectionType`、`TimelineItem`、`ListData`、`SearchDocument` 的类型不再有 `quest`，`ListItem` 去掉了 `groupId`、`groupTitle`、`status`、`answerCount` 与 `updateTime`。博客模板不再需要问题页。
+
+## 0.34.0
+
+- 新增统一的正文输入 `PluginContentInput`，三选一：`{ markdown }`、`{ nodes }`（编辑器节点，格式完整保留）、`{ copyOf: contentRef }`（Tau 内部整份复制已有正文，只需要目标的写入权限）。
+- `cards.create`、`articles.create` 的正文字段由 `markdown` 改为 `content`；`entities.create` 新增可选的 `content` 作为初始正文。
+- `content.edit` 的 `append`、`prepend`、`replaceAll` 改为 `{ op, content }`；`replaceText` 不变，仍为 `{ op, find, markdown }`。
+- `content.read({ format: "nodes" })` 返回 `schemaVersion`，`nodes` 的类型为 `Descendant[]`，可原样写回。新增导出 `EDITOR_NODE_SCHEMA_VERSION` 与 `CONTENT_INPUT_LIMITS`。
+- `nodes` 只校验结构，未知节点类型原样保存；结构不对时报错并给出节点路径。
+- 引用类型新增 `project`、`notebook`、`material`（划线、PDF 标注、剪藏）、`chat-session`、`plugin-entity`，`pick` 与 `open` 均支持。
+- 新增 `context.app.describe(refs)`：批量取引用的最新标题与是否已删除。用户在 `pick` 中选择过的内容与本插件自己的内容不需要权限，其余需要对应类型的读取权限，未获准时返回 `denied` 与所需权限，不弹窗。
+- 新增组件 `EntityRef`：由 Tau 显示引用的图标、类型名、标题与删除状态，点击打开；未获准时显示「允许访问」。
+- 新增读取权限 `whiteboards:read`、`projects:read`、`notebooks:read`、`materials:read`、`chats:read`（对话只含标题等信息，不含消息内容）；新增导出 `PLUGIN_ENTITY_READ_PERMISSIONS`。
+- 新增 `context.data.whiteboards`（读取、新建、修改标题 / 说明 / 标签，新建时带一张空白画板页，画板内容不开放）与 `context.data.projects`（读取、新建空项目、修改标题 / 归档 / 置顶），权限 `whiteboards:read/write`、`projects:read/write`。
+- 新增 `projects.tree(id)`（项目文档目录，挂在多处的文档在多处列出，引用卡片 / 文章的条目带 `ref`）、`documents.create`（挂在根目录或某篇文档下）与 `documents.move`（同一项目内，`from` 指明移动哪一处，`index` 为移动后的序号）；`documents:write` 现在也包括新建与移动。
+- 白板、项目、项目文档支持 `delete`，权限 `whiteboards:delete`、`projects:delete`、`documents:delete`，用户可在插件详情页 7 天内恢复。项目只能删除空项目；项目文档从所有挂载处删除，有子文档时拒绝，视频笔记不能由插件删除。
+- 新增只读的 `context.data.notebooks`（信息与 `resources(id)` 资料清单，不含说明、本机路径与资料转换后的文字）、`context.data.materials`（划线、PDF 标注、剪藏的原文、想法、出处与网址，已删除的不返回）与 `context.data.chats`（对话的标题、场景、消息数与时间，不含消息内容），权限分别为 `notebooks:read`、`materials:read`、`chats:read`。三者的 `query` 不支持 `tag`。
+- `context.app.run` 改为用户关闭界面后才返回，并带结果：新建类返回新内容的引用，用户取消返回 `null`，导出、演示、协作没有结果。同一时间只能打开一个界面，前一个未关闭时抛错（原为替换前一个）。新增导出类型 `PluginAppActionResults`。
+- 新增动作 `card.create`：打开 Tau 的新建卡片窗口，预填 `content`（`PluginContentInput`）与 `tags`，用户保存后返回 `{ kind: "card", id }`；不需要数据权限。
+- 新增动作 `project.insertDocument`：打开 Tau 的「插入到项目」窗口，由用户选择项目与位置，把 `content` 复制为新的项目文档（可带 `title`），返回 `{ kind: "document", id }`；不需要数据权限。
+- 新增动作 `notebook.create`：由用户确认后新建 Notebook，`sources` 作为资料一次性带入（有正文的内容成为笔记资料，划线与 PDF 标注合并、剪藏各一份，其他类型不带入），`from` 记为来源并显示在 Notebook 页顶部；返回 `{ kind: "notebook", id }`。新增导出 `PLUGIN_NOTEBOOK_FROM_KINDS`。
+- 新增动作 `chat.start`：在对话页（默认）或右侧停靠栏开一个新对话，`prompt` 预填进输入框，`context`（卡片、文章、项目文档）作为引用插入，由用户发送；用户发出第一条消息后返回 `{ kind: "chat-session", id }`，没发送就离开时返回 `null`。新增导出 `PLUGIN_CHAT_CONTEXT_KINDS`。
+- `context.app.open(ref, options?)` 新增打开位置与定位：`placement` 为 `page`（默认）、`window`（独立编辑窗口，卡片、文章、项目文档）或 `dock`（右侧停靠栏，主对话）；`at: { block }` 滚动到正文第几个顶层块（卡片、文章、项目文档、日记、插件内容）。不支持的组合抛错。新增导出类型 `PluginOpenOptions`、`PluginContentLocation`。
+- `ContentEditor` 与 `ContentPreview` 新增 `kit`：`full`（默认，与卡片详情相同）或 `compact`（精简套件，不含内容链接、文件附件、白板块、数据库块与文档待办，适合简短内容）。新增导出类型 `ContentEditorKit`。
+- 页面的 `pageContext` 新增 `isActive()`（本页是否为当前显示的页面）与 `registerDismiss(dismiss)`（登记自制浮层的关闭函数，用户按 Esc 时先关最后登记的浮层，只在页面显示时生效）。
+- 业务事件新增 `whiteboard.*`、`project.*`、`notebook.*`（增删改资料也算 `updated`）、`material.*`（划线、PDF 标注、剪藏）与 `chat.*`（收到新消息也算 `updated`），均带 `id`，分别需要 `whiteboards:read`、`projects:read`、`notebooks:read`、`materials:read`、`chats:read`。
+- 新增本插件内容的事件 `entity.created`、`entity.updated`（含正文修改）、`entity.deleted`：只发给创建它的插件，不需要权限，事件带 `kind`（内容类型）。`PluginDomainEvent` 新增可选字段 `kind`。
+- `entities.registerKind` 新增 `indexes`：声明可用于查询的 `meta` 字段及类型（`string`、`number`、`boolean`），写入时这些字段的值须为声明的类型或 `null`。
+- `entities.query` 新增 `where`（等于、不等于、`in`、大小比较，`null` 表示没有值）、`titleContains` 与 `orderBy`（最多两项，可用 `createdAt`、`updatedAt`、`title` 或声明的字段）；新增 `entities.count`。游标改为不透明字符串，只适用于同一组条件与排序。新增导出类型 `PluginWhere`、`PluginFieldCondition`、`PluginOrderBy`、`PluginIndexes` 等。
+- 修复：`entities.query()` 不带参数时报「没有要修改的字段」。
+- 新增 `context.records`：插件内部的结构化数据，按集合保存 JSON（`registerCollection({ name, indexes })`、`insert`、`get`、`query`、`count`、`update`、`delete`），筛选与排序写法与 `entities.query` 相同；不需要权限，删除不进「最近删除」，卸载后与插件内容一样保留 7 天。新增事件 `record.created / updated / deleted`（带 `collection`，只发给本插件），`PluginDomainEvent` 新增可选字段 `collection`。
+- 修复：插件经 `context.entities` 写入引起的 `entity.*` 事件，`origin` 现在为本插件，可以据此忽略自己写入引起的事件。
+- 新增 `context.links`：从本插件的内容指向任意引用的有序关联（`add`、`list`、`remove`、`reorder`），带 `role` 与少量 `data`，显示在目标的脉络里。目标须是插件能看到的内容（与 `describe` 相同），删除插件内容时关联随之进入「最近删除」，关联变化发来源内容的 `entity.updated`。
+- `app.run` 新建类动作（`card.create`、`project.insertDocument`、`notebook.create`、`chat.start`）的结果与 `pick` 选中的内容一样，之后不需要读取权限就能读标题、显示与关联。
+- 被插件内容关联的卡片、文章、项目文档在脉络的「被关联」里列出这些内容，按插件声明的类型名与图标显示，插件停用后照样显示；手机上的脉络也会列出（只显示）。
+- 新增 `context.transaction(async tx => …)`：回调里对本插件内容、记录与关联的写入在回调结束后一次提交，任何一条失败全部不生效。`tx.entities.create` 与 `tx.records.insert` 立即返回 ID，可在同一事务里使用；修改与删除的 `expectedRevision` 可省略（省略即无条件写入）。最多 500 条写入。
+- `sidebar.registerItem` 改为返回句柄，新增 `update({ badge, children, action })`：条目右侧的角标、条目下方的子项（色点、计数、右键菜单、接收拖放）与子项末尾的一行动作（如「新建分组」）。子项在条目的页面显示时展开，点击以子项的 `params` 打开页面。新增 `sidebar.dragType(type)` 生成本插件的拖拽类型，子项只接收本插件拖出的数据。新增导出类型 `PluginSidebarItemHandle`、`PluginSidebarChild`、`PluginSidebarItemUpdate` 等。
+- 新增 `context.home.registerPanel({ id, title, component, size })`：在首页放一块面板，Tau 画外框与标题，组件只渲染正文（返回 `null` 时整块不显示）。`size` 为 `wide`（默认，占整行）或 `compact`（宽度足够时并排）。新面板排在末尾，用户可在首页的编辑模式里拖动调整位置或隐藏；插件停用后消失，重新启用回到原位置。新增导出类型 `PluginHomePanelDefinition`、`PluginHomePanelProps`。
+- 新增 `context.actions.register({ id, title, icon, targets, run })`：在卡片、文章、项目文档的「⋯」菜单里加一项，排在 Tau 自己的菜单项之后、删除之前；用户点击时 `run` 收到对象的引用，这个对象之后与 `pick` 选中的一样不需要读取权限就能显示与关联。只在主窗口出现。新增导出 `PLUGIN_ACTION_TARGET_KINDS` 与类型 `PluginActionDefinition`、`PluginActionTarget`。
+- 对象动作新增目标 `material`（PDF 标注的工具条与标注列表、网页剪藏的「⋯」菜单）与 `chat-message`（对话消息动作行末尾的「⋯」，收到所在会话、消息记录 ID、角色与正文，会话登记为选择过的引用）。`run` 的参数随 `targets` 收窄。新增导出类型 `PluginActionTargetOf`、`PluginActionEntityTarget`、`PluginChatMessageTarget`。
+- 对象动作新增目标 `text`：用户在命令面板输入文字后，「记录」组末尾出现「动作标题：输入的文字」，回车时 `run` 收到 `{ kind: "text", text }`。新增导出类型 `PluginTextTarget`。
+- `context.materials.actions` 不再包含「转为问题」，只有 Tau 自己的动作，也不包含其他插件注册的对象动作。
+- 新增 `context.views.registerEntityPanel({ id, kinds, component })`：在卡片、文章、项目文档详情的正文上方放一小块内容，组件收到 `context` 与对象引用 `target`，返回 `null` 时不占位；读内容仍按权限。新增导出 `PLUGIN_ENTITY_PANEL_KINDS` 与类型 `PluginEntityPanelDefinition`、`PluginEntityPanelProps`、`PluginEntityPanelTarget`。
+
+- 编辑器扩展只接受文档列出的字段，带其他字段（例如 `marks`、`decorations`）的扩展会在加载或注册时报错，不再被悄悄使用。
+
+## 0.33.0
+
+- 新增媒体组件 `MediaImage`、`MediaVideo`、`MediaAudio`：节点里的本地路径、远程地址和共享文档资源按 Tau 自带图片、视频、音频块的方式解析和缓存。
+- 新增 `useResource(url, { kind })`，自己绘制媒体时取得可加载的地址；`useResourceUpload()` 把文件存进用户当前的资源存储并返回地址，只读编辑器与博客中为 `undefined`。
+- 新增 `useMediaAppearance()`，读取用户设置（博客中为发布设置）的媒体默认圆角与阴影。
+- 新增 `useElement(element)`：读写当前节点（`readOnly`、`update`、`remove`），外框里的块还能取得 `selected`、`select()`、`openMenu(position)`。`useInlineSource` 建在它之上。
+- 节点声明新增 `frame`：void 块的公共外框，提供点选描边、右键菜单、选中时删除与声明的按键命令、末尾「添加段落」；声明后 `render` 只渲染内容。
+- 新增块属性条 `BlockToolbar`、`BlockToolbarButton`、`BlockToolbarGap`，外观与自带图片块一致。
+- 新增 `useMediaViewer(element)`，打开文档图片查看器并定位到该节点的第几张图。
+- `@tau/ui` 新增 `Sortable`，用指针事件拖动排序，手柄支持方向键。
+- 节点声明新增 `resources`：写明节点里哪些字段是图片、视频、音频或文件。导出打包、共享给协作者时上传本地文件、灯箱与 EPUB 取图都只按这份声明找资源；声明随笔记库保存。
+
+## 0.32.0
+
+- 插件 Skill 改为包内目录：在插件项目根目录放 `skills/<id>/SKILL.md`，可附带参考资料和脚本，构建时打进插件包并写入 manifest 的 `skills` 与文件摘要。名称、描述与调用方式取自 SKILL.md 的 front matter。
+- `definePlugin` 的 `skills` 字段与 `PluginSkill` 类型已移除，已有插件请把正文移到 `skills/<id>/SKILL.md` 后重新构建。
+- 新增独立 Skill 包：manifest 不写 `main`、只声明 `skills`，经插件中心分发，安装后在 Skill 页直接可用。
+- 带脚本的 Skill 与本机后台一样需要插件中心人工审核后才能上架。
+- 插件分类新增 `skill`。
+
+## 0.31.1
+
+- 修复：数据客户端读取 0.31.0 生成的站点清单时报「站点数据缺失」。客户端改为校验 `site.fields`，不再要求已移除的 `site.description`。
+
+## 0.31.0
+
+- 模板 manifest 新增 `template.siteFields`：声明模板需要的站点字段（文本、多行、链接、下拉、开关），用户在发布页「站点设置」中填写，宿主校验后按声明渲染。
+- 发布数据的 `site.fields` 提供这些字段的取值；`site.description` 与首页的 `hero` 已移除，需要站点描述的模板请声明同名字段并自行渲染介绍区。
+- 字段声明格式与取值规则见 PUBLISH-DATA.md「数据分布」：只输出已声明的键，未填写或类型不符时取 `default`。
+
 ## 0.29.0
 
 - 页面组件新增 `pageContext.register(provider)`：通过现有 `get_current_context` 向 AI 提供当前页面状态，返回任意有限 JSON，业务内容与形状完全由作者决定。

@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS content_ai_meta (
         update_time INTEGER NOT NULL
       );
 -- 正文的 AI 洞见（用户点「AI 洞见」时生成，按 content_id）：result 为 JSON（lead、marks[]、asks[]，
--- 每条带处理状态 open / linked / questioned / dismissed）；text_digest 为分析时的正文指纹。
+-- 每条带处理状态 open / linked / dismissed）；text_digest 为分析时的正文指纹。
 -- 删除与孤儿清理同 content_ai_meta。
 CREATE TABLE IF NOT EXISTS content_ai_insights (
         content_id INTEGER PRIMARY KEY,
@@ -77,6 +77,11 @@ CREATE TABLE IF NOT EXISTS white_board_contents (
         data TEXT,
         ref_count INTEGER DEFAULT 0
       , img_url TEXT DEFAULT '');
+-- 引用归零的白板页：登记释放时间，超过宽限期且仍无引用时才删除，期间被重新引用（撤销、恢复）即撤销登记
+CREATE TABLE IF NOT EXISTS white_board_content_pending_releases (
+  content_id INTEGER PRIMARY KEY,
+  released_at INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS white_boards (
             id INTEGER PRIMARY KEY NOT NULL,
             create_time INTEGER NOT NULL,
@@ -176,6 +181,13 @@ CREATE TABLE IF NOT EXISTS diary_tag_settings (
         color TEXT NOT NULL,
         sort INTEGER DEFAULT 0,
         create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
+-- 首页面板布局：用户调整过的顺序与隐藏；没有记录的面板按默认顺序排在末尾
+CREATE TABLE IF NOT EXISTS home_panel_layout (
+        panel_id TEXT PRIMARY KEY NOT NULL,
+        sort INTEGER NOT NULL,
+        hidden INTEGER NOT NULL DEFAULT 0,
         update_time INTEGER NOT NULL
       );
 CREATE TABLE IF NOT EXISTS operation (

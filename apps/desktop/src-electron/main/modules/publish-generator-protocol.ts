@@ -54,7 +54,7 @@ export type WorkerToMain =
       release: import("@/types/publish").PublishedRelease;
       virtualProcessed: number;
     }
-  | { type: "error"; message: string };
+  | { type: "error"; message: string; stack?: string };
 
 /** 主进程 → worker */
 export type MainToWorker =

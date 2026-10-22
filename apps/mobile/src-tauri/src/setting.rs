@@ -155,7 +155,6 @@ fn default_setting_value() -> Value {
         "dataView": { "enable": true, "name": "数据" },
         "pomodoro": { "enable": true, "name": "番茄专注" },
         "todo": { "enable": true, "name": "任务列表" },
-        "question": { "enable": true, "name": "问题管理" },
         "calendar": { "enable": true, "name": "日历" },
         "chatManagement": { "enable": true, "name": "聊天管理" },
         "skillManagement": { "enable": true, "name": "Skill 管理" },
@@ -176,7 +175,6 @@ fn default_setting_value() -> Value {
         "skillManagement",
         "pomodoro",
         "todo",
-        "question",
         "weread",
         "webview",
         "dataView",
@@ -389,11 +387,18 @@ pub fn ensure_setting_compat(raw: Value) -> Value {
     let mut setting = if raw.is_object() { raw } else { json!({}) };
     let defaults = default_setting_value();
     merge_defaults(&mut setting, &defaults);
+    // 已退役的模块开关（问题管理迁为桌面插件，PS-046）
+    const RETIRED_MODULES: [&str; 2] = ["resourceManagement", "question"];
     if let Some(modules) = setting.get_mut("module").and_then(Value::as_object_mut) {
-        modules.remove("resourceManagement");
+        for key in RETIRED_MODULES {
+            modules.remove(key);
+        }
     }
     if let Some(order) = setting.get_mut("moduleOrder").and_then(Value::as_array_mut) {
-        order.retain(|key| key.as_str() != Some("resourceManagement"));
+        order.retain(|key| {
+            !key.as_str()
+                .is_some_and(|key| RETIRED_MODULES.contains(&key))
+        });
     }
     normalize_database_section(&mut setting);
     setting
@@ -911,4 +916,24 @@ pub fn bootstrap_app(app: AppHandle) -> Result<BootstrapResponse, String> {
         active_database,
         databases: get_database_items(&setting),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn retired_modules_are_removed() {
+        let setting = ensure_setting_compat(json!({
+            "module": { "question": { "enable": true, "name": "问题管理" }, "todo": { "enable": false, "name": "任务列表" } },
+            "moduleOrder": ["question", "todo", "resourceManagement"]
+        }));
+        assert!(setting["module"].get("question").is_none());
+        assert_eq!(setting["module"]["todo"]["enable"], json!(false));
+        let order = setting["moduleOrder"].as_array().unwrap();
+        assert!(!order
+            .iter()
+            .any(|key| key == "question" || key == "resourceManagement"));
+        assert!(order.iter().any(|key| key == "todo"));
+    }
 }

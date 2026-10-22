@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Button, Panel, UiProvider } from "@tau/ui";
+import { Button, Panel, UiProvider, cn } from "@tau/ui";
 import type { PluginSettingsProps } from "@tau/plugins";
 import { useSettingsStore } from "@/app/settingsStore";
 import { ErrorState, RecoverableBoundary } from "@/components/ErrorState";
@@ -15,6 +15,7 @@ export function PluginSettingsView({
   imageConfig,
   videoConfig,
   publishConfig,
+  embedded = false,
 }: {
   section?: RegisteredPluginSettings;
   syncConfig?: PluginSettingsProps["syncConfig"];
@@ -23,15 +24,17 @@ export function PluginSettingsView({
   imageConfig?: PluginSettingsProps["imageConfig"];
   videoConfig?: PluginSettingsProps["videoConfig"];
   publishConfig?: PluginSettingsProps["publishConfig"];
+  /** 已处于调用方的描边容器内：不可用提示以设置行文字呈现，不再叠阴影卡 */
+  embedded?: boolean;
 }) {
-  if (!section)
-    return (
-      <Panel>
-        <p className="text-tau-body text-ink-2">
-          插件设置暂不可用。请到插件中心确认已安装并启用对应插件；已保存的设置仍然保留。
-        </p>
-      </Panel>
+  if (!section) {
+    const notice = (
+      <p className={cn("text-tau-body text-ink-2", embedded && "px-3 py-[11px]")}>
+        插件设置暂不可用。请到插件中心确认已安装并启用对应插件；已保存的设置仍然保留。
+      </p>
     );
+    return embedded ? notice : <Panel>{notice}</Panel>;
+  }
   if (section.definition.target === "sync" && !syncConfig)
     return (
       <Button onClick={() => useSettingsStore.getState().openSettings("sync")}>

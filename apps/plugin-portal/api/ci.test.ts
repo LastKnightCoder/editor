@@ -153,6 +153,34 @@ describe("CI 发布", () => {
       n: 0,
     });
   });
+  it("带脚本的 Skill 同样不能自动批准", async () => {
+    const archive = new AdmZip(zip());
+    const manifest = JSON.parse(archive.readAsText("test.reader/manifest.json"));
+    const readme = "---\ndescription: 处理摘录时加载\n---\n";
+    const script = "print('审核不得执行脚本')";
+    archive.addFile("test.reader/skills/notes/SKILL.md", Buffer.from(readme));
+    archive.addFile("test.reader/skills/notes/scripts/run.py", Buffer.from(script));
+    archive.updateFile(
+      "test.reader/manifest.json",
+      Buffer.from(
+        JSON.stringify({
+          ...manifest,
+          skills: ["notes"],
+          integrity: {
+            ...manifest.integrity,
+            "skills/notes/SKILL.md": createHash("sha256").update(readme).digest("hex"),
+            "skills/notes/scripts/run.py": createHash("sha256").update(script).digest("hex"),
+          },
+        })
+      )
+    );
+    const response = await publish(await token(), archive.toBuffer());
+    expect(response.status).toBe(201);
+    expect((await response.json()).data).toMatchObject({
+      status: "pending_review",
+      autoApproved: false,
+    });
+  });
   it("审核者本人推送 tag 时自动批准并发布，分类随包写入目录", async () => {
     const response = await publish(await token());
     expect(response.status).toBe(201);

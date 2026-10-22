@@ -57,15 +57,10 @@ const fakeIo = (files: Record<string, Uint8Array>): AssetIo => ({
 const doc = (...nodes: unknown[]) => nodes as Descendant[];
 
 describe("资源地址遍历", () => {
-  it("覆盖块图、行内图、图集、音视频与附件", () => {
+  it("覆盖块图、行内图、音视频与附件", () => {
     const content = doc(
       image("~/a.png"),
       paragraph(text("x"), { type: "inline-image", url: "b.png", children: [text("")] }),
-      {
-        type: "image-gallery",
-        images: [{ url: "c.png" }, { url: "https://x/d.png" }],
-        children: [text("")],
-      },
       { type: "audio", src: "e.mp3", children: [text("")] },
       { type: "video", src: "f.mp4", children: [text("")] },
       {
@@ -81,12 +76,31 @@ describe("资源地址遍历", () => {
     expect(collectAssetUrls(content).map(ref => `${ref.kind}:${ref.url}`)).toEqual([
       "image:~/a.png",
       "image:b.png",
-      "image:c.png",
-      "image:https://x/d.png",
       "audio:e.mp3",
       "video:f.mp4",
       "file:/local/g.pdf",
     ]);
+  });
+
+  it("插件节点按传入的资源声明改写，未声明的字段不当资源", () => {
+    const content = doc({
+      type: "example.compare",
+      before: { src: "~/before.png" },
+      link: "~/not-a-resource.png",
+      children: [text("")],
+    });
+    const declarations = {
+      "example.compare": [{ path: "before.src", kind: "image" as const }],
+    };
+    expect(collectAssetUrls(content, declarations)).toEqual([
+      { url: "~/before.png", kind: "image" },
+    ]);
+    expect(collectAssetUrls(content)).toEqual([]);
+    const [mapped] = mapAssetUrls(content, url => `bundle/${url.slice(2)}`, {}, declarations);
+    expect(mapped).toMatchObject({
+      before: { src: "bundle/before.png" },
+      link: "~/not-a-resource.png",
+    });
   });
 
   it("未改动的子树保持原引用，附件改写后按上传结果标记 isLocal", () => {

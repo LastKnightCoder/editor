@@ -21,6 +21,11 @@ import {
   zipDirectory,
 } from "../utils/skill-import";
 import { cancelSkillScript, runSkillScript } from "../utils/skill-script-runner";
+import {
+  isSkillPackageManifest,
+  validateDistributionManifest,
+  type DistributionManifest,
+} from "@tau/plugins/template";
 import type {
   Skill,
   SkillDetail,
@@ -57,6 +62,15 @@ description: ${JSON.stringify(description)}${manual ? "\ndisable-model-invocatio
 
 ${body ?? `# ${name}\n\n## 步骤\n\n1. \n`}`;
 
+/** 插件包内的一个 Skill 目录；插件 Skill 随插件启停由渲染端过滤，Skill 包安装即可用。 */
+interface PackageSkillRoot {
+  dir: string;
+  folderName: string;
+  pluginId: string;
+  pluginName: string;
+  source: "plugin" | "package";
+}
+
 interface StoredLink {
   path: string;
   enabled: boolean;
@@ -69,6 +83,7 @@ class SkillModule implements Module {
   private skillsDir = "";
   private linksFile = "";
   private stages = new Map<string, { root: string; temp: boolean }>();
+  private packageRoots: PackageSkillRoot[] = [];
 
   async init() {
     const appDir = PathUtil.getAppDir();
@@ -147,9 +162,47 @@ class SkillModule implements Module {
       .filter(l => existsSync(l.root) && !isInside(this.skillsDir, l.root));
   }
 
-  /** 可读：我的目录，或已启用关联目录里勾选了的 skill 子树 */
+  /** 只读取 manifest 收集 Skill 目录；包文件的完整性由插件扫描与安装事务校验。 */
+  private async scanPackageRoots(): Promise<PackageSkillRoot[]> {
+    const pluginsDir = join(PathUtil.getAppDir(), "plugins");
+    const folders = await fs.readdir(pluginsDir, { withFileTypes: true }).catch(() => []);
+    const roots: PackageSkillRoot[] = [];
+    for (const folder of folders) {
+      if (folder.name.startsWith(".")) continue;
+      const directory = join(pluginsDir, folder.name);
+      let manifest: DistributionManifest;
+      try {
+        manifest = validateDistributionManifest(
+          JSON.parse(await fs.readFile(join(directory, "manifest.json"), "utf-8"))
+        );
+      } catch {
+        continue;
+      }
+      if (manifest.id !== folder.name || !("skills" in manifest) || !manifest.skills) continue;
+      for (const id of manifest.skills)
+        roots.push({
+          dir: join(directory, "skills", id),
+          folderName: `${manifest.id}:${id}`,
+          pluginId: manifest.id,
+          pluginName: manifest.name,
+          source: isSkillPackageManifest(manifest) ? "package" : "plugin",
+        });
+    }
+    this.packageRoots = roots;
+    return roots;
+  }
+
+  /** 先查缓存，未命中再扫描一次，避免每次读取都遍历插件目录。 */
+  private async findPackageRoot(
+    match: (root: PackageSkillRoot) => boolean
+  ): Promise<PackageSkillRoot | undefined> {
+    return this.packageRoots.find(match) ?? (await this.scanPackageRoots()).find(match);
+  }
+
+  /** 可读：我的目录、已启用关联目录里勾选了的 skill 子树，或插件包内声明的 Skill 目录 */
   private async assertReadable(target: string): Promise<void> {
     if (isInside(this.skillsDir, target)) return;
+    if (await this.findPackageRoot(root => isInside(root.dir, target))) return;
     const ok = (await this.enabledLinkRoots()).some(({ root, selected }) => {
       const rel = relative(resolve(root), resolve(target));
       if (rel.startsWith("..") || isAbsolute(rel)) return false;
@@ -172,7 +225,11 @@ class SkillModule implements Module {
         resolve(join(skillPath, "..")) === resolve(root) &&
         (selected === undefined || selected.has(basename(skillPath)))
     );
-    if ((!inMine && !inLinked) || !existsSync(join(skillPath, SKILL_README))) {
+    const inPackage =
+      !inMine &&
+      !inLinked &&
+      Boolean(await this.findPackageRoot(root => resolve(root.dir) === resolve(skillPath)));
+    if ((!inMine && !inLinked && !inPackage) || !existsSync(join(skillPath, SKILL_README))) {
       throw new Error("不是有效的 Skill 目录");
     }
   }
@@ -226,37 +283,61 @@ class SkillModule implements Module {
 
   // ── 列表 / 详情 ──
 
+  /** 读取一个 Skill 目录；不是目录或没有 SKILL.md 时返回 null */
+  private async readSkill(
+    skillPath: string,
+    base: Pick<Skill, "folderName" | "source" | "rootPath" | "pluginId" | "pluginName">
+  ): Promise<Skill | null> {
+    // 关联目录常用软链接，stat 跟随链接判断是否目录
+    const stat = await fs.stat(skillPath).catch(() => null);
+    if (!stat?.isDirectory()) return null;
+    const readme = await fs.readFile(join(skillPath, SKILL_README), "utf-8").catch(() => null);
+    if (readme === null) return null;
+    const meta = parseSkillFrontMatter(readme);
+    const { count, hasScripts } = await countFiles(skillPath).catch(() => ({
+      count: 1,
+      hasScripts: false,
+    }));
+    return {
+      ...base,
+      name: meta.name ?? basename(skillPath),
+      description: meta.description,
+      path: skillPath,
+      defaultInvocation: meta.disableModelInvocation ? "manual" : "auto",
+      allowedTools: meta.allowedTools,
+      fileCount: count,
+      hasScripts,
+      updatedAt: stat.mtimeMs,
+    };
+  }
+
   private async scanRoot(root: string, source: "mine" | "linked"): Promise<Skill[]> {
     const entries = await fs.readdir(root, { withFileTypes: true }).catch(() => []);
     const skills: Skill[] = [];
     for (const entry of entries) {
       if (entry.name.startsWith(".")) continue;
-      const skillPath = join(root, entry.name);
-      // 关联目录常用软链接，stat 跟随链接判断是否目录
-      const stat = await fs.stat(skillPath).catch(() => null);
-      if (!stat?.isDirectory()) continue;
-      const readme = await fs.readFile(join(skillPath, SKILL_README), "utf-8").catch(() => null);
-      if (readme === null) continue;
-      const meta = parseSkillFrontMatter(readme);
-      const { count, hasScripts } = await countFiles(skillPath).catch(() => ({
-        count: 1,
-        hasScripts: false,
-      }));
-      skills.push({
+      const skill = await this.readSkill(join(root, entry.name), {
         folderName: entry.name,
-        name: meta.name ?? entry.name,
-        description: meta.description,
-        path: skillPath,
         source,
         rootPath: source === "linked" ? root : undefined,
-        defaultInvocation: meta.disableModelInvocation ? "manual" : "auto",
-        allowedTools: meta.allowedTools,
-        fileCount: count,
-        hasScripts,
-        updatedAt: stat.mtimeMs,
       });
+      if (skill) skills.push(skill);
     }
     return skills;
+  }
+
+  private async listPackageSkills(): Promise<Skill[]> {
+    const skills = await Promise.all(
+      (await this.scanPackageRoots()).map(root =>
+        this.readSkill(root.dir, {
+          folderName: root.folderName,
+          source: root.source,
+          pluginId: root.pluginId,
+          pluginName: root.pluginName,
+        })
+      )
+    );
+    return skills.filter((skill): skill is Skill => skill !== null);
   }
 
   async listSkills(): Promise<Skill[]> {
@@ -271,7 +352,7 @@ class SkillModule implements Module {
         )
       )
     ).flat();
-    return [...mine, ...linked];
+    return [...mine, ...linked, ...(await this.listPackageSkills())];
   }
 
   async getSkillReadme(skillPath: string): Promise<string | null> {
@@ -310,13 +391,15 @@ class SkillModule implements Module {
     if (!existsSync(skillPath)) return null;
     const readmeContent = await fs.readFile(join(skillPath, SKILL_README), "utf-8").catch(() => "");
     const meta = parseSkillFrontMatter(readmeContent);
-    const folderName = basename(skillPath);
+    const owner = await this.findPackageRoot(root => resolve(root.dir) === resolve(skillPath));
+    const folderName = owner?.folderName ?? basename(skillPath);
     return {
       folderName,
-      name: meta.name ?? folderName,
+      name: meta.name ?? basename(skillPath),
       description: meta.description,
       path: skillPath,
-      source: isInside(this.skillsDir, skillPath) ? "mine" : "linked",
+      source: owner?.source ?? (isInside(this.skillsDir, skillPath) ? "mine" : "linked"),
+      ...(owner ? { pluginId: owner.pluginId, pluginName: owner.pluginName } : {}),
       defaultInvocation: meta.disableModelInvocation ? "manual" : "auto",
       allowedTools: meta.allowedTools,
       readmeContent,

@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import type {
+  PluginContentInput,
+  PluginContext,
   PluginEntityKind,
   PluginEntityRef,
   PluginPickOptions,
@@ -7,23 +9,43 @@ import type {
 } from "@tau/plugins";
 import type { Descendant } from "slate";
 import type { AppAdapter, PluginAppRunRequest, PluginOwner } from "@tau/plugins/host";
-import { getPluginData, pluginRefExists } from "@/commands/plugin-data";
+import {
+  describePluginRefs,
+  getPluginData,
+  grantPluginRefs,
+  planPluginNotebook,
+  pluginRefExists,
+  resolvePluginContentInput,
+  getPluginSharedContent,
+} from "@/commands/plugin-data";
+import type { MentionRef } from "@tau/shared";
+import type { LineageNode } from "@/entity/lineage";
+import type { MaterialRef } from "@/entity/material";
+import type { NotebookPlan } from "@/types/vibe-learning";
+import { DEFAULT_CARD_CONTENT } from "@/constants/card";
+import { getChatSession } from "@/commands/chat-session";
 import { locateEntity } from "@/commands/entity";
 import { bindDatabaseCommands } from "@/services/command-context";
 import { normalizeEntityRefKind, type EntityRef } from "@/entity/ref";
 import type { EntityCandidate, EntityKind } from "@/types";
 import { resolvePluginContentTarget } from "./content-target";
+import { toContentSource } from "./data";
 import { assertPluginUserActivation } from "./user-activation";
 
-/** 插件类型 → 宿主选择器的实体类型 */
-export const PICKER_KINDS: Record<PluginEntityKind, EntityKind> = {
-  card: "card",
-  article: "article",
-  document: "project_item",
-  diary: "diary-moment",
-  whiteboard: "white_board",
-  todo: "todo",
-  event: "calendar-event",
+/** 插件类型 → 宿主选择器的实体类型；材料一类对应划线、PDF 标注与剪藏 */
+export const PICKER_KINDS: Record<PluginEntityKind, EntityKind[]> = {
+  card: ["card"],
+  article: ["article"],
+  document: ["project_item"],
+  diary: ["diary-moment"],
+  whiteboard: ["white_board"],
+  todo: ["todo"],
+  event: ["calendar-event"],
+  project: ["project"],
+  notebook: ["notebook"],
+  material: ["excerpt", "pdf-annotation", "web-clip"],
+  "chat-session": ["chat-session"],
+  "plugin-entity": ["plugin-entity"],
 };
 
 const OPEN_KINDS: Partial<Record<PluginEntityKind, EntityRef["kind"]>> = {
@@ -31,12 +53,22 @@ const OPEN_KINDS: Partial<Record<PluginEntityKind, EntityRef["kind"]>> = {
   article: "article",
   document: "project-item",
   diary: "diary-moment",
+  "plugin-entity": "plugin-entity",
 };
 
-/** 选择器的候选 → 插件引用；待办与日程的 id 与 context.data 一致（带创建时间） */
+const OPEN_PAGES: Partial<Record<PluginEntityKind, string>> = {
+  whiteboard: "whiteboard-detail",
+  project: "project-detail",
+  notebook: "vibe-learning-detail",
+};
+
+/**
+ * 选择器的候选 → 插件引用：待办与日程的 id 与 context.data 一致（带创建时间），
+ * 材料为 `类型:ID`，对话为会话 ID
+ */
 export function pickedEntity(candidate: EntityCandidate): PluginPickedEntity | null {
-  const kind = (Object.keys(PICKER_KINDS) as PluginEntityKind[]).find(
-    key => PICKER_KINDS[key] === candidate.kind
+  const kind = (Object.keys(PICKER_KINDS) as PluginEntityKind[]).find(key =>
+    PICKER_KINDS[key].includes(candidate.kind)
   );
   if (!kind) return null;
   const id =
@@ -44,8 +76,12 @@ export function pickedEntity(candidate: EntityCandidate): PluginPickedEntity | n
       ? `todo:${candidate.id}:${candidate.createdAt}`
       : kind === "event"
         ? `${candidate.id}:${candidate.createdAt}`
-        : String(candidate.id);
-  return { ref: { kind, id }, title: candidate.title };
+        : kind === "material"
+          ? `${candidate.kind}:${candidate.id}`
+          : kind === "chat-session"
+            ? (candidate.sessionId ?? "")
+            : String(candidate.id);
+  return id ? { ref: { kind, id }, title: candidate.title } : null;
 }
 
 export interface PluginPickRequest {
@@ -60,10 +96,52 @@ export const usePluginPickerUi = create<{ request: PluginPickRequest | null }>()
   request: null,
 }));
 
-/** 宿主动作打开的界面（导出窗口、演示、协作窗口），由壳层挂载的 PluginContentActionHost 渲染；新请求替换旧请求 */
-export interface PluginActionRequest {
+interface PluginActionBase {
   id: number;
   plugin: PluginOwner;
+  /** 用户关闭界面；新建类按取消处理 */
+  close(): void;
+}
+
+/**
+ * 宿主动作打开的界面（导出窗口、演示、协作窗口、新建卡片），由壳层挂载的 PluginContentActionHost
+ * 渲染；一次只显示一个，界面关闭后插件的 run 才返回。
+ */
+export type PluginActionRequest =
+  | PluginContentActionRequest
+  | PluginCardCreateRequest
+  | PluginDocumentInsertRequest
+  | PluginNotebookCreateRequest;
+
+/** 新建 Notebook：确认框说明带入几份资料，确认后由宿主新建并带入 */
+export interface PluginNotebookCreateRequest extends PluginActionBase {
+  action: "notebook.create";
+  databaseName: string;
+  title: string;
+  plan: NotebookPlan;
+  from?: LineageNode;
+  settle(projectId: number): void;
+}
+
+export interface PluginCardCreateRequest extends PluginActionBase {
+  action: "card.create";
+  /** 预填的正文与标签：不读写用户的卡片草稿 */
+  content: Descendant[];
+  tags: string[];
+  settle(cardId: number): void;
+}
+
+/** 插入到项目：复制正文为新的项目文档，或与插件内容共用正文；项目与位置由用户在弹窗里选 */
+export interface PluginDocumentInsertRequest extends PluginActionBase {
+  action: "project.insertDocument";
+  title: string;
+  content: Descendant[];
+  /** shareOf：新文档引用这份正文 */
+  sharedContentId?: number;
+  settle(documentId: number): void;
+}
+
+export interface PluginContentActionRequest extends PluginActionBase {
   action: "export" | "present" | "share";
   format?: "image" | "pdf" | "epub";
   contentId: number;
@@ -74,7 +152,6 @@ export interface PluginActionRequest {
   };
   title: string;
   content: Descendant[];
-  close(): void;
 }
 
 export const usePluginActionUi = create<{ request: PluginActionRequest | null }>()(() => ({
@@ -83,18 +160,112 @@ export const usePluginActionUi = create<{ request: PluginActionRequest | null }>
 
 let nextRequestId = 0;
 
+const MENTION_TYPES = { card: "card", article: "article", document: "project-item" } as const;
+
+/** 对话上下文引用 → 输入框里的引用；可用类型由 SDK 的 PLUGIN_CHAT_CONTEXT_KINDS 限定 */
+async function resolveMentions(
+  databaseName: string,
+  context: PluginContext,
+  refs: PluginEntityRef[]
+): Promise<MentionRef[]> {
+  const commands = bindDatabaseCommands(
+    { getPluginData },
+    { databaseName, signal: context.signal }
+  );
+  return Promise.all(
+    refs.map(async ref => {
+      const entity = ref.kind as keyof typeof MENTION_TYPES;
+      const id = Number(ref.id);
+      const record = MENTION_TYPES[entity]
+        ? await commands.getPluginData(databaseName, entity, id)
+        : null;
+      if (!record?.contentId) throw new Error("内容不存在");
+      return {
+        entityType: MENTION_TYPES[entity],
+        entityId: id,
+        contentId: record.contentId,
+        title: record.title,
+        previewText: "",
+      };
+    })
+  );
+}
+
+/** 插件引用 → 谱系端点；可作来源的类型由 SDK 的 PLUGIN_NOTEBOOK_FROM_KINDS 限定 */
+function toLineageNode(ref: PluginEntityRef): LineageNode {
+  const numeric = Number(ref.id);
+  switch (ref.kind) {
+    case "document":
+      return { kind: "project-item", id: numeric };
+    case "diary":
+      return { kind: "diary-moment", id: numeric };
+    case "notebook":
+      return { kind: "vl-project", id: numeric };
+    case "chat-session":
+      return { kind: "chat-session", id: ref.id };
+    case "material": {
+      const [kind, id] = ref.id.split(":");
+      return { kind: kind as MaterialRef["kind"], id: Number(id) };
+    }
+    case "card":
+    case "article":
+    case "plugin-entity":
+      return { kind: ref.kind, id: numeric };
+    default:
+      throw new Error("这类内容不能作为 Notebook 的来源");
+  }
+}
+
+/** 显示动作界面，界面关闭或插件停用后以 fallback 结束 */
+function showAction<T>(
+  context: PluginContext,
+  fallback: T,
+  build: (finish: (value: T) => void, id: number) => PluginActionRequest
+): Promise<T> {
+  context.signal.throwIfAborted();
+  if (usePluginActionUi.getState().request) throw new Error("请先完成或关闭当前打开的窗口");
+  return new Promise(resolve => {
+    let done = false;
+    const finish = (value: T) => {
+      if (done) return;
+      done = true;
+      context.signal.removeEventListener("abort", cancel);
+      if (usePluginActionUi.getState().request === request)
+        usePluginActionUi.setState({ request: null });
+      resolve(value);
+    };
+    const cancel = () => finish(fallback);
+    const request = build(finish, ++nextRequestId);
+    context.signal.addEventListener("abort", cancel, { once: true });
+    usePluginActionUi.setState({ request });
+  });
+}
+
 export function createDesktopApp(databaseName: string): AppAdapter {
   return {
     pick(context, plugin, options) {
       assertPluginUserActivation();
       context.signal.throwIfAborted();
       if (usePluginPickerUi.getState().request) throw new Error("已有一个选择窗口正在打开");
-      return new Promise(resolve => {
+      // 用户亲手选中即视为同意插件之后读取这些内容的标题，登记后再交给插件
+      const grant = async (picked: PluginPickedEntity[]) => {
+        if (picked.length)
+          await bindDatabaseCommands(
+            { grantPluginRefs },
+            { databaseName, signal: context.signal }
+          ).grantPluginRefs(
+            databaseName,
+            context.pluginId,
+            picked.map(item => item.ref)
+          );
+        return picked;
+      };
+      return new Promise((resolve, reject) => {
         const finish = (picked: PluginPickedEntity[]) => {
           context.signal.removeEventListener("abort", abort);
           if (usePluginPickerUi.getState().request === request)
             usePluginPickerUi.setState({ request: null });
-          resolve(picked);
+          grant(picked).then(resolve, reject);
         };
         const abort = () => finish([]);
         const request: PluginPickRequest = {
@@ -107,7 +278,7 @@ export function createDesktopApp(databaseName: string): AppAdapter {
         usePluginPickerUi.setState({ request });
       });
     },
-    async open(context, ref: PluginEntityRef) {
+    async open(context, ref: PluginEntityRef, { placement, at } = { placement: "page" }) {
       assertPluginUserActivation();
       const commands = bindDatabaseCommands(
         { pluginRefExists, locateEntity },
@@ -122,8 +293,35 @@ export function createDesktopApp(databaseName: string): AppAdapter {
       ]);
       context.signal.throwIfAborted();
       const kind = OPEN_KINDS[ref.kind];
-      if (kind) return openEntity({ kind, id: Number(ref.id) });
-      if (ref.kind === "whiteboard") return openPage("whiteboard-detail", { id: Number(ref.id) });
+      if (placement === "window") {
+        if (kind !== "card" && kind !== "article" && kind !== "project-item")
+          throw new Error("只有卡片、文章与项目文档能在独立窗口打开");
+        const { openEditorWindow } = await import("@/commands/window");
+        return openEditorWindow({ kind, databaseName, id: Number(ref.id) });
+      }
+      if (kind)
+        return at
+          ? openEntity({ kind, id: Number(ref.id) }, { at })
+          : openEntity({ kind, id: Number(ref.id) });
+      const page = OPEN_PAGES[ref.kind];
+      if (page) return openPage(page, { id: Number(ref.id) });
+      if (ref.kind === "material") {
+        const [materialKind, id] = ref.id.split(":");
+        const { openMaterial } = await import("@/services/open-material");
+        context.signal.throwIfAborted();
+        return openMaterial({ kind: materialKind as "excerpt", id: Number(id) });
+      }
+      if (ref.kind === "chat-session") {
+        // 只有主对话能单独打开；PDF、视频笔记与 Notebook 里的对话在各自页面中
+        const session = await getChatSession(ref.id);
+        context.signal.throwIfAborted();
+        if (session?.scope !== "main-chat") throw new Error("这段对话不能单独打开");
+        if (placement === "dock") {
+          const { openChatInDock } = await import("@/features/chat/openInDock");
+          return openChatInDock(ref.id);
+        }
+        return openPage("chat", { id: ref.id });
+      }
       if (ref.kind === "event")
         return openPage("schedule", { eventId: Number(ref.id.split(":")[0]) });
       const [key] = ref.id.split("@");
@@ -138,60 +336,140 @@ export function createDesktopApp(databaseName: string): AppAdapter {
       context.signal.throwIfAborted();
       return openEntity({ kind: owner, id: location.id }, { at: { taskId: task[2] } });
     },
+    describe(context, refs, readable) {
+      return bindDatabaseCommands(
+        { describePluginRefs },
+        { databaseName, signal: context.signal }
+      ).describePluginRefs(databaseName, context.pluginId, [...refs], [...readable]);
+    },
     async run(context, plugin, request: PluginAppRunRequest) {
-      assertPluginUserActivation();
-      const target = await resolvePluginContentTarget(
-        databaseName,
-        context.pluginId,
-        request.ref,
-        context.signal
-      );
-      if (!target) throw new Error("内容不存在");
-      const { owner } = target;
-      const record = owner
-        ? await bindDatabaseCommands(
-            { getPluginData },
-            { databaseName, signal: context.signal }
-          ).getPluginData(databaseName, owner.entity, owner.id)
-        : null;
-      context.signal.throwIfAborted();
-      const title = record?.title || target.own?.title || "未命名";
-      if (request.action === "content.export" && request.format === "markdown") {
-        const { exportContentAsMarkdown } = await import("@/services/content-transfer");
-        context.signal.throwIfAborted();
-        await exportContentAsMarkdown({ title, content: target.nodes });
-        return;
-      }
-      const close = () => {
-        context.signal.removeEventListener("abort", close);
-        if (usePluginActionUi.getState().request === next)
-          usePluginActionUi.setState({ request: null });
-      };
-      const next: PluginActionRequest = {
-        id: ++nextRequestId,
-        plugin,
-        action:
-          request.action === "content.export"
-            ? "export"
-            : request.action === "content.present"
-              ? "present"
-              : "share",
-        ...(request.action === "content.export" && request.format !== "markdown"
-          ? { format: request.format }
-          : {}),
-        contentId: target.contentId,
-        // 插件自有内容没有宿主实体，按通用正文共享
-        source: owner
-          ? { sourceType: owner.sourceType, sourceId: owner.id, sourceTitle: title }
-          : { sourceType: "content", sourceId: target.contentId, sourceTitle: title },
-        title,
-        content: target.nodes,
-        close,
-      };
-      // 插件停用时撤下它打开的界面
-      context.signal.addEventListener("abort", close, { once: true });
-      usePluginActionUi.getState().request?.close();
-      usePluginActionUi.setState({ request: next });
+      const result = await runAction(databaseName, context, plugin, request);
+      // 用户在宿主窗口里亲手保存即同意：与 pick 一样登记，插件之后能显示与关联它
+      if (result)
+        await bindDatabaseCommands(
+          { grantPluginRefs },
+          { databaseName, signal: context.signal }
+        ).grantPluginRefs(databaseName, context.pluginId, [result]);
+      return result;
     },
   };
+}
+
+async function runAction(
+  databaseName: string,
+  ...[context, plugin, request]: Parameters<AppAdapter["run"]>
+): Promise<PluginEntityRef | null | void> {
+  assertPluginUserActivation();
+  if (usePluginActionUi.getState().request) throw new Error("请先完成或关闭当前打开的窗口");
+  const resolve = (content: PluginContentInput) =>
+    bindDatabaseCommands(
+      { resolvePluginContentInput },
+      { databaseName, signal: context.signal }
+    ).resolvePluginContentInput(databaseName, toContentSource(content));
+  if (request.action === "chat.start") {
+    const mentions = await resolveMentions(databaseName, context, request.context);
+    const { startChat } = await import("@/features/chat/chatStart");
+    const sessionId = await startChat(
+      { placement: request.placement, prompt: request.prompt, mentions },
+      context.signal
+    );
+    return sessionId ? { kind: "chat-session", id: sessionId } : null;
+  }
+  if (request.action === "notebook.create") {
+    const commands = bindDatabaseCommands(
+      { planPluginNotebook, pluginRefExists },
+      { databaseName, signal: context.signal }
+    );
+    const from = request.from;
+    if (from && !(await commands.pluginRefExists(databaseName, from.kind, from.id)))
+      throw new Error("来源不存在");
+    const plan = await commands.planPluginNotebook(databaseName, request.sources);
+    return showAction<PluginEntityRef | null>(context, null, (finish, id) => ({
+      id,
+      plugin,
+      action: "notebook.create",
+      databaseName,
+      title: request.title,
+      plan,
+      ...(from ? { from: toLineageNode(from) } : {}),
+      close: () => finish(null),
+      settle: projectId => finish({ kind: "notebook", id: String(projectId) }),
+    }));
+  }
+  if (request.action === "project.insertDocument") {
+    const source = toContentSource(request.content);
+    const sharedContentId =
+      "shareOf" in source
+        ? await bindDatabaseCommands(
+            { getPluginSharedContent },
+            { databaseName, signal: context.signal }
+          ).getPluginSharedContent(databaseName, context.pluginId, source.shareOf)
+        : undefined;
+    const nodes = sharedContentId === undefined ? await resolve(request.content) : [];
+    return showAction<PluginEntityRef | null>(context, null, (finish, id) => ({
+      id,
+      plugin,
+      action: "project.insertDocument",
+      title: request.title ?? "未命名文档",
+      content: nodes.length ? nodes : structuredClone(DEFAULT_CARD_CONTENT),
+      ...(sharedContentId !== undefined ? { sharedContentId } : {}),
+      close: () => finish(null),
+      settle: documentId => finish({ kind: "document", id: String(documentId) }),
+    }));
+  }
+  if (request.action === "card.create") {
+    const nodes = request.content ? await resolve(request.content) : [];
+    return showAction<PluginEntityRef | null>(context, null, (finish, id) => ({
+      id,
+      plugin,
+      action: "card.create",
+      content: nodes.length ? nodes : structuredClone(DEFAULT_CARD_CONTENT),
+      tags: request.tags ?? [],
+      close: () => finish(null),
+      settle: cardId => finish({ kind: "card", id: String(cardId) }),
+    }));
+  }
+  const target = await resolvePluginContentTarget(
+    databaseName,
+    context.pluginId,
+    request.ref,
+    context.signal
+  );
+  if (!target) throw new Error("内容不存在");
+  const { owner } = target;
+  const record = owner
+    ? await bindDatabaseCommands(
+        { getPluginData },
+        { databaseName, signal: context.signal }
+      ).getPluginData(databaseName, owner.entity, owner.id)
+    : null;
+  context.signal.throwIfAborted();
+  const title = record?.title || target.own?.title || "未命名";
+  if (request.action === "content.export" && request.format === "markdown") {
+    const { exportContentAsMarkdown } = await import("@/services/content-transfer");
+    context.signal.throwIfAborted();
+    await exportContentAsMarkdown({ title, content: target.nodes });
+    return;
+  }
+  return showAction<void>(context, undefined, (finish, id) => ({
+    id,
+    plugin,
+    action:
+      request.action === "content.export"
+        ? "export"
+        : request.action === "content.present"
+          ? "present"
+          : "share",
+    ...(request.action === "content.export" && request.format !== "markdown"
+      ? { format: request.format }
+      : {}),
+    contentId: target.contentId,
+    // 插件自有内容没有宿主实体，按通用正文共享
+    source: owner
+      ? { sourceType: owner.sourceType, sourceId: owner.id, sourceTitle: title }
+      : { sourceType: "content", sourceId: target.contentId, sourceTitle: title },
+    title,
+    content: target.nodes,
+    close: () => finish(undefined),
+  }));
 }

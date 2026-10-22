@@ -6,6 +6,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { UiProvider } from "@tau/ui";
 import { ApiProvider, createQueryClient } from "../app/api";
 import { createMockApi } from "../api/mock/mockApi";
+import { PortalApiError } from "../api/errors";
 import type { PortalApi } from "../api/types";
 import { NewSubmissionPage } from "./NewSubmissionPage";
 
@@ -32,6 +33,7 @@ async function setup(path = "/submissions/new", prepare?: (api: PortalApi) => Pr
           <QueryClientProvider client={createQueryClient()}>
             <Routes>
               <Route path="/submissions/new" element={<NewSubmissionPage />} />
+              <Route path="/submissions" element={<Probe />} />
               <Route path="/submissions/:id" element={<Probe />} />
             </Routes>
           </QueryClientProvider>
@@ -99,4 +101,27 @@ it("发布新版本模式：目标插件未登记时服务端拒绝，页面提�
   expect(create).toHaveBeenCalledTimes(1);
   expect(screen.queryByTestId("location")).toBeNull();
   expect(screen.getByRole("button", { name: "重试创建" })).toBeTruthy();
+});
+
+it("创建达到额度时显示管理入口而非重试按钮", async () => {
+  const { create, drop } = await setup();
+  create.mockRejectedValueOnce(new PortalApiError(409, "LIMIT_EXCEEDED", "请先处理未完成的提交"));
+  drop();
+  await screen.findByText("未完成的提交已达上限");
+  expect(screen.getByText("请先处理未完成的提交")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "重试创建" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "管理我的提交" }));
+  expect((await screen.findByTestId("location")).textContent).toBe("/submissions");
+  expect(create).toHaveBeenCalledTimes(1);
+});
+
+it("网络失败仍可复用同一请求和上传重试创建", async () => {
+  const { create, drop } = await setup();
+  create.mockRejectedValueOnce(new PortalApiError(0, "NETWORK_ERROR", "网络连接中断"));
+  drop();
+  await screen.findByText("网络连接中断");
+  fireEvent.click(screen.getByRole("button", { name: "重试创建" }));
+  await screen.findByTestId("location");
+  expect(create).toHaveBeenCalledTimes(2);
+  expect(create.mock.calls[1][0]).toEqual(create.mock.calls[0][0]);
 });

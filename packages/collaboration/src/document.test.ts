@@ -13,6 +13,8 @@ import {
   isSafeResource,
   validateDocument,
 } from "./document";
+import { declareDocumentResources, readDocumentResources } from "./resources";
+import { BUILTIN_CONTENT_RESOURCES } from "@tau/db-schema/content-resources";
 
 const article = {
   title: "测试文章",
@@ -268,19 +270,42 @@ describe("共享文档", () => {
     doc.destroy();
   });
 
-  it("附件的本机路径字段同样受资源校验", () => {
-    const doc = createSharedDocument({
-      ...article,
-      content: [
-        {
-          type: "file-attachment",
-          filePath: "https://files.example/a.pdf",
-          localFilePath: "/Users/me/a.pdf",
-          children: [{ text: "" }],
-        },
-      ],
-    });
+  it("资源只按文档携带的声明校验：声明的附件本机路径被拒，未声明的字段原样同步", () => {
+    const content = [
+      {
+        type: "file-attachment",
+        filePath: "https://files.example/a.pdf",
+        localFilePath: "/Users/me/a.pdf",
+        children: [{ text: "" }],
+      },
+      { type: "example.widget", src: "/Users/me/b.png", children: [{ text: "" }] },
+    ];
+    const doc = createSharedDocument({ ...article, content });
+    expect(() => validateDocument(doc)).not.toThrow();
+    expect(declareDocumentResources(doc, BUILTIN_CONTENT_RESOURCES, content)).toBe(true);
+    expect(declareDocumentResources(doc, BUILTIN_CONTENT_RESOURCES, content)).toBe(false);
+    expect(Object.keys(readDocumentResources(doc))).toEqual(["file-attachment"]);
     expect(() => validateDocument(doc)).toThrow("本地路径");
+    doc.destroy();
+  });
+
+  it("插件声明的嵌套资源同样受校验，损坏的声明被拒", () => {
+    const content = [
+      {
+        type: "example.gallery",
+        images: [{ url: "tau-collab-asset:a" }, { url: "/Users/me/c.png" }],
+        children: [{ text: "" }],
+      },
+    ];
+    const doc = createSharedDocument({ ...article, content });
+    declareDocumentResources(
+      doc,
+      { "example.gallery": [{ path: "images[].url", kind: "image" }] },
+      content
+    );
+    expect(() => validateDocument(doc)).toThrow("本地路径");
+    doc.getMap("resources").set("example.gallery", [{ path: "__proto__.x", kind: "image" }]);
+    expect(() => validateDocument(doc)).toThrow("资源声明无效");
     doc.destroy();
   });
 });

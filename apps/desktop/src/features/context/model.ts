@@ -6,7 +6,6 @@ import {
   FileText,
   FlaskConical,
   FolderKanban,
-  CircleHelp,
   Globe,
   Highlighter,
   Layers,
@@ -39,7 +38,6 @@ export const LINEAGE_KIND_META: Record<LineageNodeKind, { label: string; icon: L
   "pdf-annotation": { label: "PDF 标注", icon: FileText },
   "web-clip": { label: "解析文档", icon: Globe },
   flashcard: { label: "闪卡", icon: Repeat },
-  question: { label: "问题", icon: CircleHelp },
   "vl-project": { label: "Notebook", icon: FlaskConical },
 };
 
@@ -51,7 +49,7 @@ export const USAGE_KIND_ICON: Record<ContextUsage["kind"], LucideIcon> = {
 
 /**
  * 元信息行显示的关联数：连接（显式连接 + 内联出链）+ 引用我的来源 + 共用正文的身份
- * （含 Notebook 笔记）+ 相关问题 + 来源 + 衍生 + 被使用（KL-023）
+ * （含 Notebook 笔记）+ 被插件内容关联 + 来源 + 衍生 + 被使用（KL-023）
  */
 export function contextCount(context: EntityContext | null | undefined): number {
   if (!context) return 0;
@@ -60,7 +58,7 @@ export function contextCount(context: EntityContext | null | undefined): number 
     context.backlinkTotal +
     context.projections.length +
     context.notebookProjections.length +
-    context.questions.length +
+    context.pluginLinks.length +
     context.sources.length +
     context.derived.length +
     context.usages.length

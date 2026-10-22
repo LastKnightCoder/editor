@@ -32,7 +32,7 @@ pnpm deploy:collaboration
 
 版本号自动生成，部署锁避免同时切换。失败时回切旧镜像和配置，但不会自动还原数据库，以免覆盖更新期间的写入；不兼容的数据库迁移仍需单独制定恢复方案。Nginx、证书和服务器 `.env` 不会被覆盖。默认使用 AWS 公共镜像库中的 Node 官方镜像副本，可通过 `COLLAB_NODE_IMAGE` 调整。
 
-服务器发布记录和备份副本保存在 `/root/tau-collab-releases/<版本>`，旧镜像和发布记录不自动删除，需要按磁盘情况定期清理。详情见 `docs/collaboration-deployment.md`。
+服务器发布记录和备份副本保存在 `/root/tau-collab-releases/<版本>`，旧镜像和发布记录不自动删除，需要按磁盘情况定期清理。详情见 `docs/guides/ops-collaboration-deploy.md`。
 
 ## 服务器端构建（git 模式）
 
@@ -54,7 +54,7 @@ git -C /opt/tau-collab-repo fetch --depth=1 origin master
 
 仓库必须放在 `/opt/tau/editor` 之外：`deploy-remote.sh` 会把整个部署目录打包留存用于回切，`.git` 落在其中会让每次发布多备份一份完整历史。
 
-与本地模式不同，此模式只发布**已提交并推送到上游分支**的内容：工作区有未提交修改，或本地 `HEAD` 与上游不一致时会直接拒绝执行。构建缓存产生在服务器上，磁盘增长更快，建议定期执行 `pnpm cleanup:collaboration --apply --build-cache`。镜像构建需要服务器能访问基础镜像仓库与 npm 源；`ali-ecs` 已完成实测，在这台 2 vCPU / 1888MB 的实例上完整构建约 67 秒，记录见 `docs/collaboration-deployment.md`。
+与本地模式不同，此模式只发布**已提交并推送到上游分支**的内容：工作区有未提交修改，或本地 `HEAD` 与上游不一致时会直接拒绝执行。构建缓存产生在服务器上，磁盘增长更快，建议定期执行 `pnpm cleanup:collaboration --apply --build-cache`。镜像构建需要服务器能访问基础镜像仓库与 npm 源；`ali-ecs` 已完成实测，在这台 2 vCPU / 1888MB 的实例上完整构建约 67 秒，记录见 `docs/guides/ops-collaboration-deploy.md`。
 
 服务器上的手动备份与恢复：
 

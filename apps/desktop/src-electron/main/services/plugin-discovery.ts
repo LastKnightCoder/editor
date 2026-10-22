@@ -1,7 +1,7 @@
 import { mkdir, readdir } from "node:fs/promises";
 import path from "node:path";
 import type { LocalPluginEntry, LocalPluginScan } from "@/types/plugin-local";
-import { readDistributionPackage, isTemplatePackage } from "./plugin-package";
+import { readDistributionPackage, isSkillPackage, isTemplatePackage } from "./plugin-package";
 
 export async function discoverPlugins(
   directory: string,
@@ -21,7 +21,9 @@ export async function discoverPlugins(
       entries.push(
         isTemplatePackage(artifact)
           ? { id: folder.name, directory: location, template: artifact.manifest }
-          : { id: folder.name, directory: location, artifact }
+          : isSkillPackage(artifact)
+            ? { id: folder.name, directory: location, skillPackage: artifact.manifest }
+            : { id: folder.name, directory: location, artifact }
       );
     } catch (error) {
       entries.push({

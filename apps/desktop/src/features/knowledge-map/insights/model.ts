@@ -1,19 +1,17 @@
 /**
- * 知识地图洞见视图的纯逻辑：每一层画哪些标记、逐条看的顺序、标记的几何（画布坐标）、记问题的来源。
+ * 知识地图洞见视图的纯逻辑：每一层画哪些标记、逐条看的顺序、标记的几何（画布坐标）、聊一聊的提问。
  * 不碰 React 与 DOM，单测直接喂数据。
  */
 
-import type { EntityRef } from "@/entity/ref";
 import type { InsightMark } from "@/types/content-insights";
-import type { QuestionCaptureSource } from "@/services/question-capture";
-import type {
-  KnowledgeEndpoint,
-  KnowledgeInsightNode,
-  KnowledgeInsightsPayload,
-  KnowledgeMark,
-  KnowledgeMarkKind,
+import {
+  WRITE_CARD_KINDS,
+  type KnowledgeEndpoint,
+  type KnowledgeInsightNode,
+  type KnowledgeInsightsPayload,
+  type KnowledgeMark,
+  type KnowledgeMarkKind,
 } from "@/types/knowledge-insights";
-import type { QuestionLinkTargetType } from "@/types/question";
 
 export const MARK_META: Record<KnowledgeMarkKind, { label: string; dot: string; stroke: string }> =
   {
@@ -111,16 +109,16 @@ export const bothCards = (mark: KnowledgeMark) =>
   mark.ends.length === 2 && mark.ends.every(end => end.ref.kind === "card");
 
 /**
- * 气泡的主动作：呼应与重复是连接；同一思路是已经会用、还没提炼的原理，写成一张卡片（KL-069）；
- * 其余是还不知道的，记为问题
+ * 气泡的主动作（KL-069 思路）：呼应与重复是连接；同一思路、缺一环、问了没写、还缺要自己写出来，
+ * 写成一张卡片（WRITE_CARD_KINDS）；矛盾要想清楚哪边对，聊一聊。
  */
-export type MarkAction = "connect" | "write" | "question";
+export type MarkAction = "connect" | "write" | "discuss";
 export const primaryAction = (mark: KnowledgeMark): MarkAction =>
   mark.kind === "bridge" || mark.kind === "dup"
     ? "connect"
-    : mark.kind === "pattern"
+    : WRITE_CARD_KINDS.has(mark.kind)
       ? "write"
-      : "question";
+      : "discuss";
 
 /** 去连接时打开哪一端：有原文片段的长文优先 */
 export function connectTarget(mark: KnowledgeMark): KnowledgeEndpoint | null {
@@ -191,58 +189,18 @@ export function markSummary(mark: KnowledgeMark): string {
   }
 }
 
-const QUESTION_TARGET: Record<EntityRef["kind"], QuestionLinkTargetType | null> = {
-  card: "card",
-  article: "article",
-  "project-item": "project_item",
-  "diary-moment": null,
-  "plugin-entity": null,
-};
-
-/** 记为问题时的来源与默认标题 */
-export function questionDraft(
-  mark: KnowledgeMark,
-  topicLabel: string
-): { source: QuestionCaptureSource; sourceLabel: string; defaultTitle: string } {
-  if (mark.kind === "asked") {
-    const sessions = new Map<string, string[]>();
-    for (const prompt of mark.prompts ?? []) {
-      sessions.set(prompt.sessionId, [...(sessions.get(prompt.sessionId) ?? []), prompt.messageId]);
-    }
-    return {
-      source: {
-        kind: "chats",
-        chats: [...sessions].map(([sessionId, messageIds]) => ({ sessionId, messageIds })),
-      },
-      sourceLabel: `对话：问过 ${mark.prompts?.length ?? 0} 次`,
-      defaultTitle: mark.text ?? "",
-    };
-  }
-  // 缺一环以空位之后那份为主（读到它时才觉得跳）
-  const missing = mark.kind === "chain" ? mark.missing : undefined;
-  const ends =
-    missing && mark.ends[missing.index]
-      ? [mark.ends[missing.index], ...mark.ends.filter((_, i) => i !== missing.index)]
-      : mark.ends;
-  const targets = ends.flatMap(end => {
-    const targetType = QUESTION_TARGET[end.ref.kind];
-    return targetType ? [{ targetType, targetId: end.ref.id }] : [];
-  });
-  const title =
-    mark.kind === "gap" || mark.kind === "thin"
-      ? stripGapPrefix(mark.text ?? "")
-      : mark.kind === "chain"
-        ? `${mark.missing?.text ?? ""}`
-        : mark.why;
-  if (!targets.length) {
-    return { source: { kind: "none" }, sourceLabel: `主题：${topicLabel}`, defaultTitle: title };
-  }
-  return {
-    source: { kind: "materials", targets },
-    sourceLabel:
-      targets.length === 1 ? `《${ends[0].title}》` : `《${ends[0].title}》等 ${targets.length} 份`,
-    defaultTitle: title,
-  };
+/** 矛盾「聊一聊」的预填提问 */
+export function discussPrompt(mark: KnowledgeMark): string {
+  const [a, b] = mark.ends;
+  return [
+    `${markSummary(mark)}。`,
+    mark.claims && a && b ? `《${a.title}》：${mark.claims[0]}` : "",
+    mark.claims && a && b ? `《${b.title}》：${mark.claims[1]}` : "",
+    mark.why,
+    "帮我想想哪个对，或者各自成立的条件。",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 // ───────────────────────── 几何（画布坐标） ─────────────────────────

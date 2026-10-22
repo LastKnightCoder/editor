@@ -1,6 +1,6 @@
 import { ReactNode, useMemo, useState } from "react";
 import { ConfirmDialog } from "@tau/ui";
-import type { MenuEntryList } from "../../shared/menuEntries";
+import { usePluginMenuEntries, type MenuEntryList } from "../../shared/menuEntries";
 import { produce } from "immer";
 
 import ContentExportModal from "@/components/ContentExportModal";
@@ -32,7 +32,7 @@ import {
 import { EProjectItemType, ProjectItem } from "@/types";
 import { useMemoizedFn } from "ahooks";
 import useContentShared from "@/hooks/useContentShared";
-import { getProjectItemMoreMenuItems } from "./projectItemMoreMenuItems";
+import { getProjectItemMoreMenuItems, projectItemActionTarget } from "./projectItemMoreMenuItems";
 import { toast } from "@tau/ui";
 import { useProjectContext } from "../../ProjectContext";
 import { exportContentAsMarkdown } from "@/services/content-transfer";
@@ -91,10 +91,12 @@ export const useProjectItemMoreActions = (
   } = useProjectWebLinkMeta(projectItem);
 
   const shared = useContentShared(projectItem?.contentId);
-  const moreMenuItems: MenuEntryList = useMemo(
+  const builtinMenuItems: MenuEntryList = useMemo(
     () => getProjectItemMoreMenuItems(projectItem, shared),
     [projectItem?.projectItemType, projectItem?.refType, projectItem?.podcast, shared]
   );
+  const pluginEntries = usePluginMenuEntries(projectItemActionTarget(projectItem));
+  const moreMenuItems = pluginEntries.insert(builtinMenuItems);
 
   const publishProjectItemUpdate = useMemoizedFn((nextProjectItem: ProjectItem) => {
     onProjectItemChange?.(nextProjectItem);
@@ -198,6 +200,8 @@ export const useProjectItemMoreActions = (
 
   const handleMoreMenuClick = useMemoizedFn(async (key: string) => {
     if (!projectItem) return;
+
+    if (pluginEntries.select(key)) return;
 
     if (key === "immersive-mode" || key === "collaboration") {
       requestDocumentAction?.({

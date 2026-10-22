@@ -1,48 +1,111 @@
-import { expect, it } from "vitest";
-import { definePlugin } from "../index";
-import { PluginHost, createMemoryStorage } from "../host";
+import { describe, expect, it } from "vitest";
+import { validatePluginManifest } from "../package";
+import { isSkillPackageManifest, validateDistributionManifest } from "../template";
+import { hasSkillScripts } from "../skills";
 
-it("插件 Skill 随启停、激活失败回收，重复启用不重复注册", async () => {
-  const active = new Set<string>();
-  const host = new PluginHost({
-    workspaceId: "test",
-    storage: createMemoryStorage(),
-    skills: {
-      register(plugin, skill) {
-        expect(plugin.name).toBe("测试");
-        const id = `${plugin.id}:${skill.id}`;
-        expect(active.has(id)).toBe(false);
-        active.add(id);
-        return {
-          dispose() {
-            active.delete(id);
-          },
-        };
+const hash = (char: string) => char.repeat(64);
+const plugin = {
+  formatVersion: 1,
+  id: "example.skills",
+  name: "示例",
+  version: "1.0.0",
+  apiVersion: 1,
+  platform: "desktop",
+  format: "cjs",
+  main: "main.js",
+};
+
+describe("插件包内 Skill", () => {
+  it("声明的 Skill 目录文件进入完整性清单，未声明的文件被丢弃", () => {
+    const manifest = validatePluginManifest({
+      ...plugin,
+      skills: ["guide"],
+      integrity: {
+        "main.js": hash("a"),
+        "skills/guide/SKILL.md": hash("b"),
+        "skills/guide/references/api.md": hash("c"),
+        "notes.txt": hash("d"),
       },
-    },
+    });
+    expect(manifest.skills).toEqual(["guide"]);
+    expect(Object.keys(manifest.integrity).sort()).toEqual([
+      "main.js",
+      "skills/guide/SKILL.md",
+      "skills/guide/references/api.md",
+    ]);
   });
-  const definition = definePlugin({
-    id: "test.skills",
-    name: "测试",
+
+  it("拒绝缺少 SKILL.md、未声明目录与重复 ID", () => {
+    const base = { ...plugin, integrity: { "main.js": hash("a") } };
+    expect(() => validatePluginManifest({ ...base, skills: ["guide"] })).toThrow("缺少 SKILL.md");
+    expect(() =>
+      validatePluginManifest({
+        ...base,
+        skills: ["guide"],
+        integrity: {
+          ...base.integrity,
+          "skills/guide/SKILL.md": hash("b"),
+          "skills/other/SKILL.md": hash("c"),
+        },
+      })
+    ).toThrow("不属于已声明");
+    expect(() => validatePluginManifest({ ...base, skills: ["a", "a"] })).toThrow("重复");
+    expect(() => validatePluginManifest({ ...base, skills: ["../x"] })).toThrow();
+  });
+});
+
+describe("独立 Skill 包", () => {
+  const skillPackage = {
+    formatVersion: 1,
+    apiVersion: 1,
+    platform: "desktop",
+    id: "example.writing",
+    name: "写作规范",
     version: "1.0.0",
-    skills: [{ id: "write", name: "写作", description: "写作时使用", content: "# 写作" }],
+    categories: ["skill"],
+    skills: ["writing"],
+    integrity: {
+      "skills/writing/SKILL.md": hash("a"),
+      "skills/writing/scripts/check.py": hash("b"),
+    },
+  };
+
+  it("没有代码入口、只含 Skill 目录时识别为 Skill 包", () => {
+    const manifest = validateDistributionManifest(skillPackage, { strict: true });
+    expect(isSkillPackageManifest(manifest)).toBe(true);
+    expect(manifest).toMatchObject({ skills: ["writing"], categories: ["skill"] });
+    expect(hasSkillScripts(manifest)).toBe(true);
   });
-  host.registerTrusted(definition);
-  await host.enable(definition.id);
-  await host.enable(definition.id);
-  expect([...active]).toEqual(["test.skills:write"]);
-  await host.disable(definition.id);
-  expect(active.size).toBe(0);
-  host.registerTrusted({
-    ...definition,
-    id: "test.failed",
-    create: () => ({
-      activate() {
-        throw new Error("失败");
-      },
-    }),
+
+  it("拒绝代码字段、Skill 目录之外的文件和空声明", () => {
+    expect(() => validateDistributionManifest({ ...skillPackage, backend: {} })).toThrow(
+      "不能声明代码插件字段"
+    );
+    expect(() =>
+      validateDistributionManifest({
+        ...skillPackage,
+        integrity: { ...skillPackage.integrity, "extra.js": hash("c") },
+      })
+    ).toThrow("只能包含已声明 Skill 目录内的文件");
+    expect(() => validateDistributionManifest({ ...skillPackage, skills: [] })).toThrow(
+      "至少声明一个 Skill"
+    );
   });
-  await expect(host.enable("test.failed")).rejects.toThrow("失败");
-  expect(active.size).toBe(0);
-  await host.dispose();
+
+  it("缺少 main 且未声明 skills 时仍按代码插件报错", () => {
+    const rest = Object.fromEntries(
+      Object.entries(skillPackage).filter(([key]) => key !== "skills")
+    );
+    expect(() => validateDistributionManifest(rest)).toThrow();
+    expect(() => validateDistributionManifest(rest)).not.toThrow("Skill");
+  });
+
+  it("只有说明文档的 Skill 不算带脚本", () => {
+    expect(hasSkillScripts({ skills: ["a"], integrity: { "skills/a/SKILL.md": hash("a") } })).toBe(
+      false
+    );
+    expect(
+      hasSkillScripts({ skills: ["a"], integrity: { "skills/a/tools/run.sh": hash("a") } })
+    ).toBe(true);
+  });
 });

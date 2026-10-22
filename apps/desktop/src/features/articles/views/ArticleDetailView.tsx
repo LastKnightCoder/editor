@@ -96,6 +96,8 @@ import { ComposeSessionContext, createComposeSession } from "@/features/compose/
 import { useComposeWriting } from "@/features/compose/useComposeWriting";
 import { getEditorText } from "@/utils/editor";
 import { exportContentAsMarkdown } from "@/services/content-transfer";
+import { PluginActionMenuItems } from "@/app/plugins/action-menu";
+import { PluginEntityPanels } from "@/app/plugins/entity-panels";
 
 /** copy utils 的 MessageApi 是结构类型，toast 同形适配（不引 antd message） */
 const toastAdapter = {
@@ -140,7 +142,6 @@ export function ArticleDetailView() {
   const insights = useInsightsView({
     ref: { kind: "article", id: editingArticle?.id ?? 0 },
     contentId: editingArticle?.contentId ?? 0,
-    sourceLabel: `文章：${editingArticle?.title || "无标题文章"}`,
     getEditor,
     ...useComposeInsightOptions(composeSession, composing),
   });
@@ -426,6 +427,7 @@ export function ArticleDetailView() {
             {editingArticle.podcast ? "编辑播客" : "生成播客"}
           </Menu.Item>
         </Menu.Submenu>
+        <PluginActionMenuItems target={{ kind: "article", id: String(editingArticle.id) }} />
         <Menu.Separator />
         <Menu.Item
           danger
@@ -533,6 +535,10 @@ export function ArticleDetailView() {
               <div className="grid grid-cols-[1fr_minmax(0,720px)_1fr] items-start px-[26px] pb-10 pt-8">
                 <article className="col-start-2 min-w-0">
                   {insights.report && <div className="mb-6">{insights.report}</div>}
+                  <PluginEntityPanels
+                    target={{ kind: "article", id: String(editingArticle.id) }}
+                    className="mb-6"
+                  />
                   <ArticlePodcast
                     article={editingArticle}
                     modalOpen={podcastModalOpen}
