@@ -425,9 +425,6 @@ importers:
       proper-lockfile:
         specifier: ^4.1.2
         version: 4.1.2
-      proxy-agent:
-        specifier: ^5.0.0
-        version: 5.0.0
       sharp:
         specifier: ^0.34.4
         version: 0.34.5
@@ -17052,7 +17049,8 @@ snapshots:
 
   '@tinyhttp/content-disposition@2.2.4': {}
 
-  '@tootallnate/once@1.1.2': {}
+  '@tootallnate/once@1.1.2':
+    optional: true
 
   '@tybys/wasm-util@0.10.1':
     dependencies:
@@ -17893,6 +17891,7 @@ snapshots:
   acorn-walk@8.3.5:
     dependencies:
       acorn: 8.16.0
+    optional: true
 
   acorn@8.15.0: {}
 
@@ -18112,6 +18111,7 @@ snapshots:
   ast-types@0.13.4:
     dependencies:
       tslib: 2.8.1
+    optional: true
 
   ast-types@0.16.1:
     dependencies:
@@ -18950,7 +18950,8 @@ snapshots:
 
   dargs@8.1.0: {}
 
-  data-uri-to-buffer@3.0.1: {}
+  data-uri-to-buffer@3.0.1:
+    optional: true
 
   data-uri-to-buffer@4.0.1: {}
 
@@ -19050,6 +19051,7 @@ snapshots:
       escodegen: 1.14.3
       esprima: 4.0.1
       vm2: 3.11.5
+    optional: true
 
   delaunator@5.0.1:
     dependencies:
@@ -19583,6 +19585,7 @@ snapshots:
       optionator: 0.8.3
     optionalDependencies:
       source-map: 0.6.1
+    optional: true
 
   eslint-config-prettier@10.1.8(eslint@8.57.1):
     dependencies:
@@ -19896,7 +19899,8 @@ snapshots:
 
   file-uri-to-path@1.0.0: {}
 
-  file-uri-to-path@2.0.0: {}
+  file-uri-to-path@2.0.0:
+    optional: true
 
   filelist@1.0.6:
     dependencies:
@@ -20078,6 +20082,7 @@ snapshots:
     dependencies:
       readable-stream: 1.1.14
       xregexp: 2.0.0
+    optional: true
 
   function-bind@1.1.2: {}
 
@@ -20158,6 +20163,7 @@ snapshots:
       ftp: 0.3.10
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   giget@1.2.5:
     dependencies:
@@ -20481,6 +20487,7 @@ snapshots:
       debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   http-proxy-agent@7.0.2:
     dependencies:
@@ -20545,6 +20552,7 @@ snapshots:
   iconv-lite@0.4.24:
     dependencies:
       safer-buffer: 2.1.2
+    optional: true
 
   iconv-lite@0.6.3:
     dependencies:
@@ -20634,7 +20642,8 @@ snapshots:
 
   ip-address@10.2.0: {}
 
-  ip@1.1.9: {}
+  ip@1.1.9:
+    optional: true
 
   ipaddr.js@1.9.1: {}
 
@@ -20792,7 +20801,8 @@ snapshots:
     dependencies:
       is-inside-container: 1.0.0
 
-  isarray@0.0.1: {}
+  isarray@0.0.1:
+    optional: true
 
   isarray@1.0.0: {}
 
@@ -21010,6 +21020,7 @@ snapshots:
     dependencies:
       prelude-ls: 1.1.2
       type-check: 0.3.2
+    optional: true
 
   levn@0.4.1:
     dependencies:
@@ -22213,7 +22224,8 @@ snapshots:
 
   neo-async@2.6.2: {}
 
-  netmask@2.1.1: {}
+  netmask@2.1.1:
+    optional: true
 
   no-case@3.0.4:
     dependencies:
@@ -22475,6 +22487,7 @@ snapshots:
       prelude-ls: 1.1.2
       type-check: 0.3.2
       word-wrap: 1.2.5
+    optional: true
 
   optionator@0.9.4:
     dependencies:
@@ -22555,12 +22568,14 @@ snapshots:
       socks-proxy-agent: 5.0.1
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   pac-resolver@5.0.1:
     dependencies:
       degenerator: 3.0.4
       ip: 1.1.9
       netmask: 2.1.1
+    optional: true
 
   package-json@10.0.1:
     dependencies:
@@ -22840,7 +22855,8 @@ snapshots:
       tar-fs: 2.1.5
       tunnel-agent: 0.6.0
 
-  prelude-ls@1.1.2: {}
+  prelude-ls@1.1.2:
+    optional: true
 
   prelude-ls@1.2.1: {}
 
@@ -22956,8 +22972,10 @@ snapshots:
       socks-proxy-agent: 5.0.1
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
-  proxy-from-env@1.1.0: {}
+  proxy-from-env@1.1.0:
+    optional: true
 
   proxy-from-env@2.1.0: {}
 
@@ -23019,6 +23037,7 @@ snapshots:
       http-errors: 2.0.1
       iconv-lite: 0.4.24
       unpipe: 1.0.0
+    optional: true
 
   raw-body@3.0.2:
     dependencies:
@@ -23207,6 +23226,7 @@ snapshots:
       inherits: 2.0.4
       isarray: 0.0.1
       string_decoder: 0.10.31
+    optional: true
 
   readable-stream@2.3.8:
     dependencies:
@@ -23866,7 +23886,8 @@ snapshots:
 
   slick@1.12.2: {}
 
-  smart-buffer@4.2.0: {}
+  smart-buffer@4.2.0:
+    optional: true
 
   snake-case@3.0.4:
     dependencies:
@@ -23880,11 +23901,13 @@ snapshots:
       socks: 2.8.9
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   socks@2.8.9:
     dependencies:
       ip-address: 10.2.0
       smart-buffer: 4.2.0
+    optional: true
 
   sonic-boom@4.2.0:
     dependencies:
@@ -24032,7 +24055,8 @@ snapshots:
       get-east-asian-width: 1.5.0
       strip-ansi: 7.2.0
 
-  string_decoder@0.10.31: {}
+  string_decoder@0.10.31:
+    optional: true
 
   string_decoder@1.1.1:
     dependencies:
@@ -24400,6 +24424,7 @@ snapshots:
   type-check@0.3.2:
     dependencies:
       prelude-ls: 1.1.2
+    optional: true
 
   type-check@0.4.0:
     dependencies:
@@ -25074,6 +25099,7 @@ snapshots:
     dependencies:
       acorn: 8.16.0
       acorn-walk: 8.3.5
+    optional: true
 
   vue@3.5.25(typescript@5.8.3):
     dependencies:
@@ -25384,7 +25410,8 @@ snapshots:
 
   xmlchars@2.2.0: {}
 
-  xregexp@2.0.0: {}
+  xregexp@2.0.0:
+    optional: true
 
   xtend@4.0.2: {}
 
