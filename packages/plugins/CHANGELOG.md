@@ -1,5 +1,9 @@
 # 更新记录
 
+## 未发布
+
+- 修复：`entities.update` 只改 `meta` 时报「没有要修改的字段」。
+
 ## 0.35.0
 
 - 插件用 `cards.create`、`articles.create`、`documents.create`、`whiteboards.create`、`projects.create` 新建的内容，之后不需要读取权限也能 `describe`、`EntityRef` 显示、`open` 与 `links.add`，与 `pick` 选择和 `app.run` 新建的结果一致。
