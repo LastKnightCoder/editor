@@ -278,6 +278,43 @@ export function WaterDropIcon({ size = 24, strokeWidth = 2, ...props }: PluginIc
 - 颜色用 `currentColor`，这样会跟随明暗主题和选中状态。不要写死宽高和颜色。
 - 也可以直接使用 [lucide-react](https://lucide.dev) 等图标库的组件（先 `pnpm add lucide-react`）。
 
+## 首页面板
+
+在 Tau 的「今日」首页放一块面板，适合展示进度、待处理的条目这类每天会看一眼的内容：
+
+```tsx
+import { useEffect, useState } from "react";
+import type { PluginHomePanelProps } from "@tau/plugins";
+
+function WeekPanel({ context }: PluginHomePanelProps) {
+  const [count, setCount] = useState<number | null>(null);
+  useEffect(() => {
+    void context.entities.count({ kind: "book" }).then(setCount);
+  }, [context]);
+  if (count === null) return null;
+  return <p>在读 {count} 本书</p>;
+}
+
+context.home.registerPanel({
+  id: "week",
+  title: "本周阅读",
+  component: WeekPanel,
+  size: "compact",
+});
+```
+
+| 字段        | 说明                                                                   |
+| ----------- | ---------------------------------------------------------------------- |
+| `id`        | 局部 ID                                                                |
+| `title`     | 面板标题，由 Tau 显示在面板顶部                                        |
+| `component` | 面板正文，收到 `context`；返回 `null` 时整块不显示                     |
+| `size`      | 可选。`wide`（默认）占整行；`compact` 宽度足够时与其他紧凑面板并排显示 |
+
+- Tau 画面板的外框和标题，组件只负责正文，不要再套一层卡片。
+- 新面板排在首页末尾。用户可以在面板标题右侧的「⋯」里上移、下移或隐藏，布局随笔记库保存；插件停用后面板消失，重新启用后回到原来的位置。
+- 正文渲染出错时，这块面板显示错误和「重试」，不影响首页其他内容。
+- 首页只在主窗口显示，打开首页时组件才会渲染；需要随时更新的数据在组件里订阅（如 `context.events`），卸载时取消。
+
 ## 设置
 
 ```tsx

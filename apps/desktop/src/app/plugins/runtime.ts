@@ -22,6 +22,7 @@ import type {
   PluginPageParams,
   PluginSidebarIcon,
   PluginOwnEntityKind,
+  PluginHomePanelDefinition,
 } from "@tau/plugins";
 import {
   notifyPluginPackagesChanged,
@@ -97,6 +98,15 @@ const EMPTY_SIDEBAR_STATE: PluginSidebarItemState = Object.freeze({
   action: null,
 });
 
+/** 首页的插件面板：同一注册期间对象不变，首页据此缓存包装组件 */
+export interface RegisteredPluginHomePanel {
+  /** 布局 ID：plugin:<pluginId>:<id> */
+  id: string;
+  definition: Readonly<Required<PluginHomePanelDefinition>>;
+  context: PluginContext;
+  mountId: number;
+}
+
 export interface RegisteredPluginPage {
   definition: PluginPageDefinition;
   context: PluginContext;
@@ -134,6 +144,7 @@ export class DesktopPluginRuntime {
       getState: () => PluginSidebarItemState;
     }
   >();
+  private readonly homePanels = new Map<string, RegisteredPluginHomePanel>();
   private readonly editorContributions = new Map<
     string,
     { context: PluginContext; contribution: PluginEditorContribution }
@@ -208,6 +219,7 @@ export class DesktopPluginRuntime {
       ai: desktopPluginAI,
       restartRequired: options.restartRequired,
       pages: { register: (context, definition) => this.registerPage(context, definition) },
+      home: { registerPanel: (context, definition) => this.registerHomePanel(context, definition) },
       sidebar: {
         registerGroup: (context, definition) => this.registerSidebarGroup(context, definition),
         registerItem: (context, definition, pageId) =>
@@ -276,6 +288,13 @@ export class DesktopPluginRuntime {
     return page;
   }
 
+  listHomePanels(): RegisteredPluginHomePanel[] {
+    if (this.disposed) return [];
+    return [...this.homePanels.values()].filter(
+      ({ context }) => !context.signal.aborted && this.host.getState(context.pluginId) === "active"
+    );
+  }
+
   getEditorContributions(): PluginEditorContribution[] {
     if (this.disposed) return [];
     return [...this.editorContributions.values()]
@@ -320,6 +339,25 @@ export class DesktopPluginRuntime {
           subscribe: entry.subscribe,
           getState: entry.getState,
         })),
+    };
+  }
+
+  private registerHomePanel(
+    context: PluginContext,
+    definition: Readonly<Required<PluginHomePanelDefinition>>
+  ) {
+    if (this.disposed) throw new Error("插件运行时已关闭");
+    const id = `plugin:${context.pluginId}:${definition.id}`;
+    if (this.homePanels.has(id)) throw new Error(`首页面板已注册：${definition.id}`);
+    const panel = { id, definition, context, mountId: ++nextMountId };
+    this.homePanels.set(id, panel);
+    this.publish();
+    return {
+      dispose: () => {
+        if (this.homePanels.get(id) !== panel) return;
+        this.homePanels.delete(id);
+        this.publish();
+      },
     };
   }
 
@@ -475,6 +513,7 @@ export class DesktopPluginRuntime {
       this.sidebarGroups.clear();
       this.sidebarItems.clear();
       this.editorContributions.clear();
+      this.homePanels.clear();
       this.options.permissions?.dispose();
       this.unsubscribe();
       this.publish();

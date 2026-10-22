@@ -32,6 +32,7 @@ import {
   type PluginSidebarItemState,
   type PluginSidebarItemUpdate,
 } from "./sidebar";
+import type { PluginHomePanelDefinition } from "./home";
 import {
   CONTENT_INPUT_LIMITS,
   EDITOR_NODE_SCHEMA_VERSION,
@@ -177,6 +178,14 @@ export interface EditorAdapter {
 
 export interface SettingsAdapter {
   register(context: PluginContext, definition: PluginSettingsDefinition): PluginSettingsHandle;
+}
+
+export interface HomeAdapter {
+  /** 定义已冻结，size 已补成缺省值 */
+  registerPanel(
+    context: PluginContext,
+    definition: Readonly<Required<PluginHomePanelDefinition>>
+  ): Disposable;
 }
 
 export interface SidebarAdapter {
@@ -966,7 +975,8 @@ export type PluginContributionKind =
   | "ai"
   | "editor"
   | "whiteboard"
-  | "excerpts";
+  | "excerpts"
+  | "home";
 
 export interface PluginInfo {
   backend?: import("./package").PluginBackendManifest;
@@ -1069,6 +1079,7 @@ export class PluginHost {
         register(context: PluginContext, definition: VideoProviderDefinition): Disposable;
       };
       sidebar?: SidebarAdapter;
+      home?: HomeAdapter;
       excerpts?: ExcerptsAdapter;
       materials?: MaterialsAdapter;
       flashcards?: FlashcardsAdapter;
@@ -2926,6 +2937,31 @@ export class PluginHost {
           return Object.freeze(handle);
         },
         dragType: (type: string) => sidebarDragType(scope.pluginId, type),
+      }),
+      home: Object.freeze({
+        registerPanel: (definition: PluginHomePanelDefinition) => {
+          this.assertActive(entry, activation);
+          assertLocalId(definition.id);
+          if (typeof definition.title !== "string" || !definition.title.trim())
+            throw new Error("首页面板标题不能为空");
+          if (typeof definition.component !== "function")
+            throw new Error("首页面板组件必须是 React 组件");
+          const size = definition.size ?? "wide";
+          if (size !== "compact" && size !== "wide") throw new Error("首页面板宽度无效");
+          if (!this.options.home) throw new Error("当前宿主不支持首页面板");
+          return registerAs(
+            "home",
+            this.options.home.registerPanel(
+              context,
+              Object.freeze({
+                id: definition.id,
+                title: definition.title,
+                component: definition.component,
+                size,
+              })
+            )
+          );
+        },
       }),
       pages: Object.freeze({
         register: (definition: PluginPageDefinition) => {
