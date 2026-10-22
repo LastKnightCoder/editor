@@ -51,7 +51,7 @@ export function CollabEditorPage(props: {
         onBack={props.onBack}
         center={
           <div className="min-w-0">
-            <div className="text-ink truncate text-[16px] font-extrabold">
+            <div className="text-ink-1 truncate text-[16px] font-extrabold">
               {session?.title ?? "协作文档"}
             </div>
             <div className="text-ink-2 mt-px flex items-center justify-center gap-1 text-[10.5px]">
@@ -69,7 +69,7 @@ export function CollabEditorPage(props: {
               type="button"
               aria-label="成员管理"
               onClick={() => navigator.push("memberSheet", { documentId: props.documentId })}
-              className="bg-surface shadow-card active:bg-press flex h-9 items-center gap-1 rounded-full py-1 pl-1.5 pr-2.5 transition-colors"
+              className="bg-surface shadow-card active:bg-hover flex h-9 items-center gap-1 rounded-full py-1 pl-1.5 pr-2.5 transition-colors"
             >
               <AvatarStack members={online} />
               <ChevronRight size={14} className="text-ink-3" />
@@ -84,7 +84,7 @@ export function CollabEditorPage(props: {
       />
 
       {offline ? (
-        <div className="bg-butter-soft text-warn flex items-center gap-2.5 px-4 py-2.5 text-[12.5px] font-semibold">
+        <div className="bg-tag-4-soft text-warn flex items-center gap-2.5 px-4 py-2.5 text-[12.5px] font-semibold">
           <WifiOff size={15} className="shrink-0" />
           <span className="flex-1">
             {status?.label ?? "网络已断开"} · 改动保留在本机，恢复后自动同步
@@ -114,7 +114,7 @@ export function CollabEditorPage(props: {
 
           {!loading && !binding ? (
             <div className="flex min-h-[45vh] flex-col items-center justify-center px-8 text-center">
-              <p className="text-ink text-[15px] font-bold">无法打开协作文档</p>
+              <p className="text-ink-1 text-[15px] font-bold">无法打开协作文档</p>
               <p className="text-ink-2 mt-2 text-[12.5px] leading-relaxed">
                 {error || session?.error || "文档不存在或你已失去访问权限"}
               </p>
@@ -152,7 +152,7 @@ export function CollabEditorPage(props: {
           ) : null}
 
           {error && binding ? (
-            <p className="text-rose mt-4 text-[12px] leading-relaxed">{error}</p>
+            <p className="text-tag-5 mt-4 text-[12px] leading-relaxed">{error}</p>
           ) : null}
         </div>
       </div>

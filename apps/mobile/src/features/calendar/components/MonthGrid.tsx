@@ -1,10 +1,7 @@
-// 月历网格（定稿 D 交互 + A 视觉）：周一起始、固定 6 行、今天品牌渐变圆、选中品牌浅底圆环、
+// 月历网格（定稿 D 交互 + A 视觉）：周一起始、固定 6 行、今天品牌实底圆、选中品牌浅底圆环、
 // 事件彩点 ≤3 超出「·N」；折叠态仅保留选中周行（week-only，把手动画由外层承载）。
 // 两个高亮圆都画在数字盒（26px）之外一圈 36px：数字盒固定尺寸才能保证各周行高一致。
 // 格高 62、彩点 mt-8 都跟着 36px 圆走，改圆径必须同步这三个值（外层折叠 max-height 亦然）。
-// 品牌色工具类在 Tailwind 主题里是 accent-*（--color-accent 等），写成 text-brand/bg-brand-soft
-// 不会报错但也不生成任何样式；渐变底色必须用 [background:var(--brand-grad)]，
-// bg-[var(--brand-grad)] 会生成 background-color，渐变值非法而回落为透明。
 
 import { memo } from "react";
 import type { CalendarEvent } from "../types";
@@ -89,7 +86,7 @@ function MonthGridImpl({
                     aria-hidden
                     className={`absolute -inset-[5px] rounded-full transition-colors ${
                       isToday
-                        ? "shadow-accent [background:var(--brand-grad)]"
+                        ? "shadow-lift bg-accent"
                         : // 选中只圈日期本身，不铺满整格：整格高亮在无日程的日期上会留一大块空白
                           "bg-accent-soft border-accent/35 border-[1.5px]"
                     }`}
@@ -98,9 +95,9 @@ function MonthGridImpl({
                 <span
                   className={`relative ${
                     isToday
-                      ? "text-white"
+                      ? "text-ink-inverse"
                       : cell.inAnchorMonth
-                        ? "text-ink"
+                        ? "text-ink-1"
                         : "text-ink-3 font-semibold"
                   }`}
                 >

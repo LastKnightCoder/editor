@@ -237,6 +237,15 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 - `RouterDevTools`（`src/router/devtools/`）：开发模式右下角面板，可视化
   screen/overlay 栈与 query 缓存（总数/stale 数）；生产构建零引入
 
+## 主题与样式
+
+移动端不自带主题，主题、明暗与色值全部来自 `@tau/themes`，与桌面端同一套（机制见 [design-system.md](/docs/architecture/design-system.md) §2.4）：
+
+- **CSS**：`src/styles.css` 引入 `@tau/themes/tokens.css`（6 主题族 × 深浅数据块 + 尺度层）与 `@tau/themes/tailwind.css`（语义类名 `bg-page / text-ink-1 / bg-tag-1-soft …`）；自身只定义布局变量（安全区、键盘、Dock 尺寸、边缘渐隐）、由 `--tau-*` 派生的组件变量（`--dock-bg`、`--topbar-fade-*`、`--ring-track`、`--heat-*`）和移动端尺度词（`rounded-card / rounded-bento / ease-bounce`）。
+- **运行时**：`vite.config.ts` 注入 `createThemeBootstrapScript()` 首帧脚本；`AppShell` 调 `initThemeRuntime()`；组件读明暗用 `useThemeStore(s => s.mode)`，切换用 `setTheme / setAppearance`（`@tau/themes/react`）。偏好键 `tau-theme` / `tau-appearance` 与桌面同格式。
+- **设置**：`features/settings/components/ThemeSection.tsx` 明暗三档 × 主题族列表，预览直接读各主题 token。
+- **守护**：`src/theme/__tests__/themeVocabulary.test.ts` 扫描源码，禁止旧移动端主题变量/类名、`[data-theme]` 自建主题块与重定义 `--tau-*`。
+
 ## 测试
 
 `src/router/__tests__/`：栈机/净化纯函数单测 + RouterProvider/PageHost 集成测试

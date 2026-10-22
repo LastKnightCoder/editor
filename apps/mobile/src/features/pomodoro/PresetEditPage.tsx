@@ -143,7 +143,7 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
               onChange={event => setName(event.target.value)}
               placeholder="如：深度工作"
               maxLength={20}
-              className="bg-input text-ink placeholder:text-ink-3 w-full rounded-[14px] px-3.5 py-3 text-[14.5px] font-bold outline-none"
+              className="bg-page text-ink-1 placeholder:text-ink-3 w-full rounded-[14px] px-3.5 py-3 text-[14.5px] font-bold outline-none"
             />
           </section>
 
@@ -159,22 +159,22 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
                     type="button"
                     onClick={() => setMode(card.value)}
                     className={`flex items-center gap-3 rounded-[16px] border-2 p-3 text-left transition-transform active:scale-[0.98] ${
-                      active ? "" : "border-line"
+                      active ? "" : "border-line-1"
                     }`}
                     style={
                       active
-                        ? { borderColor: "var(--brand)", background: "var(--brand-soft)" }
+                        ? { borderColor: "var(--tau-accent)", background: "var(--tau-accent-soft)" }
                         : undefined
                     }
                   >
                     <span
                       className="grid h-[38px] w-[38px] shrink-0 place-items-center rounded-[13px]"
-                      style={{ background: "var(--bg-input)" }}
+                      style={{ background: "var(--tau-bg-page)" }}
                     >
                       <Icon size={19} className="text-ink-2" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="text-ink block text-[13.5px] font-extrabold">
+                      <span className="text-ink-1 block text-[13.5px] font-extrabold">
                         {card.title}
                       </span>
                       <span className="text-ink-3 mt-0.5 block text-[10.5px] font-semibold">
@@ -182,7 +182,7 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
                       </span>
                     </span>
                     {active ? (
-                      <Check size={18} strokeWidth={3} style={{ color: "var(--brand)" }} />
+                      <Check size={18} strokeWidth={3} style={{ color: "var(--tau-accent)" }} />
                     ) : null}
                   </button>
                 );
@@ -198,11 +198,11 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
                   type="button"
                   aria-label="减少 5 分钟"
                   onClick={() => setDurationMin(value => Math.max(1, value - 5))}
-                  className="bg-input text-ink grid h-11 w-11 place-items-center rounded-[15px] text-xl font-black"
+                  className="bg-page text-ink-1 grid h-11 w-11 place-items-center rounded-[15px] text-xl font-black"
                 >
                   <Minus size={18} strokeWidth={3} />
                 </button>
-                <span className="text-ink flex-1 text-center text-[21px] font-extrabold tabular-nums">
+                <span className="text-ink-1 flex-1 text-center text-[21px] font-extrabold tabular-nums">
                   {durationMin}
                   <em className="text-ink-3 ml-1 text-[12px] font-bold not-italic">分钟</em>
                 </span>
@@ -210,7 +210,7 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
                   type="button"
                   aria-label="增加 5 分钟"
                   onClick={() => setDurationMin(value => Math.min(180, value + 5))}
-                  className="bg-input text-ink grid h-11 w-11 place-items-center rounded-[15px] text-xl font-black"
+                  className="bg-page text-ink-1 grid h-11 w-11 place-items-center rounded-[15px] text-xl font-black"
                 >
                   <Plus size={18} strokeWidth={3} />
                 </button>
@@ -222,14 +222,14 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
                     type="button"
                     onClick={() => setDurationMin(minutes)}
                     className={`flex-1 rounded-full border-[1.5px] py-2 text-[12px] font-extrabold tabular-nums ${
-                      durationMin === minutes ? "border-transparent" : "border-line text-ink-2"
+                      durationMin === minutes ? "border-transparent" : "border-line-1 text-ink-2"
                     }`}
                     style={
                       durationMin === minutes
                         ? {
-                            borderColor: "var(--brand)",
-                            color: "var(--brand)",
-                            background: "var(--brand-soft)",
+                            borderColor: "var(--tau-accent)",
+                            color: "var(--tau-accent)",
+                            background: "var(--tau-accent-soft)",
                           }
                         : undefined
                     }
@@ -245,7 +245,7 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
             <>
               <section className="rounded-card bg-surface shadow-card mt-3 flex items-center gap-3 p-4">
                 <div className="min-w-0 flex-1">
-                  <p className="text-ink text-[13.5px] font-extrabold">归档预设</p>
+                  <p className="text-ink-1 text-[13.5px] font-extrabold">归档预设</p>
                   <p className="text-ink-3 mt-0.5 text-[10.5px] font-semibold">
                     列表隐藏，历史记录保留
                   </p>
@@ -257,7 +257,7 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
                   aria-label="归档预设"
                   onClick={() => setArchived(value => !value)}
                   className="relative h-[26px] w-[44px] shrink-0 rounded-full transition-colors"
-                  style={{ background: archived ? "var(--brand)" : "var(--line-1)" }}
+                  style={{ background: archived ? "var(--tau-accent)" : "var(--tau-line-1)" }}
                 >
                   <span
                     className="shadow-card absolute top-[3px] h-5 w-5 rounded-full bg-white transition-all"
@@ -269,7 +269,7 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
               <button
                 type="button"
                 onClick={() => setConfirmDelete(true)}
-                className="bg-rose-soft text-rose active:bg-press mt-3 flex w-full items-center justify-center gap-2 rounded-[16px] py-3.5 text-[13.5px] font-extrabold"
+                className="bg-tag-5-soft text-tag-5 active:bg-hover mt-3 flex w-full items-center justify-center gap-2 rounded-[16px] py-3.5 text-[13.5px] font-extrabold"
               >
                 <Trash2 size={15} />
                 删除预设

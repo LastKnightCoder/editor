@@ -49,20 +49,20 @@ export function CardCreatePage({
       >
         <div className="flex flex-col gap-3.5 px-5 pt-2">
           <div className="bg-surface shadow-card rounded-[20px] p-4">
-            <div className="text-meta-ink mb-2 text-[12.5px] font-extrabold">归属卡组</div>
+            <div className="text-ink-2 mb-2 text-[12.5px] font-extrabold">归属卡组</div>
             <button
               type="button"
               onClick={() => setPickerOpen(true)}
               className="flex w-full items-center gap-3 text-left active:opacity-70"
             >
-              <span className="bg-input grid h-[42px] w-[42px] place-items-center rounded-[13px] text-[20px]">
+              <span className="bg-page grid h-[42px] w-[42px] place-items-center rounded-[13px] text-[20px]">
                 {deck?.emoji ?? "🧠"}
               </span>
               <span className="flex-1">
-                <span className="text-ink block text-[14.5px] font-extrabold">
+                <span className="text-ink-1 block text-[14.5px] font-extrabold">
                   {deck?.name ?? "选择卡组"}
                 </span>
-                <span className="text-meta-ink mt-0.5 block text-[11px] font-semibold">
+                <span className="text-ink-2 mt-0.5 block text-[11px] font-semibold">
                   与桌面端数据互通
                 </span>
               </span>
@@ -71,15 +71,15 @@ export function CardCreatePage({
           </div>
 
           {referenceTitle ? (
-            <div className="bg-lilac-soft text-lilac flex items-center gap-2 rounded-[16px] px-4 py-3 text-[12px] font-bold">
+            <div className="bg-tag-3-soft text-tag-3 flex items-center gap-2 rounded-[16px] px-4 py-3 text-[12px] font-bold">
               <Paperclip size={14} className="flex-none" />
               新卡将携带参考资料：「{referenceTitle}」
             </div>
           ) : null}
 
-          <div className="text-meta-ink mt-1 px-1 text-[12.5px] font-extrabold">选择题型</div>
+          <div className="text-ink-2 mt-1 px-1 text-[12.5px] font-extrabold">选择题型</div>
           {decks.length === 0 ? (
-            <div className="border-line text-ink-3 rounded-[16px] border-2 border-dashed py-4 text-center text-[13px] font-semibold">
+            <div className="border-line-1 text-ink-3 rounded-[16px] border-2 border-dashed py-4 text-center text-[13px] font-semibold">
               还没有卡组，先回闪卡主页创建一个再来建卡
             </div>
           ) : null}
@@ -91,7 +91,7 @@ export function CardCreatePage({
                 type="button"
                 disabled={decks.length === 0 || deckId === -1}
                 onClick={() => onChoose(deckId, type)}
-                className="bg-surface shadow-card active:bg-press flex items-center gap-3.5 rounded-[20px] p-4 text-left disabled:opacity-45"
+                className="bg-surface shadow-card active:bg-hover flex items-center gap-3.5 rounded-[20px] p-4 text-left disabled:opacity-45"
               >
                 <span
                   className="grid h-[46px] w-[46px] flex-none place-items-center rounded-[14px] text-[20px] font-extrabold"
@@ -100,10 +100,10 @@ export function CardCreatePage({
                   {tone.icon}
                 </span>
                 <span className="flex-1">
-                  <span className="text-ink block text-[15px] font-extrabold">
+                  <span className="text-ink-1 block text-[15px] font-extrabold">
                     {FLASHCARD_TYPE_META[type].label}
                   </span>
-                  <span className="text-meta-ink mt-0.5 block text-[11.5px] font-semibold">
+                  <span className="text-ink-2 mt-0.5 block text-[11.5px] font-semibold">
                     {FLASHCARD_TYPE_META[type].description}
                   </span>
                 </span>
@@ -124,12 +124,12 @@ export function CardCreatePage({
                 setDeckId(item.id);
                 setPickerOpen(false);
               }}
-              className={`active:bg-press flex items-center gap-3 rounded-[16px] p-3 text-left ${
-                item.id === deckId ? "bg-accent-soft" : "bg-input"
+              className={`active:bg-hover flex items-center gap-3 rounded-[16px] p-3 text-left ${
+                item.id === deckId ? "bg-accent-soft" : "bg-page"
               }`}
             >
               <span className="text-[20px]">{item.emoji}</span>
-              <span className="text-ink flex-1 text-[14.5px] font-extrabold">{item.name}</span>
+              <span className="text-ink-1 flex-1 text-[14.5px] font-extrabold">{item.name}</span>
               <span className="text-ink-3 text-[11.5px] font-semibold">
                 {item.stats?.totalCards ?? 0} 张
               </span>

@@ -96,8 +96,8 @@ function ProjectDocEditorScreen() {
     return (
       <div className="mobile-kb-screen bg-page fixed inset-0 z-50 grid place-items-center">
         <div className="card w-48 space-y-3 p-5">
-          <div className="bg-input h-4 w-2/5 animate-pulse rounded" />
-          <div className="bg-input h-4 w-4/5 animate-pulse rounded" />
+          <div className="bg-page h-4 w-2/5 animate-pulse rounded" />
+          <div className="bg-page h-4 w-4/5 animate-pulse rounded" />
         </div>
       </div>
     );
@@ -124,14 +124,14 @@ function ProjectDocEditorScreen() {
         }}
         contentTypeBadge={{
           icon: FolderKanban,
-          className: "bg-butter-soft text-butter",
+          className: "bg-tag-4-soft text-tag-4",
         }}
         sourceRef={
           item.refType
             ? {
                 label: sourceLabel || "…",
                 typeLabel: item.refType === "card" ? "卡片" : "文章",
-                toneClass: "text-butter",
+                toneClass: "text-tag-4",
                 onOpen: () => {
                   if (item.refType === "card") {
                     navigator.push("contentDetail", { cardId: item.refId });
@@ -174,7 +174,7 @@ function ProjectDocEditorScreen() {
           type="button"
           disabled={createItem.isPending}
           onClick={handleCreateChild}
-          className="bg-sage-soft text-sage flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[14.5px] font-bold transition-transform active:scale-[0.97] disabled:opacity-60"
+          className="bg-tag-1-soft text-tag-1 flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[14.5px] font-bold transition-transform active:scale-[0.97] disabled:opacity-60"
         >
           <FilePlus2 size={17} strokeWidth={2.2} />
           新建子文档

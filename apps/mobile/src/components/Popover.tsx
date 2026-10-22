@@ -83,18 +83,18 @@ export function Popover({ open, anchorEl, items, onClose }: PopoverProps) {
                 key={item.label}
                 type="button"
                 role="menuitem"
-                className="text-ink active:bg-page flex h-[38px] w-full items-center gap-2.5 rounded-[10px] px-3 text-[13.5px] font-semibold transition-colors"
+                className="text-ink-1 active:bg-page flex h-[38px] w-full items-center gap-2.5 rounded-[10px] px-3 text-[13.5px] font-semibold transition-colors"
                 onClick={() => {
                   item.onClick();
                   onClose();
                 }}
               >
                 {item.icon ? (
-                  <span className={`flex-shrink-0 ${item.danger ? "text-rose" : "text-ink-2"}`}>
+                  <span className={`flex-shrink-0 ${item.danger ? "text-tag-5" : "text-ink-2"}`}>
                     {item.icon}
                   </span>
                 ) : null}
-                <span className={item.danger ? "text-rose" : undefined}>{item.label}</span>
+                <span className={item.danger ? "text-tag-5" : undefined}>{item.label}</span>
               </button>
             ))}
           </motion.div>

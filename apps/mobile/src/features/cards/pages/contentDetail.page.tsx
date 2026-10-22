@@ -94,14 +94,14 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
       <div className="mobile-kb-screen bg-page fixed inset-0 z-50 grid place-items-center">
         {resolving ? (
           <div className="card w-48 space-y-3 p-5">
-            <div className="bg-input h-4 w-2/5 animate-pulse rounded" />
-            <div className="bg-input h-4 w-4/5 animate-pulse rounded" />
+            <div className="bg-page h-4 w-2/5 animate-pulse rounded" />
+            <div className="bg-page h-4 w-4/5 animate-pulse rounded" />
           </div>
         ) : (
           <button
             type="button"
             onClick={() => navigator.goBack("ui")}
-            className="bg-input text-ink-2 rounded-full px-5 py-2.5 text-sm font-semibold"
+            className="bg-page text-ink-2 rounded-full px-5 py-2.5 text-sm font-semibold"
           >
             加载失败，点按返回
           </button>

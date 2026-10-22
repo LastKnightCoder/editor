@@ -30,7 +30,7 @@ function kindMetaOf(kind: string) {
 
 function SectionHeader({ label, count }: { label: string; count: number }) {
   return (
-    <div className="border-line flex items-center border-b py-3">
+    <div className="border-line-1 flex items-center border-b py-3">
       <span className="text-ink-3 text-[11px] font-bold tracking-[0.14em]">
         {label} · {count}
       </span>
@@ -58,10 +58,10 @@ function EntityLine({
   const content = (
     <>
       <Icon size={15} className="text-ink-3 shrink-0" aria-hidden />
-      <span className="text-meta-ink w-[52px] shrink-0 truncate text-[11.5px]">
+      <span className="text-ink-2 w-[52px] shrink-0 truncate text-[11.5px]">
         {entity.kindLabel || meta.label}
       </span>
-      <span className="text-ink min-w-0 flex-1 truncate text-[13.5px] font-medium">
+      <span className="text-ink-1 min-w-0 flex-1 truncate text-[13.5px] font-medium">
         {entity.title}
       </span>
       {suffix}
@@ -101,7 +101,7 @@ function ContextBacklinkRow({ backlink }: { backlink: ContextBacklink }) {
       {backlink.snippets.map((snippet, index) => (
         <p key={index} className="text-ink-3 mt-1.5 line-clamp-2 text-[12px] leading-[1.6]">
           {snippet.before}
-          <span className="text-ink font-semibold">{snippet.label}</span>
+          <span className="text-ink-1 font-semibold">{snippet.label}</span>
           {snippet.after}
         </p>
       ))}
@@ -123,10 +123,10 @@ function ContextNodeRow({ item }: { item: ContextLineageItem | ContextUsage }) {
       onClick={() => openContextNode(navigator, item)}
     >
       <Icon size={15} className="text-ink-3 shrink-0" aria-hidden />
-      <span className="text-meta-ink w-[52px] shrink-0 text-[11.5px]">{meta.label}</span>
+      <span className="text-ink-2 w-[52px] shrink-0 text-[11.5px]">{meta.label}</span>
       <span
         className={`min-w-0 flex-1 truncate text-[13.5px] font-medium ${
-          missing ? "text-ink-3" : "text-ink"
+          missing ? "text-ink-3" : "text-ink-1"
         }`}
       >
         {usage?.completed ? <span className="text-ink-3 mr-1.5 line-through">{title}</span> : title}
@@ -155,14 +155,14 @@ export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
         <header className="px-4 pb-2">
           <div className="flex items-center gap-2">
             <Waypoints size={15} className="text-ink-3" aria-hidden />
-            <span className="text-ink text-[15px] font-extrabold">脉络 · {count}</span>
+            <span className="text-ink-1 text-[15px] font-extrabold">脉络 · {count}</span>
           </div>
           <p className="text-ink-2 mt-1 line-clamp-1 text-[12.5px]">
             {context.selfEntity.title}
             {context.selfEntity.meta ? ` · ${context.selfEntity.meta}` : ""}
           </p>
           {context.aiMeta?.summary ? (
-            <p className="bg-input text-ink-2 mt-2.5 line-clamp-3 rounded-xl px-3 py-2.5 text-[12.5px] leading-[1.6]">
+            <p className="bg-page text-ink-2 mt-2.5 line-clamp-3 rounded-xl px-3 py-2.5 text-[12.5px] leading-[1.6]">
               {context.aiMeta.summary}
             </p>
           ) : null}

@@ -1,91 +1,128 @@
-// 主题选择（v2 模板）：2 列迷你预览卡网格 + 跟随系统行。
-// 作为 BottomSheet 内容使用（点选即时切换，不关闭面板）。
+// 主题选择：与桌面外观设置同构的两个正交维度——明暗（跟随系统 / 浅色 / 深色）× 主题族。
+// 作为 BottomSheet 内容使用（点选即时切换，不关闭面板）；预览色直接读各主题的 token。
 
-import { useThemeStore, THEME_OPTIONS, type ThemeMode } from "../../../theme/themeStore";
-import { CheckMark } from "./ui";
+import type { CSSProperties, ReactNode } from "react";
+import {
+  DEFAULT_THEME_KEY,
+  getTheme,
+  listThemes,
+  type Appearance,
+  type SemanticTokens,
+  type ThemeDefinition,
+} from "@tau/themes";
+import { useThemeStore } from "@tau/themes/react";
+import { GroupLabel } from "../../../components/GroupLabel";
 
-// 迷你预览：主题底色 + 两根模拟列表条 + 角标圆点
-function ThemeSwatch({ bg, bar, accent }: { bg: string; bar: string; accent: string }) {
+const APPEARANCE_OPTIONS: Array<{ value: Appearance; caption: string }> = [
+  { value: "system", caption: "跟随系统" },
+  { value: "light", caption: "浅色" },
+  { value: "dark", caption: "深色" },
+];
+
+const pageStyle = (t: SemanticTokens): CSSProperties => ({ background: t["bg-page"] });
+const cardStyle = (t: SemanticTokens): CSSProperties => ({ background: t["bg-surface"] });
+const barStyle = (t: SemanticTokens): CSSProperties => ({ background: t["line-1"] });
+
+/** 单套配色的迷你手机屏：卡片 + 两根文字条 + accent 按钮（选中时点亮） */
+function ScreenPreview({ tokens, lit }: { tokens: SemanticTokens; lit: boolean }) {
   return (
-    <span
-      className="flex h-[72px] flex-col gap-[7px] rounded-[14px] p-[10px]"
-      style={{ background: bg }}
-    >
-      <span className="h-[9px] w-[70%] rounded-full" style={{ background: bar }} />
-      <span className="h-[9px] w-[45%] rounded-full" style={{ background: bar }} />
+    <span className="flex h-full flex-col gap-[6px] p-[8px]" style={pageStyle(tokens)}>
       <span
-        className="mt-auto h-[20px] w-[20px] self-end rounded-[7px]"
-        style={{ background: accent }}
+        className="flex flex-1 flex-col gap-[5px] rounded-[8px] p-[7px]"
+        style={cardStyle(tokens)}
+      >
+        <span className="h-[6px] w-[70%] rounded-full" style={barStyle(tokens)} />
+        <span className="h-[6px] w-[45%] rounded-full" style={barStyle(tokens)} />
+      </span>
+      <span
+        className="h-[10px] w-[40%] self-end rounded-full transition-colors duration-200"
+        style={{ background: lit ? tokens.accent : tokens["line-1"] }}
       />
     </span>
   );
 }
 
-const SWATCHES: Record<string, { bg: string; bar: string; accent: string }> = {
-  apricot: { bg: "#fffdf9", bar: "#e9e1d2", accent: "#d97757" },
-  midnight: { bg: "#171a22", bar: "#262b38", accent: "#f0a860" },
-  mint: { bg: "#fbfefb", bar: "#dfe9df", accent: "#4a9d78" },
-  ocean: { bg: "#fcfdff", bar: "#dde5ef", accent: "#4d7fc4" },
-};
+/** 深浅分屏：左浅右深，各画该主题族的一套迷你屏 */
+function SplitPreview({ theme, lit }: { theme: ThemeDefinition; lit: boolean }) {
+  return (
+    <span className="grid h-full grid-cols-2">
+      <ScreenPreview tokens={theme.light.tokens} lit={lit} />
+      <ScreenPreview tokens={theme.dark.tokens} lit={lit} />
+    </span>
+  );
+}
+
+function ChoiceCard(props: {
+  active: boolean;
+  caption: string;
+  onSelect: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={props.onSelect}
+      aria-pressed={props.active}
+      className={`bg-surface rounded-[16px] p-2 text-left transition-transform duration-200 active:scale-[0.96] ${
+        props.active ? "shadow-[inset_0_0_0_2px_var(--tau-accent)]" : "shadow-card"
+      }`}
+    >
+      <span className="block h-[68px] overflow-hidden rounded-[10px]">{props.children}</span>
+      <span
+        className={`mt-1.5 block text-center text-[12.5px] font-bold ${
+          props.active ? "text-accent-text" : "text-ink-2"
+        }`}
+      >
+        {props.caption}
+      </span>
+    </button>
+  );
+}
 
 export function ThemeSection() {
-  const mode = useThemeStore(state => state.mode);
-  const setMode = useThemeStore(state => state.setMode);
+  const themeKey = useThemeStore(s => s.theme);
+  const appearance = useThemeStore(s => s.appearance);
+  const setTheme = useThemeStore(s => s.setTheme);
+  const setAppearance = useThemeStore(s => s.setAppearance);
+  const currentTheme = getTheme(themeKey) ?? getTheme(DEFAULT_THEME_KEY)!;
 
   return (
-    <div>
-      <p className="text-ink-3 mb-3 text-center text-[12px]">点击即时切换整套配色</p>
-      <div className="grid grid-cols-2 gap-2.5 pb-1" style={{ paddingTop: 2 }}>
-        {THEME_OPTIONS.map(option => {
-          const active = mode === option.id;
-          const swatch = SWATCHES[option.id];
-          return (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => setMode(option.id)}
-              aria-pressed={active}
-              className={`relative rounded-[18px] p-3 text-left transition-all duration-200 active:scale-[0.96] ${
-                active ? "shadow-[inset_0_0_0_2.5px_var(--brand)]" : "shadow-card"
-              }`}
-              style={{ background: "var(--bg-input)" }}
-            >
-              {active ? (
-                <span
-                  className="absolute right-2.5 top-2.5 grid h-[22px] w-[22px] place-items-center rounded-full text-white"
-                  style={{ background: "var(--brand)" }}
-                >
-                  <CheckMark />
-                </span>
-              ) : null}
-              <ThemeSwatch {...swatch} />
-              <span className="mt-2 flex items-baseline justify-between">
-                <span className="text-ink text-[13.5px] font-bold">{option.label}</span>
-                <span className="text-ink-3 text-[11px]">{option.desc}</span>
-              </span>
-            </button>
-          );
-        })}
+    <div className="pb-1">
+      <GroupLabel inset="sheet">明暗</GroupLabel>
+      <div className="grid grid-cols-3 gap-2.5">
+        {APPEARANCE_OPTIONS.map(option => (
+          <ChoiceCard
+            key={option.value}
+            active={appearance === option.value}
+            caption={option.caption}
+            onSelect={() => setAppearance(option.value)}
+          >
+            {option.value === "system" ? (
+              <SplitPreview theme={currentTheme} lit={appearance === "system"} />
+            ) : (
+              <ScreenPreview
+                tokens={currentTheme[option.value].tokens}
+                lit={appearance === option.value}
+              />
+            )}
+          </ChoiceCard>
+        ))}
       </div>
 
-      <button
-        type="button"
-        onClick={() => setMode("system" as ThemeMode)}
-        aria-pressed={mode === "system"}
-        className={`mt-2.5 flex w-full items-center gap-3 rounded-[18px] px-4 py-3.5 text-left transition-all duration-200 active:scale-[0.98] ${
-          mode === "system" ? "shadow-[inset_0_0_0_2px_var(--brand)]" : "shadow-card"
-        }`}
-        style={{ background: "var(--bg-input)" }}
-      >
-        <span className="bg-page text-ink-3 shadow-card grid h-8 w-8 place-items-center rounded-[10px] text-[11px] font-bold">
-          Aa
-        </span>
-        <span className="flex-1">
-          <span className="text-ink block text-[14.5px] font-bold">跟随系统</span>
-          <span className="text-ink-3 mt-0.5 block text-xs">随系统深浅色自动切换</span>
-        </span>
-        {mode === "system" && <CheckMark />}
-      </button>
+      <GroupLabel inset="sheet">主题</GroupLabel>
+      <div className="grid grid-cols-3 gap-2.5">
+        {listThemes().map(theme => (
+          <ChoiceCard
+            key={theme.key}
+            active={theme.key === currentTheme.key}
+            caption={theme.name}
+            onSelect={() => setTheme(theme.key)}
+          >
+            <SplitPreview theme={theme} lit={theme.key === currentTheme.key} />
+          </ChoiceCard>
+        ))}
+      </div>
+      <p className="text-ink-3 mt-3 text-center text-[12px]">每套主题都包含深浅两套配色</p>
     </div>
   );
 }

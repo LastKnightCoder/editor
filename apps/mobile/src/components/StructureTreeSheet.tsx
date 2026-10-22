@@ -40,7 +40,7 @@ function TreeRow(props: {
   return (
     <div>
       <div
-        className={`active:bg-press flex items-center gap-2 rounded-[13px] px-2 py-2 ${
+        className={`active:bg-hover flex items-center gap-2 rounded-[13px] px-2 py-2 ${
           isCurrent ? "bg-accent-soft" : ""
         }`}
         style={{ marginLeft: depth * 14, position: "relative" }}

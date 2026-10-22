@@ -470,10 +470,10 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
               aria-label={mainDone ? "标记为未完成" : "标记为已完成"}
               onClick={handleToggleMain}
               className={`mt-0.5 grid h-[27px] w-[27px] shrink-0 place-items-center rounded-full border-[2.5px] transition-all duration-200 ${
-                mainDone ? "border-accent bg-accent shadow-accent" : "border-ink-3/50 bg-surface"
+                mainDone ? "border-accent bg-accent shadow-lift" : "border-ink-3/50 bg-surface"
               }`}
             >
-              {mainDone ? <Check size={14} strokeWidth={3.4} className="text-white" /> : null}
+              {mainDone ? <Check size={14} strokeWidth={3.4} className="text-ink-inverse" /> : null}
             </button>
             <textarea
               ref={titleTextareaRef}
@@ -490,7 +490,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
                 }
               }}
               placeholder="任务标题"
-              className="text-ink placeholder:text-ink-3 min-h-[27px] flex-1 resize-none border-none bg-transparent py-0 text-[18px] font-extrabold leading-[1.5] outline-none"
+              className="text-ink-1 placeholder:text-ink-3 min-h-[27px] flex-1 resize-none border-none bg-transparent py-0 text-[18px] font-extrabold leading-[1.5] outline-none"
             />
           </div>
 
@@ -499,7 +499,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
             <button
               type="button"
               onClick={() => setTypeSheetOpen(true)}
-              className={`${chipBaseClass} bg-butter-soft text-butter`}
+              className={`${chipBaseClass} bg-tag-4-soft text-tag-4`}
             >
               <Flag size={12} />
               {TYPE_LABELS[current.type]}
@@ -512,7 +512,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
                   type="button"
                   onClick={() => setStartTimeSheetOpen(true)}
                   className={`${chipBaseClass} ${
-                    current.startAt ? "bg-sky-soft text-sky" : "bg-input text-ink-3"
+                    current.startAt ? "bg-tag-2-soft text-tag-2" : "bg-page text-ink-3"
                   }`}
                 >
                   <CalendarDays size={12} />
@@ -524,9 +524,9 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
                   className={`${chipBaseClass} ${
                     current.dueAt
                       ? isOverdue
-                        ? "bg-rose-soft text-rose"
-                        : "bg-sage-soft text-sage"
-                      : "bg-input text-ink-3"
+                        ? "bg-tag-5-soft text-tag-5"
+                        : "bg-tag-1-soft text-tag-1"
+                      : "bg-page text-ink-3"
                   }`}
                 >
                   <Clock size={12} />
@@ -539,8 +539,8 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
                   onClick={() => setReminderSheetOpen(true)}
                   className={`${chipBaseClass} ${
                     current.remindBefore != null
-                      ? "bg-apricot-soft text-apricot"
-                      : "bg-input text-ink-3"
+                      ? "bg-accent-soft text-accent-text"
+                      : "bg-page text-ink-3"
                   }`}
                 >
                   <Bell size={12} />
@@ -549,7 +549,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
               </>
             )}
             {current.type === "recurring" && recurringStatus.recurrence && (
-              <span className={`${chipBaseClass} bg-sage-soft text-sage`}>
+              <span className={`${chipBaseClass} bg-tag-1-soft text-tag-1`}>
                 <RefreshCw size={12} />
                 {recurrenceTypeLabel(recurringStatus.recurrence.type)} · 间隔{" "}
                 {Math.max(1, recurringStatus.recurrence.interval)}
@@ -569,7 +569,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
             <section className="card mx-4 mt-3 p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-ink text-sm font-bold">周期打卡</div>
+                  <div className="text-ink-1 text-sm font-bold">周期打卡</div>
                   <div className="text-ink-2 text-xs">
                     {recurringStatus.recurrence
                       ? `近 60 天记录：${recurrenceCompletions.length} 条`
@@ -583,8 +583,8 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
                   }}
                   className={`rounded-full px-5 py-2.5 text-sm font-bold transition-transform active:scale-95 ${
                     recurringStatus.isTodayCompleted
-                      ? "bg-sage-soft text-sage"
-                      : "bg-accent shadow-accent text-white"
+                      ? "bg-tag-1-soft text-tag-1"
+                      : "bg-accent shadow-lift text-ink-inverse"
                   }`}
                 >
                   {recurringStatus.isTodayCompleted ? "取消今日打卡" : "今日打卡"}
@@ -623,12 +623,12 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
                         }}
                         className={`h-6 rounded-lg transition-transform active:scale-90 ${
                           cell.status === "completed"
-                            ? "bg-sage"
+                            ? "bg-tag-1"
                             : cell.status === "skipped"
-                              ? "bg-butter"
+                              ? "bg-tag-4"
                               : cell.status === "missed"
-                                ? "bg-rose"
-                                : "bg-line"
+                                ? "bg-tag-5"
+                                : "bg-line-1"
                         }`}
                         title={new Date(cell.date).toLocaleDateString()}
                       />
@@ -639,14 +639,14 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
             </section>
           )}
 
-          <div className="bg-line mx-4 my-3.5 h-px" />
+          <div className="bg-line-1 mx-4 my-3.5 h-px" />
 
           {/* 描述：全宽内联编辑区，无小标题——语义由 placeholder 表达；
             Editor 默认 readonly=true，必须显式传 false，key 恒为 todoId 靠挂载闸门保证 initValue 拿到首载内容；
             仅在有状态要表达（保存中/失败）时出现一行轻提示 */}
           <section className="px-4">
             {descriptionSaveError ? (
-              <div className="text-rose pb-1 text-xs font-bold">保存失败，稍后自动重试</div>
+              <div className="text-tag-5 pb-1 text-xs font-bold">保存失败，稍后自动重试</div>
             ) : descriptionSaving ? (
               <div className="text-ink-3 pb-1 text-xs font-bold">保存中…</div>
             ) : null}
@@ -673,14 +673,12 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
       </div>
 
       {/* 底部操作条：完成/打卡主操作（mobile-kb-screen 随键盘收缩视口自动上移） */}
-      <div className="border-line bg-surface flex shrink-0 items-center gap-2.5 border-t px-4 pb-[calc(10px+var(--mobile-safe-bottom))] pt-2.5">
+      <div className="border-line-1 bg-surface flex shrink-0 items-center gap-2.5 border-t px-4 pb-[calc(10px+var(--mobile-safe-bottom))] pt-2.5">
         <button
           type="button"
           onClick={handleToggleMain}
           className={`h-11 flex-1 rounded-full text-sm font-bold transition-transform active:scale-[0.98] ${
-            mainDone
-              ? "bg-sage-soft text-sage"
-              : "shadow-accent text-white [background:var(--brand-grad)]"
+            mainDone ? "bg-tag-1-soft text-tag-1" : "shadow-lift text-ink-inverse bg-accent"
           }`}
         >
           {mainLabel}

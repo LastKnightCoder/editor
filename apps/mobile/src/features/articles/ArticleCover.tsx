@@ -1,5 +1,5 @@
 // 文章封面：优先真实 banner_bg（与桌面端同源数据，含 banner_position 取景），
-// 无封面时回退到固定渐变 + 噪点 + 白圆环装饰（如同真实配图，不随主题变化）。
+// 无封面时回退到固定渐变 + 白圆环装饰（如同真实配图，不随主题变化）。
 
 import { BookOpen, Compass, Heart, ShieldCheck, Sun } from "lucide-react";
 import type { ReactNode } from "react";
@@ -67,11 +67,6 @@ export function ArticleCover({
         />
       ) : (
         <>
-          <span
-            className="absolute inset-0 opacity-50"
-            style={{ backgroundImage: "var(--texture-noise)", backgroundSize: "120px" }}
-            aria-hidden
-          />
           <span
             className={`absolute rounded-full border-white/[.14] ${
               variant === "feature"

@@ -129,7 +129,7 @@ export function MemberManageSheet(props: {
             <GroupLabel inset="sheet" tone="warn" className="font-bold">
               待审批 · {requests.length}
             </GroupLabel>
-            <div className="bg-butter-soft rounded-[18px] px-3.5">
+            <div className="bg-tag-4-soft rounded-[18px] px-3.5">
               {requests.map(request => (
                 <ApprovalRow
                   key={request.id}
@@ -146,7 +146,7 @@ export function MemberManageSheet(props: {
         <GroupLabel inset="sheet" className="font-bold">
           成员 · {members.length}
         </GroupLabel>
-        <div className="divide-line-soft divide-y">
+        <div className="divide-line-2 divide-y">
           {members.map(member => (
             <MemberRow
               key={member.deviceId}
@@ -174,7 +174,7 @@ export function MemberManageSheet(props: {
           ))}
         </div>
 
-        <div className="divide-line-soft border-line-soft mt-4 divide-y border-t">
+        <div className="divide-line-2 border-line-2 mt-4 divide-y border-t">
           {isOwner ? (
             <button
               type="button"
@@ -194,7 +194,7 @@ export function MemberManageSheet(props: {
                   },
                 });
               }}
-              className="text-rose flex w-full items-center justify-center gap-2 py-3.5 text-[14px] font-bold"
+              className="text-tag-5 flex w-full items-center justify-center gap-2 py-3.5 text-[14px] font-bold"
             >
               <Trash2 size={16} /> 结束共享并清空云端数据
             </button>
@@ -217,7 +217,7 @@ export function MemberManageSheet(props: {
                   },
                 });
               }}
-              className="text-rose flex w-full items-center justify-center gap-2 py-3.5 text-[14px] font-bold"
+              className="text-tag-5 flex w-full items-center justify-center gap-2 py-3.5 text-[14px] font-bold"
             >
               <LogOut size={16} /> 退出协作
             </button>

@@ -186,12 +186,12 @@ export function PomodoroHistoryPage({
                 type="button"
                 aria-label="上一周"
                 onClick={() => changeWeek(-1)}
-                className="text-ink-3 active:bg-ghost-press grid h-8 w-8 place-items-center rounded-full"
+                className="text-ink-3 active:bg-press grid h-8 w-8 place-items-center rounded-full"
               >
                 <ChevronLeft size={17} />
               </button>
               <div className="min-w-0 flex-1 text-center">
-                <p className="text-ink truncate text-[13px] font-extrabold">
+                <p className="text-ink-1 truncate text-[13px] font-extrabold">
                   {formatRangeLabel(weekStart)}
                 </p>
                 <p className="text-ink-3 mt-0.5 text-[10.5px] font-bold tabular-nums">
@@ -203,7 +203,7 @@ export function PomodoroHistoryPage({
                 aria-label="下一周"
                 disabled={weekOffset >= 0}
                 onClick={() => changeWeek(1)}
-                className={`text-ink-3 active:bg-ghost-press grid h-8 w-8 place-items-center rounded-full ${
+                className={`text-ink-3 active:bg-press grid h-8 w-8 place-items-center rounded-full ${
                   weekOffset >= 0 ? "opacity-30" : ""
                 }`}
               >
@@ -232,13 +232,13 @@ export function PomodoroHistoryPage({
                       className="w-full rounded-t-[7px]"
                       style={{
                         height: `${height}%`,
-                        background: focusMs > 0 ? "var(--brand-grad)" : "var(--bg-input)",
-                        boxShadow: emphasized && focusMs > 0 ? "var(--shadow-accent)" : undefined,
+                        background: focusMs > 0 ? "var(--tau-accent)" : "var(--tau-bg-page)",
+                        boxShadow: emphasized && focusMs > 0 ? "var(--tau-shadow-lift)" : undefined,
                       }}
                     />
                     <span
                       className={`text-[9.5px] font-extrabold ${emphasized ? "" : "text-ink-3"}`}
-                      style={emphasized ? { color: "var(--brand)" } : undefined}
+                      style={emphasized ? { color: "var(--tau-accent)" } : undefined}
                     >
                       {label}
                     </span>
@@ -275,20 +275,22 @@ export function PomodoroHistoryPage({
                     {group.items.map(session => (
                       <div
                         key={session.id}
-                        className="border-line flex items-center gap-3 border-b border-dashed px-3.5 py-3 last:border-b-0"
+                        className="border-line-1 flex items-center gap-3 border-b border-dashed px-3.5 py-3 last:border-b-0"
                       >
                         <span
                           className="h-[9px] w-[9px] shrink-0 rounded-[3px]"
                           style={{
                             background:
-                              session.status === "completed" ? "var(--sage)" : "var(--butter)",
+                              session.status === "completed"
+                                ? "var(--tau-tag-1)"
+                                : "var(--tau-tag-4)",
                           }}
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="text-ink flex items-center gap-1.5 text-[13px] font-extrabold">
+                          <p className="text-ink-1 flex items-center gap-1.5 text-[13px] font-extrabold">
                             <span className="truncate">{presetNameOf(presets, session)}</span>
                             {session.status !== "completed" ? (
-                              <span className="bg-butter-soft text-butter rounded-full px-1.5 py-0.5 text-[9.5px] font-bold leading-none">
+                              <span className="bg-tag-4-soft text-tag-4 rounded-full px-1.5 py-0.5 text-[9.5px] font-bold leading-none">
                                 提前结束
                               </span>
                             ) : null}
@@ -339,11 +341,11 @@ export function PomodoroHistoryPage({
             type="button"
             aria-label="减少 5 分钟"
             onClick={() => setEditMinutes(value => Math.max(1, value - 5))}
-            className="bg-input text-ink grid h-11 w-11 place-items-center rounded-[15px] text-xl font-black"
+            className="bg-page text-ink-1 grid h-11 w-11 place-items-center rounded-[15px] text-xl font-black"
           >
             −
           </button>
-          <span className="text-ink flex-1 text-center text-[21px] font-extrabold tabular-nums">
+          <span className="text-ink-1 flex-1 text-center text-[21px] font-extrabold tabular-nums">
             {editMinutes}
             <em className="text-ink-3 ml-1 text-[12px] font-bold not-italic">分钟</em>
           </span>
@@ -351,7 +353,7 @@ export function PomodoroHistoryPage({
             type="button"
             aria-label="增加 5 分钟"
             onClick={() => setEditMinutes(value => Math.min(600, value + 5))}
-            className="bg-input text-ink grid h-11 w-11 place-items-center rounded-[15px] text-xl font-black"
+            className="bg-page text-ink-1 grid h-11 w-11 place-items-center rounded-[15px] text-xl font-black"
           >
             ＋
           </button>
@@ -360,8 +362,8 @@ export function PomodoroHistoryPage({
           type="button"
           disabled={saving}
           onClick={() => void saveFocusEdit()}
-          className="shadow-accent mt-3 w-full rounded-[17px] py-[15px] text-[15px] font-extrabold text-white disabled:opacity-50"
-          style={{ background: "var(--brand-grad)" }}
+          className="shadow-lift text-ink-inverse mt-3 w-full rounded-[17px] py-[15px] text-[15px] font-extrabold disabled:opacity-50"
+          style={{ background: "var(--tau-accent)" }}
         >
           {saving ? "保存中…" : "保存"}
         </button>

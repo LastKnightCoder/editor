@@ -67,8 +67,8 @@ function ArticleEditorScreen() {
     return (
       <div className="mobile-kb-screen bg-page fixed inset-0 z-50 grid place-items-center">
         <div className="card w-48 space-y-3 p-5">
-          <div className="bg-input h-4 w-2/5 animate-pulse rounded" />
-          <div className="bg-input h-4 w-4/5 animate-pulse rounded" />
+          <div className="bg-page h-4 w-2/5 animate-pulse rounded" />
+          <div className="bg-page h-4 w-4/5 animate-pulse rounded" />
         </div>
       </div>
     );
@@ -83,7 +83,7 @@ function ArticleEditorScreen() {
         contentType="文章"
         contentTypeBadge={{
           icon: Newspaper,
-          className: "bg-rose-soft text-rose",
+          className: "bg-tag-5-soft text-tag-5",
         }}
         tags={article.tags}
         refreshKey={refreshRev}

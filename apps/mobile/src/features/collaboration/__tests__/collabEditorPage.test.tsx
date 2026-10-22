@@ -73,10 +73,6 @@ vi.mock("../../../components/ActionSheet", () => {
   return { __esModule: true, ActionSheet, default: ActionSheet };
 });
 
-vi.mock("../../../hooks/useMobileTheme", () => ({
-  useMobileTheme: () => ({ theme: "light" }),
-}));
-
 vi.mock("../components/CollaborationUI", () => ({
   AvatarStack: () => null,
   StatusDot: () => null,

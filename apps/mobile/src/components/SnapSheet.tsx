@@ -121,7 +121,7 @@ function SnapSheetHandle(props: SnapSheetHandleProps) {
       className={cn("flex justify-center py-3", props.className)}
       style={{ opacity: "calc(1 - var(--pan-progress-normal-full))" }}
     >
-      <div className={cn("bg-line h-[5px] w-11 rounded-full", props.indicatorClassName)} />
+      <div className={cn("bg-line-1 h-[5px] w-11 rounded-full", props.indicatorClassName)} />
     </div>
   );
 }

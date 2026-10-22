@@ -1,5 +1,5 @@
 // 日历领域 17 色数据色板：数据值与 light/dark 显示色对齐桌面 constants/project-colors.ts，
-// 不改库内颜色字符串；玄夜主题（isDark）自动切 dark 值。事件颜色默认继承日历色。
+// 不改库内颜色字符串；深色模式（isDark）自动切 dark 值。事件颜色默认继承日历色。
 
 import type { CalendarColorName } from "./types";
 

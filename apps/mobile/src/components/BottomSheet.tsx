@@ -93,7 +93,7 @@ export function BottomSheet({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="bg-mask absolute inset-0"
+            className="bg-overlay absolute inset-0"
             onClick={requestClose}
           />
           <motion.div
@@ -112,7 +112,7 @@ export function BottomSheet({
             <div data-sheet-drag-zone="true">
               <div className="sheet-grab" />
               {title && (
-                <div className="text-ink px-5 pb-2 pt-1 text-center text-[15.5px] font-bold">
+                <div className="text-ink-1 px-5 pb-2 pt-1 text-center text-[15.5px] font-bold">
                   {title}
                 </div>
               )}

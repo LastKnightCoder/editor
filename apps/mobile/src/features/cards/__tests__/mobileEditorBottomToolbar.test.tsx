@@ -232,7 +232,7 @@ describe("MobileEditorBottomToolbar", () => {
     }
     // 分组竖线分隔
     expect(
-      toolbar?.querySelectorAll("span[aria-hidden='true'].bg-line").length
+      toolbar?.querySelectorAll("span[aria-hidden='true'].bg-line-1").length
     ).toBeGreaterThanOrEqual(4);
   });
 

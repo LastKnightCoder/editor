@@ -1,105 +1,70 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { listThemes } from "@tau/themes";
+import { initThemeRuntime, useThemeStore } from "@tau/themes/react";
 import { ThemeSection } from "../ThemeSection";
-import { useThemeStore } from "../../../../theme/themeStore";
 
 describe("ThemeSection", () => {
-  beforeEach(() => {
-    document.body.innerHTML = "";
-    document.documentElement.dataset.theme = "apricot";
-    document.documentElement.classList.remove("dark");
+  let host: HTMLDivElement;
+  let root: Root;
+  let disposeTheme: () => void;
+
+  const clickButton = async (label: string) => {
+    const button = Array.from(document.querySelectorAll("button")).find(
+      item => item.textContent === label
+    ) as HTMLButtonElement;
+    await act(async () => {
+      button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+  };
+
+  beforeEach(async () => {
+    localStorage.clear();
+    disposeTheme = initThemeRuntime();
     act(() => {
-      useThemeStore.setState({ mode: "apricot", resolved: "apricot" });
+      useThemeStore.getState().setTheme("paper");
+      useThemeStore.getState().setAppearance("light");
     });
-  });
-
-  afterEach(() => {
-    document.body.innerHTML = "";
-    document.documentElement.dataset.theme = "apricot";
-    document.documentElement.classList.remove("dark");
-  });
-
-  it("展示杏子/玄夜/薄荷/海盐/跟随系统五个选项", async () => {
-    const host = document.createElement("div");
+    host = document.createElement("div");
     document.body.appendChild(host);
-    const root: Root = createRoot(host);
-
+    root = createRoot(host);
     await act(async () => {
       root.render(<ThemeSection />);
     });
+  });
 
-    const buttonTexts = Array.from(document.querySelectorAll("button")).map(
-      item => item.textContent
-    );
-    for (const label of ["杏子", "玄夜", "薄荷", "海盐", "跟随系统"]) {
-      expect(
-        buttonTexts.some(text => text?.includes(label)),
-        `缺少主题「${label}」`
-      ).toBe(true);
+  afterEach(async () => {
+    await act(async () => {
+      root.unmount();
+    });
+    host.remove();
+    disposeTheme();
+  });
+
+  it("展示三档明暗与全部主题族（与桌面同一注册表）", () => {
+    const texts = Array.from(document.querySelectorAll("button")).map(item => item.textContent);
+    for (const label of ["跟随系统", "浅色", "深色", ...listThemes().map(t => t.name)]) {
+      expect(texts, `缺少选项「${label}」`).toContain(label);
     }
-
-    await act(async () => {
-      root.unmount();
-    });
-    host.remove();
   });
 
-  it("切换到玄夜时应用 data-theme 与 dark 类", async () => {
-    const host = document.createElement("div");
-    document.body.appendChild(host);
-    const root: Root = createRoot(host);
+  it("切到深色：主题族不变，html 挂 data-mode=dark 与 dark 类", async () => {
+    await clickButton("深色");
 
-    await act(async () => {
-      root.render(<ThemeSection />);
-    });
-
-    const midnightButton = Array.from(document.querySelectorAll("button")).find(item =>
-      item.textContent?.includes("玄夜")
-    ) as HTMLButtonElement;
-
-    await act(async () => {
-      midnightButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      await Promise.resolve();
-    });
-
-    expect(useThemeStore.getState().mode).toBe("midnight");
-    expect(document.documentElement.dataset.theme).toBe("midnight");
-    expect(document.documentElement.classList.contains("dark")).toBe(true);
-    expect(document.documentElement.dataset.mode).toBe("dark");
-
-    await act(async () => {
-      root.unmount();
-    });
-    host.remove();
+    expect(useThemeStore.getState()).toMatchObject({ theme: "paper", appearance: "dark" });
+    const html = document.documentElement;
+    expect(html.dataset.theme).toBe("paper");
+    expect(html.dataset.mode).toBe("dark");
+    expect(html.classList.contains("dark")).toBe(true);
   });
 
-  it("切换到薄荷（浅色主题）时不挂 dark 类", async () => {
-    const host = document.createElement("div");
-    document.body.appendChild(host);
-    const root: Root = createRoot(host);
+  it("切换主题族：保留明暗偏好", async () => {
+    const mint = listThemes().find(t => t.key === "mint")!;
+    await clickButton(mint.name);
 
-    await act(async () => {
-      root.render(<ThemeSection />);
-    });
-
-    const mintButton = Array.from(document.querySelectorAll("button")).find(item =>
-      item.textContent?.includes("薄荷")
-    ) as HTMLButtonElement;
-
-    await act(async () => {
-      mintButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      await Promise.resolve();
-    });
-
-    expect(useThemeStore.getState().mode).toBe("mint");
+    expect(useThemeStore.getState()).toMatchObject({ theme: "mint", appearance: "light" });
     expect(document.documentElement.dataset.theme).toBe("mint");
     expect(document.documentElement.classList.contains("dark")).toBe(false);
-    expect(document.documentElement.dataset.mode).toBe("light");
-
-    await act(async () => {
-      root.unmount();
-    });
-    host.remove();
   });
 });

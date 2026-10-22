@@ -2,12 +2,28 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
+import { createThemeBootstrapScript } from "@tau/themes";
+import { createLegacyThemeMigrationScript } from "./src/theme/legacyThemeMigration";
 
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    {
+      // 首帧前应用主题（与桌面端同一首帧脚本），先把旧版移动端主题偏好迁成新格式
+      name: "tau-theme-bootstrap",
+      transformIndexHtml: () => [
+        {
+          tag: "script",
+          children: createLegacyThemeMigrationScript() + createThemeBootstrapScript(),
+          injectTo: "head-prepend",
+        },
+      ],
+    },
+    react(),
+    tailwindcss(),
+  ],
   resolve: {
     dedupe: ["react", "react-dom", "slate", "slate-react", "react-dnd", "react-dnd-html5-backend"],
     alias: {
