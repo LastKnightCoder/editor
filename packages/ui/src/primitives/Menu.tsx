@@ -305,7 +305,8 @@ function MenuIconSlot({ icon, hlDanger }: { icon?: ReactNode; hlDanger?: boolean
     <span
       className={cn(
         "text-ink-2 group-data-[hl=true]/mi:text-ink-1 flex size-4 shrink-0 items-center justify-center",
-        "[&_svg]:size-4",
+        // 尺寸只约束直接传入的 svg 图标；组合图标（如状态环）内部的 svg 由组件自定
+        "[&>svg]:size-4",
         hlDanger && "group-data-[hl=true]/mi:text-ink-inverse"
       )}
     >
