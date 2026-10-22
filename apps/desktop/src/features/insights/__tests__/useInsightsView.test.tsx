@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   insights: null as ContentInsights | null,
   analyze: vi.fn(),
   setStatus: vi.fn(),
-  capture: vi.fn(),
+  discuss: vi.fn(async (..._args: unknown[]) => true),
   openEntity: vi.fn(async () => {}),
   dismiss: null as null | (() => void),
 }));
@@ -43,7 +43,7 @@ vi.mock("@/page/PageProvider", () => ({
     mocks.dismiss = active ? dismiss : null;
   },
 }));
-vi.mock("@/services/question-capture", () => ({ requestQuestionCapture: mocks.capture }));
+vi.mock("@/services/insight-chat", () => ({ discussInsight: mocks.discuss }));
 vi.mock("@/services/open-content", () => ({ openEntity: mocks.openEntity }));
 
 import { requestInsightFocus } from "@/services/insight-focus";
@@ -125,7 +125,6 @@ function Harness() {
   const view = useInsightsView({
     ref: { kind: "article", id: 3 },
     contentId: 1,
-    sourceLabel: "文章：渲染",
     getEditor: () => (editorReachable ? instance : null),
   });
   return (
@@ -252,7 +251,7 @@ describe("洞见视图", () => {
     expect(mocks.setStatus).toHaveBeenCalledWith({ itemId: "m1", status: "linked" });
   });
 
-  it("矛盾「记为问题」走命令面板，来源为本文；点正文退出视图", async () => {
+  it("矛盾「聊一聊」带上本文与对方开对话，发出后标为已处理；点正文退出视图", async () => {
     mocks.insights = fixture();
     await rerender();
     click(byText("AI 洞见"));
@@ -264,15 +263,35 @@ describe("洞见视图", () => {
       vi.advanceTimersByTime(20);
     });
     expect(document.body.textContent).toContain("会重绘");
-    click(inPopover("记为问题"));
-    expect(mocks.capture).toHaveBeenCalledWith({
-      source: { kind: "material", target: { targetType: "article", targetId: 3 } },
-      sourceLabel: "文章：渲染",
-      defaultTitle: "条件不同",
+    await act(async () => {
+      click(inPopover("聊一聊"));
     });
+    expect(mocks.discuss).toHaveBeenCalledTimes(1);
+    const [prompt, notes] = mocks.discuss.mock.calls[0] as [string, unknown[]];
+    expect(prompt).toContain("条件不同");
+    expect(prompt).toContain("《掉帧排查》：会重绘");
+    expect(notes).toEqual([{ ref: { kind: "article", id: 3 }, contentId: 1, title: "" }, target]);
+    expect(mocks.setStatus).toHaveBeenCalledWith({ itemId: "m2", status: "linked" });
     down(document.querySelector('[data-slate-editor="true"] [data-slate-string]'));
     expect(byText("AI 洞见")).toBeTruthy();
     expect(document.querySelector("[data-insight-mark]")).toBeNull();
+  });
+
+  it("可以展开「去补写」收起洞见并标为已处理", async () => {
+    mocks.insights = fixture();
+    await rerender();
+    click(byText("AI 洞见"));
+    await act(async () => {
+      vi.advanceTimersByTime(20);
+    });
+    click(document.querySelector('[data-insight-gap="m3"]'));
+    down(document.querySelector('[data-insight-gap="m3"]'));
+    await act(async () => {
+      vi.advanceTimersByTime(20);
+    });
+    click(inPopover("去补写"));
+    expect(mocks.setStatus).toHaveBeenCalledWith({ itemId: "m3", status: "linked" });
+    expect(document.querySelector("[data-insight-gap]")).toBeNull();
   });
 
   it("逐条看：按正文顺序，⌫ 不相关后跳到下一处；Esc 先结束逐条看再退出", async () => {

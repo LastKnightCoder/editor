@@ -114,7 +114,7 @@ describe("KnowledgeAiInsightsTable", () => {
     const row = KnowledgeAiInsightsTable.save(db, input([mark("m1", [1, 2])]), null, 1000);
     expect(row).toMatchObject({ scope: "subtopic", label: "事件循环", createTime: 1000 });
     expect(KnowledgeAiInsightsTable.setStatus(db, row.id, "m1", "dismissed")).toBe(true);
-    expect(KnowledgeAiInsightsTable.setStatus(db, row.id, "q1", "questioned")).toBe(true);
+    expect(KnowledgeAiInsightsTable.setStatus(db, row.id, "q1", "linked")).toBe(true);
     expect(() => KnowledgeAiInsightsTable.setStatus(db, row.id, "m1", "bogus" as never)).toThrow();
     expect(KnowledgeAiInsightsTable.setStatus(db, row.id, "nope", "linked")).toBe(false);
     expect(KnowledgeAiInsightsTable.get(db, row.id)!.updateTime).toBe(1000);
@@ -130,7 +130,7 @@ describe("KnowledgeAiInsightsTable", () => {
     expect(next.updateTime).toBe(2000);
     expect(next.increments).toBe(1);
     expect(next.result.marks.map(item => item.id)).toEqual(["n2"]);
-    expect(next.result.asks[0].status).toBe("questioned");
+    expect(next.result.asks[0].status).toBe("linked");
   });
 
   it("认不出的处理状态按未处理读", () => {

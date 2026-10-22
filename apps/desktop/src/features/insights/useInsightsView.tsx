@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Transforms, type Editor } from "slate";
+import { Editor as SlateEditor, Transforms, type Editor } from "slate";
 import { ReactEditor } from "slate-react";
 import { Loader2, Plus, Sparkles } from "lucide-react";
 import { Button, cn, toast } from "@tau/ui";
@@ -26,14 +26,13 @@ import {
   takeInsightFocus,
   type InsightFocus,
 } from "@/services/insight-focus";
-import { requestQuestionCapture } from "@/services/question-capture";
+import { discussInsight, type InsightNote } from "@/services/insight-chat";
 import { openEntity } from "@/services/open-content";
 import type { InsightAsk, InsightKind, InsightMark } from "@/types/content-insights";
-import type { QuestionLinkTargetType } from "@/types/question";
 import { createInsightDecorate } from "./anchors";
 import { connectInsightMark } from "./connect";
 import { InsightCurrentContext, InsightLeaf } from "./components/InsightLeaf";
-import { InsightPopover, connectsByDefault } from "./components/InsightPopover";
+import { InsightPopover, primaryActionOf } from "./components/InsightPopover";
 import { InsightsReport } from "./components/InsightsReport";
 import { useContentInsights, useInsightsPhase } from "./queries";
 
@@ -41,19 +40,9 @@ type ViewState = "off" | "reading" | "on";
 
 const EMPTY_MARKS: InsightMark[] = [];
 
-const QUESTION_TARGET: Record<EntityRef["kind"], QuestionLinkTargetType | null> = {
-  card: "card",
-  article: "article",
-  "project-item": "project_item",
-  "diary-moment": null,
-  "plugin-entity": null,
-};
-
 export interface InsightsViewOptions {
   ref: EntityRef;
   contentId: number;
-  /** 来源 chip 的文字：「卡片：xxx」「文章：xxx」 */
-  sourceLabel: string;
   getEditor(): Editor | null | undefined;
   /** 一定进入候选的实体（创作模式：白板上的资料） */
   getSeed?(): EntityRef[];
@@ -68,7 +57,6 @@ export interface InsightsViewOptions {
 export function useInsightsView({
   ref,
   contentId,
-  sourceLabel,
   getEditor: getEditorProp,
   getSeed,
   reportExtra,
@@ -172,12 +160,9 @@ export function useInsightsView({
   }, view !== "off");
 
   /* ── 动作 ── */
-  const resolveTo = (
-    mark: InsightMark | InsightAsk,
-    status: "linked" | "questioned" | "dismissed"
-  ) => {
+  const resolveTo = (mark: InsightMark | InsightAsk, status: "linked" | "dismissed") => {
     if (focus) {
-      if (status !== "questioned") focus.onResolved(status);
+      focus.onResolved(status);
       exit();
       return;
     }
@@ -202,19 +187,54 @@ export function useInsightsView({
     resolveTo(mark, "linked");
   };
 
-  const question = (item: InsightMark | InsightAsk, title: string) => {
-    const targetType = QUESTION_TARGET[ref.kind];
-    if (targetType) {
-      requestQuestionCapture({
-        source: { kind: "material", target: { targetType, targetId: ref.id } },
-        sourceLabel,
-        defaultTitle: title,
-      });
+  /** 可以展开：收起洞见，光标放到那一块末尾，接着写 */
+  const write = (mark: InsightMark) => {
+    const editor = getEditor();
+    if (!editor || !editor.children[mark.block]) {
+      toast.warning("原文已经改动，找不到这一处，可以重新分析");
+      return;
     }
-    resolveTo(item, "questioned");
+    resolveTo(mark, "linked");
+    exit();
+    requestAnimationFrame(() => {
+      try {
+        Transforms.select(editor, SlateEditor.end(editor, [mark.block]));
+        ReactEditor.focus(editor);
+      } catch {
+        // 块已不在（正文刚改过）：留在原处
+      }
+    });
   };
-  const questionMark = (mark: InsightMark) =>
-    question(mark, mark.kind === "gap" ? mark.text : mark.why);
+
+  /** 矛盾与「可以继续想」：带着这篇（和对方）开一个对话，用户发出后标为已处理 */
+  const discuss = (item: InsightMark | InsightAsk, prompt: string, notes: InsightNote[]) => {
+    setCurrent(null);
+    setWalking(false);
+    const self: InsightNote = { ref, contentId, title: context?.self.title ?? "" };
+    void discussInsight(prompt, [self, ...notes]).then(sent => {
+      if (sent) setStatus.mutate({ itemId: item.id, status: "linked" });
+    });
+  };
+  const discussMark = (mark: InsightMark) =>
+    discuss(
+      mark,
+      [
+        `这两处说法不一致：${mark.why}`,
+        mark.mine ? `这篇：${mark.mine}` : "",
+        mark.theirs && mark.target ? `《${mark.target.title}》：${mark.theirs}` : "",
+        "帮我想想哪个对，或者各自成立的条件。",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      mark.target ? [mark.target] : []
+    );
+
+  const runPrimary = (mark: InsightMark) => {
+    const action = primaryActionOf(mark);
+    if (action === "connect") connect(mark);
+    else if (action === "write") write(mark);
+    else discussMark(mark);
+  };
 
   const openTarget = (mark: InsightMark) => {
     if (!mark.target) return;
@@ -252,8 +272,7 @@ export function useInsightsView({
         if (next) focusMark(next.id);
       } else if (event.key === "Enter" && mark) {
         event.preventDefault();
-        if (connectsByDefault(mark)) connect(mark);
-        else questionMark(mark);
+        runPrimary(mark);
       } else if (event.key === "Backspace" && mark) {
         event.preventDefault();
         resolveTo(mark, "dismissed");
@@ -385,7 +404,7 @@ export function useInsightsView({
         knownLinks={contextCount(context)}
         freshLink={freshLink}
         onJumpKind={jumpKind}
-        onAsk={ask => question(ask, ask.text)}
+        onAsk={ask => discuss(ask, ask.text, [])}
         onReanalyze={reanalyze}
         onWalk={startWalk}
         extra={reportExtra}
@@ -457,8 +476,7 @@ export function useInsightsView({
           mark={currentMark}
           anchor={anchorEl}
           walking={walking}
-          onConnect={connect}
-          onQuestion={questionMark}
+          onPrimary={runPrimary}
           onDismiss={mark => resolveTo(mark, "dismissed")}
           onOpenTarget={openTarget}
           targetAction={targetAction}

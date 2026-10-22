@@ -8,7 +8,8 @@ import type { EntityRef } from "@/entity/ref";
 /** 可连接 / 重复 / 矛盾 / 可以展开（空白） */
 export type InsightKind = "link" | "dup" | "conflict" | "gap";
 
-export type InsightStatus = "open" | "linked" | "questioned" | "dismissed";
+/** 未处理 / 已处理（连接、写成卡片、去补写、聊过）/ 不相关 */
+export type InsightStatus = "open" | "linked" | "dismissed";
 
 export interface InsightTarget {
   ref: EntityRef;

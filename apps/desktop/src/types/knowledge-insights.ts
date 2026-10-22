@@ -2,7 +2,7 @@
  * 主题与全局层的 AI 洞见、项目回顾（主库 knowledge_ai_insights 的 result，knowledge-insights:* 的返回）。
  *
  * 后台按知识地图的子主题 → 主题 → 全局分层生成（只读 7a 元信息），项目回顾按归档与变化量生成。
- * 标记画在知识地图或项目树上，产出只有连接与问题；处理状态随库同步。
+ * 标记画在知识地图或项目树上，产出是连接、写成卡片、去补写或聊一聊；处理状态随库同步。
  */
 
 import type { EntityRef } from "@/entity/ref";
@@ -16,6 +16,14 @@ export type KnowledgeInsightScope = "subtopic" | "topic" | "global" | "project";
  */
 export type KnowledgeMarkKind =
   "bridge" | "asked" | "dup" | "conflict" | "chain" | "pattern" | "gap" | "belong" | "thin";
+
+/** 主动作是「写成卡片」的标记：新建一张空卡片，连上涉及的笔记，由用户自己写 */
+export const WRITE_CARD_KINDS: ReadonlySet<KnowledgeMarkKind> = new Set([
+  "pattern",
+  "chain",
+  "asked",
+  "gap",
+]);
 
 /** 标记涉及的一份笔记 */
 export interface KnowledgeEndpoint {

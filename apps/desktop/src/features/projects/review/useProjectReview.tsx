@@ -6,15 +6,14 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Sparkles, CornerDownRight, CircleHelp, X } from "lucide-react";
+import { Loader2, Sparkles, CornerDownRight, PenLine, X } from "lucide-react";
 import { AnchoredPanel, Button, IconButton, cn, toast } from "@tau/ui";
 import { addChildProjectItem } from "@/commands";
 import { useOverlayDismiss, usePage } from "@/page/PageProvider";
 import { openEntity } from "@/services/open-content";
-import { requestQuestionCapture } from "@/services/question-capture";
+import { discussInsight } from "@/services/insight-chat";
 import { EProjectItemType, type ProjectItem } from "@/types";
 import type { InsightAsk } from "@/types/content-insights";
-import type { QuestionLinkTarget } from "@/types/question";
 import type { KnowledgeEndpoint, KnowledgeMark } from "@/types/knowledge-insights";
 import { defaultProjectItemEventBus } from "@/utils";
 import { ProjectReviewReport } from "./ProjectReviewReport";
@@ -94,7 +93,7 @@ export function useProjectReview(options: {
   }, view !== "off");
 
   /* ── 动作 ── */
-  const resolveTo = (itemId: string, status: "linked" | "questioned" | "dismissed") => {
+  const resolveTo = (itemId: string, status: "linked" | "dismissed") => {
     if (data) setStatus.mutate({ nodeId: data.id, itemId, status });
     setCurrent(null);
   };
@@ -134,38 +133,29 @@ export function useProjectReview(options: {
     }
   };
 
-  const questionThin = (mark: KnowledgeMark) => {
-    requestQuestionCapture({
-      source: { kind: "none" },
-      sourceLabel: `项目：${projectTitle}`,
-      defaultTitle: (mark.text ?? "").replace(/^这里还薄[:：]\s*/, ""),
-    });
-    resolveTo(mark.id, "questioned");
+  /** 还薄：打开那一支的文档接着写，收起回顾 */
+  const writeThin = (mark: KnowledgeMark) => {
+    if (mark.under === undefined) {
+      toast.warning("找不到这一支，可以重新回顾");
+      return;
+    }
+    resolveTo(mark.id, "linked");
+    exit();
+    openEntity({ kind: "project-item", id: mark.under }).catch(error =>
+      toast.error(error instanceof Error ? error.message : "无法打开内容")
+    );
   };
 
-  const askQuestion = (ask: InsightAsk) => {
-    // 结项回顾的问题挂上核心观点那几篇；没有就只记来源文字
-    const targetType = {
-      card: "card",
-      article: "article",
-      "project-item": "project_item",
-    } as const;
-    const targets: QuestionLinkTarget[] = (data?.result.refs ?? []).flatMap(end =>
-      end.ref.kind in targetType
-        ? [
-            {
-              targetType: targetType[end.ref.kind as keyof typeof targetType],
-              targetId: end.ref.id,
-            },
-          ]
-        : []
+  /** 可以继续想：带着结项回顾的核心观点那几篇开一个对话，用户发出后标为已处理 */
+  const discussAsk = (ask: InsightAsk) => {
+    const nodeId = data?.id;
+    setCurrent(null);
+    void discussInsight(`关于「${projectTitle}」：${ask.text}`, data?.result.refs ?? []).then(
+      sent => {
+        if (sent && nodeId !== undefined)
+          setStatus.mutate({ nodeId, itemId: ask.id, status: "linked" });
+      }
     );
-    requestQuestionCapture({
-      source: targets.length ? { kind: "materials", targets } : { kind: "none" },
-      sourceLabel: `项目：${projectTitle}`,
-      defaultTitle: ask.text,
-    });
-    resolveTo(ask.id, "questioned");
   };
 
   /* ── 文档树 ── */
@@ -221,7 +211,7 @@ export function useProjectReview(options: {
         fresh={fresh}
         onOpen={open}
         onOpenProject={id => navigator.push("project-detail", { id })}
-        onAsk={askQuestion}
+        onAsk={discussAsk}
         onReview={write}
       />
     );
@@ -283,13 +273,8 @@ export function useProjectReview(options: {
                 引用到这里
               </Button>
             ) : (
-              <Button
-                size="sm"
-                variant="primary"
-                icon={CircleHelp}
-                onClick={() => questionThin(mark)}
-              >
-                记为问题
+              <Button size="sm" variant="primary" icon={PenLine} onClick={() => writeThin(mark)}>
+                去补写
               </Button>
             )}
             <Button size="sm" variant="ghost" onClick={() => resolveTo(mark.id, "dismissed")}>

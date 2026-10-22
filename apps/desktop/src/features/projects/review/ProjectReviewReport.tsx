@@ -128,7 +128,7 @@ export function ProjectReviewReport({
                       onClick={() => onAsk(ask)}
                       className="text-ink-3 hover:text-accent-text shrink-0 text-[12px] opacity-0 group-hover:opacity-100"
                     >
-                      记为问题
+                      聊一聊
                     </button>
                   )}
                 </div>

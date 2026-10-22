@@ -1,7 +1,7 @@
 /**
- * 同一思路「写成卡片」（KL-069）：新建一张空卡片当这个思路的枢纽，和用到它的几处连起来——卡片端
- * 建正文显式连接，文章 / 项目文档 / 日记端记谱系 distilled_from（那篇 → 新卡）；正文留空，由用户自己写。
- * 标记随之记为已连接。
+ * 洞见「写成卡片」（KL-069）：同一思路、缺一环、问了没写、还缺（WRITE_CARD_KINDS）新建一张空卡片，
+ * 和标记涉及的几处连起来——卡片端建正文显式连接，文章 / 项目文档 / 日记端记谱系 distilled_from
+ * （那篇 → 新卡）；问了没写、还缺不涉及笔记，只建卡片。正文留空，由用户自己写。标记随之记为已处理。
  *
  * 写到一半放弃（离开时正文仍为空）就撤回：删掉卡片（其正文的显式连接随引用归零一并释放）、
  * 谱系与卡片，标记回到未处理。
@@ -10,6 +10,7 @@
 import type Database from "better-sqlite3";
 import { DEFAULT_CARD_CONTENT } from "@/constants/card";
 import type { ICard } from "@/types";
+import { WRITE_CARD_KINDS } from "@/types/knowledge-insights";
 import { isBlankCardContent } from "@/utils/card";
 import CardTable from "./tables/card";
 import EntityLineageTable from "./tables/entity-lineage";
@@ -30,7 +31,7 @@ export function createPatternCard(
     const mark = KnowledgeAiInsightsTable.get(db, nodeId)?.result.marks.find(
       item => item.id === markId
     );
-    if (!mark || mark.kind !== "pattern" || mark.status !== "open") {
+    if (!mark || !WRITE_CARD_KINDS.has(mark.kind) || mark.status !== "open") {
       throw new Error("这一处已经处理过或已重新生成");
     }
     const created = CardTable.createCard(db, {

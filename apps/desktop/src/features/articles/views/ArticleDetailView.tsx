@@ -142,7 +142,6 @@ export function ArticleDetailView() {
   const insights = useInsightsView({
     ref: { kind: "article", id: editingArticle?.id ?? 0 },
     contentId: editingArticle?.contentId ?? 0,
-    sourceLabel: `文章：${editingArticle?.title || "无标题文章"}`,
     getEditor,
     ...useComposeInsightOptions(composeSession, composing),
   });

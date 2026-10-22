@@ -152,7 +152,6 @@ export function CardDetailView() {
   const insights = useInsightsView({
     ref: { kind: "card", id: card?.id ?? 0 },
     contentId: card?.contentId ?? 0,
-    sourceLabel: `卡片：${cardTitle}`,
     getEditor: useCallback(() => editorRef.current?.getEditor(), []),
   });
 
