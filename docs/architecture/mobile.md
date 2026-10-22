@@ -285,6 +285,27 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
   DOM 选区，由 `useReadingSelection` 监听 `selectionchange` 自行换算为 Slate Range（展开防抖 150ms）；高亮在只读下直接写
   marks，批注 / 关联卡片经 `enterEditingWithSelection` 在点击内同步进入编辑并选中后执行配件栏动作，摘录经
   `createQuickCard` 建卡；不可编辑（`forcedReadonly`）时不显示。
+- **块选择模式**：`features/cards/blockSelection/`，只作用于顶层块（`editor.children` 下标），接入 `ContentDetailPage` 与
+  `CollabEditorPage`（公共状态经 `useEditorBlockSelection`）。入口：编辑态当前块左侧把手 `BlockHandle`（编辑器聚焦、通用或格式模式、
+  无面板时显示在光标所在顶层块首行左侧，点击或长按 450ms 进入并选中该块）；page 的「⋯」菜单项「选择块」（`blockSelectionMenuItem`，
+  经 `ContentDetailPage` 的 `actionsRef.enterBlockSelection()` 或协作页自身调用，阅读态与编辑态都可用，进入后选中 0 个）。阅读态长按
+  留给系统选词，不进入块选择。进入时先经阅读态 `exitEditing` 收键盘。`useBlockSelection` 持有激活与升序选中下标，激活期间以
+  `useSheetBackDismiss` 让返回 = 退出，块数变化裁剪越界下标，不可编辑（`forcedReadonly` / 协作只读）时不可进入且立即退出。
+  块选择期间 Editor 保持可写（内核块命令按 `getCommandElementPath` 定位、异步命令经 Submission 提交，二者都要求编辑器可写；覆盖层按下时阻止默认行为，正文获得焦点即失焦并清除 DOM 选区，避免弹出键盘），配件栏
+  `readonly`；顶栏换成 `BlockSelectionHeader`（取消 / 已选 N 个块 / 全选），底部为 `BlockActionBar`（上移、下移、转换、复制、删除、
+  更多；挂载期间写 `--mobile-editor-toolbar-occlusion` 给滚动容器留白），阅读态标注条与 `readingSurfaceProps` 不挂载。
+  转换与更多的菜单来自内核聚合的扩展菜单声明（`@tau/editor/api` 的 `resolveElementMenu`，条目带贡献来源 `owner`），由 `blockMenu.ts`
+  求值：转换取 `tau.transform` 的子项，多选按 key 取交集，执行时逐块按元素引用重新求值、自后向前调用同 key 的 `onSelect`，合并为一个
+  撤销步并保持选择；更多仅单选可用，按菜单分隔线分组，排除操作栏已有的 `tau.block.move-up/move-down/copy/delete` 与 `tau.transform`，
+  禁用项不显示，危险项置底，`owner` 不是 `tau.*` / `host.*` / `editor` 的项归入插件组（副文案「插件 · 来源」），有子项的进入二级
+  `ActionSheet`（选项点击登记动作、面板退场后执行，每级面板独立挂载），并追加宿主项「创建副本」；内核剪切项改由宿主 `cutBlocks`
+  执行并退出块选择。`BlockSelectionLayer` 渲染在
+  编辑器外层 `relative` 包裹内，不改编辑器 DOM：按 `ReactEditor.toDOMNode` 测量各块（`measureBlocks.ts`，文档 / 选择变化与
+  ResizeObserver 触发重算）绘制高亮与勾选圈，覆盖正文与左右边距的点击面拦截全部点击，按点击纵坐标切换所在块（空隙归最近的块）。
+  块操作在 `blockOps.ts` 用 Slate Transforms 实现（内核块命令只作用于单个 element）：移动整组一位（不连续块各自与相邻未选块互换，
+  到边界不可移动）、删除（删空补空段落）、复制（`@tau/editor/api` 的 `copyNodeToClipboard` 接受节点数组）、剪切（写剪贴板成功后按
+  节点引用删除）、在末个选中块后插入副本（`cloneBlockWithFreshIdentity`：递归换新 `uuid`，勾选项清除 `taskId` 与实例状态，块内引用
+  如 tabs 的 `tabKey` / `activeKey` 不变）；多步改动经 `HistoryEditor.withNewBatch` 合并为一个撤销步，删除后 toast「撤销」即 `editor.undo()`。
 - **开发实验页**：`features/editorLab/`（仅开发构建注册，入口 RouterDevTools「editor lab」）用同一套预留与收键盘策略，
   可切换策略并复制键盘、位移、输入法、选区恢复日志，用于真机验证。
 

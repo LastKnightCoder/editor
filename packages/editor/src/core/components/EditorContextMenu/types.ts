@@ -11,6 +11,8 @@ export interface ContextMenuItem {
   onSelect?: () => void;
   /** 该条目上方画一条组分隔线（由菜单聚合器在组边界标记） */
   separator?: boolean;
+  /** 贡献该条目的扩展 id（MenuContributionSource.owner）；合并子项的父项取首个来源 */
+  owner?: string;
 }
 
 export interface EditorContextMenuProps {

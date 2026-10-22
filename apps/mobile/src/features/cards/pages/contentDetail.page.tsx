@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Layers, ChevronRight, Copy, Ellipsis, Link2, Trash2 } from "lucide-react";
-import { ContentDetailPage } from "../ContentDetailPage";
+import { ContentDetailPage, type ContentDetailActions } from "../ContentDetailPage";
+import { blockSelectionMenuItem } from "../blockSelection/blockSelectionMenuItem";
 import { PageHeaderButton } from "../../../components/PageHeader";
 import { ActionSheet } from "../../../components/ActionSheet";
 import { MobileConfirmDialog } from "../../../components/MobileConfirmDialog";
@@ -54,6 +55,7 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
   const [deleteLoading, setDeleteLoading] = useState(false);
   // 关联写回后 bump：详情页内 LinksDisclosure 走自己的 detail 缓存，经 refreshKey 强制重拉同步
   const [linksRev, setLinksRev] = useState(0);
+  const detailActionsRef = useRef<ContentDetailActions>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -131,6 +133,7 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
       <ContentDetailPage
         contentId={card.contentId}
         refreshKey={props.refreshKey + linksRev}
+        actionsRef={detailActionsRef}
         contextEntity={{ kind: "card", id: card.id }}
         collaboration={collab.collaboration}
         onCollaborationEnded={collab.onCollaborationEnded}
@@ -150,6 +153,7 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
         kind="卡片"
         onClose={() => setMenuOpen(false)}
         items={[
+          blockSelectionMenuItem(() => detailActionsRef.current?.enterBlockSelection()),
           {
             label: "关联卡片",
             icon: <Link2 size={18} />,

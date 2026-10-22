@@ -75,14 +75,32 @@ vi.mock("../../../router", async importOriginal => {
 });
 
 vi.mock("../../../components/PageHeader", () => ({
-  PageHeader: (props: { actions?: ReactNode }) => (
-    <div data-testid="page-header">{props.actions}</div>
+  PageHeader: (props: { actions?: ReactNode; children?: ReactNode }) => (
+    <div data-testid="page-header">
+      {props.children}
+      {props.actions}
+    </div>
   ),
-  PageHeaderButton: () => null,
+  PageHeaderButton: (props: { "aria-label"?: string; onClick?: () => void }) => (
+    <button type="button" aria-label={props["aria-label"]} onClick={props.onClick} />
+  ),
 }));
 
+// 面板直接平铺选项，便于点击「选择块」等菜单项
 vi.mock("../../../components/ActionSheet", () => {
-  const ActionSheet = () => null;
+  const ActionSheet = (props: {
+    open: boolean;
+    items?: Array<{ label: string; onClick: () => void }>;
+  }) =>
+    props.open ? (
+      <div data-testid="action-sheet">
+        {(props.items ?? []).map(item => (
+          <button key={item.label} type="button" onClick={item.onClick}>
+            {item.label}
+          </button>
+        ))}
+      </div>
+    ) : null;
   return { __esModule: true, ActionSheet, default: ActionSheet };
 });
 
@@ -241,6 +259,45 @@ describe("CollabEditorPage", () => {
     expect(capturedEditorProps.value?.readonly).toBe(true);
     await editorElement();
     expect(document.querySelector(TOOLBAR_SELECTOR)).toBeNull();
+  });
+
+  function sheetButton(label: string) {
+    return Array.from(
+      document.querySelectorAll<HTMLButtonElement>('[data-testid="action-sheet"] button')
+    ).find(button => button.textContent === label);
+  }
+
+  it("「更多」→「选择块」进入块选择：顶栏与操作栏替换，取消恢复阅读态", async () => {
+    await renderPage();
+    await act(async () => {
+      document.querySelector<HTMLButtonElement>('button[aria-label="更多操作"]')?.click();
+    });
+    await act(async () => {
+      sheetButton("选择块")?.click();
+    });
+    expect(document.querySelector('[data-block-action-bar="true"]')).not.toBeNull();
+    expect(document.querySelector('[data-block-selection-hit="true"]')).not.toBeNull();
+    expect(document.querySelector('button[aria-label="编辑"]')).toBeNull();
+    expect(capturedEditorProps.value?.readonly).toBe(false);
+
+    const cancel = Array.from(document.querySelectorAll("button")).find(
+      button => button.textContent?.trim() === "取消"
+    );
+    await act(async () => {
+      cancel?.click();
+    });
+    expect(document.querySelector('[data-block-action-bar="true"]')).toBeNull();
+    expect(capturedEditorProps.value?.readonly).toBe(true);
+  });
+
+  it("协作只读时「更多」不提供「选择块」", async () => {
+    collabState.readonly = true;
+    await renderPage();
+    await act(async () => {
+      document.querySelector<HTMLButtonElement>('button[aria-label="更多操作"]')?.click();
+    });
+    expect(sheetButton("成员管理")).toBeDefined();
+    expect(sheetButton("选择块")).toBeUndefined();
   });
 
   it("用 content 场景的 kit（扩展由 kit 自带，不再逐处透传）", async () => {

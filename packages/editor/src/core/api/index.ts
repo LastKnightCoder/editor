@@ -102,7 +102,7 @@ export {
   type BlockNavigationHandler,
 } from "../utils/blockNavigation";
 export { isCollapsed, getCurrentTextNode } from "../utils/editor";
-export { deleteVoidBlock } from "../utils/nodeOperations";
+export { copyNodeToClipboard, deleteVoidBlock } from "../utils/nodeOperations";
 export { getSelectionSnapshot, isSelectionSnapshotUnchanged } from "../utils/selectionSnapshot";
 
 export { createParagraph, isParagraphElement, type ParagraphElement } from "../model/paragraph";
@@ -111,6 +111,8 @@ export { insertParagraphAndFocus } from "../utils/editor";
 export { isAtParagraphStart, isParagraphAndEmpty } from "../utils/editor";
 export { isNodeEmpty } from "../kit/elementEmpty";
 export { createBlockConversionMenu } from "../menu/conversion";
+export { resolveElementMenu } from "../hooks/useDragHandlerMenu";
+export type { ContextMenuItem } from "../components/EditorContextMenu/types";
 export { getCommandElementPath } from "../utils/commandTarget";
 export {
   captureEditorSubmission,
