@@ -188,5 +188,22 @@
       "manifest.json": "38e6398232554ab7ef61386b7932e056c73e691c3f0656ee6c14e72c8ad1045b",
       "README.md": "1e5211f117c6743712d5502b3ffa799732b52567f52bfcae748d61f1d7620ecd"
     }
+  },
+  {
+    "repository": "https://github.com/LastKnightCoder/tau-plugin-questions",
+    "artifact": "releases/tau.questions/0.1.1",
+    "id": "tau.questions",
+    "version": "0.1.1",
+    "sourceRevision": "36b7ff1b15c12a37c158382f9e1bdf27491f9409",
+    "archiveSha256": "a2715a3564798bc59181cd7d7fd03efc97511b0484b4797085e7beae59ee69cd",
+    "files": {
+      "CHANGELOG.md": "87cd0c775f71bbb3e1f0a95f625a07554cc6adf765a54c5fa40f615bf1ffe496",
+      "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
+      "main.css": "3591551a619a4a16bed19fd6b72d26c270d101bffb66e30350a28ea3aa40c81a",
+      "main.js": "28c68fd43b7c4f50e355a4ee1abc78f0af655238c43f5ce13ecf59ef3b150657",
+      "manifest.json": "ca7d122922941d87fdcb3477e6e067150904f04cc9c3f0be3be3d5e7bca4a7ea",
+      "README.md": "abf59e163d6174f25d03b86d2c5dd3d7ef69957514ed04b160ebb4b5470bb7b4",
+      "skills/questions/SKILL.md": "d4fb22f097254a57bcb4c5f1c4b8a8cd18c95a067adb7934bfeb4fd5e81dfaf4"
+    }
   }
 ]

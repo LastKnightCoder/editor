@@ -1,0 +1,43 @@
+{
+  "formatVersion": 1,
+  "id": "tau.questions",
+  "name": "问题管理",
+  "description": "把读书、写作和对话里冒出来的疑问记下来，挂上卡片、文章、划线等材料慢慢探究，直到写下答案。",
+  "categories": [
+    "page"
+  ],
+  "keywords": [
+    "问题",
+    "疑问",
+    "探究",
+    "学习"
+  ],
+  "version": "0.1.1",
+  "minAppVersion": "0.59.0",
+  "apiVersion": 1,
+  "platform": "desktop",
+  "format": "cjs",
+  "main": "main.js",
+  "permissions": [
+    "cards:read",
+    "cards:write",
+    "articles:read",
+    "articles:write",
+    "documents:read",
+    "whiteboards:read",
+    "whiteboards:write",
+    "projects:read",
+    "projects:write",
+    "materials:read",
+    "chats:read"
+  ],
+  "integrity": {
+    "main.js": "28c68fd43b7c4f50e355a4ee1abc78f0af655238c43f5ce13ecf59ef3b150657",
+    "main.css": "3591551a619a4a16bed19fd6b72d26c270d101bffb66e30350a28ea3aa40c81a",
+    "skills/questions/SKILL.md": "d4fb22f097254a57bcb4c5f1c4b8a8cd18c95a067adb7934bfeb4fd5e81dfaf4"
+  },
+  "styles": "main.css",
+  "skills": [
+    "questions"
+  ]
+}
