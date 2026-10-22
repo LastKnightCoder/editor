@@ -294,7 +294,7 @@ export function Dialog({
               )}
               <div className="flex items-center gap-2 pl-6 pr-12 pt-[22px]">
                 {icon && (
-                  <span className="text-ink-2 flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">
+                  <span className="text-ink-2 flex size-4 shrink-0 items-center justify-center [&>svg]:size-4">
                     {icon}
                   </span>
                 )}
