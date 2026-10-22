@@ -112,7 +112,7 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `plugin_links`
 
-插件内容（`plugin_entities`）指向其他内容的有序关联（插件里的 `context.links`，如问题关联的探究材料），会显示在目标的脉络里。`from_id` 为来源实体 ID；`to_kind` / `to_id` 为目标的插件引用类型与 ID（如 `card` / `12`、`material` / `excerpt:3`）；`to_created_at` 为建立关联时目标的创建时间，编号被新内容复用时判为已删除；`role` 为插件定义的角色，`data` 为附加 JSON。
+插件内容（`plugin_entities`）指向其他内容的有序关联（插件里的 `context.links`，如问题管理插件关联的探究材料），会显示在目标的脉络里。`from_id` 为来源实体 ID；`to_kind` / `to_id` 为目标的插件引用类型与 ID（如 `card` / `12`、`material` / `excerpt:3`）；`to_created_at` 为建立关联时目标的创建时间，编号被新内容复用时判为已删除；`role` 为插件定义的角色，`data` 为附加 JSON。
 
 | 字段            | SQLite 定义                  |
 | --------------- | ---------------------------- |
@@ -557,69 +557,6 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `create_time`   | `INTEGER NOT NULL`                |
 | `update_time`   | `INTEGER NOT NULL`                |
 
-### `question_group`
-
-| 字段          | SQLite 定义                                         |
-| ------------- | --------------------------------------------------- |
-| `id`          | `INTEGER PRIMARY KEY`                               |
-| `title`       | `TEXT NOT NULL`                                     |
-| `color`       | `TEXT`                                              |
-| `sort_index`  | `INTEGER NOT NULL DEFAULT 0`                        |
-| `is_default`  | `INTEGER NOT NULL DEFAULT 0 CHECK(is_default IN (0` |
-| `create_time` | `INTEGER NOT NULL`                                  |
-| `update_time` | `INTEGER NOT NULL`                                  |
-
-### `questions`
-
-| 字段               | SQLite 定义                           |
-| ------------------ | ------------------------------------- |
-| `id`               | `INTEGER PRIMARY KEY`                 |
-| `create_time`      | `INTEGER NOT NULL`                    |
-| `update_time`      | `INTEGER NOT NULL`                    |
-| `question_content` | `TEXT`                                |
-| `answers`          | `TEXT DEFAULT '[]'`                   |
-| `group_id`         | `INTEGER`                             |
-| `sort_index`       | `INTEGER NOT NULL DEFAULT 0`          |
-| `resolved_time`    | `INTEGER`                             |
-| `status`           | `TEXT NOT NULL DEFAULT 'not_started'` |
-| `description`      | `TEXT`                                |
-
-### `question_link`
-
-问题的探究材料。`target_type`：`card` / `article` / `project_item` / `project` / `white_board` / `answer`（`target_id` 为 `contents.id`）/ `excerpt` / `pdf-annotation` / `web-clip`；`target_id` 均为整数主键。对话关联在 `question_chat`。
-
-| 字段          | SQLite 定义                  |
-| ------------- | ---------------------------- |
-| `id`          | `INTEGER PRIMARY KEY`        |
-| `question_id` | `INTEGER NOT NULL`           |
-| `target_type` | `TEXT NOT NULL`              |
-| `target_id`   | `INTEGER NOT NULL`           |
-| `content_id`  | `INTEGER`                    |
-| `sort_index`  | `INTEGER NOT NULL DEFAULT 0` |
-| `create_time` | `INTEGER NOT NULL`           |
-
-### `question_chat`
-
-问题的探究对话。`session_id` 为 `chat_session.id`；`message_ids` 为 JSON 数组（问题从哪几条消息转来，可空）。
-
-| 字段          | SQLite 定义           |
-| ------------- | --------------------- |
-| `id`          | `INTEGER PRIMARY KEY` |
-| `question_id` | `INTEGER NOT NULL`    |
-| `session_id`  | `TEXT NOT NULL`       |
-| `message_ids` | `TEXT`                |
-| `create_time` | `INTEGER NOT NULL`    |
-
-### `question_event`
-
-| 字段          | SQLite 定义                  |
-| ------------- | ---------------------------- |
-| `id`          | `INTEGER PRIMARY KEY`        |
-| `question_id` | `INTEGER NOT NULL`           |
-| `type`        | `TEXT NOT NULL`              |
-| `payload`     | `TEXT NOT NULL DEFAULT '{}'` |
-| `create_time` | `INTEGER NOT NULL`           |
-
 ### `content_links`
 
 正文之间的显式连接（无向边，一行一条；`content_id` 恒为较小一侧）。连接绑定 `contents.id`，共用同一份正文的身份（卡片、文章、项目文档、日记及其投影）共享同一组连接。
@@ -765,7 +702,7 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `entity_lineage`
 
-谱系：「A 衍生出 B」中推导不出的事实，`src_id` / `dst_id` 均为文本。`relation`：`derived` / `saved_from` / `clipped_from` / `excerpt_of` / `upgraded_to`（问题 → Notebook）/ `discussed_in`（问题 → 对话）/ `distilled_from`（用到同一思路的笔记 → 据此新写的卡片）；端点 kind 含 `question`、`vl-project`。
+谱系：「A 衍生出 B」中推导不出的事实，`src_id` / `dst_id` 均为文本。`relation`：`derived` / `saved_from` / `clipped_from` / `excerpt_of` / `upgraded_to`（立项来源 → Notebook）/ `discussed_in`（发起来源 → 对话）/ `distilled_from`（洞见涉及的笔记 → 据此新写的卡片）；端点 kind 含 `plugin-entity`、`vl-project`。
 
 | 字段          | SQLite 定义                         |
 | ------------- | ----------------------------------- |

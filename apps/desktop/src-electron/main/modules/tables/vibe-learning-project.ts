@@ -82,7 +82,7 @@ export default class VibeLearningProjectTable {
     }));
   }
 
-  /** 由什么立项（问题、卡片、插件内容等，谱系 upgraded_to）；没有或来源已删除时为 null */
+  /** 由什么立项（卡片、插件内容等，谱系 upgraded_to）；没有或来源已删除时为 null */
   static sourceOf(db: Database.Database, id: number): ContextLineageItem | null {
     return notebookSourceOf(db, id);
   }

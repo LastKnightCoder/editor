@@ -1,6 +1,6 @@
 /**
  * 谱系端点：「A 衍生出 B」的两端。比 EntityRef（四类正文实体）宽——还包括外部材料（摘录、
- * PDF 标注、剪藏解析文档）、对话、Notebook 笔记与项目、闪卡、问题；对话 id 是字符串。纯 TypeScript，主进程与渲染端共用。
+ * PDF 标注、剪藏解析文档）、对话、Notebook 笔记与项目、闪卡；对话 id 是字符串。纯 TypeScript，主进程与渲染端共用。
  *
  * 只记推导不出来的事实（复制、从对话存下、剪藏）；共用正文的投影与闪卡引用查询时推导，不入谱系（KL-008）。
  */
@@ -14,7 +14,6 @@ export type LineageNode =
   | { kind: "chat-session"; id: string }
   | { kind: "vl-note"; id: number }
   | { kind: "flashcard"; id: number }
-  | { kind: "question"; id: number }
   | { kind: "vl-project"; id: number };
 
 export type LineageNodeKind = LineageNode["kind"];
@@ -32,7 +31,7 @@ export const LINEAGE_RELATIONS = [
 /**
  * derived：复制出来，之后各自演化；saved_from：由对话中的消息存成；
  * clipped_from：剪藏解析自网页条目；excerpt_of：由某条摘录 / PDF 标注写成；
- * upgraded_to：问题立项为 Notebook；discussed_in：从该实体发起了这次对话（KL-007）；
+ * upgraded_to：立项为 Notebook（插件内容等作来源）；discussed_in：从该实体发起了这次对话（KL-007）；
  * distilled_from：同一思路「写成卡片」时，用到这个思路的笔记 → 新写的那张卡片（KL-069）
  */
 export type LineageRelation = (typeof LINEAGE_RELATIONS)[number];
@@ -55,8 +54,8 @@ export interface StoredLineageNode {
   id: string;
 }
 
-type ExtraKind = "vl-note" | "flashcard" | "question" | "vl-project";
-const EXTRA_KINDS = new Set<string>(["vl-note", "flashcard", "question", "vl-project"]);
+type ExtraKind = "vl-note" | "flashcard" | "vl-project";
+const EXTRA_KINDS = new Set<string>(["vl-note", "flashcard", "vl-project"]);
 
 export const toStoredLineageNode = (node: LineageNode): StoredLineageNode => ({
   kind: node.kind,

@@ -4,8 +4,6 @@ import TodoToolRenderer from "./TodoToolRenderer";
 import TodoOperationRenderer from "./TodoOperationRenderer";
 import CalendarQueryRenderer from "./CalendarQueryRenderer";
 import CalendarOperationRenderer from "./CalendarOperationRenderer";
-import QuestionQueryRenderer from "./QuestionQueryRenderer";
-import QuestionOperationRenderer from "./QuestionOperationRenderer";
 import StructuredToolResultRenderer from "./StructuredToolResultRenderer";
 import KnowledgeSearchRenderer from "./KnowledgeSearchRenderer";
 import ContentEditProposalRenderer from "./ContentEditProposalRenderer";
@@ -257,14 +255,6 @@ export function initToolCallRenderers(): void {
       {
         toolName: "delete_calendar_event",
         renderer: CalendarOperationRenderer,
-      },
-      {
-        toolName: "question-query",
-        renderer: QuestionQueryRenderer,
-      },
-      {
-        toolName: "question-mutation",
-        renderer: QuestionOperationRenderer,
       },
       {
         toolName: "structured-tool-result",

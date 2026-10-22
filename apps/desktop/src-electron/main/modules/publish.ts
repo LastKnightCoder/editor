@@ -35,9 +35,6 @@ import CardTable from "./tables/card";
 import ContentLinkTable from "./tables/content-link";
 import ArticleTable from "./tables/article";
 import ProjectTable from "./tables/project";
-import QuestionTable from "./tables/question";
-import QuestionGroupTable from "./tables/question-group";
-import QuestionLinkTable from "./tables/question-link";
 import { readTemplatePackage } from "../services/template-package";
 import { discoverPlugins } from "../services/plugin-discovery";
 import { assertLocalId } from "@tau/plugins/package";
@@ -54,19 +51,11 @@ function createPublishDataSource(db: Database.Database): PublishDataSource {
   return {
     getCardByIds: ids => CardTable.getCardByIds(db, ids),
     getCardById: id => CardTable.getCardById(db, id),
-    getCardByContentId: contentId => CardTable.getCardByContentId(db, contentId),
     getContentLinkTargetContentIds: contentId =>
       ContentLinkTable.edgesOf(db, [contentId]).get(contentId) ?? [],
     getArticleByIds: ids => ArticleTable.getArticleByIds(db, ids),
-    getArticleByContentId: contentId => ArticleTable.getArticleByContentId(db, contentId),
     getProject: id => ProjectTable.getProjectOrNull(db, id),
     getProjectItemsByIds: ids => ProjectTable.getProjectItemsByIds(db, ids),
-    getProjectItemsByContentId: contentId => ProjectTable.getProjectItemsByContentId(db, contentId),
-    listQuestionGroups: () => QuestionGroupTable.listGroups(db),
-    listQuestionsByGroup: (groupId, filter, search) =>
-      QuestionTable.listByGroup(db, groupId, filter, search),
-    getQuestionAnswerById: id => QuestionTable.getAnswerById(db, id),
-    getQuestionDetail: questionId => QuestionLinkTable.getDetail(db, questionId),
   };
 }
 

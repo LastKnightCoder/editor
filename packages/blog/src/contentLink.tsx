@@ -3,7 +3,7 @@ import type { ContentRef } from "@tau/plugins/publish-data";
 import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 
 export interface LinkRenderProps {
-  /** 目标键 `${contentType}:${refId}`，与 QuestMaterial.citeKey 同一口径。 */
+  /** 目标键 `${contentType}:${refId}`，与 PublishedData.links 的键同一口径。 */
   identity: string;
   /** 已发布的目标；未发布时为空。 */
   target?: ContentRef;

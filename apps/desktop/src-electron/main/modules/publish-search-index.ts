@@ -19,22 +19,10 @@ export interface IPublishSearchDocEntry {
   kind: "project";
   content: Descendant[];
 }
-export interface IPublishSearchQuestEntry {
-  id: number;
-  title: string;
-  summary: string;
-  target: ContentRef;
-  groupTitle: string;
-  answers: { content?: Descendant[] }[];
-  description?: Descendant[];
-  createTime: number;
-  updateTime: number;
-}
 export interface BuildPublishSearchIndexInput {
   cards: ICard[];
   articles: IArticle[];
   docs: IPublishSearchDocEntry[];
-  quests: IPublishSearchQuestEntry[];
 }
 const parser = unified().use(remarkParse);
 function plain(value: unknown): string {
@@ -89,15 +77,6 @@ export function buildPublishSearchItems(input: BuildPublishSearchIndexInput): Se
     ),
     ...input.docs.map(doc =>
       document(doc.target, doc.title, plain(doc.content), doc.tags, doc.summary)
-    ),
-    ...input.quests.map(quest =>
-      document(
-        quest.target,
-        quest.title,
-        [plain(quest.description), ...quest.answers.map(answer => plain(answer.content))].join(" "),
-        [quest.groupTitle],
-        quest.summary
-      )
     ),
   ].sort((a, b) => a.key.localeCompare(b.key));
 }

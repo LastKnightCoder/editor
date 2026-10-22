@@ -304,3 +304,30 @@ fn v7_database_backfills_excerpt_providers() {
     );
     ensure_main_schema(&conn).unwrap();
 }
+
+#[test]
+fn v8_database_drops_retired_question_tables() {
+    let conn = Connection::open_in_memory().unwrap();
+    ensure_main_schema(&conn).unwrap();
+    conn.execute_batch(
+        "UPDATE schema_meta SET value = '8' WHERE key = 'main_schema_version';
+         CREATE TABLE questions(id INTEGER PRIMARY KEY, question_content TEXT);
+         CREATE INDEX idx_questions_status ON questions(question_content);
+         CREATE TABLE question_link(id INTEGER PRIMARY KEY, question_id INTEGER NOT NULL);
+         INSERT INTO questions VALUES (1, '旧问题');",
+    )
+    .unwrap();
+    ensure_main_schema(&conn).unwrap();
+    assert_eq!(
+        get_meta(&conn, "main_schema_version").unwrap(),
+        Some(MAIN_SCHEMA_VERSION.to_string())
+    );
+    let leftover: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE name LIKE 'question%' OR name = 'idx_questions_status'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(leftover, 0);
+}

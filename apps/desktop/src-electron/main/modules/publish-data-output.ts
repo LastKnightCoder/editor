@@ -52,10 +52,7 @@ export class PublishDataOutput {
     if (body.meta.type !== ref.type || (ref.id !== undefined && id !== ref.id))
       throw new Error("发布数据身份不一致");
     const collectionType = body.meta.type === "list" ? (body.content as ListData).type : undefined;
-    if (
-      ref.type === "list" &&
-      !["card", "article", "doc", "quest"].includes(String(collectionType))
-    )
+    if (ref.type === "list" && !["card", "article", "doc"].includes(String(collectionType)))
       throw new Error("集合数据类型无效");
     const stem =
       ref.type === "home"
@@ -64,7 +61,7 @@ export class PublishDataOutput {
           ? `projects/${projectId}/${ref.id}`
           : ref.type === "list"
             ? `lists/${collectionType}`
-            : `${ref.type === "quest" ? "quests" : ref.type + "s"}/${ref.id}`;
+            : `${ref.type}s/${ref.id}`;
     const dataPath = `data/${stem}.json`;
     const contentStyles: ResourceRef[] = [];
     if (css.trim()) {
@@ -109,7 +106,7 @@ export class PublishDataOutput {
     const file = this.add({
       path: `data/${stem}.${hash}.json`,
       content: text,
-      ...(ref.type === "card" || ref.type === "article" || ref.type === "quest"
+      ...(ref.type === "card" || ref.type === "article"
         ? { sourceType: ref.type, sourceId: ref.id }
         : ref.type === "doc"
           ? { sourceType: "project" as const, sourceId: projectId }

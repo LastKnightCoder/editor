@@ -19,8 +19,6 @@ import CardTable from "../../tables/card";
 import ContentLinkTable from "../../tables/content-link";
 import DiaryTable from "../../tables/diary";
 import ProjectTable from "../../tables/project";
-import QuestionLinkTable from "../../tables/question-link";
-import QuestionTable from "../../tables/question";
 import ChatSessionTable from "../../tables/chat-session";
 import EntityLineageTable from "../../tables/entity-lineage";
 import FlashcardTable from "../../tables/flashcard";
@@ -435,8 +433,6 @@ describe("CONTEXT_WRITE_EVENTS", () => {
         ContentLinkTable,
         DiaryTable,
         ProjectTable,
-        QuestionLinkTable,
-        QuestionTable,
         WhiteboardTable,
         WhiteBoardContentTable,
         ChatSessionTable,

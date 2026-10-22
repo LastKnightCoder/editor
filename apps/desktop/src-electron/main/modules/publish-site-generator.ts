@@ -21,14 +21,10 @@ import type {
   IPublishListItem,
   IPublishAppearanceSettings,
   IPublishFaviconConfig,
-  IPublishQuestListItem,
-  IPublishQuestStatus,
 } from "@/types/publish";
 import type { ICard } from "@/types/card";
 import type { IArticle } from "@/types/article";
 import { Project, ProjectItem, EProjectItemType } from "@/types/project";
-import type { IQuestion, IAnswer, QuestionDetail } from "@/types/question";
-import type { QuestionGroup } from "./tables/question-group";
 import {
   contentRef,
   buildSelectionContentLinkTargets,
@@ -42,31 +38,15 @@ import {
   type BuildPublishSearchIndexInput,
 } from "./publish-search-index";
 
-import { resolveQuestActivityTime } from "./publish-quest-time";
-import {
-  buildQuestMaterials,
-  buildQuestTrail,
-  type IQuestMaterialEntry,
-  type IQuestTrailEntry,
-} from "./publish-quest-research";
-
 /** 生成所需的只读数据访问（主进程直连数据库；worker 内经同步 RPC 转发到主进程） */
 export interface PublishDataSource {
   getCardByIds(ids: number[]): ICard[];
   getCardById(id: number): ICard | null;
-  getCardByContentId(contentId: number): ICard | null;
   /** 正文显式连接的对方正文（按建立时间排序） */
   getContentLinkTargetContentIds(contentId: number): number[];
   getArticleByIds(ids: number[]): IArticle[];
-  getArticleByContentId(contentId: number): IArticle | null;
   getProject(id: number): Project | null;
   getProjectItemsByIds(ids: number[]): ProjectItem[];
-  getProjectItemsByContentId(contentId: number): ProjectItem[];
-  listQuestionGroups(): QuestionGroup[];
-  listQuestionsByGroup(groupId: number, filter: "all", search: string): IQuestion[];
-  getQuestionAnswerById(id: number): IAnswer | null;
-  /** 问题的探究材料、对话与轨迹 */
-  getQuestionDetail(questionId: number): QuestionDetail | null;
 }
 
 export interface PublishSelectionInput {
@@ -111,7 +91,7 @@ interface IDocEntry {
 }
 
 interface ITimelineEntry {
-  type: "card" | "article" | "doc" | "quest";
+  type: "card" | "article" | "doc";
   id: number;
   title?: string;
   summary: string;
@@ -143,41 +123,6 @@ interface IDocTreeNode {
   createTime: number;
   updateTime: number;
   hasContent: boolean;
-}
-
-interface IQuestEntry {
-  id: number;
-  title: string;
-  summary: string;
-  target: ContentRef;
-  groupId: number;
-  groupTitle: string;
-  groupColor?: string;
-  status: IPublishQuestStatus;
-  answers: IQuestAnswerEntry[];
-  /** 参考资料（据），编号即 index */
-  materials: IQuestMaterialEntry[];
-  /** 探索过程（径） */
-  trail: IQuestTrailEntry[];
-  description?: Descendant[];
-  createTime: number;
-  updateTime: number;
-  resolvedTime?: number | null;
-}
-
-interface IQuestAnswerEntry {
-  id: number;
-  createTime: number;
-  updateTime: number;
-  content?: Descendant[];
-  source?: {
-    type: "card" | "article" | "project-item" | "custom";
-    id?: number;
-    contentId: number;
-    target?: ContentRef;
-    title?: string;
-    published: boolean;
-  };
 }
 
 interface IDocCollectionMetaItem {
@@ -290,15 +235,6 @@ export class PublishSiteGenerator {
       this.buildEntityScopeMap(grouped.project),
       baseTargets
     );
-    const targets = docResult.contentLinkTargets;
-    const questResult = await this.buildQuestData(
-      db,
-      grouped.quest,
-      this.buildEntityScopeMap(grouped.quest),
-      cardMap,
-      articleMap,
-      targets
-    );
     for (const selection of grouped.card) {
       const card = cardMap.get(selection.contentId);
       if (!card) continue;
@@ -330,19 +266,9 @@ export class PublishSiteGenerator {
         { key: "list:doc", type: "list" },
         this.buildDocListInitData(docResult.listEntries)
       );
-    if (questResult.entries.length)
-      this.output.data(
-        { key: "list:quest", type: "list" },
-        this.buildQuestListInitData(questResult.entries)
-      );
     this.output.data(
       contentRef("home"),
-      this.buildHomeInitData(
-        cards,
-        articles,
-        [...docResult.timelineEntries, ...questResult.timelineEntries],
-        projects.length
-      )
+      this.buildHomeInitData(cards, articles, docResult.timelineEntries, projects.length)
     );
     for (const file of this.pluginCatalog.files()) this.output.add(file);
     if (this.favicon) {
@@ -357,14 +283,6 @@ export class PublishSiteGenerator {
       cards: cards.map(card => ({ ...card, content: searchContent(card.content) })),
       articles: articles.map(article => ({ ...article, content: searchContent(article.content) })),
       docs: docResult.listEntries.map(doc => ({ ...doc, content: searchContent(doc.content) })),
-      quests: questResult.entries.map(quest => ({
-        ...quest,
-        description: quest.description && searchContent(quest.description),
-        answers: quest.answers.map(answer => ({
-          ...answer,
-          content: answer.content && searchContent(answer.content),
-        })),
-      })),
     });
     return {
       files: this.output.finish(this.template, search, {
@@ -490,7 +408,6 @@ export class PublishSiteGenerator {
     return {
       card: selections.filter(item => item.contentType === "card"),
       article: selections.filter(item => item.contentType === "article"),
-      quest: selections.filter(item => item.contentType === "quest"),
       project: selections.filter(item => item.contentType === "project"),
     };
   }
@@ -780,251 +697,6 @@ export class PublishSiteGenerator {
       },
       meta: { type: "list" },
     };
-  }
-
-  private async buildQuestData(
-    db: PublishDataSource,
-    selections: Array<{ contentId: number; parentPath: string }>,
-    scopes: Map<number, EntityScopeConfig>,
-    publishedCards: Map<number, ICard>,
-    publishedArticles: Map<number, IArticle>,
-    contentLinkTargets: Record<string, ContentRef>
-  ): Promise<{
-    files: IPublishFile[];
-    entries: IQuestEntry[];
-    timelineEntries: ITimelineEntry[];
-  }> {
-    if (selections.length === 0) {
-      return { files: [], entries: [], timelineEntries: [] };
-    }
-
-    const files: IPublishFile[] = [];
-    const entries: IQuestEntry[] = [];
-    const groupMap = new Map(db.listQuestionGroups().map(group => [group.id, group]));
-
-    for (const selection of selections) {
-      const group = groupMap.get(selection.contentId);
-      if (!group) continue;
-      const questions = this.loadSelectedQuestQuestions(db, group.id, scopes.get(group.id));
-      for (const question of questions) {
-        const entry = this.createQuestEntry(
-          db,
-          question,
-          group,
-          publishedCards,
-          publishedArticles,
-          contentLinkTargets
-        );
-        entries.push(entry);
-      }
-    }
-
-    entries.sort(
-      (a, b) => resolveQuestActivityTime(b) - resolveQuestActivityTime(a) || b.id - a.id
-    );
-
-    for (const entry of entries) {
-      const initData: PublishDataBody = {
-        content: {
-          ...entry,
-          description: entry.description && this.contentNodes(entry.description),
-          answers: entry.answers.map(answer => ({
-            ...answer,
-            content: answer.content && this.contentNodes(answer.content),
-          })),
-        },
-        meta: { type: "quest" },
-      };
-      const runtimeCss = await this.buildTailwindRuntimeCss(this.collectQuestInlineContent(entry));
-      files.push(this.output.data(entry.target, initData, runtimeCss));
-    }
-
-    return {
-      files,
-      entries,
-      timelineEntries: entries.map(entry => this.createQuestTimelineEntry(entry)),
-    };
-  }
-
-  private loadSelectedQuestQuestions(
-    db: PublishDataSource,
-    groupId: number,
-    scope?: EntityScopeConfig
-  ): IQuestion[] {
-    const questions = db.listQuestionsByGroup(groupId, "all", "");
-    if (!scope || scope.mode === "all") {
-      return questions;
-    }
-    return questions.filter(question => scope.nodes.has(question.id));
-  }
-
-  private createQuestEntry(
-    db: PublishDataSource,
-    question: IQuestion,
-    group: QuestionGroup,
-    publishedCards: Map<number, ICard>,
-    publishedArticles: Map<number, IArticle>,
-    contentLinkTargets: Record<string, ContentRef>
-  ): IQuestEntry {
-    const detail = db.getQuestionDetail(question.id);
-    // 只有独立答案进「解」；关联的卡片 / 文章等是资料，进「据」
-    const answerContentIds = (detail?.materials ?? [])
-      .filter(material => material.targetType === "answer" && !material.missing)
-      .map(material => material.contentId)
-      .filter((id): id is number => id != null);
-    const answers = answerContentIds
-      .map(contentId => db.getQuestionAnswerById(contentId))
-      .filter((answer): answer is IAnswer => Boolean(answer))
-      .map(answer =>
-        this.createQuestAnswerEntry(
-          db,
-          answer,
-          publishedCards,
-          publishedArticles,
-          contentLinkTargets
-        )
-      );
-
-    const summary =
-      this.buildSummary(question.description || [], 96) ||
-      answers
-        .map(answer => this.buildSummary(answer.content || [], 96))
-        .find(text => text.length > 0) ||
-      (answers.length > 0 ? `收录 ${answers.length} 个答案` : "暂未记录答案");
-    const activityTime = resolveQuestActivityTime({
-      createTime: question.createTime,
-      answers,
-    });
-    const { materials, indexByKey } = buildQuestMaterials(
-      detail ?? { materials: [], chats: [] },
-      contentLinkTargets
-    );
-
-    return {
-      id: question.id,
-      title: question.questionContent || `求索 #${question.id}`,
-      summary,
-      target: contentRef("quest", question.id),
-      groupId: group.id,
-      groupTitle: group.title,
-      groupColor: group.color,
-      status: question.status,
-      answers,
-      materials,
-      trail: buildQuestTrail(detail?.events ?? [], indexByKey),
-      description: question.description,
-      createTime: question.createTime,
-      updateTime: activityTime,
-      resolvedTime: question.resolvedTime,
-    };
-  }
-
-  private createQuestAnswerEntry(
-    db: PublishDataSource,
-    answer: IAnswer,
-    publishedCards: Map<number, ICard>,
-    publishedArticles: Map<number, IArticle>,
-    targets: Record<string, ContentRef>
-  ): IQuestAnswerEntry {
-    const source = this.resolveQuestAnswerSource(
-      db,
-      answer.id,
-      publishedCards,
-      publishedArticles,
-      targets
-    );
-    const shouldInline = !source?.target;
-
-    return {
-      id: answer.id,
-      createTime: answer.createTime,
-      updateTime: answer.updateTime,
-      content: shouldInline ? answer.content || [] : undefined,
-      source,
-    };
-  }
-
-  private resolveQuestAnswerSource(
-    db: PublishDataSource,
-    contentId: number,
-    publishedCards: Map<number, ICard>,
-    publishedArticles: Map<number, IArticle>,
-    targets: Record<string, ContentRef>
-  ): IQuestAnswerEntry["source"] {
-    const card = db.getCardByContentId(contentId);
-    if (card) {
-      const published = publishedCards.has(card.id);
-      return {
-        type: "card",
-        id: card.id,
-        contentId,
-        target: published ? contentRef("card", card.id) : undefined,
-        title: this.buildSummary(card.content || [], 48) || `卡片 #${card.id}`,
-        published,
-      };
-    }
-
-    const article = db.getArticleByContentId(contentId);
-    if (article) {
-      const published = publishedArticles.has(article.id);
-      return {
-        type: "article",
-        id: article.id,
-        contentId,
-        target: published ? contentRef("article", article.id) : undefined,
-        title: article.title || `文章 #${article.id}`,
-        published,
-      };
-    }
-
-    const projectItems = db.getProjectItemsByContentId(contentId);
-    const projectItem =
-      projectItems.find(item => targets[`project-item:${item.id}`]) ?? projectItems[0];
-    if (projectItem) {
-      return {
-        type: "project-item",
-        id: projectItem.id,
-        contentId,
-        title: projectItem.title || `项目条目 #${projectItem.id}`,
-        target: targets[`project-item:${projectItem.id}`],
-        published: Boolean(targets[`project-item:${projectItem.id}`]),
-      };
-    }
-
-    return {
-      type: "custom",
-      contentId,
-      published: false,
-    };
-  }
-
-  private buildQuestListInitData(entries: IQuestEntry[]): PublishDataBody {
-    const items: IPublishQuestListItem[] = entries.map(entry => ({
-      id: entry.id,
-      title: entry.title,
-      summary: entry.summary,
-      target: entry.target,
-      tags: [entry.groupTitle],
-      groupId: entry.groupId,
-      groupTitle: entry.groupTitle,
-      status: entry.status,
-      answerCount: entry.answers.length,
-      createTime: entry.createTime,
-      updateTime: resolveQuestActivityTime(entry),
-    }));
-
-    return {
-      content: {
-        title: "求索录",
-        type: "quest",
-        items,
-      },
-      meta: { type: "list" },
-    };
-  }
-
-  private collectQuestInlineContent(entry: IQuestEntry): Descendant[] {
-    return [...(entry.description || []), ...entry.answers.flatMap(answer => answer.content || [])];
   }
 
   private buildProjectDocEntries(
@@ -1366,18 +1038,6 @@ export class PublishSiteGenerator {
       target: entry.target,
       tags: entry.tags,
       publishTime: entry.createTime,
-    };
-  }
-
-  private createQuestTimelineEntry(entry: IQuestEntry): ITimelineEntry {
-    return {
-      type: "quest",
-      id: entry.id,
-      title: entry.title,
-      summary: entry.summary,
-      target: entry.target,
-      tags: [entry.groupTitle],
-      publishTime: resolveQuestActivityTime(entry),
     };
   }
 

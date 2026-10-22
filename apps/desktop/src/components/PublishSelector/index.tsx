@@ -2,17 +2,11 @@ import { memo, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Spinner } from "@tau/ui";
 import { PublishContentType } from "@/types/publish";
 import { Project } from "@/types/project";
-import { CardTagNode, DocTreeNode, EntityScope } from "./types";
+import { CardTagNode, DocTreeNode } from "./types";
 import { TABS } from "./constants";
 import { buildCardTagTree, collectCardsFromTagNode, buildProjectTree } from "./utils";
 import { usePublishSelections, useContentLoader } from "./hooks";
-import {
-  TypeRail,
-  CardSelector,
-  ArticleSelector,
-  EntitySelector,
-  QuestSelector,
-} from "./components";
+import { TypeRail, CardSelector, ArticleSelector, EntitySelector } from "./components";
 
 interface PublishSelectorProps {
   /** 任意选择变更（勾选 / 批量 / 作用域）完成后回调，便于上层重算发布计划 */
@@ -32,7 +26,6 @@ const PublishSelector = memo<PublishSelectorProps>(({ onSelectionsChange }) => {
     getTotalSelectedCount,
     getTypeSelectedCount,
     projectScopes,
-    questScopes,
   } = usePublishSelections();
 
   // 选择变更后通知上层（用 ref 保持回调稳定，避免下游 memo 失效）
@@ -66,8 +59,7 @@ const PublishSelector = memo<PublishSelectorProps>(({ onSelectionsChange }) => {
   );
 
   // 加载内容
-  const { cards, articles, projects, questionGroups, questions, isLoading, loadContent } =
-    useContentLoader();
+  const { cards, articles, projects, isLoading, loadContent } = useContentLoader();
 
   // 项目树缓存
   const [projectTrees, setProjectTrees] = useState<Map<number, DocTreeNode[]>>(new Map());
@@ -78,7 +70,7 @@ const PublishSelector = memo<PublishSelectorProps>(({ onSelectionsChange }) => {
     loadContent();
   }, [loadSelections, loadContent]);
 
-  // 各类型内容总数（问题管理按分组计）
+  // 各类型内容总数
   const getTypeTotalCount = useCallback(
     (type: PublishContentType) => {
       switch (type) {
@@ -86,15 +78,13 @@ const PublishSelector = memo<PublishSelectorProps>(({ onSelectionsChange }) => {
           return cards.length;
         case "article":
           return articles.length;
-        case "quest":
-          return questionGroups.length;
         case "project":
           return projects.length;
         default:
           return 0;
       }
     },
-    [cards, articles, questionGroups, projects]
+    [cards, articles, projects]
   );
 
   // 构建卡片标签树
@@ -144,26 +134,6 @@ const PublishSelector = memo<PublishSelectorProps>(({ onSelectionsChange }) => {
     return nodes;
   }, []);
 
-  // 更新项目作用域
-  const handleUpdateProjectScope = useCallback(
-    async (entityId: number, scope: EntityScope) => {
-      await updateEntityScope("project", entityId, scope);
-    },
-    [updateEntityScope]
-  );
-
-  // 更新问题管理分组作用域
-  const handleUpdateQuestScope = useCallback(
-    async (groupId: number, scope: EntityScope) => {
-      if (scope.mode === "partial" && scope.nodeIds.size === 0) {
-        await handleEntityToggle("quest", groupId, false);
-        return;
-      }
-      await updateEntityScope("quest", groupId, scope);
-    },
-    [handleEntityToggle, updateEntityScope]
-  );
-
   // 渲染当前 Tab 内容
   const renderContent = () => {
     if (isLoading) {
@@ -193,17 +163,6 @@ const PublishSelector = memo<PublishSelectorProps>(({ onSelectionsChange }) => {
             onBatchToggle={handleBatchToggleArticles}
           />
         );
-      case "quest":
-        return (
-          <QuestSelector
-            groups={questionGroups}
-            questions={questions}
-            isItemSelected={isItemSelected}
-            scopes={questScopes}
-            onToggleGroup={(id, enabled) => handleEntityToggle("quest", id, enabled)}
-            onUpdateScope={handleUpdateQuestScope}
-          />
-        );
       case "project":
         return (
           <EntitySelector
@@ -212,8 +171,8 @@ const PublishSelector = memo<PublishSelectorProps>(({ onSelectionsChange }) => {
             isItemSelected={isItemSelected}
             scopes={projectScopes}
             treeCache={projectTrees}
-            onToggleEntity={(id, enabled) => handleEntityToggle("project", id, enabled)}
-            onUpdateScope={handleUpdateProjectScope}
+            onToggleEntity={handleEntityToggle}
+            onUpdateScope={updateEntityScope}
             onLoadTree={handleLoadProjectTree}
           />
         );

@@ -17,8 +17,6 @@ import CardTable from "../card";
 import ContentAiMetaTable, { contentTitle, contentTitles } from "../content-ai-meta";
 import EntitySearchTable from "../entity-search";
 import KnowledgeMapTable from "../knowledge-map";
-import QuestionLinkTable from "../question-link";
-import QuestionTable from "../question";
 
 const paragraph = (text: string) => ({
   type: "paragraph",
@@ -92,7 +90,7 @@ describe("卡片标题：AI 标题 → 正文开头", () => {
     expect(searchResultDetails(db, "card", plain.id)?.title).toBe("");
   });
 
-  it("实体检索（脉络、命令面板、问题材料的身份解析）：有 AI 标题时开头留在摘要里", () => {
+  it("实体检索（脉络、命令面板的身份解析）：有 AI 标题时开头留在摘要里", () => {
     expect(EntitySearchTable.resolve(db, "card", withAi.id, 0)).toMatchObject({
       title: "AI 概括的标题",
       excerpt: "第一段开头文字 第二段",
@@ -101,17 +99,6 @@ describe("卡片标题：AI 标题 → 正文开头", () => {
       title: "没有元信息的   卡片开头",
       excerpt: "余下",
     });
-  });
-
-  it("问题材料的卡片标题；答案仍取开头", () => {
-    const questionId = QuestionTable.captureQuestion(db, "卡片标题怎么来").question.id;
-    QuestionLinkTable.linkTargets(db, questionId, [
-      { targetType: "card", targetId: withAi.id },
-      { targetType: "answer", targetId: withAi.contentId },
-    ]);
-    const materials = QuestionLinkTable.getDetail(db, questionId)!.materials;
-    expect(materials.find(m => m.targetType === "card")?.title).toBe("AI 概括的标题");
-    expect(materials.find(m => m.targetType === "answer")?.title).toBe("第一段开头文字");
   });
 
   it("知识地图卡片节点标题", () => {
