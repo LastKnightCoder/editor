@@ -375,7 +375,7 @@ export function useXxxSnapshot() {
 
 **颜色与尺度消费**：组件样式一律 Tailwind 工具类；颜色写语义类（`bg-page / bg-surface / text-ink-1/2/3 / hover:bg-hover / bg-accent-soft / text-accent / bg-ok-soft / text-warn`…），尺度写 tau 命名空间词（`text-tau-body / rounded-tau-sm|md|lg / shadow-card / ease-tau-out / font-tau / font-tau-mono / font-tau-hand`，`font-tau-hand` 只用于白板手绘文字），词表见 [design-system.md](./design-system.md)。禁止裸色值、antd token、内联十六进制、白名单外手写 CSS。数据驱动的动态值（进度宽度等）允许 inline style 但色值仍走语义类；热力图色阶这类主题 accent 的 alpha 派生以 arbitrary 注明出处。跨域视觉模式收口 `packages/ui/src/primitives/`。**不存在 bg-group**：小面积填充用 `bg-hover`；容器 = 透明底 + `border-line-1` 描边、输入控件 = `bg-surface` + 描边，嵌套底色叠层是常见腐化点。
 
-**编辑器集成要点**（扩展与包的完整约定见 `packages/editor/README.md` 与 [editor/](./editor/)）：
+**编辑器集成要点**（扩展与包的完整约定见 `packages/editor/README.md` 与 [架构手册](/packages/editor/docs/architecture.md)）：
 
 - 内核只内建段落，通用功能在 `@tau/editor/extensions/<功能>`，组合在 `/presets/standard`，四端显式装配并加载对应 styles.css；HTML、custom-block、ABC、TikZ、Typst 由独立应用插件提供，不回内置数组。内核不重导出领域渲染器，宿主按服务契约注入编译能力。
 - `packages/blog` 单向依赖 Editor 与数据 SDK，对外 @tau/blog 提供 ContentRenderer/createClient；`scripts/blog/package-blog.mjs` 收拢一份 npm 交付。模板自选页面 UI（hrefFor、renderLink、onOutline），不接触编辑器装配；发布 CSS 校验后按原文加载，@tau/blog 的 styles.css 全部处于级联层（preflight 不会盖过模板工具类）。
