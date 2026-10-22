@@ -34,6 +34,7 @@ export const CONTRIBUTION_LABELS: Record<PluginContributionKind, string> = {
   whiteboard: "白板扩展",
   excerpts: "摘录来源",
   home: "首页面板",
+  action: "对象动作",
 };
 
 export const PLUGIN_TEMPLATE_URL = "https://github.com/LastKnightCoder/tau-plugin-template";

@@ -7,6 +7,7 @@ import type { LucideIcon } from "lucide-react";
 import { Download, ImagePlus, MonitorUp, MoreHorizontal, Play, Star, Trash2 } from "lucide-react";
 import { IconButton, Menu, cn } from "@tau/ui";
 import type { ArticlePageItem } from "@/types";
+import { PluginActionMenuItems } from "@/app/plugins/action-menu";
 
 export interface ArticleItemActions {
   onOpen(article: ArticlePageItem): void;
@@ -86,6 +87,7 @@ export function ArticleItemOps({
             窗口打开
           </Menu.Item>
         )}
+        <PluginActionMenuItems target={{ kind: "article", id: String(article.id) }} />
         <Menu.Separator />
         <Menu.Item
           danger

@@ -73,6 +73,8 @@ export type * from "./sidebar";
 export { SIDEBAR_GROUPS } from "./sidebar";
 export type * from "./icons";
 export type * from "./home";
+export type * from "./actions";
+export { PLUGIN_ACTION_TARGET_KINDS } from "./actions";
 export type * from "./excerpts";
 export type * from "./data";
 export type { PluginContentInput } from "./content-input";

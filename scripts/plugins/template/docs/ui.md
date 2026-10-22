@@ -315,6 +315,38 @@ context.home.registerPanel({
 - 正文渲染出错时，这块面板显示错误和「重试」，不影响首页其他内容。
 - 首页只在主窗口显示，打开首页时组件才会渲染；需要随时更新的数据在组件里订阅（如 `context.events`），卸载时取消。
 
+## 对象动作
+
+在卡片、文章、项目文档的「⋯」菜单里加一项，用户点击时插件收到这个对象：
+
+```ts
+import { MessageCircleQuestion } from "lucide-react";
+
+context.actions.register({
+  id: "to-question",
+  title: "转为问题",
+  icon: MessageCircleQuestion,
+  targets: ["card", "article", "document"],
+  run: async target => {
+    const [info] = await context.app.describe([target]);
+    // …用 target 新建插件内容并关联
+  },
+});
+```
+
+| 字段      | 说明                                                          |
+| --------- | ------------------------------------------------------------- |
+| `id`      | 局部 ID                                                       |
+| `title`   | 菜单里显示的名称                                              |
+| `icon`    | 可选。图标组件（同[侧边栏图标](#图标)），省略时使用默认图标   |
+| `targets` | 挂在哪类对象上：`card`、`article`、`document`（项目文档）     |
+| `run`     | 用户点击时调用，收到 `{ kind, id }`，与 `pick` 返回的引用相同 |
+
+- 插件动作排在 Tau 自己的菜单项之后、删除之前，几个插件的动作按启用顺序排列。
+- 用户点过的对象和 `pick` 选中的一样：之后不需要读取权限就能用 `describe` 取标题、用 `EntityRef` 显示、用 `links` 关联；读正文仍需要对应的读取权限。
+- 引用了卡片或文章的项目文档，收到的是被引用的卡片或文章。
+- 只在主窗口的菜单里出现，独立编辑窗口不列插件动作。`run` 出错时 Tau 显示一条通知。
+
 ## 设置
 
 ```tsx

@@ -14,6 +14,7 @@ import type { PluginVideo } from "./video";
 import type { PluginPublish } from "./publish";
 import type { PluginSidebar } from "./sidebar";
 import type { PluginHome } from "./home";
+import type { PluginActions } from "./actions";
 import type { PluginExcerpts, PluginMaterials } from "./excerpts";
 import type { PluginMCP } from "./mcp";
 import type { PluginChat } from "./chat";
@@ -68,6 +69,8 @@ export interface PluginContext {
   readonly sidebar: PluginSidebar;
   /** 首页面板 */
   readonly home: PluginHome;
+  /** 对象动作：卡片、文章、项目文档「⋯」菜单里的条目 */
+  readonly actions: PluginActions;
   readonly excerpts: PluginExcerpts;
   readonly materials: PluginMaterials;
   readonly fetch: typeof globalThis.fetch;

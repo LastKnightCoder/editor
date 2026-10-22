@@ -143,6 +143,7 @@ create: () => ({
 | `commands`                                            | 注册命令                                     | [界面](ui.md#命令)                            |
 | `pages`、`sidebar`                                    | 注册页面与侧边栏入口                         | [界面](ui.md#页面)                            |
 | `home`                                                | 注册首页面板                                 | [界面](ui.md#首页面板)                        |
+| `actions`                                             | 在卡片、文章、项目文档的菜单里加动作         | [界面](ui.md#对象动作)                        |
 | `settings`                                            | 注册设置区域                                 | [界面](ui.md#设置)                            |
 | `notifications`                                       | 发送通知                                     | [界面](ui.md#通知)                            |
 | `storage`                                             | 插件私有存储                                 | [存储与网络](storage-and-network.md)          |

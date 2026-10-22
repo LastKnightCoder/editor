@@ -22,6 +22,7 @@ import type { ReactElement } from "react";
 import type { ICard } from "@/types";
 import { Menu } from "@tau/ui";
 import type { CardItemActions } from "../types";
+import { PluginActionMenuItems } from "@/app/plugins/action-menu";
 
 function MenuIcon({ icon: Icon }: { icon: LucideIcon }) {
   return <Icon className="size-[15px] shrink-0" strokeWidth={1.75} />;
@@ -94,6 +95,7 @@ export function CardActionMenu({
           PDF
         </Menu.Item>
       </Menu.Submenu>
+      <PluginActionMenuItems target={{ kind: "card", id: String(card.id) }} />
       <Menu.Separator />
       <Menu.Item danger onSelect={() => actions.onDelete(card)} icon={<MenuIcon icon={Trash2} />}>
         删除卡片
