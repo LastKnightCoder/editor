@@ -108,7 +108,6 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   const insights = useInsightsView({
     ref: { kind: "project-item", id: projectItem?.id ?? 0 },
     contentId: projectItem?.contentId ?? 0,
-    sourceLabel: `项目文档：${projectItem?.title || "无标题文档"}`,
     getEditor,
     ...useComposeInsightOptions(composeSession, composing),
   });

@@ -108,10 +108,23 @@ describe("同一思路写成卡片", () => {
     expect(() => createPatternCard(db, nodeId, "p1")).toThrow();
   });
 
-  it("不是同一思路的标记不建卡片", () => {
-    const nodeId = savePattern([card$(card())], { kind: "dup" });
-    expect(() => createPatternCard(db, nodeId, "p1")).toThrow();
-    expect(CardTable.getAllCards(db)).toHaveLength(1);
+  it("连接类与矛盾不建卡片", () => {
+    for (const kind of ["dup", "conflict"] as const) {
+      const nodeId = savePattern([card$(card())], { kind });
+      expect(() => createPatternCard(db, nodeId, "p1")).toThrow();
+    }
+    expect(CardTable.getAllCards(db)).toHaveLength(2);
+  });
+
+  it("缺一环连上两端；问了没写不涉及笔记，只建卡片", () => {
+    const a = card();
+    const chain = savePattern([card$(a), { kind: "article", id: 7 }], { kind: "chain" });
+    const linked = createPatternCard(db, chain, "p1");
+    expect(linked.linked).toBe(true);
+    const asked = savePattern([], { kind: "asked", text: "组播地址怎么分配" });
+    const alone = createPatternCard(db, asked, "p1");
+    expect(alone.linked).toBe(false);
+    expect(KnowledgeAiInsightsTable.get(db, asked)?.result.marks[0].status).toBe("linked");
   });
 
   it("撤回还空着的卡片：连接随正文释放、删谱系与卡片，标记回到未处理", () => {

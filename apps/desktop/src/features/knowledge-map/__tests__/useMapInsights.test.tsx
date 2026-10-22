@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   data: null as KnowledgeInsightsPayload | null,
   analyze: vi.fn(),
   setStatus: vi.fn(),
-  capture: vi.fn(),
+  discuss: vi.fn(async (..._args: unknown[]) => true),
   link: vi.fn(async () => true),
   setRemoteStatus: vi.fn(async () => true),
   focus: vi.fn(),
@@ -58,7 +58,7 @@ vi.mock("@/page/PageProvider", () => ({
     mocks.dismiss = active ? dismiss : null;
   },
 }));
-vi.mock("@/services/question-capture", () => ({ requestQuestionCapture: mocks.capture }));
+vi.mock("@/services/insight-chat", () => ({ discussInsight: mocks.discuss }));
 vi.mock("@/services/open-content", () => ({ openEntity: mocks.openEntity }));
 vi.mock("@/commands/knowledge-insights", () => ({
   linkCardsMutually: mocks.link,
@@ -280,20 +280,15 @@ describe("知识地图的洞见视图", () => {
     expect(mocks.setStatus).toHaveBeenCalledWith({ nodeId: 1, itemId: "g1", status: "linked" });
   });
 
-  it("分析过就直接点亮；问了没写记为问题时带上对话", async () => {
+  it("分析过就直接点亮；问了没写是写成卡片", async () => {
     mocks.data = fixture();
     await render();
     await click(buttonByText("AI 洞见"));
     expect(mocks.analyze).not.toHaveBeenCalled();
     await click(container.querySelector('[data-map-mark="g2"]'));
-    await click(buttonByText("记为问题"));
-    expect(mocks.capture).toHaveBeenCalledWith(
-      expect.objectContaining({
-        source: { kind: "chats", chats: [{ sessionId: "s1", messageIds: ["a"] }] },
-        defaultTitle: "组播地址怎么分配",
-      })
-    );
-    expect(mocks.setStatus).toHaveBeenCalledWith({ nodeId: 1, itemId: "g2", status: "questioned" });
+    expect(buttonByText("记为问题")).toBeNull();
+    await click(buttonByText("写成卡片"));
+    expect(mocks.writeCard).toHaveBeenCalledWith(1, expect.objectContaining({ id: "g2" }));
   });
 
   it("点主题名飞进去画主题层；长文一端的重复是去那篇连；Esc 按层退出", async () => {
@@ -322,13 +317,12 @@ describe("知识地图的洞见视图", () => {
 
     // 同一思路：主按钮「写成卡片」，状态由建卡一并记下，不记问题、没有「知道了」
     await click(container.querySelector('[data-map-mark="t2"]'));
-    expect(buttonByText("记为问题")).toBeNull();
     expect(buttonByText("知道了")).toBeNull();
     const statusCalls = mocks.setStatus.mock.calls.length;
     await click(buttonByText("写成卡片"));
     expect(mocks.writeCard).toHaveBeenCalledWith(2, expect.objectContaining({ id: "t2" }));
     expect(mocks.setStatus.mock.calls.length).toBe(statusCalls);
-    expect(mocks.capture).not.toHaveBeenCalled();
+    expect(mocks.discuss).not.toHaveBeenCalled();
     expect(document.querySelector("[data-map-insight-popover]")).toBeNull();
 
     // Esc：先关气泡，再回到全局，再退出

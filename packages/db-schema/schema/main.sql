@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS content_ai_meta (
         update_time INTEGER NOT NULL
       );
 -- 正文的 AI 洞见（用户点「AI 洞见」时生成，按 content_id）：result 为 JSON（lead、marks[]、asks[]，
--- 每条带处理状态 open / linked / questioned / dismissed）；text_digest 为分析时的正文指纹。
+-- 每条带处理状态 open / linked / dismissed）；text_digest 为分析时的正文指纹。
 -- 删除与孤儿清理同 content_ai_meta。
 CREATE TABLE IF NOT EXISTS content_ai_insights (
         content_id INTEGER PRIMARY KEY,

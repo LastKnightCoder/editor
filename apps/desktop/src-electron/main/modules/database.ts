@@ -92,6 +92,7 @@ import { assertDatabaseNotSyncing } from "@tau/db-schema/sync";
 import { assertNoLegacyTables } from "@tau/db-schema/src/legacy-table-guard";
 import { upgradeWhiteboardCardElements } from "./whiteboard-document-upgrade";
 import { upgradeDataTableViewOptions } from "./data-table-view-options-upgrade";
+import { upgradeQuestionedInsights } from "./insights-questioned-upgrade";
 import { upgradeDiaryEntityReferences } from "./diary-entity-upgrade";
 import { upgradeExcerptProviders } from "./excerpt-provider-upgrade";
 import { broadcastScheduleChange, isScheduleWrite } from "./schedule-changes";
@@ -413,6 +414,10 @@ class DatabaseModule implements Module {
       const upgradedViews = upgradeDataTableViewOptions(database);
       if (upgradedViews > 0)
         log.info(`[database] 数据表视图配置收进 viewOptions: db=${name}, views=${upgradedViews}`);
+
+      const upgradedInsights = upgradeQuestionedInsights(database);
+      if (upgradedInsights > 0)
+        log.info(`[database] 洞见「记为问题」状态改为不相关: db=${name}, rows=${upgradedInsights}`);
 
       upgradeDiaryEntityReferences(database);
 

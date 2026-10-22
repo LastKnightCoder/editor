@@ -205,7 +205,7 @@ export function InsightsReport({
                   onClick={() => onAsk(ask)}
                   className="text-ink-3 hover:text-accent-text shrink-0 text-[12px] opacity-0 transition-opacity focus-visible:opacity-100 group-hover/ask:opacity-100"
                 >
-                  记为问题
+                  聊一聊
                 </button>
               </div>
             ))}

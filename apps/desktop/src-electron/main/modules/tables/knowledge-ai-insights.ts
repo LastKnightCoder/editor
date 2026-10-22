@@ -61,7 +61,7 @@ interface RawRow {
   update_time: number;
 }
 
-const STATUSES: ReadonlySet<string> = new Set(["open", "linked", "questioned", "dismissed"]);
+const STATUSES: ReadonlySet<string> = new Set(["open", "linked", "dismissed"]);
 
 export const emptyResult = (): KnowledgeInsightResult => ({
   lead: "",

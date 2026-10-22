@@ -18,7 +18,7 @@ import { useOverlayDismiss } from "@/page/PageProvider";
 import { requestInsightFocus } from "@/services/insight-focus";
 import { openEntity } from "@/services/open-content";
 import { startPatternCard } from "@/services/pattern-card";
-import { requestQuestionCapture } from "@/services/question-capture";
+import { discussInsight } from "@/services/insight-chat";
 import type { InsightAsk } from "@/types/content-insights";
 import type {
   KnowledgeEndpoint,
@@ -39,7 +39,7 @@ import {
   openMarks,
   parseInsightParam,
   primaryAction,
-  questionDraft,
+  discussPrompt,
   findingTopicList,
   visibleMarks,
   walkOrder,
@@ -192,7 +192,7 @@ export function useMapInsights(
   }, [initial, data, api]);
 
   /* ── 动作 ── */
-  const resolveTo = (itemId: string, status: "linked" | "questioned" | "dismissed") => {
+  const resolveTo = (itemId: string, status: "linked" | "dismissed") => {
     if (node) setStatus.mutate({ nodeId: node.id, itemId, status });
     if (walking) {
       const rest = order.filter(item => item.id !== itemId);
@@ -248,19 +248,17 @@ export function useMapInsights(
       .catch(error => toast.error(error instanceof Error ? error.message : "新建卡片失败"));
   };
 
-  const question = (mark: KnowledgeMark) => {
-    requestQuestionCapture(questionDraft(mark, topicLabel ?? "知识地图"));
-    resolveTo(mark.id, "questioned");
-  };
-
-  const askQuestion = (ask: InsightAsk) => {
-    requestQuestionCapture({
-      source: { kind: "none" },
-      sourceLabel: topicLabel ? `主题：${topicLabel}` : "知识地图",
-      defaultTitle: ask.text,
+  /** 矛盾与「可以继续想」：带着涉及的笔记开一个对话，用户发出后标为已处理 */
+  const discuss = (itemId: string, prompt: string, notes: KnowledgeEndpoint[]) => {
+    const nodeId = node?.id;
+    setWalking(false);
+    setCurrent(null);
+    void discussInsight(prompt, notes).then(sent => {
+      if (sent && nodeId !== undefined) setStatus.mutate({ nodeId, itemId, status: "linked" });
     });
-    resolveTo(ask.id, "questioned");
   };
+  const discussMark = (mark: KnowledgeMark) => discuss(mark.id, discussPrompt(mark), mark.ends);
+  const discussAsk = (ask: InsightAsk) => discuss(ask.id, ask.text, []);
 
   const jumpKind = (kind: KnowledgeMarkKind) => {
     const first = order.find(mark => mark.kind === kind);
@@ -289,7 +287,7 @@ export function useMapInsights(
         const action = primaryAction(mark);
         if (action === "connect") connect(mark);
         else if (action === "write") write(mark);
-        else question(mark);
+        else discussMark(mark);
       } else if (event.key === "Backspace" && mark) {
         event.preventDefault();
         resolveTo(mark.id, "dismissed");
@@ -335,7 +333,7 @@ export function useMapInsights(
         onBack={() => switchLevel(GLOBAL)}
         onJumpKind={jumpKind}
         onPickTopic={topicId => switchLevel({ kind: "topic", topicId })}
-        onAsk={askQuestion}
+        onAsk={discussAsk}
         onReanalyze={run}
         onWalk={startWalk}
       />
@@ -375,7 +373,7 @@ export function useMapInsights(
           anchor={anchor}
           walking={walking}
           onConnect={connect}
-          onQuestion={question}
+          onDiscuss={discussMark}
           onWrite={write}
           onDismiss={mark => resolveTo(mark.id, "dismissed")}
           onOpen={host.preview}
