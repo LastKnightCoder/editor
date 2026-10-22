@@ -254,8 +254,25 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 - **面板态的动作**：面板打开期间编辑器已失焦，controller 的动作作用于打开时保存的 `panelSelection` 且不聚焦，
   执行后选区写回 `panelSelection`；需要输入浮层的动作（链接、批注）先回键盘再执行。点正文 = 只关面板，
   选区落在点击处。
-- **两种模式**：折叠选区为通用模式（+ / Aa / 待办 / 列表 / 缩进 / 关联内容 / 图片 / 撤销）；有展开选区时切为格式模式
-  （行内样式，左端「格式」标签点击折叠选区）。`visibleButtons` 以 `AccessoryItemId` 同时过滤配件栏与 Aa 面板。
+- **上下文识别**：`editorToolbar/editingContext.ts` 的 `useEditingContext` 在 controller 内按「void 内部编辑器 > 展开选区 >
+  表格 > 通用」给出 `editingContext`。void 内部编辑器靠 document `focusin` / `focusout`（后者等一帧再判）读 activeElement：
+  `.code-block-shiki-input` → code（带 textarea / uuid / language），`.ed-preview-codemirror` 内 → block-math / mermaid，Slate 外
+  `input[data-inline-math-input]` 且选区在 inline-math 内 → inline-math；节点须经 `toSlateNode` + `findPath` 回到本编辑器确认归属，只读时不识别。
+  焦点在 void 内部编辑器时 Slate 失焦但配件栏保持可见（白名单关掉对应上下文时按通用模式渲染）。表格与格式模式的左端标签点击 =
+  `dismissEditingContext`，按上下文 key（表格为 `table:<路径>`）记录退回，光标离开该上下文即恢复；代码块标签打开语言选择，
+  公式 / 流程图标签为不可点的静态标签。
+- **模式**：通用模式（+ / Aa / 待办 / 列表 / 缩进 / 关联内容 / 图片 / 撤销）；展开选区为格式模式（行内样式，「格式」标签
+  点击折叠选区）；光标在表格为表格模式（下方插行 / 右侧插列 / 删行 / 删列 / 对齐循环，「⋯」用 `ActionSheet` 列移动行列与
+  删除表格；菜单打开期间动作作用于打开时保存的选区，关闭时恢复选区并聚焦），动作见 `tableActions.ts`；焦点在代码块 textarea 为代码块模式（语言标签点击打开
+  常用语言 / 完整语言两级 `ActionSheet`，经 `tau.code-block.set-language` 设置后在点击内回焦；中段按语言族给符号键，见
+  `codeBlockInput.ts`：单字符键与 Tab 在 textarea 上派发 keydown 交给代码块组件处理，组件未处理的键与多字符键以原生 value
+  setter + input 事件插入并替换选区，长按 Tab 450ms 反缩进；「收起键盘」blur textarea 后回阅读态）；焦点在块公式 / 行内公式 /
+  流程图源码编辑器为公式（Sigma「公式」）/ 流程图（Workflow「流程图」）模式（中段为 `sourceEditorInput.ts` 的
+  `MATH_SYMBOL_KEYS` / `MERMAID_SYMBOL_KEYS`，模板键带 `cursorOffset`，如 `\frac{}{}` 光标落在第一个括号内；块公式与流程图经
+  `insertSourceText` 取 `.CodeMirror` 包裹元素上的 CodeMirror 5 实例 `replaceSelection` 并回焦，`PreviewWithEditor` 为
+  react-codemirror2 `UnControlled`，change 事件经组件 onChange 防抖 500ms 写回节点，源码编辑器失焦时立即落库；行内公式 input 与代码块 textarea 共用
+  `insertIntoTextControl`；「收起键盘」blur 当前焦点后回阅读态）。`visibleButtons` 以 `AccessoryItemId` 同时过滤配件栏与
+  Aa 面板，表格 / 代码块 / 公式 / 流程图模式受 `context-table` / `context-code` / `context-math` / `context-mermaid` 控制。
 - **阅读态**：`features/cards/readingMode/useReadingMode` 管理编辑态，宿主把 `forcedReadonly || !editing` 传给 Editor 与配件栏
   的 `readonly`（切换不重挂载）。顶栏 `ReadingModeHeaderButton`「编辑」在点击内同步切换并聚焦（回上次选区，否则文末）；
   双击正文在同一手势内切换并把光标放到双击处（交互元素除外）；「完成」与配件栏「收起键盘」都回阅读态——后者经
