@@ -8,18 +8,15 @@
  *   状态全部来自 useUpdateStore（主进程事件由全局 AutoUpdateChecker 挂载，本页只读状态与触发动作）
  * - 有可用更新时在「更新」组提供新版本内容入口，经弹窗展示跨越版本的公告（来自 latest*.yml）
  * - 更新：自动检查更新开关（misc.update.autoCheck）；本版更新内容（安装包内置公告）
- * - 命令行工具：tau 命令安装状态与安装 / 卸载；legacy 无平台判定、取状态失败即视为不可用，
- *   这里同样以取状态成功为渲染条件
  */
 
 import { useEffect, useState } from "react";
-import { Download, ExternalLink, RefreshCw, RotateCw, Terminal } from "lucide-react";
-import { Button, Panel, Switch, toast } from "@tau/ui";
+import { Download, ExternalLink, RefreshCw, RotateCw } from "lucide-react";
+import { Button, Panel, Switch } from "@tau/ui";
 import logo from "@/assets/logo.png";
 import useSettingStore from "@/stores/useSettingStore";
 import { useUpdateStore, type UpdateStatus } from "@/stores/useUpdateStore";
-import { getCliStatus, getVersions, installCli, openExternal, uninstallCli } from "@/commands";
-import { platform } from "@/platform";
+import { getVersions, openExternal } from "@/commands";
 import { bundledNotesBetween } from "@/features/release-notes/notes";
 import { useReleaseNotesStore } from "@/features/release-notes/releaseNotesStore";
 import { SettingRow } from "../components/SettingRow";
@@ -27,13 +24,9 @@ import { SettingsGroup } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
 import { BackgroundGroup } from "./BackgroundGroup";
 
-const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
-
 export function AboutSection() {
   const [version, setVersion] = useState<string | null>(null);
   const [versionError, setVersionError] = useState(false);
-  const [cli, setCli] = useState<{ installed: boolean; path: string } | null>(null);
-  const [cliLoading, setCliLoading] = useState(false);
 
   const status = useUpdateStore(s => s.status);
   const newVersion = useUpdateStore(s => s.newVersion);
@@ -44,46 +37,13 @@ export function AboutSection() {
   const autoCheck = useSettingStore(s => s.setting.misc.update.autoCheck);
   const setAutoCheck = useSettingStore(s => s.setAutoCheckUpdate);
 
-  const refreshCli = async () => {
-    try {
-      setCli(await getCliStatus());
-    } catch {
-      /* 命令行工具不可用：不渲染入口 */
-    }
-  };
-
   useEffect(() => {
     getVersions()
       .then(v => setVersion(v.app))
       .catch(() => setVersionError(true));
-    void refreshCli();
     /* 与 legacy 一致：进入本页时若尚未检查过，则检查一次 */
     if (useUpdateStore.getState().status === "idle") void useUpdateStore.getState().check();
   }, []);
-
-  const runCli = async (action: "install" | "uninstall") => {
-    setCliLoading(true);
-    const verb = action === "install" ? "安装" : "卸载";
-    try {
-      const result = action === "install" ? await installCli() : await uninstallCli();
-      if (result.success) {
-        await refreshCli();
-        toast.success(
-          action === "uninstall"
-            ? "命令行工具已卸载"
-            : platform.os === "win32"
-              ? "命令行工具安装成功，请打开新的终端窗口使用 tau 命令"
-              : "命令行工具安装成功，可以在终端使用 tau 命令"
-        );
-      } else {
-        toast.error(`${verb}失败：${result.error}`);
-      }
-    } catch (error) {
-      toast.error(`${verb}失败：${errorText(error)}`);
-    } finally {
-      setCliLoading(false);
-    }
-  };
 
   const percent = Math.round(progress);
   const currentNotes = version ? bundledNotesBetween(null, version) : [];
@@ -192,55 +152,6 @@ export function AboutSection() {
           </SettingRow>
         )}
       </SettingsGroup>
-
-      {cli && (
-        <SettingsGroup
-          title="命令行工具"
-          description="把 tau 命令装到系统 PATH，可在终端管理卡片与同步数据库"
-        >
-          <SettingRow
-            title={
-              <span className="inline-flex items-center gap-2">
-                <Terminal size={15} strokeWidth={1.75} className="text-ink-2" />
-                tau 命令
-                {cli.installed ? (
-                  <StatusChip tone="ok">已安装</StatusChip>
-                ) : (
-                  <StatusChip>未安装</StatusChip>
-                )}
-              </span>
-            }
-            description={
-              cli.installed && cli.path ? (
-                <span className="font-tau-mono break-all">{cli.path}</span>
-              ) : (
-                "安装后在终端使用 tau 命令"
-              )
-            }
-          >
-            {cli.installed ? (
-              <Button
-                variant="danger-soft"
-                size="sm"
-                loading={cliLoading}
-                onClick={() => void runCli("uninstall")}
-              >
-                卸载
-              </Button>
-            ) : (
-              <Button
-                variant="primary"
-                size="sm"
-                icon={Terminal}
-                loading={cliLoading}
-                onClick={() => void runCli("install")}
-              >
-                安装
-              </Button>
-            )}
-          </SettingRow>
-        </SettingsGroup>
-      )}
 
       {/* 内置字体为 SIL OFL-1.1，许可要求随软件保留版权与许可声明（原文随安装包附在字体目录） */}
       <SettingsGroup title="开源字体">
