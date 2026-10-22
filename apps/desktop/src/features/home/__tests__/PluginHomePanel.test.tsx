@@ -99,7 +99,6 @@ describe("插件首页面板", () => {
     expect(container.textContent).toContain("本周读了 author.reading");
     const wrapper = container.querySelector('[data-home-panel="plugin:author.reading:week"]');
     expect(wrapper?.className).toContain("basis-full");
-    expect(wrapper?.querySelector('button[aria-label="调整面板"]')).not.toBeNull();
     // 运行时其他变更不会让插件面板重新挂载
     await act(async () => {
       context.home.registerPanel({ id: "other", title: "其他", component: () => null });

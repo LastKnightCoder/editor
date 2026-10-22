@@ -10,7 +10,6 @@ import type { ActiveQuestionPreview } from "@/types";
 import { Composition, GroupDot, StatusRing } from "@/features/questions/components/QuestionBits";
 import { describeEvent, relativeDay } from "@/features/questions/model";
 import { useHomeSnapshot } from "../../queries";
-import { HomePanelMenu } from "../HomePanels";
 
 export function QuestionsPanel() {
   const { data } = useHomeSnapshot();
@@ -25,7 +24,6 @@ export function QuestionsPanel() {
           前往问题
           <ChevronRight size={13} strokeWidth={1.75} />
         </PanelAction>
-        <HomePanelMenu />
       </PanelTitle>
       {data.activeQuestions.length > 0 ? (
         // 只有 1 条时占满整行，避免右半张卡留空

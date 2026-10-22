@@ -23,7 +23,6 @@ import { openWalkItem } from "@/features/walk/open";
 import { WALK_KIND_META, formatWalkWhy } from "@/features/walk/model";
 import type { WalkDailyDeck, WalkItem } from "@/types";
 import { useTodayWalkDeck, walkDeckKey } from "../walkDeckQueries";
-import { HomePanelMenu } from "./HomePanels";
 
 /** 翻牌时长：飞出、前移、补位共用一条过渡，结束时才推进 cursor（飞走的牌不被截断） */
 const FLIP_MS = 320;
@@ -143,7 +142,6 @@ export function WalkDeckPanel() {
           进入漫步页
           <ChevronRight size={13} strokeWidth={1.75} />
         </PanelAction>
-        <HomePanelMenu />
       </PanelTitle>
 
       <div className="@max-[860px]:grid-cols-1 grid grid-cols-[minmax(0,760px)_minmax(200px,1fr)] gap-8">
