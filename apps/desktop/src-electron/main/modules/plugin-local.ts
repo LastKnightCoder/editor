@@ -1,3 +1,4 @@
+import { portableDevelopmentArtifacts } from "../services/plugin-portable-development";
 import { isContentPlugin } from "@tau/plugins/package";
 import { copyJson } from "@tau/plugins/host";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
@@ -94,6 +95,8 @@ export default {
         .map(entry => entry.id)
     );
     ipcMain.handle("plugin-local:content-startup", () => snapshot);
+    if (!app.isPackaged)
+      ipcMain.handle("plugin-local:portable-development", () => portableDevelopmentArtifacts());
     const stateChanged = () => {
       for (const window of BrowserWindow.getAllWindows())
         if (!window.isDestroyed()) window.webContents.send("plugin-local:state-changed");

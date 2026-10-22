@@ -5,10 +5,11 @@ import { Transforms, type Descendant, type Editor as SlateEditor } from "slate";
 import { ReactEditor, useSlateStatic } from "slate-react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
+import { Editor, createEditorKit, defaultMenuExtension, type EditorRef } from "@tau/editor";
 import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
 import { IEditorSlots } from "@tau/editor/extensions/media/services";
 import {
+  IElementEditingPolicy,
   defineExtension,
   defineElement,
   focusNextBlock,
@@ -150,16 +151,18 @@ describe("源码预览迁包后的行为", () => {
     host?.remove();
     observed.editors.length = 0;
   });
-  const mount = async (source: string) => {
+  const mount = async (source: string, touch = false) => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
     const ref = createRef<EditorRef>();
     const kit = createEditorKit({
-      extensions: [previewMenuExtension, fixture],
+      extensions: [previewMenuExtension, fixture, ...(touch ? [defaultMenuExtension] : [])],
       services: [
         register => {
           register(IEditorSlots, createDefaultEditorSlots());
+          if (touch)
+            register(IElementEditingPolicy, { sourcePresentation: "touch", canEdit: () => true });
         },
       ],
     });
@@ -198,6 +201,36 @@ describe("源码预览迁包后的行为", () => {
       await new Promise(resolve => setTimeout(resolve, 350));
     });
   };
+  it("触摸源码取消不写入，保存可撤销，块菜单复用标准移动与删除", async () => {
+    await mount("初始", true);
+    const click = async (label: string) => {
+      const button = [...document.querySelectorAll("button")].find(
+        item => item.textContent === label
+      );
+      expect(button).toBeDefined();
+      await act(async () => button?.click());
+      await act(async () => {
+        await vi.dynamicImportSettled();
+      });
+    };
+    await click("编辑源码源码");
+    await changeSource("取消草稿");
+    expect((editor.children[1] as PreviewElement).source).toBe("初始");
+    await click("取消");
+    expect((editor.children[1] as PreviewElement).source).toBe("初始");
+    await click("编辑源码源码");
+    await changeSource("保存草稿");
+    await click("保存");
+    expect((editor.children[1] as PreviewElement).source).toBe("保存草稿");
+    await act(async () => (editor as SlateEditor & { undo(): void }).undo());
+    expect((editor.children[1] as PreviewElement).source).toBe("初始");
+    await click("块操作");
+    await click("上移");
+    expect(editor.children[0].type).toBe("test-preview");
+    await click("块操作");
+    await click("删除");
+    expect(editor.children.some(node => node.type === "test-preview")).toBe(false);
+  });
   it("编辑回写与外部更新保持同步，服务派生不重装预览菜单", async () => {
     const kit = await mount("初始");
     expect(observed.editors).toHaveLength(0);

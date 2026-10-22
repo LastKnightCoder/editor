@@ -243,3 +243,7 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 （push/pop/keep-alive/生命周期/结果通道/popstate）+ 页面数据层测试。
 
 jsdom 中 motion 退出动画按真实时间播放，测试用条件轮询等待最终状态。
+
+## 插件宿主
+
+正常 AppShell 按数据库作用域挂载插件宿主，“我的”消费语义入口，通用页面/设置页走本 router 的身份、保活、返回与守卫。包事务、私有 KV、正文快照和公共源码组件见[跨端插件宿主](/docs/architecture/plugin-portability.md)。

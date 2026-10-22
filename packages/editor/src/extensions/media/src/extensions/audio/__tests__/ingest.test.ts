@@ -31,7 +31,12 @@ describe("音频异步上传定位", () => {
       };
       editor.getService = () => resource as never;
       const notifier = { error: vi.fn() };
-      editor.tryGetService = id => (id.id === "resourceService" ? resource : notifier) as never;
+      editor.tryGetService = id =>
+        (id.id === "resourceService"
+          ? resource
+          : id.id === "editorNotifier"
+            ? notifier
+            : undefined) as never;
       const dropping = scenario === "拖放失败";
       const context: IngestContext = {
         editor,

@@ -91,7 +91,10 @@ describe("内核默认菜单 · block 组", () => {
       const report = vi.spyOn(console, "error").mockImplementation(() => {});
       const editor = withValue([paragraph("原文"), paragraph("后文")]);
       const stop = beginSubmissionScope(editor);
-      editor.tryGetService = () => ({ success: vi.fn(), error: vi.fn() }) as never;
+      const resolveService = editor.tryGetService;
+      const notifier = { success: vi.fn(), error: vi.fn() };
+      editor.tryGetService = id =>
+        id.id === "editorNotifier" ? (notifier as never) : resolveService(id);
       const original = editor.children[0] as Element;
       const command = commandsOf().find(item => item.id === "tau.block.cut")!;
       try {

@@ -9,6 +9,7 @@ export { EDIT_TEXT_PLACEHOLDER } from "./primitives/editTextClasses";
 export * from "./hooks";
 export { isEditableTarget } from "./hooks/isEditableTarget";
 export * from "./UiProvider";
+export { UiHostProvider, type UiRegisterDismiss } from "./UiHostProvider";
 export * from "./primitives/Button";
 export * from "./primitives/IconButton";
 export * from "./primitives/Loading";

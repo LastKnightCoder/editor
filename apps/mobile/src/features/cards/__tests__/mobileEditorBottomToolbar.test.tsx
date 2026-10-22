@@ -69,6 +69,7 @@ function createController(
   overrides: Partial<MobileEditorToolbarController> = {}
 ): MobileEditorToolbarController {
   return {
+    pluginInsertItems: [],
     isEditorFocused: true,
     isContentLinkPickerOpen: false,
     isInsertSheetOpen: false,

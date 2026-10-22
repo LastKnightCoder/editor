@@ -21,7 +21,15 @@ import {
 /** 所有窗口在首次创建编辑器前固定贡献，不替换打开中的编辑器实例。 */
 let startupTask: Promise<void> | undefined;
 export function initializeContentPlugins() {
-  return (startupTask ??= prepareContentPlugins());
+  return (startupTask ??= prepareContentPlugins().then(async () => {
+    if (import.meta.env.DEV) {
+      try {
+        await (await import("./portable-development")).initializePortableDevelopment();
+      } catch (error) {
+        console.error("开发跨端插件加载失败", error);
+      }
+    }
+  }));
 }
 async function prepareContentPlugins() {
   const base = getContentKit();

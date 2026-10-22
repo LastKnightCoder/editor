@@ -46,6 +46,7 @@
     "@tau/plugins": "workspace:*",
     "@tau/shared": "workspace:*",
     "@tau/themes": "workspace:*",
+    "@tau/ui": "workspace:*",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
     "ahooks": "^3.9.6",

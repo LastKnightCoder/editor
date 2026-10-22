@@ -9,7 +9,7 @@ const environment: PluginEnvironment = {
   platform: "android",
   layout: "compact",
   input: { touch: true, finePointer: false },
-  capabilities: ["pages", "navigation"],
+  capabilities: ["pages.v1", "navigation.v1"],
 };
 const code = `module.exports.default = require('@tau/plugins').definePlugin({id:'spike.counter',name:'计数器',version:'0.1.0',create:()=>({activate(ctx){const page=ctx.pages.register({id:'main',title:'计数',component:()=>null});ctx.navigation.registerEntry({id:'main',title:'计数',page});}})});`;
 function fixtures() {

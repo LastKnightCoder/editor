@@ -1,3 +1,4 @@
+import type { PluginEnvironmentSource } from "@tau/plugins/environment-host";
 import { rendererSyncRegistry } from "./sync-registry";
 import { createPluginBackend } from "./backend";
 import { rendererTTSRegistry } from "./tts-registry";
@@ -182,6 +183,7 @@ export class DesktopPluginRuntime {
   constructor(
     private readonly options: {
       workspaceId: string;
+      environmentSource?: PluginEnvironmentSource;
       storage: StorageAdapter;
       navigator: Pick<Navigator, "push">;
       plugins: readonly PluginDefinition[];
@@ -213,6 +215,7 @@ export class DesktopPluginRuntime {
   ) {
     this.host = new PluginHost({
       workspaceId: options.workspaceId,
+      environmentSource: options.environmentSource,
       backend: createPluginBackend,
       sync: rendererSyncRegistry,
       tts: rendererTTSRegistry,
@@ -246,6 +249,14 @@ export class DesktopPluginRuntime {
       ai: desktopPluginAI,
       restartRequired: options.restartRequired,
       pages: { register: (context, definition) => this.registerPage(context, definition) },
+      navigation: {
+        registerEntry: (context, definition) =>
+          this.registerSidebarItem(
+            context,
+            { ...definition, id: `navigation:${definition.id}` },
+            definition.page.id.slice(context.pluginId.length + 1)
+          ),
+      },
       home: { registerPanel: (context, definition) => this.registerHomePanel(context, definition) },
       actions: { register: (context, definition) => this.registerAction(context, definition) },
       views: {

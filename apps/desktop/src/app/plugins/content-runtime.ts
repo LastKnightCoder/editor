@@ -1,5 +1,10 @@
+import { version as appVersion } from "../../../package.json";
 import { sharedPluginModules } from "@tau/plugins/shared-modules";
-import { evaluatePluginPackage } from "@tau/plugins/rendering";
+import {
+  evaluatePluginPackage,
+  evaluatePortablePluginPackage,
+  adaptPortablePluginDefinition,
+} from "@tau/plugins/rendering";
 import type { PluginDefinition } from "@tau/plugins";
 import { desktopContentPlugins } from "../../../shared/content-plugins";
 import { getMarkdown, importFromMarkdown } from "@/utils/markdown";
@@ -24,6 +29,39 @@ Object.assign(globalThis, {
         }
         return definition;
       });
+      if (import.meta.env.DEV) {
+        for (const artifact of envelope.portableArtifacts ?? []) {
+          const key = JSON.stringify(artifact.manifest);
+          keys.add(key);
+          let definition = definitions.get(key);
+          if (!definition) {
+            definition = evaluatePortablePluginPackage(artifact, sharedPluginModules, {
+              environment: {
+                platform: "desktop",
+                layout: "unknown",
+                input: { touch: false, finePointer: false },
+                capabilities: [
+                  "commands.v1",
+                  "storage.v1",
+                  "pages.v1",
+                  "navigation.v1",
+                  "settings.v1",
+                  "ui.dialog.v1",
+                  "editor.elements.v1",
+                  "editor.codecs.v1",
+                  "editor.source.v1",
+                ],
+              },
+              appVersion,
+              profiles: ["web-v1"],
+            });
+            definitions.set(key, definition);
+          }
+          snapshot.push(
+            adaptPortablePluginDefinition(definition, artifact.manifest, "desktop").definition
+          );
+        }
+      }
       desktopContentPlugins.install(snapshot);
       if (definitions.size > 128)
         for (const key of definitions.keys()) if (!keys.has(key)) definitions.delete(key);

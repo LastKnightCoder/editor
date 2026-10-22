@@ -18,7 +18,12 @@ function setup() {
   editor.getService = () => resource as never;
   const error = vi.fn();
   const notifier = { error };
-  editor.tryGetService = id => (id.id === "resourceService" ? resource : notifier) as never;
+  editor.tryGetService = id =>
+    (id.id === "resourceService"
+      ? resource
+      : id.id === "editorNotifier"
+        ? notifier
+        : undefined) as never;
   return { editor, image, resource, error };
 }
 
@@ -44,7 +49,12 @@ it.each(["资源", "预览", "服务"])("%s发生变化时丢弃旧媒体操作"
   if (changed === "服务") {
     const replacement = { upload: vi.fn(async () => "other") };
     editor.getService = () => replacement as never;
-    editor.tryGetService = id => (id.id === "resourceService" ? replacement : { error }) as never;
+    editor.tryGetService = id =>
+      (id.id === "resourceService"
+        ? replacement
+        : id.id === "editorNotifier"
+          ? { error }
+          : undefined) as never;
   }
   const before = structuredClone(editor.children);
   expect(await uploadMedia(editor, new File(["x"], "a.png"), operation)).toBe(false);

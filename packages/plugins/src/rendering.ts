@@ -4,6 +4,16 @@ import type { PluginEditorExtension } from "./editor";
 import { assertPluginEditorExtension } from "./editor-fields.ts";
 import type { MarkdownCodec } from "@tau/markdown";
 import {
+  validatePortablePluginManifest,
+  assertPortablePluginCompatibility,
+  assertPortableElementDeclarations,
+  PORTABLE_SHARED_MODULES,
+  getPortableElementSupport,
+  type PortablePlatform,
+  type PortablePluginManifest,
+  type PortablePluginHost,
+} from "./portable";
+import {
   PLUGIN_SHARED_MODULES,
   validatePluginManifest,
   type DevelopmentPluginPackage,
@@ -43,17 +53,97 @@ export function evaluatePluginPackage(
   modules: Readonly<Record<string, unknown>>
 ): PluginDefinition {
   const manifest = validatePluginManifest(artifact.manifest);
+  return evaluateModule(manifest, artifact.code, modules, PLUGIN_SHARED_MODULES);
+}
+
+/** 只供显式接入跨端协议的宿主；执行前必须先由包读取器验证文件完整性。 */
+export function evaluatePortablePluginPackage(
+  artifact: { manifest: PortablePluginManifest; code: string; css?: string },
+  modules: Readonly<Record<string, unknown>>,
+  host: PortablePluginHost
+): PluginDefinition {
+  const manifest = validatePortablePluginManifest(artifact.manifest);
+  assertPortablePluginCompatibility(manifest, host);
+  const definition = evaluateModule(manifest, artifact.code, modules, PORTABLE_SHARED_MODULES);
+  assertPortableElementDeclarations(manifest, getPluginNodeTypes(definition));
+  return definition;
+}
+
+/** 各宿主共用支持等级投影；原始数据与节点身份不改写。 */
+export function adaptPortablePluginDefinition(
+  definition: PluginDefinition,
+  manifest: PortablePluginManifest,
+  platform: PortablePlatform
+) {
+  const support = Object.freeze(
+    Object.fromEntries(
+      getPluginNodeTypes(definition).map(type => [
+        type,
+        getPortableElementSupport(manifest, platform, type),
+      ])
+    )
+  );
+  const extensions = definition.editorExtensions?.flatMap(extension => {
+    const elements = extension.elements
+      ?.filter(element => support[element.type] !== "none")
+      .map(element =>
+        support[element.type] === "edit" ? element : { ...element, behaviors: undefined }
+      );
+    if (!elements?.length) return [];
+    const types = new Set(elements.map(element => element.type));
+    const editable = elements.every(element => support[element.type] === "edit");
+    return [
+      {
+        ...extension,
+        elements,
+        styleSources: extension.styleSources?.filter(source => types.has(source.type)),
+        htmlSerializers: extension.htmlSerializers?.filter(serializer =>
+          types.has(serializer.type)
+        ),
+        ...(editable
+          ? {}
+          : {
+              blockPanel: undefined,
+              commands: undefined,
+              hotkeys: undefined,
+              menu: undefined,
+              behaviorsFor: undefined,
+            }),
+      },
+    ];
+  });
+  return {
+    support,
+    definition: {
+      ...definition,
+      editorExtensions: extensions?.length ? extensions : undefined,
+      editorCodecs: definition.editorCodecs?.filter(codec => support[codec.type] !== "none"),
+    },
+  };
+}
+
+type DefinitionManifest = Pick<
+  PluginManifest,
+  "id" | "name" | "version" | "apiVersion" | "editor" | "whiteboard"
+>;
+
+function evaluateModule(
+  manifest: DefinitionManifest,
+  code: string,
+  modules: Readonly<Record<string, unknown>>,
+  allowed: readonly string[]
+): PluginDefinition {
   const module: { exports: { default?: PluginDefinition } } = { exports: {} };
   new Function(
     "require",
     "module",
     "exports",
     '"use strict";\n' +
-      artifact.code +
+      code +
       `\n//# sourceURL=tau-plugin://${manifest.id}/${manifest.version}/main.js`
   )(
     (id: string) => {
-      if (!PLUGIN_SHARED_MODULES.some(name => name === id) || !Object.hasOwn(modules, id))
+      if (!allowed.includes(id) || !Object.hasOwn(modules, id))
         throw new Error(`插件使用了未提供的宿主模块：${id}`);
       return modules[id];
     },
@@ -64,7 +154,7 @@ export function evaluatePluginPackage(
 }
 
 export function validatePluginDefinition(
-  manifest: PluginManifest,
+  manifest: DefinitionManifest,
   definition: PluginDefinition | undefined
 ): PluginDefinition {
   if (

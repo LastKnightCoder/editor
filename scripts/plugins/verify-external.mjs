@@ -1,3 +1,4 @@
+import { desktopAuthorManifest } from "./author-compat.mjs";
 import { mkdtemp, cp, readFile, writeFile, readdir, rm, realpath, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -65,6 +66,7 @@ try {
     ".",
     "./tailwind.css",
     "./package",
+    "./portable",
     "./backend",
     "./sync",
     "./publish-data",
@@ -105,9 +107,12 @@ try {
     packages: installed,
     skipLibCheck: true,
   };
+  const manifest = desktopAuthorManifest(
+    JSON.parse(await readFile(path.join(author, "manifest.json"), "utf8"))
+  );
+  await writeFile(path.join(author, "manifest.json"), JSON.stringify(manifest, null, 2));
   await run("pnpm", ["build"], author);
   const [first] = await versions();
-  const manifest = JSON.parse(await readFile(path.join(author, "manifest.json"), "utf8"));
   await writeFile(
     path.join(author, "manifest.json"),
     JSON.stringify({ ...manifest, id: "example.external-other", name: "计数器示例二" })

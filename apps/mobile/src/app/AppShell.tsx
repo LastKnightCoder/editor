@@ -1,3 +1,4 @@
+import { MobilePluginProvider } from "./plugins/PluginProvider";
 // AppShell：全局数据编排 + Provider 组装。导航/页面/浮层全部交给 router。
 
 import { useEffect, useMemo, useRef } from "react";
@@ -470,15 +471,20 @@ function AppShellInner() {
                   rootKey="home"
                   onRootBackHint={text => toast({ type: "info", text })}
                 >
-                  <main className="bg-page min-h-dvh">
-                    <PageHost rootContent={<HomeScreen />} />
-                    <AppDock />
-                    <OverlayHost />
-                    <EditorConfirmHost />
-                    <EditorPromptHost />
-                    <ToastViewport />
-                    {import.meta.env.DEV && <RouterDevTools />}
-                  </main>
+                  <MobilePluginProvider
+                    key={bootstrap.databases?.activeDatabase}
+                    database={bootstrap.databases?.activeDatabase ?? ""}
+                  >
+                    <main className="bg-page min-h-dvh">
+                      <PageHost rootContent={<HomeScreen />} />
+                      <AppDock />
+                      <OverlayHost />
+                      <EditorConfirmHost />
+                      <EditorPromptHost />
+                      <ToastViewport />
+                      {import.meta.env.DEV && <RouterDevTools />}
+                    </main>
+                  </MobilePluginProvider>
                 </RouterProvider>
               </AppContext.Provider>
             </PageQueryProvider>

@@ -1,3 +1,4 @@
+import { IElementEditingPolicy } from "@tau/editor/api";
 import {
   Component,
   createContext,
@@ -79,6 +80,10 @@ function PluginPage() {
       },
       isActive: () =>
         active.current && !page?.context.signal.aborted && document.visibilityState !== "hidden",
+      registerLeaveGuard: guard => {
+        navigator.registerGuard(entryId, guard);
+        return { dispose: () => navigator.registerGuard(entryId, null) };
+      },
       registerDismiss: dismiss => {
         const unregister = navigator.registerBackHandler(entryId, () => {
           dismiss();
@@ -121,7 +126,17 @@ function EditorPage() {
   const [readOnly, setReadOnly] = useState(false);
   const [saved, setSaved] = useState(false);
   const kit = useMemo(
-    () => getMobileContentKit().extend({ extensions: runtime.content.extensions }),
+    () =>
+      getMobileContentKit().extend({
+        extensions: runtime.content.extensions,
+        services: [
+          register =>
+            register(IElementEditingPolicy, {
+              canEdit: () => true,
+              sourcePresentation: runtime.environment.platform === "desktop" ? "pointer" : "touch",
+            }),
+        ],
+      }),
     [runtime]
   );
   const markdown = useMemo(
@@ -361,12 +376,12 @@ async function start() {
       finePointer: matchMedia("(pointer:fine)").matches,
     },
     capabilities: [
-      "pages",
-      "navigation",
-      "storage",
-      "editor.elements",
-      "editor.codecs",
-      "editor.source",
+      "pages.v1",
+      "navigation.v1",
+      "storage.v1",
+      "editor.elements.v1",
+      "editor.codecs.v1",
+      "editor.source.v1",
     ],
   });
   const stored = localStorage.getItem(PACKAGE_KEY);

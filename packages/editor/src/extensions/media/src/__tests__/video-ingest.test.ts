@@ -23,7 +23,12 @@ function setup(upload: () => Promise<string>) {
   const resource = { upload };
   editor.getService = () => resource as never;
   const notifier = { error: vi.fn() };
-  editor.tryGetService = id => (id.id === "resourceService" ? resource : notifier) as never;
+  editor.tryGetService = id =>
+    (id.id === "resourceService"
+      ? resource
+      : id.id === "editorNotifier"
+        ? notifier
+        : undefined) as never;
   Transforms.select(editor, Editor.start(editor, [0]));
   const context: IngestContext = {
     editor,

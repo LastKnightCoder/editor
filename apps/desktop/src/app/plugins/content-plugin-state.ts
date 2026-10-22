@@ -1,5 +1,5 @@
 import type { PluginDefinition } from "@tau/plugins";
-import { desktopContentPlugins } from "../../../shared/content-plugins.ts";
+import { desktopContentPlugins, desktopPortableSupport } from "../../../shared/content-plugins.ts";
 import type { DevelopmentPluginPackage } from "@tau/plugins/host";
 import { getPluginNodeTypes, type PluginRenderContext } from "@tau/plugins/rendering";
 
@@ -32,6 +32,8 @@ export function contentPluginDefinition(artifact: DevelopmentPluginPackage) {
   return loaded.definition;
 }
 export function getContentPluginPublishContext(): PluginRenderContext {
+  if (desktopPortableSupport.size)
+    throw new Error("开发跨端内容包尚未接入正式博客分发，请停用开发包并重新打开应用后发布");
   for (const {
     artifact,
     definition: { id },

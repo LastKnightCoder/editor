@@ -1,3 +1,4 @@
+import { desktopAuthorManifest } from "./author-compat.mjs";
 import { mkdtemp, cp, readFile, writeFile, mkdir, rm, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -42,7 +43,9 @@ try {
   }
   pkg.devDependencies["@types/node"] = "24.0.0";
   await writeFile(path.join(author, "package.json"), JSON.stringify(pkg, null, 2));
-  const manifest = JSON.parse(await readFile(path.join(author, "manifest.json"), "utf8"));
+  const manifest = desktopAuthorManifest(
+    JSON.parse(await readFile(path.join(author, "manifest.json"), "utf8"))
+  );
   Object.assign(manifest, {
     id: "example.backend-system",
     name: "后台系统信息",

@@ -3,6 +3,7 @@ mod database;
 mod models;
 mod network_policy;
 mod provider_config;
+mod plugins;
 mod remote_resource_cache;
 mod resource_upload;
 mod setting;
@@ -53,6 +54,17 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
+            plugins::plugin_packages,
+            plugins::plugin_apply_pending,
+            plugins::plugin_stage,
+            plugins::plugin_commit,
+            plugins::plugin_cancel,
+            plugins::plugin_restore,
+            plugins::plugin_set_enabled,
+            plugins::plugin_uninstall,
+            database::plugin_kv_read,
+            database::plugin_kv_write,
+            database::plugin_kv_clear,
             setting::bootstrap_app,
             setting::read_setting_json,
             setting::write_setting_json,

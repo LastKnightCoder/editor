@@ -50,6 +50,7 @@ import { PortalScope, usePortalContainer } from "../UiProvider";
 import clsx from "clsx";
 import { cn } from "../cn";
 import { X } from "lucide-react";
+import { UiDismissBoundary } from "../UiHostProvider";
 import { useEdgeFade } from "../hooks/useEdgeFade";
 import { FADE_SCROLL_CLASS } from "../hooks/fadeScrollClass";
 import { lockBodyScroll } from "../hooks/lockBodyScroll";
@@ -176,7 +177,7 @@ export function Dialog({
     lastActiveRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     return lockBodyScroll(portalContainer.ownerDocument);
-  }, [open, contentReady]);
+  }, [open, contentReady, portalContainer.ownerDocument]);
 
   // 挂载后落初始焦点：[data-autofocus] 优先（表单首输入框 / danger 的取消按钮），否则卡片自身
   useEffect(() => {
@@ -234,113 +235,123 @@ export function Dialog({
   if (!mounted) return null;
 
   return createPortal(
-    <div
-      onClick={onMaskClick}
-      aria-hidden={!contentReady || undefined}
-      inert={!contentReady || undefined}
-      className={clsx(
-        "bg-overlay fixed inset-0 z-[340] grid place-items-center p-8",
-        "backdrop-blur-[4px]",
-        "ease-tau-out transition-opacity duration-[200ms]",
-        visible && shown ? "opacity-100" : "opacity-0",
-        MORPH_INSTANT,
-        visible && "[[data-morph]_&]:opacity-100",
-        !visible && "pointer-events-none",
-        !contentReady && "invisible"
-      )}
+    <UiDismissBoundary
+      open={visible}
+      dismiss={() => {
+        if (critical) shakeCard(cardRef.current);
+        else requestClose();
+      }}
     >
-      <PortalScope>
-        <div
-          ref={el => {
-            cardRef.current = el;
-            if (typeof ref === "function") ref(el);
-            else if (ref && typeof ref === "object") ref.current = el;
-          }}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={header ? undefined : titleId}
-          aria-label={header ? title : undefined}
-          tabIndex={-1}
-          data-state={visible ? "open" : "closed"}
-          onKeyDown={onCardKeyDown}
-          style={{ width, height: height ? `min(82vh, ${height}px)` : undefined }}
-          className={clsx(
-            "bg-surface border-line-1 shadow-float relative",
-            // 遮罩是按内容定轨的 grid，max-w-full 限不住宽度：按视口减去遮罩两侧 p-8 限宽
-            "rounded-tau-lg text-ink-2 text-tau-body flex max-w-[calc(100vw-4rem)] flex-col border",
-            !height && "max-h-[min(78vh,660px)]",
-            size === "sm" ? "w-[380px]" : size === "lg" ? "w-[560px]" : "w-[440px]",
-            "ease-tau-out transition-[opacity,transform] duration-[200ms]",
-            visible && shown ? "opacity-100" : "translate-y-[8px] scale-[0.97] opacity-0",
-            MORPH_INSTANT,
-            visible &&
-              "[[data-morph]_&]:translate-none [[data-morph]_&]:scale-none [[data-morph]_&]:opacity-100",
-            !(visible && shown) && "pointer-events-none",
-            className
-          )}
-        >
-          {header ?? (
-            <>
-              {!critical && (
-                <IconButton
-                  type="button"
-                  aria-label="关闭"
-                  disabled={locked}
-                  onClick={requestClose}
-                  className="absolute right-3 top-3 size-[28px] rounded-[8px]"
-                >
-                  <X className="size-[14px]" />
-                </IconButton>
-              )}
-              <div className="flex items-center gap-2 pl-6 pr-12 pt-[22px]">
-                {icon && (
-                  <span className="text-ink-2 flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">
-                    {icon}
-                  </span>
+      <div
+        onClick={onMaskClick}
+        aria-hidden={!contentReady || undefined}
+        inert={!contentReady || undefined}
+        className={clsx(
+          "bg-overlay fixed inset-0 z-[340] grid place-items-center p-8",
+          "backdrop-blur-[4px]",
+          "ease-tau-out transition-opacity duration-[200ms]",
+          visible && shown ? "opacity-100" : "opacity-0",
+          MORPH_INSTANT,
+          visible && "[[data-morph]_&]:opacity-100",
+          !visible && "pointer-events-none",
+          !contentReady && "invisible"
+        )}
+      >
+        <PortalScope>
+          <div
+            ref={el => {
+              cardRef.current = el;
+              if (typeof ref === "function") ref(el);
+              else if (ref && typeof ref === "object") ref.current = el;
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={header ? undefined : titleId}
+            aria-label={header ? title : undefined}
+            tabIndex={-1}
+            data-state={visible ? "open" : "closed"}
+            onKeyDown={onCardKeyDown}
+            style={{ width, height: height ? `min(82vh, ${height}px)` : undefined }}
+            className={clsx(
+              "bg-surface border-line-1 shadow-float relative",
+              // 遮罩是按内容定轨的 grid，max-w-full 限不住宽度：按视口减去遮罩两侧 p-8 限宽
+              "rounded-tau-lg text-ink-2 text-tau-body flex max-w-[calc(100vw-4rem)] flex-col border",
+              !height && "max-h-[min(78vh,660px)]",
+              size === "sm" ? "w-[380px]" : size === "lg" ? "w-[560px]" : "w-[440px]",
+              "ease-tau-out transition-[opacity,transform] duration-[200ms]",
+              visible && shown ? "opacity-100" : "translate-y-[8px] scale-[0.97] opacity-0",
+              MORPH_INSTANT,
+              visible &&
+                "[[data-morph]_&]:translate-none [[data-morph]_&]:scale-none [[data-morph]_&]:opacity-100",
+              !(visible && shown) && "pointer-events-none",
+              className
+            )}
+          >
+            {header ?? (
+              <>
+                {!critical && (
+                  <IconButton
+                    type="button"
+                    aria-label="关闭"
+                    disabled={locked}
+                    onClick={requestClose}
+                    className="absolute right-3 top-3 size-[28px] rounded-[8px]"
+                  >
+                    <X className="size-[14px]" />
+                  </IconButton>
                 )}
-                <h2
-                  id={titleId}
-                  title={title}
-                  className="text-ink-1 min-w-0 truncate text-[16px] font-[650] leading-[1.45] tracking-[-0.01em]"
-                >
-                  {title}
-                </h2>
-                {context && (
-                  <span className={CHIP_CLASS}>
-                    <span className="bg-accent size-[6px] shrink-0 rounded-full" />
-                    {context}
-                  </span>
-                )}
-              </div>
-              {subtitle && (
-                <p className="text-ink-3 text-tau-meta mt-[3px] pl-6 pr-12">{subtitle}</p>
-              )}
-            </>
-          )}
-          <DialogContext value={{ hasFooter: Boolean(footer || impact) }}>{children}</DialogContext>
-          {(footer || impact) && (
-            <div
-              className={clsx(
-                "border-line-2 flex items-center gap-2 border-t px-6 py-[14px]",
-                !impact && "justify-end"
-              )}
-            >
-              {impact && (
-                <div
-                  className={clsx(
-                    "min-w-0 flex-1 text-[11.5px] leading-[1.5]",
-                    impactDanger ? "text-danger" : "text-ink-3"
+                <div className="flex items-center gap-2 pl-6 pr-12 pt-[22px]">
+                  {icon && (
+                    <span className="text-ink-2 flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">
+                      {icon}
+                    </span>
                   )}
-                >
-                  {impact}
+                  <h2
+                    id={titleId}
+                    title={title}
+                    className="text-ink-1 min-w-0 truncate text-[16px] font-[650] leading-[1.45] tracking-[-0.01em]"
+                  >
+                    {title}
+                  </h2>
+                  {context && (
+                    <span className={CHIP_CLASS}>
+                      <span className="bg-accent size-[6px] shrink-0 rounded-full" />
+                      {context}
+                    </span>
+                  )}
                 </div>
-              )}
-              {footer}
-            </div>
-          )}
-        </div>
-      </PortalScope>
-    </div>,
+                {subtitle && (
+                  <p className="text-ink-3 text-tau-meta mt-[3px] pl-6 pr-12">{subtitle}</p>
+                )}
+              </>
+            )}
+            <DialogContext value={{ hasFooter: Boolean(footer || impact) }}>
+              {children}
+            </DialogContext>
+            {(footer || impact) && (
+              <div
+                className={clsx(
+                  "border-line-2 flex items-center gap-2 border-t px-6 py-[14px]",
+                  !impact && "justify-end"
+                )}
+              >
+                {impact && (
+                  <div
+                    className={clsx(
+                      "min-w-0 flex-1 text-[11.5px] leading-[1.5]",
+                      impactDanger ? "text-danger" : "text-ink-3"
+                    )}
+                  >
+                    {impact}
+                  </div>
+                )}
+                {footer}
+              </div>
+            )}
+          </div>
+        </PortalScope>
+      </div>
+    </UiDismissBoundary>,
     portalContainer
   );
 }
