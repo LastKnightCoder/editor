@@ -39,6 +39,7 @@ import {
   type PluginActionDefinition,
   type PluginActionTargetKind,
 } from "./actions";
+import { PLUGIN_ENTITY_PANEL_KINDS, type PluginEntityPanelDefinition } from "./views";
 import {
   CONTENT_INPUT_LIMITS,
   EDITOR_NODE_SCHEMA_VERSION,
@@ -191,6 +192,14 @@ export interface HomeAdapter {
   registerPanel(
     context: PluginContext,
     definition: Readonly<Required<PluginHomePanelDefinition>>
+  ): Disposable;
+}
+
+export interface ViewsAdapter {
+  /** 定义已冻结，kinds 已去重 */
+  registerEntityPanel(
+    context: PluginContext,
+    definition: Readonly<PluginEntityPanelDefinition>
   ): Disposable;
 }
 
@@ -988,7 +997,8 @@ export type PluginContributionKind =
   | "whiteboard"
   | "excerpts"
   | "home"
-  | "action";
+  | "action"
+  | "entity-panel";
 
 export interface PluginInfo {
   backend?: import("./package").PluginBackendManifest;
@@ -1093,6 +1103,7 @@ export class PluginHost {
       sidebar?: SidebarAdapter;
       home?: HomeAdapter;
       actions?: ActionsAdapter;
+      views?: ViewsAdapter;
       excerpts?: ExcerptsAdapter;
       materials?: MaterialsAdapter;
       flashcards?: FlashcardsAdapter;
@@ -2950,6 +2961,31 @@ export class PluginHost {
           return Object.freeze(handle);
         },
         dragType: (type: string) => sidebarDragType(scope.pluginId, type),
+      }),
+      views: Object.freeze({
+        registerEntityPanel: (definition: PluginEntityPanelDefinition) => {
+          this.assertActive(entry, activation);
+          assertLocalId(definition.id);
+          if (typeof definition.component !== "function")
+            throw new Error("详情区块组件必须是 React 组件");
+          const kinds = definition.kinds;
+          if (!Array.isArray(kinds) || !kinds.length) throw new Error("详情区块至少要有一类对象");
+          for (const kind of kinds)
+            if (!PLUGIN_ENTITY_PANEL_KINDS.includes(kind))
+              throw new Error(`不支持的详情区块对象：${String(kind)}`);
+          if (!this.options.views) throw new Error("当前宿主不支持详情区块");
+          return registerAs(
+            "entity-panel",
+            this.options.views.registerEntityPanel(
+              context,
+              Object.freeze({
+                id: definition.id,
+                kinds: Object.freeze([...new Set(kinds)]),
+                component: definition.component,
+              })
+            )
+          );
+        },
       }),
       actions: Object.freeze({
         register: <K extends PluginActionTargetKind>(input: PluginActionDefinition<K>) => {

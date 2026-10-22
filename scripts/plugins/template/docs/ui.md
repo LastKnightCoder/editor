@@ -359,6 +359,40 @@ context.actions.register({
 - 只在主窗口出现，独立编辑窗口不列插件动作。`run` 出错时 Tau 显示一条通知。
 - `context.materials.actions` 只给 Tau 自己的材料操作，不包含其他插件注册的对象动作。
 
+## 详情区块
+
+在卡片、文章、项目文档详情的正文上方放一小块内容，例如列出关联到这张卡片的插件内容：
+
+```tsx
+import type { PluginEntityPanelProps } from "@tau/plugins";
+
+function RelatedNotes({ context, target }: PluginEntityPanelProps) {
+  const [count, setCount] = useState<number | null>(null);
+  useEffect(() => {
+    void context.entities.count({ kind: "note", where: { targetId: target.id } }).then(setCount);
+  }, [context, target.id]);
+  if (!count) return null;
+  return <p>有 {count} 条笔记提到了它</p>;
+}
+
+context.views.registerEntityPanel({
+  id: "related",
+  kinds: ["card", "article", "document"],
+  component: RelatedNotes,
+});
+```
+
+| 字段        | 说明                                                               |
+| ----------- | ------------------------------------------------------------------ |
+| `id`        | 局部 ID                                                            |
+| `kinds`     | 挂在哪类对象的详情里：`card`、`article`、`document`（项目文档）    |
+| `component` | 收到 `context` 与 `target`（`{ kind, id }`）；返回 `null` 时不占位 |
+
+- 区块渲染在 AI 洞见报告之后、正文之前，几个插件的区块按启用顺序排列。Tau 不加外框和标题，区块宜小而轻。
+- `target` 只是引用：读标题、正文仍按权限，挂在详情里不会自动获得读取权限。引用了卡片或文章的项目文档，收到的是被引用的卡片或文章。
+- 用户在详情页之间切换时，组件不会重新挂载，只换 `target`；按 `target` 取数据的 effect 要把它放进依赖。
+- 渲染出错时这一块显示错误和「重试」，不影响详情页其他内容。只在主窗口出现，独立编辑窗口不显示。
+
 ## 设置
 
 ```tsx

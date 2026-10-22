@@ -27,6 +27,8 @@ import type {
   PluginActionTarget,
   PluginActionTargetKind,
   PluginEntityRef,
+  PluginEntityPanelDefinition,
+  PluginEntityPanelKind,
 } from "@tau/plugins";
 import {
   notifyPluginPackagesChanged,
@@ -111,6 +113,15 @@ export interface RegisteredPluginHomePanel {
   mountId: number;
 }
 
+/** 详情区块：同一注册期间对象不变，详情页据此保持组件不重新挂载 */
+export interface RegisteredPluginEntityPanel {
+  /** plugin:<pluginId>:<id> */
+  id: string;
+  definition: Readonly<PluginEntityPanelDefinition>;
+  context: PluginContext;
+  mountId: number;
+}
+
 /** 对象动作：run 已由 PluginHost 包装，经 runAction 调用 */
 export interface RegisteredPluginAction {
   /** plugin:<pluginId>:<id> */
@@ -158,6 +169,7 @@ export class DesktopPluginRuntime {
   >();
   private readonly homePanels = new Map<string, RegisteredPluginHomePanel>();
   private readonly actions = new Map<string, RegisteredPluginAction>();
+  private readonly entityPanels = new Map<string, RegisteredPluginEntityPanel>();
   private readonly editorContributions = new Map<
     string,
     { context: PluginContext; contribution: PluginEditorContribution }
@@ -236,6 +248,9 @@ export class DesktopPluginRuntime {
       pages: { register: (context, definition) => this.registerPage(context, definition) },
       home: { registerPanel: (context, definition) => this.registerHomePanel(context, definition) },
       actions: { register: (context, definition) => this.registerAction(context, definition) },
+      views: {
+        registerEntityPanel: (context, definition) => this.registerEntityPanel(context, definition),
+      },
       sidebar: {
         registerGroup: (context, definition) => this.registerSidebarGroup(context, definition),
         registerItem: (context, definition, pageId) =>
@@ -311,6 +326,17 @@ export class DesktopPluginRuntime {
     );
   }
 
+  /** 某类对象详情里的插件区块，按注册顺序 */
+  listEntityPanels(kind: PluginEntityPanelKind): RegisteredPluginEntityPanel[] {
+    if (this.disposed) return [];
+    return [...this.entityPanels.values()].filter(
+      ({ context, definition }) =>
+        definition.kinds.includes(kind) &&
+        !context.signal.aborted &&
+        this.host.getState(context.pluginId) === "active"
+    );
+  }
+
   /** 某类对象可用的插件动作，按注册顺序 */
   listActions(kind: PluginActionTargetKind): RegisteredPluginAction[] {
     if (this.disposed) return [];
@@ -380,6 +406,25 @@ export class DesktopPluginRuntime {
           subscribe: entry.subscribe,
           getState: entry.getState,
         })),
+    };
+  }
+
+  private registerEntityPanel(
+    context: PluginContext,
+    definition: Readonly<PluginEntityPanelDefinition>
+  ) {
+    if (this.disposed) throw new Error("插件运行时已关闭");
+    const id = `plugin:${context.pluginId}:${definition.id}`;
+    if (this.entityPanels.has(id)) throw new Error(`详情区块已注册：${definition.id}`);
+    const panel = { id, definition, context, mountId: ++nextMountId };
+    this.entityPanels.set(id, panel);
+    this.publish();
+    return {
+      dispose: () => {
+        if (this.entityPanels.get(id) !== panel) return;
+        this.entityPanels.delete(id);
+        this.publish();
+      },
     };
   }
 
@@ -572,6 +617,7 @@ export class DesktopPluginRuntime {
       this.editorContributions.clear();
       this.homePanels.clear();
       this.actions.clear();
+      this.entityPanels.clear();
       this.options.permissions?.dispose();
       this.unsubscribe();
       this.publish();

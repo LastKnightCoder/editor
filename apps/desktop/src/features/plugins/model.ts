@@ -35,6 +35,7 @@ export const CONTRIBUTION_LABELS: Record<PluginContributionKind, string> = {
   excerpts: "摘录来源",
   home: "首页面板",
   action: "对象动作",
+  "entity-panel": "详情区块",
 };
 
 export const PLUGIN_TEMPLATE_URL = "https://github.com/LastKnightCoder/tau-plugin-template";

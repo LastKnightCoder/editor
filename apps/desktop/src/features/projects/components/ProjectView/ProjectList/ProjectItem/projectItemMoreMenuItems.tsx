@@ -23,7 +23,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import type { PluginActionTarget } from "@tau/plugins";
+import type { PluginEntityPanelTarget } from "@tau/plugins";
 import { EProjectItemType, type ProjectItem } from "@/types/project";
 import { isElectron } from "@/electron";
 
@@ -214,10 +214,10 @@ export const getProjectItemMoreMenuItems = (
   return [];
 };
 
-/** 项目文档对应的插件动作目标：引用型条目指向它引用的卡片 / 文章，其余类型没有插件动作 */
+/** 项目文档对应的插件动作 / 详情区块目标：引用型条目指向它引用的卡片 / 文章，其余类型没有插件动作 */
 export function projectItemActionTarget(
   projectItem?: Pick<ProjectItem, "id" | "projectItemType" | "refType" | "refId"> | null
-): PluginActionTarget | null {
+): PluginEntityPanelTarget | null {
   if (projectItem?.projectItemType !== EProjectItemType.Document) return null;
   if (!projectItem.refType) return { kind: "document", id: String(projectItem.id) };
   if (projectItem.refType === "card" || projectItem.refType === "article")

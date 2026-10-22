@@ -38,6 +38,8 @@ import { ComposeSessionContext, createComposeSession } from "@/features/compose/
 import { useComposeWriting } from "@/features/compose/useComposeWriting";
 import { getEditorText } from "@/utils/editor";
 import { usePage, usePageParams } from "@/page/PageProvider";
+import { PluginEntityPanels } from "@/app/plugins/entity-panels";
+import { projectItemActionTarget } from "../ProjectList/ProjectItem/projectItemMoreMenuItems";
 
 const DOCUMENT_COLUMNS = "grid grid-cols-[minmax(0,720px)] items-start justify-center gap-7 px-6";
 
@@ -308,6 +310,10 @@ const EditProjectItem = (props: { projectItemId: number }) => {
                     </span>
                   </div>
                   {insights.report && <div className="-mt-2 mb-6">{insights.report}</div>}
+                  <PluginEntityPanels
+                    target={projectItemActionTarget(projectItem)}
+                    className="mb-6"
+                  />
                 </header>
                 <EditCardContext.Provider
                   value={{
