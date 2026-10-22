@@ -47,15 +47,9 @@ export const CONTEXT_WRITE_EVENTS: ReadonlySet<string> = new Set([
   "plugin-links:remove",
   "plugin-transaction:commit",
   "plugin-data:restore",
-  // 问题与材料
-  "question:link-targets",
-  "question:unlink-target",
+  // 谱系端点为问题时显示问题标题（问题迁入插件前）
   "question:update",
-  "question:update-status",
   "question:delete",
-  "question:create-answer",
-  "question:add-answer",
-  "question:delete-answer",
   // 白板的增删与改名（画布内容的变化由白板引用索引负责通知）
   "create-white-board",
   "delete-white-board",

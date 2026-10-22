@@ -36,12 +36,6 @@ export interface ContextBacklink {
   snippets: RefSnippet[];
 }
 
-export interface ContextQuestion {
-  id: number;
-  title: string;
-  status: string;
-}
-
 /** 谱系条目：kind 覆盖实体与外部材料（摘录、PDF 标注、对话、闪卡、问题、Notebook 等） */
 export interface ContextLineageItem {
   kind: string;
@@ -73,7 +67,6 @@ export interface EntityContext {
   projections: ContextEntity[];
   backlinks: ContextBacklink[];
   backlinkTotal: number;
-  questions: ContextQuestion[];
   /** 哪些插件内容关联了我（或共用正文的身份），按最近关联排序；移动端只读展示 */
   pluginLinks: ContextEntity[];
   sources: ContextLineageItem[];

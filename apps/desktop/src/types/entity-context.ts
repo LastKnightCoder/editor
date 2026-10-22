@@ -6,7 +6,6 @@ import type { EntityRef } from "@/entity/ref";
 import type { InlineRefSnippet } from "@/entity/inline-refs";
 import type { LineageNode, LineageRelation } from "@/entity/lineage";
 import type { MaterialOpenTarget } from "@/entity/material";
-import type { IQuestion } from "./question";
 import type { EntityLocation } from "@/entity/locate";
 
 export interface ContextEntity {
@@ -22,12 +21,6 @@ export interface ContextEntity {
 export interface ContextBacklink {
   source: ContextEntity;
   snippets: InlineRefSnippet[];
-}
-
-export interface ContextQuestion {
-  id: number;
-  title: string;
-  status: IQuestion["status"];
 }
 
 /** 点击脉络条目打开到哪里；正文实体走 openEntity，其余各自的页面 */
@@ -89,8 +82,6 @@ export interface EntityContext {
   backlinks: ContextBacklink[];
   /** 引用我的来源总数（backlinks 被截断时大于其长度） */
   backlinkTotal: number;
-  /** 我（或共用正文的身份）是哪些问题的材料 */
-  questions: ContextQuestion[];
   /** 哪些插件内容关联了我（或共用正文的身份），按最近关联排序；最多 50 条 */
   pluginLinks: ContextEntity[];
   /** 我从哪来（谱系入边）；来源已删除的保留并标记 missing */

@@ -95,22 +95,6 @@ const insertProjectItem = (title: string, contentId: number) =>
       )
       .run(clock, clock, title, contentId).lastInsertRowid
   );
-const insertQuestion = (title: string, status = "in_progress") =>
-  Number(
-    mainDb
-      .prepare(
-        `INSERT INTO questions (create_time, update_time, question_content, answers, status) VALUES (?, ?, ?, '[]', ?)`
-      )
-      .run(clock, clock++, title, status).lastInsertRowid
-  );
-const linkQuestion = (questionId: number, targetType: string, targetId: number) =>
-  mainDb
-    .prepare(
-      `INSERT INTO question_link (question_id, target_type, target_id, content_id, create_time, sort_index)
-       VALUES (?, ?, ?, NULL, ?, 0)`
-    )
-    .run(questionId, targetType, targetId, clock);
-
 beforeEach(() => {
   mainDb = new Database(":memory:");
   mainDb.exec(MAIN_SQL);
@@ -124,7 +108,7 @@ afterEach(() => {
 });
 
 describe("getEntityContext", () => {
-  it("被引用、共用正文与相关问题", async () => {
+  it("被引用与共用正文", async () => {
     const cardContent = insertContent([p(text("重排与重绘"))]);
     const cardId = insertCard(cardContent);
     const itemId = insertProjectItem("渲染篇", cardContent);
@@ -136,10 +120,6 @@ describe("getEntityContext", () => {
     // 引用了与卡片共用正文的项目文档，也算引用了卡片
     const noteContent = insertContent([p(link("project-item", itemId, "渲染篇", cardContent))]);
     const otherCard = insertCard(noteContent);
-    const q1 = insertQuestion("为什么 transform 不触发重排？");
-    linkQuestion(q1, "card", cardId);
-    const q2 = insertQuestion("渲染篇还缺什么？", "not_started");
-    linkQuestion(q2, "project_item", itemId);
     await reconcileRefs(mainDb, indexDb);
 
     const ctx = getEntityContext(mainDb, indexDb, { kind: "card", id: cardId })!;
@@ -154,10 +134,6 @@ describe("getEntityContext", () => {
       { before: "几何属性变了就会触发", label: "重排与重绘", after: "。" },
       // 第二段只有链接：以上一段作前文
       { before: "几何属性变了就会触发重排与重绘。", label: "重排与重绘", after: "" },
-    ]);
-    expect(ctx.questions.map(q => [q.id, q.status])).toEqual([
-      [q1, "in_progress"],
-      [q2, "not_started"],
     ]);
 
     // 文章引用了卡片（连接分区内联条目）；卡片自己没有出链
@@ -187,15 +163,6 @@ describe("getEntityContext", () => {
 
     const ctx = getEntityContext(mainDb, indexDb, { kind: "card", id: cardId })!;
     expect(ctx.backlinks.map(b => b.source.ref)).toEqual([{ kind: "article", id: legacyArticle }]);
-  });
-
-  it("问题答案被投影成卡片时，按答案正文也能找到问题", () => {
-    const answerContent = insertContent([p(text("答案"))]);
-    const cardId = insertCard(answerContent);
-    const q = insertQuestion("某个问题");
-    linkQuestion(q, "answer", answerContent);
-    const ctx = getEntityContext(mainDb, indexDb, { kind: "card", id: cardId })!;
-    expect(ctx.questions.map(item => item.id)).toEqual([q]);
   });
 
   it("碎碎念只拥有自己的正文与反向引用，同一天其他条目独立", async () => {

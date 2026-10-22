@@ -27,7 +27,6 @@ const context: EntityContext = {
   projections: [],
   backlinks: [{ source: entity("plugin-entity", 8, "周记", "周记"), snippets: [] }],
   backlinkTotal: 1,
-  questions: [],
   pluginLinks: [entity("plugin-entity", 7, "渲染为什么卡", "问题")],
   sources: [],
   derived: [],
