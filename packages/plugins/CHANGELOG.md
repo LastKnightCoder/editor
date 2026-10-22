@@ -1,6 +1,6 @@
 # 更新记录
 
-## 未发布
+## 0.34.0
 
 - 新增统一的正文输入 `PluginContentInput`，三选一：`{ markdown }`、`{ nodes }`（编辑器节点，格式完整保留）、`{ copyOf: contentRef }`（Tau 内部整份复制已有正文，只需要目标的写入权限）。
 - `cards.create`、`articles.create` 的正文字段由 `markdown` 改为 `content`；`entities.create` 新增可选的 `content` 作为初始正文。
