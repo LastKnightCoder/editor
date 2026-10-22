@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { produce } from "immer";
 import { copyJson } from "@tau/plugins/host";
 import type { JsonValue } from "@tau/plugins";
-import { Github, Layers, ShieldAlert } from "lucide-react";
+import { ExternalLink, Github, Layers, ShieldAlert } from "lucide-react";
 import { Button, FadeScroll, Switch, Tabs } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import { useDesktopPluginError, useDesktopPlugins } from "@/app/plugins/context";
@@ -23,6 +23,7 @@ import {
   installState,
   installedPlugins,
   pendingCount,
+  pluginPortalUrl,
   versionRows,
   type InstalledPlugin,
   type VersionRowModel,
@@ -167,23 +168,33 @@ export function PluginDetailView() {
       <div className="mb-4 empty:hidden">
         <RestartBar count={pendingCount(runtime)} />
       </div>
-      <div className="grid grid-cols-[minmax(0,1fr)_280px] gap-10">
-        <div className="min-w-0">
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_280px] grid-rows-[minmax(0,1fr)] gap-10">
+        <div className="flex min-h-0 min-w-0 flex-col">
           <Header runtime={runtime} id={params.pluginId} plugin={installed} entry={entry} />
           <Tabs<DetailTab>
-            className="mt-5"
+            className="mt-5 min-h-0 flex-1"
+            panelClassName="flex min-h-0 flex-1 flex-col"
             activeKey={tab}
             onChange={key => setTab(key)}
-            items={tabs}
+            items={tabs.map(item => ({
+              ...item,
+              children: (
+                <FadeScroll key={item.key} className="-mx-1 min-h-0 flex-1 px-1">
+                  {item.children}
+                </FadeScroll>
+              ),
+            }))}
           />
         </div>
-        <Aside
-          runtime={runtime}
-          id={params.pluginId}
-          plugin={installed}
-          entry={entry}
-          release={release.data}
-        />
+        <FadeScroll className="min-h-0">
+          <Aside
+            runtime={runtime}
+            id={params.pluginId}
+            plugin={installed}
+            entry={entry}
+            release={release.data}
+          />
+        </FadeScroll>
       </div>
     </Paper>
   );
@@ -193,7 +204,7 @@ function Paper({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
-        <FadeScroll className="mb-4 min-h-0 flex-1 pb-2 pl-9 pr-[30px] pt-6">{children}</FadeScroll>
+        <div className="flex min-h-0 flex-1 flex-col pb-6 pl-9 pr-[30px] pt-6">{children}</div>
       </div>
     </div>
   );
@@ -512,6 +523,20 @@ function Aside({
     info.push(["需要客户端", `≥ ${(entry.compatible ?? entry.latest).minAppVersion}`]);
     info.push(["大小", formatSize((entry.compatible ?? entry.latest).size)]);
     info.push(["发布于", new Date(entry.latest.publishedAt).toLocaleDateString()]);
+  }
+  if (entry) {
+    const portalUrl = pluginPortalUrl(id);
+    info.push([
+      "详情页",
+      <button
+        type="button"
+        className="text-accent-text inline-flex max-w-full items-center gap-1"
+        onClick={() => void openExternal(portalUrl)}
+      >
+        <ExternalLink className="size-3.5 flex-none" strokeWidth={1.75} />
+        <span className="truncate">{portalUrl.replace(/^https:\/\//, "")}</span>
+      </button>,
+    ]);
   }
   if (release?.repository)
     info.push([

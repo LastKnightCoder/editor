@@ -15,6 +15,8 @@ export interface TabsProps<K extends string = string> {
   /** 标签居中（默认左对齐） */
   centered?: boolean;
   className?: string;
+  /** 面板容器类名：标签栏固定、面板独立滚动时由调用方给出高度约束 */
+  panelClassName?: string;
 }
 
 /** 下划线式标签页（与 desktop 设置页同一视觉语言）；方向键在标签间移动 */
@@ -25,6 +27,7 @@ export function Tabs<K extends string = string>({
   onChange,
   centered = false,
   className,
+  panelClassName,
 }: TabsProps<K>) {
   const [innerKey, setInnerKey] = useState<K | undefined>(defaultActiveKey ?? items[0]?.key);
   const activeKey = activeKeyProp ?? innerKey;
@@ -90,7 +93,7 @@ export function Tabs<K extends string = string>({
           role="tabpanel"
           id={`${baseId}-panel-${active.key}`}
           aria-labelledby={`${baseId}-tab-${active.key}`}
-          className="pt-3"
+          className={cn("pt-3", panelClassName)}
         >
           {active.children}
         </div>
