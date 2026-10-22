@@ -286,8 +286,8 @@ describe("migrateQuestionsToPlugin", () => {
     ]);
     expect(all(`SELECT content_type FROM publish_selections`)).toEqual([{ content_type: "card" }]);
 
-    // 材料保活释放；答案的引用转给实体
-    expect(refCount(cardContent)).toBe(1);
+    // 材料的引用计数不动；答案的引用转给实体
+    expect(refCount(cardContent)).toBe(2);
     expect(refCount(answerContent)).toBe(2);
     expect(
       get<{ n: number }>(`SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'questions'`).n
@@ -335,6 +335,26 @@ describe("migrateQuestionsToPlugin", () => {
       "walk",
       "retro",
     ]);
+  });
+
+  it("关联没加过保活引用的材料不被删除，协作中的正文也能迁", () => {
+    seed();
+    // 旧关联只在部分路径上加引用：这篇文章只有自己那一份，且正在协作
+    const shared = content(["正在协作的文章"], 1);
+    run(
+      `INSERT INTO articles (id, create_time, update_time, title, author, tags, links, content_id) VALUES (81, 6, 6, '协作', '', '[]', '[]', ?)`,
+      shared
+    );
+    run(
+      `INSERT INTO collaboration_bindings (content_id, content_created_at, server_url, document_id) VALUES (?, 11, 'wss://x', 'd')`,
+      shared
+    );
+    run(
+      `INSERT INTO question_link (question_id, target_type, target_id, content_id, sort_index, create_time) VALUES (10, 'article', 81, ?, 4096, 9)`,
+      shared
+    );
+    expect(migrateQuestionsToPlugin(db)).toMatchObject({ questions: 2 });
+    expect(refCount(shared)).toBe(1);
   });
 
   it("中途失败整体回滚，旧表原样保留", () => {

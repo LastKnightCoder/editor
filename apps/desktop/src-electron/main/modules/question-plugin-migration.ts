@@ -7,8 +7,9 @@
  * - 动手前在库旁生成 `<数据库路径>.pre-question-plugin-migration-v1-<UUID>.bak` 快照（含已提交的 WAL），
  *   备份失败不迁移。
  * - 实体 key、记录与关联 ID 由旧 ID 推出（legacy-…），旧表因同步回到库里时再次执行不会重复。
- * - 独立答案本来就是 contents 行：直接作为答案实体的正文，问题关联持有的那份引用计数转给实体；
- *   其余材料的保活引用释放，已删除、只靠问题撑着的材料随之回收。
+ * - 独立答案本来就是 contents 行：直接作为答案实体的正文，问题关联持有的那份引用计数转给实体。
+ * - 材料的引用计数不动：旧关联只在部分写入路径上加过保活引用，按关联逐条释放会把仍在用的正文
+ *   减到 0 并删除；代价是只靠问题撑着的已删除材料留在库里。
  * - 宿主侧引用：谱系的 question 端点改为插件实体，首页布局的 questions 改为插件面板，
  *   发布站的 quest 选择删除。
  * 全部设备迁移后随清洁版删除（旧表名进 legacy-tables.json）。
@@ -381,13 +382,9 @@ export function migrateQuestionsToPlugin(
 
     /* 材料与独立答案 */
     const answerIds = new Map<number, number>();
-    const releases: number[] = [];
     for (const link of links) {
       const from = questionIds.get(link.question_id);
-      if (from === undefined) {
-        if (link.content_id != null) releases.push(link.content_id);
-        continue;
-      }
+      if (from === undefined) continue;
       if (link.target_type !== "answer") {
         const mapped = materialRef(link.target_type, link.target_id);
         if (mapped)
@@ -400,7 +397,6 @@ export function migrateQuestionsToPlugin(
             {},
             link.create_time
           );
-        if (link.content_id != null) releases.push(link.content_id);
         continue;
       }
       const contentId = link.target_id;
@@ -448,11 +444,6 @@ export function migrateQuestionsToPlugin(
           content.update_time
         );
         result.answers++;
-      } else if (link.content_id != null && answerId === undefined) {
-        releases.push(link.content_id);
-      } else if (existing && link.content_id != null) {
-        // 已迁过（旧表随同步回来）：这份引用不再需要
-        releases.push(link.content_id);
       }
       if (answerId === undefined) continue;
       answerIds.set(contentId, answerId);
@@ -552,8 +543,6 @@ export function migrateQuestionsToPlugin(
     if (hasTable(db, "publish_selections"))
       db.prepare(`DELETE FROM publish_selections WHERE content_type = 'quest'`).run();
 
-    /* 释放材料保活，删旧表 */
-    for (const contentId of releases) ContentTable.deleteContent(db, contentId);
     for (const table of LEGACY_QUESTION_TABLES) db.exec(`DROP TABLE IF EXISTS ${table}`);
     return result;
   })();
