@@ -59,7 +59,7 @@
 
 | 文档                                                     | 说明                                               |
 | -------------------------------------------------------- | -------------------------------------------------- |
-| [whiteboard/](/docs/architecture/whiteboard/)            | 白板（应用级业务扩展）技术文档与交互内核回归清单   |
+| [whiteboard/](/packages/whiteboard/docs/architecture.md) | 白板（应用级业务扩展）技术文档与交互内核回归清单   |
 | [database/](/packages/database/docs/architecture.md)     | 数据库（应用级业务扩展）Schema、建库流程与开发手册 |
 | [实时内容协作](../collaboration.md)                      | 协作功能与架构报告                                 |
 | [协作服务部署](/docs/guides/ops-collaboration-deploy.md) | 协作服务部署记录                                   |
