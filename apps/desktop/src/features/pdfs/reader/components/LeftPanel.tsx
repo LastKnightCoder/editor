@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { Bookmark, CircleHelp, Layers, MessageSquareText, X } from "lucide-react";
+import { Bookmark, Layers, MessageSquareText, X } from "lucide-react";
 import { ThumbImg, ThumbnailsPane, type ThumbMeta } from "@embedpdf/plugin-thumbnail/react";
 import { FADE_SCROLL_CLASS, FilterPill, IconButton, Segmented, cn, useEdgeFade } from "@tau/ui";
 import type { PdfAnnotation, PdfBookmark } from "@/types";
@@ -42,7 +42,6 @@ interface LeftPanelProps {
   /** 标注转为卡片（复制原文与批注，记谱系）；不传则不显示 */
   onAnnotationToCard?: (record: PdfAnnotation) => void;
   /** 标注转为问题（标注成为问题的第一条材料）；不传则不显示 */
-  onAnnotationToQuestion?: (record: PdfAnnotation) => void;
   onRemoveBookmark: (bookmark: PdfBookmark) => void;
 }
 
@@ -200,7 +199,6 @@ function AnnotationList({
   activeRecordId,
   onJumpAnnotation,
   onAnnotationToCard,
-  onAnnotationToQuestion,
 }: LeftPanelProps) {
   const [filter, setFilter] = useState<AnnotationFilter>("all");
   const sorted = useMemo(() => sortAnnotations(records), [records]);
@@ -253,7 +251,6 @@ function AnnotationList({
               // 区域截图没有原文，有批注才能转
               const hasText = record.type !== "area" || Boolean(note);
               const canToCard = onAnnotationToCard && hasText;
-              const canToQuestion = onAnnotationToQuestion && hasText;
               return (
                 <div key={record.id} className="group relative">
                   <button
@@ -289,15 +286,6 @@ function AnnotationList({
                     </span>
                   </button>
                   <div className="absolute bottom-1.5 right-1.5 flex gap-1 opacity-0 transition-opacity duration-150 focus-within:opacity-100 group-hover:opacity-100 has-[[aria-expanded=true]]:opacity-100">
-                    {canToQuestion && (
-                      <IconButton
-                        title="转为问题"
-                        onClick={() => onAnnotationToQuestion(record)}
-                        className="bg-surface shadow-lift size-[24px] rounded-[7px]"
-                      >
-                        <CircleHelp className="size-[12px]" strokeWidth={1.75} />
-                      </IconButton>
-                    )}
                     {canToCard && (
                       <IconButton
                         title="转为卡片"

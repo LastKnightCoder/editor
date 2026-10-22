@@ -78,7 +78,6 @@ import { createAssistantMessage } from "@/services/assistantMessageBlocks";
 import { createChatMessageClientId } from "@/services/chatMessageSchema";
 import { latestContextUsage } from "@/services/chatContextUsage";
 import { canRetryChatMessage } from "@/services/chatRetry";
-import { requestQuestionCapture } from "@/services/question-capture";
 import {
   buildTitleSummaryMessages,
   formatGeneratedChatTitle,
@@ -1308,24 +1307,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       });
     }, [runtimeTick, sendLoading, sendMessageContent, sessionKey, updateCounter]);
 
-    // 用户消息转为问题：只在主对话（其余场景的对话不能经对话页打开）；问题记下这条消息的 entry id
-    const handleToQuestion = useMemoizedFn((messageIndex: number) => {
-      const chat = actualChatRef.current;
-      const target = visibleMessagesOf(chat)[messageIndex];
-      const entryIds = target?.piEntryIds ?? [];
-      if (!target || target.role !== Role.User) return;
-      if (entryIds.length === 0) {
-        message.warning("这条消息还没有保存下来，暂时不能转为问题");
-        return;
-      }
-      const text = getRequestMessageText(target as RequestMessage).trim();
-      requestQuestionCapture({
-        source: { kind: "chat", sessionId: chat.id, messageIds: entryIds },
-        sourceLabel: `对话：${chat.title || "未命名对话"}`,
-        defaultTitle: text.replace(/\s+/g, " ").slice(0, 200),
-      });
-    });
-
     // 删除消息：pi 原生 context_edit 省略（只删那一条；一条回答要把它全部 entry 一起省略）
     const handleDeleteMessage = useMemoizedFn(async (messageIndex: number) => {
       if (sendLoading) {
@@ -1828,9 +1809,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                         : undefined
                     }
                     onCreateBranch={handleCreateBranch}
-                    {...(chatScope === "main-chat" && item.role === Role.User
-                      ? { onToQuestion: handleToQuestion }
-                      : {})}
                     {...(PLUGIN_CHAT_SCOPES.has(chatScope)
                       ? { pluginSessionId: actualChatRef.current.id }
                       : {})}

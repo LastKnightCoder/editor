@@ -78,7 +78,6 @@ import {
 } from "./readerContext";
 import { useReaderPrefs } from "./readerPrefs";
 import { convertMaterialToCard } from "@/services/material-to-card";
-import { requestMaterialQuestionCapture } from "@/services/question-capture";
 import { useAnnotationSync } from "./useAnnotationSync";
 import { useMarginFit } from "./useMarginFit";
 import type { ReadingPosition } from "./readingPosition";
@@ -913,11 +912,6 @@ export function ReaderLayout({
           onJumpAnnotation={jumpToRecord}
           onAnnotationToCard={record =>
             void convertMaterialToCard({ kind: "pdf-annotation", id: record.id })
-          }
-          onAnnotationToQuestion={record =>
-            void requestMaterialQuestionCapture({ kind: "pdf-annotation", id: record.id }).catch(
-              () => toast.error("这条标注已不存在")
-            )
           }
           onRemoveBookmark={bookmark => void bookmarkStore.remove(bookmark)}
         />

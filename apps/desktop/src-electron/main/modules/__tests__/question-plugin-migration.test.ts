@@ -249,6 +249,26 @@ describe("migrateQuestionsToPlugin", () => {
     expect(get<{ n: number }>(`SELECT COUNT(*) AS n FROM plugin_entities`).n).toBe(3);
   });
 
+  it("没调整过首页时按原默认顺序写下布局，插件面板留在原位置", () => {
+    seed();
+    run(`DELETE FROM home_panel_layout`);
+    migrateQuestionsToPlugin(db);
+    expect(
+      all<{ panel_id: string }>(`SELECT panel_id FROM home_panel_layout ORDER BY sort`).map(
+        row => row.panel_id
+      )
+    ).toEqual([
+      "review",
+      "todos",
+      "schedule",
+      "insights",
+      "recent-edits",
+      QUESTIONS_HOME_PANEL,
+      "walk",
+      "retro",
+    ]);
+  });
+
   it("中途失败整体回滚，旧表原样保留", () => {
     seed();
     run(`DROP TABLE plugin_links`);

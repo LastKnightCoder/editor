@@ -11,8 +11,6 @@ import {
   CollaborationNavSessions,
 } from "@/features/collaboration/components/CollaborationNav";
 import { ReviewDueBadge } from "@/features/flashcards/components/ReviewDueBadge";
-import { QuestionsNavBadge } from "@/features/questions/components/QuestionsNavBadge";
-import { QuestionsNavGroups } from "@/features/questions/components/QuestionsNav";
 import { TodosNavGroups } from "@/features/todos/components/TodosNav";
 import { useTodoSnapshot } from "@/features/todos/queries";
 import { CardsNavTags } from "@/features/cards/components/CardsNav";
@@ -21,7 +19,6 @@ import { ArticlesNavTags } from "@/features/articles/components/ArticlesNav";
 import { useArticleTagCounts } from "@/features/articles/queries";
 import { McpNavBadge } from "@/features/mcp/components/McpNavBadge";
 import { PluginPermissionNavBadge } from "@/features/plugins/permissions/PluginPermissionNavBadge";
-import { useQuestionsSnapshot } from "@/features/questions/queries";
 import { DiaryNavTags } from "@/features/diary/components/DiaryNav";
 import { useDiaryNavHasContent } from "@/features/diary/queries";
 import { WhiteboardNavTags } from "@/features/whiteboards/components/WhiteboardNav";
@@ -35,7 +32,6 @@ export const NAV_BADGE_SLOTS: Record<NavItemBadge, ComponentType<{ collapsed: bo
   "pomodoro-live": PomodoroNavBadge,
   "collab-requests": CollaborationNavBadge,
   "review-due": ReviewDueBadge,
-  "questions-active": QuestionsNavBadge,
   "mcp-errors": McpNavBadge,
   "plugin-permission-requests": PluginPermissionNavBadge,
 };
@@ -91,12 +87,6 @@ export const NAV_CHILDREN_SLOTS: Record<NavItemChildren, NavChildrenSlot> = {
     selected: params => Boolean(params.id),
     parentResets: true,
   },
-  // 问题：分组是收窄视图，参数 id 为空 = 全部
-  "question-groups": {
-    Component: QuestionsNavGroups,
-    selected: params => Boolean(params.id),
-    parentResets: true,
-  },
   // AI 对话：id 为空 = 新对话空态；已在对话页再点父项回到新对话
   "chat-sessions": {
     Component: ChatNavSessions,
@@ -111,8 +101,6 @@ export function useNavChildrenContent(): Record<NavItemChildren, boolean> {
   const hasDiary = useDiaryNavHasContent();
   const hasWhiteboardTags = useWhiteboardNavHasContent();
   const hasChats = useChatNavHasContent();
-  // 恒有默认分组；快照到位即展开（含「新建分组」入口）
-  const hasQuestionGroups = Boolean(useQuestionsSnapshot().snapshot);
   const hasTodoGroups = Boolean(useTodoSnapshot().snapshot);
   const hasCardTags = useCardTagTree().length > 0;
   const hasArticleTags = useArticleTagCounts().tags.length > 0;
@@ -123,7 +111,6 @@ export function useNavChildrenContent(): Record<NavItemChildren, boolean> {
     "article-tags": hasArticleTags,
     "diary-tags": hasDiary,
     "whiteboard-tags": hasWhiteboardTags,
-    "question-groups": hasQuestionGroups,
     "chat-sessions": hasChats,
   };
 }

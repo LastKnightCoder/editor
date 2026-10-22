@@ -22,7 +22,6 @@ import {
   Calendar,
   ListTodo,
   Timer,
-  CircleHelp,
   FolderKanban,
   Table,
   Send,
@@ -41,12 +40,7 @@ import type { PluginSidebarSnapshot } from "./plugins/runtime";
 
 /** 徽标槽 key（渲染组件注册于 navSlots.tsx） */
 export type NavItemBadge =
-  | "review-due"
-  | "pomodoro-live"
-  | "collab-requests"
-  | "questions-active"
-  | "mcp-errors"
-  | "plugin-permission-requests";
+  "review-due" | "pomodoro-live" | "collab-requests" | "mcp-errors" | "plugin-permission-requests";
 /** 子项槽 key：所属页在栈顶时于条目下方展开的列表（渲染组件注册于 navSlots.tsx） */
 export type NavItemChildren =
   | "collaboration-sessions"
@@ -55,7 +49,6 @@ export type NavItemChildren =
   | "article-tags"
   | "diary-tags"
   | "whiteboard-tags"
-  | "question-groups"
   | "chat-sessions";
 
 export interface NavItem<Icon = PluginSidebarIcon> {
@@ -67,7 +60,7 @@ export interface NavItem<Icon = PluginSidebarIcon> {
    *  plugin-permission-requests = 等待用户处理授权的插件数） */
   badge?: NavItemBadge;
   /** 该页在栈顶时于条目下方展开的子项（collaboration-sessions = 共享内容列表，协作页 A3；
-   *  todo-groups = 待办项目；card-tags = 卡片标签树（限高滚动）；article-tags = 文章标签（限高滚动）；diary-tags = 日记标签频道，D-044；whiteboard-tags = 白板标签，D-047；question-groups = 问题分组；chat-sessions = 置顶与最近 AI 会话） */
+   *  todo-groups = 待办项目；card-tags = 卡片标签树（限高滚动）；article-tags = 文章标签（限高滚动）；diary-tags = 日记标签频道，D-044；whiteboard-tags = 白板标签，D-047；chat-sessions = 置顶与最近 AI 会话） */
   children?: NavItemChildren;
   /** 不导航页面、打开壳层浮层的入口（当前仅设置弹窗，D-028） */
   opensOverlay?: "settings";
@@ -113,13 +106,6 @@ export const NAV_SECTIONS: NavSection<LucideIcon>[] = [
     id: SIDEBAR_GROUPS.learning,
     label: "学习",
     items: [
-      {
-        key: "questions",
-        label: "问题管理",
-        icon: CircleHelp,
-        badge: "questions-active",
-        children: "question-groups",
-      }, // 问题分组嵌在侧栏入口下（D-089）
       { key: "vibe-learning", label: "Notebook", icon: FlaskConical }, // features/vibe-learning（对外名 Notebook——仿 NotebookLM；2026-09-28 自项目 vibe-learning 型拆出，标识符跟数据库走不改名）
       { key: "pdfs", label: "PDF", icon: BookMarked }, // features/pdfs（文档墙 + 列表排布，D-069）
       { key: "walk", label: "漫步", icon: Footprints }, // features/walk（随机抽旧内容重温，顺岔路走到相邻内容）
