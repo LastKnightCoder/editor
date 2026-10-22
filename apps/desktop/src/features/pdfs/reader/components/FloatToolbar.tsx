@@ -5,6 +5,7 @@
  * - area-new：存为区域标注 + 问 AI + 复制图片
  * - area：5 色 + 笔记 + 问 AI + 复制图片 + 删除
  * 按下不冒泡且不抢焦点：点工具条不能清掉页面上的选区。
+ * extra 放在删除之前（插件动作的「⋯」），按钮样式用 TOOLBAR_ICON_BUTTON。
  */
 
 import type { ReactNode } from "react";
@@ -42,6 +43,8 @@ interface FloatToolbarProps {
   onCopy?: () => void;
   onDelete?: () => void;
   onSaveArea?: () => void;
+  /** 删除之前的额外按钮 */
+  extra?: ReactNode;
   className?: string;
 }
 
@@ -57,6 +60,10 @@ const ICON = { size: 15, strokeWidth: 1.75 } as const;
 function Divider() {
   return <span aria-hidden className="bg-line-1 mx-1 h-4 w-px shrink-0" />;
 }
+
+/** 工具条里只有图标的按钮（供 extra 使用，与内置按钮同一外观） */
+export const TOOLBAR_ICON_BUTTON =
+  "rounded-tau-sm ease-tau-out text-ink-2 hover:bg-hover hover:text-ink-1 flex h-7 w-7 shrink-0 items-center justify-center transition-[background,color] duration-[160ms]";
 
 function ToolButton({
   label,
@@ -112,6 +119,7 @@ export function FloatToolbar({
   onCopy,
   onDelete,
   onSaveArea,
+  extra,
   className,
 }: FloatToolbarProps) {
   const showColors = mode !== "area-new";
@@ -193,6 +201,7 @@ export function FloatToolbar({
       ) : (
         <ToolButton label="复制原文" icon={<Copy {...ICON} />} onClick={onCopy} />
       )}
+      {extra}
       {(mode === "annotation" || mode === "area") && (
         <>
           <Divider />

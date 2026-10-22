@@ -19,6 +19,7 @@ import { measurePerformance } from "./hooks/usePerformanceMonitor";
 import MessageItem from "./MessageItem";
 
 import { ChatMessage, ChatSessionMessage, RequestMessage, ResponseMessage } from "@/types";
+import type { ChatSessionScope } from "@/types/chat-session";
 import type { PiPromptDisplay } from "@/types/pi-session";
 import {
   clampThinkingLevel,
@@ -123,6 +124,14 @@ const sessionSystemPromptOf = (chatId: string, base: string): string => {
   SESSION_SYSTEM_PROMPTS.set(chatId, { base, prompt });
   return prompt;
 };
+
+/** 插件能看到的对话场景（与主进程 plugin-data-readonly 的 CHAT_SCENES 一致），消息上列插件对象动作 */
+const PLUGIN_CHAT_SCOPES: ReadonlySet<string> = new Set<ChatSessionScope>([
+  "main-chat",
+  "pdf-chat",
+  "video-note-chat",
+  "vibe-learning-chat",
+]);
 
 /** 界面上的消息序列（投影不含 system；旧快照可能还带着，一并滤掉） */
 const visibleMessagesOf = (chat: ChatMessage) =>
@@ -1821,6 +1830,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                     onCreateBranch={handleCreateBranch}
                     {...(chatScope === "main-chat" && item.role === Role.User
                       ? { onToQuestion: handleToQuestion }
+                      : {})}
+                    {...(PLUGIN_CHAT_SCOPES.has(chatScope)
+                      ? { pluginSessionId: actualChatRef.current.id }
                       : {})}
                     {...(!sendLoading ? { onSwitchVersion: handleSwitchVersion } : {})}
                     messageMeta={{

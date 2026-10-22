@@ -70,7 +70,7 @@ context.fetch 的类型直接是 typeof globalThis.fetch，使用 RequestInit、
 
 契约：`externalId` 在插件内唯一且稳定，它不变则 Tau 中的引用一直有效；摘录归用户，插件停用、卸载后照常可搜索、引用、展示（名称 `label` 持久化），只能软删除。`anchor` 是插件私有定位，宿主只存储、按键名规范化后比较；展示只用 `label`、来源 `title` 与条目 `location`。打开原处时先交给已启用提供方的 `open`，否则打开条目或来源的 `url`（仅 http(s)）。内容不变的重复同步返回 `updated: 0`。外链在桌面经 `window.open` 交给系统浏览器。
 
-`context.materials.actions(ref)` 返回客户端对一条材料可执行的动作（目前为转为卡片、转为问题），`ref` 来自 `items()`，对插件不透明。动作自带结果提示，客户端新增动作时插件自动获得。
+`context.materials.actions(ref)` 返回客户端对一条材料可执行的动作（目前为转为卡片；不含其他插件注册的对象动作），`ref` 来自 `items()`，对插件不透明。动作自带结果提示，客户端新增动作时插件自动获得。
 
 ## 数据和并发
 

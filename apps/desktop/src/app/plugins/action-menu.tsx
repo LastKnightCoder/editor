@@ -1,9 +1,10 @@
 /**
- * 插件对象动作在宿主菜单里的条目（PS-046 2.9a）：卡片、文章、项目文档的「⋯」菜单把
- * 插件动作排在内置项之后、删除之前。只在主窗口有插件运行时；独立编辑窗口没有，自然不列。
+ * 插件对象动作在宿主界面里的入口（PS-046 2.9）：已有「⋯」菜单的对象（卡片、文章、项目文档、
+ * 剪藏）把插件动作排在内置项之后、删除之前；只有图标按钮的地方（PDF 标注、对话消息）
+ * 用 PluginActionsMenu 加一个「⋯」。只在主窗口有插件运行时；独立编辑窗口没有，自然不列。
  */
 
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { Plug } from "lucide-react";
 import { Menu } from "@tau/ui";
 import type { PluginActionTarget } from "@tau/plugins";
@@ -50,5 +51,26 @@ export function PluginActionMenuItems({ target }: { target: PluginActionTarget |
         </Menu.Item>
       ))}
     </>
+  );
+}
+
+/** 只有插件动作的「⋯」菜单；没有可用的动作时什么也不渲染。trigger 由调用方按所在工具条的样式给出 */
+export function PluginActionsMenu({
+  target,
+  trigger,
+}: {
+  target: PluginActionTarget | null;
+  trigger: ReactElement;
+}) {
+  const { actions, run } = usePluginActions(target);
+  if (!actions.length) return null;
+  return (
+    <Menu align="end" trigger={trigger}>
+      {actions.map(action => (
+        <Menu.Item key={action.id} icon={pluginActionIcon(action)} onSelect={() => run(action)}>
+          {action.definition.title}
+        </Menu.Item>
+      ))}
+    </Menu>
   );
 }

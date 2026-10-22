@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import type { MenuEntryList } from "../../shared/menuEntries";
 import {
   BookOpen,
@@ -215,9 +214,6 @@ export const getProjectItemMoreMenuItems = (
   return [];
 };
 
-/** 插件对象动作在「⋯」菜单里的 key 前缀，其后为动作的 ID */
-export const PLUGIN_ACTION_KEY_PREFIX = "plugin-action:";
-
 /** 项目文档对应的插件动作目标：引用型条目指向它引用的卡片 / 文章，其余类型没有插件动作 */
 export function projectItemActionTarget(
   projectItem?: Pick<ProjectItem, "id" | "projectItemType" | "refType" | "refId"> | null
@@ -227,24 +223,4 @@ export function projectItemActionTarget(
   if (projectItem.refType === "card" || projectItem.refType === "article")
     return { kind: projectItem.refType, id: String(projectItem.refId) };
   return null;
-}
-
-/** 插件动作排在内置项之后、删除之前，自带一条分隔线 */
-export function insertPluginActionEntries(
-  entries: MenuEntryList,
-  actions: readonly { id: string; label: string; icon?: ReactNode }[]
-): MenuEntryList {
-  if (!actions.length) return entries;
-  const plugin: MenuEntryList = [
-    { key: `${PLUGIN_ACTION_KEY_PREFIX}divider`, label: "", divider: true },
-    ...actions.map(action => ({
-      key: `${PLUGIN_ACTION_KEY_PREFIX}${action.id}`,
-      label: action.label,
-      icon: action.icon,
-    })),
-  ];
-  const index = entries.findIndex(entry => entry.key === "remove-divider");
-  return index < 0
-    ? [...entries, ...plugin]
-    : [...entries.slice(0, index), ...plugin, ...entries.slice(index)];
 }

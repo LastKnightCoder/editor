@@ -37,6 +37,8 @@
 - `sidebar.registerItem` 改为返回句柄，新增 `update({ badge, children, action })`：条目右侧的角标、条目下方的子项（色点、计数、右键菜单、接收拖放）与子项末尾的一行动作（如「新建分组」）。子项在条目的页面显示时展开，点击以子项的 `params` 打开页面。新增 `sidebar.dragType(type)` 生成本插件的拖拽类型，子项只接收本插件拖出的数据。新增导出类型 `PluginSidebarItemHandle`、`PluginSidebarChild`、`PluginSidebarItemUpdate` 等。
 - 新增 `context.home.registerPanel({ id, title, component, size })`：在首页放一块面板，Tau 画外框与标题，组件只渲染正文（返回 `null` 时整块不显示）。`size` 为 `wide`（默认，占整行）或 `compact`（宽度足够时并排）。新面板排在末尾，用户可在首页的编辑模式里拖动调整位置或隐藏；插件停用后消失，重新启用回到原位置。新增导出类型 `PluginHomePanelDefinition`、`PluginHomePanelProps`。
 - 新增 `context.actions.register({ id, title, icon, targets, run })`：在卡片、文章、项目文档的「⋯」菜单里加一项，排在 Tau 自己的菜单项之后、删除之前；用户点击时 `run` 收到对象的引用，这个对象之后与 `pick` 选中的一样不需要读取权限就能显示与关联。只在主窗口出现。新增导出 `PLUGIN_ACTION_TARGET_KINDS` 与类型 `PluginActionDefinition`、`PluginActionTarget`。
+- 对象动作新增目标 `material`（PDF 标注的工具条与标注列表、网页剪藏的「⋯」菜单）与 `chat-message`（对话消息动作行末尾的「⋯」，收到所在会话、消息记录 ID、角色与正文，会话登记为选择过的引用）。`run` 的参数随 `targets` 收窄。新增导出类型 `PluginActionTargetOf`、`PluginActionEntityTarget`、`PluginChatMessageTarget`。
+- `context.materials.actions` 不再包含「转为问题」，只有 Tau 自己的动作，也不包含其他插件注册的对象动作。
 
 - 编辑器扩展只接受文档列出的字段，带其他字段（例如 `marks`、`decorations`）的扩展会在加载或注册时报错，不再被悄悄使用。
 

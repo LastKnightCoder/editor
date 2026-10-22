@@ -99,7 +99,7 @@ const entries = await context.excerpts.items("book-42");
 
 ## 材料动作
 
-摘录等内容在 Tau 中统称**材料**。`context.materials.actions(ref)` 返回 Tau 当前能对这条材料执行的操作，例如「转为卡片」「转为问题」，适合放在插件自己的列表或详情页里：
+摘录等内容在 Tau 中统称**材料**。`context.materials.actions(ref)` 返回 Tau 当前能对这条材料执行的操作，例如「转为卡片」，适合放在插件自己的列表或详情页里。这里只有 Tau 自己的操作，不包括其他插件注册的对象动作：
 
 ```tsx
 import { useEffect, useState } from "react";

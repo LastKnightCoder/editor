@@ -58,6 +58,8 @@ export interface MessageViewProps {
   onCreateBranch?: (messageIndex: number) => void;
   /** 用户消息「转为问题」（提问即疑问）；不传则不显示 */
   onToQuestion?: (messageIndex: number) => void;
+  /** 动作行里删除之前的额外操作（如宿主的「⋯」菜单）；收到这条消息的纯文本 */
+  renderExtraActions?: (text: string) => ReactNode;
   onEditUserMessage?: (messageIndex: number, content: string) => void;
   /** 会话树上这条用户消息的版本（编辑重发/重新生成/建分支产生）；有多个时显示 ‹ i/n › */
   versions?: { index: number; count: number };
@@ -99,6 +101,7 @@ export const MessageView = memo(function MessageView({
   regenerateLabel = "重新生成",
   onCreateBranch,
   onToQuestion,
+  renderExtraActions,
   onEditUserMessage,
   versions,
   onSwitchVersion,
@@ -189,7 +192,7 @@ export const MessageView = memo(function MessageView({
     <div
       className={cn(
         "ease-tau-out flex h-[26px] gap-0.5 opacity-0 transition-opacity duration-[160ms]",
-        "focus-within:opacity-100 group-hover/msg:opacity-100",
+        "focus-within:opacity-100 group-hover/msg:opacity-100 has-[[aria-expanded=true]]:opacity-100",
         isUser ? "justify-end" : "-ml-1.5"
       )}
     >
@@ -216,6 +219,7 @@ export const MessageView = memo(function MessageView({
           <GitBranch />
         </Action>
       )}
+      {renderExtraActions?.(copyText)}
       {onDelete && (
         <Action label="删除" onClick={() => onDelete(messageIndex)}>
           <Trash2 />

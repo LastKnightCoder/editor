@@ -23,7 +23,7 @@ import type {
   PluginRecord,
   PluginSidebarChild,
   PluginHomePanelProps,
-  PluginActionTarget,
+  PluginActionTargetOf,
   PluginSidebarItemHandle,
 } from "@tau/plugins";
 
@@ -81,12 +81,26 @@ export function checkActionsContract(context: PluginContext) {
     id: "to-question",
     title: "转为问题",
     targets: ["card", "article", "document"],
-    run: async (target: PluginActionTarget) => {
+    run: async target => {
       const [info] = await context.app.describe([target]);
       void info;
     },
   });
   void action.dispose();
+  const fromMessage = (target: PluginActionTargetOf<"chat-message" | "material">) => {
+    if (target.kind === "chat-message") {
+      const text: string = target.text;
+      void context.app.describe([target.session]).then(() => text);
+    } else {
+      void context.app.describe([target]);
+    }
+  };
+  context.actions.register({
+    id: "from-message",
+    title: "记下",
+    targets: ["chat-message", "material"],
+    run: fromMessage,
+  });
 }
 
 export function checkNotificationsContract(context: PluginContext) {

@@ -6,7 +6,7 @@ import { createMemoryStorage } from "@tau/plugins/host";
 import { Menu } from "@tau/ui";
 import { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import { PluginRuntimeContext } from "@/app/plugins/context";
-import { PluginActionMenuItems } from "@/app/plugins/action-menu";
+import { PluginActionMenuItems, PluginActionsMenu } from "@/app/plugins/action-menu";
 
 const notify = vi.hoisted(() => vi.fn());
 vi.mock("@/features/notifications/notify", () => ({ appNotify: notify }));
@@ -120,5 +120,36 @@ describe("插件对象动作", () => {
     );
     await act(async () => runtime.host.disable("author.q"));
     expect(items()).toEqual(["内置", "删除"]);
+  });
+
+  it("只有插件动作的「⋯」：没有动作时不渲染；对话消息登记所在会话", async () => {
+    const target = {
+      kind: "chat-message" as const,
+      session: { kind: "chat-session" as const, id: "s1" },
+      messageIds: ["e1"],
+      role: "user" as const,
+      text: "为什么会重排",
+    };
+    const renderMenu = () =>
+      act(async () =>
+        root.render(
+          <PluginRuntimeContext.Provider value={runtime}>
+            <PluginActionsMenu target={target} trigger={<button type="button">插件操作</button>} />
+          </PluginRuntimeContext.Provider>
+        )
+      );
+    await renderMenu();
+    expect(container.textContent).toBe("");
+    const run = vi.fn();
+    await act(async () => {
+      context.actions.register({ id: "note", title: "记下", targets: ["chat-message"], run });
+      context.actions.register({ id: "card", title: "卡片动作", targets: ["card"], run });
+    });
+    await renderMenu();
+    await act(async () => container.querySelector("button")?.click());
+    expect(items()).toEqual(["记下"]);
+    await click("记下");
+    expect(grantRefs).toHaveBeenCalledWith("author.q", [{ kind: "chat-session", id: "s1" }]);
+    expect(run).toHaveBeenCalledWith(target);
   });
 });
