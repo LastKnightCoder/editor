@@ -1,4 +1,7 @@
 import type { PluginDefinition } from "./contract";
+export { usePluginEnvironment } from "./environment";
+export type { PluginEnvironment } from "./environment";
+export type { PluginNavigation, PluginNavigationEntry } from "./navigation";
 export type { PluginBackendClient, BackendStatus, BackendState } from "./backend";
 export type * from "./upload";
 export type * from "./tts";
