@@ -13,6 +13,7 @@
  * 「添加日程：…」），回车落库。日期时刻词表与日程 / 待办快速添加同源（utils/quickDateTime），
  * #名称 分别匹配待办项目 / 日历 / 问题分组。
  * 像问题的输入（以问号结尾或带 #分组）记录组置顶；否则放在末尾（↑ 从首项回绕即达），不抢搜索的回车。
+ * 插件注册的 text 对象动作（如「记为问题」）排在记录组末尾，不按输入内容调整位置；回车把输入的文字交给插件。
  * 前缀「待办:」「日程:」「问题:」或对应命令进入收集模式，列表只剩该收集行。
  * 「转为问题」（划线、PDF 标注、对话消息）经 services/question-capture 唤起记问题模式并带来源 chip，
  * 回车后来源成为问题的第一条材料 / 探究对话。
@@ -35,6 +36,7 @@ import {
   CircleHelp,
   CalendarPlus,
   ListPlus,
+  Plug,
   X,
 } from "lucide-react";
 import clsx from "clsx";
@@ -62,6 +64,8 @@ import { useSearchContent, resultDisplay, relativeTime } from "./queries";
 import { useSettingsStore } from "@/app/settingsStore";
 import useSettingStore from "@/stores/useSettingStore";
 import { useDesktopPlugins } from "@/app/plugins/context";
+import { usePluginActions } from "@/app/plugins/action-menu";
+import type { RegisteredPluginAction } from "@/app/plugins/runtime";
 import { useTransferStore } from "@/app/transferStore";
 import { useShellStore } from "@/app/shellStore";
 import { toggleAssistFor } from "@/app/assistOwner";
@@ -193,6 +197,13 @@ export function SearchPalette() {
 
   const contentQuery = useSearchContent(debouncedQ, activeTypes);
   const plugins = useDesktopPlugins();
+  // 插件的 text 动作：输入任何文字都在「记录」组末尾列出，回车把文字交给插件
+  const textActions = usePluginActions(trimmedQ ? { kind: "text", text: trimmedQ } : null);
+  const pluginNames = new Map(
+    textActions.actions.length
+      ? (plugins?.host.listPlugins() ?? []).map(plugin => [plugin.id, plugin.name])
+      : []
+  );
   const pluginRevision = plugins?.getRevision() ?? 0;
   const pluginCommands = useMemo(
     () => (plugins ? pluginPaletteCommands(plugins.host) : []),
@@ -343,6 +354,18 @@ export function SearchPalette() {
             );
         });
       },
+    };
+  };
+
+  const pluginTextRow = (action: RegisteredPluginAction, text: string): Row => {
+    const Icon = action.definition.icon ?? Plug;
+    return {
+      key: `capture:plugin:${action.id}`,
+      icon: props => <Icon {...props} aria-hidden="true" />,
+      title: `${action.definition.title}：${text}`,
+      sub: `来自「${pluginNames.get(action.context.pluginId) ?? action.context.pluginId}」`,
+      tag: { label: "插件", cls: "bg-hover text-ink-2" },
+      run: () => closeAnd(() => textActions.run(action)),
     };
   };
 
@@ -613,7 +636,10 @@ export function SearchPalette() {
       if (date !== null || startTime !== null) rows.push(eventRow(trimmedQ));
       const record = {
         label: "记录",
-        rows: question ? [questionRow, ...rows] : [...rows, questionRow],
+        rows: [
+          ...(question ? [questionRow, ...rows] : [...rows, questionRow]),
+          ...textActions.actions.map(action => pluginTextRow(action, trimmedQ)),
+        ],
       };
       if (question) out.unshift(record);
       else out.push(record);
@@ -649,6 +675,7 @@ export function SearchPalette() {
     visits,
     mode,
     pluginEntityMeta,
+    textActions.actions,
   ]);
 
   const flat = useMemo(() => groups.flatMap(g => g.rows), [groups]);

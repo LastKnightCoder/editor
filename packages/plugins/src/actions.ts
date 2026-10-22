@@ -3,9 +3,10 @@ import type { PluginIcon } from "./icons";
 
 /**
  * 对象动作可以挂在哪类对象上：document 为项目文档；material 为划线、PDF 标注与剪藏；
- * chat-message 为对话里的一条消息。
+ * chat-message 为对话里的一条消息；text 为用户在命令面板里输入的文字。
  */
-export type PluginActionTargetKind = "card" | "article" | "document" | "material" | "chat-message";
+export type PluginActionTargetKind =
+  "card" | "article" | "document" | "material" | "chat-message" | "text";
 
 type PluginActionEntityKind = "card" | "article" | "document" | "material";
 
@@ -27,7 +28,14 @@ export interface PluginChatMessageTarget {
   text: string;
 }
 
-export type PluginActionTarget = PluginActionEntityTarget | PluginChatMessageTarget;
+/** 用户在命令面板里输入的文字（亲手交给插件，不需要权限） */
+export interface PluginTextTarget {
+  kind: "text";
+  text: string;
+}
+
+export type PluginActionTarget =
+  PluginActionEntityTarget | PluginChatMessageTarget | PluginTextTarget;
 
 /** 某几类目标对应的对象：run 的参数随 targets 收窄 */
 export type PluginActionTargetOf<K extends PluginActionTargetKind> = Extract<
@@ -60,6 +68,7 @@ export const PLUGIN_ACTION_TARGET_KINDS: readonly PluginActionTargetKind[] = Obj
   "document",
   "material",
   "chat-message",
+  "text",
 ]);
 
 /** 交给插件前复制并冻结，插件拿不到宿主对象上的其他字段 */
@@ -72,5 +81,7 @@ export function snapshotActionTarget(target: PluginActionTarget): PluginActionTa
       role: target.role === "assistant" ? "assistant" : "user",
       text: String(target.text),
     });
+  if (target.kind === "text")
+    return Object.freeze({ kind: target.kind, text: String(target.text) });
   return Object.freeze({ kind: target.kind, id: String(target.id) });
 }

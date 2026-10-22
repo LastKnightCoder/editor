@@ -325,12 +325,14 @@ export class DesktopPluginRuntime {
   /** 先登记引用再调用插件；插件停用或动作已注销时抛错 */
   async runAction(action: RegisteredPluginAction, target: PluginActionTarget): Promise<void> {
     if (!this.listActions(target.kind).includes(action)) throw new Error("插件动作不可用");
-    // 对话消息登记所在会话；其余目标本身就是引用
+    // 对话消息登记所在会话；文字不是引用，不登记
     const ref =
       target.kind === "chat-message"
         ? { kind: target.session.kind, id: target.session.id }
-        : { kind: target.kind, id: target.id };
-    await this.options.grantRefs?.(action.context.pluginId, [ref]);
+        : target.kind === "text"
+          ? null
+          : { kind: target.kind, id: target.id };
+    if (ref) await this.options.grantRefs?.(action.context.pluginId, [ref]);
     await action.definition.run(target);
   }
 

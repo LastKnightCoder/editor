@@ -65,6 +65,9 @@ describe("对象动作", () => {
       role: "assistant",
       text: "回答",
     });
+    context.actions.register({ id: "text", title: "记下", targets: ["text"], run });
+    registered[2].run({ kind: "text", text: "为什么会重排", extra: 1 } as never);
+    expect(run).toHaveBeenLastCalledWith({ kind: "text", text: "为什么会重排" });
     await host.dispose();
   });
 
