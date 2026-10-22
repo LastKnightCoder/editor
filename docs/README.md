@@ -11,7 +11,6 @@
 | [desktop.md](./architecture/desktop.md)             | 桌面端权威交接文档：Page 协议、三大协议、交互规范、数据接线                              |
 | [design-system.md](./architecture/design-system.md) | UI 设计系统：token 三层体系、多主题机制、组件分层                                        |
 | [editor/](./architecture/editor/)                   | 编辑器内核架构系列（内核+扩展+服务注入）；边界与公开入口另见 `packages/editor/README.md` |
-| [data/](./architecture/data/)                       | 数据库技术文档                                                                           |
 | [whiteboard/](./architecture/whiteboard/)           | 白板技术文档                                                                             |
 | [collaboration.md](./architecture/collaboration.md) | 实时协作功能与架构                                                                       |
 | [platform-rpc.md](./architecture/platform-rpc.md)   | 跨端架构：命令/能力分离与 Web 适配                                                       |
