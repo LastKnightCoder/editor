@@ -31,6 +31,12 @@ PS-046 问题管理插件化第三期需要的 SDK 变化（方案见 81）：`@
 - 新建公开仓库 [tau-plugin-questions](https://github.com/LastKnightCoder/tau-plugin-questions)，先推 `main` 再推 tag。`b789ff9` / [v0.1.0](https://github.com/LastKnightCoder/tau-plugin-questions/releases/tag/v0.1.0) 的发布工作流在 GitHub 干净环境中冻结安装、测试、构建并创建 Release。正式 ZIP 46,823 字节，SHA-256 `0a00488522d51717ccbaf74c343253b5ba65b79c49e105d37d75b6c77821a04a`，与本地构建逐文件一致。
 - 插件中心：自动提交返回「插件尚未在门户首次提交」，需用户在门户网页首次提交以绑定仓库，之后打 tag 即自动提交。
 
+## tau-blog 0.6.0（准备中）
+
+- 内容：内置的发布数据类型随 SDK 0.35.0 去掉求索录；另带上 0.5.0 之后编辑器的改动（行内输入规则、公式快捷输入、高亮导出 Markdown 修复等）。依赖、peer 依赖与导出与 0.5.0 相同，文件只多了 `inputRules.d.ts`。
+- 版本提交 `fa3267704`；在干净工作树 `/tmp/tau-blog-060` 中用 `node scripts/blog/package-blog.mjs /tmp/tau-blog-060-out` 打出 `/tmp/tau-blog-060-out/xiongtao.xt-tau-blog-0.6.0.tgz`，692 个文件，integrity `sha512-tx+sZlCKaUoFRIjGSEY3v20H+rOc+qPhUaf78UmvF8ola0O6K2dQrSZOvlcT/7D2h6clsFbcvILVwKnoRfbp2g==`。
+- 已验证：博客 12 项测试与类型检查；官方博客模板 `86ec3f0` 的副本换成本地归档后类型检查、34 项测试、构建通过，端到端验收协议 18 项与 Electron 浏览器 12 项通过；起步仓库副本类型检查、1 项测试与构建通过；`npm publish --dry-run` 通过。
+
 ## 未完成
 
 - 用户在插件门户首次提交问题插件 0.1.0。
