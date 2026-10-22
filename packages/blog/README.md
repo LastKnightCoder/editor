@@ -3,7 +3,7 @@
 博客模板的公共能力：数据读取、搜索和发布正文渲染。模板负责自己的页面、路由、搜索界面、主题和预览布局；正文怎么显示由本包负责，模板不需要了解编辑器、节点类型或宿主设置。
 
 ```sh
-pnpm add @tau/blog@npm:@xiongtao.xt/tau-blog@0.5.0
+pnpm add @tau/blog@npm:@xiongtao.xt/tau-blog@0.6.0
 ```
 
 `project-card-list` 保留项目内的网格卡片、图标、标题、两行摘要及悬停样式，整张卡片通过 `hrefFor` 跳转到对应文档；无需模板注册扩展。
