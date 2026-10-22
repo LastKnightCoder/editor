@@ -95,3 +95,13 @@ ls node_modules/.pnpm/node-llama-cpp@*/node_modules/@node-llama-cpp/
 - 调整进包的 llama 后端（如未来增删 Vulkan）：只改 `prune-packaged-native-modules.cjs` 的 `llamaBackendAllowlistByPlatform`，并在 `run-electron-builder.mjs` 的 `llamaBackendGpuEnv` 中为新后端补上对应的 `NODE_LLAMA_CPP_GPU` 取值，断言与补拉会自动跟随。
 - 新增原生依赖后若断言误报，检查脚本内 `knownPlatformTokens` / `allowedPlatformTokensByPlatform` 是否覆盖了该包的平台命名（注意 sqlite-vec 用 `windows` 而非 `win32`）。
 - 发布产物体积应稳定在 ~260M（Windows）。若发布机打出 220M 左右的包，说明 Vulkan 后端缺失，属于补拉未生效，不要直接发布。
+
+## 体积治理方法与保留边界
+
+每批只调整一类装箱原因，用 macOS arm64 本地安装包实测，有收益且验证通过再提交；不删产品能力、不以源码行数推算压缩收益、不修改个人数据库或发布安装包，其他平台仍需在相应平台验证。
+
+- MiB 按 1024² 字节计；DMG/ZIP 是压缩体积、ASAR 是应用归档体积，三者不相加。开发依赖仍可被 Vite 编入产物；生产依赖会被 electron-builder 按依赖关系整包收集，运行时外置依赖不能仅凭名称改为开发依赖。
+- 已验证的治理手段（累计 DMG −19.8%）：由 Vite 编入的 @tau 包与编辑器扩展改为桌面开发依赖；排除 `.js.map`/`.mjs.map`/`.cjs.map`（保留数据 `.map`）；排除未消费的 pi 独立 CLI bundle 与 esbuild（保留 SDK、chord、类型与文档）；分词词典 `@node-rs/jieba/dict` 显式 external 单一来源。
+- 保留边界：Electron、全部模型 SDK、pi SDK/chord/动态扩展/文档、原生推理与媒体工具、字体和产品媒体资源。原生运行时是大头，继续裁剪需单独审核对应功能与平台。
+- 每批验证集：类型、架构门禁、完整构建、`verify:native-runtime`（包内 pi 冒烟、真实词典加载、原生模块检查）；包内冒烟不能代替渲染端启动时序回归。
+- 手绘字体（Shantell Sans + 小赖 SC 子集）产物在 `src/assets/fonts/hand/`，由 `scripts/build-hand-font.py` 生成并提交；小赖按 unicode-range 分片按需加载，导出经 `utils/bundled-font-embed.ts` 内嵌已加载分片。

@@ -1,6 +1,6 @@
 # 03 · 架构实现指南（交接文档）
 
-> **给接手的上下文/协作者**：本文档是新架构落地代码的权威说明。读完即可按既有架构、UI 与交互风格继续开发，不需要重新决策。背景与全貌见 [01-重构蓝图.md](/apps/desktop/docs/redesign/01-重构蓝图.md)，token 与组件规范见 [02-UI设计系统规范.md](./design-system.md)，视觉基因参考 `mockups/direction-a-soft.html`（A2 柔和版，已经用户三轮校准确认）。
+> **给接手的上下文/协作者**：本文档是新架构落地代码的权威说明。读完即可按既有架构、UI 与交互风格继续开发，不需要重新决策。token 与组件规范见 [design-system.md](./design-system.md)。
 
 ---
 
