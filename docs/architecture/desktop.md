@@ -129,33 +129,17 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 - 站点配置分两层：宿主只保留标题、图标与发布目标公开 URL；其余字段由模板在 `template.siteFields` 声明（text/textarea/url/select/switch），宿主校验后在「站点设置 · 博客模板」按声明渲染，值按模板 id 存 `publish.site.fields`，发布时 `resolveSiteFields` 只输出已声明键回落默认。连接状态与测试连接归宿主，发布插件表单按宿主行式渲染自动保存。
 - 发布计划在 worker 计算，只回传路径/摘要/依赖描述；实际发布按物理目标记录成功资源，增量上传依赖后才更新入口；失败重跑完整计划，无按文件重试接口。`publish-releases/` 只保留当前与前一轮有变化的成功元信息；撤下内容清理旧正文/聚合/索引优先于缓存保留；Git 发布只提交计划内文件不强推；S3 仅为协议保证的摘要资源设不可变缓存。官方模板在独立 `tau-blog-template` 工程（路径路由 + 404 回退、按 key 取数、正文/预览各持数据上下文与 EditorKit），不是第三方模板准入要求。
 
-### 博客发布提供方
+### 插件服务与提供方
 
-GitHub 与 S3 发布由独立 tau.publish-github、tau.publish-s3 提供，SDK 0.21.0 的 context.publish 注册文件式或快照式实例。发布页只消费活动注册及 target:publish 配置表单，publishConfig 按应用级插件身份保存；本地导出内置，直接使用模板与内容生成器，不要求安装发布插件。缺失或停用保留配置和选择，不回落其他提供方。
+**博客发布提供方**：GitHub 与 S3 发布由独立 tau.publish-github / tau.publish-s3 提供，`context.publish` 注册文件式或快照式实例；发布页只消费活动注册与 `target: publish` 配置表单（publishConfig 按应用级插件身份保存）；本地导出内置不要求发布插件，缺失或停用保留配置不回落其他提供方。渲染端 publish-registry 与常驻 publish-bridge 执行作者代码，主进程 PluginPublishSessions 绑定发起窗口/配置/任务 signal，只转发 open/call/close 与字节；发布占用阻止启停/更新/卸载/重启，切库回收实例。文件式并发受提供方上限约束、依赖成功后才更新入口；快照式整轮远端确认后才记账。Git Push 走受控 `services.git.publishSnapshot`：主进程只执行固定 Git 流程（输入为临时发布句柄、无凭据的 HTTPS 远端、分支、提交者、缓存授权 ID），目录选择由宿主返回句柄，插件不能传任意 cwd/shell；认证经任务级 askpass 环境传递不落盘；拒绝非快进。旧 publish.github/s3 配置由最后升级链备份转换，物理身份字符串保持；无目标账本时完整上传不借用其他数据库全局历史。
 
-渲染端 app/plugins/publish-registry 与常驻 publish-bridge 执行作者代码，主进程 PluginPublishSessions 绑定发起窗口、固定配置及任务 signal，只转发 open/call/close 和字节。发布占用阻止启停、更新、恢复、卸载及重启；切库回收实例，窗口关闭拒绝迟到回复。离开发布页不会释放壳层会话。文件式并发受提供方上限约束，依赖成功后才更新入口；快照式在整轮远端确认后才记账。
+**编译与转换服务**：`context.services` 提供 Tailwind、Typst HTML、Markdown 与 Descendant[] 双向转换、HTML 渲染与 FFmpeg 处理（TikZ 服务已移除——编译器和字体归独立 tau.tikz 插件）。Provider 注入 `app/plugins/services.ts`，SDK 合并调用方与实例 signal，停用不返回迟到结果；服务不读写业务内容、不选存用户文件。主进程 `plugin-services` 为 BACKGROUND 模块：任务按 WebContents 归属，关闭/导航取消；编译器与媒体进程独占任务临时目录、完成后回收；FFmpeg 复用客户端按需下载的二进制。TikZ 文档与博客用插件自己的节点组件与内部编译模块（不依赖 activate），缺插件时保留源码并跳转插件中心；diagram 扩展不再含 TikZ，移动端/扩展不设替代编译器。Markdown 复用 desktopCodecComposition（单次 codecs 不改编辑器注册）；HTML 沿用现有序列化器（保留原始 HTML、外部资源与图表源码回落，不是净化器）。作者契约见 `scripts/plugins/template/docs/services.md`。
 
-Git Push 使用受控 services.git.publishSnapshot：主进程只执行固定 Git 流程，输入是本轮临时发布句柄、不含凭据的 HTTPS 远端、分支、提交者及缓存授权 ID。目录选择由宿主返回句柄，插件不能传任意 cwd、shell 或读取其他文件。认证通过任务级 askpass 环境传递，不写入 URL、参数或 .git/config；拒绝非快进，按计划暂存文件，保留其他路径。主进程没有 GitHub 专属请求或工厂。
+**摘录提供方**：`context.excerpts` 由 `app/plugins/excerpts.ts` 适配——来源类型即插件 ID，调用经 `bindDatabaseCommands` 固定原库并带 signal；`register` 异步登记名称与打开函数，停用注销；主进程在 `tables/excerpt.ts` 校验（保留名 `web` 拒绝），写入事件进 `EXCERPT_WRITE_EVENTS` 驱动索引与脉络刷新。微信读书为 `plugins/weread` 插件（内置实现已删除），主窗口外链统一交系统浏览器。材料动作沿创建时的 databaseName 与 signal 传递：切库/停用后的迟到结果不唤起新工作区界面；创建请求发出后谱系仍绑定原库完成。
 
-旧 publish.github/s3 与 integration.github/s3 由最后升级链备份并转换，原 GitHub/S3 物理身份字符串及 publish-releases 文件名保持，不另造多文件迁移事务。已有插件配置优先，缺插件不自动安装启用；新写入拒绝旧字段。无目标账本时完整上传且不借用其他数据库全局历史进行删除。通用增量和本地导出仍在核心；移动端原生配置、根部署脚本和 pi 工作区 Git 能力保留。实际包与验证记录见插件专题 73。
+**资源上传**：默认本地，远端由渲染进程插件经 `context.upload.register` 提供（设置分区 `target: "upload"` 挂「资源存储」）；宿主负责压缩、唯一命名与配置快照；独立编辑/Markdown 窗口经 plugin-local IPC 转发到已连接的主窗口渲染宿主（主进程不加载插件、不建隐藏窗口）；窗口关闭/导航/宿主释放/插件停用后拒绝在途结果。GitHub/OSS/S3 旧图床与 WebDAV 图床已退役；GitHub/S3 博客账号已迁到发布插件配置。
 
-### 插件编译与转换服务
-
-`context.services` 提供 Tailwind、Typst HTML、Markdown 与 Descendant[] 双向转换及 HTML 渲染、FFmpeg 处理。SDK 0.14.0 移除 TikZ 服务，编译器和字体归独立 tau.tikz 插件，不保留转发入口（D-167）；0.13.0 的 TTS 与上传接口完整保留。Provider 注入 `app/plugins/services.ts`，SDK 合并调用方 signal 和实例 signal，停用不返回迟到结果。服务不读写业务内容、不选择或保存用户文件。
-
-主进程 `plugin-services` 是 BACKGROUND 模块，任务按 WebContents 归属，关闭或导航取消任务；调用前走 ensureModule。编译器和媒体进程独占任务临时目录，完成/失败/取消后回收。Typst 原 IPC 与 SDK 共用 TS worker，Tailwind 复用现有 worker。FFmpeg 复用客户端二进制准备（按需下载），不随包分发探测二进制。
-
-TikZ 文档与博客使用插件自己的节点组件和内部编译模块，不依赖 activate/context；源码变化或组件卸载取消独立 iframe 中的编译。旧聊天 TikzBlockRenderer 保留类型、围栏别名与缩放壳，通过 createDesktopKit 的插件贡献只读展示内存节点；缺插件时保留源码并跳转插件中心。主项目的 diagram 扩展和 codec 集合不再包含 TikZ，移动端/扩展不另设替代编译器，通用未知节点保护继续保留原数据。
-
-Markdown 复用 desktopCodecComposition；单次 codecs 不改变编辑器注册，也不隐式收集开发台贡献。HTML 沿用现有序列化器，可能保留原始 HTML、外部资源和图表源码回落；不是净化器或附件打包器。完整作者契约见 `scripts/plugins/template/docs/services.md`，实现记录见插件专题 39。
-
-### 插件摘录提供方
-
-`context.excerpts` 由 `app/plugins/excerpts.ts` 适配：来源类型即插件 ID，所有调用经 `bindDatabaseCommands` 固定到 Provider 创建宿主时的库并带实例 signal；`register` 异步登记名称（首次写入前等待，失败随写入报出）并按需登记打开函数，停用即注销。主进程 `excerpt:register-provider / replace / patch / sources / items` 在 `tables/excerpt.ts` 校验参数（`entity/excerpt/provider.ts`，保留名 `web` 拒绝），写入事件进 `EXCERPT_WRITE_EVENTS` 统一驱动索引与脉络刷新。`context.materials.actions` 按需加载 `services/material-actions.ts`，避免插件宿主启动拉起卡片、问题等业务模块。
-
-微信读书（D-158）：内置实现已删除，由 `plugins/weread` 插件经上述接口提供；主窗口的 `window.open` / `target="_blank"` 统一经 `windows/open-handler.ts` 交给系统浏览器（仅 http(s)），不开子窗口。
-
-材料动作沿插件创建时的 databaseName 和 signal 传递：读取及创建前校验，切库/停用后的迟到结果不唤起新工作区界面。创建请求一旦发出，后续谱系仍绑定原库完成，不因取消转写当前库；跨库的结果提示和“查看/打开”动作不能使用旧 ID 导航到新库。
+**标准 fetch**：插件经 `@tau/plugins` 的 `context.fetch`，其他桌面调用用 `commands/fetch` 的 desktopFetch——原生 fetch 类型（RequestInit/Headers/FormData/AbortSignal → Response），无兼容层。fetch 模块为 BACKGROUND（ensureModule 保证就绪）：主进程原生执行，内部 IPC 支持上传/响应流与取消并恢复 URL、redirected、type 与完整响应头；请求属于发起窗口，窗口销毁或导航回收。执行环境是宿主 Node，不自动继承页面 Cookie/CORS（显式 Cookie/Referer 与 Set-Cookie 须保留）；业务自行决定认证与状态处理。
 
 ### 插件业务数据与授权
 
@@ -187,79 +171,24 @@ Markdown 复用 desktopCodecComposition；单次 codecs 不改变编辑器注册
 
 **问题插件迁移**（一次性升级）：旧问题数据（问题、答案、分组、轨迹、材料关联、立项 Notebook）在插件运行时刷新后单事务迁入问题插件表（实体/记录/关联，谱系 `question` 端点改指 `plugin-entity`，首页布局键改 `plugin:tau.questions:active`）；动手前 `VACUUM INTO` 留备份，失败整体回滚弹「重试」通知下次启动重试；材料保活释放后删旧表，全部设备迁移完成后随清洁版删除迁移代码、旧表名进 legacy-tables.json。
 
-### 插件中心与管理页
+### 插件中心与管理
 
-C28 匿名评论与喜欢：中心已发布插件的详情增加 `community` 标签，仅选中时读取，每页20条，查询键为 `["plugins","community",pluginId]`，窗口聚焦刷新，写入后失效该插件查询。IPC仍归plugin-local（community/like/comment/delete-comment），主进程复用安装级匿名凭证，渲染端只接收liked/canDelete，不接收token。匿名身份失败阻断社区操作，不改变下载容错。评论草稿和请求ID在当前标签内存保存，失败重试不重复发表；离开标签会清空草稿。删除复用ConfirmDialog，正文仅作纯文本显示。网站和桌面身份独立，清除应用数据后无法恢复旧身份的管理权。
+- 插件中心与已安装管理是独立页面：`plugins.page.tsx`（参数 tab = discover / installed / updates）与 `plugin-detail.page.tsx`（match params 按 pluginId 去重，tab = readme / settings / changelog / versions / community，`section` 定位设置分组）。侧栏「插件」入口在设置上方，命令面板自动收录；设置弹窗不含插件分区（`SettingsLocation` 不含 plugins）。停用插件仍能打开详情并重新启用。
+- 目录/详情/下载经主进程 plugin-local（`plugin-local:catalog / release / stage-release / uninstall / relaunch`，`net.fetch`，门户 CORS 不放行客户端）；渲染端 react-query 目录键 `["plugins","catalog",q,sort]` 60 秒新鲜期，离线显示重试空态不回退演示数据。ZIP 安装允许包内附带未声明的普通文件（随包保存不加载），条目仍查安全路径/链接/覆盖冲突/容量与摘要。安装 = 下载 → 核对大小与 SHA-256 → 可恢复事务立即提交；**所有新包默认停用**，用户到「已安装」主动启用；来源（中心 releaseId 等）随事务写入 `plugin-updates/sources/`，更新与恢复保留启用意图，同 ID 不跨来源接管。普通插件即时启停与更新；涉及已加载内容快照时更新保留暂存并提示重启。卸载 `LocalPluginManager.uninstall(id, purgeData)`：先停用、删包/备份/来源、清启用偏好，purgeData 时清所有工作区私有数据；内置插件不可卸载。
+- 兼容与升级：`readPluginPackage` 检查 manifest.minAppVersion（0.58.0 起，固定目录扫描与安装共用）；plugin-local 初始化时恢复中断事务、应用暂存包再注册 IPC；安装/更新/恢复先暂存校验再同事务提交；提交后广播 `plugin-local:state-changed`，窗口重扫并串行切换实例。根目录 `~/.editor/plugins`，事务与备份在同级 plugin-updates；文件恢复不回退私有数据，激活失败尝试恢复旧内存快照。
+- 版本与文档：安装状态机与来源判定是 `features/plugins/model.ts` 纯函数；版本标签合并中心全部已发布版本（`plugin-local:versions` 翻页）与本机当前/待生效/备份。README/CHANGELOG 用 `PluginMarkdown`（只读 Editor，内容经 `toPluginDocument` 白名单过滤——原始 HTML 丢弃、图片音视频不加载、插件块按代码块、链接只留 http(s) 交系统浏览器）。Markdown 导入先按 `ignoreTypes` 递归过滤整棵语法树再转换（不为类型加特例）；资料转换用内置组合（`utils/markdown-composition.ts`），所有语言围栏统一展示源码，不调用插件导入函数、不维护节点黑名单。
+- 社区（C28）：详情 `community` 标签仅选中时读取（每页 20 条，写入后失效该插件查询）；IPC 归 plugin-local，复用安装级匿名凭证（渲染端只收 liked/canDelete 不收 token）；评论草稿在标签内存保存，失败重试不重复发表；网站与桌面身份独立，清数据后无法恢复旧身份管理权。
+- 固定目录发现：开发/正式构建均经 BACKGROUND 的 plugin-local 扫描 `PathUtil.getAppDir()/plugins` 直接子目录（目录名须等于 manifest.id，坏包单独显示不阻断好包）；插件页 ⋯ 菜单提供「从 ZIP 安装 / 打开插件目录 / 重新扫描」，无目录选择。`app/plugins/package-loader` 把静态元信息登记为延迟定义，启用才执行 CJS 入口；LocalPluginManager 复用此加载器与正式 PluginHost，本地插件偏好镜像为应用级键；新包默认停用，重启/切库恢复；活动包变化先回收旧实例登记新定义再按原意图恢复；内容快照与 restart-required 身份不热替换。
+- **生命周期与异常**：激活等待最多 10 秒；停用立即取消 signal，未决激活最多再等 5 秒；deactivate 与逆序清理共用 5 秒预算，超时继续剩余清理；普通失败且清理成功可重试，激活超时或清理失败进 restart-required（管理页显示重启提示并禁用启用）。DesktopPluginProvider 在窗口内保存需重启的插件 ID，等旧宿主有界收尾后才建新宿主（注销/切库不能绕过，不落盘）；超时只能结束等待，不能抢占同步死循环。
+- **本机工作区身份**：`services/plugin-registry.ts` 在 userData 按本机规范化库名分配 UUID（串行暂存写再 rename，只存 name 与 id），plugin-local 与 plugin-backend 共用；这是本机槽位身份不是同步身份——同步替换/重建同名库沿用。PluginProvider 启动先 `migratePluginPreferences`（库名键改挂 UUID，失败保留旧值重试）再 `migrateLegacyPluginStorage`。
 
-插件中心与已安装管理是独立页面：`features/plugins/pages/plugins.page.tsx`（`plugins`，参数 `tab` = discover / installed / updates）与 `plugin-detail.page.tsx`（`plugin-detail`，`match: "params"` 按 pluginId 去重，参数 `tab` = readme / settings / changelog / versions / community、`section` = 设置分组 key）。侧栏底部「插件」入口在设置上方，命令面板自动收录。设置弹窗不再保留插件分区或跳转占位页；插件启停与自定义设置统一从独立插件页进入。`SettingsLocation` 不含 `plugins` 或 `plugin:*`。
+### 插件贡献位
 
-- 目录、详情、下载经主进程 plugin-local（`plugin-local:catalog / release / stage-release / uninstall / relaunch`，`services/plugin-center.ts` 用 `net.fetch`，门户 CORS 不放行客户端）；渲染端数据走 `features/plugins/queries.ts` 的 react-query，目录键 `["plugins","catalog",q,sort]`、60秒新鲜期，离线显示重试空态，不回退演示数据。
-- ZIP 安装允许插件 ID 目录内附带未声明的普通文件（如第三方许可说明），随包保存但不自动加载；模板发布仅收集 integrity 声明的资产。所有条目仍检查安全路径、链接、重复与文件/目录覆盖冲突以及容量，必需资源存在性与摘要由包读取器校验，不维护附带文件名白名单。
-- 安装 = 下载 → 按发布记录核对大小与 SHA-256 → 复用 C17 可恢复事务立即提交；所有来源的新包默认停用，由用户到「已安装」主动启用（D-172）。来源（中心 releaseId 等）随事务提交写入 `plugin-updates/sources/<id>.json`，扫描结果带 `source`。更新与恢复上一版保留已有启用意图，同 ID 不跨来源接管。普通插件即时启停与更新；涉及已加载内容快照或将要启用的新内容贡献时，更新保留暂存并提示重启。
-- 卸载经 `LocalPluginManager.uninstall(id, purgeData)`：先停用，主进程删包、备份与来源，再清启用偏好；`purgeData` 时 `clearBrowserPluginStorage` 删该插件所有工作区私有数据。内置插件不可卸载。
-- 安装按钮状态机与来源判定是 `features/plugins/model.ts` 纯函数（`installState`、`installedPlugins`）；启停 / 恢复 / 取消 / 卸载统一走 `usePluginControl`，按来源分派到 development / local / builtin 管理器。版本标签由 `model.ts` 的 `versionRows` 合并中心全部已发布版本（主进程 `plugin-local:versions` 翻页读取，按当前客户端标出可用性）与本机当前 / 待生效 / 上一版备份。README / CHANGELOG 用 `PluginMarkdown`：只读 `Editor`（`getPluginDocumentKit`）渲染，内容先经 `pluginDocument.ts` 的 `toPluginDocument` 按白名单过滤——原始 HTML 丢弃，图片音视频不加载，插件块与 mermaid/tikz 等源码块按代码块展示，应用内资源节点退化为文本，链接只保留 http(s) 并交给系统浏览器。
-- Markdown 导入解析后先按 `ignoreTypes` 递归过滤整棵语法树，再进行节点转换、文本格式与插件认领；父节点、子节点和同级上下文共用过滤后的树，不为某个类型增加过滤特例。`utils/markdown-composition.ts` 保存不读取插件注册表的内置组合，`utils/markdown.ts` 在其上装配正常笔记所需的插件贡献并保留原导出接口。资料使用由内置组合构造、按 `codec.fence` 排除领域围栏认领的独立处理器，通过 `["html", "yaml"]` 在语法层过滤原始 HTML 与元信息；所有语言围栏统一展示源码，不调用插件的导入、规范化或序列化函数，不维护插件节点黑名单。输出仍受内置展示白名单约束，未知节点与应用内资源节点只保留可读文本；围栏代码、行内代码和转义标签仍作为示例文本保留。
-- 插件 `context.settings.register(...).open()` 由 Provider 的 `openSettings` 接到 `navigator.push("plugin-detail", { pluginId, tab: "settings", section })`，设置组件只在插件启用且详情页挂载时渲染，生命周期与下文 D-142/D-143 规则相同。
-
-### 插件管理与设置接入
-
-兼容与升级（D-156 / D-172）：0.58.0 起 `readPluginPackage` 检查 manifest.minAppVersion，固定目录扫描与安装共用；旧包可省略。plugin-local 初始化时通过 TS PluginUpdates 恢复中断事务、应用暂存包，然后注册 IPC。安装、更新和恢复上一版先暂存校验，再由 `PluginUpdates.apply` 使用同一事务立即提交；已加载内容插件及已启用的新内容贡献继续等待完整启动。提交后广播 `plugin-local:state-changed`，窗口重新扫描并串行切换普通插件实例。扫描返回待生效版本、备份版本及恢复错误，未恢复事务对应包不加载。根目录仍为 ~/.editor/plugins，事务/备份位于同级 plugin-updates。文件恢复不回退私有数据；普通插件激活失败尝试恢复旧内存快照，清理失败保留重启隔离。
-
-侧边栏图标（D-155）：registerItem 的 icon 为可选 React SVG 组件（PluginSidebarIcon/PluginSidebarIconProps），随插件构建打包；runtime 快照保留引用，navigation 未收到图标时回落 Plug。Sidebar 为内置和插件图标统一传入 size、strokeWidth、className 与 aria-hidden；自定义 SVG 使用 currentColor，展开/折叠和选中态复用同一渲染路径。不添加新的图标资源协议。
-
-侧边栏贡献（D-154）：作者通过 context.sidebar.registerGroup/registerItem 关联本次启用的页面句柄。SDK 的 SIDEBAR_GROUPS 暴露 daily/knowledge/learning/ai/sharing/plugins 稳定 ID；navigation.ts 的 composeNavSections 合并静态分组与动态贡献，缺省或未知分组回落“插件”，空插件分组隐藏。条目使用现有 Sidebar 按钮与折叠逻辑，点击沿页面句柄导航；高亮匹配 pluginId/pageId/instanceId，命令打开同一页面也一致。内置组保留按原 label 保存的折叠偏好，自建组按命名空间 ID 保存，重名互不影响。PluginHost 托管贡献清理并校验页面句柄归属；页面注销、停用、激活失败或切库后入口消失，分组注销后剩余条目回落默认组。不提供修改内置或其他插件分组的能力，不改变 page 框架。
-
-插件侧栏条目的角标与子项（PS-046 2.7）：`registerItem` 返回句柄 `update({ badge, children, action })`，SDK `snapshotSidebarUpdate` 校验并冻结，回调由 PluginHost 包装（每次调用先 `assertActive`，条目移除后拒绝）。runtime 把状态存在条目上、单独 `subscribe/getState`，不经 `publish`——角标高频更新只重渲染 `app/PluginNavEntry.tsx` 这一条目，不触发整个 Sidebar。Sidebar 对插件条目整体交给 `PluginNavEntry`：条目页面在栈顶（`isNavItemActive`）或当前页参数包含某个子项的 `params` 时展开，选中子项时父项降为「所在区」；再点选中的子项回到条目自身参数。子项行与问题分组共用 `components/NavChild.tsx`，条目按钮在 `app/NavItemButton.tsx`（插件角标由调用方传入）。右键菜单最多 8 条，危险条目前自动加分隔；拖拽类型由 `sidebar.dragType` 加插件命名空间（`application/x-tau-plugin.<pluginId>.<type>`，全小写），宿主和其他插件的拖拽落不到插件子项上。插件回调同步抛错或异步失败都只弹 `appNotify`。色点 `tone` 复用 `utils/groupTone.ts` 的 7 色板。
-
-插件对象动作（PS-046 2.9a）：`context.actions.register` 经 PluginHost 校验并包装 `run`（每次调用先 `assertActive`，注销后拒绝），runtime 以 `plugin:<pluginId>:<id>` 登记，`listActions(kind)` 按目标类型列出启用中的动作，`runAction` 先经 `grantRefs` 把对象登记为插件选择过的引用（同 pick，`plugin-refs:grant`），再调用插件。菜单渲染收口 `app/plugins/action-menu.tsx`：手写 JSX 的菜单放 `<PluginActionMenuItems target={…} />`（自带前置分隔线，无动作时不渲染），位置在内置项之后、删除分隔线之前——卡片 `CardActionMenu`（卡面、列表、预览共用）与 `CardDetailView`、文章 `ArticleItemOps` 与 `ArticleDetailView`；数据驱动的项目文档菜单用 `usePluginActions` + `insertPluginActionEntries`（key 前缀 `plugin-action:`，插在 `remove-divider` 之前），目标由 `projectItemActionTarget` 决定：普通文档为 `document`，引用型条目为被引用的卡片 / 文章，其余类型没有插件动作。独立编辑窗口没有插件运行时，`useDesktopPlugins()` 为 null，自然不列。新增菜单接插件动作时照此放置，不要在业务域里直接读 runtime。2.9b 加了材料与对话消息：数据驱动菜单的插件条目收口 `projects/.../shared/menuEntries.tsx` 的 `usePluginMenuEntries(target)`（`insert` + `select`，文档树行与网页剪藏共用，剪藏成功后目标为 `material web-clip:<id>`）；只有图标按钮的地方用 `PluginActionsMenu`（只有插件动作的「⋯」，触发器由调用方给样式）——PDF 标注的浮动工具条经 `FloatToolbar` 的 `extra` 槽位（删除之前），左侧标注列表在悬停按钮组末尾，目标 `material pdf-annotation:<id>`；对话消息经 `@tau/chat-ui` `MessageView` 的通用 `renderExtraActions(text)`（删除之前，收到消息纯文本），`MessageItem` 收到 `pluginSessionId`（`ChatContainer` 只在插件可见的四个场景传，同主进程 `CHAT_SCENES`）且消息有 `piEntryIds` 时才列。对话消息目标登记所在会话，`runAction` 按目标取要登记的引用。宿主 `services/material-actions.ts` 只给自己的动作（「转为卡片」），不含「转为问题」也不含插件动作（插件之间互不依赖）。2.9c：`text` 目标只在命令面板——`SearchPalette` 用 `usePluginActions({ kind: "text", text })`，在「记录」组末尾每个动作一行（`capture:plugin:<id>`，副标题「来自「插件名」」），位置不随输入内容变化，文字不登记为引用。编辑器选区不经对象动作（由插件编辑器扩展负责，目前不开放选区工具条）；PDF 选区暂不做。
-
-插件详情区块（PS-046 2.10）：`context.views.registerEntityPanel` 经 PluginHost 校验，runtime 以 `plugin:<pluginId>:<id>` 登记，`listEntityPanels(kind)` 列出启用中的区块。渲染收口 `app/plugins/entity-panels.tsx` 的 `<PluginEntityPanels target className />`：放在三个详情页 `insights.report` 之后、正文之前（`CardDetailView`、`ArticleDetailView`、`EditProjectItem`，后者目标经 `projectItemActionTarget`，引用型条目为被引用的卡片 / 文章），`className` 给与洞见报告一致的外边距。每块包在 `RecoverableBoundary`（`resetKeys` 为目标）、`UiProvider`、`PluginComponentScope` 里；`[data-plugin-entity-panel]` 放在 UiProvider 里面并 `empty:hidden`，组件返回 null 时不占位；key 用注册的 `mountId`，换对象只换 `target` 不重新挂载。宿主不加外框与标题，也不因挂载自动登记引用或放宽读取权限。
-
-插件详情页依据 host.listPlugins 显示版本、来源、状态和启停；停用插件仍能打开详情并重新启用。自定义设置来自活动贡献，收拢为详情页「设置」标签内的分组。作者使用 @tau/plugins 的 context.settings.register 和 PluginSettingsProps，UI 使用 @tau/ui，保存使用 context.storage；API 不变。
-
-`plugin:<pluginId>:<sectionId>` 作为详情页参数 `section` 精确定位分组。停用后保留宿主管理，自定义组件退出；重新启用后恢复。分组单项注销显示不可用，插件定义注销后详情显示「此插件已不可用」并可返回列表。每次自定义分组挂载使用独立查询缓存与按 mountId 重置的错误边界；页面保活隐藏时浮层随 Activity 停驻清理。
-
-「自定义设置示例」仅保留为测试夹具，不再默认出现在插件管理中。开发台保留调试命令、实验编辑器和打开统一管理的入口。插件默认偏好在统一设置页，局部对象配置留在业务页面；入口统一不改变数据作用域。即时保存、失败重试、旧 signal 校验和数据保留规则不变，没有新增业务 schema 或通用草稿守卫。完整范围见 `docs/plugin-system/14-C05自定义设置接入.md`。
-
-### 外部开发插件
-
-现行入口已由 D-153 改为固定目录发现：开发/正式构建均调用 BACKGROUND 的 plugin-local，经 withModule 获取稳定工作区 UUID、扫描 PathUtil.getAppDir()/plugins。只扫描直接子目录，目录名须等于 manifest.id；坏包单独显示，不阻断好包。插件页 ⋯ 菜单提供“从 ZIP 安装”“打开插件目录”和“重新扫描”，不再提供选择目录；旧 plugin-development 选择/重载协议已删除（D-181）。
-
-app/plugins/package-loader 将静态元信息登记为延迟定义，启用才在同一渲染环境执行 CJS 入口。LocalPluginManager 复用此加载器与正式 PluginHost；启用意图和内置插件共用 PluginActivationManager，本地插件偏好镜像为应用级 tau-local-plugin-enabled:v1:<id>。新包默认停用，重启/切库恢复；根扫描失败保留原列表，缺失目录在刷新时回收对应实例，保留私有数据与意图。普通活动包变化时先回收旧实例、登记新定义，再按原意图恢复；失败尝试恢复旧实例。内容快照与 restart-required 身份不热替换。作者仍从 @tau/plugins/@tau/ui 导入，React/UI 共享，CSS 随 signal/dispose 回收；没有新增 SDK API。
-
-旧开发登记不再作为普通启动的代码来源，不自动搬移作者目录。本机 UUID 仍从原 userData/plugin-development/registry.json 沿用（见下文本机工作区身份），避免改变私有数据身份；正式本地插件按固定目录读取。历史开发合同见 17/19，当前本地流程见 docs/plugin-system/29-C13固定目录自动发现.md。ZIP 安装、完整升级回滚和最低客户端版本新协议后续实现；安全与发布平台暂停。
-
-### 插件异常生命周期收尾
-
-PluginHost 激活等待最多 10 秒；停用立即取消 signal，未决激活最多再等 5 秒且不延长原期限。deactivate 与全部逆序资源清理共用 5 秒预算，超时后继续调用剩余清理；提前手动 dispose 的资源仍追踪同一 Promise。普通激活失败且清理成功可重试，激活超时或清理失败进入 restart-required，管理页显示重启提示并禁用启用按钮，失败原因由宿主保留。
-
-DesktopPluginProvider 在窗口内保存需要重启的插件 ID，等待旧宿主有界收尾后才创建新宿主，注销重登记或切库不能绕过。此集合不落盘。超时只能结束宿主等待，不能抢占同步死循环或撤销任意全局副作用；旧上下文、贡献及迟到结果继续失效。详见 docs/plugin-system/18-C08生命周期与管理收口.md。
-
-### 本机工作区身份
-
-主进程 `services/plugin-registry.ts` 的 PluginWorkspaceRegistry 在 userData/plugin-development/registry.json 串行暂存写入再 rename，按本机规范化库名（去 .db）分配 UUID，只存 name 与 id；plugin-local（`plugin-local:workspace`）与 plugin-backend 经 `getPluginRegistry().open(name)` 共用同一实例。这是本机工作区槽位身份，不是数据库同步身份：同步替换或删除后重建同名库都沿用身份，未提供改名或注销接口。旧文件里的开发插件登记在下次写入时丢弃。
-
-PluginProvider 启动时先 `migratePluginPreferences`（kv-storage.ts）把以库名为工作区的旧 localStorage 键改挂到 UUID，先复制全部再删旧键、失败保留旧值以便重试，再执行 `migrateLegacyPluginStorage` 导入主库。
-
-开发插件登记、手动重载与自动监听（原 D-147/D-148/D-149 的 plugin-development 模块、DevelopmentPluginManager、PluginBuildWatcher）已按 D-181 删除；作者流程为 `pnpm install:local` 后在插件页点「重新扫描」，热替换语义见上文 LocalPluginManager。作者模板仍写 `dist/tau-build-<pluginId>.json` 指针，仅供构建与验收脚本定位产物，宿主不再消费。
-
-### 标准 fetch 与插件服务接入
-
-资源上传：默认本地，远端由渲染进程插件通过 context.upload.register 提供，设置分区 target: "upload" 挂载到「资源存储」。宿主负责压缩、唯一命名与配置快照；独立编辑/Markdown窗口经 plugin-local IPC 转发到已连接的主窗口渲染宿主，主进程不加载插件，不创建隐藏窗口。多主窗口优先使用发起窗口自己的宿主，辅助窗口使用已连接宿主；窗口关闭、导航、宿主释放或插件停用后拒绝在途结果。Markdown本地模式仍写入文档同目录，其余本地上传仍落入应用resources目录。GitHub/OSS/S3旧图床退出，WebDAV图床与鉴权下载删除；同步插件不变。GitHub/S3 博客账号已按 D-173 迁到发布插件配置，桌面集成页不再持有这些账号。迁移、删除边界与验证见 docs/plugin-system/61-资源上传插件拆分.md。
-
-插件通过 @tau/plugins 的 PluginContext 使用 context.fetch；其他桌面调用使用 commands/fetch 的 desktopFetch。类型为原生 fetch，使用 RequestInit/Headers/FormData/AbortSignal，返回原生 Response；不导出方法枚举、连接 ID 或 JSON DTO。旧 nodeFetch、NodeFetchRawResponse、自定义选项和 IPC 已删除，消费者直接迁移，没有兼容层。
-
-新 fetch 模块为 BACKGROUND，ensureModule 保证就绪。主进程原生 fetch 执行；内部 IPC 元信息和按需字节传输支持上传/响应流及取消，恢复 URL、redirected、type 和完整响应头。普通窗口销毁或文档导航回收，keepalive 按显式意图完成；请求属于发起窗口，控制消息不经过命令取消守卫，内部 hasBody 不暴露给作者。
-
-执行环境是宿主 Node，不自动继承页面 Cookie/CORS；显式 Cookie/Referer 和 Set-Cookie 须保留，不能在 Chromium 构造阶段被丢弃。业务自行决定认证、超时及 HTTP 状态处理，主通道不加额外限制。微信读书验证插件通过业务依赖取得已有账号配置，以 context.fetch 手动读取书单；不持久化或改变同步标记。Node 和实际 Electron 隐藏窗口验证流、二进制、FormData、头部与取消；真实账号和视觉留待用户验收。详见 docs/plugin-system/15-C06真实服务API与微信读书书单.md。
-
-### 插件编辑器开发接入
-
-编辑器提醒块样本现为测试夹具，不再由应用自动装配。作者仍可通过 @tau/plugins 的 defineEditorExtension/defineEditorElement/context.editor.register 注册，UI 使用 @tau/ui；SDK 内部复用原编辑器契约。当前仅支持 workbench 场景，不向 ContentEditor、生产正文或白板富文本自动注入扩展。
-
-DesktopPluginProvider 动态加载装配器并注入注册校验；运行时拒绝类型/命令/codec 冲突，activate 成功后发布贡献，signal 取消立即撤销，不等待异步 deactivate。每个 PluginEditorSession 只在贡献集合变化时重建 Slate：从活跃实例复制正文、选区和 history，挂载后恢复；普通重绘不重建，不用 Markdown 中转数据。旧代次回调不能覆盖新会话，旧实例按既有机制结束提交作用域。停用节点继续由内核保留与展示未知占位，重新启用恢复渲染。
-
-实验编辑器由宿主工作台承载，独立于被停用插件的页面，沿用 App 的 DndProvider；不同实例的内容/历史隔离。实验文档只在页面内存保存，关闭页面/切库清空，界面明确提示。组件局部状态、焦点、输入法组合及在途任务不迁移；不将此方式用于 Y.Doc 或 external history。样本 codec 可无 DOM 独立导入，但尚未进入生产主进程装配。完整 API、验证和限制见 `docs/plugin-system/13-C04编辑器扩展接入.md`。
+- **侧边栏**：`context.sidebar.registerGroup/registerItem` 关联本次启用的页面句柄；SDK 暴露 daily/knowledge/learning/ai/sharing/plugins 稳定分组 ID，`composeNavSections` 合并静态与动态贡献（缺省/未知分组回落「插件」，空分组隐藏）。条目用现有 Sidebar 按钮与折叠逻辑，点击沿页面句柄导航，高亮匹配 pluginId/pageId/instanceId；折叠偏好内置组按 label、自建组按命名空间 ID 保存。`registerItem` 可选 SVG 图标组件（currentColor，统一 size/strokeWidth，未提供回落 Plug）；句柄 `update({ badge, children, action })` 经 SDK 校验冻结、PluginHost 包装 assertActive——角标高频更新只重渲染 `app/PluginNavEntry.tsx` 单条目不触发整个 Sidebar。子项展开规则：条目页面在栈顶或当前页参数含某子项 params 时展开；右键菜单最多 8 条（危险项前加分隔）；拖拽类型加插件命名空间（`application/x-tau-plugin.<pluginId>.<type>`），宿主与其他插件的拖拽落不到插件子项；回调抛错只弹 appNotify。
+- **设置**：`context.settings.register(...).open()` 接 `navigator.push("plugin-detail", { pluginId, tab: "settings", section })`，设置组件只在插件启用且详情页挂载时渲染；自定义设置收拢为详情页「设置」标签的分组，`plugin:<pluginId>:<sectionId>` 精确定位；停用保留宿主管理、组件退出，重新启用恢复；分组单项注销显示不可用。保存用 `context.storage`，即时保存/失败重试/signal 校验规则不变。
+- **对象动作**：`context.actions.register` 经 PluginHost 包装（assertActive），runtime 以 `plugin:<pluginId>:<id>` 登记，`runAction` 先 `grantRefs` 把对象登记为插件选择过的引用。菜单渲染收口 `app/plugins/action-menu.tsx`：手写菜单放 `<PluginActionMenuItems target />`（内置项之后、删除分隔线之前——卡片 CardActionMenu/CardDetailView、文章 ArticleItemOps/ArticleDetailView）；数据驱动菜单用 `usePluginActions` + `insertPluginActionEntries`（key 前缀 `plugin-action:`）——项目文档目标由 `projectItemActionTarget` 决定（普通文档 document、引用型条目为被引用的卡片/文章），文档树行与网页剪藏共用 `usePluginMenuEntries(target)`（剪藏目标 `material web-clip:<id>`）；只有图标按钮的地方用 `PluginActionsMenu`（PDF 标注浮动工具条经 FloatToolbar extra 槽、标注列表悬停组末尾，目标 `material pdf-annotation:<id>`）；对话消息经 `@tau/chat-ui` MessageView 的 `renderExtraActions(text)`（删除之前），`MessageItem` 收到 `pluginSessionId`（四个插件可见场景）且有 piEntryIds 时才列；`text` 目标在命令面板「记录」组末尾每动作一行（副标题「来自插件名」），文字不登记引用。编辑器选区不经对象动作（归插件编辑器扩展，选区工具条不开放）；独立编辑窗口无插件运行时自然不列。新增菜单照此放置，不在业务域直接读 runtime。
+- **详情区块**：`context.views.registerEntityPanel` 以 `plugin:<pluginId>:<id>` 登记，渲染收口 `app/plugins/entity-panels.tsx` 的 `<PluginEntityPanels target />`——放在三个详情页洞见报告之后、正文之前，每块包 RecoverableBoundary（resetKeys 为目标）/UiProvider/PluginComponentScope，`empty:hidden` 不占位，key 用 mountId（换对象只换 target 不重挂）；宿主不加外框标题，不因挂载自动登记引用或放宽权限。
+- **编辑器扩展**：作者经 `defineEditorExtension/defineEditorElement/context.editor.register` 注册（UI 用 @tau/ui，SDK 复用原编辑器契约），当前仅 workbench 场景，不向生产正文/白板自动注入。运行时拒绝类型/命令/codec 冲突，activate 成功后发布、signal 取消立即撤销；每个 PluginEditorSession 只在贡献集合变化时重建 Slate（复制正文/选区/history，普通重绘不重建、不经 Markdown 中转）；旧代次回调不覆盖新会话；停用节点由内核保留未知占位，重启用恢复。实验编辑器由宿主工作台承载，文档只在页面内存（关闭/切库清空并提示）。
 
 ### Whiteboard 公共画布与扩展装配
 
