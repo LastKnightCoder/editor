@@ -14,7 +14,7 @@ import "../uploadProvider.page";
 const setting = {
   imageBed: {
     active: "local",
-    compressImages: true,
+    enableCompression: true,
     github: { repo: "", branch: "", pathPrefix: "" },
     aliOSS: { bucket: "", region: "", pathPrefix: "" },
     local: { path: "resources" },

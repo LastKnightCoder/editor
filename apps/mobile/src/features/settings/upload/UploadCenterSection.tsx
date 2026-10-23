@@ -78,7 +78,7 @@ export function UploadCenterSection(props: {
     props.updateSetting(
       prev => ({
         ...prev,
-        imageBed: { ...prev.imageBed, compressImages: !prev.imageBed.compressImages },
+        imageBed: { ...prev.imageBed, enableCompression: !prev.imageBed.enableCompression },
       }),
       { persist: true }
     );
@@ -136,7 +136,7 @@ export function UploadCenterSection(props: {
               超过 300KB 转为 WebP，长边不超过 2048；关闭则上传原图
             </span>
           </span>
-          <SwitchButton checked={setting.imageBed.compressImages} onChange={toggleCompression} />
+          <SwitchButton checked={setting.imageBed.enableCompression} onChange={toggleCompression} />
         </GroupRow>
       </GroupCard>
       <GroupNote>已插入的图片保留原地址，更换位置只影响之后的新图片。</GroupNote>

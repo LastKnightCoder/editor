@@ -115,7 +115,7 @@ fn default_setting_value() -> Value {
       },
       "imageBed": {
         "active": "local",
-        "compressImages": true,
+        "enableCompression": true,
         "github": { "repo": "", "branch": "", "pathPrefix": "" },
         "aliOSS": { "bucket": "", "region": "", "pathPrefix": "" },
         "local": { "path": "resources" },
@@ -405,17 +405,22 @@ pub fn ensure_setting_compat(raw: Value) -> Value {
     setting
 }
 
-/// 已退役的上传设置：GitHub CDN 改写不再提供；enableCompression 只管后端二次压缩，
-/// 由同时控制前后端的 compressImages 取代（缺省 true，延续此前前端始终预压缩的效果）
+/// 已退役的上传设置：GitHub CDN 改写不再提供。升级前 enableCompression 只管后端转 webp、
+/// 前端始终预压缩，升级后它同时控制两端；旧版设置（带 github.cdn）首次升级时打开压缩，
+/// 延续升级前的实际效果，之后按用户的选择保留。
 fn retire_image_bed_keys(setting: &mut Value) {
     let Some(image_bed) = setting.get_mut("imageBed").and_then(Value::as_object_mut) else {
         return;
     };
-    image_bed.remove("enableCompression");
-    image_bed.remove("githubCdn");
-    if let Some(github) = image_bed.get_mut("github").and_then(Value::as_object_mut) {
-        github.remove("cdn");
+    let legacy = image_bed
+        .get_mut("github")
+        .and_then(Value::as_object_mut)
+        .and_then(|github| github.remove("cdn"))
+        .is_some();
+    if legacy {
+        image_bed.insert("enableCompression".to_string(), Value::Bool(true));
     }
+    image_bed.remove("githubCdn");
 }
 
 pub fn save_setting_value(app: &AppHandle, setting: &Value) -> Result<(), String> {
@@ -952,25 +957,32 @@ mod tests {
     }
 
     #[test]
-    fn retired_image_bed_keys_are_removed_and_compression_defaults_on() {
+    fn legacy_setting_turns_compression_on_once() {
         let setting = ensure_setting_compat(json!({
             "imageBed": {
                 "active": "github",
                 "enableCompression": false,
+                "githubCdn": "jsdelivr",
                 "github": { "repo": "assets", "branch": "main", "cdn": "jsdelivr", "pathPrefix": "" }
             }
         }));
         let image_bed = &setting["imageBed"];
-        assert!(image_bed.get("enableCompression").is_none());
         assert!(image_bed["github"].get("cdn").is_none());
-        assert_eq!(image_bed["compressImages"], json!(true));
-        assert_eq!(image_bed["active"], json!("github"));
+        assert!(image_bed.get("githubCdn").is_none());
+        assert_eq!(image_bed["enableCompression"], json!(true));
         assert_eq!(image_bed["github"]["repo"], json!("assets"));
+
+        // 升级后用户关掉压缩，再次加载保持关闭
+        let mut upgraded = setting.clone();
+        upgraded["imageBed"]["enableCompression"] = json!(false);
+        let reloaded = ensure_setting_compat(upgraded);
+        assert_eq!(reloaded["imageBed"]["enableCompression"], json!(false));
     }
 
     #[test]
     fn fresh_setting_saves_uploads_locally() {
         let setting = ensure_setting_compat(json!({}));
         assert_eq!(setting["imageBed"]["active"], json!("local"));
+        assert_eq!(setting["imageBed"]["enableCompression"], json!(true));
     }
 }

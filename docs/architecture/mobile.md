@@ -346,12 +346,12 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 
 入口为设置「数据 · 图片与附件」（`settingsModule` 的 `resource` 模块），只管新插入图片与附件的上传位置，代码在 `features/settings/upload/`：
 
-- **目的地卡** `UploadCenterSection`：当前位置 + 一行状态（`uploadState.ts` 的 `deriveDestinationState`，纯函数）。配置不完整、最近一次上传失败（账号 → 「检查账号」，仓库 / 存储桶 / 配置 → 「检查存储位置」，网络不给按钮）时给出进入服务页的主按钮；只采信当前位置的结果。「压缩大图」开关即 `imageBed.compressImages`，同时控制 WebView 预压缩（`utils/imageCompress.ts`：超过 300KB 转 WebP、长边 2048）与 Rust 转 WebP，关闭即原图上传。
+- **目的地卡** `UploadCenterSection`：当前位置 + 一行状态（`uploadState.ts` 的 `deriveDestinationState`，纯函数）。配置不完整、最近一次上传失败（账号 → 「检查账号」，仓库 / 存储桶 / 配置 → 「检查存储位置」，网络不给按钮）时给出进入服务页的主按钮；只采信当前位置的结果。「压缩大图」开关即 `imageBed.enableCompression`（键名与桌面端一致），同时控制 WebView 预压缩（`utils/imageCompress.ts`：超过 300KB 转 WebP、长边 2048）与 Rust 转 WebP，关闭即原图上传。
 - **上传位置**：`imageBed.active` 取 `local`（「这台手机」，宿主内置，不进注册表，新装默认）或注册表 id。抽屉 `UploadTargetSheet` 里「这台手机」点选即切换，云端服务点选进入服务页。
 - **上传服务注册表** `providers.tsx` 的 `UPLOAD_PROVIDERS`：每项 `{ id, name, description, tile, isConfigured, summary, sampleUrl, Panel }`，与同步注册表同构，形态对齐桌面端上传插件（`upload.register` 提供上传、`settings.register({ target: "upload" })` 提供面板）。`sampleUrl` 按当前配置拼出与 Rust 端一致的图片地址；面板来自 `storage/panels.tsx`（写 `imageBed.*`）。
 - **服务页** `uploadProvider` 页（`providerId` 为页面身份）：面板 + 图片地址示例 + 上传测试 + 设为上传位置。测试走 `resource_upload_test(provider)`：按指定服务解析配置（不改写 `imageBed.active`），上传固定名 `tau-upload-test.png`（每次覆盖，GitHub 先取 sha），再 GET 返回地址判断能否直接读取；结果分「上传成功」「传上去了，但打不开」（禁止设为上传位置）与「传不上去」。切换位置不涉及数据覆盖，不需要确认。
 - **上传结果记录** `services/uploadOutcome.ts`：编辑器上传管线（`editorRegistry` 的 `IResourceService.upload`）在本机 localStorage 记录最近一次结果与错误类别；编辑器报错时（`editorNotifier`）取走 3 秒内的那次失败，提示原因并带「去设置」。
-- **设置升级**：`setting.rs` 的 `ensure_setting_compat` 删除已退役的 `imageBed.enableCompression`、`imageBed.githubCdn`、`imageBed.github.cdn`，`compressImages` 缺省为 true。移动端不提供 GitHub CDN 地址改写。
+- **设置升级**：`setting.rs` 的 `ensure_setting_compat` 删除已退役的 `imageBed.githubCdn`、`imageBed.github.cdn`；带 `github.cdn` 的旧版设置首次升级时把 `enableCompression` 置为 true（升级前前端始终预压缩），之后按用户选择保留；新装缺省为 true。移动端不提供 GitHub CDN 地址改写。
 
 ## 测试
 

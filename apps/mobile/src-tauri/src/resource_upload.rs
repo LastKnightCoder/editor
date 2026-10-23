@@ -995,7 +995,7 @@ pub async fn upload_resource(
     let active = as_string(setting.pointer("/imageBed/active"));
     let provider = parse_resource_provider(&setting, &active).map_err(format_error)?;
     let file_name = normalized_file_name(&payload.file_name);
-    let compress = as_bool(setting.pointer("/imageBed/compressImages"));
+    let compress = as_bool(setting.pointer("/imageBed/enableCompression"));
     let processed = compress_image_if_needed(&file_name, &payload.mime_type, &bytes, compress);
     let object_name = build_object_name(&processed.file_name);
 
