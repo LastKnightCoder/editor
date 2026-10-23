@@ -731,9 +731,10 @@ export function pomodoroSummaryDaily(dayStarts: number[]) {
   });
 }
 
-export function syncCheckVersions() {
+/** provider 为空时检查当前同步服务；传入服务 id 只探测该服务，不改动当前选择 */
+export function syncCheckVersions(provider?: string) {
   return withTimeout(
-    trackedInvoke<SyncVersionResponse>("sync_check_versions"),
+    trackedInvoke<SyncVersionResponse>("sync_check_versions", provider ? { provider } : undefined),
     SYNC_CHECK_TIMEOUT_MS,
     `SYNC_CHECK_FAILED:同步状态刷新超时（${Math.floor(
       SYNC_CHECK_TIMEOUT_MS / 1000

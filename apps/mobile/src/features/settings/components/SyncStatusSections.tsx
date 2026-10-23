@@ -1,21 +1,10 @@
 import { useState } from "react";
-import type {
-  ResourceSyncProgress,
-  ResourceSyncStatusFile,
-  SyncVersionResponse,
-} from "../../../types";
-import { MobileConfirmDialog } from "../../../components/MobileConfirmDialog";
+import type { ResourceSyncProgress, ResourceSyncStatusFile } from "../../../types";
 import { GroupLabel } from "../../../components/GroupLabel";
 import { toast } from "../../../components/toast";
-import { mapErrorToMessage, parseInvokeError } from "../../../services/errors";
+import { resolveSyncErrorMessage } from "../sync/syncErrors";
 import type { SettingsPageProps } from "./types";
-import { Check, Cloud, Download, RefreshCw, Upload } from "lucide-react";
 import { GroupActionRow, GroupCard, GroupNote, GroupRow, StatusDot, SwitchButton } from "./ui";
-
-type DatabaseSyncStatusSectionProps = Pick<
-  SettingsPageProps,
-  "versions" | "isSyncing" | "onCheckVersions" | "onSyncUpload" | "onSyncDownload"
->;
 
 type ResourceSyncStatusSectionProps = Pick<
   SettingsPageProps,
@@ -40,33 +29,6 @@ const resourceStatusTextMap: Record<ResourceSyncProgress["status"], string> = {
   cancelled: "已取消",
 };
 
-export function getDatabaseSyncSummary(versions: SyncVersionResponse | null): string {
-  if (!versions) {
-    return "未开始";
-  }
-  if (versions.localVersion === 0 && versions.remoteVersion === 0) {
-    return "未开始";
-  }
-  if (versions.localVersion === versions.remoteVersion) {
-    return "已同步";
-  }
-  return versions.localVersion > versions.remoteVersion ? "本地领先" : "远端领先";
-}
-
-function getDatabaseSyncRecommendation(versions: SyncVersionResponse | null): string {
-  const summary = getDatabaseSyncSummary(versions);
-  if (summary === "已同步") {
-    return "本地与远端版本一致";
-  }
-  if (summary === "本地领先") {
-    return "本地有新版本未上传，建议上传到远端";
-  }
-  if (summary === "远端领先") {
-    return "远端有新版本未下载，建议从远端下载";
-  }
-  return "尚未进行首次同步，建议先检查远端更新";
-}
-
 function getResourcePercent(progress: ResourceSyncProgress): number {
   if (progress.totalFiles <= 0) {
     return 0;
@@ -89,214 +51,6 @@ export function getResourceSyncSummary(progress: ResourceSyncProgress): string {
     return "已取消";
   }
   return "未开始";
-}
-
-function resolveErrorMessage(error: unknown, fallback: string): string {
-  const parsed = parseInvokeError(error);
-  const baseMessage = mapErrorToMessage(parsed.code, parsed.message || fallback);
-  const detailMessage = parsed.message && parsed.message !== parsed.code ? parsed.message : "";
-  if (detailMessage && detailMessage !== baseMessage) {
-    return `${baseMessage}（${detailMessage}）`;
-  }
-  return baseMessage;
-}
-
-function buildVersionRefreshMessage(result: SyncVersionResponse): string {
-  if (result.localVersion === 0 && result.remoteVersion === 0) {
-    return "刷新完成：本地与远端都没有版本，可能尚未进行首次同步。";
-  }
-  if (result.remoteVersion === 0) {
-    return `刷新完成：本地版本 ${result.localVersion}，远端还没有版本（可能尚未首次上传）。`;
-  }
-  return `刷新完成：本地 ${result.localVersion}，远端 ${result.remoteVersion}。`;
-}
-
-/** 状态卡图标气泡的配色与图形（按摘要映射） */
-function DatabaseStatusBubble(props: { summary: string; syncing: boolean }) {
-  if (props.syncing) {
-    return (
-      <span className="bg-tag-2-soft text-tag-2 pulse-soft grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[14px]">
-        <RefreshCw size={20} strokeWidth={2.1} aria-hidden="true" />
-      </span>
-    );
-  }
-  if (props.summary === "已同步") {
-    return (
-      <span className="bg-tag-1-soft text-tag-1 grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[14px]">
-        <Check size={20} strokeWidth={2.4} aria-hidden="true" />
-      </span>
-    );
-  }
-  if (props.summary === "本地领先") {
-    return (
-      <span className="bg-tag-4-soft text-tag-4 grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[14px]">
-        <Upload size={19} strokeWidth={2.1} aria-hidden="true" />
-      </span>
-    );
-  }
-  if (props.summary === "远端领先") {
-    return (
-      <span className="bg-tag-4-soft text-tag-4 grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[14px]">
-        <Download size={19} strokeWidth={2.1} aria-hidden="true" />
-      </span>
-    );
-  }
-  return (
-    <span className="bg-page text-ink-2 grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[14px]">
-      <Cloud size={19} strokeWidth={2} aria-hidden="true" />
-    </span>
-  );
-}
-
-function VersionCell(props: { label: string; version: number | null }) {
-  return (
-    <div className="bg-page rounded-[13px] px-3 py-[9px] text-center">
-      <p className="text-ink-3 m-0 text-[10.5px] tracking-[1px]">{props.label}</p>
-      <p className="text-ink-1 m-0 mt-0.5 text-[19px] font-extrabold tabular-nums tracking-tight">
-        {props.version ?? "—"}
-      </p>
-    </div>
-  );
-}
-
-export function DatabaseSyncStatusSection(props: DatabaseSyncStatusSectionProps) {
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  /** 待确认的整库覆盖方向；null 表示确认框关闭 */
-  const [dangerDir, setDangerDir] = useState<"upload" | "download" | null>(null);
-  const summary = getDatabaseSyncSummary(props.versions);
-  const recommendation = getDatabaseSyncRecommendation(props.versions);
-  const busy = props.isSyncing || isSubmitting || isRefreshing;
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      const result = await props.onCheckVersions();
-      toast.success(buildVersionRefreshMessage(result));
-    } catch (error) {
-      toast.error(resolveErrorMessage(error, "刷新同步状态失败，请检查同步配置与网络"));
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  const runDatabaseAction = async (
-    action: () => Promise<{ message: string }>,
-    fallbackSuccess: string
-  ) => {
-    setIsSubmitting(true);
-    try {
-      const result = await action();
-      toast.success(result.message || fallbackSuccess);
-    } catch (error) {
-      toast.error(resolveErrorMessage(error, "数据库同步执行失败"));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  /** 智能同步：先刷新版本，再按本地/远端高低自动选择上传或下载 */
-  const handleSmartSync = async () => {
-    setIsSubmitting(true);
-    try {
-      const versions = await props.onCheckVersions();
-      if (versions.localVersion >= versions.remoteVersion) {
-        const result = await props.onSyncUpload();
-        toast.success(result.message || "数据库上传已完成");
-      } else {
-        const result = await props.onSyncDownload();
-        toast.success(result.message || "数据库下载已完成");
-      }
-    } catch (error) {
-      toast.error(resolveErrorMessage(error, "数据库同步执行失败"));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDangerConfirm = async () => {
-    const dir = dangerDir;
-    setDangerDir(null);
-    if (dir === "upload") {
-      await runDatabaseAction(props.onSyncUpload, "数据库上传已完成");
-    } else if (dir === "download") {
-      await runDatabaseAction(props.onSyncDownload, "数据库下载已完成");
-    }
-  };
-
-  const localVersion = props.versions?.localVersion ?? null;
-  const remoteVersion = props.versions?.remoteVersion ?? null;
-
-  return (
-    <div className="page-enter space-y-1">
-      <section className="list-group p-4">
-        <div className="flex items-center gap-3">
-          <DatabaseStatusBubble summary={summary} syncing={props.isSyncing} />
-          <div className="min-w-0 flex-1">
-            <p className="text-ink-1 m-0 text-[15.5px] font-bold">
-              {props.isSyncing ? "同步中" : summary}
-            </p>
-            <p className="text-ink-3 m-0 mt-0.5 truncate text-[11.5px]">
-              {props.versions?.databaseName ?? "尚未获取数据库信息"}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-          <VersionCell label="本地" version={localVersion} />
-          <span className="text-ink-3">
-            <RefreshCw
-              size={16}
-              strokeWidth={2}
-              className={props.isSyncing ? "pulse-soft" : ""}
-              aria-hidden="true"
-            />
-          </span>
-          <VersionCell label="远端" version={remoteVersion} />
-        </div>
-
-        <p className="text-ink-2 m-0 mt-3 text-[12.5px] leading-relaxed">{recommendation}。</p>
-      </section>
-
-      <GroupLabel>操作</GroupLabel>
-      <GroupCard>
-        <GroupActionRow onClick={() => void handleSmartSync()} disabled={busy}>
-          {isSubmitting ? "同步中…" : "立即同步"}
-        </GroupActionRow>
-        <GroupActionRow onClick={() => void handleRefresh()} disabled={busy}>
-          {isRefreshing ? "检查中…" : "检查远端更新"}
-        </GroupActionRow>
-      </GroupCard>
-
-      <GroupLabel>整库覆盖 · 危险</GroupLabel>
-      <GroupCard>
-        <GroupActionRow danger disabled={busy} onClick={() => setDangerDir("upload")}>
-          用本地覆盖远端…
-        </GroupActionRow>
-        <GroupActionRow danger disabled={busy} onClick={() => setDangerDir("download")}>
-          用远端覆盖本地…
-        </GroupActionRow>
-      </GroupCard>
-      <GroupNote>
-        整库覆盖会丢失被覆盖一侧未同步的改动，执行前会再次确认方向。日常使用「立即同步」即可，它按版本差异自动选择方向。
-      </GroupNote>
-
-      <MobileConfirmDialog
-        open={dangerDir !== null}
-        danger
-        title={dangerDir === "upload" ? "用本地覆盖远端？" : "用远端覆盖本地？"}
-        description={
-          dangerDir === "upload"
-            ? `本地数据库（v${localVersion ?? "?"}）将整体上传并覆盖远端（当前 v${remoteVersion ?? "?"}）。远端更新的改动将丢失。`
-            : `远端数据库（v${remoteVersion ?? "?"}）将整体下载并覆盖本地（当前 v${localVersion ?? "?"}）。本地未上传的改动将丢失。`
-        }
-        confirmText={dangerDir === "upload" ? "覆盖远端" : "覆盖本地"}
-        loading={isSubmitting}
-        onCancel={() => setDangerDir(null)}
-        onConfirm={() => void handleDangerConfirm()}
-      />
-    </div>
-  );
 }
 
 function getResourceSummaryTone(summary: string): "ok" | "run" | "warn" | "idle" {
@@ -340,7 +94,7 @@ export function ResourceSyncStatusSection(props: ResourceSyncStatusSectionProps)
       await props.onResourceSyncRefresh();
       toast.success("资源同步状态已刷新");
     } catch (error) {
-      toast.error(resolveErrorMessage(error, "刷新资源同步状态失败"));
+      toast.error(resolveSyncErrorMessage(error, "刷新资源同步状态失败"));
     } finally {
       setIsRefreshing(false);
     }
@@ -355,7 +109,7 @@ export function ResourceSyncStatusSection(props: ResourceSyncStatusSectionProps)
       const result = await action();
       toast.success(result.message || fallbackSuccess);
     } catch (error) {
-      toast.error(resolveErrorMessage(error, "资源同步执行失败"));
+      toast.error(resolveSyncErrorMessage(error, "资源同步执行失败"));
     } finally {
       setIsSubmitting(false);
     }

@@ -1,9 +1,8 @@
 // 设置模块页：二级模块以独立路由页呈现（settingsModule，match: "params"）。
 // 返回逐级退栈、滚动位置保持、转场与侧滑返回全部由 router 的 Activity 保活机制提供，
 // 此组件只负责顶栏 chrome 与模块 → section 的映射。
-// 数据域拆为两个主页（方案 C 极简分组）：「数据库与同步」管库、库同步与同步服务；
-// 「资源与存储」管资源同步与存储目标。主页只做选择（单选组 + checkmark），
-// 状态详情、服务配置全部下钻子页；凭证与参数分离，经各配置子页互通。
+// 数据域两个主页：「数据库同步」是同步中心（状态 + 主按钮 + 服务抽屉，服务页见 syncProvider 页），
+// 「资源与存储」管资源同步与存储目标（单选组 + checkmark，配置下钻子页）。
 
 import { useRef } from "react";
 import type { SettingCompat } from "../../types";
@@ -22,18 +21,9 @@ import {
   ResourceS3Section,
   ResourceWebDavSection,
 } from "./components/ResourceSections";
-import {
-  SyncAliOssSection,
-  SyncGithubSection,
-  SyncS3Section,
-  SyncWebDavSection,
-} from "./components/SyncSections";
-import {
-  DatabaseSyncStatusSection,
-  ResourceSyncStatusSection,
-  getDatabaseSyncSummary,
-  getResourceSyncSummary,
-} from "./components/SyncStatusSections";
+import { ResourceSyncStatusSection, getResourceSyncSummary } from "./components/SyncStatusSections";
+import { OverwriteSection } from "./sync/OverwriteSection";
+import { SyncCenterSection } from "./sync/SyncCenterSection";
 import type { SettingModuleKey, SettingsPageProps } from "./components/types";
 import {
   CheckBubble,
@@ -55,16 +45,16 @@ import { useNavigator } from "../../router";
 
 function getTitle(module: SettingModuleKey): string {
   switch (module) {
-    case "sync":
-      return "数据与同步";
     case "about":
       return "关于";
     case "database":
-      return "数据库与同步";
+      return "数据库同步";
+    case "databases":
+      return "数据库";
+    case "sync-overwrite":
+      return "整库覆盖";
     case "collaboration":
       return "实时协作";
-    case "sync-status-db":
-      return "数据库同步";
     case "sync-status-resource":
       return "资源同步";
     case "integration":
@@ -89,14 +79,6 @@ function getTitle(module: SettingModuleKey): string {
       return "S3 资源";
     case "resource-webdav":
       return "WebDAV 资源";
-    case "sync-webdav":
-      return "WebDAV 同步";
-    case "sync-alioss":
-      return "AliOSS 同步";
-    case "sync-github":
-      return "Github 同步";
-    case "sync-s3":
-      return "S3 同步";
     default:
       return "设置";
   }
@@ -106,25 +88,6 @@ type ModuleSectionProps = SettingsPageProps & {
   module: SettingModuleKey;
   onOpenModule: (module: SettingModuleKey) => void;
 };
-
-/** 同步服务单选行描述（凭证状态副文本来自集成账号配置） */
-function syncCredentialSubtitle(setting: SettingCompat | null, provider: string): string {
-  if (!setting) {
-    return "未连接凭证";
-  }
-  if (provider === "github") {
-    const github = setting.integration.github;
-    return github.token && github.user.name ? `已连接 · ${github.user.name}` : "未连接凭证";
-  }
-  if (provider === "aliOSS") {
-    return setting.integration.aliOSS.accessKeyId ? "已连接" : "未连接凭证";
-  }
-  if (provider === "s3") {
-    return setting.integration.s3.accessKeyId ? "已连接" : "未连接凭证";
-  }
-  const webdav = setting.integration.webdav;
-  return webdav.url && webdav.username ? "已连接" : "未连接凭证";
-}
 
 /** 存储目标单选行副文本：显示已配置的关键参数摘要 */
 function resourceTargetSubtitle(setting: SettingCompat | null, target: string): string {
@@ -151,33 +114,6 @@ function resourceTargetSubtitle(setting: SettingCompat | null, target: string): 
   }
   return bed.local.path || "resources";
 }
-
-const SYNC_PROVIDERS = [
-  {
-    key: "aliOSS",
-    label: "AliOSS",
-    module: "sync-alioss",
-    tile: "bg-accent-soft text-accent-text",
-  },
-  {
-    key: "github",
-    label: "Github",
-    module: "sync-github",
-    tile: "bg-tag-3-soft text-tag-3",
-  },
-  {
-    key: "webdav",
-    label: "WebDAV",
-    module: "sync-webdav",
-    tile: "bg-tag-1-soft text-tag-1",
-  },
-  {
-    key: "s3",
-    label: "S3",
-    module: "sync-s3",
-    tile: "bg-tag-2-soft text-tag-2",
-  },
-] as const;
 
 const RESOURCE_TARGETS = [
   {
@@ -217,20 +153,6 @@ const RESOURCE_TARGETS = [
   },
 ] as const;
 
-/** 数据库同步状态行的状态点色调 */
-function databaseStatusTone(summary: string, syncing: boolean) {
-  if (syncing) {
-    return "run" as const;
-  }
-  if (summary === "已同步") {
-    return "ok" as const;
-  }
-  if (summary === "未开始") {
-    return "idle" as const;
-  }
-  return "warn" as const;
-}
-
 /** 资源同步状态行的状态点色调 */
 function resourceStatusTone(summary: string) {
   if (summary === "已完成") {
@@ -245,32 +167,10 @@ function resourceStatusTone(summary: string) {
   return "idle" as const;
 }
 
-/** 数据库与同步主页（方案 C）：当前数据库 + 同步状态 + 同步服务 */
-function DatabaseSettingsView(props: ModuleSectionProps) {
-  const activeSync = props.safeSetting?.sync.active ?? "aliOSS";
-
-  const selectSyncProvider = (target: string) => {
-    if (target === activeSync) {
-      return;
-    }
-    props.updateSetting(
-      prev => ({
-        ...prev,
-        sync: { ...prev.sync, active: target },
-      }),
-      { persist: true }
-    );
-  };
-
-  const dbSummary = props.isSyncing ? "同步中" : getDatabaseSyncSummary(props.versions);
-  const dbTone = databaseStatusTone(dbSummary, props.isSyncing);
-  const dbSub = props.versions
-    ? `${props.versions.databaseName} · 本地 v${props.versions.localVersion} · 远端 v${props.versions.remoteVersion}`
-    : "尚未检查版本";
-
+/** 数据库列表：切换当前数据库（低频，从同步中心「更多」进入） */
+function DatabasesView(props: ModuleSectionProps) {
   return (
     <div className="page-enter space-y-1">
-      <GroupLabel>当前数据库</GroupLabel>
       <GroupCard>
         {(props.databases?.databases ?? []).map(db => (
           <GroupRow key={db.name} onClick={() => void props.onSwitchDatabase(db.name)}>
@@ -285,44 +185,7 @@ function DatabaseSettingsView(props: ModuleSectionProps) {
           </GroupRow>
         ))}
       </GroupCard>
-      <GroupNote>切换数据库后应用将重新加载数据。</GroupNote>
-
-      <GroupLabel>数据库同步 · {dbSummary}</GroupLabel>
-      <GroupCard>
-        <GroupRow onClick={() => props.onOpenModule("sync-status-db")}>
-          <StatusDot tone={dbTone} />
-          <span className="min-w-0 flex-1">
-            <span className="text-ink-1 block text-[14.5px] font-medium">{dbSummary}</span>
-            <span className="text-ink-3 block truncate text-[11.5px]">{dbSub}</span>
-          </span>
-          <span className="text-ink-3">
-            <IconChevronRight />
-          </span>
-        </GroupRow>
-      </GroupCard>
-
-      <GroupLabel>同步服务 · 同时仅一个生效</GroupLabel>
-      <GroupCard>
-        {SYNC_PROVIDERS.map(provider => (
-          <GroupRow key={provider.key} onClick={() => selectSyncProvider(provider.key)}>
-            <LetterTile letter={provider.label[0]} className={provider.tile} />
-            <span className="min-w-0 flex-1">
-              <span className="text-ink-1 block text-[14.5px] font-medium">{provider.label}</span>
-              <span className="text-ink-3 block truncate text-[11.5px]">
-                {syncCredentialSubtitle(props.safeSetting, provider.key)}
-              </span>
-            </span>
-            {activeSync === provider.key && <CheckBubble />}
-            <InfoDotButton
-              onClick={() => props.onOpenModule(provider.module)}
-              label={`配置${provider.label}同步`}
-            />
-          </GroupRow>
-        ))}
-      </GroupCard>
-      <GroupNote className="pb-2">
-        点选切换服务；点 ⓘ 配置凭证与参数。凭证集中管理，与同步参数互不影响。
-      </GroupNote>
+      <GroupNote>切换数据库后应用将重新加载数据，同步也会改为针对新数据库。</GroupNote>
     </div>
   );
 }
@@ -404,25 +267,36 @@ function ResourceSettingsView(props: ModuleSectionProps) {
 
 function ModuleSection(props: ModuleSectionProps) {
   switch (props.module) {
-    case "sync":
     case "database":
-      return <DatabaseSettingsView {...props} />;
+      return (
+        <SyncCenterSection
+          setting={props.safeSetting}
+          versions={props.versions}
+          isSyncing={props.isSyncing}
+          activeDatabase={props.databases?.activeDatabase ?? null}
+          onCheckVersions={props.onCheckVersions}
+          onSyncUpload={props.onSyncUpload}
+          onSyncDownload={props.onSyncDownload}
+          onOpenModule={props.onOpenModule}
+        />
+      );
+    case "databases":
+      return <DatabasesView {...props} />;
+    case "sync-overwrite":
+      return (
+        <OverwriteSection
+          versions={props.versions}
+          isSyncing={props.isSyncing}
+          onSyncUpload={props.onSyncUpload}
+          onSyncDownload={props.onSyncDownload}
+        />
+      );
     case "resource":
       return <ResourceSettingsView {...props} />;
     case "about":
       return <AboutSection />;
     case "collaboration":
       return <CollaborationSection />;
-    case "sync-status-db":
-      return (
-        <DatabaseSyncStatusSection
-          versions={props.versions}
-          isSyncing={props.isSyncing}
-          onCheckVersions={props.onCheckVersions}
-          onSyncUpload={props.onSyncUpload}
-          onSyncDownload={props.onSyncDownload}
-        />
-      );
     case "sync-status-resource":
       return (
         <ResourceSyncStatusSection
@@ -499,46 +373,6 @@ function ModuleSection(props: ModuleSectionProps) {
       }
       return <ResourceWebDavSection {...resourceProps} />;
     }
-    case "sync-webdav":
-      return (
-        <SyncWebDavSection
-          safeSetting={props.safeSetting}
-          isSavingSetting={props.isSavingSetting}
-          onSaveSetting={props.onSaveSetting}
-          updateSetting={props.updateSetting}
-          onOpenModule={props.onOpenModule}
-        />
-      );
-    case "sync-github":
-      return (
-        <SyncGithubSection
-          safeSetting={props.safeSetting}
-          isSavingSetting={props.isSavingSetting}
-          onSaveSetting={props.onSaveSetting}
-          updateSetting={props.updateSetting}
-          onOpenModule={props.onOpenModule}
-        />
-      );
-    case "sync-alioss":
-      return (
-        <SyncAliOssSection
-          safeSetting={props.safeSetting}
-          isSavingSetting={props.isSavingSetting}
-          onSaveSetting={props.onSaveSetting}
-          updateSetting={props.updateSetting}
-          onOpenModule={props.onOpenModule}
-        />
-      );
-    case "sync-s3":
-      return (
-        <SyncS3Section
-          safeSetting={props.safeSetting}
-          isSavingSetting={props.isSavingSetting}
-          onSaveSetting={props.onSaveSetting}
-          updateSetting={props.updateSetting}
-          onOpenModule={props.onOpenModule}
-        />
-      );
     default:
       return null;
   }

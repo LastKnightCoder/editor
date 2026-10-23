@@ -1,5 +1,5 @@
 // 我的页根视图（v2 模板）：行内直显关键值，数据域入口收敛为两个独立页面——
-// 数据库与同步（库切换 + 库同步 + 同步服务）/ 资源与存储（资源同步 + 存储目标）。
+// 数据库同步（同步中心：状态 + 服务 + 数据库切换）/ 资源与存储（资源同步 + 存储目标）。
 // 外观（主题 overlay 路由页）/ 编辑器（打开文档时）/ 关于（版本）。
 
 import { useEffect, useState } from "react";
@@ -122,7 +122,7 @@ export function OverviewSection(props: OverviewSectionProps) {
       <div className="list-group">
         <ListItem
           icon={<IconDatabase />}
-          label="数据库与同步"
+          label="数据库同步"
           value={
             dbSizeQuery.data != null
               ? `${props.activeDatabase ?? "本地"} · ${formatBytes(dbSizeQuery.data)}`

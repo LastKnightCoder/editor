@@ -203,6 +203,13 @@
       "runtimeArgs": ["-m", "http.server", "8834", "--bind", "127.0.0.1", "-d", "."],
       "port": 8834,
       "url": "http://localhost:8834"
+    },
+    {
+      "name": "mobile-sync-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8835", "--bind", "127.0.0.1", "-d", "."],
+      "port": 8835,
+      "url": "http://localhost:8835"
     }
   ]
 }

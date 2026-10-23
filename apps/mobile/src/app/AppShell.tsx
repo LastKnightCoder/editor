@@ -43,6 +43,7 @@ import {
 } from "../router";
 import { AppContext, type AppContextValue } from "./AppContext";
 import { HomeScreen } from "./HomeScreen";
+import { writeLastSyncTime } from "../features/settings/sync/syncState";
 import "../pages";
 
 const EMPTY_VIEW_CONFIG = {
@@ -319,6 +320,7 @@ function AppShellInner() {
 
   const handleSyncUpload = useMemoizedFn(async () => {
     const result = await syncSettings.runSyncAction("syncUploadDatabase");
+    writeLastSyncTime(result.databaseName, Date.now());
     await syncSettings.loadSetting();
     await bootstrap.refreshDatabases();
     await refreshCardsSafe({ page: 1 });
@@ -328,6 +330,7 @@ function AppShellInner() {
 
   const handleSyncDownload = useMemoizedFn(async () => {
     const result = await syncSettings.runSyncAction("syncDownloadDatabase");
+    writeLastSyncTime(result.databaseName, Date.now());
     await emitDatabaseChange({
       reason: "syncDownload",
       databaseName: result.databaseName,
