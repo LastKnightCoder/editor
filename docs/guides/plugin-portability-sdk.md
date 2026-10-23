@@ -35,7 +35,7 @@ pnpm build
 
 tarball 保存在忽略的 `.sdk` 目录，依赖与锁文件只使用相对 file 地址。修改 SDK 导致输入内容变化时更新锁文件；旧锁仍引用已移除依赖而被策略拒绝时，先核对依赖变更，再 `pnpm clean --lockfile` 和重新 install。不要关闭依赖年龄或完整性策略。
 
-产物必须保持 formatVersion 3、portable、web-v1。模板与中心共用 validatePortableDistributionManifest，未知能力、含移动目标的非空权限和插件预发布版本应在构建失败，上一产物保留。install:local 仍拒绝写入旧桌面正式目录；release 工作流可以提交格式 3，但服务端始终要求人工批准上架，平台测试由作者负责。正式发布前只声明实际通过验收且中心已开放的平台，本地构建验证不自动上传。
+产物必须保持 formatVersion 3、portable、web-v1。模板与中心共用 validatePortableDistributionManifest，未知能力、含移动目标的非空权限和插件预发布版本应在构建失败，上一产物保留。install:local 仍拒绝写入旧桌面正式目录；release 工作流可以提交格式 3，但服务端按既有身份与绑定规则决定本人 CI 自动批准或人工审核，平台测试由作者负责。正式发布前只声明实际通过验收且中心已开放的平台，本地构建验证不自动上传。
 
 ## 仓库外验证
 

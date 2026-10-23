@@ -225,7 +225,7 @@ try {
   const archive = path.resolve("dist", `${manifest.id}-${manifest.version}.zip`);
   zip.writeZip(archive);
   console.log(
-    `构建完成：${archive}\n${portable ? "格式 3 需经插件中心人工批准上架，作者负责平台适配与测试；移动安装需兼容的正式客户端，桌面仅支持显式开发目录。" : "运行 pnpm install:local 安装到 Tau，然后在插件页点「重新扫描」。"}`
+    `构建完成：${archive}\n${portable ? "格式 3 沿用插件中心上架规则，作者负责平台适配与测试；移动安装需兼容的正式客户端，桌面仅支持显式开发目录。" : "运行 pnpm install:local 安装到 Tau，然后在插件页点「重新扫描」。"}`
   );
 } catch (error) {
   await rm(staging, { recursive: true, force: true });
