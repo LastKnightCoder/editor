@@ -13,18 +13,18 @@
 
 ## 任务列表
 
-| 任务                                      | 状态        | 结果与下一步                                                                                                                      |
-| ----------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| Investigate/Triage/Understand the problem | COMPLETE    | npm 登录已恢复；SDK 0.36.0/UI 0.4.0 未占用，官方模板 main 干净。原生安装与管理原先统一被 debug 门禁拦住，需要分离中心与开发来源。 |
-| 稳定 SDK 与统一模板产物                   | COMPLETE    | SDK 0.36.0/UI 0.4.0 已发布 latest；官方模板 main 已推送 f3bab62，注册表冻结构建通过。                                             |
-| 正式原生安装与回归                        | COMPLETE    | Android 0.2.1 release 已构建并签名；固定中心、开发来源隔离与启用意图回归通过。iOS 缺签名，用户决定延期。                          |
-| 发布 Android 中心并验证 APP               | IN_PROGRESS | 计数器 Android 包已获明确发布批准；按新裁决移除审核者平台测试与记录后，部署 Worker、网页并验证正式下载安装。                      |
+| 任务                                      | 状态     | 结果与下一步                                                                                                                      |
+| ----------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Investigate/Triage/Understand the problem | COMPLETE | npm 登录已恢复；SDK 0.36.0/UI 0.4.0 未占用，官方模板 main 干净。原生安装与管理原先统一被 debug 门禁拦住，需要分离中心与开发来源。 |
+| 稳定 SDK 与统一模板产物                   | COMPLETE | SDK 0.36.0/UI 0.4.0 已发布 latest；官方模板 main 为 1110c3c，注册表冻结构建通过。                                                 |
+| 正式原生安装与回归                        | COMPLETE | Android 0.2.1 release 已构建并签名；固定中心、开发来源隔离与启用意图回归通过。iOS 缺签名，用户决定延期。                          |
+| 发布 Android 中心并验证 APP               | COMPLETE | Worker/网页及计数器已上线；正式签名 APK 完成生产下载、校验、重启激活与再次重启计数持久化。iOS 与 D 外部验收单独保留。             |
 
-已读到 npm 最新插件 SDK 0.35.0、UI 0.3.0；官方模板 main 为 869c358，本地同仓库干净且有管理员权限。本机 npm 首次认证 401，用户已完成重新登录，发布前再次核验。新产物拟使用插件 SDK 0.36.0 和 UI 0.4.0，不覆盖已发布版本。
+调查时 npm 最新插件 SDK 0.35.0、UI 0.3.0，官方模板 main 为 869c358。本机 npm 首次认证 401，用户重新登录并完成发布验证后，已发布 0.36.0 和 0.4.0，不覆盖旧版本。
 
 原生旧 dev_only 的消费者已替换为来源与操作各自的门禁，rg 确认无调用后删除；任意开发 URL 的 stage/commit 仍仅允许调试，中心 stage/commit 仍要求固定来源、兼容选版与提交前复验。正式构建读取旧调试包时也拒绝非固定中心来源；启用与恢复检查本机持久撤回记录，卸载不清业务数据。
 
-初始签名核对只有 macOS Developer ID Application，尚未发现 iOS 开发/发行签名身份；继续实际 iOS 构建确认，不把模拟器 .app 当作可交付 IPA。
+签名核对只有 macOS Developer ID Application；实际 iOS 正式构建缺账号与 profile，未产出可交付 IPA，用户决定延期。
 
 ## 执行进度
 
@@ -35,12 +35,15 @@
 - iOS 正式构建实际失败：Xcode No Accounts，缺 com.txiong.tau-mobile provisioning profile。用户已决定先交付 Android，iOS 等签名就绪；因此仅准备开放 Android 分发，不宣称 IPA 已交付。原 spike 工程保留于 output/plugin-release/apple-spike-generated-backup。
 - 官方模板 main 已推送 b614971、f3bab62；旧锁中 0.35.0 被依赖年龄策略拒绝，按新依赖重建后注册表冻结构建通过，未关闭校验策略。报告 output/plugin-release/author-npm.json 的 sdkSource=npm、templateLockfileReused=true。
 - Android 专用发行分支 codex/counter-android-1.1.0 已推送 ccab912；只收窄 manifest 平台并更新说明，main 保留三端作者模板。门户仓库快照取默认分支 f3bab62，不将其误记为发行构建提交。
-- 用户明确批准 example.external-counter@1.1.0 的 Android 包：提交 41a230ea-3c99-44d7-8c11-cbb963fe353f，SHA-256 7f3b6f97a837c983071b7a1d5766c6ef6b0ac93ecdd4c1d3dab1c18bce765453；仅 Android ≥0.2.1、无业务权限。当前待审核，尚未公开发布。
+- 用户明确批准 example.external-counter@1.1.0 的 Android 包：提交 41a230ea-3c99-44d7-8c11-cbb963fe353f，SHA-256 7f3b6f97a837c983071b7a1d5766c6ef6b0ac93ecdd4c1d3dab1c18bce765453；仅 Android ≥0.2.1、无业务权限。已通过正常网页批准并上架，releaseId 为 6fbca142-413a-43b2-af06-de6c855080f1，公开下载与批准 ZIP 字节一致。
 - 取消审核者测试责任后，门户类型检查通过，API 98、网页 96、SDK 259 项通过；删除的是旧平台证据校验及组件测试，新增/替换为不填验证记录即可审批、修订变化仍阻止旧确认、新审核不写证据列的回归。SDK 类型、进程边界与文档检查通过。
-- 移动全量回归在与原生构建并行时有 1 项 5 秒超时，单项复查通过；随后降低 worker 并行度重新执行完整 404 项，不放宽测试超时。Rust lib 96 项通过。
+- 移动全量回归在与原生构建并行时有 1 项 5 秒超时，单项复查通过；随后降低 worker 并行度重跑完整 404 项全部通过，未放宽测试超时。Rust lib 96 项通过。
 - 官方模板补充审核职责说明，提交 b62b1b3；更新后再次使用 npm 注册表冻结构建通过，报告 output/plugin-release/author-npm-final.json。不会覆盖已发布 SDK 版本或替换已批准的计数器 ZIP。
 - 修正已安装空态旧文案后重新生成 Android release APK，SHA-256 2ae5398e0bda13928343787eae4e9b48d6a5e51dfb887e4ca2f52b6d56891249，签名证书未变。交付路径 output/plugin-release/Tau-0.2.1-android-arm64.apk。
-- 集成源码已提交 74c8126ba，Worker c548b0d4-0b73-4341-afd2-08393474471d 已上线取消平台验证门槛、开放 android 分发；网页尚未发布。随后按用户新裁决追加本人 CI 自动批准，待回归后发布新的 Worker 与网页。
+- 集成源码 74c8126ba、本人 CI 自动批准修正 8e32ef340 已提交。最终 Worker 1df4ef9b-cb55-4b0b-9095-5c36350cb040、Pages 23d4145d 已按顺序发布。API 101、网页 96 项及类型/构建通过；公共 smoke 通过，网页入口摘要与构建一致。
+- 线上 Android 0.2.1 resolve 返回 compatible；0.2.0 返回 APP_VERSION_TOO_LOW；iOS/desktop 返回 DISTRIBUTION_UNAVAILABLE。v1 目录/历史没有格式 3，详情与下载 404。报告 output/plugin-release/production-center.json；线上网页报告 production-web.json。
+- 正式签名 Android APK 在专用模拟器 Android 16/API 36、WebView 156.0.8078.47 完成生产中心安装。确认面板显示 1.1.0/22 KB/无额外权限；安装后系统强停重启，“我的”出现计数器；计数从 0 增加并保存为 1，再次强停重启仍为 1。全程使用 com.txiong.tau_mobile release，没有注入本地包或调试来源。行为证据为 output/plugin-release/android-release-result.json 及对应 XML，不替代真机、最低系统和视觉验收。
+- 最终官方模板 main 为 1110c3c，已同步本人 CI 自动批准规则；本次计数器通过维护者已批准的网页流程发布，不为测试 CI 重复发布同一版本。CI 身份/绑定/开关与幂等性由带签名 OIDC 的接口测试覆盖。
 
 ## 验证与交接
 
@@ -48,7 +51,7 @@
 
 部署前新增 D1 备份：~/.local/share/tau/plugin-portal/backups/2026-10-23T02-08-01-680Z.sql；无待迁移项目，不重复执行 0012。
 
-调查后补充实际发布包版本、渠道、受支持能力、构建与安装证据。不把 npm 发布、模拟器、内测包与应用商店上线混为一项验收。
+本轮交付为已签名 Android arm64 APK、已发布 npm SDK/UI、官方模板与生产插件中心中的 Android 计数器。未提交应用商店、未产出 iOS IPA，也未宣称全部插件 API 已有移动实现；支持范围继续以 API 支持矩阵为准。下一步是用户安装 APK 验收真机体验，并在签名就绪后接续 iOS 与父任务 D 的清单。
 
 ## 退出条件
 
