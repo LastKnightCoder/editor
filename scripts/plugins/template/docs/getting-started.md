@@ -1,24 +1,23 @@
 # 快速开始
 
-当前模板是跨端开发模板，使用同一个 `@tau/plugins` / `@tau/ui` SDK。开发版本尚未发布到 npm，需要两个本地 tarball，不能用旧公开版本构建新接口。
+模板使用同一套 SDK：`@tau/plugins` 为 npm 别名 @xiongtao.xt/tau-plugins 0.36.0，`@tau/ui` 为 @xiongtao.xt/tau-ui 0.4.0。移动正式安装要求 Android/iOS 客户端至少 0.2.1；具体支持范围先看 [API 矩阵](api-support.md)。
 
 ## 准备与构建
 
 1. 安装 Node.js 22+ 与 pnpm 11.9.0，复制本版本模板到独立目录。
-2. 用实际文件路径准备 SDK 输入：
+2. 安装已锁定的 npm 依赖并构建：
 
 ```sh
-node use-local-sdk.mjs /path/to/tau-plugins.tgz /path/to/tau-ui.tgz
-pnpm install
+pnpm install --frozen-lockfile
 pnpm build
 ```
 
-脚本复制到 `.sdk/plugins.tgz`、`.sdk/ui.tgz`。模板依赖显式指向这两个文件，它们仍是公共 SDK/UI 的同一发布包；没有新建移动 SDK。
+无需仓库源码或本地 tarball。依赖使用固定版本和锁文件；没有单独的移动 SDK。
 
 3. 构建生成 `dist/<插件ID>-<版本>.zip`；再次安装可用 `pnpm install --frozen-lockfile`。
-4. 将产物交给明确支持跨端协议的开发宿主验证。当前 install:local 和自动发布拒绝格式 3，不安装到正式客户端或提交生产中心。
+4. 在目标宿主验证后按发布指南上传待审；格式 3 必须人工审核。移动用户从应用内中心安装，首次安装保存启用意图，重开应用生效；桌面格式 3 当前只走显式开发目录。install:local 不把格式 3 写进旧桌面正式目录。
 
-本地 tarball 变化后先用 `pnpm install` 更新锁文件，并提交作者项目的 pnpm-lock.yaml；不提交 .sdk、node_modules 或 dist。正式 SDK 发布后再统一切换公开 npm alias 并重建锁文件。
+仅调试未发布 SDK 时运行 `node use-local-sdk.mjs /path/to/plugins.tgz /path/to/ui.tgz` 切换到本地 file 依赖，并重新生成开发锁文件；恢复正式 npm 依赖后重建发布锁文件。不提交 .sdk、node_modules 或 dist，不用旧 tarball 冒充新版 npm 内容。
 
 ## 模板结构
 
@@ -36,7 +35,7 @@ pnpm build
 ## 改成自己的插件
 
 1. 修改 manifest 的 id/name/description/version，package.json 版本保持一致。发布后插件 ID 不变。
-2. targets 声明实际支持的平台、最低版本、必需/可选能力；没有 Node 不等于移动完整兼容。
+2. 先逐项核对 [API 支持矩阵](api-support.md)，再声明 targets、最低版本、必需/可选能力。移动 permissions 必须为空；没有 Node 不等于移动完整兼容。
 3. 共用逻辑和模型，差异明显时拆视图，保持节点类型与字段一致。
 4. 更新 README，构建后在目标宿主验收启用、保存、停用与恢复。
 

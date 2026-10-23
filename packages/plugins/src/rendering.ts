@@ -4,13 +4,13 @@ import type { PluginEditorExtension } from "./editor";
 import { assertPluginEditorExtension } from "./editor-fields.ts";
 import type { MarkdownCodec } from "@tau/markdown";
 import {
-  validatePortablePluginManifest,
+  readPortablePluginManifest,
   assertPortablePluginCompatibility,
   assertPortableElementDeclarations,
   PORTABLE_SHARED_MODULES,
   getPortableElementSupport,
   type PortablePlatform,
-  type PortablePluginManifest,
+  type ReadablePortablePluginManifest,
   type PortablePluginHost,
 } from "./portable";
 import {
@@ -58,11 +58,11 @@ export function evaluatePluginPackage(
 
 /** 只供显式接入跨端协议的宿主；执行前必须先由包读取器验证文件完整性。 */
 export function evaluatePortablePluginPackage(
-  artifact: { manifest: PortablePluginManifest; code: string; css?: string },
+  artifact: { manifest: ReadablePortablePluginManifest; code: string; css?: string },
   modules: Readonly<Record<string, unknown>>,
   host: PortablePluginHost
 ): PluginDefinition {
-  const manifest = validatePortablePluginManifest(artifact.manifest);
+  const manifest = readPortablePluginManifest(artifact.manifest);
   assertPortablePluginCompatibility(manifest, host);
   const definition = evaluateModule(manifest, artifact.code, modules, PORTABLE_SHARED_MODULES);
   assertPortableElementDeclarations(manifest, getPluginNodeTypes(definition));
@@ -72,7 +72,7 @@ export function evaluatePortablePluginPackage(
 /** 各宿主共用支持等级投影；原始数据与节点身份不改写。 */
 export function adaptPortablePluginDefinition(
   definition: PluginDefinition,
-  manifest: PortablePluginManifest,
+  manifest: ReadablePortablePluginManifest,
   platform: PortablePlatform
 ) {
   const support = Object.freeze(

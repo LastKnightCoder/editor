@@ -4,7 +4,11 @@ import {
   assertLocalId,
   type PluginManifest,
 } from "./package";
-import { readPluginCapabilities, type PluginCapability } from "./capabilities";
+import {
+  readPluginCapabilities,
+  readPluginCapabilityNames,
+  type PluginCapability,
+} from "./capabilities";
 import type { PluginEnvironment } from "./environment";
 
 export const PORTABLE_PLATFORMS = ["desktop", "android", "ios"] as const;
@@ -20,22 +24,24 @@ export const PORTABLE_SHARED_MODULES = [
   "react/jsx-dev-runtime",
 ] as const;
 
-export interface PortablePluginTarget {
+export interface PortablePluginTarget<Capability extends string = PluginCapability> {
   readonly minAppVersion: string;
-  readonly required: readonly PluginCapability[];
-  readonly optional: readonly PluginCapability[];
+  readonly required: readonly Capability[];
+  readonly optional: readonly Capability[];
   readonly elements?: Readonly<Record<string, PluginElementSupport>>;
 }
 
-export interface PortablePluginManifest extends Omit<
+export interface PortablePluginManifest<Capability extends string = PluginCapability> extends Omit<
   PluginManifest,
   "formatVersion" | "platform" | "backend" | "whiteboard" | "skills" | "minAppVersion"
 > {
   readonly formatVersion: 3;
   readonly platform: "portable";
   readonly profile: "web-v1";
-  readonly targets: Readonly<Partial<Record<PortablePlatform, PortablePluginTarget>>>;
+  readonly targets: Readonly<Partial<Record<PortablePlatform, PortablePluginTarget<Capability>>>>;
 }
+
+export type ReadablePortablePluginManifest = PortablePluginManifest<string>;
 
 export interface PortablePluginHost {
   readonly environment: PluginEnvironment;
@@ -54,8 +60,29 @@ function record(value: unknown, label: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-/** 开发跨端包独立校验；既有生产分发校验器继续拒绝格式 3。 */
+/** 作者与上传入口严格校验能力词表，避免拼写错误被当作可选降级。 */
 export function validatePortablePluginManifest(value: unknown): PortablePluginManifest {
+  return parsePortablePluginManifest(value, readPluginCapabilities);
+}
+
+/** 客户端只放宽能力名称的前向读取，结构、格式、权限与摘要声明仍严格校验。 */
+export function readPortablePluginManifest(value: unknown): ReadablePortablePluginManifest {
+  return parsePortablePluginManifest(value, readPluginCapabilityNames);
+}
+
+/** 构建器与中心共用发行范围；不代表中心已开放批准发布。 */
+export function validatePortableDistributionManifest(value: unknown): PortablePluginManifest {
+  const manifest = validatePortablePluginManifest(value);
+  if (/[-+]/.test(manifest.version)) throw new Error("正式跨端包版本不能含预发布或构建标识");
+  if ((manifest.targets.android || manifest.targets.ios) && manifest.permissions?.length)
+    throw new Error("移动端尚未接入业务数据授权，不能发布声明这些权限的移动目标");
+  return manifest;
+}
+
+function parsePortablePluginManifest<Capability extends string>(
+  value: unknown,
+  readCapabilities: (value: unknown) => readonly Capability[]
+): PortablePluginManifest<Capability> {
   const item = record(value, "跨端清单");
   const keys = new Set([
     "formatVersion",
@@ -90,7 +117,7 @@ export function validatePortablePluginManifest(value: unknown): PortablePluginMa
     Object.keys(rawTargets).some(key => !PORTABLE_PLATFORMS.some(platform => platform === key))
   )
     throw new Error("目标平台为空或包含未知平台");
-  const targets: Partial<Record<PortablePlatform, PortablePluginTarget>> = {};
+  const targets: Partial<Record<PortablePlatform, PortablePluginTarget<Capability>>> = {};
   for (const platform of PORTABLE_PLATFORMS) {
     if (!Object.hasOwn(rawTargets, platform)) continue;
     const target = record(rawTargets[platform], "平台配置");
@@ -102,8 +129,8 @@ export function validatePortablePluginManifest(value: unknown): PortablePluginMa
       throw new Error("平台配置包含未知字段");
     if (typeof target.minAppVersion !== "string") throw new Error("平台缺少最低客户端版本");
     comparePluginVersions(target.minAppVersion, target.minAppVersion);
-    const required = readPluginCapabilities(target.required);
-    const optional = readPluginCapabilities(target.optional ?? []);
+    const required = readCapabilities(target.required);
+    const optional = readCapabilities(target.optional ?? []);
     if (optional.some(capability => required.includes(capability)))
       throw new Error("必需与可选能力不能重叠");
     let elements: Record<string, PluginElementSupport> | undefined;
@@ -116,7 +143,7 @@ export function validatePortablePluginManifest(value: unknown): PortablePluginMa
         assertLocalId(type);
         if (type === "__proto__" || !["none", "render", "edit"].includes(support as string))
           throw new Error("节点支持等级无效");
-        if (support !== "none" && !required.includes("editor.elements.v1"))
+        if (support !== "none" && !required.some(capability => capability === "editor.elements.v1"))
           throw new Error("展示或编辑节点需要声明编辑器能力");
         elements[type] = support as PluginElementSupport;
       }
@@ -142,26 +169,28 @@ export function validatePortablePluginManifest(value: unknown): PortablePluginMa
 }
 
 export function assertPortablePluginCompatibility(
-  manifest: PortablePluginManifest,
+  manifest: ReadablePortablePluginManifest,
   host: PortablePluginHost
-): PortablePluginTarget {
+): PortablePluginTarget<string> {
   if (!host.profiles.includes(manifest.profile)) throw new Error("宿主未接入跨端运行配置");
   const platform = host.environment.platform;
   if (!PORTABLE_PLATFORMS.some(value => value === platform))
     throw new Error("当前平台不能激活跨端应用插件");
   const target = manifest.targets[platform as PortablePlatform];
   if (!target) throw new Error("插件不支持当前平台");
+  if ((platform === "android" || platform === "ios") && manifest.permissions?.length)
+    throw new Error("移动宿主尚未接入业务数据授权");
   if (comparePluginVersions(host.appVersion, target.minAppVersion) < 0)
     throw new Error("客户端版本低于插件要求");
   const missing = target.required.filter(
-    capability => !host.environment.capabilities.includes(capability)
+    capability => !host.environment.capabilities.some(available => available === capability)
   );
   if (missing.length) throw new Error(`宿主缺少必需能力：${missing.join("、")}`);
   return target;
 }
 
 export function getPortableElementSupport(
-  manifest: PortablePluginManifest,
+  manifest: ReadablePortablePluginManifest,
   platform: PortablePlatform,
   type: string
 ): PluginElementSupport {
@@ -171,7 +200,7 @@ export function getPortableElementSupport(
 
 /** 定义求值后对账节点归属；调用方仍须按支持等级装配渲染与提交保护。 */
 export function assertPortableElementDeclarations(
-  manifest: PortablePluginManifest,
+  manifest: ReadablePortablePluginManifest,
   nodeTypes: readonly string[]
 ) {
   const actual = new Set(nodeTypes);

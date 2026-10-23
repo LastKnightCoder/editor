@@ -1,5 +1,7 @@
 # 存储与网络
 
+平台范围：context.storage 的私有 KV 已接桌面与 Android/iOS 调试宿主；下文 context.fetch 的原生网络适配仅桌面已接。插件中心的原生下载不等于插件网络 API。结构化 records/entities/transaction 也不是 KV 的别名，移动尚未接入。详见 [API 支持矩阵](api-support.md)。
+
 ## 私有存储
 
 `context.storage` 是插件自己的键值存储，适合保存设置、进度、缓存等小块数据。

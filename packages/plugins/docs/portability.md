@@ -1,8 +1,8 @@
 # 跨端插件契约
 
-Tau 使用同一个 `@tau/plugins` SDK 表达公共能力，平台宿主提供实现。开发产物为 `0.36.0-dev.0`，未发布到 npm。公共契约、统一模板和格式 3 校验供受控开发使用；客户端接线与分发边界见[跨端宿主架构](/docs/architecture/plugin-portability.md)，生产中心仍只接受原有格式。
+Tau 使用同一个 `@tau/plugins` SDK 表达公共能力，平台宿主提供实现。作者版本为 SDK 0.36.0、UI 0.4.0；各 API 的已接线范围、作者责任和未接宿主见 [API 支持矩阵](api-support.md)。Android/iOS 0.2.1 正式构建支持固定中心安装与启用，版本须经中心逐平台审核并获准分发；客户端接线见[跨端宿主架构](/docs/architecture/plugin-portability.md)。
 
-后续正式 SDK、清单和分发设计统一见[正式接入方案](/docs/tasks/plugin-portability-bcd/distribution-plan.md)。该方案不表示下述开发契约已经支持生产安装；当前校验器的行为仍以本页和实现为准。
+正式 SDK、清单和分发设计及剩余接入见[正式接入方案](/docs/tasks/plugin-portability-bcd/distribution-plan.md)。桌面格式 3 正式安装链路与 D 仍有待验收项；SDK 类型存在不代表每个宿主已提供实现。
 
 ## 页面与功能入口
 
@@ -65,15 +65,22 @@ context.navigation.registerEntry({ id: "tasks", title: "任务管理", page });
 
 移动支持分别判断显示、插入、编辑；只读展示不能冒充完整编辑兼容。未安装或能力不足时保留原始节点。独立开发格式 3 通过 targets 的 elements 声明 none/render/edit，并与实际节点贡献对账；缺失默认 none。宿主通过 adaptPortablePluginDefinition 投影贡献，并把同一支持表接入编辑器提交保护；单纯校验清单不会改变编辑器。旧生产 manifest 语义不变，不以无 Node 依赖自动认定兼容。
 
-普通 Web 插件可以由三端加载同一 JS/CSS 包。桌面 Node 后台、外部程序和通用原生调用不是共同能力。当前最小验证的单包单入口，不是整个生态永久禁止平台入口/产物差异的裁决；正式多平台发布协议没有随验证改变。
+符合 web-v1 支持子集且声明相应 targets 的插件可由三端调试宿主加载同一 JS/CSS 包。桌面 Node 后台、外部程序和通用原生调用不是共同能力。首期协议为同一 ID/版本对应一个不可变 ZIP，不按平台替换同版本字节。
 
 ## 跨端开发包与作者闭环
 
-`@tau/plugins/portable` 提供格式 3 的纯校验与兼容判断，profile 为 web-v1；各目标独立声明最低版本、required/optional 能力和节点等级。旧 validatePluginManifest 与生产分发校验仍拒绝格式 3。宿主的 evaluatePortablePluginPackage 在求值前检查 profile/平台/版本/必需能力，并在求值后核对节点清单；文件完整性由读取器先校验。
+`@tau/plugins/portable` 提供格式 3 的纯校验与兼容判断，profile 为 web-v1；各目标独立声明最低版本、required/optional 能力和节点等级。旧 validatePluginManifest/validateDistributionManifest 继续只服务旧格式；中心按格式调用独立新校验器。
+
+- `validatePortablePluginManifest`：作者严格校验，required/optional 均须属于当前 SDK 词表；拼写错误不能以 optional 为由放过。
+- `validatePortableDistributionManifest`：模板与中心上传共用，另拒绝插件预发布/build metadata 版本、含移动目标的非空 permissions；SDK 自身的开发版本不受该插件版本规则影响。
+- `readPortablePluginManifest`：客户端读取，返回 ReadablePortablePluginManifest，保留合法的未来能力名；能力列表最多 128 项，名称最多 128 字符、以正整数版本 `.vN` 结尾。重复、required/optional 交集仍拒绝。未知字段、profile、权限和节点等级仍拒绝，不做降级猜测。
+- `assertPortablePluginCompatibility`：按当前平台检查，未知 required 作为缺能力拒绝，未知 optional 不拒绝且不授予能力；移动非空 permissions 在求值前拒绝。环境能力仍只表示宿主实际实现的词表。
+
+evaluatePortablePluginPackage 使用客户端读取器，在求值前检查 profile/平台/版本/必需能力，并在求值后核对节点清单；文件完整性由读取器先校验。移动中心对账时保留全部能力名，不删除未知 optional 后再比较，从而仍能识别被篡改的声明。
 
 web 平台用于静态渲染环境，不能通过应用激活兼容检查；新的博客内容消费者仍需单独接线。格式 3 不包含 backend、whiteboard 或 Skill；不将桌面系统能力作为手机可选能力下发。
 
-统一模板默认生成跨端开发包，也保留旧桌面格式构建路径供原有作者和回归使用。页面入口、编辑器起点和构建器都在同一套模板中，未发布或推送到外部模板仓库。新 SDK/UI tarball 通过 use-local-sdk.mjs 放进忽略的 .sdk 目录，模板锁文件使用相对 file 依赖。发行器生成声明闭包和 portable 校验模块，不公开 environment-host/host/rendering 等宿主入口。
+统一模板默认生成格式 3，也保留旧桌面格式构建路径。页面入口、编辑器起点和构建器在同一套模板中。官方模板使用固定 npm alias；开发 SDK 可通过 use-local-sdk.mjs 切换为忽略的 .sdk tarball 并重建本地锁文件。发行器生成声明闭包和 portable 校验模块，不公开 environment-host/host/rendering 等宿主入口。
 
 仓库外验证脚本为 scripts/plugins/verify-portable-author.mjs：在带空格与中文的独立目录安装 tarball，构建页面和编辑器示例，验证冻结安装、三端声明、完整性与拒绝路径。它不等于正式客户端或真机运行验证。
 

@@ -1,6 +1,6 @@
 # 跨端开发契约
 
-当前模板使用尚未发布的 SDK 开发产物和格式 3。不能提交生产插件中心或安装进普通客户端。先按[快速开始](getting-started.md)准备同一 SDK/UI 的本地 tarball，不用旧公开版本冒充新接口。
+模板使用 SDK 0.36.0、UI 0.4.0 与格式 3。先读 [API 支持矩阵](api-support.md)，再按[快速开始](getting-started.md)安装依赖。移动正式安装要求 Android/iOS 客户端至少 0.2.1，且中心允许该平台及版本；桌面格式 3 仍只在显式开发目录装配，不用旧公开客户端冒充支持。
 
 ## 页面与入口
 
@@ -54,7 +54,7 @@ if (context.environment.capabilities.includes("settings.v1")) {
 
 编辑器包每个目标必须列出全部节点并与实际贡献一致。none 不装配，render 仅展示，edit 允许编辑和插入；未声明默认 none。受控开发宿主在标准组件和提交 API 中执行等级限制；清单校验本身不改变编辑器行为。
 
-构建工具从 `@tau/plugins/portable` 导入 `validatePortablePluginManifest`、`assertPortablePluginCompatibility` 等纯函数。旧 `@tau/plugins/package` 校验继续拒绝格式 3；不要修改格式号绕过限制。
+构建工具从 `@tau/plugins/portable` 使用 validatePortableDistributionManifest：严格拒绝未知 required/optional、预发布插件版本和含移动目标的非空 permissions，失败保留上一有效产物。validatePortablePluginManifest 是基础严格校验；客户端 readPortablePluginManifest 返回 ReadablePortablePluginManifest，保留未来能力名，未知 required 在兼容检查拒绝，未知 optional 缺失允许降级；不删除这些名称后再做审核清单对账。结构、权限词表、profile 与节点等级仍严格。旧格式校验继续拒绝格式 3；不要改格式号绕过限制。
 
 ## 依赖与桌面特有能力
 
@@ -68,4 +68,4 @@ if (context.environment.capabilities.includes("settings.v1")) {
 
 同一模板提供 `examples/editor.tsx`。需要编辑器起点时，将 src/index.tsx 改为导出该文件的 default，manifest 添加 editor: true，并在各目标声明 editor.elements.v1 与 `elements: { "example.note": "edit" }`（只展示的平台用 render）。不要为手机另造节点类型；未适配的写入保护与交互仍须宿主验收。
 
-仓库外构建证明类型闭包、依赖与产物；兼容矩阵证明声明校验，不代表真机运行。客户端开发宿主提供页面守卫、标准 Dialog/Drawer 返回、节点提交保护和原生私有包事务；生产中心分发仍未开放。移动源码组件使用草稿保存/取消，复杂手势与真机行为需要分别验收。
+仓库外构建证明类型闭包、依赖与产物；兼容矩阵证明声明校验，不代表真机运行。宿主提供页面守卫、标准浮层返回、节点提交保护和原生包事务。移动源码组件使用草稿保存/取消，复杂手势与真机行为分别验收；桌面格式 3 正式安装、未接移动业务 API、最低系统和完整发行签名等必须独立验证，不能以 SDK 发布替代。
