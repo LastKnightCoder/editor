@@ -2,7 +2,7 @@
 
 ## 范围与分发边界
 
-桌面、Android 和 iOS 共用一个 SDK、一套作者模板和格式 3 的 web-v1 包。公共 API 与作者约定以 [SDK 跨端契约](/packages/plugins/docs/portability.md) 为准；本页描述客户端装配。仓库中的中心 API 支持格式 3 上传、逐平台人工审核和 /v2 分发，发布与平台推荐默认关闭；生产服务未部署这些改动，npm 未发布。Rust 安装/启用命令仍拒绝 release 构建，商店发行与设备验收不由代码可运行推断。
+桌面、Android 和 iOS 共用一个 SDK、一套作者模板和格式 3 的 web-v1 包。公共 API 与作者约定以 [SDK 跨端契约](/packages/plugins/docs/portability.md) 为准；本页描述客户端装配。中心 API 支持格式 3 上传、逐平台人工审核和 /v2 分发；生产 API 与网页使用该协议，格式 3 审批发布和平台推荐开关关闭，npm 未发布。Rust 安装/启用命令仍拒绝 release 构建，商店发行与设备验收不由代码可运行推断。
 
 可信插件与宿主共享 JavaScript、React 和 DOM；摘要、模块白名单、API 能力与数据授权不构成恶意代码沙箱。同线程同步死循环只能在后续启动恢复，不能承诺抢占或后台常驻。
 
