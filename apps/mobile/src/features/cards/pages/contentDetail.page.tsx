@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Layers, ChevronRight, Copy, Ellipsis, Link2, Trash2 } from "lucide-react";
 import { ContentDetailPage, type ContentDetailActions } from "../ContentDetailPage";
-import { blockSelectionMenuItem } from "../blockSelection/blockSelectionMenuItem";
+import { blockSelectionMenuItem, outlineMenuItem } from "../blockSelection/blockSelectionMenuItem";
 import { PageHeaderButton } from "../../../components/PageHeader";
 import { ActionSheet } from "../../../components/ActionSheet";
 import { MobileConfirmDialog } from "../../../components/MobileConfirmDialog";
@@ -154,6 +154,7 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
         onClose={() => setMenuOpen(false)}
         items={[
           blockSelectionMenuItem(() => detailActionsRef.current?.enterBlockSelection()),
+          outlineMenuItem(() => detailActionsRef.current?.openOutline()),
           {
             label: "关联卡片",
             icon: <Link2 size={18} />,

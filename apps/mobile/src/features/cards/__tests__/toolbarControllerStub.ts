@@ -23,6 +23,7 @@ export function createControllerStub(
     openPanel: vi.fn(),
     togglePanel: vi.fn(),
     closePanel: vi.fn(),
+    dismissKeyboard: vi.fn(),
     exitEditing: vi.fn(),
     setExitEditingListener: vi.fn(),
     runInPanel: vi.fn(),

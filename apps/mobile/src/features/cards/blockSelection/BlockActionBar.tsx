@@ -7,6 +7,7 @@ import {
   Copy,
   CopyPlus,
   Ellipsis,
+  ListTree,
   Repeat2,
   Trash2,
 } from "lucide-react";
@@ -51,6 +52,8 @@ type BlockActionBarProps = {
   selection: Pick<BlockSelectionState, "selected" | "setSelected" | "exit">;
   blockCount: number;
   portalContainer?: HTMLElement | null;
+  /** 「更多」中的宿主项「整理结构」：打开大纲重排（打开后退出块选择）；不传时不显示 */
+  onOpenOutline?: () => void;
 };
 
 type ActionButtonProps = {
@@ -95,7 +98,7 @@ type MenuSheet = { id: number; title: string; groups: ActionSheetItem[][] };
 
 /** 块选择模式底部操作栏：上移、下移、转换、复制、删除、更多 */
 export function BlockActionBar(props: BlockActionBarProps) {
-  const { editorRef, kit, selection, blockCount, portalContainer } = props;
+  const { editorRef, kit, selection, blockCount, portalContainer, onOpenOutline } = props;
   const { selected, setSelected, exit } = selection;
   const portalRoot = portalContainer ?? (typeof document === "undefined" ? null : document.body);
   const empty = selected.length === 0;
@@ -211,9 +214,20 @@ export function BlockActionBar(props: BlockActionBarProps) {
         duplicateBlocks(editor, [index]);
       }),
     };
+    const hostItems: ActionSheetItem[] = [duplicateItem];
+    if (onOpenOutline) {
+      hostItems.push({
+        label: "整理结构",
+        icon: <ListTree size={MENU_ICON_SIZE} />,
+        onClick: later(() => {
+          exit();
+          onOpenOutline();
+        }),
+      });
+    }
     const builtin = groups.builtin.map(group => group.map(toItem));
-    if (builtin.length > 0) builtin[builtin.length - 1].push(duplicateItem);
-    else builtin.push([duplicateItem]);
+    if (builtin.length > 0) builtin[builtin.length - 1].push(...hostItems);
+    else builtin.push(hostItems);
     openSheet("更多", [
       ...builtin,
       groups.plugin.map(item => toSheetItem(item, `插件 · ${item.owner}`)),

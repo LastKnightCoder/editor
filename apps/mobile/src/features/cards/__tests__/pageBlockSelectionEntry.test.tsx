@@ -1,4 +1,4 @@
-// 编辑页「⋯」菜单的「选择块」入口：卡片详情、文章编辑、项目文档三个 page 都提供该项，点击经 actionsRef 进入块选择。
+// 编辑页「⋯」菜单的「选择块」「整理结构」入口：卡片详情、文章编辑、项目文档三个 page 都提供，点击经 actionsRef 调用。
 import { act, useImperativeHandle, type ReactNode, type Ref } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,15 +6,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const harness = vi.hoisted(() => ({
   params: {} as Record<string, unknown>,
   enterBlockSelection: vi.fn(),
+  openOutline: vi.fn(),
 }));
 
 vi.mock("../ContentDetailPage", () => ({
   ContentDetailPage: (props: {
     headerRight?: ReactNode;
-    actionsRef?: Ref<{ enterBlockSelection: () => void }>;
+    actionsRef?: Ref<{ enterBlockSelection: () => void; openOutline: () => void }>;
   }) => {
     useImperativeHandle(props.actionsRef, () => ({
       enterBlockSelection: harness.enterBlockSelection,
+      openOutline: harness.openOutline,
     }));
     return <div data-testid="detail">{props.headerRight}</div>;
   },
@@ -105,12 +107,13 @@ const cases = [
   { name: "项目文档", page: projectDocEditorPage, params: { itemId: 2 }, menuLabel: "节点操作" },
 ];
 
-describe("编辑页「⋯ → 选择块」入口", () => {
+describe("编辑页「⋯ → 选择块 / 整理结构」入口", () => {
   let host: HTMLDivElement;
   let root: Root;
 
   beforeEach(() => {
     harness.enterBlockSelection.mockClear();
+    harness.openOutline.mockClear();
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
@@ -120,6 +123,38 @@ describe("编辑页「⋯ → 选择块」入口", () => {
     act(() => root.unmount());
     document.body.innerHTML = "";
   });
+
+  async function openMenu(page: (typeof cases)[number]["page"], menuLabel: string) {
+    const Screen = page.component;
+    await act(async () => {
+      root.render(<Screen />);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      document.querySelector<HTMLButtonElement>(`button[aria-label="${menuLabel}"]`)?.click();
+    });
+  }
+
+  const findItem = (label: string) =>
+    Array.from(
+      document.querySelectorAll<HTMLButtonElement>('[data-testid="action-sheet"] button')
+    ).find(button => button.textContent === label);
+
+  it.each(cases)(
+    "$name：菜单出现「整理结构」，点击打开大纲",
+    async ({ page, params, menuLabel }) => {
+      harness.params = params;
+      await openMenu(page, menuLabel);
+      const item = findItem("整理结构");
+      expect(item).toBeDefined();
+      await act(async () => {
+        item?.click();
+      });
+      expect(harness.openOutline).toHaveBeenCalledTimes(1);
+    }
+  );
 
   it.each(cases)(
     "$name：菜单出现「选择块」，点击进入块选择",

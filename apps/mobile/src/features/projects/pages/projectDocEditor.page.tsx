@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Ellipsis, FilePlus2, FolderKanban, Trash2 } from "lucide-react";
 import { PageHeaderButton } from "../../../components/PageHeader";
 import { ContentDetailPage, type ContentDetailActions } from "../../cards/ContentDetailPage";
-import { blockSelectionMenuItem } from "../../cards/blockSelection/blockSelectionMenuItem";
+import {
+  blockSelectionMenuItem,
+  outlineMenuItem,
+} from "../../cards/blockSelection/blockSelectionMenuItem";
 import { ActionSheet } from "../../../components/ActionSheet";
 import { BottomSheet } from "../../../components/BottomSheet";
 import { MobileConfirmDialog } from "../../../components/MobileConfirmDialog";
@@ -191,6 +194,7 @@ function ProjectDocEditorScreen() {
         onClose={() => setMenuOpen(false)}
         items={[
           blockSelectionMenuItem(() => detailActionsRef.current?.enterBlockSelection()),
+          outlineMenuItem(() => detailActionsRef.current?.openOutline()),
           {
             label: "添加子文档",
             icon: <FilePlus2 size={18} />,

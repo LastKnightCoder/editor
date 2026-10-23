@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { Layers, Ellipsis, Newspaper, Star, Trash2 } from "lucide-react";
 import { PageHeaderButton } from "../../../components/PageHeader";
 import { ContentDetailPage, type ContentDetailActions } from "../../cards/ContentDetailPage";
-import { blockSelectionMenuItem } from "../../cards/blockSelection/blockSelectionMenuItem";
+import {
+  blockSelectionMenuItem,
+  outlineMenuItem,
+} from "../../cards/blockSelection/blockSelectionMenuItem";
 import { ActionSheet } from "../../../components/ActionSheet";
 import { MobileConfirmDialog } from "../../../components/MobileConfirmDialog";
 import { toast } from "../../../components/toast";
@@ -125,6 +128,7 @@ function ArticleEditorScreen() {
         onClose={() => setMenuOpen(false)}
         items={[
           blockSelectionMenuItem(() => detailActionsRef.current?.enterBlockSelection()),
+          outlineMenuItem(() => detailActionsRef.current?.openOutline()),
           {
             label: article.isTop ? "取消置顶" : "置顶",
             icon: <Star size={18} />,

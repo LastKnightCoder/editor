@@ -18,6 +18,7 @@ import {
   cutBlocks,
   deleteBlocks,
   duplicateBlocks,
+  moveBlockTo,
   moveBlocks,
   normalizeBlockIndices,
 } from "../blockOps";
@@ -127,6 +128,50 @@ describe("moveBlocks", () => {
     const editor = createDoc([paragraph("A"), imageBlock(), tableBlock(), codeBlock()]);
     expect(moveBlocks(editor, [1, 2, 3], "up")).toEqual([0, 1, 2]);
     expect(types(editor)).toEqual(["image", "table", "code-block", "paragraph"]);
+  });
+});
+
+describe("moveBlockTo", () => {
+  const abcde = () => createDoc(["A", "B", "C", "D", "E"].map(text => paragraph(text)));
+
+  it("上移：to 为移动后的下标", () => {
+    const editor = abcde();
+    expect(moveBlockTo(editor, 3, 1)).toBe(true);
+    expect(texts(editor)).toEqual(["A", "D", "B", "C", "E"]);
+  });
+
+  it("下移：to 为移除后的插入位", () => {
+    const editor = abcde();
+    expect(moveBlockTo(editor, 1, 3)).toBe(true);
+    expect(texts(editor)).toEqual(["A", "C", "D", "B", "E"]);
+  });
+
+  it("移到首位与末位", () => {
+    const editor = abcde();
+    expect(moveBlockTo(editor, 4, 0)).toBe(true);
+    expect(texts(editor)).toEqual(["E", "A", "B", "C", "D"]);
+    expect(moveBlockTo(editor, 0, 4)).toBe(true);
+    expect(texts(editor)).toEqual(["A", "B", "C", "D", "E"]);
+  });
+
+  it("from === to 或越界时不改动文档", () => {
+    const editor = abcde();
+    expect(moveBlockTo(editor, 2, 2)).toBe(false);
+    expect(moveBlockTo(editor, 2, 5)).toBe(false);
+    expect(moveBlockTo(editor, -1, 0)).toBe(false);
+    expect(texts(editor)).toEqual(["A", "B", "C", "D", "E"]);
+    expect(editor.history.undos).toHaveLength(0);
+  });
+
+  it("单独一个撤销步", () => {
+    const editor = abcde();
+    moveBlockTo(editor, 0, 3);
+    moveBlockTo(editor, 4, 1);
+    expect(editor.history.undos).toHaveLength(2);
+    editor.undo();
+    expect(texts(editor)).toEqual(["B", "C", "D", "A", "E"]);
+    editor.undo();
+    expect(texts(editor)).toEqual(["A", "B", "C", "D", "E"]);
   });
 });
 

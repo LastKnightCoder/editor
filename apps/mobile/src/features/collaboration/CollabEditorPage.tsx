@@ -1,7 +1,7 @@
 // 协作编辑页（设计稿 03 方案 A）：顶栏 presence + 状态副行 + 离线横幅 + 协作编辑器。
 // 远端光标/选区由 @tau/editor-collab 的文档源自动渲染，本页只负责外壳与状态。
 // 成员视角（本地无内容行）与协作中心入口仍走本页；owner 的原地编辑见详情页 CollaborativeEditor。
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getMobileContentKit } from "../../services/editorKit";
 import {
   ChevronRight,
@@ -28,11 +28,18 @@ import { ReadingSelectionBar } from "../cards/readingMode/ReadingSelectionBar";
 import { useReadingSelection } from "../cards/readingMode/useReadingSelection";
 import { useEditorOpenMode } from "../../hooks/useEditorOpenMode";
 import { BlockActionBar } from "../cards/blockSelection/BlockActionBar";
+import { BlockDragLayer } from "../cards/blockSelection/BlockDragLayer";
 import { BlockHandle } from "../cards/blockSelection/BlockHandle";
 import { BlockSelectionHeader } from "../cards/blockSelection/BlockSelectionHeader";
 import { BlockSelectionLayer } from "../cards/blockSelection/BlockSelectionLayer";
-import { blockSelectionMenuItem } from "../cards/blockSelection/blockSelectionMenuItem";
+import { useBlockDrag } from "../cards/blockSelection/useBlockDrag";
+import {
+  blockSelectionMenuItem,
+  outlineMenuItem,
+} from "../cards/blockSelection/blockSelectionMenuItem";
 import { useEditorBlockSelection } from "../cards/blockSelection/useEditorBlockSelection";
+import { OutlineSheet } from "../cards/outline/OutlineSheet";
+import { useOutlineSheet } from "../cards/outline/useOutlineSheet";
 import { AvatarStack, StatusDot } from "./components/CollaborationUI";
 import { useCollabSession } from "./hooks/useCollabSession";
 
@@ -77,14 +84,22 @@ export function CollabEditorPage(props: {
     readingMode,
     toolbarController,
   });
-  // 块选择期间正文保持可写（块菜单命令要求可写编辑器，点击由覆盖层拦截），配件栏收起
+  const outline = useOutlineSheet({ readingMode, blockSelection });
+  const [editorWrapEl, setEditorWrapEl] = useState<HTMLDivElement | null>(null);
+  const getScrollContainer = useCallback(() => scrollRef.current, []);
+  const blockDrag = useBlockDrag({
+    editorRef,
+    container: editorWrapEl,
+    getScrollContainer,
+    toolbarController,
+  });
+  // 块选择期间正文保持可写（块菜单命令要求可写编辑器，点击由覆盖层拦截）；块选择与拖拽块期间配件栏收起
   const editorReadonly = readonly || (!readingMode.editing && !blockSelection.active);
-  const toolbarReadonly = editorReadonly || blockSelection.active;
+  const toolbarReadonly = editorReadonly || blockSelection.active || blockDrag.dragging !== null;
   const readingSelection = useReadingSelection(
     editorRef,
     !readingMode.editing && readingMode.canEdit && !blockSelection.active
   );
-  const [editorWrapEl, setEditorWrapEl] = useState<HTMLDivElement | null>(null);
   const kit = getMobileContentKit();
   // 工具条经 portal 挂进本页根容器，才能随页面转场动画一起平移、退场
   const [pageRootEl, setPageRootEl] = useState<HTMLDivElement | null>(null);
@@ -221,11 +236,15 @@ export function CollabEditorPage(props: {
                 onToggle={blockSelection.toggle}
                 documentVersion={slateEditor?.children}
               />
+              <BlockDragLayer drag={blockDrag.dragging} />
               <BlockHandle
                 editorRef={editorRef}
                 container={editorWrapEl}
-                blockIndex={handleBlockIndex}
+                // 拖拽中编辑器已失焦，把手仍挂在被拖块上以保持指针捕获
+                blockIndex={blockDrag.dragging?.from ?? handleBlockIndex}
                 onEnter={blockSelection.enter}
+                onDragStart={blockDrag.startDrag}
+                dragging={blockDrag.dragging !== null}
                 version={slateEditor?.children}
               />
             </div>
@@ -249,6 +268,7 @@ export function CollabEditorPage(props: {
           selection={blockSelection}
           blockCount={blockCount}
           portalContainer={pageRootEl}
+          onOpenOutline={outline.openOutline}
         />
       ) : (
         <ReadingSelectionBar
@@ -261,6 +281,8 @@ export function CollabEditorPage(props: {
         />
       )}
 
+      <OutlineSheet open={outline.open} editorRef={editorRef} onClose={outline.close} />
+
       <ActionSheet
         open={moreOpen}
         title={session?.title ?? "协作文档"}
@@ -270,7 +292,10 @@ export function CollabEditorPage(props: {
         }
         items={[
           ...(readingMode.canEdit && binding
-            ? [blockSelectionMenuItem(() => blockSelection.enter())]
+            ? [
+                blockSelectionMenuItem(() => blockSelection.enter()),
+                outlineMenuItem(outline.openOutline),
+              ]
             : []),
           {
             label: "成员管理",
