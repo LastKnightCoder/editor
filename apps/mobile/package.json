@@ -18,6 +18,8 @@
     "tauri": "tauri",
     "tauri:android": "tauri android",
     "tauri:ios": "tauri ios",
+    "prebuild:ios:release": "pnpm run db:schema:prepare && cp src-tauri/ios-export.plist src-tauri/gen/apple/ExportOptions.plist",
+    "build:ios:release": "tauri ios build --target aarch64 --export-method app-store-connect --ci",
     "db:schema:prepare": "pnpm -w db:schema:prepare",
     "icon:prepare:android-fg": "bash ./scripts/generate-android-foreground.sh",
     "sync:android:app-name": "node ./scripts/sync-android-app-name.mjs",
