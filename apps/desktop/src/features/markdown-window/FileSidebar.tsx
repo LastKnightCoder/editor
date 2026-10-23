@@ -71,7 +71,7 @@ export function FileSidebar({
       className="relative flex shrink-0 flex-col pb-2 pl-2.5 pr-1.5"
       style={{ width: sidebarWidth }}
     >
-      <div className="text-tau-body text-ink-1 flex h-9 items-center gap-1.5 pl-2 font-semibold">
+      <div className="text-tau-body text-ink-1 flex h-10 items-center gap-1.5 pl-2 font-semibold">
         <FolderOpen className="text-accent-text size-3.5 shrink-0" strokeWidth={1.75} />
         <span className="min-w-0 flex-1 truncate" title={rootPath}>
           {baseName(rootPath)}
@@ -119,7 +119,7 @@ export function FileSidebar({
         </Menu>
       </div>
 
-      <label className="border-line-1 bg-surface text-tau-meta text-ink-3 focus-within:border-accent rounded-tau-sm mx-1 mb-1.5 flex h-[30px] items-center gap-1.5 border px-2 transition-colors">
+      <label className="border-line-1 bg-surface text-tau-meta text-ink-3 focus-within:border-accent rounded-tau-sm mx-1 mb-2 flex h-[32px] items-center gap-1.5 border px-2.5 transition-colors">
         <Search className="size-3 shrink-0" strokeWidth={1.75} />
         <input
           value={query}

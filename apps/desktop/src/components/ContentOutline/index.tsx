@@ -132,8 +132,9 @@ export function ContentOutline({
           type="button"
           onClick={() => scrollToHeader(header, index)}
           className={cn(
-            "rounded-tau-sm text-ink-3 ease-tau-out hover:bg-hover hover:text-ink-1 block w-full border-l-2 border-transparent py-[5px] pl-2.5 pr-2 text-left leading-snug transition-colors duration-150",
-            header.level >= 3 && "text-tau-micro pl-6",
+            "rounded-tau-sm text-ink-3 ease-tau-out hover:bg-hover hover:text-ink-1 block border-l-2 border-transparent py-[5px] pl-2.5 pr-2 text-left leading-snug transition-colors duration-150",
+            // 缩进用 margin 而非 padding：hover/激活背景贴住缩进后的条目，左端不留空白块
+            header.level >= 3 && "text-tau-micro ml-4",
             activeId === header.id && "border-accent bg-selected text-accent-text font-medium"
           )}
         >
