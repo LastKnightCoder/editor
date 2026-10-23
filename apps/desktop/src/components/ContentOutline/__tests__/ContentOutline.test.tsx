@@ -10,8 +10,12 @@ it("目录同步滚动高亮，触底选中短末节，上滚恢复判定且短�
   vi.stubGlobal(
     "ResizeObserver",
     class {
-      observe() {}
-      disconnect() {}
+      observe() {
+        /* 测试不启动实际观测。 */
+      }
+      disconnect() {
+        /* 测试不启动实际观测。 */
+      }
     }
   );
   let frame: FrameRequestCallback | undefined;
@@ -50,7 +54,8 @@ it("目录同步滚动高亮，触底选中短末节，上滚恢复判定且短�
         />
       )
     );
-    const button = container.querySelector("button")!;
+    const button = container.querySelector("button");
+    if (!button) throw new Error("目录按钮未挂载");
     act(() => button.click());
     expect(scrollEl.scrollTo).toHaveBeenCalledWith({ top: 400, behavior: "smooth" });
     expect(button.className).toContain("bg-selected");
@@ -90,5 +95,110 @@ it("目录同步滚动高亮，触底选中短末节，上滚恢复判定且短�
   } finally {
     act(() => root.unmount());
     container.remove();
+  }
+});
+
+it("等价目录快照不重建测量订阅，滚动和正文更新只测相邻标题", () => {
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {
+        /* 测试不启动实际观测。 */
+      }
+      disconnect() {
+        /* 测试不启动实际观测。 */
+      }
+    }
+  );
+  let frame: FrameRequestCallback | undefined;
+  vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+    frame = callback;
+    return 1;
+  });
+  vi.stubGlobal("cancelAnimationFrame", vi.fn());
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  const scrollEl = document.createElement("div");
+  scrollEl.scrollTop = 40_050;
+  Object.defineProperty(scrollEl, "clientHeight", { value: 400 });
+  Object.defineProperty(scrollEl, "scrollHeight", { value: 60_000 });
+  scrollEl.getBoundingClientRect = () => ({ top: 0 }) as DOMRect;
+  const headers = Array.from({ length: 500 }, (_, index) => ({
+    id: `h-${index}`,
+    level: 2,
+    title: `章节${index}`,
+  }));
+  const read = vi.fn(
+    (index: number) =>
+      ({
+        top: index * 100 - scrollEl.scrollTop,
+        bottom: index * 100 + 30 - scrollEl.scrollTop,
+      }) as DOMRect
+  );
+  const anchors = headers.map((_, index) => {
+    const anchor = document.createElement("h2");
+    anchor.getBoundingClientRect = () => read(index);
+    return anchor;
+  });
+  const resolveAnchor = (_header: unknown, index: number) => anchors[index];
+  try {
+    act(() =>
+      root.render(
+        <ContentOutline headers={headers} scrollEl={scrollEl} resolveAnchor={resolveAnchor} />
+      )
+    );
+    expect(read.mock.calls.length).toBeLessThanOrEqual(12);
+    read.mockClear();
+    act(() =>
+      root.render(
+        <ContentOutline
+          headers={headers.map(header => ({ ...header }))}
+          scrollEl={scrollEl}
+          resolveAnchor={resolveAnchor}
+        />
+      )
+    );
+    expect(read).not.toHaveBeenCalled();
+    act(() => frame?.(0));
+    expect(read.mock.calls.length).toBeLessThanOrEqual(2);
+  } finally {
+    act(() => root.unmount());
+  }
+});
+
+it("支持源码模式只提供矩形的虚拟标题锚点", () => {
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {
+        /* 测试不启动实际观测。 */
+      }
+      disconnect() {
+        /* 测试不启动实际观测。 */
+      }
+    }
+  );
+  vi.stubGlobal("requestAnimationFrame", () => 1);
+  vi.stubGlobal("cancelAnimationFrame", vi.fn());
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  const scrollEl = document.createElement("div");
+  Object.defineProperty(scrollEl, "clientHeight", { value: 400 });
+  Object.defineProperty(scrollEl, "scrollHeight", { value: 1000 });
+  scrollEl.getBoundingClientRect = () => ({ top: 0 }) as DOMRect;
+  const anchor = { getBoundingClientRect: () => ({ top: 100, bottom: 130 }) } as HTMLElement;
+  try {
+    act(() =>
+      root.render(
+        <ContentOutline
+          headers={[{ id: "source-h-0", level: 2, title: "源码标题" }]}
+          scrollEl={scrollEl}
+          resolveAnchor={() => anchor}
+        />
+      )
+    );
+    expect(host.querySelector("button")?.className).toContain("bg-selected");
+  } finally {
+    act(() => root.unmount());
   }
 });

@@ -1,7 +1,13 @@
-import { ReactEditor, RenderElementProps, useSlate, useReadOnly } from "slate-react";
+import {
+  ReactEditor,
+  RenderElementProps,
+  useSlateSelector,
+  useSlateStatic,
+  useReadOnly,
+} from "slate-react";
 import type { ListItemElement } from "../../../../types";
-import { Editor, Node, Transforms } from "slate";
-import { useEffect, useRef, useState } from "react";
+import { Editor, Element, Node, Transforms } from "slate";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Popover, cn, mergeRefs } from "@tau/ui";
 import { getCommandElementPath, OverlayBackDismiss } from "@tau/editor/api";
 import IconPicker from "../IconPicker";
@@ -20,15 +26,26 @@ const ListItem = (props: IListItemProps) => {
   const [pickerOpen, setPickerOpen] = useState(false);
   const listItemRef = useRef<HTMLLIElement>(null);
 
-  const editor = useSlate();
+  const editor = useSlateStatic();
   const readonly = useReadOnly();
   const uploadResource = editor.tryGetService(IResourceService)?.upload;
 
-  // Check if parent is bulleted-list
-  const path = ReactEditor.findPath(editor, element);
-  const parentPath = path.slice(0, -1);
-  const parentNode = Node.get(editor, parentPath);
-  const isBulletedList = parentNode && (parentNode as any).type === "bulleted-list";
+  const isBulletedList = useSlateSelector(
+    useCallback(
+      (current: Editor) => {
+        try {
+          const path = ReactEditor.findPath(current, element);
+          const parent = Node.get(current, path.slice(0, -1));
+          return Element.isElement(parent) && parent.type === "bulleted-list";
+        } catch {
+          return false;
+        }
+      },
+      [element]
+    ),
+    undefined,
+    { deferred: true }
+  );
 
   // 检测内容是否多行并测量第一行高度
   useEffect(() => {

@@ -13,6 +13,7 @@ export {
   createMarkdownProcessor,
   type MarkdownProcessor,
   type MarkdownProcessorOptions,
+  type MarkdownCachePolicy,
 } from "./processor.ts";
 export type { MarkdownTextCodec, MarkdownTextRule, LeafSerializationResult } from "./textCodec.ts";
 export type {

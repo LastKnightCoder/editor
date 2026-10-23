@@ -41,6 +41,7 @@ import { CodeMirrorView } from "./CodeMirrorView";
 import { useMarkdownEditorServices } from "./editorServices";
 import { useSourceMode } from "./useSourceMode";
 import { createMarkdownDocument } from "./markdownDocument";
+import { createContentLengthCounter } from "./contentLength";
 
 const WORDS_PER_MINUTE = 400;
 const SOURCE_MODE = { name: "yaml-frontmatter", base: "gfm" };
@@ -153,6 +154,7 @@ export const MarkdownFileView = forwardRef<
 
   useEffect(() => {
     sourceTextRef.current = snapshot.text;
+    if (!sourceMode) return;
     const editor = sourceEditorRef.current;
     if (editor && editor.getValue() !== snapshot.text) {
       const cursor = editor.getCursor();
@@ -161,7 +163,7 @@ export const MarkdownFileView = forwardRef<
       const line = Math.min(cursor.line, editor.lastLine());
       editor.setCursor({ line, ch: Math.min(cursor.ch, editor.getLine(line).length) });
     }
-  }, [snapshot.text, sourceEditorRef, sourceTextRef]);
+  }, [snapshot.text, sourceEditorRef, sourceTextRef, sourceMode]);
   useEffect(() => {
     if (snapshot.error && !sourceMode) showSource();
   }, [snapshot.error, sourceMode, showSource]);
@@ -170,6 +172,7 @@ export const MarkdownFileView = forwardRef<
 
   /* 字数 / 源码大纲：节流更新 */
   const [words, setWords] = useState(0);
+  const [countContentLength] = useState(createContentLengthCounter);
   const [source, setSource] = useState<{ headers: OutlineHeader[]; lines: number[] }>({
     headers: [],
     lines: [],
@@ -184,7 +187,11 @@ export const MarkdownFileView = forwardRef<
         setWords(getContentLength(sourceContent));
         setSource(sourceHeaders(sourceTextRef.current));
       } else {
-        setWords(getContentLength(fileDocument.getContent()));
+        setWords(
+          countContentLength(
+            editorRef.current?.getEditor().children ?? fileDocument.getSnapshot().content
+          )
+        );
       }
     },
     { wait: 1000 }

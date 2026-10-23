@@ -186,7 +186,7 @@ const editor = useCreation(() => {
   const enhancedEditor = withBlockNavigation(finalEditor);
 
   // 3.4 启用 Chunking 优化
-  enhancedEditor.getChunkSize = node => (Editor.isEditor(node) ? 1000 : null);
+  enhancedEditor.getChunkSize = node => (Editor.isEditor(node) ? 100 : null);
 
   return enhancedEditor;
 }, [optimizedExtensionData.plugins]);
@@ -3546,10 +3546,10 @@ if (node.type === "containerDirective" && node.name === "my-element") {
 
 ### 7.1 Chunking 优化
 
-将编辑器内容分成1000个节点一组的chunks:
+将编辑器顶层内容分成 100 个节点一组的 chunks，限制表格等复杂文档离屏测量时的样式计算范围：
 
 ```typescript
-editor.getChunkSize = (node) => Editor.isEditor(node) ? 1000 : null;
+editor.getChunkSize = (node) => Editor.isEditor(node) ? 100 : null;
 
 const renderChunk = ({ attributes, children, lowest }) => {
   const style = {

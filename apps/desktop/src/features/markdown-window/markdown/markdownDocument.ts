@@ -6,10 +6,16 @@ import {
 } from "@tau/editor-collab/local";
 import { getMarkdown, importFromMarkdown } from "@/utils/markdown";
 import { desktopMarkdown } from "@/utils/markdown";
+import { desktopCodecComposition } from "@/utils/markdown-composition";
+import { textFormattingCodec } from "@tau/editor/extensions/text-formatting/markdown";
 import { Text } from "slate";
 
 /** 文件原文及其规范化缓存也归同一 Y.Doc，撤销时与正文一起恢复。 */
 export function createMarkdownDocument(wrap?: LocalYjsDocumentOptions["wrap"]) {
+  const serialize = desktopMarkdown.createIncrementalSerializer({
+    codecs: desktopCodecComposition,
+    textCodecs: [textFormattingCodec],
+  });
   const local = createLocalYjsDocument(undefined, {
     wrap,
     matchKey: node =>
@@ -25,17 +31,17 @@ export function createMarkdownDocument(wrap?: LocalYjsDocumentOptions["wrap"]) {
   local.undoManager.addToScope([raw, normalized, state]);
   const listeners = new Set<() => void>();
   const changes = new Set<(source: LocalChangeSource) => void>();
-  const text = () => {
-    if (state.has("error")) return raw.toString();
-    const current = getMarkdown(local.getContent());
-    return current === normalized.toString() ? raw.toString() : current;
+  const readSnapshot = () => {
+    const content = local.getSnapshot();
+    const error = typeof state.get("error") === "string" ? String(state.get("error")) : null;
+    const current = error === null ? serialize(content) : null;
+    return {
+      content,
+      text: current === null || current === normalized.toString() ? raw.toString() : current,
+      loaded: state.get("loaded") === true,
+      error,
+    };
   };
-  const readSnapshot = () => ({
-    content: local.getContent(),
-    text: text(),
-    loaded: state.get("loaded") === true,
-    error: typeof state.get("error") === "string" ? String(state.get("error")) : null,
-  });
   let snapshot = readSnapshot();
   const stop = local.subscribe(source => {
     snapshot = readSnapshot();
@@ -57,7 +63,10 @@ export function createMarkdownDocument(wrap?: LocalYjsDocumentOptions["wrap"]) {
         changes.delete(listener);
       };
     },
-    getText: text,
+    getText: () => {
+      local.flush();
+      return snapshot.text;
+    },
     getContent: () =>
       state.has("error") ? importFromMarkdown(raw.toString()) : local.getContent(),
     applyMarkdown: (value: string, source: LocalChangeSource) => {

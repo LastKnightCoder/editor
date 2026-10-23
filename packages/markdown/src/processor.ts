@@ -16,7 +16,7 @@ import {
   type MarkdownWithPositions,
 } from "./markdown-helper.ts";
 import { MarkdownSerializerRegistry } from "./markdownSerializerRegistry.ts";
-import type { CustomElement } from "./types.ts";
+import { isFormattedText, type CustomElement } from "./types.ts";
 import type { FormattedText } from "./model.ts";
 import {
   MarkdownTextRegistry,
@@ -36,10 +36,20 @@ export interface MarkdownProcessor {
     options?: ImportFromMarkdownOptions
   ): SlateWithPositions;
   getMarkdown(value: Descendant[]): string;
+  /** 只缓存不可变节点及显式声明的纯 codec，其他节点以独立副本完整转换。 */
+  createIncrementalSerializer(
+    policy: MarkdownCachePolicy
+  ): (value: readonly Descendant[]) => string;
   getMarkdownWithPositions(value: Descendant[]): MarkdownWithPositions;
   elementToMarkdown(element: CustomElement, parentElement: CustomElement | null): string;
   leafToMarkdown(leaf: FormattedText): string;
   leafToMarkdownStructured(leaf: FormattedText): LeafSerializationResult;
+}
+
+export interface MarkdownCachePolicy {
+  /** 由调用方保证只依赖节点及父节点参数；未列出的 codec 不缓存。 */
+  codecs: readonly MarkdownCodec[];
+  textCodecs: readonly MarkdownTextCodec[];
 }
 
 export interface MarkdownProcessorOptions {
@@ -153,6 +163,38 @@ export function createMarkdownProcessor(options: MarkdownProcessorOptions = {}):
     importFromMarkdownWithPositions: (markdown, ignoreTypes, importOptions) =>
       importFromMarkdownWithPositionsUsing(importConfig, markdown, ignoreTypes, importOptions),
     getMarkdown: value => getMarkdownUsing(exportConfig, value),
+    createIncrementalSerializer: policy => {
+      const types = new Set(
+        codecs.filter(codec => policy.codecs.includes(codec)).map(codec => codec.type)
+      );
+      const pureText = (options.textCodecs ?? []).every(codec => policy.textCodecs.includes(codec));
+      const classified = new WeakMap<Descendant, boolean>();
+      const immutable = (value: unknown): boolean =>
+        !value ||
+        typeof value !== "object" ||
+        (Object.isFrozen(value) && Object.values(value).every(immutable));
+      const reusable = (node: Descendant): boolean => {
+        const previous = classified.get(node);
+        if (previous !== undefined) return previous;
+        const element = node as CustomElement;
+        const result =
+          Object.isFrozen(node) &&
+          Object.entries(node).every(([key, value]) => key === "children" || immutable(value)) &&
+          (isFormattedText(element)
+            ? pureText
+            : (!exportConfig.registry.getSerializer(element.type) || types.has(element.type)) &&
+              Object.isFrozen(element.children) &&
+              element.children.every(child => reusable(child as Descendant)));
+        classified.set(node, result);
+        return result;
+      };
+      const output = new WeakMap<Descendant, string>();
+      return value =>
+        getMarkdownUsing(exportConfig, value, {
+          output,
+          reusable: node => !isFormattedText(node as CustomElement) && reusable(node),
+        });
+    },
     getMarkdownWithPositions: value => getMarkdownWithPositionsUsing(exportConfig, value),
     elementToMarkdown: (element, parentElement) =>
       elementToMarkdownUsing(exportConfig, element, parentElement),
