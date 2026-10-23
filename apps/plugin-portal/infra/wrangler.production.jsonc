@@ -14,7 +14,7 @@
     "API_ORIGIN": "https://plugins-api.taunote.app",
     "REVIEWER_GITHUB_IDS": "29890094",
     "PORTABLE_PUBLISH_ENABLED": "true",
-    "PORTABLE_PLATFORMS": "android",
+    "PORTABLE_PLATFORMS": "desktop,android",
   },
   "d1_databases": [
     {

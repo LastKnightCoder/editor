@@ -35,6 +35,8 @@ export async function readPublishPlugins(
     if (ids.has(selection.id)) throw new Error("发布插件重复");
     ids.add(selection.id);
     const artifact = await readPluginPackage(path.join(root, selection.id));
+    if (artifact.manifest.formatVersion === 3)
+      throw new Error("跨端内容包尚未接入博客分发，请停用并重启后发布");
     if (
       artifact.manifest.id !== selection.id ||
       !artifact.manifest.editor ||
@@ -64,7 +66,7 @@ export async function readPublishPlugins(
         throw new Error("发布插件样式源码声明无效");
     }
     plugins.push({
-      artifact,
+      artifact: { ...artifact, manifest: artifact.manifest },
       nodeTypes: [...selection.nodeTypes],
       styleSources: selection.styleSources,
     });

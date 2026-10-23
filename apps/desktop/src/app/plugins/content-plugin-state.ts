@@ -1,6 +1,6 @@
 import type { PluginDefinition } from "@tau/plugins";
 import { desktopContentPlugins, desktopPortableSupport } from "../../../shared/content-plugins.ts";
-import type { DevelopmentPluginPackage } from "@tau/plugins/host";
+import type { DesktopPluginPackage as DevelopmentPluginPackage } from "../../../shared/plugin-package";
 import { getPluginNodeTypes, type PluginRenderContext } from "@tau/plugins/rendering";
 
 export const localPluginStateKey = (id: string) => `tau-local-plugin-enabled:v1:${id}`;
@@ -12,6 +12,10 @@ const errors = new Map<string, string>();
 const intended = new Map<string, boolean>();
 export const setContentPluginIntent = (id: string, enabled: boolean) => intended.set(id, enabled);
 let builtinTypes: string[] = [];
+let developmentPortableLoaded = false;
+export const markPortableDevelopmentLoaded = () => {
+  developmentPortableLoaded = true;
+};
 
 export function initializeContentPluginState(types: readonly string[]) {
   builtinTypes = [...types];
@@ -20,6 +24,10 @@ export function addContentPlugin(artifact: DevelopmentPluginPackage, definition:
   if (!intended.has(definition.id)) intended.set(definition.id, true);
   desktopContentPlugins.install([...desktopContentPlugins.list(), definition]);
   entries.set(definition.id, { artifact, definition, nodeTypes: getPluginNodeTypes(definition) });
+  if (artifact.manifest.formatVersion === 3)
+    Object.entries(artifact.manifest.targets.desktop?.elements ?? {}).forEach(([type, support]) =>
+      desktopPortableSupport.set(type, support)
+    );
 }
 export const contentPluginLoaded = (id: string) => entries.has(id);
 export const contentPluginError = (id: string) => errors.get(id);
@@ -32,8 +40,11 @@ export function contentPluginDefinition(artifact: DevelopmentPluginPackage) {
   return loaded.definition;
 }
 export function getContentPluginPublishContext(): PluginRenderContext {
-  if (desktopPortableSupport.size)
-    throw new Error("开发跨端内容包尚未接入正式博客分发，请停用开发包并重新打开应用后发布");
+  if (
+    developmentPortableLoaded ||
+    [...entries.values()].some(entry => entry.artifact.manifest.formatVersion === 3)
+  )
+    throw new Error("跨端内容包尚未接入博客分发，请停用并重启后发布");
   for (const {
     artifact,
     definition: { id },

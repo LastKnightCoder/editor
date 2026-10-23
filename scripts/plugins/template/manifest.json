@@ -13,7 +13,7 @@
   "profile": "web-v1",
   "targets": {
     "desktop": {
-      "minAppVersion": "0.59.0",
+      "minAppVersion": "0.59.1",
       "required": ["commands.v1", "storage.v1", "pages.v1", "navigation.v1"],
       "optional": ["settings.v1", "ui.dialog.v1"]
     },

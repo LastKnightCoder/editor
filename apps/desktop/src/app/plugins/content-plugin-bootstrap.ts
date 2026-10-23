@@ -1,8 +1,6 @@
-import {
-  evaluatePluginPackage,
-  getPluginNodeTypes,
-  assertUniqueEditorCodecs,
-} from "@tau/plugins/rendering";
+import { getPluginNodeTypes, assertUniqueEditorCodecs } from "@tau/plugins/rendering";
+import { evaluateDesktopPluginPackage } from "../../../shared/plugin-rendering";
+import { version as appVersion } from "../../../package.json";
 import { createMarkdownProcessor } from "@tau/markdown";
 import { isContentPlugin } from "@tau/plugins/package";
 import { isElectron } from "@/electron";
@@ -49,7 +47,7 @@ async function prepareContentPlugins() {
       const id = artifact.manifest.id;
       try {
         const definition = bindPluginServiceRenderers(
-          evaluatePluginPackage(artifact, sharedPluginModules)
+          evaluateDesktopPluginPackage(artifact, sharedPluginModules, appVersion)
         );
         const candidates = [
           ...desktopContentPlugins.extensions,

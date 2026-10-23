@@ -1,4 +1,4 @@
-import { net } from "electron";
+import { app, net } from "electron";
 import { createHash } from "node:crypto";
 import { comparePluginVersions } from "@tau/plugins/host";
 import type { LocalPluginSource } from "@/types/plugin-local";
@@ -7,9 +7,19 @@ import type { PluginCatalogSort } from "@/types/plugin-center";
 import type { PluginComment, PluginCommunity } from "@/types/plugin-center";
 import { visitorHeaders } from "./plugin-center-visitor";
 import { DISTRIBUTION_LIMITS, requiresSystemReview } from "@tau/plugins/template";
+import {
+  evaluateCenterCompatibility,
+  type CenterCatalogPage,
+  type CenterRelease,
+  type CenterResolution,
+  type CenterVersion,
+} from "@tau/plugins/center";
+import { desktopPluginHost } from "../../../shared/plugin-package";
+import client from "../../../package.json";
 
 // 门户 CORS 只放行网页门户，客户端请求统一经主进程；环境变量仅用于本地 Worker 联调。
-export const API_ORIGIN = process.env.TAU_PLUGIN_CENTER_API || "https://plugins-api.taunote.app";
+export const API_ORIGIN =
+  (!app.isPackaged && process.env.TAU_PLUGIN_CENTER_API) || "https://plugins-api.taunote.app";
 // 与门户 ZIP 上限一致，超限的发布记录不下载。
 const MAX_PACKAGE_BYTES = DISTRIBUTION_LIMITS.zipBytes;
 // 版本列表按页读取（每页 20 条），超出的更早版本不再展示。
@@ -24,13 +34,13 @@ export class PluginCenterError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: RequestInit, readOnly = false): Promise<T> {
   let response: Response;
   try {
     response = init ? await net.fetch(API_ORIGIN + path, init) : await net.fetch(API_ORIGIN + path);
   } catch {
     throw new Error(
-      init?.method && init.method !== "GET"
+      !readOnly && init?.method && init.method !== "GET"
         ? "网络连接中断，请求结果未知，请刷新确认或重试"
         : "暂时连不上插件中心，请检查网络后重试"
     );
@@ -101,30 +111,57 @@ export async function fetchPluginCatalog(
   sort: PluginCatalogSort = "downloads7d"
 ): Promise<PluginCatalog> {
   if (!["downloads7d", "downloadsTotal", "updated"].includes(sort)) throw new Error("插件排序无效");
-  const params = new URLSearchParams({ appVersion });
-  if (sort !== "downloads7d") params.set("sort", sort);
-  if (query.trim()) params.set("q", query.trim());
+  const input = {
+    platform: "desktop",
+    host: desktopPluginHost(appVersion),
+    sort,
+    q: query.trim(),
+    cursor: null as string | null,
+  };
   const entries = new Map<string, PluginCatalog["items"][number]>();
   const seen = new Set<string>();
   let windowStart: string | undefined;
   for (;;) {
-    const page = await request<PluginCatalog & { nextCursor?: string | null }>(
-      `/v1/catalog?${params}`
+    const page = await request<CenterCatalogPage>(
+      "/v2/catalog/query",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+        signal: AbortSignal.timeout(15000),
+      },
+      true
     );
     windowStart ??= page.windowStart;
     for (const item of page.items)
-      if (!entries.has(item.pluginId)) entries.set(item.pluginId, item);
+      if (!entries.has(item.pluginId))
+        entries.set(item.pluginId, {
+          ...item,
+          categories: [...item.categories],
+          keywords: [...item.keywords],
+          latest: catalogVersion(item.latest),
+          compatible: item.compatible ? catalogVersion(item.compatible) : null,
+        });
     if (!page.nextCursor) break;
     if (seen.has(page.nextCursor)) throw new Error("插件目录分页异常，请刷新重试");
     seen.add(page.nextCursor);
-    params.set("cursor", page.nextCursor);
+    input.cursor = page.nextCursor;
   }
   return { items: [...entries.values()], ...(windowStart ? { windowStart } : {}) };
 }
 
 export async function fetchPluginRelease(id: string) {
   assertReleaseId(id);
-  return request<PluginRelease>(`/v1/releases/${id}`, { signal: AbortSignal.timeout(10000) });
+  return releaseView(
+    await request<CenterRelease>(`/v2/releases/${id}`, { signal: AbortSignal.timeout(10000) })
+  );
+}
+
+function catalogVersion(version: CenterVersion) {
+  return { ...version, minAppVersion: version.targets.desktop?.minAppVersion ?? "0.0.0" };
+}
+function releaseView(release: CenterRelease): PluginRelease {
+  return { ...release, id: release.releaseId, state: "published" };
 }
 
 /** 插件的全部已发布版本，新版在前。 */
@@ -136,21 +173,20 @@ export async function fetchPluginVersions(
   const versions: PluginVersionRecord[] = [];
   let cursor: string | null = null;
   for (let page = 0; page < MAX_VERSION_PAGES; page++) {
-    const params = new URLSearchParams({ pluginId });
+    const params = new URLSearchParams({ platform: "desktop" });
     if (cursor) params.set("cursor", cursor);
     const data = await request<{
-      items: (Pick<PluginRelease, "id" | "version" | "publishedAt"> & {
-        manifest: { minAppVersion: string };
-      })[];
+      items: CenterRelease[];
       nextCursor: string | null;
-    }>(`/v1/releases?${params}`);
+    }>(`/v2/plugins/${pluginId}/releases?${params}`);
     for (const item of data.items)
       versions.push({
-        releaseId: item.id,
+        releaseId: item.releaseId,
         version: item.version,
-        minAppVersion: item.manifest.minAppVersion,
+        minAppVersion: item.targets.desktop?.minAppVersion ?? "0.0.0",
         publishedAt: item.publishedAt,
-        compatible: comparePluginVersions(appVersion, item.manifest.minAppVersion) >= 0,
+        compatible:
+          evaluateCenterCompatibility(item, desktopPluginHost(appVersion)).status === "compatible",
       });
     cursor = data.nextCursor;
     if (!cursor) break;
@@ -159,16 +195,40 @@ export async function fetchPluginVersions(
 }
 
 /** 下载已发布版本并按发布记录核对大小与摘要；地址由本服务拼接，不信任调用方 URL。 */
-export async function downloadPluginRelease(id: string) {
-  const release = await fetchPluginRelease(id);
-  if (release.state !== "published") throw new Error("该版本尚未发布");
-  if (release.revokedAt) throw new Error("该版本已经撤回");
+export async function downloadPluginRelease(id: string, appVersion = client.version) {
+  assertReleaseId(id);
+  const release = await request<CenterRelease>(`/v2/releases/${id}`, {
+    signal: AbortSignal.timeout(10000),
+  });
+  assertPluginId(release.pluginId);
+  if (release.releaseId !== id) throw new Error("发布记录身份不一致");
   if (requiresSystemReview(release.content.manifest) && release.systemReviewed !== true)
     throw new Error("该版本包含本机可执行代码，尚未完成系统能力审核");
+  const resolve = () =>
+    request<CenterResolution>(
+      `/v2/plugins/${release.pluginId}/resolve`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ host: desktopPluginHost(appVersion), releaseId: id }),
+        signal: AbortSignal.timeout(10000),
+      },
+      true
+    );
+  const compatible = (value: CenterResolution) => {
+    if (
+      value.compatibility.status !== "compatible" ||
+      value.release?.releaseId !== id ||
+      value.release.sha256 !== release.sha256 ||
+      JSON.stringify(value.release.content.manifest) !== JSON.stringify(release.content.manifest)
+    )
+      throw new Error("该版本不兼容当前桌面客户端或发布状态已变化");
+  };
+  compatible(await resolve());
   if (release.size > MAX_PACKAGE_BYTES) throw new Error("插件包超过大小上限");
   let response: Response;
   try {
-    response = await net.fetch(`${API_ORIGIN}/v1/releases/${id}/download`, {
+    response = await net.fetch(`${API_ORIGIN}/v2/releases/${id}/download`, {
       headers: await visitorHeaders(API_ORIGIN),
     });
   } catch {
@@ -181,13 +241,16 @@ export async function downloadPluginRelease(id: string) {
     createHash("sha256").update(bytes).digest("hex") !== release.sha256
   )
     throw new Error("下载的插件包摘要不匹配，已丢弃");
+  compatible(await resolve());
   const source: Extract<LocalPluginSource, { kind: "center" }> = {
     kind: "center",
-    releaseId: release.id,
+    releaseId: release.releaseId,
     pluginId: release.pluginId,
     version: release.version,
     sha256: release.sha256,
     systemReviewed: release.systemReviewed === true,
+    manifest: release.content.manifest,
+    apiOrigin: API_ORIGIN,
   };
   return { bytes, source };
 }

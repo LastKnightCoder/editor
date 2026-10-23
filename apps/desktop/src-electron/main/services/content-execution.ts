@@ -1,7 +1,7 @@
 import { portableDevelopmentArtifacts } from "./plugin-portable-development";
 import { app, type BrowserWindow } from "electron";
 import { createHash } from "node:crypto";
-import type { DevelopmentPluginPackage } from "@tau/plugins/host";
+import type { DesktopPluginPackage as DevelopmentPluginPackage } from "../../../shared/plugin-package";
 import type {
   ContentExecutionEnvelope,
   ContentExecutionRequest,
