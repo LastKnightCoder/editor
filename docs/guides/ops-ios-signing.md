@@ -31,7 +31,9 @@ export pnpm_config_verify_deps_before_run=warn
 pnpm --filter mobile build:ios:release
 ```
 
-入口明确选择 aarch64 真机目标、release 构建与 app-store-connect 导出。前端构建和数据库 schema 校验随构建运行；版本读取移动项目配置。输出路径以本次 CLI 完成信息为准，不拿模拟器 .app 或旧目录里的 IPA 代替本次结果。
+入口明确选择 aarch64 真机目标、release 构建与 app-store-connect 导出。前端构建和数据库 schema 校验随构建运行；版本读取移动项目配置，上传新构建前递增 `bundle.iOS.bundleVersion`。输出路径以本次 CLI 完成信息为准，不拿模拟器 .app 或旧目录里的 IPA 代替本次结果。
+
+`prebuild:ios:release` 和 `predev:ios` 会运行 `sync:ios:icons`，按生成工程 `AppIcon.appiconset/Contents.json` 从已提交的 `src-tauri/icons/ios` 同步全部图标，缺图即失败。同步使用 Xcode 自带 Swift / ImageIO，按现有白色背景合成为不含透明通道的 PNG，不新增图像处理依赖；品牌背景变化时同步调整该合成步骤。修改品牌源图后先运行 `pnpm --filter mobile icon:regen` 并提交图标资源；重新初始化工程后也须同步，避免使用 Tauri 模板图标。直接调用 Tauri CLI 或 Xcode 构建时，先手动运行 `pnpm --filter mobile sync:ios:icons`。
 
 codesign 请求钥匙串私钥访问时，由用户在系统窗口输入 Mac 登录密码并授权；构建与归档可能分别触发。不要读取、代填或通过修改钥匙串策略绕过该授权。命令最终成功退出后再交付 IPA。
 
@@ -41,6 +43,7 @@ codesign 请求钥匙串私钥访问时，由用户在系统窗口输入 Mac 登
 2. 检查归档或解压后 Payload 中 app 的 Info.plist：Bundle ID 与配置一致，CFBundleShortVersionString 为目标版本，CFBundleVersion 为本次构建号。再次上传同版本时使用新的构建号。
 3. 对 app 执行 `codesign --verify --deep --strict`，检查签名团队、证书与 embedded.mobileprovision；核对分发方式和 entitlements 相符。
 4. 对交付 IPA 执行 `shasum -a 256` 并保留结果。描述文件、证书私钥及账号凭据不得提交仓库或公开输出。
+5. 构建前逐项检查 AppIcon 清单引用文件：与 `icons/ios` 在白底合成后的像素一致且没有透明通道；归档后检查 Info.plist 的 CFBundleIconName 为 AppIcon，并核对编译后图标像素与同步后的资源一致。压缩后的 PNG 字节可不同，应解码后比较，不以文件存在或文件名正确作为图标内容已核验。
 
 ## 分发与功能验收
 
