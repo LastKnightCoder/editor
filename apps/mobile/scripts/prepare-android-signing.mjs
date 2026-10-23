@@ -1,16 +1,10 @@
-// 跨平台替代 prepare-android-signing.sh：Windows 下 pnpm postinstall 会把 `bash`
-// 解析到 WSL 存根（未装发行版即失败），因此签名准备统一用 Node 实现。
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-const mobileDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const androidAppDir = path.join(mobileDir, "src-tauri", "gen", "android", "app");
-const androidAppGradle = path.join(androidAppDir, "build.gradle.kts");
-
+const scriptPath = fileURLToPath(import.meta.url);
 const SIGNING_MARK_START = "codex-auto-signing-start";
 const SIGNING_MARK_END = "codex-auto-signing-end";
 
@@ -36,82 +30,39 @@ val codexHasSigning = codexStoreFile?.exists() == true
     && !codexKeyAlias.isNullOrBlank()
     && !codexKeyPassword.isNullOrBlank()
 
+require(codexHasSigning) {
+    "Android 签名资料缺失，请恢复现有密钥并运行 pnpm prepare:android:signing。"
+}
 android {
     signingConfigs {
-        if (codexHasSigning) {
-            val releaseConfig = findByName("release") ?: create("release")
-            releaseConfig.storeFile = codexStoreFile
-            releaseConfig.storePassword = codexStorePassword
-            releaseConfig.keyAlias = codexKeyAlias
-            releaseConfig.keyPassword = codexKeyPassword
-        }
+        val releaseConfig = findByName("release") ?: create("release")
+        releaseConfig.storeFile = codexStoreFile
+        releaseConfig.storePassword = codexStorePassword
+        releaseConfig.keyAlias = codexKeyAlias
+        releaseConfig.keyPassword = codexKeyPassword
     }
     buildTypes {
+        // 同一应用 ID 的调试包沿用正式身份，以支持保留数据的覆盖安装。
         getByName("debug") {
-            // debug 包也用 release 证书签名：与正式安装包签名一致，
-            // dev 构建可直接覆盖安装已装的正式包（避免 INSTALL_FAILED_UPDATE_INCOMPATIBLE）
-            if (codexHasSigning) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+            signingConfig = signingConfigs.getByName("release")
         }
         getByName("release") {
-            if (codexHasSigning) {
-                signingConfig = signingConfigs.getByName("release")
-            } else {
-                project.logger.lifecycle(
-                    "Release signing is not configured. Build output may be unsigned."
-                )
-            }
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }
 // ${SIGNING_MARK_END}
 `;
 
-if (!fs.existsSync(androidAppDir)) {
-  // Android 工程尚未生成（未跑过 tauri android init/build），安静跳过；
-  // dev:android / build:android:* 已串联本脚本，生成后会自动补上
-  console.log("Android 工程不存在，跳过签名准备（首次运行 tauri android dev/build 时自动执行）。");
-  process.exit(0);
-}
-
-if (!fs.existsSync(androidAppGradle)) {
-  console.error(`缺少 Android Gradle 文件: ${androidAppGradle}`);
-  process.exit(1);
-}
-
-function stripExistingSigningBlock(raw) {
-  const blockPattern = new RegExp(
-    `\\n?// ${SIGNING_MARK_START}[\\s\\S]*?// ${SIGNING_MARK_END}\\n?`,
-    "g"
-  );
-  return raw.replace(blockPattern, "");
-}
-
-function ensureGradleSigningHook() {
-  const raw = fs.readFileSync(androidAppGradle, "utf8");
-  if (raw.includes(SIGNING_MARK_START)) {
-    fs.writeFileSync(androidAppGradle, stripExistingSigningBlock(raw), "utf8");
-  }
-  fs.appendFileSync(androidAppGradle, SIGNING_BLOCK, "utf8");
-  console.log(`已更新 Android release 自动签名配置: ${androidAppGradle}`);
-}
-
-function tryKeytool(candidate) {
-  if (!candidate) return false;
-  return spawnSync(candidate, ["-help"], { stdio: "ignore", windowsHide: true }).status === 0;
-}
-
-function pickWorkingKeytool() {
+function pickWorkingKeytool(env) {
   const candidates = ["keytool"];
-  const javaHome = process.env.JAVA_HOME;
-  if (javaHome) {
+  if (env.JAVA_HOME) {
     candidates.push(
-      path.join(javaHome, "bin", process.platform === "win32" ? "keytool.exe" : "keytool")
+      path.join(env.JAVA_HOME, "bin", process.platform === "win32" ? "keytool.exe" : "keytool")
     );
   }
   if (process.platform === "win32") {
-    const programFiles = process.env["ProgramFiles"] ?? "C:\\Program Files";
+    const programFiles = env.ProgramFiles ?? "C:\\Program Files";
     candidates.push(
       path.join(programFiles, "Android", "Android Studio", "jbr", "bin", "keytool.exe"),
       path.join(programFiles, "Android", "Android Studio", "jre", "bin", "keytool.exe")
@@ -120,205 +71,179 @@ function pickWorkingKeytool() {
   if (process.platform === "darwin") {
     candidates.push("/Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/keytool");
   }
-  return candidates.find(candidate => tryKeytool(candidate)) ?? "";
-}
-
-ensureGradleSigningHook();
-
-const keytoolBin = pickWorkingKeytool();
-if (!keytoolBin) {
-  if (fs.existsSync(path.join(androidAppDir, "keystore.properties"))) {
-    // 无 keytool（如未装 JDK 的环境）：保留现有签名配置，仅注入 gradle hook
-    console.log("未找到 keytool，保留现有 keystore 配置并仅注入签名 hook。");
-  } else {
-    console.log("未找到 keytool 且无现有签名配置，跳过签名准备。请安装 JDK 或 Android Studio。");
-    process.exit(0);
-  }
-}
-
-function generatePassword() {
-  return crypto
-    .randomBytes(48)
-    .toString("base64")
-    .replace(/\//g, "A")
-    .replace(/\+/g, "B")
-    .slice(0, 32);
+  return (
+    candidates.find(
+      candidate =>
+        spawnSync(candidate, ["-help"], { env, stdio: "ignore", windowsHide: true }).status === 0
+    ) ?? ""
+  );
 }
 
 function parseEnvFile(filePath) {
-  const result = {};
-  if (!fs.existsSync(filePath)) return result;
-  for (const line of fs.readFileSync(filePath, "utf8").split(/\r?\n/)) {
-    const match = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(line.trim());
-    if (match) result[match[1]] = match[2];
-  }
-  return result;
+  if (!fs.existsSync(filePath)) return {};
+  return Object.fromEntries(
+    fs
+      .readFileSync(filePath, "utf8")
+      .split(/\r?\n/)
+      .map(line => /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(line))
+      .filter(Boolean)
+      .map(match => [match[1], match[2]])
+  );
 }
 
-function readPropertiesValue(raw, key) {
-  const match = new RegExp(`^${key}=(.*)$`, "m").exec(raw);
-  return match ? match[1].trim() : "";
+function readProperties(filePath) {
+  if (!fs.existsSync(filePath)) return {};
+  const escapes = { t: "\t", n: "\n", r: "\r", f: "\f" };
+  return Object.fromEntries(
+    fs
+      .readFileSync(filePath, "utf8")
+      .split(/\r?\n/)
+      .map(line => /^\s*([^#!\s:=]+)\s*[=:]\s*(.*)$/.exec(line))
+      .filter(Boolean)
+      .map(match => [
+        match[1],
+        match[2].replace(/\\u([a-fA-F0-9]{4})|\\(.)/g, (_, unicode, character) =>
+          unicode ? String.fromCharCode(parseInt(unicode, 16)) : (escapes[character] ?? character)
+        ),
+      ])
+  );
+}
+
+function escapeProperty(value) {
+  return value.replace(/[\\\t\n\r\f]|[^\x20-\x7e]|^ /g, character => {
+    const escapes = {
+      "\\": "\\\\",
+      "\t": "\\t",
+      "\n": "\\n",
+      "\r": "\\r",
+      "\f": "\\f",
+      " ": "\\ ",
+    };
+    return escapes[character] ?? "\\u" + character.charCodeAt(0).toString(16).padStart(4, "0");
+  });
 }
 
 function firstNonEmpty(...values) {
   return values.find(value => value !== undefined && value !== "") ?? "";
 }
 
-function formatTimestamp(date) {
-  const pad = n => String(n).padStart(2, "0");
-  return (
-    `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}` +
-    `${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
+export function prepareAndroidSigning({
+  mobileDir = path.resolve(path.dirname(scriptPath), ".."),
+  env = process.env,
+  keytoolBin,
+} = {}) {
+  const androidAppDir = path.join(mobileDir, "src-tauri", "gen", "android", "app");
+  const androidAppGradle = path.join(androidAppDir, "build.gradle.kts");
+  if (!fs.existsSync(androidAppGradle)) {
+    throw new Error("Android 工程未初始化，请先运行 pnpm exec tauri android init。");
+  }
+
+  const signingDir = path.resolve(
+    env.TAURI_ANDROID_SIGNING_DIR || path.join(os.homedir(), ".editor-mobile-signing")
   );
+  const credentials = parseEnvFile(path.join(signingDir, "credentials.env"));
+  const propertiesPath = path.join(androidAppDir, "keystore.properties");
+  const existing = readProperties(propertiesPath);
+  const keystorePath = path.resolve(
+    androidAppDir,
+    firstNonEmpty(
+      env.TAURI_ANDROID_KEYSTORE_PATH,
+      credentials.KEYSTORE_PATH,
+      existing.storeFile,
+      path.join(signingDir, "editor-mobile-release.jks")
+    )
+  );
+  const keyAlias = firstNonEmpty(
+    env.TAURI_ANDROID_KEY_ALIAS,
+    credentials.KEY_ALIAS,
+    existing.keyAlias
+  );
+  const storePassword = firstNonEmpty(
+    env.TAURI_ANDROID_KEYSTORE_PASSWORD,
+    credentials.STORE_PASSWORD,
+    existing.storePassword
+  );
+  const keyPassword = firstNonEmpty(
+    env.TAURI_ANDROID_KEY_PASSWORD,
+    credentials.KEY_PASSWORD,
+    existing.keyPassword
+  );
+
+  if (!fs.existsSync(keystorePath)) {
+    throw new Error("Android 签名密钥不存在，请恢复原密钥；不会自动生成、导入或替换密钥。");
+  }
+  if (!keyAlias || !storePassword || !keyPassword) {
+    throw new Error("Android 签名配置不完整，请提供原密钥别名、密钥库密码和私钥密码。");
+  }
+  const keytool = keytoolBin ?? pickWorkingKeytool(env);
+  if (!keytool) {
+    throw new Error("未找到可用 keytool，无法验证签名；请配置 JDK 或 Android Studio。");
+  }
+
+  // 密码通过子进程环境传递，不放进命令参数或输出；所有校验均不写密钥库。
+  const validationEnv = {
+    ...env,
+    TAU_SIGNING_STORE_PASSWORD: storePassword,
+    TAU_SIGNING_KEY_PASSWORD: keyPassword,
+  };
+  const commonArgs = [
+    "-keystore",
+    keystorePath,
+    "-storepass:env",
+    "TAU_SIGNING_STORE_PASSWORD",
+    "-J-Duser.language=en",
+    "-J-Duser.country=US",
+  ];
+  const listed = spawnSync(keytool, ["-list", ...commonArgs], {
+    env: validationEnv,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
+  });
+  if (listed.status !== 0) {
+    throw new Error("无法验证 Android 密钥库：请检查原文件、密码和 JDK；现有资料未修改。");
+  }
+  // keytool 会忽略 PKCS12 中不同的私钥密码，必须显式拒绝，不能静默改写用户配置。
+  if (/^Keystore type:\s*PKCS12\s*$/im.test(listed.stdout) && keyPassword !== storePassword) {
+    throw new Error("PKCS12 签名要求私钥密码与密钥库密码一致；请核对原配置，资料未修改。");
+  }
+  const requested = spawnSync(
+    keytool,
+    ["-certreq", ...commonArgs, "-alias", keyAlias, "-keypass:env", "TAU_SIGNING_KEY_PASSWORD"],
+    { env: validationEnv, stdio: "ignore", windowsHide: true }
+  );
+  if (requested.status !== 0) {
+    throw new Error("无法使用 Android 签名私钥：请检查别名和私钥密码；现有资料未修改。");
+  }
+
+  const rawGradle = fs.readFileSync(androidAppGradle, "utf8");
+  const blockPattern = new RegExp(
+    "\n?// " + SIGNING_MARK_START + "[\\s\\S]*?// " + SIGNING_MARK_END + "\n?",
+    "g"
+  );
+  const properties = {
+    storeFile: keystorePath.replace(/\\/g, "/"),
+    storePassword,
+    keyAlias,
+    keyPassword,
+  };
+  fs.writeFileSync(
+    propertiesPath,
+    Object.entries(properties)
+      .map(([key, value]) => key + "=" + escapeProperty(value))
+      .join("\n") + "\n",
+    { mode: 0o600 }
+  );
+  if (process.platform !== "win32") fs.chmodSync(propertiesPath, 0o600);
+  fs.writeFileSync(androidAppGradle, rawGradle.replace(blockPattern, "") + SIGNING_BLOCK);
+  console.log("Android 现有签名资料验证通过，已更新工程签名配置；原密钥与凭据文件未修改。");
 }
 
-function chmodQuiet(filePath, mode) {
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(scriptPath)) {
   try {
-    fs.chmodSync(filePath, mode);
-  } catch {
-    // Windows 不支持 POSIX 权限位，忽略即可
+    prepareAndroidSigning();
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
   }
 }
-
-const signingDir =
-  process.env.TAURI_ANDROID_SIGNING_DIR || path.join(os.homedir(), ".editor-mobile-signing");
-const credentialsFile = path.join(signingDir, "credentials.env");
-const keystorePathDefault = path.join(signingDir, "editor-mobile-release.jks");
-const keyAliasDefault = process.env.TAURI_ANDROID_KEY_ALIAS || "editor_upload";
-const keyDname = process.env.TAURI_ANDROID_KEY_DNAME || "CN=Editor Mobile,O=Editor,C=US";
-
-fs.mkdirSync(signingDir, { recursive: true });
-chmodQuiet(signingDir, 0o700);
-
-const credentials = parseEnvFile(credentialsFile);
-
-const keystorePropertiesPath = path.join(androidAppDir, "keystore.properties");
-let existingStorePassword = "";
-let existingKeyPassword = "";
-let existingKeyAlias = "";
-if (fs.existsSync(keystorePropertiesPath)) {
-  const raw = fs.readFileSync(keystorePropertiesPath, "utf8");
-  existingStorePassword = readPropertiesValue(raw, "storePassword");
-  existingKeyPassword = readPropertiesValue(raw, "keyPassword");
-  existingKeyAlias = readPropertiesValue(raw, "keyAlias");
-}
-
-let keystorePath = firstNonEmpty(
-  process.env.TAURI_ANDROID_KEYSTORE_PATH,
-  credentials.KEYSTORE_PATH,
-  keystorePathDefault
-);
-const keyAlias = firstNonEmpty(
-  process.env.TAURI_ANDROID_KEY_ALIAS,
-  credentials.KEY_ALIAS,
-  existingKeyAlias,
-  keyAliasDefault
-);
-let storePassword = firstNonEmpty(
-  process.env.TAURI_ANDROID_KEYSTORE_PASSWORD,
-  credentials.STORE_PASSWORD,
-  existingStorePassword
-);
-let keyPassword = firstNonEmpty(
-  process.env.TAURI_ANDROID_KEY_PASSWORD,
-  credentials.KEY_PASSWORD,
-  existingKeyPassword
-);
-
-if (storePassword === "your_store_password" || !storePassword) {
-  storePassword = generatePassword();
-}
-if (keyPassword === "your_key_password" || !keyPassword) {
-  keyPassword = storePassword;
-}
-
-// PKCS12 默认要求 keyPassword 与 storePassword 一致，这里统一处理避免签名失败。
-keyPassword = storePassword;
-
-function keystorePasswordOk() {
-  if (!fs.existsSync(keystorePath)) return false;
-  if (!keytoolBin) {
-    // 无 keytool 无法验证：信任现有配置，避免误判密码不符后重建证书造成签名分叉
-    return true;
-  }
-  return (
-    spawnSync(keytoolBin, ["-list", "-keystore", keystorePath, "-storepass", storePassword], {
-      stdio: "ignore",
-      windowsHide: true,
-    }).status === 0
-  );
-}
-
-let needCreateKeystore = false;
-if (!fs.existsSync(keystorePath)) {
-  needCreateKeystore = true;
-} else if (!keystorePasswordOk()) {
-  const backupPath = `${keystorePath}.bak.${formatTimestamp(new Date())}`;
-  fs.renameSync(keystorePath, backupPath);
-  console.log(`检测到 keystore 密码与配置不一致，已备份旧文件到: ${backupPath}`);
-  needCreateKeystore = true;
-}
-
-if (needCreateKeystore) {
-  fs.mkdirSync(path.dirname(keystorePath), { recursive: true });
-  const keystoreB64 = process.env.TAURI_ANDROID_KEYSTORE_B64;
-  if (keystoreB64) {
-    fs.writeFileSync(keystorePath, Buffer.from(keystoreB64.replace(/\s+/g, ""), "base64"));
-    console.log(`已从 TAURI_ANDROID_KEYSTORE_B64 导入 keystore: ${keystorePath}`);
-  } else {
-    spawnSync(
-      keytoolBin,
-      [
-        "-genkeypair",
-        "-v",
-        "-keystore",
-        keystorePath,
-        "-storepass",
-        storePassword,
-        "-alias",
-        keyAlias,
-        "-keypass",
-        keyPassword,
-        "-keyalg",
-        "RSA",
-        "-keysize",
-        "4096",
-        "-validity",
-        "36500",
-        "-dname",
-        keyDname,
-      ],
-      { stdio: ["ignore", "ignore", "inherit"], windowsHide: true }
-    );
-    console.log(`已自动生成 release keystore: ${keystorePath}`);
-  }
-}
-
-if (fs.existsSync(keystorePath) && (!storePassword || !keyPassword)) {
-  console.error("检测到已有 keystore 但缺少密码，无法自动继续。");
-  console.error(
-    "请设置 TAURI_ANDROID_KEYSTORE_PASSWORD / TAURI_ANDROID_KEY_PASSWORD，或删除旧 keystore 让脚本重建。"
-  );
-  process.exit(1);
-}
-
-fs.writeFileSync(
-  credentialsFile,
-  `KEYSTORE_PATH=${keystorePath}\nKEY_ALIAS=${keyAlias}\nSTORE_PASSWORD=${storePassword}\nKEY_PASSWORD=${keyPassword}\n`,
-  "utf8"
-);
-chmodQuiet(credentialsFile, 0o600);
-
-// keystore.properties 遵循 Java properties 转义规则，Windows 路径统一写成正斜杠，
-// 避免 `\U` 等被 Properties.load 吞掉导致 Gradle 找不到签名文件。
-const keystorePathForProperties = keystorePath.replace(/\\/g, "/");
-fs.writeFileSync(
-  keystorePropertiesPath,
-  `storeFile=${keystorePathForProperties}\nstorePassword=${storePassword}\nkeyAlias=${keyAlias}\nkeyPassword=${keyPassword}\n`,
-  "utf8"
-);
-chmodQuiet(keystorePropertiesPath, 0o600);
-
-console.log("Android release 签名准备完成。");
-console.log(`keystore.properties: ${keystorePropertiesPath}`);
-console.log(`keystore: ${keystorePath}`);

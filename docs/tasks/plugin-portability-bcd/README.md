@@ -31,6 +31,8 @@
 
 ## 任务列表
 
+Android 构建的密钥保护见 [签名保护](android-signing.md)：保留现有私钥，缺失或密码错误停止，依赖安装不配置签名；在当前 worktree 提交后供后续合并 master 使用。
+
 用户已确认 [桌面与 Android 正式安装闭环](production-closeout.md) 的功能测试通过；中心校验、正式打包、生产下载安装与交互验收完成。不扩展 API，iOS 真机与 D 的专项待验收项保留。
 
 用户完成账号与钥匙串授权后，[iOS 正式签名与打包](ios-release.md) 已完成，交付 0.2.3 / Build 1 的 App Store IPA；不自动上传或开放 iOS 分发。
