@@ -26,8 +26,8 @@ mod flashcard;
 mod home_stats;
 mod index_db;
 mod migrator;
-mod pomodoro;
 mod plugin_kv;
+mod pomodoro;
 pub use plugin_kv::*;
 mod project;
 mod query;
@@ -49,8 +49,6 @@ pub use home_stats::*;
 pub use index_db::reset_index_database;
 pub use pomodoro::*;
 pub use project::*;
-/** 移动端同步包的数据模型版本（与桌面同步信封版本、主库 schema 版本分属不同口径） */
-pub(crate) const DATA_MODEL_VERSION: i64 = 1;
 pub use schema::ensure_database_file;
 pub(crate) use schema::invalidate_cached_connection;
 pub use schema::validate_download;

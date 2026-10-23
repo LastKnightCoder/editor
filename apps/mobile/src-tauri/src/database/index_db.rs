@@ -25,16 +25,6 @@ fn now_millis() -> i64 {
         .unwrap_or(0)
 }
 
-fn has_table(conn: &Connection, table_name: &str) -> bool {
-    conn.query_row(
-        "SELECT COUNT(1) FROM sqlite_master WHERE type='table' AND name=?1",
-        params![table_name],
-        |row| row.get::<_, i64>(0),
-    )
-    .map(|v| v > 0)
-    .unwrap_or(false)
-}
-
 fn parse_positive_dimension(value: Option<&Value>) -> Option<i64> {
     let raw = value?;
     if let Some(v) = raw.as_i64() {

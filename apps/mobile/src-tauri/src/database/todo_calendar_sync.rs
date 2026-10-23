@@ -22,7 +22,6 @@ struct TodoRow {
     title: String,
     item_type: String,
     description_content_id: Option<i64>,
-    start_at: Option<i64>,
     due_at: Option<i64>,
     is_archived: bool,
 }
@@ -331,7 +330,7 @@ pub(crate) fn assistant_occurrences(
 fn load_todo_row(tx: &Transaction<'_>, todo_id: i64) -> Result<Option<TodoRow>, String> {
     tx.query_row(
         "
-        SELECT title, type, description_content_id, start_at, due_at, is_archived
+        SELECT title, type, description_content_id, due_at, is_archived
         FROM todo_item
         WHERE id = ?1
         LIMIT 1
@@ -342,9 +341,8 @@ fn load_todo_row(tx: &Transaction<'_>, todo_id: i64) -> Result<Option<TodoRow>, 
                 title: row.get(0)?,
                 item_type: row.get(1)?,
                 description_content_id: row.get::<_, Option<i64>>(2)?,
-                start_at: row.get::<_, Option<i64>>(3)?,
-                due_at: row.get::<_, Option<i64>>(4)?,
-                is_archived: row.get::<_, i64>(5)? == 1,
+                due_at: row.get::<_, Option<i64>>(3)?,
+                is_archived: row.get::<_, i64>(4)? == 1,
             })
         },
     )

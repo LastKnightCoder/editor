@@ -122,7 +122,7 @@ Schema 载入方式（编译期内嵌）：
 ```bash
 pnpm db:schema:prepare
 pnpm --filter desktop exec tsc --noEmit
-cd apps/mobile/src-tauri && cargo check
+pnpm --filter mobile check:rust
 ```
 
 可选运行时核验：

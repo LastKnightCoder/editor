@@ -5,7 +5,6 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use serde_json::{json, Value};
 use tauri::AppHandle;
 
-use crate::database::DATA_MODEL_VERSION;
 use crate::models::{SyncActionResponse, SyncVersionResponse};
 use crate::setting::{resolve_app_dir, save_setting_value, set_database_version};
 
@@ -81,14 +80,6 @@ async fn read_remote_version(provider: &SyncProvider, object: &str) -> Result<u6
     Ok(read_remote_info(provider, object).await?["version"]
         .as_u64()
         .unwrap_or(0))
-}
-
-fn version_payload(version: u64) -> Vec<u8> {
-    serde_json::to_vec(&json!({ "version": version, "dataModelVersion": DATA_MODEL_VERSION }))
-        .unwrap_or_else(|_| {
-            format!("{{\"version\":{version},\"dataModelVersion\":{DATA_MODEL_VERSION}}}")
-                .into_bytes()
-        })
 }
 
 fn snapshot_version_payload(mut info: Value, version: u64, object: &str) -> Vec<u8> {
