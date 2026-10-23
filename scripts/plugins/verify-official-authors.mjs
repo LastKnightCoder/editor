@@ -12,6 +12,11 @@ if (!published && (!process.argv[2] || !process.argv[3]))
   );
 const sdk = published ? undefined : path.resolve(process.argv[2]);
 const ui = published ? undefined : path.resolve(process.argv[3]);
+const writeCandidateLocks = process.env.TAU_AUTHOR_WRITE_LOCKFILES === "1";
+if (published && writeCandidateLocks) throw new Error("候选锁文件只能由本地 tarball 验证生成");
+const uiVersion = JSON.parse(
+  await readFile(path.join(root, "packages/ui/package.json"), "utf8")
+).version;
 const sdkVersion = JSON.parse(
   await readFile(path.join(root, "packages/plugins/package.json"), "utf8")
 ).version;
@@ -21,16 +26,45 @@ const reportPath = path.resolve(
 );
 const directory = await mkdtemp(path.join(tmpdir(), "tau-official-authors-"));
 const store = path.join(directory, "store");
+const requestedAuthors = new Set((process.env.TAU_AUTHOR_NAMES ?? "").split(",").filter(Boolean));
 const sources = execFileSync("git", ["config", "--file", ".gitmodules", "--get-regexp", "path"], {
   cwd: root,
   encoding: "utf8",
 })
   .trim()
   .split("\n")
-  .map(line => line.slice(line.indexOf(" ") + 1));
+  .map(line => line.slice(line.indexOf(" ") + 1))
+  .filter(source => requestedAuthors.size === 0 || requestedAuthors.has(path.basename(source)));
+if (requestedAuthors.size && sources.length !== requestedAuthors.size)
+  throw new Error("作者筛选包含未知或重复的子模块名称");
 const results = [];
 let reportWrite = Promise.resolve();
 await mkdir(path.dirname(reportPath), { recursive: true });
+
+async function recordCandidateLock(source, author) {
+  const original = JSON.parse(await readFile(path.join(root, source, "package.json"), "utf8"));
+  const local = JSON.parse(await readFile(path.join(author, "package.json"), "utf8"));
+  let lock = await readFile(path.join(author, "pnpm-lock.yaml"), "utf8");
+  for (const [name, version] of [
+    ["plugins", sdkVersion],
+    ["ui", uiVersion],
+  ]) {
+    const key = `@tau/${name}`;
+    const dependency = local.dependencies?.[key] ?? local.devDependencies?.[key];
+    const expected = `npm:@xiongtao.xt/tau-${name}@${version}`;
+    if (
+      !dependency?.startsWith("file:.sdk/") ||
+      (original.dependencies?.[key] ?? original.devDependencies?.[key]) !== expected
+    )
+      throw new Error("候选依赖与待写入的公开声明不一致");
+    lock = lock
+      .replaceAll(`@xiongtao.xt/tau-${name}@${dependency}`, `@xiongtao.xt/tau-${name}@${version}`)
+      .replaceAll(`specifier: ${dependency}`, `specifier: ${expected}`)
+      .replaceAll(`, tarball: ${dependency}`, "");
+  }
+  if (lock.includes("file:.sdk/")) throw new Error("公开锁文件仍包含本地 SDK 路径");
+  await writeFile(path.join(root, source, "pnpm-lock.yaml"), lock);
+}
 
 async function run(cwd, command, args, log) {
   const result = await new Promise((resolve, reject) => {
@@ -116,11 +150,21 @@ async function verify(source) {
       result.sdkVersion = installed.version;
     }
     await run(author, "pnpm", ["build"], path.join(logs, "build.log"));
+    const artifact = JSON.parse(await readFile(path.join(author, "manifest.json"), "utf8"));
+    const archive = `${artifact.id}-${artifact.version}.zip`;
+    const packages = path.join(path.dirname(reportPath), "packages");
+    await mkdir(packages, { recursive: true });
+    await cp(path.join(author, "dist", archive), path.join(packages, archive));
+    result.archive = path.join(packages, archive);
     const pkg = JSON.parse(await readFile(path.join(author, "package.json"), "utf8"));
     if (pkg.scripts?.test) {
       await run(author, "pnpm", ["test"], path.join(logs, "test.log"));
       result.tests = "passed";
     } else result.tests = "not-defined";
+    if (writeCandidateLocks) {
+      await recordCandidateLock(source, author);
+      result.sourceLockfile = "candidate-publication";
+    }
     result.status = "passed";
   } catch (error) {
     result.status = "failed";

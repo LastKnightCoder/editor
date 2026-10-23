@@ -7,12 +7,6 @@
 import { useRef } from "react";
 import { AboutSection } from "./components/AboutSection";
 import { CollaborationSection } from "./components/CollaborationSection";
-import {
-  IntegrationAliOssSection,
-  IntegrationGithubSection,
-  IntegrationS3Section,
-  IntegrationWebDavSection,
-} from "./components/IntegrationSections";
 import { OverwriteSection } from "./sync/OverwriteSection";
 import { ResourceFilesSection } from "./sync/ResourceFilesSection";
 import { SyncCenterSection } from "./sync/SyncCenterSection";
@@ -38,16 +32,6 @@ function getTitle(module: SettingModuleKey): string {
       return "实时协作";
     case "sync-status-resource":
       return "资源文件";
-    case "integration":
-      return "集成账号";
-    case "integration-github":
-      return "Github 账号";
-    case "integration-s3":
-      return "S3 账号";
-    case "integration-webdav":
-      return "WebDAV 账号";
-    case "integration-alioss":
-      return "AliOSS 账号";
     case "resource":
       return "图片与附件";
     default:
@@ -136,42 +120,6 @@ function ModuleSection(props: ModuleSectionProps) {
           onRetryFailed={props.onResourceSyncRetryFailed}
           onCancel={props.onResourceSyncCancel}
           onOpenModule={props.onOpenModule}
-        />
-      );
-    case "integration-github":
-      return (
-        <IntegrationGithubSection
-          safeSetting={props.safeSetting}
-          isSavingSetting={props.isSavingSetting}
-          onSaveSetting={props.onSaveSetting}
-          updateSetting={props.updateSetting}
-        />
-      );
-    case "integration-s3":
-      return (
-        <IntegrationS3Section
-          safeSetting={props.safeSetting}
-          isSavingSetting={props.isSavingSetting}
-          onSaveSetting={props.onSaveSetting}
-          updateSetting={props.updateSetting}
-        />
-      );
-    case "integration-webdav":
-      return (
-        <IntegrationWebDavSection
-          safeSetting={props.safeSetting}
-          isSavingSetting={props.isSavingSetting}
-          onSaveSetting={props.onSaveSetting}
-          updateSetting={props.updateSetting}
-        />
-      );
-    case "integration-alioss":
-      return (
-        <IntegrationAliOssSection
-          safeSetting={props.safeSetting}
-          isSavingSetting={props.isSavingSetting}
-          onSaveSetting={props.onSaveSetting}
-          updateSetting={props.updateSetting}
         />
       );
     default:

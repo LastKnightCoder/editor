@@ -1,3 +1,6 @@
+import { RendererSyncRegistry, RendererUploadRegistry } from "@tau/plugins/provider-host";
+import { copyJson } from "@tau/plugins/host";
+import { getMobileSettingSnapshot } from "../../services/mobileSettingsBridge";
 import { PluginHost, normalizePageParams, type StorageAdapter } from "@tau/plugins/host";
 import { ContentPluginRegistry } from "@tau/plugins/content";
 import { type PortablePlatform } from "@tau/plugins/portable";
@@ -26,6 +29,9 @@ export interface MobilePluginPage {
 }
 export class MobilePluginRuntime {
   readonly host: PluginHost;
+  readonly sync = new RendererSyncRegistry();
+  readonly upload = new RendererUploadRegistry();
+  fetch?: typeof globalThis.fetch;
   readonly content = new ContentPluginRegistry();
   readonly pages = new Map<string, MobilePluginPage>();
   readonly entries = new Map<
@@ -59,6 +65,32 @@ export class MobilePluginRuntime {
       restartRequired,
       environmentSource: environment,
       storage,
+      sync: this.sync,
+      upload: {
+        register: (context, definition) => this.upload.register(context, definition),
+        uploadRemote: (file, signal) => {
+          const setting = getMobileSettingSnapshot()?.imageBed;
+          const id = setting?.plugin?.id;
+          if (setting?.active !== "plugin" || !id)
+            throw new Error("请先配置远端上传插件，本地保存不能提供公网地址");
+          const originalName = file.name.split(/[\\/]/).at(-1) || "file";
+          const dot = originalName.lastIndexOf(".");
+          const name =
+            dot > 0
+              ? `${originalName.slice(0, dot)}_${crypto.randomUUID()}${originalName.slice(dot)}`
+              : `${originalName}_${crypto.randomUUID()}`;
+          return this.upload.upload(
+            id,
+            { ...file, name },
+            copyJson(setting.plugin?.configurations[id] ?? {}),
+            signal
+          );
+        },
+      },
+      fetch: (input, init) => {
+        if (!this.fetch) throw new Error("插件网络尚未就绪");
+        return this.fetch(input, init);
+      },
       pages: {
         register: (context, definition) => {
           const id = `${context.pluginId}:${definition.id}`;
@@ -101,7 +133,8 @@ export class MobilePluginRuntime {
       },
       settings: {
         register: (context, definition) => {
-          if (definition.target) throw new Error("移动端不提供领域设置宿主");
+          if (definition.target && definition.target !== "sync" && definition.target !== "upload")
+            throw new Error("当前移动宿主尚未提供此领域设置");
           const id = `${context.pluginId}:${definition.id}`;
           this.settings.set(id, { context, definition });
           this.publish();
@@ -109,7 +142,11 @@ export class MobilePluginRuntime {
             id,
             open: async () => {
               if (!this.active(context)) throw new Error("插件设置不可用");
-              navigator.push("pluginSettings", { id });
+              if (definition.target === "sync")
+                navigator.push("syncProvider", { providerId: context.pluginId });
+              else if (definition.target === "upload")
+                navigator.push("uploadProvider", { providerId: context.pluginId });
+              else navigator.push("pluginSettings", { id });
             },
             dispose: () => {
               this.settings.delete(id);

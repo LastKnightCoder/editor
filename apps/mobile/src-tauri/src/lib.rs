@@ -1,10 +1,11 @@
 mod collaboration;
 mod database;
 mod models;
-mod network_policy;
 mod plugin_center;
+mod plugin_provider;
+mod plugin_transport;
 mod plugins;
-mod provider_config;
+mod provider_settings;
 mod remote_resource_cache;
 mod resource_upload;
 mod setting;
@@ -60,6 +61,13 @@ pub fn run() {
             plugin_center::plugin_center_request,
             plugin_center::plugin_center_stage,
             plugin_center::plugin_center_commit,
+            provider_settings::plugin_provider_save,
+            provider_settings::plugin_provider_select,
+            plugin_transport::plugin_transport_connect,
+            plugin_transport::plugin_transport_disconnect,
+            plugin_transport::plugin_transport_reply,
+            plugin_transport::plugin_fetch,
+            plugin_transport::plugin_fetch_cancel,
             plugins::plugin_packages,
             plugins::plugin_apply_pending,
             plugins::plugin_stage,
@@ -74,12 +82,6 @@ pub fn run() {
             setting::bootstrap_app,
             setting::read_setting_json,
             setting::write_setting_json,
-            setting::verify_github_token,
-            setting::list_github_repos,
-            setting::list_github_branches,
-            setting::verify_s3_credentials,
-            setting::verify_webdav_credentials,
-            setting::verify_alioss_credentials,
             database::list_databases,
             database::get_active_database_size,
             database::create_database,

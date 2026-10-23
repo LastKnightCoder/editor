@@ -14,6 +14,7 @@ import {
 } from "../../services/plugins";
 import { mobileContentPlugins, mobilePluginElementSupport } from "./content";
 import { MobilePluginRuntime } from "./runtime";
+import { connectMobilePluginTransport } from "./transport";
 import { MobilePluginsContext } from "./context";
 import { subscribePluginForeground } from "./foreground";
 import { disposeMobileRuntimeStyles } from "../../services/runtimeStyles";
@@ -38,6 +39,7 @@ export function MobilePluginProvider({
     let cancelled = false;
     let runtime: MobilePluginRuntime | undefined;
     let disconnect: (() => void) | undefined;
+    let disconnectTransport: (() => void) | undefined;
     let stopStatusRefresh: (() => void) | undefined;
     const previous = cleanup;
     const preparation = (async () => {
@@ -62,6 +64,11 @@ export function MobilePluginProvider({
         data.appVersion,
         restartRequired
       );
+      disconnectTransport = await connectMobilePluginTransport(runtime);
+      if (cancelled) {
+        disconnectTransport();
+        return;
+      }
       const safe = localStorage.getItem(STARTING_KEY) !== null;
       if (safe)
         setFailure(
@@ -142,6 +149,7 @@ export function MobilePluginProvider({
       cancelled = true;
       disposeMobileRuntimeStyles();
       disconnect?.();
+      disconnectTransport?.();
       stopStatusRefresh?.();
       const disposal = runtime?.dispose();
       cleanup = Promise.allSettled([previous, preparation, disposal]).then(results => {

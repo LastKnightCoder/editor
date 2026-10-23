@@ -1,7 +1,7 @@
 import { assertContentResourceSpecs } from "@tau/db-schema/content-resources";
 import type { PluginDefinition } from "./contract";
 import type { PluginEditorExtension } from "./editor";
-import { scopePortablePluginModules } from "./portable-services";
+import { scopePortablePluginModules, scopePortablePluginDefinition } from "./portable-services";
 import { assertPluginEditorExtension } from "./editor-fields.ts";
 import type { MarkdownCodec } from "@tau/markdown";
 import {
@@ -96,7 +96,7 @@ export function evaluatePortablePluginPackage(
     PORTABLE_SHARED_MODULES
   );
   assertPortableElementDeclarations(manifest, getPluginNodeTypes(definition));
-  return definition;
+  return scopePortablePluginDefinition(definition, target, host.capabilities);
 }
 
 /** 各宿主共用支持等级投影；原始数据与节点身份不改写。 */

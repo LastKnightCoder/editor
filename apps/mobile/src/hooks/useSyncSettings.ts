@@ -9,7 +9,6 @@ function normalizeSetting(setting: SettingCompat): SettingCompat {
   const database = (raw.database ?? {}) as Partial<SettingCompat["database"]>;
   const imageBed = (raw.imageBed ?? {}) as Partial<SettingCompat["imageBed"]>;
   const sync = (raw.sync ?? {}) as Partial<SettingCompat["sync"]>;
-  const integration = (raw.integration ?? {}) as Partial<SettingCompat["integration"]>;
   const appearance = (raw.appearance ?? {}) as NonNullable<SettingCompat["appearance"]>;
   const rawImage = (appearance.image ?? {}) as {
     borderRadius?: unknown;
@@ -44,89 +43,13 @@ function normalizeSetting(setting: SettingCompat): SettingCompat {
       active: typeof imageBed.active === "string" ? imageBed.active : "local",
       enableCompression:
         typeof imageBed.enableCompression === "boolean" ? imageBed.enableCompression : true,
-      github: {
-        repo: typeof imageBed.github?.repo === "string" ? imageBed.github.repo : "",
-        branch: typeof imageBed.github?.branch === "string" ? imageBed.github.branch : "",
-        pathPrefix:
-          typeof imageBed.github?.pathPrefix === "string" ? imageBed.github.pathPrefix : "",
-      },
-      aliOSS: {
-        bucket: typeof imageBed.aliOSS?.bucket === "string" ? imageBed.aliOSS.bucket : "",
-        region: typeof imageBed.aliOSS?.region === "string" ? imageBed.aliOSS.region : "",
-        pathPrefix:
-          typeof imageBed.aliOSS?.pathPrefix === "string" ? imageBed.aliOSS.pathPrefix : "",
-      },
-      local: {
-        path: typeof imageBed.local?.path === "string" ? imageBed.local.path : "resources",
-      },
-      s3: {
-        bucket: typeof imageBed.s3?.bucket === "string" ? imageBed.s3.bucket : "",
-        region: typeof imageBed.s3?.region === "string" ? imageBed.s3.region : "",
-        pathPrefix: typeof imageBed.s3?.pathPrefix === "string" ? imageBed.s3.pathPrefix : "",
-      },
-      webdav: {
-        pathPrefix:
-          typeof imageBed.webdav?.pathPrefix === "string" ? imageBed.webdav.pathPrefix : "",
-      },
+      local: { path: typeof imageBed.local?.path === "string" ? imageBed.local.path : "resources" },
+      plugin: imageBed.plugin ?? { id: "", configurations: {} },
     },
     sync: {
       ...sync,
-      active: typeof sync.active === "string" ? sync.active : "aliOSS",
-      webdav: {
-        pathPrefix: typeof sync.webdav?.pathPrefix === "string" ? sync.webdav.pathPrefix : "",
-      },
-      aliOSS: {
-        bucket: typeof sync.aliOSS?.bucket === "string" ? sync.aliOSS.bucket : "",
-        region: typeof sync.aliOSS?.region === "string" ? sync.aliOSS.region : "",
-        path: typeof sync.aliOSS?.path === "string" ? sync.aliOSS.path : "/",
-      },
-      s3: {
-        bucket: typeof sync.s3?.bucket === "string" ? sync.s3.bucket : "",
-        region: typeof sync.s3?.region === "string" ? sync.s3.region : "",
-        pathPrefix: typeof sync.s3?.pathPrefix === "string" ? sync.s3.pathPrefix : "",
-      },
-      github: {
-        repo: typeof sync.github?.repo === "string" ? sync.github.repo : "",
-        branch: typeof sync.github?.branch === "string" ? sync.github.branch : "",
-        pathPrefix: typeof sync.github?.pathPrefix === "string" ? sync.github.pathPrefix : "",
-      },
-    },
-    integration: {
-      ...integration,
-      github: {
-        token: typeof integration.github?.token === "string" ? integration.github.token : "",
-        user: {
-          name:
-            typeof integration.github?.user?.name === "string" ? integration.github.user.name : "",
-          email:
-            typeof integration.github?.user?.email === "string"
-              ? integration.github.user.email
-              : "",
-        },
-      },
-      s3: {
-        accessKeyId:
-          typeof integration.s3?.accessKeyId === "string" ? integration.s3.accessKeyId : "",
-        secretAccessKey:
-          typeof integration.s3?.secretAccessKey === "string" ? integration.s3.secretAccessKey : "",
-        endpoint: typeof integration.s3?.endpoint === "string" ? integration.s3.endpoint : "",
-        urlStyle: integration.s3?.urlStyle === "virtualHosted" ? "virtualHosted" : "path",
-      },
-      webdav: {
-        url: typeof integration.webdav?.url === "string" ? integration.webdav.url : "",
-        username:
-          typeof integration.webdav?.username === "string" ? integration.webdav.username : "",
-        password:
-          typeof integration.webdav?.password === "string" ? integration.webdav.password : "",
-      },
-      aliOSS: {
-        accessKeyId:
-          typeof integration.aliOSS?.accessKeyId === "string" ? integration.aliOSS.accessKeyId : "",
-        accessKeySecret:
-          typeof integration.aliOSS?.accessKeySecret === "string"
-            ? integration.aliOSS.accessKeySecret
-            : "",
-      },
+      active: typeof sync.active === "string" ? sync.active : "plugin",
+      plugin: sync.plugin ?? { id: "", configurations: {} },
     },
   } as SettingCompat;
 }

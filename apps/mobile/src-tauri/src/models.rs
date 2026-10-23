@@ -204,10 +204,3 @@ pub struct SettingWriteResponse {
     pub code: Option<String>,
     pub message: String,
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GithubUserInfoResponse {
-    pub name: String,
-    pub email: String,
-}

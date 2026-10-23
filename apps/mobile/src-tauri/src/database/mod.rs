@@ -9,7 +9,7 @@ use crate::models::{
 };
 use crate::setting::{
     ensure_database_entry, get_active_database_name, get_database_items, load_or_init_setting,
-    normalize_database_name, save_setting_value, set_active_database_name,
+    mutate_setting_value, normalize_database_name, set_active_database_name,
 };
 
 mod article;
@@ -198,11 +198,16 @@ pub fn get_active_database_size(app: AppHandle) -> Result<u64, String> {
 #[tauri::command]
 pub fn create_database(app: AppHandle, name: String) -> Result<DatabaseItem, String> {
     let db_name = normalize_database_name(&name).map_err(|_| "DB_NAME_INVALID".to_string())?;
-    let mut setting = load_or_init_setting(&app)?;
-    let _ = ensure_database_entry(&mut setting, &db_name);
-    set_active_database_name(&mut setting, &db_name);
-    save_setting_value(&app, &setting)?;
     ensure_database_file(&app, &db_name)?;
+    let (setting, changed) = mutate_setting_value(&app, |setting| {
+        let changed = get_active_database_name(setting) != db_name;
+        let _ = ensure_database_entry(setting, &db_name);
+        set_active_database_name(setting, &db_name);
+        Ok((setting.clone(), changed))
+    })?;
+    if changed {
+        crate::plugin_transport::invalidate();
+    }
     reconcile::trigger_reconcile(&app, &db_name);
 
     let item = get_database_items(&setting)
@@ -218,11 +223,16 @@ pub fn create_database(app: AppHandle, name: String) -> Result<DatabaseItem, Str
 #[tauri::command]
 pub fn set_active_database(app: AppHandle, name: String) -> Result<ActiveDatabaseResponse, String> {
     let db_name = normalize_database_name(&name).map_err(|_| "DB_NAME_INVALID".to_string())?;
-    let mut setting = load_or_init_setting(&app)?;
-    let created = ensure_database_entry(&mut setting, &db_name);
-    set_active_database_name(&mut setting, &db_name);
-    save_setting_value(&app, &setting)?;
     ensure_database_file(&app, &db_name)?;
+    let (created, changed) = mutate_setting_value(&app, |setting| {
+        let changed = get_active_database_name(setting) != db_name;
+        let created = ensure_database_entry(setting, &db_name);
+        set_active_database_name(setting, &db_name);
+        Ok((created, changed))
+    })?;
+    if changed {
+        crate::plugin_transport::invalidate();
+    }
     reconcile::trigger_reconcile(&app, &db_name);
 
     Ok(ActiveDatabaseResponse {

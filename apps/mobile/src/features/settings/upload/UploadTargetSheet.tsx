@@ -1,3 +1,4 @@
+import { useNavigator } from "../../../router";
 // 上传位置抽屉：「这台手机」无需配置，点选即切换；云端服务点选进入服务页，在服务页里再决定是否启用。
 
 import { Smartphone } from "lucide-react";
@@ -5,7 +6,7 @@ import type { SettingCompat } from "../../../types";
 import { BottomSheet } from "../../../components/BottomSheet";
 import { LetterTile } from "../components/ui";
 import { ServiceOption } from "../storage/fields";
-import { LOCAL_UPLOAD_ID, UPLOAD_PROVIDERS } from "./providers";
+import { LOCAL_UPLOAD_ID, useUploadProviders } from "./providers";
 
 export function LocalTile() {
   return (
@@ -22,7 +23,10 @@ export function UploadTargetSheet(props: {
   onSelectLocal: () => void;
   onOpenProvider: (providerId: string) => void;
 }) {
-  const active = props.setting.imageBed.active;
+  const providers = useUploadProviders();
+  const navigator = useNavigator();
+  const active =
+    props.setting.imageBed.active === "local" ? "local" : props.setting.imageBed.plugin?.id;
   return (
     <BottomSheet open={props.open} title="保存到哪里" onClose={props.onClose}>
       <p className="text-ink-3 pb-3 text-center text-[12.5px]">只影响之后插入的图片和附件</p>
@@ -35,7 +39,7 @@ export function UploadTargetSheet(props: {
       />
       <p className="text-ink-3 px-1.5 pb-2 pt-4 text-[12px]">上传到云端，文档里直接引用网址</p>
       <div className="space-y-2">
-        {UPLOAD_PROVIDERS.map(provider => (
+        {providers.map(provider => (
           <ServiceOption
             key={provider.id}
             icon={<LetterTile letter={provider.tile.letter} className={provider.tile.className} />}
@@ -49,6 +53,16 @@ export function UploadTargetSheet(props: {
             onClick={() => props.onOpenProvider(provider.id)}
           />
         ))}
+        <button
+          type="button"
+          className="text-accent-text text-tau-body w-full py-3"
+          onClick={() => {
+            props.onClose();
+            navigator.push("plugins", { tab: "store" });
+          }}
+        >
+          去插件中心添加上传服务
+        </button>
       </div>
     </BottomSheet>
   );

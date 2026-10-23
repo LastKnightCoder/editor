@@ -1,3 +1,8 @@
+import type { DesktopPluginPackage as DevelopmentPluginPackage } from "../../../../shared/plugin-package";
+import {
+  createPluginEnvironmentStore,
+  PluginEnvironmentProvider,
+} from "@tau/plugins/environment-host";
 import { act } from "react";
 import * as React from "react";
 import * as jsx from "react/jsx-runtime";
@@ -7,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { execFileSync } from "node:child_process";
 import * as ui from "@tau/ui";
 import * as sdk from "@tau/plugins";
-import { createMemoryStorage, type DevelopmentPluginPackage } from "@tau/plugins/host";
+import { createMemoryStorage } from "@tau/plugins/host";
 import { DesktopPluginRuntime } from "@/app/plugins/runtime";
 import { registerPluginPackage } from "@/app/plugins/package-loader";
 import { PluginRuntimeContext } from "@/app/plugins/context";
@@ -69,7 +74,12 @@ describe.skipIf(!zip)("真实插件包注册同步配置表单", () => {
       setting: { ...previous, sync: { ...previous.sync, active: ESync.Plugin, plugin: undefined } },
     });
     mocks.save.mockReset().mockResolvedValue(undefined);
+    const environment = createPluginEnvironmentStore({
+      platform: "desktop",
+      input: { coarsePointer: false, finePointer: true },
+    });
     runtime = new DesktopPluginRuntime({
+      environmentSource: environment,
       workspaceId: "test",
       storage: createMemoryStorage(),
       navigator: { push: vi.fn() },
@@ -88,15 +98,17 @@ describe.skipIf(!zip)("真实插件包注册同步配置表单", () => {
     root = createRoot(container);
     await act(async () =>
       root.render(
-        <ui.UiProvider>
-          <QueryClientProvider
-            client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
-          >
-            <PluginRuntimeContext.Provider value={runtime}>
-              <SyncSection />
-            </PluginRuntimeContext.Provider>
-          </QueryClientProvider>
-        </ui.UiProvider>
+        <PluginEnvironmentProvider source={environment}>
+          <ui.UiProvider>
+            <QueryClientProvider
+              client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+            >
+              <PluginRuntimeContext.Provider value={runtime}>
+                <SyncSection />
+              </PluginRuntimeContext.Provider>
+            </QueryClientProvider>
+          </ui.UiProvider>
+        </PluginEnvironmentProvider>
       )
     );
     await settle();
@@ -128,7 +140,7 @@ describe.skipIf(!zip)("真实插件包注册同步配置表单", () => {
     return found;
   };
   it("配置来自插件包，失败保留表单，成功保存并沿用客户端上传入口", async () => {
-    expect(runtime.listSettings()[0].definition.target).toBe("sync");
+    expect(runtime.listSettings().some(section => section.definition.target === "sync")).toBe(true);
     const expected =
       pluginId === "tau.sync-github"
         ? { owner: "test-owner", repo: "test-repo" }

@@ -240,16 +240,7 @@ async fn build_resource_sync_plan(
 > {
     let resources_dir = resource_local_dir(app)?;
     let local_files = scan_local_resource_files(&resources_dir)?;
-    let remote_files = match list_remote_resources(provider, &format!("{RESOURCE_PREFIX}/")).await {
-        Ok(files) => files,
-        Err(error) => {
-            println!(
-                "[resource-sync] 远端列表拉取失败，降级为仅本地计划: {}",
-                error.message
-            );
-            Vec::new()
-        }
-    };
+    let remote_files = list_remote_resources(provider, &format!("{RESOURCE_PREFIX}/")).await?;
     let mut remote_map: HashMap<String, ResourceRemoteFileInfo> = HashMap::new();
     for item in remote_files {
         remote_map.insert(item.name.clone(), item);

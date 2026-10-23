@@ -1,5 +1,9 @@
+import { transferableAbortController } from "node:util";
+import { definePlugin, type PluginContext, type UploadFile, type JsonValue } from "@tau/plugins";
+import { setMobileSettingSnapshot } from "../../services/mobileSettingsBridge";
+import type { SettingCompat } from "../../types";
 import { webcrypto, createHash } from "node:crypto";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createMemoryStorage } from "@tau/plugins/host";
 import { createPluginEnvironmentStore } from "@tau/plugins/environment-host";
 import { portableSharedPluginModules as sharedPluginModules } from "@tau/plugins/portable-shared-modules";
@@ -14,10 +18,76 @@ const environment = (platform: "android" | "ios") =>
     platform,
     input: { coarsePointer: true, finePointer: false },
   });
+beforeEach(() => {
+  const controller = transferableAbortController();
+  vi.stubGlobal("AbortController", controller.constructor);
+  vi.stubGlobal("AbortSignal", controller.signal.constructor);
+});
 afterEach(() => {
   vi.unstubAllGlobals();
+  setMobileSettingSnapshot(null);
   mobileContentPlugins.install([]);
   mobilePluginElementSupport.clear();
+});
+
+it("uploadRemote 使用当前独立配置与原始字节，本地模式不自动选择服务", async () => {
+  vi.stubGlobal("crypto", webcrypto);
+  const runtime = new MobilePluginRuntime(
+    environment("android"),
+    createMemoryStorage(),
+    "A.db",
+    { push: vi.fn() },
+    "0.2.3"
+  );
+  let context!: PluginContext;
+  const upload = vi
+    .fn<(file: UploadFile, config: JsonValue, signal: AbortSignal) => Promise<string>>()
+    .mockResolvedValue("https://example.com/resource");
+  runtime.host.registerTrusted(
+    definePlugin({
+      id: "fixture.upload",
+      name: "fixture",
+      version: "1.0.0",
+      create: () => ({
+        activate(current) {
+          context = current;
+          current.upload.register({ id: current.pluginId, name: "fixture", upload });
+        },
+      }),
+    })
+  );
+  await runtime.host.enable("fixture.upload");
+  const config = { bucket: "original" };
+  const setting = {
+    database: { active: "A.db", databases: [] },
+    sync: { active: "plugin" },
+    imageBed: {
+      active: "local",
+      local: { path: "resources" },
+      enableCompression: false,
+      plugin: { id: "fixture.upload", configurations: { "fixture.upload": config } },
+    },
+  } as SettingCompat;
+  try {
+    setMobileSettingSnapshot(setting);
+    const content = new Uint8Array([1, 255]);
+    const file = { name: "../nested.bin", mimeType: "application/octet-stream", content };
+    await expect(context.upload.uploadRemote(file)).rejects.toThrow("本地保存");
+    expect(upload).not.toHaveBeenCalled();
+    setting.imageBed.active = "plugin";
+    setMobileSettingSnapshot(setting);
+    const pending = context.upload.uploadRemote(file);
+    config.bucket = "changed";
+    content[0] = 3;
+    await expect(pending).resolves.toBe("https://example.com/resource");
+    expect(upload.mock.calls[0][0].name).toMatch(/^nested_[a-f0-9-]+\.bin$/);
+    expect(upload.mock.calls[0][0].content).toEqual(new Uint8Array([1, 255]));
+    expect(upload.mock.calls[0][1]).toEqual({ bucket: "original" });
+    await runtime.host.disable("fixture.upload");
+    await expect(context.upload.uploadRemote(file)).rejects.toThrow();
+  } finally {
+    await runtime.dispose();
+  }
 });
 it.each(["android", "ios"] as const)(
   "%s 使用同一模板和 ABC，真实宿主注册、正文/codec 装配与清理",
@@ -58,12 +128,12 @@ it.each(["android", "ios"] as const)(
       expect(mobileMarkdown.getMarkdown(nodes)).toContain("C D E F |");
       await entry.context.storage.set("count", 3);
       expect(await entry.context.storage.get("count")).toBe(3);
-      await expect(entry.context.fetch("https://example.invalid")).rejects.toThrow("不支持 fetch");
+      await expect(entry.context.fetch("https://example.invalid")).rejects.toThrow("尚未就绪");
       expect(() =>
         entry.context.settings.register({
           id: "domain",
           title: "领域设置",
-          target: "sync",
+          target: "publish",
           component: () => null,
         })
       ).toThrow("领域设置");

@@ -19,6 +19,9 @@ export const DESKTOP_PLUGIN_CAPABILITIES = [
   "sourceEditor",
   "media",
   "runtimeStyles",
+  "fetch",
+  "sync",
+  "upload",
 ] as const;
 
 export type DesktopPortableManifest = ReadablePortablePluginManifest & {

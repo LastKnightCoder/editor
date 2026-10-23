@@ -1,6 +1,6 @@
 {
   "name": "@tau/plugins",
-  "version": "0.37.0",
+  "version": "0.38.0",
   "private": true,
   "type": "module",
   "description": "应用插件契约与受信任开发宿主",
@@ -34,7 +34,8 @@
     "./services-host": "./src/services-host.tsx",
     "./node": "./src/file-storage.ts",
     "./local-state": "./src/local-state.ts",
-    "./sync": "./src/sync.ts"
+    "./sync": "./src/sync.ts",
+    "./provider-host": "./src/provider-host.ts"
   },
   "scripts": {
     "check": "tsc --noEmit",

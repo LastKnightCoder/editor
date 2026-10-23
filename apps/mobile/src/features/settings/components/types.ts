@@ -16,11 +16,6 @@ export const SETTINGS_MODULE_KEYS = [
   "sync-overwrite",
   "collaboration",
   "sync-status-resource",
-  "integration",
-  "integration-github",
-  "integration-s3",
-  "integration-webdav",
-  "integration-alioss",
   "resource",
 ] as const;
 
