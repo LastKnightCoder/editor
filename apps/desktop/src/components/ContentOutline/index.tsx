@@ -126,22 +126,28 @@ export function ContentOutline({
           <b className="text-tau-sm font-semibold">大纲</b>
         </div>
       )}
-      {headers.map((header, index) => (
-        <button
-          key={header.id}
-          type="button"
-          onClick={() => scrollToHeader(header, index)}
-          className={cn(
-            "rounded-tau-sm text-ink-3 ease-tau-out hover:bg-hover hover:text-ink-1 block border-l-2 border-transparent py-[5px] pl-2.5 pr-2 text-left leading-snug transition-colors duration-150",
-            // 缩进用 margin 而非 padding：背景贴住缩进后的条目，左端不留空白块；
-            // 宽度显式扣除缩进量，避免 w-full + margin 向右溢出
-            header.level >= 3 ? "text-tau-micro ml-4 w-[calc(100%-1rem)]" : "w-full",
-            activeId === header.id && "border-accent bg-selected text-accent-text font-medium"
-          )}
-        >
-          {header.title}
-        </button>
-      ))}
+      {headers.map((header, index) => {
+        const active = activeId === header.id;
+        return (
+          <button
+            key={header.id}
+            type="button"
+            onClick={() => scrollToHeader(header, index)}
+            className={cn(
+              "rounded-tau-sm text-ink-3 ease-tau-out mt-1 block border-l-2 border-transparent py-[5px] pl-2.5 pr-2 text-left leading-snug transition-colors duration-150",
+              // 缩进用 margin 而非 padding：背景贴住缩进后的条目，左端不留空白块；
+              // 宽度显式扣除缩进量，避免 w-full + margin 向右溢出
+              header.level >= 3 ? "text-tau-micro ml-4 w-[calc(100%-1rem)]" : "w-full",
+              // 选中项不再叠 hover 样式，避免高亮被 hover 底色盖掉
+              active
+                ? "border-accent bg-selected text-accent-text font-medium"
+                : "hover:bg-hover hover:text-ink-1"
+            )}
+          >
+            {header.title}
+          </button>
+        );
+      })}
     </nav>
   );
 }
