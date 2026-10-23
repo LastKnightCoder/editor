@@ -42,7 +42,8 @@ function normalizeSetting(setting: SettingCompat): SettingCompat {
     imageBed: {
       ...imageBed,
       active: typeof imageBed.active === "string" ? imageBed.active : "local",
-      compressImages: typeof imageBed.compressImages === "boolean" ? imageBed.compressImages : true,
+      enableCompression:
+        typeof imageBed.enableCompression === "boolean" ? imageBed.enableCompression : true,
       github: {
         repo: typeof imageBed.github?.repo === "string" ? imageBed.github.repo : "",
         branch: typeof imageBed.github?.branch === "string" ? imageBed.github.branch : "",

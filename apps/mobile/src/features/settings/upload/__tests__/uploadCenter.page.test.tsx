@@ -29,7 +29,7 @@ function makeSetting(active: string, githubReady = true): SettingCompat {
   return {
     imageBed: {
       active,
-      compressImages: true,
+      enableCompression: true,
       github: githubReady
         ? { repo: "tau-assets", branch: "main", pathPrefix: "uploads" }
         : { repo: "", branch: "", pathPrefix: "" },
@@ -152,7 +152,7 @@ describe("图片与附件", () => {
     expect(activePage()?.textContent).toContain("随资源文件同步");
 
     await click(activePage()!.querySelector<HTMLElement>('[role="switch"]'));
-    expect(harness.setting().imageBed.compressImages).toBe(false);
+    expect(harness.setting().imageBed.enableCompression).toBe(false);
     expect(harness.persisted()).toBe(1);
   });
 

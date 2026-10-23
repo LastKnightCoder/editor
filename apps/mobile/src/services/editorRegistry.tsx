@@ -57,7 +57,7 @@ const UPLOAD_TIMEOUT_MS = 60_000;
 
 async function uploadResourceInMobile(file: File): Promise<string> {
   // 开启压缩时先在 WebView 内预压缩（相机原图 3–8MB → webp 数百 KB），再 base64 走字符串通道
-  const compress = getMobileSettingByPath<boolean>("imageBed.compressImages") !== false;
+  const compress = getMobileSettingByPath<boolean>("imageBed.enableCompression") !== false;
   const prepared = compress
     ? await compressImageForUpload(file)
     : { blob: file, fileName: file.name, mimeType: file.type || "application/octet-stream" };

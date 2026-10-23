@@ -556,8 +556,8 @@ export interface SettingCompat {
   };
   imageBed: {
     active: "local" | "github" | "aliOSS" | "s3" | "webdav" | string;
-    /** 同时控制前端预压缩与后端转 webp，关闭即原图上传 */
-    compressImages: boolean;
+    /** 同时控制前端预压缩与后端转 webp，关闭即原图上传；键名与桌面端一致 */
+    enableCompression: boolean;
     github: {
       repo: string;
       branch: string;
