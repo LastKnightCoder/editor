@@ -80,7 +80,9 @@ export interface PluginRelease {
     manifest: {
       name: string;
       description: string;
-      minAppVersion: string;
+      minAppVersion?: string;
+      formatVersion?: 1 | 2 | 3;
+      targets?: import("@tau/plugins/center").CenterTargets;
       backend?: import("@tau/plugins/package").PluginBackendManifest;
       skills?: readonly string[];
       integrity?: Record<string, string>;

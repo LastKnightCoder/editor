@@ -152,6 +152,27 @@ describe("InsertPanel", () => {
     expect(getSection("basic")).toBeTruthy();
   });
 
+  it("运行时插件贡献可搜索并执行，关闭面板恢复选区，轻量白名单不显示插件", () => {
+    const run = vi.fn();
+    const controller = createControllerStub({
+      pluginInsertItems: [{ title: "ABC 乐谱", keywords: ["music"], icon: Puzzle, run }],
+    });
+    render(controller);
+    expect(getSection("plugin")?.textContent).toContain("ABC 乐谱");
+    typeQuery("music");
+    click(getItem("plugin:0"));
+    expect(run).toHaveBeenCalledOnce();
+    expect(controller.handleSelectInsertItem).not.toHaveBeenCalled();
+    expect(controller.closePanel).toHaveBeenCalledWith({
+      showKeyboard: true,
+      restoreSelection: true,
+    });
+    expect(localStorage.getItem(RECENT_INSERT_STORAGE_KEY) ?? "").not.toContain("plugin:");
+    typeQuery("");
+    render(controller, { allowedKinds: new Set(["table"]) });
+    expect(getSection("plugin")).toBeNull();
+  });
+
   it("搜索框按下不阻止默认行为；获焦后预留 = max(原面板高度, 键盘 + 结果区)，失焦恢复", () => {
     const onSearchingChange = vi.fn();
     const controller = createControllerStub();

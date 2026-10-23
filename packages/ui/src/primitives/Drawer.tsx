@@ -42,6 +42,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { UiDismissBoundary } from "../UiHostProvider";
 import { cn } from "../cn";
 import { PortalScope, usePortalContainer } from "../UiProvider";
 import { useEdgeFade } from "../hooks/useEdgeFade";
@@ -155,7 +156,7 @@ export function Drawer({
     lastActiveRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     return lockBodyScroll(portalContainer.ownerDocument);
-  }, [open, modal]);
+  }, [open, modal, portalContainer.ownerDocument]);
 
   // 模态挂载后落初始焦点（非模态不抢焦点：用户可能正在列表里用键盘移动）
   useEffect(() => {
@@ -364,10 +365,15 @@ export function Drawer({
     </aside>
   );
 
-  if (!modal) return panel;
+  if (!modal)
+    return (
+      <UiDismissBoundary open={open} dismiss={close}>
+        {panel}
+      </UiDismissBoundary>
+    );
 
   return createPortal(
-    <>
+    <UiDismissBoundary open={open} dismiss={close}>
       <div
         aria-hidden
         onClick={close}
@@ -377,7 +383,7 @@ export function Drawer({
         )}
       />
       <PortalScope>{panel}</PortalScope>
-    </>,
+    </UiDismissBoundary>,
     portalContainer
   );
 }

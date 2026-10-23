@@ -9,7 +9,8 @@ import {
 } from "react";
 import { Transforms, type Element } from "slate";
 import { useReadOnly, useSlateStatic, type RenderElementProps } from "slate-react";
-import { cn } from "@tau/ui";
+import { cn, Button } from "@tau/ui";
+import { IElementEditingPolicy } from "../../services/elementEditingPolicy";
 
 import AddParagraph from "../AddParagraph";
 import ElementMenu from "../ElementMenu";
@@ -59,7 +60,9 @@ export function ElementFrame({
   content,
 }: RenderElementProps & { options: ElementFrameOptions; content: ReactNode }) {
   const editor = useSlateStatic();
-  const readOnly = useReadOnly();
+  const editorReadOnly = useReadOnly();
+  const policy = editor.tryGetService(IElementEditingPolicy);
+  const readOnly = editorReadOnly || policy?.canEdit(element.type) === false;
   const isLast = useIsLastElement(element);
   const bodyRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState(false);
@@ -140,6 +143,18 @@ export function ElementFrame({
           }}
         >
           {content}
+          {!readOnly && policy?.sourcePresentation === "touch" && (
+            <Button
+              variant="ghost"
+              aria-label="块操作"
+              onClick={event => {
+                const rect = event.currentTarget.getBoundingClientRect();
+                state.openMenu({ x: rect.left, y: rect.bottom });
+              }}
+            >
+              块操作
+            </Button>
+          )}
         </div>
       </FrameContext.Provider>
       {options.appendParagraph !== false && !(readOnly && isLast) && (

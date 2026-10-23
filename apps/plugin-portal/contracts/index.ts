@@ -1,3 +1,17 @@
+export type {
+  CenterManifest,
+  CenterHost,
+  CenterCatalogQuery,
+  CenterCatalogPage,
+  CenterCatalogEntry,
+  CenterVersion,
+  CenterRelease,
+  CenterReason,
+  CenterCompatibility,
+  CenterResolution,
+  CenterStatusItem,
+  PluginCenterClient,
+} from "@tau/plugins/center";
 import type { PluginCategory } from "@tau/plugins/package";
 import { DISTRIBUTION_LIMITS } from "@tau/plugins/template";
 
@@ -46,14 +60,7 @@ export interface Session {
   csrfToken: string | null;
   reviewer: boolean;
 }
-export type PackageManifest = import("@tau/plugins/template").DistributionManifest & {
-  minAppVersion: string;
-  description: string;
-  /** 作者自填的插件中心分类，上传时严格校验词表。 */
-  categories?: readonly PluginCategory[];
-  /** 仅参与目录搜索。 */
-  keywords?: readonly string[];
-};
+export type PackageManifest = import("@tau/plugins/center").CenterManifest;
 export interface PackageContent {
   manifest: PackageManifest;
   readme: string;

@@ -1,0 +1,10 @@
+{
+  "productName": "Tau Plugin Spike",
+  "identifier": "com.txiong.tau-plugin-spike",
+  "build": {
+    "beforeDevCommand": "pnpm exec vite --mode plugin-validation --host 127.0.0.1",
+    "devUrl": "http://127.0.0.1:2420",
+    "beforeBuildCommand": "pnpm exec vite build --mode plugin-validation --outDir dist-plugin-validation",
+    "frontendDist": "../dist-plugin-validation"
+  }
+}

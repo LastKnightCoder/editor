@@ -1,21 +1,27 @@
 import { Link } from "react-router-dom";
 import { Download, Heart } from "lucide-react";
 import { IconButton, Tooltip } from "@tau/ui";
-import type { CatalogEntry } from "../../../../contracts";
+import type { CenterCatalogEntry } from "../../../../contracts";
 import { PluginMark } from "../../components/PluginMark";
 import { formatCount, formatRelative } from "../../components/format";
 import { CategoryTags } from "./CategoryTag";
+import { PlatformBadges } from "./PlatformBadges";
+import type { PlatformFilterValue } from "./platforms";
 
 /** 插件中心卡片：整卡链接到详情，悬停浮出快速下载 */
 export function PluginCard({
   entry,
+  platform,
   onDownload,
   downloading,
 }: {
-  entry: CatalogEntry;
-  onDownload: (entry: CatalogEntry) => void;
+  entry: CenterCatalogEntry;
+  /** 当前浏览的平台，带到详情页用于突出该平台声明。 */
+  platform: PlatformFilterValue;
+  onDownload: (entry: CenterCatalogEntry) => void;
   downloading: boolean;
 }) {
+  const href = `/plugins/${encodeURIComponent(entry.pluginId)}${platform === "all" ? "" : `?platform=${platform}`}`;
   return (
     <article className="border-line-1 bg-surface rounded-tau-md shadow-card hover:shadow-lift hover:border-track ease-tau-out group relative flex w-full flex-col gap-2.5 border p-4 transition-[box-shadow,transform,border-color] duration-200 hover:-translate-y-0.5">
       <div className="flex items-center gap-3">
@@ -23,7 +29,7 @@ export function PluginCard({
         <div className="min-w-0 flex-1">
           <h2 className="text-tau-title text-ink-1 truncate font-semibold leading-tight">
             <Link
-              to={`/plugins/${encodeURIComponent(entry.pluginId)}`}
+              to={href}
               className="outline-none after:absolute after:inset-0 after:rounded-[inherit] focus-visible:after:shadow-[var(--tau-focus-ring)]"
             >
               {entry.name}
@@ -45,6 +51,7 @@ export function PluginCard({
       </div>
       <p className="text-tau-meta text-ink-2 line-clamp-2 min-h-[2lh]">{entry.description}</p>
       <CategoryTags categories={entry.categories} />
+      <PlatformBadges version={entry.latest} />
       <div className="text-tau-micro text-ink-3 flex items-center gap-3">
         <span className="font-tau-mono">v{entry.latest.version}</span>
         <span className="inline-flex items-center gap-1" title="累计下载">

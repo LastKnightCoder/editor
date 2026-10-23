@@ -4,7 +4,6 @@ import path from "node:path";
 import AdmZip from "adm-zip";
 import { comparePluginVersions } from "@tau/plugins/host";
 import {
-  validateDistributionManifest as validatePluginManifest,
   assertPackagePath,
   DISTRIBUTION_LIMITS,
   requiresSystemReview,
@@ -15,9 +14,14 @@ import type { LocalPluginSource, LocalPluginUpdate } from "@/types/plugin-local"
 type CenterSource = Extract<LocalPluginSource, { kind: "center" }>;
 import {
   readDistributionPackage as readPluginPackage,
+  readDesktopDistributionManifest as validatePluginManifest,
   type DistributionPackage,
 } from "./plugin-package";
 import { pluginSyncSessions } from "./plugin-sync";
+import {
+  assertDesktopPackageSource,
+  readDesktopPluginManifest,
+} from "../../../shared/plugin-package";
 
 interface UpdateRecord {
   id: string;
@@ -37,12 +41,36 @@ const exists = async (file: string) => {
   }
 };
 
+function assertPortableSource(
+  artifact: DistributionPackage,
+  source?: LocalPluginSource,
+  expectedOrigin?: string
+) {
+  if (artifact.manifest.formatVersion !== 3) return;
+  if (!source) throw new Error("跨端包缺少安装来源");
+  assertDesktopPackageSource(
+    artifact.manifest,
+    source,
+    expectedOrigin ?? "",
+    expectedOrigin !== undefined
+  );
+  if (source.kind !== "center") return;
+  if (
+    !source.manifest ||
+    source.pluginId !== artifact.manifest.id ||
+    source.version !== artifact.manifest.version ||
+    JSON.stringify(readDesktopPluginManifest(source.manifest)) !== JSON.stringify(artifact.manifest)
+  )
+    throw new Error("跨端插件清单与发布记录不一致");
+}
+
 /** 文件替换使用可恢复事务，事务目录保留恢复所需的旧包。 */
 export class PluginUpdates {
   private pending: Promise<unknown> = Promise.resolve();
   constructor(
     readonly directory: string,
-    readonly clientVersion: string
+    readonly clientVersion: string,
+    private readonly options: { portableCenterOrigin?: string } = {}
   ) {}
   private get root() {
     return path.join(path.dirname(this.directory), "plugin-updates");
@@ -188,6 +216,7 @@ export class PluginUpdates {
       if (await exists(transaction)) throw new Error("上次更新尚未恢复，暂不应用新包");
       const record = await this.record(pending, id);
       const artifact = await readPluginPackage(path.join(pending, "package"), this.clientVersion);
+      assertPortableSource(artifact, record.source, this.options.portableCenterOrigin);
       if (artifact.manifest.id !== id) throw new Error("更新包身份不一致");
       if ((await this.fingerprint(id)) !== record.baseline)
         throw new Error("当前插件在暂存后发生变化，更新已取消，请重新选择 ZIP");
@@ -217,6 +246,7 @@ export class PluginUpdates {
   }
   private async queue(packageDirectory: string, restore: boolean, source?: LocalPluginSource) {
     const artifact = await readPluginPackage(packageDirectory, this.clientVersion);
+    assertPortableSource(artifact, source, this.options.portableCenterOrigin);
     const id = artifact.manifest.id;
     this.id(id);
     const pending = this.location("pending", id);
@@ -306,6 +336,19 @@ export class PluginUpdates {
     if (!manifestEntry) throw new Error("ZIP 必须包含插件 ID 目录和 manifest.json");
     const manifest = validatePluginManifest(JSON.parse(unpack(manifestEntry).toString("utf8")));
     this.id(manifest.id);
+    if (
+      manifest.formatVersion === 3 &&
+      source.kind === "center" &&
+      createHash("sha256").update(bytes).digest("hex") !== source.sha256
+    )
+      throw new Error("插件包与中心发布摘要不一致");
+    if (manifest.formatVersion === 3 && source.kind === "center") {
+      if (
+        !source.manifest ||
+        JSON.stringify(readDesktopPluginManifest(source.manifest)) !== JSON.stringify(manifest)
+      )
+        throw new Error("跨端插件清单与发布记录不一致");
+    }
     if (
       requiresSystemReview(manifest) &&
       source.kind === "center" &&

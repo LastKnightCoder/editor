@@ -7,6 +7,7 @@ it("同步贡献通过正常激活注册，停用自动注销，不执行提供�
     create = vi.fn(),
     register = vi.fn(() => ({ dispose }));
   const host = new PluginHost({
+    environment: { platform: "desktop", input: { coarsePointer: false, finePointer: true } },
     workspaceId: "test",
     storage: createMemoryStorage(),
     sync: { register },
@@ -34,6 +35,7 @@ it("同步贡献通过正常激活注册，停用自动注销，不执行提供�
 it("同步贡献不能冒用其他插件身份", async () => {
   const register = vi.fn();
   const host = new PluginHost({
+    environment: { platform: "desktop", input: { coarsePointer: false, finePointer: true } },
     workspaceId: "test",
     storage: createMemoryStorage(),
     sync: { register },
@@ -61,6 +63,7 @@ it.each([false, true])("同步与MCP共存，激活失败=%s时资源按同一�
   const syncRegister = vi.fn(() => ({ dispose: syncDispose }));
   const mcpRegister = vi.fn(() => ({ dispose: mcpDispose }));
   const host = new PluginHost({
+    environment: { platform: "desktop", input: { coarsePointer: false, finePointer: true } },
     workspaceId: "test",
     storage: createMemoryStorage(),
     sync: { register: syncRegister },

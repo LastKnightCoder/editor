@@ -24,6 +24,7 @@ function setup(
   const dispose = vi.fn();
   const publish = vi.fn(() => ({ dispose }));
   const host = new PluginHost({
+    environment: { platform: "desktop", input: { coarsePointer: false, finePointer: true } },
     workspaceId: "A",
     storage: createMemoryStorage(),
     mcp: { register: () => ({ dispose() {} }) },
@@ -179,6 +180,7 @@ it.each([false, true])("TTS 与聊天渲染共存，激活失败=%s 时按同一
   const chatDispose = vi.fn();
   const chatCommit = vi.fn(() => ({ dispose: chatDispose }));
   const host = new PluginHost({
+    environment: { platform: "desktop", input: { coarsePointer: false, finePointer: true } },
     workspaceId: "combined",
     storage: createMemoryStorage(),
     tts: { register: () => ({ dispose: ttsDispose }) },

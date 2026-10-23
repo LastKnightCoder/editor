@@ -40,7 +40,7 @@ SDK 根入口提供 context.settings.register 及组件/句柄类型，实际 Re
 
 ## C07 独立开发包接线
 
-[声明交付工具](../../scripts/plugins/package-sdk.mjs) 输出 @tau/plugins/@tau/ui 开发包；[作者模板](../../scripts/plugins/template/package.json) 在仓库外独立安装、检查及构建。声明中的私有包引用收拢到包内，普通依赖打包，入口为 CJS，源码仍使用标准 import/export。
+[声明交付工具](../../scripts/plugins/package-sdk.mjs) 输出 @tau/plugins/@tau/ui 开发包；[作者模板](../../plugins/tau-plugin-template/package.json) 在仓库外独立安装、检查及构建。声明中的私有包引用收拢到包内，普通依赖打包，入口为 CJS，源码仍使用标准 import/export。
 
 [主进程读取](../../apps/desktop/src-electron/main/services/plugin-package.ts) 校验 manifest、版本/平台、路径/符号链接和 JS/CSS 摘要，返回快照，不执行代码。[加载器](../../apps/desktop/src/app/plugins/package-loader.ts) 在启用时执行并核对定义，复用宿主和管理页，CSS 随 signal/dispose 释放。C13-A 已将同一 reader/loader 用于固定目录，开发/正式构建均可发现和加载；旧选择目录仅留作开发验证。历史合同见 `17`，当前行为见 29。
 

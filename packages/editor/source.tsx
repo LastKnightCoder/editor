@@ -3,6 +3,7 @@ import { Editor, Element, Transforms } from "slate";
 import { ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
 import { PreviewWithEditor, useReportPreviewError } from "@tau/editor-source-view";
 import {
+  IElementEditingPolicy,
   useEditorTheme,
   setOrInsertNode,
   focusInsertedPreviewElement,
@@ -24,7 +25,10 @@ import type { SourceEditorRuntime, InlineSourceRuntime, ElementRuntime } from ".
 export const elementRuntime: ElementRuntime = {
   useElement(element) {
     const editor = useSlateStatic();
-    const readOnly = useReadOnly();
+    const editorReadOnly = useReadOnly();
+    const readOnly =
+      editorReadOnly ||
+      editor.tryGetService(IElementEditingPolicy)?.canEdit(element.type) === false;
     const frame = useElementFrame();
     const active = useRef(true);
     const state = useRef({ readOnly, element });
@@ -93,15 +97,20 @@ export const sourceEditorRuntime: SourceEditorRuntime = {
   useSourceBlock(element) {
     const editor = useSlateStatic();
     const theme = useEditorTheme();
+    const access = elementRuntime.useElement(element);
     return {
       theme,
       compiler: editor.tryGetService(IRuntimeStyleCompiler),
-      update: properties =>
-        Transforms.setNodes(editor, properties, { at: ReactEditor.findPath(editor, element) }),
+      update: access.update,
     };
   },
   useReportPreviewError,
   insertSourceBlock(editor, element, line) {
+    if (
+      ReactEditor.isReadOnly(editor) ||
+      editor.tryGetService(IElementEditingPolicy)?.canEdit(element.type) === false
+    )
+      throw new Error("当前节点不允许插入或编辑");
     const path = setOrInsertNode(editor, element);
     focusInsertedPreviewElement(editor, path, line);
     return path;

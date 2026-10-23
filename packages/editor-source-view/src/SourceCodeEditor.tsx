@@ -13,6 +13,8 @@ export default function SourceCodeEditor({ mode, readOnly, ...props }: Props) {
     () => ({
       mode,
       readOnly,
+      // textarea 在按键命令前同步输入，避免移动 contenteditable 延迟回读丢失末字。
+      inputStyle: "textarea",
       theme: "tau",
       lineNumbers: false,
       scrollbarStyle: "native",

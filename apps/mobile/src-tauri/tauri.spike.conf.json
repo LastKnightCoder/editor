@@ -1,0 +1,10 @@
+{
+  "productName": "Tau Plugin Spike",
+  "identifier": "com.txiong.tau-plugin-spike",
+  "build": {
+    "beforeDevCommand": "pnpm dev:plugin-spike",
+    "devUrl": "http://127.0.0.1:2420",
+    "beforeBuildCommand": "pnpm build:plugin-spike",
+    "frontendDist": "../dist-plugin-spike"
+  }
+}
