@@ -1,6 +1,7 @@
 import {
   lazy,
   Suspense,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
@@ -35,10 +36,14 @@ import { useReadingSelection } from "./readingMode/useReadingSelection";
 import { useEditorOpenMode } from "../../hooks/useEditorOpenMode";
 import { toast } from "../../components/toast";
 import { BlockActionBar } from "./blockSelection/BlockActionBar";
+import { BlockDragLayer } from "./blockSelection/BlockDragLayer";
 import { BlockHandle } from "./blockSelection/BlockHandle";
 import { BlockSelectionHeader } from "./blockSelection/BlockSelectionHeader";
 import { BlockSelectionLayer } from "./blockSelection/BlockSelectionLayer";
+import { useBlockDrag } from "./blockSelection/useBlockDrag";
 import { useEditorBlockSelection } from "./blockSelection/useEditorBlockSelection";
+import { OutlineSheet } from "./outline/OutlineSheet";
+import { useOutlineSheet } from "./outline/useOutlineSheet";
 
 // 原地协作编辑器按需加载：未使用协作的用户不加载协作组件与运行时
 const CollaborativeEditor = lazy(() =>
@@ -54,6 +59,8 @@ const COVER_HEADER_FADE_RANGE = 140;
 export type ContentDetailActions = {
   /** 进入块选择并选中 0 个块；阅读态与编辑态都可用，不可编辑时提示 */
   enterBlockSelection: () => void;
+  /** 打开「整理结构」；编辑态先收键盘，不可编辑时提示 */
+  openOutline: () => void;
 };
 
 type ContentDetailPageProps = {
@@ -69,7 +76,7 @@ type ContentDetailPageProps = {
   onTitleCommit?: (title: string) => void;
   /** 顶栏右侧自定义区（如 ⋯ 菜单按钮） */
   headerRight?: ReactNode;
-  /** 详情页操作句柄（如「⋯ → 选择块」） */
+  /** 详情页操作句柄（如「⋯ → 选择块 / 整理结构」） */
   actionsRef?: Ref<ContentDetailActions>;
   /** 日记日期头：日期即标题，与正文同处一张「纸」，不再另起元信息卡 */
   diaryDate?: { title: string; sub?: string };
@@ -226,6 +233,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     readingMode,
     toolbarController,
   });
+  const outline = useOutlineSheet({ readingMode, blockSelection });
   useImperativeHandle(
     props.actionsRef,
     () => ({
@@ -236,13 +244,12 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         }
         blockSelection.enter();
       },
+      openOutline: outline.openOutline,
     }),
-    [blockSelection, readingMode.canEdit]
+    [blockSelection, readingMode.canEdit, outline.openOutline]
   );
   // 阅读态与强制只读时正文只读；块选择期间保持可写（块菜单命令要求可写编辑器，点击由覆盖层拦截）
   const editorReadonly = forcedReadonly || (!readingMode.editing && !blockSelection.active);
-  // 阅读态、强制只读与块选择期间配件栏收起
-  const toolbarReadonly = editorReadonly || blockSelection.active;
   const readingSelection = useReadingSelection(
     editorRef,
     !readingMode.editing && readingMode.canEdit && !blockSelection.active
@@ -311,6 +318,18 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   const coverScrollRef = useRef<HTMLDivElement>(null);
   // 底部渐隐随滚动收放（滚到底内容完整），与无封面模式同构
   useEdgeFade(coverScrollRef);
+  const getScrollContainer = useCallback(
+    () => (hasCover ? coverScrollRef.current : noCoverScrollRef.current),
+    [hasCover]
+  );
+  const blockDrag = useBlockDrag({
+    editorRef,
+    container: editorWrapEl,
+    getScrollContainer,
+    toolbarController,
+  });
+  // 阅读态、强制只读、块选择与拖拽块期间配件栏收起
+  const toolbarReadonly = editorReadonly || blockSelection.active || blockDrag.dragging !== null;
   const syncCoverHeaderFade = () => {
     const scrolled = coverScrollRef.current?.scrollTop ?? 0;
     coverShellRef.current?.style.setProperty(
@@ -535,11 +554,15 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
             onToggle={blockSelection.toggle}
             documentVersion={slateEditor?.children}
           />
+          <BlockDragLayer drag={blockDrag.dragging} />
           <BlockHandle
             editorRef={editorRef}
             container={editorWrapEl}
-            blockIndex={handleBlockIndex}
+            // 拖拽中编辑器已失焦，把手仍挂在被拖块上以保持指针捕获
+            blockIndex={blockDrag.dragging?.from ?? handleBlockIndex}
             onEnter={blockSelection.enter}
+            onDragStart={blockDrag.startDrag}
+            dragging={blockDrag.dragging !== null}
             version={slateEditor?.children}
           />
         </div>
@@ -660,6 +683,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           selection={blockSelection}
           blockCount={blockCount}
           portalContainer={pageRootEl}
+          onOpenOutline={outline.openOutline}
         />
       ) : (
         <ReadingSelectionBar
@@ -671,6 +695,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           portalContainer={pageRootEl}
         />
       )}
+      <OutlineSheet open={outline.open} editorRef={editorRef} onClose={outline.close} />
     </div>
   );
 }

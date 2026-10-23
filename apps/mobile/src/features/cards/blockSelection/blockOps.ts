@@ -54,6 +54,21 @@ export function moveBlocks(
   return sorted.map(index => index + delta);
 }
 
+/**
+ * 把顶层块 from 移到 to（移除该块后的插入位，即移动后的下标），单独一个撤销步。
+ * 下标越界或 from === to 时不改动文档并返回 false。
+ */
+export function moveBlockTo(editor: Editor, from: number, to: number): boolean {
+  const length = editor.children.length;
+  const inRange = (index: number) => Number.isInteger(index) && index >= 0 && index < length;
+  if (!inRange(from) || !inRange(to) || from === to) return false;
+  inSingleUndoStep(editor, () => {
+    // moveNodes 的 to 是节点移动后的路径，与「移除后的插入位」一致
+    Transforms.moveNodes(editor, { at: [from], to: [to] });
+  });
+  return true;
+}
+
 /** 删除选中的顶层块；删空文档时补一个空段落 */
 export function deleteBlocks(editor: Editor, indices: readonly number[]): void {
   const sorted = normalizeBlockIndices(indices, editor.children.length);

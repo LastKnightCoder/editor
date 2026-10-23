@@ -42,7 +42,11 @@ import { useToastStore } from "../../../../components/toast";
 import { createControllerStub } from "../../__tests__/toolbarControllerStub";
 import { BlockActionBar } from "../BlockActionBar";
 import { BlockHandle } from "../BlockHandle";
-import { HANDLE_LONG_PRESS_MS, resolveHandleBlockIndex } from "../blockHandleState";
+import {
+  HANDLE_DRAG_CANCEL_DISTANCE,
+  HANDLE_DRAG_DELAY_MS,
+  resolveHandleBlockIndex,
+} from "../blockHandleState";
 import { BlockSelectionHeader } from "../BlockSelectionHeader";
 import { BlockSelectionLayer } from "../BlockSelectionLayer";
 
@@ -244,7 +248,7 @@ describe("块选择组件", () => {
   });
 
   describe("BlockActionBar", () => {
-    function renderBar(editor: Editor, selected: number[]) {
+    function renderBar(editor: Editor, selected: number[], onOpenOutline?: () => void) {
       const selection = { selected, setSelected: vi.fn(), exit: vi.fn() };
       act(() => {
         root.render(
@@ -253,6 +257,7 @@ describe("块选择组件", () => {
             kit={fakeKit}
             selection={selection}
             blockCount={editor.children.length}
+            onOpenOutline={onOpenOutline}
           />
         );
       });
@@ -450,6 +455,18 @@ describe("块选择组件", () => {
       expect(selection.exit).not.toHaveBeenCalled();
     });
 
+    it("更多：传入 onOpenOutline 时出现「整理结构」，点击退出块选择并打开", async () => {
+      installImageMenu([]);
+      const onOpenOutline = vi.fn();
+      const selection = renderBar(imageDoc(), [1], onOpenOutline);
+      act(() => buttonByLabel("更多")?.click());
+      expect(sheetLabels()).toContain("整理结构");
+      act(() => buttonByText("整理结构")?.click());
+      await waitFor(() => onOpenOutline.mock.calls.length > 0);
+      expect(selection.exit).toHaveBeenCalledTimes(1);
+      expect(onOpenOutline).toHaveBeenCalledTimes(1);
+    });
+
     it("更多：剪切写剪贴板后删除该块并退出块选择", async () => {
       const calls: string[] = [];
       installImageMenu(calls);
@@ -536,7 +553,7 @@ describe("块选择组件", () => {
       expect(resolveHandleBlockIndex(editor, true, controller)).toBeNull();
     });
 
-    function renderHandle(blockIndex: number | null, onEnter = vi.fn()) {
+    function renderHandle(blockIndex: number | null, onEnter = vi.fn(), onDragStart = vi.fn()) {
       const editor = createDoc(["A", "B", "C"]);
       act(() => {
         root.render(
@@ -545,11 +562,20 @@ describe("块选择组件", () => {
             container={container}
             blockIndex={blockIndex}
             onEnter={onEnter}
+            onDragStart={onDragStart}
             version={editor.children}
           />
         );
       });
       return onEnter;
+    }
+
+    function pointerOn(target: Element, type: string, clientX: number, clientY: number) {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      Object.assign(event, { clientX, clientY, pointerId: 7 });
+      act(() => {
+        target.dispatchEvent(event);
+      });
     }
 
     it("位于光标所在块首行左侧，点击进入块选择", () => {
@@ -566,20 +592,52 @@ describe("块选择组件", () => {
       expect(buttonByLabel("选择块")).toBeNull();
     });
 
-    it("长按进入块选择，松手后的点击不重复进入", () => {
+    it("长按 300ms 提起拖拽（带最近的指针位置与把手元素），松手后的点击不进入块选择", () => {
       vi.useFakeTimers();
-      const onEnter = renderHandle(2);
+      const onEnter = vi.fn();
+      const onDragStart = vi.fn();
+      renderHandle(2, onEnter, onDragStart);
       const handle = buttonByLabel("选择块")!;
+      pointerOn(handle, "pointerdown", 10, 100);
+      pointerOn(handle, "pointermove", 12, 104);
       act(() => {
-        handle.dispatchEvent(new Event("pointerdown", { bubbles: true, cancelable: true }));
+        vi.advanceTimersByTime(HANDLE_DRAG_DELAY_MS - 1);
       });
+      expect(onDragStart).not.toHaveBeenCalled();
       act(() => {
-        vi.advanceTimersByTime(HANDLE_LONG_PRESS_MS);
+        vi.advanceTimersByTime(1);
       });
-      expect(onEnter).toHaveBeenCalledTimes(1);
-      expect(onEnter).toHaveBeenCalledWith(2);
+      expect(onDragStart).toHaveBeenCalledTimes(1);
+      expect(onDragStart).toHaveBeenCalledWith(2, {
+        clientX: 12,
+        clientY: 104,
+        pointerId: 7,
+        target: handle,
+      });
+      pointerOn(handle, "pointerup", 12, 104);
       act(() => handle.click());
-      expect(onEnter).toHaveBeenCalledTimes(1);
+      expect(onEnter).not.toHaveBeenCalled();
+    });
+
+    it("长按期间移动超过 8px 取消：不拖拽，也不进入块选择", () => {
+      vi.useFakeTimers();
+      const onEnter = vi.fn();
+      const onDragStart = vi.fn();
+      renderHandle(1, onEnter, onDragStart);
+      const handle = buttonByLabel("选择块")!;
+      pointerOn(handle, "pointerdown", 10, 100);
+      pointerOn(handle, "pointermove", 10, 100 + HANDLE_DRAG_CANCEL_DISTANCE + 1);
+      act(() => {
+        vi.advanceTimersByTime(HANDLE_DRAG_DELAY_MS);
+      });
+      expect(onDragStart).not.toHaveBeenCalled();
+      act(() => handle.click());
+      expect(onEnter).not.toHaveBeenCalled();
+      // 下一次按下重新计算
+      pointerOn(handle, "pointerdown", 10, 100);
+      pointerOn(handle, "pointerup", 10, 100);
+      act(() => handle.click());
+      expect(onEnter).toHaveBeenCalledWith(1);
     });
   });
 });

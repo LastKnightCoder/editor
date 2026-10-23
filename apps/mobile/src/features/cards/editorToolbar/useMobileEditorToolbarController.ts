@@ -154,6 +154,8 @@ export type MobileEditorToolbarController = {
   /** 同一面板再点回到键盘，否则打开或切换面板 */
   togglePanel: (kind: EditorPanelKind, panelHeight: number) => void;
   closePanel: (options: ClosePanelOptions) => void;
+  /** 关面板、释放预留并收起键盘（Slate 失焦），不通知退出编辑监听，编辑态保持 */
+  dismissKeyboard: () => void;
   /** 关面板、释放预留并收起键盘，最后通知退出编辑监听 */
   exitEditing: () => void;
   /** 登记退出编辑监听（宿主据此回阅读态）；传 null 取消，同一时刻只保留一个 */
@@ -637,7 +639,7 @@ export function useMobileEditorToolbarController(
     [closePanel, openPanel]
   );
 
-  const exitEditing = useCallback(() => {
+  const dismissKeyboard = useCallback(() => {
     activePanelRef.current = null;
     setActivePanel(null);
     reservation.releaseNow();
@@ -646,8 +648,12 @@ export function useMobileEditorToolbarController(
     if (editor && ReactEditor.isFocused(editor as ReactEditor)) {
       ReactEditor.blur(editor as ReactEditor);
     }
-    exitEditingListenerRef.current?.();
   }, [editorRef, getEditableElement, reservation]);
+
+  const exitEditing = useCallback(() => {
+    dismissKeyboard();
+    exitEditingListenerRef.current?.();
+  }, [dismissKeyboard]);
 
   const setExitEditingListener = useCallback((listener: (() => void) | null) => {
     exitEditingListenerRef.current = listener;
@@ -909,6 +915,7 @@ export function useMobileEditorToolbarController(
       openPanel,
       togglePanel,
       closePanel,
+      dismissKeyboard,
       exitEditing,
       setExitEditingListener,
       runInPanel,
@@ -953,6 +960,7 @@ export function useMobileEditorToolbarController(
       openPanel,
       togglePanel,
       closePanel,
+      dismissKeyboard,
       exitEditing,
       setExitEditingListener,
       runInPanel,

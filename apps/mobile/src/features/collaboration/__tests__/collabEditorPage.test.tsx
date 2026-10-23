@@ -290,7 +290,20 @@ describe("CollabEditorPage", () => {
     expect(capturedEditorProps.value?.readonly).toBe(true);
   });
 
-  it("协作只读时「更多」不提供「选择块」", async () => {
+  it("「更多」→「整理结构」打开大纲 Sheet，每个顶层块一行", async () => {
+    await renderPage();
+    await act(async () => {
+      document.querySelector<HTMLButtonElement>('button[aria-label="更多操作"]')?.click();
+    });
+    await act(async () => {
+      sheetButton("整理结构")?.click();
+    });
+    const rows = document.querySelectorAll("[data-outline-row]");
+    expect(rows).toHaveLength(EXISTING_CONTENT.length);
+    expect(rows[0].textContent).toContain("已有内容");
+  });
+
+  it("协作只读时「更多」不提供「选择块」与「整理结构」", async () => {
     collabState.readonly = true;
     await renderPage();
     await act(async () => {
@@ -298,6 +311,7 @@ describe("CollabEditorPage", () => {
     });
     expect(sheetButton("成员管理")).toBeDefined();
     expect(sheetButton("选择块")).toBeUndefined();
+    expect(sheetButton("整理结构")).toBeUndefined();
   });
 
   it("用 content 场景的 kit（扩展由 kit 自带，不再逐处透传）", async () => {

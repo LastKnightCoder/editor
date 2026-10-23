@@ -287,7 +287,7 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
   `createQuickCard` 建卡；不可编辑（`forcedReadonly`）时不显示。
 - **块选择模式**：`features/cards/blockSelection/`，只作用于顶层块（`editor.children` 下标），接入 `ContentDetailPage` 与
   `CollabEditorPage`（公共状态经 `useEditorBlockSelection`）。入口：编辑态当前块左侧把手 `BlockHandle`（编辑器聚焦、通用或格式模式、
-  无面板时显示在光标所在顶层块首行左侧，点击或长按 450ms 进入并选中该块）；page 的「⋯」菜单项「选择块」（`blockSelectionMenuItem`，
+  无面板时显示在光标所在顶层块首行左侧，点击进入并选中该块；长按 300ms 提起拖拽，长按期间移动超过 8px 取消）；page 的「⋯」菜单项「选择块」（`blockSelectionMenuItem`，
   经 `ContentDetailPage` 的 `actionsRef.enterBlockSelection()` 或协作页自身调用，阅读态与编辑态都可用，进入后选中 0 个）。阅读态长按
   留给系统选词，不进入块选择。进入时先经阅读态 `exitEditing` 收键盘。`useBlockSelection` 持有激活与升序选中下标，激活期间以
   `useSheetBackDismiss` 让返回 = 退出，块数变化裁剪越界下标，不可编辑（`forcedReadonly` / 协作只读）时不可进入且立即退出。
@@ -306,6 +306,19 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
   到边界不可移动）、删除（删空补空段落）、复制（`@tau/editor/api` 的 `copyNodeToClipboard` 接受节点数组）、剪切（写剪贴板成功后按
   节点引用删除）、在末个选中块后插入副本（`cloneBlockWithFreshIdentity`：递归换新 `uuid`，勾选项清除 `taskId` 与实例状态，块内引用
   如 tabs 的 `tabKey` / `activeKey` 不变）；多步改动经 `HistoryEditor.withNewBatch` 合并为一个撤销步，删除后 toast「撤销」即 `editor.undo()`。
+- **编辑器内拖拽块**：`blockSelection/useBlockDrag.ts` 在把手长按时经 controller `dismissKeyboard()` 收键盘但保持编辑态，按开始时的块测量
+  （换算到正文滚动容器内容坐标）驱动 `usePointerReorder` 的 `startDragAt`，只在顶层块之间移动；`BlockDragLayer` 与 `BlockSelectionLayer`
+  同级，画原位置虚线占位、克隆块浮层（去掉 contenteditable / data-slate-*，原块 DOM 拖拽期间透明）与插入线，正文其他块不让位。拖拽中
+  配件栏隐藏、把手保持挂载以维持指针捕获、返回 = 取消；落下经 `moveBlockTo` 作为一个撤销步移动，光标放到该块开头且不聚焦。
+- **整理结构**：`features/cards/outline/`，底部全屏 `SnapSheet` 中按顶层块重排，「完成」时作为一个撤销步写入，「取消」/ 下拉 / 返回丢弃。
+  入口：page「⋯」的「整理结构」（`outlineMenuItem`，经 `ContentDetailPage` 的 `actionsRef.openOutline()` 或协作页自身调用）与块选择
+  「更多」的宿主项（`BlockActionBar` 的 `onOpenOutline`，打开后退出块选择）；`useOutlineSheet` 打开前退出块选择、编辑态先收键盘，
+  不可编辑时提示且打开中的立即关闭。`outlineModel.ts` 为纯模型：会话以打开时的顶层块快照与原始下标排列 `order` 表示，
+  `buildOutlineRows` 给出类型、标题级别、首行摘要（最多 40 字，空文本按类型描述）与章节范围（标题到其后第一个同级或更高级标题），
+  `visibleUnits` 把折叠标题与整节合为一个单元（嵌套折叠以外层为准），`moveUnit` 整段移动，`applyOrder` 逐位 `Transforms.moveNodes`
+  合并为一个撤销步；完成时任一顶层块引用与打开时的快照不同（含块数变化）视为外部改动（协作）已使快照失效，提示后不应用。`usePointerReorder.ts` 是与渲染
+  无关的指针拖拽重排引擎（指针捕获、位移计入滚动增量、插入位按被拖项中心越过的中线数、滚动容器上下 64px 内 rAF 自动滚动、取消不回调），
+  把手带 `data-pan-ignore-drag="true"` 以免触发抽屉下拉。
 - **开发实验页**：`features/editorLab/`（仅开发构建注册，入口 RouterDevTools「editor lab」）用同一套预留与收键盘策略，
   可切换策略并复制键盘、位移、输入法、选区恢复日志，用于真机验证。
 

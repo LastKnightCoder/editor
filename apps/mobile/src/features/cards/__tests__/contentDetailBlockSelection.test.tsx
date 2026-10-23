@@ -1,9 +1,16 @@
 // 详情页块选择模式接入：把手进入 → 顶栏与操作栏替换、配件栏隐藏、正文保持可写（点击由覆盖层拦截）→ 取消恢复；
-// actionsRef 入口（page「⋯ → 选择块」）在阅读态进入并选中 0 个块。
+// actionsRef 入口（page「⋯ → 选择块」）在阅读态进入并选中 0 个块；「⋯ → 整理结构」先收起编辑态 / 块选择再打开大纲；
+// 长按把手提起拖拽：拖拽中配件栏隐藏，松手后顶层块顺序改变。
 import { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createEditor, type Descendant, type Editor as SlateEditor, type Node } from "slate";
+import {
+  createEditor,
+  Node as SlateNode,
+  type Descendant,
+  type Editor as SlateEditor,
+  type Node,
+} from "slate";
 
 const harness = vi.hoisted(() => ({
   slateEditor: null as unknown,
@@ -99,6 +106,7 @@ vi.mock("@tau/editor", async importOriginal => {
   return { ...actual, Editor };
 });
 
+import { HANDLE_DRAG_DELAY_MS } from "../blockSelection/blockHandleState";
 import { ContentDetailPage, type ContentDetailActions } from "../ContentDetailPage";
 
 const TOOLBAR_SELECTOR = '[data-mobile-editor-toolbar="true"]';
@@ -209,6 +217,89 @@ describe("ContentDetailPage 块选择模式", () => {
     });
     expect(document.querySelector(ACTION_BAR_SELECTOR)).toBeNull();
     expect(harness.readonlyProps.at(-1)).toBe(true);
+  });
+
+  it("actionsRef.openOutline：编辑态先回阅读态再打开大纲，块选择中打开则退出块选择", async () => {
+    const actionsRef = createRef<ContentDetailActions>();
+    await act(async () => {
+      root.render(
+        <ContentDetailPage contentId={1} openInEditMode actionsRef={actionsRef} onBack={vi.fn()} />
+      );
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(harness.readonlyProps.at(-1)).toBe(false);
+    await act(async () => {
+      actionsRef.current?.openOutline();
+    });
+    expect(harness.readonlyProps.at(-1)).toBe(true);
+    expect(document.querySelectorAll("[data-outline-row]")).toHaveLength(3);
+
+    await act(async () => {
+      buttonByText("取消")?.click();
+    });
+    await act(async () => {
+      actionsRef.current?.enterBlockSelection();
+    });
+    expect(document.querySelector(ACTION_BAR_SELECTOR)).not.toBeNull();
+    await act(async () => {
+      actionsRef.current?.openOutline();
+    });
+    expect(document.querySelector(ACTION_BAR_SELECTOR)).toBeNull();
+  });
+
+  it("长按把手提起拖拽：拖拽中配件栏隐藏、越过相邻块后显示插入线，松手后块顺序改变且原块恢复可见", async () => {
+    // 三个块：[0,30]、[40,100]、[120,150]
+    const layout = [
+      [0, 30],
+      [40, 60],
+      [120, 30],
+    ];
+    harness.blockDoms.forEach((element, index) => {
+      const [top, height] = layout[index];
+      element.getBoundingClientRect = () =>
+        ({ top, height, bottom: top + height, left: 0, right: 300, width: 300 }) as DOMRect;
+    });
+    await renderEditingDetail();
+    const handle = buttonByLabel("选择块")!;
+    expect(handle.dataset.blockHandle).toBe("1");
+    expect(document.querySelector(TOOLBAR_SELECTOR)).not.toBeNull();
+
+    vi.useFakeTimers();
+    try {
+      const pointer = (target: EventTarget, type: string, clientY: number) => {
+        const event = new Event(type, { bubbles: true, cancelable: true });
+        Object.assign(event, { clientX: 10, clientY, pointerId: 1 });
+        act(() => {
+          target.dispatchEvent(event);
+        });
+      };
+      pointer(handle, "pointerdown", 50);
+      act(() => {
+        vi.advanceTimersByTime(HANDLE_DRAG_DELAY_MS);
+      });
+      expect(document.querySelector(TOOLBAR_SELECTOR)).toBeNull();
+      // 落点仍在原位：不画插入线
+      expect(document.querySelector('[data-block-drop-line="true"]')).toBeNull();
+      expect(harness.blockDoms[1].style.opacity).toBe("0");
+
+      // 第二段中心 70 下移 100 越过第三段中线 135
+      pointer(window, "pointermove", 150);
+      expect(document.querySelector('[data-block-drop-line="true"]')).not.toBeNull();
+      pointer(window, "pointerup", 150);
+    } finally {
+      vi.useRealTimers();
+    }
+    const editor = harness.slateEditor as SlateEditor;
+    expect(editor.children.map(node => SlateNode.string(node))).toEqual([
+      "第一段",
+      "第三段",
+      "第二段",
+    ]);
+    expect(editor.selection?.anchor.path).toEqual([2, 0]);
+    expect(document.querySelector('[data-block-drop-line="true"]')).toBeNull();
+    expect(harness.blockDoms[1].style.opacity).toBe("");
   });
 
   it("阅读态不显示把手", async () => {
