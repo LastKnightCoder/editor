@@ -32,7 +32,7 @@ import { baseName, dirName, invalidFileName, isWithin, joinPath, splitExtension 
 import type { TreeRow } from "./useFileTree";
 
 const DRAG_TYPE = "application/x-tau-md-path";
-const ICON = "size-[14px] shrink-0";
+const ICON = "size-[15px] shrink-0";
 const MENU_ICON = "size-[15px] shrink-0";
 
 type Editing =
@@ -271,11 +271,11 @@ export function FileTree({
     }
   };
 
-  const indent = (depth: number) => ({ paddingLeft: 6 + depth * 14 });
+  const indent = (depth: number) => ({ paddingLeft: 8 + depth * 16 });
 
   const creatingRow = (dir: string, depth: number) =>
     editing && editing.mode !== "rename" && editing.dir === dir ? (
-      <div className="flex h-[27px] items-center gap-[5px] pr-2" style={indent(depth)}>
+      <div className="flex h-[30px] items-center gap-[6px] pr-2" style={indent(depth)}>
         <span className="w-3 shrink-0" />
         {editing.mode === "create-file" ? (
           <FileText className={cn(ICON, "text-ink-3")} strokeWidth={1.75} />
@@ -293,7 +293,7 @@ export function FileTree({
 
   return (
     <div
-      className="text-tau-meta min-h-full pb-6"
+      className="text-tau-body min-h-full pb-6"
       {...dropHandlers(rootPath)}
       onDragEnd={() => {
         setDragging(null);
@@ -325,7 +325,7 @@ export function FileTree({
                 style={indent(row.depth)}
                 title={row.path}
                 className={cn(
-                  "rounded-tau-sm flex h-[27px] w-full cursor-default items-center gap-[5px] pr-2 text-left transition-colors",
+                  "rounded-tau-sm flex h-[30px] w-full cursor-default items-center gap-[6px] pr-2 text-left transition-colors",
                   row.isDirectory ? "text-ink-1" : "text-ink-2",
                   active
                     ? "bg-selected text-accent-text font-medium"
@@ -435,7 +435,7 @@ function NameInput({
         else void submit();
       }}
       className={cn(
-        "bg-surface text-ink-1 h-[21px] min-w-0 flex-1 rounded-[5px] border px-1.5 outline-none",
+        "bg-surface text-ink-1 h-[24px] min-w-0 flex-1 rounded-[5px] border px-1.5 outline-none",
         error ? "border-danger" : "border-accent"
       )}
     />

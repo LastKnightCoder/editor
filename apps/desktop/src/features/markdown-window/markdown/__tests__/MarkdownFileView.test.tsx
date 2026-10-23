@@ -34,6 +34,7 @@ vi.mock("@/utils", async () => ({
   getContentLength: (nodes: unknown) => JSON.stringify(nodes).length,
 }));
 vi.mock("@/components/ContentOutline", () => ({
+  ContentOutline: () => null,
   extractContentHeaders: () => [],
   resolveEditorHeaderAnchor: () => null,
 }));

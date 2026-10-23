@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>文件树密度 · 当前 vs 提案 — markdown-window 改版 mockup</title>
+<style>
+/* ============================================================
+   文件树密度对比：左 = 当前实现（FileSidebar/FileTree 实值），
+   右 = 提案（宽松规范）。数值标注直接写在图例与表格里。
+   ============================================================ */
+:root{
+  --paper:#f3eee2;
+  --surface:#fffdf9;
+  --hover:rgba(67,57,44,.05);
+  --selected:rgba(217,119,87,.12);
+  --ink-1:#43392c;
+  --ink-2:#6a5c49;
+  --ink-3:#a89a85;
+  --line-1:#e9e1d2;
+  --accent:#a05236;
+  --shadow-card:0 1px 2px rgba(120,100,70,.05),0 10px 24px -14px rgba(120,100,70,.18);
+  --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  min-height:100vh;padding:56px 32px 72px;
+  background:var(--paper);color:var(--ink-1);
+  font-family:var(--sans);-webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;background:none;border:0;padding:0}
+.ic{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+.wrap{max-width:900px;margin:0 auto}
+h1{margin:0 0 8px;font-size:22px;font-weight:600}
+.sub{margin:0 0 32px;font-size:13px;color:var(--ink-2)}
+
+.panels{display:flex;gap:24px;align-items:flex-start}
+.panel{flex:1;min-width:0}
+.panel h2{display:flex;align-items:baseline;gap:8px;margin:0 0 4px;font-size:15px;font-weight:600}
+.panel h2 .tag{font-size:11px;font-weight:500;color:var(--ink-3)}
+.panel .spec{margin:0 0 12px;font-size:11.5px;color:var(--ink-3)}
+.frame{background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card);padding:10px 8px 12px;overflow:hidden}
+
+/* —— 侧栏片段：两栏共用的结构，密度由修饰类切换 —— */
+.frag .folder-head{display:flex;align-items:center;gap:6px;padding-left:8px;font-weight:600}
+.frag .folder-head .ic{color:var(--accent)}
+.frag .folder-head .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.frag .icon-btn{display:flex;align-items:center;justify-content:center;border-radius:6px;color:var(--ink-2)}
+.frag .tabs{display:flex;gap:2px;margin:4px;padding:2px;border-radius:8px;background:var(--hover)}
+.frag .tabs span{flex:1;text-align:center;border-radius:6px}
+.frag .tabs .on{background:var(--surface);color:var(--ink-1);font-weight:500;box-shadow:var(--shadow-card)}
+.frag .tabs .off{color:var(--ink-2)}
+.frag .filter{display:flex;align-items:center;gap:6px;margin:2px 4px 6px;padding:0 8px;
+  border:1px solid var(--line-1);border-radius:7px;color:var(--ink-3)}
+.frag .filter em{font-style:normal}
+.frag .row{display:flex;align-items:center;padding-right:8px;border-radius:8px;color:var(--ink-2)}
+.frag .row.dir{color:var(--ink-1)}
+.frag .row.active{background:var(--selected);color:var(--accent);font-weight:500}
+.frag .row .chev{color:var(--ink-3)}
+.frag .row.open .chev{transform:rotate(90deg)}
+.frag .row .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.frag .row .dot{border-radius:50%;background:#c26a4a;flex:none}
+
+/* 当前密度（FileTree.tsx 实值：12.5px / 27px / gap 5 / 缩进 6+14d / 图标 14） */
+.frag.old .folder-head{height:32px;font-size:12.5px}
+.frag.old .icon-btn{width:24px;height:24px}
+.frag.old .tabs span{height:22px;line-height:22px;font-size:11.5px}
+.frag.old .filter{height:26px;font-size:11.5px}
+.frag.old .tree{padding-left:4px;font-size:12.5px}
+.frag.old .row{height:27px;gap:5px;padding-left:calc(6px + var(--d) * 14px)}
+.frag.old .row .chev{width:12px;height:12px}
+.frag.old .row .gap12{width:12px;flex:none}
+.frag.old .row .dot{width:6px;height:6px}
+
+/* 提案密度（13px / 30px / gap 6 / 缩进 8+16d / 图标 15，页签删除） */
+.frag.new .folder-head{height:36px;font-size:13px}
+.frag.new .icon-btn{width:24px;height:24px}
+.frag.new .filter{height:30px;font-size:12.5px;border-radius:8px}
+.frag.new .tree{padding-left:4px;font-size:13px}
+.frag.new .row{height:30px;gap:6px;padding-left:calc(8px + var(--d) * 16px)}
+.frag.new .row .chev{width:12px;height:12px}
+.frag.new .row .gap12{width:12px;flex:none}
+.frag.new .row .dot{width:6px;height:6px}
+
+/* —— 对比表 —— */
+table{width:100%;margin-top:36px;border-collapse:collapse;background:var(--surface);
+  border-radius:12px;box-shadow:var(--shadow-card);overflow:hidden;font-size:12.5px}
+th,td{padding:9px 14px;text-align:left;border-bottom:1px solid var(--line-1)}
+th{font-size:11.5px;font-weight:600;color:var(--ink-3);background:rgba(67,57,44,.03)}
+td:first-child{color:var(--ink-2);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+.delta{color:var(--accent);font-weight:500}
+.note{margin-top:14px;font-size:12px;color:var(--ink-3)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>文件树密度 · 当前 vs 提案</h1>
+  <p class="sub">左：当前实现（含「文件 / 大纲」页签）；右：提案（页签删除、整体放宽一档）。同一段树、同一窗口宽度。</p>
+
+  <div class="panels">
+    <!-- 当前 -->
+    <section class="panel">
+      <h2>当前 <span class="tag">FileSidebar / FileTree 实值</span></h2>
+      <p class="spec">248px 栏宽 · 12.5px 字 · 27px 行高 · 5px gap · 14px/层缩进 · 页签与筛选 11.5px</p>
+      <div class="frame frag old">
+        <div class="folder-head">
+          <svg class="ic" width="14" height="14" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>
+          <span class="nm">知识库</span>
+          <button class="icon-btn"><svg class="ic" width="14" height="14" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6M9 15h6"/></svg></button>
+          <button class="icon-btn"><svg class="ic" width="14" height="14" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+        </div>
+        <div class="tabs"><span class="on">文件</span><span class="off">大纲</span></div>
+        <div class="filter"><svg class="ic" width="12" height="12" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><em>筛选文件 / 文件夹…</em></div>
+        <div class="tree">
+          <div class="row dir open" style="--d:0"><svg class="ic chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg><svg class="ic" width="14" height="14" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg><span class="nm">项目</span></div>
+          <div class="row dir open" style="--d:1"><svg class="ic chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg><svg class="ic" width="14" height="14" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg><span class="nm">Tau 编辑器</span></div>
+          <div class="row" style="--d:2"><span class="gap12"></span><svg class="ic" width="14" height="14" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg><span class="nm">发布清单.md</span></div>
+          <div class="row" style="--d:2"><span class="gap12"></span><svg class="ic" width="14" height="14" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg><span class="nm">架构随笔.md</span></div>
+          <div class="row" style="--d:1"><span class="gap12"></span><svg class="ic" width="14" height="14" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg><span class="nm">播客计划.md</span></div>
+          <div class="row active" style="--d:0"><span class="gap12"></span><svg class="ic" width="14" height="14" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg><span class="nm">知识管理工作流.md</span><span class="dot"></span></div>
+          <div class="row" style="--d:0"><span class="gap12"></span><svg class="ic" width="14" height="14" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg><span class="nm">读书笔记索引.md</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 提案 -->
+    <section class="panel">
+      <h2>提案 <span class="tag">宽松一档</span></h2>
+      <p class="spec">264px 栏宽 · 13px 字 · 30px 行高 · 6px gap · 16px/层缩进 · 无页签 · 筛选 12.5px/30px</p>
+      <div class="frame frag new">
+        <div class="folder-head">
+          <svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>
+          <span class="nm">知识库</span>
+          <button class="icon-btn"><svg class="ic" width="14" height="14" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6M9 15h6"/></svg></button>
+          <button class="icon-btn"><svg class="ic" width="14" height="14" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+        </div>
+        <div class="filter"><svg class="ic" width="13" height="13" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><em>筛选文件 / 文件夹…</em></div>
+        <div class="tree">
+          <div class="row dir open" style="--d:0"><svg class="ic chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg><span class="nm">项目</span></div>
+          <div class="row dir open" style="--d:1"><svg class="ic chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg><span class="nm">Tau 编辑器</span></div>
+          <div class="row" style="--d:2"><span class="gap12"></span><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg><span class="nm">发布清单.md</span></div>
+          <div class="row" style="--d:2"><span class="gap12"></span><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg><span class="nm">架构随笔.md</span></div>
+          <div class="row" style="--d:1"><span class="gap12"></span><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg><span class="nm">播客计划.md</span></div>
+          <div class="row active" style="--d:0"><span class="gap12"></span><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg><span class="nm">知识管理工作流.md</span><span class="dot"></span></div>
+          <div class="row" style="--d:0"><span class="gap12"></span><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg><span class="nm">读书笔记索引.md</span></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <table>
+    <thead><tr><th>项</th><th>当前</th><th>提案</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>树字号</td><td>12.5px (tau-meta)</td><td class="delta">13px (tau-body)</td><td>与界面正文同级</td></tr>
+      <tr><td>行高</td><td>27px</td><td class="delta">30px</td><td>行间留出呼吸</td></tr>
+      <tr><td>行内 gap</td><td>5px</td><td class="delta">6px</td><td>chevron / 图标 / 名称不再相贴</td></tr>
+      <tr><td>缩进</td><td>6 + 14×层</td><td class="delta">8 + 16×层</td><td>层级更可读</td></tr>
+      <tr><td>文件图标</td><td>14px</td><td class="delta">15px</td><td>与 13px 字匹配</td></tr>
+      <tr><td>文件夹头</td><td>32px / 12.5px</td><td class="delta">36px / 13px</td><td>与树同字级</td></tr>
+      <tr><td>筛选框</td><td>26px / 11.5px</td><td class="delta">30px / 12.5px</td><td>页签删除后它是唯一输入控件</td></tr>
+      <tr><td>「文件/大纲」页签</td><td>有（11.5px / 22px）</td><td class="delta">删除</td><td>大纲移到右侧，页签失去意义</td></tr>
+      <tr><td>侧栏宽</td><td>248px</td><td class="delta">264px</td><td>缓解名称截断（拖宽列为可选后续项）</td></tr>
+      <tr><td>选中 / hover / 未保存点</td><td colspan="2">不变</td><td>已是设计系统口径</td></tr>
+    </tbody>
+  </table>
+  <p class="note">字级取自 packages/themes/src/scale.css 的 tau 档位；用户「全局字号」设置会在运行时等比缩放，二者同步生效。</p>
+</div>
+</body>
+</html>

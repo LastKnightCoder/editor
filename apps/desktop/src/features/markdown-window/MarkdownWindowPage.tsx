@@ -22,6 +22,7 @@ import {
   FolderInput,
   FilePlus,
   Image as ImageIcon,
+  ListTree,
   MessageSquare,
   MoreHorizontal,
   PanelLeft,
@@ -30,13 +31,14 @@ import {
   X,
 } from "lucide-react";
 import type { Descendant } from "slate";
-import { IconButton, Menu, ToastHost, cn, initScrollbarAutoHide, toast } from "@tau/ui";
+import { IconButton, Menu, Popover, ToastHost, cn, initScrollbarAutoHide, toast } from "@tau/ui";
 import { AuxWindowTitlebar } from "@/app/AuxWindowTitlebar";
 import { ThemeToggle } from "@/app/Titlebar";
 import { useThemeRuntime } from "@/app/useThemeRuntime";
 import ContentExportModal from "@/components/ContentExportModal";
 import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
+import { ContentOutline } from "@/components/ContentOutline";
 import {
   addRecentProject,
   closeWindow,
@@ -67,6 +69,8 @@ const rootClass =
   "app flex h-screen flex-col overflow-hidden bg-page font-tau text-tau-body text-ink-1 antialiased";
 const MENU_ICON = "size-[15px] shrink-0";
 const MARKDOWN_FILTERS = [{ name: "Markdown", extensions: ["md", "markdown"] }];
+/** 大纲贴正文右缘所需的最小富余宽度（大纲列至少 208px + 两侧呼吸） */
+const OUTLINE_COLUMN_MIN_EXTRA = 240;
 const toastAdapter = {
   success: (msg: string) => toast.success(msg),
   error: (msg: string) => toast.error(msg),
@@ -103,6 +107,16 @@ export default function MarkdownWindowPage() {
   const [creating, setCreating] = useState<"file" | "folder" | null>(null);
   const [exporting, setExporting] = useState<ExportState>(null);
   const treeApiRef = useRef<{ reveal(path: string): void } | null>(null);
+
+  /* 大纲是否贴正文右缘常驻：按 sheet 实测宽度判定（侧栏拖宽、窗口缩放都会影响它） */
+  const [sheetEl, setSheetEl] = useState<HTMLElement | null>(null);
+  const [sheetWidth, setSheetWidth] = useState(0);
+  useEffect(() => {
+    if (!sheetEl) return;
+    const observer = new ResizeObserver(() => setSheetWidth(sheetEl.clientWidth));
+    observer.observe(sheetEl);
+    return () => observer.disconnect();
+  }, [sheetEl]);
 
   const category = activePath ? getFileCategory(activePath) : null;
   const fileTitle = activePath ? splitExtension(baseName(activePath)).stem : "";
@@ -256,6 +270,21 @@ export default function MarkdownWindowPage() {
     if (content) setExporting({ kind, content, title: fileTitle || "未命名文档" });
   };
   const isMarkdown = category === "markdown";
+  const outline = isMarkdown ? status.outline : undefined;
+  const outlineFits = sheetWidth >= (prefs.wide ? 1040 : 800) + OUTLINE_COLUMN_MIN_EXTRA;
+  const outlineAsColumn = Boolean(prefs.outlineOpen && outlineFits && outline);
+
+  const outlineButton = (
+    <IconButton
+      onClick={prefs.toggleOutline}
+      title={prefs.outlineOpen ? "隐藏大纲" : "显示大纲"}
+      aria-label="大纲"
+      aria-pressed={prefs.outlineOpen}
+      className={prefs.outlineOpen ? "bg-selected text-accent-text hover:bg-selected" : undefined}
+    >
+      <ListTree size={17} strokeWidth={1.75} />
+    </IconButton>
+  );
 
   const moreMenu = (
     <Menu
@@ -410,6 +439,7 @@ export default function MarkdownWindowPage() {
         ref={setViewHandle}
         path={activePath}
         wide={prefs.wide}
+        outlineColumn={outlineAsColumn}
         onStatus={setStatus}
         onOpenMarkdown={path => void openFile(path)}
         onSaveAs={text => void saveAs(text)}
@@ -479,6 +509,24 @@ export default function MarkdownWindowPage() {
         }
         actions={
           <>
+            {outline &&
+              (prefs.outlineOpen && !outlineAsColumn && outline.headers.length > 0 ? (
+                <Popover
+                  placement="bottom-end"
+                  arrow={false}
+                  className="w-[240px] p-2"
+                  trigger={outlineButton}
+                >
+                  <ContentOutline
+                    headers={outline.headers}
+                    scrollEl={outline.scrollEl}
+                    resolveAnchor={outline.resolveAnchor}
+                    className="w-full"
+                  />
+                </Popover>
+              ) : (
+                outlineButton
+              ))}
             <ThemeToggle />
             {moreMenu}
           </>
@@ -490,7 +538,6 @@ export default function MarkdownWindowPage() {
             rootPath={rootPath}
             activePath={activePath}
             dirtyPath={status.dirty ? activePath : null}
-            outline={isMarkdown ? status.outline : undefined}
             creating={creating}
             onCreate={setCreating}
             onCreatingHandled={() => setCreating(null)}
@@ -500,6 +547,7 @@ export default function MarkdownWindowPage() {
           />
         )}
         <main
+          ref={setSheetEl}
           className={cn(
             "tau-sheet bg-surface shadow-card rounded-tau-md relative mb-2 mr-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
             !(rootPath && sidebarOpen) && "ml-2"
