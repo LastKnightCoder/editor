@@ -124,6 +124,18 @@ export function createPluginMarkdownProcessor(
     importFromMarkdownWithPositions: (...args) =>
       current().importFromMarkdownWithPositions(...args),
     getMarkdown: (...args) => current().getMarkdown(...args),
+    createIncrementalSerializer: policy => {
+      let owner: MarkdownProcessor | undefined;
+      let serialize: ReturnType<MarkdownProcessor["createIncrementalSerializer"]>;
+      return value => {
+        const next = current();
+        if (next !== owner) {
+          serialize = next.createIncrementalSerializer(policy);
+          owner = next;
+        }
+        return serialize(value);
+      };
+    },
     getMarkdownWithPositions: (...args) => current().getMarkdownWithPositions(...args),
     elementToMarkdown: (...args) => current().elementToMarkdown(...args),
     leafToMarkdown: (...args) => current().leafToMarkdown(...args),

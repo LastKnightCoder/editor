@@ -65,17 +65,42 @@ const serializeUnknown = (element: CustomElement, parentElement: CustomElement |
 const isBlockElement = (element: CustomElement, parentElement: CustomElement | null): boolean =>
   registry().isBlock(element) || (isUnknownElement(element) && !isInlinePosition(parentElement));
 
-export const getMarkdownUsing = (config: ExportConfig, value: Descendant[]): string =>
-  withExportConfig(config, () => getMarkdownInContext(value));
+export interface MarkdownOutputCache {
+  output: WeakMap<Descendant, string>;
+  reusable(node: Descendant): boolean;
+}
 
-const getMarkdownInContext = (value: Descendant[]): string => {
+const cloneNode = (node: Descendant): Descendant =>
+  (
+    globalThis as typeof globalThis & { structuredClone(value: Descendant): Descendant }
+  ).structuredClone(node);
+
+export const getMarkdownUsing = (
+  config: ExportConfig,
+  value: readonly Descendant[],
+  cache?: MarkdownOutputCache
+): string => withExportConfig(config, () => getMarkdownInContext(value, cache));
+
+const getMarkdownInContext = (
+  value: readonly Descendant[],
+  cache?: MarkdownOutputCache
+): string => {
   // 重置脚注状态
   registry().resetFootnotes();
 
   const content = value
     .map((element, index) => {
       const isBlock = isBlockElement(element as CustomElement, null);
-      const str = elementToMarkdown(element as CustomElement, null);
+      const reusable = cache?.reusable(element) ?? false;
+      let str = reusable ? cache?.output.get(element) : undefined;
+      if (str === undefined) {
+        const footnotes = registry().getFootnoteCount();
+        const input = cache && !reusable ? cloneNode(element) : element;
+        str = elementToMarkdown(input as CustomElement, null);
+        // 脚注编号属于整篇文档，含脚注的块每次重新生成。
+        if (reusable && registry().getFootnoteCount() === footnotes)
+          cache?.output.set(element, str);
+      }
       const isLast = index === value.length - 1;
       if (str) {
         return isBlock ? `${str}${isLast ? "\n" : "\n\n"}` : str;

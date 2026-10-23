@@ -31,6 +31,12 @@ kit 只决定编辑器组合，不决定环境是否存在。默认与自定义 
 - 转换菜单：核心提供命令分发与菜单挂载机制，扩展定义转换条件与目标构造；核心不持有领域类型名单。
 - paragraph 始终存在且不可被扩展替换；保留 `paragraph`/`formatted` 等存量数据字段。
 
+## 长文输入与订阅
+
+- 正文变化依赖 Slate 不可变的 `children` 引用判断，选区变化独立通知，不通过全文 JSON 比较检测修改。
+- 段落和列表项只订阅末尾状态或父列表类型等派生值。依赖 `ReactEditor.findPath` 的 selector 使用 `deferred: true`，等 Slate 更新节点索引后再计算，避免移动容器时读取旧路径。
+- 顶层使用每块 100 个节点的 Slate chunk，并在最低层 chunk 应用 `content-visibility: auto`，限制复杂表格文档的样式计算范围；此机制不会卸载屏幕外节点。
+
 ## 公开入口
 
 入口由 package.json 的 exports 限定，生产代码禁止私有路径与相对 src 引用（护栏拒绝；测试夹具可用显式相对路径但不构成 API）。

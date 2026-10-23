@@ -16,6 +16,7 @@ const state = vi.hoisted(() => ({
     { edit(text: string): void; undo(): void; redo(): void; getValue(): string } | undefined,
   mounts: 0,
   effects: 0,
+  sourceSetValues: 0,
 }));
 // jsdom 无 ResizeObserver（组件用它算大纲独立滚动的高度上限）
 vi.stubGlobal(
@@ -115,6 +116,7 @@ vi.mock("react-codemirror2", async () => {
         const instance = {
           getValue: () => value,
           setValue: (next: string) => {
+            state.sourceSetValues++;
             value = next;
             setText(next);
             latest.current.onChange(instance, { origin: "setValue" }, next);
@@ -158,6 +160,7 @@ beforeEach(() => {
   state.write.mockClear();
   state.mounts = 0;
   state.effects = 0;
+  state.sourceSetValues = 0;
   state.source = undefined;
   state.editor = undefined;
   vi.useFakeTimers({
@@ -247,6 +250,19 @@ it("源码切换常驻同一编辑器，源码与富文本共用撤销", async (
   await act(async () => view.toggleSource());
   expect(state.editor).toBe(editor);
   expect(editor.children[0]).toMatchObject({ children: [{ text: "源码修改" }] });
+});
+
+it("正文输入不重置隐藏的源码视图，进入源码后再同步最新正文", async () => {
+  const { editor, source, view } = await mount("正文");
+  const initialSets = state.sourceSetValues;
+  await act(async () => Transforms.insertText(editor, "本地", { at: { path: [0, 0], offset: 2 } }));
+  await act(async () => Transforms.insertText(editor, "更新", { at: { path: [0, 0], offset: 4 } }));
+  expect(state.sourceSetValues).toBe(initialSets);
+  const rich = view.getMarkdown();
+  expect(rich).toContain("正文本地更新");
+  await act(async () => view.toggleSource());
+  expect(source.getValue()).toBe(rich);
+  expect(state.sourceSetValues).toBe(initialSets + 1);
 });
 
 it("源码模式停驻富文本效果，恢复时沿用未修改块实例", async () => {

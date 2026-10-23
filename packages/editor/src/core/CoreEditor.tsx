@@ -296,9 +296,8 @@ const Index = memo(
         () => nonInclusiveKeysRef.current
       );
 
-      // 启用 Chunking 优化大文档性能
-      // 将 editor 的子节点拆分为大小为 1000 的 chunks，减少 React 处理 JSX 变化的工作量
-      enhancedEditor.getChunkSize = node => (Editor.isEditor(node) ? 1000 : null);
+      // 表格等复杂块的 DOM 远多于段落，小分块限制离屏内容被测量时的样式计算范围。
+      enhancedEditor.getChunkSize = node => (Editor.isEditor(node) ? 100 : null);
 
       // 服务方法必须在创建时挂载：render 阶段的组件（如 ListItem）会调用 editor.getService，
       // 若延迟到 useEffect 挂载，首次渲染时方法尚不存在
@@ -545,15 +544,14 @@ const Index = memo(
     );
 
     const handleOnChange = (value: Descendant[]) => {
-      const normalizedValue = normalizeEditorContent(value);
-      const nextValueJson = JSON.stringify(normalizedValue);
       if (syncSelectionSnapshot()) {
         onSelectionChange?.();
       }
-      const valueChanged = JSON.stringify(instance.value) !== nextValueJson;
-      if (!valueChanged) return;
+      // Slate 的内容更新会替换 children 引用，选区和标记变化不需要遍历全文。
+      if (instance.value === value) return;
+      const normalizedValue = normalizeEditorContent(value);
       instance.value = normalizedValue;
-      onChange && onChange(normalizedValue, editor);
+      onChange?.(normalizedValue, editor);
     };
 
     useEffect(() => {

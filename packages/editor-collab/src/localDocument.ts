@@ -1,11 +1,12 @@
 import * as Y from "yjs";
-import { YjsEditor, yTextToSlateElement, type YHistoryEditor } from "@slate-yjs/core";
-import { Text, type Descendant, type Editor } from "slate";
+import { YjsEditor, type YHistoryEditor } from "@slate-yjs/core";
+import { type Descendant, type Editor } from "slate";
 import type { EditorDocument } from "@tau/editor";
 import { createParagraph } from "@tau/editor/api/paragraph";
 import { splitYjsUndoStep, withYjsDocument } from "./yjsBinding.ts";
 import { reconcileYContent, type ReconcileOptions } from "./reconcile.ts";
 import type { ReactNode } from "react";
+import { createContentProjection, readYjsContent } from "./contentProjection.ts";
 
 export { replaceYText } from "./reconcile.ts";
 export type LocalChangeSource = "user" | "external";
@@ -31,14 +32,7 @@ export function createLocalYjsDocument(
   const editors = new Set<Editor & YHistoryEditor>();
   const listeners = new Set<(source: LocalChangeSource) => void>();
   let disposed = false;
-  const read = (): Descendant[] => {
-    const normalizeText = (node: Descendant): Descendant =>
-      Text.isText(node)
-        ? { ...node, type: "formatted" }
-        : ({ ...node, children: node.children.map(normalizeText) } as Descendant);
-    const children = root.length ? yTextToSlateElement(root).children : [createParagraph()];
-    return children.length ? children.map(normalizeText) : [createParagraph()];
-  };
+  const projection = createContentProjection(root);
   const flush = () => {
     for (const editor of editors)
       if (YjsEditor.connected(editor)) YjsEditor.flushLocalChanges(editor);
@@ -95,7 +89,13 @@ export function createLocalYjsDocument(
     getContent: () => {
       assertActive();
       flush();
-      return read();
+      return structuredClone(readYjsContent(root));
+    },
+    /** 独立只读快照：JSON 块深冻结并复用，二进制等扩展值每次复制，不得原地修改。 */
+    getSnapshot: () => {
+      assertActive();
+      flush();
+      return projection.read();
     },
     updateContent: (content: Descendant[], source: LocalChangeSource = "user") =>
       transact(source, () =>
@@ -123,6 +123,7 @@ export function createLocalYjsDocument(
       for (const editor of [...editors]) document.binding?.disconnect(editor);
       listeners.clear();
       doc.off("afterTransaction", publish);
+      projection.dispose();
       undoManager.destroy();
       doc.destroy();
       disposed = true;

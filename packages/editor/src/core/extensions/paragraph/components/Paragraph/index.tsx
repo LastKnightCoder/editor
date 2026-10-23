@@ -1,6 +1,6 @@
-import React, { useEffect, memo } from "react";
+import React, { useCallback, useEffect, memo } from "react";
 import { Editor, Transforms } from "slate";
-import { ReactEditor, RenderElementProps, useSlate } from "slate-react";
+import { ReactEditor, RenderElementProps, useSlateSelector, useSlateStatic } from "slate-react";
 import { cn } from "@tau/ui";
 
 import type { ParagraphElement } from "../../../../model/paragraph";
@@ -17,25 +17,24 @@ interface IParagraphProps {
 const Paragraph: React.FC<React.PropsWithChildren<IParagraphProps>> = memo(props => {
   const { children, attributes, element } = props;
 
-  const editor = useSlate();
-  const path = findPathSafely(editor, element);
-  const isLast = (() => {
-    if (!path) {
-      return false;
-    }
-    if (path.length === 1) {
-      return path[0] === editor.children.length - 1;
-    }
-    try {
-      const parent = Editor.parent(editor, path);
-      if (parent) {
-        return parent[0].children.length - 1 === path[path.length - 1];
-      }
-      return false;
-    } catch (error) {
-      return false;
-    }
-  })();
+  const editor = useSlateStatic();
+  const isLast = useSlateSelector(
+    useCallback(
+      (current: Editor) => {
+        const path = findPathSafely(current, element);
+        if (!path) return false;
+        if (path.length === 1) return current.children.at(-1) === element;
+        try {
+          return Editor.parent(current, path)[0].children.at(-1) === element;
+        } catch {
+          return false;
+        }
+      },
+      [element]
+    ),
+    undefined,
+    { deferred: true }
+  );
 
   const handleFocus = useMemoizedFn((start = true) => {
     return (e: any) => {

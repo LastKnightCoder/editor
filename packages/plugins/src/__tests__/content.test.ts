@@ -59,3 +59,33 @@ it("注册表相互隔离，已创建的转换器随快照更新且外部不能�
   registry.install([]);
   expect(md.getMarkdown(value).trim()).not.toBe("新的转换器");
 });
+
+it("增量转换跟随插件快照换代，未声明插件的外部状态不会被缓存", () => {
+  const registry = new ContentPluginRegistry();
+  const md = createPluginMarkdownProcessor({ codecs: [] }, registry);
+  const serialize = md.createIncrementalSerializer({ codecs: [], textCodecs: [] });
+  registry.load([artifact], sharedPluginModules);
+  const value = md.importFromMarkdown("~~~external-example\n正文\n~~~");
+  const freeze = (item: unknown) => {
+    if (!item || typeof item !== "object") return;
+    Object.values(item).forEach(freeze);
+    Object.freeze(item);
+  };
+  freeze(value);
+  expect(serialize(value)).toBe(md.getMarkdown(structuredClone(value)));
+  const [definition] = registry.list();
+  let state = "甲";
+  registry.install([
+    {
+      ...definition,
+      editorCodecs: [
+        { type: "external.example", serializer: { isBlock: true, toMarkdown: () => state } },
+      ],
+    },
+  ]);
+  expect(serialize(value)).toBe("甲\n");
+  state = "乙";
+  expect(serialize(value)).toBe("乙\n");
+  registry.install([]);
+  expect(serialize(value)).toBe(md.getMarkdown(structuredClone(value)));
+});

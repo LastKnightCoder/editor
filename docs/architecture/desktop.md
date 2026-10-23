@@ -382,6 +382,8 @@ export function useXxxSnapshot() {
 - 共用宿主能力（IResourceService 等）从 `@tau/shared/host-services` 引用；媒体归 `@tau/editor/extensions/media`（灯箱、裁剪、属性条经扩展 layers 挂载，属性条「更多」用 /api 的 ElementMenu）。
 - 异步写入从 `/api` 用 `capture*Submission` 守卫（check/commit/dispose 管理有效性与引用释放；commit 回调必须同步，失效返回 discarded，真实异常继续抛出）；只读、Activity 隐藏、卸载、换源与整篇重设永久废弃旧操作；媒体上传忙态归实例运行时，不能为清理忙态写只读文档。
 - 命令式整体设值已删除：ContentEditor 正文更新只由文档绑定接管；表单清空/恢复经新 key 建会话；禁止用下标复用编辑状态。整篇替换必须带当前修订号并在原 Y.Doc 上一次事务提交；跨文档复制经 Slate 节点转换（禁止 `Y.XmlText.clone()`，不复制属性）。Markdown 文件视图用 `editor-collab/local` 本地 Y.Doc 会话，源码切换不卸载 Editor；`useTextFileSession` 负责磁盘冲突，迟到读取不回写已关闭视图。源码预览块的编辑与预览归 editor-source-view（CodeMirror 懒加载，退出释放并提交防抖草稿）。
+- Markdown 文件会话通过 `editor-collab/local.getSnapshot()` 生成独立只读的块投影：JSON 块深冻结并按 Yjs 事件失效，未变块复用；事务内或不宜缓存的数据回退为完整独立投影。Markdown 按会话缓存已声明纯 codec 的不可变块，脚注、未声明插件及插件快照变更保留完整转换与失效语义。保存读取先 flush 再复用文本快照，导出用独立可修改的 `getContent()` 副本，不因 500ms 自动保存轮询重新转换全文。富文本编辑期间不向隐藏源码编辑器 setValue，进入源码时再同步当前原文；源码撤销、重做与外部载入仍即时同步。接口细节见 [本地文档](/packages/editor-collab/README.md) 与 [Markdown 处理器](/packages/markdown/README.md)。
+- 正文目录复用未变条目与标题索引：滚动及正文更新优先测量上次位置相邻标题，大幅跳转时二分定位，不顺序测量全部离屏标题；已折叠隐藏的标题不参加位置判定。Markdown 正文字数按 Slate 不可变顶层块缓存，局部修改只重新统计受影响块，不额外读取 Y.Doc 全文。
 
 ## 3.5 构建与打包
 

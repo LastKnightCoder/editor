@@ -56,6 +56,10 @@ export class MarkdownSerializerRegistry {
     this.footnoteDefinitions.clear();
   }
 
+  getFootnoteCount(): number {
+    return this.footnoteCounter;
+  }
+
   addFootnote(content: string): number {
     this.footnoteCounter++;
     this.footnoteDefinitions.set(this.footnoteCounter, content);

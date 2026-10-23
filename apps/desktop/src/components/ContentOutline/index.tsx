@@ -1,17 +1,17 @@
 /**
- * 正文公共目录：文章与项目文档共用。
- * 能力：点击条目在滚动容器内平滑定位到标题锚点；滚动时同步高亮当前节
- * （legacy 仅有点击滚动，滚动→高亮的同步是本轮新增）。
+ * 正文公共目录：点击条目定位标题，滚动时同步高亮当前节。
  * 锚点解析协议：默认按 header.id 查 DOM；编辑器场景由调用方传 resolveAnchor
  * （按序索引编辑器实时 children，见 props 注释）。
  */
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
+import { useMemoizedFn } from "ahooks";
 import type { Descendant } from "slate";
 import type { HeaderElement } from "@tau/editor/extensions/header";
 export { resolveHeaderAnchor as resolveEditorHeaderAnchor } from "@tau/editor/extensions/header";
 import { getInlineElementText } from "@/utils";
 import { Tooltip, cn } from "@tau/ui";
+import { locateOutlineHeader } from "./position";
 
 export interface OutlineHeader {
   /** 标题锚点的 DOM id（默认解析方案用；编辑器方案仅作 React key） */
@@ -25,9 +25,8 @@ interface ContentOutlineProps {
   /** 滚动容器：高亮同步的观察根，也是点击定位的滚动目标 */
   scrollEl?: HTMLElement | null;
   /**
-   * 锚点解析：默认按 id 查 DOM；编辑器场景须传 index 方案——编辑器 onChange
-   * 输出经 normalize 重建（props 里的节点引用与 editor.children 脱钩，直接
-   * toDOMNode 会抛错），按序索引实时 editor.children 才能拿到可解析的节点
+   * 锚点解析：默认按 id 查 DOM；编辑器场景按序索引实时 editor.children，
+   * 避免用宿主投影快照中的节点引用解析 DOM。
    */
   resolveAnchor?: (header: OutlineHeader, index: number) => HTMLElement | null;
   /** 顶部「大纲」小标题（外层已有标题时关掉，如侧栏页签） */
@@ -36,7 +35,9 @@ interface ContentOutlineProps {
 }
 
 /** 从 Slate 正文提取标题结构（提取口径复刻 legacy EditorOutline） */
-export function extractContentHeaders(content: Descendant[] | null | undefined): OutlineHeader[] {
+export function extractContentHeaders(
+  content: readonly Descendant[] | null | undefined
+): OutlineHeader[] {
   if (!content) return [];
   const headers = content.filter(
     node => (node as { type?: string }).type === "header"
@@ -49,23 +50,42 @@ export function extractContentHeaders(content: Descendant[] | null | undefined):
 }
 
 export function ContentOutline({
-  headers,
+  headers: incomingHeaders,
   scrollEl,
   resolveAnchor,
   showTitle = true,
   className,
 }: ContentOutlineProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const previousHeaders = useRef<OutlineHeader[]>([]);
+  const nextHeaders = incomingHeaders.map((header, index) => {
+    const previous = previousHeaders.current[index];
+    return previous &&
+      previous.id === header.id &&
+      previous.level === header.level &&
+      previous.title === header.title
+      ? previous
+      : header;
+  });
+  if (
+    nextHeaders.length !== previousHeaders.current.length ||
+    nextHeaders.some((header, index) => header !== previousHeaders.current[index])
+  ) {
+    previousHeaders.current = nextHeaders;
+  }
+  const headers = previousHeaders.current;
+  const requestSyncRef = useRef<(() => void) | null>(null);
 
-  const findAnchor = (header: OutlineHeader, index: number): HTMLElement | null => {
+  const findAnchor = useMemoizedFn((header: OutlineHeader, index: number): HTMLElement | null => {
     if (resolveAnchor) return resolveAnchor(header, index);
     return document.getElementById(header.id);
-  };
+  });
 
   useEffect(() => {
     if (!scrollEl) return;
 
     let raf = 0;
+    let previous = 0;
     const sync = () => {
       raf = 0;
       const maxScrollTop = scrollEl.scrollHeight - scrollEl.clientHeight;
@@ -76,24 +96,27 @@ export function ContentOutline({
       }
       const containerTop = scrollEl.getBoundingClientRect().top + scrollEl.clientTop;
       const containerBottom = containerTop + scrollEl.clientHeight;
-      let current: string | null = null;
-      // 优先最上方可见标题；没有可见标题时回落到视口上方最近的章节。
-      for (let index = 0; index < headers.length; index += 1) {
-        const anchor = findAnchor(headers[index], index);
-        if (!anchor) continue;
-        const rect = anchor.getBoundingClientRect();
-        if (rect.bottom <= containerTop) {
-          current = headers[index].id;
-          continue;
+      const anchors = headers.flatMap((header, index) => {
+        const anchor = findAnchor(header, index);
+        for (let node = anchor; node && node !== scrollEl; node = node.parentElement) {
+          if (node.hidden || node.style?.display === "none") return [];
         }
-        if (rect.top < containerBottom) current = headers[index].id;
-        break;
-      }
-      setActiveId(current);
+        return anchor ? [{ header, anchor }] : [];
+      });
+      const result = locateOutlineHeader(
+        anchors.length,
+        index => anchors[index].anchor.getBoundingClientRect(),
+        containerTop,
+        containerBottom,
+        previous
+      );
+      previous = result.next;
+      setActiveId(anchors[result.active]?.header.id ?? null);
     };
     const requestSync = () => {
       if (!raf) raf = requestAnimationFrame(sync);
     };
+    requestSyncRef.current = requestSync;
 
     sync();
     scrollEl.addEventListener("scroll", requestSync, { passive: true });
@@ -103,11 +126,14 @@ export function ContentOutline({
       scrollEl.removeEventListener("scroll", requestSync);
       observer.disconnect();
       if (raf) cancelAnimationFrame(raf);
+      requestSyncRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrollEl, headers, resolveAnchor]);
+  }, [scrollEl, headers, resolveAnchor, findAnchor]);
 
-  const scrollToHeader = (header: OutlineHeader, index: number) => {
+  useEffect(() => requestSyncRef.current?.(), [incomingHeaders]);
+
+  const scrollToHeader = useMemoizedFn((header: OutlineHeader, index: number) => {
     const anchor = findAnchor(header, index);
     if (!anchor || !scrollEl) return;
     const top =
@@ -115,7 +141,7 @@ export function ContentOutline({
       scrollEl.getBoundingClientRect().top +
       scrollEl.scrollTop;
     scrollEl.scrollTo({ top, behavior: "smooth" });
-  };
+  });
 
   if (headers.length === 0) return null;
 
@@ -130,8 +156,9 @@ export function ContentOutline({
         <OutlineItem
           key={header.id}
           header={header}
+          index={index}
           active={activeId === header.id}
-          onSelect={() => scrollToHeader(header, index)}
+          onSelect={scrollToHeader}
         />
       ))}
     </nav>
@@ -139,14 +166,16 @@ export function ContentOutline({
 }
 
 /** 单条大纲：超长标题单行省略，仅在确实截断时悬停出全文 Tooltip */
-function OutlineItem({
+const OutlineItem = memo(function OutlineItem({
   header,
+  index,
   active,
   onSelect,
 }: {
   header: OutlineHeader;
+  index: number;
   active: boolean;
-  onSelect(): void;
+  onSelect(header: OutlineHeader, index: number): void;
 }) {
   const textRef = useRef<HTMLSpanElement>(null);
   const [truncated, setTruncated] = useState(false);
@@ -165,7 +194,7 @@ function OutlineItem({
     <Tooltip content={header.title} placement="left" disabled={!truncated}>
       <button
         type="button"
-        onClick={onSelect}
+        onClick={() => onSelect(header, index)}
         className={cn(
           "rounded-tau-sm text-ink-3 ease-tau-out mt-1 block border-l-2 border-transparent py-[5px] pl-2.5 pr-2 text-left leading-snug transition-colors duration-150",
           // 缩进用 margin 而非 padding：背景贴住缩进后的条目，左端不留空白块；
@@ -183,4 +212,4 @@ function OutlineItem({
       </button>
     </Tooltip>
   );
-}
+});
