@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState, memo, forwardRef, useCallback } fro
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { getHomeDir } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
-import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 import { resolveLocalMediaPath, toLocalMediaPreviewUrl } from "@/utils/localMediaPath";
 import { resolveMediaSource } from "@/utils/mediaSource";
 import { VideoPlayer, type VideoPlayerProps } from "@tau/shared";
@@ -14,10 +13,7 @@ type LocalVideoProps = VideoPlayerProps & {
 const LocalVideo = memo(
   forwardRef<HTMLVideoElement, LocalVideoProps>((props, ref) => {
     const { src, children, ...rest } = props;
-    const normalizedSrc = useGithubCdnUrl(src) ?? src;
-
     console.log("[LocalVideo] 接收到的 src:", src);
-    console.log("[LocalVideo] normalizedSrc:", normalizedSrc);
 
     const [previewUrl, setPreviewUrl] = useState<string>("");
     const videoTitle = typeof rest?.title === "string" ? (rest.title as string) : undefined;
@@ -52,7 +48,7 @@ const LocalVideo = memo(
     useAsyncEffect(async () => {
       console.time("localVideo");
       try {
-        const resolved = await resolveMediaSource(normalizedSrc, {
+        const resolved = await resolveMediaSource(src, {
           kind: "video",
           autoCacheRemote: true,
           title: videoTitleRef.current,
@@ -78,7 +74,7 @@ const LocalVideo = memo(
       } finally {
         console.timeEnd("localVideo");
       }
-    }, [normalizedSrc]);
+    }, [src]);
 
     useEffect(() => {
       const videoElement = getVideoElement();
@@ -105,7 +101,7 @@ const LocalVideo = memo(
         console.error("视频错误:", errorMessage);
 
         if (currentMethod.current === "localhost") {
-          let localUrl = await resolveLocalMediaPath(normalizedSrc);
+          let localUrl = await resolveLocalMediaPath(src);
 
           if (localUrl.startsWith("http")) {
             try {
@@ -129,7 +125,7 @@ const LocalVideo = memo(
 
           return;
         } else if (currentMethod.current === "read-file") {
-          setPreviewUrl(normalizedSrc);
+          setPreviewUrl(src);
           currentMethod.current = "default";
         }
       }
@@ -148,7 +144,7 @@ const LocalVideo = memo(
         onError={handleOnError}
         src={previewUrl}
         crossOrigin="anonymous"
-        persistKey={normalizedSrc}
+        persistKey={src}
         {...rest}
       >
         {children}

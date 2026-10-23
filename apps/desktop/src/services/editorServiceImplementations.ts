@@ -5,7 +5,6 @@
 import { type FileService, type ResourceService } from "@tau/shared/host-services";
 
 import { type EditorSlots } from "@tau/editor/extensions/media/services";
-import useSettingStore from "@/stores/useSettingStore";
 import { selectFile, readTextFile, getHomeDir, convertFileSrc } from "@/commands/file";
 
 // Slot 组件
@@ -14,7 +13,6 @@ import LocalVideo from "@/components/LocalVideo";
 import LocalAudio from "@/components/LocalAudio";
 
 import { remoteResourceToLocal } from "@/utils";
-import { getGithubCdnUrl } from "@/hooks/useGithubCdnUrl";
 
 import { uploadResource as uploadResourceCommand } from "@/hooks/useUploadResource";
 
@@ -40,11 +38,6 @@ export const desktopResourceService: ResourceService = {
 
   remoteResourceToLocal: async (url: string) => {
     return await remoteResourceToLocal(url);
-  },
-
-  resolveCdnUrl: (url?: string) => {
-    const cdn = useSettingStore.getState().setting.imageBed.githubCdn;
-    return getGithubCdnUrl(url, cdn);
   },
 };
 

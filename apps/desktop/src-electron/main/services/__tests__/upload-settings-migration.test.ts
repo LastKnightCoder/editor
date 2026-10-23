@@ -15,7 +15,7 @@ async function setup() {
   return root;
 }
 
-it("迁移旧S3目标并保留博客账号、已有停用意图和访问加速", async () => {
+it("迁移旧S3目标并保留博客账号与已有停用意图，移除 GitHub CDN 偏好", async () => {
   const root = await setup();
   const prefs = new LocalPluginPreferences(path.join(root, "plugins"));
   await prefs.load();
@@ -35,13 +35,14 @@ it("迁移旧S3目标并保留博客账号、已有停用意图和访问加速",
   expect(setting).toEqual(before);
   expect(next.imageBed).toMatchObject({
     active: "plugin",
-    githubCdn: "jsdelivr",
     plugin: {
       id: "tau.upload-s3",
       configurations: { "tau.upload-s3": { bucket: "test", pathPrefix: "images" } },
     },
   });
   expect(next.imageBed).not.toHaveProperty("s3");
+  expect(next.imageBed).not.toHaveProperty("githubCdn");
+  expect(next.imageBed).not.toHaveProperty("github");
   expect(next.integration).toEqual(setting.integration);
   expect((await readLocalPluginState(path.join(root, "plugins"))).enabled["tau.upload-s3"]).toBe(
     false
@@ -62,9 +63,24 @@ it("WebDAV图床直接退役，已迁移的WebDAV同步插件配置不变", asyn
     },
   };
   const next = await migrateUploadSettings(setting, await setup(), vi.fn());
-  expect(next.imageBed).toEqual({ active: "local", githubCdn: null });
+  expect(next.imageBed).toEqual({ active: "local" });
   expect(next.integration).toEqual({});
   expect(next.sync).toEqual(setting.sync);
+});
+
+it("已迁移设置中残留的 githubCdn 被剔除，其余字段不变", async () => {
+  const setting = {
+    imageBed: {
+      active: "plugin",
+      githubCdn: "jsdelivr",
+      plugin: { id: "custom.upload", configurations: { "custom.upload": { path: "a" } } },
+    },
+  };
+  const save = vi.fn();
+  const next = await migrateUploadSettings(setting, await setup(), save);
+  expect(next.imageBed).toEqual({ active: "plugin", plugin: setting.imageBed.plugin });
+  expect(save).toHaveBeenCalledTimes(1);
+  expect(await migrateUploadSettings(next, await setup(), save)).toBe(next);
 });
 
 it("保存失败不修改输入，已保存插件配置优先", async () => {

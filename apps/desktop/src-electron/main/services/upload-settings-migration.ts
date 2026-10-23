@@ -6,7 +6,7 @@ const record = (value: unknown): Settings =>
   value && typeof value === "object" && !Array.isArray(value) ? (value as Settings) : {};
 const text = (value: unknown) => (typeof value === "string" ? value : "");
 
-/** 同步迁移先消费共享旧凭据，上传迁移随后移除已退役的图床配置。 */
+/** 同步迁移先消费共享旧凭据，上传迁移随后移除已退役的图床配置与 GitHub CDN 偏好。 */
 export async function migrateUploadSettings(
   setting: Settings,
   appDir: string,
@@ -22,7 +22,7 @@ export async function migrateUploadSettings(
   const githubUser = record(githubAccount.user);
   const ossAccount = record(integration.aliOSS);
   const s3Account = record(integration.s3);
-  const legacyKeys = ["github", "aliOSS", "s3", "webdav", "local"];
+  const legacyKeys = ["github", "aliOSS", "s3", "webdav", "local", "githubCdn"];
   if (
     !legacyKeys.some(key => Object.hasOwn(imageBed, key)) &&
     !Object.hasOwn(integration, "aliOSS") &&
@@ -42,7 +42,7 @@ export async function migrateUploadSettings(
         email: text(githubUser.email),
         repo: text(github.repo),
         branch: text(github.branch),
-        // 旧GitHub上传没有使用路径前缀和CDN字段，保留实际的根目录与原始地址行为。
+        // 旧GitHub上传没有使用路径前缀，保留实际的根目录与原始地址行为。
         pathPrefix: "",
         publicBaseUrl: "",
       },
@@ -83,7 +83,6 @@ export async function migrateUploadSettings(
     if (!Object.hasOwn(configurations, target.id)) configurations[target.id] = target.config;
   const selected = configured.find(target => target.key === imageBed.active);
   const nextImageBed = { ...imageBed };
-  nextImageBed.githubCdn = imageBed.githubCdn ?? github.cdn ?? null;
   for (const key of legacyKeys) delete nextImageBed[key];
   nextImageBed.active = imageBed.active === "plugin" ? "plugin" : selected ? "plugin" : "local";
   if (selected || Object.keys(configurations).length)
