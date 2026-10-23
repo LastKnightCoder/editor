@@ -1,0 +1,306 @@
+// 数据库同步中心：状态卡回答「同步了没」，拇指区一个主按钮，服务 / 数据库 / 整库覆盖下沉为普通行。
+
+import { useEffect, useState } from "react";
+import {
+  ChevronRight,
+  CircleCheck,
+  Cloud,
+  CloudDownload,
+  CloudOff,
+  CloudUpload,
+  Database,
+  LoaderCircle,
+  RefreshCw,
+  ShieldAlert,
+} from "lucide-react";
+import type { SettingCompat, SyncActionResponse, SyncVersionResponse } from "../../../types";
+import { GroupLabel } from "../../../components/GroupLabel";
+import { toast } from "../../../components/toast";
+import { useNavigator, usePageLifecycle } from "../../../router";
+import type { SettingModuleKey } from "../components/types";
+import { GroupCard, GroupRow, LetterTile } from "../components/ui";
+import { SYNC_PROVIDERS, findSyncProvider } from "./providers";
+import { SyncProviderSheet } from "./SyncProviderSheet";
+import { resolveSyncErrorMessage } from "./syncErrors";
+import {
+  deriveSyncHero,
+  formatRelativeTime,
+  readLastSyncTime,
+  type SyncHeroState,
+  type SyncTone,
+} from "./syncState";
+
+export type SyncCenterProps = {
+  setting: SettingCompat | null;
+  versions: SyncVersionResponse | null;
+  isSyncing: boolean;
+  activeDatabase: string | null;
+  onCheckVersions: () => Promise<SyncVersionResponse>;
+  onSyncUpload: () => Promise<SyncActionResponse>;
+  onSyncDownload: () => Promise<SyncActionResponse>;
+  onOpenModule: (module: SettingModuleKey) => void;
+};
+
+const ORB_TONE: Record<SyncTone, string> = {
+  ok: "bg-ok-soft text-ok",
+  warn: "bg-warn-soft text-warn",
+  run: "bg-info-soft text-info",
+  error: "bg-danger-soft text-danger",
+  idle: "bg-accent-soft text-accent-text",
+};
+
+function HeroIcon(props: { icon: SyncHeroState["icon"] }) {
+  const common = { size: 34, strokeWidth: 1.9, "aria-hidden": true } as const;
+  switch (props.icon) {
+    case "check":
+      return <CircleCheck {...common} />;
+    case "upload":
+      return <CloudUpload {...common} />;
+    case "download":
+      return <CloudDownload {...common} />;
+    case "sync":
+      return <RefreshCw {...common} className="animate-spin [animation-duration:1.6s]" />;
+    case "error":
+      return <CloudOff {...common} />;
+    default:
+      return <Cloud {...common} />;
+  }
+}
+
+function SyncHero(props: {
+  hero: SyncHeroState;
+  lastSyncText: string | null;
+  versions: SyncVersionResponse | null;
+}) {
+  return (
+    <section className="setting-group px-[18px] pb-4 pt-6 text-center">
+      <span
+        className={`mx-auto mb-3 grid h-[76px] w-[76px] place-items-center rounded-full ${ORB_TONE[props.hero.tone]}`}
+      >
+        <HeroIcon icon={props.hero.icon} />
+      </span>
+      <h2 className="text-ink-1 text-[21px] font-extrabold tracking-tight">{props.hero.title}</h2>
+      <p className="text-ink-2 mt-1 text-[12.5px] leading-relaxed">{props.hero.description}</p>
+      {props.lastSyncText && (
+        <p className="text-ink-2 text-[12.5px] leading-relaxed">上次同步 {props.lastSyncText}</p>
+      )}
+      {props.versions && (
+        <p className="text-ink-3 mt-3 flex justify-center gap-3.5 text-[11px] tabular-nums">
+          <span>本机 v{props.versions.localVersion}</span>
+          <span>云端 v{props.versions.remoteVersion}</span>
+          <span className="truncate">{props.versions.databaseName}</span>
+        </p>
+      )}
+    </section>
+  );
+}
+
+function ActionButton(props: {
+  label: string;
+  emphasis: boolean;
+  busy: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={props.onClick}
+      disabled={props.disabled}
+      className={`flex h-12 flex-1 items-center justify-center gap-2 rounded-[14px] text-[15px] font-semibold transition-transform active:scale-[0.98] disabled:opacity-50 ${
+        props.emphasis
+          ? "bg-accent text-ink-inverse shadow-lift"
+          : "bg-surface text-ink-1 shadow-card"
+      }`}
+    >
+      {props.busy && <LoaderCircle size={17} className="animate-spin" aria-hidden="true" />}
+      {props.label}
+    </button>
+  );
+}
+
+/** 当前服务未配置：直接给服务选择，而不是一张空状态卡 */
+function FirstRunView(props: { setting: SettingCompat; onOpenProvider: (id: string) => void }) {
+  return (
+    <div className="space-y-1">
+      <section className="setting-group px-[18px] pb-5 pt-6 text-center">
+        <span className="bg-accent-soft text-accent-text mx-auto mb-3 grid h-[76px] w-[76px] place-items-center rounded-full">
+          <Cloud size={34} strokeWidth={1.9} aria-hidden="true" />
+        </span>
+        <h2 className="text-ink-1 text-[21px] font-extrabold tracking-tight">在多台设备间同步</h2>
+        <p className="text-ink-2 mt-1 text-[12.5px] leading-relaxed">
+          选择一个你自己的存储服务，数据只存在你的空间里
+        </p>
+      </section>
+      <GroupLabel>选择存储服务</GroupLabel>
+      <GroupCard>
+        {SYNC_PROVIDERS.map(provider => (
+          <GroupRow key={provider.id} onClick={() => props.onOpenProvider(provider.id)}>
+            <LetterTile letter={provider.tile.letter} className={provider.tile.className} />
+            <span className="min-w-0 flex-1">
+              <span className="text-ink-1 block text-[14.5px] font-medium">{provider.name}</span>
+              <span className="text-ink-3 block truncate text-[11.5px]">
+                {provider.isConfigured(props.setting) ? "已配置，未启用" : provider.description}
+              </span>
+            </span>
+            <ChevronRight size={16} className="text-ink-3" aria-hidden="true" />
+          </GroupRow>
+        ))}
+      </GroupCard>
+    </div>
+  );
+}
+
+export function SyncCenterSection(props: SyncCenterProps) {
+  const navigator = useNavigator();
+  const [checking, setChecking] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const provider = props.setting ? findSyncProvider(props.setting.sync.active) : undefined;
+  const configured = Boolean(props.setting && provider?.isConfigured(props.setting));
+  const syncing = props.isSyncing || submitting;
+  const busy = syncing || checking;
+
+  const check = async (options?: { silent?: boolean }) => {
+    if (!configured || busy) return;
+    setChecking(true);
+    try {
+      await props.onCheckVersions();
+      setErrorMessage(null);
+    } catch (error) {
+      const message = resolveSyncErrorMessage(error, "检查云端失败，请检查网络与服务配置");
+      setErrorMessage(message);
+      if (!options?.silent) toast.error(message);
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  // 进入与从服务页返回时各检查一次：服务或配置可能刚被改过
+  useEffect(() => {
+    void check({ silent: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [configured, props.setting?.sync.active]);
+  usePageLifecycle({ onResume: () => void check({ silent: true }) });
+
+  const hero = deriveSyncHero({
+    versions: props.versions,
+    syncing,
+    checking,
+    errorMessage,
+  });
+
+  const runPrimary = async () => {
+    if (hero.primaryAction === "check") {
+      await check();
+      return;
+    }
+    setSubmitting(true);
+    try {
+      let direction = hero.primaryAction;
+      if (direction === "smart") {
+        const latest = await props.onCheckVersions();
+        direction = latest.localVersion >= latest.remoteVersion ? "upload" : "download";
+      }
+      const result =
+        direction === "upload" ? await props.onSyncUpload() : await props.onSyncDownload();
+      setErrorMessage(null);
+      toast.success(result.message || (direction === "upload" ? "上传完成" : "下载完成"));
+    } catch (error) {
+      const message = resolveSyncErrorMessage(error, "同步失败");
+      setErrorMessage(message);
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openProvider = (providerId: string) => {
+    setSheetOpen(false);
+    navigator.push("syncProvider", { providerId });
+  };
+
+  if (!props.setting) {
+    return null;
+  }
+  if (!provider || !configured) {
+    return (
+      <div className="page-enter">
+        <FirstRunView setting={props.setting} onOpenProvider={openProvider} />
+      </div>
+    );
+  }
+
+  const databaseName = props.versions?.databaseName ?? props.activeDatabase;
+  const lastSyncTime = databaseName ? readLastSyncTime(databaseName) : null;
+  const lastSyncText = lastSyncTime ? formatRelativeTime(lastSyncTime, Date.now()) : null;
+
+  return (
+    <div className="page-enter space-y-1">
+      <SyncHero hero={hero} lastSyncText={lastSyncText} versions={props.versions} />
+
+      <div className="flex gap-2.5 pt-3">
+        {hero.tone === "error" && (
+          <ActionButton
+            label={`检查 ${provider.name} 配置`}
+            emphasis={false}
+            busy={false}
+            disabled={busy}
+            onClick={() => openProvider(provider.id)}
+          />
+        )}
+        <ActionButton
+          label={hero.primaryLabel}
+          emphasis={hero.primaryEmphasis || hero.tone === "error"}
+          busy={syncing || (checking && hero.primaryAction === "check")}
+          disabled={busy}
+          onClick={() => void runPrimary()}
+        />
+      </div>
+
+      <GroupLabel>同步到</GroupLabel>
+      <GroupCard>
+        <GroupRow onClick={() => setSheetOpen(true)} disabled={syncing}>
+          <LetterTile letter={provider.tile.letter} className={provider.tile.className} />
+          <span className="min-w-0 flex-1">
+            <span className="text-ink-1 block text-[14.5px] font-medium">{provider.name}</span>
+            <span className="text-ink-3 block truncate text-[11.5px]">
+              {syncing ? "同步中不可切换" : provider.summary(props.setting)}
+            </span>
+          </span>
+          <ChevronRight size={16} className="text-ink-3" aria-hidden="true" />
+        </GroupRow>
+      </GroupCard>
+
+      <GroupLabel>更多</GroupLabel>
+      <GroupCard>
+        <GroupRow onClick={() => props.onOpenModule("databases")} disabled={syncing}>
+          <span className="bg-tag-3-soft text-tag-3 grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl">
+            <Database size={17} strokeWidth={1.9} aria-hidden="true" />
+          </span>
+          <span className="text-ink-1 min-w-0 flex-1 text-[14.5px] font-medium">数据库</span>
+          <span className="text-ink-3 max-w-[45%] truncate text-[13px]">
+            {props.activeDatabase}
+          </span>
+          <ChevronRight size={16} className="text-ink-3" aria-hidden="true" />
+        </GroupRow>
+        <GroupRow onClick={() => props.onOpenModule("sync-overwrite")} disabled={syncing}>
+          <span className="bg-tag-5-soft text-tag-5 grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl">
+            <ShieldAlert size={17} strokeWidth={1.9} aria-hidden="true" />
+          </span>
+          <span className="text-ink-1 min-w-0 flex-1 text-[14.5px] font-medium">整库覆盖</span>
+          <ChevronRight size={16} className="text-ink-3" aria-hidden="true" />
+        </GroupRow>
+      </GroupCard>
+
+      <SyncProviderSheet
+        open={sheetOpen}
+        setting={props.setting}
+        onClose={() => setSheetOpen(false)}
+        onOpenProvider={openProvider}
+      />
+    </div>
+  );
+}

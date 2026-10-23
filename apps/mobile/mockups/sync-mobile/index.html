@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端数据库同步 · 重设计方案</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="sync.css" />
+<script src="icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>移动端数据库同步 · 重设计方案<small>颜色取自 @tau/themes · 手机帧 360×760 · 红色标注=问题，绿色标注=设计要点</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="now">1 现状问题</button>
+    <button class="tab" data-tab="a">2 方案 A：同步中心<span class="rec">推荐</span></button>
+    <button class="tab" data-tab="svc">3 服务选择与配置</button>
+    <button class="tab" data-tab="adv">4 整库覆盖</button>
+    <button class="tab" data-tab="b">5 方案 B：随处同步</button>
+    <button class="tab" data-tab="plugin">6 插件化边界</button>
+    <button class="tab" data-tab="cmp">7 对比与待确认</button>
+  </nav>
+</header>
+
+<!-- ═══════════ 1 现状 ═══════════ -->
+<section class="scene" data-scene="now">
+  <p class="scene-intro">现状是「<b>设置 › 数据库与同步</b>」三层结构：主页选服务 → 下钻看状态 → 再下钻配参数。问题不在配色，而在<b>信息架构和手势语义</b>：最常用的「同步一下」藏在第二层，点一下列表行会直接切换同步服务，版本号直接暴露给用户。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">数据库与同步</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="gl">当前数据库</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-mute" data-i="database" data-s="17"></span><span class="mid"><b>default.db</b><span>结构版本 v42</span></span><span class="tile t-acc" style="width:22px;height:22px;border-radius:50%" data-i="check" data-s="13"></span></div>
+            <div class="row"><span class="tile t-mute" data-i="database" data-s="17"></span><span class="mid"><b>work.db</b><span>结构版本 v42</span></span></div>
+          </div>
+          <div class="gn">切换数据库后应用将重新加载数据。</div>
+          <div class="gl">数据库同步 · 远端领先</div>
+          <div class="grp">
+            <div class="row"><span class="dot" style="background:var(--butter);margin:0 12px"></span><span class="mid"><b>远端领先</b><span>default.db · 本地 v127 · 远端 v131</span></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gl">同步服务 · 同时仅一个生效</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-acc">A</span><span class="mid"><b>AliOSS</b><span>未连接凭证</span></span><span class="ib" data-i="info" data-s="18" style="color:var(--ink-3)"></span></div>
+            <div class="row"><span class="tile t-lilac">G</span><span class="mid"><b>Github</b><span>已连接 · d7hacx</span></span><span class="ib" data-i="info" data-s="18" style="color:var(--ink-3)"></span></div>
+            <div class="row"><span class="tile t-sage">W</span><span class="mid"><b>WebDAV</b><span>未连接凭证</span></span><span class="ib" data-i="info" data-s="18" style="color:var(--ink-3)"></span></div>
+            <div class="row"><span class="tile t-sky">S</span><span class="mid"><b>S3</b><span>已连接</span></span><span class="tile t-acc" style="width:22px;height:22px;border-radius:50%" data-i="check" data-s="13"></span><span class="ib" data-i="info" data-s="18" style="color:var(--ink-3)"></span></div>
+          </div>
+          <div class="gn">点选切换服务；点 ⓘ 配置凭证与参数。凭证集中管理，与同步参数互不影响。</div>
+          <span class="ring" style="left:14px;right:14px;top:306px;height:214px"></span>
+          <span class="anno" style="right:12px;top:282px">③ 点行=立即切换服务，点 ⓘ 才是进入——与系统设置「点行进入」相反</span>
+          <span class="ring" style="left:14px;top:228px;right:14px;height:56px"></span>
+          <span class="anno" style="left:16px;top:200px">② 状态只是一行，同步动作要再下钻一层</span>
+          <span class="anno" style="right:14px;top:56px">① 数据库切换常驻首屏，但极少用</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>主页：数据库 + 状态行 + 服务单选</div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">数据库同步</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="grp" style="padding:16px;margin-top:4px">
+            <div style="display:flex;gap:12px;align-items:center"><span class="tile lg t-butter" data-i="cloud-download" data-s="20"></span><span class="mid"><b style="font-size:15.5px">远端领先</b><span style="font-size:11.5px;color:var(--ink-3);display:block">default.db</span></span></div>
+            <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-top:12px">
+              <div style="background:var(--bg-page);border-radius:13px;padding:9px;text-align:center"><div style="font-size:10.5px;color:var(--ink-3)">本地</div><div style="font-size:19px;font-weight:800">127</div></div>
+              <span data-i="refresh-cw" style="color:var(--ink-3)"></span>
+              <div style="background:var(--bg-page);border-radius:13px;padding:9px;text-align:center"><div style="font-size:10.5px;color:var(--ink-3)">远端</div><div style="font-size:19px;font-weight:800">131</div></div>
+            </div>
+            <div style="font-size:12.5px;color:var(--ink-2);margin-top:12px">远端有新版本未下载，建议从远端下载。</div>
+          </div>
+          <div class="gl">操作</div>
+          <div class="grp">
+            <div class="row action">立即同步</div>
+            <div class="row action">检查远端更新</div>
+          </div>
+          <div class="gl">整库覆盖 · 危险</div>
+          <div class="grp">
+            <div class="row action" style="color:var(--danger)">用本地覆盖远端…</div>
+            <div class="row action" style="color:var(--danger)">用远端覆盖本地…</div>
+          </div>
+          <div class="gn">整库覆盖会丢失被覆盖一侧未同步的改动，执行前会再次确认方向。日常使用「立即同步」即可，它按版本差异自动选择方向。</div>
+          <span class="ring" style="left:14px;right:14px;top:96px;height:62px"></span>
+          <span class="anno" style="right:10px;top:70px">④ 版本号是实现细节，用户看不懂 127/131 意味着什么</span>
+          <span class="ring" style="left:14px;right:14px;top:224px;height:108px"></span>
+          <span class="anno" style="left:16px;top:334px">⑤ 主操作与次操作同权重的文字行，没有拇指区大按钮</span>
+          <span class="anno" style="right:10px;top:446px">⑥ 危险操作与日常操作并列、占首屏</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>状态页：版本格 + 文字按钮</div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">S3 同步</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="gl">凭证</div>
+          <div class="grp"><div class="row"><span class="tile t-sage" data-i="key-round" data-s="16"></span><span class="mid"><b>已连接</b><span>在「集成账号」中管理</span></span><span class="chev" data-i="chevron-right"></span></div></div>
+          <div class="gl">同步参数</div>
+          <div class="grp" style="padding:16px 14px">
+            <div style="font-size:12px;color:var(--ink-3)">Bucket</div>
+            <div style="background:var(--bg-page);height:40px;border-radius:12px;margin:4px 0 10px;padding:0 12px;display:flex;align-items:center">tau-sync</div>
+            <div style="font-size:12px;color:var(--ink-3)">Region</div>
+            <div style="background:var(--bg-page);height:40px;border-radius:12px;margin:4px 0 10px;padding:0 12px;display:flex;align-items:center">ap-southeast-1</div>
+            <div style="font-size:12px;color:var(--ink-3)">路径前缀</div>
+            <div style="background:var(--bg-page);height:40px;border-radius:12px;margin:4px 0 14px;padding:0 12px;display:flex;align-items:center">sync</div>
+            <div class="btn pri sm">保存</div>
+          </div>
+          <span class="anno" style="right:10px;top:40px">⑦ 凭证跳到另一个设置分区，填完还要找回来</span>
+          <span class="anno" style="left:16px;top:430px">⑧ 填完不知道对不对：没有「测试连接」；忘点保存就丢</span>
+          <span class="anno" style="right:10px;top:470px">⑨ 配好也不能在这里「设为当前服务」，要退回上一页点行</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>服务配置页：凭证与参数分家</div>
+    </div>
+
+    <div class="card" style="flex:1 1 360px;max-width:520px">
+      <h3>问题归纳</h3>
+      <ol>
+        <li><b>最高频动作埋得最深</b>：用户来这里 90% 是「同步一下 / 看看同步了没」，却要进第二层、点一个文字行。</li>
+        <li><b>手势语义反直觉</b>：iOS/Android 设置里「点行 = 进入详情」，这里点行会直接切换同步服务（还会立刻持久化），想看配置却误切服务。</li>
+        <li><b>状态用技术语言</b>：「本地领先 / 远端领先 / v127」需要用户理解版本模型；用户真正关心的是「我的改动传上去没有」「有没有别处的新内容」「上次是什么时候」。</li>
+        <li><b>危险操作没有降级</b>：整库覆盖与日常同步同屏同形。</li>
+        <li><b>配置流程断裂</b>：凭证、参数、启用分散在三个页面；没有连接测试；显式「保存」按钮在移动端容易漏。</li>
+        <li><b>不利于插件化</b>：服务列表是硬编码数组 <code>SYNC_PROVIDERS</code>，每个服务一个手写 Section 组件、一个模块路由（<code>sync-s3</code>…），而桌面端已经是 <code>tau.sync-*</code> 插件。</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 2 方案 A ═══════════ -->
+<section class="scene" data-scene="a">
+  <p class="scene-intro"><b>一页看懂、一键完成</b>：把「数据库同步」做成单页同步中心——顶部大状态卡回答「同步了没」，拇指区一个主按钮，按钮文案随状态变化（上传改动 / 下载更新 / 立即同步）；<b>下拉 = 检查云端</b>（替代「检查远端更新」按钮）。服务、数据库、整库覆盖下沉为普通行，点行一律进入。版本号降为卡片底部小字，给排查问题用。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">数据库同步</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="hero">
+            <div class="orb t-sage" data-i="circle-check" data-s="38"></div>
+            <h2>已同步</h2>
+            <div class="sub">本机与云端内容一致<br />上次同步 3 分钟前</div>
+            <div class="ver"><span>本机 <i>v131</i></span><span>云端 <i>v131</i></span><span>default.db</span></div>
+          </div>
+          <div class="btns"><div class="btn soft" data-i="refresh-cw" data-s="17">立即同步</div></div>
+          <div class="gl">同步到</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-sky">S</span><span class="mid"><b>S3</b><span>tau-sync · ap-southeast-1</span></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gl">更多</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-mute" data-i="database" data-s="16"></span><span class="mid"><b>数据库</b></span><span class="val">default.db</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row"><span class="tile t-rose" data-i="shield-alert" data-s="16"></span><span class="mid"><b>整库覆盖</b></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <span class="anno good" style="left:16px;top:6px">进入时自动检查云端</span>
+          <span class="anno good" style="right:10px;top:236px">版本号降级为小字</span>
+          <span class="anno good" style="right:10px;top:330px">已同步时降为次按钮</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>已同步</div>
+      <details class="note"><summary>说明</summary><ul><li>「上次同步时间」目前接口没有，需要在本机记录一次成功时间（不涉及远端协议）。</li><li>已同步时主按钮降为次按钮，避免引导无意义操作，但保留入口。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">数据库同步</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="hero">
+            <div class="orb t-butter" data-i="cloud-download" data-s="36"></div>
+            <h2>云端有更新</h2>
+            <div class="sub">其他设备同步了新内容，下载后即可看到<br />上次同步 昨天 22:14</div>
+            <div class="ver"><span>本机 <i>v127</i></span><span>云端 <i>v131</i></span><span>default.db</span></div>
+          </div>
+          <div class="btns"><div class="btn pri" data-i="arrow-down" data-s="18">下载更新</div></div>
+          <div class="gl">同步到</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-sky">S</span><span class="mid"><b>S3</b><span>tau-sync · ap-southeast-1</span></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gl">更多</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-mute" data-i="database" data-s="16"></span><span class="mid"><b>数据库</b></span><span class="val">default.db</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row"><span class="tile t-rose" data-i="shield-alert" data-s="16"></span><span class="mid"><b>整库覆盖</b></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <span class="anno good" style="right:10px;top:330px">按钮说清方向</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>云端有更新（原「远端领先」）</div>
+      <details class="note"><summary>说明</summary><ul><li>本机领先时同形：橙色上传图标、「本机有新改动 · 上传后其他设备可见」、按钮「上传改动」。</li><li>主按钮仍走现有智能同步逻辑（先查版本再选方向），文案只是把方向提前告诉用户。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">数据库同步</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="hero">
+            <div class="orb spin t-sky" data-i="cloud-upload" data-s="36"></div>
+            <h2>正在上传…</h2>
+            <div class="sub">可以离开此页，完成后会提示</div>
+            <div class="bar"><i style="width:62%"></i></div>
+            <div class="ver"><span>default.db</span><span>12.4 / 20.1 MB</span></div>
+          </div>
+          <div class="btns"><div class="btn soft dis" data-i="loader-circle" data-s="17">同步中</div></div>
+          <div class="gl">同步到</div>
+          <div class="grp" style="opacity:.55">
+            <div class="row"><span class="tile t-sky">S</span><span class="mid"><b>S3</b><span>同步中不可切换</span></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gl">更多</div>
+          <div class="grp" style="opacity:.55">
+            <div class="row"><span class="tile t-mute" data-i="database" data-s="16"></span><span class="mid"><b>数据库</b></span><span class="val">default.db</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row"><span class="tile t-rose" data-i="shield-alert" data-s="16"></span><span class="mid"><b>整库覆盖</b></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="toast" style="bottom:70px;opacity:.9"><span data-i="check" data-s="15"></span>上传完成 · 云端已更新到 v132</div>
+          <span class="anno" style="right:10px;top:200px;background:var(--butter)">字节进度需后端支持，没有就只转圈</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>同步中 → 完成吐司</div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">数据库同步</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="hero">
+            <div class="orb t-rose" data-i="cloud-off" data-s="36"></div>
+            <h2>连接失败</h2>
+            <div class="sub">S3 拒绝访问（403）。凭证可能已过期，<br />或者没有此 Bucket 的写入权限。</div>
+          </div>
+          <div class="btns"><div class="btn soft">重试</div><div class="btn pri">检查 S3 配置</div></div>
+          <div class="gl">同步到</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-sky">S</span><span class="mid"><b>S3</b><span style="color:var(--danger)">上次连接失败</span></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gl">更多</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-mute" data-i="database" data-s="16"></span><span class="mid"><b>数据库</b></span><span class="val">default.db</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row"><span class="tile t-rose" data-i="shield-alert" data-s="16"></span><span class="mid"><b>整库覆盖</b></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <span class="anno good" style="right:10px;top:250px">错误留在卡片上，不只闪一下吐司</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>出错：可行动的错误</div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">数据库同步</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="hero" style="padding-bottom:20px">
+            <div class="orb t-acc" data-i="cloud" data-s="36"></div>
+            <h2>在多台设备间同步</h2>
+            <div class="sub">选择一个你自己的存储服务，<br />数据只存在你的空间里。</div>
+          </div>
+          <div class="gl">选择存储服务</div>
+          <div class="svc"><span class="tile t-sky">S</span><span class="mid"><b>S3 兼容存储</b><span>AWS、Cloudflare R2、MinIO…</span></span><span class="chev" data-i="chevron-right"></span></div>
+          <div class="svc"><span class="tile t-acc">A</span><span class="mid"><b>阿里云 OSS</b><span>国内访问快</span></span><span class="chev" data-i="chevron-right"></span></div>
+          <div class="svc"><span class="tile t-lilac" data-i="github" data-s="17"></span><span class="mid"><b>GitHub 仓库</b><span>免费，适合小库</span></span><span class="chev" data-i="chevron-right"></span></div>
+          <div class="svc"><span class="tile t-sage">W</span><span class="mid"><b>WebDAV</b><span>坚果云、Nextcloud、群晖…</span></span><span class="chev" data-i="chevron-right"></span></div>
+          <span class="anno good" style="right:10px;top:236px">未配置时直接给选择，不是空状态卡</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">5</span>首次进入（未配置）</div>
+      <details class="note"><summary>说明</summary><ul><li>选完服务进入配置页（见 3），配置成功后回到这里并引导首次同步方向：本机内容多则「上传」，云端已有数据则「下载」。</li></ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 3 服务 ═══════════ -->
+<section class="scene" data-scene="svc">
+  <p class="scene-intro"><b>点行进入，进入后再决定是否启用</b>。服务页把「账号 + 位置 + 测试 + 启用」合在一页，字段失焦即保存（无「保存」按钮），底部固定「测试连接」/「设为同步服务」。表单由服务<b>声明的字段描述</b>渲染，内置服务与插件服务长得一模一样——这是插件化的关键（见 6）。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">数据库同步</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="hero" style="opacity:.6"><div class="orb t-sage" data-i="circle-check" data-s="38"></div><h2>已同步</h2></div>
+          <div class="mask"></div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <div class="sh-t"><span>同步服务</span><span class="x-btn" data-i="x" data-s="15" style="flex:none"></span></div>
+            <div class="sh-d">同一时间只同步到一个服务。点进去查看或修改配置。</div>
+            <div class="svc cur"><span class="tile t-sky">S</span><span class="mid"><b>S3 兼容存储</b><span class="pill-tag on" style="margin:0">当前</span> <span style="display:inline">tau-sync</span></span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="svc"><span class="tile t-lilac" data-i="github" data-s="17"></span><span class="mid"><b>GitHub 仓库</b><span>已配置 · d7hacx/tau-data</span></span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="svc"><span class="tile t-acc">A</span><span class="mid"><b>阿里云 OSS</b><span>未配置</span></span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="svc"><span class="tile t-sage">W</span><span class="mid"><b>WebDAV</b><span>未配置</span></span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="svc"><span class="tile t-butter" data-i="hard-drive" data-s="17"></span><span class="mid"><b>Dropbox<span class="pill-tag"><span data-i="puzzle" data-s="10"></span>插件</span></b><span>来自「Dropbox 同步」</span></span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row action" style="margin-top:2px"><span data-i="store" data-s="16"></span>在插件中心获取更多服务</div>
+          </div>
+          <span class="anno good" style="right:10px;top:488px">插件服务同列，只多一个来源徽标</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>点「同步到」→ 服务抽屉</div>
+      <details class="note"><summary>说明</summary><ul><li>Dropbox 仅示意插件贡献的服务；插件中心入口仅在移动端有插件能力后出现。</li><li>也可以不用抽屉、直接 push 一个「同步服务」列表页——抽屉更轻，列表页更利于服务多时滚动，二选一。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">S3 兼容存储</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="gl">账号</div>
+          <div class="grp">
+            <div class="acct"><span class="tile lg t-sky">S</span><span class="mid"><b>AKIA••••7Q2M</b><span>与资源存储共用此账号</span></span><span class="btn ghost sm fix">更换</span></div>
+          </div>
+          <div class="gl">存储位置</div>
+          <div class="grp">
+            <div class="fld"><label>Bucket</label><div class="in">tau-sync</div></div>
+            <div class="fld focus"><label>Region</label><div class="in">ap-southeast-1</div></div>
+            <div class="fld"><label>路径前缀</label><div class="in"><span class="ph">sync（可选）</span></div><div class="hint">数据库文件存放在 Bucket 下的这个目录</div></div>
+          </div>
+          <div class="gn" style="display:flex;gap:5px;align-items:center"><span data-i="check" data-s="13" style="color:var(--sage)"></span>修改已自动保存</div>
+          <div class="gl">连接</div>
+          <div class="grp">
+            <div class="row plain"><span class="mid"><b>连接正常</b><span>可读写 · 1 分钟前测试</span></span><span class="pill-tag ok">通过</span></div>
+          </div>
+          <div style="position:absolute;left:0;right:0;bottom:18px">
+            <div class="btns"><div class="btn soft">测试连接</div><div class="btn pri" style="opacity:.45">当前同步服务</div></div>
+          </div>
+          <span class="anno good" style="right:10px;top:90px">凭证就地显示与更换</span>
+          <span class="anno good" style="right:10px;top:318px">失焦即保存</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>服务页（当前服务）</div>
+      <details class="note"><summary>说明</summary><ul><li>「更换」打开账号抽屉（Access Key / Secret），仍写回集成账号，资源存储共享不受影响。</li><li>当前服务的主按钮置灰显示「当前同步服务」；非当前服务显示「设为同步服务」。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">GitHub 仓库</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="gl">账号</div>
+          <div class="grp">
+            <div class="acct"><span class="tile lg t-lilac" data-i="github" data-s="20"></span><span class="mid"><b>d7hacx</b><span>已连接</span></span><span class="btn ghost sm fix">更换</span></div>
+          </div>
+          <div class="gl">存储位置</div>
+          <div class="grp">
+            <div class="fld"><label>仓库</label><div class="in">tau-data<span class="chev" data-i="chevron-right"></span></div></div>
+            <div class="fld err"><label>分支</label><div class="in"><span class="ph">请选择分支</span><span class="chev" data-i="chevron-right"></span></div><div class="hint">更换仓库后需要重新选择分支</div></div>
+            <div class="fld"><label>路径前缀</label><div class="in"><span class="ph">sync（可选）</span></div></div>
+          </div>
+          <div style="position:absolute;left:0;right:0;bottom:18px">
+            <div class="btns"><div class="btn soft dis">测试连接</div><div class="btn pri dis">设为同步服务</div></div>
+            <div class="gn" style="text-align:center">补全必填项后可测试与启用</div>
+          </div>
+          <span class="anno good" style="right:10px;top:270px">字段内联校验</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>服务页（选择型字段 + 校验）</div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">GitHub 仓库</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="gl">账号</div>
+          <div class="grp"><div class="acct"><span class="tile lg t-lilac" data-i="github" data-s="20"></span><span class="mid"><b>d7hacx</b><span>已连接</span></span></div></div>
+          <div class="mask"></div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <div class="sh-t"><span>改为同步到 GitHub？</span></div>
+            <div class="sh-d">S3 上的数据会保留，但之后的同步只走 GitHub。</div>
+            <div class="gl">GitHub 上的情况</div>
+            <div class="grp">
+              <div class="row plain"><span class="tile t-butter" data-i="cloud-download" data-s="16"></span><span class="mid"><b>已有一份数据库</b><span>v118 · 最后更新 9 月 30 日</span></span></div>
+            </div>
+            <div class="gl">接下来</div>
+            <div class="grp">
+              <div class="row"><span class="tile t-acc" data-i="arrow-up" data-s="16"></span><span class="mid"><b>用本机内容覆盖 GitHub</b><span>推荐 · 本机更新（v131）</span></span><span class="tile t-acc" style="width:22px;height:22px;border-radius:50%" data-i="check" data-s="13"></span></div>
+              <div class="row"><span class="tile t-mute" data-i="arrow-down" data-s="16"></span><span class="mid"><b>下载 GitHub 上的数据</b><span>本机未上传的改动会丢失</span></span></div>
+            </div>
+            <div class="btns"><div class="btn soft">取消</div><div class="btn pri">切换并同步</div></div>
+          </div>
+          <span class="anno good" style="left:16px;top:120px">切换前先探测目标端，有数据才问方向</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>设为同步服务：确认抽屉</div>
+      <details class="note"><summary>说明</summary><ul><li>目标端为空时不弹抽屉，直接切换并上传。</li><li>这一步替代了现状「点行即切换、切完再说」的隐患。</li></ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 4 整库覆盖 ═══════════ -->
+<section class="scene" data-scene="adv">
+  <p class="scene-intro">整库覆盖下沉到二级页，用<b>方向图示</b>代替文字描述，用<b>长按确认</b>代替二次弹窗（误触成本更高、意图更明确）。页面只在出问题时才需要进来。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">整库覆盖</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="gn" style="padding:4px 20px 8px;font-size:12.5px;color:var(--ink-2)">日常用「立即同步」即可。只有两边数据都出了问题、需要强制以一边为准时，才用整库覆盖。</div>
+          <div class="grp">
+            <div class="row" style="padding:14px"><span class="tile lg t-rose" data-i="cloud-upload" data-s="20"></span><span class="mid"><b>以本机为准</b><span>上传 v133 · 覆盖云端 v131</span></span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row" style="padding:14px"><span class="tile lg t-rose" data-i="cloud-download" data-s="20"></span><span class="mid"><b>以云端为准</b><span>下载 v131 · 覆盖本机 v133</span></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gn">被覆盖一侧未同步的改动会丢失，且无法撤销。</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>整库覆盖页</div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">整库覆盖</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="mask"></div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <div class="sh-t"><span>以云端为准？</span></div>
+            <div class="dir">
+              <div class="end"><span class="tile lg t-sky" data-i="cloud" data-s="20"></span><b>云端</b>v131</div>
+                            <span class="arr" style="font-size:22px">→</span>
+              <div class="end"><span class="tile lg t-rose" data-i="smartphone" data-s="20"></span><b>本机</b><s>v133</s></div>
+            </div>
+            <div class="sh-d" style="text-align:center">本机自上次同步后的修改将被替换，无法撤销。</div>
+            <div class="btns"><div class="btn dng hold"><i></i><span>按住 2 秒覆盖本机</span></div></div>
+            <div class="btns" style="padding-top:6px"><div class="btn ghost">取消</div></div>
+          </div>
+          <span class="anno good" style="right:10px;top:430px">进度条填满才执行</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>方向图示 + 长按确认</div>
+      <details class="note"><summary>说明</summary><ul><li>后端拒绝低版本覆盖高版本，不可用的方向在列表里直接说明原因。</li><li>长按需配合触感反馈（Haptics）；无障碍模式下降级为普通二次确认按钮。</li></ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 5 方案 B ═══════════ -->
+<section class="scene" data-scene="b">
+  <p class="scene-intro"><b>同步不是一个设置，而是一个随手动作</b>：首页标题旁放常驻同步状态胶囊，点开是同步抽屉（状态 + 主按钮），设置里只留服务配置。优点是最快；代价是首页多一个元素，并且要和首页现有布局协调。可与方案 A 叠加：A 做设置页，B 的胶囊作为快捷入口。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="scr">
+          <div class="home-mock">
+            <div class="hm-t"><span>今天</span><span class="sync-chip"><span class="dot" style="background:var(--butter)"></span>云端有更新</span></div>
+            <div class="skel"></div><div class="skel" style="height:120px"></div><div class="skel"></div><div class="skel" style="height:90px"></div>
+          </div>
+          <span class="ring good" style="right:12px;top:-2px;width:118px;height:38px"></span>
+          <span class="anno good" style="right:12px;top:40px">状态胶囊：已同步时只剩一个小勾</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>首页状态胶囊</div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="scr">
+          <div class="home-mock" style="opacity:.6"><div class="hm-t"><span>今天</span></div><div class="skel"></div><div class="skel" style="height:120px"></div></div>
+          <div class="mask"></div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <div style="display:flex;gap:14px;align-items:center;padding:10px 20px 4px">
+              <span class="tile lg t-butter" data-i="cloud-download" data-s="20"></span>
+              <span class="mid" style="flex:1"><b style="font-size:17px">云端有更新</b><span style="display:block;font-size:12px;color:var(--ink-3)">S3 · 上次同步 昨天 22:14</span></span>
+            </div>
+            <div class="btns"><div class="btn pri" data-i="arrow-down" data-s="18">下载更新</div></div>
+            <div class="row action" style="margin-top:4px;font-weight:500;color:var(--ink-2)">同步设置<span data-i="chevron-right" data-s="14"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>同步抽屉</div>
+    </div>
+    <div class="card" style="flex:1 1 360px;max-width:460px">
+      <h3>方案 B 的取舍</h3>
+      <ul>
+        <li><b>好处</b>：一次点击完成同步；状态持续可见，用户不用记得去设置里看。</li>
+        <li><b>代价</b>：首页加常驻元素；需要定义「何时自动检查云端」（打开 App / 回到前台），会产生额外网络请求。</li>
+        <li><b>与插件化的关系</b>：胶囊与抽屉都是宿主组件，只读宿主统一的同步状态，不随服务变化，插件化无额外成本。</li>
+        <li><b>建议</b>：先做 A；B 的胶囊作为后续增强，单独确认是否要放首页。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 6 插件化 ═══════════ -->
+<section class="scene" data-scene="plugin">
+  <p class="scene-intro">与桌面端同步插件对齐：桌面端 <code>tau.sync-*</code> 插件用 <code>sync.register({ id, name, create(config) })</code> 提供字节读写，用 <code>settings.register({ target: "sync", component })</code> 提供自己的设置面板；宿主只负责「选哪个服务 + 挂载面板」。移动端按同一形态组织：<b>宿主外壳 + 服务面板插槽</b>，内置四个服务先以面板形式实现。</p>
+  <div class="frames" style="gap:18px">
+    <div class="card" style="flex:1 1 460px;max-width:560px">
+      <h3>谁负责什么</h3>
+      <div class="layer host"><h4>宿主（同步中心 · 永远不变）</h4>状态卡、主按钮、进入时检查云端、版本比较与方向判断、服务抽屉、连接测试、切换前探测与确认、整库覆盖、上次同步时间。</div>
+      <div class="layer prov"><h4>服务（内置或插件）</h4>名称、图标、一句话描述、是否已配置、「同步到」行摘要，以及<b>一个设置面板</b>（账号卡 + 存储位置字段，失焦即保存）。</div>
+      <div class="layer store"><h4>凭证</h4>内置服务的凭证仍在集成账号，与资源存储共用；面板里就地展示并跳转更换。</div>
+    </div>
+    <div class="card" style="flex:1 1 460px;max-width:600px">
+      <h3>注册表条目</h3>
+<pre>{
+  id: "s3",                 // = setting.json 的 sync.active
+  name: "S3 兼容存储",
+  description: "AWS、Cloudflare R2、MinIO…",
+  tile: { letter: "S", className: "bg-tag-2-soft text-tag-2" },
+  isConfigured: setting => …,
+  summary: setting => "tau-sync · ap-southeast-1",
+  Panel: S3Panel,           // 设置面板插槽
+}</pre>
+      <p class="flow-note">将来移动端支持插件时，插件服务以同样的条目接入同一个注册表，面板来自插件的 <code>target: "sync"</code> 设置组件，宿主页面不变。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 7 对比 ═══════════ -->
+<section class="scene" data-scene="cmp">
+  <div class="frames" style="gap:18px">
+    <div class="card" style="flex:1 1 640px;max-width:820px">
+      <h3>方案对比</h3>
+      <table class="cmp">
+        <tr><th></th><th>现状</th><th>A 同步中心（推荐）</th><th>B 随处同步</th></tr>
+        <tr><th>同步一次</th><td>进设置 → 数据库与同步 → 数据库同步 → 立即同步（4 步）</td><td>进设置 → 数据库同步 → 主按钮（3 步，下拉即检查）</td><td>首页胶囊 → 主按钮（2 步）</td></tr>
+        <tr><th>看懂状态</th><td>本地/远端领先 + 版本号</td><td>人话状态 + 上次同步时间，版本号小字</td><td>同 A，且常驻首页</td></tr>
+        <tr><th>切换服务</th><td>点行即切换（易误触）</td><td>进入服务页 → 设为同步服务 → 探测目标端再确认</td><td>同 A</td></tr>
+        <tr><th>配置</th><td>凭证/参数/启用三处，手动保存</td><td>一页：账号 + 位置 + 测试 + 启用，自动保存</td><td>同 A</td></tr>
+        <tr><th>插件化</th><td>每服务一个手写组件 + 路由</td><td>宿主按声明渲染，新增服务零页面改动</td><td>同 A</td></tr>
+        <tr><th>改动量</th><td>—</td><td>中：重写设置内 3 个页面 + 服务描述表</td><td>A + 首页组件 + 前台自动检查</td></tr>
+      </table>
+    </div>
+    <div class="card" style="flex:1 1 380px;max-width:520px">
+      <h3>需要你拍板的几件事</h3>
+      <ol>
+        <li><b>方向</b>：先做 A？B 的首页胶囊要不要做、何时做？</li>
+        <li><b>服务选择</b>：抽屉（3-1）还是独立列表页？</li>
+        <li><b>数据库切换</b>：下沉到「更多 › 数据库」可以吗？（现在常驻首屏）</li>
+        <li><b>上次同步时间</b>：本机记录一次成功时间，可以加吗？</li>
+        <li><b>整库覆盖</b>：长按确认 OK，还是保留现在的二次确认弹窗？</li>
+        <li><b>范围</b>：「资源同步」页是否一起按同一套样式改？（本稿只覆盖数据库同步）</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<script src="sync.js"></script>
+</body>
+</html>

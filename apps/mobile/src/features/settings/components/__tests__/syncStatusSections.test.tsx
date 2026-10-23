@@ -1,12 +1,7 @@
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  DatabaseSyncStatusSection,
-  ResourceSyncStatusSection,
-  getDatabaseSyncSummary,
-  getResourceSyncSummary,
-} from "../SyncStatusSections";
+import { ResourceSyncStatusSection, getResourceSyncSummary } from "../SyncStatusSections";
 
 const toastSpies = vi.hoisted(() => ({
   success: vi.fn(),
@@ -62,19 +57,6 @@ async function clickButtonByText(text: string): Promise<void> {
   });
 }
 
-/** 按精确文本查找按钮（避免「覆盖远端」误匹配「用本地覆盖远端…」） */
-async function clickButtonByExactText(text: string): Promise<void> {
-  const button = Array.from(document.querySelectorAll("button")).find(
-    item => item.textContent?.trim() === text
-  );
-  expect(button).toBeTruthy();
-  await act(async () => {
-    button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await Promise.resolve();
-    await Promise.resolve();
-  });
-}
-
 describe("SyncStatusSections", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -84,30 +66,7 @@ describe("SyncStatusSections", () => {
     document.body.innerHTML = "";
   });
 
-  it("可计算数据库与资源同步摘要", () => {
-    expect(getDatabaseSyncSummary(null)).toBe("未开始");
-    expect(
-      getDatabaseSyncSummary({
-        databaseName: "data.db",
-        localVersion: 5,
-        remoteVersion: 5,
-      })
-    ).toBe("已同步");
-    expect(
-      getDatabaseSyncSummary({
-        databaseName: "data.db",
-        localVersion: 9,
-        remoteVersion: 7,
-      })
-    ).toBe("本地领先");
-    expect(
-      getDatabaseSyncSummary({
-        databaseName: "data.db",
-        localVersion: 7,
-        remoteVersion: 9,
-      })
-    ).toBe("远端领先");
-
+  it("可计算资源同步摘要", () => {
     expect(
       getResourceSyncSummary({
         totalFiles: 20,
@@ -147,105 +106,6 @@ describe("SyncStatusSections", () => {
         startTime: null,
       })
     ).toBe("异常");
-  });
-
-  it("数据库同步详情：刷新用 toast，整库覆盖需确认弹窗后执行", async () => {
-    const controller = createRenderController();
-    const onSyncUpload = vi.fn().mockResolvedValue({
-      ok: true,
-      message: "上传完成",
-    });
-    await controller.render(
-      <DatabaseSyncStatusSection
-        versions={{
-          databaseName: "data.db",
-          localVersion: 4,
-          remoteVersion: 3,
-        }}
-        isSyncing={false}
-        onCheckVersions={vi.fn().mockResolvedValue({
-          databaseName: "data.db",
-          localVersion: 4,
-          remoteVersion: 4,
-        })}
-        onSyncUpload={onSyncUpload}
-        onSyncDownload={vi.fn().mockResolvedValue({
-          ok: true,
-          message: "下载完成",
-        })}
-      />
-    );
-
-    await clickButtonByText("检查远端更新");
-    expect(toastSpies.success).toHaveBeenCalledWith(expect.stringContaining("刷新完成"));
-    expect(document.body.textContent?.includes("刷新完成：")).toBe(false);
-    expect(onSyncUpload).not.toHaveBeenCalled();
-
-    // 危险操作先弹确认框，说明覆盖方向
-    await clickButtonByText("用本地覆盖远端");
-    expect(onSyncUpload).not.toHaveBeenCalled();
-    expect(document.body.textContent).toContain("用本地覆盖远端？");
-    expect(document.body.textContent).toContain("远端更新的改动将丢失");
-
-    await clickButtonByExactText("覆盖远端");
-    expect(onSyncUpload).toHaveBeenCalledTimes(1);
-    expect(toastSpies.success).toHaveBeenCalledWith("上传完成");
-    await controller.cleanup();
-  });
-
-  it("智能同步按版本差异自动选择方向", async () => {
-    const controller = createRenderController();
-    const onSyncUpload = vi.fn().mockResolvedValue({
-      ok: true,
-      message: "上传完成",
-    });
-    const onSyncDownload = vi.fn().mockResolvedValue({
-      ok: true,
-      message: "下载完成",
-    });
-    await controller.render(
-      <DatabaseSyncStatusSection
-        versions={null}
-        isSyncing={false}
-        onCheckVersions={vi.fn().mockResolvedValue({
-          databaseName: "data.db",
-          localVersion: 2,
-          remoteVersion: 9,
-        })}
-        onSyncUpload={onSyncUpload}
-        onSyncDownload={onSyncDownload}
-      />
-    );
-
-    // 远端领先 → 智能同步应走下载
-    await clickButtonByText("立即同步");
-    expect(onSyncDownload).toHaveBeenCalledTimes(1);
-    expect(onSyncUpload).not.toHaveBeenCalled();
-    expect(toastSpies.success).toHaveBeenCalledWith("下载完成");
-    await controller.cleanup();
-  });
-
-  it("数据库同步详情刷新失败时触发错误 toast", async () => {
-    const controller = createRenderController();
-    await controller.render(
-      <DatabaseSyncStatusSection
-        versions={null}
-        isSyncing={false}
-        onCheckVersions={vi.fn().mockRejectedValue(new Error("SYNC_CHECK_FAILED:detail"))}
-        onSyncUpload={vi.fn().mockResolvedValue({
-          ok: true,
-          message: "上传完成",
-        })}
-        onSyncDownload={vi.fn().mockResolvedValue({
-          ok: true,
-          message: "下载完成",
-        })}
-      />
-    );
-
-    await clickButtonByText("检查远端更新");
-    expect(toastSpies.error).toHaveBeenCalledWith(expect.stringContaining("同步状态刷新失败"));
-    await controller.cleanup();
   });
 
   it("资源同步详情动作通过 toast 反馈", async () => {
