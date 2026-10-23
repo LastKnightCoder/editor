@@ -54,7 +54,8 @@ export const PLUGIN_BASE_REQUIREMENTS = [
   "settings",
   "dialogs",
 ] as const satisfies readonly PluginCapability[];
-export type PluginRequirement = "sourceEditor" | "runtimeStyles" | "media";
+export type PluginRequirement =
+  "sourceEditor" | "runtimeStyles" | "media" | "fetch" | "sync" | "upload";
 export type OptionalPluginRequirement = "runtimeStyles";
 
 export interface PluginAuthorTarget {
@@ -114,7 +115,9 @@ export function buildPortablePluginManifest(
   const targets = record(item.targets, "目标平台");
   const requirements = (input: unknown, optional: boolean) => {
     const names = readPluginCapabilities(input ?? []);
-    const allowed = optional ? ["runtimeStyles"] : ["sourceEditor", "runtimeStyles", "media"];
+    const allowed = optional
+      ? ["runtimeStyles"]
+      : ["sourceEditor", "runtimeStyles", "media", "fetch", "sync", "upload"];
     if (names.some(name => !allowed.includes(name)))
       throw new Error(optional ? "功能不支持可选访问" : "作者只能声明额外功能需求");
     return names;

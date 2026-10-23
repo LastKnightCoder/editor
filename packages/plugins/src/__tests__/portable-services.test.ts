@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import { scopePortablePluginModules } from "../portable-services";
+import { scopePortablePluginModules, scopePortablePluginDefinition } from "../portable-services";
 
 it("节点插入使用编辑器基础要求，不要求源码编辑界面", () => {
   const insertSourceBlock = vi.fn();
@@ -51,4 +51,38 @@ it("已声明必需编译器但编辑器漏接时明确报错", () => {
   );
   const sdk = scoped["@tau/plugins"] as (typeof modules)["@tau/plugins"];
   expect(() => sdk.useSourceBlock().compiler).toThrow("未提供必需");
+});
+
+it("绑定跨端 API 保留上下文的动态 getter，不提前读取环境", async () => {
+  let reads = 0;
+  let environment = { platform: "desktop", input: { coarsePointer: false, finePointer: true } };
+  const original = Object.freeze({
+    get environment() {
+      reads++;
+      return environment;
+    },
+  }) as unknown as import("../contract").PluginContext;
+  let received!: import("../contract").PluginContext;
+  const definition = scopePortablePluginDefinition(
+    {
+      id: "fixture.context",
+      name: "fixture",
+      version: "1.0.0",
+      apiVersion: 1,
+      create: () => ({
+        activate(context) {
+          received = context;
+        },
+      }),
+    },
+    { minAppVersion: "1.0.0", required: [], optional: [] },
+    []
+  );
+  await definition.create().activate(original);
+  expect(reads).toBe(0);
+  expect(received.environment).toBe(environment);
+  environment = { ...environment, input: { coarsePointer: true, finePointer: true } };
+  expect(received.environment.input.coarsePointer).toBe(true);
+  expect(reads).toBe(2);
+  expect(Object.isFrozen(received)).toBe(true);
 });

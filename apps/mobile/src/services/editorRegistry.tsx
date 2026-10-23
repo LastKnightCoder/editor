@@ -87,14 +87,17 @@ export const mobileEditorServices: ServiceRegistration = register => {
     upload: async file => {
       // 分步日志经 WebView console 进 logcat，用于真机排查上传链路
       console.log(`[resource-upload] start: ${file.name}, ${file.size}B, ${file.type}`);
-      const providerId = getMobileSettingByPath<string>("imageBed.active") ?? "local";
+      const providerId =
+        getMobileSettingByPath<string>("imageBed.active") === "plugin"
+          ? (getMobileSettingByPath<string>("imageBed.plugin.id") ?? "")
+          : "local";
       try {
         const url = await withTimeout(
           uploadResourceInMobile(file),
           UPLOAD_TIMEOUT_MS,
           `RESOURCE_UPLOAD_TIMEOUT: 资源上传超时（${UPLOAD_TIMEOUT_MS / 1000} 秒），请检查图床网络后重试`
         );
-        console.log(`[resource-upload] done: ${url}`);
+        console.log("[resource-upload] done");
         if (!url) {
           throw new Error("RESOURCE_UPLOAD_FAILED: 资源上传失败");
         }

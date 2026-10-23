@@ -1,3 +1,4 @@
+vi.mock("./transport", () => ({ connectMobilePluginTransport: vi.fn(async () => vi.fn()) }));
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

@@ -23,9 +23,9 @@
 
 版本填写实际验证过的下限。声明平台不代表已在该平台通过设备验收，也不控制生产中心的分发开关。
 
-公共应用基础包含 commands、storage、pages、navigation、settings、dialogs，不要求作者逐项填写或调用前查字符串。行为遵循支持矩阵：移动命令注册不自动生成命令面板，通用插件设置不包含桌面领域提供方配置。
+公共应用基础包含 commands、storage、pages、navigation、settings、dialogs，不要求作者逐项填写或调用前查字符串。行为遵循支持矩阵：移动命令注册不自动生成命令面板，通用设置与领域设置共用注册方式，领域设置另声明对应功能。
 
-额外功能写 requires：sourceEditor、media、runtimeStyles。编辑器声明使用 editor: { elements: { "abc": "edit" } }，构建器补齐 editor/editorCodecs。每个实际节点必须明确列出；edit 支持显示、插入和编辑，render 只显示，none 不装配但保留原始数据。
+额外功能写 requires：sourceEditor、media、runtimeStyles、fetch、sync、upload。编辑器声明使用 editor: { elements: { "abc": "edit" } }，构建器补齐 editor/editorCodecs。每个实际节点必须明确列出；edit 支持显示、插入和编辑，render 只显示，none 不装配但保留原始数据。
 
 根级 requires、optional、editor.elements 为公共声明。目标平台不写时继承；写了就整组替换，空数组清空该组额外需求，不能取消公共基础要求。节点映射也是完整替换，不深合并。必需与可选不能重叠，未知名称在构建时拒绝；省略平台表示不允许该平台应用安装。
 
@@ -89,6 +89,16 @@ coarsePointer 对应 (any-pointer: coarse)，finePointer 对应 (any-pointer: fi
 跨端应用模块按清单装配具体服务：未声明的功能访问明确报错；一个插件的可选需求不影响另一个插件。不增加 hasCapability/getCapability 通用查询器，不在环境对象里列宿主能力。
 
 媒体解析与展示需要 requires: ["media"]。useResourceUpload() 在只读或没有资源存储的作用域返回 undefined，表示当前不能上传，并不表示媒体宿主整体缺失；不能通过链接输入绕过只读限制。功能存在、用户授权、当前作用域允许与网络请求成功是四件不同的事。
+
+## 同步与资源上传
+
+桌面、Android 和 iOS 使用同一套 context.sync、context.upload、context.fetch 和 settings.register API。同步提供方声明 requires: ["fetch", "sync"]，上传提供方声明 requires: ["fetch", "upload"]；同包同时提供两者时声明三项。API 的存在由宿主加载前检查，作者不写平台能力查询。
+
+领域表单仍接收 syncConfig/uploadConfig 的 value 与 save(value)。save 表达保存配置的意图：持久化、选用、测试和切换确认由宿主编排。当前桌面显式保存并选用，移动字段失焦保存后在服务页显式选用；作者不调用原生存储或宿主路由。保存失败保留输入，不把调用成功等同于网络测试通过。
+
+同一插件可以保留桌面设置视图和移动设置视图，共用配置字段、校验和存储业务代码。环境只用于选择交互视图，不分叉 API。ConfigurationPanel 是公共 UI 的账号卡、位置字段和选择弹层组合，可用于迁移已有移动表单。
+
+同步与上传的完整配置分别归各插件，不做统一账号共享；不要把凭据存入 context.storage。宿主在任务开始固定配置，停用/切库后不交付迟到结果。移动网络为原生 HTTP(S) 传输，单次请求与响应各最多 128 MiB，取消会中止原生请求；不承诺浏览器 Cookie、后台续传或进程终止后继续任务。
 
 ## 构建和分发
 

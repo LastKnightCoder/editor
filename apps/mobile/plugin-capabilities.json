@@ -9,5 +9,8 @@
   "editorCodecs",
   "sourceEditor",
   "media",
-  "runtimeStyles"
+  "runtimeStyles",
+  "fetch",
+  "sync",
+  "upload"
 ]

@@ -10,6 +10,9 @@ export const PLUGIN_CAPABILITIES = [
   "editorCodecs",
   "sourceEditor",
   "runtimeStyles",
+  "fetch",
+  "sync",
+  "upload",
   "media",
 ] as const;
 

@@ -24,7 +24,7 @@ import {
   IconUsers,
 } from "./ui";
 import { ActionSheet } from "./ActionSheet";
-import { LOCAL_UPLOAD_ID, findUploadProvider } from "../upload/providers";
+import { LOCAL_UPLOAD_ID, useUploadProviders } from "../upload/providers";
 import { getTheme } from "@tau/themes";
 import { useThemeStore } from "@tau/themes/react";
 import { useNavigator } from "../../../router";
@@ -75,6 +75,8 @@ export function OverviewSection(props: OverviewSectionProps) {
   const themeName = useThemeStore(state => getTheme(state.theme)?.name ?? "");
   const appearance = useThemeStore(state => state.appearance);
   const navigator = useNavigator();
+  const providers = useUploadProviders();
+  const { syncSettings } = useAppContext();
   const [appVersion, setAppVersion] = useState("");
 
   // 数据库文件大小（主库 + WAL/SHM）
@@ -93,7 +95,8 @@ export function OverviewSection(props: OverviewSectionProps) {
   const uploadTargetName =
     props.activeResource === LOCAL_UPLOAD_ID
       ? "这台手机"
-      : (findUploadProvider(props.activeResource)?.name ?? props.activeResource);
+      : (providers.find(item => item.id === syncSettings.safeSetting?.imageBed.plugin?.id)?.name ??
+        props.activeResource);
   // 桌面端旧设置 shadow 为布尔（true 视作中阴影），展示前归一为 preset
   const imageAppearanceValue = `${findPresetLabel(
     IMAGE_BORDER_RADIUS_OPTIONS,

@@ -49,3 +49,5 @@ export * from "./primitives/Sortable";
 export * from "./primitives/LoadingOverlay";
 export { lockBodyScroll } from "./hooks/lockBodyScroll";
 export { mergeRefs } from "./primitives/mergeRefs";
+
+export * from "./patterns/ConfigurationPanel";

@@ -74,3 +74,13 @@ pnpm check:docs
 旧作者验证脚本显式选择旧 desktop 清单，不把 portable 字段塞进旧格式。公共 SDK 的宿主入口不随作者 tarball 开放。
 
 仓库外报告不证明正式壳、真机交互或应用商店审核；各项分别按宿主指南验收。SDK 发布不自动开放插件中心平台，也不代表所有 API 已有宿主实现；支持边界以随包分发的 API 支持矩阵为准。
+
+## 同步与上传提供方候选验证
+
+1. 使用 `node scripts/plugins/package-sdk.mjs output/storage-sdk` 生成当前 SDK/UI tarball。
+2. 设置 `TAU_AUTHOR_NAMES` 为逗号分隔的目标子模块名称，执行 `node scripts/plugins/verify-official-authors.mjs <SDK.tgz> <UI.tgz> output/storage-authors/report.json`，确认每个作者的冻结安装、构建与测试通过。候选 ZIP 保存到报告同目录的 packages/。
+3. 需要记录待发行锁文件时设置 `TAU_AUTHOR_WRITE_LOCKFILES=1`；脚本只将已验证候选 tarball 的摘要映射到 package.json 声明的公开版本，不执行发布。SDK/UI 公开发布前，普通 npm 安装仍需使用候选注入流程。
+4. 设置 `TAU_STORAGE_AUTHORS_REPORT` 为报告绝对路径，在 apps/mobile 执行 `pnpm exec vitest run --config validation/storage/vitest.config.ts`。判据是同一批 ZIP 在 desktop/android/ios 环境注册四类同步、四类上传及八个领域表单，并经相同 value/save 完成保存。
+5. 配合根进程边界检查、移动 Rust 测试及 Clippy、两端类型检查和前端构建。视觉、真机、最低系统和后台行为另行验收，不从本机 JSDOM 或 Rust 单测外推。
+
+发行顺序为 SDK/UI、具备新词表的中心、声明移动目标的提供方包，最后发布客户端。客户端升级保留旧配置，服务未安装/未启用时给出恢复入口；不将缺包记为同步成功，不静默改为本地。

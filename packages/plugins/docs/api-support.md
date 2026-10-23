@@ -1,6 +1,6 @@
 # 插件 API 支持矩阵
 
-本表描述当前 SDK 与仓库宿主实现，不代表线上已发布客户端。统一功能名契约随 SDK、模板、中心和作者插件一起更新，不保留旧能力别名。桌面与移动均接入格式 3 的安装和内容装配，iOS 正式发行仍待签名。网页插件中心只浏览与分发，不执行插件；具体发行和设备验证见任务记录。
+本表描述当前 SDK 与仓库宿主实现，不代表线上已发布客户端。统一功能名契约随 SDK、模板、中心和作者插件一起更新，不保留旧能力别名。桌面与移动均接入格式 3 的安装和内容装配，实际发行版本与设备验收独立记录。网页插件中心只浏览与分发，不执行插件；具体发行和设备验证见任务记录。
 
 一个 SDK 允许不同宿主实现不同子集。类型中有方法不代表该端可用；宿主内部 `capabilities` 只列实际实现，作者环境不暴露该列表，`permissions` 只声明业务授权上限，两者不能互代。不能通过删除 required、改格式号或伪报 edit 绕过限制。
 
@@ -8,31 +8,32 @@
 
 “已接”表示存在真实适配或公共实现；“部分”后的边界是支持范围；“未接”不能靠作者改布局解决。Android 与 iOS 目前具有相同 API 子集，但交互验收分别进行。
 
-| API                                                                                                   | 桌面                                       | Android                                 | iOS                | 作者责任与边界                                                                                   |
-| ----------------------------------------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------ |
-| `context.pluginId`、`context.workspaceId`、`context.signal`、`context.register`                       | 已接                                       | 已接                                    | 已接               | 数据按工作区隔离；监听/连接交给 register；异步响应检查 signal；不依赖系统退出一定调用 deactivate |
-| `context.environment`、`usePluginEnvironment()`                                                       | 已接                                       | 已接                                    | 已接               | 宿主加载前检查功能，平台/input 仅表示环境事实；静态正文不缓存 activate 的 context                |
-| `context.pages`                                                                                       | 已接                                       | 已接                                    | 已接               | 共用页面参数、身份和离开守卫；窄屏布局、触摸操作由作者适配                                       |
-| `context.navigation`                                                                                  | 侧栏入口                                   | “我的”功能入口                          | “我的”功能入口     | 页面与入口分别注册；不操作宿主 history 或导入宿主路由                                            |
-| `context.commands`                                                                                    | 注册与命令面板已接                         | 部分：注册/回收已接，无统一插件命令面板 | 同 Android         | 命令注册不自动产生手机可点击入口，主要功能另注册 navigation                                      |
-| `context.storage`                                                                                     | 工作区 KV                                  | 工作区 SQLite KV                        | 工作区 SQLite KV   | JSON 私有数据；单值上限 1 MiB；不是业务数据库、结构化集合或安全凭据库                            |
-| `context.settings`                                                                                    | 插件设置及领域设置已接                     | 部分：插件自己的设置页                  | 同 Android         | 移动不支持带 target 的领域设置；通用插件设置直接注册，不做能力查询                               |
-| `context.editor`                                                                                      | 动态 register 限工作台；普通正文用静态贡献 | 动态 register 未接                      | 动态 register 未接 | 跨端正文通过 definePlugin 的 editorExtensions/editorCodecs，不能在 activate 动态注册来替代       |
-| `context.fetch`                                                                                       | 宿主原生传输已接                           | 未接                                    | 未接               | 插件中心能联网不代表插件有网络适配；本轮不承诺原生网络、Cookie、CORS 或下载后台续传              |
-| `context.services`                                                                                    | 按宿主注入服务                             | 未注入作者业务服务                      | 同 Android         | 不把类型中的编译、媒体、转换等服务当成移动通用能力                                               |
-| `context.permissions`                                                                                 | 业务授权已接                               | 未接                                    | 未接               | 含移动目标的格式 3 包必须 permissions 为空；界面显示权限说明不等于授权可用                       |
-| `context.data`、`context.content`                                                                     | 已接，按权限与修订校验                     | 未接                                    | 未接               | Tau 的卡片/文章/任务/日程读写及 ContentRef 正文，与插件私有 KV 分开                              |
-| `context.entities`、`context.records`、`context.links`、`context.transaction`                         | 已接                                       | 未接                                    | 未接               | 即使读写本插件自己的实体/集合不需业务权限，也仍需要移动宿主适配；不能用 KV 支持推断这些接口可用  |
-| `context.events`                                                                                      | 业务事件已接                               | 未接                                    | 未接               | 插件自己的 React 状态与业务数据库变更订阅不是同一能力                                            |
-| `context.app`                                                                                         | 内容选择/打开/宿主动作已接                 | 未接                                    | 未接               | pages.open 只打开插件页面，不等于可以打开或修改 Tau 内容                                         |
-| `context.ai`                                                                                          | 已接，需声明和授权                         | 未接                                    | 未接               | 不绕过宿主模型分配、额度或授权自行假定可用                                                       |
-| `context.mcp`、`context.chat`                                                                         | 已接                                       | 未接                                    | 未接               | 工具注册、外部传输和聊天自定义渲染不是移动公共子集                                               |
-| `context.flashcards`                                                                                  | 已接                                       | 未接                                    | 未接               | 正文插件块不会自动加入移动闪卡编辑场景                                                           |
-| `context.excerpts`、`context.materials`                                                               | 已接                                       | 未接                                    | 未接               | 应用自身能显示材料，不表示提供了插件 API                                                         |
-| `context.sidebar`、`context.home`、`context.actions`、`context.views`                                 | 已接                                       | 未接                                    | 未接               | 跨端入口改用 navigation；首页面板、对象动作、详情区块不得自动映射为手机支持                      |
-| `context.notifications`                                                                               | 已接                                       | 未接                                    | 未接               | 不承诺移动系统通知或后台通知                                                                     |
-| `context.sync`、`context.upload`、`context.tts`、`context.images`、`context.video`、`context.publish` | 领域提供方已接                             | 未接                                    | 未接               | 移动内置功能与插件提供方协议独立；无对应能力名可声明为 optional 来绕过                           |
-| `context.backend`                                                                                     | 格式 2 独立后台与授权已接                  | 格式 3 不支持                           | 格式 3 不支持      | Node、子进程、本机程序继续留在旧桌面包；本轮不迁移                                               |
+| API                                                                             | 桌面                                       | Android                                 | iOS                | 作者责任与边界                                                                                   |
+| ------------------------------------------------------------------------------- | ------------------------------------------ | --------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------ |
+| `context.pluginId`、`context.workspaceId`、`context.signal`、`context.register` | 已接                                       | 已接                                    | 已接               | 数据按工作区隔离；监听/连接交给 register；异步响应检查 signal；不依赖系统退出一定调用 deactivate |
+| `context.environment`、`usePluginEnvironment()`                                 | 已接                                       | 已接                                    | 已接               | 宿主加载前检查功能，平台/input 仅表示环境事实；静态正文不缓存 activate 的 context                |
+| `context.pages`                                                                 | 已接                                       | 已接                                    | 已接               | 共用页面参数、身份和离开守卫；窄屏布局、触摸操作由作者适配                                       |
+| `context.navigation`                                                            | 侧栏入口                                   | “我的”功能入口                          | “我的”功能入口     | 页面与入口分别注册；不操作宿主 history 或导入宿主路由                                            |
+| `context.commands`                                                              | 注册与命令面板已接                         | 部分：注册/回收已接，无统一插件命令面板 | 同 Android         | 命令注册不自动产生手机可点击入口，主要功能另注册 navigation                                      |
+| `context.storage`                                                               | 工作区 KV                                  | 工作区 SQLite KV                        | 工作区 SQLite KV   | JSON 私有数据；单值上限 1 MiB；不是业务数据库、结构化集合或安全凭据库                            |
+| `context.settings`                                                              | 插件设置及领域设置已接                     | 插件设置及同步/上传领域设置             | 同 Android         | 移动支持 sync/upload target，其他领域仍未接；通用设置直接注册                                    |
+| `context.editor`                                                                | 动态 register 限工作台；普通正文用静态贡献 | 动态 register 未接                      | 动态 register 未接 | 跨端正文通过 definePlugin 的 editorExtensions/editorCodecs，不能在 activate 动态注册来替代       |
+| `context.fetch`                                                                 | 宿主原生传输已接                           | 原生 HTTP(S) 传输已接                   | 同 Android         | 参数与返回值相同；移动请求/响应各限 128 MiB，不携带浏览器 Cookie，不承诺后台续传                 |
+| `context.services`                                                              | 按宿主注入服务                             | 未注入作者业务服务                      | 同 Android         | 不把类型中的编译、媒体、转换等服务当成移动通用能力                                               |
+| `context.permissions`                                                           | 业务授权已接                               | 未接                                    | 未接               | 含移动目标的格式 3 包必须 permissions 为空；界面显示权限说明不等于授权可用                       |
+| `context.data`、`context.content`                                               | 已接，按权限与修订校验                     | 未接                                    | 未接               | Tau 的卡片/文章/任务/日程读写及 ContentRef 正文，与插件私有 KV 分开                              |
+| `context.entities`、`context.records`、`context.links`、`context.transaction`   | 已接                                       | 未接                                    | 未接               | 即使读写本插件自己的实体/集合不需业务权限，也仍需要移动宿主适配；不能用 KV 支持推断这些接口可用  |
+| `context.events`                                                                | 业务事件已接                               | 未接                                    | 未接               | 插件自己的 React 状态与业务数据库变更订阅不是同一能力                                            |
+| `context.app`                                                                   | 内容选择/打开/宿主动作已接                 | 未接                                    | 未接               | pages.open 只打开插件页面，不等于可以打开或修改 Tau 内容                                         |
+| `context.ai`                                                                    | 已接，需声明和授权                         | 未接                                    | 未接               | 不绕过宿主模型分配、额度或授权自行假定可用                                                       |
+| `context.mcp`、`context.chat`                                                   | 已接                                       | 未接                                    | 未接               | 工具注册、外部传输和聊天自定义渲染不是移动公共子集                                               |
+| `context.flashcards`                                                            | 已接                                       | 未接                                    | 未接               | 正文插件块不会自动加入移动闪卡编辑场景                                                           |
+| `context.excerpts`、`context.materials`                                         | 已接                                       | 未接                                    | 未接               | 应用自身能显示材料，不表示提供了插件 API                                                         |
+| `context.sidebar`、`context.home`、`context.actions`、`context.views`           | 已接                                       | 未接                                    | 未接               | 跨端入口改用 navigation；首页面板、对象动作、详情区块不得自动映射为手机支持                      |
+| `context.notifications`                                                         | 已接                                       | 未接                                    | 未接               | 不承诺移动系统通知或后台通知                                                                     |
+| `context.sync`、`context.upload`                                                | 领域提供方已接                             | 同一注册与配置 API 已接                 | 同 Android         | 宿主负责流程与选用，插件实现远端存储；账号独立，不做统一共享                                     |
+| `context.tts`、`context.images`、`context.video`、`context.publish`             | 领域提供方已接                             | 未接                                    | 未接               | 本轮不扩大其他业务领域                                                                           |
+| `context.backend`                                                               | 格式 2 独立后台与授权已接                  | 格式 3 不支持                           | 格式 3 不支持      | Node、子进程、本机程序继续留在旧桌面包；本轮不迁移                                               |
 
 ## 正文、UI 与交互
 
@@ -47,14 +48,14 @@
 | Skill 与博客正文渲染                               | 格式 3 可附纯 Markdown Skill；桌面消费、移动仅校验保存；博客可读取原清单        | 使用新版构建器，更新博客模板中的加载器                     | 不支持移动 Skill 执行或脚本；博客 runtimeVersion 仍为 1                       |
 | 白板与博客静态模板                                 | 保持原桌面协议                                                                  | 与正文编辑器扩展分开声明                                   | 不纳入移动 web-v1 运行能力                                                    |
 | runtimeStyles                                      | 桌面使用原有编译服务，移动通过 Worker 解析 HTML/TSX 静态类并生成主题 CSS        | 写完整类名，不拼接动态类名；处理编译失败                   | 不执行作者源码；移动源码上限 1 MiB，设备资源预算仍需验证                      |
-| media                                              | 移动插件复用当前文档的资源上传/解析、媒体槽位和图片查看器                       | 只读不上传；图册等自定义控件自行适配触摸                   | 不等于移动 context.upload 领域提供方已经接入                                  |
+| media                                              | 移动插件复用当前文档的资源上传/解析、媒体槽位和图片查看器                       | 只读不上传；图册等自定义控件自行适配触摸                   | media 与 upload 为独立功能；上传提供方另声明 upload                           |
 | 搜索、摘要与同步                                   | 移动保留插件原始节点及 KV；前端导入导出使用 codec                               | 新字段保持旧版可读，代码回退不回退数据                     | 移动搜索不索引插件内部源码；真实同步冲突、长文资源预算待验收                  |
 
 ## 能力词表的准确含义
 
-当前词表为 `commands`、`storage`、`pages`、`navigation`、`settings`、`dialogs`、`editor`、`editorCodecs`、`sourceEditor`、`runtimeStyles`、`media`。功能名没有独立版本，接口兼容由 SDK 与各平台最低客户端版本表达。构建器从 editor 自动补齐正文与 codec 需求，Skill 文档直接从包结构读取，不另造能力。commands 不承诺手机命令面板，settings 不承诺领域设置，editor 不代表动态 context.editor.register。
+当前词表为 `commands`、`storage`、`pages`、`navigation`、`settings`、`dialogs`、`editor`、`editorCodecs`、`sourceEditor`、`runtimeStyles`、`media`、`fetch`、`sync`、`upload`。功能名没有独立版本，接口兼容由 SDK 与各平台最低客户端版本表达。构建器从 editor 自动补齐正文与 codec 需求，Skill 文档直接从包结构读取，不另造能力。commands 不承诺手机命令面板，settings 的领域设置由对应 sync/upload 声明约束，editor 不代表动态 context.editor.register。
 
-没有登记能力名的桌面 API 不属于已承诺的移动可选能力，不能自行发明 data、fetch 等名称。当前移动目标的非空 permissions 会在模板构建、中心上传和移动求值前被拒绝。
+没有登记能力名的桌面 API 不属于已承诺的移动可选能力，不能自行发明 data 等名称。当前移动目标的非空 permissions 会在模板构建、中心上传和移动求值前被拒绝。
 
 作者/上传严格校验使用 validatePortablePluginManifest 或更严格的 validatePortableDistributionManifest，未知能力（包括 optional 拼错）均拒绝。客户端使用 readPortablePluginManifest 保留有界、合法的未来能力名称：未知 required 在兼容检查中作为缺能力拒绝，未知 optional 保留但不可用。optional 不是自动补实现；作者调用前仍检查实际环境并提供降级。未知字段、格式、profile、权限词表和节点等级仍拒绝。
 

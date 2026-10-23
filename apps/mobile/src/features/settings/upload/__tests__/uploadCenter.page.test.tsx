@@ -1,3 +1,6 @@
+import { createStorageRuntime } from "../../__tests__/storageProviders";
+import { MobilePluginsContext } from "../../../../app/plugins/context";
+let storageRuntime: Awaited<ReturnType<typeof createStorageRuntime>>;
 // 「图片与附件」集成测试：经真实 router 入栈，覆盖目的地卡的状态与修复入口、压缩开关、
 // 抽屉切换到本机，以及上传服务页的示例地址、测试上传（能传 / 打不开 / 传不上去）与设为上传位置。
 
@@ -16,10 +19,14 @@ import "../../../cards/pages/home.page";
 import "../../pages/settingsModule.page";
 import "../../pages/uploadProvider.page";
 
-const tauriMock = vi.hoisted(() => ({ resourceUploadTest: vi.fn() }));
+const tauriMock = vi.hoisted(() => ({
+  resourceUploadTest: vi.fn(),
+  selectPluginProvider: vi.fn(),
+}));
 vi.mock("../../../../services/tauri", async importOriginal => ({
   ...(await importOriginal<object>()),
   resourceUploadTest: tauriMock.resourceUploadTest,
+  selectPluginProvider: tauriMock.selectPluginProvider,
 }));
 
 const toastSpies = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }));
@@ -27,22 +34,26 @@ vi.mock("../../../../components/toast", () => ({ toast: toastSpies }));
 
 function makeSetting(active: string, githubReady = true): SettingCompat {
   return {
+    database: { active: "data.db", databases: [] },
+    sync: { active: "plugin", plugin: { id: "", configurations: {} } },
     imageBed: {
-      active,
+      active: active === "local" ? "local" : "plugin",
       enableCompression: true,
-      github: githubReady
-        ? { repo: "tau-assets", branch: "main", pathPrefix: "uploads" }
-        : { repo: "", branch: "", pathPrefix: "" },
-      aliOSS: { bucket: "", region: "", pathPrefix: "" },
       local: { path: "resources" },
-      s3: { bucket: "", region: "", pathPrefix: "" },
-      webdav: { pathPrefix: "" },
-    },
-    integration: {
-      github: { token: "ghp_x", user: { name: "d7hacx", email: "" } },
-      s3: { accessKeyId: "", secretAccessKey: "", endpoint: "", urlStyle: "path" },
-      webdav: { url: "", username: "", password: "" },
-      aliOSS: { accessKeyId: "", accessKeySecret: "" },
+      plugin: {
+        id: active === "local" ? "" : `tau.upload-${active}`,
+        configurations: githubReady
+          ? {
+              "tau.upload-github": {
+                token: "fixture",
+                owner: "d7hacx",
+                repo: "tau-assets",
+                branch: "main",
+                pathPrefix: "uploads",
+              },
+            }
+          : {},
+      },
     },
   } as unknown as SettingCompat;
 }
@@ -52,6 +63,20 @@ type Harness = { app: AppContextValue; setting: () => SettingCompat; persisted: 
 function createApp(initial: SettingCompat): Harness {
   let setting = initial;
   let persisted = 0;
+  tauriMock.selectPluginProvider.mockImplementation(async (_database, target, id) => {
+    const section = target === "sync" ? "sync" : "imageBed";
+    return {
+      ...setting,
+      [section]: {
+        ...setting[section],
+        active: id === "local" ? "local" : "plugin",
+        plugin: {
+          ...setting[section].plugin,
+          id: id === "local" ? (setting[section].plugin?.id ?? "") : id,
+        },
+      },
+    };
+  });
   const app = {
     syncSettings: {
       safeSetting: setting,
@@ -81,9 +106,11 @@ function mount(app: AppContextValue): void {
   act(() => {
     root!.render(
       <RouterProvider rootKey="home">
-        <AppContext.Provider value={app}>
-          <PageHost rootContent={<div data-testid="root" />} />
-        </AppContext.Provider>
+        <MobilePluginsContext.Provider value={storageRuntime}>
+          <AppContext.Provider value={app}>
+            <PageHost rootContent={<div data-testid="root" />} />
+          </AppContext.Provider>
+        </MobilePluginsContext.Provider>
       </RouterProvider>
     );
   });
@@ -125,20 +152,22 @@ async function openCenter(): Promise<void> {
 
 async function openProvider(providerId: string, title: string): Promise<void> {
   act(() => {
-    getNavigator().push("uploadProvider", { providerId });
+    getNavigator().push("uploadProvider", { providerId: `tau.upload-${providerId}` });
   });
   await waitFor(() => activeTitle() === title);
 }
 
 describe("图片与附件", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    storageRuntime = await createStorageRuntime();
     vi.clearAllMocks();
     window.localStorage.clear();
     resetUploadOutcomeForTest();
     window.history.replaceState(null, "");
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await storageRuntime.dispose();
     act(() => root?.unmount());
     host?.remove();
     document.body.innerHTML = "";
@@ -168,7 +197,7 @@ describe("图片与附件", () => {
 
   it("最近一次上传失败时把原因留在卡上，账号问题给出「检查账号」", async () => {
     recordUploadFailure(
-      "github",
+      "tau.upload-github",
       new Error("RESOURCE_UPLOAD_FAILED:Github 上传返回异常状态 HTTP 401: Bad credentials")
     );
     const harness = createApp(makeSetting("github"));
@@ -179,8 +208,8 @@ describe("图片与附件", () => {
   });
 
   it("换了上传位置后不再显示旧位置的结果", async () => {
-    recordUploadFailure("s3", new Error("RESOURCE_UPLOAD_FAILED:HTTP 403"));
-    recordUploadSuccess("github");
+    recordUploadFailure("tau.upload-s3", new Error("RESOURCE_UPLOAD_FAILED:HTTP 403"));
+    recordUploadSuccess("tau.upload-github");
     const harness = createApp(makeSetting("github"));
     mount(harness.app);
     await openCenter();
@@ -215,11 +244,11 @@ describe("图片与附件", () => {
     await click(findButton("上传测试图片", activePage()));
     await waitFor(() => activePage()?.textContent?.includes("上传成功，图片可以打开") ?? false);
     expect(harness.app.syncSettings.persistSetting).toHaveBeenCalled();
-    expect(tauriMock.resourceUploadTest).toHaveBeenCalledWith("github");
+    expect(tauriMock.resourceUploadTest).toHaveBeenCalledWith("tau.upload-github");
     expect(harness.setting().imageBed.active).toBe("local");
 
     await click(findButton("设为上传位置", activePage()));
-    expect(harness.setting().imageBed.active).toBe("github");
+    expect(harness.setting().imageBed.plugin?.id).toBe("tau.upload-github");
     expect(toastSpies.success).toHaveBeenCalledWith("之后的新图片会保存到 GitHub 仓库");
   });
 

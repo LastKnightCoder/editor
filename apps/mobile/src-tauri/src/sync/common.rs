@@ -1,13 +1,9 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
-use sha1::{Digest, Sha1};
-
 use crate::models::{ResourceSyncActionResponse, ResourceSyncProgress, SyncActionResponse};
 
 use super::error::AppError;
 
-pub(crate) const S3_OPERATION_TIMEOUT_SECS: u64 = 12;
 pub(crate) const SYNC_CHECK_TIMEOUT_SECS: u64 = 30;
 pub(crate) const RESOURCE_PREFIX: &str = "resources";
 pub(crate) const STATUS_DIR_NAME: &str = "sync-status";
@@ -90,79 +86,4 @@ pub(crate) fn now_millis_u64() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0)
-}
-
-pub(crate) fn join_path(prefix: &str, file_name: &str) -> String {
-    let normalized_prefix = prefix.trim().trim_matches('/');
-    let normalized_file = file_name.trim().trim_start_matches('/');
-    if normalized_prefix.is_empty() {
-        normalized_file.to_string()
-    } else {
-        format!("{normalized_prefix}/{normalized_file}")
-    }
-}
-
-pub(crate) fn encode_path_keep_slashes(value: &str) -> String {
-    utf8_percent_encode(value, NON_ALPHANUMERIC)
-        .to_string()
-        .replace("%2F", "/")
-}
-
-pub(crate) fn short_hash(value: &str) -> String {
-    let mut hasher = Sha1::new();
-    hasher.update(value.as_bytes());
-    let digest = format!("{:x}", hasher.finalize());
-    digest.chars().take(8).collect()
-}
-
-pub(crate) fn normalize_remote_path(path: &str) -> String {
-    path.trim().replace('\\', "/").trim_matches('/').to_string()
-}
-
-pub(crate) fn strip_base_prefix(full_path: &str, base_prefix: &str) -> String {
-    let normalized = normalize_remote_path(full_path);
-    let base = normalize_remote_path(base_prefix);
-    if base.is_empty() {
-        return normalized;
-    }
-    if normalized == base {
-        return String::new();
-    }
-    if normalized.starts_with(&format!("{base}/")) {
-        return normalized[base.len() + 1..].to_string();
-    }
-    normalized
-}
-
-pub(crate) fn file_name_from_path(path: &str) -> String {
-    normalize_remote_path(path)
-        .split('/')
-        .filter(|v| !v.is_empty())
-        .last()
-        .unwrap_or_default()
-        .to_string()
-}
-
-pub(crate) fn preview_text(value: &str, max_chars: usize) -> String {
-    let mut collected = String::new();
-    for ch in value.chars().take(max_chars) {
-        collected.push(ch);
-    }
-    if value.chars().count() > max_chars {
-        format!("{collected}...")
-    } else {
-        collected
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::join_path;
-
-    #[test]
-    fn join_path_handles_slashes() {
-        assert_eq!(join_path("", "a.txt"), "a.txt");
-        assert_eq!(join_path("root/", "/a.txt"), "root/a.txt");
-        assert_eq!(join_path("/root/sub/", "a.txt"), "root/sub/a.txt");
-    }
 }

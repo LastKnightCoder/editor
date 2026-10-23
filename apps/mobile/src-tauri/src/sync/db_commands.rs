@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use tauri::AppHandle;
 
 use crate::models::{SyncActionResponse, SyncVersionResponse};
-use crate::setting::{resolve_app_dir, save_setting_value, set_database_version};
+use crate::setting::{resolve_app_dir, set_database_version, update_setting_value};
 
 use super::common::{response_err, response_ok, DEFAULT_DB_NAME, SYNC_CHECK_TIMEOUT_SECS};
 use super::context::{build_sync_context, build_sync_context_for, SyncProvider};
@@ -189,7 +189,7 @@ pub async fn sync_upload_database(app: AppHandle) -> SyncActionResponse {
 }
 
 async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
-    let mut ctx = match build_sync_context(&app) {
+    let ctx = match build_sync_context(&app) {
         Ok(ctx) => ctx,
         Err(error) => {
             return response_err(DEFAULT_DB_NAME, 0, 0, error);
@@ -295,13 +295,14 @@ async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
         return response_err(&ctx.database_name, ctx.local_version, remote_version, err);
     }
 
-    set_database_version(&mut ctx.setting, &ctx.database_name, next_version);
-    remember_session_base(
-        &mut ctx.setting,
-        &ctx.database_name,
-        &serde_json::from_slice(&next_version_payload).expect("有效版本信封"),
-    );
-    if let Err(err) = save_setting_value(&app, &ctx.setting) {
+    if let Err(err) = update_setting_value(&app, |setting| {
+        set_database_version(setting, &ctx.database_name, next_version);
+        remember_session_base(
+            setting,
+            &ctx.database_name,
+            &serde_json::from_slice(&next_version_payload).expect("版本信息可解析"),
+        );
+    }) {
         return response_err(
             &ctx.database_name,
             ctx.local_version,
@@ -524,7 +525,7 @@ pub async fn sync_download_database(app: AppHandle) -> SyncActionResponse {
 }
 
 async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
-    let mut ctx = match build_sync_context(&app) {
+    let ctx = match build_sync_context(&app) {
         Ok(ctx) => ctx,
         Err(error) => {
             return response_err(DEFAULT_DB_NAME, 0, 0, error);
@@ -688,9 +689,10 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
     }
     remove_wal_shm_files(&ctx.database_path);
 
-    set_database_version(&mut ctx.setting, &ctx.database_name, remote_version);
-    remember_session_base(&mut ctx.setting, &ctx.database_name, &remote_info);
-    if let Err(err) = save_setting_value(&app, &ctx.setting) {
+    if let Err(err) = update_setting_value(&app, |setting| {
+        set_database_version(setting, &ctx.database_name, remote_version);
+        remember_session_base(setting, &ctx.database_name, &remote_info);
+    }) {
         return response_err(
             &ctx.database_name,
             ctx.local_version,

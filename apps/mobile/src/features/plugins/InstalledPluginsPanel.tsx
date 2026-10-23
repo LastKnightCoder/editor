@@ -1,3 +1,4 @@
+import { useMobilePlugins } from "../../app/plugins/context";
 import { useState } from "react";
 import { Button, Textarea } from "@tau/ui";
 import { useNavigator } from "../../router";
@@ -48,6 +49,7 @@ function InstalledPluginRow({
   manager: ReturnType<typeof usePluginManager>;
 }) {
   const navigator = useNavigator();
+  const runtime = useMobilePlugins();
   const install = useMobileCenterInstall();
   const { config, update } = useMobileCenterUpdate(
     item.id,
@@ -113,7 +115,14 @@ function InstalledPluginRow({
             }
             perform(manager.actions.run(kind, item.id));
           }}
-          onOpenSetting={id => navigator.push("pluginSettings", { id })}
+          onOpenSetting={id => {
+            const section = runtime?.settings.get(id);
+            if (section?.definition.target === "sync")
+              navigator.push("syncProvider", { providerId: section.context.pluginId });
+            else if (section?.definition.target === "upload")
+              navigator.push("uploadProvider", { providerId: section.context.pluginId });
+            else navigator.push("pluginSettings", { id });
+          }}
         />
       </div>
       {confirming && (
