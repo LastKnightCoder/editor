@@ -60,7 +60,7 @@ API 支持范围以 [SDK 支持矩阵](/packages/plugins/docs/api-support.md) �
 
 本轮已确认的作者接口方案见 [作者契约](./tasks/plugin-portability-bcd/author-contract-draft.md)，实施与设备验证见 [编辑器移动适配](./tasks/plugin-portability-bcd/editor-mobile.md)。官方插件和模板在 [plugins/](/plugins/README.md) 以子模块维护；候选实现不代表已发布。
 
-SDK 0.37.0 的正式 npm 发布、24 仓构建及 CI 结果见 [SDK 发行](./tasks/plugin-portability-bcd/sdk-037-release.md)。24 个官方包、Worker 与网页已上线，macOS / Android 正式包已交付，用户已确认两端功能测试通过；发行证据与专项边界见 [正式安装闭环](./tasks/plugin-portability-bcd/production-closeout.md)。[iOS 正式 IPA](./tasks/plugin-portability-bcd/ios-release.md) 已签名导出，未上传 TestFlight、未开放 iOS 插件分发；APP 公开更新与 D 专项仍分别处理。
+SDK 0.37.0 的正式 npm 发布、24 仓构建及 CI 结果见 [SDK 发行](./tasks/plugin-portability-bcd/sdk-037-release.md)。24 个官方包、Worker 与网页已上线，macOS / Android 正式包已交付，用户已确认两端功能测试通过；发行证据与专项边界见 [正式安装闭环](./tasks/plugin-portability-bcd/production-closeout.md)。[iOS 正式 IPA](./tasks/plugin-portability-bcd/ios-release.md) 已进入 [TestFlight 内部测试](./tasks/plugin-portability-bcd/testflight.md)，iOS 插件分发已开放；未提交 App Store 正式上架，真机与 D 专项继续保留。
 
 ## notes/ — 一次性产物
 

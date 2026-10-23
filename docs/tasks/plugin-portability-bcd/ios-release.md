@@ -49,4 +49,4 @@
 - 核验报告为 output/ios-release/verification.json。前端类型与生产构建、schema 校验、实际原生构建/归档/导出、plist 格式与文档检查通过；没有重复运行未涉及的 SDK 或 Android 测试。
 - 签名配置和步骤已沉淀到 [iOS 操作指南](/docs/guides/ops-ios-signing.md)，任务与文档索引同步。证书私钥、mobileprovision、构建包不提交 Git。
 
-本轮仅完成正式包交付；未创建 App Store Connect App 记录、未上传 TestFlight 或提交审核，iOS 插件中心开关仍关闭。用户拿到 iPhone 后，设备安装、真实插件下载和交互继续验收；D 其余专项保留，父任务不退役。
+本阶段完成正式包交付，当时未上传或开放 iOS 分发；用户随后授权的应用记录、TestFlight 与平台开放结果见 [TestFlight 交付](testflight.md)。未提交 App Store 正式上架。用户拿到 iPhone 后，设备安装、真实插件下载和交互继续验收；D 其余专项保留，父任务不退役。
