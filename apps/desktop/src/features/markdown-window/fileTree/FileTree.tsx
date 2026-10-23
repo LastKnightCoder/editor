@@ -275,8 +275,7 @@ export function FileTree({
 
   const creatingRow = (dir: string, depth: number) =>
     editing && editing.mode !== "rename" && editing.dir === dir ? (
-      <div className="flex h-[32px] items-center gap-[6px] pr-2" style={indent(depth)}>
-        <span className="w-3 shrink-0" />
+      <div className="mt-0.5 flex h-[32px] items-center gap-[6px] pr-2" style={indent(depth)}>
         {editing.mode === "create-file" ? (
           <FileText className={cn(ICON, "text-ink-3")} strokeWidth={1.75} />
         ) : (
@@ -325,7 +324,7 @@ export function FileTree({
                 style={indent(row.depth)}
                 title={row.path}
                 className={cn(
-                  "rounded-tau-sm flex h-[32px] w-full cursor-default items-center gap-[6px] pr-2 text-left transition-colors",
+                  "rounded-tau-sm mt-0.5 flex h-[32px] w-full cursor-default items-center gap-[6px] pr-2 text-left transition-colors",
                   row.isDirectory ? "text-ink-1" : "text-ink-2",
                   active
                     ? "bg-selected text-accent-text font-medium"
@@ -335,7 +334,7 @@ export function FileTree({
                   dragging === row.path && "opacity-45"
                 )}
               >
-                {row.isDirectory ? (
+                {row.isDirectory && (
                   <ChevronRight
                     className={cn(
                       "text-ink-3 size-3 shrink-0 transition-transform",
@@ -343,8 +342,6 @@ export function FileTree({
                     )}
                     strokeWidth={2}
                   />
-                ) : (
-                  <span className="w-3 shrink-0" />
                 )}
                 <Icon className={ICON} strokeWidth={1.75} />
                 {renaming ? (
