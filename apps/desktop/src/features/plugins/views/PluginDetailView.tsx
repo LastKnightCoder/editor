@@ -15,15 +15,14 @@ import { openExternal } from "@/commands/extra";
 import { savePluginVideoConfig } from "@/commands/plugin-video";
 import useSettingStore from "@/stores/useSettingStore";
 import type { PluginCatalogEntry, PluginRelease } from "@/types/plugin-center";
+import { formatSize, pluginPortalUrl } from "@tau/plugins/center";
 import {
   CONTRIBUTION_LABELS,
   STATE_LABELS,
   STATIC_PACKAGE_LABELS,
-  formatSize,
   installState,
   installedPlugins,
   pendingCount,
-  pluginPortalUrl,
   versionRows,
   type InstalledPlugin,
   type VersionRowModel,

@@ -21,6 +21,7 @@
     "./publish-artifacts": "./src/publish-artifacts.ts",
     "./rendering": "./src/rendering.ts",
     "./content": "./src/content.ts",
+    "./document": "./src/document.ts",
     "./content-input": "./src/content-input.ts",
     "./query": "./src/query.ts",
     "./whiteboard": "./src/whiteboard.ts",

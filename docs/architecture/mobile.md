@@ -379,6 +379,8 @@ jsdom 中 motion 退出动画按真实时间播放，测试用条件轮询等待
 
 正常 AppShell 按数据库作用域挂载插件宿主，“我的”消费语义入口，通用页面/设置页走本 router 的身份、保活、返回与守卫。包事务、私有 KV、正文快照和公共源码组件见[跨端插件宿主](/docs/architecture/plugin-portability.md)。
 
-plugins 页使用 single 身份与 tab 参数，默认打开商店，也可进入已安装管理；pluginStoreDetail 按 pluginId 保活，展示目标平台、版本历史和纯文本介绍。安装面板消费原生选版和安装阶段，不生成虚假百分比。中心安装任务存放在应用 QueryClient 对应的 MobileCenterInstallStore；页面订阅/退订不取消任务，只有显式取消操作终止它。
+插件会话异步启动，不阻塞首屏；阶段广播、编辑器 kit 的读/写两种取法与「立即生效」见[跨端插件宿主](/docs/architecture/plugin-portability.md)的移动宿主小节。
+
+插件域页面统一用 `PluginPageShell`（全站 PageHeader 顶栏）。plugins 页使用 single 身份与 tab 参数（商店 / 已安装文字标签），右上角搜索经共享的 `components/PageHeaderSearch` 横向展开，关键词在当前标签内生效；商店为全宽列表行，右侧 `StoreActionButton` 按「获取 / 下载中（点按取消）/ 校验中 / 待生效 / 已安装 / 更新 / 不可用 / 重试」投影商店主动作与应用级安装任务；已安装为开关 + 状态行，顶部 `PluginChangesBanner` 汇总已保存未生效的变更并提供「立即生效」。pluginDetail 按 pluginId 保活，商店资料与已安装管理合一：头部为图标、状态、启停开关与同源的大号主按钮，下面是统计行、一句话兼容结论与「介绍 / 设置 / 权限 / 版本」分段标签（介绍按 `@tau/plugins/document` 清洗后用编辑器只读渲染；设置内嵌插件设置组件；权限只读展示声明的权限、本会话登记的贡献与安全提示；版本含历史、更新日志与兼容性详情），⋯ 菜单承载取消待生效、恢复上一版、清除数据与卸载；插件中心没有记录时只展示本机信息。安装面板消费原生选版和安装阶段，不生成虚假百分比。中心安装任务存放在应用 QueryClient 对应的 MobileCenterInstallStore；页面订阅/退订不取消任务，只有显式取消操作终止它。
 
 普通正文的插入面板消费已装配插件的 blockPanel 贡献，复用面板选区和键盘预留协议；能力分级及过滤见[跨端插件宿主](/docs/architecture/plugin-portability.md)。插件中心页面与开发验证入口也消费 @tau/themes，不保留旧移动主题变量或类名。

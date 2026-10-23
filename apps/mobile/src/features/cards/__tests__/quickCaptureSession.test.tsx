@@ -10,7 +10,10 @@ vi.mock("../quickCaptureDraft", () => ({
   clearQuickCaptureDraft: draft.clear,
   writeQuickCaptureDraft: draft.write,
 }));
-vi.mock("../../../services/editorKit", () => ({ getMobileContentKit: () => ({}) }));
+vi.mock("../../../services/editorKit", () => ({
+  getMobileContentKit: () => ({}),
+  useMobileContentKit: () => ({}),
+}));
 vi.mock("../editorToolbar/useMobileEditorToolbarController", () => ({
   useMobileEditorToolbarController: () => ({ syncSelection: () => undefined }),
 }));

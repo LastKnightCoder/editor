@@ -75,6 +75,7 @@ vi.mock("../editorExtensions/ContentLinkPickerSheet", () => ({
 }));
 vi.mock("../../../services/editorKit", () => ({
   getMobileContentKit: () => ({}),
+  useMobileContentKit: () => ({}),
   getMobileFlashcardKit: () => ({}),
 }));
 vi.mock("@tau/editor", async importOriginal => {

@@ -19,6 +19,7 @@ const capturedEditorProps = vi.hoisted(() => ({ value: null as Record<string, un
 // 页面测试不渲染真实编辑器，kit 也不必真实构造
 vi.mock("../../../services/editorKit", () => ({
   getMobileContentKit: () => contentKitSentinel,
+  useMobileContentKit: () => contentKitSentinel,
   getMobileFlashcardKit: () => ({}),
 }));
 vi.mock("@tau/editor", async importOriginal => {

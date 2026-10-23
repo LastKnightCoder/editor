@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端插件加载与插件中心 · 重设计方案</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="../sync-mobile/sync.css" />
+<link rel="stylesheet" href="plugin.css" />
+<script src="icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>移动端插件加载与插件中心 · 重设计方案<small>颜色取自 @tau/themes · 手机帧 360×760 · 红色标注=问题，绿色标注=设计要点</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="now">1 现状与根因</button>
+    <button class="tab" data-tab="boot">2 异步加载</button>
+    <button class="tab" data-tab="list">3 列表与搜索</button>
+    <button class="tab" data-tab="state">4 安装状态</button>
+    <button class="tab" data-tab="da">5 详情 A：分段 Tab<span class="rec">推荐</span></button>
+    <button class="tab" data-tab="db">6 详情 B：长滚动</button>
+    <button class="tab" data-tab="cmp">7 能力对照与待决策</button>
+  </nav>
+</header>
+
+<!-- ═══════════ 1 现状 ═══════════ -->
+<section class="scene" data-scene="now">
+  <p class="scene-intro">六个问题里有四个是<b>实现缺陷</b>，根因都已在代码里定位；另外两个（搜索形态、详情信息架构）是<b>设计问题</b>，需要你选方案。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="old-boot">正在准备插件…</div>
+        <div class="anno" style="top:96px;left:150px">① 整个应用被替换成一行文字</div>
+        <div class="ring" style="top:52px;left:12px;width:336px;height:690px"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>启动：插件阻塞首屏</div>
+      <details class="note" open><summary>根因</summary><ul>
+        <li><code>MobilePluginProvider</code> 在 session 就绪前 <code>return &lt;p&gt;正在准备插件…&lt;/p&gt;</code>，children（首页、Dock、所有页面）都不渲染。</li>
+        <li>就绪前串行等待：应用待生效包 → 刷新中心状态（<b>走网络</b>）→ 读清单 → 动态 import 编辑器 kit → 逐个启动插件。弱网下可能卡几秒。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="hd old"><span class="back-txt">返回</span><span class="t">插件中心</span></div>
+        <div class="old-seg"><span class="on">商店</span><span>已安装</span></div>
+        <div class="old-input"><span data-i="search" data-s="14"></span>搜索支持 Android 的插件</div>
+        <div class="old-card">
+          <b>思维导图</b><span>@lastknight · 最新 v1.4.2</span><p>大纲一键成图</p><div class="old-btn">安装 v1.4.2</div>
+        </div>
+        <div class="old-card">
+          <b>数学公式</b><span>@tau · 最新 v2.0.1</span><p>KaTeX 行内与块级公式，支持实时预览与常用符号面板。</p><div class="old-btn">安装 v2.0.1</div>
+        </div>
+        <div class="anno" style="top:62px;left:66px">⑤ 只有文字「返回」，无图标、标题不居中</div>
+        <div class="anno" style="top:152px;left:150px">④ 输入框偏小、常驻占位</div>
+        <div class="ring" style="top:196px;left:14px;width:150px;height:150px"></div>
+        <div class="anno" style="top:300px;left:170px">③ 描述短 → 卡片窄</div>
+        <div class="anno" style="top:420px;left:120px;max-width:220px">② 刚下载完（待重启生效）仍显示「安装」</div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>插件中心列表</div>
+      <details class="note" open><summary>根因</summary><ul>
+        <li><b>②</b> 首装包落在 <code>next/</code> 等待下次启动，Rust <code>plugin_packages</code> 返回 <code>currentVersion: null</code>；<code>PluginStorePanel</code> 用 <code>item.version</code> 建「已装」映射，null 被当成未安装。<code>pendingVersion</code> 字段其实有，只是没用。</li>
+        <li><b>③</b> <code>&lt;li class="flex"&gt;</code> 里的 <code>article</code> 没有 <code>flex-1 / w-full</code>，按内容收缩。</li>
+        <li><b>⑤</b> 插件页用自造的 <code>PluginPageShell</code>（文字 Button），没走全站 <code>PageHeader</code>（ChevronLeft + 居中标题）。</li>
+        <li>另：商店/已安装切换是 Segmented 形态，与你「别用 Segmented」的偏好冲突，新方案一并替换。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="hd old"><span class="back-txt">返回</span><span class="t">思维导图</span></div>
+        <div class="scr" style="padding:0 16px">
+          <div class="hcard" style="margin:0 0 12px;font-size:12px;color:var(--ink-3)">@lastknight · 最新 v1.4.2<p style="color:var(--ink-2);font-size:13.5px;margin-top:6px">大纲一键成图</p><p style="margin-top:4px">编辑、可视化</p><div class="old-btn" style="margin-top:8px">安装 v1.4.2</div></div>
+          <div class="hcard" style="margin:0 0 12px"><b style="font-size:15px">Android支持</b>
+            <div style="display:grid;grid-template-columns:70px 1fr;gap:4px 10px;font-size:12px;margin-top:6px"><span style="color:var(--ink-3)">最低版本</span><span style="font-family:var(--mono)">Tau 0.9.0</span><span style="color:var(--ink-3)">必需能力</span><span>editor.block、storage.kv、ui.page</span><span style="color:var(--ink-3)">可选能力</span><span>clipboard.write</span><span style="color:var(--ink-3)">正文节点</span><span style="font-family:var(--mono)">mindmap · 可编辑</span></div>
+          </div>
+          <div class="hcard" style="margin:0 0 12px"><b style="font-size:15px">介绍</b><p style="font-size:12.5px;color:var(--ink-2);white-space:pre-wrap;margin-top:6px;line-height:1.6"># 思维导图
+把大纲一键转换为思维导图。
+
+## 功能
+- 支持 **拖拽** 调整节点
+- 导出 `PNG`</p></div>
+          <div class="hcard" style="margin:0"><b style="font-size:15px">版本历史</b><p style="font-size:12px;color:var(--ink-3);margin-top:6px">v1.4.2 最新 可安装 · Android最低 0.9.0 · 2026-10-02</p></div>
+        </div>
+        <div class="anno" style="top:186px;left:150px">原始能力 ID 直接暴露</div>
+        <div class="anno" style="top:420px;left:160px">README 按纯文本显示</div>
+        <div class="anno" style="top:110px;left:190px;max-width:150px">无图标、无开关、无管理入口</div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>插件详情</div>
+      <details class="note" open><summary>问题</summary><ul>
+        <li>商店详情与已安装管理是<b>两套页面</b>：详情里看不到启用状态、设置、权限，管理操作散落在「已安装」卡片的按钮墙里。</li>
+        <li>信息顺序以「平台声明」为主轴，用户最关心的「它能做什么、能不能用、是否在运行」反而靠后。</li>
+        <li>相对桌面端缺：图标、启停开关、⋯ 菜单、设置/权限/更新日志 Tab、版本回退、评论与喜欢、大小/发布时间/源码/详情页链接、「此插件提供」、安全提示。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 2 异步加载 ═══════════ -->
+<section class="scene" data-scene="boot">
+  <p class="scene-intro"><b>原则：插件是增强，不是首屏前置条件。</b>首页、Dock、列表、搜索不依赖插件，立刻渲染；只有真正用到插件的地方（正文里的插件块、插件页、插入面板里的插件项）各自等待。下面两种反馈强度二选一，失败提示与正文占位两者共用。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="home-h"><div><small>10 月 23 日 · 周五</small><b>今天</b></div><span class="ent-dot" data-i="puzzle" data-s="22" style="color:var(--ink-2)"></span></div>
+        <div class="hcard"><h5>最近编辑</h5>
+          <div class="it"><span class="pi sm t-sky">读</span><span>《设计心理学》读书笔记</span><small>2 分钟前</small></div>
+          <div class="it"><span class="pi sm t-sage">周</span><span>第 43 周复盘</span><small>昨天</small></div>
+          <div class="it"><span class="pi sm t-lilac">架</span><span>插件运行时架构</span><small>周三</small></div>
+        </div>
+        <div class="hcard"><h5>今日待办 · 3</h5><div class="ln" style="width:80%"></div><div class="ln" style="width:62%"></div><div class="ln" style="width:70%"></div></div>
+        <div class="dock"><span class="on" data-i="calendar" data-s="22"></span><span data-i="file-text" data-s="22"></span><span data-i="search" data-s="22"></span><span data-i="list-checks" data-s="22"></span><span data-i="settings" data-s="22"></span></div>
+        <div class="anno good" style="top:52px;left:120px;max-width:170px">首帧即首页，无任何加载提示</div>
+        <div class="anno good" style="top:96px;left:200px;max-width:150px">仅当加载 &gt; 3s 或失败时，入口出小圆点</div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A</span>无感加载<span class="rec" style="margin-left:6px;font-size:11px;color:var(--brand-text)">推荐</span></div>
+      <details class="note" open><summary>说明</summary><ul>
+        <li>插件在后台启动，用户感知不到；进度只在插件中心顶部显示（见场景 3 的「插件加载中」行）。</li>
+        <li>符合「AI/插件零配置、少打扰」的整体口径；插件数量多或包大时才可能有感。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="home-h"><div><small>10 月 23 日 · 周五</small><b>今天</b></div><span data-i="puzzle" data-s="22" style="color:var(--ink-2)"></span></div>
+        <div class="hcard"><h5>最近编辑</h5>
+          <div class="it"><span class="pi sm t-sky">读</span><span>《设计心理学》读书笔记</span><small>2 分钟前</small></div>
+          <div class="it"><span class="pi sm t-sage">周</span><span>第 43 周复盘</span><small>昨天</small></div>
+          <div class="it"><span class="pi sm t-lilac">架</span><span>插件运行时架构</span><small>周三</small></div>
+        </div>
+        <div class="hcard"><h5>今日待办 · 3</h5><div class="ln" style="width:80%"></div><div class="ln" style="width:62%"></div><div class="ln" style="width:70%"></div></div>
+        <div class="boot-pill"><span class="spin" data-i="loader-circle" data-s="15"></span>正在加载插件 2 / 5</div>
+        <div class="dock"><span class="on" data-i="calendar" data-s="22"></span><span data-i="file-text" data-s="22"></span><span data-i="search" data-s="22"></span><span data-i="list-checks" data-s="22"></span><span data-i="settings" data-s="22"></span></div>
+        <div class="anno good" style="top:600px;left:40px;max-width:280px">墨色胶囊浮在 Dock 上方；加载 &gt; 600ms 才出现，完成后 1s 淡出</div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B</span>轻提示胶囊</div>
+      <details class="note" open><summary>说明</summary><ul>
+        <li>让用户知道「插件还在路上」，解释为什么正文里有占位块。</li>
+        <li>代价：每次冷启动都可能闪一下；插件少时显得多余。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="hd"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t sm" style="color:var(--ink-3)">已保存</span><span class="rt"><span class="ib" data-i="ellipsis" data-s="22"></span></span></div>
+        <div class="doc2">
+          <h2>插件运行时架构</h2>
+          <p>移动端插件在独立会话中启动，下面是加载流程：</p>
+          <div class="pblk"><div class="lb"><span data-i="puzzle" data-s="14"></span>思维导图 · 插件加载中</div><div class="sk" style="width:70%"></div><div class="sk" style="width:45%"></div><div class="sk" style="width:58%"></div></div>
+          <p>公式渲染同样来自插件：</p>
+          <div class="pblk ready"><div class="lb" style="color:var(--ink-1);font-family:var(--mono);font-size:14px;justify-content:center">E = mc²</div></div>
+          <p style="color:var(--ink-3)">（加载完成后原位替换为真实渲染，不跳动）</p>
+        </div>
+        <div class="anno good" style="top:200px;left:150px;max-width:190px">占位按块原尺寸预留，骨架 + 插件名</div>
+      </div></div>
+      <div class="frame-cap"><span class="no">共</span>正文里的插件块占位</div>
+      <details class="note" open><summary>实现要点</summary><ul>
+        <li>编辑器 kit 已按 <code>mobileContentPlugins.extensions</code> 快照重建；插件就绪后让打开中的编辑器重新取 kit 即可（订阅 runtime 快照）。</li>
+        <li>未知类型元素先以「占位块」只读渲染，<b>禁止</b>在插件未就绪时编辑或序列化丢失这些节点。</li>
+        <li>插件页 / 插件设置页在 session 未就绪时显示「插件加载中」而不是「插件已停用」。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="home-h"><div><small>10 月 23 日 · 周五</small><b>今天</b></div><span class="ent-dot" data-i="puzzle" data-s="22" style="color:var(--ink-2)"></span></div>
+        <div class="hcard"><h5>最近编辑</h5>
+          <div class="it"><span class="pi sm t-sky">读</span><span>《设计心理学》读书笔记</span><small>2 分钟前</small></div>
+          <div class="it"><span class="pi sm t-sage">周</span><span>第 43 周复盘</span><small>昨天</small></div>
+        </div>
+        <div class="boot-pill err" style="bottom:150px"><span class="ic-butter" data-i="triangle-alert" data-s="15"></span>「思维导图」启动失败<b>查看</b></div>
+        <div class="safe" style="position:absolute;left:0;right:0;bottom:92px;box-shadow:var(--shadow-float)">
+          <span class="ic-butter" data-i="shield-alert" data-s="18"></span>
+          <div><b>已跳过插件，进入安全模式</b>上次启动插件时应用意外退出。可以停用问题插件后重新加载。<div class="acts"><span>管理插件</span><span>重新加载插件</span></div></div>
+        </div>
+        <div class="dock"><span class="on" data-i="calendar" data-s="22"></span><span data-i="file-text" data-s="22"></span><span data-i="search" data-s="22"></span><span data-i="list-checks" data-s="22"></span><span data-i="settings" data-s="22"></span></div>
+        <div class="anno good" style="top:440px;left:20px;max-width:300px">单个失败：Toast 一次；安全模式：可关闭的卡片（替代现在顶部的红字段落）</div>
+      </div></div>
+      <div class="frame-cap"><span class="no">共</span>失败与安全模式</div>
+      <details class="note" open><summary>说明</summary><ul>
+        <li>两条示意叠在一起画，实际不会同时出现。</li>
+        <li>「重新加载插件」= 重建插件会话，不需要重启应用（见场景 4 的「立即生效」）。</li>
+      </ul></details>
+    </div>
+  </div>
+
+  <div class="card wide" style="margin-top:22px">
+    <h3>异步化的技术路径（供评估，不在本轮实现）</h3>
+    <ol>
+      <li><code>MobilePluginProvider</code> 去掉「未就绪就不渲染 children」，改为 <code>status: "starting" | "ready" | "safe" | "failed"</code> 放进 context，children 立即渲染。</li>
+      <li>中心状态刷新（网络）移出启动关键路径：先用本地缓存的撤回状态启动，联网结果回来后再按现有 <code>blockFromCenter</code> 逻辑处置——这本来就是前台刷新已在做的事。</li>
+      <li>消费方按需等待：<code>usePluginManager</code> 的「插件会话未就绪」、<code>PluginPageView</code> 的不可用文案、工具栏插入项，在 starting 时显示加载态。</li>
+      <li>风险点：插件启动前已打开的编辑器里含插件节点 → 需要「占位只读 → 就绪后换 kit」的机制，这是工作量最大的一步。</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ═══════════ 3 列表与搜索 ═══════════ -->
+<section class="scene" data-scene="list">
+  <p class="scene-intro">顶栏换成全站 <code>PageHeader</code>：左 ChevronLeft、标题居中、右上角搜索图标，点击后<b>横向展开</b>成搜索框（与任务中心同款交互）。商店/已安装改为文字标签（替代 Segmented）。列表有两种形态，<b>都是全宽</b>，彻底消除宽度随描述变化的问题。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="hd"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">插件中心</span><span class="rt"><span class="ib" data-i="search" data-s="20"></span></span></div>
+        <div class="ttabs"><span class="on">商店</span><span>已安装<i>3</i></span></div>
+        <div class="pills"><span class="on">全部</span><span>编辑<i>12</i></span><span>可视化<i>6</i></span><span>效率<i>8</i></span><span>导入导出<i>4</i></span></div>
+        <div class="plist">
+          <div class="prow"><span class="pi t-sky">思</span><span class="mid"><b>思维导图</b><span class="d">大纲一键成图</span><span class="m">@lastknight · 可视化</span></span><span class="get wait">待生效</span></div>
+          <div class="prow"><span class="pi t-lilac">∑</span><span class="mid"><b>数学公式</b><span class="d">KaTeX 行内与块级公式，支持实时预览与常用符号面板</span><span class="m">@tau · 编辑</span></span><span class="get done">已安装</span></div>
+          <div class="prow"><span class="pi t-sage">表</span><span class="mid"><b>表格增强</b><span class="d">冻结首列、公式列与条件格式</span><span class="m">@grid · 编辑</span></span><span class="get upd">更新</span></div>
+          <div class="prow"><span class="pi t-butter">番</span><span class="mid"><b>番茄钟</b><span class="d">专注计时，自动记入日记</span><span class="m">@focus · 效率</span></span><span class="get ring-prog" style="--p:62%"></span></div>
+          <div class="prow"><span class="pi t-rose">卡</span><span class="mid"><b>Anki 导入</b><span class="d">导入 .apkg 卡组为闪卡</span><span class="m">@anki · 导入导出</span></span><span class="get">获取</span></div>
+          <div class="prow"><span class="pi t-mute">图</span><span class="mid"><b>Mermaid 图表</b><span class="d">流程图、时序图与甘特图</span><span class="m"><span class="warn">需要 Tau 1.2</span></span></span><span class="get no">不可用</span></div>
+        </div>
+        <div class="anno good" style="top:52px;left:220px;max-width:130px">右上角搜索图标</div>
+        <div class="anno good" style="top:150px;left:30px;max-width:150px">文字标签，不用 Segmented</div>
+        <div class="anno good" style="top:250px;left:230px;max-width:120px">右侧按钮=状态机，见场景 4</div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A</span>紧凑列表行<span class="rec" style="margin-left:6px;font-size:11px;color:var(--brand-text)">推荐</span></div>
+      <details class="note" open><summary>说明</summary><ul>
+        <li>应用商店式：图标 + 名称 + 一行描述 + 作者/分类，右侧胶囊按钮。一屏 6 个。</li>
+        <li>兼容问题压成一行黄字（「需要 Tau 1.2」），完整原因进详情。</li>
+        <li>与已安装列表、设置页分组列表视觉一致。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="hd"><div class="hd-search"><span data-i="search" data-s="16"></span><span class="q">公式</span><span data-i="x" data-s="15"></span></div><span class="hd-cancel">取消</span></div>
+        <div class="ttabs"><span class="on">商店</span><span>已安装<i>3</i></span></div>
+        <div class="pills"><span class="on">全部</span><span>编辑<i>2</i></span><span>可视化<i>1</i></span></div>
+        <div class="plist">
+          <div class="prow"><span class="pi t-lilac">∑</span><span class="mid"><b>数学公式</b><span class="d">KaTeX 行内与块级公式，支持实时预览</span><span class="m">@tau · 编辑</span></span><span class="get done">已安装</span></div>
+          <div class="prow"><span class="pi t-sage">表</span><span class="mid"><b>表格增强</b><span class="d">冻结首列、公式列与条件格式</span><span class="m">@grid · 编辑</span></span><span class="get upd">更新</span></div>
+          <div class="prow"><span class="pi t-sky">化</span><span class="mid"><b>化学方程式</b><span class="d">mhchem 语法，配平提示</span><span class="m">@chem · 可视化</span></span><span class="get">获取</span></div>
+        </div>
+        <div class="anno good" style="top:52px;left:30px;max-width:300px">点击图标 → 从右向左展开占满顶栏，自动聚焦；「取消」收起并清空</div>
+        <div class="anno good" style="top:300px;left:60px;max-width:240px">分类计数随搜索结果更新；标签行保留，搜索在当前标签内生效</div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A</span>搜索展开态</div>
+      <details class="note" open><summary>说明</summary><ul>
+        <li>输入框高 38px、圆角胶囊、文字 14px，比现在的 36px 方框明显更大；常态不占位。</li>
+        <li>交互与 <code>TodoPage</code> 搜索展开一致，建议顺手抽成共享的 <code>PageHeaderSearch</code>，任务中心与插件中心共用。</li>
+        <li>在「已安装」标签内搜索同样生效（按名称/ID 本地过滤）。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="hd"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">插件中心</span><span class="rt"><span class="ib" data-i="search" data-s="20"></span></span></div>
+        <div class="ttabs"><span class="on">商店</span><span>已安装<i>3</i></span></div>
+        <div class="pills"><span class="on">全部</span><span>编辑<i>12</i></span><span>可视化<i>6</i></span><span>效率<i>8</i></span></div>
+        <div class="pcard"><div class="top"><span class="pi t-sky">思</span><span class="mid"><b>思维导图</b><span>@lastknight · v1.4.2 · 可视化</span></span><span class="get wait">待生效</span></div><p>大纲一键成图</p></div>
+        <div class="pcard"><div class="top"><span class="pi t-lilac">∑</span><span class="mid"><b>数学公式</b><span>@tau · v2.0.1 · 编辑</span></span><span class="get done">已安装</span></div><p>KaTeX 行内与块级公式，支持实时预览与常用符号面板，覆盖 LaTeX 常见语法。</p></div>
+        <div class="pcard"><div class="top"><span class="pi t-sage">表</span><span class="mid"><b>表格增强</b><span>@grid · v3.1.0 · 编辑</span></span><span class="get upd">更新</span></div><p>冻结首列、公式列与条件格式。</p><div class="foot"><span data-i="info" data-s="12"></span>部分功能在此设备不可用：剪贴板</div></div>
+        <div class="pcard"><div class="top"><span class="pi t-butter">番</span><span class="mid"><b>番茄钟</b><span>@focus · v0.8.0 · 效率</span></span><span class="get">获取</span></div><p>专注计时，自动记入日记。</p></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B</span>全宽卡片</div>
+      <details class="note" open><summary>说明</summary><ul>
+        <li>保留卡片风格，但固定全宽；描述最多 2 行，信息更足。</li>
+        <li>一屏约 4 个，适合插件数量少、更想「逛」的阶段。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="hd"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">插件中心</span><span class="rt"><span class="ib" data-i="search" data-s="20"></span></span></div>
+        <div class="ttabs"><span>商店</span><span class="on">已安装<i>3</i></span></div>
+        <div class="restart"><span class="ic-butter" data-i="refresh-cw" data-s="18"></span><span class="mid">1 个插件等待生效<span>思维导图 v1.4.2</span></span><span class="go">立即生效</span></div>
+        <div class="plist">
+          <div class="prow"><span class="pi t-sky">思</span><span class="mid"><b>思维导图</b><span class="m"><span class="st warn">待生效</span>v1.4.2</span></span><span class="sw on"></span></div>
+          <div class="prow"><span class="pi t-lilac">∑</span><span class="mid"><b>数学公式</b><span class="m"><span class="st ok">运行中</span>v2.0.1</span></span><span class="sw on"></span></div>
+          <div class="prow"><span class="pi t-sage">表</span><span class="mid"><b>表格增强</b><span class="m"><span class="st acc">可更新 3.2.0</span>v3.1.0</span></span><span class="sw on"></span></div>
+          <div class="prow"><span class="pi t-rose">卡</span><span class="mid"><b>Anki 导入</b><span class="m"><span class="st mute">已停用</span>v1.0.3</span></span><span class="sw"></span></div>
+        </div>
+        <div class="gn" style="padding-top:10px">点按条目进入详情管理（设置、权限、版本、卸载）。</div>
+        <div class="anno good" style="top:186px;left:40px;max-width:280px">待生效横幅：不重启应用，重载插件会话即可</div>
+        <div class="anno good" style="top:300px;left:200px;max-width:140px">列表只留开关，按钮墙移进详情</div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A</span>已安装</div>
+      <details class="note" open><summary>说明</summary><ul>
+        <li>对齐桌面端：列表 = 开关 + 状态，管理动作统一进详情的 ⋯ 菜单。</li>
+        <li>启动中时，横幅位置显示「插件加载中 2/5」进度行（方案 A 的唯一进度出口）。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 4 安装状态 ═══════════ -->
+<section class="scene" data-scene="state">
+  <p class="scene-intro">问题 ② 的修复不只是「改一个判断」，而是让商店按钮成为完整的<b>状态机</b>，下载 → 校验 → 待生效 → 运行，每一步都有明确的视觉，并且商店、已安装、详情三处<b>读同一个投影</b>。</p>
+  <div class="two">
+    <div class="card">
+      <h3>按钮状态（列表行 / 详情主按钮同源）</h3>
+      <div class="sm-grid">
+        <span class="h">状态</span><span class="h">按钮</span><span class="h">判定来源</span>
+        <span>未安装、可装</span><span><span class="get">获取</span></span><span>选版结果有 compatible，清单无此 id</span>
+        <span>下载中</span><span><span class="get ring-prog" style="--p:62%"></span></span><span>安装任务 phase = downloading（有进度时显示环，点按取消）</span>
+        <span>校验中</span><span><span class="get ring-prog spin"></span></span><span>phase = checking</span>
+        <span>待生效</span><span><span class="get wait">待生效</span></span><span>清单 <code>pending: true</code>（含首装 <code>currentVersion: null</code>）← <b>修复点</b></span>
+        <span>已安装</span><span><span class="get done">已安装</span></span><span>currentVersion ≥ 可装版本</span>
+        <span>可更新</span><span><span class="get upd">更新</span></span><span>可装版本 &gt; currentVersion，且无待生效</span>
+        <span>不可用</span><span><span class="get no">不可用</span></span><span>无兼容版本；原因进详情</span>
+        <span>失败</span><span><span class="get" style="background:var(--rose-soft);color:var(--rose)">重试</span></span><span>任务 status = error</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>「待生效」之后怎么办（需要你决策）</h3>
+      <p><b>方案 ①：提示「下次打开应用生效」</b>（现状语义）——实现最省，但用户装完插件立刻想用会落空，体验断裂。</p>
+      <p style="margin-top:8px"><b>方案 ②：提供「立即生效」</b><span class="tag">推荐</span>——<code>applyPendingMobilePlugins()</code> 本就在插件会话启动时执行；异步加载改造后，重建插件会话（不重启应用、不刷新页面）即可让待生效包上线。</p>
+      <ul style="margin-top:6px">
+        <li>首装：可以在下载完成后<b>自动</b>重载会话，用户无感直接可用；按钮从环 → 「已安装」。</li>
+        <li>更新 / 回退：已有旧版在运行，正文可能正在编辑 → 走横幅「立即生效」，由用户点。</li>
+        <li>风险：重载期间插件块短暂回到占位态；插件页若正打开会显示「插件重新加载中」。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 5 详情 A ═══════════ -->
+<section class="scene" data-scene="da">
+  <p class="scene-intro"><b>商店详情与已安装管理合一</b>（同桌面端）：一个页面按「是什么 → 能不能用/在不在运行 → 怎么用 → 细节」披露。头部回答前两个问题，下方分段 Tab 承载桌面端的全部能力，Tab 随状态出现：未安装只有 <b>介绍 · 版本 · 评论</b>，已安装再加 <b>设置 · 权限</b>。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="hd"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="rt"><span class="ib" data-i="external-link" data-s="19"></span></span></div>
+        <div class="scr">
+          <div class="hero2"><span class="pi xl t-rose">卡</span><span class="mid"><h2>Anki 导入</h2><div class="pub">@anki-tools</div><div class="tags"><span class="st mute">导入导出</span><span class="st mute">闪卡</span></div></span></div>
+          <div class="cta"><span class="get big">获取</span></div>
+          <div class="stats"><div><b>v1.0.3</b><span>版本</span></div><div><b>286 KB</b><span>大小</span></div><div><b>≥ 0.9</b><span>需要 Tau</span></div><div><b>♥ 128</b><span>喜欢</span></div></div>
+          <div class="compat ok"><span data-i="circle-check" data-s="15"></span>可在此设备完整使用</div>
+          <div class="dtabs"><span class="on">介绍</span><span>版本</span><span>评论 12</span></div>
+          <div class="md">
+            <p>把 Anki 的 <code>.apkg</code> 卡组导入为 Tau 闪卡，保留复习进度。</p>
+            <div class="shot">截图 / 演示（包内资源，不加载远程）</div>
+            <h3>功能</h3>
+            <ul><li>保留卡片模板与字段</li><li>导入复习历史，<b>沿用间隔</b></li></ul>
+          </div>
+        </div>
+        <div class="anno good" style="top:150px;left:200px;max-width:150px">图标 + 名称 + 作者 + 分类</div>
+        <div class="anno good" style="top:244px;left:40px;max-width:280px">全宽主按钮，状态机同列表</div>
+        <div class="anno good" style="top:342px;left:150px;max-width:190px">兼容结论一句话，能力 ID 不外露</div>
+        <div class="anno good" style="top:520px;left:180px;max-width:160px">README 按 Markdown 渲染</div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>未安装</div>
+      <details class="note" open><summary>说明</summary><ul>
+        <li>四格统计行替代原来的元信息小字。</li>
+        <li>右上角 ↗ 打开插件门户网页（同桌面「详情页」链接）。</li>
+        <li>Markdown 用桌面 <code>PluginMarkdown</code> 同一安全策略：不执行 HTML、不加载远程图片。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="hd"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="rt"><span class="ib" data-i="external-link" data-s="19"></span><span class="ib" data-i="ellipsis" data-s="22"></span></span></div>
+        <div class="scr">
+          <div class="hero2"><span class="pi xl t-sage">表</span><span class="mid"><h2>表格增强</h2><div class="pub">@grid · v3.1.0</div><div class="tags"><span class="st ok">运行中</span><span class="st mute">编辑</span></div></span></div>
+          <div class="cta"><span class="ctl"><span>已启用</span><span class="sw on"></span></span><span class="get upd big" style="flex:0 0 132px">更新到 3.2.0</span></div>
+          <div class="compat warn"><span class="ic-butter" data-i="info" data-s="15"></span>部分功能在此设备不可用：复制为表格（剪贴板写入）</div>
+          <div class="dtabs"><span>介绍</span><span class="on">设置</span><span>权限</span><span>版本</span><span>评论</span></div>
+          <div class="gl" style="padding-top:8px">显示</div>
+          <div class="grp">
+            <div class="row noicon"><span class="mid"><b>冻结首列</b></span><span class="sw on"></span></div>
+            <div class="row noicon"><span class="mid"><b>斑马纹</b></span><span class="sw"></span></div>
+            <div class="row noicon"><span class="mid"><b>数字格式</b></span><span class="val">千分位</span><span class="chev" data-i="chevron-right" data-s="16"></span></div>
+          </div>
+          <div class="gl">公式</div>
+          <div class="grp"><div class="row noicon"><span class="mid"><b>自动重算</b><span>编辑单元格后立即更新公式列</span></span><span class="sw on"></span></div></div>
+        </div>
+        <div class="anno good" style="top:200px;left:30px;max-width:300px">启停开关 + 更新并排，状态一眼可见</div>
+        <div class="anno good" style="top:356px;left:160px;max-width:180px">插件声明的设置直接内嵌</div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>已安装 · 设置</div>
+      <details class="note" open><summary>说明</summary><ul>
+        <li>多个设置分组时，Tab 内顶部用文字按钮切换（同桌面端）。</li>
+        <li>停用时设置 Tab 显示「启用后可修改，已保存的偏好保留」。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="hd"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t sm">表格增强</span><span class="rt"><span class="ib" data-i="ellipsis" data-s="22"></span></span></div>
+        <div class="dtabs sticky" style="padding-top:4px"><span>介绍</span><span>设置</span><span>权限</span><span class="on">版本</span><span>评论</span></div>
+        <div class="scr">
+          <div class="kv" style="margin-top:8px;padding:2px 14px">
+            <div class="ver-row"><b>3.2.0</b><span class="n"><em>新增条件格式</em>2026-10-18 · 需要 Tau 0.9</span><span class="st acc">可安装</span></div>
+            <div class="ver-row"><b>3.1.0</b><span class="n"><em>公式列支持 SUMIF</em>2026-09-30</span><span class="st ok">当前</span></div>
+            <div class="ver-row"><b>3.0.2</b><span class="n"><em>修复冻结列错位</em>2026-09-12</span><span class="a">恢复此版本</span></div>
+            <div class="ver-row"><b>3.0.0</b><span class="n"><em>重写渲染层</em>2026-08-20</span></div>
+            <div class="ver-row"><b>2.4.1</b><span class="n">2026-07-02 · 未声明 Android</span><span class="st mute">不支持</span></div>
+          </div>
+          <div class="gn">切换版本只替换插件代码，不回退已保存的数据。</div>
+          <div class="gl" style="padding-top:18px">信息</div>
+          <div class="kv">
+            <div><dt>插件 ID</dt><dd class="mono">dev.grid.table-plus</dd></div>
+            <div><dt>发布于</dt><dd>2026-09-30</dd></div>
+            <div><dt>源码</dt><dd class="link"><span data-i="github" data-s="13"></span>grid/table-plus</dd></div>
+            <div><dt>SHA-256</dt><dd class="mono">9f3c1a07b2e4…</dd></div>
+          </div>
+        </div>
+        <div class="anno good" style="top:52px;left:120px;max-width:200px">滚过头部后标题进顶栏，Tab 吸顶</div>
+        <div class="anno good" style="top:208px;left:200px;max-width:150px">更新日志并入版本行</div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>版本 · 信息</div>
+      <details class="note" open><summary>说明</summary><ul>
+        <li>桌面「更新日志」与「版本」两个 Tab 在手机上合并：每行一句摘要，点按展开完整日志。</li>
+        <li>「恢复此版本」只出现在本机有备份的那一版（对应现有 <code>restore</code> 能力）。</li>
+        <li>信息块放在版本 Tab 底部；未安装时放介绍 Tab 底部。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="hd"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t sm">表格增强</span><span class="rt"><span class="ib" data-i="ellipsis" data-s="22"></span></span></div>
+        <div class="dtabs sticky" style="padding-top:4px"><span>介绍</span><span>设置</span><span class="on">权限</span><span>版本</span><span>评论</span></div>
+        <div class="scr">
+          <div class="gl" style="padding-top:10px">此插件提供</div>
+          <div class="provides"><span><span data-i="table-2" data-s="14"></span>正文块<i>2</i></span><span><span data-i="zap" data-s="14"></span>命令<i>3</i></span><span><span data-i="sliders-horizontal" data-s="14"></span>设置页<i>1</i></span></div>
+          <div class="gl" style="padding-top:16px">已授予的权限</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-sky" data-i="file-text" data-s="16"></span><span class="mid"><b>读取正文</b><span>用于识别表格块</span></span><span class="sw on"></span></div>
+            <div class="row"><span class="tile t-lilac" data-i="hard-drive" data-s="16"></span><span class="mid"><b>插件私有存储</b><span>此工作区 · 12 KB</span></span><span class="val">必需</span></div>
+            <div class="row"><span class="tile t-butter" data-i="globe" data-s="16"></span><span class="mid"><b>访问网络</b><span>未授予</span></span><span class="sw"></span></div>
+          </div>
+          <div class="trust"><span class="ic-butter" data-i="shield-alert" data-s="16"></span><span>插件在应用环境中运行，可以读取和修改你的笔记。插件中心审核功能与来源，但不保证没有缺陷，请只安装你信任的插件。</span></div>
+        </div>
+        <div class="anno" style="top:420px;left:30px;max-width:300px;background:var(--butter)">需确认：移动端运行时是否已有权限授予/撤销能力</div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>权限 · 提供功能</div>
+      <details class="note" open><summary>说明</summary><ul>
+        <li>「此插件提供」来自运行时登记的贡献点（桌面 <code>listContributions</code>），启用后可见。</li>
+        <li>安全提示从桌面侧栏移过来，放在权限 Tab 底部。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="hd"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t sm">表格增强</span><span class="rt"><span class="ib" data-i="ellipsis" data-s="22"></span></span></div>
+        <div class="dtabs sticky" style="padding-top:4px"><span>介绍</span><span>设置</span><span>权限</span><span>版本</span><span class="on">评论 12</span></div>
+        <div class="scr" style="padding:0 20px">
+          <div class="like-bar" style="padding-top:12px"><span class="lk"><span data-i="heart" data-s="15"></span>喜欢 128</span><span>登录插件门户后可评论</span></div>
+          <div class="cmt"><span class="av t-sky">林</span><div><b>林夕<small>3 天前 · v3.1.0</small></b><p>公式列太好用了，终于不用导出到表格软件算了。</p></div></div>
+          <div class="cmt"><span class="av t-sage">Q</span><div><b>qiu<small>1 周前 · v3.0.2</small></b><p>手机上冻结首列很实用，希望支持多列冻结。</p></div></div>
+          <div class="cmt"><span class="av t-lilac">M</span><div><b>mori<small>2 周前</small></b><p>建议加个条件格式。</p></div></div>
+          <div class="cmt-in">写评论…</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">5</span>评论与喜欢</div>
+      <details class="note" open><summary>说明</summary><ul>
+        <li>复用桌面 <code>PluginCommunityTab</code> 的数据接口；移动端是否本期做，见决策项。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="hd"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="rt"><span class="ib" data-i="external-link" data-s="19"></span><span class="ib on" data-i="ellipsis" data-s="22"></span></span></div>
+        <div class="hero2"><span class="pi xl t-sage">表</span><span class="mid"><h2>表格增强</h2><div class="pub">@grid · v3.1.0</div></span></div>
+        <div class="mask"></div>
+        <div class="sheet" style="padding-bottom:20px">
+          <div class="grab"></div>
+          <div class="sh-t"><span>表格增强</span></div>
+          <div class="as-grp">
+            <div class="as-row"><span data-i="refresh-cw" data-s="18"></span><span class="mid">检查更新</span></div>
+            <div class="as-row"><span data-i="undo-2" data-s="18"></span><span class="mid">恢复上一版代码<span>回到 v3.0.2，数据不回退</span></span></div>
+            <div class="as-row dis"><span data-i="circle-alert" data-s="18"></span><span class="mid">取消待生效更新<span>没有待生效更新</span></span></div>
+          </div>
+          <div class="as-grp">
+            <div class="as-row dng"><span data-i="eraser" data-s="18"></span><span class="mid">清除此工作区数据<span>无法撤销，正文不受影响</span></span></div>
+            <div class="as-row dng"><span data-i="trash-2" data-s="18"></span><span class="mid">卸载<span>正文里的插件内容与数据保留</span></span></div>
+          </div>
+        </div>
+        <div class="anno good" style="top:130px;left:150px;max-width:200px">不可用的动作置灰并写明原因（一次）</div>
+      </div></div>
+      <div class="frame-cap"><span class="no">6</span>⋯ 管理菜单</div>
+      <details class="note" open><summary>说明</summary><ul>
+        <li>复用现有 <code>ActionSheet</code>；现有 <code>InstalledPluginCard</code> 的确认文案原样沿用（卸载/清除/恢复）。</li>
+        <li>启停不进菜单，由头部开关承担。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 6 详情 B ═══════════ -->
+<section class="scene" data-scene="db">
+  <p class="scene-intro">另一种思路：<b>单页长滚动 + 分组列表</b>（像系统设置里的 App 详情）。头部同方案 A；下面不分 Tab，概要直接铺开，重内容（设置、权限、版本、评论）各自下钻成二级页。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="hd"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="rt"><span class="ib" data-i="external-link" data-s="19"></span><span class="ib" data-i="ellipsis" data-s="22"></span></span></div>
+        <div class="scr">
+          <div class="hero2"><span class="pi xl t-sage">表</span><span class="mid"><h2>表格增强</h2><div class="pub">@grid · v3.1.0</div><div class="tags"><span class="st ok">运行中</span><span class="st mute">编辑</span></div></span></div>
+          <div class="cta"><span class="ctl"><span>已启用</span><span class="sw on"></span></span><span class="get upd big" style="flex:0 0 132px">更新到 3.2.0</span></div>
+          <div class="desc">冻结首列、公式列与条件格式。让手机上的表格也能做简单计算… <span style="color:var(--brand-text)">更多</span></div>
+          <div class="gl">此插件提供</div>
+          <div class="provides"><span>正文块<i>2</i></span><span>命令<i>3</i></span><span>设置页<i>1</i></span></div>
+          <div class="gl">管理</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-acc" data-i="sliders-horizontal" data-s="16"></span><span class="mid"><b>设置</b></span><span class="chev" data-i="chevron-right" data-s="16"></span></div>
+            <div class="row"><span class="tile t-sky" data-i="key-round" data-s="16"></span><span class="mid"><b>权限</b></span><span class="val">3</span><span class="chev" data-i="chevron-right" data-s="16"></span></div>
+            <div class="row"><span class="tile t-lilac" data-i="history" data-s="16"></span><span class="mid"><b>版本与更新日志</b></span><span class="val">5</span><span class="chev" data-i="chevron-right" data-s="16"></span></div>
+            <div class="row"><span class="tile t-rose" data-i="heart" data-s="16"></span><span class="mid"><b>评论与喜欢</b></span><span class="val">12 · ♥128</span><span class="chev" data-i="chevron-right" data-s="16"></span></div>
+          </div>
+          <div class="gl">信息</div>
+          <div class="kv"><div><dt>大小</dt><dd>312 KB</dd></div><div><dt>需要 Tau</dt><dd>≥ 0.9</dd></div></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B</span>长滚动概要</div>
+      <details class="note" open><summary>说明</summary><ul>
+        <li>概要一屏可见，结构稳定（不随安装状态增减 Tab）。</li>
+        <li>代价：介绍正文被压成摘要，要读全文得点「更多」；设置要多点一次。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="hd"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">设置</span></div>
+        <div class="scr">
+          <div class="gn" style="padding:0 20px 4px">表格增强</div>
+          <div class="gl">显示</div>
+          <div class="grp">
+            <div class="row noicon"><span class="mid"><b>冻结首列</b></span><span class="sw on"></span></div>
+            <div class="row noicon"><span class="mid"><b>斑马纹</b></span><span class="sw"></span></div>
+            <div class="row noicon"><span class="mid"><b>数字格式</b></span><span class="val">千分位</span><span class="chev" data-i="chevron-right" data-s="16"></span></div>
+          </div>
+          <div class="gl">公式</div>
+          <div class="grp"><div class="row noicon"><span class="mid"><b>自动重算</b><span>编辑单元格后立即更新公式列</span></span><span class="sw on"></span></div></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B</span>二级页：设置</div>
+      <details class="note" open><summary>说明</summary><ul>
+        <li>即现有 <code>plugin-settings</code> 页换上 PageHeader；权限、版本、评论同理各一页。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 7 对比与决策 ═══════════ -->
+<section class="scene" data-scene="cmp">
+  <div class="stack">
+    <div class="card">
+      <h3>详情页能力对照（桌面 / 移动现状 / 新方案）</h3>
+      <table class="cmp">
+        <tr><th>能力</th><th>桌面端</th><th>移动现状</th><th>新方案</th><th>备注</th></tr>
+        <tr><td>插件图标</td><td class="y">有</td><td class="n">无</td><td class="y">头部 68px</td><td>复用桌面 PluginIcon 的取色规则</td></tr>
+        <tr><td>启停开关</td><td class="y">有</td><td class="p">仅已安装卡片按钮</td><td class="y">头部开关</td><td></td></tr>
+        <tr><td>⋯ 管理菜单</td><td class="y">有</td><td class="p">按钮墙</td><td class="y">ActionSheet</td><td>卸载/清除/恢复/取消待生效</td></tr>
+        <tr><td>待重启/待生效</td><td class="y">RestartBar</td><td class="n">不可见（bug ②）</td><td class="y">横幅 + 立即生效</td><td>决策 D2</td></tr>
+        <tr><td>README</td><td class="y">Markdown</td><td class="p">纯文本</td><td class="y">Markdown</td><td>同一安全策略</td></tr>
+        <tr><td>设置</td><td class="y">Tab 内嵌</td><td class="p">独立页</td><td class="y">Tab / 二级页</td><td>决策 D5</td></tr>
+        <tr><td>权限</td><td class="y">Tab</td><td class="n">仅安装时展示</td><td class="p">Tab</td><td>需确认移动运行时授予/撤销能力</td></tr>
+        <tr><td>本机后台</td><td class="y">Tab</td><td>—</td><td>—</td><td>移动端无此能力，不做</td></tr>
+        <tr><td>更新日志</td><td class="y">Tab</td><td class="n">无</td><td class="y">并入版本行</td><td></td></tr>
+        <tr><td>版本回退</td><td class="y">恢复此版本</td><td class="p">已安装卡片「恢复上一版」</td><td class="y">版本行 + 菜单</td><td></td></tr>
+        <tr><td>评论与喜欢</td><td class="y">Tab</td><td class="n">无</td><td class="p">Tab</td><td>决策 D7</td></tr>
+        <tr><td>此插件提供</td><td class="y">侧栏</td><td class="n">无</td><td class="y">权限 Tab 顶部</td><td></td></tr>
+        <tr><td>大小 / 发布于 / 源码 / 门户链接 / SHA</td><td class="y">侧栏</td><td class="n">无</td><td class="y">统计行 + 信息块</td><td></td></tr>
+        <tr><td>安全提示</td><td class="y">侧栏</td><td class="n">无</td><td class="y">权限 Tab 底部</td><td></td></tr>
+        <tr><td>平台声明（能力 ID）</td><td>—</td><td class="p">主内容</td><td class="y">折叠为一句兼容结论</td><td>原始 ID 可放「技术信息」展开</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>待你决策</h3>
+      <div class="dec">
+        <span class="k">D1</span><div><b>加载反馈强度</b><div class="opts"><span class="rec">A 无感 + 失败才提示（推荐）</span><span>B Dock 上方胶囊</span></div></div>
+        <span class="k">D2</span><div><b>待生效插件</b><div class="opts"><span class="rec">首装自动生效、更新走「立即生效」横幅（推荐）</span><span>全部「立即生效」横幅</span><span>仅提示下次打开生效</span></div></div>
+        <span class="k">D3</span><div><b>商店列表形态</b><div class="opts"><span class="rec">A 紧凑列表行（推荐）</span><span>B 全宽卡片</span></div></div>
+        <span class="k">D4</span><div><b>商店/已安装切换</b><div class="opts"><span class="rec">文字下划线标签（推荐）</span><span>保持现状 Segmented</span></div></div>
+        <span class="k">D5</span><div><b>详情信息架构</b><div class="opts"><span class="rec">A 头部 + 分段 Tab（推荐）</span><span>B 长滚动 + 二级页</span></div></div>
+        <span class="k">D6</span><div><b>已安装管理入口</b><div class="opts"><span class="rec">列表只留开关，管理进详情（推荐，对齐桌面）</span><span>保留卡片内按钮</span></div></div>
+        <span class="k">D7</span><div><b>本期带上的桌面能力</b><div class="opts"><span>评论与喜欢</span><span>权限 Tab（视运行时能力）</span><span>版本回退到任意历史版</span></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>建议的落地顺序</h3>
+      <ol>
+        <li><b>缺陷修复</b>（无需决策，可先行）：待生效状态识别（②）、列表全宽（③）、插件页改用 PageHeader（⑤）。</li>
+        <li><b>异步加载</b>（①）：Provider 状态化 + 中心刷新移出关键路径 + 正文插件块占位。</li>
+        <li><b>列表与搜索</b>（④ + D3/D4/D6）。</li>
+        <li><b>详情重做</b>（⑥ + D5/D7），同时把 <code>PluginStoreDetail</code> 与已安装管理合并。</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<script src="../sync-mobile/sync.js"></script>
+</body>
+</html>

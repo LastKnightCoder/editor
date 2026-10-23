@@ -12,9 +12,9 @@ import {
   Plus,
   Search,
   Trash2,
-  X,
 } from "lucide-react";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
+import { PageHeaderSearch } from "../../components/PageHeaderSearch";
 import type { MoveAndReorderTodoItemPayload, TodoGroup, TodoItem, TodoItemType } from "../../types";
 import { SELECTABLE_TODO_TYPES } from "../../types";
 import { useEdgeFade } from "../../hooks/useScrollState";
@@ -131,7 +131,6 @@ export function TodoPage({
   // Search bar
   const [searchBarOpen, setSearchBarOpen] = useState(false);
   const [searchInput, setSearchInput] = useState("");
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const listScrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(listScrollRef);
 
@@ -184,12 +183,6 @@ export function TodoPage({
       setTimeout(() => subInputRef.current?.focus(), 100);
     }
   }, [subSheetOpen]);
-
-  useEffect(() => {
-    if (searchBarOpen) {
-      setTimeout(() => searchInputRef.current?.focus(), 50);
-    }
-  }, [searchBarOpen]);
 
   const handleCreateGroup = async () => {
     const title = newGroupTitle.trim();
@@ -443,45 +436,19 @@ export function TodoPage({
     <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
       {searchBarOpen ? (
         <PageHeader>
-          <div className="bg-page flex flex-1 items-center gap-2 rounded-full px-3">
-            <Search size={15} className="text-ink-3 shrink-0" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchInput}
-              onChange={e => {
-                setSearchInput(e.target.value);
-                store.setFilters({
-                  keyword: e.target.value.trim() || undefined,
-                });
-              }}
-              placeholder="搜索任务"
-              className="text-ink-1 placeholder:text-ink-3 h-9 flex-1 bg-transparent text-sm outline-none"
-            />
-            {searchInput && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchInput("");
-                  store.setFilters({ keyword: undefined });
-                }}
-                className="text-ink-3 shrink-0"
-              >
-                <X size={15} />
-              </button>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => {
+          <PageHeaderSearch
+            value={searchInput}
+            placeholder="搜索任务"
+            onChange={value => {
+              setSearchInput(value);
+              store.setFilters({ keyword: value.trim() || undefined });
+            }}
+            onCancel={() => {
               setSearchBarOpen(false);
               setSearchInput("");
               store.setFilters({ keyword: undefined });
             }}
-            className="text-accent ml-2 shrink-0 text-sm font-semibold"
-          >
-            取消
-          </button>
+          />
         </PageHeader>
       ) : (
         <PageHeader

@@ -6,7 +6,7 @@
 // 卡片读取/编辑的都是 segment.tags，不要改回 entry.tags（那是旧模型遗留）。
 
 import { memo, useCallback, useMemo, useState } from "react";
-import { getMobileContentKit } from "../../services/editorKit";
+import { useMobileContentKit } from "../../services/editorKit";
 import type { Descendant } from "slate";
 import { Editor, createValueDocument } from "@tau/editor";
 import { isEditorContentEmpty } from "../cards/editorContentUtils";
@@ -73,6 +73,7 @@ const DiaryCardItem = memo(
     onEditTags,
     onDeleteSegment,
   }: DiaryCardItemProps) => {
+    const contentKit = useMobileContentKit("read");
     const desc = useMemo(() => describeEntry(entry), [entry]);
     const [menuOpen, setMenuOpen] = useState(false);
     const [menuAnchor, setMenuAnchor] = useState<HTMLButtonElement | null>(null);
@@ -154,7 +155,7 @@ const DiaryCardItem = memo(
         <div className="pointer-events-none min-w-0">
           {hasBody ? (
             <Editor
-              kit={getMobileContentKit()}
+              kit={contentKit}
               className="overflow-hidden"
               readonly={true}
               document={document}

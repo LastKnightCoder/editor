@@ -30,17 +30,19 @@
 
 ## 移动宿主与页面
 
-正常 AppShell 在当前数据库作用域挂载 MobilePluginProvider，不依赖桌面 runtime/store。包清单通过 react-query 获取；切库先完成旧运行时清理，再恢复文件事务、校验包、冻结静态内容、激活页面与命令。包验证与装配失败记录到管理界面，不伪造兼容或回退另一个来源。
+正常 AppShell 在当前数据库作用域挂载 MobilePluginProvider，不依赖桌面 runtime/store。包清单通过 react-query 获取；切库先完成旧运行时清理，再恢复文件事务、校验包、冻结静态内容、激活页面与命令。包验证与装配失败记录到管理界面，并以一次 Toast 提示，不伪造兼容或回退另一个来源。
 
-“我的”仍是 settings Tab；插件入口作为 props 插槽进入 SettingsPage 的独立插件功能区。pluginPage、pluginSettings、plugins 均由移动 definePage 自动注册。页面身份与标量参数规范化使用 SDK 规则，返回、转场、保活与 LRU 使用原 router。停用/更新按新会话生效，不替换打开的正文实例。
+插件会话不阻塞应用：Provider 立即渲染子树，启动阶段（starting / ready / safe / failed）写入 `app/plugins/content` 的 mobilePluginState，供界面与编辑器 kit 层共用；插件环境 Provider 常驻（会话就绪前给占位快照），会话切换不重挂应用子树。消费方各自等待：插件页/设置页在 starting 时显示加载态；内容编辑器经 `useMobileContentKit`，只读模式随会话换最新 kit，编辑模式在落定前显示编辑区占位、落定后锁定首个 kit，编辑中途不因会话重建而重建编辑器；未注册节点经 IUnknownElementNotice 说明「插件内容加载中」或「插件未运行」，数据始终原样保留。启动只用本地缓存的撤回状态（已确认撤回的包拿不到包体、不会运行），联网核验在会话就绪后执行并按 blockFromCenter 停用新近撤回的版本。
 
-页面的活动状态与系统后台状态分别处理。作者应在操作时持久化数据，不依赖 deactivate 一定执行。启动标记位于本机 localStorage，仅用于发现上次插件启动未结束并跳过该次加载；包文件与业务 KV 不放 localStorage。
+“我的”仍是 settings Tab；插件入口作为 props 插槽进入 SettingsPage 的独立插件功能区。pluginPage、pluginSettings、plugins 均由移动 definePage 自动注册。页面身份与标量参数规范化使用 SDK 规则，返回、转场、保活与 LRU 使用原 router。启停、更新与回退按新会话生效：插件中心「立即生效」重建插件会话（应用待生效包、重启全部插件），不重启应用；首装没有旧版本在运行，下载完成即自动重建。已打开的可编辑正文保留原 kit。
+
+页面的活动状态与系统后台状态分别处理。作者应在操作时持久化数据，不依赖 deactivate 一定执行。启动标记位于本机 localStorage，仅用于发现上次插件启动未结束并跳过该次加载（安全模式，插件中心提供重新加载）；包文件与业务 KV 不放 localStorage。
 
 移动管理页消费 `features/plugins/data/usePluginManager`，查询、动作可用性与原生变更由控制器统一编排。动作在调用时复验清单和会话，不只靠按钮禁用；操作互斥，清数据固定工作区，切库/卸载使旧回调失效。启停等操作使用原生 managementEnabled；development 只表示开发来源安装资格，JSON 入口还要求前端 DEV。正式构建只运行来源记录与固定中心 URL 匹配的包；启用和恢复同时检查持久撤回记录。取消或失活后的迟到暂存结果不提交。
 
 中心安装由 `app/plugins/center-install` 按应用 QueryClient 保存任务，所有页面通过同一个订阅式 hook 消费；Activity 隐藏、路由深入和页面卸载不会取消中心任务。取消操作终止原生等待响应/读取数据的过程，失败重试仍使用原 releaseId 并重新核验。此机制不承诺进程被系统终止后继续下载；原生事务仍负责保留旧包与恢复文件状态。
 
-已安装清单分别提供 currentVersion、pendingVersion、centerSource、撤回原因和状态刷新失败标记。首次仅有 next 时 currentVersion 为 null，不冒充已安装；固定中心新装包默认保存启用意图，下一完整会话生效，更新保留已保存意图，损坏的 enabled.json 不会默认启用。权限说明不等于授权。Android/iOS 原生宿主提供 browsingEnabled/installationEnabled，正式安装仍由中心复验平台分发与发布状态；非移动宿主不能安装。
+已安装清单分别提供 currentVersion、pendingVersion、centerSource、撤回原因和状态刷新失败标记。首次仅有 next 时 currentVersion 为 null，不冒充已安装；固定中心新装包默认保存启用意图，下载完成即重建会话生效，更新保留已保存意图，损坏的 enabled.json 不会默认启用。权限说明不等于授权。Android/iOS 原生宿主提供 browsingEnabled/installationEnabled，正式安装仍由中心复验平台分发与发布状态；非移动宿主不能安装。
 
 中心包在启动及应用回到前台时核验发布状态。已有中心包的会话监听文档可见性、窗口 focus 和 Tauri 原生 focus；考虑 WKWebView 可能缺失前台事件，同时每 30 秒进行可见状态核验，后台不主动刷新，切库/卸载释放监听与定时器。原生按 origin/releaseId 保存撤回/禁用记录，确认撤回不会被后续 available/not_found 覆盖；断网保留既有记录，状态文件损坏时不装配中心包。前台获知不可用后回收页面并把节点写入策略设为 none；保留当前静态内容至下一会话，原文不删除。该机制不抢占主线程死循环，也不回滚已提交数据。
 
