@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getMobileContentKit } from "../../services/editorKit";
+import { useMobileContentKit } from "../../services/editorKit";
 import {
   Bell,
   CalendarDays,
@@ -123,6 +123,7 @@ function recurrenceTypeLabel(type: RecurrenceType): string {
 }
 
 export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailPageProps) {
+  const contentKit = useMobileContentKit("edit");
   const store = useTodoStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(scrollRef);
@@ -651,9 +652,9 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
               <div className="text-ink-3 pb-1 text-xs font-bold">保存中…</div>
             ) : null}
             <div className="min-h-[200px]">
-              {descriptionEditorReady ? (
+              {descriptionEditorReady && contentKit ? (
                 <Editor
-                  kit={getMobileContentKit()}
+                  kit={contentKit}
                   key={`todo-description-${todoId}`}
                   initValue={normalizeEditorContent(content ?? EMPTY_EDITOR_CONTENT)}
                   readonly={false}

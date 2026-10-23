@@ -1,7 +1,8 @@
 import { expect, it } from "vitest";
 import type { PluginInfo } from "@tau/plugins/host";
 import type { PluginCatalogEntry, PluginCatalogVersion } from "@/types/plugin-center";
-import { installState, pluginTone, versionRows, type InstalledPlugin } from "../model";
+import { pluginTone } from "@tau/plugins/center";
+import { installState, versionRows, type InstalledPlugin } from "../model";
 
 const version = (value: string, minAppVersion = "0.58.0"): PluginCatalogVersion => ({
   releaseId: `r-${value}`,

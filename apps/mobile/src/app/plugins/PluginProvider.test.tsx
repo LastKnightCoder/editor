@@ -5,6 +5,8 @@ import { expect, it, vi } from "vitest";
 import { definePlugin, type PluginContext } from "@tau/plugins";
 import { MobilePluginProvider } from "./PluginProvider";
 import { MobilePluginRuntime } from "./runtime";
+import { mobilePluginState } from "./content";
+import { useMobilePluginStatus } from "./context";
 
 vi.mock("../../router", () => ({ useNavigator: () => navigator }));
 const navigator = { push: vi.fn() };
@@ -77,6 +79,68 @@ it("切库立即失活旧 context，等待未完成启动收尾后才创建新�
     expect(contexts).toHaveLength(2);
     expect(contexts[1].workspaceId).toBe("B.db");
     expect(contexts[1].signal.aborted).toBe(false);
+  } finally {
+    await act(async () => {
+      release.forEach(resolve => resolve());
+      root.unmount();
+    });
+    client.clear();
+    container.remove();
+    start.mockRestore();
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  }
+});
+
+it("children 不等待插件立即渲染；启动中为 starting，完成后 ready，reload 重建会话", async () => {
+  vi.stubGlobal("matchMedia", () => ({
+    matches: false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+  const release: (() => void)[] = [];
+  const start = vi
+    .spyOn(MobilePluginRuntime.prototype, "start")
+    .mockImplementation(() => new Promise<void>(resolve => release.push(resolve)));
+  let reload: () => void = () => undefined;
+  function Probe() {
+    const status = useMobilePluginStatus();
+    reload = status.reload;
+    return <p>工作区·{status.phase}</p>;
+  }
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const settle = async (predicate: () => boolean) => {
+    for (let index = 0; index < 60 && !predicate(); index++)
+      await act(async () => {
+        await vi.dynamicImportSettled();
+        await new Promise(resolve => setTimeout(resolve, 10));
+      });
+  };
+  try {
+    await act(async () =>
+      root.render(
+        <QueryClientProvider client={client}>
+          <MobilePluginProvider database="A.db">
+            <Probe />
+          </MobilePluginProvider>
+        </QueryClientProvider>
+      )
+    );
+    expect(container.textContent).toBe("工作区·starting");
+    await settle(() => release.length === 1);
+    await act(async () => release[0]());
+    await settle(() => mobilePluginState.get().phase === "ready");
+    expect(container.textContent).toBe("工作区·ready");
+    await act(async () => reload());
+    expect(container.textContent).toBe("工作区·starting");
+    await settle(() => release.length === 2);
+    expect(start).toHaveBeenCalledTimes(2);
+    await act(async () => release[1]());
+    await settle(() => mobilePluginState.get().phase === "ready");
+    expect(container.textContent).toBe("工作区·ready");
   } finally {
     await act(async () => {
       release.forEach(resolve => resolve());

@@ -2,7 +2,8 @@
 // 远端光标/选区由 @tau/editor-collab 的文档源自动渲染，本页只负责外壳与状态。
 // 成员视角（本地无内容行）与协作中心入口仍走本页；owner 的原地编辑见详情页 CollaborativeEditor。
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getMobileContentKit } from "../../services/editorKit";
+import { useMobileContentKit } from "../../services/editorKit";
+import { EditorKitPending } from "../../components/EditorKitPending";
 import {
   ChevronRight,
   Loader2,
@@ -100,7 +101,7 @@ export function CollabEditorPage(props: {
     editorRef,
     !readingMode.editing && readingMode.canEdit && !blockSelection.active
   );
-  const kit = getMobileContentKit();
+  const kit = useMobileContentKit("edit");
   // 工具条经 portal 挂进本页根容器，才能随页面转场动画一起平移、退场
   const [pageRootEl, setPageRootEl] = useState<HTMLDivElement | null>(null);
 
@@ -211,23 +212,27 @@ export function CollabEditorPage(props: {
               // 块选择期间由覆盖层接管点击，阅读态的双击进入编辑与勾选待办不生效
               {...(blockSelection.active ? {} : readingMode.readingSurfaceProps)}
             >
-              <Editor
-                kit={kit}
-                ref={editorRef}
-                key={`collab-${props.documentId}`}
-                document={document}
-                className="mobile-card-editor-content"
-                readonly={editorReadonly}
-                onFocus={() => {
-                  presence.onFocus();
-                  toolbarController.handleEditorFocus();
-                }}
-                onBlur={() => {
-                  presence.onBlur();
-                  toolbarController.handleEditorBlur();
-                }}
-                onSelectionChange={toolbarController.syncSelection}
-              />
+              {kit ? (
+                <Editor
+                  kit={kit}
+                  ref={editorRef}
+                  key={`collab-${props.documentId}`}
+                  document={document}
+                  className="mobile-card-editor-content"
+                  readonly={editorReadonly}
+                  onFocus={() => {
+                    presence.onFocus();
+                    toolbarController.handleEditorFocus();
+                  }}
+                  onBlur={() => {
+                    presence.onBlur();
+                    toolbarController.handleEditorBlur();
+                  }}
+                  onSelectionChange={toolbarController.syncSelection}
+                />
+              ) : (
+                <EditorKitPending />
+              )}
               <BlockSelectionLayer
                 editorRef={editorRef}
                 container={editorWrapEl}
@@ -261,7 +266,7 @@ export function CollabEditorPage(props: {
         portalContainer={pageRootEl}
         readonly={toolbarReadonly}
       />
-      {blockSelection.active ? (
+      {blockSelection.active && kit ? (
         <BlockActionBar
           editorRef={editorRef}
           kit={kit}
