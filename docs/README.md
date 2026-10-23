@@ -31,20 +31,22 @@
 
 跨端 SDK 与统一模板本地验证见 [plugin-portability-sdk.md](./guides/plugin-portability-sdk.md)，真实客户端接入校验见 [plugin-portability-hosts.md](./guides/plugin-portability-hosts.md)。
 
-iOS 正式签名、归档和导出步骤见 [ops-ios-signing.md](./guides/ops-ios-signing.md)。
+客户端依赖准备、构建、覆盖安装及插件检查从 [客户端构建与安装](./guides/ops-client-build-install.md)进入；iOS 签名、归档、TestFlight 分发与设备安装见 [iOS 手册](./guides/ops-ios-signing.md)。
 
-| 指南                                                                | 内容                                 |
-| ------------------------------------------------------------------- | ------------------------------------ |
-| [db-change-manual.md](./guides/db-change-manual.md)                 | 数据库变更开发手册                   |
-| [db-schema-workflow.md](./guides/db-schema-workflow.md)             | 数据库 Schema 与建库流程             |
-| [ops-build-size.md](./guides/ops-build-size.md)                     | 安装包体积构成与产物一致性排查       |
-| [ops-collaboration-deploy.md](./guides/ops-collaboration-deploy.md) | 协作服务部署                         |
-| [ops-mac-verification.md](./guides/ops-mac-verification.md)         | mac 实机验证 runbook                 |
-| [ops-macos-code-signing.md](./guides/ops-macos-code-signing.md)     | macOS 代码签名与公证                 |
-| [ops-taunote-domains.md](./guides/ops-taunote-domains.md)           | taunote.app 域名与服务器映射         |
-| [ops-telemetry-umami.md](./guides/ops-telemetry-umami.md)           | Umami 统计部署与埋点（旧版维护资料） |
-| [plugin-development.md](./guides/plugin-development.md)             | 插件开发规范与验收                   |
-| [plugin-portability-spike.md](./guides/plugin-portability-spike.md) | 桌面、Android、iOS 插件验证操作      |
+| 指南                                                                | 内容                                  |
+| ------------------------------------------------------------------- | ------------------------------------- |
+| [db-change-manual.md](./guides/db-change-manual.md)                 | 数据库变更开发手册                    |
+| [db-schema-workflow.md](./guides/db-schema-workflow.md)             | 数据库 Schema 与建库流程              |
+| [ops-build-size.md](./guides/ops-build-size.md)                     | 安装包体积构成与产物一致性排查        |
+| [ops-client-build-install.md](./guides/ops-client-build-install.md) | 客户端构建、覆盖安装与交付检查        |
+| [ops-ios-signing.md](./guides/ops-ios-signing.md)                   | iOS 签名、图标同步、TestFlight 与安装 |
+| [ops-collaboration-deploy.md](./guides/ops-collaboration-deploy.md) | 协作服务部署                          |
+| [ops-mac-verification.md](./guides/ops-mac-verification.md)         | mac 实机验证 runbook                  |
+| [ops-macos-code-signing.md](./guides/ops-macos-code-signing.md)     | macOS 代码签名与公证                  |
+| [ops-taunote-domains.md](./guides/ops-taunote-domains.md)           | taunote.app 域名与服务器映射          |
+| [ops-telemetry-umami.md](./guides/ops-telemetry-umami.md)           | Umami 统计部署与埋点（旧版维护资料）  |
+| [plugin-development.md](./guides/plugin-development.md)             | 插件开发规范与验收                    |
+| [plugin-portability-spike.md](./guides/plugin-portability-spike.md) | 桌面、Android、iOS 插件验证操作       |
 
 ## tasks/ — 进行中任务
 

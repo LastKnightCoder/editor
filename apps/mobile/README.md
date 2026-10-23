@@ -1,5 +1,6 @@
 ## 开发文档
 
+- [客户端构建与安装（Android / iOS）](/docs/guides/ops-client-build-install.md)
 - [iOS 正式签名与打包](/docs/guides/ops-ios-signing.md)
 - [SnapSheet 组件使用说明](./docs/SnapSheet组件使用说明.md)
 - [ActionSheet 组件使用说明](./docs/ActionSheet组件使用说明.md)

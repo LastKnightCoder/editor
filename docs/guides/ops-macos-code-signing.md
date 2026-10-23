@@ -1,162 +1,72 @@
-# macOS 代码签名与公证指南
+# macOS 代码签名、公证与发布
 
-本文档说明如何为桌面端配置正式代码签名（Developer ID）与 Apple 公证（Notarization），这是 macOS 自动更新（electron-updater / Squirrel.Mac）能够正常工作的前提。
+本手册适用于桌面 Developer ID 分发。iOS 的 Apple Distribution 证书、描述文件与 TestFlight 流程见 [iOS 手册](/docs/guides/ops-ios-signing.md)，两套签名不可混用。
 
-## 背景：为什么必须签名
+## 准备签名与公证凭据
 
-- macOS 上 electron-updater 走 Squirrel.Mac（ShipIt）机制，**ShipIt 在安装更新前会校验新包的代码签名，且要求 app 持有正式的 Developer ID 签名**。这是 Electron 官方文档明确的机制限制，无法绕过。
-- 当前 `electron-builder.yml` 的 `mac:` 段未配置 `identity`，构建产物为 **ad-hoc 签名**（`codesign -dv` 可见 `Signature=adhoc`）。表现为：下载更新后点"重启并安装"无任何反应——`quitAndInstall()` 静默死等，既不退出也不报错（已做 3 秒兜底提示 + 手动下载引导，见 `src-electron/main/modules/updater.ts`）。
-- 签名 + 公证后，自动更新链路（下载 → 校验 → 重启安装）才能完整工作，同时用户从网上下载的 app 首次打开也不会被 Gatekeeper 拦截。
+1. 在打包 Mac 的钥匙串中安装有效的 Developer ID Application 证书及对应私钥。执行 `security find-identity -v -p codesigning`，确认该身份存在；未显式写 identity 不等于 ad-hoc，electron-builder 可自动选择有效身份。
+2. 新机器需要证书时，在钥匙串访问中生成 CSR，交 Apple Developer Certificates 创建 Developer ID Application 证书后导入。已有可用证书时复用，不无故创建或撤销。私钥备份保存在私有位置，不提交证书私钥、密码或凭据。
+3. 使用本机已配置的 notarytool 钥匙串凭据。本项目本地发行使用 tau-notary profile；profile 名不是密码，其他机器必须先由账号持有人配置。需要创建凭据时先查 `xcrun notarytool store-credentials --help`，按 Apple 认证流程录入，不把密码写进仓库或日志。
+4. 在构建终端设置：
 
-## 前提：Apple Developer 账号（99 美元/年）
-
-注册地址：<https://developer.apple.com/programs/>
-
-| 类型              | 要求                             | 区别                       |
-| ----------------- | -------------------------------- | -------------------------- |
-| 个人 Individual   | 仅 Apple ID                      | 当天可批，证书显示个人姓名 |
-| 公司 Organization | D-U-N-S 编号（免费申请，1-2 周） | 证书显示公司名             |
-
-两种类型在签名、公证、自动更新功能上**没有区别**，仅影响证书显示名。
-
-> 没有付费账号就拿不到 Developer ID 证书，Squirrel.Mac 的签名校验没有绕过方式。
-
-## 第一步：创建 Developer ID Application 证书
-
-证书私钥生成并保存在打包用的 Mac 上。
-
-1. 打开「钥匙串访问」→ 菜单栏「证书助理」→「从证书颁发机构请求证书…」；
-2. 填写邮箱和常用名，选「**保存到磁盘**」，生成 `.certSigningRequest` 文件；
-3. 到 [developer.apple.com → Certificates](https://developer.apple.com/account/resources/certificates/list) → 点 ➕ → 选择 **Developer ID Application** → 上传 CSR → 下载 `.cer` 文件；
-   - 建议顺手把 **Developer ID Installer** 也创建一份（签 `.pkg` 时用）；
-4. 双击 `.cer` 导入钥匙串（自动与第 2 步的私钥配对）；
-5. 终端验证：
-
-   ```bash
-   security find-identity -v -p codesigning
+   ```sh
+   export APPLE_KEYCHAIN_PROFILE="tau-notary"
    ```
 
-   输出中出现 `Developer ID Application: 你的名字 (TEAMID)` 即成功。**记下 TEAMID（10 位字母数字），公证环节要用。**
+5. 保留 electron-builder.yml 的双架构目标、带 arch 的文件名及原生资源配置；不要复制旧单架构配置覆盖它，也不要为通过公证临时添加未经确认的 entitlements 豁免。
 
-私钥备份：在钥匙串访问中把证书连私钥导出为 `.p12` 文件妥善保存（换电脑、CI 打包都需要它）。**`.p12` 绝不能提交进仓库。**
+判据：签名身份具有私钥，公证 profile 在当前钥匙串可用。系统请求私钥访问、账号验证或协议确认时由用户本人处理。
 
-## 第二步：配置 electron-builder
+## 构建与验证
 
-### 2.1 `apps/desktop/electron-builder.yml` 的 `mac:` 段
+在仓库根执行：
 
-在现有配置基础上增加（保留原有的 `icon`、`artifactName`、`extendInfo`、`fileAssociations`）：
-
-```yaml
-mac:
-  icon: "build/icon.icns"
-  artifactName: "${productName}-v${version}-${platform}.${ext}"
-  identity: "Developer ID Application: 你的名字 (TEAMID)" # 也可省略，证书唯一时自动匹配
-  hardenedRuntime: true # 公证的硬性要求
-  notarize: true # electron-builder 24+ 内置公证流程
-  entitlements: build/entitlements.mac.plist
-  entitlementsInherit: build/entitlements.mac.plist
-  fileAssociations:
-    - ext: md
-      name: Markdown
-      role: Editor
-      isPackage: false
+```sh
+pnpm --filter desktop build
 ```
 
-### 2.2 新建 `apps/desktop/build/entitlements.mac.plist`
+入口执行 schema 准备、tsc/Vite、原生打包及 verify-native-runtime。默认 macOS 双架构流程串行构建并签名 Intel/Apple 芯片应用，再并行公证；全部公证与附票完成后才生成 DMG、ZIP 和更新清单。缺少签名、公证凭据或公证失败会阻止该流程生成发行产物，不从失败后残留目录取旧包交付。
 
-开启 Hardened Runtime（公证要求）后，Electron 必须带以下豁免才能正常运行：
+对实际输出的两个 app 分别检查，路径以本次日志为准：
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>com.apple.security.cs.allow-jit</key><true/>
-  <key>com.apple.security.cs.allow-unsigned-executable-memory</key><true/>
-  <key>com.apple.security.cs.allow-dyld-environment-variables</key><true/>
-</dict>
-</plist>
+```sh
+codesign --verify --deep --strict --verbose=2 "apps/desktop/release/mac-arm64/Tau.app"
+codesign -dv --verbose=4 "apps/desktop/release/mac-arm64/Tau.app"
+spctl --assess --type execute -v "apps/desktop/release/mac-arm64/Tau.app"
+xcrun stapler validate "apps/desktop/release/mac-arm64/Tau.app"
 ```
 
-> 摄像头/麦克风权限（`NSCameraUsageDescription` 等）属于 Info.plist 层面，与 entitlements 不冲突，保持原样即可。
+判据：正式 Developer ID 签名与团队匹配、Gatekeeper accepted、票据验证成功、原生运行时检查通过。对 Intel 产物重复检查，不以一种架构代替另一种；记录 DMG/ZIP 的版本、架构、大小与 SHA-256。签名与公证成功不能代替安装和自动更新行为验收。
 
-## 第三步：公证凭据（环境变量）
+## 发布到客户端更新服务器
 
-`notarize: true` 需要向 Apple 证明身份，两种方式二选一。
+仅构建或交付测试安装包时到此为止。需要正式更新发行时：
 
-### 方式 A：Apple ID + 应用专用密码（本地打包推荐）
+1. 在 `apps/desktop/release-notes/<版本>.md` 准备升级公告。核对根目录和 apps/desktop 两处 package.json 的版本。
+2. 默认目标是 R2，客户端更新源为 `https://dl.taunote.app/desktop`。通过私有环境配置 R2_ACCOUNT_ID、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY；不在聊天或仓库保存取值。
+3. 先执行本地发布预检：
 
-1. 到 [appleid.apple.com](https://appleid.apple.com/) → 登录 →「登录与安全」→「App 专用密码」→ 生成（形如 `abcd-efgh-ijkl-mnop`）；
-2. 打包前设置环境变量：
-
-   ```bash
-   export APPLE_ID="你的AppleID邮箱"
-   export APPLE_APP_SPECIFIC_PASSWORD="abcd-efgh-ijkl-mnop"
-   export APPLE_TEAM_ID="你的TEAMID"
+   ```sh
+   pnpm publish:desktop --target r2 --skip-build --dry-run
    ```
 
-### 方式 B：App Store Connect API 密钥（CI 推荐）
+   该命令不上传，但会校验产物并把公告写入本地 latest*.yml，不是完全只读。确认版本、摘要与产物集合匹配。
 
-App Store Connect → 用户和访问 → 集成 → 新建密钥（角色至少 App Manager），下载 `.p8` 文件后设置：
+4. 在已批准的发行范围内发布已验产物：
 
-```bash
-export APPLE_API_KEY="密钥ID"
-export APPLE_API_KEY_PATH="/path/to/AuthKey_XXXX.p8"
-export APPLE_API_ISSUER="发行商ID"
-```
+   ```sh
+   pnpm publish:desktop --target r2 --skip-build
+   ```
 
-CI（GitHub Actions）用这种方式，避免暴露 Apple ID 密码；密钥文件放 Secrets。
+   需要先改版本再重新构建时使用 `pnpm publish:desktop --target r2 --version x.y.z`。脚本上传成功后尝试创建版本 tag，不自动推送；核对日志与 tag 结果，不能把上传成功当作 Git 已推送。不要用 `--force` 覆盖已发布版本来修复客户端。
 
-## 第四步：打包与验证
+5. OSS 只保留旧客户端的过渡更新链路，不作为当前默认发布目标，也不要覆盖或删除其过渡版本清单。迁移操作先核对 `node scripts/publish-desktop.mjs --help`。
 
-```bash
-cd apps/desktop
-pnpm build
-```
+## 安装、更新与失败处理
 
-electron-builder 会在打包末尾自动完成：签名 → 压缩 zip → 上传 Apple 公证 → 轮询结果 → 装订票据（staple）。公证需要等待几分钟，失败原因会打印在日志中。
-
-产物验证（**每次正式发布前都建议跑一遍**）：
-
-```bash
-# 1. 签名校验（路径按实际产物调整）
-codesign --verify --deep --strict --verbose=2 "release/mac-arm64/Tau.app"
-
-# 2. Gatekeeper 校验——公证成功的标志，输出 "accepted"
-spctl --assess --type execute -v "release/mac-arm64/Tau.app"
-```
-
-> electron-builder 在找不到证书时会**静默回退为 ad-hoc 签名**，所以不要只看构建成功，务必跑上面的两条验证命令。
-
-## 第五步：发布
-
-签名版打包通过后，走现有发布流程（上传 OSS 并更新 electron-updater 拉取的 `latest-mac.yml`）：
-
-```bash
-# 需要先设置阿里云凭据
-export ALI_OSS_ACCESS_ID="..."
-export ALI_OSS_ACCESS_KEY="..."
-
-# 指定版本发布（回写两处 package.json → 构建 → 上传 → 打 tag）
-pnpm publish:desktop --version x.y.z
-
-# 构建已完成时跳过构建重试
-pnpm publish:desktop --skip-build
-```
-
-更新源为 OSS generic provider：`https://release-bin.oss-cn-shanghai.aliyuncs.com/desktop`（`electron-builder.yml` 的 `publish` 配置，bucket/region 不可变更）。签名版发布后，Squirrel 链路即可正常工作。
-
-## 发布后验证更新链路
-
-1. 安装一个**低于发布版本**的签名版；
-2. 打开 设置 → 关于 → 检查更新 → 下载更新 → 重启并安装；
-3. 预期：应用退出 → ShipIt 安装新版本 → 自动重启进入新版本；
-4. 若仍失败，查看日志 `~/.editor/notes.log`（electron-updater / Squirrel 的输出都写在这里）。
-
-## 常见坑
-
-1. **签名必须持续一致**：Squirrel 校验「新包签名 == 当前 app 签名」。同一个 Developer ID 证书要一直用下去；证书遗失需要先用新证书重发一版，老用户才能继续收到后续更新。
-2. **存量的 ad-hoc 旧版本无法自动升级到签名版**：旧版的 ShipIt 校验不会通过。这批用户需要**手动下载一次签名版**，之后自动更新才恢复。建议首个签名版发布时推进版本号，并在更新说明中引导手动下载。
-3. **公证失败常见原因**：Hardened Runtime 未开启、entitlements 缺失、 bundle 内嵌了未签名的辅助可执行文件（Python/ffmpeg 等运行时 electron-builder 会统一处理，若公证报 "unsigned executable" 需检查是否新增了二进制）。
-4. **私钥安全**：`.p12`、`.p8`、App 专用密码只放本地钥匙串或 CI Secrets，通过环境变量传入，绝不提交仓库。
-5. **Windows 不受影响**：本指南仅针对 macOS；Windows 的更新链路没有签名强制要求。
+- 首次安装或手动升级按 [客户端安装手册](/docs/guides/ops-client-build-install.md)选择架构并替换应用。
+- 更新验收使用低于目标版本的正式签名包，进入“设置 → 关于 → 检查更新”，下载并重启安装，确认应用退出、重启后版本正确且原工作区数据保留。仅交付本地 DMG 不会让线上更新服务器自动出现新版本。
+- 缺少公证凭据时，确认当前终端已设置 profile 且该机器有相应钥匙串项；不要关闭公证来发布。
+- 公证失败保留请求 ID 与失败日志，排查辅助可执行文件签名及实际权限需求；不要把“构建成功”或“已提交公证”记成“公证通过”。
+- 原生依赖/架构或包大小异常按 [构建检查](/docs/guides/ops-build-size.md)处理，不跳过 verify-native-runtime。
+- 自动更新失败先检查新旧包签名、更新源和清单摘要；原 ad-hoc 包可引导用户手动安装已验证正式包，不清除用户数据库或绕过系统安全校验。
