@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>方向 A · 大纲右栏 — markdown-window 改版 mockup</title>
+<style>
+/* ============================================================
+   方向 A · 三栏式：左栏纯文件树 / 编辑 sheet / 右栏常驻大纲
+   取色与字号全部来自 packages/themes（暖纸 · 浅色 + tau 尺度）
+   ============================================================ */
+:root{
+  --paper:#f3eee2;
+  --surface:#fffdf9;
+  --hover:rgba(67,57,44,.05);
+  --selected:rgba(217,119,87,.12);
+  --ink-1:#43392c;
+  --ink-2:#6a5c49;
+  --ink-3:#a89a85;
+  --line-1:#e9e1d2;
+  --accent:#a05236;
+  --shadow-card:0 1px 2px rgba(120,100,70,.05),0 10px 24px -14px rgba(120,100,70,.18);
+  --serif:"Songti SC","STSong","Noto Serif SC",Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,"Cascadia Mono",Consolas,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;
+  color:var(--ink-1);
+}
+button{font:inherit;color:inherit;background:none;border:0;padding:0}
+.ic{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+.window{display:flex;flex-direction:column;height:100vh;min-width:960px;background:var(--paper);overflow:hidden}
+
+/* ---------- 标题栏 ---------- */
+.titlebar{position:relative;display:flex;align-items:center;gap:8px;height:44px;flex:none;padding:0 12px 0 88px}
+.traffic{position:absolute;left:14px;top:50%;transform:translateY(-50%);display:flex;gap:8px}
+.traffic i{width:12px;height:12px;border-radius:50%}
+.traffic i:nth-child(1){background:#ed6a5e}
+.traffic i:nth-child(2){background:#f4bf4f}
+.traffic i:nth-child(3){background:#61c454}
+.tb-btn{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;color:var(--ink-2)}
+.tb-btn:hover{background:var(--hover);color:var(--ink-1)}
+.tb-btn.on{background:var(--selected);color:var(--accent)}
+.crumbs{display:flex;align-items:center;gap:4px;min-width:0;font-size:12.5px;color:var(--ink-3)}
+.crumbs b{font-weight:500;color:var(--ink-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crumbs .sep{opacity:.6}
+.dirty{width:6px;height:6px;border-radius:50%;background:#c26a4a;margin-left:4px;flex:none}
+.actions{margin-left:auto;display:flex;align-items:center;gap:2px}
+
+.body{flex:1;display:flex;min-height:0}
+
+/* ---------- 左栏：纯文件树（页签已删除） ---------- */
+.sidebar{width:264px;flex:none;display:flex;flex-direction:column;padding:0 6px 8px 10px}
+.folder-head{display:flex;align-items:center;gap:6px;height:36px;padding-left:8px;font-size:13px;font-weight:600}
+.folder-head .ic{color:var(--accent)}
+.folder-head .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.icon-btn{display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:6px;color:var(--ink-2)}
+.icon-btn:hover{background:var(--hover);color:var(--ink-1)}
+.filter{display:flex;align-items:center;gap:6px;height:30px;margin:2px 4px 6px;padding:0 9px;
+  border:1px solid var(--line-1);border-radius:8px;background:var(--surface);font-size:12.5px;color:var(--ink-3)}
+.filter input{flex:1;min-width:0;border:0;outline:0;background:none;font:inherit;color:var(--ink-1)}
+.filter input::placeholder{color:var(--ink-3)}
+
+.tree{flex:1;overflow:auto;padding-left:4px;font-size:13px}
+.row{display:flex;align-items:center;gap:6px;height:30px;padding-right:8px;
+  padding-left:calc(8px + var(--d) * 16px);border-radius:8px;color:var(--ink-2)}
+.row.dir{color:var(--ink-1)}
+.row:hover{background:var(--hover);color:var(--ink-1)}
+.row.active{background:var(--selected);color:var(--accent);font-weight:500}
+.row .chev{width:12px;height:12px;color:var(--ink-3)}
+.row.open .chev{transform:rotate(90deg)}
+.row .gap12{width:12px;flex:none}
+.row .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .dot{width:6px;height:6px;border-radius:50%;background:#c26a4a;flex:none}
+
+/* ---------- 编辑 sheet ---------- */
+.sheet{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;
+  margin:0 8px 8px 0;background:var(--surface);border-radius:12px;box-shadow:var(--shadow-card)}
+.scroll{flex:1;overflow:auto}
+.prose{max-width:720px;margin:0 auto;padding:56px 48px 140px;font-family:var(--serif)}
+.prose h1{margin:0 0 18px;font-size:24px;font-weight:600;line-height:1.4}
+.prose h2{margin:36px 0 10px;font-size:18px;font-weight:600}
+.prose h3{margin:26px 0 8px;font-size:15.5px;font-weight:600}
+.prose p{margin:0 0 14px;font-size:14px;line-height:1.85}
+.prose ul{margin:0 0 14px;padding-left:1.5em;font-size:14px;line-height:1.85}
+.prose li{margin:3px 0}
+.prose blockquote{margin:0 0 14px;padding:2px 0 2px 14px;border-left:3px solid var(--line-1);color:var(--ink-2);font-size:14px;line-height:1.85}
+.caret{display:inline-block;width:2px;height:1.05em;background:var(--accent);vertical-align:-0.15em;animation:blink 1.1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* ---------- 右栏：常驻大纲（与左栏同语言，落在 page 底上） ---------- */
+.rail{width:216px;flex:none;display:flex;flex-direction:column;padding:6px 10px 8px 16px}
+.rail-title{display:flex;align-items:center;height:36px;font-size:12px;font-weight:600}
+.outline{flex:1;overflow:auto}
+.ol{display:block;width:100%;text-align:left;line-height:1.4;font-size:13px;color:var(--ink-3);
+  padding:5px 8px 5px 10px;border-left:2px solid transparent;border-radius:8px}
+.ol:hover{background:var(--hover);color:var(--ink-1)}
+.ol.on{border-left-color:var(--accent);background:var(--selected);color:var(--accent);font-weight:500}
+.ol.l3{font-size:11.5px;padding-left:24px}
+.rail-foot{padding:8px 2px 4px;font-size:11.5px;color:var(--ink-3);opacity:.75}
+</style>
+</head>
+<body>
+<div class="window">
+  <!-- 标题栏 -->
+  <header class="titlebar">
+    <div class="traffic"><i></i><i></i><i></i></div>
+    <button class="tb-btn on" title="收起侧栏 (⌘\)">
+      <svg class="ic" width="17" height="17" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+    </button>
+    <nav class="crumbs">
+      <span>知识库</span>
+      <svg class="ic sep" width="12" height="12" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+      <b>知识管理工作流.md</b>
+      <span class="dirty" title="未保存"></span>
+    </nav>
+    <div class="actions">
+      <button class="tb-btn on" title="收起大纲栏">
+        <svg class="ic" width="17" height="17" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg>
+      </button>
+      <button class="tb-btn" title="切换主题">
+        <svg class="ic" width="17" height="17" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      </button>
+      <button class="tb-btn" title="更多">
+        <svg class="ic" width="17" height="17" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="body">
+    <!-- 左栏：文件夹头 + 筛选 + 文件树（宽松密度：13px / 30px 行高 / 16px 缩进） -->
+    <aside class="sidebar">
+      <div class="folder-head">
+        <svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>
+        <span class="nm">知识库</span>
+        <button class="icon-btn" title="新建文件 (⌘N)"><svg class="ic" width="14" height="14" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6M9 15h6"/></svg></button>
+        <button class="icon-btn" title="新建文件夹"><svg class="ic" width="14" height="14" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><path d="M12 10v6M9 13h6"/></svg></button>
+        <button class="icon-btn" title="更多"><svg class="ic" width="14" height="14" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></button>
+      </div>
+      <label class="filter">
+        <svg class="ic" width="13" height="13" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input placeholder="筛选文件 / 文件夹…" />
+      </label>
+      <div class="tree">
+        <div class="row dir open" style="--d:0"><svg class="ic chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg><span class="nm">收集箱</span></div>
+        <div class="row" style="--d:1"><span class="gap12"></span><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg><span class="nm">2026-10 周记.md</span></div>
+        <div class="row" style="--d:1"><span class="gap12"></span><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg><span class="nm">灵感碎片.md</span></div>
+        <div class="row dir open" style="--d:0"><svg class="ic chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg><span class="nm">项目</span></div>
+        <div class="row dir open" style="--d:1"><svg class="ic chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg><span class="nm">Tau 编辑器</span></div>
+        <div class="row" style="--d:2"><span class="gap12"></span><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg><span class="nm">发布清单.md</span></div>
+        <div class="row" style="--d:2"><span class="gap12"></span><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg><span class="nm">架构随笔.md</span></div>
+        <div class="row" style="--d:1"><span class="gap12"></span><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg><span class="nm">播客计划.md</span></div>
+        <div class="row dir" style="--d:0"><svg class="ic chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg><span class="nm">归档</span></div>
+        <div class="row active" style="--d:0"><span class="gap12"></span><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg><span class="nm">知识管理工作流.md</span><span class="dot" title="未保存"></span></div>
+        <div class="row" style="--d:0"><span class="gap12"></span><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg><span class="nm">读书笔记索引.md</span></div>
+      </div>
+    </aside>
+
+    <!-- 编辑 sheet -->
+    <main class="sheet">
+      <div class="scroll">
+        <article class="prose">
+          <h1>从碎片到体系：我的知识管理工作流</h1>
+          <p>过去两年我试过不少笔记工具，最后留下来的不是某个 App，而是一条简单的工作流：收集、整理、输出。这篇文章把它完整记录下来，方便以后的自己回来对照。</p>
+          <h2>收集：先记下来</h2>
+          <p>收集阶段只有一个原则——快。念头出现时，三秒内要能被记下，不打断手里的事。</p>
+          <ul>
+            <li>通勤路上：语音备忘录，回家转文字</li>
+            <li>阅读时：划线即收藏，不写感想</li>
+            <li>聊天中：直接转发给「收集箱」</li>
+          </ul>
+          <h2>整理：每周半小时</h2>
+          <p>整理不是归档，而是「再读一遍」。每周日晚饭后留半小时，把收集箱清空：值得展开的移进项目，暂时用不上的打标签归档。</p>
+          <h3>标签而非文件夹</h3>
+          <p>文件夹是独占的，标签是网状的。一条笔记可以同属「写作」和「产品」，这正是日后产生连接的地方。</p>
+          <h2>输出：写给自己看</h2>
+          <p>输出的读者首先是自己。把学到的东西讲清楚一遍，含糊的地方会自己浮出来。<span class="caret"></span></p>
+          <blockquote>「写作不是记录思想，写作本身就是思想。」</blockquote>
+        </article>
+      </div>
+    </main>
+
+    <!-- 右栏：大纲（ContentOutline 复用，激活项 = 当前滚动章节） -->
+    <aside class="rail">
+      <div class="rail-title">大纲</div>
+      <nav class="outline">
+        <button class="ol">收集：先记下来</button>
+        <button class="ol on">整理：每周半小时</button>
+        <button class="ol l3">标签而非文件夹</button>
+        <button class="ol">输出：写给自己看</button>
+      </nav>
+      <div class="rail-foot">4 个标题</div>
+    </aside>
+  </div>
+</div>
+</body>
+</html>

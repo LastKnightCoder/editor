@@ -28,6 +28,7 @@ import { Editor, type EditorRef } from "@tau/editor";
 import { Loading, cn, useEdgeFade, FADE_SCROLL_CLASS } from "@tau/ui";
 import { ErrorBoundary } from "@tau/ui";
 import {
+  ContentOutline,
   extractContentHeaders,
   resolveEditorHeaderAnchor,
   type OutlineHeader,
@@ -65,11 +66,16 @@ export const MarkdownFileView = forwardRef<
   {
     path: string;
     wide: boolean;
+    /** 大纲贴正文右缘常驻（页面按 sheet 宽度判定）；不够宽时由页面降级为弹层 */
+    outlineColumn?: boolean;
     onStatus(status: FileViewStatus): void;
     onOpenMarkdown(path: string): void;
     onSaveAs(text: string): void;
   }
->(function MarkdownFileView({ path, wide, onStatus, onOpenMarkdown, onSaveAs }, ref) {
+>(function MarkdownFileView(
+  { path, wide, outlineColumn = false, onStatus, onOpenMarkdown, onSaveAs },
+  ref
+) {
   const editorRef = useRef<EditorRef>(null);
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(scrollEl);
@@ -209,13 +215,25 @@ export const MarkdownFileView = forwardRef<
   );
 
   const dirty = session.saveState === "dirty" || session.conflict !== null || session.missing;
+  const headers = sourceMode ? source.headers : richHeaders;
   useEffect(() => {
     onStatus({
       dirty,
       sourceMode,
-      outline: { headers: sourceMode ? source.headers : richHeaders, scrollEl, resolveAnchor },
+      outline: { headers, scrollEl, resolveAnchor },
     });
-  }, [dirty, onStatus, resolveAnchor, richHeaders, scrollEl, source.headers, sourceMode]);
+  }, [dirty, onStatus, resolveAnchor, headers, scrollEl, sourceMode]);
+
+  /* sheet 够宽时大纲贴正文右缘常驻（grid 三列，正文列让位）；不够宽由页面降级为弹层 */
+  const outlineAsColumn = outlineColumn && headers.length > 0;
+  const outlineNode = (
+    <ContentOutline
+      headers={headers}
+      scrollEl={scrollEl}
+      resolveAnchor={resolveAnchor}
+      className="w-full"
+    />
+  );
 
   const getContent = useCallback(() => fileDocument.getContent(), [fileDocument]);
 
@@ -260,6 +278,39 @@ export const MarkdownFileView = forwardRef<
 
   const column = cn("mx-auto w-full px-10 pb-24 pt-8", wide ? "max-w-[1040px]" : "max-w-[800px]");
 
+  const sourceView = (
+    <div className={cn(!sourceMode && "hidden")}>
+      <CodeMirrorView
+        value={sourceTextRef.current}
+        mode={SOURCE_MODE}
+        scrollEl={scrollEl}
+        onMount={onSourceMount}
+        onSave={() => void session.save()}
+        onUndo={fileDocument.undo}
+        onRedo={fileDocument.redo}
+        onCursorChange={setCursor}
+        onChange={(text, origin) => {
+          sourceTextRef.current = text;
+          if (origin === "setValue") return;
+          applySource(text);
+          refreshStats();
+        }}
+      />
+    </div>
+  );
+  const richView = (
+    <div ref={richRef} className={cn((sourceMode || !!snapshot.error) && "hidden")}>
+      <ErrorBoundary>
+        <Editor
+          kit={markdownKit}
+          ref={editorRef}
+          document={fileDocument.document}
+          readonly={sourceMode || !!snapshot.error}
+        />
+      </ErrorBoundary>
+    </div>
+  );
+
   return (
     <>
       {snapshot.error && (
@@ -290,34 +341,30 @@ export const MarkdownFileView = forwardRef<
         </FileBanner>
       )}
       <div ref={setScrollEl} className={cn(FADE_SCROLL_CLASS, "min-h-0 flex-1")}>
-        <div className={cn(column, !sourceMode && "hidden")}>
-          <CodeMirrorView
-            value={sourceTextRef.current}
-            mode={SOURCE_MODE}
-            scrollEl={scrollEl}
-            onMount={onSourceMount}
-            onSave={() => void session.save()}
-            onUndo={fileDocument.undo}
-            onRedo={fileDocument.redo}
-            onCursorChange={setCursor}
-            onChange={(text, origin) => {
-              sourceTextRef.current = text;
-              if (origin === "setValue") return;
-              applySource(text);
-              refreshStats();
-            }}
-          />
-        </div>
-        <div ref={richRef} className={cn(column, (sourceMode || !!snapshot.error) && "hidden")}>
-          <ErrorBoundary>
-            <Editor
-              kit={markdownKit}
-              ref={editorRef}
-              document={fileDocument.document}
-              readonly={sourceMode || !!snapshot.error}
-            />
-          </ErrorBoundary>
-        </div>
+        {outlineAsColumn ? (
+          <div
+            className={cn(
+              "grid min-h-full",
+              wide
+                ? "grid-cols-[minmax(0,1fr)_minmax(0,1040px)_minmax(208px,1fr)]"
+                : "grid-cols-[minmax(0,1fr)_minmax(0,800px)_minmax(208px,1fr)]"
+            )}
+          >
+            <div className="col-start-2 min-w-0 px-10 pb-24 pt-8">
+              {sourceView}
+              {richView}
+            </div>
+            {/* 起始与正文同高（同正文列 pt-8），滚动后吸在同一留白处 */}
+            <div className="col-start-3 min-w-0 pl-4 pr-3 pt-8">
+              <div className="sticky top-8 max-w-[240px]">{outlineNode}</div>
+            </div>
+          </div>
+        ) : (
+          <div className={column}>
+            {sourceView}
+            {richView}
+          </div>
+        )}
       </div>
       <FileStatusBar cursor={sourceMode ? cursor : null} saveState={session.saveState}>
         <button
