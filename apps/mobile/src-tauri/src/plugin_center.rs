@@ -92,7 +92,8 @@ pub(crate) fn trusted_source(source: &Value) -> bool {
         && source["url"] == format!("{origin}/v2/releases/{release}/download")
 }
 fn host(platform: &str, version: &str) -> Value {
-    let capabilities: Vec<String> = serde_json::from_str(CAPABILITIES).expect("内置插件能力清单无效");
+    let capabilities: Vec<String> =
+        serde_json::from_str(CAPABILITIES).expect("内置插件能力清单无效");
     json!({"platform":platform,"appVersion":version,"apiVersions":[1],"formatVersions":[3],"profiles":["web-v1"],"capabilities":capabilities})
 }
 #[tauri::command]

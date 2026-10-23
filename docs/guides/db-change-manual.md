@@ -33,7 +33,7 @@ pnpm db:schema:prepare
 
 ```bash
 pnpm --filter desktop exec tsc --noEmit
-cd apps/mobile/src-tauri && cargo check
+pnpm --filter mobile check:rust
 ```
 
 ## 3. 新增表：推荐步骤

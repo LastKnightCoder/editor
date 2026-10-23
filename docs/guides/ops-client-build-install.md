@@ -26,7 +26,7 @@
 1. 设置 `JAVA_HOME`、`ANDROID_HOME`、`NDK_HOME`，将 JDK bin、SDK platform-tools 加入 PATH；使用符合生成工程要求的版本。`adb devices -l` 应识别指定设备，手机信任授权由用户完成。
 2. 恢复正式签名目录（默认 `~/.editor-mobile-signing`）中的 keystore 与 credentials.env，或通过现有 `TAURI_ANDROID_*` 环境变量提供同一证书。备份存私有位置，不打印密码、不入库。
 3. 没有生成工程时才执行 `pnpm --filter mobile exec tauri android init`。已有工程不要因签名错误直接删除；备份原生自定义配置后再决定是否重建。
-4. 可先执行 `pnpm --filter mobile prepare:android:signing` 检查已有签名，再执行 `pnpm --filter mobile build:android:release`。正式构建、调试包和 Android dev 入口都会先校验签名，成功才更新工程签名配置并继续 Tauri。典型产物为 `apps/mobile/src-tauri/gen/android/app/build/outputs/apk/arm64/release/app-arm64-release.apk`，以本次 CLI 输出为准。
+4. 可先执行 `pnpm --filter mobile prepare:android:signing` 检查已有签名，再执行 `pnpm --filter mobile build:android:release`。正式构建与调试包入口会先运行 `check:rust`（Rust 格式检查、clippy 与单元测试，rustc 级 warning 即失败）再校验签名、更新工程签名配置并继续 Tauri；dev 入口不跑该检查。典型产物为 `apps/mobile/src-tauri/gen/android/app/build/outputs/apk/arm64/release/app-arm64-release.apk`，以本次 CLI 输出为准。
 5. 用 SDK build-tools 的 `apksigner verify --print-certs <APK路径>` 核对签名，将证书 SHA-256 与上一正式包比较；用 `aapt dump badging <APK路径>` 核对应用 ID、版本及架构。正式 Android ID 为 `com.txiong.tau_mobile`，与 iOS 的连字符标识不同，不手工改成同一字符串。
 6. 记录 APK 的 SHA-256，在确认的目标设备执行 `adb -s <设备序列号> install -r <APK路径>` 覆盖安装，不卸载旧应用、不清除数据。也可将已核验 APK 传到手机，由用户从文件管理器打开安装，并仅对实际安装来源授予所需授权。
 7. 核对系统应用信息中的版本、原工作区和数据。`pnpm --filter mobile apk` 会构建后立即安装，且未指定 adb 序列号；只构建交付文件或连接多台设备时使用前面的分步命令。

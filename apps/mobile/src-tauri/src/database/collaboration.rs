@@ -183,7 +183,7 @@ pub struct ProjectContentPayload {
 #[tauri::command]
 pub fn collab_project_content(
     app: AppHandle,
-    mut payload: ProjectContentPayload,
+    payload: ProjectContentPayload,
 ) -> Result<Value, String> {
     let mut conn = open_active_database(&app)?;
     let Some(binding) = read_binding(&conn, payload.content_id)? else {
