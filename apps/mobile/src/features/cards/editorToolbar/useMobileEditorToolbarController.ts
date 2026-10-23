@@ -61,7 +61,9 @@ import {
   useEditingContext,
   type CodeEditingContext,
   type EditingContext,
+  type MediaEditingContext,
 } from "./editingContext";
+import { placeCaretAfterMedia, promptInsertWebview } from "./mediaActions";
 import { setCodeBlockLanguage as setCodeBlockLanguageOnEditor } from "./codeBlockInput";
 import {
   getColumnAlign,
@@ -94,11 +96,12 @@ export type InsertSheetItemKind =
   | "callout"
   | "math"
   | "mermaid"
+  | "webview"
   | "annotation"
   | "content-link";
 
-/** 占用键盘位置的面板：Aa 样式面板 / + 插入面板 */
-export type EditorPanelKind = "style" | "insert";
+/** 占用键盘位置的面板：Aa 样式面板 / + 插入面板 / 媒体尺寸面板（选中媒体时，键盘已收起） */
+export type EditorPanelKind = "style" | "insert" | "media";
 
 export type ClosePanelOptions = {
   /** 是否弹回键盘；用户点正文时键盘由系统弹出，传 false */
@@ -160,6 +163,16 @@ export type MobileEditorToolbarController = {
   exitEditing: () => void;
   /** 登记退出编辑监听（宿主据此回阅读态）；传 null 取消，同一时刻只保留一个 */
   setExitEditingListener: (listener: (() => void) | null) => void;
+  /** 登记块选择入口（宿主接入块选择时），参数为顶层块下标；传 null 取消 */
+  setBlockSelectionListener: (listener: ((index: number) => void) | null) => void;
+  /** 宿主已接入块选择时进入块选择并选中该顶层块，返回是否已处理 */
+  requestBlockSelection: (index: number) => boolean;
+  /** 光标放到选中媒体之后并弹出键盘（媒体上下文的「键盘」按钮） */
+  focusAfterMedia: (context: MediaEditingContext) => void;
+  /** 编辑区 DOM（媒体档位换算可用宽度） */
+  getEditableElement: () => HTMLElement | null | undefined;
+  /** 在编辑器上执行媒体改动并刷新配件栏状态，不处理焦点 */
+  runMediaEdit: (fn: (editor: SlateEditor) => void) => void;
   /** 在面板保存的选区上执行操作，不聚焦编辑器 */
   runInPanel: (fn: (editor: SlateEditor) => void) => void;
   indent: () => void;
@@ -219,6 +232,7 @@ export function useMobileEditorToolbarController(
   const activePanelRef = useRef<EditorPanelKind | null>(null);
   const panelSelectionRef = useRef<BaseSelection | null>(null);
   const exitEditingListenerRef = useRef<(() => void) | null>(null);
+  const blockSelectionListenerRef = useRef<((index: number) => void) | null>(null);
   const tableMenuOpenRef = useRef(false);
   const tableMenuSelectionRef = useRef<BaseSelection | null>(null);
 
@@ -373,6 +387,7 @@ export function useMobileEditorToolbarController(
     "callout",
     "math",
     "mermaid",
+    "webview",
   ]);
 
   /** 插入面板条目分发；面板打开时作用于面板选区且不聚焦，面板开合由调用方负责 */
@@ -445,6 +460,10 @@ export function useMobileEditorToolbarController(
           break;
         case "mermaid":
           insertMermaid(editor);
+          break;
+        case "webview":
+          // 底部输入框填地址，提交时按打开时的插入位置插入
+          void promptInsertWebview(editor);
           break;
         case "annotation":
           insertAnnotation(editor, "注解内容");
@@ -659,6 +678,17 @@ export function useMobileEditorToolbarController(
     exitEditingListenerRef.current = listener;
   }, []);
 
+  const setBlockSelectionListener = useCallback((listener: ((index: number) => void) | null) => {
+    blockSelectionListenerRef.current = listener;
+  }, []);
+
+  const requestBlockSelection = useCallback((index: number) => {
+    const listener = blockSelectionListenerRef.current;
+    if (!listener) return false;
+    listener(index);
+    return true;
+  }, []);
+
   // 宿主卸载时面板仍开着则释放预留，避免下一页底部留白
   useEffect(() => {
     return () => {
@@ -819,7 +849,50 @@ export function useMobileEditorToolbarController(
     isEditorFocused ||
     activePanel !== null ||
     isTableMenuOpen ||
-    isVoidEditorContext(rawEditingContext);
+    isVoidEditorContext(rawEditingContext) ||
+    rawEditingContext.kind === "media";
+
+  // 选中媒体：收起键盘（编辑态保持），文字面板让位；离开媒体时关掉媒体面板
+  const mediaSelectedKey =
+    rawEditingContext.kind === "media" && !rawEditingContext.captionEditing ? rawContextKey : null;
+  useEffect(() => {
+    if (mediaSelectedKey === null) {
+      if (activePanelRef.current === "media") closePanel({ showKeyboard: false });
+      return;
+    }
+    if (activePanelRef.current && activePanelRef.current !== "media") {
+      closePanel({ showKeyboard: false });
+    }
+    const editor = getEditorFromRef(editorRef);
+    if (editor && ReactEditor.isFocused(editor as ReactEditor)) {
+      clearKeyboardSwap(getEditableElement());
+      ReactEditor.blur(editor as ReactEditor);
+    }
+  }, [closePanel, editorRef, getEditableElement, mediaSelectedKey]);
+
+  const focusAfterMedia = useCallback(
+    (context: MediaEditingContext) => {
+      const editor = getEditorFromRef(editorRef);
+      if (!editor) return;
+      if (activePanelRef.current) closePanel({ showKeyboard: false });
+      placeCaretAfterMedia(editor, context);
+      // 在点击内同步聚焦，iOS 才会弹出键盘
+      const nextSelection = restoreSelectionAndFocus(editor, editor.selection);
+      lastSelectionRef.current = nextSelection ?? editor.selection ?? null;
+      markSelectionDirty();
+    },
+    [closePanel, editorRef, markSelectionDirty]
+  );
+
+  const runMediaEdit = useCallback(
+    (fn: (editor: SlateEditor) => void) => {
+      const editor = getEditorFromRef(editorRef);
+      if (!editor) return;
+      fn(editor);
+      markSelectionDirty();
+    },
+    [editorRef, markSelectionDirty]
+  );
 
   const isActionDisabled = useCallback(
     (actionId: ToolbarActionId): boolean => {
@@ -918,6 +991,11 @@ export function useMobileEditorToolbarController(
       dismissKeyboard,
       exitEditing,
       setExitEditingListener,
+      setBlockSelectionListener,
+      requestBlockSelection,
+      focusAfterMedia,
+      getEditableElement,
+      runMediaEdit,
       runInPanel,
       indent,
       outdent,
@@ -963,6 +1041,11 @@ export function useMobileEditorToolbarController(
       dismissKeyboard,
       exitEditing,
       setExitEditingListener,
+      setBlockSelectionListener,
+      requestBlockSelection,
+      focusAfterMedia,
+      getEditableElement,
+      runMediaEdit,
       runInPanel,
       indent,
       outdent,

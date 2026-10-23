@@ -9,6 +9,8 @@ import {
   Pause,
   PictureInPicture2,
   Play,
+  RotateCcw,
+  RotateCw,
   Volume1,
   Volume2,
   VolumeX,
@@ -72,6 +74,35 @@ const iconButtonClass = (tone: MediaTone, active = false) =>
     TONES[tone].ghost,
     active && TONES[tone].iconActive
   );
+
+/** 快退 / 快进固定秒数（触屏下替代快捷键），图标中央标秒数 */
+export function SeekButton({
+  seconds,
+  onSeek,
+  tone,
+  className,
+}: {
+  /** 正数快进，负数快退 */
+  seconds: number;
+  onSeek: () => void;
+  tone: MediaTone;
+  className?: string;
+}) {
+  const Icon = seconds < 0 ? RotateCcw : RotateCw;
+  return (
+    <button
+      type="button"
+      aria-label={seconds < 0 ? `快退 ${-seconds} 秒` : `快进 ${seconds} 秒`}
+      className={cn(iconButtonClass(tone), "relative", className)}
+      onClick={onSeek}
+    >
+      <Icon size={20} strokeWidth={1.8} />
+      <span className="absolute inset-0 grid place-items-center pt-px text-[7.5px] font-bold tabular-nums">
+        {Math.abs(seconds)}
+      </span>
+    </button>
+  );
+}
 
 export function PlayButton({
   playing,

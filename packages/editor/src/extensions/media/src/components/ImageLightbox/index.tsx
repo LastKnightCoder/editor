@@ -14,10 +14,11 @@ import {
 } from "lucide-react";
 
 import { useEditorSlots } from "../../services/hooks";
-import { useNotifier, OverlayBackDismiss } from "@tau/editor/api";
+import { useNotifier, OverlayBackDismiss, useTouchInteraction } from "@tau/editor/api";
 import { fileNameOfUrl, useImageLightboxStore } from "../../stores";
 import { copyImageElement, imageElementToBlob } from "../../utils/imageBlob";
 import { panAroundAnchor, pointFromCenter } from "@tau/editor/api";
+import TouchLightboxView from "./TouchLightboxView";
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 8;
@@ -42,6 +43,7 @@ const ImageLightbox = () => {
     close: state.close,
   }));
   const open = owner === editor && items.length > 0;
+  const touch = useTouchInteraction();
   useEffect(
     () => () => {
       const state = useImageLightboxStore.getState();
@@ -53,7 +55,11 @@ const ImageLightbox = () => {
   return (
     <>
       <OverlayBackDismiss open onDismiss={close} />
-      <LightboxView items={items} index={index} setIndex={setIndex} close={close} />
+      {touch ? (
+        <TouchLightboxView items={items} index={index} setIndex={setIndex} close={close} />
+      ) : (
+        <LightboxView items={items} index={index} setIndex={setIndex} close={close} />
+      )}
     </>
   );
 };

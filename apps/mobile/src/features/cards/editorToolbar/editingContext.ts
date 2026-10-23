@@ -11,6 +11,15 @@ import {
 } from "slate";
 import { ReactEditor } from "slate-react";
 
+/** 触屏下可被选中操作的媒体元素类型 */
+export type MediaElementType = "image" | "inline-image" | "video" | "audio" | "webview";
+
+const MEDIA_ELEMENT_TYPES = new Set<string>(["image", "inline-image", "video", "audio", "webview"]);
+
+export function isMediaElementType(type: unknown): type is MediaElementType {
+  return typeof type === "string" && MEDIA_ELEMENT_TYPES.has(type);
+}
+
 /** 配件栏的编辑上下文：决定配件栏渲染哪一组工具 */
 export type EditingContext =
   | { kind: "text" }
@@ -32,7 +41,17 @@ export type EditingContext =
       language?: string;
     }
   | { kind: "block-math" | "mermaid"; path: Path; host: HTMLElement }
-  | { kind: "inline-math"; path: Path; input: HTMLInputElement };
+  | { kind: "inline-math"; path: Path; input: HTMLInputElement }
+  | {
+      kind: "media";
+      mediaType: MediaElementType;
+      element: ElementNode;
+      path: Path;
+      /** 焦点在图片说明输入里（此时 Slate 失焦、键盘弹起） */
+      captionEditing: boolean;
+    };
+
+export type MediaEditingContext = Extract<EditingContext, { kind: "media" }>;
 
 export type TableEditingContext = Extract<EditingContext, { kind: "table" }>;
 
@@ -52,6 +71,8 @@ const CODE_BLOCK_INPUT_SELECTOR = ".code-block-shiki-input";
 const PREVIEW_CODEMIRROR_SELECTOR = ".ed-preview-codemirror";
 const SLATE_ELEMENT_SELECTOR = '[data-slate-node="element"]';
 const SLATE_EDITOR_SELECTOR = "[data-slate-editor]";
+/** 图片说明的就地输入（Image 组件在说明区标的 data 属性） */
+const MEDIA_CAPTION_SELECTOR = "[data-media-caption]";
 /** 行内公式弹层输入框（InlineMath 组件的 data 属性），并用选区所在 inline-math 节点二次确认 */
 const INLINE_MATH_INPUT_SELECTOR = "input[data-inline-math-input]";
 
@@ -74,6 +95,8 @@ export function getEditingContextKey(context: EditingContext): string {
       return context.kind;
     case "table":
       return `table:${context.tablePath.join(".")}`;
+    case "media":
+      return `media:${context.path.join(".")}${context.captionEditing ? ":caption" : ""}`;
     default:
       return `${context.kind}:${context.path.join(".")}`;
   }
@@ -157,6 +180,48 @@ export function resolveVoidEditorContext(
   return null;
 }
 
+/** 焦点在本编辑器某张图片的说明输入里时返回该图片的媒体上下文 */
+export function resolveMediaCaptionContext(
+  editor: SlateEditor,
+  activeElement: Element | null
+): MediaEditingContext | null {
+  if (!(activeElement instanceof HTMLElement)) return null;
+  if (ReactEditor.isReadOnly(editor as ReactEditor)) return null;
+  const caption = activeElement.closest<HTMLElement>(MEDIA_CAPTION_SELECTOR);
+  if (!caption) return null;
+  const owner = findOwnSlateElement(editor, caption);
+  if (!owner || getNodeType(owner.element) !== "image") return null;
+  return {
+    kind: "media",
+    mediaType: "image",
+    element: owner.element,
+    path: owner.path,
+    captionEditing: true,
+  };
+}
+
+/** 选区折叠在媒体 void 内（触屏下点选媒体）时返回媒体上下文 */
+export function resolveMediaContext(editor: SlateEditor): MediaEditingContext | null {
+  const selection = editor.selection;
+  if (!selection || !Range.isCollapsed(selection)) return null;
+  if (ReactEditor.isReadOnly(editor as ReactEditor)) return null;
+  const entry = SlateEditor.above(editor, {
+    at: selection,
+    voids: true,
+    mode: "lowest",
+    match: node => SlateElement.isElement(node) && isMediaElementType(getNodeType(node)),
+  });
+  if (!entry) return null;
+  const [element, path] = entry as [ElementNode, Path];
+  return {
+    kind: "media",
+    mediaType: getNodeType(element) as MediaElementType,
+    element,
+    path,
+    captionEditing: false,
+  };
+}
+
 /** 光标所在单元格的表格上下文；不在表格内返回 null */
 export function resolveTableContext(editor: SlateEditor): TableEditingContext | null {
   const position = getCellPosition(editor);
@@ -173,16 +238,18 @@ export function resolveTableContext(editor: SlateEditor): TableEditingContext | 
   };
 }
 
-/** 优先级：void 内部编辑器 > 展开选区 > 表格 > 通用文本 */
+/** 优先级：图片说明 / void 内部编辑器（焦点所在）> 展开选区 > 媒体 > 表格 > 通用文本 */
 export function resolveEditingContext(
   editor: SlateEditor,
   activeElement: Element | null
 ): EditingContext {
-  const voidContext = resolveVoidEditorContext(editor, activeElement);
-  if (voidContext) return voidContext;
+  const focusedContext =
+    resolveMediaCaptionContext(editor, activeElement) ??
+    resolveVoidEditorContext(editor, activeElement);
+  if (focusedContext) return focusedContext;
   const selection = editor.selection;
   if (selection && !Range.isCollapsed(selection)) return SELECTION_CONTEXT;
-  return resolveTableContext(editor) ?? TEXT_CONTEXT;
+  return resolveMediaContext(editor) ?? resolveTableContext(editor) ?? TEXT_CONTEXT;
 }
 
 /** 随选区版本与文档焦点变化重算编辑上下文；focusout 后等一帧再判，避免焦点切换瞬间闪烁 */

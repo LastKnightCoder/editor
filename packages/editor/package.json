@@ -86,6 +86,7 @@
     "./extensions/media/services": "./src/extensions/media/services.ts",
     "./extensions/media/slots": "./src/extensions/media/slots.ts",
     "./extensions/media/appearance": "./src/extensions/media/appearance.ts",
+    "./extensions/media/runtime": "./src/extensions/media/runtime.ts",
     "./extensions/media/markdown": "./src/extensions/media/markdown.ts",
     "./extensions/styled-text": "./src/extensions/styled-text/src/index.tsx",
     "./extensions/styled-text/markdown": "./src/extensions/styled-text/markdown.ts",

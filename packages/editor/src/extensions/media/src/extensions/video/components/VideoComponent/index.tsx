@@ -26,6 +26,8 @@ import {
 } from "../../../../utils/mediaFrameClasses";
 import VideoSelectionToolbar from "./VideoSelectionToolbar";
 import { WIDTH_PRESETS } from "../../../../utils/mediaWidth";
+import { useTouchMediaSelection } from "../../../../hooks/useTouchMediaSelection";
+import { mediaWidthControls } from "../../../../utils/mediaWidthControls";
 
 const MIN_WIDTH = 200;
 
@@ -49,7 +51,10 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
   const [maxWidth, setMaxWidth] = useState<number>(Infinity);
-  const [isSelected, setIsSelected] = useState(false);
+  const [pointerSelected, setIsSelected] = useState(false);
+  const touchSelection = useTouchMediaSelection(element);
+  const { touch } = touchSelection;
+  const isSelected = touch ? touchSelection.selected : pointerSelected;
   const { Video } = useEditorSlots();
   const notifier = useNotifier();
   const videoProviders = useOptionalService(IVideoContentProviders) ?? [];
@@ -114,9 +119,14 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
 
   // 捕获阶段选中：暂停态的播放覆盖层、底栏按钮上按下同样算选中本块
   const handleSelect = useMemoizedFn(() => {
-    if (!readOnly) {
+    if (!readOnly && !touch) {
       setIsSelected(true);
     }
+  });
+
+  // 触屏按点击选中（按下时可能是在滚动页面），播放控件照常响应
+  const handleTouchSelect = useMemoizedFn(() => {
+    if (!readOnly && touch) touchSelection.select();
   });
 
   const presetWidth = (ratio: number) => {
@@ -128,6 +138,17 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
     const next = presetWidth(ratio);
     resize.setSize({ width: next });
     updateElementWidth(next);
+  });
+
+  useEffect(() => {
+    mediaWidthControls.set(element, {
+      applyPreset: ratio => {
+        if (!readOnly) handleWidthPreset(ratio);
+      },
+    });
+    return () => {
+      mediaWidthControls.delete(element);
+    };
   });
 
   const handleCopyLink = useMemoizedFn(() => {
@@ -216,8 +237,9 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
           maxWidth: "100%",
         }}
         onPointerDownCapture={handleSelect}
+        onClickCapture={handleTouchSelect}
       >
-        {!readOnly && isSelected && (
+        {!readOnly && isSelected && !touch && (
           <VideoSelectionToolbar
             align={align}
             activePreset={activePreset}
@@ -232,7 +254,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
           // 流式地址每次解析都会变，续播按节点的原始地址记忆
           <VideoPlayer {...playerProps} persistKey={src} />
         )}
-        {!readOnly && isSelected && (
+        {!readOnly && isSelected && !touch && (
           <>
             {RESIZE_HANDLES.map(({ direction, cursor }) => (
               <div

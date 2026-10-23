@@ -32,7 +32,7 @@ import { mobileEditorNotifier } from "./editorNotifier";
 import { arrayBufferToBase64 } from "../utils/base64";
 import { compressImageForUpload } from "../utils/imageCompress";
 import { recordUploadFailure, recordUploadSuccess } from "./uploadOutcome";
-import { IOverlayBackDismiss } from "@tau/editor/api";
+import { IEditorInteraction, IOverlayBackDismiss } from "@tau/editor/api";
 import { MobileEditorOverlayDismiss } from "./editorOverlayDismiss";
 
 const UNSUPPORTED_REASON = "移动端不支持该功能";
@@ -78,6 +78,8 @@ const mobileEditorSlots: EditorSlots = {
 /** Mobile 的服务注册项：kit 与 registry 共用同一份 */
 export const mobileEditorServices: ServiceRegistration = register => {
   register(IOverlayBackDismiss, { Layer: MobileEditorOverlayDismiss });
+  // 媒体等带手柄的块改用触屏交互，操作由配件栏的媒体上下文承接
+  register(IEditorInteraction, { touch: true });
   register(IResourceService, {
     upload: async file => {
       // 分步日志经 WebView console 进 logcat，用于真机排查上传链路

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode, type SyntheticEvent } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Z_INDEX } from "../../../router/zIndex";
 import { useSheetBackDismiss } from "../../../router/useSheetBackDismiss";
 import { createPortal } from "react-dom";
@@ -57,6 +57,8 @@ import {
 } from "./codeBlockInput";
 import type { CodeEditingContext, EditingContext, TableEditingContext } from "./editingContext";
 import InsertPanel from "./InsertPanel";
+import MediaPanel from "./MediaPanel";
+import { useMediaAccessory } from "./mediaAccessory";
 import {
   getSourceSymbolKeys,
   insertIntoTextControl,
@@ -65,6 +67,7 @@ import {
   type SourceSymbolKey,
 } from "./sourceEditorInput";
 import StylePanel from "./StylePanel";
+import { AccessoryButton, ContextChip, cn, keepEditorFocus } from "./accessoryControls";
 import { isTableActionDisabled, type TableActionId } from "./tableActions";
 import type { ToolbarActionId } from "./toolbarActions";
 import type {
@@ -74,6 +77,7 @@ import type {
 
 /** 可裁剪条目 id：配件栏通用 / 格式模式条目、上下文模式开关，及 Aa 面板的「转换为」、颜色、高亮、更多样式条目 */
 export type AccessoryItemId =
+  | "context-media"
   | "context-table"
   | "context-code"
   | "context-math"
@@ -162,6 +166,7 @@ const FORMAT_MIDDLE_ITEMS: FormatItemId[] = [
 ];
 
 const ITEM_LABELS: Record<AccessoryItemId, string> = {
+  "context-media": "媒体",
   "context-table": "表格",
   "context-code": "代码块",
   "context-math": "公式",
@@ -225,75 +230,6 @@ const ITEM_ACTIONS: Partial<Record<AccessoryItemId, ToolbarActionId>> = {
   comment: "comment",
   code: "code",
 };
-
-function cn(...values: Array<string | false | null | undefined>): string {
-  return values.filter(Boolean).join(" ");
-}
-
-/** 按下时阻止按钮抢走编辑器焦点（键盘不因触按而收起） */
-function keepEditorFocus(event: SyntheticEvent) {
-  event.preventDefault();
-}
-
-type AccessoryButtonProps = {
-  label: string;
-  onPress: () => void;
-  active?: boolean;
-  disabled?: boolean;
-  /** 宽度与文字排版，默认 w-10 方形按钮 */
-  className?: string;
-  children: ReactNode;
-};
-
-type ContextChipProps = {
-  icon?: ReactNode;
-  label: string;
-  /** 标签右侧附加图标（如代码块语言的下拉箭头） */
-  trailing?: ReactNode;
-  ariaLabel?: string;
-  /** 不传时渲染为不可点的静态标签 */
-  onPress?: () => void;
-};
-
-const CONTEXT_CHIP_CLASS =
-  "bg-accent-soft text-accent-text mx-1 flex h-7 max-w-[120px] shrink-0 items-center gap-1 rounded-lg px-2 text-[12.5px] font-semibold";
-
-/** 上下文模式左端标签：标明当前模式，点击由调用方决定行为（退回通用模式或打开选择） */
-function ContextChip(props: ContextChipProps) {
-  const { icon, label, trailing, ariaLabel, onPress } = props;
-  const content = (
-    <>
-      {icon}
-      <span className="truncate">{label}</span>
-      {trailing}
-    </>
-  );
-  if (!onPress) {
-    return (
-      <span
-        data-context-chip="static"
-        aria-label={ariaLabel}
-        className={cn(CONTEXT_CHIP_CLASS, "select-none")}
-        onPointerDown={keepEditorFocus}
-        onMouseDown={keepEditorFocus}
-      >
-        {content}
-      </span>
-    );
-  }
-  return (
-    <button
-      type="button"
-      aria-label={ariaLabel}
-      className={CONTEXT_CHIP_CLASS}
-      onPointerDown={keepEditorFocus}
-      onMouseDown={keepEditorFocus}
-      onClick={onPress}
-    >
-      {content}
-    </button>
-  );
-}
 
 /** 长按 Tab 触发反缩进的时长 */
 const CODE_KEY_LONG_PRESS_MS = 450;
@@ -440,29 +376,6 @@ function resolveSourceContext(
   return null;
 }
 
-function AccessoryButton(props: AccessoryButtonProps) {
-  const { label, onPress, active = false, disabled = false, className, children } = props;
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      aria-pressed={active}
-      disabled={disabled}
-      className={cn(
-        "flex h-10 shrink-0 items-center justify-center rounded-[11px] transition-colors",
-        active ? "bg-accent-soft text-accent-text" : "text-ink-2 active:bg-press",
-        disabled && "opacity-40",
-        className ?? "w-10"
-      )}
-      onPointerDown={keepEditorFocus}
-      onMouseDown={keepEditorFocus}
-      onClick={onPress}
-    >
-      {children}
-    </button>
-  );
-}
-
 export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps) {
   const { controller, portalContainer, readonly = false, visibleButtons } = props;
   const keyboardViewport = useKeyboardViewport();
@@ -473,7 +386,6 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
 
   const portalRoot = portalContainer ?? (typeof document === "undefined" ? null : document.body);
   // 语言选择期间 textarea 可能失焦，配件栏按打开时的代码块上下文保持显示
-  const showToolbar = !readonly && (controller.isToolbarVisible || languageSheet !== null);
   const activePanel = readonly ? null : controller.activePanel;
   const { editingContext } = controller;
   const isVisible = (id: AccessoryItemId) => !visibleButtons || visibleButtons.has(id);
@@ -488,6 +400,20 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
       : null;
   const codeContext = liveCodeContext ?? languageSheet?.context ?? null;
   const sourceContext = resolveSourceContext(editingContext, activePanel, isVisible);
+  const mediaContext =
+    editingContext.kind === "media" &&
+    (activePanel === null || activePanel === "media") &&
+    isVisible("context-media")
+      ? editingContext
+      : null;
+  const toggleMediaPanel = () => {
+    if (activePanel === "media") controller.closePanel({ showKeyboard: false });
+    else controller.openPanel("media", resolvePanelHeight(keyboardViewport));
+  };
+  const media = useMediaAccessory({ controller, context: mediaContext, toggleMediaPanel });
+  // 语言选择 / 媒体菜单期间焦点可能离开编辑器，配件栏按打开时的上下文保持显示
+  const showToolbar =
+    !readonly && (controller.isToolbarVisible || languageSheet !== null || media.sheetOpen);
 
   useEffect(() => {
     if (readonly) setLanguageSheet(null);
@@ -520,7 +446,11 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     controller.closePanel({ showKeyboard: true, restoreSelection: true });
   };
 
-  useSheetBackDismiss(activePanel !== null, returnToKeyboard);
+  // 媒体面板打开时键盘本就收起，返回只关面板
+  useSheetBackDismiss(activePanel !== null, () => {
+    if (activePanel === "media") controller.closePanel({ showKeyboard: false });
+    else returnToKeyboard();
+  });
 
   const togglePanel = (kind: EditorPanelKind) => {
     controller.togglePanel(kind, resolvePanelHeight(keyboardViewport));
@@ -681,6 +611,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
   let middleNodes: ReactNode[];
   if (codeContext) middleNodes = renderCodeItems(codeContext);
   else if (sourceContext) middleNodes = renderSourceItems(sourceContext);
+  else if (mediaContext) middleNodes = media.middleNodes;
   else if (tableContext) middleNodes = renderTableItems(tableContext);
   else {
     middleNodes = (isFormatMode ? FORMAT_MIDDLE_ITEMS : GENERAL_MIDDLE_ITEMS)
@@ -708,6 +639,8 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
         label={ITEM_LABELS[isMermaid ? "context-mermaid" : "context-math"]}
       />
     );
+  } else if (mediaContext) {
+    leftNode = media.leftNode;
   } else if (isFormatMode) {
     leftNode = (
       <ContextChip
@@ -760,6 +693,8 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
         <KeyboardOff size={ICON_SIZE} strokeWidth={ICON_STROKE} />
       </AccessoryButton>
     );
+  } else if (mediaContext) {
+    rightNode = media.rightNode;
   } else if (isFormatMode) {
     rightNode = isVisible("style") ? renderItem("style") : null;
   } else if (tableContext) {
@@ -850,6 +785,10 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
               <div data-testid={`editor-panel-${activePanel}`}>
                 {activePanel === "style" ? (
                   <StylePanel controller={controller} visibleButtons={visibleButtons} />
+                ) : activePanel === "media" ? (
+                  mediaContext ? (
+                    <MediaPanel controller={controller} context={mediaContext} />
+                  ) : null
                 ) : (
                   <InsertPanel controller={controller} onSearchingChange={setPanelSearching} />
                 )}
@@ -904,6 +843,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
         }
         onClose={closeLanguageSheet}
       />
+      {media.sheets}
       <ContentLinkPickerSheet
         open={controller.isContentLinkPickerOpen}
         onClose={controller.handleCloseContentLinkPicker}

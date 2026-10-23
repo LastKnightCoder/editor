@@ -9,11 +9,13 @@ import { useMediaController } from "./useMediaController";
 import { useAudioPeaks } from "./useAudioPeaks";
 import { AUDIO_POSITION_PREFIX, usePlaybackResume } from "./usePlaybackResume";
 import { useMediaKeyDown, useOsd, useToggleMute } from "./useMediaKeyboard";
+import { useCoarsePointer } from "./useCoarsePointer";
 import {
   MediaOsd,
   PlayButton,
   RateMenu,
   ResumeNotice,
+  SeekButton,
   TimeCode,
   VolumeControl,
 } from "./MediaControls";
@@ -52,6 +54,9 @@ export interface AudioPlayerProps extends React.AudioHTMLAttributes<HTMLAudioEle
   footer?: (context: AudioPlayerFooterContext) => React.ReactNode;
 }
 
+/** 触屏标题行快退 / 快进的秒数（录音回听常用） */
+const TOUCH_SEEK_SECONDS = 15;
+
 /** 1 分钟以内的短音频不记忆播放位置 */
 const RESUME_MIN_DURATION = 60;
 
@@ -85,6 +90,7 @@ const deriveLabel = (src: string): string => {
  * 音频播放器（波形卡）：标题行 + 波形进度行。30 分钟以内且取得到数据的音频画真实波形，
  * 否则退回进度线。src 为空视为加载中（保留卡片占位），播放失败在卡片内说明原因并可重试。
  * 聚焦后快捷键与视频一致（不含全屏 / 画中画 / 逐帧）。
+ * 粗指针（手指）设备：不出音量（交给系统），倍速常显，标题行加 ±15 秒。
  */
 const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
   (
@@ -114,6 +120,7 @@ const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
     ref
   ) => {
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const coarse = useCoarsePointer();
     const setAudioRefs = useCallback(
       (element: HTMLAudioElement | null) => {
         audioRef.current = element;
@@ -330,6 +337,20 @@ const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
             <Button size="sm" variant="primary" onClick={retry}>
               重试
             </Button>
+          ) : coarse ? (
+            <>
+              <SeekButton
+                tone="surface"
+                seconds={-TOUCH_SEEK_SECONDS}
+                onSeek={() => seek((audioRef.current?.currentTime ?? 0) - TOUCH_SEEK_SECONDS)}
+              />
+              <SeekButton
+                tone="surface"
+                seconds={TOUCH_SEEK_SECONDS}
+                onSeek={() => seek((audioRef.current?.currentTime ?? 0) + TOUCH_SEEK_SECONDS)}
+              />
+              <RateMenu tone="surface" rate={rate} onRateChange={changeRate} />
+            </>
           ) : (
             <>
               <VolumeControl
@@ -371,6 +392,7 @@ const AudioPlayer = forwardRef<HTMLAudioElement, AudioPlayerProps>(
             ) : (
               <ProgressBar
                 tone="surface"
+                touch={coarse}
                 className="flex-1"
                 buffered={duration > 0 && bufferedEnd > 0 ? bufferedEnd / duration : undefined}
                 {...scrubProps}
