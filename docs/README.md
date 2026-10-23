@@ -54,6 +54,8 @@
 
 已交付的共享类型、数据入口与 PluginManager 控制器见 [逻辑实现与交接](./tasks/plugin-portability-bcd/logic-handoff.md)。
 
+API 支持范围以 [SDK 支持矩阵](/packages/plugins/docs/api-support.md) 为准；当前的前向兼容、统一模板与作者文档收尾见 [API 契约任务](./tasks/plugin-portability-bcd/api-contract.md)。
+
 ## notes/ — 一次性产物
 
 文件名日期前缀，写完即冻结，随时可删，禁止被引用。

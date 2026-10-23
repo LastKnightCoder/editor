@@ -1,8 +1,8 @@
 # 应用插件契约与开发宿主
 
-跨端公共 API、作者职责与当前验证范围见 [跨端契约](./docs/portability.md)。
+跨端公共 API、作者职责与校验规则见 [跨端契约](./docs/portability.md)，逐项宿主支持和作者适配范围见 [API 支持矩阵](./docs/api-support.md)。
 
-生产边界：桌面插件从中心安装，博客从用户安装包收集发布依赖；移动端与浏览器扩展不加载插件。固定产物只在tests/fixtures/plugins中供测试使用，旧distribution/portable内部入口已删除。详见docs/plugin-system/63-插件分发边界清理.md。
+生产边界：桌面旧格式插件从中心安装，博客收集既有内容插件依赖；格式 3 在桌面开发目录与移动调试宿主运行，移动 release 安装仍关闭，浏览器扩展不加载应用插件。中心支持格式 3 上传待审但关闭批准发布与平台分发。内部宿主入口不随作者 tarball 发布；当前边界见[跨端宿主架构](/docs/architecture/plugin-portability.md)。
 
 同步插件从SDK0.10.0起通过渲染端context.sync.register注册，使用context.fetch访问宿主网络；不支持manifest.sync或Node后台执行，CLI不再提供同步。SDK0.11.0同时提供context.mcp，支持同一插件注册同步与多个MCP。内容codec的历史Node执行路径另记TODO，本轮不改其行为。完整边界见docs/plugin-system/55，整合与发布记录见docs/plugin-system/60。
 

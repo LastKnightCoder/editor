@@ -5,6 +5,11 @@ import { cp, mkdir, readFile, writeFile, mkdtemp, rm } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+execFileSync(
+  process.execPath,
+  [path.join(root, "scripts/plugins/sync-author-docs.mjs"), "--check"],
+  { stdio: "inherit" }
+);
 const isWorkspaceSource = source => {
   const relative = path.relative(root, source);
   return (
