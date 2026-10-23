@@ -56,25 +56,24 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0}
 
 /* ---------- 左栏：纯文件树（页签已删除） ---------- */
 .sidebar{width:264px;flex:none;display:flex;flex-direction:column;padding:0 6px 8px 10px}
-.folder-head{display:flex;align-items:center;gap:6px;height:36px;padding-left:8px;font-size:13px;font-weight:600}
+.folder-head{display:flex;align-items:center;gap:6px;height:40px;padding-left:8px;font-size:13px;font-weight:600}
 .folder-head .ic{color:var(--accent)}
 .folder-head .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .icon-btn{display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:6px;color:var(--ink-2)}
 .icon-btn:hover{background:var(--hover);color:var(--ink-1)}
-.filter{display:flex;align-items:center;gap:6px;height:30px;margin:2px 4px 6px;padding:0 9px;
+.filter{display:flex;align-items:center;gap:6px;height:32px;margin:2px 4px 8px;padding:0 10px;
   border:1px solid var(--line-1);border-radius:8px;background:var(--surface);font-size:12.5px;color:var(--ink-3)}
 .filter input{flex:1;min-width:0;border:0;outline:0;background:none;font:inherit;color:var(--ink-1)}
 .filter input::placeholder{color:var(--ink-3)}
 
 .tree{flex:1;overflow:auto;padding-left:4px;font-size:13px}
-.row{display:flex;align-items:center;gap:6px;height:30px;padding-right:8px;
+.row{display:flex;align-items:center;gap:6px;height:32px;margin-top:2px;padding-right:8px;
   padding-left:calc(8px + var(--d) * 16px);border-radius:8px;color:var(--ink-2)}
 .row.dir{color:var(--ink-1)}
 .row:hover{background:var(--hover);color:var(--ink-1)}
 .row.active{background:var(--selected);color:var(--accent);font-weight:500}
 .row .chev{width:12px;height:12px;color:var(--ink-3)}
 .row.open .chev{transform:rotate(90deg)}
-.row .gap12{width:12px;flex:none}
 .row .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .row .dot{width:6px;height:6px;border-radius:50%;background:#c26a4a;flex:none}
 
@@ -149,16 +148,16 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0}
       </label>
       <div class="tree">
         <div class="row dir open" style="--d:0"><svg class="ic chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg><span class="nm">收集箱</span></div>
-        <div class="row" style="--d:1"><span class="gap12"></span><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg><span class="nm">2026-10 周记.md</span></div>
-        <div class="row" style="--d:1"><span class="gap12"></span><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg><span class="nm">灵感碎片.md</span></div>
+        <div class="row" style="--d:1"><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg><span class="nm">2026-10 周记.md</span></div>
+        <div class="row" style="--d:1"><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg><span class="nm">灵感碎片.md</span></div>
         <div class="row dir open" style="--d:0"><svg class="ic chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg><span class="nm">项目</span></div>
         <div class="row dir open" style="--d:1"><svg class="ic chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg><span class="nm">Tau 编辑器</span></div>
-        <div class="row" style="--d:2"><span class="gap12"></span><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg><span class="nm">发布清单.md</span></div>
-        <div class="row" style="--d:2"><span class="gap12"></span><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg><span class="nm">架构随笔.md</span></div>
-        <div class="row" style="--d:1"><span class="gap12"></span><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg><span class="nm">播客计划.md</span></div>
+        <div class="row" style="--d:2"><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg><span class="nm">发布清单.md</span></div>
+        <div class="row" style="--d:2"><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg><span class="nm">架构随笔.md</span></div>
+        <div class="row" style="--d:1"><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg><span class="nm">播客计划.md</span></div>
         <div class="row dir" style="--d:0"><svg class="ic chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg><span class="nm">归档</span></div>
-        <div class="row active" style="--d:0"><span class="gap12"></span><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg><span class="nm">知识管理工作流.md</span><span class="dot" title="未保存"></span></div>
-        <div class="row" style="--d:0"><span class="gap12"></span><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg><span class="nm">读书笔记索引.md</span></div>
+        <div class="row active" style="--d:0"><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg><span class="nm">知识管理工作流.md</span><span class="dot" title="未保存"></span></div>
+        <div class="row" style="--d:0"><svg class="ic" width="15" height="15" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8M16 13H8M16 17H8"/></svg><span class="nm">读书笔记索引.md</span></div>
       </div>
     </aside>
 
