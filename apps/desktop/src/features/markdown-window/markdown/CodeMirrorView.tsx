@@ -64,7 +64,10 @@ export function CodeMirrorView({
     };
   }, []);
 
-  useEffect(() => () => onMount?.(null), [onMount]);
+  useEffect(() => {
+    onMount?.(editorRef.current);
+    return () => onMount?.(null);
+  }, [onMount]);
 
   useEffect(() => {
     const wrapper = editorRef.current?.getWrapperElement();
@@ -118,7 +121,6 @@ export function CodeMirrorView({
           editorRef.current = editor;
           if (onUndo) editor.undo = () => latest.current.onUndo?.();
           if (onRedo) editor.redo = () => latest.current.onRedo?.();
-          onMount?.(editor);
         }}
         onChange={(_editor, change, next) => onChange(next, change.origin)}
       />

@@ -13,6 +13,8 @@ export type LocalChangeSource = "user" | "external";
 export interface LocalYjsDocumentOptions extends ReconcileOptions {
   /** 视图生命周期可独立于文档连接，例如隐藏源码模式下的富文本视图。 */
   wrap?: (children: ReactNode) => ReactNode;
+  /** Yjs 不保存空文本；连接时可按当前 schema 补齐落点，随后仍执行完整规范化。 */
+  prepareInitialContent?: (content: Descendant[], editor: Editor) => Descendant[];
 }
 
 /** 独立本地文档，不创建房间、Awareness、存储或产品数据迁移。 */
@@ -62,7 +64,25 @@ export function createLocalYjsDocument(
         assertActive();
         const bound = editor as Editor & YHistoryEditor;
         editors.add(bound);
-        if (!YjsEditor.connected(bound)) YjsEditor.connect(bound);
+        if (!YjsEditor.connected(bound)) {
+          const prepareInitialContent = options.prepareInitialContent;
+          if (!prepareInitialContent) {
+            YjsEditor.connect(bound);
+          } else {
+            const normalize = bound.normalize;
+            bound.normalize = normalizeOptions => {
+              if (normalizeOptions?.force) {
+                bound.children = prepareInitialContent(bound.children, bound);
+              }
+              normalize.call(bound, normalizeOptions);
+            };
+            try {
+              YjsEditor.connect(bound);
+            } finally {
+              bound.normalize = normalize;
+            }
+          }
+        }
       },
       disconnect: editor => {
         const bound = editor as Editor & YHistoryEditor;

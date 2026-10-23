@@ -1,12 +1,20 @@
 import { act, createRef, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { createEditor, Editor as SlateEditor, Transforms, type Descendant } from "slate";
+import {
+  createEditor,
+  Editor as SlateEditor,
+  Node,
+  Element,
+  Transforms,
+  type Descendant,
+} from "slate";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { describe, expect, it } from "vitest";
 import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
 import { defineExtension, captureElementSubmission } from "@tau/editor/api";
 import { createLocalYjsDocument } from "../localDocument";
+import * as Y from "yjs";
 
 const paragraph = (text: string): Descendant => ({
   type: "paragraph",
@@ -209,4 +217,83 @@ describe("本地 Y.Doc 文档", () => {
       host.remove();
     }
   });
+});
+
+it("连接时在 Yjs 转换后补落点，不改 Y.Doc 或撤销历史，重连与后续编辑仍正常", () => {
+  const initial = [
+    {
+      type: "paragraph",
+      children: [
+        {
+          type: "link",
+          url: "https://example.com",
+          children: [{ type: "formatted", text: "链接" }],
+        },
+      ],
+    },
+  ] as unknown as Descendant[];
+  let calls = 0;
+  const session = createLocalYjsDocument(initial, {
+    prepareInitialContent: (content, editor) => {
+      calls++;
+      const first = content[0];
+      if (!Element.isElement(first)) throw new Error("缺少段落");
+      expect(first.children).toHaveLength(1);
+      const child = first.children[0];
+      if (!Element.isElement(child)) throw new Error("缺少行内节点");
+      expect(editor.isInline(child)).toBe(true);
+      return content.map(node => ({
+        ...node,
+        children: [
+          { type: "formatted", text: "" },
+          ...(node as Element).children,
+          { type: "formatted", text: "" },
+        ],
+      })) as unknown as Descendant[];
+    },
+  });
+  const binding = session.document.binding;
+  if (!binding) throw new Error("缺少绑定");
+  const base = createEditor();
+  base.isInline = node => node.type === "link";
+  const editor = binding.install(base),
+    normalize = editor.normalize;
+  const before = Array.from(Y.encodeStateAsUpdate(session.doc));
+  try {
+    binding.connect(editor);
+    expect((editor.children[0] as Element).children).toHaveLength(3);
+    expect(editor.normalize).toBe(normalize);
+    expect(Array.from(Y.encodeStateAsUpdate(session.doc))).toEqual(before);
+    expect(session.undoManager.undoStack).toHaveLength(0);
+    binding.disconnect(editor);
+    binding.connect(editor);
+    expect(calls).toBe(2);
+    expect(editor.normalize).toBe(normalize);
+    Transforms.insertText(editor, "新", { at: { path: [0, 1, 0], offset: 0 } });
+    session.flush();
+    expect(Node.string(session.getContent()[0])).toBe("新链接");
+    session.undo();
+    expect(session.getContent()).toEqual(initial);
+  } finally {
+    session.dispose();
+  }
+});
+
+it("连接准备失败时仍恢复编辑器的规范化方法", () => {
+  const session = createLocalYjsDocument([paragraph("正文")], {
+    prepareInitialContent: () => {
+      throw new Error("准备失败");
+    },
+  });
+  const binding = session.document.binding;
+  if (!binding) throw new Error("缺少绑定");
+  const editor = binding.install(createEditor()),
+    normalize = editor.normalize;
+  try {
+    expect(() => binding.connect(editor)).toThrow("准备失败");
+    expect(editor.normalize).toBe(normalize);
+    expect(session.getContent()).toEqual([paragraph("正文")]);
+  } finally {
+    session.dispose();
+  }
 });

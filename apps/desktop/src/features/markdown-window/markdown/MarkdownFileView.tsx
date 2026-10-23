@@ -42,6 +42,7 @@ import { useMarkdownEditorServices } from "./editorServices";
 import { useSourceMode } from "./useSourceMode";
 import { createMarkdownDocument } from "./markdownDocument";
 import { createContentLengthCounter } from "./contentLength";
+import { createMarkdownContentPreparer } from "./prepareMarkdownContent";
 
 const WORDS_PER_MINUTE = 400;
 const SOURCE_MODE = { name: "yaml-frontmatter", base: "gfm" };
@@ -94,10 +95,14 @@ export const MarkdownFileView = forwardRef<
   }, [scrollEl]);
 
   const surfaceActive = useRef(true);
+  const markdownKit = useMarkdownEditorServices(path, onOpenMarkdown);
   const [fileDocument] = useState(() =>
-    createMarkdownDocument(children => (
-      <Activity mode={surfaceActive.current ? "visible" : "hidden"}>{children}</Activity>
-    ))
+    createMarkdownDocument(
+      children => (
+        <Activity mode={surfaceActive.current ? "visible" : "hidden"}>{children}</Activity>
+      ),
+      createMarkdownContentPreparer(markdownKit)
+    )
   );
   const snapshot = useSyncExternalStore(fileDocument.subscribe, fileDocument.getSnapshot);
   const content = snapshot.content;
@@ -107,12 +112,13 @@ export const MarkdownFileView = forwardRef<
     [fileDocument]
   );
 
-  const { sourceMode, toggle, showSource, sourceEditorRef, sourceTextRef } = useSourceMode({
-    editorRef,
-    getText,
-    applySource,
-    stopCapturing: fileDocument.stopCapturing,
-  });
+  const { sourceMode, sourceCreated, toggle, showSource, sourceEditorRef, sourceTextRef } =
+    useSourceMode({
+      editorRef,
+      getText,
+      applySource,
+      stopCapturing: fileDocument.stopCapturing,
+    });
   const sourceModeRef = useRef(sourceMode);
   sourceModeRef.current = sourceMode;
   surfaceActive.current = !sourceMode && !snapshot.error;
@@ -167,8 +173,6 @@ export const MarkdownFileView = forwardRef<
   useEffect(() => {
     if (snapshot.error && !sourceMode) showSource();
   }, [snapshot.error, sourceMode, showSource]);
-
-  const markdownKit = useMarkdownEditorServices(path, onOpenMarkdown);
 
   /* 字数 / 源码大纲：节流更新 */
   const [words, setWords] = useState(0);
@@ -281,7 +285,10 @@ export const MarkdownFileView = forwardRef<
   const onSourceMount = useCallback(
     (editor: CodeMirrorEditor | null) => {
       sourceEditorRef.current = editor;
-      if (editor && snapshot.loaded) editor.setValue(fileDocument.getText());
+      if (editor && snapshot.loaded) {
+        const text = fileDocument.getText();
+        if (editor.getValue() !== text) editor.setValue(text);
+      }
     },
     [sourceEditorRef, fileDocument, snapshot.loaded]
   );
@@ -299,22 +306,24 @@ export const MarkdownFileView = forwardRef<
 
   const sourceView = (
     <div className={cn(!sourceMode && "hidden")}>
-      <CodeMirrorView
-        value={sourceTextRef.current}
-        mode={SOURCE_MODE}
-        scrollEl={scrollEl}
-        onMount={onSourceMount}
-        onSave={() => void session.save()}
-        onUndo={fileDocument.undo}
-        onRedo={fileDocument.redo}
-        onCursorChange={setCursor}
-        onChange={(text, origin) => {
-          sourceTextRef.current = text;
-          if (origin === "setValue") return;
-          applySource(text);
-          refreshStats();
-        }}
-      />
+      {sourceCreated && (
+        <CodeMirrorView
+          value={sourceTextRef.current}
+          mode={SOURCE_MODE}
+          scrollEl={scrollEl}
+          onMount={onSourceMount}
+          onSave={() => void session.save()}
+          onUndo={fileDocument.undo}
+          onRedo={fileDocument.redo}
+          onCursorChange={setCursor}
+          onChange={(text, origin) => {
+            sourceTextRef.current = text;
+            if (origin === "setValue") return;
+            applySource(text);
+            refreshStats();
+          }}
+        />
+      )}
     </div>
   );
   const richView = (
@@ -360,26 +369,28 @@ export const MarkdownFileView = forwardRef<
         </FileBanner>
       )}
       <div ref={setScrollEl} className={cn(FADE_SCROLL_CLASS, "min-h-0 flex-1")}>
-        {outlineAsColumn ? (
-          <div
-            className={cn(
-              "grid min-h-full",
-              wide
-                ? "grid-cols-[minmax(0,1fr)_minmax(0,1040px)_minmax(208px,1fr)]"
-                : "grid-cols-[minmax(0,1fr)_minmax(0,800px)_minmax(208px,1fr)]"
-            )}
-          >
-            <div className="col-start-2 min-w-0 px-10 pb-24 pt-8">
-              {sourceView}
-              {richView}
-            </div>
-            {/* 起始与正文同高（同正文列 pt-8），滚动后吸在同一留白处；超高独立滚动 */}
+        <div
+          className={
+            outlineAsColumn
+              ? cn(
+                  "grid min-h-full",
+                  wide
+                    ? "grid-cols-[minmax(0,1fr)_minmax(0,1040px)_minmax(208px,1fr)]"
+                    : "grid-cols-[minmax(0,1fr)_minmax(0,800px)_minmax(208px,1fr)]"
+                )
+              : column
+          }
+        >
+          <div className={outlineAsColumn ? "col-start-2 min-w-0 px-10 pb-24 pt-8" : undefined}>
+            {sourceView}
+            {richView}
+          </div>
+          {outlineAsColumn && (
             <div className="col-start-3 min-w-0 pl-4 pr-3 pt-8">
               <div
                 ref={setOutlineScrollEl}
                 className={cn(
                   FADE_SCROLL_CLASS,
-                  // -mr-2 pr-2 借位：细滚动条落进右留白，不与标题文字相贴
                   "sticky top-8 -mr-2 max-w-[240px] overflow-y-auto overscroll-y-contain pr-2"
                 )}
                 style={{ maxHeight: outlineMaxH ?? undefined }}
@@ -387,13 +398,8 @@ export const MarkdownFileView = forwardRef<
                 {outlineNode}
               </div>
             </div>
-          </div>
-        ) : (
-          <div className={column}>
-            {sourceView}
-            {richView}
-          </div>
-        )}
+          )}
+        </div>
       </div>
       <FileStatusBar cursor={sourceMode ? cursor : null} saveState={session.saveState}>
         <button

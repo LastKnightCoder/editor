@@ -13,10 +13,18 @@ const state = vi.hoisted(() => ({
     ((event: unknown, payload: { filePath: string }) => Promise<void>) | undefined,
   editor: undefined as SlateEditor | undefined,
   source: undefined as
-    { edit(text: string): void; undo(): void; redo(): void; getValue(): string } | undefined,
+    | {
+        edit(text: string): void;
+        undo(): void;
+        redo(): void;
+        getValue(): string;
+        getCursor(): { line: number; ch: number };
+      }
+    | undefined,
   mounts: 0,
   effects: 0,
   sourceSetValues: 0,
+  sourceMounts: 0,
 }));
 // jsdom 无 ResizeObserver（组件用它算大纲独立滚动的高度上限）
 vi.stubGlobal(
@@ -51,7 +59,20 @@ vi.mock("@/utils", async () => ({
 }));
 vi.mock("@/components/ContentOutline", () => ({
   ContentOutline: () => null,
-  extractContentHeaders: () => [],
+  extractContentHeaders: (
+    nodes: { type: string; level?: number; children?: { text?: string }[] }[]
+  ) =>
+    nodes.flatMap((node, index) =>
+      node.type === "header"
+        ? [
+            {
+              id: `header-${index}`,
+              level: node.level ?? 1,
+              title: node.children?.map(child => child.text ?? "").join("") ?? "",
+            },
+          ]
+        : []
+    ),
   resolveEditorHeaderAnchor: () => null,
 }));
 vi.mock("../editorServices", async () => {
@@ -144,6 +165,7 @@ vi.mock("react-codemirror2", async () => {
         return instance;
       });
       useEffect(() => {
+        state.sourceMounts++;
         state.source = editor;
         latest.current.editorDidMount(editor);
       }, [editor]);
@@ -153,6 +175,7 @@ vi.mock("react-codemirror2", async () => {
 });
 
 import { MarkdownFileView } from "../MarkdownFileView";
+import { CodeMirrorView } from "../CodeMirrorView";
 
 let dispose: (() => Promise<void>) | undefined;
 beforeEach(() => {
@@ -161,6 +184,7 @@ beforeEach(() => {
   state.mounts = 0;
   state.effects = 0;
   state.sourceSetValues = 0;
+  state.sourceMounts = 0;
   state.source = undefined;
   state.editor = undefined;
   vi.useFakeTimers({
@@ -173,31 +197,43 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
-async function mount(text: string, strict = false) {
+async function mount(text: string, strict = false, outlineColumn = false) {
   state.read.mockResolvedValue(text);
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root = createRoot(host),
     ref = createRef<MarkdownViewHandle>();
-  const view = (
+  const render = (column: boolean) => (
     <DndProvider backend={HTML5Backend}>
       <MarkdownFileView
         ref={ref}
         path="/test/doc.md"
         wide={false}
+        outlineColumn={column}
         onStatus={() => undefined}
         onOpenMarkdown={() => undefined}
         onSaveAs={() => undefined}
       />
     </DndProvider>
   );
-  await act(async () => root.render(strict ? <StrictMode>{view}</StrictMode> : view));
+  await act(async () =>
+    root.render(strict ? <StrictMode>{render(outlineColumn)}</StrictMode> : render(outlineColumn))
+  );
   dispose = async () => {
     await act(async () => root.unmount());
     host.remove();
   };
-  if (!state.editor || !state.source || !ref.current) throw new Error("文件编辑器未就绪");
-  return { editor: state.editor, source: state.source, view: ref.current, host };
+  if (!state.editor || !ref.current) throw new Error("文件编辑器未就绪");
+  return {
+    setOutlineColumn: (column: boolean) => root.render(render(column)),
+    editor: state.editor,
+    source: () => {
+      if (!state.source) throw new Error("源码编辑器未挂载");
+      return state.source;
+    },
+    view: ref.current,
+    host,
+  };
 }
 
 it("打开不改写文件；外部插入保留编辑器及未修改块实例", async () => {
@@ -223,15 +259,15 @@ it("无法投影的原文自动进入源码，修复后继续保存且不丢原�
     ':tau-node[]{type="formatted" json="{&quot;type&quot;:&quot;formatted&quot;,&quot;text&quot;:&quot;&quot;,&quot;vendor&quot;:true}"}';
   const { source, view, host } = await mount(raw);
   expect(host.textContent).toContain("原文已保留");
-  expect(source.getValue()).toBe(raw);
+  expect(source().getValue()).toBe(raw);
   expect(host.querySelector('[aria-pressed="true"]')).not.toBeNull();
   await act(async () => view.flush());
   expect(state.write).not.toHaveBeenCalled();
-  await act(async () => source.edit("已修复正文"));
+  await act(async () => source().edit("已修复正文"));
   await act(async () => view.flush());
   expect(host.textContent).not.toContain("原文已保留");
   expect(state.write).toHaveBeenCalledWith("/test/doc.md", "已修复正文");
-  await act(async () => source.undo());
+  await act(async () => source().undo());
   expect(view.getMarkdown()).toBe(raw);
 });
 
@@ -240,12 +276,12 @@ it("源码切换常驻同一编辑器，源码与富文本共用撤销", async (
   await act(async () => Transforms.insertText(editor, "本地", { at: { path: [0, 0], offset: 2 } }));
   const rich = view.getMarkdown();
   await act(async () => view.toggleSource());
-  await act(async () => source.edit("源码修改"));
+  await act(async () => source().edit("源码修改"));
   expect(state.editor).toBe(editor);
   expect(view.getMarkdown()).toBe("源码修改");
-  await act(async () => source.undo());
+  await act(async () => source().undo());
   expect(view.getMarkdown()).toBe(rich);
-  await act(async () => source.redo());
+  await act(async () => source().redo());
   expect(view.getMarkdown()).toBe("源码修改");
   await act(async () => view.toggleSource());
   expect(state.editor).toBe(editor);
@@ -255,13 +291,23 @@ it("源码切换常驻同一编辑器，源码与富文本共用撤销", async (
 it("正文输入不重置隐藏的源码视图，进入源码后再同步最新正文", async () => {
   const { editor, source, view } = await mount("正文");
   const initialSets = state.sourceSetValues;
+  expect(state.sourceMounts).toBe(0);
   await act(async () => Transforms.insertText(editor, "本地", { at: { path: [0, 0], offset: 2 } }));
   await act(async () => Transforms.insertText(editor, "更新", { at: { path: [0, 0], offset: 4 } }));
   expect(state.sourceSetValues).toBe(initialSets);
   const rich = view.getMarkdown();
   expect(rich).toContain("正文本地更新");
   await act(async () => view.toggleSource());
-  expect(source.getValue()).toBe(rich);
+  expect(source().getValue()).toBe(rich);
+  expect(state.sourceMounts).toBe(1);
+  expect(state.sourceSetValues).toBe(initialSets);
+  const firstSource = source();
+  await act(async () => view.toggleSource());
+  await act(async () => Transforms.insertText(editor, "再", { at: { path: [0, 0], offset: 0 } }));
+  await act(async () => view.toggleSource());
+  expect(source()).toBe(firstSource);
+  expect(source().getValue()).toBe(view.getMarkdown());
+  expect(state.sourceMounts).toBe(1);
   expect(state.sourceSetValues).toBe(initialSets + 1);
 });
 
@@ -270,7 +316,7 @@ it("源码模式停驻富文本效果，恢复时沿用未修改块实例", asyn
   const mounts = state.mounts,
     effects = state.effects;
   await act(async () => view.toggleSource());
-  await act(async () => source.edit("修改正文\n\n```js\nconst a = 1;\n```\n"));
+  await act(async () => source().edit("修改正文\n\n```js\nconst a = 1;\n```\n"));
   expect(state.effects).toBe(effects);
   await act(async () => view.toggleSource());
   expect(state.editor).toBe(editor);
@@ -282,7 +328,7 @@ it("源码模式停驻富文本效果，恢复时沿用未修改块实例", asyn
 it("源码原生撤销输入也委托同一文档历史", async () => {
   const { source, view } = await mount("原文");
   await act(async () => view.toggleSource());
-  await act(async () => source.edit("新正文"));
+  await act(async () => source().edit("新正文"));
   const undo = new InputEvent("beforeinput", {
     inputType: "historyUndo",
     bubbles: true,
@@ -291,7 +337,7 @@ it("源码原生撤销输入也委托同一文档历史", async () => {
   await act(async () => document.body.dispatchEvent(undo));
   expect(undo.defaultPrevented).toBe(true);
   expect(view.getMarkdown()).toBe("原文");
-  expect(source.getValue()).toBe("原文");
+  expect(source().getValue()).toBe("原文");
   await act(async () =>
     document.body.dispatchEvent(
       new InputEvent("beforeinput", { inputType: "historyRedo", bubbles: true, cancelable: true })
@@ -339,7 +385,7 @@ it("StrictMode 重复挂载不销毁当前文档", async () => {
   const { editor, source, view } = await mount("原文", true);
   await act(async () => Transforms.insertText(editor, "编辑", { at: { path: [0, 0], offset: 2 } }));
   await act(async () => view.toggleSource());
-  await act(async () => source.edit("源码"));
+  await act(async () => source().edit("源码"));
   await act(async () => view.flush());
   expect(view.getMarkdown()).toBe("源码");
   expect(state.write).toHaveBeenCalledWith("/test/doc.md", "源码");
@@ -383,4 +429,74 @@ it("读取期间已完成本地保存时，不再应用旧读取结果", async (
   expect(view.getMarkdown()).toBe(saved);
   expect(state.write).toHaveBeenCalledWith("/test/doc.md", saved);
   expect(host.textContent).not.toContain("与你未保存的内容冲突");
+});
+
+it("源码首次延迟挂载仍双向恢复光标，首次进入不改写正文", async () => {
+  const raw = "正文\n\n下一段";
+  const { editor, source, view } = await mount(raw);
+  expect(state.sourceMounts).toBe(0);
+  await act(async () => Transforms.select(editor, { path: [1, 0], offset: 1 }));
+  await act(async () => view.toggleSource());
+  await act(async () => vi.advanceTimersByTimeAsync(160));
+  expect(source().getCursor()).toEqual({ line: 2, ch: 1 });
+  expect(view.getMarkdown()).toBe(raw);
+  await act(async () => view.toggleSource());
+  await act(async () => vi.advanceTimersByTimeAsync(160));
+  expect(editor.selection?.focus).toEqual({ path: [1, 0], offset: 1 });
+  expect(state.sourceMounts).toBe(1);
+  expect(state.write).not.toHaveBeenCalled();
+});
+
+it("大纲列开合与源码标题变化保持同一正文和源码实例，撤销后显示同步", async () => {
+  const raw = "# 标题\n\n正文\n\n```js\nconst x = 1;\n```\n";
+  const { editor, source, view, setOutlineColumn } = await mount(raw, false, true);
+  const mounts = state.mounts;
+  await act(async () => view.toggleSource());
+  await act(async () => vi.advanceTimersByTimeAsync(1200));
+  const firstSource = source();
+  expect(state.editor).toBe(editor);
+  expect(state.sourceMounts).toBe(1);
+  await act(async () => source().edit(raw.replace("# 标题\n\n", "")));
+  await act(async () => vi.advanceTimersByTimeAsync(1200));
+  await act(async () => source().undo());
+  await act(async () => vi.advanceTimersByTimeAsync(1200));
+  expect(source().getValue()).toBe(raw);
+  await act(async () => setOutlineColumn(false));
+  await act(async () => setOutlineColumn(true));
+  expect(source()).toBe(firstSource);
+  expect(state.sourceMounts).toBe(1);
+  await act(async () => view.toggleSource());
+  expect(state.editor).toBe(editor);
+  expect(state.mounts).toBe(mounts);
+  expect(view.getMarkdown()).toBe(raw);
+});
+
+it("源码实例注册回调更换后重新登记同一实例，卸载时注销", async () => {
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host),
+    first = vi.fn(),
+    second = vi.fn();
+  const render = (onMount: typeof first) => (
+    <CodeMirrorView
+      value="正文"
+      mode="markdown"
+      scrollEl={null}
+      onChange={() => undefined}
+      onMount={onMount}
+    />
+  );
+  dispose = async () => {
+    await act(async () => root.unmount());
+    host.remove();
+  };
+  await act(async () => root.render(render(first)));
+  const instance = first.mock.calls[0]?.[0];
+  expect(instance).toBeDefined();
+  await act(async () => root.render(render(second)));
+  expect(first).toHaveBeenLastCalledWith(null);
+  expect(second).toHaveBeenLastCalledWith(instance);
+  await dispose();
+  dispose = undefined;
+  expect(second).toHaveBeenLastCalledWith(null);
 });
