@@ -58,6 +58,8 @@ API 支持范围以 [SDK 支持矩阵](/packages/plugins/docs/api-support.md) �
 
 本轮已确认的作者接口方案见 [作者契约](./tasks/plugin-portability-bcd/author-contract-draft.md)，实施与设备验证见 [编辑器移动适配](./tasks/plugin-portability-bcd/editor-mobile.md)。官方插件和模板在 [plugins/](/plugins/README.md) 以子模块维护；候选实现不代表已发布。
 
+SDK 0.37.0 的正式 npm 发布、24 仓构建及 CI 结果见 [SDK 发行](./tasks/plugin-portability-bcd/sdk-037-release.md)。插件和 APP 未发布，D 的设备验收继续保留。
+
 ## notes/ — 一次性产物
 
 文件名日期前缀，写完即冻结，随时可删，禁止被引用。

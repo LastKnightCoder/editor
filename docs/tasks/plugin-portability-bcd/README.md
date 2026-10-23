@@ -31,9 +31,11 @@
 
 ## 任务列表
 
-用户已确认的作者 API 方案见 [作者契约](author-contract-draft.md)，实施和设备验证见 [编辑器移动适配](editor-mobile.md)。官方插件与模板统一进入 plugins/ 子模块，先保存插件提交再更新主仓库指针；本轮先不发布，D 与平板未验收项保留。
+用户已确认的作者 API 方案见 [作者契约](author-contract-draft.md)，实施和设备验证见 [编辑器移动适配](editor-mobile.md)。官方插件与模板统一进入 plugins/ 子模块，先保存插件提交再更新主仓库指针；插件和 APP 暂不发布，D 与平板未验收项保留。
 
-24 个子仓库的固定提交、远端检出验证和 SDK 发布后 CI 待复验项见 [子模块接入](submodules.md)。
+24 个子仓库的固定提交、远端检出验证和三个 CI 的恢复结果见 [子模块接入](submodules.md)。
+
+SDK 0.37.0 已发布，正式 npm 构建和三个 CI 均通过，见 [SDK 0.37.0 发行](sdk-037-release.md)；插件或 APP 未发行，D 保留。
 
 远端 master 移动适配的合并范围、冲突处理和回归见 [主线集成](master-sync.md)。
 

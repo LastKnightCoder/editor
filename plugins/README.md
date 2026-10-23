@@ -14,4 +14,6 @@ git submodule update --init --recursive
 
 仓库外批量验证使用 `node scripts/plugins/verify-official-authors.mjs <SDK.tgz> <UI.tgz> <报告.json>`，从 `.gitmodules` 读取官方仓库，复制到临时目录后安装、冻结安装、构建与执行已定义测试。模板专项契约验证使用 `scripts/plugins/verify-portable-author.mjs`。
 
+正式 npm 验证使用 `node scripts/plugins/verify-official-authors.mjs --published <报告.json>`：保留各仓 npm 声明与锁文件，在仓库外通过新建 store 冻结安装，不注入本地 SDK。
+
 推送源码工作分支不等于发布插件。发布标签可能触发插件中心上传；只在明确授权发行时创建标签或执行发布流程。
