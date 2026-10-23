@@ -17,6 +17,21 @@ const state = vi.hoisted(() => ({
   mounts: 0,
   effects: 0,
 }));
+// jsdom 无 ResizeObserver（组件用它算大纲独立滚动的高度上限）
+vi.stubGlobal(
+  "ResizeObserver",
+  class {
+    observe() {
+      /* 测试桩 */
+    }
+    unobserve() {
+      /* 测试桩 */
+    }
+    disconnect() {
+      /* 测试桩 */
+    }
+  }
+);
 vi.mock("@/commands/file", () => ({
   readTextFile: state.read,
   writeTextFile: state.write,

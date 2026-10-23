@@ -98,9 +98,9 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0}
 .caret{display:inline-block;width:2px;height:1.05em;background:var(--accent);vertical-align:-0.15em;animation:blink 1.1s steps(1) infinite}
 @keyframes blink{50%{opacity:0}}
 
-/* 大纲：sticky 贴正文右缘，不参与版心计算 */
+/* 大纲：sticky 贴正文右缘，不参与版心计算；超高时独立滚动 */
 .outline-col{grid-column:3;position:relative}
-.outline{position:sticky;top:88px;margin-left:28px;max-width:220px}
+.outline{position:sticky;top:88px;margin-left:28px;max-width:220px;max-height:calc(100vh - 140px);overflow-y:auto;overscroll-behavior-y:contain}
 .ol{display:block;width:100%;margin-top:4px;text-align:left;line-height:1.4;font-size:13px;color:var(--ink-3);
   padding:5px 8px 5px 10px;border-left:2px solid transparent;border-radius:8px}
 .ol:hover{background:var(--hover);color:var(--ink-1)}
