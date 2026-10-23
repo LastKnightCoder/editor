@@ -372,7 +372,8 @@ export const MarkdownFileView = forwardRef<
                 ref={setOutlineScrollEl}
                 className={cn(
                   FADE_SCROLL_CLASS,
-                  "sticky top-8 max-w-[240px] overflow-y-auto overscroll-y-contain"
+                  // -mr-2 pr-2 借位：细滚动条落进右留白，不与标题文字相贴
+                  "sticky top-8 -mr-2 max-w-[240px] overflow-y-auto overscroll-y-contain pr-2"
                 )}
                 style={{ maxHeight: outlineMaxH ?? undefined }}
               >
