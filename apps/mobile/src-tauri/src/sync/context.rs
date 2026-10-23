@@ -205,10 +205,25 @@ pub(crate) fn parse_sync_provider(setting: &Value) -> Result<SyncProvider, AppEr
 }
 
 pub(crate) fn build_sync_context(app: &AppHandle) -> Result<SyncContext, AppError> {
+    build_sync_context_for(app, None)
+}
+
+/// `provider_override` 只用于探测：按指定服务解析配置，不改写 setting.json 的 `sync.active`
+pub(crate) fn build_sync_context_for(
+    app: &AppHandle,
+    provider_override: Option<&str>,
+) -> Result<SyncContext, AppError> {
     let setting = load_or_init_setting(app).map_err(|err| {
         AppError::new("SETTING_INVALID", format!("读取 setting.json 失败: {err}"))
     })?;
-    let provider = parse_sync_provider(&setting)?;
+    let provider = match provider_override {
+        Some(active) => {
+            let mut probe = setting.clone();
+            probe["sync"]["active"] = Value::String(active.to_string());
+            parse_sync_provider(&probe)?
+        }
+        None => parse_sync_provider(&setting)?,
+    };
     let database_name = get_active_database_name(&setting);
     let local_version = get_database_version(&setting, &database_name);
     let database_path = resolve_database_path(app, &database_name)

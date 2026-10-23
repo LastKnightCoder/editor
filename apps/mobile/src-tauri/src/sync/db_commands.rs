@@ -10,7 +10,7 @@ use crate::models::{SyncActionResponse, SyncVersionResponse};
 use crate::setting::{resolve_app_dir, save_setting_value, set_database_version};
 
 use super::common::{response_err, response_ok, DEFAULT_DB_NAME, SYNC_CHECK_TIMEOUT_SECS};
-use super::context::{build_sync_context, SyncProvider};
+use super::context::{build_sync_context, build_sync_context_for, SyncProvider};
 use super::error::AppError;
 const SYNC_MODEL_VERSION: u64 = 5;
 
@@ -142,15 +142,24 @@ fn bind_session_base(
 /// 的 respond 链会栈溢出（SIGSEGV 闪退）。命令只留薄壳，完整流程
 /// 移入 spawn_blocking 的大栈线程执行。
 #[tauri::command]
-pub async fn sync_check_versions(app: AppHandle) -> Result<SyncVersionResponse, String> {
+pub async fn sync_check_versions(
+    app: AppHandle,
+    provider: Option<String>,
+) -> Result<SyncVersionResponse, String> {
     let handle = tauri::async_runtime::handle();
-    tauri::async_runtime::spawn_blocking(move || handle.block_on(sync_check_versions_impl(app)))
-        .await
-        .map_err(|err| format!("SYNC_INTERNAL:同步任务异常退出: {err}"))?
+    tauri::async_runtime::spawn_blocking(move || {
+        handle.block_on(sync_check_versions_impl(app, provider))
+    })
+    .await
+    .map_err(|err| format!("SYNC_INTERNAL:同步任务异常退出: {err}"))?
 }
 
-async fn sync_check_versions_impl(app: AppHandle) -> Result<SyncVersionResponse, String> {
-    let ctx = build_sync_context(&app).map_err(|e| format!("{}:{}", e.code, e.message))?;
+async fn sync_check_versions_impl(
+    app: AppHandle,
+    provider: Option<String>,
+) -> Result<SyncVersionResponse, String> {
+    let ctx = build_sync_context_for(&app, provider.as_deref())
+        .map_err(|e| format!("{}:{}", e.code, e.message))?;
     let remote_version = tokio::time::timeout(
         Duration::from_secs(SYNC_CHECK_TIMEOUT_SECS),
         read_remote_version(&ctx.provider, &ctx.version_object_name),
