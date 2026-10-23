@@ -1,10 +1,10 @@
 import { version as appVersion } from "../../../package.json";
 import { sharedPluginModules } from "@tau/plugins/shared-modules";
 import {
-  evaluatePluginPackage,
   evaluatePortablePluginPackage,
   adaptPortablePluginDefinition,
 } from "@tau/plugins/rendering";
+import { evaluateDesktopPluginPackage } from "../../../shared/plugin-rendering";
 import type { PluginDefinition } from "@tau/plugins";
 import { desktopContentPlugins } from "../../../shared/content-plugins";
 import { getMarkdown, importFromMarkdown } from "@/utils/markdown";
@@ -24,7 +24,7 @@ Object.assign(globalThis, {
         keys.add(key);
         let definition = definitions.get(key);
         if (!definition) {
-          definition = evaluatePluginPackage(artifact, sharedPluginModules);
+          definition = evaluateDesktopPluginPackage(artifact, sharedPluginModules, appVersion);
           definitions.set(key, definition);
         }
         return definition;

@@ -12,6 +12,7 @@ import { desktopContentPlugins, desktopPortableSupport } from "../../../shared/c
 import type { PortableDevelopmentArtifact } from "../../../shared/portable-development";
 import { getContentKit } from "@/services/editorKit";
 import { desktopCodecComposition } from "@/utils/markdown";
+import { markPortableDevelopmentLoaded } from "./content-plugin-state";
 
 export const portableDevelopmentDefinitions: PluginDefinition[] = [];
 export async function initializePortableDevelopment() {
@@ -43,6 +44,7 @@ export async function initializePortableDevelopment() {
     ]);
     desktopContentPlugins.install([...desktopContentPlugins.list(), adapted.definition]);
     portableDevelopmentDefinitions.push(definition);
+    markPortableDevelopmentLoaded();
     if (artifact.css) {
       const style = document.createElement("style");
       style.dataset.tauPortableDevelopment = definition.id;

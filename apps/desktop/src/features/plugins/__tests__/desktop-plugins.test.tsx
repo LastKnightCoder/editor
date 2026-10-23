@@ -450,7 +450,7 @@ it("统一模板包进入真实桌面 Page，计数、标准 Dialog 与语义侧
   const [artifact] = await portableFixtures();
   const plugin = evaluatePortablePluginPackage(artifact, sharedPluginModules, {
     environment: desktopPluginEnvironment.getSnapshot(),
-    appVersion: "0.59.0",
+    appVersion: "0.59.1",
     profiles: ["web-v1"],
   });
   await act(async () => {

@@ -1,4 +1,4 @@
-import type { DevelopmentPluginPackage } from "@tau/plugins/host";
+import type { DesktopPluginPackage as DevelopmentPluginPackage } from "../../../shared/plugin-package";
 
 let artifacts: DevelopmentPluginPackage[] = [];
 export const getContentPluginArtifacts = () => artifacts;

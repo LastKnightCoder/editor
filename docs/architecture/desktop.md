@@ -89,7 +89,7 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 
 应用根部注入响应式插件环境，DesktopPluginRuntime 的语义 navigation 入口复用真实侧栏模型；插件页通过 PortalScope/UiHostProvider 接浮层仲裁。显式开发目录、格式 3 装配及独立内容转换边界见[跨端插件宿主](/docs/architecture/plugin-portability.md)。
 
-格式 3 开发目录通过 readPortablePluginManifest 保留合法的未来能力名，完整性检查后交共享求值器；未知 required 在执行前拒绝，未知 optional 不阻断当前平台，不删除后再核对清单。此读取规则不开放正式目录格式 3 安装，也不放宽旧格式校验。
+桌面 0.59.1 的固定插件中心安装接受格式 3，目录/详情/版本/下载使用 v2，主进程声明 desktop 宿主版本与能力。readPortablePluginManifest 保留合法的未来能力名；未知 required 在执行前拒绝，未知 optional 不阻断当前平台，不删除后再核对清单。安装复用原事务、启停和启动快照，清单不改写为旧格式；下载前后复查精确发布版本，暂存/恢复与启动对账原始清单及来源。正式构建忽略调试中心覆盖，拒绝无固定中心来源的格式 3；旧格式读取与系统后台审核保持。
 
 ### 聊天工具自定义渲染
 
@@ -179,7 +179,7 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 
 - 插件中心与已安装管理是独立页面：`plugins.page.tsx`（参数 tab = discover / installed / updates）与 `plugin-detail.page.tsx`（match params 按 pluginId 去重，tab = readme / settings / changelog / versions / community，`section` 定位设置分组）。侧栏「插件」入口在设置上方，命令面板自动收录；设置弹窗不含插件分区（`SettingsLocation` 不含 plugins）。停用插件仍能打开详情并重新启用。
 - 目录/详情/下载经主进程 plugin-local（`plugin-local:catalog / release / stage-release / uninstall / relaunch`，`net.fetch`，门户 CORS 不放行客户端）；渲染端 react-query 目录键 `["plugins","catalog",q,sort]` 60 秒新鲜期，离线显示重试空态不回退演示数据。ZIP 安装允许包内附带未声明的普通文件（随包保存不加载），条目仍查安全路径/链接/覆盖冲突/容量与摘要。安装 = 下载 → 核对大小与 SHA-256 → 可恢复事务立即提交；**所有新包默认停用**，用户到「已安装」主动启用；来源（中心 releaseId 等）随事务写入 `plugin-updates/sources/`，更新与恢复保留启用意图，同 ID 不跨来源接管。普通插件即时启停与更新；涉及已加载内容快照时更新保留暂存并提示重启。卸载 `LocalPluginManager.uninstall(id, purgeData)`：先停用、删包/备份/来源、清启用偏好，purgeData 时清所有工作区私有数据；内置插件不可卸载。
-- 兼容与升级：`readPluginPackage` 检查 manifest.minAppVersion（0.58.0 起，固定目录扫描与安装共用）；plugin-local 初始化时恢复中断事务、应用暂存包再注册 IPC；安装/更新/恢复先暂存校验再同事务提交；提交后广播 `plugin-local:state-changed`，窗口重扫并串行切换实例。根目录 `~/.editor/plugins`，事务与备份在同级 plugin-updates；文件恢复不回退私有数据，激活失败尝试恢复旧内存快照。
+- 兼容与升级：`readPluginPackage` 检查旧格式 minAppVersion 或格式 3 的 targets.desktop 版本/能力（0.58.0 起，固定目录扫描与安装共用）；plugin-local 初始化时恢复中断事务、应用暂存包再注册 IPC；安装/更新/恢复先暂存校验再同事务提交；提交后广播 `plugin-local:state-changed`，窗口重扫并串行切换实例。根目录 `~/.editor/plugins`，事务与备份在同级 plugin-updates；文件恢复不回退私有数据，激活失败尝试恢复旧内存快照。
 - 版本与文档：安装状态机与来源判定是 `features/plugins/model.ts` 纯函数；版本标签合并中心全部已发布版本（`plugin-local:versions` 翻页）与本机当前/待生效/备份。README/CHANGELOG 用 `PluginMarkdown`（只读 Editor，内容经 `toPluginDocument` 白名单过滤——原始 HTML 丢弃、图片音视频不加载、插件块按代码块、链接只留 http(s) 交系统浏览器）。Markdown 导入先按 `ignoreTypes` 递归过滤整棵语法树再转换（不为类型加特例）；资料转换用内置组合（`utils/markdown-composition.ts`），所有语言围栏统一展示源码，不调用插件导入函数、不维护节点黑名单。
 - 社区（C28）：详情 `community` 标签仅选中时读取（每页 20 条，写入后失效该插件查询）；IPC 归 plugin-local，复用安装级匿名凭证（渲染端只收 liked/canDelete 不收 token）；评论草稿在标签内存保存，失败重试不重复发表；网站与桌面身份独立，清数据后无法恢复旧身份管理权。
 - 固定目录发现：开发/正式构建均经 BACKGROUND 的 plugin-local 扫描 `PathUtil.getAppDir()/plugins` 直接子目录（目录名须等于 manifest.id，坏包单独显示不阻断好包）；插件页 ⋯ 菜单提供「从 ZIP 安装 / 打开插件目录 / 重新扫描」，无目录选择。`app/plugins/package-loader` 把静态元信息登记为延迟定义，启用才执行 CJS 入口；LocalPluginManager 复用此加载器与正式 PluginHost，本地插件偏好镜像为应用级键；新包默认停用，重启/切库恢复；活动包变化先回收旧实例登记新定义再按原意图恢复；内容快照与 restart-required 身份不热替换。

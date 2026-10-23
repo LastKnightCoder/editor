@@ -2,7 +2,7 @@
 
 Tau 使用同一个 `@tau/plugins` SDK 表达公共能力，平台宿主提供实现。作者版本为 SDK 0.36.0、UI 0.4.0；各 API 的已接线范围、作者责任和未接宿主见 [API 支持矩阵](api-support.md)。Android/iOS 0.2.1 正式构建支持固定中心安装与启用，版本须经中心上架审核并获准分发；平台适配与功能测试由作者负责，审核者不承担平台测试或验证记录。客户端接线见[跨端宿主架构](/docs/architecture/plugin-portability.md)。
 
-正式 SDK、清单和分发设计及剩余接入见[正式接入方案](/docs/tasks/plugin-portability-bcd/distribution-plan.md)。桌面格式 3 正式安装链路与 D 仍有待验收项；SDK 类型存在不代表每个宿主已提供实现。
+正式 SDK、清单和分发设计及剩余接入见[正式接入方案](/docs/tasks/plugin-portability-bcd/distribution-plan.md)。桌面 0.59.1 接入格式 3 正式安装与启动装配；D 的设备与发行验收仍保留。SDK 类型存在不代表每个宿主已提供实现。
 
 ## 页面与功能入口
 
