@@ -1,6 +1,11 @@
 # 更新记录
 
-## 未发布
+## 0.37.0
+
+- 作者清单使用公共 requires/optional 和 editor.elements，构建器生成发行字段与各平台的完整要求。
+- 插件环境仅提供 platform 与 coarsePointer/finePointer 输入事实；布局由容器决定，宿主在加载前完成能力检查。
+- 能力使用稳定功能名，页面、入口、设置和 Dialog 共用公共契约；可选样式编译通过具体服务访问器处理。
+- 格式 3 支持纯 Markdown Skill 与原始清单的博客静态渲染，保留同一包和节点数据，不启动博客中的应用插件生命周期。
 
 - 修复：`entities.update` 只改 `meta` 时报「没有要修改的字段」。
 
