@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import { FolderSymlink, Plus, Search, Sparkles } from "lucide-react";
 import { Button, ConfirmDialog, FilterPill, Input, Switch, cn, toast } from "@tau/ui";
 import { FadeScroll } from "@tau/ui";
+import { trashName } from "@/platform";
 import useSkillStore from "@/stores/useSkillStore";
 import { useSkillItems, SOURCE_LABEL, type SkillItem } from "../useSkills";
 import { ModeBadge, BudgetBar, SkillIcon, SourceTag, WarningText } from "../components/SkillVisual";
@@ -341,7 +342,7 @@ export function SkillsView() {
         onOpenChange={open => !open && setDeleting(null)}
         title="删除 Skill"
         context={deleting?.skill.name}
-        description="整个 Skill 文件夹会移到废纸篓，可以从那里恢复。"
+        description={`整个 Skill 文件夹会移到${trashName}，可以从那里恢复。`}
         confirmText="删除"
         danger
         onConfirm={async () => {
@@ -349,7 +350,7 @@ export function SkillsView() {
           try {
             await useSkillStore.getState().deleteSkill(deleting.skill);
             if (openKey === deleting.key) setOpenKey(null);
-            toast.success("已移到废纸篓");
+            toast.success(`已移到${trashName}`);
           } catch (error) {
             toast.error((error as Error).message);
           }

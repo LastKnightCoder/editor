@@ -39,6 +39,7 @@ import {
 import { Editor } from "@tau/editor";
 import { FadeScroll } from "@tau/ui";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
+import { revealInFileManagerLabel, trashName } from "@/platform";
 import useSkillStore from "@/stores/useSkillStore";
 import { getMarkdown, importFromMarkdown } from "@/utils/markdown";
 import {
@@ -628,9 +629,9 @@ export function SkillEditView() {
               </Segmented>
             )}
             {detail && (
-              <Tooltip content="在访达中显示">
+              <Tooltip content={revealInFileManagerLabel}>
                 <IconButton
-                  aria-label="在访达中显示"
+                  aria-label={revealInFileManagerLabel}
                   onClick={() => void showSkillInFolder(detail.path)}
                 >
                   <FolderOpen className="size-4" strokeWidth={1.75} />
@@ -695,7 +696,7 @@ export function SkillEditView() {
         onOpenChange={open => !open && setDeleting(null)}
         title={deleting?.isDirectory ? "删除文件夹" : "删除文件"}
         context={deleting?.name}
-        description="会移到废纸篓，可以从那里恢复。"
+        description={`会移到${trashName}，可以从那里恢复。`}
         confirmText="删除"
         danger
         onConfirm={async () => {

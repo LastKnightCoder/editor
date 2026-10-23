@@ -36,7 +36,7 @@ export const createSkill = async (payload: {
   body?: string;
 }): Promise<Skill> => invoke("skill:create", payload);
 
-/** 移到废纸篓 */
+/** 移到系统回收站（macOS 为废纸篓） */
 export const deleteSkill = async (skillPath: string): Promise<void> =>
   invoke("skill:delete-skill", skillPath);
 

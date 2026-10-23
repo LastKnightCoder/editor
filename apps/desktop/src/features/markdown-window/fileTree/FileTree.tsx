@@ -26,6 +26,7 @@ import {
   showInFolder,
   trashItem,
 } from "@/commands/file";
+import { revealInFileManagerLabel, trashName } from "@/platform";
 import { getFileCategory } from "../fileTypes";
 import { baseName, dirName, invalidFileName, isWithin, joinPath, splitExtension } from "../paths";
 import type { TreeRow } from "./useFileTree";
@@ -66,7 +67,7 @@ const errorText = (error: unknown) => (error instanceof Error ? error.message : 
 
 /**
  * 文件树：行内新建 / 重命名（Enter 确认、Esc 取消、非法名原地提示）、右键菜单、拖拽移动、
- * 移到废纸篓；行上 F2 重命名（删除不设快捷键，只走右键菜单，防误删）。
+ * 移到回收站；行上 F2 重命名（删除不设快捷键，只走右键菜单，防误删）。
  */
 export function FileTree({
   rootPath,
@@ -150,7 +151,7 @@ export function FileTree({
       await trashItem(path);
       handlers.onRemoved(path);
       await refreshDir(dirName(path));
-      toast.success(`已将「${baseName(path)}」移到废纸篓`);
+      toast.success(`已将「${baseName(path)}」移到${trashName}`);
     } catch (error) {
       toast.error(`删除失败：${errorText(error)}`);
     }
@@ -245,7 +246,7 @@ export function FileTree({
           icon={<ExternalLink className={MENU_ICON} strokeWidth={1.75} />}
           onSelect={() => void showInFolder(row.path)}
         >
-          在访达中显示
+          {revealInFileManagerLabel}
         </Menu.Item>
         <Menu.Separator />
         <Menu.Item
@@ -253,7 +254,7 @@ export function FileTree({
           icon={<Trash2 className={MENU_ICON} strokeWidth={1.75} />}
           onSelect={() => void trash(row.path)}
         >
-          移到废纸篓
+          移到{trashName}
         </Menu.Item>
       </>
     );

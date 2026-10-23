@@ -5,6 +5,7 @@ import LocalImage from "@/components/LocalImage";
 import LocalVideo from "@/components/LocalVideo";
 import LocalAudio from "@/components/LocalAudio";
 import { openFileWithDefaultApp, showInFolder } from "@/commands";
+import { revealInFileManagerLabel } from "@/platform";
 import { baseName, splitExtension } from "./paths";
 import { FileStatusBar } from "./FileChrome";
 
@@ -17,7 +18,7 @@ const revealButton = (path: string) => (
     onClick={() => void showInFolder(path)}
     className="hover:bg-hover hover:text-ink-1 rounded-[6px] px-1.5 py-px transition-colors"
   >
-    在访达中显示
+    {revealInFileManagerLabel}
   </button>
 );
 

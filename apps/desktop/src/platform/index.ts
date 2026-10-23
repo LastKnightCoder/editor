@@ -18,3 +18,16 @@ export const platform: Platform =
 
 export const isMac = platform.os === "darwin";
 export const isWinOrLinux = platform.kind === "electron" && !isMac;
+
+/** 系统文件管理器名称：macOS 访达 / Windows 资源管理器 / 其余统称文件管理器 */
+export const fileManagerName = isMac
+  ? "访达"
+  : platform.os === "win32"
+    ? "资源管理器"
+    : "文件管理器";
+
+/** 「在系统文件管理器中定位该文件」入口文案 */
+export const revealInFileManagerLabel = `在${fileManagerName}中显示`;
+
+/** 删除暂存区名称：macOS 为废纸篓，Windows/Linux 为回收站 */
+export const trashName = isMac ? "废纸篓" : "回收站";

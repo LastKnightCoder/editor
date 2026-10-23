@@ -8,6 +8,7 @@ import { useState } from "react";
 import { ChevronDown, ExternalLink, Folder, FolderOpen, GitBranch, RotateCcw } from "lucide-react";
 import { Menu, toast } from "@tau/ui";
 import { selectDirectoryWithDialog, showInFolder } from "@/commands";
+import { revealInFileManagerLabel } from "@/platform";
 import useChatSessionStore, { useChatCwd } from "@/stores/useChatSessionStore";
 import useSettingStore from "@/stores/useSettingStore";
 import { useWorkspaceBranches, useWorkspaceCheckout, useWorkspaceInfo } from "../workspaceQueries";
@@ -80,7 +81,7 @@ export function WorkspaceBar({ chatId, busy }: { chatId: string; busy: boolean }
           icon={<ExternalLink className={MENU_ICON} strokeWidth={1.75} />}
           onSelect={() => void showInFolder(info.path)}
         >
-          在访达中显示
+          {revealInFileManagerLabel}
         </Menu.Item>
       </Menu>
 
