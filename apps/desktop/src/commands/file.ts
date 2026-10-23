@@ -148,7 +148,7 @@ export const openMarkdownInNewWindow = async (path?: string) => {
   return platform.window.openMarkdownWindow(path);
 };
 
-/** 移到废纸篓（可恢复） */
+/** 移到系统回收站（可恢复；macOS 为废纸篓） */
 export const trashItem = async (path: string): Promise<void> => {
   return await invoke("trash-item", path);
 };

@@ -15,6 +15,7 @@ import { IconButton, Menu, cn } from "@tau/ui";
 import { ContentOutline } from "@/components/ContentOutline";
 import { FadeScroll } from "@tau/ui";
 import { showInFolder } from "@/commands";
+import { revealInFileManagerLabel } from "@/platform";
 import { baseName } from "./paths";
 import { FileTree, type FileTreeHandlers } from "./fileTree/FileTree";
 import { FILTER_ROW_LIMIT, useFileTree } from "./fileTree/useFileTree";
@@ -104,7 +105,7 @@ export function FileSidebar({
             icon={<ExternalLink className={MENU_ICON} strokeWidth={1.75} />}
             onSelect={() => void showInFolder(rootPath)}
           >
-            在访达中显示
+            {revealInFileManagerLabel}
           </Menu.Item>
           <Menu.Item
             icon={<FolderInput className={MENU_ICON} strokeWidth={1.75} />}

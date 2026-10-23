@@ -31,6 +31,7 @@ import {
 } from "@tau/ui";
 import { Editor } from "@tau/editor";
 import { usePage } from "@/page/PageProvider";
+import { revealInFileManagerLabel, trashName } from "@/platform";
 import useSkillStore from "@/stores/useSkillStore";
 import { importFromMarkdown } from "@/utils/markdown";
 import { splitSkillDocument } from "@/utils/skill-frontmatter";
@@ -293,7 +294,7 @@ function SettingsPane({
             </Button>
           </div>
           <div className="flex items-center gap-3 px-3.5 py-3">
-            <ActionText title="删除" description="整个文件夹移到废纸篓，可以恢复" />
+            <ActionText title="删除" description={`整个文件夹移到${trashName}，可以恢复`} />
             <Button
               size="sm"
               variant="danger-soft"
@@ -459,7 +460,7 @@ export function SkillDrawer({
                   icon={<FolderOpen />}
                   onSelect={() => void showSkillInFolder(current.skill.path)}
                 >
-                  在访达中显示
+                  {revealInFileManagerLabel}
                 </Menu.Item>
                 {!current.readonly && (
                   <>

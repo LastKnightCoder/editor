@@ -31,6 +31,7 @@ import {
 } from "@tau/ui";
 import { FadeScroll } from "@tau/ui";
 import { usePage } from "@/page/PageProvider";
+import { trashName } from "@/platform";
 import useSkillStore from "@/stores/useSkillStore";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import { piStreamText, type PiChatHandle } from "@/services/piLLM";
@@ -343,7 +344,7 @@ function ImportPane({
                 </span>
               </span>
               {c.exists && (
-                <span className="text-tau-sm text-warn shrink-0">同名，将覆盖（旧的进废纸篓）</span>
+                <span className="text-tau-sm text-warn shrink-0">{`同名，将覆盖（旧的进${trashName}）`}</span>
               )}
               {c.hasScripts && !c.exists && (
                 <span className="text-tau-sm text-warn inline-flex shrink-0 items-center gap-1">

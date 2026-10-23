@@ -46,6 +46,7 @@ import {
   showInFolder,
 } from "@/commands";
 import { on, off } from "@/electron";
+import { revealInFileManagerLabel } from "@/platform";
 import { copyWechatHtmlToClipboard, downloadMarkdown } from "@/utils";
 import "@/app/base.css";
 import { getFileCategory } from "./fileTypes";
@@ -354,7 +355,7 @@ export default function MarkdownWindowPage() {
           icon={<ExternalLink className={MENU_ICON} strokeWidth={1.75} />}
           onSelect={() => void showInFolder(activePath)}
         >
-          在访达中显示
+          {revealInFileManagerLabel}
         </Menu.Item>
       )}
       <Menu.Item
