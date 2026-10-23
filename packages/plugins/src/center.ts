@@ -253,10 +253,6 @@ export function resolveCenterRelease(
   };
 }
 
-export type PlatformReviewEvidence = Partial<
-  Record<PortablePlatform, { verified: true; note: string }>
->;
-
 const permissionDomains = {
   cards: "卡片",
   articles: "文章",
@@ -292,44 +288,4 @@ export function describeCenterPermissions(
     }
     return { permission, label, newlyRequested: !known.has(permission) };
   });
-}
-
-/** 网页提交前与服务端审核共用；验收状态不能由包作者自报。 */
-export function readCenterReviewEvidence(
-  manifest: CenterManifest,
-  value: unknown,
-  approval: boolean
-): PlatformReviewEvidence | null {
-  if (manifest.formatVersion !== 3) {
-    if (value !== undefined && value !== null) throw new Error("旧格式不接受跨端验收声明");
-    return null;
-  }
-  if (!approval && value === undefined) return null;
-  if (!value || typeof value !== "object" || Array.isArray(value))
-    throw new Error("批准前须提交每个声明平台的验收说明");
-  const source = value as Record<string, unknown>;
-  const targets = Object.keys(manifest.targets);
-  if (
-    Object.keys(source).length !== targets.length ||
-    Object.keys(source).some(key => !targets.includes(key))
-  )
-    throw new Error("平台验收必须与包声明完全一致");
-  const evidence: PlatformReviewEvidence = {};
-  for (const platform of PORTABLE_PLATFORMS) {
-    if (!manifest.targets[platform]) continue;
-    const item = source[platform] as Record<string, unknown> | null;
-    if (
-      !item ||
-      typeof item !== "object" ||
-      Array.isArray(item) ||
-      Object.keys(item).some(key => !["verified", "note"].includes(key)) ||
-      item.verified !== true ||
-      typeof item.note !== "string" ||
-      !item.note.trim() ||
-      item.note.length > 4000
-    )
-      throw new Error(`缺少 ${platform} 的有效验收说明`);
-    evidence[platform] = { verified: true, note: item.note.trim() };
-  }
-  return evidence;
 }

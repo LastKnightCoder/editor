@@ -5,7 +5,7 @@
   "description": "在功能入口中记录并保存计数。",
   "categories": ["page"],
   "keywords": ["计数", "打卡"],
-  "version": "1.0.0",
+  "version": "1.1.0",
   "apiVersion": 1,
   "platform": "portable",
   "format": "cjs",
@@ -18,12 +18,12 @@
       "optional": ["settings.v1", "ui.dialog.v1"]
     },
     "android": {
-      "minAppVersion": "0.2.0",
+      "minAppVersion": "0.2.1",
       "required": ["commands.v1", "storage.v1", "pages.v1", "navigation.v1"],
       "optional": ["settings.v1", "ui.dialog.v1"]
     },
     "ios": {
-      "minAppVersion": "0.2.0",
+      "minAppVersion": "0.2.1",
       "required": ["commands.v1", "storage.v1", "pages.v1", "navigation.v1"],
       "optional": ["settings.v1", "ui.dialog.v1"]
     }

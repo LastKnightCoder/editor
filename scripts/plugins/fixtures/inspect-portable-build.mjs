@@ -6,6 +6,8 @@ import AdmZip from "adm-zip";
 import { validatePluginManifest } from "@tau/plugins/package";
 import {
   validatePortablePluginManifest,
+  readPortablePluginManifest,
+  validatePortableDistributionManifest,
   assertPortablePluginCompatibility,
   assertPortableElementDeclarations,
 } from "@tau/plugins/portable";
@@ -15,6 +17,7 @@ const archive = await readFile(`dist/${manifest.id}-${manifest.version}.zip`);
 const zip = new AdmZip(archive);
 const packaged = JSON.parse(zip.readAsText(`${manifest.id}/manifest.json`));
 const parsed = validatePortablePluginManifest(packaged);
+assert.deepEqual(validatePortableDistributionManifest(packaged), parsed);
 assert.throws(() => validatePluginManifest(packaged));
 const allowed = new Set([
   "manifest.json",
@@ -46,6 +49,15 @@ for (const platform of ["desktop", "android", "ios"]) {
   };
   const host = { environment, appVersion: target.minAppVersion, profiles: ["web-v1"] };
   assertPortablePluginCompatibility(parsed, host);
+  const future = structuredClone(packaged);
+  future.targets[platform].optional.push("future.feature.v2");
+  assert.throws(() => validatePortablePluginManifest(future));
+  assertPortablePluginCompatibility(readPortablePluginManifest(future), host);
+  future.targets[platform].required.push("future.required.v1");
+  assert.throws(
+    () => assertPortablePluginCompatibility(readPortablePluginManifest(future), host),
+    /future.required.v1/
+  );
   assert.throws(() => assertPortablePluginCompatibility(parsed, { ...host, profiles: [] }));
   assert.throws(() => assertPortablePluginCompatibility(parsed, { ...host, appVersion: "0.0.0" }));
   assert.throws(() =>

@@ -64,9 +64,9 @@ node apps/mobile/scripts/plugin-portability-android-back.mjs
 ## 本机中心与移动数据接线
 
 1. 在仓库根执行 `pnpm --filter @tau/plugin-portal db:local`，只迁移本地 D1，包含 0012；不得使用 remote 参数。
-2. 本机 API 的开发配置中设置 PORTABLE_PUBLISH_ENABLED=true、PORTABLE_PLATFORMS=desktop,android,ios；生产配置保持默认关闭。API_ORIGIN 必须是移动设备可访问的完整 origin，不带路径或尾随斜杠。
+2. 本机 API 的开发配置中设置 PORTABLE_PUBLISH_ENABLED=true、PORTABLE_PLATFORMS=desktop,android,ios；生产开放平台单独按运维手册核对，不从本机测试配置复制。API_ORIGIN 必须是移动设备可访问的完整 origin，不带路径或尾随斜杠。
 3. 执行 `pnpm --filter @tau/plugin-portal dev:api`。格式 3 测试包经本机上传、人工审核后发布到本地 R2；使用隔离测试身份，不把测试提交写入生产中心。
-4. 移动调试构建前设置 TAU_PLUGIN_CENTER_API 为该 origin。Android 使用本机 HTTP 时，通过 `adb reverse tcp:8787 tcp:8787` 连接本机 8787 端口；iOS 模拟器可使用本机地址。release 构建忽略此来源覆盖，并保持安装关闭。
+4. 移动调试构建前设置 TAU_PLUGIN_CENTER_API 为该 origin。Android 使用本机 HTTP 时，通过 `adb reverse tcp:8787 tcp:8787` 连接本机 8787 端口；iOS 模拟器可使用本机地址。0.2.1 release 构建忽略此来源覆盖，只接受固定正式中心的安装，拒绝开发 URL 与旧调试来源。原生具备安装能力仍须中心开放对应平台、存在已审核兼容版本。
 5. 通过 services/pluginCenter 或 data/center-queries 读取目录/详情/历史、resolve 与 status。确认原生 config 返回正确平台/应用版本；页面提供的 host 不能覆盖原生宿主声明。
 6. 安装只传 pluginId/releaseId。判据：暂存记录来源匹配、清单与审批一致、重新核验后提交；下载取消、清单不符或撤回后不能替换当前包。重启生效后原文与 KV 保留。
 7. 通过本机中心撤回测试版本，切应用到后台再回前台。判据：页面停用、正文禁止继续写入、原数据保留；断网重启仍拦截已确认撤回版本，不能靠恢复备份解除拦截。

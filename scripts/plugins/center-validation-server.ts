@@ -20,9 +20,21 @@ let releases = new Map<
   { submissionId: string; releaseId: string; bytes: Buffer; sha256: string; objectKey: string }
 >();
 let slow = new Set<string>();
-const codeArchive = await readFile(
-  path.join(root, "output/plugin-portability-validation/example.external-counter-1.0.0.zip")
+const sources = JSON.parse(
+  await readFile(path.join(root, "output/plugin-portability-validation/sources.json"), "utf8")
 );
+const counterSource = sources.find(
+  (source: { id: string }) => source.id === "example.external-counter"
+);
+if (!counterSource) throw new Error("缺少计数器验证产物");
+const codeArchive = await readFile(
+  path.join(
+    root,
+    "output/plugin-portability-validation",
+    path.basename(new URL(counterSource.url).pathname)
+  )
+);
+if (hash(codeArchive) !== counterSource.sha256) throw new Error("计数器验证产物摘要不匹配");
 
 function counter(version: string) {
   const zip = new AdmZip(codeArchive);
@@ -86,15 +98,6 @@ async function publish(bytes: Buffer) {
       now,
       now
     );
-  const evidence =
-    manifest.formatVersion === 3
-      ? Object.fromEntries(
-          Object.keys(manifest.targets).map(target => [
-            target,
-            { verified: true, note: "仅本机隔离夹具，用于模拟器联调，非生产审批" },
-          ])
-        )
-      : undefined;
   const response = await handle(
     new Request(`${origin}/v1/submissions/${id}/review`, {
       method: "POST",
@@ -108,7 +111,6 @@ async function publish(bytes: Buffer) {
         revision: 1,
         decision: "approve",
         comment: "本机模拟器测试夹具",
-        platformEvidence: evidence,
       }),
     }),
     fixture.env

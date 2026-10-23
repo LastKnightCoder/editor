@@ -118,6 +118,19 @@ it("未开放环境拒绝管理操作", async () => {
   });
   expect(services.setMobilePluginEnabled).not.toHaveBeenCalled();
 });
+it("正式构建可管理中心插件，但不能通过开发入口安装任意来源", async () => {
+  inventory = { ...inventory, development: false, managementEnabled: true };
+  await act(async () => { await controller.refresh(); });
+  await render();
+  expect(controller.managementEnabled).toBe(true);
+  expect(controller.developmentInstall.allowed).toBe(false);
+  await act(async () => { await controller.actions.run("enable", "test.plugin"); });
+  expect(services.setMobilePluginEnabled).toHaveBeenCalledWith("test.plugin", true);
+  await act(async () => {
+    await expect(controller.actions.installDevelopment("{}")).rejects.toThrow("开发来源");
+  });
+  expect(services.installMobilePlugin).not.toHaveBeenCalled();
+});
 it("动作同步互斥，失败后允许重试且错误可供 UI 展示", async () => {
   let fail!: (reason: Error) => void;
   vi.mocked(services.setMobilePluginEnabled).mockImplementationOnce(

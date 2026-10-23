@@ -1,4 +1,4 @@
-import { validatePortablePluginManifest } from "@tau/plugins/portable";
+import { validatePortableDistributionManifest } from "@tau/plugins/portable";
 import AdmZip from "adm-zip";
 import { inflateRawSync } from "node:zlib";
 import {
@@ -51,7 +51,7 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
     const raw = JSON.parse(unpack(manifests[0]).toString("utf8"));
     const manifest =
       raw.formatVersion === 3
-        ? validatePortablePluginManifest(raw)
+        ? validatePortableDistributionManifest(raw)
         : validatePluginManifest(raw, { strict: true });
     if (
       typeof raw.description !== "string" ||
@@ -61,14 +61,6 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
       throw new Error("manifest.description必须为1至160字的简介");
     if (manifest.formatVersion !== 3 && !manifest.minAppVersion)
       throw new Error("发布包必须声明最低客户端版本");
-    if (manifest.formatVersion === 3 && /[-+]/.test(manifest.version))
-      throw new Error("正式跨端包版本不能含预发布或构建标识");
-    if (
-      manifest.formatVersion === 3 &&
-      (manifest.targets.android || manifest.targets.ios) &&
-      manifest.permissions?.length
-    )
-      throw new Error("移动端尚未接入业务数据授权，不能发布声明这些权限的移动目标");
     if (manifest.id === "web" || manifest.id.startsWith("core."))
       throw new Error("不能使用内置插件保留ID");
     for (const entry of entries) {

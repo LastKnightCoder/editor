@@ -89,6 +89,8 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 
 应用根部注入响应式插件环境，DesktopPluginRuntime 的语义 navigation 入口复用真实侧栏模型；插件页通过 PortalScope/UiHostProvider 接浮层仲裁。显式开发目录、格式 3 装配及独立内容转换边界见[跨端插件宿主](/docs/architecture/plugin-portability.md)。
 
+格式 3 开发目录通过 readPortablePluginManifest 保留合法的未来能力名，完整性检查后交共享求值器；未知 required 在执行前拒绝，未知 optional 不阻断当前平台，不删除后再核对清单。此读取规则不开放正式目录格式 3 安装，也不放宽旧格式校验。
+
 ### 聊天工具自定义渲染
 
 唯一注册表在 `@tau/chat-ui/renderers`。作者在 activate 中 `await ctx.chat.registerToolRenderer({ mcpId, toolName, component })`，只引用本插件 MCP 的原始工具名；PluginHost 激活前校验、成功后发布，工具名 SHA-256 与历史偏好键不变。展示不受 MCP 执行开关/连接状态影响；signal 失效立即卸载，切库先清理旧运行时。本地工具返回 `{ content, render?: { version, data } }`（有限 JSON + 正整数版本），经 pi details 保存，实时与历史投影都保留 details；失败/取消回通用工具行，未知数据版本由插件 renderDefault 回退。渲染选择再校验绑定：只按实际 execution.toolName 命中，插件不能改选他人绑定；插件接收 execution 独立快照，不能改写宿主消息。不新增聊天 schema、内置工具覆盖或 MCP Apps 运行器。

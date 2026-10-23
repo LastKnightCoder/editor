@@ -1,6 +1,6 @@
 [package]
 name = "Tau"
-version = "0.2.0"
+version = "0.2.1"
 description = "A Note App"
 authors = ["LastKnightCoder"]
 edition = "2021"

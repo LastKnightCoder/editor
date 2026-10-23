@@ -29,7 +29,7 @@ let validateManifest;
 if (portable) {
   if (skillPackage) throw new Error("跨端开发包必须有 JS 入口");
   const api = await import("@tau/plugins/portable");
-  validateManifest = api.validatePortablePluginManifest;
+  validateManifest = api.validatePortableDistributionManifest;
 } else if (skillPackage) {
   if (manifest.backend !== undefined || manifest.formatVersion !== 1)
     throw new Error("Skill 包使用格式 1，不能声明后台");
@@ -225,7 +225,7 @@ try {
   const archive = path.resolve("dist", `${manifest.id}-${manifest.version}.zip`);
   zip.writeZip(archive);
   console.log(
-    `构建完成：${archive}\n${portable ? "跨端开发包仅供显式兼容的开发宿主验证，不可安装到正式客户端或提交生产中心。" : "运行 pnpm install:local 安装到 Tau，然后在插件页点「重新扫描」。"}`
+    `构建完成：${archive}\n${portable ? "格式 3 需经插件中心人工批准上架，作者负责平台适配与测试；移动安装需兼容的正式客户端，桌面仅支持显式开发目录。" : "运行 pnpm install:local 安装到 Tau，然后在插件页点「重新扫描」。"}`
   );
 } catch (error) {
   await rm(staging, { recursive: true, force: true });

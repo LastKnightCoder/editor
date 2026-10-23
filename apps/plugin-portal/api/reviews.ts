@@ -1,4 +1,4 @@
-import { assertPortablePublication, readPlatformEvidence } from "./portable-review";
+import { assertPortablePublication } from "./portable-review";
 import type { PackageContent, ReviewDecision, ReviewDetails, ReviewRecord } from "../contracts";
 import { requiresSystemReview } from "../contracts/execution";
 import { body, fail, isReviewer, json, type Env } from "./platform";
@@ -7,7 +7,6 @@ import { getUpload, readyUpload } from "./uploads";
 import { getRelease, publishRelease, releaseDto, submittedPackage } from "./releases";
 
 interface ReviewRow {
-  platform_evidence_json?: string | null;
   system_reviewed?: number;
   id: string;
   reviewed_revision: number;
@@ -24,9 +23,6 @@ interface ReviewRow {
   created_at: string;
 }
 const reviewDto = (row: ReviewRow): ReviewRecord => ({
-  ...(row.platform_evidence_json
-    ? { platformEvidence: JSON.parse(row.platform_evidence_json) }
-    : {}),
   systemReviewed: row.system_reviewed === 1,
   id: row.id,
   revision: row.reviewed_revision,
@@ -145,8 +141,6 @@ export async function reviewRoute(
   if (decision !== "approve" && !comment)
     fail(400, "INVALID_INPUT", "要求修改或拒绝时必须填写原因");
   if (!row.content_json) fail(409, "UPLOAD_NOT_READY", "缺少可审核的包资料");
-  const manifest = (JSON.parse(row.content_json) as PackageContent).manifest;
-  const evidence = readPlatformEvidence(manifest, input.platformEvidence, decision === "approve");
   const previous = await env.DB.prepare(
     "SELECT * FROM submission_reviews WHERE submission_id=? AND reviewed_revision=?"
   )
@@ -157,7 +151,6 @@ export async function reviewRoute(
       previous.reviewer_id !== owner ||
       previous.decision !== decision ||
       previous.comment !== comment ||
-      (previous.platform_evidence_json ?? null) !== (evidence ? JSON.stringify(evidence) : null) ||
       (previous.system_reviewed === 1 && input.systemReviewConfirmed !== true)
     )
       fail(409, "REVISION_CONFLICT", "该修订已经有审核决定，请刷新");
@@ -171,8 +164,7 @@ export async function reviewRoute(
       input.revision as number,
       decision,
       comment,
-      input.systemReviewConfirmed === true,
-      evidence ?? undefined
+      input.systemReviewConfirmed === true
     )
   );
 }
@@ -185,8 +177,7 @@ export async function decideSubmission(
   revision: number,
   decision: ReviewDecision,
   comment: string,
-  systemReviewConfirmed = false,
-  platformEvidence?: import("../contracts").PlatformReviewEvidence
+  systemReviewConfirmed = false
 ): Promise<ReviewDetails> {
   if (row.status !== "pending_review" || row.revision !== revision)
     fail(409, "REVISION_CONFLICT", "提交状态或修订已变化，请刷新后重新审核");
@@ -195,7 +186,6 @@ export async function decideSubmission(
   const upload = await readyUpload(env, row.publisher_id, row.package_upload_id);
   if (!upload.sha256) fail(409, "UPLOAD_NOT_READY", "产物缺少摘要");
   const manifest = (JSON.parse(row.content_json) as PackageContent).manifest;
-  const evidence = readPlatformEvidence(manifest, platformEvidence, decision === "approve");
   if (decision === "approve") assertPortablePublication(env, manifest);
   const systemReviewed = requiresSystemReview(manifest) && decision === "approve";
   if (systemReviewed && !systemReviewConfirmed)
@@ -207,7 +197,7 @@ export async function decideSubmission(
   ];
   const commands = [
     env.DB.prepare(
-      "INSERT INTO submission_reviews(id,submission_id,reviewed_revision,package_upload_id,sha256,manifest_json,repository,source_commit,reviewer_id,decision,comment,created_at,system_reviewed,platform_evidence_json) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,? FROM submissions WHERE id=? AND status='pending_review' AND revision=?"
+      "INSERT INTO submission_reviews(id,submission_id,reviewed_revision,package_upload_id,sha256,manifest_json,repository,source_commit,reviewer_id,decision,comment,created_at,system_reviewed) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,? FROM submissions WHERE id=? AND status='pending_review' AND revision=?"
     ).bind(
       id,
       row.id,
@@ -222,7 +212,6 @@ export async function decideSubmission(
       comment,
       time,
       systemReviewed ? 1 : 0,
-      evidence ? JSON.stringify(evidence) : null,
       row.id,
       row.revision
     ),
@@ -233,7 +222,7 @@ export async function decideSubmission(
   if (decision === "approve")
     commands.push(
       env.DB.prepare(
-        "INSERT INTO releases(id,plugin_id,version,submission_id,package_upload_id,publisher_id,object_key,sha256,size,content_json,repository,source_commit,name,description,min_app_version,categories,keywords,state,created_at,system_reviewed,platform_evidence_json) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?,? WHERE EXISTS(SELECT 1 FROM submission_reviews WHERE id=?)"
+        "INSERT INTO releases(id,plugin_id,version,submission_id,package_upload_id,publisher_id,object_key,sha256,size,content_json,repository,source_commit,name,description,min_app_version,categories,keywords,state,created_at,system_reviewed) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,? WHERE EXISTS(SELECT 1 FROM submission_reviews WHERE id=?)"
       ).bind(
         id,
         manifest.id,
@@ -254,7 +243,6 @@ export async function decideSubmission(
         JSON.stringify(manifest.keywords ?? []),
         time,
         systemReviewed ? 1 : 0,
-        evidence ? JSON.stringify(evidence) : null,
         id
       )
     );

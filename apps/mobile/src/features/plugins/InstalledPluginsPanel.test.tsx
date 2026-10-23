@@ -170,6 +170,6 @@ it("生产原生清单关闭管理操作，即使前端处于开发模式", asyn
   await renderManager(async container => {
     expect(findButton(container, "启用")).toBeUndefined();
     expect(findButton(container, "卸载")).toBeUndefined();
-    expect(container.textContent).toContain("生产构建未开放插件管理操作");
+    expect(container.textContent).toContain("当前构建未开放插件管理操作");
   });
 });

@@ -1,4 +1,4 @@
-import { assertPortablePublication, readPlatformEvidence } from "./portable-review";
+import { assertPortablePublication } from "./portable-review";
 import { comparePluginVersions, isPluginCategory } from "@tau/plugins/package";
 import type {
   Catalog,
@@ -17,7 +17,6 @@ import { requiresSystemReview } from "../contracts/execution";
 
 export interface ReleaseRow {
   format_version?: number;
-  platform_evidence_json?: string | null;
   system_reviewed?: number;
   revoked_at?: string | null;
   id: string;
@@ -75,11 +74,6 @@ export async function submittedPackage(
 export async function publishRelease(env: Env, row: ReleaseRow): Promise<void> {
   const manifest = (JSON.parse(row.content_json) as PackageContent).manifest;
   assertPortablePublication(env, manifest);
-  readPlatformEvidence(
-    manifest,
-    row.platform_evidence_json ? JSON.parse(row.platform_evidence_json) : undefined,
-    true
-  );
   if (row.revoked_at) fail(409, "SUBMISSION_LOCKED", "该版本已撤回，不能重新发布");
   if (
     requiresSystemReview((JSON.parse(row.content_json) as PackageContent).manifest) &&

@@ -118,11 +118,46 @@ fn safe_path(name: &str) -> Result<(), String> {
     }
     Ok(())
 }
-fn dev_only() -> Result<(), String> {
-    if !cfg!(debug_assertions) {
-        return Err(fail("生产构建未开放跨端插件安装"));
+fn management_enabled() -> bool {
+    cfg!(debug_assertions) || crate::plugin_center::installation_enabled()
+}
+fn management_only() -> Result<(), String> {
+    if !management_enabled() {
+        return Err(fail("当前平台不支持插件管理"));
     }
     Ok(())
+}
+fn source_rejection(source: &Value) -> Option<String> {
+    if !cfg!(debug_assertions) && !crate::plugin_center::trusted_source(source) {
+        Some("正式构建只允许运行固定插件中心安装的版本".into())
+    } else {
+        None
+    }
+}
+fn install_mode(center: bool) -> Result<(), String> {
+    if !install_mode_allowed(
+        cfg!(debug_assertions),
+        crate::plugin_center::installation_enabled(),
+        center,
+    ) {
+        return Err(fail(
+            "当前构建只允许受支持平台的固定中心安装；开发来源仅限调试构建",
+        ));
+    }
+    Ok(())
+}
+fn install_mode_allowed(development: bool, mobile: bool, center: bool) -> bool {
+    development || (mobile && center)
+}
+fn enabled_intent(directory: &Path, source: &Value) -> bool {
+    // 中心首次安装表示用户确认启用；更新保留显式保存的启停意图。
+    match fs::read(directory.join("enabled.json")) {
+        Ok(bytes) => serde_json::from_slice::<bool>(&bytes).unwrap_or(false),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            crate::plugin_center::trusted_source(source)
+        }
+        Err(_) => false,
+    }
 }
 fn recover(directory: &Path) -> Result<(), String> {
     if !directory.join("switch.json").exists() {
@@ -283,7 +318,7 @@ pub(crate) async fn stage_package(
     source: InstallSource,
     center: Option<Value>,
 ) -> Result<Value, String> {
-    dev_only()?;
+    install_mode(center.is_some())?;
     identifier(&source.id)?;
     if source.size == 0 || source.size > LIMIT || source.sha256.len() != 64 {
         return Err(fail("下载描述无效"));
@@ -376,7 +411,7 @@ fn commit_package(
     sha256: String,
     center: Option<(&str, &str)>,
 ) -> Result<(), String> {
-    dev_only()?;
+    install_mode(center.is_some())?;
     identifier(&id)?;
     let _lock = STORE_LOCK.lock().map_err(fail)?;
     let directory = root(&app)?.join(id);
@@ -426,13 +461,17 @@ pub fn plugin_cancel(app: AppHandle, id: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn plugin_restore(app: AppHandle, id: String) -> Result<(), String> {
-    dev_only()?;
+    management_only()?;
     identifier(&id)?;
     let _lock = STORE_LOCK.lock().map_err(fail)?;
     let directory = root(&app)?.join(id);
     recover(&directory)?;
     let backup = directory.join("backup");
     artifact(&backup)?;
+    let source = read_json(&backup.join(".source.json"))?;
+    if let Some(reason) = source_rejection(&source).or_else(|| center_block_reason(&app, &source)) {
+        return Err(fail(reason));
+    }
     let next = directory.join("next");
     remove(&next)?;
     fs::create_dir(&next).map_err(fail)?;
@@ -455,23 +494,30 @@ pub fn plugin_restore(app: AppHandle, id: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn plugin_set_enabled(app: AppHandle, id: String, enabled: bool) -> Result<(), String> {
-    dev_only()?;
+    management_only()?;
     identifier(&id)?;
     let _lock = STORE_LOCK.lock().map_err(fail)?;
     let directory = root(&app)?.join(id);
     if enabled {
-        artifact(&directory.join(if directory.join("current").exists() {
+        let slot = directory.join(if directory.join("current").exists() {
             "current"
         } else {
             "next"
-        }))?;
+        });
+        artifact(&slot)?;
+        let source = read_json(&slot.join(".source.json"))?;
+        if let Some(reason) =
+            source_rejection(&source).or_else(|| center_block_reason(&app, &source))
+        {
+            return Err(fail(reason));
+        }
     }
     write_json(&directory.join("enabled.json"), &json!(enabled))
 }
 
 #[tauri::command]
 pub fn plugin_uninstall(app: AppHandle, id: String) -> Result<(), String> {
-    dev_only()?;
+    management_only()?;
     identifier(&id)?;
     let _lock = STORE_LOCK.lock().map_err(fail)?;
     remove(&root(&app)?.join(id))
@@ -507,7 +553,7 @@ pub fn plugin_packages(app: AppHandle) -> Result<Value, String> {
             },
         );
         let source = read_json(&slot.join(".source.json")).unwrap_or(Value::Null);
-        let blocked = center_block_reason(&app, &source);
+        let blocked = source_rejection(&source).or_else(|| center_block_reason(&app, &source));
         let manifest = read_json(&slot.join("manifest.json")).unwrap_or(Value::Null);
         let current_version = read_json(&directory.join("current/manifest.json"))
             .ok()
@@ -537,9 +583,7 @@ pub fn plugin_packages(app: AppHandle) -> Result<Value, String> {
         match result {
             Ok(value) => {
                 item["artifact"] = serde_json::to_value(value).map_err(fail)?;
-                item["enabled"] = json!(
-                    read_json(&directory.join("enabled.json")).unwrap_or(json!(false)) == true
-                );
+                item["enabled"] = json!(enabled_intent(&directory, &source));
                 item["error"] = read_json(&directory.join("error.json")).unwrap_or(Value::Null);
             }
             Err(error) => {
@@ -550,7 +594,7 @@ pub fn plugin_packages(app: AppHandle) -> Result<Value, String> {
         packages.push(item);
     }
     Ok(
-        json!({"platform":platform,"appVersion":app.package_info().version.to_string(),"packages":packages,"development":cfg!(debug_assertions)}),
+        json!({"platform":platform,"appVersion":app.package_info().version.to_string(),"packages":packages,"development":cfg!(debug_assertions),"managementEnabled":management_enabled()}),
     )
 }
 
@@ -649,6 +693,26 @@ fn center_block_reason(app: &AppHandle, source: &Value) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn release_only_installs_from_center_on_mobile() {
+        assert!(install_mode_allowed(false, true, true));
+        assert!(!install_mode_allowed(false, true, false));
+        assert!(!install_mode_allowed(false, false, true));
+        assert!(install_mode_allowed(true, true, false));
+    }
+    #[test]
+    fn center_install_defaults_enabled_and_preserves_explicit_choice() {
+        let directory = temp();
+        let source = json!({"url":"https://plugins-api.taunote.app/v2/releases/release-1/download","center":{"origin":"https://plugins-api.taunote.app","releaseId":"release-1"}});
+        assert!(enabled_intent(&directory, &source));
+        write_json(&directory.join("enabled.json"), &json!(false)).unwrap();
+        assert!(!enabled_intent(&directory, &source));
+        fs::write(directory.join("enabled.json"), "损坏的启用状态").unwrap();
+        assert!(!enabled_intent(&directory, &source));
+        write_json(&directory.join("enabled.json"), &json!(true)).unwrap();
+        assert!(enabled_intent(&directory, &source));
+        fs::remove_dir_all(directory).unwrap();
+    }
     #[tokio::test]
     async fn cancellation_interrupts_a_stalled_request() {
         let download = Download::begin("test.stalled").unwrap();
