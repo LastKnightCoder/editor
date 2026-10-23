@@ -153,11 +153,11 @@ export function normalizeCenterHost(host: CenterHost): CenterHost {
       throw new Error("宿主协议版本集合无效");
     return [...new Set(values)].sort((a, b) => a - b);
   };
-  const names = (values: readonly string[]) => {
+  const names = (values: readonly string[], pattern: RegExp) => {
     if (
       !Array.isArray(values) ||
       values.length > 128 ||
-      values.some(value => typeof value !== "string" || !/^[a-z][a-z0-9.-]{0,127}$/.test(value))
+      values.some(value => typeof value !== "string" || !pattern.test(value))
     )
       throw new Error("宿主能力或运行配置无效");
     return [...new Set(values)].sort();
@@ -167,8 +167,8 @@ export function normalizeCenterHost(host: CenterHost): CenterHost {
     appVersion: host.appVersion,
     apiVersions: numbers(host.apiVersions),
     formatVersions: numbers(host.formatVersions),
-    profiles: names(host.profiles),
-    capabilities: names(host.capabilities),
+    profiles: names(host.profiles, /^[a-z][a-z0-9.-]{0,127}$/),
+    capabilities: names(host.capabilities, /^[a-z][a-zA-Z0-9]{0,127}$/),
   };
 }
 
