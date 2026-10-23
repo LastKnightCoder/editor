@@ -282,15 +282,16 @@ export function withSnapshotTimeout<T>(
   label: string,
   ms = SNAPSHOT_TIMEOUT_MS
 ): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
   return Promise.race([
     promise,
     new Promise<never>((_, reject) => {
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         console.error(`[home] ${label} ${ms}ms 未返回，疑似 IPC 挂起`);
         reject(new Error(`${label} 超时（${ms}ms）`));
       }, ms);
     }),
-  ]);
+  ]).finally(() => clearTimeout(timeoutId));
 }
 
 export async function fetchHomeSnapshot(): Promise<HomeSnapshot> {
