@@ -231,7 +231,10 @@ export const OVERLAY_INSERT_KINDS: ReadonlySet<InsertSheetItemKind> = new Set<In
 ]);
 
 /** 空查询返回全部；否则按 label 或任一关键词包含查询词过滤（大小写不敏感），保持原顺序 */
-export function searchInsertItems(items: readonly InsertItem[], query: string): InsertItem[] {
+export function searchInsertItems<T extends Pick<InsertItem, "label" | "keywords">>(
+  items: readonly T[],
+  query: string
+): T[] {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return [...items];
   return items.filter(

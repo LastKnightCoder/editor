@@ -25,7 +25,7 @@ export const uploadPluginResource = (
     }
   });
 import type { LocalPluginScan } from "@/types/plugin-local";
-import type { DevelopmentPluginPackage } from "@tau/plugins/host";
+import type { DesktopPluginPackage as DevelopmentPluginPackage } from "../../shared/plugin-package";
 export const getContentPluginStartup = (): Promise<{
   artifacts: DevelopmentPluginPackage[];
   errors: Record<string, string>;

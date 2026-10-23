@@ -1,14 +1,23 @@
-import React, { act, createRef, useEffect, useRef } from "react";
+import React, {
+  Activity,
+  act,
+  createRef,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Transforms, type Descendant, type Editor as SlateEditor } from "slate";
 import { ReactEditor, useSlateStatic } from "slate-react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
+import { Editor, createEditorKit, defaultMenuExtension, type EditorRef } from "@tau/editor";
 import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
 import { IEditorSlots } from "@tau/editor/extensions/media/services";
 import {
+  IElementEditingPolicy,
   defineExtension,
   defineElement,
   focusNextBlock,
@@ -146,43 +155,103 @@ describe("源码预览迁包后的行为", () => {
   let root: Root;
   let host: HTMLDivElement;
   let editor: SlateEditor;
+  let setHidden: (hidden: boolean) => void;
+  const outerInput = vi.fn();
+  const outerKey = vi.fn();
+  const outerPaste = vi.fn();
+  function Visibility({ children }: { children: ReactNode }) {
+    const [hidden, update] = useState(false);
+    setHidden = update;
+    return (
+      <div
+        onInput={outerInput}
+        onKeyDown={outerKey}
+        onPaste={outerPaste}
+        style={hidden ? { display: "none" } : undefined}
+      >
+        <Activity mode={hidden ? "hidden" : "visible"}>{children}</Activity>
+      </div>
+    );
+  }
   afterEach(async () => {
     await act(async () => root?.unmount());
     host?.remove();
     observed.editors.length = 0;
+    outerInput.mockClear();
+    outerKey.mockClear();
+    outerPaste.mockClear();
   });
-  const mount = async (source: string) => {
+  const mount = async (source: string, touch = false) => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
     const ref = createRef<EditorRef>();
     const kit = createEditorKit({
-      extensions: [previewMenuExtension, fixture],
+      extensions: [previewMenuExtension, fixture, ...(touch ? [defaultMenuExtension] : [])],
       services: [
         register => {
           register(IEditorSlots, createDefaultEditorSlots());
+          if (touch)
+            register(IElementEditingPolicy, { sourcePresentation: "touch", canEdit: () => true });
         },
       ],
     });
     await act(async () =>
       root.render(
         <DndProvider backend={HTML5Backend}>
-          <Editor
-            ref={ref}
-            kit={kit}
-            readonly={false}
-            initValue={[
-              paragraph("前"),
-              { type: "test-preview", source, children: [{ type: "formatted", text: "" }] },
-              paragraph("后"),
-            ]}
-          />
+          <Visibility>
+            <Editor
+              ref={ref}
+              kit={kit}
+              readonly={false}
+              initValue={[
+                paragraph("前"),
+                { type: "test-preview", source, children: [{ type: "formatted", text: "" }] },
+                paragraph("后"),
+              ]}
+            />
+          </Visibility>
         </DndProvider>
       )
     );
     editor = ref.current!.getEditor();
     return kit;
   };
+  it("触摸源码浮层位于正文 DOM 外，输入不冒泡改正文，页面隐藏时回收浮层与草稿", async () => {
+    await mount("初始", true);
+    await act(async () =>
+      [...document.querySelectorAll("button")]
+        .find(button => button.textContent === "编辑源码源码")
+        ?.click()
+    );
+    await act(async () => {
+      await vi.dynamicImportSettled();
+    });
+    const dialog = document.querySelector('[role="dialog"]');
+    expect(dialog?.closest("[data-slate-editor]")).toBeNull();
+    const input = dialog?.querySelector("textarea");
+    expect(input).toBeTruthy();
+    const before = JSON.stringify(editor.children);
+    await act(async () => {
+      input?.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", keyCode: 13, bubbles: true, cancelable: true })
+      );
+      input?.dispatchEvent(
+        new InputEvent("input", { inputType: "insertText", data: "X:1", bubbles: true })
+      );
+      input?.dispatchEvent(new Event("paste", { bubbles: true, cancelable: true }));
+    });
+    expect(outerKey).not.toHaveBeenCalled();
+    expect(outerInput).not.toHaveBeenCalled();
+    expect(outerPaste).not.toHaveBeenCalled();
+    expect(JSON.stringify(editor.children)).toBe(before);
+    await changeSource("未保存草稿");
+    await act(async () => setHidden(true));
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    await act(async () => setHidden(false));
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect((editor.children[1] as PreviewElement).source).toBe("初始");
+  });
   const changeSource = async (source: string) => {
     const current = observed.editors.at(-1)!;
     await act(async () => {
@@ -199,6 +268,36 @@ describe("源码预览迁包后的行为", () => {
       await new Promise(resolve => setTimeout(resolve, 350));
     });
   };
+  it("触摸源码取消不写入，保存可撤销，块菜单复用标准移动与删除", async () => {
+    await mount("初始", true);
+    const click = async (label: string) => {
+      const button = [...document.querySelectorAll("button")].find(
+        item => item.textContent === label
+      );
+      expect(button).toBeDefined();
+      await act(async () => button?.click());
+      await act(async () => {
+        await vi.dynamicImportSettled();
+      });
+    };
+    await click("编辑源码源码");
+    await changeSource("取消草稿");
+    expect((editor.children[1] as PreviewElement).source).toBe("初始");
+    await click("取消");
+    expect((editor.children[1] as PreviewElement).source).toBe("初始");
+    await click("编辑源码源码");
+    await changeSource("保存草稿");
+    await click("保存");
+    expect((editor.children[1] as PreviewElement).source).toBe("保存草稿");
+    await act(async () => (editor as SlateEditor & { undo(): void }).undo());
+    expect((editor.children[1] as PreviewElement).source).toBe("初始");
+    await click("块操作");
+    await click("上移");
+    expect(editor.children[0].type).toBe("test-preview");
+    await click("块操作");
+    await click("删除");
+    expect(editor.children.some(node => node.type === "test-preview")).toBe(false);
+  });
   it("编辑回写与外部更新保持同步，服务派生不重装预览菜单", async () => {
     const kit = await mount("初始");
     expect(observed.editors).toHaveLength(0);

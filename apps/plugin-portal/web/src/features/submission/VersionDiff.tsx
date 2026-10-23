@@ -1,7 +1,9 @@
 import { GitCompare } from "lucide-react";
-import { Loading, Panel, cn } from "@tau/ui";
+import { Button, Loading, Panel, cn } from "@tau/ui";
 import type { PackageManifest, Submission } from "../../../../contracts";
+import { useCenterVersions } from "../catalog/center-queries";
 import { usePluginReleases } from "../catalog/queries";
+import { TargetsDiff } from "./TargetsDiff";
 import { formatBytes } from "./validation";
 import { diffFiles, diffManifest, previousRelease } from "./versions";
 
@@ -17,22 +19,42 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-/** 与上一发布版本对比：由已发布版本的 manifest 在前端计算，不需要额外接口 */
-export function VersionDiff({
+interface Baseline {
+  version: string;
+  size: number;
+  manifest: PackageManifest;
+}
+
+type DiffProps = { submission: Submission; manifest: PackageManifest };
+
+function DiffPanel({
   submission,
   manifest,
-}: {
-  submission: Submission;
-  manifest: PackageManifest;
+  pending,
+  failed,
+  previous,
+  more,
+}: DiffProps & {
+  pending: boolean;
+  failed: boolean;
+  previous: Baseline | null;
+  /** 已加载的版本里没有更低版本、但还有更早一页时的加载入口。 */
+  more?: { loading: boolean; onLoad: () => void } | null;
 }) {
-  const releases = usePluginReleases(manifest.id);
-  const previous = previousRelease(releases.data?.items, manifest.version);
   const commit = submission.commit?.slice(0, 7);
-
   let body;
-  if (releases.isPending) body = <Loading minHeight={96} />;
-  else if (releases.isError)
+  if (pending) body = <Loading minHeight={96} />;
+  else if (failed)
     body = <p className="text-tau-sm text-ink-3 px-4 py-3">已发布版本读取失败，无法对比。</p>;
+  else if (!previous && more)
+    body = (
+      <div className="flex items-center gap-3 px-4 py-3">
+        <p className="text-tau-sm text-ink-2">已加载的版本都不低于本次提交。</p>
+        <Button loading={more.loading} onClick={more.onLoad}>
+          加载更早的版本
+        </Button>
+      </div>
+    );
   else if (!previous)
     body = (
       <p className="text-tau-sm text-ink-2 px-4 py-3">
@@ -99,5 +121,66 @@ export function VersionDiff({
       </header>
       {body}
     </Panel>
+  );
+}
+
+function LegacyVersionDiff({ submission, manifest }: DiffProps) {
+  const releases = usePluginReleases(manifest.id);
+  return (
+    <DiffPanel
+      submission={submission}
+      manifest={manifest}
+      pending={releases.isPending}
+      failed={releases.isError}
+      previous={previousRelease(releases.data?.items, manifest.version)}
+    />
+  );
+}
+
+/** 跨端包的历史只在 v2 可见；v1 公开版本列表不含格式 3。 */
+function PortableVersionDiff({ submission, manifest }: DiffProps) {
+  const releases = useCenterVersions(manifest.id, "all");
+  const items = releases.data?.pages.flatMap(page => page.items) ?? [];
+  const previous = previousRelease(items, manifest.version);
+  const baseline = previous && {
+    version: previous.version,
+    size: previous.size,
+    manifest: previous.content.manifest,
+  };
+  const loaded = !releases.isPending && !releases.isError;
+  return (
+    <>
+      <DiffPanel
+        submission={submission}
+        manifest={manifest}
+        pending={releases.isPending}
+        failed={releases.isError && !releases.data}
+        previous={baseline}
+        more={
+          releases.hasNextPage
+            ? {
+                loading: releases.isFetchingNextPage,
+                onLoad: () => void releases.fetchNextPage(),
+              }
+            : null
+        }
+      />
+      {manifest.formatVersion === 3 && loaded && (previous || !releases.hasNextPage) && (
+        <TargetsDiff
+          previous={previous?.content.manifest.formatVersion === 3 ? previous.targets : null}
+          current={manifest.targets}
+          previousVersion={previous?.version ?? null}
+        />
+      )}
+    </>
+  );
+}
+
+/** 与上一发布版本对比：由已发布版本的 manifest 在前端计算，不需要额外接口 */
+export function VersionDiff(props: DiffProps) {
+  return props.manifest.formatVersion === 3 ? (
+    <PortableVersionDiff {...props} />
+  ) : (
+    <LegacyVersionDiff {...props} />
   );
 }

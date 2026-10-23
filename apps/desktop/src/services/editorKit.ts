@@ -26,7 +26,8 @@ import flashcardBlankExtension from "@/editor-extensions/flashcard-blank";
 import docTasksExtension from "@/editor-extensions/doc-tasks";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { desktopEditorServices } from "./editorRegistry";
-import { desktopContentPlugins } from "../../shared/content-plugins.ts";
+import { IElementEditingPolicy } from "@tau/editor/api";
+import { desktopContentPlugins, desktopPortableSupport } from "../../shared/content-plugins.ts";
 
 /** 异步装载的宿主扩展必须先就位：kit 只建一次，少拿了就整个应用少几种块，且不会报错 */
 function requireHostExtensions(): AnyExtension[] {
@@ -62,7 +63,15 @@ export function createDesktopKit(extras: readonly AnyExtension[] = []): EditorKi
         ...createDesktopEditorExtensions(),
         ...extras,
       ],
-      services: [desktopEditorServices],
+      services: [
+        desktopEditorServices,
+        register =>
+          register(IElementEditingPolicy, {
+            sourcePresentation: "pointer",
+            canEdit: type =>
+              !desktopPortableSupport.has(type) || desktopPortableSupport.get(type) === "edit",
+          }),
+      ],
       // createImageExtensions 按 type 替换内置 image
       override: true,
     });
@@ -135,6 +144,14 @@ let arrowLabelKit: EditorKit | null = null;
 export function getArrowLabelKit(): EditorKit {
   return (arrowLabelKit ??= createEditorKit({
     extensions: [inlineMath, link, textFormattingExtension],
-    services: [desktopEditorServices],
+    services: [
+      desktopEditorServices,
+      register =>
+        register(IElementEditingPolicy, {
+          sourcePresentation: "pointer",
+          canEdit: type =>
+            !desktopPortableSupport.has(type) || desktopPortableSupport.get(type) === "edit",
+        }),
+    ],
   }));
 }

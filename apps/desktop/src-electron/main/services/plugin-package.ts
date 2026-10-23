@@ -1,11 +1,12 @@
 import { readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
+import { assertPluginCompatibility } from "@tau/plugins/host";
 import {
-  validatePluginManifest,
-  assertPluginCompatibility,
-  type DevelopmentPluginPackage,
-} from "@tau/plugins/host";
+  readDesktopPluginManifest,
+  assertDesktopPluginCompatibility,
+  type DesktopPluginPackage as DevelopmentPluginPackage,
+} from "../../../shared/plugin-package";
 import client from "../../../package.json";
 import {
   validateDistributionManifest,
@@ -20,25 +21,33 @@ export type DistributionPackage =
   DevelopmentPluginPackage | { manifest: TemplateManifest } | { manifest: SkillPackageManifest };
 export const isTemplatePackage = (
   artifact: DistributionPackage
-): artifact is { manifest: TemplateManifest } => isTemplateManifest(artifact.manifest);
+): artifact is { manifest: TemplateManifest } =>
+  artifact.manifest.formatVersion !== 3 && isTemplateManifest(artifact.manifest);
 export const isSkillPackage = (
   artifact: DistributionPackage
-): artifact is { manifest: SkillPackageManifest } => isSkillPackageManifest(artifact.manifest);
+): artifact is { manifest: SkillPackageManifest } =>
+  artifact.manifest.formatVersion !== 3 && isSkillPackageManifest(artifact.manifest);
 
 /** 安装事务与扫描共用静态分发校验；纯模板不进入代码包求值链。 */
 export async function readDistributionPackage(
   directory: string,
   clientVersion = client.version
 ): Promise<DistributionPackage> {
-  const manifest = validateDistributionManifest(
-    JSON.parse(await readFile(path.join(directory, "manifest.json"), "utf8"))
-  );
-  if (isTemplateManifest(manifest)) {
+  const value = JSON.parse(await readFile(path.join(directory, "manifest.json"), "utf8"));
+  const manifest = readDesktopDistributionManifest(value);
+  if (manifest.formatVersion !== 3 && isTemplateManifest(manifest)) {
     const template = await readTemplatePackage(directory, clientVersion);
     return { manifest: template.manifest };
   }
-  if (isSkillPackageManifest(manifest)) return readSkillPackage(directory, clientVersion);
+  if (manifest.formatVersion !== 3 && isSkillPackageManifest(manifest))
+    return readSkillPackage(directory, clientVersion);
   return readPluginPackage(directory, clientVersion);
+}
+
+export function readDesktopDistributionManifest(value: unknown) {
+  return (value as { formatVersion?: unknown } | null)?.formatVersion === 3
+    ? readDesktopPluginManifest(value)
+    : validateDistributionManifest(value);
 }
 
 /** 读取包内文件只经此函数：解析真实路径后必须仍在包目录内，且是普通文件。 */
@@ -93,8 +102,8 @@ export async function readPluginPackage(
 ): Promise<DevelopmentPluginPackage> {
   const read = packageReader(await realpath(directory));
   const manifestText = (await read("manifest.json")).toString("utf8");
-  const manifest = validatePluginManifest(JSON.parse(manifestText));
-  assertPluginCompatibility(manifest, clientVersion);
+  const manifest = readDesktopPluginManifest(JSON.parse(manifestText));
+  assertDesktopPluginCompatibility(manifest, clientVersion);
   const files = await readVerifiedFiles(read, manifest.integrity);
   const code = files.get(manifest.main)!.toString("utf8");
   const css = manifest.styles ? files.get(manifest.styles)!.toString("utf8") : undefined;

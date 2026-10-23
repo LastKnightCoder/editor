@@ -1,0 +1,72 @@
+[submodule "plugins/tau-plugin-abc"]
+	path = plugins/tau-plugin-abc
+	url = https://github.com/LastKnightCoder/tau-plugin-abc.git
+[submodule "plugins/tau-plugin-bilibili"]
+	path = plugins/tau-plugin-bilibili
+	url = https://github.com/LastKnightCoder/tau-plugin-bilibili.git
+[submodule "plugins/tau-plugin-custom-block"]
+	path = plugins/tau-plugin-custom-block
+	url = https://github.com/LastKnightCoder/tau-plugin-custom-block.git
+[submodule "plugins/tau-plugin-github"]
+	path = plugins/tau-plugin-github
+	url = https://github.com/LastKnightCoder/tau-plugin-github.git
+[submodule "plugins/tau-plugin-html"]
+	path = plugins/tau-plugin-html
+	url = https://github.com/LastKnightCoder/tau-plugin-html.git
+[submodule "plugins/tau-plugin-image-gallery"]
+	path = plugins/tau-plugin-image-gallery
+	url = https://github.com/LastKnightCoder/tau-plugin-image-gallery.git
+[submodule "plugins/tau-plugin-images-openai"]
+	path = plugins/tau-plugin-images-openai
+	url = https://github.com/LastKnightCoder/tau-plugin-images-openai.git
+[submodule "plugins/tau-plugin-oss"]
+	path = plugins/tau-plugin-oss
+	url = https://github.com/LastKnightCoder/tau-plugin-oss.git
+[submodule "plugins/tau-plugin-publish-github"]
+	path = plugins/tau-plugin-publish-github
+	url = https://github.com/LastKnightCoder/tau-plugin-publish-github.git
+[submodule "plugins/tau-plugin-publish-s3"]
+	path = plugins/tau-plugin-publish-s3
+	url = https://github.com/LastKnightCoder/tau-plugin-publish-s3.git
+[submodule "plugins/tau-plugin-questions"]
+	path = plugins/tau-plugin-questions
+	url = https://github.com/LastKnightCoder/tau-plugin-questions.git
+[submodule "plugins/tau-plugin-s3"]
+	path = plugins/tau-plugin-s3
+	url = https://github.com/LastKnightCoder/tau-plugin-s3.git
+[submodule "plugins/tau-plugin-stickman"]
+	path = plugins/tau-plugin-stickman
+	url = https://github.com/LastKnightCoder/tau-plugin-stickman.git
+[submodule "plugins/tau-plugin-tikz"]
+	path = plugins/tau-plugin-tikz
+	url = https://github.com/LastKnightCoder/tau-plugin-tikz.git
+[submodule "plugins/tau-plugin-tts-minimax"]
+	path = plugins/tau-plugin-tts-minimax
+	url = https://github.com/LastKnightCoder/tau-plugin-tts-minimax.git
+[submodule "plugins/tau-plugin-tts-qwen"]
+	path = plugins/tau-plugin-tts-qwen
+	url = https://github.com/LastKnightCoder/tau-plugin-tts-qwen.git
+[submodule "plugins/tau-plugin-typst"]
+	path = plugins/tau-plugin-typst
+	url = https://github.com/LastKnightCoder/tau-plugin-typst.git
+[submodule "plugins/tau-plugin-upload-github"]
+	path = plugins/tau-plugin-upload-github
+	url = https://github.com/LastKnightCoder/tau-plugin-upload-github.git
+[submodule "plugins/tau-plugin-upload-oss"]
+	path = plugins/tau-plugin-upload-oss
+	url = https://github.com/LastKnightCoder/tau-plugin-upload-oss.git
+[submodule "plugins/tau-plugin-upload-s3"]
+	path = plugins/tau-plugin-upload-s3
+	url = https://github.com/LastKnightCoder/tau-plugin-upload-s3.git
+[submodule "plugins/tau-plugin-webdav"]
+	path = plugins/tau-plugin-webdav
+	url = https://github.com/LastKnightCoder/tau-plugin-webdav.git
+[submodule "plugins/tau-plugin-weread"]
+	path = plugins/tau-plugin-weread
+	url = https://github.com/LastKnightCoder/tau-plugin-weread.git
+[submodule "plugins/tau-plugin-youtube"]
+	path = plugins/tau-plugin-youtube
+	url = https://github.com/LastKnightCoder/tau-plugin-youtube.git
+[submodule "plugins/tau-plugin-template"]
+	path = plugins/tau-plugin-template
+	url = https://github.com/LastKnightCoder/tau-plugin-template.git

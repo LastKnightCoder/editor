@@ -39,6 +39,7 @@ export interface UploadTransfer {
 
 /** 前端唯一的后端入口；真实 HTTP 与显式模拟模式各实现一份 */
 export interface PortalApi {
+  readonly center: import("@tau/plugins/center").PluginCenterClient;
   listModerationComments(
     filter: import("../../../contracts").ModerationFilter,
     cursor: string | null

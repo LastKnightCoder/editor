@@ -1,3 +1,4 @@
+import { PluginEntries } from "../../plugins/PluginEntries";
 import { SettingsPage } from "../SettingsPage";
 import { useAppContext } from "../../../app/AppContext";
 import { definePage, useNavigator } from "../../../router";
@@ -9,6 +10,7 @@ function SettingsScreen() {
 
   return (
     <SettingsPage
+      pluginEntries={<PluginEntries />}
       safeSetting={app.syncSettings.safeSetting}
       databases={app.bootstrap.databases}
       versions={app.bootstrap.versions}

@@ -1,3 +1,4 @@
+import { assertPortablePublication } from "./portable-review";
 import type { PackageContent, ReviewDecision, ReviewDetails, ReviewRecord } from "../contracts";
 import { requiresSystemReview } from "../contracts/execution";
 import { body, fail, isReviewer, json, type Env } from "./platform";
@@ -139,6 +140,7 @@ export async function reviewRoute(
     comment = input.comment.trim();
   if (decision !== "approve" && !comment)
     fail(400, "INVALID_INPUT", "要求修改或拒绝时必须填写原因");
+  if (!row.content_json) fail(409, "UPLOAD_NOT_READY", "缺少可审核的包资料");
   const previous = await env.DB.prepare(
     "SELECT * FROM submission_reviews WHERE submission_id=? AND reviewed_revision=?"
   )
@@ -184,6 +186,7 @@ export async function decideSubmission(
   const upload = await readyUpload(env, row.publisher_id, row.package_upload_id);
   if (!upload.sha256) fail(409, "UPLOAD_NOT_READY", "产物缺少摘要");
   const manifest = (JSON.parse(row.content_json) as PackageContent).manifest;
+  if (decision === "approve") assertPortablePublication(env, manifest);
   const systemReviewed = requiresSystemReview(manifest) && decision === "approve";
   if (systemReviewed && !systemReviewConfirmed)
     fail(400, "INVALID_INPUT", "批准后台插件前必须明确完成系统能力审核");
@@ -235,7 +238,7 @@ export async function decideSubmission(
         row.source_commit,
         manifest.name,
         manifest.description,
-        manifest.minAppVersion,
+        manifest.formatVersion === 3 ? "" : manifest.minAppVersion,
         JSON.stringify(manifest.categories ?? []),
         JSON.stringify(manifest.keywords ?? []),
         time,

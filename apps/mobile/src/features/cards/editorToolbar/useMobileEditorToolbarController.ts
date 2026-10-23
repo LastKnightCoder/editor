@@ -1,3 +1,5 @@
+import { mobileContentPlugins } from "../../../app/plugins/content";
+import type { IBlockPanelListItem } from "@tau/editor/api";
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { flushSync } from "react-dom";
 import type { EditorRef } from "@tau/editor";
@@ -129,6 +131,12 @@ type UseMobileEditorToolbarControllerOptions = {
 };
 
 export type MobileEditorToolbarController = {
+  pluginInsertItems: {
+    title: string;
+    keywords: string[];
+    icon: IBlockPanelListItem["icon"];
+    run: () => void;
+  }[];
   isEditorFocused: boolean;
   /** 编辑器聚焦、面板或表格菜单打开、焦点在 void 内部编辑器时配件栏可见（这些情况下 Slate 处于失焦） */
   isToolbarVisible: boolean;
@@ -969,8 +977,44 @@ export function useMobileEditorToolbarController(
     markSelectionDirty();
   }, [editorRef, markSelectionDirty]);
 
+  const pluginInsertItems = useMemo(() => {
+    const editor = getEditorFromRef(editorRef);
+    if (activePanel !== "insert" || !editor || ReactEditor.isReadOnly(editor)) return [];
+    const flatten = (
+      items: readonly IBlockPanelListItem[],
+      parent = ""
+    ): MobileEditorToolbarController["pluginInsertItems"] =>
+      items.flatMap(item => {
+        const title = parent ? `${parent} / ${item.title}` : item.title;
+        if (item.children) return flatten(item.children, title);
+        return item.onClick
+          ? [
+              {
+                title,
+                keywords: item.keywords,
+                icon: item.icon,
+                run: () => {
+                  const current = restoreEditorSelection();
+                  if (current !== editor || ReactEditor.isReadOnly(editor)) return;
+                  item.onClick?.(editor);
+                  markSelectionDirty();
+                },
+              },
+            ]
+          : [];
+      });
+    return flatten(
+      mobileContentPlugins.extensions.flatMap(extension =>
+        typeof extension.blockPanel === "function"
+          ? extension.blockPanel(editor)
+          : (extension.blockPanel ?? [])
+      )
+    );
+  }, [activePanel, editorRef, restoreEditorSelection, markSelectionDirty]);
+
   return useMemo(
     () => ({
+      pluginInsertItems,
       isEditorFocused,
       isToolbarVisible,
       activePanel,
@@ -1023,6 +1067,7 @@ export function useMobileEditorToolbarController(
       redo,
     }),
     [
+      pluginInsertItems,
       isEditorFocused,
       isToolbarVisible,
       activePanel,

@@ -1,5 +1,5 @@
 import { assertLocalId, isContentPlugin } from "@tau/plugins/package";
-import type { DevelopmentPluginPackage } from "@tau/plugins/host";
+import type { DesktopPluginPackage as DevelopmentPluginPackage } from "../../../shared/plugin-package";
 
 interface ContentStartupSnapshot {
   artifacts: DevelopmentPluginPackage[];

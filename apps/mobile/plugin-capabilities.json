@@ -1,0 +1,13 @@
+[
+  "commands",
+  "storage",
+  "pages",
+  "navigation",
+  "settings",
+  "dialogs",
+  "editor",
+  "editorCodecs",
+  "sourceEditor",
+  "media",
+  "runtimeStyles"
+]

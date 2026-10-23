@@ -1,4 +1,6 @@
 import type { PluginPages } from "./pages";
+import type { PluginEnvironment } from "./environment";
+import type { PluginNavigation } from "./navigation";
 import type { PluginAI, PluginAIFeature } from "./ai";
 import type { WhiteboardExtension } from "./whiteboard";
 import type { PluginServices } from "./services";
@@ -52,6 +54,8 @@ export interface PluginCommand {
 }
 
 export interface PluginContext {
+  readonly environment: PluginEnvironment;
+  readonly navigation: PluginNavigation;
   readonly backend: PluginBackendClient;
   readonly pluginId: string;
   readonly workspaceId: string;

@@ -1,3 +1,5 @@
+import { PluginEnvironmentProvider } from "@tau/plugins/environment-host";
+import { desktopPluginEnvironment } from "@/app/plugins/environment";
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "@tau/ui";
 import { RouterProvider } from "react-router-dom";
@@ -44,6 +46,7 @@ import {
 import { router } from "@/router.tsx";
 
 const Application = () => {
+  useEffect(() => desktopPluginEnvironment.connect(), []);
   useSyncSetting();
   useItemUpdateListener();
   useArticleDeletedCleanup();
@@ -132,28 +135,30 @@ const Application = () => {
   }, []);
 
   return (
-    <WindowFocusContext.Provider value={isFocused}>
-      <RemoteVideoDepsProvider deps={remoteVideoDeps}>
-        <EditDatabaseDepsProvider deps={editDatabaseDeps}>
-          <div
-            style={{
-              height: "100%",
-              fontSize: "var(--font-size)",
-              color: "var(--tau-ink-1)",
-            }}
-          >
-            <AutoSyncManager />
-            <MediaModalHost />
-            <ConversationFlashcardModal />
-            <ExtNoteInsertModal />
-            <DndProvider backend={HTML5Backend}>
-              <GlobalFindBar />
-              <RouterProvider router={router} />
-            </DndProvider>
-          </div>
-        </EditDatabaseDepsProvider>
-      </RemoteVideoDepsProvider>
-    </WindowFocusContext.Provider>
+    <PluginEnvironmentProvider source={desktopPluginEnvironment}>
+      <WindowFocusContext.Provider value={isFocused}>
+        <RemoteVideoDepsProvider deps={remoteVideoDeps}>
+          <EditDatabaseDepsProvider deps={editDatabaseDeps}>
+            <div
+              style={{
+                height: "100%",
+                fontSize: "var(--font-size)",
+                color: "var(--tau-ink-1)",
+              }}
+            >
+              <AutoSyncManager />
+              <MediaModalHost />
+              <ConversationFlashcardModal />
+              <ExtNoteInsertModal />
+              <DndProvider backend={HTML5Backend}>
+                <GlobalFindBar />
+                <RouterProvider router={router} />
+              </DndProvider>
+            </div>
+          </EditDatabaseDepsProvider>
+        </RemoteVideoDepsProvider>
+      </WindowFocusContext.Provider>
+    </PluginEnvironmentProvider>
   );
 };
 

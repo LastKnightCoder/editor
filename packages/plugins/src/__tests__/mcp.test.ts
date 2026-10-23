@@ -24,6 +24,7 @@ function setup(activate: (context: PluginContext) => void | Promise<void>, decla
   const registrations: Parameters<MCPAdapter["register"]>[] = [];
   const dispose = vi.fn();
   const host = new PluginHost({
+    environment: { platform: "desktop", input: { coarsePointer: false, finePointer: true } },
     workspaceId: "A",
     storage: createMemoryStorage(),
     mcp: {

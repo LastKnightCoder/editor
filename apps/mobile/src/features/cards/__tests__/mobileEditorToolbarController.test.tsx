@@ -11,6 +11,7 @@ import {
   type Descendant,
 } from "slate";
 import { ReactEditor } from "slate-react";
+import { mobileContentPlugins } from "../../../app/plugins/content";
 
 const { openLocalMediaPickerMock, openMediaUrlInputMock } = vi.hoisted(() => ({
   openLocalMediaPickerMock: vi.fn(),
@@ -728,6 +729,37 @@ describe("useMobileEditorToolbarController", () => {
     expect(editor.selection).toEqual(insertedSelection);
     expect(ReactEditor.focus).toHaveBeenCalled();
     expect(getController().activePanel).toBeNull();
+  });
+
+  it("插件插入沿用面板保存选区，插入后更新选区且不唤起键盘", () => {
+    const editor = createFormattedEditor("hello", {
+      anchor: { path: [0, 0], offset: 2 },
+      focus: { path: [0, 0], offset: 2 },
+    });
+    const onClick = vi.fn((target: Editor) => Transforms.insertText(target, "ABC"));
+    vi.spyOn(mobileContentPlugins, "extensions", "get").mockReturnValue([
+      {
+        id: "test.abc",
+        apiVersion: 1,
+        blockPanel: [
+          { title: "ABC", keywords: ["music"], description: "乐谱", icon: () => null, onClick },
+        ],
+      },
+    ]);
+    const getController = renderController(editor);
+    expect(getController().pluginInsertItems).toEqual([]);
+    act(() => getController().openPanel("insert", 280));
+    expect(getController().pluginInsertItems[0].keywords).toEqual(["music"]);
+    act(() => Transforms.deselect(editor));
+    vi.mocked(ReactEditor.focus).mockClear();
+    act(() => getController().pluginInsertItems[0].run());
+    expect(Editor.string(editor, [0])).toBe("heABCllo");
+    expect(getController().panelSelection?.anchor.offset).toBe(5);
+    expect(ReactEditor.focus).not.toHaveBeenCalled();
+    const action = getController().pluginInsertItems[0].run;
+    vi.spyOn(ReactEditor, "isReadOnly").mockReturnValue(true);
+    act(() => action());
+    expect(onClick).toHaveBeenCalledOnce();
   });
 
   it("exitEditing 关面板、立即释放预留并失焦", () => {

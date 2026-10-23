@@ -1,12 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { isPluginCategory } from "@tau/plugins/package";
 import { CloudOff, Search, SearchX } from "lucide-react";
-import { Button, Input, Loading, isEditableTarget, toast } from "@tau/ui";
-import type { CatalogEntry, CatalogSort, PluginCategory } from "../../../contracts";
-import { useApi } from "../app/api";
-import { savePluginZip } from "../api/download";
+import { Button, Input, Loading, isEditableTarget } from "@tau/ui";
+import type { CatalogSort, CenterCatalogEntry, PluginCategory } from "../../../contracts";
 import { errorMessage } from "../api/errors";
 import { ErrorState, StateBlock } from "../components/states";
 import { useDebouncedValue } from "../components/useDebouncedValue";
@@ -15,7 +12,25 @@ import { visibleCategories } from "../features/catalog/categories";
 import { PluginCard } from "../features/catalog/PluginCard";
 import { SortMenu } from "../features/catalog/SortMenu";
 import { StatsHint } from "../features/catalog/StatsHint";
-import { uniqueEntries, useCatalog } from "../features/catalog/queries";
+import { useCenterCatalog } from "../features/catalog/center-queries";
+import { PlatformFilter } from "../features/catalog/PlatformFilter";
+import {
+  PLATFORM_LABELS,
+  PORTABLE_PLATFORMS,
+  type PlatformFilterValue,
+} from "../features/catalog/platforms";
+import { useZipSave } from "../features/catalog/useZipSave";
+
+/** 翻页时榜单可能变化，按 pluginId 去重 */
+function uniqueEntries(pages: { items: CenterCatalogEntry[] }[] | undefined) {
+  return [
+    ...new Map(pages?.flatMap(page => page.items).map(entry => [entry.pluginId, entry])).values(),
+  ];
+}
+
+function readPlatform(value: string | null): PlatformFilterValue {
+  return PORTABLE_PLATFORMS.find(platform => platform === value) ?? "all";
+}
 
 /** 「/」聚焦搜索框，编辑上下文里不抢键 */
 function useSlashFocus(target: React.RefObject<HTMLInputElement | null>) {
@@ -31,38 +46,48 @@ function useSlashFocus(target: React.RefObject<HTMLInputElement | null>) {
 }
 
 export function CatalogPage() {
-  const api = useApi();
   const [input, setInput] = useState("");
   const q = useDebouncedValue(input.trim(), 250);
   const [sort, setSort] = useState<CatalogSort>("downloads7d");
   const [params, setParams] = useSearchParams();
   const raw = params.get("category");
   const category: PluginCategory | null = isPluginCategory(raw) ? raw : null;
-  const setCategory = (next: PluginCategory | null) =>
+  const platform = readPlatform(params.get("platform"));
+  const setParam = (name: "category" | "platform", next: string | null) =>
     setParams(
       current => {
         const value = new URLSearchParams(current);
-        if (next) value.set("category", next);
-        else value.delete("category");
+        if (next) value.set(name, next);
+        else value.delete(name);
         return value;
       },
       { replace: true }
     );
+  const setCategory = (next: PluginCategory | null) => setParam("category", next);
+  const setPlatform = (next: PlatformFilterValue) =>
+    setParam("platform", next === "all" ? null : next);
   const searchRef = useRef<HTMLInputElement>(null);
   useSlashFocus(searchRef);
-  const catalog = useCatalog(q, category, sort);
+  // 网页没有真实宿主，不带 host 查询，兼容结论恒为 unchecked。
+  const catalog = useCenterCatalog({ platform, q, category, sort });
   // 计数不受分类影响，切换分类时沿用上一次首页的计数，避免分类条闪烁
   const [counts, setCounts] = useState<Partial<Record<PluginCategory, number>> | null>(null);
   const firstCounts = catalog.data?.pages[0]?.categoryCounts;
   useEffect(() => {
     if (firstCounts) setCounts(firstCounts);
   }, [firstCounts]);
+  // 平台计数同理：切换平台时沿用上一次首页的计数
+  const [platformCounts, setPlatformCounts] = useState<Partial<
+    Record<PlatformFilterValue, number>
+  > | null>(null);
+  const firstPlatformCounts = catalog.data?.pages[0]?.platformCounts;
+  useEffect(() => {
+    if (firstPlatformCounts) setPlatformCounts(firstPlatformCounts);
+  }, [firstPlatformCounts]);
   const categoryName = visibleCategories(counts).find(item => item.id === category)?.label;
-  const download = useMutation({
-    mutationFn: (entry: CatalogEntry) =>
-      savePluginZip(api, entry.latest.releaseId, `${entry.pluginId}-${entry.latest.version}.zip`),
-    onError: error => toast.error(`下载失败：${errorMessage(error)}`),
-  });
+  const download = useZipSave();
+  const platformName = platform === "all" ? null : PLATFORM_LABELS[platform];
+  const filtered = !!(q || category || platformName);
   const items = uniqueEntries(catalog.data?.pages);
 
   let body;
@@ -86,14 +111,16 @@ export function CatalogPage() {
             ? `没有找到「${q}」相关的插件`
             : category
               ? `「${categoryName ?? category}」分类下暂无插件`
-              : "还没有上架的插件"
+              : platformName
+                ? `暂无支持${platformName}的插件`
+                : "还没有上架的插件"
         }
         actions={
-          (q || category) && (
+          filtered && (
             <Button
               onClick={() => {
                 setInput("");
-                setCategory(null);
+                setParams(new URLSearchParams(), { replace: true });
               }}
             >
               清除筛选
@@ -101,8 +128,8 @@ export function CatalogPage() {
           )
         }
       >
-        {q || category
-          ? "换个关键词或分类试试，比如插件的用途。"
+        {filtered
+          ? "换个关键词、分类或平台试试，比如插件的用途。"
           : "第一个通过审核的插件会出现在这里。"}
       </StateBlock>
     );
@@ -117,8 +144,9 @@ export function CatalogPage() {
             <li key={entry.pluginId} className="flex">
               <PluginCard
                 entry={entry}
-                downloading={download.isPending}
-                onDownload={value => download.mutate(value)}
+                platform={platform}
+                downloading={download.pending}
+                onDownload={value => download.save(value.pluginId, value.latest)}
               />
             </li>
           ))}
@@ -145,9 +173,7 @@ export function CatalogPage() {
     <main className="mx-auto max-w-[1120px] px-8 pb-20 pt-8">
       <header className="mb-5">
         <h1 className="text-tau-hero text-ink-1 font-semibold tracking-[-0.01em]">插件中心</h1>
-        <p className="text-tau-meta text-ink-3 mt-1">
-          全部开源，在 Tau 桌面端「插件」页可以一键安装
-        </p>
+        <p className="text-tau-meta text-ink-3 mt-1">全部开源，在 Tau 应用的插件中心安装</p>
       </header>
       <div className="mb-5 flex items-center gap-3">
         <Input
@@ -163,6 +189,7 @@ export function CatalogPage() {
         <SortMenu value={sort} onChange={setSort} />
         <StatsHint />
       </div>
+      <PlatformFilter value={platform} counts={platformCounts} onChange={setPlatform} />
       <CategoryBar value={category} counts={counts} onChange={setCategory} />
       {body}
     </main>

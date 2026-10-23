@@ -27,6 +27,7 @@ async function setup(
     granted = true;
   });
   const host = new PluginHost({
+    environment: { platform: "desktop", input: { coarsePointer: false, finePointer: true } },
     workspaceId: "test",
     storage: createMemoryStorage(),
     ai: { bind, bindCapability },

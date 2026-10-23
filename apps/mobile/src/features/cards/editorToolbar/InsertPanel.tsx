@@ -31,6 +31,13 @@ type InsertPanelProps = {
   onSearchingChange?: (searching: boolean) => void;
 };
 
+type PluginPanelItem = Omit<InsertItem, "kind" | "icon"> & {
+  kind: `plugin:${number}`;
+  icon: MobileEditorToolbarController["pluginInsertItems"][number]["icon"];
+  run: () => void;
+};
+type PanelItem = InsertItem | PluginPanelItem;
+
 const ICON_STROKE = 2.2;
 
 /** tone → 图标块底色与前景（静态类名，供 Tailwind 扫描） */
@@ -70,9 +77,23 @@ export function InsertPanel(props: InsertPanelProps) {
   // 搜索获焦前的面板高度，失焦后恢复
   const browseHeightRef = useRef(0);
 
-  const availableItems = useMemo(
-    () => (allowedKinds ? items.filter(item => allowedKinds.has(item.kind)) : [...items]),
-    [allowedKinds, items]
+  const availableItems = useMemo<PanelItem[]>(
+    () =>
+      allowedKinds
+        ? items.filter(item => allowedKinds.has(item.kind))
+        : [
+            ...items,
+            ...controller.pluginInsertItems.map((item, index): PluginPanelItem => ({
+              kind: `plugin:${index}`,
+              label: item.title,
+              keywords: item.keywords,
+              group: "plugin",
+              tone: 3,
+              icon: item.icon,
+              run: item.run,
+            })),
+          ],
+    [allowedKinds, items, controller.pluginInsertItems]
   );
 
   const hasQuery = query.trim().length > 0;
@@ -101,8 +122,13 @@ export function InsertPanel(props: InsertPanelProps) {
     reservation.reserve(browseHeightRef.current);
   };
 
-  const selectItem = (item: InsertItem) => {
+  const selectItem = (item: PanelItem) => {
     searchInputRef.current?.blur();
+    if ("run" in item) {
+      item.run();
+      controller.closePanel({ showKeyboard: true, restoreSelection: true });
+      return;
+    }
     setRecentKinds(pushRecentInsertKind(item.kind));
     // 面板仍打开时执行：动作作用于面板选区且不聚焦编辑器
     controller.handleSelectInsertItem(item.kind);
@@ -114,7 +140,7 @@ export function InsertPanel(props: InsertPanelProps) {
     controller.closePanel({ showKeyboard: true, restoreSelection: true });
   };
 
-  const renderTile = (item: InsertItem) => {
+  const renderTile = (item: PanelItem) => {
     const Icon = item.icon;
     return (
       <button
@@ -128,7 +154,7 @@ export function InsertPanel(props: InsertPanelProps) {
         <span
           className={`flex h-11 w-11 items-center justify-center rounded-[13px] ${TONE_CLASS[item.tone]}`}
         >
-          <Icon size={20} strokeWidth={ICON_STROKE} />
+          <Icon className="size-5" />
         </span>
         {item.label}
         {item.source ? (
@@ -158,7 +184,7 @@ export function InsertPanel(props: InsertPanelProps) {
               <span
                 className={`flex h-9 w-9 items-center justify-center rounded-[10px] ${TONE_CLASS[item.tone]}`}
               >
-                <Icon size={18} strokeWidth={ICON_STROKE} />
+                <Icon className="size-[18px]" />
               </span>
               <span className="text-ink-1 text-[14.5px]">{item.label}</span>
               <span className="text-ink-3 ml-auto text-[12px]">{GROUP_TITLES[item.group]}</span>

@@ -1,30 +1,29 @@
 import { useState, type ReactNode } from "react";
-import { Link, useParams } from "react-router-dom";
-import { useMutation } from "@tanstack/react-query";
+import { Link, useParams, useSearchParams } from "react-router-dom";
+import { evaluateCenterCompatibility } from "@tau/plugins/center";
+import { comparePluginVersions } from "@tau/plugins/package";
 import { ArrowLeft, ArrowUpRight, CloudOff, Copy, Download, Github, SearchX } from "lucide-react";
 import { Button, IconButton, Loading, Tabs, Tooltip, toast } from "@tau/ui";
-import type { ReleaseSummary } from "../../../contracts";
-import { useApi } from "../app/api";
+import type { CenterRelease } from "../../../contracts";
 import { Avatar } from "../app/TopBar";
-import { savePluginZip } from "../api/download";
-import { errorMessage, hasCode } from "../api/errors";
+import { hasCode } from "../api/errors";
 import { PluginMark } from "../components/PluginMark";
 import { formatCount, formatRelative, formatTime } from "../components/format";
 import { Markdown } from "../components/markdown/Markdown";
 import { ErrorState } from "../components/states";
 import { StatsHint } from "../features/catalog/StatsHint";
-import {
-  highestRelease,
-  sortByVersionDesc,
-  usePluginReleases,
-  usePluginStats,
-  useRelease,
-} from "../features/catalog/queries";
+import { useCenterRelease, useCenterVersions } from "../features/catalog/center-queries";
+import { PlatformBadges } from "../features/catalog/PlatformBadges";
+import { PORTABLE_PLATFORMS, type PortablePlatform } from "../features/catalog/platforms";
+import { usePluginStats } from "../features/catalog/queries";
+import { ReleaseAvailability } from "../features/catalog/ReleaseAvailability";
+import { TargetMatrix } from "../features/catalog/TargetMatrix";
+import { useZipSave } from "../features/catalog/useZipSave";
 import { LikeButton } from "../features/community/LikeButton";
 import { PluginComments } from "../features/community/PluginComments";
 import { formatBytes } from "../features/submission/validation";
 
-type DetailTab = "readme" | "changelog" | "versions" | "comments";
+type DetailTab = "readme" | "changelog" | "platforms" | "versions" | "comments";
 
 function Fact({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
@@ -35,52 +34,91 @@ function Fact({ label, children }: { label: ReactNode; children: ReactNode }) {
   );
 }
 
-function useZipDownload() {
-  const api = useApi();
-  return useMutation({
-    mutationFn: (release: Pick<ReleaseSummary, "id" | "pluginId" | "version">) =>
-      savePluginZip(api, release.id, `${release.pluginId}-${release.version}.zip`),
-    onError: error => toast.error(`下载失败：${errorMessage(error)}`),
-  });
+/** 已加载版本按 SemVer 降序去重；发布时间不代表版本高低。 */
+function sortVersions(pages: { items: CenterRelease[] }[] | undefined): CenterRelease[] {
+  const unique = new Map(pages?.flatMap(page => page.items).map(item => [item.releaseId, item]));
+  return [...unique.values()].sort((a, b) => comparePluginVersions(b.version, a.version));
 }
 
-function VersionList({ versions }: { versions: ReleaseSummary[] }) {
-  const download = useZipDownload();
+function VersionList({
+  pluginId,
+  versions,
+  highlight,
+  hasMore,
+  loadingMore,
+  onLoadMore,
+}: {
+  pluginId: string;
+  versions: CenterRelease[];
+  highlight?: PortablePlatform;
+  hasMore: boolean;
+  loadingMore: boolean;
+  onLoadMore: () => void;
+}) {
+  const download = useZipSave();
   return (
-    <ul className="divide-line-1 flex flex-col divide-y">
-      {versions.map((release, index) => (
-        <li key={release.id} className="text-tau-meta flex items-center gap-4 px-1 py-3">
-          <span className="font-tau-mono text-ink-1 w-16 font-semibold">v{release.version}</span>
-          {index === 0 && (
-            <span className="bg-accent-soft text-accent-text text-tau-micro rounded-full px-2 py-px">
-              最新
-            </span>
-          )}
-          <span className="text-ink-3 ml-auto">最低 Tau {release.manifest.minAppVersion}</span>
-          <span className="text-ink-3 w-16 text-right">{formatBytes(release.size)}</span>
-          <span className="text-ink-3 w-24 text-right">{formatRelative(release.publishedAt)}</span>
-          <Tooltip content={`下载 v${release.version}`}>
-            <IconButton
-              aria-label={`下载 v${release.version}`}
-              disabled={download.isPending}
-              onClick={() => download.mutate(release)}
-            >
-              <Download size={14} />
-            </IconButton>
-          </Tooltip>
-        </li>
-      ))}
-    </ul>
+    <div className="flex flex-col gap-4">
+      <ul className="divide-line-1 flex flex-col divide-y">
+        {versions.map((release, index) => (
+          <li key={release.releaseId} className="text-tau-meta flex flex-col gap-2 px-1 py-3">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span className="font-tau-mono text-ink-1 w-16 font-semibold">
+                v{release.version}
+              </span>
+              {index === 0 && (
+                <span className="bg-accent-soft text-accent-text text-tau-micro rounded-full px-2 py-px">
+                  最新
+                </span>
+              )}
+              <PlatformBadges version={release} />
+              <span className="text-ink-3 ml-auto w-16 text-right">
+                {formatBytes(release.size)}
+              </span>
+              <span className="text-ink-3 w-24 text-right">
+                {formatRelative(release.publishedAt)}
+              </span>
+              <Tooltip content={`下载 v${release.version}`}>
+                <IconButton
+                  aria-label={`下载 v${release.version}`}
+                  disabled={download.pending}
+                  onClick={() => download.save(pluginId, release)}
+                >
+                  <Download size={14} />
+                </IconButton>
+              </Tooltip>
+            </div>
+            <details>
+              <summary className="text-tau-sm text-ink-2 hover:text-ink-1 w-fit cursor-pointer select-none">
+                平台声明
+              </summary>
+              <div className="mt-2">
+                <TargetMatrix targets={release.targets} highlight={highlight} />
+              </div>
+            </details>
+          </li>
+        ))}
+      </ul>
+      {hasMore && (
+        <div className="flex justify-center">
+          <Button loading={loadingMore} onClick={onLoadMore}>
+            加载更多版本
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 
 export function PluginDetailPage() {
   const { pluginId = "" } = useParams();
-  const releases = usePluginReleases(pluginId);
-  const latestSummary = highestRelease(releases.data?.items);
-  const release = useRelease(latestSummary?.id);
+  const [params] = useSearchParams();
+  const highlight = PORTABLE_PLATFORMS.find(platform => platform === params.get("platform"));
+  const releases = useCenterVersions(pluginId, "all");
+  const versions = sortVersions(releases.data?.pages);
+  const latestSummary = versions[0] ?? null;
+  const release = useCenterRelease(latestSummary?.releaseId ?? null);
   const stats = usePluginStats(pluginId);
-  const download = useZipDownload();
+  const download = useZipSave();
   const [tab, setTab] = useState<DetailTab>("readme");
 
   const back = (
@@ -112,7 +150,6 @@ export function PluginDetailPage() {
 
   const { content, repository, publisher } = release.data;
   const manifest = content.manifest;
-  const versions = sortByVersionDesc(releases.data?.items);
   const copySha = () =>
     void navigator.clipboard
       ?.writeText(release.data.sha256)
@@ -130,13 +167,27 @@ export function PluginDetailPage() {
         ]
       : []),
     {
+      key: "platforms" as const,
+      label: "平台支持",
+      children: <TargetMatrix targets={release.data.targets} highlight={highlight} />,
+    },
+    {
       key: "versions" as const,
       label: (
         <>
           版本<span className="text-tau-micro text-ink-3 font-normal">{versions.length}</span>
         </>
       ),
-      children: <VersionList versions={versions} />,
+      children: (
+        <VersionList
+          pluginId={pluginId}
+          versions={versions}
+          highlight={highlight}
+          hasMore={releases.hasNextPage}
+          loadingMore={releases.isFetchingNextPage}
+          onLoadMore={() => void releases.fetchNextPage()}
+        />
+      ),
     },
     { key: "comments" as const, label: "评论", children: <PluginComments pluginId={pluginId} /> },
   ];
@@ -156,13 +207,14 @@ export function PluginDetailPage() {
             <span>·</span>
             {formatRelative(release.data.publishedAt)}更新
           </p>
+          <PlatformBadges version={release.data} className="mt-1.5" />
           <p className="text-tau-body-lg text-ink-2 mt-2 max-w-[60ch]">{manifest.description}</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button
               variant="primary"
               icon={Download}
-              loading={download.isPending}
-              onClick={() => download.mutate(release.data)}
+              loading={download.pending}
+              onClick={() => download.save(pluginId, release.data)}
             >
               下载 v{manifest.version}
             </Button>
@@ -188,8 +240,10 @@ export function PluginDetailPage() {
             <Fact label="版本">
               <span className="font-tau-mono">v{manifest.version}</span>
             </Fact>
-            <Fact label="最低 Tau">
-              <span className="font-tau-mono">{manifest.minAppVersion}</span>
+            <Fact label="包格式">
+              {release.data.formatVersion === 3
+                ? `跨端 · ${release.data.profile}`
+                : "旧格式（仅桌面）"}
             </Fact>
             <Fact label="大小">{formatBytes(release.data.size)}</Fact>
             <Fact label="发布于">{formatTime(release.data.publishedAt)}</Fact>
@@ -220,12 +274,16 @@ export function PluginDetailPage() {
           </dl>
           <div className="border-line-1 bg-surface rounded-tau-md shadow-card flex flex-col gap-1.5 border p-4">
             <p className="text-tau-body text-ink-1 font-semibold">怎么安装</p>
-            <p className="text-tau-meta text-ink-2 leading-[1.7]">
-              在 Tau 桌面端打开「插件」页，搜索「{manifest.name}」一键安装，装好后自动启用。
-            </p>
-            <p className="text-tau-sm text-ink-3 leading-[1.7]">
-              也可以下载 ZIP，在插件页选择本地安装；本地安装的插件默认停用。
-            </p>
+            <ReleaseAvailability
+              latest={release.data}
+              compatible={null}
+              compatibility={evaluateCenterCompatibility(release.data)}
+            />
+            {release.data.formatVersion !== 3 && (
+              <p className="text-tau-sm text-ink-3 leading-[1.7]">
+                也可以下载 ZIP，在桌面端插件页选择本地安装；本地安装的插件默认停用。
+              </p>
+            )}
           </div>
         </aside>
       </div>

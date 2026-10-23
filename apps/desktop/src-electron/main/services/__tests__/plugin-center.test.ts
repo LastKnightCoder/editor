@@ -6,7 +6,7 @@ const mock = vi.hoisted(() => ({
   fetch: vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(),
   visitor: vi.fn(async () => ({ Authorization: "Bearer test-visitor" })),
 }));
-vi.mock("electron", () => ({ net: { fetch: mock.fetch } }));
+vi.mock("electron", () => ({ app: { isPackaged: true }, net: { fetch: mock.fetch } }));
 vi.mock("../plugin-center-visitor", () => ({
   visitorHeaders: mock.visitor,
 }));
@@ -23,37 +23,57 @@ import {
 } from "../plugin-center";
 
 const API = "https://plugins-api.taunote.app";
+const target = (minAppVersion = "0.59.0") => ({ minAppVersion, required: [], optional: [] });
+const catalogEntry = (pluginId: string) => ({
+  pluginId,
+  categories: [],
+  keywords: [],
+  latest: release,
+  compatible: release,
+});
 
 it("主进程按服务器排序翻页并去重，不遗漏更新查询所需的目录", async () => {
   mock.fetch
     .mockResolvedValueOnce(
-      Response.json({ data: { items: [{ pluginId: "a" }], nextCursor: "next" } })
+      Response.json({ data: { items: [catalogEntry("a")], nextCursor: "next" } })
     )
     .mockResolvedValueOnce(
-      Response.json({ data: { items: [{ pluginId: "a" }, { pluginId: "b" }], nextCursor: null } })
+      Response.json({ data: { items: [catalogEntry("a"), catalogEntry("b")], nextCursor: null } })
     );
   expect(
     (await fetchPluginCatalog("0.59.0", "", "downloadsTotal")).items.map(item => item.pluginId)
   ).toEqual(["a", "b"]);
   expect(mock.fetch).toHaveBeenLastCalledWith(
-    `${API}/v1/catalog?appVersion=0.59.0&sort=downloadsTotal&cursor=next`
+    `${API}/v2/catalog/query`,
+    expect.objectContaining({ method: "POST", body: expect.stringContaining('"cursor":"next"') })
   );
 });
 const bytes = Buffer.from("zip-bytes");
 const release = {
-  id: "r1",
+  releaseId: "r1",
   pluginId: "test.center",
   version: "1.0.0",
-  state: "published",
+  formatVersion: 1,
+  apiVersion: 1,
+  profile: null,
+  targets: { desktop: target() },
+  systemReviewed: false,
   size: bytes.length,
   sha256: createHash("sha256").update(bytes).digest("hex"),
   content: { manifest: { name: "中心插件", description: "说明", minAppVersion: "0.59.0" } },
 };
 function serve(overrides: Partial<typeof release> = {}, body: Buffer = bytes) {
   mock.fetch.mockImplementation(async (url: string) => {
-    return url.endsWith("/download")
-      ? new Response(body)
-      : Response.json({ data: { ...release, ...overrides } });
+    return url.endsWith("/resolve")
+      ? Response.json({
+          data: {
+            release: { ...release, ...overrides },
+            compatibility: { status: "compatible", reasons: [], missingOptional: [] },
+          },
+        })
+      : url.endsWith("/download")
+        ? new Response(body)
+        : Response.json({ data: { ...release, ...overrides } });
   });
 }
 beforeEach(() => {
@@ -109,7 +129,8 @@ it("目录携带客户端版本与搜索词，错误透传门户信息", async (
   mock.fetch.mockResolvedValueOnce(Response.json({ data: { items: [] } }));
   await fetchPluginCatalog("0.59.0", " 阅读 ");
   expect(mock.fetch).toHaveBeenCalledWith(
-    `${API}/v1/catalog?appVersion=0.59.0&q=${encodeURIComponent("阅读")}`
+    `${API}/v2/catalog/query`,
+    expect.objectContaining({ body: expect.stringContaining('"q":"阅读"') })
   );
   mock.fetch.mockResolvedValueOnce(
     Response.json({ error: { message: "appVersion必须是有效的客户端版本号" } }, { status: 400 })
@@ -122,10 +143,11 @@ it("目录携带客户端版本与搜索词，错误透传门户信息", async (
 
 it("版本列表翻页读全，按版本号倒序并标出客户端可用性", async () => {
   const item = (id: string, version: string, minAppVersion = "0.59.0") => ({
-    id,
+    ...release,
+    releaseId: id,
     version,
     publishedAt: "2026-10-17T00:00:00.000Z",
-    manifest: { minAppVersion },
+    targets: { desktop: target(minAppVersion) },
   });
   mock.fetch
     .mockResolvedValueOnce(
@@ -135,8 +157,14 @@ it("版本列表翻页读全，按版本号倒序并标出客户端可用性", a
       Response.json({ data: { items: [item("b", "1.0.1"), item("c", "1.0.2")], nextCursor: null } })
     );
   const versions = await fetchPluginVersions("0.59.0", "weread");
-  expect(mock.fetch).toHaveBeenNthCalledWith(1, `${API}/v1/releases?pluginId=weread`);
-  expect(mock.fetch).toHaveBeenNthCalledWith(2, `${API}/v1/releases?pluginId=weread&cursor=c1`);
+  expect(mock.fetch).toHaveBeenNthCalledWith(
+    1,
+    `${API}/v2/plugins/weread/releases?platform=desktop`
+  );
+  expect(mock.fetch).toHaveBeenNthCalledWith(
+    2,
+    `${API}/v2/plugins/weread/releases?platform=desktop&cursor=c1`
+  );
   expect(versions.map(v => [v.version, v.compatible])).toEqual([
     ["1.0.3", false],
     ["1.0.2", true],
@@ -156,15 +184,19 @@ it("下载按发布记录核对大小与摘要，地址由服务拼接", async (
     version: "1.0.0",
     sha256: release.sha256,
     systemReviewed: false,
+    manifest: release.content.manifest,
+    apiOrigin: API,
   });
-  expect(mock.fetch).toHaveBeenLastCalledWith(`${API}/v1/releases/r1/download`, {
+  expect(mock.fetch).toHaveBeenCalledWith(`${API}/v2/releases/r1/download`, {
     headers: { Authorization: "Bearer test-visitor" },
   });
   serve({}, Buffer.from("tampered!"));
   await expect(downloadPluginRelease("r1")).rejects.toThrow("摘要不匹配");
   serve({ size: 17 * 1024 * 1024 });
   await expect(downloadPluginRelease("r1")).rejects.toThrow("上限");
-  serve({ state: "failed" });
+  mock.fetch.mockResolvedValueOnce(
+    Response.json({ error: { message: "尚未发布或已撤回" } }, { status: 404 })
+  );
   await expect(downloadPluginRelease("r1")).rejects.toThrow("尚未发布");
 });
 
@@ -176,16 +208,14 @@ it("后台版本未经审核不下载，已审核版本来源保留审核绑定�
   mock.fetch.mockResolvedValueOnce(Response.json({ data: native }));
   await expect(downloadPluginRelease("r1")).rejects.toThrow("审核");
   expect(mock.fetch).toHaveBeenCalledTimes(1);
-  mock.fetch
-    .mockResolvedValueOnce(Response.json({ data: { ...native, systemReviewed: true } }))
-    .mockResolvedValueOnce(new Response(bytes));
+  serve({ ...native, systemReviewed: true });
   expect((await downloadPluginRelease("r1")).source).toMatchObject({
     releaseId: "r1",
     sha256: release.sha256,
     systemReviewed: true,
   });
   mock.fetch.mockResolvedValueOnce(
-    Response.json({ data: { ...native, systemReviewed: true, revokedAt: "2026-10-20T00:00:00Z" } })
+    Response.json({ error: { message: "已撤回" } }, { status: 404 })
   );
   await expect(downloadPluginRelease("r1")).rejects.toThrow("撤回");
 });
@@ -203,8 +233,43 @@ it("带脚本的 Skill 未经审核不下载，只有说明文档的 Skill 可�
   });
   mock.fetch.mockResolvedValueOnce(Response.json({ data: withSkill("skills/guide/run.py") }));
   await expect(downloadPluginRelease("r1")).rejects.toThrow("审核");
-  mock.fetch
-    .mockResolvedValueOnce(Response.json({ data: withSkill("skills/guide/notes.md") }))
-    .mockResolvedValueOnce(new Response(bytes));
+  serve(withSkill("skills/guide/notes.md"));
   expect((await downloadPluginRelease("r1")).source).toMatchObject({ systemReviewed: false });
+});
+
+it("下载前拒绝不兼容目标，下载后再次确认精确版本，撤回时丢弃已下载字节", async () => {
+  serve();
+  mock.fetch.mockResolvedValueOnce(Response.json({ data: release })).mockResolvedValueOnce(
+    Response.json({
+      data: {
+        release: null,
+        compatibility: {
+          status: "incompatible",
+          reasons: [{ code: "PLATFORM_UNSUPPORTED", platform: "desktop" }],
+        },
+      },
+    })
+  );
+  await expect(downloadPluginRelease("r1")).rejects.toThrow("不兼容");
+  expect(mock.fetch.mock.calls.some(([url]) => url.endsWith("/download"))).toBe(false);
+  mock.fetch.mockClear();
+  mock.fetch
+    .mockResolvedValueOnce(Response.json({ data: release }))
+    .mockResolvedValueOnce(
+      Response.json({ data: { release, compatibility: { status: "compatible" } } })
+    )
+    .mockResolvedValueOnce(new Response(bytes))
+    .mockResolvedValueOnce(
+      Response.json({
+        data: {
+          release: null,
+          compatibility: { status: "incompatible", reasons: [{ code: "REVOKED" }] },
+        },
+      })
+    );
+  await expect(downloadPluginRelease("r1")).rejects.toThrow("发布状态已变化");
+  expect(mock.fetch).toHaveBeenLastCalledWith(
+    `${API}/v2/plugins/test.center/resolve`,
+    expect.objectContaining({ body: expect.stringContaining('"platform":"desktop"') })
+  );
 });
