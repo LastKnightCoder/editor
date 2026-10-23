@@ -2,7 +2,6 @@ import { IResourceService } from "@tau/shared/host-services";
 import React, { forwardRef, useState } from "react";
 import { useAsyncEffect, useMemoizedFn } from "ahooks";
 import { remoteResourceToLocal } from "@/utils";
-import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 import useSettingStore from "@/stores/useSettingStore";
 import { useOptionalService } from "@tau/editor";
 import {
@@ -24,14 +23,12 @@ interface ILocalImageProps {
 
 const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>((props, ref) => {
   const { url, alt, className, style, onClick, onLoadError, ...restProps } = props;
-  const cdnUrl = useGithubCdnUrl(url) || url;
-
   // 本组件既在编辑器内当图片插槽，也被大量宿主界面直接使用。
   // 编辑器内要尊重注册表的覆盖（共享模式下资源经 binding 解析），编辑器外回落默认实现。
   const remoteResourceToLocalService =
     useOptionalService(IResourceService)?.remoteResourceToLocal ?? remoteResourceToLocal;
   const autoCacheRemoteImage = useSettingStore(state => state.setting.misc.image.autoCacheRemote);
-  const cacheKey = imagePreviewCacheKey(cdnUrl, autoCacheRemoteImage);
+  const cacheKey = imagePreviewCacheKey(url, autoCacheRemoteImage);
 
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(() =>
     previewCache.get(cacheKey)
@@ -47,7 +44,7 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>((props, ref) =
     }
     setIsConverting(true);
     try {
-      const resolved = await resolveMediaSource(cdnUrl, {
+      const resolved = await resolveMediaSource(url, {
         kind: "image",
         autoCacheRemote: autoCacheRemoteImage,
         title: alt,
@@ -61,18 +58,18 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>((props, ref) =
       setPreviewUrl(resolved.url);
     } catch (e) {
       console.error(e);
-      setPreviewUrl(cdnUrl);
+      setPreviewUrl(url);
     } finally {
       setIsConverting(false);
     }
-  }, [cacheKey, cdnUrl, autoCacheRemoteImage, alt, remoteResourceToLocalService]);
+  }, [cacheKey, url, autoCacheRemoteImage, alt, remoteResourceToLocalService]);
 
   const onError = useMemoizedFn(() => {
     // 缓存的地址失效了（本地缓存文件被清等）就作废，下次挂载重新解析
     previewCache.delete(cacheKey);
     // 先回退到原始地址重试一次；仍失败才交给调用方兜底
-    if (previewUrl !== cdnUrl) {
-      setPreviewUrl(cdnUrl);
+    if (previewUrl !== url) {
+      setPreviewUrl(url);
       return;
     }
     onLoadError?.();

@@ -6,7 +6,6 @@ import {
   type ImageShadowPreset,
 } from "@tau/editor/extensions/media/types";
 
-import { EGithubCDN } from "@/constants/github";
 import type { TTSProviderSetting, TTSUsageConfig } from "@/types/tts";
 import type { EmbeddingProviderType } from "@/types/embedding";
 import type { IPublishFaviconConfig } from "@/types/publish";
@@ -118,7 +117,6 @@ export interface ISetting {
   imageBed: {
     active: EImageBed;
     enableCompression: boolean;
-    githubCdn: EGithubCDN | null;
     plugin?: { id: string; configurations: Record<string, unknown> };
   };
   sync: {
@@ -372,7 +370,6 @@ const initialState: IState = {
     imageBed: {
       active: EImageBed.Local,
       enableCompression: false,
-      githubCdn: null,
     },
     sync: {
       active: ESync.Plugin,

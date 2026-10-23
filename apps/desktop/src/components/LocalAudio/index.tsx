@@ -1,7 +1,6 @@
 import { useState, useRef, memo, forwardRef, useCallback } from "react";
 import { useAsyncEffect } from "ahooks";
 import { readBinaryFile } from "@/commands";
-import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 import useSettingStore from "@/stores/useSettingStore";
 import { toLocalMediaPreviewUrl } from "@/utils/localMediaPath";
 import { resolveMediaSource } from "@/utils/mediaSource";
@@ -14,8 +13,6 @@ type LocalAudioProps = AudioPlayerProps & {
 const LocalAudio = memo(
   forwardRef<HTMLAudioElement, LocalAudioProps>((props, ref) => {
     const { src, onError, ...rest } = props;
-    const normalizedSrc = useGithubCdnUrl(src) ?? src;
-
     const [previewUrl, setPreviewUrl] = useState<string>("");
     // 解析出的本地文件路径：波形直接经 IPC 读文件（ltoh:// 协议不支持 fetch）
     const [localFilePath, setLocalFilePath] = useState<string | null>(null);
@@ -41,7 +38,7 @@ const LocalAudio = memo(
       setStreaming(false);
       setStreamFailed(false);
       try {
-        const resolved = await resolveMediaSource(normalizedSrc, {
+        const resolved = await resolveMediaSource(src, {
           kind: "audio",
           autoCacheRemote: autoCacheRemoteAudio,
         });
@@ -57,7 +54,7 @@ const LocalAudio = memo(
       } finally {
         if (!isStale()) setLoading(false);
       }
-    }, [normalizedSrc, autoCacheRemoteAudio]);
+    }, [src, autoCacheRemoteAudio]);
 
     // 远程地址播不了（跨域、鉴权等）时，等后台缓存就绪后改播本地文件
     useAsyncEffect(async () => {
@@ -90,7 +87,7 @@ const LocalAudio = memo(
         ref={audioRef}
         src={loading ? "" : previewUrl}
         crossOrigin={"anonymous"}
-        persistKey={normalizedSrc}
+        persistKey={src}
         loadWaveformData={localFilePath ? loadWaveformData : undefined}
         onError={handleError}
         {...rest}

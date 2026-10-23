@@ -7,7 +7,6 @@ import useSettingStore, { EImageBed } from "@/stores/useSettingStore";
 import { useDesktopPlugins } from "@/app/plugins/context";
 import { savePluginUploadConfig } from "@/commands/plugin-local";
 import { PluginSettingsView } from "@/features/plugins/views/PluginSettingsView";
-import { EGithubCDN, GITHUB_CDN_NONE_VALUE, GithubCDNOptions } from "@/constants/github";
 import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup, SettingsNote } from "../components/SettingsGroup";
 
@@ -99,24 +98,6 @@ export function ResourceSection() {
               useSettingStore.setState(state => ({
                 setting: produce(state.setting, draft => {
                   draft.imageBed.enableCompression = value;
-                }),
-              }))
-            }
-          />
-        </SettingRow>
-        <SettingRow
-          title="GitHub 资源访问加速"
-          description="仅调整已有 GitHub 资源的显示地址，不决定上传目标"
-        >
-          <Select
-            aria-label="GitHub CDN"
-            value={imageBed.githubCdn ?? GITHUB_CDN_NONE_VALUE}
-            options={GithubCDNOptions}
-            onValueChange={value =>
-              useSettingStore.setState(state => ({
-                setting: produce(state.setting, draft => {
-                  draft.imageBed.githubCdn =
-                    value === GITHUB_CDN_NONE_VALUE ? null : (value as EGithubCDN);
                 }),
               }))
             }

@@ -11,7 +11,6 @@ import { Webview } from "@tau/shared";
 import type { WebviewRef } from "@tau/shared";
 import { convertFileSrc, getHomeDir } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
-import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 
 import { EHandlerPosition, Point, WebviewElement } from "@tau/whiteboard";
 import { PointUtil } from "@tau/whiteboard";
@@ -253,7 +252,6 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
             convertFileSrc={convertFileSrc}
             getHomeDir={getHomeDir}
             remoteResourceToLocal={remoteResourceToLocal}
-            cdnUrlResolver={useGithubCdnUrl}
           />
         </div>
 

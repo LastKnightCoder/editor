@@ -36,7 +36,6 @@ export interface WebviewProps {
   convertFileSrc?: (path: string) => Promise<string>;
   getHomeDir?: () => Promise<string>;
   remoteResourceToLocal?: (url: string) => Promise<string>;
-  cdnUrlResolver?: (url?: string) => string | null | undefined;
 }
 
 const isElectron = typeof window !== "undefined" && !!(window as any).electron;
@@ -57,11 +56,7 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
     convertFileSrc,
     getHomeDir,
     remoteResourceToLocal,
-    cdnUrlResolver = () => null,
   } = props;
-
-  const cdnSrc = cdnUrlResolver(src);
-  const sourceToResolve = cdnSrc ?? src;
 
   const webviewRef = useRef<any>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -85,12 +80,12 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
     };
 
     const resolveSrc = async () => {
-      if (!sourceToResolve) {
+      if (!src) {
         setResolvedSrc(undefined);
         return;
       }
 
-      const trimmedSrc = sourceToResolve.trim();
+      const trimmedSrc = src.trim();
       const isHttp = /^https?:\/\//i.test(trimmedSrc);
 
       if (isHttp) {
@@ -134,7 +129,7 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
     return () => {
       cancelled = true;
     };
-  }, [sourceToResolve, sourceType, convertFileSrc, getHomeDir, remoteResourceToLocal]);
+  }, [src, sourceType, convertFileSrc, getHomeDir, remoteResourceToLocal]);
 
   useImperativeHandle(ref, () => ({
     getTitle: () => {

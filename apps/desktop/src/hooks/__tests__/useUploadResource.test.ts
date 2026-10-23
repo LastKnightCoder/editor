@@ -27,7 +27,6 @@ it("选择插件固定配置与字节，失败不回退到本地", async () => {
       imageBed: {
         active: EImageBed.Plugin,
         enableCompression: false,
-        githubCdn: null,
         plugin: { id: "test.upload", configurations: { "test.upload": { path: "images" } } },
       },
     },

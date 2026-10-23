@@ -49,7 +49,6 @@ import {
   collectClipStream,
   defaultProjectItemEventBus,
 } from "@/utils";
-import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 import { Editor as LocalEditor, type EditorRef } from "@tau/editor";
 import { getContentKit } from "@/services/editorKit";
 import { useLocalEditorDocument } from "@/hooks/useLocalEditorDocument";
@@ -1071,7 +1070,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
               convertFileSrc={convertFileSrc}
               getHomeDir={getHomeDir}
               remoteResourceToLocal={remoteResourceToLocal}
-              cdnUrlResolver={useGithubCdnUrl}
             />
           </div>
           <div

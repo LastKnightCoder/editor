@@ -4,7 +4,6 @@ import { configureMedia, type ResourceKind, type ResourceState } from "@tau/plug
 import { useOptionalService } from "@tau/editor";
 import { IResourceService } from "@tau/shared/host-services";
 import { IEditorSlots } from "@tau/editor/extensions/media/services";
-import useGithubCdnUrl from "@/hooks/useGithubCdnUrl";
 import useSettingStore from "@/stores/useSettingStore";
 import { remoteResourceToLocal } from "@/utils";
 import { imagePreviewCache, imagePreviewCacheKey, resolveMediaSource } from "@/utils/mediaSource";
@@ -17,14 +16,13 @@ type ResolvedState = Omit<ResourceState, "retry">;
 
 /** 与内置媒体组件同一套解析：编辑器内走当前 kit 的资源服务（共享文档经协作 binding），编辑器外走应用默认实现 */
 function useResource(url: string, { kind }: { kind: ResourceKind }): ResourceState {
-  const source = useGithubCdnUrl(url) || url;
   const resolveCollaborationResource =
     useOptionalService(IResourceService)?.remoteResourceToLocal ?? remoteResourceToLocal;
   const autoCacheImage = useSettingStore(state => state.setting.misc.image.autoCacheRemote);
   const autoCacheAudio = useSettingStore(state => state.setting.misc.audio.autoCacheRemote);
   const autoCacheRemote =
     kind === "image" ? autoCacheImage : kind === "audio" ? autoCacheAudio : kind === "video";
-  const cacheKey = kind === "image" ? imagePreviewCacheKey(source, autoCacheRemote) : undefined;
+  const cacheKey = kind === "image" ? imagePreviewCacheKey(url, autoCacheRemote) : undefined;
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<ResolvedState>(() => {
     const cached = cacheKey && imagePreviewCache.get(cacheKey);
@@ -39,7 +37,7 @@ function useResource(url: string, { kind }: { kind: ResourceKind }): ResourceSta
     }
     let active = true;
     setState({ src: undefined, status: "loading" });
-    resolveMediaSource(source, { kind, autoCacheRemote, resolveCollaborationResource })
+    resolveMediaSource(url, { kind, autoCacheRemote, resolveCollaborationResource })
       .then(resolved => {
         if (!active) return;
         if (!resolved) {
@@ -56,7 +54,7 @@ function useResource(url: string, { kind }: { kind: ResourceKind }): ResourceSta
     return () => {
       active = false;
     };
-  }, [source, kind, autoCacheRemote, resolveCollaborationResource, cacheKey, attempt]);
+  }, [url, kind, autoCacheRemote, resolveCollaborationResource, cacheKey, attempt]);
 
   const retry = useCallback(() => {
     if (cacheKey) imagePreviewCache.delete(cacheKey);

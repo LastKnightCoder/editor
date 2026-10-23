@@ -31,7 +31,6 @@ vi.mock("@/utils/mediaSource", async importOriginal => ({
   resolveMediaSource: mocks.resolveMediaSource,
 }));
 vi.mock("@/utils", () => ({ remoteResourceToLocal: vi.fn() }));
-vi.mock("@/hooks/useGithubCdnUrl", () => ({ default: (url: string) => url }));
 vi.mock("@/stores/useSettingStore", () => ({
   default: (select: (state: { setting: typeof mocks.setting }) => unknown) =>
     select({ setting: mocks.setting }),

@@ -232,7 +232,6 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
               convertFileSrc={fileService.convertFileSrc}
               getHomeDir={fileService.getHomeDir}
               remoteResourceToLocal={resourceService.remoteResourceToLocal}
-              cdnUrlResolver={resourceService.resolveCdnUrl}
             />
           )}
           <ResizeHandle

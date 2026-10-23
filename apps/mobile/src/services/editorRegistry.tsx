@@ -7,8 +7,15 @@ import {
   type ServiceRegistration,
   type ServiceRegistry,
 } from "@tau/editor";
-import { IEditorSlots, IVideoContentProviders, type EditorSlots } from "@tau/editor/extensions/media/services";
-import { type ImageAppearanceConfig, type ImageAppearanceSource } from "@tau/editor/extensions/media";
+import {
+  IEditorSlots,
+  IVideoContentProviders,
+  type EditorSlots,
+} from "@tau/editor/extensions/media/services";
+import {
+  type ImageAppearanceConfig,
+  type ImageAppearanceSource,
+} from "@tau/editor/extensions/media";
 export { mobileImportFromMarkdown } from "./editorMarkdown";
 import LocalAudio from "../components/editor/LocalAudio";
 import LocalImage from "../components/editor/LocalImage";
@@ -24,6 +31,7 @@ import { mobileVideoContentProviders } from "../editor-providers/videoProviders"
 import { mobileEditorNotifier } from "./editorNotifier";
 import { arrayBufferToBase64 } from "../utils/base64";
 import { compressImageForUpload } from "../utils/imageCompress";
+import { recordUploadFailure, recordUploadSuccess } from "./uploadOutcome";
 import { IOverlayBackDismiss } from "@tau/editor/api";
 import { MobileEditorOverlayDismiss } from "./editorOverlayDismiss";
 
@@ -48,12 +56,15 @@ function readLastPathSegment(filePath: string): string {
 const UPLOAD_TIMEOUT_MS = 60_000;
 
 async function uploadResourceInMobile(file: File): Promise<string> {
-  // 先在 WebView 内预压缩（相机原图 3–8MB → webp 数百 KB），再 base64 走字符串通道
-  const compressed = await compressImageForUpload(file);
-  const buffer = await compressed.blob.arrayBuffer();
+  // 开启压缩时先在 WebView 内预压缩（相机原图 3–8MB → webp 数百 KB），再 base64 走字符串通道
+  const compress = getMobileSettingByPath<boolean>("imageBed.compressImages") !== false;
+  const prepared = compress
+    ? await compressImageForUpload(file)
+    : { blob: file, fileName: file.name, mimeType: file.type || "application/octet-stream" };
+  const buffer = await prepared.blob.arrayBuffer();
   return uploadResourceCommand({
-    fileName: compressed.fileName,
-    mimeType: compressed.mimeType,
+    fileName: prepared.fileName,
+    mimeType: prepared.mimeType,
     base64: arrayBufferToBase64(buffer),
   });
 }
@@ -71,6 +82,7 @@ export const mobileEditorServices: ServiceRegistration = register => {
     upload: async file => {
       // 分步日志经 WebView console 进 logcat，用于真机排查上传链路
       console.log(`[resource-upload] start: ${file.name}, ${file.size}B, ${file.type}`);
+      const providerId = getMobileSettingByPath<string>("imageBed.active") ?? "local";
       try {
         const url = await withTimeout(
           uploadResourceInMobile(file),
@@ -81,14 +93,15 @@ export const mobileEditorServices: ServiceRegistration = register => {
         if (!url) {
           throw new Error("RESOURCE_UPLOAD_FAILED: 资源上传失败");
         }
+        recordUploadSuccess(providerId);
         return url;
       } catch (error) {
         console.log(`[resource-upload] failed: ${String(error)}`);
+        recordUploadFailure(providerId, error);
         throw error;
       }
     },
     remoteResourceToLocal: async url => remoteResourceToLocalCommand(url),
-    resolveCdnUrl: url => url,
   });
 
   register(IFileService, {

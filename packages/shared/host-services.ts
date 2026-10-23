@@ -12,11 +12,6 @@ export interface ResourceService {
    * 将远程资源转换为宿主本地路径。
    */
   remoteResourceToLocal?: (url: string) => Promise<string>;
-
-  /**
-   * 解析资源的 CDN 地址（宿主的 CDN 策略），无 CDN 时返回 null
-   */
-  resolveCdnUrl?: (url?: string) => string | null | undefined;
 }
 
 /** 宿主文件选择与读取能力。 */

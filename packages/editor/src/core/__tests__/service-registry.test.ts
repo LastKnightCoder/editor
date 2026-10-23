@@ -29,12 +29,13 @@ describe("服务注册表的迁移边界", () => {
   it("资源服务按协作场景派生覆盖，父服务和编辑器装配保持稳定", async () => {
     const parentUpload = vi.fn(async () => "parent://file");
     const childUpload = vi.fn(async () => "child://file");
+    const parentRemoteToLocal = vi.fn(async () => "local://image");
     const parent = createEditorKit({
       services: [
         register =>
           register(IResourceService, {
             upload: parentUpload,
-            resolveCdnUrl: () => "cdn://image",
+            remoteResourceToLocal: parentRemoteToLocal,
           }),
       ],
     });
@@ -51,7 +52,7 @@ describe("服务注册表的迁移边界", () => {
     expect(await derived.registry.get(IResourceService).upload(file)).toBe("child://file");
     expect(parentUpload).not.toHaveBeenCalled();
     expect(parent.registry.get(IResourceService).upload).toBe(parentUpload);
-    expect(derived.registry.get(IResourceService).resolveCdnUrl?.()).toBe("cdn://image");
+    expect(derived.registry.get(IResourceService).remoteResourceToLocal).toBe(parentRemoteToLocal);
     expect(derived.assembly).toBe(parent.assembly);
   });
 
