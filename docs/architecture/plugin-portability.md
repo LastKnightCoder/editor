@@ -2,9 +2,17 @@
 
 ## 范围与分发边界
 
-桌面、Android 和 iOS 共用一个 SDK、一套作者模板和格式 3 的 web-v1 包。公共 API 与作者约定以 [SDK 跨端契约](/packages/plugins/docs/portability.md) 为准；本页描述客户端装配。生产插件中心仍使用原格式 1/2，不发布 npm，也不接受格式 3。移动生产构建没有安装入口，Rust 安装/启用命令拒绝 release 构建；平台感知分发和商店审核另行实施。
+桌面、Android 和 iOS 共用一个 SDK、一套作者模板和格式 3 的 web-v1 包。公共 API 与作者约定以 [SDK 跨端契约](/packages/plugins/docs/portability.md) 为准；本页描述客户端装配。仓库中的中心 API 支持格式 3 上传、逐平台人工审核和 /v2 分发，发布与平台推荐默认关闭；生产服务未部署这些改动，npm 未发布。Rust 安装/启用命令仍拒绝 release 构建，商店发行与设备验收不由代码可运行推断。
 
 可信插件与宿主共享 JavaScript、React 和 DOM；摘要、模块白名单、API 能力与数据授权不构成恶意代码沙箱。同线程同步死循环只能在后续启动恢复，不能承诺抢占或后台常驻。
+
+## 中心数据边界
+
+仓库内 `@tau/plugins/center` 提供中心/宿主共用的清单联合类型、目标摘要、结构化兼容原因与客户端接口。兼容纯函数仅检查平台、客户端/API/包版本、profile 和能力；调用方仍须核验发布状态、来源和权限。旧格式只投影为 desktop，无真实 host 返回 unchecked，不回退到最新但不兼容的版本。该入口不随作者 SDK tarball 暴露。
+
+门户 `PortalApi.center` 提供 /v2 HTTP 适配与查询 hooks，沿用错误信封与取消信号。/v2 的平台计数、选版、发布状态与格式 3 审核契约见[门户协议](/apps/plugin-portal/docs/协议.md)。旧公共 v1 过滤格式 3；客户端真实失败不会回退旧接口或模拟成功。显式 mock 可注入测试发布记录，不生成可安装 ZIP。
+
+移动 `services/pluginCenter` 与 `features/plugins/data/center-queries` 通过固定操作的 Tauri 命令访问中心，不把请求 URL 或宿主版本的决定权交给页面。原生使用实际平台、应用版本和能力；禁止跳转并限制响应大小，保留结构化错误。默认 origin 固定，调试构建可指定 HTTPS 或本机 HTTP；release 构建忽略调试来源。中心安装只接收 pluginId/releaseId，原生 resolve 后下载、暂存，TS 对账规范化清单与审核记录，原生提交前再次 resolve。来源记录包含 origin/releaseId，普通开发 commit 不能提交中心包。
 
 ## 桌面宿主
 
@@ -21,6 +29,14 @@
 “我的”仍是 settings Tab；插件入口作为 props 插槽进入 SettingsPage 的独立插件功能区。pluginPage、pluginSettings、plugins 均由移动 definePage 自动注册。页面身份与标量参数规范化使用 SDK 规则，返回、转场、保活与 LRU 使用原 router。停用/更新按新会话生效，不替换打开的正文实例。
 
 页面的活动状态与系统后台状态分别处理。作者应在操作时持久化数据，不依赖 deactivate 一定执行。启动标记位于本机 localStorage，仅用于发现上次插件启动未结束并跳过该次加载；包文件与业务 KV 不放 localStorage。
+
+移动管理页消费 `features/plugins/data/usePluginManager`，查询、动作可用性与原生变更由控制器统一编排。动作在调用时复验清单和会话，不只靠按钮禁用；操作互斥，清数据固定工作区，切库/卸载使旧回调失效。启停等操作以原生 development 判据控制，打包的原生调试应用可管理；受控 JSON 安装入口仍要求前端 DEV，原生 release 管理与安装关闭。开发安装校验来源描述，取消或会话结束后的迟到暂存结果不进入提交；已发出的原生操作仍遵循原有事务边界。
+
+中心安装由 `app/plugins/center-install` 按应用 QueryClient 保存任务，所有页面通过同一个订阅式 hook 消费；Activity 隐藏、路由深入和页面卸载不会取消中心任务。取消操作终止原生等待响应/读取数据的过程，失败重试仍使用原 releaseId 并重新核验。此机制不承诺进程被系统终止后继续下载；原生事务仍负责保留旧包与恢复文件状态。
+
+已安装清单分别提供 currentVersion、pendingVersion、centerSource、撤回原因和状态刷新失败标记。首次安装仅有 next 时 currentVersion 为 null，不把待生效版本标为已安装。权限说明与新增声明差异由 describeCenterPermissions 提供，不代表已经获得用户授权。浏览入口有独立 browsingEnabled 判据：调试可浏览；生产构建默认关闭，只有完成服务部署后显式设置 TAU_PLUGIN_CENTER_BROWSING=true 才开放浏览判据，安装 release 门禁仍保持关闭。
+
+中心包在启动及应用回到前台时核验发布状态。已有中心包的会话监听文档可见性、窗口 focus 和 Tauri 原生 focus；考虑 WKWebView 可能缺失前台事件，同时每 30 秒进行可见状态核验，后台不主动刷新，切库/卸载释放监听与定时器。原生按 origin/releaseId 保存撤回/禁用记录，确认撤回不会被后续 available/not_found 覆盖；断网保留既有记录，状态文件损坏时不装配中心包。前台获知不可用后回收页面并把节点写入策略设为 none；保留当前静态内容至下一会话，原文不删除。该机制不抢占主线程死循环，也不回滚已提交数据。
 
 ## 原生文件事务与数据
 

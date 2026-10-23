@@ -10,6 +10,7 @@
     "./environment-host": "./src/environment.tsx",
     "./package": "./src/package.ts",
     "./portable": "./src/portable.ts",
+    "./center": "./src/center.ts",
     "./backend": "./src/backend.ts",
     "./backend-protocol": "./src/backend-protocol.ts",
     "./backend-runtime": "./src/backend-runtime.ts",

@@ -65,3 +65,57 @@ it("安装先校验兼容和摘要，坏包只取消暂存，不提交或执行�
     sha256: source.sha256,
   });
 });
+
+it("开发来源严格校验字段、版本、体积与 URL，不接受任意远端 HTTP", async () => {
+  const { readDevelopmentPluginSource } = await import("../plugins");
+  const source = {
+    id: "example.counter",
+    version: "1.0.0",
+    url: "https://example.invalid/plugin.zip",
+    size: 100,
+    sha256: "a".repeat(64),
+  };
+  expect(readDevelopmentPluginSource(JSON.stringify(source))).toEqual(source);
+  for (const patch of [
+    { url: "http://remote.invalid/plugin.zip" },
+    { url: "https://user:password@example.invalid/a" },
+    { size: -1 },
+    { version: "1" },
+    { id: "../bad" },
+    { extra: true },
+  ])
+    expect(() => readDevelopmentPluginSource(JSON.stringify({ ...source, ...patch }))).toThrow();
+});
+
+it("安装会话失效后，迟到的暂存包不得提交", async () => {
+  const controller = new AbortController();
+  const [artifact] = await portableFixtures();
+  const source = {
+    id: artifact.manifest.id,
+    version: artifact.manifest.version,
+    url: "https://example.invalid/a.zip",
+    sha256: "a".repeat(64),
+    size: 10,
+  };
+  vi.mocked(invoke).mockImplementationOnce(async () => {
+    controller.abort();
+    return { artifact, sha256: source.sha256 };
+  });
+  await expect(
+    installMobilePlugin(
+      source,
+      {
+        platform: "ios",
+        layout: "compact",
+        input: { touch: true, finePointer: false },
+        capabilities: [],
+      },
+      "0.2.0",
+      controller.signal
+    )
+  ).rejects.toThrow();
+  expect(vi.mocked(invoke).mock.calls.map(call => call[0])).toEqual([
+    "plugin_stage",
+    "plugin_cancel",
+  ]);
+});

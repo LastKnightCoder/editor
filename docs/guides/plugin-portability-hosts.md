@@ -59,6 +59,27 @@ node apps/mobile/scripts/plugin-portability-android-back.mjs
 
 ## 自动检查与发行边界
 
-运行 SDK、桌面插件/Page、移动端、公共 UI、编辑器提交守卫、源码组件及博客测试，并执行各包类型检查、Rust 测试、普通 Vite 构建、plugin-process-boundaries 与 check:docs。普通移动产物不得包含 plugin-validation 自动验证、2430 固定来源或 spike 入口；生产中心代码和部署保持不变。
+运行 SDK、桌面插件/Page、移动端、公共 UI、编辑器提交守卫、源码组件及博客测试，并执行各包类型检查、Rust 测试、普通 Vite 构建、plugin-process-boundaries 与 check:docs。普通移动产物不得包含自动验证入口、2430/8787 固定测试来源或 spike 入口。模拟器测试包只写本机中心；生产发布另按门户运维手册先备份迁移、再 Worker、最后网页，并保留发行开关。
+
+## 本机中心与移动数据接线
+
+1. 在仓库根执行 `pnpm --filter @tau/plugin-portal db:local`，只迁移本地 D1，包含 0012；不得使用 remote 参数。
+2. 本机 API 的开发配置中设置 PORTABLE_PUBLISH_ENABLED=true、PORTABLE_PLATFORMS=desktop,android,ios；生产配置保持默认关闭。API_ORIGIN 必须是移动设备可访问的完整 origin，不带路径或尾随斜杠。
+3. 执行 `pnpm --filter @tau/plugin-portal dev:api`。格式 3 测试包经本机上传、人工审核后发布到本地 R2；使用隔离测试身份，不把测试提交写入生产中心。
+4. 移动调试构建前设置 TAU_PLUGIN_CENTER_API 为该 origin。Android 使用本机 HTTP 时，通过 `adb reverse tcp:8787 tcp:8787` 连接本机 8787 端口；iOS 模拟器可使用本机地址。release 构建忽略此来源覆盖，并保持安装关闭。
+5. 通过 services/pluginCenter 或 data/center-queries 读取目录/详情/历史、resolve 与 status。确认原生 config 返回正确平台/应用版本；页面提供的 host 不能覆盖原生宿主声明。
+6. 安装只传 pluginId/releaseId。判据：暂存记录来源匹配、清单与审批一致、重新核验后提交；下载取消、清单不符或撤回后不能替换当前包。重启生效后原文与 KV 保留。
+7. 通过本机中心撤回测试版本，切应用到后台再回前台。判据：页面停用、正文禁止继续写入、原数据保留；断网重启仍拦截已确认撤回版本，不能靠恢复备份解除拦截。
+
+自动验证使用门户 API 测试的内存 D1/R2 与模拟认证、Rust 本机 HTTP 测试以及移动 services/hooks 测试。验收时分别记录自动测试、真机、商店审核和 IPA 归档结果，不得用自动测试替代设备与发行验收。
 
 最低系统/WebView、真实软键盘与中文输入、iOS 边缘返回、长按拖拽、平板和长文资源预算由实际设备单独验收。移动搜索只抽取子文本，插件内部源码不纳入索引；这不影响原正文与 Markdown 保真。
+
+## 中心完整模拟器联调
+
+1. 先生成上文的计数器和 ABC ZIP，在仓库根运行 `node scripts/plugins/build-center-validation.mjs`，再运行 `node output/plugin-center-validation/server.mjs "$PWD"`。服务只监听本机，8787 执行真实 API 处理器，8788 控制隔离夹具；不得将其暴露到外网。夹具不持有生产身份。
+2. 在 apps/mobile 设置 `TAU_PLUGIN_CENTER_API=http://127.0.0.1:8787`，串行执行 Android/iOS 的 debug 构建，配置改为 `src-tauri/tauri.center-validation.conf.json`；安装本次构建的专用 APK 或 simulator .app。该模式由 Vite 条件分支加载，普通构建必须移除。
+3. 专用模拟器与应用 ID 见 `scripts/plugins/run-center-validation.mjs`。分别从仓库根执行 `node scripts/plugins/run-center-validation.mjs android --reset-center` 与 `node scripts/plugins/run-center-validation.mjs ios --reset-center`；不得并行，两端共享本机中心。每端重置中心但生成相同 ZIP 字节。
+4. 脚本读取专用应用的 validation.center/report，按阶段真正停止/启动进程、切后台/前台和断开服务 TCP 监听。首次运行只清两个测试插件及其 KV，保留测试工作区；复跑前将该专用应用的 tau-center-validation-phase/checks 与 validation.center/report 清空，不操作正式 Tau 数据。
+5. 判据：两端 `output/plugin-center-validation/<平台>/result.json` 为 passed，8 组行为均通过，artifacts 中各 ZIP 的 sha256/size 相同。覆盖商店/详情/权限、安装重启、计数/ABC、跨页更新、损坏包失败、重试/取消、断网重启和撤回持久禁用。报告保留具体平台及时间，不把 HTTP 夹具等同于生产云端端到端验收。
+6. 完成后停止本机服务、移除 adb reverse tcp:8787，并关闭本次启动的专用模拟器。真机、视觉、最低系统与 IPA 仍分别验收。

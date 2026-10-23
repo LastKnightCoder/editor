@@ -11,6 +11,8 @@ import { PortalApiError } from "../../api/errors";
 import { runUpload } from "./uploadFlow";
 import { content } from "../../api/mock/samples";
 import type { PortalApi } from "../../api/types";
+import { catalogKeys } from "../catalog/queries";
+import { centerManifestTargets } from "@tau/plugins/center";
 
 afterEach(cleanup);
 /** 新协议下草稿随包创建；返回 ready 状态的上传记录 */
@@ -112,24 +114,30 @@ describe("ZIP资料提交交互", () => {
     const { api, client } = await setup();
     // 草稿随包创建，挂载时就会查已发布版本；等首次查询落定再 mock，避免与重取竞态
     await screen.findByText("首次发布");
-    vi.spyOn(api, "listReleases").mockResolvedValue({
+    vi.spyOn(api.center, "listReleases").mockResolvedValue({
       items: [
         {
-          id: "r1",
+          releaseId: "r1",
           pluginId: content.manifest.id,
           version: "1.0.0",
-          state: "published",
+          formatVersion: content.manifest.formatVersion,
+          apiVersion: 1,
+          profile: null,
+          targets: centerManifestTargets(content.manifest),
           sha256: "",
           size: 1,
-          error: null,
           publishedAt: "2026-10-01",
-          downloadUrl: null,
-          manifest: content.manifest,
+          downloadUrl: "https://example.invalid/v2/releases/r1/download",
+          content,
+          publisher: { login: "author", avatarUrl: "" },
+          repository: "https://github.com/author/plugin",
+          commit: "fixture",
+          systemReviewed: false,
         },
       ],
       nextCursor: null,
     });
-    await client.invalidateQueries({ queryKey: ["plugin-releases"] });
+    await client.invalidateQueries({ queryKey: catalogKeys.releases(content.manifest.id) });
     fireEvent.change(screen.getByLabelText("插件ZIP"), {
       target: { files: [new File(["x"], "reader.zip")] },
     });

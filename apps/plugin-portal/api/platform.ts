@@ -12,6 +12,8 @@ export interface Env {
   GITHUB_CLIENT_SECRET: string;
   TOKEN_ENCRYPTION_KEY: string;
   REVIEWER_GITHUB_IDS?: string;
+  PORTABLE_PUBLISH_ENABLED?: string;
+  PORTABLE_PLATFORMS?: string;
 }
 export interface BackgroundTasks {
   waitUntil(promise: Promise<unknown>): void;

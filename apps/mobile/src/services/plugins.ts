@@ -1,3 +1,4 @@
+import { comparePluginVersions } from "@tau/plugins/package";
 import { invoke } from "@tauri-apps/api/core";
 import type { StorageAdapter } from "@tau/plugins/host";
 import { copyJson } from "@tau/plugins/host";
@@ -7,6 +8,7 @@ import {
   assertPortablePluginCompatibility,
 } from "@tau/plugins/portable";
 import type { PluginEnvironment } from "@tau/plugins";
+import { isCenterStatusStale } from "./pluginCenterState";
 
 export interface MobilePluginArtifact {
   manifest: PortablePluginManifest;
@@ -14,6 +16,13 @@ export interface MobilePluginArtifact {
   css?: string;
 }
 export interface MobilePluginPackage {
+  name?: string | null;
+  currentVersion?: string | null;
+  pendingVersion?: string | null;
+  revoked?: { reason: string; kind: "revoked" | "disabled" } | null;
+  statusStale?: boolean;
+  centerSource?: { origin: string; releaseId: string } | null;
+  blocked?: boolean;
   id: string;
   artifact?: MobilePluginArtifact;
   enabled: boolean;
@@ -34,8 +43,55 @@ export interface PluginInstallSource {
   sha256: string;
   size: number;
 }
+export function readDevelopmentPluginSource(text: string): PluginInstallSource {
+  const value = JSON.parse(text) as Record<string, unknown> | null;
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    Object.keys(value).some(key => !["id", "version", "url", "sha256", "size"].includes(key)) ||
+    typeof value.id !== "string" ||
+    !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(value.id) ||
+    typeof value.version !== "string" ||
+    typeof value.url !== "string" ||
+    typeof value.sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/.test(value.sha256) ||
+    typeof value.size !== "number" ||
+    !Number.isSafeInteger(value.size) ||
+    value.size < 1 ||
+    value.size > 16 * 1024 * 1024
+  )
+    throw new Error("开发包描述无效");
+  comparePluginVersions(value.version, value.version);
+  const url = new URL(value.url);
+  if (
+    url.username ||
+    url.password ||
+    url.hash ||
+    (url.protocol !== "https:" &&
+      !(url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)))
+  )
+    throw new Error("开发包地址必须为 HTTPS 或本机 HTTP");
+  return {
+    id: value.id,
+    version: value.version,
+    url: url.href,
+    sha256: value.sha256,
+    size: value.size,
+  };
+}
+
 export const applyPendingMobilePlugins = () => invoke<void>("plugin_apply_pending");
-export const readMobilePlugins = () => invoke<MobilePluginInventory>("plugin_packages");
+export async function readMobilePlugins(): Promise<MobilePluginInventory> {
+  const inventory = await invoke<MobilePluginInventory>("plugin_packages");
+  return {
+    ...inventory,
+    packages: inventory.packages.map(item => ({
+      ...item,
+      statusStale: item.centerSource ? isCenterStatusStale(item.centerSource.origin) : false,
+    })),
+  };
+}
 export const setMobilePluginEnabled = (id: string, enabled: boolean) =>
   invoke<void>("plugin_set_enabled", { id, enabled });
 export const removeMobilePlugin = (id: string) => invoke<void>("plugin_uninstall", { id });
@@ -70,15 +126,19 @@ export async function verifyMobilePlugin(
 export async function installMobilePlugin(
   source: PluginInstallSource,
   environment: PluginEnvironment,
-  appVersion: string
+  appVersion: string,
+  signal?: AbortSignal
 ) {
+  signal?.throwIfAborted();
   if (!import.meta.env.DEV && import.meta.env.MODE !== "plugin-validation")
     throw new Error("生产构建未开放跨端插件安装");
   const staged = await invoke<{ artifact: MobilePluginArtifact; sha256: string }>("plugin_stage", {
     source,
   });
   try {
+    signal?.throwIfAborted();
     await verifyMobilePlugin(staged.artifact, environment, appVersion);
+    signal?.throwIfAborted();
     await invoke("plugin_commit", { id: source.id, sha256: staged.sha256 });
   } catch (error) {
     await cancelMobilePlugin(source.id);
