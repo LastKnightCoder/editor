@@ -1,5 +1,11 @@
+import { version as appVersion } from "../../../package.json";
 import { sharedPluginModules } from "@tau/plugins/shared-modules";
-import { evaluatePluginPackage } from "@tau/plugins/rendering";
+import {
+  evaluatePortablePluginPackage,
+  adaptPortablePluginDefinition,
+} from "@tau/plugins/rendering";
+import { evaluateDesktopPluginPackage } from "../../../shared/plugin-rendering";
+import { desktopPortableHost } from "../../../shared/plugin-package";
 import type { PluginDefinition } from "@tau/plugins";
 import { desktopContentPlugins } from "../../../shared/content-plugins";
 import { getMarkdown, importFromMarkdown } from "@/utils/markdown";
@@ -19,11 +25,29 @@ Object.assign(globalThis, {
         keys.add(key);
         let definition = definitions.get(key);
         if (!definition) {
-          definition = evaluatePluginPackage(artifact, sharedPluginModules);
+          definition = evaluateDesktopPluginPackage(artifact, sharedPluginModules, appVersion);
           definitions.set(key, definition);
         }
         return definition;
       });
+      if (import.meta.env.DEV) {
+        for (const artifact of envelope.portableArtifacts ?? []) {
+          const key = JSON.stringify(artifact.manifest);
+          keys.add(key);
+          let definition = definitions.get(key);
+          if (!definition) {
+            definition = evaluatePortablePluginPackage(
+              artifact,
+              sharedPluginModules,
+              desktopPortableHost(appVersion)
+            );
+            definitions.set(key, definition);
+          }
+          snapshot.push(
+            adaptPortablePluginDefinition(definition, artifact.manifest, "desktop").definition
+          );
+        }
+      }
       desktopContentPlugins.install(snapshot);
       if (definitions.size > 128)
         for (const key of definitions.keys()) if (!keys.has(key)) definitions.delete(key);

@@ -1,3 +1,4 @@
+import { desktopAuthorManifest } from "./author-compat.mjs";
 import { mkdtemp, cp, readFile, writeFile, mkdir, rm, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -32,7 +33,7 @@ try {
     await readFile(path.join(root, "packages/ui/package.json"), "utf8")
   );
   const author = path.join(directory, "干净作者 project");
-  await cp(path.join(root, "scripts/plugins/template"), author, {
+  await cp(path.join(root, "plugins/tau-plugin-template"), author, {
     recursive: true,
     filter: source => !["node_modules", "dist", ".git"].includes(path.basename(source)),
   });
@@ -56,7 +57,9 @@ try {
       )
     );
   }
-  const manifest = JSON.parse(await readFile(path.join(author, "manifest.json"), "utf8"));
+  const manifest = desktopAuthorManifest(
+    JSON.parse(await readFile(path.join(author, "manifest.json"), "utf8"))
+  );
   Object.assign(manifest, {
     id: "example.chat-renderer",
     name: "聊天计数查询",

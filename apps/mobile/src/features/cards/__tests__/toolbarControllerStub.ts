@@ -6,6 +6,7 @@ export function createControllerStub(
   overrides: Partial<MobileEditorToolbarController> = {}
 ): MobileEditorToolbarController {
   return {
+    pluginInsertItems: [],
     isEditorFocused: true,
     isToolbarVisible: true,
     activePanel: null,

@@ -57,6 +57,38 @@ function result(initial: number): DataResult {
   };
 }
 afterEach(() => vi.unstubAllGlobals());
+
+it("渲染协议 1 加载原始格式 3 清单，只求值正文而不激活插件", async () => {
+  setup();
+  const content = result(7);
+  const dependency = content.data.pluginRenderers![0];
+  dependency.manifest = {
+    ...dependency.manifest,
+    formatVersion: 3,
+    platform: "portable",
+    profile: "web-v1",
+    targets: {
+      desktop: {
+        minAppVersion: "0.59.1",
+        required: ["editor"],
+        optional: [],
+        elements: { "example.widget": "edit" },
+      },
+      android: {
+        minAppVersion: "0.2.2",
+        required: ["editor"],
+        optional: [],
+        elements: { "example.widget": "edit" },
+      },
+    },
+  };
+  const prepared = await prepareContent(content, new AbortController().signal);
+  expect(dependency.runtimeVersion).toBe(1);
+  expect(prepared.extensions[0].elements?.[0].type).toBe("example.widget");
+  expect(prepared.styles).toContain(css);
+  dependency.nodeTypes = ["other.node"];
+  await expect(prepareContent(content, new AbortController().signal)).rejects.toThrow("节点归属");
+});
 const paragraph = (...children: ContentNode[]): ContentNode => ({
   type: "paragraph",
   children: [{ type: "formatted", text: "" }, ...children, { type: "formatted", text: "" }],

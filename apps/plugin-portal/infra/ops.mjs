@@ -251,6 +251,29 @@ async function smoke() {
     releases.status === 200 && Array.isArray((await releases.json()).data?.items),
     "公开版本目录检查失败"
   );
+  for (const platform of ["all", "desktop", "android", "ios"]) {
+    const response = await get(api + "/v2/catalog/query", {
+      method: "POST",
+      headers: { Origin: web, "Content-Type": "application/json" },
+      body: JSON.stringify({ platform, limit: 1 }),
+    });
+    const value = await response.json();
+    assert(response.ok && Array.isArray(value.data?.items), `v2 ${platform} 目录不可用`);
+    assert(
+      ["all", "desktop", "android", "ios"].every(
+        key =>
+          Number.isSafeInteger(value.data?.platformCounts?.[key]) &&
+          value.data.platformCounts[key] >= 0
+      ),
+      "v2 平台计数缺失，请检查0012迁移与Worker版本"
+    );
+    assert(response.headers.get("access-control-allow-origin") === web, "v2 CORS来源不匹配");
+    for (const item of value.data.items) {
+      const release = await get(api + `/v2/releases/${encodeURIComponent(item.latest.releaseId)}`);
+      const record = await release.json();
+      assert(release.ok && record.data?.pluginId === item.pluginId, "v2 详情身份不一致");
+    }
+  }
   const session = await get(api + "/v1/session", { headers: { Origin: web } });
   assert(session.status === 200 && (await session.json()).data?.user === null, "匿名会话检查失败");
   for (const path of ["/v1/moderation/comments", "/v1/moderation/events"]) {
@@ -305,6 +328,6 @@ async function smoke() {
     });
   assert((await get("https://stats.taunote.app/script.js")).status === 200, "统计脚本不可用");
   console.log(
-    "API/CORS、下载清单、协作HTTPS/WSS、统计脚本检查通过。门户页面与真实登录上传需另行验收。"
+    "API v1/v2、平台计数、详情、CORS、下载清单、协作HTTPS/WSS、统计脚本检查通过。门户页面与真实登录上传需另行验收。"
   );
 }

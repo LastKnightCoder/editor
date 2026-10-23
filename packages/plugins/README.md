@@ -1,6 +1,8 @@
 # 应用插件契约与开发宿主
 
-生产边界：桌面插件从中心安装，博客从用户安装包收集发布依赖；移动端与浏览器扩展不加载插件。固定产物只在tests/fixtures/plugins中供测试使用，旧distribution/portable内部入口已删除。详见docs/plugin-system/63-插件分发边界清理.md。
+跨端公共 API、作者职责与校验规则见 [跨端契约](./docs/portability.md)，逐项宿主支持和作者适配范围见 [API 支持矩阵](./docs/api-support.md)。
+
+生产边界：桌面旧格式插件从中心安装，博客收集既有内容插件依赖；格式 3 在桌面开发目录与移动调试宿主运行，移动 release 安装仍关闭，浏览器扩展不加载应用插件。中心支持格式 3 上传待审但关闭批准发布与平台分发。内部宿主入口不随作者 tarball 发布；当前边界见[跨端宿主架构](/docs/architecture/plugin-portability.md)。
 
 同步插件从SDK0.10.0起通过渲染端context.sync.register注册，使用context.fetch访问宿主网络；不支持manifest.sync或Node后台执行，CLI不再提供同步。SDK0.11.0同时提供context.mcp，支持同一插件注册同步与多个MCP。内容codec的历史Node执行路径另记TODO，本轮不改其行为。完整边界见docs/plugin-system/55，整合与发布记录见docs/plugin-system/60。
 
@@ -13,7 +15,7 @@
 面向作者的产品/领域 API 从 `@tau/plugins` 根入口获取，UI 组件从 `@tau/ui` 获取（PS-015）；不直接依赖 `@tau/editor/api` 等内部包。当前 SDK 提供基础、页面、自定义设置、摘录提供方和开发台编辑器契约。
 
 - `@tau/plugins`：definePlugin、插件实例、上下文、命令、JSON 和资源清理契约。
-- `context.mcp.register`：注册多个 MCP，本地 tools 与外部 stdio / streamable-http 互斥；复用应用 MCP 页面、快捷面板及开关，激活成功才发布，停用自动回收。作者说明见 [mcp.md](../../scripts/plugins/template/docs/mcp.md)。
+- `context.mcp.register`：注册多个 MCP，本地 tools 与外部 stdio / streamable-http 互斥；复用应用 MCP 页面、快捷面板及开关，激活成功才发布，停用自动回收。作者说明见 [mcp.md](../../plugins/tau-plugin-template/docs/mcp.md)。
 - `context.notifications.send`（SDK 0.28.0）：发送应用内、独立窗口或按焦点自动分流的通知；返回单条撤销句柄，停用时自动回收。用法见 [通知能力](/docs/architecture/plugin-system/通知能力.md)。
 - `@tau/plugins/host`：PluginHost、存储适配器及内存存储。插件代码不应导入此入口。
 - `@tau/plugins/node`：Node 私有文件存储适配器，由宿主选择目录；不进入插件公开上下文。
@@ -97,6 +99,6 @@ pnpm --filter @example/plugin-workbench demo
 
 包内 `build` 使用 esbuild 生成内部 ESM 验证产物，workspace 包保持 external；类型由 `check` 单独验证，当前工作区 exports 仍指向源码，不把这里的 dist 当作独立 npm 包。
 
-仓库根运行 `node scripts/plugins/package-sdk.mjs`，生成 `@xiongtao.xt/tau-plugins` 与 `@xiongtao.xt/tau-ui` 的可发布压缩包。作者通过 npm 别名安装为 `@tau/plugins` / `@tau/ui`，声明闭包随包交付，根入口运行实现由桌面宿主提供；白板、同步与发布数据子入口的用途见 [site-data.md](../../scripts/plugins/template/docs/site-data.md)。
+仓库根运行 `node scripts/plugins/package-sdk.mjs`，生成 `@xiongtao.xt/tau-plugins` 与 `@xiongtao.xt/tau-ui` 的可发布压缩包。作者通过 npm 别名安装为 `@tau/plugins` / `@tau/ui`，声明闭包随包交付，根入口运行实现由桌面宿主提供；白板、同步与发布数据子入口的用途见 [site-data.md](../../plugins/tau-plugin-template/docs/site-data.md)。
 
-作者从 [公开模板](https://github.com/LastKnightCoder/tau-plugin-template) 开始，本仓库维护源为 `scripts/plugins/template`。作者文档在模板的 `docs/` 目录（入口 [docs/README.md](../../scripts/plugins/template/docs/README.md)），打包 SDK 时整目录复制进 npm 包；修改公开契约时同步更新对应文档。
+作者从 [公开模板](https://github.com/LastKnightCoder/tau-plugin-template) 开始，本仓库维护源为 `plugins/tau-plugin-template`。作者文档在模板的 `docs/` 目录（入口 [docs/README.md](../../plugins/tau-plugin-template/docs/README.md)），打包 SDK 时整目录复制进 npm 包；修改公开契约时同步更新对应文档。

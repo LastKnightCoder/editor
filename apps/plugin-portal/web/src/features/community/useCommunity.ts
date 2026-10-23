@@ -4,7 +4,7 @@ import {
   useQueryClient,
   type InfiniteData,
 } from "@tanstack/react-query";
-import type { Catalog, PluginCommunity } from "../../../../contracts";
+import type { CenterCatalogPage, PluginCommunity } from "../../../../contracts";
 import { useApi } from "../../app/api";
 
 export const communityKey = (pluginId: string) => ["plugin-community", pluginId] as const;
@@ -29,7 +29,7 @@ export function useCommunity(pluginId: string) {
 }
 
 type CommunityPages = InfiniteData<PluginCommunity, string | null>;
-type CatalogPages = InfiniteData<Catalog, string | null>;
+type CatalogPages = InfiniteData<CenterCatalogPage, string | null>;
 
 /**
  * 喜欢先乐观更新：立刻改评论区与插件中心缓存里的计数，失败回滚。
@@ -40,7 +40,8 @@ export function useLike(pluginId: string) {
   const client = useQueryClient();
   const key = communityKey(pluginId);
   const patchCatalog = (delta: number) =>
-    client.setQueriesData<CatalogPages>({ queryKey: ["catalog"] }, data =>
+    // 前缀与 centerKeys.catalog 一致：覆盖所有平台、搜索与分类条件下的目录缓存
+    client.setQueriesData<CatalogPages>({ queryKey: ["plugin-center-v2", "catalog"] }, data =>
       data
         ? {
             ...data,

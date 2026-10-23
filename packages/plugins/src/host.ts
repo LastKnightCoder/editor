@@ -1,4 +1,11 @@
 import { readNotificationOptions, type PluginNotificationOptions } from "./notifications";
+import {
+  createPluginEnvironmentStore,
+  snapshotPluginEnvironment,
+  type PluginEnvironment,
+  type PluginEnvironmentSource,
+} from "./environment";
+import type { PluginNavigationEntry } from "./navigation";
 import type {
   Disposable,
   JsonValue,
@@ -982,6 +989,7 @@ export interface PluginOwner {
 /** 插件激活后实际注册的贡献类别，供管理界面展示「此插件提供」。 */
 export type PluginContributionKind =
   | "page"
+  | "navigation"
   | "sidebar"
   | "command"
   | "settings"
@@ -1066,10 +1074,16 @@ export class PluginHost {
   private revision = 0;
   private readonly listeners = new Set<() => void>();
   private readonly restartRequired: Set<string>;
+  private readonly environmentSource: PluginEnvironmentSource | undefined;
 
   constructor(
     private readonly options: {
       workspaceId: string;
+      environment?: PluginEnvironment;
+      environmentSource?: PluginEnvironmentSource;
+      navigation?: {
+        registerEntry(context: PluginContext, definition: PluginNavigationEntry): Disposable;
+      };
       backend?: (context: PluginContext) => import("./backend").PluginBackendClient;
       storage: StorageAdapter;
       pages?: PagesAdapter;
@@ -1127,7 +1141,18 @@ export class PluginHost {
     }
   ) {
     if (!options.workspaceId.trim()) throw new Error("插件宿主需要明确的工作区身份");
-    this.options = Object.freeze({ ...options });
+    if (options.environment && options.environmentSource)
+      throw new Error("环境快照与环境源不能同时提供");
+    this.environmentSource =
+      options.environmentSource ??
+      (options.environment ? createPluginEnvironmentStore(options.environment) : undefined);
+    if (this.environmentSource) snapshotPluginEnvironment(this.environmentSource.getSnapshot());
+    this.options = Object.freeze({
+      ...options,
+      ...(options.environment
+        ? { environment: snapshotPluginEnvironment(options.environment) }
+        : {}),
+    });
     this.restartRequired = options.restartRequired ?? new Set();
   }
 
@@ -1354,7 +1379,12 @@ export class PluginHost {
   }
 
   private context(entry: Entry, activation: Activation): PluginContext {
-    const pages = new WeakMap<PluginPageHandle, { id: string; active: () => boolean }>();
+    const navigationIds = new Set<string>();
+    const environmentSource = this.environmentSource;
+    const pages = new WeakMap<
+      PluginPageHandle,
+      { id: string; active: () => boolean; navigation: Set<Disposable> }
+    >();
     const mcps = new Map<string, PluginMCPDefinition>();
     const toolRenderers = new Set<string>();
     const scope: StorageScope = Object.freeze({
@@ -1660,6 +1690,38 @@ export class PluginHost {
       return (backendClient ??= this.options.backend(context));
     };
     const context: PluginContext = {
+      get environment() {
+        if (!environmentSource) throw new Error("当前宿主未提供插件环境");
+        return environmentSource.getSnapshot();
+      },
+      navigation: Object.freeze({
+        registerEntry: (definition: PluginNavigationEntry) => {
+          this.assertActive(entry, activation);
+          assertLocalId(definition.id);
+          if (!definition.title.trim()) throw new Error("功能入口标题不能为空");
+          if (navigationIds.has(definition.id)) throw new Error("功能入口重复注册");
+          const page = pages.get(definition.page);
+          if (!page?.active()) throw new Error("功能入口必须关联本插件有效页面");
+          if (!this.options.navigation) throw new Error("当前宿主不支持功能入口");
+          const handle = this.options.navigation.registerEntry(
+            context,
+            Object.freeze({
+              ...definition,
+              params: Object.freeze(normalizePageParams(definition.params ?? {})),
+            })
+          );
+          navigationIds.add(definition.id);
+          const owned = registerAs("navigation", {
+            dispose: () => {
+              navigationIds.delete(definition.id);
+              page.navigation.delete(owned);
+              return handle.dispose();
+            },
+          });
+          page.navigation.add(owned);
+          return owned;
+        },
+      }),
       backend: Object.freeze<import("./backend").PluginBackendClient>({
         call: async (method, input, options) => {
           const result = await backend().call(method, copyJson(input), options);
@@ -3070,10 +3132,22 @@ export class PluginHost {
           if (!this.options.pages) throw new Error("当前宿主不支持页面");
           const handle = this.options.pages.register(context, Object.freeze({ ...definition }));
           let disposed = false;
+          const navigation = new Set<Disposable>();
           const resource = registerAs("page", {
-            dispose: () => {
+            dispose: async () => {
               disposed = true;
-              return handle.dispose();
+              const results = await Promise.allSettled([
+                ...[...navigation].map(entry => Promise.resolve().then(() => entry.dispose())),
+                Promise.resolve().then(() => handle.dispose()),
+              ]);
+              const errors = results.filter(
+                (result): result is PromiseRejectedResult => result.status === "rejected"
+              );
+              if (errors.length)
+                throw new AggregateError(
+                  errors.map(result => result.reason),
+                  "页面及入口回收失败"
+                );
             },
           });
           const exposed: PluginPageHandle = Object.freeze({
@@ -3085,7 +3159,7 @@ export class PluginHost {
             },
             dispose: resource.dispose,
           });
-          pages.set(exposed, { id: definition.id, active: () => !disposed });
+          pages.set(exposed, { id: definition.id, active: () => !disposed, navigation });
           return exposed;
         },
       }),

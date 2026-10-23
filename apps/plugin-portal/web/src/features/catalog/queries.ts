@@ -5,13 +5,15 @@ import type {
   CatalogSort,
   PluginCategory,
   ReleaseSummary,
+  ReleasePage,
 } from "../../../../contracts";
+import type { PortalApi } from "../../api/types";
 import { useApi } from "../../app/api";
 
 export const catalogKeys = {
   list: (q: string, category: PluginCategory | null, sort: CatalogSort) =>
     ["catalog", q, category, sort] as const,
-  releases: (pluginId: string) => ["plugin-releases", pluginId] as const,
+  releases: (pluginId: string) => ["plugin-center-v2", "publication-versions", pluginId] as const,
   release: (id: string) => ["release", id] as const,
   stats: (pluginId: string) => ["plugin-stats", pluginId] as const,
 };
@@ -35,12 +37,37 @@ export function uniqueEntries(pages: { items: CatalogEntry[] }[] | undefined): C
   ];
 }
 
-/** 某插件最近发布的一页版本（20 条），足够覆盖版本历史展示与审核对比 */
+/** 提交预检读取全部格式；保留现有页面使用的摘要形状。 */
+export async function readPublicationVersions(
+  api: PortalApi,
+  pluginId: string,
+  signal?: AbortSignal
+): Promise<ReleasePage> {
+  const page = await api.center.listReleases(pluginId, { platform: "all" }, signal);
+  return {
+    items: page.items.map(release => ({
+      id: release.releaseId,
+      pluginId: release.pluginId,
+      version: release.version,
+      state: "published",
+      sha256: release.sha256,
+      size: release.size,
+      error: null,
+      publishedAt: release.publishedAt,
+      downloadUrl: release.downloadUrl,
+      systemReviewed: release.systemReviewed,
+      manifest: release.content.manifest,
+    })),
+    nextCursor: page.nextCursor,
+  };
+}
+
+/** 服务端按语义版本降序返回，首页覆盖最高版本预检。 */
 export function usePluginReleases(pluginId: string | null | undefined) {
   const api = useApi();
   return useQuery({
     queryKey: catalogKeys.releases(pluginId ?? ""),
-    queryFn: () => api.listReleases(pluginId ?? "", null),
+    queryFn: ({ signal }) => readPublicationVersions(api, pluginId ?? "", signal),
     enabled: !!pluginId,
     staleTime: 60_000,
   });

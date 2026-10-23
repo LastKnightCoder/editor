@@ -1,3 +1,4 @@
+import { centerRoute } from "./center";
 import type { ApiError } from "../contracts";
 import { authRoute, githubToken, requireSession } from "./auth";
 import { fail, HttpError, json, type Env, type BackgroundTasks } from "./platform";
@@ -41,6 +42,7 @@ export async function handle(
       else if (path === "/health" && request.method === "GET") response = json({ ok: true });
       else {
         const publicRelease =
+          (await centerRoute(request, env, path, context)) ??
           (await communityRoute(request, env, path)) ??
           (await publicReleaseRoute(request, env, path, context));
         if (publicRelease) response = publicRelease;

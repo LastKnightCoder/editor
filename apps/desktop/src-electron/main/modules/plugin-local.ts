@@ -1,3 +1,5 @@
+import { portableDevelopmentArtifacts } from "../services/plugin-portable-development";
+import { assertDesktopPackageSource } from "../../../shared/plugin-package";
 import { isContentPlugin } from "@tau/plugins/package";
 import { copyJson } from "@tau/plugins/host";
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
@@ -54,6 +56,7 @@ import {
   setPluginLiked,
   addPluginComment,
   deletePluginComment,
+  API_ORIGIN,
 } from "../services/plugin-center";
 
 const directory = () => path.join(PathUtil.getAppDir(), "plugins");
@@ -63,16 +66,26 @@ const protectPluginTasks = <T>(id: string, action: () => Promise<T>) =>
 export default {
   name: "plugin-local",
   async init() {
-    const updates = new PluginUpdates(directory(), app.getVersion());
+    const updates = new PluginUpdates(directory(), app.getVersion(), {
+      ...(app.isPackaged ? { portableCenterOrigin: API_ORIGIN } : {}),
+    });
     await updates.initialize();
     const preferences = new LocalPluginPreferences(directory());
     await userSetting.getSettingSnapshot();
     await preferences.load();
+    const readManagedPackage = async (id: string) => {
+      const artifact = await readPluginPackage(path.join(directory(), id), app.getVersion());
+      if (artifact.manifest.formatVersion === 3 && app.isPackaged) {
+        const source = (await updates.sources([id]))[id];
+        assertDesktopPackageSource(artifact.manifest, source, API_ORIGIN, app.isPackaged);
+      }
+      return artifact;
+    };
     const contentStartup = new PluginContentStartup(async id => {
       const maintenance = await updates.list();
       if (maintenance.some(item => item.id === id && item.blocked))
         throw new Error("插件更新尚未恢复");
-      const artifact = await readPluginPackage(path.join(directory(), id), app.getVersion());
+      const artifact = await readManagedPackage(id);
       if (artifact.manifest.id !== id || !isContentPlugin(artifact.manifest))
         throw new Error("内容插件身份或声明无效");
       await contentExecutor.execute({ operation: "validate" }, undefined, [
@@ -94,6 +107,8 @@ export default {
         .map(entry => entry.id)
     );
     ipcMain.handle("plugin-local:content-startup", () => snapshot);
+    if (!app.isPackaged)
+      ipcMain.handle("plugin-local:portable-development", () => portableDevelopmentArtifacts());
     const stateChanged = () => {
       for (const window of BrowserWindow.getAllWindows())
         if (!window.isDestroyed()) window.webContents.send("plugin-local:state-changed");
@@ -260,7 +275,9 @@ export default {
       pluginUploadRelay.cancel(event.sender.id, requestId)
     );
     ipcMain.handle("plugin-local:set-enabled", async (_event, id: string, enabled: boolean) => {
-      const artifact = await readPluginPackage(path.join(directory(), id), app.getVersion());
+      const artifact = enabled
+        ? await readManagedPackage(id)
+        : await readPluginPackage(path.join(directory(), id), app.getVersion());
       if (artifact.manifest.id !== id) throw new Error("插件身份无效");
       await protectPluginTasks(id, () => preferences.set(id, enabled));
       if (!enabled) await stopPluginBackend(id);
@@ -293,6 +310,22 @@ export default {
             source: sources[entry.id],
             enabled: preferences.enabled(entry.id, false),
           };
+          if (entry.artifact) {
+            try {
+              assertDesktopPackageSource(
+                entry.artifact.manifest,
+                sources[entry.id],
+                API_ORIGIN,
+                app.isPackaged
+              );
+            } catch (error) {
+              return {
+                ...sourced,
+                artifact: undefined,
+                error: error instanceof Error ? error.message : String(error),
+              };
+            }
+          }
           return blocked
             ? { ...sourced, artifact: undefined, error: blocked.error ?? "更新尚未恢复，暂不加载" }
             : sourced;
@@ -381,7 +414,7 @@ export default {
       fetchPluginVersions(app.getVersion(), pluginId)
     );
     ipcMain.handle("plugin-local:stage-release", async (_event, id: string) => {
-      const { bytes, source } = await downloadPluginRelease(id);
+      const { bytes, source } = await downloadPluginRelease(id, app.getVersion());
       return applyInstalled(await updates.stageRelease(bytes, source));
     });
     // 走正常退出流程，窗口的关闭守卫仍生效；用户取消退出时重启在下次退出后执行。

@@ -1,0 +1,8 @@
+{
+  "productName": "Tau Plugin Spike",
+  "identifier": "com.txiong.tau-plugin-spike",
+  "build": {
+    "beforeBuildCommand": "pnpm exec vite build --mode plugin-center-validation --outDir dist-center-validation",
+    "frontendDist": "../dist-center-validation"
+  }
+}

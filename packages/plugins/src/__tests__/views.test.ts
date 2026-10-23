@@ -7,6 +7,7 @@ describe("详情区块", () => {
     const dispose = vi.fn();
     const registerEntityPanel = vi.fn(() => ({ dispose }));
     const host = new PluginHost({
+      environment: { platform: "desktop", input: { coarsePointer: false, finePointer: true } },
       workspaceId: "A",
       storage: createMemoryStorage(),
       views: { registerEntityPanel },

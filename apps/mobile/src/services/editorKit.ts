@@ -1,3 +1,5 @@
+import { mobileContentPlugins, mobilePluginElementSupport } from "../app/plugins/content";
+import { IElementEditingPolicy } from "@tau/editor/api";
 /**
  * Mobile 的 EditorKit：**按场景**一个（docs/editor-refactor ER-016），
  * 每个只注册该场景需要的扩展（ER-017）。命名与 desktop 对齐，实现可以是 mobile 自己的。
@@ -58,8 +60,24 @@ function createMobileKit(extras: readonly AnyExtension[] = []): EditorKit {
  * 与待办描述（`descriptionContentId`）——后两者虽然像「描述」，但存的是 content 且 desktop
  * 也读写同一条，所以必须覆盖跨端清单（`CONTENT_ELEMENT_TYPES`，见 P10）。
  */
+let contentSnapshot: readonly AnyExtension[] | undefined;
+let contentKit: EditorKit | undefined;
 export function getMobileContentKit(): EditorKit {
-  return createMobileKit(mobileCardPreviewExtensions);
+  if (contentSnapshot !== mobileContentPlugins.extensions || !contentKit) {
+    contentSnapshot = mobileContentPlugins.extensions;
+    const support = new Map(mobilePluginElementSupport);
+    contentKit = createMobileKit(mobileCardPreviewExtensions).extend({
+      extensions: contentSnapshot,
+      services: [
+        register =>
+          register(IElementEditingPolicy, {
+            sourcePresentation: "touch",
+            canEdit: type => !support.has(type) || support.get(type) === "edit",
+          }),
+      ],
+    });
+  }
+  return contentKit;
 }
 
 let flashcardBlank: AnyExtension | null = null;

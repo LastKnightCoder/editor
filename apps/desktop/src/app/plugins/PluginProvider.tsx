@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { createBrowserStorage } from "@tau/plugins/host";
+import { desktopPluginEnvironment } from "./environment";
 import { usePage } from "@/page/PageProvider";
 import useSettingStore from "@/stores/useSettingStore";
 import { DesktopPluginRuntime, PLUGIN_DETAIL_KEY } from "./runtime";
@@ -86,6 +87,7 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           : undefined;
         current = new DesktopPluginRuntime({
           workspaceId: persistentWorkspaceId,
+          environmentSource: desktopPluginEnvironment,
           navigator,
           storage: isElectron
             ? createDatabaseStorage(workspaceId)
@@ -140,6 +142,14 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
                             section: key,
                           }),
         });
+        if (import.meta.env.DEV) {
+          const { portableDevelopmentDefinitions } = await import("./portable-development");
+          if (cancelled) return;
+          for (const definition of portableDevelopmentDefinitions) {
+            current.host.registerTrusted(definition);
+            await current.host.enable(definition.id);
+          }
+        }
         const local = isElectron ? current.attachLocal(window.localStorage) : undefined;
         setRuntime(current);
         if (local) {

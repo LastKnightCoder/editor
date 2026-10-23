@@ -1,9 +1,6 @@
+import type { DesktopPluginPackage as DevelopmentPluginPackage } from "../../../shared/plugin-package";
 import { isContentPlugin as hasStaticContent } from "@tau/plugins/package";
-import {
-  clearBrowserPluginStorage,
-  type DevelopmentPluginPackage,
-  type PluginHost,
-} from "@tau/plugins/host";
+import { clearBrowserPluginStorage, type PluginHost } from "@tau/plugins/host";
 import type {
   LocalPluginEntry,
   LocalPluginScan,

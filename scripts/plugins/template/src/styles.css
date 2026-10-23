@@ -1,9 +1,0 @@
-/* SVG 随样式内联，安装后无需额外复制资源。 */
-.example-counter::before {
-  content: "";
-  display: block;
-  width: 20px;
-  height: 20px;
-  background: var(--tau-accent);
-  mask: url("./counter.svg") center / contain no-repeat;
-}

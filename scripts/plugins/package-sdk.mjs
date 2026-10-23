@@ -5,6 +5,11 @@ import { cp, mkdir, readFile, writeFile, mkdtemp, rm } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+execFileSync(
+  process.execPath,
+  [path.join(root, "scripts/plugins/sync-author-docs.mjs"), "--check"],
+  { stdio: "inherit" }
+);
 const isWorkspaceSource = source => {
   const relative = path.relative(root, source);
   return (
@@ -43,6 +48,7 @@ try {
   const clientEntry = path.join(root, "packages/plugins/src/publish-client.ts");
   const artifactsEntry = path.join(root, "packages/plugins/src/publish-artifacts.ts");
   const packageEntry = path.join(root, "packages/plugins/src/package.ts");
+  const portableEntry = path.join(root, "packages/plugins/src/portable.ts");
   const backendEntry = path.join(root, "packages/plugins/src/backend.ts");
   const graph = ts.createProgram(
     [
@@ -53,6 +59,7 @@ try {
       clientEntry,
       artifactsEntry,
       packageEntry,
+      portableEntry,
       backendEntry,
     ],
     options
@@ -161,6 +168,7 @@ try {
     await copyDeclaration(entries[index]);
     if (name === "plugins") {
       await copyDeclaration(packageEntry);
+      await copyDeclaration(portableEntry);
       await copyDeclaration(backendEntry);
       await copyDeclaration(whiteboardEntry);
       await copyDeclaration(syncEntry);
@@ -173,6 +181,7 @@ try {
           "publish-client": clientEntry,
           "publish-artifacts": artifactsEntry,
           package: packageEntry,
+          portable: portableEntry,
         },
         outdir: directory,
         bundle: true,
@@ -205,6 +214,7 @@ try {
               ? {
                   "./tailwind.css": "./tailwind.css",
                   "./package": { types: "./" + targetOf(packageEntry), default: "./package.js" },
+                  "./portable": { types: "./" + targetOf(portableEntry), default: "./portable.js" },
                   "./backend": { types: "./" + targetOf(backendEntry), default: "./runtime.js" },
                   "./sync": { types: "./" + targetOf(syncEntry), default: "./runtime.js" },
                   "./publish-data": {
@@ -235,14 +245,14 @@ try {
     );
     await writeFile(
       path.join(directory, "LICENSE"),
-      await readFile(path.join(root, "scripts/plugins/template/LICENSE"))
+      await readFile(path.join(root, "plugins/tau-plugin-template/LICENSE"))
     );
     await writeFile(
       path.join(directory, "README.md"),
       `# Tau 插件开发包 @tau/${name}\n\n开发 Tau 插件所需的类型与接口，通过 npm 别名安装为 \`@tau/${name}\`。根入口的实现由 Tau 在运行时提供，插件构建时需设为 external。\n\n从模板开始开发：https://github.com/LastKnightCoder/tau-plugin-template\n${name === "plugins" ? "\n开发文档见 [docs/README.md](docs/README.md)。\n" : ""}`
     );
     if (name === "plugins") {
-      await cp(path.join(root, "scripts/plugins/template/docs"), path.join(directory, "docs"), {
+      await cp(path.join(root, "plugins/tau-plugin-template/docs"), path.join(directory, "docs"), {
         recursive: true,
       });
       await writeFile(

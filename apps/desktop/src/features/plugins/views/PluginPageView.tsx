@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo } from "react";
 import { normalizePageParams } from "@tau/plugins/host";
-import { Button, Panel, UiProvider } from "@tau/ui";
+import { Button, Panel, UiProvider, UiHostProvider, PortalScope } from "@tau/ui";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { useDesktopPlugins } from "@/app/plugins/context";
 import {
@@ -14,7 +14,7 @@ import { PluginComponentScope } from "@/app/plugins/content-components";
 
 export function PluginPageView() {
   const runtime = useDesktopPlugins();
-  const { navigator } = usePage();
+  const { navigator, registerOverlayDismiss } = usePage();
   const params = usePageParams<{
     pluginId: string;
     pageId: string;
@@ -58,11 +58,15 @@ export function PluginPageView() {
         />
       )}
     >
-      <UiProvider className="contents">
-        <PluginComponentScope context={page.context}>
-          <PluginPageContent page={page} />
-        </PluginComponentScope>
-      </UiProvider>
+      <PortalScope>
+        <UiHostProvider registerDismiss={registerOverlayDismiss}>
+          <UiProvider className="contents">
+            <PluginComponentScope context={page.context}>
+              <PluginPageContent page={page} />
+            </PluginComponentScope>
+          </UiProvider>
+        </UiHostProvider>
+      </PortalScope>
     </RecoverableBoundary>
   );
 }
@@ -70,7 +74,7 @@ export function PluginPageView() {
 function PluginPageContent({ page }: { page: RegisteredPluginPage }) {
   const runtime = useDesktopPlugins();
   const params = usePageParams();
-  const { registerOverlayDismiss } = usePage();
+  const { registerOverlayDismiss, registerLeaveGuard } = usePage();
   const scope = useMemo(
     () =>
       createPluginPageContext({
@@ -78,8 +82,9 @@ function PluginPageContent({ page }: { page: RegisteredPluginPage }) {
         signal: page.context.signal,
         isAvailable: () => runtime?.getPage(page.context.pluginId, page.definition.id) === page,
         registerOverlayDismiss,
+        registerLeaveGuard,
       }),
-    [page, runtime, params, registerOverlayDismiss]
+    [page, runtime, params, registerOverlayDismiss, registerLeaveGuard]
   );
   useLayoutEffect(() => scope.mount(), [scope]);
   const Component = page.definition.component;

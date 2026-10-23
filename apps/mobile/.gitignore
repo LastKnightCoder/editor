@@ -9,6 +9,10 @@ lerna-debug.log*
 
 node_modules
 dist
+dist-plugin-spike
+dist-plugin-validation
+dist-center-validation
+*.tsbuildinfo
 dist-ssr
 *.local
 

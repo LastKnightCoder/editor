@@ -18,6 +18,7 @@ export function catalogCategories(entries: readonly PluginCatalogEntry[]) {
 export const CONTRIBUTION_LABELS: Record<PluginContributionKind, string> = {
   page: "页面",
   sidebar: "侧边栏入口",
+  navigation: "功能入口",
   command: "命令",
   settings: "设置分组",
   sync: "同步方式",

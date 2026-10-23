@@ -2,11 +2,10 @@ import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import type { Env } from "./platform";
 
-export function testEnvironment() {
+export function testEnvironment(options: { portableSchema?: boolean; migrationsRoot?: URL } = {}) {
   const sqlite = new DatabaseSync(":memory:");
-  sqlite.exec(
-    readFileSync(new URL("../infra/migrations/0001_submissions.sql", import.meta.url), "utf8")
-  );
+  const migrations = options.migrationsRoot ?? new URL("../infra/migrations/", import.meta.url);
+  sqlite.exec(readFileSync(new URL("0001_submissions.sql", migrations), "utf8"));
   for (const name of [
     "0003_review_release.sql",
     "0004_release_catalog.sql",
@@ -17,8 +16,9 @@ export function testEnvironment() {
     "0009_plugin_moderation.sql",
     "0010_app_feedback.sql",
     "0011_backend_review.sql",
-  ])
-    sqlite.exec(readFileSync(new URL(`../infra/migrations/${name}`, import.meta.url), "utf8"));
+    "0012_portable_distribution.sql",
+  ].filter(name => options.portableSchema !== false || name !== "0012_portable_distribution.sql"))
+    sqlite.exec(readFileSync(new URL(name, migrations), "utf8"));
   class Statement {
     constructor(
       readonly sql: string,

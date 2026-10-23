@@ -32,6 +32,7 @@ vi.mock("electron", () => ({
   shell: { openPath: mock.openPath },
 }));
 vi.mock("../../services/plugin-center", () => ({
+  API_ORIGIN: "https://plugins-api.taunote.app",
   downloadPluginRelease: mock.download,
   fetchPluginCatalog: vi.fn(),
   fetchPluginRelease: vi.fn(),
@@ -52,6 +53,65 @@ beforeEach(async () => {
 it("正式客户端不提供ZIP安装入口，初次启动没有预装插件", async () => {
   await expect(invoke("plugin-local:stage-zip")).rejects.toThrow("插件中心");
   expect(((await invoke("plugin-local:scan")) as { entries: unknown[] }).entries).toEqual([]);
+});
+
+it("正式 IPC 安装跨端内容包，启用重启后从原始格式 3 快照装配；错来源不放行", async () => {
+  const id = "test.portable";
+  const code = "throw new Error('主进程不得执行定义')";
+  const manifest = {
+    id,
+    name: "跨端正文",
+    version: "1.0.0",
+    formatVersion: 3,
+    apiVersion: 1,
+    platform: "portable",
+    profile: "web-v1",
+    format: "cjs",
+    main: "main.js",
+    editor: true,
+    targets: {
+      desktop: {
+        minAppVersion: "0.59.0",
+        required: ["editor"],
+        optional: [],
+        elements: { abc: "edit" },
+      },
+    },
+    integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
+  };
+  const zip = new AdmZip();
+  zip.addFile(`${id}/manifest.json`, Buffer.from(JSON.stringify(manifest)));
+  zip.addFile(`${id}/main.js`, Buffer.from(code));
+  const bytes = zip.toBuffer();
+  const source = {
+    kind: "center",
+    releaseId: "portable-release",
+    pluginId: id,
+    version: "1.0.0",
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+    manifest,
+    apiOrigin: "https://plugins-api.taunote.app",
+  };
+  mock.download.mockResolvedValue({ bytes, source });
+  await invoke("plugin-local:stage-release", "portable-release");
+  expect(await invoke("plugin-local:scan")).toMatchObject({
+    entries: [{ id, enabled: false, artifact: { manifest: { formatVersion: 3 } } }],
+  });
+  await invoke("plugin-local:set-enabled", id, true);
+  vi.resetModules();
+  mock.handlers.clear();
+  await (await import("../plugin-local")).default.init();
+  expect(await invoke("plugin-local:content-startup")).toMatchObject({
+    artifacts: [{ manifest: { id, formatVersion: 3 } }],
+  });
+  await writeFile(
+    path.join(mock.root, ".editor/plugin-updates/sources", `${id}.json`),
+    JSON.stringify({ ...source, apiOrigin: "https://other.example" })
+  );
+  expect(await invoke("plugin-local:scan")).toMatchObject({
+    entries: [{ id, error: expect.stringContaining("固定插件中心") }],
+  });
+  await expect(invoke("plugin-local:set-enabled", id, true)).rejects.toThrow("固定插件中心");
 });
 
 it("主进程恢复内容快照，将定义校验交给内容渲染进程", async () => {
@@ -172,7 +232,7 @@ it.each([false, true])("中心版本立即安装且停用，更新保留意图�
   };
   const source = download("1.0.0");
   expect(await invoke("plugin-local:stage-release", "r1")).toEqual({ id, version: "1.0.0" });
-  expect(mock.download).toHaveBeenCalledWith("r1");
+  expect(mock.download).toHaveBeenCalledWith("r1", "0.59.0");
   expect(await invoke("plugin-local:scan", {})).toMatchObject({
     entries: [{ id, source, enabled: false }],
     updates: [],

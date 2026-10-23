@@ -27,6 +27,8 @@ mod home_stats;
 mod index_db;
 mod migrator;
 mod pomodoro;
+mod plugin_kv;
+pub use plugin_kv::*;
 mod project;
 mod query;
 mod reconcile;
