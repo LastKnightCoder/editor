@@ -39,8 +39,7 @@ export function ShareContentSheet(props: {
     setMessage(undefined);
     try {
       const { collaborationManager } = await import("./core/manager");
-      const content =
-        props.content ?? (await tauri.getContentDetail(props.contentId)).content;
+      const content = props.content ?? (await tauri.getContentDetail(props.contentId)).content;
       const shared = await collaborationManager.shareContent({
         contentId: props.contentId,
         title: props.title,
@@ -85,7 +84,7 @@ export function ShareContentSheet(props: {
       {phase === "sharing" ? (
         <div className="flex flex-col items-center pb-2 pt-4">
           <Loader2 size={34} className="text-accent animate-spin" />
-          <p className="text-ink mt-4 text-[16px] font-extrabold">正在创建协作房间…</p>
+          <p className="text-ink-1 mt-4 text-[16px] font-extrabold">正在创建协作房间…</p>
           <p className="text-ink-2 mt-2 text-center text-[12.5px] leading-relaxed">
             正在把「{props.title}」发布到协作服务器
             <br />
@@ -96,12 +95,12 @@ export function ShareContentSheet(props: {
 
       {phase === "error" ? (
         <div className="flex flex-col items-center pb-2 pt-4">
-          <p className="text-ink text-[16px] font-extrabold">发起协作失败</p>
+          <p className="text-ink-1 text-[16px] font-extrabold">发起协作失败</p>
           <p className="text-ink-2 mt-2 text-center text-[12.5px] leading-relaxed">{message}</p>
           <button
             type="button"
             onClick={() => void run()}
-            className="bg-input text-ink-2 mt-5 flex items-center gap-2 rounded-full px-6 py-3 text-[14px] font-bold"
+            className="bg-page text-ink-2 mt-5 flex items-center gap-2 rounded-full px-6 py-3 text-[14px] font-bold"
           >
             <RefreshCw size={16} /> 重试
           </button>
@@ -110,17 +109,17 @@ export function ShareContentSheet(props: {
 
       {phase === "done" && result ? (
         <>
-          <div className="bg-sage-soft text-sage mx-auto grid h-[60px] w-[60px] place-items-center rounded-full">
+          <div className="bg-tag-1-soft text-tag-1 mx-auto grid h-[60px] w-[60px] place-items-center rounded-full">
             <Check size={30} strokeWidth={2.6} />
           </div>
-          <p className="text-ink mt-3.5 text-center text-[17px] font-extrabold">已开启协作</p>
+          <p className="text-ink-1 mt-3.5 text-center text-[17px] font-extrabold">已开启协作</p>
           <p className="text-ink-2 mt-1 text-center text-[12px]">
             把协作码发给伙伴，对方申请后由你批准
           </p>
           <div className="mt-4">
             <CollabCodeCard code={result.code} expiresAt={result.expiresAt} onCopy={copy} />
           </div>
-          <div className="bg-input text-ink-2 mt-3.5 flex gap-2.5 rounded-[14px] px-3.5 py-3 text-[11.5px] leading-relaxed">
+          <div className="bg-page text-ink-2 mt-3.5 flex gap-2.5 rounded-[14px] px-3.5 py-3 text-[11.5px] leading-relaxed">
             <span className="flex-1">
               本卡片已切换为协作模式 · 编辑实时同步 · 你是作者，可随时在成员管理中结束共享
             </span>
@@ -131,7 +130,7 @@ export function ShareContentSheet(props: {
               props.onClose();
               navigator.push("collabEditor", { documentId: result.documentId });
             }}
-            className="border-line text-ink mt-3.5 w-full rounded-full border-[1.6px] py-3 text-[14px] font-bold"
+            className="border-line-1 text-ink-1 mt-3.5 w-full rounded-full border-[1.6px] py-3 text-[14px] font-bold"
           >
             进入协作编辑
           </button>

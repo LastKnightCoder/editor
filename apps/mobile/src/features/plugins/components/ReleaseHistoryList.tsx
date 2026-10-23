@@ -36,7 +36,7 @@ export function ReleaseHistoryList({
           key={item.releaseId}
           className="flex min-h-11 flex-wrap items-center gap-x-2 gap-y-1 py-2.5"
         >
-          <span className="text-ink font-mono text-[14px] font-semibold">v{item.version}</span>
+          <span className="text-ink-1 font-mono text-[14px] font-semibold">v{item.version}</span>
           {item.latest && <Mark className="bg-accent-soft text-accent-text">最新</Mark>}
           {item.compatible && <Mark className="bg-ok-soft text-ok">可安装</Mark>}
           {item.installed && <Mark className="bg-info-soft text-info">已安装</Mark>}

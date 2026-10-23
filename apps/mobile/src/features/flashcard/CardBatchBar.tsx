@@ -67,7 +67,7 @@ export function CardBatchBar({ open, deckId, selectedIds, onFinished }: CardBatc
           type="button"
           disabled={busy}
           onClick={() => setSheet("move")}
-          className="text-ink bg-input flex flex-1 items-center justify-center gap-[7px] rounded-[15px] py-3 text-[13.5px] font-extrabold disabled:opacity-50"
+          className="text-ink-1 bg-page flex flex-1 items-center justify-center gap-[7px] rounded-[15px] py-3 text-[13.5px] font-extrabold disabled:opacity-50"
         >
           <ArrowLeftRight size={16} className="flex-none" />
           移动卡组
@@ -76,7 +76,7 @@ export function CardBatchBar({ open, deckId, selectedIds, onFinished }: CardBatc
           type="button"
           disabled={busy}
           onClick={() => setSheet("level")}
-          className="text-ink bg-input flex flex-1 items-center justify-center gap-[7px] rounded-[15px] py-3 text-[13.5px] font-extrabold disabled:opacity-50"
+          className="text-ink-1 bg-page flex flex-1 items-center justify-center gap-[7px] rounded-[15px] py-3 text-[13.5px] font-extrabold disabled:opacity-50"
         >
           <SlidersHorizontal size={16} className="flex-none" />
           改难度
@@ -85,7 +85,7 @@ export function CardBatchBar({ open, deckId, selectedIds, onFinished }: CardBatc
           type="button"
           disabled={busy}
           onClick={() => setConfirmDelete(true)}
-          className="text-danger bg-input flex flex-1 items-center justify-center gap-[7px] rounded-[15px] py-3 text-[13.5px] font-extrabold disabled:opacity-50"
+          className="text-danger bg-page flex flex-1 items-center justify-center gap-[7px] rounded-[15px] py-3 text-[13.5px] font-extrabold disabled:opacity-50"
         >
           <Trash2 size={16} className="flex-none" />
           删除
@@ -110,10 +110,10 @@ export function CardBatchBar({ open, deckId, selectedIds, onFinished }: CardBatc
                   setSheet(null);
                   void runBatch("移动", id => tauri.flashcardUpdateCard(id, { deckId: item.id }));
                 }}
-                className="bg-input active:bg-press flex items-center gap-3 rounded-[16px] p-3 text-left disabled:opacity-50"
+                className="bg-page active:bg-hover flex items-center gap-3 rounded-[16px] p-3 text-left disabled:opacity-50"
               >
                 <span className="text-[20px]">{item.emoji}</span>
-                <span className="text-ink flex-1 text-[14.5px] font-extrabold">{item.name}</span>
+                <span className="text-ink-1 flex-1 text-[14.5px] font-extrabold">{item.name}</span>
                 <span className="text-ink-3 text-[11.5px] font-semibold">
                   {item.stats?.totalCards ?? 0} 张
                 </span>
@@ -145,7 +145,7 @@ export function CardBatchBar({ open, deckId, selectedIds, onFinished }: CardBatc
                   tauri.flashcardUpdateCard(id, { difficulty: level })
                 );
               }}
-              className="bg-input text-ink active:bg-press rounded-[16px] py-3.5 text-[14.5px] font-extrabold disabled:opacity-50"
+              className="bg-page text-ink-1 active:bg-hover rounded-[16px] py-3.5 text-[14.5px] font-extrabold disabled:opacity-50"
             >
               {FLASHCARD_DIFFICULTY_LABEL[level]}
             </button>

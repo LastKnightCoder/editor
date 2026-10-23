@@ -164,7 +164,7 @@ export function ArticlesPage(props: ArticlesPageProps) {
         </span>
       </ArticleCover>
       <div className="p-4">
-        <p className="text-ink text-[18.5px] font-extrabold leading-snug tracking-tight">
+        <p className="text-ink-1 text-[18.5px] font-extrabold leading-snug tracking-tight">
           {article.title}
         </p>
         <p className="text-ink-2 mt-1.5 line-clamp-2 text-[13px] leading-relaxed">
@@ -184,7 +184,7 @@ export function ArticlesPage(props: ArticlesPageProps) {
           <button
             type="button"
             aria-label="文章操作"
-            className={`text-ink-3 active:bg-press -mr-1 grid h-[26px] w-[26px] place-items-center rounded-lg ${
+            className={`text-ink-3 active:bg-hover -mr-1 grid h-[26px] w-[26px] place-items-center rounded-lg ${
               article.tags.length > 0 ? "" : "ml-auto"
             }`}
             onClick={event => {
@@ -207,7 +207,7 @@ export function ArticlesPage(props: ArticlesPageProps) {
       onClick={() => props.onOpenArticle(article.id)}
     >
       <div className="flex min-w-0 flex-1 flex-col">
-        <p className="text-ink line-clamp-2 text-[15.5px] font-bold leading-normal">
+        <p className="text-ink-1 line-clamp-2 text-[15.5px] font-bold leading-normal">
           {article.title}
         </p>
         <p className="text-ink-2 mt-1 line-clamp-2 text-[12.5px] leading-relaxed">
@@ -220,7 +220,7 @@ export function ArticlesPage(props: ArticlesPageProps) {
           <button
             type="button"
             aria-label="文章操作"
-            className="text-ink-3 active:bg-press -mr-1 ml-auto grid h-[26px] w-[26px] place-items-center rounded-lg"
+            className="text-ink-3 active:bg-hover -mr-1 ml-auto grid h-[26px] w-[26px] place-items-center rounded-lg"
             onClick={event => {
               event.stopPropagation();
               setMenuArticle(article);
@@ -264,9 +264,9 @@ export function ArticlesPage(props: ArticlesPageProps) {
       >
         {isLoading ? (
           <div className="card space-y-3 p-4">
-            <div className="bg-input h-4 w-2/5 animate-pulse rounded" />
-            <div className="bg-input h-4 w-4/5 animate-pulse rounded" />
-            <div className="bg-input h-4 w-full animate-pulse rounded" />
+            <div className="bg-page h-4 w-2/5 animate-pulse rounded" />
+            <div className="bg-page h-4 w-4/5 animate-pulse rounded" />
+            <div className="bg-page h-4 w-full animate-pulse rounded" />
           </div>
         ) : articles.length === 0 ? (
           <div className="py-16 text-center">
@@ -324,13 +324,13 @@ export function ArticlesPage(props: ArticlesPageProps) {
             type="button"
             disabled={creating}
             onClick={handleCreate}
-            className="bg-input flex w-full items-center gap-3.5 rounded-[18px] p-4 text-left transition-transform active:scale-[0.97] disabled:opacity-60"
+            className="bg-page flex w-full items-center gap-3.5 rounded-[18px] p-4 text-left transition-transform active:scale-[0.97] disabled:opacity-60"
           >
-            <span className="bg-sky-soft text-sky grid h-[46px] w-[46px] shrink-0 place-items-center rounded-2xl">
+            <span className="bg-tag-2-soft text-tag-2 grid h-[46px] w-[46px] shrink-0 place-items-center rounded-2xl">
               <FileText size={21} strokeWidth={1.9} />
             </span>
             <span>
-              <span className="text-ink block text-[15px] font-bold">空白文章</span>
+              <span className="text-ink-1 block text-[15px] font-bold">空白文章</span>
               <span className="text-ink-2 block text-xs">空白页开始，随手开写</span>
             </span>
           </button>
@@ -340,13 +340,13 @@ export function ArticlesPage(props: ArticlesPageProps) {
               setCreateOpen(false);
               toast({ type: "info", text: "导入 Markdown 即将上线" });
             }}
-            className="bg-input flex w-full items-center gap-3.5 rounded-[18px] p-4 text-left transition-transform active:scale-[0.97]"
+            className="bg-page flex w-full items-center gap-3.5 rounded-[18px] p-4 text-left transition-transform active:scale-[0.97]"
           >
-            <span className="bg-sage-soft text-sage grid h-[46px] w-[46px] shrink-0 place-items-center rounded-2xl">
+            <span className="bg-tag-1-soft text-tag-1 grid h-[46px] w-[46px] shrink-0 place-items-center rounded-2xl">
               <FileDown size={21} strokeWidth={1.9} />
             </span>
             <span>
-              <span className="text-ink block text-[15px] font-bold">导入 Markdown</span>
+              <span className="text-ink-1 block text-[15px] font-bold">导入 Markdown</span>
               <span className="text-ink-2 block text-xs">从 .md 文件导入，自动识别标题与标签</span>
             </span>
           </button>

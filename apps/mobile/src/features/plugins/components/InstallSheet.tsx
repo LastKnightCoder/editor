@@ -52,7 +52,7 @@ export function InstallSheet({
         {state.kind === "resolving" && <Loading minHeight={96} label="正在选择适合此设备的版本…" />}
         {state.kind === "unavailable" && (
           <div role="alert" className="flex flex-col gap-1.5 text-[13px]">
-            <p className="text-ink font-semibold">暂时不能{verb}</p>
+            <p className="text-ink-1 font-semibold">暂时不能{verb}</p>
             {state.message && <p className="text-ink-2">{state.message}</p>}
             <ul className="text-ink-2 flex list-disc flex-col gap-0.5 pl-5">
               {state.reasons.map(reason => (
@@ -67,7 +67,7 @@ export function InstallSheet({
               从插件中心下载 {formatSize(state.size)}，校验通过后在下次打开应用时生效。
             </p>
             <section aria-label="插件权限" className="flex flex-col gap-1.5">
-              <h4 className="text-ink text-[14px] font-semibold">需要的权限</h4>
+              <h4 className="text-ink-1 text-[14px] font-semibold">需要的权限</h4>
               {state.permissions.length ? (
                 <ul className="text-ink-2 flex list-disc flex-col gap-1 pl-5 text-[13px]">
                   {state.permissions.map(permission => (

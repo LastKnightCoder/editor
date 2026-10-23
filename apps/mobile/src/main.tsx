@@ -39,13 +39,13 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, ErrorBou
       const stack = this.state.error.stack ?? "";
       return (
         <main className="min-h-screen px-4 py-6">
-          <section className="bg-rose-soft text-danger shadow-card mx-auto w-full max-w-md rounded-3xl p-4">
+          <section className="bg-tag-5-soft text-danger shadow-card mx-auto w-full max-w-md rounded-3xl p-4">
             <h1 className="text-base font-semibold">页面渲染异常</h1>
             <p className="mt-2 break-all text-sm">{this.state.error.message}</p>
             <button
               type="button"
               onClick={this.resetError}
-              className="bg-accent shadow-accent mt-3 rounded-full px-3.5 py-2 text-sm font-bold text-white"
+              className="bg-accent shadow-lift text-ink-inverse mt-3 rounded-full px-3.5 py-2 text-sm font-bold"
             >
               重试渲染
             </button>

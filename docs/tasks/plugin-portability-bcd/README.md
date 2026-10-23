@@ -31,6 +31,8 @@
 
 ## 任务列表
 
+远端 master 移动适配的合并范围、冲突处理和回归见 [主线集成](master-sync.md)。
+
 前一批 API 矩阵、前向兼容与作者文档收尾见 [API 契约任务](api-contract.md)。最新授权与发行结果见 [SDK 与 APP 发行](sdk-release.md)：已发布 SDK/UI、官方模板与 Android 计数器，开放 Android 分发；不批量迁移其他插件。D 原验收列表保留。
 
 | 任务                                      | 状态        | 结果与下一步                                                                                                        |

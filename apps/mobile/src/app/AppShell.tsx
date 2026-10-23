@@ -21,7 +21,7 @@ import { useResourceSync } from "../hooks/useResourceSync";
 import { useSyncSettings } from "../hooks/useSyncSettings";
 import { mapErrorToMessage, parseInvokeError } from "../services/errors";
 import * as tauri from "../services/tauri";
-import { initThemeRuntime } from "../theme/themeStore";
+import { initThemeRuntime } from "@tau/themes/react";
 import { normalizeEditorContent } from "../features/cards/editorContentUtils";
 import { subscribeContentUpdateAll } from "../features/cards/contentSyncBus";
 import { setupEntityRefsRebuild } from "../features/context/refIndex";
@@ -253,10 +253,8 @@ function AppShellInner() {
     };
   }, []);
 
-  // 初始化主题运行时（index.html 已做首帧应用，这里兜底 + 注册系统偏好监听）
-  useEffect(() => {
-    initThemeRuntime();
-  }, []);
+  // 主题运行时：首帧脚本已预置 data-theme/data-mode，这里接管偏好读写与系统明暗监听
+  useEffect(() => initThemeRuntime(), []);
 
   // entity_refs 引用索引对账：启动一次 + 监听主进程 reconcile 就绪事件（保存、同步下载、切库）
   useEffect(() => setupEntityRefsRebuild(), []);
@@ -437,7 +435,7 @@ function AppShellInner() {
           minHeight: "100dvh",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "var(--bg-page)",
+          backgroundColor: "var(--tau-bg-page)",
           padding: "0 24px",
         }}
       >
@@ -447,13 +445,13 @@ function AppShellInner() {
               width: 40,
               height: 40,
               margin: "0 auto 16px",
-              border: "2px solid var(--line-1)",
+              border: "2px solid var(--tau-line-1)",
               borderTopColor: "transparent",
               borderRadius: "50%",
               animation: "spin 1s linear infinite",
             }}
           />
-          <p style={{ fontSize: 14, color: "var(--ink-2)" }}>正在初始化...</p>
+          <p style={{ fontSize: 14, color: "var(--tau-ink-2)" }}>正在初始化...</p>
         </div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </main>

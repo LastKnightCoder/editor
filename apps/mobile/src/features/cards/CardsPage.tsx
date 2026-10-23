@@ -164,10 +164,10 @@ export function CardsPage(props: CardsPageProps) {
         <div className="space-y-3">
           {[1, 2, 3].map(i => (
             <div key={i} className="card p-4">
-              <div className="bg-input h-4 w-16 animate-pulse rounded-full" />
-              <div className="bg-input mt-3 h-4 w-full animate-pulse rounded" />
-              <div className="bg-input mt-2 h-4 w-2/3 animate-pulse rounded" />
-              <div className="bg-input mt-3 h-3 w-24 animate-pulse rounded-full" />
+              <div className="bg-page h-4 w-16 animate-pulse rounded-full" />
+              <div className="bg-page mt-3 h-4 w-full animate-pulse rounded" />
+              <div className="bg-page mt-2 h-4 w-2/3 animate-pulse rounded" />
+              <div className="bg-page mt-3 h-3 w-24 animate-pulse rounded-full" />
             </div>
           ))}
         </div>

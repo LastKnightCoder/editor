@@ -149,7 +149,7 @@ export function CardLinksSheet({
 
         <header className={`px-4 ${panelState === "full" ? "mobile-safe-top-gap pb-3" : "pb-2"}`}>
           <div className="flex items-center gap-2.5">
-            <span className="text-ink text-[16px] font-bold">添加关联</span>
+            <span className="text-ink-1 text-[16px] font-bold">添加关联</span>
             <button
               type="button"
               onClick={() => onConfirm([...picked])}
@@ -168,7 +168,7 @@ export function CardLinksSheet({
               value={query}
               onChange={event => setQuery(event.target.value)}
               placeholder="搜索卡片…"
-              className="input-base text-ink placeholder:text-ink-3 w-full rounded-lg py-2.5 pl-9 pr-3 text-[14px]"
+              className="input-base text-ink-1 placeholder:text-ink-3 w-full rounded-lg py-2.5 pl-9 pr-3 text-[14px]"
             />
           </div>
         </header>
@@ -183,10 +183,10 @@ export function CardLinksSheet({
                     key={item.id}
                     type="button"
                     onClick={() => toggle(item.id)}
-                    className="bg-surface shadow-card active:bg-press flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-left transition-colors"
+                    className="bg-surface shadow-card active:bg-hover flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-left transition-colors"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="text-ink line-clamp-1 text-[14.5px] font-semibold">
+                      <p className="text-ink-1 line-clamp-1 text-[14.5px] font-semibold">
                         {resolveTitle(item)}
                       </p>
                       <p className="text-ink-3 mt-0.5 text-[11.5px]">{resolveSubtitle(item)}</p>
@@ -194,8 +194,8 @@ export function CardLinksSheet({
                     <span
                       className={`grid h-[30px] w-[30px] shrink-0 place-items-center rounded-full ${
                         isSelected
-                          ? "bg-accent text-white"
-                          : "border-line text-ink-2 border-[1.5px]"
+                          ? "bg-accent text-ink-inverse"
+                          : "border-line-1 text-ink-2 border-[1.5px]"
                       }`}
                       aria-hidden
                     >

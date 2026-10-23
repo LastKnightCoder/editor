@@ -46,7 +46,7 @@ export function ActionSheet(props: ActionSheetProps) {
     if (props.loading) {
       return (
         <div className="flex flex-col items-center gap-2.5 px-5 py-8">
-          <span className="border-line-soft border-t-accent h-6 w-6 animate-spin rounded-full border-[3px]" />
+          <span className="border-line-2 border-t-accent h-6 w-6 animate-spin rounded-full border-[3px]" />
           <div className="text-ink-3 text-[13.5px] font-medium">加载中...</div>
         </div>
       );
@@ -69,8 +69,8 @@ export function ActionSheet(props: ActionSheetProps) {
             <button
               key={option.value}
               type="button"
-              className={`active:bg-press flex w-full items-center justify-between rounded-[14px] px-3.5 py-[13px] text-left text-[15px] transition-colors ${
-                selected ? "text-accent font-bold" : "text-ink font-medium"
+              className={`active:bg-hover flex w-full items-center justify-between rounded-[14px] px-3.5 py-[13px] text-left text-[15px] transition-colors ${
+                selected ? "text-accent font-bold" : "text-ink-1 font-medium"
               }`}
               onClick={() => {
                 props.onSelect(option.value);
@@ -100,7 +100,7 @@ export function ActionSheet(props: ActionSheetProps) {
     <div className="fixed inset-0" style={{ zIndex: Z_INDEX.CONFIRM }}>
       <button
         type="button"
-        className={`bg-mask absolute inset-0 ${props.open ? "mask-enter" : "mask-exit"}`}
+        className={`bg-overlay absolute inset-0 ${props.open ? "mask-enter" : "mask-exit"}`}
         aria-label="关闭选择面板"
         onClick={props.onClose}
       />
@@ -114,14 +114,14 @@ export function ActionSheet(props: ActionSheetProps) {
       >
         <div className="sheet-grab" />
         <div className="pb-[calc(env(safe-area-inset-bottom,0px)+10px)]">
-          <div className="border-line-soft border-b px-6 pb-[14px] pt-1.5">
-            <div className="text-ink truncate text-[17px] font-bold">{props.title}</div>
+          <div className="border-line-2 border-b px-6 pb-[14px] pt-1.5">
+            <div className="text-ink-1 truncate text-[17px] font-bold">{props.title}</div>
           </div>
           {content}
           <div className="px-2.5 pt-1.5">
             <button
               type="button"
-              className="text-ink-2 active:bg-press w-full rounded-[14px] py-[13px] text-[15px] font-bold transition-colors"
+              className="text-ink-2 active:bg-hover w-full rounded-[14px] py-[13px] text-[15px] font-bold transition-colors"
               onClick={props.onClose}
             >
               {props.cancelText ?? "取消"}

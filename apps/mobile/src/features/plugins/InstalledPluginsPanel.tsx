@@ -179,7 +179,7 @@ export function InstalledPluginsPanel() {
           aria-labelledby="plugin-dev-install"
           className="bg-surface shadow-card rounded-card my-4 flex flex-col gap-2 p-4"
         >
-          <h2 id="plugin-dev-install" className="text-ink text-[15px] font-semibold">
+          <h2 id="plugin-dev-install" className="text-ink-1 text-[15px] font-semibold">
             受控开发安装
           </h2>
           <p className="text-ink-2 text-[13px]">

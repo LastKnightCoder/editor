@@ -409,7 +409,7 @@ export function PanContainer(props: PanContainerProps) {
         type="button"
         aria-label="关闭面板"
         className={cn(
-          "bg-mask absolute inset-0",
+          "bg-overlay absolute inset-0",
           props.open ? "mask-enter" : "mask-exit",
           props.maskClassName
         )}

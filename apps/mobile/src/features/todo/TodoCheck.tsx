@@ -20,11 +20,11 @@ export function TodoCheck({ checked, onToggle, small = false }: TodoCheckProps) 
       }}
       className={`grid shrink-0 place-items-center rounded-full border-2 ${
         small ? "h-4 w-4" : "h-[22px] w-[22px]"
-      } ${checked ? "border-transparent text-white" : "border-ink-3 text-transparent"}`}
+      } ${checked ? "text-ink-inverse border-transparent" : "border-ink-3 text-transparent"}`}
       style={{
-        backgroundImage: checked ? "var(--brand-grad)" : undefined,
+        background: checked ? "var(--tau-accent)" : undefined,
         transform: checked ? "rotate(360deg)" : undefined,
-        boxShadow: checked ? "var(--shadow-accent)" : undefined,
+        boxShadow: checked ? "var(--tau-shadow-lift)" : undefined,
         transition: "all 0.25s var(--ease-bounce)",
       }}
     >

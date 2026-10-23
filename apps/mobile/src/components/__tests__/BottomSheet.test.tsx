@@ -50,7 +50,7 @@ function getDragZone(): HTMLElement | null {
 }
 
 function getMask(): HTMLElement | null {
-  return document.querySelector<HTMLElement>(".bg-mask");
+  return document.querySelector<HTMLElement>(".bg-overlay");
 }
 
 /** 在 act 内轮询等待条件成立，动画完成帧触发的 setState 得以正确 flush */

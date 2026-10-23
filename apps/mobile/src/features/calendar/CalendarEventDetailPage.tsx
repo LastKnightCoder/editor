@@ -5,7 +5,7 @@ import { useMemo, useRef, useState } from "react";
 import { getMobileContentKit } from "../../services/editorKit";
 import type { Descendant } from "slate";
 import { Editor, createValueDocument } from "@tau/editor";
-import { useMobileTheme } from "../../hooks/useMobileTheme";
+import { useThemeStore } from "@tau/themes/react";
 import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
 import { ActionSheet } from "../../components/ActionSheet";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
@@ -44,7 +44,7 @@ export function CalendarEventDetailPage({
   onOpenPomodoroHistory,
   onOpenTodo,
 }: CalendarEventDetailPageProps) {
-  const { isDark } = useMobileTheme();
+  const isDark = useThemeStore(s => s.mode === "dark");
   const { data: event, isError } = useCalendarEventById(eventId);
   const { data: calendars = [] } = useCalendars();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -63,7 +63,7 @@ export function CalendarEventDetailPage({
   );
   const color = event
     ? eventColorValue(event.color, event.calendarColor ?? calendar?.color, isDark)
-    : "var(--ink-3)";
+    : "var(--tau-ink-3)";
   const calendarTitle = event?.calendarTitle ?? calendar?.title ?? "";
 
   // 删除或同步替换后，旧事件查询失败需要明确出口。
@@ -75,7 +75,7 @@ export function CalendarEventDetailPage({
           {isError ? (
             <>
               <CalendarX2 size={34} className="text-ink-3" aria-hidden />
-              <div className="text-ink text-[14px] font-extrabold">日程不存在或已被系统更新</div>
+              <div className="text-ink-1 text-[14px] font-extrabold">日程不存在或已被系统更新</div>
               <div className="text-ink-3 text-center text-[12px] leading-[1.6]">
                 请返回日历后重新打开
               </div>
@@ -89,8 +89,7 @@ export function CalendarEventDetailPage({
   }
 
   const isPomodoroEvent = event.isInSystemEvent && calendarTitle === "番茄钟";
-  const isTodoEvent =
-    event.isInSystemEvent && ["截止任务", "周期任务"].includes(calendarTitle);
+  const isTodoEvent = event.isInSystemEvent && ["截止任务", "周期任务"].includes(calendarTitle);
   const hasDetail = !isEditorContentEmpty(event.detailContent);
   const crossDay = event.endDate !== null && event.endDate !== event.startDate;
   const timeMain = crossDay
@@ -135,23 +134,23 @@ export function CalendarEventDetailPage({
               <i className="h-[9px] w-[9px] rounded-full" style={{ background: color }} />
               {calendarTitle}
               {event.isInSystemEvent ? (
-                <span className="bg-input text-ink-3 ml-1 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold">
+                <span className="bg-page text-ink-3 ml-1 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold">
                   系统日程
                 </span>
               ) : null}
             </div>
-            <h2 className="text-ink mt-2.5 text-[23px] font-extrabold leading-[1.35]">
+            <h2 className="text-ink-1 mt-2.5 text-[23px] font-extrabold leading-[1.35]">
               {event.title}
             </h2>
           </div>
 
           <div className="bg-surface shadow-card mx-[18px] mt-3 rounded-[20px] px-[18px] py-1">
-            <div className="flex items-center gap-[13px] border-b border-[var(--line-2)] py-3.5">
-              <span className="bg-input text-ink-2 grid h-[34px] w-[34px] flex-none place-items-center rounded-[11px]">
+            <div className="flex items-center gap-[13px] border-b border-[var(--tau-line-2)] py-3.5">
+              <span className="bg-page text-ink-2 grid h-[34px] w-[34px] flex-none place-items-center rounded-[11px]">
                 <Clock size={17} strokeWidth={2} />
               </span>
               <span className="min-w-0">
-                <span className="text-ink block text-[13.5px] font-bold">{timeMain}</span>
+                <span className="text-ink-1 block text-[13.5px] font-bold">{timeMain}</span>
                 {durationSub ? (
                   <span className="text-ink-3 mt-0.5 block text-[11.5px] font-semibold">
                     {durationSub}
@@ -159,12 +158,12 @@ export function CalendarEventDetailPage({
                 ) : null}
               </span>
             </div>
-            <div className="flex items-center gap-[13px] border-b border-[var(--line-2)] py-3.5 last:border-b-0">
-              <span className="bg-input text-ink-2 grid h-[34px] w-[34px] flex-none place-items-center rounded-[11px]">
+            <div className="flex items-center gap-[13px] border-b border-[var(--tau-line-2)] py-3.5 last:border-b-0">
+              <span className="bg-page text-ink-2 grid h-[34px] w-[34px] flex-none place-items-center rounded-[11px]">
                 <CalendarDays size={17} strokeWidth={2} />
               </span>
               <span className="min-w-0">
-                <span className="text-ink block text-[13.5px] font-bold">{calendarTitle}</span>
+                <span className="text-ink-1 block text-[13.5px] font-bold">{calendarTitle}</span>
               </span>
             </div>
           </div>
@@ -205,7 +204,7 @@ export function CalendarEventDetailPage({
                       kit={getMobileContentKit()}
                       document={document}
                       readonly={true}
-                      className="text-ink w-full text-[13.5px] font-medium leading-[1.85] outline-none"
+                      className="text-ink-1 w-full text-[13.5px] font-medium leading-[1.85] outline-none"
                     />
                   ) : (
                     <p className="text-ink-3 text-[13.5px] leading-[1.85]">暂无描述</p>
@@ -219,20 +218,20 @@ export function CalendarEventDetailPage({
         {!event.isInSystemEvent ? (
           <div
             className="flex flex-none gap-2.5 px-[18px] pt-3.5"
-            style={{ background: "linear-gradient(to top, var(--bg-page) 62%, transparent)" }}
+            style={{ background: "linear-gradient(to top, var(--tau-bg-page) 62%, transparent)" }}
           >
             <button
               type="button"
               onClick={() => setConfirmDelete(true)}
-              className="bg-surface shadow-card text-ink h-12 flex-1 rounded-2xl text-[14.5px] font-extrabold"
+              className="bg-surface shadow-card text-ink-1 h-12 flex-1 rounded-2xl text-[14.5px] font-extrabold"
             >
               删除
             </button>
             <button
               type="button"
               onClick={() => onEdit(event)}
-              className="shadow-accent h-12 flex-1 rounded-2xl text-[14.5px] font-extrabold text-white"
-              style={{ background: "var(--brand-grad)" }}
+              className="shadow-lift text-ink-inverse h-12 flex-1 rounded-2xl text-[14.5px] font-extrabold"
+              style={{ background: "var(--tau-accent)" }}
             >
               编辑
             </button>

@@ -21,18 +21,18 @@ function SessionRow(props: { session: CollaborationSession; onOpen: () => void }
     <button
       type="button"
       onClick={props.onOpen}
-      className="active:bg-press flex w-full items-center gap-3 px-4 py-[11px] text-left transition-colors"
+      className="active:bg-hover flex w-full items-center gap-3 px-4 py-[11px] text-left transition-colors"
     >
-      <span className="bg-apricot-soft text-apricot grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[11px]">
+      <span className="bg-accent-soft text-accent-text grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[11px]">
         <FileText size={17} strokeWidth={1.9} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="text-ink block truncate text-[14px] font-semibold">
+        <span className="text-ink-1 block truncate text-[14px] font-semibold">
           {props.session.title}
         </span>
         <span className="text-ink-3 mt-0.5 flex items-center gap-1.5 text-[11.5px]">
           <StatusDot tone={status.tone} />
-          <span className={status.tone === "live" ? "text-sage" : undefined}>
+          <span className={status.tone === "live" ? "text-tag-1" : undefined}>
             {status.tone === "live" ? `${status.label} · ${online.length} 人在线` : status.label}
           </span>
         </span>
@@ -55,7 +55,7 @@ function SessionGroup(props: {
       <GroupLabel inset="page" className="font-medium">
         {props.title} · {props.sessions.length}
       </GroupLabel>
-      <div className="bg-surface shadow-card divide-line-soft mx-4 mb-4 divide-y overflow-hidden rounded-[22px]">
+      <div className="bg-surface shadow-card divide-line-2 mx-4 mb-4 divide-y overflow-hidden rounded-[22px]">
         {props.sessions.map(session => (
           <SessionRow key={session.id} session={session} onOpen={() => props.onOpen(session.id)} />
         ))}
@@ -122,12 +122,12 @@ export function CollaborationCenterPage(props: {
         <button
           type="button"
           onClick={() => navigator.push("settingsModule", { module: "collaboration" })}
-          className="bg-surface shadow-card active:bg-press mx-4 mb-4 mt-1.5 flex w-[calc(100%-2rem)] items-center gap-3 rounded-[20px] p-4 text-left transition-colors"
+          className="bg-surface shadow-card active:bg-hover mx-4 mb-4 mt-1.5 flex w-[calc(100%-2rem)] items-center gap-3 rounded-[20px] p-4 text-left transition-colors"
         >
           <Avatar id={deviceId ?? "local"} name={nickname} size="lg" online={status === "ready"} />
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-2">
-              <span className="text-ink text-[15.5px] font-extrabold">{nickname}</span>
+              <span className="text-ink-1 text-[15.5px] font-extrabold">{nickname}</span>
               {status === "starting" ? (
                 <span className="text-ink-3 flex items-center gap-1 text-[11px]">
                   <Loader2 size={11} className="animate-spin" /> 连接中
@@ -137,7 +137,7 @@ export function CollaborationCenterPage(props: {
             <span className="text-ink-3 mt-1 block truncate text-[11.5px]">
               {serverUrl.replace(/^https?:\/\//, "")}
               {" · "}
-              <span className={status === "ready" ? "text-sage" : "text-rose"}>
+              <span className={status === "ready" ? "text-tag-1" : "text-tag-5"}>
                 {status === "ready" ? "已连接" : status === "error" ? "连接异常" : "未连接"}
               </span>
             </span>
@@ -146,7 +146,7 @@ export function CollaborationCenterPage(props: {
         </button>
 
         {error ? (
-          <div className="bg-rose-soft text-rose mx-4 mb-4 rounded-[16px] px-4 py-3 text-[12.5px] leading-relaxed">
+          <div className="bg-tag-5-soft text-tag-5 mx-4 mb-4 rounded-[16px] px-4 py-3 text-[12.5px] leading-relaxed">
             {error}
           </div>
         ) : null}
@@ -156,7 +156,7 @@ export function CollaborationCenterPage(props: {
             <GroupLabel inset="page" tone="warn" className="font-medium">
               待审批 · {requests.length}
             </GroupLabel>
-            <div className="bg-surface shadow-card divide-line-soft mx-4 mb-4 divide-y overflow-hidden rounded-[22px]">
+            <div className="bg-surface shadow-card divide-line-2 mx-4 mb-4 divide-y overflow-hidden rounded-[22px]">
               {requests.map(request => (
                 <ApprovalRow
                   key={request.id}
@@ -174,7 +174,7 @@ export function CollaborationCenterPage(props: {
             <span className="bg-accent-soft text-accent grid h-[64px] w-[64px] place-items-center rounded-[22px]">
               <UserPlus size={28} strokeWidth={1.8} />
             </span>
-            <p className="text-ink mt-5 text-[16px] font-extrabold">还没有协作</p>
+            <p className="text-ink-1 mt-5 text-[16px] font-extrabold">还没有协作</p>
             <p className="text-ink-2 mt-2 text-[13px] leading-relaxed">
               输入伙伴分享的协作码加入，
               <br />
@@ -183,8 +183,8 @@ export function CollaborationCenterPage(props: {
             <button
               type="button"
               onClick={() => navigator.push("joinSheet")}
-              className="shadow-accent mt-6 rounded-full px-7 py-3 text-[14px] font-extrabold text-white active:scale-[0.97]"
-              style={{ backgroundImage: "var(--brand-grad)" }}
+              className="shadow-lift text-ink-inverse mt-6 rounded-full px-7 py-3 text-[14px] font-extrabold active:scale-[0.97]"
+              style={{ background: "var(--tau-accent)" }}
             >
               加入协作
             </button>

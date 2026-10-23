@@ -713,7 +713,7 @@ find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘
 
 ### 今日页面板与统计
 
-**面板布局**：hero（问候与数字）固定非面板；内置面板登记在 `panels.ts`（固定 id/title/size/component，数组序即默认布局，ID 随库保存不要改名）。布局 = 有序 `{id, hidden}` 列表存主库 `home_panel_layout`（整份读写，乐观写失败回滚；保存过的顺序在前、未注册面板保留位置、新面板按默认序追加）。`HomePanels` 是 flex-wrap 流式容器：wide 占整行，compact `flex-[1_1_340px]`，同行等高不预设栏数；组件返回 null 外层不占位。编辑模式（「调整首页」按钮、「恢复默认」= 保存空布局、Esc 退出）支持拖拽重排（按紧凑面板左右半边/整行上下半边算插入位）、把手方向键移动并把焦点还给把手、隐藏面板区（点击恢复/拖回/拖进即隐藏）。回顾段保留自己的标题行与时间窗，懒加载滚动根经 `HomeScrollRootContext`。
+**面板布局**：hero（问候与数字）固定非面板；内置面板登记在 `panels.ts`（固定 id/title/size/component，数组序即默认布局，ID 随库保存不要改名）。布局 = 有序 `{id, hidden}` 列表存主库 `home_panel_layout`（整份读写，乐观写失败回滚；保存过的顺序在前、未注册面板保留位置、新面板按默认序追加）。`HomePanels` 是 flex-wrap 流式容器：wide 占整行，compact `flex-[1_1_340px]`，同行等高不预设栏数；组件返回 null 外层不占位。编辑模式（「调整首页」按钮；编辑时 hero 右侧数字换成提示与「恢复默认」= 保存空布局 /「完成」，不另起提示条；Esc 退出）内容 `inert` 但不变淡。拖拽用指针事件（不用 HTML 拖放 API，Electron 里原生拖放可能起不来、连 dragend 都不来）：面板克隆成浮起卡片跟手（整行缩到 560px 宽），原位留 `[data-home-panel-slot]` 空位，拖动中的顺序是组件内 `preview`，其余面板经 motion `layout="position"` 实时让位（`FadeScroll layoutScroll`）；命中按布局位置 `offset*`（不受让位 transform 影响，紧凑面板看左右半边、整行看上下半边，让位后 10px 滞回防抖），松手才保存，Esc 取消回原序，退出编辑丢弃进行中的拖动，靠近滚动区边缘自动滚动；把手方向键移动并把焦点还给把手；隐藏面板区（点击恢复/拖回/拖进即隐藏，其上缘以下都算拖进）。回顾段保留自己的标题行与时间窗，懒加载滚动根经 `HomeScrollRootContext`。
 
 **插件面板**：`context.home.registerPanel` 登记为 `RegisteredPluginHomePanel`（布局 ID `plugin:<pluginId>:<id>`），排在内置面板之后作默认序；宿主画 Panel 外框与标题，插件组件包在 RecoverableBoundary、UiProvider、PluginComponentScope 里只渲染正文，正文容器为空时外层隐藏；运行时其他变更不重挂插件面板；插件停用后位置保留。
 

@@ -2,7 +2,7 @@
 // 用户日历带事件归属分组排序；选中项打勾。
 
 import { BottomSheet } from "../../../components/BottomSheet";
-import { useMobileTheme } from "../../../hooks/useMobileTheme";
+import { useThemeStore } from "@tau/themes/react";
 import { calendarColorValue } from "../constants";
 import type { Calendar } from "../types";
 
@@ -21,7 +21,7 @@ export function CalendarPickerSheet({
   onSelect,
   onClose,
 }: CalendarPickerSheetProps) {
-  const { isDark } = useMobileTheme();
+  const isDark = useThemeStore(s => s.mode === "dark");
   const selectable = calendars.filter(calendar => !calendar.archived);
   return (
     <BottomSheet open={open} title="选择日历" onClose={onClose}>
@@ -38,7 +38,7 @@ export function CalendarPickerSheet({
                 onClose();
               }}
               className={`flex w-full items-center gap-3 rounded-[14px] px-1.5 py-[13px] text-left ${
-                calendar.isInSystemGroup ? "opacity-60" : "active:bg-input"
+                calendar.isInSystemGroup ? "opacity-60" : "active:bg-page"
               }`}
             >
               <i
@@ -47,13 +47,13 @@ export function CalendarPickerSheet({
               />
               <span
                 className={`flex-1 text-[14.5px] font-bold ${
-                  calendar.isInSystemGroup ? "text-ink-2" : "text-ink"
+                  calendar.isInSystemGroup ? "text-ink-2" : "text-ink-1"
                 }`}
               >
                 {calendar.title}
               </span>
               {calendar.isInSystemGroup ? (
-                <span className="bg-input text-ink-3 rounded-full px-2 py-0.5 text-[10px] font-extrabold">
+                <span className="bg-page text-ink-3 rounded-full px-2 py-0.5 text-[10px] font-extrabold">
                   系统
                 </span>
               ) : null}

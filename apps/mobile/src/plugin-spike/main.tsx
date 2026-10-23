@@ -30,7 +30,7 @@ import {
 } from "./runtime";
 import { getMobileContentKit } from "../services/editorKit";
 import { mobileCodecComposition } from "../services/editorMarkdown";
-import { initThemeRuntime } from "../theme/themeStore";
+import { initThemeRuntime } from "@tau/themes/react";
 import {
   definePage,
   paramString,

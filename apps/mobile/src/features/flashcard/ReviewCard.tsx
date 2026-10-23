@@ -26,7 +26,7 @@ const noopBlankHandlers = {
 function TypeTag({ card, extra }: { card: Flashcard; extra?: string }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="bg-apricot-soft text-apricot rounded-full px-2.5 py-1 text-[10.5px] font-extrabold">
+      <span className="bg-accent-soft text-accent-text rounded-full px-2.5 py-1 text-[10.5px] font-extrabold">
         {FLASHCARD_TYPE_META[card.type].label}
         {extra ? ` · ${extra}` : ""}
       </span>
@@ -71,19 +71,19 @@ export function ReviewCardFront({ card, answer, onAnswerChange }: ReviewCardFace
                   className={`shadow-card flex items-center gap-3 rounded-[16px] border-2 px-4 py-3.5 text-left text-[14.5px] font-semibold transition-colors ${
                     isSelected
                       ? "border-accent bg-accent-soft"
-                      : "bg-page active:bg-press border-transparent"
+                      : "bg-page active:bg-hover border-transparent"
                   }`}
                 >
                   <span
                     className={`grid h-7 w-7 flex-none place-items-center rounded-[10px] text-[12.5px] font-extrabold ${
-                      isSelected ? "bg-accent text-white" : "bg-input text-ink-2"
+                      isSelected ? "bg-accent text-ink-inverse" : "bg-page text-ink-2"
                     }`}
                   >
                     {String.fromCharCode(65 + index)}
                   </span>
                   <span className="leading-[1.55]">{option.label}</span>
                   {isMultiple && isSelected ? (
-                    <span className="bg-sage ml-auto grid h-[22px] w-[22px] flex-none place-items-center rounded-[7px] text-[11px] font-extrabold text-white">
+                    <span className="bg-tag-1 text-ink-inverse ml-auto grid h-[22px] w-[22px] flex-none place-items-center rounded-[7px] text-[11px] font-extrabold">
                       ✓
                     </span>
                   ) : null}
@@ -110,9 +110,9 @@ export function ReviewCardFront({ card, answer, onAnswerChange }: ReviewCardFace
                   className={`rounded-[18px] border-2 py-4 text-center font-extrabold transition-colors ${
                     selected
                       ? value
-                        ? "bg-sage-soft text-sage border-[var(--sage)]"
-                        : "bg-rose-soft text-danger border-[var(--danger)]"
-                      : "bg-page text-ink-2 active:bg-press border-transparent"
+                        ? "bg-tag-1-soft text-tag-1 border-[var(--tau-tag-1)]"
+                        : "bg-tag-5-soft text-danger border-[var(--tau-danger)]"
+                      : "bg-page text-ink-2 active:bg-hover border-transparent"
                   }`}
                 >
                   <span className="block text-[24px] leading-none">{value ? "✓" : "✕"}</span>
@@ -130,7 +130,7 @@ export function ReviewCardFront({ card, answer, onAnswerChange }: ReviewCardFace
               onChange={event => onAnswerChange({ qa: event.target.value })}
               placeholder="先凭记忆作答，再翻面对照（也可以直接翻面自评）"
               rows={5}
-              className="bg-page text-ink placeholder:text-ink-3 focus:border-accent w-full resize-none rounded-[16px] border-2 border-transparent px-4 py-3.5 text-[14px] font-medium leading-[1.7] outline-none"
+              className="bg-page text-ink-1 placeholder:text-ink-3 focus:border-accent w-full resize-none rounded-[16px] border-2 border-transparent px-4 py-3.5 text-[14px] font-medium leading-[1.7] outline-none"
             />
           </div>
         );
@@ -142,7 +142,7 @@ export function ReviewCardFront({ card, answer, onAnswerChange }: ReviewCardFace
   return (
     <>
       <TypeTag card={card} />
-      <div className="text-ink mt-3.5 text-[17px] font-bold leading-[1.65]">
+      <div className="text-ink-1 mt-3.5 text-[17px] font-bold leading-[1.65]">
         {card.type === "cloze" ? (
           <ClozeInteractivePrompt card={card} answer={answer} onAnswerChange={onAnswerChange} />
         ) : (
@@ -151,7 +151,7 @@ export function ReviewCardFront({ card, answer, onAnswerChange }: ReviewCardFace
       </div>
       {card.type !== "cloze" ? renderBody() : null}
       {hint ? (
-        <div className="bg-input text-meta-ink mt-4 flex items-start gap-2 rounded-[14px] px-3.5 py-3 text-[12.5px] font-semibold">
+        <div className="bg-page text-ink-2 mt-4 flex items-start gap-2 rounded-[14px] px-3.5 py-3 text-[12.5px] font-semibold">
           <Lightbulb size={14} className="mt-[3px] flex-none" />
           <span className="leading-[1.6]">{hint}</span>
         </div>
@@ -206,18 +206,18 @@ export function ReviewCardBack({
                   key={option.id}
                   className={`flex items-center gap-3 rounded-[14px] border-2 px-3.5 py-2.5 text-[13px] font-semibold ${
                     showCorrect
-                      ? "bg-sage-soft text-sage border-[var(--sage)]"
+                      ? "bg-tag-1-soft text-tag-1 border-[var(--tau-tag-1)]"
                       : showWrong
-                        ? "bg-rose-soft text-danger border-[var(--danger)]"
+                        ? "bg-tag-5-soft text-danger border-[var(--tau-danger)]"
                         : "bg-page/60 text-ink-3 border-transparent opacity-60"
                   }`}
                 >
-                  <span className="bg-input grid h-6 w-6 flex-none place-items-center rounded-[8px] text-[11.5px] font-extrabold">
+                  <span className="bg-page grid h-6 w-6 flex-none place-items-center rounded-[8px] text-[11.5px] font-extrabold">
                     {String.fromCharCode(65 + index)}
                   </span>
                   <span className="leading-[1.5]">{option.label}</span>
                   {showCorrect ? (
-                    <span className="text-sage ml-auto flex-none text-[10.5px] font-extrabold">
+                    <span className="text-tag-1 ml-auto flex-none text-[10.5px] font-extrabold">
                       正确答案
                     </span>
                   ) : showWrong ? (
@@ -239,8 +239,10 @@ export function ReviewCardBack({
           <div
             className="mt-3.5 inline-flex items-center gap-2 self-start rounded-[13px] px-3.5 py-2.5 text-[14px] font-extrabold"
             style={{
-              background: card.data.booleanAnswer ? "var(--sage-soft)" : "var(--rose-soft)",
-              color: card.data.booleanAnswer ? "var(--sage)" : "var(--danger)",
+              background: card.data.booleanAnswer
+                ? "var(--tau-tag-1-soft)"
+                : "var(--tau-tag-5-soft)",
+              color: card.data.booleanAnswer ? "var(--tau-tag-1)" : "var(--tau-danger)",
             }}
           >
             {card.data.booleanAnswer ? "✓ 正确" : "✕ 错误"}
@@ -248,7 +250,7 @@ export function ReviewCardBack({
         );
       case "cloze":
         return (
-          <div className="text-ink mt-3.5 text-[15px] font-semibold leading-[2.1]">
+          <div className="text-ink-1 mt-3.5 text-[15px] font-semibold leading-[2.1]">
             <RichContent
               content={card.prompt}
               blankProps={{
@@ -263,9 +265,9 @@ export function ReviewCardBack({
         );
       case "qa":
         return (
-          <div className="bg-input mt-3.5 rounded-[16px] px-4 py-3.5">
-            <div className="text-meta-ink mb-1.5 text-[11.5px] font-extrabold">参考答案</div>
-            <div className="text-ink text-[14px] font-medium leading-[1.8]">
+          <div className="bg-page mt-3.5 rounded-[16px] px-4 py-3.5">
+            <div className="text-ink-2 mb-1.5 text-[11.5px] font-extrabold">参考答案</div>
+            <div className="text-ink-1 text-[14px] font-medium leading-[1.8]">
               {card.data.answer?.trim() || "（未设置参考答案，请结合解析自评）"}
             </div>
           </div>
@@ -281,8 +283,8 @@ export function ReviewCardBack({
         className="flex items-center gap-2.5 rounded-[14px] px-4 py-3 text-[14px] font-extrabold"
         style={
           isCorrect
-            ? { background: "var(--sage-soft)", color: "var(--sage)" }
-            : { background: "var(--rose-soft)", color: "var(--danger)" }
+            ? { background: "var(--tau-tag-1-soft)", color: "var(--tau-tag-1)" }
+            : { background: "var(--tau-tag-5-soft)", color: "var(--tau-danger)" }
         }
       >
         {isCorrect ? "✓ 回答正确" : "✕ 回答错误"}
@@ -292,20 +294,20 @@ export function ReviewCardBack({
       </div>
       {/* cloze 的题干在 renderAnswerBlock 里以「逐空判分高亮」形态渲染，顶部跳过以免重复且明文露答案 */}
       {card.type !== "cloze" ? (
-        <div className="text-ink mt-3.5 text-[15.5px] font-bold leading-[1.6]">
+        <div className="text-ink-1 mt-3.5 text-[15.5px] font-bold leading-[1.6]">
           <RichContent content={card.prompt} />
         </div>
       ) : null}
       {renderAnswerBlock()}
       {!detailEmpty ? (
-        <div className="text-ink mt-3.5 text-[14px] leading-[1.8]">
-          <div className="text-meta-ink mb-1 text-[11.5px] font-extrabold">补充</div>
+        <div className="text-ink-1 mt-3.5 text-[14px] leading-[1.8]">
+          <div className="text-ink-2 mb-1 text-[11.5px] font-extrabold">补充</div>
           <RichContent content={card.detail} />
         </div>
       ) : null}
       {explanation ? (
-        <div className="border-line text-meta-ink mt-3.5 border-t border-dashed pt-3 text-[13px] leading-[1.75]">
-          <b className="text-ink">解析：</b>
+        <div className="border-line-1 text-ink-2 mt-3.5 border-t border-dashed pt-3 text-[13px] leading-[1.75]">
+          <b className="text-ink-1">解析：</b>
           {explanation}
         </div>
       ) : null}
@@ -319,13 +321,13 @@ export function ReferenceEntry({ title, onOpen }: { title: string; onOpen: () =>
     <button
       type="button"
       onClick={onOpen}
-      className="bg-input border-line active:bg-press flex w-full items-center gap-3 rounded-[15px] border border-dashed px-3.5 py-3 text-left"
+      className="bg-page border-line-1 active:bg-hover flex w-full items-center gap-3 rounded-[15px] border border-dashed px-3.5 py-3 text-left"
     >
       <span className="bg-surface text-accent shadow-card grid h-9 w-9 flex-none place-items-center rounded-[11px]">
         <Paperclip size={15} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="text-ink block truncate text-[13px] font-extrabold">{title}</span>
+        <span className="text-ink-1 block truncate text-[13px] font-extrabold">{title}</span>
         <span className="text-ink-3 mt-0.5 block text-[10.5px] font-bold">
           参考资料 · 点击查看原文
         </span>

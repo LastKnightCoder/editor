@@ -147,7 +147,7 @@ export function CollaborativeEditor(props: {
 
   if (!binding) {
     return unavailable ? (
-      <div className="bg-butter-soft text-warn mt-4 flex items-center gap-2.5 rounded-[14px] px-3.5 py-2.5 text-[12.5px] font-semibold">
+      <div className="bg-tag-4-soft text-warn mt-4 flex items-center gap-2.5 rounded-[14px] px-3.5 py-2.5 text-[12.5px] font-semibold">
         <WifiOff size={15} className="shrink-0" />
         <span className="flex-1">协作连接失败，正在编辑本地内容（暂不同步云端）</span>
         <button
@@ -160,7 +160,7 @@ export function CollaborativeEditor(props: {
         </button>
       </div>
     ) : (
-      <div className="text-meta-ink mt-4 flex items-center gap-2 text-[12.5px] font-semibold">
+      <div className="text-ink-2 mt-4 flex items-center gap-2 text-[12.5px] font-semibold">
         <Loader2 size={14} className="animate-spin" />
         正在连接协作…
       </div>
@@ -175,7 +175,7 @@ export function CollaborativeEditor(props: {
         // 本页已可原地协作编辑，横条不再跳协作页：点开共享与成员 Sheet
         //（协作码 / 审批 / 移除 / 结束共享）；进协作编辑页的入口保留在 ⋯ 菜单「查看协作」
         onClick={() => void openDetails()}
-        className="bg-butter-soft text-butter mt-4 flex w-full items-center gap-2 rounded-[14px] px-3.5 py-2.5 text-left text-[12.5px] font-semibold active:opacity-70"
+        className="bg-tag-4-soft text-tag-4 mt-4 flex w-full items-center gap-2 rounded-[14px] px-3.5 py-2.5 text-left text-[12.5px] font-semibold active:opacity-70"
       >
         <Users size={15} className="shrink-0" strokeWidth={2.2} />
         <span className="min-w-0 flex-1">
@@ -187,7 +187,7 @@ export function CollaborativeEditor(props: {
       </button>
 
       {offline ? (
-        <div className="bg-butter-soft text-warn mt-2.5 flex items-center gap-2.5 rounded-[14px] px-3.5 py-2.5 text-[12.5px] font-semibold">
+        <div className="bg-tag-4-soft text-warn mt-2.5 flex items-center gap-2.5 rounded-[14px] px-3.5 py-2.5 text-[12.5px] font-semibold">
           <WifiOff size={15} className="shrink-0" />
           <span className="flex-1">
             {status?.label ?? "网络已断开"} · 改动保留在本机，恢复后自动同步
@@ -196,7 +196,7 @@ export function CollaborativeEditor(props: {
       ) : null}
 
       {viewReadonly && !offline && !pendingChoice ? (
-        <div className="bg-butter-soft text-warn mt-2.5 flex items-center gap-2.5 rounded-[14px] px-3.5 py-2.5 text-[12.5px] font-semibold">
+        <div className="bg-tag-4-soft text-warn mt-2.5 flex items-center gap-2.5 rounded-[14px] px-3.5 py-2.5 text-[12.5px] font-semibold">
           <StatusDot tone={status?.tone ?? "idle"} />
           <span className="flex-1">{status?.label ?? "协作暂不可用"} · 正文暂为只读</span>
         </div>

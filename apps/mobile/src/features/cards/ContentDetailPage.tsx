@@ -1,4 +1,14 @@
-import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { getMobileContentKit } from "../../services/editorKit";
 import { CornerUpRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -18,6 +28,22 @@ import TagChips from "./TagChips";
 import TagInlineEditor from "./TagInlineEditor";
 import type { CollaborativeEditorMode } from "../collaboration/CollaborativeEditor";
 import { markLocalFallbackEdit } from "../collaboration/local-fallback";
+import { isEditorContentEmpty } from "./editorContentUtils";
+import { useReadingMode } from "./readingMode/useReadingMode";
+import { ReadingModeHeaderButton } from "./readingMode/ReadingModeHeaderButton";
+import { ReadingSelectionBar } from "./readingMode/ReadingSelectionBar";
+import { useReadingSelection } from "./readingMode/useReadingSelection";
+import { useEditorOpenMode } from "../../hooks/useEditorOpenMode";
+import { toast } from "../../components/toast";
+import { BlockActionBar } from "./blockSelection/BlockActionBar";
+import { BlockDragLayer } from "./blockSelection/BlockDragLayer";
+import { BlockHandle } from "./blockSelection/BlockHandle";
+import { BlockSelectionHeader } from "./blockSelection/BlockSelectionHeader";
+import { BlockSelectionLayer } from "./blockSelection/BlockSelectionLayer";
+import { useBlockDrag } from "./blockSelection/useBlockDrag";
+import { useEditorBlockSelection } from "./blockSelection/useEditorBlockSelection";
+import { OutlineSheet } from "./outline/OutlineSheet";
+import { useOutlineSheet } from "./outline/useOutlineSheet";
 
 // 原地协作编辑器按需加载：未使用协作的用户不加载协作组件与运行时
 const CollaborativeEditor = lazy(() =>
@@ -28,6 +54,14 @@ const CollaborativeEditor = lazy(() =>
 
 /** 封面页顶栏渐显实底的滚动过渡距离（px）：略大于顶栏高度，给 scrim→实底切换留缓冲 */
 const COVER_HEADER_FADE_RANGE = 140;
+
+/** 详情页对宿主 page 暴露的操作（page 的「⋯」菜单经 actionsRef 调用） */
+export type ContentDetailActions = {
+  /** 进入块选择并选中 0 个块；阅读态与编辑态都可用，不可编辑时提示 */
+  enterBlockSelection: () => void;
+  /** 打开「整理结构」；编辑态先收键盘，不可编辑时提示 */
+  openOutline: () => void;
+};
 
 type ContentDetailPageProps = {
   contentId: number;
@@ -42,6 +76,8 @@ type ContentDetailPageProps = {
   onTitleCommit?: (title: string) => void;
   /** 顶栏右侧自定义区（如 ⋯ 菜单按钮） */
   headerRight?: ReactNode;
+  /** 详情页操作句柄（如「⋯ → 选择块 / 整理结构」） */
+  actionsRef?: Ref<ContentDetailActions>;
   /** 日记日期头：日期即标题，与正文同处一张「纸」，不再另起元信息卡 */
   diaryDate?: { title: string; sub?: string };
   /** 通用内容详情的标签源（文章 / 知识库 / 项目文档）：传入即启用内联添加 */
@@ -51,7 +87,7 @@ type ContentDetailPageProps = {
   sourceRef?: {
     label: string;
     typeLabel: string;
-    /** 图标与标题的域色（如 text-sky / text-butter），缺省用品牌色 */
+    /** 图标与标题的域色（如 text-tag-2 / text-tag-4），缺省用品牌色 */
     toneClass?: string;
     onOpen: () => void;
   };
@@ -70,6 +106,8 @@ type ContentDetailPageProps = {
   collaboration?: { documentId: string };
   /** 在共享与成员 Sheet 里结束共享/退出协作：宿主据此重查绑定，让 collaboration prop 归位 */
   onCollaborationEnded?: () => void;
+  /** 强制已有内容打开时直接编辑；未传时按「打开文档时」偏好（默认阅读态），空文档总是直接编辑 */
+  openInEditMode?: boolean;
 };
 
 function formatTimeLabel(value: number): string {
@@ -118,6 +156,11 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     setCollabMode("connecting");
     setCollabReadonly(true);
   }, [collaborationDocumentId]);
+  // 首次拿到内容时决定一次初始编辑态，之后重拉不再改动
+  const [initialEditing, setInitialEditing] = useState<boolean | null>(null);
+  const openMode = useEditorOpenMode();
+  const openInEditModeRef = useRef(false);
+  openInEditModeRef.current = Boolean(props.openInEditMode) || openMode === "edit";
   const editMode = detailEditMode(Boolean(collaborationDocumentId), collabMode);
   const localFallback = editMode === "collabFallback";
   const {
@@ -144,7 +187,12 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     onProjectionPersisted: () => {
       markLocalFallbackEdit(props.contentId);
     },
-    onLoaded: result => setDetail(result),
+    onLoaded: result => {
+      setDetail(result);
+      setInitialEditing(
+        prev => prev ?? (openInEditModeRef.current || isEditorContentEmpty(result.content))
+      );
+    },
     onLoadError: error => onErrorRef.current?.(error, "内容详情加载失败"),
     onSaved: saved => {
       setDetail(prev => ({
@@ -171,10 +219,43 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   });
   // 协作文档源就绪即用它，否则用本机文档源；两者谱系相同，换源不重建编辑器
   const document = collabDocument ?? localDocument;
-  const editorReadonly =
+  // 协作建立中与协作只读：强制阅读态且隐藏「编辑」
+  const forcedReadonly =
     editMode === "collabConnecting" ? true : editMode === "collabLive" ? collabReadonly : false;
-  // 工具栏：正文可编辑时显示，协作建立中与协作只读态一律收起
-  const toolbarReadonly = editorReadonly;
+  const readingMode = useReadingMode({
+    editorRef,
+    forcedReadonly,
+    initialEditing,
+    toolbarController,
+  });
+  const { blockSelection, slateEditor, blockCount, handleBlockIndex } = useEditorBlockSelection({
+    editorRef,
+    readingMode,
+    toolbarController,
+  });
+  const outline = useOutlineSheet({ readingMode, blockSelection });
+  useImperativeHandle(
+    props.actionsRef,
+    () => ({
+      enterBlockSelection: () => {
+        if (!readingMode.canEdit) {
+          toast({ type: "warning", text: "当前内容不可编辑" });
+          return;
+        }
+        blockSelection.enter();
+      },
+      openOutline: outline.openOutline,
+    }),
+    [blockSelection, readingMode.canEdit, outline.openOutline]
+  );
+  // 阅读态与强制只读时正文只读；块选择期间保持可写（块菜单命令要求可写编辑器，点击由覆盖层拦截）
+  const editorReadonly = forcedReadonly || (!readingMode.editing && !blockSelection.active);
+  const readingSelection = useReadingSelection(
+    editorRef,
+    !readingMode.editing && readingMode.canEdit && !blockSelection.active
+  );
+  const [editorWrapEl, setEditorWrapEl] = useState<HTMLDivElement | null>(null);
+  const kit = getMobileContentKit();
   // 工具栏等页面级浮层挂进本页根容器，才能随页面转场动画一起平移、退场
   const [pageRootEl, setPageRootEl] = useState<HTMLDivElement | null>(null);
 
@@ -237,6 +318,18 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   const coverScrollRef = useRef<HTMLDivElement>(null);
   // 底部渐隐随滚动收放（滚到底内容完整），与无封面模式同构
   useEdgeFade(coverScrollRef);
+  const getScrollContainer = useCallback(
+    () => (hasCover ? coverScrollRef.current : noCoverScrollRef.current),
+    [hasCover]
+  );
+  const blockDrag = useBlockDrag({
+    editorRef,
+    container: editorWrapEl,
+    getScrollContainer,
+    toolbarController,
+  });
+  // 阅读态、强制只读、块选择与拖拽块期间配件栏收起
+  const toolbarReadonly = editorReadonly || blockSelection.active || blockDrag.dragging !== null;
   const syncCoverHeaderFade = () => {
     const scrolled = coverScrollRef.current?.scrollTop ?? 0;
     coverShellRef.current?.style.setProperty(
@@ -260,14 +353,37 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         </span>
       </span>
     ) : (
-      <span className="text-ink line-clamp-1 block text-center text-[18px] font-extrabold">
+      <span className="text-ink-1 line-clamp-1 block text-center text-[18px] font-extrabold">
         {headerTitle}
       </span>
     )
   ) : null;
 
+  const headerActions = (
+    <>
+      <ReadingModeHeaderButton
+        editing={readingMode.editing}
+        canEdit={readingMode.canEdit}
+        onEnter={readingMode.enterEditing}
+        onExit={readingMode.exitEditing}
+      />
+      {props.headerRight}
+    </>
+  );
+
+  const renderBlockSelectionHeader = (floating: boolean) => (
+    <BlockSelectionHeader
+      selectedCount={blockSelection.selected.length}
+      totalCount={blockCount}
+      onCancel={blockSelection.exit}
+      onSelectAll={blockSelection.selectAll}
+      onDeselectAll={() => blockSelection.setSelected([])}
+      floating={floating}
+    />
+  );
+
   const saveStatusNode = saving ? (
-    <span className="text-meta-ink text-[12px]">保存中…</span>
+    <span className="text-ink-2 text-[12px]">保存中…</span>
   ) : saveError ? (
     <span className="text-danger text-[12px] font-medium">保存失败</span>
   ) : props.diaryDate ? (
@@ -292,7 +408,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         {props.contentType}
       </span>
     ) : (
-      <span className="bg-input text-meta-ink inline-flex items-center rounded-full px-3 py-[4.5px] text-[12.5px] font-bold">
+      <span className="bg-page text-ink-2 inline-flex items-center rounded-full px-3 py-[4.5px] text-[12.5px] font-bold">
         {props.contentType}
       </span>
     )
@@ -302,19 +418,19 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   const body =
     !detail && contentLoading ? (
       <div className="space-y-3 pt-4">
-        <div className="bg-input h-4 w-2/5 animate-pulse rounded" />
-        <div className="bg-input h-4 w-4/5 animate-pulse rounded" />
-        <div className="bg-input h-4 w-full animate-pulse rounded" />
-        <div className="bg-input h-4 w-3/4 animate-pulse rounded" />
+        <div className="bg-page h-4 w-2/5 animate-pulse rounded" />
+        <div className="bg-page h-4 w-4/5 animate-pulse rounded" />
+        <div className="bg-page h-4 w-full animate-pulse rounded" />
+        <div className="bg-page h-4 w-3/4 animate-pulse rounded" />
       </div>
     ) : detail ? (
       <div>
         {props.diaryDate ? (
           <div className="pt-6">
-            <h1 className="text-ink text-[31px] font-extrabold leading-tight tracking-[-0.02em]">
+            <h1 className="text-ink-1 text-[31px] font-extrabold leading-tight tracking-[-0.02em]">
               {props.diaryDate.title}
             </h1>
-            <p className="text-meta-ink mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
+            <p className="text-ink-2 mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
               {props.diaryDate.sub ? <span>{props.diaryDate.sub}</span> : null}
               {props.diaryDate.sub ? <MetaDot /> : null}
               {saveStatusNode}
@@ -337,11 +453,11 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
                 autoGrowTitle(event.target);
               }}
               onBlur={commitTitle}
-              className="text-ink caret-accent placeholder:text-ink-3 mt-2 w-full resize-none border-none bg-transparent text-[31px] font-extrabold leading-tight tracking-[-0.02em] outline-none"
+              className="text-ink-1 caret-accent placeholder:text-ink-3 mt-2 w-full resize-none border-none bg-transparent text-[31px] font-extrabold leading-tight tracking-[-0.02em] outline-none"
             />
             <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
               {typeBadge}
-              <div className="text-meta-ink flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium tabular-nums">
+              <div className="text-ink-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium tabular-nums">
                 <span>{formatTimeLabel(detail.updateTime)}</span>
                 <MetaDot />
                 <span>{wordCount.toLocaleString()} 字</span>
@@ -357,7 +473,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
               <button
                 type="button"
                 onClick={props.sourceRef.onOpen}
-                className="text-meta-ink mt-2.5 flex w-full items-center gap-1.5 text-[12px] font-medium transition-opacity active:opacity-60"
+                className="text-ink-2 mt-2.5 flex w-full items-center gap-1.5 text-[12px] font-medium transition-opacity active:opacity-60"
               >
                 <CornerUpRight
                   size={13}
@@ -379,7 +495,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         {!props.titleEditable && !props.diaryDate ? (
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 pt-5">
             {typeBadge}
-            <div className="text-meta-ink flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium tabular-nums">
+            <div className="text-ink-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium tabular-nums">
               <span>{formatTimeLabel(detail.updateTime)}</span>
               <MetaDot />
               <span>{wordCount.toLocaleString()} 字</span>
@@ -408,9 +524,14 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           </Suspense>
         ) : null}
 
-        <div className="min-h-[45vh] pt-1">
+        <div
+          ref={setEditorWrapEl}
+          className="relative min-h-[45vh] pt-1"
+          // 块选择期间由覆盖层接管点击，阅读态的双击进入编辑与勾选待办不生效
+          {...(blockSelection.active ? {} : readingMode.readingSurfaceProps)}
+        >
           <Editor
-            kit={getMobileContentKit()}
+            kit={kit}
             ref={editorRef}
             document={document}
             className="mobile-card-editor-content"
@@ -424,6 +545,25 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
               toolbarController.handleEditorBlur();
             }}
             onSelectionChange={toolbarController.syncSelection}
+          />
+          <BlockSelectionLayer
+            editorRef={editorRef}
+            container={editorWrapEl}
+            active={blockSelection.active}
+            selected={blockSelection.selected}
+            onToggle={blockSelection.toggle}
+            documentVersion={slateEditor?.children}
+          />
+          <BlockDragLayer drag={blockDrag.dragging} />
+          <BlockHandle
+            editorRef={editorRef}
+            container={editorWrapEl}
+            // 拖拽中编辑器已失焦，把手仍挂在被拖块上以保持指针捕获
+            blockIndex={blockDrag.dragging?.from ?? handleBlockIndex}
+            onEnter={blockSelection.enter}
+            onDragStart={blockDrag.startDrag}
+            dragging={blockDrag.dragging !== null}
+            version={slateEditor?.children}
           />
         </div>
 
@@ -477,15 +617,19 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
             aria-hidden
             className="cover-scrim-fade pointer-events-none absolute inset-x-0 top-0 z-20 h-28 bg-gradient-to-b from-black/45 to-transparent"
           />
-          <PageHeader
-            transparent
-            center={headerCenter}
-            onBack={() => {
-              commitTitle();
-              props.onBack();
-            }}
-            actions={props.headerRight}
-          />
+          {blockSelection.active ? (
+            renderBlockSelectionHeader(true)
+          ) : (
+            <PageHeader
+              transparent
+              center={headerCenter}
+              onBack={() => {
+                commitTitle();
+                props.onBack();
+              }}
+              actions={headerActions}
+            />
+          )}
           <div
             ref={node => {
               coverScrollRef.current = node;
@@ -500,14 +644,18 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         </div>
       ) : (
         <>
-          <PageHeader
-            center={headerCenter}
-            onBack={() => {
-              commitTitle();
-              props.onBack();
-            }}
-            actions={props.headerRight}
-          />
+          {blockSelection.active ? (
+            renderBlockSelectionHeader(false)
+          ) : (
+            <PageHeader
+              center={headerCenter}
+              onBack={() => {
+                commitTitle();
+                props.onBack();
+              }}
+              actions={headerActions}
+            />
+          )}
           {/* 二级页无吸底 Dock，底部只留常规呼吸空间（同番茄钟/项目列表）：
               留白挂外层容器，滚动容器自身不带 padding，内容不会顶到安全区 */}
           <div
@@ -528,6 +676,26 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         portalContainer={pageRootEl}
         readonly={toolbarReadonly}
       />
+      {blockSelection.active ? (
+        <BlockActionBar
+          editorRef={editorRef}
+          kit={kit}
+          selection={blockSelection}
+          blockCount={blockCount}
+          portalContainer={pageRootEl}
+          onOpenOutline={outline.openOutline}
+        />
+      ) : (
+        <ReadingSelectionBar
+          editorRef={editorRef}
+          controller={toolbarController}
+          readingMode={readingMode}
+          range={readingSelection.range}
+          onClear={readingSelection.clear}
+          portalContainer={pageRootEl}
+        />
+      )}
+      <OutlineSheet open={outline.open} editorRef={editorRef} onClose={outline.close} />
     </div>
   );
 }

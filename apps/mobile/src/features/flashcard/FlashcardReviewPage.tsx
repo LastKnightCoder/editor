@@ -239,7 +239,7 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
     return (
       <div className="bg-page fixed inset-0 z-50 flex flex-col items-center justify-center gap-5 px-10">
         <div className="text-[40px]">🌧️</div>
-        <div className="text-ink text-[17px] font-extrabold">复习队列加载失败</div>
+        <div className="text-ink-1 text-[17px] font-extrabold">复习队列加载失败</div>
         <div className="flex gap-3">
           <button
             type="button"
@@ -247,15 +247,15 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
               setLoadFailed(false);
               loadQueue();
             }}
-            className="shadow-accent rounded-[16px] px-7 py-3 text-[14.5px] font-extrabold text-white"
-            style={{ background: "var(--brand-grad)" }}
+            className="shadow-lift text-ink-inverse rounded-[16px] px-7 py-3 text-[14.5px] font-extrabold"
+            style={{ background: "var(--tau-accent)" }}
           >
             重试
           </button>
           <button
             type="button"
             onClick={closeReview}
-            className="text-ink-2 active:bg-press rounded-[16px] px-7 py-3 text-[14.5px] font-extrabold"
+            className="text-ink-2 active:bg-hover rounded-[16px] px-7 py-3 text-[14.5px] font-extrabold"
           >
             先退出
           </button>
@@ -275,11 +275,11 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
   if (total === 0) {
     return (
       <div className="bg-page fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 px-10">
-        <div className="bg-sage-soft grid h-28 w-28 place-items-center rounded-[28px] text-[44px]">
+        <div className="bg-tag-1-soft grid h-28 w-28 place-items-center rounded-[28px] text-[44px]">
           🗂️
         </div>
         <div className="text-center">
-          <div className="text-ink text-[18px] font-extrabold">现在没有待复习的卡片</div>
+          <div className="text-ink-1 text-[18px] font-extrabold">现在没有待复习的卡片</div>
           <div className="text-ink-2 mt-2 text-[13px] font-semibold">
             到期的卡片会出现在这里，先去干点别的吧
           </div>
@@ -287,8 +287,8 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
         <button
           type="button"
           onClick={closeReview}
-          className="shadow-accent rounded-[16px] px-8 py-3 text-[14.5px] font-extrabold text-white"
-          style={{ background: "var(--brand-grad)" }}
+          className="shadow-lift text-ink-inverse rounded-[16px] px-8 py-3 text-[14.5px] font-extrabold"
+          style={{ background: "var(--tau-accent)" }}
         >
           好的
         </button>
@@ -305,10 +305,10 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
     );
     return (
       <div className="bg-page fixed inset-0 z-50 flex flex-col items-center justify-center px-7">
-        <div className="bg-sage-soft grid h-[132px] w-[132px] place-items-center rounded-full text-[46px]">
+        <div className="bg-tag-1-soft grid h-[132px] w-[132px] place-items-center rounded-full text-[46px]">
           🎉
         </div>
-        <div className="text-ink mt-5 text-[21px] font-extrabold">
+        <div className="text-ink-1 mt-5 text-[21px] font-extrabold">
           {hasMoreDue || loadingMore ? "这一批复习完成" : "本轮复习完成"}
         </div>
         <div className="text-ink-2 mt-2 text-[13px] font-semibold">
@@ -321,7 +321,7 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
               <b className="block text-[19px] font-extrabold" style={{ color: item.color }}>
                 {ratingCounts[item.value]}
               </b>
-              <span className="text-meta-ink mt-0.5 block text-[11px] font-bold">{item.label}</span>
+              <span className="text-ink-2 mt-0.5 block text-[11px] font-bold">{item.label}</span>
             </div>
           ))}
         </div>
@@ -330,8 +330,8 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
             type="button"
             disabled={loadingMore}
             onClick={startNextRound}
-            className="shadow-accent mt-8 w-full rounded-[17px] py-[15px] text-[15px] font-extrabold text-white disabled:opacity-60"
-            style={{ background: "var(--brand-grad)" }}
+            className="shadow-lift text-ink-inverse mt-8 w-full rounded-[17px] py-[15px] text-[15px] font-extrabold disabled:opacity-60"
+            style={{ background: "var(--tau-accent)" }}
           >
             {loadingMore ? "正在准备…" : "还有到期卡片，再来一轮"}
           </button>
@@ -339,8 +339,8 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
           <button
             type="button"
             onClick={closeReview}
-            className="shadow-accent mt-8 w-full rounded-[17px] py-[15px] text-[15px] font-extrabold text-white"
-            style={{ background: "var(--brand-grad)" }}
+            className="shadow-lift text-ink-inverse mt-8 w-full rounded-[17px] py-[15px] text-[15px] font-extrabold"
+            style={{ background: "var(--tau-accent)" }}
           >
             完成
           </button>
@@ -362,7 +362,7 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
 
   // 含当前张的直觉计数：做完第 1 张（index=1）时"还剩 9"= 当前第 2 张 + 后面 8 张
   const remaining = total - index;
-  const deckColor = "var(--brand)";
+  const deckColor = "var(--tau-accent)";
 
   return (
     <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
@@ -376,7 +376,7 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
               if ((stats?.ratings.length ?? 0) === 0) closeReview();
               else setConfirmExit(true);
             }}
-            className="bg-surface text-ink shadow-card grid h-8 w-8 place-items-center rounded-full text-[13px] active:scale-90"
+            className="bg-surface text-ink-1 shadow-card grid h-8 w-8 place-items-center rounded-full text-[13px] active:scale-90"
           >
             ✕
           </button>
@@ -385,10 +385,10 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
           </span>
           <span className="text-ink-3 w-8 text-center text-[11px] font-bold">还剩{remaining}</span>
         </div>
-        <div className="bg-input h-1.5 overflow-hidden rounded-full">
+        <div className="bg-page h-1.5 overflow-hidden rounded-full">
           <div
             className="h-full rounded-full transition-[width] duration-500"
-            style={{ width: `${((index + 1) / total) * 100}%`, background: "var(--brand-grad)" }}
+            style={{ width: `${((index + 1) / total) * 100}%`, background: "var(--tau-accent)" }}
           />
         </div>
       </div>
@@ -490,9 +490,9 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
         {flipped ? (
           <>
             <div className="flex items-center justify-between pb-2.5 text-[12px] font-extrabold">
-              <span style={{ color: "var(--rose)" }}>← 左滑 吃力</span>
+              <span style={{ color: "var(--tau-tag-5)" }}>← 左滑 吃力</span>
               <span className="text-ink-3">在卡片上滑动</span>
-              <span style={{ color: "var(--sage)" }}>轻松 右滑 →</span>
+              <span style={{ color: "var(--tau-tag-1)" }}>轻松 右滑 →</span>
             </div>
             <div className="grid grid-cols-4 gap-2.5">
               {REVIEW_RATINGS.map(item => (
@@ -501,7 +501,7 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
                   type="button"
                   disabled={submitting}
                   onClick={() => void submitRating(item.value)}
-                  className="flex flex-col items-center gap-0.5 rounded-[17px] py-2.5 text-white active:scale-95 disabled:opacity-60"
+                  className="text-ink-inverse flex flex-col items-center gap-0.5 rounded-[17px] py-2.5 active:scale-95 disabled:opacity-60"
                   style={{ background: item.color }}
                 >
                   <b className="text-[14px] font-extrabold">{item.label}</b>
@@ -517,8 +517,8 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
             type="button"
             disabled={!canSubmitAnswer(current, answer)}
             onClick={reveal}
-            className="shadow-accent w-full rounded-[17px] py-[15px] text-[15px] font-extrabold text-white transition-opacity disabled:opacity-40"
-            style={{ background: "var(--brand-grad)" }}
+            className="shadow-lift text-ink-inverse w-full rounded-[17px] py-[15px] text-[15px] font-extrabold transition-opacity disabled:opacity-40"
+            style={{ background: "var(--tau-accent)" }}
           >
             {current.type === "qa" || current.type === "cloze"
               ? "想好了，翻面对答案"
@@ -548,9 +548,9 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
         onClose={() => setReferenceCard(null)}
       >
         <SnapSheet.Handle />
-        <header className="border-line flex items-center gap-2 border-b border-dashed px-5 pb-2.5 pt-1">
+        <header className="border-line-1 flex items-center gap-2 border-b border-dashed px-5 pb-2.5 pt-1">
           <Paperclip size={14} className="text-accent flex-none" />
-          <span className="text-ink min-w-0 flex-1 truncate text-[14.5px] font-bold">
+          <span className="text-ink-1 min-w-0 flex-1 truncate text-[14.5px] font-bold">
             {referenceCard?.references[0]?.title ?? "参考资料"}
           </span>
         </header>
@@ -561,7 +561,7 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
             <Editor
               kit={getMobileContentKit()}
               initValue={referenceCard.references[0].content.content as Descendant[]}
-              className="text-ink min-h-[160px] w-full text-[14px] font-medium leading-[1.8] outline-none"
+              className="text-ink-1 min-h-[160px] w-full text-[14px] font-medium leading-[1.8] outline-none"
             />
           ) : (
             <div className="text-ink-3 py-6 text-center text-[13px] font-semibold">

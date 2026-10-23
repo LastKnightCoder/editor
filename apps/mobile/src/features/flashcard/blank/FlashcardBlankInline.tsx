@@ -10,7 +10,7 @@ import { BottomSheet } from "../../../components/BottomSheet";
 import { isBlankElement, type FlashcardBlankElement } from "./flashcardBlankTransforms";
 
 const inputClass =
-  "w-full rounded-[14px] bg-input px-3.5 py-2.5 text-[14px] font-semibold text-ink placeholder:font-medium placeholder:text-ink-3 outline-none focus:bg-surface";
+  "w-full rounded-[14px] bg-page px-3.5 py-2.5 text-[14px] font-semibold text-ink-1 placeholder:font-medium placeholder:text-ink-3 outline-none focus:bg-surface";
 
 export function FlashcardBlankInline({
   attributes,
@@ -27,9 +27,9 @@ export function FlashcardBlankInline({
     <span
       {...attributes}
       style={{
-        background: "var(--brand-soft)",
-        color: "var(--brand)",
-        border: "1.5px dashed var(--brand)",
+        background: "var(--tau-accent-soft)",
+        color: "var(--tau-accent)",
+        border: "1.5px dashed var(--tau-accent)",
         borderRadius: 8,
         padding: "1px 8px",
         margin: "0 2px",
@@ -119,7 +119,7 @@ function BlankConfigSheet({
     <BottomSheet open={open} title="配置填空" onClose={onClose}>
       <div className="flex flex-col gap-3.5 pb-2">
         <div>
-          <div className="text-meta-ink mb-1.5 text-[12px] font-extrabold">正确答案</div>
+          <div className="text-ink-2 mb-1.5 text-[12px] font-extrabold">正确答案</div>
           <input
             value={answer}
             onChange={event => setAnswer(event.target.value)}
@@ -128,7 +128,7 @@ function BlankConfigSheet({
           />
         </div>
         <div>
-          <div className="text-meta-ink mb-1.5 text-[12px] font-extrabold">备选答案（选填）</div>
+          <div className="text-ink-2 mb-1.5 text-[12px] font-extrabold">备选答案（选填）</div>
           <div className="flex flex-col gap-2">
             {alternatives.map((alternative, index) => (
               <div key={index} className="flex items-center gap-2">
@@ -156,7 +156,7 @@ function BlankConfigSheet({
               <button
                 type="button"
                 onClick={() => setAlternatives(prev => [...prev, ""])}
-                className="border-line text-ink-2 active:bg-press rounded-[14px] border-2 border-dashed py-2 text-[12.5px] font-extrabold"
+                className="border-line-1 text-ink-2 active:bg-hover rounded-[14px] border-2 border-dashed py-2 text-[12.5px] font-extrabold"
               >
                 ＋ 添加备选答案
               </button>
@@ -164,7 +164,7 @@ function BlankConfigSheet({
           </div>
         </div>
         <div>
-          <div className="text-meta-ink mb-1.5 text-[12px] font-extrabold">提示文本（选填）</div>
+          <div className="text-ink-2 mb-1.5 text-[12px] font-extrabold">提示文本（选填）</div>
           <input
             value={placeholder}
             onChange={event => setPlaceholder(event.target.value)}
@@ -179,7 +179,7 @@ function BlankConfigSheet({
           type="button"
           disabled={!answer.trim()}
           onClick={save}
-          className="bg-accent rounded-[16px] py-3 text-[14.5px] font-extrabold text-white active:opacity-80 disabled:opacity-45"
+          className="bg-accent text-ink-inverse rounded-[16px] py-3 text-[14.5px] font-extrabold active:opacity-80 disabled:opacity-45"
         >
           保存
         </button>

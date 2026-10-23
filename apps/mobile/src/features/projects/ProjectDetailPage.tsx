@@ -198,8 +198,8 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
     return (
       <div className="mobile-kb-screen bg-page fixed inset-0 z-50 grid place-items-center">
         <div className="card w-48 space-y-3 p-5">
-          <div className="bg-input h-4 w-2/5 animate-pulse rounded" />
-          <div className="bg-input h-4 w-4/5 animate-pulse rounded" />
+          <div className="bg-page h-4 w-2/5 animate-pulse rounded" />
+          <div className="bg-page h-4 w-4/5 animate-pulse rounded" />
         </div>
       </div>
     );
@@ -246,18 +246,18 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
                 {meta.label}项目
               </span>
               {project.pinned ? (
-                <Star size={14} fill="currentColor" className="text-apricot ml-auto shrink-0" />
+                <Star size={14} fill="currentColor" className="text-accent-text ml-auto shrink-0" />
               ) : null}
             </div>
-            <h1 className="text-ink mt-3 text-[24px] font-extrabold leading-tight tracking-[-0.02em]">
+            <h1 className="text-ink-1 mt-3 text-[24px] font-extrabold leading-tight tracking-[-0.02em]">
               {project.title}
             </h1>
             {project.descText ? (
-              <p className="text-meta-ink mt-2 text-[13.5px] leading-[1.7]">
+              <p className="text-ink-2 mt-2 text-[13.5px] leading-[1.7]">
                 {clampText(project.descText, 80)}
               </p>
             ) : null}
-            <div className="text-meta-ink mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium tabular-nums">
+            <div className="text-ink-2 mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-medium tabular-nums">
               <span>{stats.nodeCount} 个节点</span>
               <span className="opacity-55">·</span>
               <span>{stats.words.toLocaleString()} 字</span>
@@ -271,13 +271,13 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
         <div className="card mb-2.5 mt-4 flex items-center gap-2 px-4 py-[9px]">
           <div
             ref={pathRef}
-            className="edge-fade-x-scroll scrollbar-hide text-meta-ink flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto whitespace-nowrap text-[13px]"
+            className="edge-fade-x-scroll scrollbar-hide text-ink-2 flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto whitespace-nowrap text-[13px]"
           >
             {path.map((segment, index) => (
               <span key={segment.id ?? "root"} className="flex shrink-0 items-center gap-1.5">
                 {index > 0 ? <ChevronRight size={13} className="shrink-0 opacity-50" /> : null}
                 <span
-                  className={`active:opacity-60 ${index === path.length - 1 ? "text-ink font-bold" : ""}`}
+                  className={`active:opacity-60 ${index === path.length - 1 ? "text-ink-1 font-bold" : ""}`}
                   onClick={() => setPath(prev => prev.slice(0, index + 1))}
                 >
                   {segment.id === null ? project.title : segment.title}
@@ -289,7 +289,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
             type="button"
             aria-label="查看完整结构"
             onClick={() => setTreeOpen(true)}
-            className="bg-input text-ink-2 grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[11px] transition-transform active:scale-90"
+            className="bg-page text-ink-2 grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[11px] transition-transform active:scale-90"
           >
             <ListTree size={16} strokeWidth={2} />
           </button>
@@ -299,8 +299,8 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
         <div className="card overflow-hidden">
           {isLoading ? (
             <div className="space-y-3 p-4">
-              <div className="bg-input h-4 w-2/5 animate-pulse rounded" />
-              <div className="bg-input h-4 w-4/5 animate-pulse rounded" />
+              <div className="bg-page h-4 w-2/5 animate-pulse rounded" />
+              <div className="bg-page h-4 w-4/5 animate-pulse rounded" />
             </div>
           ) : currentChildrenIds.length === 0 ? (
             <div className="py-10 text-center">
@@ -320,7 +320,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
               return (
                 <div
                   key={item.id}
-                  className="border-line active:bg-press flex cursor-pointer items-center gap-3 border-b px-4 py-3 last:border-b-0"
+                  className="border-line-1 active:bg-hover flex cursor-pointer items-center gap-3 border-b px-4 py-3 last:border-b-0"
                   onClick={() => openItem(item)}
                 >
                   <span
@@ -329,15 +329,15 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
                     <Icon size={16} strokeWidth={1.9} />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-ink flex items-center gap-1.5 truncate text-[15px] font-bold">
+                    <p className="text-ink-1 flex items-center gap-1.5 truncate text-[15px] font-bold">
                       {item.title}
                       {isCardRef ? (
-                        <span className="bg-apricot-soft text-apricot rounded-full px-1.5 py-px text-[10px] font-bold">
+                        <span className="bg-accent-soft text-accent-text rounded-full px-1.5 py-px text-[10px] font-bold">
                           卡片
                         </span>
                       ) : null}
                     </p>
-                    <div className="text-meta-ink mt-0.5 flex items-center gap-1.5 text-[12px] tabular-nums">
+                    <div className="text-ink-2 mt-0.5 flex items-center gap-1.5 text-[12px] tabular-nums">
                       {item.children.length > 0 ? (
                         <>
                           <span>{item.children.length} 个子节点</span>
@@ -358,7 +358,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
                     <button
                       type="button"
                       aria-label="节点操作"
-                      className="text-ink-3 active:bg-press -mr-1.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg"
+                      className="text-ink-3 active:bg-hover -mr-1.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg"
                       onClick={event => {
                         event.stopPropagation();
                         setMenuItem(item);
@@ -379,8 +379,8 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
         type="button"
         aria-label="添加节点"
         onClick={() => setAddOpen(true)}
-        className="shadow-accent absolute bottom-[calc(20px+env(safe-area-inset-bottom,0px))] right-[18px] grid h-[54px] w-[54px] place-items-center rounded-[19px] text-white transition-transform active:rotate-90 active:scale-90"
-        style={{ background: "var(--brand-grad)" }}
+        className="shadow-lift text-ink-inverse absolute bottom-[calc(20px+env(safe-area-inset-bottom,0px))] right-[18px] grid h-[54px] w-[54px] place-items-center rounded-[19px] transition-transform active:rotate-90 active:scale-90"
+        style={{ background: "var(--tau-accent)" }}
       >
         <Plus size={23} strokeWidth={2.6} />
       </button>
@@ -439,7 +439,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
           type="button"
           disabled={createItem.isPending}
           onClick={handleCreateDocument}
-          className="bg-sage-soft text-sage mb-4 flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[14.5px] font-bold transition-transform active:scale-[0.97] disabled:opacity-60"
+          className="bg-tag-1-soft text-tag-1 mb-4 flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[14.5px] font-bold transition-transform active:scale-[0.97] disabled:opacity-60"
         >
           <FilePlus2 size={17} strokeWidth={2.2} />
           新建文档
@@ -456,7 +456,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
                 onClick={() => toast({ type: "info", text: `${entry.meta.label}节点将在二期提供` })}
               >
                 {entry.soon ? (
-                  <span className="bg-butter-soft text-butter absolute right-1 top-0 rounded-full px-1.5 py-px text-[8.5px] font-bold tracking-wider">
+                  <span className="bg-tag-4-soft text-tag-4 absolute right-1 top-0 rounded-full px-1.5 py-px text-[8.5px] font-bold tracking-wider">
                     二期
                   </span>
                 ) : null}

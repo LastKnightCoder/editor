@@ -196,6 +196,13 @@
         "apps/blog/mockups/quest-detail"
       ],
       "port": 8832
+    },
+    {
+      "name": "mobile-editor-mock",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8834", "--bind", "127.0.0.1", "-d", "."],
+      "port": 8834,
+      "url": "http://localhost:8834"
     }
   ]
 }

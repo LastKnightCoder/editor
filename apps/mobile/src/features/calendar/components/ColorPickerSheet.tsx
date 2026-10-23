@@ -1,9 +1,9 @@
 // 颜色选择 BottomSheet（定稿 D-②）：17 色数据色板 + 「跟随日历」入口；
-// 玄夜主题自动切 dark 色值，选中项用品牌色 ring + 底色间隙标注。
+// 深色模式自动切 dark 色值，选中项用品牌色 ring + 底色间隙标注。
 
 import { Check } from "lucide-react";
 import { BottomSheet } from "../../../components/BottomSheet";
-import { useMobileTheme } from "../../../hooks/useMobileTheme";
+import { useThemeStore } from "@tau/themes/react";
 import { CALENDAR_COLORS, calendarColorValue } from "../constants";
 
 type ColorPickerSheetProps = {
@@ -22,7 +22,7 @@ export function ColorPickerSheet({
   onSelect,
   onClose,
 }: ColorPickerSheetProps) {
-  const { isDark } = useMobileTheme();
+  const isDark = useThemeStore(s => s.mode === "dark");
   return (
     <BottomSheet open={open} title="日程颜色" onClose={onClose}>
       <div className="grid grid-cols-6 gap-3.5 px-1 pt-1">
@@ -40,7 +40,7 @@ export function ColorPickerSheet({
                 onClose();
               }}
               // 选中态用品牌色 ring + 面板底色 offset 留出间隙（与日记标签色板同一套），
-              // 定稿里的 ink 描边在四套主题下都是近黑/近白的中性色，看着像选中框跑错了主题
+              // 定稿里的 ink 描边在各主题下都是近黑/近白的中性色，看着像选中框跑错了主题
               className={`grid aspect-square place-items-center rounded-full text-[13px] font-extrabold text-white ${
                 isSelected ? "ring-accent ring-offset-surface ring-2 ring-offset-2" : ""
               }`}

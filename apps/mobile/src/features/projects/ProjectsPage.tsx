@@ -17,7 +17,7 @@ import { useProjectCreate, useProjectDelete, useProjectUpdate, useProjectsQuery 
 /** 项目 = 文档树（数据库与 Vibe Learning 是桌面端的独立模块，移动端不承载） */
 const PROJECT_VISUAL = {
   label: "文档树",
-  className: "bg-lilac-soft text-lilac",
+  className: "bg-tag-3-soft text-tag-3",
   grad: "linear-gradient(135deg,#e2daf1,#b7a6d8)",
 };
 
@@ -94,14 +94,14 @@ export function ProjectsPage(props: ProjectsPageProps) {
           >
             <FolderTree size={20} strokeWidth={1.9} className="text-[#5b4a7e]" />
           </span>
-          <p className="text-ink min-w-0 flex-1 truncate text-base font-bold">{project.title}</p>
+          <p className="text-ink-1 min-w-0 flex-1 truncate text-base font-bold">{project.title}</p>
           {project.pinned ? (
-            <Star size={14} fill="currentColor" className="text-apricot shrink-0" />
+            <Star size={14} fill="currentColor" className="text-accent-text shrink-0" />
           ) : null}
           <button
             type="button"
             aria-label="项目操作"
-            className="text-ink-3 active:bg-press -mr-1.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg"
+            className="text-ink-3 active:bg-hover -mr-1.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg"
             onClick={event => {
               event.stopPropagation();
               setMenuProject(project);
@@ -132,7 +132,7 @@ export function ProjectsPage(props: ProjectsPageProps) {
     return (
       <div
         key={project.id}
-        className="border-line active:bg-press flex items-center gap-3 rounded-2xl border-[1.5px] border-dashed p-3"
+        className="border-line-1 active:bg-hover flex items-center gap-3 rounded-2xl border-[1.5px] border-dashed p-3"
         onClick={() => {
           updateProject.mutate(
             { id: project.id, archived: false },
@@ -176,8 +176,8 @@ export function ProjectsPage(props: ProjectsPageProps) {
       >
         {isLoading ? (
           <div className="card space-y-3 p-4">
-            <div className="bg-input h-4 w-2/5 animate-pulse rounded" />
-            <div className="bg-input h-4 w-4/5 animate-pulse rounded" />
+            <div className="bg-page h-4 w-2/5 animate-pulse rounded" />
+            <div className="bg-page h-4 w-4/5 animate-pulse rounded" />
           </div>
         ) : active.length === 0 && archived.length === 0 ? (
           <div className="py-16 text-center">
@@ -222,8 +222,8 @@ export function ProjectsPage(props: ProjectsPageProps) {
           type="button"
           disabled={createProject.isPending}
           onClick={handleCreate}
-          className="shadow-accent mt-4 w-full rounded-full py-3.5 text-[15px] font-bold text-white transition-transform active:scale-[0.97] disabled:opacity-60"
-          style={{ background: "var(--brand-grad)" }}
+          className="shadow-lift text-ink-inverse mt-4 w-full rounded-full py-3.5 text-[15px] font-bold transition-transform active:scale-[0.97] disabled:opacity-60"
+          style={{ background: "var(--tau-accent)" }}
         >
           创建项目
         </button>

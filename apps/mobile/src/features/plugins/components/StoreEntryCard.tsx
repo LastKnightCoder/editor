@@ -51,7 +51,7 @@ export function StoreEntryCard({
         onClick={onOpen}
         className="flex min-w-0 flex-col gap-1 text-left active:opacity-70"
       >
-        <h3 id={`${idPrefix}-name`} className="text-ink truncate text-[15px] font-semibold">
+        <h3 id={`${idPrefix}-name`} className="text-ink-1 truncate text-[15px] font-semibold">
           {name}
         </h3>
         <p className="text-ink-3 truncate text-[12px]">

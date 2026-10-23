@@ -87,6 +87,8 @@ export async function validateMobileHost(
     );
     const created = await createQuickCard({ content, count: 0 });
     navigator.push("contentDetail", { cardId: created.id });
+    await until(() => button("编辑") || button("完成"));
+    button("编辑")?.click();
     (
       await until(
         () =>

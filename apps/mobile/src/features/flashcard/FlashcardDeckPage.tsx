@@ -264,7 +264,7 @@ export function FlashcardDeckPage({
           >
             ✕ 退出
           </button>
-          <div className="text-ink text-[15px] font-extrabold">
+          <div className="text-ink-1 text-[15px] font-extrabold">
             已选 <b className="text-accent">{selected.size}</b> 张
           </div>
           <button
@@ -287,7 +287,7 @@ export function FlashcardDeckPage({
                 type="button"
                 aria-label="新建闪卡"
                 onClick={() => onCreateCard(deckId)}
-                className="bg-surface text-ink shadow-card grid h-9 w-9 place-items-center rounded-full active:scale-90"
+                className="bg-surface text-ink-1 shadow-card grid h-9 w-9 place-items-center rounded-full active:scale-90"
               >
                 <Plus size={18} />
               </button>
@@ -295,7 +295,7 @@ export function FlashcardDeckPage({
                 type="button"
                 aria-label="卡组操作"
                 onClick={() => setDeckMenuOpen(true)}
-                className="bg-surface text-ink shadow-card grid h-9 w-9 place-items-center rounded-full active:scale-90"
+                className="bg-surface text-ink-1 shadow-card grid h-9 w-9 place-items-center rounded-full active:scale-90"
               >
                 <MoreHorizontal size={18} />
               </button>
@@ -309,18 +309,18 @@ export function FlashcardDeckPage({
           {/* 概要 + 开始复习 */}
           <div className="flex-none px-5">
             <div className="bg-surface shadow-card flex items-center gap-3.5 rounded-[20px] p-3.5">
-              <div className="bg-input grid h-[46px] w-[46px] flex-none place-items-center rounded-[14px] text-[22px]">
+              <div className="bg-page grid h-[46px] w-[46px] flex-none place-items-center rounded-[14px] text-[22px]">
                 {deck?.emoji ?? "🧠"}
               </div>
-              <div className="text-meta-ink min-w-0 flex-1 text-[12.5px] font-semibold">
+              <div className="text-ink-2 min-w-0 flex-1 text-[12.5px] font-semibold">
                 {deck?.stats?.totalCards ?? 0} 张卡片 · 今日到期 {dueCount} 张
               </div>
               {dueCount > 0 ? (
                 <button
                   type="button"
                   onClick={() => onOpenReview(deckId)}
-                  className="shadow-accent flex-none rounded-[16px] px-4 py-2.5 text-[13px] font-extrabold text-white active:scale-95"
-                  style={{ background: "var(--brand-grad)" }}
+                  className="shadow-lift text-ink-inverse flex-none rounded-[16px] px-4 py-2.5 text-[13px] font-extrabold active:scale-95"
+                  style={{ background: "var(--tau-accent)" }}
                 >
                   开始复习
                 </button>
@@ -329,20 +329,20 @@ export function FlashcardDeckPage({
           </div>
           {/* 卡片搜索 */}
           <div className="flex-none px-5 pt-3">
-            <div className="bg-input flex items-center gap-2.5 rounded-[16px] px-3.5 py-2.5">
+            <div className="bg-page flex items-center gap-2.5 rounded-[16px] px-3.5 py-2.5">
               <Search size={15} className="text-ink-3 flex-none" />
               <input
                 value={searchText}
                 onChange={event => setSearchText(event.target.value)}
                 placeholder="搜索本卡组的卡片…"
-                className="text-ink placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-[13.5px] font-semibold outline-none placeholder:font-medium"
+                className="text-ink-1 placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-[13.5px] font-semibold outline-none placeholder:font-medium"
               />
               {searchText ? (
                 <button
                   type="button"
                   aria-label="清空搜索"
                   onClick={() => setSearchText("")}
-                  className="bg-press text-ink-2 grid h-5 w-5 flex-none place-items-center rounded-full text-[10px]"
+                  className="bg-hover text-ink-2 grid h-5 w-5 flex-none place-items-center rounded-full text-[10px]"
                 >
                   ✕
                 </button>
@@ -363,7 +363,7 @@ export function FlashcardDeckPage({
                   onClick={() => setFilter(item.key)}
                   className={`flex-none rounded-full px-3.5 py-2 text-[13px] font-bold ${
                     filter === item.key
-                      ? "bg-ink text-[var(--toast-fg)]"
+                      ? "bg-ink-1 text-[var(--tau-ink-inverse)]"
                       : "bg-surface text-ink-2 shadow-card"
                   }`}
                 >
@@ -389,7 +389,7 @@ export function FlashcardDeckPage({
           {cardsQuery.isLoading ? (
             <div className="text-ink-3 py-6 text-center text-[13px] font-semibold">加载中…</div>
           ) : cardsQuery.isError ? (
-            <div className="border-line text-ink-3 grid min-h-[120px] place-items-center rounded-[20px] border-2 border-dashed text-[13px] font-semibold">
+            <div className="border-line-1 text-ink-3 grid min-h-[120px] place-items-center rounded-[20px] border-2 border-dashed text-[13px] font-semibold">
               加载失败
               <button
                 type="button"
@@ -400,14 +400,14 @@ export function FlashcardDeckPage({
               </button>
             </div>
           ) : cards.length === 0 && searchText.trim() ? (
-            <div className="border-line text-ink-3 grid min-h-[120px] place-items-center rounded-[20px] border-2 border-dashed text-[13px] font-semibold">
+            <div className="border-line-1 text-ink-3 grid min-h-[120px] place-items-center rounded-[20px] border-2 border-dashed text-[13px] font-semibold">
               没有匹配「{searchText.trim()}」的卡片
             </div>
           ) : cards.length === 0 ? (
             <button
               type="button"
               onClick={() => onCreateCard(deckId)}
-              className="border-line text-ink-3 active:bg-press grid min-h-[140px] place-items-center rounded-[20px] border-2 border-dashed text-[13.5px] font-extrabold"
+              className="border-line-1 text-ink-3 active:bg-hover grid min-h-[140px] place-items-center rounded-[20px] border-2 border-dashed text-[13.5px] font-extrabold"
             >
               还没有卡片
               <br />＋ 新建一张闪卡
@@ -432,21 +432,23 @@ export function FlashcardDeckPage({
                     if (batchMode) toggleSelected(card.id);
                     else onEditCard(card.id);
                   }}
-                  className={`active:bg-press flex gap-3 rounded-[20px] p-4 ${
+                  className={`active:bg-hover flex gap-3 rounded-[20px] p-4 ${
                     isSelected
                       ? "bg-accent-soft shadow-card"
                       : batchMode
                         ? "bg-surface shadow-card"
                         : "bg-surface shadow-card flex-col gap-2"
                   }`}
-                  style={isSelected ? { boxShadow: "inset 0 0 0 2px var(--brand)" } : undefined}
+                  style={
+                    isSelected ? { boxShadow: "inset 0 0 0 2px var(--tau-accent)" } : undefined
+                  }
                 >
                   {batchMode ? (
                     <span
                       className={`mt-1 grid h-6 w-6 flex-none place-items-center self-start rounded-full border-2 text-[12px] font-extrabold transition-colors ${
                         isSelected
-                          ? "border-accent bg-accent text-white"
-                          : "border-[var(--ink-3)] text-transparent"
+                          ? "border-accent bg-accent text-ink-inverse"
+                          : "border-[var(--tau-ink-3)] text-transparent"
                       }`}
                     >
                       ✓
@@ -454,26 +456,27 @@ export function FlashcardDeckPage({
                   ) : null}
                   <div className={batchMode ? "min-w-0 flex-1" : "contents"}>
                     <div className="flex items-center justify-between">
-                      <span className="bg-lilac-soft text-lilac rounded-full px-2.5 py-1 text-[10.5px] font-extrabold">
+                      <span className="bg-tag-3-soft text-tag-3 rounded-full px-2.5 py-1 text-[10.5px] font-extrabold">
                         {FLASHCARD_TYPE_META[card.type].label}
                       </span>
                       <span
                         className="flex items-center gap-1.5 text-[11.5px] font-bold"
                         style={{
-                          color: card.dueTime <= Date.now() ? "var(--brand)" : "var(--meta-ink)",
+                          color:
+                            card.dueTime <= Date.now() ? "var(--tau-accent)" : "var(--tau-ink-2)",
                         }}
                       >
                         <span
                           className="h-[7px] w-[7px] rounded-full"
                           style={{
                             background:
-                              card.dueTime <= Date.now() ? "var(--brand)" : "var(--ink-3)",
+                              card.dueTime <= Date.now() ? "var(--tau-accent)" : "var(--tau-ink-3)",
                           }}
                         />
                         {card.status === "new" ? "新卡" : formatDueTime(card.dueTime)}
                       </span>
                     </div>
-                    <div className="text-ink line-clamp-2 text-[14px] font-semibold leading-[1.55]">
+                    <div className="text-ink-1 line-clamp-2 text-[14px] font-semibold leading-[1.55]">
                       {clampText(richTextPlainText(card.prompt), 80) || "（空白卡片）"}
                     </div>
                     <div className="flex items-center justify-between">
@@ -493,7 +496,7 @@ export function FlashcardDeckPage({
                             event.stopPropagation();
                             setMoreCard(card);
                           }}
-                          className="text-ink-3 active:bg-ghost-press -mr-1 grid h-7 w-7 place-items-center rounded-full"
+                          className="text-ink-3 active:bg-press -mr-1 grid h-7 w-7 place-items-center rounded-full"
                         >
                           <MoreHorizontal size={16} />
                         </button>

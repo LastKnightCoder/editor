@@ -41,9 +41,9 @@ export const mobileFileAttachmentExtension = defineExtension({
           <div
             {...attributes}
             contentEditable={false}
-            className="border-line bg-surface text-ink-2 my-2 rounded-xl border px-3 py-2 text-xs"
+            className="border-line-1 bg-surface text-ink-2 my-2 rounded-xl border px-3 py-2 text-xs"
           >
-            <p className="text-ink font-bold">{name}</p>
+            <p className="text-ink-1 font-bold">{name}</p>
             <p className="text-ink-3 mt-1 text-[11px]">{`类型: ${fileType} · 大小: ${sizeText}`}</p>
             <p className="text-ink-3 mt-1 break-all text-[11px]">{urlText}</p>
             {children}

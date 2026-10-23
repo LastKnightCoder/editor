@@ -113,7 +113,7 @@ export function InstalledPluginCard({
     >
       <header className="flex min-w-0 items-start gap-3">
         <div className="min-w-0 flex-1">
-          <h3 id={`${idPrefix}-name`} className="text-ink truncate text-[15px] font-semibold">
+          <h3 id={`${idPrefix}-name`} className="text-ink-1 truncate text-[15px] font-semibold">
             {name}
           </h3>
           <p className="text-ink-3 truncate text-[12px]">
@@ -171,13 +171,13 @@ export function InstalledPluginCard({
         </div>
       )}
       {settings.length > 0 && onOpenSetting && (
-        <ul aria-label="插件设置" className="border-line flex flex-col border-t pt-2">
+        <ul aria-label="插件设置" className="border-line-1 flex flex-col border-t pt-2">
           {settings.map(setting => (
             <li key={setting.id}>
               <button
                 type="button"
                 onClick={() => onOpenSetting(setting.id)}
-                className="text-ink active:bg-press flex min-h-11 w-full items-center justify-between rounded-xl px-1 text-left text-[14px]"
+                className="text-ink-1 active:bg-press flex min-h-11 w-full items-center justify-between rounded-xl px-1 text-left text-[14px]"
               >
                 {setting.title}
                 <span aria-hidden="true" className="text-ink-3">

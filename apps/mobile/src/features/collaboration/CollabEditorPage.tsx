@@ -1,7 +1,7 @@
 // 协作编辑页（设计稿 03 方案 A）：顶栏 presence + 状态副行 + 离线横幅 + 协作编辑器。
 // 远端光标/选区由 @tau/editor-collab 的文档源自动渲染，本页只负责外壳与状态。
 // 成员视角（本地无内容行）与协作中心入口仍走本页；owner 的原地编辑见详情页 CollaborativeEditor。
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getMobileContentKit } from "../../services/editorKit";
 import {
   ChevronRight,
@@ -21,6 +21,25 @@ import { useEdgeFade } from "../../hooks/useScrollState";
 import { useNavigator } from "../../router";
 import { MobileEditorBottomToolbar } from "../cards/editorToolbar/MobileEditorBottomToolbar";
 import { useMobileEditorToolbarController } from "../cards/editorToolbar/useMobileEditorToolbarController";
+import { isEditorContentEmpty } from "../cards/editorContentUtils";
+import { useReadingMode } from "../cards/readingMode/useReadingMode";
+import { ReadingModeHeaderButton } from "../cards/readingMode/ReadingModeHeaderButton";
+import { ReadingSelectionBar } from "../cards/readingMode/ReadingSelectionBar";
+import { useReadingSelection } from "../cards/readingMode/useReadingSelection";
+import { useEditorOpenMode } from "../../hooks/useEditorOpenMode";
+import { BlockActionBar } from "../cards/blockSelection/BlockActionBar";
+import { BlockDragLayer } from "../cards/blockSelection/BlockDragLayer";
+import { BlockHandle } from "../cards/blockSelection/BlockHandle";
+import { BlockSelectionHeader } from "../cards/blockSelection/BlockSelectionHeader";
+import { BlockSelectionLayer } from "../cards/blockSelection/BlockSelectionLayer";
+import { useBlockDrag } from "../cards/blockSelection/useBlockDrag";
+import {
+  blockSelectionMenuItem,
+  outlineMenuItem,
+} from "../cards/blockSelection/blockSelectionMenuItem";
+import { useEditorBlockSelection } from "../cards/blockSelection/useEditorBlockSelection";
+import { OutlineSheet } from "../cards/outline/OutlineSheet";
+import { useOutlineSheet } from "../cards/outline/useOutlineSheet";
 import { AvatarStack, StatusDot } from "./components/CollaborationUI";
 import { useCollabSession } from "./hooks/useCollabSession";
 
@@ -42,49 +61,105 @@ export function CollabEditorPage(props: {
     () => (binding ? createYjsDocument(binding, { onChange: () => syncSelection() }) : undefined),
     [binding, syncSelection]
   );
+  // 协作文档首次就绪（已绑定且不在建立连接中）时决定一次初始编辑态：空文档或偏好为直接编辑
+  const openMode = useEditorOpenMode();
+  const contentReady = Boolean(binding) && session?.connection !== "connecting";
+  const [initialEditing, setInitialEditing] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!contentReady || initialEditing !== null) return;
+    const children = (editorRef.current?.getEditor() as { children?: unknown } | undefined)
+      ?.children;
+    setInitialEditing(openMode === "edit" || isEditorContentEmpty(children ?? []));
+  }, [contentReady, initialEditing, openMode]);
+  // 协作只读（冻结 / 会话非活跃 / 未绑定）时强制阅读态且隐藏「编辑」
+  const readingMode = useReadingMode({
+    editorRef,
+    forcedReadonly: readonly,
+    initialEditing,
+    toolbarController,
+  });
+  // 协作只读时 canEdit 为 false，块选择不可进入且激活中立即退出
+  const { blockSelection, slateEditor, blockCount, handleBlockIndex } = useEditorBlockSelection({
+    editorRef,
+    readingMode,
+    toolbarController,
+  });
+  const outline = useOutlineSheet({ readingMode, blockSelection });
+  const [editorWrapEl, setEditorWrapEl] = useState<HTMLDivElement | null>(null);
+  const getScrollContainer = useCallback(() => scrollRef.current, []);
+  const blockDrag = useBlockDrag({
+    editorRef,
+    container: editorWrapEl,
+    getScrollContainer,
+    toolbarController,
+  });
+  // 块选择期间正文保持可写（块菜单命令要求可写编辑器，点击由覆盖层拦截）；块选择与拖拽块期间配件栏收起
+  const editorReadonly = readonly || (!readingMode.editing && !blockSelection.active);
+  const toolbarReadonly = editorReadonly || blockSelection.active || blockDrag.dragging !== null;
+  const readingSelection = useReadingSelection(
+    editorRef,
+    !readingMode.editing && readingMode.canEdit && !blockSelection.active
+  );
+  const kit = getMobileContentKit();
   // 工具条经 portal 挂进本页根容器，才能随页面转场动画一起平移、退场
   const [pageRootEl, setPageRootEl] = useState<HTMLDivElement | null>(null);
 
   return (
     <div ref={setPageRootEl} className="bg-page flex h-full flex-col">
-      <PageHeader
-        onBack={props.onBack}
-        center={
-          <div className="min-w-0">
-            <div className="text-ink truncate text-[16px] font-extrabold">
-              {session?.title ?? "协作文档"}
+      {blockSelection.active ? (
+        <BlockSelectionHeader
+          selectedCount={blockSelection.selected.length}
+          totalCount={blockCount}
+          onCancel={blockSelection.exit}
+          onSelectAll={blockSelection.selectAll}
+          onDeselectAll={() => blockSelection.setSelected([])}
+        />
+      ) : (
+        <PageHeader
+          onBack={props.onBack}
+          center={
+            <div className="min-w-0">
+              <div className="text-ink-1 truncate text-[16px] font-extrabold">
+                {session?.title ?? "协作文档"}
+              </div>
+              <div className="text-ink-2 mt-px flex items-center justify-center gap-1 text-[10.5px]">
+                <StatusDot tone={status?.tone ?? "idle"} />
+                <span className={status?.tone === "offline" ? "text-warn" : undefined}>
+                  {status?.label ?? "连接中"}
+                  {online.length > 0 ? ` · ${online.length} 人` : ""}
+                </span>
+              </div>
             </div>
-            <div className="text-ink-2 mt-px flex items-center justify-center gap-1 text-[10.5px]">
-              <StatusDot tone={status?.tone ?? "idle"} />
-              <span className={status?.tone === "offline" ? "text-warn" : undefined}>
-                {status?.label ?? "连接中"}
-                {online.length > 0 ? ` · ${online.length} 人` : ""}
-              </span>
-            </div>
-          </div>
-        }
-        actions={
-          <>
-            <button
-              type="button"
-              aria-label="成员管理"
-              onClick={() => navigator.push("memberSheet", { documentId: props.documentId })}
-              className="bg-surface shadow-card active:bg-press flex h-9 items-center gap-1 rounded-full py-1 pl-1.5 pr-2.5 transition-colors"
-            >
-              <AvatarStack members={online} />
-              <ChevronRight size={14} className="text-ink-3" />
-            </button>
-            <PageHeaderButton
-              icon={<MoreHorizontal size={20} />}
-              aria-label="更多操作"
-              onClick={() => setMoreOpen(true)}
-            />
-          </>
-        }
-      />
+          }
+          actions={
+            <>
+              <ReadingModeHeaderButton
+                editing={readingMode.editing}
+                canEdit={readingMode.canEdit}
+                onEnter={readingMode.enterEditing}
+                onExit={readingMode.exitEditing}
+              />
+              <button
+                type="button"
+                aria-label="成员管理"
+                onClick={() => navigator.push("memberSheet", { documentId: props.documentId })}
+                className="bg-surface shadow-card active:bg-hover flex h-9 items-center gap-1 rounded-full py-1 pl-1.5 pr-2.5 transition-colors"
+              >
+                <AvatarStack members={online} />
+                <ChevronRight size={14} className="text-ink-3" />
+              </button>
+              <PageHeaderButton
+                icon={<MoreHorizontal size={20} />}
+                aria-label="更多操作"
+                onClick={() => setMoreOpen(true)}
+              />
+            </>
+          }
+        />
+      )}
 
       {offline ? (
-        <div className="bg-butter-soft text-warn flex items-center gap-2.5 px-4 py-2.5 text-[12.5px] font-semibold">
+        <div className="bg-tag-4-soft text-warn flex items-center gap-2.5 px-4 py-2.5 text-[12.5px] font-semibold">
           <WifiOff size={15} className="shrink-0" />
           <span className="flex-1">
             {status?.label ?? "网络已断开"} · 改动保留在本机，恢复后自动同步
@@ -114,7 +189,7 @@ export function CollabEditorPage(props: {
 
           {!loading && !binding ? (
             <div className="flex min-h-[45vh] flex-col items-center justify-center px-8 text-center">
-              <p className="text-ink text-[15px] font-bold">无法打开协作文档</p>
+              <p className="text-ink-1 text-[15px] font-bold">无法打开协作文档</p>
               <p className="text-ink-2 mt-2 text-[12.5px] leading-relaxed">
                 {error || session?.error || "文档不存在或你已失去访问权限"}
               </p>
@@ -130,14 +205,19 @@ export function CollabEditorPage(props: {
           ) : null}
 
           {binding ? (
-            <div className="min-h-[45vh] pt-2">
+            <div
+              ref={setEditorWrapEl}
+              className="relative min-h-[45vh] pt-2"
+              // 块选择期间由覆盖层接管点击，阅读态的双击进入编辑与勾选待办不生效
+              {...(blockSelection.active ? {} : readingMode.readingSurfaceProps)}
+            >
               <Editor
-                kit={getMobileContentKit()}
+                kit={kit}
                 ref={editorRef}
                 key={`collab-${props.documentId}`}
                 document={document}
                 className="mobile-card-editor-content"
-                readonly={readonly}
+                readonly={editorReadonly}
                 onFocus={() => {
                   presence.onFocus();
                   toolbarController.handleEditorFocus();
@@ -148,11 +228,30 @@ export function CollabEditorPage(props: {
                 }}
                 onSelectionChange={toolbarController.syncSelection}
               />
+              <BlockSelectionLayer
+                editorRef={editorRef}
+                container={editorWrapEl}
+                active={blockSelection.active}
+                selected={blockSelection.selected}
+                onToggle={blockSelection.toggle}
+                documentVersion={slateEditor?.children}
+              />
+              <BlockDragLayer drag={blockDrag.dragging} />
+              <BlockHandle
+                editorRef={editorRef}
+                container={editorWrapEl}
+                // 拖拽中编辑器已失焦，把手仍挂在被拖块上以保持指针捕获
+                blockIndex={blockDrag.dragging?.from ?? handleBlockIndex}
+                onEnter={blockSelection.enter}
+                onDragStart={blockDrag.startDrag}
+                dragging={blockDrag.dragging !== null}
+                version={slateEditor?.children}
+              />
             </div>
           ) : null}
 
           {error && binding ? (
-            <p className="text-rose mt-4 text-[12px] leading-relaxed">{error}</p>
+            <p className="text-tag-5 mt-4 text-[12px] leading-relaxed">{error}</p>
           ) : null}
         </div>
       </div>
@@ -160,8 +259,29 @@ export function CollabEditorPage(props: {
       <MobileEditorBottomToolbar
         controller={toolbarController}
         portalContainer={pageRootEl}
-        readonly={readonly}
+        readonly={toolbarReadonly}
       />
+      {blockSelection.active ? (
+        <BlockActionBar
+          editorRef={editorRef}
+          kit={kit}
+          selection={blockSelection}
+          blockCount={blockCount}
+          portalContainer={pageRootEl}
+          onOpenOutline={outline.openOutline}
+        />
+      ) : (
+        <ReadingSelectionBar
+          editorRef={editorRef}
+          controller={toolbarController}
+          readingMode={readingMode}
+          range={readingSelection.range}
+          onClear={readingSelection.clear}
+          portalContainer={pageRootEl}
+        />
+      )}
+
+      <OutlineSheet open={outline.open} editorRef={editorRef} onClose={outline.close} />
 
       <ActionSheet
         open={moreOpen}
@@ -171,6 +291,12 @@ export function CollabEditorPage(props: {
           session ? `${session.members.length} 位成员 · ${online.length} 人在线` : undefined
         }
         items={[
+          ...(readingMode.canEdit && binding
+            ? [
+                blockSelectionMenuItem(() => blockSelection.enter()),
+                outlineMenuItem(outline.openOutline),
+              ]
+            : []),
           {
             label: "成员管理",
             icon: <Users size={18} />,

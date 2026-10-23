@@ -64,61 +64,61 @@ const FEED_KIND_STYLE: Record<
 > = {
   card: {
     label: "卡片",
-    chip: "bg-sky-soft text-sky",
+    chip: "bg-tag-2-soft text-tag-2",
     icon: Stack,
-    tone: "var(--sky)",
-    soft: "var(--sky-soft)",
+    tone: "var(--tau-tag-2)",
+    soft: "var(--tau-tag-2-soft)",
   },
   diary: {
     label: "日记",
-    chip: "bg-sage-soft text-sage",
+    chip: "bg-tag-1-soft text-tag-1",
     icon: BookOpen,
-    tone: "var(--sage)",
-    soft: "var(--sage-soft)",
+    tone: "var(--tau-tag-1)",
+    soft: "var(--tau-tag-1-soft)",
   },
   todo: {
     label: "任务",
-    chip: "bg-butter-soft text-butter",
+    chip: "bg-tag-4-soft text-tag-4",
     icon: CheckCircle,
-    tone: "var(--butter)",
-    soft: "var(--butter-soft)",
+    tone: "var(--tau-tag-4)",
+    soft: "var(--tau-tag-4-soft)",
   },
   article: {
     label: "文章",
-    chip: "bg-apricot-soft text-apricot",
+    chip: "bg-accent-soft text-accent-text",
     icon: Article,
-    tone: "var(--apricot)",
-    soft: "var(--apricot-soft)",
+    tone: "var(--tau-accent)",
+    soft: "var(--tau-accent-soft)",
   },
   projectDoc: {
     label: "项目",
-    chip: "bg-lilac-soft text-lilac",
+    chip: "bg-tag-3-soft text-tag-3",
     icon: FolderOpen,
-    tone: "var(--lilac)",
-    soft: "var(--lilac-soft)",
+    tone: "var(--tau-tag-3)",
+    soft: "var(--tau-tag-3-soft)",
   },
 };
 
 const AGENDA_STYLE: Record<AgendaKind, { icon: ReactNode; tone: string; soft: string }> = {
   calendar: {
-    icon: <CalendarCheck size={19} weight="duotone" color="var(--sky)" aria-hidden="true" />,
-    tone: "var(--sky)",
-    soft: "var(--sky-soft)",
+    icon: <CalendarCheck size={19} weight="duotone" color="var(--tau-tag-2)" aria-hidden="true" />,
+    tone: "var(--tau-tag-2)",
+    soft: "var(--tau-tag-2-soft)",
   },
   flashcard: {
-    icon: <Brain size={19} weight="duotone" color="var(--butter)" aria-hidden="true" />,
-    tone: "var(--butter)",
-    soft: "var(--butter-soft)",
+    icon: <Brain size={19} weight="duotone" color="var(--tau-tag-4)" aria-hidden="true" />,
+    tone: "var(--tau-tag-4)",
+    soft: "var(--tau-tag-4-soft)",
   },
   todo: {
-    icon: <CheckCircle size={19} weight="duotone" color="var(--brand)" aria-hidden="true" />,
-    tone: "var(--brand)",
-    soft: "var(--brand-soft)",
+    icon: <CheckCircle size={19} weight="duotone" color="var(--tau-accent)" aria-hidden="true" />,
+    tone: "var(--tau-accent)",
+    soft: "var(--tau-accent-soft)",
   },
   diary: {
-    icon: <BookOpen size={19} weight="duotone" color="var(--sage)" aria-hidden="true" />,
-    tone: "var(--sage)",
-    soft: "var(--sage-soft)",
+    icon: <BookOpen size={19} weight="duotone" color="var(--tau-tag-1)" aria-hidden="true" />,
+    tone: "var(--tau-tag-1)",
+    soft: "var(--tau-tag-1-soft)",
   },
   pomodoro: {
     icon: (
@@ -126,8 +126,8 @@ const AGENDA_STYLE: Record<AgendaKind, { icon: ReactNode; tone: string; soft: st
         🍅
       </span>
     ),
-    tone: "var(--rose)",
-    soft: "var(--rose-soft)",
+    tone: "var(--tau-tag-5)",
+    soft: "var(--tau-tag-5-soft)",
   },
 };
 
@@ -343,11 +343,11 @@ export function HomeDashboard(props: HomeDashboardProps) {
       {props.todoEnabled ? (
         <section className="mt-6">
           <div className="mb-2.5 flex items-baseline justify-between px-1">
-            <h2 className="text-ink text-[16.5px] font-extrabold">任务</h2>
+            <h2 className="text-ink-1 text-[16.5px] font-extrabold">任务</h2>
             <button
               type="button"
               onClick={props.onOpenTodo}
-              className="text-ink-3 active:text-ink text-[12.5px] font-semibold"
+              className="text-ink-3 active:text-ink-1 text-[12.5px] font-semibold"
             >
               全部 ›
             </button>
@@ -376,7 +376,7 @@ export function HomeDashboard(props: HomeDashboardProps) {
 
       <section className="mt-6">
         <div className="mb-2.5 px-1">
-          <h2 className="text-ink text-[16.5px] font-extrabold">最近</h2>
+          <h2 className="text-ink-1 text-[16.5px] font-extrabold">最近</h2>
         </div>
         <div className="scrollbar-hide -mx-[18px] mb-2.5 flex gap-1.5 overflow-x-auto px-[18px] py-1">
           {feedFilters.map(filter => {
@@ -388,7 +388,7 @@ export function HomeDashboard(props: HomeDashboardProps) {
                 aria-pressed={on}
                 onClick={() => setFeedFilter(filter.key)}
                 className={`shadow-card flex h-[30px] flex-none items-center gap-1 rounded-full px-3 text-[12px] font-bold transition-colors ${
-                  on ? "bg-ink text-surface" : "bg-surface text-ink-2"
+                  on ? "bg-ink-1 text-surface" : "bg-surface text-ink-2"
                 }`}
               >
                 {filter.label}
@@ -408,10 +408,10 @@ export function HomeDashboard(props: HomeDashboardProps) {
             <div className="space-y-3 py-3">
               {[1, 2].map(i => (
                 <div key={i} className="flex gap-3">
-                  <div className="bg-input h-9 w-9 animate-pulse rounded-[13px]" />
+                  <div className="bg-page h-9 w-9 animate-pulse rounded-[13px]" />
                   <div className="flex-1 space-y-2 py-1">
-                    <div className="bg-input h-3.5 w-3/4 animate-pulse rounded" />
-                    <div className="bg-input h-3 w-16 animate-pulse rounded" />
+                    <div className="bg-page h-3.5 w-3/4 animate-pulse rounded" />
+                    <div className="bg-page h-3 w-16 animate-pulse rounded" />
                   </div>
                 </div>
               ))}
@@ -430,7 +430,7 @@ export function HomeDashboard(props: HomeDashboardProps) {
                   key={item.key}
                   type="button"
                   onClick={item.action}
-                  className="border-line active:bg-press -mx-4 flex w-[calc(100%+2rem)] items-center gap-3 border-b border-dashed px-4 py-3 text-left last:border-b-0"
+                  className="border-line-1 active:bg-hover -mx-4 flex w-[calc(100%+2rem)] items-center gap-3 border-b border-dashed px-4 py-3 text-left last:border-b-0"
                 >
                   <span
                     className="grid h-9 w-9 shrink-0 place-items-center rounded-[13px]"
@@ -439,7 +439,7 @@ export function HomeDashboard(props: HomeDashboardProps) {
                     <style.icon size={18} color={style.tone} aria-hidden="true" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="text-ink block truncate text-[14px] font-semibold">
+                    <span className="text-ink-1 block truncate text-[14px] font-semibold">
                       {item.title}
                     </span>
                     <span className="text-ink-3 mt-0.5 flex items-center gap-1.5 text-[11.5px]">
@@ -461,7 +461,7 @@ export function HomeDashboard(props: HomeDashboardProps) {
             <button
               type="button"
               onClick={() => setFeedExpanded(true)}
-              className="text-ink-3 active:text-ink border-line -mx-4 block w-[calc(100%+2rem)] border-t border-dashed py-3 text-center text-[12.5px] font-semibold"
+              className="text-ink-3 active:text-ink-1 border-line-1 -mx-4 block w-[calc(100%+2rem)] border-t border-dashed py-3 text-center text-[12.5px] font-semibold"
             >
               显示更多
             </button>
@@ -470,7 +470,7 @@ export function HomeDashboard(props: HomeDashboardProps) {
             <button
               type="button"
               onClick={activeFilter.viewAll}
-              className="text-ink-3 active:text-ink border-line -mx-4 block w-[calc(100%+2rem)] border-t border-dashed py-3 text-center text-[12.5px] font-semibold"
+              className="text-ink-3 active:text-ink-1 border-line-1 -mx-4 block w-[calc(100%+2rem)] border-t border-dashed py-3 text-center text-[12.5px] font-semibold"
             >
               {activeFilter.viewAllLabel} ›
             </button>
@@ -496,7 +496,7 @@ function AgendaRow({
     : 0;
   return (
     <div
-      className={`border-line flex items-center gap-3 border-b border-dashed px-4 py-3 last:border-b-0 ${
+      className={`border-line-1 flex items-center gap-3 border-b border-dashed px-4 py-3 last:border-b-0 ${
         item.done ? "opacity-50" : ""
       }`}
     >
@@ -512,14 +512,15 @@ function AgendaRow({
           {style.icon}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="text-ink block truncate text-[14.5px] font-bold">{item.title}</span>
+          <span className="text-ink-1 block truncate text-[14.5px] font-bold">{item.title}</span>
           {item.progress ? (
             <span className="mt-[7px] block h-[6px] overflow-hidden rounded-full bg-[var(--ring-track)]">
               <span
                 className="block h-full rounded-full transition-[width] duration-500"
                 style={{
                   width: `${progressPct}%`,
-                  backgroundImage: "linear-gradient(90deg, var(--brand-strong), var(--brand))",
+                  backgroundImage:
+                    "linear-gradient(90deg, var(--tau-accent-hover), var(--tau-accent))",
                 }}
               />
             </span>
@@ -538,7 +539,7 @@ function AgendaRow({
           type="button"
           onClick={action[1]}
           className="h-[30px] shrink-0 rounded-full px-3.5 text-[12px] font-bold transition-transform active:scale-95"
-          style={{ background: style.tone, color: "var(--bg-surface)" }}
+          style={{ background: style.tone, color: "var(--tau-bg-surface)" }}
         >
           {action[0]}
         </button>
@@ -551,7 +552,7 @@ function TodoSummaryRow({ title, onToggle }: { title: string; onToggle: (v: bool
   return (
     <div className="flex items-center gap-3 px-4 py-3">
       <TodoCheck checked={false} onToggle={onToggle} />
-      <span className="text-ink min-w-0 flex-1 truncate text-[14px] font-semibold">{title}</span>
+      <span className="text-ink-1 min-w-0 flex-1 truncate text-[14px] font-semibold">{title}</span>
     </div>
   );
 }

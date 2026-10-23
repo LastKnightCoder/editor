@@ -3,10 +3,7 @@
 @import "@tau/editor/extensions/comment/styles.css";
 @import "@tau/editor/extensions/list/styles.css";
 @import "tailwindcss";
-@import "@tau/themes/scale.css";
-@import "./theme/tau-tokens.css";
-/* 编辑器的浮层原语来自 @tau/ui，类名经 @tau/themes 的语义映射取 --tau-*；
-   与本文件 @theme 同名的类（bg-surface / text-ink-2…）以本文件为准（后声明） */
+@import "@tau/themes/tokens.css";
 @import "@tau/themes/tailwind.css";
 @source "../../../packages/editor/src/core";
 @source "../../../packages/editor/src/extensions/media/src";
@@ -38,22 +35,15 @@
 @source "../../../packages/shared/src";
 @source "../../../packages/ui/src";
 
-/* ── 深色模式变体：夜航主题激活时 html 同时携带 .dark（兼容编辑器包） ── */
+/* ── 深色模式变体：深色时 html 携带 .dark（@tau/themes 运行时写入，编辑器包依赖） ── */
 @custom-variant dark (.dark &);
 
 /* ════════════════════════════════════════════════════════════
-   设计令牌 · 杏子 Bento（默认浅色）
-   奶油纸底 + 可可棕文字 + 陶土橙主色 + 六组粉彩语义色
+   主题：颜色全部来自 @tau/themes（主题族 × 明暗，与桌面端同一套取值），
+   本文件只定义移动端布局变量与由 --tau-* 派生的组件变量，不定义任何颜色。
    ════════════════════════════════════════════════════════════ */
-:root,
-[data-theme="apricot"] {
-  color-scheme: light;
-
+:root {
   /* 布局/环境 */
-  --font:
-    -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans",
-    "Microsoft YaHei", sans-serif;
-  --mono-font: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
   --mobile-safe-top: env(safe-area-inset-top, 0px);
   --mobile-safe-bottom: env(safe-area-inset-bottom, 0px);
   --kb-height: 0px;
@@ -81,405 +71,30 @@
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
 
-  /* 背景 */
-  --bg-page: #f6f1e7; /* 奶油纸底 */
-  --bg-surface: #fffdf9; /* 卡片/面板 */
-  --bg-elevated: #fffdf9; /* 浮层 */
-  --bg-input: #f6f1e7; /* 输入底 */
-  --bg-press: rgba(246, 241, 231, 0.65); /* 按压态 */
-  --ghost-press: rgba(67, 57, 44, 0.09); /* ghost 图标按钮按压墨团 */
-
-  /* 文字（可可棕系） */
-  --ink-1: #43392c;
-  --ink-2: #8b7d6b;
-  --ink-3: #b9ac9a;
-  /* meta 信息行专用：ink-2 在奶油底上仅 3.9:1，深化到 5.0:1 达 AA */
-  --meta-ink: #7a6c5a;
-
-  /* 边线 */
-  --line-1: #e9e1d2;
-  --line-2: rgba(233, 225, 210, 0.55);
-  /* 卡片不描边（白描边在奶油底上出戏），仅靠阴影分层 */
-  --hairline: transparent;
-
-  /* 品牌（陶土橙） */
-  --brand: #d97757;
-  --brand-strong: #e8896a;
-  --brand-soft: rgba(217, 119, 87, 0.12);
-  --brand-grad: linear-gradient(145deg, #e8896a, #d97757);
-
-  /* 六组粉彩语义色（前景 + 底色） */
-  --sage: #61795f;
-  --sage-soft: #e5ede2;
-  --sky: #5c7d99;
-  --sky-soft: #e2ebf3;
-  --apricot: #b2794b;
-  --apricot-soft: #f8e9d7;
-  --lilac: #8a7aa6;
-  --lilac-soft: #ebe6f3;
-  --butter: #a38c4d;
-  --butter-soft: #f6efd6;
-  --rose: #b06a5e;
-  --rose-soft: #f6e3e0;
-
-  /* 状态色 */
-  --ok: #61795f;
-  --warn: #a38c4d;
-  --danger: #b06a5e;
-
-  /* 遮罩 */
-  --mask: rgba(67, 57, 44, 0.4);
-
-  /* 阴影 */
-  --shadow-card-raw: 0 1px 2px rgba(120, 100, 70, 0.06), 0 8px 20px -12px rgba(120, 100, 70, 0.16);
-  --shadow-float-raw: 0 12px 32px -8px rgba(120, 100, 70, 0.35);
-  --shadow-accent-raw: 0 8px 18px -5px rgba(217, 119, 87, 0.55);
-
-  /* 顶栏 */
-  --topbar-fade-start: rgba(246, 241, 231, 0.96);
-  --topbar-fade-end: rgba(246, 241, 231, 0);
-
-  /* Dock：实底（半透明会让滚动内容从底部透出） */
-  --dock-bg: #fffdf9;
-  --dock-border: rgba(255, 255, 255, 0.9);
-  --dock-fade: rgba(246, 241, 231, 0.92);
-  --dock-inset: #ffffff;
-
-  /* 进度环轨道 */
-  --ring-track: rgba(255, 255, 255, 0.65);
-
-  /* 复习热力图五档色阶（0=无记录 + 四级活跃度）：
-     派生自 --brand/--bg-input，四主题的品牌色（杏子/琥珀/薄荷绿/海盐蓝）自动跟随 */
-  --heat-0: color-mix(in srgb, var(--ink-1) 6%, var(--bg-input));
-  --heat-1: color-mix(in srgb, var(--brand) 26%, var(--bg-input));
-  --heat-2: color-mix(in srgb, var(--brand) 52%, var(--bg-input));
-  --heat-3: color-mix(in srgb, var(--brand) 78%, var(--bg-input));
-  --heat-4: var(--brand);
-
-  /* Toast（浅色下用深色胶囊反衬） */
-  --toast-bg: #43392c;
-  --toast-fg: #fff8ef;
-
-  /* 纹理：奶油噪点（棕调 4%） */
-  --texture-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.45 0 0 0 0 0.38 0 0 0 0 0.26 0 0 0 0.04 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
-  --glow-ambient: none;
+  /* 组件变量（由 --tau-* 派生，随主题与明暗自动切换） */
+  --topbar-fade-start: color-mix(in srgb, var(--tau-bg-page) 96%, transparent);
+  --topbar-fade-end: color-mix(in srgb, var(--tau-bg-page) 0%, transparent);
+  /* Dock 用实底：半透明会让滚动内容从底部透出 */
+  --dock-bg: var(--tau-bg-surface);
+  --ring-track: var(--tau-bg-track);
+  /* 复习热力图五档色阶（0=无记录 + 四级活跃度），派生自 accent 与页面底 */
+  --heat-0: color-mix(in srgb, var(--tau-ink-1) 6%, var(--tau-bg-page));
+  --heat-1: color-mix(in srgb, var(--tau-accent) 26%, var(--tau-bg-page));
+  --heat-2: color-mix(in srgb, var(--tau-accent) 52%, var(--tau-bg-page));
+  --heat-3: color-mix(in srgb, var(--tau-accent) 78%, var(--tau-bg-page));
+  --heat-4: var(--tau-accent);
 
   /* 动效 */
   --ease-bounce: cubic-bezier(0.34, 1.56, 0.5, 1);
 }
 
 /* ════════════════════════════════════════════════════════════
-   设计令牌 · 玄夜 Midnight（深色）
-   深蓝夜底 + 琥珀主色 + 玻璃拟态 + 氛围光
-   ════════════════════════════════════════════════════════════ */
-[data-theme="midnight"] {
-  color-scheme: dark;
-
-  /* 背景 */
-  --bg-page: #0e1016;
-  --bg-surface: #171a22;
-  --bg-elevated: #1d212b;
-  --bg-input: rgba(255, 255, 255, 0.05);
-  --bg-press: rgba(255, 255, 255, 0.045);
-  --ghost-press: rgba(237, 238, 241, 0.14);
-
-  /* 文字 */
-  --ink-1: #edeef1;
-  --ink-2: #8e96a5;
-  --ink-3: #5b6270;
-  --meta-ink: #a2aab8;
-
-  /* 边线 */
-  --line-1: rgba(255, 255, 255, 0.07);
-  --line-2: rgba(255, 255, 255, 0.05);
-  --hairline: transparent;
-
-  /* 品牌（琥珀） */
-  --brand: #f0a860;
-  --brand-strong: #f5b877;
-  --brand-soft: rgba(240, 168, 96, 0.13);
-  --brand-grad: linear-gradient(145deg, #f5b877, #d98f43);
-
-  /* 六组语义色（深色下提高亮度、底色转半透明） */
-  --sage: #7edbb2;
-  --sage-soft: rgba(110, 231, 183, 0.12);
-  --sky: #9db9f0;
-  --sky-soft: rgba(147, 180, 255, 0.12);
-  --apricot: #f0b680;
-  --apricot-soft: rgba(240, 168, 96, 0.13);
-  --lilac: #c8b3f5;
-  --lilac-soft: rgba(196, 167, 255, 0.12);
-  --butter: #e8d487;
-  --butter-soft: rgba(240, 220, 130, 0.1);
-  --rose: #f5988a;
-  --rose-soft: rgba(255, 138, 120, 0.12);
-
-  /* 状态色 */
-  --ok: #7edbb2;
-  --warn: #e8d487;
-  --danger: #f5988a;
-
-  /* 遮罩 */
-  --mask: rgba(0, 0, 0, 0.55);
-
-  /* 阴影 */
-  --shadow-card-raw: 0 14px 30px -16px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  --shadow-float-raw: 0 18px 40px rgba(0, 0, 0, 0.55);
-  --shadow-accent-raw: 0 8px 18px -5px rgba(240, 168, 96, 0.4);
-
-  /* 顶栏 */
-  --topbar-fade-start: rgba(14, 16, 22, 0.94);
-  --topbar-fade-end: rgba(14, 16, 22, 0);
-
-  /* Dock：实底 */
-  --dock-bg: #171a22;
-  --dock-border: rgba(255, 255, 255, 0.09);
-  --dock-fade: rgba(14, 16, 22, 0.92);
-  --dock-inset: rgba(255, 255, 255, 0.06);
-
-  /* 进度条轨道 */
-  --ring-track: rgba(255, 255, 255, 0.09);
-
-  /* Toast（深色下用亮色浮层） */
-  --toast-bg: #1d222e;
-  --toast-fg: #edeef1;
-
-  /* 纹理：白色噪点 + 琥珀/蓝紫氛围光 */
-  --glow-ambient:
-    radial-gradient(420px 300px at 85% -5%, rgba(240, 168, 96, 0.08), transparent 65%),
-    radial-gradient(380px 320px at -10% 108%, rgba(90, 120, 255, 0.05), transparent 60%);
-}
-
-/* ════════════════════════════════════════════════════════════
-   设计令牌 · 薄荷 Mint（浅色·清新）
-   ════════════════════════════════════════════════════════════ */
-[data-theme="mint"] {
-  color-scheme: light;
-
-  --bg-page: #eef4ee;
-  --bg-surface: #fbfefb;
-  --bg-elevated: #f3f8f4;
-  --bg-input: #eef4ee;
-  --bg-press: rgba(238, 244, 238, 0.65);
-  --ghost-press: rgba(46, 61, 49, 0.09);
-
-  --ink-1: #2e3d31;
-  --ink-2: #71806f;
-  --ink-3: #a5b3a3;
-  --meta-ink: #5f6f5e;
-
-  --line-1: #dfe9df;
-  --line-2: rgba(223, 233, 223, 0.55);
-  --hairline: transparent;
-
-  --brand: #4a9d78;
-  --brand-strong: #5cae88;
-  --brand-soft: rgba(74, 157, 120, 0.12);
-  --brand-grad: linear-gradient(145deg, #5cae88, #4a9d78);
-
-  --sage: #4a8a62;
-  --sage-soft: #e3efe6;
-  --sky: #567f96;
-  --sky-soft: #e0ebf0;
-  --apricot: #a87f52;
-  --apricot-soft: #f5ecdd;
-  --lilac: #8378a4;
-  --lilac-soft: #e9e6f2;
-  --butter: #9c8d54;
-  --butter-soft: #f4efd8;
-  --rose: #a86e64;
-  --rose-soft: #f4e4e2;
-
-  --ok: #4a8a62;
-  --warn: #9c8d54;
-  --danger: #a86e64;
-
-  --mask: rgba(46, 61, 49, 0.4);
-
-  --shadow-card-raw: 0 1px 2px rgba(60, 100, 70, 0.05), 0 8px 20px -12px rgba(60, 100, 70, 0.2);
-  --shadow-float-raw: 0 12px 32px -8px rgba(74, 157, 120, 0.4);
-  --shadow-accent-raw: 0 8px 18px -5px rgba(74, 157, 120, 0.5);
-
-  --topbar-fade-start: rgba(238, 244, 238, 0.96);
-  --topbar-fade-end: rgba(238, 244, 238, 0);
-
-  --dock-bg: #fbfefb;
-  --dock-border: rgba(255, 255, 255, 0.95);
-  --dock-fade: rgba(238, 244, 238, 0.92);
-  --dock-inset: #ffffff;
-
-  --ring-track: rgba(255, 255, 255, 0.7);
-
-  --toast-bg: #2e3d31;
-  --toast-fg: #f0f8f0;
-
-  --glow-ambient: none;
-}
-
-/* ════════════════════════════════════════════════════════════
-   设计令牌 · 海盐 Ocean（浅色·沉静）
-   ════════════════════════════════════════════════════════════ */
-[data-theme="ocean"] {
-  color-scheme: light;
-
-  --bg-page: #edf2f8;
-  --bg-surface: #fcfdff;
-  --bg-elevated: #f4f7fc;
-  --bg-input: #edf2f8;
-  --bg-press: rgba(237, 242, 248, 0.65);
-  --ghost-press: rgba(45, 54, 68, 0.09);
-
-  --ink-1: #2d3644;
-  --ink-2: #728096;
-  --ink-3: #a6b1c2;
-  --meta-ink: #5d6a80;
-
-  --line-1: #dde5ef;
-  --line-2: rgba(221, 229, 239, 0.55);
-  --hairline: transparent;
-
-  --brand: #4d7fc4;
-  --brand-strong: #5d8fd4;
-  --brand-soft: rgba(77, 127, 196, 0.12);
-  --brand-grad: linear-gradient(145deg, #5d8fd4, #4d7fc4);
-
-  --sage: #527f63;
-  --sage-soft: #e2eee6;
-  --sky: #4d6f9e;
-  --sky-soft: #dfe9f5;
-  --apricot: #a3764a;
-  --apricot-soft: #f6ead9;
-  --lilac: #7f74a8;
-  --lilac-soft: #e8e5f3;
-  --butter: #97894e;
-  --butter-soft: #f3eed6;
-  --rose: #a56677;
-  --rose-soft: #f5e3e6;
-
-  --ok: #527f63;
-  --warn: #97894e;
-  --danger: #a56677;
-
-  --mask: rgba(45, 54, 68, 0.4);
-
-  --shadow-card-raw: 0 1px 2px rgba(60, 80, 120, 0.06), 0 8px 20px -12px rgba(60, 80, 120, 0.2);
-  --shadow-float-raw: 0 12px 32px -8px rgba(77, 127, 196, 0.4);
-  --shadow-accent-raw: 0 8px 18px -5px rgba(77, 127, 196, 0.5);
-
-  --topbar-fade-start: rgba(237, 242, 248, 0.96);
-  --topbar-fade-end: rgba(237, 242, 248, 0);
-
-  --dock-bg: #fcfdff;
-  --dock-border: rgba(255, 255, 255, 0.95);
-  --dock-fade: rgba(237, 242, 248, 0.92);
-  --dock-inset: #ffffff;
-
-  --ring-track: rgba(255, 255, 255, 0.7);
-
-  --toast-bg: #2d3644;
-  --toast-fg: #eef3fa;
-
-  --glow-ambient: none;
-}
-
-/* ════════════════════════════════════════════════════════════
-   共享编辑器主题桥接：--th-* → 杏子 Bento 令牌
-   packages/editor 的正文样式（标题/引用/代码块/标签/高亮）读取
-   桌面端 --th-* 变量；移动端不定义时会 fallback 成浏览器默认色，
-   导致编辑器内容与主题脱节。全部经 var() 间接引用，四主题自动适配。
-   ════════════════════════════════════════════════════════════ */
-:root {
-  --th-bg-page: var(--bg-page);
-  --th-card-bg: var(--bg-surface);
-  --th-bg-elevated: var(--bg-elevated);
-  --th-bg-hover: var(--bg-press);
-  --th-input-bg: var(--bg-input);
-  --th-glass: var(--dock-bg);
-
-  --th-text: var(--ink-1);
-  --th-text-secondary: var(--ink-2);
-  --th-text-tertiary: var(--ink-3);
-
-  --th-border: var(--line-1);
-  --th-border-hover: var(--line-1);
-  --th-border-focus: var(--brand);
-  --th-divide: var(--line-2);
-
-  --th-tag-bg: var(--bg-input);
-  --th-tag-text: var(--ink-2);
-
-  --th-success: var(--ok);
-  --th-warning: var(--warn);
-  --th-danger: var(--danger);
-  --th-info: var(--sky);
-
-  --th-overlay: var(--mask);
-  --th-shadow-sm: var(--shadow-card-raw);
-  --th-shadow-md: var(--shadow-float-raw);
-
-  --th-accent: var(--brand);
-  --th-accent-hover: var(--brand-strong);
-  --th-accent-active: var(--brand);
-  --th-accent-soft: var(--brand-soft);
-  --th-active-text: var(--brand);
-  --th-hover-text: var(--brand);
-  --th-btn-bg: var(--brand);
-  --th-btn-hover: var(--brand-strong);
-  --th-btn-active: var(--brand);
-  --th-btn-text: var(--toast-fg);
-  --th-focus-ring: 0 0 0 3px var(--brand-soft);
-}
-
-/* ════════════════════════════════════════════════════════════
-   Tailwind 主题映射：token → 工具类
-   bg-page / bg-surface / text-ink / border-line / bg-accent /
-   text-sage / bg-sage-soft / rounded-card / shadow-card / ease-bounce …
+   移动端尺度词：触控密度下的卡片圆角与回弹缓动（与主题正交）；
+   颜色/阴影类名由 @tau/themes/tailwind.css 提供
    ════════════════════════════════════════════════════════════ */
 @theme inline {
-  --color-page: var(--bg-page);
-  --color-surface: var(--bg-surface);
-  --color-elevated: var(--bg-elevated);
-  --color-input: var(--bg-input);
-  --color-press: var(--bg-press);
-  --color-ghost-press: var(--ghost-press);
-
-  --color-ink: var(--ink-1);
-  --color-ink-2: var(--ink-2);
-  --color-ink-3: var(--ink-3);
-  --color-meta-ink: var(--meta-ink);
-
-  --color-line: var(--line-1);
-  --color-line-soft: var(--line-2);
-
-  --color-accent: var(--brand);
-  --color-accent-strong: var(--brand-strong);
-  --color-accent-soft: var(--brand-soft);
-
-  --color-sage: var(--sage);
-  --color-sage-soft: var(--sage-soft);
-  --color-sky: var(--sky);
-  --color-sky-soft: var(--sky-soft);
-  --color-apricot: var(--apricot);
-  --color-apricot-soft: var(--apricot-soft);
-  --color-lilac: var(--lilac);
-  --color-lilac-soft: var(--lilac-soft);
-  --color-butter: var(--butter);
-  --color-butter-soft: var(--butter-soft);
-  --color-rose: var(--rose);
-  --color-rose-soft: var(--rose-soft);
-
-  --color-ok: var(--ok);
-  --color-warn: var(--warn);
-  --color-danger: var(--danger);
-  --color-mask: var(--mask);
-
   --radius-card: 20px;
   --radius-bento: 22px;
-  --radius-sheet: 30px;
-
-  --shadow-card: var(--shadow-card-raw);
-  --shadow-float: var(--shadow-float-raw);
-  --shadow-accent: var(--shadow-accent-raw);
 
   --ease-bounce: cubic-bezier(0.34, 1.56, 0.5, 1);
 }
@@ -492,30 +107,10 @@
 body {
   margin: 0;
   min-height: 100dvh;
-  font-family: var(--font);
+  font-family: var(--tau-font);
   font-size: 14px;
-  background-color: var(--bg-page);
-  color: var(--ink-1);
-}
-
-/* 全屏纹理层：噪点 + 氛围光（不拦截交互，铺在最上层）。
-   合并为单个伪元素多重背景，减少一份全屏合成层瓦片内存；
-   --texture-noise 跨主题共用 :root 一份，主题切换时该层不参与重光栅化 */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 2147483000;
-  pointer-events: none;
-  background-image: var(--glow-ambient), var(--texture-noise);
-  background-repeat: no-repeat, repeat;
-  background-size: cover, auto;
-}
-
-/* ── 主题切换 ViewTransition 备用：直切不闪后已停用，必要时恢复（见 themeStore） ── */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 0.15s;
+  background-color: var(--tau-bg-page);
+  color: var(--tau-ink-1);
 }
 
 html.mobile-root-scroll-locked,
@@ -526,7 +121,7 @@ body.mobile-root-scroll-locked {
 
 pre,
 code {
-  font-family: var(--mono-font);
+  font-family: var(--tau-font-mono);
 }
 
 #root {
@@ -590,23 +185,23 @@ code {
 
 /* ── 通用输入框 ── */
 .input-base {
-  background-color: var(--bg-input);
+  background-color: var(--tau-bg-page);
   border: 1.5px solid transparent;
-  color: var(--ink-1);
+  color: var(--tau-ink-1);
   border-radius: 14px;
-  caret-color: var(--brand);
+  caret-color: var(--tau-accent);
   transition:
     border-color 0.2s,
     box-shadow 0.2s;
 }
 
 .input-base::placeholder {
-  color: var(--ink-3);
+  color: var(--tau-ink-3);
 }
 
 .input-base:focus {
-  border-color: var(--brand);
-  box-shadow: 0 0 0 3px var(--brand-soft);
+  border-color: var(--tau-accent);
+  box-shadow: 0 0 0 3px var(--tau-accent-soft);
   outline: none;
 }
 
@@ -633,8 +228,8 @@ code {
   width: fit-content;
   max-width: min(92vw, 520px);
   border-radius: 100px;
-  background: var(--toast-bg);
-  color: var(--toast-fg);
+  background: var(--tau-ink-1);
+  color: var(--tau-ink-inverse);
   padding: 11px 22px;
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.22);
   transition:
@@ -694,19 +289,19 @@ code {
 }
 
 .toast-success .toast-icon {
-  color: var(--sage);
+  color: var(--tau-tag-1);
 }
 
 .toast-info .toast-icon {
-  color: var(--brand);
+  color: var(--tau-accent);
 }
 
 .toast-warning .toast-icon {
-  color: var(--butter);
+  color: var(--tau-tag-4);
 }
 
 .toast-error .toast-icon {
-  color: var(--danger);
+  color: var(--tau-danger);
 }
 
 /* ── 页面过渡 ── */
@@ -856,7 +451,7 @@ code {
   pointer-events: none;
   background: radial-gradient(
     46% 34% at 50% 44%,
-    color-mix(in srgb, var(--brand) 14%, transparent),
+    color-mix(in srgb, var(--tau-accent) 14%, transparent),
     transparent 70%
   );
   animation: pomodoro-breath 3.6s ease-in-out infinite;
@@ -919,7 +514,7 @@ code {
 .cover-title-fade-ink {
   position: absolute;
   inset: 0;
-  color: var(--ink-1);
+  color: var(--tau-ink-1);
   opacity: var(--header-p, 0);
 }
 
@@ -940,7 +535,7 @@ code {
   inset: 0;
   display: grid;
   place-items: center;
-  color: var(--ink-1);
+  color: var(--tau-ink-1);
   opacity: var(--header-p, 0);
 }
 
@@ -971,12 +566,12 @@ code {
   display: none;
 }
 
-/* ── 圆润卡片（杏子风） ── */
+/* ── 圆润卡片 ── */
 .card {
-  background-color: var(--bg-surface);
+  background-color: var(--tau-bg-surface);
   border-radius: var(--radius-card, 20px);
-  border: 1px solid var(--hairline);
-  box-shadow: var(--shadow-card-raw);
+  border: 1px solid transparent;
+  box-shadow: var(--tau-shadow-card);
 }
 
 /* ── 列表项 ── */
@@ -987,34 +582,34 @@ code {
   align-items: center;
   justify-content: space-between;
   padding: 13px 16px;
-  background-color: var(--bg-surface);
+  background-color: var(--tau-bg-surface);
   transition: background-color 0.15s;
 }
 
 .list-item:active {
-  background-color: var(--bg-press);
+  background-color: var(--tau-bg-hover);
 }
 
 /* ── 分组列表：卡片化 + 虚线分隔 ── */
 .list-group {
-  background-color: var(--bg-surface);
+  background-color: var(--tau-bg-surface);
   border-radius: var(--radius-card, 20px);
   overflow: hidden;
-  border: 1px solid var(--hairline);
-  box-shadow: var(--shadow-card-raw);
+  border: 1px solid transparent;
+  box-shadow: var(--tau-shadow-card);
 }
 
 .list-group .list-item:not(:last-child) {
-  border-bottom: 1px solid var(--line-1);
+  border-bottom: 1px solid var(--tau-line-1);
 }
 
 /* ── 设置分组列表（方案 C 极简分组）：行内缩进分隔线 ── */
 .setting-group {
-  background-color: var(--bg-surface);
+  background-color: var(--tau-bg-surface);
   border-radius: 16px;
   overflow: hidden;
-  border: 1px solid var(--hairline);
-  box-shadow: var(--shadow-card-raw);
+  border: 1px solid transparent;
+  box-shadow: var(--tau-shadow-card);
 }
 
 .setting-row {
@@ -1029,7 +624,7 @@ code {
 }
 
 .setting-row:active {
-  background-color: var(--bg-press);
+  background-color: var(--tau-bg-hover);
 }
 
 .setting-row + .setting-row::before {
@@ -1039,7 +634,7 @@ code {
   left: 56px;
   right: 0;
   height: 1px;
-  background: var(--line-1);
+  background: var(--tau-line-1);
 }
 
 /* ── Sheet 顶部抓手 ── */
@@ -1047,7 +642,7 @@ code {
   width: 42px;
   height: 5px;
   border-radius: 3px;
-  background: var(--line-1);
+  background: var(--tau-line-1);
   margin: 8px auto 12px;
   flex-shrink: 0;
 }

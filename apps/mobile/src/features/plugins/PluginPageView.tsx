@@ -25,7 +25,7 @@ export function PluginPageShell({ title, children }: { title: string; children: 
         <Button variant="ghost" onClick={() => void navigator.goBack("ui")}>
           返回
         </Button>
-        <h1 className="text-ink text-lg font-semibold">{title}</h1>
+        <h1 className="text-ink-1 text-lg font-semibold">{title}</h1>
       </header>
       <div className="mobile-kb-scroll min-h-0 flex-1 overflow-auto pb-[var(--mobile-safe-bottom)]">
         <PortalScope>

@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Ellipsis, FilePlus2, FolderKanban, Trash2 } from "lucide-react";
 import { PageHeaderButton } from "../../../components/PageHeader";
-import { ContentDetailPage } from "../../cards/ContentDetailPage";
+import { ContentDetailPage, type ContentDetailActions } from "../../cards/ContentDetailPage";
+import {
+  blockSelectionMenuItem,
+  outlineMenuItem,
+} from "../../cards/blockSelection/blockSelectionMenuItem";
 import { ActionSheet } from "../../../components/ActionSheet";
 import { BottomSheet } from "../../../components/BottomSheet";
 import { MobileConfirmDialog } from "../../../components/MobileConfirmDialog";
@@ -43,6 +47,7 @@ function ProjectDocEditorScreen() {
   const [addChildOpen, setAddChildOpen] = useState(false);
   const [addChildTitle, setAddChildTitle] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const detailActionsRef = useRef<ContentDetailActions>(null);
   const deleteItem = useProjectItemDelete();
   const createItem = useProjectItemCreate();
 
@@ -96,8 +101,8 @@ function ProjectDocEditorScreen() {
     return (
       <div className="mobile-kb-screen bg-page fixed inset-0 z-50 grid place-items-center">
         <div className="card w-48 space-y-3 p-5">
-          <div className="bg-input h-4 w-2/5 animate-pulse rounded" />
-          <div className="bg-input h-4 w-4/5 animate-pulse rounded" />
+          <div className="bg-page h-4 w-2/5 animate-pulse rounded" />
+          <div className="bg-page h-4 w-4/5 animate-pulse rounded" />
         </div>
       </div>
     );
@@ -109,6 +114,7 @@ function ProjectDocEditorScreen() {
         contentId={item.contentId ?? 0}
         contentTitle={item.title}
         refreshKey={refreshRev}
+        actionsRef={detailActionsRef}
         contextEntity={{ kind: "project-item", id: params.itemId }}
         collaboration={collab.collaboration}
         onCollaborationEnded={() => {
@@ -124,14 +130,14 @@ function ProjectDocEditorScreen() {
         }}
         contentTypeBadge={{
           icon: FolderKanban,
-          className: "bg-butter-soft text-butter",
+          className: "bg-tag-4-soft text-tag-4",
         }}
         sourceRef={
           item.refType
             ? {
                 label: sourceLabel || "…",
                 typeLabel: item.refType === "card" ? "卡片" : "文章",
-                toneClass: "text-butter",
+                toneClass: "text-tag-4",
                 onOpen: () => {
                   if (item.refType === "card") {
                     navigator.push("contentDetail", { cardId: item.refId });
@@ -174,7 +180,7 @@ function ProjectDocEditorScreen() {
           type="button"
           disabled={createItem.isPending}
           onClick={handleCreateChild}
-          className="bg-sage-soft text-sage flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[14.5px] font-bold transition-transform active:scale-[0.97] disabled:opacity-60"
+          className="bg-tag-1-soft text-tag-1 flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-[14.5px] font-bold transition-transform active:scale-[0.97] disabled:opacity-60"
         >
           <FilePlus2 size={17} strokeWidth={2.2} />
           新建子文档
@@ -187,6 +193,8 @@ function ProjectDocEditorScreen() {
         kind="项目节点"
         onClose={() => setMenuOpen(false)}
         items={[
+          blockSelectionMenuItem(() => detailActionsRef.current?.enterBlockSelection()),
+          outlineMenuItem(() => detailActionsRef.current?.openOutline()),
           {
             label: "添加子文档",
             icon: <FilePlus2 size={18} />,

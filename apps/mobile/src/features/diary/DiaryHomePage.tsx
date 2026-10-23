@@ -382,7 +382,7 @@ export function DiaryHomePage({
     <div className="bg-page relative flex h-full flex-col">
       <header className="flex items-center justify-between px-[18px] pt-[calc(20px+var(--mobile-safe-top))]">
         <div>
-          <h1 className="text-ink text-2xl font-extrabold tracking-tight">日记</h1>
+          <h1 className="text-ink-1 text-2xl font-extrabold tracking-tight">日记</h1>
           <p className="text-ink-2 mt-1 text-[12.5px]">
             {streak > 0 ? `连续记录 ${streak} 天` : "开始今天的记录"}
           </p>
@@ -410,8 +410,8 @@ export function DiaryHomePage({
             <PenLine size={16} strokeWidth={2} aria-hidden="true" />
             记下今天的想法…
             <span
-              className="ml-auto grid h-[30px] w-[30px] place-items-center rounded-[11px] text-white"
-              style={{ backgroundImage: "var(--brand-grad)", boxShadow: "var(--shadow-accent)" }}
+              className="text-ink-inverse ml-auto grid h-[30px] w-[30px] place-items-center rounded-[11px]"
+              style={{ background: "var(--tau-accent)", boxShadow: "var(--tau-shadow-lift)" }}
             >
               <PenLine size={14} strokeWidth={2.2} aria-hidden="true" />
             </span>
@@ -426,7 +426,7 @@ export function DiaryHomePage({
                 type="button"
                 onClick={() => setSelectedTags([])}
                 className={`shadow-card shrink-0 rounded-full px-[15px] py-[9px] text-[13px] font-semibold transition-all duration-200 ${
-                  selectedTags.length === 0 ? "bg-accent-soft text-ink" : "bg-surface text-ink-2"
+                  selectedTags.length === 0 ? "bg-accent-soft text-ink-1" : "bg-surface text-ink-2"
                 }`}
               >
                 全部
@@ -441,7 +441,7 @@ export function DiaryHomePage({
                     onClick={() => toggleTagFilter(setting.name)}
                     aria-pressed={selected}
                     className={`shadow-card flex shrink-0 items-center gap-[6px] rounded-full px-[15px] py-[9px] text-[13px] font-semibold transition-all duration-200 ${
-                      selected ? (light ? "text-ink" : "") : "bg-surface text-ink-2"
+                      selected ? (light ? "text-ink-1" : "") : "bg-surface text-ink-2"
                     }`}
                     style={
                       selected
@@ -476,9 +476,9 @@ export function DiaryHomePage({
             <div className="space-y-3 pt-2">
               {[1, 2, 3].map(i => (
                 <div key={i} className="card p-4">
-                  <div className="bg-input h-4 w-24 animate-pulse rounded-full" />
-                  <div className="bg-input mt-3 h-4 w-full animate-pulse rounded" />
-                  <div className="bg-input mt-2 h-4 w-2/3 animate-pulse rounded" />
+                  <div className="bg-page h-4 w-24 animate-pulse rounded-full" />
+                  <div className="bg-page mt-3 h-4 w-full animate-pulse rounded" />
+                  <div className="bg-page mt-2 h-4 w-2/3 animate-pulse rounded" />
                 </div>
               ))}
             </div>
@@ -515,7 +515,7 @@ export function DiaryHomePage({
                         <span className="font-mono text-[11px] font-medium">
                           {row.count} 条 · {row.wordTotal} 字
                         </span>
-                        <span className="bg-line h-[1.5px] flex-1" />
+                        <span className="bg-line-1 h-[1.5px] flex-1" />
                       </div>
                     ) : row ? (
                       <DiaryCardItem
@@ -557,18 +557,18 @@ export function DiaryHomePage({
             type="button"
             onClick={() => shiftCalendarMonth(-1)}
             aria-label="上一月"
-            className="bg-input text-ink-2 active:scale-88 grid h-9 w-9 place-items-center rounded-xl transition-transform duration-150"
+            className="bg-page text-ink-2 active:scale-88 grid h-9 w-9 place-items-center rounded-xl transition-transform duration-150"
           >
             <ChevronLeft size={16} aria-hidden="true" />
           </button>
-          <p className="text-ink flex-1 text-center text-[15px] font-bold tabular-nums">
+          <p className="text-ink-1 flex-1 text-center text-[15px] font-bold tabular-nums">
             {calendarMonth.year}年{calendarMonth.month + 1}月
           </p>
           <button
             type="button"
             onClick={() => shiftCalendarMonth(1)}
             aria-label="下一月"
-            className="bg-input text-ink-2 active:scale-88 grid h-9 w-9 place-items-center rounded-xl transition-transform duration-150"
+            className="bg-page text-ink-2 active:scale-88 grid h-9 w-9 place-items-center rounded-xl transition-transform duration-150"
           >
             <ChevronRight size={16} aria-hidden="true" />
           </button>
@@ -585,14 +585,14 @@ export function DiaryHomePage({
                 key={cell.key}
                 type="button"
                 onClick={() => openByDate(cell.dateKey)}
-                className={`active:bg-input relative grid aspect-square place-items-center rounded-[13px] text-[14px] font-semibold tabular-nums transition-colors ${
-                  cell.isToday ? "text-white" : "text-ink-2"
+                className={`active:bg-page relative grid aspect-square place-items-center rounded-[13px] text-[14px] font-semibold tabular-nums transition-colors ${
+                  cell.isToday ? "text-ink-inverse" : "text-ink-2"
                 }`}
-                style={cell.isToday ? { backgroundImage: "var(--brand-grad)" } : undefined}
+                style={cell.isToday ? { background: "var(--tau-accent)" } : undefined}
               >
                 {cell.day}
                 {cell.hasEntry && !cell.isToday ? (
-                  <span className="bg-sage absolute bottom-[4px] h-[4px] w-[4px] rounded-full" />
+                  <span className="bg-tag-1 absolute bottom-[4px] h-[4px] w-[4px] rounded-full" />
                 ) : null}
               </button>
             ) : (

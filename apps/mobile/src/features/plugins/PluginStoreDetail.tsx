@@ -53,7 +53,7 @@ export function PluginStoreDetail() {
     return (
       <PluginPageShell title="插件详情">
         <div role="alert" className="flex flex-col items-center gap-3 px-6 py-12 text-center">
-          <p className="text-ink text-[15px] font-semibold">
+          <p className="text-ink-1 text-[15px] font-semibold">
             {failure ? "插件资料暂时打不开" : "找不到这个插件"}
           </p>
           <p className="text-ink-2 break-words text-[13px]">
@@ -133,14 +133,14 @@ export function PluginStoreDetail() {
         </section>
 
         <section className="bg-surface shadow-card rounded-card flex flex-col gap-2 p-4">
-          <h2 className="text-ink text-[15px] font-semibold">
+          <h2 className="text-ink-1 text-[15px] font-semibold">
             {host ? `${PLATFORM_LABELS[host.platform]}支持` : "平台支持"}
           </h2>
           <TargetSummary targets={latest.targets} platform={host?.platform ?? null} />
         </section>
 
         <section className="bg-surface shadow-card rounded-card flex flex-col gap-2 p-4">
-          <h2 className="text-ink text-[15px] font-semibold">介绍</h2>
+          <h2 className="text-ink-1 text-[15px] font-semibold">介绍</h2>
           {/* 包内 README 按纯文本显示，不解析 HTML 或加载远程资源 */}
           <p
             className={`text-ink-2 whitespace-pre-wrap break-words text-[13px] leading-relaxed ${expanded ? "" : "line-clamp-6"}`}
@@ -157,7 +157,7 @@ export function PluginStoreDetail() {
         </section>
 
         <section className="bg-surface shadow-card rounded-card flex flex-col gap-2 p-4">
-          <h2 className="text-ink text-[15px] font-semibold">版本历史</h2>
+          <h2 className="text-ink-1 text-[15px] font-semibold">版本历史</h2>
           <ReleaseHistoryList
             platformLabel={host ? PLATFORM_LABELS[host.platform] : "本平台"}
             items={history.map((item, index) => ({

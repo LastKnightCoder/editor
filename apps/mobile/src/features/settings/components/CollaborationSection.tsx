@@ -88,7 +88,7 @@ export function CollaborationSection() {
           <Avatar id={deviceId ?? "local"} name={nickname} size="lg" online={status === "ready"} />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-ink truncate text-[18px] font-extrabold">{nickname}</span>
+              <span className="text-ink-1 truncate text-[18px] font-extrabold">{nickname}</span>
               <button
                 type="button"
                 onClick={() => setNicknameDraft(nickname)}
@@ -100,7 +100,7 @@ export function CollaborationSection() {
             <div className="text-ink-3 mt-1 text-[11.5px]">设备 {deviceLabel(deviceId)}</div>
           </div>
         </div>
-        <div className="border-line text-ink-2 mt-3.5 flex gap-2 border-t pt-3 text-[11.5px] leading-relaxed">
+        <div className="border-line-1 text-ink-2 mt-3.5 flex gap-2 border-t pt-3 text-[11.5px] leading-relaxed">
           这是协作者看到的你 · 无需注册账号，设备即身份
         </div>
       </div>
@@ -110,7 +110,7 @@ export function CollaborationSection() {
         <GroupRow>
           <IconWifi />
           <span className="min-w-0 flex-1">
-            <span className="text-ink block text-[14px] font-medium">连接状态</span>
+            <span className="text-ink-1 block text-[14px] font-medium">连接状态</span>
             {status === "error" && error ? (
               <span className="text-ink-3 block truncate text-[11.5px]">{error}</span>
             ) : null}
@@ -150,8 +150,8 @@ export function CollaborationSection() {
             type="button"
             disabled={busy || !(nicknameDraft ?? "").trim()}
             onClick={() => void saveNickname()}
-            className="shadow-accent w-full rounded-full py-3 text-[15px] font-extrabold text-white disabled:opacity-50 disabled:shadow-none"
-            style={{ backgroundImage: "var(--brand-grad)" }}
+            className="shadow-lift text-ink-inverse w-full rounded-full py-3 text-[15px] font-extrabold disabled:opacity-50 disabled:shadow-none"
+            style={{ background: "var(--tau-accent)" }}
           >
             {busy ? "保存中…" : "保存"}
           </button>

@@ -88,8 +88,8 @@ export function ReviewHeatmap({ stats, dueToday, onOpenReview }: ReviewHeatmapPr
     return (
       <div className="bg-surface shadow-card rounded-[20px] p-4">
         <div className="flex items-baseline justify-between">
-          <span className="text-meta-ink text-[12.5px] font-extrabold">复习热力图</span>
-          <span className="text-meta-ink text-[11.5px] font-bold">连续 0 天</span>
+          <span className="text-ink-2 text-[12.5px] font-extrabold">复习热力图</span>
+          <span className="text-ink-2 text-[11.5px] font-bold">连续 0 天</span>
         </div>
         <div className="py-7 text-center">
           <div className="text-[34px]">🌱</div>
@@ -101,8 +101,8 @@ export function ReviewHeatmap({ stats, dueToday, onOpenReview }: ReviewHeatmapPr
             <button
               type="button"
               onClick={onOpenReview}
-              className="shadow-accent mt-4 rounded-[14px] px-[22px] py-2.5 text-[13.5px] font-extrabold text-white"
-              style={{ background: "var(--brand-grad)" }}
+              className="shadow-lift text-ink-inverse mt-4 rounded-[14px] px-[22px] py-2.5 text-[13.5px] font-extrabold"
+              style={{ background: "var(--tau-accent)" }}
             >
               开始第一轮复习
             </button>
@@ -115,8 +115,8 @@ export function ReviewHeatmap({ stats, dueToday, onOpenReview }: ReviewHeatmapPr
   return (
     <div className="bg-surface shadow-card rounded-[20px] p-4">
       <div className="flex items-baseline justify-between">
-        <span className="text-meta-ink text-[12.5px] font-extrabold">复习热力图</span>
-        <span className="text-meta-ink text-[11.5px] font-bold">
+        <span className="text-ink-2 text-[12.5px] font-extrabold">复习热力图</span>
+        <span className="text-ink-2 text-[11.5px] font-bold">
           连续 <b className="text-accent">{streaks.current}</b> 天 · 最长{" "}
           <b className="text-accent">{streaks.best}</b> 天
         </span>
@@ -130,7 +130,9 @@ export function ReviewHeatmap({ stats, dueToday, onOpenReview }: ReviewHeatmapPr
             type="button"
             onClick={() => setRangeKey(item.key)}
             className={`rounded-full px-3 py-1.5 text-[12px] font-extrabold ${
-              item.key === rangeKey ? "bg-ink text-[var(--toast-fg)]" : "bg-input text-ink-2"
+              item.key === rangeKey
+                ? "bg-ink-1 text-[var(--tau-ink-inverse)]"
+                : "bg-page text-ink-2"
             }`}
           >
             {item.label}
@@ -193,9 +195,9 @@ export function ReviewHeatmap({ stats, dueToday, onOpenReview }: ReviewHeatmapPr
                         onClick={() => setSelectedStart(isSelected ? null : day.dayStart)}
                         className={`flex-none rounded-[3.5px] transition-transform active:scale-[0.82] ${
                           isToday
-                            ? "outline-1.5 outline outline-offset-1 outline-[var(--brand-strong)]"
+                            ? "outline-1.5 outline outline-offset-1 outline-[var(--tau-accent-hover)]"
                             : ""
-                        } ${isSelected ? "outline-offset-1.5 outline-2 outline-[var(--brand)]" : ""}`}
+                        } ${isSelected ? "outline-offset-1.5 outline-2 outline-[var(--tau-accent)]" : ""}`}
                         style={{
                           width: range.cell,
                           height: range.cell,
@@ -259,8 +261,8 @@ function DayDetail({
     : `${date.getMonth() + 1} 月 ${date.getDate()} 日 · 周${WEEKDAY_CN[date.getDay()]}`;
 
   return (
-    <div className="border-line mt-3 border-t-[1.5px] border-dashed pt-3">
-      <div className="text-meta-ink flex items-center justify-between text-[12px] font-extrabold">
+    <div className="border-line-1 mt-3 border-t-[1.5px] border-dashed pt-3">
+      <div className="text-ink-2 flex items-center justify-between text-[12px] font-extrabold">
         <span>{dateLabel}</span>
         {isPeak ? <span className="text-accent">单日最高 🔥</span> : null}
         {isToday && day.count > 0 ? <span className="text-accent">进行中</span> : null}
@@ -270,7 +272,7 @@ function DayDetail({
       ) : (
         <>
           <div className="mt-1.5 flex items-baseline gap-2">
-            <b className="text-ink text-[26px] font-extrabold leading-none">{day.count}</b>
+            <b className="text-ink-1 text-[26px] font-extrabold leading-none">{day.count}</b>
             <span className="text-ink-2 text-[12px] font-bold">
               张{isToday && dueToday > 0 ? ` · 还剩 ${dueToday} 张到期` : ""}
             </span>
@@ -287,7 +289,7 @@ function DayDetail({
                   >
                     {item.label}
                   </span>
-                  <div className="bg-input h-2 flex-1 overflow-hidden rounded-full">
+                  <div className="bg-page h-2 flex-1 overflow-hidden rounded-full">
                     <div
                       className="h-full rounded-full"
                       style={{ width: `${percent}%`, background: item.color }}
@@ -304,8 +306,8 @@ function DayDetail({
             <button
               type="button"
               onClick={onOpenReview}
-              className="shadow-accent mt-3 w-full rounded-[14px] py-2.5 text-[13.5px] font-extrabold text-white"
-              style={{ background: "var(--brand-grad)" }}
+              className="shadow-lift text-ink-inverse mt-3 w-full rounded-[14px] py-2.5 text-[13.5px] font-extrabold"
+              style={{ background: "var(--tau-accent)" }}
             >
               继续复习
             </button>

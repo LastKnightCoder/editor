@@ -4,6 +4,8 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
 import { mobilePluginSpike } from "./scripts/plugin-spike";
+import { createThemeBootstrapScript } from "@tau/themes";
+import { createLegacyThemeMigrationScript } from "./src/theme/legacyThemeMigration";
 
 const host = process.env.TAURI_DEV_HOST;
 
@@ -18,7 +20,22 @@ export default defineConfig(async ({ mode }) => ({
           )
         : "[]",
   },
-  plugins: [react(), tailwindcss(), ...(mode === "plugin-spike" ? [mobilePluginSpike()] : [])],
+  plugins: [
+    {
+      // 首帧前应用主题（与桌面端同一首帧脚本），先把旧版移动端主题偏好迁成新格式
+      name: "tau-theme-bootstrap",
+      transformIndexHtml: () => [
+        {
+          tag: "script",
+          children: createLegacyThemeMigrationScript() + createThemeBootstrapScript(),
+          injectTo: "head-prepend",
+        },
+      ],
+    },
+    react(),
+    tailwindcss(),
+    ...(mode === "plugin-spike" ? [mobilePluginSpike()] : []),
+  ],
   resolve: {
     dedupe: ["react", "react-dom", "slate", "slate-react", "react-dnd", "react-dnd-html5-backend"],
     alias: {

@@ -50,7 +50,7 @@ Rust 在应用私有目录 `.editor/portable-plugins/<id>/` 保存 current、sta
 
 ## 正文与公共交互
 
-普通正文及其预览使用 mobileContentPlugins 的同一快照，Markdown 转换使用同一 codec。Kit 缓存按快照对象失效；闪卡等其他场景不自动加入插件扩展。插入面板消费插件 blockPanel，执行前恢复原选区，原实例失效或只读时不执行。
+普通正文及其预览使用 mobileContentPlugins 的同一快照，Markdown 转换使用同一 codec。Kit 缓存按快照对象失效；闪卡等其他场景不自动加入插件扩展。键盘位置的 InsertPanel 将插件 blockPanel 显示在插件分组，按 title/keywords 搜索；图标沿用组件契约。执行前恢复打开面板时的选区，插入后保存新选区并关闭面板回到键盘，原实例失效或只读时不执行。指定 allowedKinds 的轻量插入面板不自动加入插件项，插件项不混入内置最近使用记录。
 
 SDK 的支持等级投影由桌面与移动共用：none 不装配；render 去掉编辑行为与插入/命令贡献；edit 提供编辑。IElementEditingPolicy 将限制同时传给标准 UI、useElement/useSourceBlock 与 captureElementSubmission，拒绝后的旧提交不能因后来变为可编辑而复活。同一个 extension 混合 render/edit 时，宿主保守撤下该组命令与插入入口；需要独立插入时作者应拆成多个 extension，节点身份不变。未知节点保留原数据。
 

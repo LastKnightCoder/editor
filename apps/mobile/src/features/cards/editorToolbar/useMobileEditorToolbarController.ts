@@ -1,22 +1,29 @@
 import { mobileContentPlugins } from "../../../app/plugins/content";
 import type { IBlockPanelListItem } from "@tau/editor/api";
-import { useCallback, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { flushSync } from "react-dom";
 import type { EditorRef } from "@tau/editor";
 import { insertTabs } from "@tau/editor/extensions/tabs";
 import { insertCallout } from "@tau/editor/extensions/callout";
 import { insertDetails } from "@tau/editor/extensions/detail";
 import { insertHighlightBlock } from "@tau/editor/extensions/highlight-block";
-import { insertTable } from "@tau/editor/extensions/table";
+import { insertTable, type TableAlign } from "@tau/editor/extensions/table";
 import { insertCheckList } from "@tau/editor/extensions/list";
 import { insertAnnotation } from "@tau/editor/extensions/annotation";
 import { insertMermaid } from "@tau/editor/extensions/diagram";
 import { insertCodeBlock } from "@tau/editor/extensions/code-block";
 import { insertBlockMath } from "@tau/editor/extensions/math";
 import { openLocalMediaPicker, openMediaUrlInput } from "@tau/editor/extensions/media";
-import type { Editor as SlateEditor } from "slate";
-import { Range, Transforms, type BaseSelection } from "slate";
+import {
+  Editor as SlateEditor,
+  Element as SlateElement,
+  Range,
+  Transforms,
+  type BaseSelection,
+} from "slate";
 import { ReactEditor } from "slate-react";
 
+import { useKeyboardReservation } from "../../../components/KeyboardViewportProvider";
 import type { ContentLinkPickerResult } from "../editorExtensions/ContentLinkPickerSheet";
 import { wrapContentLink } from "../editorExtensions/contentLinkTransforms";
 import {
@@ -25,6 +32,8 @@ import {
   applyHeaderBlock,
   applyHighlightMark as applyHighlightMarkToEditor,
   applyUnderlineStyle as applyUnderlineStyleToEditor,
+  getBlockKindAt,
+  getSelectionMarks,
   insertDividerBlock,
   isActionSelectionRequired,
   isBlockAction,
@@ -41,10 +50,32 @@ import {
   toggleListBlock,
   toggleMark,
   toggleQuoteBlock,
+  type CurrentBlockKind,
   type ToolbarActionId,
   type TextGradientOption,
   type UnderlineStylePayload,
 } from "./toolbarActions";
+import {
+  TEXT_CONTEXT,
+  getEditingContextKey,
+  isVoidEditorContext,
+  resolveTableContext,
+  useEditingContext,
+  type CodeEditingContext,
+  type EditingContext,
+} from "./editingContext";
+import { setCodeBlockLanguage as setCodeBlockLanguageOnEditor } from "./codeBlockInput";
+import {
+  getColumnAlign,
+  runTableAction as runTableActionOnEditor,
+  type TableActionId,
+} from "./tableActions";
+import {
+  DEFAULT_KEYBOARD_SWAP_STRATEGY,
+  clearKeyboardSwap,
+  hideKeyboard,
+  showKeyboard,
+} from "./keyboardSwap";
 
 /** 插入面板条目：媒体选择/块插入/行内标记三类入口（对齐桌面 slash 菜单的移动端子集） */
 export type InsertSheetItemKind =
@@ -66,24 +97,86 @@ export type InsertSheetItemKind =
   | "math"
   | "mermaid"
   | "annotation"
-  | "comment"
-  | "content-link"
-  | "styled-text"
-  | "kbd";
+  | "content-link";
+
+/** 占用键盘位置的面板：Aa 样式面板 / + 插入面板 */
+export type EditorPanelKind = "style" | "insert";
+
+export type ClosePanelOptions = {
+  /** 是否弹回键盘；用户点正文时键盘由系统弹出，传 false */
+  showKeyboard: boolean;
+  /** 弹回键盘时是否恢复面板保存的选区，默认 false */
+  restoreSelection?: boolean;
+};
+
+type ListIndentDirection = "indent" | "outdent";
+
+/** 列表项缩进命令，按光标所在最内层列表项类型选择 */
+const LIST_INDENT_COMMANDS: Partial<Record<string, Record<ListIndentDirection, string>>> = {
+  "check-list-item": {
+    indent: "tau.check-list.indent",
+    outdent: "tau.check-list.outdent",
+  },
+  "list-item": {
+    indent: "tau.list-item.indent",
+    outdent: "tau.list-item.outdent",
+  },
+};
 
 type UseMobileEditorToolbarControllerOptions = {
   editorRef: RefObject<EditorRef | null>;
 };
 
 export type MobileEditorToolbarController = {
-  pluginInsertItems: { title: string; icon: IBlockPanelListItem["icon"]; run: () => void }[];
+  pluginInsertItems: {
+    title: string;
+    keywords: string[];
+    icon: IBlockPanelListItem["icon"];
+    run: () => void;
+  }[];
   isEditorFocused: boolean;
+  /** 编辑器聚焦、面板或表格菜单打开、焦点在 void 内部编辑器时配件栏可见（这些情况下 Slate 处于失焦） */
+  isToolbarVisible: boolean;
+  /** 配件栏当前上下文；被手动退回的上下文按 text 给出 */
+  editingContext: EditingContext;
+  /** 把当前上下文退回通用模式，光标离开该上下文后自动恢复 */
+  dismissEditingContext: () => void;
+  /** 在光标所在表格上执行动作，执行后标记选区变化 */
+  runTableAction: (actionId: TableActionId) => void;
+  /** 设置代码块语言（经 tau.code-block.set-language 命令），不处理焦点 */
+  setCodeBlockLanguage: (context: CodeEditingContext, language: string) => void;
+  /** 光标所在列的对齐，不在表格内为 null */
+  getTableColumnAlign: () => TableAlign;
+  /** 表格「⋯」菜单开合：打开时保存选区，关闭时恢复选区与焦点 */
+  isTableMenuOpen: boolean;
+  openTableMenu: () => void;
+  closeTableMenu: () => void;
+  activePanel: EditorPanelKind | null;
+  /** 打开面板时保存的选区，面板内操作作用于它 */
+  panelSelection: BaseSelection | null;
+  /** 缩进命令无 when 可查，按钮常态可点 */
+  canIndent: boolean;
+  canOutdent: boolean;
+  /** 收起键盘并在原位置打开同高面板；panelHeight 为预留高度 */
+  openPanel: (kind: EditorPanelKind, panelHeight: number) => void;
+  /** 同一面板再点回到键盘，否则打开或切换面板 */
+  togglePanel: (kind: EditorPanelKind, panelHeight: number) => void;
+  closePanel: (options: ClosePanelOptions) => void;
+  /** 关面板、释放预留并收起键盘（Slate 失焦），不通知退出编辑监听，编辑态保持 */
+  dismissKeyboard: () => void;
+  /** 关面板、释放预留并收起键盘，最后通知退出编辑监听 */
+  exitEditing: () => void;
+  /** 登记退出编辑监听（宿主据此回阅读态）；传 null 取消，同一时刻只保留一个 */
+  setExitEditingListener: (listener: (() => void) | null) => void;
+  /** 在面板保存的选区上执行操作，不聚焦编辑器 */
+  runInPanel: (fn: (editor: SlateEditor) => void) => void;
+  indent: () => void;
+  outdent: () => void;
+  /** 把展开选区折叠到焦点端（退出格式模式） */
+  collapseSelectionToFocus: () => void;
   isContentLinkPickerOpen: boolean;
-  isInsertSheetOpen: boolean;
   executeAction: (actionId: ToolbarActionId) => void;
   applyHeadingLevel: (level: 1 | 2 | 3 | "paragraph") => void;
-  handleOpenInsertSheet: () => void;
-  handleCloseInsertSheet: () => void;
   handleSelectInsertItem: (kind: InsertSheetItemKind) => void;
   handleInsertImage: () => void;
   applyColorMark: (lightColor?: string, darkColor?: string) => void;
@@ -92,6 +185,10 @@ export type MobileEditorToolbarController = {
   applyUnderlineStyle: (payload: UnderlineStylePayload) => void;
   isActionDisabled: (actionId: ToolbarActionId) => boolean;
   isActionActive: (actionId: ToolbarActionId) => boolean;
+  /** 面板打开时按面板选区、否则按编辑器选区判断当前块类型 */
+  getCurrentBlockKind: () => CurrentBlockKind;
+  /** 当前选区的文本 marks（color / highlight 等），无选区为 null */
+  getCurrentMarks: () => Record<string, unknown> | null;
   keepEditorFocus: () => void;
   handleEditorFocus: () => void;
   handleEditorBlur: () => void;
@@ -101,6 +198,11 @@ export type MobileEditorToolbarController = {
   undo: () => void;
   redo: () => void;
 };
+
+function getListIndentCommand(node: unknown, direction: ListIndentDirection): string | null {
+  const type = (node as { type?: string }).type;
+  return type ? (LIST_INDENT_COMMANDS[type]?.[direction] ?? null) : null;
+}
 
 function getEditorFromRef(editorRef: RefObject<EditorRef | null>): SlateEditor | null {
   return (editorRef.current?.getEditor() as SlateEditor | undefined) ?? null;
@@ -112,15 +214,37 @@ export function useMobileEditorToolbarController(
   const { editorRef } = options;
   const [isEditorFocused, setIsEditorFocused] = useState(false);
   const [isContentLinkPickerOpen, setIsContentLinkPickerOpen] = useState(false);
-  const [isInsertSheetOpen, setIsInsertSheetOpen] = useState(false);
   const [selectionVersion, setSelectionVersion] = useState(0);
+  const [activePanel, setActivePanel] = useState<EditorPanelKind | null>(null);
+  const [panelSelection, setPanelSelection] = useState<BaseSelection | null>(null);
+  const [isTableMenuOpen, setIsTableMenuOpen] = useState(false);
+  const [dismissedContextKey, setDismissedContextKey] = useState<string | null>(null);
+  const reservation = useKeyboardReservation();
 
   const lastSelectionRef = useRef<BaseSelection | null>(null);
   const pendingContentLinkSelectionRef = useRef<BaseSelection | null>(null);
+  // 同步记录面板开关，回键盘触发的编辑器 focus 据此与「点正文」区分
+  const activePanelRef = useRef<EditorPanelKind | null>(null);
+  const panelSelectionRef = useRef<BaseSelection | null>(null);
+  const exitEditingListenerRef = useRef<(() => void) | null>(null);
+  const tableMenuOpenRef = useRef(false);
+  const tableMenuSelectionRef = useRef<BaseSelection | null>(null);
 
-  const markSelectionDirty = useCallback(() => {
-    setSelectionVersion(value => value + 1);
+  const rememberPanelSelection = useCallback((selection: BaseSelection | null) => {
+    panelSelectionRef.current = selection;
+    setPanelSelection(selection);
   }, []);
+
+  /** 选区相关状态的统一收尾：面板打开时把编辑器选区存回面板选区 */
+  const markSelectionDirty = useCallback(() => {
+    if (activePanelRef.current) {
+      const selection = getEditorFromRef(editorRef)?.selection;
+      if (selection) {
+        rememberPanelSelection(selection);
+      }
+    }
+    setSelectionVersion(value => value + 1);
+  }, [editorRef, rememberPanelSelection]);
 
   const syncSelection = useCallback(() => {
     const editor = getEditorFromRef(editorRef);
@@ -133,6 +257,20 @@ export function useMobileEditorToolbarController(
     const editor = getEditorFromRef(editorRef);
     if (!editor) {
       return null;
+    }
+    // 面板打开期间操作作用于面板选区且不聚焦，避免键盘弹出顶掉面板
+    if (activePanelRef.current) {
+      if (panelSelectionRef.current) {
+        Transforms.select(editor, panelSelectionRef.current);
+      }
+      return editor;
+    }
+    // 表格菜单打开期间同理：作用于打开时保存的选区，关闭菜单时再聚焦
+    if (tableMenuOpenRef.current) {
+      if (tableMenuSelectionRef.current) {
+        Transforms.select(editor, tableMenuSelectionRef.current);
+      }
+      return editor;
     }
     const nextSelection = restoreSelectionAndFocus(editor, lastSelectionRef.current);
     if (nextSelection) {
@@ -227,20 +365,6 @@ export function useMobileEditorToolbarController(
     [markSelectionDirty, restoreEditorSelection]
   );
 
-  const handleOpenInsertSheet = useCallback(() => {
-    // 面板让出屏幕：主动收起键盘（选区已记录，选择条目后由 restoreEditorSelection 恢复）
-    const editor = getEditorFromRef(editorRef);
-    if (editor) {
-      ReactEditor.blur(editor as ReactEditor);
-    }
-    openSheetNextTick(() => setIsInsertSheetOpen(true));
-  }, [editorRef, openSheetNextTick]);
-
-  const handleCloseInsertSheet = useCallback(() => {
-    setIsInsertSheetOpen(false);
-    markSelectionDirty();
-  }, [markSelectionDirty]);
-
   /** 块插入/媒体类条目：共享包 setOrInsertNode 要求 collapsed 选区 */
   const COLLAPSE_BEFORE_INSERT_KINDS = new Set<InsertSheetItemKind>([
     "image",
@@ -259,7 +383,7 @@ export function useMobileEditorToolbarController(
     "mermaid",
   ]);
 
-  /** 插入面板条目分发；面板关闭时序由 ActionSheet 退场缓冲回调 handleCloseInsertSheet */
+  /** 插入面板条目分发；面板打开时作用于面板选区且不聚焦，面板开合由调用方负责 */
   const handleSelectInsertItem = useCallback(
     (kind: InsertSheetItemKind) => {
       const editor = restoreEditorSelection();
@@ -333,10 +457,7 @@ export function useMobileEditorToolbarController(
         case "annotation":
           insertAnnotation(editor, "注解内容");
           break;
-        case "comment":
         case "content-link":
-        case "styled-text":
-        case "kbd":
           executeAction(kind);
           return;
       }
@@ -467,13 +588,246 @@ export function useMobileEditorToolbarController(
     [markSelectionDirty, restoreEditorSelection]
   );
 
+  const getEditableElement = useCallback(
+    () => editorRef.current?.getEditableElement(),
+    [editorRef]
+  );
+
+  const openPanel = useCallback(
+    (kind: EditorPanelKind, panelHeight: number) => {
+      const editor = getEditorFromRef(editorRef);
+      if (!editor) return;
+      if (activePanelRef.current) {
+        activePanelRef.current = kind;
+        setActivePanel(kind);
+        return;
+      }
+      rememberPanelSelection(editor.selection ?? lastSelectionRef.current);
+      activePanelRef.current = kind;
+      // 预留与面板同一帧生效，键盘收起时正文可视区不跳动
+      flushSync(() => {
+        reservation.reserve(panelHeight);
+        setActivePanel(kind);
+      });
+      hideKeyboard(editor, DEFAULT_KEYBOARD_SWAP_STRATEGY, getEditableElement());
+    },
+    [editorRef, getEditableElement, rememberPanelSelection, reservation]
+  );
+
+  const closePanel = useCallback(
+    (closeOptions: ClosePanelOptions) => {
+      if (!activePanelRef.current) return;
+      // 先置位，回键盘触发的编辑器 focus 不再走点正文路径
+      activePanelRef.current = null;
+      const editor = getEditorFromRef(editorRef);
+      if (editor && closeOptions.showKeyboard) {
+        const saved = panelSelectionRef.current;
+        if (closeOptions.restoreSelection && saved) {
+          Transforms.select(editor, saved);
+        }
+        showKeyboard(editor, DEFAULT_KEYBOARD_SWAP_STRATEGY, getEditableElement(), saved, {
+          restoreSelection: closeOptions.restoreSelection ?? false,
+        });
+      }
+      setActivePanel(null);
+      reservation.releaseWhenKeyboardShown();
+      markSelectionDirty();
+    },
+    [editorRef, getEditableElement, markSelectionDirty, reservation]
+  );
+
+  const togglePanel = useCallback(
+    (kind: EditorPanelKind, panelHeight: number) => {
+      if (activePanelRef.current === kind) {
+        closePanel({ showKeyboard: true, restoreSelection: true });
+        return;
+      }
+      openPanel(kind, panelHeight);
+    },
+    [closePanel, openPanel]
+  );
+
+  const dismissKeyboard = useCallback(() => {
+    activePanelRef.current = null;
+    setActivePanel(null);
+    reservation.releaseNow();
+    clearKeyboardSwap(getEditableElement());
+    const editor = getEditorFromRef(editorRef);
+    if (editor && ReactEditor.isFocused(editor as ReactEditor)) {
+      ReactEditor.blur(editor as ReactEditor);
+    }
+  }, [editorRef, getEditableElement, reservation]);
+
+  const exitEditing = useCallback(() => {
+    dismissKeyboard();
+    exitEditingListenerRef.current?.();
+  }, [dismissKeyboard]);
+
+  const setExitEditingListener = useCallback((listener: (() => void) | null) => {
+    exitEditingListenerRef.current = listener;
+  }, []);
+
+  // 宿主卸载时面板仍开着则释放预留，避免下一页底部留白
+  useEffect(() => {
+    return () => {
+      if (activePanelRef.current) {
+        activePanelRef.current = null;
+        reservation.releaseNow();
+      }
+    };
+  }, [reservation]);
+
+  const runInPanel = useCallback(
+    (fn: (editor: SlateEditor) => void) => {
+      const editor = getEditorFromRef(editorRef);
+      if (!editor) return;
+      if (panelSelectionRef.current) {
+        Transforms.select(editor, panelSelectionRef.current);
+      }
+      fn(editor);
+      rememberPanelSelection(editor.selection ?? null);
+      if (editor.selection) {
+        lastSelectionRef.current = editor.selection;
+      }
+      markSelectionDirty();
+    },
+    [editorRef, markSelectionDirty, rememberPanelSelection]
+  );
+
+  /** 缩进命令只在段首生效（Tab 语义）：先把光标移到列表项开头执行，再经 rangeRef 回到原选区 */
+  const runListIndent = useCallback(
+    (direction: ListIndentDirection) => {
+      const editor = restoreEditorSelection();
+      if (!editor?.selection) return;
+      const [entry] = SlateEditor.nodes(editor, {
+        at: editor.selection,
+        match: node =>
+          SlateElement.isElement(node) && getListIndentCommand(node, direction) !== null,
+        mode: "lowest",
+      });
+      const commandId = entry ? getListIndentCommand(entry[0], direction) : null;
+      if (!entry || !commandId) return;
+      const originalRange = SlateEditor.rangeRef(editor, editor.selection);
+      Transforms.select(editor, SlateEditor.start(editor, entry[1]));
+      editor.commands?.execute(commandId);
+      const restored = originalRange.unref();
+      if (restored) {
+        Transforms.select(editor, restored);
+      }
+      if (editor.selection) {
+        lastSelectionRef.current = editor.selection;
+      }
+      markSelectionDirty();
+    },
+    [markSelectionDirty, restoreEditorSelection]
+  );
+
+  const collapseSelectionToFocus = useCallback(() => {
+    const editor = getEditorFromRef(editorRef);
+    if (!editor?.selection) return;
+    Transforms.collapse(editor, { edge: "focus" });
+    lastSelectionRef.current = editor.selection;
+    markSelectionDirty();
+  }, [editorRef, markSelectionDirty]);
+
+  const indent = useCallback(() => runListIndent("indent"), [runListIndent]);
+  const outdent = useCallback(() => runListIndent("outdent"), [runListIndent]);
+
   const handleEditorFocus = useCallback(() => {
     const editor = getEditorFromRef(editorRef);
     if (!editor) return;
+    // 面板打开时编辑器重新获得焦点 = 用户点了正文：选区由点击位置决定，只关面板
+    if (activePanelRef.current) {
+      closePanel({ showKeyboard: false });
+    }
     setIsEditorFocused(true);
     lastSelectionRef.current = editor.selection ?? null;
     markSelectionDirty();
+  }, [closePanel, editorRef, markSelectionDirty]);
+
+  const rawEditingContext = useEditingContext(editorRef, selectionVersion);
+  const rawContextKey = getEditingContextKey(rawEditingContext);
+
+  // 光标离开被退回的上下文即清除记录
+  useEffect(() => {
+    if (dismissedContextKey !== null && dismissedContextKey !== rawContextKey) {
+      setDismissedContextKey(null);
+    }
+  }, [dismissedContextKey, rawContextKey]);
+
+  const editingContext =
+    dismissedContextKey !== null && dismissedContextKey === rawContextKey
+      ? TEXT_CONTEXT
+      : rawEditingContext;
+
+  const dismissEditingContext = useCallback(() => {
+    setDismissedContextKey(rawContextKey);
+  }, [rawContextKey]);
+
+  const runTableAction = useCallback(
+    (actionId: TableActionId) => {
+      const editor = restoreEditorSelection();
+      if (!editor) return;
+      const tableContext = resolveTableContext(editor);
+      if (!tableContext) return;
+      runTableActionOnEditor(editor, actionId, tableContext);
+      if (editor.selection) {
+        lastSelectionRef.current = editor.selection;
+        if (tableMenuOpenRef.current) {
+          tableMenuSelectionRef.current = editor.selection;
+        }
+      }
+      markSelectionDirty();
+    },
+    [markSelectionDirty, restoreEditorSelection]
+  );
+
+  const setCodeBlockLanguage = useCallback(
+    (context: CodeEditingContext, language: string) => {
+      const editor = getEditorFromRef(editorRef);
+      if (editor) setCodeBlockLanguageOnEditor(editor, context, language);
+    },
+    [editorRef]
+  );
+
+  const getTableColumnAlign = useCallback((): TableAlign => {
+    void selectionVersion;
+    const editor = getEditorFromRef(editorRef);
+    const tableContext = editor ? resolveTableContext(editor) : null;
+    return editor && tableContext ? getColumnAlign(editor, tableContext) : null;
+  }, [editorRef, selectionVersion]);
+
+  const openTableMenu = useCallback(() => {
+    const editor = getEditorFromRef(editorRef);
+    if (!editor) return;
+    tableMenuSelectionRef.current = editor.selection ?? lastSelectionRef.current;
+    tableMenuOpenRef.current = true;
+    openSheetNextTick(() => setIsTableMenuOpen(true));
+  }, [editorRef, openSheetNextTick]);
+
+  const closeTableMenu = useCallback(() => {
+    if (!tableMenuOpenRef.current) return;
+    tableMenuOpenRef.current = false;
+    setIsTableMenuOpen(false);
+    const editor = getEditorFromRef(editorRef);
+    const saved = tableMenuSelectionRef.current;
+    tableMenuSelectionRef.current = null;
+    if (!editor) return;
+    if (saved) {
+      Transforms.select(editor, saved);
+    }
+    const nextSelection = restoreSelectionAndFocus(editor, saved);
+    if (nextSelection) {
+      lastSelectionRef.current = nextSelection;
+    }
+    markSelectionDirty();
   }, [editorRef, markSelectionDirty]);
+
+  const isToolbarVisible =
+    isEditorFocused ||
+    activePanel !== null ||
+    isTableMenuOpen ||
+    isVoidEditorContext(rawEditingContext);
 
   const isActionDisabled = useCallback(
     (actionId: ToolbarActionId): boolean => {
@@ -507,6 +861,21 @@ export function useMobileEditorToolbarController(
     [editorRef, isActionDisabled, selectionVersion]
   );
 
+  const getCurrentBlockKind = useCallback((): CurrentBlockKind => {
+    // 依赖 selectionVersion 触发重算，保证「转换为」高亮及时刷新
+    void selectionVersion;
+    const editor = getEditorFromRef(editorRef);
+    if (!editor) return "other";
+    const selection = activePanel ? (panelSelection ?? editor.selection) : editor.selection;
+    return getBlockKindAt(editor, selection);
+  }, [activePanel, editorRef, panelSelection, selectionVersion]);
+
+  const getCurrentMarks = useCallback((): Record<string, unknown> | null => {
+    void selectionVersion;
+    const editor = getEditorFromRef(editorRef);
+    return editor ? getSelectionMarks(editor) : null;
+  }, [editorRef, selectionVersion]);
+
   const handleEditorBlur = useCallback(() => {
     const editor = getEditorFromRef(editorRef);
     if (!editor) return;
@@ -537,7 +906,7 @@ export function useMobileEditorToolbarController(
 
   const pluginInsertItems = useMemo(() => {
     const editor = getEditorFromRef(editorRef);
-    if (!isInsertSheetOpen || !editor || ReactEditor.isReadOnly(editor)) return [];
+    if (activePanel !== "insert" || !editor || ReactEditor.isReadOnly(editor)) return [];
     const flatten = (
       items: readonly IBlockPanelListItem[],
       parent = ""
@@ -549,12 +918,12 @@ export function useMobileEditorToolbarController(
           ? [
               {
                 title,
+                keywords: item.keywords,
                 icon: item.icon,
                 run: () => {
                   const current = restoreEditorSelection();
                   if (current !== editor || ReactEditor.isReadOnly(editor)) return;
                   item.onClick?.(editor);
-                  setIsInsertSheetOpen(false);
                   markSelectionDirty();
                 },
               },
@@ -568,18 +937,38 @@ export function useMobileEditorToolbarController(
           : (extension.blockPanel ?? [])
       )
     );
-  }, [isInsertSheetOpen, editorRef, restoreEditorSelection, markSelectionDirty]);
+  }, [activePanel, editorRef, restoreEditorSelection, markSelectionDirty]);
 
   return useMemo(
     () => ({
       pluginInsertItems,
       isEditorFocused,
+      isToolbarVisible,
+      activePanel,
+      panelSelection,
+      editingContext,
+      dismissEditingContext,
+      runTableAction,
+      setCodeBlockLanguage,
+      getTableColumnAlign,
+      isTableMenuOpen,
+      openTableMenu,
+      closeTableMenu,
+      canIndent: true,
+      canOutdent: true,
+      openPanel,
+      togglePanel,
+      closePanel,
+      dismissKeyboard,
+      exitEditing,
+      setExitEditingListener,
+      runInPanel,
+      indent,
+      outdent,
+      collapseSelectionToFocus,
       isContentLinkPickerOpen,
-      isInsertSheetOpen,
       executeAction,
       applyHeadingLevel,
-      handleOpenInsertSheet,
-      handleCloseInsertSheet,
       handleSelectInsertItem,
       handleInsertImage,
       applyColorMark,
@@ -588,6 +977,8 @@ export function useMobileEditorToolbarController(
       applyUnderlineStyle,
       isActionDisabled,
       isActionActive,
+      getCurrentBlockKind,
+      getCurrentMarks,
       keepEditorFocus,
       handleEditorFocus,
       handleEditorBlur,
@@ -600,6 +991,27 @@ export function useMobileEditorToolbarController(
     [
       pluginInsertItems,
       isEditorFocused,
+      isToolbarVisible,
+      activePanel,
+      panelSelection,
+      editingContext,
+      dismissEditingContext,
+      runTableAction,
+      setCodeBlockLanguage,
+      getTableColumnAlign,
+      isTableMenuOpen,
+      openTableMenu,
+      closeTableMenu,
+      openPanel,
+      togglePanel,
+      closePanel,
+      dismissKeyboard,
+      exitEditing,
+      setExitEditingListener,
+      runInPanel,
+      indent,
+      outdent,
+      collapseSelectionToFocus,
       executeAction,
       applyHeadingLevel,
       applyColorMark,
@@ -607,17 +1019,16 @@ export function useMobileEditorToolbarController(
       applyHighlightMark,
       applyUnderlineStyle,
       handleCloseContentLinkPicker,
-      handleCloseInsertSheet,
       handleEditorBlur,
       handleEditorFocus,
       handleInsertImage,
-      handleOpenInsertSheet,
       handleSelectContentLink,
       handleSelectInsertItem,
       isActionDisabled,
       isActionActive,
+      getCurrentBlockKind,
+      getCurrentMarks,
       isContentLinkPickerOpen,
-      isInsertSheetOpen,
       keepEditorFocus,
       redo,
       syncSelection,

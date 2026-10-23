@@ -35,9 +35,9 @@ function renderTextMarks(node: Record<string, unknown>, keyPrefix: string): Reac
       <code
         key={keyPrefix}
         style={{
-          fontFamily: "var(--mono-font)",
+          fontFamily: "var(--tau-font-mono)",
           fontSize: "0.88em",
-          background: "var(--bg-input)",
+          background: "var(--tau-bg-page)",
           borderRadius: 6,
           padding: "1px 5px",
         }}
@@ -116,9 +116,9 @@ function BlankInput({
           width: width > 0 ? `${width + 12}px` : "4.5ch",
           maxWidth: "70vw",
           border: "none",
-          borderBottom: "2px solid var(--brand)",
+          borderBottom: "2px solid var(--tau-accent)",
           background: "transparent",
-          color: "var(--brand)",
+          color: "var(--tau-accent)",
           textAlign: "center",
           outline: "none",
           padding: "0 4px 1px",
@@ -161,9 +161,9 @@ function renderInline(
               border: "1.5px dashed",
               fontWeight: 700,
               lineHeight: 1.5,
-              background: correct ? "var(--sage-soft)" : "var(--rose-soft)",
-              color: correct ? "var(--sage)" : "var(--danger)",
-              borderColor: correct ? "var(--sage)" : "var(--danger)",
+              background: correct ? "var(--tau-tag-1-soft)" : "var(--tau-tag-5-soft)",
+              color: correct ? "var(--tau-tag-1)" : "var(--tau-danger)",
+              borderColor: correct ? "var(--tau-tag-1)" : "var(--tau-danger)",
             }}
           >
             {blank.answer}
@@ -222,10 +222,10 @@ function renderBlock(
         <div
           key={key}
           style={{
-            borderLeft: "3px solid var(--brand)",
+            borderLeft: "3px solid var(--tau-accent)",
             padding: "2px 0 2px 12px",
             margin: "8px 0",
-            color: "var(--meta-ink)",
+            color: "var(--tau-ink-2)",
           }}
         >
           {renderInline(children, key, blankProps)}
@@ -236,11 +236,11 @@ function renderBlock(
         <pre
           key={key}
           style={{
-            background: "var(--bg-input)",
+            background: "var(--tau-bg-page)",
             borderRadius: 12,
             padding: "12px 14px",
             margin: "8px 0",
-            fontFamily: "var(--mono-font)",
+            fontFamily: "var(--tau-font-mono)",
             fontSize: 12.5,
             lineHeight: 1.7,
             overflowX: "auto",
@@ -281,7 +281,7 @@ function renderBlock(
       return (
         <hr
           key={key}
-          style={{ border: "none", borderTop: "1px solid var(--line-1)", margin: "12px 0" }}
+          style={{ border: "none", borderTop: "1px solid var(--tau-line-1)", margin: "12px 0" }}
         />
       );
     case "image": {
@@ -294,7 +294,7 @@ function renderBlock(
           style={{ maxWidth: "100%", borderRadius: 12, margin: "8px 0" }}
         />
       ) : (
-        <div key={key} style={{ color: "var(--ink-3)", fontSize: 12 }}>
+        <div key={key} style={{ color: "var(--tau-ink-3)", fontSize: 12 }}>
           ［图片］
         </div>
       );

@@ -722,6 +722,10 @@ describe("插件业务数据与权限", () => {
     expect(await context().entities.find("note", "2026-W43")).toMatchObject({ id: "1" });
     await context().entities.query({ kind: "note" });
     await context().entities.update("1", { title: "改名" }, { expectedRevision: "1" });
+    await context().entities.update("1", { meta: { week: 44 } }, { expectedRevision: "2" });
+    await expect(context().entities.update("1", {}, { expectedRevision: "3" })).rejects.toThrow(
+      "没有要修改的字段"
+    );
     await context().entities.delete("1", { expectedRevision: "2" });
     await expect(context().entities.delete("1", {} as never)).rejects.toThrow("expectedRevision");
     expect(calls).toEqual([
@@ -740,6 +744,7 @@ describe("插件业务数据与权限", () => {
         },
       ],
       ["entities.update", "1", { title: "改名" }, "1", { note: {} }],
+      ["entities.update", "1", { meta: { week: 44 } }, "2", { note: {} }],
       ["entities.delete", "1", "2"],
     ]);
     kind.dispose();
@@ -924,6 +929,7 @@ describe("插件业务数据与权限", () => {
       await tx.links.add(id, { kind: "card", id: "3" }, { role: "material" });
       const event = await tx.records.insert("events", { questionId: id });
       await tx.entities.update("7", { title: "改" });
+      await tx.entities.update("8", { meta: { status: "open" } });
       await tx.records.delete("events", "e0", { expectedRevision: "2" });
       return { id, event: typeof event.id };
     });
@@ -938,12 +944,14 @@ describe("插件业务数据与权限", () => {
       "link.add",
       "record.insert",
       "entity.update",
+      "entity.update",
       "record.delete",
     ]);
     expect(ops[0]).toMatchObject({ id: "101", input: { kind: "question", key: "q" } });
     expect(ops[1]).toMatchObject({ from: "101", readable: true, role: "material" });
     expect(ops[3]).not.toHaveProperty("expectedRevision");
-    expect(ops[4]).toMatchObject({ expectedRevision: "2" });
+    expect(ops[4]).toMatchObject({ patch: { meta: { status: "open" } } });
+    expect(ops[5]).toMatchObject({ expectedRevision: "2" });
     // 没有写入时不提交
     expect(await context().transaction(() => 1)).toBe(1);
     expect(calls.filter(([call]) => call === "transaction.commit")).toHaveLength(1);

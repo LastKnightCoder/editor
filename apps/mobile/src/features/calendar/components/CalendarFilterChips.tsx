@@ -2,7 +2,7 @@
 // 点击切换 visibleIds（localStorage 持久化由主页承载）。
 
 import { memo, useRef } from "react";
-import { useMobileTheme } from "../../../hooks/useMobileTheme";
+import { useThemeStore } from "@tau/themes/react";
 import { useEdgeFadeX } from "../../../hooks/useScrollState";
 import { calendarColorValue } from "../constants";
 import type { Calendar } from "../types";
@@ -14,7 +14,7 @@ type CalendarFilterChipsProps = {
 };
 
 function CalendarFilterChipsImpl({ calendars, visibleIds, onToggle }: CalendarFilterChipsProps) {
-  const { isDark } = useMobileTheme();
+  const isDark = useThemeStore(s => s.mode === "dark");
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFadeX(scrollRef);
   if (calendars.length === 0) {
@@ -39,7 +39,7 @@ function CalendarFilterChipsImpl({ calendars, visibleIds, onToggle }: CalendarFi
               <i
                 className="h-2 w-2 rounded-full"
                 style={{
-                  background: on ? calendarColorValue(calendar.color, isDark) : "var(--ink-3)",
+                  background: on ? calendarColorValue(calendar.color, isDark) : "var(--tau-ink-3)",
                 }}
               />
               {calendar.title}
