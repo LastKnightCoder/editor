@@ -35,6 +35,8 @@
 
 用户完成账号与钥匙串授权后，[iOS 正式签名与打包](ios-release.md) 已完成，交付 0.2.3 / Build 1 的 App Store IPA；不自动上传或开放 iOS 分发。
 
+用户随后授权 [iOS 插件中心与 TestFlight](testflight.md)：先开放 iOS 正式分发，再上传现有 IPA 供本人测试，不提交 App Store 正式上架。
+
 作者领域分层、数据权限说明以及移动/网页插件中心的具体展示提案见 [对外分层与展示方案](public-surface-plan.md)，展示改版仍为提案，不扩大本轮交付范围。
 
 用户已确认的作者 API 方案见 [作者契约](author-contract-draft.md)，实施和设备验证见 [编辑器移动适配](editor-mobile.md)。官方插件与模板统一进入 plugins/ 子模块，先保存插件提交再更新主仓库指针；本轮继续正式分发收尾，D 与平板未验收项保留。
