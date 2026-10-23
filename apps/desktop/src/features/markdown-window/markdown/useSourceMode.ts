@@ -82,11 +82,13 @@ export function useSourceMode({
   getText,
   applySource,
   stopCapturing,
+  richReady = true,
 }: {
   editorRef: RefObject<EditorRef | null>;
   getText: () => string;
   applySource: (text: string) => boolean;
   stopCapturing: () => void;
+  richReady?: boolean;
 }) {
   const [sourceMode, setSourceMode] = useState(false);
   const [sourceCreated, setSourceCreated] = useState(false);
@@ -102,6 +104,7 @@ export function useSourceMode({
   const pendingFocus = useRef(false);
   const lastEditorFocus = useRef<SlatePoint | null>(null);
   const sourceFocusPoint = useRef<{ line: number; ch: number } | null>(null);
+  const returnFocusOwner = useRef<Element | null>(null);
 
   const clearPending = () => {
     pendingCodeBlock.current = null;
@@ -210,6 +213,7 @@ export function useSourceMode({
         (cursor ? positionMap.markdownToSlate(cursor) : null) ?? lastEditorFocus.current;
     }
     pendingFocus.current = true;
+    returnFocusOwner.current = document.activeElement;
     setFocusRequest(request => request + 1);
     setSourceMode(false);
   };
@@ -228,9 +232,23 @@ export function useSourceMode({
 
   // 切回富文本后等待视图显示，再恢复光标。
   useEffect(() => {
-    if (sourceMode || !pendingFocus.current || focusRequest === 0) return;
+    if (sourceMode || !richReady || !pendingFocus.current || focusRequest === 0) return;
     const timer = setTimeout(() => {
       const editor = editorRef.current?.getEditor();
+      const active = document.activeElement;
+      const sourceWrapper = sourceEditorRef.current?.getWrapperElement();
+      const inSource =
+        sourceWrapper?.classList.contains("CodeMirror") && sourceWrapper.contains(active);
+      if (
+        active &&
+        active !== document.body &&
+        active !== document.documentElement &&
+        active !== returnFocusOwner.current &&
+        !inSource
+      ) {
+        clearPending();
+        return;
+      }
       if (!editor || !pendingFocus.current) {
         clearPending();
         return;
@@ -276,7 +294,7 @@ export function useSourceMode({
     }, FOCUS_DELAY);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusRequest, sourceMode]);
+  }, [focusRequest, sourceMode, richReady]);
 
   return {
     sourceMode,
