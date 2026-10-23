@@ -26,9 +26,7 @@ vi.mock("../../router/pageLifecycle", () => ({
 it("损坏的历史页面参数只显示页内错误，参数恢复后可以重新渲染", async () => {
   const environment = createPluginEnvironmentStore({
     platform: "ios",
-    layout: "compact",
-    input: { touch: true, finePointer: false },
-    capabilities: ["pages.v1"],
+    input: { coarsePointer: true, finePointer: false },
   });
   runtime = new MobilePluginRuntime(environment, createMemoryStorage(), "A", navigator, "0.2.0");
   runtime.host.registerTrusted(

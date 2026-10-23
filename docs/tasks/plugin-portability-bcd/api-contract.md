@@ -29,7 +29,7 @@
 - 共 1098 项通过、1 项既有外部 ZIP 测试跳过。日志为 output/plugin-api-contract-{sdk,mobile,api,web,desktop}-final.log；不与上一批模拟器/Rust 测试累计计数。
 - SDK、移动、门户 API/网页、桌面类型检查通过；移动普通 Vite 构建及生产目标 Worker dry-run 通过（没有部署）。ESLint 无错误，存量测试非空断言警告保留；文档检查 152 个 Markdown、0 警告，进程边界及差异空白检查通过。
 - output/plugin-api-contract/author-frozen-report.json 为 passed，templateLockfileReused=true：独立中文/空格路径、隔离依赖、严格作者类型、三端声明、未知 optional 前向读取、未知 required 拒绝、移动权限与预发布版本构建拒绝、摘要检查、失败保留旧产物、禁止正式目录安装及旧格式构建均通过。作者编译仍沿用 skipLibCheck:true，不把它写成全依赖类型校验。
-- 本地 SDK 内容变化导致旧 tarball 摘要拒绝；确认输入由本仓库打包后，只在 scripts/plugins/template 的独立工作区用 pnpm clean --lockfile 重建。锁文件最终只改变本地插件 tarball 的 integrity，没有升级 npm 依赖或关闭校验。
+- 本地 SDK 内容变化导致旧 tarball 摘要拒绝；确认输入由本仓库打包后，只在 plugins/tau-plugin-template 的独立工作区用 pnpm clean --lockfile 重建。锁文件最终只改变本地插件 tarball 的 integrity，没有升级 npm 依赖或关闭校验。
 - API 矩阵由 SDK 包文档单源生成模板副本；package-sdk.mjs 强制检查一致并将模板文档放进 SDK tarball。同步脚本默认只检查，只有 --write 才写入。
 - 不发布 npm、不推送外部模板、不部署中心、不批量改插件；生产配置与移动原生 release 开关没有改动。尚未提交本批修改。
 - 下一步仍是桌面格式 3 正式中心安装、业务宿主缺口的按需接入、少量真实插件迁移及 D 原验收；API 矩阵不是这些工作已经完成的承诺。本批没有重新执行模拟器或真机测试。

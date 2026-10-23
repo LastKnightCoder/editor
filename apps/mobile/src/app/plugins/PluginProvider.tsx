@@ -16,6 +16,7 @@ import { mobileContentPlugins, mobilePluginElementSupport } from "./content";
 import { MobilePluginRuntime } from "./runtime";
 import { MobilePluginsContext } from "./context";
 import { subscribePluginForeground } from "./foreground";
+import { disposeMobileRuntimeStyles } from "../../services/runtimeStyles";
 
 const STARTING_KEY = "tau-portable-plugins-starting";
 let cleanup: Promise<unknown> = Promise.resolve();
@@ -51,21 +52,7 @@ export function MobilePluginProvider({
         gcTime: 0,
       });
       if (cancelled) return;
-      const environment = createBrowserPluginEnvironment(
-        data.platform,
-        [
-          "commands.v1",
-          "storage.v1",
-          "pages.v1",
-          "navigation.v1",
-          "settings.v1",
-          "ui.dialog.v1",
-          "editor.elements.v1",
-          "editor.codecs.v1",
-          "editor.source.v1",
-        ],
-        window
-      );
+      const environment = createBrowserPluginEnvironment(data.platform, window);
       disconnect = environment.connect();
       runtime = new MobilePluginRuntime(
         environment,
@@ -81,7 +68,7 @@ export function MobilePluginProvider({
           "上次插件启动未结束，本次已跳过插件。可在插件管理中停用问题插件后重新打开应用。"
         );
       localStorage.setItem(STARTING_KEY, "1");
-      const { portableSharedPluginModules } = await import("@tau/plugins/portable-shared-modules");
+      const { mobileSharedPluginModules } = await import("./shared-modules");
       await import("@tau/plugins/source-editor-host");
       if (cancelled) return;
       const [{ getMobileContentKit }, { mobileCodecComposition }, { assertUniqueEditorCodecs }] =
@@ -90,7 +77,7 @@ export function MobilePluginProvider({
           import("../../services/editorMarkdown"),
           import("@tau/plugins/rendering"),
         ]);
-      await runtime.start(safe ? [] : data.packages, portableSharedPluginModules, registry => {
+      await runtime.start(safe ? [] : data.packages, mobileSharedPluginModules, registry => {
         getMobileContentKit().extend({ extensions: registry.extensions });
         assertUniqueEditorCodecs([...mobileCodecComposition, ...registry.codecs]);
       });
@@ -130,7 +117,7 @@ export function MobilePluginProvider({
         const activeRuntime = runtime;
         window.setTimeout(() => {
           if (!cancelled)
-            void import("../../plugin-validation/run").then(module => {
+            void import("@validation/host/run").then(module => {
               if (!cancelled) return module.validateMobileHost(activeRuntime, navigator, database);
             });
         }, 1000);
@@ -138,7 +125,7 @@ export function MobilePluginProvider({
       if (import.meta.env.MODE === "plugin-center-validation") {
         window.setTimeout(() => {
           if (!cancelled)
-            void import("../../plugin-validation/center").then(module => {
+            void import("@validation/host/center").then(module => {
               if (!cancelled)
                 return module.validateMobileCenter(activeRuntime, navigator, database, client);
             });
@@ -153,6 +140,7 @@ export function MobilePluginProvider({
       });
     return () => {
       cancelled = true;
+      disposeMobileRuntimeStyles();
       disconnect?.();
       stopStatusRefresh?.();
       const disposal = runtime?.dispose();

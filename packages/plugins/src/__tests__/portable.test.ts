@@ -5,6 +5,7 @@ import { validateDistributionManifest } from "../template";
 import { evaluatePortablePluginPackage, evaluatePluginPackage } from "../rendering";
 import {
   validatePortablePluginManifest,
+  buildPortablePluginManifest,
   readPortablePluginManifest,
   validatePortableDistributionManifest,
   assertPortablePluginCompatibility,
@@ -27,21 +28,21 @@ const raw = () => ({
   targets: Object.fromEntries(
     ["desktop", "android", "ios"].map(platform => [
       platform,
-      { minAppVersion: "1.0.0", required: ["pages.v1"], optional: ["settings.v1"] },
+      { minAppVersion: "1.0.0", required: ["pages"], optional: ["settings"] },
     ])
   ),
 });
 
 it("客户端保留未来可选能力，作者和上传入口仍拒绝未知名称", () => {
   const input = raw();
-  input.targets.ios.optional.push("future.feature.v2");
-  input.targets.desktop.required.push("future.required.v1");
+  input.targets.ios.optional.push("futureFeature");
+  input.targets.desktop.required.push("futureRequired");
   const manifest = readPortablePluginManifest(input);
-  expect(manifest.targets.ios?.optional).toContain("future.feature.v2");
+  expect(manifest.targets.ios?.optional).toContain("futureFeature");
   expect(readPortablePluginManifest(manifest)).toEqual(manifest);
   expect(assertPortablePluginCompatibility(manifest, host("ios"))).toBe(manifest.targets.ios);
   expect(() => assertPortablePluginCompatibility(manifest, host("desktop"))).toThrow(
-    "future.required.v1"
+    "futureRequired"
   );
   expect(() => validatePortablePluginManifest(input)).toThrow("未知能力");
   expect(() => validatePortableDistributionManifest(input)).toThrow("未知能力");
@@ -62,7 +63,7 @@ it("客户端保留未来可选能力，作者和上传入口仍拒绝未知名�
   ).toThrow("宿主缺少必需能力");
 });
 
-it.each(["future.feature", "future.v0", " bad.v1", "Future.v1", "a".repeat(129) + ".v1", 1])(
+it.each(["future.feature", " bad", "Future", "a".repeat(129), 1])(
   "前向读取仍拒绝非法能力名 %s",
   name => {
     const input = raw();
@@ -77,9 +78,9 @@ it("前向读取仍严格检查重复、交集、数量、结构、profile 与�
   const input = raw();
   for (const optional of [
     Array(1),
-    ["future.v1", "future.v1"],
-    ["pages.v1"],
-    Array.from({ length: 129 }, (_, i) => `future${i}.v1`),
+    ["futureFeature", "futureFeature"],
+    ["pages"],
+    Array.from({ length: 129 }, (_, i) => `future${i}`),
   ])
     expect(() =>
       readPortablePluginManifest({ ...input, targets: { ios: { ...input.targets.ios, optional } } })
@@ -120,12 +121,94 @@ it("模板与上传共用版本和移动权限门禁，移动运行前独立拒�
 const host = (platform: "desktop" | "android" | "ios"): PortablePluginHost => ({
   appVersion: "1.0.0",
   profiles: ["web-v1"],
+  capabilities: ["pages"],
   environment: {
     platform,
-    layout: "compact",
-    input: { touch: true, finePointer: false },
-    capabilities: ["pages.v1"],
+    input: { coarsePointer: true, finePointer: false },
   },
+});
+
+it("跨端纯文档 Skill 从包结构读取并校验摘要，不要求重复声明能力", () => {
+  const input = {
+    ...raw(),
+    skills: ["authoring"],
+    integrity: { ...raw().integrity, "skills/authoring/SKILL.md": "b".repeat(64) },
+  };
+  const manifest = validatePortablePluginManifest(input);
+  expect(manifest.skills).toEqual(["authoring"]);
+  expect(manifest.integrity["skills/authoring/SKILL.md"]).toBe("b".repeat(64));
+  expect(() => assertPortablePluginCompatibility(manifest, host("android"))).not.toThrow();
+  for (const file of [
+    "skills/authoring/scripts/read.md",
+    "skills/authoring/run.js",
+    "skills/unknown/SKILL.md",
+    "skills/authoring/../escape.md",
+  ])
+    expect(() =>
+      validatePortablePluginManifest({
+        ...input,
+        integrity: { ...input.integrity, [file]: "c".repeat(64) },
+      })
+    ).toThrow();
+});
+
+it("作者只填写功能名，构建器推导编辑器与 Skill 要求", () => {
+  const source = {
+    id: "test.portable",
+    name: "跨端",
+    version: "1.0.0",
+    description: "跨端编辑器",
+    editor: { elements: { "test.node": "edit" } },
+    requires: ["sourceEditor", "media"],
+    optional: ["runtimeStyles"],
+    targets: {
+      android: { minAppVersion: "0.2.3" },
+      ios: {
+        minAppVersion: "0.2.3",
+        requires: [],
+        optional: [],
+        editor: { elements: { "test.node": "render" } },
+      },
+    },
+  };
+  const output = {
+    main: "main.js",
+    skills: ["guide"],
+    integrity: { ...raw().integrity, "skills/guide/SKILL.md": "b".repeat(64) },
+  };
+  const manifest = buildPortablePluginManifest(source, output);
+  expect(() =>
+    buildPortablePluginManifest(source, { ...output, id: "other.plugin" } as typeof output)
+  ).toThrow("构建文件信息");
+  expect(manifest.description).toBe("跨端编辑器");
+  expect(manifest.targets.android?.required).toEqual(
+    expect.arrayContaining([
+      "pages",
+      "settings",
+      "dialogs",
+      "sourceEditor",
+      "media",
+      "editor",
+      "editorCodecs",
+    ])
+  );
+  expect(manifest.targets.android?.optional).toEqual(["runtimeStyles"]);
+  expect(manifest.targets.ios?.required).not.toContain("sourceEditor");
+  expect(manifest.targets.ios?.optional).toEqual([]);
+  expect(manifest.targets.ios?.elements).toEqual({ "test.node": "render" });
+  expect(source.requires).toEqual(["sourceEditor", "media"]);
+  expect(() =>
+    buildPortablePluginManifest({ ...source, requires: ["sorceEditor"] }, output)
+  ).toThrow("未知能力");
+  expect(() => buildPortablePluginManifest({ ...source, optional: ["media"] }, output)).toThrow(
+    "可选访问"
+  );
+  expect(() =>
+    buildPortablePluginManifest({ ...source, requires: [], optional: ["runtimeStyles"] }, output)
+  ).toThrow("访问器");
+  expect(() =>
+    buildPortablePluginManifest({ ...source, requires: ["runtimeStyles"] }, output)
+  ).toThrow("重叠");
 });
 
 it("同一包显式通过三端兼容校验，旧生产入口仍拒绝新格式", () => {
@@ -133,7 +216,7 @@ it("同一包显式通过三端兼容校验，旧生产入口仍拒绝新格式"
   expect(validatePortablePluginManifest(manifest)).toEqual(manifest);
   for (const platform of ["desktop", "android", "ios"] as const)
     expect(assertPortablePluginCompatibility(manifest, host(platform)).optional).toEqual([
-      "settings.v1",
+      "settings",
     ]);
   expect(() => validatePluginManifest(raw())).toThrow("不兼容");
   expect(() => validateDistributionManifest(raw())).toThrow();
@@ -152,13 +235,13 @@ it("版本、平台、运行配置与必需能力逐项失败，可选能力缺�
   expect(() =>
     assertPortablePluginCompatibility(manifest, {
       ...host("ios"),
-      environment: { ...host("ios").environment, capabilities: [] },
+      capabilities: [],
     })
   ).toThrow("必需能力");
   expect(() =>
     validatePortablePluginManifest({
       ...raw(),
-      targets: { ios: { minAppVersion: "1.0.0", required: ["page.v1"] } },
+      targets: { ios: { minAppVersion: "1.0.0", required: ["page"] } },
     })
   ).toThrow("未知能力");
   expect(() => validatePortablePluginManifest({ ...raw(), backend: {} })).toThrow("未支持字段");
@@ -168,7 +251,7 @@ it("版本、平台、运行配置与必需能力逐项失败，可选能力缺�
   expect(() =>
     validatePortablePluginManifest({
       ...raw(),
-      targets: { ios: { minAppVersion: "1.0.0", required: ["pages.v1"], optional: ["pages.v1"] } },
+      targets: { ios: { minAppVersion: "1.0.0", required: ["pages"], optional: ["pages"] } },
     })
   ).toThrow("重叠");
 });
@@ -179,7 +262,7 @@ it("显示/编辑支持按节点与平台声明，未声明不授予，定义必
       platform,
       {
         minAppVersion: "1.0.0",
-        required: ["editor.elements.v1"],
+        required: ["editor"],
         elements: { "test.block": platform === "desktop" ? "edit" : "render" },
       },
     ])
@@ -193,7 +276,7 @@ it("显示/编辑支持按节点与平台声明，未声明不授予，定义必
   const code = `module.exports.default = require('@tau/plugins').definePlugin({id:'test.portable',name:'跨端',version:'1.0.0',editorExtensions:[{id:'test.block',apiVersion:1,elements:[{type:'test.block',kind:'block',render:()=>null}]}]});`;
   const renderer = {
     ...host("ios"),
-    environment: { ...host("ios").environment, capabilities: ["editor.elements.v1" as const] },
+    capabilities: ["editor" as const],
   };
   expect(
     evaluatePortablePluginPackage(

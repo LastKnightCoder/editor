@@ -31,16 +31,16 @@ describe("平台感知分发契约", () => {
   it("未知可选能力降级，缺少必需能力拒绝", () => {
     const release = centerRelease();
     release.targets = {
-      android: { minAppVersion: "0.2.0", required: ["pages.v1"], optional: ["future.v2"] },
+      android: { minAppVersion: "0.2.0", required: ["pages"], optional: ["futureFeature"] },
     };
     expect(evaluateCenterCompatibility(release, centerHost)).toMatchObject({
       status: "compatible",
-      missingOptional: ["future.v2"],
+      missingOptional: ["futureFeature"],
     });
     expect(evaluateCenterCompatibility(release, { ...centerHost, capabilities: [] })).toMatchObject(
       {
         status: "incompatible",
-        reasons: [{ code: "CAPABILITY_MISSING", capabilities: ["pages.v1"] }],
+        reasons: [{ code: "CAPABILITY_MISSING", capabilities: ["pages"] }],
       }
     );
   });
@@ -97,13 +97,13 @@ describe("平台感知分发契约", () => {
     const input = {
       platform: "android" as const,
       q: " Counter ",
-      host: { ...centerHost, capabilities: ["pages.v1", "navigation.v1", "pages.v1"] },
+      host: { ...centerHost, capabilities: ["pages", "navigation", "pages"] },
     };
     expect(normalizeCenterQuery(input)).toEqual(
       normalizeCenterQuery({
         ...input,
         q: "counter",
-        host: { ...centerHost, capabilities: ["navigation.v1", "pages.v1"] },
+        host: { ...centerHost, capabilities: ["navigation", "pages"] },
       })
     );
     expect(normalizeCenterQuery(input)).not.toEqual(

@@ -83,7 +83,7 @@ const host = {
   apiVersions: [1],
   formatVersions: [3],
   profiles: ["web-v1"],
-  capabilities: ["pages.v1"],
+  capabilities: ["pages"],
 };
 function entry(release: CenterRelease, compatible: CenterRelease | null): CenterCatalogEntry {
   return {

@@ -7,14 +7,11 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { readPluginCapabilities, type PluginCapability } from "./capabilities";
 
 export interface PluginEnvironment {
-  readonly platform: "desktop" | "android" | "ios" | "web" | "unknown";
-  readonly layout: "compact" | "wide" | "unknown";
-  readonly input: Readonly<{ touch: boolean; finePointer: boolean }>;
-  /** 可用能力，不代表数据授权或代码隔离。 */
-  readonly capabilities: readonly PluginCapability[];
+  readonly platform: "desktop" | "android" | "ios" | "web";
+  /** WebView 报告的可用指针精度，不代表当前输入设备或悬停能力。 */
+  readonly input: Readonly<{ coarsePointer: boolean; finePointer: boolean }>;
 }
 
 export interface PluginEnvironmentSource {
@@ -33,17 +30,12 @@ export function createPluginEnvironmentStore(initial: PluginEnvironment) {
         listeners.delete(listener);
       };
     },
-    update(patch: Partial<Pick<PluginEnvironment, "layout" | "input">>) {
-      if (
-        !patch ||
-        typeof patch !== "object" ||
-        Object.keys(patch).some(key => key !== "layout" && key !== "input")
-      )
-        throw new Error("会话中只能更新布局与输入能力");
+    update(patch: Partial<Pick<PluginEnvironment, "input">>) {
+      if (!patch || typeof patch !== "object" || Object.keys(patch).some(key => key !== "input"))
+        throw new Error("会话中只能更新输入信息");
       const next = snapshotPluginEnvironment({ ...snapshot, ...patch });
       if (
-        next.layout === snapshot.layout &&
-        next.input.touch === snapshot.input.touch &&
+        next.input.coarsePointer === snapshot.input.coarsePointer &&
         next.input.finePointer === snapshot.input.finePointer
       )
         return;
@@ -55,25 +47,22 @@ export function createPluginEnvironmentStore(initial: PluginEnvironment) {
 
 const EnvironmentContext = createContext<PluginEnvironmentSource | undefined>(undefined);
 
-/** 由宿主显式选择平台；媒体查询只描述布局和输入，不用于猜测操作系统。 */
+/** 平台由宿主提供，输入信息来自媒体查询。 */
 export function createBrowserPluginEnvironment(
   platform: PluginEnvironment["platform"],
-  capabilities: readonly PluginCapability[],
   viewport: Window
 ) {
-  const compact = viewport.matchMedia("(max-width: 767px)");
-  const touch = viewport.matchMedia("(any-pointer: coarse)");
+  const coarse = viewport.matchMedia("(any-pointer: coarse)");
   const fine = viewport.matchMedia("(any-pointer: fine)");
   const read = () => ({
-    layout: compact.matches ? ("compact" as const) : ("wide" as const),
-    input: { touch: touch.matches, finePointer: fine.matches },
+    input: { coarsePointer: coarse.matches, finePointer: fine.matches },
   });
-  const source = createPluginEnvironmentStore({ platform, capabilities, ...read() });
+  const source = createPluginEnvironmentStore({ platform, ...read() });
   return {
     ...source,
     connect() {
       const update = () => source.update(read());
-      const queries = [compact, touch, fine];
+      const queries = [coarse, fine];
       queries.forEach(query => query.addEventListener("change", update));
       update();
       return () => queries.forEach(query => query.removeEventListener("change", update));
@@ -105,17 +94,17 @@ export function usePluginEnvironment(): PluginEnvironment {
 export function snapshotPluginEnvironment(value: PluginEnvironment): PluginEnvironment {
   if (
     !value ||
-    !["desktop", "android", "ios", "web", "unknown"].includes(value.platform) ||
-    !["compact", "wide", "unknown"].includes(value.layout) ||
+    !["desktop", "android", "ios", "web"].includes(value.platform) ||
     !value.input ||
-    typeof value.input.touch !== "boolean" ||
-    typeof value.input.finePointer !== "boolean" ||
-    !Array.isArray(value.capabilities)
+    typeof value.input.coarsePointer !== "boolean" ||
+    typeof value.input.finePointer !== "boolean"
   )
     throw new Error("插件环境无效");
   return Object.freeze({
-    ...value,
-    input: Object.freeze({ ...value.input }),
-    capabilities: readPluginCapabilities(value.capabilities),
+    platform: value.platform,
+    input: Object.freeze({
+      coarsePointer: value.input.coarsePointer,
+      finePointer: value.input.finePointer,
+    }),
   });
 }

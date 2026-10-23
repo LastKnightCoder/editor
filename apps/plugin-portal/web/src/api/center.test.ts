@@ -24,7 +24,7 @@ it("v2 查询和解析不请求登录或 CSRF；保留取消信号和未检查�
     "https://example.invalid/v2/plugins/example.counter/resolve",
     expect.objectContaining({
       body: JSON.stringify({
-        host: { ...centerHost, capabilities: ["navigation.v1", "pages.v1"] },
+        host: { ...centerHost, capabilities: ["navigation", "pages"] },
       }),
     })
   );

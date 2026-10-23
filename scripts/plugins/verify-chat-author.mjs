@@ -33,7 +33,7 @@ try {
     await readFile(path.join(root, "packages/ui/package.json"), "utf8")
   );
   const author = path.join(directory, "干净作者 project");
-  await cp(path.join(root, "scripts/plugins/template"), author, {
+  await cp(path.join(root, "plugins/tau-plugin-template"), author, {
     recursive: true,
     filter: source => !["node_modules", "dist", ".git"].includes(path.basename(source)),
   });

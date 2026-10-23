@@ -34,15 +34,15 @@
 
 ## 3. 总体结构与单一事实源
 
-| 层                             | 所有者                                                          | 接入原则                                                     |
-| ------------------------------ | --------------------------------------------------------------- | ------------------------------------------------------------ |
-| 作者 API、能力词表、包兼容判断 | `packages/plugins`                                              | 三端共用契约与纯校验，不引入 app/features 依赖               |
-| 作者模板、构建与 SDK 发布      | `scripts/plugins/template`、`scripts/plugins/package-sdk.mjs`   | 一个模板体系，一个公共 SDK 发布包                            |
-| 编辑器与 UI 标准交互           | `packages/editor`、`packages/editor-source-view`、`packages/ui` | 定义平台无关注入点；具体平台行为由宿主提供                   |
-| 桌面业务与页面承载             | `apps/desktop/src/app/plugins`、对应 feature                    | 使用真实 Page/Sidebar、权限和数据适配器                      |
-| 移动业务与页面承载             | `apps/mobile/src` 的插件域与 app 组装                           | 使用既有 router、EditorKit、“我的”和返回仲裁                 |
-| 移动包文件与持久化             | `apps/mobile/src-tauri`                                         | Rust 管下载/文件/数据库，不执行插件 JS                       |
-| 插件中心                       | 本阶段不变                                                      | 只定义以后需要的兼容契约，不修改 API、D1、审核 UI 或线上数据 |
+| 层                             | 所有者                                                           | 接入原则                                                     |
+| ------------------------------ | ---------------------------------------------------------------- | ------------------------------------------------------------ |
+| 作者 API、能力词表、包兼容判断 | `packages/plugins`                                               | 三端共用契约与纯校验，不引入 app/features 依赖               |
+| 作者模板、构建与 SDK 发布      | `plugins/tau-plugin-template`、`scripts/plugins/package-sdk.mjs` | 一个模板体系，一个公共 SDK 发布包                            |
+| 编辑器与 UI 标准交互           | `packages/editor`、`packages/editor-source-view`、`packages/ui`  | 定义平台无关注入点；具体平台行为由宿主提供                   |
+| 桌面业务与页面承载             | `apps/desktop/src/app/plugins`、对应 feature                     | 使用真实 Page/Sidebar、权限和数据适配器                      |
+| 移动业务与页面承载             | `apps/mobile/src` 的插件域与 app 组装                            | 使用既有 router、EditorKit、“我的”和返回仲裁                 |
+| 移动包文件与持久化             | `apps/mobile/src-tauri`                                          | Rust 管下载/文件/数据库，不执行插件 JS                       |
+| 插件中心                       | 本阶段不变                                                       | 只定义以后需要的兼容契约，不修改 API、D1、审核 UI 或线上数据 |
 
 同一个能力标识、平台声明和包校验逻辑只维护一份。不同宿主共享协议与纯逻辑，不共享依赖 Electron 或 Tauri 的实现；不要把整个桌面 runtime 搬到 mobile，也不要先抽一个没有实际消费者的庞大跨端框架。
 
@@ -108,7 +108,7 @@
 
 当前公开安装名通过 npm alias 映射到 `@xiongtao.xt/tau-plugins` / `@xiongtao.xt/tau-ui`；这两个发布包继续使用，不新建 tau-mobile-plugins。`environment-host` 等子路径服务客户端集成，不应作为作者模板 external 的公共能力开放。
 
-具体落点：`scripts/plugins/template/src/index.tsx`、`manifest.json`、`build.mjs`、`package.json`、模板 docs、`scripts/plugins/package-sdk.mjs`。不要只更新 workspace exports 而遗漏实际发布器的类型闭包、exports 和文档复制清单。
+具体落点：`plugins/tau-plugin-template/src/index.tsx`、`manifest.json`、`build.mjs`、`package.json`、模板 docs、`scripts/plugins/package-sdk.mjs`。不要只更新 workspace exports 而遗漏实际发布器的类型闭包、exports 和文档复制清单。
 
 计数器正式样例要恢复真实模板的设置表单与 `@tau/ui` Dialog，用它验证移动返回与 portal；spike 手写说明层通过，不代表标准 Dialog 已经适配。
 

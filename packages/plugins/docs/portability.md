@@ -1,14 +1,35 @@
-# 跨端插件契约
+# 多端插件作者契约
 
-Tau 使用同一个 `@tau/plugins` SDK 表达公共能力，平台宿主提供实现。作者版本为 SDK 0.36.0、UI 0.4.0；各 API 的已接线范围、作者责任和未接宿主见 [API 支持矩阵](api-support.md)。Android/iOS 0.2.1 正式构建支持固定中心安装与启用，版本须经中心上架审核并获准分发；平台适配与功能测试由作者负责，审核者不承担平台测试或验证记录。客户端接线见[跨端宿主架构](/docs/architecture/plugin-portability.md)。
+一个 SDK、一套模板、同一插件 ID/版本对应同一 ZIP。普通页面直接使用公共 API；宿主在加载前检查兼容性。具体宿主实现范围见 [API 支持矩阵](api-support.md)，SDK 类型存在不等于所有接口都已在移动端接入。
 
-正式 SDK、清单和分发设计及剩余接入见[正式接入方案](/docs/tasks/plugin-portability-bcd/distribution-plan.md)。桌面 0.59.1 接入格式 3 正式安装与启动装配；D 的设备与发行验收仍保留。SDK 类型存在不代表每个宿主已提供实现。
+## 作者清单
 
-## 页面与功能入口
+作者维护 manifest.json 的身份、目标平台、最低版本和额外需求。包格式、入口、摘要与内部要求由构建器生成。
 
-`context.pages.register` 声明页面内容、参数、身份，返回页面句柄。`context.navigation.registerEntry` 声明用户发现功能的入口，引用本插件本次激活注册的有效页面。任务管理可以有一个入口，却有列表、详情、设置等多个页面，因此注册页面不能自动增加侧栏条目。
+```json
+{
+  "id": "example.counter",
+  "name": "计数器",
+  "description": "保存当前工作区的计数。",
+  "version": "1.0.0",
+  "categories": ["page"],
+  "targets": {
+    "desktop": { "minAppVersion": "0.59.2" },
+    "android": { "minAppVersion": "0.2.3" },
+    "ios": { "minAppVersion": "0.2.3" }
+  }
+}
+```
 
-入口的位置由宿主决定：桌面侧栏与 Android/iOS 的“我的 · 插件功能”消费同一声明。作者不依赖容器内部实现，也不操作宿主 history。旧 `sidebar` API 继续代表桌面专属分组、子项与拖放，不被静默转换成移动功能。
+版本填写实际验证过的下限。声明平台不代表已在该平台通过设备验收，也不控制生产中心的分发开关。
+
+公共应用基础包含 commands、storage、pages、navigation、settings、dialogs，不要求作者逐项填写或调用前查字符串。行为遵循支持矩阵：移动命令注册不自动生成命令面板，通用插件设置不包含桌面领域提供方配置。
+
+额外功能写 requires：sourceEditor、media、runtimeStyles。编辑器声明使用 editor: { elements: { "abc": "edit" } }，构建器补齐 editor/editorCodecs。每个实际节点必须明确列出；edit 支持显示、插入和编辑，render 只显示，none 不装配但保留原始数据。
+
+根级 requires、optional、editor.elements 为公共声明。目标平台不写时继承；写了就整组替换，空数组清空该组额外需求，不能取消公共基础要求。节点映射也是完整替换，不深合并。必需与可选不能重叠，未知名称在构建时拒绝；省略平台表示不允许该平台应用安装。
+
+## 页面和入口
 
 ```tsx
 const page = context.pages.register({
@@ -17,75 +38,68 @@ const page = context.pages.register({
   component: TasksPage,
 });
 context.navigation.registerEntry({ id: "tasks", title: "任务管理", page });
+context.settings.register({ id: "preferences", title: "设置", component: Settings });
 ```
 
-入口可提供 icon、params。宿主校验入口 ID、标题、重复注册、参数和页面归属，注册结果进入插件资源回收；没有导航适配器时明确报错。页面手动注销时同时回收绑定入口，即使清理失败也继续清理其他资源；停用后旧页面句柄不可再打开。运行时贡献计数使用 navigation 类别；这不修改中心协议。
+页面不自动创建入口。桌面侧栏、移动插件功能列表消费同一语义声明；作者不操作宿主 history，不导入宿主路由。详情页可没有入口。页面句柄的 open 仅接收标量参数，页面注销后入口回收。
 
-页面组件可在 effect 中调用 pageContext.registerLeaveGuard(guard)，返回 false 阻止离开，清理时注销。异步守卫需处理自己的保存失败，不能自行跳过导航仲裁。
+Dialog/Drawer 直接使用公共 UI。宿主负责浮层返回、层级与安全区。页面组件通过 pageContext.registerLeaveGuard 登记离开守卫，并在 effect 清理时注销；系统终止进程不保证调用守卫或 deactivate，重要数据应及时保存。
 
-页面内部布局允许变化：桌面可以列表/详情并排，手机逐页进入；数据操作、ID、参数与保存语义共用。优先响应式布局，差异大才拆分组件。
+context.storage 为当前工作区的插件私有 JSON 存储，不等于业务实体数据库。异步任务处理 signal 与工作区失效；资源通过 context.register 或组件 effect 回收。
 
-## 环境与能力
+## 环境与平板
 
-每次读取 `context.environment` 都取得环境源的最新不可变快照。静态编辑器组件通过 `usePluginEnvironment()` 读取对应渲染宿主注入的环境，不依赖 activate，也不缓存全局插件 context。博客与只读内容同样需要由自己的渲染宿主注入环境，不能假定桌面激活已经发生。
+```ts
+interface PluginEnvironment {
+  readonly platform: "desktop" | "android" | "ios" | "web";
+  readonly input: {
+    readonly coarsePointer: boolean;
+    readonly finePointer: boolean;
+  };
+}
+```
 
-| 字段              | 含义                                                 |
-| ----------------- | ---------------------------------------------------- |
-| platform          | desktop / android / ios / web / unknown              |
-| layout            | compact / wide / unknown，界面形态与操作系统分别表达 |
-| input.touch       | 宿主识别到触摸输入能力                               |
-| input.finePointer | 宿主识别到精细指针输入能力                           |
-| capabilities      | 版本化 PluginCapability 词表，不代表数据授权或沙箱   |
+React 组件使用 usePluginEnvironment()，非 React 调用每次读取 context.environment，二者是同一宿主源的不可变快照。平台在会话内固定，输入变化自动通知组件；未注入环境是装配错误，不假定某个平台。
 
-平台不等于屏幕大小或输入方式，平板和触摸桌面不能只靠 isMobile 决定所有交互。插件不自行猜 User-Agent，运行容器识别集中在宿主。
+coarsePointer 对应 (any-pointer: coarse)，finePointer 对应 (any-pointer: fine)：只表达 WebView 报告的指针精度，二者可以同时为真。它们不识别手机、平板、当前事件来源、键盘或悬停能力；一次手势的来源看 PointerEvent。普通插件一般不需要读取环境。
 
-没有显式环境适配的旧宿主，context 返回 unknown 与空能力；组件树没有环境 Provider 时，hook 明确报错。宿主使用 `@tau/plugins/environment-host` 的 Provider 和快照函数注入；作者只使用 SDK 根入口的 hook 和类型。
+环境没有 layout 或能力清单。布局用 CSS 与容器宽度，不能用系统平台推导宽窄。Android 平板沿用 android，未来 iPad 宿主沿用 SDK 的 ios 家族标识；分屏时重排布局，接入鼠标时增强操作而不删除触摸按钮。平板支持还需要宿主和设备验收，不能从平台声明推断已通过。
 
-宿主可使用 createPluginEnvironmentStore(initial)，把同一个 source 传入 PluginHost 的 environmentSource 和 Provider 的 source。update 只允许修改 layout/input，语义未变化时不通知；platform 与版本化能力集合在会话内固定。hook 自动订阅/注销，context getter 读取最新快照。宿主负责把 resize、输入媒体查询接到 source.update；createBrowserPluginEnvironment 仅在宿主显式传入 Window 后订阅媒体查询，不猜测 User-Agent。旧 environment/value 快照注入仍可用。
+## 编辑器插件
 
-## 编辑器的职责边界
+节点结构、codec、校验和渲染共用；静态 editorExtensions/editorCodecs 直接交给 definePlugin，不依赖 activate 或缓存全局 context。博客由自己的宿主提供 web/只读环境，不能启动应用插件生命周期。
 
-| 内容                                              | 归属       | 跨端要求                        |
-| ------------------------------------------------- | ---------- | ------------------------------- |
-| 节点结构、codec、校验与业务操作                   | 插件       | 共用插件 ID、节点类型与字段     |
-| 选中框、插入入口、标准源码容器、块菜单/拖拽的呈现 | 编辑器宿主 | 同一语义可以有不同平台交互      |
-| 图库排序、复杂绘图等插件自己的编辑体验            | 插件       | 可拆桌面/移动组件，操作同一数据 |
+优先使用 SourceBlockEditor/useSourceBlock 与公开的节点 API。标准插入、选区、源码草稿保存/取消、只读和迟到提交保护由宿主负责；节点允许移动不等于所有平台都采用鼠标拖拽。
 
-例如乐谱块声明编辑源码、导出、移动等动作，桌面可以提供工具条/右键/拖拽把手，移动可以提供触摸按钮/底部菜单/上下移动。标准交互由宿主改造，避免每个插件各写一遍长按与菜单；插件内部的特殊编辑体验仍由作者负责。
+图册排序、绘图等专有交互仍由作者实现。基础操作保留可点击/可聚焦按钮，拖拽与悬停只作增强；布局按实际容器调整，共享编辑状态和提交函数，方向或输入变化不能丢失草稿。不能为手机另建一套节点类型。
 
-标准源码组件通过每个编辑器的宿主服务选择交互，插件继续使用 SourceBlockEditor/useSourceBlock。宿主必须在 UI 与节点提交 API 同时执行只读限制，不能仅隐藏按钮。保存/取消、返回与异步提交失效属于宿主职责；作者专有手势仍由作者适配。
+## 可选功能
 
-原始 ABC 包没有直接消费新环境 hook，环境差异由它调用的宿主源码组件读取。计数器直接消费同一 SDK 的环境 hook，用同一个入口声明跨端展示。
+只有具备具体可选访问器和完整替代流程的功能才能标记 optional。当前作者 optional 词表仅允许 runtimeStyles，且 requires 必须包含 sourceEditor：
 
-宿主从 blockPanel 生成触摸插入动作与桌面菜单。完整移动拖拽、复杂菜单、中文输入法和手感需要分别验收；不能把组件可渲染视作整个桌面交互已移动化。
+```json
+{
+  "requires": ["sourceEditor"],
+  "optional": ["runtimeStyles"]
+}
+```
 
-## 作者项目与兼容范围
+通过 useSourceBlock(element).compiler（行内源码为 useInlineSource）读取编译器，宿主未提供时得到 undefined；作者使用随包基础样式完成降级。若动态样式是内容正确呈现的必要条件，就必须放在 requires。调用异常仍应显示错误，不能以可选为由吞掉失败。
 
-一个模板体系维护公共作者契约与构建流程；公共逻辑、数据模型、渲染优先共享，差异明显时拆分视图。计数器源文件是固定测试样本，不是第二套移动 SDK 或独立移动模板产品；现有公开模板仓库没有在本轮发布更新。
+跨端应用模块按清单装配具体服务：未声明的功能访问明确报错；一个插件的可选需求不影响另一个插件。不增加 hasCapability/getCapability 通用查询器，不在环境对象里列宿主能力。
 
-移动支持分别判断显示、插入、编辑；只读展示不能冒充完整编辑兼容。未安装或能力不足时保留原始节点。独立开发格式 3 通过 targets 的 elements 声明 none/render/edit，并与实际节点贡献对账；缺失默认 none。宿主通过 adaptPortablePluginDefinition 投影贡献，并把同一支持表接入编辑器提交保护；单纯校验清单不会改变编辑器。旧生产 manifest 语义不变，不以无 Node 依赖自动认定兼容。
+媒体解析与展示需要 requires: ["media"]。useResourceUpload() 在只读或没有资源存储的作用域返回 undefined，表示当前不能上传，并不表示媒体宿主整体缺失；不能通过链接输入绕过只读限制。功能存在、用户授权、当前作用域允许与网络请求成功是四件不同的事。
 
-符合 web-v1 支持子集且声明相应 targets 的插件可由三端调试宿主加载同一 JS/CSS 包。桌面 Node 后台、外部程序和通用原生调用不是共同能力。首期协议为同一 ID/版本对应一个不可变 ZIP，不按平台替换同版本字节。
+## 构建和分发
 
-## 跨端开发包与作者闭环
+buildPortablePluginManifest(authorManifest, output) 接收作者清单和构建器提供的 main/styles/integrity/skills，输出格式 3、apiVersion 1、profile web-v1、CJS 单入口的发行清单。targets 展开为各端 required/optional/elements，插件中心只消费规范化结果，不执行作者源码。
 
-`@tau/plugins/portable` 提供格式 3 的纯校验与兼容判断，profile 为 web-v1；各目标独立声明最低版本、required/optional 能力和节点等级。旧 validatePluginManifest/validateDistributionManifest 继续只服务旧格式；中心按格式调用独立新校验器。
+宿主内部 PortablePluginHost 的 capabilities 与作者环境分离。客户端同时校验平台、版本、profile 与必需功能；未知必需项拒绝，未知可选项不授予功能。构建器只推导明确规则，不声称能推断任意 JS 的全部依赖。
 
-- `validatePortablePluginManifest`：作者严格校验，required/optional 均须属于当前 SDK 词表；拼写错误不能以 optional 为由放过。
-- `validatePortableDistributionManifest`：模板与中心上传共用，另拒绝插件预发布/build metadata 版本、含移动目标的非空 permissions；SDK 自身的开发版本不受该插件版本规则影响。
-- `readPortablePluginManifest`：客户端读取，返回 ReadablePortablePluginManifest，保留合法的未来能力名；能力列表最多 128 项，名称最多 128 字符、以正整数版本 `.vN` 结尾。重复、required/optional 交集仍拒绝。未知字段、profile、权限和节点等级仍拒绝，不做降级猜测。
-- `assertPortablePluginCompatibility`：按当前平台检查，未知 required 作为缺能力拒绝，未知 optional 不拒绝且不授予能力；移动非空 permissions 在求值前拒绝。环境能力仍只表示宿主实际实现的词表。
+纯 Markdown Skill 由目录收集，桌面读取，移动校验保存但不执行；脚本与后台不因此成为移动能力。现有桌面领域插件保持其真实支持范围。移动业务数据权限未接时，不允许发行声明这些权限的移动目标。
 
-evaluatePortablePluginPackage 使用客户端读取器，在求值前检查 profile/平台/版本/必需能力，并在求值后核对节点清单；文件完整性由读取器先校验。移动中心对账时保留全部能力名，不删除未知 optional 后再比较，从而仍能识别被篡改的声明。
+React、SDK 与公共 UI 由宿主提供，其他浏览器依赖随包构建；不引用宿主 src，不导入 host/environment-host 等内部装配入口。可信插件与宿主共享 JS 环境，能力检查、完整性摘要和用户权限不构成恶意代码沙箱。
 
-web 平台用于静态渲染环境，不能通过应用激活兼容检查；新的博客内容消费者仍需单独接线。格式 3 不包含 backend、whiteboard 或 Skill；不将桌面系统能力作为手机可选能力下发。
+## 验证
 
-统一模板默认生成格式 3，也保留旧桌面格式构建路径。页面入口、编辑器起点和构建器在同一套模板中。官方模板使用固定 npm alias；开发 SDK 可通过 use-local-sdk.mjs 切换为忽略的 .sdk tarball 并重建本地锁文件。发行器生成声明闭包和 portable 校验模块，不公开 environment-host/host/rendering 等宿主入口。
-
-仓库外验证脚本为 scripts/plugins/verify-portable-author.mjs：在带空格与中文的独立目录安装 tarball，构建页面和编辑器示例，验证冻结安装、三端声明、完整性与拒绝路径。它不等于正式客户端或真机运行验证。
-
-## 可信执行边界
-
-插件与宿主共享 React/JavaScript 环境。模块白名单、数据授权、完整性摘要和错误边界不构成恶意代码沙箱，也不能抢占主线程死循环。跨端 API 可用性、用户数据授权与平台商店审核是独立判断。
-
-运行结构见 [客户端宿主](/docs/architecture/plugin-portability.md)，复现步骤见 [操作指南](/docs/guides/plugin-portability-hosts.md)。
+仓库外构建验证依赖闭包、类型和包格式；设备联调验证安装、启用、插入、编辑、保存、取消、只读与重启恢复。两者分别记录，模拟器不能替代真机、最低系统、平板与性能验收。发布 SDK、插件和客户端分别遵循明确发行授权。

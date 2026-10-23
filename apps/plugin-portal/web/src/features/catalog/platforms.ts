@@ -1,4 +1,4 @@
-import type { PluginCapability } from "@tau/plugins";
+import type { PluginCapability } from "@tau/plugins/portable";
 import type { CenterPlatform, CenterReason, CenterTargets } from "@tau/plugins/center";
 import {
   PORTABLE_PLATFORMS,
@@ -26,15 +26,17 @@ export const ELEMENT_SUPPORT: Record<PluginElementSupport, { label: string; colo
 
 /** 未登记的新能力按原名展示，保证前向读取时不丢信息。 */
 const CAPABILITY_LABELS: Record<PluginCapability, string> = {
-  "commands.v1": "命令",
-  "storage.v1": "私有存储",
-  "pages.v1": "页面",
-  "navigation.v1": "导航入口",
-  "settings.v1": "设置页",
-  "ui.dialog.v1": "对话框",
-  "editor.elements.v1": "正文节点",
-  "editor.codecs.v1": "正文编解码",
-  "editor.source.v1": "源码编辑",
+  commands: "命令",
+  storage: "私有存储",
+  pages: "页面",
+  navigation: "导航入口",
+  settings: "设置页",
+  dialogs: "对话框",
+  editor: "正文节点",
+  editorCodecs: "正文编解码",
+  sourceEditor: "源码编辑",
+  runtimeStyles: "动态样式",
+  media: "媒体与资源",
 };
 
 export function capabilityLabel(capability: string): string {

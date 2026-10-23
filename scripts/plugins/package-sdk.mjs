@@ -245,14 +245,14 @@ try {
     );
     await writeFile(
       path.join(directory, "LICENSE"),
-      await readFile(path.join(root, "scripts/plugins/template/LICENSE"))
+      await readFile(path.join(root, "plugins/tau-plugin-template/LICENSE"))
     );
     await writeFile(
       path.join(directory, "README.md"),
       `# Tau 插件开发包 @tau/${name}\n\n开发 Tau 插件所需的类型与接口，通过 npm 别名安装为 \`@tau/${name}\`。根入口的实现由 Tau 在运行时提供，插件构建时需设为 external。\n\n从模板开始开发：https://github.com/LastKnightCoder/tau-plugin-template\n${name === "plugins" ? "\n开发文档见 [docs/README.md](docs/README.md)。\n" : ""}`
     );
     if (name === "plugins") {
-      await cp(path.join(root, "scripts/plugins/template/docs"), path.join(directory, "docs"), {
+      await cp(path.join(root, "plugins/tau-plugin-template/docs"), path.join(directory, "docs"), {
         recursive: true,
       });
       await writeFile(

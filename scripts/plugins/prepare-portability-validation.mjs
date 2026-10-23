@@ -34,7 +34,7 @@ Object.assign(abcManifest, {
       platform,
       {
         minAppVersion: platform === "desktop" ? "0.59.0" : "0.2.0",
-        required: ["editor.elements.v1", "editor.codecs.v1", "editor.source.v1"],
+        required: ["editor", "editorCodecs", "sourceEditor"],
         optional: [],
         elements: { abc: "edit" },
       },

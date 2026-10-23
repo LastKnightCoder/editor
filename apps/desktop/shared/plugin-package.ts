@@ -8,21 +8,22 @@ import { assertPluginCompatibility } from "@tau/plugins/host";
 import type { CenterHost } from "@tau/plugins/center";
 
 export const DESKTOP_PLUGIN_CAPABILITIES = [
-  "commands.v1",
-  "storage.v1",
-  "pages.v1",
-  "navigation.v1",
-  "settings.v1",
-  "ui.dialog.v1",
-  "editor.elements.v1",
-  "editor.codecs.v1",
-  "editor.source.v1",
+  "commands",
+  "storage",
+  "pages",
+  "navigation",
+  "settings",
+  "dialogs",
+  "editor",
+  "editorCodecs",
+  "sourceEditor",
+  "media",
+  "runtimeStyles",
 ] as const;
 
 export type DesktopPortableManifest = ReadablePortablePluginManifest & {
   backend?: never;
   whiteboard?: never;
-  skills?: never;
   minAppVersion?: never;
 };
 export type DesktopPluginManifest = PluginManifest | DesktopPortableManifest;
@@ -44,11 +45,10 @@ export const desktopPluginHost = (appVersion: string): CenterHost => ({
 export const desktopPortableHost = (appVersion: string) => ({
   appVersion,
   profiles: ["web-v1"],
+  capabilities: DESKTOP_PLUGIN_CAPABILITIES,
   environment: {
     platform: "desktop" as const,
-    layout: "unknown" as const,
-    input: { touch: false, finePointer: true },
-    capabilities: DESKTOP_PLUGIN_CAPABILITIES,
+    input: { coarsePointer: false, finePointer: true },
   },
 });
 

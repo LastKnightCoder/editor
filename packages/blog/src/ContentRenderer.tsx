@@ -42,13 +42,11 @@ export function ContentRenderer({
   const environment = useMemo(
     () =>
       typeof window !== "undefined" && typeof window.matchMedia === "function"
-        ? createBrowserPluginEnvironment("web", ["editor.elements.v1", "editor.codecs.v1"], window)
+        ? createBrowserPluginEnvironment("web", window)
         : {
             ...createPluginEnvironmentStore({
               platform: "web",
-              layout: "unknown",
-              input: { touch: false, finePointer: false },
-              capabilities: ["editor.elements.v1", "editor.codecs.v1"],
+              input: { coarsePointer: false, finePointer: false },
             }),
             connect: () => undefined,
           },

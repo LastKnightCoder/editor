@@ -49,4 +49,4 @@
 
 ## 文档收尾
 
-当前实现契约在 `packages/plugins/docs/portability.md`，作者用法在 `scripts/plugins/template/docs/portability.md`，复现流程在 `docs/guides/plugin-portability-sdk.md`。阶段 A 已按沉淀、退役、索引三步收尾。后续真实宿主接线不由本记录隐含启动。
+当前实现契约在 `packages/plugins/docs/portability.md`，作者用法在 `plugins/tau-plugin-template/docs/portability.md`，复现流程在 `docs/guides/plugin-portability-sdk.md`。阶段 A 已按沉淀、退役、索引三步收尾。后续真实宿主接线不由本记录隐含启动。

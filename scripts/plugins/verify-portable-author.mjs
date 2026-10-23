@@ -49,7 +49,7 @@ try {
     console.log("生成本地 SDK/UI tarball");
     await run(process.execPath, ["scripts/plugins/package-sdk.mjs", sdk], root);
   }
-  await cp(path.join(root, "scripts/plugins/template"), author, {
+  await cp(path.join(root, "plugins/tau-plugin-template"), author, {
     recursive: true,
     filter: source => !["node_modules", "dist", ".git", ".sdk"].includes(path.basename(source)),
   });
@@ -131,7 +131,7 @@ try {
     assert.equal(await readFile(pointer, "utf8"), originalPointer);
   }
   await writeFile(sourcePath, source);
-  manifest.targets.ios.required.push("missing.v1");
+  manifest.targets.ios.requires = ["missingFeature"];
   await writeFile(manifestPath, JSON.stringify(manifest));
   await assert.rejects(run(process.execPath, ["build.mjs"], author));
   assert.equal(await readFile(pointer, "utf8"), originalPointer);
@@ -142,7 +142,7 @@ try {
     {
       targets: {
         ...JSON.parse(manifestText).targets,
-        ios: { ...JSON.parse(manifestText).targets.ios, optional: ["future.optional.v1"] },
+        ios: { ...JSON.parse(manifestText).targets.ios, optional: ["futureOptional"] },
       },
     },
   ]) {
@@ -180,13 +180,11 @@ try {
   await cp(archive, path.join(author, "dist/legacy-example.zip"));
   report.checks.push("同一构建器的旧桌面格式回归");
   const editorManifest = JSON.parse(manifestText);
-  editorManifest.editor = true;
+  editorManifest.editor = { elements: { "example.note": "edit" } };
   for (const platform of ["desktop", "android", "ios"])
     editorManifest.targets[platform] = {
       minAppVersion: editorManifest.targets[platform].minAppVersion,
-      required: ["editor.elements.v1"],
-      optional: [],
-      elements: { "example.note": platform === "desktop" ? "edit" : "render" },
+      editor: { elements: { "example.note": platform === "desktop" ? "edit" : "render" } },
     };
   await writeFile(manifestPath, JSON.stringify(editorManifest, null, 2));
   await writeFile(sourcePath, "export { default } from '../examples/editor';\n");

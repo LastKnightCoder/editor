@@ -22,6 +22,10 @@ import {
 } from "../utils/skill-import";
 import { cancelSkillScript, runSkillScript } from "../utils/skill-script-runner";
 import {
+  readPortablePluginManifest,
+  type ReadablePortablePluginManifest,
+} from "@tau/plugins/portable";
+import {
   isSkillPackageManifest,
   validateDistributionManifest,
   type DistributionManifest,
@@ -170,11 +174,13 @@ class SkillModule implements Module {
     for (const folder of folders) {
       if (folder.name.startsWith(".")) continue;
       const directory = join(pluginsDir, folder.name);
-      let manifest: DistributionManifest;
+      let manifest: DistributionManifest | ReadablePortablePluginManifest;
       try {
-        manifest = validateDistributionManifest(
-          JSON.parse(await fs.readFile(join(directory, "manifest.json"), "utf-8"))
-        );
+        const raw = JSON.parse(await fs.readFile(join(directory, "manifest.json"), "utf-8"));
+        manifest =
+          raw?.formatVersion === 3
+            ? readPortablePluginManifest(raw)
+            : validateDistributionManifest(raw);
       } catch {
         continue;
       }
@@ -185,7 +191,8 @@ class SkillModule implements Module {
           folderName: `${manifest.id}:${id}`,
           pluginId: manifest.id,
           pluginName: manifest.name,
-          source: isSkillPackageManifest(manifest) ? "package" : "plugin",
+          source:
+            manifest.formatVersion !== 3 && isSkillPackageManifest(manifest) ? "package" : "plugin",
         });
     }
     this.packageRoots = roots;

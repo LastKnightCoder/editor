@@ -8,21 +8,21 @@ afterEach(cleanup);
 
 type Targets = CenterTargets;
 const previous: Targets = {
-  desktop: { minAppVersion: "0.60.0", required: ["pages.v1"], optional: [] },
+  desktop: { minAppVersion: "0.60.0", required: ["pages"], optional: [] },
   ios: {
     minAppVersion: "0.3.0",
-    required: ["pages.v1", "editor.elements.v1"],
+    required: ["pages", "editor"],
     optional: [],
     elements: { counter: "render" },
   },
 };
 const current: Targets = {
-  desktop: { minAppVersion: "0.60.0", required: ["pages.v1"], optional: [] },
-  android: { minAppVersion: "0.3.0", required: ["pages.v1"], optional: [] },
+  desktop: { minAppVersion: "0.60.0", required: ["pages"], optional: [] },
+  android: { minAppVersion: "0.3.0", required: ["pages"], optional: [] },
   ios: {
     minAppVersion: "0.4.0",
-    required: ["pages.v1", "editor.elements.v1"],
-    optional: ["ui.dialog.v1"],
+    required: ["pages", "editor"],
+    optional: ["dialogs"],
     elements: { counter: "edit" },
   },
 };

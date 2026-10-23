@@ -30,7 +30,7 @@ try {
   const { version: uiVersion } = JSON.parse(
     await readFile(path.join(root, "packages/ui/package.json"), "utf8")
   );
-  await cp(path.join(root, "scripts/plugins/template"), author, { recursive: true });
+  await cp(path.join(root, "plugins/tau-plugin-template"), author, { recursive: true });
   await rm(path.join(author, "pnpm-lock.yaml"), { force: true });
   const pkg = JSON.parse(await readFile(path.join(author, "package.json"), "utf8"));
   pkg.dependencies["@tau/plugins"] = `file:${sdk}/xiongtao.xt-tau-plugins-${version}.tgz`;

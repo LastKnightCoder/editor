@@ -9,9 +9,7 @@ describe("真实桌面语义入口", () => {
     const push = vi.fn();
     const environment = createPluginEnvironmentStore({
       platform: "desktop",
-      layout: "wide",
-      input: { touch: false, finePointer: true },
-      capabilities: ["pages.v1", "navigation.v1"],
+      input: { coarsePointer: false, finePointer: true },
     });
     let context!: PluginContext;
     let page!: PluginPageHandle;
@@ -54,8 +52,8 @@ describe("真实桌面语义入口", () => {
         instanceId: "single",
         params: '{"count":1}',
       });
-      environment.update({ layout: "compact" });
-      expect(context.environment.layout).toBe("compact");
+      environment.update({ input: { coarsePointer: true, finePointer: true } });
+      expect(context.environment.input.coarsePointer).toBe(true);
       await page.dispose();
       expect(runtime.listSidebar().items).toHaveLength(0);
       expect(runtime.host.listContributions("test.portable").navigation).toBeUndefined();

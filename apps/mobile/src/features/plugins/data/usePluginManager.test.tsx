@@ -30,9 +30,7 @@ function makeRuntime(database: string) {
   const instance = new MobilePluginRuntime(
     createPluginEnvironmentStore({
       platform: "ios",
-      layout: "compact",
-      input: { touch: true, finePointer: false },
-      capabilities: [],
+      input: { coarsePointer: true, finePointer: false },
     }),
     createMemoryStorage(),
     database,

@@ -133,7 +133,7 @@ Worker 可辅助纯计算，但没有 DOM；不能拿它直接执行现有 React
 | `tau.custom-block@1.0.8`  | 约 3.62 MiB JS，动态内容编译/渲染复杂                                                                  | 后置；“支持编辑器扩展”不等于立即开放文档中任意 TSX 执行                                    |
 | `tau.questions@0.1.1`     | React 页面与网络等业务接入                                                                             | 可作为复杂页面后续样本，先逐项审计其 SDK 调用                                              |
 
-样本依据：[固定包目录](/tests/fixtures/plugins/catalog.json)、[计数器模板](/scripts/plugins/template/src/index.tsx)、[ABC 使用说明](/tests/fixtures/plugins/releases/tau.abc/0.1.0/README.md)。包文本检索只用于筛选，字符串或 require 文本出现不等于实际执行依赖；不得据此宣称完成依赖安全审计。
+样本依据：[固定包目录](/tests/fixtures/plugins/catalog.json)、[计数器模板](/plugins/tau-plugin-template/src/index.tsx)、[ABC 使用说明](/tests/fixtures/plugins/releases/tau.abc/0.1.0/README.md)。包文本检索只用于筛选，字符串或 require 文本出现不等于实际执行依赖；不得据此宣称完成依赖安全审计。
 
 ## 4. 自定义页面如何兼容现有 SDK
 
@@ -236,7 +236,7 @@ Worker 可辅助纯计算，但没有 DOM；不能拿它直接执行现有 React
 | 编辑器        | services/editorKit.ts、editorMarkdown.ts、移动工具栏 | registry 快照、源码组件、codec、一致预览、触摸插入/菜单                          |
 | UI 公共基础件 | packages/ui 的 Provider/Dialog 等                    | 平台无关 portal 和关闭注册注入，移动适配由调用方提供                             |
 | 中心          | contracts、api/package.ts、api/releases.ts、D1       | 格式校验、v2 兼容筛选、平台审核、旧 v1 视图保护、按平台版本展示                  |
-| 作者工具链    | scripts/plugins/template 及公开 SDK 文档             | 声明平台与能力、发布新版本、禁止隐式桌面依赖、平台样本与构建目标                 |
+| 作者工具链    | plugins/tau-plugin-template 及公开 SDK 文档          | 声明平台与能力、发布新版本、禁止隐式桌面依赖、平台样本与构建目标                 |
 | 桌面/博客     | 现有包验证、渲染和发布收集                           | 当格式 3 声明 desktop 时一起升级，保证同一已安装版本仍可发布                     |
 
 建议下一轮按以下顺序实施，不能把第一步成功写成整体上线：

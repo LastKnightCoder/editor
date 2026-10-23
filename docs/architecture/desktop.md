@@ -84,7 +84,7 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 - 页面从 `PluginPageProps.pageContext` 取实例级上下文登记：`useEffect` 中 `register(() => value)`（任意有限 JSON，宿主不规定结构；MCP 的 `get_current_context` 原样返回快照）、`isActive()`（Activity 可见即栈顶）、`registerDismiss(dismiss)`（显示时挂入 Esc 仲裁，隐藏摘下、再显示按序重挂，插件停用清除）。不提供显示状态通知——effect 生命周期即显示状态（`services/plugin-page-context.ts`）。页面操作由作者自注册 MCP，不加工具分发或导航协议。
 - 停用先取消上下文，当前页面改为不可用提示并卸载组件与 UI Portal；重新启用以新 mountId 创建组件，错误边界按代次重建。页面栈条目保留；功能入口随注册资源回收。pageContext.registerLeaveGuard 接通用 PageProvider 守卫，离开前依次检查，停用后不继续阻塞。
 - 作者从 `@tau/plugins` 用定义/上下文/页面 API，从 `@tau/ui` 用组件；SDK 根入口只引 React 类型不加载 UI/DOM。`ctx.pages.register` 返回可打开与注销的页面句柄，页面组件不直接导入 Page/store。私有存储 `context.storage` 在 Electron 存当前库 `plugin_kv`（随云同步），浏览器预览用 localStorage 适配。
-- 生产装配：`DesktopPluginProvider` 不默认注册任何业务插件（主题切换示例只在测试夹具）；用户从插件中心安装，生产包禁用 ZIP 安装（开发模式保留）；所有正式插件源码在独立 GitHub 仓库，安装到 `~/.editor/plugins`。开发构建的「插件开发台」（plugin-workbench.page）与编辑器实验装配仅开发构建加载。
+- 生产装配：`DesktopPluginProvider` 不默认注册任何业务插件（主题切换示例只在测试夹具）；用户从插件中心安装，生产包禁用 ZIP 安装（开发模式保留）；官方插件与模板以 plugins/ 下的 Git submodule 维护独立 GitHub 历史，主仓库固定提交，安装到 `~/.editor/plugins`。开发构建的「插件开发台」（plugin-workbench.page）与编辑器实验装配仅开发构建加载。
 - 已启用状态：`plugin-local:set-enabled` 写主进程 `plugins/.enabled.json`（唯一写入者），窗口 localStorage 仅镜像；写入广播 `plugin-local:state-changed` 各窗口重读权威快照；SDK Node 入口 local-state 只读。普通页面插件即时启停，静态内容插件完整重启后生效；活跃内容插件须停用并重启后卸载，切库不改变编辑器快照。
 
 应用根部注入响应式插件环境，DesktopPluginRuntime 的语义 navigation 入口复用真实侧栏模型；插件页通过 PortalScope/UiHostProvider 接浮层仲裁。显式开发目录、格式 3 装配及独立内容转换边界见[跨端插件宿主](/docs/architecture/plugin-portability.md)。
@@ -106,7 +106,7 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 ### 插件 MCP 与 AI 服务
 
 - `ctx.mcp.register` 可注册多项本地 tools 或外部 transport（stdio / streamable-http），两者互斥。激活成功才发布，失败/停用/切库回收；来源按「插件 + MCP 局部 ID」隔离生成稳定工具名，激活/重连代次进执行身份；执行复核实例、数据库、整项与逐工具开关，合并取消信号、限时 60 秒。MCP 页面与聊天快捷面板经 useMcpServers 同源展示并注明插件来源；外部项复用配置/日志/重连，本地项只展示工具；外部连接绑定窗口，窗口关闭/崩溃断开不改变手动服务器生命周期。
-- 插件 AI 两条路径：自定义功能由 `ai.features` 声明并独立分配模型；`context.ai.requestCapability(name)` 复用应用已有分配。能力名/显示名由 SDK 的 PLUGIN_AI_CAPABILITIES 提供（与 llmUsageSettings 键集合测试对账，新增内置分配不得遗漏 SDK）。PluginHost 统一校验声明、懒申请、逐次检查与撤权取消；主进程 BACKGROUND 模块 plugin-ai 用同一插件额度、并发与审计执行 pi-ai，模型解析前登记取消句柄。chat/stream 支持文本与 user 图片（图片与正文不入审计、总大小有界）；插件设置对宿主能力只显示继承模型与额度。作者用法见 `scripts/plugins/template/docs/ai.md`。
+- 插件 AI 两条路径：自定义功能由 `ai.features` 声明并独立分配模型；`context.ai.requestCapability(name)` 复用应用已有分配。能力名/显示名由 SDK 的 PLUGIN_AI_CAPABILITIES 提供（与 llmUsageSettings 键集合测试对账，新增内置分配不得遗漏 SDK）。PluginHost 统一校验声明、懒申请、逐次检查与撤权取消；主进程 BACKGROUND 模块 plugin-ai 用同一插件额度、并发与审计执行 pi-ai，模型解析前登记取消句柄。chat/stream 支持文本与 user 图片（图片与正文不入审计、总大小有界）；插件设置对宿主能力只显示继承模型与额度。作者用法见 `plugins/tau-plugin-template/docs/ai.md`。
 
 ### 独立后台
 
@@ -121,7 +121,7 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 
 - SDK 的 `editorExtensions` / `editorCodecs` 是正式静态贡献（manifest `editor: true`）。主进程开库前按 `.enabled.json` 静态读取已启用内容包并交独立内容渲染进程校验定义，只保存通过校验的快照；`initializeContentPlugins` 在 React 挂载前读取快照，校验类型冲突并装配 CSS/codec；`createDesktopKit` 在底座上 extend 贡献不重建打开中的编辑器；开发台 `context.editor.register` 只用于实验。
 - 桌面与博客的插件贡献由 `@tau/plugins/content` 的 ContentPluginRegistry 保存只读快照；博客发布按用户已安装版本收集 main.js/CSS 在浏览器加载。移动普通正文在自己的 EditorKit 上装配受控跨端快照；浏览器扩展仍用原生套件，未知节点按通用保护保留原数据。
-- 领域插件的节点边界：HTML 行内与块级归 tau.html 插件（SDK 的 useInlineSource/insertInlineSource，插件不得打包自己的 Slate；Markdown 认领归已启用插件，缺包保留文本或未知节点 JSON）；ABC 归 tau-plugin-abc（内置 diagram 只剩 Mermaid、PlantUML；HTML 导出优先插件 SVG，缺包保留转义源码）；Typst 保留宿主原生编译（预览挂载不写文档，仅用户编辑源码编译成功后持久化缓存，博客用缓存或源码回退）；TikZ、custom-block 同为独立插件。两类 HTML 的静态导出 CSS 按 styleSources 收集，宿主无专属类型名单。
+- 领域插件的节点边界：HTML 行内与块级归 tau.html 插件（SDK 的 useInlineSource/insertInlineSource，插件不得打包自己的 Slate；Markdown 认领归已启用插件，缺包保留文本或未知节点 JSON）；ABC 归 tau-plugin-abc（内置 diagram 只剩 Mermaid、PlantUML；HTML 导出优先插件 SVG，缺包保留转义源码）；Typst 使用插件自带的浏览器 WebAssembly 编译器（预览挂载不写文档，仅用户编辑源码编译成功后持久化缓存，博客用缓存或源码回退）；TikZ、custom-block 同为独立插件。两类 HTML 的静态导出 CSS 按 styleSources 收集，宿主无专属类型名单。
 - `SourceBlockEditor` / `useSourceBlock` 由 SDK 提供（内部复用 PreviewWithEditor）；宿主共享模块初始化 source-editor-host，作者入口只依赖 SDK。
 - 插件 Skill：包内 `skills/<id>/` 目录（manifest.skills 列出并进 integrity）；只声明 skills 的是独立 Skill 包（`packageKind: "skills"`，不进 PluginHost、不参与启停）。主进程收集声明目录，与「我的/关联目录」经 `skill:list` 返回（标识 `pluginId:skillId`），读取与脚本执行只放行声明目录；渲染端按本窗口 PluginHost active 状态过滤插件来源，Skill 包始终可见。带脚本的 Skill 与独立后台共用 `requiresSystemReview`（门户不能自动批准），脚本执行沿用 run_skill_script 的 execute 确认。
 
@@ -137,7 +137,7 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 
 **博客发布提供方**：GitHub 与 S3 发布由独立 tau.publish-github / tau.publish-s3 提供，`context.publish` 注册文件式或快照式实例；发布页只消费活动注册与 `target: publish` 配置表单（publishConfig 按应用级插件身份保存）；本地导出内置不要求发布插件，缺失或停用保留配置不回落其他提供方。渲染端 publish-registry 与常驻 publish-bridge 执行作者代码，主进程 PluginPublishSessions 绑定发起窗口/配置/任务 signal，只转发 open/call/close 与字节；发布占用阻止启停/更新/卸载/重启，切库回收实例。文件式并发受提供方上限约束、依赖成功后才更新入口；快照式整轮远端确认后才记账。Git Push 走受控 `services.git.publishSnapshot`：主进程只执行固定 Git 流程（输入为临时发布句柄、无凭据的 HTTPS 远端、分支、提交者、缓存授权 ID），目录选择由宿主返回句柄，插件不能传任意 cwd/shell；认证经任务级 askpass 环境传递不落盘；拒绝非快进。旧 publish.github/s3 配置由最后升级链备份转换，物理身份字符串保持；无目标账本时完整上传不借用其他数据库全局历史。
 
-**编译与转换服务**：`context.services` 提供 Tailwind、Typst HTML、Markdown 与 Descendant[] 双向转换、HTML 渲染与 FFmpeg 处理（TikZ 服务已移除——编译器和字体归独立 tau.tikz 插件）。Provider 注入 `app/plugins/services.ts`，SDK 合并调用方与实例 signal，停用不返回迟到结果；服务不读写业务内容、不选存用户文件。主进程 `plugin-services` 为 BACKGROUND 模块：任务按 WebContents 归属，关闭/导航取消；编译器与媒体进程独占任务临时目录、完成后回收；FFmpeg 复用客户端按需下载的二进制。TikZ 文档与博客用插件自己的节点组件与内部编译模块（不依赖 activate），缺插件时保留源码并跳转插件中心；diagram 扩展不再含 TikZ，移动端/扩展不设替代编译器。Markdown 复用 desktopCodecComposition（单次 codecs 不改编辑器注册）；HTML 沿用现有序列化器（保留原始 HTML、外部资源与图表源码回落，不是净化器）。作者契约见 `scripts/plugins/template/docs/services.md`。
+**编译与转换服务**：`context.services` 提供 Tailwind、Typst HTML、Markdown 与 Descendant[] 双向转换、HTML 渲染与 FFmpeg 处理（TikZ 服务已移除——编译器和字体归独立 tau.tikz 插件）。Provider 注入 `app/plugins/services.ts`，SDK 合并调用方与实例 signal，停用不返回迟到结果；服务不读写业务内容、不选存用户文件。主进程 `plugin-services` 为 BACKGROUND 模块：任务按 WebContents 归属，关闭/导航取消；编译器与媒体进程独占任务临时目录、完成后回收；FFmpeg 复用客户端按需下载的二进制。TikZ 文档与博客用插件自己的节点组件与内部编译模块（不依赖 activate），缺插件时保留源码并跳转插件中心；diagram 扩展不再含 TikZ，移动端/扩展不设替代编译器。Markdown 复用 desktopCodecComposition（单次 codecs 不改编辑器注册）；HTML 沿用现有序列化器（保留原始 HTML、外部资源与图表源码回落，不是净化器）。作者契约见 `plugins/tau-plugin-template/docs/services.md`。
 
 **摘录提供方**：`context.excerpts` 由 `app/plugins/excerpts.ts` 适配——来源类型即插件 ID，调用经 `bindDatabaseCommands` 固定原库并带 signal；`register` 异步登记名称与打开函数，停用注销；主进程在 `tables/excerpt.ts` 校验（保留名 `web` 拒绝），写入事件进 `EXCERPT_WRITE_EVENTS` 驱动索引与脉络刷新。微信读书为 `plugins/weread` 插件（内置实现已删除），主窗口外链统一交系统浏览器。材料动作沿创建时的 databaseName 与 signal 传递：切库/停用后的迟到结果不唤起新工作区界面；创建请求发出后谱系仍绑定原库完成。
 
@@ -654,7 +654,7 @@ find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘
 
 卡片、文章、项目文档与漫步的手动/AI 制卡统一走 `services/flashcard-creation.ts` 的 `openFlashcardCreation`，由 AppShell 常驻的 `features/flashcards/FlashcardCreationHost` 承载选卡组、编辑、生成预览与草稿编辑，来源页面不挂弹窗。请求固定内容快照、数据库与可选取消信号；同一窗口仅一个制卡会话，关闭回传已保存记录；切库或插件停用只清理请求，不撤销已提交写入。生成请求按版本丢弃迟到流，重置、切库与卸载释放短任务。
 
-插件 SDK 的 `context.flashcards` 经 `app/plugins/flashcards.ts` 注入：查卡组走 `flashcards:read`，直接创建与自动保存走 `flashcards:write`（异步准备后与每张卡写入前复核授权），`openCreate` 要求用户操作、窗口内保存由用户确认。AI 制卡只走通用 `context.ai.requestCapability("flashcardGeneration")`，无闪卡专用授权、缓存或模型分配分支；`generate` 只返回草稿，自动保存逐项返回 cards/failed，取消或拒绝授权停止后续写入。插件写入后必须经 `invalidateFlashcardViews` 刷新来源窗口原库查询（主进程通知排除来源窗口），批量部分提交后即使取消/失败也刷新。创建结果经 `services/flashcard-results.ts` 转 SDK 草稿结构：自定义引用用 `customContent`、已有正文用不透明 `contentRef`；插件输入经 `context.content.read` 核对正文身份与读取授权（本插件自有正文免业务权限）后映射内部 `contentId`，公共引用编码只在 `utils/plugin-content-ref.ts`。填空题的节点标识与唯一性由 `editorModel.validate` 统一校验。作者用法见 `scripts/plugins/template/docs/flashcards.md`。
+插件 SDK 的 `context.flashcards` 经 `app/plugins/flashcards.ts` 注入：查卡组走 `flashcards:read`，直接创建与自动保存走 `flashcards:write`（异步准备后与每张卡写入前复核授权），`openCreate` 要求用户操作、窗口内保存由用户确认。AI 制卡只走通用 `context.ai.requestCapability("flashcardGeneration")`，无闪卡专用授权、缓存或模型分配分支；`generate` 只返回草稿，自动保存逐项返回 cards/failed，取消或拒绝授权停止后续写入。插件写入后必须经 `invalidateFlashcardViews` 刷新来源窗口原库查询（主进程通知排除来源窗口），批量部分提交后即使取消/失败也刷新。创建结果经 `services/flashcard-results.ts` 转 SDK 草稿结构：自定义引用用 `customContent`、已有正文用不透明 `contentRef`；插件输入经 `context.content.read` 核对正文身份与读取授权（本插件自有正文免业务权限）后映射内部 `contentId`，公共引用编码只在 `utils/plugin-content-ref.ts`。填空题的节点标识与唯一性由 `editorModel.validate` 统一校验。作者用法见 `plugins/tau-plugin-template/docs/flashcards.md`。
 
 ### 卡片库
 

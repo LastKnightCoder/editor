@@ -89,8 +89,8 @@ it("安装校验审核清单与摘要后才走中心提交，不走开发提交"
     host: {
       ...centerHost,
       platform: "ios",
-      appVersion: "0.2.1",
-      capabilities: ["commands.v1", "pages.v1", "navigation.v1", "storage.v1"],
+      appVersion: "0.2.3",
+      capabilities: ["commands", "pages", "navigation", "storage", "settings", "dialogs"],
     },
     installationEnabled: true,
   };
@@ -161,7 +161,7 @@ it("未知 optional 可以安装且原样对账，未知 required 或被篡改�
   const [base] = await portableFixtures();
   const manifest: ReadablePortablePluginManifest = {
     ...base.manifest,
-    targets: { ios: { minAppVersion: "0.2.0", required: ["pages.v1"], optional: ["future.v2"] } },
+    targets: { ios: { minAppVersion: "0.2.0", required: ["pages"], optional: ["futureFeature"] } },
   };
   const artifact = { ...base, manifest };
   const target = manifest.targets.ios;
@@ -177,7 +177,7 @@ it("未知 optional 可以安装且原样对账，未知 required 或被篡改�
       ? {
           origin: "https://example.invalid",
           installationEnabled: true,
-          host: { ...centerHost, platform: "ios", appVersion: "0.2.0", capabilities: ["pages.v1"] },
+          host: { ...centerHost, platform: "ios", appVersion: "0.2.0", capabilities: ["pages"] },
         }
       : command === "plugin_center_stage"
         ? { artifact, release, sha256: release.sha256 }
@@ -192,13 +192,13 @@ it("未知 optional 可以安装且原样对账，未知 required 或被篡改�
   vi.mocked(invoke).mockClear();
   release.content.manifest = {
     ...manifest,
-    targets: { ios: { ...target, optional: ["other.v1"] } },
+    targets: { ios: { ...target, optional: ["otherFeature"] } },
   };
   await expect(installMobileCenterRelease(manifest.id, release.releaseId)).rejects.toThrow("清单");
   expect(invoke).toHaveBeenLastCalledWith("plugin_cancel", { id: manifest.id });
   artifact.manifest = {
     ...manifest,
-    targets: { ios: { ...target, required: ["future.v2"], optional: [] } },
+    targets: { ios: { ...target, required: ["futureFeature"], optional: [] } },
   };
   release.content.manifest = artifact.manifest;
   vi.mocked(invoke).mockClear();

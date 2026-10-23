@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, writeFile, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -70,6 +70,38 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await rm(mock.root, { recursive: true, force: true });
+});
+
+it("跨端包的纯文档 Skill 继续列入桌面管理", async () => {
+  const directory = await writePackage("test.portable", { format: "cjs", main: "main.js" }, [
+    "guide",
+  ]);
+  const file = path.join(directory, "manifest.json");
+  const manifest = JSON.parse(await readFile(file, "utf8"));
+  delete manifest.integrity["skills/guide/scripts/hello.js"];
+  await rm(path.join(directory, "skills/guide/scripts"), { recursive: true });
+  await writeFile(
+    file,
+    JSON.stringify({
+      ...manifest,
+      formatVersion: 3,
+      platform: "portable",
+      profile: "web-v1",
+      targets: {
+        desktop: { minAppVersion: "0.59.2", required: [], optional: [] },
+        android: { minAppVersion: "0.2.3", required: [], optional: [] },
+      },
+    })
+  );
+  expect(await call("skill:list")).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        pluginId: "test.portable",
+        folderName: "test.portable:guide",
+        hasScripts: false,
+      }),
+    ])
+  );
 });
 
 it("列出插件与 Skill 包中声明的 Skill，名称与描述取自 SKILL.md", async () => {

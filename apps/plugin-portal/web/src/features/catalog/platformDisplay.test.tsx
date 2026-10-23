@@ -9,11 +9,11 @@ import { TargetMatrix } from "./TargetMatrix";
 afterEach(cleanup);
 
 const targets: CenterTargets = {
-  desktop: { minAppVersion: "0.60.0", required: ["pages.v1"], optional: [] },
+  desktop: { minAppVersion: "0.60.0", required: ["pages"], optional: [] },
   android: {
     minAppVersion: "0.3.0",
-    required: ["pages.v1", "editor.elements.v1"],
-    optional: ["ui.dialog.v1"],
+    required: ["pages", "editor"],
+    optional: ["dialogs"],
     elements: { counter: "edit", chart: "render" },
   },
 };
@@ -83,7 +83,7 @@ it("可安装版本低于最新版本时同时列出二者，不回退到 latest
     <ReleaseAvailability
       latest={{ version: "2.0.0" }}
       compatible={{ version: "1.4.0" }}
-      compatibility={{ status: "compatible", reasons: [], missingOptional: ["ui.dialog.v1"] }}
+      compatibility={{ status: "compatible", reasons: [], missingOptional: ["dialogs"] }}
     />
   );
   expect(screen.getByText("可安装 v1.4.0")).toBeTruthy();
@@ -101,7 +101,7 @@ it("无兼容版本时逐条列出结构化原因及所需版本、缺失能力"
         missingOptional: [],
         reasons: [
           { code: "APP_VERSION_TOO_LOW", minAppVersion: "0.4.0" },
-          { code: "CAPABILITY_MISSING", capabilities: ["editor.source.v1", "future.v9"] },
+          { code: "CAPABILITY_MISSING", capabilities: ["sourceEditor", "future.v9"] },
           { code: "PLATFORM_UNSUPPORTED", platform: "ios" },
           { code: "DISTRIBUTION_UNAVAILABLE" },
         ],

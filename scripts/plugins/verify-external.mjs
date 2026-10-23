@@ -43,7 +43,7 @@ try {
     (await readdir(path.join(author, "dist"), { withFileTypes: true }))
       .filter(item => item.isDirectory() && !item.name.startsWith("."))
       .map(item => item.name);
-  await cp(path.join(root, "scripts/plugins/template"), author, {
+  await cp(path.join(root, "plugins/tau-plugin-template"), author, {
     recursive: true,
     filter: source => !["node_modules", "dist", ".git"].includes(path.basename(source)),
   });

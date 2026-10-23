@@ -2,7 +2,7 @@
 
 ## 范围与分发边界
 
-桌面、Android 和 iOS 共用一个 SDK、一套作者模板和格式 3 的 web-v1 包。公共 API 与作者约定以 [SDK 跨端契约](/packages/plugins/docs/portability.md) 为准；本页描述客户端装配。SDK 0.36.0/UI 0.4.0 提供公共作者契约。中心通过人工上架审核与 /v2 分发；作者负责平台适配和测试，审核者不承担平台测试或验证记录。平台开关独立于客户端安装能力，最新上线状态见门户运维手册。移动 0.2.1 正式构建支持固定中心安装/启用，仍拒绝任意开发来源安装；桌面格式 3 正式安装与 iOS 签名发行分别验收。
+桌面、Android 和 iOS 共用一个 SDK、一套作者模板和格式 3 的 web-v1 包。公共 API 与作者约定以 [SDK 跨端契约](/packages/plugins/docs/portability.md) 为准；本页描述客户端装配。源码中的作者契约使用 SDK 0.37.0/UI 0.4.0；发行状态不由源码版本推断。中心通过人工上架审核与 /v2 分发；作者负责平台适配和测试，审核者不承担平台测试或验证记录。平台开关独立于客户端安装能力，最新上线状态见门户运维手册。移动 0.2.1 正式构建支持固定中心安装/启用，仍拒绝任意开发来源安装；桌面格式 3 正式安装与 iOS 签名发行分别验收。
 
 可信插件与宿主共享 JavaScript、React 和 DOM；摘要、模块白名单、API 能力与数据授权不构成恶意代码沙箱。同线程同步死循环只能在后续启动恢复，不能承诺抢占或后台常驻。
 
@@ -18,13 +18,13 @@
 
 ## 桌面宿主
 
-`DesktopPluginProvider` 给 PluginHost 注入同一环境源；应用根部的 Provider 覆盖主窗口、辅助窗口与静态内容。平台由宿主明确为 desktop，布局和输入由媒体查询更新。兼容校验读取桌面构建版本与移动原生 package_info 版本，不写死测试版本。语义 navigation 入口复用 DesktopPluginRuntime 的页面/侧栏模型，和旧 sidebar 条目使用不同内部身份；页面注销、激活失败、停用都会回收入口。贡献统计包含 navigation。
+`DesktopPluginProvider` 给 PluginHost 注入同一环境源；应用根部的 Provider 覆盖主窗口、辅助窗口与静态内容。平台由宿主明确为 desktop，输入精度由 any-pointer 媒体查询更新；布局由插件容器决定。作者环境只含 platform/input，宿主兼容能力独立传入 PortablePluginHost。兼容校验读取桌面构建版本与移动原生 package_info 版本，不写死测试版本。语义 navigation 入口复用 DesktopPluginRuntime 的页面/侧栏模型，和旧 sidebar 条目使用不同内部身份；页面注销、激活失败、停用都会回收入口。贡献统计包含 navigation。
 
 真实页面经 `features/plugins/pages/plugin-page.page.tsx` 承载。实例上下文管理状态提供器、活动状态、浮层退场与离开守卫；PageProvider 的通用守卫在导航前检查，异步结果过期不执行旧导航，不引入插件业务依赖。页面无效时卸载作者组件，保留宿主的不可用提示。
 
 桌面 0.59.1 从 v2 获取本机兼容版本，下载前后核对精确 releaseId、摘要与清单；PluginUpdates 复用原目录、事务、备份及来源恢复，首次安装仍默认停用，内容插件启用后完整重启生效。格式 3 的读取保留原始清单，复用平台能力检查与共享求值/节点等级投影；正式页面和独立内容进程使用同一产物，主进程不执行作者代码。正式扫描/启用/内容启动拒绝非固定中心来源的跨端包。
 
-未打包 Electron 仍可通过显式 `TAU_PORTABLE_PLUGIN_DIR` 读取隔离开发目录，`.enabled.json` 为开发者选定的 ID 数组；该目录不进入正式安装事务。格式 3 内容包的博客分发尚未接入，正式与开发来源均明确阻断，原有旧格式桌面包的博客路径不变。
+未打包 Electron 仍可通过显式 `TAU_PORTABLE_PLUGIN_DIR` 读取隔离开发目录，`.enabled.json` 为开发者选定的 ID 数组；该目录不进入正式安装事务。格式 3 正式内容包保留原始清单参与博客分发，开发来源仍不能发布；静态消费者不激活应用生命周期，渲染协议保持 1。
 
 ## 移动宿主与页面
 
@@ -44,6 +44,8 @@
 
 ## 原生文件事务与数据
 
+移动原生中心选版与 TypeScript 编辑器运行时共用 apps/mobile/plugin-capabilities.json，能力属于宿主配置，不进入作者环境。原生请求覆盖前端传入的宿主声明，安装与实际加载继续独立复核；清单只登记真实接入的功能，不从 SDK 完整词表自动授予。
+
 Rust 在应用私有目录 `.editor/portable-plugins/<id>/` 保存 current、staging、next、backup 和设备本地 enabled.json。开发来源描述包含 id/version/url/size/sha256；仅接受 HTTPS 或本机 HTTP，不跟随重定向；同 ID 不跨来源 origin 接管。下载限额、ZIP 总量/文件数、越界、重复路径、符号链接、入口与完整性清单均在原生侧校验。支持模板的单层插件根目录 ZIP。
 
 下载完成先留 staging，前端重复校验目标平台、最低客户端版本和能力，再提交为 next/pending。下一次完整插件会话切换文件：先记录 switch 日志，再保留旧 current 为 backup、将 next 改为 current；中断后恢复。取消清暂存/待生效包；恢复备份只恢复代码，并在下一会话生效，不回退私有数据。安装与启用意图属于设备，不从同步自动授予。
@@ -60,7 +62,7 @@ SDK 的支持等级投影由桌面与移动共用：none 不装配；render 去�
 
 UiHostProvider 只接受平台中立的 dismiss 登记函数。真实 Dialog/Drawer 在打开时登记，关闭/隐藏时注销，锁定或关键模态消费返回而不关闭。UiProvider 继承当前 Portal 容器；插件页面使用局部 PortalScope，避免浮层遗留在其他页面。公共 UI 不引用应用路由；模态层级边界保证同批打开时，宿主返回也先交给子模态。
 
-博客 ContentRenderer 独立注入 web/只读环境并订阅布局、输入变化，不依赖 activate。格式 3 应用包尚未进入博客分发；已有内容插件可消费该环境。
+博客 ContentRenderer 独立注入 web/只读环境并订阅输入变化，不依赖 activate；加载器读取原始格式 3 清单并只求值静态贡献。
 
 ## 派生数据消费者
 

@@ -319,7 +319,7 @@ await writeFile(
 );
 await writeFile(
   path.join(directory, "LICENSE"),
-  await readFile(path.join(root, "scripts/plugins/template/LICENSE"))
+  await readFile(path.join(root, "plugins/tau-plugin-template/LICENSE"))
 );
 const bundledLicenses = new Map();
 for (const input of Object.keys(runtime.metafile.inputs).filter(name =>

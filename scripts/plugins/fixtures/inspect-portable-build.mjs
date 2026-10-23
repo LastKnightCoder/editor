@@ -43,27 +43,30 @@ for (const platform of ["desktop", "android", "ios"]) {
   const target = parsed.targets[platform];
   const environment = {
     platform,
-    layout: "compact",
-    input: { touch: platform !== "desktop", finePointer: platform === "desktop" },
-    capabilities: target.required,
+    input: { coarsePointer: platform !== "desktop", finePointer: platform === "desktop" },
   };
-  const host = { environment, appVersion: target.minAppVersion, profiles: ["web-v1"] };
+  const host = {
+    environment,
+    capabilities: target.required,
+    appVersion: target.minAppVersion,
+    profiles: ["web-v1"],
+  };
   assertPortablePluginCompatibility(parsed, host);
   const future = structuredClone(packaged);
-  future.targets[platform].optional.push("future.feature.v2");
+  future.targets[platform].optional.push("futureFeature");
   assert.throws(() => validatePortablePluginManifest(future));
   assertPortablePluginCompatibility(readPortablePluginManifest(future), host);
-  future.targets[platform].required.push("future.required.v1");
+  future.targets[platform].required.push("futureRequired");
   assert.throws(
     () => assertPortablePluginCompatibility(readPortablePluginManifest(future), host),
-    /future.required.v1/
+    /futureRequired/
   );
   assert.throws(() => assertPortablePluginCompatibility(parsed, { ...host, profiles: [] }));
   assert.throws(() => assertPortablePluginCompatibility(parsed, { ...host, appVersion: "0.0.0" }));
   assert.throws(() =>
     assertPortablePluginCompatibility(parsed, {
       ...host,
-      environment: { ...environment, capabilities: [] },
+      capabilities: [],
     })
   );
   targets.push(platform);
