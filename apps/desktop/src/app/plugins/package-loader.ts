@@ -1,11 +1,13 @@
+import type { DesktopPluginPackage as DevelopmentPluginPackage } from "../../../shared/plugin-package";
 import { isContentPlugin } from "@tau/plugins/package";
-import { evaluatePluginPackage } from "@tau/plugins/rendering";
-import { contentPluginDefinition } from "./content-plugin-state";
+import { version as appVersion } from "../../../package.json";
+import { evaluateDesktopPluginPackage } from "../../../shared/plugin-rendering";
 import {
-  validatePluginManifest,
-  type DevelopmentPluginPackage,
-  type PluginHost,
-} from "@tau/plugins/host";
+  readDesktopPluginManifest,
+  assertDesktopPluginCompatibility,
+} from "../../../shared/plugin-package";
+import { contentPluginDefinition } from "./content-plugin-state";
+import { type PluginHost } from "@tau/plugins/host";
 
 export type SharedPluginModules = Readonly<Record<string, unknown>>;
 
@@ -14,14 +16,15 @@ export function registerPluginPackage(
   artifact: DevelopmentPluginPackage,
   getModules: () => Promise<SharedPluginModules>
 ) {
-  const manifest = validatePluginManifest(artifact.manifest);
+  const manifest = readDesktopPluginManifest(artifact.manifest);
+  assertDesktopPluginCompatibility(manifest, appVersion);
   // 登记只使用静态元信息，启用时才执行包快照。
   host.registerDeferred(manifest, async signal => {
     const modules = await getModules();
     signal.throwIfAborted();
     const definition = isContentPlugin(manifest)
       ? contentPluginDefinition(artifact)
-      : evaluatePluginPackage(artifact, modules);
+      : evaluateDesktopPluginPackage(artifact, modules, appVersion);
     signal.throwIfAborted();
     return {
       ...definition,

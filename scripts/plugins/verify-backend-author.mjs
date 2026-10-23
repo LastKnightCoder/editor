@@ -1,3 +1,4 @@
+import { desktopAuthorManifest } from "./author-compat.mjs";
 import { mkdtemp, cp, readFile, writeFile, mkdir, rm, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -25,7 +26,7 @@ try {
   const sdk = path.join(directory, "sdk");
   if (!published) await run(process.execPath, ["scripts/plugins/package-sdk.mjs", sdk], root);
   const author = path.join(directory, "独立作者 project");
-  await cp(path.join(root, "scripts/plugins/template"), author, {
+  await cp(path.join(root, "plugins/tau-plugin-template"), author, {
     recursive: true,
     filter: source => !["node_modules", "dist", ".git"].includes(path.basename(source)),
   });
@@ -42,7 +43,9 @@ try {
   }
   pkg.devDependencies["@types/node"] = "24.0.0";
   await writeFile(path.join(author, "package.json"), JSON.stringify(pkg, null, 2));
-  const manifest = JSON.parse(await readFile(path.join(author, "manifest.json"), "utf8"));
+  const manifest = desktopAuthorManifest(
+    JSON.parse(await readFile(path.join(author, "manifest.json"), "utf8"))
+  );
   Object.assign(manifest, {
     id: "example.backend-system",
     name: "后台系统信息",

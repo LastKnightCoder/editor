@@ -1,3 +1,4 @@
+import { IElementEditingPolicy } from "../services/elementEditingPolicy";
 import { Editor, Element, Node, Path, Range, type BaseRange } from "slate";
 import { ReactEditor } from "slate-react";
 import { getCommandElementPath } from "../utils/commandTarget";
@@ -159,6 +160,8 @@ export function captureElementSubmission<E extends Element>(
         throw new Error("[editor] 提交条件必须同步返回 boolean");
       }
       if (!accepted) return { reason: "target-changed" };
+      if (editor.tryGetService?.(IElementEditingPolicy)?.canEdit(node.type) === false)
+        return { reason: "readonly" };
       return { target: { element: current, path: currentPath } };
     },
     () => reference?.unref(),

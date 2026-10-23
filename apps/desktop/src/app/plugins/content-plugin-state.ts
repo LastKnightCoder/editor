@@ -1,6 +1,6 @@
 import type { PluginDefinition } from "@tau/plugins";
-import { desktopContentPlugins } from "../../../shared/content-plugins.ts";
-import type { DevelopmentPluginPackage } from "@tau/plugins/host";
+import { desktopContentPlugins, desktopPortableSupport } from "../../../shared/content-plugins.ts";
+import type { DesktopPluginPackage as DevelopmentPluginPackage } from "../../../shared/plugin-package";
 import { getPluginNodeTypes, type PluginRenderContext } from "@tau/plugins/rendering";
 
 export const localPluginStateKey = (id: string) => `tau-local-plugin-enabled:v1:${id}`;
@@ -12,6 +12,10 @@ const errors = new Map<string, string>();
 const intended = new Map<string, boolean>();
 export const setContentPluginIntent = (id: string, enabled: boolean) => intended.set(id, enabled);
 let builtinTypes: string[] = [];
+let developmentPortableLoaded = false;
+export const markPortableDevelopmentLoaded = () => {
+  developmentPortableLoaded = true;
+};
 
 export function initializeContentPluginState(types: readonly string[]) {
   builtinTypes = [...types];
@@ -20,6 +24,10 @@ export function addContentPlugin(artifact: DevelopmentPluginPackage, definition:
   if (!intended.has(definition.id)) intended.set(definition.id, true);
   desktopContentPlugins.install([...desktopContentPlugins.list(), definition]);
   entries.set(definition.id, { artifact, definition, nodeTypes: getPluginNodeTypes(definition) });
+  if (artifact.manifest.formatVersion === 3)
+    Object.entries(artifact.manifest.targets.desktop?.elements ?? {}).forEach(([type, support]) =>
+      desktopPortableSupport.set(type, support)
+    );
 }
 export const contentPluginLoaded = (id: string) => entries.has(id);
 export const contentPluginError = (id: string) => errors.get(id);
@@ -32,6 +40,8 @@ export function contentPluginDefinition(artifact: DevelopmentPluginPackage) {
   return loaded.definition;
 }
 export function getContentPluginPublishContext(): PluginRenderContext {
+  if (developmentPortableLoaded)
+    throw new Error("开发目录跨端包不能发布，请通过插件中心安装并重启");
   for (const {
     artifact,
     definition: { id },

@@ -4,9 +4,10 @@ import { Tabs } from "@tau/ui";
 import type { PackageContent, Upload } from "../../../../contracts";
 import { Markdown } from "../../components/markdown/Markdown";
 import { hasSkillScripts } from "@tau/plugins/template";
+import { TargetMatrix } from "../catalog/TargetMatrix";
 import { PackageFacts } from "./PackageFacts";
 
-type PreviewTab = "readme" | "changelog" | "files";
+type PreviewTab = "readme" | "changelog" | "platforms" | "files";
 
 /** 与审核闸门同一口径列出需要核对的 Skill 脚本文件 */
 function skillScripts(manifest: PackageContent["manifest"]) {
@@ -36,6 +37,23 @@ export function PackagePreview({
             key: "changelog" as const,
             label: "更新说明",
             children: <Markdown source={content.changelog} />,
+          },
+        ]
+      : []),
+    ...(content.manifest.formatVersion === 3
+      ? [
+          {
+            key: "platforms" as const,
+            label: "平台",
+            children: (
+              <div className="flex flex-col gap-3">
+                <p className="text-tau-sm text-ink-3">
+                  平台声明来自包内
+                  manifest，只读；需要增删平台或调整最低版本、能力与节点等级，请修改后重新打包上传。
+                </p>
+                <TargetMatrix targets={content.manifest.targets} />
+              </div>
+            ),
           },
         ]
       : []),

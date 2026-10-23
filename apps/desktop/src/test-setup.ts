@@ -62,3 +62,17 @@ if (typeof globalThis.Worker !== "function") {
     (window as any).Worker = MockWorker;
   }
 }
+
+// 环境源测试可替换此媒体查询适配以模拟设备变化。
+if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
+  window.matchMedia = query => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    dispatchEvent: () => true,
+  });
+}

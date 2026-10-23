@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { readPluginPackage } from "./plugin-package";
 import { assertLocalId } from "@tau/plugins/package";
 import type { PluginRenderContext, PublishedPluginRender } from "@tau/plugins/rendering";
-import type { DevelopmentPluginPackage } from "@tau/plugins/host";
+import type { DesktopPluginPackage as DevelopmentPluginPackage } from "../../../shared/plugin-package";
 import { PUBLISHED_HOST_ELEMENT_TYPES } from "@tau/plugins/publish-data";
 
 export interface PublishPluginSnapshot {
@@ -64,7 +64,7 @@ export async function readPublishPlugins(
         throw new Error("发布插件样式源码声明无效");
     }
     plugins.push({
-      artifact,
+      artifact: { ...artifact, manifest: artifact.manifest },
       nodeTypes: [...selection.nodeTypes],
       styleSources: selection.styleSources,
     });

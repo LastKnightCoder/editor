@@ -2,11 +2,11 @@ import { comparePluginVersions } from "@tau/plugins/package";
 import type { PackageManifest, ReleaseSummary } from "../../../../contracts";
 
 /** 比当前版本低的最高已发布版本：审核对比的基线 */
-export function previousRelease(
-  releases: ReleaseSummary[] | undefined,
+export function previousRelease<T extends { version: string }>(
+  releases: readonly T[] | undefined,
   version: string
-): ReleaseSummary | null {
-  let best: ReleaseSummary | null = null;
+): T | null {
+  let best: T | null = null;
   for (const release of releases ?? []) {
     if (comparePluginVersions(release.version, version) >= 0) continue;
     if (!best || comparePluginVersions(release.version, best.version) > 0) best = release;
@@ -56,13 +56,15 @@ const field = (manifest: PackageManifest, key: string) =>
   (manifest as unknown as Record<string, unknown>)[key];
 
 export function diffManifest(before: PackageManifest, after: PackageManifest) {
-  const changes = FIELDS.filter(item => field(before, item.key) !== field(after, item.key)).map(
-    item => ({
-      label: item.label,
-      before: String(field(before, item.key) ?? "—"),
-      after: String(field(after, item.key) ?? "—"),
-    })
-  );
+  const changes = FIELDS.filter(
+    item =>
+      (item.key !== "minAppVersion" || (before.formatVersion !== 3 && after.formatVersion !== 3)) &&
+      field(before, item.key) !== field(after, item.key)
+  ).map(item => ({
+    label: item.label,
+    before: String(field(before, item.key) ?? "—"),
+    after: String(field(after, item.key) ?? "—"),
+  }));
   const skillsOf = (manifest: PackageManifest) =>
     ("skills" in manifest && manifest.skills?.join("、")) || "—";
   if (skillsOf(before) !== skillsOf(after))

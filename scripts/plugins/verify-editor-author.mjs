@@ -1,3 +1,4 @@
+import { desktopAuthorManifest } from "./author-compat.mjs";
 import { mkdtemp, cp, readFile, writeFile, mkdir, rm, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -29,13 +30,15 @@ try {
   const { version: uiVersion } = JSON.parse(
     await readFile(path.join(root, "packages/ui/package.json"), "utf8")
   );
-  await cp(path.join(root, "scripts/plugins/template"), author, { recursive: true });
+  await cp(path.join(root, "plugins/tau-plugin-template"), author, { recursive: true });
   await rm(path.join(author, "pnpm-lock.yaml"), { force: true });
   const pkg = JSON.parse(await readFile(path.join(author, "package.json"), "utf8"));
   pkg.dependencies["@tau/plugins"] = `file:${sdk}/xiongtao.xt-tau-plugins-${version}.tgz`;
   pkg.dependencies["@tau/ui"] = `file:${sdk}/xiongtao.xt-tau-ui-${uiVersion}.tgz`;
   await writeFile(path.join(author, "package.json"), JSON.stringify(pkg, null, 2));
-  const manifest = JSON.parse(await readFile(path.join(author, "manifest.json"), "utf8"));
+  const manifest = desktopAuthorManifest(
+    JSON.parse(await readFile(path.join(author, "manifest.json"), "utf8"))
+  );
   Object.assign(manifest, {
     id: "example.portable-counter",
     name: "可发布计数块",

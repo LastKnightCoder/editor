@@ -19,6 +19,7 @@ const fakePageContext = {
   register: () => disposed,
   isActive: () => true,
   registerDismiss: () => disposed,
+  registerLeaveGuard: () => disposed,
 };
 
 const invoke = vi.hoisted(() => vi.fn(async (..._args: unknown[]) => undefined as unknown));

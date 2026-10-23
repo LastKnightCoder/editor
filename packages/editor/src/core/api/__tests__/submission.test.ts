@@ -1,3 +1,4 @@
+import { IElementEditingPolicy } from "../../services/elementEditingPolicy";
 import { createEditor, Editor, Node, Transforms, type Element } from "slate";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -181,4 +182,19 @@ describe("异步提交守卫", () => {
     expect(editor.pathRefs().size).toBe(0);
     expect(editor.rangeRefs().size).toBe(0);
   });
+});
+
+it("节点支持等级在提交端执行，拒绝后的旧操作不能在升级为可编辑时复活", () => {
+  const editor = setup();
+  let editable = false;
+  editor.tryGetService = id =>
+    id === IElementEditingPolicy ? ({ canEdit: () => editable } as never) : undefined;
+  const target = editor.children[0] as Element;
+  const operation = captureElementSubmission(editor, { element: target, path: [0] });
+  const write = vi.fn();
+  expect(operation.commit(write)).toEqual({ status: "discarded", reason: "readonly" });
+  editable = true;
+  expect(operation.commit(write)).toEqual({ status: "discarded", reason: "readonly" });
+  expect(write).not.toHaveBeenCalled();
+  expect(editor.pathRefs().size).toBe(0);
 });

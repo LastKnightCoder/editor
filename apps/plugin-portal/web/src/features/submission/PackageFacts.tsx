@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { ShieldCheck } from "lucide-react";
 import type { PackageManifest, Upload } from "../../../../contracts";
+import { PLATFORM_LABELS, declaredPlatforms } from "../catalog/platforms";
 import { formatBytes } from "./validation";
 
 function Fact({ label, children, mono }: { label: string; children: ReactNode; mono?: boolean }) {
@@ -45,9 +46,17 @@ export function PackageFacts({
         <Fact label="版本" mono>
           {manifest.version}
         </Fact>
-        <Fact label="最低应用版本" mono>
-          {manifest.minAppVersion}
-        </Fact>
+        {manifest.formatVersion === 3 ? (
+          <Fact label="目标平台">
+            {declaredPlatforms(manifest.targets)
+              .map(platform => PLATFORM_LABELS[platform])
+              .join("、")}
+          </Fact>
+        ) : (
+          <Fact label="最低应用版本" mono>
+            {manifest.minAppVersion}
+          </Fact>
+        )}
         <Fact label="入口" mono>
           {template
             ? `${template.root}/ · ${template.entries.join("、")}`
@@ -62,6 +71,7 @@ export function PackageFacts({
               ? runtime.format
               : "Skill 包"}{" "}
           · format {manifest.formatVersion} / api {manifest.apiVersion}
+          {manifest.formatVersion === 3 && ` · ${manifest.profile}`}
         </Fact>
         {skills.length > 0 && (
           <Fact label="Skill" mono>

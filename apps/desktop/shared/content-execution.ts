@@ -1,5 +1,5 @@
 import type { Descendant } from "slate";
-import type { DevelopmentPluginPackage } from "@tau/plugins/host";
+import type { DesktopPluginPackage as DevelopmentPluginPackage } from "./plugin-package";
 import type { IndexContentInput } from "../src-electron/main/modules/index-content-protocol";
 import type { BuildPublishSearchIndexInput } from "../src-electron/main/modules/publish-search-index";
 
@@ -14,5 +14,6 @@ export type ContentExecutionRequest =
 export interface ContentExecutionEnvelope {
   hash: string;
   artifacts?: DevelopmentPluginPackage[];
+  portableArtifacts?: import("./portable-development").PortableDevelopmentArtifact[];
   request: ContentExecutionRequest;
 }

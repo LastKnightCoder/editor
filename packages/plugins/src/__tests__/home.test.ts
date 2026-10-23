@@ -7,6 +7,7 @@ describe("首页面板", () => {
     const dispose = vi.fn();
     const registerPanel = vi.fn(() => ({ dispose }));
     const host = new PluginHost({
+      environment: { platform: "desktop", input: { coarsePointer: false, finePointer: true } },
       workspaceId: "A",
       storage: createMemoryStorage(),
       home: { registerPanel },

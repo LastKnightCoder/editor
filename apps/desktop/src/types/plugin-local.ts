@@ -1,4 +1,4 @@
-import type { DevelopmentPluginPackage } from "@tau/plugins/host";
+import type { DesktopPluginPackage as DevelopmentPluginPackage } from "../../shared/plugin-package";
 
 /** 安装来源：只有插件中心来源参与在线更新与首次自动启用。 */
 export type LocalPluginSource =
@@ -10,6 +10,9 @@ export type LocalPluginSource =
       version: string;
       sha256: string;
       systemReviewed?: boolean;
+      /** 格式 3 保存完整审批清单，安装时与下载包再次对账。 */
+      manifest?: import("@tau/plugins/center").CenterManifest;
+      apiOrigin?: string;
     };
 
 export interface LocalPluginEntry {

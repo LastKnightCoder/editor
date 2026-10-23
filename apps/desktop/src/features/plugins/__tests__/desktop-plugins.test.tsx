@@ -1,3 +1,9 @@
+import { portableFixtures } from "../../../../../../tests/fixtures/plugins/portable.mjs";
+import { evaluatePortablePluginPackage } from "@tau/plugins/rendering";
+import { sharedPluginModules } from "@tau/plugins/shared-modules";
+import { PluginEnvironmentProvider } from "@tau/plugins/environment-host";
+import { desktopPluginEnvironment } from "@/app/plugins/environment";
+import { DESKTOP_PLUGIN_CAPABILITIES } from "../../../../shared/plugin-package";
 import { act, StrictMode, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { DndProvider } from "react-dnd";
@@ -62,9 +68,11 @@ function App() {
   return (
     <DndProvider backend={HTML5Backend}>
       <PageProvider key={workspaceId} initialKey={PLUGIN_WORKBENCH_KEY}>
-        <DesktopPluginProvider>
-          <Capture />
-        </DesktopPluginProvider>
+        <PluginEnvironmentProvider source={desktopPluginEnvironment}>
+          <DesktopPluginProvider>
+            <Capture />
+          </DesktopPluginProvider>
+        </PluginEnvironmentProvider>
       </PageProvider>
     </DndProvider>
   );
@@ -437,4 +445,85 @@ describe("桌面插件完整路径", () => {
       "true"
     );
   });
+});
+
+it("统一模板包进入真实桌面 Page，计数、标准 Dialog 与语义侧栏入口工作", async () => {
+  const [artifact] = await portableFixtures();
+  const plugin = evaluatePortablePluginPackage(artifact, sharedPluginModules, {
+    environment: desktopPluginEnvironment.getSnapshot(),
+    capabilities: DESKTOP_PLUGIN_CAPABILITIES,
+    appVersion: "0.59.2",
+    profiles: ["web-v1"],
+  });
+  await act(async () => {
+    currentRuntime().host.registerTrusted(plugin);
+    await currentRuntime().host.enable(plugin.id);
+  });
+  const entry = currentRuntime()
+    .listSidebar()
+    .items.find(item => item.pluginId === plugin.id)!;
+  expect(entry.title).toBe("计数器");
+  await act(async () => entry.open());
+  await settle();
+  await click("增加并保存");
+  expect(activePage().textContent).toContain("已保存计数：1");
+  await click("说明");
+  expect(activePage().querySelector('[role="dialog"]')).not.toBeNull();
+  await act(async () =>
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))
+  );
+  await act(async () => {
+    await new Promise(resolve => setTimeout(resolve, 240));
+  });
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  expect(navigator.current()?.key).toBe("plugin-page");
+  await act(async () => currentRuntime().host.disable(plugin.id));
+  expect(
+    currentRuntime()
+      .listSidebar()
+      .items.some(item => item.pluginId === plugin.id)
+  ).toBe(false);
+});
+it("插件未保存守卫阻止真实桌面导航，停用后不会残留阻塞", async () => {
+  let allow = false;
+  let handle!: PluginPageHandle;
+  await act(async () => {
+    currentRuntime().host.registerTrusted(
+      definePlugin({
+        id: "test.guarded",
+        name: "守卫",
+        version: "1",
+        create: () => ({
+          activate(context) {
+            handle = context.pages.register({
+              id: "draft",
+              title: "草稿",
+              component: function Draft({ pageContext }) {
+                useEffect(() => {
+                  const guard = pageContext.registerLeaveGuard(() => allow);
+                  return () => {
+                    void guard.dispose();
+                  };
+                }, [pageContext]);
+                return <p>未保存草稿</p>;
+              },
+            });
+          },
+        }),
+      })
+    );
+    await currentRuntime().host.enable("test.guarded");
+    await handle.open();
+  });
+  await settle();
+  await act(async () => navigator.push("home"));
+  expect(navigator.current()?.key).toBe("plugin-page");
+  allow = true;
+  await act(async () => navigator.push("home"));
+  expect(navigator.current()?.key).toBe("home");
+  await act(async () => handle.open());
+  allow = false;
+  await act(async () => currentRuntime().host.disable("test.guarded"));
+  await act(async () => navigator.push("home"));
+  expect(navigator.current()?.key).toBe("home");
 });

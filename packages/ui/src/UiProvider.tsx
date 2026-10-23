@@ -35,16 +35,17 @@ export function UiProvider({
   mode?: ThemeMode;
   className?: string;
 }) {
+  const inherited = usePortalContainer();
   const [container, setContainer] = useState<HTMLElement | null>(null);
   useLayoutEffect(() => {
     const element = document.createElement("div");
     element.className = "tau-ui-portals";
-    document.body.append(element);
+    inherited.append(element);
     setContainer(element);
     return () => {
       element.remove();
     };
-  }, []);
+  }, [inherited]);
   const scoped = theme !== undefined || mode !== undefined;
   const scopeTheme = scoped ? (theme ?? DEFAULT_THEME_KEY) : undefined;
   const scopeMode = scoped ? (mode ?? "light") : undefined;
