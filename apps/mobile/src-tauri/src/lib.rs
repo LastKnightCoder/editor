@@ -178,6 +178,7 @@ pub fn run() {
             database::flashcard_submit_review,
             database::flashcard_review_stats,
             resource_upload::upload_resource,
+            resource_upload::resource_upload_test,
             resource_upload::read_resource_bytes,
             resource_upload::read_resource_thumb,
             remote_resource_cache::remote_resource_to_local,

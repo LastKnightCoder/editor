@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端图片与附件 · 重设计方案</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="../sync-mobile/sync.css" />
+<link rel="stylesheet" href="resource.css" />
+<script src="../sync-mobile/icons.js"></script>
+<script src="icons-extra.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>移动端图片与附件 · 重设计方案<small>颜色取自 @tau/themes · 手机帧 360×760 · 红色标注=问题，绿色标注=设计要点 · 组件与「数据库同步」重设计同源</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="now">1 现状问题</button>
+    <button class="tab" data-tab="a">2 方案 A：上传与资源分家<span class="rec">推荐</span></button>
+    <button class="tab" data-tab="svc">3 上传位置选择与配置</button>
+    <button class="tab" data-tab="edit">4 编辑器内的上传</button>
+    <button class="tab" data-tab="res">5 资源文件同步</button>
+    <button class="tab" data-tab="b">6 方案 B：保持一页</button>
+    <button class="tab" data-tab="plugin">7 插件化边界</button>
+    <button class="tab" data-tab="cmp">8 对比与待确认</button>
+  </nav>
+</header>
+
+<!-- ═══════════ 1 现状 ═══════════ -->
+<section class="scene" data-scene="now">
+  <p class="scene-intro">现状是「<b>设置 › 资源与存储</b>」：一页里放了<b>两件不相干的事</b>——上半是「资源同步」状态，下半是「存储目标」单选。但后端里它们走的是两套配置：<b>上传</b>读 <code>imageBed.*</code>（<code>resource_upload.rs</code>），<b>资源同步</b>读的却是数据库同步服务 <code>sync.*</code>（<code>build_resource_provider → parse_sync_provider</code>）。用户在这页切换「存储目标」，资源同步根本不会跟着变。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">资源与存储</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="gl">资源同步 · 已完成</div>
+          <div class="grp">
+            <div class="row"><span class="dot" style="background:var(--sage);margin:0 12px"></span><span class="mid"><b>已完成</b><span>1284/1284 个文件</span></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gl">存储目标 · 图片与附件上传位置</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-butter" data-i="folder" data-s="16"></span><span class="mid"><b>本地</b><span>resources</span></span><span class="ib" data-i="info" data-s="18" style="color:var(--ink-3)"></span></div>
+            <div class="row"><span class="tile t-lilac">G</span><span class="mid"><b>Github</b><span>tau-assets · main</span></span><span class="tile t-acc" style="width:22px;height:22px;border-radius:50%" data-i="check" data-s="13"></span><span class="ib" data-i="info" data-s="18" style="color:var(--ink-3)"></span></div>
+            <div class="row"><span class="tile t-acc">A</span><span class="mid"><b>AliOSS</b><span>未配置</span></span><span class="ib" data-i="info" data-s="18" style="color:var(--ink-3)"></span></div>
+            <div class="row"><span class="tile t-sky">S</span><span class="mid"><b>S3</b><span>未配置</span></span><span class="ib" data-i="info" data-s="18" style="color:var(--ink-3)"></span></div>
+            <div class="row"><span class="tile t-sage">W</span><span class="mid"><b>WebDAV</b><span>未配置</span></span><span class="ib" data-i="info" data-s="18" style="color:var(--ink-3)"></span></div>
+          </div>
+          <div class="gn">点选切换存储；点 ⓘ 配置凭证与参数。</div>
+          <span class="ring" style="left:14px;right:14px;top:40px;height:96px"></span>
+          <span class="anno" style="right:10px;top:140px">① 资源同步跟「存储目标」无关，却放在同一页顶部</span>
+          <span class="ring" style="left:14px;right:14px;top:174px;height:270px"></span>
+          <span class="anno" style="left:16px;top:448px">② 点行=立即切换并落盘；点 ⓘ 才进入——和系统设置相反</span>
+          <span class="anno" style="right:10px;top:500px">③ 能切到「未配置」的目标，下一次插图才报错</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>主页：资源同步 + 存储目标单选</div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">资源同步</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="grp" style="padding:16px;margin-top:4px">
+            <div style="display:flex;gap:12px;align-items:center"><span class="dot" style="background:var(--sage)"></span><span class="mid"><b style="font-size:15.5px">已完成</b> <span style="font-size:12px;color:var(--ink-3)">1284/1284</span><span style="font-size:11.5px;color:var(--ink-3);display:block">状态：已完成</span></span></div>
+            <div class="bar" style="margin:12px 0 0"><i style="width:100%"></i></div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;text-align:center">
+              <div style="background:var(--bg-page);border-radius:12px;padding:9px"><div style="font-size:16px;font-weight:800">12</div><div style="font-size:10.5px;color:var(--ink-3)">待上传</div></div>
+              <div style="background:var(--bg-page);border-radius:12px;padding:9px"><div style="font-size:16px;font-weight:800">3</div><div style="font-size:10.5px;color:var(--ink-3)">待下载</div></div>
+              <div style="background:var(--bg-page);border-radius:12px;padding:9px"><div style="font-size:16px;font-weight:800">0</div><div style="font-size:10.5px;color:var(--ink-3)">失败</div></div>
+            </div>
+          </div>
+          <div class="gl">操作</div>
+          <div class="grp">
+            <div class="row action">开始 / 继续同步</div>
+            <div class="row action">刷新状态</div>
+            <div class="row action" style="color:var(--ink-3)">重试失败文件（无失败记录）</div>
+            <div class="row action" style="color:var(--danger);opacity:.5">停止同步</div>
+          </div>
+          <div class="gl">上传选项</div>
+          <div class="grp"><div class="row plain"><span class="mid"><b>上传前压缩图片</b><span>png / jpg 自动转 webp</span></span><span class="sw"></span></div></div>
+          <span class="ring" style="left:14px;right:14px;top:130px;height:62px"></span>
+          <span class="anno" style="right:10px;top:104px">④「已完成」却还有 12 待上传：计数是上一轮的，不是现在的</span>
+          <span class="ring" style="left:14px;right:14px;top:228px;height:212px"></span>
+          <span class="anno" style="left:16px;top:444px">⑤ 4 个同权重文字按钮，两个常年灰着</span>
+          <span class="ring" style="left:14px;right:14px;top:476px;height:58px"></span>
+          <span class="anno" style="right:10px;top:540px">⑥ 上传设置藏在「资源同步」页；且 WebView 已对 &gt;300KB 图片强制压缩，开关几乎无效</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>资源同步状态页</div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">Github</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="gl">凭证</div>
+          <div class="grp"><div class="row"><span class="tile t-sage" data-i="key-round" data-s="16"></span><span class="mid"><b>已连接</b><span>d7hacx · 在「集成账号」中管理</span></span><span class="chev" data-i="chevron-right"></span></div></div>
+          <div class="gl">存储参数</div>
+          <div class="grp" style="padding:16px 14px">
+            <div style="font-size:12px;color:var(--ink-3)">仓库</div>
+            <div style="background:var(--bg-page);height:40px;border-radius:12px;margin:4px 0 10px;padding:0 12px;display:flex;align-items:center">tau-assets</div>
+            <div style="font-size:12px;color:var(--ink-3)">分支</div>
+            <div style="background:var(--bg-page);height:40px;border-radius:12px;margin:4px 0 10px;padding:0 12px;display:flex;align-items:center">main</div>
+            <div style="font-size:12px;color:var(--ink-3)">路径前缀</div>
+            <div style="background:var(--bg-page);height:40px;border-radius:12px;margin:4px 0 14px;padding:0 12px;display:flex;align-items:center;color:var(--ink-3)">uploads</div>
+            <div class="btn pri sm">保存</div>
+          </div>
+          <span class="anno" style="right:10px;top:40px">⑦ 凭证跳去另一分区，回来还要找路</span>
+          <span class="anno" style="left:16px;top:430px">⑧ 填完不知道能不能传、最终地址长什么样；忘点保存就丢</span>
+          <span class="anno" style="right:10px;top:476px">⑨ 本页不能「设为上传位置」，要退回上一页点行</span>
+          <span class="anno" style="left:16px;top:520px">⑩ 本地目标还暴露「相对目录」，移动端用户无从理解</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>存储配置页</div>
+    </div>
+
+    <div class="card" style="flex:1 1 360px;max-width:520px">
+      <h3>问题归纳</h3>
+      <ol>
+        <li><b>概念错位</b>：「上传位置」与「资源文件同步」是两件事，后端也是两套配置（<code>imageBed</code> vs <code>sync</code>），界面却放在一页，用户会以为切换存储目标会改变资源同步去向。</li>
+        <li><b>手势反直觉</b>：同数据库同步旧版——点行即切换且立即落盘，可切到未配置的目标。</li>
+        <li><b>没有「传得上去吗」的反馈</b>：没有测试上传，看不到最终地址；上传失败只在编辑器里一闪而过，设置页毫无痕迹。</li>
+        <li><b>状态不可信</b>：资源同步页的计数、「已完成」都是上一轮结果；没有失败文件列表，「重试失败文件」不知道在重试谁。</li>
+        <li><b>假开关</b>：WebView 对 &gt;300KB 的图片总是先转 webp（长边 2048），「上传前压缩」只影响 Rust 端二次压缩。</li>
+        <li><b>不利于插件化</b>：<code>RESOURCE_TARGETS</code> 硬编码 + 每个目标一个手写 Section 和模块路由（<code>resource-github</code>…），而桌面端已是「本地 | 上传插件」两档，插件经 <code>upload.register</code> + <code>settings.register({ target: "upload" })</code> 接入。</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 2 方案 A ═══════════ -->
+<section class="scene" data-scene="a">
+  <p class="scene-intro"><b>一件事一个地方</b>：设置里的「资源与存储」改名为「<b>图片与附件</b>」，只回答一个问题——<b>新插入的图片和附件存到哪里</b>。资源文件同步（resources 目录 ↔ 云端）本来就跟着数据库同步服务走，挪进<b>同步中心</b>成为第二张卡（见 5）。这与桌面端「资源存储页只管上传目标、资源同步在同步页」一致。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib"></span><span class="t">设置</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="big-h">数据</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-mute" data-i="refresh-cw" data-s="16"></span><span class="mid"><b>同步</b></span><span class="lrow-val">S3 · 已同步</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row"><span class="tile t-mute" data-i="image" data-s="16"></span><span class="mid"><b>图片与附件</b></span><span class="lrow-val">GitHub</span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="big-h">协作</div>
+          <div class="grp"><div class="row"><span class="tile t-mute" data-i="link-2" data-s="16"></span><span class="mid"><b>实时协作</b></span><span class="chev" data-i="chevron-right"></span></div></div>
+          <div class="big-h">外观</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-mute" data-i="eye-off" data-s="16"></span><span class="mid"><b>主题</b></span><span class="lrow-val">暖纸 · 跟随系统</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row"><span class="tile t-mute" data-i="image" data-s="16"></span><span class="mid"><b>图片渲染</b></span><span class="lrow-val">中圆角 · 无阴影</span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <span class="anno good" style="right:10px;top:22px">「数据库同步」改名「同步」：数据库 + 资源文件</span>
+          <span class="anno good" style="left:16px;top:160px">值只显示上传位置，不再拼资源同步状态</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>设置首页：两个入口各管一件事</div>
+      <details class="note"><summary>说明</summary><ul><li>「同步」行的值沿用同步中心的状态（已同步 / 有更新 / 2 个文件失败）。</li><li>是否改名「同步」见 8 待确认；不改名也可以，只把资源文件挪进去。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">图片与附件</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="dest">
+            <div class="hd"><span data-i="image" data-s="13"></span>新插入的图片与附件保存到</div>
+            <div class="who"><span class="tile lg t-lilac" data-i="github" data-s="20"></span><span class="mid" style="flex:1;min-width:0"><b>GitHub 仓库</b><span>d7hacx/tau-assets · main · uploads/</span></span></div>
+            <div class="state"><span data-i="circle-check" data-s="14" style="color:var(--sage)"></span>上次上传 2 分钟前 · 正常</div>
+          </div>
+          <div class="btns"><div class="btn soft">更换位置</div></div>
+          <div class="gl">处理</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-mute" data-i="shrink" data-s="16"></span><span class="mid"><b>压缩大图</b><span>超过 300KB 转为 WebP，长边不超过 2048</span></span><span class="sw on"></span></div>
+          </div>
+          <div class="gn">已插入的图片保留原地址，更换位置只影响之后的新图片。</div>
+          <div class="gl">相关</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-mute" data-i="refresh-cw" data-s="16"></span><span class="mid"><b>资源文件同步</b><span>本机图片在设备间同步，在「同步」中管理</span></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <span class="anno good" style="right:10px;top:6px">一张卡回答「存哪」+「传得上去吗」</span>
+          <span class="anno good" style="left:16px;top:262px">点行=进入；没有单选行</span>
+          <span class="anno good" style="right:10px;top:358px">开关如实描述，且真正控制压缩</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>图片与附件：上传到云端</div>
+      <details class="note"><summary>说明</summary><ul><li>「上次上传 / 正常」需要本机记一次最近上传结果（时间 + 成功/错误码），不涉及远端。</li><li>「压缩大图」同时控制 WebView 预压缩和 Rust 压缩，关掉即原图上传。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">图片与附件</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="dest">
+            <div class="hd"><span data-i="image" data-s="13"></span>新插入的图片与附件保存到</div>
+            <div class="who"><span class="tile lg t-butter" data-i="smartphone" data-s="20"></span><span class="mid" style="flex:1;min-width:0"><b>这台手机</b><span>不联网也能插图，体积随图片增长</span></span></div>
+            <div class="state"><span data-i="refresh-cw" data-s="14" style="color:var(--sky)"></span>换设备也能看到：随「资源文件同步」走</div>
+          </div>
+          <div class="btns"><div class="btn soft">更换位置</div></div>
+          <div class="gl">处理</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-mute" data-i="shrink" data-s="16"></span><span class="mid"><b>压缩大图</b><span>超过 300KB 转为 WebP，长边不超过 2048</span></span><span class="sw on"></span></div>
+          </div>
+          <div class="gl">本机占用</div>
+          <div class="grp">
+            <div class="row plain"><span class="mid"><b>1,284 个文件</b><span>共 412 MB</span></span></div>
+          </div>
+          <div class="gn">图片保存在应用数据目录。卸载应用前请先同步资源文件，否则只在这台手机上的图片会丢失。</div>
+          <span class="anno good" style="right:10px;top:6px">本机是内置选项，不是一个「服务」</span>
+          <span class="anno good" style="left:16px;top:410px">去掉「相对目录」，换成用户关心的占用</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>图片与附件：存在本机</div>
+      <details class="note"><summary>说明</summary><ul><li>「相对目录」字段在移动端没有实际意义（沙盒目录），桌面端也已去掉；隐藏后保留 setting 默认值。</li><li>本机占用需要一个统计 resources 目录的轻量命令，可选，不做就去掉这一组。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">图片与附件</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="dest">
+            <div class="hd"><span data-i="image" data-s="13"></span>新插入的图片与附件保存到</div>
+            <div class="who"><span class="tile lg t-lilac" data-i="github" data-s="20"></span><span class="mid" style="flex:1;min-width:0"><b>GitHub 仓库</b><span>d7hacx/tau-assets · main · uploads/</span></span></div>
+            <div class="state warn"><span data-i="triangle-alert" data-s="14"></span>最近 2 张图片没传上去 · 账号令牌已失效</div>
+          </div>
+          <div class="btns"><div class="btn pri" data-i="key-round" data-s="17">检查账号</div></div>
+          <div class="btns" style="padding-top:8px"><div class="btn ghost sm">更换位置</div></div>
+          <div class="gl">处理</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-mute" data-i="shrink" data-s="16"></span><span class="mid"><b>压缩大图</b><span>超过 300KB 转为 WebP，长边不超过 2048</span></span><span class="sw on"></span></div>
+          </div>
+          <div class="gn">没传上去的图片仍留在文档里显示为「重试上传」，修好后回到文档点一下即可。</div>
+          <span class="anno good" style="right:10px;top:6px">失败留在卡上，主按钮直接给出修复路径</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>最近上传失败</div>
+      <details class="note"><summary>说明</summary><ul><li>错误文案按错误码翻译：401/403 → 账号；404 → 仓库或 Bucket；网络 → 「网络不通，稍后会在文档里重试」。</li><li>主按钮随错误类型变化：检查账号 / 检查存储位置 / 无主按钮（网络）。</li></ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 3 服务 ═══════════ -->
+<section class="scene" data-scene="svc">
+  <p class="scene-intro">完全照搬同步中心的「<b>抽屉选 → 服务页配 → 设为当前</b>」三步。服务页 = 账号 + 存储位置 + <b>示例地址</b> + <b>上传测试图片</b> + 设为上传位置，字段失焦即保存。上传和数据库同步<b>共用同一份账号</b>（集成账号），所以「同步用了 S3」时上传选 S3 只需填 Bucket。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">图片与附件</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="dest" style="opacity:.6"><div class="hd">新插入的图片与附件保存到</div><div class="who"><span class="tile lg t-lilac" data-i="github" data-s="20"></span><b>GitHub 仓库</b></div></div>
+          <div class="mask"></div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <div class="sh-t"><span>保存到哪里</span><span class="x-btn" data-i="x" data-s="15" style="flex:none"></span></div>
+            <div class="sh-d">只影响之后插入的图片和附件。</div>
+            <div class="svc"><span class="tile t-butter" data-i="smartphone" data-s="17"></span><span class="mid"><b>这台手机</b><span>离线可用，随资源文件同步到其他设备</span></span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="gl" style="padding-left:6px">上传到云端，文档里直接引用网址</div>
+            <div class="svc cur"><span class="tile t-lilac" data-i="github" data-s="17"></span><span class="mid"><b>GitHub 仓库</b><span class="pill-tag on" style="margin:0">当前</span> <span style="display:inline">tau-assets · main</span></span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="svc"><span class="tile t-sky">S</span><span class="mid"><b>S3 兼容存储</b><span>账号已连接 · 待填 Bucket</span></span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="svc"><span class="tile t-acc">A</span><span class="mid"><b>阿里云 OSS</b><span>未配置</span></span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="svc"><span class="tile t-sage">W</span><span class="mid"><b>WebDAV</b><span>未配置</span></span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="svc"><span class="tile t-rose" data-i="image" data-s="17"></span><span class="mid"><b>Imgur<span class="pill-tag"><span data-i="puzzle" data-s="10"></span>插件</span></b><span>来自「Imgur 图床」</span></span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row action" style="margin-top:2px"><span data-i="store" data-s="16"></span>在插件中心获取更多</div>
+          </div>
+          <span class="anno good" style="right:10px;top:150px">本机单列在上，和云端服务分组</span>
+          <span class="anno good" style="left:16px;top:598px">插件同列，只多来源徽标</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>更换位置 → 抽屉</div>
+      <details class="note"><summary>说明</summary><ul><li>「这台手机」点进去是一个极简确认页（说明 + 「改为存在本机」），不需要配置。</li><li>Imgur 仅示意插件贡献的上传服务；插件中心入口在移动端有插件能力后才出现。</li><li>副文案复用账号状态：同步已连 S3 账号时显示「账号已连接 · 待填 Bucket」，提示只差一步。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">GitHub 仓库</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="gl">账号</div>
+          <div class="grp"><div class="acct"><span class="tile lg t-lilac" data-i="github" data-s="20"></span><span class="mid"><b>d7hacx</b><span>与同步共用此账号</span></span><span class="btn ghost sm fix">更换</span></div></div>
+          <div class="gl">存储位置</div>
+          <div class="grp">
+            <div class="fld"><label>仓库</label><div class="in">tau-assets<span class="chev" data-i="chevron-right"></span></div></div>
+            <div class="fld"><label>分支</label><div class="in">main<span class="chev" data-i="chevron-right"></span></div></div>
+            <div class="fld focus"><label>目录</label><div class="in">uploads</div></div>
+          </div>
+          <div class="gl">图片地址示例</div>
+          <div class="grp" style="padding-top:12px">
+            <div class="url">https://raw.githubusercontent.com/d7hacx/tau-assets/main/<em>uploads</em>/photo_3f9a….webp</div>
+          </div>
+          <div class="gn" style="display:flex;gap:5px;align-items:center"><span data-i="check" data-s="13" style="color:var(--sage)"></span>修改已自动保存</div>
+          <div style="position:absolute;left:0;right:0;bottom:18px">
+            <div class="btns"><div class="btn soft" data-i="image" data-s="16">上传测试图片</div><div class="btn pri">设为上传位置</div></div>
+          </div>
+          <span class="anno good" style="right:10px;top:84px">账号就地显示与更换</span>
+          <span class="anno good" style="left:16px;top:362px">边填边看到最终地址</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>服务页：填写</div>
+      <details class="note"><summary>说明</summary><ul><li>「路径前缀」改叫「目录」；示例地址按当前配置实时拼出。</li><li>必填项未齐时两个按钮置灰，提示「补全必填项后可测试与启用」（同同步服务页）。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">GitHub 仓库</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="gl">账号</div>
+          <div class="grp"><div class="acct"><span class="tile lg t-lilac" data-i="github" data-s="20"></span><span class="mid"><b>d7hacx</b><span>与同步共用此账号</span></span><span class="btn ghost sm fix">更换</span></div></div>
+          <div class="gl">存储位置</div>
+          <div class="grp">
+            <div class="fld"><label>仓库</label><div class="in">tau-assets<span class="chev" data-i="chevron-right"></span></div></div>
+            <div class="fld"><label>分支</label><div class="in">main<span class="chev" data-i="chevron-right"></span></div></div>
+            <div class="fld"><label>目录</label><div class="in">uploads</div></div>
+          </div>
+          <div class="gl">测试</div>
+          <div class="grp">
+            <div class="row"><span class="thumb" data-i="image" data-s="16"></span><span class="mid"><b>上传成功，图片可以打开</b><span>1.8 秒 · uploads/2026/10/tau-test.webp</span></span><span class="pill-tag ok">通过</span></div>
+          </div>
+          <div style="position:absolute;left:0;right:0;bottom:18px">
+            <div class="btns"><div class="btn soft">再测一次</div><div class="btn pri">设为上传位置</div></div>
+          </div>
+          <div class="toast" style="bottom:90px">之后的新图片会保存到 GitHub</div>
+          <span class="anno good" style="right:10px;top:330px">测试 = 真传一张 + 回读一次</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>测试通过 → 设为上传位置</div>
+      <details class="note"><summary>说明</summary><ul><li>测试走真实上传链路，并 GET 一次返回的地址，确认「能传」且「能显示」（私有 Bucket、需鉴权的地址都能暴露）。</li><li>测试图会留在远端（固定名覆盖，不累积），见 8 待确认。</li><li>上传位置切换不需要确认抽屉：不涉及数据覆盖，toast 说明影响即可。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">S3 兼容存储</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="gl">账号</div>
+          <div class="grp"><div class="acct"><span class="tile lg t-sky">S</span><span class="mid"><b>AKIA••••7Q2M</b><span>与同步共用此账号</span></span><span class="btn ghost sm fix">更换</span></div></div>
+          <div class="gl">存储位置</div>
+          <div class="grp">
+            <div class="fld"><label>Bucket</label><div class="in">tau-public</div></div>
+            <div class="fld"><label>Region</label><div class="in">ap-southeast-1</div></div>
+            <div class="fld"><label>目录</label><div class="in"><span class="ph">uploads（可选）</span></div></div>
+          </div>
+          <div class="gl">测试</div>
+          <div class="grp">
+            <div class="row"><span class="thumb b" data-i="image" data-s="16"><span class="bad" data-i="x" data-s="9"></span></span><span class="mid"><b>传上去了，但打不开</b><span style="white-space:normal">Bucket 不允许公开读取，文档里会显示裂图</span></span></div>
+          </div>
+          <div class="gn">在存储服务控制台为该 Bucket（或目录）开启公共读，或换一个公开 Bucket。</div>
+          <div style="position:absolute;left:0;right:0;bottom:18px">
+            <div class="btns"><div class="btn soft">再测一次</div><div class="btn pri dis">设为上传位置</div></div>
+          </div>
+          <span class="anno good" style="right:10px;top:330px">失败分「传不上去」与「打不开」两类</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>测试未通过</div>
+      <details class="note"><summary>说明</summary><ul><li>测试未通过时「设为上传位置」置灰；从未测试时可直接设为（不强制测试）。</li><li>复用同步那边已有的错误翻译（<code>syncErrors.ts</code>）。</li></ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 4 编辑器内 ═══════════ -->
+<section class="scene" data-scene="edit">
+  <p class="scene-intro">用户真正「上传」的地方在编辑器里，设置页只是幕后。所以把<b>上传进度、失败、重试</b>放在图片本身上：占位就地显示进度，失败的图片变成可点的「重试上传」块，不再只靠一闪而过的 toast。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+        <div class="scr">
+          <div class="ed-doc">
+            <h3>十月的海边</h3>
+            <p>傍晚的风比想象中冷，沿着防波堤走到尽头，灯塔刚好亮起来。</p>
+            <div class="ed-img" style="opacity:.75"><span data-i="image" data-s="28"></span><span class="cap"><span data-i="cloud-upload" data-s="11"></span>上传到 GitHub · 62%</span><span class="prog" style="width:62%"></span></div>
+            <p>回去的路上买了一袋烤栗子。</p>
+          </div>
+          <span class="anno good" style="right:10px;top:150px">进度在图上，写作不中断</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>上传中</div>
+      <details class="note"><summary>说明</summary><ul><li>上传期间先用本地 blob 预览，用户可以继续输入。</li><li>标签写出目的地，让用户在编辑器里就知道「存到哪」。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+        <div class="scr">
+          <div class="ed-doc">
+            <h3>十月的海边</h3>
+            <p>傍晚的风比想象中冷，沿着防波堤走到尽头，灯塔刚好亮起来。</p>
+            <div class="ed-img fail"><span style="text-align:center;font-size:13px"><span data-i="rotate-ccw" data-s="22" style="display:block;margin:0 auto 6px"></span>没传上去 · 点击重试</span></div>
+            <p>回去的路上买了一袋烤栗子。</p>
+          </div>
+          <div class="atoast"><span data-i="triangle-alert" data-s="18"></span><span class="mid">图片没传上去<span>GitHub 账号令牌已失效</span></span><a>去设置</a></div>
+          <span class="anno good" style="right:10px;top:130px">失败的图片留在原位，可重试</span>
+          <span class="anno good" style="left:16px;top:600px">toast 直达「图片与附件」</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>上传失败</div>
+      <details class="note"><summary>说明</summary><ul><li>失败块持有本地缓存的文件，重试不需要重新选图；关闭文档前仍未成功则提示「有 1 张图片未上传」。</li><li>是否保留失败块（相对现在的移除占位）见 8 待确认——它需要编辑器侧把失败文件暂存到本机。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+        <div class="scr">
+          <div class="ed-doc" style="opacity:.55">
+            <h3>十月的海边</h3>
+            <p>傍晚的风比想象中冷，沿着防波堤走到尽头，灯塔刚好亮起来。</p>
+          </div>
+          <div class="mask"></div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <div class="sh-t"><span>插入</span></div>
+            <div class="grp" style="margin:6px 0 0">
+              <div class="row"><span class="tile t-sky" data-i="image" data-s="16"></span><span class="mid"><b>从相册选择</b></span></div>
+              <div class="row"><span class="tile t-sage" data-i="camera" data-s="16"></span><span class="mid"><b>拍照</b></span></div>
+              <div class="row"><span class="tile t-butter" data-i="paperclip" data-s="16"></span><span class="mid"><b>文件</b></span></div>
+            </div>
+            <div class="row action" style="margin-top:6px;font-weight:500;color:var(--ink-3);font-size:12.5px"><span data-i="github" data-s="13"></span>保存到 GitHub 仓库<span data-i="chevron-right" data-s="13"></span></div>
+          </div>
+          <span class="anno good" style="right:10px;top:612px">底部一行小字，点进「图片与附件」</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>插入面板：目的地可见（可选）</div>
+      <details class="note"><summary>说明</summary><ul><li>低调地回答「这张图会去哪」，避免用户在公开仓库里误传私密截图。</li><li>可选增强，不做也不影响其他部分。</li></ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 5 资源文件同步 ═══════════ -->
+<section class="scene" data-scene="res">
+  <p class="scene-intro">资源文件同步挪进同步中心：它<b>本来就用数据库同步的服务与账号</b>，放一起后「同步到 S3」一行同时说明了两者去向。同步中心在数据库状态卡下加一行「资源文件」，点进去是资源同步页——和数据库同步页同一套「状态卡 + 拇指区主按钮」，外加<b>需要处理的文件列表</b>。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">同步</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="hero">
+            <div class="orb t-sage" data-i="circle-check" data-s="38"></div>
+            <h2>已同步</h2>
+            <div class="sub">本机与云端内容一致<br />上次同步 3 分钟前</div>
+          </div>
+          <div class="btns"><div class="btn soft" data-i="refresh-cw" data-s="17">立即同步</div></div>
+          <div class="gl">同步到</div>
+          <div class="grp"><div class="row"><span class="tile t-sky">S</span><span class="mid"><b>S3</b><span>tau-sync · 数据库与资源文件</span></span><span class="chev" data-i="chevron-right"></span></div></div>
+          <div class="gl">内容</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-mute" data-i="database" data-s="16"></span><span class="mid"><b>数据库</b></span><span class="val">default.db</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row"><span class="tile t-mute" data-i="image" data-s="16"></span><span class="mid"><b>资源文件</b><span>1,284 个</span></span><span class="pill-tag warn">12 个待上传</span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gl">更多</div>
+          <div class="grp"><div class="row"><span class="tile t-rose" data-i="shield-alert" data-s="16"></span><span class="mid"><b>整库覆盖</b></span><span class="chev" data-i="chevron-right"></span></div></div>
+          <span class="anno good" style="right:10px;top:320px">服务一行说清两者去向</span>
+          <span class="anno good" style="left:16px;top:470px">资源文件状态以徽标露出</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>同步中心多一行「资源文件」</div>
+      <details class="note"><summary>说明</summary><ul><li>「待上传」数需要进入同步中心时静默刷新一次资源状态（<code>resource_sync_refresh</code>），与数据库检查并行。</li><li>主按钮「立即同步」是否顺带同步资源文件，见 8 待确认；推荐顺带（用户心里「同步」就是全部）。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">资源文件</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="hero">
+            <div class="orb t-acc spin" data-i="cloud-upload" data-s="34"></div>
+            <h2>正在同步 43%</h2>
+            <div class="sub">已处理 6 / 15 · 上传 4 · 下载 2<br /><span style="color:var(--ink-3)">2026/10/IMG_2041.webp</span></div>
+            <div class="bar"><i style="width:43%"></i></div>
+          </div>
+          <div class="btns"><div class="btn ghost" data-i="square" data-s="15">停止</div></div>
+          <div class="gn" style="text-align:center">可以离开这个页面，同步会在后台继续</div>
+          <span class="anno good" style="right:10px;top:6px">只显示「本轮」的数字</span>
+          <span class="anno good" style="left:16px;top:370px">同步中只有一个按钮</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>同步中</div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">资源文件</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="hero" style="padding-bottom:14px">
+            <div class="orb t-rose" data-i="triangle-alert" data-s="34"></div>
+            <h2>2 个文件没传上去</h2>
+            <div class="sub">其余 13 个已同步 · 刚刚</div>
+          </div>
+          <div class="btns"><div class="btn pri" data-i="rotate-ccw" data-s="17">重试 2 个文件</div></div>
+          <div class="gl">需要处理</div>
+          <div class="grp">
+            <div class="row"><span class="thumb" data-i="image" data-s="15"><span class="bad" data-i="x" data-s="9"></span></span><span class="mid"><b>IMG_2041.webp</b><span>网络超时 · 已重试 3 次</span></span></div>
+            <div class="row"><span class="thumb c" data-i="file" data-s="15"><span class="bad" data-i="x" data-s="9"></span></span><span class="mid"><b>会议纪要.pdf</b><span>文件超过 100MB，云端拒收</span></span></div>
+          </div>
+          <div class="gn">资源同步只增不删：本机删掉的文件不会从云端删除。</div>
+          <span class="anno good" style="right:10px;top:6px">失败才升为主按钮</span>
+          <span class="anno good" style="left:16px;top:470px">看得到在重试谁、为什么失败</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>有失败文件</div>
+      <details class="note"><summary>说明</summary><ul><li>失败列表来自 <code>ResourceSyncStatusFile.files</code> 中 <code>syncStatus === "error"</code> 的条目，<code>errorMessage</code> / <code>retryCount</code> 现成可用。</li><li>不可重试的错误（超限）重试按钮只计可重试的那部分。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">资源文件</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="hero" style="padding-bottom:14px">
+            <div class="orb t-butter" data-i="arrow-up-down" data-s="34"></div>
+            <h2>有 15 个文件待同步</h2>
+            <div class="sub">本机新增 12 个 · 云端新增 3 个<br />上次同步 昨天 22:14</div>
+          </div>
+          <div class="btns"><div class="btn pri" data-i="refresh-cw" data-s="17">开始同步</div></div>
+          <div class="fchips"><span class="fchip on">待上传 <i>12</i></span><span class="fchip">待下载 <i>3</i></span><span class="fchip">全部 <i>1,284</i></span></div>
+          <div class="grp" style="margin-top:8px">
+            <div class="row"><span class="thumb" data-i="image" data-s="15"></span><span class="mid"><b>IMG_2041.webp</b><span>412 KB · 今天 09:12</span></span></div>
+            <div class="row"><span class="thumb b" data-i="image" data-s="15"></span><span class="mid"><b>IMG_2040.webp</b><span>388 KB · 今天 09:11</span></span></div>
+            <div class="row"><span class="thumb c" data-i="file" data-s="15"></span><span class="mid"><b>会议纪要.pdf</b><span>2.1 MB · 昨天</span></span></div>
+          </div>
+          <span class="anno good" style="right:10px;top:6px">人话状态 + 方向</span>
+          <span class="anno good" style="left:16px;top:330px">筛选胶囊替代三格计数</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>有待同步文件</div>
+      <details class="note"><summary>说明</summary><ul><li>列表只渲染前 N 条 + 「显示更多」，不一次渲染上千行。</li><li>「刷新状态」按钮去掉：进入页面与返回时静默刷新，与数据库同步一致。</li></ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 6 方案 B ═══════════ -->
+<section class="scene" data-scene="b">
+  <p class="scene-intro">如果不想动同步中心：保留「资源与存储」一页，上半「上传位置」卡，下半「资源文件同步」卡，各自独立。改动更小，但没解决「资源同步其实跟着同步服务走」的概念错位，只能靠一句说明文字补。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">资源与存储</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="dest">
+            <div class="hd"><span data-i="image" data-s="13"></span>新插入的图片与附件保存到</div>
+            <div class="who"><span class="tile lg t-lilac" data-i="github" data-s="20"></span><span class="mid" style="flex:1;min-width:0"><b>GitHub 仓库</b><span>d7hacx/tau-assets · main</span></span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="state"><span data-i="circle-check" data-s="14" style="color:var(--sage)"></span>上次上传 2 分钟前 · 正常</div>
+          </div>
+          <div class="gl">资源文件同步</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-butter" data-i="arrow-up-down" data-s="16"></span><span class="mid"><b>15 个文件待同步</b><span>经 S3（与数据库同步相同）</span></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gn">资源文件同步使用「同步」中设置的服务，与上面的上传位置无关。</div>
+          <div class="gl">处理</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-mute" data-i="shrink" data-s="16"></span><span class="mid"><b>压缩大图</b><span>超过 300KB 转为 WebP</span></span><span class="sw on"></span></div>
+          </div>
+          <span class="ring" style="left:14px;right:14px;top:300px;height:40px"></span>
+          <span class="anno" style="right:10px;top:346px">仍需一句话解释两者无关——这正说明它们不该在一页</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>一页两卡</div>
+    </div>
+    <div class="card" style="flex:1 1 360px;max-width:460px">
+      <h3>方案 B 的取舍</h3>
+      <ul>
+        <li><b>好处</b>：入口不变，同步中心不用改；改动集中在一个页面。</li>
+        <li><b>代价</b>：概念错位还在；用户在两个地方都看到「S3 / GitHub」会混。</li>
+        <li><b>与插件化的关系</b>：上传服务的注册表、服务页与 A 完全相同（3 的页面可直接复用），差别只在资源同步放哪。</li>
+        <li><b>建议</b>：做 A。资源同步页（5-2/3/4）本身两案通用，B 只是挂载点不同。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 7 插件化 ═══════════ -->
+<section class="scene" data-scene="plugin">
+  <p class="scene-intro">与桌面端上传插件对齐：桌面端插件用 <code>upload.register({ id, name, upload(file, config, signal) → url })</code> 提供上传能力，用 <code>settings.register({ target: "upload", component })</code> 提供设置面板，宿主只有「本地 | 上传插件」两档。移动端按同一形态组织：<b>宿主外壳 + 上传服务注册表</b>，与同步服务注册表 <code>SYNC_PROVIDERS</code> 同构。</p>
+  <div class="frames" style="gap:18px">
+    <div class="card" style="flex:1 1 460px;max-width:560px">
+      <h3>谁负责什么</h3>
+      <div class="layer host"><h4>宿主（图片与附件页 · 编辑器上传管线 · 永远不变）</h4>「本机」选项、目的地卡、最近上传结果、服务抽屉、示例地址框、上传测试（真传 + 回读）、设为上传位置、压缩、编辑器内进度/失败/重试、错误翻译。</div>
+      <div class="layer prov"><h4>上传服务（内置或插件）</h4>名称、图标、一句话描述、是否已配置、副文案摘要、<b>示例地址</b>、<b>一个设置面板</b>，以及<b>一个上传函数</b>：给文件，返回可直接引用的 http(s) 地址。</div>
+      <div class="layer store"><h4>凭证</h4>内置服务的凭证仍在集成账号，与同步共用；面板里就地展示并跳转更换。插件服务的配置存在插件自己的 <code>configurations[pluginId]</code>（同桌面 <code>imageBed.plugin</code>）。</div>
+      <div class="layer host"><h4>不是插件点：资源文件同步</h4>它跟随同步服务。将来的同步插件（<code>sync.register</code>）提供字节读写后，资源同步自动可用，不需要另开扩展点。</div>
+    </div>
+    <div class="card" style="flex:1 1 460px;max-width:600px">
+      <h3>注册表条目</h3>
+<pre>{
+  id: "github",              // = setting.json 的 imageBed.active
+  name: "GitHub 仓库",
+  description: "公开仓库，免费",
+  tile: { icon: "github", className: "bg-tag-3-soft text-tag-3" },
+  isConfigured: setting => …,
+  summary: setting => "tau-assets · main",
+  sampleUrl: setting => "https://…/uploads/2026/10/…",
+  Panel: GithubUploadPanel,  // 设置面板插槽
+  // 内置服务：宿主调 Rust upload_resource
+  // 插件服务：宿主调插件的 upload(file, config, signal)
+}</pre>
+      <p class="flow-note">「本机」不进注册表——它是宿主内置的离线选项（同桌面 <code>EImageBed.Local</code>）。编辑器上传管线只依赖「当前目的地 → 上传函数」，所以插件接入时编辑器零改动；测试上传也复用同一个上传函数，插件不需要实现额外的 test 接口。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 8 对比 ═══════════ -->
+<section class="scene" data-scene="cmp">
+  <div class="frames" style="gap:18px">
+    <div class="card" style="flex:1 1 640px;max-width:820px">
+      <h3>方案对比</h3>
+      <table class="cmp">
+        <tr><th></th><th>现状</th><th>A 上传与资源分家（推荐）</th><th>B 保持一页</th></tr>
+        <tr><th>概念</th><td>上传目标与资源同步混在一页</td><td>图片与附件只管上传；资源同步进同步中心</td><td>一页两卡，靠说明文字区分</td></tr>
+        <tr><th>换上传位置</th><td>点行即切换（可切到未配置）</td><td>抽屉 → 服务页 → 测试 → 设为上传位置</td><td>同 A</td></tr>
+        <tr><th>能否传上去</th><td>插图时才知道</td><td>示例地址 + 测试上传 + 最近上传结果</td><td>同 A</td></tr>
+        <tr><th>失败处理</th><td>编辑器 toast 一闪</td><td>图片原位「重试上传」+ 设置页留痕</td><td>同 A</td></tr>
+        <tr><th>资源同步</th><td>上一轮计数 + 4 个文字按钮</td><td>本轮状态 + 主按钮 + 失败/待同步列表</td><td>同 A（挂载点不同）</td></tr>
+        <tr><th>插件化</th><td>硬编码数组 + 每目标一组件一路由</td><td>上传服务注册表，与同步注册表同构</td><td>同 A</td></tr>
+        <tr><th>改动量</th><td>—</td><td>中：重写资源设置 3 页 + 同步中心加一行 + 资源同步页</td><td>中偏小：同步中心不动</td></tr>
+      </table>
+    </div>
+    <div class="card" style="flex:1 1 380px;max-width:520px">
+      <h3>需要你拍板的几件事</h3>
+      <ol>
+        <li><b>方向</b>：A（资源同步挪进同步中心）还是 B（保持一页）？</li>
+        <li><b>命名</b>：「资源与存储」→「图片与附件」、「数据库同步」→「同步」，可以吗？</li>
+        <li><b>立即同步</b>：同步中心主按钮是否顺带同步资源文件？（推荐顺带）</li>
+        <li><b>压缩开关</b>：改为真正控制 WebView 预压缩 + Rust 压缩，关闭即原图上传？</li>
+        <li><b>测试上传</b>：会在远端留一张固定名测试图（覆盖不累积），可以接受吗？</li>
+        <li><b>最近上传结果</b>：本机记一次时间与错误码，用于目的地卡，可以加吗？</li>
+        <li><b>编辑器失败块</b>（4-2）：失败图片留在原位可重试，这次一起做还是后续？插入面板目的地小字（4-3）要不要？</li>
+        <li><b>本机「相对目录」字段</b>：移动端隐藏可以吗？</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<script src="../sync-mobile/sync.js"></script>
+</body>
+</html>

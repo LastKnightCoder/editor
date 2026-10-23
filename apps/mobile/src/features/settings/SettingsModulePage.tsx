@@ -1,11 +1,10 @@
 // 设置模块页：二级模块以独立路由页呈现（settingsModule，match: "params"）。
 // 返回逐级退栈、滚动位置保持、转场与侧滑返回全部由 router 的 Activity 保活机制提供，
 // 此组件只负责顶栏 chrome 与模块 → section 的映射。
-// 数据域两个主页：「数据库同步」是同步中心（状态 + 主按钮 + 服务抽屉，服务页见 syncProvider 页），
-// 「资源与存储」管资源同步与存储目标（单选组 + checkmark，配置下钻子页）。
+// 数据域两个主页：「同步」是同步中心（数据库 + 资源文件，服务页见 syncProvider 页），
+// 「图片与附件」管新插入图片的上传位置（服务页见 uploadProvider 页）。
 
 import { useRef } from "react";
-import type { SettingCompat } from "../../types";
 import { AboutSection } from "./components/AboutSection";
 import { CollaborationSection } from "./components/CollaborationSection";
 import {
@@ -14,30 +13,12 @@ import {
   IntegrationS3Section,
   IntegrationWebDavSection,
 } from "./components/IntegrationSections";
-import {
-  ResourceAliOssSection,
-  ResourceGithubSection,
-  ResourceLocalSection,
-  ResourceS3Section,
-  ResourceWebDavSection,
-} from "./components/ResourceSections";
-import { ResourceSyncStatusSection, getResourceSyncSummary } from "./components/SyncStatusSections";
 import { OverwriteSection } from "./sync/OverwriteSection";
+import { ResourceFilesSection } from "./sync/ResourceFilesSection";
 import { SyncCenterSection } from "./sync/SyncCenterSection";
+import { UploadCenterSection } from "./upload/UploadCenterSection";
 import type { SettingModuleKey, SettingsPageProps } from "./components/types";
-import {
-  CheckBubble,
-  GroupCard,
-  GroupNote,
-  GroupRow,
-  IconChevronRight,
-  IconDatabase,
-  IconFolder,
-  InfoDotButton,
-  LetterTile,
-  StatusDot,
-} from "./components/ui";
-import { GroupLabel } from "../../components/GroupLabel";
+import { CheckBubble, GroupCard, GroupNote, GroupRow, IconDatabase } from "./components/ui";
 import { PageHeader } from "../../components/PageHeader";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { useAppContext } from "../../app/AppContext";
@@ -48,7 +29,7 @@ function getTitle(module: SettingModuleKey): string {
     case "about":
       return "关于";
     case "database":
-      return "数据库同步";
+      return "同步";
     case "databases":
       return "数据库";
     case "sync-overwrite":
@@ -56,7 +37,7 @@ function getTitle(module: SettingModuleKey): string {
     case "collaboration":
       return "实时协作";
     case "sync-status-resource":
-      return "资源同步";
+      return "资源文件";
     case "integration":
       return "集成账号";
     case "integration-github":
@@ -68,17 +49,7 @@ function getTitle(module: SettingModuleKey): string {
     case "integration-alioss":
       return "AliOSS 账号";
     case "resource":
-      return "资源与存储";
-    case "resource-local":
-      return "本地存储";
-    case "resource-github":
-      return "Github 资源";
-    case "resource-alioss":
-      return "AliOSS 资源";
-    case "resource-s3":
-      return "S3 资源";
-    case "resource-webdav":
-      return "WebDAV 资源";
+      return "图片与附件";
     default:
       return "设置";
   }
@@ -88,84 +59,6 @@ type ModuleSectionProps = SettingsPageProps & {
   module: SettingModuleKey;
   onOpenModule: (module: SettingModuleKey) => void;
 };
-
-/** 存储目标单选行副文本：显示已配置的关键参数摘要 */
-function resourceTargetSubtitle(setting: SettingCompat | null, target: string): string {
-  if (!setting) {
-    return "未配置";
-  }
-  const bed = setting.imageBed;
-  if (target === "github") {
-    const github = bed.github;
-    return github.repo
-      ? github.branch
-        ? `${github.repo} · ${github.branch}`
-        : github.repo
-      : "未配置";
-  }
-  if (target === "aliOSS") {
-    return bed.aliOSS.bucket || "未配置";
-  }
-  if (target === "s3") {
-    return bed.s3.bucket || "未配置";
-  }
-  if (target === "webdav") {
-    return bed.webdav.pathPrefix || "未配置";
-  }
-  return bed.local.path || "resources";
-}
-
-const RESOURCE_TARGETS = [
-  {
-    key: "local",
-    label: "本地",
-    module: "resource-local",
-    tile: "bg-tag-4-soft text-tag-4",
-    icon: "folder" as const,
-  },
-  {
-    key: "github",
-    label: "Github",
-    module: "resource-github",
-    tile: "bg-tag-3-soft text-tag-3",
-    icon: "letter" as const,
-  },
-  {
-    key: "aliOSS",
-    label: "AliOSS",
-    module: "resource-alioss",
-    tile: "bg-accent-soft text-accent-text",
-    icon: "letter" as const,
-  },
-  {
-    key: "s3",
-    label: "S3",
-    module: "resource-s3",
-    tile: "bg-tag-2-soft text-tag-2",
-    icon: "letter" as const,
-  },
-  {
-    key: "webdav",
-    label: "WebDAV",
-    module: "resource-webdav",
-    tile: "bg-tag-1-soft text-tag-1",
-    icon: "letter" as const,
-  },
-] as const;
-
-/** 资源同步状态行的状态点色调 */
-function resourceStatusTone(summary: string) {
-  if (summary === "已完成") {
-    return "ok" as const;
-  }
-  if (summary.startsWith("同步中")) {
-    return "run" as const;
-  }
-  if (summary === "异常") {
-    return "warn" as const;
-  }
-  return "idle" as const;
-}
 
 /** 数据库列表：切换当前数据库（低频，从同步中心「更多」进入） */
 function DatabasesView(props: ModuleSectionProps) {
@@ -190,81 +83,6 @@ function DatabasesView(props: ModuleSectionProps) {
   );
 }
 
-/** 资源与存储主页（方案 C）：资源同步状态 + 存储目标 */
-function ResourceSettingsView(props: ModuleSectionProps) {
-  const activeResource = props.safeSetting?.imageBed.active ?? "github";
-
-  const selectResourceTarget = (target: string) => {
-    if (target === activeResource) {
-      return;
-    }
-    props.updateSetting(
-      prev => ({
-        ...prev,
-        imageBed: { ...prev.imageBed, active: target },
-      }),
-      { persist: true }
-    );
-  };
-
-  const progress = props.resourceSyncProgress;
-  const resSummary = props.isResourceSyncing
-    ? "同步中"
-    : progress
-      ? getResourceSyncSummary(progress)
-      : "未开始";
-  const resTone = resourceStatusTone(resSummary);
-  const resSub =
-    progress && progress.totalFiles > 0
-      ? `${progress.processedFiles}/${progress.totalFiles} 个文件${progress.errorCount > 0 ? ` · ${progress.errorCount} 个失败` : ""}`
-      : "尚无同步记录";
-
-  return (
-    <div className="page-enter space-y-1">
-      <GroupLabel>资源同步 · {resSummary}</GroupLabel>
-      <GroupCard>
-        <GroupRow onClick={() => props.onOpenModule("sync-status-resource")}>
-          <StatusDot tone={resTone} />
-          <span className="min-w-0 flex-1">
-            <span className="text-ink-1 block text-[14.5px] font-medium">{resSummary}</span>
-            <span className="text-ink-3 block truncate text-[11.5px]">{resSub}</span>
-          </span>
-          <span className="text-ink-3">
-            <IconChevronRight />
-          </span>
-        </GroupRow>
-      </GroupCard>
-
-      <GroupLabel>存储目标 · 图片与附件上传位置</GroupLabel>
-      <GroupCard>
-        {RESOURCE_TARGETS.map(target => (
-          <GroupRow key={target.key} onClick={() => selectResourceTarget(target.key)}>
-            {target.icon === "folder" ? (
-              <span className="bg-tag-4-soft text-tag-4 grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl">
-                <IconFolder />
-              </span>
-            ) : (
-              <LetterTile letter={target.label[0]} className={target.tile} />
-            )}
-            <span className="min-w-0 flex-1">
-              <span className="text-ink-1 block text-[14.5px] font-medium">{target.label}</span>
-              <span className="text-ink-3 block truncate text-[11.5px]">
-                {resourceTargetSubtitle(props.safeSetting, target.key)}
-              </span>
-            </span>
-            {activeResource === target.key && <CheckBubble />}
-            <InfoDotButton
-              onClick={() => props.onOpenModule(target.module)}
-              label={`配置${target.label}存储`}
-            />
-          </GroupRow>
-        ))}
-      </GroupCard>
-      <GroupNote className="pb-2">点选切换存储；点 ⓘ 配置凭证与参数。</GroupNote>
-    </div>
-  );
-}
-
 function ModuleSection(props: ModuleSectionProps) {
   switch (props.module) {
     case "database":
@@ -277,6 +95,10 @@ function ModuleSection(props: ModuleSectionProps) {
           onCheckVersions={props.onCheckVersions}
           onSyncUpload={props.onSyncUpload}
           onSyncDownload={props.onSyncDownload}
+          resourceProgress={props.resourceSyncProgress}
+          resourceStatusFile={props.resourceSyncStatusFile}
+          onResourceSyncRefresh={props.onResourceSyncRefresh}
+          onResourceSyncStart={props.onResourceSyncStart}
           onOpenModule={props.onOpenModule}
         />
       );
@@ -292,23 +114,28 @@ function ModuleSection(props: ModuleSectionProps) {
         />
       );
     case "resource":
-      return <ResourceSettingsView {...props} />;
+      return (
+        <UploadCenterSection
+          setting={props.safeSetting}
+          updateSetting={props.updateSetting}
+          onOpenModule={props.onOpenModule}
+        />
+      );
     case "about":
       return <AboutSection />;
     case "collaboration":
       return <CollaborationSection />;
     case "sync-status-resource":
       return (
-        <ResourceSyncStatusSection
-          resourceSyncProgress={props.resourceSyncProgress}
-          resourceSyncStatusFile={props.resourceSyncStatusFile}
-          isResourceSyncing={props.isResourceSyncing}
-          onResourceSyncRefresh={props.onResourceSyncRefresh}
-          onResourceSyncStart={props.onResourceSyncStart}
-          onResourceSyncRetryFailed={props.onResourceSyncRetryFailed}
-          onResourceSyncCancel={props.onResourceSyncCancel}
-          updateSetting={props.updateSetting}
-          compressionEnabled={props.safeSetting?.imageBed.enableCompression ?? false}
+        <ResourceFilesSection
+          progress={props.resourceSyncProgress}
+          statusFile={props.resourceSyncStatusFile}
+          isSyncing={props.isResourceSyncing}
+          onRefresh={props.onResourceSyncRefresh}
+          onStart={props.onResourceSyncStart}
+          onRetryFailed={props.onResourceSyncRetryFailed}
+          onCancel={props.onResourceSyncCancel}
+          onOpenModule={props.onOpenModule}
         />
       );
     case "integration-github":
@@ -347,32 +174,6 @@ function ModuleSection(props: ModuleSectionProps) {
           updateSetting={props.updateSetting}
         />
       );
-    case "resource-local":
-    case "resource-github":
-    case "resource-alioss":
-    case "resource-s3":
-    case "resource-webdav": {
-      const resourceProps = {
-        safeSetting: props.safeSetting,
-        isSavingSetting: props.isSavingSetting,
-        onSaveSetting: props.onSaveSetting,
-        updateSetting: props.updateSetting,
-        onOpenModule: props.onOpenModule,
-      };
-      if (props.module === "resource-local") {
-        return <ResourceLocalSection {...resourceProps} />;
-      }
-      if (props.module === "resource-github") {
-        return <ResourceGithubSection {...resourceProps} />;
-      }
-      if (props.module === "resource-alioss") {
-        return <ResourceAliOssSection {...resourceProps} />;
-      }
-      if (props.module === "resource-s3") {
-        return <ResourceS3Section {...resourceProps} />;
-      }
-      return <ResourceWebDavSection {...resourceProps} />;
-    }
     default:
       return null;
   }

@@ -18,13 +18,13 @@ import {
   IconBookOpen,
   IconCircleHelp,
   IconCloud,
-  IconDatabase,
+  IconFolder,
   IconImage,
   IconMoon,
   IconUsers,
 } from "./ui";
 import { ActionSheet } from "./ActionSheet";
-import { getResourceSyncSummary } from "./SyncStatusSections";
+import { LOCAL_UPLOAD_ID, findUploadProvider } from "../upload/providers";
 import { getTheme } from "@tau/themes";
 import { useThemeStore } from "@tau/themes/react";
 import { useNavigator } from "../../../router";
@@ -35,7 +35,7 @@ import {
   withEditorOpenMode,
   type EditorOpenMode,
 } from "../../../hooks/useEditorOpenMode";
-import type { SettingModule, SettingsPageProps } from "./types";
+import type { SettingModule } from "./types";
 
 const APPEARANCE_LABELS = { light: "浅色", dark: "深色", system: "跟随系统" } as const;
 
@@ -45,14 +45,6 @@ const EDITOR_OPEN_MODE_OPTIONS: Array<{ label: string; value: EditorOpenMode }> 
   { label: "阅读模式（默认）", value: "read" },
   { label: "直接编辑", value: "edit" },
 ];
-
-const RESOURCE_LABELS: Record<string, string> = {
-  local: "本地",
-  github: "Github",
-  aliOSS: "AliOSS",
-  s3: "S3",
-  webdav: "WebDAV",
-};
 
 function formatBytes(bytes: number): string {
   if (bytes <= 0) return "0 MB";
@@ -70,7 +62,6 @@ type OverviewSectionProps = {
     shadow?: ImageShadowPreset | boolean;
   };
   onOpenModule: (module: Exclude<SettingModule, null>) => void;
-  resourceSyncProgress: SettingsPageProps["resourceSyncProgress"];
 };
 
 function findPresetLabel(
@@ -99,12 +90,10 @@ export function OverviewSection(props: OverviewSectionProps) {
       .catch(() => setAppVersion(""));
   }, []);
 
-  const resourceSummary = props.resourceSyncProgress
-    ? getResourceSyncSummary(props.resourceSyncProgress)
-    : "未开始";
-  const resourceValue = `${
-    RESOURCE_LABELS[props.activeResource] ?? props.activeResource
-  } · ${resourceSummary}`;
+  const uploadTargetName =
+    props.activeResource === LOCAL_UPLOAD_ID
+      ? "这台手机"
+      : (findUploadProvider(props.activeResource)?.name ?? props.activeResource);
   // 桌面端旧设置 shadow 为布尔（true 视作中阴影），展示前归一为 preset
   const imageAppearanceValue = `${findPresetLabel(
     IMAGE_BORDER_RADIUS_OPTIONS,
@@ -121,8 +110,8 @@ export function OverviewSection(props: OverviewSectionProps) {
       </div>
       <div className="list-group">
         <ListItem
-          icon={<IconDatabase />}
-          label="数据库同步"
+          icon={<IconCloud />}
+          label="同步"
           value={
             dbSizeQuery.data != null
               ? `${props.activeDatabase ?? "本地"} · ${formatBytes(dbSizeQuery.data)}`
@@ -131,9 +120,9 @@ export function OverviewSection(props: OverviewSectionProps) {
           onClick={() => props.onOpenModule("database")}
         />
         <ListItem
-          icon={<IconCloud />}
-          label="资源与存储"
-          value={resourceValue}
+          icon={<IconFolder />}
+          label="图片与附件"
+          value={uploadTargetName}
           onClick={() => props.onOpenModule("resource")}
         />
       </div>
