@@ -79,6 +79,18 @@ export const MarkdownFileView = forwardRef<
   const editorRef = useRef<EditorRef>(null);
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(scrollEl);
+  /* 大纲超高时独立滚动：上限 = 正文滚动容器高 − 40（top-8 + 底部留白），触边不带动正文 */
+  const [outlineScrollEl, setOutlineScrollEl] = useState<HTMLDivElement | null>(null);
+  useEdgeFade(outlineScrollEl);
+  const [outlineMaxH, setOutlineMaxH] = useState<number | null>(null);
+  useEffect(() => {
+    if (!scrollEl) return;
+    const observer = new ResizeObserver(() =>
+      setOutlineMaxH(Math.max(0, scrollEl.clientHeight - 40))
+    );
+    observer.observe(scrollEl);
+    return () => observer.disconnect();
+  }, [scrollEl]);
 
   const surfaceActive = useRef(true);
   const [fileDocument] = useState(() =>
@@ -354,9 +366,18 @@ export const MarkdownFileView = forwardRef<
               {sourceView}
               {richView}
             </div>
-            {/* 起始与正文同高（同正文列 pt-8），滚动后吸在同一留白处 */}
+            {/* 起始与正文同高（同正文列 pt-8），滚动后吸在同一留白处；超高独立滚动 */}
             <div className="col-start-3 min-w-0 pl-4 pr-3 pt-8">
-              <div className="sticky top-8 max-w-[240px]">{outlineNode}</div>
+              <div
+                ref={setOutlineScrollEl}
+                className={cn(
+                  FADE_SCROLL_CLASS,
+                  "sticky top-8 max-w-[240px] overflow-y-auto overscroll-y-contain"
+                )}
+                style={{ maxHeight: outlineMaxH ?? undefined }}
+              >
+                {outlineNode}
+              </div>
             </div>
           </div>
         ) : (
