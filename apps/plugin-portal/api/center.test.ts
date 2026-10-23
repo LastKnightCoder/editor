@@ -87,18 +87,14 @@ async function stage(bytes = zip()) {
     );
   return id;
 }
-async function approve(
-  bytes = zip(),
-  evidence: unknown = { android: { verified: true, note: "Android 模拟器版本及页面验证通过" } }
-) {
+async function approve(bytes = zip()) {
   const id = await stage(bytes);
   const response = await request(
     `/v1/submissions/${id}/review`,
     {
       revision: 1,
       decision: "approve",
-      comment: "验证通过",
-      ...(evidence ? { platformEvidence: evidence } : {}),
+      comment: "允许上架",
     },
     true
   );
@@ -135,6 +131,17 @@ it("格式 3 上传严格校验，接受逐平台最低版本而非伪造顶层�
     Buffer.from(JSON.stringify({ ...manifest, backend: { entry: "backend.js" } }))
   );
   await expect(inspectPackage(archive.toBuffer())).rejects.toThrow();
+  for (const field of ["required", "optional"]) {
+    const changed = structuredClone(manifest);
+    changed.targets.android[field] = ["future.feature.v2"];
+    archive.updateFile("test.portable/manifest.json", Buffer.from(JSON.stringify(changed)));
+    await expect(inspectPackage(archive.toBuffer())).rejects.toThrow("未知能力");
+  }
+  archive.updateFile(
+    "test.portable/manifest.json",
+    Buffer.from(JSON.stringify({ ...manifest, permissions: ["cards:read"] }))
+  );
+  await expect(inspectPackage(archive.toBuffer())).rejects.toThrow("业务数据授权");
 });
 
 it("从既有 D1 schema 增量迁移会回填旧平台且不改变发布正文和外键", () => {
@@ -173,41 +180,24 @@ it("从既有 D1 schema 增量迁移会回填旧平台且不改变发布正文�
     previous.sqlite.close();
   }
 });
-it("审批必须有全部平台证据，绑定修订与摘要；不一致重试拒绝", async () => {
+it("审批不需要平台验证记录，仍绑定修订与摘要并拒绝不同决定重试", async () => {
   const id = await stage();
   const input = { revision: 1, decision: "approve", comment: "ok" };
-  expect((await request(`/v1/submissions/${id}/review`, input, true)).status).toBe(400);
-  expect(
-    (
-      await request(
-        `/v1/submissions/${id}/review`,
-        { ...input, platformEvidence: { ios: { verified: true, note: "错误平台" } } },
-        true
-      )
-    ).status
-  ).toBe(400);
-  const evidence = { android: { verified: true, note: "已在 API 36 验证" } };
-  const first = await request(
-    `/v1/submissions/${id}/review`,
-    { ...input, platformEvidence: evidence },
-    true
-  );
+  const first = await request(`/v1/submissions/${id}/review`, input, true);
   expect(first.status).toBe(200);
   const approved = (await first.json()).data;
-  expect(approved.reviews[0].platformEvidence).toEqual(evidence);
+  expect(approved.reviews[0]).not.toHaveProperty("platformEvidence");
+  expect(
+    f.sqlite.prepare("SELECT platform_evidence_json FROM submission_reviews").get()
+      ?.platform_evidence_json
+  ).toBeNull();
+  expect(
+    f.sqlite.prepare("SELECT platform_evidence_json FROM releases").get()?.platform_evidence_json
+  ).toBeNull();
   expect(approved.release.state).toBe("published");
+  expect((await request(`/v1/submissions/${id}/review`, input, true)).status).toBe(200);
   expect(
-    (await request(`/v1/submissions/${id}/review`, { ...input, platformEvidence: evidence }, true))
-      .status
-  ).toBe(200);
-  expect(
-    (
-      await request(
-        `/v1/submissions/${id}/review`,
-        { ...input, platformEvidence: { android: { verified: true, note: "换了证据" } } },
-        true
-      )
-    ).status
+    (await request(`/v1/submissions/${id}/review`, { ...input, comment: "变更决定" }, true)).status
   ).toBe(409);
   expect(f.sqlite.prepare("SELECT platform FROM release_targets").all()).toEqual([
     { platform: "android" },
@@ -221,7 +211,6 @@ it("发布开关默认关闭，不消耗审批修订；无审核者身份不得�
     revision: 1,
     decision: "approve",
     comment: "ok",
-    platformEvidence: { android: { verified: true, note: "已验收" } },
   };
   expect((await request(`/v1/submissions/${id}/review`, input, true)).status).toBe(409);
   expect(f.sqlite.prepare("SELECT revision,status FROM submissions WHERE id=?").get(id)).toEqual({
@@ -231,7 +220,7 @@ it("发布开关默认关闭，不消耗审批修订；无审核者身份不得�
   expect((await request(`/v1/submissions/${id}/review`, input)).status).toBe(401);
 });
 it("v1 目录/历史/详情/下载隔离新格式，v2 同 ID 按平台选包", async () => {
-  const old = await approve(zip("1.0.0", {}, true), null);
+  const old = await approve(zip("1.0.0", {}, true));
   const current = await approve(zip("2.0.0"));
   const catalog = (await (await request("/v1/catalog?appVersion=9.0.0")).json()).data;
   expect(catalog.items[0].latest.version).toBe("1.0.0");
@@ -315,7 +304,7 @@ it("下载期间撤回会再次核验，损坏对象拒绝下载", async () => {
 });
 
 it("迁移保留旧版本与引用，目标投影与清单一致", async () => {
-  const old = await approve(zip("1.0.0", {}, true), null);
+  const old = await approve(zip("1.0.0", {}, true));
   const current = await approve(zip("2.0.0"));
   const rows = f.sqlite
     .prepare(

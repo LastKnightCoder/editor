@@ -23,8 +23,6 @@ import { DecisionPanel } from "./DecisionPanel";
 import { DECISION_LABELS } from "./decisions";
 import { FeedbackThread } from "./FeedbackThread";
 import { PackagePreview } from "./PackagePreview";
-import { PlatformEvidence } from "./PlatformEvidence";
-import { PORTABLE_PLATFORMS } from "../catalog/platforms";
 import { ProgressTimeline } from "./ProgressTimeline";
 import { RevokeRelease } from "./RevokeRelease";
 import { VersionDiff } from "./VersionDiff";
@@ -115,13 +113,6 @@ function ResultPanel({
         <p className="text-tau-meta text-ink-2 border-line-1 whitespace-pre-wrap border-l-[3px] pl-3">
           {latest.comment}
         </p>
-      )}
-      {latest?.platformEvidence && (
-        <PlatformEvidence
-          platforms={PORTABLE_PLATFORMS.filter(platform => latest.platformEvidence?.[platform])}
-          value={latest.platformEvidence}
-          readOnly
-        />
       )}
       {submission.status === "changes_requested" && (
         <p className="text-tau-sm text-ink-3">等待作者修改后重新提交。</p>

@@ -166,7 +166,9 @@ export function InstalledPluginsPanel() {
         retrying={manager.refreshing}
         empty={!manager.items.length}
         emptyTitle="还没有安装插件"
-        emptyHint={import.meta.env.DEV ? "可在下方受控开发安装。" : "移动端插件安装尚未开放。"}
+        emptyHint={
+          import.meta.env.DEV ? "可在下方受控开发安装。" : "前往商店查看适用于本机的插件。"
+        }
       >
         {manager.items.map(item => (
           <InstalledPluginRow key={item.id} item={item} manager={manager} />

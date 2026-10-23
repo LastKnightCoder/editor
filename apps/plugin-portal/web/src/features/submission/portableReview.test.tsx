@@ -85,34 +85,21 @@ async function setup({
 }
 const approveButton = () => screen.getByRole("button", { name: "批准并发布" }) as HTMLButtonElement;
 
-it("批准需逐个声明平台勾选并填写说明，请求只带声明平台的证据", async () => {
+it("跨端包可直接批准，不要求审核者测试或填写平台验证记录", async () => {
   const { api } = await setup();
   const review = vi.spyOn(api, "reviewSubmission");
   fireEvent.click(await screen.findByRole("radio", { name: /批准并发布/ }));
-  expect(screen.getByText("已验证 0/2")).toBeTruthy();
-  expect(approveButton().disabled).toBe(true);
-  fireEvent.click(screen.getByRole("checkbox", { name: "已在Android上验证此版本" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Android验证说明" }), {
-    target: { value: " Pixel 9 / Android 16 " },
-  });
-  fireEvent.click(screen.getByRole("checkbox", { name: "已在iOS上验证此版本" }));
-  // 勾选但未写说明仍不能批准
-  expect(approveButton().disabled).toBe(true);
-  fireEvent.change(screen.getByRole("textbox", { name: "iOS验证说明" }), {
-    target: { value: "iPhone 15 / iOS 26.3" },
-  });
+  expect(screen.queryByRole("checkbox", { name: /上验证此版本/ })).toBeNull();
+  expect(screen.queryByRole("textbox", { name: /验证说明/ })).toBeNull();
   expect(approveButton().disabled).toBe(false);
   fireEvent.click(approveButton());
   fireEvent.click(await screen.findByRole("button", { name: "确认" }));
   await waitFor(() => expect(review).toHaveBeenCalled());
   expect(review.mock.calls[0][1]).toMatchObject({
     decision: "approve",
-    platformEvidence: {
-      android: { verified: true, note: "Pixel 9 / Android 16" },
-      ios: { verified: true, note: "iPhone 15 / iOS 26.3" },
-    },
   });
   expect(review.mock.calls[0][1]).not.toHaveProperty("systemReviewConfirmed");
+  expect(review.mock.calls[0][1]).not.toHaveProperty("platformEvidence");
 });
 
 it("要求修改不展示也不提交平台证据", async () => {
@@ -128,24 +115,21 @@ it("要求修改不展示也不提交平台证据", async () => {
   expect(review.mock.calls[0][1]).not.toHaveProperty("platformEvidence");
 });
 
-it("修订变化后已填写的平台证据作废", async () => {
-  const { client, pending } = await setup();
+it("作者更新修订后，已打开的批准确认不能提交旧版本", async () => {
+  const { api, client, pending } = await setup();
+  const review = vi.spyOn(api, "reviewSubmission");
   fireEvent.click(await screen.findByRole("radio", { name: /批准并发布/ }));
-  for (const label of ["Android", "iOS"]) {
-    fireEvent.click(screen.getByRole("checkbox", { name: `已在${label}上验证此版本` }));
-    fireEvent.change(screen.getByRole("textbox", { name: `${label}验证说明` }), {
-      target: { value: "已验证" },
-    });
-  }
-  expect(approveButton().disabled).toBe(false);
+  fireEvent.click(approveButton());
+  const confirm = await screen.findByRole("button", { name: "确认" });
   act(() =>
     client.setQueryData(queryKeys.submission(pending.id), {
       ...pending,
       revision: pending.revision + 1,
     })
   );
-  await waitFor(() => expect(approveButton().disabled).toBe(true));
-  expect(screen.getByText("已验证 0/2")).toBeTruthy();
+  await waitFor(() => expect((confirm as HTMLButtonElement).disabled).toBe(true));
+  fireEvent.click(confirm);
+  expect(review).not.toHaveBeenCalled();
 });
 
 it("版本对比用 v2 历史找上一版并列出平台声明变化；包预览只读展示平台", async () => {
@@ -163,7 +147,7 @@ it("版本对比用 v2 历史找上一版并列出平台声明变化；包预览
   expect(screen.queryByRole("textbox", { name: /最低/ })).toBeNull();
 });
 
-it("已处理的提交只读展示审核时提交的平台证据", async () => {
+it("已处理的提交展示审核决定，不展示平台验证记录", async () => {
   await setup({
     status: "approved",
     reviews: pending => ({
@@ -179,17 +163,13 @@ it("已处理的提交只读展示审核时提交的平台证据", async () => {
           commit: "c".repeat(40),
           reviewer: { id: "r", login: "reviewer", avatarUrl: "" },
           decision: "approve",
-          comment: "",
+          comment: "允许上架",
           createdAt: "2026-10-23T00:00:00Z",
-          platformEvidence: {
-            android: { verified: true, note: "Pixel 9" },
-            ios: { verified: true, note: "iPhone 15" },
-          },
         },
       ],
     }),
   });
-  expect(await screen.findByText("Pixel 9")).toBeTruthy();
-  expect(screen.getByText("iPhone 15")).toBeTruthy();
+  expect(await screen.findByText("允许上架")).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: "平台验证" })).toBeNull();
   expect(screen.queryByRole("checkbox", { name: /上验证此版本/ })).toBeNull();
 });

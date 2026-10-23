@@ -61,7 +61,6 @@ export interface Session {
   reviewer: boolean;
 }
 export type PackageManifest = import("@tau/plugins/center").CenterManifest;
-export type { PlatformReviewEvidence } from "@tau/plugins/center";
 export interface PackageContent {
   manifest: PackageManifest;
   readme: string;
@@ -92,14 +91,12 @@ export type SubmissionStatus =
   "draft" | "pending_review" | "changes_requested" | "rejected" | "approved";
 export type ReviewDecision = "approve" | "request_changes" | "reject";
 export interface ReviewRequest {
-  platformEvidence?: import("@tau/plugins/center").PlatformReviewEvidence;
   systemReviewConfirmed?: boolean;
   revision: number;
   decision: ReviewDecision;
   comment: string;
 }
 export interface ReviewRecord {
-  platformEvidence?: import("@tau/plugins/center").PlatformReviewEvidence;
   systemReviewed?: boolean;
   id: string;
   revision: number;

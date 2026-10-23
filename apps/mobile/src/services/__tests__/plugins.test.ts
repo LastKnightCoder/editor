@@ -53,13 +53,13 @@ it("安装先校验兼容和摘要，坏包只取消暂存，不提交或执行�
     input: { touch: true, finePointer: false },
     capabilities: ["commands.v1", "storage.v1", "pages.v1", "navigation.v1"] as const,
   };
-  await expect(installMobilePlugin(source, environment, "0.2.0")).rejects.toThrow("摘要");
+  await expect(installMobilePlugin(source, environment, "0.2.1")).rejects.toThrow("摘要");
   expect(vi.mocked(invoke).mock.calls.map(call => call[0])).toEqual([
     "plugin_stage",
     "plugin_cancel",
   ]);
   vi.mocked(invoke).mockReset().mockResolvedValueOnce({ artifact, sha256: source.sha256 });
-  await installMobilePlugin(source, environment, "0.2.0");
+  await installMobilePlugin(source, environment, "0.2.1");
   expect(invoke).toHaveBeenLastCalledWith("plugin_commit", {
     id: source.id,
     sha256: source.sha256,
@@ -110,7 +110,7 @@ it("安装会话失效后，迟到的暂存包不得提交", async () => {
         input: { touch: true, finePointer: false },
         capabilities: [],
       },
-      "0.2.0",
+      "0.2.1",
       controller.signal
     )
   ).rejects.toThrow();

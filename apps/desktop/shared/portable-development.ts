@@ -1,6 +1,6 @@
-import type { PortablePluginManifest } from "@tau/plugins/portable";
+import type { ReadablePortablePluginManifest } from "@tau/plugins/portable";
 export interface PortableDevelopmentArtifact {
-  manifest: PortablePluginManifest;
+  manifest: ReadablePortablePluginManifest;
   code: string;
   css?: string;
 }

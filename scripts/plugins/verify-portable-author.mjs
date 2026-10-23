@@ -20,6 +20,7 @@ const report = {
   startedAt: new Date().toISOString(),
 };
 const frozenTemplate = process.argv.includes("--frozen-template");
+const published = process.argv.includes("--published");
 
 function run(command, args, cwd) {
   return new Promise((resolve, reject) => {
@@ -44,8 +45,10 @@ function run(command, args, cwd) {
 }
 try {
   const sdk = path.join(directory, "sdk");
-  console.log("生成本地 SDK/UI tarball");
-  await run(process.execPath, ["scripts/plugins/package-sdk.mjs", sdk], root);
+  if (!published) {
+    console.log("生成本地 SDK/UI tarball");
+    await run(process.execPath, ["scripts/plugins/package-sdk.mjs", sdk], root);
+  }
   await cp(path.join(root, "scripts/plugins/template"), author, {
     recursive: true,
     filter: source => !["node_modules", "dist", ".git", ".sdk"].includes(path.basename(source)),
@@ -57,15 +60,17 @@ try {
   const uiVersion = JSON.parse(
     await readFile(path.join(root, "packages/ui/package.json"), "utf8")
   ).version;
-  await run(
-    process.execPath,
-    [
-      "use-local-sdk.mjs",
-      path.join(sdk, `xiongtao.xt-tau-plugins-${pluginVersion}.tgz`),
-      path.join(sdk, `xiongtao.xt-tau-ui-${uiVersion}.tgz`),
-    ],
-    author
-  );
+  if (!published)
+    await run(
+      process.execPath,
+      [
+        "use-local-sdk.mjs",
+        path.join(sdk, `xiongtao.xt-tau-plugins-${pluginVersion}.tgz`),
+        path.join(sdk, `xiongtao.xt-tau-ui-${uiVersion}.tgz`),
+      ],
+      author
+    );
+  report.sdkSource = published ? "npm" : "local-tarball";
   await cp(
     path.join(root, "scripts/plugins/fixtures/portable-contract-check.tsx"),
     path.join(author, "src/contract-check.tsx")
@@ -131,6 +136,22 @@ try {
   await assert.rejects(run(process.execPath, ["build.mjs"], author));
   assert.equal(await readFile(pointer, "utf8"), originalPointer);
   await writeFile(manifestPath, manifestText);
+  for (const patch of [
+    { permissions: ["cards:read"] },
+    { version: "1.0.0-beta.1" },
+    {
+      targets: {
+        ...JSON.parse(manifestText).targets,
+        ios: { ...JSON.parse(manifestText).targets.ios, optional: ["future.optional.v1"] },
+      },
+    },
+  ]) {
+    await writeFile(manifestPath, JSON.stringify({ ...JSON.parse(manifestText), ...patch }));
+    await assert.rejects(run(process.execPath, ["build.mjs"], author));
+    assert.equal(await readFile(pointer, "utf8"), originalPointer);
+  }
+  await writeFile(manifestPath, manifestText);
+  report.checks.push("未知可选能力、移动权限和预发布版本在构建时拒绝；客户端前向兼容读取");
   await assert.rejects(run(process.execPath, ["install-local.mjs"], author), /不能写入正式客户端/);
   report.checks.push(
     "Node 与宿主入口依赖被拒绝",

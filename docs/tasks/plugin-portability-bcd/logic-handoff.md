@@ -37,11 +37,11 @@ iOS 本批模拟器编译出现 BUILD SUCCEEDED；Tauri 后续归档重命名遇
 | 任务                                      | 状态     | 结果与下一步                                                                       |
 | ----------------------------------------- | -------- | ---------------------------------------------------------------------------------- |
 | Investigate/Triage/Understand the problem | COMPLETE | 已核对旧公共接口、不可变发布与原生事务；沿用现有身份和审批状态，使用独立平台投影。 |
-| /v2 与格式 3 上传审核                     | COMPLETE | 本地路由、迁移、逐平台证据、CI 待审限制和 v1 过滤已通过 API 回归；已补平台计数。   |
+| /v2 与格式 3 上传审核                     | COMPLETE | 本地路由、迁移、人工上架审核、CI 待审限制和 v1 过滤已通过 API 回归；已补平台计数。 |
 | 移动原生与数据 hooks                      | COMPLETE | 固定来源命令、中心安装复验、状态缓存、前台撤回处理及 TS hooks 已接入。             |
 | 整体验证与交接                            | COMPLETE | 原生、数据层、接口与 UI 消费回归通过；交接和发布边界已记录，D 验收继续保留。       |
 
-第二批范围：完成本地 /v2 服务端、格式 3 上传与逐平台审核、移动原生中心数据源及数据 hooks；不修改 UI 专家的页面/展示文件，不发布 npm、不部署生产服务。D 待验收保持不变。
+第二批范围：完成本地 /v2 服务端、格式 3 上传与人工上架审核、移动原生中心数据源及数据 hooks；不修改 UI 专家的页面/展示文件，不发布 npm、不部署生产服务。D 待验收保持不变。
 
 共享类型、/v2 服务端、格式 3 上传审核与移动原生数据源已在当前 worktree 实现，尚未部署。PluginManager.tsx 由 UI 专家修改展示；主任务只维护 data/、services/、宿主和原生逻辑。不得把本地实现当作生产中心已经开放。
 
@@ -53,9 +53,8 @@ iOS 本批模拟器编译出现 BUILD SUCCEEDED；Tauri 后续归档重命名遇
 - 上传预检的 usePluginReleases 已在数据层切到 v2 的全部平台版本，再投影成页面原有 ReleaseSummary 形状；不改 NewSubmissionPage/SubmissionView，也不遗漏格式 3 的最高版本。对应缓存独立为 `["plugin-center-v2", "publication-versions", pluginId]`。这是现有网页预检的补全，服务端继续执行同 ID/版本不可覆盖的规则，未新增禁止补发较低历史版本的限制。
 - versions.ts 的 previousRelease 已改为泛型，可同时处理 ReleaseSummary 与 CenterRelease。VersionDiff 中删除 previousCenterRelease 并改用共享函数由 UI 文件负责人完成，主任务未直接编辑该组件。
 - `PackageManifest` 已切换为 CenterManifest 联合类型，Upload/Submission/ReviewRecord 中的 manifest 都可为格式 3；以 formatVersion 判别，格式 3 没有顶层 minAppVersion，逐平台读取 targets。旧包仍使用原有字段。新上传只读预览可接 TargetMatrix；版本差异用两份清单各自的平台投影。
-- `ReviewRequest.platformEvidence` 与 `ReviewRecord.platformEvidence` 已定稿，类型 `PlatformReviewEvidence` 从 contracts 或 @tau/plugins/center 导入。形状为 `{ android: { verified: true, note: "设备/系统、用例与验证结果" }, ios: ... }`；必须恰好覆盖包声明的平台，note 去空白后非空、原输入最多 4000 字符，verified 必须为 true。旧包不发送该字段。要求修改/拒绝时可省略，失败证据写审核 comment。
-- 表单仍可保存 verified=false 的草稿；批准前调用 `readCenterReviewEvidence(manifest, form, true)` 获取已校验且规范化的请求值，无需自行复制验证规则或类型断言。该函数是 @tau/plugins/center 的真实导出。
-- 审核缺项/多余平台/未确认/空说明返回 400 INVALID_INPUT；修订变化或同修订更换证据重试返回 409 REVISION_CONFLICT；发布开关关闭返回 409 SUBMISSION_LOCKED；角色/登录仍为 403/401。证据绑定审核修订、包摘要和源码提交，发布重试沿用同一记录，不能补传另一套证据替换审批。界面冲突后须读取最新修订，不能沿用旧确认。
+- 用户明确取消审核者平台测试及验证记录：移除 platformEvidence 请求/回执、共享校验器、填写组件和结果展示；作者负责适配与测试，审核者只作上架决定。旧数据库列与历史值保留，新审核不写入；不要求数据库迁移。
+- 修订变化或同修订更换决定重试返回 409 REVISION_CONFLICT；发布开关关闭返回 409 SUBMISSION_LOCKED；角色/登录仍为 403/401。审核决定绑定修订、包摘要和源码提交，界面冲突后读取最新修订，不能沿用旧确认。系统后台能力审核保持独立。
 
 ## 已交付接口
 
@@ -63,7 +62,7 @@ iOS 本批模拟器编译出现 BUILD SUCCEEDED；Tauri 后续归档重命名遇
 | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | @tau/plugins/center                                  | CenterManifest（旧格式与格式 3 联合）、CenterHost、CenterTarget/CenterTargets、CenterVersion/CenterRelease、CenterReason、CenterCompatibility、CenterCatalogQuery/Page/Entry、CenterResolution、PluginCenterClient；为中心与宿主共用的 workspace 入口，不新增作者运行时 API 或 npm 发布。                                      |
 | @tau/plugins/center                                  | normalizeCenterHost/normalizeCenterQuery 规范化条件；centerManifestTargets 投影旧包为 desktop；evaluateCenterCompatibility/resolveCenterRelease 只做结构与能力判定，输入必须已经过发布状态与来源核验，不授予安装权限。                                                                                                         |
-| apps/plugin-portal/contracts/index.ts                | PackageManifest 为 CenterManifest 联合类型；上传、提交与审核均支持格式 3；ReviewRequest/ReviewRecord 增加 platformEvidence。旧格式保留原字段，v1 公共分发继续过滤格式 3。                                                                                                                                                      |
+| apps/plugin-portal/contracts/index.ts                | PackageManifest 为 CenterManifest 联合类型；上传、提交与审核均支持格式 3；ReviewRequest/ReviewRecord 不包含平台验证记录。旧格式保留原字段，v1 公共分发继续过滤格式 3。                                                                                                                                                         |
 | PortalApi.center                                     | queryCatalog、listReleases、getRelease、resolve、statuses、download；沿用真实 HTTP 错误和 Cookie，公开只读 POST 不请求 GitHub 登录/CSRF。支持 AbortSignal，不回退 v1 或 mock。                                                                                                                                                 |
 | web/src/features/catalog/center-queries.ts           | useCenterCatalog、useCenterRelease、useCenterResolution、useCenterVersions、useCenterDownload、centerKeys。缓存包含平台、完整宿主及过滤条件；UI 专家已接商店/详情，仍未部署。                                                                                                                                                  |
 | web/src/api/mock/mockApi.ts                          | createMockApi({ centerReleases }) 可显式注入 CenterRelease 测试数据；无输入时新目录为空。模拟目录不生成或下载伪 ZIP；测试样本见 tests/fixtures/plugins/center.ts，仅供测试，不导入生产页面。                                                                                                                                   |
@@ -71,7 +70,7 @@ iOS 本批模拟器编译出现 BUILD SUCCEEDED；Tauri 后续归档重命名遇
 | mobile/src/services/pluginCenter.ts                  | createMobilePluginCenterClient、readMobileCenterConfig、installMobileCenterRelease、refreshMobileCenterInstallations、MobileCenterError。请求通过原生命令；错误保留 status/code/message，不回退模拟。                                                                                                                          |
 | mobile/src/features/plugins/data/center-queries.ts   | useMobileCenterConfig、useMobileCenterCatalog、useMobileCenterRelease、useMobileCenterVersions、useMobileCenterResolution、useMobileCenterStatuses、useMobileCenterInstall。目录与 resolve 返回 {config,query}，详情/历史/状态直接返回 query；安装返回 install(pluginId,releaseId)、cancel、phase、mutation、refreshStatuses。 |
 
-CenterCompatibility 使用 status（unchecked/compatible/incompatible）、reasons、missingOptional；CenterReason 是按 code 判别的联合类型，附加字段为 minAppVersion、capabilities、formatVersion、apiVersion、profile 或 platform，不是拼接后的 detail 文案。UI 可按 code 生成本地文案，不重写业务判断。CenterTarget 的能力为 string 数组，展示不应丢弃未来能力名；本轮不改变现有运行时 portable 校验器的严格读取规则。
+CenterCompatibility 使用 status（unchecked/compatible/incompatible）、reasons、missingOptional；CenterReason 是按 code 判别的联合类型，附加字段为 minAppVersion、capabilities、formatVersion、apiVersion、profile 或 platform，不是拼接后的 detail 文案。UI 可按 code 生成本地文案，不重写业务判断。CenterTarget 的能力为 string 数组，展示不应丢弃未来能力名；客户端前向读取与作者严格校验的后续拆分见 [API 契约任务](api-contract.md)。
 
 ManagedPluginItem 提供 id/name/version、enabled（下次启动意图）、active（当前运行）、pending、editor、error、hasBackup、settings，以及 actions 的 allowed/reason。控制器返回 loading/refreshing/error、actionError、saved、operation/busy、refresh、developmentInstall、canCancelInstall；动作 actions.run(kind,id)、installDevelopment(text)、cancelInstall 均返回 Promise。UI 可以将 restore 显示为“恢复备份”，cancelPending 显示为“取消待生效更新”，但不要直接调用 service。
 
@@ -91,11 +90,11 @@ MobilePluginPackage 与 ManagedPluginItem 已提供 currentVersion/显示用 ver
 
 移动启动与回到前台会刷新已安装中心版本状态。确认撤回持久保存；离线不清除既有拦截，not_found 不当作撤回。已撤回版本停用页面并把节点写入策略设为 none，静态正文到下次会话移除，原文保留。主线程死循环仍不能抢占；这不代替 D 真机交互验收。
 
-## 后续逻辑工作（未在本批交付）
+## 剩余整体工作
 
-- UI 专家接上传/审核表单、平台计数和移动商店；本任务不代改其页面文件。
-- portable 运行时的未知可选能力前向读取、模板正式发布门禁和旧作者迁移验证。
-- 桌面正式格式 3 安装、完整三端中心联调以及 D 待验收矩阵。
+- 正式 SDK/npm 与外部模板发行输入和发布授权；当前只更新本地模板及作者文档，不开放发布工作流。
+- 桌面正式格式 3 中心安装、真实旧作者的跨格式迁移和完整三端生产发行验收。
+- 按支持矩阵补充有实际需求的移动业务宿主；D 原待验收矩阵继续保留。UI、移动模拟器与本地 API 契约各批已交付项见下文及 API 契约任务。
 
 ## 首批验证记录
 
@@ -127,6 +126,8 @@ MobilePluginPackage 与 ManagedPluginItem 已提供 currentVersion/显示用 ver
 - 保留 D 原有五项待验收，不发布 npm，不把 simulator .app 成功标成 IPA 归档成功。
 
 ## 本批发布结果与下一步
+
+后续 API 支持矩阵、前向兼容读取与统一模板文档的本地收尾见 [API 契约任务](api-contract.md)；该批不更改下述生产发布快照，npm 和生产开关仍保持原状态。
 
 2026-10-23 按授权顺序完成：私有备份 → D1 0012 → Worker → 网页。132 条历史发布全部投影为 desktop，缺失投影和外键异常均为 0；备份在内存 SQLite 恢复成功，权限 600。生产版本、备份路径及回退步骤的权威记录见 [门户运维手册](/apps/plugin-portal/infra/运维手册.md)。
 

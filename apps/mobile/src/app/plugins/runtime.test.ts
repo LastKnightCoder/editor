@@ -44,7 +44,7 @@ it.each(["android", "ios"] as const)(
       {
         push,
       },
-      "0.2.0"
+      "0.2.1"
     );
     try {
       await runtime.start(
@@ -70,6 +70,15 @@ it.each(["android", "ios"] as const)(
       expect(mobileMarkdown.getMarkdown(nodes)).toContain("C D E F |");
       await entry.context.storage.set("count", 3);
       expect(await entry.context.storage.get("count")).toBe(3);
+      await expect(entry.context.fetch("https://example.invalid")).rejects.toThrow("不支持 fetch");
+      expect(() =>
+        entry.context.settings.register({
+          id: "domain",
+          title: "领域设置",
+          target: "sync",
+          component: () => null,
+        })
+      ).toThrow("领域设置");
       await runtime.dispose();
       await expect(entry.definition.page.open()).rejects.toThrow();
       expect(runtime.entries.size).toBe(0);
@@ -92,7 +101,7 @@ it("render 不提供插入入口，none 保留未知节点；重新装配相同 
       {
         push: vi.fn(),
       },
-      "0.2.0"
+      "0.2.1"
     );
     const artifact = {
       ...abc,
@@ -135,7 +144,7 @@ it("激活尚未成功时不能打开页面，失败不留下导航副作用", a
     createMemoryStorage(),
     "A",
     { push },
-    "0.2.0"
+    "0.2.1"
   );
   try {
     await runtime.start(
@@ -158,7 +167,7 @@ it("中心撤回立即阻止节点写入并停用页面，保留静态正文到�
     createMemoryStorage(),
     "A",
     { push: vi.fn() },
-    "0.2.0"
+    "0.2.1"
   );
   try {
     await runtime.start(

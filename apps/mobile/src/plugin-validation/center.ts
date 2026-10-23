@@ -124,7 +124,7 @@ export async function validateMobileCenter(
         const card = await row(id);
         if (!card.textContent?.includes(`v${version} 将在下次打开应用时生效`))
           throw new Error("待生效版本展示缺失");
-        await click("启用", card);
+        if (!(await item(id))?.enabled) await click("启用", card);
         await until(async () => (await item(id))?.enabled, "启用意图");
       }
       checks.push("本机平台商店、详情、权限确认、中心安装、真实待生效版本与启用意图");

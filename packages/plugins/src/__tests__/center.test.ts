@@ -4,7 +4,6 @@ import {
   centerManifestTargets,
   evaluateCenterCompatibility,
   normalizeCenterQuery,
-  readCenterReviewEvidence,
   describeCenterPermissions,
   resolveCenterRelease,
 } from "../center";
@@ -21,21 +20,6 @@ describe("平台感知分发契约", () => {
       { permission: "cards:write", label: "新增和修改卡片", newlyRequested: true },
       { permission: "future:read", label: "future:read", newlyRequested: true },
     ]);
-  });
-  it("审核证据覆盖全部声明平台并规范化说明，未确认或多余平台拒绝", () => {
-    const manifest = centerRelease().content.manifest;
-    expect(
-      readCenterReviewEvidence(manifest, { android: { verified: true, note: " 已验收 " } }, true)
-    ).toEqual({ android: { verified: true, note: "已验收" } });
-    for (const value of [
-      undefined,
-      {},
-      { android: { verified: false, note: "待验收" } },
-      { android: true },
-      { ios: { verified: true, note: "平台错误" } },
-    ])
-      expect(() => readCenterReviewEvidence(manifest, value, true)).toThrow();
-    expect(readCenterReviewEvidence(manifest, undefined, false)).toBeNull();
   });
   it("无真实宿主时明确未检查，不把浏览平台当作可安装", () => {
     expect(evaluateCenterCompatibility(centerRelease())).toEqual({

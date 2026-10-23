@@ -10,6 +10,7 @@ import { portableFixtures } from "../../../../../tests/fixtures/plugins/portable
 import { centerHost } from "../../../../../tests/fixtures/plugins/center";
 import { refreshMobileCenterInstallations } from "../pluginCenter";
 import { readMobilePlugins } from "../plugins";
+import type { ReadablePortablePluginManifest } from "@tau/plugins/portable";
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 afterEach(() => {
   vi.resetAllMocks();
@@ -88,7 +89,7 @@ it("安装校验审核清单与摘要后才走中心提交，不走开发提交"
     host: {
       ...centerHost,
       platform: "ios",
-      appVersion: "0.2.0",
+      appVersion: "0.2.1",
       capabilities: ["commands.v1", "pages.v1", "navigation.v1", "storage.v1"],
     },
     installationEnabled: true,
@@ -153,4 +154,56 @@ it("生产门禁和安装中取消均不会发起提交", async () => {
     "plugin_center_stage",
     "plugin_cancel",
   ]);
+});
+
+it("未知 optional 可以安装且原样对账，未知 required 或被篡改的能力声明不得提交", async () => {
+  vi.stubGlobal("crypto", webcrypto);
+  const [base] = await portableFixtures();
+  const manifest: ReadablePortablePluginManifest = {
+    ...base.manifest,
+    targets: { ios: { minAppVersion: "0.2.0", required: ["pages.v1"], optional: ["future.v2"] } },
+  };
+  const artifact = { ...base, manifest };
+  const target = manifest.targets.ios;
+  if (!target) throw new Error("测试清单缺少 iOS 目标");
+  const release = {
+    releaseId: "future-release",
+    pluginId: manifest.id,
+    sha256: "a".repeat(64),
+    content: { manifest },
+  };
+  vi.mocked(invoke).mockImplementation(async command =>
+    command === "plugin_center_config"
+      ? {
+          origin: "https://example.invalid",
+          installationEnabled: true,
+          host: { ...centerHost, platform: "ios", appVersion: "0.2.0", capabilities: ["pages.v1"] },
+        }
+      : command === "plugin_center_stage"
+        ? { artifact, release, sha256: release.sha256 }
+        : undefined
+  );
+  await installMobileCenterRelease(manifest.id, release.releaseId);
+  expect(invoke).toHaveBeenLastCalledWith("plugin_center_commit", {
+    pluginId: manifest.id,
+    releaseId: release.releaseId,
+    sha256: release.sha256,
+  });
+  vi.mocked(invoke).mockClear();
+  release.content.manifest = {
+    ...manifest,
+    targets: { ios: { ...target, optional: ["other.v1"] } },
+  };
+  await expect(installMobileCenterRelease(manifest.id, release.releaseId)).rejects.toThrow("清单");
+  expect(invoke).toHaveBeenLastCalledWith("plugin_cancel", { id: manifest.id });
+  artifact.manifest = {
+    ...manifest,
+    targets: { ios: { ...target, required: ["future.v2"], optional: [] } },
+  };
+  release.content.manifest = artifact.manifest;
+  vi.mocked(invoke).mockClear();
+  await expect(installMobileCenterRelease(manifest.id, release.releaseId)).rejects.toThrow(
+    "必需能力"
+  );
+  expect(vi.mocked(invoke).mock.calls.map(call => call[0])).not.toContain("plugin_center_commit");
 });

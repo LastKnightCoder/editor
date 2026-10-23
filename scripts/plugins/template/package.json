@@ -1,6 +1,6 @@
 {
   "name": "tau-external-counter",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -14,8 +14,8 @@
     "install:local": "node install-local.mjs"
   },
   "dependencies": {
-    "@tau/plugins": "file:.sdk/plugins.tgz",
-    "@tau/ui": "file:.sdk/ui.tgz",
+    "@tau/plugins": "npm:@xiongtao.xt/tau-plugins@0.36.0",
+    "@tau/ui": "npm:@xiongtao.xt/tau-ui@0.4.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "@tanstack/react-query": "5.90.16"

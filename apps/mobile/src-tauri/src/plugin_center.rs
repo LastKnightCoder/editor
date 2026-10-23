@@ -86,15 +86,29 @@ fn platform() -> &'static str {
         "unknown"
     }
 }
+pub(crate) fn installation_enabled() -> bool {
+    cfg!(any(target_os = "android", target_os = "ios"))
+}
+pub(crate) fn trusted_source(source: &Value) -> bool {
+    let Ok(origin) = center_origin() else {
+        return false;
+    };
+    let origin = origin.origin().ascii_serialization();
+    let Some(release) = source["center"]["releaseId"].as_str() else {
+        return false;
+    };
+    identifier(release).is_ok()
+        && source["center"]["origin"] == origin
+        && source["url"] == format!("{origin}/v2/releases/{release}/download")
+}
 fn host(platform: &str, version: &str) -> Value {
     json!({"platform":platform,"appVersion":version,"apiVersions":[1],"formatVersions":[3],"profiles":["web-v1"],"capabilities":CAPABILITIES})
 }
 #[tauri::command]
 pub fn plugin_center_config(app: AppHandle) -> Result<Value, CenterError> {
-    let browsing_enabled =
-        cfg!(debug_assertions) || option_env!("TAU_PLUGIN_CENTER_BROWSING") == Some("true");
+    let browsing_enabled = cfg!(debug_assertions) || installation_enabled();
     Ok(
-        json!({"origin":center_origin()?.origin().ascii_serialization(),"host":if platform()=="unknown" { Value::Null } else {host(platform(),&app.package_info().version.to_string())},"browsingEnabled":browsing_enabled,"installationEnabled":cfg!(debug_assertions) && platform()!="unknown"}),
+        json!({"origin":center_origin()?.origin().ascii_serialization(),"host":if platform()=="unknown" { Value::Null } else {host(platform(),&app.package_info().version.to_string())},"browsingEnabled":browsing_enabled,"installationEnabled":installation_enabled()}),
     )
 }
 
@@ -372,11 +386,11 @@ pub async fn plugin_center_stage(
     plugin_id: String,
     release_id: String,
 ) -> Result<Value, CenterError> {
-    if !cfg!(debug_assertions) {
+    if !installation_enabled() {
         return Err(error(
             403,
             "DISTRIBUTION_UNAVAILABLE",
-            "生产构建未开放跨端插件安装",
+            "当前平台不支持移动插件中心安装",
         ));
     }
     let origin = center_origin()?;
@@ -406,11 +420,11 @@ pub async fn plugin_center_commit(
     release_id: String,
     sha256: String,
 ) -> Result<(), CenterError> {
-    if !cfg!(debug_assertions) {
+    if !installation_enabled() {
         return Err(error(
             403,
             "DISTRIBUTION_UNAVAILABLE",
-            "生产构建未开放跨端插件安装",
+            "当前平台不支持移动插件中心安装",
         ));
     }
     let origin = center_origin()?;
@@ -495,6 +509,16 @@ pub async fn plugin_center_refresh(app: AppHandle) -> Result<Value, CenterError>
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn stored_center_source_requires_exact_origin_and_release_url() {
+        let mut source = json!({"url":format!("{ORIGIN}/v2/releases/release-1/download"),"center":{"origin":ORIGIN,"releaseId":"release-1"}});
+        assert!(trusted_source(&source));
+        source["url"] = json!("https://evil.example/package.zip");
+        assert!(!trusted_source(&source));
+        source["url"] = json!(format!("{ORIGIN}/v2/releases/release-2/download"));
+        assert!(!trusted_source(&source));
+        assert!(!trusted_source(&json!({"center":null})));
+    }
     #[test]
     fn rejects_remote_http_and_credentials() {
         for value in [

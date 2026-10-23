@@ -141,7 +141,7 @@ export function usePluginManager() {
   );
   const blockedReason = () => {
     const value = current.current.query;
-    if (!value.data?.development) return "生产构建未开放插件管理操作";
+    if (!(value.data?.managementEnabled ?? value.data?.development)) return "当前构建未开放插件管理操作";
     if (value.isError || value.isPending) return "请先刷新插件清单";
     return null;
   };
@@ -163,6 +163,8 @@ export function usePluginManager() {
       const blocked = blockedReason();
       if (blocked) throw new Error(blocked);
       if (command.kind === "installDevelopment") {
+        if (!import.meta.env.DEV || !current.current.query.data?.development)
+          throw new Error("正式构建不允许任意开发来源安装");
         if (!runtime) throw new Error("插件宿主未就绪");
         const source = readDevelopmentPluginSource(command.source);
         const controller = new AbortController();
@@ -234,7 +236,7 @@ export function usePluginManager() {
   }
   const blocked = blockedReason() || (operation ? "已有插件操作正在进行" : null);
   return {
-    managementEnabled: query.data?.development === true,
+    managementEnabled: (query.data?.managementEnabled ?? query.data?.development) === true,
     items:
       query.data?.packages.map(item => ({
         ...projectManagedPlugin(item, runtime, blocked),
@@ -250,7 +252,7 @@ export function usePluginManager() {
     operation,
     busy: !!operation,
     refresh: query.refetch,
-    developmentInstall: permission(blocked || (!runtime?.isAvailable ? "插件宿主未就绪" : null)),
+    developmentInstall: permission(blocked || (!import.meta.env.DEV || !query.data?.development ? "正式构建不允许任意开发来源安装" : null) || (!runtime?.isAvailable ? "插件宿主未就绪" : null)),
     canCancelInstall:
       operationRuntime.current === runtime &&
       operation?.kind === "installDevelopment" &&
