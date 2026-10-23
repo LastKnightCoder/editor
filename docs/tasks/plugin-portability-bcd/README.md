@@ -39,7 +39,7 @@
 
 24 个子仓库的固定提交、远端检出验证和三个 CI 的恢复结果见 [子模块接入](submodules.md)。
 
-SDK 0.37.0 已发布，正式 npm 构建和三个 CI 均通过，见 [SDK 0.37.0 发行](sdk-037-release.md)；插件或 APP 未发行，D 保留。
+SDK 0.37.0 已发布，正式 npm 构建和三个 CI 均通过，见 [SDK 0.37.0 发行](sdk-037-release.md)。随后 24 个官方包、Worker 与 Pages 已上线，桌面 macOS / Android 正式包已生成；用户接手剩余交互测试，交付与未验收项见 [正式安装闭环](production-closeout.md)，D 保留。
 
 远端 master 移动适配的合并范围、冲突处理和回归见 [主线集成](master-sync.md)。
 

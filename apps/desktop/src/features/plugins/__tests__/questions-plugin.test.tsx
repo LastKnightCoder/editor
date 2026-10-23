@@ -6,6 +6,7 @@ import { pluginArtifact } from "../../../test-fixtures/plugin-packages";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createMemoryStorage } from "@tau/plugins/host";
 import { DesktopPluginRuntime } from "@/app/plugins/runtime";
+import { desktopPluginEnvironment } from "@/app/plugins/environment";
 import { registerPluginPackage } from "@/app/plugins/package-loader";
 import { sharedPluginModules } from "@/app/plugins/shared-modules";
 import { createDesktopData } from "@/app/plugins/data";
@@ -44,6 +45,7 @@ describe("问题管理插件", () => {
   it("发布包能在桌面运行时启用，问题页已注册", async () => {
     const runtime = new DesktopPluginRuntime({
       workspaceId: "w",
+      environmentSource: desktopPluginEnvironment,
       storage: createMemoryStorage(),
       navigator: { push: vi.fn() },
       plugins: [],
