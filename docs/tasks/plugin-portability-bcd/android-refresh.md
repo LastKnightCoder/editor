@@ -11,12 +11,12 @@
 
 ## 任务列表
 
-| 任务                                      | 状态        | 结果与下一步                                                                                                     |
-| ----------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------- |
-| Investigate/Triage/Understand the problem | COMPLETE    | Android 0.2.2 已构建并沿用原签名；ABC 0.1.5 仅桌面。桌面缺口覆盖 v2 目录、包读取/事务、延迟激活和正文启动快照。  |
-| 桌面正式格式 3 与 ABC 统一包              | COMPLETE    | 桌面 0.59.1 接入复用现有事务与内容进程；ABC 同一 ZIP 声明 desktop/android，Android 专用候选未发布。              |
-| 回归与正式分发                            | IN_PROGRESS | 同包实际求值、正式 IPC/来源、安装更新恢复、类型及桌面构建通过；准备 Worker 开放 desktop 分发并经原 CI 发布 ABC。 |
-| Android 正式包模拟器验收与交付            | PENDING     | 覆盖生产下载安装、计数、ABC 插入/编辑/重启，记录摘要并提交文档。                                                 |
+| 任务                                      | 状态     | 结果与下一步                                                                                                    |
+| ----------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------- |
+| Investigate/Triage/Understand the problem | COMPLETE | Android 0.2.2 已构建并沿用原签名；ABC 0.1.5 仅桌面。桌面缺口覆盖 v2 目录、包读取/事务、延迟激活和正文启动快照。 |
+| 桌面正式格式 3 与 ABC 统一包              | COMPLETE | 桌面 0.59.1 接入复用现有事务与内容进程；ABC 同一 ZIP 声明 desktop/android，Android 专用候选未发布。             |
+| 回归与正式分发                            | COMPLETE | Worker 已开放 desktop/android；ABC 经原 CI 自动批准发布，两端选中相同 releaseId、ZIP 与摘要。                   |
+| Android 正式包模拟器验收与交付            | COMPLETE | 最终 APK 在干净应用数据中完成两包生产下载安装、计数保存、ABC 快速输入/保存/取消及强停重启保真。                 |
 
 ## 接入方案
 
@@ -27,10 +27,16 @@
 
 ## 验证与退出条件
 
-- Android 0.2.2 / versionCode 2002 已正式签名构建并覆盖安装到专用 Tau_Plugin_Spike 模拟器；签名证书沿用 9fb5a0fb191e9a99b1d0badca9caf619e731c4b84be1cc52df8f129a320048fe。APK SHA-256 为 8ec3d5f05a552a7bb0eac42c05cc74c325af04f4386c3041905af32e11373e03，文件 output/android-refresh/Tau-0.2.2-android-arm64.apk。
-- ABC 官方仓库分支 codex/portable-0.1.6、提交 cd8fb57 已推送；同一源码兼容两个 target，JS/CSS 渲染实现不分叉。独立仓库类型/构建、9 项测试及冻结依赖安装通过；本地统一 ZIP 通过正式中心 inspectPackage，SHA-256 为 98b9ff1e471651642062726f012db15449d24c0091c74f30b9c70ef5b17406bb。CI 重新构建后以实际发布包为最终设备验证对象，ZIP 时间戳可能不同，需复核清单与 JS/CSS 摘要。
-- 桌面相关整体 142 项回归通过；新增来源/事务与正常 IPC、真实统一 ABC 包的求值和 codec 另行通过。74 项安装/目录/页面回归通过；源码由 readDesktopPluginManifest 保留格式 3，未绕过旧解析器。完整桌面 Vite 构建及类型检查通过，未生成桌面原生安装包。
-- 生产预检仍为 Worker 1df4ef9b，无待迁移项目。D1 发布前备份 ~/.local/share/tau/plugin-portal/backups/2026-10-23T03-23-25-437Z.sql；本轮只需更新平台分发配置，不改数据库 schema 或门户 UI。
-- 统一模板最低桌面版本改为 0.59.1；支持矩阵与作者指南同步。npm 0.36.0/0.4.0 不重发，iOS 分发继续关闭。
+- 首个 Android 0.2.2 候选在真实键盘输入 ABC 时暴露宿主问题：源码浮层位于 Slate 正文内部，输入/按键冒泡触发外层编辑。该候选 8ec3d5… 不交付，保留为 output/android-refresh/candidate-before-input-fix.apk。新增回归确认旧实现失败；修复后移到自有 Portal 容器并隔离输入，同时验证 Activity 隐藏回收和草稿取消，源码组件 8 项通过，重新构建正式候选进行设备复验。ABC 包无需另发版本。
+- 后续快速输入复测发现 CodeMirror 移动 contenteditable 的 DOM 回读延迟窗口会在紧接回车时漏末字，改用命令前同步读取的 textarea 通道；桌面默认原本也是该通道。第二候选 e820ad… 留作复现，最终候选 0f8a11b562cb94e881478ff3e6b3ae3f0f4b397432d0b50ceab43987f8c2ed0f 重新走干净模拟器安装与完整流程。仅清理本任务专用 AVD 的 com.txiong.tau_mobile 测试数据。
 
-记录确切 APK 与插件版本、摘要、设备、行为结果和限制，完成后提交相关改动与文档并交付新 APK。任务记录随父任务 D 收尾。
+- 最终交付 Android 0.2.2 / versionCode 2002，61,949,731 字节、arm64、不可调试的 release APK；签名证书沿用 9fb5a0fb191e9a99b1d0badca9caf619e731c4b84be1cc52df8f129a320048fe。SHA-256 为 0f8a11b562cb94e881478ff3e6b3ae3f0f4b397432d0b50ceab43987f8c2ed0f，文件 output/android-refresh/Tau-0.2.2-android-arm64.apk。主实现提交 b173a5c89，源码输入修复提交 258b8ecb1。
+- ABC 官方源码 cd8fb57 打 tag v0.1.6，经 run 39895307673 成功发布，回执 autoApproved=true；main 已同步，并在 8415cc8 修正文档适用版本。同一 ZIP 为 159559 字节、SHA-256 297b7b84e2e982195f4bdad3f1ed2e03f5ec25b8e837aeafbd48c66a4423ede0，releaseId 634aaccb-213d-4969-a02d-162ab7faf541。独立仓库 9 项测试、类型/构建和冻结安装通过；CI 包清单及 JS/CSS 摘要与本地验收输入完全一致，ZIP 时间戳差异仅改变归档摘要。最终设备与桌面求值均使用真实已发布包。
+- 桌面相关整体 142 项回归通过；新增来源/事务与正常 IPC、真实统一 ABC 包的求值和 codec 另行通过。74 项安装/目录/页面回归通过；源码由 readDesktopPluginManifest 保留格式 3，未绕过旧解析器。完整桌面 Vite 构建及类型检查通过，未生成桌面原生安装包。
+- Worker 10c6daaf-4e52-4a9c-94fb-d946e518780d 已发布，desktop/android 分发开放，Pages 保持 23d4145d。发布前 D1 备份 2026-10-23T03-23-25-437Z.sql，恢复/外键检查通过，无待迁移项目；API 101、网页 96 项及线上 smoke 通过。旧桌面 0.59.0 仍选中 ABC 0.1.5，新桌面 0.59.1 与 Android 0.2.2 都选中同一 0.1.6，Android 0.2.1 被最低版本拦截，iOS 返回分发未开放。
+- 统一模板 main 已更新至 573b967，最低桌面版本 0.59.1；支持矩阵与作者指南同步。npm 0.36.0/0.4.0 不重发，iOS 分发继续关闭。
+- 最终原生行为：从干净应用数据下载计数器 1.1.0 与 ABC 0.1.6，校验后重启激活；计数从 0 保存为 1；新插入面板搜索 abc 并插入乐谱；连续注入六行源码并逐行立即回车，末字 F 保留，外层正文 ABC final validation 不变；保存后另改草稿 NOT_SAVED 并取消，真正强停/重启后六行源码原样恢复且不含取消草稿，计数仍为 1。卡片默认阅读态、点击编辑后可再次进入源码。
+- 最终移动全量 708 项、源码组件 8 项、移动/桌面类型与构建通过，ESLint 无错误（存量测试警告保留）。行为证据与最终文件核对在 output/android-refresh/android-final-result.json，相关 XML 与 published-abc.json 同目录。
+- 单列限制：真机、最低系统/WebView、中文输入法和视觉未验收；模拟器打开卡片时出现 COLLAB_NETWORK（协作设备注册网络失败），本地编辑与持久化正常，云协作不计入通过项。iOS 等签名，桌面本轮只完成接入代码/集成/构建，未发行原生安装包；格式 3 Skill/博客分发仍未接入。D 不关闭。
+
+本轮交付范围已完成；下一步为用户安装最终 APK 做真机与视觉验收，签名就绪后接续 iOS，云协作问题独立复验。任务记录随父任务 D 收尾。
