@@ -39,8 +39,8 @@ function baseSetting(): SettingCompat {
     database: { active: "data.db", databases: [] },
     imageBed: {
       active: "github",
-      enableCompression: false,
-      github: { repo: "", branch: "", cdn: null, pathPrefix: "" },
+      compressImages: true,
+      github: { repo: "", branch: "", pathPrefix: "" },
       aliOSS: { bucket: "", region: "", pathPrefix: "" },
       local: { path: "resources" },
       s3: { bucket: "", region: "", pathPrefix: "" },

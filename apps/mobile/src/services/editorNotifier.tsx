@@ -9,6 +9,8 @@ import type { EditorConfirmOptions, EditorNotifier, EditorPromptOptions } from "
 import { BottomSheet } from "../components/BottomSheet";
 import { MobileConfirmDialog } from "../components/MobileConfirmDialog";
 import { toast } from "../components/toast";
+import { getNavigator } from "../router";
+import { takeRecentUploadFailure } from "./uploadOutcome";
 
 interface PendingRequestState<TOptions, TResult> {
   pending: (TOptions & { resolve: (result: TResult) => void }) | null;
@@ -60,9 +62,27 @@ export const useEditorPromptStore = createPendingRequestStore<EditorPromptOption
 const LOADING_DURATION = 60_000;
 let loadingSeq = 0;
 
+/** 编辑器只报一句「上传失败」：紧随上传失败的提示补上原因，并给出去「图片与附件」的入口 */
+function notifyError(message: string) {
+  const failure = takeRecentUploadFailure();
+  if (!failure) {
+    toast.error(message);
+    return;
+  }
+  toast({
+    type: "error",
+    text: `图片没传上去：${failure.message}`,
+    duration: 6000,
+    action: {
+      label: "去设置",
+      onClick: () => getNavigator().push("settingsModule", { module: "resource" }),
+    },
+  });
+}
+
 export const mobileEditorNotifier: EditorNotifier = {
   success: message => void toast.success(message),
-  error: message => void toast.error(message),
+  error: notifyError,
   warning: message => void toast.warning(message),
   loading: message => {
     const id = `editor-loading-${++loadingSeq}`;

@@ -1,4 +1,5 @@
-// 数据库同步中心：状态卡回答「同步了没」，拇指区一个主按钮，服务 / 数据库 / 整库覆盖下沉为普通行。
+// 同步中心：状态卡回答「数据库同步了没」，拇指区一个主按钮（同步数据库后顺带同步资源文件），
+// 服务 / 数据库 / 资源文件 / 整库覆盖下沉为普通行。资源文件跟随同一个同步服务。
 
 import { useEffect, useState } from "react";
 import {
@@ -9,18 +10,27 @@ import {
   CloudOff,
   CloudUpload,
   Database,
-  LoaderCircle,
+  Image as ImageIcon,
   RefreshCw,
   ShieldAlert,
 } from "lucide-react";
-import type { SettingCompat, SyncActionResponse, SyncVersionResponse } from "../../../types";
+import type {
+  ResourceSyncActionResponse,
+  ResourceSyncProgress,
+  ResourceSyncStatusFile,
+  SettingCompat,
+  SyncActionResponse,
+  SyncVersionResponse,
+} from "../../../types";
 import { GroupLabel } from "../../../components/GroupLabel";
 import { toast } from "../../../components/toast";
 import { useNavigator, usePageLifecycle } from "../../../router";
 import type { SettingModuleKey } from "../components/types";
 import { GroupCard, GroupRow, LetterTile } from "../components/ui";
+import { ActionButton } from "../storage/fields";
 import { SYNC_PROVIDERS, findSyncProvider } from "./providers";
 import { SyncProviderSheet } from "./SyncProviderSheet";
+import { countResources, resourceBadge } from "./resourceState";
 import { resolveSyncErrorMessage } from "./syncErrors";
 import {
   deriveSyncHero,
@@ -38,8 +48,18 @@ export type SyncCenterProps = {
   onCheckVersions: () => Promise<SyncVersionResponse>;
   onSyncUpload: () => Promise<SyncActionResponse>;
   onSyncDownload: () => Promise<SyncActionResponse>;
+  resourceProgress: ResourceSyncProgress | null;
+  resourceStatusFile: ResourceSyncStatusFile | null;
+  onResourceSyncRefresh: () => Promise<void>;
+  onResourceSyncStart: () => Promise<ResourceSyncActionResponse>;
   onOpenModule: (module: SettingModuleKey) => void;
 };
+
+const BADGE_TONE = {
+  info: "bg-info-soft text-info",
+  warn: "bg-warn-soft text-warn",
+  danger: "bg-danger-soft text-danger",
+} as const;
 
 const ORB_TONE: Record<SyncTone, string> = {
   ok: "bg-ok-soft text-ok",
@@ -95,30 +115,6 @@ function SyncHero(props: {
   );
 }
 
-function ActionButton(props: {
-  label: string;
-  emphasis: boolean;
-  busy: boolean;
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={props.onClick}
-      disabled={props.disabled}
-      className={`flex h-12 flex-1 items-center justify-center gap-2 rounded-[14px] text-[15px] font-semibold transition-transform active:scale-[0.98] disabled:opacity-50 ${
-        props.emphasis
-          ? "bg-accent text-ink-inverse shadow-lift"
-          : "bg-surface text-ink-1 shadow-card"
-      }`}
-    >
-      {props.busy && <LoaderCircle size={17} className="animate-spin" aria-hidden="true" />}
-      {props.label}
-    </button>
-  );
-}
-
 /** 当前服务未配置：直接给服务选择，而不是一张空状态卡 */
 function FirstRunView(props: { setting: SettingCompat; onOpenProvider: (id: string) => void }) {
   return (
@@ -166,6 +162,8 @@ export function SyncCenterSection(props: SyncCenterProps) {
   const check = async (options?: { silent?: boolean }) => {
     if (!configured || busy) return;
     setChecking(true);
+    // 资源账本与数据库版本并行刷新；资源侧失败只影响那一行的徽标，不打断数据库检查
+    void props.onResourceSyncRefresh().catch(() => undefined);
     try {
       await props.onCheckVersions();
       setErrorMessage(null);
@@ -208,6 +206,8 @@ export function SyncCenterSection(props: SyncCenterProps) {
         direction === "upload" ? await props.onSyncUpload() : await props.onSyncDownload();
       setErrorMessage(null);
       toast.success(result.message || (direction === "upload" ? "上传完成" : "下载完成"));
+      // 数据库完成后顺带同步资源文件；它在后台跑，失败会体现在「资源文件」行上
+      void props.onResourceSyncStart().catch(() => undefined);
     } catch (error) {
       const message = resolveSyncErrorMessage(error, "同步失败");
       setErrorMessage(message);
@@ -236,6 +236,8 @@ export function SyncCenterSection(props: SyncCenterProps) {
   const databaseName = props.versions?.databaseName ?? props.activeDatabase;
   const lastSyncTime = databaseName ? readLastSyncTime(databaseName) : null;
   const lastSyncText = lastSyncTime ? formatRelativeTime(lastSyncTime, Date.now()) : null;
+  const resourceCounts = countResources(props.resourceStatusFile);
+  const badge = resourceBadge(props.resourceProgress, resourceCounts);
 
   return (
     <div className="page-enter space-y-1">
@@ -274,7 +276,7 @@ export function SyncCenterSection(props: SyncCenterProps) {
         </GroupRow>
       </GroupCard>
 
-      <GroupLabel>更多</GroupLabel>
+      <GroupLabel>内容</GroupLabel>
       <GroupCard>
         <GroupRow onClick={() => props.onOpenModule("databases")} disabled={syncing}>
           <span className="bg-tag-3-soft text-tag-3 grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl">
@@ -286,6 +288,29 @@ export function SyncCenterSection(props: SyncCenterProps) {
           </span>
           <ChevronRight size={16} className="text-ink-3" aria-hidden="true" />
         </GroupRow>
+        <GroupRow onClick={() => props.onOpenModule("sync-status-resource")}>
+          <span className="bg-tag-4-soft text-tag-4 grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl">
+            <ImageIcon size={17} strokeWidth={1.9} aria-hidden="true" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="text-ink-1 block text-[14.5px] font-medium">资源文件</span>
+            <span className="text-ink-3 block truncate text-[11.5px]">
+              {resourceCounts.total > 0 ? `${resourceCounts.total} 个` : "图片与附件"}
+            </span>
+          </span>
+          {badge && (
+            <span
+              className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${BADGE_TONE[badge.tone]}`}
+            >
+              {badge.text}
+            </span>
+          )}
+          <ChevronRight size={16} className="text-ink-3" aria-hidden="true" />
+        </GroupRow>
+      </GroupCard>
+
+      <GroupLabel>更多</GroupLabel>
+      <GroupCard>
         <GroupRow onClick={() => props.onOpenModule("sync-overwrite")} disabled={syncing}>
           <span className="bg-tag-5-soft text-tag-5 grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl">
             <ShieldAlert size={17} strokeWidth={1.9} aria-hidden="true" />

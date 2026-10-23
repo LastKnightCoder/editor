@@ -1,7 +1,8 @@
 use std::fs;
 use std::future::Future;
+use std::io::Cursor;
 use std::path::Path;
-use std::time::SystemTime;
+use std::time::{Duration, Instant, SystemTime};
 
 use aws_sdk_s3::config::{Credentials as S3Credentials, Region as S3Region};
 use aws_sdk_s3::primitives::ByteStream;
@@ -9,7 +10,7 @@ use aws_sdk_s3::Client as S3Client;
 use base64::Engine;
 use hmac::{Hmac, Mac};
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha1::Sha1;
 use tauri::AppHandle;
@@ -332,9 +333,9 @@ fn try_compress_to_webp(file_name: &str, bytes: &[u8]) -> Result<ProcessedUpload
     })
 }
 
-fn parse_resource_provider(setting: &Value) -> Result<ResourceProvider, AppError> {
-    let active = as_string(setting.pointer("/imageBed/active"));
-    match active.as_str() {
+/// 按指定上传服务解析配置；`active` 通常取 imageBed.active，测试上传时传入待测服务
+fn parse_resource_provider(setting: &Value, active: &str) -> Result<ResourceProvider, AppError> {
+    match active {
         "local" => Ok(ResourceProvider::Local(LocalConfig {
             path: sanitize_local_path(&as_string(setting.pointer("/imageBed/local/path"))),
         })),
@@ -499,18 +500,45 @@ fn upload_to_local(
     Ok(format!("~/.editor/{local_path}/{object_name}"))
 }
 
+fn github_contents_url(config: &GithubConfig, content_path: &str) -> String {
+    format!(
+        "https://api.github.com/repos/{}/{}/contents/{}",
+        config.owner,
+        config.repo,
+        encode_path_keep_slashes(content_path)
+    )
+}
+
+/// 读取已存在文件的 sha：Contents API 覆盖同名文件必须带上它，文件不存在时返回 None
+async fn fetch_github_sha(config: &GithubConfig, object_name: &str) -> Option<String> {
+    let content_path = join_path(&config.path_prefix, object_name);
+    let response = reqwest::Client::new()
+        .get(github_contents_url(config, &content_path))
+        .query(&[("ref", config.branch.as_str())])
+        .header("Authorization", format!("token {}", config.token))
+        .header("User-Agent", "tau-mobile")
+        .header("Accept", "application/vnd.github+json")
+        .timeout(Duration::from_secs(12))
+        .send()
+        .await
+        .ok()?;
+    if !response.status().is_success() {
+        return None;
+    }
+    let parsed = response.json::<Value>().await.ok()?;
+    let sha = as_string(parsed.get("sha"));
+    (!sha.is_empty()).then_some(sha)
+}
+
 async fn upload_to_github(
     config: &GithubConfig,
     object_name: &str,
     file: &ProcessedUploadFile,
+    existing_sha: Option<String>,
 ) -> Result<String, AppError> {
     let content_path = join_path(&config.path_prefix, object_name);
-    let encoded_path = encode_path_keep_slashes(&content_path);
-    let url = format!(
-        "https://api.github.com/repos/{}/{}/contents/{}",
-        config.owner, config.repo, encoded_path
-    );
-    let body = json!({
+    let url = github_contents_url(config, &content_path);
+    let mut body = json!({
         "message": format!("upload resource {}", file.file_name),
         "content": base64::engine::general_purpose::STANDARD.encode(&file.bytes),
         "branch": config.branch,
@@ -519,6 +547,9 @@ async fn upload_to_github(
             "email": config.committer_email
         }
     });
+    if let Some(sha) = existing_sha {
+        body["sha"] = Value::String(sha);
+    }
     let client = reqwest::Client::new();
     let raw_text = run_resource_policy(
         "github",
@@ -941,7 +972,7 @@ pub async fn upload_resource(
     payload: UploadResourcePayload,
 ) -> Result<String, String> {
     // Android 的 raw IPC 会把二进制包装成逐字节的 JSON 对象（tauri#10573），不可用；
-    // 移动端统一 base64 字符串通道（前端已预压缩，负载为原始大小的 1/10 以下）
+    // 移动端统一 base64 字符串通道（开启压缩时前端已预压缩）
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(payload.base64.as_bytes())
         .map_err(|e| format!("RESOURCE_UPLOAD_FAILED: base64 解码失败: {e}"))?;
@@ -961,29 +992,14 @@ pub async fn upload_resource(
 
     let setting = load_or_init_setting(&app)
         .map_err(|e| format!("SETTING_INVALID:读取 setting.json 失败: {e}"))?;
-    let provider = parse_resource_provider(&setting).map_err(format_error)?;
+    let active = as_string(setting.pointer("/imageBed/active"));
+    let provider = parse_resource_provider(&setting, &active).map_err(format_error)?;
     let file_name = normalized_file_name(&payload.file_name);
-    let enable_compression = as_bool(setting.pointer("/imageBed/enableCompression"));
-    let processed =
-        compress_image_if_needed(&file_name, &payload.mime_type, &bytes, enable_compression);
+    let compress = as_bool(setting.pointer("/imageBed/compressImages"));
+    let processed = compress_image_if_needed(&file_name, &payload.mime_type, &bytes, compress);
     let object_name = build_object_name(&processed.file_name);
 
-    let result = match provider {
-        ResourceProvider::Local(config) => {
-            upload_to_local(&app, &config, &object_name, &processed.bytes)
-        }
-        ResourceProvider::Github(config) => {
-            upload_to_github(&config, &object_name, &processed).await
-        }
-        ResourceProvider::AliOss(config) => {
-            upload_to_alioss(&config, &object_name, &processed).await
-        }
-        ResourceProvider::S3(config) => upload_to_s3(&config, &object_name, &processed).await,
-        ResourceProvider::WebDav(config) => {
-            upload_to_webdav(&config, &object_name, &processed).await
-        }
-    };
-
+    let result = upload_with_provider(&app, &provider, &object_name, &processed, None).await;
     match &result {
         Ok(url) => println!("[upload_resource] done: {}", url),
         Err(error) => println!(
@@ -992,6 +1008,94 @@ pub async fn upload_resource(
         ),
     }
     result.map_err(format_error)
+}
+
+async fn upload_with_provider(
+    app: &AppHandle,
+    provider: &ResourceProvider,
+    object_name: &str,
+    file: &ProcessedUploadFile,
+    github_sha: Option<String>,
+) -> Result<String, AppError> {
+    match provider {
+        ResourceProvider::Local(config) => upload_to_local(app, config, object_name, &file.bytes),
+        ResourceProvider::Github(config) => {
+            upload_to_github(config, object_name, file, github_sha).await
+        }
+        ResourceProvider::AliOss(config) => upload_to_alioss(config, object_name, file).await,
+        ResourceProvider::S3(config) => upload_to_s3(config, object_name, file).await,
+        ResourceProvider::WebDav(config) => upload_to_webdav(config, object_name, file).await,
+    }
+}
+
+/// 测试图固定文件名：每次覆盖同一个对象，不在远端累积
+const UPLOAD_TEST_OBJECT_NAME: &str = "tau-upload-test.png";
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UploadTestResponse {
+    pub url: String,
+    /// 上传后能否按返回地址直接读取（私有 Bucket、需鉴权的 WebDAV 会是 false）
+    pub readable: bool,
+    pub elapsed_ms: u64,
+}
+
+fn build_test_image() -> Result<Vec<u8>, AppError> {
+    let image = image::RgbaImage::from_pixel(16, 16, image::Rgba([94, 129, 172, 255]));
+    let mut bytes = Vec::new();
+    image
+        .write_to(&mut Cursor::new(&mut bytes), image::ImageFormat::Png)
+        .map_err(|e| AppError::new("RESOURCE_UPLOAD_FAILED", format!("生成测试图片失败: {e}")))?;
+    Ok(bytes)
+}
+
+async fn is_url_readable(url: &str) -> bool {
+    match reqwest::Client::new()
+        .get(url)
+        .header("User-Agent", "tau-mobile")
+        .timeout(Duration::from_secs(12))
+        .send()
+        .await
+    {
+        Ok(response) => response.status().is_success(),
+        Err(_) => false,
+    }
+}
+
+/// 用指定上传服务真传一张测试图并回读，不改写 imageBed.active
+#[tauri::command]
+pub async fn resource_upload_test(
+    app: AppHandle,
+    provider: String,
+) -> Result<UploadTestResponse, String> {
+    let setting = load_or_init_setting(&app)
+        .map_err(|e| format!("SETTING_INVALID:读取 setting.json 失败: {e}"))?;
+    let parsed = parse_resource_provider(&setting, &provider).map_err(format_error)?;
+    if matches!(parsed, ResourceProvider::Local(_)) {
+        return Err(format_error(AppError::new(
+            "RESOURCE_CONFIG_MISSING",
+            "保存在本机无需测试",
+        )));
+    }
+    let file = ProcessedUploadFile {
+        file_name: UPLOAD_TEST_OBJECT_NAME.to_string(),
+        mime_type: "image/png".to_string(),
+        bytes: build_test_image().map_err(format_error)?,
+    };
+    let started = Instant::now();
+    let github_sha = match &parsed {
+        ResourceProvider::Github(config) => fetch_github_sha(config, UPLOAD_TEST_OBJECT_NAME).await,
+        _ => None,
+    };
+    let url = upload_with_provider(&app, &parsed, UPLOAD_TEST_OBJECT_NAME, &file, github_sha)
+        .await
+        .map_err(format_error)?;
+    let readable = is_url_readable(&url).await;
+    Ok(UploadTestResponse {
+        url,
+        readable,
+        elapsed_ms: started.elapsed().as_millis() as u64,
+    })
 }
 
 fn resolve_resource_path(app: &AppHandle, path: &str) -> Result<std::path::PathBuf, String> {

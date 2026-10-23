@@ -10,6 +10,7 @@ import {
   useEditorConfirmStore,
   useEditorPromptStore,
 } from "../editorNotifier";
+import { recordUploadFailure, resetUploadOutcomeForTest } from "../uploadOutcome";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -28,6 +29,21 @@ describe("mobileEditorNotifier", () => {
       ["error", "上传失败"],
       ["warning", "请输入地址"],
     ]);
+  });
+
+  it("紧随上传失败的错误提示补上原因与「去设置」入口，只补一次", () => {
+    resetUploadOutcomeForTest();
+    recordUploadFailure("github", new Error("RESOURCE_UPLOAD_FAILED:HTTP 401 Bad credentials"));
+    mobileEditorNotifier.error("图片上传失败");
+    mobileEditorNotifier.error("上传失败");
+    const [enriched, plain] = useToastStore.getState().toasts;
+    expect(enriched).toMatchObject({
+      type: "error",
+      text: "图片没传上去：账号已失效或没有写入权限",
+    });
+    expect(enriched.action?.label).toBe("去设置");
+    expect(plain).toMatchObject({ type: "error", text: "上传失败" });
+    expect(plain.action).toBeUndefined();
   });
 
   it("进行中提示用同一条落定为结果", () => {

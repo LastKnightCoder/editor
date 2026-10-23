@@ -156,11 +156,10 @@ export function SettingsPage(props: SettingsScreenProps) {
         </div>
         <div className="mt-4">
           <OverviewSection
-            activeResource={props.safeSetting?.imageBed.active ?? "github"}
+            activeResource={props.safeSetting?.imageBed.active ?? "local"}
             activeDatabase={props.databases?.activeDatabase}
             imageAppearance={props.safeSetting?.appearance?.image}
             onOpenModule={props.onOpenModule}
-            resourceSyncProgress={props.resourceSyncProgress}
           />
         </div>
       </div>

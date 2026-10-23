@@ -1,12 +1,12 @@
-// 数据库同步中心集成测试：经真实 router 入栈，覆盖状态卡主按钮、首次配置、出错、
-// 服务抽屉 → 服务页 → 设为同步服务（先探测云端再确认）与整库覆盖的可用性。
+// 同步中心集成测试：经真实 router 入栈，覆盖状态卡主按钮（同步后顺带同步资源文件）、首次配置、出错、
+// 服务抽屉 → 服务页 → 设为同步服务（先探测云端再确认）、资源文件行与整库覆盖的可用性。
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PageHost, RouterProvider, getNavigator } from "../../../../router";
 import { AppContext, type AppContextValue } from "../../../../app/AppContext";
-import type { SettingCompat, SyncVersionResponse } from "../../../../types";
+import type { ResourceSyncStatusFile, SettingCompat, SyncVersionResponse } from "../../../../types";
 import "../../../cards/pages/home.page";
 import "../../pages/settingsModule.page";
 import "../../pages/syncProvider.page";
@@ -51,6 +51,7 @@ function createApp(options: {
   setting: SettingCompat;
   versions: SyncVersionResponse | null;
   checkVersions?: () => Promise<SyncVersionResponse>;
+  resourceStatusFile?: ResourceSyncStatusFile | null;
 }): Harness {
   let setting = options.setting;
   const app = {
@@ -67,7 +68,21 @@ function createApp(options: {
       databases: { activeDatabase: "data.db", databases: [{ name: "data.db", version: 42 }] },
       versions: options.versions,
     },
-    resourceSync: { progress: null, statusFile: null, isResourceSyncing: false },
+    resourceSync: {
+      progress: {
+        totalFiles: 0,
+        processedFiles: 0,
+        currentFile: null,
+        status: "idle",
+        uploadCount: 0,
+        downloadCount: 0,
+        skippedCount: 0,
+        errorCount: 0,
+        startTime: null,
+      },
+      statusFile: options.resourceStatusFile ?? null,
+      isResourceSyncing: false,
+    },
     handleSwitchDatabase: vi.fn(async () => {}),
     handleSaveSetting: vi.fn(async () => {}),
     handleCheckVersions: vi.fn(
@@ -135,7 +150,7 @@ async function openCenter(app: AppContextValue): Promise<void> {
   act(() => {
     getNavigator().push("settingsModule", { module: "database" });
   });
-  await waitFor(() => activeTitle() === "数据库同步");
+  await waitFor(() => activeTitle() === "同步");
   if (app.syncSettings.safeSetting?.sync.s3.bucket) {
     await waitFor(
       () => (app.handleCheckVersions as ReturnType<typeof vi.fn>).mock.calls.length > 0
@@ -146,7 +161,7 @@ async function openCenter(app: AppContextValue): Promise<void> {
   }
 }
 
-describe("数据库同步中心", () => {
+describe("同步中心", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.history.replaceState(null, "");
@@ -185,6 +200,46 @@ describe("数据库同步中心", () => {
     await click(findButton("立即同步", activePage()));
     await waitFor(() => (app.handleSyncUpload as ReturnType<typeof vi.fn>).mock.calls.length > 0);
     expect(app.handleSyncDownload).not.toHaveBeenCalled();
+    // 数据库完成后顺带同步资源文件
+    await waitFor(
+      () => (app.handleResourceSyncStart as ReturnType<typeof vi.fn>).mock.calls.length > 0
+    );
+  });
+
+  it("进入时同时刷新资源账本，资源文件行给出待同步徽标", async () => {
+    const versions = { databaseName: "data.db", localVersion: 5, remoteVersion: 5 };
+    const file = (direction: string, syncStatus: "pending" | "synced" | "error") => ({
+      syncStatus,
+      syncDirection: direction,
+      fileSize: 1024,
+      lastSyncTime: null,
+      errorMessage: null,
+      retryCount: 0,
+    });
+    const { app } = createApp({
+      setting: makeSetting("s3"),
+      versions,
+      resourceStatusFile: {
+        provider: "s3",
+        config: {},
+        lastSyncTime: null,
+        files: {
+          "a.webp": file("upload", "pending"),
+          "b.webp": file("download", "pending"),
+          "c.webp": file("upload", "synced"),
+        },
+      },
+    });
+    mount(app);
+    await openCenter(app);
+    expect(app.handleResourceSyncRefresh).toHaveBeenCalled();
+    const row = findButton("资源文件", activePage());
+    expect(row?.textContent).toContain("3 个");
+    expect(row?.textContent).toContain("2 个待同步");
+
+    await click(row);
+    await waitFor(() => activeTitle() === "资源文件");
+    expect(activePage()?.textContent).toContain("有 2 个文件待同步");
   });
 
   it("检查失败时错误留在状态卡上，并给出检查配置入口", async () => {

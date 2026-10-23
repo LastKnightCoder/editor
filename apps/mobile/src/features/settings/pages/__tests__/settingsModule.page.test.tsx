@@ -1,5 +1,5 @@
 // settingsModule 页集成测试：二级模块以路由页入栈，
-// 验证资源主页经配置子页往返后返回逐级退栈（而非直接回根页），
+// 验证「图片与附件」经上传服务页往返后返回逐级退栈（而非直接回根页），
 // 以及经 Activity 保活原样保留。
 
 import { act } from "react";
@@ -9,10 +9,29 @@ import { PageHost, RouterProvider, getNavigator } from "../../../../router";
 import { AppContext, type AppContextValue } from "../../../../app/AppContext";
 import "../../../cards/pages/home.page";
 import "../settingsModule.page";
+import "../uploadProvider.page";
+
+const setting = {
+  imageBed: {
+    active: "local",
+    compressImages: true,
+    github: { repo: "", branch: "", pathPrefix: "" },
+    aliOSS: { bucket: "", region: "", pathPrefix: "" },
+    local: { path: "resources" },
+    s3: { bucket: "", region: "", pathPrefix: "" },
+    webdav: { pathPrefix: "" },
+  },
+  integration: {
+    github: { token: "", user: { name: "", email: "" } },
+    s3: { accessKeyId: "", secretAccessKey: "", endpoint: "", urlStyle: "path" },
+    webdav: { url: "", username: "", password: "" },
+    aliOSS: { accessKeyId: "", accessKeySecret: "" },
+  },
+};
 
 const appStub = {
   syncSettings: {
-    safeSetting: null,
+    safeSetting: setting,
     isSavingSetting: false,
     isSyncing: false,
     updateSetting: () => {},
@@ -70,11 +89,6 @@ function activeButton(text: string): HTMLElement | null {
   return nodes.find(node => node.textContent?.includes(text)) ?? null;
 }
 
-/** 当前激活层内 aria-label 精确匹配的按钮（ⓘ 图标按钮无可见文本） */
-function activeAriaButton(label: string): HTMLElement | null {
-  return document.querySelector(`[data-page-active="true"] button[aria-label="${label}"]`);
-}
-
 // jsdom 中 motion 退出动画按真实时间播放，用条件轮询等待最终状态
 async function waitFor(condition: () => boolean, timeoutMs = 2000): Promise<void> {
   const start = Date.now();
@@ -100,26 +114,30 @@ describe("settingsModule 路由页", () => {
     document.body.innerHTML = "";
   });
 
-  it("资源主页经配置子页往返后原样保留", async () => {
+  it("图片与附件经上传服务页往返后原样保留", async () => {
     act(() => {
       getNavigator().push("settingsModule", { module: "resource" });
     });
-    await waitFor(() => activeTitle() === "资源与存储");
-    expect(activeButton("本地")).toBeTruthy();
-    expect(activeButton("WebDAV")).toBeTruthy();
+    await waitFor(() => activeTitle() === "图片与附件");
+    expect(document.querySelector('[data-page-active="true"]')?.textContent).toContain("这台手机");
 
-    // 点 WebDAV 的 ⓘ 进入配置子页，返回后主页原样保留（Activity 保活，而非重置）
-    const webdavInfo = activeAriaButton("配置WebDAV存储");
-    expect(webdavInfo).toBeTruthy();
+    // 更换位置 → 抽屉 → 进入 WebDAV 服务页，返回后主页原样保留（Activity 保活，而非重置）
     act(() => {
-      webdavInfo!.click();
+      activeButton("更换位置")!.click();
     });
-    await waitFor(() => activeTitle() === "WebDAV 资源");
+    await waitFor(() => Boolean(document.body.textContent?.includes("保存到哪里")));
+    const webdav = [...document.querySelectorAll("button")].find(node =>
+      node.textContent?.includes("WebDAV")
+    );
+    act(() => {
+      webdav!.click();
+    });
+    await waitFor(() => activeTitle() === "WebDAV");
     act(() => {
       getNavigator().goBack("code");
     });
-    await waitFor(() => activeTitle() === "资源与存储");
-    expect(activeButton("WebDAV")).toBeTruthy();
+    await waitFor(() => activeTitle() === "图片与附件");
+    expect(activeButton("更换位置")).toBeTruthy();
     act(() => {
       getNavigator().goBack("code");
     });

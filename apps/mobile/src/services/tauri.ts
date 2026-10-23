@@ -38,6 +38,7 @@ import type {
   SettingWriteResponse,
   SyncActionResponse,
   SyncVersionResponse,
+  UploadTestResponse,
   PomodoroDailySummary,
   PomodoroMode,
   PomodoroPreset,
@@ -778,6 +779,11 @@ export function resourceSyncGetStatus() {
 // 上传/读取统一走 base64 字符串；调用方负责先做前端预压缩以控制负载
 export function uploadResource(params: { fileName: string; mimeType: string; base64: string }) {
   return trackedInvoke<string>("upload_resource", { payload: params });
+}
+
+/** 用指定上传服务传一张固定名测试图并回读，不改变当前上传位置 */
+export function resourceUploadTest(provider: string) {
+  return trackedInvoke<UploadTestResponse>("resource_upload_test", { provider });
 }
 
 // 读取 .editor 内资源文件，返回 base64 字符串（Android asset protocol 缺陷 tauri#12364 的替代通道）

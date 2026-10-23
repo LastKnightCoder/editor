@@ -1,0 +1,258 @@
+/* 移动端图片与附件重设计 mockup：外壳复用 editor-mobile/styles.css，组件复用 sync-mobile/sync.css，这里只补本稿新增的件 */
+
+/* 上传目的地卡：左对齐的「新图片保存到哪里」 */
+.dest {
+  margin: 4px 16px 0;
+  background: var(--bg-surface);
+  border-radius: 22px;
+  padding: 18px 16px 14px;
+}
+.dest .hd {
+  font-size: 12px;
+  color: var(--ink-3);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dest .who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+.dest .who b {
+  display: block;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+}
+.dest .who span {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dest .state {
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid var(--line-2);
+  font-size: 12px;
+  color: var(--ink-2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dest .state.warn {
+  color: var(--danger);
+}
+
+/* 开关 */
+.sw {
+  width: 44px;
+  height: 26px;
+  border-radius: 99px;
+  background: var(--line-1);
+  position: relative;
+  flex-shrink: 0;
+}
+.sw::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+}
+.sw.on {
+  background: var(--brand);
+}
+.sw.on::after {
+  left: 21px;
+}
+
+/* 示例地址 */
+.url {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  background: var(--bg-page);
+  border-radius: 10px;
+  padding: 8px 10px;
+  word-break: break-all;
+  margin: 0 14px 12px;
+}
+.url em {
+  font-style: normal;
+  color: var(--brand-text);
+  font-weight: 600;
+}
+
+/* 图片缩略图（用渐变示意） */
+.thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--sky-soft), var(--sage-soft));
+  display: grid;
+  place-items: center;
+  color: var(--ink-3);
+  position: relative;
+}
+.thumb.b {
+  background: linear-gradient(135deg, var(--butter-soft), var(--rose-soft));
+}
+.thumb.c {
+  background: linear-gradient(135deg, var(--lilac-soft), var(--sky-soft));
+}
+.thumb .bad {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--bg-surface);
+}
+
+/* 筛选胶囊 */
+.fchips {
+  display: flex;
+  gap: 6px;
+  padding: 12px 16px 2px;
+}
+.fchip {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 99px;
+  background: var(--bg-surface);
+  font-size: 12.5px;
+  color: var(--ink-2);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.fchip.on {
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  font-weight: 600;
+}
+.fchip i {
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+/* 编辑器背景示意 */
+.ed-doc {
+  padding: 8px 20px;
+  font-size: 14px;
+  line-height: 1.75;
+  color: var(--ink-1);
+}
+.ed-doc h3 {
+  font-size: 19px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+.ed-doc p {
+  color: var(--ink-2);
+  margin-bottom: 10px;
+}
+.ed-img {
+  height: 150px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--sky-soft), var(--sage-soft));
+  position: relative;
+  margin: 4px 0 12px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-3);
+  overflow: hidden;
+}
+.ed-img .cap {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  font-size: 11px;
+  border-radius: 99px;
+  padding: 3px 9px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ed-img.fail {
+  background: var(--bg-page);
+  border: 1.5px dashed var(--danger);
+  color: var(--danger);
+}
+.ed-img .prog {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--brand);
+}
+
+/* 底部浮层 toast（带操作） */
+.atoast {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 22px;
+  background: var(--ink-1);
+  color: var(--bg-surface);
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+.atoast .mid {
+  flex: 1;
+  min-width: 0;
+}
+.atoast .mid span {
+  display: block;
+  font-size: 11px;
+  opacity: 0.7;
+}
+.atoast a {
+  font-weight: 700;
+  color: var(--brand-soft);
+  white-space: nowrap;
+}
+
+/* 设置首页行 */
+.lrow-val {
+  color: var(--ink-3);
+  font-size: 12.5px;
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.big-h {
+  font-size: 16.5px;
+  font-weight: 800;
+  padding: 14px 20px 8px;
+}
+.sec-sep {
+  height: 1px;
+  margin: 10px 16px 4px;
+  background: var(--line-2);
+}

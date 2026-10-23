@@ -331,15 +331,27 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 - **设置**：`features/settings/components/ThemeSection.tsx` 明暗三档 × 主题族列表，预览直接读各主题 token。
 - **守护**：`src/theme/__tests__/themeVocabulary.test.ts` 扫描源码，禁止旧移动端主题变量/类名、`[data-theme]` 自建主题块与重定义 `--tau-*`。
 
-## 数据库同步（设置）
+## 同步（设置）
 
-入口为设置「数据 · 数据库同步」（`settingsModule` 的 `database` 模块），代码在 `features/settings/sync/`：
+入口为设置「数据 · 同步」（`settingsModule` 的 `database` 模块），代码在 `features/settings/sync/`。数据库与资源文件（`resources` 目录）用同一个同步服务：
 
-- **同步中心** `SyncCenterSection`：状态卡把版本对比翻译成用户语言（`syncState.ts` 的 `deriveSyncHero`，纯函数），拇指区一个主按钮，文案随状态给出方向（下载更新 / 上传改动 / 立即同步）；版本相等时「立即同步」仍走智能同步（版本号不追踪本机未上传的编辑）。进入页面与从上层返回（`onResume`）各静默检查一次云端；检查或同步失败时错误留在状态卡上并给出「检查配置」入口。当前服务未配置时直接列出服务供选择。「上次同步」只在本机 localStorage 按数据库名记录（`AppShell` 的上传/下载成功后写入）。
-- **服务注册表** `providers.tsx` 的 `SYNC_PROVIDERS`：每项 `{ id, name, description, tile, isConfigured, summary, Panel }`，`id` 即 setting.json 的 `sync.active`。宿主（同步中心、服务抽屉 `SyncProviderSheet`、服务页外壳）只消费注册表；各服务只提供设置面板，形态对齐桌面端同步插件（插件经 `settings.register({ target: "sync" })` 提供面板、宿主负责选择与挂载）。内置四个服务（S3 / AliOSS / GitHub / WebDAV）的凭证仍归集成账号（与资源存储共用），面板内账号卡就地展示并跳转更换；字段失焦即持久化，无保存按钮。
+- **同步中心** `SyncCenterSection`：状态卡把版本对比翻译成用户语言（`syncState.ts` 的 `deriveSyncHero`，纯函数），拇指区一个主按钮，文案随状态给出方向（下载更新 / 上传改动 / 立即同步）；版本相等时「立即同步」仍走智能同步（版本号不追踪本机未上传的编辑）。数据库同步成功后在后台顺带启动资源文件同步。进入页面与从上层返回（`onResume`）各静默检查一次云端，同时并行刷新资源账本；检查或同步失败时错误留在状态卡上并给出「检查配置」入口。当前服务未配置时直接列出服务供选择。「上次同步」只在本机 localStorage 按数据库名记录（`AppShell` 的上传/下载成功后写入）。
+- **服务注册表** `providers.tsx` 的 `SYNC_PROVIDERS`：每项 `{ id, name, description, tile, isConfigured, summary, Panel }`，`id` 即 setting.json 的 `sync.active`。宿主（同步中心、服务抽屉 `SyncProviderSheet`、服务页外壳）只消费注册表；各服务只提供设置面板，形态对齐桌面端同步插件（插件经 `settings.register({ target: "sync" })` 提供面板、宿主负责选择与挂载）。内置四个服务的面板是 `storage/panels.tsx` 的共用面板（与上传服务共用，只传入 `sync.*` 的值与改写函数），凭证仍归集成账号，面板内账号卡就地展示并跳转更换；字段失焦即持久化，无保存按钮。
 - **服务页** `syncProvider` 页（`providerId` 为页面身份）：面板 + 连接测试 + 设为同步服务。连接测试与切换前探测走 `sync_check_versions` 的可选 `provider` 参数——按指定服务解析配置读取云端版本，不改写 `sync.active`；探测前先落盘未失焦的字段。云端为空直接切换，已有数据时先弹确认并说明切换后同步方向。服务抽屉只负责进入服务页，不直接切换。
 - **整库覆盖** `sync-overwrite` 模块：方向图示 + 长按确认（`HoldToConfirmButton`）。后端拒绝低版本覆盖高版本（`VERSION_CONFLICT_*`），不可用方向直接显示原因（`overwriteAvailability`）。
-- **数据库切换** `databases` 模块，从同步中心「更多」进入。
+- **数据库切换** `databases` 模块，从同步中心「内容 · 数据库」进入。
+- **资源文件** `sync-status-resource` 模块（`ResourceFilesSection`）：本机 `resources` 目录与同步服务的双向镜像，只增不删。状态由 `resourceState.ts` 纯函数从本轮账本（`ResourceSyncStatusFile.files`）推导，失败优先于待同步，运行中主按钮只有「停止」；同步服务未配置（`RESOURCE_SYNC_CONFIG_MISSING`）时引导回同步中心。文件按「需要处理 / 待上传 / 待下载 / 全部」筛选，每次渲染 30 条、「显示更多」追加。同步中心「资源文件」行以徽标露出同步中 / 失败数 / 待同步数。
+
+## 图片与附件（设置）
+
+入口为设置「数据 · 图片与附件」（`settingsModule` 的 `resource` 模块），只管新插入图片与附件的上传位置，代码在 `features/settings/upload/`：
+
+- **目的地卡** `UploadCenterSection`：当前位置 + 一行状态（`uploadState.ts` 的 `deriveDestinationState`，纯函数）。配置不完整、最近一次上传失败（账号 → 「检查账号」，仓库 / 存储桶 / 配置 → 「检查存储位置」，网络不给按钮）时给出进入服务页的主按钮；只采信当前位置的结果。「压缩大图」开关即 `imageBed.compressImages`，同时控制 WebView 预压缩（`utils/imageCompress.ts`：超过 300KB 转 WebP、长边 2048）与 Rust 转 WebP，关闭即原图上传。
+- **上传位置**：`imageBed.active` 取 `local`（「这台手机」，宿主内置，不进注册表，新装默认）或注册表 id。抽屉 `UploadTargetSheet` 里「这台手机」点选即切换，云端服务点选进入服务页。
+- **上传服务注册表** `providers.tsx` 的 `UPLOAD_PROVIDERS`：每项 `{ id, name, description, tile, isConfigured, summary, sampleUrl, Panel }`，与同步注册表同构，形态对齐桌面端上传插件（`upload.register` 提供上传、`settings.register({ target: "upload" })` 提供面板）。`sampleUrl` 按当前配置拼出与 Rust 端一致的图片地址；面板来自 `storage/panels.tsx`（写 `imageBed.*`）。
+- **服务页** `uploadProvider` 页（`providerId` 为页面身份）：面板 + 图片地址示例 + 上传测试 + 设为上传位置。测试走 `resource_upload_test(provider)`：按指定服务解析配置（不改写 `imageBed.active`），上传固定名 `tau-upload-test.png`（每次覆盖，GitHub 先取 sha），再 GET 返回地址判断能否直接读取；结果分「上传成功」「传上去了，但打不开」（禁止设为上传位置）与「传不上去」。切换位置不涉及数据覆盖，不需要确认。
+- **上传结果记录** `services/uploadOutcome.ts`：编辑器上传管线（`editorRegistry` 的 `IResourceService.upload`）在本机 localStorage 记录最近一次结果与错误类别；编辑器报错时（`editorNotifier`）取走 3 秒内的那次失败，提示原因并带「去设置」。
+- **设置升级**：`setting.rs` 的 `ensure_setting_compat` 删除已退役的 `imageBed.enableCompression`、`imageBed.githubCdn`、`imageBed.github.cdn`，`compressImages` 缺省为 true。移动端不提供 GitHub CDN 地址改写。
 
 ## 测试
 

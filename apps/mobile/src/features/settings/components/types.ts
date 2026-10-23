@@ -22,11 +22,6 @@ export const SETTINGS_MODULE_KEYS = [
   "integration-webdav",
   "integration-alioss",
   "resource",
-  "resource-local",
-  "resource-github",
-  "resource-alioss",
-  "resource-s3",
-  "resource-webdav",
 ] as const;
 
 export type SettingModule = (typeof SETTINGS_MODULE_KEYS)[number] | null;

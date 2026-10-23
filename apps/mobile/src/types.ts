@@ -222,6 +222,13 @@ export interface ResourceSyncProgress {
   startTime: number | null;
 }
 
+export interface UploadTestResponse {
+  url: string;
+  /** 能否按返回地址直接读取，false 表示传上去了但文档里会裂图 */
+  readable: boolean;
+  elapsedMs: number;
+}
+
 export interface ResourceSyncActionResponse {
   ok: boolean;
   code?: string | null;
@@ -549,11 +556,11 @@ export interface SettingCompat {
   };
   imageBed: {
     active: "local" | "github" | "aliOSS" | "s3" | "webdav" | string;
-    enableCompression: boolean;
+    /** 同时控制前端预压缩与后端转 webp，关闭即原图上传 */
+    compressImages: boolean;
     github: {
       repo: string;
       branch: string;
-      cdn: string | null;
       pathPrefix: string;
     };
     aliOSS: {
