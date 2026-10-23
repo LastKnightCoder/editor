@@ -56,7 +56,7 @@ Rust 在应用私有目录 `.editor/portable-plugins/<id>/` 保存 current、sta
 
 SDK 的支持等级投影由桌面与移动共用：none 不装配；render 去掉编辑行为与插入/命令贡献；edit 提供编辑。IElementEditingPolicy 将限制同时传给标准 UI、useElement/useSourceBlock 与 captureElementSubmission，拒绝后的旧提交不能因后来变为可编辑而复活。同一个 extension 混合 render/edit 时，宿主保守撤下该组命令与插入入口；需要独立插入时作者应拆成多个 extension，节点身份不变。未知节点保留原数据。
 
-公共 SourceBlockEditor 按每个 EditorKit 的宿主服务选呈现方式，不在运行时切换全局实现。触摸方式复用 CodeMirror，草稿在保存时提交，取消/返回不写入；外部源码变化时禁止覆盖，隐藏/卸载/只读通过提交守卫终结旧操作。普通块外框提供触摸菜单入口，菜单复用标准上下移/删除等命令。长按拖拽和真机键盘手感不由此声明为支持。
+公共 SourceBlockEditor 按每个 EditorKit 的宿主服务选呈现方式，不在运行时切换全局实现。源码输入统一使用 CodeMirror 的 textarea 通道，在按键命令前同步待输入值，避免移动 contenteditable 延迟回读与快速回车竞争。触摸浮层经 UiProvider 自有的 Portal 容器挂到正文 DOM 之外，隔离按键、输入法、输入及剪贴板事件，避免 React Portal 冒泡触发外层 Slate 热键；页面隐藏时回收 Portal 并取消未保存草稿。草稿只在保存时提交，取消/返回不写入；外部源码变化时禁止覆盖，隐藏/卸载/只读通过提交守卫终结旧操作。普通块外框提供触摸菜单入口，菜单复用标准上下移/删除等命令。真机键盘手感不由此声明为已验收。
 
 UiHostProvider 只接受平台中立的 dismiss 登记函数。真实 Dialog/Drawer 在打开时登记，关闭/隐藏时注销，锁定或关键模态消费返回而不关闭。UiProvider 继承当前 Portal 容器；插件页面使用局部 PortalScope，避免浮层遗留在其他页面。公共 UI 不引用应用路由；模态层级边界保证同批打开时，宿主返回也先交给子模态。
 
