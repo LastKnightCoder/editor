@@ -8,7 +8,7 @@
 
 | 位置                                                | 内容                                                                                                                         |
 | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| [desktop.md](./architecture/desktop.md)             | 桌面端权威交接文档：Page 协议、三大协议、交互规范、数据接线、Markdown 会话与目录性能边界                                     |
+| [desktop.md](./architecture/desktop.md)             | 桌面端权威交接文档：Page 协议、三大协议、交互规范、数据接线、Markdown 会话、打开与目录性能边界                               |
 | [design-system.md](./architecture/design-system.md) | UI 设计系统：token 三层体系、多主题机制、组件分层                                                                            |
 | 包内文档                                            | database / whiteboard / editor 架构手册在各包 `docs/architecture.md`；editor-collab / markdown 的投影与缓存边界见各包 README |
 | [collaboration.md](./architecture/collaboration.md) | 实时协作功能与架构                                                                                                           |

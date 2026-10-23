@@ -4,7 +4,7 @@
  *   内部控制器的光标换算，否则按 Slate 点映射；
  * - 源码 → 富文本：importFromMarkdownWithPositions 解析；落在代码块内时等代码块编辑器挂载后
  *   把光标放回代码块（最多等 2s），否则按映射点 / 进入源码前的位置聚焦（路径越界时就近夹取）。
- * 两个视图常驻，源码回写经同一文档会话进入 Y.Doc。
+ * 源码首次进入时挂载，此后两个视图常驻；源码回写经同一文档会话进入 Y.Doc。
  */
 
 import { useEffect, useRef, useState, type RefObject } from "react";
@@ -89,6 +89,7 @@ export function useSourceMode({
   stopCapturing: () => void;
 }) {
   const [sourceMode, setSourceMode] = useState(false);
+  const [sourceCreated, setSourceCreated] = useState(false);
   const [focusRequest, setFocusRequest] = useState(0);
   const sourceEditorRef = useRef<CodeMirrorEditor | null>(null);
   const sourceTextRef = useRef("");
@@ -100,6 +101,7 @@ export function useSourceMode({
   } | null>(null);
   const pendingFocus = useRef(false);
   const lastEditorFocus = useRef<SlatePoint | null>(null);
+  const sourceFocusPoint = useRef<{ line: number; ch: number } | null>(null);
 
   const clearPending = () => {
     pendingCodeBlock.current = null;
@@ -133,11 +135,10 @@ export function useSourceMode({
     }
     sourceTextRef.current = markdown;
     const source = sourceEditorRef.current;
-    if (!source) return;
-    source.setValue(markdown);
+    if (source && source.getValue() !== markdown) source.setValue(markdown);
+    let target: { line: number; ch: number } | null = null;
 
     if (selection?.focus && editor && positionMap) {
-      let target: { line: number; ch: number } | null = null;
       const codeBlock = SlateEditor.above(editor, {
         at: selection.focus,
         match: node => SlateElement.isElement(node) && node.type === "code-block",
@@ -155,19 +156,25 @@ export function useSourceMode({
         }
       }
       target ??= positionMap.slateToMarkdown(selection.focus);
-      if (target) {
-        const position = target;
-        setTimeout(() => {
-          sourceEditorRef.current?.setCursor(position);
-          sourceEditorRef.current?.focus();
-        }, FOCUS_DELAY);
-      }
-    } else {
-      setTimeout(() => sourceEditorRef.current?.focus(), FOCUS_DELAY);
     }
-    setTimeout(() => sourceEditorRef.current?.refresh(), FOCUS_DELAY + 50);
+    sourceFocusPoint.current = target;
+    setSourceCreated(true);
     setSourceMode(true);
   };
+
+  useEffect(() => {
+    if (!sourceMode) return;
+    const focus = setTimeout(() => {
+      const source = sourceEditorRef.current;
+      if (sourceFocusPoint.current) source?.setCursor(sourceFocusPoint.current);
+      source?.focus();
+    }, FOCUS_DELAY);
+    const refresh = setTimeout(() => sourceEditorRef.current?.refresh(), FOCUS_DELAY + 50);
+    return () => {
+      clearTimeout(focus);
+      clearTimeout(refresh);
+    };
+  }, [sourceMode]);
 
   const leaveSource = () => {
     const cursor = sourceEditorRef.current?.getCursor();
@@ -273,6 +280,7 @@ export function useSourceMode({
 
   return {
     sourceMode,
+    sourceCreated,
     toggle,
     showSource: useMemoizedFn(enterSource),
     sourceEditorRef,

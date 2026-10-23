@@ -11,13 +11,17 @@ import { textFormattingCodec } from "@tau/editor/extensions/text-formatting/mark
 import { Text } from "slate";
 
 /** 文件原文及其规范化缓存也归同一 Y.Doc，撤销时与正文一起恢复。 */
-export function createMarkdownDocument(wrap?: LocalYjsDocumentOptions["wrap"]) {
+export function createMarkdownDocument(
+  wrap?: LocalYjsDocumentOptions["wrap"],
+  prepareContent?: LocalYjsDocumentOptions["prepareInitialContent"]
+) {
   const serialize = desktopMarkdown.createIncrementalSerializer({
     codecs: desktopCodecComposition,
     textCodecs: [textFormattingCodec],
   });
   const local = createLocalYjsDocument(undefined, {
     wrap,
+    prepareInitialContent: prepareContent,
     matchKey: node =>
       Text.isText(node)
         ? `text:${desktopMarkdown.leafToMarkdown(node)}`

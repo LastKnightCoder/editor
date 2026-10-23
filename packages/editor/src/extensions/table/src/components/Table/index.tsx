@@ -1,12 +1,12 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ReactEditor,
   useReadOnly,
-  useSlateSelection,
+  useSlateSelector,
   useSlateStatic,
   type RenderElementProps,
 } from "slate-react";
-import { Path } from "slate";
+import { Node, Path, type Editor } from "slate";
 import { Menu, cn } from "@tau/ui";
 import { GripHorizontal, GripVertical, Plus } from "lucide-react";
 import {
@@ -29,7 +29,7 @@ import {
   selectCell,
   setColumnAlign,
 } from "../../transforms";
-import { getCellSelection, selectColumns, selectRows } from "../../selection";
+import { getCellSelection, selectColumns, selectRows, type CellSelection } from "../../selection";
 import { TableAlignContext } from "../context";
 import { boundaryAt, measureTable, type TableGeometry } from "./geometry";
 import HandleMenuItems, { type HandleKind } from "./HandleMenuItems";
@@ -59,11 +59,24 @@ const ADD_BAR_CLASS =
 
 const preventMouseDown = (event: React.MouseEvent) => event.preventDefault();
 
+const sameCellSelection = (
+  left: CellSelection | null | undefined,
+  right: CellSelection | undefined
+) =>
+  left === right ||
+  (!!left &&
+    !!right &&
+    left.kind === right.kind &&
+    left.rowStart === right.rowStart &&
+    left.rowEnd === right.rowEnd &&
+    left.colStart === right.colStart &&
+    left.colEnd === right.colEnd &&
+    Path.equals(left.tablePath, right.tablePath));
+
 const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
   const { attributes, element, children } = props;
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
-  const selection = useSlateSelection();
   const isLast = useIsLastElement(element);
 
   const boxRef = useRef<HTMLDivElement>(null);
@@ -74,11 +87,18 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
   const [drag, setDrag] = useState<DragState | null>(null);
   const [geometry, setGeometry] = useState<TableGeometry | null>(null);
 
-  const cellSelection = useMemo(() => {
-    const current = getCellSelection(editor, selection);
-    const path = current && findPathSafely(editor, element);
-    return current && path && Path.equals(current.tablePath, path) ? current : undefined;
-  }, [editor, element, selection]);
+  const cellSelection = useSlateSelector(
+    useCallback(
+      (current: Editor) => {
+        const selection = getCellSelection(current);
+        return selection && Node.get(current, selection.tablePath) === element
+          ? selection
+          : undefined;
+      },
+      [element]
+    ),
+    sameCellSelection
+  );
 
   const handleSelection: Range2 | undefined =
     cellSelection?.kind === "row"
