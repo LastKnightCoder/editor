@@ -4,13 +4,7 @@ import { GroupLabel } from "../../../components/GroupLabel";
 import { ActionSheet } from "./ActionSheet";
 import type { SettingModule, SettingsPageProps } from "./types";
 import { useGithubRepoSelector } from "./useGithubRepoSelector";
-import {
-  CredentialEntryRow,
-  FieldInput,
-  FieldSheetTrigger,
-  GroupCard,
-  SaveButton,
-} from "./ui";
+import { CredentialEntryRow, FieldInput, FieldSheetTrigger, GroupCard, SaveButton } from "./ui";
 
 type UpdateSetting = SettingsPageProps["updateSetting"];
 
@@ -189,12 +183,12 @@ export function SyncGithubSection(props: SyncSectionProps) {
       <ParamsGroup>
         <div className="space-y-3">
           {!canLoad && (
-            <div className="bg-butter-soft text-butter rounded-2xl p-3 text-sm font-medium">
+            <div className="bg-tag-4-soft text-tag-4 rounded-2xl p-3 text-sm font-medium">
               请先在「集成账号 · Github」连接账号，再选择仓库与分支。
             </div>
           )}
           {!!error && (
-            <div className="bg-rose-soft text-danger rounded-2xl p-3 text-sm font-medium">
+            <div className="bg-tag-5-soft text-danger rounded-2xl p-3 text-sm font-medium">
               {error}
             </div>
           )}

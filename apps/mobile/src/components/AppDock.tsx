@@ -25,10 +25,10 @@ import * as tauri from "../services/tauri";
 
 // 视觉映射与顺序解耦：顺序契约（TAB_ORDER）在 router/tabs.ts，供滑动手势共用
 const TAB_VISUALS: Record<TabKey, { label: string; icon: typeof House; blob: string }> = {
-  home: { label: "今天", icon: House, blob: "var(--rose-soft)" },
-  cardsLibrary: { label: "卡片", icon: Layers, blob: "var(--sky-soft)" },
-  diaryHome: { label: "日记", icon: NotebookPen, blob: "var(--sage-soft)" },
-  settings: { label: "我的", icon: User, blob: "var(--apricot-soft)" },
+  home: { label: "今天", icon: House, blob: "var(--tau-tag-5-soft)" },
+  cardsLibrary: { label: "卡片", icon: Layers, blob: "var(--tau-tag-2-soft)" },
+  diaryHome: { label: "日记", icon: NotebookPen, blob: "var(--tau-tag-1-soft)" },
+  settings: { label: "我的", icon: User, blob: "var(--tau-accent-soft)" },
 };
 
 const TABS = TAB_ORDER.map(key => ({ key, ...TAB_VISUALS[key] }));
@@ -71,8 +71,8 @@ const FAB_ACTIONS: readonly FabAction[] = [
     key: "card",
     label: "新卡片",
     icon: Stack,
-    tone: "var(--sky)",
-    soft: "var(--sky-soft)",
+    tone: "var(--tau-tag-2)",
+    soft: "var(--tau-tag-2-soft)",
     angle: -157.5,
     delay: "0.06s",
   },
@@ -80,8 +80,8 @@ const FAB_ACTIONS: readonly FabAction[] = [
     key: "article",
     label: "新文章",
     icon: Article,
-    tone: "var(--apricot)",
-    soft: "var(--apricot-soft)",
+    tone: "var(--tau-accent)",
+    soft: "var(--tau-accent-soft)",
     angle: -112.5,
     delay: "0.02s",
   },
@@ -89,8 +89,8 @@ const FAB_ACTIONS: readonly FabAction[] = [
     key: "calendar",
     label: "新日程",
     icon: CalendarPlus,
-    tone: "var(--lilac)",
-    soft: "var(--lilac-soft)",
+    tone: "var(--tau-tag-3)",
+    soft: "var(--tau-tag-3-soft)",
     angle: -67.5,
     delay: "0.02s",
   },
@@ -98,8 +98,8 @@ const FAB_ACTIONS: readonly FabAction[] = [
     key: "diary",
     label: "写日记",
     icon: BookOpen,
-    tone: "var(--sage)",
-    soft: "var(--sage-soft)",
+    tone: "var(--tau-tag-1)",
+    soft: "var(--tau-tag-1-soft)",
     angle: -22.5,
     delay: "0.06s",
   },
@@ -210,7 +210,7 @@ function AppDock() {
           aria-label="关闭创建菜单"
           onClick={() => setMenuOpen(false)}
           className="fixed inset-0"
-          style={{ zIndex: 44, background: "var(--mask)" }}
+          style={{ zIndex: 44, background: "var(--tau-overlay)" }}
           data-no-tab-swipe
         />
       ) : null}
@@ -261,7 +261,7 @@ function AppDock() {
                     ].join(", "),
                   }}
                 >
-                  <span className="bg-surface text-ink shadow-card absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold">
+                  <span className="bg-surface text-ink-1 shadow-card absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold">
                     {item.label}
                   </span>
                   <Icon size={23} weight="duotone" color={item.tone} aria-hidden="true" />
@@ -285,10 +285,10 @@ function AppDock() {
               onClick={() => setMenuOpen(open => !open)}
               aria-label="新建"
               aria-expanded={menuOpen}
-              className="z-10 grid h-[54px] w-[54px] place-items-center rounded-[19px] text-white transition-transform duration-200"
+              className="text-ink-inverse z-10 grid h-[54px] w-[54px] place-items-center rounded-[19px] transition-transform duration-200"
               style={{
-                backgroundImage: "var(--brand-grad)",
-                boxShadow: "var(--shadow-accent), inset 0 1.5px 0 rgba(255,255,255,0.4)",
+                background: "var(--tau-accent)",
+                boxShadow: "var(--tau-shadow-lift)",
                 transform: menuOpen ? "rotate(45deg)" : undefined,
               }}
             >
@@ -327,7 +327,7 @@ function DockTab({
       aria-label={tab.label}
       aria-current={active ? "page" : undefined}
       className="relative flex h-full min-w-0 flex-1 flex-col items-center justify-center gap-[3px]"
-      style={{ color: active ? "var(--brand)" : "var(--ink-3)" }}
+      style={{ color: active ? "var(--tau-accent)" : "var(--tau-ink-3)" }}
     >
       {/* 高亮药丸作为图标的流内容器：位置天然对齐，背景层缩放不影响图标 */}
       <span className="relative grid h-[26px] w-[38px] place-items-center">

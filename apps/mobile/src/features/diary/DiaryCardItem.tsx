@@ -124,7 +124,7 @@ const DiaryCardItem = memo(
         }`}
       >
         <div className="mb-2 flex items-center gap-2">
-          <span className="text-ink text-[14px] font-bold">{desc.title}</span>
+          <span className="text-ink-1 text-[14px] font-bold">{desc.title}</span>
           <span className="text-ink-3 text-[11.5px]">{desc.sub}</span>
           {segment.tags.length > HEADER_TAG_LIMIT + 1 ? (
             <span className="flex items-center gap-1">
@@ -142,7 +142,7 @@ const DiaryCardItem = memo(
             ref={setMenuAnchor}
             type="button"
             aria-label="日记操作"
-            className="text-ink-3 active:bg-input ml-auto grid h-[30px] w-[30px] flex-shrink-0 place-items-center rounded-full transition-colors"
+            className="text-ink-3 active:bg-page ml-auto grid h-[30px] w-[30px] flex-shrink-0 place-items-center rounded-full transition-colors"
             onClick={event => {
               event.stopPropagation();
               setMenuOpen(open => !open);

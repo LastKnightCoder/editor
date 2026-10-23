@@ -15,9 +15,9 @@ const DEFAULT_APP_INFO: AppInfo = {
 
 function InfoItem(props: { label: string; value: string }) {
   return (
-    <div className="bg-input rounded-2xl px-4 py-3">
+    <div className="bg-page rounded-2xl px-4 py-3">
       <p className="text-ink-3 text-xs font-bold">{props.label}</p>
-      <p className="text-ink mt-1 text-base font-bold">{props.value}</p>
+      <p className="text-ink-1 mt-1 text-base font-bold">{props.value}</p>
     </div>
   );
 }
@@ -54,7 +54,7 @@ export function AboutSection() {
 
   return (
     <div className="list-group p-4">
-      <h2 className="text-ink mb-3 text-[15px] font-bold">应用信息</h2>
+      <h2 className="text-ink-1 mb-3 text-[15px] font-bold">应用信息</h2>
       <div className="space-y-3">
         <InfoItem label="项目名称" value={appInfo.name} />
         <InfoItem label="版本号" value={loading ? "读取中..." : appInfo.version} />

@@ -5,13 +5,20 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createEditor, type Descendant } from "slate";
 
 const harness = vi.hoisted(() => ({
-  slateEditor: { selection: null },
+  slateEditor: null as unknown,
   /** 协作会话只读态（会话冻结/非 active） */
   readonly: false,
   /** 编辑器每次收到的文档源，用于断言正文归属 */
   documents: [] as unknown[],
+  /** 编辑器每次收到的 readonly */
+  readonlyProps: [] as boolean[],
+  /** 详情加载回来的正文；非空文档默认进入阅读态 */
+  content: [
+    { type: "paragraph", children: [{ type: "formatted", text: "已有内容" }] },
+  ] as unknown[],
 }));
 
 vi.mock("../../../hooks/useEditContent", async () => {
@@ -23,7 +30,13 @@ vi.mock("../../../hooks/useEditContent", async () => {
     ) => {
       const loaded = React.useRef(options?.onLoaded);
       React.useEffect(() => {
-        loaded.current?.({ contentId: 1, updateTime: 0, count: 0, content: [], card: undefined });
+        loaded.current?.({
+          contentId: 1,
+          updateTime: 0,
+          count: 0,
+          content: harness.content,
+          card: undefined,
+        });
       }, []);
       return {
         content: [],
@@ -39,13 +52,18 @@ vi.mock("../../../hooks/useEditContent", async () => {
 });
 
 vi.mock("../../../services/tauri", () => ({ updateCardTags: vi.fn() }));
-vi.mock("../../../hooks/useMobileTheme", () => ({ useMobileTheme: () => ({ theme: "light" }) }));
 vi.mock("../../../hooks/useScrollState", () => ({ useEdgeFade: vi.fn() }));
 vi.mock("../editorExtensions", () => ({ mobileCardPreviewExtensions: [] }));
 vi.mock("../LinksDisclosure", () => ({ default: () => null }));
 vi.mock("../TagChips", () => ({ default: () => null }));
 vi.mock("../TagInlineEditor", () => ({ default: () => null }));
-vi.mock("../../../components/PageHeader", () => ({ PageHeader: () => null }));
+vi.mock("../../../components/PageHeader", async () => {
+  const React = await import("react");
+  return {
+    PageHeader: (props: { actions?: React.ReactNode }) =>
+      React.createElement("header", null, props.actions),
+  };
+});
 vi.mock("../../../../components/ActionSheet", () => {
   const ActionSheet = () => null;
   return { __esModule: true, ActionSheet, default: ActionSheet };
@@ -53,9 +71,6 @@ vi.mock("../../../../components/ActionSheet", () => {
 vi.mock("../editorExtensions/ContentLinkPickerSheet", () => ({
   __esModule: true,
   default: () => null,
-}));
-vi.mock("@tau/editor/toolbar", () => ({
-  calculateFloatingPosition: () => ({ left: 8, top: 8, placement: "top" }),
 }));
 
 /** 模拟内核 Editor：ref 暴露 getEditor，焦点回调直连（与 @tau/editor 一致） */
@@ -71,9 +86,20 @@ vi.mock("@tau/editor", async importOriginal => {
     props: Record<string, unknown>,
     ref: unknown
   ) {
-    React.useImperativeHandle(ref as never, () => ({ getEditor: () => harness.slateEditor }), []);
+    const element = React.useRef<HTMLDivElement | null>(null);
+    React.useImperativeHandle(
+      ref as never,
+      () => ({
+        getEditor: () => harness.slateEditor,
+        getEditableElement: () => null,
+        focus: () => element.current?.focus(),
+      }),
+      []
+    );
+    harness.readonlyProps.push(props.readonly as boolean);
     harness.documents.push(props.document);
     return React.createElement("div", {
+      ref: element,
       "data-testid": "editor",
       tabIndex: 0,
       onFocus: props.onFocus as never,
@@ -105,6 +131,8 @@ vi.mock("../../collaboration/CollaborativeEditor", async () => {
 });
 
 import { ContentDetailPage } from "../ContentDetailPage";
+import { setMobileSettingSnapshot } from "../../../services/mobileSettingsBridge";
+import type { SettingCompat } from "../../../types";
 
 const TOOLBAR_SELECTOR = '[data-mobile-editor-toolbar="true"]';
 const EDITOR_SELECTOR = '[data-testid="editor"]';
@@ -116,6 +144,13 @@ describe("ContentDetailPage 协作态的底部工具条", () => {
   beforeEach(() => {
     harness.readonly = false;
     harness.documents = [];
+    harness.readonlyProps = [];
+    const slateEditor = createEditor();
+    slateEditor.children = [
+      { type: "paragraph", children: [{ type: "formatted", text: "已有内容" }] },
+    ] as unknown as Descendant[];
+    harness.slateEditor = slateEditor;
+    harness.content = [{ type: "paragraph", children: [{ type: "formatted", text: "已有内容" }] }];
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
@@ -127,6 +162,7 @@ describe("ContentDetailPage 协作态的底部工具条", () => {
     });
     document.body.innerHTML = "";
     document.documentElement.style.removeProperty("--mobile-editor-toolbar-occlusion");
+    setMobileSettingSnapshot(null);
   });
 
   async function renderCollabDetail() {
@@ -146,6 +182,14 @@ describe("ContentDetailPage 协作态的底部工具条", () => {
     });
     await act(async () => {
       await Promise.resolve();
+    });
+  }
+
+  async function clickEdit() {
+    const button = document.querySelector<HTMLButtonElement>('button[aria-label="编辑"]');
+    if (!button) throw new Error("「编辑」按钮未渲染");
+    await act(async () => {
+      button.click();
     });
   }
 
@@ -172,19 +216,62 @@ describe("ContentDetailPage 协作态的底部工具条", () => {
     });
   });
 
+  it("已有内容默认阅读态：正文只读，聚焦也不显示工具条", async () => {
+    await renderCollabDetail();
+    expect(harness.readonlyProps[harness.readonlyProps.length - 1]).toBe(true);
+    await focusCollabEditor();
+    expect(document.querySelector(TOOLBAR_SELECTOR)).toBeNull();
+  });
+
+  it("空文档直接进入编辑并自动聚焦", async () => {
+    harness.content = [];
+    await renderCollabDetail();
+    expect(harness.readonlyProps[harness.readonlyProps.length - 1]).toBe(false);
+    expect(document.activeElement).toBe(document.querySelector(EDITOR_SELECTOR));
+    expect(document.querySelector(TOOLBAR_SELECTOR)).not.toBeNull();
+  });
+
+  it("「打开文档时」偏好为直接编辑：已有内容打开即编辑态并自动聚焦", async () => {
+    setMobileSettingSnapshot({ editor: { openMode: "edit" } } as SettingCompat);
+    await renderCollabDetail();
+    expect(harness.readonlyProps[harness.readonlyProps.length - 1]).toBe(false);
+    expect(document.activeElement).toBe(document.querySelector(EDITOR_SELECTOR));
+    expect(document.querySelector(TOOLBAR_SELECTOR)).not.toBeNull();
+  });
+
+  it("点「编辑」后聚焦正文并渲染工具条，「完成」回阅读态", async () => {
+    await renderCollabDetail();
+    expect(document.querySelector(TOOLBAR_SELECTOR)).toBeNull();
+
+    await clickEdit();
+    expect(harness.readonlyProps[harness.readonlyProps.length - 1]).toBe(false);
+    expect(document.querySelector(TOOLBAR_SELECTOR)).not.toBeNull();
+
+    const done = Array.from(document.querySelectorAll("button")).find(
+      button => button.textContent === "完成"
+    );
+    await act(async () => {
+      done?.click();
+    });
+    expect(harness.readonlyProps[harness.readonlyProps.length - 1]).toBe(true);
+    expect(document.querySelector('button[aria-label="编辑"]')).not.toBeNull();
+  });
+
   it("聚焦协作正文后渲染工具条", async () => {
     await renderCollabDetail();
     expect(document.querySelector(TOOLBAR_SELECTOR)).toBeNull();
 
+    await clickEdit();
     await focusCollabEditor();
     const toolbar = document.querySelector(TOOLBAR_SELECTOR);
     expect(toolbar).not.toBeNull();
-    // 控制器拿到的是协作编辑器：格式按钮随之可用（此前 ref 为空时按钮全哑）
-    expect(toolbar?.querySelector('[aria-label="加粗"]')).not.toBeNull();
+    // 控制器拿到的是协作编辑器：配件栏按钮随之可用（此前 ref 为空时按钮全哑）
+    expect(toolbar?.querySelector('[aria-label="无序列表"]')).not.toBeNull();
   });
 
   it("失焦后收起工具条", async () => {
     await renderCollabDetail();
+    await clickEdit();
     const editor = await focusCollabEditor();
     expect(document.querySelector(TOOLBAR_SELECTOR)).not.toBeNull();
 
@@ -197,6 +284,7 @@ describe("ContentDetailPage 协作态的底部工具条", () => {
   it("协作只读态即使聚焦也收起工具条", async () => {
     harness.readonly = true;
     await renderCollabDetail();
+    expect(document.querySelector('button[aria-label="编辑"]')).toBeNull();
     await focusCollabEditor();
     expect(document.querySelector(TOOLBAR_SELECTOR)).toBeNull();
   });

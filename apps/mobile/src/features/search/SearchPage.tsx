@@ -53,7 +53,7 @@ function SearchResultItem({ item, onClick }: { item: UnifiedSearchResult; onClic
           <span className="text-ink-3 ml-auto text-[11.5px]">{relativeTime(item.updateTime)}</span>
         )}
       </div>
-      <p className="text-ink mt-2 line-clamp-1 text-[14px] font-bold">
+      <p className="text-ink-1 mt-2 line-clamp-1 text-[14px] font-bold">
         {item.title || item.excerpt || `${RESULT_TYPE_LABEL[item.type] ?? "内容"} #${item.id}`}
       </p>
       {item.excerpt && (
@@ -116,13 +116,13 @@ export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: Sea
             onChange={e => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="搜索所有内容"
-            className="input-base text-ink w-full rounded-full py-2.5 pl-10 pr-4 text-[14px]"
+            className="input-base text-ink-1 w-full rounded-full py-2.5 pl-10 pr-4 text-[14px]"
           />
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="text-ink-2 active:text-ink shrink-0 text-[14px] font-semibold"
+          className="text-ink-2 active:text-ink-1 shrink-0 text-[14px] font-semibold"
         >
           取消
         </button>
@@ -139,11 +139,11 @@ export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: Sea
           {!hasSearched && history.length > 0 ? (
             <div className="p-4">
               <div className="mb-3 flex items-center justify-between px-1">
-                <h3 className="text-ink text-[14px] font-extrabold">搜索历史</h3>
+                <h3 className="text-ink-1 text-[14px] font-extrabold">搜索历史</h3>
                 <button
                   type="button"
                   onClick={clearHistory}
-                  className="text-ink-3 active:text-ink p-1 transition-colors"
+                  className="text-ink-3 active:text-ink-1 p-1 transition-colors"
                   aria-label="清空历史"
                 >
                   <Trash2 size={18} aria-hidden="true" />
@@ -160,7 +160,9 @@ export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: Sea
                     <span className="text-ink-3">
                       <Search size={17} aria-hidden="true" />
                     </span>
-                    <span className="text-ink flex-1 truncate text-[14px] font-medium">{item}</span>
+                    <span className="text-ink-1 flex-1 truncate text-[14px] font-medium">
+                      {item}
+                    </span>
                   </button>
                 ))}
               </div>

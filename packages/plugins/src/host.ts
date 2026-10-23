@@ -861,8 +861,9 @@ function readId(id: unknown): string {
   return id;
 }
 
-/** 字段规则：数字为非空字符串的最大长度，对象形式可允许空串 */
-type FieldRule = number | { max: number; allowEmpty: true } | "boolean" | "tags" | "nullable-time";
+/** 字段规则：数字为非空字符串的最大长度，对象形式可允许空串；meta 为插件自有内容的 meta */
+type FieldRule =
+  number | { max: number; allowEmpty: true } | "boolean" | "tags" | "nullable-time" | "meta";
 
 /** 按字段表读取输入：string 可带最大长度，tags 为标签数组；required 中的字段必填，至少要有一个字段 */
 function readFields<T>(
@@ -881,7 +882,8 @@ function readFields<T>(
     if (rule === "boolean") {
       if (typeof item !== "boolean") throw new Error(`${key} 无效`);
       result[key] = item;
-    } else if (rule === "tags") result[key] = readTags(item);
+    } else if (rule === "meta") result[key] = readEntityMeta(item);
+    else if (rule === "tags") result[key] = readTags(item);
     else if (rule === "nullable-time") result[key] = item === null ? null : readText(item, key, 64);
     else if (typeof rule === "object") result[key] = readText(item, key, rule.max, true);
     else result[key] = readText(item, key, rule);
@@ -1565,19 +1567,18 @@ export class PluginHost {
     const readEntityCreate = (input: unknown) => {
       const value = readFields<PluginOwnEntityInput>(
         input,
-        { kind: 128, key: 200, title: MAX_TITLE },
+        { kind: 128, key: 200, title: MAX_TITLE, meta: "meta" },
         ["kind", "key"]
       );
       if (!entityKindDefinitions.has(value.kind))
         throw new Error(`类型 ${value.kind} 未声明，请先 registerKind`);
-      const meta = readEntityMeta((input as PluginOwnEntityInput).meta);
       const content = (input as PluginOwnEntityInput).content;
       return {
         input: {
           kind: value.kind,
           key: value.key,
           title: value.title ?? "",
-          meta,
+          meta: value.meta ?? {},
           ...(content !== undefined
             ? { content: readContentInput(content, { allowEmpty: true }) }
             : {}),
@@ -1585,11 +1586,8 @@ export class PluginHost {
         indexes: kindIndexes(value.kind),
       };
     };
-    const readEntityPatch = (patch: unknown): PluginOwnEntityPatch => {
-      const value = readFields<PluginOwnEntityPatch>(patch, { title: MAX_TITLE });
-      const meta = (patch as PluginOwnEntityPatch | undefined)?.meta;
-      return { ...value, ...(meta === undefined ? {} : { meta: readEntityMeta(meta) }) };
-    };
+    const readEntityPatch = (patch: unknown): PluginOwnEntityPatch =>
+      readFields<PluginOwnEntityPatch>(patch, { title: MAX_TITLE, meta: "meta" });
     const readLinkAdd = async (from: unknown, to: unknown, options: unknown) => {
       const target = readEntityRef(to);
       const { role, data } = readLinkOptions(options);

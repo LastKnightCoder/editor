@@ -69,13 +69,13 @@ function sortByOrder(a: TodoItem, b: TodoItem): number {
 
 function TypeIcon({ type }: { type: TodoItem["type"] }) {
   if (type === "deadline") {
-    return <Clock size={13} className="text-butter shrink-0" />;
+    return <Clock size={13} className="text-tag-4 shrink-0" />;
   }
   if (type === "planned") {
-    return <CalendarDays size={13} className="text-sky shrink-0" />;
+    return <CalendarDays size={13} className="text-tag-2 shrink-0" />;
   }
   if (type === "recurring") {
-    return <RefreshCw size={13} className="text-sage shrink-0" />;
+    return <RefreshCw size={13} className="text-tag-1 shrink-0" />;
   }
   return null;
 }
@@ -264,7 +264,7 @@ function performAutoScroll(scrollElement: HTMLElement | null, clientY: number): 
   }
 }
 
-// 杏子风格任务行：圆形勾选框 + 虚线分隔；memo 依赖的回调在 Tree 层已稳定化，
+// 任务行：圆形勾选框 + 虚线分隔；memo 依赖的回调在 Tree 层已稳定化，
 // 拖拽期间只有被拖行与落点行的 memo 失效。
 const TodoItemRow = memo(function TodoItemRow({
   item,
@@ -302,7 +302,7 @@ const TodoItemRow = memo(function TodoItemRow({
       onPointerMove={onRowPointerMove}
       onPointerUp={onRowPointerUp}
       onPointerCancel={onRowPointerUp}
-      className={`border-line relative select-none border-b border-dashed ${
+      className={`border-line-1 relative select-none border-b border-dashed ${
         isDragging ? "opacity-80" : ""
       }`}
     >
@@ -312,7 +312,7 @@ const TodoItemRow = memo(function TodoItemRow({
 
       <div
         className={`flex items-start gap-3 px-4 py-3.5 transition-colors ${
-          isDragging ? "bg-apricot-soft" : "active:bg-press"
+          isDragging ? "bg-accent-soft" : "active:bg-hover"
         } ${isDropChild ? "ring-accent/60 ring-2 ring-inset" : ""}`}
       >
         <button
@@ -324,12 +324,12 @@ const TodoItemRow = memo(function TodoItemRow({
           onClick={() => onToggleComplete(item, !item.isCompleted)}
           className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition-all duration-200 ${
             item.isCompleted
-              ? "border-accent bg-accent shadow-accent rotate-[360deg]"
+              ? "border-accent bg-accent shadow-lift rotate-[360deg]"
               : "border-ink-3/50 bg-surface"
           }`}
         >
           {item.isCompleted ? (
-            <Check size={13} strokeWidth={3.4} className="text-white" aria-hidden="true" />
+            <Check size={13} strokeWidth={3.4} className="text-ink-inverse" aria-hidden="true" />
           ) : null}
         </button>
 
@@ -348,10 +348,10 @@ const TodoItemRow = memo(function TodoItemRow({
             <span
               className={`line-clamp-1 text-[14px] font-semibold ${
                 item.isCompleted
-                  ? "text-ink-3 decoration-rose line-through decoration-2"
+                  ? "text-ink-3 decoration-tag-5 line-through decoration-2"
                   : isOverdue
-                    ? "text-rose"
-                    : "text-ink"
+                    ? "text-tag-5"
+                    : "text-ink-1"
               }`}
             >
               {item.title}
@@ -373,7 +373,7 @@ const TodoItemRow = memo(function TodoItemRow({
             }
             onOpenActions(item);
           }}
-          className="text-ink-3 active:bg-press -mr-1 rounded-full p-2"
+          className="text-ink-3 active:bg-hover -mr-1 rounded-full p-2"
           aria-label="任务操作"
         >
           <MoreHorizontal size={16} aria-hidden="true" />
@@ -800,7 +800,7 @@ export function TodoItemTree({
   return (
     <div className="pb-6">
       {!enableDragSort ? (
-        <div className="bg-input text-ink-3 mb-3 rounded-full px-4 py-2 text-center text-xs font-medium">
+        <div className="bg-page text-ink-3 mb-3 rounded-full px-4 py-2 text-center text-xs font-medium">
           当前筛选条件下已禁用拖拽排序，清空筛选后可长按拖拽
         </div>
       ) : null}

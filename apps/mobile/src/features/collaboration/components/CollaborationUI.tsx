@@ -21,7 +21,11 @@ export function Avatar(props: {
   className?: string;
 }) {
   const sizeClass =
-    props.size === "sm" ? "h-[26px] w-[26px] text-[11.5px]" : props.size === "lg" ? "h-[46px] w-[46px] text-[19px]" : "h-[34px] w-[34px] text-[14px]";
+    props.size === "sm"
+      ? "h-[26px] w-[26px] text-[11.5px]"
+      : props.size === "lg"
+        ? "h-[46px] w-[46px] text-[19px]"
+        : "h-[34px] w-[34px] text-[14px]";
   const dotClass = props.size === "sm" ? "h-[9px] w-[9px]" : "h-[10px] w-[10px]";
   return (
     <span
@@ -32,7 +36,7 @@ export function Avatar(props: {
       {avatarInitial(props.name)}
       {props.online ? (
         <span
-          className={`absolute -bottom-px -right-px rounded-full border-[2.5px] border-surface bg-sage ${dotClass}`}
+          className={`border-surface bg-tag-1 absolute -bottom-px -right-px rounded-full border-[2.5px] ${dotClass}`}
         />
       ) : null}
     </span>
@@ -51,11 +55,11 @@ export function AvatarStack(props: { members: Member[]; max?: number; className?
           id={member.deviceId}
           name={member.nickname}
           size="sm"
-          className="-ml-[9px] border-[2.5px] border-page first:ml-0"
+          className="border-page -ml-[9px] border-[2.5px] first:ml-0"
         />
       ))}
       {rest > 0 ? (
-        <span className="-ml-[9px] grid h-[26px] w-[26px] place-items-center rounded-full border-[2.5px] border-page bg-input text-[10.5px] font-extrabold text-ink-2">
+        <span className="border-page bg-page text-ink-2 -ml-[9px] grid h-[26px] w-[26px] place-items-center rounded-full border-[2.5px] text-[10.5px] font-extrabold">
           +{rest}
         </span>
       ) : null}
@@ -64,10 +68,10 @@ export function AvatarStack(props: { members: Member[]; max?: number; className?
 }
 
 const TONE_DOT: Record<SessionTone, string> = {
-  live: "bg-sage",
-  syncing: "bg-sky pulse-soft",
+  live: "bg-tag-1",
+  syncing: "bg-tag-2 pulse-soft",
   offline: "bg-ink-3",
-  error: "bg-rose",
+  error: "bg-tag-5",
   idle: "bg-ink-3",
 };
 
@@ -81,11 +85,11 @@ export function StatusDot(props: { tone: SessionTone; className?: string }) {
 }
 
 const TONE_BADGE: Record<SessionTone, string> = {
-  live: "bg-sage-soft text-sage",
-  syncing: "bg-sky-soft text-sky",
-  offline: "bg-input text-ink-3",
-  error: "bg-rose-soft text-rose",
-  idle: "bg-input text-ink-3",
+  live: "bg-tag-1-soft text-tag-1",
+  syncing: "bg-tag-2-soft text-tag-2",
+  offline: "bg-page text-ink-3",
+  error: "bg-tag-5-soft text-tag-5",
+  idle: "bg-page text-ink-3",
 };
 
 export function StatusBadge(props: { tone: SessionTone; children: ReactNode }) {
@@ -110,10 +114,10 @@ export function memberActivity(member: Member) {
 
 export function memberActivityClass(member: Member) {
   if (member.role === "owner") return "bg-accent-soft text-accent";
-  if (!member.online) return "bg-input text-ink-3";
-  if (member.activity === "editing") return "bg-sage-soft text-sage";
-  if (member.activity === "viewing") return "bg-sky-soft text-sky";
-  return "bg-input text-ink-2";
+  if (!member.online) return "bg-page text-ink-3";
+  if (member.activity === "editing") return "bg-tag-1-soft text-tag-1";
+  if (member.activity === "viewing") return "bg-tag-2-soft text-tag-2";
+  return "bg-page text-ink-2";
 }
 
 export function MemberRow(props: {
@@ -126,18 +130,25 @@ export function MemberRow(props: {
   const isSelf = Boolean(props.selfId && member.deviceId === props.selfId);
   return (
     <div className="relative flex items-center gap-3 px-3.5 py-2.5">
-      <Avatar id={member.deviceId} name={member.nickname} online={member.online} dimmed={!member.online} />
+      <Avatar
+        id={member.deviceId}
+        name={member.nickname}
+        online={member.online}
+        dimmed={!member.online}
+      />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <span
-            className={`truncate text-[14px] font-semibold ${member.online ? "text-ink" : "text-ink-2"}`}
+            className={`truncate text-[14px] font-semibold ${member.online ? "text-ink-1" : "text-ink-2"}`}
           >
             {member.nickname}
           </span>
-          {isSelf ? <span className="text-[11px] font-medium text-ink-3">（你）</span> : null}
+          {isSelf ? <span className="text-ink-3 text-[11px] font-medium">（你）</span> : null}
         </div>
       </div>
-      <span className={`shrink-0 rounded-full px-2.5 py-[3px] text-[11px] font-bold ${memberActivityClass(member)}`}>
+      <span
+        className={`shrink-0 rounded-full px-2.5 py-[3px] text-[11px] font-bold ${memberActivityClass(member)}`}
+      >
         {memberActivity(member)}
       </span>
       {props.onRemove && member.role !== "owner" && !isSelf ? (
@@ -146,7 +157,7 @@ export function MemberRow(props: {
           aria-label={`移除 ${member.nickname}`}
           disabled={props.removeDisabled}
           onClick={() => props.onRemove?.(member)}
-          className="text-rose/75 active:bg-rose-soft grid h-8 w-8 place-items-center rounded-full disabled:opacity-40"
+          className="text-tag-5/75 active:bg-tag-5-soft grid h-8 w-8 place-items-center rounded-full disabled:opacity-40"
         >
           <UserMinus size={15} />
         </button>
@@ -178,7 +189,7 @@ export function CollabCodeCard(props: {
           {remainDays ? `${remainDays} 天后过期` : "7 天有效"}
         </span>
       </div>
-      <div className="flex justify-center gap-2 font-mono text-[21px] font-extrabold tracking-[0.04em] text-ink">
+      <div className="text-ink-1 flex justify-center gap-2 font-mono text-[21px] font-extrabold tracking-[0.04em]">
         {groups ? (
           <>
             <span>{groups[0]}</span>
@@ -196,8 +207,8 @@ export function CollabCodeCard(props: {
           <button
             type="button"
             onClick={props.onCopy}
-            className="shadow-accent flex flex-[1.6] items-center justify-center gap-2 rounded-full py-3 text-[13.5px] font-extrabold text-white active:scale-[0.98]"
-            style={{ backgroundImage: "var(--brand-grad)" }}
+            className="shadow-lift text-ink-inverse flex flex-[1.6] items-center justify-center gap-2 rounded-full py-3 text-[13.5px] font-extrabold active:scale-[0.98]"
+            style={{ background: "var(--tau-accent)" }}
           >
             <Copy size={16} /> 复制协作码
           </button>
@@ -206,8 +217,8 @@ export function CollabCodeCard(props: {
             type="button"
             disabled={props.busy}
             onClick={props.onRotate}
-            className="shadow-accent flex flex-[1.6] items-center justify-center gap-2 rounded-full py-3 text-[13.5px] font-extrabold text-white disabled:opacity-50"
-            style={{ backgroundImage: "var(--brand-grad)" }}
+            className="shadow-lift text-ink-inverse flex flex-[1.6] items-center justify-center gap-2 rounded-full py-3 text-[13.5px] font-extrabold disabled:opacity-50"
+            style={{ background: "var(--tau-accent)" }}
           >
             <Check size={16} /> 生成协作码
           </button>
@@ -217,7 +228,7 @@ export function CollabCodeCard(props: {
             type="button"
             disabled={props.busy}
             onClick={props.onRotate}
-            className="bg-input text-ink-2 flex flex-1 items-center justify-center gap-1.5 rounded-full py-3 text-[13px] font-bold disabled:opacity-50"
+            className="bg-page text-ink-2 flex flex-1 items-center justify-center gap-1.5 rounded-full py-3 text-[13px] font-bold disabled:opacity-50"
           >
             <RefreshCw size={15} /> 轮换
           </button>

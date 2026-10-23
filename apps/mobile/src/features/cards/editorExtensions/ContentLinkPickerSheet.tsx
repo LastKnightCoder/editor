@@ -162,7 +162,7 @@ export function ContentLinkPickerSheet(props: ContentLinkPickerSheetProps) {
                 value={query}
                 onChange={event => setQuery(event.target.value)}
                 placeholder="搜索关联内容"
-                className="input-base text-ink placeholder:text-ink-3 w-full rounded-lg py-2.5 pl-9 pr-3 text-[15px]"
+                className="input-base text-ink-1 placeholder:text-ink-3 w-full rounded-lg py-2.5 pl-9 pr-3 text-[15px]"
               />
             </div>
             <button type="button" onClick={onClose} className="text-ink-2 shrink-0 text-[15px]">
@@ -180,12 +180,12 @@ export function ContentLinkPickerSheet(props: ContentLinkPickerSheetProps) {
                   <button
                     key={item.id}
                     type="button"
-                    className="bg-surface active:bg-press w-full rounded-2xl rounded-xl px-4 py-3 text-left transition-colors"
+                    className="bg-surface active:bg-hover w-full rounded-2xl rounded-xl px-4 py-3 text-left transition-colors"
                     onClick={() => {
                       onSelect(mapCardItemToContentLinkResult(item));
                     }}
                   >
-                    <p className="text-ink line-clamp-1 text-[15px] font-medium">{displayText}</p>
+                    <p className="text-ink-1 line-clamp-1 text-[15px] font-medium">{displayText}</p>
                     <div className="text-ink-3 mt-2 flex items-center gap-2 text-xs">
                       <span>Card #{item.id}</span>
                     </div>

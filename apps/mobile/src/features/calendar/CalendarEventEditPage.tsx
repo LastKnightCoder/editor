@@ -18,7 +18,7 @@ import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
 import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
 import { DateTimePickerSheet } from "../../components/DateTimePickerSheet";
 import { useBackHandler } from "../../router";
-import { useMobileTheme } from "../../hooks/useMobileTheme";
+import { useThemeStore } from "@tau/themes/react";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { calendarColorLabel, eventColorValue } from "./constants";
 import { useCalendars, invalidateCalendarQueries } from "./queries";
@@ -71,7 +71,7 @@ export function CalendarEventEditPage({
   onSaved,
   onError,
 }: CalendarEventEditPageProps) {
-  const { isDark } = useMobileTheme();
+  const isDark = useThemeStore(s => s.mode === "dark");
   const editorRef = useRef<EditorRef | null>(null);
   const [pageContainer, setPageContainer] = useState<HTMLDivElement | null>(null);
   const toolbarController = useMobileEditorToolbarController({ editorRef });
@@ -264,7 +264,7 @@ export function CalendarEventEditPage({
           {loadFailed ? (
             <>
               <CalendarX2 size={34} className="text-ink-3" aria-hidden />
-              <div className="text-ink text-[14px] font-extrabold">日程不存在或已被系统更新</div>
+              <div className="text-ink-1 text-[14px] font-extrabold">日程不存在或已被系统更新</div>
               <div className="text-ink-3 text-center text-[12px] leading-[1.6]">
                 请返回日历后重新打开
               </div>
@@ -290,7 +290,7 @@ export function CalendarEventEditPage({
         >
           取消
         </button>
-        <h1 className="text-ink absolute left-1/2 -translate-x-1/2 text-center text-[18px] font-extrabold">
+        <h1 className="text-ink-1 absolute left-1/2 -translate-x-1/2 text-center text-[18px] font-extrabold">
           {isEdit ? "编辑日程" : "新建日程"}
         </h1>
         <div className="ml-auto flex shrink-0 justify-end gap-2">
@@ -316,7 +316,7 @@ export function CalendarEventEditPage({
               value={draft.title}
               onChange={event => setValue({ title: event.target.value })}
               placeholder="日程标题…"
-              className="text-ink placeholder:text-ink-3 w-full border-none bg-transparent text-[18px] font-extrabold outline-none"
+              className="text-ink-1 placeholder:text-ink-3 w-full border-none bg-transparent text-[18px] font-extrabold outline-none"
             />
           </div>
 
@@ -324,7 +324,7 @@ export function CalendarEventEditPage({
             <div className="text-ink-3 mb-2.5 text-[11.5px] font-extrabold tracking-[1px]">
               时间
             </div>
-            <div className="flex items-center gap-3 border-b border-[var(--line-2)] py-[13px]">
+            <div className="flex items-center gap-3 border-b border-[var(--tau-line-2)] py-[13px]">
               <span className="text-ink-2 w-[62px] flex-none text-[14px] font-bold">全天</span>
               <span className="flex-1" />
               <button
@@ -334,7 +334,7 @@ export function CalendarEventEditPage({
                 aria-label="全天"
                 onClick={() => setValue({ allDay: !draft.allDay })}
                 className={`relative h-[30px] w-[50px] flex-none rounded-full transition-colors ${
-                  draft.allDay ? "bg-[var(--brand)]" : "bg-[var(--ring-track)]"
+                  draft.allDay ? "bg-[var(--tau-accent)]" : "bg-[var(--ring-track)]"
                 }`}
               >
                 <span
@@ -368,7 +368,7 @@ export function CalendarEventEditPage({
               danger={error}
             />
             {error ? (
-              <div className="pt-2 text-[11.5px] font-semibold text-[var(--rose)]">
+              <div className="pt-2 text-[11.5px] font-semibold text-[var(--tau-tag-5)]">
                 结束时间早于开始时间，保存前请调整
               </div>
             ) : null}
@@ -426,14 +426,14 @@ export function CalendarEventEditPage({
 
         <div
           className="flex-none px-[18px] pt-3"
-          style={{ background: "linear-gradient(to top, var(--bg-page) 62%, transparent)" }}
+          style={{ background: "linear-gradient(to top, var(--tau-bg-page) 62%, transparent)" }}
         >
           <button
             type="button"
             disabled={!draft.title.trim() || draft.calendarId === null || saving || error}
             onClick={handleSave}
-            className="shadow-accent h-[50px] w-full rounded-[17px] text-[15.5px] font-extrabold text-white disabled:opacity-50"
-            style={{ background: "var(--brand-grad)" }}
+            className="shadow-lift text-ink-inverse h-[50px] w-full rounded-[17px] text-[15.5px] font-extrabold disabled:opacity-50"
+            style={{ background: "var(--tau-accent)" }}
           >
             {saving ? "保存中…" : isEdit ? "保存修改" : "保存日程"}
           </button>
@@ -526,12 +526,16 @@ function FormRow({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 border-b border-[var(--line-2)] py-[13px] text-left last:border-none"
+      className="flex w-full items-center gap-3 border-b border-[var(--tau-line-2)] py-[13px] text-left last:border-none"
     >
       <span className="text-ink-2 w-[62px] flex-none text-[14px] font-bold">{label}</span>
       <span
         className={`min-w-0 flex-1 text-[14px] font-bold ${
-          placeholder ? "text-ink-3 font-semibold" : danger ? "text-[var(--rose)]" : "text-ink"
+          placeholder
+            ? "text-ink-3 font-semibold"
+            : danger
+              ? "text-[var(--tau-tag-5)]"
+              : "text-ink-1"
         }`}
       >
         {dotColor ? (

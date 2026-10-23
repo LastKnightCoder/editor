@@ -5,20 +5,21 @@ import { createParagraph } from "../model/paragraph";
 
 /**
  * 复制节点到剪贴板
- * 支持两种格式：JSON 和纯文本
+ * 支持两种格式：JSON 和纯文本；传入数组时按数组顺序作为一个 fragment，纯文本以换行连接
  */
 export async function copyNodeToClipboard(
   _editor: Editor,
-  element: Node,
+  element: Node | Node[],
   message?: EditorFeedback,
   options: { allowPlainTextFallback?: boolean; signal?: AbortSignal } = {}
 ): Promise<boolean> {
   if (options.signal?.aborted) return false;
   const slateClipboardFormat = "application/x-slate-fragment";
-  const plainText = Node.string(element);
+  const fragment = Array.isArray(element) ? element : [element];
+  const plainText = fragment.map(node => Node.string(node)).join("\n");
 
   try {
-    const fragmentJSON = JSON.stringify([element]);
+    const fragmentJSON = JSON.stringify(fragment);
     const encodedFragment = window.btoa(encodeURIComponent(fragmentJSON));
     const htmlPayload = buildSlateFragmentHTML(encodedFragment, plainText);
 

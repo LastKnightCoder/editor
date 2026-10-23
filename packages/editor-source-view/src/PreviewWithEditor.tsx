@@ -396,6 +396,8 @@ const PointerPreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorPro
                   readOnly={readOnly}
                   className="ed-preview-codemirror h-auto"
                   onChange={handleInputChange}
+                  // 失焦即提交最后输入，避免紧接着卸载时取消防抖更新。
+                  onBlur={() => flushChange()}
                   editorDidMount={editor => {
                     editorRef.current = editor;
                     const position = pendingFocusRef.current;

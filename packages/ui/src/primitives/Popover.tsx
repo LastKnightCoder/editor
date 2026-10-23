@@ -245,7 +245,7 @@ function PopoverHeader({ icon, children }: PopoverHeaderProps) {
   return (
     <div className="flex items-center gap-2.5 px-4 pb-1 pt-3.5">
       {icon && (
-        <span className="bg-accent-soft text-accent-text flex size-[26px] shrink-0 items-center justify-center rounded-[8px] [&_svg]:size-3.5">
+        <span className="bg-accent-soft text-accent-text flex size-[26px] shrink-0 items-center justify-center rounded-[8px] [&>svg]:size-3.5">
           {icon}
         </span>
       )}

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import {
+  BookOpen,
   Check,
   CircleHelp,
   ChevronLeft,
@@ -15,7 +16,7 @@ import {
   Wifi,
 } from "lucide-react";
 
-// 图标统一为「彩色圆角块」形态（杏子设计稿 s-ico：34px 方块 + soft 底色）
+// 图标统一为「彩色圆角块」形态（34px 方块 + soft 底色）
 function IconTile({ className, children }: { className: string; children: ReactNode }) {
   return (
     <span className={`grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl ${className}`}>
@@ -34,7 +35,7 @@ export function IconChevronRight() {
 
 export function IconMoon() {
   return (
-    <IconTile className="bg-rose-soft text-rose">
+    <IconTile className="bg-tag-5-soft text-tag-5">
       <Moon size={17} strokeWidth={1.9} aria-hidden="true" />
     </IconTile>
   );
@@ -42,7 +43,7 @@ export function IconMoon() {
 
 export function IconCircleHelp() {
   return (
-    <IconTile className="bg-input text-ink-2">
+    <IconTile className="bg-page text-ink-2">
       <CircleHelp size={17} strokeWidth={1.9} aria-hidden="true" />
     </IconTile>
   );
@@ -50,7 +51,7 @@ export function IconCircleHelp() {
 
 export function IconCloud() {
   return (
-    <IconTile className="bg-sky-soft text-sky">
+    <IconTile className="bg-tag-2-soft text-tag-2">
       <Cloud size={17} strokeWidth={1.9} aria-hidden="true" />
     </IconTile>
   );
@@ -58,7 +59,7 @@ export function IconCloud() {
 
 export function IconDatabase() {
   return (
-    <IconTile className="bg-lilac-soft text-lilac">
+    <IconTile className="bg-tag-3-soft text-tag-3">
       <Database size={17} strokeWidth={1.9} aria-hidden="true" />
     </IconTile>
   );
@@ -66,7 +67,7 @@ export function IconDatabase() {
 
 export function IconFolder() {
   return (
-    <IconTile className="bg-butter-soft text-butter">
+    <IconTile className="bg-tag-4-soft text-tag-4">
       <Folder size={17} strokeWidth={1.9} aria-hidden="true" />
     </IconTile>
   );
@@ -74,7 +75,7 @@ export function IconFolder() {
 
 export function IconImage() {
   return (
-    <IconTile className="bg-sage-soft text-sage">
+    <IconTile className="bg-tag-1-soft text-tag-1">
       <ImageIcon size={17} strokeWidth={1.9} aria-hidden="true" />
     </IconTile>
   );
@@ -82,8 +83,16 @@ export function IconImage() {
 
 export function IconWifi() {
   return (
-    <IconTile className="bg-sage-soft text-sage">
+    <IconTile className="bg-tag-1-soft text-tag-1">
       <Wifi size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
+}
+
+export function IconBookOpen() {
+  return (
+    <IconTile className="bg-tag-4-soft text-tag-4">
+      <BookOpen size={17} strokeWidth={1.9} aria-hidden="true" />
     </IconTile>
   );
 }
@@ -123,7 +132,7 @@ export function FieldInput(props: {
         onBlur={props.onBlur}
         type={props.type ?? "text"}
         placeholder={props.placeholder}
-        className="input-base text-ink w-full px-4 py-3 text-[14px]"
+        className="input-base text-ink-1 w-full px-4 py-3 text-[14px]"
       />
     </div>
   );
@@ -146,7 +155,7 @@ export function FieldSelect(props: {
         value={props.value}
         onChange={e => props.onChange(e.currentTarget.value)}
         disabled={props.disabled}
-        className="input-base text-ink w-full px-4 py-3 text-[14px] disabled:opacity-60"
+        className="input-base text-ink-1 w-full px-4 py-3 text-[14px] disabled:opacity-60"
       >
         <option value="">{props.placeholder ?? "请选择"}</option>
         {props.options.map(option => (
@@ -179,9 +188,9 @@ export function FieldSheetTrigger(props: {
         type="button"
         onClick={props.onOpen}
         disabled={props.disabled}
-        className="input-base active:bg-press flex min-h-[48px] w-full items-center justify-between px-4 py-3 text-left text-[14px] transition-colors disabled:opacity-60"
+        className="input-base active:bg-hover flex min-h-[48px] w-full items-center justify-between px-4 py-3 text-left text-[14px] transition-colors disabled:opacity-60"
       >
-        <span className={isPlaceholder ? "text-ink-3" : "text-ink"}>{displayText}</span>
+        <span className={isPlaceholder ? "text-ink-3" : "text-ink-1"}>{displayText}</span>
         <span className="text-ink-3">
           <IconChevronRight />
         </span>
@@ -211,7 +220,7 @@ export function ListItem({
       disabled={!onClick}
     >
       {icon}
-      <span className="text-ink flex-1 text-[14px] font-medium">{label}</span>
+      <span className="text-ink-1 flex-1 text-[14px] font-medium">{label}</span>
       <span className="flex items-center gap-1.5">
         {value && <span className="text-ink-3 text-[12.5px]">{value}</span>}
         {showArrow && onClick && (
@@ -232,7 +241,7 @@ export function SwitchButton(props: { checked: boolean; onChange: () => void }) 
       role="switch"
       aria-checked={props.checked}
       className={`relative h-7 w-[46px] rounded-full transition-colors duration-200 ${
-        props.checked ? "bg-sage" : "bg-line"
+        props.checked ? "bg-tag-1" : "bg-line-1"
       }`}
     >
       <span
@@ -254,8 +263,8 @@ export function SaveButton(props: {
       type="button"
       onClick={() => void props.onClick()}
       disabled={props.isSaving}
-      className="bg-accent shadow-accent mt-4 w-full rounded-full py-3 text-sm font-bold text-white transition-transform duration-150 active:scale-[0.97] disabled:opacity-50"
-      style={{ backgroundImage: "var(--brand-grad)" }}
+      className="bg-accent shadow-lift text-ink-inverse mt-4 w-full rounded-full py-3 text-sm font-bold transition-transform duration-150 active:scale-[0.97] disabled:opacity-50"
+      style={{ background: "var(--tau-accent)" }}
     >
       {props.isSaving ? "保存中..." : (props.label ?? "保存配置")}
     </button>
@@ -314,9 +323,9 @@ export function GroupRow(props: {
 
 export function StatusDot(props: { tone: "ok" | "run" | "warn" | "idle" }) {
   const toneClass = {
-    ok: "bg-sage",
-    run: "bg-sky pulse-soft",
-    warn: "bg-butter",
+    ok: "bg-tag-1",
+    run: "bg-tag-2 pulse-soft",
+    warn: "bg-tag-4",
     idle: "bg-ink-3",
   }[props.tone];
   return (
@@ -326,7 +335,7 @@ export function StatusDot(props: { tone: "ok" | "run" | "warn" | "idle" }) {
 
 export function CheckBubble() {
   return (
-    <span className="bg-accent grid h-[21px] w-[21px] shrink-0 place-items-center rounded-full text-white">
+    <span className="bg-accent text-ink-inverse grid h-[21px] w-[21px] shrink-0 place-items-center rounded-full">
       <Check size={13} strokeWidth={3.4} aria-hidden="true" />
     </span>
   );
@@ -349,7 +358,7 @@ export function InfoDotButton(props: { onClick: () => void; label: string }) {
         props.onClick();
       }}
       aria-label={props.label}
-      className="bg-input text-ink-2 grid h-[26px] w-[26px] shrink-0 place-items-center rounded-full transition-transform duration-150 active:scale-90"
+      className="bg-page text-ink-2 grid h-[26px] w-[26px] shrink-0 place-items-center rounded-full transition-transform duration-150 active:scale-90"
     >
       <Info size={14} strokeWidth={2.2} aria-hidden="true" />
     </button>
@@ -385,7 +394,7 @@ export function CredentialEntryRow(props: {
 }) {
   return (
     <GroupRow onClick={props.onOpen}>
-      <IconTile className={props.connected ? "bg-sage-soft text-sage" : "bg-input text-ink-2"}>
+      <IconTile className={props.connected ? "bg-tag-1-soft text-tag-1" : "bg-page text-ink-2"}>
         {props.connected ? (
           <Check size={16} strokeWidth={2.2} aria-hidden="true" />
         ) : (
@@ -393,7 +402,7 @@ export function CredentialEntryRow(props: {
         )}
       </IconTile>
       <span className="min-w-0 flex-1">
-        <span className="text-ink block truncate text-[14px] font-medium">
+        <span className="text-ink-1 block truncate text-[14px] font-medium">
           {props.connected ? `已连接${props.account ? ` · ${props.account}` : ""}` : "未连接凭证"}
         </span>
         <span className="text-ink-3 block text-[11.5px]">

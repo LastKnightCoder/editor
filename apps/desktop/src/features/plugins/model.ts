@@ -41,6 +41,8 @@ export const CONTRIBUTION_LABELS: Record<PluginContributionKind, string> = {
 
 export const PLUGIN_TEMPLATE_URL = "https://github.com/LastKnightCoder/tau-plugin-template";
 export const PLUGIN_PORTAL_URL = "https://plugins.taunote.app";
+export const pluginPortalUrl = (pluginId: string) =>
+  `${PLUGIN_PORTAL_URL}/plugins/${encodeURIComponent(pluginId)}`;
 
 export const SYSTEM_ACCESS_LABELS: Record<PluginSystemAccess, string> = {
   filesystem: "文件",

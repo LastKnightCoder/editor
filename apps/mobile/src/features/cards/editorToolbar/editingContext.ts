@@ -1,0 +1,235 @@
+import { useEffect, useMemo, useState, type RefObject } from "react";
+import type { EditorRef } from "@tau/editor";
+import { columnCount, getCellPosition, getTableAt } from "@tau/editor/extensions/table";
+import {
+  Editor as SlateEditor,
+  Element as SlateElement,
+  Node as SlateNode,
+  Range,
+  type Element as ElementNode,
+  type Path,
+} from "slate";
+import { ReactEditor } from "slate-react";
+
+/** 配件栏的编辑上下文：决定配件栏渲染哪一组工具 */
+export type EditingContext =
+  | { kind: "text" }
+  | { kind: "selection" }
+  | {
+      kind: "table";
+      tablePath: Path;
+      row: number;
+      col: number;
+      rowCount: number;
+      colCount: number;
+    }
+  | {
+      kind: "code";
+      element: ElementNode;
+      path: Path;
+      textarea: HTMLTextAreaElement;
+      uuid?: string;
+      language?: string;
+    }
+  | { kind: "block-math" | "mermaid"; path: Path; host: HTMLElement }
+  | { kind: "inline-math"; path: Path; input: HTMLInputElement };
+
+export type TableEditingContext = Extract<EditingContext, { kind: "table" }>;
+
+export type CodeEditingContext = Extract<EditingContext, { kind: "code" }>;
+
+export type VoidEditorContext = Extract<
+  EditingContext,
+  { kind: "code" | "block-math" | "mermaid" | "inline-math" }
+>;
+
+export const TEXT_CONTEXT: EditingContext = { kind: "text" };
+const SELECTION_CONTEXT: EditingContext = { kind: "selection" };
+
+/** 代码块内部的原生 textarea */
+const CODE_BLOCK_INPUT_SELECTOR = ".code-block-shiki-input";
+/** 块公式 / 流程图源码编辑器（CodeMirror 5）的容器 */
+const PREVIEW_CODEMIRROR_SELECTOR = ".ed-preview-codemirror";
+const SLATE_ELEMENT_SELECTOR = '[data-slate-node="element"]';
+const SLATE_EDITOR_SELECTOR = "[data-slate-editor]";
+/** 行内公式弹层输入框（InlineMath 组件的 data 属性），并用选区所在 inline-math 节点二次确认 */
+const INLINE_MATH_INPUT_SELECTOR = "input[data-inline-math-input]";
+
+const VOID_EDITOR_KINDS = new Set<EditingContext["kind"]>([
+  "code",
+  "block-math",
+  "mermaid",
+  "inline-math",
+]);
+
+export function isVoidEditorContext(context: EditingContext): context is VoidEditorContext {
+  return VOID_EDITOR_KINDS.has(context.kind);
+}
+
+/** 上下文的稳定标识：同一表格内换单元格不变，用于记录「手动退回通用模式」 */
+export function getEditingContextKey(context: EditingContext): string {
+  switch (context.kind) {
+    case "text":
+    case "selection":
+      return context.kind;
+    case "table":
+      return `table:${context.tablePath.join(".")}`;
+    default:
+      return `${context.kind}:${context.path.join(".")}`;
+  }
+}
+
+const getNodeType = (node: unknown) => (node as { type?: unknown }).type;
+
+/** DOM 元素所在的 Slate 元素节点；节点不属于当前编辑器时返回 null */
+function findOwnSlateElement(
+  editor: SlateEditor,
+  target: HTMLElement
+): { element: ElementNode; path: Path } | null {
+  const elementDom = target.closest(SLATE_ELEMENT_SELECTOR);
+  if (!elementDom) return null;
+  try {
+    const node = ReactEditor.toSlateNode(editor as ReactEditor, elementDom);
+    if (!SlateElement.isElement(node)) return null;
+    const path = ReactEditor.findPath(editor as ReactEditor, node);
+    // findPath 只沿全局父子映射回溯，需回到本编辑器取节点确认归属
+    if (!SlateNode.has(editor, path) || SlateNode.get(editor, path) !== node) return null;
+    return { element: node, path };
+  } catch {
+    return null;
+  }
+}
+
+function findSelectedInlineMath(editor: SlateEditor): Path | null {
+  if (!editor.selection) return null;
+  const entry = SlateEditor.above(editor, {
+    at: editor.selection,
+    voids: true,
+    match: node => SlateElement.isElement(node) && getNodeType(node) === "inline-math",
+  });
+  return entry ? entry[1] : null;
+}
+
+/** 焦点在当前编辑器的 void 内部编辑器（代码块 / 块公式 / 流程图 / 行内公式）时返回对应上下文 */
+export function resolveVoidEditorContext(
+  editor: SlateEditor,
+  activeElement: Element | null
+): VoidEditorContext | null {
+  if (!(activeElement instanceof HTMLElement)) return null;
+  if (ReactEditor.isReadOnly(editor as ReactEditor)) return null;
+
+  if (
+    activeElement instanceof HTMLTextAreaElement &&
+    activeElement.matches(CODE_BLOCK_INPUT_SELECTOR)
+  ) {
+    const owner = findOwnSlateElement(editor, activeElement);
+    if (!owner || getNodeType(owner.element) !== "code-block") return null;
+    const { uuid, language } = owner.element as { uuid?: string; language?: string };
+    return {
+      kind: "code",
+      element: owner.element,
+      path: owner.path,
+      textarea: activeElement,
+      uuid,
+      language,
+    };
+  }
+
+  const host = activeElement.closest<HTMLElement>(PREVIEW_CODEMIRROR_SELECTOR);
+  if (host) {
+    const owner = findOwnSlateElement(editor, host);
+    const type = owner ? getNodeType(owner.element) : null;
+    if (owner && (type === "block-math" || type === "mermaid")) {
+      return { kind: type, path: owner.path, host };
+    }
+    return null;
+  }
+
+  if (
+    activeElement instanceof HTMLInputElement &&
+    !activeElement.closest(SLATE_EDITOR_SELECTOR) &&
+    activeElement.matches(INLINE_MATH_INPUT_SELECTOR)
+  ) {
+    const path = findSelectedInlineMath(editor);
+    return path ? { kind: "inline-math", path, input: activeElement } : null;
+  }
+
+  return null;
+}
+
+/** 光标所在单元格的表格上下文；不在表格内返回 null */
+export function resolveTableContext(editor: SlateEditor): TableEditingContext | null {
+  const position = getCellPosition(editor);
+  if (!position) return null;
+  const table = getTableAt(editor, position.tablePath);
+  if (!table) return null;
+  return {
+    kind: "table",
+    tablePath: position.tablePath,
+    row: position.row,
+    col: position.col,
+    rowCount: table.children.length,
+    colCount: columnCount(table),
+  };
+}
+
+/** 优先级：void 内部编辑器 > 展开选区 > 表格 > 通用文本 */
+export function resolveEditingContext(
+  editor: SlateEditor,
+  activeElement: Element | null
+): EditingContext {
+  const voidContext = resolveVoidEditorContext(editor, activeElement);
+  if (voidContext) return voidContext;
+  const selection = editor.selection;
+  if (selection && !Range.isCollapsed(selection)) return SELECTION_CONTEXT;
+  return resolveTableContext(editor) ?? TEXT_CONTEXT;
+}
+
+/** 随选区版本与文档焦点变化重算编辑上下文；focusout 后等一帧再判，避免焦点切换瞬间闪烁 */
+export function useEditingContext(
+  editorRef: RefObject<EditorRef | null>,
+  selectionVersion: number
+): EditingContext {
+  const [focusVersion, setFocusVersion] = useState(0);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    let frame: number | null = null;
+    const bump = () => setFocusVersion(value => value + 1);
+    const cancelFrame = () => {
+      if (frame !== null) {
+        window.cancelAnimationFrame(frame);
+        frame = null;
+      }
+    };
+    const handleFocusIn = () => {
+      cancelFrame();
+      bump();
+    };
+    const handleFocusOut = () => {
+      cancelFrame();
+      frame = window.requestAnimationFrame(() => {
+        frame = null;
+        bump();
+      });
+    };
+    document.addEventListener("focusin", handleFocusIn);
+    document.addEventListener("focusout", handleFocusOut);
+    return () => {
+      cancelFrame();
+      document.removeEventListener("focusin", handleFocusIn);
+      document.removeEventListener("focusout", handleFocusOut);
+    };
+  }, []);
+
+  return useMemo(() => {
+    void selectionVersion;
+    void focusVersion;
+    const editor = editorRef.current?.getEditor() as SlateEditor | undefined;
+    if (!editor) return TEXT_CONTEXT;
+    return resolveEditingContext(
+      editor,
+      typeof document === "undefined" ? null : document.activeElement
+    );
+  }, [editorRef, focusVersion, selectionVersion]);
+}

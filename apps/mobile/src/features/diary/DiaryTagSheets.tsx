@@ -84,7 +84,7 @@ export function DiaryTagChip({
   );
   const light = isLightColor(color);
   const className = `inline-flex items-center gap-[5px] rounded-full px-2.5 py-[3px] text-[10.5px] font-bold transition-colors ${
-    muted ? "bg-input text-ink-3" : light ? "text-ink" : ""
+    muted ? "bg-page text-ink-3" : light ? "text-ink-1" : ""
   }`;
   const style = muted
     ? undefined
@@ -285,7 +285,7 @@ export function DiaryTagEditorSheet({
             ) : null}
           </div>
 
-          <div className="border-line bg-input mt-4 flex items-center gap-[1px] rounded-full border-[1.5px] border-solid px-3 py-[7px]">
+          <div className="border-line-1 bg-page mt-4 flex items-center gap-[1px] rounded-full border-[1.5px] border-solid px-3 py-[7px]">
             <span className="text-accent mr-[2px] text-[11px] font-bold" aria-hidden>
               #
             </span>
@@ -301,7 +301,7 @@ export function DiaryTagEditorSheet({
               }}
               placeholder="新标签名"
               enterKeyHint="done"
-              className="text-ink caret-accent placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-[13px] outline-none"
+              className="text-ink-1 caret-accent placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-[13px] outline-none"
             />
             <button
               type="button"
@@ -317,7 +317,7 @@ export function DiaryTagEditorSheet({
           <button
             type="button"
             onClick={onOpenManage}
-            className="bg-input text-ink-2 mt-4 flex w-full items-center justify-center gap-1.5 rounded-2xl py-2.5 text-[13px] font-semibold transition-transform active:scale-[0.98]"
+            className="bg-page text-ink-2 mt-4 flex w-full items-center justify-center gap-1.5 rounded-2xl py-2.5 text-[13px] font-semibold transition-transform active:scale-[0.98]"
           >
             <TagIcon size={15} strokeWidth={2} aria-hidden />
             管理标签库
@@ -488,7 +488,7 @@ export function DiaryTagManageSheet({
         {tagSettings.map(setting => {
           if (editingSetting?.name === setting.name) {
             return (
-              <div key={setting.name} className="bg-input rounded-2xl p-3.5">
+              <div key={setting.name} className="bg-page rounded-2xl p-3.5">
                 <div className="flex items-center gap-2">
                   <input
                     value={edit.draftName}
@@ -504,13 +504,13 @@ export function DiaryTagManageSheet({
                     }}
                     placeholder="标签名"
                     enterKeyHint="done"
-                    className="bg-surface text-ink caret-accent placeholder:text-ink-3 min-w-0 flex-1 rounded-xl px-3 py-2 text-[13.5px] font-semibold outline-none"
+                    className="bg-surface text-ink-1 caret-accent placeholder:text-ink-3 min-w-0 flex-1 rounded-xl px-3 py-2 text-[13.5px] font-semibold outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => setDeleteTarget(setting.name)}
                     aria-label={`删除标签 ${setting.name}`}
-                    className="bg-surface text-rose active:scale-88 grid h-9 w-9 shrink-0 place-items-center rounded-xl transition-transform"
+                    className="bg-surface text-tag-5 active:scale-88 grid h-9 w-9 shrink-0 place-items-center rounded-xl transition-transform"
                   >
                     <Trash2 size={16} strokeWidth={2} aria-hidden />
                   </button>
@@ -537,7 +537,7 @@ export function DiaryTagManageSheet({
                     type="button"
                     onClick={submitRename}
                     disabled={busy || !edit.draftName.trim()}
-                    className="bg-accent flex-1 rounded-xl py-2.5 text-[13px] font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-40"
+                    className="bg-accent text-ink-inverse flex-1 rounded-xl py-2.5 text-[13px] font-semibold transition-transform active:scale-[0.98] disabled:opacity-40"
                   >
                     保存
                   </button>
@@ -550,14 +550,14 @@ export function DiaryTagManageSheet({
               key={setting.name}
               type="button"
               onClick={() => startEdit(setting)}
-              className="bg-input flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left transition-transform active:scale-[0.985]"
+              className="bg-page flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left transition-transform active:scale-[0.985]"
             >
               <span
                 aria-hidden
                 className="h-[11px] w-[11px] shrink-0 rounded-full"
                 style={{ backgroundColor: setting.color }}
               />
-              <span className="text-ink min-w-0 flex-1 truncate text-[14px] font-semibold">
+              <span className="text-ink-1 min-w-0 flex-1 truncate text-[14px] font-semibold">
                 {setting.name}
               </span>
               <span className="text-ink-3 shrink-0 text-[12px] tabular-nums">
@@ -568,7 +568,7 @@ export function DiaryTagManageSheet({
         })}
 
         {edit.creating ? (
-          <div className="bg-input rounded-2xl p-3.5">
+          <div className="bg-page rounded-2xl p-3.5">
             <div className="flex items-center gap-2">
               <input
                 value={edit.draftName}
@@ -582,7 +582,7 @@ export function DiaryTagManageSheet({
                 }}
                 placeholder="新标签名"
                 enterKeyHint="done"
-                className="bg-surface text-ink caret-accent placeholder:text-ink-3 min-w-0 flex-1 rounded-xl px-3 py-2 text-[13.5px] font-semibold outline-none"
+                className="bg-surface text-ink-1 caret-accent placeholder:text-ink-3 min-w-0 flex-1 rounded-xl px-3 py-2 text-[13.5px] font-semibold outline-none"
               />
             </div>
             <div className="text-ink-3 mt-3 flex items-center gap-2 text-[11.5px] font-semibold">
@@ -607,7 +607,7 @@ export function DiaryTagManageSheet({
                 type="button"
                 onClick={submitCreate}
                 disabled={busy || !edit.draftName.trim()}
-                className="bg-accent flex-1 rounded-xl py-2.5 text-[13px] font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-40"
+                className="bg-accent text-ink-inverse flex-1 rounded-xl py-2.5 text-[13px] font-semibold transition-transform active:scale-[0.98] disabled:opacity-40"
               >
                 添加
               </button>
@@ -617,7 +617,7 @@ export function DiaryTagManageSheet({
           <button
             type="button"
             onClick={startCreate}
-            className="border-line text-ink-3 flex w-full items-center justify-center gap-1.5 rounded-2xl border-[1.5px] border-dashed py-3 text-[13px] font-semibold transition-transform active:scale-[0.98]"
+            className="border-line-1 text-ink-3 flex w-full items-center justify-center gap-1.5 rounded-2xl border-[1.5px] border-dashed py-3 text-[13px] font-semibold transition-transform active:scale-[0.98]"
           >
             <Plus size={15} strokeWidth={2.2} aria-hidden />
             新增标签

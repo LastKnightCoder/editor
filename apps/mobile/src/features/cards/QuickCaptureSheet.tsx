@@ -73,7 +73,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
       <>
         <SnapSheet.Handle />
 
-        <header className="quick-capture-sheet-header border-line flex items-center justify-end gap-2 border-b border-dashed px-4 pb-3">
+        <header className="quick-capture-sheet-header border-line-1 flex items-center justify-end gap-2 border-b border-dashed px-4 pb-3">
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -90,7 +90,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
                 props.onClear?.();
               }}
               disabled={props.saving}
-              className="border-line text-ink-2 active:bg-press rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors disabled:opacity-40"
+              className="border-line-1 text-ink-2 active:bg-hover rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors disabled:opacity-40"
             >
               清空
             </button>
@@ -98,7 +98,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
               type="button"
               onClick={handleCloseRequest}
               disabled={props.saving}
-              className="text-ink-3 active:bg-press flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:opacity-40"
+              className="text-ink-3 active:bg-hover flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:opacity-40"
               aria-label="关闭快速捕获"
             >
               <X size={18} aria-hidden="true" />
@@ -107,12 +107,12 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
         </header>
 
         {showDraftPrompt && cachedDraft ? (
-          <div className="bg-butter-soft text-butter mx-4 mt-3 rounded-2xl px-3.5 py-2.5 text-xs">
+          <div className="bg-tag-4-soft text-tag-4 mx-4 mt-3 rounded-2xl px-3.5 py-2.5 text-xs">
             <p className="font-semibold">检测到上次未保存草稿，是否恢复？</p>
             <div className="mt-2 flex items-center gap-2">
               <button
                 type="button"
-                className="bg-butter rounded-full px-3.5 py-1 text-[11px] font-bold text-white"
+                className="bg-tag-4 text-ink-inverse rounded-full px-3.5 py-1 text-[11px] font-bold"
                 onClick={() => {
                   setEditorSession(previous => ({
                     revision: previous.revision + 1,
@@ -128,7 +128,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
               </button>
               <button
                 type="button"
-                className="border-butter/50 rounded-full border px-3.5 py-1 text-[11px] font-semibold"
+                className="border-tag-4/50 rounded-full border px-3.5 py-1 text-[11px] font-semibold"
                 onClick={() => {
                   clearQuickCaptureDraft();
                   setCachedDraft(null);

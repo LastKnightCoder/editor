@@ -115,34 +115,34 @@ function buildVersionRefreshMessage(result: SyncVersionResponse): string {
 function DatabaseStatusBubble(props: { summary: string; syncing: boolean }) {
   if (props.syncing) {
     return (
-      <span className="bg-sky-soft text-sky pulse-soft grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[14px]">
+      <span className="bg-tag-2-soft text-tag-2 pulse-soft grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[14px]">
         <RefreshCw size={20} strokeWidth={2.1} aria-hidden="true" />
       </span>
     );
   }
   if (props.summary === "已同步") {
     return (
-      <span className="bg-sage-soft text-sage grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[14px]">
+      <span className="bg-tag-1-soft text-tag-1 grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[14px]">
         <Check size={20} strokeWidth={2.4} aria-hidden="true" />
       </span>
     );
   }
   if (props.summary === "本地领先") {
     return (
-      <span className="bg-butter-soft text-butter grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[14px]">
+      <span className="bg-tag-4-soft text-tag-4 grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[14px]">
         <Upload size={19} strokeWidth={2.1} aria-hidden="true" />
       </span>
     );
   }
   if (props.summary === "远端领先") {
     return (
-      <span className="bg-butter-soft text-butter grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[14px]">
+      <span className="bg-tag-4-soft text-tag-4 grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[14px]">
         <Download size={19} strokeWidth={2.1} aria-hidden="true" />
       </span>
     );
   }
   return (
-    <span className="bg-input text-ink-2 grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[14px]">
+    <span className="bg-page text-ink-2 grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[14px]">
       <Cloud size={19} strokeWidth={2} aria-hidden="true" />
     </span>
   );
@@ -150,9 +150,9 @@ function DatabaseStatusBubble(props: { summary: string; syncing: boolean }) {
 
 function VersionCell(props: { label: string; version: number | null }) {
   return (
-    <div className="bg-input rounded-[13px] px-3 py-[9px] text-center">
+    <div className="bg-page rounded-[13px] px-3 py-[9px] text-center">
       <p className="text-ink-3 m-0 text-[10.5px] tracking-[1px]">{props.label}</p>
-      <p className="text-ink m-0 mt-0.5 text-[19px] font-extrabold tabular-nums tracking-tight">
+      <p className="text-ink-1 m-0 mt-0.5 text-[19px] font-extrabold tabular-nums tracking-tight">
         {props.version ?? "—"}
       </p>
     </div>
@@ -233,7 +233,7 @@ export function DatabaseSyncStatusSection(props: DatabaseSyncStatusSectionProps)
         <div className="flex items-center gap-3">
           <DatabaseStatusBubble summary={summary} syncing={props.isSyncing} />
           <div className="min-w-0 flex-1">
-            <p className="text-ink m-0 text-[15.5px] font-bold">
+            <p className="text-ink-1 m-0 text-[15.5px] font-bold">
               {props.isSyncing ? "同步中" : summary}
             </p>
             <p className="text-ink-3 m-0 mt-0.5 truncate text-[11.5px]">
@@ -367,7 +367,7 @@ export function ResourceSyncStatusSection(props: ResourceSyncStatusSectionProps)
         <div className="flex items-center gap-3">
           <StatusDot tone={tone} />
           <div className="min-w-0 flex-1">
-            <p className="text-ink m-0 text-[15.5px] font-bold">
+            <p className="text-ink-1 m-0 text-[15.5px] font-bold">
               {summary}
               <span className="text-ink-3 ml-2 text-[12px] font-medium tabular-nums">
                 {progress.processedFiles}/{progress.totalFiles}
@@ -379,7 +379,7 @@ export function ResourceSyncStatusSection(props: ResourceSyncStatusSectionProps)
           </div>
         </div>
 
-        <div className="bg-line mt-3 h-[7px] overflow-hidden rounded-full">
+        <div className="bg-line-1 mt-3 h-[7px] overflow-hidden rounded-full">
           <div
             className="bg-accent h-full rounded-full transition-all duration-300"
             style={{ width: `${percent}%` }}
@@ -387,23 +387,23 @@ export function ResourceSyncStatusSection(props: ResourceSyncStatusSectionProps)
         </div>
 
         <div className="mt-3 grid grid-cols-3 gap-2">
-          <div className="bg-input rounded-[12px] py-[9px] text-center">
-            <p className="text-ink m-0 text-[16px] font-extrabold tabular-nums">
+          <div className="bg-page rounded-[12px] py-[9px] text-center">
+            <p className="text-ink-1 m-0 text-[16px] font-extrabold tabular-nums">
               {progress.uploadCount}
             </p>
             <p className="text-ink-3 m-0 text-[10.5px]">待上传</p>
           </div>
-          <div className="bg-input rounded-[12px] py-[9px] text-center">
-            <p className="text-ink m-0 text-[16px] font-extrabold tabular-nums">
+          <div className="bg-page rounded-[12px] py-[9px] text-center">
+            <p className="text-ink-1 m-0 text-[16px] font-extrabold tabular-nums">
               {progress.downloadCount}
             </p>
             <p className="text-ink-3 m-0 text-[10.5px]">待下载</p>
           </div>
           <div
-            className={`bg-input rounded-[12px] py-[9px] text-center ${progress.errorCount > 0 ? "text-danger" : ""}`}
+            className={`bg-page rounded-[12px] py-[9px] text-center ${progress.errorCount > 0 ? "text-danger" : ""}`}
           >
             <p
-              className={`m-0 text-[16px] font-extrabold tabular-nums ${progress.errorCount > 0 ? "text-danger" : "text-ink"}`}
+              className={`m-0 text-[16px] font-extrabold tabular-nums ${progress.errorCount > 0 ? "text-danger" : "text-ink-1"}`}
             >
               {progress.errorCount}
             </p>
@@ -444,7 +444,7 @@ export function ResourceSyncStatusSection(props: ResourceSyncStatusSectionProps)
       <GroupCard>
         <GroupRow>
           <span className="min-w-0 flex-1">
-            <span className="text-ink block text-[14px] font-medium">上传前压缩图片</span>
+            <span className="text-ink-1 block text-[14px] font-medium">上传前压缩图片</span>
             <span className="text-ink-3 block text-[11.5px]">png / jpg 自动转 webp</span>
           </span>
           <SwitchButton

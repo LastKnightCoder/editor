@@ -36,11 +36,11 @@ export const FLASHCARD_TYPE_TONE: Record<
   FlashcardType,
   { soft: string; color: string; icon: string }
 > = {
-  "single-choice": { soft: "var(--apricot-soft)", color: "var(--apricot)", icon: "◉" },
-  "multiple-choice": { soft: "var(--sage-soft)", color: "var(--sage)", icon: "⊕" },
-  cloze: { soft: "var(--lilac-soft)", color: "var(--lilac)", icon: "▭" },
-  qa: { soft: "var(--sky-soft)", color: "var(--sky)", icon: "✎" },
-  boolean: { soft: "var(--butter-soft)", color: "var(--butter)", icon: "✓" },
+  "single-choice": { soft: "var(--tau-accent-soft)", color: "var(--tau-accent)", icon: "◉" },
+  "multiple-choice": { soft: "var(--tau-tag-1-soft)", color: "var(--tau-tag-1)", icon: "⊕" },
+  cloze: { soft: "var(--tau-tag-3-soft)", color: "var(--tau-tag-3)", icon: "▭" },
+  qa: { soft: "var(--tau-tag-2-soft)", color: "var(--tau-tag-2)", icon: "✎" },
+  boolean: { soft: "var(--tau-tag-4-soft)", color: "var(--tau-tag-4)", icon: "✓" },
 };
 
 export const FLASHCARD_STATUS_LABEL: Record<FlashcardStatus, string> = {
@@ -62,10 +62,10 @@ export const REVIEW_RATINGS: Array<{
   label: string;
   color: string;
 }> = [
-  { value: "hard", label: "吃力", color: "var(--rose)" },
-  { value: "struggle", label: "一般", color: "var(--butter)" },
-  { value: "normal", label: "还行", color: "var(--sky)" },
-  { value: "easy", label: "轻松", color: "var(--sage)" },
+  { value: "hard", label: "吃力", color: "var(--tau-tag-5)" },
+  { value: "struggle", label: "一般", color: "var(--tau-tag-4)" },
+  { value: "normal", label: "还行", color: "var(--tau-tag-2)" },
+  { value: "easy", label: "轻松", color: "var(--tau-tag-1)" },
 ];
 
 /** 评分按钮上的「下次间隔」预览：与 Rust flashcard_schedule.rs（fsrs crate）同式，

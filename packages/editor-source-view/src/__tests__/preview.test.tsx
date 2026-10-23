@@ -40,6 +40,7 @@ interface CodeProps {
   value: string;
   onChange(editor: FakeEditor, change: unknown, code: string): void;
   onKeyDown?(editor: FakeEditor, event: KeyboardEvent): void;
+  onBlur?(editor: FakeEditor, event: FocusEvent): void;
   editorDidMount(editor: FakeEditor): void;
   editorWillUnmount(): void;
 }
@@ -303,6 +304,17 @@ describe("源码预览迁包后的行为", () => {
     expect(host.querySelector('textarea[aria-label="源码"]')).toBeNull();
     await edit();
     expect(observed.editors.at(-1)!.editor.getValue()).toBe("未等防抖的内容");
+  });
+  it("源码编辑器失焦立即提交草稿，不等防抖", async () => {
+    await mount("初始");
+    await edit();
+    const current = observed.editors.at(-1)!;
+    await act(async () => {
+      current.editor.setValue("失焦前的输入");
+      current.props.onChange(current.editor, {}, "失焦前的输入");
+      current.props.onBlur?.(current.editor, new FocusEvent("blur"));
+    });
+    expect(editor.children[1]).toMatchObject({ source: "失焦前的输入" });
   });
   it("外部更新取消尚未提交的本地草稿，避免迟到回写覆盖", async () => {
     await mount("初始");

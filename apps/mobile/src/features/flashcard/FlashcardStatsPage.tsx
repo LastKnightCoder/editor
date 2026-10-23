@@ -60,11 +60,11 @@ export function FlashcardStatsPage({ onBack, onOpenReview }: FlashcardStatsPageP
               <div className="text-accent text-[19px] font-extrabold">
                 {todayReviewedCount(allStats)}
               </div>
-              <div className="text-meta-ink mt-0.5 text-[11px] font-bold">今日已复习</div>
+              <div className="text-ink-2 mt-0.5 text-[11px] font-bold">今日已复习</div>
             </div>
             <div className="bg-surface shadow-card rounded-[20px] p-4">
-              <div className="text-ink text-[19px] font-extrabold">{weekTotal}</div>
-              <div className="text-meta-ink mt-0.5 text-[11px] font-bold">近 7 天合计</div>
+              <div className="text-ink-1 text-[19px] font-extrabold">{weekTotal}</div>
+              <div className="text-ink-2 mt-0.5 text-[11px] font-bold">近 7 天合计</div>
             </div>
           </div>
 
@@ -92,7 +92,7 @@ export function FlashcardStatsPage({ onBack, onOpenReview }: FlashcardStatsPageP
 
           {/* 7 天趋势 */}
           <div className="bg-surface shadow-card rounded-[20px] p-4">
-            <div className="text-meta-ink mb-3 text-[12.5px] font-extrabold">近 7 天趋势</div>
+            <div className="text-ink-2 mb-3 text-[12.5px] font-extrabold">近 7 天趋势</div>
             <div className="flex h-36 items-end gap-2.5">
               {stats.map(day => {
                 const date = new Date(day.dayStart);
@@ -106,7 +106,7 @@ export function FlashcardStatsPage({ onBack, onOpenReview }: FlashcardStatsPageP
                       className="w-full rounded-t-[8px] transition-[height]"
                       style={{
                         height: `${Math.max(4, (day.count / maxCount) * 96)}px`,
-                        background: isToday ? "var(--brand-grad)" : "var(--brand-soft)",
+                        background: isToday ? "var(--tau-accent)" : "var(--tau-accent-soft)",
                       }}
                     />
                     <span
@@ -122,7 +122,7 @@ export function FlashcardStatsPage({ onBack, onOpenReview }: FlashcardStatsPageP
 
           {/* 评分分布 */}
           <div className="bg-surface shadow-card rounded-[20px] p-4">
-            <div className="text-meta-ink mb-3 text-[12.5px] font-extrabold">近 7 天评分分布</div>
+            <div className="text-ink-2 mb-3 text-[12.5px] font-extrabold">近 7 天评分分布</div>
             <div className="flex flex-col gap-2.5">
               {REVIEW_RATINGS.slice()
                 .reverse()
@@ -137,13 +137,13 @@ export function FlashcardStatsPage({ onBack, onOpenReview }: FlashcardStatsPageP
                       >
                         {item.label}
                       </span>
-                      <div className="bg-input h-[14px] flex-1 overflow-hidden rounded-full">
+                      <div className="bg-page h-[14px] flex-1 overflow-hidden rounded-full">
                         <div
                           className="h-full rounded-full"
                           style={{ width: `${percent}%`, background: item.color, opacity: 0.85 }}
                         />
                       </div>
-                      <span className="text-meta-ink w-14 flex-none text-right text-[11.5px] font-bold">
+                      <span className="text-ink-2 w-14 flex-none text-right text-[11.5px] font-bold">
                         {count} · {percent}%
                       </span>
                     </div>

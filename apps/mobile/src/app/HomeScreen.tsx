@@ -123,7 +123,7 @@ export function HomeScreen() {
     <div className="bg-page relative flex h-full flex-col">
       <header className="flex items-center justify-between px-[18px] pt-[calc(20px+var(--mobile-safe-top))]">
         <div>
-          <h1 className="text-ink text-2xl font-extrabold tracking-tight">{getGreeting(now)}</h1>
+          <h1 className="text-ink-1 text-2xl font-extrabold tracking-tight">{getGreeting(now)}</h1>
           <p className="text-ink-2 mt-1 text-[12.5px]">
             {formatHeadDate(now)}
             {agendaHint}

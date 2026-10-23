@@ -396,17 +396,17 @@ export function TodoPage({
           store.setActiveGroup(group.id);
           setGroupPickerOpen(false);
         }}
-        className="border-line flex w-full items-center gap-2.5 border-b border-dashed py-3 text-left last:border-b-0"
+        className="border-line-1 flex w-full items-center gap-2.5 border-b border-dashed py-3 text-left last:border-b-0"
       >
         <span
           className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full border-2 transition-colors ${
-            isActive ? "border-accent bg-accent" : "border-line"
+            isActive ? "border-accent bg-accent" : "border-line-1"
           }`}
         >
-          {isActive ? <Check size={10} strokeWidth={3.5} className="text-white" /> : null}
+          {isActive ? <Check size={10} strokeWidth={3.5} className="text-ink-inverse" /> : null}
         </span>
         <span
-          className={`truncate text-[13.5px] font-bold ${isActive ? "text-accent" : "text-ink"}`}
+          className={`truncate text-[13.5px] font-bold ${isActive ? "text-accent" : "text-ink-1"}`}
         >
           {label}
         </span>
@@ -443,7 +443,7 @@ export function TodoPage({
     <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
       {searchBarOpen ? (
         <PageHeader>
-          <div className="bg-input flex flex-1 items-center gap-2 rounded-full px-3">
+          <div className="bg-page flex flex-1 items-center gap-2 rounded-full px-3">
             <Search size={15} className="text-ink-3 shrink-0" />
             <input
               ref={searchInputRef}
@@ -456,7 +456,7 @@ export function TodoPage({
                 });
               }}
               placeholder="搜索任务"
-              className="text-ink placeholder:text-ink-3 h-9 flex-1 bg-transparent text-sm outline-none"
+              className="text-ink-1 placeholder:text-ink-3 h-9 flex-1 bg-transparent text-sm outline-none"
             />
             {searchInput && (
               <button
@@ -514,13 +514,13 @@ export function TodoPage({
         <button
           type="button"
           onClick={() => setGroupPickerOpen(true)}
-          className="border-line bg-surface shadow-card flex min-w-0 shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 transition-transform active:scale-[0.97]"
+          className="border-line-1 bg-surface shadow-card flex min-w-0 shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 transition-transform active:scale-[0.97]"
         >
-          <span className="text-ink max-w-[7em] truncate text-[13px] font-extrabold">
+          <span className="text-ink-1 max-w-[7em] truncate text-[13px] font-extrabold">
             {activeGroup?.title ?? "任务"}
           </span>
           {activeGroupStats && activeGroupStats.uncompleted > 0 ? (
-            <span className="bg-input text-ink-3 rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums leading-none">
+            <span className="bg-page text-ink-3 rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums leading-none">
               {activeGroupStats.uncompleted}
             </span>
           ) : null}
@@ -529,7 +529,7 @@ export function TodoPage({
         <button
           type="button"
           onClick={() => setFilterSheetOpen(true)}
-          className="border-line bg-surface text-ink-2 shadow-card relative flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-[12.5px] font-extrabold transition-transform active:scale-[0.97]"
+          className="border-line-1 bg-surface text-ink-2 shadow-card relative flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-[12.5px] font-extrabold transition-transform active:scale-[0.97]"
         >
           <ListFilter size={14} />
           筛选
@@ -590,7 +590,7 @@ export function TodoPage({
           type="button"
           onClick={() => void handleCreateGroup()}
           disabled={creatingGroup || !newGroupTitle.trim()}
-          className="shadow-accent mt-3 h-11 w-full rounded-full text-sm font-bold text-white active:scale-[0.98] disabled:opacity-50"
+          className="shadow-lift text-ink-inverse mt-3 h-11 w-full rounded-full text-sm font-bold active:scale-[0.98] disabled:opacity-50"
         >
           创建
         </button>
@@ -625,7 +625,7 @@ export function TodoPage({
                 setFilterSheetOpen(false);
               }}
               className={`flex-1 rounded-full px-3 py-2.5 text-xs font-bold transition-all active:scale-95 ${
-                opt.active ? "bg-accent shadow-accent text-white" : "bg-input text-ink-3"
+                opt.active ? "bg-accent shadow-lift text-ink-inverse" : "bg-page text-ink-3"
               }`}
             >
               {opt.label}
@@ -661,7 +661,7 @@ export function TodoPage({
           type="button"
           onClick={() => void handleCreateRelative()}
           disabled={!subSheetTitle.trim()}
-          className="shadow-accent mt-3 h-11 w-full rounded-full text-sm font-bold text-white active:scale-[0.98] disabled:opacity-50"
+          className="shadow-lift text-ink-inverse mt-3 h-11 w-full rounded-full text-sm font-bold active:scale-[0.98] disabled:opacity-50"
         >
           创建
         </button>
@@ -690,13 +690,13 @@ export function TodoPage({
           className="input-base mt-3 flex w-full items-center justify-between px-4 py-3.5"
         >
           <span className="text-ink-2 text-sm">类型</span>
-          <span className="text-ink text-sm font-bold">{TYPE_LABELS[newType]}</span>
+          <span className="text-ink-1 text-sm font-bold">{TYPE_LABELS[newType]}</span>
         </button>
         <button
           type="button"
           onClick={() => void handleCreateItem()}
           disabled={!newTitle.trim()}
-          className="shadow-accent mt-3 h-11 w-full rounded-full text-sm font-bold text-white active:scale-[0.98] disabled:opacity-50"
+          className="shadow-lift text-ink-inverse mt-3 h-11 w-full rounded-full text-sm font-bold active:scale-[0.98] disabled:opacity-50"
         >
           创建
         </button>

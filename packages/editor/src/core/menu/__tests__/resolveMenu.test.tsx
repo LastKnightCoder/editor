@@ -264,6 +264,57 @@ describe("resolveBlockMenuItems", () => {
     ]);
   });
 
+  it("条目带贡献来源 owner：子项取各自来源，合并子项的父项取首个来源，覆盖项取后声明者", () => {
+    const items = resolveBlockMenuItems(
+      [
+        source("tau.first", [
+          {
+            id: "shared",
+            title: "组合",
+            mergeChildren: true,
+            children: [{ id: "a", title: "甲", command: "a" }],
+          },
+          { id: "replaced", title: "旧", command: "old" },
+        ]),
+        source("plugin.second", [
+          {
+            id: "shared",
+            title: "组合",
+            mergeChildren: true,
+            children: [{ id: "b", title: "乙", command: "b" }],
+          },
+          { id: "replaced", title: "新", command: "new" },
+          { id: "own", title: "自有", command: "own" },
+        ]),
+        source("plugin.third", [
+          {
+            id: "shared",
+            title: "组合",
+            mergeChildren: true,
+            children: [{ id: "c", title: "丙", command: "c" }],
+          },
+        ]),
+      ],
+      ctxOf(element("paragraph"))
+    );
+    const byKey = new Map(items.map(item => [item.key, item]));
+    expect(byKey.get("shared")?.owner).toBe("tau.first");
+    expect(byKey.get("shared")?.children?.map(child => [child.key, child.owner])).toEqual([
+      ["a", "tau.first"],
+      ["b", "plugin.second"],
+      ["c", "plugin.third"],
+    ]);
+    expect(byKey.get("replaced")?.owner).toBe("plugin.second");
+    expect(byKey.get("own")?.owner).toBe("plugin.second");
+  });
+
+  it("extras 条目不补 owner", () => {
+    const items = resolveBlockMenuItems([], ctxOf(element("paragraph")), [
+      { key: "extra", label: "补充" },
+    ]);
+    expect(items[0].owner).toBeUndefined();
+  });
+
   it("未声明合并的覆盖项保留原语义，异常来源不影响其他来源的共享菜单", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
     try {

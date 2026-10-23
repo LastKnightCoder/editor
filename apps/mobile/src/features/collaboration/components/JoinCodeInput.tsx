@@ -49,10 +49,10 @@ export function JoinCodeInput(props: {
               return (
                 <span
                   key={index}
-                  className={`bg-input text-ink grid h-[34px] w-[24px] place-items-center rounded-[9px] font-mono text-[17px] font-extrabold ${
+                  className={`bg-page text-ink-1 grid h-[34px] w-[24px] place-items-center rounded-[9px] font-mono text-[17px] font-extrabold ${
                     active
                       ? "border-accent bg-accent-soft border-[1.6px]"
-                      : `border-[1.6px] ${cell ? "border-transparent" : "border-line"}`
+                      : `border-[1.6px] ${cell ? "border-transparent" : "border-line-1"}`
                   }`}
                 >
                   {active && !cell ? (

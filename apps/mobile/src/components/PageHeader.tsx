@@ -2,15 +2,12 @@
 // 任务/文章/项目/知识库/设置/关于等页面共用，避免各页样式分叉。
 
 import { ChevronLeft } from "lucide-react";
-import { createContext, useContext } from "react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-
-// 封面沉浸页（transparent 顶栏）标记：其内按钮图标随 --header-p 白/棕交叉过渡
-const CoverHeaderContext = createContext(false);
+import { CoverHeaderContext, useOnCoverHeader } from "./coverHeaderContext";
 
 type PageHeaderButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
   icon: ReactNode;
-  /** surface=ghost 裸图标（默认，返回/更多）；brand=品牌渐变（新建等主操作） */
+  /** surface=ghost 裸图标（默认，返回/更多）；brand=品牌实底（新建等主操作） */
   variant?: "surface" | "brand";
 };
 
@@ -21,18 +18,18 @@ export function PageHeaderButton({
   style,
   ...rest
 }: PageHeaderButtonProps) {
-  const onCover = useContext(CoverHeaderContext);
+  const onCover = useOnCoverHeader();
   return (
     <button
       type="button"
       {...rest}
       className={`grid h-10 w-10 shrink-0 place-items-center transition active:scale-90 ${
         variant === "brand"
-          ? "shadow-accent rounded-[13px] text-white"
+          ? "shadow-lift text-ink-inverse rounded-[13px]"
           : // ghost 裸图标统一 22px/stroke2.4：无卡片底撑托后需加大加粗，与 18px 粗黑标题平衡
-            "text-ink active:bg-ghost-press rounded-full [&_svg]:h-[22px] [&_svg]:w-[22px] [&_svg]:stroke-[2.4]"
+            "text-ink-1 active:bg-press rounded-full [&_svg]:h-[22px] [&_svg]:w-[22px] [&_svg]:stroke-[2.4]"
       } ${className}`}
-      style={variant === "brand" ? { background: "var(--brand-grad)", ...style } : style}
+      style={variant === "brand" ? { background: "var(--tau-accent)", ...style } : style}
     >
       {onCover && variant === "surface" ? (
         <span className="cover-icon-fade">
@@ -89,7 +86,7 @@ export function PageHeader(props: PageHeaderProps) {
             ) : (
               // 标题绝对定位严格居中：flex 布局下左右按钮不对称会把 flex-1 标题挤偏；
               // 208px = 两侧各 2 个 40px 图标钮 + 内边距的安全预留，超出部分省略
-              <h1 className="text-ink absolute left-1/2 max-w-[calc(100%-208px)] -translate-x-1/2 truncate px-1 text-center text-[18px] font-extrabold">
+              <h1 className="text-ink-1 absolute left-1/2 max-w-[calc(100%-208px)] -translate-x-1/2 truncate px-1 text-center text-[18px] font-extrabold">
                 {props.title}
               </h1>
             )}

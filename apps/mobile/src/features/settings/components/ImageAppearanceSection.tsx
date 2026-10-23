@@ -11,7 +11,10 @@ import {
   getImageShadowValue,
   normalizeImageShadowPreset,
 } from "@tau/editor/extensions/media/appearance";
-import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor/extensions/media/types";
+import {
+  type ImageBorderRadiusPreset,
+  type ImageShadowPreset,
+} from "@tau/editor/extensions/media/types";
 import { useAppContext } from "../../../app/AppContext";
 import { CheckBubble, GroupRow } from "./ui";
 
@@ -22,7 +25,7 @@ function PresetPreview(props: {
 }) {
   return (
     <span
-      className="bg-sage grid h-[34px] w-[34px] shrink-0 place-items-center text-white"
+      className="bg-tag-1 text-ink-inverse grid h-[34px] w-[34px] shrink-0 place-items-center"
       style={{
         borderRadius: getImageBorderRadiusValue(props.borderRadius),
         boxShadow: getImageShadowValue(props.shadow),
@@ -47,7 +50,7 @@ function PresetGroup(props: {
         {props.options.map(option => (
           <GroupRow key={option.value} onClick={() => props.onSelect(option.value)}>
             {props.renderPreview(option.value)}
-            <span className="text-ink flex-1 text-[14.5px] font-medium">{option.label}</span>
+            <span className="text-ink-1 flex-1 text-[14.5px] font-medium">{option.label}</span>
             {props.active === option.value && <CheckBubble />}
           </GroupRow>
         ))}

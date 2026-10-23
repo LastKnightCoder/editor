@@ -9,7 +9,7 @@ import type { FlashcardDeck } from "./types";
 import { invalidateFlashcardQueries } from "./queries";
 
 const inputClass =
-  "w-full rounded-[14px] bg-input px-3.5 py-3 text-[14px] font-semibold text-ink placeholder:text-ink-3 placeholder:font-medium outline-none focus:bg-surface";
+  "w-full rounded-[14px] bg-page px-3.5 py-3 text-[14px] font-semibold text-ink-1 placeholder:text-ink-3 placeholder:font-medium outline-none focus:bg-surface";
 
 type DeckFormSheetProps = {
   open: boolean;
@@ -74,7 +74,7 @@ export function DeckFormSheet({ open, deck, onClose, onError }: DeckFormSheetPro
     <BottomSheet open={open} title={deck ? "编辑卡组" : "新建卡组"} onClose={onClose}>
       <div className="flex flex-col gap-4 px-5 pb-7">
         <div>
-          <div className="text-meta-ink mb-2 text-[12.5px] font-extrabold">名称</div>
+          <div className="text-ink-2 mb-2 text-[12.5px] font-extrabold">名称</div>
           <input
             className={inputClass}
             value={name}
@@ -84,7 +84,7 @@ export function DeckFormSheet({ open, deck, onClose, onError }: DeckFormSheetPro
           />
         </div>
         <div>
-          <div className="text-meta-ink mb-2 text-[12.5px] font-extrabold">描述（选填）</div>
+          <div className="text-ink-2 mb-2 text-[12.5px] font-extrabold">描述（选填）</div>
           <input
             className={inputClass}
             value={description}
@@ -94,7 +94,7 @@ export function DeckFormSheet({ open, deck, onClose, onError }: DeckFormSheetPro
           />
         </div>
         <div>
-          <div className="text-meta-ink mb-2 text-[12.5px] font-extrabold">图标</div>
+          <div className="text-ink-2 mb-2 text-[12.5px] font-extrabold">图标</div>
           <div className="grid grid-cols-6 gap-2">
             {DECK_EMOJIS.map(item => (
               <button
@@ -102,7 +102,7 @@ export function DeckFormSheet({ open, deck, onClose, onError }: DeckFormSheetPro
                 type="button"
                 onClick={() => setEmoji(item)}
                 className={`grid h-11 place-items-center rounded-[14px] text-[20px] transition-colors ${
-                  emoji === item ? "bg-accent-soft ring-accent ring-2" : "bg-input active:bg-press"
+                  emoji === item ? "bg-accent-soft ring-accent ring-2" : "bg-page active:bg-hover"
                 }`}
               >
                 {item}
@@ -111,7 +111,7 @@ export function DeckFormSheet({ open, deck, onClose, onError }: DeckFormSheetPro
           </div>
         </div>
         <div>
-          <div className="text-meta-ink mb-2 text-[12.5px] font-extrabold">颜色</div>
+          <div className="text-ink-2 mb-2 text-[12.5px] font-extrabold">颜色</div>
           <div className="flex flex-wrap gap-2.5">
             {DECK_COLORS.map(item => (
               <button
@@ -123,7 +123,9 @@ export function DeckFormSheet({ open, deck, onClose, onError }: DeckFormSheetPro
                 style={{
                   background: item,
                   boxShadow:
-                    color === item ? "0 0 0 2.5px var(--bg-surface), 0 0 0 5px " + item : undefined,
+                    color === item
+                      ? "0 0 0 2.5px var(--tau-bg-surface), 0 0 0 5px " + item
+                      : undefined,
                 }}
               />
             ))}
@@ -134,14 +136,14 @@ export function DeckFormSheet({ open, deck, onClose, onError }: DeckFormSheetPro
           style={{ borderLeft: `4px solid ${color}` }}
         >
           <span className="text-[20px]">{emoji}</span>
-          <span className="text-ink text-[14px] font-extrabold">{name.trim() || "卡组预览"}</span>
+          <span className="text-ink-1 text-[14px] font-extrabold">{name.trim() || "卡组预览"}</span>
         </div>
         <button
           type="button"
           disabled={saving}
           onClick={() => void submit()}
-          className="shadow-accent rounded-[17px] py-[15px] text-[15px] font-extrabold text-white disabled:opacity-60"
-          style={{ background: "var(--brand-grad)" }}
+          className="shadow-lift text-ink-inverse rounded-[17px] py-[15px] text-[15px] font-extrabold disabled:opacity-60"
+          style={{ background: "var(--tau-accent)" }}
         >
           {saving ? "保存中…" : "保存"}
         </button>

@@ -49,12 +49,12 @@ type ActionSheetProps = {
 
 /** 图标瓷贴：语义色圆形底 + 同色系图标前景 */
 const TONE_CHIP_CLASS: Record<ActionSheetTone, string> = {
-  sage: "bg-sage-soft text-sage",
-  sky: "bg-sky-soft text-sky",
-  apricot: "bg-apricot-soft text-apricot",
-  lilac: "bg-lilac-soft text-lilac",
-  butter: "bg-butter-soft text-butter",
-  rose: "bg-rose-soft text-rose",
+  sage: "bg-tag-1-soft text-tag-1",
+  sky: "bg-tag-2-soft text-tag-2",
+  apricot: "bg-accent-soft text-accent-text",
+  lilac: "bg-tag-3-soft text-tag-3",
+  butter: "bg-tag-4-soft text-tag-4",
+  rose: "bg-tag-5-soft text-tag-5",
 };
 
 export function ActionSheet({
@@ -116,12 +116,12 @@ export function ActionSheet({
       ? TONE_CHIP_CLASS.rose
       : item.tone
         ? TONE_CHIP_CLASS[item.tone]
-        : "bg-input text-ink-2";
+        : "bg-page text-ink-2";
     return (
       <button
         key={item.label}
         type="button"
-        className="active:bg-press flex w-full items-center gap-3.5 rounded-[14px] px-3.5 py-[13px] text-left transition-colors"
+        className="active:bg-hover flex w-full items-center gap-3.5 rounded-[14px] px-3.5 py-[13px] text-left transition-colors"
         onClick={() => {
           item.onClick();
           requestClose();
@@ -137,7 +137,7 @@ export function ActionSheet({
         <span className="min-w-0 flex-1">
           <span
             className={`block truncate text-[15px] font-semibold ${
-              item.danger ? "text-rose" : "text-ink"
+              item.danger ? "text-tag-5" : "text-ink-1"
             }`}
           >
             {item.label}
@@ -175,7 +175,7 @@ export function ActionSheet({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            className="bg-mask absolute inset-0"
+            className="bg-overlay absolute inset-0"
             onClick={requestClose}
           />
           <motion.div
@@ -198,13 +198,13 @@ export function ActionSheet({
             <div data-sheet-drag-zone="true">
               <div className="sheet-grab" />
               {title ? (
-                <div className="border-line-soft border-b px-6 pb-[18px] pt-1.5">
+                <div className="border-line-2 border-b px-6 pb-[18px] pt-1.5">
                   {kind && (
                     <div className="text-accent mb-1.5 text-[10.5px] font-bold tracking-[0.12em]">
                       {kind}
                     </div>
                   )}
-                  <div className="text-ink truncate text-[19px] font-extrabold leading-snug">
+                  <div className="text-ink-1 truncate text-[19px] font-extrabold leading-snug">
                     {title}
                   </div>
                   {subtitle && <div className="text-ink-3 mt-1 truncate text-xs">{subtitle}</div>}
@@ -217,7 +217,7 @@ export function ActionSheet({
             >
               {resolvedGroups.map((groupItems, groupIndex) => (
                 <div key={groupIndex} className="shrink-0">
-                  {groupIndex > 0 && <div className="border-line-soft mx-5 my-1.5 border-t" />}
+                  {groupIndex > 0 && <div className="border-line-2 mx-5 my-1.5 border-t" />}
                   {groupItems.map(renderItem)}
                 </div>
               ))}
@@ -226,7 +226,7 @@ export function ActionSheet({
             <div className="shrink-0 px-2.5 pt-1.5">
               <button
                 type="button"
-                className="text-ink-2 active:bg-press w-full rounded-[14px] py-[13px] text-[15px] font-bold transition-colors"
+                className="text-ink-2 active:bg-hover w-full rounded-[14px] py-[13px] text-[15px] font-bold transition-colors"
                 onClick={requestClose}
               >
                 取消

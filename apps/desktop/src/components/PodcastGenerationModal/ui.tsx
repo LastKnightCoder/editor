@@ -20,7 +20,7 @@ export const Field = ({
   children: ReactNode;
   className?: string;
 }) => (
-  <div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
+  <div className={cn("flex min-w-0 flex-col gap-3", className)}>
     <div className="flex min-h-[18px] items-center gap-2">
       <span className="text-ink-2 text-[12px]">{label}</span>
       {hint && <span className="text-ink-3 text-[11.5px] tabular-nums">{hint}</span>}

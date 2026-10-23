@@ -1,7 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Layers, Ellipsis, Newspaper, Star, Trash2 } from "lucide-react";
 import { PageHeaderButton } from "../../../components/PageHeader";
-import { ContentDetailPage } from "../../cards/ContentDetailPage";
+import { ContentDetailPage, type ContentDetailActions } from "../../cards/ContentDetailPage";
+import {
+  blockSelectionMenuItem,
+  outlineMenuItem,
+} from "../../cards/blockSelection/blockSelectionMenuItem";
 import { ActionSheet } from "../../../components/ActionSheet";
 import { MobileConfirmDialog } from "../../../components/MobileConfirmDialog";
 import { toast } from "../../../components/toast";
@@ -38,6 +42,7 @@ function ArticleEditorScreen() {
   const { data: article } = useArticleQuery(params.articleId);
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const detailActionsRef = useRef<ContentDetailActions>(null);
   // onResume 重拉正文（协作结束后本地内容更新）；绑定刷新由 useContentCollabEntry 内部处理
   const [refreshRev, setRefreshRev] = useState(0);
   usePageLifecycle({ onResume: () => setRefreshRev(value => value + 1) });
@@ -67,8 +72,8 @@ function ArticleEditorScreen() {
     return (
       <div className="mobile-kb-screen bg-page fixed inset-0 z-50 grid place-items-center">
         <div className="card w-48 space-y-3 p-5">
-          <div className="bg-input h-4 w-2/5 animate-pulse rounded" />
-          <div className="bg-input h-4 w-4/5 animate-pulse rounded" />
+          <div className="bg-page h-4 w-2/5 animate-pulse rounded" />
+          <div className="bg-page h-4 w-4/5 animate-pulse rounded" />
         </div>
       </div>
     );
@@ -83,10 +88,11 @@ function ArticleEditorScreen() {
         contentType="文章"
         contentTypeBadge={{
           icon: Newspaper,
-          className: "bg-rose-soft text-rose",
+          className: "bg-tag-5-soft text-tag-5",
         }}
         tags={article.tags}
         refreshKey={refreshRev}
+        actionsRef={detailActionsRef}
         contextEntity={{ kind: "article", id: article.id }}
         collaboration={collab.collaboration}
         onCollaborationEnded={() => {
@@ -121,6 +127,8 @@ function ArticleEditorScreen() {
         kind="文章"
         onClose={() => setMenuOpen(false)}
         items={[
+          blockSelectionMenuItem(() => detailActionsRef.current?.enterBlockSelection()),
+          outlineMenuItem(() => detailActionsRef.current?.openOutline()),
           {
             label: article.isTop ? "取消置顶" : "置顶",
             icon: <Star size={18} />,

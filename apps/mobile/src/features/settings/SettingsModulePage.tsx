@@ -157,25 +157,25 @@ const SYNC_PROVIDERS = [
     key: "aliOSS",
     label: "AliOSS",
     module: "sync-alioss",
-    tile: "bg-apricot-soft text-apricot",
+    tile: "bg-accent-soft text-accent-text",
   },
   {
     key: "github",
     label: "Github",
     module: "sync-github",
-    tile: "bg-lilac-soft text-lilac",
+    tile: "bg-tag-3-soft text-tag-3",
   },
   {
     key: "webdav",
     label: "WebDAV",
     module: "sync-webdav",
-    tile: "bg-sage-soft text-sage",
+    tile: "bg-tag-1-soft text-tag-1",
   },
   {
     key: "s3",
     label: "S3",
     module: "sync-s3",
-    tile: "bg-sky-soft text-sky",
+    tile: "bg-tag-2-soft text-tag-2",
   },
 ] as const;
 
@@ -184,35 +184,35 @@ const RESOURCE_TARGETS = [
     key: "local",
     label: "本地",
     module: "resource-local",
-    tile: "bg-butter-soft text-butter",
+    tile: "bg-tag-4-soft text-tag-4",
     icon: "folder" as const,
   },
   {
     key: "github",
     label: "Github",
     module: "resource-github",
-    tile: "bg-lilac-soft text-lilac",
+    tile: "bg-tag-3-soft text-tag-3",
     icon: "letter" as const,
   },
   {
     key: "aliOSS",
     label: "AliOSS",
     module: "resource-alioss",
-    tile: "bg-apricot-soft text-apricot",
+    tile: "bg-accent-soft text-accent-text",
     icon: "letter" as const,
   },
   {
     key: "s3",
     label: "S3",
     module: "resource-s3",
-    tile: "bg-sky-soft text-sky",
+    tile: "bg-tag-2-soft text-tag-2",
     icon: "letter" as const,
   },
   {
     key: "webdav",
     label: "WebDAV",
     module: "resource-webdav",
-    tile: "bg-sage-soft text-sage",
+    tile: "bg-tag-1-soft text-tag-1",
     icon: "letter" as const,
   },
 ] as const;
@@ -276,7 +276,7 @@ function DatabaseSettingsView(props: ModuleSectionProps) {
           <GroupRow key={db.name} onClick={() => void props.onSwitchDatabase(db.name)}>
             <IconDatabase />
             <span className="min-w-0 flex-1">
-              <span className="text-ink block text-[14.5px] font-medium">{db.name}</span>
+              <span className="text-ink-1 block text-[14.5px] font-medium">{db.name}</span>
               <span className="text-ink-3 block text-[11.5px] tabular-nums">
                 结构版本 v{db.version}
               </span>
@@ -292,7 +292,7 @@ function DatabaseSettingsView(props: ModuleSectionProps) {
         <GroupRow onClick={() => props.onOpenModule("sync-status-db")}>
           <StatusDot tone={dbTone} />
           <span className="min-w-0 flex-1">
-            <span className="text-ink block text-[14.5px] font-medium">{dbSummary}</span>
+            <span className="text-ink-1 block text-[14.5px] font-medium">{dbSummary}</span>
             <span className="text-ink-3 block truncate text-[11.5px]">{dbSub}</span>
           </span>
           <span className="text-ink-3">
@@ -307,7 +307,7 @@ function DatabaseSettingsView(props: ModuleSectionProps) {
           <GroupRow key={provider.key} onClick={() => selectSyncProvider(provider.key)}>
             <LetterTile letter={provider.label[0]} className={provider.tile} />
             <span className="min-w-0 flex-1">
-              <span className="text-ink block text-[14.5px] font-medium">{provider.label}</span>
+              <span className="text-ink-1 block text-[14.5px] font-medium">{provider.label}</span>
               <span className="text-ink-3 block truncate text-[11.5px]">
                 {syncCredentialSubtitle(props.safeSetting, provider.key)}
               </span>
@@ -363,7 +363,7 @@ function ResourceSettingsView(props: ModuleSectionProps) {
         <GroupRow onClick={() => props.onOpenModule("sync-status-resource")}>
           <StatusDot tone={resTone} />
           <span className="min-w-0 flex-1">
-            <span className="text-ink block text-[14.5px] font-medium">{resSummary}</span>
+            <span className="text-ink-1 block text-[14.5px] font-medium">{resSummary}</span>
             <span className="text-ink-3 block truncate text-[11.5px]">{resSub}</span>
           </span>
           <span className="text-ink-3">
@@ -377,14 +377,14 @@ function ResourceSettingsView(props: ModuleSectionProps) {
         {RESOURCE_TARGETS.map(target => (
           <GroupRow key={target.key} onClick={() => selectResourceTarget(target.key)}>
             {target.icon === "folder" ? (
-              <span className="bg-butter-soft text-butter grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl">
+              <span className="bg-tag-4-soft text-tag-4 grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl">
                 <IconFolder />
               </span>
             ) : (
               <LetterTile letter={target.label[0]} className={target.tile} />
             )}
             <span className="min-w-0 flex-1">
-              <span className="text-ink block text-[14.5px] font-medium">{target.label}</span>
+              <span className="text-ink-1 block text-[14.5px] font-medium">{target.label}</span>
               <span className="text-ink-3 block truncate text-[11.5px]">
                 {resourceTargetSubtitle(props.safeSetting, target.key)}
               </span>

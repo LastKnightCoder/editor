@@ -20,7 +20,7 @@ export function TargetSummary({
       {platform && target && (
         <dl className="grid grid-cols-[84px_minmax(0,1fr)] gap-x-3 gap-y-1.5">
           <dt className="text-ink-3">最低版本</dt>
-          <dd className="text-ink font-mono">Tau {target.minAppVersion}</dd>
+          <dd className="text-ink-1 font-mono">Tau {target.minAppVersion}</dd>
           <dt className="text-ink-3">必需能力</dt>
           <dd className="text-ink-2 break-words">{target.required.join("、") || "无"}</dd>
           <dt className="text-ink-3">可选能力</dt>
@@ -33,7 +33,7 @@ export function TargetSummary({
                   {Object.entries(target.elements).map(([type, support]) => (
                     <li key={type} className="flex justify-between gap-2">
                       <span className="text-ink-2 truncate font-mono">{type}</span>
-                      <span className="text-ink shrink-0">{ELEMENT_SUPPORT_LABELS[support]}</span>
+                      <span className="text-ink-1 shrink-0">{ELEMENT_SUPPORT_LABELS[support]}</span>
                     </li>
                   ))}
                 </ul>

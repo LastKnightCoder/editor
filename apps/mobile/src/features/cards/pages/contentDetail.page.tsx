@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Layers, ChevronRight, Copy, Ellipsis, Link2, Trash2 } from "lucide-react";
-import { ContentDetailPage } from "../ContentDetailPage";
+import { ContentDetailPage, type ContentDetailActions } from "../ContentDetailPage";
+import { blockSelectionMenuItem, outlineMenuItem } from "../blockSelection/blockSelectionMenuItem";
 import { PageHeaderButton } from "../../../components/PageHeader";
 import { ActionSheet } from "../../../components/ActionSheet";
 import { MobileConfirmDialog } from "../../../components/MobileConfirmDialog";
@@ -54,6 +55,7 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
   const [deleteLoading, setDeleteLoading] = useState(false);
   // 关联写回后 bump：详情页内 LinksDisclosure 走自己的 detail 缓存，经 refreshKey 强制重拉同步
   const [linksRev, setLinksRev] = useState(0);
+  const detailActionsRef = useRef<ContentDetailActions>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -94,14 +96,14 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
       <div className="mobile-kb-screen bg-page fixed inset-0 z-50 grid place-items-center">
         {resolving ? (
           <div className="card w-48 space-y-3 p-5">
-            <div className="bg-input h-4 w-2/5 animate-pulse rounded" />
-            <div className="bg-input h-4 w-4/5 animate-pulse rounded" />
+            <div className="bg-page h-4 w-2/5 animate-pulse rounded" />
+            <div className="bg-page h-4 w-4/5 animate-pulse rounded" />
           </div>
         ) : (
           <button
             type="button"
             onClick={() => navigator.goBack("ui")}
-            className="bg-input text-ink-2 rounded-full px-5 py-2.5 text-sm font-semibold"
+            className="bg-page text-ink-2 rounded-full px-5 py-2.5 text-sm font-semibold"
           >
             加载失败，点按返回
           </button>
@@ -131,6 +133,7 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
       <ContentDetailPage
         contentId={card.contentId}
         refreshKey={props.refreshKey + linksRev}
+        actionsRef={detailActionsRef}
         contextEntity={{ kind: "card", id: card.id }}
         collaboration={collab.collaboration}
         onCollaborationEnded={collab.onCollaborationEnded}
@@ -150,6 +153,8 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
         kind="卡片"
         onClose={() => setMenuOpen(false)}
         items={[
+          blockSelectionMenuItem(() => detailActionsRef.current?.enterBlockSelection()),
+          outlineMenuItem(() => detailActionsRef.current?.openOutline()),
           {
             label: "关联卡片",
             icon: <Link2 size={18} />,

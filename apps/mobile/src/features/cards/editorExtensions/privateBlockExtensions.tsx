@@ -19,7 +19,7 @@ const createPrivateBlockExtension = (type: ContentElementType) =>
           <div
             {...attributes}
             contentEditable={false}
-            className="border-line bg-surface text-ink-3 my-2 rounded-xl border border-dashed px-3 py-4 text-center text-xs"
+            className="border-line-1 bg-surface text-ink-3 my-2 rounded-xl border border-dashed px-3 py-4 text-center text-xs"
           >
             {privateBlockPlaceholderText(type)}
             {children}

@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ListPlus, Plus } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
-import { useMobileTheme } from "../../hooks/useMobileTheme";
+import { useThemeStore } from "@tau/themes/react";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { eventColorValue } from "./constants";
 import { useCalendars, useCalendarEventsByRange } from "./queries";
@@ -102,7 +102,7 @@ export function CalendarHomePage({
   onOpenEvent,
   onOpenManage,
 }: CalendarHomePageProps) {
-  const { isDark } = useMobileTheme();
+  const isDark = useThemeStore(s => s.mode === "dark");
   const calendarsQuery = useCalendars();
   const { data: calendars = [] } = calendarsQuery;
   const [expanded, setExpanded] = useState(() => window.innerHeight >= 700);
@@ -304,7 +304,7 @@ export function CalendarHomePage({
               type="button"
               aria-label="日历管理"
               onClick={onOpenManage}
-              className="text-ink active:bg-ghost-press grid h-10 w-10 place-items-center rounded-full transition active:scale-90"
+              className="text-ink-1 active:bg-press grid h-10 w-10 place-items-center rounded-full transition active:scale-90"
             >
               <ListPlus size={22} strokeWidth={2.4} />
             </button>
@@ -312,8 +312,8 @@ export function CalendarHomePage({
               type="button"
               aria-label="新建日程"
               onClick={() => onCreateEvent(selectedDate)}
-              className="shadow-accent grid h-10 w-10 place-items-center rounded-[13px] text-white transition active:scale-90"
-              style={{ background: "var(--brand-grad)" }}
+              className="shadow-lift text-ink-inverse grid h-10 w-10 place-items-center rounded-[13px] transition active:scale-90"
+              style={{ background: "var(--tau-accent)" }}
             >
               <Plus size={22} strokeWidth={2.4} />
             </button>
@@ -330,7 +330,7 @@ export function CalendarHomePage({
         <div className="flex flex-none items-center justify-between px-[18px] pb-0.5 pt-1">
           <button
             type="button"
-            className="text-ink min-h-[44px] cursor-pointer text-left text-[20px] font-extrabold tracking-[0.3px]"
+            className="text-ink-1 min-h-[44px] cursor-pointer text-left text-[20px] font-extrabold tracking-[0.3px]"
             onClick={() => setExpanded(previous => !previous)}
             aria-expanded={expanded}
             aria-controls="calendar-month-grid"
@@ -344,7 +344,7 @@ export function CalendarHomePage({
               type="button"
               aria-label="上一月"
               onClick={() => shiftMonth(-1)}
-              className="bg-surface shadow-card text-ink grid h-8 w-8 place-items-center rounded-full"
+              className="bg-surface shadow-card text-ink-1 grid h-8 w-8 place-items-center rounded-full"
             >
               <ChevronLeft size={16} strokeWidth={2.4} />
             </button>
@@ -359,7 +359,7 @@ export function CalendarHomePage({
               type="button"
               aria-label="下一月"
               onClick={() => shiftMonth(1)}
-              className="bg-surface shadow-card text-ink grid h-8 w-8 place-items-center rounded-full"
+              className="bg-surface shadow-card text-ink-1 grid h-8 w-8 place-items-center rounded-full"
             >
               <ChevronRight size={16} strokeWidth={2.4} />
             </button>
@@ -403,7 +403,7 @@ export function CalendarHomePage({
           aria-label={expandLabel}
           title={expandLabel}
         >
-          <span className="h-[4.5px] w-10 rounded-full bg-[var(--line-1)]" />
+          <span className="h-[4.5px] w-10 rounded-full bg-[var(--tau-line-1)]" />
         </button>
 
         <CalendarFilterChips
@@ -421,7 +421,7 @@ export function CalendarHomePage({
           }
         />
 
-        <div className="text-ink flex flex-none items-baseline gap-2 px-5 pb-1.5 pt-3.5">
+        <div className="text-ink-1 flex flex-none items-baseline gap-2 px-5 pb-1.5 pt-3.5">
           <span className="text-[16px] font-extrabold">{dayHead.day}</span>
           <span className="text-accent text-[12px] font-bold">{dayHead.weekday}</span>
           <span className="text-ink-3 ml-auto text-[11.5px] font-bold">

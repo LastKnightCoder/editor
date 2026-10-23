@@ -34,7 +34,7 @@ export function PluginListState({
   if (status === "error")
     return (
       <div role="alert" className="flex flex-col items-center gap-3 px-6 py-12 text-center">
-        <p className="text-ink text-[15px] font-semibold">插件列表暂时打不开</p>
+        <p className="text-ink-1 text-[15px] font-semibold">插件列表暂时打不开</p>
         {error && <p className="text-ink-2 break-words text-[13px]">{error}</p>}
         {onRetry && (
           <Button className="min-h-11" loading={retrying} onClick={onRetry}>
@@ -46,7 +46,7 @@ export function PluginListState({
   if (empty && !hasMore)
     return (
       <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
-        <p className="text-ink text-[15px] font-semibold">{emptyTitle}</p>
+        <p className="text-ink-1 text-[15px] font-semibold">{emptyTitle}</p>
         {emptyHint && <div className="text-ink-2 text-[13px] leading-relaxed">{emptyHint}</div>}
       </div>
     );

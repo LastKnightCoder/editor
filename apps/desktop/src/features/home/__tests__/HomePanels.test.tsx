@@ -79,35 +79,43 @@ describe("HomePanels", () => {
     [...container.querySelectorAll<HTMLButtonElement>("button")].find(
       b => b.getAttribute("aria-label") === label || b.textContent === label
     );
-  /** jsdom 没有 DataTransfer：按类型存取，模拟同一次拖动 */
-  const transfer = () => {
-    const data = new Map<string, string>();
-    return {
-      get types() {
-        return [...data.keys()];
-      },
-      setData: (type: string, value: string) => data.set(type, value),
-      getData: (type: string) => data.get(type) ?? "",
-      effectAllowed: "",
-      dropEffect: "",
-    };
-  };
-  const fire = (target: Element, type: string, dataTransfer: unknown, init: MouseEventInit = {}) =>
+  /** jsdom 没有 PointerEvent：用带 pointerId 的鼠标事件 */
+  const pointer = (target: EventTarget, type: string, init: MouseEventInit = {}) =>
     act(() => {
       const event = new MouseEvent(type, { bubbles: true, cancelable: true, ...init });
-      Object.defineProperty(event, "dataTransfer", { value: dataTransfer });
+      Object.defineProperty(event, "pointerId", { value: 1 });
       target.dispatchEvent(event);
     });
-  const drag = (from: Element, to: Element, init: MouseEventInit = {}) => {
-    const data = transfer();
-    fire(from, "dragstart", data);
-    fire(to, "dragover", data, init);
-    fire(to, "drop", data, init);
-    fire(from, "dragend", data);
+  /** jsdom 不排版：命中按面板的布局位置（offset*）算，由测试指定 */
+  const box = (el: HTMLElement, { left = 0, top = 0, width = 1000, height = 100 }) => {
+    for (const [key, value] of Object.entries({
+      offsetLeft: left,
+      offsetTop: top,
+      offsetWidth: width,
+      offsetHeight: height,
+    }))
+      Object.defineProperty(el, key, { configurable: true, value });
+    (el.parentElement as HTMLElement).getBoundingClientRect = () =>
+      ({ left: 0, right: 1000, top: 0, bottom: 1000, width: 1000, height: 1000 }) as DOMRect;
+    // 隐藏区排在面板之后
+    if (container.querySelector("[data-home-hidden-panels]")) trayAt(1012);
   };
-  const rect = (el: Element, box: Partial<DOMRect>) => {
-    el.getBoundingClientRect = () => ({ left: 0, top: 0, width: 0, height: 0, ...box }) as DOMRect;
+  const trayAt = (top: number) => {
+    const tray = container.querySelector("[data-home-hidden-panels]") as HTMLElement;
+    tray.getBoundingClientRect = () =>
+      ({ left: 0, right: 1000, top, bottom: top + 50, width: 1000, height: 50 }) as DOMRect;
+    return tray;
   };
+  /** 按下、越过拖动阈值移到 (x, y)；返回松手函数 */
+  const press = (from: Element, x: number, y: number) => {
+    pointer(from, "pointerdown", { button: 0, clientX: 1, clientY: 1 });
+    pointer(window, "pointermove", { clientX: x, clientY: y });
+    return () => pointer(window, "pointerup", { clientX: x, clientY: y });
+  };
+  const drag = (from: Element, x: number, y: number) => press(from, x, y)();
+  const slot = () => container.querySelector<HTMLElement>("[data-home-panel-slot]");
+  const nextFrame = () =>
+    act(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
 
   beforeEach(() => {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -129,15 +137,13 @@ describe("HomePanels", () => {
     expect(wrapper("a").className).toContain("flex-[1_1_340px]");
     expect(wrapper("b").className).toContain("basis-full");
     expect(wrapper("empty").className).toContain("has-[>[data-home-panel-content]:empty]:hidden");
-    expect(wrapper("a").draggable).toBe(false);
     expect(button("移动「标题a」")).toBeUndefined();
     expect(container.querySelector("[data-home-hidden-panels]")).toBeNull();
   });
 
-  it("编辑模式：内容不可点，空面板显示占位卡，整块可拖动", () => {
+  it("编辑模式：内容不可点，空面板显示占位卡", () => {
     editing = true;
     render();
-    expect(wrapper("a").draggable).toBe(true);
     expect(wrapper("a").querySelector("[data-home-panel-content]")?.hasAttribute("inert")).toBe(
       true
     );
@@ -147,24 +153,68 @@ describe("HomePanels", () => {
     expect(wrapper("empty").className).not.toContain(":hidden");
   });
 
-  it("拖到整行面板的上半部插在前面，拖到紧凑面板的右半边插在后面", () => {
+  it("拖起后原位留空位、其余面板实时让位；松手按让位后的顺序保存", () => {
     editing = true;
     render();
-    rect(wrapper("b"), { top: 100, height: 100 });
-    drag(wrapper("c"), wrapper("b"), { clientY: 120 });
+    // a 紧凑在第一行左侧，empty / b / c 各占一行
+    box(wrapper("a"), { left: 0, top: 0, width: 400 });
+    box(wrapper("empty"), { top: 112 });
+    box(wrapper("b"), { top: 224 });
+    box(wrapper("c"), { top: 336 });
+    const release = press(wrapper("c"), 50, 240);
+    expect(slot()?.dataset.homePanel).toBe("c");
+    expect(document.querySelector("[aria-hidden] [data-home-panel-content]")).not.toBeNull();
+    // 整行面板的上半部：插在前面，松手前就已让位
     expect(order()).toEqual(["a", "empty", "c", "b"]);
-    rect(wrapper("a"), { left: 0, width: 400 });
-    drag(wrapper("b"), wrapper("a"), { clientX: 300 });
+    expect(layout).toEqual([]);
+    release();
+    expect(order()).toEqual(["a", "empty", "c", "b"]);
+    expect(slot()).toBeNull();
+    expect(document.querySelector("[aria-hidden] [data-home-panel-content]")).toBeNull();
+
+    // 紧凑面板的右半边：插在后面
+    box(wrapper("b"), { top: 336 });
+    drag(wrapper("b"), 300, 50);
     expect(order()).toEqual(["a", "b", "empty", "c"]);
-    // 拖动中显示插入线，结束后消失
-    const data = transfer();
-    fire(wrapper("c"), "dragstart", data);
-    fire(wrapper("a"), "dragover", data, { clientX: 10 });
-    expect(
-      wrapper("a").querySelector("[data-home-panel-drop]")?.getAttribute("data-home-panel-drop")
-    ).toBe("before");
-    fire(wrapper("c"), "dragend", data);
-    expect(container.querySelector("[data-home-panel-drop]")).toBeNull();
+  });
+
+  it("Esc 取消：回到原顺序，不保存", async () => {
+    editing = true;
+    render();
+    box(wrapper("a"), { left: 0, top: 0, width: 400 });
+    box(wrapper("empty"), { top: 112 });
+    box(wrapper("b"), { top: 224 });
+    box(wrapper("c"), { top: 336 });
+    const release = press(wrapper("c"), 10, 20);
+    expect(order()).toEqual(["c", "a", "empty", "b"]);
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    expect(order()).toEqual(["a", "empty", "b", "c"]);
+    await nextFrame();
+    expect(slot()).toBeNull();
+    release();
+    expect(order()).toEqual(["a", "empty", "b", "c"]);
+    expect(layout).toEqual([]);
+  });
+
+  it("没越过阈值不算拖动；拖动中退出编辑模式不留空位与浮起的卡片", () => {
+    editing = true;
+    render();
+    box(wrapper("a"), { left: 0, top: 0, width: 400 });
+    pointer(wrapper("c"), "pointerdown", { button: 0, clientX: 1, clientY: 1 });
+    pointer(window, "pointermove", { clientX: 3, clientY: 2 });
+    expect(slot()).toBeNull();
+    pointer(window, "pointerup");
+    expect(order()).toEqual(["a", "empty", "b", "c"]);
+
+    press(wrapper("c"), 10, 20);
+    expect(slot()?.dataset.homePanel).toBe("c");
+    editing = false;
+    render();
+    expect(slot()).toBeNull();
+    expect(order()).toEqual(["a", "empty", "b", "c"]);
+    expect(document.querySelector("[aria-hidden] [data-home-panel-content]")).toBeNull();
   });
 
   it("把手上的方向键移动，并保持焦点", () => {
@@ -195,10 +245,24 @@ describe("HomePanels", () => {
     act(() => button("标题b")?.click());
     expect(order()).toEqual(["a", "empty", "c", "b"]);
 
-    drag(wrapper("a"), tray);
+    // 拖进隐藏区：空位收起，区内出现「松手隐藏」
+    const release = press(wrapper("a"), 50, trayAt(600).getBoundingClientRect().top + 20);
     expect(order()).toEqual(["empty", "c", "b"]);
-    rect(wrapper("empty"), { top: 0, height: 100 });
-    drag(button("标题a") as HTMLElement, wrapper("empty"), { clientY: 10 });
+    expect(tray.querySelector("[data-home-hidden-pending]")?.textContent).toBe("松手隐藏「标题a」");
+    expect(tray.dataset.dropOver).toBe("true");
+    release();
+    expect(order()).toEqual(["empty", "c", "b"]);
+    expect(tray.textContent).toContain("标题a");
+    expect(tray.querySelector("[data-home-hidden-pending]")).toBeNull();
+
+    // 从隐藏区拖回第一块之前；松手那次 click 不算「恢复到末尾」
+    box(wrapper("empty"), { top: 0 });
+    box(wrapper("c"), { top: 112 });
+    box(wrapper("b"), { top: 224 });
+    trayAt(600);
+    const chip = button("标题a") as HTMLElement;
+    drag(chip, 50, 10);
+    act(() => chip.click());
     expect(order()).toEqual(["a", "empty", "c", "b"]);
     expect(layout.every(entry => !entry.hidden)).toBe(true);
     // 平时不显示已隐藏的面板

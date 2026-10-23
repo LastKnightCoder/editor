@@ -150,6 +150,8 @@ export async function validateMobileCenter(
       const card = await createQuickCard({ content, count: 0 });
       localStorage.setItem("tau-center-validation-card", String(card.id));
       navigator.push("contentDetail", { cardId: card.id });
+      await until(() => button("编辑") || button("完成"), "正文阅读态入口");
+      button("编辑")?.click();
       (
         await until(
           () =>

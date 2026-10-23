@@ -139,7 +139,7 @@ export function DateTimePickerSheet({
 
   const quickDayClass = (active: boolean) =>
     `flex-1 rounded-full px-3 py-2 text-xs font-bold transition-all active:scale-95 ${
-      active ? "bg-accent text-white shadow-accent" : "bg-input text-ink-2"
+      active ? "bg-accent text-ink-inverse shadow-lift" : "bg-page text-ink-2"
     }`;
 
   return (
@@ -160,18 +160,18 @@ export function DateTimePickerSheet({
           type="button"
           aria-label="上个月"
           onClick={() => shiftMonth(-1)}
-          className="text-ink-2 active:bg-press grid h-9 w-9 place-items-center rounded-full"
+          className="text-ink-2 active:bg-hover grid h-9 w-9 place-items-center rounded-full"
         >
           <ChevronLeft size={18} />
         </button>
-        <span className="text-ink text-[14px] font-extrabold tabular-nums">
+        <span className="text-ink-1 text-[14px] font-extrabold tabular-nums">
           {draft.year}年{draft.month + 1}月
         </span>
         <button
           type="button"
           aria-label="下个月"
           onClick={() => shiftMonth(1)}
-          className="text-ink-2 active:bg-press grid h-9 w-9 place-items-center rounded-full"
+          className="text-ink-2 active:bg-hover grid h-9 w-9 place-items-center rounded-full"
         >
           <ChevronRight size={18} />
         </button>
@@ -192,10 +192,10 @@ export function DateTimePickerSheet({
               onClick={() => setDraft(prev => ({ ...prev, day }))}
               className={`mx-auto grid h-10 w-10 place-items-center rounded-full text-[13.5px] font-bold tabular-nums transition-all active:scale-90 ${
                 isSameDay(draft, draft.year, draft.month, day)
-                  ? "bg-accent shadow-accent text-white"
+                  ? "bg-accent shadow-lift text-ink-inverse"
                   : isSameDay(draft, today.getFullYear(), today.getMonth(), day)
                     ? "text-accent"
-                    : "text-ink"
+                    : "text-ink-1"
               }`}
             >
               {day}
@@ -211,12 +211,12 @@ export function DateTimePickerSheet({
             type="button"
             aria-label="减一小时"
             onClick={() => patchTime({ hour: (draft.hour + 23) % 24 })}
-            className="bg-input text-ink-2 grid h-9 w-9 place-items-center rounded-full transition-transform active:scale-90"
+            className="bg-page text-ink-2 grid h-9 w-9 place-items-center rounded-full transition-transform active:scale-90"
           >
             <Minus size={15} />
           </button>
           <div className="w-[52px] text-center">
-            <span className="text-ink text-[22px] font-extrabold tabular-nums">
+            <span className="text-ink-1 text-[22px] font-extrabold tabular-nums">
               {pad2(draft.hour)}
             </span>
             <span className="text-ink-3 ml-1 text-[11px] font-bold">时</span>
@@ -225,7 +225,7 @@ export function DateTimePickerSheet({
             type="button"
             aria-label="加一小时"
             onClick={() => patchTime({ hour: (draft.hour + 1) % 24 })}
-            className="bg-input text-ink-2 grid h-9 w-9 place-items-center rounded-full transition-transform active:scale-90"
+            className="bg-page text-ink-2 grid h-9 w-9 place-items-center rounded-full transition-transform active:scale-90"
           >
             <Plus size={15} />
           </button>
@@ -235,12 +235,12 @@ export function DateTimePickerSheet({
             type="button"
             aria-label="减五分钟"
             onClick={() => patchTime({ minute: shiftMinute(draft.minute, -MINUTE_STEP) })}
-            className="bg-input text-ink-2 grid h-9 w-9 place-items-center rounded-full transition-transform active:scale-90"
+            className="bg-page text-ink-2 grid h-9 w-9 place-items-center rounded-full transition-transform active:scale-90"
           >
             <Minus size={15} />
           </button>
           <div className="w-[52px] text-center">
-            <span className="text-ink text-[22px] font-extrabold tabular-nums">
+            <span className="text-ink-1 text-[22px] font-extrabold tabular-nums">
               {pad2(draft.minute)}
             </span>
             <span className="text-ink-3 ml-1 text-[11px] font-bold">分</span>
@@ -249,7 +249,7 @@ export function DateTimePickerSheet({
             type="button"
             aria-label="加五分钟"
             onClick={() => patchTime({ minute: shiftMinute(draft.minute, MINUTE_STEP) })}
-            className="bg-input text-ink-2 grid h-9 w-9 place-items-center rounded-full transition-transform active:scale-90"
+            className="bg-page text-ink-2 grid h-9 w-9 place-items-center rounded-full transition-transform active:scale-90"
           >
             <Plus size={15} />
           </button>
@@ -266,7 +266,7 @@ export function DateTimePickerSheet({
               type="button"
               onClick={() => patchTime({ hour: quick.hour, minute: quick.minute })}
               className={`flex-1 rounded-full px-2 py-2 text-xs font-bold tabular-nums transition-all active:scale-95 ${
-                active ? "bg-accent shadow-accent text-white" : "bg-input text-ink-2"
+                active ? "bg-accent shadow-lift text-ink-inverse" : "bg-page text-ink-2"
               }`}
             >
               {quick.label}
@@ -281,7 +281,7 @@ export function DateTimePickerSheet({
           <button
             type="button"
             onClick={onClear}
-            className="bg-input text-ink-2 h-11 flex-1 rounded-full text-sm font-bold transition-transform active:scale-[0.98]"
+            className="bg-page text-ink-2 h-11 flex-1 rounded-full text-sm font-bold transition-transform active:scale-[0.98]"
           >
             清除
           </button>
@@ -293,7 +293,7 @@ export function DateTimePickerSheet({
               new Date(draft.year, draft.month, draft.day, draft.hour, draft.minute).getTime()
             );
           }}
-          className="shadow-accent h-11 flex-1 rounded-full text-sm font-bold text-white transition-transform [background:var(--brand-grad)] active:scale-[0.98]"
+          className="shadow-lift text-ink-inverse bg-accent h-11 flex-1 rounded-full text-sm font-bold transition-transform active:scale-[0.98]"
         >
           确认
         </button>

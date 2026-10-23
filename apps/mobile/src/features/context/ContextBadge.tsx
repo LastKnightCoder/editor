@@ -23,7 +23,7 @@ export function ContextBadge({ kind, id, refreshKey = 0, onError }: ContextBadge
   if (loading) {
     return (
       <div className="bg-surface shadow-card mt-4 rounded-[18px] px-4">
-        <div className="bg-input mt-3 h-4 w-2/5 animate-pulse rounded" />
+        <div className="bg-page mt-3 h-4 w-2/5 animate-pulse rounded" />
       </div>
     );
   }
@@ -36,7 +36,7 @@ export function ContextBadge({ kind, id, refreshKey = 0, onError }: ContextBadge
       <div className="bg-surface shadow-card mt-4 rounded-[18px] px-4">
         <button
           type="button"
-          className="border-line flex w-full items-center border-b py-3"
+          className="border-line-1 flex w-full items-center border-b py-3"
           onClick={() => setSheetOpen(true)}
         >
           <Waypoints size={13} className="text-ink-3" aria-hidden />
