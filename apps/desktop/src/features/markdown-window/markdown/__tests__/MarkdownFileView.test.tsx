@@ -8,7 +8,7 @@ import type { MarkdownViewHandle } from "../../types";
 
 const state = vi.hoisted(() => ({
   read: vi.fn(),
-  write: vi.fn(async () => undefined),
+  write: vi.fn<(path: string, text: string) => Promise<void>>(async () => undefined),
   changed: undefined as
     ((event: unknown, payload: { filePath: string }) => Promise<void>) | undefined,
   editor: undefined as SlateEditor | undefined,
@@ -111,7 +111,7 @@ vi.mock("@tau/editor", async importOriginal => {
         createElement(actual.Editor, {
           ...props,
           ref: value => {
-            state.editor = value?.getEditor();
+            if (props.document) state.editor = value?.getEditor();
             if (typeof ref === "function") ref(value);
             else if (ref) ref.current = value;
           },
@@ -499,4 +499,210 @@ it("源码实例注册回调更换后重新登记同一实例，卸载时注销"
   await dispose();
   dispose = undefined;
   expect(second).toHaveBeenLastCalledWith(null);
+});
+
+const longText = () => Array.from({ length: 160 }, (_, index) => `正文${index}`).join("\n\n");
+
+async function mountPreview(raw = longText()) {
+  state.read.mockResolvedValue(raw);
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host),
+    ref = createRef<MarkdownViewHandle>();
+  await act(async () =>
+    root.render(
+      <DndProvider backend={HTML5Backend}>
+        <MarkdownFileView
+          ref={ref}
+          path="/test/doc.md"
+          wide={false}
+          onStatus={() => undefined}
+          onOpenMarkdown={() => undefined}
+          onSaveAs={() => undefined}
+        />
+      </DndProvider>
+    )
+  );
+  dispose = async () => {
+    await act(async () => root.unmount());
+    host.remove();
+  };
+  if (!ref.current) throw new Error("文件视图未就绪");
+  return { host, view: ref.current, raw };
+}
+async function frames(count = 12) {
+  for (let index = 0; index < count; index++)
+    await act(async () => vi.advanceTimersByTimeAsync(32));
+}
+
+it("只读首屏先出现，保存与导出始终读取完整正文，关闭不会写入预览", async () => {
+  const { host, view, raw } = await mountPreview();
+  expect(
+    host.querySelector('[data-markdown-first-screen] [contenteditable="false"]')
+  ).not.toBeNull();
+  expect(state.editor).toBeUndefined();
+  expect(view.getContent()).toHaveLength(160);
+  expect(view.getMarkdown()).toBe(raw);
+  await act(async () => view.flush());
+  expect(state.write).not.toHaveBeenCalled();
+  await dispose?.();
+  dispose = undefined;
+  await frames();
+  expect(state.editor).toBeUndefined();
+  expect(state.write).not.toHaveBeenCalled();
+});
+
+it("交接按阅读锚点保持位置，不抢外部输入框焦点", async () => {
+  const { host } = await mountPreview();
+  const field = document.createElement("input");
+  document.body.appendChild(field);
+  field.focus();
+  const preview = host.querySelector("[data-markdown-first-screen]");
+  const scroll = preview?.closest(".min-h-0.flex-1");
+  if (!(scroll instanceof HTMLElement)) throw new Error("缺少滚动容器");
+  scroll.scrollTop = 80;
+  const rect = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (
+    this: Element
+  ) {
+    if (this.matches('[data-slate-node="element"]')) {
+      if (this.closest("[data-markdown-first-screen]")) return new DOMRect(0, -20, 500, 100);
+      if (this.closest("[data-markdown-full-editor]")) return new DOMRect(0, 10, 500, 100);
+    }
+    return new DOMRect();
+  });
+  try {
+    await frames();
+    expect(host.querySelector('[data-markdown-full-editor="ready"]')).not.toBeNull();
+    expect(document.activeElement).toBe(field);
+    expect(scroll.scrollTop).toBe(110);
+    expect(state.write).not.toHaveBeenCalled();
+  } finally {
+    rect.mockRestore();
+    field.remove();
+  }
+});
+
+it("拖选和选字期间延后交接，结束后切换且保留完整文档历史", async () => {
+  const { host, view, raw } = await mountPreview();
+  const text = host.querySelector("[data-markdown-first-screen] [data-slate-string]")?.firstChild;
+  if (!text) throw new Error("缺少预览文字");
+  const range = document.createRange();
+  range.setStart(text, 0);
+  range.setEnd(text, 2);
+  const selection = window.getSelection();
+  await act(async () => {
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    document.body.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+  });
+  await frames();
+  expect(host.querySelector('[data-markdown-full-editor="ready"]')).toBeNull();
+  expect(host.querySelector("[data-markdown-full-editor]")?.hasAttribute("inert")).toBe(true);
+  document.body.dispatchEvent(new MouseEvent("pointerup", { bubbles: true }));
+  await frames(3);
+  expect(host.querySelector('[data-markdown-full-editor="ready"]')).toBeNull();
+  await act(async () => {
+    selection?.removeAllRanges();
+    document.dispatchEvent(new Event("selectionchange"));
+  });
+  await frames(3);
+  expect(host.querySelector('[data-markdown-full-editor="ready"]')).not.toBeNull();
+  expect(view.getMarkdown()).toBe(raw);
+  if (!state.editor) throw new Error("完整编辑器未就绪");
+  await act(async () =>
+    Transforms.insertText(state.editor as SlateEditor, "新", { at: { path: [0, 0], offset: 0 } })
+  );
+  await act(async () => state.editor?.undo());
+  expect(view.getMarkdown()).toBe(raw);
+  await act(async () => state.editor?.redo());
+  expect(view.getMarkdown()).toContain("新正文0");
+});
+
+it.each([false, true])(
+  "等待中源码保存与历史仍用全文，返回不覆盖新焦点（外部 CodeMirror：%s）",
+  async externalCodeMirror => {
+    const { host, view, raw } = await mountPreview();
+    await act(async () => view.toggleSource());
+    const source = state.source;
+    if (!source) throw new Error("源码未就绪");
+    const next = raw.replace("正文0", "源码更新");
+    await act(async () => source.edit(next));
+    await act(async () => view.flush());
+    expect(state.write).toHaveBeenLastCalledWith("/test/doc.md", next);
+    await act(async () => source.undo());
+    expect(view.getMarkdown()).toBe(raw);
+    await act(async () => source.redo());
+    expect(view.getMarkdown()).toBe(next);
+    await act(async () => view.toggleSource());
+    const field = document.createElement("input");
+    const owner = document.createElement("div");
+    if (externalCodeMirror) owner.className = "CodeMirror";
+    owner.appendChild(field);
+    document.body.appendChild(owner);
+    field.focus();
+    try {
+      await frames(20);
+      expect(host.querySelector('[data-markdown-full-editor="ready"]')).not.toBeNull();
+      expect(document.activeElement).toBe(field);
+      expect(state.editor?.children).toHaveLength(160);
+      expect(view.getMarkdown()).toBe(next);
+      expect(state.source).toBe(source);
+      for (const [, saved] of state.write.mock.calls) expect(saved.split("\n\n")).toHaveLength(160);
+    } finally {
+      owner.remove();
+    }
+  }
+);
+
+it("等待中的外部版本始终完整应用，交接不会退回旧预览", async () => {
+  const { host, view, raw } = await mountPreview();
+  document.body.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+  const external = "外部新增\n\n" + raw;
+  state.read.mockResolvedValue(external);
+  await act(async () => state.changed?.({}, { filePath: "/test/doc.md" }));
+  expect(view.getMarkdown()).toBe(external);
+  expect(view.getContent()).toHaveLength(161);
+  document.body.dispatchEvent(new MouseEvent("pointerup", { bubbles: true }));
+  await frames();
+  expect(host.querySelector('[data-markdown-full-editor="ready"]')).not.toBeNull();
+  expect(state.editor?.children).toHaveLength(161);
+  expect(view.getMarkdown()).toBe(external);
+  await act(async () => view.flush());
+  expect(state.write).not.toHaveBeenCalled();
+});
+
+it("返回预览时的键盘撤销重做仍走完整文件历史，不落入只读副本", async () => {
+  const { host, view, raw } = await mountPreview();
+  await act(async () => view.toggleSource());
+  if (!state.source) throw new Error("源码未就绪");
+  const next = raw.replace("正文0", "已编辑首段");
+  await act(async () => state.source?.edit(next));
+  await act(async () => view.toggleSource());
+  const key = async (shiftKey = false) => {
+    const text = host.querySelector("[data-markdown-first-screen] [data-slate-string]")?.firstChild;
+    if (!text) throw new Error("缺少预览文字");
+    const range = document.createRange();
+    range.setStart(text, 0);
+    range.setEnd(text, 1);
+    const event = new KeyboardEvent("keydown", {
+      key: "z",
+      ctrlKey: true,
+      shiftKey,
+      cancelable: true,
+    });
+    await act(async () => {
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      window.dispatchEvent(event);
+    });
+    expect(event.defaultPrevented).toBe(true);
+  };
+  await key();
+  expect(view.getMarkdown()).toBe(raw);
+  await key(true);
+  expect(view.getMarkdown()).toBe(next);
+  expect(view.getContent()).toHaveLength(160);
+  await act(async () => view.flush());
+  expect(state.write).toHaveBeenLastCalledWith("/test/doc.md", next);
 });

@@ -24,9 +24,8 @@ import "codemirror/mode/yaml/yaml.js";
 import "codemirror/mode/yaml-frontmatter/yaml-frontmatter.js";
 import { useThrottleFn } from "ahooks";
 import { Code2 } from "lucide-react";
-import { Editor, type EditorRef } from "@tau/editor";
+import { type EditorRef } from "@tau/editor";
 import { Loading, cn, useEdgeFade, FADE_SCROLL_CLASS } from "@tau/ui";
-import { ErrorBoundary } from "@tau/ui";
 import {
   ContentOutline,
   extractContentHeaders,
@@ -43,6 +42,7 @@ import { useSourceMode } from "./useSourceMode";
 import { createMarkdownDocument } from "./markdownDocument";
 import { createContentLengthCounter } from "./contentLength";
 import { createMarkdownContentPreparer } from "./prepareMarkdownContent";
+import { MarkdownRichSurface, type RichSurfaceState } from "./MarkdownRichSurface";
 
 const WORDS_PER_MINUTE = 400;
 const SOURCE_MODE = { name: "yaml-frontmatter", base: "gfm" };
@@ -95,6 +95,9 @@ export const MarkdownFileView = forwardRef<
   }, [scrollEl]);
 
   const surfaceActive = useRef(true);
+  const [richState, setRichState] = useState<RichSurfaceState>({ prepared: false, preview: false });
+  const richStateRef = useRef(richState);
+  richStateRef.current = richState;
   const markdownKit = useMarkdownEditorServices(path, onOpenMarkdown);
   const [fileDocument] = useState(() =>
     createMarkdownDocument(
@@ -118,10 +121,11 @@ export const MarkdownFileView = forwardRef<
       getText,
       applySource,
       stopCapturing: fileDocument.stopCapturing,
+      richReady: richState.prepared,
     });
   const sourceModeRef = useRef(sourceMode);
   sourceModeRef.current = sourceMode;
-  surfaceActive.current = !sourceMode && !snapshot.error;
+  surfaceActive.current = (!sourceMode || !richState.prepared) && !snapshot.error;
 
   const applyExternalText = useCallback(
     (text: string) => {
@@ -268,6 +272,31 @@ export const MarkdownFileView = forwardRef<
 
   // ⌘S 立即保存（源码模式由 CodeMirror 自己的键位处理）；⌘/ 切换源码
   useEffect(() => {
+    const onPreviewHistory = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+      if (
+        !sourceModeRef.current &&
+        richStateRef.current.preview &&
+        ["z", "y"].includes(event.key.toLowerCase())
+      ) {
+        const target = event.target;
+        const input =
+          target instanceof HTMLElement &&
+          target.closest('input,textarea,[contenteditable="true"]');
+        const selection = window.getSelection();
+        if (
+          !input &&
+          ((target instanceof Node && richRef.current?.contains(target)) ||
+            richRef.current?.contains(selection?.anchorNode ?? null))
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+          if (event.shiftKey || event.key.toLowerCase() === "y") fileDocument.redo();
+          else fileDocument.undo();
+          return;
+        }
+      }
+    };
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return;
       if (event.key === "s" && !sourceModeRef.current) {
@@ -278,9 +307,13 @@ export const MarkdownFileView = forwardRef<
         toggle();
       }
     };
+    window.addEventListener("keydown", onPreviewHistory, true);
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [save, toggle]);
+    return () => {
+      window.removeEventListener("keydown", onPreviewHistory, true);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [save, toggle, fileDocument]);
 
   const onSourceMount = useCallback(
     (editor: CodeMirrorEditor | null) => {
@@ -328,14 +361,15 @@ export const MarkdownFileView = forwardRef<
   );
   const richView = (
     <div ref={richRef} className={cn((sourceMode || !!snapshot.error) && "hidden")}>
-      <ErrorBoundary>
-        <Editor
-          kit={markdownKit}
-          ref={editorRef}
-          document={fileDocument.document}
-          readonly={sourceMode || !!snapshot.error}
-        />
-      </ErrorBoundary>
+      <MarkdownRichSurface
+        kit={markdownKit}
+        editorRef={editorRef}
+        document={fileDocument.document}
+        content={content}
+        scrollEl={scrollEl}
+        suspended={sourceMode || !!snapshot.error}
+        onStateChange={setRichState}
+      />
     </div>
   );
 
@@ -402,6 +436,13 @@ export const MarkdownFileView = forwardRef<
         </div>
       </div>
       <FileStatusBar cursor={sourceMode ? cursor : null} saveState={session.saveState}>
+        {richState.preview && !sourceMode && !snapshot.error && (
+          <span role="status">
+            {richState.prepared
+              ? "正文已就绪，结束当前操作后即可编辑"
+              : "正文已显示，正在准备编辑…"}
+          </span>
+        )}
         <button
           type="button"
           onClick={toggle}
