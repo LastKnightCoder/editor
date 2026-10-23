@@ -6,6 +6,7 @@ import { handle } from "./index";
 import { inspectPackage } from "./package";
 import { testEnvironment } from "./testing";
 import { centerHost } from "../../../tests/fixtures/plugins/center";
+import mobileCapabilities from "../../mobile/plugin-capabilities.json";
 
 let f: ReturnType<typeof testEnvironment>;
 const digest = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");
@@ -14,7 +15,8 @@ function zip(
   targets: Record<string, unknown> = {
     android: { minAppVersion: "0.2.0", required: ["pages"], optional: [] },
   },
-  legacy = false
+  legacy = false,
+  editor = false
 ) {
   const archive = new AdmZip(),
     code = "module.exports={};";
@@ -29,6 +31,7 @@ function zip(
     format: "cjs",
     main: "main.js",
     categories: ["page"],
+    ...(editor ? { editor: true } : {}),
     integrity: { "main.js": digest(code) },
     ...(legacy ? { minAppVersion: "0.59.0" } : { profile: "web-v1", targets }),
   };
@@ -248,6 +251,39 @@ it("v1 目录/历史/详情/下载隔离新格式，v2 同 ID 按平台选包", 
   expect(all.items[0].compatible).toBeNull();
   expect((await request(`/v2/releases/${current.release.id}/download`)).status).toBe(200);
 });
+it("真实移动宿主可查询编辑器包、精确选版并下载同一摘要", async () => {
+  const bytes = zip(
+    "1.1.0",
+    {
+      android: {
+        minAppVersion: "0.2.3",
+        required: ["editor", "editorCodecs", "sourceEditor"],
+        optional: ["runtimeStyles"],
+        elements: { sample: "edit" },
+      },
+    },
+    false,
+    true
+  );
+  const current = await approve(bytes);
+  const host = { ...centerHost, appVersion: "0.2.3", capabilities: mobileCapabilities };
+  const catalog = await request("/v2/catalog/query", { platform: "android", host });
+  expect(catalog.status).toBe(200);
+  expect((await catalog.json()).data.items[0].compatible.releaseId).toBe(current.release.id);
+  const resolved = await request("/v2/plugins/test.portable/resolve", {
+    host,
+    releaseId: current.release.id,
+  });
+  expect(resolved.status).toBe(200);
+  expect((await resolved.json()).data).toMatchObject({
+    release: { releaseId: current.release.id, sha256: digest(bytes) },
+    compatibility: { status: "compatible", missingOptional: [] },
+  });
+  const download = await request(`/v2/releases/${current.release.id}/download`);
+  expect(download.status).toBe(200);
+  expect(digest(new Uint8Array(await download.arrayBuffer()))).toBe(digest(bytes));
+});
+
 it("无兼容不回退最新，发行关闭明确说明，游标绑定条件", async () => {
   await approve();
   f.env.PORTABLE_PLATFORMS = "ios";

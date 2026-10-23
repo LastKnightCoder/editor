@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { centerHost, centerRelease } from "../../../../tests/fixtures/plugins/center";
+import { PLUGIN_CAPABILITIES } from "../capabilities";
 import {
   centerManifestTargets,
   evaluateCenterCompatibility,
@@ -9,6 +10,32 @@ import {
 } from "../center";
 
 describe("平台感知分发契约", () => {
+  it("完整宿主能力可用于目录与精确选版，能力缺失仍拒绝", () => {
+    const host = { ...centerHost, capabilities: PLUGIN_CAPABILITIES };
+    const release = centerRelease();
+    release.targets = {
+      android: {
+        minAppVersion: "0.2.3",
+        required: ["editor", "editorCodecs", "sourceEditor"],
+        optional: ["runtimeStyles"],
+      },
+    };
+    expect(normalizeCenterQuery({ platform: "android", host }).host?.capabilities).toEqual(
+      [...PLUGIN_CAPABILITIES].sort()
+    );
+    expect(resolveCenterRelease([release], { host, releaseId: release.releaseId })).toMatchObject({
+      release: { releaseId: release.releaseId },
+      compatibility: { status: "compatible", missingOptional: [] },
+    });
+    expect(
+      resolveCenterRelease([release], {
+        host: { ...host, capabilities: host.capabilities.filter(name => name !== "sourceEditor") },
+      })
+    ).toMatchObject({
+      release: null,
+      compatibility: { reasons: [{ code: "CAPABILITY_MISSING", capabilities: ["sourceEditor"] }] },
+    });
+  });
   it("权限说明保留原始码、去重并标记新增声明，未知权限不隐藏", () => {
     expect(
       describeCenterPermissions(
