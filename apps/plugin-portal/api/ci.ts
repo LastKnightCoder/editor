@@ -132,10 +132,7 @@ export async function ciRoute(request: Request, env: Env, path: string): Promise
     fail(409, "PLUGIN_OWNERSHIP_CONFLICT", "该插件 ID 已绑定其他仓库");
   const owner = plugin.publisher_id;
   const autoApprove =
-    manifest.formatVersion !== 3 &&
-    isReviewer(env, owner) &&
-    String(claims.actor_id) === owner &&
-    !requiresSystemReview(manifest);
+    isReviewer(env, owner) && String(claims.actor_id) === owner && !requiresSystemReview(manifest);
   const hash = await sha256(bytes);
 
   let row = await env.DB.prepare(

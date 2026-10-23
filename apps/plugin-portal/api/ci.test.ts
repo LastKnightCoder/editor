@@ -254,7 +254,7 @@ describe("CI 发布", () => {
   });
 });
 
-it("格式 3 即使审核者本人推送也只提交待审，不自动批准", async () => {
+function portableZip() {
   const archive = new AdmZip(zip());
   const old = JSON.parse(archive.readAsText("test.reader/manifest.json"));
   delete old.minAppVersion;
@@ -270,7 +270,33 @@ it("格式 3 即使审核者本人推送也只提交待审，不自动批准", a
       })
     )
   );
-  const result = await publish(await token(), archive.toBuffer());
+  return archive.toBuffer();
+}
+
+it("格式 3 沿用本人已绑定仓库的自动批准规则，同包重跑幂等", async () => {
+  f.env.PORTABLE_PUBLISH_ENABLED = "true";
+  const bytes = portableZip();
+  const result = await publish(await token(), bytes);
+  expect(result.status).toBe(201);
+  const { data } = await result.json();
+  expect(data).toMatchObject({
+    status: "approved",
+    autoApproved: true,
+    release: { state: "published" },
+  });
+  expect((await (await publish(await token(), bytes)).json()).data.submissionId).toBe(
+    data.submissionId
+  );
+  expect(f.sqlite.prepare("SELECT COUNT(*) AS n FROM submission_reviews").get()?.n).toBe(1);
+});
+
+it.each(["协作者", "无审核权限的作者"])("格式 3 由%s推送仍需人工批准", async kind => {
+  f.env.PORTABLE_PUBLISH_ENABLED = "true";
+  if (kind === "无审核权限的作者") f.env.REVIEWER_GITHUB_IDS = "7";
+  const result = await publish(
+    await token(kind === "协作者" ? { actor_id: "7" } : {}),
+    portableZip()
+  );
   expect(result.status).toBe(201);
   expect((await result.json()).data).toMatchObject({
     status: "pending_review",
@@ -278,4 +304,16 @@ it("格式 3 即使审核者本人推送也只提交待审，不自动批准", a
     release: null,
   });
   expect(f.sqlite.prepare("SELECT COUNT(*) AS n FROM submission_reviews").get()?.n).toBe(0);
+});
+
+it("格式 3 自动批准不能绕过发布开关或仓库绑定", async () => {
+  const bytes = portableZip();
+  expect((await publish(await token({ repository_id: "1234" }), bytes)).status).toBe(409);
+  expect(f.sqlite.prepare("SELECT COUNT(*) AS n FROM submissions").get()?.n).toBe(0);
+  f.env.PORTABLE_PUBLISH_ENABLED = "false";
+  expect((await publish(await token(), bytes)).status).toBe(409);
+  expect(f.sqlite.prepare("SELECT status FROM submissions").get()?.status).toBe("pending_review");
+  expect(f.sqlite.prepare("SELECT COUNT(*) AS n FROM submission_reviews").get()?.n).toBe(0);
+  f.env.PORTABLE_PUBLISH_ENABLED = "true";
+  expect((await (await publish(await token(), bytes)).json()).data.status).toBe("approved");
 });

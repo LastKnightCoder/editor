@@ -54,6 +54,7 @@ iOS 本批模拟器编译出现 BUILD SUCCEEDED；Tauri 后续归档重命名遇
 - versions.ts 的 previousRelease 已改为泛型，可同时处理 ReleaseSummary 与 CenterRelease。VersionDiff 中删除 previousCenterRelease 并改用共享函数由 UI 文件负责人完成，主任务未直接编辑该组件。
 - `PackageManifest` 已切换为 CenterManifest 联合类型，Upload/Submission/ReviewRecord 中的 manifest 都可为格式 3；以 formatVersion 判别，格式 3 没有顶层 minAppVersion，逐平台读取 targets。旧包仍使用原有字段。新上传只读预览可接 TargetMatrix；版本差异用两份清单各自的平台投影。
 - 用户明确取消审核者平台测试及验证记录：移除 platformEvidence 请求/回执、共享校验器、填写组件和结果展示；作者负责适配与测试，审核者只作上架决定。旧数据库列与历史值保留，新审核不写入；不要求数据库迁移。
+- 格式 3 不再额外排除本人 CI 自动批准：OIDC actor_id 必须等于已绑定插件的 publisher_id，且该人是审核者；仓库 ID、公开仓库、tag/版本、包校验与系统能力审核规则沿用旧流程。其他作者与协作者仍待审。
 - 修订变化或同修订更换决定重试返回 409 REVISION_CONFLICT；发布开关关闭返回 409 SUBMISSION_LOCKED；角色/登录仍为 403/401。审核决定绑定修订、包摘要和源码提交，界面冲突后读取最新修订，不能沿用旧确认。系统后台能力审核保持独立。
 
 ## 已交付接口
