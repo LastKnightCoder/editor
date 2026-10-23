@@ -10,11 +10,11 @@ import type {
 
 /** 设置二级模块键：单一事实来源，同时驱动 SettingModule 类型与 settingsModule 页参数校验 */
 export const SETTINGS_MODULE_KEYS = [
-  "sync",
   "about",
   "database",
+  "databases",
+  "sync-overwrite",
   "collaboration",
-  "sync-status-db",
   "sync-status-resource",
   "integration",
   "integration-github",
@@ -27,10 +27,6 @@ export const SETTINGS_MODULE_KEYS = [
   "resource-alioss",
   "resource-s3",
   "resource-webdav",
-  "sync-webdav",
-  "sync-alioss",
-  "sync-github",
-  "sync-s3",
 ] as const;
 
 export type SettingModule = (typeof SETTINGS_MODULE_KEYS)[number] | null;
