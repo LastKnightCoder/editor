@@ -132,6 +132,14 @@ export {
 } from "../services/overlayBackDismiss";
 export { default as OverlayBackDismiss } from "../components/OverlayBackDismiss";
 
+// 宿主输入方式（触屏 / 鼠标）：媒体等带手柄的块据此切换交互。
+export {
+  IEditorInteraction,
+  useTouchInteraction,
+  isTouchInteraction,
+  type EditorInteraction,
+} from "../services/interaction";
+
 export { getElementParent, getClosestCurrentElement } from "../utils/editor";
 export { getParentNodeByNode, getPreviousSiblingNode } from "../utils/element";
 export { getPrevPath } from "../utils/path";

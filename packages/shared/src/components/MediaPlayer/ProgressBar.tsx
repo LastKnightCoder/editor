@@ -21,6 +21,8 @@ interface ProgressBarProps {
   tone?: MediaTone;
   /** 轨道直角：进度条横贯容器边缘（如贴在画面与底栏的接缝上）时使用 */
   square?: boolean;
+  /** 触屏：拖动圆点常显、触控区加高 */
+  touch?: boolean;
   className?: string;
 }
 
@@ -40,6 +42,7 @@ const ProgressBar = ({
   renderTooltip,
   tone = "surface",
   square = false,
+  touch = false,
   className,
 }: ProgressBarProps) => {
   const scrubber = useScrubber({ onScrub, onCommit, onPointerValue });
@@ -51,7 +54,8 @@ const ProgressBar = ({
     <div
       ref={scrubber.trackRef}
       className={cn(
-        "group/slider relative flex h-4 cursor-pointer touch-none select-none items-center",
+        "group/slider relative flex cursor-pointer touch-none select-none items-center",
+        touch ? "h-8" : "h-4",
         className
       )}
       {...scrubber.handlers}
@@ -81,7 +85,9 @@ const ProgressBar = ({
           "pointer-events-none absolute size-3 rounded-full shadow-[0_1px_3px_rgba(0,0,0,0.3)] transition-transform duration-150",
           dragging
             ? "scale-110"
-            : "scale-0 group-hover/slider:scale-100 group-focus-visible/slider:scale-100",
+            : touch
+              ? "scale-100"
+              : "scale-0 group-hover/slider:scale-100 group-focus-visible/slider:scale-100",
           colors.knob
         )}
         style={{ left: `calc(${shown * 100}% - 6px)` }}

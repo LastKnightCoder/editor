@@ -319,6 +319,21 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
   合并为一个撤销步；完成时任一顶层块引用与打开时的快照不同（含块数变化）视为外部改动（协作）已使快照失效，提示后不应用。`usePointerReorder.ts` 是与渲染
   无关的指针拖拽重排引擎（指针捕获、位移计入滚动增量、插入位按被拖项中心越过的中线数、滚动容器上下 64px 内 rAF 自动滚动、取消不回调），
   把手带 `data-pan-ignore-drag="true"` 以免触发抽屉下拉。
+- **媒体（触屏模式）**：`services/editorRegistry` 注册 `IEditorInteraction`（`touch: true`），媒体扩展与网页视图据此改用触屏交互（见
+  `packages/editor/src/extensions/media/README.md`）：编辑态单击媒体把 Slate 选区放进该 void，`editingContext` 的 `resolveMediaContext`
+  给出 `media` 上下文（优先级在展开选区之后、表格之前；焦点在图片说明 `[data-media-caption]` 内时为说明编辑，与 void 内部编辑器同级）。
+  controller 在进入媒体上下文时收起键盘但保持编辑态（`ReactEditor.blur`，文字面板让位），`isToolbarVisible` 对媒体上下文为真；离开时关掉媒体面板。
+  配件栏媒体模式由 `mediaAccessory.tsx`（`useMediaAccessory`）渲染：左端类型标签，中段带文字的按钮——图片（尺寸 / 对齐循环 / 裁剪 / 说明 / 替换）、
+  视频（尺寸 / 对齐 / 替换）、音频（重命名 / 替换）、行内图片（小 / 中 / 大三档高度、查看、转为大图）、网页（地址 / 高度 / 刷新 / 全屏），右端「⋯」
+  （`ActionSheet`：图片的查看大图 / 替代文本 / 复制图片，各类型的块操作与删除；行内图片为删除按钮）与「键盘」（`focusAfterMedia`：光标放到媒体后的
+  文本块开头，下一块缺失或为 void 时插入空段落，行内图片放到其后，在点击内同步聚焦）；说明编辑中只留「完成」（blur 说明输入）。弹出系统选择器的菜单项
+  在点击内执行（保留用户手势），弹出输入框的项在动作面板退场后执行。尺寸 / 高度是第三种面板 `media`（`MediaPanel`：宽度小 50% / 中 75% / 满宽、对齐、
+  图片外观圆角 / 阴影 / 跟随设置；网页高度 240 / 400 / 640），打开时键盘已收起，关闭与返回都不弹键盘。操作集中在 `mediaActions.ts`：复用扩展命令
+  （`tau.image.*` / `tau.video.set-align` / `tau.webview.*` / `tau.block.delete`，按 element + path 执行，节点移动后按引用重新定位），宽度档位读写经
+  `@tau/editor/extensions/media/runtime`，替换视频 / 音频经 `openLocalMediaPicker(editor, type, element)`，改名 / 改地址 / 插入网页经 `notifier.prompt`。
+  「块操作」经 controller 的 `requestBlockSelection` 转给页面登记的块选择（`useEditorBlockSelection` 登记）。白名单项 `context-media` 控制该模式。
+  插入面板「高级」组含「网页」。共享播放器在粗指针设备（`useCoarsePointer`）上隐藏音量与画中画、进度圆点常显并加高触控区；视频双击画面左 / 右半边 ±10 秒、
+  单击延后 280ms 生效、全屏胶囊收起时点按先唤出、长按加速屏蔽系统菜单、滚出视口自动暂停；音频倍速常显并加 ±15 秒。
 - **开发实验页**：`features/editorLab/`（仅开发构建注册，入口 RouterDevTools「editor lab」）用同一套预留与收键盘策略，
   可切换策略并复制键盘、位移、输入法、选区恢复日志，用于真机验证。
 

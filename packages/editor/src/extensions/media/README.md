@@ -32,6 +32,7 @@ export function createMediaKit(upload: ResourceService["upload"]) {
 | `/types`      | 元素类型、外观类型、图库模式；通过公开 ElementMap 增强登记类型                     |
 | `/appearance` | 图片圆角/阴影选项与样式计算，供宿主设置界面消费                                    |
 | `/markdown`   | 纯 mediaMarkdownCodecs，宿主显式加入自己的处理器                                   |
+| `/runtime`    | 宿主在编辑器外驱动媒体块：宽度档位读取（按节点数据）与写入（经已渲染的组件）       |
 
 IEditorSlots 保留原标识，但只属于媒体领域；默认插槽可被宿主原生播放器替换。图片/图库组件及上传入口消费共用 IResourceService，上传成功返回文档可存储的地址；IFileService 用于宿主文件相关操作。媒体 Provider 等能力未注册时不出现对应业务入口，基础段落编辑器不需要这些服务。
 
@@ -40,3 +41,5 @@ IEditorSlots 保留原标识，但只属于媒体领域；默认插槽可被宿�
 多文件先插入完整批占位再上传，避免异步期间选区移动或首个段落被替换后丢文件。图片按 uuid、音视频按 pathRef 定位；目标删除或替换后不会回填其他占位。音视频粘贴失败补段落，拖放失败保留占位并结束上传态。原地上传结束会完成回调并释放引用；文件取消的回调依赖浏览器支持 cancel 事件。
 
 Markdown 的单图段落提升归本模块的 normalizeFor.paragraph。图片链接、加粗图片和提升后的位置映射存在已记录的历史限制，见仓库 ER-033；此包迁移未宣称修复这些编解码行为。
+
+触屏宿主注册 `@tau/editor/api` 的 `IEditorInteraction`（`{ touch: true }`）后，图片、行内图片、视频、音频不渲染悬停属性条与缩放手柄，不监听选中快捷键与拖入 / 粘贴替换；编辑态单击把 Slate 选区折叠进该 void 表示选中，操作由宿主工具栏经扩展命令完成（`tau.image.replace` 支持 `{ capture: true }` 拉起相机，`tau.image.replace-url` 换成网络地址）。图片说明区带 `data-media-caption`，宿主据焦点识别说明编辑。只读下单击图片打开灯箱，触屏模式渲染 `TouchLightboxView`（捏合、双击、滑动切图、下滑关闭）。未注册时为桌面交互，行为不变。网页视图扩展同样读取该服务：触屏下覆盖「点按与网页交互」遮罩且不渲染高度拖拽，只读下高度拖拽一律不渲染。

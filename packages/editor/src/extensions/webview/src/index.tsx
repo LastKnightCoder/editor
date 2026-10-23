@@ -31,3 +31,4 @@ export default webviewExtension;
 export type { WebviewElement } from "./types";
 export { WebLinkSourceType } from "./types";
 export { insertWebview } from "./utils";
+export { normalizeWebviewUrl } from "./utils/url";

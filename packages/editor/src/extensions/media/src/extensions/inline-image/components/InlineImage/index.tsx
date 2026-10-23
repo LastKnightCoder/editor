@@ -17,6 +17,7 @@ import {
   MEDIA_SELECTED_OUTLINE_CLASS,
 } from "../../../../utils/mediaFrameClasses";
 import { shouldIgnoreBlockKey } from "@tau/editor/api";
+import { useTouchMediaSelection } from "../../../../hooks/useTouchMediaSelection";
 
 interface InlineImageProps extends RenderElementProps {
   element: InlineImageElement;
@@ -32,6 +33,7 @@ const RESIZE_HANDLES: { direction: ResizeDirection; cursor: string }[] = [
 /**
  * 行内图片：与图片块同一套交互——悬停不出控件，单击选中（圆角描边 + 四角等比缩放把手），
  * 双击进入灯箱；只读下单击直接预览。选中时 Delete / Backspace 删除、Esc 取消。
+ * 触屏模式：单击把 Slate 选区放进本节点表示选中，不出把手，尺寸与删除由宿主工具栏完成。
  */
 const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
   const { attributes, children, element } = props;
@@ -42,7 +44,10 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
   const imageRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLSpanElement>(null);
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
-  const [isSelected, setIsSelected] = useState(false);
+  const [pointerSelected, setIsSelected] = useState(false);
+  const touchSelection = useTouchMediaSelection(element);
+  const { touch } = touchSelection;
+  const isSelected = touch ? touchSelection.selected : pointerSelected;
   const [failed, setFailed] = useState(false);
 
   useEffect(() => setFailed(false), [url]);
@@ -83,7 +88,7 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
   });
 
   useEffect(() => {
-    if (!isSelected) return;
+    if (!isSelected || touch) return;
     const handleMouseDown = (event: MouseEvent) => {
       if (!containerRef.current?.contains(event.target as Node)) setIsSelected(false);
     };
@@ -108,12 +113,13 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
       document.removeEventListener("mousedown", handleMouseDown);
       document.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [isSelected, readOnly, editor, element]);
+  }, [isSelected, touch, readOnly, editor, element]);
 
   const handleClick = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
     if (readOnly) openImageLightbox(editor, element);
+    else if (touch) touchSelection.select();
     else setIsSelected(true);
   };
 
@@ -139,7 +145,7 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
           onClick={handleClick}
           onDoubleClick={event => {
             event.preventDefault();
-            openImageLightbox(editor, element);
+            if (!touch) openImageLightbox(editor, element);
           }}
         >
           {failed ? (
@@ -162,6 +168,7 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
           )}
           {!readOnly &&
             isSelected &&
+            !touch &&
             !failed &&
             RESIZE_HANDLES.map(({ direction, cursor }) => (
               <span

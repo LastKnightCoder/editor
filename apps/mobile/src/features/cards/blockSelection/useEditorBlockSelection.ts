@@ -1,4 +1,4 @@
-import type { RefObject } from "react";
+import { useEffect, type RefObject } from "react";
 import type { EditorRef } from "@tau/editor";
 import type { ReadingModeState } from "../readingMode/useReadingMode";
 import type { MobileEditorToolbarController } from "../editorToolbar/useMobileEditorToolbarController";
@@ -26,6 +26,13 @@ export function useEditorBlockSelection(options: UseEditorBlockSelectionOptions)
     exitEditing: readingMode.exitEditing,
     disabled: !readingMode.canEdit,
   });
+  // 配件栏（如媒体「⋯ › 块操作」）经 controller 请求进入块选择
+  const { setBlockSelectionListener } = toolbarController;
+  const enterBlockSelection = blockSelection.enter;
+  useEffect(() => {
+    setBlockSelectionListener(enterBlockSelection);
+    return () => setBlockSelectionListener(null);
+  }, [enterBlockSelection, setBlockSelectionListener]);
   const handleBlockIndex = blockSelection.active
     ? null
     : resolveHandleBlockIndex(slateEditor, readingMode.editing, toolbarController);

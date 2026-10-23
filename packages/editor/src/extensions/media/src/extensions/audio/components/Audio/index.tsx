@@ -1,8 +1,8 @@
 import { ElementRenderProps as IExtensionBaseProps } from "@tau/editor/api";
 import { type AudioElement } from "../../../../types/index";
 
-import { AddParagraph } from "@tau/editor/api";
-import { LoadingOverlay } from "@tau/ui";
+import { AddParagraph, useIsLastElement } from "@tau/editor/api";
+import { LoadingOverlay, cn } from "@tau/ui";
 import { If } from "@tau/shared";
 import { useAttrInput } from "../../../../hooks/useAttrInput";
 import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
@@ -11,11 +11,16 @@ import { Transforms } from "slate";
 import { useEditorSlots } from "../../../../services/hooks";
 import { openLocalMediaPicker } from "../../../../utils/mediaInsert";
 import { useMediaUploading } from "../../../../utils/mediaSubmission";
+import { useTouchMediaSelection } from "../../../../hooks/useTouchMediaSelection";
+import { MEDIA_SELECTED_OUTLINE_CLASS } from "../../../../utils/mediaFrameClasses";
 
 const Audio = (props: IExtensionBaseProps<AudioElement>) => {
   const { attributes, element, children } = props;
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
+  const isLast = useIsLastElement(element);
+  // 触屏下标题不常驻输入框（阅读滚动时易误触弹键盘），改名经宿主工具栏；点卡片即选中
+  const { touch, selected, select } = useTouchMediaSelection(element);
 
   const { Audio: AudioSlot } = useEditorSlots();
 
@@ -24,13 +29,14 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
     const path = ReactEditor.findPath(editor, element);
     Transforms.setNodes(editor, { title: next }, { at: path });
   });
-  const titleSlot = !readOnly ? (
-    <input
-      {...titleInput}
-      placeholder="音频标题…"
-      className="text-tau-body -ml-1 w-full truncate rounded-[6px] border-none bg-transparent px-1 font-medium text-[var(--ed-text)] outline-none transition-colors placeholder:font-normal placeholder:text-[var(--ed-text-tertiary)] hover:bg-[var(--ed-bg-hover)] focus:bg-[var(--ed-bg-surface)] focus:shadow-[0_0_0_1px_var(--ed-border),var(--ed-focus-ring)]"
-    />
-  ) : undefined;
+  const titleSlot =
+    !readOnly && !touch ? (
+      <input
+        {...titleInput}
+        placeholder="音频标题…"
+        className="text-tau-body -ml-1 w-full truncate rounded-[6px] border-none bg-transparent px-1 font-medium text-[var(--ed-text)] outline-none transition-colors placeholder:font-normal placeholder:text-[var(--ed-text-tertiary)] hover:bg-[var(--ed-bg-hover)] focus:bg-[var(--ed-bg-surface)] focus:shadow-[0_0_0_1px_var(--ed-border),var(--ed-focus-ring)]"
+      />
+    ) : undefined;
 
   const { src } = element;
   const uploading = useMediaUploading(editor, element);
@@ -64,7 +70,12 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
       <div {...attributes}>
         <LoadingOverlay loading={!!uploading}>
           {src ? (
-            <div className="relative">
+            <div
+              className={cn("rounded-tau-md relative", selected && MEDIA_SELECTED_OUTLINE_CLASS)}
+              onClickCapture={() => {
+                if (touch && !readOnly) select();
+              }}
+            >
               <AudioSlot
                 src={src}
                 controls
@@ -78,7 +89,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
           )}
         </LoadingOverlay>
         {children}
-        <AddParagraph element={element} />
+        {!(readOnly && isLast) && <AddParagraph element={element} />}
       </div>
     </div>
   );

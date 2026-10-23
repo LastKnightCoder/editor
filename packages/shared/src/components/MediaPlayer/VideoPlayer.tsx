@@ -8,6 +8,7 @@ import { useMediaController } from "./useMediaController";
 import { useFramePreview } from "./useFramePreview";
 import { usePlaybackResume } from "./usePlaybackResume";
 import { useMediaKeyDown, useOsd, useToggleMute } from "./useMediaKeyboard";
+import { useCoarsePointer } from "./useCoarsePointer";
 import {
   FullscreenToggle,
   MediaOsd,
@@ -39,12 +40,18 @@ const LONG_PRESS_DELAY = 400;
 const SUPPRESS_CLICK_MS = 350;
 /** 全屏时指针静置多久收起胶囊 */
 const IDLE_HIDE_MS = 2000;
+/** 触屏两次点按间隔不超过它算双击（左右半边快退 / 快进），单击要等它过去才生效 */
+const DOUBLE_TAP_MS = 280;
+/** 触屏双击快退 / 快进的秒数 */
+const DOUBLE_TAP_SEEK_SECONDS = 10;
 const noop = () => undefined;
 
 /**
  * 视频播放器：常态是纸面卡片 + 画面下方的底栏（控件不遮画面），
  * 全屏时底栏换成画面内的深色胶囊，静置后完全收起、只留底边进度细线。
  * 聚焦后支持键盘快捷键（见 mediaShortcuts），操作结果以画面中央的 OSD 反馈。
+ * 粗指针（手指）设备：不出音量与画中画（交给系统），进度圆点常显；双击画面左 / 右半边快退 / 快进，
+ * 全屏下点按先唤出控件；长按加速时屏蔽系统长按菜单；滚出视口自动暂停。
  */
 const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
   (
@@ -73,6 +80,11 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
   ) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const videoRef = useRef<HTMLVideoElement | null>(null);
+    const coarse = useCoarsePointer();
+    const pointerTypeRef = useRef<string>("mouse");
+    const tapTimerRef = useRef<number | undefined>(undefined);
+    const lastTapAtRef = useRef(0);
+    useEffect(() => () => window.clearTimeout(tapTimerRef.current), []);
     const setVideoRefs = useCallback(
       (element: HTMLVideoElement | null) => {
         videoRef.current = element;
@@ -267,6 +279,7 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
 
     const handlePicturePointerDown = useCallback(
       (event: React.PointerEvent<HTMLDivElement>) => {
+        pointerTypeRef.current = event.pointerType;
         if (event.button === 0 && longPressRate > 0) {
           if (pressTimerRef.current) {
             window.clearTimeout(pressTimerRef.current);
@@ -277,6 +290,9 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
       [activateSpeedUp, longPressRate]
     );
 
+    // 全屏胶囊收起时，触屏点按先唤出控件而不是暂停
+    const controlsHiddenRef = useRef(false);
+
     // 播放中点击画面暂停；暂停时整个画面被覆盖按钮接管，点击任意处播放
     const handleVideoClick = useCallback(
       (event: React.MouseEvent<HTMLVideoElement>) => {
@@ -284,10 +300,32 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
           event.stopPropagation();
           return;
         }
+        if (pointerTypeRef.current === "touch") {
+          const now = performance.now();
+          const rect = event.currentTarget.getBoundingClientRect();
+          const forward = event.clientX > rect.left + rect.width / 2;
+          if (tapTimerRef.current !== undefined && now - lastTapAtRef.current < DOUBLE_TAP_MS) {
+            window.clearTimeout(tapTimerRef.current);
+            tapTimerRef.current = undefined;
+            const seconds = forward ? DOUBLE_TAP_SEEK_SECONDS : -DOUBLE_TAP_SEEK_SECONDS;
+            seek((videoRef.current?.currentTime ?? 0) + seconds);
+            showOsd(`${seconds > 0 ? "+" : "−"}${Math.abs(seconds)} 秒`);
+          } else {
+            lastTapAtRef.current = now;
+            window.clearTimeout(tapTimerRef.current);
+            tapTimerRef.current = window.setTimeout(() => {
+              tapTimerRef.current = undefined;
+              if (controlsHiddenRef.current) poke();
+              else togglePlay();
+            }, DOUBLE_TAP_MS);
+          }
+          onClick?.(event);
+          return;
+        }
         togglePlay();
         onClick?.(event);
       },
-      [onClick, togglePlay]
+      [onClick, poke, seek, showOsd, togglePlay]
     );
 
     // ---- 进度条两段式：拖动预览，松手定档 ----
@@ -334,6 +372,20 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
     const [rateOpen, setRateOpen] = useState(false);
     const [volumeActive, setVolumeActive] = useState(false);
     const floatVisible = !playing || scrubTime !== null || rateOpen || volumeActive || !idle;
+    controlsHiddenRef.current = fullscreen && !floatVisible;
+
+    // 触屏：滚出视口自动暂停（全屏除外），避免看不见还在响
+    useEffect(() => {
+      const container = containerRef.current;
+      if (!coarse || !container || typeof IntersectionObserver === "undefined") return;
+      const observer = new IntersectionObserver(([entry]) => {
+        if (entry && !entry.isIntersecting && !document.fullscreenElement) {
+          videoRef.current?.pause();
+        }
+      });
+      observer.observe(container);
+      return () => observer.disconnect();
+    }, [coarse]);
 
     const renderTooltip = (value: number) => (
       <div className="flex flex-col items-center gap-1">
@@ -354,6 +406,7 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
       <ProgressBar
         tone={tone}
         square={tone === "surface"}
+        touch={coarse}
         className={progressClassName}
         value={progress}
         buffered={buffered}
@@ -374,14 +427,16 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
 
     const renderTrailingControls = (tone: "surface" | "float") => (
       <>
-        <VolumeControl
-          tone={tone}
-          volume={volume}
-          muted={muted}
-          onVolumeChange={handleVolumeChange}
-          onToggleMute={toggleMute}
-          onActiveChange={setVolumeActive}
-        />
+        {!coarse && (
+          <VolumeControl
+            tone={tone}
+            volume={volume}
+            muted={muted}
+            onVolumeChange={handleVolumeChange}
+            onToggleMute={toggleMute}
+            onActiveChange={setVolumeActive}
+          />
+        )}
         <RateMenu
           tone={tone}
           rate={baseRate}
@@ -389,7 +444,7 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
           onOpenChange={setRateOpen}
           className="@max-2xs:hidden"
         />
-        {pipSupported && (
+        {pipSupported && !coarse && (
           <PipButton tone={tone} active={pip} onToggle={togglePip} className="@max-sm:hidden" />
         )}
         <FullscreenToggle tone={tone} fullscreen={fullscreen} onToggle={toggleFullscreen} />
@@ -416,16 +471,21 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
         style={style}
         onKeyDown={handleKeyDown}
         onPointerMove={poke}
+        onPointerDown={coarse ? poke : undefined}
       >
         <div className="flex h-full flex-col">
           <div
-            className="relative min-h-0 flex-1 bg-black"
+            className={cn(
+              "relative min-h-0 flex-1 bg-black",
+              coarse && "[-webkit-touch-callout:none]"
+            )}
             onPointerDown={handlePicturePointerDown}
             onPointerUp={clearLongPress}
             onPointerCancel={clearLongPress}
             onPointerLeave={clearLongPress}
             onContextMenu={event => {
-              if (speedUpRef.current) {
+              // 触屏长按是加速手势，不弹系统菜单
+              if (speedUpRef.current || coarse) {
                 event.preventDefault();
               }
             }}
@@ -439,7 +499,8 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
               style={{ aspectRatio }}
               onClick={handleVideoClick}
               onDoubleClick={event => {
-                toggleFullscreen();
+                // 触屏双击已用于快退 / 快进
+                if (pointerTypeRef.current !== "touch") toggleFullscreen();
                 onDoubleClick?.(event);
               }}
               onLoadedMetadata={handleLoadedMetadata}
@@ -538,7 +599,10 @@ const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
           {/* 常态底栏：进度条横贯画面与底栏的接缝 */}
           {!fullscreen && (
             <div className="@container relative flex h-12 shrink-0 items-center gap-0.5 px-2 pt-1">
-              {renderProgress("surface", "absolute inset-x-0 -top-1.5")}
+              {renderProgress(
+                "surface",
+                cn("absolute inset-x-0", coarse ? "-top-3.5" : "-top-1.5")
+              )}
               <PlayButton tone="surface" playing={playing} onToggle={togglePlay} />
               <TimeCode tone="surface" className="ml-2">
                 <span className="text-ink-1 font-medium">{formatTime(displayTime)}</span>

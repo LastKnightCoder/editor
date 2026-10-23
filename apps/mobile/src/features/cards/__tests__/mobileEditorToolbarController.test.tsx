@@ -1051,4 +1051,61 @@ describe("useMobileEditorToolbarController", () => {
       expect(getController().isToolbarVisible).toBe(false);
     });
   });
+
+  describe("媒体上下文", () => {
+    function createImageDoc(): Editor {
+      const editor = createEditor();
+      editor.isVoid = element => (element as { type?: string }).type === "image";
+      editor.children = [
+        { type: "image", url: "a.png", children: [{ type: "formatted", text: "" }] },
+        { type: "paragraph", children: [{ type: "formatted", text: "正文" }] },
+      ] as unknown as Descendant[];
+      editor.selection = {
+        anchor: { path: [1, 0], offset: 1 },
+        focus: { path: [1, 0], offset: 1 },
+      };
+      return editor;
+    }
+
+    it("选中图片：收起键盘但配件栏保持显示；「键盘」把光标放到图片后并聚焦", () => {
+      const editor = createImageDoc();
+      const getController = renderController(editor);
+      vi.mocked(ReactEditor.isFocused).mockReturnValue(true);
+      act(() => {
+        getController().handleEditorFocus();
+      });
+      act(() => {
+        Transforms.select(editor, Editor.start(editor, [0]));
+        getController().syncSelection();
+      });
+      expect(getController().editingContext).toMatchObject({ kind: "media", mediaType: "image" });
+      expect(ReactEditor.blur).toHaveBeenCalled();
+      vi.mocked(ReactEditor.isFocused).mockReturnValue(false);
+      act(() => {
+        getController().handleEditorBlur();
+      });
+      expect(getController().isEditorFocused).toBe(false);
+      expect(getController().isToolbarVisible).toBe(true);
+
+      const context = getController().editingContext;
+      if (context.kind !== "media") throw new Error("应为媒体上下文");
+      act(() => {
+        getController().focusAfterMedia(context);
+      });
+      expect(editor.selection?.anchor).toEqual({ path: [1, 0], offset: 0 });
+      expect(ReactEditor.focus).toHaveBeenCalled();
+      expect(getController().editingContext.kind).toBe("text");
+    });
+
+    it("块选择请求转给宿主登记的监听，未登记时返回 false", () => {
+      const getController = renderController(createImageDoc());
+      expect(getController().requestBlockSelection(0)).toBe(false);
+      const listener = vi.fn();
+      act(() => {
+        getController().setBlockSelectionListener(listener);
+      });
+      expect(getController().requestBlockSelection(0)).toBe(true);
+      expect(listener).toHaveBeenCalledWith(0);
+    });
+  });
 });

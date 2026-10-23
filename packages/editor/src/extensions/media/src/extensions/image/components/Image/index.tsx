@@ -43,6 +43,8 @@ import { useImageAppearance, type ImageAppearanceOption } from "../../appearance
 import { imageActionsMap } from "../../utils/actionsMap";
 import { getImageAppearanceStyle } from "../../utils/appearance";
 import ImageSelectionToolbar from "./ImageSelectionToolbar";
+import { useTouchMediaSelection } from "../../../../hooks/useTouchMediaSelection";
+import { mediaWidthControls } from "../../../../utils/mediaWidthControls";
 
 interface IImageProps {
   attributes: RenderElementProps["attributes"];
@@ -70,6 +72,7 @@ const imageFileOf = (data: DataTransfer | null) =>
 /**
  * 图片块：悬停不出控件，单击选中、双击预览；选中后上方浮出属性条，四角等比缩放、两侧拖宽（吸附 50 / 75 / 100%），
  * 下方就地写说明。加载前按存下的原图比例占位，失败给出重试 / 替换；选中时拖入或粘贴图片即替换。
+ * 触屏模式：单击把 Slate 选区放进本块表示选中，属性条、手柄、快捷键与拖入替换都不出现，操作由宿主工具栏经命令完成。
  */
 const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
   const { attributes, children, element, appearance: appearanceOption } = props;
@@ -93,6 +96,8 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
   const appearance = useImageAppearance(appearanceOption);
   const { Image: ImageSlot } = useEditorSlots();
   const isLast = useIsLastElement(element);
+  const touchSelection = useTouchMediaSelection(element);
+  const { touch } = touchSelection;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const displayImgRef = useRef<HTMLImageElement>(null);
@@ -104,7 +109,8 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
   const displayUrl = previewUrl || url;
   const isCropped = !!previewUrl && previewUrl !== url;
 
-  const [isSelected, setIsSelected] = useState(false);
+  const [pointerSelected, setIsSelected] = useState(false);
+  const isSelected = touch ? touchSelection.selected : pointerSelected;
   const [status, setStatus] = useState<LoadStatus>("loading");
   const [reloadKey, setReloadKey] = useState(0);
   const [loadedSize, setLoadedSize] = useState<{ width: number; height: number } | null>(null);
@@ -177,10 +183,11 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
   useEffect(() => {
     if (isSelected) {
       setContentWidth(editorContentWidth(containerRef.current));
-    } else {
+    } else if (!touch) {
+      // 触屏下说明编辑由输入框失焦收起，焦点移入说明时 Slate 选区可能已离开本块
       setShowDescEditor(false);
     }
-  }, [isSelected]);
+  }, [isSelected, touch]);
 
   const preview = useMemoizedFn(() => openImageLightbox(editor, element));
 
@@ -189,6 +196,8 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
     event.stopPropagation();
     if (readOnly) {
       preview();
+    } else if (touch) {
+      touchSelection.select();
     } else {
       setIsSelected(true);
     }
@@ -244,12 +253,13 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
     }
   );
 
-  const pickReplacement = useMemoizedFn(() => {
+  const pickReplacement = useMemoizedFn((options?: { capture?: boolean }) => {
     const submission = beginMediaSubmission(editor, elementRef.current);
     if (!submission) return;
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
+    if (options?.capture) input.setAttribute("capture", "environment");
     input.style.display = "none";
     document.body.appendChild(input);
     submission.signal.addEventListener("abort", () => input.remove(), { once: true });
@@ -347,6 +357,11 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
   // ---- 说明 ----
   const openDescEditor = useMemoizedFn(() => {
     if (readOnly) return;
+    // 触屏下未选中时点说明只选中图片，避免滚动时误触弹出键盘
+    if (touch && !isSelected) {
+      touchSelection.select();
+      return;
+    }
     setShowDescEditor(true);
     setTimeout(() => descRef.current?.focusEnd(), 0);
   });
@@ -483,6 +498,17 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
     setProps({ width: next });
   };
 
+  useEffect(() => {
+    mediaWidthControls.set(element, {
+      applyPreset: ratio => {
+        if (!readOnly) applyWidthPreset(ratio);
+      },
+    });
+    return () => {
+      mediaWidthControls.delete(element);
+    };
+  });
+
   const openMore = (anchor: DOMRect) => {
     setMenu({
       position: { x: anchor.left, y: anchor.bottom + 6 },
@@ -496,7 +522,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
     borderRadius: effectiveBorderRadius,
     shadow: effectiveShadow,
   });
-  const showHandles = !readOnly && isSelected && status !== "error";
+  const showHandles = !readOnly && isSelected && !touch && status !== "error";
   const busy = uploading;
 
   const renderPlaceholder = () => {
@@ -504,7 +530,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
     return (
       <button
         type="button"
-        onClick={pickReplacement}
+        onClick={() => pickReplacement()}
         className="text-tau-body flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-[12px] border-none bg-[var(--ed-bg-surface)] py-10 text-[var(--ed-text-secondary)] shadow-[0_0_0_1px_var(--ed-border)] transition-colors hover:bg-[var(--ed-bg-hover)]"
       >
         {busy ? (
@@ -597,7 +623,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
         maxWidth: "100%",
       }}
     >
-      {!readOnly && isSelected && (
+      {!readOnly && isSelected && !touch && (
         <ImageSelectionToolbar
           align={align}
           activePreset={matchWidthPreset(
@@ -629,10 +655,11 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
           onClick={handleFrameClick}
           onDoubleClick={event => {
             event.preventDefault();
-            preview();
+            if (!touch) preview();
           }}
           onDragOver={event => {
-            if (readOnly || !isSelected || !event.dataTransfer.types.includes("Files")) return;
+            if (readOnly || touch || !isSelected || !event.dataTransfer.types.includes("Files"))
+              return;
             event.preventDefault();
             event.stopPropagation();
             setDragOver(true);
@@ -689,7 +716,10 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
       </div>
 
       {(showDescEditor || description || (isSelected && !readOnly)) && (
-        <div className="text-tau-sm mt-2 break-words text-center leading-relaxed text-[var(--ed-text-tertiary)]">
+        <div
+          data-media-caption="true"
+          className="text-tau-sm mt-2 break-words text-center leading-relaxed text-[var(--ed-text-tertiary)]"
+        >
           {showDescEditor ? (
             // 编辑与展示同一版式：不加输入框，只有光标，文字位置不动
             <EditText

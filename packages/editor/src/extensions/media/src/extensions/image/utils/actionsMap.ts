@@ -4,7 +4,8 @@ import { type ImageElement } from "../../../types/index";
 export const imageActionsMap = new WeakMap<
   ImageElement,
   {
-    replaceImage: () => void;
+    /** capture 时直接拉起相机（移动端） */
+    replaceImage: (options?: { capture?: boolean }) => void;
     deleteImage: () => void;
     startCrop: () => void;
     runMediaAction: (actionId: string) => void;

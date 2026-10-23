@@ -137,7 +137,48 @@ export const imageCommands: EditorCommand[] = [
     run: (_editor, ctx) => {
       const element = asImage(ctx.element);
       if (!element) return;
-      imageActionsMap.get(element)?.replaceImage();
+      const capture = (ctx.payload as { capture?: boolean } | undefined)?.capture;
+      imageActionsMap.get(element)?.replaceImage({ capture });
+    },
+  },
+  {
+    id: "tau.image.replace-url",
+    title: "替换为网络图片",
+    run: async (editor, ctx) => {
+      const element = asImage(ctx.element);
+      if (!element) return;
+      const submission = captureElementSubmission(editor, {
+        element,
+        path: ctx.path,
+        accept: current => current.url === element.url,
+      });
+      try {
+        if (submission.check()) return;
+        const url = await notifierOf(editor).prompt({
+          signal: submission.signal,
+          title: "替换为网络图片",
+          placeholder: "https://example.com/image.png",
+          confirmText: "替换",
+          inputMode: "url",
+        });
+        if (!url?.trim()) return;
+        // 换图保留宽度、对齐与说明，裁剪参数和原图尺寸随新图作废（同本地替换）
+        submission.commit(({ path }) => {
+          Transforms.setNodes(
+            editor,
+            {
+              url: url.trim(),
+              previewUrl: url.trim(),
+              cropTransform: undefined,
+              naturalWidth: undefined,
+              naturalHeight: undefined,
+            },
+            { at: path }
+          );
+        });
+      } finally {
+        submission.dispose();
+      }
     },
   },
   {

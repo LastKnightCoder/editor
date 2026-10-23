@@ -19,3 +19,4 @@ export { useMediaAppearance } from "./services/hooks";
 export { insertImage, insertInlineImage, insertVideo, insertAudio } from "./utils/insertElement";
 export * from "./types";
 export { openLocalMediaPicker, openMediaUrlInput } from "./utils/mediaInsert";
+export { openImageLightbox } from "./stores";

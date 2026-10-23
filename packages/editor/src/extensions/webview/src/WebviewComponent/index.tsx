@@ -1,11 +1,18 @@
 import { IFileService, IResourceService } from "@tau/shared/host-services";
 import { useRef, useState, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
-import { ReactEditor, useReadOnly, useSlateStatic } from "slate-react";
+import {
+  ReactEditor,
+  useReadOnly,
+  useSelected,
+  useSlateSelector,
+  useSlateStatic,
+} from "slate-react";
 import { ResizeHandle, Webview } from "@tau/shared";
 import type { WebviewRef } from "@tau/shared";
-import { Transforms } from "slate";
-import { X } from "lucide-react";
+import { Editor, Range, Transforms } from "slate";
+import { Expand, MousePointerClick, X } from "lucide-react";
+import { cn } from "@tau/ui";
 
 import {
   type ElementRenderProps as IExtensionBaseProps,
@@ -13,6 +20,8 @@ import {
   useIsLastElement,
   useNotifier,
   type EditorLoadingHandle,
+  ELEMENT_SELECTED_OUTLINE_CLASS,
+  useTouchInteraction,
 } from "@tau/editor/api";
 import type { WebviewElement } from "../types";
 import { WebLinkSourceType } from "../types";
@@ -34,6 +43,14 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
   const [localUploadLoading, setLocalUploadLoading] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const fullscreenContainerRef = useRef<HTMLDivElement>(null);
+  const touch = useTouchInteraction();
+  const inSelection = useSelected();
+  const collapsed = useSlateSelector(
+    current => !!current.selection && Range.isCollapsed(current.selection)
+  );
+  const selected = touch && !readOnly && inSelection && collapsed;
+  // 触屏下默认盖一层遮罩，滑动滚的是正文；点按后才与网页交互，正文滚动或离开视口时恢复
+  const [interactive, setInteractive] = useState(false);
 
   const fileService = editor.getService(IFileService);
   const resourceService = editor.getService(IResourceService);
@@ -116,6 +133,31 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
   const handleExitFullscreen = useMemoizedFn(() => {
     document.exitFullscreen();
     setIsFullscreen(false);
+  });
+
+  useEffect(() => {
+    if (!touch || !interactive) return;
+    const container = fullscreenContainerRef.current;
+    const release = () => setInteractive(false);
+    // 网页内部滚动发生在 iframe 自己的文档里，不会触发这里的 scroll
+    document.addEventListener("scroll", release, { capture: true, passive: true });
+    const observer =
+      container && typeof IntersectionObserver !== "undefined"
+        ? new IntersectionObserver(([entry]) => {
+            if (entry && !entry.isIntersecting) release();
+          })
+        : null;
+    if (container) observer?.observe(container);
+    return () => {
+      document.removeEventListener("scroll", release, { capture: true });
+      observer?.disconnect();
+    };
+  }, [touch, interactive]);
+
+  const selectInEditor = useMemoizedFn(() => {
+    if (readOnly) return;
+    const path = ReactEditor.findPath(editor, element);
+    Transforms.select(editor, Editor.start(editor, path));
   });
 
   useEffect(() => {
@@ -205,7 +247,10 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
     <div className="relative">
       <div {...attributes}>
         <div
-          className="relative box-border w-full rounded-[0.25em] border border-solid border-[var(--ed-border)] [&:fullscreen]:h-screen [&:fullscreen]:rounded-none [&:fullscreen]:border-none"
+          className={cn(
+            "relative box-border w-full rounded-[0.25em] border border-solid border-[var(--ed-border)] [&:fullscreen]:h-screen [&:fullscreen]:rounded-none [&:fullscreen]:border-none",
+            selected && ELEMENT_SELECTED_OUTLINE_CLASS
+          )}
           ref={fullscreenContainerRef}
           style={{ height }}
         >
@@ -234,18 +279,49 @@ const WebviewComponent = (props: IExtensionBaseProps<WebviewElement>) => {
               remoteResourceToLocal={resourceService.remoteResourceToLocal}
             />
           )}
-          <ResizeHandle
-            initialHeight={height}
-            minHeight={200}
-            maxHeight={800}
-            onHeightChange={handleHeightChange}
-            onResizeStart={() => {
-              setIsResizing(true);
-            }}
-            onResizeEnd={() => {
-              setIsResizing(false);
-            }}
-          />
+          {touch && !interactive && !isFullscreen && (
+            <div
+              className="bg-linear-to-b absolute inset-0 z-[1] flex items-end justify-center from-transparent from-50% to-[var(--ed-bg-surface)] pb-3"
+              onClick={selectInEditor}
+            >
+              <button
+                type="button"
+                aria-label="全屏查看"
+                className="absolute right-2 top-2 grid size-9 place-items-center rounded-full border-none bg-[var(--ed-bg-surface)] text-[var(--ed-text-secondary)] shadow-[var(--ed-shadow-float)]"
+                onClick={event => {
+                  event.stopPropagation();
+                  handleFullscreen();
+                }}
+              >
+                <Expand size={16} />
+              </button>
+              <button
+                type="button"
+                className="text-tau-sm flex h-8 items-center gap-1.5 rounded-full border-none bg-[var(--ed-text)] px-3 font-semibold text-[var(--ed-text-inverse)] shadow-[var(--ed-shadow-float)]"
+                onClick={event => {
+                  event.stopPropagation();
+                  setInteractive(true);
+                }}
+              >
+                <MousePointerClick size={14} />
+                点按与网页交互
+              </button>
+            </div>
+          )}
+          {!readOnly && !touch && (
+            <ResizeHandle
+              initialHeight={height}
+              minHeight={200}
+              maxHeight={800}
+              onHeightChange={handleHeightChange}
+              onResizeStart={() => {
+                setIsResizing(true);
+              }}
+              onResizeEnd={() => {
+                setIsResizing(false);
+              }}
+            />
+          )}
         </div>
 
         {children}

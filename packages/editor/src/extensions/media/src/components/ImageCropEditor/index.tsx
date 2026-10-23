@@ -114,10 +114,14 @@ const aspectKeyOf = (aspect: number | null, natural: number): AspectKey => {
 
 type Gesture =
   | { kind: "pan"; start: Vec; center: Vec }
-  | { kind: "frame"; start: Vec; view: CropViewState; handle: FrameHandle };
+  | { kind: "frame"; start: Vec; view: CropViewState; handle: FrameHandle }
+  | { kind: "pinch"; view: CropViewState; startDistance: number; startMid: Vec };
+
+const distanceOf = (a: Vec, b: Vec) => Math.hypot(a.x - b.x, a.y - b.y) || 1;
+const midpointOf = (a: Vec, b: Vec): Vec => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 
 /**
- * 全屏裁剪编辑器：拖把手调裁剪框、拖画面平移、滚轮缩放、拨盘微调角度，
+ * 全屏裁剪编辑器：拖把手调裁剪框、拖画面平移、滚轮或双指捏合缩放、拨盘微调角度，
  * 比例 / 90° 旋转 / 翻转 / 还原一行排开；Enter 完成、Esc 取消。
  * 看图与修图的全屏场景固定深色，不随主题（同灯箱）。
  */
@@ -138,6 +142,8 @@ const ImageCropEditor = ({
   const [view, setView] = useState<CropViewState | null>(null);
   const [aspectKey, setAspectKey] = useState<AspectKey>("free");
   const [gesture, setGesture] = useState<Gesture | null>(null);
+  // 舞台上按下的指针（双指捏合用），把手上的按下不计入
+  const stagePointersRef = useRef(new Map<number, Vec>());
   const [animating, setAnimating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -200,6 +206,20 @@ const ImageCropEditor = ({
     event.stopPropagation();
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
     const start = localPoint(event);
+    if (!handle) {
+      const pointers = stagePointersRef.current;
+      pointers.set(event.pointerId, start);
+      if (pointers.size >= 2) {
+        const [a, b] = [...pointers.values()];
+        setGesture({
+          kind: "pinch",
+          view,
+          startDistance: distanceOf(a, b),
+          startMid: midpointOf(a, b),
+        });
+        return;
+      }
+    }
     setGesture(
       handle ? { kind: "frame", start, view, handle } : { kind: "pan", start, center: view.center }
     );
@@ -208,6 +228,28 @@ const ImageCropEditor = ({
   const moveGesture = (event: React.PointerEvent) => {
     if (!gesture || !view || !image || !stage) return;
     const point = localPoint(event);
+    if (stagePointersRef.current.has(event.pointerId)) {
+      stagePointersRef.current.set(event.pointerId, point);
+    }
+    if (gesture.kind === "pinch") {
+      const pointers = [...stagePointersRef.current.values()];
+      if (pointers.length < 2) return;
+      const [a, b] = pointers;
+      const mid = midpointOf(a, b);
+      // 以起始中点为锚缩放，再跟随中点平移
+      const zoomed = zoomAround(
+        gesture.view,
+        distanceOf(a, b) / gesture.startDistance,
+        gesture.startMid,
+        image
+      );
+      const target = {
+        x: zoomed.center.x + mid.x - gesture.startMid.x,
+        y: zoomed.center.y + mid.y - gesture.startMid.y,
+      };
+      setView({ ...zoomed, center: clampCenter(zoomed, image, target) });
+      return;
+    }
     const delta = { x: point.x - gesture.start.x, y: point.y - gesture.start.y };
     if (gesture.kind === "pan") {
       const target = { x: gesture.center.x + delta.x, y: gesture.center.y + delta.y };
@@ -217,8 +259,11 @@ const ImageCropEditor = ({
     }
   };
 
-  const endGesture = () => {
+  const endGesture = (event?: React.PointerEvent) => {
+    if (event) stagePointersRef.current.delete(event.pointerId);
     if (!gesture) return;
+    // 捏合中抬起一指：等两指都离开再结束，避免剩下的手指被当成平移起点跳动
+    if (gesture.kind === "pinch" && stagePointersRef.current.size > 0) return;
     const wasFrame = gesture.kind === "frame";
     setGesture(null);
     if (wasFrame && view && stage) {
@@ -326,7 +371,7 @@ const ImageCropEditor = ({
       role="dialog"
       aria-modal="true"
       aria-label="裁剪与旋转"
-      className="fixed inset-0 z-[1100] flex select-none flex-col bg-[#111113] text-white outline-none"
+      className="fixed inset-0 z-[1100] flex select-none flex-col bg-[#111113] pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] text-white outline-none"
       onKeyDown={handleKeyDown}
     >
       {/* 顶栏 */}
@@ -367,7 +412,7 @@ const ImageCropEditor = ({
       <div
         ref={stageRef}
         className={cn(
-          "relative min-h-0 flex-1 overflow-hidden",
+          "relative min-h-0 flex-1 touch-none overflow-hidden",
           gesture?.kind === "pan" ? "cursor-grabbing" : "cursor-grab"
         )}
         onPointerDown={event => startGesture(event)}
@@ -408,8 +453,9 @@ const ImageCropEditor = ({
                 <span
                   key={handle}
                   className={cn(
-                    "absolute touch-none border-white",
-                    handle.length === 1 && "bg-white",
+                    // 伪元素把触控区扩到约 44px，视觉尺寸不变
+                    "absolute touch-none border-white before:absolute before:-inset-3 before:content-['']",
+                    handle.length === 1 && "bg-white before:-inset-4",
                     className
                   )}
                   style={{ cursor }}

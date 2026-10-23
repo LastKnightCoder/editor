@@ -3,6 +3,7 @@ import {
   Camera,
   ChevronDown,
   FileText,
+  Globe,
   Highlighter,
   Image as ImageIcon,
   Info,
@@ -191,6 +192,14 @@ export const INSERT_ITEMS: InsertItem[] = [
     tone: 4,
   },
   {
+    kind: "webview",
+    label: "网页",
+    keywords: ["网页视图", "网站", "wangye", "wy", "wangzhan", "webview", "web", "iframe"],
+    group: "advanced",
+    icon: Globe,
+    tone: 4,
+  },
+  {
     kind: "annotation",
     label: "注解",
     keywords: ["注释", "zhujie", "zj", "zhushi", "annotation", "note"],
@@ -217,6 +226,7 @@ export const OVERLAY_INSERT_KINDS: ReadonlySet<InsertSheetItemKind> = new Set<In
   "image-url",
   "video-url",
   "audio-url",
+  "webview",
   "content-link",
 ]);
 

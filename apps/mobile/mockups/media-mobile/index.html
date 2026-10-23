@@ -1,0 +1,1010 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端媒体交互 · 设计方案</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="media.css" />
+<script src="../editor-mobile/icons.js"></script>
+<script src="icons-media.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>移动端媒体交互 · 设计方案<small>图片 / 行内图片 / 视频 / 音频 / 网页视图 · 颜色取自 @tau/themes · 手机帧 360×760 · 红色标注=问题，绿色标注=设计要点 · 与「移动端编辑器体验」方案同源</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="now">1 现状问题</button>
+    <button class="tab" data-tab="a">2 方案 A：点选 + 媒体配件栏<span class="rec">推荐</span></button>
+    <button class="tab" data-tab="b">3 方案 B：角标 + 属性抽屉</button>
+    <button class="tab" data-tab="c">4 方案 C：全屏即编辑</button>
+    <button class="tab" data-tab="size">5 尺寸调整三选一</button>
+    <button class="tab" data-tab="view">6 大图查看器</button>
+    <button class="tab" data-tab="crop">7 裁剪</button>
+    <button class="tab" data-tab="video">8 视频</button>
+    <button class="tab" data-tab="audio">9 音频</button>
+    <button class="tab" data-tab="misc">10 行内图片 · 网页 · 上传</button>
+    <button class="tab" data-tab="cmp">11 对比与待你选择</button>
+  </nav>
+</header>
+
+<!-- ═══════════ 1 现状 ═══════════ -->
+<section class="scene" data-scene="now">
+  <p class="scene-intro">移动端直接沿用了桌面端的媒体扩展（<code>packages/editor/src/extensions/media</code>、<code>webview</code>），只替换了图片、视频、音频的加载插槽（<code>LocalImage</code> / <code>LocalVideo</code> / <code>LocalAudio</code>）。所以交互仍然是桌面端那一套：<b>悬停出控件、8px 的缩放手柄、双击预览、右键出菜单、滚轮缩放</b>。这些操作手机上要么没有，要么点不准。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>间隔重复为什么有效</h1>
+          <p>艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。</p>
+          <div style="height:44px"></div>
+          <div class="mimg w75 sel">
+            <div class="dk-bar"><span data-i="align-left" data-s="13"></span><span data-i="align-center" data-s="13"></span><span data-i="align-right" data-s="13"></span><span>50</span><span>75</span><span>100</span><span data-i="crop" data-s="13"></span><span data-i="maximize-2" data-s="13"></span><span data-i="ellipsis" data-s="13"></span></div>
+            <div class="pic"></div>
+            <span class="dk-h" style="left:-5px;top:-5px"></span><span class="dk-h" style="right:-5px;top:-5px"></span><span class="dk-h" style="left:-5px;bottom:-5px"></span><span class="dk-h" style="right:-5px;bottom:-5px"></span>
+            <span class="dk-h" style="left:-5px;top:50%;height:22px;width:6px;margin-top:-11px"></span><span class="dk-h" style="right:-5px;top:50%;height:22px;width:6px;margin-top:-11px"></span>
+            <span class="callout-tag" style="left:-14px;top:-68px">9 个 24px 按钮挤在图片上方，提示靠悬停</span>
+            <span class="callout-tag" style="right:-18px;bottom:-24px">8px 手柄，手指拖不准</span>
+          </div>
+          <div class="cap ghost" style="margin-top:14px">添加图片说明…</div>
+          <p style="position:relative">主动回忆比重复阅读更能巩固记忆。<span class="callout-tag" style="left:40px;top:-30px">点到「说明」就弹键盘</span></p>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>编辑态选中图片：桌面属性条原样搬过来</div>
+      <details class="note" open><summary>问题</summary><ul>
+        <li><code>ImageSelectionToolbar</code> 有 9 个按钮，提示文字靠 <code>Tooltip</code> 悬停显示，触屏看不到。</li>
+        <li>四角和两侧的缩放手柄（<code>useImageResize</code>）没有触屏尺寸的热区；拖动时还会和页面滚动抢手势。</li>
+        <li>空格预览、C 裁剪、Enter 编辑说明这些快捷键在手机上用不了。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt">编辑</span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc">
+          <h1>记忆宫殿演示</h1>
+          <p>下面这段视频演示了如何把购物清单放进房间里：</p>
+          <div class="vid" style="overflow:visible">
+            <div class="vctrl"></div>
+            <div class="vbot"><span class="vicon" data-i="pause" data-s="16"></span><span>01:12</span><span class="scrub" style="position:relative"><i style="width:38%"></i></span><span>03:05</span><span class="vicon" data-i="volume-2" data-s="16"></span><span class="vicon" data-i="gauge" data-s="16"></span><span class="vicon" data-i="picture-in-picture-2" data-s="16"></span><span class="vicon" data-i="maximize-2" data-s="16"></span></div>
+            <span class="callout-tag" style="left:8px;top:-22px">控件靠 pointermove 唤出，点一下就暂停了</span>
+            <span class="callout-tag" style="left:96px;bottom:-24px">拖动圆点只在悬停时显示</span>
+            <span class="callout-tag" style="right:-6px;bottom:38px">音量条靠悬停展开</span>
+          </div>
+          <p style="margin-top:22px">双击画面进入全屏，但阅读态的双击又是「进入编辑」的手势。</p>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>视频播放器：为鼠标设计的控件</div>
+      <details class="note" open><summary>问题</summary><ul>
+        <li><code>VideoPlayer</code> 控件靠 <code>onPointerMove</code> 唤出，触屏上第一下点击直接切换了播放状态。</li>
+        <li>进度条拖动圆点默认 <code>scale-0</code>；底栏 6 个 32px 图标挤在一行，音量、画中画在手机上用处不大。</li>
+        <li>长按加速和 <code>onContextMenu</code> 混在一起处理，触屏长按会同时弹出系统菜单。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="stage">
+          <div class="status" data-status></div>
+          <div class="stage-top" style="justify-content:flex-end;gap:0"><span class="sbtn" data-i="copy" data-s="16"></span><span class="sbtn" data-i="download" data-s="16"></span><span class="sbtn" data-i="x" data-s="18"></span></div>
+          <div class="stage-body">
+            <span class="sbtn fill" style="position:absolute;left:8px;width:32px;height:32px" data-i="chevron-left" data-s="16"></span>
+            <div style="width:300px;position:relative"><div class="pic" style="height:200px;border-radius:0"></div>
+              <span class="callout-tag" style="left:8px;top:-30px">没有捏合缩放（只有滚轮）</span>
+              <span class="callout-tag" style="left:8px;bottom:-30px">只能点两侧小按钮切图，不能滑</span>
+            </div>
+            <span class="sbtn fill" style="position:absolute;right:8px;width:32px;height:32px" data-i="chevron-right" data-s="16"></span>
+          </div>
+          <div class="stage-cap" style="position:relative">图 1 · 艾宾浩斯遗忘曲线<span class="callout-tag" style="right:20px;top:-6px">下滑不能关闭</span></div>
+          <div style="height:60px"></div>
+          <div class="home-ind"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>大图预览：键鼠操作的 Lightbox</div>
+      <details class="note" open><summary>问题</summary><ul>
+        <li><code>ImageLightbox</code> 缩放靠滚轮和 +/- 键，切图靠方向键或两侧按钮，关闭靠 Esc 或右上角 ✕。</li>
+        <li>编辑态单击是选中、双击才预览；手机上的双击还可能触发系统缩放。</li>
+      </ul></details>
+    </div>
+
+    <div class="card" style="flex:1 1 360px;max-width:520px">
+      <h3>逐项清单（调研结论）</h3>
+      <table class="cmp">
+        <tr><th>媒体</th><th>依赖桌面的交互</th></tr>
+        <tr><td><b>图片</b></td><td>悬停属性条、8px 缩放手柄、双击预览、右键菜单（替换 / 外观 / 替代文本 / 复制）、拖入或粘贴替换、快捷键</td></tr>
+        <tr><td><b>行内图片</b></td><td>四角缩放（不锁比例）、双击预览、Del 删除；没有工具条</td></tr>
+        <tr><td><b>视频</b></td><td>属性条与缩放手柄同图片；播放器 hover 控件、音量悬停、双击全屏、滚轮调音量</td></tr>
+        <tr><td><b>音频</b></td><td>标题是常驻 <code>&lt;input&gt;</code>，阅读时点到就弹键盘；没有菜单入口；<code>AddParagraph</code> 只读下也显示</td></tr>
+        <tr><td><b>网页视图</b></td><td>高度拖拽 <code>ResizeHandle</code> 只监听 mouse 事件，手机完全拖不动；<b>只读下仍能拖并写回节点</b>；内嵌页面滚动和正文滚动冲突；「选择本地 HTML」在移动端被禁用</td></tr>
+        <tr><td><b>大图预览</b></td><td>无捏合、无滑动切图、无下滑关闭</td></tr>
+        <tr><td><b>裁剪</b></td><td>能力完整（pointer 事件 + <code>touch-none</code>），但弹窗按桌面尺寸布局</td></tr>
+      </table>
+      <p style="margin-top:10px;color:var(--meta)">已经可以复用的部分：上下文配件栏（表格 / 代码块 / 公式已在用）、顶替键盘的面板、<code>ActionSheet</code> / <code>SnapSheet</code>、系统返回关闭浮层（<code>IOverlayBackDismiss</code>），以及插入面板里的相册、相机和网络地址三个入口。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 2 方案 A ═══════════ -->
+<section class="scene" data-scene="a">
+  <p class="scene-intro"><span class="opt-badge">推荐</span><b>媒体块就是另一种「上下文」</b>。编辑态点一下图片就选中它，同时收起键盘，配件栏切换成「图片」上下文：<b>尺寸、对齐、裁剪、说明、替换、⋯</b>。这和表格、代码块已经在用的上下文配件栏是同一套机制。尺寸和外观的面板顶替键盘位置，<b>正文里的图片会实时变化</b>。低频操作都收进「⋯」。图片上不放任何浮动按钮。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>间隔重复为什么有效</h1>
+          <p>艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。</p>
+          <div style="height:22px"></div>
+          <div class="mimg w75 sel"><span class="mtag"><span data-i="image" data-s="11"></span>图片</span><div class="pic"></div>
+            <span class="callout-tag ok" style="right:-10px;top:-24px">单击选中，键盘收起</span></div>
+          <div class="cap">图 1 · 艾宾浩斯遗忘曲线</div>
+          <p>主动回忆比重复阅读更能巩固记忆；间隔逐步拉长，复习成本递减。</p>
+          <p>下一步：把这张卡片拆成 3 个问答。</p>
+        </div>
+        <div class="acc media" style="position:relative">
+          <span class="ctx-chip"><span data-i="image" data-s="13"></span>图片</span>
+          <div class="scroll" style="gap:0">
+            <span class="ab lbl" data-i="scaling" data-s="18">尺寸</span>
+            <span class="ab lbl" data-i="align-center" data-s="18">对齐</span>
+            <span class="ab lbl" data-i="crop" data-s="18">裁剪</span>
+            <span class="ab lbl" data-i="captions" data-s="18">说明</span>
+            <span class="ab lbl" data-i="replace" data-s="18">替换</span>
+          </div>
+          <span class="ab" data-i="ellipsis" data-s="18"></span>
+          <span class="ab" data-i="keyboard" data-s="18"></span>
+          <span class="callout-tag ok" style="right:4px;top:-24px">回到图片后的段落</span>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A1</span>点图片 → 选中 + 媒体配件栏</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>只有编辑态才会选中。阅读态单击图片打开大图（见 6）。</li>
+        <li>选中时图片外加 2.5px 主题色描边，左上角显示类型标签，不出现手柄。</li>
+        <li>配件栏贴在安全区上沿（这时键盘已收起），按钮 46×44，带文字标签，因为这些图标单看不好认。</li>
+        <li>点正文、点「键盘」或系统返回都会取消选中。「键盘」会把光标放到图片后面的段落，没有就新建一段。</li>
+        <li>图片是第一个或最后一个块时也一样，「键盘」负责解决「图片后面打不了字」的问题。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <p>艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。</p>
+          <div style="height:22px"></div>
+          <div class="mimg w100 sel round"><span class="mtag"><span data-i="image" data-s="11"></span>图片</span><div class="pic" style="height:190px"></div>
+            <span class="callout-tag ok" style="right:-6px;top:-24px">正文实时预览</span></div>
+          <div class="cap">图 1 · 艾宾浩斯遗忘曲线</div>
+        </div>
+        <div class="acc media">
+          <span class="ctx-chip"><span data-i="image" data-s="13"></span>图片</span>
+          <div class="scroll" style="gap:0">
+            <span class="ab lbl on" data-i="scaling" data-s="18">尺寸</span>
+            <span class="ab lbl" data-i="align-center" data-s="18">对齐</span>
+            <span class="ab lbl" data-i="crop" data-s="18">裁剪</span>
+            <span class="ab lbl" data-i="captions" data-s="18">说明</span>
+            <span class="ab lbl" data-i="replace" data-s="18">替换</span>
+          </div>
+          <span class="ab" data-i="ellipsis" data-s="18"></span>
+          <span class="ab" data-i="keyboard" data-s="18"></span>
+        </div>
+        <div class="panel"><div class="panel-in">
+          <div class="p-label">宽度</div>
+          <div class="size-row">
+            <span class="size-opt"><span class="mini"><i></i><b style="width:50%"></b><i></i></span>小 · 50%</span>
+            <span class="size-opt"><span class="mini"><i></i><b style="width:75%"></b><i></i></span>中 · 75%</span>
+            <span class="size-opt on"><span class="mini"><i></i><b style="width:100%"></b><i></i></span>满宽</span>
+          </div>
+          <div class="p-label">对齐<span>满宽时不可用</span></div>
+          <div class="seg"><div class="g" style="opacity:.45"><button data-i="align-left" data-s="17"></button><button class="on" data-i="align-center" data-s="17"></button><button data-i="align-right" data-s="17"></button></div></div>
+          <div class="p-label">外观</div>
+          <div class="seg"><div class="g"><button class="on">圆角</button><button>阴影</button><button>跟随设置</button></div></div>
+        </div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A2</span>「尺寸」面板顶替键盘位置</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>沿用编辑器方案 2.2 的面板机制：高度等于最近一次测得的键盘高度，正文可视区不变。</li>
+        <li>宽度用三档预设替代拖拽手柄，对应桌面端的 50 / 75 / 100% 吸附档位。要不要加滑杆见 <b>5 尺寸调整</b>。</li>
+        <li>「对齐」也放在这个面板里，配件栏上的「对齐」按钮则直接在 左 → 中 → 右 之间循环（和表格上下文的对齐按钮一样）。</li>
+        <li>外观（圆角、阴影）对应桌面端「更多 › 外观」。「跟随设置」表示使用全局图片外观。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <p>艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。</p>
+          <div class="mimg w75"><div class="pic" style="height:130px"></div></div>
+          <div class="cap edit">图 1 · 艾宾浩斯遗忘曲线<span class="caret blink"></span></div>
+        </div>
+        <div class="acc" style="position:relative">
+          <span class="ctx-chip"><span data-i="captions" data-s="13"></span>图片说明</span>
+          <div class="scroll"></div>
+          <span class="ab txt" style="color:var(--brand)">完成</span>
+          <span class="callout-tag ok" style="left:10px;top:-24px">换行键 = 完成，回到「图片」上下文</span>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A3</span>「说明」：就地编辑，键盘弹起</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>只有点「说明」才进入说明编辑。图片下方的灰色「添加图片说明…」占位只在编辑态显示，点它也能进入编辑。</li>
+        <li>页面滚动让说明这一行保持在配件栏上方。</li>
+        <li>说明是单行文本，换行键提交，不会在说明里插入换行。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <p>艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。</p>
+          <div class="mimg w75 sel"><div class="pic"></div></div>
+        </div>
+        <div class="mask"></div>
+        <div class="sheet" style="bottom:0;background:var(--bg-page);padding-bottom:26px;z-index:4">
+          <div class="grabber"></div>
+          <div class="as-cap" style="padding-top:6px">遗忘曲线.png · 1280×860 · 214 KB</div>
+          <div class="as-group">
+            <div class="as-item"><span data-i="maximize-2" data-s="18"></span>查看大图</div>
+            <div class="as-item"><span data-i="text-cursor-input" data-s="18"></span>替代文本<span class="sub">未设置<span data-i="chevron-right" data-s="14"></span></span></div>
+            <div class="as-item"><span data-i="link-2" data-s="18"></span>转为行内图片</div>
+          </div>
+          <div class="as-group">
+            <div class="as-item"><span data-i="copy" data-s="18"></span>复制图片</div>
+            <div class="as-item"><span data-i="download" data-s="18"></span>保存到相册</div>
+            <div class="as-item"><span data-i="share-2" data-s="18"></span>分享…</div>
+          </div>
+          <div class="as-group">
+            <div class="as-item"><span data-i="layers" data-s="18"></span>块操作（移动 / 复制 / 转换）<span class="sub"><span data-i="chevron-right" data-s="14"></span></span></div>
+            <div class="as-item danger"><span data-i="trash-2" data-s="18"></span>删除图片</div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A4</span>「⋯」：低频操作收进动作面板</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>菜单数据来自图片扩展的元素菜单（<code>image/utils/menu.tsx</code>），按移动端白名单过滤后用 <code>ActionSheet</code> 渲染，不另写一份菜单。</li>
+        <li>「保存到相册」「分享」是移动端新增的宿主项；「复制地址」这类开发者向的操作不放进来。</li>
+        <li>「块操作」进入现有的块选择模式并选中这张图片，移动、复制、转换都复用块操作栏。</li>
+        <li>「替换」不放在这里，它在配件栏上，点开后是 相册 / 拍照 / 网络地址 三选一的 <code>ActionSheet</code>，和插入时的来源一致。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 3 方案 B ═══════════ -->
+<section class="scene" data-scene="b">
+  <p class="scene-intro"><span class="opt-badge alt">备选</span><b>媒体块自带入口</b>。编辑态下图片右上角常驻一个「⋯」圆钮，点它从底部升起<b>属性抽屉</b>，所有设置都集中在一处。单击图片本身仍然打开大图。优点是好发现、设置齐全；代价是图片上永远叠着一个按钮，抽屉会挡住一半正文，而且和表格、代码块「配件栏变形」的做法不一致。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>间隔重复为什么有效</h1>
+          <p>艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。</p>
+          <div class="mimg w75"><div class="pic"></div>
+            <span class="ovbtn" style="right:8px;top:8px" data-i="ellipsis" data-s="18"></span>
+            <span class="ovchip" style="left:8px;bottom:8px"><span data-i="scaling" data-s="11"></span>75%</span>
+            <span class="callout-tag ok" style="right:-8px;top:-24px">编辑态常驻，热区 44px</span>
+          </div>
+          <div class="cap">图 1 · 艾宾浩斯遗忘曲线</div>
+          <p>主动回忆比重复阅读更能巩固记忆<span class="caret blink"></span></p>
+        </div>
+        <div class="acc">
+          <span class="ab plus" data-i="plus" data-s="18"></span>
+          <div class="scroll"><span class="ab txt">Aa</span><span class="ab" data-i="list-todo" data-s="18"></span><span class="ab" data-i="list" data-s="18"></span><span class="ab" data-i="indent-decrease" data-s="18"></span><span class="ab" data-i="indent-increase" data-s="18"></span><span class="ab" data-i="image" data-s="18"></span></div>
+          <span class="ab" data-i="keyboard-off" data-s="18"></span>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B1</span>编辑态：图片右上角「⋯」</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>编辑时不收键盘、配件栏也不变形，继续打字不受影响。</li>
+        <li>左下角显示当前宽度档位，点它直接在 50 / 75 / 100% 之间循环。</li>
+        <li>风险：图片较小（50%）时圆钮会遮住画面；视频块上还会和播放器控件抢位置。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <div class="mimg w75 sel" style="margin-top:20px"><div class="pic" style="height:150px"></div></div>
+        </div>
+        <div class="mask" style="opacity:.55"></div>
+        <div class="sheet" style="bottom:0;top:250px;background:var(--bg-page);z-index:4">
+          <div class="grabber"></div>
+          <div class="sheet-h">图片<span class="x">完成</span></div>
+          <div class="as-group">
+            <div class="frow" style="flex-wrap:wrap;padding-top:8px;padding-bottom:4px"><span class="k">宽度</span><span class="v" style="text-align:right"><span class="val-badge">75%</span></span>
+              <div style="width:100%"><div class="slider"><span class="track"></span><span class="fill" style="width:62.5%"></span><span class="tick" style="left:37.5%"></span><span class="tick" style="left:62.5%"></span><span class="tick" style="left:100%"></span><span class="knob" style="left:62.5%"></span></div></div></div>
+            <div class="frow"><span class="k">对齐</span><span class="v"><span class="seg" style="margin:0"><span class="g"><button data-i="align-left" data-s="16"></button><button class="on" data-i="align-center" data-s="16"></button><button data-i="align-right" data-s="16"></button></span></span></span></div>
+            <div class="frow"><span class="k">说明</span><span class="v">图 1 · 艾宾浩斯遗忘曲线</span></div>
+            <div class="frow"><span class="k">替代文本</span><span class="v ph">未设置</span><span data-i="chevron-right" data-s="14" style="color:var(--ink-3)"></span></div>
+            <div class="frow"><span class="k">圆角</span><span class="v"></span><span class="toggle on"></span></div>
+          </div>
+          <div class="qgrid">
+            <span data-i="crop" data-s="18">裁剪</span><span data-i="replace" data-s="18">替换</span><span data-i="share-2" data-s="18">分享</span><span class="danger" data-i="trash-2" data-s="18">删除</span>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B2</span>属性抽屉：所有设置一页看完</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>用 <code>SnapSheet</code> 承载，半屏 / 全屏两档，上半屏留给图片预览，改动实时反映到正文。</li>
+        <li>宽度用滑杆，在 50 / 75 / 100% 有刻度吸附和触感反馈。</li>
+        <li>视频、音频、网页视图各自配一张同样结构的抽屉。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 4 方案 C ═══════════ -->
+<section class="scene" data-scene="c">
+  <p class="scene-intro"><span class="opt-badge alt">备选</span><b>像系统相册一样：点开再编辑</b>。无论阅读态还是编辑态，单击图片都进入全屏查看器；编辑态的查看器底部多一排编辑工具。入口只有一个，用户最熟悉，但<b>宽度、对齐这类「在文档里长什么样」的设置在全屏里看不到效果</b>，每调一次都要退出查看。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="stage">
+          <div class="status" data-status></div>
+          <div class="stage-top"><span class="sbtn" data-i="x" data-s="20"></span><span class="t">2 / 4</span><span class="sbtn" data-i="ellipsis" data-s="20"></span></div>
+          <div class="stage-body"><div style="width:340px"><div class="pic" style="height:226px;border-radius:0"></div></div></div>
+          <div class="stage-cap">图 1 · 艾宾浩斯遗忘曲线</div>
+          <div class="stage-bar">
+            <span data-i="crop" data-s="20">裁剪</span><span data-i="captions" data-s="20">说明</span><span data-i="scaling" data-s="20">尺寸</span><span data-i="replace" data-s="20">替换</span><span class="danger" data-i="trash-2" data-s="20">删除</span>
+          </div>
+          <div class="home-ind"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">C1</span>编辑态单击图片 → 全屏查看器 + 编辑工具</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>查看器和 6 的大图查看器是同一个组件，阅读态没有底部这排编辑工具。</li>
+        <li>左右滑动切到其他图片，编辑工具作用于当前这张。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="stage">
+          <div class="status" data-status></div>
+          <div class="stage-top"><span class="sbtn" data-i="chevron-left" data-s="20"></span><span class="t">尺寸</span><span class="stxt brand">完成</span></div>
+          <div class="stage-body" style="align-items:flex-start;padding-top:14px">
+            <div style="width:220px;background:var(--bg-page);border-radius:14px;padding:12px 14px;color:var(--ink-1);font-size:10px;line-height:1.6;position:relative">
+              <div style="height:6px;border-radius:3px;background:var(--line-1);margin-bottom:5px"></div>
+              <div style="height:6px;width:70%;border-radius:3px;background:var(--line-1);margin-bottom:8px"></div>
+              <div class="pic" style="height:70px;width:75%;margin:0 auto;border-radius:5px"></div>
+              <div style="height:6px;border-radius:3px;background:var(--line-1);margin-top:8px"></div>
+              <span class="callout-tag" style="left:-10px;bottom:-26px">要额外画一张「文档缩略预览」</span>
+            </div>
+          </div>
+          <div class="ratio-row" style="padding-bottom:10px"><span>小 · 50%</span><span class="on">中 · 75%</span><span>满宽</span></div>
+          <div class="ratio-row" style="padding-top:0;padding-bottom:16px"><span data-i="align-left" data-s="15"></span><span class="on" data-i="align-center" data-s="15"></span><span data-i="align-right" data-s="15"></span></div>
+          <div class="home-ind"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">C2</span>代价：尺寸 / 对齐要单独做预览</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>宽度和对齐只在文档里才有意义，所以全屏状态下只能额外画一张缩略文档来预览。</li>
+        <li>视频没法套用这一套，因为全屏是播放，不是编辑；音频和网页视图也一样。结果每种媒体都要单独设计入口。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 5 尺寸 ═══════════ -->
+<section class="scene" data-scene="size">
+  <p class="scene-intro">桌面端靠拖动角点调尺寸，拖动时吸附 50 / 75 / 100%。手机上有三种替代做法，可以只选一种，也可以组合（比如三档预设 + 「自定义」滑杆）。下面三个帧都套在方案 A 的面板里展示；放进方案 B 的抽屉也一样。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <p>艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。</p>
+          <div style="height:22px"></div>
+          <div class="mimg w50 sel"><span class="mtag"><span data-i="image" data-s="11"></span>图片</span><div class="pic" style="height:110px"></div></div>
+          <div class="cap">图 1 · 艾宾浩斯遗忘曲线</div>
+        </div>
+        <div class="acc media"><span class="ctx-chip"><span data-i="image" data-s="13"></span>图片</span><div class="scroll"><span class="ab lbl on" data-i="scaling" data-s="18">尺寸</span><span class="ab lbl" data-i="align-center" data-s="18">对齐</span><span class="ab lbl" data-i="crop" data-s="18">裁剪</span><span class="ab lbl" data-i="captions" data-s="18">说明</span></div><span class="ab" data-i="keyboard" data-s="18"></span></div>
+        <div class="panel"><div class="panel-in">
+          <div class="p-label">宽度</div>
+          <div class="size-row">
+            <span class="size-opt on"><span class="mini"><i></i><b style="width:50%"></b><i></i></span>小 · 50%</span>
+            <span class="size-opt"><span class="mini"><i></i><b style="width:75%"></b><i></i></span>中 · 75%</span>
+            <span class="size-opt"><span class="mini"><i></i><b style="width:100%"></b><i></i></span>满宽</span>
+          </div>
+          <div class="p-label">对齐</div>
+          <div class="seg"><div class="g"><button data-i="align-left" data-s="17"></button><button class="on" data-i="align-center" data-s="17"></button><button data-i="align-right" data-s="17"></button></div></div>
+        </div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">S1</span>三档预设<span class="rec" style="color:var(--brand);font-size:11px;margin-left:6px">推荐</span></div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>最简单：一次点击，不会误触，手机屏宽下三档已经够用。</li>
+        <li>桌面端拖出来的非整档宽度（比如 62%）在面板里不高亮任何一档，图片保持原宽，不强行改写。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <p>艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。</p>
+          <div style="height:22px"></div>
+          <div class="mimg sel" style="width:62%"><span class="mtag"><span data-i="image" data-s="11"></span>图片</span><div class="pic" style="height:130px"></div></div>
+          <div class="cap">图 1 · 艾宾浩斯遗忘曲线</div>
+        </div>
+        <div class="acc media"><span class="ctx-chip"><span data-i="image" data-s="13"></span>图片</span><div class="scroll"><span class="ab lbl on" data-i="scaling" data-s="18">尺寸</span><span class="ab lbl" data-i="align-center" data-s="18">对齐</span><span class="ab lbl" data-i="crop" data-s="18">裁剪</span><span class="ab lbl" data-i="captions" data-s="18">说明</span></div><span class="ab" data-i="keyboard" data-s="18"></span></div>
+        <div class="panel"><div class="panel-in">
+          <div class="p-label">宽度<span class="val-badge">62% · 191px</span></div>
+          <div class="slider" style="margin-top:6px"><span class="track"></span><span class="fill" style="width:45.7%"></span><span class="tick" style="left:28.6%"></span><span class="tick" style="left:64.3%"></span><span class="tick" style="left:100%"></span><span class="knob" style="left:45.7%"></span></div>
+          <div class="slider-labels"><span style="left:0;transform:none">30%</span><span style="left:28.6%">50</span><span style="left:64.3%">75</span><span style="left:100%;transform:translateX(-100%)">100</span></div>
+          <div class="p-label">对齐</div>
+          <div class="seg"><div class="g"><button data-i="align-left" data-s="17"></button><button class="on" data-i="align-center" data-s="17"></button><button data-i="align-right" data-s="17"></button></div></div>
+        </div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">S2</span>滑杆 + 刻度吸附</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>30–100% 连续可调，滑过 50 / 75 / 100 时吸附并震动一下（和桌面端拖动吸附的手感一致）。</li>
+        <li>比预设更灵活，但精细调宽度在手机上需求少，滑杆也更容易误触。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc" style="overflow:visible">
+          <p>艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。</p>
+          <div style="height:36px"></div>
+          <div style="position:relative">
+            <span style="position:absolute;left:12.5%;top:-14px;bottom:-14px;border-left:1.5px dashed var(--line-1)"></span>
+            <span style="position:absolute;right:12.5%;top:-14px;bottom:-14px;border-left:1.5px dashed var(--line-1)"></span>
+            <div class="mimg sel" style="width:68%"><span class="mtag" style="top:-30px">62% · 191px</span><div class="pic" style="height:150px"></div>
+              <span class="finger" style="left:-18px;top:-16px"></span><span class="finger" style="right:-18px;bottom:-16px"></span>
+            </div>
+          </div>
+          <div class="cap" style="margin-top:20px">图 1 · 艾宾浩斯遗忘曲线</div>
+          <span class="callout-tag" style="position:relative;display:inline-block;margin-top:6px">和页面双指缩放、滚动抢手势</span>
+        </div>
+        <div class="acc media"><span class="ctx-chip"><span data-i="image" data-s="13"></span>图片</span><div class="scroll"><span class="ab lbl" data-i="scaling" data-s="18">尺寸</span><span class="ab lbl" data-i="align-center" data-s="18">对齐</span><span class="ab lbl" data-i="crop" data-s="18">裁剪</span><span class="ab lbl" data-i="captions" data-s="18">说明</span></div><span class="ab" data-i="keyboard" data-s="18"></span></div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">S3</span>选中后双指捏合缩放</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>只在图片已选中时生效，捏合改变宽度，虚线是 75% 档位，靠近时吸附。</li>
+        <li>直观但难发现，需要配一次性引导；WebView 里拦截双指手势要做真机验证。适合作为 S1 / S2 之外的附加手势。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 6 查看器 ═══════════ -->
+<section class="scene" data-scene="view">
+  <p class="scene-intro">替换掉 <code>ImageLightbox</code> 的触屏交互，保留它的能力（收集全文图片、复制、下载）。<b>阅读态单击任意图片（含行内图片）打开</b>；编辑态从「⋯ › 查看大图」进入（方案 A），或单击直接进入（方案 C）。手势照搬系统相册：<b>捏合缩放、双击放大、左右滑切图、下滑关闭</b>。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="stage">
+          <div class="status" data-status></div>
+          <div class="stage-top"><span class="sbtn" data-i="x" data-s="20"></span><span class="t">2 / 4</span><span class="sbtn" data-i="ellipsis" data-s="20"></span></div>
+          <div class="stage-body">
+            <div style="position:absolute;left:-330px;width:340px"><div class="pic p2" style="height:220px;border-radius:0"></div></div>
+            <div style="width:340px"><div class="pic" style="height:226px;border-radius:0"></div></div>
+            <div style="position:absolute;right:-326px;width:340px"><div class="pic p2" style="height:200px;border-radius:0"></div></div>
+            <span class="gest" style="left:50%;transform:translateX(-50%);top:24px"><span data-i="hand" data-s="13"></span>捏合缩放 · 双击放大</span>
+            <span class="gest" style="left:50%;transform:translateX(-50%);bottom:30px"><span data-i="move-horizontal" data-s="13"></span>左右滑切换 · 下滑关闭</span>
+          </div>
+          <div class="dots"><i></i><i class="on"></i><i></i><i></i></div>
+          <div class="stage-cap">图 1 · 艾宾浩斯遗忘曲线<small>间隔重复为什么有效</small></div>
+          <div class="stage-bar">
+            <span data-i="download" data-s="20">保存</span><span data-i="share-2" data-s="20">分享</span><span data-i="copy" data-s="20">复制</span>
+          </div>
+          <div class="home-ind"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">V1</span>阅读态单击图片 → 查看器</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>手势提示只在首次打开时出现，2 秒后淡出。</li>
+        <li>底部是图片说明和所属文档名；保存到相册、分享走系统能力。</li>
+        <li>「⋯」：复制地址、在文档中定位（关闭后滚到这张图）。</li>
+        <li>系统返回 = 关闭（已有 <code>IOverlayBackDismiss</code>）。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="stage">
+          <div class="status" data-status style="opacity:0"></div>
+          <div class="stage-body">
+            <div style="width:720px;position:absolute;left:-160px;top:40px"><div class="pic" style="height:480px;border-radius:0"></div></div>
+            <span class="gest" style="left:14px;top:14px">200%</span>
+            <div class="minimap"><div class="pic"></div><b></b></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">V2</span>放大后：单击隐藏界面，拖动平移</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>双击在 1× 和 2× 之间切换，以双击点为中心放大；捏合最大 5×。</li>
+        <li>放大状态下左右滑优先用来平移，拖到边缘后继续滑才切图。</li>
+        <li>单击切换界面显隐（沉浸看图）；右下角小地图只在缩放过程中显示。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt">编辑</span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc">
+          <h1>间隔重复为什么有效</h1>
+          <p>艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。</p>
+          <div class="mimg w75" style="opacity:.15"><div class="pic"></div></div>
+          <div class="cap">图 1 · 艾宾浩斯遗忘曲线</div>
+          <p>主动回忆比重复阅读更能巩固记忆。</p>
+        </div>
+        <div style="position:absolute;inset:0;background:var(--stage);opacity:.5;z-index:5"></div>
+        <div style="position:absolute;z-index:6;left:44px;top:300px;width:272px;transform:rotate(-2deg)"><div class="pic" style="height:180px;border-radius:12px;box-shadow:var(--shadow-float)"></div></div>
+        <span class="finger" style="z-index:7;left:150px;top:400px"></span>
+        <span class="callout-tag ok" style="z-index:7;left:90px;top:500px">松手后飞回文档里的原位置</span>
+      </div></div>
+      <div class="frame-cap"><span class="no">V3</span>下滑关闭：背景渐显出文档</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>下滑时图片跟手缩小，黑色背景按下滑距离变透明；松手时若超过阈值就关闭，否则回弹。</li>
+        <li>打开和关闭都从文档里的图片位置放大或收回（共享元素过渡），用户知道自己看的是哪一张。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 7 裁剪 ═══════════ -->
+<section class="scene" data-scene="crop">
+  <p class="scene-intro">现有的 <code>ImageCropEditor</code> 能力已经完整（选框、手柄、比例、旋转、翻转、角度刻度），而且是用 pointer 事件写的，触屏可以用。<b>只需要换成全屏布局，并放大手柄热区</b>，不用重写裁剪逻辑。入口：方案 A 配件栏的「裁剪」，或方案 B / C 里的「裁剪」。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="stage">
+          <div class="status" data-status></div>
+          <div class="stage-top"><span class="stxt">取消</span><span class="t">裁剪</span><span class="stxt brand">完成</span></div>
+          <div class="stage-body">
+            <div class="crop-wrap"><div class="pic"></div><div class="crop-shade"></div>
+              <div class="cbox"><i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i><i class="hit"></i></div>
+              <span class="callout-tag ok" style="right:-24px;bottom:-30px;z-index:5">L 形角，触控热区 44px</span>
+            </div>
+          </div>
+          <div class="dial-val">−3.5°</div>
+          <div class="dial"></div><div class="dial-mark"></div>
+          <div class="ratio-row"><span>自由</span><span class="on">原始</span><span>1:1</span><span>4:3</span><span>16:9</span></div>
+          <div class="stage-bar" style="height:58px">
+            <span data-i="rotate-ccw" data-s="20">旋转</span><span data-i="flip-horizontal-2" data-s="20">翻转</span><span data-i="refresh-cw" data-s="20">还原</span>
+          </div>
+          <div class="home-ind"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">K1</span>全屏裁剪页</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>布局参照系统相册：图片居中，下方是角度刻度盘、比例芯片和工具按钮。</li>
+        <li>单指拖选框内部是平移图片，拖角是改选框；双指捏合缩放图片。</li>
+        <li>刻度盘左右拖动微调角度，双击归零（沿用现有行为）。</li>
+        <li>完成后写回 <code>cropTransform</code> 和裁剪结果 <code>previewUrl</code>，原图 <code>url</code> 保持不变，所以随时可以「还原」。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 8 视频 ═══════════ -->
+<section class="scene" data-scene="video">
+  <p class="scene-intro">视频有两件事要拆开：<b>播放</b>（阅读态和编辑态都要）和<b>编辑属性</b>（只在编辑态）。播放器有两种形态可选：<span class="opt-badge">V-A 推荐</span>在文档里直接播放，控件按触屏重排；<span class="opt-badge alt">V-B</span>文档里只放一张缩略卡片，点开全屏播放。编辑属性和图片使用同一个方案（A、B 或 C）。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt">编辑</span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc">
+          <h1>记忆宫殿演示</h1>
+          <p>下面这段视频演示了如何把购物清单放进房间里：</p>
+          <div class="vid"><span class="vplay" data-i="play" data-s="24"></span><span class="vdur">03:05</span></div>
+          <p>看完之后，试着用自己的房间复现一遍。</p>
+          <h2>步骤</h2>
+          <ul><li>选一条熟悉的路线</li><li>每个位置放一件物品</li></ul>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">V-A1</span>未播放：大播放键 + 时长</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>封面上只有一个 56px 播放键和右下角时长，单击任意位置开始播放。</li>
+        <li>阅读态双击视频不进入编辑（<code>useReadingMode</code> 已排除媒体元素）。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt">编辑</span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc">
+          <h1>记忆宫殿演示</h1>
+          <p>下面这段视频演示了如何把购物清单放进房间里：</p>
+          <div class="vid" style="overflow:visible">
+            <div class="vctrl"></div>
+            <div class="vmid"><span class="sm" data-i="rotate-ccw" data-s="24"></span><span class="big" data-i="pause" data-s="24"></span><span class="sm" data-i="rotate-cw" data-s="24"></span></div>
+            <div class="vbot"><span>01:12 / 03:05</span><span class="scrub"><i style="width:38%"></i><b style="left:38%"></b></span><span class="vchip">1.0×</span><span class="vicon" data-i="maximize-2" data-s="17"></span></div>
+            <span class="callout-tag ok" style="left:4px;top:-22px">双击左右半边 ±10 秒</span>
+            <span class="callout-tag ok" style="right:-4px;bottom:-24px">圆点常显，热区 44px</span>
+          </div>
+          <p style="margin-top:20px">看完之后，试着用自己的房间复现一遍。</p>
+          <span class="callout-tag ok" style="position:relative;display:inline-block">长按画面 = 2× 倍速，松手恢复</span>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">V-A2</span>播放中：单击唤出触屏控件</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>单击画面只切换控件显隐，不切换播放；暂停或播放只能点中间的按钮（触屏通用习惯）。3 秒无操作后自动隐藏。</li>
+        <li>底栏只留 时间、进度、倍速、全屏。音量交给系统音量键；画中画移到「⋯」，而且只在支持的平台显示。</li>
+        <li>拖动进度条时在上方显示帧预览（复用 <code>useFramePreview</code>）。</li>
+        <li>长按加速要屏蔽系统长按菜单（<code>contextmenu</code> 和 <code>-webkit-touch-callout</code>）。</li>
+        <li>页面滚走后视频自动暂停，避免看不见还在响。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>记忆宫殿演示</h1>
+          <p>下面这段视频演示了如何把购物清单放进房间里：</p>
+          <div style="height:16px"></div>
+          <div class="vid sel"><span class="mtag"><span data-i="film" data-s="11"></span>视频</span><span class="vplay" data-i="play" data-s="24"></span><span class="vdur">03:05</span></div>
+          <p style="margin-top:12px">看完之后，试着用自己的房间复现一遍。</p>
+        </div>
+        <div class="acc media" style="position:relative">
+          <span class="ctx-chip"><span data-i="film" data-s="13"></span>视频</span>
+          <div class="scroll" style="gap:0">
+            <span class="ab lbl" data-i="scaling" data-s="18">尺寸</span>
+            <span class="ab lbl" data-i="align-center" data-s="18">对齐</span>
+            <span class="ab lbl" data-i="replace" data-s="18">替换</span>
+            <span class="ab lbl" data-i="gauge" data-s="18">默认倍速</span>
+          </div>
+          <span class="ab" data-i="ellipsis" data-s="18"></span>
+          <span class="ab" data-i="keyboard" data-s="18"></span>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">V-A3</span>编辑态：点播放键以外区域 = 选中</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>编辑态下，点中间的播放键照常播放，点画面其他位置是选中，配件栏切换成「视频」上下文（方案 A）。</li>
+        <li>「默认倍速」写回节点的 <code>playbackRate</code>；播放时临时调的倍速不写回，和桌面端一致。</li>
+        <li>宿主内容源的视频（<code>metaInfo.type</code>）继续显示「请在桌面端查看」，只保留删除和块操作。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt">编辑</span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc">
+          <h1>记忆宫殿演示</h1>
+          <p>下面这段视频演示了如何把购物清单放进房间里：</p>
+          <div class="vrow"><span class="th"><span data-i="play" data-s="20"></span></span><span class="mid">记忆宫殿演示.mp4<small>03:05 · 点按全屏播放</small></span></div>
+          <p>看完之后，试着用自己的房间复现一遍。</p>
+          <h2>步骤</h2>
+          <ul><li>选一条熟悉的路线</li><li>每个位置放一件物品</li></ul>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">V-B1</span>备选：缩略卡片，点开全屏</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>正文更紧凑，播放器只需要做全屏一种布局，实现最省。</li>
+        <li>代价：文档里看不到画面；桌面端设置的宽度和对齐在手机上被忽略，两端显示不一致。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame land">
+      <div class="phone-box land"><div class="phone land">
+        <div class="stage" style="flex-direction:row">
+          <div style="position:absolute;inset:0;background:radial-gradient(circle at 30% 35%, color-mix(in srgb, var(--tau-tag-2) 55%, #000) 0, transparent 55%),radial-gradient(circle at 75% 70%, color-mix(in srgb, var(--tau-tag-5) 45%, #000) 0, transparent 50%),#1b1c20"></div>
+          <div class="vctrl" style="background:linear-gradient(rgba(0,0,0,.45), transparent 30%, transparent 60%, rgba(0,0,0,.6))"></div>
+          <div style="position:absolute;left:24px;right:24px;top:14px;display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600"><span class="sbtn" data-i="chevron-left" data-s="20"></span>记忆宫殿演示<span style="flex:1"></span><span class="sbtn" data-i="ellipsis" data-s="20"></span></div>
+          <div class="vmid" style="gap:70px"><span class="sm" data-i="rotate-ccw" data-s="28"></span><span class="big" style="width:64px;height:64px" data-i="pause" data-s="30"></span><span class="sm" data-i="rotate-cw" data-s="28"></span></div>
+          <div class="vbot" style="left:40px;right:40px;bottom:16px;font-size:12.5px"><span>01:12</span><span class="scrub"><i style="width:38%"></i><b style="left:38%"></b></span><span>03:05</span><span class="vchip">1.0×</span><span class="vicon" data-i="minimize-2" data-s="18"></span></div>
+          <span class="gest" style="left:120px;top:120px"><span data-i="sun-medium" data-s="13"></span>左半边上下滑 = 亮度</span>
+          <span class="gest" style="right:120px;top:120px"><span data-i="volume-2" data-s="13"></span>右半边上下滑 = 音量</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">V-A4 / V-B2</span>全屏：横屏播放，下滑退出</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>点「全屏」后按视频宽高比自动横屏（竖屏视频保持竖屏）。系统返回或下滑退出全屏。</li>
+        <li>亮度、音量手势是可选项，需要原生能力配合，可以放到后续迭代。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 9 音频 ═══════════ -->
+<section class="scene" data-scene="audio">
+  <p class="scene-intro">音频块常用于录音笔记、AI 朗读。现在的问题是：标题是常驻输入框，阅读时点到就弹键盘；波形很细，拖不准。下面是两种块形态（<span class="opt-badge">AU-A 卡片 推荐</span><span class="opt-badge alt">AU-B 紧凑行</span>），外加一个可以独立选择的「迷你播放条」。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt">编辑</span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc">
+          <h1>周会录音整理</h1>
+          <p>原始录音放在这里，要点在下方。</p>
+          <div class="aud">
+            <div class="aud-top"><span class="aplay" data-i="pause" data-s="20"></span><span class="aud-t">10 月 21 日周会<small>录音 · 12:48</small></span><span class="spd">1.5×</span></div>
+            <div class="wave" data-wave="56,0.36"></div>
+            <div class="aud-meta"><span>04:37</span><span style="display:flex;gap:16px;color:var(--ink-2)"><span data-i="rotate-ccw" data-s="16"></span><span data-i="rotate-cw" data-s="16"></span></span><span>−08:11</span></div>
+          </div>
+          <div class="aud">
+            <div class="aud-top"><span class="aplay" data-i="play" data-s="20"></span><span class="aud-t">间隔重复 · 朗读<small><span style="color:var(--brand)">AI 生成</span> · 02:10</small></span><span class="spd">1.0×</span></div>
+            <div class="wave" data-wave="56,0"></div>
+            <div class="aud-text"><span data-i="file-text" data-s="14"></span>查看原文<span data-i="chevron-down" data-s="14" style="margin-left:auto"></span></div>
+          </div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">AU-A</span>卡片：大播放键 + 可拖动的粗波形</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>波形高 34px，整条都是拖动热区，点哪里跳到哪里；拖动时显示时间气泡。</li>
+        <li>±15 秒按钮适合录音回听；倍速在 1.0 / 1.25 / 1.5 / 2.0 之间循环。</li>
+        <li>标题改为纯文本，阅读时不会弹键盘；改名放到编辑态（见 AU-编辑）。</li>
+        <li>AI 生成的音频（有 <code>audioText</code>）在底部提供「查看原文」，可以展开。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt">编辑</span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc">
+          <h1>周会录音整理</h1>
+          <p>原始录音放在这里，要点在下方。</p>
+          <div class="arow"><span class="aplay sm" data-i="pause" data-s="16"></span><span class="ttl">10 月 21 日周会</span><span class="wave sm" data-wave="30,0.36"></span><span class="tm">04:37</span></div>
+          <div class="arow"><span class="aplay sm" data-i="play" data-s="16"></span><span class="ttl">间隔重复 · 朗读</span><span class="wave sm" data-wave="30,0"></span><span class="tm">02:10</span></div>
+          <h2>要点</h2>
+          <ul><li>Q4 目标：移动端编辑器体验重做</li><li>媒体交互方案本周给出</li></ul>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">AU-B</span>备选：紧凑行</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>一行 52px，适合一篇里放多段音频的场景；倍速和 ±15 秒收进「⋯」。</li>
+        <li>波形区窄（约 120px），拖动精度不如卡片形态。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt">编辑</span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="miniplayer"><span class="aplay sm" data-i="pause" data-s="16"></span><span class="mid">10 月 21 日周会<small>04:37 / 12:48 · 点按回到位置</small></span><span class="spd">1.5×</span><span class="ab" data-i="x" data-s="16" style="width:32px;height:32px"></span><span class="prog" style="width:36%"></span></div>
+        <div class="doc">
+          <h2 style="margin-top:6px">要点</h2>
+          <ul><li>Q4 目标：移动端编辑器体验重做</li><li>媒体交互方案本周给出</li><li>同步中心已上线，收集反馈</li></ul>
+          <h2>待办</h2>
+          <ul><li>整理录音里的决策项</li><li>补充上次遗留的问题</li></ul>
+          <p>会议结论：先做阅读态，再做块操作；媒体交互单独出方案让大家选。</p>
+          <p>下周同一时间继续。</p>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">AU-迷你条</span>可选：滚走后顶部迷你播放条</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>音频块滚出视口时，在顶栏下方浮出迷你条，边看要点边听录音；点标题滚回音频块，✕ 停止播放。</li>
+        <li>离开页面即停止，不做跨页面的后台播放。</li>
+        <li>这一项和 AU-A / AU-B 互相独立，要不要做由你决定。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>周会录音整理</h1>
+          <p>原始录音放在这里，要点在下方。</p>
+          <div style="height:12px"></div>
+          <div class="aud sel"><span class="mtag"><span data-i="music" data-s="11"></span>音频</span>
+            <div class="aud-top"><span class="aplay" data-i="play" data-s="20"></span><span class="aud-t">10 月 21 日周会<small>录音 · 12:48</small></span><span class="spd">1.5×</span></div>
+            <div class="wave" data-wave="56,0.36"></div>
+          </div>
+        </div>
+        <div class="mask"></div>
+        <div class="sheet" style="bottom:0;background:var(--bg-page);padding-bottom:26px;z-index:4">
+          <div class="grabber"></div>
+          <div class="sheet-h">重命名<span class="x">完成</span></div>
+          <div style="margin:0 14px 10px;height:46px;border-radius:12px;background:var(--bg-surface);border:1.5px solid var(--brand);display:flex;align-items:center;padding:0 12px;font-size:15px">10 月 21 日周会<span class="caret blink"></span></div>
+          <div class="kb" data-kb style="margin-top:6px"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">AU-编辑</span>编辑态：选中 → 配件栏「音频」→ 重命名</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>点播放键以外的区域选中音频块，配件栏显示：重命名、替换、默认倍速、⋯（下载、块操作、删除）。</li>
+        <li>重命名用底部输入抽屉（和网络地址输入共用 <code>notifier.prompt</code> 的移动端呈现）。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 10 其他 ═══════════ -->
+<section class="scene" data-scene="misc">
+  <p class="scene-intro">行内图片、网页视图和上传状态的移动端处理方式。行内图片和网页视图沿用上面选定的编辑入口方案（下面按方案 A 展示）。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>常用图标速记</h1>
+          <p>工具栏里 <span class="ipic"><span class="pic"></span></span> 表示插入图片，</p>
+          <p style="position:relative">而 <span class="ipic sel"><span class="pic p2"></span></span> 是图集入口，长按可以看说明。<span class="callout-tag ok" style="left:10px;top:-26px">点一下选中</span></p>
+          <p>记住这两个，其余按需查。</p>
+        </div>
+        <div class="acc media">
+          <span class="ctx-chip"><span data-i="image" data-s="13"></span>行内图片</span>
+          <div class="scroll" style="gap:0">
+            <span class="ab txt">小</span><span class="ab txt" style="background:var(--brand-soft);color:var(--brand)">中</span><span class="ab txt">大</span>
+            <span class="vsep"></span>
+            <span class="ab lbl" data-i="maximize-2" data-s="18">查看</span>
+            <span class="ab lbl" data-i="rectangle-horizontal" data-s="18">转为大图</span>
+          </div>
+          <span class="ab" data-i="trash-2" data-s="18"></span>
+          <span class="ab" data-i="keyboard" data-s="18"></span>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">M1</span>行内图片：三档高度 + 转为大图</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>行内图片以行高为基准设三档：1 / 1.5 / 2 倍行高，宽度按比例计算。桌面端不锁比例的拉伸在手机上不提供。</li>
+        <li>「转为大图」把它变成块级图片（插在当前段落之后）；块级图片的「⋯」里提供反向操作「转为行内图片」。</li>
+        <li>阅读态单击行内图片打开查看器，和块级图片在同一组里左右滑动。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt">编辑</span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc">
+          <h1>参考资料</h1>
+          <p>SM-2 算法的原始说明：</p>
+          <div class="web">
+            <div class="web-h"><span data-i="globe" data-s="14"></span><span class="d">super-memory.com/english/ol/sm2.htm</span><span class="b" data-i="expand" data-s="15"></span></div>
+            <div class="web-b"><i class="h"></i><i></i><i style="width:84%"></i><div class="blockimg"></div><i></i><i style="width:70%"></i></div>
+            <div class="web-shield"><span><span data-i="mouse-pointer-click" data-s="14"></span>点按与网页交互</span></div>
+          </div>
+          <p>注意第 3 步中难度系数的下限是 1.3。</p>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">M2</span>网页视图（阅读态）：先滚正文，点按才交互</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>默认在网页上盖一层透明遮罩，手指滑动滚动的是正文，不会被网页吞掉。点「点按与网页交互」后去掉遮罩，滑出网页区域或滚动正文时自动恢复遮罩。</li>
+        <li>顶部显示域名，右侧「全屏」打开全屏网页（复用现有的全屏查看）。</li>
+        <li>修复：只读时 <code>ResizeHandle</code> 仍能拖动并写回节点，需要在只读下禁用。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>参考资料</h1>
+          <p>SM-2 算法的原始说明：</p>
+          <div style="height:12px"></div>
+          <div class="web sel"><span class="mtag"><span data-i="globe" data-s="11"></span>网页</span>
+            <div class="web-h"><span data-i="globe" data-s="14"></span><span class="d">super-memory.com/english/ol/sm2.htm</span></div>
+            <div class="web-b" style="height:120px"><i class="h"></i><i></i><i style="width:84%"></i><div class="blockimg"></div></div>
+          </div>
+        </div>
+        <div class="acc media">
+          <span class="ctx-chip"><span data-i="globe" data-s="13"></span>网页</span>
+          <div class="scroll" style="gap:0">
+            <span class="ab lbl" data-i="link" data-s="18">地址</span>
+            <span class="ab lbl on" data-i="move-vertical" data-s="18">高度</span>
+            <span class="ab lbl" data-i="refresh-cw" data-s="18">刷新</span>
+            <span class="ab lbl" data-i="expand" data-s="18">全屏</span>
+          </div>
+          <span class="ab" data-i="ellipsis" data-s="18"></span>
+          <span class="ab" data-i="keyboard" data-s="18"></span>
+        </div>
+        <div class="panel" style="height:150px"><div class="panel-in">
+          <div class="p-label">高度</div>
+          <div class="size-row">
+            <span class="size-opt on" style="height:56px">矮 · 240</span><span class="size-opt" style="height:56px">中 · 400</span><span class="size-opt" style="height:56px">高 · 640</span>
+          </div>
+        </div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">M3</span>网页视图（编辑态）：高度三档替代拖拽</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>高度取三档（240 / 400 / 640，落在现有 200–800 范围内），替代只支持鼠标的底边拖拽。</li>
+        <li>「地址」打开底部输入框；「选择本地 HTML」在移动端不显示（文件服务在移动端不可用）。</li>
+        <li>插入面板「高级」分组补一个「网页」入口（目前移动端没有）。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>周末徒步</h1>
+          <p>从相册选了 3 张：</p>
+          <div class="mimg w100"><div class="pic" style="height:120px"></div><div class="up"><span class="ring" style="--p:62"></span>上传中 62%</div></div>
+          <div class="mimg w100"><div class="pic p2" style="height:120px;filter:saturate(.3)"></div><div class="up fail"><span data-i="triangle-alert" data-s="20"></span>上传失败 · 网络中断<span class="btns"><span class="pri" data-i="refresh-cw" data-s="13">重试</span><span data-i="trash-2" data-s="13">移除</span></span></div></div>
+          <div class="mimg w100"><div class="pic" style="height:60px"></div><div class="up"><span class="ring" style="--p:0"></span>等待中</div></div>
+        </div>
+        <div class="acc">
+          <span class="ab plus" data-i="plus" data-s="18"></span>
+          <div class="scroll"><span class="ab txt">Aa</span><span class="ab" data-i="list-todo" data-s="18"></span><span class="ab" data-i="list" data-s="18"></span><span class="ab" data-i="indent-decrease" data-s="18"></span><span class="ab" data-i="image" data-s="18"></span></div>
+          <span class="ab" data-i="keyboard-off" data-s="18"></span>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">M4</span>上传状态：本地预览先占位，失败可重试</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>选完照片立刻用本地预览占位（按 <code>naturalWidth/Height</code> 预留高度），正文不会跳动，上传在后台进行。</li>
+        <li>多张照片依次插入成连续的图片块，同时最多上传 2 张，其余排队。</li>
+        <li>失败时显示原因，提供「重试」和「移除」，不会自动删除用户的内容。</li>
+        <li>上传中也能继续打字；离开页面时上传继续进行，完成后写回节点。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 11 对比 ═══════════ -->
+<section class="scene" data-scene="cmp">
+  <p class="scene-intro">编辑入口（A / B / C）是最关键的选择，它决定图片、视频、音频、网页视图四种块的编辑方式；其余几项相对独立，可以分别选。</p>
+  <div class="frames" style="gap:18px">
+    <div class="card" style="flex:1 1 640px">
+      <h3>编辑入口三方案对比</h3>
+      <table class="cmp">
+        <tr><th></th><th>A 点选 + 媒体配件栏</th><th>B 角标 + 属性抽屉</th><th>C 全屏即编辑</th></tr>
+        <tr><td><b>与现有机制一致</b></td><td>★★★ 和表格 / 代码块 / 公式同一套上下文配件栏 + 面板</td><td>★ 新增一种抽屉入口</td><td>★ 新增一种全屏编辑入口</td></tr>
+        <tr><td><b>改动时能看到正文效果</b></td><td>★★★ 面板顶替键盘，正文不被挡</td><td>★★ 抽屉挡住下半屏</td><td>★ 尺寸 / 对齐要另画预览</td></tr>
+        <tr><td><b>好发现</b></td><td>★★ 要先点图片</td><td>★★★ 按钮常驻</td><td>★★★ 点开就有</td></tr>
+        <tr><td><b>不干扰阅读与打字</b></td><td>★★★ 图片上没有任何覆盖物</td><td>★ 圆钮常驻遮挡画面</td><td>★★</td></tr>
+        <tr><td><b>四种媒体通用</b></td><td>★★★ 只换配件栏按钮</td><td>★★ 每种一张抽屉</td><td>★ 视频 / 音频 / 网页套不上</td></tr>
+        <tr><td><b>实现量</b></td><td>小：复用 <code>editingContext</code> + 面板宿主 + <code>ActionSheet</code></td><td>中：新抽屉 × 4</td><td>中大：查看器内编辑 + 预览</td></tr>
+      </table>
+      <p style="margin-top:10px;color:var(--meta)">这些改动都放在移动端宿主层（<code>apps/mobile</code> 的配件栏上下文、查看器组件），桌面端媒体扩展不改交互。需要动内核的只有：媒体元素菜单开放给移动端读取、网页视图只读时禁用拖拽、音频 <code>AddParagraph</code> 的只读判断，以及给宿主一个「选中媒体块」的信号。</p>
+    </div>
+    <div class="card" style="flex:1 1 420px">
+      <h3>需要你选择的事项</h3>
+      <ol class="decide">
+        <li><b>编辑入口</b>（决定 2 / 8 / 9 / 10 的编辑形态）<div class="opts"><span class="rec">A 点选 + 媒体配件栏</span><span>B 角标 + 属性抽屉</span><span>C 全屏即编辑</span></div></li>
+        <li><b>尺寸调整</b><div class="opts"><span class="rec">S1 三档预设</span><span>S2 滑杆 + 吸附</span><span>S1 + S3 捏合手势</span><span>S1 + S2「自定义」</span></div></li>
+        <li><b>大图查看器</b>：手势（捏合 / 双击 / 滑动切图 / 下滑关闭）按系统相册做，是否同意？<div class="opts"><span class="rec">同意</span><span>另有想法</span></div></li>
+        <li><b>视频播放器形态</b><div class="opts"><span class="rec">V-A 正文内播放</span><span>V-B 缩略卡片 + 全屏</span></div></li>
+        <li><b>全屏视频的亮度 / 音量手势</b><div class="opts"><span class="rec">后续迭代</span><span>这次就做</span><span>不做</span></div></li>
+        <li><b>音频块形态</b><div class="opts"><span class="rec">AU-A 卡片</span><span>AU-B 紧凑行</span></div></li>
+        <li><b>音频迷你播放条</b><div class="opts"><span>要</span><span class="rec">先不做</span></div></li>
+        <li><b>网页视图「点按交互」遮罩</b><div class="opts"><span class="rec">要</span><span>不要（直接可交互）</span></div></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<script src="media.js"></script>
+</body>
+</html>

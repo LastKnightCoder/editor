@@ -1,0 +1,1299 @@
+/* 媒体交互 mockup：在 editor-mobile/styles.css 之上补充媒体块、查看器、播放器等组件 */
+:root {
+  /* 查看器与裁剪页沿用系统相册的沉浸黑底，不随主题 */
+  --stage: #0c0c0d;
+  --stage-ink: #f4f4f5;
+  --stage-ink-2: rgba(244, 244, 245, 0.62);
+  --stage-btn: rgba(255, 255, 255, 0.14);
+}
+
+/* ── 图片占位：用渐变画一张「风景照」 ───────────────────────────── */
+.mimg {
+  position: relative;
+  margin: 10px auto 4px;
+  border-radius: 10px;
+}
+.mimg.w50 {
+  width: 50%;
+}
+.mimg.w75 {
+  width: 75%;
+}
+.mimg.w100 {
+  width: 100%;
+}
+.mimg.left {
+  margin-left: 0;
+}
+.pic {
+  position: relative;
+  height: 160px;
+  border-radius: inherit;
+  overflow: hidden;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tau-tag-2) 34%, var(--tau-bg-surface)),
+    color-mix(in srgb, var(--tau-tag-4) 30%, var(--tau-bg-surface))
+  );
+}
+.pic::before {
+  content: "";
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  right: 22%;
+  top: 20%;
+  background: color-mix(in srgb, var(--tau-tag-4) 75%, #fff);
+}
+.pic::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--tau-tag-1) 70%, var(--tau-ink-1));
+  clip-path: polygon(
+    0 100%,
+    0 72%,
+    18% 50%,
+    34% 66%,
+    55% 34%,
+    78% 62%,
+    90% 52%,
+    100% 60%,
+    100% 100%
+  );
+  opacity: 0.85;
+}
+.pic.p2 {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tau-tag-3) 34%, var(--tau-bg-surface)),
+    color-mix(in srgb, var(--tau-tag-5) 30%, var(--tau-bg-surface))
+  );
+}
+.pic.p2::after {
+  background: color-mix(in srgb, var(--tau-tag-3) 70%, var(--tau-ink-1));
+  clip-path: polygon(0 100%, 0 60%, 24% 40%, 46% 70%, 64% 46%, 100% 74%, 100% 100%);
+}
+.mimg.round .pic {
+  border-radius: 14px;
+}
+.mimg.shadow .pic {
+  box-shadow: var(--shadow-float);
+}
+.mimg.sel {
+  outline: 2.5px solid var(--brand);
+  outline-offset: 3px;
+}
+.mtag {
+  position: absolute;
+  left: -3px;
+  top: -26px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 6px;
+  background: var(--brand);
+  color: var(--ink-inv);
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.cap {
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-3);
+  margin: 6px 0 8px;
+  line-height: 1.5;
+}
+.cap.edit {
+  color: var(--ink-1);
+  border-bottom: 1.5px solid var(--brand);
+  margin: 6px 30px 8px;
+  padding-bottom: 2px;
+}
+.cap.ghost {
+  color: var(--brand);
+}
+
+/* 桌面端控件原样搬到手机上的样子（现状页） */
+.dk-bar {
+  position: absolute;
+  left: 50%;
+  top: -40px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 1px;
+  padding: 3px;
+  background: var(--bg-surface);
+  border: 1px solid var(--line-1);
+  border-radius: 9px;
+  box-shadow: var(--shadow-float);
+  z-index: 2;
+}
+.dk-bar span {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-2);
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.dk-h {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--bg-surface);
+  border: 1.5px solid var(--brand);
+  border-radius: 2px;
+  z-index: 2;
+}
+
+/* 媒体块上的浮动按钮（方案 B） */
+.ovbtn {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--tau-ink-1) 55%, transparent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+  z-index: 2;
+}
+.ovchip {
+  position: absolute;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tau-ink-1) 55%, transparent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 2;
+}
+
+/* 配件栏里带文字的按钮 */
+.ab.lbl {
+  width: 46px;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 9.5px;
+  font-weight: 500;
+  height: 44px;
+}
+.acc.media {
+  height: 50px;
+}
+
+/* 尺寸面板 */
+.size-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.size-opt {
+  flex: 1;
+  height: 72px;
+  border-radius: 12px;
+  background: var(--bg-input);
+  border: 1.5px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+.size-opt.on {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.size-opt .mini {
+  width: 54px;
+  height: 30px;
+  border-radius: 4px;
+  background: var(--bg-surface);
+  padding: 4px 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+}
+.size-opt .mini i {
+  display: block;
+  height: 3px;
+  width: 100%;
+  border-radius: 2px;
+  background: var(--line-1);
+}
+.size-opt .mini b {
+  display: block;
+  height: 12px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--tau-tag-1) 60%, var(--tau-bg-surface));
+}
+.size-opt.on .mini b {
+  background: var(--brand);
+}
+
+/* 滑杆 */
+.slider {
+  position: relative;
+  height: 36px;
+  margin: 0 6px 6px;
+}
+.slider .track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 16px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-1);
+}
+.slider .fill {
+  position: absolute;
+  left: 0;
+  top: 16px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--brand);
+}
+.slider .knob {
+  position: absolute;
+  top: 6px;
+  width: 24px;
+  height: 24px;
+  margin-left: -12px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  box-shadow:
+    0 0 0 1px var(--line-1),
+    var(--tau-shadow-lift);
+}
+.slider .tick {
+  position: absolute;
+  top: 12px;
+  width: 2px;
+  height: 12px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--ink-3);
+}
+.slider-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--ink-3);
+  margin: 0 0 12px;
+  position: relative;
+  height: 14px;
+}
+.slider-labels span {
+  position: absolute;
+  transform: translateX(-50%);
+}
+.val-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 7px;
+  background: var(--ink-1);
+  color: var(--ink-inv);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+/* 表单行（属性抽屉） */
+.frow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line-2);
+  font-size: 14.5px;
+}
+.frow:last-child {
+  border-bottom: 0;
+}
+.frow .k {
+  width: 64px;
+  color: var(--ink-2);
+  font-size: 13.5px;
+  flex-shrink: 0;
+}
+.frow .v {
+  flex: 1;
+  color: var(--ink-1);
+  min-width: 0;
+}
+.frow .v.ph {
+  color: var(--ink-3);
+}
+.toggle {
+  width: 40px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--line-1);
+  position: relative;
+  flex-shrink: 0;
+}
+.toggle::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--tau-shadow-lift);
+}
+.toggle.on {
+  background: var(--brand);
+}
+.toggle.on::after {
+  left: 18px;
+}
+.qgrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 0 12px 10px;
+}
+.qgrid span {
+  height: 62px;
+  border-radius: 14px;
+  background: var(--bg-surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 11.5px;
+}
+.qgrid span.danger {
+  color: var(--rose);
+}
+
+/* ── 沉浸舞台：查看器 / 裁剪 / 全屏视频 ───────────────────────────── */
+.stage {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  background: var(--stage);
+  color: var(--stage-ink);
+  display: flex;
+  flex-direction: column;
+}
+.stage .status {
+  color: var(--stage-ink);
+}
+.stage .home-ind::after {
+  background: var(--stage-ink);
+}
+.stage-top {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.stage-top .t {
+  flex: 1;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+}
+.sbtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--stage-ink);
+}
+.sbtn.fill {
+  background: var(--stage-btn);
+}
+.stxt {
+  font-size: 15px;
+  padding: 0 10px;
+  color: var(--stage-ink);
+}
+.stxt.brand {
+  color: var(--tau-accent);
+  font-weight: 600;
+}
+.stage-body {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.stage-cap {
+  padding: 10px 22px 4px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--stage-ink);
+}
+.stage-cap small {
+  display: block;
+  color: var(--stage-ink-2);
+  font-size: 11.5px;
+  margin-top: 2px;
+}
+.stage-bar {
+  display: flex;
+  justify-content: space-around;
+  padding: 6px 8px 0;
+  height: 64px;
+  flex-shrink: 0;
+}
+.stage-bar span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--stage-ink);
+  width: 56px;
+}
+.stage-bar span.danger {
+  color: #ff8a80;
+}
+.gest {
+  position: absolute;
+  z-index: 3;
+  height: 26px;
+  padding: 0 10px 0 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  backdrop-filter: blur(6px);
+  font-size: 11.5px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.gest.light {
+  background: color-mix(in srgb, var(--tau-ink-1) 70%, transparent);
+}
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 0 0;
+}
+.dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+}
+.dots i.on {
+  background: #fff;
+}
+.minimap {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  width: 56px;
+  height: 40px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  overflow: hidden;
+  z-index: 3;
+}
+.minimap .pic {
+  height: 100%;
+  border-radius: 0;
+  opacity: 0.7;
+}
+.minimap b {
+  position: absolute;
+  left: 30%;
+  top: 22%;
+  width: 46%;
+  height: 50%;
+  border: 1.5px solid #fff;
+  border-radius: 2px;
+  z-index: 2;
+}
+
+/* 裁剪 */
+.crop-wrap {
+  position: relative;
+  width: 300px;
+}
+.crop-wrap .pic {
+  height: 220px;
+  border-radius: 0;
+}
+.crop-shade {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% 100%,
+    0 100%,
+    0 0,
+    10% 12%,
+    10% 88%,
+    86% 88%,
+    86% 12%,
+    10% 12%
+  );
+  z-index: 2;
+}
+.cbox {
+  position: absolute;
+  left: 10%;
+  top: 12%;
+  width: 76%;
+  height: 76%;
+  border: 1.5px solid #fff;
+  z-index: 3;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.45) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.45) 1px, transparent 1px);
+  background-size: 33.33% 33.33%;
+  background-position: -1px -1px;
+}
+.cbox i {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border: 0 solid #fff;
+}
+.cbox i.tl {
+  left: -4px;
+  top: -4px;
+  border-left-width: 4px;
+  border-top-width: 4px;
+}
+.cbox i.tr {
+  right: -4px;
+  top: -4px;
+  border-right-width: 4px;
+  border-top-width: 4px;
+}
+.cbox i.bl {
+  left: -4px;
+  bottom: -4px;
+  border-left-width: 4px;
+  border-bottom-width: 4px;
+}
+.cbox i.br {
+  right: -4px;
+  bottom: -4px;
+  border-right-width: 4px;
+  border-bottom-width: 4px;
+}
+.cbox i.hit {
+  width: 44px;
+  height: 44px;
+  border: 1.5px dashed #ff8a80;
+  border-radius: 50%;
+  right: -22px;
+  bottom: -22px;
+}
+.dial {
+  height: 44px;
+  margin: 4px 30px 0;
+  position: relative;
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.4) 0 1px, transparent 1px 8px);
+  mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 25%, #000 75%, transparent);
+  background-size: 8px 14px;
+  background-repeat: repeat-x;
+  background-position: 0 22px;
+}
+.dial-mark {
+  position: relative;
+  height: 0;
+}
+.dial-mark::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -24px;
+  width: 2px;
+  height: 22px;
+  margin-left: -1px;
+  background: var(--tau-accent);
+  border-radius: 1px;
+}
+.dial-val {
+  text-align: center;
+  font-size: 12px;
+  color: var(--stage-ink);
+  font-variant-numeric: tabular-nums;
+}
+.ratio-row {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  padding: 10px 0 4px;
+}
+.ratio-row span {
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: var(--stage-btn);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+}
+.ratio-row span.on {
+  background: var(--stage-ink);
+  color: var(--stage);
+  font-weight: 600;
+}
+
+/* ── 视频 ───────────────────────────── */
+.vid {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 10px 0 6px;
+  height: 178px;
+  background:
+    radial-gradient(
+      circle at 30% 35%,
+      color-mix(in srgb, var(--tau-tag-2) 55%, #000) 0,
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at 75% 70%,
+      color-mix(in srgb, var(--tau-tag-5) 45%, #000) 0,
+      transparent 50%
+    ),
+    #1b1c20;
+  color: #fff;
+}
+.vid.sel {
+  outline: 2.5px solid var(--brand);
+  outline-offset: 3px;
+  overflow: visible;
+}
+.vid .vplay {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vid .vdur {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  font-size: 11.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+.vctrl {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(transparent 45%, rgba(0, 0, 0, 0.6));
+  border-radius: inherit;
+}
+.vmid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  margin-top: -26px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 34px;
+}
+.vmid .big {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vmid .sm {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  font-size: 9px;
+  font-weight: 700;
+}
+.vbot {
+  position: absolute;
+  left: 10px;
+  right: 6px;
+  bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.scrub {
+  flex: 1;
+  height: 32px;
+  position: relative;
+}
+.scrub::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 14px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.3);
+}
+.scrub i {
+  position: absolute;
+  left: 0;
+  top: 14px;
+  height: 4px;
+  border-radius: 2px;
+  background: #fff;
+}
+.scrub b {
+  position: absolute;
+  top: 9px;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  border-radius: 50%;
+  background: #fff;
+}
+.vchip {
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 11.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+.vicon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 14px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+  margin: 10px 0;
+}
+.vrow .th {
+  width: 96px;
+  height: 58px;
+  border-radius: 9px;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      circle at 30% 35%,
+      color-mix(in srgb, var(--tau-tag-2) 55%, #000) 0,
+      transparent 60%
+    ),
+    #1b1c20;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.vrow .mid {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.vrow .mid small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  font-weight: 400;
+}
+
+/* 横屏帧 */
+.frame.land {
+  width: calc(760px * var(--s));
+}
+.phone-box.land {
+  width: calc(760px * var(--s));
+  height: calc(360px * var(--s));
+}
+.phone.land {
+  width: 760px;
+  height: 360px;
+}
+
+/* ── 音频 ───────────────────────────── */
+.aud {
+  background: var(--bg-surface);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+  padding: 12px 12px 10px;
+  margin: 10px 0;
+  position: relative;
+}
+.aud.sel {
+  outline: 2.5px solid var(--brand);
+  outline-offset: 3px;
+}
+.aud-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.aplay {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--brand);
+  color: var(--ink-inv);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.aplay.sm {
+  width: 36px;
+  height: 36px;
+}
+.aud-t {
+  flex: 1;
+  min-width: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.aud-t small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  font-weight: 400;
+}
+.wave {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 34px;
+  margin: 10px 2px 4px;
+  position: relative;
+}
+.wave i {
+  flex: 1;
+  border-radius: 2px;
+  background: var(--line-1);
+}
+.wave i.p {
+  background: var(--brand);
+}
+.wave.sm {
+  height: 22px;
+  margin: 0;
+  flex: 1;
+}
+.wave .head {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  background: var(--brand);
+  border-radius: 1px;
+}
+.wave .head::after {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: -6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--brand);
+}
+.aud-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.spd {
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: var(--bg-input);
+  color: var(--ink-1);
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.aud-text {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-2);
+  font-size: 12.5px;
+  color: var(--ink-2);
+  line-height: 1.6;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.arow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 10px 0 8px;
+  border-radius: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--line-1);
+  margin: 10px 0;
+  font-size: 13px;
+}
+.arow .ttl {
+  width: 92px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+.arow .tm {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.miniplayer {
+  flex-shrink: 0;
+  height: 50px;
+  margin: 0 10px 4px;
+  border-radius: 14px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-float);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 6px 0 7px;
+  position: relative;
+  overflow: hidden;
+  font-size: 13px;
+}
+.miniplayer .mid {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.miniplayer .mid small {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-3);
+  font-weight: 400;
+}
+.miniplayer .prog {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2.5px;
+  background: var(--brand);
+}
+
+/* ── 行内图片 / 网页视图 / 上传 ───────────────────────────── */
+.ipic {
+  display: inline-block;
+  width: 52px;
+  height: 34px;
+  border-radius: 5px;
+  vertical-align: -10px;
+  position: relative;
+  overflow: hidden;
+}
+.ipic .pic {
+  height: 100%;
+}
+.ipic.sel {
+  outline: 2.5px solid var(--brand);
+  outline-offset: 2px;
+  overflow: visible;
+}
+.ipic.sel .pic {
+  border-radius: 5px;
+}
+.web {
+  border: 1px solid var(--line-1);
+  border-radius: 14px;
+  overflow: hidden;
+  margin: 10px 0;
+  background: var(--bg-surface);
+  position: relative;
+}
+.web.sel {
+  outline: 2.5px solid var(--brand);
+  outline-offset: 3px;
+}
+.web-h {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 6px 0 11px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  border-bottom: 1px solid var(--line-2);
+}
+.web-h .d {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.web-h .b {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-2);
+}
+.web-b {
+  height: 170px;
+  padding: 14px;
+  position: relative;
+  overflow: hidden;
+}
+.web-b i {
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--line-1);
+  margin-bottom: 9px;
+}
+.web-b i.h {
+  height: 14px;
+  width: 60%;
+  background: var(--ink-3);
+  opacity: 0.5;
+  margin-bottom: 14px;
+}
+.web-b .blockimg {
+  height: 52px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  background: color-mix(in srgb, var(--tau-tag-2) 30%, var(--tau-bg-surface));
+}
+.web-shield {
+  position: absolute;
+  inset: 38px 0 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 12px;
+  background: linear-gradient(
+    transparent 50%,
+    color-mix(in srgb, var(--tau-bg-surface) 85%, transparent)
+  );
+}
+.web-shield span {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--ink-1);
+  color: var(--ink-inv);
+  font-size: 12.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: var(--shadow-float);
+}
+.web-grip {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px solid var(--line-2);
+  color: var(--ink-3);
+}
+.up {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--tau-bg-page) 45%, transparent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-1);
+  z-index: 2;
+}
+.ring {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--brand) calc(var(--p) * 1%),
+    color-mix(in srgb, var(--tau-ink-1) 18%, transparent) 0
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ring::after {
+  content: "";
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--tau-bg-surface) 90%, transparent);
+}
+.up.fail {
+  background: color-mix(in srgb, var(--tau-bg-surface) 82%, transparent);
+  color: var(--rose);
+}
+.up .btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+.up .btns span {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--bg-surface);
+  color: var(--ink-1);
+  border: 1px solid var(--line-1);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+.up .btns span.pri {
+  background: var(--ink-1);
+  color: var(--ink-inv);
+  border-color: var(--ink-1);
+}
+
+/* 方案标签与对比表 */
+.opt-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 6px;
+  margin-right: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--brand-soft);
+  color: var(--brand);
+  vertical-align: 1px;
+}
+.opt-badge.alt {
+  background: var(--bg-sunken);
+  color: var(--ink-2);
+}
+.decide {
+  counter-reset: q;
+  list-style: none;
+  padding: 0 !important;
+}
+.decide li {
+  counter-increment: q;
+  padding: 10px 0 10px 34px;
+  border-bottom: 1px solid var(--line-1);
+  position: relative;
+}
+.decide li::before {
+  content: counter(q);
+  position: absolute;
+  left: 0;
+  top: 10px;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: var(--ink-1);
+  color: var(--ink-inv);
+  font-size: 11.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.decide li .opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.decide li .opts span {
+  font-size: 12px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--bg-input);
+  border: 1px solid var(--line-1);
+}
+.decide li .opts span.rec {
+  border-color: var(--brand);
+  color: var(--brand);
+  background: var(--brand-soft);
+  font-weight: 600;
+}
