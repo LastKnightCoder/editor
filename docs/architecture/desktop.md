@@ -719,6 +719,8 @@ find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘
 
 **今日页数据契约**（`features/home/queries.ts`，types.ts 为契约源）：reviewDueCount ← 卡组 Σ dueCount；todos ← 未完成待办（逾期>今日排序取 3）；events ← 当日日程；recentEdits ← 卡片+文章日期范围渐进窗口（14→30→90→365 天凑满 12 即停）+ 文档/项目轻表 + 最新日记混排取 12；focus/weekly ← 番茄今日与本周聚合；todayStats/weekly/trend ← 全量快照差分；heatmap ← 全年每日操作数。并行 `Promise.allSettled`，单项失败降级空值不阻塞整页。数据入口一律 react-query（带 staleTime 与窗口聚焦刷新），`refresh()` 即 refetch。新增区块：types.ts 加字段 → queries.ts 分项函数 → 面板组件登记 panels.ts。
 
+今日与回顾快照共用 `withSnapshotTimeout`，等待超过 30 秒才记录超时日志并拒绝；请求成功或失败后清除定时器，保留原返回值或错误。超时只结束等待，不取消底层 IPC 请求。
+
 ### 闪卡复习的职责边界与写入协议
 
 - `features/flashcards/views/FlashcardsView.tsx` 负责页面编排；会话流程、快捷键、延迟删除和沉浸侧栏分别位于 `hooks/`。侧栏折叠由副作用管理，Activity 隐藏时恢复、重新激活时再次折叠。
