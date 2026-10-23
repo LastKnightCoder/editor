@@ -26,7 +26,7 @@ try {
   const sdk = path.join(directory, "sdk");
   if (!published) await run(process.execPath, ["scripts/plugins/package-sdk.mjs", sdk], root);
   const author = path.join(directory, "独立作者 project");
-  await cp(path.join(root, "scripts/plugins/template"), author, {
+  await cp(path.join(root, "plugins/tau-plugin-template"), author, {
     recursive: true,
     filter: source => !["node_modules", "dist", ".git"].includes(path.basename(source)),
   });

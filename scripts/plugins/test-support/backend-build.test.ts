@@ -43,7 +43,7 @@ it("独立作者项目构建两个入口并校验后台摘要，未声明时不�
     platform: "node",
   });
   await cp(
-    path.join(root, "scripts/plugins/template/build.mjs"),
+    path.join(root, "plugins/tau-plugin-template/build.mjs"),
     path.join(directory, "build.mjs")
   );
   await writeFile(path.join(directory, "README.md"), "# 设备插件\n连接本机设备。");

@@ -42,7 +42,7 @@ function bundle(
         ? {
             desktop: {
               minAppVersion: options.minimum ?? "0.59.1",
-              required: options.required ?? ["editor.elements.v1"],
+              required: options.required ?? ["editor"],
               optional: [],
               elements: { abc: "edit" as const },
             },
@@ -50,7 +50,7 @@ function bundle(
         : {}),
       android: {
         minAppVersion: "0.2.2",
-        required: ["editor.elements.v1"],
+        required: ["editor"],
         optional: [],
         elements: { abc: "edit" as const },
       },
@@ -135,7 +135,7 @@ it("待生效包清单被改动时不替换当前版本", async () => {
   await s.service.stageRelease(next.bytes, next.source);
   const file = path.join(s.root, "plugin-updates/pending", id, "package/manifest.json");
   const changed = JSON.parse(await readFile(file, "utf8"));
-  changed.targets.desktop.optional = ["ui.dialog.v1"];
+  changed.targets.desktop.optional = ["dialogs"];
   await writeFile(file, JSON.stringify(changed));
   await s.create();
   expect((await readPluginPackage(path.join(s.directory, id), "0.59.1")).manifest.version).toBe(

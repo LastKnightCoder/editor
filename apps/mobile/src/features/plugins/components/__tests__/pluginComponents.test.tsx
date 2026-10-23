@@ -136,7 +136,7 @@ it("商店条目区分最新与可安装版本，安装按钮使用实际可安�
       publisher="author"
       latestVersion="2.0.0"
       compatibleVersion="1.4.0"
-      compatibility={{ status: "compatible", reasons: [], missingOptional: ["ui.dialog.v1"] }}
+      compatibility={{ status: "compatible", reasons: [], missingOptional: ["dialogs"] }}
       primary={{ kind: "install", version: "1.4.0", allowed: true }}
       onOpen={vi.fn()}
       onPrimary={onPrimary}
@@ -144,7 +144,7 @@ it("商店条目区分最新与可安装版本，安装按钮使用实际可安�
   );
   expect(view.textContent).toContain("最新 v2.0.0");
   expect(view.textContent).toContain("此设备可安装 v1.4.0");
-  expect(view.textContent).toContain("部分功能在此设备不可用：ui.dialog.v1");
+  expect(view.textContent).toContain("部分功能在此设备不可用：dialogs");
   await click(button("安装 v1.4.0", view));
   expect(onPrimary).toHaveBeenCalled();
 });

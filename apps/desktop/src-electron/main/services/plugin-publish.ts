@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { readPluginPackage } from "./plugin-package";
 import { assertLocalId } from "@tau/plugins/package";
 import type { PluginRenderContext, PublishedPluginRender } from "@tau/plugins/rendering";
-import type { DevelopmentPluginPackage } from "@tau/plugins/host";
+import type { DesktopPluginPackage as DevelopmentPluginPackage } from "../../../shared/plugin-package";
 import { PUBLISHED_HOST_ELEMENT_TYPES } from "@tau/plugins/publish-data";
 
 export interface PublishPluginSnapshot {
@@ -35,8 +35,6 @@ export async function readPublishPlugins(
     if (ids.has(selection.id)) throw new Error("发布插件重复");
     ids.add(selection.id);
     const artifact = await readPluginPackage(path.join(root, selection.id));
-    if (artifact.manifest.formatVersion === 3)
-      throw new Error("跨端内容包尚未接入博客分发，请停用并重启后发布");
     if (
       artifact.manifest.id !== selection.id ||
       !artifact.manifest.editor ||

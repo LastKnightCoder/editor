@@ -29,9 +29,7 @@ vi.mock("../../services/plugins", async importOriginal => ({
 function createRuntime() {
   const environment = createPluginEnvironmentStore({
     platform: "ios",
-    layout: "compact",
-    input: { touch: true, finePointer: false },
-    capabilities: [],
+    input: { coarsePointer: true, finePointer: false },
   });
   return new MobilePluginRuntime(
     environment,

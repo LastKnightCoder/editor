@@ -5,6 +5,7 @@ import {
   adaptPortablePluginDefinition,
 } from "@tau/plugins/rendering";
 import { evaluateDesktopPluginPackage } from "../../../shared/plugin-rendering";
+import { desktopPortableHost } from "../../../shared/plugin-package";
 import type { PluginDefinition } from "@tau/plugins";
 import { desktopContentPlugins } from "../../../shared/content-plugins";
 import { getMarkdown, importFromMarkdown } from "@/utils/markdown";
@@ -35,26 +36,11 @@ Object.assign(globalThis, {
           keys.add(key);
           let definition = definitions.get(key);
           if (!definition) {
-            definition = evaluatePortablePluginPackage(artifact, sharedPluginModules, {
-              environment: {
-                platform: "desktop",
-                layout: "unknown",
-                input: { touch: false, finePointer: false },
-                capabilities: [
-                  "commands.v1",
-                  "storage.v1",
-                  "pages.v1",
-                  "navigation.v1",
-                  "settings.v1",
-                  "ui.dialog.v1",
-                  "editor.elements.v1",
-                  "editor.codecs.v1",
-                  "editor.source.v1",
-                ],
-              },
-              appVersion,
-              profiles: ["web-v1"],
-            });
+            definition = evaluatePortablePluginPackage(
+              artifact,
+              sharedPluginModules,
+              desktopPortableHost(appVersion)
+            );
             definitions.set(key, definition);
           }
           snapshot.push(

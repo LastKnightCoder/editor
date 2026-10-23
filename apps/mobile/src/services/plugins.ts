@@ -6,9 +6,15 @@ import type { ReadablePortablePluginManifest } from "@tau/plugins/portable";
 import {
   readPortablePluginManifest,
   assertPortablePluginCompatibility,
+  isPluginCapability,
 } from "@tau/plugins/portable";
 import type { PluginEnvironment } from "@tau/plugins";
+import type { PluginCapability } from "@tau/plugins/portable";
 import { isCenterStatusStale } from "./pluginCenterState";
+import hostCapabilities from "../../plugin-capabilities.json";
+
+if (!hostCapabilities.every(isPluginCapability)) throw new Error("移动宿主能力清单无效");
+export const MOBILE_PLUGIN_CAPABILITIES = Object.freeze([...hostCapabilities]);
 
 export interface MobilePluginArtifact {
   manifest: ReadablePortablePluginManifest;
@@ -102,11 +108,13 @@ export const cancelMobilePlugin = (id: string) => invoke<void>("plugin_cancel", 
 export async function verifyMobilePlugin(
   artifact: MobilePluginArtifact,
   environment: PluginEnvironment,
-  appVersion: string
+  appVersion: string,
+  capabilities: readonly PluginCapability[] = MOBILE_PLUGIN_CAPABILITIES
 ) {
   const manifest = readPortablePluginManifest(artifact.manifest);
   assertPortablePluginCompatibility(manifest, {
     environment,
+    capabilities,
     appVersion,
     profiles: ["web-v1"],
   });

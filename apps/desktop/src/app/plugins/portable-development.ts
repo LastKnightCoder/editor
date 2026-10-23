@@ -8,6 +8,7 @@ import type { PluginDefinition } from "@tau/plugins";
 import { invoke, isElectron } from "@/electron";
 import { withModule } from "@/commands/module-init";
 import { desktopPluginEnvironment } from "./environment";
+import { DESKTOP_PLUGIN_CAPABILITIES } from "../../../shared/plugin-package";
 import { desktopContentPlugins, desktopPortableSupport } from "../../../shared/content-plugins";
 import type { PortableDevelopmentArtifact } from "../../../shared/portable-development";
 import { getContentKit } from "@/services/editorKit";
@@ -24,6 +25,7 @@ export async function initializePortableDevelopment() {
   for (const artifact of artifacts) {
     const definition = evaluatePortablePluginPackage(artifact, sharedPluginModules, {
       environment: desktopPluginEnvironment.getSnapshot(),
+      capabilities: DESKTOP_PLUGIN_CAPABILITIES,
       appVersion,
       profiles: ["web-v1"],
     });

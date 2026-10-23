@@ -68,7 +68,7 @@ pnpm --filter mobile exec tauri ios dev 'Tau Plugin Spike' --config src-tauri/ta
 
 ```sh
 pnpm --filter @tau/plugins test
-pnpm --filter mobile exec vitest run src/plugin-spike/runtime.test.ts src/services/__tests__/editor-boundary.test.ts src/features/cards/__tests__/editorElementCoverage.test.ts src/router/core/__tests__/stackMachine.test.ts
+pnpm --filter mobile exec vitest run validation/spike/runtime.test.ts src/services/__tests__/editor-boundary.test.ts src/features/cards/__tests__/editorElementCoverage.test.ts src/router/core/__tests__/stackMachine.test.ts
 pnpm --filter mobile build:plugin-spike
 pnpm --filter mobile build
 pnpm check:plugin-process-boundaries

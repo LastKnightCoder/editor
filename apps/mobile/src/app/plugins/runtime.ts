@@ -13,7 +13,11 @@ import type {
   PluginSettingsDefinition,
 } from "@tau/plugins";
 import type { Navigator } from "../../router/navigatorTypes";
-import { verifyMobilePlugin, type MobilePluginPackage } from "../../services/plugins";
+import {
+  verifyMobilePlugin,
+  MOBILE_PLUGIN_CAPABILITIES,
+  type MobilePluginPackage,
+} from "../../services/plugins";
 
 export interface MobilePluginPage {
   context: PluginContext;
@@ -163,6 +167,7 @@ export class MobilePluginRuntime {
         if (this.disposed) return;
         const definition = evaluatePortablePluginPackage(artifact, modules, {
           environment: this.environment.getSnapshot(),
+          capabilities: MOBILE_PLUGIN_CAPABILITIES,
           appVersion: this.appVersion,
           profiles: ["web-v1"],
         });

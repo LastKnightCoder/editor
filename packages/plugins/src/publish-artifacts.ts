@@ -1,11 +1,12 @@
-export { validatePluginManifest, PLUGIN_SHARED_MODULES } from "./package";
+export { PLUGIN_SHARED_MODULES } from "./package";
+export { readPublishedPluginManifest as validatePluginManifest } from "./rendering";
 import {
-  evaluatePluginPackage as evaluate,
+  evaluatePublishedPluginPackage as evaluate,
   assertRenderTypes as assertTypes,
   PLUGIN_RENDER_VERSION as renderVersion,
 } from "./rendering";
 import type { PluginDefinition } from "./contract";
-import type { DevelopmentPluginPackage } from "./package";
+import type { PublishedPluginRender } from "./render-artifact";
 export const PLUGIN_RENDER_VERSION: 1 = renderVersion;
 export type { PublishedPluginRender } from "./render-artifact";
 
@@ -18,7 +19,7 @@ export interface EvaluatedPluginDefinition {
   editorExtensions?: readonly unknown[];
 }
 export function evaluatePluginPackage(
-  artifact: DevelopmentPluginPackage,
+  artifact: { manifest: PublishedPluginRender["manifest"]; code: string; css?: string },
   modules: Readonly<Record<string, unknown>>
 ): EvaluatedPluginDefinition {
   return evaluate(artifact, modules);

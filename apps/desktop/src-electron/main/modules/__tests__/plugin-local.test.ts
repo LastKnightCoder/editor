@@ -72,7 +72,7 @@ it("正式 IPC 安装跨端内容包，启用重启后从原始格式 3 快照�
     targets: {
       desktop: {
         minAppVersion: "0.59.0",
-        required: ["editor.elements.v1"],
+        required: ["editor"],
         optional: [],
         elements: { abc: "edit" },
       },

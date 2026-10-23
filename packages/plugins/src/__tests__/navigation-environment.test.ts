@@ -5,22 +5,19 @@ import {
   definePlugin,
   usePluginEnvironment,
   type PluginContext,
-  type PluginCapability,
   type PluginPageHandle,
 } from "../index";
 import { PluginEnvironmentProvider, snapshotPluginEnvironment } from "../environment";
 import { PluginHost, createMemoryStorage } from "../host";
 
 it("环境快照不可被作者修改，静态组件读取同一环境且不依赖 activate", () => {
-  const capabilities: PluginCapability[] = ["pages.v1"];
+  const input = { coarsePointer: true, finePointer: false };
   const environment = snapshotPluginEnvironment({
     platform: "ios",
-    layout: "compact",
-    input: { touch: true, finePointer: false },
-    capabilities,
+    input,
   });
-  capabilities.push("commands.v1");
-  expect(environment.capabilities).toEqual(["pages.v1"]);
+  input.finePointer = true;
+  expect(environment.input.finePointer).toBe(false);
   expect(Object.isFrozen(environment.input)).toBe(true);
   function StaticBlock() {
     return createElement("span", null, usePluginEnvironment().platform);
@@ -73,7 +70,7 @@ it("功能入口只接受本次激活的页面，重复和失效句柄被拒绝�
     );
     await host.enable(id);
   }
-  expect(context.environment.platform).toBe("unknown");
+  expect(() => context.environment).toThrow("未提供插件环境");
   expect(() =>
     context.navigation.registerEntry({ id: "foreign", title: "错误", page: otherPage })
   ).toThrow("本插件");

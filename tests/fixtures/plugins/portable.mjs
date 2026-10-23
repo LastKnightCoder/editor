@@ -6,14 +6,17 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const esbuild = createRequire(path.join(root, "apps/mobile/package.json")).resolve("esbuild");
+const { buildPortablePluginManifest } = await import(
+  createRequire(path.join(root, "apps/mobile/package.json")).resolve("@tau/plugins/portable")
+);
 export async function portableFixtures() {
   if (process.env.TAU_PORTABLE_VALIDATION_ARTIFACTS)
     return JSON.parse(await readFile(process.env.TAU_PORTABLE_VALIDATION_ARTIFACTS, "utf8"));
   const manifest = JSON.parse(
-    await readFile(path.join(root, "scripts/plugins/template/manifest.json"), "utf8")
+    await readFile(path.join(root, "plugins/tau-plugin-template/manifest.json"), "utf8")
   );
   const options = {
-    entryPoints: [path.join(root, "scripts/plugins/template/src/index.tsx")],
+    entryPoints: [path.join(root, "plugins/tau-plugin-template/src/index.tsx")],
     bundle: true,
     write: false,
     format: "cjs",
@@ -40,7 +43,10 @@ export async function portableFixtures() {
     ],
     { encoding: "utf8", maxBuffer: 4 * 1024 * 1024 }
   );
-  manifest.integrity = { "main.js": createHash("sha256").update(code).digest("hex") };
+  const packaged = buildPortablePluginManifest(manifest, {
+    main: "main.js",
+    integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
+  });
   const directory = path.join(root, "tests/fixtures/plugins/releases/tau.abc/0.1.0");
   const abc = JSON.parse(await readFile(path.join(directory, "manifest.json"), "utf8"));
   delete abc.minAppVersion;
@@ -53,7 +59,7 @@ export async function portableFixtures() {
         platform,
         {
           minAppVersion: platform === "desktop" ? "0.59.0" : "0.2.0",
-          required: ["editor.elements.v1", "editor.codecs.v1", "editor.source.v1"],
+          required: ["editor", "editorCodecs", "sourceEditor"],
           optional: [],
           elements: { abc: "edit" },
         },
@@ -61,7 +67,7 @@ export async function portableFixtures() {
     ),
   });
   return [
-    { manifest, code },
+    { manifest: packaged, code },
     {
       manifest: abc,
       code: await readFile(path.join(directory, abc.main), "utf8"),

@@ -1074,7 +1074,7 @@ export class PluginHost {
   private revision = 0;
   private readonly listeners = new Set<() => void>();
   private readonly restartRequired: Set<string>;
-  private readonly environmentSource: PluginEnvironmentSource;
+  private readonly environmentSource: PluginEnvironmentSource | undefined;
 
   constructor(
     private readonly options: {
@@ -1145,15 +1145,8 @@ export class PluginHost {
       throw new Error("环境快照与环境源不能同时提供");
     this.environmentSource =
       options.environmentSource ??
-      createPluginEnvironmentStore(
-        options.environment ?? {
-          platform: "unknown",
-          layout: "unknown",
-          input: { touch: false, finePointer: false },
-          capabilities: [],
-        }
-      );
-    snapshotPluginEnvironment(this.environmentSource.getSnapshot());
+      (options.environment ? createPluginEnvironmentStore(options.environment) : undefined);
+    if (this.environmentSource) snapshotPluginEnvironment(this.environmentSource.getSnapshot());
     this.options = Object.freeze({
       ...options,
       ...(options.environment
@@ -1698,6 +1691,7 @@ export class PluginHost {
     };
     const context: PluginContext = {
       get environment() {
+        if (!environmentSource) throw new Error("当前宿主未提供插件环境");
         return environmentSource.getSnapshot();
       },
       navigation: Object.freeze({

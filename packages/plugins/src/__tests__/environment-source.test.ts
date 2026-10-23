@@ -14,15 +14,11 @@ it("环境 hook 与 context 读取同一动态源，多作用域独立且卸载�
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const source = createPluginEnvironmentStore({
     platform: "ios",
-    layout: "compact",
-    input: { touch: true, finePointer: false },
-    capabilities: ["pages.v1"],
+    input: { coarsePointer: true, finePointer: false },
   });
   const other = createPluginEnvironmentStore({
     platform: "desktop",
-    layout: "wide",
-    input: { touch: false, finePointer: true },
-    capabilities: [],
+    input: { coarsePointer: false, finePointer: true },
   });
   const host = new PluginHost({
     workspaceId: "A",
@@ -47,7 +43,11 @@ it("环境 hook 与 context 读取同一动态源，多作用域独立且卸载�
   function View() {
     const env = usePluginEnvironment();
     renders++;
-    return createElement("span", null, `${env.platform}:${env.layout}:${env.input.finePointer}`);
+    return createElement(
+      "span",
+      null,
+      `${env.platform}:${env.input.coarsePointer}:${env.input.finePointer}`
+    );
   }
   const container = document.createElement("div");
   const root = createRoot(container);
@@ -62,19 +62,16 @@ it("环境 hook 与 context 读取同一动态源，多作用域独立且卸载�
     );
   });
   const snapshot = source.getSnapshot();
-  await act(async () =>
-    source.update({ layout: "wide", input: { touch: true, finePointer: true } })
-  );
+  await act(async () => source.update({ input: { coarsePointer: true, finePointer: true } }));
   expect(context.environment).toBe(source.getSnapshot());
-  expect(snapshot.layout).toBe("compact");
-  expect(container.textContent).toBe("ios:wide:truedesktop:wide:true");
+  expect(snapshot.input.finePointer).toBe(false);
+  expect(container.textContent).toBe("ios:true:truedesktop:false:true");
   const count = renders;
-  await act(async () => source.update({ layout: "wide" }));
+  await act(async () => source.update({ input: { coarsePointer: true, finePointer: true } }));
   expect(renders).toBe(count);
   expect(() => source.update({ platform: "android" } as never)).toThrow("只能更新");
-  expect(() => source.update({ capabilities: [] } as never)).toThrow("只能更新");
   await act(async () => root.unmount());
-  source.update({ layout: "compact" });
+  source.update({ input: { coarsePointer: true, finePointer: false } });
   expect(renders).toBe(count);
   await host.dispose();
   vi.unstubAllGlobals();

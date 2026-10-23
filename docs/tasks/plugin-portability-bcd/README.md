@@ -31,6 +31,10 @@
 
 ## 任务列表
 
+用户已确认的作者 API 方案见 [作者契约](author-contract-draft.md)，实施和设备验证见 [编辑器移动适配](editor-mobile.md)。官方插件与模板统一进入 plugins/ 子模块，先保存插件提交再更新主仓库指针；本轮先不发布，D 与平板未验收项保留。
+
+24 个子仓库的固定提交、远端检出验证和 SDK 发布后 CI 待复验项见 [子模块接入](submodules.md)。
+
 远端 master 移动适配的合并范围、冲突处理和回归见 [主线集成](master-sync.md)。
 
 合并后的 Android 0.2.2 正式包、桌面 0.59.1 格式 3 安装接入与 ABC 同包发行见 [Android 与统一包交付](android-refresh.md)。

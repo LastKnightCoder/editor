@@ -7,8 +7,15 @@ import {
   type ServiceRegistration,
   type ServiceRegistry,
 } from "@tau/editor";
-import { IEditorSlots, IVideoContentProviders, type EditorSlots } from "@tau/editor/extensions/media/services";
-import { type ImageAppearanceConfig, type ImageAppearanceSource } from "@tau/editor/extensions/media";
+import {
+  IEditorSlots,
+  IVideoContentProviders,
+  type EditorSlots,
+} from "@tau/editor/extensions/media/services";
+import {
+  type ImageAppearanceConfig,
+  type ImageAppearanceSource,
+} from "@tau/editor/extensions/media";
 export { mobileImportFromMarkdown } from "./editorMarkdown";
 import LocalAudio from "../components/editor/LocalAudio";
 import LocalImage from "../components/editor/LocalImage";
@@ -26,6 +33,8 @@ import { arrayBufferToBase64 } from "../utils/base64";
 import { compressImageForUpload } from "../utils/imageCompress";
 import { IOverlayBackDismiss } from "@tau/editor/api";
 import { MobileEditorOverlayDismiss } from "./editorOverlayDismiss";
+import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
+import { mobileRuntimeStyleCompiler } from "./runtimeStyles";
 
 const UNSUPPORTED_REASON = "移动端不支持该功能";
 
@@ -58,7 +67,7 @@ async function uploadResourceInMobile(file: File): Promise<string> {
   });
 }
 
-const mobileEditorSlots: EditorSlots = {
+export const mobileEditorSlots: EditorSlots = {
   Image: LocalImage,
   Video: LocalVideo,
   Audio: LocalAudio,
@@ -66,6 +75,7 @@ const mobileEditorSlots: EditorSlots = {
 
 /** Mobile 的服务注册项：kit 与 registry 共用同一份 */
 export const mobileEditorServices: ServiceRegistration = register => {
+  register(IRuntimeStyleCompiler, mobileRuntimeStyleCompiler);
   register(IOverlayBackDismiss, { Layer: MobileEditorOverlayDismiss });
   register(IResourceService, {
     upload: async file => {

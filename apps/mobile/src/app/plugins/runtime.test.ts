@@ -12,19 +12,7 @@ import { mobileMarkdown } from "../../services/editorMarkdown";
 const environment = (platform: "android" | "ios") =>
   createPluginEnvironmentStore({
     platform,
-    layout: "compact",
-    input: { touch: true, finePointer: false },
-    capabilities: [
-      "commands.v1",
-      "storage.v1",
-      "pages.v1",
-      "navigation.v1",
-      "settings.v1",
-      "ui.dialog.v1",
-      "editor.elements.v1",
-      "editor.codecs.v1",
-      "editor.source.v1",
-    ],
+    input: { coarsePointer: true, finePointer: false },
   });
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -44,7 +32,7 @@ it.each(["android", "ios"] as const)(
       {
         push,
       },
-      "0.2.1"
+      "0.2.3"
     );
     try {
       await runtime.start(
@@ -101,7 +89,7 @@ it("render 不提供插入入口，none 保留未知节点；重新装配相同 
       {
         push: vi.fn(),
       },
-      "0.2.1"
+      "0.2.3"
     );
     const artifact = {
       ...abc,
@@ -144,7 +132,7 @@ it("激活尚未成功时不能打开页面，失败不留下导航副作用", a
     createMemoryStorage(),
     "A",
     { push },
-    "0.2.1"
+    "0.2.3"
   );
   try {
     await runtime.start(
@@ -167,7 +155,7 @@ it("中心撤回立即阻止节点写入并停用页面，保留静态正文到�
     createMemoryStorage(),
     "A",
     { push: vi.fn() },
-    "0.2.1"
+    "0.2.3"
   );
   try {
     await runtime.start(

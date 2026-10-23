@@ -1,6 +1,7 @@
 import { assertContentResourceSpecs } from "@tau/db-schema/content-resources";
 import type { PluginDefinition } from "./contract";
 import type { PluginEditorExtension } from "./editor";
+import { scopePortablePluginModules } from "./portable-services";
 import { assertPluginEditorExtension } from "./editor-fields.ts";
 import type { MarkdownCodec } from "@tau/markdown";
 import {
@@ -35,6 +36,30 @@ export function assertUniqueEditorCodecs(codecs: readonly MarkdownCodec[]) {
 }
 export const PLUGIN_RENDER_VERSION = 1;
 
+/** 发布站只读取静态贡献；清单保持原格式，不启动应用插件生命周期。 */
+export function readPublishedPluginManifest(value: unknown) {
+  return (value as { formatVersion?: unknown } | null)?.formatVersion === 3
+    ? readPortablePluginManifest(value)
+    : validatePluginManifest(value);
+}
+
+export function evaluatePublishedPluginPackage(
+  artifact: {
+    manifest: PluginManifest | ReadablePortablePluginManifest;
+    code: string;
+    css?: string;
+  },
+  modules: Readonly<Record<string, unknown>>
+): PluginDefinition {
+  const manifest = readPublishedPluginManifest(artifact.manifest);
+  if (manifest.formatVersion !== 3)
+    return evaluatePluginPackage({ ...artifact, manifest }, modules);
+  if (!manifest.editor || !manifest.targets.desktop) throw new Error("博客渲染需要桌面编辑器贡献");
+  const definition = evaluateModule(manifest, artifact.code, modules, PORTABLE_SHARED_MODULES);
+  assertPortableElementDeclarations(manifest, getPluginNodeTypes(definition));
+  return adaptPortablePluginDefinition(definition, manifest, "desktop").definition;
+}
+
 export interface PluginRenderSelection {
   id: string;
   version: string;
@@ -63,8 +88,13 @@ export function evaluatePortablePluginPackage(
   host: PortablePluginHost
 ): PluginDefinition {
   const manifest = readPortablePluginManifest(artifact.manifest);
-  assertPortablePluginCompatibility(manifest, host);
-  const definition = evaluateModule(manifest, artifact.code, modules, PORTABLE_SHARED_MODULES);
+  const target = assertPortablePluginCompatibility(manifest, host);
+  const definition = evaluateModule(
+    manifest,
+    artifact.code,
+    scopePortablePluginModules(modules, target, host.capabilities),
+    PORTABLE_SHARED_MODULES
+  );
   assertPortableElementDeclarations(manifest, getPluginNodeTypes(definition));
   return definition;
 }

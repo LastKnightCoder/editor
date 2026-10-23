@@ -12,7 +12,7 @@ const digest = (bytes: Uint8Array | string) => createHash("sha256").update(bytes
 function zip(
   version = "1.0.0",
   targets: Record<string, unknown> = {
-    android: { minAppVersion: "0.2.0", required: ["pages.v1"], optional: [] },
+    android: { minAppVersion: "0.2.0", required: ["pages"], optional: [] },
   },
   legacy = false
 ) {
@@ -133,7 +133,7 @@ it("格式 3 上传严格校验，接受逐平台最低版本而非伪造顶层�
   await expect(inspectPackage(archive.toBuffer())).rejects.toThrow();
   for (const field of ["required", "optional"]) {
     const changed = structuredClone(manifest);
-    changed.targets.android[field] = ["future.feature.v2"];
+    changed.targets.android[field] = ["futureFeature"];
     archive.updateFile("test.portable/manifest.json", Buffer.from(JSON.stringify(changed)));
     await expect(inspectPackage(archive.toBuffer())).rejects.toThrow("未知能力");
   }

@@ -25,7 +25,7 @@ API 支持矩阵只编辑 packages/plugins/docs/api-support.md，随后运行 `n
 
 ## 准备模板输入
 
-进入 `scripts/plugins/template`，使用实际生成的文件名：
+进入 `plugins/tau-plugin-template`，使用实际生成的文件名：
 
 ```sh
 node use-local-sdk.mjs ../../../output/plugin-phase-a/sdk/xiongtao.xt-tau-plugins-0.36.0.tgz ../../../output/plugin-phase-a/sdk/xiongtao.xt-tau-ui-0.4.0.tgz

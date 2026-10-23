@@ -16,7 +16,7 @@ async function packages() {
     ? await readFile(path.join(abcRoot, manifest.styles), "utf8")
     : undefined;
   const counter = await build({
-    entryPoints: [path.join(root, "apps/mobile/src/plugin-spike/fixtures/counter.tsx")],
+    entryPoints: [path.join(root, "apps/mobile/validation/spike/fixtures/counter.tsx")],
     bundle: true,
     write: false,
     format: "cjs",
@@ -109,7 +109,7 @@ export function mobilePluginSpike(): Plugin {
   return {
     name: "tau-mobile-plugin-spike",
     transformIndexHtml: html =>
-      html.replace("/src/main.tsx", "/src/plugin-spike/main.tsx").replace(
+      html.replace("/src/main.tsx", "/validation/spike/main.tsx").replace(
         "<head>",
         `<head>
       <script>

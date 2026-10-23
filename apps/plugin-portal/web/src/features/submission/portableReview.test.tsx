@@ -22,7 +22,7 @@ afterEach(() => {
 
 const target = (minAppVersion: string) => ({
   minAppVersion,
-  required: ["pages.v1" as const],
+  required: ["pages" as const],
   optional: [],
 });
 function portableManifest(version: string): PackageManifest {

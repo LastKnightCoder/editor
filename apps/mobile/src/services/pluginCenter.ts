@@ -6,7 +6,7 @@ import {
   type CenterRelease,
   type PluginCenterClient,
 } from "@tau/plugins/center";
-import { isPluginCapability } from "@tau/plugins";
+import { isPluginCapability } from "@tau/plugins/portable";
 import { readPortablePluginManifest } from "@tau/plugins/portable";
 import { cancelMobilePlugin, verifyMobilePlugin, type MobilePluginArtifact } from "./plugins";
 import { markCenterStatusFailure, markCenterStatusRefresh } from "./pluginCenterState";
@@ -122,11 +122,10 @@ export async function installMobileCenterRelease(
       staged.artifact,
       {
         platform: config.host.platform,
-        layout: "unknown",
-        input: { touch: false, finePointer: false },
-        capabilities: config.host.capabilities.filter(isPluginCapability),
+        input: { coarsePointer: false, finePointer: false },
       },
-      config.host.appVersion
+      config.host.appVersion,
+      config.host.capabilities.filter(isPluginCapability)
     );
     if (
       canonical(artifact.manifest) !==

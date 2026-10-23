@@ -67,6 +67,35 @@ it("固定磁盘包与编辑器快照，同版本样式变化也拒绝发布", a
   ).rejects.toThrow();
 });
 
+it("跨端内容发布保留包格式 3，渲染协议仍为 1", async () => {
+  const { root, folder, manifest, context } = await setup();
+  const portable = {
+    ...manifest,
+    formatVersion: 3,
+    platform: "portable",
+    profile: "web-v1",
+    targets: {
+      desktop: {
+        minAppVersion: "0.59.1",
+        required: ["editor"],
+        optional: [],
+        elements: { "test.node": "edit" },
+      },
+    },
+  };
+  await writeFile(path.join(folder, "manifest.json"), JSON.stringify(portable));
+  const catalog = new PublishPluginCatalog(await readPublishPlugins(root, context));
+  const dependencies = catalog.dependencies(
+    [{ type: "test.node", children: [] }],
+    "data/card.json"
+  );
+  expect(dependencies[0]).toMatchObject({
+    runtimeVersion: 1,
+    manifest: { formatVersion: 3, platform: "portable" },
+  });
+  expect(catalog.files()).toHaveLength(2);
+});
+
 it("样式来源按节点归属读取，不能借其他类型或无效语言声明", async () => {
   const { root, context } = await setup();
   context.plugins[0].styleSources = [{ type: "test.node", field: "source", language: "tsx" }];

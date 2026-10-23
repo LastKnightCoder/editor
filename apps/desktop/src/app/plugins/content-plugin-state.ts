@@ -40,11 +40,8 @@ export function contentPluginDefinition(artifact: DevelopmentPluginPackage) {
   return loaded.definition;
 }
 export function getContentPluginPublishContext(): PluginRenderContext {
-  if (
-    developmentPortableLoaded ||
-    [...entries.values()].some(entry => entry.artifact.manifest.formatVersion === 3)
-  )
-    throw new Error("跨端内容包尚未接入博客分发，请停用并重启后发布");
+  if (developmentPortableLoaded)
+    throw new Error("开发目录跨端包不能发布，请通过插件中心安装并重启");
   for (const {
     artifact,
     definition: { id },

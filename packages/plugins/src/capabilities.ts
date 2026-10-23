@@ -1,28 +1,27 @@
-/** 能力版本表示接口可用性，不代表业务数据授权。 */
+/** 功能名只表示是否可用；接口升级由 SDK 和最低客户端版本管理。 */
 export const PLUGIN_CAPABILITIES = [
-  "commands.v1",
-  "storage.v1",
-  "pages.v1",
-  "navigation.v1",
-  "settings.v1",
-  "ui.dialog.v1",
-  "editor.elements.v1",
-  "editor.codecs.v1",
-  "editor.source.v1",
+  "commands",
+  "storage",
+  "pages",
+  "navigation",
+  "settings",
+  "dialogs",
+  "editor",
+  "editorCodecs",
+  "sourceEditor",
+  "runtimeStyles",
+  "media",
 ] as const;
 
 export type PluginCapability = (typeof PLUGIN_CAPABILITIES)[number];
 
-/** 消费者保留未来版本的能力名，但不把它们声明为本宿主已实现。 */
+/** 保留分发清单原值，未知可选功能可读取但不能当作已实现功能。 */
 export function readPluginCapabilityNames(value: unknown): readonly string[] {
   if (
     !Array.isArray(value) ||
     value.length > 128 ||
     [...value].some(
-      item =>
-        typeof item !== "string" ||
-        item.length > 128 ||
-        !/^[a-z][a-z0-9]*(?:\.[a-z][a-z0-9-]*)*\.v[1-9][0-9]*$/.test(item)
+      item => typeof item !== "string" || item.length > 128 || !/^[a-z][a-zA-Z0-9]*$/.test(item)
     ) ||
     new Set(value).size !== value.length
   )
@@ -35,12 +34,7 @@ export function isPluginCapability(value: unknown): value is PluginCapability {
 }
 
 export function readPluginCapabilities(value: unknown): readonly PluginCapability[] {
-  readPluginCapabilityNames(value);
-  if (
-    !Array.isArray(value) ||
-    value.some(item => !isPluginCapability(item)) ||
-    new Set(value).size !== value.length
-  )
-    throw new Error("能力列表包含未知能力或重复项");
-  return Object.freeze([...value]);
+  const names = readPluginCapabilityNames(value);
+  if (!names.every(isPluginCapability)) throw new Error("能力列表包含未知能力");
+  return names;
 }

@@ -1,6 +1,0 @@
-allowBuilds:
-  esbuild: true
-
-minimumReleaseAgeExclude:
-  - "@xiongtao.xt/tau-plugins@0.36.0"
-  - "@xiongtao.xt/tau-ui@0.4.0"

@@ -35,7 +35,7 @@ async function fixture() {
     main: "main.js",
     integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
     targets: {
-      desktop: { minAppVersion: "0.59.0", required: ["pages.v1"], optional: ["future.v2"] },
+      desktop: { minAppVersion: "0.59.0", required: ["pages"], optional: ["future.v2"] },
     },
   };
   await writeFile(path.join(root, ".enabled.json"), JSON.stringify([manifest.id]));

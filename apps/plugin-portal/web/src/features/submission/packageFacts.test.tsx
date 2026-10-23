@@ -50,8 +50,8 @@ it("Skill 包展示 Skill 目录，没有代码入口", () => {
 });
 it("跨端包展示声明平台与运行配置，不显示通用最低版本", () => {
   const targets = {
-    desktop: { minAppVersion: "0.60.0", required: ["pages.v1" as const], optional: [] },
-    ios: { minAppVersion: "0.3.0", required: ["pages.v1" as const], optional: [] },
+    desktop: { minAppVersion: "0.60.0", required: ["pages" as const], optional: [] },
+    ios: { minAppVersion: "0.3.0", required: ["pages" as const], optional: [] },
   };
   render(
     <>
