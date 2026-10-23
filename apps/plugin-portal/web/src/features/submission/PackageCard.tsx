@@ -3,6 +3,7 @@ import { Tag } from "@tau/ui";
 import type { PackageManifest } from "../../../../contracts";
 import { PluginMark } from "../../components/PluginMark";
 import { categoryLabels } from "../catalog/categories";
+import { PLATFORM_LABELS, declaredPlatforms } from "../catalog/platforms";
 import { formatBytes } from "./validation";
 
 /** 插件包摘要：名称、版本与静态校验结果；完整清单在「文件」标签里 */
@@ -19,7 +20,11 @@ export function PackageCard({
   const facts = [
     manifest.id,
     size !== undefined ? formatBytes(size) : null,
-    `最低 Tau ${manifest.minAppVersion}`,
+    manifest.formatVersion === 3
+      ? `平台 ${declaredPlatforms(manifest.targets)
+          .map(platform => PLATFORM_LABELS[platform])
+          .join("、")}`
+      : `最低 Tau ${manifest.minAppVersion}`,
     `${files} 个文件`,
   ].filter(Boolean);
   return (

@@ -43,6 +43,19 @@ impl Download {
             Ok(())
         }
     }
+    async fn request<T>(
+        &self,
+        future: impl std::future::Future<Output = Result<T, reqwest::Error>>,
+    ) -> Result<T, String> {
+        self.check()?;
+        tokio::pin!(future);
+        loop {
+            tokio::select! {
+                result = &mut future => return result.map_err(fail),
+                _ = tokio::time::sleep(std::time::Duration::from_millis(50)) => self.check()?,
+            }
+        }
+    }
 }
 impl Drop for Download {
     fn drop(&mut self) {
@@ -263,6 +276,13 @@ pub struct InstallSource {
 
 #[tauri::command]
 pub async fn plugin_stage(app: AppHandle, source: InstallSource) -> Result<Value, String> {
+    stage_package(app, source, None).await
+}
+pub(crate) async fn stage_package(
+    app: AppHandle,
+    source: InstallSource,
+    center: Option<Value>,
+) -> Result<Value, String> {
     dev_only()?;
     identifier(&source.id)?;
     if source.size == 0 || source.size > LIMIT || source.sha256.len() != 64 {
@@ -276,19 +296,20 @@ pub async fn plugin_stage(app: AppHandle, source: InstallSource) -> Result<Value
         return Err(fail("开发来源只允许 HTTPS 或本机 HTTP"));
     }
     let download = Download::begin(&source.id)?;
-    let mut response = reqwest::Client::builder()
+    let request = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .timeout(std::time::Duration::from_secs(60))
         .build()
         .map_err(fail)?
         .get(url)
-        .send()
-        .await
-        .map_err(fail)?
+        .send();
+    let mut response = download
+        .request(request)
+        .await?
         .error_for_status()
         .map_err(fail)?;
     let mut bytes = Vec::new();
-    while let Some(chunk) = response.chunk().await.map_err(fail)? {
+    while let Some(chunk) = download.request(response.chunk()).await? {
         download.check()?;
         if bytes.len() as u64 + chunk.len() as u64 > source.size {
             return Err(fail("下载大小不匹配"));
@@ -326,7 +347,7 @@ pub async fn plugin_stage(app: AppHandle, source: InstallSource) -> Result<Value
         }
         write_json(
             &stage.join(".source.json"),
-            &json!({"id":source.id,"version":source.version,"url":source.url,"sha256":source.sha256,"size":source.size}),
+            &json!({"id":source.id,"version":source.version,"url":source.url,"sha256":source.sha256,"size":source.size,"center":center}),
         )?;
         Ok(json!({"artifact":value,"sha256":source.sha256}))
     })();
@@ -338,6 +359,23 @@ pub async fn plugin_stage(app: AppHandle, source: InstallSource) -> Result<Value
 
 #[tauri::command]
 pub fn plugin_commit(app: AppHandle, id: String, sha256: String) -> Result<(), String> {
+    commit_package(app, id, sha256, None)
+}
+pub(crate) fn commit_center_package(
+    app: AppHandle,
+    id: String,
+    sha256: String,
+    origin: &str,
+    release_id: &str,
+) -> Result<(), String> {
+    commit_package(app, id, sha256, Some((origin, release_id)))
+}
+fn commit_package(
+    app: AppHandle,
+    id: String,
+    sha256: String,
+    center: Option<(&str, &str)>,
+) -> Result<(), String> {
     dev_only()?;
     identifier(&id)?;
     let _lock = STORE_LOCK.lock().map_err(fail)?;
@@ -345,7 +383,18 @@ pub fn plugin_commit(app: AppHandle, id: String, sha256: String) -> Result<(), S
     recover(&directory)?;
     let stage = directory.join("staging");
     artifact(&stage)?;
-    if read_json(&stage.join(".source.json"))?["sha256"] != sha256 {
+    let source = read_json(&stage.join(".source.json"))?;
+    if let Some((origin, release_id)) = center {
+        if source["center"]["origin"] != origin || source["center"]["releaseId"] != release_id {
+            return Err(fail("中心来源记录不匹配"));
+        }
+    } else if !source["center"].is_null() {
+        return Err(fail("中心包必须重新核验发布状态后提交"));
+    }
+    if let Some(reason) = center_block_reason(&app, &source) {
+        return Err(fail(reason));
+    }
+    if source["sha256"] != sha256 {
         return Err(fail("暂存版本已变化"));
     }
     remove(&directory.join("next"))?;
@@ -449,28 +498,194 @@ pub fn plugin_packages(app: AppHandle) -> Result<Value, String> {
         if identifier(&id).is_err() {
             continue;
         }
-        let result = recover(&directory).and_then(|_| {
-            artifact(&directory.join(
-                if directory.join("current").exists() || !directory.join("pending.json").exists() {
-                    "current"
-                } else {
-                    "next"
-                },
-            ))
+        let recovery = recover(&directory);
+        let slot = directory.join(
+            if directory.join("current").exists() || !directory.join("pending.json").exists() {
+                "current"
+            } else {
+                "next"
+            },
+        );
+        let source = read_json(&slot.join(".source.json")).unwrap_or(Value::Null);
+        let blocked = center_block_reason(&app, &source);
+        let manifest = read_json(&slot.join("manifest.json")).unwrap_or(Value::Null);
+        let current_version = read_json(&directory.join("current/manifest.json"))
+            .ok()
+            .and_then(|value| value["version"].as_str().map(str::to_owned));
+        let pending = directory.join("pending.json").exists();
+        let pending_version = if pending {
+            read_json(&directory.join("next/manifest.json"))
+                .ok()
+                .and_then(|value| value["version"].as_str().map(str::to_owned))
+        } else {
+            None
+        };
+        let revoked = center_cached_status(&app, &source).ok().flatten()
+            .filter(|value| matches!(value["status"].as_str(), Some("revoked" | "disabled")))
+            .map(|value| json!({"kind":value["status"],"reason":value["reason"].as_str().unwrap_or("中心已停止此版本")}));
+        let result = recovery.and_then(|_| {
+            if let Some(reason) = blocked.clone() {
+                return Err(reason);
+            }
+            artifact(&slot)
+        });
+        let mut item = json!({
+            "id":id,"name":manifest["name"].as_str(),"currentVersion":current_version,
+            "pendingVersion":pending_version,"pending":pending,"hasBackup":directory.join("backup").exists(),
+            "centerSource":source["center"],"blocked":blocked.is_some(),"revoked":revoked,
         });
         match result {
-            Ok(value) => packages.push(json!({"id":id,"artifact":value,"enabled":read_json(&directory.join("enabled.json")).unwrap_or(json!(false)) == true,"hasBackup":directory.join("backup").exists(),"pending":directory.join("pending.json").exists(),"error":read_json(&directory.join("error.json")).unwrap_or(Value::Null)})),
-            Err(error) => packages.push(json!({"id":id,"error":error,"enabled":false})),
+            Ok(value) => {
+                item["artifact"] = serde_json::to_value(value).map_err(fail)?;
+                item["enabled"] = json!(
+                    read_json(&directory.join("enabled.json")).unwrap_or(json!(false)) == true
+                );
+                item["error"] = read_json(&directory.join("error.json")).unwrap_or(Value::Null);
+            }
+            Err(error) => {
+                item["error"] = json!(error);
+                item["enabled"] = json!(false);
+            }
         }
+        packages.push(item);
     }
     Ok(
         json!({"platform":platform,"appVersion":app.package_info().version.to_string(),"packages":packages,"development":cfg!(debug_assertions)}),
     )
 }
 
+pub(crate) fn center_installations(app: &AppHandle) -> Result<Vec<Value>, String> {
+    let _lock = STORE_LOCK.lock().map_err(fail)?;
+    let mut result = Vec::new();
+    for entry in fs::read_dir(root(app)?).map_err(fail)? {
+        let entry = entry.map_err(fail)?;
+        if !entry.file_type().map_err(fail)?.is_dir() {
+            continue;
+        }
+        let id = entry.file_name().to_string_lossy().to_string();
+        if identifier(&id).is_err() {
+            continue;
+        }
+        for slot in ["current", "next", "backup"] {
+            if let Ok(source) = read_json(&entry.path().join(slot).join(".source.json")) {
+                if source["center"].is_object() {
+                    result.push(json!({"pluginId":id,"origin":source["center"]["origin"],"releaseId":source["center"]["releaseId"]}));
+                }
+            }
+        }
+    }
+    Ok(result)
+}
+pub(crate) fn save_center_statuses(
+    app: &AppHandle,
+    origin: &str,
+    items: &[Value],
+) -> Result<(), String> {
+    let _lock = STORE_LOCK.lock().map_err(fail)?;
+    let path = root(app)?.join(".center-status.json");
+    let mut records = if path.exists() {
+        read_json(&path)?
+    } else {
+        json!({})
+    };
+    merge_center_statuses(&mut records, origin, items)?;
+    write_json(&path, &records)?;
+    Ok(())
+}
+fn merge_center_statuses(records: &mut Value, origin: &str, items: &[Value]) -> Result<(), String> {
+    if !records.is_object() {
+        return Err(fail("中心状态记录损坏"));
+    }
+    for item in items {
+        let id = item["releaseId"]
+            .as_str()
+            .ok_or_else(|| fail("中心状态缺少版本"))?;
+        identifier(id)?;
+        let key = format!("{origin}|{id}");
+        if records[&key]["status"] == "revoked" {
+            continue;
+        }
+        if ["available", "revoked", "disabled"].contains(&item["status"].as_str().unwrap_or("")) {
+            records[&key] = item.clone();
+        }
+    }
+    Ok(())
+}
+fn center_cached_status(app: &AppHandle, source: &Value) -> Result<Option<Value>, String> {
+    if source["center"].is_null() {
+        return Ok(None);
+    }
+    let origin = source["center"]["origin"]
+        .as_str()
+        .ok_or_else(|| fail("中心来源记录损坏"))?;
+    let release = source["center"]["releaseId"]
+        .as_str()
+        .ok_or_else(|| fail("中心来源记录损坏"))?;
+    let path = root(app)?.join(".center-status.json");
+    if !path.exists() {
+        return Ok(None);
+    }
+    let records = match read_json(&path) {
+        Ok(value) if value.is_object() => value,
+        _ => return Err("中心状态记录损坏，无法核验版本".into()),
+    };
+    Ok(records.get(format!("{origin}|{release}")).cloned())
+}
+fn center_block_reason(app: &AppHandle, source: &Value) -> Option<String> {
+    let record = match center_cached_status(app, source) {
+        Ok(Some(record)) => record,
+        Ok(None) => return None,
+        Err(error) => return Some(error),
+    };
+    match record["status"].as_str() {
+        Some("revoked" | "disabled") => Some(format!(
+            "插件版本已撤回或禁用：{}",
+            record["reason"].as_str().unwrap_or("中心已停止此版本")
+        )),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn cancellation_interrupts_a_stalled_request() {
+        let download = Download::begin("test.stalled").unwrap();
+        let cancelled = download.cancelled.clone();
+        let trigger = tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            cancelled.store(true, Ordering::SeqCst);
+        });
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            download.request(std::future::pending::<Result<(), reqwest::Error>>()),
+        )
+        .await
+        .unwrap();
+        assert!(result.unwrap_err().contains("取消"));
+        trigger.await.unwrap();
+    }
+    #[test]
+    fn confirmed_revocation_survives_missing_or_available_responses() {
+        let mut records = json!({});
+        merge_center_statuses(
+            &mut records,
+            "https://center.test",
+            &[json!({"releaseId":"r1","status":"revoked","reason":"test"})],
+        )
+        .unwrap();
+        for status in ["available", "not_found"] {
+            merge_center_statuses(
+                &mut records,
+                "https://center.test",
+                &[json!({"releaseId":"r1","status":status})],
+            )
+            .unwrap();
+            assert_eq!(records["https://center.test|r1"]["status"], "revoked");
+        }
+        assert!(merge_center_statuses(&mut json!([]), "https://center.test", &[]).is_err());
+    }
     fn temp() -> PathBuf {
         let path = std::env::temp_dir().join(format!("tau-plugin-test-{}", uuid::Uuid::new_v4()));
         fs::create_dir(&path).unwrap();

@@ -4,6 +4,7 @@ mod models;
 mod network_policy;
 mod provider_config;
 mod plugins;
+mod plugin_center;
 mod remote_resource_cache;
 mod resource_upload;
 mod setting;
@@ -54,6 +55,11 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
+            plugin_center::plugin_center_refresh,
+            plugin_center::plugin_center_config,
+            plugin_center::plugin_center_request,
+            plugin_center::plugin_center_stage,
+            plugin_center::plugin_center_commit,
             plugins::plugin_packages,
             plugins::plugin_apply_pending,
             plugins::plugin_stage,

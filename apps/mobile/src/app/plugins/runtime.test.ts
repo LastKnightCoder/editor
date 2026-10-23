@@ -149,3 +149,33 @@ it("激活尚未成功时不能打开页面，失败不留下导航副作用", a
     await runtime.dispose();
   }
 });
+
+it("中心撤回立即阻止节点写入并停用页面，保留静态正文到会话边界", async () => {
+  vi.stubGlobal("crypto", webcrypto);
+  const artifacts = await portableFixtures();
+  const runtime = new MobilePluginRuntime(
+    environment("ios"),
+    createMemoryStorage(),
+    "A",
+    { push: vi.fn() },
+    "0.2.0"
+  );
+  try {
+    await runtime.start(
+      artifacts.map(artifact => ({ id: artifact.manifest.id, artifact, enabled: true })),
+      sharedPluginModules
+    );
+    expect(runtime.elementSupport.get("abc")).toBe("edit");
+    const abc = artifacts.find(artifact => artifact.manifest.editor)!;
+    const blocked = runtime.blockFromCenter(abc.manifest.id);
+    expect(runtime.elementSupport.get("abc")).toBe("none");
+    await blocked;
+    expect(runtime.isPluginActive(abc.manifest.id)).toBe(false);
+    expect(runtime.content.list().length).toBeGreaterThan(0);
+    const page = artifacts.find(artifact => !artifact.manifest.editor)!;
+    await runtime.blockFromCenter(page.manifest.id);
+    expect(runtime.entries.size).toBe(0);
+  } finally {
+    await runtime.dispose();
+  }
+});

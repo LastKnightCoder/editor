@@ -1,3 +1,4 @@
+import { refreshMobileCenterInstallations } from "../../services/pluginCenter";
 import { useEffect, useState, useId, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -14,6 +15,7 @@ import {
 import { mobileContentPlugins, mobilePluginElementSupport } from "./content";
 import { MobilePluginRuntime } from "./runtime";
 import { MobilePluginsContext } from "./context";
+import { subscribePluginForeground } from "./foreground";
 
 const STARTING_KEY = "tau-portable-plugins-starting";
 let cleanup: Promise<unknown> = Promise.resolve();
@@ -35,11 +37,13 @@ export function MobilePluginProvider({
     let cancelled = false;
     let runtime: MobilePluginRuntime | undefined;
     let disconnect: (() => void) | undefined;
+    let stopStatusRefresh: (() => void) | undefined;
     const previous = cleanup;
     const preparation = (async () => {
       await previous;
       if (cancelled) return;
       await applyPendingMobilePlugins();
+      await refreshMobileCenterInstallations().catch(() => undefined);
       const data = await client.fetchQuery({
         queryKey: [...MOBILE_PLUGIN_QUERY, "startup", database, sessionId],
         queryFn: readMobilePlugins,
@@ -96,12 +100,47 @@ export function MobilePluginProvider({
       runtime.elementSupport.forEach((value, key) => mobilePluginElementSupport.set(key, value));
       localStorage.removeItem(STARTING_KEY);
       setSession(runtime);
+      let checking = false;
+      const activeRuntime = runtime;
+      const refreshStatus = async () => {
+        if (document.visibilityState === "hidden" || checking || cancelled) return;
+        checking = true;
+        try {
+          await refreshMobileCenterInstallations().catch(() => undefined);
+          const inventory = await readMobilePlugins();
+          if (cancelled || !activeRuntime.isAvailable) return;
+          for (const item of inventory.packages.filter(item => item.blocked)) {
+            const disposal = activeRuntime.blockFromCenter(item.id);
+            activeRuntime.elementSupport.forEach((value, type) =>
+              mobilePluginElementSupport.set(type, value)
+            );
+            await disposal;
+          }
+          await client.invalidateQueries({ queryKey: MOBILE_PLUGIN_QUERY });
+        } finally {
+          checking = false;
+        }
+      };
+      const onVisible = () => {
+        void refreshStatus().catch(() => undefined);
+      };
+      if (data.packages.some(item => item.centerSource))
+        stopStatusRefresh = subscribePluginForeground(onVisible);
       if (import.meta.env.MODE === "plugin-validation") {
         const activeRuntime = runtime;
         window.setTimeout(() => {
           if (!cancelled)
             void import("../../plugin-validation/run").then(module => {
               if (!cancelled) return module.validateMobileHost(activeRuntime, navigator, database);
+            });
+        }, 1000);
+      }
+      if (import.meta.env.MODE === "plugin-center-validation") {
+        window.setTimeout(() => {
+          if (!cancelled)
+            void import("../../plugin-validation/center").then(module => {
+              if (!cancelled)
+                return module.validateMobileCenter(activeRuntime, navigator, database, client);
             });
         }, 1000);
       }
@@ -115,6 +154,7 @@ export function MobilePluginProvider({
     return () => {
       cancelled = true;
       disconnect?.();
+      stopStatusRefresh?.();
       const disposal = runtime?.dispose();
       cleanup = Promise.allSettled([previous, preparation, disposal]).then(results => {
         for (const result of results)

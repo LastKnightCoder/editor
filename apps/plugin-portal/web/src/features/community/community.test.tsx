@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { UiProvider } from "@tau/ui";
 import { ApiProvider, createQueryClient } from "../../app/api";
 import { createMockApi } from "../../api/mock/mockApi";
+import { centerKeys } from "../catalog/center-queries";
 import { LikeButton } from "./LikeButton";
 import { PluginComments } from "./PluginComments";
 
@@ -100,4 +101,35 @@ it("连点按顺序发出请求，最终状态与最后一次点击一致", asyn
   // 第三次请求发出后还要等它写入才落定，直接读会撞上写入前的状态
   await waitFor(async () => expect((await api.getCommunity("test.plugin", null)).liked).toBe(true));
   await screen.findByRole("button", { name: "取消喜欢 · 1" });
+});
+
+it("喜欢同步修改 v2 目录缓存中该插件的计数，任意平台筛选下都生效", async () => {
+  const api = createMockApi();
+  vi.spyOn(api, "setPluginLiked").mockReturnValue(new Promise(() => undefined));
+  const client = createQueryClient();
+  const key = centerKeys.catalog({ platform: "android", q: "", category: null, sort: "updated" });
+  const entry = (pluginId: string) => ({ pluginId, likes: 3 });
+  client.setQueryData(key, {
+    pageParams: [null],
+    pages: [{ items: [entry("test.plugin"), entry("other.plugin")], nextCursor: null }],
+  });
+  render(
+    <UiProvider>
+      <ApiProvider api={api}>
+        <QueryClientProvider client={client}>
+          <LikeButton pluginId="test.plugin" />
+        </QueryClientProvider>
+      </ApiProvider>
+    </UiProvider>
+  );
+  fireEvent.click(await screen.findByRole("button", { name: "喜欢 · 0" }));
+  await waitFor(() =>
+    expect(
+      client.getQueryData<{ pages: { items: { pluginId: string; likes: number }[] }[] }>(key)
+        ?.pages[0].items
+    ).toEqual([
+      { pluginId: "test.plugin", likes: 4 },
+      { pluginId: "other.plugin", likes: 3 },
+    ])
+  );
 });

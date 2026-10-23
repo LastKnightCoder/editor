@@ -1,8 +1,8 @@
+import { validatePortablePluginManifest } from "@tau/plugins/portable";
 import AdmZip from "adm-zip";
 import { inflateRawSync } from "node:zlib";
 import {
   validateDistributionManifest as validatePluginManifest,
-  distributionFiles,
   isTemplateManifest,
 } from "@tau/plugins/template";
 import { replaceTemplatePaths } from "@tau/plugins/template-html";
@@ -49,14 +49,26 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
     if (manifests.length !== 1) throw new Error("ZIP 必须包含单层插件目录与 manifest.json");
     if (manifests[0].header.size > 65536) throw new Error("manifest 过大");
     const raw = JSON.parse(unpack(manifests[0]).toString("utf8"));
-    const manifest = validatePluginManifest(raw, { strict: true });
+    const manifest =
+      raw.formatVersion === 3
+        ? validatePortablePluginManifest(raw)
+        : validatePluginManifest(raw, { strict: true });
     if (
       typeof raw.description !== "string" ||
       !raw.description.trim() ||
       raw.description.length > LIMITS.summary
     )
       throw new Error("manifest.description必须为1至160字的简介");
-    if (!manifest.minAppVersion) throw new Error("发布包必须声明最低客户端版本");
+    if (manifest.formatVersion !== 3 && !manifest.minAppVersion)
+      throw new Error("发布包必须声明最低客户端版本");
+    if (manifest.formatVersion === 3 && /[-+]/.test(manifest.version))
+      throw new Error("正式跨端包版本不能含预发布或构建标识");
+    if (
+      manifest.formatVersion === 3 &&
+      (manifest.targets.android || manifest.targets.ios) &&
+      manifest.permissions?.length
+    )
+      throw new Error("移动端尚未接入业务数据授权，不能发布声明这些权限的移动目标");
     if (manifest.id === "web" || manifest.id.startsWith("core."))
       throw new Error("不能使用内置插件保留ID");
     for (const entry of entries) {
@@ -68,12 +80,12 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
       "README.md",
       "CHANGELOG.md",
       "LICENSE",
-      ...distributionFiles(manifest),
+      ...Object.keys(manifest.integrity),
     ]);
     for (const entry of entries)
       if (!entry.isDirectory && !allowed.has(entry.entryName.slice(manifest.id.length + 1)))
         throw new Error("插件包含未声明文件");
-    for (const name of distributionFiles(manifest)) {
+    for (const name of Object.keys(manifest.integrity)) {
       const entry = zip.getEntry(`${manifest.id}/${name}`);
       if (!entry || entry.isDirectory) throw new Error("缺少入口或样式文件");
       const content = unpack(entry);
@@ -84,7 +96,7 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
         throw new Error("入口或样式摘要不匹配");
       if (
         "main" in manifest &&
-        (name === manifest.main || name === manifest.backend?.entry) &&
+        (name === manifest.main || ("backend" in manifest && name === manifest.backend?.entry)) &&
         !content.toString("utf8").trim()
       )
         throw new Error("插件入口为空");
@@ -95,12 +107,14 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
           throw new Error(`${name} 需要在开头的 front matter 中填写 description`);
       }
       if (
+        manifest.formatVersion !== 3 &&
         isTemplateManifest(manifest) &&
         name.startsWith(manifest.template.root + "/") &&
         /^(?:data|_tau|plugin-assets)(?:\/|$)/.test(name.slice(manifest.template.root.length + 1))
       )
         throw new Error("模板覆盖了协议资源目录");
       if (
+        manifest.formatVersion !== 3 &&
         isTemplateManifest(manifest) &&
         manifest.template.entries.some(entry => name === manifest.template.root + "/" + entry)
       )
@@ -122,11 +136,14 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
       return text;
     };
     return {
-      manifest: {
-        ...manifest,
-        minAppVersion: manifest.minAppVersion,
-        description: raw.description.trim(),
-      },
+      manifest:
+        manifest.formatVersion === 3
+          ? { ...manifest, description: raw.description.trim() }
+          : {
+              ...manifest,
+              minAppVersion: manifest.minAppVersion!,
+              description: raw.description.trim(),
+            },
       readme: readDocument("README.md", true)!,
       changelog: readDocument("CHANGELOG.md", false),
     };

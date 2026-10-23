@@ -253,3 +253,29 @@ describe("CI 发布", () => {
     expect((await publish(await token())).status).toBe(404);
   });
 });
+
+it("格式 3 即使审核者本人推送也只提交待审，不自动批准", async () => {
+  const archive = new AdmZip(zip());
+  const old = JSON.parse(archive.readAsText("test.reader/manifest.json"));
+  delete old.minAppVersion;
+  archive.updateFile(
+    "test.reader/manifest.json",
+    Buffer.from(
+      JSON.stringify({
+        ...old,
+        formatVersion: 3,
+        platform: "portable",
+        profile: "web-v1",
+        targets: { android: { minAppVersion: "0.2.0", required: [], optional: [] } },
+      })
+    )
+  );
+  const result = await publish(await token(), archive.toBuffer());
+  expect(result.status).toBe(201);
+  expect((await result.json()).data).toMatchObject({
+    status: "pending_review",
+    autoApproved: false,
+    release: null,
+  });
+  expect(f.sqlite.prepare("SELECT COUNT(*) AS n FROM submission_reviews").get()?.n).toBe(0);
+});

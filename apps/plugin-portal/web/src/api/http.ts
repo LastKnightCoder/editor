@@ -1,3 +1,4 @@
+import { createPortalCenterClient } from "./center";
 import type {
   ApiResult,
   CreateUpload,
@@ -212,6 +213,14 @@ export function createHttpApi(options: HttpApiOptions): PortalApi {
   }
 
   return {
+    center: createPortalCenterClient({
+      request: async (path, init) => readData(await send(path, init)),
+      download: async (path, signal) => {
+        await ensureVisitor().catch(() => undefined);
+        signal?.throwIfAborted();
+        return (await send(path, { signal })).blob();
+      },
+    }),
     listModerationComments: (filter, cursor) =>
       read(
         `/v1/moderation/comments?${new URLSearchParams({ ...filter, ...(cursor ? { cursor } : {}) })}`

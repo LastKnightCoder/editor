@@ -1,3 +1,4 @@
+import { assertPortablePublication, readPlatformEvidence } from "./portable-review";
 import { comparePluginVersions, isPluginCategory } from "@tau/plugins/package";
 import type {
   Catalog,
@@ -15,6 +16,8 @@ import { purgeUploads } from "./uploads";
 import { requiresSystemReview } from "../contracts/execution";
 
 export interface ReleaseRow {
+  format_version?: number;
+  platform_evidence_json?: string | null;
   system_reviewed?: number;
   revoked_at?: string | null;
   id: string;
@@ -46,7 +49,7 @@ export const releaseDto = (row: ReleaseRow, env: Env): Release => ({
   publishedAt: row.published_at,
   downloadUrl:
     row.state === "published" && !row.revoked_at
-      ? `${env.API_ORIGIN}/v1/releases/${row.id}/download`
+      ? `${env.API_ORIGIN}/${row.format_version === 3 ? "v2" : "v1"}/releases/${row.id}/download`
       : null,
 });
 export async function getRelease(env: Env, submissionId: string) {
@@ -70,6 +73,13 @@ export async function submittedPackage(
 }
 
 export async function publishRelease(env: Env, row: ReleaseRow): Promise<void> {
+  const manifest = (JSON.parse(row.content_json) as PackageContent).manifest;
+  assertPortablePublication(env, manifest);
+  readPlatformEvidence(
+    manifest,
+    row.platform_evidence_json ? JSON.parse(row.platform_evidence_json) : undefined,
+    true
+  );
   if (row.revoked_at) fail(409, "SUBMISSION_LOCKED", "该版本已撤回，不能重新发布");
   if (
     requiresSystemReview((JSON.parse(row.content_json) as PackageContent).manifest) &&
@@ -164,7 +174,7 @@ const releaseCategories = (row: { categories: string }) =>
 /** 分类计数与目录同口径：取每个插件最高已发布版本的分类，并受 q 约束。 */
 async function categoryCounts(env: Env, query: string) {
   const rows = await env.DB.prepare(
-    `SELECT plugin_id,version,name,description,keywords,categories FROM releases r WHERE r.state='published' AND ${VISIBLE_PLUGIN}`
+    `SELECT plugin_id,version,name,description,keywords,categories FROM releases r WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND r.format_version <> 3`
   ).all<
     Pick<CatalogRow, "plugin_id" | "version" | "name" | "description" | "keywords" | "categories">
   >();
@@ -241,8 +251,8 @@ async function catalog(env: Env, params: URLSearchParams): Promise<Catalog> {
     SELECT r.plugin_id,MAX(r.published_at) AS time,COALESCE(t.downloads,0) AS total,COALESCE(d.downloads,0) AS recent
     FROM releases r LEFT JOIN plugin_download_totals t ON t.plugin_id=r.plugin_id
     LEFT JOIN (SELECT plugin_id,SUM(downloads) AS downloads FROM plugin_download_daily WHERE day>=? AND day<=? GROUP BY plugin_id) d ON d.plugin_id=r.plugin_id
-    WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND (?='' OR EXISTS(SELECT 1 FROM releases s WHERE s.plugin_id=r.plugin_id AND s.state='published' AND s.revoked_at IS NULL AND instr(lower(s.plugin_id||char(10)||s.name||char(10)||s.description||char(10)||s.keywords),?)>0))
-      AND (?='' OR EXISTS(SELECT 1 FROM releases s, json_each(s.categories) c WHERE s.plugin_id=r.plugin_id AND s.state='published' AND s.revoked_at IS NULL AND c.value=?))
+    WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND r.format_version <> 3 AND (?='' OR EXISTS(SELECT 1 FROM releases s WHERE s.plugin_id=r.plugin_id AND s.state='published' AND s.format_version <> 3 AND s.revoked_at IS NULL AND instr(lower(s.plugin_id||char(10)||s.name||char(10)||s.description||char(10)||s.keywords),?)>0))
+      AND (?='' OR EXISTS(SELECT 1 FROM releases s, json_each(s.categories) c WHERE s.plugin_id=r.plugin_id AND s.state='published' AND s.format_version <> 3 AND s.revoked_at IS NULL AND c.value=?))
     GROUP BY r.plugin_id
   ), ranked AS (SELECT *,${rank} AS rank FROM candidates)
   SELECT * FROM ranked ${after ? "WHERE rank<? OR (rank=? AND (time<? OR (time=? AND plugin_id>?)))" : ""}
@@ -287,7 +297,7 @@ async function catalog(env: Env, params: URLSearchParams): Promise<Catalog> {
   // 喜欢数口径与 GET /plugins/:id/community 一致：plugin_likes 现存行数，停用身份的喜欢不扣除。
   const [rows, likeRows] = await Promise.all([
     env.DB.prepare(
-      `SELECT r.id,r.plugin_id,r.version,r.name,r.description,r.categories,r.keywords,r.min_app_version,r.repository,r.size,r.sha256,r.published_at,p.login,p.avatar_url FROM releases r JOIN publishers p ON p.id=r.publisher_id WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND r.plugin_id IN (${marks})`
+      `SELECT r.id,r.plugin_id,r.version,r.name,r.description,r.categories,r.keywords,r.min_app_version,r.repository,r.size,r.sha256,r.published_at,p.login,p.avatar_url FROM releases r JOIN publishers p ON p.id=r.publisher_id WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND r.format_version <> 3 AND r.plugin_id IN (${marks})`
     )
       .bind(...ids)
       .all<CatalogRow>(),
@@ -356,7 +366,7 @@ export async function publicReleaseRoute(
       }
     }
     const rows = await env.DB.prepare(
-      `SELECT r.* FROM releases r WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND (? IS NULL OR r.plugin_id=?) AND (? IS NULL OR r.published_at<? OR (r.published_at=? AND r.id<?)) ORDER BY r.published_at DESC,r.id DESC LIMIT 21`
+      `SELECT r.* FROM releases r WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND r.format_version <> 3 AND (? IS NULL OR r.plugin_id=?) AND (? IS NULL OR r.published_at<? OR (r.published_at=? AND r.id<?)) ORDER BY r.published_at DESC,r.id DESC LIMIT 21`
     )
       .bind(
         plugin,
@@ -382,7 +392,7 @@ export async function publicReleaseRoute(
   const match = /^\/v1\/releases\/([\w-]+)(\/download)?$/.exec(path);
   if (!match) return null;
   const row = await env.DB.prepare(
-    `SELECT r.*,p.login,p.avatar_url FROM releases r JOIN publishers p ON p.id=r.publisher_id WHERE r.id=? AND r.state='published' AND ${VISIBLE_PLUGIN}`
+    `SELECT r.*,p.login,p.avatar_url FROM releases r JOIN publishers p ON p.id=r.publisher_id WHERE r.id=? AND r.state='published' AND ${VISIBLE_PLUGIN} AND r.format_version <> 3`
   )
     .bind(match[1])
     .first<ReleaseRow & { login: string; avatar_url: string }>();
@@ -395,11 +405,26 @@ export async function publicReleaseRoute(
       commit: row.source_commit,
       publisher: { login: row.login, avatarUrl: row.avatar_url },
     });
+  return downloadPublishedRelease(request, env, row, context);
+}
+
+export async function downloadPublishedRelease(
+  request: Request,
+  env: Env,
+  row: ReleaseRow,
+  context?: BackgroundTasks
+) {
   const object = await env.RELEASES.get(row.object_key);
   if (!object) fail(503, "SERVICE_UNAVAILABLE", "发布文件暂不可用");
   const bytes = await object.arrayBuffer();
   if (bytes.byteLength !== row.size || (await sha256(new Uint8Array(bytes))) !== row.sha256)
     fail(503, "SERVICE_UNAVAILABLE", "发布文件校验失败");
+  const available = await env.DB.prepare(
+    `SELECT r.id FROM releases r WHERE r.id=? AND r.state='published' AND ${VISIBLE_PLUGIN}`
+  )
+    .bind(row.id)
+    .first();
+  if (!available) fail(404, "NOT_FOUND", "该版本已撤回或插件已禁用");
   const counting = countDownload(request, env, row);
   if (context) context.waitUntil(counting);
   else await counting;

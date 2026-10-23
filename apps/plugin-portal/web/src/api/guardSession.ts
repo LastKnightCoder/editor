@@ -12,6 +12,7 @@ export function guardSession(api: PortalApi, onExpired: () => void): PortalApi {
       throw error;
     });
   return {
+    center: api.center,
     listModerationComments: (filter, cursor) => watch(api.listModerationComments(filter, cursor)),
     listModerationEvents: cursor => watch(api.listModerationEvents(cursor)),
     moderate: input => watch(api.moderate(input)),

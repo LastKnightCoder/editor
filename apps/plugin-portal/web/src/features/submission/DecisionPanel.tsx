@@ -1,10 +1,17 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button, ConfirmDialog, Panel, Textarea, cn } from "@tau/ui";
-import type { ReviewDecision, ReviewRequest, Submission } from "../../../../contracts";
+import type {
+  PlatformReviewEvidence,
+  ReviewDecision,
+  ReviewRequest,
+  Submission,
+} from "../../../../contracts";
 import { useApi } from "../../app/api";
 import { errorMessage } from "../../api/errors";
+import { declaredPlatforms, type PortablePlatform } from "../catalog/platforms";
 import { DECISION_LABELS } from "./decisions";
+import { PlatformEvidence, type PlatformEvidenceValue } from "./PlatformEvidence";
 import { useRefreshSubmission } from "./queries";
 import { requiresSystemReview } from "../../../../contracts/execution";
 
@@ -26,6 +33,20 @@ const CONFIRM_TEXT: Partial<Record<ReviewDecision, string>> = {
   reject: "将结束本次提交，原因会显示给作者。作者可以另建提交。",
 };
 
+/** 声明平台全部勾选并写了说明时，才能组成批准所需的证据；否则为 null。 */
+function completeEvidence(
+  platforms: readonly PortablePlatform[],
+  value: PlatformEvidenceValue
+): PlatformReviewEvidence | null {
+  const evidence: PlatformReviewEvidence = {};
+  for (const platform of platforms) {
+    const draft = value[platform];
+    if (!draft?.verified || !draft.note.trim()) return null;
+    evidence[platform] = { verified: true, note: draft.note.trim() };
+  }
+  return evidence;
+}
+
 /** 审核决定：三选一，退回与拒绝必须写原因；批准与拒绝不可逆，需要二次确认 */
 export function DecisionPanel({ submission }: { submission: Submission }) {
   const api = useApi();
@@ -35,11 +56,21 @@ export function DecisionPanel({ submission }: { submission: Submission }) {
   const [confirm, setConfirm] = useState<ReviewRequest | null>(null);
   const [reviewedRevision, setReviewedRevision] = useState<number | null>(null);
   const systemReview = !!submission.content && requiresSystemReview(submission.content.manifest);
+  const manifest = submission.content?.manifest;
+  const platforms = manifest?.formatVersion === 3 ? declaredPlatforms(manifest.targets) : [];
+  // 证据绑定修订：作者更新包后平台声明可能变化，旧填写作废
+  const [evidenceDraft, setEvidenceDraft] = useState<{
+    revision: number;
+    value: PlatformEvidenceValue;
+  } | null>(null);
+  const evidenceValue = evidenceDraft?.revision === submission.revision ? evidenceDraft.value : {};
+  const evidence = platforms.length ? completeEvidence(platforms, evidenceValue) : null;
   const decide = useMutation({
     mutationFn: (input: ReviewRequest) => api.reviewSubmission(submission.id, input),
     onSuccess: () => {
       setComment("");
       setDecision(null);
+      setEvidenceDraft(null);
       setConfirm(null);
       void refresh();
     },
@@ -53,7 +84,8 @@ export function DecisionPanel({ submission }: { submission: Submission }) {
     !decision ||
     (needsReason && !comment.trim()) ||
     decide.isPending ||
-    (decision === "approve" && systemReview && reviewedRevision !== submission.revision);
+    (decision === "approve" && systemReview && reviewedRevision !== submission.revision) ||
+    (decision === "approve" && platforms.length > 0 && !evidence);
   const commit = () => {
     if (!decision || blocked) return;
     const input = {
@@ -61,6 +93,8 @@ export function DecisionPanel({ submission }: { submission: Submission }) {
       revision: submission.revision,
       comment: comment.trim(),
       ...(systemReview && decision === "approve" ? { systemReviewConfirmed: true } : {}),
+      // 只在批准时提交证据；退回与拒绝不需要逐平台验收
+      ...(decision === "approve" && evidence ? { platformEvidence: evidence } : {}),
     };
     if (CONFIRM_TEXT[decision]) setConfirm(input);
     else decide.mutate(input);
@@ -136,6 +170,27 @@ export function DecisionPanel({ submission }: { submission: Submission }) {
             </div>
           )}
         </div>
+      )}
+      {platforms.length > 0 && decision === "approve" && (
+        <>
+          <PlatformEvidence
+            platforms={platforms}
+            value={evidenceValue}
+            disabled={decide.isPending}
+            noteMaxLength={4000}
+            onChange={(platform, draft) =>
+              setEvidenceDraft({
+                revision: submission.revision,
+                value: { ...evidenceValue, [platform]: draft },
+              })
+            }
+          />
+          {!evidence && (
+            <p className="text-tau-sm text-ink-3">
+              每个声明的平台都勾选“已验证”并写明说明后才能批准。
+            </p>
+          )}
+        </>
       )}
       {systemReview && decision === "approve" && (
         <label className="text-tau-sm text-ink-2 flex items-start gap-2">

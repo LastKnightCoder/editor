@@ -1,3 +1,5 @@
+import { createCenterMock } from "./center";
+import { centerManifestTargets, type CenterRelease } from "@tau/plugins/center";
 import type { PortalApi } from "../types";
 import type {
   FeedbackMessage,
@@ -18,7 +20,25 @@ import { PortalApiError } from "../errors";
 import { content, sampleSubmission } from "./samples";
 import { createAppFeedbackMock } from "./appFeedback";
 
-export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
+function legacyMockSubmission(row: Submission) {
+  const content = row.content;
+  if (content?.manifest.formatVersion === 3)
+    throw new Error("模拟上传仅生成旧格式包，跨端目录使用 centerReleases 输入");
+  return structuredClone({
+    ...row,
+    content: content ? { ...content, manifest: content.manifest } : null,
+  });
+}
+type MockPortalApi = Omit<PortalApi, "submitSubmission"> & {
+  submitSubmission(id: string, revision: number): Promise<ReturnType<typeof legacyMockSubmission>>;
+};
+
+export function createMockApi(
+  options: {
+    reviewer?: boolean;
+    centerReleases?: readonly import("@tau/plugins/center").CenterRelease[];
+  } = {}
+): MockPortalApi {
   const records = new Map<string, Submission>(),
     uploads = new Map<string, Upload>(),
     messages = new Map<string, FeedbackMessage[]>();
@@ -74,6 +94,30 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
     return row;
   };
   return {
+    center: createCenterMock(() => [
+      ...(options.centerReleases ?? []),
+      ...[...published.values()]
+        .filter(release => !disabledPlugins.has(release.pluginId) && !release.revokedAt)
+        .map((release): CenterRelease => ({
+          releaseId: release.id,
+          pluginId: release.pluginId,
+          version: release.version,
+          formatVersion: release.content.manifest.formatVersion,
+          apiVersion: 1,
+          profile:
+            release.content.manifest.formatVersion === 3 ? release.content.manifest.profile : null,
+          targets: centerManifestTargets(release.content.manifest),
+          publishedAt: release.publishedAt ?? "",
+          size: release.size,
+          sha256: release.sha256,
+          downloadUrl: release.downloadUrl ?? "",
+          content: release.content,
+          publisher: release.publisher,
+          repository: release.repository,
+          commit: release.commit,
+          systemReviewed: release.systemReviewed ?? false,
+        })),
+    ]),
     ...createAppFeedbackMock(),
     listModerationComments: async () => ({ items: [], nextCursor: null }),
     listModerationEvents: async () => ({ items: [], nextCursor: null }),
@@ -182,7 +226,8 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
     getCatalog: async ({ q, category, cursor }) => {
       const latest = new Map<string, PublicRelease>();
       for (const release of published.values())
-        if (!disabledPlugins.has(release.pluginId)) latest.set(release.pluginId, release);
+        if (release.content.manifest.formatVersion !== 3 && !disabledPlugins.has(release.pluginId))
+          latest.set(release.pluginId, release);
       const query = q.trim().toLowerCase();
       const matched = [...latest.values()].filter(release =>
         [
@@ -207,7 +252,7 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
             const version = {
               releaseId: release.id,
               version: release.version,
-              minAppVersion: release.content.manifest.minAppVersion,
+              minAppVersion: release.content.manifest.minAppVersion ?? "",
               publishedAt: release.publishedAt!,
               size: release.size,
               sha256: release.sha256,
@@ -397,7 +442,7 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
     },
     submitSubmission: async (id, revision) => {
       const row = get(id);
-      if (row.status === "pending_review") return structuredClone(row);
+      if (row.status === "pending_review") return legacyMockSubmission(row);
       if (!row.canEdit) fail("SUBMISSION_LOCKED", "该提交已结束");
       if (row.revision !== revision) fail("REVISION_CONFLICT", "草稿已变化");
       if (!row.content || !row.repository) fail("INVALID_INPUT", "请上传ZIP并关联仓库");
@@ -410,7 +455,7 @@ export function createMockApi(options: { reviewer?: boolean } = {}): PortalApi {
         commit: "a".repeat(40),
       };
       records.set(id, next);
-      return structuredClone(next);
+      return legacyMockSubmission(next);
     },
     getReviews: async id => structuredClone(reviews.get(id) ?? { reviews: [], release: null }),
     reviewSubmission: async (id, input) => {

@@ -2,6 +2,8 @@
 
 Tau 使用同一个 `@tau/plugins` SDK 表达公共能力，平台宿主提供实现。开发产物为 `0.36.0-dev.0`，未发布到 npm。公共契约、统一模板和格式 3 校验供受控开发使用；客户端接线与分发边界见[跨端宿主架构](/docs/architecture/plugin-portability.md)，生产中心仍只接受原有格式。
 
+后续正式 SDK、清单和分发设计统一见[正式接入方案](/docs/tasks/plugin-portability-bcd/distribution-plan.md)。该方案不表示下述开发契约已经支持生产安装；当前校验器的行为仍以本页和实现为准。
+
 ## 页面与功能入口
 
 `context.pages.register` 声明页面内容、参数、身份，返回页面句柄。`context.navigation.registerEntry` 声明用户发现功能的入口，引用本插件本次激活注册的有效页面。任务管理可以有一个入口，却有列表、详情、设置等多个页面，因此注册页面不能自动增加侧栏条目。

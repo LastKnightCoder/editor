@@ -35,6 +35,7 @@ export class MobilePluginRuntime {
   readonly elementSupport = new Map<string, "none" | "render" | "edit">();
   readonly pageStates = new Map<string, () => import("@tau/plugins").JsonValue>();
   readonly errors = new Map<string, string>();
+  private packageNodes = new Map<string, string[]>();
   private revision = 0;
   private listeners = new Set<() => void>();
   private styles: HTMLStyleElement[] = [];
@@ -133,6 +134,9 @@ export class MobilePluginRuntime {
       }
     }
   };
+  get isAvailable() {
+    return !this.disposed;
+  }
   isPluginActive(id: string) {
     return (
       !this.disposed &&
@@ -173,6 +177,7 @@ export class MobilePluginRuntime {
         Object.entries(adapted.support).forEach(([type, value]) =>
           this.elementSupport.set(type, value)
         );
+        this.packageNodes.set(item.id, Object.keys(adapted.support));
         definitions.push(definition);
         if (artifact.css) {
           const style = document.createElement("style");
@@ -193,6 +198,13 @@ export class MobilePluginRuntime {
       }
     }
     this.publish();
+  }
+  async blockFromCenter(id: string) {
+    if (this.disposed) return;
+    for (const type of this.packageNodes.get(id) ?? []) this.elementSupport.set(type, "none");
+    this.errors.set(id, "中心已撤回或禁用此版本，请重新打开应用；正文保留");
+    this.publish();
+    if (this.host.listPlugins().some(plugin => plugin.id === id)) await this.host.disable(id);
   }
   async dispose() {
     this.disposed = true;
