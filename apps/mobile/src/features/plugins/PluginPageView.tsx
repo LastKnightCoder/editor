@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useEffect, type ReactNode } from "react";
 import { normalizePageParams } from "@tau/plugins/host";
 import type { PluginPageContext } from "@tau/plugins";
-import { ErrorBoundary, Loading, PortalScope, UiHostProvider, UiProvider } from "@tau/ui";
+import { Button, ErrorBoundary, Loading, PortalScope, UiHostProvider, UiProvider } from "@tau/ui";
 import { PageHeader } from "../../components/PageHeader";
 import { usePage } from "../../router";
 import { usePageInstanceContext, usePageGuard } from "../../router/pageLifecycle";
@@ -137,14 +137,20 @@ export function PluginPageView() {
 export function PluginSettingsView() {
   const runtime = useMobilePlugins();
   const { phase } = useMobilePluginStatus();
-  const { params } = usePage<{ id: string }>();
+  const { params, navigator } = usePage<{ id: string }>();
   const setting = runtime?.settings.get(params.id);
   const Component = setting?.definition.component;
   return (
     <PluginPageShell title={setting?.definition.title ?? "插件设置"}>
       {setting && Component && runtime?.active(setting.context) ? (
         <ErrorBoundary>
-          <Component context={setting.context} />
+          {setting.definition.target === "tts" ? (
+            <Button onClick={() => navigator.push("settingsModule", { module: "voice" })}>
+              打开语音配置
+            </Button>
+          ) : (
+            <Component context={setting.context} />
+          )}
         </ErrorBoundary>
       ) : phase === "starting" ? (
         PLUGIN_STARTING

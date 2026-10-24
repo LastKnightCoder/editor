@@ -14,6 +14,7 @@ import {
   normalizeImageShadowPreset,
 } from "@tau/editor/extensions/media/appearance";
 import {
+  IconAudioLines,
   IconBookOpen,
   IconCircleHelp,
   IconCloud,
@@ -94,6 +95,10 @@ export function OverviewSection(props: OverviewSectionProps) {
       ? "这台手机"
       : (providers.find(item => item.id === syncSettings.safeSetting?.imageBed.plugin?.id)?.name ??
         props.activeResource);
+  const ttsUsage = syncSettings.safeSetting?.ttsUsageSettings?.default;
+  const ttsAccountName = syncSettings.safeSetting?.ttsProviders?.find(
+    account => account.id === ttsUsage?.providerId
+  )?.name;
   // 桌面端旧设置 shadow 为布尔（true 视作中阴影），展示前归一为 preset
   const imageAppearanceValue = `${findPresetLabel(
     IMAGE_BORDER_RADIUS_OPTIONS,
@@ -135,6 +140,18 @@ export function OverviewSection(props: OverviewSectionProps) {
           icon={<IconUsers />}
           label="实时协作"
           onClick={() => props.onOpenModule("collaboration")}
+        />
+      </div>
+
+      <div className="space-y-3 px-1">
+        <h2 className="text-ink-1 text-[16.5px] font-extrabold">语音</h2>
+      </div>
+      <div className="list-group">
+        <ListItem
+          icon={<IconAudioLines />}
+          label="语音合成"
+          value={ttsAccountName ?? "未设置"}
+          onClick={() => props.onOpenModule("voice")}
         />
       </div>
 

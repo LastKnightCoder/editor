@@ -488,3 +488,13 @@ Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开
 - **粗体**：思源宋体为可变字体，自带全部字重；霞鹜文楷 Screen 只有常规体，选中时开启 `font-synthesis: weight` 合成粗体（根上默认 `none`）。
 - **前端状态**：已安装列表与线上清单走 react-query（`queries.ts`）；下载状态在模块级 `useReadingFontDownload`，关闭面板下载继续，完成后自动选中。所选字体未安装时「正文字体」行显示「需重新下载」。
 - **授权**：两款字体均为 OFL-1.1，许可文件随字体发布在同目录。霞鹜文楷有保留字体名，作者附加许可允许为网页字体分发转 WOFF2 后沿用原名（不作为可安装桌面字体提供）。
+
+## 语音合成
+
+入口为「我的 → 语音 → 语音合成」（设置模块 `voice`，`features/settings/tts/`），插件详情与插件设置页的 `target: "tts"` 只给「打开语音配置」跳转，不裸渲染作者表单。主页上半部是当前服务（账号 / 模型 / 音色），下半部是账号列表；子页 `ttsAccount`、`ttsModels`、`ttsTest`、`ttsClone` 均按 instanceId 保活。
+
+- **数据**：沿用桌面形状，`ttsProviders[]`（宿主生成的账号实例 ID、插件 ID、名称、插件私有 config、models）与 `ttsUsageSettings.default`。写入只经原生 `plugin_tts_mutate`（`src-tauri/src/tts_settings.rs`），在 `mutate_setting_value` 串行队列内校验窗口、工作区、账号归属与模型去重，成功返回快照后前端才合并；普通全量设置写入由 `preserve_managed_fields` 保留这两个字段。删除当前模型回落到第一个模型并清空音色，没有剩余模型时清空当前选择。旧版内置 MiniMax 凭据在启动升级时带备份迁移为账号，空凭据不建账号。
+- **执行**：每个插件运行时持有一份 `@tau/plugins/tts-host` 的 `RendererTTSRegistry`（与桌面同一核心），`services/plugin-tts.ts` 在同一 WebView 内开会话：open 时冻结账号配置与模型，调用方取消、插件停用或工作区释放都会关闭会话并拒绝迟到结果。网络经插件 fetch 原生桥。
+- **账号表单**：账号页由宿主承载显示名称、模型、复刻与删除，凭据表单由插件按 `usePluginEnvironment().platform` 渲染移动端组件并通过 `ttsConfig.save(config, models)` 保存；插件不可用时保留配置、不渲染表单。
+- **测试与复刻**：测试页可测任意已保存账号，不改写当前服务；合成字节转 Blob 在页内播放，不自动发声，离开页面即取消并释放。文本限 500 字，只约束测试面板。复刻经常驻 file input 选择参考音频，文件大小、格式与上传前置条件由插件校验；本机保存附件时提示需要公网地址的服务商先配置远端上传。
+- **边界**：不含编辑器朗读、播客、后台或锁屏播放；凭据与桌面一样保存在应用私有设置文件。

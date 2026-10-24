@@ -541,7 +541,11 @@ function SettingsTab({
         </nav>
       )}
       <section aria-label={active.definition.title} className="min-w-0">
-        {active.definition.target === "sync" || active.definition.target === "upload" ? (
+        {active.definition.target === "tts" ? (
+          <Button onClick={() => navigator.push("settingsModule", { module: "voice" })}>
+            打开语音配置
+          </Button>
+        ) : active.definition.target === "sync" || active.definition.target === "upload" ? (
           <Button
             onClick={() =>
               navigator.push(

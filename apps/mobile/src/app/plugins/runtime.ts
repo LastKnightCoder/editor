@@ -1,3 +1,4 @@
+import { RendererTTSRegistry } from "@tau/plugins/tts-host";
 import { RendererSyncRegistry, RendererUploadRegistry } from "@tau/plugins/provider-host";
 import { copyJson } from "@tau/plugins/host";
 import { getMobileSettingSnapshot } from "../../services/mobileSettingsBridge";
@@ -23,6 +24,7 @@ export class MobilePluginRuntime {
   readonly host: PluginHost;
   readonly sync = new RendererSyncRegistry();
   readonly upload = new RendererUploadRegistry();
+  readonly tts = new RendererTTSRegistry();
   fetch?: (input: RequestInfo | URL, init?: RequestInit, pluginId?: string) => Promise<Response>;
   readonly content = new ContentPluginRegistry();
   readonly pages = new Map<string, MobilePluginPage>();
@@ -58,6 +60,7 @@ export class MobilePluginRuntime {
       environmentSource: environment,
       storage,
       sync: this.sync,
+      tts: this.tts,
       upload: {
         register: (context, definition) => this.upload.register(context, definition),
         uploadRemote: (file, signal) => {
@@ -125,7 +128,12 @@ export class MobilePluginRuntime {
       },
       settings: {
         register: (context, definition) => {
-          if (definition.target && definition.target !== "sync" && definition.target !== "upload")
+          if (
+            definition.target &&
+            definition.target !== "sync" &&
+            definition.target !== "upload" &&
+            definition.target !== "tts"
+          )
             throw new Error("当前移动宿主尚未提供此领域设置");
           const id = `${context.pluginId}:${definition.id}`;
           this.settings.set(id, { context, definition });
@@ -134,7 +142,9 @@ export class MobilePluginRuntime {
             id,
             open: async () => {
               if (!this.active(context)) throw new Error("插件设置不可用");
-              if (definition.target === "sync")
+              if (definition.target === "tts")
+                navigator.push("settingsModule", { module: "voice" });
+              else if (definition.target === "sync")
                 navigator.push("syncProvider", { providerId: context.pluginId });
               else if (definition.target === "upload")
                 navigator.push("uploadProvider", { providerId: context.pluginId });

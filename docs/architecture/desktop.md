@@ -99,7 +99,7 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 
 三者为同一模式：渲染进程注册实例、主进程 `plugin-local:<域>-*` 只转发请求/取消/通知、设置页经 `<域>-settings-migration` 备份后逐账号迁移旧配置（不自动安装插件、不自动改用其他付费账号）。
 
-- **TTS**：`context.tts` 实例只在主窗口渲染端创建，账号配置按实例 ID 隔离；播客从脚本到提交固定实例，会话关闭使后续上传/保存失效，普通失败保留空片段。设置提交走 user-setting 串行队列（原子落盘→快照→广播），失败保留已提交快照可重试。
+- **TTS**：注册与会话核心为 `@tau/plugins/tts-host`（移动端共用），`context.tts` 实例只在主窗口渲染端创建，账号配置按实例 ID 隔离；设置页「试听」用已保存配置合成并页内播放，选择不写回当前服务；播客从脚本到提交固定实例，会话关闭使后续上传/保存失效，普通失败保留空片段。设置提交走 user-setting 串行队列（原子落盘→快照→广播），失败保留已提交快照可重试。
 - **图片生成/编辑**：`context.images.register` 注册实例（生成与编辑至少实现一项，输出图片字节与实际 MIME）；`target: "images"` 配置视图接收 imageConfig。聊天/编辑器/白板共用 `services/image-generation.ts`；输入输出各最多 16 张、总字节各 ≤128 MiB，只收 PNG/JPEG/WebP；能力状态按配置与激活代次异步刷新，执行时复核；历史工具来源与结果键稳定，已生成图片无需插件即可展示。
 - **在线视频**：`context.video.register` 注册实例（`matches / resolve / cacheKey / getPlayback`，返回播放源描述——file 单流 / split 音视频分离 / extract 走宿主 yt-dlp，不传视频字节）。宿主无平台代码：主窗口 `app/plugins/video-registry.ts` 执行并归一化结果，下载/合并/缓存统一在主进程 `online-video-cache`（缓存身份 = 插件 ID + cacheKey 摘要，已缓存不向插件取流）。视频元数据 `metaInfo.type` 即插件 ID（`type/title/thumbnail` 宿主占用，其余字段归插件）；编辑器/白板/视频笔记/学习资料共用 `useOnlineVideo` 与 `OnlineVideoSelectModal`，添加入口按插件生成、弹窗只用该插件解析（链接属其他插件时提示改入口）。界面文案不出现「视频插件」统称：能用来源名用来源名，统称叫「在线视频」；移动端/博客/浏览器扩展只显示降级提示。
 

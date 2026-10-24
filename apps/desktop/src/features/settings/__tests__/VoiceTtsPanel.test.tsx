@@ -44,6 +44,7 @@ vi.mock("@/utils/tts", () => ({
 }));
 vi.mock("../sections/TTSPluginSettings", () => ({ TTSPluginSettings: () => null }));
 vi.mock("../sections/TTSPluginCloneSection", () => ({ TTSPluginCloneSection: () => null }));
+vi.mock("../sections/TTSPreviewSection", () => ({ TTSPreviewSection: () => null }));
 vi.mock("../components/TtsProviderCreateDialog", () => ({ TtsProviderCreateDialog: () => null }));
 
 const container = document.createElement("div");

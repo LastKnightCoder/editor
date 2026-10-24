@@ -37,7 +37,8 @@
     "./local-state": "./src/local-state.ts",
     "./sync": "./src/sync.ts",
     "./provider-host": "./src/provider-host.ts",
-    "./fetch-bridge": "./src/fetch-bridge.ts"
+    "./fetch-bridge": "./src/fetch-bridge.ts",
+    "./tts-host": "./src/tts-host.ts"
   },
   "scripts": {
     "check": "tsc --noEmit",

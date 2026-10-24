@@ -14,6 +14,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import { type TTSProviderSetting, type TTSVoice } from "@/types/tts";
 import { TTSPluginSettings } from "./TTSPluginSettings";
 import { TTSPluginCloneSection } from "./TTSPluginCloneSection";
+import { TTSPreviewSection } from "./TTSPreviewSection";
 import { TTSProviderFactory } from "@/utils/tts";
 import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
@@ -185,7 +186,7 @@ export function VoiceTtsPanel() {
           items={ttsProviders.map(provider => ({
             id: provider.id,
             label: provider.name || "未命名",
-            meta: provider.models.length,
+            meta: hasActivePlugin(provider.pluginId) ? provider.models.length : "未启用",
           }))}
           activeId={editing?.id}
           onSelect={setEditingId}
@@ -263,7 +264,7 @@ export function VoiceTtsPanel() {
             emptyText="先在上方添加服务商"
             options={ttsProviders.map(provider => ({
               value: provider.id,
-              label: provider.name || "未命名",
+              label: `${provider.name || "未命名"}${hasActivePlugin(provider.pluginId) ? "" : "（插件未启用）"}`,
             }))}
             onValueChange={switchUsageProvider}
           />
@@ -316,6 +317,8 @@ export function VoiceTtsPanel() {
           </SettingRow>
         )}
       </SettingsGroup>
+
+      <TTSPreviewSection providers={ttsProviders} usage={usage} isAvailable={hasActivePlugin} />
 
       <TtsProviderCreateDialog
         open={createOpen}

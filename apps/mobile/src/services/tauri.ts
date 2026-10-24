@@ -724,6 +724,10 @@ export function selectPluginProvider(
   });
 }
 
+export function mutatePluginTts(database: string, mutation: import("../types").PluginTtsMutation) {
+  return trackedInvoke<SettingCompat>("plugin_tts_mutate", { database, mutation });
+}
+
 export function syncCheckVersions(provider?: string) {
   return withTimeout(
     trackedInvoke<SyncVersionResponse>("sync_check_versions", provider ? { provider } : undefined),

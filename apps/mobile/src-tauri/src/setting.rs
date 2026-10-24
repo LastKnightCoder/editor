@@ -133,6 +133,8 @@ fn default_setting_value() -> Value {
           "currentSpeakerId": ""
         }
       },
+      "ttsProviders": [],
+      "ttsUsageSettings": { "default": null },
       "transcription": {
         "currentModel": "faster-whisper-base",
         "downloadSource": "modelscope",
@@ -262,6 +264,7 @@ fn validate_setting_shape(setting: &Value) -> Result<(), String> {
     if setting.get("integration").is_some() {
         validate_pointer_type(setting, "/integration", "object")?;
     }
+    crate::tts_settings::validate_shape(setting)?;
 
     Ok(())
 }
@@ -418,6 +421,7 @@ pub fn load_or_init_setting(app: &AppHandle) -> Result<Value, String> {
     let mut upgraded = parsed.clone();
     retire_image_bed_keys(&mut upgraded);
     let statuses = crate::provider_settings::migrate(&mut upgraded);
+    crate::tts_settings::migrate(&mut upgraded);
     if upgraded != parsed {
         let backup = app_dir.join(format!(
             "setting.storage-plugins-{:x}.bak",
@@ -639,6 +643,33 @@ mod tests {
         );
         assert_eq!(ensure_setting_compat(setting.clone()), setting);
     }
+    #[test]
+    fn tts_defaults_and_shape_validation_are_safe() {
+        let setting = ensure_setting_compat(json!({}));
+        assert_eq!(setting["ttsProviders"], json!([]));
+        assert_eq!(setting["ttsUsageSettings"]["default"], Value::Null);
+        assert!(validate_setting_shape(&setting).is_ok());
+
+        let mut invalid = setting.clone();
+        invalid["ttsProviders"] = json!({});
+        assert!(validate_setting_shape(&invalid).is_err());
+        invalid = setting.clone();
+        invalid["ttsProviders"] = json!([{
+            "id": "a",
+            "name": "账号",
+            "pluginId": "tau.tts-minimax",
+            "config": {},
+            "models": [{ "id": 1 }]
+        }]);
+        assert!(validate_setting_shape(&invalid).is_err());
+        invalid = setting;
+        invalid["ttsUsageSettings"]["default"] = json!({
+            "providerId": "a",
+            "modelId": "m"
+        });
+        assert!(validate_setting_shape(&invalid).is_err());
+    }
+
     #[test]
     fn retired_modules_are_removed() {
         let setting = ensure_setting_compat(json!({
