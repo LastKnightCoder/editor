@@ -1,13 +1,7 @@
 import { Button, Loading } from "@tau/ui";
-import type { CenterReason } from "@tau/plugins/center";
+import { formatSize, type CenterReason } from "@tau/plugins/center";
 import { BottomSheet } from "../../../components/BottomSheet";
 import { reasonLabel } from "./pluginStatus";
-
-function formatSize(bytes: number) {
-  return bytes < 1024 * 1024
-    ? `${Math.max(1, Math.round(bytes / 1024))} KB`
-    : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
-}
 
 /** 安装面板的展示状态；版本、大小与权限必须取选版返回的确切记录。 */
 export type InstallSheetState =
@@ -64,7 +58,10 @@ export function InstallSheet({
         {state.kind === "confirm" && (
           <>
             <p className="text-ink-2 text-[13px] leading-relaxed">
-              从插件中心下载 {formatSize(state.size)}，校验通过后在下次打开应用时生效。
+              从插件中心下载 {formatSize(state.size)}，
+              {mode === "install"
+                ? "校验通过后自动启用。"
+                : "校验通过后，在插件中心点「立即生效」即可切换到新版本。"}
             </p>
             <section aria-label="插件权限" className="flex flex-col gap-1.5">
               <h4 className="text-ink-1 text-[14px] font-semibold">需要的权限</h4>
@@ -87,7 +84,9 @@ export function InstallSheet({
         )}
         {state.kind === "done" && (
           <p role="status" className="text-ok text-[13px]">
-            已安装 v{state.version}，将在下次打开应用时生效。
+            {mode === "install"
+              ? `已安装 v${state.version}，正在启用。`
+              : `已下载 v${state.version}，在插件中心点「立即生效」即可切换。`}
           </p>
         )}
         {state.kind === "failed" && (

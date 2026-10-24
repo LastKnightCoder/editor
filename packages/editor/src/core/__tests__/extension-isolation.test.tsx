@@ -17,6 +17,7 @@ import { Editor, createEditorKit } from "../index";
 import type { EditorRef } from "../types/editor";
 import { defineExtension, type AnyExtension } from "../api";
 import { IExtensionErrorReporter, type ExtensionErrorEvent } from "../services";
+import { IUnknownElementNotice } from "../services/unknownElementNotice";
 import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
 import { IEditorSlots } from "@tau/editor/extensions/media/services";
 import { CIRCUIT_BREAKER_THRESHOLD, withUnknownElements } from "../kit/extensionGuard";
@@ -217,6 +218,26 @@ describe("扩展错误隔离与未知节点", () => {
     expect(
       inline?.closest('[data-slate-node="element"]:not([data-slate-inline])')?.textContent
     ).toContain("前");
+  });
+
+  it("宿主可按类型提供未知节点占位说明，未提供时回落内核默认文案", async () => {
+    const kit = createEditorKit({
+      services: [
+        register => register(IEditorSlots, createDefaultEditorSlots()),
+        register =>
+          register(IUnknownElementNotice, {
+            describe: type =>
+              type === "mystery-void" ? { message: "插件内容加载中…" } : undefined,
+          }),
+      ],
+    });
+    const host = await render(<Editor kit={kit} initValue={valueWithUnknown} readonly />);
+    expect(host.querySelector('[data-element-placeholder="mystery-void"]')?.textContent).toContain(
+      "插件内容加载中…"
+    );
+    expect(
+      host.querySelector('[data-element-placeholder="mystery-container"]')?.textContent
+    ).toContain("此处的内容在当前编辑器中无法显示");
   });
 
   it("删掉扩展后打开含该类型的文档，编辑其他内容再保存，未知节点原样保留", async () => {

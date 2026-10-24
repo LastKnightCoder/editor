@@ -1,5 +1,11 @@
-import { mobileContentPlugins, mobilePluginElementSupport } from "../app/plugins/content";
-import { IElementEditingPolicy } from "@tau/editor/api";
+import { useRef, useSyncExternalStore } from "react";
+import {
+  isMobilePluginSettled,
+  mobileContentPlugins,
+  mobilePluginElementSupport,
+  mobilePluginState,
+} from "../app/plugins/content";
+import { IElementEditingPolicy, IUnknownElementNotice } from "@tau/editor/api";
 /**
  * Mobile 的 EditorKit：**按场景**一个（docs/editor-refactor ER-016），
  * 每个只注册该场景需要的扩展（ER-017）。命名与 desktop 对齐，实现可以是 mobile 自己的。
@@ -74,10 +80,42 @@ export function getMobileContentKit(): EditorKit {
             sourcePresentation: "touch",
             canEdit: type => !support.has(type) || support.get(type) === "edit",
           }),
+        register => register(IUnknownElementNotice, { describe: describeUnknownElement }),
       ],
     });
   }
   return contentKit;
+}
+
+/** 未注册节点多半来自插件：按会话阶段说明原因，内容始终原样保留 */
+function describeUnknownElement() {
+  const { phase } = mobilePluginState.get();
+  if (phase === "starting") return { message: "插件内容加载中…", title: "插件就绪后自动显示" };
+  if (phase === "safe" || phase === "failed")
+    return { message: "插件未运行，内容已原样保留", title: "可在插件中心查看插件状态" };
+  return undefined;
+}
+
+const subscribePluginPhase = mobilePluginState.subscribe;
+const readPluginSettled = isMobilePluginSettled;
+
+/**
+ * 组件内取内容 kit：read 随插件会话变化取最新 kit（只读编辑器重建无副作用）；
+ * edit 在插件落定前返回 null（调用方显示占位），落定后锁定首个 kit，编辑中途不因会话重载而重建编辑器。
+ */
+export function useMobileContentKit(mode: "read"): EditorKit;
+export function useMobileContentKit(mode: "edit"): EditorKit | null;
+export function useMobileContentKit(mode: "read" | "edit"): EditorKit | null {
+  const settled = useSyncExternalStore(subscribePluginPhase, readPluginSettled, readPluginSettled);
+  const locked = useRef<EditorKit | null>(null);
+  if (mode === "read") return getMobileContentKit();
+  if (!locked.current && settled) locked.current = getMobileContentKit();
+  return locked.current;
+}
+
+/** 插件随包资料的只读展示：不含插件扩展，文档已按白名单清洗 */
+export function getMobilePluginDocumentKit(): EditorKit {
+  return createMobileKit();
 }
 
 let flashcardBlank: AnyExtension | null = null;

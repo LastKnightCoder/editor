@@ -43,7 +43,8 @@ type PreviewEditorProps = {
 /** 预览用编辑器与它的 content 场景 kit，一起懒加载（避免扩展模块绕回本文件） */
 type PreviewRenderer = {
   Editor: ComponentType<PreviewEditorProps>;
-  kit: EditorKit;
+  /** 每次渲染取当前 kit：插件会话晚于预览加载时也能显示插件节点 */
+  getKit: () => EditorKit;
 };
 
 const EMPTY_EDITOR_CONTENT = [
@@ -110,7 +111,7 @@ async function loadPreviewRenderer(): Promise<PreviewRenderer> {
     .then(([editorModule, kitModule]) => {
       const nextRenderer: PreviewRenderer = {
         Editor: editorModule.Editor as ComponentType<PreviewEditorProps>,
-        kit: kitModule.getMobileContentKit(),
+        getKit: kitModule.getMobileContentKit,
       };
       previewRendererCache = nextRenderer;
       return nextRenderer;
@@ -194,7 +195,7 @@ function ContentLinkPreviewCard(props: {
           initValue={normalizeEditorContent(props.detail.content)}
           readonly
           theme={theme}
-          kit={props.renderer.kit}
+          kit={props.renderer.getKit()}
           className="mobile-card-editor-content"
         />
       </div>

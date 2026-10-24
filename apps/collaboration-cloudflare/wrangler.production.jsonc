@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tau-collaboration",
+  "main": "src/index.ts",
+  "account_id": "ba54fcb8459b528b75991a4de5e5d023",
+  "compatibility_date": "2026-10-18",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "routes": [{ "pattern": "collab.taunote.app/*", "zone_name": "taunote.app" }],
+  "triggers": { "crons": ["37 19 * * *"] },
+  "vars": {
+    "BUILD_REV": "production-v1",
+    "MODE": "production",
+    "PUBLIC_URL": "https://collab.taunote.app",
+    "INSTANCE_NAME": "production-v1",
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "COLLAB", "class_name": "CollaborationService" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["CollaborationService"] }],
+  "r2_buckets": [
+    { "binding": "ASSETS", "bucket_name": "tau-collaboration-assets" },
+    { "binding": "BACKUPS", "bucket_name": "tau-collaboration-backups" },
+  ],
+  "ratelimits": [
+    { "name": "REQUEST_LIMITER", "namespace_id": "2101", "simple": { "limit": 120, "period": 60 } },
+    { "name": "DEVICE_LIMITER", "namespace_id": "2102", "simple": { "limit": 5, "period": 60 } },
+  ],
+  "observability": { "enabled": true },
+}

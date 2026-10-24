@@ -17,8 +17,16 @@ export const unWrapInlineMath = (editor: Editor) => {
 
 export const wrapInlineMath = (editor: Editor) => {
   const { selection } = editor;
-  const [node] = getCurrentTextNode(editor);
-  if (selection && !Range.isCollapsed(selection) && node.type === "formatted") {
+  if (!selection) return;
+  if (Range.isCollapsed(selection)) {
+    Transforms.insertNodes(editor, {
+      type: "inline-math",
+      tex: "",
+      children: [{ type: "formatted", text: "" }],
+    });
+  } else {
+    const [node] = getCurrentTextNode(editor);
+    if (node.type !== "formatted") return;
     const text = Editor.string(editor, selection);
     ["bold", "code", "italic", "underline", "highlight", "color"].forEach(type => {
       Editor.removeMark(editor, type);
@@ -34,4 +42,8 @@ export const wrapInlineMath = (editor: Editor) => {
       { at: selection, split: true }
     );
   }
+  const [math] = Editor.nodes(editor, {
+    match: node => node.type === "inline-math",
+  });
+  if (math) focusInsertedPreviewElement(editor, math[1]);
 };

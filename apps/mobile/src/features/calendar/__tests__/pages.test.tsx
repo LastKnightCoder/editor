@@ -36,6 +36,7 @@ vi.mock("../../cards/editorExtensions", () => ({ mobileCardPreviewExtensions: []
 // 页面测试不渲染真实编辑器，kit 也不必真实构造
 vi.mock("../../../services/editorKit", () => ({
   getMobileContentKit: () => ({}),
+  useMobileContentKit: () => ({}),
   getMobileFlashcardKit: () => ({}),
 }));
 vi.mock("@tau/editor", () => ({

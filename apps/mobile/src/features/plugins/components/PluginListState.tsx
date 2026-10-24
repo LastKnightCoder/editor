@@ -52,7 +52,7 @@ export function PluginListState({
     );
   return (
     <div className="flex flex-col gap-4">
-      <ul className="grid gap-3 md:grid-cols-2">{children}</ul>
+      <ul className="bg-surface overflow-hidden rounded-[18px]">{children}</ul>
       {loadMoreError && (
         <p role="alert" className="text-danger text-center text-[13px]">
           加载更多失败：{loadMoreError}

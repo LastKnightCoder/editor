@@ -3,7 +3,7 @@
 // 复习期间屏幕常亮。队列拉取后持快照，评分逐张实时落库（中途退出不丢进度）。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getMobileContentKit } from "../../services/editorKit";
+import { useMobileContentKit } from "../../services/editorKit";
 import type { Descendant } from "slate";
 import { Editor } from "@tau/editor";
 import { Paperclip } from "lucide-react";
@@ -38,6 +38,7 @@ type FlashcardReviewPageProps = {
 };
 
 export function FlashcardReviewPage({ deckId, onRequestClose, onError }: FlashcardReviewPageProps) {
+  const contentKit = useMobileContentKit("read");
   useKeepScreenAwake(true);
 
   const [queue, setQueue] = useState<Flashcard[] | null>(null);
@@ -559,7 +560,7 @@ export function FlashcardReviewPage({ deckId, onRequestClose, onError }: Flashca
               桌面端建的 tabs/表格/图片等富节点会被降级成纯文本 */}
           {referenceCard?.references[0]?.content ? (
             <Editor
-              kit={getMobileContentKit()}
+              kit={contentKit}
               initValue={referenceCard.references[0].content.content as Descendant[]}
               className="text-ink-1 min-h-[160px] w-full text-[14px] font-medium leading-[1.8] outline-none"
             />

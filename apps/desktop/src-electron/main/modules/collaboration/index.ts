@@ -158,7 +158,7 @@ class CollaborationManager {
     let transport = this.transports.get(url);
     if (!transport) {
       transport = new HocuspocusProviderWebsocket({
-        url: `${url.replace(/^http/, "ws")}/ws`,
+        url: `${this.client.canonicalUrl(url).replace(/^http/, "ws")}/ws`,
         WebSocketPolyfill: WebSocket,
         initialDelay: 1000,
         maxDelay: 30000,
@@ -500,7 +500,7 @@ class CollaborationManager {
       documentId: null,
     });
     if (this.events.has(url) || this.stopped) return;
-    const socket = new WebSocket(`${url.replace(/^http/, "ws")}/events`, {
+    const socket = new WebSocket(`${this.client.canonicalUrl(url).replace(/^http/, "ws")}/events`, {
       maxPayload: 1024 * 1024,
     });
     this.events.set(url, socket);
@@ -534,6 +534,16 @@ class CollaborationManager {
     if (this.refreshing || this.stopped || this.pendingCreates.size > 0) return;
     this.refreshing = true;
     try {
+      if (!getDevelopmentServerUrl()) {
+        await this.client.migrateOfficialEndpoint();
+        for (const [origin, transport] of this.transports) {
+          const url = `${this.client.canonicalUrl(origin).replace(/^http/, "ws")}/ws`;
+          if (transport.configuration.url !== url) transport.setConfiguration({ url });
+        }
+        for (const [origin, socket] of this.events)
+          if (socket.url !== `${this.client.canonicalUrl(origin).replace(/^http/, "ws")}/events`)
+            socket.close();
+      }
       const urls = new Set([
         this.serverUrl,
         ...[...this.sessions.values()]
@@ -610,6 +620,18 @@ class CollaborationManager {
       if (!db.open) continue;
       const source = restoreContentBinding(db, name, documentId, serverUrl);
       if (source) return source;
+      const candidates = db
+        .prepare("SELECT DISTINCT server_url FROM collaboration_bindings WHERE document_id=?")
+        .all(documentId) as { server_url: string }[];
+      for (const { server_url: origin } of candidates) {
+        if (this.client.canonicalUrl(origin) !== this.client.canonicalUrl(serverUrl)) continue;
+        const migrated = restoreContentBinding(db, name, documentId, origin);
+        if (!migrated) continue;
+        db.prepare(
+          "UPDATE collaboration_bindings SET server_url=? WHERE document_id=? AND server_url=?"
+        ).run(serverUrl, documentId, origin);
+        return migrated;
+      }
     }
   }
   private async createContent(
@@ -1072,8 +1094,15 @@ class CollaborationManager {
     this.store = new CollaborationLocalStore(this.directory);
     if (!this.store.get("localDeviceId", "")) this.store.set("localDeviceId", randomUUID());
     this.client = new CollaborationClient(this.store);
-    this.assets = new CollaborationAssetService(this.store, PathUtil.getAppDir(), url =>
-      this.client.identity(url)
+    if (!getDevelopmentServerUrl())
+      await this.client.migrateOfficialEndpoint(true).catch(error => {
+        this.error = error instanceof Error ? error.message : "协作端点升级暂时不可用";
+      });
+    this.assets = new CollaborationAssetService(
+      this.store,
+      PathUtil.getAppDir(),
+      url => this.client.identity(url),
+      url => this.client.canonicalUrl(url)
     );
     for (const info of this.store.list()) {
       // 单条本地缓存损坏（applyUpdate 抛错）不得拖垮整个模块——IPC 未注册即全部协作
