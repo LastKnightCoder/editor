@@ -1,6 +1,6 @@
 {
   "name": "@tau/plugins",
-  "version": "0.42.0",
+  "version": "0.43.0",
   "private": true,
   "type": "module",
   "description": "应用插件契约与受信任开发宿主",
@@ -37,7 +37,9 @@
     "./local-state": "./src/local-state.ts",
     "./sync": "./src/sync.ts",
     "./provider-host": "./src/provider-host.ts",
-    "./fetch-bridge": "./src/fetch-bridge.ts"
+    "./fetch-bridge": "./src/fetch-bridge.ts",
+    "./asr-host": "./src/asr-host.ts",
+    "./websocket-bridge": "./src/websocket-bridge.ts"
   },
   "scripts": {
     "check": "tsc --noEmit",
@@ -67,6 +69,7 @@
     "slate-react": "0.126.4",
     "slate": "0.126.2",
     "@tau/editor": "workspace:*",
-    "@tau/markdown": "workspace:*"
+    "@tau/markdown": "workspace:*",
+    "@tau/asr": "workspace:*"
   }
 }
