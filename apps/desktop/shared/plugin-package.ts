@@ -16,6 +16,7 @@ export const DESKTOP_PLUGIN_CAPABILITIES = [
   "dialogs",
   "editor",
   "editorCodecs",
+  "whiteboard",
   "sourceEditor",
   "media",
   "runtimeStyles",
@@ -26,7 +27,6 @@ export const DESKTOP_PLUGIN_CAPABILITIES = [
 
 export type DesktopPortableManifest = ReadablePortablePluginManifest & {
   backend?: never;
-  whiteboard?: never;
   minAppVersion?: never;
 };
 export type DesktopPluginManifest = PluginManifest | DesktopPortableManifest;

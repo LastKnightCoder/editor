@@ -8,6 +8,7 @@ export const PLUGIN_CAPABILITIES = [
   "dialogs",
   "editor",
   "editorCodecs",
+  "whiteboard",
   "sourceEditor",
   "runtimeStyles",
   "fetch",

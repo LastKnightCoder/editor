@@ -119,6 +119,8 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 
 ### 静态内容插件
 
+格式 3 的桌面白板插件声明 whiteboard: true，并要求 whiteboard 能力；共享加载器只向已声明且宿主实际提供此能力的包开放 @tau/plugins/whiteboard，沿用现有静态扩展、重启生效与工作区偏好机制。移动目标不承载白板插件。
+
 - SDK 的 `editorExtensions` / `editorCodecs` 是正式静态贡献（manifest `editor: true`）。主进程开库前按 `.enabled.json` 静态读取已启用内容包并交独立内容渲染进程校验定义，只保存通过校验的快照；`initializeContentPlugins` 在 React 挂载前读取快照，校验类型冲突并装配 CSS/codec；`createDesktopKit` 在底座上 extend 贡献不重建打开中的编辑器；开发台 `context.editor.register` 只用于实验。
 - 桌面与博客的插件贡献由 `@tau/plugins/content` 的 ContentPluginRegistry 保存只读快照；博客发布按用户已安装版本收集 main.js/CSS 在浏览器加载。移动普通正文在自己的 EditorKit 上装配受控跨端快照；浏览器扩展仍用原生套件，未知节点按通用保护保留原数据。
 - 领域插件的节点边界：HTML 行内与块级归 tau.html 插件（SDK 的 useInlineSource/insertInlineSource，插件不得打包自己的 Slate；Markdown 认领归已启用插件，缺包保留文本或未知节点 JSON）；ABC 归 tau-plugin-abc（内置 diagram 只剩 Mermaid、PlantUML；HTML 导出优先插件 SVG，缺包保留转义源码）；Typst 使用插件自带的浏览器 WebAssembly 编译器（预览挂载不写文档，仅用户编辑源码编译成功后持久化缓存，博客用缓存或源码回退）；TikZ、custom-block 同为独立插件。两类 HTML 的静态导出 CSS 按 styleSources 收集，宿主无专属类型名单。

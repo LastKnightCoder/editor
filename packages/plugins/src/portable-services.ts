@@ -116,5 +116,8 @@ export function scopePortablePluginModules(
       };
     }
   }
-  return { ...modules, "@tau/plugins": Object.freeze(scoped) };
+  const result: Record<string, unknown> = { ...modules, "@tau/plugins": Object.freeze(scoped) };
+  if (!declared.has("whiteboard") || !available.includes("whiteboard"))
+    delete result["@tau/plugins/whiteboard"];
+  return result;
 }
