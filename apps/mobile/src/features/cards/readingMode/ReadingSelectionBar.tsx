@@ -1,7 +1,7 @@
 import { useContext, useEffect, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { Highlighter, Link2, MessageSquarePlus, TextQuote } from "lucide-react";
+import { FileSymlink, Highlighter, MessageSquarePlus, TextQuote } from "lucide-react";
 import type { EditorRef } from "@tau/editor";
 import { Editor, Range, Text, Transforms } from "slate";
 import { AppContext } from "../../../app/AppContext";
@@ -75,7 +75,7 @@ function SelectionBarButton(props: { label: string; icon: ReactNode; onPress: ()
   );
 }
 
-/** 阅读态选中文字后底部浮出的标注条：高亮、批注、摘录成卡片、关联卡片 */
+/** 阅读态选中文字后底部浮出的标注条：高亮、批注、摘录成卡片、引用内容 */
 export function ReadingSelectionBar(props: ReadingSelectionBarProps) {
   const { editorRef, controller, readingMode, range, onClear, portalContainer } = props;
   // 可选读取：宿主不在 AppContext 内时摘录后不刷新卡片列表
@@ -191,8 +191,8 @@ export function ReadingSelectionBar(props: ReadingSelectionBarProps) {
             onPress={handleExcerpt}
           />
           <SelectionBarButton
-            label="关联卡片"
-            icon={<Link2 size={ICON_SIZE} />}
+            label="引用内容"
+            icon={<FileSymlink size={ICON_SIZE} />}
             onPress={() => runInEditing("content-link")}
           />
         </motion.div>

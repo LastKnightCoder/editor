@@ -15,7 +15,8 @@ import {
   ChevronDown,
   Code,
   Ellipsis,
-  FileText,
+  Eye,
+  FileSymlink,
   Highlighter,
   Image as ImageIcon,
   IndentDecrease,
@@ -27,6 +28,7 @@ import {
   List,
   MessageSquarePlus,
   Plus,
+  Replace,
   Sigma,
   SquareCheck,
   Strikethrough,
@@ -35,6 +37,7 @@ import {
   Trash2,
   Underline,
   Undo2,
+  Unlink,
   Workflow,
   X,
 } from "lucide-react";
@@ -45,7 +48,10 @@ import {
   useKeyboardViewport,
 } from "../../../components/KeyboardViewportProvider";
 import { ActionSheet, type ActionSheetItem } from "../../../components/ActionSheet";
+import { Node as SlateNode } from "slate";
+
 import ContentLinkPickerSheet from "../editorExtensions/ContentLinkPickerSheet";
+import ContentLinkPreviewSheet from "../editorExtensions/ContentLinkPreviewSheet";
 import {
   ALL_CODE_LANGUAGES,
   COMMON_CODE_LANGUAGES,
@@ -69,7 +75,13 @@ import {
   type SourceSymbolKey,
 } from "./sourceEditorInput";
 import StylePanel from "./StylePanel";
-import { AccessoryButton, ContextChip, cn, keepEditorFocus } from "./accessoryControls";
+import {
+  AccessoryButton,
+  ContextChip,
+  LabeledButton,
+  cn,
+  keepEditorFocus,
+} from "./accessoryControls";
 import { isTableActionDisabled, type TableActionId } from "./tableActions";
 import type { ToolbarActionId } from "./toolbarActions";
 import type {
@@ -184,7 +196,7 @@ const ITEM_LABELS: Record<AccessoryItemId, string> = {
   "bulleted-list": "无序列表",
   outdent: "反缩进",
   indent: "缩进",
-  "content-link": "关联卡片",
+  "content-link": "引用内容",
   image: "图片",
   undo: "撤销",
   bold: "加粗",
@@ -211,7 +223,7 @@ const ITEM_ICONS: Partial<Record<AccessoryItemId, ReactNode>> = {
   "bulleted-list": <List size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
   outdent: <IndentDecrease size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
   indent: <IndentIncrease size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
-  "content-link": <FileText size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
+  "content-link": <FileSymlink size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
   image: <ImageIcon size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
   undo: <Undo2 size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
   bold: <Bold size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
@@ -411,6 +423,11 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     editingContext.kind === "media" &&
     (activePanel === null || activePanel === "media") &&
     isVisible("context-media")
+      ? editingContext
+      : null;
+  // 引用模式与通用模式的「引用内容」按钮同受白名单控制
+  const linkContext =
+    editingContext.kind === "content-link" && activePanel === null && isVisible("content-link")
       ? editingContext
       : null;
   const toggleMediaPanel = () => {
@@ -615,10 +632,33 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     exitEditing();
   };
 
+  const renderContentLinkItems = () => [
+    <LabeledButton
+      key="preview"
+      label="预览"
+      icon={<Eye size={18} strokeWidth={2.1} />}
+      onPress={controller.openContentLinkPreview}
+    />,
+    <LabeledButton
+      key="retarget"
+      label="更换"
+      icon={<Replace size={18} strokeWidth={2.1} />}
+      onPress={controller.retargetContentLink}
+    />,
+    <LabeledButton
+      key="remove"
+      label="移除"
+      icon={<Unlink size={18} strokeWidth={2.1} />}
+      // 光标在引用内时「引用内容」动作即解除引用、保留文字
+      onPress={() => controller.executeAction("content-link")}
+    />,
+  ];
+
   let middleNodes: ReactNode[];
   if (codeContext) middleNodes = renderCodeItems(codeContext);
   else if (sourceContext) middleNodes = renderSourceItems(sourceContext);
   else if (mediaContext) middleNodes = media.middleNodes;
+  else if (linkContext) middleNodes = renderContentLinkItems();
   else if (tableContext) middleNodes = renderTableItems(tableContext);
   else {
     middleNodes = (isFormatMode ? FORMAT_MIDDLE_ITEMS : GENERAL_MIDDLE_ITEMS)
@@ -648,6 +688,15 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     );
   } else if (mediaContext) {
     leftNode = media.leftNode;
+  } else if (linkContext) {
+    leftNode = (
+      <ContextChip
+        icon={<FileSymlink size={14} strokeWidth={ICON_STROKE} />}
+        label={SlateNode.string(linkContext.element) || ITEM_LABELS["content-link"]}
+        ariaLabel="引用内容"
+        onPress={controller.dismissEditingContext}
+      />
+    );
   } else if (isFormatMode) {
     leftNode = (
       <ContextChip
@@ -874,8 +923,14 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
         onClose={closeLanguageSheet}
       />
       {media.sheets}
+      <ContentLinkPreviewSheet
+        open={controller.contentLinkPreview !== null}
+        target={controller.contentLinkPreview}
+        onClose={controller.closeContentLinkPreview}
+      />
       <ContentLinkPickerSheet
         open={controller.isContentLinkPickerOpen}
+        intent={controller.contentLinkPickerIntent}
         onClose={controller.handleCloseContentLinkPicker}
         onSelect={controller.handleSelectContentLink}
       />

@@ -117,7 +117,7 @@ describe("ReadingSelectionBar", () => {
       "高亮",
       "批注",
       "摘录成卡片",
-      "关联卡片",
+      "引用内容",
     ]);
     const event = new MouseEvent("pointerdown", { bubbles: true, cancelable: true });
     button("高亮").dispatchEvent(event);
@@ -164,7 +164,7 @@ describe("ReadingSelectionBar", () => {
 
   it.each([
     ["批注", "comment"],
-    ["关联卡片", "content-link"],
+    ["引用内容", "content-link"],
   ])("%s：进入编辑选中 range 后执行 %s", (label, actionId) => {
     const { controller, readingMode } = setup();
     const calls: string[] = [];

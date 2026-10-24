@@ -93,3 +93,24 @@ export function AccessoryButton(props: AccessoryButtonProps) {
     </button>
   );
 }
+
+/** 带文字标签的配件栏按钮：媒体、引用等上下文操作单看图标不好认 */
+export function LabeledButton(props: {
+  label: string;
+  icon: ReactNode;
+  active?: boolean;
+  onPress: () => void;
+}) {
+  const { label, icon, active = false, onPress } = props;
+  return (
+    <AccessoryButton
+      label={label}
+      active={active}
+      className="h-11 w-[46px] flex-col gap-px text-[9.5px] font-medium"
+      onPress={onPress}
+    >
+      {icon}
+      <span className="leading-none">{label}</span>
+    </AccessoryButton>
+  );
+}

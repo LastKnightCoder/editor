@@ -167,7 +167,7 @@ describe("MobileEditorBottomToolbar", () => {
       "无序列表",
       "反缩进",
       "缩进",
-      "关联卡片",
+      "引用内容",
       "图片",
       "撤销",
       "收起键盘",
@@ -185,7 +185,7 @@ describe("MobileEditorBottomToolbar", () => {
     expect(controller.outdent).toHaveBeenCalled();
     clickButton("缩进");
     expect(controller.indent).toHaveBeenCalled();
-    clickButton("关联卡片");
+    clickButton("引用内容");
     expect(controller.executeAction).toHaveBeenCalledWith("content-link");
     clickButton("图片");
     expect(controller.handleInsertImage).toHaveBeenCalled();
@@ -350,6 +350,46 @@ describe("MobileEditorBottomToolbar", () => {
     });
     expect(getButtonLabels()).toEqual(["格式", "加粗"]);
     expect(getSeparators()).toHaveLength(0);
+  });
+
+  describe("引用上下文", () => {
+    const linkContext = {
+      kind: "content-link" as const,
+      element: {
+        type: "content-link",
+        contentId: 100,
+        contentType: "card",
+        contentTitle: "艾宾浩斯遗忘曲线",
+        refId: 12,
+        children: [{ type: "formatted", text: "遗忘曲线" }],
+      } as never,
+      path: [0, 1],
+    };
+
+    it("左端是显示文字标签，中段预览 / 更换 / 移除，右端收起键盘", () => {
+      const controller = createController({ editingContext: linkContext });
+      render(controller);
+
+      expect(getButtonLabels()).toEqual(["引用内容", "预览", "更换", "移除", "收起键盘"]);
+      const chip = getButton("引用内容");
+      expect(chip?.textContent).toBe("遗忘曲线");
+
+      clickButton("预览");
+      expect(controller.openContentLinkPreview).toHaveBeenCalled();
+      clickButton("更换");
+      expect(controller.retargetContentLink).toHaveBeenCalled();
+      clickButton("移除");
+      expect(controller.executeAction).toHaveBeenCalledWith("content-link");
+      clickButton("引用内容");
+      expect(controller.dismissEditingContext).toHaveBeenCalled();
+    });
+
+    it("白名单不含「引用内容」时按通用模式渲染", () => {
+      render(createController({ editingContext: linkContext }), {
+        visibleButtons: new Set<AccessoryItemId>(["undo"]),
+      });
+      expect(getButtonLabels()).toEqual(["撤销", "收起键盘"]);
+    });
   });
 
   describe("表格上下文", () => {

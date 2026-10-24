@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="sakura" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端内容引用（content-link）· 设计方案</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="link.css" />
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>移动端内容引用 · 设计方案<small>颜色取自 @tau/themes · 手机帧 360×760 · 详情页沿用已定的「纸面 + 编辑悬浮按钮」</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="sakura">樱花</option><option value="paper">暖纸</option><option value="ocean">海盐</option>
+        <option value="mint">薄荷</option><option value="wisteria">紫藤</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="issues">0 问题清单</button>
+    <button class="tab" data-tab="style">1 行内样式</button>
+    <button class="tab" data-tab="read">2 阅读态点击</button>
+    <button class="tab" data-tab="edit">3 编辑态操作</button>
+    <button class="tab" data-tab="state">4 失效与未共享<span class="tag">直接做</span></button>
+    <button class="tab" data-tab="picker">5 选择器与命名</button>
+  </nav>
+</header>
+
+<section class="scene" data-scene="issues">
+  <p class="intro">对照了移动端 <code>editorExtensions/contentLinkExtension.tsx</code>、<code>ContentLinkPickerSheet.tsx</code> 与桌面 <code>editor-extensions/content-link</code>。问题分三类：<b>Bug</b>（直接修）、<b>设计</b>与<b>交互</b>（每类给 2–3 个方案，在后面的页签里对比）。</p>
+  <table class="issue-table">
+    <thead><tr><th style="width:44px">#</th><th style="width:66px">类型</th><th style="width:240px">现象</th><th>原因</th><th style="width:96px">处理</th></tr></thead>
+    <tbody>
+      <tr><td>D1</td><td><span class="kind ds">设计</span></td><td>引用不跟随主题色</td><td>样式写死 <code>text-tag-1</code> / <code>border-tag-1</code>。tag-1 在 6 个主题里都是苔绿色，和 accent 无关；网页链接与桌面引用用的都是 <code>accent-text</code>。</td><td class="how pick">需你选（1）</td></tr>
+      <tr><td>D2</td><td><span class="kind ds">设计</span></td><td>下划线太重，和用户下划线混淆</td><td>3px 双线下边框，在 17px 正文里比用户自选颜色的下划线还显眼，两者也容易看混。</td><td class="how pick">需你选（1）</td></tr>
+      <tr><td>B1</td><td><span class="kind bug">Bug</span></td><td>长引用不能折行</td><td>节点是 <code>inline-flex</code>，相当于一个不可拆的整块；放不下时整块挤到下一行，上一行留下一截空白。</td><td class="how fix">直接修</td></tr>
+      <tr><td>B2</td><td><span class="kind bug">Bug</span></td><td>预览浮层打开时，返回手势直接退出页面</td><td>浮层是自己 <code>createPortal</code> 出来的，没有接 <code>useSheetBackDismiss</code>，违反 mobile.md「浮层返回拦截」的规则。选 T1 后改用 SnapSheet，自动解决。</td><td class="how fix">直接修</td></tr>
+      <tr><td>U1</td><td><span class="kind ux">交互</span></td><td>要点两次才能进入详情</td><td>第一次点开浮层，第二次点同一个链接才跳转。浮层里<b>没有标题，也没有「打开」按钮</b>，这个操作只能靠猜。</td><td class="how pick">需你选（2）</td></tr>
+      <tr><td>U2</td><td><span class="kind ux">交互</span></td><td>预览是桌面式锚点卡</td><td>宽 92vw、最高 420px，几乎盖满屏幕又不是全屏；滚动时跟着重新定位；里面嵌了一个 17px 正文的完整编辑器；时间显示为秒级的 <code>toLocaleString</code>。</td><td class="how pick">需你选（2）</td></tr>
+      <tr><td>U3</td><td><span class="kind ux">交互</span></td><td>编辑态改不了、换不了、移除很隐蔽</td><td>节点 <code>contentEditable=false</code>，光标进不去；点一下就弹预览，打断输入；移除要选中后再点一次配件栏按钮（隐藏的开关）；没有「更换引用」。</td><td class="how pick">需你选（3）</td></tr>
+      <tr><td>U4</td><td><span class="kind ux">交互</span></td><td>失效引用、协作者视角没有对应状态</td><td>内容被删只显示「内容预览加载失败」；协作者会去查本机库，同一个 ID 可能命中无关内容。桌面已经有「链接已失效 / 未共享」两种状态。</td><td class="how fix">直接做（4）</td></tr>
+      <tr><td>U5</td><td><span class="kind ux">交互</span></td><td>选择器信息太少</td><td>空关键词时一片空白；只搜卡片（文章、项目文档在 <code>searchAllContent</code> 里已经能搜到）；结果行副标题是「Card #128」。</td><td class="how pick">需你选（5）</td></tr>
+      <tr><td>N1</td><td><span class="kind ux">交互</span></td><td>两个功能都叫「关联卡片」</td><td>⋯ 菜单里的「关联卡片」是卡片之间的关联（<code>CardLinksSheet</code>），配件栏和阅读选区条上的「关联卡片」插入的却是行内引用；工具栏又写「关联内容」，图标一处是 FileText，一处是 Link2。</td><td class="how pick">需你选（5）</td></tr>
+    </tbody>
+  </table>
+  <div class="combo">
+    <b>推荐组合：</b>样式 <b>L1</b>（与网页链接同族的点线下划线，和桌面一致）+ 阅读态 <b>T1</b>（底部预览面板）+ 编辑态 <b>E1</b>（配件栏的引用模式）+ 选择器 <b>P1</b> + 命名统一为<b>「引用内容」</b>；B1、B2、U4 直接修。<br />
+    如果想先小步落地：E1 换成 <b>E3</b>，可以直接复用 T1 的面板，工作量大约减半，代价是编辑态改不了显示文字。
+  </div>
+</section>
+
+<section class="scene" data-scene="style">
+  <p class="intro">每个帧里有同样四段正文：第一段一个短引用，第二段一个<b>需要折行的长引用</b>，第三段是<b>网页链接</b>和<b>用户自选颜色的下划线</b>作参照。可以在右上角切换主题族和深浅色，看引用颜色是否跟着变。</p>
+  <div class="frames" id="style-frames"></div>
+</section>
+
+<section class="scene" data-scene="read">
+  <p class="intro">阅读态（只读）下点引用会发生什么。核心问题是<b>「看一眼」和「进入详情」</b>怎么分配：现在靠点两次，而且第二次点击没有任何提示。下面三个方向的「行内样式」都用 L1 展示，与样式的选择无关。</p>
+  <div class="frames" id="read-frames"></div>
+</section>
+
+<section class="scene" data-scene="edit">
+  <p class="intro">编辑态（键盘弹起）下需要的操作是：<b>改显示文字、更换引用目标、移除引用、偶尔预览</b>。配件栏已经有「上下文模式」：光标进代码块、表格、媒体时，左端出现上下文标签，后面换成对应的工具，E1 沿用这套模式。</p>
+  <div class="frames" id="edit-frames"></div>
+</section>
+
+<section class="scene" data-scene="state">
+  <p class="intro">这一页没有方案要选，是把桌面已有的状态补到移动端，列出来供你确认效果。面板形态跟随第 2 页的选择，这里按 T1 画。</p>
+  <div class="frames" id="state-frames"></div>
+</section>
+
+<section class="scene" data-scene="picker">
+  <p class="intro">从配件栏或阅读选区条「引用内容」进入的选择器。数据层面 <code>searchAllContent</code> 已经支持按类型搜索，最近编辑可以沿用卡片关联弹层的做法。<b>命名</b>：建议行内引用统一叫<b>「引用内容」</b>，图标统一用 Link2，把「关联卡片」留给 ⋯ 菜单里卡片之间的关联；也可以和桌面的提示文字一样叫「关联内容」，但仍然和「关联卡片」只差一个字。</p>
+  <div class="frames" id="picker-frames"></div>
+</section>
+
+<script src="link.js"></script>
+</body>
+</html>
