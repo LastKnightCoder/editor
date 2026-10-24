@@ -1,6 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { JsonValue } from "@tau/plugins";
+import {
+  createBridgeFetch,
+  FETCH_CHUNK_BYTES,
+  type FetchResponseData,
+} from "@tau/plugins/fetch-bridge";
 import type { SyncProvider } from "@tau/plugins/sync";
 import type { MobilePluginRuntime } from "./runtime";
 
@@ -11,7 +16,10 @@ export function encodePluginBytes(bytes: Uint8Array): string {
   return btoa(binary);
 }
 export function decodePluginBytes(value: string): Uint8Array {
-  return Uint8Array.from(atob(value), character => character.charCodeAt(0));
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+  return bytes;
 }
 
 interface ProviderRequest {
@@ -23,79 +31,110 @@ interface ProviderRequest {
   config: JsonValue;
   method: keyof SyncProvider;
   name?: string;
-  bytes?: string;
+  file?: { id: string; size: number };
   mimeType?: string;
 }
-interface FetchResponse {
-  status: number;
-  statusText: string;
-  headers: [string, string][];
-  body: string;
-  url: string;
+async function networkCall<T>(command: string, args: Record<string, unknown>): Promise<T> {
+  try {
+    return await invoke<T>(command, args);
+  } catch (issue) {
+    if (issue instanceof Error) throw issue;
+    throw new TypeError(String(issue));
+  }
+}
+export function createPluginFetch(token: string): typeof globalThis.fetch {
+  return createBridgeFetch({
+    open: async request => {
+      const { bufferedBody, ...metadata } = request;
+      const id = await networkCall<number>("plugin_fetch_open", { token, request: metadata });
+      if (bufferedBody) {
+        try {
+          for (let offset = 0; offset < bufferedBody.length; offset += FETCH_CHUNK_BYTES)
+            if (
+              !(await networkCall<boolean>("plugin_fetch_upload", {
+                token,
+                id,
+                chunk: encodePluginBytes(bufferedBody.subarray(offset, offset + FETCH_CHUNK_BYTES)),
+              }))
+            )
+              break;
+          await networkCall("plugin_fetch_upload", { token, id, chunk: null });
+        } catch (issue) {
+          await networkCall("plugin_fetch_cancel", { token, id }).catch(() => undefined);
+          throw issue;
+        }
+      }
+      return id;
+    },
+    upload: (id, chunk) =>
+      networkCall<boolean>("plugin_fetch_upload", {
+        token,
+        id,
+        chunk: chunk === null ? null : encodePluginBytes(chunk),
+      }),
+    response: id => networkCall<FetchResponseData>("plugin_fetch_response", { token, id }),
+    read: async id => {
+      const chunk = await networkCall<string | null>("plugin_fetch_read", { token, id });
+      return chunk === null ? null : decodePluginBytes(chunk);
+    },
+    buffer: async id => {
+      const file = await networkCall<{ id: string; size: number }>("plugin_fetch_buffer", {
+        token,
+        id,
+      });
+      return readProviderFile(token, file, () => true);
+    },
+    cancel: id => networkCall<void>("plugin_fetch_cancel", { token, id }),
+  });
 }
 
-export function createPluginFetch(token: string): typeof globalThis.fetch {
-  return async (input, init) => {
-    const request = new Request(input, init);
-    request.signal.throwIfAborted();
-    const bytes = request.body ? new Uint8Array(await request.arrayBuffer()) : undefined;
-    request.signal.throwIfAborted();
-    const requestId = crypto.randomUUID();
-    const cancel = () => {
-      void invoke("plugin_fetch_cancel", { token, requestId }).catch(() => undefined);
-    };
-    let onAbort: () => void = () => undefined;
-    const aborted = new Promise<never>((_resolve, reject) => {
-      onAbort = () => {
-        cancel();
-        reject(request.signal.reason ?? new DOMException("请求已取消", "AbortError"));
-      };
-      request.signal.addEventListener("abort", onAbort, { once: true });
+export async function readProviderFile(
+  token: string,
+  file: { id: string; size: number },
+  active: () => boolean
+): Promise<Uint8Array> {
+  if (!Number.isSafeInteger(file.size) || file.size < 0) throw new Error("插件文件大小无效");
+  const bytes = new Uint8Array(file.size);
+  let offset = 0;
+  while (true) {
+    if (!active()) throw new DOMException("插件宿主会话已结束", "AbortError");
+    const value = await networkCall<string | null>("plugin_file_read", {
+      token,
+      id: file.id,
+      offset,
     });
-    try {
-      const result = await Promise.race([
-        aborted,
-        invoke<FetchResponse>("plugin_fetch", {
-          token,
-          request: {
-            requestId,
-            url: request.url,
-            method: request.method,
-            headers: [...request.headers],
-            body: bytes ? encodePluginBytes(bytes) : null,
-            redirect: request.redirect,
-          },
-        }),
-      ]);
-      request.signal.throwIfAborted();
-      const body =
-        [204, 205, 304].includes(result.status) || request.method === "HEAD"
-          ? null
-          : new Uint8Array(decodePluginBytes(result.body));
-      const response = new Response(body, {
-        status: result.status,
-        statusText: result.statusText,
-        headers: result.headers,
-      });
-      Object.defineProperties(response, {
-        url: { value: result.url },
-        redirected: { value: result.url !== request.url },
-      });
-      return response;
-    } catch (issue) {
-      request.signal.throwIfAborted();
-      if (issue instanceof Error) throw issue;
-      throw new TypeError(String(issue));
-    } finally {
-      request.signal.removeEventListener("abort", onAbort);
-    }
-  };
+    if (value === null) break;
+    const chunk = decodePluginBytes(value);
+    if (!chunk.length || chunk.length > FETCH_CHUNK_BYTES || offset + chunk.length > bytes.length)
+      throw new Error("插件文件长度无效");
+    bytes.set(chunk, offset);
+    offset += chunk.length;
+  }
+  if (offset !== bytes.length) throw new Error("插件文件长度不完整");
+  return bytes;
+}
+export async function writeProviderFile(
+  token: string,
+  id: string,
+  bytes: Uint8Array,
+  active: () => boolean
+): Promise<void> {
+  for (let offset = 0; offset < bytes.length; offset += FETCH_CHUNK_BYTES) {
+    if (!active()) throw new DOMException("插件宿主会话已结束", "AbortError");
+    await invoke("plugin_file_write", {
+      token,
+      id,
+      offset,
+      chunk: encodePluginBytes(bytes.subarray(offset, offset + FETCH_CHUNK_BYTES)),
+    });
+  }
 }
 
 export async function connectMobilePluginTransport(runtime: MobilePluginRuntime) {
   let token: string | undefined;
   let disposed = false;
   const openings = new Map<string, Promise<unknown>>();
+  let fileQueue = Promise.resolve();
   const stop = await listen<ProviderRequest>("plugin-provider-request", async ({ payload }) => {
     if (disposed || payload.token !== token) return;
     if (payload.kind === "close") {
@@ -104,52 +143,68 @@ export async function connectMobilePluginTransport(runtime: MobilePluginRuntime)
       openings.delete(payload.session);
       return;
     }
-    let result: unknown;
-    let error: string | undefined;
-    try {
-      if (payload.kind === "upload") {
-        result = await runtime.upload.upload(
-          payload.pluginId,
-          {
-            name: payload.name ?? "file",
-            mimeType: payload.mimeType ?? "application/octet-stream",
-            content: decodePluginBytes(payload.bytes ?? ""),
-          },
-          payload.config
-        );
-      } else {
-        let opening = openings.get(payload.session);
-        if (!opening) {
-          opening = runtime.sync.execute({
-            kind: "open",
+    const execute = async () => {
+      if (disposed || payload.token !== token) return;
+      let result: unknown;
+      let error: string | undefined;
+      try {
+        if (payload.kind === "upload") {
+          if (!payload.file) throw new Error("插件上传缺少源文件");
+          result = await runtime.upload.uploadOwned(
+            payload.pluginId,
+            {
+              name: payload.name ?? "file",
+              mimeType: payload.mimeType ?? "application/octet-stream",
+              content: await readProviderFile(payload.token, payload.file, () => !disposed),
+            },
+            payload.config
+          );
+        } else {
+          let opening = openings.get(payload.session);
+          if (!opening) {
+            opening = runtime.sync.execute({
+              kind: "open",
+              session: payload.session,
+              pluginId: payload.pluginId,
+              config: payload.config,
+            });
+            openings.set(payload.session, opening);
+          }
+          await opening;
+          result = await runtime.sync.execute({
+            kind: "call",
             session: payload.session,
-            pluginId: payload.pluginId,
-            config: payload.config,
+            method: payload.method,
+            args:
+              payload.file && payload.method !== "downloadFile"
+                ? [
+                    payload.name,
+                    await readProviderFile(payload.token, payload.file, () => !disposed),
+                  ]
+                : [payload.name ?? undefined],
           });
-          openings.set(payload.session, opening);
+          if (result instanceof Uint8Array) {
+            if (!payload.file) throw new Error("插件下载缺少接收文件");
+            await writeProviderFile(payload.token, payload.file.id, result, () => !disposed);
+            result = { fileSize: result.byteLength };
+          }
         }
-        await opening;
-        result = await runtime.sync.execute({
-          kind: "call",
-          session: payload.session,
-          method: payload.method,
-          args:
-            payload.bytes === undefined || payload.bytes === null
-              ? [payload.name ?? undefined]
-              : [payload.name, decodePluginBytes(payload.bytes)],
-        });
-        if (result instanceof Uint8Array) result = encodePluginBytes(result);
+      } catch (issue) {
+        error = issue instanceof Error ? issue.message : String(issue);
       }
-    } catch (issue) {
-      error = issue instanceof Error ? issue.message : String(issue);
-    }
-    if (!disposed && payload.requestId)
-      await invoke("plugin_transport_reply", {
-        token,
-        requestId: payload.requestId,
-        result: result ?? null,
-        error: error ?? null,
-      }).catch(() => undefined);
+      if (!disposed && payload.requestId)
+        await invoke("plugin_transport_reply", {
+          token,
+          requestId: payload.requestId,
+          result: result ?? null,
+          error: error ?? null,
+        }).catch(() => undefined);
+    };
+    if (payload.file) {
+      const pending = fileQueue.then(execute);
+      fileQueue = pending.catch(() => undefined);
+      await pending;
+    } else await execute();
   });
   try {
     token = await invoke<string>("plugin_transport_connect", { database: runtime.workspaceId });

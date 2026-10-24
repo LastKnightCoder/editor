@@ -6,6 +6,7 @@ use serde_json::{json, Value};
 use tauri::AppHandle;
 
 use crate::models::{SyncActionResponse, SyncVersionResponse};
+use crate::plugin_files::TemporaryFile;
 use crate::setting::{resolve_app_dir, set_database_version, update_setting_value};
 
 use super::common::{response_err, response_ok, DEFAULT_DB_NAME, SYNC_CHECK_TIMEOUT_SECS};
@@ -262,7 +263,9 @@ async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
         );
     }
 
-    let db_bytes = match read_database_snapshot(&ctx.database_path) {
+    let snapshot = match TemporaryFile::new(&app)
+        .and_then(|snapshot| create_database_snapshot(&ctx.database_path, snapshot))
+    {
         Ok(bytes) => bytes,
         Err(err) => {
             return response_err(
@@ -283,7 +286,12 @@ async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
     // 移动端不修改聊天内容，沿用下载版本的会话对象。
     let next_version_payload = snapshot_version_payload(remote_info, next_version, &data_object);
     if let Err(err) = publish_snapshot(
-        ctx.provider.upload(&data_object, &db_bytes),
+        async {
+            ctx.provider
+                .upload_path(&data_object, &snapshot.path)
+                .await
+                .map_err(|e| AppError::new("SYNC_UPLOAD_FAILED", e))
+        },
         publish_version_commit(
             &ctx.provider,
             &ctx.version_object_name,
@@ -362,16 +370,14 @@ async fn publish_version_commit(
     Ok(())
 }
 
-fn read_database_snapshot(path: &PathBuf) -> Result<Vec<u8>, String> {
-    let snapshot = path.with_extension(format!("db.{}.upload", uuid::Uuid::new_v4()));
-    let result = (|| {
-        let conn = rusqlite::Connection::open(path).map_err(|e| e.to_string())?;
-        conn.execute("VACUUM INTO ?1", [snapshot.to_string_lossy().as_ref()])
-            .map_err(|e| e.to_string())?;
-        fs::read(&snapshot).map_err(|e| e.to_string())
-    })();
-    let _ = fs::remove_file(snapshot);
-    result
+fn create_database_snapshot(
+    path: &PathBuf,
+    snapshot: TemporaryFile,
+) -> Result<TemporaryFile, String> {
+    let conn = rusqlite::Connection::open(path).map_err(|e| e.to_string())?;
+    conn.execute("VACUUM INTO ?1", [snapshot.path.to_string_lossy().as_ref()])
+        .map_err(|e| e.to_string())?;
+    Ok(snapshot)
 }
 
 #[cfg(test)]
@@ -458,16 +464,52 @@ mod tests {
     }
 
     #[test]
+    fn large_database_snapshot_stays_on_disk() {
+        let dir = std::env::temp_dir().join(format!("tau-large-snapshot-{}", uuid::Uuid::new_v4()));
+        fs::create_dir(&dir).unwrap();
+        let path = dir.join("large.db");
+        let conn = rusqlite::Connection::open(&path).unwrap();
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0; CREATE TABLE large(payload BLOB);").unwrap();
+        let length = 129_i64 * 1024 * 1024;
+        conn.execute("INSERT INTO large VALUES(zeroblob(?1))", [length])
+            .unwrap();
+        let snapshot =
+            create_database_snapshot(&path, TemporaryFile::new_in(&dir).unwrap()).unwrap();
+        assert!(fs::metadata(&snapshot.path).unwrap().len() > 128 * 1024 * 1024);
+        let check = rusqlite::Connection::open(&snapshot.path).unwrap();
+        assert_eq!(
+            check
+                .query_row("SELECT length(payload) FROM large", [], |row| row
+                    .get::<_, i64>(0))
+                .unwrap(),
+            length
+        );
+        drop(check);
+        drop(conn);
+        drop(snapshot);
+        assert_eq!(
+            fs::read_dir(&dir)
+                .unwrap()
+                .filter_map(Result::ok)
+                .filter(|entry| entry
+                    .path()
+                    .extension()
+                    .is_some_and(|ext| ext == "transfer"))
+                .count(),
+            0
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn upload_snapshot_includes_committed_wal_records() {
         let dir = std::env::temp_dir().join(format!("tau-snapshot-{}", uuid::Uuid::new_v4()));
         fs::create_dir(&dir).unwrap();
         let path = dir.join("data.db");
         let conn = rusqlite::Connection::open(&path).unwrap();
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0; CREATE TABLE sample(value TEXT); INSERT INTO sample VALUES('committed');").unwrap();
-        let bytes = read_database_snapshot(&path).unwrap();
-        let snapshot_path = dir.join("snapshot.db");
-        fs::write(&snapshot_path, bytes).unwrap();
-        let snapshot = rusqlite::Connection::open(snapshot_path).unwrap();
+        let file = create_database_snapshot(&path, TemporaryFile::new_in(&dir).unwrap()).unwrap();
+        let snapshot = rusqlite::Connection::open(&file.path).unwrap();
         assert_eq!(
             snapshot
                 .query_row("SELECT value FROM sample", [], |r| r.get::<_, String>(0))
@@ -582,12 +624,18 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
         );
     }
 
-    let downloaded = match ctx.provider.download(data_object).await {
-        Ok(bytes) => bytes,
+    let downloaded = match ctx.provider.download_temporary(data_object).await {
+        Ok(file) => file,
         Err(error) => {
-            return response_err(&ctx.database_name, ctx.local_version, remote_version, error);
+            return response_err(
+                &ctx.database_name,
+                ctx.local_version,
+                remote_version,
+                AppError::new("SYNC_DOWNLOAD_FAILED", error),
+            )
         }
     };
+    let tmp_path = &downloaded.path;
 
     let backup_dir = match resolve_app_dir(&app) {
         Ok(dir) => dir.join("backup"),
@@ -635,22 +683,9 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
         }
     }
 
-    let tmp_path = ctx.database_path.with_file_name(format!(
-        "{}.{}.download.tmp",
-        ctx.database_name,
-        uuid::Uuid::new_v4()
-    ));
-    if let Err(err) = fs::write(&tmp_path, downloaded) {
-        return response_err(
-            &ctx.database_name,
-            ctx.local_version,
-            remote_version,
-            AppError::new("SYNC_DOWNLOAD_FAILED", format!("写入临时文件失败: {err}")),
-        );
-    }
-    if let Err(err) = crate::database::validate_download(&tmp_path) {
-        let _ = fs::remove_file(&tmp_path);
-        remove_wal_shm_files(&tmp_path);
+    if let Err(err) = crate::database::validate_download(tmp_path) {
+        let _ = fs::remove_file(tmp_path);
+        remove_wal_shm_files(tmp_path);
         return response_err(
             &ctx.database_name,
             ctx.local_version,
@@ -663,7 +698,7 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
     }
     if ctx.database_path.exists() {
         if let Err(err) = crate::database::force_checkpoint_database(&app, &ctx.database_name) {
-            let _ = fs::remove_file(&tmp_path);
+            let _ = fs::remove_file(tmp_path);
             return response_err(
                 &ctx.database_name,
                 ctx.local_version,
@@ -672,8 +707,8 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
             );
         }
     }
-    if let Err(err) = replace_database_file(&tmp_path, &ctx.database_path) {
-        let _ = fs::remove_file(&tmp_path);
+    if let Err(err) = replace_database_file(tmp_path, &ctx.database_path) {
+        let _ = fs::remove_file(tmp_path);
         return response_err(
             &ctx.database_name,
             ctx.local_version,

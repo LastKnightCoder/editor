@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
-use base64::{engine::general_purpose::STANDARD, Engine};
 use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter};
 
+use crate::plugin_files::{FileLease, TemporaryFile};
 use crate::plugin_transport;
 use crate::setting::get_active_database_name;
+use std::path::Path;
 
 #[derive(Clone)]
 pub(crate) struct PluginProvider(Arc<Session>);
@@ -74,29 +75,90 @@ impl PluginProvider {
         name: Option<&str>,
         bytes: Option<&[u8]>,
     ) -> Result<Value, String> {
+        if let Some(bytes) = bytes {
+            let temp = TemporaryFile::new(&self.0.app)?;
+            std::fs::write(&temp.path, bytes).map_err(|e| e.to_string())?;
+            return self.call_file(method, name, &temp.path, false).await;
+        }
         plugin_transport::request(
             &self.0.app,
             &self.0.token,
             json!({
                 "kind": "sync", "session": self.0.session, "pluginId": self.0.id,
                 "config": self.0.config, "method": method, "name": name,
-                "bytes": bytes.map(|bytes| STANDARD.encode(bytes)),
             }),
         )
         .await
     }
-    pub(crate) async fn upload_resource(
+    async fn call_file(
+        &self,
+        method: &str,
+        name: Option<&str>,
+        path: &Path,
+        writing: bool,
+    ) -> Result<Value, String> {
+        let _memory = crate::plugin_files::memory_permit().await?;
+        let file = FileLease::open(&self.0.token, path, writing)?;
+        let result = plugin_transport::request(
+            &self.0.app,
+            &self.0.token,
+            json!({
+                "kind": "sync", "session": self.0.session, "pluginId": self.0.id,
+                "config": self.0.config, "method": method, "name": name, "file": file.descriptor,
+            }),
+        )
+        .await?;
+        if writing {
+            file.finish(result["fileSize"].as_u64().ok_or("插件没有返回文件长度")?)?;
+        }
+        Ok(result)
+    }
+    pub(crate) async fn upload_path(&self, name: &str, path: &Path) -> Result<(), String> {
+        if self
+            .call_file("uploadFile", Some(name), path, false)
+            .await?
+            == true
+        {
+            Ok(())
+        } else {
+            Err("插件文件上传失败".into())
+        }
+    }
+    pub(crate) async fn download_path(&self, name: &str, path: &Path) -> Result<(), String> {
+        self.call_file("downloadFile", Some(name), path, true)
+            .await
+            .map(|_| ())
+    }
+    pub(crate) async fn download_temporary(&self, name: &str) -> Result<TemporaryFile, String> {
+        let temp = TemporaryFile::new(&self.0.app)?;
+        self.download_path(name, &temp.path).await?;
+        Ok(temp)
+    }
+    pub(crate) async fn download_bytes(&self, name: &str) -> Result<Vec<u8>, String> {
+        let temp = self.download_temporary(name).await?;
+        if std::fs::metadata(&temp.path)
+            .map_err(|e| e.to_string())?
+            .len()
+            > 4 * 1024 * 1024
+        {
+            return Err("同步版本元数据过大".into());
+        }
+        std::fs::read(&temp.path).map_err(|e| e.to_string())
+    }
+    pub(crate) async fn upload_resource_path(
         &self,
         name: &str,
         mime_type: &str,
-        content: &[u8],
+        path: &Path,
     ) -> Result<String, String> {
+        let _memory = crate::plugin_files::memory_permit().await?;
+        let file = FileLease::open(&self.0.token, path, false)?;
         let result = plugin_transport::request(
             &self.0.app,
             &self.0.token,
             json!({
                 "kind": "upload", "pluginId": self.0.id, "config": self.0.config,
-                "name": name, "mimeType": mime_type, "bytes": STANDARD.encode(content),
+                "name": name, "mimeType": mime_type, "file": file.descriptor,
             }),
         )
         .await?;
@@ -106,5 +168,15 @@ impl PluginProvider {
             return Err("上传插件必须返回 HTTP(S) 资源地址".into());
         }
         Ok(url.into())
+    }
+    pub(crate) async fn upload_resource(
+        &self,
+        name: &str,
+        mime_type: &str,
+        content: &[u8],
+    ) -> Result<String, String> {
+        let temp = TemporaryFile::new(&self.0.app)?;
+        std::fs::write(&temp.path, content).map_err(|e| e.to_string())?;
+        self.upload_resource_path(name, mime_type, &temp.path).await
     }
 }

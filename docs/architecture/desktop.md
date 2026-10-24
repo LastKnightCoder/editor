@@ -143,7 +143,7 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 
 **资源上传**：默认本地，远端由渲染进程插件经 `context.upload.register` 提供（设置分区 `target: "upload"` 挂「资源存储」）；宿主负责压缩、唯一命名与配置快照；独立编辑/Markdown 窗口经 plugin-local IPC 转发到已连接的主窗口渲染宿主（主进程不加载插件、不建隐藏窗口）；窗口关闭/导航/宿主释放/插件停用后拒绝在途结果。GitHub/OSS/S3 旧图床与 WebDAV 图床已退役；GitHub/S3 博客账号已迁到发布插件配置。
 
-**标准 fetch**：插件经 `@tau/plugins` 的 `context.fetch`，其他桌面调用用 `commands/fetch` 的 desktopFetch——原生 fetch 类型（RequestInit/Headers/FormData/AbortSignal → Response），无兼容层。fetch 模块为 BACKGROUND（ensureModule 保证就绪）：主进程原生执行，内部 IPC 支持上传/响应流与取消并恢复 URL、redirected、type 与完整响应头；请求属于发起窗口，窗口销毁或导航回收。执行环境是宿主 Node，不自动继承页面 Cookie/CORS（显式 Cookie/Referer 与 Set-Cookie 须保留）；业务自行决定认证与状态处理。
+**标准 fetch**：插件经 `@tau/plugins` 的 `context.fetch`，其他桌面调用用 `commands/fetch` 的 desktopFetch——原生 fetch 类型（RequestInit/Headers/FormData/AbortSignal → Response），无兼容层。两端复用内部 `@tau/plugins/fetch-bridge`，上传按最多 256 KiB 分块并等待背压，响应按需读取；该入口不进入作者 tarball。fetch 模块为 BACKGROUND（ensureModule 保证就绪）：主进程原生执行，内部 IPC 支持上传/响应流与取消并恢复 URL、redirected、type 与完整响应头；请求属于发起窗口，窗口销毁或导航回收。执行环境是宿主 Node，不自动继承页面 Cookie/CORS（显式 Cookie/Referer 与 Set-Cookie 须保留）；业务自行决定认证与状态处理。
 
 ### 插件业务数据与授权
 

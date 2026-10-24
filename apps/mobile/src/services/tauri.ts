@@ -765,10 +765,31 @@ export function resourceSyncGetStatus() {
   return trackedInvoke<ResourceSyncStatusFile | null>("resource_sync_get_status");
 }
 
-// Android 的 IPC 二进制通道不可靠（tauri#10573 会把二进制包装成逐字节 JSON），
-// 上传/读取统一走 base64 字符串；调用方负责先做前端预压缩以控制负载
-export function uploadResource(params: { fileName: string; mimeType: string; base64: string }) {
-  return trackedInvoke<string>("upload_resource", { payload: params });
+// Android 保留字符串 IPC，每次只编码当前块，文件大小不受 IPC 消息大小约束。
+export async function uploadResource(params: {
+  fileName: string;
+  mimeType: string;
+  content: Blob;
+}) {
+  const id = await trackedInvoke<string>("resource_upload_begin", {
+    fileName: params.fileName,
+    mimeType: params.mimeType,
+  });
+  try {
+    const chunkSize = 256 * 1024;
+    for (let offset = 0; offset < params.content.size; offset += chunkSize) {
+      const bytes = new Uint8Array(
+        await params.content.slice(offset, offset + chunkSize).arrayBuffer()
+      );
+      let binary = "";
+      for (let index = 0; index < bytes.length; index += 32768)
+        binary += String.fromCharCode(...bytes.subarray(index, index + 32768));
+      await trackedInvoke("resource_upload_write", { id, offset, chunk: btoa(binary) });
+    }
+    return await trackedInvoke<string>("upload_resource", { id, size: params.content.size });
+  } finally {
+    await trackedInvoke("resource_upload_cancel", { id }).catch(() => undefined);
+  }
 }
 
 /** 用指定上传服务传一张固定名测试图并回读，不改变当前上传位置 */

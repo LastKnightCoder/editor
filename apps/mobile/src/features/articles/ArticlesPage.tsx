@@ -17,8 +17,6 @@ import {
 import type { ArticleListItem } from "../../types";
 import { clampText } from "../../utils/richTextText";
 import { formatTimeDisplay, readingMinutes } from "../../utils/formatTime";
-import { arrayBufferToBase64 } from "../../utils/base64";
-import { compressImageForUpload } from "../../utils/imageCompress";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { logPerf, sampleFrames } from "../../utils/perf";
 import { toast } from "../../components/toast";
@@ -124,17 +122,15 @@ export function ArticlesPage(props: ArticlesPageProps) {
     }
   };
 
-  // 更换封面：从相册选图 → 预压缩上传文件 → 写回 banner_bg（编辑页不再承载该操作）
+  // 更换封面：分块暂存上传文件，由原生按设置压缩后写回 banner_bg。
   const handleCoverFile = async (file: File) => {
     if (!coverTarget) return;
     setCoverUploading(true);
     try {
-      const compressed = await compressImageForUpload(file);
-      const buffer = await compressed.blob.arrayBuffer();
       const url = await tauri.uploadResource({
-        fileName: compressed.fileName,
-        mimeType: compressed.mimeType,
-        base64: arrayBufferToBase64(buffer),
+        fileName: file.name,
+        mimeType: file.type || "application/octet-stream",
+        content: file,
       });
       if (!url) {
         throw new Error("RESOURCE_UPLOAD_FAILED: 资源上传失败");
