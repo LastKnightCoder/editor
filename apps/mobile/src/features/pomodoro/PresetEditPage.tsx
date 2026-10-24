@@ -138,7 +138,7 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
               onChange={event => setName(event.target.value)}
               placeholder="如：深度工作"
               maxLength={20}
-              className="bg-page text-ink-1 placeholder:text-ink-3 w-full rounded-[14px] px-3.5 py-3 text-[14.5px] font-bold outline-none"
+              className="input-base w-full px-3.5 py-3 font-bold"
             />
           </section>
 

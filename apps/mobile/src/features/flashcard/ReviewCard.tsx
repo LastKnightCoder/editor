@@ -130,7 +130,7 @@ export function ReviewCardFront({ card, answer, onAnswerChange }: ReviewCardFace
               onChange={event => onAnswerChange({ qa: event.target.value })}
               placeholder="先凭记忆作答，再翻面对照（也可以直接翻面自评）"
               rows={5}
-              className="bg-page text-ink-1 placeholder:text-ink-3 focus:border-accent w-full resize-none rounded-[16px] border-2 border-transparent px-4 py-3.5 text-[14px] font-medium leading-[1.7] outline-none"
+              className="bg-page text-ink-1 placeholder:text-ink-3 focus:border-accent input-text w-full resize-none rounded-[16px] border-2 border-transparent px-4 py-3.5 font-medium leading-[1.7] outline-none"
             />
           </div>
         );
