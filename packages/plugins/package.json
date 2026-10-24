@@ -38,7 +38,9 @@
     "./sync": "./src/sync.ts",
     "./provider-host": "./src/provider-host.ts",
     "./fetch-bridge": "./src/fetch-bridge.ts",
-    "./tts-host": "./src/tts-host.ts"
+    "./asr-host": "./src/asr-host.ts",
+    "./tts-host": "./src/tts-host.ts",
+    "./websocket-bridge": "./src/websocket-bridge.ts"
   },
   "scripts": {
     "check": "tsc --noEmit",
@@ -68,6 +70,7 @@
     "slate-react": "0.126.4",
     "slate": "0.126.2",
     "@tau/editor": "workspace:*",
-    "@tau/markdown": "workspace:*"
+    "@tau/markdown": "workspace:*",
+    "@tau/asr": "workspace:*"
   }
 }

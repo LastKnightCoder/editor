@@ -36,6 +36,12 @@
 | `context.images`、`context.video`、`context.publish`                            | 领域提供方已接                             | 未接                                    | 未接               | 本轮不扩大其他业务领域                                                                           |
 | `context.backend`                                                               | 格式 2 独立后台与授权已接                  | 格式 3 不支持                           | 格式 3 不支持      | Node、子进程、本机程序使用独立的桌面后台包                                                       |
 
+## ASR 与 WebSocket
+
+SDK 0.43.0 的 `context.asr`、`context.websocket` 与 `settings target: "asr"` 已接桌面 0.59.5、Android/iOS 0.2.7 宿主源码。移动插件使用同一注册、配置和事件接口，音频由宿主采集，插件不访问麦克风。当前仅保留能力层，语音输入与整理的按钮、设置页和导航尚未挂载；ASR 表单可注册，open 返回入口不可用。设备与真实云端账号验收单独记录；Windows 原生识别仍待验证，不影响插件契约。
+
+ASR 支持能力探测、可取消的流式会话与可选文件任务；提供方必须真实声明能力，Seed 当前仅流式。WebSocket 的工厂仅扩展鉴权头和 signal，连接保留标准事件、状态、同步 send/close；详见 [WebSocket 契约](websocket.md)。桌面整理服务复用现有模型配置，保留原文和失败回退；输入目标及界面位置由后续接入方决定。
+
 ## 正文、UI 与交互
 
 | 能力                                               | 已实现范围                                                               | 作者需要适配                                               | 宿主未接或待验收                                                              |

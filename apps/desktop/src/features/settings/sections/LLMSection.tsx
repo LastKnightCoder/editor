@@ -111,9 +111,12 @@ const ASSIGNMENT_CATEGORIES: Array<{ label: string; features: FeatureDef[] }> = 
   },
 ];
 
-const FEATURE_LABELS = Object.fromEntries(
-  ASSIGNMENT_CATEGORIES.flatMap(category => category.features.map(f => [f.key, f.label]))
-) as Record<FeatureKey, string>;
+const FEATURE_LABELS = {
+  ...Object.fromEntries(
+    ASSIGNMENT_CATEGORIES.flatMap(category => category.features.map(f => [f.key, f.label]))
+  ),
+  speechInputRefinement: "语音输入整理",
+} as Record<FeatureKey, string>;
 
 /** 推理档位的界面文案：与输入框的档位选择同一套说法，不暴露内部档位名 */
 const THINKING_LEVEL_LABELS: Record<PiThinkingLevel, string> = {
@@ -620,7 +623,9 @@ export function LLMSection() {
   const tab = useSettingsStore(state => state.llmTab);
   const setTab = (llmTab: "providers" | "assignment" | "permission" | "usage") =>
     useSettingsStore.setState({ llmTab });
-  const unassignedCount = Object.values(llmUsageSettings).filter(usage => usage === null).length;
+  const unassignedCount = ASSIGNMENT_CATEGORIES.flatMap(category => category.features).filter(
+    feature => !llmUsageSettings[feature.key]
+  ).length;
 
   /** 全部 (服务商, 模型) 平铺；选项 value 为下标，选择时反查成 providerId + modelId */
   const modelEntries = useMemo(
@@ -653,7 +658,8 @@ export function LLMSection() {
           value={selectedIndex >= 0 ? String(selectedIndex) : null}
           options={modelOptions}
           onValueChange={value => {
-            const entry = modelEntries[Number(value)];
+            const entry =
+              value == null || value === "off" ? undefined : modelEntries[Number(value)];
             updateUsage(
               feature.key,
               entry ? { providerId: entry.provider.id, modelId: entry.model.id } : null

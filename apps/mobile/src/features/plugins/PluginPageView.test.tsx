@@ -141,3 +141,65 @@ it("TTS 设置进入统一语音配置而不裸渲染作者表单", async () => 
     runtime = null;
   }
 });
+
+it("ASR 保留注册能力，但不开放设置跳转或渲染配置入口", async () => {
+  const environment = createPluginEnvironmentStore({
+    platform: "android",
+    input: { coarsePointer: true, finePointer: false },
+  });
+  const created = new MobilePluginRuntime(
+    environment,
+    createMemoryStorage(),
+    "A",
+    navigator,
+    "0.2.7"
+  );
+  runtime = created;
+  phase = "ready";
+  pageId = "test.asr:asr";
+  navigator.push.mockClear();
+  let openSettings: (() => Promise<void>) | undefined;
+  const component = vi.fn(() => <p>ASR 账号表单</p>);
+  created.host.registerTrusted(
+    definePlugin({
+      id: "test.asr",
+      name: "识别能力",
+      version: "1",
+      create: () => ({
+        activate(context) {
+          context.asr.register({
+            id: context.pluginId,
+            name: "识别能力",
+            create: () => ({ probe: vi.fn(), openStream: vi.fn() }),
+          });
+          const handle = context.settings.register({
+            id: "asr",
+            title: "语音输入",
+            target: "asr",
+            component,
+          });
+          openSettings = () => handle.open();
+        },
+      }),
+    })
+  );
+  await created.host.enable("test.asr");
+  expect(created.asr.list()).toHaveLength(1);
+  expect(created.settings.has(pageId)).toBe(true);
+  if (!openSettings) throw new Error("设置注册失败");
+  await expect(openSettings()).rejects.toThrow("尚未提供界面入口");
+  expect(navigator.push).not.toHaveBeenCalled();
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<PluginSettingsView />));
+    expect(component).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain("ASR 账号表单");
+    expect(container.textContent).not.toContain("前往语音输入设置");
+  } finally {
+    await act(async () => root.unmount());
+    await created.dispose();
+    container.remove();
+  }
+});

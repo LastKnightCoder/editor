@@ -99,3 +99,9 @@ UiHostProvider 只接受平台中立的 dismiss 登记函数。真实 Dialog/Dra
 `plugin-validation` 模式保留正常 AppShell，只注入行为验证器；独立应用标识复用专用测试应用，输出 dist-plugin-validation。验证器调用正式原生安装服务，随后从真实“我的”页打开计数器、在正常卡片正文编辑 ABC；报告写入隔离测试库的 validation.host/report。普通构建不包含自动验证器或固定包来源。
 
 旧 `plugin-spike` 仍是独立验证壳，仅用于历史最小实验；其 localStorage 双包、替换入口、历史重置和文本编辑面板不是正式路径。正式宿主复现见 [接入校验指南](/docs/guides/plugin-portability-hosts.md)，旧壳复现见 [spike 指南](/docs/guides/plugin-portability-spike.md)。
+
+## ASR 与 WebSocket 宿主
+
+`ASRProviderRegistry` 统一提供方注册、配置快照、会话取消和最终结果校验；提供方注销、插件停用与工作区失效会使会话终止。`settings target: "asr"` 在两端保留注册与配置契约，表单及跳转入口尚未挂载；程序化 open 返回入口不可用。麦克风及输入目标由应用负责，协议解析属于独立插件仓库。
+
+网络桥的作者接口和限额唯一维护于 [WebSocket 契约](/packages/plugins/docs/websocket.md)。公共 JS 适配器提供 EventTarget 及状态机，桌面通过 Electron IPC 和 ws，移动通过工作区 token 校验的 Tauri 命令和 tokio-tungstenite；内部桥接 Promise 与收包机制不暴露给插件。原生层保留握手头、子协议、消息边界、关闭码和关闭原因；断线不隐式重连，工作区释放回收连接。

@@ -39,6 +39,11 @@ it("配置操作按提交顺序执行，等待会覆盖当前在途保存", asyn
 it("权威快照只覆盖原生管理字段，保留仍在编辑的普通设置", () => {
   const previous = {
     database: { active: "A.db", databases: [] },
+    speechInput: {
+      active: "native",
+      language: "zh-CN",
+      plugin: { id: "", configurations: {} },
+    },
     ttsProviders: [{ id: "old", name: "旧账号", pluginId: "old.tts", config: {}, models: [] }],
     ttsUsageSettings: { default: null },
     sync: { active: "plugin", plugin: { id: "old", configurations: {} }, autoSyncEnabled: true },
@@ -46,6 +51,11 @@ it("权威快照只覆盖原生管理字段，保留仍在编辑的普通设置"
   } as SettingCompat;
   const snapshot = {
     database: { active: "B.db", databases: [{ name: "B.db", version: 7 }] },
+    speechInput: {
+      active: "plugin",
+      language: "zh-CN",
+      plugin: { id: "fixture.asr", configurations: {} },
+    },
     ttsProviders: [
       {
         id: "a",
@@ -72,6 +82,7 @@ it("权威快照只覆盖原生管理字段，保留仍在编辑的普通设置"
   } as SettingCompat;
   const result = mergeProviderSettings(previous, snapshot);
   expect(result.database.active).toBe("B.db");
+  expect(result.speechInput).toEqual(snapshot.speechInput);
   expect(result.ttsProviders).toEqual(snapshot.ttsProviders);
   expect(result.ttsUsageSettings).toEqual(snapshot.ttsUsageSettings);
   expect(result.sync).toMatchObject({ plugin: { id: "fixture.sync" }, autoSyncEnabled: true });
@@ -82,6 +93,7 @@ it("权威快照只覆盖原生管理字段，保留仍在编辑的普通设置"
   expect(ttsResult.ttsProviders).toEqual(snapshot.ttsProviders);
   expect(ttsResult.ttsUsageSettings).toEqual(snapshot.ttsUsageSettings);
   expect(ttsResult.database).toBe(previous.database);
+  expect(ttsResult.speechInput).toBe(previous.speechInput);
   expect(ttsResult.sync).toBe(previous.sync);
   expect(ttsResult.imageBed).toBe(previous.imageBed);
 });

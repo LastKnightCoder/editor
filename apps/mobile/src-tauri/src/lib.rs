@@ -10,6 +10,7 @@ mod plugin_center;
 mod plugin_fetch;
 mod plugin_files;
 mod plugin_provider;
+mod plugin_socket;
 mod plugin_transport;
 mod plugins;
 mod provider_settings;
@@ -85,6 +86,11 @@ pub fn run() {
             plugin_transport::plugin_transport_connect,
             plugin_transport::plugin_transport_disconnect,
             plugin_transport::plugin_transport_reply,
+            plugin_socket::plugin_socket_open,
+            plugin_socket::plugin_socket_send,
+            plugin_socket::plugin_socket_receive,
+            plugin_socket::plugin_socket_close,
+            plugin_socket::plugin_socket_dispose,
             plugin_fetch::plugin_fetch_open,
             plugin_fetch::plugin_fetch_upload,
             plugin_fetch::plugin_fetch_response,

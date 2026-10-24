@@ -56,6 +56,8 @@ import {
 import type { SyncProviderDefinition } from "./sync";
 import type { UploadFile, UploadProviderDefinition } from "./upload";
 import type { TTSProviderDefinition } from "./tts";
+import type { ASRProviderDefinition } from "./asr";
+import type { PluginWebSocket, PluginSocketOptions } from "./websocket";
 import type { ImageProviderDefinition } from "./images";
 import type { VideoProviderDefinition } from "./video";
 import type { PublishProviderDefinition } from "./publish";
@@ -996,6 +998,7 @@ export type PluginContributionKind =
   | "sync"
   | "upload"
   | "tts"
+  | "asr"
   | "images"
   | "video"
   | "publish"
@@ -1110,6 +1113,8 @@ export class PluginHost {
         uploadRemote?(file: UploadFile, signal: AbortSignal): Promise<string>;
       };
       tts?: { register(context: PluginContext, definition: TTSProviderDefinition): Disposable };
+      asr?: { register(context: PluginContext, definition: ASRProviderDefinition): Disposable };
+      websocket?: PluginWebSocket;
       images?: {
         register(context: PluginContext, definition: ImageProviderDefinition): Disposable;
       };
@@ -1813,6 +1818,33 @@ export class PluginHost {
               },
             })
           );
+        },
+      }),
+      asr: Object.freeze({
+        register: (definition: ASRProviderDefinition) => {
+          this.assertActive(entry, activation);
+          if (definition.id !== scope.pluginId || !definition.name.trim() || typeof definition.create !== "function")
+            throw new Error("识别提供方必须属于当前插件");
+          if (!this.options.asr) throw new Error("当前宿主不支持语音识别插件");
+          return registerAs("asr", this.options.asr.register(context, {
+            id: scope.pluginId, name: definition.name,
+            create: (config, modelId) => {
+              this.assertActive(entry, activation);
+              if (entry.state !== "active") throw new Error("识别插件尚未激活");
+              const instance = definition.create(copyJson(config), modelId);
+              if (typeof instance?.probe !== "function" || (!instance.openStream && !instance.transcribeFile))
+                throw new Error("识别提供方实现不完整");
+              return instance;
+            },
+          }));
+        },
+      }),
+      websocket: Object.freeze({
+        connect: (url: string, protocols: string | string[] = [], options: PluginSocketOptions = {}) => {
+          this.assertActive(entry, activation);
+          if (!this.options.websocket) throw new Error("当前宿主不支持 WebSocket");
+          const signal = AbortSignal.any([scope.signal, ...(options.signal ? [options.signal] : [])]);
+          return this.options.websocket.connect(url, protocols, { ...options, signal });
         },
       }),
       tts: Object.freeze({

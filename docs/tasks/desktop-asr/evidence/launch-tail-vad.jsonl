@@ -1,0 +1,24 @@
+{"available":true,"event":"inventory","installedLocales":["zh_CN","zh_TW"],"legacySpeechAuthorization":0,"legacyZhAvailable":true,"legacyZhOnDevice":true,"microphoneAuthorization":0,"os":"Version 26.5.1 (Build 25F80)","reservedLocales":["zh_CN"],"resolvedLocale":"zh_CN","supportedLocales":["de_AT","de_CH","de_DE","en_AU","en_CA","en_GB","en_IE","en_IN","en_NZ","en_SG","en_US","en_ZA","es_CL","es_ES","es_MX","es_US","fr_BE","fr_CA","fr_CH","fr_FR","it_CH","it_IT","ja_JP","ko_KR","pt_BR","pt_PT","yue_CN","zh_CN","zh_HK","zh_TW"],"uptimeMs":631643257,"zhStatus":"installed"}
+{"elapsedMs":69,"event":"analyzer-ready","sampleRate":16000,"uptimeMs":631643326}
+{"afterStop":false,"characters":2,"elapsedMs":1253,"endMs":1200,"event":"recognition","final":false,"startMs":0,"text":"这是","uptimeMs":631644580}
+{"afterStop":false,"characters":3,"elapsedMs":2025,"endMs":2000,"event":"recognition","final":false,"startMs":0,"text":"这是请","uptimeMs":631645353}
+{"afterStop":false,"characters":4,"elapsedMs":2031,"endMs":2000,"event":"recognition","final":false,"startMs":0,"text":"这是请保","uptimeMs":631645358}
+{"afterStop":false,"characters":5,"elapsedMs":2037,"endMs":2000,"event":"recognition","final":false,"startMs":0,"text":"这是请保留","uptimeMs":631645364}
+{"afterStop":false,"characters":6,"elapsedMs":2044,"endMs":2000,"event":"recognition","final":false,"startMs":0,"text":"这是请保留停","uptimeMs":631645371}
+{"afterStop":false,"characters":7,"elapsedMs":3029,"endMs":3000,"event":"recognition","final":false,"startMs":0,"text":"这是请保留停止","uptimeMs":631646356}
+{"afterStop":false,"characters":8,"elapsedMs":3035,"endMs":3000,"event":"recognition","final":false,"startMs":0,"text":"这是请保留停止前","uptimeMs":631646363}
+{"afterStop":false,"characters":9,"elapsedMs":3041,"endMs":3000,"event":"recognition","final":false,"startMs":0,"text":"这是请保留停止前的","uptimeMs":631646368}
+{"afterStop":false,"characters":10,"elapsedMs":3046,"endMs":3000,"event":"recognition","final":false,"startMs":0,"text":"这是请保留停止前的最","uptimeMs":631646373}
+{"afterStop":false,"characters":11,"elapsedMs":3052,"endMs":3000,"event":"recognition","final":false,"startMs":0,"text":"这是请保留停止前的最后","uptimeMs":631646379}
+{"afterStop":false,"characters":12,"elapsedMs":4034,"endMs":4000,"event":"recognition","final":false,"startMs":0,"text":"这是请保留停止前的最后五","uptimeMs":631647361}
+{"afterStop":false,"characters":13,"elapsedMs":4040,"endMs":4000,"event":"recognition","final":false,"startMs":0,"text":"这是请保留停止前的最后五个","uptimeMs":631647367}
+{"afterStop":false,"characters":14,"elapsedMs":4045,"endMs":4000,"event":"recognition","final":false,"startMs":0,"text":"这是请保留停止前的最后五个字","uptimeMs":631647372}
+{"audioDurationMs":5000,"elapsedMs":5012,"event":"end-input","uptimeMs":631648339}
+{"afterStop":true,"characters":15,"elapsedMs":5034,"endMs":5000,"event":"recognition","final":false,"startMs":0,"text":"这是请保留停止前的最后五个字春","uptimeMs":631648361}
+{"afterStop":true,"characters":16,"elapsedMs":5040,"endMs":5000,"event":"recognition","final":false,"startMs":0,"text":"这是请保留停止前的最后五个字春夏","uptimeMs":631648367}
+{"afterStop":true,"characters":17,"elapsedMs":5046,"endMs":5000,"event":"recognition","final":false,"startMs":0,"text":"这是请保留停止前的最后五个字春夏秋","uptimeMs":631648373}
+{"afterStop":true,"characters":18,"elapsedMs":5052,"endMs":5000,"event":"recognition","final":false,"startMs":0,"text":"这是请保留停止前的最后五个字春夏秋冬","uptimeMs":631648379}
+{"afterStop":true,"characters":19,"elapsedMs":5055,"endMs":5000,"event":"recognition","final":false,"startMs":0,"text":"这是请保留停止前的最后五个字春夏秋冬雨","uptimeMs":631648382}
+{"afterStop":true,"characters":20,"elapsedMs":5057,"endMs":5000,"event":"recognition","final":false,"startMs":0,"text":"这是请保留停止前的最后五个字春夏秋冬雨。","uptimeMs":631648384}
+{"afterStop":true,"characters":20,"elapsedMs":5088,"endMs":5000,"event":"recognition","final":true,"startMs":0,"text":"这是请保留停止前的最后五个字春夏秋冬雨。","uptimeMs":631648415}
+{"detectorEnabled":true,"detectorEventCount":0,"event":"summary","finalCount":1,"firstResultMs":1253,"paced":true,"partialCount":19,"reportedSpeechDetected":null,"tailMs":77,"text":"这是请保留停止前的最后五个字春夏秋冬雨。","uptimeMs":631648417}

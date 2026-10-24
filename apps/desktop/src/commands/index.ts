@@ -62,7 +62,6 @@ export type {
 } from "./transcription";
 export {
   transcribeAudio,
-  onTranscriptionProgress,
   getTranscriptionModels,
   checkTranscriptionModel,
   getDownloadedTranscriptionModels,
