@@ -61,7 +61,7 @@
 
 已交付的共享类型、数据入口与 PluginManager 控制器见 [逻辑实现与交接](./tasks/plugin-portability-bcd/logic-handoff.md)。
 
-当前作者清单、统一 API 与平台支持以 [SDK 跨端契约](/packages/plugins/docs/portability.md)、[SDK 支持矩阵](/packages/plugins/docs/api-support.md) 为准；宿主装配事实见 [跨端插件架构](./architecture/plugin-portability.md)。
+当前作者清单、统一 API 与平台支持以 [SDK 跨端契约](/packages/plugins/docs/portability.md)、[SDK 支持矩阵](/packages/plugins/docs/api-support.md) 为准；宿主装配与必要校验边界见 [跨端插件架构](./architecture/plugin-portability.md)。
 
 设备验证与待验收范围见 [编辑器移动适配](./tasks/plugin-portability-bcd/editor-mobile.md)。官方插件和模板在 [plugins/](/plugins/README.md) 以子模块维护；候选实现不代表已发布。
 
