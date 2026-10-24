@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tau-collab-prototype",
+  "main": "src/index.ts",
+  "account_id": "ba54fcb8459b528b75991a4de5e5d023",
+  "compatibility_date": "2026-10-18",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "vars": { "BUILD_REV": "prototype-v1" },
+  "durable_objects": {
+    "bindings": [{ "name": "COLLAB", "class_name": "PrototypeCollaboration" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["PrototypeCollaboration"] }],
+  "observability": { "enabled": true },
+}
