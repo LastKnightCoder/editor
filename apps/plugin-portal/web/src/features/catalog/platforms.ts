@@ -36,6 +36,9 @@ const CAPABILITY_LABELS: Record<PluginCapability, string> = {
   editorCodecs: "正文编解码",
   sourceEditor: "源码编辑",
   runtimeStyles: "动态样式",
+  fetch: "网络请求",
+  sync: "数据同步",
+  upload: "资源上传",
   media: "媒体与资源",
 };
 
