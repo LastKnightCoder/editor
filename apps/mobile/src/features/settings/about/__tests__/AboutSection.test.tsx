@@ -8,9 +8,8 @@ const invoke = vi.hoisted(() => vi.fn());
 vi.mock("@tauri-apps/api/core", () => ({ invoke, Channel: class {} }));
 vi.mock("@tauri-apps/api/app", () => ({ getVersion: async () => "0.2.4" }));
 vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn(async () => undefined) }));
-vi.mock("../../../plugins/components/PluginMarkdown", () => ({
-  PluginMarkdown: ({ source }: { source: string }) => <p>{source}</p>,
-}));
+const push = vi.hoisted(() => vi.fn());
+vi.mock("../../../../router", () => ({ useNavigator: () => ({ push }) }));
 
 import { AboutSection } from "../AboutSection";
 import { useAppUpdate } from "../appUpdate";
@@ -25,6 +24,7 @@ describe("AboutSection", () => {
 
   beforeEach(() => {
     invoke.mockReset();
+    push.mockReset();
     useAppUpdate.setState(initialState, true);
     host = document.createElement("div");
     document.body.appendChild(host);
@@ -47,12 +47,13 @@ describe("AboutSection", () => {
         </QueryClientProvider>
       );
     });
+    // 版本号查询与更新检查都是异步的，等它们落地
     await act(async () => {
-      await Promise.resolve();
+      await new Promise(resolve => setTimeout(resolve, 0));
     });
   }
 
-  it("Android 打开即检查，发现新版本时给出下载入口与更新内容", async () => {
+  it("Android 打开即检查，发现新版本时给出下载入口，更新内容点进独立页面", async () => {
     invoke.mockResolvedValue({
       currentVersion: "0.2.4",
       available: true,
@@ -69,8 +70,13 @@ describe("AboutSection", () => {
     expect(invoke).toHaveBeenCalledWith("app_update_check");
     expect(host.textContent).toContain("发现新版本 0.2.5");
     expect(host.textContent).toContain("下载并安装");
-    expect(host.textContent).toContain("- 修复同步");
+    expect(host.textContent).not.toContain("- 修复同步");
     expect(host.textContent).toContain("版本 0.2.4");
+    const notesRow = Array.from(host.querySelectorAll<HTMLElement>("[role=button]")).find(row =>
+      row.textContent?.includes("新版本更新内容")
+    );
+    act(() => notesRow?.click());
+    expect(push).toHaveBeenCalledWith("releaseNotes");
   });
 
   it("iOS 不展示更新区也不检查", async () => {

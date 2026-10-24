@@ -11,7 +11,14 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 vi.mock("../../../../components/toast", () => ({ toast: { info: toastInfo } }));
 
-import { notesToShow, supportsInAppUpdate, useAppUpdate, type AppUpdateCheck } from "../appUpdate";
+import {
+  AUTO_CHECK_INTERVAL_MS,
+  notesToShow,
+  shouldAutoCheck,
+  supportsInAppUpdate,
+  useAppUpdate,
+  type AppUpdateCheck,
+} from "../appUpdate";
 
 function makeCheck(currentVersion: string, latestVersion: string): AppUpdateCheck {
   return {
@@ -49,6 +56,24 @@ describe("notesToShow", () => {
 
   it("已是最新时只列本版", () => {
     expect(notesToShow(makeCheck("0.2.4", "0.2.4")).map(item => item.version)).toEqual(["0.2.4"]);
+  });
+});
+
+describe("shouldAutoCheck", () => {
+  const now = 1_000_000_000_000;
+
+  it("没检查过或距上次超过间隔才自动检查", () => {
+    expect(shouldAutoCheck({ phase: "idle", checkedAt: null }, now)).toBe(true);
+    expect(shouldAutoCheck({ phase: "latest", checkedAt: now - 60_000 }, now)).toBe(false);
+    expect(
+      shouldAutoCheck({ phase: "available", checkedAt: now - AUTO_CHECK_INTERVAL_MS }, now)
+    ).toBe(true);
+  });
+
+  it("检查、下载中或已下载待安装时不打断", () => {
+    for (const phase of ["checking", "downloading", "ready"] as const) {
+      expect(shouldAutoCheck({ phase, checkedAt: null }, now)).toBe(false);
+    }
   });
 });
 

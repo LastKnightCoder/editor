@@ -56,7 +56,7 @@
 
 ## Android 发布到 R2
 
-发布让已安装用户在「我的 → 版本」收到更新，并更新官网的 Android 下载。只发 Android，iOS 不经此流程。
+发布让已安装用户在「我的 → 关于与更新」收到更新，并更新官网的 Android 下载。只发 Android，iOS 不经此流程。
 
 1. 写好 `apps/mobile/release-notes/<版本>.md`（写法见同目录 README）；缺失或为空时脚本拒绝发布。
 2. 准备 Android 签名（同上节）与 R2 凭据 `R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`。JAVA_HOME、ANDROID_HOME、NDK_HOME 未设置时，脚本按本机默认位置查找。
@@ -70,7 +70,7 @@
    - 先上传 APK，再上传 latest.json；
    - 打 `mobile-v<版本>` 标签（不推送）。
 5. 构建或上传失败时版本号不回滚，修复后加 `--skip-build` 重试。线上已是同版本时需要 `--force`；不允许降级。签名证书与线上不同时拒绝发布，`--force` 也不放行。
-6. 发布后打开 `https://dl.taunote.app/mobile/android/latest.json` 核对版本与 sha256；在装有旧版本的手机上从「我的 → 版本」完成一次检查、下载、安装，确认数据保留。官网下载区随清单自动更新，无需重新部署。
+6. 发布后打开 `https://dl.taunote.app/mobile/android/latest.json` 核对版本与 sha256；在装有旧版本的手机上从「我的 → 关于与更新」完成一次检查、下载、安装，确认数据保留。官网下载区随清单自动更新，无需重新部署。
 
 判据：清单版本、APK 摘要与本地 `apps/mobile/release/` 一致，旧版本手机能覆盖升级。
 

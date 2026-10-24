@@ -1,7 +1,6 @@
 // 关于：应用身份卡 + 软件更新（仅 Android，应用内下载后交给系统安装器）+ 外部链接。
 // iOS 的更新走 App Store / TestFlight，这里不展示更新区。
 
-import { Suspense, lazy, useEffect } from "react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   ArrowDownToLine,
@@ -12,6 +11,7 @@ import {
   Github,
   Globe,
   LoaderCircle,
+  NotebookText,
   RefreshCw,
 } from "lucide-react";
 import type { ReactNode } from "react";
@@ -19,21 +19,16 @@ import appIcon from "../../../../src-tauri/icons/128x128@2x.png";
 import { GroupLabel } from "../../../components/GroupLabel";
 import { ActionButton } from "../storage/fields";
 import { GroupCard, GroupNote, GroupRow } from "../components/ui";
+import { useNavigator } from "../../../router";
 import {
   notesToShow,
   supportsInAppUpdate,
   useAppUpdate,
+  useAutoUpdateCheck,
   type AppUpdateCheck,
   type UpdatePhase,
 } from "./appUpdate";
 import { useAppVersion } from "./useAppVersion";
-
-// 更新说明用笔记同款只读编辑器渲染；按需加载，避免设置页静态引入整个编辑器
-const PluginMarkdown = lazy(() =>
-  import("../../plugins/components/PluginMarkdown").then(module => ({
-    default: module.PluginMarkdown,
-  }))
-);
 
 const LINKS = [
   { label: "官网", detail: "taunote.app", url: "https://taunote.app", icon: Globe },
@@ -175,27 +170,28 @@ function UpdateRow() {
   );
 }
 
-function ReleaseNotes({ check }: { check: AppUpdateCheck }) {
+/** 更新说明不在关于页展开，点进独立页面查看 */
+function ReleaseNotesRow({ check }: { check: AppUpdateCheck }) {
+  const navigator = useNavigator();
   const notes = notesToShow(check);
   if (notes.length === 0) return null;
   return (
-    <>
-      <GroupLabel>{check.available ? "更新内容" : "本版更新"}</GroupLabel>
-      <section className="setting-group space-y-4 px-4 py-3.5">
-        {notes.map(item => (
-          <div key={item.version}>
-            {notes.length > 1 && (
-              <p className="text-ink-2 mb-1 text-[12.5px] font-semibold tabular-nums">
-                v{item.version}
-              </p>
-            )}
-            <Suspense fallback={<p className="text-ink-3 text-[12.5px]">加载中…</p>}>
-              <PluginMarkdown source={item.note} />
-            </Suspense>
-          </div>
-        ))}
-      </section>
-    </>
+    <GroupRow onClick={() => navigator.push("releaseNotes")}>
+      <StatusTile tone="idle">
+        <NotebookText size={17} strokeWidth={1.9} aria-hidden="true" />
+      </StatusTile>
+      <span className="min-w-0 flex-1">
+        <span className="text-ink-1 block text-[14.5px] font-medium">
+          {check.available ? "新版本更新内容" : "本版更新内容"}
+        </span>
+        <span className="text-ink-3 block text-[11.5px] tabular-nums">
+          {check.available && notes.length > 1
+            ? `包含 ${notes.length} 个版本的更新`
+            : `v${notes[0].version}`}
+        </span>
+      </span>
+      <ChevronRight size={16} className="text-ink-3" aria-hidden="true" />
+    </GroupRow>
   );
 }
 
@@ -208,11 +204,8 @@ const UPDATE_ACTIONS: Partial<
 };
 
 function UpdateSection() {
-  const { phase, check, error, checkForUpdate, download, install } = useAppUpdate();
-
-  useEffect(() => {
-    if (useAppUpdate.getState().phase === "idle") void checkForUpdate();
-  }, [checkForUpdate]);
+  const { phase, check, error, download, install } = useAppUpdate();
+  useAutoUpdateCheck();
 
   const action = UPDATE_ACTIONS[phase];
   const run = { download, install };
@@ -222,6 +215,7 @@ function UpdateSection() {
       <GroupLabel>软件更新</GroupLabel>
       <GroupCard>
         <UpdateRow />
+        {check && <ReleaseNotesRow check={check} />}
       </GroupCard>
       {error && (
         <p className="text-warn flex items-center gap-1.5 px-[15px] pt-2 text-[12px]">
@@ -243,7 +237,6 @@ function UpdateSection() {
       {(phase === "available" || phase === "ready") && (
         <GroupNote className="pt-2">安装时由系统确认覆盖，笔记与设置都会保留。</GroupNote>
       )}
-      {check && <ReleaseNotes check={check} />}
     </>
   );
 }
