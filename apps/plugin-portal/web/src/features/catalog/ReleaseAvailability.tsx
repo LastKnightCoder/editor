@@ -1,6 +1,6 @@
 import { CircleAlert, CircleCheck, Info } from "lucide-react";
 import type { CenterCompatibility, CenterVersion } from "../../../../contracts";
-import { capabilityLabel, reasonLabel } from "./platforms";
+import { reasonLabel } from "./platforms";
 
 /**
  * 最新版本与可安装版本的区分展示。兼容结论来自逻辑层；
@@ -35,11 +35,6 @@ export function ReleaseAvailability({
         {compatible.version !== latest.version && (
           <p className="text-ink-3">
             最新版本 v{latest.version} 暂不适用于此设备，安装时使用 v{compatible.version}。
-          </p>
-        )}
-        {compatibility.missingOptional.length > 0 && (
-          <p className="text-ink-3">
-            部分功能不可用：{compatibility.missingOptional.map(capabilityLabel).join("、")}
           </p>
         )}
       </div>

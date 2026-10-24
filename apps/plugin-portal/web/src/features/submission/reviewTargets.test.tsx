@@ -8,32 +8,26 @@ afterEach(cleanup);
 
 type Targets = CenterTargets;
 const previous: Targets = {
-  desktop: { minAppVersion: "0.60.0", required: ["pages"], optional: [] },
+  desktop: { minAppVersion: "0.60.0" },
   ios: {
     minAppVersion: "0.3.0",
-    required: ["pages", "editor"],
-    optional: [],
-    elements: { counter: "render" },
   },
 };
 const current: Targets = {
-  desktop: { minAppVersion: "0.60.0", required: ["pages"], optional: [] },
-  android: { minAppVersion: "0.3.0", required: ["pages"], optional: [] },
+  desktop: { minAppVersion: "0.60.0" },
+  android: { minAppVersion: "0.3.0" },
   ios: {
     minAppVersion: "0.4.0",
-    required: ["pages", "editor"],
-    optional: ["dialogs"],
-    elements: { counter: "edit" },
   },
 };
 
-it("逐平台计算新增平台、最低版本、能力与节点等级变化，未变平台不列出", () => {
+it("逐平台计算新增平台、最低版本、版本变化，未变平台不列出", () => {
   expect(diffTargets(previous, current)).toEqual([
     { platform: "android", kind: "added", lines: ["最低 Tau 0.3.0"] },
     {
       platform: "ios",
       kind: "changed",
-      lines: ["最低 Tau 0.3.0 → 0.4.0", "可选能力新增 对话框", "节点 counter：仅展示 → 可编辑"],
+      lines: ["最低 Tau 0.3.0 → 0.4.0"],
     },
   ]);
   expect(diffTargets(current, { desktop: current.desktop })).toEqual([

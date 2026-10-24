@@ -5,7 +5,6 @@ import { resolveSketch, isSketchableType } from "../utils/sketch/resolve";
 import { WhiteboardAPIContext as APIContext } from "./context";
 import { ErrorBoundary, isEditableTarget } from "@tau/ui";
 import { createServiceRegistry, type ServiceRegistry } from "@tau/shared/service-registry";
-import type { ServiceIdentifier } from "@tau/shared/service-contract";
 import type Board from "../Board";
 import { BoardUtil } from "../utils/BoardUtil";
 import { PathUtil } from "../utils/PathUtil";
@@ -418,61 +417,8 @@ export class ExtensionRuntime {
       }
       const namespace = id.slice(0, id.indexOf("."));
       const reserved = isReservedNamespace(namespace);
-      // 服务依赖：requires/optional 条目必须是服务标识（createServiceId 产物），
-      // requires 中的任一服务在宿主注册表中不存在则拒绝装配；optional 缺失不影响
-      const requiredServices: ServiceIdentifier<unknown>[] = [];
-      const optionalServices: ServiceIdentifier<unknown>[] = [];
-      let declarationFailure: WhiteboardExtensionError | undefined;
-      const readDeclaredServices = (
-        declarations: readonly ServiceIdentifier<unknown>[] | undefined,
-        field: "requires" | "optional"
-      ) => {
-        if (declarations === undefined) return;
-        if (!Array.isArray(declarations)) {
-          declarationFailure = {
-            extensionId: id,
-            reason: "invalid-definition",
-            message: `白板扩展 ${id} 的 ${field} 必须是服务标识数组`,
-          };
-          return;
-        }
-        const bucket = field === "requires" ? requiredServices : optionalServices;
-        for (const candidate of declarations) {
-          const serviceId = (candidate as { id?: unknown } | null | undefined)?.id;
-          if (typeof serviceId !== "string") {
-            declarationFailure = {
-              extensionId: id,
-              reason: "invalid-definition",
-              message: `白板扩展 ${id} 的 ${field} 条目必须是服务标识（createServiceId 产物）：${String(candidate)}`,
-              target: typeof candidate === "string" ? candidate : undefined,
-            };
-            return;
-          }
-          bucket.push(candidate);
-        }
-      };
-      readDeclaredServices(extension.requires, "requires");
-      readDeclaredServices(extension.optional, "optional");
-      if (declarationFailure) {
-        report(declarationFailure);
-        continue;
-      }
       const scopedServices = extensionServices?.(id, this.api) ?? services;
-      const missingService = requiredServices.find(service => !scopedServices.has(service));
-      if (missingService) {
-        report({
-          extensionId: id,
-          reason: "missing-service",
-          message: `白板扩展 ${id} 必需的宿主服务未注册：${missingService.id}`,
-          target: missingService.id,
-        });
-        continue;
-      }
-      const scope = createExtensionScope(this.api, id, {
-        registry: scopedServices,
-        requires: requiredServices,
-        optional: optionalServices,
-      });
+      const scope = createExtensionScope(this.api, id, { registry: scopedServices });
       let value: WhiteboardContributions;
       try {
         registerBoardAccess(scope.api, board);

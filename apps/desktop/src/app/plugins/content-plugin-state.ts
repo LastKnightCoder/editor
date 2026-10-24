@@ -8,6 +8,11 @@ const entries = new Map<
   string,
   { artifact: DevelopmentPluginPackage; definition: PluginDefinition; nodeTypes: string[] }
 >();
+const discovered = new Map<string, string>();
+export const rememberContentPlugin = (artifact: DevelopmentPluginPackage) =>
+  discovered.set(artifact.manifest.id, JSON.stringify(artifact.manifest));
+export const contentPluginDiscovered = (artifact: DevelopmentPluginPackage) =>
+  discovered.get(artifact.manifest.id) === JSON.stringify(artifact.manifest);
 const errors = new Map<string, string>();
 const intended = new Map<string, boolean>();
 export const setContentPluginIntent = (id: string, enabled: boolean) => intended.set(id, enabled);
@@ -24,10 +29,8 @@ export function addContentPlugin(artifact: DevelopmentPluginPackage, definition:
   if (!intended.has(definition.id)) intended.set(definition.id, true);
   desktopContentPlugins.install([...desktopContentPlugins.list(), definition]);
   entries.set(definition.id, { artifact, definition, nodeTypes: getPluginNodeTypes(definition) });
-  if (artifact.manifest.formatVersion === 3)
-    Object.entries(artifact.manifest.targets.desktop?.elements ?? {}).forEach(([type, support]) =>
-      desktopPortableSupport.set(type, support)
-    );
+  rememberContentPlugin(artifact);
+  getPluginNodeTypes(definition).forEach(type => desktopPortableSupport.set(type, "edit"));
 }
 export const contentPluginLoaded = (id: string) => entries.has(id);
 export const contentPluginError = (id: string) => errors.get(id);
@@ -42,17 +45,15 @@ export function contentPluginDefinition(artifact: DevelopmentPluginPackage) {
 export function getContentPluginPublishContext(): PluginRenderContext {
   if (developmentPortableLoaded)
     throw new Error("开发目录跨端包不能发布，请通过插件中心安装并重启");
-  for (const {
-    artifact,
-    definition: { id },
-  } of entries.values()) {
-    if (!artifact.manifest.editor) continue;
-    if (intended.get(id) !== true) throw new Error("内容插件启停尚未生效，请重启后再发布");
+  for (const { definition } of entries.values()) {
+    if (!definition.editorExtensions?.length) continue;
+    if (intended.get(definition.id) !== true)
+      throw new Error("内容插件启停尚未生效，请重启后再发布");
   }
   return {
     builtinTypes: [...builtinTypes],
     plugins: [...entries.values()]
-      .filter(entry => entry.artifact.manifest.editor)
+      .filter(entry => entry.definition.editorExtensions?.length)
       .map(({ artifact, definition, nodeTypes }) => ({
         id: definition.id,
         version: definition.version,

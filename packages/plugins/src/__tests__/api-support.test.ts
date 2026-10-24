@@ -1,9 +1,8 @@
 import { readFileSync } from "node:fs";
 import ts from "typescript";
 import { expect, it } from "vitest";
-import { PLUGIN_CAPABILITIES } from "../capabilities";
 
-it("作者支持矩阵覆盖所有 PluginContext 成员及已登记能力，新增 API 不可漏分类", () => {
+it("作者支持矩阵覆盖所有 PluginContext 成员，新增 API 不可漏分类", () => {
   const document = readFileSync(new URL("../../docs/api-support.md", import.meta.url), "utf8");
   const contract = ts.createSourceFile(
     "contract.ts",
@@ -19,5 +18,4 @@ it("作者支持矩阵覆盖所有 PluginContext 成员及已登记能力，新�
     if (!member.name || !ts.isIdentifier(member.name)) throw new Error("上下文成员需要显式名称");
     expect(document, `矩阵缺少 ${member.name.text}`).toContain(`context.${member.name.text}`);
   }
-  for (const capability of PLUGIN_CAPABILITIES) expect(document).toContain(capability);
 });

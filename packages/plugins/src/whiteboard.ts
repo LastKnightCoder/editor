@@ -35,5 +35,5 @@ export type {
 import { createServiceId } from "@tau/shared/service-contract";
 import type { PluginStorage } from "./contract";
 
-/** 由宿主按插件和工作区绑定，交互扩展通过 requires 声明后获取。 */
+/** 由宿主按插件和工作区绑定，交互扩展通过 getService 获取。 */
 export const IPluginStorage = createServiceId<PluginStorage>("tau.plugin.storage");

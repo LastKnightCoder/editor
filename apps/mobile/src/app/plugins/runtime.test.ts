@@ -37,7 +37,7 @@ it("uploadRemote 使用当前独立配置与原始字节，本地模式不自动
     createMemoryStorage(),
     "A.db",
     { push: vi.fn() },
-    "0.2.3"
+    "0.2.4"
   );
   let context!: PluginContext;
   const upload = vi
@@ -102,7 +102,7 @@ it.each(["android", "ios"] as const)(
       {
         push,
       },
-      "0.2.3"
+      "0.2.4"
     );
     try {
       await runtime.start(
@@ -146,38 +146,23 @@ it.each(["android", "ios"] as const)(
     }
   }
 );
-it("render 不提供插入入口，none 保留未知节点；重新装配相同 ID 不命中旧 Kit", async () => {
+it("已声明平台直接装配实际节点与编辑入口，不需要第二份节点表", async () => {
   vi.stubGlobal("crypto", webcrypto);
   const [, abc] = await portableFixtures();
-  const iosTarget = abc.manifest.targets.ios;
-  if (!iosTarget) throw new Error("测试包缺少 iOS 目标");
-  for (const level of ["render", "none"] as const) {
-    const runtime = new MobilePluginRuntime(
-      environment("ios"),
-      createMemoryStorage(),
-      "A",
-      {
-        push: vi.fn(),
-      },
-      "0.2.3"
-    );
-    const artifact = {
-      ...abc,
-      manifest: {
-        ...abc.manifest,
-        targets: { ios: { ...iosTarget, elements: { abc: level } } },
-      },
-    };
-    try {
-      await runtime.start([{ id: "tau.abc", artifact, enabled: true }], sharedPluginModules);
-      expect([...runtime.errors]).toEqual([]);
-      expect(runtime.content.extensions.every(extension => !extension.blockPanel)).toBe(true);
-      mobileContentPlugins.install(runtime.content.list());
-      runtime.elementSupport.forEach((value, key) => mobilePluginElementSupport.set(key, value));
-      expect(getMobileContentKit().elementTypes.includes("abc")).toBe(level === "render");
-    } finally {
-      await runtime.dispose();
-    }
+  const runtime = new MobilePluginRuntime(
+    environment("ios"),
+    createMemoryStorage(),
+    "A",
+    { push: vi.fn() },
+    "0.2.4"
+  );
+  try {
+    await runtime.start([{ id: "tau.abc", artifact: abc, enabled: true }], sharedPluginModules);
+    expect([...runtime.errors]).toEqual([]);
+    expect(runtime.elementSupport.get("abc")).toBe("edit");
+    expect(runtime.content.extensions.some(extension => extension.blockPanel)).toBe(true);
+  } finally {
+    await runtime.dispose();
   }
 });
 
@@ -202,7 +187,7 @@ it("激活尚未成功时不能打开页面，失败不留下导航副作用", a
     createMemoryStorage(),
     "A",
     { push },
-    "0.2.3"
+    "0.2.4"
   );
   try {
     await runtime.start(
@@ -225,7 +210,7 @@ it("中心撤回立即阻止节点写入并停用页面，保留静态正文到�
     createMemoryStorage(),
     "A",
     { push: vi.fn() },
-    "0.2.3"
+    "0.2.4"
   );
   try {
     await runtime.start(
@@ -233,13 +218,13 @@ it("中心撤回立即阻止节点写入并停用页面，保留静态正文到�
       sharedPluginModules
     );
     expect(runtime.elementSupport.get("abc")).toBe("edit");
-    const abc = artifacts.find(artifact => artifact.manifest.editor)!;
+    const abc = artifacts.find(artifact => artifact.manifest.id === "tau.abc")!;
     const blocked = runtime.blockFromCenter(abc.manifest.id);
     expect(runtime.elementSupport.get("abc")).toBe("none");
     await blocked;
     expect(runtime.isPluginActive(abc.manifest.id)).toBe(false);
     expect(runtime.content.list().length).toBeGreaterThan(0);
-    const page = artifacts.find(artifact => !artifact.manifest.editor)!;
+    const page = artifacts.find(artifact => artifact.manifest.id !== "tau.abc")!;
     await runtime.blockFromCenter(page.manifest.id);
     expect(runtime.entries.size).toBe(0);
   } finally {

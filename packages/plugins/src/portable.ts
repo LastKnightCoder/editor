@@ -1,17 +1,5 @@
-import {
-  validatePluginManifest,
-  comparePluginVersions,
-  assertLocalId,
-  type PluginManifest,
-} from "./package";
-import {
-  readPluginCapabilities,
-  readPluginCapabilityNames,
-  type PluginCapability,
-} from "./capabilities";
+import { validatePluginManifest, comparePluginVersions, type PluginManifest } from "./package";
 import type { PluginEnvironment } from "./environment";
-export { isPluginCapability } from "./capabilities";
-export type { PluginCapability } from "./capabilities";
 
 export const PORTABLE_PLATFORMS = ["desktop", "android", "ios"] as const;
 export type PortablePlatform = (typeof PORTABLE_PLATFORMS)[number];
@@ -27,43 +15,25 @@ export const PORTABLE_SHARED_MODULES = [
   "react/jsx-dev-runtime",
 ] as const;
 
-export interface PortablePluginTarget<Capability extends string = PluginCapability> {
+export interface PortablePluginTarget {
   readonly minAppVersion: string;
-  readonly required: readonly Capability[];
-  readonly optional: readonly Capability[];
-  readonly elements?: Readonly<Record<string, PluginElementSupport>>;
 }
 
-export interface PortablePluginManifest<Capability extends string = PluginCapability> extends Omit<
+export interface PortablePluginManifest extends Omit<
   PluginManifest,
-  "formatVersion" | "platform" | "backend" | "minAppVersion"
+  "formatVersion" | "platform" | "backend" | "minAppVersion" | "editor" | "whiteboard"
 > {
   readonly formatVersion: 3;
   readonly platform: "portable";
   readonly profile: "web-v1";
   readonly description?: string;
-  readonly targets: Readonly<Partial<Record<PortablePlatform, PortablePluginTarget<Capability>>>>;
+  readonly targets: Readonly<Partial<Record<PortablePlatform, PortablePluginTarget>>>;
 }
 
-export type ReadablePortablePluginManifest = PortablePluginManifest<string>;
-
-export const PLUGIN_BASE_REQUIREMENTS = [
-  "commands",
-  "storage",
-  "pages",
-  "navigation",
-  "settings",
-  "dialogs",
-] as const satisfies readonly PluginCapability[];
-export type PluginRequirement =
-  "sourceEditor" | "runtimeStyles" | "media" | "fetch" | "sync" | "upload";
-export type OptionalPluginRequirement = "runtimeStyles";
+export type ReadablePortablePluginManifest = PortablePluginManifest;
 
 export interface PluginAuthorTarget {
   readonly minAppVersion: string;
-  readonly requires?: readonly PluginRequirement[];
-  readonly optional?: readonly OptionalPluginRequirement[];
-  readonly editor?: { readonly elements: Readonly<Record<string, PluginElementSupport>> };
 }
 
 export interface PluginAuthorManifest extends Pick<
@@ -71,9 +41,6 @@ export interface PluginAuthorManifest extends Pick<
   "id" | "name" | "version" | "categories" | "keywords" | "permissions"
 > {
   readonly description?: string;
-  readonly requires?: readonly PluginRequirement[];
-  readonly optional?: readonly OptionalPluginRequirement[];
-  readonly editor?: { readonly elements: Readonly<Record<string, PluginElementSupport>> };
   readonly targets: Readonly<Partial<Record<PortablePlatform, PluginAuthorTarget>>>;
 }
 
@@ -89,7 +56,7 @@ function assertKeys(item: Record<string, unknown>, keys: readonly string[], labe
   if (Object.keys(item).some(key => !keys.includes(key))) throw new Error(`${label}包含未知字段`);
 }
 
-/** 作者只声明额外需求；发行字段由构建工具提供，平台覆盖按整组替换。 */
+/** 作者声明身份与支持平台，宿主功能通过统一 API 注册。 */
 export function buildPortablePluginManifest(
   value: unknown,
   output: PluginBuildOutput
@@ -100,78 +67,21 @@ export function buildPortablePluginManifest(
   const imports = files.imports ?? [];
   if (!Array.isArray(imports) || imports.some(name => !PORTABLE_SHARED_MODULES.includes(name)))
     throw new Error("构建模块依赖无效");
-  const whiteboard = imports.includes("@tau/plugins/whiteboard");
   const { imports: _imports, ...buildFiles } = files;
   assertKeys(
     item,
-    [
-      "id",
-      "name",
-      "version",
-      "description",
-      "categories",
-      "keywords",
-      "permissions",
-      "requires",
-      "optional",
-      "editor",
-      "targets",
-    ],
+    ["id", "name", "version", "description", "categories", "keywords", "permissions", "targets"],
     "作者清单"
   );
   const targets = record(item.targets, "目标平台");
-  const requirements = (input: unknown, optional: boolean) => {
-    const names = readPluginCapabilities(input ?? []);
-    const allowed = optional
-      ? ["runtimeStyles"]
-      : ["sourceEditor", "runtimeStyles", "media", "fetch", "sync", "upload"];
-    if (names.some(name => !allowed.includes(name)))
-      throw new Error(optional ? "功能不支持可选访问" : "作者只能声明额外功能需求");
-    return names;
-  };
-  const elements = (input: unknown) => {
-    if (input === undefined) return undefined;
-    const editor = record(input, "编辑器声明");
-    assertKeys(editor, ["elements"], "编辑器声明");
-    return record(editor.elements, "节点支持声明");
-  };
-  const commonRequired = requirements(item.requires, false);
-  const commonOptional = requirements(item.optional, true);
-  if (commonOptional.some(name => commonRequired.includes(name)))
-    throw new Error("必需与可选能力不能重叠");
-  const commonElements = elements(item.editor);
   const normalized = Object.fromEntries(
     Object.entries(targets).map(([platform, input]) => {
       const target = record(input, "平台配置");
-      assertKeys(target, ["minAppVersion", "requires", "optional", "editor"], "平台配置");
-      const extra =
-        target.requires === undefined ? commonRequired : requirements(target.requires, false);
-      const optional =
-        target.optional === undefined ? commonOptional : requirements(target.optional, true);
-      if (optional.some(name => extra.includes(name))) throw new Error("必需与可选能力不能重叠");
-      if (optional.includes("runtimeStyles") && !extra.includes("sourceEditor"))
-        throw new Error("可选样式编译需要 sourceEditor 访问器");
-      const support = target.editor === undefined ? commonElements : elements(target.editor);
-      const required: PluginCapability[] = [...PLUGIN_BASE_REQUIREMENTS, ...extra];
-      if (support) required.push("editor", "editorCodecs");
-      return [
-        platform,
-        {
-          minAppVersion: target.minAppVersion,
-          required,
-          optional,
-          ...(support ? { elements: support } : {}),
-        },
-      ];
+      assertKeys(target, ["minAppVersion"], "平台配置");
+      return [platform, { minAppVersion: target.minAppVersion }];
     })
   );
-  const {
-    requires: _requires,
-    optional: _optional,
-    editor: _editor,
-    targets: _targets,
-    ...metadata
-  } = item;
+  const { targets: _targets, ...metadata } = item;
   return validatePortableDistributionManifest({
     ...metadata,
     formatVersion: 3,
@@ -180,15 +90,12 @@ export function buildPortablePluginManifest(
     profile: "web-v1",
     format: "cjs",
     ...buildFiles,
-    ...(whiteboard ? { whiteboard: true } : {}),
-    ...(Object.values(normalized).some(target => target.elements) ? { editor: true } : {}),
     targets: normalized,
   });
 }
 
 export interface PortablePluginHost {
   readonly environment: PluginEnvironment;
-  readonly capabilities: readonly PluginCapability[];
   readonly appVersion: string;
   readonly profiles: readonly string[];
 }
@@ -204,15 +111,11 @@ function record(value: unknown, label: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-/** 作者与上传入口严格校验能力词表，避免拼写错误被当作可选降级。 */
+/** 作者、中心和宿主读取同一份平台与版本契约。 */
 export function validatePortablePluginManifest(value: unknown): PortablePluginManifest {
-  return parsePortablePluginManifest(value, readPluginCapabilities);
+  return parsePortablePluginManifest(value);
 }
-
-/** 客户端只放宽能力名称的前向读取，结构、格式、权限与摘要声明仍严格校验。 */
-export function readPortablePluginManifest(value: unknown): ReadablePortablePluginManifest {
-  return parsePortablePluginManifest(value, readPluginCapabilityNames);
-}
+export const readPortablePluginManifest = validatePortablePluginManifest;
 
 /** 构建器与中心共用发行范围；不代表中心已开放批准发布。 */
 export function validatePortableDistributionManifest(value: unknown): PortablePluginManifest {
@@ -223,10 +126,7 @@ export function validatePortableDistributionManifest(value: unknown): PortablePl
   return manifest;
 }
 
-function parsePortablePluginManifest<Capability extends string>(
-  value: unknown,
-  readCapabilities: (value: unknown) => readonly Capability[]
-): PortablePluginManifest<Capability> {
+function parsePortablePluginManifest(value: unknown): PortablePluginManifest {
   const item = record(value, "跨端清单");
   const keys = new Set([
     "formatVersion",
@@ -241,8 +141,6 @@ function parsePortablePluginManifest<Capability extends string>(
     "format",
     "main",
     "styles",
-    "editor",
-    "whiteboard",
     "categories",
     "keywords",
     "permissions",
@@ -270,45 +168,14 @@ function parsePortablePluginManifest<Capability extends string>(
     Object.keys(rawTargets).some(key => !PORTABLE_PLATFORMS.some(platform => platform === key))
   )
     throw new Error("目标平台为空或包含未知平台");
-  const targets: Partial<Record<PortablePlatform, PortablePluginTarget<Capability>>> = {};
+  const targets: Partial<Record<PortablePlatform, PortablePluginTarget>> = {};
   for (const platform of PORTABLE_PLATFORMS) {
     if (!Object.hasOwn(rawTargets, platform)) continue;
     const target = record(rawTargets[platform], "平台配置");
-    if (
-      Object.keys(target).some(
-        key => !["minAppVersion", "required", "optional", "elements"].includes(key)
-      )
-    )
-      throw new Error("平台配置包含未知字段");
+    assertKeys(target, ["minAppVersion"], "平台配置");
     if (typeof target.minAppVersion !== "string") throw new Error("平台缺少最低客户端版本");
     comparePluginVersions(target.minAppVersion, target.minAppVersion);
-    const required = readCapabilities(target.required);
-    const optional = readCapabilities(target.optional ?? []);
-    if (base.whiteboard && platform !== "desktop") throw new Error("白板扩展只支持桌面目标");
-    if (optional.some(capability => required.includes(capability)))
-      throw new Error("必需与可选能力不能重叠");
-    let elements: Record<string, PluginElementSupport> | undefined;
-    if (target.elements !== undefined) {
-      const entries = Object.entries(record(target.elements, "节点支持声明"));
-      if (!base.editor || !entries.length || entries.length > 128)
-        throw new Error("节点支持声明需要编辑器贡献且数量有效");
-      elements = Object.create(null) as Record<string, PluginElementSupport>;
-      for (const [type, support] of entries) {
-        assertLocalId(type);
-        if (type === "__proto__" || !["none", "render", "edit"].includes(support as string))
-          throw new Error("节点支持等级无效");
-        if (support !== "none" && !required.some(capability => capability === "editor"))
-          throw new Error("展示或编辑节点需要声明编辑器能力");
-        elements[type] = support as PluginElementSupport;
-      }
-    }
-    if (base.editor && !elements) throw new Error("每个目标平台必须明确声明节点支持等级");
-    targets[platform] = Object.freeze({
-      minAppVersion: target.minAppVersion,
-      required,
-      optional,
-      ...(elements ? { elements: Object.freeze(elements) } : {}),
-    });
+    targets[platform] = Object.freeze({ minAppVersion: target.minAppVersion });
   }
   const files = record(item.integrity, "文件摘要");
   if (Object.keys(files).some(file => !Object.hasOwn(base.integrity, file)))
@@ -331,7 +198,7 @@ function parsePortablePluginManifest<Capability extends string>(
 export function assertPortablePluginCompatibility(
   manifest: ReadablePortablePluginManifest,
   host: PortablePluginHost
-): PortablePluginTarget<string> {
+): PortablePluginTarget {
   if (!host.profiles.includes(manifest.profile)) throw new Error("宿主未接入跨端运行配置");
   const platform = host.environment.platform;
   if (!PORTABLE_PLATFORMS.some(value => value === platform))
@@ -342,31 +209,5 @@ export function assertPortablePluginCompatibility(
     throw new Error("移动宿主尚未接入业务数据授权");
   if (comparePluginVersions(host.appVersion, target.minAppVersion) < 0)
     throw new Error("客户端版本低于插件要求");
-  const missing = target.required.filter(
-    capability => !host.capabilities.some(available => available === capability)
-  );
-  if (missing.length) throw new Error(`宿主缺少必需能力：${missing.join("、")}`);
   return target;
-}
-
-export function getPortableElementSupport(
-  manifest: ReadablePortablePluginManifest,
-  platform: PortablePlatform,
-  type: string
-): PluginElementSupport {
-  const elements = manifest.targets[platform]?.elements;
-  return elements && Object.hasOwn(elements, type) ? elements[type] : "none";
-}
-
-/** 定义求值后对账节点归属；调用方仍须按支持等级装配渲染与提交保护。 */
-export function assertPortableElementDeclarations(
-  manifest: ReadablePortablePluginManifest,
-  nodeTypes: readonly string[]
-) {
-  const actual = new Set(nodeTypes);
-  for (const target of Object.values(manifest.targets)) {
-    const declared = Object.keys(target.elements ?? {});
-    if (declared.length !== actual.size || declared.some(type => !actual.has(type)))
-      throw new Error("平台节点声明与插件实际贡献不一致");
-  }
 }

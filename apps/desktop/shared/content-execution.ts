@@ -5,6 +5,7 @@ import type { BuildPublishSearchIndexInput } from "../src-electron/main/modules/
 
 export type ContentExecutionRequest =
   | { operation: "validate" }
+  | { operation: "inspect"; id: string }
   | { operation: "publish-search"; input: BuildPublishSearchIndexInput }
   | { operation: "markdown"; nodes: Descendant[] }
   | { operation: "parse"; markdown: string }

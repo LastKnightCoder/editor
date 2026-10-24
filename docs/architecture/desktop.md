@@ -89,7 +89,7 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 
 应用根部注入响应式插件环境，DesktopPluginRuntime 的语义 navigation 入口复用真实侧栏模型；插件页通过 PortalScope/UiHostProvider 接浮层仲裁。显式开发目录、格式 3 装配及独立内容转换边界见[跨端插件宿主](/docs/architecture/plugin-portability.md)。
 
-桌面 0.59.1 的固定插件中心安装接受格式 3，目录/详情/版本/下载使用 v2，主进程声明 desktop 宿主版本与能力。readPortablePluginManifest 保留合法的未来能力名；未知 required 在执行前拒绝，未知 optional 不阻断当前平台，不删除后再核对清单。安装复用原事务、启停和启动快照，清单不改写为旧格式；下载前后复查精确发布版本，暂存/恢复与启动对账原始清单及来源。正式构建忽略调试中心覆盖，拒绝无固定中心来源的格式 3；旧格式读取与系统后台审核保持。
+桌面 0.59.1 的固定插件中心安装接受格式 3，目录/详情/版本/下载使用 v2，主进程提供 desktop 宿主版本与协议集合。格式 3 targets 只声明平台最低版本，不再携带能力列表、节点等级或贡献标记；宿主从实际定义识别静态贡献。安装复用原事务、启停和启动快照，清单不改写为旧格式；下载前后复查精确发布版本，暂存/恢复与启动对账原始清单及来源。正式构建忽略调试中心覆盖，拒绝无固定中心来源的格式 3；旧格式读取与系统后台审核保持。
 
 ### 聊天工具自定义渲染
 
@@ -119,7 +119,7 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 
 ### 静态内容插件
 
-格式 3 的白板插件沿用 whiteboardExtensions，作者不重复声明类型或白板能力标签。构建器从实际宿主模块依赖自动生成内部装配信息，宿主对账实际扩展并沿用静态装配、重启生效与工作区偏好；安装兼容性统一使用目标平台与最低版本，桌面基线为 0.59.3。移动目标不承载白板插件。
+格式 3 的白板插件沿用 whiteboardExtensions，作者不重复声明类型或白板能力标签。宿主在内容进程求值实际定义，识别并校验扩展后沿用静态装配、重启生效与工作区偏好；安装兼容性统一使用目标平台与最低版本，桌面基线为 0.59.4。移动目标不承载白板插件。
 
 - SDK 的 `editorExtensions` / `editorCodecs` 是正式静态贡献（manifest `editor: true`）。主进程开库前按 `.enabled.json` 静态读取已启用内容包并交独立内容渲染进程校验定义，只保存通过校验的快照；`initializeContentPlugins` 在 React 挂载前读取快照，校验类型冲突并装配 CSS/codec；`createDesktopKit` 在底座上 extend 贡献不重建打开中的编辑器；开发台 `context.editor.register` 只用于实验。
 - 桌面与博客的插件贡献由 `@tau/plugins/content` 的 ContentPluginRegistry 保存只读快照；博客发布按用户已安装版本收集 main.js/CSS 在浏览器加载。移动普通正文在自己的 EditorKit 上装配受控跨端快照；浏览器扩展仍用原生套件，未知节点按通用保护保留原数据。
@@ -206,13 +206,13 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 
 元素 interaction 声明控制宿主角点/边点和矩形箭头连接，内部 ElementInteraction 复用 CommonPlugin，隔离导出不挂载交互层。presentation 供图层名称/图标/搜索统一使用；sketch:true 与 useSketch/SketchPaths/纯 sketch 原语复用现有画风；schematic 从静态定义投影既有 SchematicShape，DesktopPageSchematic 统一连接列表/选择器/引用卡片的启动定义目录，导出弹窗使用当前 Board 目录。缩略图不创建隐藏 Board、不运行 activate；完整导出仍使用实际画布。人物专属逻辑已在 C25 M4 退出宿主，只存在于独立插件；不做旧火柴人格式兼容。
 
-插件定义以 whiteboardExtensions 提供静态扩展，包声明 whiteboard:true；作者只从 @tau/plugins/whiteboard 取受控 API，不导入 Board/CommonPlugin。元素定义统一放 WhiteboardExtension.elements，create(api) 只返回每个画布的交互贡献，动态返回 elements 明确拒绝并清理。ContentPluginRegistry 聚合静态白板目录，DesktopWhiteboard 从同一启动快照装配，启停/更新重启生效；沿用现有主进程偏好文件，不新建一份白板启用存储。博客发布上下文只筛选编辑器贡献，不因白板单独启停阻断。
+插件定义以 whiteboardExtensions 提供静态扩展，格式 3 清单不再重复声明白板标记；作者只从 @tau/plugins/whiteboard 取受控 API，不导入 Board/CommonPlugin。元素定义统一放 WhiteboardExtension.elements，create(api) 只返回每个画布的交互贡献，动态返回 elements 明确拒绝并清理。ContentPluginRegistry 聚合静态白板目录，DesktopWhiteboard 从同一启动快照装配，启停/更新重启生效；沿用现有主进程偏好文件，不新建一份白板启用存储。博客发布上下文只筛选编辑器贡献，不因白板单独启停阻断。
 
 公开数据类型位于 types/element.ts、containment.ts 等纯类型文件，extensions/api.ts 与 events.ts 直接依赖它们。types/board.ts 保留内部 Board/IBoardPlugin，仅重新导出同一份元素类型供内部消费者使用，不重复定义数据；作者子入口的含类型依赖图由 check-whiteboard-boundaries.mjs 检查，禁止进入内核和编辑器实现。火柴人作为独立插件从中心安装，不默认随客户端提供。白板核心不携带人物代码；相关发布包只保留在tests/fixtures/plugins做集成测试。博客发布仍只收集编辑器贡献，不额外增加移动端/扩展端白板插件支持。
 
 通用白板归 `@tau/whiteboard`：根入口提供画布、受控 API 和通用组件，`/extensions` 提供扩展工厂，CSS 使用 `styles.css`。WhiteBoard 必须显式传稳定的 extensions；元素、工具、命令、属性面板、导入与界面层由扩展贡献，核心运行时不加载 Slate、EditorKit、Markdown 或截图实现。桌面入口统一使用 `features/shared/whiteboard/DesktopWhiteboard`，列表、多页管理、查询及 400ms 防抖、串行保存、离页 flush 继续由白板域负责；flush 失败必须拒绝，依赖保存的页面复制中止。拖动/连续移动的手势帧不触发 onChange（宿主落库防抖不被高频重置），手势结束统一补发一次最终快照；仅选区变化（点选/框选）同样不触发 onChange（视口变化仍通知，停顿后落库一次以记住视图位置）。元素级选中态经 useSelectState 按元素 id 布尔订阅 selection:change（通知侧短路，未翻转不重渲），只关心缩放的组件经 useZoom 订阅 viewport:change（纯平移零重渲），静态元素层独立 memo，截图树的选区隔离由 useBoardCapture 在树根挂 StaticSelectionContext。视口剔除保持精确盒（不量化扩边），元素渲染统一经 memo 的 ElementHost 包装（按 element 引用与子元素集合浅比较，剔除/分层每帧重建包装时未变子树整体 bail out），剔除追赶经 useDeferredValue 低优先级执行、紧急渲染只更新 viewBox。全库列表接口返回投影数据（剔除媒体地址与选区，保留示意图所需结构），画布保存后就地 patch 列表缓存中该页的元素数与更新时间、不失效整表重拉；打开画布始终走单页全量通道。
 
-每个 Board 创建独立扩展运行时和脑图预览状态；宿主能力经服务注册表注入：DesktopWhiteboard 用 `createServiceRegistry` 注册 `IWhiteboardRichText`、`IResourceService`、`IMediaInfoService`、`IDownloadService`（随数据库重建）并经 `WhiteBoard` 的 `services` 传入，扩展按 requires/optional 声明后从扩展 api 获取（缺失 requires 拒绝装配、optional 降级），不恢复全局 services/slots 集合；导出截图与业务弹窗等纯 UI 配置仍为工厂参数。正文编辑、低缩放订阅与测量使用富文本服务提供的同一套 Kit/文档绑定。包外 useBoard 返回受控 API，快照不可写且按对象身份共享副本，不公开历史栈和插件实例。桌面命令固定初始数据库；异步提交在只读切换、隐藏、卸载或目标删除后失效。Activity 暂停 activate 副作用，真正卸载时 dispose 并销毁 Board。
+每个 Board 创建独立扩展运行时和脑图预览状态；宿主能力经服务注册表注入：DesktopWhiteboard 用 `createServiceRegistry` 注册 `IWhiteboardRichText`、`IResourceService`、`IMediaInfoService`、`IDownloadService`（随数据库重建）并经 `WhiteBoard` 的 `services` 传入，扩展直接通过 getService/tryGetService 获取（必需服务缺失抛错，可缺省服务返回 undefined），不再维护依赖表，不恢复全局 services/slots 集合；导出截图与业务弹窗等纯 UI 配置仍为工厂参数。正文编辑、低缩放订阅与测量使用富文本服务提供的同一套 Kit/文档绑定。包外 useBoard 返回受控 API，快照不可写且按对象身份共享副本，不公开历史栈和插件实例。桌面命令固定初始数据库；异步提交在只读切换、隐藏、卸载或目标删除后失效。Activity 暂停 activate 副作用，真正卸载时 dispose 并销毁 Board。
 
 隐藏时取消临时指针和键盘手势、计时器与吸附反馈，保留画布与历史。指针按发起实例和 pointerId 路由到释放或取消，跨实例移动不转移手势归属；结束事件在捕获阶段收尾，避免被其他控件的 stopPropagation 拦截，同次事件只收尾一次，隐藏/卸载清理归属。取消脑图笔记关联若引用已减少但画布提交失效，在原数据库补偿引用；同时校验目标仍关联原正文，避免覆盖新关联。本地上传菜单由媒体扩展显式声明可用动作，选择器通过扩展界面层承载；工具通过命令 ID 执行，导入按规则只认领一次。
 

@@ -90,7 +90,6 @@ it("安装校验审核清单与摘要后才走中心提交，不走开发提交"
       ...centerHost,
       platform: "ios",
       appVersion: "0.2.3",
-      capabilities: ["commands", "pages", "navigation", "storage", "settings", "dialogs"],
     },
     installationEnabled: true,
   };
@@ -161,7 +160,7 @@ it("未知 optional 可以安装且原样对账，未知 required 或被篡改�
   const [base] = await portableFixtures();
   const manifest: ReadablePortablePluginManifest = {
     ...base.manifest,
-    targets: { ios: { minAppVersion: "0.2.0", required: ["pages"], optional: ["futureFeature"] } },
+    targets: { ios: { minAppVersion: "0.2.0" } },
   };
   const artifact = { ...base, manifest };
   const target = manifest.targets.ios;
@@ -177,7 +176,7 @@ it("未知 optional 可以安装且原样对账，未知 required 或被篡改�
       ? {
           origin: "https://example.invalid",
           installationEnabled: true,
-          host: { ...centerHost, platform: "ios", appVersion: "0.2.0", capabilities: ["pages"] },
+          host: { ...centerHost, platform: "ios", appVersion: "0.2.0" },
         }
       : command === "plugin_center_stage"
         ? { artifact, release, sha256: release.sha256 }
@@ -192,13 +191,13 @@ it("未知 optional 可以安装且原样对账，未知 required 或被篡改�
   vi.mocked(invoke).mockClear();
   release.content.manifest = {
     ...manifest,
-    targets: { ios: { ...target, optional: ["otherFeature"] } },
+    targets: { ios: { ...target } },
   };
   await expect(installMobileCenterRelease(manifest.id, release.releaseId)).rejects.toThrow("清单");
   expect(invoke).toHaveBeenLastCalledWith("plugin_cancel", { id: manifest.id });
   artifact.manifest = {
     ...manifest,
-    targets: { ios: { ...target, required: ["futureFeature"], optional: [] } },
+    targets: { ios: { ...target } },
   };
   release.content.manifest = artifact.manifest;
   vi.mocked(invoke).mockClear();

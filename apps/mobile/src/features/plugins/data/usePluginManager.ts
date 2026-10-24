@@ -75,7 +75,7 @@ export function projectManagedPlugin(
     enabled: item.enabled,
     active,
     pending: !!item.pending,
-    editor: !!item.artifact?.manifest.editor,
+    editor: (runtime?.contributions(item.id).elements ?? 0) > 0,
     error,
     hasBackup: !!item.hasBackup,
     settings: [...(runtime?.settings.entries() ?? [])]

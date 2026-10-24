@@ -124,10 +124,9 @@ const entry = (compatible: boolean): CenterCatalogEntry => ({
   latest: centerRelease("2.0.0", "r2"),
   compatible: compatible ? centerRelease("1.4.0", "r1") : null,
   compatibility: compatible
-    ? { status: "compatible", reasons: [], missingOptional: [] }
+    ? { status: "compatible", reasons: [] }
     : {
         status: "incompatible",
-        missingOptional: [],
         reasons: [{ code: "APP_VERSION_TOO_LOW", minAppVersion: "0.5.0" }],
       },
 });
@@ -175,15 +174,15 @@ it("商店行：整行进详情，按钮单独触发；无兼容版本时以原�
   expect(view.textContent).toContain("不可用");
 });
 
-it("兼容结论：完整可用、可选能力降级、可安装版本落后于最新、不可安装原因", async () => {
+it("兼容结论：完整可用、可安装版本落后于最新、不可安装原因", async () => {
   const view = await mount(
     <CompatibilityNote
       latestVersion="2.0.0"
       compatibleVersion="1.4.0"
-      compatibility={{ status: "compatible", reasons: [], missingOptional: ["dialogs"] }}
+      compatibility={{ status: "compatible", reasons: [] }}
     />
   );
-  expect(view.textContent).toContain("部分功能在此设备不可用：dialogs");
+  expect(view.textContent).toContain("可在此设备完整使用");
   expect(view.textContent).toContain("此设备可安装 v1.4.0");
   await act(async () =>
     root?.render(
@@ -192,7 +191,6 @@ it("兼容结论：完整可用、可选能力降级、可安装版本落后于�
         compatibleVersion={null}
         compatibility={{
           status: "incompatible",
-          missingOptional: [],
           reasons: [{ code: "DISTRIBUTION_UNAVAILABLE" }],
         }}
       />

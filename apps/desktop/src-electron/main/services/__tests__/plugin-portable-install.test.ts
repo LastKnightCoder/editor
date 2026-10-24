@@ -36,23 +36,17 @@ function bundle(
     profile: "web-v1" as const,
     format: "cjs" as const,
     main: "main.js",
-    editor: true as const,
     targets: {
       ...(!options.androidOnly
         ? {
             desktop: {
               minAppVersion: options.minimum ?? "0.59.1",
-              required: options.required ?? ["editor"],
-              optional: [],
-              elements: { abc: "edit" as const },
+              ...(options.required ? { required: options.required } : {}),
             },
           }
         : {}),
       android: {
         minAppVersion: "0.2.2",
-        required: ["editor"],
-        optional: [],
-        elements: { abc: "edit" as const },
       },
     },
     integrity: { "main.js": hash(code) },
@@ -108,7 +102,7 @@ it("格式 3 复用正式安装、扫描、待重启更新和备份恢复，原�
   await rm(path.join(s.root, "plugin-updates/backup-sources", `${id}.json`));
   await expect(restored.restore(id)).rejects.toThrow("固定插件中心");
 });
-it("错误平台、最低版本、未知必需能力及发布清单/摘要不符均拒绝", async () => {
+it("错误平台、最低版本、重复能力声明及发布清单/摘要不符均拒绝", async () => {
   const s = await setup();
   for (const options of [
     { androidOnly: true },

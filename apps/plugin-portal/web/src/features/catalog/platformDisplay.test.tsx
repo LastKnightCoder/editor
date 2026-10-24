@@ -9,12 +9,9 @@ import { TargetMatrix } from "./TargetMatrix";
 afterEach(cleanup);
 
 const targets: CenterTargets = {
-  desktop: { minAppVersion: "0.60.0", required: ["pages"], optional: [] },
+  desktop: { minAppVersion: "0.60.0" },
   android: {
     minAppVersion: "0.3.0",
-    required: ["pages", "editor"],
-    optional: ["dialogs"],
-    elements: { counter: "edit", chart: "render" },
   },
 };
 
@@ -36,7 +33,7 @@ it("平台筛选单选并报告选择；选中具体平台时说明只是浏览�
 });
 
 it("平台标识按固定顺序列出声明平台，旧格式额外标注", () => {
-  const ios = { minAppVersion: "0.3.0", required: [], optional: [] };
+  const ios = { minAppVersion: "0.3.0" };
   const { rerender } = render(
     <PlatformBadges version={{ formatVersion: 3, targets: { ios, android: ios } }} />
   );
@@ -50,14 +47,11 @@ it("平台标识按固定顺序列出声明平台，旧格式额外标注", () =
   ).toEqual(["桌面", "旧格式"]);
 });
 
-it("目标矩阵逐平台展示最低版本、能力与节点等级，未声明平台显示不支持", () => {
+it("目标矩阵逐平台展示最低版本，未声明平台显示不支持", () => {
   render(<TargetMatrix targets={targets} highlight="android" />);
   const android = screen.getByRole("region", { name: "Android目标" });
   expect(within(android).getByText("0.3.0")).toBeTruthy();
-  expect(within(android).getByText("节点等级")).toBeTruthy();
-  expect(within(android).getByText("可编辑")).toBeTruthy();
-  expect(within(android).getByText("仅展示")).toBeTruthy();
-  expect(within(android).getByText("对话框")).toBeTruthy();
+  expect(within(android).queryByText("必需能力")).toBeNull();
   const desktop = screen.getByRole("region", { name: "桌面目标" });
   expect(within(desktop).queryByText("节点等级")).toBeNull();
   const ios = screen.getByRole("region", { name: "iOS目标" });
@@ -70,7 +64,7 @@ it("网页未核验时不宣称可安装，并说明下载 ZIP 不等于安装",
     <ReleaseAvailability
       latest={{ version: "1.2.0" }}
       compatible={null}
-      compatibility={{ status: "unchecked", reasons: [], missingOptional: [] }}
+      compatibility={{ status: "unchecked", reasons: [] }}
     />
   );
   expect(screen.getByRole("note").textContent).toMatch(/网页无法确认你的设备能否安装/);
@@ -83,25 +77,23 @@ it("可安装版本低于最新版本时同时列出二者，不回退到 latest
     <ReleaseAvailability
       latest={{ version: "2.0.0" }}
       compatible={{ version: "1.4.0" }}
-      compatibility={{ status: "compatible", reasons: [], missingOptional: ["dialogs"] }}
+      compatibility={{ status: "compatible", reasons: [] }}
     />
   );
   expect(screen.getByText("可安装 v1.4.0")).toBeTruthy();
   expect(screen.getByText(/最新版本 v2.0.0 暂不适用于此设备/)).toBeTruthy();
-  expect(screen.getByText("部分功能不可用：对话框")).toBeTruthy();
+  expect(screen.queryByText(/部分功能不可用/)).toBeNull();
 });
 
-it("无兼容版本时逐条列出结构化原因及所需版本、缺失能力", () => {
+it("无兼容版本时逐条列出结构化原因及所需版本", () => {
   render(
     <ReleaseAvailability
       latest={{ version: "2.0.0" }}
       compatible={null}
       compatibility={{
         status: "incompatible",
-        missingOptional: [],
         reasons: [
           { code: "APP_VERSION_TOO_LOW", minAppVersion: "0.4.0" },
-          { code: "CAPABILITY_MISSING", capabilities: ["sourceEditor", "future.v9"] },
           { code: "PLATFORM_UNSUPPORTED", platform: "ios" },
           { code: "DISTRIBUTION_UNAVAILABLE" },
         ],
@@ -114,7 +106,6 @@ it("无兼容版本时逐条列出结构化原因及所需版本、缺失能力"
     .map(item => item.textContent);
   expect(items).toEqual([
     "需要 Tau 0.4.0 或更高版本",
-    "客户端缺少必需能力：源码编辑、future.v9",
     "该版本未声明iOS",
     "该平台的插件分发尚未开放",
   ]);
