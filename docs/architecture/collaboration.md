@@ -56,6 +56,10 @@ flowchart TB
 
 ## 3. 涉及文件
 
+### Cloudflare 原型
+
+`apps/collaboration-cloudflare` 是独立验证服务，使用专用 Worker 与 SQLite-backed Durable Object，沿用现有 REST、Hocuspocus 和 Yjs 协议；快照与增量分块持久化。它不接管生产域名或客户端默认入口，不承载线上数据。实现范围与验证命令见[原型说明](/apps/collaboration-cloudflare/README.md)。
+
 新增（协作功能主体）：
 
 ```
