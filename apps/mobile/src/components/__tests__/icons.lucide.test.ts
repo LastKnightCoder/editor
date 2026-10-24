@@ -6,7 +6,7 @@ const projectRoot = process.cwd();
 
 const ICON_FILES = [
   "src/components/AppDock.tsx",
-  "src/features/about/AboutPage.tsx",
+  "src/features/settings/about/AboutSection.tsx",
   "src/features/cards/CardItem.tsx",
   "src/features/cards/ContentDetailPage.tsx",
   "src/features/cards/QuickCaptureSheet.tsx",

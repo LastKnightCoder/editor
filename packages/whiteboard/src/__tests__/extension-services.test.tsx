@@ -18,7 +18,6 @@ import {
   createEmbeddedRichTextService,
   type WhiteboardRichTextService,
 } from "../extensions/text";
-import type { ServiceIdentifier } from "@tau/shared/service-contract";
 import { IFileService, IResourceService, type ResourceService } from "@tau/shared/host-services";
 import { IDownloadService, IMediaInfoService } from "@tau/shared/media-services";
 
@@ -54,7 +53,7 @@ describe("白板扩展的宿主服务访问", () => {
       ["demo.first", "demo.second"].map(id =>
         defineWhiteboardExtension({
           id,
-          requires: [token],
+
           create: api => {
             seen.push(api.getService(token).owner);
             return {};
@@ -68,7 +67,7 @@ describe("白板扩展的宿主服务访问", () => {
     expect(board.extensions?.getRejectedExtensions()).toEqual([]);
     expect(seen).toEqual(["demo.first", "demo.second"]);
   });
-  it("宿主注册的服务经 requires 声明后，create 中 getService 拿到同一实例", () => {
+  it("宿主注册的服务经 create 中 getService 拿到同一实例", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const resource: ResourceService = { upload: async () => "whiteboard://file" };
     const received: unknown[] = [];
@@ -77,7 +76,7 @@ describe("白板扩展的宿主服务访问", () => {
       [
         defineWhiteboardExtension({
           id: "acme.upload",
-          requires: [IResourceService],
+
           create: api => {
             received.push(api.getService(IResourceService));
             return {};
@@ -90,27 +89,28 @@ describe("白板扩展的宿主服务访问", () => {
     expect(received).toEqual([resource]);
   });
 
-  it("requires 的服务未注册时扩展被拒（missing-service，target 为服务 id），其它扩展正常", async () => {
+  it("实际访问缺失服务时只拒绝当前扩展，其它扩展正常", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const board = createBoard();
     const errors = install(board, [
       defineWhiteboardExtension({
         id: "acme.needy",
-        requires: [IFileService],
-        create: () => ({}),
+
+        create: api => {
+          api.getService(IFileService);
+          return {};
+        },
       }),
       defineWhiteboardExtension({
         id: "acme.ok",
         create: () => ({ commands: [{ id: "acme.ok.ping", execute: () => "pong" }] }),
       }),
     ]);
-    expect(errors).toMatchObject([
-      { extensionId: "acme.needy", reason: "missing-service", target: "fileService" },
-    ]);
+    expect(errors).toMatchObject([{ extensionId: "acme.needy", reason: "create-failed" }]);
     await expect(board.extensions!.execute("acme.ok.ping")).resolves.toBe("pong");
   });
 
-  it("optional 服务：缺失时 tryGetService 返回 undefined，已注册时拿到实例，getService 对 optional 抛错", () => {
+  it("服务不重复声明：tryGetService 可缺省，getService 获取已注册实例", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const resource: ResourceService = { upload: async () => "whiteboard://file" };
     let extensionApi: WhiteboardAPI | undefined;
@@ -119,8 +119,7 @@ describe("白板扩展的宿主服务访问", () => {
       [
         defineWhiteboardExtension({
           id: "acme.flexible",
-          requires: [IFileService],
-          optional: [IResourceService],
+
           create: api => {
             extensionApi = api;
             return {};
@@ -141,13 +140,13 @@ describe("白板扩展的宿主服务访问", () => {
     expect(errors).toEqual([]);
     expect(extensionApi!.tryGetService(IResourceService)).toBe(resource);
     expect(extensionApi!.getService(IFileService)).toBeDefined();
-    expect(() => extensionApi!.getService(IResourceService)).toThrow("请改用 tryGetService");
+    expect(extensionApi!.getService(IResourceService)).toBe(resource);
 
     let registrylessApi: WhiteboardAPI | undefined;
     const registryless = install(createBoard(), [
       defineWhiteboardExtension({
         id: "acme.flexible",
-        optional: [IResourceService],
+
         create: api => {
           registrylessApi = api;
           return {};
@@ -158,7 +157,7 @@ describe("白板扩展的宿主服务访问", () => {
     expect(registrylessApi!.tryGetService(IResourceService)).toBeUndefined();
   });
 
-  it("取未声明的服务（getService 与 tryGetService）抛中文错误", () => {
+  it("缺失服务由 getService 抛错，tryGetService 返回 undefined", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const ITestEchoService = createServiceId<{ echo(): string }>("test.echo");
     let extensionApi: WhiteboardAPI | undefined;
@@ -167,7 +166,7 @@ describe("白板扩展的宿主服务访问", () => {
       [
         defineWhiteboardExtension({
           id: "acme.declared",
-          optional: [IFileService],
+
           create: api => {
             extensionApi = api;
             return {};
@@ -177,22 +176,8 @@ describe("白板扩展的宿主服务访问", () => {
       createServiceRegistry(register => register(IResourceService, { upload: async () => "" }))
     );
     expect(errors).toEqual([]);
-    expect(() => extensionApi!.getService(ITestEchoService)).toThrow("未声明服务");
-    expect(() => extensionApi!.tryGetService(ITestEchoService)).toThrow("未声明服务");
-  });
-
-  it("requires 中出现非服务标识的值时按 invalid-definition 拒绝", () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const errors = install(createBoard(), [
-      defineWhiteboardExtension({
-        id: "acme.bogus",
-        requires: ["oops" as unknown as ServiceIdentifier<unknown>],
-        create: () => ({}),
-      }),
-    ]);
-    expect(errors).toMatchObject([
-      { extensionId: "acme.bogus", reason: "invalid-definition", target: "oops" },
-    ]);
+    expect(() => extensionApi!.getService(ITestEchoService)).toThrow();
+    expect(extensionApi!.tryGetService(ITestEchoService)).toBeUndefined();
   });
 
   it("主 api 不提供服务访问，调用即抛错", () => {
@@ -211,7 +196,7 @@ describe("白板扩展的宿主服务访问", () => {
     );
   });
 
-  it("不传 services prop：声明 requires 的扩展被拒，无服务依赖的扩展正常装配", async () => {
+  it("不传服务时实际访问必需服务的扩展失败，其他扩展仍正常装配", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal(
       "ResizeObserver",
@@ -224,8 +209,11 @@ describe("白板扩展的宿主服务访问", () => {
     const errors: WhiteboardExtensionError[] = [];
     const needy = defineWhiteboardExtension({
       id: "acme.needy",
-      requires: [IResourceService],
-      create: () => ({}),
+
+      create: api => {
+        api.getService(IResourceService);
+        return {};
+      },
     });
     const calm = defineWhiteboardExtension({
       id: "acme.calm",
@@ -250,9 +238,7 @@ describe("白板扩展的宿主服务访问", () => {
           />
         )
       );
-      expect(errors).toMatchObject([
-        { extensionId: "acme.needy", reason: "missing-service", target: "resourceService" },
-      ]);
+      expect(errors).toMatchObject([{ extensionId: "acme.needy", reason: "create-failed" }]);
       expect(container.querySelector("[data-whiteboard-root]")).toBeTruthy();
       expect(container.querySelector("[data-calm]")).toBeTruthy();
     } finally {
@@ -275,7 +261,7 @@ describe("白板扩展的宿主服务访问", () => {
     const received: unknown[] = [];
     const uploader = defineWhiteboardExtension({
       id: "acme.upload",
-      requires: [IResourceService],
+
       create: api => {
         received.push(api.getService(IResourceService));
         return {};
@@ -327,7 +313,7 @@ describe("内置与第三方扩展的媒体、富文本服务消费", () => {
     }
     const rich = defineWhiteboardExtension({
       id: "acme.rich",
-      optional: [IWhiteboardRichText],
+
       elements: [
         {
           type: "acme.rich",
@@ -396,7 +382,7 @@ describe("内置与第三方扩展的媒体、富文本服务消费", () => {
       [
         defineWhiteboardExtension({
           id: "acme.uploader",
-          requires: [IResourceService],
+
           create: api => ({
             commands: [
               {

@@ -6,7 +6,6 @@ import {
   setMobilePluginEnabled,
   applyPendingMobilePlugins,
   readDevelopmentPluginSource,
-  MOBILE_PLUGIN_CAPABILITIES,
   type PluginInstallSource,
 } from "@/services/plugins";
 import { createQuickCard, getCardDetail } from "@/services/tauri";
@@ -61,13 +60,15 @@ export async function validateMobileHost(
     console.log("[plugin-validation]", JSON.stringify(value));
   };
   try {
-    const config = await invoke<{ host: { capabilities: string[] } }>("plugin_center_config");
+    const config = await invoke<{ host: { platform: string; appVersion: string } }>(
+      "plugin_center_config"
+    );
     if (
-      JSON.stringify([...config.host.capabilities].sort()) !==
-      JSON.stringify([...MOBILE_PLUGIN_CAPABILITIES].sort())
+      config.host.platform !== runtime.environment.getSnapshot().platform ||
+      config.host.appVersion !== runtime.appVersion
     )
-      throw new Error("原生中心与编辑器运行时的能力声明不一致");
-    checks.push("原生中心选版与编辑器运行时共用能力清单");
+      throw new Error("原生中心与插件运行时的平台或版本不一致");
+    checks.push("原生中心选版与插件运行时共用平台和客户端版本");
     if (__TAU_PLUGIN_VALIDATION_SOURCE_URL__) {
       const response = await fetch(__TAU_PLUGIN_VALIDATION_SOURCE_URL__);
       if (!response.ok) throw new Error(`读取验证包清单失败：${response.status}`);

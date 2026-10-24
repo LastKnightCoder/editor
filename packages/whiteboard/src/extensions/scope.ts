@@ -1,4 +1,3 @@
-import type { ServiceIdentifier } from "@tau/shared/service-contract";
 import type { ServiceRegistry } from "@tau/shared/service-registry";
 import type { WhiteboardAPI } from "./api";
 import { resolveBoardAccess } from "./access";
@@ -8,11 +7,9 @@ import {
   type KernelEventName,
 } from "./events";
 
-/** 扩展可用的宿主服务边界：注册表 + 装配期校验通过的声明清单 */
+/** 扩展可用的宿主服务边界：按扩展绑定的服务注册表 */
 export interface ExtensionServiceScope {
   registry: ServiceRegistry;
-  requires: readonly ServiceIdentifier<unknown>[];
-  optional: readonly ServiceIdentifier<unknown>[];
 }
 
 /** 订阅归扩展所有，安装失败或卸载后不能留下监听器。 */
@@ -65,26 +62,8 @@ export function createExtensionScope(
     );
   };
   const off: WhiteboardAPI["off"] = (event, listener) => events.get(event)?.get(listener)?.();
-  // 服务访问只能命中扩展声明过的 id：未声明属编程错误；optional 声明须经 tryGetService 显式降级
-  const requiredServiceIds = new Set(services.requires.map(service => service.id));
-  const declaredServiceIds = new Set([
-    ...requiredServiceIds,
-    ...services.optional.map(service => service.id),
-  ]);
-  const undeclaredError = (id: ServiceIdentifier<unknown>): Error =>
-    new Error(
-      `白板扩展 ${owner} 未声明服务 "${id.id}"，getService/tryGetService 只能获取 requires 或 optional 中声明过的服务`
-    );
-  const getService: WhiteboardAPI["getService"] = id => {
-    if (!declaredServiceIds.has(id.id)) throw undeclaredError(id);
-    if (!requiredServiceIds.has(id.id))
-      throw new Error(`服务 "${id.id}" 是扩展 ${owner} 的可选依赖，请改用 tryGetService`);
-    return services.registry.get(id);
-  };
-  const tryGetService: WhiteboardAPI["tryGetService"] = id => {
-    if (!declaredServiceIds.has(id.id)) throw undeclaredError(id);
-    return services.registry.tryGet(id);
-  };
+  const getService: WhiteboardAPI["getService"] = id => services.registry.get(id);
+  const tryGetService: WhiteboardAPI["tryGetService"] = id => services.registry.tryGet(id);
   const emit = (event: `${string}.${string}`, ...args: unknown[]): void => {
     if (disposed) return;
     assertEmittableEventName(event, namespace);

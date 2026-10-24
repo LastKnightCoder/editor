@@ -62,7 +62,6 @@ export type {
 } from "./transcription";
 export {
   transcribeAudio,
-  onTranscriptionProgress,
   getTranscriptionModels,
   checkTranscriptionModel,
   getDownloadedTranscriptionModels,
@@ -81,4 +80,3 @@ export * from "./model-downloader";
 export * from "./embedding-model";
 export * from "./model-usage";
 export * from "./vibe-learning";
-export * from "./telemetry";

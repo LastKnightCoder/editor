@@ -1,46 +1,64 @@
-# Cloudflare 首次部署记录
+# 统计服务正式部署
 
-## 任务列表
+## 当前线上配置
 
-- [完成] Investigate/Triage/Understand the problem
-- [完成] 创建独立 D1、配置正式秘密并部署统计域名
-- [完成] 验证线上采集、管理认证、地域与 R2 下载链路
-- [完成] 发布官网入口切换，核对生产页面并记录回滚信息
+| 项目             | 值                                                                            |
+| ---------------- | ----------------------------------------------------------------------------- |
+| 服务与管理后台   | https://analytics.taunote.app                                                 |
+| Worker           | tau-analytics                                                                 |
+| 当前 Worker 版本 | `7d725bc0-77a9-4960-a192-999f68d2927d`，100% 流量                             |
+| 版本标签         | `versions-only-20261024`                                                      |
+| D1               | tau-analytics，`d81957ad-5703-4da1-911a-be8805f8cf88`                         |
+| 已应用迁移       | 0001_analytics.sql、0002_versioned_projections.sql、0003_minimal_versions.sql |
+| 定时清理         | 每小时 UTC 第17分钟                                                           |
+| 上线日期         | 2026-10-24                                                                    |
 
-调查结果：部署前登录账号与正式 account_id 一致，D1 只有 plugin-portal，tau-analytics Worker 不存在。官网沿用 tau-website 项目（tau-website-cvr.pages.dev）。本次已创建并验证统计服务，再完成官网生产发布。
+正式资源以 [Wrangler 配置](/apps/analytics/infra/wrangler.production.jsonc) 为准。现有部署沿用 Workers Free 和既有 Secrets，不新增订阅，不修改 R2 下载域名、官网项目或插件门户数据库。
 
-## 资源
+## 生效范围
 
-- Cloudflare account：`ba54fcb8459b528b75991a4de5e5d023`
-- 新建 D1：`tau-analytics`，ID `d81957ad-5703-4da1-911a-be8805f8cf88`，APAC。
-- Worker/域名：`tau-analytics` / `analytics.taunote.app`。
-- 私有秘密保存位置：`~/.config/tau/analytics/admin-token`、`download-hash-key`，文件权限0600；不记录值、不入库。
+- 只接收 `POST /v1/versions` 的最小应用版本观测；同安装同日更新最新观测，重复与乱序请求不增加安装数。
+- 旧 `POST /v1/events/batch` 返回410，不读取行为正文、不写入数据库；旧行为明细与留存查询返回404。
+- 管理后台只有“应用版本”和“下载统计”，指标版本为2。
+- 官网下载入口仍验证 R2 对象并跳转，保留按日/安装包/出口摘要近似去重的下载发起统计；自动更新与直链不计入。
+- 0003 已回填11条历史版本观测并移除 project_event 触发器，project_download 触发器保留；没有删除历史事件、会话或下载记录。
 
-套餐：现有账号为 Workers Free；首次发布因显式 CPU 上限仅支持付费计划而拒绝，已移除该配置，使用免费默认限制，不更改订阅。D1 免费单库500MB、每天10万行写入，索引/投影/清理均计入，后续按实际用量决定是否升级。
+本次仅发布服务端和同域管理后台，没有发布桌面安装包。已安装旧版客户端可能继续尝试旧接口，但服务端已拒收；客户端停止生成行为请求、改发每日版本观测仍需发布并安装桌面新版。旧Umami已在ECS停用，私有备份与历史查看步骤见 [旧统计停用与恢复](/docs/guides/ops-telemetry-umami.md)。
 
-官网发布前状态：Pages 项目存在，但 API 返回无历史部署，默认域名返回522；此前没有可回退的正式部署。R2 的 latest.yml 可用（Windows 0.58.0），latest-mac.yml 为404。
+## 源码与备份
 
-首次 Worker 版本：`9e5c86ff-8909-4675-9374-9f9f09a9e6f8`；已绑定自定义域名与每小时17分清理任务。
+部署从独立源码快照完成，没有把共享工作区其他任务的改动混入产物。Git 基线为 `9fbcefaa2`，快照包含部署时工作区中的应用版本统计改动；不能仅凭该基线提交重建此次部署。
 
-验证通过的当前 Worker 版本：`7b210fc2-c6da-4999-adac-f7f1a28d832e`（增加实际官网 Pages 域名的来源放行）。50条批量上报及重试、管理查询/登录/安全Cookie/退出、来源控制、静态资源、安全头、R2下载HEAD/302/去重与文件1字节读取均通过。验证标识 `deploy-check-65a44bddc262` 的测试数据已清理。
+私有部署目录：`~/.local/share/tau/analytics/deployments/2026-10-24/versions-2a4e1f4671/`。
 
-真实探测出口为 SG，region_code 为 SG-unknown；确认地域来自服务端且忽略客户端伪造的 CN-99。国内省份编码归一化由已有行为测试覆盖，不把本次境外探测声称为国内实际省份验收。
+- `source.tar.gz`：部署源码及共享 UI/主题依赖快照；SHA-256 为 `5b588d0d857f1393e0064739ceb6fe4a868ef972a8790dcdd8696a4c2ac74e08`。
+- `manifest.json`：逐文件摘要和目标资源，排除 node_modules、构建产物和本地秘密文件。
+- `backup-verification.json`：备份完整性、外键、记录数量及迁移演练结果。
+- `asset-verification.json`：线上后台 JS/CSS 与构建产物逐文件摘要对账结果。
+- `deployment-verification.json`：当前100%流量版本、迁移状态与测试数据清理复核结果。
 
-## 官网切换结果
+迁移前 D1 备份：`~/.local/share/tau/analytics/backups/2026-10-24-versions-2a4e1f4671.sql`，658766字节、权限0600，SHA-256 为 `87e8f4fa58dc1e286492812cb9d3fa373517a6394e735b607f4e3849b60091fb`。备份在内存 SQLite 恢复后通过 integrity_check、foreign_key_check；按实际备份演练0003，历史表记录数量保持不变。备份可能含用户数据，只保存在本机私有目录，不上传仓库。
 
-- 生产部署：`b3f3f3d1-d44c-4c17-8f81-e9a6ca7548fd`，分支 master，Cloudflare 显示 Environment=Production。
-- 生产地址：`https://tau-website-cvr.pages.dev`，部署快照：`https://b3f3f3d1.tau-website-cvr.pages.dev`，均返回200。
-- 下载按钮实际指向 `https://analytics.taunote.app/v1/downloads/Tau-v0.58.0-win32.exe?channel=website`；HEAD 返回302，目标为原 R2 地址，页面不再含安装包直链按钮。
-- 后置验证采用HEAD，不增加正式下载次数。未发布桌面新版本，现有旧端继续使用旧 Umami，新埋点需随桌面下一次发布接入。
-- 2026-10-18 本地类型/20项Analytics测试/8项官网测试及构建通过；本轮未做视觉验收。
+## 验证证据
 
-## 备份与回退
+独立部署快照通过 TypeScript、20项统计服务/客户端行为测试、Vite后台构建和Worker dry-run。正式部署的启动耗时为1ms。
 
-- D1初始备份：`~/.local/share/tau/analytics/backups/2026-10-18T03-42-08-032Z.sql`，权限0600。
-- 官网发布前元信息：`~/.local/share/tau/analytics/deployments/2026-10-18/website-before.json`；验证报告同目录 `deploy-check-65a44bddc262.json`。
-- 稳定 Worker 版本为上文7b210fc2；日后代码回退使用明确版本，不能把创建密钥时的占位脚本版本当作可用回退目标。回退代码不回退数据库。
-- 此前官网无历史部署，不能承诺回滚到旧生产快照；若需撤回统计入口，临时恢复 build/release.ts 的 R2 直链按钮并重新发布官网即可，自动更新源无需修改。
+公网验证报告：`~/.local/share/tau/analytics/deployments/2026-10-24/deploy-check-2477caa94149.json`。已验证：
 
-## 范围
+- 健康检查、管理员登录、安全Cookie、匿名访问拒绝和退出登录。
+- development 独立版本观测的上报、重复确认与版本分布计数为1。
+- 旧行为接口410，原始事件与留存管理接口404。
+- 官网CORS允许，其他来源拒绝。
+- R2对象校验、HEAD/302跳转、下载按日去重和实际文件1字节范围读取。
+- 后台静态资源与安全响应头；线上JS/CSS摘要与独立快照一致，界面结构仅含两个统计页签。
 
-创建独立 D1，配置正式秘密与 analytics.taunote.app，验证新统计服务后再切换官网生产下载入口。保留工作区已有改动，不发布桌面安装包，不停止旧 Umami。
+测试标识 `deploy-check-2477caa94149` 的版本观测、下载回执和下载聚合已定向清理；另行查询确认残留数量均为0。没有对真实用户记录执行清理，没有进行视觉验收。
+
+## 后续发布与恢复
+
+1. 核对正式账号、目标D1和待应用迁移；保留当前源码与线上版本记录。
+2. 在私有目录导出D1并验证可恢复；在备份副本演练新迁移。
+3. 按 [设计](/apps/analytics/docs/DESIGN.md) 的顺序应用迁移、部署Worker及后台、运行远端验证；测试数据必须定向清理并复核。
+4. 服务端验证成功后再发布桌面客户端，旧安装包不会随Worker更新自动替换。
+
+0003 已停用旧事件投影，不能直接回退到旧行为采集版本 `7b210fc2-c6da-4999-adac-f7f1a28d832e` 来恢复新协议。代码问题基于最小版本上报实现向前修复；数据库恢复需核对事故时间和后续写入，不能把回退Worker版本当作回退D1。原始事件与版本统计的口径不重新解释，现有数据库备份和下载对象保留。

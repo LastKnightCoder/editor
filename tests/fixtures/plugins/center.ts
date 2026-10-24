@@ -6,14 +6,11 @@ export const centerHost: CenterHost = {
   apiVersions: [1],
   formatVersions: [3],
   profiles: ["web-v1"],
-  capabilities: ["pages", "navigation"],
 };
 export function centerRelease(version = "1.0.0", releaseId = "release-1"): CenterRelease {
   const targets = {
     android: {
       minAppVersion: "0.2.0",
-      required: ["pages" as const],
-      optional: ["dialogs" as const],
     },
   };
   return {

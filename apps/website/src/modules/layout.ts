@@ -47,7 +47,8 @@ const ARCH_HINT =
 async function preferVisitorDownload() {
   const os = detectOs();
   if (!os) return;
-  const arch = os === "mac" ? await detectMacArch() : "x64";
+  // 只有 Mac 区分芯片；Windows 与 Android 各只有一个安装包
+  const arch = os === "mac" ? await detectMacArch() : null;
   document.querySelectorAll<HTMLElement>(".ctas").forEach(group => {
     const candidates = [...group.querySelectorAll<HTMLAnchorElement>(`a.btn[data-os="${os}"]`)];
     const preferred = arch ? candidates.find(btn => btn.dataset.arch === arch) : candidates[0];

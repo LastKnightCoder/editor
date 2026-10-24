@@ -53,7 +53,7 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
   const [linksSheetOpen, setLinksSheetOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  // 关联写回后 bump：详情页内 LinksDisclosure 走自己的 detail 缓存，经 refreshKey 强制重拉同步
+  // 关联写回后 bump：脉络胶囊（含「连接」分区）走自己的查询，经 refreshKey 强制重拉同步
   const [linksRev, setLinksRev] = useState(0);
   const detailActionsRef = useRef<ContentDetailActions>(null);
 
@@ -93,7 +93,7 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
 
   if (!card) {
     return (
-      <div className="mobile-kb-screen bg-page fixed inset-0 z-50 grid place-items-center">
+      <div className="mobile-kb-screen bg-surface fixed inset-0 z-50 grid place-items-center">
         {resolving ? (
           <div className="card w-48 space-y-3 p-5">
             <div className="bg-page h-4 w-2/5 animate-pulse rounded" />

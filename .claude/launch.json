@@ -210,6 +210,13 @@
       "runtimeArgs": ["-m", "http.server", "8835", "--bind", "127.0.0.1", "-d", "."],
       "port": 8835,
       "url": "http://localhost:8835"
+    },
+    {
+      "name": "content-link-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8836", "--bind", "127.0.0.1", "-d", "."],
+      "port": 8836,
+      "url": "http://localhost:8836"
     }
   ]
 }

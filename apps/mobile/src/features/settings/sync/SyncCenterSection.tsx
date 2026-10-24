@@ -28,7 +28,7 @@ import { useNavigator, usePageLifecycle } from "../../../router";
 import type { SettingModuleKey } from "../components/types";
 import { GroupCard, GroupRow, LetterTile } from "../components/ui";
 import { ActionButton } from "../storage/fields";
-import { SYNC_PROVIDERS, findSyncProvider } from "./providers";
+import { useSyncProviders } from "./providers";
 import { SyncProviderSheet } from "./SyncProviderSheet";
 import { countResources, resourceBadge } from "./resourceState";
 import { resolveSyncErrorMessage } from "./syncErrors";
@@ -117,6 +117,8 @@ function SyncHero(props: {
 
 /** 当前服务未配置：直接给服务选择，而不是一张空状态卡 */
 function FirstRunView(props: { setting: SettingCompat; onOpenProvider: (id: string) => void }) {
+  const providers = useSyncProviders();
+  const navigator = useNavigator();
   return (
     <div className="space-y-1">
       <section className="setting-group px-[18px] pb-5 pt-6 text-center">
@@ -128,9 +130,12 @@ function FirstRunView(props: { setting: SettingCompat; onOpenProvider: (id: stri
           选择一个你自己的存储服务，数据只存在你的空间里
         </p>
       </section>
+      {props.setting.sync.plugin?.id && (
+        <p className="text-ink-3 text-tau-meta px-4">原有配置已保留，请安装并启用对应服务。</p>
+      )}
       <GroupLabel>选择存储服务</GroupLabel>
       <GroupCard>
-        {SYNC_PROVIDERS.map(provider => (
+        {providers.map(provider => (
           <GroupRow key={provider.id} onClick={() => props.onOpenProvider(provider.id)}>
             <LetterTile letter={provider.tile.letter} className={provider.tile.className} />
             <span className="min-w-0 flex-1">
@@ -142,6 +147,9 @@ function FirstRunView(props: { setting: SettingCompat; onOpenProvider: (id: stri
             <ChevronRight size={16} className="text-ink-3" aria-hidden="true" />
           </GroupRow>
         ))}
+        <GroupRow onClick={() => navigator.push("plugins", { tab: "store" })}>
+          去插件中心添加同步服务
+        </GroupRow>
       </GroupCard>
     </div>
   );
@@ -154,7 +162,8 @@ export function SyncCenterSection(props: SyncCenterProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const provider = props.setting ? findSyncProvider(props.setting.sync.active) : undefined;
+  const providers = useSyncProviders();
+  const provider = providers.find(item => item.id === props.setting?.sync.plugin?.id);
   const configured = Boolean(props.setting && provider?.isConfigured(props.setting));
   const syncing = props.isSyncing || submitting;
   const busy = syncing || checking;
@@ -180,7 +189,7 @@ export function SyncCenterSection(props: SyncCenterProps) {
   useEffect(() => {
     void check({ silent: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [configured, props.setting?.sync.active]);
+  }, [configured, props.setting?.sync.plugin?.id, props.setting?.sync.plugin?.configurations]);
   usePageLifecycle({ onResume: () => void check({ silent: true }) });
 
   const hero = deriveSyncHero({

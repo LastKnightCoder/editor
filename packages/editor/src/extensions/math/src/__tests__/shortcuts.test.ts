@@ -11,6 +11,7 @@ import {
 import { withInputRules } from "../../../../core/kit/inputRules.ts";
 import { textFormattingExtension } from "../../../text-formatting/src/index.tsx";
 import { blockMathExtension, inlineMathExtension } from "../index.tsx";
+import { wrapInlineMath } from "../insert";
 
 function setup(marks: Record<string, unknown> = {}) {
   const assembly = new ExtensionAssembly([
@@ -104,6 +105,14 @@ describe("行内公式输入规则", () => {
     type(editor, "$x$");
     editor.undo();
     expect(content(editor)).toEqual(["$x$"]);
+  });
+});
+
+describe("行内公式创建", () => {
+  it("折叠光标处创建空公式", () => {
+    const editor = setup();
+    wrapInlineMath(editor);
+    expect(content(editor)).toEqual([{ tex: "" }]);
   });
 });
 

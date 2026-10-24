@@ -79,7 +79,7 @@ it("详情按 SemVer 取最高版本，展示平台支持与网页未核验说�
 
 it("旧格式版本标为仅桌面，并保留本地安装说明", async () => {
   const base = release("r1", "1.0.0", "2026-10-16T00:00:00Z");
-  const desktop = { minAppVersion: "0.59.0", required: [], optional: [] };
+  const desktop = { minAppVersion: "0.59.0" };
   render_("/plugins/example.counter", [
     { ...base, formatVersion: 1, profile: null, targets: { desktop } },
   ]);

@@ -1,10 +1,19 @@
+mod app_update;
+mod chunked_sync;
 mod collaboration;
 mod database;
+mod incoming_file;
+#[cfg(target_os = "ios")]
+mod ios_input_accessory;
 mod models;
-mod network_policy;
 mod plugin_center;
+mod plugin_fetch;
+mod plugin_files;
+mod plugin_provider;
+mod plugin_socket;
+mod plugin_transport;
 mod plugins;
-mod provider_config;
+mod provider_settings;
 mod remote_resource_cache;
 mod resource_upload;
 mod setting;
@@ -55,11 +64,32 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
+            app_update::app_update_check,
+            app_update::app_update_download,
+            app_update::app_update_install,
             plugin_center::plugin_center_refresh,
             plugin_center::plugin_center_config,
             plugin_center::plugin_center_request,
             plugin_center::plugin_center_stage,
             plugin_center::plugin_center_commit,
+            provider_settings::plugin_provider_save,
+            provider_settings::plugin_provider_select,
+            plugin_transport::plugin_transport_connect,
+            plugin_transport::plugin_transport_disconnect,
+            plugin_transport::plugin_transport_reply,
+            plugin_socket::plugin_socket_open,
+            plugin_socket::plugin_socket_send,
+            plugin_socket::plugin_socket_receive,
+            plugin_socket::plugin_socket_close,
+            plugin_socket::plugin_socket_dispose,
+            plugin_fetch::plugin_fetch_open,
+            plugin_fetch::plugin_fetch_upload,
+            plugin_fetch::plugin_fetch_response,
+            plugin_fetch::plugin_fetch_read,
+            plugin_fetch::plugin_fetch_buffer,
+            plugin_files::plugin_file_read,
+            plugin_files::plugin_file_write,
+            plugin_fetch::plugin_fetch_cancel,
             plugins::plugin_packages,
             plugins::plugin_apply_pending,
             plugins::plugin_stage,
@@ -74,12 +104,6 @@ pub fn run() {
             setting::bootstrap_app,
             setting::read_setting_json,
             setting::write_setting_json,
-            setting::verify_github_token,
-            setting::list_github_repos,
-            setting::list_github_branches,
-            setting::verify_s3_credentials,
-            setting::verify_webdav_credentials,
-            setting::verify_alioss_credentials,
             database::list_databases,
             database::get_active_database_size,
             database::create_database,
@@ -195,6 +219,9 @@ pub fn run() {
             database::flashcard_get_review_queue,
             database::flashcard_submit_review,
             database::flashcard_review_stats,
+            resource_upload::resource_upload_begin,
+            resource_upload::resource_upload_write,
+            resource_upload::resource_upload_cancel,
             resource_upload::upload_resource,
             resource_upload::resource_upload_test,
             resource_upload::read_resource_bytes,
@@ -217,9 +244,19 @@ pub fn run() {
             database::collab_list_bindings,
             database::collab_unbind_content,
             database::collab_project_content,
+            incoming_file::incoming_file_take,
             request_background
         ])
         .setup(|app| {
+            #[cfg(target_os = "ios")]
+            {
+                use tauri::Manager;
+                app.manage(incoming_file::PendingIncomingFile::default());
+                if let Some(main_webview) = app.get_webview_window("main") {
+                    let _ = main_webview
+                        .with_webview(|webview| ios_input_accessory::hide(webview.inner()));
+                }
+            }
             // 启动后后台补齐缺失的封面缩略图，避免列表打开时在关键路径现场解码全尺寸图
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
@@ -227,6 +264,12 @@ pub fn run() {
             });
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_app, _event| {
+            #[cfg(target_os = "ios")]
+            if let tauri::RunEvent::Opened { urls } = _event {
+                incoming_file::receive_opened(_app, urls);
+            }
+        });
 }

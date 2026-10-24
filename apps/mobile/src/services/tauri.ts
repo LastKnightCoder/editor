@@ -1,3 +1,4 @@
+import type { SettingCompat } from "../types";
 import { invoke } from "@tauri-apps/api/core";
 import { occurrenceDateMap, projectCompletions, originalOccurrenceDate } from "./task-occurrences";
 import type {
@@ -27,6 +28,7 @@ import type {
   ListTodoItemsByTypePayload,
   MoveAndReorderTodoItemPayload,
   ArticleDetail,
+  IncomingMarkdownFile,
   ArticleListResponse,
   Project,
   ProjectItem,
@@ -90,7 +92,6 @@ export function localTimeZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
-const VERIFY_TIMEOUT_MS = 15_000;
 const SYNC_CHECK_TIMEOUT_MS = 35_000;
 // 卡片链路被 DB 写锁卡住时 invoke 可能永不返回（见冒烟报告 R2），
 // 关闭/保存流程会随之永久挂起——超时兜底让用户可重试而非卡死
@@ -202,43 +203,6 @@ export function readSettingJson() {
 
 export function writeSettingJson(payload: string) {
   return trackedInvoke<SettingWriteResponse>("write_setting_json", { payload });
-}
-
-export function verifyGithubToken(token: string) {
-  return trackedInvoke<{ name: string; email: string }>("verify_github_token", {
-    token,
-  });
-}
-
-export function listGithubRepos(token: string, owner: string) {
-  return trackedInvoke<string[]>("list_github_repos", { token, owner });
-}
-
-export function listGithubBranches(token: string, owner: string, repo: string) {
-  return trackedInvoke<string[]>("list_github_branches", { token, owner, repo });
-}
-
-export function verifyS3Credentials(params: {
-  accessKeyId: string;
-  secretAccessKey: string;
-  endpoint: string;
-  urlStyle: "path" | "virtualHosted" | string;
-  bucket: string;
-  region: string;
-}) {
-  return withTimeout(
-    trackedInvoke<string>("verify_s3_credentials", { payload: params }),
-    VERIFY_TIMEOUT_MS,
-    `S3_VERIFY_FAILED:S3 验证超时（${Math.floor(VERIFY_TIMEOUT_MS / 1000)} 秒），请检查网络后重试`
-  );
-}
-
-export function verifyWebdavCredentials(params: {
-  url: string;
-  username: string;
-  password: string;
-}) {
-  return trackedInvoke<string>("verify_webdav_credentials", { payload: params });
 }
 
 export function verifyAliOssCredentials(params: {
@@ -733,6 +697,33 @@ export function pomodoroSummaryDaily(dayStarts: number[]) {
 }
 
 /** provider 为空时检查当前同步服务；传入服务 id 只探测该服务，不改动当前选择 */
+export function savePluginProviderConfig(
+  database: string,
+  target: "sync" | "upload" | "asr",
+  pluginId: string,
+  config: import("@tau/plugins").JsonValue
+) {
+  return trackedInvoke<SettingCompat>("plugin_provider_save", {
+    database,
+    target,
+    pluginId,
+    config,
+  });
+}
+export function selectPluginProvider(
+  database: string,
+  target: "sync" | "upload" | "asr",
+  pluginId: string,
+  expectedConfig: import("@tau/plugins").JsonValue
+) {
+  return trackedInvoke<SettingCompat>("plugin_provider_select", {
+    database,
+    target,
+    pluginId,
+    expectedConfig,
+  });
+}
+
 export function syncCheckVersions(provider?: string) {
   return withTimeout(
     trackedInvoke<SyncVersionResponse>("sync_check_versions", provider ? { provider } : undefined),
@@ -775,10 +766,31 @@ export function resourceSyncGetStatus() {
   return trackedInvoke<ResourceSyncStatusFile | null>("resource_sync_get_status");
 }
 
-// Android 的 IPC 二进制通道不可靠（tauri#10573 会把二进制包装成逐字节 JSON），
-// 上传/读取统一走 base64 字符串；调用方负责先做前端预压缩以控制负载
-export function uploadResource(params: { fileName: string; mimeType: string; base64: string }) {
-  return trackedInvoke<string>("upload_resource", { payload: params });
+// Android 保留字符串 IPC，每次只编码当前块，文件大小不受 IPC 消息大小约束。
+export async function uploadResource(params: {
+  fileName: string;
+  mimeType: string;
+  content: Blob;
+}) {
+  const id = await trackedInvoke<string>("resource_upload_begin", {
+    fileName: params.fileName,
+    mimeType: params.mimeType,
+  });
+  try {
+    const chunkSize = 256 * 1024;
+    for (let offset = 0; offset < params.content.size; offset += chunkSize) {
+      const bytes = new Uint8Array(
+        await params.content.slice(offset, offset + chunkSize).arrayBuffer()
+      );
+      let binary = "";
+      for (let index = 0; index < bytes.length; index += 32768)
+        binary += String.fromCharCode(...bytes.subarray(index, index + 32768));
+      await trackedInvoke("resource_upload_write", { id, offset, chunk: btoa(binary) });
+    }
+    return await trackedInvoke<string>("upload_resource", { id, size: params.content.size });
+  } finally {
+    await trackedInvoke("resource_upload_cancel", { id }).catch(() => undefined);
+  }
 }
 
 /** 用指定上传服务传一张固定名测试图并回读，不改变当前上传位置 */
@@ -813,7 +825,12 @@ export function articleGet(id: number) {
   return trackedInvoke<ArticleDetail>("article_get", { payload: { id } });
 }
 
-export function articleCreate(params: { title: string; author?: string }) {
+export function articleCreate(params: {
+  title: string;
+  author?: string;
+  content?: unknown[];
+  count?: number;
+}) {
   return trackedInvoke<ArticleDetail>("article_create", { payload: params });
 }
 
@@ -872,6 +889,8 @@ export function projectItemCreate(params: {
   itemType?: string;
   refType?: string;
   refId?: number;
+  content?: unknown[];
+  count?: number;
 }) {
   return trackedInvoke<ProjectItem>("project_item_create", { payload: params });
 }
@@ -882,6 +901,13 @@ export function projectItemUpdate(params: { id: number; title?: string; tags?: s
 
 export function projectItemDelete(id: number) {
   return trackedInvoke<number>("project_item_delete", { payload: { id } });
+}
+
+/* ── 外部打开的文件 ── */
+
+/** 取走外部应用「用其他应用打开」交给 Tau 的 Markdown；无待处理文件返回 null，取走即删 */
+export function takeIncomingFile() {
+  return trackedInvoke<IncomingMarkdownFile | null>("incoming_file_take");
 }
 
 /* ── 首页汇总统计 ── */

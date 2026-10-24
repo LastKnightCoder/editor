@@ -1,3 +1,5 @@
+import { rendererASRRegistry } from "./asr-registry";
+import { desktopWebSocket } from "@/commands/plugin-websocket";
 import type { PluginEnvironmentSource } from "@tau/plugins/environment-host";
 import { rendererSyncRegistry } from "./sync-registry";
 import { createPluginBackend } from "./backend";
@@ -190,7 +192,7 @@ export class DesktopPluginRuntime {
       validateEditor?: (contributions: readonly PluginEditorContribution[]) => void;
       openSettings?: (
         key: PluginSettingsKey,
-        target?: "sync" | "upload" | "tts" | "images" | "video" | "publish"
+        target?: "sync" | "upload" | "tts" | "asr" | "images" | "video" | "publish"
       ) => void;
       fetch?: typeof globalThis.fetch;
       services?: PluginServices;
@@ -219,6 +221,8 @@ export class DesktopPluginRuntime {
       backend: createPluginBackend,
       sync: rendererSyncRegistry,
       tts: rendererTTSRegistry,
+      asr: rendererASRRegistry,
+      websocket: desktopWebSocket,
       images: rendererImagesRegistry,
       video: rendererVideoRegistry,
       publish: rendererPublishRegistry,

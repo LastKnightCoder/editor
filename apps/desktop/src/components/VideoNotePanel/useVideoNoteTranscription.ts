@@ -10,7 +10,6 @@ import useSettingStore from "@/stores/useSettingStore";
 import { updateVideoNoteTranscript } from "@/commands";
 import {
   transcribeAudio,
-  onTranscriptionProgress,
   extractAudioFromVideo,
   shouldSegmentAudio,
   transcribeAudioSegmented,
@@ -188,12 +187,10 @@ export function useVideoNoteTranscription({
       }
       if (!segmented) setProgress("正在转录 ...");
 
-      const unsubscribe = onTranscriptionProgress(data => setProgress(data.message));
-      const result = await (
-        segmented
-          ? transcribeAudioSegmented(audioPath, options)
-          : transcribeAudio(audioPath, options)
-      ).finally(unsubscribe);
+      const run = { onProgress: (data: { message: string }) => setProgress(data.message) };
+      const result = await (segmented
+        ? transcribeAudioSegmented(audioPath, options, run)
+        : transcribeAudio(audioPath, options, run));
 
       if (!result.success || !result.data) {
         throw new Error(result.error || "转录失败");

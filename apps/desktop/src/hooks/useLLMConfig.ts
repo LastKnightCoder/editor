@@ -18,6 +18,7 @@ export const useLLMConfig = (
     | "flashcardGeneration"
     | "aiJudgement"
     | "transcriptionOptimization"
+    | "speechInputRefinement"
     | "videoSummary"
     | "videoEbookRewrite"
     | "vibeLearningImageDescription"

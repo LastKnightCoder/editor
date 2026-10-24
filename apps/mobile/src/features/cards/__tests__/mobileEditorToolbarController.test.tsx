@@ -277,6 +277,10 @@ describe("useMobileEditorToolbarController", () => {
       vi.runAllTimers();
     });
     expect(requireController(latestController).isContentLinkPickerOpen).toBe(true);
+    expect(requireController(latestController).contentLinkPickerIntent).toEqual({
+      mode: "insert",
+      text: "可链接文",
+    });
 
     const result: ContentLinkPickerResult = {
       contentId: 88,
@@ -292,6 +296,83 @@ describe("useMobileEditorToolbarController", () => {
 
     expect(hasContentLinkNode(inactiveEditor)).toBe(true);
     expect(requireController(latestController).isContentLinkPickerOpen).toBe(false);
+  });
+
+  it("光标在引用内：进入引用模式，更换只改目标不改文字，预览关闭后恢复焦点", () => {
+    const editor = createContentLinkEditor();
+    editor.selection = {
+      anchor: { path: [0, 0, 0], offset: 1 },
+      focus: { path: [0, 0, 0], offset: 1 },
+    };
+    let latestController: MobileEditorToolbarController | null = null;
+    act(() => {
+      root.render(
+        <ControllerProbe
+          editorRef={createEditorRef(editor)}
+          onController={controller => {
+            latestController = controller;
+          }}
+        />
+      );
+    });
+    act(() => {
+      requireController(latestController).syncSelection();
+    });
+    expect(requireController(latestController).editingContext).toMatchObject({
+      kind: "content-link",
+      path: [0, 0],
+    });
+
+    act(() => {
+      requireController(latestController).retargetContentLink();
+      vi.runAllTimers();
+    });
+    expect(requireController(latestController).isContentLinkPickerOpen).toBe(true);
+    expect(requireController(latestController).contentLinkPickerIntent).toEqual({
+      mode: "replace",
+      text: "引用",
+    });
+
+    act(() => {
+      requireController(latestController).handleSelectContentLink({
+        contentId: 200,
+        contentType: "article",
+        contentTitle: "新文章",
+        refId: 7,
+        displayText: "新文章",
+      });
+    });
+    expect(editor.children[0]).toMatchObject({
+      children: [
+        {
+          type: "content-link",
+          contentId: 200,
+          contentType: "article",
+          contentTitle: "新文章",
+          refId: 7,
+          children: [{ text: "引用" }],
+        },
+      ],
+    });
+
+    vi.mocked(ReactEditor.focus).mockClear();
+    act(() => {
+      requireController(latestController).openContentLinkPreview();
+      vi.runAllTimers();
+    });
+    expect(requireController(latestController).contentLinkPreview).toEqual({
+      contentId: 200,
+      contentType: "article",
+      contentTitle: "新文章",
+      refId: 7,
+    });
+    expect(reservation.releaseNow).toHaveBeenCalled();
+
+    act(() => {
+      requireController(latestController).closeContentLinkPreview();
+    });
+    expect(requireController(latestController).contentLinkPreview).toBeNull();
+    expect(ReactEditor.focus).toHaveBeenCalled();
   });
 
   it("应支持 underline/link/styled-text/color/highlight 动作", () => {

@@ -1,16 +1,12 @@
 import { assertContentResourceSpecs } from "@tau/db-schema/content-resources";
 import type { PluginDefinition } from "./contract";
 import type { PluginEditorExtension } from "./editor";
-import { scopePortablePluginModules } from "./portable-services";
-import { assertPluginEditorExtension } from "./editor-fields.ts";
+import { normalizePluginEditorExtension } from "./editor-fields.ts";
 import type { MarkdownCodec } from "@tau/markdown";
 import {
   readPortablePluginManifest,
   assertPortablePluginCompatibility,
-  assertPortableElementDeclarations,
   PORTABLE_SHARED_MODULES,
-  getPortableElementSupport,
-  type PortablePlatform,
   type ReadablePortablePluginManifest,
   type PortablePluginHost,
 } from "./portable";
@@ -54,10 +50,9 @@ export function evaluatePublishedPluginPackage(
   const manifest = readPublishedPluginManifest(artifact.manifest);
   if (manifest.formatVersion !== 3)
     return evaluatePluginPackage({ ...artifact, manifest }, modules);
-  if (!manifest.editor || !manifest.targets.desktop) throw new Error("博客渲染需要桌面编辑器贡献");
+  if (!manifest.targets.desktop) throw new Error("博客渲染需要桌面目标");
   const definition = evaluateModule(manifest, artifact.code, modules, PORTABLE_SHARED_MODULES);
-  assertPortableElementDeclarations(manifest, getPluginNodeTypes(definition));
-  return adaptPortablePluginDefinition(definition, manifest, "desktop").definition;
+  return definition;
 }
 
 export interface PluginRenderSelection {
@@ -87,75 +82,22 @@ export function evaluatePortablePluginPackage(
   modules: Readonly<Record<string, unknown>>,
   host: PortablePluginHost
 ): PluginDefinition {
-  const manifest = readPortablePluginManifest(artifact.manifest);
-  const target = assertPortablePluginCompatibility(manifest, host);
-  const definition = evaluateModule(
-    manifest,
-    artifact.code,
-    scopePortablePluginModules(modules, target, host.capabilities),
-    PORTABLE_SHARED_MODULES
-  );
-  assertPortableElementDeclarations(manifest, getPluginNodeTypes(definition));
+  const manifest = artifact.manifest;
+  assertPortablePluginCompatibility(manifest, host);
+  const definition = evaluateModule(manifest, artifact.code, modules, PORTABLE_SHARED_MODULES);
+  if (definition.whiteboardExtensions?.length && host.environment.platform !== "desktop")
+    throw new Error("当前宿主尚未提供白板扩展");
   return definition;
 }
 
-/** 各宿主共用支持等级投影；原始数据与节点身份不改写。 */
-export function adaptPortablePluginDefinition(
-  definition: PluginDefinition,
-  manifest: ReadablePortablePluginManifest,
-  platform: PortablePlatform
-) {
-  const support = Object.freeze(
-    Object.fromEntries(
-      getPluginNodeTypes(definition).map(type => [
-        type,
-        getPortableElementSupport(manifest, platform, type),
-      ])
-    )
-  );
-  const extensions = definition.editorExtensions?.flatMap(extension => {
-    const elements = extension.elements
-      ?.filter(element => support[element.type] !== "none")
-      .map(element =>
-        support[element.type] === "edit" ? element : { ...element, behaviors: undefined }
-      );
-    if (!elements?.length) return [];
-    const types = new Set(elements.map(element => element.type));
-    const editable = elements.every(element => support[element.type] === "edit");
-    return [
-      {
-        ...extension,
-        elements,
-        styleSources: extension.styleSources?.filter(source => types.has(source.type)),
-        htmlSerializers: extension.htmlSerializers?.filter(serializer =>
-          types.has(serializer.type)
-        ),
-        ...(editable
-          ? {}
-          : {
-              blockPanel: undefined,
-              commands: undefined,
-              hotkeys: undefined,
-              menu: undefined,
-              behaviorsFor: undefined,
-            }),
-      },
-    ];
-  });
-  return {
-    support,
-    definition: {
-      ...definition,
-      editorExtensions: extensions?.length ? extensions : undefined,
-      editorCodecs: definition.editorCodecs?.filter(codec => support[codec.type] !== "none"),
-    },
-  };
-}
+export const hasPluginContent = (definition: PluginDefinition) =>
+  Boolean(definition.editorExtensions?.length || definition.whiteboardExtensions?.length);
 
-type DefinitionManifest = Pick<
-  PluginManifest,
-  "id" | "name" | "version" | "apiVersion" | "editor" | "whiteboard"
->;
+type DefinitionManifest = Pick<PluginManifest, "id" | "name" | "version" | "apiVersion"> & {
+  readonly formatVersion?: number;
+  readonly editor?: boolean;
+  readonly whiteboard?: boolean;
+};
 
 function evaluateModule(
   manifest: DefinitionManifest,
@@ -196,14 +138,24 @@ export function validatePluginDefinition(
     definition.apiVersion !== manifest.apiVersion
   )
     throw new Error("插件入口定义与清单不一致");
-  if (Boolean(definition.editorExtensions?.length) !== Boolean(manifest.editor))
+  if (
+    manifest.formatVersion !== 3 &&
+    Boolean(definition.editorExtensions?.length) !== Boolean(manifest.editor)
+  )
     throw new Error("编辑器贡献必须与 manifest.editor 声明一致");
-  if (Boolean(definition.whiteboardExtensions?.length) !== Boolean(manifest.whiteboard))
+  if (
+    manifest.formatVersion !== 3 &&
+    Boolean(definition.whiteboardExtensions?.length) !== Boolean(manifest.whiteboard)
+  )
     throw new Error("白板贡献必须与 manifest.whiteboard 声明一致");
+  definition = {
+    ...definition,
+    editorExtensions: definition.editorExtensions?.map(normalizePluginEditorExtension),
+  };
   getPluginWhiteboardTypes(definition);
-  if (definition.editorCodecs?.length && !manifest.editor)
+  if (definition.editorCodecs?.length && !definition.editorExtensions?.length)
     throw new Error("Markdown codec 必须随编辑器贡献声明");
-  if (manifest.editor) {
+  {
     const types = getPluginNodeTypes(definition);
     if (definition.editorCodecs?.some(codec => !types.includes(codec.type)))
       throw new Error("插件 codec 只能声明本插件提供的节点类型");
@@ -214,7 +166,6 @@ export function validatePluginDefinition(
 export function getPluginNodeTypes(definition: PluginDefinition): string[] {
   const types: string[] = [];
   for (const extension of definition.editorExtensions ?? []) {
-    assertPluginEditorExtension(extension);
     for (const element of extension.elements ?? []) {
       if (!element.type || types.includes(element.type))
         throw new Error(`插件节点类型为空或重复：${element.type}`);

@@ -266,7 +266,7 @@ function portableZip() {
         formatVersion: 3,
         platform: "portable",
         profile: "web-v1",
-        targets: { android: { minAppVersion: "0.2.0", required: [], optional: [] } },
+        targets: { android: { minAppVersion: "0.2.0" } },
       })
     )
   );

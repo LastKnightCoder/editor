@@ -13,6 +13,7 @@ import { registerPluginPackage, type SharedPluginModules } from "./package-loade
 import {
   localPluginStateKey,
   contentPluginLoaded,
+  contentPluginDiscovered,
   contentPluginError,
   setContentPluginIntent,
 } from "./content-plugin-state";
@@ -73,7 +74,10 @@ export class LocalPluginManager {
   }
   isContentPlugin(id: string) {
     const artifact = this.records.get(id);
-    return artifact ? hasStaticContent(artifact.manifest) : false;
+    return (
+      (!!artifact && contentPluginDiscovered(artifact)) ||
+      (artifact?.manifest.formatVersion !== 3 && !!artifact && hasStaticContent(artifact.manifest))
+    );
   }
   pendingContentIds() {
     return [...this.records.keys()].filter(
@@ -175,7 +179,9 @@ export class LocalPluginManager {
           previous &&
           (this.host.getState(entry.id) === "restart-required" ||
             contentPluginLoaded(entry.id) ||
-            ((hasStaticContent(previous.manifest) || hasStaticContent(entry.artifact.manifest)) &&
+            (((previous.manifest.formatVersion !== 3 && hasStaticContent(previous.manifest)) ||
+              (entry.artifact.manifest.formatVersion !== 3 &&
+                hasStaticContent(entry.artifact.manifest))) &&
               this.host.getState(entry.id) !== "disabled"))
         ) {
           issues.push({

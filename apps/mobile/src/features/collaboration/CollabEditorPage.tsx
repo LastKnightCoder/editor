@@ -2,7 +2,8 @@
 // 远端光标/选区由 @tau/editor-collab 的文档源自动渲染，本页只负责外壳与状态。
 // 成员视角（本地无内容行）与协作中心入口仍走本页；owner 的原地编辑见详情页 CollaborativeEditor。
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getMobileContentKit } from "../../services/editorKit";
+import { useMobileContentKit } from "../../services/editorKit";
+import { EditorKitPending } from "../../components/EditorKitPending";
 import {
   ChevronRight,
   Loader2,
@@ -14,6 +15,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor";
+import { cn } from "@tau/ui";
 import { createYjsDocument } from "@tau/editor-collab";
 import { ActionSheet } from "../../components/ActionSheet";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
@@ -23,7 +25,7 @@ import { MobileEditorBottomToolbar } from "../cards/editorToolbar/MobileEditorBo
 import { useMobileEditorToolbarController } from "../cards/editorToolbar/useMobileEditorToolbarController";
 import { isEditorContentEmpty } from "../cards/editorContentUtils";
 import { useReadingMode } from "../cards/readingMode/useReadingMode";
-import { ReadingModeHeaderButton } from "../cards/readingMode/ReadingModeHeaderButton";
+import { ReadingModeFab } from "../cards/readingMode/ReadingModeFab";
 import { ReadingSelectionBar } from "../cards/readingMode/ReadingSelectionBar";
 import { useReadingSelection } from "../cards/readingMode/useReadingSelection";
 import { useEditorOpenMode } from "../../hooks/useEditorOpenMode";
@@ -31,7 +33,10 @@ import { BlockActionBar } from "../cards/blockSelection/BlockActionBar";
 import { BlockDragLayer } from "../cards/blockSelection/BlockDragLayer";
 import { BlockHandle } from "../cards/blockSelection/BlockHandle";
 import { BlockSelectionHeader } from "../cards/blockSelection/BlockSelectionHeader";
-import { BlockSelectionLayer } from "../cards/blockSelection/BlockSelectionLayer";
+import {
+  BLOCK_SELECTION_INSET_CLASS,
+  BlockSelectionLayer,
+} from "../cards/blockSelection/BlockSelectionLayer";
 import { useBlockDrag } from "../cards/blockSelection/useBlockDrag";
 import {
   blockSelectionMenuItem,
@@ -100,12 +105,12 @@ export function CollabEditorPage(props: {
     editorRef,
     !readingMode.editing && readingMode.canEdit && !blockSelection.active
   );
-  const kit = getMobileContentKit();
+  const kit = useMobileContentKit("edit");
   // 工具条经 portal 挂进本页根容器，才能随页面转场动画一起平移、退场
   const [pageRootEl, setPageRootEl] = useState<HTMLDivElement | null>(null);
 
   return (
-    <div ref={setPageRootEl} className="bg-page flex h-full flex-col">
+    <div ref={setPageRootEl} className="mobile-kb-screen bg-page relative flex h-full flex-col">
       {blockSelection.active ? (
         <BlockSelectionHeader
           selectedCount={blockSelection.selected.length}
@@ -133,12 +138,6 @@ export function CollabEditorPage(props: {
           }
           actions={
             <>
-              <ReadingModeHeaderButton
-                editing={readingMode.editing}
-                canEdit={readingMode.canEdit}
-                onEnter={readingMode.enterEditing}
-                onExit={readingMode.exitEditing}
-              />
               <button
                 type="button"
                 aria-label="成员管理"
@@ -167,15 +166,10 @@ export function CollabEditorPage(props: {
         </div>
       ) : null}
 
-      {/* 二级页无吸底 Dock，底部只留常规呼吸空间（同番茄钟/项目列表）：
-          留白挂外层容器，滚动容器自身不带 padding，内容不会顶到安全区 */}
-      <div
-        className="flex min-h-0 flex-1 flex-col"
-        style={{ paddingBottom: "var(--page-bottom-inset)" }}
-      >
+      <div className="flex min-h-0 flex-1 flex-col">
         <div
           ref={scrollRef}
-          className="edge-fade-scroll mobile-floating-toolbar-scroll flex-1 overflow-y-auto px-5"
+          className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto px-5"
         >
           {loading && !binding ? (
             <div
@@ -207,27 +201,34 @@ export function CollabEditorPage(props: {
           {binding ? (
             <div
               ref={setEditorWrapEl}
-              className="relative min-h-[45vh] pt-2"
+              className={cn(
+                "relative min-h-[45vh] pt-2 transition-[padding] duration-200",
+                blockSelection.active && BLOCK_SELECTION_INSET_CLASS
+              )}
               // 块选择期间由覆盖层接管点击，阅读态的双击进入编辑与勾选待办不生效
               {...(blockSelection.active ? {} : readingMode.readingSurfaceProps)}
             >
-              <Editor
-                kit={kit}
-                ref={editorRef}
-                key={`collab-${props.documentId}`}
-                document={document}
-                className="mobile-card-editor-content"
-                readonly={editorReadonly}
-                onFocus={() => {
-                  presence.onFocus();
-                  toolbarController.handleEditorFocus();
-                }}
-                onBlur={() => {
-                  presence.onBlur();
-                  toolbarController.handleEditorBlur();
-                }}
-                onSelectionChange={toolbarController.syncSelection}
-              />
+              {kit ? (
+                <Editor
+                  kit={kit}
+                  ref={editorRef}
+                  key={`collab-${props.documentId}`}
+                  document={document}
+                  className="mobile-card-editor-content"
+                  readonly={editorReadonly}
+                  onFocus={() => {
+                    presence.onFocus();
+                    toolbarController.handleEditorFocus();
+                  }}
+                  onBlur={() => {
+                    presence.onBlur();
+                    toolbarController.handleEditorBlur();
+                  }}
+                  onSelectionChange={toolbarController.syncSelection}
+                />
+              ) : (
+                <EditorKitPending />
+              )}
               <BlockSelectionLayer
                 editorRef={editorRef}
                 container={editorWrapEl}
@@ -256,12 +257,25 @@ export function CollabEditorPage(props: {
         </div>
       </div>
 
+      <ReadingModeFab
+        visible={
+          Boolean(binding && kit) &&
+          readingMode.canEdit &&
+          !readingMode.editing &&
+          !blockSelection.active &&
+          blockDrag.dragging === null &&
+          readingSelection.range === null
+        }
+        onEnter={readingMode.enterEditing}
+        getScrollContainer={getScrollContainer}
+      />
       <MobileEditorBottomToolbar
         controller={toolbarController}
         portalContainer={pageRootEl}
         readonly={toolbarReadonly}
+        showDoneButton
       />
-      {blockSelection.active ? (
+      {blockSelection.active && kit ? (
         <BlockActionBar
           editorRef={editorRef}
           kit={kit}

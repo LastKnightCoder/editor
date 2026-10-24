@@ -179,3 +179,6 @@ export type {
   PluginAIMessage,
 } from "./ai";
 export { PLUGIN_AI_CAPABILITIES, isPluginAICapability } from "./ai";
+
+export * from "./asr";
+export type * from "./websocket";

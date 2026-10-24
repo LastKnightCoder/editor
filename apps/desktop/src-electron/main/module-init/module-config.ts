@@ -31,6 +31,7 @@ import publishModule from "../modules/publish";
 import todoReminderModule from "../modules/todo-reminder";
 import holidayServiceModule from "../modules/holiday-service";
 import transcriptionModule from "../modules/transcription";
+import speechInputModule from "../modules/speech-input";
 import modelDownloaderModule from "../modules/model-downloader";
 import markitdownModule from "../modules/markitdown";
 import embeddingModelManager from "../modules/embedding-model-manager";
@@ -243,6 +244,12 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: () => mcpModule.init(),
+  },
+  {
+    name: "speech-input",
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["logger"],
+    init: () => speechInputModule.init(),
   },
   {
     name: "transcription",

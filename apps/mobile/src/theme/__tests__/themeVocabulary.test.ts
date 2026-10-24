@@ -21,7 +21,8 @@ const LEGACY_VARS =
 // 不含 divide-：编辑器分割线元素类型就叫 divide-line
 const LEGACY_CLASSES =
   /(?<![\w-])(bg|text|border|ring|decoration|fill|stroke|from|via|to|outline)-(elevated|input|ghost-press|ink|meta-ink|line|line-soft|accent-strong|(sage|sky|apricot|lilac|butter|rose)(-soft)?|mask)(?![\w-])|(?<![\w-])shadow-accent(?![\w-])/;
-const OWN_THEME = /\[data-theme=|(?<![\w(-])--tau-[\w-]+\s*:/;
+// 字号档位 --tau-text-* 与主题正交，移动端按触控密度覆盖，不算自建主题
+const OWN_THEME = /\[data-theme=|(?<![\w(-])--tau-(?!text-)[\w-]+\s*:/;
 
 describe("移动端主题词汇", () => {
   const files = sourceFiles(SRC);

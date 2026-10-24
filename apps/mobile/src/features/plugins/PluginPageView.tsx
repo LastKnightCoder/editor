@@ -1,12 +1,24 @@
 import { useCallback, useMemo, useRef, useEffect, type ReactNode } from "react";
 import { normalizePageParams } from "@tau/plugins/host";
 import type { PluginPageContext } from "@tau/plugins";
-import { Button, ErrorBoundary, PortalScope, UiHostProvider, UiProvider } from "@tau/ui";
+import { ErrorBoundary, Loading, PortalScope, UiHostProvider, UiProvider } from "@tau/ui";
+import { PageHeader } from "../../components/PageHeader";
 import { usePage } from "../../router";
 import { usePageInstanceContext, usePageGuard } from "../../router/pageLifecycle";
-import { useMobilePlugins } from "../../app/plugins/context";
+import { useMobilePlugins, useMobilePluginStatus } from "../../app/plugins/context";
 
-export function PluginPageShell({ title, children }: { title: string; children: ReactNode }) {
+/** 插件域页面外壳：全站 PageHeader 顶栏；header 传入时整体替换顶栏内容（如搜索展开态）。 */
+export function PluginPageShell({
+  title,
+  actions,
+  header,
+  children,
+}: {
+  title?: ReactNode;
+  actions?: ReactNode;
+  header?: ReactNode;
+  children: ReactNode;
+}) {
   const { navigator, entryId } = usePage();
   const { phase } = usePageInstanceContext();
   const registerDismiss = useCallback(
@@ -20,14 +32,11 @@ export function PluginPageShell({ title, children }: { title: string; children: 
     [navigator, entryId, phase]
   );
   return (
-    <div className="mobile-kb-screen bg-page fixed inset-0 flex flex-col px-4 pt-[var(--mobile-safe-top)]">
-      <header className="flex items-center gap-3 py-3">
-        <Button variant="ghost" onClick={() => void navigator.goBack("ui")}>
-          返回
-        </Button>
-        <h1 className="text-ink-1 text-lg font-semibold">{title}</h1>
-      </header>
-      <div className="mobile-kb-scroll min-h-0 flex-1 overflow-auto pb-[var(--mobile-safe-bottom)]">
+    <div className="mobile-kb-screen bg-page fixed inset-0 flex flex-col">
+      <PageHeader title={title} onBack={() => void navigator.goBack("ui")} actions={actions}>
+        {header}
+      </PageHeader>
+      <div className="mobile-page-scroll min-h-0 flex-1 overflow-auto px-4">
         <PortalScope>
           <UiHostProvider registerDismiss={registerDismiss}>
             <UiProvider className="contents">{children}</UiProvider>
@@ -38,8 +47,11 @@ export function PluginPageShell({ title, children }: { title: string; children: 
   );
 }
 
+const PLUGIN_STARTING = <Loading minHeight={240} label="插件加载中…" />;
+
 export function PluginPageView() {
   const runtime = useMobilePlugins();
+  const { phase } = useMobilePluginStatus();
   const { params, navigator, entryId } = usePage<{ id: string; params: string }>();
   const lifecycle = usePageInstanceContext();
   const page = runtime?.pages.get(params.id);
@@ -104,15 +116,19 @@ export function PluginPageView() {
   const available = page && runtime?.active(page.context);
   const Component = page?.definition.component;
   return (
-    <PluginPageShell title={available ? page.definition.title : "插件页面不可用"}>
-      {available && !cleanParams ? (
+    <PluginPageShell
+      title={available ? page.definition.title : phase === "starting" ? "" : "插件页面不可用"}
+    >
+      {!available && phase === "starting" ? (
+        PLUGIN_STARTING
+      ) : available && !cleanParams ? (
         <p role="alert">页面参数无效，请返回后重新打开。</p>
       ) : available && Component && cleanParams ? (
         <ErrorBoundary key={page.generation}>
           <Component context={page.context} params={cleanParams} pageContext={pageContext} />
         </ErrorBoundary>
       ) : (
-        <p>插件已停用或无法加载，请返回插件管理。</p>
+        <p className="text-ink-2 py-6 text-[14px]">插件已停用或无法加载，请返回插件中心查看。</p>
       )}
     </PluginPageShell>
   );
@@ -120,8 +136,10 @@ export function PluginPageView() {
 
 export function PluginSettingsView() {
   const runtime = useMobilePlugins();
+  const { phase } = useMobilePluginStatus();
   const { params } = usePage<{ id: string }>();
-  const setting = runtime?.settings.get(params.id);
+  const registered = runtime?.settings.get(params.id);
+  const setting = registered?.definition.target === "asr" ? undefined : registered;
   const Component = setting?.definition.component;
   return (
     <PluginPageShell title={setting?.definition.title ?? "插件设置"}>
@@ -129,8 +147,10 @@ export function PluginSettingsView() {
         <ErrorBoundary>
           <Component context={setting.context} />
         </ErrorBoundary>
+      ) : phase === "starting" ? (
+        PLUGIN_STARTING
       ) : (
-        <p>启用插件并重新打开应用后可查看设置。</p>
+        <p className="text-ink-2 py-6 text-[14px]">启用插件并生效后可查看设置。</p>
       )}
     </PluginPageShell>
   );

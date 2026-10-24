@@ -15,7 +15,7 @@ it("私有存储随插件与工作区隔离，重建恢复，旧画布不会接�
       whiteboardExtensions: [
         defineWhiteboardExtension({
           id,
-          requires: [IPluginStorage],
+
           create: () => ({}),
         }),
       ],

@@ -68,7 +68,7 @@ function serve(overrides: Partial<typeof release> = {}, body: Buffer = bytes) {
       ? Response.json({
           data: {
             release: { ...release, ...overrides },
-            compatibility: { status: "compatible", reasons: [], missingOptional: [] },
+            compatibility: { status: "compatible", reasons: [] },
           },
         })
       : url.endsWith("/download")

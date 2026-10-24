@@ -5,20 +5,15 @@
 // 「图片与附件」管新插入图片的上传位置（服务页见 uploadProvider 页）。
 
 import { useRef } from "react";
-import { AboutSection } from "./components/AboutSection";
+import { AboutSection } from "./about/AboutSection";
 import { CollaborationSection } from "./components/CollaborationSection";
-import {
-  IntegrationAliOssSection,
-  IntegrationGithubSection,
-  IntegrationS3Section,
-  IntegrationWebDavSection,
-} from "./components/IntegrationSections";
 import { OverwriteSection } from "./sync/OverwriteSection";
 import { ResourceFilesSection } from "./sync/ResourceFilesSection";
 import { SyncCenterSection } from "./sync/SyncCenterSection";
 import { UploadCenterSection } from "./upload/UploadCenterSection";
 import type { SettingModuleKey, SettingsPageProps } from "./components/types";
-import { CheckBubble, GroupCard, GroupNote, GroupRow, IconDatabase } from "./components/ui";
+import { CheckBubble } from "../../components/CheckBubble";
+import { GroupCard, GroupNote, GroupRow, IconDatabase } from "./components/ui";
 import { PageHeader } from "../../components/PageHeader";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { useAppContext } from "../../app/AppContext";
@@ -27,7 +22,7 @@ import { useNavigator } from "../../router";
 function getTitle(module: SettingModuleKey): string {
   switch (module) {
     case "about":
-      return "关于";
+      return "关于与更新";
     case "database":
       return "同步";
     case "databases":
@@ -38,16 +33,6 @@ function getTitle(module: SettingModuleKey): string {
       return "实时协作";
     case "sync-status-resource":
       return "资源文件";
-    case "integration":
-      return "集成账号";
-    case "integration-github":
-      return "Github 账号";
-    case "integration-s3":
-      return "S3 账号";
-    case "integration-webdav":
-      return "WebDAV 账号";
-    case "integration-alioss":
-      return "AliOSS 账号";
     case "resource":
       return "图片与附件";
     default:
@@ -138,42 +123,6 @@ function ModuleSection(props: ModuleSectionProps) {
           onOpenModule={props.onOpenModule}
         />
       );
-    case "integration-github":
-      return (
-        <IntegrationGithubSection
-          safeSetting={props.safeSetting}
-          isSavingSetting={props.isSavingSetting}
-          onSaveSetting={props.onSaveSetting}
-          updateSetting={props.updateSetting}
-        />
-      );
-    case "integration-s3":
-      return (
-        <IntegrationS3Section
-          safeSetting={props.safeSetting}
-          isSavingSetting={props.isSavingSetting}
-          onSaveSetting={props.onSaveSetting}
-          updateSetting={props.updateSetting}
-        />
-      );
-    case "integration-webdav":
-      return (
-        <IntegrationWebDavSection
-          safeSetting={props.safeSetting}
-          isSavingSetting={props.isSavingSetting}
-          onSaveSetting={props.onSaveSetting}
-          updateSetting={props.updateSetting}
-        />
-      );
-    case "integration-alioss":
-      return (
-        <IntegrationAliOssSection
-          safeSetting={props.safeSetting}
-          isSavingSetting={props.isSavingSetting}
-          onSaveSetting={props.onSaveSetting}
-          updateSetting={props.updateSetting}
-        />
-      );
     default:
       return null;
   }
@@ -195,8 +144,7 @@ export function SettingsModulePage(props: { module: SettingModuleKey }) {
 
       <div
         ref={scrollRef}
-        className="edge-fade-scroll mobile-kb-scroll flex-1 overflow-y-auto px-4"
-        style={{ paddingBottom: "calc(var(--page-bottom-inset) + var(--kb-height, 0px))" }}
+        className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto px-4"
       >
         <ModuleSection
           module={props.module}

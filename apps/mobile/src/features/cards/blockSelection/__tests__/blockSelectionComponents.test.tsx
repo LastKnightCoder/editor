@@ -268,11 +268,14 @@ describe("块选择组件", () => {
     const types = (editor: Editor) =>
       editor.children.map(node => (node as unknown as { type: string }).type);
 
-    it("未选中时全部禁用", () => {
+    it("未选中时只显示操作提示，不渲染按钮", () => {
       renderBar(createDoc(["A", "B"]), []);
       for (const label of ["上移", "下移", "转换", "复制", "删除", "更多"]) {
-        expect(buttonByLabel(label)?.disabled).toBe(true);
+        expect(buttonByLabel(label)).toBeNull();
       }
+      expect(document.querySelector('[data-block-action-bar="true"]')?.textContent).toContain(
+        "点按段落来选择"
+      );
     });
 
     it("按边界禁用上移 / 下移", () => {
@@ -484,7 +487,7 @@ describe("块选择组件", () => {
     it("挂载时写入遮挡留白，卸载时移除", () => {
       renderBar(createDoc(["A"]), [0]);
       const style = document.documentElement.style;
-      expect(style.getPropertyValue("--mobile-editor-toolbar-occlusion")).toContain("67px");
+      expect(style.getPropertyValue("--mobile-editor-toolbar-occlusion")).toContain("78px");
       act(() => root.render(null));
       expect(style.getPropertyValue("--mobile-editor-toolbar-occlusion")).toBe("");
     });

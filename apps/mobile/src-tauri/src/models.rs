@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 pub struct DatabaseItem {
     pub name: String,
     pub version: u64,
+    #[serde(default)]
+    pub sync_format: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -203,11 +205,4 @@ pub struct SettingWriteResponse {
     pub ok: bool,
     pub code: Option<String>,
     pub message: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GithubUserInfoResponse {
-    pub name: String,
-    pub email: String,
 }

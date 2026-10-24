@@ -1,29 +1,29 @@
 import { useRef, useState } from "react";
-import { useDebounce } from "ahooks";
-import { Search } from "lucide-react";
-import { FilterPill, Input } from "@tau/ui";
+import { FilterPill } from "@tau/ui";
 import type { PluginCategory } from "@tau/plugins/package";
 import { useNavigator } from "../../router";
 import { CenterInstallSheet } from "./CenterInstallSheet";
-import { PLUGIN_CATEGORIES, PLATFORM_LABELS, categoryLabel } from "./components/centerDisplay";
+import { PLUGIN_CATEGORIES, categoryLabel } from "./components/centerDisplay";
 import { PluginListState } from "./components/PluginListState";
-import { StoreEntryCard } from "./components/StoreEntryCard";
-import { INSTALL_CLOSED_REASON, storePrimaryAction } from "./components/storeActions";
+import { StoreEntryRow } from "./components/StoreEntryRow";
+import {
+  INSTALL_CLOSED_REASON,
+  storePrimaryAction,
+  storeTaskPhase,
+} from "./components/storeActions";
 import { useMobileCenterCatalog, type useMobileCenterInstall } from "./data/center-queries";
 import { usePluginManager } from "./data/usePluginManager";
 
 type InstallController = ReturnType<typeof useMobileCenterInstall>;
 
-/** 商店：按本机平台与真实宿主浏览，安装只经中心 releaseId。 */
-export function PluginStorePanel({ install }: { install: InstallController }) {
+/** 商店：按本机平台与真实宿主浏览，关键词来自顶栏搜索，安装只经中心 releaseId。 */
+export function PluginStorePanel({ install, q }: { install: InstallController; q: string }) {
   const navigator = useNavigator();
-  const [input, setInput] = useState("");
-  const q = useDebounce(input.trim(), { wait: 300 });
   const [category, setCategory] = useState<PluginCategory | null>(null);
   const [target, setTarget] = useState<{ pluginId: string; name: string } | null>(null);
   const { config, query } = useMobileCenterCatalog({ q, category });
   const manager = usePluginManager();
-  const installed = new Map(manager.items.map(item => [item.id, item.version]));
+  const installed = new Map(manager.items.map(item => [item.id, item]));
   const pages = query.data?.pages;
   // 分类计数不受分类筛选影响；翻页与切换分类时沿用上一次首页的计数，避免分类条闪烁
   const counts = useRef<Partial<Record<PluginCategory, number>> | null>(null);
@@ -35,6 +35,7 @@ export function PluginStorePanel({ install }: { install: InstallController }) {
   const host = config.data?.host ?? null;
   const installationEnabled = !!config.data?.installationEnabled;
   const failure = config.error ?? (query.data ? null : query.error);
+  const swallow = (action: Promise<unknown>) => void action.catch(() => undefined);
 
   return (
     <div className="flex flex-col gap-3">
@@ -48,20 +49,8 @@ export function PluginStorePanel({ install }: { install: InstallController }) {
           {INSTALL_CLOSED_REASON}，可先浏览插件与平台声明。
         </p>
       )}
-      <Input
-        lead={Search}
-        clearable
-        aria-label="搜索插件"
-        placeholder={host ? `搜索支持${PLATFORM_LABELS[host.platform]}的插件` : "搜索插件"}
-        value={input}
-        onChange={event => setInput(event.target.value)}
-      />
       {categories.length > 0 && (
-        <div
-          role="group"
-          aria-label="插件分类"
-          className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1"
-        >
+        <div role="group" aria-label="插件分类" className="-mx-4 flex gap-2 overflow-x-auto px-4">
           <FilterPill active={!category} onClick={() => setCategory(null)} label="全部" />
           {categories.map(item => (
             <FilterPill
@@ -87,35 +76,30 @@ export function PluginStorePanel({ install }: { install: InstallController }) {
         loadMoreError={query.isFetchNextPageError ? String(query.error) : null}
         onLoadMore={() => void query.fetchNextPage()}
       >
-        {items.map(entry => (
-          <li key={entry.pluginId} className="flex">
-            <StoreEntryCard
-              name={entry.name}
-              description={entry.description}
-              publisher={entry.publisher.login}
-              latestVersion={entry.latest.version}
-              compatibleVersion={entry.compatible?.version ?? null}
-              compatibility={entry.compatibility}
-              primary={storePrimaryAction({
-                compatibleVersion: entry.compatible?.version ?? null,
-                installedVersion: installed.get(entry.pluginId) ?? null,
-                installationEnabled,
-              })}
-              busy={install.mutation.isPending && target?.pluginId === entry.pluginId}
-              onOpen={() => navigator.push("pluginStoreDetail", { pluginId: entry.pluginId })}
-              onPrimary={() => setTarget({ pluginId: entry.pluginId, name: entry.name })}
-            />
-          </li>
+        {items.map((entry, index) => (
+          <StoreEntryRow
+            key={entry.pluginId}
+            entry={entry}
+            divider={index > 0}
+            primary={storePrimaryAction({
+              compatibleVersion: entry.compatible?.version ?? null,
+              installed: installed.get(entry.pluginId) ?? null,
+              installationEnabled,
+            })}
+            phase={storeTaskPhase(install.task, entry.pluginId)}
+            onOpen={() => navigator.push("pluginDetail", { pluginId: entry.pluginId })}
+            onPrimary={() => setTarget({ pluginId: entry.pluginId, name: entry.name })}
+            onCancel={() => swallow(install.cancel())}
+            onRetry={() => swallow(install.retry())}
+          />
         ))}
       </PluginListState>
       {target && (
         <CenterInstallSheet
           pluginId={target.pluginId}
           name={target.name}
-          installedVersion={installed.get(target.pluginId) ?? null}
-          installedPermissions={
-            manager.items.find(item => item.id === target.pluginId)?.permissions
-          }
+          installedVersion={installed.get(target.pluginId)?.version ?? null}
+          installedPermissions={installed.get(target.pluginId)?.permissions}
           install={install}
           onClose={() => setTarget(null)}
         />

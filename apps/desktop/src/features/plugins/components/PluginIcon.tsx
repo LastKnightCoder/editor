@@ -1,5 +1,5 @@
 import { cn } from "@tau/ui";
-import { pluginTone } from "../model";
+import { pluginTone } from "@tau/plugins/center";
 
 const TONES = [
   "bg-tag-1-soft text-tag-1",

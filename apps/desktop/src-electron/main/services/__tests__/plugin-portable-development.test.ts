@@ -35,7 +35,7 @@ async function fixture() {
     main: "main.js",
     integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
     targets: {
-      desktop: { minAppVersion: "0.59.0", required: ["pages"], optional: ["futureCapability"] },
+      desktop: { minAppVersion: "0.59.0" },
     },
   };
   await writeFile(path.join(root, ".enabled.json"), JSON.stringify([manifest.id]));
@@ -43,12 +43,12 @@ async function fixture() {
   await writeFile(path.join(directory, "main.js"), code);
   return directory;
 }
-it("桌面开发读取保留未知可选能力且不执行代码", async () => {
+it("桌面开发读取只检查平台与版本且不执行代码", async () => {
   await fixture();
   const { portableDevelopmentArtifacts } = await import("../plugin-portable-development");
-  expect((await portableDevelopmentArtifacts())[0].manifest.targets.desktop?.optional).toEqual([
-    "futureCapability",
-  ]);
+  expect((await portableDevelopmentArtifacts())[0].manifest.targets.desktop).toEqual({
+    minAppVersion: "0.59.0",
+  });
 });
 it("前向读取不放宽摘要或正式构建门禁", async () => {
   const directory = await fixture();

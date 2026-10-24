@@ -11,6 +11,8 @@ import type { PluginSettings } from "./settings";
 import type { PluginSync } from "./sync";
 import type { PluginUpload } from "./upload";
 import type { PluginTTS } from "./tts";
+import type { PluginASR } from "./asr";
+import type { PluginWebSocket } from "./websocket";
 import type { PluginImages } from "./images";
 import type { PluginVideo } from "./video";
 import type { PluginPublish } from "./publish";
@@ -68,6 +70,8 @@ export interface PluginContext {
   readonly sync: PluginSync;
   readonly upload: PluginUpload;
   readonly tts: PluginTTS;
+  readonly asr: PluginASR;
+  readonly websocket: PluginWebSocket;
   readonly images: PluginImages;
   readonly video: PluginVideo;
   readonly publish: PluginPublish;

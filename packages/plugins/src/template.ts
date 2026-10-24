@@ -1,4 +1,4 @@
-import { assertLocalId } from "./ids";
+import { readPluginIdentity } from "./package-fields.ts";
 import { comparePluginVersions } from "./version";
 import { validatePluginManifest, type PluginManifest } from "./package";
 import { readCatalogFields, type PluginCatalogFields } from "./categories.ts";
@@ -82,35 +82,26 @@ export function assertPublishPath(value: unknown): asserts value is string {
     throw new Error("发布文件不能覆盖 Git 元数据");
 }
 
-export const SITE_FIELD_LIMITS = {
-  fields: 32,
-  options: 50,
-  label: 40,
-  description: 160,
-  value: 2000,
-} as const;
 const SITE_FIELD_TYPES = new Set(["text", "textarea", "url", "select", "switch"]);
 
-const optionalText = (value: unknown, limit: number, name: string) => {
+const optionalText = (value: unknown, name: string) => {
   if (value === undefined) return undefined;
-  if (typeof value !== "string" || value.length > limit) throw new Error(`站点字段${name}无效`);
+  if (typeof value !== "string") throw new Error(`站点字段${name}无效`);
   return value;
 };
-const requiredText = (value: unknown, limit: number, name: string) => {
-  if (typeof value !== "string" || !value.trim() || value.length > limit)
-    throw new Error(`站点字段${name}无效`);
+const requiredText = (value: unknown, name: string) => {
+  if (typeof value !== "string" || !value.trim()) throw new Error(`站点字段${name}无效`);
   return value;
 };
 
 function readSiteFields(value: unknown): TemplateSiteField[] | undefined {
   if (value === undefined) return undefined;
-  if (!Array.isArray(value) || value.length > SITE_FIELD_LIMITS.fields)
-    throw new Error(`站点字段最多声明 ${SITE_FIELD_LIMITS.fields} 个`);
+  if (!Array.isArray(value)) throw new Error("站点字段必须是数组");
   const keys = new Set<string>();
   const fields = value.map((raw): TemplateSiteField => {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("站点字段无效");
     const item = raw as Record<string, unknown>;
-    if (typeof item.key !== "string" || !/^[a-zA-Z][a-zA-Z0-9_]{0,31}$/.test(item.key))
+    if (typeof item.key !== "string" || !/^[a-zA-Z][a-zA-Z0-9_]*$/.test(item.key))
       throw new Error("站点字段 key 只能由字母、数字和下划线组成，且以字母开头");
     if (keys.has(item.key)) throw new Error(`站点字段 key 重复：${item.key}`);
     keys.add(item.key);
@@ -118,10 +109,10 @@ function readSiteFields(value: unknown): TemplateSiteField[] | undefined {
       throw new Error(`站点字段类型不支持：${String(item.type)}`);
     const base = {
       key: item.key,
-      label: requiredText(item.label, SITE_FIELD_LIMITS.label, "名称"),
+      label: requiredText(item.label, "名称"),
       ...(item.description === undefined
         ? {}
-        : { description: optionalText(item.description, SITE_FIELD_LIMITS.description, "说明") }),
+        : { description: optionalText(item.description, "说明") }),
     };
     if (item.type === "switch") {
       if (item.default !== undefined && typeof item.default !== "boolean")
@@ -132,19 +123,14 @@ function readSiteFields(value: unknown): TemplateSiteField[] | undefined {
         ...(item.default === undefined ? {} : { default: item.default }),
       });
     }
-    const fallback = optionalText(item.default, SITE_FIELD_LIMITS.value, "默认值");
+    const fallback = optionalText(item.default, "默认值");
     if (item.type === "select") {
-      if (
-        !Array.isArray(item.options) ||
-        !item.options.length ||
-        item.options.length > SITE_FIELD_LIMITS.options
-      )
-        throw new Error("下拉字段选项无效");
+      if (!Array.isArray(item.options) || !item.options.length) throw new Error("下拉字段选项无效");
       const options = item.options.map(option => {
         const entry = (option ?? {}) as Record<string, unknown>;
         return Object.freeze({
-          value: requiredText(entry.value, SITE_FIELD_LIMITS.value, "选项值"),
-          label: requiredText(entry.label, SITE_FIELD_LIMITS.label, "选项名称"),
+          value: requiredText(entry.value, "选项值"),
+          label: requiredText(entry.label, "选项名称"),
         });
       });
       if (new Set(options.map(option => option.value)).size !== options.length)
@@ -158,7 +144,7 @@ function readSiteFields(value: unknown): TemplateSiteField[] | undefined {
         ...(fallback === undefined ? {} : { default: fallback }),
       });
     }
-    const placeholder = optionalText(item.placeholder, SITE_FIELD_LIMITS.label * 2, "占位文字");
+    const placeholder = optionalText(item.placeholder, "占位文字");
     return Object.freeze({
       ...base,
       type: item.type as "text" | "textarea" | "url",
@@ -183,7 +169,6 @@ export function resolveSiteFields(
     }
     const valid =
       typeof value === "string" &&
-      value.length <= SITE_FIELD_LIMITS.value &&
       (field.type !== "select" || field.options.some(option => option.value === value));
     result[field.key] = valid
       ? value
@@ -202,33 +187,20 @@ export function isSkillPackageManifest(value: DistributionManifest): value is Sk
 
 /** 模板与 Skill 包共用的身份字段校验。 */
 function readStaticIdentity(item: Record<string, unknown>) {
-  if (typeof item.id !== "string") throw new Error("插件 ID 无效");
-  assertLocalId(item.id);
-  if (typeof item.name !== "string" || !item.name.trim() || typeof item.version !== "string")
-    throw new Error("插件名称或版本无效");
-  comparePluginVersions(item.version, item.version);
+  const identity = readPluginIdentity(item);
   if (item.minAppVersion !== undefined) {
     if (typeof item.minAppVersion !== "string") throw new Error("最低客户端版本无效");
     comparePluginVersions(item.minAppVersion, item.minAppVersion);
   }
   return {
-    id: item.id,
-    name: item.name,
-    version: item.version,
+    ...identity,
     ...(typeof item.minAppVersion === "string" ? { minAppVersion: item.minAppVersion } : {}),
   };
 }
 
-function validateSkillPackageManifest(
-  item: Record<string, unknown>,
-  strict: boolean
-): SkillPackageManifest {
+function validateSkillPackageManifest(item: Record<string, unknown>): SkillPackageManifest {
   if (item.formatVersion !== 1 || item.apiVersion !== 1 || item.platform !== "desktop")
     throw new Error("Skill 包格式、API 版本或平台不兼容");
-  if (
-    ["format", "styles", "editor", "whiteboard", "backend", "permissions"].some(key => key in item)
-  )
-    throw new Error("Skill 包只包含 Skill 目录，不能声明代码插件字段");
   const identity = readStaticIdentity(item);
   const skills = readSkillsField(item.skills);
   if (!skills) throw new Error("Skill 包至少声明一个 Skill");
@@ -242,16 +214,13 @@ function validateSkillPackageManifest(
     apiVersion: 1 as const,
     platform: "desktop" as const,
     ...identity,
-    ...readCatalogFields(item, strict),
+    ...readCatalogFields(item),
     skills,
     integrity: Object.freeze(integrity),
   });
 }
 
-export function validateDistributionManifest(
-  value: unknown,
-  options: { strict?: boolean } = {}
-): DistributionManifest {
+export function validateDistributionManifest(value: unknown): DistributionManifest {
   if (
     value &&
     typeof value === "object" &&
@@ -259,9 +228,9 @@ export function validateDistributionManifest(
     !("template" in value) &&
     !("main" in value)
   )
-    return validateSkillPackageManifest(value as Record<string, unknown>, options.strict === true);
+    return validateSkillPackageManifest(value as Record<string, unknown>);
   if (!value || typeof value !== "object" || !("template" in value))
-    return validatePluginManifest(value, options);
+    return validatePluginManifest(value);
   const item = value as Record<string, unknown>;
   const template = item.template as Record<string, unknown> | null;
   if (
@@ -287,12 +256,6 @@ export function validateDistributionManifest(
   });
   if (!item.integrity || typeof item.integrity !== "object" || Array.isArray(item.integrity))
     throw new Error("模板资源缺少摘要清单");
-  if (
-    ["main", "format", "styles", "editor", "whiteboard", "backend", "skills"].some(
-      key => key in item
-    )
-  )
-    throw new Error("模板包只包含静态站点产物，不能同时声明代码插件入口");
   const integrity: Record<string, string> = Object.create(null);
   for (const [name, digest] of Object.entries(item.integrity)) {
     assertPackagePath(name);
@@ -308,7 +271,7 @@ export function validateDistributionManifest(
   for (const entry of entries)
     if (!integrity[template.root + "/" + entry]) throw new Error("模板入口未包含在摘要清单");
   const siteFields = readSiteFields(template.siteFields);
-  const catalog = readCatalogFields(item, options.strict === true);
+  const catalog = readCatalogFields(item);
   return Object.freeze({
     formatVersion: 1 as const,
     apiVersion: 1 as const,

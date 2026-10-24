@@ -11,10 +11,12 @@ import {
   ArrowRight,
   ArrowUp,
   Bold,
+  Check,
   ChevronDown,
   Code,
   Ellipsis,
-  FileText,
+  Eye,
+  FileSymlink,
   Highlighter,
   Image as ImageIcon,
   IndentDecrease,
@@ -26,6 +28,7 @@ import {
   List,
   MessageSquarePlus,
   Plus,
+  Replace,
   Sigma,
   SquareCheck,
   Strikethrough,
@@ -34,16 +37,21 @@ import {
   Trash2,
   Underline,
   Undo2,
+  Unlink,
   Workflow,
   X,
 } from "lucide-react";
 
 import {
+  resolveExpectedKeyboardHeight,
   resolvePanelHeight,
   useKeyboardViewport,
 } from "../../../components/KeyboardViewportProvider";
 import { ActionSheet, type ActionSheetItem } from "../../../components/ActionSheet";
+import { Node as SlateNode } from "slate";
+
 import ContentLinkPickerSheet from "../editorExtensions/ContentLinkPickerSheet";
+import ContentLinkPreviewSheet from "../editorExtensions/ContentLinkPreviewSheet";
 import {
   ALL_CODE_LANGUAGES,
   COMMON_CODE_LANGUAGES,
@@ -67,7 +75,13 @@ import {
   type SourceSymbolKey,
 } from "./sourceEditorInput";
 import StylePanel from "./StylePanel";
-import { AccessoryButton, ContextChip, cn, keepEditorFocus } from "./accessoryControls";
+import {
+  AccessoryButton,
+  ContextChip,
+  LabeledButton,
+  cn,
+  keepEditorFocus,
+} from "./accessoryControls";
 import { isTableActionDisabled, type TableActionId } from "./tableActions";
 import type { ToolbarActionId } from "./toolbarActions";
 import type {
@@ -133,9 +147,14 @@ type MobileEditorBottomToolbarProps = {
    * 白名单应与宿主场景的渲染能力对齐（能编辑的就能渲染）。
    */
   visibleButtons?: ReadonlySet<AccessoryItemId> | null;
+  /**
+   * 阅读态宿主（内容详情、协作编辑）：右端常驻「完成」退出编辑回到阅读态，
+   * 各模式下的「收起键盘」由它取代；其余宿主仍只收起键盘。
+   */
+  showDoneButton?: boolean;
 };
 
-/** 配件栏高度，同时作为滚动容器的遮挡留白（键盘与面板高度已含在 --kb-height） */
+/** 配件栏高度，同时作为滚动容器的遮挡留白（键盘与面板由外壳收缩避让，不计入） */
 const ACCESSORY_BAR_HEIGHT = 46;
 
 const ICON_SIZE = 19;
@@ -177,7 +196,7 @@ const ITEM_LABELS: Record<AccessoryItemId, string> = {
   "bulleted-list": "无序列表",
   outdent: "反缩进",
   indent: "缩进",
-  "content-link": "关联卡片",
+  "content-link": "引用内容",
   image: "图片",
   undo: "撤销",
   bold: "加粗",
@@ -204,7 +223,7 @@ const ITEM_ICONS: Partial<Record<AccessoryItemId, ReactNode>> = {
   "bulleted-list": <List size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
   outdent: <IndentDecrease size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
   indent: <IndentIncrease size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
-  "content-link": <FileText size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
+  "content-link": <FileSymlink size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
   image: <ImageIcon size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
   undo: <Undo2 size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
   bold: <Bold size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
@@ -377,7 +396,7 @@ function resolveSourceContext(
 }
 
 export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps) {
-  const { controller, portalContainer, readonly = false, visibleButtons } = props;
+  const { controller, portalContainer, readonly = false, visibleButtons, showDoneButton } = props;
   const keyboardViewport = useKeyboardViewport();
   const [panelSearching, setPanelSearching] = useState(false);
   const [languageSheet, setLanguageSheet] = useState<CodeLanguageSheetState | null>(null);
@@ -404,6 +423,11 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     editingContext.kind === "media" &&
     (activePanel === null || activePanel === "media") &&
     isVisible("context-media")
+      ? editingContext
+      : null;
+  // 引用模式与通用模式的「引用内容」按钮同受白名单控制
+  const linkContext =
+    editingContext.kind === "content-link" && activePanel === null && isVisible("content-link")
       ? editingContext
       : null;
   const toggleMediaPanel = () => {
@@ -608,10 +632,33 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     exitEditing();
   };
 
+  const renderContentLinkItems = () => [
+    <LabeledButton
+      key="preview"
+      label="预览"
+      icon={<Eye size={18} strokeWidth={2.1} />}
+      onPress={controller.openContentLinkPreview}
+    />,
+    <LabeledButton
+      key="retarget"
+      label="更换"
+      icon={<Replace size={18} strokeWidth={2.1} />}
+      onPress={controller.retargetContentLink}
+    />,
+    <LabeledButton
+      key="remove"
+      label="移除"
+      icon={<Unlink size={18} strokeWidth={2.1} />}
+      // 光标在引用内时「引用内容」动作即解除引用、保留文字
+      onPress={() => controller.executeAction("content-link")}
+    />,
+  ];
+
   let middleNodes: ReactNode[];
   if (codeContext) middleNodes = renderCodeItems(codeContext);
   else if (sourceContext) middleNodes = renderSourceItems(sourceContext);
   else if (mediaContext) middleNodes = media.middleNodes;
+  else if (linkContext) middleNodes = renderContentLinkItems();
   else if (tableContext) middleNodes = renderTableItems(tableContext);
   else {
     middleNodes = (isFormatMode ? FORMAT_MIDDLE_ITEMS : GENERAL_MIDDLE_ITEMS)
@@ -641,6 +688,15 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     );
   } else if (mediaContext) {
     leftNode = media.leftNode;
+  } else if (linkContext) {
+    leftNode = (
+      <ContextChip
+        icon={<FileSymlink size={14} strokeWidth={ICON_STROKE} />}
+        label={SlateNode.string(linkContext.element) || ITEM_LABELS["content-link"]}
+        ariaLabel="引用内容"
+        onPress={controller.dismissEditingContext}
+      />
+    );
   } else if (isFormatMode) {
     leftNode = (
       <ContextChip
@@ -681,13 +737,17 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
   }
 
   let rightNode: ReactNode;
+  // 本模式「收起键盘」的动作：有「完成」时由它执行，不再重复渲染收起键盘按钮
+  let keyboardExit: (() => void) | null = null;
   if (codeContext) {
+    keyboardExit = () => closeCodeKeyboard(codeContext);
     rightNode = (
       <AccessoryButton label="收起键盘" onPress={() => closeCodeKeyboard(codeContext)}>
         <KeyboardOff size={ICON_SIZE} strokeWidth={ICON_STROKE} />
       </AccessoryButton>
     );
   } else if (sourceContext) {
+    keyboardExit = closeSourceKeyboard;
     rightNode = (
       <AccessoryButton label="收起键盘" onPress={closeSourceKeyboard}>
         <KeyboardOff size={ICON_SIZE} strokeWidth={ICON_STROKE} />
@@ -710,9 +770,24 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
       </AccessoryButton>
     );
   } else {
+    keyboardExit = exitEditing;
     rightNode = (
       <AccessoryButton label="收起键盘" onPress={exitEditing}>
         <KeyboardOff size={ICON_SIZE} strokeWidth={ICON_STROKE} />
+      </AccessoryButton>
+    );
+  }
+  let doneNode: ReactNode = null;
+  if (showDoneButton) {
+    if (keyboardExit) rightNode = null;
+    doneNode = (
+      <AccessoryButton
+        label="完成"
+        onPress={keyboardExit ?? exitEditing}
+        className="bg-accent-soft text-accent-text mx-1 h-8 gap-1 rounded-full px-3 text-[14px] font-bold"
+      >
+        <Check size={15} strokeWidth={2.6} aria-hidden />
+        完成
       </AccessoryButton>
     );
   }
@@ -744,7 +819,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
             className="bg-surface border-line-1 fixed inset-x-0 flex h-[46px] items-center gap-0.5 border-t px-1"
             style={{
               zIndex: Z_INDEX.POPOVER,
-              bottom: "max(var(--kb-height, 0px), env(safe-area-inset-bottom, 0px))",
+              bottom: "var(--mobile-overlay-bottom)",
             }}
           >
             {leftNode}
@@ -762,18 +837,22 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
               <span aria-hidden="true" className="bg-line-1 mx-1 h-[22px] w-px shrink-0" />
             ) : null}
             {rightNode}
+            {doneNode}
           </nav>,
           portalRoot
         )
       : null;
 
   // 插入面板搜索时键盘在面板下方，面板从键盘顶边起算
-  const panelBottom = panelSearching ? keyboardViewport.rawKeyboardHeight : 0;
+  // 键盘升起前按预计高度先把面板抬到键盘位置之上：搜索框聚焦时已可见，iOS 不会为露出它平移整个视口
+  const panelBottom = panelSearching ? resolveExpectedKeyboardHeight(keyboardViewport) : 0;
   const panelNode =
     activePanel && portalRoot
       ? createPortal(
+          // 面板自行贴住键盘定位，内部输入框（插入面板搜索）不参与自动露出，否则会被卷到上方工具条下
           <div
             data-mobile-editor-panel={activePanel}
+            data-kb-optout="true"
             className="bg-surface fixed inset-x-0"
             style={{
               zIndex: Z_INDEX.POPOVER,
@@ -781,7 +860,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
               height: Math.max(0, keyboardViewport.reservedHeight - panelBottom),
             }}
           >
-            <div className="h-full overflow-y-auto pb-[env(safe-area-inset-bottom)]">
+            <div className="h-full overflow-y-auto pb-[var(--mobile-safe-bottom)]">
               <div data-testid={`editor-panel-${activePanel}`}>
                 {activePanel === "style" ? (
                   <StylePanel controller={controller} visibleButtons={visibleButtons} />
@@ -844,8 +923,14 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
         onClose={closeLanguageSheet}
       />
       {media.sheets}
+      <ContentLinkPreviewSheet
+        open={controller.contentLinkPreview !== null}
+        target={controller.contentLinkPreview}
+        onClose={controller.closeContentLinkPreview}
+      />
       <ContentLinkPickerSheet
         open={controller.isContentLinkPickerOpen}
+        intent={controller.contentLinkPickerIntent}
         onClose={controller.handleCloseContentLinkPicker}
         onSelect={controller.handleSelectContentLink}
       />

@@ -1,46 +1,15 @@
 import { getCurrentTextNode } from "@tau/editor";
-import { Editor, Element, Range, Transforms } from "slate";
+import { Editor, Range, Transforms, type Path } from "slate";
 
-type ContentLinkElement = {
-  type: "content-link";
-  contentId: number;
-  contentType: string;
-  contentTitle: string;
-  refId: number;
-  children: Array<{
-    type: "formatted";
-    text: string;
-  }>;
-};
+import {
+  CONTENT_LINK_TYPE,
+  type ContentLinkElement,
+  type ContentLinkTarget,
+} from "./contentLinkModel";
 
-type WrapContentLinkPayload = {
-  contentId: number;
-  contentType: string;
-  contentTitle: string;
-  refId: number;
-  displayText?: string;
-};
+type WrapContentLinkPayload = ContentLinkTarget & { displayText?: string };
 
 const MARK_KEYS = ["bold", "code", "italic", "underline", "highlight", "color"];
-
-export function isContentLinkActive(editor: Editor): boolean {
-  const [contentLink] = Editor.nodes(editor, {
-    match: node =>
-      !Editor.isEditor(node) &&
-      Element.isElement(node) &&
-      (node as { type?: string }).type === "content-link",
-  });
-  return !!contentLink;
-}
-
-export function unwrapContentLink(editor: Editor): void {
-  Transforms.unwrapNodes(editor, {
-    match: node =>
-      !Editor.isEditor(node) &&
-      Element.isElement(node) &&
-      (node as { type?: string }).type === "content-link",
-  });
-}
 
 export function wrapContentLink(editor: Editor, payload: WrapContentLinkPayload): void {
   const { contentId, contentType, contentTitle, refId, displayText } = payload;
@@ -62,7 +31,7 @@ export function wrapContentLink(editor: Editor, payload: WrapContentLinkPayload)
     editor.deleteBackward("character");
 
     const contentLinkNode: ContentLinkElement = {
-      type: "content-link",
+      type: CONTENT_LINK_TYPE,
       contentId,
       contentType,
       contentTitle,
@@ -84,7 +53,7 @@ export function wrapContentLink(editor: Editor, payload: WrapContentLinkPayload)
   }
 
   const contentLinkNode: ContentLinkElement = {
-    type: "content-link",
+    type: CONTENT_LINK_TYPE,
     contentId,
     contentType,
     contentTitle,
@@ -92,11 +61,19 @@ export function wrapContentLink(editor: Editor, payload: WrapContentLinkPayload)
     children: [
       {
         type: "formatted",
-        text: displayText || contentTitle || "关联内容",
+        text: displayText || contentTitle || "引用内容",
       },
     ],
   };
 
   Transforms.insertNodes(editor, contentLinkNode as any, { at: selection });
   Transforms.move(editor, { distance: 1, unit: "offset" });
+}
+
+/** 把引用改指向另一条内容，显示文字保持不变 */
+export function retargetContentLink(editor: Editor, path: Path, target: ContentLinkTarget): void {
+  const { contentId, contentType, contentTitle, refId } = target;
+  Transforms.setNodes(editor, { contentId, contentType, contentTitle, refId } as never, {
+    at: path,
+  });
 }

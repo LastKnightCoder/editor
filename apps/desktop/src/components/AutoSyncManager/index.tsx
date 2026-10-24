@@ -1,3 +1,4 @@
+import { localSyncVersion } from "@tau/db-schema/sync-protocol";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dialog, DialogBody, toast } from "@tau/ui";
 
@@ -56,7 +57,7 @@ const AutoSyncManager = () => {
     () => database.databases.find(item => item.name === database.active),
     [database.active, database.databases]
   );
-  const currentVersion = activeDatabase?.version ?? 0;
+  const currentVersion = localSyncVersion(activeDatabase);
   const isConfigured = useMemo(() => isSyncConfigured(sync.active, sync), [sync]);
   const shouldAutoSync = !isDevMode && sync.autoSyncEnabled && isConfigured;
 

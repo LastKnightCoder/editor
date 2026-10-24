@@ -38,27 +38,12 @@ function baseSetting(): SettingCompat {
   return {
     database: { active: "data.db", databases: [] },
     imageBed: {
-      active: "github",
+      active: "local",
       enableCompression: true,
-      github: { repo: "", branch: "", pathPrefix: "" },
-      aliOSS: { bucket: "", region: "", pathPrefix: "" },
       local: { path: "resources" },
-      s3: { bucket: "", region: "", pathPrefix: "" },
-      webdav: { pathPrefix: "" },
+      plugin: { id: "", configurations: {} },
     },
-    sync: {
-      active: "aliOSS",
-      webdav: { pathPrefix: "" },
-      aliOSS: { bucket: "", region: "", path: "/" },
-      s3: { bucket: "", region: "", pathPrefix: "" },
-      github: { repo: "", branch: "", pathPrefix: "" },
-    },
-    integration: {
-      github: { token: "", user: { name: "", email: "" } },
-      s3: { accessKeyId: "", secretAccessKey: "", endpoint: "", urlStyle: "path" },
-      webdav: { url: "", username: "", password: "" },
-      aliOSS: { accessKeyId: "", accessKeySecret: "" },
-    },
+    sync: { active: "plugin", plugin: { id: "", configurations: {} } },
   } as SettingCompat;
 }
 

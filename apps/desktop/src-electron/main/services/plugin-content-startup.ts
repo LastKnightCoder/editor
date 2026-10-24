@@ -1,4 +1,4 @@
-import { assertLocalId, isContentPlugin } from "@tau/plugins/package";
+import { assertLocalId } from "@tau/plugins/package";
 import type { DesktopPluginPackage as DevelopmentPluginPackage } from "../../../shared/plugin-package";
 
 interface ContentStartupSnapshot {
@@ -9,7 +9,9 @@ interface ContentStartupSnapshot {
 /** 主进程初始化时按已保存的启用列表取一次快照，所有窗口与后台线程共用。 */
 export class PluginContentStartup {
   private snapshot?: Promise<ContentStartupSnapshot>;
-  constructor(private readonly read: (id: string) => Promise<DevelopmentPluginPackage>) {}
+  constructor(
+    private readonly read: (id: string) => Promise<DevelopmentPluginPackage | undefined>
+  ) {}
   async uses(id: string): Promise<boolean> {
     return (await this.snapshot)?.artifacts.some(artifact => artifact.manifest.id === id) ?? false;
   }
@@ -24,8 +26,8 @@ export class PluginContentStartup {
       try {
         assertLocalId(id);
         const artifact = await this.read(id);
+        if (!artifact) continue;
         if (artifact.manifest.id !== id) throw new Error("插件目录与清单身份不一致");
-        if (!isContentPlugin(artifact.manifest)) throw new Error("插件没有静态内容声明");
         artifacts.push(artifact);
       } catch (error) {
         errors[id] = error instanceof Error ? error.message : String(error);

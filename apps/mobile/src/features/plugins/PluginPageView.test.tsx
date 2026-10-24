@@ -5,15 +5,20 @@ import { definePlugin } from "@tau/plugins";
 import { createMemoryStorage } from "@tau/plugins/host";
 import { createPluginEnvironmentStore } from "@tau/plugins/environment-host";
 import { MobilePluginRuntime } from "../../app/plugins/runtime";
-import { PluginPageView } from "./PluginPageView";
+import { PluginPageView, PluginSettingsView } from "./PluginPageView";
 
-let runtime: MobilePluginRuntime;
+let runtime: MobilePluginRuntime | null;
+let phase = "ready";
+let pageId = "test.params:main";
 let serialized = "invalid-json";
 const navigator = { push: vi.fn(), goBack: vi.fn(), registerBackHandler: () => () => undefined };
-vi.mock("../../app/plugins/context", () => ({ useMobilePlugins: () => runtime }));
+vi.mock("../../app/plugins/context", () => ({
+  useMobilePlugins: () => runtime,
+  useMobilePluginStatus: () => ({ phase, message: "", reload: () => undefined }),
+}));
 vi.mock("../../router", () => ({
   usePage: () => ({
-    params: { id: "test.params:main", params: serialized },
+    params: { id: pageId, params: serialized },
     navigator,
     entryId: "page-1",
   }),
@@ -28,8 +33,15 @@ it("损坏的历史页面参数只显示页内错误，参数恢复后可以重�
     platform: "ios",
     input: { coarsePointer: true, finePointer: false },
   });
-  runtime = new MobilePluginRuntime(environment, createMemoryStorage(), "A", navigator, "0.2.0");
-  runtime.host.registerTrusted(
+  const created = new MobilePluginRuntime(
+    environment,
+    createMemoryStorage(),
+    "A",
+    navigator,
+    "0.2.0"
+  );
+  runtime = created;
+  created.host.registerTrusted(
     definePlugin({
       id: "test.params",
       name: "参数",
@@ -41,7 +53,7 @@ it("损坏的历史页面参数只显示页内错误，参数恢复后可以重�
       }),
     })
   );
-  await runtime.host.enable("test.params");
+  await created.host.enable("test.params");
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -53,7 +65,89 @@ it("损坏的历史页面参数只显示页内错误，参数恢复后可以重�
     expect(container.textContent).toContain("正常页面");
   } finally {
     await act(async () => root.unmount());
-    await runtime.dispose();
+    await created.dispose();
+    container.remove();
+  }
+});
+
+it("插件会话启动中打开插件页显示加载态，落定后仍不可用才提示停用", async () => {
+  runtime = null;
+  phase = "starting";
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<PluginPageView />));
+    expect(container.textContent).toContain("插件加载中");
+    expect(container.textContent).not.toContain("插件已停用");
+    phase = "ready";
+    await act(async () => root.render(<PluginPageView />));
+    expect(container.textContent).toContain("插件已停用或无法加载");
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    phase = "ready";
+  }
+});
+
+it("ASR 保留注册能力，但不开放设置跳转或渲染配置入口", async () => {
+  const environment = createPluginEnvironmentStore({
+    platform: "android",
+    input: { coarsePointer: true, finePointer: false },
+  });
+  const created = new MobilePluginRuntime(
+    environment,
+    createMemoryStorage(),
+    "A",
+    navigator,
+    "0.2.7"
+  );
+  runtime = created;
+  phase = "ready";
+  pageId = "test.asr:asr";
+  navigator.push.mockClear();
+  let openSettings: (() => Promise<void>) | undefined;
+  const component = vi.fn(() => <p>ASR 账号表单</p>);
+  created.host.registerTrusted(
+    definePlugin({
+      id: "test.asr",
+      name: "识别能力",
+      version: "1",
+      create: () => ({
+        activate(context) {
+          context.asr.register({
+            id: context.pluginId,
+            name: "识别能力",
+            create: () => ({ probe: vi.fn(), openStream: vi.fn() }),
+          });
+          const handle = context.settings.register({
+            id: "asr",
+            title: "语音输入",
+            target: "asr",
+            component,
+          });
+          openSettings = () => handle.open();
+        },
+      }),
+    })
+  );
+  await created.host.enable("test.asr");
+  expect(created.asr.list()).toHaveLength(1);
+  expect(created.settings.has(pageId)).toBe(true);
+  if (!openSettings) throw new Error("设置注册失败");
+  await expect(openSettings()).rejects.toThrow("尚未提供界面入口");
+  expect(navigator.push).not.toHaveBeenCalled();
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<PluginSettingsView />));
+    expect(component).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain("ASR 账号表单");
+    expect(container.textContent).not.toContain("前往语音输入设置");
+  } finally {
+    await act(async () => root.unmount());
+    await created.dispose();
     container.remove();
   }
 });

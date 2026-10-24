@@ -2,14 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button, Input } from "@tau/ui";
 import { api, localDay, queryClient, type Filters } from "./api";
-import {
-  DownloadsView,
-  EventsView,
-  GeographyView,
-  OverviewView,
-  RetentionView,
-  UsageView,
-} from "./views";
+import { DownloadsView, VersionsView } from "./views";
 
 function Login() {
   const [token, setToken] = useState("");
@@ -58,12 +51,8 @@ function Login() {
   );
 }
 const tabs = [
-  ["overview", "概览", OverviewView],
-  ["usage", "使用", UsageView],
-  ["geography", "分布", GeographyView],
-  ["downloads", "下载", DownloadsView],
-  ["retention", "留存", RetentionView],
-  ["events", "事件", EventsView],
+  ["versions", "应用版本", VersionsView],
+  ["downloads", "下载统计", DownloadsView],
 ] as const;
 
 export function App() {
@@ -75,7 +64,7 @@ export function App() {
     },
     staleTime: Infinity,
   });
-  const [tab, setTab] = useState<string>("overview");
+  const [tab, setTab] = useState<string>("versions");
   const [filters, setFilters] = useState<Filters>(() => ({
     from: localDay(Date.now() - 6 * 86400000),
     to: localDay(),
@@ -102,7 +91,7 @@ export function App() {
         <div>
           <h1 className="text-2xl font-semibold">Tau 产品统计</h1>
           <p className="text-tau-meta text-ink-3 mt-2">
-            产品 tau-desktop · 上海自然日 · 指标版本 1
+            产品 tau-desktop · 上海自然日 · 指标版本 2
           </p>
         </div>
         <div className="flex gap-2">

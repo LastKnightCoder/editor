@@ -15,9 +15,6 @@ export const PLUGIN_CATEGORIES = [
 
 export type PluginCategory = (typeof PLUGIN_CATEGORIES)[number]["id"];
 
-export const PLUGIN_KEYWORD_LIMIT = 5;
-export const PLUGIN_KEYWORD_MAX_LENGTH = 20;
-
 const categoryIds = new Set<string>(PLUGIN_CATEGORIES.map(item => item.id));
 
 export const isPluginCategory = (value: unknown): value is PluginCategory =>
@@ -28,41 +25,25 @@ export interface PluginCatalogFields {
   keywords?: readonly string[];
 }
 
-/**
- * 读取 manifest 中的分类与关键词。
- * strict 用于门户上传，非法值直接报错；客户端用宽松模式静默丢弃，
- * 使老客户端不会因词表新增或上限调整而拒收插件。
- */
-export function readCatalogFields(
-  item: Record<string, unknown>,
-  strict: boolean
-): PluginCatalogFields {
-  const fail = (message: string) => {
-    if (strict) throw new Error(message);
-  };
+/** 分类使用产品词表，关键词保留有效文本并去重。 */
+export function readCatalogFields(item: Record<string, unknown>): PluginCatalogFields {
   const list = (value: unknown, name: string): unknown[] => {
     if (value === undefined) return [];
     if (Array.isArray(value)) return value;
-    fail(`${name} 必须是数组`);
-    return [];
+    throw new Error(`${name} 必须是数组`);
   };
 
   const categories: PluginCategory[] = [];
   for (const value of list(item.categories, "categories")) {
-    if (!isPluginCategory(value)) fail(`未知插件分类：${String(value)}`);
+    if (!isPluginCategory(value)) throw new Error(`未知插件分类：${String(value)}`);
     else if (!categories.includes(value)) categories.push(value);
   }
 
   const keywords: string[] = [];
   for (const value of list(item.keywords, "keywords")) {
     const keyword = typeof value === "string" ? value.trim() : "";
-    if (!keyword || keyword.length > PLUGIN_KEYWORD_MAX_LENGTH)
-      fail(`关键词必须为 1 至 ${PLUGIN_KEYWORD_MAX_LENGTH} 字`);
+    if (!keyword) throw new Error("关键词必须是非空文本");
     else if (!keywords.includes(keyword)) keywords.push(keyword);
-  }
-  if (keywords.length > PLUGIN_KEYWORD_LIMIT) {
-    fail(`关键词最多 ${PLUGIN_KEYWORD_LIMIT} 个`);
-    keywords.length = PLUGIN_KEYWORD_LIMIT;
   }
 
   return {

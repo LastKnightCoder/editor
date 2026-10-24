@@ -43,18 +43,41 @@
    本文件只定义移动端布局变量与由 --tau-* 派生的组件变量，不定义任何颜色。
    ════════════════════════════════════════════════════════════ */
 :root {
-  /* 布局/环境 */
-  --mobile-safe-top: env(safe-area-inset-top, 0px);
-  --mobile-safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* 字号档位：覆盖 @tau/themes 的桌面密度取值（正文 13px），移动端正文 16 / 阅读 17；
+     业务代码用 text-tau-* 语义类，不写 text-[Npx] */
+  --tau-text-hero: 28px;
+  --tau-text-title-lg: 22px;
+  --tau-text-title: 17px;
+  --tau-text-body-lg: 17px;
+  --tau-text-body: 16px;
+  --tau-text-meta: 14px;
+  --tau-text-sm: 13px;
+  --tau-text-micro: 12px;
+  --tau-text-tiny: 11px;
+
+  /* 布局/环境
+     安全区与键盘的唯一写入方：env() / Android 原生注入的 --native-safe-*（不支持 env 安全区的 WebView 兜底）、
+     KeyboardViewportProvider 写 --kb-*；页面与组件只消费，不自行读 env() */
+  --mobile-safe-top: max(env(safe-area-inset-top, 0px), var(--native-safe-top, 0px));
+  --mobile-safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--native-safe-bottom, 0px));
   --kb-height: 0px;
+  --kb-viewport-top: 0px;
   --kb-viewport-height: 100dvh;
+  /* 随键盘收缩的页面外壳内使用的底部安全区：键盘弹出时安全区已被键盘覆盖，归零 */
+  --mobile-screen-safe-bottom: max(0px, calc(var(--mobile-safe-bottom) - var(--kb-height) * 1000));
+  /* 不收缩的浮层（贴屏幕底）底部避让：键盘与安全区取大者，二者不叠加 */
+  --mobile-overlay-bottom: max(var(--kb-height), var(--mobile-safe-bottom));
   --mobile-sheet-footer-height: 56px;
+  /* 输入文字字号：手机端可读下限，也是 iOS 不自动放大输入框的阈值；就地编辑大标题沿用展示态字号 */
+  --mobile-input-font-size: 16px;
+  /* 表单输入框最小高度（触控目标下限） */
+  --mobile-input-min-height: 44px;
   --mobile-nav-row-height: 56px;
 
-  /* 二级页（无吸底 Dock）底部留白 = 内容呼吸间距 + 系统安全区。
-     键盘避让由 .mobile-kb-screen 的视口高度收缩负责，不要往这里加 --kb-height */
-  --page-bottom-breath: 32px;
-  --page-bottom-inset: calc(var(--page-bottom-breath) + var(--mobile-safe-bottom));
+  /* 二级页滚动内容末尾留白 = 呼吸间距 + 外壳内底部安全区，只由 .mobile-page-scroll 消费；
+     不要挂在外层容器上做常驻空带，也不要再加 --kb-height（外壳已随键盘收缩） */
+  --page-bottom-breath: 16px;
+  --page-bottom-inset: calc(var(--page-bottom-breath) + var(--mobile-screen-safe-bottom));
 
   /* 边缘渐隐（fading edges）：滚动容器 mask 淡入/淡出带高度 */
   --edge-fade-top-size: 28px;
@@ -95,6 +118,7 @@
 @theme inline {
   --radius-card: 20px;
   --radius-bento: 22px;
+  --radius-sheet: 30px;
 
   --ease-bounce: cubic-bezier(0.34, 1.56, 0.5, 1);
 }
@@ -108,7 +132,7 @@ body {
   margin: 0;
   min-height: 100dvh;
   font-family: var(--tau-font);
-  font-size: 14px;
+  font-size: var(--tau-text-body);
   background-color: var(--tau-bg-page);
   color: var(--tau-ink-1);
 }
@@ -128,41 +152,51 @@ code {
   min-height: 100dvh;
 }
 
+/* 页面外壳：贴住可见区（键盘以上），iOS 平移可视视口时随之下移，顶栏不被推出屏幕 */
 .mobile-kb-screen {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--kb-viewport-top, 0px);
+  bottom: auto;
   height: var(--kb-viewport-height, 100dvh);
   min-height: var(--kb-viewport-height, 100dvh);
 }
 
+/* 外壳内的主滚动容器：铺满到外壳底边，内容可从 Home 指示条后滑过；
+   末尾留白 = 呼吸 + 外壳内安全区 + 悬浮工具条/Sheet 遮挡（由对应组件写入根变量，无遮挡时为 0）。
+   留白用末尾占位而非 padding-bottom：部分 WebView 不把滚动容器的 padding-bottom 计入可滚动区域 */
+.mobile-page-scroll {
+  overscroll-behavior-y: contain;
+}
+
+.mobile-page-scroll::after {
+  content: "";
+  display: block;
+  flex-shrink: 0;
+  height: calc(
+    var(--page-bottom-inset) + var(--mobile-editor-toolbar-occlusion, 0px) +
+      var(--pan-occluded-bottom, 0px)
+  );
+}
+
+/* 页面底部另有常显操作条（自行承担外壳内安全区）时，滚动末尾只留呼吸 */
+.mobile-page-scroll[data-page-footer]::after {
+  height: calc(var(--page-bottom-breath) + var(--pan-occluded-bottom, 0px));
+}
+
+/* 不随键盘收缩、贴屏幕底的浮层（SnapSheet/PanContainer 等）内的滚动容器 */
 .mobile-kb-scroll {
   overscroll-behavior-y: contain;
-  padding-bottom: calc(
-    1rem + var(--mobile-safe-bottom) + var(--kb-height, 0px) + var(--pan-occluded-bottom, 0px)
-  );
+  padding-bottom: calc(1rem + var(--mobile-overlay-bottom) + var(--pan-occluded-bottom, 0px));
 }
 
 .mobile-fixed-footer-scroll {
   overscroll-behavior-y: contain;
   padding-bottom: calc(
-    1rem + var(--mobile-safe-bottom) + var(--kb-height, 0px) +
-      var(--mobile-sheet-footer-height, 56px) + var(--pan-occluded-bottom, 0px)
-  );
-}
-
-/* 悬浮编辑工具条所在页面：滚动容器只补动态遮挡（工具条/键盘/Sheet，由对应组件写入根变量），
-   工具条隐藏时不留白，避免为不存在的底栏空出一截。
-   基础安全区留白不带在滚动容器上（WebView 下滚动容器 padding 不可靠，内容会贴屏幕底缘），
-   由页面外层容器挂 --page-bottom-inset 承载（同番茄钟等二级页） */
-.mobile-floating-toolbar-scroll {
-  overscroll-behavior-y: contain;
-  padding-bottom: calc(
-    var(--kb-height, 0px) + var(--mobile-editor-toolbar-occlusion, 0px) +
+    1rem + var(--mobile-overlay-bottom) + var(--mobile-sheet-footer-height, 56px) +
       var(--pan-occluded-bottom, 0px)
   );
-}
-
-.mobile-kb-optout,
-[data-kb-optout="true"] {
-  --kb-height: 0px;
 }
 
 .mobile-app-shell [class*="hoveringToolbar"],
@@ -176,33 +210,89 @@ code {
   box-shadow: none !important;
 }
 
-/* 移动端卡片编辑器统一字号（详情页重设计 v1）：正文 17px / 1.85，
-   覆盖卡片预览、日记、文章、项目文档、知识库节点全部编辑场景 */
+/* 移动端编辑器阅读正文（body-lg 档）：卡片列表预览与详情页同字号同行高，点开不跳变；
+   覆盖卡片、日记、文章、项目文档、知识库节点全部编辑场景 */
 .mobile-card-editor-content[data-slate-editor="true"] {
-  font-size: 17px;
-  line-height: 1.85;
+  font-size: var(--tau-text-body-lg);
+  line-height: 1.75;
 }
 
-/* ── 通用输入框 ── */
-.input-base {
-  background-color: var(--tau-bg-page);
-  border: 1.5px solid transparent;
-  color: var(--tau-ink-1);
-  border-radius: 14px;
-  caret-color: var(--tau-accent);
-  transition:
-    border-color 0.2s,
-    box-shadow 0.2s;
+/* 段间距收到 0.8em：body-lg 字号下原 1.25em 接近一整行，段落显得被切开 */
+.mobile-card-editor-content[data-slate-editor="true"] p[data-slate-node="element"] {
+  margin-bottom: 0.8em;
 }
 
-.input-base::placeholder {
-  color: var(--tau-ink-3);
+/* 行内代码去描边、缩字号、淡墨底：body-lg 下描边胶囊近一行高，连续出现时像一排按钮 */
+.mobile-card-editor-content[data-slate-editor="true"] [data-slate-leaf] code {
+  border-color: transparent;
+  border-radius: 5px;
+  background-color: color-mix(in srgb, var(--tau-ink-1) 7%, transparent);
+  padding: 0.1em 0.3em;
+  font-size: 0.84em;
 }
 
-.input-base:focus {
-  border-color: var(--tau-accent);
-  box-shadow: 0 0 0 3px var(--tau-accent-soft);
-  outline: none;
+/* ── 通用输入框 ──
+   放在 components 层：调用处可用 Tailwind 工具类覆盖底色/圆角/内边距；字号与最小高度是规范，不要覆盖 */
+@layer components {
+  .input-base {
+    min-height: var(--mobile-input-min-height);
+    background-color: var(--tau-bg-page);
+    border: 1.5px solid transparent;
+    color: var(--tau-ink-1);
+    font-size: var(--mobile-input-font-size);
+    border-radius: 14px;
+    caret-color: var(--tau-accent);
+    transition:
+      border-color 0.2s,
+      box-shadow 0.2s;
+  }
+
+  .input-base::placeholder {
+    color: var(--tau-ink-3);
+  }
+
+  .input-base:focus {
+    border-color: var(--tau-accent);
+    box-shadow: 0 0 0 3px var(--tau-accent-soft);
+    outline: none;
+  }
+
+  /* 无外框的就地输入（标签草稿、选项、答题区等）：只统一字号 */
+  .input-text {
+    font-size: var(--mobile-input-font-size);
+  }
+
+  /* 搜索框（SearchField）：40px 胶囊，图标 18，输入字号同表单 */
+  .search-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: 9999px;
+    color: var(--tau-ink-3);
+  }
+
+  .search-field-input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    border: none;
+    background: transparent;
+    outline: none;
+    color: var(--tau-ink-1);
+    font-size: var(--mobile-input-font-size);
+    caret-color: var(--tau-accent);
+  }
+
+  .search-field-input::placeholder {
+    color: var(--tau-ink-3);
+  }
+
+  .search-field-input::-webkit-search-cancel-button {
+    display: none;
+    -webkit-appearance: none;
+  }
 }
 
 /* ── Toast 通知（顶部胶囊） ── */
@@ -477,6 +567,12 @@ code {
 .mobile-topbar {
   min-height: calc(var(--mobile-nav-row-height) + var(--mobile-safe-top));
   padding-top: var(--mobile-safe-top);
+}
+
+/* 纸面页（内容详情）：页面底为表面色，与卡片库里的卡片同一张纸；顶栏渐隐随之改用表面色 */
+.mobile-paper-page {
+  --topbar-fade-start: color-mix(in srgb, var(--tau-bg-surface) 96%, transparent);
+  --topbar-fade-end: color-mix(in srgb, var(--tau-bg-surface) 0%, transparent);
 }
 
 .topbar-immersive {

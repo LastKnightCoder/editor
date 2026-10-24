@@ -86,12 +86,13 @@ export default {
       if (maintenance.some(item => item.id === id && item.blocked))
         throw new Error("插件更新尚未恢复");
       const artifact = await readManagedPackage(id);
-      if (artifact.manifest.id !== id || !isContentPlugin(artifact.manifest))
-        throw new Error("内容插件身份或声明无效");
-      await contentExecutor.execute({ operation: "validate" }, undefined, [
-        ...getContentPluginArtifacts(),
-        artifact,
-      ]);
+      if (artifact.manifest.id !== id) throw new Error("内容插件身份或声明无效");
+      const contribution = await contentExecutor.execute<{ editor: boolean; whiteboard: boolean }>(
+        { operation: "inspect", id },
+        undefined,
+        [...getContentPluginArtifacts(), artifact]
+      );
+      if (!contribution.editor && !contribution.whiteboard) return undefined;
       appendContentPluginArtifact(artifact);
       return artifact;
     });
@@ -101,7 +102,8 @@ export default {
         .filter(
           entry =>
             entry.artifact &&
-            isContentPlugin(entry.artifact.manifest) &&
+            (entry.artifact.manifest.formatVersion === 3 ||
+              isContentPlugin(entry.artifact.manifest)) &&
             preferences.enabled(entry.id, false)
         )
         .map(entry => entry.id)
@@ -123,6 +125,7 @@ export default {
             const deferred =
               !isTemplatePackage(artifact) &&
               !isSkillPackage(artifact) &&
+              artifact.manifest.formatVersion !== 3 &&
               isContentPlugin(artifact.manifest) &&
               preferences.enabled(installed.id, false);
             if (!deferred) await stopPluginBackend(installed.id);

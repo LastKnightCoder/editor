@@ -1,5 +1,6 @@
 import type { CenterReason } from "@tau/plugins/center";
-import type { PluginManagerAction } from "../data/usePluginManager";
+import type { ManagedPluginItem, PluginManagerAction } from "../data/usePluginManager";
+import type { StoreTaskPhase } from "./StoreActionButton";
 import { PLATFORM_LABELS } from "./centerDisplay";
 
 /** 已安装插件的客户端状态投影，由逻辑层生成；不是中心审核状态。 */
@@ -87,8 +88,6 @@ export function reasonLabel(reason: CenterReason): string {
       return `插件未声明支持${PLATFORM_LABELS[reason.platform]}`;
     case "APP_VERSION_TOO_LOW":
       return `需要将 Tau 更新到 ${reason.minAppVersion} 或更高版本`;
-    case "CAPABILITY_MISSING":
-      return `当前应用缺少插件必需的能力：${reason.capabilities.join("、")}`;
     case "DISTRIBUTION_UNAVAILABLE":
       return "此平台的插件安装尚未开放";
     case "REVOKED":
@@ -99,3 +98,23 @@ export function reasonLabel(reason: CenterReason): string {
       return "没有已发布的版本";
   }
 }
+
+/** 已安装插件的状态投影：安装任务优先，其次撤回、失败、待生效、运行与启用意图。 */
+export function lifecycleOf(
+  item: ManagedPluginItem,
+  phase: StoreTaskPhase = null,
+  taskError?: unknown
+): PluginLifecycleView {
+  if (phase === "checking") return { kind: "verifying" };
+  if (phase === "downloading") return { kind: "downloading", progress: null };
+  if (item.revoked) return { kind: "revoked", reason: item.revoked.reason };
+  if (phase === "failed") return { kind: "failed", message: String(taskError) };
+  if (item.error) return { kind: "failed", message: item.error };
+  if (item.pending) return { kind: "pending", version: item.pendingVersion ?? null };
+  if (item.active) return { kind: "running" };
+  return item.enabled ? { kind: "inactive" } : { kind: "disabled" };
+}
+
+/** 已保存但当前会话尚未体现的变更：待生效包，或启用意图与运行状态不一致。 */
+export const hasPendingChange = (item: ManagedPluginItem) =>
+  item.pending || (!item.error && !item.revoked && item.enabled !== item.active);

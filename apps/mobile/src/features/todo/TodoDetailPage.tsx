@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getMobileContentKit } from "../../services/editorKit";
+import { useMobileContentKit } from "../../services/editorKit";
 import {
   Bell,
   CalendarDays,
@@ -123,6 +123,7 @@ function recurrenceTypeLabel(type: RecurrenceType): string {
 }
 
 export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailPageProps) {
+  const contentKit = useMobileContentKit("edit");
   const store = useTodoStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(scrollRef);
@@ -356,7 +357,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
 
   const typeSheetItems: ActionSheetItem[] = SELECTABLE_TODO_TYPES.map(t => ({
     label: TYPE_LABELS[t],
-    trailing: current?.type === t ? <Check strokeWidth={2.6} /> : undefined,
+    selected: current?.type === t,
     onClick: () => void handleUpdateItemField({ type: t }),
   }));
 
@@ -389,12 +390,12 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
   const reminderSheetItems: ActionSheetItem[] = [
     {
       label: "不提醒",
-      trailing: current?.remindBefore == null ? <Check strokeWidth={2.6} /> : undefined,
+      selected: current?.remindBefore == null,
       onClick: () => void handleUpdateItemField({ remindBefore: null }),
     },
     ...REMINDER_OPTIONS.map(opt => ({
       label: opt.label,
-      trailing: current?.remindBefore === opt.value ? <Check strokeWidth={2.6} /> : undefined,
+      selected: current?.remindBefore === opt.value,
       onClick: () => void handleUpdateItemField({ remindBefore: opt.value }),
     })),
   ];
@@ -454,13 +455,13 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
         }
       />
 
-      {/* 底部安全区由常显操作条承载（自带 pb-safe），滚动区只留呼吸空间：
-          留白挂外层容器，滚动容器自身不带 padding，内容不会贴着操作条；渐隐带在操作条上缘 */}
-      <div
-        className="flex min-h-0 flex-1 flex-col"
-        style={{ paddingBottom: "var(--page-bottom-breath)" }}
-      >
-        <div ref={scrollRef} className="edge-fade-scroll flex-1 overflow-y-auto overscroll-contain">
+      {/* 底部安全区由常显操作条承载，滚动区末尾只留呼吸；渐隐带在操作条上缘 */}
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div
+          ref={scrollRef}
+          data-page-footer
+          className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto overscroll-contain"
+        >
           {/* 标题编辑区：大完成圈 + 无边框标题输入 */}
           <div className="flex items-start gap-3 px-4 pt-3.5">
             <button
@@ -651,9 +652,9 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
               <div className="text-ink-3 pb-1 text-xs font-bold">保存中…</div>
             ) : null}
             <div className="min-h-[200px]">
-              {descriptionEditorReady ? (
+              {descriptionEditorReady && contentKit ? (
                 <Editor
-                  kit={getMobileContentKit()}
+                  kit={contentKit}
                   key={`todo-description-${todoId}`}
                   initValue={normalizeEditorContent(content ?? EMPTY_EDITOR_CONTENT)}
                   readonly={false}
@@ -673,7 +674,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
       </div>
 
       {/* 底部操作条：完成/打卡主操作（mobile-kb-screen 随键盘收缩视口自动上移） */}
-      <div className="border-line-1 bg-surface flex shrink-0 items-center gap-2.5 border-t px-4 pb-[calc(10px+var(--mobile-safe-bottom))] pt-2.5">
+      <div className="border-line-1 bg-surface flex shrink-0 items-center gap-2.5 border-t px-4 pb-[calc(10px+var(--mobile-screen-safe-bottom))] pt-2.5">
         <button
           type="button"
           onClick={handleToggleMain}

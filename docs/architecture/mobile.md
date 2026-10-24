@@ -57,7 +57,8 @@ useBackHandler(() => {
 ## 页面身份（match 三态）
 
 - `single`：全局一份，重复 push = bringToTop + 更新 params（settings/search/diaryHome/todo/about）
-- `params` + `getId(params)`：按参数身份去重（contentDetail 按 contentId）
+- `params` + `getId(params)`：按参数身份去重（contentDetail 按 contentId）；`popTo(key, params)` 只认参数身份相同的实例，
+  返回是否找到
 - `multi`：每次 push 新实例（todoDetail 嵌套）
 
 单例/多例声明在页面注册处（Android launchMode 宿主声明流），调用方不操心。
@@ -125,8 +126,7 @@ settle 在守卫通过后才落账（拒绝路径不残留）；手势提交被�
 自行监听返回事件。**通用容器组件已内置拦截**，业务代码零接线：
 
 - `components/BottomSheet` / `components/ActionSheet` / `components/SnapSheet` /
-  `components/MobileConfirmDialog` / `features/settings/components/ActionSheet`
-  打开时自动消费返回（仅关闭自身），关闭后放行正常弹栈
+  `components/MobileConfirmDialog` 打开时自动消费返回（仅关闭自身），关闭后放行正常弹栈
 - MobileConfirmDialog 的返回等同取消（对齐原生 Dialog）；loading 中不拦截
 - 浮层打开时动态注册（注册时序 = 打开时序），配合 LIFO 仲裁：
   多浮层叠加"最近打开的先关"，嵌套场景（页面 backHandler → 内层浮层）由内向外退让
@@ -204,7 +204,12 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 ## 手势与转场
 
 - 双页同动：push 时栈顶滑入 + 下层 25% 视差；pop 反向（AnimatePresence exit）
-- 左边缘 28px 跟手返回：位移>40% 或速度>0.5px/ms 判定完成/回弹；仅 slideRight 顶层且无 overlay
+- 左边缘 28px 跟手返回：位移>40% 或速度>0.5px/ms 判定完成/回弹；仅 slideRight 顶层且无 overlay；
+  起手点在 `data-no-edge-back` 标记内（编辑器块把手等自带拖拽的控件）时不跟手；栈顶页有声明 `blockEdgeBack` 的返回消费器
+  （`useSheetBackDismiss` 一律声明：页内浮层、块选择、拖拽等打开期间必定消费返回）时也不跟手，否则页面被拖出、松手后弹回。
+  条件消费的 `useBackHandler`（未保存确认等）不声明，手势照常跟手。页内多级浏览不要用 `useBackHandler` 消费返回来退级
+  （拖出的是整页、露出的是上一页），每级做成同一 page 的独立实例：项目详情 `projectDetail` 按 `projectId:itemId` 身份
+  每层一个实例，进入子层 push、面包屑跳祖先用 `popTo(key, params)`（栈内没有该层时 `replace`）
 - 转场编排集中在 `PageHost`，页面组件不写 motion
 
 ## 常见陷阱
@@ -230,6 +235,10 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 - query key 命名空间约定：`["card", id]` / `["todo", ...]` / `["diary", ...]` / `["cards", 条件]`
 - 测试注意：store 测试 beforeEach 需 `getQueryClient().clear()` 防跨用例缓存污染
 
+## 协作网络与身份
+
+协作 REST 经 Rust 网关，实时连接由 WebView 直连产品入口。获取身份时先复用经产品端点来源摘要认可的旧凭据；已有不同身份须双凭据合并，失败保留原文件。当前库的认可来源绑定会改写为产品入口，保证原房间 ID 与正文绑定不变；自托管来源不参与该升级。协议与存储见[协作架构](/docs/architecture/collaboration.md)。
+
 ## 预加载与 DevTools
 
 - `navigator.preload(key, params)`：按页面 `data` 声明预取 query 缓存（不挂载组件），
@@ -237,31 +246,76 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 - `RouterDevTools`（`src/router/devtools/`）：开发模式右下角面板，可视化
   screen/overlay 栈与 query 缓存（总数/stale 数）；生产构建零引入
 
+## 安全区与键盘避让
+
+iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚动内容末尾，每个变量只有一个写入方。
+
+- **写入方**：
+  - `--mobile-safe-top/bottom` 取 `max(env(safe-area-inset-*), --native-safe-*)`。`--native-safe-*` 由 Android
+    `MainActivity` 按系统栏 + 刘海 insets 注入，兜底不支持 env 安全区的 WebView。
+  - `--kb-height`、`--kb-viewport-top`、`--kb-viewport-height` 只由 `KeyboardViewportProvider` 写入。
+    Android 原生层只发 `tau:native-kb-height` 事件和 `__TAU_NATIVE_KB_HEIGHT`，iOS 由 `visualViewport` 推算。
+  - 页面与组件不直接读 `env()`。
+- **可见区**：
+  - `viewportTop` 是 `visualViewport.offsetTop`。iOS 弹键盘时可能平移可视视口来露出光标；收键盘后或走原生路径时为 0。
+  - `viewportHeight` 是键盘以上的可见高度。
+  - `keyboardHeight` 是布局视口底边到键盘顶边的距离，贴键盘的浮层用 `bottom: var(--kb-height)` 定位。
+- **派生变量**：
+  - `--mobile-screen-safe-bottom`：外壳内的底部安全区，键盘弹出时归零。
+  - `--mobile-overlay-bottom`：贴屏幕底、不随键盘收缩的浮层（配件栏、BottomSheet、ActionSheet）的底部避让，
+    等于 `max(--kb-height, --mobile-safe-bottom)`，两者不叠加。
+- **页面外壳**：二级页根容器带 `.mobile-kb-screen`。它强制 `position: fixed`，`top` 取 `--kb-viewport-top`，
+  `height` 取 `--kb-viewport-height`，顶栏（`PageHeader`，自带 `padding-top: safe-top`）因此始终在可见区顶部。
+  外壳内部不要再加 `--kb-height`。
+- **滚动末尾留白**：主滚动容器带 `.mobile-page-scroll`，铺满到外壳底边，内容可以从 Home 指示条后面滑过。
+  - 末尾用 `::after` 占位（部分 WebView 不把滚动容器的 padding-bottom 计入可滚动区域）。
+  - 占位高度 = `--page-bottom-inset`（16px 呼吸 + `--mobile-screen-safe-bottom`）
+    - `--mobile-editor-toolbar-occlusion` + `--pan-occluded-bottom`。
+  - 遮挡变量由当前显示的配件栏、块操作栏、标注栏、PanContainer 写入根元素，只计栏高，不含安全区。
+  - 底部另有常显操作条、由操作条自己承担安全区时，滚动容器加 `data-page-footer`，末尾只留呼吸。
+  - 末尾需要越过 FAB 或批量栏时，在滚动容器上覆盖 `--page-bottom-inset`。
+  - 不要在外层容器上挂常驻的 padding-bottom。
+- **浮层内滚动**：SnapSheet、PanContainer 等不随键盘收缩的浮层，滚动容器用 `.mobile-kb-scroll`
+  （或带固定底栏的 `.mobile-fixed-footer-scroll`），留白 = `1rem + --mobile-overlay-bottom + 面板遮挡`。
+- **Tab 根页**：带 Dock 的页面用 `.dock-pad`；键盘弹出时 `AppDock` 隐藏。
+- **禁止页面缩放**：`index.html` 的 viewport 带 `maximum-scale=1.0, user-scalable=no`。iOS 聚焦字号小于 16px 的
+  输入框时会自动放大并平移页面，固定布局整体错位；禁止缩放后各处输入框字号不受此限。
+- **iOS 表单辅助栏**：WKWebView 聚焦可编辑区时会出现系统辅助栏（上一个 / 下一个 / 完成）。由
+  `src-tauri/src/ios_input_accessory.rs` 在启动时替换 WKContentView 原类的 `inputAccessoryView`，让它返回 nil，
+  这样配件栏直接贴住键盘。只能替换原类的方法：如果改成派生子类再切换实例的 isa，WKWebView 的键盘避让会缩小
+  布局视口并让整页上滚。
+- **验证**：iOS 用 `pnpm dev:ios` 真机检查。Android 用 `pnpm apk` 出包，检查以下几点：
+  - 状态栏下顶栏不被遮挡（覆盖 env 不生效的 WebView）；
+  - 键盘弹出时正文与配件栏之间没有空带；
+  - 滚到底只剩「安全区 + 16px」的留白。
+
 ## 编辑器配件栏与键盘预留
 
 编辑页的格式工具是贴住键盘上沿的配件栏 `MobileEditorBottomToolbar`（`features/cards/editorToolbar/`），
 动作与选区由 `useMobileEditorToolbarController` 管理，宿主页面只传 controller / portalContainer / readonly / visibleButtons。
 
 - **键盘预留**：`KeyboardViewportProvider` 对外的 `keyboardHeight` / `viewportHeight` 与 `--kb-height` /
-  `--kb-viewport-height` 都是有效值 = max(真实键盘, 预留)；原始值见 `rawKeyboardHeight`，每轮键盘峰值见
+  `--kb-viewport-height` 都是有效值 = max(真实键盘, 预留)（`viewportTop` 不受预留影响）；原始值见 `rawKeyboardHeight`，每轮键盘峰值见
   `lastKeyboardHeight`（不足 100px 不记录）。`useKeyboardReservation()` 提供 reserve / releaseWhenKeyboardShown
   （真实键盘升到 0.9 倍预留或 600ms 后释放）/ releaseNow。页面的键盘避让无需感知预留。
 - **面板占用键盘位置**：点 Aa（`StylePanel`）或 +（`InsertPanel`）时，先 reserve(面板高度) 再收键盘，面板
   `fixed` 在视口底部、高度 = 预留；回键盘时先聚焦再关面板、按上述条件释放预留，切换期间页面高度不变。
   面板高度取 `resolvePanelHeight`（最近键盘高度，未测到取视口 38%）。插入面板搜索时面板移到键盘上方，
-  预留 = max(原面板高度, 键盘 + 220px)。
+  预留 = max(原面板高度, 键盘 + 220px)；键盘升起前按预计高度（`resolveExpectedKeyboardHeight`）先抬起面板，
+  使搜索框聚焦时已在键盘之上，iOS 不会为露出它平移视口。面板容器带 `data-kb-optout`，其中输入框不参与自动露出。
 - **收键盘策略**：`keyboardSwap.ts` 封装 `blur`（默认）与 `inputmode`（`inputmode="none"` 保留焦点）两种。
 - **面板态的动作**：面板打开期间编辑器已失焦，controller 的动作作用于打开时保存的 `panelSelection` 且不聚焦，
   执行后选区写回 `panelSelection`；需要输入浮层的动作（链接、批注）先回键盘再执行。点正文 = 只关面板，
   选区落在点击处。
 - **上下文识别**：`editorToolbar/editingContext.ts` 的 `useEditingContext` 在 controller 内按「void 内部编辑器 > 展开选区 >
-  表格 > 通用」给出 `editingContext`。void 内部编辑器靠 document `focusin` / `focusout`（后者等一帧再判）读 activeElement：
+  媒体 > 内容引用 > 表格 > 通用」给出 `editingContext`。void 内部编辑器靠 document `focusin` / `focusout`（后者等一帧再判）读 activeElement：
   `.code-block-shiki-input` → code（带 textarea / uuid / language），`.ed-preview-codemirror` 内 → block-math / mermaid，Slate 外
   `input[data-inline-math-input]` 且选区在 inline-math 内 → inline-math；节点须经 `toSlateNode` + `findPath` 回到本编辑器确认归属，只读时不识别。
-  焦点在 void 内部编辑器时 Slate 失焦但配件栏保持可见（白名单关掉对应上下文时按通用模式渲染）。表格与格式模式的左端标签点击 =
-  `dismissEditingContext`，按上下文 key（表格为 `table:<路径>`）记录退回，光标离开该上下文即恢复；代码块标签打开语言选择，
+  焦点在 void 内部编辑器时 Slate 失焦但配件栏保持可见（白名单关掉对应上下文时按通用模式渲染）。表格、引用与格式模式的左端标签点击 =
+  `dismissEditingContext`，按上下文 key（表格为 `table:<路径>`，引用为 `content-link:<路径>`）记录退回，光标离开该上下文即恢复；代码块标签打开语言选择，
   公式 / 流程图标签为不可点的静态标签。
-- **模式**：通用模式（+ / Aa / 待办 / 列表 / 缩进 / 关联内容 / 图片 / 撤销）；展开选区为格式模式（行内样式，「格式」标签
+- **模式**：通用模式（+ / Aa / 待办 / 列表 / 缩进 / 引用内容 / 图片 / 撤销）；光标折叠在内容引用的文字里为引用模式（左端标签为
+  引用的显示文字，中段预览 / 更换 / 移除，见下方「内容引用」）；展开选区为格式模式（行内样式，「格式」标签
   点击折叠选区）；光标在表格为表格模式（下方插行 / 右侧插列 / 删行 / 删列 / 对齐循环，「⋯」用 `ActionSheet` 列移动行列与
   删除表格；菜单打开期间动作作用于打开时保存的选区，关闭时恢复选区并聚焦），动作见 `tableActions.ts`；焦点在代码块 textarea 为代码块模式（语言标签点击打开
   常用语言 / 完整语言两级 `ActionSheet`，经 `tau.code-block.set-language` 设置后在点击内回焦；中段按语言族给符号键，见
@@ -272,18 +326,35 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
   `insertSourceText` 取 `.CodeMirror` 包裹元素上的 CodeMirror 5 实例 `replaceSelection` 并回焦，`PreviewWithEditor` 为
   react-codemirror2 `UnControlled`，change 事件经组件 onChange 防抖 500ms 写回节点，源码编辑器失焦时立即落库；行内公式 input 与代码块 textarea 共用
   `insertIntoTextControl`；「收起键盘」blur 当前焦点后回阅读态）。`visibleButtons` 以 `AccessoryItemId` 同时过滤配件栏与
-  Aa 面板，表格 / 代码块 / 公式 / 流程图模式受 `context-table` / `context-code` / `context-math` / `context-mermaid` 控制。
+  Aa 面板，表格 / 代码块 / 公式 / 流程图模式受 `context-table` / `context-code` / `context-math` / `context-mermaid` 控制，
+  引用模式与通用模式的「引用内容」同受 `content-link` 控制。
+- **内容引用（content-link）**：`features/cards/editorExtensions/`。行内样式与网页链接同族（`accent-text` 字色 + 45% accent
+  点线下划线，网页链接为实线），光标在引用内或预览打开时加 `accent-soft` 淡底；显示文字被删空时 normalize 移除节点。
+  只读时节点为 `contentEditable=false` + `role="button"`（阅读态双击与长按选字绕开），单击打开 `ContentLinkPreviewSheet`
+  （SnapSheet，内置返回拦截；经 portal 挂到 body，并在外层截断 React 事件冒泡回节点）；编辑态单击只放光标，操作在引用模式里：
+  「预览」先 `dismissKeyboard` 再开同一个面板，关闭时恢复选区并聚焦，点「打开」不恢复；「更换」以 `replace` 意图打开选择器，
+  选中后只改目标（`retargetContentLink`），显示文字不变；「移除」走 `content-link` 动作解除引用保留文字。
+  预览面板：头部类型（名称与图标沿用脉络 `ENTITY_KIND_META`）、标题（节点里的 `contentTitle`，详情未到也能显示）、更新时间
+  与字数，正文为懒加载的只读编辑器，上拉全屏；底部「打开」先关面板再按 `openContextEntity` 的规则跳转。详情经
+  react-query（`["content-link","detail",contentId]`），`CONTENT_NOT_FOUND` 归一为 `null` 显示「引用已失效」；行内节点
+  以 `enabled: false` 订阅同一缓存，打开过一次的失效引用随之显示灰色删除线（不为每个引用拉完整正文）。协作者视角
+  （`useCollaboration` 非 local 且非 owner）直接提示「内容未共享」，不查本机库。
+  选择器 `ContentLinkPickerSheet`：空关键词列最近卡片（`getCardsOverview`），输入后经 `searchAllContent` 同时搜卡片、文章
+  与项目文档（无 `contentId` 的结果不可引用），行内显示类型图标、类型名与相对时间，命中词 accent 加粗；从选中文字或「更换」
+  进入时顶部提示将要链接 / 更换的文字。
 - **阅读态**：`features/cards/readingMode/useReadingMode` 管理编辑态，宿主把 `forcedReadonly || !editing` 传给 Editor 与配件栏
-  的 `readonly`（切换不重挂载）。顶栏 `ReadingModeHeaderButton`「编辑」在点击内同步切换并聚焦（回上次选区，否则文末）；
-  双击正文在同一手势内切换并把光标放到双击处（交互元素除外）；「完成」与配件栏「收起键盘」都回阅读态——后者经
-  controller 的 `setExitEditingListener`。只读时勾选框忽略点击，由 hook 在点击捕获阶段直接改待办节点，改动照常经
+  的 `readonly`（切换不重挂载）。顶栏不放编辑入口（只有返回 / 标题 / 宿主操作）：阅读态右下角悬浮按钮 `ReadingModeFab`
+  「编辑」在点击内同步切换并聚焦（回上次选区，否则文末），正文下滑时收成圆形图标、上滑或回顶展开，块选择 / 拖拽 / 标注条出现时隐藏；
+  正文末尾（滚动容器最后一个子元素的底边）滚进按钮区域时淡出且不可点，因此不写遮挡变量、不为按钮在末尾留白；
+  双击正文在同一手势内切换并把光标放到双击处（交互元素除外）；退出编辑是配件栏右端常驻的「完成」（宿主传 `showDoneButton`，
+  取代各模式的「收起键盘」，面板 / 表格 / 格式 / 媒体模式下排在该模式右端按钮之后），经 controller 的 `setExitEditingListener` 回阅读态。只读时勾选框忽略点击，由 hook 在点击捕获阶段直接改待办节点，改动照常经
   `onChange` 保存；`forcedReadonly`（协作建立中 / 协作只读）时隐藏「编辑」且不改正文。详情页与协作编辑页
   `CollabEditorPage` 同一接法；初始态在内容首次就绪时定一次：空文档或「打开文档时」偏好为直接编辑则进编辑并聚焦。
   偏好存 setting.json 的 `editor.openMode`（`read` 缺省 / `edit`），`hooks/useEditorOpenMode` 经设置桥读取，
   设置入口为设置页「编辑器 · 打开文档时」；`ContentDetailPage` 的 `openInEditMode` 只作强制覆盖。
-  阅读态选中文字时底部浮出标注条 `ReadingSelectionBar`（高亮、批注、摘录成卡片、关联卡片）：slate-react 只读时不同步
+  阅读态选中文字时底部浮出标注条 `ReadingSelectionBar`（高亮、批注、摘录成卡片、引用内容）：slate-react 只读时不同步
   DOM 选区，由 `useReadingSelection` 监听 `selectionchange` 自行换算为 Slate Range（展开防抖 150ms）；高亮在只读下直接写
-  marks，批注 / 关联卡片经 `enterEditingWithSelection` 在点击内同步进入编辑并选中后执行配件栏动作，摘录经
+  marks，批注 / 引用内容经 `enterEditingWithSelection` 在点击内同步进入编辑并选中后执行配件栏动作，摘录经
   `createQuickCard` 建卡；不可编辑（`forcedReadonly`）时不显示。
 - **块选择模式**：`features/cards/blockSelection/`，只作用于顶层块（`editor.children` 下标），接入 `ContentDetailPage` 与
   `CollabEditorPage`（公共状态经 `useEditorBlockSelection`）。入口：编辑态当前块左侧把手 `BlockHandle`（编辑器聚焦、通用或格式模式、
@@ -291,9 +362,11 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
   经 `ContentDetailPage` 的 `actionsRef.enterBlockSelection()` 或协作页自身调用，阅读态与编辑态都可用，进入后选中 0 个）。阅读态长按
   留给系统选词，不进入块选择。进入时先经阅读态 `exitEditing` 收键盘。`useBlockSelection` 持有激活与升序选中下标，激活期间以
   `useSheetBackDismiss` 让返回 = 退出，块数变化裁剪越界下标，不可编辑（`forcedReadonly` / 协作只读）时不可进入且立即退出。
+  激活期间编辑器包裹元素加 `BLOCK_SELECTION_INSET_CLASS`（左内边距 28px，带过渡），正文右移空出勾选列，勾选圈不贴屏幕边。
   块选择期间 Editor 保持可写（内核块命令按 `getCommandElementPath` 定位、异步命令经 Submission 提交，二者都要求编辑器可写；覆盖层按下时阻止默认行为，正文获得焦点即失焦并清除 DOM 选区，避免弹出键盘），配件栏
-  `readonly`；顶栏换成 `BlockSelectionHeader`（取消 / 已选 N 个块 / 全选），底部为 `BlockActionBar`（上移、下移、转换、复制、删除、
-  更多；挂载期间写 `--mobile-editor-toolbar-occlusion` 给滚动容器留白），阅读态标注条与 `readingSurfaceProps` 不挂载。
+  `readonly`；顶栏换成 `BlockSelectionHeader`（取消 / 已选 N 个块 / 全选），底部为离开屏幕边缘的悬浮条 `BlockActionBar`（未选中时只显示
+  操作提示，选中后为上移、下移、转换、复制、删除、更多；挂载期间写 `--mobile-editor-toolbar-occlusion` 给滚动容器留白），阅读态标注条与
+  `readingSurfaceProps` 不挂载。
   转换与更多的菜单来自内核聚合的扩展菜单声明（`@tau/editor/api` 的 `resolveElementMenu`，条目带贡献来源 `owner`），由 `blockMenu.ts`
   求值：转换取 `tau.transform` 的子项，多选按 key 取交集，执行时逐块按元素引用重新求值、自后向前调用同 key 的 `onSelect`，合并为一个
   撤销步并保持选择；更多仅单选可用，按菜单分隔线分组，排除操作栏已有的 `tau.block.move-up/move-down/copy/delete` 与 `tau.transform`，
@@ -311,6 +384,8 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
   同级，画原位置虚线占位、克隆块浮层（去掉 contenteditable / data-slate-*，原块 DOM 拖拽期间透明）与插入线，正文其他块不让位。拖拽中
   配件栏隐藏、把手保持挂载以维持指针捕获、返回 = 取消；落下经 `moveBlockTo` 作为一个撤销步移动，光标放到该块开头且不聚焦。
 - **整理结构**：`features/cards/outline/`，底部全屏 `SnapSheet` 中按顶层块重排，「完成」时作为一个撤销步写入，「取消」/ 下拉 / 返回丢弃。
+  面板只有全屏一档、顶边即屏幕顶，顶栏直接用 `PageHeader`（`leading` 放「取消」、`PageHeaderTextButton` 放「完成」），由它承担状态栏安全区；
+  块选择顶栏 `BlockSelectionHeader` 同一写法。
   入口：page「⋯」的「整理结构」（`outlineMenuItem`，经 `ContentDetailPage` 的 `actionsRef.openOutline()` 或协作页自身调用）与块选择
   「更多」的宿主项（`BlockActionBar` 的 `onOpenOutline`，打开后退出块选择）；`useOutlineSheet` 打开前退出块选择、编辑态先收键盘，
   不可编辑时提示且打开中的立即关闭。`outlineModel.ts` 为纯模型：会话以打开时的顶层块快照与原始下标排列 `order` 表示，
@@ -344,41 +419,68 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 - **CSS**：`src/styles.css` 引入 `@tau/themes/tokens.css`（6 主题族 × 深浅数据块 + 尺度层）与 `@tau/themes/tailwind.css`（语义类名 `bg-page / text-ink-1 / bg-tag-1-soft …`）；自身只定义布局变量（安全区、键盘、Dock 尺寸、边缘渐隐）、由 `--tau-*` 派生的组件变量（`--dock-bg`、`--topbar-fade-*`、`--ring-track`、`--heat-*`）和移动端尺度词（`rounded-card / rounded-bento / ease-bounce`）。
 - **运行时**：`vite.config.ts` 注入 `createThemeBootstrapScript()` 首帧脚本；`AppShell` 调 `initThemeRuntime()`；组件读明暗用 `useThemeStore(s => s.mode)`，切换用 `setTheme / setAppearance`（`@tau/themes/react`）。偏好键 `tau-theme` / `tau-appearance` 与桌面同格式。
 - **设置**：`features/settings/components/ThemeSection.tsx` 明暗三档 × 主题族列表，预览直接读各主题 token。
-- **守护**：`src/theme/__tests__/themeVocabulary.test.ts` 扫描源码，禁止旧移动端主题变量/类名、`[data-theme]` 自建主题块与重定义 `--tau-*`。
+- **字号档位**：`src/styles.css` 的 `:root` 覆盖 `@tau/themes` 的 9 档 `--tau-text-*`（桌面密度正文 13px 不适合手机），`text-tau-*` 语义类随之取移动端值：
+  hero 28 / title-lg 22 / title 17 / body-lg 17 / body 16 / meta 14 / sm 13 / micro 12 / tiny 11。`body` 基准字号取 body 档。
+  新代码用 `text-tau-*`，同一角色同一档：时间 sm、标签 chip micro、列表行与按钮 body、说明 meta。
+- **编辑器阅读正文**：`.mobile-card-editor-content` 取 body-lg 档（17px / 1.75），内容详情页（卡片、日记、文章、项目文档）、卡片列表预览（`CardItem`）、速记、日程备注、协作编辑与插件说明共用，列表与详情同字号；编辑器内标题块用 `em` 跟随。同一类名下段间距为 0.8em，行内代码去描边、0.84em、7% 墨色淡底（覆盖编辑器包的桌面默认样式）。
+- **内容详情页外观**：`ContentDetailPage` 根容器为纸面（`bg-surface` + `.mobile-paper-page`，后者把 `--topbar-fade-*` 改为表面色），与卡片库里的卡片同底色。脉络入口是元信息行末尾的胶囊（`context/ContextBadge`，关联数为 0 或首次加载未完成时不渲染；关联卡片属于脉络「连接」分区，不另设区块）；页尾只有轻标签（`TagChips` 的 `soft` 变体，品牌淡底小方块）。脉络浮层里点条目先关浮层再跳转，浮层的全局 touchmove 拦截不会留在下层保活页上。
+- **输入框规范**：
+  - 输入文字字号 16px（`--mobile-input-font-size`），这是手机端可读下限，也是 iOS 不自动放大的阈值。
+  - 表单输入用 `.input-base`：最小高 44px（`--mobile-input-min-height`），底色页面色，聚焦时 accent 描边。它放在
+    `@layer components`，调用处可以用工具类覆盖底色、圆角、内边距，但不要覆盖字号和高度。
+  - 搜索统一用 `components/SearchField`：40px 胶囊，图标 18，自带清空按钮。`tone` 按所在底色选：放在页面底上用
+    `surface`，放在卡片或面板里用 `page`。
+  - 无外框的就地输入（标签草稿、闪卡选项、答题区）加 `.input-text`，只统一字号。
+  - 例外：就地编辑跟随展示态字号，包括日程、待办、文档标题，标签胶囊，以及闪卡填空的行内输入。
+- **守护**：`src/theme/__tests__/themeVocabulary.test.ts` 扫描源码，禁止旧移动端主题变量/类名、`[data-theme]` 自建主题块与重定义 `--tau-*`（字号档位 `--tau-text-*` 除外）。
 
-## 同步（设置）
+## 同步与图片附件（设置）
 
-入口为设置「数据 · 同步」（`settingsModule` 的 `database` 模块），代码在 `features/settings/sync/`。数据库与资源文件（`resources` 目录）用同一个同步服务：
+同步入口为设置「数据 · 同步」，上传入口为「数据 · 图片与附件」。前者保留状态卡、版本检查、数据库切换、整库覆盖和资源文件进度；后者保留目的地卡、本地保存、压缩开关和最近上传结果。数据库成功后继续触发资源文件同步；资源仍只增不删，失败保留真实错误。
 
-- **同步中心** `SyncCenterSection`：状态卡把版本对比翻译成用户语言（`syncState.ts` 的 `deriveSyncHero`，纯函数），拇指区一个主按钮，文案随状态给出方向（下载更新 / 上传改动 / 立即同步）；版本相等时「立即同步」仍走智能同步（版本号不追踪本机未上传的编辑）。数据库同步成功后在后台顺带启动资源文件同步。进入页面与从上层返回（`onResume`）各静默检查一次云端，同时并行刷新资源账本；检查或同步失败时错误留在状态卡上并给出「检查配置」入口。当前服务未配置时直接列出服务供选择。「上次同步」只在本机 localStorage 按数据库名记录（`AppShell` 的上传/下载成功后写入）。
-- **服务注册表** `providers.tsx` 的 `SYNC_PROVIDERS`：每项 `{ id, name, description, tile, isConfigured, summary, Panel }`，`id` 即 setting.json 的 `sync.active`。宿主（同步中心、服务抽屉 `SyncProviderSheet`、服务页外壳）只消费注册表；各服务只提供设置面板，形态对齐桌面端同步插件（插件经 `settings.register({ target: "sync" })` 提供面板、宿主负责选择与挂载）。内置四个服务的面板是 `storage/panels.tsx` 的共用面板（与上传服务共用，只传入 `sync.*` 的值与改写函数），凭证仍归集成账号，面板内账号卡就地展示并跳转更换；字段失焦即持久化，无保存按钮。
-- **服务页** `syncProvider` 页（`providerId` 为页面身份）：面板 + 连接测试 + 设为同步服务。连接测试与切换前探测走 `sync_check_versions` 的可选 `provider` 参数——按指定服务解析配置读取云端版本，不改写 `sync.active`；探测前先落盘未失焦的字段。云端为空直接切换，已有数据时先弹确认并说明切换后同步方向。服务抽屉只负责进入服务页，不直接切换。
-- **整库覆盖** `sync-overwrite` 模块：方向图示 + 长按确认（`HoldToConfirmButton`）。后端拒绝低版本覆盖高版本（`VERSION_CONFLICT_*`），不可用方向直接显示原因（`overwriteAvailability`）。
-- **数据库切换** `databases` 模块，从同步中心「内容 · 数据库」进入。
-- **资源文件** `sync-status-resource` 模块（`ResourceFilesSection`）：本机 `resources` 目录与同步服务的双向镜像，只增不删。状态由 `resourceState.ts` 纯函数从本轮账本（`ResourceSyncStatusFile.files`）推导，失败优先于待同步，运行中主按钮只有「停止」；同步服务未配置（`RESOURCE_SYNC_CONFIG_MISSING`）时引导回同步中心。文件按「需要处理 / 待上传 / 待下载 / 全部」筛选，每次渲染 30 条、「显示更多」追加。同步中心「资源文件」行以徽标露出同步中 / 失败数 / 待同步数。
+服务列表由当前插件会话的同步/上传注册表生成。syncProvider/uploadProvider 按插件 ID 区分页面，挂载插件通过 settings.register 声明的组件；未启用或未安装时保留已保存配置，并提供插件中心入口。服务名称来自注册声明，宿主没有服务商配置分支。服务页以局部 PortalScope 承载插件浮层，UiHostProvider 将 Dialog 返回交给当前 Page；页面隐藏时浮层随作用域隐藏，不遗留到其他页面。
 
-## 图片与附件（设置）
+表单的 syncConfig/uploadConfig.value 为该插件的完整配置，save 经固定工作区的原生配置命令只保存，不改变选用状态。同步服务选用先探测云端，有已有数据时按原流程确认；上传选用保留真实上传与回读测试，地址不可读时禁止使用。测试文件使用宿主唯一命名，可能在远端留下小型测试图片；不要求插件实现固定对象覆盖。选用复验测试时的配置，字段变化后必须重新确认。作者不感知这些宿主行为。
 
-入口为设置「数据 · 图片与附件」（`settingsModule` 的 `resource` 模块），只管新插入图片与附件的上传位置，代码在 `features/settings/upload/`：
+各插件独立管理账号、仓库/存储桶和路径，不保留集成账号页面。旧账号经升级复制到各使用者，之后不联动；具体包事务、配置升级和执行边界见[跨端插件宿主](/docs/architecture/plugin-portability.md)。凭据不放主库 plugin_kv。
 
-- **目的地卡** `UploadCenterSection`：当前位置 + 一行状态（`uploadState.ts` 的 `deriveDestinationState`，纯函数）。配置不完整、最近一次上传失败（账号 → 「检查账号」，仓库 / 存储桶 / 配置 → 「检查存储位置」，网络不给按钮）时给出进入服务页的主按钮；只采信当前位置的结果。「压缩大图」开关即 `imageBed.enableCompression`（键名与桌面端一致），同时控制 WebView 预压缩（`utils/imageCompress.ts`：超过 300KB 转 WebP、长边 2048）与 Rust 转 WebP，关闭即原图上传。
-- **上传位置**：`imageBed.active` 取 `local`（「这台手机」，宿主内置，不进注册表，新装默认）或注册表 id。抽屉 `UploadTargetSheet` 里「这台手机」点选即切换，云端服务点选进入服务页。
-- **上传服务注册表** `providers.tsx` 的 `UPLOAD_PROVIDERS`：每项 `{ id, name, description, tile, isConfigured, summary, sampleUrl, Panel }`，与同步注册表同构，形态对齐桌面端上传插件（`upload.register` 提供上传、`settings.register({ target: "upload" })` 提供面板）。`sampleUrl` 按当前配置拼出与 Rust 端一致的图片地址；面板来自 `storage/panels.tsx`（写 `imageBed.*`）。
-- **服务页** `uploadProvider` 页（`providerId` 为页面身份）：面板 + 图片地址示例 + 上传测试 + 设为上传位置。测试走 `resource_upload_test(provider)`：按指定服务解析配置（不改写 `imageBed.active`），上传固定名 `tau-upload-test.png`（每次覆盖，GitHub 先取 sha），再 GET 返回地址判断能否直接读取；结果分「上传成功」「传上去了，但打不开」（禁止设为上传位置）与「传不上去」。切换位置不涉及数据覆盖，不需要确认。
-- **上传结果记录** `services/uploadOutcome.ts`：编辑器上传管线（`editorRegistry` 的 `IResourceService.upload`）在本机 localStorage 记录最近一次结果与错误类别；编辑器报错时（`editorNotifier`）取走 3 秒内的那次失败，提示原因并带「去设置」。
-- **设置升级**：`setting.rs` 的 `ensure_setting_compat` 删除已退役的 `imageBed.githubCdn`、`imageBed.github.cdn`；带 `github.cdn` 的旧版设置首次升级时把 `enableCompression` 置为 true（升级前前端始终预压缩），之后按用户选择保留；新装缺省为 true。移动端不提供 GitHub CDN 地址改写。
-
-## 测试
-
-`src/router/__tests__/`：栈机/净化纯函数单测 + RouterProvider/PageHost 集成测试
-（push/pop/keep-alive/生命周期/结果通道/popstate）+ 页面数据层测试。
-
-jsdom 中 motion 退出动画按真实时间播放，测试用条件轮询等待最终状态。
+字段压缩继续使用 imageBed.enableCompression，控制 WebView 预压缩与原生图片处理；本地 resources 保存和缩略图、远端资源缓存仍由原生提供。上传结果按真实插件 ID 记录，切换目的地后不展示旧服务的结果。资源同步列表每次展示 30 条，继续使用既有筛选与停止/重试操作。
 
 ## 插件宿主
 
 正常 AppShell 按数据库作用域挂载插件宿主，“我的”消费语义入口，通用页面/设置页走本 router 的身份、保活、返回与守卫。包事务、私有 KV、正文快照和公共源码组件见[跨端插件宿主](/docs/architecture/plugin-portability.md)。
 
-plugins 页使用 single 身份与 tab 参数，默认打开商店，也可进入已安装管理；pluginStoreDetail 按 pluginId 保活，展示目标平台、版本历史和纯文本介绍。安装面板消费原生选版和安装阶段，不生成虚假百分比。中心安装任务存放在应用 QueryClient 对应的 MobileCenterInstallStore；页面订阅/退订不取消任务，只有显式取消操作终止它。
+插件会话异步启动，不阻塞首屏；阶段广播、编辑器 kit 的读/写两种取法与「立即生效」见[跨端插件宿主](/docs/architecture/plugin-portability.md)的移动宿主小节。
+
+插件域页面统一用 `PluginPageShell`（全站 PageHeader 顶栏）。plugins 页使用 single 身份与 tab 参数（商店 / 已安装文字标签），右上角搜索经共享的 `components/PageHeaderSearch` 横向展开，关键词在当前标签内生效；商店为全宽列表行，右侧 `StoreActionButton` 按「获取 / 下载中（点按取消）/ 校验中 / 待生效 / 已安装 / 更新 / 不可用 / 重试」投影商店主动作与应用级安装任务；已安装为开关 + 状态行，顶部 `PluginChangesBanner` 汇总已保存未生效的变更并提供「立即生效」。pluginDetail 按 pluginId 保活，商店资料与已安装管理合一：头部为图标、状态、启停开关与同源的大号主按钮，下面是统计行、一句话兼容结论与「介绍 / 设置 / 权限 / 版本」分段标签（介绍按 `@tau/plugins/document` 清洗后用编辑器只读渲染；设置内嵌通用插件设置组件，同步/上传设置进入对应宿主服务页；权限只读展示声明的权限、本会话登记的贡献与安全提示；版本含历史、更新日志与兼容性详情），⋯ 菜单承载取消待生效、恢复上一版、清除数据与卸载；插件中心没有记录时只展示本机信息。安装面板消费原生选版和安装阶段，不生成虚假百分比。中心安装任务存放在应用 QueryClient 对应的 MobileCenterInstallStore；页面订阅/退订不取消任务，只有显式取消操作终止它。
 
 普通正文的插入面板消费已装配插件的 blockPanel 贡献，复用面板选区和键盘预留协议；能力分级及过滤见[跨端插件宿主](/docs/architecture/plugin-portability.md)。插件中心页面与开发验证入口也消费 @tau/themes，不保留旧移动主题变量或类名。
+
+数据库、资源及会话文件的跨端对象布局、分块预算和首次使用边界见[宿主分块同步](/docs/architecture/storage-sync.md)。
+
+## 外部打开 Markdown（导入预览）
+
+Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开」`.md` 时可选 Tau；文件进入只读预览页 `markdownImport`（`features/markdownImport/`），由用户选择存为卡片、存为文章或加入项目（项目根目录文档），导入后 `replace` 到对应编辑页。
+
+- **注册**：iOS 在 `src-tauri/Info.ios.plist` 声明 `CFBundleDocumentTypes` 与 `net.daringfireball.markdown` 导入类型（构建时 Tauri 合并进 gen 的 Info.plist），`LSSupportsOpeningDocumentsInPlace=false`，系统先复制进 `Documents/Inbox`。Android 在 `gen/android/.../AndroidManifest.xml` 给 MainActivity 加 `ACTION_VIEW` 过滤器；微信传来的 `content://` 无扩展名、MIME 常为 `application/octet-stream`，故放宽到 markdown / text/plain / octet-stream，再按文件名判定。`gen/` 整体被忽略，该清单与 `MainActivity.kt` 均以 `git add -f` 入库。
+- **交付**：原生只负责把文件落到本机路径并派发窗口事件 `tau:incoming-file`。iOS 经 `RunEvent::Opened` 记录路径（`incoming_file.rs`）；Android 由 MainActivity 复制进 `cacheDir/incoming`（首次创建与 `onNewIntent` 时接收），Rust 经 JNI `takeIncomingFile` 取路径。前端 `IncomingFileHost`（AppShell 挂载）在挂载时与收到事件时调用 `incoming_file_take`：只接受 md/markdown/mdown/mkd/mkdn 扩展名、≤5 MB、UTF-8；读取后删除源文件，同一文件只交付一次。冷启动时事件早于页面加载而丢失，由挂载时主动取兜底。
+- **解析与落库**：与桌面端 Markdown 导入同口径——标题取文件名（不含扩展名），忽略 YAML 头；卡片只存正文。`article_create` 与 `project_item_create`（document 类型）接受可选 `content`/`count`，一次事务带正文创建。外部单文件无法携带相对路径资源，本机相对图片不导入，远程地址原样保留。
+
+## 应用内更新（Android）
+
+「我的 → 关于与更新」（设置模块 `about`，`features/settings/about/`）在 Android 上检查、下载并安装新版本；iOS 只展示应用信息，更新走 App Store / TestFlight。更新说明不在关于页展开，经「更新内容」行进入独立页 `releaseNotes`（`pages/releaseNotes.page.tsx`），有新版本时列出跨越的各版本，已是最新时只列本版。
+
+- **发布源**：`pnpm publish:mobile`（`scripts/publish-mobile.mjs`）把正式 APK 与 `latest.json` 传到 R2 的 `mobile/android/`（`https://dl.taunote.app/mobile/android/`）。清单字段：`version`、`releaseDate`、`file`（固定为 `Tau-v<版本>-android-arm64.apk`）、`size`、`sha256`、`certSha256`、`releaseNotes`（截至该版本的全部说明，来源 `apps/mobile/release-notes/<版本>.md`）。官网下载区读同一份清单。
+- **原生命令**（`src-tauri/src/app_update.rs`）：`app_update_check` 读清单并与 `package_info().version` 比较；`app_update_download` 经 `Channel` 回传进度，下载到 `app_cache_dir()/app-update/`，边下边算 SHA-256，大小或摘要不符即删除，同摘要的已下载文件直接复用，同时只允许一个下载；`app_update_install` 只接受版本号、自行拼出缓存路径，经 JNI 调 `MainActivity.installAppUpdate` → `AppUpdateInstaller` 用 FileProvider 交给系统安装器。下载地址只由固定发布源与校验过的文件名拼出，前端不传 URL 或路径。
+- **安装授权**：清单声明 `REQUEST_INSTALL_PACKAGES`；未获「安装未知应用」授权时打开系统授权页并返回 `permission-required`，用户返回后再点「安装」。覆盖安装要求证书不变，发布脚本以线上清单的 `certSha256` 对账，证书不同拒绝发布。
+- **前端状态**：`useAppUpdate`（zustand，模块级）保存检查结果、阶段、进度与 `checkedAt`，离开关于页下载继续。「我的」页的「关于与更新」行（`AboutUpdateItem`）、关于页与更新内容页挂载时调 `useAutoUpdateCheck`：没检查过或距上次成功检查超过 6 小时才发起，检查/下载中或已下载待安装时不打断。有新版本时「关于与更新」行尾显示红点与版本号。错误码 `APP_UPDATE_*` 映射为中文提示。
+- **JNI 方法保留**：Rust 经 JNI 按名字调用的 Kotlin 方法（`takeIncomingFile`、`installAppUpdate`）在 Kotlin 侧没有调用方，release 构建的 R8 会删掉，调用时 `NoSuchMethodError` 闪退。这类方法一律登记在 `gen/android/app/proguard-jni.pro`（`git add -f` 入库，build.gradle 收集 app 下所有 `*.pro`）；`publish:mobile` 构建后用 dexdump 对照该文件，缺失即拒绝发布。Rust 侧 JNI 调用失败时清掉待处理的 Java 异常，只让该命令报错。
+- **边界**：不做后台静默检查与静默安装；以后进应用商店的渠道包须关闭应用内安装。
+
+## 语音输入
+
+移动宿主保留 ASR 注册表、WebSocket 原生传输、配置存储和 `createMobileSpeechInputService` 编排工厂；壳层不挂载录音 Provider，搜索和设置不提供语音输入按钮或独立页面。ASR 配置声明继续注册，插件详情不显示该表单，设置 open 明确拒绝跳转。
+
+Android 清单包含 RECORD_AUDIO/MODIFY_AUDIO_SETTINGS，iOS 包信息包含麦克风用途说明。`plugin_socket` 命令按工作区 token 及窗口作用域校验，系统网络实现使用 tokio-tungstenite；作者契约见 [WebSocket](/packages/plugins/docs/websocket.md)。采集仅在调用方明确启动服务时申请，插件停用和工作区释放取消会话。普通设置快照保留原生管理的 speechInput 数据。
+
+移动端尚未接入 LLM 整理执行适配；未来语音输入入口及结果呈现由独立消费者决定。

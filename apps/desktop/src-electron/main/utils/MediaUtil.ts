@@ -10,8 +10,10 @@ export default class MediaUtil {
    * @param mediaPath 媒体文件路径
    * @returns 时长（秒）
    */
-  static async getMediaDuration(mediaPath: string): Promise<number> {
+  static async getMediaDuration(mediaPath: string, signal?: AbortSignal): Promise<number> {
+    signal?.throwIfAborted();
     const ffmpegBinaryPath = await FfmpegService.ensureFluentFfmpegPath();
+    signal?.throwIfAborted();
 
     return new Promise((resolve, reject) => {
       // 使用 ffmpeg -i 获取时长，解析 stderr 输出
@@ -19,12 +21,20 @@ export default class MediaUtil {
         stdio: ["pipe", "pipe", "pipe"],
       });
 
+      const cancel = () => ffmpegProcess.kill("SIGKILL");
+      signal?.addEventListener("abort", cancel, { once: true });
+      if (signal?.aborted) cancel();
       let stderr = "";
       ffmpegProcess.stderr.on("data", data => {
-        stderr += data.toString();
+        stderr = (stderr + data.toString()).slice(-65536);
       });
 
       ffmpegProcess.on("close", () => {
+        signal?.removeEventListener("abort", cancel);
+        if (signal?.aborted) {
+          reject(signal.reason);
+          return;
+        }
         // 解析 Duration: HH:MM:SS.ms 格式
         const durationMatch = stderr.match(/Duration:\s*(\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
         if (durationMatch) {
@@ -40,6 +50,7 @@ export default class MediaUtil {
       });
 
       ffmpegProcess.on("error", err => {
+        signal?.removeEventListener("abort", cancel);
         reject(new Error(`Failed to get media duration: ${err.message}`));
       });
     });
@@ -61,23 +72,38 @@ export default class MediaUtil {
     outputPath: string,
     startTime: number,
     duration: number,
-    onProgress?: (progress: number) => void
+    onProgress?: (progress: number) => void,
+    signal?: AbortSignal
   ): Promise<void> {
+    signal?.throwIfAborted();
     await FfmpegService.ensureFluentFfmpegPath();
+    signal?.throwIfAborted();
     return new Promise((resolve, reject) => {
-      ffmpeg(audioPath)
+      const command = ffmpeg(audioPath)
         .setStartTime(startTime)
         .setDuration(duration)
         .noVideo()
-        .audioChannels(1) // 单声道
-        .audioFrequency(16000) // 16kHz - Whisper 原生采样率
+        .audioChannels(1)
+        .audioFrequency(16000)
         .audioCodec("libmp3lame")
-        .audioBitrate("64k") // 语音识别不需要高比特率
-        .on("progress", progress => {
-          if (onProgress) onProgress(progress.percent || 0);
+        .audioBitrate("64k");
+      const cancel = () => command.kill("SIGKILL");
+      const complete = (error?: Error) => {
+        signal?.removeEventListener("abort", cancel);
+        if (signal?.aborted) reject(signal.reason);
+        else if (error) reject(error);
+        else resolve();
+      };
+      signal?.addEventListener("abort", cancel, { once: true });
+      command
+        .on("start", () => {
+          if (signal?.aborted) cancel();
         })
-        .on("end", () => resolve())
-        .on("error", reject)
+        .on("progress", progress => {
+          if (!signal?.aborted) onProgress?.(progress.percent || 0);
+        })
+        .on("end", () => complete())
+        .on("error", complete)
         .output(outputPath)
         .run();
     });

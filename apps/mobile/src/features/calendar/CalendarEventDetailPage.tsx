@@ -2,7 +2,7 @@
 // + 富文本详情卡（真实 Editor 只读）+ 底部操作条；系统日程只读并提供来源模块入口。
 
 import { useMemo, useRef, useState } from "react";
-import { getMobileContentKit } from "../../services/editorKit";
+import { useMobileContentKit } from "../../services/editorKit";
 import type { Descendant } from "slate";
 import { Editor, createValueDocument } from "@tau/editor";
 import { useThemeStore } from "@tau/themes/react";
@@ -44,6 +44,7 @@ export function CalendarEventDetailPage({
   onOpenPomodoroHistory,
   onOpenTodo,
 }: CalendarEventDetailPageProps) {
+  const contentKit = useMobileContentKit("read");
   const isDark = useThemeStore(s => s.mode === "dark");
   const { data: event, isError } = useCalendarEventById(eventId);
   const { data: calendars = [] } = useCalendars();
@@ -124,11 +125,11 @@ export function CalendarEventDetailPage({
         }
       />
 
-      <div
-        className="flex min-h-0 flex-1 flex-col"
-        style={{ paddingBottom: "var(--page-bottom-inset)" }}
-      >
-        <div ref={scrollRef} className="edge-fade-scroll flex-1 overflow-y-auto overscroll-contain">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div
+          ref={scrollRef}
+          className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto overscroll-contain"
+        >
           <div className="px-5 pt-1.5">
             <div className="text-ink-2 flex items-center gap-2 text-[12.5px] font-bold">
               <i className="h-[9px] w-[9px] rounded-full" style={{ background: color }} />
@@ -201,7 +202,7 @@ export function CalendarEventDetailPage({
                 <div className="bg-surface shadow-card rounded-[20px] px-5 py-[18px]">
                   {hasDetail ? (
                     <Editor
-                      kit={getMobileContentKit()}
+                      kit={contentKit}
                       document={document}
                       readonly={true}
                       className="text-ink-1 w-full text-[13.5px] font-medium leading-[1.85] outline-none"

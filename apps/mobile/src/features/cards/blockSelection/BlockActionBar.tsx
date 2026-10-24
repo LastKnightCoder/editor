@@ -8,6 +8,7 @@ import {
   CopyPlus,
   Ellipsis,
   ListTree,
+  Pointer,
   Repeat2,
   Trash2,
 } from "lucide-react";
@@ -39,8 +40,8 @@ import { getSlateEditor } from "./measureBlocks";
 import type { BlockSelectionState } from "./useBlockSelection";
 
 const ICON_SIZE = 20;
-/** 操作栏占位高度（不含安全区）：按钮 54 + 上下内边距 12 + 上边框 1 */
-const ACTION_BAR_HEIGHT = 67;
+/** 操作栏占位高度（不含安全区）：按钮 54 + 上下内边距 12 + 距底 12 */
+const ACTION_BAR_HEIGHT = 78;
 const OCCLUSION_VAR = "--mobile-editor-toolbar-occlusion";
 
 const MENU_ICON_SIZE = 18;
@@ -124,13 +125,10 @@ export function BlockActionBar(props: BlockActionBarProps) {
     pendingRef.current = action;
   };
 
-  // 与配件栏同一遮挡变量：滚动容器据此给操作栏留白
+  // 与配件栏同一遮挡变量：滚动容器据此给操作栏留白（安全区已由滚动末尾留白承担，这里只计栏高）
   useEffect(() => {
     const root = document.documentElement;
-    root.style.setProperty(
-      OCCLUSION_VAR,
-      `calc(env(safe-area-inset-bottom, 0px) + ${ACTION_BAR_HEIGHT}px)`
-    );
+    root.style.setProperty(OCCLUSION_VAR, `${ACTION_BAR_HEIGHT}px`);
     return () => {
       root.style.removeProperty(OCCLUSION_VAR);
     };
@@ -237,43 +235,58 @@ export function BlockActionBar(props: BlockActionBarProps) {
 
   if (!portalRoot) return null;
   const actionBar = createPortal(
+    // 悬浮条离开屏幕边缘；未选中时只给操作提示，选中后才展开按钮
     <nav
       data-block-action-bar="true"
-      className="bg-surface border-line-1 fixed inset-x-0 bottom-0 flex border-t px-1.5 pb-[calc(env(safe-area-inset-bottom,0px)+6px)] pt-1.5"
+      className="bg-surface shadow-float fixed inset-x-3 bottom-[calc(var(--mobile-safe-bottom)+12px)] flex rounded-[22px] px-1 py-1.5"
       style={{ zIndex: Z_INDEX.POPOVER }}
     >
-      <ActionButton
-        label="上移"
-        icon={<ArrowUp size={ICON_SIZE} />}
-        disabled={!canMoveBlocks(selected, "up", blockCount)}
-        onPress={() => move("up")}
-      />
-      <ActionButton
-        label="下移"
-        icon={<ArrowDown size={ICON_SIZE} />}
-        disabled={!canMoveBlocks(selected, "down", blockCount)}
-        onPress={() => move("down")}
-      />
-      <ActionButton
-        label="转换"
-        icon={<Repeat2 size={ICON_SIZE} />}
-        disabled={sharedTransforms.length === 0}
-        onPress={openTransformSheet}
-      />
-      <ActionButton label="复制" icon={<Copy size={ICON_SIZE} />} disabled={empty} onPress={copy} />
-      <ActionButton
-        label="删除"
-        icon={<Trash2 size={ICON_SIZE} />}
-        danger
-        disabled={empty}
-        onPress={remove}
-      />
-      <ActionButton
-        label="更多"
-        icon={<Ellipsis size={ICON_SIZE} />}
-        disabled={selected.length !== 1}
-        onPress={openMoreSheet}
-      />
+      {empty ? (
+        <p className="text-ink-2 flex h-[54px] flex-1 items-center justify-center gap-2 text-[13.5px] font-semibold">
+          <Pointer size={16} aria-hidden />
+          点按段落来选择，可以多选
+        </p>
+      ) : (
+        <>
+          <ActionButton
+            label="上移"
+            icon={<ArrowUp size={ICON_SIZE} />}
+            disabled={!canMoveBlocks(selected, "up", blockCount)}
+            onPress={() => move("up")}
+          />
+          <ActionButton
+            label="下移"
+            icon={<ArrowDown size={ICON_SIZE} />}
+            disabled={!canMoveBlocks(selected, "down", blockCount)}
+            onPress={() => move("down")}
+          />
+          <ActionButton
+            label="转换"
+            icon={<Repeat2 size={ICON_SIZE} />}
+            disabled={sharedTransforms.length === 0}
+            onPress={openTransformSheet}
+          />
+          <ActionButton
+            label="复制"
+            icon={<Copy size={ICON_SIZE} />}
+            disabled={empty}
+            onPress={copy}
+          />
+          <ActionButton
+            label="删除"
+            icon={<Trash2 size={ICON_SIZE} />}
+            danger
+            disabled={empty}
+            onPress={remove}
+          />
+          <ActionButton
+            label="更多"
+            icon={<Ellipsis size={ICON_SIZE} />}
+            disabled={selected.length !== 1}
+            onPress={openMoreSheet}
+          />
+        </>
+      )}
     </nav>,
     portalRoot
   );

@@ -3,7 +3,8 @@
 // 顶栏取消与系统返回手势走同一入口（对齐闪卡 cardEdit 审查修复项）。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getMobileContentKit } from "../../services/editorKit";
+import { useMobileContentKit } from "../../services/editorKit";
+import { EditorKitPending } from "../../components/EditorKitPending";
 import { CalendarX2, Trash2 } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor";
 import type { Descendant } from "slate";
@@ -71,6 +72,7 @@ export function CalendarEventEditPage({
   onSaved,
   onError,
 }: CalendarEventEditPageProps) {
+  const contentKit = useMobileContentKit("edit");
   const isDark = useThemeStore(s => s.mode === "dark");
   const editorRef = useRef<EditorRef | null>(null);
   const [pageContainer, setPageContainer] = useState<HTMLDivElement | null>(null);
@@ -306,11 +308,11 @@ export function CalendarEventEditPage({
         </div>
       </PageHeader>
 
-      <div
-        className="flex min-h-0 flex-1 flex-col"
-        style={{ paddingBottom: "var(--page-bottom-inset)" }}
-      >
-        <div ref={scrollRef} className="edge-fade-scroll flex-1 overflow-y-auto overscroll-contain">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div
+          ref={scrollRef}
+          className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto overscroll-contain"
+        >
           <div className="bg-surface shadow-card mx-[18px] mt-3 rounded-[20px] p-[18px]">
             <input
               value={draft.title}
@@ -405,21 +407,25 @@ export function CalendarEventEditPage({
             <div className="text-ink-3 mb-2.5 text-[11.5px] font-extrabold tracking-[1px]">
               详情
             </div>
-            <Editor
-              kit={getMobileContentKit()}
-              ref={editorRef}
-              initValue={draft.detailContent}
-              readonly={saving}
-              placeHolder="添加日程详情..."
-              className="mobile-card-editor-content min-h-[180px] outline-none"
-              onFocus={toolbarController.handleEditorFocus}
-              onBlur={toolbarController.handleEditorBlur}
-              onSelectionChange={toolbarController.syncSelection}
-              onChange={detailContent => {
-                setValue({ detailContent });
-                toolbarController.syncSelection();
-              }}
-            />
+            {contentKit ? (
+              <Editor
+                kit={contentKit}
+                ref={editorRef}
+                initValue={draft.detailContent}
+                readonly={saving}
+                placeHolder="添加日程详情..."
+                className="mobile-card-editor-content min-h-[180px] outline-none"
+                onFocus={toolbarController.handleEditorFocus}
+                onBlur={toolbarController.handleEditorBlur}
+                onSelectionChange={toolbarController.syncSelection}
+                onChange={detailContent => {
+                  setValue({ detailContent });
+                  toolbarController.syncSelection();
+                }}
+              />
+            ) : (
+              <EditorKitPending className="min-h-[180px]" />
+            )}
           </div>
           <div className="h-6" />
         </div>

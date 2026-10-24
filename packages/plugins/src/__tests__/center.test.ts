@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { centerHost, centerRelease } from "../../../../tests/fixtures/plugins/center";
-import { PLUGIN_CAPABILITIES } from "../capabilities";
 import {
   centerManifestTargets,
   evaluateCenterCompatibility,
@@ -10,30 +9,11 @@ import {
 } from "../center";
 
 describe("平台感知分发契约", () => {
-  it("完整宿主能力可用于目录与精确选版，能力缺失仍拒绝", () => {
-    const host = { ...centerHost, capabilities: PLUGIN_CAPABILITIES };
+  it("安装只按平台与版本选版，不另比较能力标签", () => {
     const release = centerRelease();
-    release.targets = {
-      android: {
-        minAppVersion: "0.2.3",
-        required: ["editor", "editorCodecs", "sourceEditor"],
-        optional: ["runtimeStyles"],
-      },
-    };
-    expect(normalizeCenterQuery({ platform: "android", host }).host?.capabilities).toEqual(
-      [...PLUGIN_CAPABILITIES].sort()
-    );
-    expect(resolveCenterRelease([release], { host, releaseId: release.releaseId })).toMatchObject({
+    expect(resolveCenterRelease([release], { host: centerHost })).toMatchObject({
       release: { releaseId: release.releaseId },
-      compatibility: { status: "compatible", missingOptional: [] },
-    });
-    expect(
-      resolveCenterRelease([release], {
-        host: { ...host, capabilities: host.capabilities.filter(name => name !== "sourceEditor") },
-      })
-    ).toMatchObject({
-      release: null,
-      compatibility: { reasons: [{ code: "CAPABILITY_MISSING", capabilities: ["sourceEditor"] }] },
+      compatibility: { status: "compatible" },
     });
   });
   it("权限说明保留原始码、去重并标记新增声明，未知权限不隐藏", () => {
@@ -52,24 +32,7 @@ describe("平台感知分发契约", () => {
     expect(evaluateCenterCompatibility(centerRelease())).toEqual({
       status: "unchecked",
       reasons: [],
-      missingOptional: [],
     });
-  });
-  it("未知可选能力降级，缺少必需能力拒绝", () => {
-    const release = centerRelease();
-    release.targets = {
-      android: { minAppVersion: "0.2.0", required: ["pages"], optional: ["futureFeature"] },
-    };
-    expect(evaluateCenterCompatibility(release, centerHost)).toMatchObject({
-      status: "compatible",
-      missingOptional: ["futureFeature"],
-    });
-    expect(evaluateCenterCompatibility(release, { ...centerHost, capabilities: [] })).toMatchObject(
-      {
-        status: "incompatible",
-        reasons: [{ code: "CAPABILITY_MISSING", capabilities: ["pages"] }],
-      }
-    );
   });
   it.each([
     [{ ...centerHost, platform: "ios" as const }, "PLATFORM_UNSUPPORTED"],
@@ -86,7 +49,7 @@ describe("平台感知分发契约", () => {
   it("选最高兼容版本而非最新发布时间；指定不兼容版本不能换成其他版本", () => {
     const older = centerRelease();
     const newer = centerRelease("2.0.0", "release-2");
-    newer.targets = { ios: { minAppVersion: "0.2.0", required: [], optional: [] } };
+    newer.targets = { ios: { minAppVersion: "0.2.0" } };
     expect(resolveCenterRelease([newer, older], { host: centerHost }).release?.releaseId).toBe(
       older.releaseId
     );
@@ -124,17 +87,17 @@ describe("平台感知分发契约", () => {
     const input = {
       platform: "android" as const,
       q: " Counter ",
-      host: { ...centerHost, capabilities: ["pages", "navigation", "pages"] },
+      host: { ...centerHost },
     };
     expect(normalizeCenterQuery(input)).toEqual(
       normalizeCenterQuery({
         ...input,
         q: "counter",
-        host: { ...centerHost, capabilities: ["navigation", "pages"] },
+        host: { ...centerHost },
       })
     );
     expect(normalizeCenterQuery(input)).not.toEqual(
-      normalizeCenterQuery({ ...input, host: { ...centerHost, capabilities: [] } })
+      normalizeCenterQuery({ ...input, host: { ...centerHost, appVersion: "9.0.0" } })
     );
     expect(() => normalizeCenterQuery({ ...input, platform: "all" })).toThrow("不一致");
     expect(() => normalizeCenterQuery({ ...input, platform: "ios" })).toThrow("不一致");

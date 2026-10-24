@@ -9,7 +9,7 @@ export default defineConfig({
     },
   },
   test: {
-    exclude: [...configDefaults.exclude, "scripts/**"],
+    exclude: [...configDefaults.exclude, "scripts/**", "validation/storage/**"],
     environment: "jsdom",
     setupFiles: ["./src/test-setup.ts"],
     poolOptions: {

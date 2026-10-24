@@ -9,12 +9,14 @@ import {
   type ReactNode,
   type Ref,
 } from "react";
-import { getMobileContentKit } from "../../services/editorKit";
+import { useMobileContentKit } from "../../services/editorKit";
+import { EditorKitPending } from "../../components/EditorKitPending";
 import { CornerUpRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { Editor, type EditorDocument, type EditorRef } from "@tau/editor";
+import { cn } from "@tau/ui";
 import * as tauri from "../../services/tauri";
 import type { ContentDetailResponse } from "../../types";
 import { formatDateTimeCompact } from "../../utils/formatTime";
@@ -22,7 +24,6 @@ import { useEditContent } from "../../hooks/useEditContent";
 import useLocalContentDocument from "../../hooks/useLocalContentDocument";
 import { MobileEditorBottomToolbar } from "./editorToolbar/MobileEditorBottomToolbar";
 import { useMobileEditorToolbarController } from "./editorToolbar/useMobileEditorToolbarController";
-import LinksDisclosure from "./LinksDisclosure";
 import ContextBadge from "../context/ContextBadge";
 import TagChips from "./TagChips";
 import TagInlineEditor from "./TagInlineEditor";
@@ -30,7 +31,7 @@ import type { CollaborativeEditorMode } from "../collaboration/CollaborativeEdit
 import { markLocalFallbackEdit } from "../collaboration/local-fallback";
 import { isEditorContentEmpty } from "./editorContentUtils";
 import { useReadingMode } from "./readingMode/useReadingMode";
-import { ReadingModeHeaderButton } from "./readingMode/ReadingModeHeaderButton";
+import { ReadingModeFab } from "./readingMode/ReadingModeFab";
 import { ReadingSelectionBar } from "./readingMode/ReadingSelectionBar";
 import { useReadingSelection } from "./readingMode/useReadingSelection";
 import { useEditorOpenMode } from "../../hooks/useEditorOpenMode";
@@ -39,7 +40,10 @@ import { BlockActionBar } from "./blockSelection/BlockActionBar";
 import { BlockDragLayer } from "./blockSelection/BlockDragLayer";
 import { BlockHandle } from "./blockSelection/BlockHandle";
 import { BlockSelectionHeader } from "./blockSelection/BlockSelectionHeader";
-import { BlockSelectionLayer } from "./blockSelection/BlockSelectionLayer";
+import {
+  BLOCK_SELECTION_INSET_CLASS,
+  BlockSelectionLayer,
+} from "./blockSelection/BlockSelectionLayer";
 import { useBlockDrag } from "./blockSelection/useBlockDrag";
 import { useEditorBlockSelection } from "./blockSelection/useEditorBlockSelection";
 import { OutlineSheet } from "./outline/OutlineSheet";
@@ -255,7 +259,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     !readingMode.editing && readingMode.canEdit && !blockSelection.active
   );
   const [editorWrapEl, setEditorWrapEl] = useState<HTMLDivElement | null>(null);
-  const kit = getMobileContentKit();
+  const kit = useMobileContentKit("edit");
   // 工具栏等页面级浮层挂进本页根容器，才能随页面转场动画一起平移、退场
   const [pageRootEl, setPageRootEl] = useState<HTMLDivElement | null>(null);
 
@@ -359,17 +363,15 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     )
   ) : null;
 
-  const headerActions = (
-    <>
-      <ReadingModeHeaderButton
-        editing={readingMode.editing}
-        canEdit={readingMode.canEdit}
-        onEnter={readingMode.enterEditing}
-        onExit={readingMode.exitEditing}
-      />
-      {props.headerRight}
-    </>
-  );
+  // 顶栏只放返回 / 标题 / 宿主操作；编辑入口是右下角悬浮按钮，退出编辑在配件栏「完成」
+  const headerActions = props.headerRight;
+  const fabVisible =
+    Boolean(detail && kit) &&
+    readingMode.canEdit &&
+    !readingMode.editing &&
+    !blockSelection.active &&
+    blockDrag.dragging === null &&
+    readingSelection.range === null;
 
   const renderBlockSelectionHeader = (floating: boolean) => (
     <BlockSelectionHeader
@@ -394,7 +396,15 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   ) : null;
 
   const tags = detail?.card?.tags ?? [];
-  const links = detail?.card?.links ?? [];
+  // 脉络胶囊挂在元信息行末尾；关联卡片是脉络「连接」分区的一部分，在浮层里查看
+  const contextChip = props.contextEntity ? (
+    <ContextBadge
+      kind={props.contextEntity.kind}
+      id={props.contextEntity.id}
+      refreshKey={props.refreshKey ?? 0}
+      onError={props.onError}
+    />
+  ) : null;
 
   // 类型徽章（方案 A 定稿）：卡片 / 文章 / 知识库 / 项目文档共用同一胶囊语言
   const typeBadge = props.contentType ? (
@@ -468,6 +478,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
                   </>
                 ) : null}
               </div>
+              {contextChip}
             </div>
             {props.sourceRef ? (
               <button
@@ -506,6 +517,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
                 </>
               ) : null}
             </div>
+            {contextChip}
           </div>
         ) : null}
 
@@ -526,26 +538,33 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
 
         <div
           ref={setEditorWrapEl}
-          className="relative min-h-[45vh] pt-1"
+          className={cn(
+            "relative min-h-[45vh] pt-1 transition-[padding] duration-200",
+            blockSelection.active && BLOCK_SELECTION_INSET_CLASS
+          )}
           // 块选择期间由覆盖层接管点击，阅读态的双击进入编辑与勾选待办不生效
           {...(blockSelection.active ? {} : readingMode.readingSurfaceProps)}
         >
-          <Editor
-            kit={kit}
-            ref={editorRef}
-            document={document}
-            className="mobile-card-editor-content"
-            readonly={editorReadonly}
-            onFocus={() => {
-              collabPresence.current?.onFocus();
-              toolbarController.handleEditorFocus();
-            }}
-            onBlur={() => {
-              collabPresence.current?.onBlur();
-              toolbarController.handleEditorBlur();
-            }}
-            onSelectionChange={toolbarController.syncSelection}
-          />
+          {kit ? (
+            <Editor
+              kit={kit}
+              ref={editorRef}
+              document={document}
+              className="mobile-card-editor-content"
+              readonly={editorReadonly}
+              onFocus={() => {
+                collabPresence.current?.onFocus();
+                toolbarController.handleEditorFocus();
+              }}
+              onBlur={() => {
+                collabPresence.current?.onBlur();
+                toolbarController.handleEditorBlur();
+              }}
+              onSelectionChange={toolbarController.syncSelection}
+            />
+          ) : (
+            <EditorKitPending />
+          )}
           <BlockSelectionLayer
             editorRef={editorRef}
             container={editorWrapEl}
@@ -587,18 +606,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
             onError={props.onError}
           />
         ) : tags.length > 0 ? (
-          <TagChips tags={tags} className="mt-5" />
-        ) : null}
-
-        <LinksDisclosure links={links} onError={props.onError} />
-
-        {props.contextEntity ? (
-          <ContextBadge
-            kind={props.contextEntity.kind}
-            id={props.contextEntity.id}
-            refreshKey={props.refreshKey ?? 0}
-            onError={props.onError}
-          />
+          <TagChips tags={tags} variant="soft" className="mt-6" />
         ) : null}
 
         {props.belowEditor}
@@ -610,7 +618,10 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     );
 
   return (
-    <div ref={setPageRootEl} className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
+    <div
+      ref={setPageRootEl}
+      className="mobile-kb-screen mobile-paper-page bg-surface fixed inset-0 z-50 flex flex-col"
+    >
       {hasCover ? (
         <div ref={coverShellRef} className="relative flex-1 overflow-hidden">
           <div
@@ -635,7 +646,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
               coverScrollRef.current = node;
               syncCoverHeaderFade();
             }}
-            className="edge-fade-cover-top mobile-floating-toolbar-scroll absolute inset-x-0 bottom-[var(--page-bottom-inset)] top-0 overflow-y-auto"
+            className="edge-fade-cover-top mobile-page-scroll absolute inset-x-0 bottom-0 top-0 overflow-y-auto"
             onScroll={syncCoverHeaderFade}
           >
             {props.coverSlot}
@@ -656,27 +667,28 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
               actions={headerActions}
             />
           )}
-          {/* 二级页无吸底 Dock，底部只留常规呼吸空间（同番茄钟/项目列表）：
-              留白挂外层容器，滚动容器自身不带 padding，内容不会顶到安全区 */}
-          <div
-            className="flex min-h-0 flex-1 flex-col"
-            style={{ paddingBottom: "var(--page-bottom-inset)" }}
-          >
+          <div className="flex min-h-0 flex-1 flex-col">
             <div
               ref={noCoverScrollRef}
-              className="edge-fade-scroll mobile-floating-toolbar-scroll flex-1 overflow-y-auto px-6"
+              className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto px-6"
             >
               {body}
             </div>
           </div>
         </>
       )}
+      <ReadingModeFab
+        visible={fabVisible}
+        onEnter={readingMode.enterEditing}
+        getScrollContainer={getScrollContainer}
+      />
       <MobileEditorBottomToolbar
         controller={toolbarController}
         portalContainer={pageRootEl}
         readonly={toolbarReadonly}
+        showDoneButton
       />
-      {blockSelection.active ? (
+      {blockSelection.active && kit ? (
         <BlockActionBar
           editorRef={editorRef}
           kit={kit}

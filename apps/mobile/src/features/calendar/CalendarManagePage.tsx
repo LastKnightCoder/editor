@@ -119,11 +119,11 @@ export function CalendarManagePage({ onBack, onError }: CalendarManagePageProps)
         }
       />
 
-      <div
-        className="flex min-h-0 flex-1 flex-col"
-        style={{ paddingBottom: "var(--page-bottom-inset)" }}
-      >
-        <div ref={scrollRef} className="edge-fade-scroll flex-1 overflow-y-auto overscroll-contain">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div
+          ref={scrollRef}
+          className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto overscroll-contain"
+        >
           <GroupLabel label="系统" hint="只读 · 仅可切换显示" />
           <div className="bg-surface shadow-card mx-[18px] rounded-[20px] px-[18px] py-1">
             {systemCalendars.map(calendar => renderRow(calendar))}
@@ -311,7 +311,7 @@ function CalendarFormSheet({
         value={name}
         onChange={event => setName(event.target.value)}
         placeholder="日历名称，如：工作、生活…"
-        className="bg-page text-ink-1 placeholder:text-ink-3 mt-1 w-full rounded-[13px] border-none px-3.5 py-3 text-[14.5px] font-bold outline-none"
+        className="input-base mt-1 w-full px-3.5 py-3 font-bold"
       />
       <div className="text-ink-3 pb-2 pt-4 text-[11.5px] font-extrabold">
         颜色 · 与桌面端同一套 17 色

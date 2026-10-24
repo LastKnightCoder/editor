@@ -54,12 +54,12 @@ vi.mock("../../../hooks/useEditContent", async () => {
 vi.mock("../../../services/tauri", () => ({ updateCardTags: vi.fn() }));
 vi.mock("../../../hooks/useScrollState", () => ({ useEdgeFade: vi.fn() }));
 vi.mock("../editorExtensions", () => ({ mobileCardPreviewExtensions: [] }));
-vi.mock("../LinksDisclosure", () => ({ default: () => null }));
 vi.mock("../TagChips", () => ({ default: () => null }));
 vi.mock("../TagInlineEditor", () => ({ default: () => null }));
-vi.mock("../../../components/PageHeader", async () => {
+vi.mock("../../../components/PageHeader", async importOriginal => {
   const React = await import("react");
   return {
+    ...(await importOriginal<typeof import("../../../components/PageHeader")>()),
     PageHeader: (props: { actions?: React.ReactNode }) =>
       React.createElement("header", null, props.actions),
   };
@@ -77,6 +77,7 @@ vi.mock("../editorExtensions/ContentLinkPickerSheet", () => ({
 // 页面测试不渲染真实编辑器，kit 也不必真实构造
 vi.mock("../../../services/editorKit", () => ({
   getMobileContentKit: () => ({}),
+  useMobileContentKit: () => ({}),
   getMobileFlashcardKit: () => ({}),
 }));
 vi.mock("@tau/editor", async importOriginal => {

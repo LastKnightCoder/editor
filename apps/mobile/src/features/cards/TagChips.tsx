@@ -1,5 +1,5 @@
 // 标签 chip 行：# 号用品牌色提亮，列表项与详情页共用同一套样式。
-// variant="elevated" 为详情页浮起胶囊（surface 底 + 微投影，方案 A 定稿）；
+// variant="soft" 为详情页轻标签（品牌淡底小方块、无投影）；
 // trailing 为行尾附加节点（如「＋ 标签」），与 chips 同容器排布。
 // 传 onRemove 时 chip 尾随 × 删除按钮，传原始 tag 串（含 # 前缀）。
 
@@ -9,21 +9,21 @@ import { X } from "lucide-react";
 type TagChipsProps = {
   tags: string[];
   className?: string;
-  variant?: "flat" | "elevated";
+  variant?: "flat" | "soft";
   trailing?: ReactNode;
   onRemove?: (tag: string) => void;
 };
 
 const FLAT_CHIP_CLASS =
-  "inline-flex items-center gap-[3px] rounded-full bg-page px-2.5 py-[3.5px] text-[11.5px] font-medium text-ink-2";
-const ELEVATED_CHIP_CLASS =
-  "inline-flex items-center gap-[3px] rounded-full bg-surface px-2.5 py-[4px] text-[12px] font-medium text-ink-2 shadow-card";
+  "inline-flex items-center gap-[3px] rounded-full bg-page px-2.5 py-[3.5px] text-tau-micro font-medium text-ink-2";
+const SOFT_CHIP_CLASS =
+  "inline-flex items-center gap-[3px] rounded-[8px] bg-accent-soft px-2.5 py-[3.5px] text-tau-micro font-semibold text-accent-text";
 
 export function TagChips({ tags, className, variant, trailing, onRemove }: TagChipsProps) {
   if (tags.length === 0 && !trailing) {
     return null;
   }
-  const chipClass = variant === "elevated" ? ELEVATED_CHIP_CLASS : FLAT_CHIP_CLASS;
+  const chipClass = variant === "soft" ? SOFT_CHIP_CLASS : FLAT_CHIP_CLASS;
   return (
     <div className={`flex flex-wrap gap-2 ${className ?? ""}`}>
       {tags.map(tag => {
@@ -33,7 +33,7 @@ export function TagChips({ tags, className, variant, trailing, onRemove }: TagCh
         }
         return (
           <span key={tag} className={chipClass}>
-            <span className="text-accent text-[11px] font-bold" aria-hidden>
+            <span className="text-accent font-bold" aria-hidden>
               #
             </span>
             {label}
