@@ -13,6 +13,7 @@ mod plugin_provider;
 mod plugin_transport;
 mod plugins;
 mod provider_settings;
+mod reading_font;
 mod remote_resource_cache;
 mod resource_upload;
 mod setting;
@@ -66,6 +67,12 @@ pub fn run() {
             app_update::app_update_check,
             app_update::app_update_download,
             app_update::app_update_install,
+            reading_font::reading_font_catalog,
+            reading_font::reading_font_installed,
+            reading_font::reading_font_download,
+            reading_font::reading_font_cancel_download,
+            reading_font::reading_font_remove,
+            reading_font::reading_font_read,
             plugin_center::plugin_center_refresh,
             plugin_center::plugin_center_config,
             plugin_center::plugin_center_request,

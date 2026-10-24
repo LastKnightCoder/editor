@@ -25,6 +25,8 @@ import { initThemeRuntime } from "@tau/themes/react";
 import { normalizeEditorContent } from "../features/cards/editorContentUtils";
 import { subscribeContentUpdateAll } from "../features/cards/contentSyncBus";
 import { setupEntityRefsRebuild } from "../features/context/refIndex";
+import { normalizeReadingFontId } from "../features/settings/readingFont/fonts";
+import { useReadingFontRuntime } from "../features/settings/readingFont/runtime";
 import type { CardsOverviewResponse } from "../types";
 import { useTodoStore } from "../features/todo/store/useTodoStore";
 import { useDiaryStore } from "../features/diary/store/useDiaryStore";
@@ -257,6 +259,9 @@ function AppShellInner() {
 
   // 主题运行时：首帧脚本已预置 data-theme/data-mode，这里接管偏好读写与系统明暗监听
   useEffect(() => initThemeRuntime(), []);
+
+  // 正文字体：所选字体已下载时注册 FontFace 并切换正文 font-family
+  useReadingFontRuntime(normalizeReadingFontId(syncSettings.safeSetting?.appearance?.readingFont));
 
   // entity_refs 引用索引对账：启动一次 + 监听主进程 reconcile 就绪事件（保存、同步下载、切库）
   useEffect(() => setupEntityRefsRebuild(), []);

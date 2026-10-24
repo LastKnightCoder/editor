@@ -219,6 +219,13 @@ code {
   line-height: 1.75;
 }
 
+/* 正文字体：编辑器正文与详情页文档标题；变量由 readingFont 运行时写在根上，未设置时为系统字体 */
+.mobile-card-editor-content[data-slate-editor="true"],
+.mobile-reading-title {
+  font-family: var(--mobile-reading-font, var(--tau-font));
+  font-synthesis: var(--mobile-reading-font-synthesis, none);
+}
+
 /* 段间距收到 0.8em：body-lg 字号下原 1.25em 接近一整行，段落显得被切开；
    段落两端对齐：中文标点避头尾会让左对齐的行尾参差。只作用于段落元素，标题、代码块、表格单元格不受影响 */
 .mobile-card-editor-content[data-slate-editor="true"] p[data-slate-node="element"] {

@@ -437,7 +437,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
       <div>
         {props.diaryDate ? (
           <div className="pt-6">
-            <h1 className="text-ink-1 text-[31px] font-extrabold leading-tight tracking-[-0.02em]">
+            <h1 className="text-ink-1 mobile-reading-title text-[31px] font-extrabold leading-tight tracking-[-0.02em]">
               {props.diaryDate.title}
             </h1>
             <p className="text-ink-2 mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
@@ -463,7 +463,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
                 autoGrowTitle(event.target);
               }}
               onBlur={commitTitle}
-              className="text-ink-1 caret-accent placeholder:text-ink-3 mt-2 w-full resize-none border-none bg-transparent text-[31px] font-extrabold leading-tight tracking-[-0.02em] outline-none"
+              className="text-ink-1 caret-accent placeholder:text-ink-3 mobile-reading-title mt-2 w-full resize-none border-none bg-transparent text-[31px] font-extrabold leading-tight tracking-[-0.02em] outline-none"
             />
             <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
               {typeBadge}
