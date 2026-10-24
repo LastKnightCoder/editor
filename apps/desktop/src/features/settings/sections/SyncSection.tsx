@@ -1,3 +1,4 @@
+import { localSyncVersion } from "@tau/db-schema/sync-protocol";
 /** 同步操作由客户端负责，存储配置由启用的同步插件提供。 */
 
 import { useMemo, useState } from "react";
@@ -50,7 +51,7 @@ export function SyncSection() {
   const [forceSyncConfirmOpen, setForceSyncConfirmOpen] = useState(false);
 
   const activeDatabase = database.databases.find(item => item.name === database.active);
-  const localVersion = activeDatabase?.version ?? 0;
+  const localVersion = localSyncVersion(activeDatabase);
   const selectedId = sync.plugin?.id;
   const pluginEnabled =
     !!selectedId &&
@@ -79,7 +80,7 @@ export function SyncSection() {
   });
   const remoteKnown = isConfigured && remoteQuery.data !== undefined;
   const remoteVersion = remoteQuery.data?.version ?? 0;
-  const needsProtocolUpgrade =
+  const protocolUnsupported =
     remoteKnown && remoteQuery.data?.dataModelVersion !== SYNC_MODEL_VERSION && remoteVersion > 0;
   const hasUpdate = remoteKnown && remoteVersion > localVersion;
 
@@ -123,7 +124,7 @@ export function SyncSection() {
       const originVersion = info.databaseInfo.version;
       queryClient.setQueryData(remoteKey, info.databaseInfo);
       if (originVersion > 0 && info.databaseInfo.dataModelVersion !== SYNC_MODEL_VERSION) {
-        toast.warning("云端快照协议较旧，请从已升级且数据完整的客户端同步到云端");
+        toast.warning("同步格式不受支持，请从数据完整的当前客户端重新发布");
       } else if (localVersion < originVersion) {
         toast.success(`远程有新版本 v${originVersion}，可下载更新`);
       } else {
@@ -164,8 +165,8 @@ export function SyncSection() {
     </StatusChip>
   ) : !remoteKnown ? (
     <StatusChip>未检查</StatusChip>
-  ) : needsProtocolUpgrade ? (
-    <StatusChip tone="warn">需升级云端</StatusChip>
+  ) : protocolUnsupported ? (
+    <StatusChip tone="warn">同步格式不匹配</StatusChip>
   ) : hasUpdate ? (
     <StatusChip tone="warn">远程有更新</StatusChip>
   ) : (
@@ -224,7 +225,7 @@ export function SyncSection() {
                         variant="primary"
                         size="sm"
                         icon={Download}
-                        disabled={needsProtocolUpgrade}
+                        disabled={protocolUnsupported}
                         onClick={() => setDownloadConfirmOpen(true)}
                       >
                         拉取远程

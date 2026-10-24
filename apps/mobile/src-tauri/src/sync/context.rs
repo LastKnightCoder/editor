@@ -18,7 +18,6 @@ pub(crate) struct SyncContext {
     pub(crate) database_name: String,
     pub(crate) local_version: u64,
     pub(crate) database_path: PathBuf,
-    pub(crate) data_object_name: String,
     pub(crate) version_object_name: String,
 }
 
@@ -46,8 +45,7 @@ pub(crate) fn build_sync_context_for(
         database_name: database_name.clone(),
         local_version,
         database_path,
-        data_object_name: database_name.clone(),
-        version_object_name: format!("database_{database_name}.json"),
+        version_object_name: crate::chunked_sync::version_object(&database_name),
     })
 }
 

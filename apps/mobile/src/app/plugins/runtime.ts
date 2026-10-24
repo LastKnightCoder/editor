@@ -31,7 +31,7 @@ export class MobilePluginRuntime {
   readonly host: PluginHost;
   readonly sync = new RendererSyncRegistry();
   readonly upload = new RendererUploadRegistry();
-  fetch?: typeof globalThis.fetch;
+  fetch?: (input: RequestInfo | URL, init?: RequestInit, pluginId?: string) => Promise<Response>;
   readonly content = new ContentPluginRegistry();
   readonly pages = new Map<string, MobilePluginPage>();
   readonly entries = new Map<
@@ -87,9 +87,9 @@ export class MobilePluginRuntime {
           );
         },
       },
-      fetch: (input, init) => {
+      fetch: (input, init, owner) => {
         if (!this.fetch) throw new Error("插件网络尚未就绪");
-        return this.fetch(input, init);
+        return this.fetch(input, init, owner?.pluginId);
       },
       pages: {
         register: (context, definition) => {

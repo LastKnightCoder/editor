@@ -3,6 +3,7 @@ import { constants as fsConstants, watch, type FSWatcher } from "node:fs";
 import { copyFile, readFile, readdir, rename, stat, unlink, writeFile } from "node:fs/promises";
 import { ensureDir, pathExists, remove } from "fs-extra/esm";
 import { sep, dirname, join, resolve } from "node:path";
+import { readFileSlice, writeFileSlice, fileSize } from "../services/chunked-sync";
 import { Module } from "../types/module";
 
 interface FileWatcherRegistration {
@@ -30,6 +31,14 @@ class File implements Module {
   }
 
   async init() {
+    ipcMain.handle("sync:file-read", (_event, filePath, offset, length) =>
+      readFileSlice(filePath, offset, length)
+    );
+    ipcMain.handle("sync:file-write", (_event, filePath, offset, bytes) =>
+      writeFileSlice(filePath, offset, bytes)
+    );
+    ipcMain.handle("sync:file-size", (_event, filePath) => fileSize(filePath));
+    ipcMain.handle("sync:file-copy", (_event, source, target) => copyFile(source, target));
     ipcMain.handle("read-binary-file", async (_event, filePath) => {
       return await this.readBinaryFile(filePath);
     });

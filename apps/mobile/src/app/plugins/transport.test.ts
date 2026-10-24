@@ -213,3 +213,70 @@ it("本机存储请求串行加载文件，上一提供方执行结束才读下�
   expect(uploadOwned).toHaveBeenCalledTimes(2);
   disconnect();
 });
+
+it("宿主可给同步对象设置响应预算，普通公网请求不附加预算", async () => {
+  vi.mocked(invoke).mockImplementation(async command =>
+    command === "plugin_fetch_open" ? 7 : { ...metadata, status: 204, hasBody: false }
+  );
+  const request = createPluginFetch("token", id =>
+    id === "sync.plugin" ? 16 * 1024 * 1024 : undefined
+  );
+  await request("https://example.com", undefined, "sync.plugin");
+  await request("https://example.com");
+  const calls = vi.mocked(invoke).mock.calls.filter(([command]) => command === "plugin_fetch_open");
+  expect(calls[0][1]).toMatchObject({ request: { responseLimit: 16 * 1024 * 1024 } });
+  expect(calls[1][1]).toMatchObject({ request: { responseLimit: undefined } });
+});
+
+it("并发同步元数据调用共享响应预算，全部完成后才解除", async () => {
+  let receive!: (event: { payload: unknown }) => Promise<void>;
+  vi.mocked(listen).mockImplementation(async (_event, handler) => {
+    receive = handler as typeof receive;
+    return () => undefined;
+  });
+  vi.mocked(invoke).mockImplementation(async command =>
+    command === "plugin_transport_connect"
+      ? "token"
+      : command === "plugin_fetch_open"
+        ? 1
+        : command === "plugin_fetch_response"
+          ? { ...metadata, status: 204, hasBody: false }
+          : undefined
+  );
+  const complete: ((value: unknown) => void)[] = [];
+  const execute = vi.fn(async (request: { kind: string }) =>
+    request.kind === "call" ? new Promise(resolve => complete.push(resolve)) : undefined
+  );
+  const runtime = {
+    workspaceId: "db",
+    sync: { execute },
+    upload: {},
+  } as unknown as MobilePluginRuntime;
+  const disconnect = await connectMobilePluginTransport(runtime);
+  const payload = {
+    token: "token",
+    kind: "sync",
+    session: "session",
+    pluginId: "sync.plugin",
+    config: {},
+    method: "fileExists",
+    name: "file",
+  };
+  const first = receive({ payload: { ...payload, requestId: "1" } });
+  const second = receive({ payload: { ...payload, requestId: "2" } });
+  await vi.waitFor(() => expect(complete).toHaveLength(2));
+  complete[0](false);
+  await first;
+  await runtime.fetch!("https://example.com", undefined, "sync.plugin");
+  expect(
+    vi.mocked(invoke).mock.calls.find(([command]) => command === "plugin_fetch_open")?.[1]
+  ).toMatchObject({ request: { responseLimit: 16 * 1024 * 1024 } });
+  complete[1](false);
+  await second;
+  await runtime.fetch!("https://example.com", undefined, "sync.plugin");
+  const requests = vi
+    .mocked(invoke)
+    .mock.calls.filter(([command]) => command === "plugin_fetch_open");
+  expect(requests.at(-1)?.[1]).toMatchObject({ request: { responseLimit: undefined } });
+  disconnect();
+});

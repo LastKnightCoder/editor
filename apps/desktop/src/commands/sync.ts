@@ -1,3 +1,15 @@
+import {
+  uploadChunkedPath,
+  downloadChunkedPath,
+  chunkDigest,
+  copySyncFile,
+} from "@/services/chunkedSync";
+import {
+  snapshotObject,
+  databaseVersionObject,
+  decodeSessionDirectory,
+  MANIFEST_BYTES,
+} from "@tau/db-schema/sync-protocol";
 import { toast } from "@tau/ui";
 import { produce } from "immer";
 import dayjs from "dayjs";
@@ -7,8 +19,6 @@ import {
   connectDatabaseByName,
   type DatabaseConnectSource,
   reconnectDatabaseFast,
-  readBinaryFile,
-  writeBinaryFile,
   createDir,
   pathExists,
   getSep,
@@ -20,7 +30,7 @@ import useSettingStore from "@/stores/useSettingStore.ts";
 import useGlobalStateStore, { DatabaseConnectionStatus } from "@/stores/useGlobalStateStore";
 import { SyncProviderFactory } from "@/utils/sync";
 import {
-  piSessionPack,
+  piSessionSyncFiles,
   piSessionLockLibrary,
   piSessionUnlockLibrary,
   piSessionAssertLibrary,
@@ -29,13 +39,11 @@ import {
 import type { IDatabaseInfo, ISyncProvider } from "@/types/sync";
 import {
   SYNC_MODEL_VERSION,
+  localSyncVersion,
   assertCompatibleSync,
   readSnapshotHead,
   publishSnapshot,
 } from "@tau/db-schema/sync-protocol";
-
-/** 会话包的远程对象名（与 .db 同名前缀，共用 database_<库名>.json 里的版本号） */
-export const sessionArchiveObjectName = (databaseName: string) => `${databaseName}.sessions.zip`;
 
 interface SyncCommandOptions {
   onProgress?: (payload: { value: number; status: string }) => void;
@@ -114,7 +122,7 @@ const uploadWithProvider = async (syncProvider: ISyncProvider, options?: SyncCom
 
   const database = databases.find(item => item.name === databaseName);
   if (!database) return false;
-  const { version: currentVersion } = database;
+  const currentVersion = localSyncVersion(database);
 
   const databasePath = await getDatabasePath(databaseName);
 
@@ -166,38 +174,38 @@ const uploadWithProvider = async (syncProvider: ISyncProvider, options?: SyncCom
     dataModelVersion: SYNC_MODEL_VERSION,
     commitId: crypto.randomUUID(),
     parentVersion: originVersion,
-    databaseObject: `${databaseName}.snapshot-${crypto.randomUUID()}.db`,
-    sessionsObject: `${databaseName}.snapshot-${crypto.randomUUID()}.sessions.zip`,
+    databaseObject: snapshotObject(crypto.randomUUID()),
+    sessionsObject: snapshotObject(crypto.randomUUID()),
   };
 
   try {
+    const prepared = await piSessionSyncFiles(databaseName);
+    if (!prepared.ok || !prepared.files) throw new Error(prepared.error ?? "读取会话目录失败");
+
     // 上传数据库文件
     emitProgress(options, 40, "正在上传数据库文件...");
-    const contents = await readBinaryFile(databasePath);
     const dataObjectName = newDatabaseInfo.databaseObject!;
-    const dataSuccess = await syncProvider.uploadFile(dataObjectName, contents);
-
-    if (!dataSuccess) {
-      toast.error("上传数据库文件失败");
-      return false;
-    }
+    await uploadChunkedPath(syncProvider, dataObjectName, databasePath, databaseName);
 
     // 会话包（M4）：对话内容在 pi 会话文件里，目录表随 .db 过去、文件得一起过去，
     // 否则对面「列表同步过去、点开全空」。与 .db 共用同一个版本号
     emitProgress(options, 60, "正在上传对话记录...");
-    const packed = await piSessionPack(databaseName);
-    if (!packed.ok || !packed.archive) {
-      toast.error(`打包对话记录失败：${packed.error ?? "未知错误"}`);
-      return false;
+    const sessionManifest = {
+      format: "tau-session-directory",
+      version: 1,
+      files: [] as { name: string; object: string }[],
+    };
+    for (const file of prepared.files) {
+      const object = snapshotObject(crypto.randomUUID());
+      await uploadChunkedPath(syncProvider, object, file.path, file.name);
+      sessionManifest.files.push({ name: file.name, object });
     }
-    const sessionsSuccess = await syncProvider.uploadFile(
-      newDatabaseInfo.sessionsObject!,
-      packed.archive
-    );
-    if (!sessionsSuccess) {
-      toast.error("上传对话记录失败");
-      return false;
-    }
+    const sessionBytes = new TextEncoder().encode(JSON.stringify(sessionManifest));
+    if (
+      sessionBytes.length > MANIFEST_BYTES ||
+      !(await syncProvider.uploadFile(newDatabaseInfo.sessionsObject!, sessionBytes))
+    )
+      throw new Error("会话清单上传失败");
 
     // 数据库与会话包都上传成功后再发布新版本，避免失败时远程版本提前生效。
     emitProgress(options, 75, "正在上传版本信息...");
@@ -211,6 +219,7 @@ const uploadWithProvider = async (syncProvider: ISyncProvider, options?: SyncCom
         const databases = draft.setting.database.databases;
         const index = databases.findIndex(item => item.name === databaseName);
         databases[index].version = currentVersion + 1;
+        databases[index].syncFormat = SYNC_MODEL_VERSION;
       })
     );
 
@@ -246,7 +255,7 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
 
   const database = databases.find(item => item.name === databaseName);
   if (!database) return false;
-  const { version: currentVersion } = database;
+  const currentVersion = localSyncVersion(database);
 
   const databasePath = await getDatabasePath(databaseName);
 
@@ -260,6 +269,10 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
   emitProgress(options, 5, "正在检查远程版本...");
 
   const { databaseInfo } = await readOriginDatabaseInfo(syncProvider, databaseName);
+  if (databaseInfo.version === 0) {
+    toast.error("远端尚未发布同步快照");
+    return false;
+  }
   assertCompatibleSync(databaseInfo);
 
   const originVersion = Number(databaseInfo.version || 0);
@@ -290,8 +303,7 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
     const backupPath = String.raw`${backupDir}${sep}version-${originVersion}-${dayjs().format("YYYY-MM-DD-hh-mm-ss")}-${databaseName}`;
 
     try {
-      const originContents = await readBinaryFile(databasePath);
-      await writeBinaryFile(backupPath, originContents);
+      await copySyncFile(databasePath, backupPath);
       emitProgress(options, 40, "正在备份本地数据库...");
     } catch (e) {
       toast.warning("备份数据库文件失败，停止下载");
@@ -318,21 +330,33 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
     let databaseDownloadSuccess = true;
     try {
       emitProgress(options, 60, "正在下载远程数据库文件...");
-      const contents = await syncProvider.downloadFile(dataObjectName);
       const downloadPath = `${databasePath}.download.tmp`;
       try {
-        await writeBinaryFile(downloadPath, contents);
+        await downloadChunkedPath(syncProvider, dataObjectName, downloadPath);
         await invoke("validate-downloaded-database", databaseName);
-        const archiveName = databaseInfo.sessionsObject ?? sessionArchiveObjectName(databaseName);
-        const hasArchive = await syncProvider.fileExists(archiveName);
-        if (databaseInfo.sessionsObject && !hasArchive) throw new Error("同步快照缺少对话记录包");
-        const archive = hasArchive ? await syncProvider.downloadFile(archiveName) : undefined;
+        const sessionDirectory = `${databasePath}.sessions.download`;
+        await removeFile(sessionDirectory).catch(() => undefined);
+        const hasSessions = Boolean(databaseInfo.sessionsObject);
+        if (databaseInfo.sessionsObject) {
+          const directory = decodeSessionDirectory(
+            await syncProvider.downloadFile(databaseInfo.sessionsObject)
+          );
+          await createDir(sessionDirectory);
+          const separator = await getSep();
+          for (const file of directory.files)
+            await downloadChunkedPath(
+              syncProvider,
+              file.object,
+              `${sessionDirectory}${separator}${file.name}`
+            );
+        }
         // 主库已被远端内容替换，本地索引的 ID 空间整体失效，重置后按需全量重建。
         await invoke("reset-content-index", databaseName);
-        const installed = await piSessionInstallDownload(databaseName, archive);
+        const installed = await piSessionInstallDownload(databaseName, hasSessions);
         if (!installed.ok) throw new Error(installed.error ?? "同步快照提交失败");
       } finally {
         await removeFile(downloadPath).catch(() => undefined);
+        await removeFile(`${databasePath}.sessions.download`).catch(() => undefined);
       }
       emitProgress(options, 85, "正在更新本地数据库...");
     } catch (e) {
@@ -348,14 +372,14 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
           const databases = draft.setting.database.databases;
           const index = databases.findIndex(item => item.name === databaseName);
           databases[index].version = originVersion;
+          databases[index].syncFormat = SYNC_MODEL_VERSION;
         })
       );
       emitProgress(options, 100, "下载完成");
     } else {
       // 尝试恢复数据库信息，读取备份数据还原
       try {
-        const dataContent = await readBinaryFile(backupPath);
-        await writeBinaryFile(databasePath, dataContent);
+        await copySyncFile(backupPath, databasePath);
       } catch (e) {
         toast.error("恢复数据库文件失败，当前数据库文件可能存在损坏，可从备份文件夹手动备份");
       }
@@ -392,7 +416,7 @@ export const getOriginDatabaseInfo = async () => {
 };
 
 const readOriginDatabaseInfo = async (syncProvider: ISyncProvider | null, databaseName: string) => {
-  const databaseInfoFileName = `database_${databaseName}.json`;
+  const databaseInfoFileName = await databaseVersionObject(databaseName, chunkDigest);
   const databaseInfoObjectName = databaseInfoFileName;
 
   let databaseInfo: IDatabaseInfo = { version: 0 };

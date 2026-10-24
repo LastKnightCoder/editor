@@ -99,6 +99,9 @@ impl PluginProvider {
     ) -> Result<Value, String> {
         let _memory = crate::plugin_files::memory_permit().await?;
         let file = FileLease::open(&self.0.token, path, writing)?;
+        if !writing && file.descriptor.size > crate::chunked_sync::protocol().chunk_bytes as u64 {
+            return Err("同步对象超过协议分块大小".into());
+        }
         let result = plugin_transport::request(
             &self.0.app,
             &self.0.token,
@@ -113,37 +116,33 @@ impl PluginProvider {
         }
         Ok(result)
     }
-    pub(crate) async fn upload_path(&self, name: &str, path: &Path) -> Result<(), String> {
-        if self
-            .call_file("uploadFile", Some(name), path, false)
-            .await?
-            == true
-        {
-            Ok(())
-        } else {
-            Err("插件文件上传失败".into())
-        }
-    }
-    pub(crate) async fn download_path(&self, name: &str, path: &Path) -> Result<(), String> {
+    pub(crate) async fn download_raw_path(&self, name: &str, path: &Path) -> Result<(), String> {
         self.call_file("downloadFile", Some(name), path, true)
             .await
             .map(|_| ())
     }
-    pub(crate) async fn download_temporary(&self, name: &str) -> Result<TemporaryFile, String> {
+    pub(crate) async fn download_raw_temporary(&self, name: &str) -> Result<TemporaryFile, String> {
         let temp = TemporaryFile::new(&self.0.app)?;
-        self.download_path(name, &temp.path).await?;
+        self.download_raw_path(name, &temp.path).await?;
         Ok(temp)
     }
-    pub(crate) async fn download_bytes(&self, name: &str) -> Result<Vec<u8>, String> {
-        let temp = self.download_temporary(name).await?;
+    pub(crate) fn new_temporary(&self) -> Result<TemporaryFile, String> {
+        TemporaryFile::new(&self.0.app)
+    }
+    pub(crate) async fn download_object(&self, name: &str, limit: u64) -> Result<Vec<u8>, String> {
+        let temp = self.download_raw_temporary(name).await?;
         if std::fs::metadata(&temp.path)
             .map_err(|e| e.to_string())?
             .len()
-            > 4 * 1024 * 1024
+            > limit
         {
-            return Err("同步版本元数据过大".into());
+            return Err("同步对象超过协议分块大小".into());
         }
         std::fs::read(&temp.path).map_err(|e| e.to_string())
+    }
+    pub(crate) async fn download_bytes(&self, name: &str) -> Result<Vec<u8>, String> {
+        self.download_object(name, crate::chunked_sync::protocol().manifest_bytes as u64)
+            .await
     }
     pub(crate) async fn upload_resource_path(
         &self,

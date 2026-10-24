@@ -1,0 +1,19 @@
+{
+  "bytes": [0, 255, 1, 2],
+  "manifest": {
+    "format": "tau-chunked-file",
+    "version": 1,
+    "name": "\u793a\u4f8b.bin",
+    "size": 4,
+    "chunks": [
+      {
+        "size": 4,
+        "sha256": "2f87beacb6a71f75e3243ce005faf5d99405e02b5e729c7c9c216ef2e2a0544a"
+      }
+    ],
+    "rootHash": "9cb06dd15a87d24ca646e3a501599a7b913e26d1448bd0433da92bd4f658a2bb"
+  },
+  "resourceObject": "tau-sync-v1/resources/b9/71d42e9fd1d8f6829f22f3899ff6e00fb6d9393c27a2df8183eda3d713e430.json",
+  "databaseName": "data.db",
+  "versionObject": "tau-sync-v1/databases/d4f34e256ce5a3f8f16f2496eab92a8e2633f2f0426ff58feae18a411c4db265.json"
+}

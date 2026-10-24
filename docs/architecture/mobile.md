@@ -365,3 +365,5 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 plugins 页使用 single 身份与 tab 参数，默认打开商店，也可进入已安装管理；pluginStoreDetail 按 pluginId 保活，展示目标平台、版本历史和纯文本介绍。安装面板消费原生选版和安装阶段，不生成虚假百分比。中心安装任务存放在应用 QueryClient 对应的 MobileCenterInstallStore；页面订阅/退订不取消任务，只有显式取消操作终止它。
 
 普通正文的插入面板消费已装配插件的 blockPanel 贡献，复用面板选区和键盘预留协议；能力分级及过滤见[跨端插件宿主](/docs/architecture/plugin-portability.md)。插件中心页面与开发验证入口也消费 @tau/themes，不保留旧移动主题变量或类名。
+
+数据库、资源及会话文件的跨端对象布局、分块预算和首次使用边界见[宿主分块同步](/docs/architecture/storage-sync.md)。

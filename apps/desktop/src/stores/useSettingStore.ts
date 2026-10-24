@@ -130,6 +130,7 @@ export interface ISetting {
     databases: Array<{
       name: string;
       version: number;
+      syncFormat?: number;
     }>;
   };
   transcription: {

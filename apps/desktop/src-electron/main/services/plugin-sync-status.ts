@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 export function pluginSyncStatusFile(pluginId: string, config: unknown) {
   return (
-    "plugin-" +
+    "chunked-v1-plugin-" +
     createHash("sha256")
       .update(
         JSON.stringify([pluginId, config], (_key, value) =>

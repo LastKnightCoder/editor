@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { CHUNK_BYTES } from "@tau/db-schema/sync-protocol";
 import type { JsonValue } from "@tau/plugins";
 import {
   createBridgeFetch,
@@ -42,50 +43,61 @@ async function networkCall<T>(command: string, args: Record<string, unknown>): P
     throw new TypeError(String(issue));
   }
 }
-export function createPluginFetch(token: string): typeof globalThis.fetch {
-  return createBridgeFetch({
-    open: async request => {
-      const { bufferedBody, ...metadata } = request;
-      const id = await networkCall<number>("plugin_fetch_open", { token, request: metadata });
-      if (bufferedBody) {
-        try {
-          for (let offset = 0; offset < bufferedBody.length; offset += FETCH_CHUNK_BYTES)
-            if (
-              !(await networkCall<boolean>("plugin_fetch_upload", {
-                token,
-                id,
-                chunk: encodePluginBytes(bufferedBody.subarray(offset, offset + FETCH_CHUNK_BYTES)),
-              }))
-            )
-              break;
-          await networkCall("plugin_fetch_upload", { token, id, chunk: null });
-        } catch (issue) {
-          await networkCall("plugin_fetch_cancel", { token, id }).catch(() => undefined);
-          throw issue;
+export function createPluginFetch(
+  token: string,
+  budget: (pluginId?: string) => number | undefined = () => undefined
+) {
+  return (input: RequestInfo | URL, init?: RequestInit, pluginId?: string) => {
+    const responseLimit = budget(pluginId);
+    return createBridgeFetch({
+      open: async request => {
+        const { bufferedBody, ...metadata } = request;
+        const id = await networkCall<number>("plugin_fetch_open", {
+          token,
+          request: { ...metadata, responseLimit },
+        });
+        if (bufferedBody) {
+          try {
+            for (let offset = 0; offset < bufferedBody.length; offset += FETCH_CHUNK_BYTES)
+              if (
+                !(await networkCall<boolean>("plugin_fetch_upload", {
+                  token,
+                  id,
+                  chunk: encodePluginBytes(
+                    bufferedBody.subarray(offset, offset + FETCH_CHUNK_BYTES)
+                  ),
+                }))
+              )
+                break;
+            await networkCall("plugin_fetch_upload", { token, id, chunk: null });
+          } catch (issue) {
+            await networkCall("plugin_fetch_cancel", { token, id }).catch(() => undefined);
+            throw issue;
+          }
         }
-      }
-      return id;
-    },
-    upload: (id, chunk) =>
-      networkCall<boolean>("plugin_fetch_upload", {
-        token,
-        id,
-        chunk: chunk === null ? null : encodePluginBytes(chunk),
-      }),
-    response: id => networkCall<FetchResponseData>("plugin_fetch_response", { token, id }),
-    read: async id => {
-      const chunk = await networkCall<string | null>("plugin_fetch_read", { token, id });
-      return chunk === null ? null : decodePluginBytes(chunk);
-    },
-    buffer: async id => {
-      const file = await networkCall<{ id: string; size: number }>("plugin_fetch_buffer", {
-        token,
-        id,
-      });
-      return readProviderFile(token, file, () => true);
-    },
-    cancel: id => networkCall<void>("plugin_fetch_cancel", { token, id }),
-  });
+        return id;
+      },
+      upload: (id, chunk) =>
+        networkCall<boolean>("plugin_fetch_upload", {
+          token,
+          id,
+          chunk: chunk === null ? null : encodePluginBytes(chunk),
+        }),
+      response: id => networkCall<FetchResponseData>("plugin_fetch_response", { token, id }),
+      read: async id => {
+        const chunk = await networkCall<string | null>("plugin_fetch_read", { token, id });
+        return chunk === null ? null : decodePluginBytes(chunk);
+      },
+      buffer: async id => {
+        const file = await networkCall<{ id: string; size: number }>("plugin_fetch_buffer", {
+          token,
+          id,
+        });
+        return readProviderFile(token, file, () => true);
+      },
+      cancel: id => networkCall<void>("plugin_fetch_cancel", { token, id }),
+    })(input, init);
+  };
 }
 
 export async function readProviderFile(
@@ -135,6 +147,7 @@ export async function connectMobilePluginTransport(runtime: MobilePluginRuntime)
   let disposed = false;
   const openings = new Map<string, Promise<unknown>>();
   let fileQueue = Promise.resolve();
+  const activeSync = new Map<string, number>();
   const stop = await listen<ProviderRequest>("plugin-provider-request", async ({ payload }) => {
     if (disposed || payload.token !== token) return;
     if (payload.kind === "close") {
@@ -148,6 +161,8 @@ export async function connectMobilePluginTransport(runtime: MobilePluginRuntime)
       let result: unknown;
       let error: string | undefined;
       try {
+        if (payload.kind === "sync")
+          activeSync.set(payload.pluginId, (activeSync.get(payload.pluginId) ?? 0) + 1);
         if (payload.kind === "upload") {
           if (!payload.file) throw new Error("插件上传缺少源文件");
           result = await runtime.upload.uploadOwned(
@@ -184,6 +199,7 @@ export async function connectMobilePluginTransport(runtime: MobilePluginRuntime)
                 : [payload.name ?? undefined],
           });
           if (result instanceof Uint8Array) {
+            if (result.byteLength > CHUNK_BYTES) throw new Error("同步对象超过协议分块大小");
             if (!payload.file) throw new Error("插件下载缺少接收文件");
             await writeProviderFile(payload.token, payload.file.id, result, () => !disposed);
             result = { fileSize: result.byteLength };
@@ -191,6 +207,12 @@ export async function connectMobilePluginTransport(runtime: MobilePluginRuntime)
         }
       } catch (issue) {
         error = issue instanceof Error ? issue.message : String(issue);
+      } finally {
+        if (payload.kind === "sync") {
+          const remaining = (activeSync.get(payload.pluginId) ?? 1) - 1;
+          if (remaining) activeSync.set(payload.pluginId, remaining);
+          else activeSync.delete(payload.pluginId);
+        }
       }
       if (!disposed && payload.requestId)
         await invoke("plugin_transport_reply", {
@@ -208,7 +230,9 @@ export async function connectMobilePluginTransport(runtime: MobilePluginRuntime)
   });
   try {
     token = await invoke<string>("plugin_transport_connect", { database: runtime.workspaceId });
-    runtime.fetch = createPluginFetch(token);
+    runtime.fetch = createPluginFetch(token, pluginId =>
+      pluginId && activeSync.has(pluginId) ? CHUNK_BYTES * 2 : undefined
+    );
   } catch (error) {
     stop();
     throw error;

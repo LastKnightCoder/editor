@@ -59,16 +59,31 @@ impl SyncProvider {
 }
 pub(crate) async fn list_remote_resources(
     provider: &SyncProvider,
-    prefix: &str,
 ) -> Result<Vec<ResourceRemoteFileInfo>, AppError> {
-    let files: Vec<ResourceRemoteFileInfo> = serde_json::from_value(
+    let prefix = crate::chunked_sync::resource_prefix();
+    let entries: Vec<ResourceRemoteFileInfo> = serde_json::from_value(
         provider
-            .call("listFiles", Some(prefix), None)
+            .call("listFiles", Some(&prefix), None)
             .await
             .map_err(error)?,
     )
-    .map_err(|_| error("插件文件列表格式无效"))?;
-    validate_files(&files, prefix)?;
+    .map_err(|e| error(e.to_string()))?;
+    let mut files = Vec::with_capacity(entries.len());
+    for entry in entries {
+        if !entry.path.starts_with(&prefix) || !entry.path.ends_with(".json") {
+            return Err(error("资源清单路径无效"));
+        }
+        let manifest = provider.chunk_manifest(&entry.path).await.map_err(error)?;
+        if entry.path != crate::chunked_sync::resource_object(&manifest.name) {
+            return Err(error("资源清单身份不匹配"));
+        }
+        files.push(ResourceRemoteFileInfo {
+            name: manifest.name,
+            path: entry.path,
+            size: manifest.size,
+        });
+    }
+    validate_files(&files, &prefix)?;
     Ok(files)
 }
 pub(crate) fn sync_provider_name(_provider: &SyncProvider) -> String {
@@ -85,7 +100,10 @@ pub(crate) fn provider_status_file_name(
     provider: &SyncProvider,
 ) -> (String, HashMap<String, String>) {
     (
-        crate::provider_settings::status_file_name(provider.id(), provider.config()),
+        format!(
+            "chunked-v1-{}",
+            crate::provider_settings::status_file_name(provider.id(), provider.config())
+        ),
         HashMap::from([("pluginId".into(), provider.id().into())]),
     )
 }

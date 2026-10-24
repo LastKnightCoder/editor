@@ -1,3 +1,4 @@
+mod chunked_sync;
 mod collaboration;
 mod database;
 mod models;

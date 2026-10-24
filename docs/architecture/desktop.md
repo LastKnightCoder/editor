@@ -145,6 +145,8 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 
 **标准 fetch**：插件经 `@tau/plugins` 的 `context.fetch`，其他桌面调用用 `commands/fetch` 的 desktopFetch——原生 fetch 类型（RequestInit/Headers/FormData/AbortSignal → Response），无兼容层。两端复用内部 `@tau/plugins/fetch-bridge`，上传按最多 256 KiB 分块并等待背压，响应按需读取；该入口不进入作者 tarball。fetch 模块为 BACKGROUND（ensureModule 保证就绪）：主进程原生执行，内部 IPC 支持上传/响应流与取消并恢复 URL、redirected、type 与完整响应头；请求属于发起窗口，窗口销毁或导航回收。执行环境是宿主 Node，不自动继承页面 Cookie/CORS（显式 Cookie/Referer 与 Set-Cookie 须保留）；业务自行决定认证与状态处理。
 
+数据库、资源及会话文件同步的对象布局、校验、发布和首次使用边界见[宿主分块同步](/docs/architecture/storage-sync.md)。
+
 ### 插件业务数据与授权
 
 **读取**：`context.data`（cards / articles / documents 的 `get`/`query`，todos / calendar 的 `query`）与 `context.content.read` 由 `app/plugins/data.ts` 适配，命令经 `bindDatabaseCommands` 固定到 Provider 创建宿主时的库并带实例 signal。卡片、文章、项目文档走主进程只读表 `tables/plugin-data.ts`（统一投影、「排序时间:ID」游标分页、上限 200 条，引用型项目条目不计）；待办与日程复用 `task-assistant:read`。ID 与 ContentRef（正文 ID + 创建时间）对插件不透明，IPC 契约在 `types/plugin-data.ts`。Notebook、材料与对话只读，走 `tables/plugin-data-readonly.ts` 直接返回 SDK 形状：Notebook 只给信息与资料清单（不含说明、本机路径、转换文字、笔记与测验）；材料三表合并分页、标题与出处复用 `MaterialTable.resolve`（软删除划线与已删 PDF 的标注不可见）；对话只给 `chat_session` 四场景信息，不读 pi 会话文件。

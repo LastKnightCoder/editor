@@ -165,9 +165,11 @@ export function piBrowserSessionDelete(pageUrl: string, sessionId: string): Prom
   return invoke("pi-session:browser-delete", { pageUrl, sessionId });
 }
 
-/** 同步（M4.4）：库的会话目录打成 zip */
-export function piSessionPack(databaseName: string): Promise<Outcome & { archive?: Uint8Array }> {
-  return invoke("pi-session:pack", { databaseName });
+/** 同步只枚举当前会话文件，内容由宿主逐块传输。 */
+export function piSessionSyncFiles(
+  databaseName: string
+): Promise<Outcome & { files?: { name: string; path: string }[] }> {
+  return invoke("pi-session:sync-files", { databaseName });
 }
 
 export const piSessionLockLibrary = (databaseName: string): Promise<Outcome> =>
@@ -178,16 +180,8 @@ export const piSessionAssertLibrary = (databaseName: string): Promise<Outcome> =
   invoke("pi-session:assert-library", { databaseName });
 export const piSessionInstallDownload = (
   databaseName: string,
-  archive?: Uint8Array
-): Promise<Outcome> => invoke("pi-session:install-download", { databaseName, archive });
-
-/** 同步（M4.4）：用下载的会话包替换库的会话目录（主进程先整体备份） */
-export function piSessionUnpack(
-  databaseName: string,
-  archive: Uint8Array
-): Promise<Outcome & { backupPath?: string }> {
-  return invoke("pi-session:unpack", { databaseName, archive });
-}
+  hasSessions: boolean
+): Promise<Outcome> => invoke("pi-session:install-download", { databaseName, hasSessions });
 
 export type PiSessionRecovery = Outcome & {
   sessionId?: string;
