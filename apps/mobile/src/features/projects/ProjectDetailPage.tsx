@@ -267,11 +267,11 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
                 <Star size={14} fill="currentColor" className="text-accent-text ml-auto shrink-0" />
               ) : null}
             </div>
-            <h1 className="text-ink-1 mt-3 text-[24px] font-extrabold leading-tight tracking-[-0.02em]">
+            <h1 className="text-ink-1 mobile-reading-font mt-3 text-[24px] font-extrabold leading-tight tracking-[-0.02em]">
               {project.title}
             </h1>
             {project.descText ? (
-              <p className="text-ink-2 mt-2 text-[13.5px] leading-[1.7]">
+              <p className="text-ink-2 mobile-reading-font mt-2 text-[13.5px] leading-[1.7]">
                 {clampText(project.descText, 80)}
               </p>
             ) : null}

@@ -219,9 +219,10 @@ code {
   line-height: 1.75;
 }
 
-/* 正文字体：编辑器正文与详情页文档标题；变量由 readingFont 运行时写在根上，未设置时为系统字体 */
+/* 正文字体：编辑器正文，以及标题、摘要等不挂正文类的「读的内容」（.mobile-reading-font）；
+   控件、行式列表与元信息不挂。变量由 readingFont 运行时写在根上，未设置时为系统字体 */
 .mobile-card-editor-content[data-slate-editor="true"],
-.mobile-reading-title {
+.mobile-reading-font {
   font-family: var(--mobile-reading-font, var(--tau-font));
   font-synthesis: var(--mobile-reading-font-synthesis, none);
 }

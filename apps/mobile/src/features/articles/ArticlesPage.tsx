@@ -160,10 +160,10 @@ export function ArticlesPage(props: ArticlesPageProps) {
         </span>
       </ArticleCover>
       <div className="p-4">
-        <p className="text-ink-1 text-[18.5px] font-extrabold leading-snug tracking-tight">
+        <p className="text-ink-1 mobile-reading-font text-[18.5px] font-extrabold leading-snug tracking-tight">
           {article.title}
         </p>
-        <p className="text-ink-2 mt-1.5 line-clamp-2 text-[13px] leading-relaxed">
+        <p className="text-ink-2 mobile-reading-font mt-1.5 line-clamp-2 text-[13px] leading-relaxed">
           {clampText(article.excerpt, 64)}
         </p>
         <div className="text-ink-3 mt-2.5 flex items-center gap-2 text-[11.5px] tabular-nums">
@@ -203,10 +203,10 @@ export function ArticlesPage(props: ArticlesPageProps) {
       onClick={() => props.onOpenArticle(article.id)}
     >
       <div className="flex min-w-0 flex-1 flex-col">
-        <p className="text-ink-1 line-clamp-2 text-[15.5px] font-bold leading-normal">
+        <p className="text-ink-1 mobile-reading-font line-clamp-2 text-[15.5px] font-bold leading-normal">
           {article.title}
         </p>
-        <p className="text-ink-2 mt-1 line-clamp-2 text-[12.5px] leading-relaxed">
+        <p className="text-ink-2 mobile-reading-font mt-1 line-clamp-2 text-[12.5px] leading-relaxed">
           {clampText(article.excerpt, 48)}
         </p>
         <div className="text-ink-3 mt-auto flex items-center gap-2 pt-2 text-[11px] tabular-nums">
