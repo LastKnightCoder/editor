@@ -338,11 +338,7 @@ export function CardEditPage({
   )?.name;
 
   return (
-    <div
-      ref={setPageRootEl}
-      className="mobile-kb-screen bg-page flex h-full flex-col"
-      style={{ paddingBottom: "var(--page-bottom-inset)" }}
-    >
+    <div ref={setPageRootEl} className="mobile-kb-screen bg-page flex h-full flex-col">
       <PageHeader
         title={deckName ?? (isEditing ? "编辑闪卡" : "新建闪卡")}
         onBack={requestExit}
@@ -357,10 +353,7 @@ export function CardEditPage({
           </button>
         }
       />
-      <div
-        ref={scrollRef}
-        className="edge-fade-scroll mobile-floating-toolbar-scroll flex-1 overflow-y-auto"
-      >
+      <div ref={scrollRef} className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto">
         <div className="flex flex-col gap-[18px] px-4 pt-2">
           {/* 题干（主角卡）：题型徽标 + 无底色编辑器 */}
           <div className="shadow-card bg-surface rounded-[22px] p-4">

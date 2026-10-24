@@ -143,8 +143,7 @@ export function SettingsModulePage(props: { module: SettingModuleKey }) {
 
       <div
         ref={scrollRef}
-        className="edge-fade-scroll mobile-kb-scroll flex-1 overflow-y-auto px-4"
-        style={{ paddingBottom: "calc(var(--page-bottom-inset) + var(--kb-height, 0px))" }}
+        className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto px-4"
       >
         <ModuleSection
           module={props.module}

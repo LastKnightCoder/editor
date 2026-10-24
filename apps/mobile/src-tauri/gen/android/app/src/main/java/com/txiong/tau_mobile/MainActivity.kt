@@ -10,6 +10,7 @@ import kotlin.math.max
 
 class MainActivity : TauriActivity() {
   private var lastKeyboardHeight = Int.MIN_VALUE
+  private var lastSafeInsets = ""
 
   private fun resolveWebView(): WebView? {
     return try {
@@ -37,12 +38,29 @@ class MainActivity : TauriActivity() {
           window.__TAU_NATIVE_KB_HEIGHT_RAW = rawHeight;
           window.__TAU_NATIVE_KB_HEIGHT = clampedCssHeight;
           window.dispatchEvent(new CustomEvent('tau:native-kb-height', { detail: { height: clampedCssHeight, rawHeight: rawHeight, dpr: dpr } }));
+        } catch (_) {}
+      })();
+    """.trimIndent()
+    val webView = resolveWebView()
+    webView?.post {
+      webView.evaluateJavascript(js, null)
+    }
+  }
+
+  // 系统栏占位写入 --native-safe-*，供不支持 env(safe-area-inset-*) 的 WebView 兜底；--kb-* 由前端 Provider 统一写入
+  private fun publishSafeInsets(top: Int, bottom: Int) {
+    val key = "$top:$bottom"
+    if (key == lastSafeInsets) {
+      return
+    }
+    lastSafeInsets = key
+    val js = """
+      (function () {
+        try {
+          var dpr = Math.max(1, Number(window.devicePixelRatio || 1));
           var root = document.documentElement;
-          if (root && root.style) {
-            root.style.setProperty('--kb-height', clampedCssHeight + 'px');
-            var viewportHeight = Math.max(1, inner - clampedCssHeight);
-            root.style.setProperty('--kb-viewport-height', viewportHeight + 'px');
-          }
+          root.style.setProperty('--native-safe-top', Math.round($top / dpr) + 'px');
+          root.style.setProperty('--native-safe-bottom', Math.round($bottom / dpr) + 'px');
         } catch (_) {}
       })();
     """.trimIndent()
@@ -64,6 +82,10 @@ class MainActivity : TauriActivity() {
       // 边缘到边缘下 WebView 铺到屏幕底缘，ime inset 已含导航栏区域，即键盘对页面底部的完整遮挡
       val keyboardHeight = if (imeVisible) max(0, imeBottom) else 0
       publishKeyboardHeight(keyboardHeight)
+      val bars = insets.getInsets(
+        WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+      )
+      publishSafeInsets(bars.top, bars.bottom)
       insets
     }
     rootView.post {

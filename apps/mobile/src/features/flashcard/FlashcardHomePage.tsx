@@ -111,12 +111,7 @@ export function FlashcardHomePage({
           </button>
         }
       />
-      {/* 二级页无吸底 Dock，底部只留常规呼吸空间（dock-pad 是给 Dock 页面的 110px 留白） */}
-      <div
-        ref={scrollRef}
-        className="edge-fade-scroll flex-1 overflow-y-auto"
-        style={{ paddingBottom: "var(--page-bottom-inset)" }}
-      >
+      <div ref={scrollRef} className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto">
         <div className="flex flex-col gap-[22px] px-5 pb-4 pt-2">
           {/* 今日待复习概览 */}
           <div

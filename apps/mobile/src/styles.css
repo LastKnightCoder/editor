@@ -43,18 +43,25 @@
    本文件只定义移动端布局变量与由 --tau-* 派生的组件变量，不定义任何颜色。
    ════════════════════════════════════════════════════════════ */
 :root {
-  /* 布局/环境 */
-  --mobile-safe-top: env(safe-area-inset-top, 0px);
-  --mobile-safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* 布局/环境
+     安全区与键盘的唯一写入方：env() / Android 原生注入的 --native-safe-*（不支持 env 安全区的 WebView 兜底）、
+     KeyboardViewportProvider 写 --kb-*；页面与组件只消费，不自行读 env() */
+  --mobile-safe-top: max(env(safe-area-inset-top, 0px), var(--native-safe-top, 0px));
+  --mobile-safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--native-safe-bottom, 0px));
   --kb-height: 0px;
+  --kb-viewport-top: 0px;
   --kb-viewport-height: 100dvh;
+  /* 随键盘收缩的页面外壳内使用的底部安全区：键盘弹出时安全区已被键盘覆盖，归零 */
+  --mobile-screen-safe-bottom: max(0px, calc(var(--mobile-safe-bottom) - var(--kb-height) * 1000));
+  /* 不收缩的浮层（贴屏幕底）底部避让：键盘与安全区取大者，二者不叠加 */
+  --mobile-overlay-bottom: max(var(--kb-height), var(--mobile-safe-bottom));
   --mobile-sheet-footer-height: 56px;
   --mobile-nav-row-height: 56px;
 
-  /* 二级页（无吸底 Dock）底部留白 = 内容呼吸间距 + 系统安全区。
-     键盘避让由 .mobile-kb-screen 的视口高度收缩负责，不要往这里加 --kb-height */
-  --page-bottom-breath: 32px;
-  --page-bottom-inset: calc(var(--page-bottom-breath) + var(--mobile-safe-bottom));
+  /* 二级页滚动内容末尾留白 = 呼吸间距 + 外壳内底部安全区，只由 .mobile-page-scroll 消费；
+     不要挂在外层容器上做常驻空带，也不要再加 --kb-height（外壳已随键盘收缩） */
+  --page-bottom-breath: 16px;
+  --page-bottom-inset: calc(var(--page-bottom-breath) + var(--mobile-screen-safe-bottom));
 
   /* 边缘渐隐（fading edges）：滚动容器 mask 淡入/淡出带高度 */
   --edge-fade-top-size: 28px;
@@ -128,41 +135,51 @@ code {
   min-height: 100dvh;
 }
 
+/* 页面外壳：贴住可见区（键盘以上），iOS 平移可视视口时随之下移，顶栏不被推出屏幕 */
 .mobile-kb-screen {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--kb-viewport-top, 0px);
+  bottom: auto;
   height: var(--kb-viewport-height, 100dvh);
   min-height: var(--kb-viewport-height, 100dvh);
 }
 
+/* 外壳内的主滚动容器：铺满到外壳底边，内容可从 Home 指示条后滑过；
+   末尾留白 = 呼吸 + 外壳内安全区 + 悬浮工具条/Sheet 遮挡（由对应组件写入根变量，无遮挡时为 0）。
+   留白用末尾占位而非 padding-bottom：部分 WebView 不把滚动容器的 padding-bottom 计入可滚动区域 */
+.mobile-page-scroll {
+  overscroll-behavior-y: contain;
+}
+
+.mobile-page-scroll::after {
+  content: "";
+  display: block;
+  flex-shrink: 0;
+  height: calc(
+    var(--page-bottom-inset) + var(--mobile-editor-toolbar-occlusion, 0px) +
+      var(--pan-occluded-bottom, 0px)
+  );
+}
+
+/* 页面底部另有常显操作条（自行承担外壳内安全区）时，滚动末尾只留呼吸 */
+.mobile-page-scroll[data-page-footer]::after {
+  height: calc(var(--page-bottom-breath) + var(--pan-occluded-bottom, 0px));
+}
+
+/* 不随键盘收缩、贴屏幕底的浮层（SnapSheet/PanContainer 等）内的滚动容器 */
 .mobile-kb-scroll {
   overscroll-behavior-y: contain;
-  padding-bottom: calc(
-    1rem + var(--mobile-safe-bottom) + var(--kb-height, 0px) + var(--pan-occluded-bottom, 0px)
-  );
+  padding-bottom: calc(1rem + var(--mobile-overlay-bottom) + var(--pan-occluded-bottom, 0px));
 }
 
 .mobile-fixed-footer-scroll {
   overscroll-behavior-y: contain;
   padding-bottom: calc(
-    1rem + var(--mobile-safe-bottom) + var(--kb-height, 0px) +
-      var(--mobile-sheet-footer-height, 56px) + var(--pan-occluded-bottom, 0px)
-  );
-}
-
-/* 悬浮编辑工具条所在页面：滚动容器只补动态遮挡（工具条/键盘/Sheet，由对应组件写入根变量），
-   工具条隐藏时不留白，避免为不存在的底栏空出一截。
-   基础安全区留白不带在滚动容器上（WebView 下滚动容器 padding 不可靠，内容会贴屏幕底缘），
-   由页面外层容器挂 --page-bottom-inset 承载（同番茄钟等二级页） */
-.mobile-floating-toolbar-scroll {
-  overscroll-behavior-y: contain;
-  padding-bottom: calc(
-    var(--kb-height, 0px) + var(--mobile-editor-toolbar-occlusion, 0px) +
+    1rem + var(--mobile-overlay-bottom) + var(--mobile-sheet-footer-height, 56px) +
       var(--pan-occluded-bottom, 0px)
   );
-}
-
-.mobile-kb-optout,
-[data-kb-optout="true"] {
-  --kb-height: 0px;
 }
 
 .mobile-app-shell [class*="hoveringToolbar"],

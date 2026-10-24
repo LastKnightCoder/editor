@@ -1,4 +1,4 @@
-import { useContext, type ReactNode, type RefObject } from "react";
+import { useContext, useEffect, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { Highlighter, Link2, MessageSquarePlus, TextQuote } from "lucide-react";
@@ -20,6 +20,10 @@ import type { MobileEditorToolbarController } from "../editorToolbar/useMobileEd
 import type { ReadingModeState } from "./useReadingMode";
 
 const ICON_SIZE = 20;
+/** 标注栏高度（h-14）与离安全区上沿的间距 */
+const BAR_HEIGHT = 56;
+const BAR_GAP = 12;
+const OCCLUSION_VAR = "--mobile-editor-toolbar-occlusion";
 /** 与 --tau-ease-out 同一曲线 */
 const TAU_EASE_OUT = [0.22, 1, 0.36, 1] as const;
 /** 标注条高亮取第一个非默认色 */
@@ -83,6 +87,17 @@ export function ReadingSelectionBar(props: ReadingSelectionBarProps) {
       ? range
       : null;
   const highlighted = !!activeRange && !!editor && isRangeHighlighted(editor, activeRange);
+  const visible = activeRange !== null;
+
+  // 与配件栏同一遮挡变量：标注栏浮在正文底部时，滚动容器据此留白，末尾内容不被盖住
+  useEffect(() => {
+    if (!visible) return;
+    const root = document.documentElement;
+    root.style.setProperty(OCCLUSION_VAR, `${BAR_HEIGHT + BAR_GAP}px`);
+    return () => {
+      root.style.removeProperty(OCCLUSION_VAR);
+    };
+  }, [visible]);
 
   /** 取当前可用的编辑器与选区；选区已失效时清空并返回 null */
   const resolveTarget = (): { editor: Editor; range: Range } | null => {
@@ -153,7 +168,7 @@ export function ReadingSelectionBar(props: ReadingSelectionBarProps) {
           className="bg-surface border-line-1 shadow-float fixed inset-x-3 flex h-14 items-center rounded-2xl border px-1"
           style={{
             zIndex: Z_INDEX.POPOVER,
-            bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
+            bottom: `calc(var(--mobile-safe-bottom) + ${BAR_GAP}px)`,
           }}
           initial={{ y: 16, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}

@@ -241,19 +241,63 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 - `RouterDevTools`（`src/router/devtools/`）：开发模式右下角面板，可视化
   screen/overlay 栈与 query 缓存（总数/stale 数）；生产构建零引入
 
+## 安全区与键盘避让
+
+iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚动内容末尾，每个变量只有一个写入方。
+
+- **写入方**：
+  - `--mobile-safe-top/bottom` 取 `max(env(safe-area-inset-*), --native-safe-*)`。`--native-safe-*` 由 Android
+    `MainActivity` 按系统栏 + 刘海 insets 注入，兜底不支持 env 安全区的 WebView。
+  - `--kb-height`、`--kb-viewport-top`、`--kb-viewport-height` 只由 `KeyboardViewportProvider` 写入。
+    Android 原生层只发 `tau:native-kb-height` 事件和 `__TAU_NATIVE_KB_HEIGHT`，iOS 由 `visualViewport` 推算。
+  - 页面与组件不直接读 `env()`。
+- **可见区**：
+  - `viewportTop` 是 `visualViewport.offsetTop`。iOS 弹键盘时可能平移可视视口来露出光标；收键盘后或走原生路径时为 0。
+  - `viewportHeight` 是键盘以上的可见高度。
+  - `keyboardHeight` 是布局视口底边到键盘顶边的距离，贴键盘的浮层用 `bottom: var(--kb-height)` 定位。
+- **派生变量**：
+  - `--mobile-screen-safe-bottom`：外壳内的底部安全区，键盘弹出时归零。
+  - `--mobile-overlay-bottom`：贴屏幕底、不随键盘收缩的浮层（配件栏、BottomSheet、ActionSheet）的底部避让，
+    等于 `max(--kb-height, --mobile-safe-bottom)`，两者不叠加。
+- **页面外壳**：二级页根容器带 `.mobile-kb-screen`。它强制 `position: fixed`，`top` 取 `--kb-viewport-top`，
+  `height` 取 `--kb-viewport-height`，顶栏（`PageHeader`，自带 `padding-top: safe-top`）因此始终在可见区顶部。
+  外壳内部不要再加 `--kb-height`。
+- **滚动末尾留白**：主滚动容器带 `.mobile-page-scroll`，铺满到外壳底边，内容可以从 Home 指示条后面滑过。
+  - 末尾用 `::after` 占位（部分 WebView 不把滚动容器的 padding-bottom 计入可滚动区域）。
+  - 占位高度 = `--page-bottom-inset`（16px 呼吸 + `--mobile-screen-safe-bottom`）
+    - `--mobile-editor-toolbar-occlusion` + `--pan-occluded-bottom`。
+  - 遮挡变量由当前显示的配件栏、块操作栏、标注栏、PanContainer 写入根元素，只计栏高，不含安全区。
+  - 底部另有常显操作条、由操作条自己承担安全区时，滚动容器加 `data-page-footer`，末尾只留呼吸。
+  - 末尾需要越过 FAB 或批量栏时，在滚动容器上覆盖 `--page-bottom-inset`。
+  - 不要在外层容器上挂常驻的 padding-bottom。
+- **浮层内滚动**：SnapSheet、PanContainer 等不随键盘收缩的浮层，滚动容器用 `.mobile-kb-scroll`
+  （或带固定底栏的 `.mobile-fixed-footer-scroll`），留白 = `1rem + --mobile-overlay-bottom + 面板遮挡`。
+- **Tab 根页**：带 Dock 的页面用 `.dock-pad`；键盘弹出时 `AppDock` 隐藏。
+- **禁止页面缩放**：`index.html` 的 viewport 带 `maximum-scale=1.0, user-scalable=no`。iOS 聚焦字号小于 16px 的
+  输入框时会自动放大并平移页面，固定布局整体错位；禁止缩放后各处输入框字号不受此限。
+- **iOS 表单辅助栏**：WKWebView 聚焦可编辑区时会出现系统辅助栏（上一个 / 下一个 / 完成）。由
+  `src-tauri/src/ios_input_accessory.rs` 在启动时替换 WKContentView 原类的 `inputAccessoryView`，让它返回 nil，
+  这样配件栏直接贴住键盘。只能替换原类的方法：如果改成派生子类再切换实例的 isa，WKWebView 的键盘避让会缩小
+  布局视口并让整页上滚。
+- **验证**：iOS 用 `pnpm dev:ios` 真机检查。Android 用 `pnpm apk` 出包，检查以下几点：
+  - 状态栏下顶栏不被遮挡（覆盖 env 不生效的 WebView）；
+  - 键盘弹出时正文与配件栏之间没有空带；
+  - 滚到底只剩「安全区 + 16px」的留白。
+
 ## 编辑器配件栏与键盘预留
 
 编辑页的格式工具是贴住键盘上沿的配件栏 `MobileEditorBottomToolbar`（`features/cards/editorToolbar/`），
 动作与选区由 `useMobileEditorToolbarController` 管理，宿主页面只传 controller / portalContainer / readonly / visibleButtons。
 
 - **键盘预留**：`KeyboardViewportProvider` 对外的 `keyboardHeight` / `viewportHeight` 与 `--kb-height` /
-  `--kb-viewport-height` 都是有效值 = max(真实键盘, 预留)；原始值见 `rawKeyboardHeight`，每轮键盘峰值见
+  `--kb-viewport-height` 都是有效值 = max(真实键盘, 预留)（`viewportTop` 不受预留影响）；原始值见 `rawKeyboardHeight`，每轮键盘峰值见
   `lastKeyboardHeight`（不足 100px 不记录）。`useKeyboardReservation()` 提供 reserve / releaseWhenKeyboardShown
   （真实键盘升到 0.9 倍预留或 600ms 后释放）/ releaseNow。页面的键盘避让无需感知预留。
 - **面板占用键盘位置**：点 Aa（`StylePanel`）或 +（`InsertPanel`）时，先 reserve(面板高度) 再收键盘，面板
   `fixed` 在视口底部、高度 = 预留；回键盘时先聚焦再关面板、按上述条件释放预留，切换期间页面高度不变。
   面板高度取 `resolvePanelHeight`（最近键盘高度，未测到取视口 38%）。插入面板搜索时面板移到键盘上方，
-  预留 = max(原面板高度, 键盘 + 220px)。
+  预留 = max(原面板高度, 键盘 + 220px)；键盘升起前按预计高度（`resolveExpectedKeyboardHeight`）先抬起面板，
+  使搜索框聚焦时已在键盘之上，iOS 不会为露出它平移视口。面板容器带 `data-kb-optout`，其中输入框不参与自动露出。
 - **收键盘策略**：`keyboardSwap.ts` 封装 `blur`（默认）与 `inputmode`（`inputmode="none"` 保留焦点）两种。
 - **面板态的动作**：面板打开期间编辑器已失焦，controller 的动作作用于打开时保存的 `panelSelection` 且不聚焦，
   执行后选区写回 `panelSelection`；需要输入浮层的动作（链接、批注）先回键盘再执行。点正文 = 只关面板，

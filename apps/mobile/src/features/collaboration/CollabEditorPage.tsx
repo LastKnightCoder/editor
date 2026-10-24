@@ -106,7 +106,7 @@ export function CollabEditorPage(props: {
   const [pageRootEl, setPageRootEl] = useState<HTMLDivElement | null>(null);
 
   return (
-    <div ref={setPageRootEl} className="bg-page flex h-full flex-col">
+    <div ref={setPageRootEl} className="mobile-kb-screen bg-page flex h-full flex-col">
       {blockSelection.active ? (
         <BlockSelectionHeader
           selectedCount={blockSelection.selected.length}
@@ -168,15 +168,10 @@ export function CollabEditorPage(props: {
         </div>
       ) : null}
 
-      {/* 二级页无吸底 Dock，底部只留常规呼吸空间（同番茄钟/项目列表）：
-          留白挂外层容器，滚动容器自身不带 padding，内容不会顶到安全区 */}
-      <div
-        className="flex min-h-0 flex-1 flex-col"
-        style={{ paddingBottom: "var(--page-bottom-inset)" }}
-      >
+      <div className="flex min-h-0 flex-1 flex-col">
         <div
           ref={scrollRef}
-          className="edge-fade-scroll mobile-floating-toolbar-scroll flex-1 overflow-y-auto px-5"
+          className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto px-5"
         >
           {loading && !binding ? (
             <div

@@ -207,13 +207,11 @@ export function PomodoroPage({
         }
       />
 
-      {/* 二级页无吸底 Dock，底部只留常规呼吸空间（同项目/知识库列表）：
-          留白挂外层容器，滚动容器自身不带 padding，内容不会顶到安全区 */}
-      <div
-        className="flex min-h-0 flex-1 flex-col overscroll-contain"
-        style={{ paddingBottom: "var(--page-bottom-inset)" }}
-      >
-        <div ref={listScrollRef} className="edge-fade-scroll flex-1 overflow-y-auto">
+      <div className="flex min-h-0 flex-1 flex-col overscroll-contain">
+        <div
+          ref={listScrollRef}
+          className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto"
+        >
           {/* 进行中横条：点击回沉浸页 */}
           {controller.session ? (
             <button

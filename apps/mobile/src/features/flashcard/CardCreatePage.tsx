@@ -42,11 +42,7 @@ export function CardCreatePage({
   return (
     <div className="mobile-kb-screen bg-page flex h-full flex-col">
       <PageHeader title="新建闪卡" onBack={onBack} />
-      <div
-        ref={scrollRef}
-        className="edge-fade-scroll flex-1 overflow-y-auto"
-        style={{ paddingBottom: "var(--page-bottom-inset)" }}
-      >
+      <div ref={scrollRef} className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto">
         <div className="flex flex-col gap-3.5 px-5 pt-2">
           <div className="bg-surface shadow-card rounded-[20px] p-4">
             <div className="text-ink-2 mb-2 text-[12.5px] font-extrabold">归属卡组</div>

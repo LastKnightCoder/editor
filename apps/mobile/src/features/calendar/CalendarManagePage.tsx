@@ -119,11 +119,11 @@ export function CalendarManagePage({ onBack, onError }: CalendarManagePageProps)
         }
       />
 
-      <div
-        className="flex min-h-0 flex-1 flex-col"
-        style={{ paddingBottom: "var(--page-bottom-inset)" }}
-      >
-        <div ref={scrollRef} className="edge-fade-scroll flex-1 overflow-y-auto overscroll-contain">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div
+          ref={scrollRef}
+          className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto overscroll-contain"
+        >
           <GroupLabel label="系统" hint="只读 · 仅可切换显示" />
           <div className="bg-surface shadow-card mx-[18px] rounded-[20px] px-[18px] py-1">
             {systemCalendars.map(calendar => renderRow(calendar))}

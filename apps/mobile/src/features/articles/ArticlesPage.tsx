@@ -252,11 +252,9 @@ export function ArticlesPage(props: ArticlesPageProps) {
         }
       />
 
-      {/* 二级页无吸底 Dock，底部只留常规呼吸空间（dock-pad 是给 Dock/FAB 页面的 110px 留白） */}
       <div
         ref={listRef}
-        className="edge-fade-scroll scrollbar-hide flex-1 overflow-y-auto overscroll-contain px-4 pt-1"
-        style={{ paddingBottom: "var(--page-bottom-inset)" }}
+        className="edge-fade-scroll mobile-page-scroll scrollbar-hide flex-1 overflow-y-auto overscroll-contain px-4 pt-1"
       >
         {isLoading ? (
           <div className="card space-y-3 p-4">

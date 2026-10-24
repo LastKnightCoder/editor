@@ -1,7 +1,7 @@
 // 项目详情（v1.1 设计稿）：信息卡 + 面包屑逐层下钻（替代桌面常驻侧栏树），
 // 完整结构收进树抽屉；文档节点点击进入编辑器（打开即编辑）。
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   ChevronRight,
   Ellipsis,
@@ -36,6 +36,9 @@ import {
 import { ADDABLE_ITEM_TYPES, projectItemTypeMeta } from "./itemTypeMeta";
 import { projectVisual } from "./ProjectsPage";
 import { useEdgeFade, useEdgeFadeX } from "../../hooks/useScrollState";
+
+// 末尾留白让最后一项越过右下角添加 FAB（54px + 20px 间距）
+const FAB_CLEARANCE = "calc(96px + var(--mobile-screen-safe-bottom))";
 
 type PathSegment = { id: number | null; title: string };
 
@@ -228,7 +231,8 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
 
       <div
         ref={scrollRef}
-        className="edge-fade-scroll scrollbar-hide dock-pad flex-1 overflow-y-auto overscroll-contain px-5 pt-1"
+        className="edge-fade-scroll mobile-page-scroll scrollbar-hide flex-1 overflow-y-auto overscroll-contain px-5 pt-1"
+        style={{ "--page-bottom-inset": FAB_CLEARANCE } as CSSProperties}
       >
         {/* 项目页头：仅根层显示，直接落在纸面上（不再包卡片） */}
         {path.length === 1 ? (
@@ -379,7 +383,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
         type="button"
         aria-label="添加节点"
         onClick={() => setAddOpen(true)}
-        className="shadow-lift text-ink-inverse absolute bottom-[calc(20px+env(safe-area-inset-bottom,0px))] right-[18px] grid h-[54px] w-[54px] place-items-center rounded-[19px] transition-transform active:rotate-90 active:scale-90"
+        className="shadow-lift text-ink-inverse absolute bottom-[calc(20px+var(--mobile-screen-safe-bottom))] right-[18px] grid h-[54px] w-[54px] place-items-center rounded-[19px] transition-transform active:rotate-90 active:scale-90"
         style={{ background: "var(--tau-accent)" }}
       >
         <Plus size={23} strokeWidth={2.6} />

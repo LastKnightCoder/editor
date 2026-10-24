@@ -125,11 +125,11 @@ export function CalendarEventDetailPage({
         }
       />
 
-      <div
-        className="flex min-h-0 flex-1 flex-col"
-        style={{ paddingBottom: "var(--page-bottom-inset)" }}
-      >
-        <div ref={scrollRef} className="edge-fade-scroll flex-1 overflow-y-auto overscroll-contain">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div
+          ref={scrollRef}
+          className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto overscroll-contain"
+        >
           <div className="px-5 pt-1.5">
             <div className="text-ink-2 flex items-center gap-2 text-[12.5px] font-bold">
               <i className="h-[9px] w-[9px] rounded-full" style={{ background: color }} />
