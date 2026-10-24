@@ -18,6 +18,7 @@ export type PortablePlatform = (typeof PORTABLE_PLATFORMS)[number];
 export type PluginElementSupport = "none" | "render" | "edit";
 export const PORTABLE_SHARED_MODULES = [
   "@tau/plugins",
+  "@tau/plugins/whiteboard",
   "@tau/ui",
   "react",
   "react-dom",
@@ -35,7 +36,7 @@ export interface PortablePluginTarget<Capability extends string = PluginCapabili
 
 export interface PortablePluginManifest<Capability extends string = PluginCapability> extends Omit<
   PluginManifest,
-  "formatVersion" | "platform" | "backend" | "whiteboard" | "minAppVersion"
+  "formatVersion" | "platform" | "backend" | "minAppVersion"
 > {
   readonly formatVersion: 3;
   readonly platform: "portable";
@@ -73,6 +74,7 @@ export interface PluginAuthorManifest extends Pick<
   readonly requires?: readonly PluginRequirement[];
   readonly optional?: readonly OptionalPluginRequirement[];
   readonly editor?: { readonly elements: Readonly<Record<string, PluginElementSupport>> };
+  readonly whiteboard?: true;
   readonly targets: Readonly<Partial<Record<PortablePlatform, PluginAuthorTarget>>>;
 }
 
@@ -108,6 +110,7 @@ export function buildPortablePluginManifest(
       "requires",
       "optional",
       "editor",
+      "whiteboard",
       "targets",
     ],
     "作者清单"
@@ -147,6 +150,7 @@ export function buildPortablePluginManifest(
       const support = target.editor === undefined ? commonElements : elements(target.editor);
       const required: PluginCapability[] = [...PLUGIN_BASE_REQUIREMENTS, ...extra];
       if (support) required.push("editor", "editorCodecs");
+      if (item.whiteboard === true) required.push("whiteboard");
       return [
         platform,
         {
@@ -234,6 +238,7 @@ function parsePortablePluginManifest<Capability extends string>(
     "main",
     "styles",
     "editor",
+    "whiteboard",
     "categories",
     "keywords",
     "permissions",
@@ -275,6 +280,13 @@ function parsePortablePluginManifest<Capability extends string>(
     comparePluginVersions(target.minAppVersion, target.minAppVersion);
     const required = readCapabilities(target.required);
     const optional = readCapabilities(target.optional ?? []);
+    if (
+      base.whiteboard &&
+      (platform !== "desktop" || !required.includes("whiteboard" as Capability))
+    )
+      throw new Error("白板扩展只支持声明 whiteboard 必需能力的桌面目标");
+    if (!base.whiteboard && [...required, ...optional].includes("whiteboard" as Capability))
+      throw new Error("白板能力需要声明白板扩展");
     if (optional.some(capability => required.includes(capability)))
       throw new Error("必需与可选能力不能重叠");
     let elements: Record<string, PluginElementSupport> | undefined;

@@ -34,6 +34,7 @@ const CAPABILITY_LABELS: Record<PluginCapability, string> = {
   dialogs: "对话框",
   editor: "正文节点",
   editorCodecs: "正文编解码",
+  whiteboard: "白板扩展",
   sourceEditor: "源码编辑",
   runtimeStyles: "动态样式",
   fetch: "网络请求",
