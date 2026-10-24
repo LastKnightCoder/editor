@@ -458,3 +458,11 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
 普通正文的插入面板消费已装配插件的 blockPanel 贡献，复用面板选区和键盘预留协议；能力分级及过滤见[跨端插件宿主](/docs/architecture/plugin-portability.md)。插件中心页面与开发验证入口也消费 @tau/themes，不保留旧移动主题变量或类名。
 
 数据库、资源及会话文件的跨端对象布局、分块预算和首次使用边界见[宿主分块同步](/docs/architecture/storage-sync.md)。
+
+## 外部打开 Markdown（导入预览）
+
+Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开」`.md` 时可选 Tau；文件进入只读预览页 `markdownImport`（`features/markdownImport/`），由用户选择存为卡片、存为文章或加入项目（项目根目录文档），导入后 `replace` 到对应编辑页。
+
+- **注册**：iOS 在 `src-tauri/Info.ios.plist` 声明 `CFBundleDocumentTypes` 与 `net.daringfireball.markdown` 导入类型（构建时 Tauri 合并进 gen 的 Info.plist），`LSSupportsOpeningDocumentsInPlace=false`，系统先复制进 `Documents/Inbox`。Android 在 `gen/android/.../AndroidManifest.xml` 给 MainActivity 加 `ACTION_VIEW` 过滤器；微信传来的 `content://` 无扩展名、MIME 常为 `application/octet-stream`，故放宽到 markdown / text/plain / octet-stream，再按文件名判定。`gen/` 整体被忽略，该清单与 `MainActivity.kt` 均以 `git add -f` 入库。
+- **交付**：原生只负责把文件落到本机路径并派发窗口事件 `tau:incoming-file`。iOS 经 `RunEvent::Opened` 记录路径（`incoming_file.rs`）；Android 由 MainActivity 复制进 `cacheDir/incoming`（首次创建与 `onNewIntent` 时接收），Rust 经 JNI `takeIncomingFile` 取路径。前端 `IncomingFileHost`（AppShell 挂载）在挂载时与收到事件时调用 `incoming_file_take`：只接受 md/markdown/mdown/mkd/mkdn 扩展名、≤5 MB、UTF-8；读取后删除源文件，同一文件只交付一次。冷启动时事件早于页面加载而丢失，由挂载时主动取兜底。
+- **解析与落库**：与桌面端 Markdown 导入同口径——标题取文件名（不含扩展名），忽略 YAML 头；卡片只存正文。`article_create` 与 `project_item_create`（document 类型）接受可选 `content`/`count`，一次事务带正文创建。外部单文件无法携带相对路径资源，本机相对图片不导入，远程地址原样保留。

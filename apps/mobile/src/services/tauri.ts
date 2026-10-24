@@ -28,6 +28,7 @@ import type {
   ListTodoItemsByTypePayload,
   MoveAndReorderTodoItemPayload,
   ArticleDetail,
+  IncomingMarkdownFile,
   ArticleListResponse,
   Project,
   ProjectItem,
@@ -824,7 +825,12 @@ export function articleGet(id: number) {
   return trackedInvoke<ArticleDetail>("article_get", { payload: { id } });
 }
 
-export function articleCreate(params: { title: string; author?: string }) {
+export function articleCreate(params: {
+  title: string;
+  author?: string;
+  content?: unknown[];
+  count?: number;
+}) {
   return trackedInvoke<ArticleDetail>("article_create", { payload: params });
 }
 
@@ -883,6 +889,8 @@ export function projectItemCreate(params: {
   itemType?: string;
   refType?: string;
   refId?: number;
+  content?: unknown[];
+  count?: number;
 }) {
   return trackedInvoke<ProjectItem>("project_item_create", { payload: params });
 }
@@ -893,6 +901,13 @@ export function projectItemUpdate(params: { id: number; title?: string; tags?: s
 
 export function projectItemDelete(id: number) {
   return trackedInvoke<number>("project_item_delete", { payload: { id } });
+}
+
+/* ── 外部打开的文件 ── */
+
+/** 取走外部应用「用其他应用打开」交给 Tau 的 Markdown；无待处理文件返回 null，取走即删 */
+export function takeIncomingFile() {
+  return trackedInvoke<IncomingMarkdownFile | null>("incoming_file_take");
 }
 
 /* ── 首页汇总统计 ── */

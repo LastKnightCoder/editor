@@ -1,5 +1,6 @@
 use rusqlite::{params, Connection, OptionalExtension, Row};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use tauri::AppHandle;
 
 use super::common::{
@@ -73,6 +74,9 @@ pub struct CreateProjectItemPayload {
     pub item_type: Option<String>,
     pub ref_type: Option<String>,
     pub ref_id: Option<i64>,
+    /// 仅 document 类型生效：导入时直接带正文，缺省为空段落
+    pub content: Option<Value>,
+    pub count: Option<i64>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -641,14 +645,13 @@ pub fn project_item_create(
     let ref_type = payload.ref_type.clone().unwrap_or_default();
     let ref_id = payload.ref_id.unwrap_or(0);
     let now = now_millis();
+    let count = payload.count.unwrap_or(0);
     // document 类型自持正文，其余类型挂引用
     let content_id = if item_type == "document" && ref_type.is_empty() {
-        Some(insert_content_record(
-            &tx,
-            &serde_json::json!([{ "type": "paragraph", "children": [{ "type": "formatted", "text": "" }] }]),
-            0,
-            now,
-        )?)
+        let content = payload.content.unwrap_or_else(|| {
+            serde_json::json!([{ "type": "paragraph", "children": [{ "type": "formatted", "text": "" }] }])
+        });
+        Some(insert_content_record(&tx, &content, count, now)?)
     } else {
         None
     };
@@ -678,7 +681,7 @@ pub fn project_item_create(
         ref_type,
         ref_id,
         content_id,
-        count: 0,
+        count: if content_id.is_some() { count } else { 0 },
         create_time: now,
         update_time: now,
     })
