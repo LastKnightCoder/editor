@@ -33,19 +33,28 @@ const raw = () => ({
   ),
 });
 
-it("格式 3 白板保留桌面扩展，移动声明与缺失能力在求值前拒绝", () => {
-  const manifest = buildPortablePluginManifest(
-    {
-      id: "test.portable",
-      name: "白板",
-      version: "1.0.0",
-      whiteboard: true,
-      targets: { desktop: { minAppVersion: "1.0.0" } },
-    },
-    { main: "main.js", integrity: raw().integrity }
-  );
+it("白板装配从构建依赖生成，作者不重复声明且不增加能力标签", () => {
+  const source = {
+    id: "test.portable",
+    name: "白板",
+    version: "1.0.0",
+    targets: { desktop: { minAppVersion: "1.0.0" } },
+  };
+  const output = {
+    main: "main.js",
+    integrity: raw().integrity,
+    imports: ["@tau/plugins/whiteboard"],
+  };
+  const manifest = buildPortablePluginManifest(source, output);
   expect(manifest.whiteboard).toBe(true);
-  expect(manifest.targets.desktop?.required).toContain("whiteboard");
+  expect(manifest.targets.desktop?.required).not.toContain("whiteboard");
+  expect(manifest).not.toHaveProperty("imports");
+  expect(() => buildPortablePluginManifest({ ...source, whiteboard: true }, output)).toThrow(
+    "未知字段"
+  );
+  expect(() => buildPortablePluginManifest(source, { ...output, imports: ["node:fs"] })).toThrow(
+    "模块依赖"
+  );
   const desktop = { ...host("desktop"), capabilities: [...manifest.targets.desktop!.required] };
   const modules = {
     "@tau/plugins": { definePlugin },
@@ -62,25 +71,18 @@ it("格式 3 白板保留桌面扩展，移动声明与缺失能力在求值前�
   expect(
     evaluatePortablePluginPackage({ manifest, code }, modules, desktop).whiteboardExtensions
   ).toHaveLength(1);
-  expect(() => evaluatePortablePluginPackage({ manifest, code }, modules, host("desktop"))).toThrow(
-    "whiteboard"
-  );
+  expect(() =>
+    evaluatePortablePluginPackage({ manifest, code }, modules, { ...desktop, appVersion: "0.9.0" })
+  ).toThrow("客户端版本");
   expect(() =>
     validatePortablePluginManifest({ ...manifest, targets: { ios: manifest.targets.desktop } })
   ).toThrow("桌面目标");
-  expect(() =>
-    validatePortablePluginManifest({
-      ...manifest,
-      targets: { desktop: { ...manifest.targets.desktop, required: ["pages"] } },
-    })
-  ).toThrow("whiteboard");
-  expect(() =>
-    evaluatePortablePluginPackage(
-      { manifest: validatePortablePluginManifest(raw()), code },
-      modules,
-      host("desktop")
-    )
-  ).toThrow("未提供");
+  const historical = {
+    ...manifest,
+    targets: { desktop: { ...manifest.targets.desktop, required: ["whiteboard"] } },
+  };
+  expect(readPortablePluginManifest(historical).targets.desktop?.required).toEqual(["whiteboard"]);
+  expect(() => validatePortableDistributionManifest(historical)).toThrow("未知能力");
 });
 
 it("客户端保留未来可选能力，作者和上传入口仍拒绝未知名称", () => {

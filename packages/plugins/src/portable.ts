@@ -74,7 +74,6 @@ export interface PluginAuthorManifest extends Pick<
   readonly requires?: readonly PluginRequirement[];
   readonly optional?: readonly OptionalPluginRequirement[];
   readonly editor?: { readonly elements: Readonly<Record<string, PluginElementSupport>> };
-  readonly whiteboard?: true;
   readonly targets: Readonly<Partial<Record<PortablePlatform, PluginAuthorTarget>>>;
 }
 
@@ -83,6 +82,7 @@ export interface PluginBuildOutput {
   readonly styles?: string;
   readonly integrity: Readonly<Record<string, string>>;
   readonly skills?: readonly string[];
+  readonly imports?: readonly string[];
 }
 
 function assertKeys(item: Record<string, unknown>, keys: readonly string[], label: string) {
@@ -96,7 +96,12 @@ export function buildPortablePluginManifest(
 ): PortablePluginManifest {
   const item = record(value, "作者清单");
   const files = record(output, "构建文件信息");
-  assertKeys(files, ["main", "styles", "integrity", "skills"], "构建文件信息");
+  assertKeys(files, ["main", "styles", "integrity", "skills", "imports"], "构建文件信息");
+  const imports = files.imports ?? [];
+  if (!Array.isArray(imports) || imports.some(name => !PORTABLE_SHARED_MODULES.includes(name)))
+    throw new Error("构建模块依赖无效");
+  const whiteboard = imports.includes("@tau/plugins/whiteboard");
+  const { imports: _imports, ...buildFiles } = files;
   assertKeys(
     item,
     [
@@ -110,7 +115,6 @@ export function buildPortablePluginManifest(
       "requires",
       "optional",
       "editor",
-      "whiteboard",
       "targets",
     ],
     "作者清单"
@@ -150,7 +154,6 @@ export function buildPortablePluginManifest(
       const support = target.editor === undefined ? commonElements : elements(target.editor);
       const required: PluginCapability[] = [...PLUGIN_BASE_REQUIREMENTS, ...extra];
       if (support) required.push("editor", "editorCodecs");
-      if (item.whiteboard === true) required.push("whiteboard");
       return [
         platform,
         {
@@ -176,7 +179,8 @@ export function buildPortablePluginManifest(
     platform: "portable",
     profile: "web-v1",
     format: "cjs",
-    ...files,
+    ...buildFiles,
+    ...(whiteboard ? { whiteboard: true } : {}),
     ...(Object.values(normalized).some(target => target.elements) ? { editor: true } : {}),
     targets: normalized,
   });
@@ -280,13 +284,7 @@ function parsePortablePluginManifest<Capability extends string>(
     comparePluginVersions(target.minAppVersion, target.minAppVersion);
     const required = readCapabilities(target.required);
     const optional = readCapabilities(target.optional ?? []);
-    if (
-      base.whiteboard &&
-      (platform !== "desktop" || !required.includes("whiteboard" as Capability))
-    )
-      throw new Error("白板扩展只支持声明 whiteboard 必需能力的桌面目标");
-    if (!base.whiteboard && [...required, ...optional].includes("whiteboard" as Capability))
-      throw new Error("白板能力需要声明白板扩展");
+    if (base.whiteboard && platform !== "desktop") throw new Error("白板扩展只支持桌面目标");
     if (optional.some(capability => required.includes(capability)))
       throw new Error("必需与可选能力不能重叠");
     let elements: Record<string, PluginElementSupport> | undefined;

@@ -53,7 +53,7 @@
 
 ## 能力词表的准确含义
 
-当前词表为 `commands`、`storage`、`pages`、`navigation`、`settings`、`dialogs`、`editor`、`editorCodecs`、`whiteboard`、`sourceEditor`、`runtimeStyles`、`media`、`fetch`、`sync`、`upload`。功能名没有独立版本，接口兼容由 SDK 与各平台最低客户端版本表达。构建器从 editor 自动补齐正文与 codec 需求，Skill 文档直接从包结构读取，不另造能力。commands 不承诺手机命令面板，settings 的领域设置由对应 sync/upload 声明约束，editor 不代表动态 context.editor.register。
+当前词表为 `commands`、`storage`、`pages`、`navigation`、`settings`、`dialogs`、`editor`、`editorCodecs`、`sourceEditor`、`runtimeStyles`、`media`、`fetch`、`sync`、`upload`。功能名没有独立版本，接口兼容由 SDK 与各平台最低客户端版本表达。构建器从 editor 自动补齐正文与 codec 需求，Skill 文档直接从包结构读取，不另造能力。commands 不承诺手机命令面板，settings 的领域设置由对应 sync/upload 声明约束，editor 不代表动态 context.editor.register。
 
 没有登记能力名的桌面 API 不属于已承诺的移动可选能力，不能自行发明 data 等名称。当前移动目标的非空 permissions 会在模板构建、中心上传和移动求值前被拒绝。
 

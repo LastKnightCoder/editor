@@ -119,7 +119,7 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 
 ### 静态内容插件
 
-格式 3 的桌面白板插件声明 whiteboard: true，并要求 whiteboard 能力；共享加载器只向已声明且宿主实际提供此能力的包开放 @tau/plugins/whiteboard，沿用现有静态扩展、重启生效与工作区偏好机制。移动目标不承载白板插件。
+格式 3 的白板插件沿用 whiteboardExtensions，作者不重复声明类型或白板能力标签。构建器从实际宿主模块依赖自动生成内部装配信息，宿主对账实际扩展并沿用静态装配、重启生效与工作区偏好；安装兼容性统一使用目标平台与最低版本，桌面基线为 0.59.3。移动目标不承载白板插件。
 
 - SDK 的 `editorExtensions` / `editorCodecs` 是正式静态贡献（manifest `editor: true`）。主进程开库前按 `.enabled.json` 静态读取已启用内容包并交独立内容渲染进程校验定义，只保存通过校验的快照；`initializeContentPlugins` 在 React 挂载前读取快照，校验类型冲突并装配 CSS/codec；`createDesktopKit` 在底座上 extend 贡献不重建打开中的编辑器；开发台 `context.editor.register` 只用于实验。
 - 桌面与博客的插件贡献由 `@tau/plugins/content` 的 ContentPluginRegistry 保存只读快照；博客发布按用户已安装版本收集 main.js/CSS 在浏览器加载。移动普通正文在自己的 EditorKit 上装配受控跨端快照；浏览器扩展仍用原生套件，未知节点按通用保护保留原数据。
