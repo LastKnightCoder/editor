@@ -14,13 +14,11 @@ export function CompatibilityNote({
   compatibility: CenterCompatibility;
 }) {
   if (compatibility.status === "unchecked") return null;
-  const warn = !compatibleVersion || compatibility.missingOptional.length > 0;
+  const warn = !compatibleVersion;
   const lines = !compatibleVersion
     ? compatibility.reasons.map(reasonLabel)
     : [
-        compatibility.missingOptional.length
-          ? `部分功能在此设备不可用：${compatibility.missingOptional.join("、")}`
-          : "可在此设备完整使用",
+        "可在此设备完整使用",
         ...(compatibleVersion !== latestVersion ? [`此设备可安装 v${compatibleVersion}`] : []),
       ];
   if (!lines.length) return null;

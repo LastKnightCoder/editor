@@ -16,7 +16,6 @@ import { portableSharedPluginModules } from "@tau/plugins/portable-shared-module
 import type { PluginContext, PluginSettingsDefinition } from "@tau/plugins";
 import { UiProvider } from "@tau/ui";
 import { MobilePluginRuntime } from "../../src/app/plugins/runtime";
-import { MOBILE_PLUGIN_CAPABILITIES } from "../../src/services/plugins";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -104,7 +103,7 @@ it.each(["desktop", "android", "ios"] as const)(
           portableSharedPluginModules,
           {
             environment: environment.getSnapshot(),
-            capabilities: MOBILE_PLUGIN_CAPABILITIES,
+
             appVersion: platform === "desktop" ? "0.59.2" : "0.2.3",
             profiles: ["web-v1"],
           }

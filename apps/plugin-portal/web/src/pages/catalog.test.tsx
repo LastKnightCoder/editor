@@ -44,7 +44,7 @@ const row = (id: string): CenterCatalogEntry => {
     likes: 5,
     latest,
     compatible: null,
-    compatibility: { status: "unchecked", reasons: [], missingOptional: [] },
+    compatibility: { status: "unchecked", reasons: [] },
   };
 };
 

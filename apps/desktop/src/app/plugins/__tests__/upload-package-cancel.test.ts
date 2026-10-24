@@ -5,7 +5,6 @@ import * as jsx from "react/jsx-runtime";
 import { definePlugin } from "@tau/plugins";
 import { PluginHost, createMemoryStorage } from "@tau/plugins/host";
 import type { DesktopPluginPackage as DevelopmentPluginPackage } from "../../../../shared/plugin-package";
-import { DESKTOP_PLUGIN_CAPABILITIES } from "../../../../shared/plugin-package";
 import { portableSharedPluginModules } from "@tau/plugins/portable-shared-modules";
 import { evaluatePluginPackage, evaluatePortablePluginPackage } from "@tau/plugins/rendering";
 import { RendererUploadRegistry } from "../upload-registry";
@@ -59,8 +58,8 @@ it.skipIf(!zip)("真实上传包把单次取消信号传给网络请求", async 
               platform: "desktop",
               input: { coarsePointer: false, finePointer: true },
             },
-            capabilities: DESKTOP_PLUGIN_CAPABILITIES,
-            appVersion: "0.59.2",
+
+            appVersion: "0.59.4",
             profiles: ["web-v1"],
           }
         )

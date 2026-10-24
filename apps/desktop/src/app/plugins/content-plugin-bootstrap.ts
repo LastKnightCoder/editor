@@ -36,7 +36,10 @@ async function prepareContentPlugins() {
   try {
     const scan = await scanLocalPlugins();
     for (const entry of scan.entries) {
-      if (entry.artifact && isContentPlugin(entry.artifact.manifest))
+      if (
+        entry.artifact &&
+        (entry.artifact.manifest.formatVersion === 3 || isContentPlugin(entry.artifact.manifest))
+      )
         setContentPluginIntent(entry.id, entry.enabled === true);
     }
     const snapshot = await getContentPluginStartup();

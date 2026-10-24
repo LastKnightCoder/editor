@@ -3,7 +3,6 @@ import { evaluatePortablePluginPackage } from "@tau/plugins/rendering";
 import { sharedPluginModules } from "@tau/plugins/shared-modules";
 import { PluginEnvironmentProvider } from "@tau/plugins/environment-host";
 import { desktopPluginEnvironment } from "@/app/plugins/environment";
-import { DESKTOP_PLUGIN_CAPABILITIES } from "../../../../shared/plugin-package";
 import { act, StrictMode, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { DndProvider } from "react-dnd";
@@ -451,8 +450,8 @@ it("统一模板包进入真实桌面 Page，计数、标准 Dialog 与语义侧
   const [artifact] = await portableFixtures();
   const plugin = evaluatePortablePluginPackage(artifact, sharedPluginModules, {
     environment: desktopPluginEnvironment.getSnapshot(),
-    capabilities: DESKTOP_PLUGIN_CAPABILITIES,
-    appVersion: "0.59.2",
+
+    appVersion: "0.59.4",
     profiles: ["web-v1"],
   });
   await act(async () => {

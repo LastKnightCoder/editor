@@ -1,9 +1,5 @@
 import type { DistributionManifest } from "./template";
-import type {
-  PortablePlatform,
-  ReadablePortablePluginManifest,
-  PluginElementSupport,
-} from "./portable";
+import type { PortablePlatform, ReadablePortablePluginManifest } from "./portable";
 import { PORTABLE_PLATFORMS } from "./portable";
 import type { PluginCategory } from "./categories";
 import { isPluginCategory } from "./categories";
@@ -26,13 +22,9 @@ export interface CenterHost {
   apiVersions: readonly number[];
   formatVersions: readonly number[];
   profiles: readonly string[];
-  capabilities: readonly string[];
 }
 export interface CenterTarget {
   minAppVersion: string;
-  required: readonly string[];
-  optional: readonly string[];
-  elements?: Readonly<Record<string, PluginElementSupport>>;
 }
 export type CenterTargets = Readonly<Partial<Record<PortablePlatform, CenterTarget>>>;
 export type CenterReason =
@@ -41,15 +33,13 @@ export type CenterReason =
   | { code: "PROFILE_UNSUPPORTED"; profile: string }
   | { code: "PLATFORM_UNSUPPORTED"; platform: PortablePlatform }
   | { code: "APP_VERSION_TOO_LOW"; minAppVersion: string }
-  | { code: "CAPABILITY_MISSING"; capabilities: readonly string[] }
   | { code: "DISTRIBUTION_UNAVAILABLE" | "REVOKED" | "PLUGIN_DISABLED" | "NO_RELEASE" };
 export type CenterCompatibility =
-  | { status: "unchecked"; reasons: readonly []; missingOptional: readonly [] }
-  | { status: "compatible"; reasons: readonly []; missingOptional: readonly string[] }
+  | { status: "unchecked"; reasons: readonly [] }
+  | { status: "compatible"; reasons: readonly [] }
   | {
       status: "incompatible";
       reasons: readonly CenterReason[];
-      missingOptional: readonly string[];
     };
 export type CenterReleaseStatus = "available" | "revoked" | "disabled" | "not_found";
 export interface CenterStatusItem {
@@ -168,7 +158,6 @@ export function normalizeCenterHost(host: CenterHost): CenterHost {
     apiVersions: numbers(host.apiVersions),
     formatVersions: numbers(host.formatVersions),
     profiles: names(host.profiles, /^[a-z][a-z0-9.-]{0,127}$/),
-    capabilities: names(host.capabilities, /^[a-z][a-zA-Z0-9]{0,127}$/),
   };
 }
 
@@ -194,9 +183,14 @@ export function normalizeCenterQuery(input: CenterCatalogQuery) {
 
 export function centerManifestTargets(manifest: CenterManifest): CenterTargets {
   return manifest.formatVersion === 3
-    ? manifest.targets
+    ? Object.fromEntries(
+        Object.entries(manifest.targets).map(([platform, target]) => [
+          platform,
+          { minAppVersion: target.minAppVersion },
+        ])
+      )
     : {
-        desktop: { minAppVersion: manifest.minAppVersion, required: [], optional: [] },
+        desktop: { minAppVersion: manifest.minAppVersion },
       };
 }
 
@@ -204,7 +198,7 @@ export function evaluateCenterCompatibility(
   version: CenterVersion,
   host?: CenterHost
 ): CenterCompatibility {
-  if (!host) return { status: "unchecked", reasons: [], missingOptional: [] };
+  if (!host) return { status: "unchecked", reasons: [] };
   const current = normalizeCenterHost(host);
   const reasons: CenterReason[] = [];
   if (!current.formatVersions.includes(version.formatVersion))
@@ -218,13 +212,9 @@ export function evaluateCenterCompatibility(
     reasons.push({ code: "PLATFORM_UNSUPPORTED", platform: current.platform });
   if (target && comparePluginVersions(current.appVersion, target.minAppVersion) < 0)
     reasons.push({ code: "APP_VERSION_TOO_LOW", minAppVersion: target.minAppVersion });
-  const missing = target?.required.filter(name => !current.capabilities.includes(name)) ?? [];
-  if (missing.length) reasons.push({ code: "CAPABILITY_MISSING", capabilities: missing });
-  const missingOptional =
-    target?.optional.filter(name => !current.capabilities.includes(name)) ?? [];
   return reasons.length
-    ? { status: "incompatible", reasons, missingOptional }
-    : { status: "compatible", reasons: [], missingOptional };
+    ? { status: "incompatible", reasons }
+    : { status: "compatible", reasons: [] };
 }
 
 /** 输入只能是已通过发布状态核验的记录；这里不授予安装或执行权限。 */
@@ -249,7 +239,7 @@ export function resolveCenterRelease(
     release: null,
     compatibility: candidates.length
       ? evaluateCenterCompatibility(candidates[0], input.host)
-      : { status: "incompatible", reasons: [{ code: "NO_RELEASE" }], missingOptional: [] },
+      : { status: "incompatible", reasons: [{ code: "NO_RELEASE" }] },
   };
 }
 

@@ -50,6 +50,8 @@ export async function portableFixtures() {
   const directory = path.join(root, "tests/fixtures/plugins/releases/tau.abc/0.1.0");
   const abc = JSON.parse(await readFile(path.join(directory, "manifest.json"), "utf8"));
   delete abc.minAppVersion;
+  delete abc.editor;
+  delete abc.whiteboard;
   Object.assign(abc, {
     formatVersion: 3,
     platform: "portable",
@@ -59,9 +61,6 @@ export async function portableFixtures() {
         platform,
         {
           minAppVersion: platform === "desktop" ? "0.59.0" : "0.2.0",
-          required: ["editor", "editorCodecs", "sourceEditor"],
-          optional: [],
-          elements: { abc: "edit" },
         },
       ])
     ),

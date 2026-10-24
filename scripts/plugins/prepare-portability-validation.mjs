@@ -25,6 +25,8 @@ const counterManifest = JSON.parse(counter.readAsText(counterPrefix + "manifest.
 const abcRoot = path.join(root, "tests/fixtures/plugins/releases/tau.abc/0.1.0");
 const abcManifest = JSON.parse(await readFile(path.join(abcRoot, "manifest.json"), "utf8"));
 delete abcManifest.minAppVersion;
+delete abcManifest.editor;
+delete abcManifest.whiteboard;
 Object.assign(abcManifest, {
   formatVersion: 3,
   platform: "portable",
@@ -34,9 +36,6 @@ Object.assign(abcManifest, {
       platform,
       {
         minAppVersion: platform === "desktop" ? "0.59.0" : "0.2.0",
-        required: ["editor", "editorCodecs", "sourceEditor"],
-        optional: [],
-        elements: { abc: "edit" },
       },
     ])
   ),

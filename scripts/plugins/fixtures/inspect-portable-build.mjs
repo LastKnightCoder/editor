@@ -9,7 +9,6 @@ import {
   readPortablePluginManifest,
   validatePortableDistributionManifest,
   assertPortablePluginCompatibility,
-  assertPortableElementDeclarations,
 } from "@tau/plugins/portable";
 
 const manifest = JSON.parse(await readFile("manifest.json", "utf8"));
@@ -47,31 +46,20 @@ for (const platform of ["desktop", "android", "ios"]) {
   };
   const host = {
     environment,
-    capabilities: target.required,
+
     appVersion: target.minAppVersion,
     profiles: ["web-v1"],
   };
   assertPortablePluginCompatibility(parsed, host);
-  const future = structuredClone(packaged);
-  future.targets[platform].optional.push("futureFeature");
-  assert.throws(() => validatePortablePluginManifest(future));
-  assertPortablePluginCompatibility(readPortablePluginManifest(future), host);
-  future.targets[platform].required.push("futureRequired");
-  assert.throws(
-    () => assertPortablePluginCompatibility(readPortablePluginManifest(future), host),
-    /futureRequired/
-  );
+  for (const field of ["required", "optional", "elements"]) {
+    const repeated = structuredClone(packaged);
+    repeated.targets[platform][field] = [];
+    assert.throws(() => readPortablePluginManifest(repeated));
+  }
   assert.throws(() => assertPortablePluginCompatibility(parsed, { ...host, profiles: [] }));
   assert.throws(() => assertPortablePluginCompatibility(parsed, { ...host, appVersion: "0.0.0" }));
-  assert.throws(() =>
-    assertPortablePluginCompatibility(parsed, {
-      ...host,
-      capabilities: [],
-    })
-  );
   targets.push(platform);
 }
-assertPortableElementDeclarations(parsed, process.argv.slice(2));
 const project = await realpath(process.cwd());
 const installed = {};
 for (const name of ["@tau/plugins", "@tau/ui", "react", "react-dom", "typescript", "esbuild"]) {

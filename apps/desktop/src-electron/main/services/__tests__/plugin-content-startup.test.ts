@@ -29,3 +29,16 @@ it("损坏包逐项报告，不阻止其他内容插件；非法请求不锁住�
   expect(result.errors.bad).toBe("损坏");
   expect(result.errors["../outside"]).toBeTruthy();
 });
+
+it("普通插件定义经检查后不进入静态快照，也不被当作已加载内容插件", async () => {
+  const startup = new PluginContentStartup(async id =>
+    id === "ordinary"
+      ? undefined
+      : ({ manifest: { id, formatVersion: 3 }, code: "static" } as never)
+  );
+  const result = await startup.get(["ordinary", "content"]);
+  expect(result.artifacts.map(item => item.manifest.id)).toEqual(["content"]);
+  expect(result.errors).toEqual({});
+  expect(await startup.uses("ordinary")).toBe(false);
+  expect(await startup.uses("content")).toBe(true);
+});

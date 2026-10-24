@@ -88,8 +88,6 @@ export function reasonLabel(reason: CenterReason): string {
       return `插件未声明支持${PLATFORM_LABELS[reason.platform]}`;
     case "APP_VERSION_TOO_LOW":
       return `需要将 Tau 更新到 ${reason.minAppVersion} 或更高版本`;
-    case "CAPABILITY_MISSING":
-      return `当前应用缺少插件必需的能力：${reason.capabilities.join("、")}`;
     case "DISTRIBUTION_UNAVAILABLE":
       return "此平台的插件安装尚未开放";
     case "REVOKED":

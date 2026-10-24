@@ -1,11 +1,5 @@
-import type { PluginCapability } from "@tau/plugins/portable";
 import type { CenterPlatform, CenterReason, CenterTargets } from "@tau/plugins/center";
-import {
-  PORTABLE_PLATFORMS,
-  type PluginElementSupport,
-  type PortablePlatform,
-} from "@tau/plugins/portable";
-import type { TagColor } from "@tau/ui";
+import { PORTABLE_PLATFORMS, type PortablePlatform } from "@tau/plugins/portable";
 
 export { PORTABLE_PLATFORMS };
 export type { PortablePlatform };
@@ -17,34 +11,6 @@ export const PLATFORM_LABELS: Record<PortablePlatform, string> = {
   android: "Android",
   ios: "iOS",
 };
-
-export const ELEMENT_SUPPORT: Record<PluginElementSupport, { label: string; color: TagColor }> = {
-  edit: { label: "可编辑", color: "green" },
-  render: { label: "仅展示", color: "blue" },
-  none: { label: "不支持", color: "gray" },
-};
-
-/** 未登记的新能力按原名展示，保证前向读取时不丢信息。 */
-const CAPABILITY_LABELS: Record<PluginCapability, string> = {
-  commands: "命令",
-  storage: "私有存储",
-  pages: "页面",
-  navigation: "导航入口",
-  settings: "设置页",
-  dialogs: "对话框",
-  editor: "正文节点",
-  editorCodecs: "正文编解码",
-  sourceEditor: "源码编辑",
-  runtimeStyles: "动态样式",
-  fetch: "网络请求",
-  sync: "数据同步",
-  upload: "资源上传",
-  media: "媒体与资源",
-};
-
-export function capabilityLabel(capability: string): string {
-  return CAPABILITY_LABELS[capability as PluginCapability] ?? capability;
-}
 
 /** 结构化原因的完整文案，附带所需版本或缺失能力。 */
 export function reasonLabel(reason: CenterReason): string {
@@ -59,8 +25,6 @@ export function reasonLabel(reason: CenterReason): string {
       return `该版本未声明${PLATFORM_LABELS[reason.platform]}`;
     case "APP_VERSION_TOO_LOW":
       return `需要 Tau ${reason.minAppVersion} 或更高版本`;
-    case "CAPABILITY_MISSING":
-      return `客户端缺少必需能力：${reason.capabilities.map(capabilityLabel).join("、")}`;
     case "DISTRIBUTION_UNAVAILABLE":
       return "该平台的插件分发尚未开放";
     case "REVOKED":

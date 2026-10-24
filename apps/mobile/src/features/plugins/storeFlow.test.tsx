@@ -124,19 +124,18 @@ function entry(release: CenterRelease, compatible: CenterRelease | null): Center
     latest: release,
     compatible,
     compatibility: compatible
-      ? { status: "compatible", reasons: [], missingOptional: [] }
+      ? { status: "compatible", reasons: [] }
       : {
           status: "incompatible",
           reasons: [{ code: "APP_VERSION_TOO_LOW", minAppVersion: "2.0.0" }],
-          missingOptional: [],
         },
   };
 }
 const resolution = (release: CenterRelease | null): CenterResolution => ({
   release,
   compatibility: release
-    ? { status: "compatible", reasons: [], missingOptional: [] }
-    : { status: "incompatible", reasons: [{ code: "NO_RELEASE" }], missingOptional: [] },
+    ? { status: "compatible", reasons: [] }
+    : { status: "incompatible", reasons: [{ code: "NO_RELEASE" }] },
 });
 
 let root: Root | null = null;

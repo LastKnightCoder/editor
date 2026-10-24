@@ -24,7 +24,7 @@ it("v2 查询和解析不请求登录或 CSRF；保留取消信号和未检查�
     "https://example.invalid/v2/plugins/example.counter/resolve",
     expect.objectContaining({
       body: JSON.stringify({
-        host: { ...centerHost, capabilities: ["navigation", "pages"] },
+        host: { ...centerHost },
       }),
     })
   );
@@ -71,16 +71,16 @@ it("显式模拟目录用共享选版规则，无宿主时不宣称可安装", a
   expect((await api.queryCatalog({ platform: "ios" })).items).toEqual([]);
   await expect(api.download("release-1")).rejects.toThrow("不提供可安装 ZIP");
 });
-it("平台和能力变化隔离查询缓存", () => {
+it("平台和版本变化隔离查询缓存", () => {
   const input = { platform: "android" as const, host: centerHost };
   expect(centerKeys.catalog(input)).not.toEqual(centerKeys.catalog({ platform: "ios" }));
   expect(centerKeys.catalog(input)).not.toEqual(
-    centerKeys.catalog({ ...input, host: { ...centerHost, capabilities: [] } })
+    centerKeys.catalog({ ...input, host: { ...centerHost, appVersion: "9.0.0" } })
   );
   expect(centerKeys.catalog(input)).toEqual(
     centerKeys.catalog({
       ...input,
-      host: { ...centerHost, capabilities: [...centerHost.capabilities].reverse() },
+      host: { ...centerHost },
     })
   );
 });

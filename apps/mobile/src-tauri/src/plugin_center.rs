@@ -8,7 +8,6 @@ use url::Url;
 const ORIGIN: &str = "https://plugins-api.taunote.app";
 const JSON_LIMIT: usize = 8 * 1024 * 1024;
 const ZIP_LIMIT: usize = 16 * 1024 * 1024;
-const CAPABILITIES: &str = include_str!("../../plugin-capabilities.json");
 
 #[derive(Debug, Serialize)]
 pub struct CenterError {
@@ -92,9 +91,7 @@ pub(crate) fn trusted_source(source: &Value) -> bool {
         && source["url"] == format!("{origin}/v2/releases/{release}/download")
 }
 fn host(platform: &str, version: &str) -> Value {
-    let capabilities: Vec<String> =
-        serde_json::from_str(CAPABILITIES).expect("内置插件能力清单无效");
-    json!({"platform":platform,"appVersion":version,"apiVersions":[1],"formatVersions":[3],"profiles":["web-v1"],"capabilities":capabilities})
+    json!({"platform":platform,"appVersion":version,"apiVersions":[1],"formatVersions":[3],"profiles":["web-v1"]})
 }
 #[tauri::command]
 pub fn plugin_center_config(app: AppHandle) -> Result<Value, CenterError> {

@@ -15,6 +15,7 @@ import { buildPublishSearchIndexPayload } from "../../../src-electron/main/modul
 
 let currentHash = "";
 const definitions = new Map<string, PluginDefinition>();
+let currentDefinitions: PluginDefinition[] = [];
 Object.assign(globalThis, {
   tauContentExecute(envelope: ContentExecutionEnvelope) {
     if (envelope.hash !== currentHash) {
@@ -49,6 +50,7 @@ Object.assign(globalThis, {
         }
       }
       desktopContentPlugins.install(snapshot);
+      currentDefinitions = snapshot;
       if (definitions.size > 128)
         for (const key of definitions.keys()) if (!keys.has(key)) definitions.delete(key);
       currentHash = envelope.hash;
@@ -57,6 +59,14 @@ Object.assign(globalThis, {
     switch (request.operation) {
       case "validate":
         return true;
+      case "inspect": {
+        const definition = currentDefinitions.find(value => value.id === request.id);
+        if (!definition) throw new Error("待检查的插件定义未装配");
+        return {
+          editor: Boolean(definition.editorExtensions?.length),
+          whiteboard: Boolean(definition.whiteboardExtensions?.length),
+        };
+      }
       case "publish-search":
         return buildPublishSearchIndexPayload(request.input);
       case "markdown":

@@ -71,15 +71,13 @@ it("跨端内容发布保留包格式 3，渲染协议仍为 1", async () => {
   const { root, folder, manifest, context } = await setup();
   const portable = {
     ...manifest,
+    editor: undefined,
     formatVersion: 3,
     platform: "portable",
     profile: "web-v1",
     targets: {
       desktop: {
         minAppVersion: "0.59.1",
-        required: ["editor"],
-        optional: [],
-        elements: { "test.node": "edit" },
       },
     },
   };

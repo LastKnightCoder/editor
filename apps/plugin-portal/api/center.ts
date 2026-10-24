@@ -63,20 +63,32 @@ const version = (row: Metadata, env: Env): CenterVersion => ({
   formatVersion: row.format_version,
   apiVersion: 1,
   profile: row.profile,
-  targets: JSON.parse(row.targets_json),
+  // 已发布客户端直接读取这两个数组；新清单与兼容判断不再依赖它们。
+  targets: Object.fromEntries(
+    Object.entries(JSON.parse(row.targets_json) as Record<string, { minAppVersion: string }>).map(
+      ([platform, target]) => [
+        platform,
+        { minAppVersion: target.minAppVersion, required: [], optional: [] },
+      ]
+    )
+  ),
   publishedAt: row.published_at,
   size: row.size,
   sha256: row.sha256,
   downloadUrl: `${env.API_ORIGIN}/v2/releases/${row.id}/download`,
 });
-function compatibility(row: Metadata, env: Env, host?: CenterHost): CenterCompatibility {
+function compatibility(
+  row: Metadata,
+  env: Env,
+  host?: CenterHost
+): CenterCompatibility & { missingOptional: readonly [] } {
   if (host && row.format_version === 3 && !portablePlatformEnabled(env, host.platform))
     return {
       status: "incompatible",
       reasons: [{ code: "DISTRIBUTION_UNAVAILABLE" }],
       missingOptional: [],
     };
-  return evaluateCenterCompatibility(version(row, env), host);
+  return { ...evaluateCenterCompatibility(version(row, env), host), missingOptional: [] };
 }
 function validate<T>(fn: () => T): T {
   try {
