@@ -13,7 +13,7 @@ export async function cleanup(env: Env): Promise<void> {
     env.DB.prepare(
       "DELETE FROM download_receipts WHERE rowid IN (SELECT rowid FROM download_receipts WHERE day<? LIMIT 1000)"
     ).bind(shanghaiDay(now - 7 * 86400000)),
-    ...["daily_activity", "daily_events", "daily_downloads"].map(table =>
+    ...["daily_activity", "daily_events", "daily_downloads", "installation_versions"].map(table =>
       env.DB.prepare(
         `DELETE FROM ${table} WHERE rowid IN (SELECT rowid FROM ${table} WHERE day<? LIMIT 1000)`
       ).bind(day)

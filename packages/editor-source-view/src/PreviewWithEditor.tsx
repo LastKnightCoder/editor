@@ -13,7 +13,7 @@ import React, {
 import type { Editor, EditorChange } from "codemirror";
 import { cn } from "@tau/ui";
 import { useClickAway, useDebounceFn, useMemoizedFn } from "ahooks";
-import { ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
+import { ReactEditor, useReadOnly, useSelected, useSlateStatic } from "slate-react";
 import { ErrorBoundary } from "@tau/shared";
 import { Transforms, Path, Element, Node } from "slate";
 import isHotkey from "is-hotkey";
@@ -79,6 +79,7 @@ const PointerPreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorPro
     const addParagraphRef = useRef<AddParagraphRef>(null);
     const slateEditor = useSlateStatic();
     const editorReadOnly = useReadOnly();
+    const selected = useSelected();
     const readOnly =
       editorReadOnly ||
       slateEditor.tryGetService(IElementEditingPolicy)?.canEdit(element.type) === false;
@@ -132,6 +133,31 @@ const PointerPreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorPro
       setEditing(true);
       focusSource();
     });
+
+    useEffect(() => {
+      if (!inPlace || !selected || editing || readOnly) return;
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (
+          event.defaultPrevented ||
+          event.isComposing ||
+          !ReactEditor.isFocused(slateEditor) ||
+          (event.key !== " " && event.key !== "Enter")
+        ) {
+          return;
+        }
+        if (
+          event.target instanceof HTMLElement &&
+          event.target.closest('input, textarea, button, [contenteditable="true"]')
+        ) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        startEditing();
+      };
+      document.addEventListener("keydown", handleKeyDown, true);
+      return () => document.removeEventListener("keydown", handleKeyDown, true);
+    }, [inPlace, selected, editing, readOnly, slateEditor, startEditing]);
 
     const finishEditing = useMemoizedFn(() => {
       flushChange();
@@ -464,7 +490,10 @@ const PointerPreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorPro
                     mode={mode}
                     readOnly={readOnly}
                     lineWrapping={inPlace}
-                    className="ed-preview-codemirror h-auto"
+                    className={cn(
+                      "ed-preview-codemirror h-auto",
+                      inPlace && "ed-preview-codemirror--in-place"
+                    )}
                     onChange={handleInputChange}
                     // 失焦即提交最后输入，避免紧接着卸载时取消防抖更新。
                     onBlur={() => flushChange()}

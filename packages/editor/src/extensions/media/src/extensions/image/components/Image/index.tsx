@@ -70,8 +70,8 @@ const imageFileOf = (data: DataTransfer | null) =>
   Array.from(data?.files ?? []).find(file => file.type.startsWith("image/")) ?? null;
 
 /**
- * 图片块：悬停不出控件，单击选中、双击预览；选中后上方浮出属性条，四角等比缩放、两侧拖宽（吸附 50 / 75 / 100%），
- * 下方就地写说明。加载前按存下的原图比例占位，失败给出重试 / 替换；选中时拖入或粘贴图片即替换。
+ * 图片块：悬停不出控件，单击选中、双击预览；选中后上方浮出属性条，四角等比缩放、两侧拖宽（吸附 50 / 75 / 100%）。
+ * 说明行只在已有说明或正在编辑时占位，选中本身不改变块高；从属性条「说明」按钮或 Enter 进入编辑。加载前按存下的原图比例占位，失败给出重试 / 替换；选中时拖入或粘贴图片即替换。
  * 触屏模式：单击把 Slate 选区放进本块表示选中，属性条、手柄、快捷键与拖入替换都不出现，操作由宿主工具栏经命令完成。
  */
 const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
@@ -637,9 +637,10 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
           }))}
           onAlign={next => setProps({ align: next })}
           onWidthPreset={applyWidthPreset}
+          hasDescription={!!description}
           onCrop={startCrop}
           onAction={setActiveActionId}
-          onPreview={preview}
+          onCaption={openDescEditor}
           onMore={openMore}
         />
       )}
@@ -715,7 +716,8 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
         )}
       </div>
 
-      {(showDescEditor || description || (isSelected && !readOnly)) && (
+      {/* 桌面选中不出占位，避免点选时块高变化；触屏保留占位配合宿主「说明」按钮 */}
+      {(showDescEditor || description || (touch && isSelected && !readOnly)) && (
         <div
           data-media-caption="true"
           className="text-tau-sm mt-2 break-words text-center leading-relaxed text-[var(--ed-text-tertiary)]"
@@ -726,7 +728,8 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
               ref={instance => {
                 descRef.current = instance;
               }}
-              className="text-[var(--ed-text-secondary)] caret-[var(--ed-accent)] outline-none"
+              // 空内容时占位符绝对定位不占高，min-h 保住一行，聚焦前后高度不变
+              className="min-h-[1lh] text-[var(--ed-text-secondary)] caret-[var(--ed-accent)] outline-none"
               defaultValue={description || ""}
               placeholder="添加图片说明…"
               contentEditable={!readOnly}

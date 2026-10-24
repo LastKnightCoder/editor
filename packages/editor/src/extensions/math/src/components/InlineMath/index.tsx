@@ -1,4 +1,5 @@
 import React, { PropsWithChildren, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Editor, Path, Transforms } from "slate";
 import {
   ReactEditor,
@@ -107,15 +108,41 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = props => {
 
   useLayoutEffect(() => {
     const preview = previewRef.current;
-    if (!isOpen || !preview) return;
-    preview.style.transform = "translateX(-50%)";
-    const rect = preview.getBoundingClientRect();
-    const viewportWidth = document.documentElement.clientWidth;
-    const padding = 8;
-    let offset = 0;
-    if (rect.left < padding) offset = padding - rect.left;
-    if (rect.right > viewportWidth - padding) offset = viewportWidth - padding - rect.right;
-    preview.style.transform = `translateX(calc(-50% + ${offset}px))`;
+    const anchor = elementRef.current;
+    if (!isOpen || !preview || !anchor) return;
+    const updatePosition = () => {
+      const anchorRect = anchor.getBoundingClientRect();
+      const previewRect = preview.getBoundingClientRect();
+      const padding = 8;
+      const gap = 6;
+      const viewportWidth = document.documentElement.clientWidth;
+      const halfWidth = previewRect.width / 2;
+      const x = Math.min(
+        Math.max(anchorRect.left + anchorRect.width / 2, padding + halfWidth),
+        viewportWidth - padding - halfWidth
+      );
+      let y = anchorRect.bottom + gap;
+      if (y + previewRect.height > window.innerHeight - padding) {
+        y = Math.max(padding, anchorRect.top - previewRect.height - gap);
+      }
+      preview.style.left = `${x}px`;
+      preview.style.top = `${y}px`;
+      preview.style.visibility = "visible";
+    };
+    updatePosition();
+    const frame = requestAnimationFrame(updatePosition);
+    const observer =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updatePosition);
+    observer?.observe(anchor);
+    observer?.observe(preview);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
   }, [isOpen, tex]);
 
   useEffect(() => {
@@ -200,23 +227,26 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = props => {
         ) : (
           <span className="px-1 text-[var(--ed-text-tertiary)]">Empty Math</span>
         )}
-        {isOpen && (
-          <motion.span
-            ref={previewRef}
-            aria-label="公式预览"
-            contentEditable={false}
-            className="pointer-events-none absolute left-1/2 top-[calc(100%+0.35em)] z-20 inline-flex max-w-[min(70vw,20rem)] -translate-x-1/2 items-center overflow-x-auto whitespace-nowrap rounded-[4px] bg-[var(--ed-bg-surface)] px-[0.4em] py-[0.2em] text-[var(--ed-text)]"
-            initial={reduceMotion ? false : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {tex ? (
-              <Katex tex={tex} inline />
-            ) : (
-              <span className="text-[var(--ed-text-tertiary)]">公式预览</span>
-            )}
-          </motion.span>
-        )}
+        {isOpen &&
+          createPortal(
+            <motion.span
+              ref={previewRef}
+              aria-label="公式预览"
+              contentEditable={false}
+              className="z-9999 rounded-tau-sm shadow-card pointer-events-none fixed left-0 top-0 inline-flex max-w-[calc(100vw-16px)] -translate-x-1/2 items-center overflow-x-auto whitespace-nowrap bg-[var(--ed-bg-surface)] px-[0.6em] py-[0.4em] text-[var(--ed-text)]"
+              style={{ visibility: "hidden" }}
+              initial={reduceMotion ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.14, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {tex ? (
+                <Katex tex={tex} inline />
+              ) : (
+                <span className="text-[var(--ed-text-tertiary)]">公式预览</span>
+              )}
+            </motion.span>,
+            document.body
+          )}
       </span>
       <OverlayBackDismiss open={isOpen && !readOnly} onDismiss={() => closeInline("right")} />
       <InlineChromiumBugfix />
