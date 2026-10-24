@@ -12,7 +12,7 @@ vi.mock("@/stores/useGlobalStateStore", async () => {
   const { create } = await import("zustand");
   return { default: create(() => ({ databaseStatus: {} })) };
 });
-vi.mock("@/commands", () => ({ connectDatabaseByName: vi.fn(), trackEvent: vi.fn() }));
+vi.mock("@/commands", () => ({ connectDatabaseByName: vi.fn() }));
 vi.mock("@/page/PageProvider", () => ({
   PageProvider: () => <div>页面已就绪</div>,
   usePage: vi.fn(),
