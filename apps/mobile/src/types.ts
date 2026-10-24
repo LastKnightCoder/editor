@@ -551,6 +551,7 @@ export interface UpdateTodoRecurrencePayload {
 }
 
 export interface SettingCompat {
+  speechInput?: import("@tau/asr").SpeechInputSetting;
   database: {
     active: string;
     databases: DatabaseItem[];

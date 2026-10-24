@@ -1,0 +1,74 @@
+[
+  {
+    "scenario": "probe",
+    "exit": 0,
+    "elapsedMs": 402,
+    "events": [
+      {
+        "event": "availability",
+        "locale": "zh_CN",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "scenario": "prepare",
+    "exit": 0,
+    "elapsedMs": 86,
+    "events": [
+      {
+        "event": "preparing"
+      },
+      {
+        "event": "availability",
+        "locale": "zh_CN",
+        "state": "ready"
+      }
+    ]
+  },
+  {
+    "scenario": "fixture-trimmed",
+    "exit": 0,
+    "audioFrames": 105,
+    "updates": 83,
+    "partialUpdates": 82,
+    "firstUpdateMs": 1061,
+    "tailMs": 182,
+    "finalSegments": 1,
+    "tailMarkerPresent": true,
+    "empty": false
+  },
+  {
+    "scenario": "tail",
+    "exit": 0,
+    "audioFrames": 25,
+    "updates": 20,
+    "partialUpdates": 19,
+    "firstUpdateMs": 1041,
+    "tailMs": 51,
+    "finalSegments": 1,
+    "tailMarkerPresent": true,
+    "empty": false
+  },
+  {
+    "scenario": "silence",
+    "exit": 0,
+    "audioFrames": 10,
+    "updates": 0,
+    "partialUpdates": 0,
+    "firstUpdateMs": null,
+    "tailMs": 3,
+    "finalSegments": 0,
+    "tailMarkerPresent": false,
+    "empty": true
+  },
+  {
+    "scenario": "cancel",
+    "exit": -9,
+    "elapsedMs": 4
+  },
+  {
+    "scenario": "invalid-sequence",
+    "exit": 1
+  }
+]

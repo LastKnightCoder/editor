@@ -1,0 +1,7 @@
+{"available":true,"event":"inventory","installedLocales":["zh_CN","zh_TW"],"legacySpeechAuthorization":0,"legacyZhAvailable":true,"legacyZhOnDevice":true,"microphoneAuthorization":0,"os":"Version 26.5.1 (Build 25F80)","reservedLocales":["zh_CN"],"resolvedLocale":"zh_CN","supportedLocales":["de_AT","de_CH","de_DE","en_AU","en_CA","en_GB","en_IE","en_IN","en_NZ","en_SG","en_US","en_ZA","es_CL","es_ES","es_MX","es_US","fr_BE","fr_CA","fr_CH","fr_FR","it_CH","it_IT","ja_JP","ko_KR","pt_BR","pt_PT","yue_CN","zh_CN","zh_HK","zh_TW"],"uptimeMs":631457188,"zhStatus":"installed"}
+{"elapsedMs":78,"event":"analyzer-ready","sampleRate":16000,"uptimeMs":631457267}
+{"audioDurationMs":2000,"elapsedMs":2001,"event":"end-input","uptimeMs":631459269}
+{"afterStop":true,"characters":2,"elapsedMs":2024,"endMs":2000,"event":"recognition","final":false,"startMs":0,"text":"yo","uptimeMs":631459291}
+{"afterStop":true,"characters":3,"elapsedMs":2024,"endMs":2000,"event":"recognition","final":false,"startMs":0,"text":"you","uptimeMs":631459291}
+{"afterStop":true,"characters":3,"elapsedMs":2039,"endMs":2000,"event":"recognition","final":true,"startMs":720,"text":"you","uptimeMs":631459307}
+{"detectorEnabled":false,"event":"summary","finalCount":1,"firstResultMs":2024,"paced":true,"partialCount":2,"speechDetected":false,"tailMs":38,"text":"you","uptimeMs":631459307}

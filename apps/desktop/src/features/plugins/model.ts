@@ -23,6 +23,7 @@ export const CONTRIBUTION_LABELS: Record<PluginContributionKind, string> = {
   settings: "设置分组",
   sync: "同步方式",
   upload: "上传方式",
+  asr: "语音识别",
   tts: "语音服务",
   images: "图片服务",
   video: "视频来源",

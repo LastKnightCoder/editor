@@ -47,6 +47,7 @@ export function PluginSettingsView({
         在资源存储中配置
       </Button>
     );
+  if (section.definition.target === "asr") return null;
   if (section.definition.target === "tts" && !ttsConfig)
     return (
       <Button onClick={() => useSettingsStore.getState().openTTSSettings()}>

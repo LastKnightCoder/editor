@@ -38,11 +38,17 @@ it("配置操作按提交顺序执行，等待会覆盖当前在途保存", asyn
 it("权威快照只覆盖原生管理字段，保留仍在编辑的普通设置", () => {
   const previous = {
     database: { active: "A.db", databases: [] },
+    speechInput: { active: "native", language: "zh-CN", plugin: { id: "", configurations: {} } },
     sync: { active: "plugin", plugin: { id: "old", configurations: {} }, autoSyncEnabled: true },
     imageBed: { active: "local", enableCompression: false, local: { path: "resources" } },
   } as SettingCompat;
   const snapshot = {
     database: { active: "B.db", databases: [{ name: "B.db", version: 7 }] },
+    speechInput: {
+      active: "plugin",
+      language: "zh-CN",
+      plugin: { id: "fixture.asr", configurations: {} },
+    },
     sync: {
       active: "plugin",
       plugin: { id: "fixture.sync", configurations: { "fixture.sync": { token: "fixture" } } },
@@ -57,6 +63,7 @@ it("权威快照只覆盖原生管理字段，保留仍在编辑的普通设置"
   } as SettingCompat;
   const result = mergeProviderSettings(previous, snapshot);
   expect(result.database.active).toBe("B.db");
+  expect(result.speechInput).toEqual(snapshot.speechInput);
   expect(result.sync).toMatchObject({ plugin: { id: "fixture.sync" }, autoSyncEnabled: true });
   expect(result.imageBed.enableCompression).toBe(false);
   expect(result.imageBed.plugin?.id).toBe("fixture.upload");

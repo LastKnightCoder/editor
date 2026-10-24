@@ -56,6 +56,8 @@
 - [长文档视口级挂载](./tasks/long-document-viewport.md)：暂缓、未排期，保留范围与业务验收边界。
 - [移动端字号规范](./tasks/mobile-typography.md)：9 档字号阶梯；档位覆盖与卡片列表/详情同字号已落地，存量字面字号待分批迁移。
 
+- [桌面语音输入与统一 ASR](./tasks/desktop-asr/README.md)：ASR 与整理能力保留，新增界面入口已撤回待用户决定；SDK 0.43.0／Seed 0.1.0 已发行，客户端与设备验收保留。
+
 进行中的跨端接入见 [B–D 任务](./tasks/plugin-portability-bcd/README.md)；SDK、清单、移动与网页中心分发及旧插件兼容的后续设计见同任务的 [正式接入方案](./tasks/plugin-portability-bcd/distribution-plan.md)。D 的待验收项继续保留。
 
 协议逻辑与网站/移动 UI 的并行协作见 [工作分工](./tasks/plugin-portability-bcd/work-split.md)，可转发任务见 [UI 专家 prompt](./tasks/plugin-portability-bcd/ui-expert-prompt.md)。

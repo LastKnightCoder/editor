@@ -1,0 +1,87 @@
+{"available":true,"event":"inventory","installedLocales":["zh_CN","zh_TW"],"legacySpeechAuthorization":0,"legacyZhAvailable":true,"legacyZhOnDevice":true,"microphoneAuthorization":0,"os":"Version 26.5.1 (Build 25F80)","reservedLocales":["zh_CN"],"resolvedLocale":"zh_CN","supportedLocales":["de_AT","de_CH","de_DE","en_AU","en_CA","en_GB","en_IE","en_IN","en_NZ","en_SG","en_US","en_ZA","es_CL","es_ES","es_MX","es_US","fr_BE","fr_CA","fr_CH","fr_FR","it_CH","it_IT","ja_JP","ko_KR","pt_BR","pt_PT","yue_CN","zh_CN","zh_HK","zh_TW"],"uptimeMs":631459448,"zhStatus":"installed"}
+{"elapsedMs":47,"event":"analyzer-ready","sampleRate":16000,"uptimeMs":631459496}
+{"afterStop":false,"characters":1,"elapsedMs":1233,"endMs":1200,"event":"recognition","final":false,"startMs":0,"text":"今","uptimeMs":631460729}
+{"afterStop":false,"characters":2,"elapsedMs":1235,"endMs":1200,"event":"recognition","final":false,"startMs":0,"text":"今天","uptimeMs":631460732}
+{"afterStop":false,"characters":3,"elapsedMs":1239,"endMs":1200,"event":"recognition","final":false,"startMs":0,"text":"今天我","uptimeMs":631460735}
+{"afterStop":false,"characters":4,"elapsedMs":1242,"endMs":1200,"event":"recognition","final":false,"startMs":0,"text":"今天我们","uptimeMs":631460738}
+{"afterStop":false,"characters":5,"elapsedMs":2012,"endMs":2000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验","uptimeMs":631461509}
+{"afterStop":false,"characters":6,"elapsedMs":2016,"endMs":2000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证","uptimeMs":631461513}
+{"afterStop":false,"characters":7,"elapsedMs":2020,"endMs":2000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中","uptimeMs":631461517}
+{"afterStop":false,"characters":8,"elapsedMs":2023,"endMs":2000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文","uptimeMs":631461520}
+{"afterStop":false,"characters":9,"elapsedMs":3015,"endMs":3000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语","uptimeMs":631462512}
+{"afterStop":false,"characters":10,"elapsedMs":3019,"endMs":3000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音","uptimeMs":631462516}
+{"afterStop":false,"characters":11,"elapsedMs":3024,"endMs":3000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输","uptimeMs":631462520}
+{"afterStop":false,"characters":12,"elapsedMs":3026,"endMs":3000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入","uptimeMs":631462523}
+{"afterStop":false,"characters":14,"elapsedMs":3030,"endMs":3000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，","uptimeMs":631462527}
+{"afterStop":false,"characters":15,"elapsedMs":4022,"endMs":4000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请","uptimeMs":631463519}
+{"afterStop":false,"characters":16,"elapsedMs":4027,"endMs":4000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把","uptimeMs":631463524}
+{"afterStop":false,"characters":17,"elapsedMs":4031,"endMs":4000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会","uptimeMs":631463528}
+{"afterStop":false,"characters":18,"elapsedMs":4035,"endMs":4000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议","uptimeMs":631463532}
+{"afterStop":false,"characters":19,"elapsedMs":5026,"endMs":5000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安","uptimeMs":631464523}
+{"afterStop":false,"characters":20,"elapsedMs":5029,"endMs":5000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排","uptimeMs":631464526}
+{"afterStop":false,"characters":21,"elapsedMs":5034,"endMs":5000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在","uptimeMs":631464531}
+{"afterStop":false,"characters":22,"elapsedMs":5038,"endMs":5000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明","uptimeMs":631464535}
+{"afterStop":false,"characters":23,"elapsedMs":5042,"endMs":5000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天","uptimeMs":631464538}
+{"afterStop":false,"characters":24,"elapsedMs":6030,"endMs":6000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下","uptimeMs":631465526}
+{"afterStop":false,"characters":25,"elapsedMs":6034,"endMs":6000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午","uptimeMs":631465530}
+{"afterStop":false,"characters":27,"elapsedMs":6039,"endMs":6000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3","uptimeMs":631465536}
+{"afterStop":false,"characters":28,"elapsedMs":6042,"endMs":6000,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:","uptimeMs":631465539}
+{"afterStop":false,"characters":29,"elapsedMs":6831,"endMs":6800,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半","uptimeMs":631466328}
+{"afterStop":false,"characters":30,"elapsedMs":6837,"endMs":6800,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预","uptimeMs":631466334}
+{"afterStop":false,"characters":31,"elapsedMs":7821,"endMs":7800,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算","uptimeMs":631467318}
+{"afterStop":false,"characters":32,"elapsedMs":7828,"endMs":7800,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是","uptimeMs":631467324}
+{"afterStop":false,"characters":34,"elapsedMs":7833,"endMs":7800,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1","uptimeMs":631467329}
+{"afterStop":false,"characters":35,"elapsedMs":7837,"endMs":7800,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 12","uptimeMs":631467333}
+{"afterStop":false,"characters":36,"elapsedMs":8827,"endMs":8800,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 123","uptimeMs":631468324}
+{"afterStop":false,"characters":37,"elapsedMs":9820,"endMs":9800,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234","uptimeMs":631469317}
+{"afterStop":false,"characters":38,"elapsedMs":9824,"endMs":9800,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元","uptimeMs":631469321}
+{"afterStop":false,"characters":39,"elapsedMs":9831,"endMs":9800,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，","uptimeMs":631469328}
+{"afterStop":false,"characters":40,"elapsedMs":10827,"endMs":10800,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现","uptimeMs":631470323}
+{"afterStop":false,"characters":41,"elapsedMs":10829,"endMs":10800,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在","uptimeMs":631470326}
+{"afterStop":false,"characters":42,"elapsedMs":10833,"endMs":10800,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继","uptimeMs":631470330}
+{"afterStop":false,"characters":43,"elapsedMs":10838,"endMs":10800,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续","uptimeMs":631470335}
+{"afterStop":false,"characters":44,"elapsedMs":10841,"endMs":10800,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说","uptimeMs":631470337}
+{"afterStop":false,"characters":45,"elapsedMs":11619,"endMs":11600,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第","uptimeMs":631471116}
+{"afterStop":false,"characters":46,"elapsedMs":11622,"endMs":11600,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二","uptimeMs":631471119}
+{"afterStop":false,"characters":47,"elapsedMs":11626,"endMs":11600,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句","uptimeMs":631471122}
+{"afterStop":false,"characters":48,"elapsedMs":11631,"endMs":11600,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话","uptimeMs":631471127}
+{"afterStop":false,"characters":49,"elapsedMs":12633,"endMs":12600,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检","uptimeMs":631472129}
+{"afterStop":false,"characters":50,"elapsedMs":12637,"endMs":12600,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查","uptimeMs":631472133}
+{"afterStop":false,"characters":51,"elapsedMs":12640,"endMs":12600,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能","uptimeMs":631472137}
+{"afterStop":false,"characters":52,"elapsedMs":13628,"endMs":13600,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不","uptimeMs":631473125}
+{"afterStop":false,"characters":53,"elapsedMs":13632,"endMs":13600,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能","uptimeMs":631473129}
+{"afterStop":false,"characters":54,"elapsedMs":13638,"endMs":13600,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一","uptimeMs":631473134}
+{"afterStop":false,"characters":55,"elapsedMs":13641,"endMs":13600,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边","uptimeMs":631473138}
+{"afterStop":false,"characters":56,"elapsedMs":13645,"endMs":13600,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说","uptimeMs":631473142}
+{"afterStop":false,"characters":57,"elapsedMs":14630,"endMs":14600,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话","uptimeMs":631474126}
+{"afterStop":false,"characters":58,"elapsedMs":14634,"endMs":14600,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一","uptimeMs":631474131}
+{"afterStop":false,"characters":59,"elapsedMs":14638,"endMs":14600,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边","uptimeMs":631474135}
+{"afterStop":false,"characters":60,"elapsedMs":14643,"endMs":14600,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显","uptimeMs":631474140}
+{"afterStop":false,"characters":61,"elapsedMs":15638,"endMs":15600,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示","uptimeMs":631475134}
+{"afterStop":false,"characters":62,"elapsedMs":15642,"endMs":15600,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文","uptimeMs":631475138}
+{"afterStop":false,"characters":63,"elapsedMs":15647,"endMs":15600,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字","uptimeMs":631475144}
+{"afterStop":false,"characters":64,"elapsedMs":16437,"endMs":16400,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最","uptimeMs":631475933}
+{"afterStop":false,"characters":65,"elapsedMs":16440,"endMs":16400,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后","uptimeMs":631475937}
+{"afterStop":false,"characters":66,"elapsedMs":16444,"endMs":16400,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一","uptimeMs":631475941}
+{"afterStop":false,"characters":67,"elapsedMs":16446,"endMs":16400,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一句","uptimeMs":631475943}
+{"afterStop":false,"characters":68,"elapsedMs":17439,"endMs":17400,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一句是","uptimeMs":631476936}
+{"afterStop":false,"characters":69,"elapsedMs":17446,"endMs":17400,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一句是请","uptimeMs":631476943}
+{"afterStop":false,"characters":70,"elapsedMs":17450,"endMs":17400,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一句是请保","uptimeMs":631476946}
+{"afterStop":false,"characters":71,"elapsedMs":18435,"endMs":18400,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一句是请保留","uptimeMs":631477932}
+{"afterStop":false,"characters":72,"elapsedMs":18440,"endMs":18400,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一句是请保留停","uptimeMs":631477937}
+{"afterStop":false,"characters":73,"elapsedMs":18445,"endMs":18400,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一句是请保留停止","uptimeMs":631477941}
+{"afterStop":false,"characters":74,"elapsedMs":18448,"endMs":18400,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一句是请保留停止前","uptimeMs":631477945}
+{"afterStop":false,"characters":75,"elapsedMs":19426,"endMs":19400,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一句是请保留停止前的","uptimeMs":631478922}
+{"afterStop":false,"characters":76,"elapsedMs":19430,"endMs":19400,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一句是请保留停止前的最","uptimeMs":631478927}
+{"afterStop":false,"characters":77,"elapsedMs":19434,"endMs":19400,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一句是请保留停止前的最后","uptimeMs":631478931}
+{"afterStop":false,"characters":78,"elapsedMs":19437,"endMs":19400,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一句是请保留停止前的最后五","uptimeMs":631478934}
+{"afterStop":false,"characters":79,"elapsedMs":19439,"endMs":19400,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一句是请保留停止前的最后五个","uptimeMs":631478936}
+{"afterStop":false,"characters":81,"elapsedMs":20437,"endMs":20400,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一句是请保留停止前的最后五五个字","uptimeMs":631479934}
+{"afterStop":false,"characters":82,"elapsedMs":20445,"endMs":20400,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一句是请保留停止前的最后后五个字春","uptimeMs":631479942}
+{"audioDurationMs":20938,"elapsedMs":20939,"event":"end-input","uptimeMs":631480435}
+{"afterStop":true,"characters":83,"elapsedMs":20964,"endMs":20938,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一句是请保留停止前的最最后五个字春夏","uptimeMs":631480461}
+{"afterStop":true,"characters":84,"elapsedMs":20968,"endMs":20938,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:点半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一句是请保留停止前的最后五个字春夏秋","uptimeMs":631480465}
+{"afterStop":true,"characters":85,"elapsedMs":20973,"endMs":20938,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:点半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一句是请保留停止前的最后五个字春夏秋冬","uptimeMs":631480469}
+{"afterStop":true,"characters":86,"elapsedMs":20976,"endMs":20938,"event":"recognition","final":false,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:点半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一句是请保留停止前的最后五个字春夏秋冬雨","uptimeMs":631480473}
+{"afterStop":true,"characters":85,"elapsedMs":21041,"endMs":20938,"event":"recognition","final":true,"startMs":0,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一句是请保留停止前的最后五个字春夏秋冬雨","uptimeMs":631480538}
+{"detectorEnabled":true,"event":"summary","finalCount":1,"firstResultMs":1233,"paced":true,"partialCount":82,"speechDetected":false,"tailMs":109,"text":"今天我们验证中文语音输入 ，请把会议安排在明天下午 3:半预算是 1234元，现在继续说第二句话检查能不能一边说话一边显示文字最后一句是请保留停止前的最后五个字春夏秋冬雨","uptimeMs":631480545}

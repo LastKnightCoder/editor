@@ -95,6 +95,24 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 
 唯一注册表在 `@tau/chat-ui/renderers`。作者在 activate 中 `await ctx.chat.registerToolRenderer({ mcpId, toolName, component })`，只引用本插件 MCP 的原始工具名；PluginHost 激活前校验、成功后发布，工具名 SHA-256 与历史偏好键不变。展示不受 MCP 执行开关/连接状态影响；signal 失效立即卸载，切库先清理旧运行时。本地工具返回 `{ content, render?: { version, data } }`（有限 JSON + 正整数版本），经 pi details 保存，实时与历史投影都保留 details；失败/取消回通用工具行，未知数据版本由插件 renderDefault 回退。渲染选择再校验绑定：只按实际 execution.toolName 命中，插件不能改选他人绑定；插件接收 execution 独立快照，不能改写宿主消息。不新增聊天 schema、内置工具覆盖或 MCP Apps 运行器。
 
+### 文件转录与 ASR
+
+文件语音识别的公共契约与运行时在 [@tau/asr](/packages/asr/README.md)。`transcription` 仍是 BACKGROUND 模块：窗口文件与分段命令通过内置 `createWhisperASR`，结果交回现有媒体流程；`whisper-engine.ts` 复用既有程序与模型目录，先由 ffmpeg 转为 16 kHz 单声道 PCM Int16 WAV，每次识别独占临时目录，只有进程正常退出且本次 SRT 可读才交付结果。词级结果保留原始对齐；旧媒体字段仅在宿主结果扩展 `sourceResult` 中保留，不把推断置信度或字幕末尾时刻当作公共 ASR 的测量值。
+
+文件命令第三参数可传 signal/onProgress。渲染端在模块就绪后登记 taskId 并订阅，进度只交给对应任务；取消使用不继承已取消命令作用域的 IPC。主进程按窗口与 taskId 隔离任务，窗口销毁、重载、切库或应用退出会取消；子进程退出后再清理目录，取消后的成功结果不交付。长音频队列每次调用拥有独立工作集，任一分段失败会取消同任务的其他分段并等待退出。媒体导入仍有直接消费共享引擎的入口，其业务编排不归公共 ASR 包。实时会话的格式、尾帧、超时和取消由公共运行时约束；原生和插件语音输入由下述独立编排装配。
+
+### 实时语音输入
+
+`speech-input` 为 BACKGROUND 模块；跨窗口麦克风租约由主进程维护，窗口销毁、重载、切库、心跳过期及退出会终止会话。渲染层通过 `ensureModule` 获取就绪保障；共用 `@tau/asr` 的 AudioWorklet 采集、重采样、PCM Int16 编码、尾帧排空与取消编排。麦克风仅在用户点击后申请，不自动切换云端提供方。
+
+Mac helper 独立打包在 `bin/darwin/Tau Speech Helper.app`，macOS 26 上采用 SpeechAnalyzer、SpeechTranscriber、medium SpeechDetector，持续消费识别与 VAD 流；管道按实际到达字节读取，输出逐段修订，end 等 finalize 与结果流完成。构建脚本生成当前架构或通用二进制；旧系统及 Windows 探测返回不支持原生路径。
+
+插件通过公共 `context.asr` 注册，账号经语音输入设置的专用命令保存，普通全量设置提交保留主进程已保存的 speechInput，渲染缓存不持久化账号。`context.websocket` 提供标准事件、状态和同步 send/close，鉴权头、取消与有界背压由通用宿主桥接；不包含厂商协议。
+
+当前桌面只保留语音输入服务，不挂载麦克风按钮、语音输入设置、AI 整理配置行或输入目标。`desktopSpeechInput` 与 `prepareSpeechRefinement` 由未来消费者显式调用，壳层不触发录音或模型请求。ASR 设置声明仍可注册，插件详情不显示其表单，open 返回入口不可用；现有视频转录与 TTS 界面独立保留。
+
+整理服务读取 `llmUsageSettings.speechInputRefinement` 与 `speechInput.refinement`，复用 piStreamText 无工具单发，仅处理最终转录；原始结果与整理文本分开，失败／超时回退原文，取消不交付结果。配置数据和保存命令保留；入口、预览、原文查看及草稿提交界面由后续消费者决定。
+
 ### 领域提供方插件（TTS / 图片 / 在线视频）
 
 三者为同一模式：渲染进程注册实例、主进程 `plugin-local:<域>-*` 只转发请求/取消/通知、设置页经 `<域>-settings-migration` 备份后逐账号迁移旧配置（不自动安装插件、不自动改用其他付费账号）。

@@ -57,6 +57,7 @@ fn release(state: &mut Transport) {
         let _ = pending.send(Err("插件宿主会话已结束".into()));
     }
     crate::plugin_fetch::invalidate();
+    crate::plugin_socket::invalidate();
     crate::plugin_files::invalidate();
     crate::resource_upload::invalidate_uploads();
 }

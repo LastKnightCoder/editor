@@ -9,6 +9,7 @@ fn section(target: &str) -> Result<&'static str, String> {
     match target {
         "sync" => Ok("sync"),
         "upload" => Ok("imageBed"),
+        "asr" => Ok("speechInput"),
         _ => Err("存储领域无效".into()),
     }
 }
@@ -48,8 +49,19 @@ pub fn plugin_provider_save(
         return Err("插件配置超过 1 MiB".into());
     }
     let section = section(&target)?;
+    if target == "asr"
+        && (config.get("config").is_none()
+            || config["modelId"]
+                .as_str()
+                .is_none_or(|id| id.trim().is_empty()))
+    {
+        return Err("识别模型配置无效".into());
+    }
     crate::setting::mutate_setting_value(&app, |setting| {
         check_database(setting, &database)?;
+        if target == "asr" && !setting["speechInput"].is_object() {
+            setting["speechInput"] = json!({"active":"native","language":"zh-CN","plugin":{"id":"","configurations":{}}});
+        }
         if !setting[section]["plugin"].is_object() {
             setting[section]["plugin"] = json!({ "id": "", "configurations": {} });
         }
@@ -73,6 +85,9 @@ pub fn plugin_provider_select(
     let section = section(&target)?;
     crate::setting::mutate_setting_value(&app, |setting| {
         check_database(setting, &database)?;
+        if target == "asr" && !setting["speechInput"].is_object() {
+            setting["speechInput"] = json!({"active":"native","language":"zh-CN","plugin":{"id":"","configurations":{}}});
+        }
         if target == "upload" && plugin_id == "local" {
             setting[section]["active"] = json!("local");
         } else {
@@ -96,6 +111,13 @@ pub(crate) fn preserve_managed_fields(next: &mut Value, current: &Value) {
         next["chunkedSyncBases"] = base.clone();
     } else if let Some(object) = next.as_object_mut() {
         object.remove("chunkedSyncBases");
+    }
+    for field in ["speechInput"] {
+        if let Some(value) = current.get(field) {
+            next[field] = value.clone();
+        } else if let Some(object) = next.as_object_mut() {
+            object.remove(field);
+        }
     }
     for section in ["sync", "imageBed"] {
         next[section]["active"] = current[section]["active"].clone();
@@ -351,12 +373,14 @@ mod tests {
         let current = json!({ "database": { "active": "B.db", "databases": [{ "name": "B.db", "version": 7 }] },
             "sync": { "active": "plugin", "plugin": { "id": "fixture.sync", "configurations": { "fixture.sync": { "token": "new" } } } },
             "imageBed": { "active": "local", "plugin": { "id": "", "configurations": {} } },
+            "speechInput": { "active": "plugin", "plugin": { "id": "fixture.asr", "configurations": {} } },
             "chunkedSyncBases": { "B.db": { "sessionsObject": "snapshot.zip" } } });
-        let mut stale =
-            json!({ "database": {}, "sync": {}, "imageBed": { "enableCompression": false } });
+        let mut stale = json!({ "database": {}, "sync": {}, "imageBed": { "enableCompression": false },
+            "speechInput": { "active": "native" } });
         preserve_managed_fields(&mut stale, &current);
         assert_eq!(stale["sync"], current["sync"]);
         assert_eq!(stale["database"], current["database"]);
+        assert_eq!(stale["speechInput"], current["speechInput"]);
         assert_eq!(stale["chunkedSyncBases"], current["chunkedSyncBases"]);
         assert_eq!(stale["imageBed"]["enableCompression"], false);
         assert!(check_database(&current, "A.db").is_err());

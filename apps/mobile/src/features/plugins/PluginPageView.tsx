@@ -138,7 +138,8 @@ export function PluginSettingsView() {
   const runtime = useMobilePlugins();
   const { phase } = useMobilePluginStatus();
   const { params } = usePage<{ id: string }>();
-  const setting = runtime?.settings.get(params.id);
+  const registered = runtime?.settings.get(params.id);
+  const setting = registered?.definition.target === "asr" ? undefined : registered;
   const Component = setting?.definition.component;
   return (
     <PluginPageShell title={setting?.definition.title ?? "插件设置"}>

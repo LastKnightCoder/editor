@@ -508,7 +508,10 @@ function SettingsTab({
   const navigator = useNavigator();
   const { phase } = useMobilePluginStatus();
   const sections = [...(runtime?.settings.entries() ?? [])].filter(
-    ([, entry]) => entry.context.pluginId === item.id && runtime?.active(entry.context)
+    ([, entry]) =>
+      entry.context.pluginId === item.id &&
+      entry.definition.target !== "asr" &&
+      runtime?.active(entry.context)
   );
   const [selected, setSelected] = useState<string | null>(null);
   if (!item.active)

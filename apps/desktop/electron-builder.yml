@@ -35,6 +35,7 @@ files:
   - "build/**/*"
   - "!build/bundled-plugins/**/*"
   - "!build/publish-template.zip"
+  - "!build/bin/darwin/Tau Speech Helper.app/**/*"
   - "node_modules/**/*"
   - "!node_modules/**/*.js.map"
   - "!node_modules/**/*.mjs.map"
@@ -75,6 +76,8 @@ win:
       isPackage: false
 
 mac:
+  entitlements: "build/entitlements.mac.plist"
+  entitlementsInherit: "build/entitlements.mac.plist"
   icon: "build/icon.icns"
   # Apple 芯片与 Intel 各出一套；文件名带 arch，electron-updater 按本机架构从 latest-mac.yml 挑包
   target:
@@ -85,6 +88,8 @@ mac:
   artifactName: "${productName}-v${version}-${platform}-${arch}.${ext}"
   # macOS 随包分发的 whisper.cpp 转录程序（CI 构建，Metal 加速，~12MB）
   extraResources:
+    - from: build/bin/darwin/Tau Speech Helper.app
+      to: bin/darwin/Tau Speech Helper.app
     - from: build/bin/darwin/whisper-cli
       to: bin/whisper-cli
   fileAssociations:
@@ -98,6 +103,7 @@ mac:
       isPackage: false
   # 文件夹：访达「打开方式」与拖到 Dock 图标（Alternate = 仅作备选，不抢访达的默认打开）
   extendInfo:
+    NSMicrophoneUsageDescription: "录制语音并转换为文字，停止后填入输入框。"
     CFBundleDocumentTypes:
       - CFBundleTypeName: Folder
         CFBundleTypeRole: Viewer
