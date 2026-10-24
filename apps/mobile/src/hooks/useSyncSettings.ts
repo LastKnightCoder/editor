@@ -4,11 +4,15 @@ import type { SettingCompat, SettingWriteResponse, SyncActionResponse } from "..
 import * as tauri from "../services/tauri";
 import { setMobileSettingSnapshot } from "../services/mobileSettingsBridge";
 
-function normalizeSetting(setting: SettingCompat): SettingCompat {
+export function normalizeSetting(setting: SettingCompat): SettingCompat {
   const raw = setting as Partial<SettingCompat>;
   const database = (raw.database ?? {}) as Partial<SettingCompat["database"]>;
   const imageBed = (raw.imageBed ?? {}) as Partial<SettingCompat["imageBed"]>;
   const sync = (raw.sync ?? {}) as Partial<SettingCompat["sync"]>;
+  const ttsUsageSettings = (raw.ttsUsageSettings ?? {}) as Partial<
+    NonNullable<SettingCompat["ttsUsageSettings"]>
+  >;
+  const ttsDefault = ttsUsageSettings.default;
   const appearance = (raw.appearance ?? {}) as NonNullable<SettingCompat["appearance"]>;
   const rawImage = (appearance.image ?? {}) as {
     borderRadius?: unknown;
@@ -27,6 +31,17 @@ function normalizeSetting(setting: SettingCompat): SettingCompat {
 
   return {
     ...raw,
+    ttsProviders: Array.isArray(raw.ttsProviders) ? raw.ttsProviders : [],
+    ttsUsageSettings: {
+      ...ttsUsageSettings,
+      default:
+        ttsDefault &&
+        typeof ttsDefault.providerId === "string" &&
+        typeof ttsDefault.modelId === "string" &&
+        typeof ttsDefault.voiceId === "string"
+          ? ttsDefault
+          : null,
+    },
     appearance: {
       ...appearance,
       image: {

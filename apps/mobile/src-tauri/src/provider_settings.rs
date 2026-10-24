@@ -12,7 +12,7 @@ fn section(target: &str) -> Result<&'static str, String> {
         _ => Err("存储领域无效".into()),
     }
 }
-fn validate_plugin_id(id: &str) -> Result<(), String> {
+pub(crate) fn validate_plugin_id(id: &str) -> Result<(), String> {
     if id.is_empty()
         || id.len() > 128
         || !id.bytes().all(|byte| {
@@ -23,7 +23,17 @@ fn validate_plugin_id(id: &str) -> Result<(), String> {
     }
     Ok(())
 }
-fn check_database(setting: &Value, database: &str) -> Result<(), String> {
+pub(crate) fn validate_plugin_config(config: &Value) -> Result<(), String> {
+    if serde_json::to_vec(config)
+        .map_err(|_| "插件配置无效")?
+        .len()
+        > 1024 * 1024
+    {
+        return Err("插件配置超过 1 MiB".into());
+    }
+    Ok(())
+}
+pub(crate) fn check_database(setting: &Value, database: &str) -> Result<(), String> {
     if crate::setting::get_active_database_name(setting) != database {
         return Err("插件工作区已失效".into());
     }
@@ -40,13 +50,7 @@ pub fn plugin_provider_save(
 ) -> Result<Value, String> {
     crate::plugin_transport::window_allowed(&window)?;
     validate_plugin_id(&plugin_id)?;
-    if serde_json::to_vec(&config)
-        .map_err(|_| "插件配置无效")?
-        .len()
-        > 1024 * 1024
-    {
-        return Err("插件配置超过 1 MiB".into());
-    }
+    validate_plugin_config(&config)?;
     let section = section(&target)?;
     crate::setting::mutate_setting_value(&app, |setting| {
         check_database(setting, &database)?;
@@ -96,6 +100,13 @@ pub(crate) fn preserve_managed_fields(next: &mut Value, current: &Value) {
         next["chunkedSyncBases"] = base.clone();
     } else if let Some(object) = next.as_object_mut() {
         object.remove("chunkedSyncBases");
+    }
+    for field in ["ttsProviders", "ttsUsageSettings"] {
+        if let Some(value) = current.get(field) {
+            next[field] = value.clone();
+        } else if let Some(object) = next.as_object_mut() {
+            object.remove(field);
+        }
     }
     for section in ["sync", "imageBed"] {
         next[section]["active"] = current[section]["active"].clone();
@@ -351,12 +362,16 @@ mod tests {
         let current = json!({ "database": { "active": "B.db", "databases": [{ "name": "B.db", "version": 7 }] },
             "sync": { "active": "plugin", "plugin": { "id": "fixture.sync", "configurations": { "fixture.sync": { "token": "new" } } } },
             "imageBed": { "active": "local", "plugin": { "id": "", "configurations": {} } },
+            "ttsProviders": [{ "id": "a", "name": "账号", "pluginId": "tau.tts-minimax", "config": { "apiKey": "new" }, "models": [{ "id": "m1" }] }],
+            "ttsUsageSettings": { "default": { "providerId": "a", "modelId": "m1", "voiceId": "voice" } },
             "chunkedSyncBases": { "B.db": { "sessionsObject": "snapshot.zip" } } });
-        let mut stale =
-            json!({ "database": {}, "sync": {}, "imageBed": { "enableCompression": false } });
+        let mut stale = json!({ "database": {}, "sync": {}, "imageBed": { "enableCompression": false },
+            "ttsProviders": [], "ttsUsageSettings": { "default": null } });
         preserve_managed_fields(&mut stale, &current);
         assert_eq!(stale["sync"], current["sync"]);
         assert_eq!(stale["database"], current["database"]);
+        assert_eq!(stale["ttsProviders"], current["ttsProviders"]);
+        assert_eq!(stale["ttsUsageSettings"], current["ttsUsageSettings"]);
         assert_eq!(stale["chunkedSyncBases"], current["chunkedSyncBases"]);
         assert_eq!(stale["imageBed"]["enableCompression"], false);
         assert!(check_database(&current, "A.db").is_err());

@@ -3,6 +3,7 @@ import {
   enqueueProviderConfigWrite,
   flushProviderConfigWrites,
   mergeProviderSettings,
+  mergeTtsSettings,
 } from "../provider-config";
 import type { SettingCompat } from "../../types";
 
@@ -38,11 +39,25 @@ it("配置操作按提交顺序执行，等待会覆盖当前在途保存", asyn
 it("权威快照只覆盖原生管理字段，保留仍在编辑的普通设置", () => {
   const previous = {
     database: { active: "A.db", databases: [] },
+    ttsProviders: [{ id: "old", name: "旧账号", pluginId: "old.tts", config: {}, models: [] }],
+    ttsUsageSettings: { default: null },
     sync: { active: "plugin", plugin: { id: "old", configurations: {} }, autoSyncEnabled: true },
     imageBed: { active: "local", enableCompression: false, local: { path: "resources" } },
   } as SettingCompat;
   const snapshot = {
     database: { active: "B.db", databases: [{ name: "B.db", version: 7 }] },
+    ttsProviders: [
+      {
+        id: "a",
+        name: "新账号",
+        pluginId: "tau.tts-minimax",
+        config: { apiKey: "new" },
+        models: [{ id: "m1" }],
+      },
+    ],
+    ttsUsageSettings: {
+      default: { providerId: "a", modelId: "m1", voiceId: "voice" },
+    },
     sync: {
       active: "plugin",
       plugin: { id: "fixture.sync", configurations: { "fixture.sync": { token: "fixture" } } },
@@ -57,7 +72,16 @@ it("权威快照只覆盖原生管理字段，保留仍在编辑的普通设置"
   } as SettingCompat;
   const result = mergeProviderSettings(previous, snapshot);
   expect(result.database.active).toBe("B.db");
+  expect(result.ttsProviders).toEqual(snapshot.ttsProviders);
+  expect(result.ttsUsageSettings).toEqual(snapshot.ttsUsageSettings);
   expect(result.sync).toMatchObject({ plugin: { id: "fixture.sync" }, autoSyncEnabled: true });
   expect(result.imageBed.enableCompression).toBe(false);
   expect(result.imageBed.plugin?.id).toBe("fixture.upload");
+
+  const ttsResult = mergeTtsSettings(previous, snapshot);
+  expect(ttsResult.ttsProviders).toEqual(snapshot.ttsProviders);
+  expect(ttsResult.ttsUsageSettings).toEqual(snapshot.ttsUsageSettings);
+  expect(ttsResult.database).toBe(previous.database);
+  expect(ttsResult.sync).toBe(previous.sync);
+  expect(ttsResult.imageBed).toBe(previous.imageBed);
 });

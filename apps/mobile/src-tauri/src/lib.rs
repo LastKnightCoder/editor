@@ -18,6 +18,7 @@ mod remote_resource_cache;
 mod resource_upload;
 mod setting;
 mod sync;
+mod tts_settings;
 
 use rusqlite::ffi::sqlite3_auto_extension;
 use sqlite_vec::sqlite3_vec_init;
@@ -80,6 +81,7 @@ pub fn run() {
             plugin_center::plugin_center_commit,
             provider_settings::plugin_provider_save,
             provider_settings::plugin_provider_select,
+            tts_settings::plugin_tts_mutate,
             plugin_transport::plugin_transport_connect,
             plugin_transport::plugin_transport_disconnect,
             plugin_transport::plugin_transport_reply,

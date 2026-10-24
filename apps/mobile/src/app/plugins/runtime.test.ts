@@ -231,3 +231,72 @@ it("中心撤回立即阻止节点写入并停用页面，保留静态正文到�
     await runtime.dispose();
   }
 });
+
+it("每个 runtime 独立注册 TTS 并导航到语音设置", async () => {
+  vi.stubGlobal("crypto", webcrypto);
+  const push = vi.fn();
+  const runtime = new MobilePluginRuntime(
+    environment("android"),
+    createMemoryStorage(),
+    "A",
+    { push },
+    "0.2.4"
+  );
+  const other = new MobilePluginRuntime(
+    environment("ios"),
+    createMemoryStorage(),
+    "B",
+    { push: vi.fn() },
+    "0.2.4"
+  );
+  let openSettings!: () => Promise<void>;
+  try {
+    runtime.host.registerTrusted(
+      definePlugin({
+        id: "fixture.tts",
+        name: "fixture",
+        version: "1.0.0",
+        create: () => ({
+          activate(context) {
+            context.tts.register({
+              id: context.pluginId,
+              name: "fixture",
+              create: () => ({
+                textInstructions: "移动",
+                getVoices: async () => [],
+                synthesize: async () => ({ audio: new Uint8Array(), mime: "audio/wav" }),
+              }),
+            });
+            openSettings = context.settings.register({
+              id: "voice",
+              title: "语音",
+              target: "tts",
+              component: () => null,
+            }).open;
+          },
+        }),
+      })
+    );
+    await runtime.host.enable("fixture.tts");
+    expect(runtime.tts).not.toBe(other.tts);
+    const signal = new AbortController().signal;
+    await expect(
+      runtime.tts.execute(
+        {
+          kind: "open",
+          session: "runtime",
+          pluginId: "fixture.tts",
+          config: {},
+          modelId: "model",
+        },
+        signal
+      )
+    ).resolves.toMatchObject({ canClone: false, textInstructions: "移动" });
+    await openSettings();
+    expect(push).toHaveBeenCalledWith("settingsModule", { module: "voice" });
+    await runtime.tts.execute({ kind: "close", session: "runtime" }, signal);
+  } finally {
+    await runtime.dispose();
+    await other.dispose();
+  }
+});

@@ -137,3 +137,26 @@ it("排队保存失败时保留最新输入，不展示前一笔成功提示", a
   expect(document.body.textContent).toContain("写入失败");
   expect(document.body.textContent).not.toContain("配置已保存");
 });
+
+it("没有位置字段时不渲染存储位置标题和空面板，账号弹层仍可用", async () => {
+  const save = vi.fn<(value: Record<string, string>) => Promise<void>>().mockResolvedValue();
+  const container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  await act(async () =>
+    root?.render(
+      <UiProvider>
+        <ConfigurationPanel
+          initialValue={{ token: "original" }}
+          accountFields={[{ key: "token", label: "Token", type: "password" }]}
+          fields={[]}
+          onSave={save}
+        />
+      </UiProvider>
+    )
+  );
+  expect(document.body.textContent).not.toContain("存储位置");
+  expect(document.querySelectorAll(".shadow-card")).toHaveLength(1);
+  await openAccount();
+  expect(input("Token").value).toBe("original");
+});

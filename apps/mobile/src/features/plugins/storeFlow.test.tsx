@@ -384,9 +384,10 @@ it("详情：插件中心没有记录时仍展示本机已安装插件，并可�
 });
 
 it.each([
-  ["sync", "打开同步配置", "syncProvider"],
-  ["upload", "打开上传配置", "uploadProvider"],
-])("详情：%s 设置进入宿主配置页", async (target, label, page) => {
+  ["sync", "打开同步配置", "syncProvider", { providerId: "example.counter" }],
+  ["upload", "打开上传配置", "uploadProvider", { providerId: "example.counter" }],
+  ["tts", "打开语音配置", "settingsModule", { module: "voice" }],
+])("详情：%s 设置进入宿主配置页", async (target, label, page, params) => {
   const component = vi.fn(() => <p>提供方表单</p>);
   const context = { pluginId: "example.counter" };
   state.runtime = {
@@ -403,7 +404,7 @@ it.each([
   await mount(<PluginDetail />);
   await click(button("设置"));
   await click(button(label));
-  expect(navigator.push).toHaveBeenCalledWith(page, { providerId: context.pluginId });
+  expect(navigator.push).toHaveBeenCalledWith(page, params);
   expect(component).not.toHaveBeenCalled();
 });
 

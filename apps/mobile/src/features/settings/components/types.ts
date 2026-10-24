@@ -17,6 +17,7 @@ export const SETTINGS_MODULE_KEYS = [
   "collaboration",
   "sync-status-resource",
   "resource",
+  "voice",
 ] as const;
 
 export type SettingModule = (typeof SETTINGS_MODULE_KEYS)[number] | null;

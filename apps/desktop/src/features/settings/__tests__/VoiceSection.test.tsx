@@ -1,6 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import useSettingStore from "@/stores/useSettingStore";
 import { VoiceSection } from "../sections/VoiceSection";
 import { useSettingsStore } from "@/app/settingsStore";
@@ -46,7 +47,14 @@ vi.mock("@/platform", () => ({ isMac: false }));
 
 let container: HTMLDivElement;
 let root: Root;
-const render = () => act(async () => root.render(<VoiceSection />));
+const render = () =>
+  act(async () =>
+    root.render(
+      <QueryClientProvider client={new QueryClient()}>
+        <VoiceSection />
+      </QueryClientProvider>
+    )
+  );
 const text = () => container.textContent ?? "";
 const button = (label: string) =>
   [...container.querySelectorAll("button")].find(b => b.textContent?.includes(label))!;

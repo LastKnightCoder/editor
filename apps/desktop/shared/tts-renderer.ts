@@ -1,14 +1,5 @@
-import type { JsonValue, TTSCloneRequest, TTSSynthesizeRequest } from "@tau/plugins";
-export type TTSRendererRequest =
-  | { kind: "open"; session: string; pluginId: string; config: JsonValue; modelId: string }
-  | { kind: "voices"; session: string }
-  | { kind: "synthesize"; session: string; request: TTSSynthesizeRequest }
-  | { kind: "clone"; session: string; request: TTSCloneRequest }
-  | { kind: "close"; session: string };
-export interface TTSSessionInfo {
-  textInstructions?: string;
-  canClone: boolean;
-}
+import type { TTSRendererRequest } from "@tau/plugins/tts-host";
+export type { TTSRendererRequest, TTSSessionInfo } from "@tau/plugins/tts-host";
 export interface TTSRendererMessage {
   requestId: string;
   hostSession: string;

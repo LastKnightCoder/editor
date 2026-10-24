@@ -20,6 +20,14 @@ export function flushProviderConfigWrites(): Promise<unknown> {
   return writes;
 }
 
+export function mergeTtsSettings(previous: SettingCompat, snapshot: SettingCompat): SettingCompat {
+  return {
+    ...previous,
+    ttsProviders: snapshot.ttsProviders ?? [],
+    ttsUsageSettings: snapshot.ttsUsageSettings ?? { default: null },
+  };
+}
+
 export function mergeProviderSettings(
   previous: SettingCompat,
   snapshot: SettingCompat
@@ -27,6 +35,8 @@ export function mergeProviderSettings(
   return {
     ...previous,
     database: snapshot.database,
+    ttsProviders: snapshot.ttsProviders ?? [],
+    ttsUsageSettings: snapshot.ttsUsageSettings ?? { default: null },
     sync: { ...previous.sync, active: snapshot.sync.active, plugin: snapshot.sync.plugin },
     imageBed: {
       ...previous.imageBed,

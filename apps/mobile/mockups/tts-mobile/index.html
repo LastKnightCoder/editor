@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端 TTS 设置与插件测试 · 方案 mockup</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="../sync-mobile/sync.css" />
+<link rel="stylesheet" href="tts.css" />
+<script src="../sync-mobile/icons.js"></script>
+<script src="icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>移动端 TTS 设置与插件测试<small>决策稿 · 手机帧 360×760 · 账号、音色和音频数据均为示意</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="overview">1 设置入口与主页</button>
+    <button class="tab" data-tab="account">2 账号与模型</button>
+    <button class="tab" data-tab="test">3 合成与试听</button>
+    <button class="tab" data-tab="clone">4 音色复刻</button>
+    <button class="tab" data-tab="states">5 异常与边界</button>
+    <button class="tab" data-tab="decisions">6 技术方案与待决策</button>
+  </nav>
+</header>
+
+<section class="scene" data-scene="overview">
+  <p class="scene-intro"><b>推荐：我的 → 语音 → 语音合成。</b>宿主统一管账号、模型、当前音色和测试；插件只负责 MiniMax / Qwen 的厂商参数与请求。插件详情的“设置”不再裸渲染 TTS 表单，而是进入同一套语音设置。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="big-title">我的</div>
+        <div class="scr">
+          <div class="gl">数据</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-sky" data-i="cloud" data-s="17"></span><span class="mid"><b>同步</b></span><span class="val">本地</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row"><span class="tile t-butter" data-i="folder" data-s="17"></span><span class="mid"><b>图片与附件</b></span><span class="val">这台手机</span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gl">语音</div>
+          <div class="grp">
+            <div class="row tts-highlight"><span class="tile t-lilac" data-i="audio-lines" data-s="18"></span><span class="mid"><b>语音合成</b></span><span class="val">MiniMax 主账号</span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gl">外观</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-rose" data-i="moon" data-s="17"></span><span class="mid"><b>主题</b></span><span class="val">暖纸 · 跟随系统</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row"><span class="tile t-sage" data-i="image" data-s="17"></span><span class="mid"><b>图片渲染</b></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gl">编辑器</div>
+          <div class="grp"><div class="row"><span class="tile t-butter" data-i="book-open" data-s="17"></span><span class="mid"><b>打开文档时</b></span><span class="val">阅读模式</span><span class="chev" data-i="chevron-right"></span></div></div>
+        </div>
+        <div class="tts-dock"><span data-i="calendar" data-s="20">今天</span><span data-i="file-text" data-s="20">卡片</span><span data-i="search" data-s="20">搜索</span><span class="on" data-i="settings-2" data-s="20">我的</span></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>“我的”新增语音分组</div>
+      <details class="note" open><summary>设计说明</summary><ul><li>值直接显示当前账号；未配置时显示“未设置”。</li><li>独立“语音”分组可承接后续 ASR，但本次只实现“语音合成”。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">语音合成</span><span class="ib"></span></div>
+        <div class="scr tts-scroll">
+          <div class="gl">当前服务</div>
+          <div class="grp">
+            <div class="row plain"><span class="mid"><b>账号</b></span><span class="tts-row-value">MiniMax 主账号</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row plain"><span class="mid"><b>模型</b></span><span class="tts-row-value tts-mono">speech-2.8-hd</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row plain"><span class="mid"><b>音色</b><span>从服务商获取，也可输入音色 ID</span></span><span class="tts-row-value">中文女声</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row action"><span data-i="volume-2" data-s="17"></span>测试当前服务</div>
+          </div>
+          <div class="gn">后续编辑器朗读等消费方使用这里的选择；测试不会改写它。</div>
+          <div class="gl">语音服务 <a>添加</a></div>
+          <div class="grp">
+            <div class="row"><span class="tile t-lilac">M</span><span class="mid"><b>MiniMax 主账号</b><span>4 个模型 · 已配置</span></span><span class="tts-current">当前</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row"><span class="tile t-sky">Q</span><span class="mid"><b>Qwen 备用</b><span>1 个模型 · 已配置</span></span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row action"><span data-i="plus" data-s="16"></span>添加语音服务</div>
+          </div>
+          <div class="gn">同一插件可添加多个账号。插件停用后配置保留，恢复启用后继续使用。</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>语音合成主页</div>
+      <details class="note" open><summary>设计说明</summary><ul><li>点账号行进入配置，不做“点列表立即切换”的隐式操作。</li><li>当前服务与账号管理同页，避免桌面 ProviderSwitcher 在窄屏上横向挤压。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">语音合成</span><span class="ib"></span></div>
+        <div class="scr tts-scroll">
+          <div class="tts-empty">
+            <span class="empty-icon" data-i="audio-lines" data-s="27"></span>
+            <h3>还没有语音服务</h3>
+            <p>添加 MiniMax 或 Qwen 账号，<br />选择模型与音色后即可合成试听。</p>
+            <div class="btn pri"><span data-i="plus" data-s="17"></span>添加语音服务</div>
+          </div>
+          <div class="gl">已启用且支持语音的插件</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-lilac">M</span><span class="mid"><b>MiniMax</b><span>语音合成 · 音色复刻</span></span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row"><span class="tile t-sky">Q</span><span class="mid"><b>Qwen</b><span>语音合成 · 音色复刻</span></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gn">没有可用插件时，这里改为“去插件中心”，不展示虚构服务。</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>首次进入 / 空状态</div>
+      <details class="note" open><summary>设计说明</summary><ul><li>首屏直接提供下一步，不放无法操作的“当前服务”空表单。</li><li>插件清单来自真实 runtime 注册结果。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">MiniMax</span><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+        <div class="scr tts-scroll">
+          <div class="tts-plugin-hero"><span class="tile lg t-lilac">M</span><span class="mid"><b>MiniMax</b><small>@tau · v0.1.10 · 已启用</small></span><span class="tts-current ok">运行中</span></div>
+          <div class="tts-tabs"><span>介绍</span><span class="on">设置</span><span>权限</span></div>
+          <div class="tts-settings-card">
+            <span class="tile lg t-lilac" data-i="audio-lines" data-s="21"></span>
+            <h3>语音服务配置</h3>
+            <p>账号、模型、当前音色与合成测试由 Tau 统一管理。同一插件可以配置多个独立账号。</p>
+            <div class="btn pri">打开语音配置</div>
+          </div>
+          <div class="grp"><div class="row"><span class="tile t-mute" data-i="info" data-s="17"></span><span class="mid"><b>配置保存在本机</b><span>停用插件不会删除账号与模型</span></span></div></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>插件详情 → 统一设置</div>
+      <details class="note" open><summary>为什么跳转</summary><ul><li><code>target: "tts"</code> 的表单必须拿到 <code>ttsConfig.instanceId/value/models/save</code>。</li><li>插件详情没有账号实例上下文，不能像普通设置一样只传 <code>context</code>。</li></ul></details>
+    </div>
+  </div>
+</section>
+
+<section class="scene" data-scene="account">
+  <p class="scene-intro"><b>账号页 = 宿主外壳 + 插件移动设置。</b>两个 TTS 插件新增自己的 <code>mobile-settings.tsx</code>，沿用现有同步/上传插件的账号弹层模式；桌面表单保持原样。模型与音色复刻由宿主承载。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">MiniMax 主账号</span><span class="ib"></span></div>
+        <div class="scr tts-scroll">
+          <div class="gl">账号</div>
+          <div class="grp"><div class="row plain"><span class="mid"><b>显示名称</b></span><span class="tts-row-value">MiniMax 主账号</span><span class="chev" data-i="chevron-right"></span></div></div>
+          <div style="height:8px"></div>
+          <div class="tts-account"><span class="tile t-lilac" data-i="key-round" data-s="17"></span><span class="mid"><b>已填写账号</b><small>API Key 与服务地址由 MiniMax 插件保存</small></span><span class="action">更换</span></div>
+          <div class="gn">账号凭据按账号实例隔离，测试使用最近一次成功保存的配置。</div>
+          <div class="gl">模型 <a>4 个</a></div>
+          <div class="grp">
+            <div class="row plain"><span class="mid"><b class="tts-mono">speech-2.8-hd</b></span><span class="tts-current">当前使用</span></div>
+            <div class="row plain"><span class="mid"><b class="tts-mono">speech-2.8-turbo</b></span></div>
+            <div class="row action">管理模型</div>
+          </div>
+          <div class="gl">更多</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-sage" data-i="mic" data-s="17"></span><span class="mid"><b>音色复刻</b><span>从参考音频创建可用音色</span></span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row danger"><span class="tile" data-i="trash-2" data-s="16"></span><span class="mid"><b>删除此账号</b></span></div>
+          </div>
+        </div>
+        <div class="tts-footer"><div class="btn soft" data-i="volume-2" data-s="17">测试此服务</div><div class="btn pri dis">当前语音服务</div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>账号详情</div>
+      <details class="note" open><summary>设计说明</summary><ul><li>可测试任意已保存账号，不要求先设为当前服务。</li><li>底部是拇指区主操作；账号、模型等低频管理向上收纳。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">MiniMax 主账号</span><span class="ib"></span></div>
+        <div class="scr tts-disabled">
+          <div class="gl">账号</div><div class="tts-account"><span class="tile t-lilac" data-i="key-round" data-s="17"></span><span class="mid"><b>已填写账号</b><small>API Key 与服务地址由插件保存</small></span><span class="action">更换</span></div>
+          <div class="gl">模型</div><div class="grp"><div class="row plain"><span class="mid"><b class="tts-mono">speech-2.8-hd</b></span></div></div>
+        </div>
+        <div class="mask"></div>
+        <div class="sheet tts-sheet">
+          <div class="grab"></div>
+          <div class="sh-t"><span>MiniMax 账号</span><span class="x-btn" data-i="x" data-s="15"></span></div>
+          <div class="sh-d">凭据只用于这个账号实例。保存时会校验格式，并保留已有模型。</div>
+          <div class="tts-field"><label>API Key</label><div class="tts-input">••••••••••••••••••••••••<span class="end" data-i="eye" data-s="16"></span></div></div>
+          <div class="tts-field"><label>服务地址 <span class="tts-muted">（可选）</span></label><div class="tts-input placeholder">留空使用官方地址</div><small>仅允许 HTTP(S)，保存时去掉末尾斜线。</small></div>
+          <div class="btns"><div class="btn pri">保存账号</div></div>
+          <div class="gn">插件停用或工作区失效时，不显示迟到的“保存成功”。</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>插件移动设置弹层</div>
+      <details class="note" open><summary>落地方式</summary><ul><li>参考上传插件：<code>usePluginEnvironment()</code> 在移动端切换到独立表单。</li><li>复用 <code>ConfigurationPanel</code> 的账号弹层、串行保存和错误呈现；将其“存储位置”硬编码改为可配置/可隐藏。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">语音合成</span><span class="ib"></span></div>
+        <div class="scr tts-disabled"><div class="tts-empty"><span class="empty-icon" data-i="audio-lines" data-s="27"></span><h3>还没有语音服务</h3><p>添加账号后即可开始。</p></div></div>
+        <div class="mask"></div>
+        <div class="sheet tts-sheet">
+          <div class="grab"></div>
+          <div class="sh-t"><span>添加语音服务</span><span class="x-btn" data-i="x" data-s="15"></span></div>
+          <div class="sh-d">仅显示已安装、已启用并成功注册 TTS 的插件。</div>
+          <div class="svc"><span class="tile lg t-lilac">M</span><span class="mid"><b>MiniMax</b><span>4 个预设模型 · 支持音色复刻</span></span><span class="chev" data-i="chevron-right"></span></div>
+          <div class="svc"><span class="tile lg t-sky">Q</span><span class="mid"><b>Qwen</b><span>阿里云百炼 · 支持音色复刻</span></span><span class="chev" data-i="chevron-right"></span></div>
+          <div class="gn">选择后创建账号实例，再输入凭据。没有找到服务？<a>去插件中心</a></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>添加语音服务</div>
+      <details class="note" open><summary>设计说明</summary><ul><li>账号 ID 由宿主生成，不等于插件 ID，因此同一插件可有多份配置。</li><li>账号显示名称可修改；默认取插件名。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">管理模型</span><span class="ib"></span></div>
+        <div class="scr tts-scroll">
+          <div class="gl">MiniMax 主账号</div>
+          <div class="grp">
+            <div class="row plain"><span class="mid"><b class="tts-mono">speech-2.8-hd</b><span>预设模型</span></span><span class="tts-current">当前使用</span><span class="tts-icon-button" data-i="trash-2" data-s="15"></span></div>
+            <div class="row plain"><span class="mid"><b class="tts-mono">speech-2.8-turbo</b><span>预设模型</span></span><span class="tts-icon-button" data-i="trash-2" data-s="15"></span></div>
+            <div class="row plain"><span class="mid"><b class="tts-mono">speech-2.6-hd</b><span>预设模型</span></span><span class="tts-icon-button" data-i="trash-2" data-s="15"></span></div>
+            <div class="row plain"><span class="mid"><b class="tts-mono">speech-2.6-turbo</b><span>预设模型</span></span><span class="tts-icon-button" data-i="trash-2" data-s="15"></span></div>
+          </div>
+          <div class="gl">添加自定义模型</div>
+          <div class="tts-field"><label>模型 ID</label><div class="tts-input placeholder">输入服务商文档中的模型 ID<span class="end" data-i="plus" data-s="17"></span></div><small>模型 ID 在当前账号内唯一；空模型列表首次保存时由插件写入预设目录。</small></div>
+          <div class="tts-status warning"><span data-i="circle-alert" data-s="18"></span><span class="mid"><b>删除当前模型</b><p>当前服务会回落到该账号的第一个模型，并清空已选音色；没有剩余模型时清空当前选择。</p></span></div>
+        </div>
+        <div class="tts-footer single"><div class="btn soft">完成</div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>模型管理</div>
+      <details class="note" open><summary>与桌面对齐</summary><ul><li>保留自定义模型 ID、删除与回落规则，不把模型硬编码成只有两个官方预设。</li><li>音色目录不按模型持久化，切换模型后重新拉取。</li></ul></details>
+    </div>
+  </div>
+</section>
+
+<section class="scene" data-scene="test">
+  <p class="scene-intro"><b>测试是一个真实消费方：获取音色 → 合成字节 → 页内播放。</b>使用已保存的账号配置，不改变当前服务；生成后由用户点播放，不自动发声。测试文本与音频只留在当前页面，离开即取消并释放资源。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">测试语音</span><span class="ib"></span></div>
+        <div class="scr tts-scroll">
+          <div class="tts-context"><span class="tile t-lilac">M</span><span class="mid"><b>MiniMax 主账号</b><small>已保存配置 · 不会改变当前服务</small></span><span class="tts-current ok">已配置</span></div>
+          <div class="gl">服务与音色</div>
+          <div class="grp">
+            <div class="row plain"><span class="mid"><b>模型</b></span><span class="tts-row-value tts-mono">speech-2.8-hd</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row plain"><span class="mid"><b>音色</b><span>未找到时可手动输入音色 ID</span></span><span class="tts-row-value">中文女声</span><span class="tts-icon-button" data-i="refresh-cw" data-s="15"></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gl">测试文本</div>
+          <div class="tts-textarea">你好，这是一段来自 Tau 移动端的语音合成测试。你可以修改文本，再选择音色试听。<div class="count">42 / 500</div></div>
+          <div class="tts-note"><span data-i="info" data-s="13"></span><span>将真实调用 MiniMax 接口并产生用量。修改账号后请先保存，测试不会读取弹层里的未保存草稿。</span></div>
+        </div>
+        <div class="tts-footer single"><div class="btn pri" data-i="volume-2" data-s="18">合成并试听</div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>待测试</div>
+      <details class="note" open><summary>设计说明</summary><ul><li>500 字只限制这个测试面板，避免误触产生长音频；不改变公共 TTS 契约。</li><li>测试入口可从当前服务或任意账号进入。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">测试语音</span><span class="ib"></span></div>
+        <div class="scr tts-disabled"><div class="tts-context"><span class="tile t-lilac">M</span><span class="mid"><b>MiniMax 主账号</b><small>已保存配置</small></span></div><div class="gl">服务与音色</div><div class="grp"><div class="row plain"><span class="mid"><b>音色</b></span><span class="val">中文女声</span></div></div></div>
+        <div class="mask"></div>
+        <div class="sheet tts-sheet">
+          <div class="grab"></div>
+          <div class="sh-t"><span>选择音色</span><span class="x-btn" data-i="x" data-s="15"></span></div>
+          <div class="tts-sheet-search"><span data-i="search" data-s="15"></span>搜索名称或音色 ID</div>
+          <div class="gl">系统音色</div>
+          <div class="row plain"><span class="mid"><b>中文女声</b><span>自然 · 清晰</span></span><span class="tts-current">已选</span></div>
+          <div class="row plain"><span class="mid"><b>沉稳男声</b><span>低沉 · 叙述</span></span></div>
+          <div class="row plain"><span class="mid"><b>活力少年</b><span>明快 · 年轻化</span></span></div>
+          <div class="gl">我的复刻</div>
+          <div class="row plain"><span class="mid"><b>我的中文音色</b><span>复刻音色</span></span></div>
+          <div class="row action">手动输入音色 ID</div>
+          <div class="gn">列表来自当前账号 + 当前模型；刷新失败保留上次列表并展示错误。</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>音色选择</div>
+      <details class="note" open><summary>设计说明</summary><ul><li>支持搜索、系统/复刻/自定义类型和手动 ID，保留桌面能力。</li><li>Qwen 会合并系统音色与已部署完成的复刻音色。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">测试语音</span><span class="ib"></span></div>
+        <div class="scr tts-scroll">
+          <div class="tts-context tts-disabled"><span class="tile t-lilac">M</span><span class="mid"><b>MiniMax 主账号</b><small>speech-2.8-hd · 中文女声</small></span></div>
+          <div class="tts-status"><span class="spin" data-i="loader-circle" data-s="19"></span><span class="mid"><b>正在合成语音…</b><p>正在请求 MiniMax。没有可展示的流式进度，因此不显示虚假百分比。</p></span></div>
+          <div class="gl">测试文本</div>
+          <div class="tts-textarea tts-disabled">你好，这是一段来自 Tau 移动端的语音合成测试。你可以修改文本，再选择音色试听。<div class="count">42 / 500</div></div>
+          <div class="tts-note"><span data-i="info" data-s="13"></span><span>取消、离开页面、停用插件或切换工作区都会终止等待；厂商已完成的操作仍可能计费。</span></div>
+        </div>
+        <div class="tts-footer"><div class="btn soft">取消测试</div><div class="btn pri dis"><span class="spin" data-i="loader-circle" data-s="16"></span>合成中</div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>合成中 / 可取消</div>
+      <details class="note" open><summary>设计说明</summary><ul><li>契约一次返回完整 <code>Uint8Array</code>，不是流式音频。</li><li>宿主取消后不再交付迟到结果，但不承诺撤销厂商端已执行操作。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">测试语音</span><span class="ib"></span></div>
+        <div class="scr tts-scroll">
+          <div class="tts-context"><span class="tile t-lilac">M</span><span class="mid"><b>MiniMax 主账号</b><small>speech-2.8-hd · 中文女声</small></span><span class="tts-current ok">成功</span></div>
+          <div class="tts-status success"><span data-i="circle-check" data-s="19"></span><span class="mid"><b>合成成功，可以试听</b><p>音频仅用于本页测试，不会插入文档或上传到附件。</p></span></div>
+          <div class="tts-audio-card">
+            <div class="tts-audio-main"><span class="tts-play" data-i="play" data-s="19"></span><span class="tts-audio-info"><b>语音测试</b><small>MP3 · 18.4 KB</small></span><span class="tts-icon-button" data-i="volume-2" data-s="18"></span></div>
+            <div class="tts-wave" data-wave></div>
+            <div class="tts-time"><span>00:00</span><span>00:04</span></div>
+          </div>
+          <div class="gl">测试文本</div>
+          <div class="tts-textarea">你好，这是一段来自 Tau 移动端的语音合成测试。你可以修改文本，再选择音色试听。<div class="count">42 / 500</div></div>
+          <div class="tts-note"><span data-i="info" data-s="13"></span><span>再次合成或离开页面时停止播放并释放 Blob URL；本方案不承诺后台播放。</span></div>
+        </div>
+        <div class="tts-footer single"><div class="btn soft" data-i="refresh-cw" data-s="16">重新生成</div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>成功 / 页内试听</div>
+      <details class="note" open><summary>设计说明</summary><ul><li><code>Uint8Array → Blob → ObjectURL → 现有 AudioPlayer</code>，无需 Electron IPC。</li><li>生成完成不自动播放，避免异步完成后突然发声。</li></ul></details>
+    </div>
+  </div>
+</section>
+
+<section class="scene" data-scene="clone">
+  <p class="scene-intro"><b>音色复刻作为账号级能力保留。</b>宿主只提供文件、名称与取消，具体上传、大小限制和音色 ID 由插件处理。MiniMax 直传厂商；Qwen 必须先有公开可访问的上传地址，本地附件模式不能绕过。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">音色复刻</span><span class="ib"></span></div>
+        <div class="scr tts-scroll">
+          <div class="tts-context"><span class="tile t-lilac">M</span><span class="mid"><b>MiniMax 主账号</b><small>speech-2.8-hd · 使用已保存配置</small></span></div>
+          <div class="gl">参考音频</div>
+          <div class="tts-file-picker"><span data-i="file-audio" data-s="27"></span><b>选择参考音频</b><small>MP3 / WAV / M4A · 大小与时长由服务商校验</small></div>
+          <div class="tts-selected-file"><span class="tile t-sage" data-i="file-audio" data-s="17"></span><span class="mid"><b>voice-sample.mp3</b><small>3.8 MB</small></span><span class="tts-icon-button" data-i="x" data-s="15"></span></div>
+          <div class="gl">音色信息</div>
+          <div class="tts-field"><label>音色名称</label><div class="tts-input">我的中文音色</div><small>实际音色 ID 以插件返回为准，创建后在音色列表中显示。</small></div>
+          <div class="tts-note"><span data-i="info" data-s="13"></span><span>参考音频会上传到 MiniMax。请选择有权使用的声音；上传后的厂商资产不由 Tau 自动删除。</span></div>
+        </div>
+        <div class="tts-footer single"><div class="btn pri" data-i="mic" data-s="17">开始复刻</div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>选择音频与名称</div>
+      <details class="note" open><summary>设计说明</summary><ul><li>文件选择使用常驻 DOM 的 file input 模式，不走移动不支持的桌面 IFileService。</li><li>不虚构统一大小限制：MiniMax 为 20 MiB，Qwen 为 10 MiB，由插件给出真实错误。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">音色复刻</span><span class="ib"></span></div>
+        <div class="scr tts-scroll">
+          <div class="tts-context tts-disabled"><span class="tile t-lilac">M</span><span class="mid"><b>我的中文音色</b><small>voice-sample.mp3 · 3.8 MB</small></span></div>
+          <div class="tts-status"><span class="spin" data-i="loader-circle" data-s="19"></span><span class="mid"><b>正在创建复刻音色…</b><p>插件正在上传参考音频并请求 MiniMax 创建音色，请保持此页打开。</p></span></div>
+          <div class="tts-steps"><span>上传参考音频</span><span>→</span><span class="on">创建音色</span><span>→</span><span>完成</span></div>
+          <div class="tts-note"><span data-i="info" data-s="13"></span><span>阶段只表示当前调用，不表示字节进度。取消后不再继续下一步，也不交付迟到结果。</span></div>
+        </div>
+        <div class="tts-footer"><div class="btn soft">取消</div><div class="btn pri dis"><span class="spin" data-i="loader-circle" data-s="16"></span>复刻中</div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>复刻中</div>
+      <details class="note" open><summary>设计说明</summary><ul><li>MiniMax：文件上传 → voice_clone；Qwen：远端上传 → 公共 HEAD → create_voice。</li><li>任一步取消或失败，都不能自动发起后续请求。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">音色复刻</span><span class="ib"></span></div>
+        <div class="scr tts-scroll">
+          <div class="tts-status success"><span data-i="circle-check" data-s="20"></span><span class="mid"><b>复刻音色已创建</b><p>MiniMax 已返回真实音色身份，可以刷新后用于合成。</p></span></div>
+          <div class="gl">新音色</div>
+          <div class="grp"><div class="row"><span class="tile t-sage" data-i="mic" data-s="17"></span><span class="mid"><b>我的中文音色</b><span class="tts-mono">tau_9f3c…a21</span></span><span class="tts-current ok">复刻</span></div></div>
+          <div class="gn">宿主不猜音色 ID，也不把名称当成 ID；展示插件实际返回值。</div>
+          <div class="gl">下一步</div>
+          <div class="grp"><div class="row action"><span data-i="refresh-cw" data-s="16"></span>刷新音色并测试</div></div>
+          <div class="tts-note"><span data-i="info" data-s="13"></span><span>Qwen 若仍在部署，则显示“已提交，部署完成后可用”，不会提前宣称可合成。</span></div>
+        </div>
+        <div class="tts-footer single"><div class="btn soft">完成</div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>创建成功</div>
+      <details class="note" open><summary>设计说明</summary><ul><li>复刻音色属于厂商侧资产，宿主只保存当前选择，不复制一份音色目录。</li><li>Qwen 的 DEPLOYING → OK 通过后续刷新区分。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">Qwen 音色复刻</span><span class="ib"></span></div>
+        <div class="scr tts-scroll">
+          <div class="tts-context"><span class="tile t-sky">Q</span><span class="mid"><b>Qwen 备用</b><small>qwen-audio-3.1-tts-flash</small></span></div>
+          <div class="tts-status warning"><span data-i="circle-alert" data-s="20"></span><span class="mid"><b>需要公开可访问的上传地址</b><p>当前“图片与附件”保存到这台手机，百炼无法拉取本地文件。请先配置支持公共读的远端上传服务。</p><a class="text-action">去配置上传服务</a></span></div>
+          <div class="gl">参考音频</div>
+          <div class="tts-file-picker tts-disabled"><span data-i="file-audio" data-s="27"></span><b>选择参考音频</b><small>完成上传服务配置后可继续</small></div>
+          <div class="tts-note"><span data-i="info" data-s="13"></span><span>不会擅自切换到其他上传账号，也不会把本地资源伪装成公网地址。</span></div>
+        </div>
+        <div class="tts-footer single"><div class="btn pri dis">开始复刻</div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>Qwen 前置条件</div>
+      <details class="note" open><summary>设计说明</summary><ul><li>Qwen 会对上传 URL 做无认证 HEAD；私有或 403 地址必须在创建音色前失败。</li><li>普通 Qwen 合成不依赖上传服务，仍可独立使用。</li></ul></details>
+    </div>
+  </div>
+</section>
+
+<section class="scene" data-scene="states">
+  <p class="scene-intro"><b>错误留在当前任务上下文里，并给出下一步。</b>保存失败不发布假成功；插件停用不删除配置；测试失败不生成空音频。所有错误都不回显 API Key。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">语音合成</span><span class="ib"></span></div>
+        <div class="scr tts-scroll">
+          <div class="tts-banner"><b>MiniMax 插件已停用</b>已保存的账号、模型与当前选择仍然保留；启用插件后可继续。<a>去插件中心启用</a></div>
+          <div class="gl">当前服务</div>
+          <div class="grp tts-disabled">
+            <div class="row plain"><span class="mid"><b>账号</b></span><span class="val">MiniMax 主账号</span></div>
+            <div class="row plain"><span class="mid"><b>模型</b></span><span class="tts-row-value tts-mono">speech-2.8-hd</span></div>
+            <div class="row action">测试当前服务</div>
+          </div>
+          <div class="gl">语音服务</div>
+          <div class="grp"><div class="row"><span class="tile t-lilac">M</span><span class="mid"><b>MiniMax 主账号</b><span>插件不可用 · 配置已保留</span></span><span class="tts-current warn">不可用</span><span class="chev" data-i="chevron-right"></span></div></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>插件停用 / 配置保留</div>
+      <details class="note" open><summary>行为边界</summary><ul><li>正在进行的 voices / synthesize / clone 调用收到 AbortError。</li><li>不能静默回落到另一个账号，避免用户误用其他厂商。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">测试语音</span><span class="ib"></span></div>
+        <div class="scr tts-scroll">
+          <div class="tts-context"><span class="tile t-lilac">M</span><span class="mid"><b>MiniMax 主账号</b><small>speech-2.8-hd · 中文女声</small></span></div>
+          <div class="tts-status error"><span data-i="circle-alert" data-s="20"></span><span class="mid"><b>鉴权失败（401）</b><p>请检查 API Key 是否有效，以及服务地址是否指向兼容接口。本次没有生成音频。</p><a class="text-action">检查账号配置</a></span></div>
+          <div class="gl">测试文本</div>
+          <div class="tts-textarea">你好，这是一段来自 Tau 移动端的语音合成测试。你可以修改文本，再选择音色试听。<div class="count">42 / 500</div></div>
+          <div class="tts-note"><span data-i="info" data-s="13"></span><span>401 等永久错误不自动重试；限流、服务错误与可恢复网络错误按插件策略处理。</span></div>
+        </div>
+        <div class="tts-footer single"><div class="btn soft" data-i="refresh-cw" data-s="16">修改后重试</div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>合成失败 / 可行动错误</div>
+      <details class="note" open><summary>行为边界</summary><ul><li>不只弹一闪而过的 Toast，错误与“检查账号”动作留在页内。</li><li>网络错误分类不能依赖英文或中文错误文案。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">MiniMax 主账号</span><span class="ib"></span></div>
+        <div class="scr tts-disabled"><div class="gl">账号</div><div class="tts-account"><span class="tile t-lilac" data-i="key-round" data-s="17"></span><span class="mid"><b>已填写账号</b><small>上次成功保存的配置</small></span><span class="action">更换</span></div></div>
+        <div class="mask"></div>
+        <div class="sheet tts-sheet">
+          <div class="grab"></div><div class="sh-t"><span>MiniMax 账号</span><span class="x-btn" data-i="x" data-s="15"></span></div>
+          <div class="tts-field"><label>API Key</label><div class="tts-input">••••••••••••••••••••••••</div></div>
+          <div class="tts-field"><label>服务地址</label><div class="tts-input">https://api.minimaxi.com</div></div>
+          <div class="tts-status error"><span data-i="circle-alert" data-s="18"></span><span class="mid"><b>保存失败</b><p>设置文件暂时不可写。账号仍使用上一次成功保存的配置，请稍后重试。</p></span></div>
+          <div class="btns"><div class="btn pri">重试保存</div></div>
+          <div class="gn">原生原子写入成功并返回权威快照后，才更新界面与发布“已保存”。</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>保存失败 / 不污染配置</div>
+      <details class="note" open><summary>行为边界</summary><ul><li>不能直接用当前返回 void 的 <code>updateSetting(..., persist: true)</code> 冒充插件保存成功。</li><li>普通设置全量写也不能覆盖原生管理的 TTS 字段。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">测试语音</span><span class="ib"></span></div>
+        <div class="scr tts-scroll">
+          <div class="tts-context"><span class="tile t-sky">Q</span><span class="mid"><b>Qwen 备用</b><small>qwen-audio-3.1-tts-flash · 雨小云</small></span></div>
+          <div class="tts-status error"><span data-i="cloud-off" data-s="20"></span><span class="mid"><b>网络连接失败</b><p>请检查网络与服务地址。任务已停止等待，不会在后台继续重试。</p></span></div>
+          <div class="gl">测试文本</div>
+          <div class="tts-textarea">这是一段 Qwen 移动端合成测试。<div class="count">14 / 500</div></div>
+          <div class="tts-note"><span data-i="info" data-s="13"></span><span>恢复网络后由用户主动重试；前后台切换与迟到响应需要真机验收。</span></div>
+        </div>
+        <div class="tts-footer single"><div class="btn pri" data-i="refresh-cw" data-s="16">重试</div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>断网 / 恢复后重试</div>
+      <details class="note" open><summary>行为边界</summary><ul><li>移动原生桥的错误可能是中文 <code>TypeError</code>，MiniMax 重试逻辑需要宿主无关的分类。</li><li>测试只承诺页内任务，不做后台音频会话。</li></ul></details>
+    </div>
+  </div>
+</section>
+
+<section class="scene" data-scene="decisions">
+  <p class="scene-intro"><b>建议一次完成“宿主运行时 + 设置 + 真实合成测试 + 音色复刻”，再做移动端发行声明。</b>编辑器正文“文本转语音”、播客、后台播放与系统钥匙串改造不混入本次；它们需要另外的消费链路与验收。</p>
+  <div class="tts-decisions">
+    <div class="card">
+      <h3>推荐架构：同 WebView 直接调用</h3>
+      <p>抽提桌面纯 JS 的 TTS 注册/会话核心，移动端每个 runtime 持有一份实例。无需 Electron relay，也无需为两个厂商各写 Rust。</p>
+      <div class="tts-flow"><span>设置 / 测试 UI</span><i>→</i><span>移动 TTS service</span><i>→</i><span>共享 TTS registry</span><i>→</i><span>插件实例</span><i>→</i><span>context.fetch</span></div>
+      <ul><li>账号配置与模型在 open 时冻结，取消与插件停用统一处理。</li><li>音频直接 Blob 试听，不经过主进程复制完整字节。</li><li>Qwen 复刻继续使用现有 <code>context.upload.uploadRemote</code>。</li></ul>
+    </div>
+    <div class="card">
+      <h3>配置：沿用桌面数据形状</h3>
+      <ul><li><code>ttsProviders[]</code>：账号实例 ID、插件 ID、名称、私有 config、models。</li><li><code>ttsUsageSettings.default</code>：当前账号、模型、音色。</li><li>新增原生 TTS mutation，复用 <code>mutate_setting_value</code> 的串行原子落盘。</li><li>校验窗口、工作区、账号归属、模型非空与去重；成功返回快照后再更新 UI。</li><li><code>preserve_managed_fields</code> 同步保护 TTS 字段，防止陈旧全量写覆盖。</li></ul>
+    </div>
+    <div class="card wide">
+      <h3>实施顺序与验收</h3>
+      <table class="cmp"><thead><tr><th>阶段</th><th>改动</th><th>通过判据</th></tr></thead><tbody>
+        <tr><td>1. 共享核心</td><td>抽桌面 registry，移动注入 <code>tts</code>；开放 <code>target:"tts"</code></td><td>注册、账号/模型冻结、取消、停用、切库与桌面回归</td></tr>
+        <tr><td>2. 配置与 UI</td><td>原生 TTS 配置 mutation；语音入口、账号/模型/当前服务页面</td><td>保存重开、多账号不串值、失败不发布、旧快照不覆盖</td></tr>
+        <tr><td>3. 真实测试</td><td>voices、合成、Blob 播放、插件 validation 的 <code>tts</code> 套件</td><td>真实 ZIP 在正常 AppShell 完成配置 → 音色 → 合成 → 试听</td></tr>
+        <tr><td>4. 插件适配</td><td>两个插件新增移动设置、复刻交互与 MiniMax 网络错误分类修正</td><td>MiniMax 全链路，再 Qwen 合成/复刻；覆盖公共上传前置条件</td></tr>
+        <tr><td>5. 发行</td><td>真机通过后更新 manifest、版本、兼容文档和中心选版</td><td>同一 portable ZIP 支持 desktop/android/ios，最低版本指向新宿主</td></tr>
+      </tbody></table>
+    </div>
+    <div class="card wide">
+      <h3>主要接线位置</h3>
+      <div class="tts-file-list">
+        <span>packages/plugins/src/tts-host.ts（新增共享核心） · apps/desktop/src/app/plugins/tts-registry.ts（保留桌面包装）</span>
+        <span>apps/mobile/src/app/plugins/runtime.ts · apps/mobile/src/services/plugin-tts.ts</span>
+        <span>apps/mobile/src/features/settings/tts/* · components/OverviewSection.tsx · SettingsModulePage.tsx</span>
+        <span>apps/mobile/src-tauri/src/provider_settings.rs 或独立 tts_settings.rs · setting.rs · services/tauri.ts</span>
+        <span>apps/mobile/validation/host/tts.ts · plugins/tau-plugin-tts-{minimax,qwen}/src/mobile-settings.tsx</span>
+      </div>
+    </div>
+
+    <div class="card wide"><h2>需要你决策的 4 件事</h2><p>以下选项是推荐默认值；确认后再进入业务实现。</p></div>
+    <div class="card">
+      <h3>D1 · 本次是否包含音色复刻？ <span class="tts-decision-label">推荐包含</span></h3>
+      <p><b>方案 A：</b>合成 + 音色 + 复刻一次完成，才能称为两个插件完整支持移动端。</p>
+      <p><span class="tts-decision-label alt">精简方案</span> 先不做复刻，可缩小首轮范围，但 Qwen/MiniMax 都属于能力不完整，manifest 与兼容说明必须明确。</p>
+    </div>
+    <div class="card">
+      <h3>D2 · 设置入口是否按 mockup？ <span class="tts-decision-label">推荐统一入口</span></h3>
+      <p><b>我的 → 语音 → 语音合成</b>，插件详情也跳到这里；账号与当前服务集中管理。</p>
+      <p><span class="tts-decision-label alt">备选</span> 只在插件详情配置，入口更深，多账号与当前音色还要继续跳转，不建议。</p>
+    </div>
+    <div class="card">
+      <h3>D3 · 测试能否改当前服务？ <span class="tts-decision-label">推荐不改</span></h3>
+      <p>任意账号都可独立测试；只有显式“设为当前语音服务”才修改默认账号、模型与音色。</p>
+      <p><span class="tts-decision-label alt">备选</span> 只允许测试默认服务，实现略少，但新账号必须先启用才能验证，容易误切。</p>
+    </div>
+    <div class="card">
+      <h3>D4 · 旧配置如何处理？ <span class="tts-decision-label">推荐保守迁移</span></h3>
+      <p>已有同形 <code>ttsProviders</code> 直接保留；仅对非空旧 MiniMax 凭据做带备份迁移，不从空默认值创建账号。</p>
+      <p>Doubao 没有本次对应插件，不伪造迁移。也可选择本期完全不迁旧 MiniMax，但要明确告知用户重新配置。</p>
+    </div>
+    <div class="card wide">
+      <h3>明确不在本次范围</h3>
+      <ul><li>编辑器工具栏“文本转语音”与生成后插入音频附件。</li><li>播客生成、长音频任务、流式播放、锁屏/后台播放。</li><li>把 API Key 从应用私有 setting.json 迁到系统钥匙串（当前桌面也未加密，需单独安全改造）。</li><li>真实厂商密钥进入自动化测试；自动验证用模拟厂商响应，真机冒烟再由你提供测试条件。</li></ul>
+    </div>
+  </div>
+</section>
+
+<script src="tts.js"></script>
+</body>
+</html>

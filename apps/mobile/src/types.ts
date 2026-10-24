@@ -550,7 +550,46 @@ export interface UpdateTodoRecurrencePayload {
   maxOccurrences?: number | null;
 }
 
+export interface TTSModelSetting {
+  id: string;
+  label?: string;
+}
+
+export interface PluginTTSProviderSetting {
+  id: string;
+  name: string;
+  pluginId: string;
+  config: import("@tau/plugins").JsonValue;
+  models: TTSModelSetting[];
+}
+export type TTSProviderSetting = PluginTTSProviderSetting;
+
+export interface TTSUsageConfig {
+  providerId: string;
+  modelId: string;
+  voiceId: string;
+}
+
+export type PluginTtsMutation =
+  | { type: "create"; pluginId: string; name: string }
+  | {
+      type: "saveConfig";
+      instanceId: string;
+      pluginId: string;
+      config: import("@tau/plugins").JsonValue;
+      models: TTSModelSetting[];
+    }
+  | { type: "rename"; instanceId: string; name: string }
+  | { type: "deleteAccount"; instanceId: string }
+  | { type: "addModel"; instanceId: string; model: TTSModelSetting }
+  | { type: "deleteModel"; instanceId: string; modelId: string }
+  | { type: "select"; selection: TTSUsageConfig | null };
+
 export interface SettingCompat {
+  ttsProviders?: TTSProviderSetting[];
+  ttsUsageSettings?: {
+    default: TTSUsageConfig | null;
+  };
   database: {
     active: string;
     databases: DatabaseItem[];

@@ -260,10 +260,14 @@ export function ConfigurationPanel({
           {hasAccount ? "更换" : "去连接"}
         </Button>
       </div>
-      <p className="text-ink-3 text-tau-meta px-4">存储位置</p>
-      <div className="bg-surface shadow-card rounded-tau-lg">
-        {fields.map(field => renderField(field, true))}
-      </div>
+      {fields.length > 0 && (
+        <>
+          <p className="text-ink-3 text-tau-meta px-4">存储位置</p>
+          <div className="bg-surface shadow-card rounded-tau-lg">
+            {fields.map(field => renderField(field, true))}
+          </div>
+        </>
+      )}
       {error && (
         <p role="alert" className="text-danger text-tau-meta">
           {error}
