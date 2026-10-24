@@ -2,7 +2,7 @@
 
 跨端公共 API、作者职责与校验规则见 [跨端契约](./docs/portability.md)，逐项宿主支持和作者适配范围见 [API 支持矩阵](./docs/api-support.md)。
 
-生产边界：桌面旧格式插件从中心安装，博客收集既有内容插件依赖；格式 3 在桌面开发目录与移动调试宿主运行，移动 release 安装仍关闭，浏览器扩展不加载应用插件。中心支持格式 3 上传待审但关闭批准发布与平台分发。内部宿主入口不随作者 tarball 发布；当前边界见[跨端宿主架构](/docs/architecture/plugin-portability.md)。
+生产边界：官方应用插件新发行统一使用格式 3，按目标平台、最低客户端版本与实际宿主实现选版；桌面、Android、iOS 通过固定插件中心安装。作者只使用现有插件 API 与平台声明，构建器自动生成白板装配信息；内部宿主入口不随作者 tarball 发布。当前边界见[跨端宿主架构](/docs/architecture/plugin-portability.md)。
 
 同步插件从SDK0.10.0起通过渲染端context.sync.register注册，使用context.fetch访问宿主网络；不支持manifest.sync或Node后台执行，CLI不再提供同步。SDK0.11.0同时提供context.mcp，支持同一插件注册同步与多个MCP。内容codec的历史Node执行路径另记TODO，本轮不改其行为。完整边界见docs/plugin-system/55，整合与发布记录见docs/plugin-system/60。
 

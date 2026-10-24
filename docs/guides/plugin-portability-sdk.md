@@ -2,7 +2,7 @@
 
 ## 已发布 SDK 的作者验证
 
-官方模板使用 npm 的插件 SDK 0.38.0 和 UI 0.5.0。在仓库根运行：
+官方模板使用 npm 的插件 SDK 0.40.0 和 UI 0.5.0。在仓库根运行：
 
 ```sh
 node scripts/plugins/verify-portable-author.mjs output/plugin-release/author-npm.json --published --frozen-template
@@ -30,7 +30,7 @@ API 支持矩阵只编辑 packages/plugins/docs/api-support.md，随后运行 `n
 进入 `plugins/tau-plugin-template`，使用实际生成的文件名：
 
 ```sh
-node use-local-sdk.mjs ../../output/plugin-phase-a/sdk/xiongtao.xt-tau-plugins-0.38.0.tgz ../../output/plugin-phase-a/sdk/xiongtao.xt-tau-ui-0.5.0.tgz
+node use-local-sdk.mjs ../../output/plugin-phase-a/sdk/xiongtao.xt-tau-plugins-0.40.0.tgz ../../output/plugin-phase-a/sdk/xiongtao.xt-tau-ui-0.5.0.tgz
 pnpm install
 pnpm build
 ```
