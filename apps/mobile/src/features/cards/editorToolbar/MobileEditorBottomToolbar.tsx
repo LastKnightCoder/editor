@@ -11,6 +11,7 @@ import {
   ArrowRight,
   ArrowUp,
   Bold,
+  Check,
   ChevronDown,
   Code,
   Ellipsis,
@@ -134,6 +135,11 @@ type MobileEditorBottomToolbarProps = {
    * 白名单应与宿主场景的渲染能力对齐（能编辑的就能渲染）。
    */
   visibleButtons?: ReadonlySet<AccessoryItemId> | null;
+  /**
+   * 阅读态宿主（内容详情、协作编辑）：右端常驻「完成」退出编辑回到阅读态，
+   * 各模式下的「收起键盘」由它取代；其余宿主仍只收起键盘。
+   */
+  showDoneButton?: boolean;
 };
 
 /** 配件栏高度，同时作为滚动容器的遮挡留白（键盘与面板由外壳收缩避让，不计入） */
@@ -378,7 +384,7 @@ function resolveSourceContext(
 }
 
 export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps) {
-  const { controller, portalContainer, readonly = false, visibleButtons } = props;
+  const { controller, portalContainer, readonly = false, visibleButtons, showDoneButton } = props;
   const keyboardViewport = useKeyboardViewport();
   const [panelSearching, setPanelSearching] = useState(false);
   const [languageSheet, setLanguageSheet] = useState<CodeLanguageSheetState | null>(null);
@@ -682,13 +688,17 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
   }
 
   let rightNode: ReactNode;
+  // 本模式「收起键盘」的动作：有「完成」时由它执行，不再重复渲染收起键盘按钮
+  let keyboardExit: (() => void) | null = null;
   if (codeContext) {
+    keyboardExit = () => closeCodeKeyboard(codeContext);
     rightNode = (
       <AccessoryButton label="收起键盘" onPress={() => closeCodeKeyboard(codeContext)}>
         <KeyboardOff size={ICON_SIZE} strokeWidth={ICON_STROKE} />
       </AccessoryButton>
     );
   } else if (sourceContext) {
+    keyboardExit = closeSourceKeyboard;
     rightNode = (
       <AccessoryButton label="收起键盘" onPress={closeSourceKeyboard}>
         <KeyboardOff size={ICON_SIZE} strokeWidth={ICON_STROKE} />
@@ -711,9 +721,24 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
       </AccessoryButton>
     );
   } else {
+    keyboardExit = exitEditing;
     rightNode = (
       <AccessoryButton label="收起键盘" onPress={exitEditing}>
         <KeyboardOff size={ICON_SIZE} strokeWidth={ICON_STROKE} />
+      </AccessoryButton>
+    );
+  }
+  let doneNode: ReactNode = null;
+  if (showDoneButton) {
+    if (keyboardExit) rightNode = null;
+    doneNode = (
+      <AccessoryButton
+        label="完成"
+        onPress={keyboardExit ?? exitEditing}
+        className="bg-accent-soft text-accent-text mx-1 h-8 gap-1 rounded-full px-3 text-[14px] font-bold"
+      >
+        <Check size={15} strokeWidth={2.6} aria-hidden />
+        完成
       </AccessoryButton>
     );
   }
@@ -763,6 +788,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
               <span aria-hidden="true" className="bg-line-1 mx-1 h-[22px] w-px shrink-0" />
             ) : null}
             {rightNode}
+            {doneNode}
           </nav>,
           portalRoot
         )

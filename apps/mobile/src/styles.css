@@ -216,6 +216,20 @@ code {
   line-height: 1.75;
 }
 
+/* 段间距收到 0.8em：body-lg 字号下原 1.25em 接近一整行，段落显得被切开 */
+.mobile-card-editor-content[data-slate-editor="true"] p[data-slate-node="element"] {
+  margin-bottom: 0.8em;
+}
+
+/* 行内代码去描边、缩字号、淡墨底：body-lg 下描边胶囊近一行高，连续出现时像一排按钮 */
+.mobile-card-editor-content[data-slate-editor="true"] [data-slate-leaf] code {
+  border-color: transparent;
+  border-radius: 5px;
+  background-color: color-mix(in srgb, var(--tau-ink-1) 7%, transparent);
+  padding: 0.1em 0.3em;
+  font-size: 0.84em;
+}
+
 /* ── 通用输入框 ──
    放在 components 层：调用处可用 Tailwind 工具类覆盖底色/圆角/内边距；字号与最小高度是规范，不要覆盖 */
 @layer components {
@@ -552,6 +566,12 @@ code {
 .mobile-topbar {
   min-height: calc(var(--mobile-nav-row-height) + var(--mobile-safe-top));
   padding-top: var(--mobile-safe-top);
+}
+
+/* 纸面页（内容详情）：页面底为表面色，与卡片库里的卡片同一张纸；顶栏渐隐随之改用表面色 */
+.mobile-paper-page {
+  --topbar-fade-start: color-mix(in srgb, var(--tau-bg-surface) 96%, transparent);
+  --topbar-fade-end: color-mix(in srgb, var(--tau-bg-surface) 0%, transparent);
 }
 
 .topbar-immersive {

@@ -11,6 +11,7 @@ import {
   usePage,
   usePageLifecycle,
   paramNumber,
+  paramOptional,
 } from "../index";
 import { BottomSheet } from "../../components/BottomSheet";
 import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
@@ -151,6 +152,18 @@ function registerPages() {
     params: {},
     component: EditorPromptHostPage,
   });
+  definePage({
+    key: "levelPage",
+    match: "params",
+    getId: p => String(p.level ?? "root"),
+    params: { level: paramOptional(paramNumber()) },
+    component: LevelPage,
+  });
+}
+
+function LevelPage() {
+  const { params } = usePage<{ level?: number }>();
+  return <div data-testid={`level-${params.level ?? "root"}`} />;
 }
 
 // 编辑器经 IEditorNotifier 发起的确认（webview 删除等）：返回手势同样先关确认框
@@ -481,6 +494,29 @@ describe("router 集成", () => {
     app.cleanup();
   });
 
+  it("popTo 带 params：弹到同 key 中参数身份相同的实例，找不到时不动栈", async () => {
+    const app = mountApp();
+    const navigator = getNavigator();
+    // 每次 push 单独提交：浏览器历史按提交逐条记录
+    act(() => navigator.push("levelPage", {}));
+    act(() => navigator.push("levelPage", { level: 1 }));
+    act(() => navigator.push("levelPage", { level: 2 }));
+    expect(navigator.getScreenStack().entries).toHaveLength(4);
+    let found = true;
+    act(() => {
+      found = navigator.popTo("levelPage", { level: 9 });
+    });
+    expect(found).toBe(false);
+    expect(navigator.getScreenStack().entries).toHaveLength(4);
+    act(() => {
+      found = navigator.popTo("levelPage", {});
+    });
+    expect(found).toBe(true);
+    await waitFor(() => navigator.getScreenStack().entries.length === 2);
+    expect(navigator.getActiveScreen()?.params).toEqual({});
+    app.cleanup();
+  });
+
   it("popstate 恢复：浏览器返回等同 navigator.goBack", async () => {
     const app = mountApp();
     act(() => {
@@ -541,6 +577,23 @@ describe("返回仲裁（浮层优先）", () => {
     expect(hints).toHaveLength(1);
     expect(navigator.getScreenStack().entries).toHaveLength(1);
     unregister.forEach(remove => remove());
+    app.cleanup();
+  });
+
+  it("声明 blockEdgeBack 的消费器登记期间挡住边缘返回，条件消费器不挡", () => {
+    const app = mountApp();
+    const navigator = getNavigator();
+    const rootId = navigator.getActiveScreen()!.id;
+    const conditional = navigator.registerBackHandler(rootId, () => false);
+    expect(navigator.isEdgeBackBlocked(rootId)).toBe(false);
+    const sheetA = navigator.registerBackHandler(rootId, () => true, { blockEdgeBack: true });
+    const sheetB = navigator.registerBackHandler(rootId, () => true, { blockEdgeBack: true });
+    expect(navigator.isEdgeBackBlocked(rootId)).toBe(true);
+    sheetB();
+    expect(navigator.isEdgeBackBlocked(rootId)).toBe(true);
+    sheetA();
+    expect(navigator.isEdgeBackBlocked(rootId)).toBe(false);
+    conditional();
     app.cleanup();
   });
 

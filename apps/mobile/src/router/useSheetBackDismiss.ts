@@ -38,10 +38,15 @@ export function useSheetBackDismiss(
     // ctx 为渲染期字面量（引用不稳定），但 navigator 引用稳定，此处按 entryId 对齐
     // 与 useBackHandler 相同的依赖策略
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    return ctx!.navigator.registerBackHandler(entryId, async () => {
-      if (confirmRef.current && !(await confirmRef.current())) return true;
-      dismissRef.current();
-      return true;
-    });
+    // 打开期间必定消费返回：边缘返回手势不拖动页面（拖出后只会弹回）
+    return ctx!.navigator.registerBackHandler(
+      entryId,
+      async () => {
+        if (confirmRef.current && !(await confirmRef.current())) return true;
+        dismissRef.current();
+        return true;
+      },
+      { blockEdgeBack: true }
+    );
   }, [open, entryId]);
 }

@@ -39,16 +39,23 @@ function SectionHeader({ label, count }: { label: string; count: number }) {
 }
 
 /** 实体的一行：有承载页面的可点击跳转，其余（日记片段、插件内容）只读展示 */
+/** 条目跳转：先关浮层再推入目标页，浮层（含全局 touchmove 拦截）不随下层页残留 */
+type OpenHandlers = {
+  onOpenEntity: (entity: ContextEntity) => void;
+  onOpenNode: (item: ContextLineageItem | ContextUsage) => void;
+};
+
 function EntityLine({
   entity,
   className = "",
   suffix,
+  onOpen,
 }: {
   entity: ContextEntity;
   className?: string;
   suffix?: ReactNode;
+  onOpen: OpenHandlers["onOpenEntity"];
 }) {
-  const navigator = useNavigator();
   const meta = ENTITY_KIND_META[entity.kind] ?? {
     label: entity.kind,
     icon: Waypoints,
@@ -70,7 +77,7 @@ function EntityLine({
   );
   const layout = `flex w-full items-center gap-3 text-left ${className}`;
   return openable ? (
-    <button type="button" className={layout} onClick={() => openContextEntity(navigator, entity)}>
+    <button type="button" className={layout} onClick={() => onOpen(entity)}>
       {content}
     </button>
   ) : (
@@ -78,15 +85,28 @@ function EntityLine({
   );
 }
 
-function ContextEntityRow({ entity }: { entity: ContextEntity }) {
-  return <EntityLine entity={entity} className="py-3" />;
+function ContextEntityRow({
+  entity,
+  onOpen,
+}: {
+  entity: ContextEntity;
+  onOpen: OpenHandlers["onOpenEntity"];
+}) {
+  return <EntityLine entity={entity} className="py-3" onOpen={onOpen} />;
 }
 
-function ContextLinkRow({ link }: { link: ContextLink }) {
+function ContextLinkRow({
+  link,
+  onOpen,
+}: {
+  link: ContextLink;
+  onOpen: OpenHandlers["onOpenEntity"];
+}) {
   return (
     <EntityLine
       entity={link.entity}
       className="py-3"
+      onOpen={onOpen}
       suffix={
         link.inlineOnly ? <span className="text-ink-3 shrink-0 text-[11px]">内联</span> : null
       }
@@ -94,10 +114,16 @@ function ContextLinkRow({ link }: { link: ContextLink }) {
   );
 }
 
-function ContextBacklinkRow({ backlink }: { backlink: ContextBacklink }) {
+function ContextBacklinkRow({
+  backlink,
+  onOpen,
+}: {
+  backlink: ContextBacklink;
+  onOpen: OpenHandlers["onOpenEntity"];
+}) {
   return (
     <div className="py-3">
-      <EntityLine entity={backlink.source} />
+      <EntityLine entity={backlink.source} onOpen={onOpen} />
       {backlink.snippets.map((snippet, index) => (
         <p key={index} className="text-ink-3 mt-1.5 line-clamp-2 text-[12px] leading-[1.6]">
           {snippet.before}
@@ -109,8 +135,13 @@ function ContextBacklinkRow({ backlink }: { backlink: ContextBacklink }) {
   );
 }
 
-function ContextNodeRow({ item }: { item: ContextLineageItem | ContextUsage }) {
-  const navigator = useNavigator();
+function ContextNodeRow({
+  item,
+  onOpen,
+}: {
+  item: ContextLineageItem | ContextUsage;
+  onOpen: OpenHandlers["onOpenNode"];
+}) {
   const usage = "nodeId" in item ? null : item;
   const meta = usage ? USAGE_KIND_META[usage.kind] : kindMetaOf(item.kind);
   const Icon = meta.icon;
@@ -120,7 +151,7 @@ function ContextNodeRow({ item }: { item: ContextLineageItem | ContextUsage }) {
     <button
       type="button"
       className="flex w-full items-center gap-3 py-3 text-left"
-      onClick={() => openContextNode(navigator, item)}
+      onClick={() => onOpen(item)}
     >
       <Icon size={15} className="text-ink-3 shrink-0" aria-hidden />
       <span className="text-ink-2 w-[52px] shrink-0 text-[11.5px]">{meta.label}</span>
@@ -138,6 +169,15 @@ function ContextNodeRow({ item }: { item: ContextLineageItem | ContextUsage }) {
 
 export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
   const [state, setState] = useState<SnapSheetState>("normal");
+  const navigator = useNavigator();
+  const openEntity = (entity: ContextEntity) => {
+    onClose();
+    openContextEntity(navigator, entity);
+  };
+  const openNode = (item: ContextLineageItem | ContextUsage) => {
+    onClose();
+    openContextNode(navigator, item);
+  };
   const count = contextCount(context);
   const projections = [...context.projections, ...context.notebookProjections];
 
@@ -178,7 +218,11 @@ export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
                 <section>
                   <SectionHeader label="来源" count={context.sources.length} />
                   {context.sources.map(item => (
-                    <ContextNodeRow key={`source:${item.kind}:${item.nodeId}`} item={item} />
+                    <ContextNodeRow
+                      key={`source:${item.kind}:${item.nodeId}`}
+                      item={item}
+                      onOpen={openNode}
+                    />
                   ))}
                 </section>
               ) : null}
@@ -189,6 +233,7 @@ export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
                     <ContextLinkRow
                       key={`link:${link.entity.kind}:${link.entity.id}`}
                       link={link}
+                      onOpen={openEntity}
                     />
                   ))}
                 </section>
@@ -200,6 +245,7 @@ export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
                     <ContextBacklinkRow
                       key={`backlink:${backlink.source.kind}:${backlink.source.id}`}
                       backlink={backlink}
+                      onOpen={openEntity}
                     />
                   ))}
                 </section>
@@ -211,10 +257,11 @@ export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
                     <ContextEntityRow
                       key={`projection:${entity.kind}:${entity.id}`}
                       entity={entity}
+                      onOpen={openEntity}
                     />
                   ))}
                   {context.notebookProjections.map(item => (
-                    <ContextNodeRow key={`notebook:${item.nodeId}`} item={item} />
+                    <ContextNodeRow key={`notebook:${item.nodeId}`} item={item} onOpen={openNode} />
                   ))}
                 </section>
               ) : null}
@@ -222,7 +269,11 @@ export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
                 <section>
                   <SectionHeader label="衍生" count={context.derived.length} />
                   {context.derived.map(item => (
-                    <ContextNodeRow key={`derived:${item.kind}:${item.nodeId}`} item={item} />
+                    <ContextNodeRow
+                      key={`derived:${item.kind}:${item.nodeId}`}
+                      item={item}
+                      onOpen={openNode}
+                    />
                   ))}
                 </section>
               ) : null}
@@ -230,7 +281,7 @@ export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
                 <section>
                   <SectionHeader label="被使用" count={context.usages.length} />
                   {context.usages.map(usage => (
-                    <ContextNodeRow key={usage.key} item={usage} />
+                    <ContextNodeRow key={usage.key} item={usage} onOpen={openNode} />
                   ))}
                 </section>
               ) : null}
@@ -238,7 +289,11 @@ export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
                 <section>
                   <SectionHeader label="被关联" count={context.pluginLinks.length} />
                   {context.pluginLinks.map(entity => (
-                    <ContextEntityRow key={`plugin-link:${entity.id}`} entity={entity} />
+                    <ContextEntityRow
+                      key={`plugin-link:${entity.id}`}
+                      entity={entity}
+                      onOpen={openEntity}
+                    />
                   ))}
                 </section>
               ) : null}

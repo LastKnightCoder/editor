@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="sakura" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端内容详情页 · 设计方案</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="detail.css" />
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>移动端内容详情页 · 设计方案<small>颜色取自 @tau/themes · 手机帧 360×760 · 正文字号 17px（当前档位）</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="sakura">樱花</option><option value="paper">暖纸</option><option value="ocean">海盐</option>
+        <option value="mint">薄荷</option><option value="wisteria">紫藤</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="issues">0 问题清单</button>
+    <button class="tab" data-tab="header">1 顶栏与编辑入口</button>
+    <button class="tab" data-tab="type">2 正文排版</button>
+    <button class="tab" data-tab="footer">3 页尾信息区</button>
+    <button class="tab" data-tab="select">4 选择块</button>
+    <button class="tab" data-tab="drag">5 拖拽与脉络跳转<span class="tag">Bug</span></button>
+  </nav>
+</header>
+
+<section class="scene" data-scene="issues">
+  <p class="intro">你提到的问题拆成三类：<b>Bug</b>（代码错误，直接修，不需要你选）、<b>交互</b>和<b>设计</b>（有多种做法，后面每个页签给 2–3 个方案）。最后一列标了每项是「需你选」还是「直接修」。</p>
+  <table class="issue-table">
+    <thead><tr><th style="width:56px">#</th><th style="width:70px">类型</th><th style="width:230px">现象</th><th>原因</th><th style="width:92px">处理</th></tr></thead>
+    <tbody>
+      <tr><td>B1</td><td><span class="kind bug">Bug</span></td><td>长按把手拖拽时，整页跟着向右滑，像在返回</td><td>把手在屏幕 x≈0–32px，正好落在边缘返回手势的 28px 起手区（<code>router/gesture.ts</code> 的 <code>EDGE_START_WIDTH</code>）。手势只看 <code>clientX</code>，不排除把手，于是拖拽同时被当成「右滑返回」。</td><td class="how fix">直接修</td></tr>
+      <tr><td>B2</td><td><span class="kind bug">Bug</span></td><td>拖拽结束后页面停在半途，回不来（截图 2）</td><td>返回手势锁定后，触点被把手的拖拽捕获，手势这边没收到正常的结束事件，<code>springBack</code> 不执行，两页就停在中间。修 B1 后不会再触发，另外给手势补一个兜底复位。</td><td class="how fix">直接修</td></tr>
+      <tr><td>B3</td><td><span class="kind bug">Bug</span></td><td>从「脉络」点进另一张卡片，新页面滚不动</td><td><code>ContextSheet</code> 注释写着「先关浮层再跳转」，但代码点条目时直接 <code>push</code>，没有关闭。浮层带着全局滚动锁留在下层页，新页面被锁住。改成先关浮层再跳转。</td><td class="how fix">直接修</td></tr>
+      <tr><td>B4</td><td><span class="kind bug">Bug</span></td><td>选择块的勾选圈贴着屏幕边</td><td>勾选圈定位在 <code>left:-22px</code>，正文左边距 24px，离屏幕只剩 2px；选中高亮还会溢出到边距外。具体怎么让出位置见页签 4。</td><td class="how pick">需你选（4）</td></tr>
+      <tr><td>D1</td><td><span class="kind ds">设计</span></td><td>顶栏左右不对称</td><td>左边只有返回图标，右边是带底色的「编辑」胶囊加「⋯」。胶囊是顶栏唯一带底色的元素，视觉重心偏右。</td><td class="how pick">需你选（1）</td></tr>
+      <tr><td>D2</td><td><span class="kind ds">设计</span></td><td>正文看着累</td><td>17px 档位下，行内代码的描边胶囊几乎有一行高，加上等宽字体偏宽，一段里出现几个就像一排按钮，阅读被频繁打断；正文直接铺在带色的页面底上，和卡片库里「白卡片」的印象不连贯。</td><td class="how pick">需你选（2）</td></tr>
+      <tr><td>D3</td><td><span class="kind ds">设计</span></td><td>页尾拼凑感</td><td>标签是带阴影的大胶囊，下面的「脉络」是只有表头、没有内容的半截卡片，两块的风格互不相干。</td><td class="how pick">需你选（3）</td></tr>
+      <tr><td>U1</td><td><span class="kind ux">交互</span></td><td>选择块底栏没选中时一排灰按钮</td><td>进入选择模式时选中 0 个块，6 个按钮全部禁用变灰，看不出下一步该做什么。</td><td class="how pick">随 4 一起定</td></tr>
+      <tr><td>—</td><td><span class="kind dev">开发</span></td><td>右下角的「# 3」</td><td>开发构建的路由调试按钮（<code>RouterDevTools</code>，数字是页面栈深度），正式包不出现，mockup 里省略。</td><td class="how">无需处理</td></tr>
+    </tbody>
+  </table>
+  <div class="combo">
+    <b>已选定：</b>顶栏 <b>B（编辑下沉为悬浮按钮）</b> + 排版 <b>纸面</b> + 页尾 <b>F2（脉络上移、轻标签）</b> + 选择块 <b>S1（正文右移）</b> + B1–B3 直接修。
+  </div>
+</section>
+
+<section class="scene" data-scene="header">
+  <p class="intro">现在左边一个返回图标，右边是带底色的<b>「编辑」胶囊 + ⋯</b>，重心偏右。三个方向：<b>A</b> 承认不对称，把顶栏改成 iOS 式的「左返回、右操作」；<b>B</b> 顶栏只放返回和 ⋯，编辑入口挪到右下角拇指区；<b>C</b> 所有操作都放进底部阅读条。三个方案都保留双击正文进入编辑。</p>
+  <div class="frames" id="header-frames"></div>
+</section>
+
+<section class="scene" data-scene="type">
+  <p class="intro">字号沿用你刚定的 9 档，这里不改。看着累主要有两个原因：<b>行内代码胶囊太重</b>，以及<b>正文直接铺在带色的页面底上</b>。「轻修」只改行内代码和段间距；「纸面」在轻修的基础上，把详情页底色换成卡片的白底，打开卡片就像把卡片库里那张卡片放大了。用户自选的下划线和高亮颜色按原样渲染，不动。</p>
+  <div class="frames" id="type-frames"></div>
+</section>
+
+<section class="scene" data-scene="footer">
+  <p class="intro">页尾有三类信息：<b>标签、关联卡片、脉络</b>。现在标签是带阴影的大胶囊，脉络是一张只有表头的半截卡片。方案 1 把三类信息都做成同一种行；方案 2 把脉络挪到顶部元信息行，页尾只留轻标签。（若顶栏选 C，脉络已经在底部阅读条里，页尾按方案 2 处理即可。）</p>
+  <div class="frames" id="footer-frames"></div>
+</section>
+
+<section class="scene" data-scene="select">
+  <p class="intro">现在的勾选圈离屏幕边只有 2px，选中 0 个块时底栏是一排灰按钮。三个方案都把底栏改成<b>离开屏幕边缘的悬浮条</b>，没选中时显示操作提示，不再显示一排灰按钮。区别在于怎么标出「哪些块被选中」。</p>
+  <div class="frames" id="select-frames"></div>
+</section>
+
+<section class="scene" data-scene="drag">
+  <p class="intro">这一页是 Bug，没有方案要选，列出来是让你确认修复后的效果。拖拽时，<b>从把手按下的触点不再参与边缘返回手势</b>（B1）；返回手势收不到正常结束时<b>自动弹回原位</b>（B2）；「脉络」里点条目时<b>先关浮层再跳转</b>（B3）。拖拽中的自动滚动只在屏幕上下各 64px 内触发，这是有意保留的行为。</p>
+  <div class="frames" id="drag-frames"></div>
+</section>
+
+<script src="detail.js"></script>
+</body>
+</html>

@@ -397,6 +397,7 @@ export function PageHost({ rootContent }: { rootContent?: ReactNode }) {
     controlsMap: controlsMapRef.current,
     // tab 根压 tab 根时 underlay 在屏外：跟手按全宽 1:1 回位，与 tab 滑切观感一致
     underlayOffscreen: tabOnTab,
+    isBlocked: () => (topEntry ? navigator.isEdgeBackBlocked(topEntry.id) : false),
     onBack: () => navigator.goBack("gesture"),
   });
 
