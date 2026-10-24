@@ -611,3 +611,9 @@ export interface CollaborationBinding {
   sourceId?: number | null;
   sourceTitle?: string | null;
 }
+
+/** 外部应用打开的 Markdown 文件（title 为不含扩展名的文件名） */
+export interface IncomingMarkdownFile {
+  title: string;
+  markdown: string;
+}

@@ -14,7 +14,7 @@
 | [storage-sync.md](./architecture/storage-sync.md)             | 数据库、资源与会话文件的宿主分块协议及内存边界                                                                               |
 | [collaboration.md](./architecture/collaboration.md)           | 实时协作功能与架构                                                                                                           |
 | [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                           |
-| [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略                                                                                                       |
+| [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、外部打开 Markdown                                                                                    |
 | [plugin-system.md](./architecture/plugin-system.md)           | 插件体系目标架构与能力                                                                                                       |
 | [plugin-portability.md](./architecture/plugin-portability.md) | 桌面与移动插件宿主、私有包事务及正文适配；作者契约见 [SDK 包内文档](/packages/plugins/docs/portability.md)                   |
 | [plugin-system/](./architecture/plugin-system/)               | 插件体系：安全模型、运行架构、API 闭环、边界约定与能力说明                                                                   |

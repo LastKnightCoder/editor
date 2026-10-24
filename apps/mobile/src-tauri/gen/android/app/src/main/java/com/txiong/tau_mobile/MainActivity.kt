@@ -1,16 +1,26 @@
 package com.txiong.tau_mobile
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.view.WindowManager
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import kotlin.math.max
+
+// 与 Rust 侧 incoming_file::MAX_BYTES 一致：复制到略超上限即停，超限由 Rust 统一报错
+private const val INCOMING_MAX_BYTES = 5L * 1024 * 1024
 
 class MainActivity : TauriActivity() {
   private var lastKeyboardHeight = Int.MIN_VALUE
   private var lastSafeInsets = ""
+  private var pendingIncomingPath: String? = null
 
   private fun resolveWebView(): WebView? {
     return try {
@@ -70,6 +80,77 @@ class MainActivity : TauriActivity() {
     }
   }
 
+  // 外部「用其他应用打开」的文件：content:// 授权只在本次 intent 内有效，先复制进缓存目录，
+  // 路径由 Rust 经 JNI 调 takeIncomingFile 取走后读取并删除
+  private fun receiveIncomingFile(intent: Intent?) {
+    if (intent?.action != Intent.ACTION_VIEW) {
+      return
+    }
+    val uri = intent.data ?: return
+    try {
+      val dir = File(cacheDir, "incoming").apply { mkdirs() }
+      dir.listFiles()?.forEach { it.delete() }
+      val target = File(dir, incomingFileName(uri, intent.type))
+      contentResolver.openInputStream(uri)?.use { input ->
+        target.outputStream().use { output -> copyLimited(input, output) }
+      } ?: return
+      pendingIncomingPath = target.absolutePath
+      notifyIncomingFile()
+    } catch (_: Throwable) {
+      pendingIncomingPath = null
+    }
+  }
+
+  private fun incomingFileName(uri: Uri, mimeType: String?): String {
+    val displayName = try {
+      contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst()) cursor.getString(0) else null
+      }
+    } catch (_: Throwable) {
+      null
+    } ?: uri.lastPathSegment
+    val safeName = displayName
+      ?.substringAfterLast('/')
+      ?.replace(Regex("[\\\\:*?\"<>|]"), "_")
+      ?.takeIf { it.isNotBlank() }
+      ?: "未命名"
+    val isMarkdownMime = mimeType == "text/markdown" || mimeType == "text/x-markdown"
+    return if (isMarkdownMime && !safeName.contains('.')) "$safeName.md" else safeName
+  }
+
+  private fun copyLimited(input: InputStream, output: OutputStream) {
+    val buffer = ByteArray(8192)
+    var total = 0L
+    while (total <= INCOMING_MAX_BYTES) {
+      val read = input.read(buffer)
+      if (read < 0) {
+        break
+      }
+      output.write(buffer, 0, read)
+      total += read
+    }
+  }
+
+  // 冷启动时 WebView 尚未加载，事件会丢失，由前端启动时主动 take 兜底
+  private fun notifyIncomingFile() {
+    val webView = resolveWebView() ?: return
+    webView.post {
+      webView.evaluateJavascript("window.dispatchEvent(new Event('tau:incoming-file'))", null)
+    }
+  }
+
+  fun takeIncomingFile(): String? {
+    val path = pendingIncomingPath
+    pendingIncomingPath = null
+    return path
+  }
+
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    setIntent(intent)
+    receiveIncomingFile(intent)
+  }
+
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
     super.onCreate(savedInstanceState)
@@ -91,6 +172,10 @@ class MainActivity : TauriActivity() {
     rootView.post {
       publishKeyboardHeight(0)
       ViewCompat.requestApplyInsets(rootView)
+    }
+    // 配置变更重建时 intent 不变，只在首次创建时接收，避免同一文件重复弹出导入页
+    if (savedInstanceState == null) {
+      receiveIncomingFile(intent)
     }
   }
 }

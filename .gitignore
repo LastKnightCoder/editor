@@ -37,7 +37,7 @@ apps/mobile/docs/design/
 .shot-*.tmp.mjs
 
 **/*/src-tauri/target
-# 例外：apps/mobile 的 Android MainActivity.kt 含键盘高度注入，已用 git add -f 入库（目录被忽略时无法用 ! 反选）
+# 例外：apps/mobile 的 Android MainActivity.kt（键盘高度注入、外部文件接收）与 AndroidManifest.xml（Markdown 打开方式）已用 git add -f 入库（目录被忽略时无法用 ! 反选）
 **/*/src-tauri/gen
 **/*/src-tauri/build
 **/*/dist-electron

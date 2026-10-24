@@ -1,6 +1,7 @@
 mod chunked_sync;
 mod collaboration;
 mod database;
+mod incoming_file;
 #[cfg(target_os = "ios")]
 mod ios_input_accessory;
 mod models;
@@ -233,12 +234,14 @@ pub fn run() {
             database::collab_list_bindings,
             database::collab_unbind_content,
             database::collab_project_content,
+            incoming_file::incoming_file_take,
             request_background
         ])
         .setup(|app| {
             #[cfg(target_os = "ios")]
             {
                 use tauri::Manager;
+                app.manage(incoming_file::PendingIncomingFile::default());
                 if let Some(main_webview) = app.get_webview_window("main") {
                     let _ = main_webview
                         .with_webview(|webview| ios_input_accessory::hide(webview.inner()));
@@ -251,6 +254,12 @@ pub fn run() {
             });
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_app, _event| {
+            #[cfg(target_os = "ios")]
+            if let tauri::RunEvent::Opened { urls } = _event {
+                incoming_file::receive_opened(_app, urls);
+            }
+        });
 }
