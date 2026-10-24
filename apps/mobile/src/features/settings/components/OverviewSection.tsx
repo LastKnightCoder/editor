@@ -2,8 +2,7 @@
 // 数据库同步（同步中心：状态 + 服务 + 数据库切换）/ 资源与存储（资源同步 + 存储目标）。
 // 外观（主题 overlay 路由页）/ 编辑器（打开文档时）/ 关于（版本）。
 
-import { useEffect, useState } from "react";
-import { getVersion } from "@tauri-apps/api/app";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   type ImageBorderRadiusPreset,
@@ -24,6 +23,8 @@ import {
   IconUsers,
 } from "./ui";
 import { ActionSheet } from "./ActionSheet";
+import { useAppVersion } from "../about/useAppVersion";
+import { useAppUpdate } from "../about/appUpdate";
 import { LOCAL_UPLOAD_ID, useUploadProviders } from "../upload/providers";
 import { getTheme } from "@tau/themes";
 import { useThemeStore } from "@tau/themes/react";
@@ -77,7 +78,8 @@ export function OverviewSection(props: OverviewSectionProps) {
   const navigator = useNavigator();
   const providers = useUploadProviders();
   const { syncSettings } = useAppContext();
-  const [appVersion, setAppVersion] = useState("");
+  const appVersion = useAppVersion();
+  const hasUpdate = useAppUpdate(state => state.check?.available ?? false);
 
   // 数据库文件大小（主库 + WAL/SHM）
   const dbSizeQuery = useQuery({
@@ -85,12 +87,6 @@ export function OverviewSection(props: OverviewSectionProps) {
     queryFn: () => tauri.getActiveDatabaseSize(),
     staleTime: 30_000,
   });
-
-  useEffect(() => {
-    getVersion()
-      .then(version => setAppVersion(version))
-      .catch(() => setAppVersion(""));
-  }, []);
 
   const uploadTargetName =
     props.activeResource === LOCAL_UPLOAD_ID
@@ -173,7 +169,7 @@ export function OverviewSection(props: OverviewSectionProps) {
         <ListItem
           icon={<IconCircleHelp />}
           label="版本"
-          value={appVersion || "0.1.0"}
+          value={hasUpdate ? "有新版本" : (appVersion ?? "")}
           onClick={() => props.onOpenModule("about")}
         />
       </div>

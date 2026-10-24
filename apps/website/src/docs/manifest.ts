@@ -20,7 +20,11 @@ export const DOC_GROUPS: DocGroup[] = [
     title: "开始",
     items: [
       { slug: "", title: "Tau 是什么", summary: "认识 Tau：本地优先的个人知识工作台。" },
-      { slug: "install", title: "下载与安装", summary: "在 macOS 与 Windows 上安装 Tau。" },
+      {
+        slug: "install",
+        title: "下载与安装",
+        summary: "在 macOS、Windows 与 Android 上安装 Tau。",
+      },
       {
         slug: "quick-start",
         title: "五分钟上手",

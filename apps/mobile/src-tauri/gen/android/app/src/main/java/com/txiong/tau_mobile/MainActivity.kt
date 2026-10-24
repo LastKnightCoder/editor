@@ -145,6 +145,9 @@ class MainActivity : TauriActivity() {
     return path
   }
 
+  // 由 Rust 经 JNI 调用；返回值含义见 AppUpdateInstaller
+  fun installAppUpdate(path: String): Int = AppUpdateInstaller.install(this, path)
+
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
     setIntent(intent)

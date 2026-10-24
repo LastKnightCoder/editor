@@ -64,7 +64,9 @@ test("同一份官网产物随发布清单自动更新，并在故障时保留�
         outboundService: async request => {
           upstreamCalls++;
           if (phase === "failure") return new RuntimeResponse("unavailable", { status: 503 });
-          const isMac = new URL(request.url).pathname.endsWith("latest-mac.yml");
+          const { pathname } = new URL(request.url);
+          if (pathname.endsWith("latest.json")) return new RuntimeResponse("", { status: 404 });
+          const isMac = pathname.endsWith("latest-mac.yml");
           return new RuntimeResponse(isMac ? mac : windows, {
             status: isMac && phase === "windows" ? 404 : 200,
           });
@@ -79,6 +81,7 @@ test("同一份官网产物随发布清单自动更新，并在故障时保留�
       assert.equal(response.headers.get("X-Tau-Release-Source"), "live");
       assert.ok(html.includes("Tau-v88.0.0-win32.exe"));
       assert.ok(html.includes("macOS 版即将推出"));
+      assert.ok(html.includes("Android 版即将推出"));
     });
 
     await t.test("不重新构建或部署，发布后两处 Mac 下载与版本自动出现", async () => {

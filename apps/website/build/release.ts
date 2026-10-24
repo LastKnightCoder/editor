@@ -1,22 +1,24 @@
 /**
- * 下载信息：读取 dl.taunote.app 上 electron-updater 的 latest*.yml。
+ * 下载信息：读取 dl.taunote.app 上桌面 electron-updater 的 latest*.yml 与 Android 的 latest.json。
  * 构建时生成回退快照，Pages 在每次访问首页时用实时清单更新版本与下载入口。
  */
 import { parse } from "yaml";
 
-export const RELEASE_BASE_URL = "https://dl.taunote.app/desktop";
+export const RELEASE_BASE_URL = "https://dl.taunote.app";
 export const ANALYTICS_DOWNLOAD_BASE_URL = "https://analytics.taunote.app/v1/downloads";
 
-export type PlatformKey = "mac" | "windows";
+export type PlatformKey = "mac" | "windows" | "android";
 export type ArchKey = "arm64" | "x64";
 
 /** 一个可下载的安装包：mac 按芯片拆成 Apple 芯片与 Intel 两个 */
-export type TargetKey = "mac-arm64" | "mac-x64" | "windows";
+export type TargetKey = "mac-arm64" | "mac-x64" | "windows" | "android";
 
 export interface TargetRelease {
   target: TargetKey;
   url: string;
   size: number;
+  /** 该安装包自身的版本：移动端与桌面端版本号各自编排 */
+  version: string;
 }
 
 export interface ReleaseInfo {
@@ -30,6 +32,7 @@ interface DownloadTarget {
   os: PlatformKey;
   arch: ArchKey;
   label: string;
+  /** 发布源内的清单路径，安装包与清单同目录 */
   feed: string;
   installer: RegExp;
 }
@@ -41,7 +44,7 @@ export const DOWNLOAD_TARGETS: DownloadTarget[] = [
     os: "mac",
     arch: "arm64",
     label: "macOS 版 · Apple 芯片",
-    feed: "latest-mac.yml",
+    feed: "desktop/latest-mac.yml",
     installer: /-arm64\.dmg$/,
   },
   {
@@ -49,7 +52,7 @@ export const DOWNLOAD_TARGETS: DownloadTarget[] = [
     os: "mac",
     arch: "x64",
     label: "macOS 版 · Intel 芯片",
-    feed: "latest-mac.yml",
+    feed: "desktop/latest-mac.yml",
     installer: /-x64\.dmg$/,
   },
   {
@@ -57,12 +60,24 @@ export const DOWNLOAD_TARGETS: DownloadTarget[] = [
     os: "windows",
     arch: "x64",
     label: "Windows 版",
-    feed: "latest.yml",
+    feed: "desktop/latest.yml",
     installer: /\.exe$/,
+  },
+  {
+    target: "android",
+    os: "android",
+    arch: "arm64",
+    label: "Android 版",
+    feed: "mobile/android/latest.json",
+    installer: /-android-arm64\.apk$/,
   },
 ];
 
-const OS_LABELS: Record<PlatformKey, string> = { mac: "macOS", windows: "Windows" };
+const OS_LABELS: Record<PlatformKey, string> = {
+  mac: "macOS",
+  windows: "Windows",
+  android: "Android",
+};
 
 interface LatestYml {
   version?: string;
@@ -71,13 +86,12 @@ interface LatestYml {
 }
 
 /**
- * 解析单个 latest*.yml，按安装包规则挑出各目标的文件。
+ * 按安装包规则从一份清单里挑出各目标的文件。
  * mac 优先识别带架构的 dmg；0.57.2 旧包已核实为 arm64，允许过渡期继续下载。
  * 其余未标架构的安装包不推测芯片类型。
  */
-export function parseLatestYml(text: string, targets: DownloadTarget[]) {
-  const doc = parse(text) as LatestYml;
-  if (!doc?.version) throw new Error("latest yml 缺少 version 字段");
+function pickInstallers(doc: LatestYml, targets: DownloadTarget[]) {
+  if (!doc?.version) throw new Error("发布清单缺少 version 字段");
   const files = doc.files ?? [];
   return {
     version: doc.version,
@@ -93,6 +107,29 @@ export function parseLatestYml(text: string, targets: DownloadTarget[]) {
   };
 }
 
+export function parseLatestYml(text: string, targets: DownloadTarget[]) {
+  return pickInstallers(parse(text) as LatestYml, targets);
+}
+
+interface AndroidManifest {
+  version?: string;
+  releaseDate?: string;
+  file?: string;
+  size?: number;
+}
+
+/** Android 清单（scripts/publish-mobile.mjs 生成）只描述一个安装包 */
+export function parseAndroidManifest(text: string, targets: DownloadTarget[]) {
+  const { version, releaseDate, file, size } = JSON.parse(text) as AndroidManifest;
+  return pickInstallers({ version, releaseDate, files: file ? [{ url: file, size }] : [] }, targets);
+}
+
+function parseFeed(feed: string, text: string, targets: DownloadTarget[]) {
+  return feed.endsWith(".json") ? parseAndroidManifest(text, targets) : parseLatestYml(text, targets);
+}
+
+const feedDir = (feed: string) => feed.slice(0, feed.lastIndexOf("/"));
+
 type Fetcher = (url: string) => Promise<{ ok: boolean; status: number; text(): Promise<string> }>;
 
 /** 各发布源独立取数：某个平台未发布（404）时只是缺席，其余平台照常展示 */
@@ -104,22 +141,29 @@ export async function fetchReleaseInfo(fetcher: Fetcher = fetch): Promise<Releas
       if (res.status === 404) return null;
       if (!res.ok) throw new Error(`读取 ${feed} 失败：HTTP ${res.status}`);
       const targets = DOWNLOAD_TARGETS.filter(t => t.feed === feed);
-      return parseLatestYml(await res.text(), targets);
+      return { feed, ...parseFeed(feed, await res.text(), targets) };
     })
   );
   const available = results.filter(
     (r): r is NonNullable<typeof r> => r !== null && r.files.length > 0
   );
   if (available.length === 0) throw new Error("发布源里没有任何平台的安装包");
-  // 各平台可能不同步发版，页面展示最新的那个版本号
-  const latest = available.reduce((a, b) => (compareVersion(b.version, a.version) > 0 ? b : a));
-  const files = available.flatMap(r => r.files);
+  // 各平台可能不同步发版，页面展示桌面端最新的版本号；移动端版本号独立编排，只在没有桌面包时兜底
+  const desktop = available.filter(r => r.feed.startsWith("desktop/"));
+  const latest = (desktop.length > 0 ? desktop : available).reduce((a, b) =>
+    compareVersion(b.version, a.version) > 0 ? b : a
+  );
+  const files = available.flatMap(r =>
+    r.files.map(f => ({ ...f, dir: feedDir(r.feed), version: r.version }))
+  );
   return {
     version: latest.version,
     releaseDate: latest.releaseDate,
     targets: DOWNLOAD_TARGETS.flatMap(({ target }) => {
       const hit = files.find(f => f.target === target);
-      return hit ? [{ target, url: `${RELEASE_BASE_URL}/${hit.file}`, size: hit.size }] : [];
+      if (!hit) return [];
+      const url = `${RELEASE_BASE_URL}/${hit.dir}/${hit.file}`;
+      return [{ target, url, size: hit.size, version: hit.version }];
     }),
   };
 }
@@ -134,9 +178,10 @@ function compareVersion(a: string, b: string) {
   return 0;
 }
 
-/** 下载经统计服务计数后再跳转到发布源 */
-function trackedUrl(releaseUrl: string) {
-  const file = releaseUrl.slice(RELEASE_BASE_URL.length + 1);
+/** 桌面安装包经统计服务计数后再跳转到发布源；统计服务只收录桌面产品，Android 直链发布源 */
+function downloadUrl(release: TargetRelease) {
+  if (release.target === "android") return release.url;
+  const file = release.url.slice(`${RELEASE_BASE_URL}/desktop/`.length);
   return `${ANALYTICS_DOWNLOAD_BASE_URL}/${encodeURIComponent(file)}?channel=website`;
 }
 
@@ -149,7 +194,7 @@ const DOWNLOAD_ICON = '<svg class="i"><use href="#i-down"/></svg>';
 export function renderDownloadButtons(info: ReleaseInfo | null) {
   const released = DOWNLOAD_TARGETS.flatMap(t => {
     const release = info?.targets.find(r => r.target === t.target);
-    return release ? [{ ...t, url: trackedUrl(release.url) }] : [];
+    return release ? [{ ...t, url: downloadUrl(release) }] : [];
   });
   const pendingOs = [...new Set(DOWNLOAD_TARGETS.map(t => t.os))].filter(
     os => !released.some(r => r.os === os)
@@ -184,7 +229,11 @@ export function renderReleaseMeta(info: ReleaseInfo | null) {
         .filter(r => DOWNLOAD_TARGETS.find(t => t.target === r.target)?.os === os)
         .map(r => r.size)
     );
-    return bytes > 0 ? [`${OS_LABELS[os]} 约 ${Math.round(bytes / 1024 / 1024)} MB`] : [];
+    if (bytes <= 0) return [];
+    // 移动端版本号独立编排，单独标出，避免读成页面上的桌面版本
+    const android = os === "android" && info.targets.find(r => r.target === "android");
+    const label = android ? `${OS_LABELS[os]} v${android.version}` : OS_LABELS[os];
+    return [`${label} 约 ${Math.round(bytes / 1024 / 1024)} MB`];
   });
   return [`v${info.version}`, date, ...sizes].filter(Boolean).join(" · ");
 }

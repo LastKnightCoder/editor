@@ -5,7 +5,7 @@
 // 「图片与附件」管新插入图片的上传位置（服务页见 uploadProvider 页）。
 
 import { useRef } from "react";
-import { AboutSection } from "./components/AboutSection";
+import { AboutSection } from "./about/AboutSection";
 import { CollaborationSection } from "./components/CollaborationSection";
 import { OverwriteSection } from "./sync/OverwriteSection";
 import { ResourceFilesSection } from "./sync/ResourceFilesSection";

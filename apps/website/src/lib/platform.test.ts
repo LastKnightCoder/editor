@@ -4,6 +4,14 @@ import { archFromRenderer, detectMacArch, detectOs } from "./platform.ts";
 afterEach(() => vi.unstubAllGlobals());
 
 describe("访客平台识别", () => {
+  it("Android 手机推荐 Android 安装包", () => {
+    vi.stubGlobal("navigator", {
+      userAgent: "Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36",
+      maxTouchPoints: 5,
+    });
+    expect(detectOs()).toBe("android");
+  });
+
   it("iPad 桌面模式不推荐 Mac 安装包", () => {
     vi.stubGlobal("navigator", { userAgent: "Macintosh; Intel Mac OS X", maxTouchPoints: 5 });
     expect(detectOs()).toBeNull();
