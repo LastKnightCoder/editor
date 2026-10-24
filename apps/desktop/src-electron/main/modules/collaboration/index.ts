@@ -534,6 +534,16 @@ class CollaborationManager {
     if (this.refreshing || this.stopped || this.pendingCreates.size > 0) return;
     this.refreshing = true;
     try {
+      if (!getDevelopmentServerUrl()) {
+        await this.client.migrateOfficialEndpoint();
+        for (const [origin, transport] of this.transports) {
+          const url = `${this.client.canonicalUrl(origin).replace(/^http/, "ws")}/ws`;
+          if (transport.configuration.url !== url) transport.setConfiguration({ url });
+        }
+        for (const [origin, socket] of this.events)
+          if (socket.url !== `${this.client.canonicalUrl(origin).replace(/^http/, "ws")}/events`)
+            socket.close();
+      }
       const urls = new Set([
         this.serverUrl,
         ...[...this.sessions.values()]
