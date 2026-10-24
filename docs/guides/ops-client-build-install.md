@@ -74,6 +74,18 @@
 
 判据：清单版本、APK 摘要与本地 `apps/mobile/release/` 一致，旧版本手机能覆盖升级。
 
+## 正文字体发布到 R2
+
+字体只在换上游版本时发布，不随 App 发版；客户端「我的 → 外观 → 正文字体」读取线上清单下载。
+
+1. 换版本时改 `scripts/reading-fonts.mjs`：版本号、上游 URL（固定到发布 tag）、上游字体与许可文件的 sha256。
+2. 准备 `pip install fonttools brotli` 与 R2 凭据（同上节）。
+3. 本地演练：`pnpm publish:fonts --dry-run`。脚本核对上游摘要、转 WOFF2（单款约 1–2 分钟），产物与 `manifest.json` 写到 `apps/mobile/release/fonts/`，上游原始文件缓存在其下 `upstream/`。
+4. 正式发布：`pnpm publish:fonts`。线上同版本同摘要的字体跳过文件上传；先传字体与许可，再传清单。
+5. 发布后打开 `https://dl.taunote.app/fonts/manifest.json` 核对版本、大小与 sha256，在手机上下载一款字体并切换确认生效。
+
+判据：清单与本地 `apps/mobile/release/fonts/manifest.json` 一致，手机能下载并切换。
+
 ## iOS 构建与安装
 
 按 [iOS 签名、构建和 TestFlight 手册](/docs/guides/ops-ios-signing.md)执行。App Store Connect 分发 IPA 不能像 APK 一样直接点开安装；本人测试通过 TestFlight，不要求先注册测试设备。

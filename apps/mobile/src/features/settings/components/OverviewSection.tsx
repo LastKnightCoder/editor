@@ -1,6 +1,6 @@
 // 我的页根视图（v2 模板）：行内直显关键值，数据域入口收敛为两个独立页面——
 // 数据库同步（同步中心：状态 + 服务 + 数据库切换）/ 资源与存储（资源同步 + 存储目标）。
-// 外观（主题 overlay 路由页）/ 编辑器（打开文档时）/ 关于与更新（版本、新版本提示）。
+// 外观（主题 / 图片渲染 / 正文字体 overlay 路由页）/ 编辑器（打开文档时）/ 关于与更新（版本、新版本提示）。
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -20,6 +20,7 @@ import {
   IconFolder,
   IconImage,
   IconMoon,
+  IconType,
   IconUsers,
 } from "./ui";
 import { useAppVersion } from "../about/useAppVersion";
@@ -36,6 +37,8 @@ import {
   withEditorOpenMode,
   type EditorOpenMode,
 } from "../../../hooks/useEditorOpenMode";
+import { normalizeReadingFontId, readingFontOption } from "../readingFont/fonts";
+import { useInstalledReadingFonts } from "../readingFont/queries";
 import type { SettingModule } from "./types";
 
 const APPEARANCE_LABELS = { light: "浅色", dark: "深色", system: "跟随系统" } as const;
@@ -151,6 +154,7 @@ export function OverviewSection(props: OverviewSectionProps) {
           value={imageAppearanceValue}
           onClick={() => navigator.push("settings-image-appearance")}
         />
+        <ReadingFontItem />
       </div>
 
       <div className="space-y-3 px-1">
@@ -167,6 +171,24 @@ export function OverviewSection(props: OverviewSectionProps) {
         <AboutUpdateItem onOpen={() => props.onOpenModule("about")} />
       </div>
     </div>
+  );
+}
+
+/** 「正文字体」：行尾显示所选字体；所选字体未下载（被清理）时提示需重新下载 */
+export function ReadingFontItem() {
+  const app = useAppContext();
+  const navigator = useNavigator();
+  const id = normalizeReadingFontId(app.syncSettings.safeSetting?.appearance?.readingFont);
+  const installed = useInstalledReadingFonts().data;
+  const missing =
+    id !== "system" && installed !== undefined && !installed.some(font => font.id === id);
+  return (
+    <ListItem
+      icon={<IconType />}
+      label="正文字体"
+      value={missing ? "需重新下载" : readingFontOption(id).label}
+      onClick={() => navigator.push("settings-reading-font")}
+    />
   );
 }
 

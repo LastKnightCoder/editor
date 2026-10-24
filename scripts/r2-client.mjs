@@ -9,6 +9,8 @@ const CONTENT_TYPES = [
   [".yml", "text/plain; charset=utf-8"],
   [".json", "application/json; charset=utf-8"],
   [".apk", "application/vnd.android.package-archive"],
+  [".woff2", "font/woff2"],
+  [".txt", "text/plain; charset=utf-8"],
 ];
 
 export function requiredEnv(name) {

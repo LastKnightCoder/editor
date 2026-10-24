@@ -24,6 +24,7 @@
     "deploy:website": "pnpm --filter @tau/website deploy:pages",
     "publish:desktop": "node scripts/publish-desktop.mjs",
     "publish:mobile": "node scripts/publish-mobile.mjs",
+    "publish:fonts": "node scripts/publish-fonts.mjs",
     "migrate:oss-to-r2": "node scripts/migrate-oss-to-r2.mjs",
     "dev:ext": "pnpm --filter browser-extension dev",
     "build:ext": "pnpm --filter browser-extension build",

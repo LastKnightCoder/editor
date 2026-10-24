@@ -566,12 +566,14 @@ export interface SettingCompat {
     plugin?: { id: string; configurations: Record<string, import("@tau/plugins").JsonValue> };
   };
 
-  /** 外观类设置（与桌面端 setting.json 的 appearance 节同构）：image 为图片渲染默认外观 */
+  /** 外观类设置（与桌面端 setting.json 的 appearance 节同构）：image 为图片渲染默认外观；
+   *  readingFont 为移动端正文字体 id（本机设置，缺省 system） */
   appearance?: {
     image?: {
       borderRadius?: ImageBorderRadiusPreset;
       shadow?: ImageShadowPreset | boolean;
     };
+    readingFont?: string;
     [key: string]: unknown;
   };
   /** 移动端编辑器偏好：openMode 为打开已有文档时的初始状态，缺省为 read（阅读态） */
