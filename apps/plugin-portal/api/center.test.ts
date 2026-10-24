@@ -412,3 +412,33 @@ it("平台与版本摘要供现有客户端读取，空能力数组不进入清�
   const entry = (await catalog.json()).data.items[0];
   expect(entry.compatibility).toEqual({ status: "compatible", reasons: [], missingOptional: [] });
 });
+
+it("已发客户端不会被推荐缺少接口的历史包，新发行继续只按平台版本选版", async () => {
+  const current = await approve(zip());
+  f.sqlite.prepare("UPDATE releases SET targets_json=? WHERE id=?").run(
+    JSON.stringify({
+      android: { minAppVersion: "0.2.0", required: ["fetch", "sync"], optional: [] },
+    }),
+    current.release.id
+  );
+  const oldHost = { ...centerHost, appVersion: "0.2.3", capabilities: ["pages"] };
+  const denied = await request("/v2/plugins/test.portable/resolve", { host: oldHost });
+  expect((await denied.json()).data).toMatchObject({
+    release: null,
+    compatibility: {
+      status: "incompatible",
+      reasons: [{ code: "APP_VERSION_TOO_LOW", minAppVersion: "0.2.4" }],
+    },
+  });
+  const catalog = await request("/v2/catalog/query", { platform: "android", host: oldHost });
+  expect((await catalog.json()).data.items[0].compatible).toBeNull();
+  const legacy = await request("/v2/plugins/test.portable/resolve", {
+    host: { ...oldHost, capabilities: ["pages", "fetch", "sync"] },
+  });
+  expect((await legacy.json()).data.release.releaseId).toBe(current.release.id);
+  const newer = await approve(zip("2.0.0", { android: { minAppVersion: "0.2.4" } }));
+  const modern = await request("/v2/plugins/test.portable/resolve", {
+    host: { ...centerHost, appVersion: "0.2.4" },
+  });
+  expect((await modern.json()).data.release.releaseId).toBe(newer.release.id);
+});
