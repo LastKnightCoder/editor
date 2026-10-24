@@ -58,7 +58,7 @@ export function projectManagedPlugin(
   const error =
     item.error || runtime?.errors.get(item.id) || (item.blocked ? "中心版本不可用" : null);
   const unavailable = !runtime || !runtime.isAvailable ? "插件会话未就绪" : null;
-  const inactive = active ? "请停用插件并重新打开应用后操作" : null;
+  const inactive = active ? "请先停用插件并点「立即生效」后再操作" : null;
   return {
     permissions: item.artifact?.manifest.permissions ?? [],
     pendingVersion: item.pendingVersion ?? null,

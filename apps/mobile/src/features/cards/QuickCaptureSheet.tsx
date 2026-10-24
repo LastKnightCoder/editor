@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { getMobileContentKit } from "../../services/editorKit";
+import { useMobileContentKit } from "../../services/editorKit";
+import { EditorKitPending } from "../../components/EditorKitPending";
 import { X } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor";
 import type { Descendant } from "slate";
@@ -23,6 +24,7 @@ type QuickCaptureSheetProps = {
 };
 
 export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
+  const contentKit = useMobileContentKit("edit");
   const wasOpen = useRef(false);
   const notifyContentChange = useMemoizedFn((content: Descendant[]) =>
     props.onContentChange?.(content)
@@ -142,27 +144,31 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
         ) : null}
 
         <SnapSheet.FixedFooterScroll className="px-4 pt-3">
-          <Editor
-            key={editorSession.revision}
-            kit={getMobileContentKit()}
-            ref={editorRef}
-            initValue={editorSession.value}
-            readonly={false}
-            placeHolder="记录你的想法..."
-            className="mobile-card-editor-content min-h-[220px] outline-none ring-0 focus:outline-none focus:ring-0"
-            onFocus={toolbarController.handleEditorFocus}
-            onBlur={toolbarController.handleEditorBlur}
-            onChange={value => {
-              latestContentRef.current = value;
-              props.onContentChange?.(value);
-              writeQuickCaptureDraft(value);
-              if (showDraftPrompt) {
-                setShowDraftPrompt(false);
-              }
-              toolbarController.syncSelection();
-            }}
-            onSelectionChange={toolbarController.syncSelection}
-          />
+          {contentKit ? (
+            <Editor
+              key={editorSession.revision}
+              kit={contentKit}
+              ref={editorRef}
+              initValue={editorSession.value}
+              readonly={false}
+              placeHolder="记录你的想法..."
+              className="mobile-card-editor-content min-h-[220px] outline-none ring-0 focus:outline-none focus:ring-0"
+              onFocus={toolbarController.handleEditorFocus}
+              onBlur={toolbarController.handleEditorBlur}
+              onChange={value => {
+                latestContentRef.current = value;
+                props.onContentChange?.(value);
+                writeQuickCaptureDraft(value);
+                if (showDraftPrompt) {
+                  setShowDraftPrompt(false);
+                }
+                toolbarController.syncSelection();
+              }}
+              onSelectionChange={toolbarController.syncSelection}
+            />
+          ) : (
+            <EditorKitPending className="min-h-[220px]" />
+          )}
         </SnapSheet.FixedFooterScroll>
 
         <MobileEditorBottomToolbar controller={toolbarController} />

@@ -81,4 +81,3 @@ export * from "./model-downloader";
 export * from "./embedding-model";
 export * from "./model-usage";
 export * from "./vibe-learning";
-export * from "./telemetry";

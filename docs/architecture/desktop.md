@@ -247,6 +247,10 @@ Database 的字段插件、视图、聚合算子、命令与插槽只经 `extens
 - Popover 已包含锚点定位、嵌套外点仲裁和 Portal 支持；表单内 Tab 顺序移动，到末项才退出。输入法组合让位，busy 时关闭请求被拒绝。
 - `UiProvider` 提供局部主题与 body Portal 根。主题运行时显式初始化，可清理；`createThemeRuntime` 可注入存储、DOM 根及系统媒体查询。首帧通过 Vite 注入 `createThemeBootstrapScript()`，与运行时共用解析和主题清单，不再维护 HTML 白名单。
 
+### 协作网络与端点升级
+
+协作主进程使用共享产品入口；旧来源身份按产品端点认可的摘要升级，双身份需通过双凭据证明后合并。端点升级失败不会阻断本机内容会话，自托管身份不外发；旧缓存的网络、附件与事件连接统一经过端点解析。持久化与权限协议见[协作架构](/docs/architecture/collaboration.md)。
+
 ### 内容导入导出与资源搬运
 
 - 单一入口 `services/content-transfer.ts`：单篇导出 `exportContentAsMarkdown`（卡片 / 文章 / 项目文档 / 独立编辑窗口），Markdown 文件导入 `importMarkdownFiles(create)`（卡片页、文章页、项目文档树两处菜单；落库由调用方传入）。业务代码不再自行 `getMarkdown` + `downloadMarkdown` 或 `readTextFile` + `importFromMarkdown`。Markdown 窗口原地编辑本机 .md，不经此入口。
@@ -309,11 +313,13 @@ import）注册期即被调用，因此记录数据挂在模块级、import 期�
 
 本地嵌入由 `local-inference/client.ts` 懒建独立 Electron `utilityProcess`，模型加载、分词、480 token 分窗推理和向量合并只在 `local-inference-worker` 执行；主进程不加载 node-llama-cpp。CPU 推理线程数为可用核心的一半，最少 1、最多 4；context 固定 512 token，与现有分窗上限一致，避免为短窗口分配模型的完整上下文。后台重建每条文本之间让出 10ms，查询在文本边界优先调度，不中断正在计算的文本；主内容、PDF、Notebook、视频检索均显式标记交互优先级。子进程启动握手、请求超时或退出时拒绝在途及排队任务，下次请求可重新启动；应用 `quit` 时终止进程（受控退出用 `app.exit`，不能依赖 `will-quit`）。向量输入与合并算法不变，不提升嵌入指纹版本。同步数据库写入仍由主进程持有。
 
-### 产品埋点
+### 产品版本与下载统计
 
-`telemetry` 仍为 BACKGROUND 模块，`commands/telemetry.ts` 的 `trackEvent` 经 `withModule` 等待就绪。主进程使用 `@tau/analytics/client` 生成安装/会话/事件 UUID、冻结发生时间和版本上下文，串行原子保存 `~/.editor/analytics.json` 后批量发送至 `analytics.taunote.app/v1/events/batch`；回执按条确认，重试由服务端幂等去重。旧 `telemetry.json` 只沿用安装 ID，旧缺上下文队列不混入新统计；旧文件保留，不删除用户文件。开发队列单独存储、默认不上报，`TAU_TELEMETRY_DEBUG=1` 开启 development；`TAU_TELEMETRY_DISABLED=1` 停用。
+`telemetry` 是 BACKGROUND 模块，只在正式构建启动时通过 `@tau/analytics/client` 的 `VersionClient` 上报当前应用版本，使用随机安装标识、版本号和 UTC 观测时间；同版本按上海自然日去重，版本变化时重新上报。没有渲染端埋点命令，不监听启动耗时、页面切换、窗口聚焦、退出、崩溃或持续心跳。默认只在正式构建启用，`TAU_TELEMETRY_DEBUG=1` 开启 development；`TAU_TELEMETRY_DISABLED=1` 停用。
 
-事件白名单、版本和属性规则归 `apps/analytics/contracts/events.ts`，新增事件先发布服务端；渲染端继续调用原 `trackEvent(name,data)`，禁止上报正文、路径等内容。窗口聚焦累计值表示前台时长，心跳/退出按会话累计最大值统计，不表示真实操作时长。协议、R2下载口径与迁移顺序见 `apps/analytics/docs/DESIGN.md`；新能力只追加可选字段/事件/查询，不重解释既有 v1 数据。
+本机状态在 `~/.editor/analytics.json`（开发为 `analytics.development.json`），串行请求先原子落盘再发送至 `analytics.taunote.app/v1/versions`；失败最多补报三次，仍失败保留当前观测至下次启动，不建立周期任务。状态格式 2 保存安装 ID、已确认和待确认版本；本版本将已有格式 1 状态转换为格式 2，仅沿用安装 ID 并丢弃旧行为队列，不再读取更早的 `telemetry.json`。
+
+服务端按安装实例、上海日期保存最新版本，乱序旧观测不能覆盖新观测；管理后台只保留版本分布和下载统计。旧 `/v1/events/batch` 返回 410 且不读正文、不写 D1；旧客户端仍需升级才能停止本机生成和发送行为请求。R2 安装包仍经原下载域名分发，官网入口统计按日/安装包/出口摘要近似去重的下载发起；自动更新和直链不计入。协议、数据迁移与部署顺序见 [统计设计](/apps/analytics/docs/DESIGN.md)。
 
 ## 2.6 通知分流
 

@@ -3,7 +3,7 @@
 // 头部 = 右侧时间；标签用品牌色 # chip。
 
 import { memo, useCallback, useMemo, useState } from "react";
-import { getMobileContentKit } from "../../services/editorKit";
+import { useMobileContentKit } from "../../services/editorKit";
 import type { Descendant } from "slate";
 import { Editor, createValueDocument } from "@tau/editor";
 import { isEditorContentEmpty } from "./editorContentUtils";
@@ -41,6 +41,7 @@ interface CardItemProps {
 }
 
 const CardItem = memo(({ item, onPreviewCard }: CardItemProps) => {
+  const contentKit = useMobileContentKit("read");
   const editorContent = useMemo(() => {
     if (Array.isArray(item.content) && item.content.length > 0) {
       return item.content.slice(0, 3);
@@ -70,7 +71,7 @@ const CardItem = memo(({ item, onPreviewCard }: CardItemProps) => {
         <div className="pointer-events-none min-w-0">
           {!isEditorContentEmpty(document.initialValue) ? (
             <Editor
-              kit={getMobileContentKit()}
+              kit={contentKit}
               className="overflow-hidden"
               readonly={true}
               document={document}

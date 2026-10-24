@@ -42,6 +42,14 @@ export class CollaborationLocalStore {
   delete(key: string) {
     this.db.prepare("DELETE FROM settings WHERE key=?").run(key);
   }
+  identityEntries(): [string, string][] {
+    return (
+      this.db.prepare("SELECT key,value FROM settings WHERE key LIKE 'identity:%'").all() as {
+        key: string;
+        value: string;
+      }[]
+    ).map(row => [row.key.slice("identity:".length), JSON.parse(row.value) as string]);
+  }
   list() {
     return (
       this.db.prepare("SELECT metadata FROM sessions").all() as {

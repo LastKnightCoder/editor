@@ -1,40 +1,31 @@
 import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AnalyticsClient, type AnalyticsState, type AnalyticsStorage } from "./index";
-import type { EventBatch, EventContext } from "../contracts";
+import { VersionClient, type AnalyticsState, type AnalyticsStorage } from "./index";
+import type { VersionReport } from "../contracts";
 
 let now: number;
-let context: EventContext;
 beforeEach(() => {
-  now = Date.parse("2026-10-18T12:00:00Z");
-  context = { app_version: "0.59.0", os: "darwin", arch: "arm64", locale: "zh-CN" };
+  now = Date.parse("2026-10-24T12:00:00Z");
 });
-function setup(initial: unknown = null, legacy: string | null = null) {
+function setup(initial: unknown = null) {
   let saved = structuredClone(initial);
-  const requests: EventBatch[] = [];
+  const requests: VersionReport[] = [];
   const storage: AnalyticsStorage = {
     read: async () => structuredClone(saved),
     write: vi.fn(async state => {
       saved = structuredClone(state);
     }),
-    legacyInstallationId: async () => legacy,
   };
   const transport = vi.fn(async (_url: unknown, init?: RequestInit) => {
-    const input = JSON.parse(String(init?.body)) as EventBatch;
-    requests.push(input);
+    const report = JSON.parse(String(init?.body)) as VersionReport;
+    requests.push(report);
     return Response.json({
-      data: {
-        accepted: input.events.map(event => event.event_id),
-        rejected: [],
-        received_at: new Date(now).toISOString(),
-        optional_future_field: true,
-      },
+      data: { app_version: report.app_version, reported_at: report.reported_at },
     });
   });
-  const client = new AnalyticsClient({
-    endpoint: "https://analytics.test/v1/events/batch",
+  const client = new VersionClient({
+    endpoint: "https://analytics.test/v1/versions",
     environment: "production",
-    context: () => context,
     storage,
     id: randomUUID,
     fetch: transport as typeof fetch,
@@ -43,123 +34,118 @@ function setup(initial: unknown = null, legacy: string | null = null) {
   return { client, storage, transport, requests, saved: () => saved as AnalyticsState };
 }
 
-describe("离线埋点客户端", () => {
-  it("沿用旧安装标识；新会话、事件时点上下文和事件ID跨补报保留", async () => {
-    const legacy = randomUUID();
-    const first = setup(null, legacy);
-    expect(await first.client.initialize()).toBe(false);
-    await first.client.track("session_start", { first_run: false });
-    const queued = first.saved().queue[0];
-    context = { ...context, app_version: "0.60.0" };
-    now += 3600000;
-    const restarted = setup(first.saved());
-    expect(await restarted.client.initialize()).toBe(false);
-    await restarted.client.track("app_ready", { startup_ms: 100 });
-    await restarted.client.flush();
-    const sent = restarted.requests[0];
-    expect(sent.installation_id).toBe(legacy);
-    expect(sent.events[0]).toEqual(queued);
-    expect(sent.events[0].context.app_version).toBe("0.59.0");
-    expect(sent.events[1].context.app_version).toBe("0.60.0");
-    expect(sent.events[1].session_id).not.toBe(queued.session_id);
-    expect(restarted.saved().queue).toEqual([]);
-  });
-
-  it("生成全新安装，串行持久化完成前不能发请求", async () => {
-    const fixture = setup();
-    expect(await fixture.client.initialize()).toBe(true);
-    await fixture.client.track("session_start", { first_run: true });
-    let release: () => void = () => {
-      throw new Error("持久化等待尚未初始化");
-    };
-    const waiting = new Promise<void>(resolve => {
-      release = resolve;
+describe("最小版本上报", () => {
+  it("每天同版本只发送一次，跨重启保持去重且不携带行为和设备上下文", async () => {
+    const f = setup();
+    await f.client.initialize();
+    await Promise.all([f.client.report("0.59.2"), f.client.report("0.59.2")]);
+    await f.client.report("0.59.2");
+    expect(f.transport).toHaveBeenCalledTimes(1);
+    expect(f.requests[0]).toEqual({
+      schema_version: 1,
+      product: "tau-desktop",
+      environment: "production",
+      installation_id: f.saved().installation_id,
+      app_version: "0.59.2",
+      reported_at: new Date(now).toISOString(),
     });
-    const write = vi.spyOn(fixture.storage, "write").mockImplementationOnce(() => waiting);
-    const flush = fixture.client.flush();
-    await Promise.resolve();
-    expect(fixture.transport).not.toHaveBeenCalled();
-    release();
-    await flush;
-    expect(write).toHaveBeenCalled();
-    expect(fixture.transport).toHaveBeenCalledTimes(1);
+    const restarted = setup(f.saved());
+    await restarted.client.initialize();
+    await restarted.client.report("0.59.2");
+    expect(restarted.transport).not.toHaveBeenCalled();
   });
 
-  it("网络失败保留原ID、退避并共享并发flush，恢复后不会制造新事件", async () => {
-    const fixture = setup();
-    await fixture.client.initialize();
-    await fixture.client.track("screen_view", { page: "home" });
-    const original = fixture.saved().queue[0];
-    fixture.transport.mockRejectedValueOnce(new Error("offline"));
-    const first = fixture.client.flush();
-    expect(fixture.client.flush()).toBe(first);
-    await expect(first).rejects.toThrow("offline");
-    await fixture.client.flush();
-    expect(fixture.transport).toHaveBeenCalledTimes(1);
-    expect(fixture.saved().queue[0]).toEqual(original);
-    now += 21000;
-    await fixture.client.flush();
-    expect(fixture.requests[0].events[0]).toEqual(original);
-    expect(fixture.saved().queue).toEqual([]);
+  it("升级时重新上报，上海自然日变化后首次启动再次上报", async () => {
+    const f = setup();
+    await f.client.initialize();
+    await f.client.report("0.59.2");
+    now += 1000;
+    await f.client.report("0.59.3");
+    now = Date.parse("2026-10-24T16:00:00Z");
+    await f.client.report("0.59.3");
+    expect(f.transport).toHaveBeenCalledTimes(3);
+    expect(f.requests.map(report => report.app_version)).toEqual(["0.59.2", "0.59.3", "0.59.3"]);
   });
 
-  it("坏事件独立移除、可重试事件保留，不阻塞后续批次", async () => {
-    const fixture = setup();
-    await fixture.client.initialize();
-    for (let i = 0; i < 55; i++) await fixture.client.track("screen_view", { page: `page-${i}` });
-    const queued = fixture.saved().queue;
-    fixture.transport.mockImplementationOnce(async (_url, init) => {
-      const input = JSON.parse(String(init?.body)) as EventBatch;
-      return Response.json({
-        data: {
-          accepted: input.events.slice(2).map(event => event.event_id),
-          rejected: [
-            {
-              index: 0,
-              event_id: input.events[0].event_id,
-              code: "UNSUPPORTED_EVENT",
-              retryable: true,
-            },
-            { index: 1, event_id: input.events[1].event_id, code: "EVENT_TIME", retryable: false },
-          ],
-        },
-      });
+  it("旧状态只保留安装标识并清除所有行为队列，不再读取更早的遥测文件", async () => {
+    const installation_id = randomUUID();
+    const f = setup({
+      schema_version: 1,
+      installation_id,
+      queue: [{ name: "screen_view", properties: { page: "chat" } }],
     });
-    await fixture.client.flush();
-    expect(fixture.transport).toHaveBeenCalledTimes(2);
-    expect(fixture.saved().queue.map(event => event.event_id)).toEqual([queued[0].event_id]);
+    await f.client.initialize();
+    expect(f.saved()).toEqual({
+      schema_version: 2,
+      installation_id,
+      confirmed: null,
+      pending: null,
+    });
+    await f.client.report("0.59.2");
+    expect(f.requests[0].installation_id).toBe(installation_id);
+    expect(JSON.stringify(f.saved())).not.toContain("screen_view");
   });
 
-  it("存储失败时不发送；重试后成功；拒绝未登记属性和未来队列版本", async () => {
-    const fixture = setup();
-    await fixture.client.initialize();
-    await fixture.client.track("screen_view", { page: "home" });
-    vi.spyOn(fixture.storage, "write").mockRejectedValueOnce(new Error("disk-full"));
-    await expect(fixture.client.flush()).rejects.toThrow("disk-full");
-    expect(fixture.transport).not.toHaveBeenCalled();
-    now += 21000;
-    await fixture.client.flush();
-    expect(fixture.transport).toHaveBeenCalledTimes(1);
-    expect(await fixture.client.track("screen_view", { page: "home", content: "正文" })).toBe(
-      false
-    );
-    await expect(setup({ schema_version: 2 }).client.initialize()).rejects.toThrow("版本不受支持");
+  it("离线重启后只补报当前版本，重试使用相同观测时点", async () => {
+    const f = setup();
+    await f.client.initialize();
+    f.transport.mockRejectedValueOnce(new Error("offline"));
+    await expect(f.client.report("0.59.2")).rejects.toThrow("offline");
+    const pending = structuredClone(f.saved().pending);
+    await f.client.report("0.59.2");
+    expect(f.requests[0].reported_at).toBe(pending?.reported_at);
+    expect(f.saved().pending).toBeNull();
+    const restarted = setup({
+      ...f.saved(),
+      pending: { app_version: "0.58.0", reported_at: new Date(now - 86400000).toISOString() },
+      confirmed: null,
+    });
+    await restarted.client.initialize();
+    await restarted.client.report("0.59.3");
+    expect(restarted.requests).toHaveLength(1);
+    expect(restarted.requests[0].app_version).toBe("0.59.3");
   });
 
-  it("过期事件清理，回执缺少事件时保留原始队列", async () => {
-    const fixture = setup();
-    await fixture.client.initialize();
-    await fixture.client.track("screen_view", { page: "home" });
-    fixture.transport.mockResolvedValueOnce(
-      Response.json({ data: { accepted: [], rejected: [] } })
-    );
-    await expect(fixture.client.flush()).rejects.toThrow("缺少事件");
-    expect(fixture.saved().queue).toHaveLength(1);
-    now += 8 * 86400000;
-    await fixture.client.flush();
-    expect(fixture.saved().queue).toEqual([]);
-    await fixture.client.track("screen_view", { page: "new" });
-    expect(fixture.saved().queue).toHaveLength(1);
-    expect(fixture.saved().queue[0].properties.page).toBe("new");
+  it("正文落盘失败时不发送，确认落盘失败时仍保留待补报状态", async () => {
+    const f = setup();
+    await f.client.initialize();
+    vi.mocked(f.storage.write).mockRejectedValueOnce(new Error("disk-full"));
+    await expect(f.client.report("0.59.2")).rejects.toThrow("disk-full");
+    expect(f.transport).not.toHaveBeenCalled();
+    vi.mocked(f.storage.write)
+      .mockImplementationOnce(async state => {})
+      .mockRejectedValueOnce(new Error("confirm-failed"));
+    await expect(f.client.report("0.59.2")).rejects.toThrow("confirm-failed");
+    await f.client.report("0.59.2");
+    expect(f.transport).toHaveBeenCalledTimes(2);
+    expect(f.saved().confirmed?.app_version).toBe("0.59.2");
+  });
+
+  it("失败或不匹配回执不能将当天版本标为已上报", async () => {
+    const f = setup();
+    await f.client.initialize();
+    f.transport.mockResolvedValueOnce(Response.json({}, { status: 429 }));
+    await expect(f.client.report("0.59.2")).rejects.toThrow("429");
+    f.transport.mockResolvedValueOnce(Response.json({ data: { app_version: "other" } }));
+    await expect(f.client.report("0.59.2")).rejects.toThrow("回执无效");
+    expect(f.saved().confirmed).toBeNull();
+  });
+
+  it("拒绝损坏和未来的本地状态，不覆盖为新安装", async () => {
+    for (const value of [
+      { schema_version: 3, installation_id: randomUUID() },
+      { schema_version: 2, installation_id: randomUUID(), confirmed: {}, pending: null },
+      { schema_version: "1", installation_id: randomUUID() },
+      {
+        schema_version: 2,
+        installation_id: randomUUID(),
+        confirmed: null,
+        pending: { app_version: "0.59.2", reported_at: new Date(now).toISOString(), page: "chat" },
+      },
+    ]) {
+      const f = setup(value);
+      await expect(f.client.initialize()).rejects.toThrow("状态格式无效");
+      expect(f.storage.write).not.toHaveBeenCalled();
+    }
   });
 });

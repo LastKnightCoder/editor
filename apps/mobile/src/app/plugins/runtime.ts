@@ -241,10 +241,21 @@ export class MobilePluginRuntime {
     }
     this.publish();
   }
+  /** 插件当前在本会话登记的贡献数量，供详情页「此插件提供」展示。 */
+  contributions(pluginId: string) {
+    const count = (map: Map<string, { context: PluginContext }>) =>
+      [...map.values()].filter(item => item.context.pluginId === pluginId).length;
+    return {
+      elements: this.packageNodes.get(pluginId)?.length ?? 0,
+      pages: count(this.pages),
+      entries: count(this.entries),
+      settings: count(this.settings),
+    };
+  }
   async blockFromCenter(id: string) {
     if (this.disposed) return;
     for (const type of this.packageNodes.get(id) ?? []) this.elementSupport.set(type, "none");
-    this.errors.set(id, "中心已撤回或禁用此版本，请重新打开应用；正文保留");
+    this.errors.set(id, "中心已撤回或禁用此版本，插件已停用；正文保留");
     this.publish();
     if (this.host.listPlugins().some(plugin => plugin.id === id)) await this.host.disable(id);
   }

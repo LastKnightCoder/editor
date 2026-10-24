@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactElement, type ReactNode } from "react";
 import { useSlateStatic, type RenderElementProps } from "slate-react";
+import { IUnknownElementNotice } from "../../services/unknownElementNotice";
 
 /**
  * 元素渲染的错误隔离与未知节点占位（01 §5.2、ER-006）。
@@ -41,11 +42,14 @@ function ElementPlaceholder({ props, message, title }: PlaceholderProps) {
 /** kit 没注册该类型时的只读占位 */
 /** 不露出节点类型名：用户不必知道这块内容来自哪个插件 */
 export function UnknownElement(props: RenderElementProps) {
+  const notice = useSlateStatic()
+    .tryGetService?.(IUnknownElementNotice)
+    ?.describe(props.element.type);
   return (
     <ElementPlaceholder
       props={props}
-      message="此处的内容在当前编辑器中无法显示"
-      title="内容已原样保留，在支持该类型的编辑器中打开即可查看"
+      message={notice?.message ?? "此处的内容在当前编辑器中无法显示"}
+      title={notice?.title ?? "内容已原样保留，在支持该类型的编辑器中打开即可查看"}
     />
   );
 }

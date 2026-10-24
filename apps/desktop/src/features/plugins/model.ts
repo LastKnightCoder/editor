@@ -40,9 +40,6 @@ export const CONTRIBUTION_LABELS: Record<PluginContributionKind, string> = {
 };
 
 export const PLUGIN_TEMPLATE_URL = "https://github.com/LastKnightCoder/tau-plugin-template";
-export const PLUGIN_PORTAL_URL = "https://plugins.taunote.app";
-export const pluginPortalUrl = (pluginId: string) =>
-  `${PLUGIN_PORTAL_URL}/plugins/${encodeURIComponent(pluginId)}`;
 
 export const SYSTEM_ACCESS_LABELS: Record<PluginSystemAccess, string> = {
   filesystem: "文件",
@@ -248,19 +245,6 @@ export function versionRows(
     if (item.publishedAt) value.notes.push(`${item.publishedAt.slice(0, 10)} 发布`);
   }
   return [...rows.values()].sort((a, b) => comparePluginVersions(b.version, a.version));
-}
-
-/** 没有图标字段前用名称首字，配色按 ID 稳定散列到数据色。 */
-export function pluginTone(id: string) {
-  let hash = 0;
-  for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  return (hash % 5) + 1;
-}
-
-export function formatSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 export function matchesQuery(text: readonly (string | undefined)[], query: string) {

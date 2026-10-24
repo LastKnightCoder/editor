@@ -5,16 +5,17 @@ import { expect, it, vi } from "vitest";
 import { createMemoryStorage } from "@tau/plugins/host";
 import { createPluginEnvironmentStore } from "@tau/plugins/environment-host";
 import { MobilePluginRuntime } from "../../app/plugins/runtime";
-import {
-  readMobilePlugins,
-  removeMobilePlugin,
-  setMobilePluginEnabled,
-} from "../../services/plugins";
+import { readMobilePlugins, setMobilePluginEnabled } from "../../services/plugins";
 import { InstalledPluginsPanel } from "./InstalledPluginsPanel";
 
 let runtime: MobilePluginRuntime;
-vi.mock("../../app/plugins/context", () => ({ useMobilePlugins: () => runtime }));
-vi.mock("../../router", () => ({ useNavigator: () => ({ push: vi.fn() }) }));
+const session = vi.hoisted(() => ({ phase: "ready", reload: vi.fn() }));
+const push = vi.hoisted(() => vi.fn());
+vi.mock("../../app/plugins/context", () => ({
+  useMobilePlugins: () => runtime,
+  useMobilePluginStatus: () => ({ phase: session.phase, message: "", reload: session.reload }),
+}));
+vi.mock("../../router", () => ({ useNavigator: () => ({ push }) }));
 vi.mock("../../services/plugins", async importOriginal => ({
   ...(await importOriginal<typeof import("../../services/plugins")>()),
   readMobilePlugins: vi.fn(async () => ({
@@ -40,7 +41,7 @@ function createRuntime() {
   );
 }
 
-async function renderManager(check: (container: HTMLElement) => Promise<void>) {
+async function renderManager(check: (container: HTMLElement) => Promise<void>, q = "") {
   runtime = createRuntime();
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   const container = document.createElement("div");
@@ -50,7 +51,7 @@ async function renderManager(check: (container: HTMLElement) => Promise<void>) {
     await act(async () =>
       root.render(
         <QueryClientProvider client={client}>
-          <InstalledPluginsPanel />
+          <InstalledPluginsPanel q={q} />
         </QueryClientProvider>
       )
     );
@@ -69,19 +70,25 @@ async function renderManager(check: (container: HTMLElement) => Promise<void>) {
 const findButton = (scope: ParentNode, text: string) =>
   [...scope.querySelectorAll("button")].find(button => button.textContent?.trim() === text);
 
-it("未启用包不需要进入运行时，也能打开管理并保存启用意图", async () => {
+const toggle = (scope: ParentNode, label: string) =>
+  scope.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`);
+
+it("未启用包不需要进入运行时，开关保存启用意图，整行进入详情", async () => {
   await renderManager(async container => {
-    const enable = findButton(container, "启用");
-    expect(enable).toBeDefined();
     expect(container.textContent).toContain("已停用");
     expect(runtime.host.listPlugins()).toHaveLength(0);
-    await act(async () => enable?.click());
+    await act(async () => toggle(container, "启用 test.disabled")?.click());
     expect(setMobilePluginEnabled).toHaveBeenCalledWith("test.disabled", true);
     expect(runtime.host.listPlugins()).toHaveLength(0);
+    const row = [...container.querySelectorAll("button:not([role=switch])")].find(button =>
+      button.textContent?.includes("test.disabled")
+    ) as HTMLButtonElement | undefined;
+    await act(async () => row?.click());
+    expect(push).toHaveBeenCalledWith("pluginDetail", { pluginId: "test.disabled" });
   });
 });
 
-it("待生效版本号未知时不冒充当前版本，启用意图与运行状态分开展示", async () => {
+it("待生效与启用意图未体现时提示变更，「立即生效」重建插件会话", async () => {
   vi.mocked(readMobilePlugins).mockResolvedValueOnce({
     platform: "ios",
     appVersion: "0.2.0",
@@ -90,27 +97,29 @@ it("待生效版本号未知时不冒充当前版本，启用意图与运行状�
   });
   await renderManager(async container => {
     expect(container.textContent).toContain("待生效");
-    expect(container.textContent).toContain("有新版本等待生效");
     expect(container.textContent).not.toContain("运行中");
-    expect(container.textContent).toContain("下次打开应用时启用");
-    expect(findButton(container, "取消待生效更新")).toBeDefined();
+    expect(container.textContent).toContain("1 个插件变更等待生效");
+    await act(async () => findButton(container, "立即生效")?.click());
+    expect(session.reload).toHaveBeenCalled();
   });
 });
 
-it("卸载需要确认，说明保留数据后才调用控制器", async () => {
-  await renderManager(async container => {
-    await act(async () => findButton(container, "卸载")?.click());
-    expect(removeMobilePlugin).not.toHaveBeenCalled();
-    expect(document.body.textContent).toContain("插件数据都会保留");
-    const confirm = [...document.body.querySelectorAll("button")].filter(
-      button => button.textContent?.trim() === "卸载"
-    );
-    await act(async () => confirm.at(-1)?.click());
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 30));
-    });
-    expect(removeMobilePlugin).toHaveBeenCalledWith("test.disabled");
+it("插件会话启动中显示加载横幅，不误报变更", async () => {
+  session.phase = "starting";
+  vi.mocked(readMobilePlugins).mockResolvedValueOnce({
+    platform: "ios",
+    appVersion: "0.2.0",
+    development: true,
+    packages: [{ id: "test.on", enabled: true }],
   });
+  try {
+    await renderManager(async container => {
+      expect(container.textContent).toContain("插件加载中");
+      expect(container.textContent).not.toContain("等待生效");
+    });
+  } finally {
+    session.phase = "ready";
+  }
 });
 
 it("清单读取失败显示重试，不展示空态", async () => {
@@ -148,17 +157,16 @@ it("当前版本与待生效版本分开展示，撤回状态优先于普通错�
   });
   await renderManager(async container => {
     const update = container.querySelector('[data-plugin-id="test.update"]');
-    expect(update?.textContent).toContain("· v1.0.0");
-    expect(update?.textContent).toContain("v1.1.0 将在下次打开应用时生效");
+    expect(update?.textContent).toContain("待生效 v1.1.0");
+    expect(update?.textContent).toContain("v1.0.0");
     const revoked = container.querySelector('[data-plugin-id="test.revoked"]');
     expect(revoked?.textContent).toContain("已撤回");
-    expect(revoked?.textContent).toContain("审核撤回");
-    expect(revoked?.textContent).toContain("发布状态未刷新");
     expect(revoked?.textContent).not.toContain("失败");
+    expect(container.textContent).toContain("发布状态未刷新");
   });
 });
 
-it("生产原生清单关闭管理操作，即使前端处于开发模式", async () => {
+it("生产原生清单关闭管理操作：不显示开关并说明原因", async () => {
   vi.mocked(readMobilePlugins).mockResolvedValueOnce({
     platform: "android",
     appVersion: "0.2.0",
@@ -166,8 +174,13 @@ it("生产原生清单关闭管理操作，即使前端处于开发模式", asyn
     packages: [{ id: "test.production", enabled: false }],
   });
   await renderManager(async container => {
-    expect(findButton(container, "启用")).toBeUndefined();
-    expect(findButton(container, "卸载")).toBeUndefined();
+    expect(container.querySelector('[role="switch"]')).toBeNull();
     expect(container.textContent).toContain("当前构建未开放插件管理操作");
   });
+});
+
+it("顶栏关键词按名称或 ID 过滤已安装列表", async () => {
+  await renderManager(async container => {
+    expect(container.textContent).toContain("没有找到匹配的插件");
+  }, "不存在");
 });
