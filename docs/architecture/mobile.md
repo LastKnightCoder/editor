@@ -230,6 +230,10 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 - query key 命名空间约定：`["card", id]` / `["todo", ...]` / `["diary", ...]` / `["cards", 条件]`
 - 测试注意：store 测试 beforeEach 需 `getQueryClient().clear()` 防跨用例缓存污染
 
+## 协作网络与身份
+
+协作 REST 经 Rust 网关，实时连接由 WebView 直连产品入口。获取身份时先复用经产品端点来源摘要认可的旧凭据；已有不同身份须双凭据合并，失败保留原文件。当前库的认可来源绑定会改写为产品入口，保证原房间 ID 与正文绑定不变；自托管来源不参与该升级。协议与存储见[协作架构](/docs/architecture/collaboration.md)。
+
 ## 预加载与 DevTools
 
 - `navigator.preload(key, params)`：按页面 `data` 声明预取 query 缓存（不挂载组件），

@@ -137,7 +137,7 @@ fn default_setting_value() -> Value {
       },
       "collaboration": {
         "enable": true,
-        "serverUrl": "https://collab.xiongtao.life",
+        "serverUrl": "https://collab.taunote.app",
         "nickname": "Tau 用户"
       },
       "module": {

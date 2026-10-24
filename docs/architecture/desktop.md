@@ -245,6 +245,10 @@ Database 的字段插件、视图、聚合算子、命令与插槽只经 `extens
 - Popover 已包含锚点定位、嵌套外点仲裁和 Portal 支持；表单内 Tab 顺序移动，到末项才退出。输入法组合让位，busy 时关闭请求被拒绝。
 - `UiProvider` 提供局部主题与 body Portal 根。主题运行时显式初始化，可清理；`createThemeRuntime` 可注入存储、DOM 根及系统媒体查询。首帧通过 Vite 注入 `createThemeBootstrapScript()`，与运行时共用解析和主题清单，不再维护 HTML 白名单。
 
+### 协作网络与端点升级
+
+协作主进程使用共享产品入口；旧来源身份按产品端点认可的摘要升级，双身份需通过双凭据证明后合并。端点升级失败不会阻断本机内容会话，自托管身份不外发；旧缓存的网络、附件与事件连接统一经过端点解析。持久化与权限协议见[协作架构](/docs/architecture/collaboration.md)。
+
 ### 内容导入导出与资源搬运
 
 - 单一入口 `services/content-transfer.ts`：单篇导出 `exportContentAsMarkdown`（卡片 / 文章 / 项目文档 / 独立编辑窗口），Markdown 文件导入 `importMarkdownFiles(create)`（卡片页、文章页、项目文档树两处菜单；落库由调用方传入）。业务代码不再自行 `getMarkdown` + `downloadMarkdown` 或 `readTextFile` + `importFromMarkdown`。Markdown 窗口原地编辑本机 .md，不经此入口。

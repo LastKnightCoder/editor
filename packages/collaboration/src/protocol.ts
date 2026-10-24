@@ -1,5 +1,5 @@
 export const COLLABORATION_VERSION = 1;
-export const DEFAULT_COLLABORATION_URL = "https://collab.xiongtao.life";
+export const DEFAULT_COLLABORATION_URL = "https://collab.taunote.app";
 export const ASSET_PREFIX = "tau-collab-asset:";
 /**
  * 仅本机资源引用：不上传服务器的资源（视频、丢失或无法识别的本地文件）在共享文档里换成它，

@@ -22,7 +22,7 @@
 | 管理后台        | <https://stats.taunote.app>（账号 `admin`）                                                       |
 | 网站（website） | Tau Desktop，id `ae1b3d6f-0972-48ec-afb6-f1a8b7a79bd2`                                            |
 | 服务器部署目录  | `/opt/tau/umami/`（docker-compose.yml + .env，数据在 `./data`）                                   |
-| nginx 配置      | `/etc/nginx/conf.d/stats.xiongtao.life.conf`（webroot 模式证书，与 api/collab 站点同套）          |
+| nginx 配置      | 通过 `nginx -T` 定位 `server_name stats.taunote.app` 对应配置                                     |
 | 客户端常量      | `apps/desktop/src-electron/main/modules/telemetry.ts` 的 `UMAMI_WEBSITE_ID`（置空即整体停用上报） |
 
 服务器内存仅 1.8G：Umami 全套占用约 260MB，勿再在此机器跑 ClickHouse 类重型分析栈（PostHog/Aptabase 自托管都不行）。
@@ -221,5 +221,5 @@ curl -s -X POST https://stats.taunote.app/api/send \
 - **仪表盘整页空白**：九成是 §4.3 的数据源绑定缺失（`parameters.websiteId` / 组件 `entityType+entityId`），前端无任何报错；
 - **`--platform linux/amd64` 拉到 arm64**：加速源 manifest 协商问题，按 digest 拉（§1）；
 - **改密 405**：用 POST `/api/users/:id`；
-- **建站 400 domain 校验**：domain 字段要真实域名格式（如 `app.xiongtao.life`），不能用 `tau-desktop` 这类标识；
+- **建站 400 domain 校验**：domain 字段要真实域名格式（如 `app.example.com`），不能用 `tau-desktop` 这类标识；
 - ssh 到该服务器传大文件会假死（数据不流动），用 rsync `--partial --inplace` 断点续传。

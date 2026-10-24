@@ -3,12 +3,22 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { Hocuspocus } from "@hocuspocus/server";
 import * as Y from "yjs";
 import { CollaborationError, type CollaborationEvent, type Member } from "@tau/collaboration";
-import { MAX_DOCUMENT_BYTES, PrototypeStore, fail } from "./store";
+import { MAX_DOCUMENT_BYTES, CollaborationStore, fail } from "./store";
+import { assetRequest, AssetOperations } from "./assets";
 
 interface Env {
-  COLLAB: DurableObjectNamespace<PrototypeCollaboration>;
+  COLLAB: DurableObjectNamespace<CollaborationService>;
   PROTOTYPE_KEY: string;
   BUILD_REV: string;
+  MODE?: string;
+  PUBLIC_URL?: string;
+  INSTANCE_NAME?: string;
+  ADMIN_KEY?: string;
+  LEGACY_ORIGIN_HASHES?: string;
+  ASSETS?: R2Bucket;
+  BACKUPS?: R2Bucket;
+  REQUEST_LIMITER?: RateLimit;
+  DEVICE_LIMITER?: RateLimit;
 }
 
 const field = (body: Record<string, unknown>, key: string, max = 200): string => {
@@ -46,20 +56,27 @@ async function bodyOf(request: Request): Promise<Record<string, unknown>> {
   return body;
 }
 
-export class PrototypeCollaboration extends DurableObject<Env> {
-  private readonly store: PrototypeStore;
+export class CollaborationService extends DurableObject<Env> {
+  private readonly store: CollaborationStore;
   private hocuspocus?: Hocuspocus<{ deviceId: string; nickname: string }>;
   private readonly sockets = new Set<WebSocket>();
   private readonly events = new Map<WebSocket, string>();
+  private readonly assetOperations = new AssetOperations();
+  private readonly messageRates = new Map<
+    string,
+    { startedAt: number; messages: number; awareness: number }
+  >();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
-    this.store = new PrototypeStore(ctx.storage);
+    this.store = new CollaborationStore(ctx.storage, env.MODE !== "production");
   }
 
   private admin(request: Request) {
-    const expected = this.env.PROTOTYPE_KEY;
-    const actual = request.headers.get("x-prototype-key");
+    const expected = this.env.MODE === "production" ? this.env.ADMIN_KEY : this.env.PROTOTYPE_KEY;
+    const actual = request.headers.get(
+      this.env.MODE === "production" ? "x-admin-key" : "x-prototype-key"
+    );
     if (!expected || !actual) return fail("FORBIDDEN", "需要原型访问凭据", 403);
     const digest = (value: string) => createHash("sha256").update(value).digest();
     if (!timingSafeEqual(digest(actual), digest(expected)))
@@ -120,10 +137,17 @@ export class PrototypeCollaboration extends DurableObject<Env> {
         const runtime = this.hocuspocus;
         if (!runtime) return fail("RUNTIME_STOPPED", "协作运行时已停止", 503);
         if (!runtime.documents.has(documentName) && runtime.getDocumentsCount() >= 4)
-          return fail("CAPACITY", "原型最多同时打开 4 份文档", 429);
+          if (this.env.MODE !== "production")
+            return fail("CAPACITY", "原型最多同时打开 4 份文档", 429);
+        if (runtime.getDocumentsCount() >= 20) return fail("CAPACITY", "活动文档数量已满", 429);
         return { deviceId: device.id, nickname: device.nickname };
       },
       onLoadDocument: async ({ documentName, document }) => {
+        const occupied = [...(this.hocuspocus?.documents.keys() ?? [])]
+          .filter(id => id !== documentName)
+          .reduce((bytes, id) => bytes + this.store.documentBytes(id), 0);
+        if (occupied + this.store.documentBytes(documentName) > 12 * 1024 * 1024)
+          return fail("CAPACITY", "活动文档内存预算已满，请稍后重试", 429);
         const loaded = this.store.load(documentName);
         try {
           Y.applyUpdate(document, Y.encodeStateAsUpdate(loaded));
@@ -132,17 +156,40 @@ export class PrototypeCollaboration extends DurableObject<Env> {
         }
         return document;
       },
-      beforeHandleMessage: async ({ documentName, context, update }) => {
+      beforeHandleMessage: async ({ documentName, context, update, socketId }) => {
+        if (this.store.setting("maintenance") === "1")
+          throw new Error("服务正在维护，请重连后继续同步");
         this.store.authorize(documentName, context.deviceId);
+        const now = Date.now();
+        const previous = this.messageRates.get(socketId);
+        const rate =
+          previous && now - previous.startedAt < 60_000
+            ? previous
+            : { startedAt: now, messages: 0, awareness: 0 };
+        rate.messages++;
+        this.messageRates.set(socketId, rate);
+        if (rate.messages > 3000) throw new Error("编辑请求过于频繁");
         if (update.byteLength > MAX_DOCUMENT_BYTES + 65_536) throw new Error("协作消息超过限制");
       },
       beforeSync: async ({ type, payload, context, documentName, document }) => {
-        if (type === 1 || type === 2)
-          this.store.append(documentName, context.deviceId, payload, document);
+        if (type === 1 || type === 2) {
+          const others = [...(this.hocuspocus?.documents.keys() ?? [])]
+            .filter(id => id !== documentName)
+            .reduce((bytes, id) => bytes + this.store.documentBytes(id), 0);
+          this.store.append(
+            documentName,
+            context.deviceId,
+            payload,
+            document,
+            Math.min(MAX_DOCUMENT_BYTES, 12 * 1024 * 1024 - others)
+          );
+        }
       },
-      beforeHandleAwareness: async ({ context, documentName, states }) => {
+      beforeHandleAwareness: async ({ context, documentName, states, socketId }) => {
         if (!context) throw new Error("连接状态异常");
         this.store.authorize(documentName, context.deviceId);
+        const rate = socketId ? this.messageRates.get(socketId) : undefined;
+        if (rate && ++rate.awareness > 600) throw new Error("在线状态更新过于频繁");
         if (states.size > 16 || JSON.stringify([...states]).length > 16_384)
           throw new Error("在线状态超过限制");
         for (const state of states.values()) {
@@ -152,7 +199,11 @@ export class PrototypeCollaboration extends DurableObject<Env> {
         }
       },
       onStoreDocument: async ({ documentName }) => {
-        this.store.compact(documentName);
+        for (const digest of this.store.compact(documentName))
+          await this.assetOperations.run(digest, async () => {
+            if (!this.store.hashReferenced(digest))
+              await this.env.ASSETS?.delete("assets/" + digest);
+          });
       },
       connected: async ({ documentName }) => {
         this.presence(documentName);
@@ -160,7 +211,8 @@ export class PrototypeCollaboration extends DurableObject<Env> {
       onAwarenessUpdate: async ({ documentName }) => {
         this.presence(documentName);
       },
-      onDisconnect: async ({ documentName }) => {
+      onDisconnect: async ({ documentName, socketId }) => {
+        this.messageRates.delete(socketId);
         this.presence(documentName);
       },
       onStateless: async () => {
@@ -173,7 +225,8 @@ export class PrototypeCollaboration extends DurableObject<Env> {
   private openSocket(request: Request, path: string) {
     if (request.headers.get("upgrade")?.toLowerCase() !== "websocket")
       return fail("UPGRADE_REQUIRED", "需要 WebSocket 连接", 426);
-    if (this.sockets.size >= 24) return fail("CAPACITY", "原型连接数量已满", 429);
+    if (this.sockets.size >= (this.env.MODE === "production" ? 100 : 24))
+      return fail("CAPACITY", "协作连接数量已满", 429);
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
     // Hocuspocus 解码器接收二进制缓冲区，不能沿用 WebSocket 的 Blob 默认值。
@@ -241,7 +294,7 @@ export class PrototypeCollaboration extends DurableObject<Env> {
       return Response.json(
         {
           code: known ? error.code : syntax ? "INVALID_BODY" : "REQUEST_FAILED",
-          message: known ? error.message : syntax ? "请求正文格式无效" : "原型服务暂时无法完成请求",
+          message: known ? error.message : syntax ? "请求正文格式无效" : "协作服务暂时无法完成请求",
         },
         { status: known ? error.statusCode : syntax ? 400 : 500 }
       );
@@ -252,8 +305,29 @@ export class PrototypeCollaboration extends DurableObject<Env> {
     const path = new URL(request.url).pathname;
     const method = request.method;
     if (path === "/health/ready" || path === "/health/live")
-      return Response.json({ ok: true, prototype: true, build: this.env.BUILD_REV });
-    if (path === "/__prototype/restart" && method === "POST") {
+      return Response.json(
+        {
+          ok: this.env.MODE !== "production" || this.store.setting("ready") === "1",
+          prototype: this.env.MODE !== "production",
+          instance: this.env.INSTANCE_NAME ?? "isolated-prototype-v1",
+          build: this.env.BUILD_REV,
+          canonicalUrl: this.env.PUBLIC_URL,
+          legacyOriginHashes: (this.env.LEGACY_ORIGIN_HASHES ?? "").split(",").filter(Boolean),
+        },
+        {
+          status:
+            path === "/health/ready" &&
+            this.env.MODE === "production" &&
+            this.store.setting("ready") !== "1"
+              ? 503
+              : 200,
+        }
+      );
+    if (path.startsWith("/_admin/")) {
+      this.admin(request);
+      return this.adminRoute(request, path);
+    }
+    if (path === "/__prototype/restart" && method === "POST" && this.env.MODE !== "production") {
       this.admin(request);
       for (const socket of this.sockets) socket.close(1012, "原型运行时重启");
       if (this.hocuspocus) {
@@ -264,17 +338,44 @@ export class PrototypeCollaboration extends DurableObject<Env> {
       this.hocuspocus = undefined;
       return Response.json({ ok: true });
     }
+    if (
+      this.env.MODE === "production" &&
+      (this.store.setting("ready") !== "1" || this.store.setting("maintenance") === "1")
+    )
+      return fail("MAINTENANCE", "协作服务正在维护，请稍后重试", 503);
     if (path === "/ws" || path === "/events") return this.openSocket(request, path);
     if (path === "/v1/devices" && method === "POST") {
       const body = await bodyOf(request);
-      this.admin(request);
+      if (this.env.MODE !== "production") this.admin(request);
       return Response.json(this.store.register(field(body, "nickname", 40)));
     }
     const device = this.identity(request);
+    const asset = path.match(/^\/v1\/documents\/([^/]+)\/assets(?:\/([^/]+))?$/);
+    if (asset) {
+      if (!this.env.ASSETS) return fail("UNAVAILABLE", "此环境未配置资源存储", 503);
+      return assetRequest(
+        request,
+        this.store,
+        this.env.ASSETS,
+        asset[1],
+        device.id,
+        asset[2],
+        this.assetOperations
+      );
+    }
     const body =
       request.body && (method === "POST" || method === "PATCH") ? await bodyOf(request) : {};
     if (path === "/v1/devices/me" && method === "PATCH") {
       const result = this.store.rename(device.id, field(body, "nickname", 40));
+      this.refresh();
+      return Response.json(result);
+    }
+    if (path === "/v1/devices/merge" && method === "POST") {
+      const result = this.store.mergeIdentity(
+        device.id,
+        field(body, "sourceId", 100) + ":" + field(body, "sourceSecret", 200)
+      );
+      this.hocuspocus?.closeConnections();
       this.refresh();
       return Response.json(result);
     }
@@ -334,7 +435,12 @@ export class PrototypeCollaboration extends DurableObject<Env> {
       return Response.json(this.store.rotateCode(id, device.id));
     if (action === "close" && method === "POST") {
       const members = this.store.members(id);
+      const hashes = this.store.assets(id).map(row => row.hash);
       this.store.close(id, device.id);
+      for (const digest of hashes)
+        await this.assetOperations.run(digest, async () => {
+          if (!this.store.hashReferenced(digest)) await this.env.ASSETS?.delete("assets/" + digest);
+        });
       for (const member of members) this.send(member.deviceId, { type: "closed", documentId: id });
       this.disconnect(id);
       this.refresh();
@@ -353,10 +459,120 @@ export class PrototypeCollaboration extends DurableObject<Env> {
     }
     return fail("NOT_FOUND", "原型不支持此接口", 404);
   }
+
+  private async adminRoute(request: Request, path: string): Promise<Response> {
+    if (path === "/_admin/status") return Response.json(this.store.status());
+    if (path === "/_admin/export" && request.method === "GET")
+      return Response.json(this.store.exportMetadata(), {
+        headers: { "Cache-Control": "no-store" },
+      });
+    if (path === "/_admin/import" && request.method === "POST")
+      return Response.json(this.store.beginImport(await bodyOf(request)));
+    const document = path.match(/^\/_admin\/state\/([^/]+)$/);
+    if (document) {
+      if (request.method === "GET") return Response.json(this.store.snapshot(document[1]));
+      if (request.method === "POST") {
+        const body = await bodyOf(request);
+        this.store.importState(
+          document[1],
+          Buffer.from(field(body, "state", Math.ceil(MAX_DOCUMENT_BYTES * 1.4)), "base64")
+        );
+        return Response.json({ ok: true });
+      }
+    }
+    if (path === "/_admin/finish-import" && request.method === "POST") {
+      for (const row of this.store.all<{ hash: string }>("SELECT DISTINCT hash FROM assets")) {
+        if (!(await this.env.ASSETS?.head("assets/" + row.hash)))
+          return fail("INCOMPLETE_IMPORT", "迁移资源缺失", 409);
+      }
+      return Response.json(this.store.finishImport());
+    }
+    const asset = path.match(/^\/_admin\/assets\/([a-f0-9]{64})$/);
+    if (asset && request.method === "PUT") {
+      if (!this.env.ASSETS || !request.body)
+        return fail("INVALID_IMPORT", "缺少资源存储或资源正文");
+      await this.env.ASSETS.put("assets/" + asset[1], request.body, { sha256: asset[1] });
+      return Response.json({ ok: true });
+    }
+    if (path === "/_admin/backup" && request.method === "POST")
+      return Response.json(await this.backup());
+    if (path === "/_admin/maintenance" && request.method === "POST") {
+      const body = await bodyOf(request);
+      if (typeof body.enabled !== "boolean") return fail("INVALID_FIELD", "enabled 无效");
+      this.store.setSetting("maintenance", body.enabled ? "1" : "0");
+      if (body.enabled) for (const socket of this.sockets) socket.close(1012, "协作服务维护");
+      return Response.json({ ok: true });
+    }
+    return fail("NOT_FOUND", "管理接口不存在", 404);
+  }
+
+  async backup() {
+    if (!this.env.BACKUPS) return fail("UNAVAILABLE", "未配置备份存储", 503);
+    const prefix =
+      "backups/" + new Date().toISOString().replace(/[:.]/g, "-") + "-" + crypto.randomUUID();
+    this.store.setSetting("maintenance", "1");
+    for (const socket of this.sockets) socket.close(1012, "协作服务备份");
+    try {
+      const metadata = this.store.exportMetadata();
+      await this.env.BACKUPS.put(prefix + "/metadata.json", JSON.stringify(metadata));
+      const ids = this.store.all<{ id: string }>("SELECT id FROM documents WHERE status='active'");
+      for (const { id } of ids) {
+        const doc = this.store.load(id);
+        try {
+          await this.env.BACKUPS.put(prefix + "/documents/" + id, Y.encodeStateAsUpdate(doc));
+        } finally {
+          doc.destroy();
+        }
+      }
+      for (const { hash } of this.store.all<{ hash: string }>("SELECT DISTINCT hash FROM assets")) {
+        const asset = await this.env.ASSETS?.get("assets/" + hash);
+        if (!asset) return fail("BACKUP_FAILED", "备份资源缺失", 500);
+        await this.env.BACKUPS.put(prefix + "/assets/" + hash, asset.body);
+      }
+      const result = {
+        prefix,
+        createdAt: Date.now(),
+        documents: ids.map(row => row.id),
+        counts: this.store.status().counts,
+      };
+      await this.env.BACKUPS.put(prefix + "/manifest.json", JSON.stringify(result));
+      return result;
+    } finally {
+      this.store.setSetting("maintenance", "0");
+    }
+  }
 }
 
+export class PrototypeCollaboration extends CollaborationService {}
+
 export default {
-  fetch(request: Request, env: Env) {
-    return env.COLLAB.get(env.COLLAB.idFromName("isolated-prototype-v1")).fetch(request);
+  async fetch(request: Request, env: Env) {
+    const path = new URL(request.url).pathname;
+    if (env.REQUEST_LIMITER && !path.startsWith("/_admin/")) {
+      const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
+      if (!(await env.REQUEST_LIMITER.limit({ key: ip })).success)
+        return Response.json(
+          { code: "RATE_LIMITED", message: "请求过于频繁，请稍后重试" },
+          { status: 429 }
+        );
+      if (
+        path === "/v1/devices" &&
+        env.DEVICE_LIMITER &&
+        !(await env.DEVICE_LIMITER.limit({ key: ip })).success
+      )
+        return Response.json(
+          { code: "RATE_LIMITED", message: "设备注册过于频繁" },
+          { status: 429 }
+        );
+    }
+    return env.COLLAB.get(
+      env.COLLAB.idFromName(env.INSTANCE_NAME ?? "isolated-prototype-v1")
+    ).fetch(request);
+  },
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+    const stub = env.COLLAB.get(
+      env.COLLAB.idFromName(env.INSTANCE_NAME ?? "isolated-prototype-v1")
+    );
+    ctx.waitUntil(stub.backup());
   },
 };
