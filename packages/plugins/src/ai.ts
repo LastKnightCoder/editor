@@ -12,6 +12,7 @@ export const PLUGIN_AI_CAPABILITIES = {
   flashcardGeneration: { name: "闪卡制作" },
   aiJudgement: { name: "答案评判" },
   transcriptionOptimization: { name: "转录断句优化" },
+  speechInputRefinement: { name: "语音输入整理" },
   videoSummary: { name: "视频总结" },
   videoEbookRewrite: { name: "视频电子书重写" },
   vibeLearningImageDescription: { name: "图片理解" },
