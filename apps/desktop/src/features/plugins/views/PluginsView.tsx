@@ -1,6 +1,7 @@
 import { PLUGIN_PORTAL_URL } from "@tau/plugins/center";
 import { useState, type ReactNode } from "react";
 import {
+  ArrowUpCircle,
   BookOpen,
   ChevronDown,
   CloudOff,
@@ -36,7 +37,7 @@ import {
   useSkipInstallNotice,
   type InstalledPlugin,
 } from "../model";
-import { usePluginCatalog } from "../queries";
+import { useInstallRelease, useInstallingReleases, usePluginCatalog } from "../queries";
 import { usePluginControl } from "../usePluginControl";
 import { PluginIcon } from "../components/PluginIcon";
 import { CategoryTags } from "../components/CategoryTag";
@@ -619,6 +620,16 @@ function Updates({
   catalogError: string;
   onOpen: (id: string) => void;
 }) {
+  const install = useInstallRelease(useDesktopPlugins());
+  const installing = useInstallingReleases();
+  // 已下载待重启的条目与正在下载的版本不再重复发起
+  const pending = entries.flatMap(entry => {
+    const plugin = installed.find(item => item.info.id === entry.pluginId);
+    const state = installState(entry, plugin, plugin?.update);
+    return state.kind === "update" && !installing.includes(state.releaseId)
+      ? [state.releaseId]
+      : [];
+  });
   if (!entries.length)
     return (
       <Empty icon={<RefreshCw />} title={catalogError ? "暂时无法检查更新" : "所有插件都是最新的"}>
@@ -626,7 +637,22 @@ function Updates({
       </Empty>
     );
   return (
-    <Group title="可更新" hint="更新在下次完整启动时切换，失败会保留旧版">
+    <Group
+      title="可更新"
+      hint="更新在下次完整启动时切换，失败会保留旧版"
+      action={
+        pending.length > 0 && (
+          <Button
+            variant="soft"
+            size="sm"
+            icon={ArrowUpCircle}
+            onClick={() => pending.forEach(releaseId => install.mutate(releaseId))}
+          >
+            全部更新 {pending.length}
+          </Button>
+        )
+      }
+    >
       {entries.map(entry => {
         const plugin = installed.find(item => item.info.id === entry.pluginId);
         if (!plugin) return null;
@@ -653,13 +679,26 @@ function Updates({
   );
 }
 
-function Group({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+function Group({
+  title,
+  hint,
+  action,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <section className="mb-6">
-      <h2 className="mb-2 flex items-baseline gap-2 px-1 text-[13.5px] font-semibold">
-        {title}
-        {hint && <small className="text-tau-sm text-ink-3 font-normal">{hint}</small>}
-      </h2>
+      <div className="mb-2 flex items-center gap-2 px-1">
+        <h2 className="flex min-w-0 flex-1 items-baseline gap-2 text-[13.5px] font-semibold">
+          {title}
+          {hint && <small className="text-tau-sm text-ink-3 font-normal">{hint}</small>}
+        </h2>
+        {action}
+      </div>
       <div className="border-line-1 rounded-[var(--tau-radius-lg)] border p-1">{children}</div>
     </section>
   );

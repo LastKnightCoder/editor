@@ -502,3 +502,50 @@ it("详情页按实际注册列出此插件提供的功能，并显示作者填�
   const items = [...aside.querySelectorAll("li")].map(item => item.textContent);
   expect(items).toEqual(["命令2", "Skill1"]);
 });
+
+it("更新页「全部更新」并行下载全部可更新插件，单项按钮同步显示进度", async () => {
+  const second = "test.second";
+  const secondArtifact = (): DevelopmentPluginPackage => {
+    const value = artifact();
+    return {
+      manifest: { ...value.manifest, id: second, name: "第二插件" },
+      code: value.code.replaceAll(ID, second).replaceAll("中心插件", "第二插件"),
+    };
+  };
+  scan = {
+    ...scan,
+    entries: [
+      { id: ID, directory: "/a", artifact: artifact(), source: center },
+      {
+        id: second,
+        directory: "/b",
+        artifact: secondArtifact(),
+        source: { ...center, pluginId: second },
+      },
+    ],
+  };
+  await act(async () => runtime.local?.refresh());
+  const next = (pluginId: string, name: string, releaseId: string) => {
+    const latest = { ...catalog.items[0].latest, releaseId, version: "1.1.0" };
+    return { ...catalog.items[0], pluginId, name, latest, compatible: latest };
+  };
+  mock.catalog.mockResolvedValue({
+    ...catalog,
+    items: [next(ID, "中心插件", "r-a2"), next(second, "第二插件", "r-b2")],
+  });
+  const finishes: (() => void)[] = [];
+  mock.stage.mockImplementation(
+    id => new Promise(resolve => finishes.push(() => resolve({ id, version: "1.1.0" })))
+  );
+  await act(async () => navigator?.push("plugins", { tab: "updates" }));
+  await settle();
+  await click("全部更新 2");
+  expect(mock.stage.mock.calls.map(([id]) => id)).toEqual(["r-a2", "r-b2"]);
+  expect(page().textContent).toContain("下载校验中");
+  expect(page().textContent).not.toContain("全部更新");
+  await act(async () => {
+    for (const finish of finishes) finish();
+  });
+  await settle();
+  expect(mock.stage).toHaveBeenCalledTimes(2);
+});

@@ -46,7 +46,7 @@
 
 移动管理页消费 `features/plugins/data/usePluginManager`，查询、动作可用性与原生变更由控制器统一编排。动作在调用时复验清单和会话，不只靠按钮禁用；操作互斥，清数据固定工作区，切库/卸载使旧回调失效。启停等操作使用原生 managementEnabled；development 只表示开发来源安装资格，JSON 入口还要求前端 DEV。正式构建只运行来源记录与固定中心 URL 匹配的包；启用和恢复同时检查持久撤回记录。取消或失活后的迟到暂存结果不提交。
 
-中心安装由 `app/plugins/center-install` 按应用 QueryClient 保存任务，所有页面通过同一个订阅式 hook 消费；Activity 隐藏、路由深入和页面卸载不会取消中心任务。取消操作终止原生等待响应/读取数据的过程，失败重试仍使用原 releaseId 并重新核验。此机制不承诺进程被系统终止后继续下载；原生事务仍负责保留旧包与恢复文件状态。
+中心安装由 `app/plugins/center-install` 按应用 QueryClient 保存任务表（按 pluginId 一项），所有页面通过同一个订阅式 hook 消费；Activity 隐藏、路由深入、关闭安装面板和页面卸载不会取消中心任务。同一插件同时只有一个任务，不同插件并行：最多 3 个同时下载（原生 `Download` 上限 4、与开发安装共用），其余以 queued 排队。取消按插件进行：已开始的任务终止原生等待响应/读取数据的过程；排队中的任务只出队，不调用原生取消（原生取消会清掉已有待生效包）。失败重试仍使用该插件原 releaseId 并重新核验。此机制不承诺进程被系统终止后继续下载；原生事务仍负责保留旧包与恢复文件状态。
 
 已安装清单分别提供 currentVersion、pendingVersion、centerSource、撤回原因和状态刷新失败标记。首次仅有 next 时 currentVersion 为 null，不冒充已安装；固定中心新装包默认保存启用意图，下载完成即重建会话生效，更新保留已保存意图，损坏的 enabled.json 不会默认启用。权限说明不等于授权。Android/iOS 原生宿主提供 browsingEnabled/installationEnabled，正式安装仍由中心复验平台分发与发布状态；非移动宿主不能安装。
 

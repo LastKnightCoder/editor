@@ -8,11 +8,15 @@ export type InstallSheetState =
   | { kind: "resolving" }
   | { kind: "unavailable"; reasons: readonly CenterReason[]; message?: string }
   | { kind: "confirm"; version: string; size: number; permissions: readonly string[] }
-  | { kind: "installing"; phase: "downloading" | "checking"; version?: string }
+  | { kind: "installing"; phase: "queued" | "downloading" | "checking"; version?: string }
   | { kind: "done"; version: string }
   | { kind: "failed"; version: string; message: string };
 
-const PHASE_LABELS = { downloading: "正在从插件中心下载…", checking: "正在校验包与发布记录…" };
+const PHASE_LABELS = {
+  queued: "排队中，前面的插件下载完就开始…",
+  downloading: "正在从插件中心下载…",
+  checking: "正在校验包与发布记录…",
+};
 
 export function InstallSheet({
   open,
@@ -35,13 +39,7 @@ export function InstallSheet({
   const version = "version" in state && state.version ? ` v${state.version}` : "";
   const installing = state.kind === "installing";
   return (
-    <BottomSheet
-      open={open}
-      title={`${verb} ${name}${version}`}
-      // 下载/校验中返回手势不关闭面板，避免误以为已取消
-      backDismiss={!installing}
-      onClose={installing ? () => undefined : onClose}
-    >
+    <BottomSheet open={open} title={`${verb} ${name}${version}`} onClose={onClose}>
       <div className="flex flex-col gap-4 px-5 pb-4">
         {state.kind === "resolving" && <Loading minHeight={96} label="正在选择适合此设备的版本…" />}
         {state.kind === "unavailable" && (
@@ -78,9 +76,12 @@ export function InstallSheet({
           </>
         )}
         {state.kind === "installing" && (
-          <p role="status" className="text-ink-2 text-[13px]">
-            {PHASE_LABELS[state.phase]}
-          </p>
+          <div className="flex flex-col gap-1 text-[13px]">
+            <p role="status" className="text-ink-2">
+              {PHASE_LABELS[state.phase]}
+            </p>
+            <p className="text-ink-3">关闭面板不影响下载，进度可在插件列表里查看。</p>
+          </div>
         )}
         {state.kind === "done" && (
           <p role="status" className="text-ok text-[13px]">
@@ -105,9 +106,14 @@ export function InstallSheet({
               </Button>
             </>
           ) : installing ? (
-            <Button className="col-span-2 min-h-11" onClick={onCancelInstall}>
-              取消下载
-            </Button>
+            <>
+              <Button className="min-h-11" onClick={onCancelInstall}>
+                取消下载
+              </Button>
+              <Button variant="primary" className="min-h-11" onClick={onClose}>
+                后台下载
+              </Button>
+            </>
           ) : state.kind === "failed" ? (
             <>
               <Button className="min-h-11" onClick={onClose}>

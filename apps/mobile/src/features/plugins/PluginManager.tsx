@@ -8,7 +8,6 @@ import { PluginPageShell } from "./PluginPageView";
 import { InstalledPluginsPanel } from "./InstalledPluginsPanel";
 import { PluginStorePanel } from "./PluginStorePanel";
 import { PluginHubTabs, type PluginHubTab } from "./components/PluginHubTabs";
-import { useMobileCenterInstall } from "./data/center-queries";
 import { usePluginManager } from "./data/usePluginManager";
 
 /** 插件中心：右上角搜索横向展开，关键词在当前标签内生效；页面订阅应用级安装任务，切换页面不会中断安装。 */
@@ -18,7 +17,6 @@ export function PluginManager() {
   const [searching, setSearching] = useState(false);
   const [input, setInput] = useState("");
   const q = useDebounce(input.trim(), { wait: 300 });
-  const install = useMobileCenterInstall();
   const installedCount = usePluginManager().items.length;
   const idPrefix = useId();
   return (
@@ -59,11 +57,7 @@ export function PluginManager() {
         aria-labelledby={`${idPrefix}-tab-${tab}`}
         className="pb-6"
       >
-        {tab === "store" ? (
-          <PluginStorePanel install={install} q={q} />
-        ) : (
-          <InstalledPluginsPanel q={q} />
-        )}
+        {tab === "store" ? <PluginStorePanel q={q} /> : <InstalledPluginsPanel q={q} />}
       </div>
     </PluginPageShell>
   );

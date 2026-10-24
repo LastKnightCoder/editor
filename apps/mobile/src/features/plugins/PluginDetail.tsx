@@ -117,7 +117,8 @@ export function PluginDetail() {
     installed,
     installationEnabled,
   });
-  const phase = storeTaskPhase(install.task, pluginId);
+  const task = install.task(pluginId);
+  const phase = storeTaskPhase(task);
   const permissions =
     installed?.permissions ??
     (manifest && "permissions" in manifest ? (manifest.permissions ?? []) : []);
@@ -156,7 +157,7 @@ export function PluginDetail() {
           version={installed?.version ?? latest?.version ?? null}
           installed={installed}
           phase={phase}
-          taskError={install.mutation.error}
+          taskError={task?.error}
           category={manifest?.categories?.[0] ?? null}
         />
         <div className="flex items-center gap-2.5">
@@ -169,8 +170,8 @@ export function PluginDetail() {
               primary={primary}
               phase={phase}
               onPress={() => setInstalling(true)}
-              onCancel={() => swallow(install.cancel())}
-              onRetry={() => swallow(install.retry())}
+              onCancel={() => swallow(install.cancel(pluginId))}
+              onRetry={() => swallow(install.retry(pluginId))}
             />
           )}
         </div>
@@ -286,7 +287,6 @@ export function PluginDetail() {
           name={name}
           installedVersion={installed?.version ?? null}
           installedPermissions={installed?.permissions}
-          install={install}
           onClose={() => setInstalling(false)}
         />
       )}

@@ -106,7 +106,7 @@ export function lifecycleOf(
   taskError?: unknown
 ): PluginLifecycleView {
   if (phase === "checking") return { kind: "verifying" };
-  if (phase === "downloading") return { kind: "downloading", progress: null };
+  if (phase === "downloading" || phase === "queued") return { kind: "downloading", progress: null };
   if (item.revoked) return { kind: "revoked", reason: item.revoked.reason };
   if (phase === "failed") return { kind: "failed", message: String(taskError) };
   if (item.error) return { kind: "failed", message: item.error };

@@ -1,13 +1,21 @@
 import { useSyncExternalStore } from "react";
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  queryOptions,
+  useInfiniteQuery,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   normalizeCenterQuery,
   type CenterCatalogQuery,
   type CenterPlatform,
+  type CenterResolution,
 } from "@tau/plugins/center";
 import {
   createMobilePluginCenterClient,
   readMobileCenterConfig,
+  type MobileCenterConfig,
 } from "../../../services/pluginCenter";
 import { getMobileCenterInstallStore } from "../../../app/plugins/center-install";
 import { comparePluginVersions } from "@tau/plugins/package";
@@ -79,14 +87,19 @@ export function useMobileCenterVersions(pluginId: string, platform: CenterPlatfo
     getNextPageParam: page => page.nextCursor ?? undefined,
   });
 }
-export function useMobileCenterResolution(pluginId: string, releaseId?: string, enabled = true) {
-  const config = useMobileCenterConfig();
-  const host = config.data?.host;
-  const query = useQuery({
+/** 选版查询：单插件详情与已安装列表的批量更新检查共用同一缓存键。 */
+const resolutionQuery = (
+  config: MobileCenterConfig | undefined,
+  pluginId: string,
+  releaseId?: string,
+  enabled = true
+) => {
+  const host = config?.host;
+  return queryOptions({
     queryKey: [
       ...mobileCenterKeys.root,
       "resolve",
-      config.data?.origin ?? null,
+      config?.origin ?? null,
       host ?? null,
       pluginId,
       releaseId ?? null,
@@ -99,6 +112,10 @@ export function useMobileCenterResolution(pluginId: string, releaseId?: string, 
     staleTime: 0,
     refetchOnWindowFocus: true,
   });
+};
+export function useMobileCenterResolution(pluginId: string, releaseId?: string, enabled = true) {
+  const config = useMobileCenterConfig();
+  const query = useQuery(resolutionQuery(config.data, pluginId, releaseId, enabled));
   return { config, query };
 }
 export function useMobileCenterStatuses(releaseIds: readonly string[]) {
@@ -113,36 +130,44 @@ export function useMobileCenterStatuses(releaseIds: readonly string[]) {
   });
 }
 
+/** 兼容且版本高于已装版本的选版结果即为可用更新。 */
+const updateOf = (resolution: CenterResolution | undefined, installedVersion: string | null) => {
+  const release = resolution?.release;
+  return release &&
+    installedVersion &&
+    resolution.compatibility.status === "compatible" &&
+    comparePluginVersions(release.version, installedVersion) > 0
+    ? release
+    : null;
+};
 export function useMobileCenterUpdate(
   pluginId: string,
   installedVersion: string | null,
   enabled = true
 ) {
   const result = useMobileCenterResolution(pluginId, undefined, enabled);
-  const release = result.query.data?.release;
-  const update =
-    release &&
-    installedVersion &&
-    result.query.data?.compatibility.status === "compatible" &&
-    comparePluginVersions(release.version, installedVersion) > 0
-      ? release
-      : null;
-  return { ...result, update };
+  return { ...result, update: updateOf(result.query.data, installedVersion) };
+}
+/** 已安装列表的批量更新检查；只返回有可用更新的插件，顺序同输入。 */
+export function useMobileCenterUpdates(
+  items: readonly { id: string; version: string | null; enabled: boolean }[]
+) {
+  const config = useMobileCenterConfig();
+  const results = useQueries({
+    queries: items.map(item => resolutionQuery(config.data, item.id, undefined, item.enabled)),
+  });
+  return items.flatMap((item, index) => {
+    const release = item.enabled ? updateOf(results[index]?.data, item.version) : null;
+    return release ? [{ pluginId: item.id, release }] : [];
+  });
 }
 export function useMobileCenterInstall() {
   const queryClient = useQueryClient();
   const store = getMobileCenterInstallStore(queryClient);
-  const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  const tasks = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   return {
-    phase: snapshot.phase,
-    task: snapshot,
-    mutation: {
-      isPending: snapshot.status === "pending",
-      isSuccess: snapshot.status === "success",
-      isError: snapshot.status === "error",
-      error: snapshot.error,
-      reset: store.reset,
-    },
+    tasks,
+    task: (pluginId: string) => tasks.get(pluginId) ?? null,
     install: store.install,
     cancel: store.cancel,
     retry: store.retry,

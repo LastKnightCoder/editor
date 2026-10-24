@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button, Textarea } from "@tau/ui";
+import { describeCenterPermissions } from "@tau/plugins/center";
 import { useNavigator } from "../../router";
 import { usePluginManager, type ManagedPluginItem } from "./data/usePluginManager";
 import { InstalledPluginRow } from "./components/InstalledPluginRow";
@@ -7,12 +8,23 @@ import { PluginChangesBanner } from "./components/PluginChangesBanner";
 import { PluginListState } from "./components/PluginListState";
 import { hasPendingChange, lifecycleOf } from "./components/pluginStatus";
 import { storeTaskPhase } from "./components/storeActions";
-import { useMobileCenterInstall, useMobileCenterUpdate } from "./data/center-queries";
+import { releasePermissions } from "./components/centerDisplay";
+import { UpdateAllSheet, type UpdateAllEntry } from "./components/UpdateAllSheet";
+import {
+  useMobileCenterConfig,
+  useMobileCenterInstall,
+  useMobileCenterUpdate,
+  useMobileCenterUpdates,
+} from "./data/center-queries";
 
 const matches = (item: ManagedPluginItem, q: string) => {
   const query = q.toLowerCase();
   return !query || item.name.toLowerCase().includes(query) || item.id.toLowerCase().includes(query);
 };
+
+/** 中心来源、无待生效包且未被拦截的插件才检查更新；列表行与一键更新共用这一口径。 */
+const checksUpdate = (item: ManagedPluginItem) =>
+  !!item.centerSource && !item.pending && !item.blocked;
 
 function Row({
   item,
@@ -24,19 +36,15 @@ function Row({
   divider: boolean;
 }) {
   const navigator = useNavigator();
-  const install = useMobileCenterInstall();
-  const { update } = useMobileCenterUpdate(
-    item.id,
-    item.version,
-    !!item.centerSource && !item.pending && !item.blocked
-  );
+  const task = useMobileCenterInstall().task(item.id);
+  const { update } = useMobileCenterUpdate(item.id, item.version, checksUpdate(item));
   const toggle = item.enabled ? "disable" : "enable";
   return (
     <InstalledPluginRow
       id={item.id}
       name={item.name}
       version={item.version}
-      status={lifecycleOf(item, storeTaskPhase(install.task, item.id), install.mutation.error)}
+      status={lifecycleOf(item, storeTaskPhase(task), task?.error)}
       update={update?.version ?? null}
       enabled={item.enabled}
       toggle={manager.managementEnabled ? item.actions[toggle] : null}
@@ -45,6 +53,66 @@ function Row({
       // 错误由控制器的 actionError 呈现，这里只吞掉 Promise 拒绝
       onToggle={() => void manager.actions.run(toggle, item.id).catch(() => undefined)}
     />
+  );
+}
+
+/** 有可用更新时提供一键更新：确认后全部进入应用级安装队列，各行就地显示进度。 */
+function UpdateAllBar({ items }: { items: readonly ManagedPluginItem[] }) {
+  const config = useMobileCenterConfig();
+  const install = useMobileCenterInstall();
+  // 打开时冻结清单：确认后各项进入安装队列会从可更新列表消失，面板仍需完整播完退场
+  const [batch, setBatch] = useState<{ open: boolean; entries: UpdateAllEntry[] }>({
+    open: false,
+    entries: [],
+  });
+  const entries: UpdateAllEntry[] = useMobileCenterUpdates(
+    items.map(item => ({ id: item.id, version: item.version, enabled: checksUpdate(item) }))
+  )
+    .filter(({ pluginId }) => install.task(pluginId)?.status !== "pending")
+    .map(({ pluginId, release }) => {
+      const item = items.find(value => value.id === pluginId);
+      return {
+        id: pluginId,
+        releaseId: release.releaseId,
+        name: item?.name ?? pluginId,
+        from: item?.version ?? null,
+        to: release.version,
+        newPermissions: describeCenterPermissions(releasePermissions(release), item?.permissions)
+          .filter(permission => permission.newlyRequested)
+          .map(permission => permission.label),
+      };
+    });
+  const close = () => setBatch(value => ({ ...value, open: false }));
+  return (
+    <>
+      {config.data?.installationEnabled && entries.length > 0 && (
+        <div className="bg-accent-soft flex items-center gap-2.5 rounded-[14px] px-3 py-2.5">
+          <span className="text-ink-1 min-w-0 flex-1 text-[13px] leading-snug">
+            {entries.length} 个插件可更新
+            <span className="text-ink-2 block truncate text-[11.5px]">
+              {entries.map(entry => entry.name).join("、")}
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setBatch({ open: true, entries })}
+            className="bg-accent text-ink-inverse h-[30px] shrink-0 rounded-full px-3 text-[12.5px] font-bold active:scale-95"
+          >
+            全部更新
+          </button>
+        </div>
+      )}
+      <UpdateAllSheet
+        open={batch.open}
+        entries={batch.entries}
+        onClose={close}
+        onConfirm={() => {
+          close();
+          for (const entry of batch.entries)
+            void install.install(entry.id, entry.releaseId).catch(() => undefined);
+        }}
+      />
+    </>
   );
 }
 
@@ -62,6 +130,7 @@ export function InstalledPluginsPanel({ q = "" }: { q?: string }) {
       <PluginChangesBanner
         changes={manager.items.filter(hasPendingChange).map(item => item.name)}
       />
+      <UpdateAllBar items={manager.items} />
       {manager.actionError && (
         <p role="alert" className="bg-danger-soft text-danger rounded-xl px-3 py-2 text-[13px]">
           {String(manager.actionError)}

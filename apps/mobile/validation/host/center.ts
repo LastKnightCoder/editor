@@ -214,12 +214,12 @@ export async function validateMobileCenter(
       await detail();
       await click("更新到 v1.0.1");
       await click("更新 v1.0.1");
-      await until(() => store.getSnapshot().status === "pending", "下载开始");
+      await until(() => store.getSnapshot().get(abc)?.status === "pending", "下载开始");
       navigator.push("pluginDetail", { pluginId: abc });
       navigator.push("plugins", { tab: "store" });
-      await until(() => store.getSnapshot().status !== "pending", "跨两层页面下载完成");
-      if (store.getSnapshot().status !== "success")
-        throw new Error(String(store.getSnapshot().error));
+      await until(() => store.getSnapshot().get(abc)?.status !== "pending", "跨两层页面下载完成");
+      if (store.getSnapshot().get(abc)?.status !== "success")
+        throw new Error(String(store.getSnapshot().get(abc)?.error));
       const current = await item();
       if (current?.currentVersion !== "1.0.0" || current.pendingVersion !== "1.0.1")
         throw new Error("更新提前切换当前版本");
@@ -237,7 +237,7 @@ export async function validateMobileCenter(
       await detail();
       await click("更新到 v1.0.2");
       await click("更新 v1.0.2");
-      await until(() => store.getSnapshot().status === "error", "损坏包被拒绝");
+      await until(() => store.getSnapshot().get(abc)?.status === "error", "损坏包被拒绝");
       await click("关闭");
       if (
         !button("安装失败，重试") ||
@@ -252,7 +252,7 @@ export async function validateMobileCenter(
       await until(async () => {
         try {
           const value = await invoke<{ status: string }>("plugin_center_request", {
-            request: { kind: "release", releaseId: store.getSnapshot().releaseId },
+            request: { kind: "release", releaseId: store.getSnapshot().get(abc)?.releaseId },
           });
           return value && button("安装失败，重试");
         } catch {
@@ -261,9 +261,9 @@ export async function validateMobileCenter(
       }, "失败任务保留");
       await pause(5000);
       await click("安装失败，重试");
-      await until(() => store.getSnapshot().status === "pending", "重试下载");
+      await until(() => store.getSnapshot().get(abc)?.status === "pending", "重试下载");
       await click("下载中 · 点按取消");
-      await until(() => store.getSnapshot().status === "idle", "取消结束");
+      await until(() => !store.getSnapshot().has(abc), "取消结束");
       if ((await item())?.pending) throw new Error("取消留下待生效包");
       await click("更新到 v1.0.2");
       await click("更新 v1.0.2");

@@ -1,7 +1,8 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { comparePluginVersions } from "@tau/plugins/package";
 import { describeCenterPermissions } from "@tau/plugins/center";
 import { InstallSheet, type InstallSheetState } from "./components/InstallSheet";
+import { releasePermissions } from "./components/centerDisplay";
 import { INSTALL_CLOSED_REASON } from "./components/storeActions";
 import {
   useMobileCenterInstall,
@@ -9,49 +10,45 @@ import {
   useMobileCenterRelease,
 } from "./data/center-queries";
 
-type InstallController = ReturnType<typeof useMobileCenterInstall>;
-
-/** 选版 → 确认 → 下载/校验 → 待生效；挂载即打开，由调用方在 onClose 后卸载。 */
+/** 选版 → 确认 → 下载/校验 → 待生效；挂载即打开，由调用方在 onClose 后卸载。下载中关闭面板不影响任务。 */
 export function CenterInstallSheet({
   pluginId,
   name,
   installedVersion,
   installedPermissions = [],
-  install,
   onClose,
 }: {
   pluginId: string;
   name: string;
   installedVersion: string | null;
   installedPermissions?: readonly string[];
-  /** 所有页面订阅同一应用级安装任务。 */
-  install: InstallController;
   onClose: () => void;
 }) {
+  const install = useMobileCenterInstall();
   const { config, query } = useMobileCenterResolution(pluginId);
-  const task = install.task?.pluginId === pluginId ? install.task : null;
+  const task = install.task(pluginId);
   const taskRelease = useMobileCenterRelease(task?.releaseId ?? null);
-  const [attempt, setAttempt] = useState<
-    { version: string; result: "running" | "done" } | { version: string; error: string } | null
-  >(null);
-  const cancelled = useRef(false);
+  const [doneVersion, setDoneVersion] = useState<string | null>(null);
   const release = query.data?.release ?? null;
   const mode = installedVersion ? "update" : "install";
-  const activeVersion = attempt?.version ?? taskRelease.data?.version;
+  const taskVersion =
+    taskRelease.data?.version ??
+    (task && task.releaseId === release?.releaseId ? release.version : undefined);
 
   let state: InstallSheetState;
   if (task?.status === "pending")
     state = {
       kind: "installing",
-      phase: install.phase === "checking" ? "checking" : "downloading",
-      version: activeVersion,
+      phase: task.phase === "checking" || task.phase === "queued" ? task.phase : "downloading",
+      version: taskVersion,
     };
-  else if (attempt && "error" in attempt)
-    state = { kind: "failed", version: attempt.version, message: attempt.error };
-  else if (attempt?.result === "done") state = { kind: "done", version: attempt.version };
-  else if (attempt && (install.phase === "downloading" || install.phase === "checking"))
-    state = { kind: "installing", phase: install.phase, version: attempt.version };
-  else if (attempt) state = { kind: "installing", phase: "downloading", version: attempt.version };
+  else if (task?.status === "error")
+    state = {
+      kind: "failed",
+      version: taskVersion ?? "",
+      message: task.error instanceof Error ? task.error.message : String(task.error),
+    };
+  else if (doneVersion) state = { kind: "done", version: doneVersion };
   else if (config.isError)
     state = { kind: "unavailable", reasons: [], message: String(config.error) };
   else if (config.data && !config.data.host)
@@ -73,36 +70,20 @@ export function CenterInstallSheet({
       kind: "confirm",
       version: release.version,
       size: release.size,
-      permissions: describeCenterPermissions(
-        "permissions" in release.content.manifest
-          ? (release.content.manifest.permissions ?? [])
-          : [],
-        installedPermissions
-      ).map(
+      permissions: describeCenterPermissions(releasePermissions(release), installedPermissions).map(
         permission =>
           `${installedVersion && permission.newlyRequested ? "新增：" : ""}${permission.label}`
       ),
     };
 
   const start = () => {
-    const target = release ?? null;
-    if (!target) return;
-    cancelled.current = false;
-    setAttempt({ version: target.version, result: "running" });
+    if (!release) return;
+    const version = release.version;
+    // 失败与取消都落在应用级任务上，由上面的状态投影呈现
     install
-      .install(pluginId, target.releaseId)
-      .then(() => setAttempt({ version: target.version, result: "done" }))
-      .catch((error: unknown) =>
-        // 用户主动取消回到确认步骤，不当作失败
-        setAttempt(
-          cancelled.current
-            ? null
-            : {
-                version: target.version,
-                error: error instanceof Error ? error.message : String(error),
-              }
-        )
-      );
+      .install(pluginId, release.releaseId)
+      .then(() => setDoneVersion(version))
+      .catch(() => undefined);
   };
 
   return (
@@ -112,12 +93,7 @@ export function CenterInstallSheet({
       name={name}
       state={state}
       onConfirm={start}
-      onCancelInstall={() => {
-        cancelled.current = true;
-        void install
-          .cancel()
-          .catch(error => setAttempt({ version: activeVersion ?? "", error: String(error) }));
-      }}
+      onCancelInstall={() => void install.cancel(pluginId).catch(() => undefined)}
       onClose={onClose}
     />
   );

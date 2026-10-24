@@ -1,4 +1,4 @@
-import type { CenterTarget } from "@tau/plugins/center";
+import type { CenterRelease, CenterTarget } from "@tau/plugins/center";
 import { PLUGIN_CATEGORIES, type PluginCategory } from "@tau/plugins/package";
 import type { PortablePlatform } from "@tau/plugins/portable";
 
@@ -15,3 +15,9 @@ export const categoryLabel = (id: PluginCategory) => CATEGORY_LABELS.get(id) ?? 
 export { PLUGIN_CATEGORIES };
 
 export type { CenterTarget };
+
+/** 发布记录中清单申请的权限；清单没有该字段时为空。 */
+export const releasePermissions = (release: CenterRelease): readonly string[] => {
+  const manifest = release.content.manifest;
+  return "permissions" in manifest ? (manifest.permissions ?? []) : [];
+};

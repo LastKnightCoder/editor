@@ -11,13 +11,12 @@ import {
   storePrimaryAction,
   storeTaskPhase,
 } from "./components/storeActions";
-import { useMobileCenterCatalog, type useMobileCenterInstall } from "./data/center-queries";
+import { useMobileCenterCatalog, useMobileCenterInstall } from "./data/center-queries";
 import { usePluginManager } from "./data/usePluginManager";
 
-type InstallController = ReturnType<typeof useMobileCenterInstall>;
-
 /** 商店：按本机平台与真实宿主浏览，关键词来自顶栏搜索，安装只经中心 releaseId。 */
-export function PluginStorePanel({ install, q }: { install: InstallController; q: string }) {
+export function PluginStorePanel({ q }: { q: string }) {
+  const install = useMobileCenterInstall();
   const navigator = useNavigator();
   const [category, setCategory] = useState<PluginCategory | null>(null);
   const [target, setTarget] = useState<{ pluginId: string; name: string } | null>(null);
@@ -86,21 +85,21 @@ export function PluginStorePanel({ install, q }: { install: InstallController; q
               installed: installed.get(entry.pluginId) ?? null,
               installationEnabled,
             })}
-            phase={storeTaskPhase(install.task, entry.pluginId)}
+            phase={storeTaskPhase(install.task(entry.pluginId))}
             onOpen={() => navigator.push("pluginDetail", { pluginId: entry.pluginId })}
             onPrimary={() => setTarget({ pluginId: entry.pluginId, name: entry.name })}
-            onCancel={() => swallow(install.cancel())}
-            onRetry={() => swallow(install.retry())}
+            onCancel={() => swallow(install.cancel(entry.pluginId))}
+            onRetry={() => swallow(install.retry(entry.pluginId))}
           />
         ))}
       </PluginListState>
       {target && (
         <CenterInstallSheet
+          key={target.pluginId}
           pluginId={target.pluginId}
           name={target.name}
           installedVersion={installed.get(target.pluginId)?.version ?? null}
           installedPermissions={installed.get(target.pluginId)?.permissions}
-          install={install}
           onClose={() => setTarget(null)}
         />
       )}
