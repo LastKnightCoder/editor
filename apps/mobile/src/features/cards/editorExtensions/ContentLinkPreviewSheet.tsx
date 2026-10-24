@@ -227,7 +227,7 @@ function PreviewSheet(props: ContentLinkPreviewSheetProps & { target: ContentLin
             </SnapSheet.FixedFooterScroll>
             {openable ? (
               <footer
-                className="bg-surface border-line-2 absolute inset-x-0 border-t px-4 pt-2.5"
+                className="bg-surface border-line-2 absolute inset-x-0 z-10 border-t px-4 pt-2.5"
                 style={{
                   bottom: "var(--pan-occluded-bottom, 0px)",
                   paddingBottom: "calc(10px + var(--mobile-overlay-bottom))",

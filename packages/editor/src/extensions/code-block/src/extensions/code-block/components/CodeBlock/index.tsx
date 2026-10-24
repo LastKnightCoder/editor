@@ -784,7 +784,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     <div
       contentEditable={false}
       className={cn(
-        "relative [--ed-code-pad-bottom:0.9em] [--ed-code-pad-left:1.25em] [--ed-code-pad-right:1em] [--ed-code-pad-top:0.9em]",
+        "relative isolate [--ed-code-pad-bottom:0.9em] [--ed-code-pad-left:1.25em] [--ed-code-pad-right:1em] [--ed-code-pad-top:0.9em]",
         CODE_HOVER_GROUP
       )}
     >
