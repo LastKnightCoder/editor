@@ -1,4 +1,10 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useMutationState,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   fetchPluginCatalog,
   fetchPluginRelease,
@@ -80,15 +86,45 @@ export function usePluginVersions(pluginId: string, enabled: boolean) {
   });
 }
 
-/** 下载并安装后刷新本地登记；需要更新内容快照的包保留为待生效。 */
+const INSTALL_RELEASE_KEY = ["plugins", "install-release"] as const;
+
+/**
+ * 下载并安装后刷新本地登记；需要更新内容快照的包保留为待生效。
+ * 不同版本可并行下载，主进程串行落盘；进度与失败经 mutationKey 共享，单个按钮与「全部更新」看到同一状态。
+ */
 export function useInstallRelease(runtime: DesktopPluginRuntime | null) {
   const client = useQueryClient();
   return useMutation({
+    mutationKey: INSTALL_RELEASE_KEY,
     mutationFn: async (releaseId: string) => {
       const staged = await stagePluginRelease(releaseId);
       await runtime?.local?.refresh();
       return staged;
     },
     onSettled: () => client.invalidateQueries({ queryKey: ["plugins", "catalog"] }),
+  });
+}
+
+/** 某个发布版本最近一次安装的状态；无论由哪个入口发起。 */
+export function useReleaseInstallState(releaseId: string | undefined) {
+  const states = useMutationState({
+    filters: {
+      mutationKey: INSTALL_RELEASE_KEY,
+      predicate: mutation => !!releaseId && mutation.state.variables === releaseId,
+    },
+    select: mutation => mutation.state,
+  });
+  const latest = states.at(-1);
+  return {
+    pending: latest?.status === "pending",
+    error: latest?.status === "error" ? latest.error : null,
+  };
+}
+
+/** 正在下载安装的发布版本。 */
+export function useInstallingReleases() {
+  return useMutationState({
+    filters: { mutationKey: INSTALL_RELEASE_KEY, status: "pending" },
+    select: mutation => mutation.state.variables as string,
   });
 }

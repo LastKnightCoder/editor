@@ -22,7 +22,7 @@ import {
   type InstallState,
   type PluginSourceKind,
 } from "../model";
-import { pluginReleaseQuery, useInstallRelease } from "../queries";
+import { pluginReleaseQuery, useInstallRelease, useReleaseInstallState } from "../queries";
 
 const CHIP = "text-tau-sm inline-flex h-5 items-center gap-1 whitespace-nowrap rounded-full px-2";
 
@@ -65,6 +65,7 @@ export function InstallButton({
 }) {
   const runtime = useDesktopPlugins();
   const install = useInstallRelease(runtime);
+  const progress = useReleaseInstallState("releaseId" in state ? state.releaseId : undefined);
   const client = useQueryClient();
   const [confirm, setConfirm] = useState<InstallConfirm>({ kind: "plain" });
   const [confirming, setConfirming] = useState(false);
@@ -115,7 +116,7 @@ export function InstallButton({
         variant={update ? "soft" : "secondary"}
         size="sm"
         icon={update ? ArrowUpCircle : Download}
-        loading={install.isPending || checking}
+        loading={progress.pending || checking}
         loadingText={checking ? "读取中" : "下载校验中"}
         aria-label={update ? `更新 ${name} 到 ${state.version}` : `安装 ${name}`}
         onClick={event => {
@@ -126,9 +127,9 @@ export function InstallButton({
       >
         {update ? `更新到 ${state.version}` : "安装"}
       </Button>
-      {install.error && (
+      {progress.error && (
         <span role="alert" className="text-tau-sm text-danger max-w-[220px] text-right">
-          {install.error instanceof Error ? install.error.message : "安装失败"}
+          {progress.error instanceof Error ? progress.error.message : "安装失败"}
         </span>
       )}
       <ConfirmDialog

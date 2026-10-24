@@ -2,7 +2,7 @@ import { cn } from "@tau/ui";
 import type { StorePrimaryAction } from "./storeActions";
 
 /** 本插件当前的中心安装任务阶段；无任务时为 null。 */
-export type StoreTaskPhase = "downloading" | "checking" | "failed" | null;
+export type StoreTaskPhase = "queued" | "downloading" | "checking" | "failed" | null;
 
 const SIZE = {
   sm: "h-[30px] min-w-[62px] rounded-full px-3.5 text-[13px]",
@@ -40,7 +40,7 @@ function ProgressRing({ spinning }: { spinning: boolean }) {
 
 /**
  * 商店主按钮：列表行（sm）与详情头部（lg）共用同一状态机。
- * 下载中点按即取消；校验阶段不可取消；失败可重试。
+ * 排队与下载中点按即取消；校验阶段不可取消；失败可重试。
  */
 export function StoreActionButton({
   primary,
@@ -62,7 +62,7 @@ export function StoreActionButton({
     "inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap font-bold transition active:scale-95 disabled:opacity-50 disabled:active:scale-100",
     SIZE[size]
   );
-  if (phase === "downloading" || phase === "checking") {
+  if (phase === "queued" || phase === "downloading" || phase === "checking") {
     const checking = phase === "checking";
     if (!large)
       return (
@@ -86,7 +86,7 @@ export function StoreActionButton({
         <span className="scale-75">
           <ProgressRing spinning={checking} />
         </span>
-        {checking ? "正在校验…" : "下载中 · 点按取消"}
+        {checking ? "正在校验…" : phase === "queued" ? "等待下载 · 点按取消" : "下载中 · 点按取消"}
       </button>
     );
   }

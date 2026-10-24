@@ -18,7 +18,16 @@ const state = vi.hoisted(() => ({
   pageParams: {} as Record<string, string>,
   install: vi.fn(),
   cancel: vi.fn(),
+  /** 模拟应用级任务表：替换即通知，供 useSyncExternalStore 订阅。 */
+  tasks: { map: new Map<string, unknown>(), listeners: new Set<() => void>() },
 }));
+function setTask(pluginId: string, task: Record<string, unknown> | null) {
+  const next = new Map(state.tasks.map);
+  if (task) next.set(pluginId, { pluginId, ...task });
+  else next.delete(pluginId);
+  state.tasks.map = next;
+  for (const listener of state.tasks.listeners) listener();
+}
 const ok = <T,>(data: T) => ({
   data,
   isPending: false,
@@ -27,40 +36,49 @@ const ok = <T,>(data: T) => ({
   isRefetching: false,
   refetch: vi.fn(),
 });
-vi.mock("./data/center-queries", () => ({
-  useMobileCenterConfig: () => ok({ origin: "https://center.test", ...state.config }),
-  useMobileCenterCatalog: () => ({
-    config: ok({ origin: "https://center.test", ...state.config }),
-    query: {
-      ...ok({ pages: [{ items: state.catalog, nextCursor: null, categoryCounts: { page: 1 } }] }),
+vi.mock("./data/center-queries", async () => {
+  const { useSyncExternalStore } = await import("react");
+  const subscribe = (listener: () => void) => {
+    state.tasks.listeners.add(listener);
+    return () => void state.tasks.listeners.delete(listener);
+  };
+  return {
+    useMobileCenterConfig: () => ok({ origin: "https://center.test", ...state.config }),
+    useMobileCenterCatalog: () => ({
+      config: ok({ origin: "https://center.test", ...state.config }),
+      query: {
+        ...ok({ pages: [{ items: state.catalog, nextCursor: null, categoryCounts: { page: 1 } }] }),
+        hasNextPage: false,
+        isFetchingNextPage: false,
+        isFetchNextPageError: false,
+        fetchNextPage: vi.fn(),
+      },
+    }),
+    useMobileCenterResolution: () => ({
+      config: ok({ origin: "https://center.test", ...state.config }),
+      query: ok(state.resolution),
+    }),
+    useMobileCenterVersions: () => ({
+      ...ok({ pages: [{ items: state.versions, nextCursor: null }] }),
       hasNextPage: false,
       isFetchingNextPage: false,
-      isFetchNextPageError: false,
       fetchNextPage: vi.fn(),
+    }),
+    useMobileCenterRelease: (id: string | null) =>
+      ok((state.versions as CenterRelease[]).find(item => item.releaseId === id) ?? null),
+    useMobileCenterInstall: () => {
+      const tasks = useSyncExternalStore(subscribe, () => state.tasks.map);
+      return {
+        tasks,
+        task: (pluginId: string) => tasks.get(pluginId) ?? null,
+        install: state.install,
+        cancel: state.cancel,
+        retry: vi.fn(),
+        refreshStatuses: vi.fn(),
+      };
     },
-  }),
-  useMobileCenterResolution: () => ({
-    config: ok({ origin: "https://center.test", ...state.config }),
-    query: ok(state.resolution),
-  }),
-  useMobileCenterVersions: () => ({
-    ...ok({ pages: [{ items: state.versions, nextCursor: null }] }),
-    hasNextPage: false,
-    isFetchingNextPage: false,
-    fetchNextPage: vi.fn(),
-  }),
-  useMobileCenterRelease: (id: string | null) =>
-    ok((state.versions as CenterRelease[]).find(item => item.releaseId === id) ?? null),
-  useMobileCenterInstall: () => ({
-    phase: "idle",
-    task: { phase: "idle", status: "idle", pluginId: null, releaseId: null, error: null },
-    mutation: { isPending: false },
-    install: state.install,
-    cancel: state.cancel,
-    retry: vi.fn(),
-    refreshStatuses: vi.fn(),
-  }),
-}));
+  };
+});
 vi.mock("./data/usePluginManager", () => ({
   usePluginManager: () => ({
     items: state.installed,
@@ -166,6 +184,7 @@ beforeEach(() => {
   state.run.mockReset().mockResolvedValue(undefined);
   state.install.mockReset();
   state.cancel.mockReset().mockResolvedValue(undefined);
+  state.tasks.map = new Map();
   navigator.push.mockReset();
 });
 afterEach(async () => {
@@ -261,8 +280,7 @@ it("商店列表：获取按钮确认后按 releaseId 安装，整行经导航�
   state.catalog = [entry(latest, compatible)];
   state.resolution = resolution(compatible);
   state.install.mockResolvedValue(undefined);
-  const install = (await import("./data/center-queries")).useMobileCenterInstall();
-  await mount(<PluginStorePanel install={install} q="" />);
+  await mount(<PluginStorePanel q="" />);
   await click(
     [...document.body.querySelectorAll("button")].find(item => item.textContent?.includes("计数器"))
   );
@@ -284,8 +302,7 @@ it("首装待生效（尚无当前版本）在商店显示待生效，不再提�
   state.installed = [
     installedItem({ version: null, pending: true, pendingVersion: "1.4.0", active: false }),
   ];
-  const install = (await import("./data/center-queries")).useMobileCenterInstall();
-  await mount(<PluginStorePanel install={install} q="" />);
+  await mount(<PluginStorePanel q="" />);
   expect(document.body.textContent).toContain("待生效");
   expect(button("获取")).toBeUndefined();
 });
@@ -293,13 +310,12 @@ it("首装待生效（尚无当前版本）在商店显示待生效，不再提�
 it("开关关闭时可浏览但不能安装；没有宿主时说明当前平台不能安装", async () => {
   state.catalog = [entry(centerRelease("1.0.0", "r1"), centerRelease("1.0.0", "r1"))];
   state.config = { host, installationEnabled: false };
-  const install = (await import("./data/center-queries")).useMobileCenterInstall();
-  await mount(<PluginStorePanel install={install} q="" />);
+  await mount(<PluginStorePanel q="" />);
   expect(document.body.textContent).toContain("当前版本的 Tau 暂未开放插件安装，可先浏览");
   expect((button("获取") as HTMLButtonElement).disabled).toBe(true);
   await act(async () => root?.unmount());
   state.config = { host: null, installationEnabled: false };
-  await mount(<PluginStorePanel install={install} q="" />);
+  await mount(<PluginStorePanel q="" />);
   expect(document.body.textContent).toContain("当前平台不能安装移动插件");
 });
 
@@ -308,19 +324,52 @@ it("安装中取消回到确认步骤，不显示失败", async () => {
   state.catalog = [entry(compatible, compatible)];
   state.resolution = resolution(compatible);
   let reject: (error: Error) => void = () => undefined;
-  state.install.mockReturnValue(new Promise((_resolve, fail) => (reject = fail)));
-  const install = (await import("./data/center-queries")).useMobileCenterInstall();
-  await mount(<PluginStorePanel install={install} q="" />);
+  state.install.mockImplementation((pluginId: string, releaseId: string) => {
+    setTask(pluginId, { releaseId, phase: "downloading", status: "pending", error: null });
+    return new Promise((_resolve, fail) => (reject = fail));
+  });
+  await mount(<PluginStorePanel q="" />);
   await click(button("获取"));
   await click(button("安装 v1.0.0"));
+  expect(document.body.textContent).toContain("关闭面板不影响下载");
   await click(button("取消下载"));
-  expect(state.cancel).toHaveBeenCalled();
+  expect(state.cancel).toHaveBeenCalledWith("example.counter");
   await act(async () => {
+    setTask("example.counter", null);
     reject(new Error("aborted"));
     await Promise.resolve();
   });
   expect(document.body.textContent).not.toContain("失败");
   expect(document.body.textContent).toContain("从插件中心下载");
+});
+
+it("安装中可关闭面板转后台，其他插件仍可并行发起安装", async () => {
+  const compatible = centerRelease("1.0.0", "r1");
+  state.catalog = [
+    entry(compatible, compatible),
+    { ...entry(compatible, compatible), pluginId: "example.other", name: "另一个" },
+  ];
+  state.resolution = resolution(compatible);
+  state.install.mockImplementation((pluginId: string, releaseId: string) => {
+    setTask(pluginId, { releaseId, phase: "downloading", status: "pending", error: null });
+    return new Promise(() => undefined);
+  });
+  await mount(<PluginStorePanel q="" />);
+  const [first] = [...document.body.querySelectorAll("button")].filter(
+    item => item.textContent?.trim() === "获取"
+  );
+  await click(first);
+  await click(button("安装 v1.0.0"));
+  await click(button("后台下载"));
+  await act(async () => {
+    await new Promise(resolve => setTimeout(resolve, 400));
+  });
+  expect(document.body.textContent).not.toContain("关闭面板不影响下载");
+  expect(document.body.querySelector('[aria-label="取消下载"]')).not.toBeNull();
+  await click(button("获取"));
+  expect(document.body.textContent).toContain("从插件中心下载");
+  await click(button("安装 v1.0.0"));
+  expect(state.install).toHaveBeenLastCalledWith("example.other", "r1");
 });
 
 it("详情：已安装可更新时头部有启停开关与更新按钮，版本标签标记最新、可安装、已安装与未声明", async () => {

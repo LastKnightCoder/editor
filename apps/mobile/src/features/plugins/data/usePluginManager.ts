@@ -101,7 +101,7 @@ export function usePluginManager() {
   const runtime = useMobilePlugins();
   const client = useQueryClient();
   const centerInstall = getMobileCenterInstallStore(client);
-  const centerTask = useSyncExternalStore(
+  const centerTasks = useSyncExternalStore(
     centerInstall.subscribe,
     centerInstall.getSnapshot,
     centerInstall.getSnapshot
@@ -240,9 +240,9 @@ export function usePluginManager() {
     items:
       query.data?.packages.map(item => ({
         ...projectManagedPlugin(item, runtime, blocked),
-        retryAvailable: centerTask.status === "error" && centerTask.pluginId === item.id,
+        retryAvailable: centerTasks.get(item.id)?.status === "error",
       })) ?? [],
-    centerTask,
+    centerTasks,
     loading: query.isPending,
     refreshing: query.isFetching,
     error: query.error,
@@ -259,11 +259,7 @@ export function usePluginManager() {
       !!operation.id &&
       !cancellation.isPending,
     actions: {
-      retryCenter: async (pluginId: string) => {
-        if (centerInstall.getSnapshot().pluginId !== pluginId)
-          throw new Error("没有此插件的失败安装任务");
-        await centerInstall.retry();
-      },
+      retryCenter: (pluginId: string) => centerInstall.retry(pluginId),
       run: (kind: PluginManagerAction, id: string) => execute({ kind, id }),
       installDevelopment: (source: string) => execute({ kind: "installDevelopment", source }),
       cancelInstall: async () => {

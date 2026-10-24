@@ -205,17 +205,20 @@ export function MobilePluginProvider({
   // 首装没有旧版本在运行，下载完成即重载会话让它直接可用；更新由用户在插件中心确认生效
   useEffect(() => {
     const store = getMobileCenterInstallStore(client);
-    let status = store.getSnapshot().status;
+    let previous = store.getSnapshot();
     return store.subscribe(() => {
       const snapshot = store.getSnapshot();
-      const finished = status !== "success" && snapshot.status === "success";
-      status = snapshot.status;
-      if (!finished || !snapshot.pluginId) return;
-      const pluginId = snapshot.pluginId;
+      const finished = [...snapshot.values()]
+        .filter(task => task.status === "success" && previous.get(task.pluginId) !== task)
+        .map(task => task.pluginId);
+      previous = snapshot;
+      if (!finished.length) return;
       void readMobilePlugins()
         .then(inventory => {
-          const item = inventory.packages.find(value => value.id === pluginId);
-          if (item?.pending && !item.currentVersion) reload();
+          const fresh = inventory.packages.some(
+            item => finished.includes(item.id) && item.pending && !item.currentVersion
+          );
+          if (fresh) reload();
         })
         .catch(() => undefined);
     });

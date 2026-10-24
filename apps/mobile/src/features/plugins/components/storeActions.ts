@@ -1,5 +1,5 @@
 import { comparePluginVersions } from "@tau/plugins/package";
-import type { CenterInstallSnapshot } from "../../../app/plugins/center-install";
+import type { CenterInstallTask } from "../../../app/plugins/center-install";
 import type { StoreTaskPhase } from "./StoreActionButton";
 
 export const INSTALL_CLOSED_REASON = "当前版本的 Tau 暂未开放插件安装";
@@ -46,12 +46,16 @@ export function storePrimaryAction(input: {
   };
 }
 
-/** 应用级安装任务落到某个插件上的阶段：下载/校验中、失败可重试，其余为 null。 */
+/** 应用级安装任务落到某个插件上的阶段：排队/下载/校验中、失败可重试，其余为 null。 */
 export function storeTaskPhase(
-  task: Pick<CenterInstallSnapshot, "pluginId" | "status" | "phase">,
-  pluginId: string
+  task: Pick<CenterInstallTask, "status" | "phase"> | null
 ): StoreTaskPhase {
-  if (task.pluginId !== pluginId) return null;
-  if (task.status === "pending") return task.phase === "checking" ? "checking" : "downloading";
+  if (!task) return null;
+  if (task.status === "pending")
+    return task.phase === "checking"
+      ? "checking"
+      : task.phase === "queued"
+        ? "queued"
+        : "downloading";
   return task.status === "error" ? "failed" : null;
 }

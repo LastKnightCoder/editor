@@ -6,6 +6,7 @@ import { createMemoryStorage } from "@tau/plugins/host";
 import { createPluginEnvironmentStore } from "@tau/plugins/environment-host";
 import { MobilePluginRuntime } from "../../app/plugins/runtime";
 import { readMobilePlugins, setMobilePluginEnabled } from "../../services/plugins";
+import { centerHost, centerRelease } from "../../../../../tests/fixtures/plugins/center";
 import { InstalledPluginsPanel } from "./InstalledPluginsPanel";
 
 let runtime: MobilePluginRuntime;
@@ -26,6 +27,22 @@ vi.mock("../../services/plugins", async importOriginal => ({
   })),
   setMobilePluginEnabled: vi.fn(async () => undefined),
   removeMobilePlugin: vi.fn(async () => undefined),
+}));
+const center = vi.hoisted(() => ({
+  config: null as unknown,
+  resolve: vi.fn(),
+  install: vi.fn(async (..._args: unknown[]) => undefined),
+}));
+vi.mock("../../services/pluginCenter", async importOriginal => ({
+  ...(await importOriginal<typeof import("../../services/pluginCenter")>()),
+  readMobileCenterConfig: vi.fn(async () => {
+    if (!center.config) throw new Error("未连接插件中心");
+    return center.config;
+  }),
+  createMobilePluginCenterClient: () => ({
+    resolve: (...args: unknown[]) => center.resolve(...args),
+  }),
+  installMobileCenterRelease: (...args: unknown[]) => center.install(...args),
 }));
 function createRuntime() {
   const environment = createPluginEnvironmentStore({
@@ -183,4 +200,80 @@ it("顶栏关键词按名称或 ID 过滤已安装列表", async () => {
   await renderManager(async container => {
     expect(container.textContent).toContain("没有找到匹配的插件");
   }, "不存在");
+});
+
+it("有可用更新时一键更新：确认面板列出版本与新增权限，确认后全部进入安装队列", async () => {
+  const origin = "https://center.test";
+  center.config = { origin, host: centerHost, installationEnabled: true };
+  center.resolve.mockImplementation(async (pluginId: string) => {
+    const base = centerRelease(pluginId === "test.b" ? "2.0.0" : "1.1.0", `${pluginId}-next`);
+    const manifest = {
+      ...base.content.manifest,
+      id: pluginId,
+      permissions: pluginId === "test.a" ? ["custom:scope"] : [],
+    };
+    return {
+      release: { ...base, pluginId, content: { ...base.content, manifest } },
+      compatibility: { status: "compatible", reasons: [] },
+    };
+  });
+  const source = (id: string) => ({ origin, releaseId: `${id}-1` });
+  vi.mocked(readMobilePlugins).mockResolvedValueOnce({
+    platform: "android",
+    appVersion: "1.0.0",
+    development: true,
+    packages: [
+      {
+        id: "test.a",
+        name: "插件甲",
+        enabled: false,
+        currentVersion: "1.0.0",
+        centerSource: source("test.a"),
+      },
+      {
+        id: "test.b",
+        name: "插件乙",
+        enabled: false,
+        currentVersion: "2.0.0",
+        centerSource: source("test.b"),
+      },
+      {
+        id: "test.c",
+        name: "插件丙",
+        enabled: false,
+        currentVersion: "1.0.0",
+        centerSource: source("test.c"),
+      },
+    ],
+  });
+  try {
+    await renderManager(async container => {
+      expect(container.textContent).toContain("2 个插件可更新");
+      await act(async () => findButton(container, "全部更新")?.click());
+      const sheet = document.body.querySelector('[aria-label="待更新插件"]');
+      expect(sheet?.textContent).toContain("插件甲v1.0.0 → v1.1.0");
+      expect(sheet?.textContent).toContain("新增权限：custom:scope");
+      expect(sheet?.textContent).not.toContain("插件乙");
+      const confirm = [...document.body.querySelectorAll("button")].filter(
+        button => button.textContent?.trim() === "全部更新"
+      );
+      await act(async () => confirm.at(-1)?.click());
+      expect(center.install).toHaveBeenCalledWith(
+        "test.a",
+        "test.a-next",
+        expect.any(AbortSignal),
+        expect.any(Function)
+      );
+      expect(center.install).toHaveBeenCalledWith(
+        "test.c",
+        "test.c-next",
+        expect.any(AbortSignal),
+        expect.any(Function)
+      );
+      expect(center.install).toHaveBeenCalledTimes(2);
+    });
+  } finally {
+    center.config = null;
+    center.resolve.mockReset();
+  }
 });

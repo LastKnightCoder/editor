@@ -105,47 +105,76 @@ it("原生配置就绪后查询当前平台，换条件重置游标且不伪造�
     })
   );
 });
-it("安装随应用存活，页面卸载后新页面订阅同一任务且保持互斥", async () => {
-  let finish!: () => void;
-  vi.mocked(installMobileCenterRelease).mockImplementationOnce(
-    (_id, _release, signal) =>
+/** 每次安装挂起，直到对应 id 的 finish 被调用；取消时按 signal 拒绝。 */
+function controllableInstalls() {
+  const finishers = new Map<string, () => void>();
+  vi.mocked(installMobileCenterRelease).mockImplementation(
+    (pluginId, _release, signal) =>
       new Promise((resolve, reject) => {
-        finish = () => {
-          if (signal?.aborted) reject(new Error("取消"));
-          else resolve();
-        };
+        signal?.addEventListener("abort", () => reject(new Error("取消")));
+        finishers.set(pluginId, () => (signal?.aborted ? reject(new Error("取消")) : resolve()));
       })
   );
+  return (pluginId: string) => finishers.get(pluginId)?.();
+}
+
+it("安装随应用存活，页面卸载后新页面订阅同一任务；同插件互斥、不同插件并行", async () => {
+  const finish = controllableInstalls();
   const hook = harness(() => useMobileCenterInstall());
   await hook.render();
-  let pending!: Promise<void>;
+  let first!: Promise<void>;
+  let second!: Promise<void>;
   await act(async () => {
-    pending = hook.current.install("test.plugin", "release-1");
-    await expect(hook.current.install("other", "release-2")).rejects.toThrow("已有安装");
+    first = hook.current.install("test.plugin", "release-1");
+    await expect(hook.current.install("test.plugin", "release-1")).rejects.toThrow("已有安装");
+    second = hook.current.install("other", "release-2");
   });
+  expect(hook.current.task("other")?.phase).toBe("downloading");
   const signal = vi.mocked(installMobileCenterRelease).mock.calls[0][2];
   await hook.unmount();
   expect(signal?.aborted).toBe(false);
   const next = harness(() => useMobileCenterInstall(), hook.client);
   await next.render();
-  expect(next.current.phase).toBe("downloading");
-  await expect(next.current.install("other", "release-2")).rejects.toThrow("已有安装");
+  expect(next.current.task("test.plugin")?.phase).toBe("downloading");
   await act(async () => {
-    finish();
-    await pending;
+    finish("test.plugin");
+    finish("other");
+    await Promise.all([first, second]);
   });
-  expect(next.current.phase).toBe("pending");
-  expect(next.current.mutation.isSuccess).toBe(true);
+  expect(next.current.task("test.plugin")).toMatchObject({ phase: "pending", status: "success" });
+  expect(next.current.task("other")?.status).toBe("success");
+});
+
+it("超过并发上限的任务排队；取消排队任务不触碰原生暂存区", async () => {
+  const finish = controllableInstalls();
+  const hook = harness(() => useMobileCenterInstall());
+  await hook.render();
+  const runs: Promise<void>[] = [];
+  await act(async () => {
+    for (const id of ["a", "b", "c", "d", "e"]) runs.push(hook.current.install(id, `${id}-1`));
+  });
+  expect(installMobileCenterRelease).toHaveBeenCalledTimes(3);
+  expect(hook.current.task("d")?.phase).toBe("queued");
+  await act(async () => {
+    await hook.current.cancel("e");
+    await expect(runs[4]).rejects.toThrow();
+  });
+  expect(hook.current.task("e")).toBeNull();
+  expect(invoke).not.toHaveBeenCalledWith("plugin_cancel", { id: "e" });
+  await act(async () => {
+    finish("a");
+    await runs[0];
+  });
+  await settle(() => hook.current.task("d")?.phase === "downloading");
+  expect(installMobileCenterRelease).toHaveBeenCalledTimes(4);
+  await act(async () => {
+    for (const id of ["b", "c", "d"]) finish(id);
+    await Promise.all(runs.slice(0, 4));
+  });
 });
 
 it("只有显式取消会终止应用任务，失败可按同一版本重试", async () => {
-  let finish!: () => void;
-  vi.mocked(installMobileCenterRelease).mockImplementationOnce(
-    (_id, _version, signal) =>
-      new Promise((resolve, reject) => {
-        finish = () => (signal?.aborted ? reject(new Error("取消")) : resolve());
-      })
-  );
+  controllableInstalls();
   const hook = harness(() => useMobileCenterInstall());
   await hook.render();
   let pending!: Promise<void>;
@@ -153,21 +182,20 @@ it("只有显式取消会终止应用任务，失败可按同一版本重试", a
     pending = hook.current.install("test.plugin", "release-1");
   });
   await act(async () => {
-    await hook.current.cancel();
-  });
-  await act(async () => {
-    finish();
+    await hook.current.cancel("test.plugin");
     await expect(pending).rejects.toThrow("取消");
   });
-  expect(hook.current.task.status).toBe("idle");
+  expect(invoke).toHaveBeenCalledWith("plugin_cancel", { id: "test.plugin" });
+  expect(hook.current.task("test.plugin")).toBeNull();
 
   vi.mocked(installMobileCenterRelease).mockRejectedValueOnce(new Error("网络失败"));
   await act(async () => {
     await expect(hook.current.install("test.plugin", "release-2")).rejects.toThrow("网络失败");
   });
-  expect(hook.current.task.status).toBe("error");
+  expect(hook.current.task("test.plugin")?.status).toBe("error");
+  vi.mocked(installMobileCenterRelease).mockResolvedValueOnce(undefined);
   await act(async () => {
-    await hook.current.retry();
+    await hook.current.retry("test.plugin");
   });
   expect(installMobileCenterRelease).toHaveBeenLastCalledWith(
     "test.plugin",
@@ -175,5 +203,5 @@ it("只有显式取消会终止应用任务，失败可按同一版本重试", a
     expect.any(AbortSignal),
     expect.any(Function)
   );
-  expect(hook.current.task.status).toBe("success");
+  expect(hook.current.task("test.plugin")?.status).toBe("success");
 });
