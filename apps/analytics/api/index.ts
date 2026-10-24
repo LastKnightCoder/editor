@@ -1,7 +1,7 @@
 import { authRoute, requireAdmin } from "./auth";
 import { cleanup } from "./cleanup";
 import { download } from "./downloads";
-import { ingest } from "./ingest";
+import { reportVersion } from "./versions";
 import { fail, HttpError, json, type Env } from "./platform";
 import { queryRoute } from "./queries";
 
@@ -23,10 +23,12 @@ export async function handle(request: Request, env: Env): Promise<Response> {
         },
       });
     } else if (url.pathname === "/health" && request.method === "GET") {
-      await env.DB.prepare("SELECT 1 FROM events LIMIT 1").first();
+      await env.DB.prepare("SELECT 1 FROM installation_versions LIMIT 1").first();
       response = json({ ok: true, schema_version: 1 });
-    } else if (url.pathname === "/v1/events/batch" && request.method === "POST")
-      response = await ingest(request, env);
+    } else if (url.pathname === "/v1/events/batch")
+      response = fail(410, "COLLECTION_RETIRED", "行为采集已停用，请升级客户端");
+    else if (url.pathname === "/v1/versions" && request.method === "POST")
+      response = await reportVersion(request, env);
     else if (url.pathname.startsWith("/v1/downloads/") && ["GET", "HEAD"].includes(request.method))
       response = await download(
         request,
