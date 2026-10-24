@@ -44,7 +44,7 @@ it.runIf(reportPath)("十个真实格式 3 包保留桌面贡献并在移动求�
     const manifest = validatePortableDistributionManifest(entry.manifest);
     expect(Object.keys(manifest.targets)).toEqual(["desktop"]);
     const artifact = { manifest, code: entry.code };
-    const host = desktopPortableHost("0.59.2");
+    const host = desktopPortableHost("0.59.3");
     const definition = evaluatePortablePluginPackage(artifact, sharedPluginModules, host);
     expect(definition.id).toBe(manifest.id);
     if (manifest.whiteboard) expect(definition.whiteboardExtensions?.length).toBeGreaterThan(0);

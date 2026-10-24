@@ -16,7 +16,6 @@ export const DESKTOP_PLUGIN_CAPABILITIES = [
   "dialogs",
   "editor",
   "editorCodecs",
-  "whiteboard",
   "sourceEditor",
   "media",
   "runtimeStyles",
