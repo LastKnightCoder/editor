@@ -63,7 +63,7 @@ const CardItem = memo(({ item, onPreviewCard }: CardItemProps) => {
     <article className="card pop-in rounded-card relative w-full overflow-hidden px-4 pb-3.5 pt-3 transition-transform duration-200 active:scale-[0.97]">
       <button type="button" onClick={() => onPreviewCard(item.id)} className="w-full text-left">
         <div className="mb-2.5 flex items-center gap-2">
-          <span className="text-ink-2 ml-auto text-[11.5px] tabular-nums">
+          <span className="text-ink-2 text-tau-sm ml-auto tabular-nums">
             {formatTimeDisplay(item.updateTime)}
           </span>
         </div>
@@ -72,12 +72,13 @@ const CardItem = memo(({ item, onPreviewCard }: CardItemProps) => {
           {!isEditorContentEmpty(document.initialValue) ? (
             <Editor
               kit={contentKit}
-              className="overflow-hidden"
+              // 与详情页同为阅读正文档，列表点开不跳变
+              className="mobile-card-editor-content overflow-hidden"
               readonly={true}
               document={document}
             />
           ) : (
-            <p className="text-ink-1 line-clamp-1 text-[14px] font-bold">
+            <p className="text-ink-1 text-tau-body-lg line-clamp-1 font-bold">
               {item.excerpt?.split("\n")[0] || `卡片 #${item.id}`}
             </p>
           )}

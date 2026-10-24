@@ -392,6 +392,10 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
 - **CSS**：`src/styles.css` 引入 `@tau/themes/tokens.css`（6 主题族 × 深浅数据块 + 尺度层）与 `@tau/themes/tailwind.css`（语义类名 `bg-page / text-ink-1 / bg-tag-1-soft …`）；自身只定义布局变量（安全区、键盘、Dock 尺寸、边缘渐隐）、由 `--tau-*` 派生的组件变量（`--dock-bg`、`--topbar-fade-*`、`--ring-track`、`--heat-*`）和移动端尺度词（`rounded-card / rounded-bento / ease-bounce`）。
 - **运行时**：`vite.config.ts` 注入 `createThemeBootstrapScript()` 首帧脚本；`AppShell` 调 `initThemeRuntime()`；组件读明暗用 `useThemeStore(s => s.mode)`，切换用 `setTheme / setAppearance`（`@tau/themes/react`）。偏好键 `tau-theme` / `tau-appearance` 与桌面同格式。
 - **设置**：`features/settings/components/ThemeSection.tsx` 明暗三档 × 主题族列表，预览直接读各主题 token。
+- **字号档位**：`src/styles.css` 的 `:root` 覆盖 `@tau/themes` 的 9 档 `--tau-text-*`（桌面密度正文 13px 不适合手机），`text-tau-*` 语义类随之取移动端值：
+  hero 28 / title-lg 22 / title 17 / body-lg 17 / body 16 / meta 14 / sm 13 / micro 12 / tiny 11。`body` 基准字号取 body 档。
+  新代码用 `text-tau-*`，同一角色同一档：时间 sm、标签 chip micro、列表行与按钮 body、说明 meta。
+- **编辑器阅读正文**：`.mobile-card-editor-content` 取 body-lg 档（17px / 1.75），内容详情页（卡片、日记、文章、项目文档）、卡片列表预览（`CardItem`）、速记、日程备注、协作编辑与插件说明共用，列表与详情同字号；编辑器内标题块用 `em` 跟随。
 - **输入框规范**：
   - 输入文字字号 16px（`--mobile-input-font-size`），这是手机端可读下限，也是 iOS 不自动放大的阈值。
   - 表单输入用 `.input-base`：最小高 44px（`--mobile-input-min-height`），底色页面色，聚焦时 accent 描边。它放在
@@ -400,7 +404,7 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
     `surface`，放在卡片或面板里用 `page`。
   - 无外框的就地输入（标签草稿、闪卡选项、答题区）加 `.input-text`，只统一字号。
   - 例外：就地编辑跟随展示态字号，包括日程、待办、文档标题，标签胶囊，以及闪卡填空的行内输入。
-- **守护**：`src/theme/__tests__/themeVocabulary.test.ts` 扫描源码，禁止旧移动端主题变量/类名、`[data-theme]` 自建主题块与重定义 `--tau-*`。
+- **守护**：`src/theme/__tests__/themeVocabulary.test.ts` 扫描源码，禁止旧移动端主题变量/类名、`[data-theme]` 自建主题块与重定义 `--tau-*`（字号档位 `--tau-text-*` 除外）。
 
 ## 同步与图片附件（设置）
 

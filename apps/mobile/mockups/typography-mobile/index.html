@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端字号规范 · 设计方案</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<style>
+/* 移动端字号规范 mockup：颜色取自 @tau/themes，字号即提案的 9 档阶梯 */
+:root {
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  /* 提案档位（移动端覆盖 --tau-text-*） */
+  --t-hero: 28px;
+  --t-title-lg: 22px;
+  --t-title: 17px;
+  --t-body-lg: 17px;
+  --t-body: 16px;
+  --t-meta: 14px;
+  --t-sm: 13px;
+  --t-micro: 12px;
+  --t-tiny: 11px;
+  --shell: color-mix(in srgb, var(--tau-bg-sunken) 55%, var(--tau-bg-page));
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: var(--shell); color: var(--tau-ink-1); -webkit-font-smoothing: antialiased; }
+button, select { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+/* ── 文档外壳（不属于提案，字号随意） ── */
+.page-head { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--shell) 92%, transparent); backdrop-filter: blur(12px); padding: 16px 28px 0; border-bottom: 1px solid var(--tau-line-1); }
+.head-row { display: flex; align-items: center; gap: 16px; }
+.head-row h1 { font-size: 20px; font-weight: 700; flex: 1; }
+.head-row h1 small { display: block; font-size: 12.5px; font-weight: 400; color: var(--tau-ink-2); margin-top: 2px; }
+.theme-pick { display: flex; gap: 8px; }
+.theme-pick select, .theme-pick button { background: var(--tau-bg-surface); border-radius: 10px; padding: 6px 12px; font-size: 13px; box-shadow: var(--tau-shadow-card); }
+.tabs { display: flex; gap: 4px; margin-top: 12px; overflow-x: auto; }
+.tab { padding: 10px 14px; font-size: 13.5px; color: var(--tau-ink-2); border-bottom: 2px solid transparent; white-space: nowrap; }
+.tab.on { color: var(--tau-ink-1); font-weight: 600; border-color: var(--tau-accent); }
+.rec { margin-left: 6px; font-size: 11px; padding: 1px 6px; border-radius: 999px; background: var(--tau-accent-soft); color: var(--tau-accent-text); }
+.scene { display: none; padding: 24px 28px 64px; }
+.scene.on { display: block; }
+.scene-intro { max-width: 980px; font-size: 14.5px; line-height: 1.75; color: var(--tau-ink-2); margin-bottom: 22px; }
+.scene-intro b { color: var(--tau-ink-1); }
+.frames { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+.doc-card { background: var(--tau-bg-surface); border-radius: 16px; padding: 20px 22px; box-shadow: var(--tau-shadow-card); font-size: 14px; line-height: 1.7; }
+.doc-card h3 { font-size: 16px; margin-bottom: 10px; }
+.doc-card ol, .doc-card ul { padding-left: 20px; }
+.doc-card li + li { margin-top: 6px; }
+table.cmp { border-collapse: collapse; width: 100%; font-size: 13.5px; line-height: 1.6; }
+table.cmp th, table.cmp td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--tau-line-1); vertical-align: top; }
+table.cmp th { color: var(--tau-ink-2); font-weight: 600; white-space: nowrap; }
+.caption { font-size: 13px; color: var(--tau-ink-2); margin-top: 10px; text-align: center; max-width: 375px; line-height: 1.6; }
+.caption b { color: var(--tau-ink-1); }
+.bad { color: var(--tau-danger); }
+.good { color: var(--tau-ok); }
+
+/* ── 手机帧：1:1 CSS 像素，375×760 ── */
+.phone-wrap { display: flex; flex-direction: column; align-items: center; }
+.phone { width: 375px; height: 760px; border-radius: 44px; background: var(--tau-bg-page); box-shadow: 0 0 0 10px #1c1c1e, 0 24px 60px rgba(0,0,0,.25); overflow: hidden; position: relative; display: flex; flex-direction: column; }
+.status { height: 44px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; font-size: 15px; font-weight: 600; }
+.screen { flex: 1; overflow-y: auto; scrollbar-width: none; }
+.screen::-webkit-scrollbar { display: none; }
+.label-tag { position: absolute; top: 52px; right: 14px; z-index: 3; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
+.label-tag.old { background: var(--tau-danger-soft); color: var(--tau-danger); }
+.label-tag.new { background: var(--tau-ok-soft); color: var(--tau-ok); }
+
+/* ── 提案语义类（mockup 内的组件只用这些） ── */
+.t-hero { font-size: var(--t-hero); line-height: 1.25; }
+.t-title-lg { font-size: var(--t-title-lg); line-height: 1.3; }
+.t-title { font-size: var(--t-title); line-height: 1.35; }
+.t-body-lg { font-size: var(--t-body-lg); line-height: 1.75; }
+.t-body { font-size: var(--t-body); line-height: 1.5; }
+.t-meta { font-size: var(--t-meta); line-height: 1.45; }
+.t-sm { font-size: var(--t-sm); line-height: 1.4; }
+.t-micro { font-size: var(--t-micro); line-height: 1.3; }
+.t-tiny { font-size: var(--t-tiny); line-height: 1.2; }
+.ink-2 { color: var(--tau-ink-2); }
+.ink-3 { color: var(--tau-ink-3); }
+.w5 { font-weight: 500; } .w6 { font-weight: 600; } .w7 { font-weight: 700; }
+
+/* 导航栏 / 页面 */
+.nav { height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; flex: none; }
+.nav .ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--tau-ink-2); }
+.pad { padding: 0 16px; }
+.big-title { padding: 4px 20px 12px; }
+
+/* 卡片 */
+.card { background: var(--tau-bg-surface); border-radius: 20px; padding: 12px 16px 14px; box-shadow: var(--tau-shadow-card); }
+.card + .card { margin-top: 12px; }
+.card-head { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.chips { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; gap: 2px; border-radius: 999px; background: var(--tau-bg-page); color: var(--tau-ink-2); padding: 3px 10px; font-weight: 500; }
+.chip i { font-style: normal; color: var(--tau-accent); font-weight: 700; }
+.preview { position: relative; max-height: calc(6 * 1.75em); overflow: hidden; }
+.preview.fade::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1.75em; background: linear-gradient(to bottom, transparent, var(--tau-bg-surface)); }
+.preview h4 { font-size: 1.25em; line-height: 1.4; font-weight: 700; margin-bottom: .2em; }
+.preview p + p { margin-top: .35em; }
+.preview ul { padding-left: 1.2em; }
+.hl { background: color-mix(in srgb, var(--tau-tag-4) 30%, var(--tau-bg-surface)); border-radius: 3px; padding: 0 2px; }
+.todo { display: flex; gap: .5em; align-items: flex-start; }
+.box { width: .95em; height: .95em; border: 1.5px solid var(--tau-ink-3); border-radius: 4px; margin-top: .42em; flex: none; }
+
+/* 详情页 */
+.detail { padding: 8px 20px 40px; }
+.badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 4px 12px; font-weight: 600; background: var(--tau-accent-soft); color: var(--tau-accent-text); }
+.editor h4 { font-size: 1.25em; line-height: 1.4; font-weight: 700; margin: .9em 0 .25em; }
+.editor p + p { margin-top: .5em; }
+
+/* Dock */
+.dock { margin: 0 16px 22px; height: 62px; border-radius: 24px; background: var(--tau-bg-surface); box-shadow: var(--tau-shadow-float); display: flex; justify-content: space-around; align-items: center; flex: none; }
+.dock span { display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--tau-ink-3); font-weight: 600; }
+.dock span.on { color: var(--tau-accent); }
+.dock svg { width: 22px; height: 22px; }
+
+/* 列表 / 设置 */
+.group-label { padding: 20px 20px 8px; }
+.list { margin: 0 16px; background: var(--tau-bg-surface); border-radius: 18px; overflow: hidden; box-shadow: var(--tau-shadow-card); }
+.row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; min-height: 56px; }
+.row + .row { border-top: 1px solid var(--tau-line-1); }
+.row .ico { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; flex: none; }
+.row .txt { flex: 1; min-width: 0; }
+.row .chev { color: var(--tau-ink-3); }
+.toggle { width: 46px; height: 28px; border-radius: 999px; background: var(--tau-accent); position: relative; flex: none; }
+.toggle::after { content: ""; position: absolute; right: 3px; top: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; padding: 20px 20px 10px; }
+.task { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; }
+.task + .task { border-top: 1px solid var(--tau-line-1); }
+.task .box { width: 20px; height: 20px; margin-top: 2px; border-radius: 6px; }
+
+/* 阶梯 */
+.ladder { background: var(--tau-bg-surface); border-radius: 18px; box-shadow: var(--tau-shadow-card); overflow: hidden; flex: 1 1 760px; }
+.step { display: grid; grid-template-columns: 150px 1fr 260px; gap: 16px; align-items: center; padding: 14px 20px; }
+.step + .step { border-top: 1px solid var(--tau-line-1); }
+.step .k { font-size: 12.5px; color: var(--tau-ink-2); line-height: 1.5; }
+.step .k b { display: block; font-size: 14px; color: var(--tau-ink-1); font-family: ui-monospace, Menlo, monospace; }
+.step .u { font-size: 12.5px; color: var(--tau-ink-2); line-height: 1.6; }
+
+/* 调研：并排字号阶梯 */
+.ramps { display: flex; gap: 18px; flex-wrap: wrap; }
+.ramp { flex: 1 1 280px; background: var(--tau-bg-surface); border-radius: 16px; padding: 16px 18px; box-shadow: var(--tau-shadow-card); }
+.ramp h3 { font-size: 15px; margin-bottom: 10px; }
+.ramp .r { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 5px 0; border-bottom: 1px dashed var(--tau-line-1); }
+.ramp .r em { font-style: normal; font-size: 12px; color: var(--tau-ink-3); font-family: ui-monospace, Menlo, monospace; white-space: nowrap; }
+
+/* 现状直方图 */
+.bars { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; }
+.bar { display: grid; grid-template-columns: 56px 1fr 34px; gap: 8px; align-items: center; }
+.bar div { height: 14px; border-radius: 4px; background: color-mix(in srgb, var(--tau-danger) 55%, var(--tau-bg-surface)); }
+.bar.ok div { background: color-mix(in srgb, var(--tau-ok) 55%, var(--tau-bg-surface)); }
+.bar span:first-child { font-family: ui-monospace, Menlo, monospace; text-align: right; color: var(--tau-ink-2); }
+.bar span:last-child { color: var(--tau-ink-3); }
+</style>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>移动端字号规范 · 设计方案<small>手机帧为 1:1 CSS 像素（375×760）· 在手机或浏览器设备模式 100% 下看字号才准 · 颜色取自 @tau/themes</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="research">0 调研</button>
+    <button class="tab" data-tab="now">1 现状问题</button>
+    <button class="tab" data-tab="ladder">2 字号阶梯<span class="rec">核心</span></button>
+    <button class="tab" data-tab="cards">3 卡片列表与详情</button>
+    <button class="tab" data-tab="pages">4 首页与设置</button>
+    <button class="tab" data-tab="map">5 迁移映射</button>
+  </nav>
+</header>
+
+<!-- ═══════════ 0 调研 ═══════════ -->
+<section class="scene" data-scene="research">
+  <p class="scene-intro">专业移动端产品的字号都不是「哪里觉得挤就缩一点」，而是先定一张<b>语义字号表</b>（正文、标题、说明、标签……），组件只引用语义名，全局放大只改表。iOS 和 Material 的正文都在 <b>16–17</b>，最小可读句子 <b>13</b>，纯标签才用到 <b>11</b>。</p>
+  <div class="ramps">
+    <div class="ramp">
+      <h3>iOS HIG · Dynamic Type 默认档</h3>
+      <div class="r"><span style="font-size:34px;font-weight:700">大标题</span><em>Large Title 34</em></div>
+      <div class="r"><span style="font-size:22px">标题 2</span><em>Title2 22</em></div>
+      <div class="r"><span style="font-size:17px;font-weight:600">导航栏 / Headline</span><em>Headline 17</em></div>
+      <div class="r"><span style="font-size:17px">正文 Body</span><em>Body 17</em></div>
+      <div class="r"><span style="font-size:15px">副标题</span><em>Subheadline 15</em></div>
+      <div class="r"><span style="font-size:13px">脚注</span><em>Footnote 13</em></div>
+      <div class="r"><span style="font-size:11px">标签</span><em>Caption2 11</em></div>
+    </div>
+    <div class="ramp">
+      <h3>Material 3</h3>
+      <div class="r"><span style="font-size:28px">页标题</span><em>Headline M 28</em></div>
+      <div class="r"><span style="font-size:22px">标题</span><em>Title L 22</em></div>
+      <div class="r"><span style="font-size:16px;font-weight:500">列表主文本</span><em>Title M 16</em></div>
+      <div class="r"><span style="font-size:16px">正文</span><em>Body L 16</em></div>
+      <div class="r"><span style="font-size:14px">次要说明</span><em>Body M 14</em></div>
+      <div class="r"><span style="font-size:12px">标签</span><em>Label M 12</em></div>
+      <div class="r"><span style="font-size:11px">小标签</span><em>Label S 11</em></div>
+    </div>
+    <div class="ramp" style="outline:2px solid var(--tau-accent)">
+      <h3>本方案 · 9 档（中文按 16 ≈ 英文 17 取值）</h3>
+      <div class="r"><span class="t-hero w7">详情大标题</span><em>hero 28</em></div>
+      <div class="r"><span class="t-title-lg w7">一级页标题</span><em>title-lg 22</em></div>
+      <div class="r"><span class="t-title w6">导航栏 / 区块标题</span><em>title 17</em></div>
+      <div class="r"><span class="t-body-lg">阅读正文</span><em>body-lg 17</em></div>
+      <div class="r"><span class="t-body">列表行 / 按钮 / 输入</span><em>body 16</em></div>
+      <div class="r"><span class="t-meta ink-2">次要说明</span><em>meta 14</em></div>
+      <div class="r"><span class="t-sm ink-2">时间 · 计数 · 分组</span><em>sm 13</em></div>
+      <div class="r"><span class="t-micro ink-2">标签 chip</span><em>micro 12</em></div>
+      <div class="r"><span class="t-tiny ink-2">Dock 标签</span><em>tiny 11</em></div>
+    </div>
+  </div>
+  <div class="frames" style="margin-top:18px">
+    <div class="doc-card" style="flex:1 1 560px">
+      <h3>列表与详情的关系：两类产品两种做法</h3>
+      <table class="cmp">
+        <tr><th>类型</th><th>代表</th><th>列表</th><th>详情</th><th>理由</th></tr>
+        <tr><td><b>索引型</b></td><td>备忘录、邮件、文件</td><td>标题同正文加粗；预览降一档、灰色、1–2 行</td><td>正文 17</td><td>列表只是「找到它」，信息密度优先</td></tr>
+        <tr><td><b>内容型</b></td><td>X、即刻、flomo 等卡片流</td><td><b>与详情同字号</b>，截断 + 「展开」</td><td>同字号</td><td>列表就是内容本身，点开不应「变了个样」</td></tr>
+      </table>
+      <p style="margin-top:10px">Tau 的卡片列表直接渲染卡片正文（只读编辑器、所见即所得），属于<b>内容型</b> → 推荐同字号（第 3 页签方案 A）。</p>
+    </div>
+    <div class="doc-card" style="flex:1 1 380px">
+      <h3>6 条原则</h3>
+      <ol>
+        <li><b>正文 16–17</b>：UI 正文 16，长文阅读 17。</li>
+        <li><b>档位固定</b>：只用 9 档整数像素，没有 11.5 / 12.5。</li>
+        <li><b>语义命名</b>：写 <code>text-tau-meta</code> 而不是 <code>text-[13px]</code>。</li>
+        <li><b>最小值</b>：句子 ≥ 13，标签 ≥ 11。</li>
+        <li><b>层级靠字重和颜色</b>：副标题用灰色，不靠一路缩小。</li>
+        <li><b>同一角色同一字号</b>：所有页面的时间都是 13，所有标签都是 12。</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 1 现状 ═══════════ -->
+<section class="scene" data-scene="now">
+  <p class="scene-intro">根字号 <b>14px</b>，代码里 <code>text-[Npx]</code> 有 <b>30 多种</b>取值，辅助文字集中在 11–12.5px。卡片列表里的只读编辑器没挂正文样式类，继承 14px；点开详情是 17px / 1.85——<b>同一段内容放大了 1.2 倍</b>，标题块也跟着变。</p>
+  <div class="frames">
+    <div class="phone-wrap">
+      <div class="phone">
+        <span class="label-tag old">现状 · 列表</span>
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="nav"><span class="ic">☰</span><span style="font-size:18px;font-weight:800">卡片</span><span class="ic">⌕</span></div>
+        <div class="screen pad" style="padding-top:6px">
+          <div class="card">
+            <div class="card-head"><span style="font-size:11.5px" class="ink-2">10:24</span></div>
+            <div class="preview" style="font-size:14px;line-height:1.6">
+              <h4>间隔重复的底层逻辑</h4>
+              <p>遗忘曲线不是敌人，而是<span class="hl">调度复习时机</span>的依据。每次在快要忘记时回忆，记忆强度提升最大。</p>
+            </div>
+            <div class="chips"><span class="chip" style="font-size:11.5px"><i style="font-size:11px">#</i>学习方法</span><span class="chip" style="font-size:11.5px"><i style="font-size:11px">#</i>记忆</span></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><span style="font-size:11.5px" class="ink-2">昨天 21:08</span></div>
+            <div class="preview" style="font-size:14px;line-height:1.6">
+              <p>写作时先写「这段要让读者相信什么」，再写论据。顺序反过来，就会变成资料堆砌。</p>
+            </div>
+            <div class="chips"><span class="chip" style="font-size:11.5px"><i style="font-size:11px">#</i>写作</span></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><span style="font-size:11.5px" class="ink-2">10月20日</span></div>
+            <div class="preview" style="font-size:14px;line-height:1.6">
+              <div class="todo"><span class="box"></span><span>整理本周读书笔记</span></div>
+              <div class="todo"><span class="box"></span><span>把「费曼技巧」拆成三张卡片</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="dock">
+          <span class="on" style="font-size:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="4"/></svg>卡片</span>
+          <span style="font-size:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h14v16H5z"/></svg>文章</span>
+          <span style="font-size:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg>首页</span>
+          <span style="font-size:10px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h16M4 16h16"/></svg>日记</span>
+        </div>
+      </div>
+      <p class="caption">正文 <b class="bad">14px</b>、时间与标签 <b class="bad">11.5px</b>、Dock <b class="bad">10px</b></p>
+    </div>
+
+    <div class="phone-wrap">
+      <div class="phone">
+        <span class="label-tag old">现状 · 详情</span>
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="nav"><span class="ic">‹</span><span></span><span class="ic">⋯</span></div>
+        <div class="screen detail">
+          <span class="badge" style="font-size:12.5px">卡片</span>
+          <p style="font-size:12px;margin-top:12px" class="ink-2">10月24日 10:24 · 128 字</p>
+          <div class="editor" style="font-size:17px;line-height:1.85;margin-top:8px">
+            <h4>间隔重复的底层逻辑</h4>
+            <p>遗忘曲线不是敌人，而是<span class="hl">调度复习时机</span>的依据。每次在快要忘记时回忆，记忆强度提升最大。</p>
+            <p>所以复习间隔应该随熟练度拉长：1 天、3 天、7 天、15 天……</p>
+          </div>
+          <div class="chips"><span class="chip" style="font-size:11.5px"><i style="font-size:11px">#</i>学习方法</span><span class="chip" style="font-size:11.5px"><i style="font-size:11px">#</i>记忆</span></div>
+        </div>
+      </div>
+      <p class="caption">同一张卡片点开：正文跳到 <b class="bad">17px / 1.85</b>，标题块随之放大</p>
+    </div>
+
+    <div class="doc-card" style="flex:1 1 360px;max-width:440px">
+      <h3>apps/mobile/src 字面字号分布（处数）</h3>
+      <div class="bars" id="bars"></div>
+      <p style="margin-top:12px;font-size:13px" class="ink-2">红色为 13px 以下或半像素值。<code>text-tau-*</code> 语义档位全目录只用了 2 处；桌面档位（正文 13px）本就不适合移动端，所以大家都在写字面值。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 2 阶梯 ═══════════ -->
+<section class="scene" data-scene="ladder">
+  <p class="scene-intro">沿用 <code>--tau-text-*</code> 的 9 个槽位，移动端在根上覆盖为下表数值——<b>不新增 token 词汇</b>，<code>@tau/ui</code> 里已用 <code>text-tau-*</code> 的组件（SettingRow、FormRow）自动跟着变大。只允许整数像素，字重只用 400 / 500 / 600 / 700。</p>
+  <div class="frames">
+    <div class="ladder">
+      <div class="step"><div class="k"><b>hero · 28</b>行高 1.25 · 700</div><div class="t-hero w7">间隔重复的底层逻辑</div><div class="u">详情页大标题、首页问候、统计大数字</div></div>
+      <div class="step"><div class="k"><b>title-lg · 22</b>行高 1.3 · 700</div><div class="t-title-lg w7">今天 · 10月24日</div><div class="u">一级页大标题、空态标题</div></div>
+      <div class="step"><div class="k"><b>title · 17</b>行高 1.35 · 600–700</div><div class="t-title w7">最近编辑</div><div class="u">导航栏标题、区块标题、弹层标题</div></div>
+      <div class="step"><div class="k"><b>body-lg · 17</b>行高 1.75 · 400</div><div class="t-body-lg">遗忘曲线不是敌人，而是调度复习时机的依据。每次在快要忘记时回忆，记忆强度提升最大。</div><div class="u">阅读正文：编辑器、<b>卡片列表内容</b>（与 title 同号，靠字重区分）</div></div>
+      <div class="step"><div class="k"><b>body · 16</b>行高 1.5 · 400–500</div><div class="t-body w5">同步与备份</div><div class="u">列表行主文本、设置项、按钮、输入框、菜单项</div></div>
+      <div class="step"><div class="k"><b>meta · 14</b>行高 1.45 · 400</div><div class="t-meta ink-2">开启后会在每次启动时自动同步到 WebDAV</div><div class="u">列表副标题、设置说明、空态说明、提示</div></div>
+      <div class="step"><div class="k"><b>sm · 13</b>行高 1.4 · 400–500</div><div class="t-sm ink-2" style="font-variant-numeric:tabular-nums">昨天 21:08 · 128 字 · 已保存</div><div class="u">时间、计数、分组标题、保存状态</div></div>
+      <div class="step"><div class="k"><b>micro · 12</b>行高 1.3 · 500–600</div><div><span class="chip t-micro"><i>#</i>学习方法</span> <span class="badge t-micro">卡片</span></div><div class="u">标签 chip、类型徽标、段控件</div></div>
+      <div class="step"><div class="k"><b>tiny · 11</b>行高 1.2 · 600</div><div class="t-tiny w6 ink-2">卡片　文章　首页　日记</div><div class="u">只用于非句子：Dock 标签、角标、图表刻度</div></div>
+    </div>
+    <div class="doc-card" style="flex:1 1 320px;max-width:420px">
+      <h3>规则</h3>
+      <ul>
+        <li>禁止 <code>text-[Npx]</code>；计时器、日历大日期等 ≥ 34px 的数字展示是唯一例外，在组件内集中声明。</li>
+        <li>相邻档位最少差 1px，同一屏一般不超过 4 档。</li>
+        <li>主次关系先用颜色（ink-1 / ink-2 / ink-3）和字重，再考虑降一档。</li>
+        <li>输入框沿用 <code>--mobile-input-font-size: 16px</code>，与 body 对齐，也满足 iOS 不自动放大的阈值。</li>
+        <li>编辑器内标题块继续用 <code>em</code>，跟随所在容器的 body-lg 缩放。</li>
+      </ul>
+      <h3 style="margin-top:16px">落地方式</h3>
+      <pre style="font-size:12px;line-height:1.6;background:var(--tau-bg-page);padding:12px;border-radius:10px;overflow:auto">/* apps/mobile/src/styles.css */
+:root {
+  --tau-text-hero: 28px;
+  --tau-text-title-lg: 22px;
+  --tau-text-title: 17px;
+  --tau-text-body-lg: 17px;
+  --tau-text-body: 16px;
+  --tau-text-meta: 14px;
+  --tau-text-sm: 13px;
+  --tau-text-micro: 12px;
+  --tau-text-tiny: 11px;
+}
+body { font-size: var(--tau-text-body); }
+.mobile-card-editor-content[data-slate-editor] {
+  font-size: var(--tau-text-body-lg);
+  line-height: 1.75;
+}</pre>
+      <p style="margin-top:10px" class="ink-2">若做「字号」设置（标准 / 大 / 特大），只需按 1 / 1.12 / 1.24 等比改这 9 个变量。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 3 卡片 ═══════════ -->
+<section class="scene" data-scene="cards">
+  <p class="scene-intro"><b>方案 A（推荐）同字号</b>：列表与详情都是 body-lg 17px / 1.75，点开不跳变；密度靠截断（约 6 行 + 底部渐隐）控制。<b>方案 B 降一档</b>：列表 16px / 1.65，多显示约 15% 内容，但点开仍有轻微放大。两者的时间都是 13、标签都是 12。</p>
+  <div class="frames" id="card-frames"></div>
+</section>
+
+<!-- ═══════════ 4 页面 ═══════════ -->
+<section class="scene" data-scene="pages">
+  <p class="scene-intro">同一套档位套到首页和设置：区块标题 17、列表行 16、副标题 14、时间与分组 13。左右对比现状（14.5 / 11.5 / 12.5 / 16.5 混用）。</p>
+  <div class="frames">
+    <div class="phone-wrap">
+      <div class="phone">
+        <span class="label-tag old">现状 · 设置</span>
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="nav"><span class="ic">‹</span><span style="font-size:18px;font-weight:800">设置</span><span class="ic"></span></div>
+        <div class="screen">
+          <div class="group-label ink-2" style="font-size:12.5px">数据</div>
+          <div class="list">
+            <div class="row"><span class="ico" style="background:var(--tau-tag-2-soft);color:var(--tau-tag-2)">⇅</span><div class="txt"><div style="font-size:14.5px;font-weight:500">同步与备份</div><div class="ink-3" style="font-size:11.5px">WebDAV · 上次 10:20</div></div><span class="chev">›</span></div>
+            <div class="row"><span class="ico" style="background:var(--tau-tag-1-soft);color:var(--tau-tag-1)">▤</span><div class="txt"><div style="font-size:14.5px;font-weight:500">数据库</div><div class="ink-3" style="font-size:11.5px">默认库 · 2.4 MB</div></div><span class="chev">›</span></div>
+            <div class="row"><span class="ico" style="background:var(--tau-tag-4-soft);color:var(--tau-tag-4)">↑</span><div class="txt"><div style="font-size:14.5px;font-weight:500">图片上传</div><div class="ink-3" style="font-size:11.5px">未配置</div></div><span class="chev">›</span></div>
+          </div>
+          <div class="group-label ink-2" style="font-size:12.5px">编辑</div>
+          <div class="list">
+            <div class="row"><div class="txt"><div style="font-size:14.5px;font-weight:500">默认阅读态</div><div class="ink-3" style="font-size:11.5px">打开文档时不弹出键盘，双击进入编辑</div></div><span class="toggle"></span></div>
+            <div class="row"><div class="txt"><div style="font-size:14.5px;font-weight:500">拼写检查</div></div><span class="toggle"></span></div>
+          </div>
+        </div>
+      </div>
+      <p class="caption">主文本 <b class="bad">14.5</b> · 副标题 <b class="bad">11.5</b> · 分组 <b class="bad">12.5</b></p>
+    </div>
+
+    <div class="phone-wrap">
+      <div class="phone">
+        <span class="label-tag new">新规范 · 设置</span>
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="nav"><span class="ic">‹</span><span class="t-title w7">设置</span><span class="ic"></span></div>
+        <div class="screen">
+          <div class="group-label t-sm w5 ink-2">数据</div>
+          <div class="list">
+            <div class="row"><span class="ico" style="background:var(--tau-tag-2-soft);color:var(--tau-tag-2)">⇅</span><div class="txt"><div class="t-body w5">同步与备份</div><div class="t-meta ink-2">WebDAV · 上次 10:20</div></div><span class="chev">›</span></div>
+            <div class="row"><span class="ico" style="background:var(--tau-tag-1-soft);color:var(--tau-tag-1)">▤</span><div class="txt"><div class="t-body w5">数据库</div><div class="t-meta ink-2">默认库 · 2.4 MB</div></div><span class="chev">›</span></div>
+            <div class="row"><span class="ico" style="background:var(--tau-tag-4-soft);color:var(--tau-tag-4)">↑</span><div class="txt"><div class="t-body w5">图片上传</div><div class="t-meta ink-2">未配置</div></div><span class="chev">›</span></div>
+          </div>
+          <div class="group-label t-sm w5 ink-2">编辑</div>
+          <div class="list">
+            <div class="row"><div class="txt"><div class="t-body w5">默认阅读态</div><div class="t-meta ink-2">打开文档时不弹出键盘，双击进入编辑</div></div><span class="toggle"></span></div>
+            <div class="row"><div class="txt"><div class="t-body w5">拼写检查</div></div><span class="toggle"></span></div>
+          </div>
+        </div>
+      </div>
+      <p class="caption">主文本 <b class="good">body 16</b> · 副标题 <b class="good">meta 14</b> · 分组 <b class="good">sm 13</b></p>
+    </div>
+
+    <div class="phone-wrap">
+      <div class="phone">
+        <span class="label-tag old">现状 · 首页</span>
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="screen">
+          <div class="big-title"><div style="font-size:24px;font-weight:800">早上好</div><div class="ink-2" style="font-size:13px">10月24日 星期六</div></div>
+          <div class="section-head"><span style="font-size:16.5px;font-weight:800">任务</span><span class="ink-3" style="font-size:12.5px;font-weight:600">全部</span></div>
+          <div class="list">
+            <div class="task"><span class="box"></span><div><div style="font-size:14px;font-weight:600">整理本周读书笔记</div><div class="ink-3" style="font-size:11.5px">今天 18:00</div></div></div>
+            <div class="task"><span class="box"></span><div><div style="font-size:14px;font-weight:600">复习「记忆」卡组</div><div class="ink-3" style="font-size:11.5px">待复习 12 张</div></div></div>
+          </div>
+          <div class="section-head"><span style="font-size:16.5px;font-weight:800">最近</span><span class="ink-3" style="font-size:12.5px;font-weight:600">更多</span></div>
+          <div class="list">
+            <div class="task"><div><div style="font-size:14px;font-weight:600">间隔重复的底层逻辑</div><div class="ink-3" style="font-size:11.5px;display:flex;gap:6px;align-items:center"><span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px;background:var(--tau-accent-soft);color:var(--tau-accent-text)">卡片</span>10:24</div></div></div>
+            <div class="task"><div><div style="font-size:14px;font-weight:600">如何写一篇好的读书笔记</div><div class="ink-3" style="font-size:11.5px;display:flex;gap:6px;align-items:center"><span style="font-size:10px;font-weight:700;padding:1px 7px;border-radius:999px;background:var(--tau-tag-2-soft);color:var(--tau-tag-2)">文章</span>昨天</div></div></div>
+          </div>
+        </div>
+      </div>
+      <p class="caption">问候 24 · 区块 <b class="bad">16.5</b> · 行 14 · 时间 <b class="bad">11.5</b> · 徽标 <b class="bad">10</b></p>
+    </div>
+
+    <div class="phone-wrap">
+      <div class="phone">
+        <span class="label-tag new">新规范 · 首页</span>
+        <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+        <div class="screen">
+          <div class="big-title"><div class="t-hero w7">早上好</div><div class="t-meta ink-2">10月24日 星期六</div></div>
+          <div class="section-head"><span class="t-title w7">任务</span><span class="t-sm w6 ink-2">全部</span></div>
+          <div class="list">
+            <div class="task"><span class="box"></span><div><div class="t-body w5">整理本周读书笔记</div><div class="t-sm ink-2">今天 18:00</div></div></div>
+            <div class="task"><span class="box"></span><div><div class="t-body w5">复习「记忆」卡组</div><div class="t-sm ink-2">待复习 12 张</div></div></div>
+          </div>
+          <div class="section-head"><span class="t-title w7">最近</span><span class="t-sm w6 ink-2">更多</span></div>
+          <div class="list">
+            <div class="task"><div><div class="t-body w5">间隔重复的底层逻辑</div><div class="t-sm ink-2" style="display:flex;gap:6px;align-items:center;margin-top:2px"><span class="badge t-micro" style="padding:1px 8px">卡片</span>10:24</div></div></div>
+            <div class="task"><div><div class="t-body w5">如何写一篇好的读书笔记</div><div class="t-sm ink-2" style="display:flex;gap:6px;align-items:center;margin-top:2px"><span class="badge t-micro" style="padding:1px 8px;background:var(--tau-tag-2-soft);color:var(--tau-tag-2)">文章</span>昨天</div></div></div>
+          </div>
+        </div>
+      </div>
+      <p class="caption">问候 <b class="good">hero 28</b> · 区块 <b class="good">title 17</b> · 行 <b class="good">body 16</b> · 时间 <b class="good">sm 13</b> · 徽标 <b class="good">micro 12</b></p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 5 映射 ═══════════ -->
+<section class="scene" data-scene="map">
+  <p class="scene-intro">按「现值 → 档位」机械替换，再按角色微调（例如 11.5px 的时间进 sm 13，11.5px 的标签进 micro 12）。按页面域分批：壳层组件 → 卡片 → 首页 → 设置 → 其余，每批跑类型检查与测试；最后加 ESLint 规则禁止移动端 <code>text-[Npx]</code>。</p>
+  <div class="frames">
+    <div class="doc-card" style="flex:1 1 640px;max-width:880px">
+      <table class="cmp">
+        <tr><th>现值</th><th>处数（约）</th><th>新档位</th><th>典型位置</th></tr>
+        <tr><td>8.5 – 10.5px</td><td>55</td><td><b>tiny 11</b>（句子升到 sm 13）</td><td>Dock 标签、设置角标、类型徽标</td></tr>
+        <tr><td>11 / 11.5px</td><td>165</td><td><b>micro 12</b> 或 <b>sm 13</b></td><td>标签 chip / 卡片时间、副标题</td></tr>
+        <tr><td>12 / 12.5px</td><td>170</td><td><b>sm 13</b></td><td>分组标题、保存状态、「全部」链接</td></tr>
+        <tr><td>13 / 13.5px</td><td>155</td><td><b>meta 14</b></td><td>空态说明、元信息行</td></tr>
+        <tr><td>14 – 15.5px</td><td>165</td><td><b>body 16</b></td><td>列表行、设置项、按钮</td></tr>
+        <tr><td>16 – 18px</td><td>38</td><td><b>title 17</b></td><td>导航栏标题、区块标题</td></tr>
+        <tr><td>19 – 24px</td><td>32</td><td><b>title-lg 22</b></td><td>一级页标题、弹层大标题</td></tr>
+        <tr><td>26 – 31px</td><td>6</td><td><b>hero 28</b></td><td>详情页大标题</td></tr>
+        <tr><td>≥ 34px</td><td>5</td><td>保留（数字展示）</td><td>番茄钟计时、日历大日期</td></tr>
+        <tr><td><code>body { font-size: 14px }</code></td><td>—</td><td><b>body 16</b></td><td>所有未声明字号的文字</td></tr>
+        <tr><td><code>.mobile-card-editor-content</code> 17 / 1.85</td><td>—</td><td><b>body-lg 17 / 1.75</b>，并挂到 CardItem</td><td>编辑器、卡片列表</td></tr>
+      </table>
+    </div>
+    <div class="doc-card" style="flex:1 1 300px;max-width:400px">
+      <h3>需要留意的副作用</h3>
+      <ul>
+        <li>变大后单行放不下的地方（Dock、筛选条、表单标签）要检查截断与换行。</li>
+        <li>固定高度的行（如 30px 筛选 chip）需要跟着加高，触控目标保持 ≥ 44px。</li>
+        <li>卡片列表变成 17px 后单卡更高，预览上限按「行数」截断而不是按块数。</li>
+        <li>视觉验收由你在真机上完成；我这边只做类型检查、测试与构建。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<script>
+// 主题切换
+const root = document.documentElement;
+document.getElementById("theme-family").onchange = e => root.dataset.theme = e.target.value;
+document.getElementById("theme-mode").onclick = e => {
+  const dark = root.dataset.mode !== "dark";
+  root.dataset.mode = dark ? "dark" : "light";
+  e.target.textContent = dark ? "深色" : "浅色";
+};
+// 页签
+const tabs = [...document.querySelectorAll(".tab")];
+function show(key) {
+  tabs.forEach(t => t.classList.toggle("on", t.dataset.tab === key));
+  document.querySelectorAll(".scene").forEach(s => s.classList.toggle("on", s.dataset.scene === key));
+  history.replaceState(null, "", "#" + key);
+}
+tabs.forEach(t => t.onclick = () => show(t.dataset.tab));
+show(location.hash.slice(1) || "research");
+
+// 现状直方图（apps/mobile/src 中 text-[Npx] 计数）
+const dist = [[9.5,8],[10,9],[10.5,33],[11,62],[11.5,103],[12,81],[12.5,89],[13,106],[13.5,48],[14,71],[14.5,33],[15,56],[15.5,5],[16,12],[16.5,8],[17,8],[18,10],[19,7],[20,7],[21,10],[22,4],[24,4]];
+document.getElementById("bars").innerHTML = dist.map(([px, n]) =>
+  `<div class="bar ${px >= 13 && Number.isInteger(px) ? "ok" : ""}"><span>${px}px</span><div style="width:${n / 106 * 100}%"></div><span>${n}</span></div>`
+).join("");
+
+// 卡片列表三联：现状 / 方案 A / 方案 B，外加方案 A 的详情页
+const sample = [
+  { time: "10:24", tags: ["学习方法", "记忆"], body: `<h4>间隔重复的底层逻辑</h4><p>遗忘曲线不是敌人，而是<span class="hl">调度复习时机</span>的依据。每次在快要忘记时回忆，记忆强度提升最大。</p><p>所以复习间隔应该随熟练度拉长：1 天、3 天、7 天、15 天……</p>`, fade: true },
+  { time: "昨天 21:08", tags: ["写作"], body: `<p>写作时先写「这段要让读者相信什么」，再写论据。顺序反过来，就会变成资料堆砌。</p>` },
+  { time: "10月20日", tags: [], body: `<div class="todo"><span class="box"></span><span>整理本周读书笔记</span></div><div class="todo"><span class="box"></span><span>把「费曼技巧」拆成三张卡片</span></div>` },
+];
+const variants = [
+  { tag: "old", label: "现状", body: "font-size:14px;line-height:1.6", time: "font-size:11.5px", chip: "font-size:11.5px", nav: "font-size:18px;font-weight:800", dock: "font-size:10px",
+    cap: `正文 <b class="bad">14</b>，详情 17：<b class="bad">点开放大 1.2 倍</b>` },
+  { tag: "new", label: "方案 A · 同字号（推荐）", body: "font-size:var(--t-body-lg);line-height:1.75", time: "font-size:var(--t-sm)", chip: "font-size:var(--t-micro)", nav: "font-size:var(--t-title);font-weight:700", dock: "font-size:var(--t-tiny)",
+    cap: `正文 <b class="good">body-lg 17 / 1.75</b>，与详情一致；时间 13 · 标签 12 · Dock 11` },
+  { tag: "new", label: "方案 B · 降一档", body: "font-size:var(--t-body);line-height:1.65", time: "font-size:var(--t-sm)", chip: "font-size:var(--t-micro)", nav: "font-size:var(--t-title);font-weight:700", dock: "font-size:var(--t-tiny)",
+    cap: `正文 <b>body 16 / 1.65</b>，详情 17：密度更高，但点开仍放大约 6%` },
+];
+const dockIcons = ["卡片", "文章", "首页", "日记"];
+const html = variants.map(v => `
+  <div class="phone-wrap">
+    <div class="phone">
+      <span class="label-tag ${v.tag}">${v.label}</span>
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="nav"><span class="ic">☰</span><span style="${v.nav}">卡片</span><span class="ic">⌕</span></div>
+      <div class="screen pad" style="padding-top:6px">
+        ${sample.map(c => `
+          <div class="card">
+            <div class="card-head"><span class="ink-2" style="${v.time};font-variant-numeric:tabular-nums">${c.time}</span></div>
+            <div class="preview ${c.fade ? "fade" : ""}" style="${v.body}">${c.body}</div>
+            ${c.tags.length ? `<div class="chips">${c.tags.map(t => `<span class="chip" style="${v.chip}"><i>#</i>${t}</span>`).join("")}</div>` : ""}
+          </div>`).join("")}
+      </div>
+      <div class="dock">${dockIcons.map((d, i) => `<span class="${i === 0 ? "on" : ""}" style="${v.dock}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="4"/></svg>${d}</span>`).join("")}</div>
+    </div>
+    <p class="caption">${v.cap}</p>
+  </div>`).join("") + `
+  <div class="phone-wrap">
+    <div class="phone">
+      <span class="label-tag new">方案 A · 点开详情</span>
+      <div class="status"><span>9:41</span><span>●●● ▮</span></div>
+      <div class="nav"><span class="ic">‹</span><span></span><span class="ic">⋯</span></div>
+      <div class="screen detail">
+        <span class="badge t-micro">卡片</span>
+        <p class="t-sm ink-2" style="margin-top:12px;font-variant-numeric:tabular-nums">10月24日 10:24 · 128 字</p>
+        <div class="editor t-body-lg" style="margin-top:8px">${sample[0].body}<p>真正决定效果的是「主动回忆」，而不是反复阅读：合上书，先试着复述，再对照原文补缺。</p></div>
+        <div class="chips">${sample[0].tags.map(t => `<span class="chip t-micro"><i>#</i>${t}</span>`).join("")}</div>
+      </div>
+    </div>
+    <p class="caption">与方案 A 列表<b class="good">字号、行高、标题块完全一致</b>，只是不截断</p>
+  </div>`;
+document.getElementById("card-frames").innerHTML = html;
+</script>
+</body>
+</html>
