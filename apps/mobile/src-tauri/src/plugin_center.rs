@@ -102,7 +102,7 @@ pub fn plugin_center_config(app: AppHandle) -> Result<Value, CenterError> {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+#[serde(tag = "kind", rename_all = "camelCase")]
 pub enum CenterRequest {
     Catalog {
         input: Value,
@@ -140,18 +140,18 @@ fn request_parts(
 ) -> Result<(String, Option<Value>), CenterError> {
     match operation {
         CenterRequest::Catalog { input } => {
-            let mut query = input
+            let fields = input
                 .as_object()
-                .cloned()
                 .ok_or_else(|| invalid("目录条件必须是对象"))?;
-            if query.keys().any(|key| {
-                ![
-                    "platform", "q", "category", "sort", "limit", "cursor", "host",
-                ]
-                .contains(&key.as_str())
-            }) {
-                return Err(invalid("目录条件包含未知字段"));
-            }
+            let mut query: serde_json::Map<String, Value> =
+                ["platform", "q", "category", "sort", "limit", "cursor"]
+                    .into_iter()
+                    .filter_map(|key| {
+                        fields
+                            .get(key)
+                            .map(|value| (key.to_string(), value.clone()))
+                    })
+                    .collect();
             let selected = query
                 .get("platform")
                 .and_then(Value::as_str)
@@ -160,7 +160,6 @@ fn request_parts(
             if !["all", "desktop", "android", "ios"].contains(&selected.as_str()) {
                 return Err(invalid("目录平台无效"));
             }
-            query.remove("host");
             if selected == current_host["platform"].as_str().unwrap_or("") {
                 query.insert("host".into(), current_host.clone());
             }

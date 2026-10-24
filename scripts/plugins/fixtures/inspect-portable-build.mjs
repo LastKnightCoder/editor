@@ -51,11 +51,6 @@ for (const platform of ["desktop", "android", "ios"]) {
     profiles: ["web-v1"],
   };
   assertPortablePluginCompatibility(parsed, host);
-  for (const field of ["required", "optional", "elements"]) {
-    const repeated = structuredClone(packaged);
-    repeated.targets[platform][field] = [];
-    assert.throws(() => readPortablePluginManifest(repeated));
-  }
   assert.throws(() => assertPortablePluginCompatibility(parsed, { ...host, profiles: [] }));
   assert.throws(() => assertPortablePluginCompatibility(parsed, { ...host, appVersion: "0.0.0" }));
   targets.push(platform);

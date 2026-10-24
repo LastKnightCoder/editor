@@ -93,16 +93,11 @@ function identifier(value: string) {
   if (!/^[\w.-]{1,128}$/.test(value)) fail(400, "INVALID_INPUT", "插件或版本标识无效");
   return value;
 }
-function fields(input: Record<string, unknown>, names: readonly string[]) {
-  if (Object.keys(input).some(key => !names.includes(key)))
-    fail(400, "INVALID_INPUT", "包含未知请求字段");
-}
 const encodeCursor = (value: unknown) =>
   btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(value))));
 function decodeCursor<T>(value: string | null, scope: string): T | null {
   if (!value) return null;
   return validate(() => {
-    if (value.length > 4096) throw new Error();
     const decoded = JSON.parse(
       new TextDecoder().decode(Uint8Array.from(atob(value), c => c.charCodeAt(0)))
     );
@@ -272,7 +267,7 @@ async function facets(env: Env, query: ReturnType<typeof normalizeCenterQuery>) 
 
 async function catalog(request: Request, env: Env) {
   const input = await body(request);
-  fields(input, ["platform", "host", "q", "category", "sort", "limit", "cursor"]);
+
   const query = validate(() => normalizeCenterQuery(input as unknown as CenterCatalogQuery));
   const { day, windowStart } = downloadWindow();
   const scope = await sha256(JSON.stringify({ ...query, cursor: null, day }));
@@ -316,7 +311,7 @@ export async function centerRoute(
   if (path === "/v2/catalog/query" && request.method === "POST") return catalog(request, env);
   if (path === "/v2/releases/status" && request.method === "POST") {
     const input = await body(request);
-    fields(input, ["releaseIds"]);
+
     if (
       !Array.isArray(input.releaseIds) ||
       input.releaseIds.length > 100 ||
@@ -360,7 +355,7 @@ export async function centerRoute(
     const pluginId = identifier(plugin[1]);
     if (plugin[2] === "resolve" && request.method === "POST") {
       const input = await body(request);
-      fields(input, ["host", "releaseId"]);
+
       const host = validate(() => normalizeCenterHost(input.host as CenterHost));
       if (
         input.releaseId !== undefined &&

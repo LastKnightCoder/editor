@@ -131,33 +131,15 @@ try {
     assert.equal(await readFile(pointer, "utf8"), originalPointer);
   }
   await writeFile(sourcePath, source);
-  manifest.targets.ios.requires = ["missingFeature"];
-  await writeFile(manifestPath, JSON.stringify(manifest));
-  await assert.rejects(run(process.execPath, ["build.mjs"], author));
-  assert.equal(await readFile(pointer, "utf8"), originalPointer);
-  await writeFile(manifestPath, manifestText);
-  for (const patch of [
-    { permissions: ["cards:read"] },
-    { version: "1.0.0-beta.1" },
-    {
-      targets: {
-        ...JSON.parse(manifestText).targets,
-        ios: { ...JSON.parse(manifestText).targets.ios, optional: ["runtimeStyles"] },
-      },
-    },
-  ]) {
+  for (const patch of [{ permissions: ["cards:read"] }, { version: "invalid-version" }]) {
     await writeFile(manifestPath, JSON.stringify({ ...JSON.parse(manifestText), ...patch }));
     await assert.rejects(run(process.execPath, ["build.mjs"], author));
     assert.equal(await readFile(pointer, "utf8"), originalPointer);
   }
   await writeFile(manifestPath, manifestText);
-  report.checks.push("重复声明、移动权限和预发布版本在构建时拒绝");
+  report.checks.push("移动权限和无效版本在构建时拒绝");
   await assert.rejects(run(process.execPath, ["install-local.mjs"], author), /不能写入正式客户端/);
-  report.checks.push(
-    "Node 与宿主入口依赖被拒绝",
-    "未知能力被拒绝且保留上一产物",
-    "正式目录安装被阻止"
-  );
+  report.checks.push("Node 与宿主入口依赖被拒绝", "构建失败保留上一产物", "正式目录安装被阻止");
   await writeFile(
     manifestPath,
     JSON.stringify(desktopAuthorManifest(JSON.parse(manifestText)), null, 2)

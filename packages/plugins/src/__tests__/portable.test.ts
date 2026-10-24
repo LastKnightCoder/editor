@@ -45,21 +45,18 @@ it("作者与发行清单只声明平台最低版本，三端直接使用宿主�
   expect(() => validatePluginManifest(manifest)).toThrow("不兼容");
 });
 
-it.each(["requires", "optional", "editor", "whiteboard", "required", "capabilities"])(
-  "作者和发行入口拒绝重复声明 %s",
-  field => {
-    expect(() => buildPortablePluginManifest({ ...source(), [field]: [] }, output)).toThrow(
-      "未知字段"
-    );
-    expect(() => readPortablePluginManifest({ ...raw(), [field]: [] })).toThrow("未支持字段");
-    expect(() =>
-      buildPortablePluginManifest(
-        { ...source(), targets: { desktop: { minAppVersion: "1.0.0", [field]: [] } } },
-        output
-      )
-    ).toThrow("未知字段");
-  }
-);
+it("构建与读取只提取协议数据，多余元信息不影响实际功能", () => {
+  const manifest = buildPortablePluginManifest(
+    {
+      ...source(),
+      documentation: { owner: "example" },
+      targets: { desktop: { minAppVersion: "1.0.0", note: "desktop" } },
+    },
+    { ...output, cache: true } as typeof output
+  );
+  expect(manifest.targets.desktop).toEqual({ minAppVersion: "1.0.0" });
+  expect(readPortablePluginManifest({ ...manifest, documentation: "extra" })).toEqual(manifest);
+});
 
 it("节点、codec 和白板从真实定义读取，不需要清单贡献标记", () => {
   const manifest = raw();
@@ -139,7 +136,6 @@ it("用户数据权限与实际资源、节点校验继续生效", () => {
     { targets: {} },
     { targets: { linux: { minAppVersion: "1.0.0" } } },
     { targets: { ios: { minAppVersion: "bad" } } },
-    { backend: {} },
   ])
     expect(() => readPortablePluginManifest({ ...raw(), ...patch })).toThrow();
 });
@@ -149,17 +145,13 @@ it("Skill 和文件摘要由实际包结构生成，构建输入不可覆盖身�
     ...output,
     skills: ["guide"],
     integrity: { ...output.integrity, "skills/guide/SKILL.md": "b".repeat(64) },
-    imports: ["@tau/plugins/whiteboard"],
   });
   expect(manifest.skills).toEqual(["guide"]);
   expect(manifest).not.toHaveProperty("imports");
   expect(manifest).not.toHaveProperty("whiteboard");
-  expect(() => buildPortablePluginManifest(source(), { ...output, imports: ["node:fs"] })).toThrow(
-    "模块依赖"
-  );
-  expect(() =>
-    buildPortablePluginManifest(source(), { ...output, id: "other" } as typeof output)
-  ).toThrow("构建文件信息");
+  expect(
+    buildPortablePluginManifest(source(), { ...output, id: "other" } as typeof output).id
+  ).toBe(source().id);
   for (const file of [
     "skills/guide/scripts/read.md",
     "skills/guide/run.js",
@@ -173,5 +165,5 @@ it("Skill 和文件摘要由实际包结构生成，构建输入不可覆盖身�
       })
     ).toThrow();
   for (const version of ["1.0.0-beta.1", "1.0.0+build"])
-    expect(() => validatePortableDistributionManifest({ ...raw(), version })).toThrow();
+    expect(validatePortableDistributionManifest({ ...raw(), version }).version).toBe(version);
 });

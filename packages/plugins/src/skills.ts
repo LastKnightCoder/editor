@@ -7,7 +7,6 @@ import { assertLocalId } from "./ids.ts";
  */
 export const SKILL_ROOT = "skills";
 export const SKILL_README = "SKILL.md";
-export const SKILL_LIMITS = { skills: 32 } as const;
 
 /** 能被 Skill 脚本工具直接执行的文件；与桌面脚本运行器的解释器映射一致。 */
 const SCRIPT_EXTENSION = /\.(?:js|mjs|cjs|ts|py|sh)$/i;
@@ -17,13 +16,11 @@ export const skillDirectory = (id: string) => `${SKILL_ROOT}/${id}`;
 /** 读取 manifest.skills；缺省返回 undefined，空数组视为未声明。 */
 export function readSkillsField(value: unknown): readonly string[] | undefined {
   if (value === undefined) return undefined;
-  if (!Array.isArray(value) || value.length > SKILL_LIMITS.skills)
-    throw new Error(`skills 必须是最多 ${SKILL_LIMITS.skills} 项的数组`);
+  if (!Array.isArray(value)) throw new Error("skills 必须是数组");
   const ids = new Set<string>();
   for (const id of value) {
     if (typeof id !== "string") throw new Error("Skill ID 无效");
     assertLocalId(id);
-    if (ids.has(id)) throw new Error(`Skill ID 重复：${id}`);
     ids.add(id);
   }
   return ids.size ? Object.freeze([...ids]) : undefined;

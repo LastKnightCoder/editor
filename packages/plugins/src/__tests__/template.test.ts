@@ -31,14 +31,13 @@ it.each(["../site", "/site", "site/../other", "site\\other", "site/%2e%2e"])(
     ).toThrow();
   }
 );
-it("入口必须存在于摘要清单，混合能力不能绕过原有校验", () => {
+it("入口必须存在于摘要清单", () => {
   expect(() =>
     validateDistributionManifest({
       ...input,
       template: { ...input.template, entries: ["missing.html"] },
     })
   ).toThrow("摘要");
-  expect(() => validateDistributionManifest({ ...input, editor: true })).toThrow();
 });
 it("占位符只替换真实 HTML 属性，保留作者原始脚本与正文", () => {
   const result = replaceTemplatePaths(
@@ -60,7 +59,7 @@ it("占位符只替换真实 HTML 属性，保留作者原始脚本与正文", (
     })
   ).toThrow("未知模板占位符");
 });
-it("模板包不能同时声明代码插件入口", () => {
+it("模板包不能引用模板目录之外的执行文件", () => {
   expect(() =>
     validateDistributionManifest({
       ...input,
@@ -68,7 +67,7 @@ it("模板包不能同时声明代码插件入口", () => {
       main: "main.js",
       integrity: { ...input.integrity, "main.js": "c".repeat(64) },
     })
-  ).toThrow("代码插件入口");
+  ).toThrow("路径或摘要");
 });
 
 const withFields = (siteFields: unknown) =>

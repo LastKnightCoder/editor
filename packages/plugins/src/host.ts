@@ -31,7 +31,7 @@ import type {
   PluginStorage,
 } from "./index";
 import { assertLocalId, copyJson } from "./values";
-import { assertPluginEditorExtension } from "./editor-fields";
+import { normalizePluginEditorExtension } from "./editor-fields";
 import {
   sidebarDragType,
   snapshotSidebarUpdate,
@@ -2077,7 +2077,10 @@ export class PluginHost {
           this.assertActive(entry, activation);
           if (!this.options.editor) throw new Error("当前宿主不支持编辑器扩展");
           if (contribution.scene !== "workbench") throw new Error("不支持的编辑器场景");
-          assertPluginEditorExtension(contribution.extension);
+          contribution = {
+            ...contribution,
+            extension: normalizePluginEditorExtension(contribution.extension),
+          };
           if (contribution.extension.apiVersion !== 1) throw new Error("不支持的编辑器扩展协议");
           assertLocalId(contribution.extension.id);
           if (!contribution.extension.id.startsWith(`${scope.pluginId}.`))
