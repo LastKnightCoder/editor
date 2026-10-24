@@ -12,7 +12,7 @@
 1. 现有 `transcribeAudio` / `transcribeAudioSegmented` 接收可选第三参数 `{ signal, onProgress }`，先保证 transcription 模块就绪，再固定任务 ID、安装事件监听并发起调用。
 2. 主进程仍使用既有 BACKGROUND transcription 模块，按调用窗口 + taskId 登记任务。取消只能作用于本窗口的相应任务；切库、重载、窗口销毁和退出同时取消相关任务。
 3. 单文件与分段执行均经内置 `createWhisperASR`；提供方固定模型配置，只声明 file/final-only 能力，不伪报实时。文件读取句柄可以流式落盘；宿主已授权的本地文件在内部直接解析路径，插件契约不暴露该路径捷径。
-4. `whisper-engine.ts` 复用原程序检测、模型目录、参数和 SRT 解析。ffmpeg 把输入规范为 16 kHz、单声道、PCM Int16 WAV，每个调用独占临时目录；程序正常退出后读取本次 SRT，再交付最终结果。
+4. `whisper-engine.ts` 复用原程序检测、模型目录、参数和 SRT 解析。ffmpeg 把输入规范为 16 kHz、单声道、PCM Int16 WAV，每个调用独占临时目录；默认在程序正常退出后读取本次 SRT，再交付最终结果；后续 Windows XXL 的特定完成后退出故障按 Windows 验证记录的严格完成证明恢复。
 5. 已有媒体流程继续消费原字段。公共 ASR 的最终结果采用毫秒时间戳与顶层 words；原媒体数据通过宿主私有的 `WhisperTranscript.sourceResult` 取回，不把该字段扩展成插件 API。
 
 本阶段未向 PluginContext 增加未接线的 `context.asr` 字段；插件注册与运行宿主在 P3 与 Seed 一起实现，不发布 SDK。系统原生驱动的产品装配同属 P3。

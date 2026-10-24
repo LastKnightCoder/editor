@@ -3,9 +3,25 @@ import { describe, expect, it } from "vitest";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import { runASRProcess } from "../asr-process";
+import { ASRProcessExitError, runASRProcess } from "../asr-process";
 
 describe("ASR 子进程", () => {
+  it("按完整 stdout 行交付完成信号，非零退出仍保留结构化错误", async () => {
+    const lines: string[] = [];
+    const pending = runASRProcess(
+      process.execPath,
+      [
+        "-e",
+        "process.stdout.write('Operation fin'); setTimeout(() => { console.log('ished in:  0:00:04.464'); console.error('stderr-only'); process.exitCode = 7; }, 20)",
+      ],
+      new AbortController().signal,
+      undefined,
+      line => lines.push(line)
+    );
+    await expect(pending).rejects.toBeInstanceOf(ASRProcessExitError);
+    await expect(pending).rejects.toMatchObject({ exitCode: 7, code: "internal" });
+    expect(lines).toEqual(["Operation finished in:  0:00:04.464"]);
+  });
   it("取消实际终止进程，退出后才拒绝结果", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "tau-asr-child-"));
     try {

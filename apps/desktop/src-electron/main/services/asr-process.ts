@@ -2,12 +2,22 @@ import { spawn } from "node:child_process";
 import { ASRError, asrAbortError, throwIfASRAborted } from "@tau/asr";
 import { parseLanguageFromLogs } from "../utils/transcription-language";
 
+export class ASRProcessExitError extends ASRError {
+  constructor(
+    readonly exitCode: number | null,
+    readonly language: ReturnType<typeof parseLanguageFromLogs>
+  ) {
+    super("internal", `转录处理程序异常退出（${exitCode ?? "信号终止"}）`);
+  }
+}
+
 /** 只保留有界诊断缓冲，正文不写日志；取消必须等进程退出后才能清理文件。 */
 export function runASRProcess(
   binary: string,
   args: string[],
   signal: AbortSignal,
-  onProgress?: (message: string) => void
+  onProgress?: (message: string) => void,
+  onOutputLine?: (line: string) => void
 ) {
   throwIfASRAborted(signal);
   return new Promise<{ language: ReturnType<typeof parseLanguageFromLogs> }>((resolve, reject) => {
@@ -30,6 +40,13 @@ export function runASRProcess(
         pending = lines.pop() ?? "";
         if (signal.aborted) return;
         for (const line of lines) {
+          try {
+            if (stream === child.stdout) onOutputLine?.(line);
+          } catch (error) {
+            failure = error;
+            cancel();
+            return;
+          }
           const match = /(\d{1,3})%/.exec(line);
           if (!match) continue;
           const percent = Number(match[1]);
@@ -55,8 +72,7 @@ export function runASRProcess(
       signal.removeEventListener("abort", cancel);
       if (signal.aborted) reject(asrAbortError());
       else if (failure) reject(failure);
-      else if (code !== 0)
-        reject(new ASRError("internal", `转录处理程序异常退出（${code ?? "信号终止"}）`));
+      else if (code !== 0) reject(new ASRProcessExitError(code, language));
       else resolve({ language });
     });
     if (signal.aborted) cancel();

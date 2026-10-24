@@ -1,6 +1,6 @@
 import { app, shell } from "electron";
 import { ASRError, throwIfASRAborted, waitForASR } from "@tau/asr";
-import { runASRProcess } from "./asr-process";
+import { ASRProcessExitError, runASRProcess } from "./asr-process";
 import FfmpegService from "../utils/FfmpegService";
 import path from "path";
 import os from "os";
@@ -454,9 +454,61 @@ export class TranscriptionService {
               ...settings,
               device: settings.device ?? program.device,
             });
-      const { language: detected } = await runASRProcess(program.path, args, signal, onProgress);
+      let subtitlesWritten = false;
+      let operationFinished = false;
+      let recoveredExit: ASRProcessExitError | undefined;
+      const { language: detected } = await runASRProcess(
+        program.path,
+        args,
+        signal,
+        onProgress,
+        line => {
+          if (line.trim() === `Subtitles are written to '${temporary}' directory.`)
+            subtitlesWritten = true;
+          if (
+            subtitlesWritten &&
+            /^Operation finished in:\s+\d+:\d{2}:\d{2}\.\d+\s*$/.test(line.trim())
+          )
+            operationFinished = true;
+        }
+      ).catch(error => {
+        throwIfASRAborted(signal);
+        // XXL 的退出阶段故障只在本次字幕写出与完成标记都到达后恢复。
+        if (
+          process.platform !== "win32" ||
+          path.basename(program.path).toLowerCase() !== "faster-whisper-xxl.exe" ||
+          !(error instanceof ASRProcessExitError) ||
+          error.exitCode === null ||
+          error.exitCode >>> 0 !== 0xc0000409 ||
+          !operationFinished
+        )
+          throw error;
+        recoveredExit = error;
+        return { language: error.language };
+      });
       throwIfASRAborted(signal);
       const srt = await fs.readFile(path.join(temporary, "input.srt"), "utf8");
+      if (recoveredExit) {
+        const blocks = srt.trim().split(/\r?\n\s*\r?\n/);
+        const cue =
+          /^(\d+)\r?\n(\d{2,}):([0-5]\d):([0-5]\d)[,.](\d{3}) --> (\d{2,}):([0-5]\d):([0-5]\d)[,.](\d{3})\r?\n\S[\s\S]*$/;
+        const complete = blocks.every((block, index) => {
+          const match = cue.exec(block);
+          if (!match || Number(match[1]) !== index + 1) return false;
+          const start =
+            Number(match[2]) * 3600000 +
+            Number(match[3]) * 60000 +
+            Number(match[4]) * 1000 +
+            Number(match[5]);
+          const end =
+            Number(match[6]) * 3600000 +
+            Number(match[7]) * 60000 +
+            Number(match[8]) * 1000 +
+            Number(match[9]);
+          return end >= start;
+        });
+        if (!complete) throw recoveredExit;
+      }
       const sentenceLevel =
         settings.useLLMOptimization || settings.wordTimestamps
           ? false
@@ -475,6 +527,8 @@ export class TranscriptionService {
       }
       result.processingTime = (Date.now() - startedAt) / 1000;
       throwIfASRAborted(signal);
+      if (recoveredExit)
+        console.warn("[Transcription] 已校验并恢复 XXL 完成后的字幕，退出码 0xC0000409");
       return result;
     } finally {
       await fs.remove(temporary);
