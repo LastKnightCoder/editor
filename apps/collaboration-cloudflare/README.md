@@ -1,68 +1,50 @@
-# Cloudflare 协作原型
+# Cloudflare 协作服务
 
-用独立 Workers + SQLite-backed Durable Object 验证现有桌面客户端、移动协作运行时能否在 Cloudflare 上完成同步、持久化和断线恢复。
+正式服务使用 Workers、SQLite-backed Durable Object 与私有 R2，产品入口为 `https://collab.taunote.app`。原型仍可独立运行，不接管正式数据。
 
-## 隔离边界
+## 正式运行
 
-- Worker 固定为 `tau-collab-prototype`，地址为 `https://tau-collab-prototype.lastknightcoder.workers.dev`。
-- 仅绑定该 Worker 自己的 `PrototypeCollaboration` Durable Object，不绑定生产域名、现有数据库、R2 或其他 Worker。
-- 桌面端、移动端与线上协作服务的默认地址保持不变；原型不读取、迁移或覆盖线上数据。
-- 注册设备和原型运行时重建需要 `PROTOTYPE_KEY`；凭据只存本机被 Git 忽略的 `.dev.vars` 与 Cloudflare Secret。
-- 部署脚本固定目标名称，并拒绝配置生产路由或其他存储绑定。
+- Worker：tau-collaboration；Durable Object：CollaborationService；正式实例：production-v1。
+- 附件桶：tau-collaboration-assets；备份桶：tau-collaboration-backups。两者r2.dev访问均关闭。
+- API保持 `/v1/*`、`/ws`、`/events`；普通客户端无需原型管理凭据。
+- 元数据、权限、签名密钥与Yjs状态保存在SQLite；快照及增量按512KiB分块，事务落盘后继续同步。
+- 业务配额、内存背压、消息限流、资源回收与端点身份升级见 [协作架构](/docs/architecture/collaboration.md)。发布、数据恢复和域名切换见 [操作指南](/docs/guides/ops-collaboration-deploy.md)。
 
-## 实现
-
-- 保留 `/v1/*`、`/ws` 和 `/events` 协议。单个 Durable Object 承载少量测试文档，沿用 Hocuspocus 4.6 与 Yjs。
-- 设备身份、签名密钥、成员、协作码、审批和文档状态保存在 Durable Object SQLite。
-- 快照与增量按 512KiB 分块；保留 8MiB 文档大小上限，避免 SQL 单行 2MB 上限。
-- 在 `beforeSync` 内同步事务保存增量，写入成功后才继续协议处理；压缩在事务中替换快照。
-- WebSocket 显式使用 `arraybuffer`，不将默认 Blob 当作 Yjs 字节流解码。
-- 原型最多注册 12 个设备、保留 6 份活动文档、同时打开 4 份文档和 24 条连接。
-
-附件/R2、完整资源配额、生产限流、备份恢复、存量数据迁移、按文档分片与 WebSocket 休眠不在此原型中。Hocuspocus 的常驻定时器和普通 WebSocket 会阻止休眠，不能据此推断正式版本的费用。
-
-## 本地验证
-
-在仓库根目录执行：
+## 验证命令
 
 ```bash
 pnpm --filter @tau/collaboration-cloudflare check
-pnpm --filter @tau/collaboration-cloudflare build
 pnpm --filter @tau/collaboration-cloudflare test
+pnpm --filter desktop exec vitest run src-electron/main/modules/collaboration/__tests__
+pnpm check:docs
 ```
 
-测试运行真实 workerd 和 SQLite 存储。桌面侧使用生产 `CollaborationClient` 与 Hocuspocus Provider；移动侧使用生产 `CollaborationManager`、REST 接口与 WebSocket，仅以本机测试桥替代 Tauri IPC 和本地绑定读取。测试不会发起访问生产协作地址的请求。
+测试先构建两个目标，运行真实workerd、SQLite和R2模拟存储。覆盖审批、跨端正文同步、两端离线合并、进程重启、大文档、受控导入、凭据保留、身份合并重试、附件鉴权、幂等、关闭清理和完整备份。
 
-覆盖注册保护、审批前拒绝读取、审批加入、双向正文同步、移动端网络恢复事件、桌面端重新连接、离线与在线改动合并、真实 workerd 进程重启后恢复及 3MiB 文档读回。
+桌面侧使用生产CollaborationClient和Hocuspocus Provider；移动侧使用生产CollaborationManager、REST和WebSocket，仅替换Tauri IPC及本地绑定读取。完整Electron界面、iOS/Android真机及离线杀进程恢复未由这些测试验收。
 
-## Cloudflare 实际验证
+## 隔离环境
+
+原型配置为wrangler.jsonc，正式配置为wrangler.production.jsonc。原型Worker固定名tau-collab-prototype，只绑定自身对象；测试凭据在被Git忽略的.dev.vars中，部署脚本拒绝绑定正式资源。原型不配置R2，不能替代正式目标验收。
 
 ```bash
 pnpm --filter @tau/collaboration-cloudflare deploy:prototype
-COLLAB_PROTOTYPE_URL=https://tau-collab-prototype.lastknightcoder.workers.dev \
-  pnpm --filter @tau/collaboration-cloudflare test
+COLLAB_PROTOTYPE_URL=<部署输出的原型workers.dev地址> \
+  pnpm --filter @tau/collaboration-cloudflare exec vitest run tests/clients.test.ts
 ```
 
-部署脚本首次生成本机 `.dev.vars`，权限为 `0600`，并上传对应 Secret。不要将该文件提交或粘贴到日志。重新运行脚本沿用同一凭据。
-
-常规远端测试通过受保护的 `/__prototype/restart` 重建 Hocuspocus 运行时，重新从 SQLite 加载数据。要验证真实 Worker 发布后的数据保留，单独执行：
+正式服务迁移演练必须使用名称以rehearsal-开头的独立实例，并在未绑定正式产品域名时执行。客户端回归会检查实例名，拒绝向正式实例创建测试数据：
 
 ```bash
-COLLAB_PROTOTYPE_URL=https://tau-collab-prototype.lastknightcoder.workers.dev \
-COLLAB_PROTOTYPE_REDEPLOY=1 \
-  pnpm --filter @tau/collaboration-cloudflare exec vitest run -t '真实 Worker'
+COLLAB_TEST_ENV=production-rehearsal \
+COLLAB_PROTOTYPE_URL=<正式Worker的workers.dev地址> \
+  pnpm --filter @tau/collaboration-cloudflare exec vitest run tests/clients.test.ts
 ```
 
-此项会创建测试文档、确认增量落盘、通过受限脚本发布新构建标记，再使用原设备凭据与新连接读取同一文档。成功后结束测试共享，保留设备身份；重复运行达到 12 个设备上限时需清理独立测试命名空间或复用测试身份。
+普通WebSocket和Hocuspocus定时器不使用休眠API。当前以单对象和配额控制运行，尚未完成休眠及按文档分片的费用优化，不据此宣称无限容量或零费用。
 
-发布验证先释放旧连接；更新 Secret 后再发布带构建标记的代码版本，以 `/health/ready` 返回的新标记判定切换完成。
+## 迁移约束
 
-## 验证记录
+导入只允许未激活实例；先导入元数据、状态和附件，核对数量及状态字节，最后激活。已开放实例拒绝覆盖。客户端通过产品端点认可的来源摘要复用凭据，必须证明双方身份才能合并权限；服务不收集自托管凭据。
 
-2026-10-24：源码类型检查与 Worker 构建通过；本地 workerd 的两项核心场景、Cloudflare 远端的两项核心场景，以及独立执行的真实 Worker 重新部署场景均通过。审批、双向正文编辑、两端离线合并、重启后继续编辑、3MiB 快照和发布后身份与文档保留均有自动断言。
-
-## 验证结论的边界
-
-自动化覆盖双端生产网络代码与 Cloudflare 运行时，没有运行完整 Electron 界面、iOS/Android 原生应用或真机弱网测试，不代表视觉验收、休眠正确性或生产容量验收。
-
-后续正式迁移前，需要补齐附件、资源与请求配额、故障注入、撤权竞态、休眠恢复、部署回滚和生产数据迁移演练。
+正式管理凭据保存在仓库外 `~/.local/share/tau/collaboration-cloudflare/production.env`，备份位于私有R2及操作员仓库外私有目录，不得提交或打印。代码回滚保留当前数据库，不能用旧备份覆盖新写入。

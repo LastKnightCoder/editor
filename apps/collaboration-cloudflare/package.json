@@ -7,7 +7,8 @@
     "dev": "wrangler dev",
     "check": "tsc --noEmit",
     "build": "wrangler deploy --dry-run --outdir dist",
-    "test": "vitest run",
+    "build:production": "wrangler deploy --config wrangler.production.jsonc --dry-run --outdir dist-production",
+    "test": "pnpm build && pnpm build:production && vitest run",
     "deploy:prototype": "node scripts/deploy-prototype.mjs"
   },
   "dependencies": {

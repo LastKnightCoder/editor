@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
 import { mkdtempSync, rmSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpdir, homedir } from "node:os";
 import { resolve, join } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -22,6 +22,7 @@ const harness = vi.hoisted(() => ({
   key: "",
   mobile: null as DeviceIdentity | null,
 }));
+const productionRehearsal = process.env.COLLAB_TEST_ENV === "production-rehearsal";
 
 function required<T>(value: T | null | undefined, message: string): T {
   if (value == null) throw new Error(message);
@@ -88,7 +89,7 @@ const request = async (path: string, method = "GET", body?: unknown, admin = fal
     method,
     headers: {
       "content-type": "application/json",
-      ...(admin ? { "x-prototype-key": harness.key } : {}),
+      ...(admin ? { [productionRehearsal ? "x-admin-key" : "x-prototype-key"]: harness.key } : {}),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -131,13 +132,23 @@ beforeAll(async () => {
   harness.key = "local-test-" + crypto.randomUUID();
   if (process.env.COLLAB_PROTOTYPE_URL) {
     const url = new URL(process.env.COLLAB_PROTOTYPE_URL);
-    if (!url.hostname.startsWith("tau-collab-prototype.") || !url.hostname.endsWith(".workers.dev"))
+    const prefix = productionRehearsal ? "tau-collaboration." : "tau-collab-prototype.";
+    if (!url.hostname.startsWith(prefix) || !url.hostname.endsWith(".workers.dev"))
       throw new Error("远端验证仅允许独立原型 workers.dev 域名");
     harness.url = url.origin;
+    const varsPath = productionRehearsal
+      ? resolve(homedir(), ".local/share/tau/collaboration-cloudflare/production.env")
+      : resolve(".dev.vars");
+    const keyPattern = productionRehearsal ? /^ADMIN_KEY=(.+)$/m : /^PROTOTYPE_KEY=(.+)$/m;
     harness.key = required(
-      readFileSync(resolve(".dev.vars"), "utf8").match(/^PROTOTYPE_KEY=(.+)$/m)?.[1],
+      readFileSync(varsPath, "utf8").match(keyPattern)?.[1],
       "缺少本机原型验证凭据"
     ).trim();
+    if (productionRehearsal) {
+      const health = await request("/health/ready");
+      if (!String(health.body.instance).startsWith("rehearsal-"))
+        throw new Error("正式客户端回归只允许独立迁移演练实例");
+    }
   } else await start();
   const values = new Map<string, unknown>();
   desktop = new CollaborationClient({
@@ -220,9 +231,10 @@ function appendBody(doc: Y.Doc, text: string) {
 describe("Cloudflare 原型与现有两端客户端", () => {
   it("注册需要凭据，审批加入后双向同步，离线改动合并，服务重启后恢复", async () => {
     console.info("验证阶段：注册保护与发布");
-    expect((await request("/v1/devices", "POST", { nickname: "未授权" })).response.status).toBe(
-      403
-    );
+    if (!productionRehearsal)
+      expect((await request("/v1/devices", "POST", { nickname: "未授权" })).response.status).toBe(
+        403
+      );
     const id = await publish("双端协作");
     const initial = await desktop.request<{ state: string }>(
       harness.url,
@@ -307,6 +319,13 @@ describe("Cloudflare 原型与现有两端客户端", () => {
       await worker.dispose();
       worker = undefined;
       await start(oldPort);
+    } else if (productionRehearsal) {
+      expect(
+        (await request("/_admin/maintenance", "POST", { enabled: true }, true)).response.status
+      ).toBe(200);
+      expect(
+        (await request("/_admin/maintenance", "POST", { enabled: false }, true)).response.status
+      ).toBe(200);
     } else
       expect((await request("/__prototype/restart", "POST", undefined, true)).response.status).toBe(
         200

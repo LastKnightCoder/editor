@@ -4,6 +4,7 @@ import {
   CollaborationError,
   readSharedContent,
   validateDocument,
+  ASSET_PREFIX,
   type DeviceIdentity,
   type JoinRequest,
   type Member,
@@ -14,6 +15,14 @@ const DAY = 86_400_000;
 const CHUNK_BYTES = 512 * 1024;
 export const MAX_DOCUMENT_BYTES = 8 * 1024 * 1024;
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
+function assetReferences(value: unknown, into = new Set<string>()): Set<string> {
+  if (typeof value === "string" && value.startsWith(ASSET_PREFIX))
+    into.add(value.slice(ASSET_PREFIX.length));
+  else if (Array.isArray(value)) value.forEach(item => assetReferences(item, into));
+  else if (value && typeof value === "object")
+    Object.values(value).forEach(item => assetReferences(item, into));
+  return into;
+}
 export const fail = (code: string, message: string, status = 400): never => {
   throw new CollaborationError(code, message, status);
 };
@@ -25,13 +34,26 @@ type DocumentRow = {
   creation_key: string;
   updated_at: number;
 };
-type DeviceRow = { id: string; nickname: string; secret_hash: string };
+type DeviceRow = { id: string; nickname: string; secret_hash: string; banned: number };
+export type AssetRow = {
+  id: string;
+  document_id: string;
+  hash: string;
+  name: string;
+  mime: string;
+  size: number;
+  created_at: number;
+  last_referenced_at: number;
+};
 
-export class PrototypeStore {
+export class CollaborationStore {
   private readonly sql: SqlStorage;
-  private readonly signingKey: string;
+  private signingKey: string;
 
-  constructor(private readonly storage: DurableObjectStorage) {
+  constructor(
+    private readonly storage: DurableObjectStorage,
+    private readonly prototype = true
+  ) {
     this.sql = storage.sql;
     this.sql.exec(`
       CREATE TABLE IF NOT EXISTS devices(id TEXT PRIMARY KEY, nickname TEXT NOT NULL, secret_hash TEXT NOT NULL);
@@ -41,7 +63,27 @@ export class PrototypeStore {
       CREATE TABLE IF NOT EXISTS join_requests(id TEXT PRIMARY KEY, document_id TEXT NOT NULL, device_id TEXT NOT NULL, status TEXT NOT NULL, expires_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS chunks(document_id TEXT NOT NULL, generation INTEGER NOT NULL, part INTEGER NOT NULL, state BLOB NOT NULL, PRIMARY KEY(document_id,generation,part));
       CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS assets(id TEXT PRIMARY KEY, document_id TEXT NOT NULL, hash TEXT NOT NULL, name TEXT NOT NULL, mime TEXT NOT NULL, size INTEGER NOT NULL, created_at INTEGER NOT NULL, last_referenced_at INTEGER NOT NULL);
+      CREATE INDEX IF NOT EXISTS assets_document ON assets(document_id);
+      CREATE INDEX IF NOT EXISTS assets_hash ON assets(hash);
+      CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, device_id TEXT, document_id TEXT, action TEXT NOT NULL, created_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS identity_merges(source_id TEXT PRIMARY KEY, target_id TEXT NOT NULL, created_at INTEGER NOT NULL);
     `);
+    if (
+      !this.all<{ name: string }>("PRAGMA table_info(devices)").some(row => row.name === "banned")
+    )
+      this.sql.exec("ALTER TABLE devices ADD COLUMN banned INTEGER NOT NULL DEFAULT 0");
+    for (const table of ["devices", "documents"])
+      if (
+        !this.all<{ name: string }>("PRAGMA table_info(" + table + ")").some(
+          row => row.name === "created_at"
+        )
+      )
+        this.sql.exec("ALTER TABLE " + table + " ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0");
+    if (
+      !this.all<{ name: string }>("PRAGMA table_info(members)").some(row => row.name === "status")
+    )
+      this.sql.exec("ALTER TABLE members ADD COLUMN status TEXT NOT NULL DEFAULT 'active'");
     this.sql.exec(
       "INSERT OR IGNORE INTO settings VALUES ('signing_key',?)",
       randomBytes(32).toString("hex")
@@ -63,8 +105,27 @@ export class PrototypeStore {
     return this.sql.exec(sql, ...values).toArray() as T[];
   }
 
+  private writable() {
+    if (this.setting("maintenance") === "1")
+      fail("MAINTENANCE", "协作服务正在维护，请稍后重试", 503);
+  }
+
+  private audit(deviceId: string, documentId: string, action: string) {
+    this.sql.exec(
+      "INSERT INTO audit(device_id,document_id,action,created_at) VALUES (?,?,?,?)",
+      deviceId,
+      documentId,
+      action,
+      Date.now()
+    );
+  }
+
   register(nickname: string): DeviceIdentity {
-    if (this.required<{ count: number }>("SELECT count(*) AS count FROM devices").count >= 12)
+    this.writable();
+    if (
+      this.prototype &&
+      this.required<{ count: number }>("SELECT count(*) AS count FROM devices").count >= 12
+    )
       fail("PROTOTYPE_LIMIT", "原型最多创建 12 个设备", 429);
     const identity = {
       id: crypto.randomUUID(),
@@ -72,10 +133,11 @@ export class PrototypeStore {
       nickname,
     };
     this.sql.exec(
-      "INSERT INTO devices VALUES (?,?,?)",
+      "INSERT INTO devices(id,nickname,secret_hash,created_at) VALUES (?,?,?,?)",
       identity.id,
       nickname,
-      hash(identity.secret)
+      hash(identity.secret),
+      Date.now()
     );
     return identity;
   }
@@ -88,12 +150,13 @@ export class PrototypeStore {
     );
     const actual = Buffer.from(hash(token.slice(separator + 1)));
     const expected = Buffer.from(device?.secret_hash ?? hash(""));
-    if (!device || !timingSafeEqual(actual, expected))
+    if (!device || device.banned || !timingSafeEqual(actual, expected))
       return fail("UNAUTHORIZED", "身份凭据无效", 401);
     return device;
   }
 
   rename(id: string, nickname: string) {
+    this.writable();
     this.sql.exec("UPDATE devices SET nickname=? WHERE id=?", nickname, id);
     return { id, nickname };
   }
@@ -108,7 +171,7 @@ export class PrototypeStore {
   authorize(id: string, deviceId: string, owner = false, draft = false) {
     const row = this.document(id);
     const member = this.one<{ role: string }>(
-      "SELECT role FROM members WHERE document_id=? AND device_id=?",
+      "SELECT role FROM members WHERE document_id=? AND device_id=? AND status='active'",
       id,
       deviceId
     );
@@ -122,6 +185,7 @@ export class PrototypeStore {
   }
 
   create(deviceId: string, key: string) {
+    this.writable();
     return this.storage.transactionSync(() => {
       const previous = this.one<DocumentRow>(
         "SELECT * FROM documents WHERE owner_id=? AND creation_key=?",
@@ -130,20 +194,34 @@ export class PrototypeStore {
       );
       if (previous) return previous;
       if (
+        this.prototype &&
         this.required<{ count: number }>(
           "SELECT count(*) AS count FROM documents WHERE status!='closed'"
         ).count >= 6
       )
         fail("PROTOTYPE_LIMIT", "原型最多同时保留 6 份文档", 429);
+      if (
+        this.required<{ count: number }>(
+          "SELECT count(*) AS count FROM documents WHERE owner_id=? AND status!='closed'",
+          deviceId
+        ).count >= 5
+      )
+        fail("DOCUMENT_LIMIT", "已达到共享内容数量上限", 429);
       const id = crypto.randomUUID();
       this.sql.exec(
-        "INSERT INTO documents(id,owner_id,creation_key,updated_at) VALUES (?,?,?,?)",
+        "INSERT INTO documents(id,owner_id,creation_key,updated_at,created_at) VALUES (?,?,?,?,?)",
         id,
         deviceId,
         key,
+        Date.now(),
         Date.now()
       );
-      this.sql.exec("INSERT INTO members VALUES (?,?,'owner')", id, deviceId);
+      this.sql.exec(
+        "INSERT INTO members(document_id,device_id,role) VALUES (?,?,'owner')",
+        id,
+        deviceId
+      );
+      this.audit(deviceId, id, "created");
       return this.document(id);
     });
   }
@@ -161,13 +239,16 @@ export class PrototypeStore {
   }
 
   publish(id: string, deviceId: string, state: Uint8Array) {
+    this.writable();
     this.authorize(id, deviceId, true, true);
     const doc = new Y.Doc();
     try {
       Y.applyUpdate(doc, state);
       const content = validateDocument(doc, MAX_DOCUMENT_BYTES);
+      this.validateAssets(id, content);
       this.storage.transactionSync(() => {
         if (this.document(id).status === "active") return;
+        this.ensureCapacity(state.byteLength);
         this.writeChunks(id, 0, state);
         this.sql.exec(
           "UPDATE documents SET status='active',title=?,updated_at=? WHERE id=?",
@@ -220,15 +301,26 @@ export class PrototypeStore {
     }
   }
 
-  append(id: string, deviceId: string, update: Uint8Array, current: Y.Doc) {
+  append(
+    id: string,
+    deviceId: string,
+    update: Uint8Array,
+    current: Y.Doc,
+    memoryBudget = MAX_DOCUMENT_BYTES
+  ) {
+    this.writable();
     this.authorize(id, deviceId);
     const candidate = new Y.Doc();
     try {
       Y.applyUpdate(candidate, Y.encodeStateAsUpdate(current));
       Y.applyUpdate(candidate, update);
       const content = validateDocument(candidate, MAX_DOCUMENT_BYTES);
+      if (Y.encodeStateAsUpdate(candidate).byteLength > memoryBudget)
+        fail("CAPACITY", "活动文档内存预算已满，请稍后重试", 429);
+      this.validateAssets(id, content);
       const delta = Y.encodeStateAsUpdate(candidate, Y.encodeStateVector(current));
       this.storage.transactionSync(() => {
+        this.ensureCapacity(delta.byteLength);
         const { generation } = this.required<{ generation: number }>(
           "SELECT coalesce(max(generation),0)+1 AS generation FROM chunks WHERE document_id=?",
           id
@@ -247,13 +339,32 @@ export class PrototypeStore {
   }
 
   compact(id: string) {
-    if (this.document(id).status !== "active") return;
+    if (this.document(id).status !== "active") return [];
     const doc = this.load(id);
     try {
       const state = Y.encodeStateAsUpdate(doc);
-      this.storage.transactionSync(() => {
+      return this.storage.transactionSync(() => {
         this.sql.exec("DELETE FROM chunks WHERE document_id=?", id);
         this.writeChunks(id, 0, state);
+        const now = Date.now();
+        for (const assetId of assetReferences(readSharedContent(doc)))
+          this.sql.exec(
+            "UPDATE assets SET last_referenced_at=? WHERE document_id=? AND id=?",
+            now,
+            id,
+            assetId
+          );
+        const stale = this.all<AssetRow>(
+          "SELECT * FROM assets WHERE document_id=? AND last_referenced_at<?",
+          id,
+          now - 7 * DAY
+        );
+        this.sql.exec(
+          "DELETE FROM assets WHERE document_id=? AND last_referenced_at<?",
+          id,
+          now - 7 * DAY
+        );
+        return stale.map(row => row.hash);
       });
     } finally {
       doc.destroy();
@@ -261,6 +372,7 @@ export class PrototypeStore {
   }
 
   rotateCode(id: string, deviceId: string) {
+    this.writable();
     this.authorize(id, deviceId, true);
     const code = randomBytes(6).toString("hex").toUpperCase();
     const expiresAt = Date.now() + 7 * DAY;
@@ -270,10 +382,12 @@ export class PrototypeStore {
       hash(code),
       expiresAt
     );
+    this.audit(deviceId, id, "invitation_rotated");
     return { code, expiresAt };
   }
 
   requestJoin(code: string, deviceId: string) {
+    this.writable();
     const invitation = this.one<{ document_id: string }>(
       "SELECT document_id FROM invitations WHERE code_hash=? AND expires_at>?",
       hash(code.replace(/[\s-]/g, "").toUpperCase()),
@@ -283,7 +397,13 @@ export class PrototypeStore {
     const documentId = invitation.document_id;
     if (this.document(documentId).status !== "active")
       return fail("DOCUMENT_CLOSED", "共享已结束", 410);
-    if (this.one("SELECT 1 FROM members WHERE document_id=? AND device_id=?", documentId, deviceId))
+    if (
+      this.one(
+        "SELECT 1 FROM members WHERE document_id=? AND device_id=? AND status='active'",
+        documentId,
+        deviceId
+      )
+    )
       return { status: "approved", documentId };
     const previous = this.one<{ id: string }>(
       "SELECT id FROM join_requests WHERE document_id=? AND device_id=? AND status='pending' AND expires_at>?",
@@ -312,6 +432,7 @@ export class PrototypeStore {
   }
 
   decide(id: string, deviceId: string, approve: boolean) {
+    this.writable();
     return this.storage.transactionSync(() => {
       const request =
         this.one<{ document_id: string; device_id: string; status: string; expires_at: number }>(
@@ -321,9 +442,11 @@ export class PrototypeStore {
       this.authorize(request.document_id, deviceId, true);
       if (request.expires_at < Date.now()) fail("EXPIRED", "申请已过期", 410);
       if (request.status !== "pending") return;
+      if (approve && this.members(request.document_id).length >= 10)
+        fail("MEMBER_LIMIT", "成员数量已达到上限", 429);
       if (approve)
         this.sql.exec(
-          "INSERT OR IGNORE INTO members VALUES (?,?,'editor')",
+          "INSERT INTO members(document_id,device_id,role) VALUES (?,?,'editor') ON CONFLICT(document_id,device_id) DO UPDATE SET status='active'",
           request.document_id,
           request.device_id
         );
@@ -332,30 +455,38 @@ export class PrototypeStore {
         approve ? "approved" : "rejected",
         id
       );
+      this.audit(deviceId, request.document_id, approve ? "approved" : "rejected");
     });
   }
 
   members(id: string): Omit<Member, "online" | "activity">[] {
     return this.all(
-      "SELECT d.id AS deviceId,d.nickname,m.role FROM members m JOIN devices d ON d.id=m.device_id WHERE m.document_id=?",
+      "SELECT d.id AS deviceId,d.nickname,m.role FROM members m JOIN devices d ON d.id=m.device_id WHERE m.document_id=? AND m.status='active'",
       id
     );
   }
 
   list(deviceId: string): Omit<SharedDocumentInfo, "members">[] {
     return this.all(
-      "SELECT d.id,d.title,d.owner_id AS ownerId,d.status,d.updated_at AS updatedAt,m.role FROM documents d JOIN members m ON d.id=m.document_id WHERE m.device_id=? AND d.status='active' ORDER BY d.updated_at DESC",
+      "SELECT d.id,d.title,d.owner_id AS ownerId,d.status,d.updated_at AS updatedAt,m.role FROM documents d JOIN members m ON d.id=m.document_id WHERE m.device_id=? AND m.status='active' AND d.status='active' ORDER BY d.updated_at DESC",
       deviceId
     );
   }
 
   remove(id: string, actorId: string, targetId: string) {
+    this.writable();
     const row = this.authorize(id, actorId, actorId !== targetId);
     if (row.owner_id === targetId) fail("OWNER_CANNOT_LEAVE", "作者请结束共享");
-    this.sql.exec("DELETE FROM members WHERE document_id=? AND device_id=?", id, targetId);
+    this.sql.exec(
+      "UPDATE members SET status='removed' WHERE document_id=? AND device_id=?",
+      id,
+      targetId
+    );
+    this.audit(actorId, id, "member_removed");
   }
 
   close(id: string, deviceId: string) {
+    this.writable();
     this.authorize(id, deviceId, true);
     this.storage.transactionSync(() => {
       this.sql.exec(
@@ -366,6 +497,9 @@ export class PrototypeStore {
       );
       this.sql.exec("DELETE FROM chunks WHERE document_id=?", id);
       this.sql.exec("DELETE FROM invitations WHERE document_id=?", id);
+      this.sql.exec("DELETE FROM join_requests WHERE document_id=?", id);
+      this.sql.exec("DELETE FROM assets WHERE document_id=?", id);
+      this.audit(deviceId, id, "closed");
     });
   }
 
@@ -394,7 +528,7 @@ export class PrototypeStore {
     )
       return fail("UNAUTHORIZED", "连接票据已过期", 401);
     return (
-      this.one<DeviceRow>("SELECT * FROM devices WHERE id=?", value.deviceId) ??
+      this.one<DeviceRow>("SELECT * FROM devices WHERE id=? AND banned=0", value.deviceId) ??
       fail("UNAUTHORIZED", "身份不存在", 401)
     );
   }
@@ -409,5 +543,277 @@ export class PrototypeStore {
     } finally {
       doc.destroy();
     }
+  }
+
+  setting(key: string): string | undefined {
+    return this.one<{ value: string }>("SELECT value FROM settings WHERE key=?", key)?.value;
+  }
+
+  setSetting(key: string, value: string) {
+    this.sql.exec(
+      "INSERT INTO settings VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+      key,
+      value
+    );
+  }
+
+  storageBytes() {
+    return this.required<{ bytes: number }>(
+      "SELECT (SELECT coalesce(sum(size),0) FROM assets)+(SELECT coalesce(sum(length(state)),0) FROM chunks) AS bytes"
+    ).bytes;
+  }
+
+  ensureCapacity(bytes: number) {
+    if (this.storageBytes() + bytes > 5 * 1024 ** 3)
+      fail("STORAGE_LIMIT", "协作存储配额已用尽", 507);
+  }
+
+  documentBytes(id: string) {
+    return this.required<{ bytes: number }>(
+      "SELECT coalesce(sum(length(state)),0) AS bytes FROM chunks WHERE document_id=?",
+      id
+    ).bytes;
+  }
+
+  asset(id: string, assetId: string): AssetRow | undefined {
+    return this.one<AssetRow>("SELECT * FROM assets WHERE document_id=? AND id=?", id, assetId);
+  }
+
+  assets(id: string): AssetRow[] {
+    return this.all("SELECT * FROM assets WHERE document_id=?", id);
+  }
+
+  insertAsset(row: AssetRow) {
+    this.writable();
+    return this.storage.transactionSync(() => {
+      const duplicate = this.one<AssetRow>(
+        "SELECT * FROM assets WHERE document_id=? AND hash=?",
+        row.document_id,
+        row.hash
+      );
+      if (duplicate && duplicate.id === row.id) return duplicate;
+      const existing = this.one<AssetRow>("SELECT * FROM assets WHERE id=?", row.id);
+      if (existing) fail("ASSET_CONFLICT", "资源标识已被使用", 409);
+      const used = this.required<{ bytes: number }>(
+        "SELECT coalesce(sum(size),0) AS bytes FROM assets WHERE document_id=?",
+        row.document_id
+      ).bytes;
+      if (used + row.size > 200 * 1024 * 1024) fail("ASSET_LIMIT", "文档资源配额已用尽", 413);
+      this.ensureCapacity(row.size);
+      this.sql.exec(
+        "INSERT INTO assets VALUES (?,?,?,?,?,?,?,?)",
+        row.id,
+        row.document_id,
+        row.hash,
+        row.name,
+        row.mime,
+        row.size,
+        row.created_at,
+        row.last_referenced_at
+      );
+      return row;
+    });
+  }
+
+  assetByHash(id: string, digest: string) {
+    return this.one<AssetRow>("SELECT * FROM assets WHERE document_id=? AND hash=?", id, digest);
+  }
+
+  hashReferenced(digest: string) {
+    return !!this.one("SELECT 1 FROM assets WHERE hash=? LIMIT 1", digest);
+  }
+
+  private validateAssets(id: string, value: unknown) {
+    const known = new Set(this.assets(id).map(row => row.id));
+    for (const assetId of assetReferences(value))
+      if (!known.has(assetId)) fail("INVALID_ASSET", "资源不属于这篇共享内容");
+  }
+
+  mergeIdentity(target: string, sourceToken: string) {
+    this.writable();
+    const separator = sourceToken.indexOf(":");
+    const sourceId = sourceToken.slice(0, separator);
+    const previous = this.one<{ target_id: string }>(
+      "SELECT target_id FROM identity_merges WHERE source_id=?",
+      sourceId
+    );
+    if (previous?.target_id === target) {
+      const device = this.one<DeviceRow>("SELECT * FROM devices WHERE id=?", sourceId);
+      if (
+        device &&
+        timingSafeEqual(
+          Buffer.from(device.secret_hash),
+          Buffer.from(hash(sourceToken.slice(separator + 1)))
+        )
+      )
+        return { id: target };
+      return fail("UNAUTHORIZED", "身份凭据无效", 401);
+    }
+    const source = this.authenticate(sourceToken);
+    if (source.id === target) return { id: target };
+    this.storage.transactionSync(() => {
+      this.sql.exec(
+        "UPDATE documents SET creation_key=creation_key||':identity:'||id WHERE owner_id=?",
+        source.id
+      );
+      this.sql.exec("UPDATE documents SET owner_id=? WHERE owner_id=?", target, source.id);
+      for (const row of this.all<{ document_id: string; role: string }>(
+        "SELECT document_id,role FROM members WHERE device_id=? AND status='active'",
+        source.id
+      )) {
+        this.sql.exec(
+          "INSERT INTO members(document_id,device_id,role) VALUES (?,?,?) ON CONFLICT(document_id,device_id) DO UPDATE SET status='active',role=CASE WHEN members.role='owner' OR excluded.role='owner' THEN 'owner' ELSE 'editor' END",
+          row.document_id,
+          target,
+          row.role
+        );
+      }
+      this.sql.exec("DELETE FROM members WHERE device_id=?", source.id);
+      this.sql.exec("UPDATE join_requests SET device_id=? WHERE device_id=?", target, source.id);
+      this.sql.exec("UPDATE devices SET banned=1 WHERE id=?", source.id);
+      this.sql.exec("INSERT INTO identity_merges VALUES (?,?,?)", source.id, target, Date.now());
+    });
+    return { id: target };
+  }
+
+  exportMetadata() {
+    return {
+      format: 1,
+      signingKey: this.signingKey,
+      tables: Object.fromEntries(
+        [
+          "devices",
+          "documents",
+          "members",
+          "invitations",
+          "join_requests",
+          "assets",
+          "audit",
+          "identity_merges",
+        ].map(table => [table, this.all<Record<string, unknown>>("SELECT * FROM " + table)])
+      ),
+    };
+  }
+
+  beginImport(data: unknown) {
+    if (this.setting("ready") === "1") fail("ALREADY_READY", "正式库已开放，不能覆盖导入", 409);
+    if (!data || typeof data !== "object") fail("INVALID_IMPORT", "迁移数据无效");
+    const input = data as ReturnType<CollaborationStore["exportMetadata"]>;
+    if (input.format !== 1 || !/^[a-f0-9]{64}$/.test(input.signingKey) || !input.tables)
+      fail("INVALID_IMPORT", "迁移清单格式无效");
+    const columns: Record<string, string[]> = {
+      devices: ["id", "nickname", "secret_hash", "banned", "created_at"],
+      documents: ["id", "owner_id", "title", "status", "creation_key", "updated_at", "created_at"],
+      members: ["document_id", "device_id", "role", "status"],
+      invitations: ["document_id", "code_hash", "expires_at"],
+      join_requests: ["id", "document_id", "device_id", "status", "expires_at"],
+      assets: [
+        "id",
+        "document_id",
+        "hash",
+        "name",
+        "mime",
+        "size",
+        "created_at",
+        "last_referenced_at",
+      ],
+      audit: ["id", "device_id", "document_id", "action", "created_at"],
+      identity_merges: ["source_id", "target_id", "created_at"],
+    };
+    this.storage.transactionSync(() => {
+      for (const table of [...Object.keys(columns), "chunks"])
+        this.sql.exec("DELETE FROM " + table);
+      for (const [table, fields] of Object.entries(columns)) {
+        const rows = input.tables[table];
+        if (!Array.isArray(rows)) fail("INVALID_IMPORT", "迁移清单缺少 " + table);
+        for (const row of rows) {
+          const values = fields.map(field => {
+            const value = row[field];
+            if (value !== null && typeof value !== "string" && typeof value !== "number")
+              fail("INVALID_IMPORT", "迁移字段无效：" + table + "." + field);
+            return value as string | number | null;
+          });
+          this.sql.exec(
+            "INSERT INTO " +
+              table +
+              "(" +
+              fields.join(",") +
+              ") VALUES (" +
+              fields.map(() => "?").join(",") +
+              ")",
+            ...values
+          );
+        }
+      }
+      this.setSetting("signing_key", input.signingKey);
+      this.setSetting(
+        "import_counts",
+        JSON.stringify(
+          Object.fromEntries(
+            Object.entries(input.tables).map(([table, rows]) => [table, rows.length])
+          )
+        )
+      );
+      this.setSetting("ready", "0");
+    });
+    this.signingKey = input.signingKey;
+    return this.status();
+  }
+
+  importState(id: string, state: Uint8Array) {
+    if (this.setting("ready") === "1") fail("ALREADY_READY", "正式库已开放，不能覆盖导入", 409);
+    if (this.document(id).status !== "active") fail("INVALID_IMPORT", "只允许导入活动文档状态");
+    const doc = new Y.Doc();
+    try {
+      Y.applyUpdate(doc, state);
+      validateDocument(doc, MAX_DOCUMENT_BYTES);
+      this.storage.transactionSync(() => {
+        this.sql.exec("DELETE FROM chunks WHERE document_id=?", id);
+        this.writeChunks(id, 0, state);
+      });
+    } finally {
+      doc.destroy();
+    }
+  }
+
+  finishImport() {
+    const expected = JSON.parse(this.setting("import_counts") ?? "{}") as Record<string, number>;
+    if (!Object.keys(expected).length) fail("INVALID_IMPORT", "尚未导入元数据");
+    for (const [table, count] of Object.entries(this.status().counts))
+      if (expected[table] !== count) fail("INVALID_IMPORT", "迁移数量不一致：" + table);
+    for (const row of this.all<{ id: string }>("SELECT id FROM documents WHERE status='active'")) {
+      const doc = this.load(row.id);
+      try {
+        this.validateAssets(row.id, validateDocument(doc, MAX_DOCUMENT_BYTES));
+      } finally {
+        doc.destroy();
+      }
+    }
+    this.ensureCapacity(0);
+    this.setSetting("ready", "1");
+    return this.status();
+  }
+
+  status() {
+    const tables = [
+      "devices",
+      "documents",
+      "members",
+      "invitations",
+      "join_requests",
+      "assets",
+      "audit",
+      "identity_merges",
+    ];
+    return {
+      ready: this.setting("ready") === "1",
+      counts: Object.fromEntries(
+        tables.map(table => [
+          table,
+          this.required<{ count: number }>("SELECT count(*) AS count FROM " + table).count,
+        ])
+      ),
+      storageBytes: this.storageBytes(),
+    };
   }
 }
