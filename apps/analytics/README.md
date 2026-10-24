@@ -3,7 +3,6 @@
 仅记录应用版本和官网下载发起次数的 Workers + D1 服务，管理后台和 API 同域；R2 安装包仍经 `dl.taunote.app` 分发。不再采集启动耗时、使用时长、页面访问、会话和崩溃。
 
 - [设计与扩展契约](docs/DESIGN.md)
-- [实施与验证记录](docs/IMPLEMENTATION.md)
 - [正式部署与回退记录](docs/DEPLOYMENT.md)
 
 正式后台：<https://analytics.taunote.app>。官网 <https://tau-website-cvr.pages.dev> 的下载入口已接入本服务。管理员凭据保存在本机 `~/.config/tau/analytics/admin-token`（0600），不写入仓库；下载摘要秘密独立保存于同目录 download-hash-key。
