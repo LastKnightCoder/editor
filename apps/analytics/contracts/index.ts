@@ -1,4 +1,3 @@
-export const SCHEMA_VERSION = 1;
 export const REPORT_TTL_MS = 7 * 86400000;
 
 export interface VersionObservation {
