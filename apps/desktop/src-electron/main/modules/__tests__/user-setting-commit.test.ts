@@ -160,3 +160,18 @@ it("旧窗口不能重新写回退役发布字段，拒绝后保留已提交配�
   expect(await settings.getSettingSnapshot()).toEqual(initial);
   expect(mocks.broadcast).not.toHaveBeenCalled();
 });
+
+it("旧窗口全量设置提交不能删除或覆盖新保存的语音输入账号", async () => {
+  const settings = await setup();
+  const speechInput = {
+    active: "plugin",
+    language: "zh-CN",
+    plugin: {
+      id: "fixture.asr",
+      configurations: { "fixture.asr": { modelId: "model", config: { key: "new" } } },
+    },
+  };
+  await settings.updateSetting(current => ({ ...current, speechInput }));
+  await settings.handleSetUserSetting({ ...initial, speechInput: { active: "native" } });
+  expect((await settings.getSettingSnapshot()).speechInput).toEqual(speechInput);
+});

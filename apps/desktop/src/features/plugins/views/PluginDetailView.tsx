@@ -334,7 +334,9 @@ function SettingsTab({
   section?: string;
   onSection: (key: PluginSettingsKey) => void;
 }) {
-  const sections = runtime.listSettings().filter(item => item.context.pluginId === plugin.info.id);
+  const sections = runtime
+    .listSettings()
+    .filter(item => item.context.pluginId === plugin.info.id && item.definition.target !== "asr");
   const active = section ? sections.find(item => item.key === section) : sections[0];
 
   // 为视频插件提供 videoConfig - Hooks 必须在所有条件语句之前调用

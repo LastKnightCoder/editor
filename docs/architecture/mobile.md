@@ -499,6 +499,14 @@ Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开
 - **测试与复刻**：测试页可测任意已保存账号，不改写当前服务；合成字节转 Blob 在页内播放，不自动发声，离开页面即取消并释放。文本限 500 字，只约束测试面板。复刻经常驻 file input 选择参考音频，文件大小、格式与上传前置条件由插件校验；本机保存附件时提示需要公网地址的服务商先配置远端上传。
 - **边界**：不含编辑器朗读、播客、后台或锁屏播放；凭据与桌面一样保存在应用私有设置文件。
 
+## 语音输入
+
+移动宿主保留 ASR 注册表、WebSocket 原生传输、配置存储和 `createMobileSpeechInputService` 编排工厂；壳层不挂载录音 Provider，搜索和设置不提供语音输入按钮或独立页面。ASR 配置声明继续注册，插件详情不显示该表单，设置 open 明确拒绝跳转。
+
+Android 清单包含 RECORD_AUDIO/MODIFY_AUDIO_SETTINGS，iOS 包信息包含麦克风用途说明。`plugin_socket` 命令按工作区 token 及窗口作用域校验，系统网络实现使用 tokio-tungstenite；作者契约见 [WebSocket](/packages/plugins/docs/websocket.md)。采集仅在调用方明确启动服务时申请，插件停用和工作区释放取消会话。普通设置快照保留原生管理的 speechInput 数据。
+
+移动端尚未接入 LLM 整理执行适配；未来语音输入入口及结果呈现由独立消费者决定。
+
 ## 正文字数与空文档
 
 移动内容注册表以通用扩展规则加静态插件 editorMetrics 创建统一统计器；编辑、卡片保存、协作投影与日记提交使用同一实例。日记的 wordCount 和待办备注的 descriptionCount 在 TypeScript 命令边界计算，Rust 只校验非负安全整数并存储，不另外提取文本计字符。卡片、文章、项目文档、日程和协作写入边界同样重算，调用方传入的旧 count 不覆盖统一结果。片段复用与空态显示使用独立 isContentEmpty，图片和未知节点不因零字数被视为空白。协议见 [SDK 字数说明](/packages/plugins/docs/content-metrics.md)。

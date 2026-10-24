@@ -79,7 +79,7 @@ export function projectManagedPlugin(
     error,
     hasBackup: !!item.hasBackup,
     settings: [...(runtime?.settings.entries() ?? [])]
-      .filter(([, entry]) => entry.context.pluginId === item.id && runtime?.active(entry.context))
+      .filter(([, entry]) => entry.context.pluginId === item.id && entry.definition.target !== "asr" && runtime?.active(entry.context))
       .map(([id, entry]) => ({ id, title: entry.definition.title })),
     actions: {
       enable: permission(blocked || error || (item.enabled ? "已保存启用意图" : null)),

@@ -35,6 +35,7 @@ export function mergeProviderSettings(
   return {
     ...previous,
     database: snapshot.database,
+    speechInput: snapshot.speechInput,
     ttsProviders: snapshot.ttsProviders ?? [],
     ttsUsageSettings: snapshot.ttsUsageSettings ?? { default: null },
     sync: { ...previous.sync, active: snapshot.sync.active, plugin: snapshot.sync.plugin },

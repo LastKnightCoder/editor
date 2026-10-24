@@ -9,6 +9,7 @@ fn section(target: &str) -> Result<&'static str, String> {
     match target {
         "sync" => Ok("sync"),
         "upload" => Ok("imageBed"),
+        "asr" => Ok("speechInput"),
         _ => Err("存储领域无效".into()),
     }
 }
@@ -52,8 +53,19 @@ pub fn plugin_provider_save(
     validate_plugin_id(&plugin_id)?;
     validate_plugin_config(&config)?;
     let section = section(&target)?;
+    if target == "asr"
+        && (config.get("config").is_none()
+            || config["modelId"]
+                .as_str()
+                .is_none_or(|id| id.trim().is_empty()))
+    {
+        return Err("识别模型配置无效".into());
+    }
     crate::setting::mutate_setting_value(&app, |setting| {
         check_database(setting, &database)?;
+        if target == "asr" && !setting["speechInput"].is_object() {
+            setting["speechInput"] = json!({"active":"native","language":"zh-CN","plugin":{"id":"","configurations":{}}});
+        }
         if !setting[section]["plugin"].is_object() {
             setting[section]["plugin"] = json!({ "id": "", "configurations": {} });
         }
@@ -77,6 +89,9 @@ pub fn plugin_provider_select(
     let section = section(&target)?;
     crate::setting::mutate_setting_value(&app, |setting| {
         check_database(setting, &database)?;
+        if target == "asr" && !setting["speechInput"].is_object() {
+            setting["speechInput"] = json!({"active":"native","language":"zh-CN","plugin":{"id":"","configurations":{}}});
+        }
         if target == "upload" && plugin_id == "local" {
             setting[section]["active"] = json!("local");
         } else {
@@ -101,7 +116,7 @@ pub(crate) fn preserve_managed_fields(next: &mut Value, current: &Value) {
     } else if let Some(object) = next.as_object_mut() {
         object.remove("chunkedSyncBases");
     }
-    for field in ["ttsProviders", "ttsUsageSettings"] {
+    for field in ["speechInput", "ttsProviders", "ttsUsageSettings"] {
         if let Some(value) = current.get(field) {
             next[field] = value.clone();
         } else if let Some(object) = next.as_object_mut() {
@@ -362,14 +377,16 @@ mod tests {
         let current = json!({ "database": { "active": "B.db", "databases": [{ "name": "B.db", "version": 7 }] },
             "sync": { "active": "plugin", "plugin": { "id": "fixture.sync", "configurations": { "fixture.sync": { "token": "new" } } } },
             "imageBed": { "active": "local", "plugin": { "id": "", "configurations": {} } },
+            "speechInput": { "active": "plugin", "plugin": { "id": "fixture.asr", "configurations": {} } },
             "ttsProviders": [{ "id": "a", "name": "账号", "pluginId": "tau.tts-minimax", "config": { "apiKey": "new" }, "models": [{ "id": "m1" }] }],
             "ttsUsageSettings": { "default": { "providerId": "a", "modelId": "m1", "voiceId": "voice" } },
             "chunkedSyncBases": { "B.db": { "sessionsObject": "snapshot.zip" } } });
         let mut stale = json!({ "database": {}, "sync": {}, "imageBed": { "enableCompression": false },
-            "ttsProviders": [], "ttsUsageSettings": { "default": null } });
+            "speechInput": { "active": "native" }, "ttsProviders": [], "ttsUsageSettings": { "default": null } });
         preserve_managed_fields(&mut stale, &current);
         assert_eq!(stale["sync"], current["sync"]);
         assert_eq!(stale["database"], current["database"]);
+        assert_eq!(stale["speechInput"], current["speechInput"]);
         assert_eq!(stale["ttsProviders"], current["ttsProviders"]);
         assert_eq!(stale["ttsUsageSettings"], current["ttsUsageSettings"]);
         assert_eq!(stale["chunkedSyncBases"], current["chunkedSyncBases"]);

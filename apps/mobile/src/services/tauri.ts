@@ -705,7 +705,7 @@ export function pomodoroSummaryDaily(dayStarts: number[]) {
 /** provider 为空时检查当前同步服务；传入服务 id 只探测该服务，不改动当前选择 */
 export function savePluginProviderConfig(
   database: string,
-  target: "sync" | "upload",
+  target: "sync" | "upload" | "asr",
   pluginId: string,
   config: import("@tau/plugins").JsonValue
 ) {
@@ -718,7 +718,7 @@ export function savePluginProviderConfig(
 }
 export function selectPluginProvider(
   database: string,
-  target: "sync" | "upload",
+  target: "sync" | "upload" | "asr",
   pluginId: string,
   expectedConfig: import("@tau/plugins").JsonValue
 ) {

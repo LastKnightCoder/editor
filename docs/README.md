@@ -57,6 +57,8 @@
 - [移动端字号规范](./tasks/mobile-typography.md)：9 档字号阶梯；档位覆盖与卡片列表/详情同字号已落地，存量字面字号待分批迁移。
 - [移动端正文字体](./tasks/mobile-reading-font.md)：可选霞鹜文楷 / 思源宋体，按需下载、全量字库；字体已上线，待真机验收。
 
+- [桌面语音输入与统一 ASR](./tasks/desktop-asr/README.md)：ASR 与整理能力保留，新增界面入口已撤回待用户决定；Windows 保留 NSIS、暂不开放原生，CPU Whisper 与宿主验证见任务记录；SDK 0.43.0／Seed 0.1.0 已发行，其他设备验收保留。
+
 进行中的跨端接入见 [B–D 任务](./tasks/plugin-portability-bcd/README.md)；SDK、清单、移动与网页中心分发及旧插件兼容的后续设计见同任务的 [正式接入方案](./tasks/plugin-portability-bcd/distribution-plan.md)。D 的待验收项继续保留。
 
 协议逻辑与网站/移动 UI 的并行协作见 [工作分工](./tasks/plugin-portability-bcd/work-split.md)，可转发任务见 [UI 专家 prompt](./tasks/plugin-portability-bcd/ui-expert-prompt.md)。

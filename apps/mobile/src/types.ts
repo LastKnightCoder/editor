@@ -586,6 +586,7 @@ export type PluginTtsMutation =
   | { type: "select"; selection: TTSUsageConfig | null };
 
 export interface SettingCompat {
+  speechInput?: import("@tau/asr").SpeechInputSetting;
   ttsProviders?: TTSProviderSetting[];
   ttsUsageSettings?: {
     default: TTSUsageConfig | null;
