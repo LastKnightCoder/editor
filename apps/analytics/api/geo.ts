@@ -49,19 +49,3 @@ export function geolocation(request: Request): { country: string; region_code: s
   if (!/^[A-Z0-9-]{1,8}$/.test(region)) region = "";
   return { country, region_code: region ? `${country}-${region}` : `${country}-unknown` };
 }
-
-export function regionLabel(code: string): string {
-  return (
-    cnLabels[code] ??
-    (
-      {
-        "ZZ-unknown": "未知地区",
-        "CN-unknown": "中国·省份未知",
-        "HK-unknown": "香港特别行政区",
-        "MO-unknown": "澳门特别行政区",
-        "TW-unknown": "台湾地区",
-      } as Record<string, string>
-    )[code] ??
-    code
-  );
-}

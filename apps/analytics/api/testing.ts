@@ -56,6 +56,7 @@ export function testEnvironment() {
     DOWNLOAD_HASH_KEY: "test-only-download-salt-".repeat(3),
     ALLOWED_ORIGINS: "https://taunote.app,http://localhost:5181",
     DOWNLOAD_ORIGIN: "https://dl.taunote.app",
+    VERSION_LIMITER: { limit: async () => ({ success: true }) },
   } as unknown as Env;
   return { env, sqlite, objects };
 }
