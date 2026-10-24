@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import {
   BookOpen,
-  Check,
   CircleHelp,
   ChevronRight,
   Cloud,
@@ -231,14 +230,6 @@ export function StatusDot(props: { tone: "ok" | "run" | "warn" | "idle" }) {
   }[props.tone];
   return (
     <span className={`h-[9px] w-[9px] shrink-0 rounded-full ${toneClass}`} aria-hidden="true" />
-  );
-}
-
-export function CheckBubble() {
-  return (
-    <span className="bg-accent text-ink-inverse grid h-[21px] w-[21px] shrink-0 place-items-center rounded-full">
-      <Check size={13} strokeWidth={3.4} aria-hidden="true" />
-    </span>
   );
 }
 

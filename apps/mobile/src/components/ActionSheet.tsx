@@ -4,6 +4,7 @@ import { useSheetBackDismiss } from "../router/useSheetBackDismiss";
 import { useSheetDragDismiss } from "../hooks/useSheetDragDismiss";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
+import { CheckBubble } from "./CheckBubble";
 
 /** 操作项图标的语义色，对应主题六组粉彩语义色 */
 export type ActionSheetTone = "sage" | "sky" | "apricot" | "lilac" | "butter" | "rose";
@@ -21,6 +22,8 @@ export type ActionSheetItem = {
    * 槽位统一视觉规格：文字 12px ink-3，内部 svg 自动 16px，无需调用方设置。
    */
   trailing?: React.ReactNode;
+  /** 单选面板的当前项：尾部显示 CheckBubble（与 trailing 互斥，selected 优先） */
+  selected?: boolean;
   onClick: () => void;
 };
 
@@ -146,10 +149,15 @@ export function ActionSheet({
             <span className="text-ink-3 mt-0.5 block truncate text-[11.5px]">{item.desc}</span>
           )}
         </span>
-        {item.trailing !== undefined && item.trailing !== null && (
-          <span className="text-ink-3 flex min-w-5 flex-shrink-0 items-center justify-end gap-1 text-xs font-medium [&_svg]:h-4 [&_svg]:w-4">
-            {item.trailing}
-          </span>
+        {item.selected ? (
+          <CheckBubble />
+        ) : (
+          item.trailing !== undefined &&
+          item.trailing !== null && (
+            <span className="text-ink-3 flex min-w-5 flex-shrink-0 items-center justify-end gap-1 text-xs font-medium [&_svg]:h-4 [&_svg]:w-4">
+              {item.trailing}
+            </span>
+          )
         )}
       </button>
     );

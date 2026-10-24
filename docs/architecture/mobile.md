@@ -126,8 +126,7 @@ settle 在守卫通过后才落账（拒绝路径不残留）；手势提交被�
 自行监听返回事件。**通用容器组件已内置拦截**，业务代码零接线：
 
 - `components/BottomSheet` / `components/ActionSheet` / `components/SnapSheet` /
-  `components/MobileConfirmDialog` / `features/settings/components/ActionSheet`
-  打开时自动消费返回（仅关闭自身），关闭后放行正常弹栈
+  `components/MobileConfirmDialog` 打开时自动消费返回（仅关闭自身），关闭后放行正常弹栈
 - MobileConfirmDialog 的返回等同取消（对齐原生 Dialog）；loading 中不拦截
 - 浮层打开时动态注册（注册时序 = 打开时序），配合 LIFO 仲裁：
   多浮层叠加"最近打开的先关"，嵌套场景（页面 backHandler → 内层浮层）由内向外退让

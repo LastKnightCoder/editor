@@ -68,7 +68,7 @@ describe("EditorOpenModeItem", () => {
     await act(async () => {
       findButton("打开文档时").click();
     });
-    expect(findButton("阅读模式（默认）")).toBeTruthy();
+    expect(findButton("阅读模式")).toBeTruthy();
     await act(async () => {
       findButton("直接编辑").click();
     });

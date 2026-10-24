@@ -118,6 +118,7 @@
 @theme inline {
   --radius-card: 20px;
   --radius-bento: 22px;
+  --radius-sheet: 30px;
 
   --ease-bounce: cubic-bezier(0.34, 1.56, 0.5, 1);
 }
