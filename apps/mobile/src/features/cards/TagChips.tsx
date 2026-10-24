@@ -15,9 +15,9 @@ type TagChipsProps = {
 };
 
 const FLAT_CHIP_CLASS =
-  "inline-flex items-center gap-[3px] rounded-full bg-page px-2.5 py-[3.5px] text-[11.5px] font-medium text-ink-2";
+  "inline-flex items-center gap-[3px] rounded-full bg-page px-2.5 py-[3.5px] text-tau-micro font-medium text-ink-2";
 const ELEVATED_CHIP_CLASS =
-  "inline-flex items-center gap-[3px] rounded-full bg-surface px-2.5 py-[4px] text-[12px] font-medium text-ink-2 shadow-card";
+  "inline-flex items-center gap-[3px] rounded-full bg-surface px-2.5 py-[4px] text-tau-micro font-medium text-ink-2 shadow-card";
 
 export function TagChips({ tags, className, variant, trailing, onRemove }: TagChipsProps) {
   if (tags.length === 0 && !trailing) {
@@ -33,7 +33,7 @@ export function TagChips({ tags, className, variant, trailing, onRemove }: TagCh
         }
         return (
           <span key={tag} className={chipClass}>
-            <span className="text-accent text-[11px] font-bold" aria-hidden>
+            <span className="text-accent font-bold" aria-hidden>
               #
             </span>
             {label}

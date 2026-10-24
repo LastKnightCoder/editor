@@ -43,6 +43,18 @@
    本文件只定义移动端布局变量与由 --tau-* 派生的组件变量，不定义任何颜色。
    ════════════════════════════════════════════════════════════ */
 :root {
+  /* 字号档位：覆盖 @tau/themes 的桌面密度取值（正文 13px），移动端正文 16 / 阅读 17；
+     业务代码用 text-tau-* 语义类，不写 text-[Npx] */
+  --tau-text-hero: 28px;
+  --tau-text-title-lg: 22px;
+  --tau-text-title: 17px;
+  --tau-text-body-lg: 17px;
+  --tau-text-body: 16px;
+  --tau-text-meta: 14px;
+  --tau-text-sm: 13px;
+  --tau-text-micro: 12px;
+  --tau-text-tiny: 11px;
+
   /* 布局/环境
      安全区与键盘的唯一写入方：env() / Android 原生注入的 --native-safe-*（不支持 env 安全区的 WebView 兜底）、
      KeyboardViewportProvider 写 --kb-*；页面与组件只消费，不自行读 env() */
@@ -119,7 +131,7 @@ body {
   margin: 0;
   min-height: 100dvh;
   font-family: var(--tau-font);
-  font-size: 14px;
+  font-size: var(--tau-text-body);
   background-color: var(--tau-bg-page);
   color: var(--tau-ink-1);
 }
@@ -197,11 +209,11 @@ code {
   box-shadow: none !important;
 }
 
-/* 移动端卡片编辑器统一字号（详情页重设计 v1）：正文 17px / 1.85，
-   覆盖卡片预览、日记、文章、项目文档、知识库节点全部编辑场景 */
+/* 移动端编辑器阅读正文（body-lg 档）：卡片列表预览与详情页同字号同行高，点开不跳变；
+   覆盖卡片、日记、文章、项目文档、知识库节点全部编辑场景 */
 .mobile-card-editor-content[data-slate-editor="true"] {
-  font-size: 17px;
-  line-height: 1.85;
+  font-size: var(--tau-text-body-lg);
+  line-height: 1.75;
 }
 
 /* ── 通用输入框 ──
