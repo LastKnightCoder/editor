@@ -132,3 +132,22 @@ it("媒体粘贴只上传一次，隐藏恢复后丢弃旧结果并关闭加载�
   await vi.waitFor(() => expect(dismiss).toHaveBeenCalled());
   expect(board.children.map(node => node.type)).toEqual(["richtext"]);
 });
+
+it("白板正文创建使用宿主提供的扩展统计器", async () => {
+  const board = create();
+  board.installExtensions([]);
+  const content = [{ type: "example.source", source: "正文", children: [{ text: "" }] }] as never;
+  const createContent = vi.fn(async () => 42);
+  const { createContentMetrics } = await import("@tau/db-schema/content-metrics");
+  const metrics = createContentMetrics([{ type: "example.source", textFields: ["source"] }]);
+  await bindTextContent(
+    board.extensions!.api,
+    "text",
+    {
+      create: createContent,
+      countWords: metrics.count,
+    },
+    () => content
+  );
+  expect(createContent).toHaveBeenCalledWith(content, 2);
+});

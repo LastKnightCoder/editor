@@ -2,7 +2,7 @@
 
 ## 已发布 SDK 的作者验证
 
-官方模板使用 npm 的插件 SDK 0.42.0 和 UI 0.5.0。在仓库根运行：
+模板使用已发布的插件 SDK 0.44.0 与 UI 0.5.0，以及真实 npm registry 锁文件。在仓库根运行：
 
 ```sh
 node scripts/plugins/verify-portable-author.mjs output/plugin-release/author-npm.json --published --frozen-template
@@ -30,7 +30,7 @@ API 支持矩阵只编辑 packages/plugins/docs/api-support.md，随后运行 `n
 进入 `plugins/tau-plugin-template`，使用实际生成的文件名：
 
 ```sh
-node use-local-sdk.mjs ../../output/plugin-phase-a/sdk/xiongtao.xt-tau-plugins-0.42.0.tgz ../../output/plugin-phase-a/sdk/xiongtao.xt-tau-ui-0.5.0.tgz
+node use-local-sdk.mjs ../../output/plugin-phase-a/sdk/xiongtao.xt-tau-plugins-0.44.0.tgz ../../output/plugin-phase-a/sdk/xiongtao.xt-tau-ui-0.5.0.tgz
 pnpm install
 pnpm build
 ```
@@ -88,3 +88,17 @@ pnpm check:docs
 发行顺序为 SDK/UI、使用同一协议的中心、声明移动目标的提供方包，最后发布客户端。客户端升级保留旧配置，服务未安装/未启用时给出恢复入口；不将缺包记为同步成功，不静默改为本地。
 
 SDK/UI 可安装后，用 `TAU_AUTHOR_NAMES` 限定本次发行的作者仓库，执行 `node scripts/plugins/verify-official-authors.mjs --published <报告路径>`。判据是 sdkSource 为 npm，各工程冻结安装、构建及已有测试全部通过。模板另运行本页的 `--published --frozen-template` 验证，通过后推送默认分支；七个提供方再推送版本标签，核对 Actions、GitHub ZIP 与插件中心状态。只发布 SDK、模板或插件不要求同时发布客户端。
+
+## 字数协议候选验证
+
+1. 构建 SDK 0.44.0 候选包；公共字段说明见 [正文字数与空文档](/packages/plugins/docs/content-metrics.md)。
+2. 以 TAU_AUTHOR_NAMES 限定 tau-plugin-html、tau-plugin-tikz、tau-plugin-typst、tau-plugin-abc、tau-plugin-custom-block、tau-plugin-image-gallery 与 tau-plugin-template，运行 verify-official-authors.mjs，核对每个独立工程冻结安装、构建与已有测试结果。
+3. 候选阶段不改写模板正式 registry 锁文件。确认 SDK 已公开可安装后，在各作者仓库重新安装生成真实锁文件，再执行 published/frozen 验证。
+4. 不从源码版本号推断 SDK、插件或客户端已经发布；没有明确发布授权不执行 npm publish、上传或发布标签。
+
+## 核验发布结果
+
+1. 用 npm view 读取精确版本的 dist.integrity，并下载 tarball 核对 SHA-512；包可安装且摘要一致后再生成正式锁文件。遇到 npm EOTP 时在交互终端完成浏览器认证；发布已受理但查询暂不可见时等待注册表处理，不重复发布。
+2. 在每个作者仓库同步版本、依赖和锁文件，冻结安装、测试与构建通过后提交；以同一提交推送默认分支及对应版本标签，不移动已发布标签。
+3. 用 gh run list/view 确认该提交的发布工作流成功，再用 gh release view/download 核对 tag、版本及 ZIP。
+4. 查询插件中心 `/v2/plugins/<插件ID>/releases?platform=desktop` 的精确版本，核对 publishedAt、sha256，并下载该记录的 downloadUrl；中心下载字节的 SHA-256 必须与 GitHub ZIP 相同。工作流成功但中心无记录时检查提交步骤的警告，不能直接认定已上架。

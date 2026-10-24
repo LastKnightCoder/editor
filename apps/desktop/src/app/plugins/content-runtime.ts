@@ -60,6 +60,7 @@ Object.assign(globalThis, {
         return {
           editor: Boolean(definition.editorExtensions?.length),
           whiteboard: Boolean(definition.whiteboardExtensions?.length),
+          metrics: desktopContentPlugins.metrics,
         };
       }
       case "publish-search":

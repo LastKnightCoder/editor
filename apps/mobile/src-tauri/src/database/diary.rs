@@ -62,6 +62,7 @@ pub struct DiaryUpsertPayload {
     pub diary_type: String,
     pub date: String,
     pub content: Value,
+    pub word_count: i64,
     pub weather: Option<Value>,
     pub mood: Option<Value>,
     pub segment_id: Option<i64>,
@@ -169,34 +170,6 @@ fn parse_diary_row(row: &Row<'_>) -> rusqlite::Result<DiaryEntry> {
         segments: Vec::new(),
         tags: Vec::new(),
     })
-}
-
-fn collect_texts(value: &Value, out: &mut Vec<String>) {
-    match value {
-        Value::Object(map) => {
-            if let Some(text) = map.get("text").and_then(|v| v.as_str()) {
-                let trimmed = text.trim();
-                if !trimmed.is_empty() {
-                    out.push(trimmed.to_string());
-                }
-            }
-            for child in map.values() {
-                collect_texts(child, out);
-            }
-        }
-        Value::Array(items) => {
-            for child in items {
-                collect_texts(child, out);
-            }
-        }
-        _ => {}
-    }
-}
-
-fn get_content_word_count(content: &Value) -> i64 {
-    let mut texts = vec![];
-    collect_texts(content, &mut texts);
-    texts.iter().map(|text| text.chars().count() as i64).sum()
 }
 
 fn normalize_diary_type(value: &str) -> Result<String, String> {
@@ -500,7 +473,10 @@ fn upsert_entry(
     };
     let weather = serialize_optional_json(payload.weather)?;
     let mood = serialize_optional_json(payload.mood)?;
-    let word_count = get_content_word_count(&content);
+    if payload.word_count < 0 || payload.word_count > 9_007_199_254_740_991 {
+        return Err("DIARY_INVALID_WORD_COUNT: invalid word count".to_string());
+    }
+    let word_count = payload.word_count;
     let now = now_millis();
 
     let tx = conn
@@ -1024,6 +1000,7 @@ mod tests {
             diary_type: "daily".into(),
             date: "2026-09-09".into(),
             content: json!([{ "type":"paragraph","children":[{"text":text}] }]),
+            word_count: 1,
             weather: None,
             mood: None,
             segment_id,
@@ -1051,9 +1028,22 @@ mod tests {
         assert_eq!(edited.segments[0].tags, vec!["日常"]);
         assert!(edited.segments[1].tags.is_empty());
         assert_eq!(edited.content_id, None);
-        assert_eq!(edited.word_count, 13);
+        assert_eq!(edited.word_count, 2);
         assert!(upsert_entry(&mut conn, payload("overwrite", None, false)).is_err());
-        assert_eq!(query_entry_by_id(&conn, edited.id).unwrap().word_count, 13);
+        assert_eq!(query_entry_by_id(&conn, edited.id).unwrap().word_count, 2);
+    }
+
+    #[test]
+    fn stores_shared_word_count_and_rejects_invalid_count() {
+        let mut conn = database();
+        let mut input = payload("hello world", None, false);
+        input.word_count = 2;
+        let saved = upsert_entry(&mut conn, input).unwrap();
+        assert_eq!(saved.word_count, 2);
+        let mut invalid = payload("invalid", Some(saved.segments[0].id), false);
+        invalid.word_count = -1;
+        assert!(upsert_entry(&mut conn, invalid).is_err());
+        assert_eq!(query_entry_by_id(&conn, saved.id).unwrap().word_count, 2);
     }
 
     #[test]

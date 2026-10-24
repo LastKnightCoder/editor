@@ -2430,6 +2430,9 @@ importers:
 
   packages/whiteboard:
     dependencies:
+      '@tau/db-schema':
+        specifier: workspace:*
+        version: link:../db-schema
       '@tau/editor':
         specifier: workspace:*
         version: link:../editor

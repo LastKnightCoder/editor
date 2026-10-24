@@ -1,6 +1,6 @@
 import type { Descendant } from "slate";
-import type { ContentNode } from "@tau/collaboration/src/protocol";
-import { getContentLength as sharedGetContentLength } from "@tau/collaboration/src/content-length";
+import { mobileContentMetrics } from "../../app/plugins/content";
+import { isContentEmpty } from "@tau/db-schema/content-metrics";
 
 export type EditorDocument = Descendant[];
 
@@ -24,9 +24,9 @@ export function normalizeEditorContent(content: unknown): EditorDocument {
   return content as EditorDocument;
 }
 
-// 字数统计已下沉共享包（与桌面端同一口径）
-export function getContentLength(value: Descendant[]): number {
-  return sharedGetContentLength(value as ContentNode[]);
+// 与保存及协作投影共用当前插件快照。
+export function getContentLength(value: readonly unknown[]): number {
+  return mobileContentMetrics.count(value);
 }
 
 export function dfs(nodes: Descendant[], visit: (node: Descendant) => void) {
@@ -39,35 +39,5 @@ export function dfs(nodes: Descendant[], visit: (node: Descendant) => void) {
 }
 
 export function isEditorContentEmpty(content: unknown): boolean {
-  const normalized = normalizeEditorContent(content);
-  if (getContentLength(normalized) > 0) {
-    return false;
-  }
-
-  let hasStructuredContent = false;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  dfs(normalized, (node: any) => {
-    if (typeof node?.type === "string" && node.type !== "paragraph" && node.type !== "formatted") {
-      hasStructuredContent = true;
-    }
-  });
-  if (hasStructuredContent) {
-    return false;
-  }
-
-  if (normalized.length !== 1) {
-    return false;
-  }
-  const first = normalized[0] as {
-    type?: string;
-    children?: Array<{ type?: string; text?: string }>;
-  };
-  if (first.type !== "paragraph" || !Array.isArray(first.children)) {
-    return false;
-  }
-  if (first.children.length !== 1) {
-    return false;
-  }
-  const child = first.children[0];
-  return child.type === "formatted" && (child.text ?? "").trim() === "";
+  return isContentEmpty(content);
 }

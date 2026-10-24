@@ -80,6 +80,7 @@ export default definePlugin({
       ],
     }),
   ],
+  editorMetrics: [{ type: "example.portable-counter", textFields: [] }],
   editorCodecs: [
     {
       type: "example.portable-counter",

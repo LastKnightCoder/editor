@@ -127,6 +127,12 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 - `SourceBlockEditor` / `useSourceBlock` 由 SDK 提供（内部复用 PreviewWithEditor）；宿主共享模块初始化 source-editor-host，作者入口只依赖 SDK。
 - 插件 Skill：包内 `skills/<id>/` 目录（manifest.skills 列出并进 integrity）；只声明 skills 的是独立 Skill 包（`packageKind: "skills"`，不进 PluginHost、不参与启停）。主进程收集声明目录，与「我的/关联目录」经 `skill:list` 返回（标识 `pluginId:skillId`），读取与脚本执行只放行声明目录；渲染端按本窗口 PluginHost active 状态过滤插件来源，Skill 包始终可见。带脚本的 Skill 与独立后台共用 `requiresSystemReview`（门户不能自动批准），脚本执行沿用 run_skill_script 的 execute 确认。
 
+### 字数与空文档
+
+统一算法为 `@tau/db-schema/content-metrics`，内置规则归各编辑器扩展的 metrics.ts，`@tau/editor/content-metrics` 只装配。插件以静态 editorMetrics 提供字段规则；ContentPluginRegistry 校验归属与重复，窗口安装同一快照。主进程经内容进程 inspect 取得纯数据规则，在 shared/content-metrics 装配，不执行插件代码。正文保存、导入、协作投影、状态栏与白板宿主服务使用该统计器；Markdown 块缓存随规则修订失效。
+
+空文档自动清理独立使用 isContentEmpty：只认空文本/段落，媒体、结构块、未知节点与损坏输入保守保留。编辑器 isEmpty 是交互语义，独立保留；禁止用 count 等于零判定可删除或可复用正文。作者字段协议见 [SDK 字数说明](/packages/plugins/docs/content-metrics.md)。
+
 ### 博客发布（宿主与模板分工）
 
 - 宿主只生成数据：六类摘要 JSON、ContentRef、`version/documents` 搜索索引与内容插件产物；不提供阅读器、预览 UI、路由、React 依赖映射或站点脚本。公开类型从 `@tau/plugins/publish-data` 消费，数据客户端由 `@tau/blog` 或 `@tau/plugins/publish-client` 提供。发布命令附带编辑器内置类型、插件节点归属与 JS/CSS 摘要；主进程重验磁盘包，worker 的 PublishPluginCatalog 只处理数据不执行作者代码；缺渲染支持的节点按类型汇总警告不阻止发布，节点数据原样输出（网站按未知节点保护显示占位）。每份内容声明实际使用的插件依赖，产物写入带版本与摘要的 `plugin-assets/`。

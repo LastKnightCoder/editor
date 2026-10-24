@@ -7,7 +7,7 @@ import { getContentLength } from "../utils/text";
 export async function bindTextContent(
   api: WhiteboardAPI,
   elementId: string,
-  binding: Pick<TextExtensionOptions, "create" | "update" | "release">,
+  binding: Pick<TextExtensionOptions, "create" | "update" | "release" | "countWords">,
   readContent: () => Descendant[]
 ): Promise<number | undefined> {
   const element = api.getElement(elementId);
@@ -17,7 +17,7 @@ export async function bindTextContent(
   const valid = api.captureSubmission(elementId);
   if (!valid()) return undefined;
   const content = readContent();
-  const id = await binding.create(content, getContentLength(content));
+  const id = await binding.create(content, (binding.countWords ?? getContentLength)(content));
   if (!id) throw new Error("创建正文失败");
   let committed = false;
   try {

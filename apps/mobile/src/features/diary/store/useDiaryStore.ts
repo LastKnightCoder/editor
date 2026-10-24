@@ -1,3 +1,4 @@
+import { isContentEmpty } from "@tau/db-schema/content-metrics";
 import { create } from "zustand";
 import { getQueryClient } from "../../../router";
 import { readDiaryEntries, readDiaryTagSettings, writeDiaryEntries } from "../queries";
@@ -206,7 +207,7 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
       return get().openAt(mode, baseDate);
     }
     const latest = latestSegment(current);
-    if (latest && latest.wordCount === 0) {
+    if (latest && isContentEmpty(latest.content)) {
       set({ mode, baseDate, currentEntry: current, activeSegmentId: latest.id, error: "" });
       return latest.contentId;
     }

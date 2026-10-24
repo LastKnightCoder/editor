@@ -6,6 +6,7 @@ import type { WhiteboardExtension } from "./whiteboard";
 import type { PluginServices } from "./services";
 import type { PluginEditor } from "./editor";
 import type { PluginEditorExtension } from "./editor";
+import type { ContentMetricRule } from "@tau/db-schema/content-metrics";
 import type { MarkdownCodec } from "@tau/markdown";
 import type { PluginSettings } from "./settings";
 import type { PluginSync } from "./sync";
@@ -123,6 +124,8 @@ export interface PluginDefinition {
   readonly editorExtensions?: readonly PluginEditorExtension[];
   readonly whiteboardExtensions?: readonly WhiteboardExtension[];
   readonly editorCodecs?: readonly MarkdownCodec[];
+  /** 可序列化的统计字段，与 Markdown 转换独立；不执行插件回调。 */
+  readonly editorMetrics?: readonly ContentMetricRule[];
   readonly ai?: { readonly features: readonly PluginAIFeature[] };
   /** 每次启用创建新实例，运行状态不放在定义对象上。 */
   create(): PluginInstance;

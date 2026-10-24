@@ -1,6 +1,7 @@
+import { isContentEmpty } from "@tau/db-schema/content-metrics";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { Element, Node, type Descendant } from "slate";
+import { type Descendant } from "slate";
 import type { RowDetailBodyHandle, RowDetailBodyProps } from "@tau/database";
 import Editor from "@/components/ContentEditor";
 import * as contentCommands from "@/commands/content";
@@ -11,14 +12,7 @@ const DEFAULT_CONTENT: Descendant[] = [
   { type: "paragraph", children: [{ type: "formatted", text: "" }] },
 ];
 
-export function isBlankDocument(value: readonly Descendant[]): boolean {
-  return value.every(
-    node =>
-      Element.isElement(node) &&
-      (node as { type?: string }).type === "paragraph" &&
-      Node.string(node) === ""
-  );
-}
+export const isBlankDocument = isContentEmpty;
 
 export const RowDetailBody = forwardRef<RowDetailBodyHandle, RowDetailBodyProps>(
   ({ row, readonly, onRowChange, isRowPresent }, ref) => {

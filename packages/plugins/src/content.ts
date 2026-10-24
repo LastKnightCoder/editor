@@ -1,3 +1,7 @@
+import {
+  normalizeContentMetricRules,
+  type ContentMetricRule,
+} from "@tau/db-schema/content-metrics";
 import type { PluginDefinition } from "./contract";
 import type { WhiteboardElementDefinition } from "./whiteboard";
 import type { DevelopmentPluginPackage } from "./package";
@@ -14,6 +18,12 @@ import {
 } from "./rendering.ts";
 
 export class ContentPluginRegistry {
+  constructor(private readonly onMetrics?: (rules: readonly ContentMetricRule[]) => void) {}
+  private metricRules: readonly ContentMetricRule[] = Object.freeze([]);
+  get metrics() {
+    return this.metricRules;
+  }
+
   private snapshot: {
     definitions: readonly PluginDefinition[];
     extensions: NonNullable<PluginDefinition["editorExtensions"]>;
@@ -61,6 +71,14 @@ export class ContentPluginRegistry {
         types.add(type);
       }
     }
+    const metrics = normalizeContentMetricRules(
+      definitions.flatMap(definition => definition.editorMetrics ?? [])
+    );
+    for (const definition of definitions) {
+      const owned = new Set(getPluginNodeTypes(definition));
+      for (const rule of definition.editorMetrics ?? [])
+        if (!owned.has(rule.type)) throw new Error("字数统计规则只能声明本插件的节点");
+    }
     const codecs = definitions.flatMap(definition => definition.editorCodecs ?? []);
     assertUniqueEditorCodecs(codecs);
     const resources: Record<string, readonly ContentResourceSpec[]> = {};
@@ -68,6 +86,8 @@ export class ContentPluginRegistry {
       for (const extension of definition.editorExtensions ?? [])
         for (const element of extension.elements ?? [])
           if (element.resources?.length) resources[element.type] = element.resources;
+    this.onMetrics?.(metrics);
+    this.metricRules = metrics;
     this.snapshot = {
       definitions: Object.freeze([...definitions]),
       extensions: Object.freeze(

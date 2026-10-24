@@ -20,7 +20,7 @@ import {
   type SharedDocumentInfo,
 } from "@tau/collaboration";
 import { base64ToBytes, bytesToBase64 } from "@tau/collaboration/src/encoding";
-import { getContentLength } from "@tau/collaboration/src/content-length";
+import { getContentLength } from "../../cards/editorContentUtils";
 import * as tauri from "../../../services/tauri";
 import {
   clearCachedInvitation,

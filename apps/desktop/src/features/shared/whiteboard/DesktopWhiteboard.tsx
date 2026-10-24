@@ -1,3 +1,4 @@
+import { desktopContentMetrics } from "../../../../shared/content-metrics";
 import {
   createArrowExtension,
   createGeometryExtension,
@@ -114,6 +115,7 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
     return createServiceRegistry(
       register =>
         register(IWhiteboardRichText, {
+          countWords: desktopContentMetrics.count,
           Editor: DesktopEditor,
           Observer: ContentSnapshotObserver,
           kit: (contentId?: number) =>

@@ -2089,6 +2089,7 @@ export class PluginHost {
             ...(contribution.extension.elements ?? []).map(element => element.type),
             ...(contribution.extension.commands ?? []).map(command => command.id),
             ...(contribution.codecs ?? []).map(codec => codec.type),
+            ...(contribution.metrics ?? []).map(rule => rule.type),
           ]) {
             if (!id.startsWith(`${scope.pluginId}.`))
               throw new Error("编辑器节点、命令与 codec 必须使用插件命名空间");

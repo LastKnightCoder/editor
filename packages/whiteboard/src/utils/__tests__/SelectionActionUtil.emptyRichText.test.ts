@@ -69,3 +69,17 @@ describe("deleteEmptyRichText", () => {
     expect(apply).not.toHaveBeenCalled();
   });
 });
+
+it.each(["image", "unknown.plugin"])("零字数的 %s 节点不被自动删除", type => {
+  const element = text({ content: [{ type, url: "image.png", children: [{ text: "" }] }] });
+  const { board, apply } = makeBoard([element]);
+  expect(deleteEmptyRichText(board, element)).toBe(false);
+  expect(apply).not.toHaveBeenCalled();
+});
+
+it("正文尚未载入时不根据缺失内容释放正文引用", () => {
+  const element = text({ content: undefined, contentId: 42 });
+  const { board, apply } = makeBoard([element]);
+  expect(deleteEmptyRichText(board, element)).toBe(false);
+  expect(apply).not.toHaveBeenCalled();
+});

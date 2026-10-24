@@ -108,7 +108,15 @@
     "./extensions/underline/types": "./src/extensions/underline/src/types.ts",
     "./extensions/underline/styles.css": "./src/extensions/underline/styles.css",
     "./extensions/webview": "./src/extensions/webview/src/index.tsx",
-    "./extensions/webview/markdown": "./src/extensions/webview/markdown.ts"
+    "./extensions/webview/markdown": "./src/extensions/webview/markdown.ts",
+    "./content-metrics": "./content-metrics.ts",
+    "./extensions/code-block/metrics": "./src/extensions/code-block/metrics.ts",
+    "./extensions/math/metrics": "./src/extensions/math/metrics.ts",
+    "./extensions/diagram/metrics": "./src/extensions/diagram/metrics.ts",
+    "./extensions/front-matter/metrics": "./src/extensions/front-matter/metrics.ts",
+    "./extensions/media/metrics": "./src/extensions/media/metrics.ts",
+    "./extensions/list/metrics": "./src/extensions/list/metrics.ts",
+    "./extensions/tabs/metrics": "./src/extensions/tabs/metrics.ts"
   },
   "scripts": {
     "test": "vitest run",

@@ -1,6 +1,11 @@
+import { createContentMetrics } from "@tau/db-schema/content-metrics";
+import { editorMetricRules } from "@tau/editor/content-metrics";
 import { ContentPluginRegistry } from "@tau/plugins/content";
 
-export const mobileContentPlugins = new ContentPluginRegistry();
+export const mobileContentMetrics = createContentMetrics(editorMetricRules);
+export const mobileContentPlugins = new ContentPluginRegistry(rules => {
+  mobileContentMetrics.setRules([...editorMetricRules, ...rules]);
+});
 
 export const mobilePluginElementSupport = new Map<string, "none" | "render" | "edit">();
 

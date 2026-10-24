@@ -1,6 +1,6 @@
 import type { Descendant } from "slate";
-import type { ContentNode } from "@tau/collaboration/src/protocol";
-import { getContentLength as sharedGetContentLength } from "@tau/collaboration/src/content-length";
+import { desktopContentMetrics } from "../../shared/content-metrics";
+export { isContentEmpty, countTextWords } from "@tau/db-schema/content-metrics";
 
 export const dfs = (editor: Descendant[], visit: (node: Descendant) => any) => {
   for (const node of editor) {
@@ -13,6 +13,5 @@ export const dfs = (editor: Descendant[], visit: (node: Descendant) => any) => {
   }
 };
 
-// 字数统计已下沉共享包（与移动端同一口径，此前两端手抄实现靠注释对齐）
-export const getContentLength = (value: Descendant[]): number =>
-  sharedGetContentLength(value as ContentNode[]);
+// 统计与持久化共用宿主的扩展声明快照。
+export const getContentLength = (value: Descendant[]): number => desktopContentMetrics.count(value);

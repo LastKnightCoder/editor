@@ -89,3 +89,22 @@ it("增量转换跟随插件快照换代，未声明插件的外部状态不会�
   registry.install([]);
   expect(serialize(value)).toBe(md.getMarkdown(structuredClone(value)));
 });
+
+it("插件统计声明与快照同步，缺少插件不猜测私有源码", () => {
+  const updates: unknown[] = [];
+  const registry = new ContentPluginRegistry(rules => updates.push(rules));
+  registry.load([artifact], sharedPluginModules);
+  const definition = registry.list()[0];
+  registry.install([
+    { ...definition, editorMetrics: [{ type: "external.example", textFields: ["content"] }] },
+  ]);
+  expect(registry.metrics).toEqual([{ type: "external.example", textFields: ["content"] }]);
+  expect(Object.isFrozen(registry.metrics)).toBe(true);
+  expect(() =>
+    registry.install([{ ...definition, editorMetrics: [{ type: "paragraph", textFields: [] }] }])
+  ).toThrow("本插件");
+  expect(registry.metrics).toHaveLength(1);
+  registry.install([]);
+  expect(registry.metrics).toEqual([]);
+  expect(updates.at(-1)).toEqual([]);
+});

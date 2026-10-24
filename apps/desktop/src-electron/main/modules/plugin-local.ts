@@ -1,3 +1,5 @@
+import { installDesktopPluginMetrics } from "../../../shared/content-metrics";
+import type { ContentMetricRule } from "@tau/db-schema/content-metrics";
 import { portableDevelopmentArtifacts } from "../services/plugin-portable-development";
 import { assertDesktopPackageSource } from "../../../shared/plugin-package";
 import { isContentPlugin } from "@tau/plugins/package";
@@ -87,12 +89,13 @@ export default {
         throw new Error("插件更新尚未恢复");
       const artifact = await readManagedPackage(id);
       if (artifact.manifest.id !== id) throw new Error("内容插件身份或声明无效");
-      const contribution = await contentExecutor.execute<{ editor: boolean; whiteboard: boolean }>(
-        { operation: "inspect", id },
-        undefined,
-        [...getContentPluginArtifacts(), artifact]
-      );
+      const contribution = await contentExecutor.execute<{
+        editor: boolean;
+        whiteboard: boolean;
+        metrics: readonly ContentMetricRule[];
+      }>({ operation: "inspect", id }, undefined, [...getContentPluginArtifacts(), artifact]);
       if (!contribution.editor && !contribution.whiteboard) return undefined;
+      installDesktopPluginMetrics(contribution.metrics);
       appendContentPluginArtifact(artifact);
       return artifact;
     });

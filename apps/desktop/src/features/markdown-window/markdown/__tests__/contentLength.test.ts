@@ -28,3 +28,21 @@ it("未变块复用字数，局部更新、移除与撤销仍符合共享统计�
   expect(count([first, second])).toBe(6);
   expect(getContentLength).toHaveBeenCalledTimes(3);
 });
+
+it("相同块在插件统计规则换代后重新计算", async () => {
+  const { installDesktopPluginMetrics } = await import("../../../../../shared/content-metrics");
+  const node = {
+    type: "example.source",
+    content: "正文",
+    children: [{ text: "" }],
+  } as unknown as Descendant;
+  const count = createContentLengthCounter();
+  expect(count([node])).toBe(0);
+  try {
+    installDesktopPluginMetrics([{ type: "example.source", textFields: ["content"] }]);
+    expect(count([node])).toBe(2);
+  } finally {
+    installDesktopPluginMetrics([]);
+  }
+  expect(count([node])).toBe(0);
+});

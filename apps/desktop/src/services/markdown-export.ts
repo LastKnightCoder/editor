@@ -1,3 +1,4 @@
+import { isContentEmpty } from "@tau/db-schema/content-metrics";
 /**
  * Markdown 导出包（迁出）：按范围（项目 / 文章 / 卡片 / 全部）组装导出树并打包。
  * 包内布局即选择树：项目按文档树，文章与卡片按首个标签分文件夹（a/b 逐级），无标签的在该范围根下。
@@ -152,7 +153,7 @@ const loadCards = async (nextId: IdAllocator, databaseName: string) => {
         depth: 0,
         itemType: EProjectItemType.Document,
         exportable: true,
-        empty: card.count === 0,
+        empty: isContentEmpty(card.content),
         content: card.content || [],
         ref: { kind: "card", id: card.id },
         meta: { tags: card.tags, createTime: card.create_time, updateTime: card.update_time },
