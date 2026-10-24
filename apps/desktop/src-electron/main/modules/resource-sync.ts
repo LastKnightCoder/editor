@@ -20,6 +20,13 @@ import { IRemoteFileInfo } from "@/types/sync";
 import databaseModule from "./database";
 import { pluginSyncSessions } from "../services/plugin-sync";
 import { copyJson } from "@tau/plugins/host";
+import { uploadChunkedPath, downloadChunkedPath, chunkDigest } from "../services/chunked-sync";
+import {
+  RESOURCE_OBJECT_PREFIX,
+  resourceManifestObject,
+  decodeChunkManifest,
+  assertFileName,
+} from "@tau/db-schema/sync-protocol";
 import { pluginSyncStatusFile } from "../services/plugin-sync-status";
 
 interface SyncTask {
@@ -54,14 +61,19 @@ class RateLimitedExecutor {
 
   async execute<T>(fn: () => Promise<T>): Promise<T> {
     await this.waitForSlot();
-    await this.waitForRateLimit();
-    return this.executeWithRetry(fn);
+    try {
+      await this.waitForRateLimit();
+      return await this.executeWithRetry(fn);
+    } finally {
+      this.runningCount--;
+    }
   }
 
   private async waitForSlot() {
     while (this.runningCount >= this.config.maxConcurrent) {
       await sleep(50);
     }
+    this.runningCount++;
   }
 
   private async waitForRateLimit() {
@@ -81,7 +93,6 @@ class RateLimitedExecutor {
     let lastError: Error | null = null;
     for (let i = 0; i <= this.config.retryCount; i++) {
       try {
-        this.runningCount++;
         return await fn();
       } catch (error) {
         lastError = error as Error;
@@ -90,8 +101,6 @@ class RateLimitedExecutor {
           const delay = this.config.retryDelayMs * Math.pow(this.config.retryBackoffMultiplier, i);
           await sleep(delay);
         }
-      } finally {
-        this.runningCount--;
       }
     }
     throw lastError || new Error("未知错误");
@@ -101,8 +110,8 @@ class RateLimitedExecutor {
 interface ProviderAdapter {
   dispose?(): Promise<void>;
   list(prefix: string): Promise<IRemoteFileInfo[]>;
-  upload(objectName: string, content: Buffer): Promise<void>;
-  download(objectName: string): Promise<Buffer>;
+  uploadPath(objectName: string, localPath: string, check: () => void): Promise<void>;
+  downloadPath(objectName: string, localPath: string, check: () => void): Promise<void>;
 }
 
 class PluginResourceAdapter implements ProviderAdapter {
@@ -119,14 +128,39 @@ class PluginResourceAdapter implements ProviderAdapter {
       throw error;
     }
   }
-  list(prefix: string) {
-    return this.call("listFiles", [prefix]) as Promise<IRemoteFileInfo[]>;
+  private store = {
+    fileExists: async (name: string) => Boolean(await this.call("fileExists", [name])),
+    uploadFile: async (name: string, bytes: Uint8Array) =>
+      Boolean(await this.call("uploadFile", [name, bytes])),
+    downloadFile: async (name: string) => this.call("downloadFile", [name]) as Promise<Uint8Array>,
+  };
+  async list(prefix: string) {
+    const entries = (await this.call("listFiles", [prefix])) as IRemoteFileInfo[];
+    const files: IRemoteFileInfo[] = [];
+    const names = new Set<string>();
+    for (const entry of entries) {
+      if (!entry.path.startsWith(RESOURCE_OBJECT_PREFIX) || !entry.path.endsWith(".json"))
+        throw new Error("资源清单路径无效");
+      const manifest = await decodeChunkManifest(
+        await this.store.downloadFile(entry.path),
+        chunkDigest
+      );
+      assertFileName(manifest.name);
+      if (
+        entry.path !== (await resourceManifestObject(manifest.name, chunkDigest)) ||
+        names.has(manifest.name)
+      )
+        throw new Error("资源清单身份冲突");
+      names.add(manifest.name);
+      files.push({ name: manifest.name, path: entry.path, size: manifest.size });
+    }
+    return files;
   }
-  async upload(name: string, content: Buffer) {
-    if (!(await this.call("uploadFile", [name, content]))) throw new Error("资源文件上传失败");
+  async uploadPath(name: string, localPath: string, check: () => void) {
+    await uploadChunkedPath(this.store, name, localPath, check);
   }
-  async download(name: string) {
-    return Buffer.from((await this.call("downloadFile", [name])) as Uint8Array);
+  async downloadPath(name: string, localPath: string, check: () => void) {
+    await downloadChunkedPath(this.store, name, localPath, check, path.basename(localPath));
   }
   dispose() {
     return pluginSyncSessions.end(this.owner, this.session);
@@ -508,12 +542,7 @@ class ResourceSyncModule {
     const localFiles = await this.scanLocalFiles(resourcesDir);
     let remoteFiles: IRemoteFileInfo[] = [];
     if (adapter) {
-      try {
-        remoteFiles = await adapter.list(`${RESOURCE_PREFIX}/`);
-      } catch (error) {
-        log.warn("[resource-sync] list remote files failed, fallback to local only", error);
-        remoteFiles = [];
-      }
+      remoteFiles = await adapter.list(RESOURCE_OBJECT_PREFIX);
     }
     const remoteMap = new Map<string, IRemoteFileInfo>(remoteFiles.map(item => [item.name, item]));
 
@@ -554,7 +583,7 @@ class ResourceSyncModule {
           name: local.name,
           direction: "upload",
           localPath: local.path,
-          remotePath: `${RESOURCE_PREFIX}/${local.name}`,
+          remotePath: await resourceManifestObject(local.name, chunkDigest),
           size: local.size,
         });
       }
@@ -575,7 +604,7 @@ class ResourceSyncModule {
           name,
           direction: "download",
           localPath: path.join(resourcesDir, name),
-          remotePath: remote.path || `${RESOURCE_PREFIX}/${name}`,
+          remotePath: remote.path,
           size: remote.size || 0,
         });
       }
@@ -666,16 +695,12 @@ class ResourceSyncModule {
     this.notifyProgress();
 
     try {
-      if (task.direction === "upload") {
-        const content = await fs.readFile(task.localPath);
-        if (this.cancelRequested) return;
-        await this.adapter.upload(task.remotePath, content);
-      } else {
-        const content = await this.adapter.download(task.remotePath);
-        if (this.cancelRequested) return;
-        await ensureDir(path.dirname(task.localPath));
-        await fs.writeFile(task.localPath, content);
-      }
+      const check = () => {
+        if (this.cancelRequested) throw new DOMException("资源同步已取消", "AbortError");
+      };
+      if (task.direction === "upload")
+        await this.adapter.uploadPath(task.remotePath, task.localPath, check);
+      else await this.adapter.downloadPath(task.remotePath, task.localPath, check);
       this.statuses[task.name] = {
         ...(this.statuses[task.name] || this.initStatus(undefined, task.direction, task.size)),
         syncStatus: ResourceSyncStatus.Synced,

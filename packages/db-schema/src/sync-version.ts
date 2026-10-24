@@ -1,36 +1,43 @@
-/** 同步信封版本；数据库内部的 schema 版本不变。旧端会在下载前拒绝新快照。 */
-export const SYNC_MODEL_VERSION = 5;
-
+import storageProtocol from "../storage-protocol.json";
+export const SYNC_MODEL_VERSION = storageProtocol.modelVersion;
 interface SyncMetadata {
+  version?: unknown;
   dataModelVersion?: unknown;
   databaseObject?: unknown;
   sessionsObject?: unknown;
 }
-
-/** 旧元信息仅用于探测版本与衔接上传，不代表允许下载旧数据库。 */
+export const isSnapshotObject = (value: unknown): value is string =>
+  typeof value === "string" &&
+  value.startsWith(`${storageProtocol.namespace}/snapshots/`) &&
+  /^[a-zA-Z0-9-]+\.json$/.test(value.slice(`${storageProtocol.namespace}/snapshots/`.length));
 export function assertReadableSyncMetadata(info: SyncMetadata) {
-  const version = info.dataModelVersion === undefined ? 0 : info.dataModelVersion;
   if (
-    typeof version !== "number" ||
-    !Number.isSafeInteger(version) ||
-    version < 0 ||
-    version > SYNC_MODEL_VERSION
-  ) {
-    throw new Error("DB_MODEL_INCOMPATIBLE: 远端同步协议不受支持，请升级客户端");
-  }
-  if (version >= 2) {
-    if (typeof info.databaseObject !== "string" || !info.databaseObject)
-      throw new Error("同步快照缺少数据库对象名");
-    if (info.sessionsObject !== undefined && typeof info.sessionsObject !== "string")
-      throw new Error("同步快照的会话对象名无效");
-  }
+    info.version === 0 &&
+    info.dataModelVersion === undefined &&
+    info.databaseObject === undefined &&
+    info.sessionsObject === undefined
+  )
+    return;
+  if (info.dataModelVersion !== SYNC_MODEL_VERSION)
+    throw new Error("DB_MODEL_INCOMPATIBLE: 同步格式不受支持，请从当前客户端重新发布完整快照");
+  if (
+    !isSnapshotObject(info.databaseObject) ||
+    (info.sessionsObject !== undefined && !isSnapshotObject(info.sessionsObject))
+  )
+    throw new Error("同步快照文件清单地址无效");
 }
-
 export function assertCompatibleSync(info: SyncMetadata) {
-  if (info.dataModelVersion !== SYNC_MODEL_VERSION) {
-    throw new Error(
-      "DB_MODEL_INCOMPATIBLE: 远端快照协议与当前客户端不一致，请在已升级且数据完整的客户端上传新快照"
-    );
-  }
+  if (info.dataModelVersion !== SYNC_MODEL_VERSION)
+    throw new Error("DB_MODEL_INCOMPATIBLE: 同步格式不受支持");
   assertReadableSyncMetadata(info);
+}
+export function localSyncVersion(
+  database: { version?: unknown; syncFormat?: unknown } | undefined
+): number {
+  return database?.syncFormat === SYNC_MODEL_VERSION &&
+    typeof database.version === "number" &&
+    Number.isSafeInteger(database.version) &&
+    database.version >= 0
+    ? database.version
+    : 0;
 }

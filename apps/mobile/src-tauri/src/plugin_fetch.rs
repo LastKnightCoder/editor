@@ -18,6 +18,7 @@ struct Download {
     ready: Option<oneshot::Receiver<NetworkReply>>,
     response: Option<reqwest::Response>,
     remaining: Bytes,
+    received: u64,
 }
 struct Spool {
     _lease: FileLease,
@@ -25,6 +26,7 @@ struct Spool {
 }
 struct Transfer {
     spool: Mutex<Option<Spool>>,
+    limit: Option<u64>,
     upload: AsyncMutex<Option<mpsc::Sender<Vec<u8>>>>,
     download: AsyncMutex<Download>,
     cancel: watch::Sender<bool>,
@@ -117,6 +119,8 @@ pub struct FetchRequest {
     headers: Vec<(String, String)>,
     has_body: bool,
     redirect: String,
+    #[serde(default)]
+    response_limit: Option<u64>,
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -175,11 +179,13 @@ fn open_with_timeout(
     let (activity, mut progress) = watch::channel(tokio::time::Instant::now());
     let transfer = Arc::new(Transfer {
         spool: Mutex::new(None),
+        limit: request.response_limit,
         upload: AsyncMutex::new(request.has_body.then_some(upload)),
         download: AsyncMutex::new(Download {
             ready: Some(ready),
             response: None,
             remaining: Bytes::new(),
+            received: 0,
         }),
         cancel,
         activity,
@@ -250,6 +256,12 @@ async fn response(transfer: &Transfer) -> Result<FetchResponse, String> {
         _ = cancelled.changed() => return Err("插件网络请求已取消".into()),
         result = ready => result.map_err(|_| "插件网络连接已结束")??,
     };
+    if transfer
+        .limit
+        .is_some_and(|limit| response.content_length().is_some_and(|size| size > limit))
+    {
+        return Err("同步响应超过协议分块预算".into());
+    }
     let status = response.status();
     let result = FetchResponse {
         status: status.as_u16(),
@@ -292,6 +304,13 @@ async fn read(transfer: &Transfer) -> Result<Option<Bytes>, String> {
         };
         match chunk {
             Some(chunk) => {
+                download.received += chunk.len() as u64;
+                if transfer
+                    .limit
+                    .is_some_and(|limit| download.received > limit)
+                {
+                    return Err("同步响应超过协议分块预算".into());
+                }
                 transfer.activity.send_replace(tokio::time::Instant::now());
                 download.remaining = chunk;
             }
@@ -427,6 +446,7 @@ mod tests {
                 .collect(),
             has_body: length.is_some(),
             redirect: "follow".into(),
+            response_limit: None,
         }
     }
     fn headers(socket: &mut std::net::TcpStream) -> Vec<u8> {
@@ -568,6 +588,34 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn sync_response_budget_rejects_oversized_headers_and_chunked_bodies() {
+        for known in [true, false] {
+            let server = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            let address = server.local_addr().unwrap();
+            let worker = std::thread::spawn(move || {
+                let (mut socket, _) = server.accept().unwrap();
+                headers(&mut socket);
+                let wire = if known {
+                    "HTTP/1.1 200 OK\r\nContent-Length: 5\r\nConnection: close\r\n\r\n12345"
+                } else {
+                    "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n5\r\n12345\r\n0\r\n\r\n"
+                };
+                let _ = socket.write_all(wire.as_bytes());
+            });
+            let mut req = request(format!("http://{address}/budget"), "GET", None);
+            req.response_limit = Some(4);
+            let transfer = open(req).unwrap();
+            if known {
+                assert!(response(&transfer).await.is_err());
+            } else {
+                response(&transfer).await.unwrap();
+                assert!(read(&transfer).await.is_err());
+            }
+            worker.join().unwrap();
+        }
+    }
+
+    #[tokio::test]
     async fn truncated_response_reports_failure_instead_of_successful_eof() {
         let server = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let address = server.local_addr().unwrap();
@@ -598,11 +646,13 @@ mod tests {
         let (cancel, _) = watch::channel(false);
         let transfer = Transfer {
             spool: Mutex::new(None),
+            limit: None,
             upload: AsyncMutex::new(Some(sender)),
             download: AsyncMutex::new(Download {
                 ready: None,
                 response: None,
                 remaining: Bytes::new(),
+                received: 0,
             }),
             cancel,
             activity: watch::channel(tokio::time::Instant::now()).0,
@@ -627,11 +677,13 @@ mod tests {
         let (cancel, _) = watch::channel(false);
         let transfer = Arc::new(Transfer {
             spool: Mutex::new(None),
+            limit: None,
             upload: AsyncMutex::new(None),
             download: AsyncMutex::new(Download {
                 ready: None,
                 response: None,
                 remaining: Bytes::new(),
+                received: 0,
             }),
             cancel,
             activity: watch::channel(tokio::time::Instant::now()).0,
@@ -661,11 +713,13 @@ mod tests {
         let (_sender, receiver) = oneshot::channel();
         let transfer = Arc::new(Transfer {
             spool: Mutex::new(None),
+            limit: None,
             upload: AsyncMutex::new(None),
             download: AsyncMutex::new(Download {
                 ready: Some(receiver),
                 response: None,
                 remaining: Bytes::new(),
+                received: 0,
             }),
             cancel,
             activity: watch::channel(tokio::time::Instant::now()).0,

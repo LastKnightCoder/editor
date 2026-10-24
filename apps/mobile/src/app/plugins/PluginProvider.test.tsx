@@ -1,4 +1,10 @@
 vi.mock("./transport", () => ({ connectMobilePluginTransport: vi.fn(async () => vi.fn()) }));
+vi.mock("./shared-modules", () => ({ mobileSharedPluginModules: {} }));
+vi.mock("@tau/plugins/source-editor-host", () => ({}));
+vi.mock("../../services/editorKit", () => ({
+  getMobileContentKit: () => ({ extend: vi.fn() }),
+}));
+vi.mock("../../services/editorMarkdown", () => ({ mobileCodecComposition: [] }));
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

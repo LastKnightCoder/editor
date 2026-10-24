@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 pub struct DatabaseItem {
     pub name: String,
     pub version: u64,
+    #[serde(default)]
+    pub sync_format: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

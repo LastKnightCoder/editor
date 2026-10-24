@@ -1,6 +1,6 @@
 /**
  * pi 会话文件的存储层：会话目录的定位、读投影、改历史、删除、浏览器扩展会话列表、
- * 同步打包/解包。electron-free，可单测；IPC 壳在 pi-session-host.ts。
+ * 同步目录校验与成对提交。electron-free，可单测；IPC 壳在 pi-session-host.ts。
  *
  * 两类会话目录：
  * - 应用对话：`sessions/<库名>/`，目录行在 chat_session 表里，文件名存在目录行；
@@ -8,7 +8,10 @@
  *   全部取自会话文件本身；分支在文件内部的会话树上。
  */
 import { existsSync, rmSync } from "node:fs";
-import { installSessionDownload as installPairedSnapshot } from "@tau/db-schema/sync";
+import {
+  installSessionDownload as installPairedSnapshot,
+  validateSessionReferences,
+} from "@tau/db-schema/sync";
 import Database from "better-sqlite3";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
@@ -112,21 +115,25 @@ export const deleteBrowserSession = (pageUrl: string, sessionId: string) =>
   deleteSessionInDir(browserSessionDirOf(pageUrl), sessionId);
 
 // 同步协议由公共 Node 入口维护，桌面只提供本进程的 SQLite 实现。
-export { packSessionDir, replaceSessionDir, recoverSessionDownload } from "@tau/db-schema/sync";
+export { validateSessionDirectory, recoverSessionDownload } from "@tau/db-schema/sync";
 
+function openSnapshotDatabase(path: string) {
+  const db = new Database(path, { readonly: true, fileMustExist: true });
+  try {
+    loadSqliteVecExtension(db);
+    return db;
+  } catch (error) {
+    db.close();
+    throw error;
+  }
+}
+export function assertSessionSyncComplete(databasePath: string, sessionDir: string): void {
+  validateSessionReferences(databasePath, sessionDir, openSnapshotDatabase);
+}
 export function installSessionDownload(
   databasePath: string,
   sessionDir: string,
-  archive?: Buffer
+  downloadedDirectory?: string
 ): void {
-  installPairedSnapshot(databasePath, sessionDir, archive, path => {
-    const db = new Database(path, { readonly: true, fileMustExist: true });
-    try {
-      loadSqliteVecExtension(db);
-      return db;
-    } catch (error) {
-      db.close();
-      throw error;
-    }
-  });
+  installPairedSnapshot(databasePath, sessionDir, downloadedDirectory, openSnapshotDatabase);
 }

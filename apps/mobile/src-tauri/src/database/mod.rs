@@ -215,7 +215,8 @@ pub fn create_database(app: AppHandle, name: String) -> Result<DatabaseItem, Str
         .find(|db| db.name == db_name)
         .unwrap_or(DatabaseItem {
             name: db_name,
-            version: 1,
+            version: 0,
+            sync_format: crate::chunked_sync::protocol().model_version,
         });
     Ok(item)
 }

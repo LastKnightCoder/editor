@@ -1805,9 +1805,6 @@ importers:
 
   packages/db-schema:
     dependencies:
-      adm-zip:
-        specifier: ^0.5.16
-        version: 0.5.18
       proper-lockfile:
         specifier: ^4.1.2
         version: 4.1.2
@@ -1815,9 +1812,6 @@ importers:
         specifier: ^2.0.2
         version: 2.0.2
     devDependencies:
-      '@types/adm-zip':
-        specifier: ^0.5.8
-        version: 0.5.8
       '@types/proper-lockfile':
         specifier: ^4.1.4
         version: 4.1.4

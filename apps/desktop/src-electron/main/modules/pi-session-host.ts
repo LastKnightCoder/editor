@@ -32,11 +32,11 @@ import {
   browserSessionFile,
   deleteBrowserSession,
   listBrowserSessions,
-  packSessionDir,
+  validateSessionDirectory,
+  assertSessionSyncComplete,
   readConversationTree,
   readTranscript,
   renameBrowserSession,
-  replaceSessionDir,
   type SessionEdit,
 } from "./pi-session-store";
 import {
@@ -232,7 +232,7 @@ class PiSessionHostModule {
     );
     ipcMain.handle(
       "pi-session:install-download",
-      (_event, { databaseName, archive }: { databaseName: string; archive?: Uint8Array }) =>
+      (_event, { databaseName, hasSessions }: { databaseName: string; hasSessions: boolean }) =>
         PiSessionHostModule.guard(async () => {
           if (!PiSessionHostModule.libraryLeases.has(chatSessionDirOf(databaseName)))
             throw new Error("同步尚未锁定会话目录");
@@ -242,7 +242,12 @@ class PiSessionHostModule {
           installSessionDownload(
             join(PathUtil.getAppDir(), `${databaseName.replace(/\.db$/, "")}.db`),
             chatSessionDirOf(databaseName),
-            archive ? Buffer.from(archive) : undefined
+            hasSessions
+              ? join(
+                  PathUtil.getAppDir(),
+                  `${databaseName.replace(/\.db$/, "")}.db.sessions.download`
+                )
+              : undefined
           );
           return {};
         })
@@ -527,34 +532,20 @@ class PiSessionHostModule {
           return {};
         })
     );
-    // 同步（M4.4）：当前库的会话目录打包 / 用下载的包替换（先整体备份）
-    ipcMain.handle("pi-session:pack", async (_event, { databaseName }: { databaseName: string }) =>
-      PiSessionHostModule.guard(async () => ({
-        archive: packSessionDir(chatSessionDirOf(databaseName)),
-      }))
-    );
+    // 同步仅枚举校验后的会话目录，字节由宿主分块读写。
     ipcMain.handle(
-      "pi-session:unpack",
-      async (_event, { databaseName, archive }: { databaseName: string; archive: Uint8Array }) =>
+      "pi-session:sync-files",
+      async (_event, { databaseName }: { databaseName: string }) =>
         PiSessionHostModule.guard(async () => {
-          const sessionDir = chatSessionDirOf(databaseName);
-          const release = PiSessionHostModule.access.acquire([sessionDir]);
-          PiSessionHostModule.blockedDirectories.add(sessionDir);
-          try {
-            // 替换期间不能有宿主会话开着这个目录里的文件
-            for (const [id, hosted] of [...PiSessionHostModule.sessions.entries()]) {
-              if (hosted.session.sessionFile && dirname(hosted.session.sessionFile) === sessionDir)
-                await PiSessionHostModule.disposeSession(id);
-            }
-            return replaceSessionDir(
-              sessionDir,
-              Buffer.from(archive),
-              join(PathUtil.getAppDir(), "backup")
-            );
-          } finally {
-            PiSessionHostModule.blockedDirectories.delete(sessionDir);
-            release();
-          }
+          const dir = chatSessionDirOf(databaseName);
+          assertSessionSyncComplete(
+            join(PathUtil.getAppDir(), `${databaseName.replace(/\.db$/, "")}.db`),
+            dir
+          );
+          const sessions = validateSessionDirectory(dir);
+          return {
+            files: [...sessions.keys()].sort().map(name => ({ name, path: join(dir, name) })),
+          };
         })
     );
     ipcMain.handle("pi-session:find-by-scope", async (event, { scope }: { scope: string }) => {

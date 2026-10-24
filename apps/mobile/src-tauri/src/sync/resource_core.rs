@@ -240,7 +240,7 @@ async fn build_resource_sync_plan(
 > {
     let resources_dir = resource_local_dir(app)?;
     let local_files = scan_local_resource_files(&resources_dir)?;
-    let remote_files = list_remote_resources(provider, &format!("{RESOURCE_PREFIX}/")).await?;
+    let remote_files = list_remote_resources(provider).await?;
     let mut remote_map: HashMap<String, ResourceRemoteFileInfo> = HashMap::new();
     for item in remote_files {
         remote_map.insert(item.name.clone(), item);
@@ -281,7 +281,7 @@ async fn build_resource_sync_plan(
                 name: name.clone(),
                 direction: "upload".to_string(),
                 local_path,
-                remote_path: format!("{RESOURCE_PREFIX}/{name}"),
+                remote_path: crate::chunked_sync::resource_object(&name),
                 size,
             });
         }
@@ -352,12 +352,12 @@ async fn execute_resource_sync_task_with_retry(
         let result = async {
             if task.direction == "upload" {
                 provider
-                    .upload_path(&task.remote_path, &task.local_path)
+                    .upload_chunked_named(&task.remote_path, &task.name, &task.local_path)
                     .await
                     .map_err(|e| AppError::new("RESOURCE_SYNC_FAILED", e))
             } else {
                 let temp = provider
-                    .download_temporary(&task.remote_path)
+                    .download_resource_chunked(&task.remote_path, &task.name)
                     .await
                     .map_err(|e| AppError::new("RESOURCE_SYNC_FAILED", e))?;
                 if let Some(directory) = task.local_path.parent() {

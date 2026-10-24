@@ -13,12 +13,10 @@
     "./src/*": "./src/*.ts"
   },
   "dependencies": {
-    "adm-zip": "^0.5.16",
     "proper-lockfile": "^4.1.2",
     "words-count": "^2.0.2"
   },
   "devDependencies": {
-    "@types/adm-zip": "^0.5.8",
     "@types/proper-lockfile": "^4.1.4"
   }
 }

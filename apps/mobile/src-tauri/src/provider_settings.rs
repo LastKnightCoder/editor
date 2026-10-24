@@ -92,10 +92,10 @@ pub fn plugin_provider_select(
 /// 普通设置提交不回写原生管理的数据库状态和提供方配置。
 pub(crate) fn preserve_managed_fields(next: &mut Value, current: &Value) {
     next["database"] = current["database"].clone();
-    if let Some(base) = current.get("mobileSyncBases") {
-        next["mobileSyncBases"] = base.clone();
+    if let Some(base) = current.get("chunkedSyncBases") {
+        next["chunkedSyncBases"] = base.clone();
     } else if let Some(object) = next.as_object_mut() {
-        object.remove("mobileSyncBases");
+        object.remove("chunkedSyncBases");
     }
     for section in ["sync", "imageBed"] {
         next[section]["active"] = current[section]["active"].clone();
@@ -351,13 +351,13 @@ mod tests {
         let current = json!({ "database": { "active": "B.db", "databases": [{ "name": "B.db", "version": 7 }] },
             "sync": { "active": "plugin", "plugin": { "id": "fixture.sync", "configurations": { "fixture.sync": { "token": "new" } } } },
             "imageBed": { "active": "local", "plugin": { "id": "", "configurations": {} } },
-            "mobileSyncBases": { "B.db": { "sessionsObject": "snapshot.zip" } } });
+            "chunkedSyncBases": { "B.db": { "sessionsObject": "snapshot.zip" } } });
         let mut stale =
             json!({ "database": {}, "sync": {}, "imageBed": { "enableCompression": false } });
         preserve_managed_fields(&mut stale, &current);
         assert_eq!(stale["sync"], current["sync"]);
         assert_eq!(stale["database"], current["database"]);
-        assert_eq!(stale["mobileSyncBases"], current["mobileSyncBases"]);
+        assert_eq!(stale["chunkedSyncBases"], current["chunkedSyncBases"]);
         assert_eq!(stale["imageBed"]["enableCompression"], false);
         assert!(check_database(&current, "A.db").is_err());
     }

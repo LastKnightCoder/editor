@@ -118,3 +118,51 @@ it("取消读取等待立即拒绝调用并通知执行端", async () => {
   await expect(pending).rejects.toBe("stop-file");
   expect(cancel).toHaveBeenCalledWith(1);
 });
+
+it("连续无体响应先释放原生槽位，分块调用不耗尽请求池", async () => {
+  let next = 0,
+    peak = 0;
+  const active = new Set<number>();
+  const request = createBridgeFetch(
+    transport({
+      open: async () => {
+        if (active.size >= 16) throw new Error("请求池已满");
+        const id = ++next;
+        active.add(id);
+        peak = Math.max(peak, active.size);
+        return id;
+      },
+      response: async () => ({
+        status: 204,
+        statusText: "No Content",
+        headers: [],
+        url: "https://example.com/file",
+        redirected: false,
+        type: "default",
+        hasBody: false,
+      }),
+      cancel: async id => {
+        await new Promise(resolve => setTimeout(resolve, 1));
+        active.delete(id);
+      },
+    })
+  );
+  for (let index = 0; index < 24; index++)
+    expect((await request("https://example.com/file")).status).toBe(204);
+  expect(active.size).toBe(0);
+  expect(peak).toBe(1);
+});
+it("落盘 arrayBuffer 完成前等待原生传输和临时文件释放", async () => {
+  let released = false;
+  const response = await createBridgeFetch(
+    transport({
+      buffer: async () => new Uint8Array([1]),
+      cancel: async () => {
+        await new Promise(resolve => setTimeout(resolve, 1));
+        released = true;
+      },
+    })
+  )("https://example.com/file");
+  expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1]));
+  expect(released).toBe(true);
+});

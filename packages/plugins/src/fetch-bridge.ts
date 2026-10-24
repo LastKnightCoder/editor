@@ -75,9 +75,11 @@ export function createBridgeFetch(transport: FetchTransport): typeof fetch {
       finished = true;
       signal.removeEventListener("abort", abort);
     };
-    const cancel = () => {
-      if (id !== undefined) void transport.cancel(id).catch(() => undefined);
-      void reader?.cancel().catch(() => undefined);
+    const cancel = async () => {
+      await Promise.allSettled([
+        ...(id !== undefined ? [transport.cancel(id)] : []),
+        ...(reader ? [reader.cancel()] : []),
+      ]);
     };
     let rejectAbort: (reason: unknown) => void = () => undefined;
     const aborted = new Promise<never>((_resolve, reject) => {
@@ -90,6 +92,7 @@ export function createBridgeFetch(transport: FetchTransport): typeof fetch {
       controller?.error(signal.reason);
       rejectAbort(signal.reason);
       cancel();
+      release();
     };
     signal.addEventListener("abort", abort, { once: true });
     try {
@@ -163,8 +166,9 @@ export function createBridgeFetch(transport: FetchTransport): typeof fetch {
                     const bytes = await transport.buffer(requestId);
                     if (signal.aborted || finished) return;
                     value.enqueue(bytes);
+                    await cancel();
+                    if (signal.aborted || finished) return;
                     value.close();
-                    cancel();
                     release();
                     return;
                   }
@@ -180,8 +184,8 @@ export function createBridgeFetch(transport: FetchTransport): typeof fetch {
                   release();
                 }
               },
-              cancel() {
-                cancel();
+              async cancel() {
+                await cancel();
                 release();
               },
             },
@@ -189,7 +193,7 @@ export function createBridgeFetch(transport: FetchTransport): typeof fetch {
           )
         : null;
       if (!body) {
-        cancel();
+        await cancel();
         release();
       }
       const response = decorate(

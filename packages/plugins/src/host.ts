@@ -1134,7 +1134,11 @@ export class PluginHost {
       events?: EventsAdapter;
       app?: AppAdapter;
       notifications?: NotificationsAdapter;
-      fetch?: typeof globalThis.fetch;
+      fetch?: (
+        input: RequestInfo | URL,
+        init?: RequestInit,
+        owner?: { pluginId: string }
+      ) => Promise<Response>;
       services?: PluginServices;
       /** 同一运行环境重建宿主时共享，避免旧副作用未结束就重启插件。 */
       restartRequired?: Set<string>;
@@ -2035,7 +2039,7 @@ export class PluginHost {
         const source =
           init?.signal === undefined && input instanceof Request ? input.signal : init?.signal;
         const signal = AbortSignal.any([scope.signal, ...(source ? [source] : [])]);
-        const response = await execute(input, { ...init, signal });
+        const response = await execute(input, { ...init, signal }, { pluginId: entry.metadata.id });
         if (signal.aborted) {
           void response.body?.cancel().catch(() => undefined);
           signal.throwIfAborted();

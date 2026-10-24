@@ -278,9 +278,22 @@ fn database_items_from_setting(setting: &Value) -> Vec<DatabaseItem> {
             let Ok(name) = normalize_database_name(raw_name) else {
                 continue;
             };
-            let version = item.get("version").and_then(|v| v.as_u64()).unwrap_or(1);
+            let version = if item["syncFormat"].as_u64()
+                == Some(crate::chunked_sync::protocol().model_version)
+            {
+                item["version"]
+                    .as_u64()
+                    .filter(|value| *value <= 9_007_199_254_740_991)
+                    .unwrap_or(0)
+            } else {
+                0
+            };
             if items.iter().all(|db| db.name != name) {
-                items.push(DatabaseItem { name, version });
+                items.push(DatabaseItem {
+                    name,
+                    version,
+                    sync_format: crate::chunked_sync::protocol().model_version,
+                });
             }
         }
     }
@@ -300,13 +313,15 @@ fn normalize_database_section(setting: &mut Value) {
     if databases.is_empty() {
         databases.push(DatabaseItem {
             name: DEFAULT_DATABASE_NAME.to_string(),
-            version: 1,
+            version: 0,
+            sync_format: crate::chunked_sync::protocol().model_version,
         });
     }
     if databases.iter().all(|db| db.name != active) {
         databases.push(DatabaseItem {
             name: active.clone(),
-            version: 1,
+            version: 0,
+            sync_format: crate::chunked_sync::protocol().model_version,
         });
     }
 
@@ -318,6 +333,9 @@ fn normalize_database_section(setting: &mut Value) {
 
 pub fn ensure_setting_compat(raw: Value) -> Value {
     let mut setting = if raw.is_object() { raw } else { json!({}) };
+    if let Some(object) = setting.as_object_mut() {
+        object.remove("mobileSyncBases");
+    }
     retire_image_bed_keys(&mut setting);
     crate::provider_settings::migrate(&mut setting);
     let defaults = default_setting_value();
@@ -458,7 +476,8 @@ pub fn get_database_items(setting: &Value) -> Vec<DatabaseItem> {
     if items.iter().all(|db| db.name != active) {
         items.push(DatabaseItem {
             name: active,
-            version: 1,
+            version: 0,
+            sync_format: crate::chunked_sync::protocol().model_version,
         });
     }
     items
@@ -469,7 +488,7 @@ pub fn get_database_version(setting: &Value, db_name: &str) -> u64 {
         .into_iter()
         .find(|db| db.name == db_name)
         .map(|db| db.version)
-        .unwrap_or(1)
+        .unwrap_or(0)
 }
 
 pub fn ensure_database_entry(setting: &mut Value, db_name: &str) -> bool {
@@ -478,7 +497,8 @@ pub fn ensure_database_entry(setting: &mut Value, db_name: &str) -> bool {
     if !exists {
         items.push(DatabaseItem {
             name: db_name.to_string(),
-            version: 1,
+            version: 0,
+            sync_format: crate::chunked_sync::protocol().model_version,
         });
     }
     if let Some(database) = setting.get_mut("database") {
@@ -495,6 +515,7 @@ pub fn set_database_version(setting: &mut Value, db_name: &str, version: u64) {
         items.push(DatabaseItem {
             name: db_name.to_string(),
             version,
+            sync_format: crate::chunked_sync::protocol().model_version,
         });
     }
     if let Some(database) = setting.get_mut("database") {
@@ -664,5 +685,20 @@ mod tests {
         let setting = ensure_setting_compat(json!({}));
         assert_eq!(setting["imageBed"]["active"], json!("local"));
         assert_eq!(setting["imageBed"]["enableCompression"], json!(true));
+    }
+}
+
+#[cfg(test)]
+mod chunked_version_tests {
+    use super::*;
+    #[test]
+    fn version_counter_is_scoped_to_current_storage_protocol() {
+        let mut setting = ensure_setting_compat(
+            json!({"database":{"active":"data.db","databases":[{"name":"data.db","version":999}]}}),
+        );
+        assert_eq!(get_database_version(&setting, "data.db"), 0);
+        set_database_version(&mut setting, "data.db", 2);
+        let reread = ensure_setting_compat(setting);
+        assert_eq!(get_database_version(&reread, "data.db"), 2);
     }
 }

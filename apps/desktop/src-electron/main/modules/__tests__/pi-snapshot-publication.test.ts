@@ -10,7 +10,7 @@ import {
 
 const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
 function backend() {
-  const files = new Map<string, Uint8Array>([["head", encode({ version: 1 })]]);
+  const files = new Map<string, Uint8Array>([["head", encode(snapshot("initial", 0))]]);
   const provider: SnapshotPublicationProvider = {
     fileExists: async name => files.has(name),
     downloadFile: async name => {
@@ -35,8 +35,8 @@ const snapshot = (id: string, parent = 1) => ({
   parentVersion: parent,
   commitId: id,
   dataModelVersion: SYNC_MODEL_VERSION,
-  databaseObject: `${id}.db`,
-  sessionsObject: `${id}.zip`,
+  databaseObject: `tau-sync-v1/snapshots/${id}.json`,
+  sessionsObject: `tau-sync-v1/snapshots/${id}-sessions.json`,
 });
 
 it("两个发布者读取相同父版本，只有一个完整快照胜出", async () => {
@@ -59,7 +59,7 @@ it("提交成功但响应丢失时按身份核验，指针失败仍能下载已�
   };
   provider.uploadFile = async () => false;
   await publishSnapshot(provider, "head", { version: 1 }, snapshot("a"));
-  expect(JSON.parse(new TextDecoder().decode(files.get("head")))).toEqual({ version: 1 });
+  expect(JSON.parse(new TextDecoder().decode(files.get("head")))).toEqual(snapshot("initial", 0));
   expect(await readSnapshotHead(provider, "head")).toEqual(snapshot("a"));
 });
 
@@ -83,17 +83,10 @@ it("未知提交结果不会推进本地状态，坏链不能作为新版本使�
   await expect(readSnapshotHead(provider, "head")).rejects.toThrow("版本链无效");
 });
 
-it("旧协议元信息可衔接升级，旧指针也能发现新提交", async () => {
+it("单体旧格式在读取阶段拒绝，不提供转换回退", async () => {
   const { files, provider } = backend();
-  const old = { ...snapshot("old", 743), dataModelVersion: 3 };
-  files.set("head", encode(old));
-  expect(await readSnapshotHead(provider, "head")).toEqual(old);
-  expect(() => assertCompatibleSync(old)).toThrow("DB_MODEL_INCOMPATIBLE");
-  provider.uploadFile = async () => false;
-  const next = snapshot("upgraded", 744);
-  await publishSnapshot(provider, "head", old, next);
-  expect(await readSnapshotHead(provider, "head")).toEqual(next);
-  expect(() => assertCompatibleSync(next)).not.toThrow();
+  files.set("head", encode({ ...snapshot("old"), dataModelVersion: 5 }));
+  await expect(readSnapshotHead(provider, "head")).rejects.toThrow("DB_MODEL_INCOMPATIBLE");
 });
 
 it.each([undefined, 0, 1, 2, 3, 4, SYNC_MODEL_VERSION + 1, "5", -1, 4.5])(
@@ -116,3 +109,9 @@ it.each([SYNC_MODEL_VERSION + 1, "3", -1, 3.5])(
     await expect(readSnapshotHead(provider, "head")).rejects.toThrow("DB_MODEL_INCOMPATIBLE");
   }
 );
+
+it("零版本也不接纳单体对象字段作为恢复入口", async () => {
+  const { files, provider } = backend();
+  files.set("head", encode({ version: 0, databaseObject: "old.db" }));
+  await expect(readSnapshotHead(provider, "head")).rejects.toThrow("DB_MODEL_INCOMPATIBLE");
+});
