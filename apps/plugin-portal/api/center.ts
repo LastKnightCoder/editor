@@ -63,13 +63,9 @@ const version = (row: Metadata, env: Env): CenterVersion => ({
   formatVersion: row.format_version,
   apiVersion: 1,
   profile: row.profile,
-  // 已发布客户端直接读取这两个数组；新清单与兼容判断不再依赖它们。
   targets: Object.fromEntries(
     Object.entries(JSON.parse(row.targets_json) as Record<string, { minAppVersion: string }>).map(
-      ([platform, target]) => [
-        platform,
-        { minAppVersion: target.minAppVersion, required: [], optional: [] },
-      ]
+      ([platform, target]) => [platform, { minAppVersion: target.minAppVersion }]
     )
   ),
   publishedAt: row.published_at,
@@ -77,56 +73,15 @@ const version = (row: Metadata, env: Env): CenterVersion => ({
   sha256: row.sha256,
   downloadUrl: `${env.API_ORIGIN}/v2/releases/${row.id}/download`,
 });
-type HistoricalHost = CenterHost & { capabilities?: readonly string[] };
-
-function readRequestHost(value: unknown): HistoricalHost {
-  const host = normalizeCenterHost(value as CenterHost);
-  const capabilities = (value as { capabilities?: unknown }).capabilities;
-  if (capabilities === undefined) return host;
-  if (
-    !Array.isArray(capabilities) ||
-    capabilities.length > 128 ||
-    capabilities.some(name => typeof name !== "string" || !/^[a-z][a-zA-Z0-9]{0,127}$/.test(name))
-  )
-    throw new Error("历史客户端能力信息无效");
-  return { ...host, capabilities: [...new Set(capabilities)].sort() };
-}
-
-function compatibility(
-  row: Metadata,
-  env: Env,
-  host?: CenterHost
-): CenterCompatibility & { missingOptional: readonly [] } {
+function compatibility(row: Metadata, env: Env, host?: CenterHost): CenterCompatibility {
   if (host && row.format_version === 3 && !portablePlatformEnabled(env, host.platform))
     return {
       status: "incompatible",
       reasons: [{ code: "DISTRIBUTION_UNAVAILABLE" }],
-      missingOptional: [],
     };
-  const result = evaluateCenterCompatibility(version(row, env), host);
-  const available = (host as HistoricalHost | undefined)?.capabilities;
-  const required = host
-    ? (JSON.parse(row.targets_json)[host.platform]?.required as string[] | undefined)
-    : undefined;
-  // 已发布客户端读取历史包时仍需遵守原约束，新清单不携带这些字段。
-  if (
-    result.status === "compatible" &&
-    host &&
-    available &&
-    required?.some(name => !available.includes(name))
-  )
-    return {
-      status: "incompatible",
-      reasons: [
-        {
-          code: "APP_VERSION_TOO_LOW",
-          minAppVersion: host.platform === "desktop" ? "0.59.4" : "0.2.4",
-        },
-      ],
-      missingOptional: [],
-    };
-  return { ...result, missingOptional: [] };
+  return evaluateCenterCompatibility(version(row, env), host);
 }
+
 function validate<T>(fn: () => T): T {
   try {
     return fn();
@@ -319,7 +274,6 @@ async function catalog(request: Request, env: Env) {
   const input = await body(request);
   fields(input, ["platform", "host", "q", "category", "sort", "limit", "cursor"]);
   const query = validate(() => normalizeCenterQuery(input as unknown as CenterCatalogQuery));
-  if (query.host) query.host = validate(() => readRequestHost(input.host));
   const { day, windowStart } = downloadWindow();
   const scope = await sha256(JSON.stringify({ ...query, cursor: null, day }));
   const after = decodeCursor<Position>(query.cursor, scope);
@@ -407,7 +361,7 @@ export async function centerRoute(
     if (plugin[2] === "resolve" && request.method === "POST") {
       const input = await body(request);
       fields(input, ["host", "releaseId"]);
-      const host = validate(() => readRequestHost(input.host));
+      const host = validate(() => normalizeCenterHost(input.host as CenterHost));
       if (
         input.releaseId !== undefined &&
         (typeof input.releaseId !== "string" || !input.releaseId)
@@ -427,7 +381,7 @@ export async function centerRoute(
           ? compatibility(selected, env, host)
           : candidates.length
             ? compatibility(candidates[0], env, host)
-            : { status: "incompatible", reasons: [{ code: "NO_RELEASE" }], missingOptional: [] },
+            : { status: "incompatible", reasons: [{ code: "NO_RELEASE" }] },
       });
     }
     if (plugin[2] === "releases" && request.method === "GET") {

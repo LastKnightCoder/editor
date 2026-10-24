@@ -133,6 +133,12 @@ export interface PluginCenterClient {
 
 export function normalizeCenterHost(host: CenterHost): CenterHost {
   if (!host || !PORTABLE_PLATFORMS.includes(host.platform)) throw new Error("宿主平台无效");
+  if (
+    Object.keys(host).some(
+      key => !["platform", "appVersion", "apiVersions", "formatVersions", "profiles"].includes(key)
+    )
+  )
+    throw new Error("宿主信息包含未知字段");
   comparePluginVersions(host.appVersion, host.appVersion);
   const numbers = (values: readonly number[]) => {
     if (
