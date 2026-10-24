@@ -475,4 +475,5 @@ Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开
 - **原生命令**（`src-tauri/src/app_update.rs`）：`app_update_check` 读清单并与 `package_info().version` 比较；`app_update_download` 经 `Channel` 回传进度，下载到 `app_cache_dir()/app-update/`，边下边算 SHA-256，大小或摘要不符即删除，同摘要的已下载文件直接复用，同时只允许一个下载；`app_update_install` 只接受版本号、自行拼出缓存路径，经 JNI 调 `MainActivity.installAppUpdate` → `AppUpdateInstaller` 用 FileProvider 交给系统安装器。下载地址只由固定发布源与校验过的文件名拼出，前端不传 URL 或路径。
 - **安装授权**：清单声明 `REQUEST_INSTALL_PACKAGES`；未获「安装未知应用」授权时打开系统授权页并返回 `permission-required`，用户返回后再点「安装」。覆盖安装要求证书不变，发布脚本以线上清单的 `certSha256` 对账，证书不同拒绝发布。
 - **前端状态**：`useAppUpdate`（zustand，模块级）保存检查结果、阶段、进度与 `checkedAt`，离开关于页下载继续。「我的」页的「关于与更新」行（`AboutUpdateItem`）、关于页与更新内容页挂载时调 `useAutoUpdateCheck`：没检查过或距上次成功检查超过 6 小时才发起，检查/下载中或已下载待安装时不打断。有新版本时「关于与更新」行尾显示红点与版本号。错误码 `APP_UPDATE_*` 映射为中文提示。
+- **JNI 方法保留**：Rust 经 JNI 按名字调用的 Kotlin 方法（`takeIncomingFile`、`installAppUpdate`）在 Kotlin 侧没有调用方，release 构建的 R8 会删掉，调用时 `NoSuchMethodError` 闪退。这类方法一律登记在 `gen/android/app/proguard-jni.pro`（`git add -f` 入库，build.gradle 收集 app 下所有 `*.pro`）；`publish:mobile` 构建后用 dexdump 对照该文件，缺失即拒绝发布。Rust 侧 JNI 调用失败时清掉待处理的 Java 异常，只让该命令报错。
 - **边界**：不做后台静默检查与静默安装；以后进应用商店的渠道包须关闭应用内安装。

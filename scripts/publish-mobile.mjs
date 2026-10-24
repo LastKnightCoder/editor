@@ -22,7 +22,9 @@ import {
   assertPublishable,
   assertVersionsAligned,
   buildAndroidManifest,
+  findMissingJniMethods,
   parseBadging,
+  parseJniKeepRules,
   parseSignerDigest,
   readMobileVersions,
   writeMobileVersion,
@@ -32,6 +34,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const mobileDir = join(root, "apps/mobile");
 const releaseNotesDir = join(mobileDir, "release-notes");
 const outputDir = join(mobileDir, "release");
+const jniRulesFile = join(mobileDir, "src-tauri/gen/android/app/proguard-jni.pro");
 const builtApk = join(
   mobileDir,
   "src-tauri/gen/android/app/build/outputs/apk/arm64/release/app-arm64-release.apk"
@@ -45,7 +48,8 @@ function printHelp() {
 版本号默认取 apps/mobile 当前值，四处版本（package.json、tauri.conf.json、Cargo.toml、Cargo.lock）必须一致。
 发布前必须准备好 apps/mobile/release-notes/<版本>.md 更新说明，缺失即拒绝发布。
 指定 --version 时先回写四处版本再构建；构建或上传失败时版本号不回滚，修复后可用 --skip-build 重试。
-发布前核对安装包的应用 ID、版本与签名证书，证书与线上版本不同即拒绝（已安装用户无法覆盖升级）。
+发布前核对安装包的应用 ID、版本与签名证书，证书与线上版本不同即拒绝（已安装用户无法覆盖升级）；
+并用 dexdump 确认 proguard-jni.pro 登记的 JNI 方法都还在，缺失即拒绝（被 R8 删掉会启动闪退）。
 上传全部成功后自动创建 mobile-vX.Y.Z 版本 tag（已存在则跳过，不自动推送）。iOS 不经此脚本分发。
 
 选项:
@@ -116,14 +120,20 @@ function resolveAndroidEnv() {
 }
 
 function run(command, args, env) {
-  return execFileSync(command, args, { cwd: root, encoding: "utf8", env });
+  // dexdump 会输出整个 dex 的结构（十几 MB），默认 1 MB 缓冲不够
+  return execFileSync(command, args, {
+    cwd: root,
+    encoding: "utf8",
+    env,
+    maxBuffer: 512 * 1024 * 1024,
+  });
 }
 
 function sha256Of(file) {
   return createHash("sha256").update(readFileSync(file)).digest("hex");
 }
 
-/** 核对安装包身份：应用 ID、版本号与签名证书都来自 APK 本身，而不是构建配置 */
+/** 核对安装包身份与完整性：应用 ID、版本号、签名证书与 JNI 方法都来自 APK 本身，而不是构建配置 */
 function inspectApk(apk, version, { env, buildTools }) {
   const badging = parseBadging(run(join(buildTools, "aapt2"), ["dump", "badging", apk], env));
   if (badging.packageName !== ANDROID_PACKAGE_NAME) {
@@ -135,6 +145,16 @@ function inspectApk(apk, version, { env, buildTools }) {
   const certSha256 = parseSignerDigest(
     run(join(buildTools, "apksigner"), ["verify", "--print-certs", apk], env)
   );
+  if (!existsSync(jniRulesFile)) throw new Error(`没有找到 JNI 保留规则: ${jniRulesFile}`);
+  const missing = findMissingJniMethods(
+    run(join(buildTools, "dexdump"), [apk], env),
+    parseJniKeepRules(readFileSync(jniRulesFile, "utf8"))
+  );
+  if (missing.length > 0) {
+    throw new Error(
+      `安装包缺少 Rust 经 JNI 调用的方法（${missing.join("、")}），调用时会闪退；检查 proguard-jni.pro 的保留规则`
+    );
+  }
   return { versionCode: badging.versionCode, certSha256 };
 }
 
