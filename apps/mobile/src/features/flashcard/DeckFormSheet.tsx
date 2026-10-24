@@ -8,8 +8,7 @@ import { DECK_COLORS, DECK_EMOJIS } from "./constants";
 import type { FlashcardDeck } from "./types";
 import { invalidateFlashcardQueries } from "./queries";
 
-const inputClass =
-  "w-full rounded-[14px] bg-page px-3.5 py-3 text-[14px] font-semibold text-ink-1 placeholder:text-ink-3 placeholder:font-medium outline-none focus:bg-surface";
+const inputClass = "input-base w-full px-3.5 py-3 font-semibold placeholder:font-medium";
 
 type DeckFormSheetProps = {
   open: boolean;

@@ -190,7 +190,7 @@ export function ActionSheet({
             data-allow-touchmove="true"
             style={{
               y,
-              paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 10px)",
+              paddingBottom: "calc(var(--mobile-overlay-bottom) + 10px)",
             }}
             {...panelBindings}
           >

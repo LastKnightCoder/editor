@@ -36,7 +36,7 @@ export function PluginPageShell({
       <PageHeader title={title} onBack={() => void navigator.goBack("ui")} actions={actions}>
         {header}
       </PageHeader>
-      <div className="mobile-kb-scroll min-h-0 flex-1 overflow-auto px-4 pb-[var(--mobile-safe-bottom)]">
+      <div className="mobile-page-scroll min-h-0 flex-1 overflow-auto px-4">
         <PortalScope>
           <UiHostProvider registerDismiss={registerDismiss}>
             <UiProvider className="contents">{children}</UiProvider>

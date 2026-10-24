@@ -33,7 +33,7 @@ import type { Flashcard, FlashcardDifficulty, FlashcardType } from "./types";
 
 // 轻纸面：非核心输入无底色无边框，光标即焦点反馈（对齐 card-edit-redesign-a 方案）
 const bareInputClass =
-  "w-full resize-none rounded-none border-0 bg-transparent px-1 py-2 text-[14px] font-semibold text-ink-1 outline-none placeholder:font-medium placeholder:text-ink-3";
+  "w-full resize-none rounded-none border-0 bg-transparent px-1 py-2 input-text font-semibold text-ink-1 outline-none placeholder:font-medium placeholder:text-ink-3";
 
 const editorClass =
   "bg-transparent text-ink-1 min-h-[110px] w-full px-1 py-1.5 text-[16px] font-bold leading-[1.7] outline-none";
@@ -338,11 +338,7 @@ export function CardEditPage({
   )?.name;
 
   return (
-    <div
-      ref={setPageRootEl}
-      className="mobile-kb-screen bg-page flex h-full flex-col"
-      style={{ paddingBottom: "var(--page-bottom-inset)" }}
-    >
+    <div ref={setPageRootEl} className="mobile-kb-screen bg-page flex h-full flex-col">
       <PageHeader
         title={deckName ?? (isEditing ? "编辑闪卡" : "新建闪卡")}
         onBack={requestExit}
@@ -357,10 +353,7 @@ export function CardEditPage({
           </button>
         }
       />
-      <div
-        ref={scrollRef}
-        className="edge-fade-scroll mobile-floating-toolbar-scroll flex-1 overflow-y-auto"
-      >
+      <div ref={scrollRef} className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto">
         <div className="flex flex-col gap-[18px] px-4 pt-2">
           {/* 题干（主角卡）：题型徽标 + 无底色编辑器 */}
           <div className="shadow-card bg-surface rounded-[22px] p-4">
@@ -528,7 +521,7 @@ export function CardEditPage({
                 value={answerText}
                 onChange={setAnswerText}
                 placeholder="复习时先自答再对照"
-                className={`${bareInputClass} text-[15px] leading-[1.7]`}
+                className={`${bareInputClass} leading-[1.7]`}
               />
             </div>
           ) : null}
@@ -635,7 +628,7 @@ export function CardEditPage({
                 }
               }}
               placeholder="输入后按回车，如：期货"
-              className="text-ink-1 placeholder:text-ink-3 w-full bg-transparent px-1 pb-1 pt-1.5 text-[13px] font-semibold outline-none placeholder:font-medium"
+              className="text-ink-1 placeholder:text-ink-3 input-text w-full bg-transparent px-1 pb-1 pt-1.5 font-semibold outline-none placeholder:font-medium"
             />
           </div>
         </div>
@@ -774,7 +767,7 @@ function OptionRow({
           placeholder={`选项 ${String.fromCharCode(65 + index)}`}
           onChange={event => onLabelChange(event.target.value)}
           onFocus={() => setExpanded(true)}
-          className="text-ink-1 placeholder:text-ink-3 w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-[14px] font-semibold leading-[1.6] outline-none placeholder:font-medium"
+          className="text-ink-1 placeholder:text-ink-3 input-text w-full resize-none overflow-hidden border-0 bg-transparent p-0 font-semibold leading-[1.6] outline-none placeholder:font-medium"
           style={
             folded
               ? {

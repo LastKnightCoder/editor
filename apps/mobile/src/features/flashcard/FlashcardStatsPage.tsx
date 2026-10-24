@@ -48,11 +48,7 @@ export function FlashcardStatsPage({ onBack, onOpenReview }: FlashcardStatsPageP
   return (
     <div className="mobile-kb-screen bg-page flex h-full flex-col">
       <PageHeader title="复习统计" onBack={onBack} />
-      <div
-        ref={scrollRef}
-        className="edge-fade-scroll flex-1 overflow-y-auto"
-        style={{ paddingBottom: "var(--page-bottom-inset)" }}
-      >
+      <div ref={scrollRef} className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto">
         <div className="flex flex-col gap-3.5 px-5 pt-2">
           {/* 概览 */}
           <div className="grid grid-cols-2 gap-2.5">

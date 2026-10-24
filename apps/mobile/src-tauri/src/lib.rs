@@ -1,6 +1,8 @@
 mod chunked_sync;
 mod collaboration;
 mod database;
+#[cfg(target_os = "ios")]
+mod ios_input_accessory;
 mod models;
 mod plugin_center;
 mod plugin_fetch;
@@ -234,6 +236,14 @@ pub fn run() {
             request_background
         ])
         .setup(|app| {
+            #[cfg(target_os = "ios")]
+            {
+                use tauri::Manager;
+                if let Some(main_webview) = app.get_webview_window("main") {
+                    let _ = main_webview
+                        .with_webview(|webview| ios_input_accessory::hide(webview.inner()));
+                }
+            }
             // 启动后后台补齐缺失的封面缩略图，避免列表打开时在关键路径现场解码全尺寸图
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {

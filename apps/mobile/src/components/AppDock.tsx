@@ -17,6 +17,7 @@ import {
   type TabKey,
 } from "../router";
 import { useAppContext } from "../app/AppContext";
+import { useKeyboardViewport } from "./KeyboardViewportProvider";
 import { useDiaryStore, warmupDiaryTabCache } from "../features/diary/store/useDiaryStore";
 import { getTodayDateKey } from "../features/diary/feedUtils";
 import { describeDiaryPeriod } from "../features/diary/dateKey";
@@ -115,7 +116,9 @@ function AppDock() {
   const topKey = entries[entries.length - 1]?.key ?? "home";
   const topEntryId = entries[entries.length - 1]?.id;
   // Dock 只在 Tab 根显示：二级页（任务中心/番茄专注等）与沉浸 overlay 一律隐藏
-  const visible = isTabRoot(topKey);
+  const { isKeyboardVisible } = useKeyboardViewport();
+  // 键盘弹出时让出底部：Dock 固定在屏幕底，键盘上方的可见区不再需要它
+  const visible = isTabRoot(topKey) && !isKeyboardVisible;
 
   // 激活 Tab = 栈内最靠近顶部的 Tab 根（二级页归属其入口 Tab），兜底今天；
   // 滑动手势期间以 origin 为准——push 预推入会提前改栈，但高亮只应在页面

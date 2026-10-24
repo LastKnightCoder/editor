@@ -173,7 +173,7 @@ describe("InsertPanel", () => {
     expect(getSection("plugin")).toBeNull();
   });
 
-  it("搜索框按下不阻止默认行为；获焦后预留 = max(原面板高度, 键盘 + 结果区)，失焦恢复", () => {
+  it("搜索框按下不阻止默认行为；获焦后预留 = max(原面板高度, 预计键盘 + 结果区)，失焦恢复", () => {
     const onSearchingChange = vi.fn();
     const controller = createControllerStub();
     const renderWith = () =>
@@ -191,8 +191,8 @@ describe("InsertPanel", () => {
       input.focus();
     });
     expect(onSearchingChange).toHaveBeenLastCalledWith(true);
-    // 键盘尚未升起：不低于原面板高度
-    expect(reservation.reserve).toHaveBeenLastCalledWith(300);
+    // 键盘尚未升起：按预计键盘高度（最近一轮键盘峰值 300）+ 结果区提前预留
+    expect(reservation.reserve).toHaveBeenLastCalledWith(300 + 220);
     viewport.rawKeyboardHeight = 280;
     renderWith();
     expect(reservation.reserve).toHaveBeenLastCalledWith(280 + 220);

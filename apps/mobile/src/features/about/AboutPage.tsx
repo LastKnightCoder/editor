@@ -64,15 +64,10 @@ export function AboutPage({ onBack }: AboutPageProps) {
     <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
       <PageHeader title="关于" onBack={onBack} />
 
-      {/* 二级页无吸底 Dock，底部只留常规呼吸空间（同番茄钟主页/详情页）：
-          留白挂外层容器，滚动容器自身不带 padding，内容不会顶到安全区 */}
-      <div
-        className="flex min-h-0 flex-1 flex-col"
-        style={{ paddingBottom: "var(--page-bottom-inset)" }}
-      >
+      <div className="flex min-h-0 flex-1 flex-col">
         <div
           ref={scrollRef}
-          className="edge-fade-scroll flex-1 overflow-y-auto overscroll-contain px-4 pt-4"
+          className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto overscroll-contain px-4 pt-4"
         >
           <div className="list-group p-4">
             <h2 className="text-ink-1 mb-3 text-[15px] font-bold">应用信息</h2>

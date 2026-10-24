@@ -113,7 +113,7 @@ export function ActionSheet(props: ActionSheetProps) {
         }}
       >
         <div className="sheet-grab" />
-        <div className="pb-[calc(env(safe-area-inset-bottom,0px)+10px)]">
+        <div className="pb-[10px]">
           <div className="border-line-2 border-b px-6 pb-[14px] pt-1.5">
             <div className="text-ink-1 truncate text-[17px] font-bold">{props.title}</div>
           </div>

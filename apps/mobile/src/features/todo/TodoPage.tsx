@@ -509,13 +509,11 @@ export function TodoPage({
         </span>
       </div>
 
-      {/* 二级页无吸底 Dock，底部只留常规呼吸空间（同项目/知识库列表）：
-          留白挂外层容器，滚动容器自身不带 padding，内容不会顶到安全区 */}
-      <div
-        className="flex min-h-0 flex-1 flex-col overscroll-contain"
-        style={{ paddingBottom: "var(--page-bottom-inset)" }}
-      >
-        <div ref={listScrollRef} className="edge-fade-scroll flex-1 overflow-y-auto">
+      <div className="flex min-h-0 flex-1 flex-col overscroll-contain">
+        <div
+          ref={listScrollRef}
+          className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto"
+        >
           {itemsQuery.isLoading ? (
             <div className="text-ink-3 px-4 py-8 text-center text-sm">正在加载任务...</div>
           ) : (
@@ -551,7 +549,7 @@ export function TodoPage({
             if (e.key === "Enter") void handleCreateGroup();
           }}
           placeholder="请输入分组名称"
-          className="input-base h-11 w-full px-4 text-[14px]"
+          className="input-base w-full px-4"
         />
         <button
           type="button"
@@ -622,7 +620,7 @@ export function TodoPage({
             if (e.key === "Enter") void handleCreateRelative();
           }}
           placeholder="请输入任务标题"
-          className="input-base h-11 w-full px-4 text-[14px]"
+          className="input-base w-full px-4"
         />
         <button
           type="button"
@@ -649,7 +647,7 @@ export function TodoPage({
             if (e.key === "Enter") void handleCreateItem();
           }}
           placeholder="请输入任务标题"
-          className="input-base h-11 w-full px-4 text-[14px]"
+          className="input-base w-full px-4"
         />
         <button
           type="button"

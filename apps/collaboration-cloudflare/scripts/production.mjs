@@ -29,6 +29,20 @@ if (
 )
   throw new Error("已绑定产品域名的部署禁止指向演练实例");
 const [action = "status", directoryArg, ...flags] = process.argv.slice(2);
+if (
+  ![
+    "status",
+    "deploy",
+    "import",
+    "verify",
+    "activate",
+    "backup",
+    "maintenance",
+    "resume",
+    "bind-route",
+  ].includes(action)
+)
+  throw new Error("不支持的操作：" + action);
 const execute = process.argv.includes("--execute");
 const directory = directoryArg && directoryArg !== "--execute" ? resolve(directoryArg) : undefined;
 if (flags.some(flag => flag !== "--execute")) throw new Error("未知参数");
@@ -176,63 +190,6 @@ if (action === "deploy") {
   console.log(
     JSON.stringify(await service("/_admin/maintenance", "POST", { enabled: false }), null, 2)
   );
-} else if (action === "bridge-legacy") {
-  const health = await service("/health/ready");
-  if (!health.ok || health.instance !== config.vars.INSTANCE_NAME)
-    throw new Error("正式实例未就绪");
-  const hostname = new URL(config.vars.PUBLIC_URL).hostname;
-  if (hostname !== "collab.taunote.app") throw new Error("上游地址无效");
-  const resolution = await fetch(
-    "https://cloudflare-dns.com/dns-query?name=" + hostname + "&type=A",
-    { headers: { accept: "application/dns-json" } }
-  );
-  const addresses = (await resolution.json()).Answer?.filter(row => row.type === 1).map(
-    row => row.data
-  );
-  if (!Array.isArray(addresses) || !addresses.length || addresses.some(ip => !/^[0-9.]+$/.test(ip)))
-    throw new Error("Cloudflare入口解析失败");
-  const script = `
-import pathlib,re,shutil,subprocess,time
-host=${JSON.stringify(hostname)}
-addresses=${JSON.stringify(addresses)}
-upstream=None
-for ip in addresses:
-    result=subprocess.run(["curl","-fsS","--max-time","10","--resolve",host+":443:"+ip,"https://"+host+"/health/ready"],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-    if result.returncode==0 and b"production-v1" in result.stdout:
-        upstream=ip
-        break
-if not upstream: raise RuntimeError("Cloudflare上游不可用")
-ca=next((p for p in ["/etc/ssl/certs/ca-certificates.crt","/etc/pki/tls/certs/ca-bundle.crt"] if pathlib.Path(p).exists()),None)
-if not ca: raise RuntimeError("上游证书信任链缺失")
-backup=pathlib.Path("/root/tau-collab-migration")/str(int(time.time()))
-backup.mkdir(parents=True,mode=0o700)
-changed=[]
-pattern=r"location\\s+/\\s*\\{[^{}]*proxy_pass\\s+http://127\\.0\\.0\\.1:3210;[^{}]*\\}"
-for path in pathlib.Path("/etc/nginx/conf.d").glob("*.conf"):
-    original=path.read_text()
-    def replace(match):
-        block=match.group(0).replace("proxy_pass http://127.0.0.1:3210;","proxy_pass https://"+upstream+";\\n    proxy_ssl_server_name on;\\n    proxy_ssl_name "+host+";\\n    proxy_ssl_verify on;\\n    proxy_ssl_verify_depth 5;\\n    proxy_ssl_trusted_certificate "+ca+";")
-        return re.sub(r"proxy_set_header\\s+Host\\s+[^;]+;","proxy_set_header Host "+host+";",block)
-    updated=re.sub(pattern,replace,original,flags=re.S)
-    if updated!=original:
-        shutil.copy2(path,backup/path.name)
-        path.write_text(updated)
-        changed.append(path)
-try:
-    subprocess.run(["nginx","-t"],check=True)
-except Exception:
-    for path in changed: shutil.copy2(backup/path.name,path)
-    raise
-subprocess.run(["systemctl","reload","nginx"],check=True)
-print("已转发",len(changed),"个旧协作入口配置")
-`;
-  const result = spawnSync(
-    "ssh",
-    ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "ali-ecs", "python3 -"],
-    { input: script, stdio: ["pipe", "inherit", "inherit"] }
-  );
-  if (result.error) throw result.error;
-  if (result.status !== 0) process.exit(result.status ?? 1);
 } else if (action === "bind-route") {
   const health = await service("/health/ready");
   if (!health.ok || health.instance !== config.vars.INSTANCE_NAME)
@@ -247,5 +204,5 @@ print("已转发",len(changed),"个旧协作入口配置")
   console.log("产品协作路由已绑定；DNS记录需开启代理，来源地址可使用192.0.2.1占位");
 } else
   throw new Error(
-    "用法：production.mjs status | deploy | import <目录> | verify <目录> | activate | backup | maintenance | resume | bind-route | bridge-legacy [--execute]"
+    "用法：production.mjs status | deploy | import <目录> | verify <目录> | activate | backup | maintenance | resume | bind-route [--execute]"
   );
