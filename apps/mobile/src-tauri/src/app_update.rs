@@ -272,7 +272,11 @@ async fn launch_installer(app: &AppHandle, path: String) -> Result<InstallOutcom
                         )
                     })
                     .and_then(|value| value.i())
-                    .unwrap_or(-1);
+                    .unwrap_or_else(|_| {
+                        // 调用失败会留下待处理的 Java 异常，不清掉回到主循环就会闪退
+                        let _ = env.exception_clear();
+                        -1
+                    });
                 let _ = sender.send(code);
             });
         })

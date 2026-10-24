@@ -83,6 +83,10 @@ async fn take_pending_path(app: &AppHandle) -> Result<Option<String>, String> {
                 let path = env
                     .call_method(activity, "takeIncomingFile", "()Ljava/lang/String;", &[])
                     .and_then(|value| value.l())
+                    .inspect_err(|_| {
+                        // 调用失败会留下待处理的 Java 异常，不清掉回到主循环就会闪退
+                        let _ = env.exception_clear();
+                    })
                     .ok()
                     .filter(|object| !object.is_null())
                     .and_then(|object| {
