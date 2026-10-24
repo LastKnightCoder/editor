@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createBridgeWebSocket,
   SOCKET_QUEUE_BYTES,
@@ -18,7 +18,8 @@ class TestCloseEvent extends Event {
   }
 }
 vi.stubGlobal("CloseEvent", TestCloseEvent);
-const tick = () => new Promise(resolve => setTimeout(resolve, 10));
+const tick = () => vi.advanceTimersByTimeAsync(20);
+beforeEach(() => vi.useFakeTimers());
 function harness() {
   const incoming: SocketIncoming[] = [];
   let reader: ((event: SocketIncoming) => void) | undefined;
@@ -56,6 +57,7 @@ const cleanup: AbortController[] = [];
 afterEach(async () => {
   cleanup.splice(0).forEach(controller => controller.abort());
   await tick();
+  vi.useRealTimers();
 });
 function create() {
   const value = harness();

@@ -16,11 +16,15 @@ import { TranscriptionService } from "../whisper-engine";
 
 const workingDirectories = new Set<string>();
 beforeEach(async () => {
-  state.root = await mkdtemp(path.join(os.tmpdir(), "tau-whisper-test-"));
+  state.root = await mkdtemp(path.join(os.tmpdir(), "tau-whisper-中文 空格-"));
   await mkdir(path.join(state.root, "build/bin/darwin"), { recursive: true });
   await writeFile(path.join(state.root, "build/bin/darwin/whisper-cli"), "fixture");
   await mkdir(path.join(state.root, "models/whisper-cpp-base"), { recursive: true });
   await writeFile(path.join(state.root, "models/whisper-cpp-base/ggml-base.bin"), "fixture");
+  await mkdir(path.join(state.root, "bin"), { recursive: true });
+  await writeFile(path.join(state.root, "bin/faster-whisper.exe"), "fixture");
+  await mkdir(path.join(state.root, "models/faster-whisper-base"), { recursive: true });
+  await writeFile(path.join(state.root, "models/faster-whisper-base/model.bin"), "fixture");
   state.run.mockReset();
   workingDirectories.clear();
   state.run.mockImplementation(async (binary: string, args: string[], signal: AbortSignal) => {
@@ -33,7 +37,10 @@ beforeEach(async () => {
       workingDirectories.add(path.dirname(output));
       await writeFile(output, "normalized");
     } else {
-      const output = args[args.indexOf("-of") + 1];
+      const output =
+        process.platform === "darwin"
+          ? args[args.indexOf("-of") + 1]
+          : args.at(-1)!.replace(/\.wav$/, "");
       await writeFile(
         `${output}.srt`,
         "1\n00:00:00,000 --> 00:00:01,000\n1234\n\n2\n00:00:01,000 --> 00:00:02,000\n尾句\n"
@@ -46,7 +53,18 @@ afterEach(async () => {
   await rm(state.root, { recursive: true, force: true });
 });
 
-describe.skipIf(process.platform !== "darwin")("Whisper 文件边界", () => {
+describe.skipIf(!["darwin", "win32"].includes(process.platform))("Whisper 文件边界", () => {
+  it.skipIf(process.platform !== "win32")("GPU 程序存在时仍尊重显式 CPU 选择", async () => {
+    const directory = path.join(state.root, "bin/Faster-Whisper-XXL");
+    await mkdir(directory, { recursive: true });
+    await writeFile(path.join(directory, "faster-whisper-xxl.exe"), "fixture");
+    const source = path.join(state.root, "中文 输入.wav");
+    await writeFile(source, "original");
+    await new TranscriptionService().transcribe(source, { device: "cpu" });
+    const call = state.run.mock.calls.find(([binary]) => binary.endsWith("faster-whisper-xxl.exe"));
+    expect(call).toBeDefined();
+    expect(call![1][call![1].indexOf("-d") + 1]).toBe("cpu");
+  });
   it("同一来源的并发任务使用独立目录，保留数字字幕与尾句", async () => {
     const source = path.join(state.root, "source.mp3");
     await writeFile(source, "original");

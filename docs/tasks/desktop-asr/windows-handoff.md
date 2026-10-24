@@ -2,6 +2,8 @@
 
 目标：把已实现的 ASR 能力交付到 Windows 实机，验证原生路线和宿主行为，通过后合并到 master。
 
+Windows 接手记录见 [Windows 验证](./windows-validation.md)。用户已确认保留 NSIS、本轮不开放 Windows 原生；接受 Whisper 显式 CPU、CUDA 已知失败、Seed 云端未验证及未签名安装包的范围，剩余检查通过后合并。下文 Mac 结果保留为交接基线。
+
 ## 分支与提取边界
 
 - 主仓库分支：`codex/asr-windows-validation`。
@@ -68,4 +70,4 @@ Windows 不要求兼容所有版本。系统版本、硬件、语言模型、包
 
 以上为 Mac 隔离源码检查，Windows 仍待实机验证。
 
-宿主提交 `b2eaa025e` 已推送至主仓库的 `codex/asr-windows-validation`；Seed 和模板固定提交均已核对远端可达。下一步在 Windows 拉取该分支，按本文件完成实机验证，再按授权合并 master。当前 Mac 主工作区仍保留原有修改，未执行 master 合并。
+Windows 接手基线为 `151df017324cd431aa1aa7ff7153d33009f10bc4`；Seed 和模板固定提交均已核对远端可达。Mac 主工作区原有修改不在本次 Windows 工作区，后续合并和推送状态以 Windows 验证记录为准。
