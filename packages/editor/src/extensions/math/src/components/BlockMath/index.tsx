@@ -41,6 +41,9 @@ const BlockMath: React.FC<PropsWithChildren<BlockMathProps>> = props => {
         initValue={tex}
         onChange={handleInputChange}
         element={element}
+        inPlace
+        delimiters="$$"
+        immediate
       >
         <PreviewErrorReporter>
           {onError => <Katex tex={tex} onError={onError} />}

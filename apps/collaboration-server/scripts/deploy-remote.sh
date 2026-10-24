@@ -64,12 +64,12 @@ cp -a "$RELEASE/source/." "$ROOT/"
 install -m 600 "$RELEASE/next-compose.override.json" docker-compose.override.yml
 docker compose config --quiet
 docker compose up -d --no-build --wait --wait-timeout 90
-curl -fsS --retry 3 --retry-delay 2 --max-time 15 https://collab.taunote.app/health/ready
+curl -fsS --retry 3 --retry-delay 2 --max-time 15 https://collab.xiongtao.life/health/ready
 docker compose exec -T collaboration node --input-type=module -e '
   import WebSocket from "ws";
   for (const path of ["/ws", "/events"]) {
     await new Promise((resolve,reject)=>{
-      const socket=new WebSocket("wss://collab.taunote.app"+path);
+      const socket=new WebSocket("wss://collab.xiongtao.life"+path);
       const timer=setTimeout(()=>{socket.terminate();reject(new Error("WSS 超时"));},15000);
       socket.once("error",error=>{clearTimeout(timer);reject(error);});
       socket.once("open",()=>{clearTimeout(timer);socket.close();resolve();});

@@ -6,9 +6,15 @@ import "./modes";
 type Props = Omit<ComponentProps<typeof UnControlled>, "options"> & {
   mode: string;
   readOnly: boolean;
+  lineWrapping?: boolean;
 };
 
-export default function SourceCodeEditor({ mode, readOnly, ...props }: Props) {
+export default function SourceCodeEditor({
+  mode,
+  readOnly,
+  lineWrapping = false,
+  ...props
+}: Props) {
   const options = useMemo<EditorConfiguration>(
     () => ({
       mode,
@@ -22,7 +28,7 @@ export default function SourceCodeEditor({ mode, readOnly, ...props }: Props) {
       workTime: 20,
       workDelay: 100,
       maxHighlightLength: 10000,
-      lineWrapping: false,
+      lineWrapping,
       smartIndent: true,
       extraKeys: { "Shift-Tab": "indentLess" },
       indentUnit: 2,
@@ -31,7 +37,7 @@ export default function SourceCodeEditor({ mode, readOnly, ...props }: Props) {
       autoCloseBrackets: true,
       tabindex: -1,
     }),
-    [mode, readOnly]
+    [mode, readOnly, lineWrapping]
   );
   return <UnControlled {...props} options={options} />;
 }
