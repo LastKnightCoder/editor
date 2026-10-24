@@ -25,11 +25,11 @@ import { useInvalidateArticles } from "../features/articles/queries";
 import * as tauri from "../services/tauri";
 
 // 视觉映射与顺序解耦：顺序契约（TAB_ORDER）在 router/tabs.ts，供滑动手势共用
-const TAB_VISUALS: Record<TabKey, { label: string; icon: typeof House; blob: string }> = {
-  home: { label: "今天", icon: House, blob: "var(--tau-tag-5-soft)" },
-  cardsLibrary: { label: "卡片", icon: Layers, blob: "var(--tau-tag-2-soft)" },
-  diaryHome: { label: "日记", icon: NotebookPen, blob: "var(--tau-tag-1-soft)" },
-  settings: { label: "我的", icon: User, blob: "var(--tau-accent-soft)" },
+const TAB_VISUALS: Record<TabKey, { label: string; icon: typeof House }> = {
+  home: { label: "今天", icon: House },
+  cardsLibrary: { label: "卡片", icon: Layers },
+  diaryHome: { label: "日记", icon: NotebookPen },
+  settings: { label: "我的", icon: User },
 };
 
 const TABS = TAB_ORDER.map(key => ({ key, ...TAB_VISUALS[key] }));
@@ -225,7 +225,7 @@ function AppDock() {
         style={{
           zIndex: 45,
           paddingTop: "var(--dock-gap)",
-          paddingBottom: "calc(var(--dock-gap) + var(--mobile-safe-bottom))",
+          paddingBottom: "var(--dock-bottom-inset)",
           pointerEvents: "none",
           background: "var(--dock-bg)",
           // 不用 borderTop / 内层高光：深色下会呈现两条可见边线
@@ -329,22 +329,19 @@ function DockTab({
       onClick={onClick}
       aria-label={tab.label}
       aria-current={active ? "page" : undefined}
-      className="relative flex h-full min-w-0 flex-1 flex-col items-center justify-center gap-[3px]"
+      className="flex h-full min-w-0 flex-1 flex-col items-center justify-center gap-[3px] transition-colors duration-200"
       style={{ color: active ? "var(--tau-accent)" : "var(--tau-ink-3)" }}
     >
-      {/* 高亮药丸作为图标的流内容器：位置天然对齐，背景层缩放不影响图标 */}
-      <span className="relative grid h-[26px] w-[38px] place-items-center">
-        <span
-          className="absolute inset-0 rounded-full"
-          style={{
-            ...highlightBackground(tab.blob, "var(--dock-bg)"),
-            transform: active ? "scale(1)" : "scale(0)",
-            transition: "transform 0.28s var(--ease-bounce)",
-          }}
+      {/* 选中态靠颜色与描边粗细区分，不加背景 */}
+      <span className="grid h-[26px] place-items-center">
+        {/* 描边粗细走 CSS 属性而非 SVG attribute，才能和颜色一起过渡 */}
+        <Icon
+          size={20}
+          aria-hidden="true"
+          style={{ strokeWidth: active ? 2.3 : 1.9, transition: "stroke-width 0.2s ease" }}
         />
-        <Icon size={20} strokeWidth={1.9} aria-hidden="true" className="relative" />
       </span>
-      <span className="relative text-[10px] font-semibold">{tab.label}</span>
+      <span className="text-[10px] font-semibold">{tab.label}</span>
     </button>
   );
 }

@@ -84,10 +84,12 @@
   --edge-fade-bottom-size: 24px;
   /* 横向渐隐带宽度（筛选条/路径栏等横向滚动容器） */
   --edge-fade-x-size: 24px;
-  /* Dock 覆盖视口的高度 = --dock-gap × 2 + 舰体 62px（AppDock 内层 h-[62px]）+ 安全区；
+  /* Dock 覆盖视口的高度 = 上边距 --dock-gap + 舰体 62px（AppDock 内层 h-[62px]）+ 下边距 --dock-bottom-inset；
      AppDock 尺寸若调整必须同步（dock-pad 留白与 .edge-fade-bottom 的 mask 锚点均由它派生） */
   --dock-gap: 10px;
-  --dock-visual-height: calc(var(--dock-gap) * 2 + 62px + var(--mobile-safe-bottom));
+  /* 下边距与安全区取大者不叠加：有 Home 指示条时安全区本身即留白，无安全区设备保留 --dock-gap */
+  --dock-bottom-inset: max(var(--dock-gap), var(--mobile-safe-bottom));
+  --dock-visual-height: calc(var(--dock-gap) + 62px + var(--dock-bottom-inset));
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;

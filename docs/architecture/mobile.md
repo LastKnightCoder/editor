@@ -277,7 +277,8 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
   - 不要在外层容器上挂常驻的 padding-bottom。
 - **浮层内滚动**：SnapSheet、PanContainer 等不随键盘收缩的浮层，滚动容器用 `.mobile-kb-scroll`
   （或带固定底栏的 `.mobile-fixed-footer-scroll`），留白 = `1rem + --mobile-overlay-bottom + 面板遮挡`。
-- **Tab 根页**：带 Dock 的页面用 `.dock-pad`；键盘弹出时 `AppDock` 隐藏。
+- **Tab 根页**：带 Dock 的页面用 `.dock-pad`；键盘弹出时 `AppDock` 隐藏。Dock 底边距 `--dock-bottom-inset`
+  = `max(--dock-gap, --mobile-safe-bottom)`，与安全区不叠加；`--dock-visual-height` 由它派生。
 - **禁止页面缩放**：`index.html` 的 viewport 带 `maximum-scale=1.0, user-scalable=no`。iOS 聚焦字号小于 16px 的
   输入框时会自动放大并平移页面，固定布局整体错位；禁止缩放后各处输入框字号不受此限。
 - **iOS 表单辅助栏**：WKWebView 聚焦可编辑区时会出现系统辅助栏（上一个 / 下一个 / 完成）。由
