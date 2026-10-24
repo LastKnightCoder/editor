@@ -82,7 +82,7 @@ export const TEXT_STYLE_ACTIONS: ToolbarActionItem[] = [
 
 export const MORE_ACTIONS: ToolbarActionItem[] = [
   { id: "comment", label: "批注" },
-  { id: "content-link", label: "关联内容" },
+  { id: "content-link", label: "引用内容" },
 ];
 
 export const PRIMARY_ACTIONS: ToolbarActionItem[] = [

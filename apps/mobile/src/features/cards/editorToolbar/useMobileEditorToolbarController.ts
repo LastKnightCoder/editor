@@ -17,15 +17,23 @@ import { openLocalMediaPicker, openMediaUrlInput } from "@tau/editor/extensions/
 import {
   Editor as SlateEditor,
   Element as SlateElement,
+  Node as SlateNode,
   Range,
   Transforms,
   type BaseSelection,
+  type Path,
 } from "slate";
 import { ReactEditor } from "slate-react";
 
 import { useKeyboardReservation } from "../../../components/KeyboardViewportProvider";
 import type { ContentLinkPickerResult } from "../editorExtensions/ContentLinkPickerSheet";
-import { wrapContentLink } from "../editorExtensions/contentLinkTransforms";
+import {
+  CONTENT_LINK_TYPE,
+  readContentLinkTarget,
+  type ContentLinkPickerIntent,
+  type ContentLinkTarget,
+} from "../editorExtensions/contentLinkModel";
+import { retargetContentLink, wrapContentLink } from "../editorExtensions/contentLinkTransforms";
 import {
   applyColorMark as applyColorMarkToEditor,
   applyGradientMark as applyGradientMarkToEditor,
@@ -59,6 +67,7 @@ import {
   TEXT_CONTEXT,
   getEditingContextKey,
   isVoidEditorContext,
+  resolveContentLinkContext,
   resolveTableContext,
   useEditingContext,
   type CodeEditingContext,
@@ -113,6 +122,8 @@ export type ClosePanelOptions = {
 };
 
 type ListIndentDirection = "indent" | "outdent";
+
+const INSERT_PICKER_INTENT: ContentLinkPickerIntent = { mode: "insert", text: "" };
 
 /** 列表项缩进命令，按光标所在最内层列表项类型选择 */
 const LIST_INDENT_COMMANDS: Partial<Record<string, Record<ListIndentDirection, string>>> = {
@@ -188,6 +199,14 @@ export type MobileEditorToolbarController = {
   /** 把展开选区折叠到焦点端（退出格式模式） */
   collapseSelectionToFocus: () => void;
   isContentLinkPickerOpen: boolean;
+  contentLinkPickerIntent: ContentLinkPickerIntent;
+  /** 引用模式「更换」：打开选择器，选中后改写光标所在引用的目标 */
+  retargetContentLink: () => void;
+  /** 引用模式「预览」打开的引用；面板打开期间键盘收起 */
+  contentLinkPreview: ContentLinkTarget | null;
+  openContentLinkPreview: () => void;
+  /** reason 为 "open" 时随后跳转详情页，不恢复焦点 */
+  closeContentLinkPreview: (reason?: "open") => void;
   executeAction: (actionId: ToolbarActionId) => void;
   applyHeadingLevel: (level: 1 | 2 | 3 | "paragraph") => void;
   handleSelectInsertItem: (kind: InsertSheetItemKind) => void;
@@ -227,6 +246,9 @@ export function useMobileEditorToolbarController(
   const { editorRef } = options;
   const [isEditorFocused, setIsEditorFocused] = useState(false);
   const [isContentLinkPickerOpen, setIsContentLinkPickerOpen] = useState(false);
+  const [contentLinkPickerIntent, setContentLinkPickerIntent] =
+    useState<ContentLinkPickerIntent>(INSERT_PICKER_INTENT);
+  const [contentLinkPreview, setContentLinkPreview] = useState<ContentLinkTarget | null>(null);
   const [selectionVersion, setSelectionVersion] = useState(0);
   const [activePanel, setActivePanel] = useState<EditorPanelKind | null>(null);
   const [panelSelection, setPanelSelection] = useState<BaseSelection | null>(null);
@@ -236,6 +258,8 @@ export function useMobileEditorToolbarController(
 
   const lastSelectionRef = useRef<BaseSelection | null>(null);
   const pendingContentLinkSelectionRef = useRef<BaseSelection | null>(null);
+  const contentLinkRetargetPathRef = useRef<Path | null>(null);
+  const contentLinkPreviewSelectionRef = useRef<BaseSelection | null>(null);
   // 同步记录面板开关，回键盘触发的编辑器 focus 据此与「点正文」区分
   const activePanelRef = useRef<EditorPanelKind | null>(null);
   const panelSelectionRef = useRef<BaseSelection | null>(null);
@@ -316,7 +340,14 @@ export function useMobileEditorToolbarController(
           return;
         }
 
-        pendingContentLinkSelectionRef.current = editor.selection ?? lastSelectionRef.current;
+        const selection = editor.selection ?? lastSelectionRef.current;
+        pendingContentLinkSelectionRef.current = selection;
+        contentLinkRetargetPathRef.current = null;
+        setContentLinkPickerIntent({
+          mode: "insert",
+          text:
+            selection && !Range.isCollapsed(selection) ? SlateEditor.string(editor, selection) : "",
+        });
         openSheetNextTick(() => setIsContentLinkPickerOpen(true));
         markSelectionDirty();
         return;
@@ -361,6 +392,7 @@ export function useMobileEditorToolbarController(
   const handleCloseContentLinkPicker = useCallback(() => {
     setIsContentLinkPickerOpen(false);
     pendingContentLinkSelectionRef.current = null;
+    contentLinkRetargetPathRef.current = null;
     markSelectionDirty();
   }, [markSelectionDirty]);
 
@@ -588,13 +620,21 @@ export function useMobileEditorToolbarController(
         Transforms.select(editor, selectionToRestore);
       }
 
-      wrapContentLink(editor, {
-        contentId: result.contentId,
-        contentType: result.contentType,
-        contentTitle: result.contentTitle,
-        refId: result.refId,
-        displayText: result.displayText,
-      });
+      const retargetPath = contentLinkRetargetPathRef.current;
+      contentLinkRetargetPathRef.current = null;
+      if (retargetPath) {
+        const node = SlateNode.has(editor, retargetPath)
+          ? SlateNode.get(editor, retargetPath)
+          : null;
+        if (
+          SlateElement.isElement(node) &&
+          (node as { type?: string }).type === CONTENT_LINK_TYPE
+        ) {
+          retargetContentLink(editor, retargetPath, result);
+        }
+      } else {
+        wrapContentLink(editor, result);
+      }
 
       ReactEditor.focus(editor as ReactEditor);
       if (editor.selection) {
@@ -853,6 +893,46 @@ export function useMobileEditorToolbarController(
     markSelectionDirty();
   }, [editorRef, markSelectionDirty]);
 
+  const retargetContentLinkAtCursor = useCallback(() => {
+    const editor = getEditorFromRef(editorRef);
+    const context = editor ? resolveContentLinkContext(editor) : null;
+    if (!editor || !context) return;
+    pendingContentLinkSelectionRef.current = editor.selection ?? lastSelectionRef.current;
+    contentLinkRetargetPathRef.current = context.path;
+    setContentLinkPickerIntent({ mode: "replace", text: SlateNode.string(context.element) });
+    openSheetNextTick(() => setIsContentLinkPickerOpen(true));
+  }, [editorRef, openSheetNextTick]);
+
+  const openContentLinkPreview = useCallback(() => {
+    const editor = getEditorFromRef(editorRef);
+    const context = editor ? resolveContentLinkContext(editor) : null;
+    if (!editor || !context) return;
+    contentLinkPreviewSelectionRef.current = editor.selection ?? lastSelectionRef.current;
+    const target = readContentLinkTarget(context.element);
+    // 先收起键盘，面板才不会被键盘挡住
+    dismissKeyboard();
+    openSheetNextTick(() => setContentLinkPreview(target));
+  }, [dismissKeyboard, editorRef, openSheetNextTick]);
+
+  const closeContentLinkPreview = useCallback(
+    (reason?: "open") => {
+      setContentLinkPreview(null);
+      const saved = contentLinkPreviewSelectionRef.current;
+      contentLinkPreviewSelectionRef.current = null;
+      const editor = getEditorFromRef(editorRef);
+      if (reason === "open" || !editor) return;
+      if (saved) {
+        Transforms.select(editor, saved);
+      }
+      const nextSelection = restoreSelectionAndFocus(editor, saved);
+      if (nextSelection) {
+        lastSelectionRef.current = nextSelection;
+      }
+      markSelectionDirty();
+    },
+    [editorRef, markSelectionDirty]
+  );
+
   const isToolbarVisible =
     isEditorFocused ||
     activePanel !== null ||
@@ -1045,6 +1125,11 @@ export function useMobileEditorToolbarController(
       outdent,
       collapseSelectionToFocus,
       isContentLinkPickerOpen,
+      contentLinkPickerIntent,
+      retargetContentLink: retargetContentLinkAtCursor,
+      contentLinkPreview,
+      openContentLinkPreview,
+      closeContentLinkPreview,
       executeAction,
       applyHeadingLevel,
       handleSelectInsertItem,
@@ -1112,6 +1197,11 @@ export function useMobileEditorToolbarController(
       getCurrentBlockKind,
       getCurrentMarks,
       isContentLinkPickerOpen,
+      contentLinkPickerIntent,
+      retargetContentLinkAtCursor,
+      contentLinkPreview,
+      openContentLinkPreview,
+      closeContentLinkPreview,
       keepEditorFocus,
       redo,
       syncSelection,

@@ -309,13 +309,14 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
   执行后选区写回 `panelSelection`；需要输入浮层的动作（链接、批注）先回键盘再执行。点正文 = 只关面板，
   选区落在点击处。
 - **上下文识别**：`editorToolbar/editingContext.ts` 的 `useEditingContext` 在 controller 内按「void 内部编辑器 > 展开选区 >
-  表格 > 通用」给出 `editingContext`。void 内部编辑器靠 document `focusin` / `focusout`（后者等一帧再判）读 activeElement：
+  媒体 > 内容引用 > 表格 > 通用」给出 `editingContext`。void 内部编辑器靠 document `focusin` / `focusout`（后者等一帧再判）读 activeElement：
   `.code-block-shiki-input` → code（带 textarea / uuid / language），`.ed-preview-codemirror` 内 → block-math / mermaid，Slate 外
   `input[data-inline-math-input]` 且选区在 inline-math 内 → inline-math；节点须经 `toSlateNode` + `findPath` 回到本编辑器确认归属，只读时不识别。
-  焦点在 void 内部编辑器时 Slate 失焦但配件栏保持可见（白名单关掉对应上下文时按通用模式渲染）。表格与格式模式的左端标签点击 =
-  `dismissEditingContext`，按上下文 key（表格为 `table:<路径>`）记录退回，光标离开该上下文即恢复；代码块标签打开语言选择，
+  焦点在 void 内部编辑器时 Slate 失焦但配件栏保持可见（白名单关掉对应上下文时按通用模式渲染）。表格、引用与格式模式的左端标签点击 =
+  `dismissEditingContext`，按上下文 key（表格为 `table:<路径>`，引用为 `content-link:<路径>`）记录退回，光标离开该上下文即恢复；代码块标签打开语言选择，
   公式 / 流程图标签为不可点的静态标签。
-- **模式**：通用模式（+ / Aa / 待办 / 列表 / 缩进 / 关联内容 / 图片 / 撤销）；展开选区为格式模式（行内样式，「格式」标签
+- **模式**：通用模式（+ / Aa / 待办 / 列表 / 缩进 / 引用内容 / 图片 / 撤销）；光标折叠在内容引用的文字里为引用模式（左端标签为
+  引用的显示文字，中段预览 / 更换 / 移除，见下方「内容引用」）；展开选区为格式模式（行内样式，「格式」标签
   点击折叠选区）；光标在表格为表格模式（下方插行 / 右侧插列 / 删行 / 删列 / 对齐循环，「⋯」用 `ActionSheet` 列移动行列与
   删除表格；菜单打开期间动作作用于打开时保存的选区，关闭时恢复选区并聚焦），动作见 `tableActions.ts`；焦点在代码块 textarea 为代码块模式（语言标签点击打开
   常用语言 / 完整语言两级 `ActionSheet`，经 `tau.code-block.set-language` 设置后在点击内回焦；中段按语言族给符号键，见
@@ -326,7 +327,22 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
   `insertSourceText` 取 `.CodeMirror` 包裹元素上的 CodeMirror 5 实例 `replaceSelection` 并回焦，`PreviewWithEditor` 为
   react-codemirror2 `UnControlled`，change 事件经组件 onChange 防抖 500ms 写回节点，源码编辑器失焦时立即落库；行内公式 input 与代码块 textarea 共用
   `insertIntoTextControl`；「收起键盘」blur 当前焦点后回阅读态）。`visibleButtons` 以 `AccessoryItemId` 同时过滤配件栏与
-  Aa 面板，表格 / 代码块 / 公式 / 流程图模式受 `context-table` / `context-code` / `context-math` / `context-mermaid` 控制。
+  Aa 面板，表格 / 代码块 / 公式 / 流程图模式受 `context-table` / `context-code` / `context-math` / `context-mermaid` 控制，
+  引用模式与通用模式的「引用内容」同受 `content-link` 控制。
+- **内容引用（content-link）**：`features/cards/editorExtensions/`。行内样式与网页链接同族（`accent-text` 字色 + 45% accent
+  点线下划线，网页链接为实线），光标在引用内或预览打开时加 `accent-soft` 淡底；显示文字被删空时 normalize 移除节点。
+  只读时节点为 `contentEditable=false` + `role="button"`（阅读态双击与长按选字绕开），单击打开 `ContentLinkPreviewSheet`
+  （SnapSheet，内置返回拦截；经 portal 挂到 body，并在外层截断 React 事件冒泡回节点）；编辑态单击只放光标，操作在引用模式里：
+  「预览」先 `dismissKeyboard` 再开同一个面板，关闭时恢复选区并聚焦，点「打开」不恢复；「更换」以 `replace` 意图打开选择器，
+  选中后只改目标（`retargetContentLink`），显示文字不变；「移除」走 `content-link` 动作解除引用保留文字。
+  预览面板：头部类型（名称与图标沿用脉络 `ENTITY_KIND_META`）、标题（节点里的 `contentTitle`，详情未到也能显示）、更新时间
+  与字数，正文为懒加载的只读编辑器，上拉全屏；底部「打开」先关面板再按 `openContextEntity` 的规则跳转。详情经
+  react-query（`["content-link","detail",contentId]`），`CONTENT_NOT_FOUND` 归一为 `null` 显示「引用已失效」；行内节点
+  以 `enabled: false` 订阅同一缓存，打开过一次的失效引用随之显示灰色删除线（不为每个引用拉完整正文）。协作者视角
+  （`useCollaboration` 非 local 且非 owner）直接提示「内容未共享」，不查本机库。
+  选择器 `ContentLinkPickerSheet`：空关键词列最近卡片（`getCardsOverview`），输入后经 `searchAllContent` 同时搜卡片、文章
+  与项目文档（无 `contentId` 的结果不可引用），行内显示类型图标、类型名与相对时间，命中词 accent 加粗；从选中文字或「更换」
+  进入时顶部提示将要链接 / 更换的文字。
 - **阅读态**：`features/cards/readingMode/useReadingMode` 管理编辑态，宿主把 `forcedReadonly || !editing` 传给 Editor 与配件栏
   的 `readonly`（切换不重挂载）。顶栏不放编辑入口（只有返回 / 标题 / 宿主操作）：阅读态右下角悬浮按钮 `ReadingModeFab`
   「编辑」在点击内同步切换并聚焦（回上次选区，否则文末），正文下滑时收成圆形图标、上滑或回顶展开，块选择 / 拖拽 / 标注条出现时隐藏；
@@ -337,9 +353,9 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
   `CollabEditorPage` 同一接法；初始态在内容首次就绪时定一次：空文档或「打开文档时」偏好为直接编辑则进编辑并聚焦。
   偏好存 setting.json 的 `editor.openMode`（`read` 缺省 / `edit`），`hooks/useEditorOpenMode` 经设置桥读取，
   设置入口为设置页「编辑器 · 打开文档时」；`ContentDetailPage` 的 `openInEditMode` 只作强制覆盖。
-  阅读态选中文字时底部浮出标注条 `ReadingSelectionBar`（高亮、批注、摘录成卡片、关联卡片）：slate-react 只读时不同步
+  阅读态选中文字时底部浮出标注条 `ReadingSelectionBar`（高亮、批注、摘录成卡片、引用内容）：slate-react 只读时不同步
   DOM 选区，由 `useReadingSelection` 监听 `selectionchange` 自行换算为 Slate Range（展开防抖 150ms）；高亮在只读下直接写
-  marks，批注 / 关联卡片经 `enterEditingWithSelection` 在点击内同步进入编辑并选中后执行配件栏动作，摘录经
+  marks，批注 / 引用内容经 `enterEditingWithSelection` 在点击内同步进入编辑并选中后执行配件栏动作，摘录经
   `createQuickCard` 建卡；不可编辑（`forcedReadonly`）时不显示。
 - **块选择模式**：`features/cards/blockSelection/`，只作用于顶层块（`editor.children` 下标），接入 `ContentDetailPage` 与
   `CollabEditorPage`（公共状态经 `useEditorBlockSelection`）。入口：编辑态当前块左侧把手 `BlockHandle`（编辑器聚焦、通用或格式模式、

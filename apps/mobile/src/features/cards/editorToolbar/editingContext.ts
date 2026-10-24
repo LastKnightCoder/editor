@@ -42,6 +42,7 @@ export type EditingContext =
     }
   | { kind: "block-math" | "mermaid"; path: Path; host: HTMLElement }
   | { kind: "inline-math"; path: Path; input: HTMLInputElement }
+  | { kind: "content-link"; element: ElementNode; path: Path }
   | {
       kind: "media";
       mediaType: MediaElementType;
@@ -52,6 +53,8 @@ export type EditingContext =
     };
 
 export type MediaEditingContext = Extract<EditingContext, { kind: "media" }>;
+
+export type ContentLinkEditingContext = Extract<EditingContext, { kind: "content-link" }>;
 
 export type TableEditingContext = Extract<EditingContext, { kind: "table" }>;
 
@@ -222,6 +225,20 @@ export function resolveMediaContext(editor: SlateEditor): MediaEditingContext | 
   };
 }
 
+/** 光标折叠在内容引用的文字里时返回引用上下文 */
+export function resolveContentLinkContext(editor: SlateEditor): ContentLinkEditingContext | null {
+  const selection = editor.selection;
+  if (!selection || !Range.isCollapsed(selection)) return null;
+  if (ReactEditor.isReadOnly(editor as ReactEditor)) return null;
+  const entry = SlateEditor.above(editor, {
+    at: selection,
+    match: node => SlateElement.isElement(node) && getNodeType(node) === "content-link",
+  });
+  if (!entry) return null;
+  const [element, path] = entry as [ElementNode, Path];
+  return { kind: "content-link", element, path };
+}
+
 /** 光标所在单元格的表格上下文；不在表格内返回 null */
 export function resolveTableContext(editor: SlateEditor): TableEditingContext | null {
   const position = getCellPosition(editor);
@@ -238,7 +255,7 @@ export function resolveTableContext(editor: SlateEditor): TableEditingContext | 
   };
 }
 
-/** 优先级：图片说明 / void 内部编辑器（焦点所在）> 展开选区 > 媒体 > 表格 > 通用文本 */
+/** 优先级：图片说明 / void 内部编辑器（焦点所在）> 展开选区 > 媒体 > 内容引用 > 表格 > 通用文本 */
 export function resolveEditingContext(
   editor: SlateEditor,
   activeElement: Element | null
@@ -249,7 +266,12 @@ export function resolveEditingContext(
   if (focusedContext) return focusedContext;
   const selection = editor.selection;
   if (selection && !Range.isCollapsed(selection)) return SELECTION_CONTEXT;
-  return resolveMediaContext(editor) ?? resolveTableContext(editor) ?? TEXT_CONTEXT;
+  return (
+    resolveMediaContext(editor) ??
+    resolveContentLinkContext(editor) ??
+    resolveTableContext(editor) ??
+    TEXT_CONTEXT
+  );
 }
 
 /** 随选区版本与文档焦点变化重算编辑上下文；focusout 后等一帧再判，避免焦点切换瞬间闪烁 */
