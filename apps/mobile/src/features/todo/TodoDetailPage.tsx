@@ -455,13 +455,13 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
         }
       />
 
-      {/* 底部安全区由常显操作条承载（自带 pb-safe），滚动区只留呼吸空间：
-          留白挂外层容器，滚动容器自身不带 padding，内容不会贴着操作条；渐隐带在操作条上缘 */}
-      <div
-        className="flex min-h-0 flex-1 flex-col"
-        style={{ paddingBottom: "var(--page-bottom-breath)" }}
-      >
-        <div ref={scrollRef} className="edge-fade-scroll flex-1 overflow-y-auto overscroll-contain">
+      {/* 底部安全区由常显操作条承载，滚动区末尾只留呼吸；渐隐带在操作条上缘 */}
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div
+          ref={scrollRef}
+          data-page-footer
+          className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto overscroll-contain"
+        >
           {/* 标题编辑区：大完成圈 + 无边框标题输入 */}
           <div className="flex items-start gap-3 px-4 pt-3.5">
             <button
@@ -674,7 +674,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
       </div>
 
       {/* 底部操作条：完成/打卡主操作（mobile-kb-screen 随键盘收缩视口自动上移） */}
-      <div className="border-line-1 bg-surface flex shrink-0 items-center gap-2.5 border-t px-4 pb-[calc(10px+var(--mobile-safe-bottom))] pt-2.5">
+      <div className="border-line-1 bg-surface flex shrink-0 items-center gap-2.5 border-t px-4 pb-[calc(10px+var(--mobile-screen-safe-bottom))] pt-2.5">
         <button
           type="button"
           onClick={handleToggleMain}

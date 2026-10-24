@@ -640,7 +640,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
               coverScrollRef.current = node;
               syncCoverHeaderFade();
             }}
-            className="edge-fade-cover-top mobile-floating-toolbar-scroll absolute inset-x-0 bottom-[var(--page-bottom-inset)] top-0 overflow-y-auto"
+            className="edge-fade-cover-top mobile-page-scroll absolute inset-x-0 bottom-0 top-0 overflow-y-auto"
             onScroll={syncCoverHeaderFade}
           >
             {props.coverSlot}
@@ -661,15 +661,10 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
               actions={headerActions}
             />
           )}
-          {/* 二级页无吸底 Dock，底部只留常规呼吸空间（同番茄钟/项目列表）：
-              留白挂外层容器，滚动容器自身不带 padding，内容不会顶到安全区 */}
-          <div
-            className="flex min-h-0 flex-1 flex-col"
-            style={{ paddingBottom: "var(--page-bottom-inset)" }}
-          >
+          <div className="flex min-h-0 flex-1 flex-col">
             <div
               ref={noCoverScrollRef}
-              className="edge-fade-scroll mobile-floating-toolbar-scroll flex-1 overflow-y-auto px-6"
+              className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto px-6"
             >
               {body}
             </div>

@@ -99,9 +99,7 @@ describe("MobileEditorBottomToolbar", () => {
     render(createController());
     const toolbar = getToolbar();
     expect(toolbar).toBeTruthy();
-    expect(toolbar?.getAttribute("style")).toContain(
-      "bottom: max(var(--kb-height, 0px), env(safe-area-inset-bottom, 0px))"
-    );
+    expect(toolbar?.getAttribute("style")).toContain("bottom: var(--mobile-overlay-bottom)");
   });
 
   it("面板打开期间编辑器失焦仍显示配件栏与面板宿主", () => {

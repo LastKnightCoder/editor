@@ -173,8 +173,8 @@ export function SyncProviderPage(props: { providerId: string }) {
         <PageHeader title={provider.name} onBack={() => navigator.goBack("ui")} />
         <div
           ref={scrollRef}
-          className="edge-fade-scroll mobile-kb-scroll flex-1 overflow-y-auto px-4"
-          style={{ paddingBottom: "calc(var(--kb-height, 0px) + 24px)" }}
+          data-page-footer
+          className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto px-4"
         >
           <div className="page-enter space-y-1">
             <Panel setting={setting} updateSetting={updateSetting} onOpenModule={openModule} />

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type SyntheticEvent } from "react
 import { Search } from "lucide-react";
 
 import {
+  resolveExpectedKeyboardHeight,
   useKeyboardReservation,
   useKeyboardViewport,
 } from "../../../components/KeyboardViewportProvider";
@@ -72,7 +73,9 @@ export function InsertPanel(props: InsertPanelProps) {
   const [recentKinds, setRecentKinds] = useState(readRecentInsertKinds);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const reservation = useKeyboardReservation();
-  const { reservedHeight, rawKeyboardHeight } = useKeyboardViewport();
+  const keyboardViewport = useKeyboardViewport();
+  const { reservedHeight } = keyboardViewport;
+  const expectedKeyboardHeight = resolveExpectedKeyboardHeight(keyboardViewport);
   const [searching, setSearching] = useState(false);
   // 搜索获焦前的面板高度，失焦后恢复
   const browseHeightRef = useRef(0);
@@ -102,13 +105,14 @@ export function InsertPanel(props: InsertPanelProps) {
     .map(kind => availableItems.find(item => item.kind === kind && !item.source))
     .filter((item): item is InsertItem => item !== undefined);
 
-  // 搜索期间键盘升起：面板挪到键盘上方，预留 = 键盘 + 结果区，且不低于原面板高度，避免布局先降后升
+  // 搜索期间面板挪到键盘上方，预留 = 键盘 + 结果区，且不低于原面板高度，避免布局先降后升；
+  // 键盘升起前按预计高度预留，与面板位置同步
   useEffect(() => {
     if (!searching) return;
     reservation.reserve(
-      Math.max(browseHeightRef.current, rawKeyboardHeight + SEARCH_RESULTS_HEIGHT)
+      Math.max(browseHeightRef.current, expectedKeyboardHeight + SEARCH_RESULTS_HEIGHT)
     );
-  }, [searching, rawKeyboardHeight, reservation]);
+  }, [searching, expectedKeyboardHeight, reservation]);
 
   const handleSearchFocus = () => {
     if (!searching) browseHeightRef.current = reservedHeight;

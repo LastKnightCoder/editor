@@ -128,14 +128,11 @@ export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: Sea
         </button>
       </div>
 
-      {/* 内容区域：二级页无吸底 Dock，底部只留常规呼吸空间（同番茄钟/详情页）。
-          留白挂外层容器，滚动容器自身不带 padding（mobile-kb-scroll 的滚动容器 padding
-          在 WebView 下不可靠），内容不会顶到安全区；键盘避让由 .mobile-kb-screen 收缩负责 */}
-      <div
-        className="flex min-h-0 flex-1 flex-col"
-        style={{ paddingBottom: "var(--page-bottom-inset)" }}
-      >
-        <div ref={scrollRef} className="edge-fade-scroll flex-1 overflow-y-auto overscroll-contain">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div
+          ref={scrollRef}
+          className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto overscroll-contain"
+        >
           {!hasSearched && history.length > 0 ? (
             <div className="p-4">
               <div className="mb-3 flex items-center justify-between px-1">

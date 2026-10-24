@@ -2,7 +2,7 @@
 // 批量操作（风格①长按 + ②菜单叠加，设计稿 flashcard-batch-design.html）：
 // 长按任一卡 0.6s 或 ⋯ 菜单「批量管理」进入多选；底部纸面浮条见 CardBatchBar。
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { MoreHorizontal, Plus, Search } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { ActionSheet } from "../../components/ActionSheet";
@@ -378,12 +378,14 @@ export function FlashcardDeckPage({
       {/* 卡片列表 */}
       <div
         ref={scrollRef}
-        className="edge-fade-scroll flex-1 overflow-y-auto"
-        style={{
-          paddingBottom: batchMode
-            ? "calc(96px + var(--mobile-safe-bottom))"
-            : "var(--page-bottom-inset)",
-        }}
+        className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto"
+        style={
+          batchMode
+            ? ({
+                "--page-bottom-inset": "calc(96px + var(--mobile-screen-safe-bottom))",
+              } as CSSProperties)
+            : undefined
+        }
       >
         <div className="flex flex-col gap-2.5 px-5 pt-2">
           {cardsQuery.isLoading ? (

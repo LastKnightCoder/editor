@@ -308,11 +308,11 @@ export function CalendarEventEditPage({
         </div>
       </PageHeader>
 
-      <div
-        className="flex min-h-0 flex-1 flex-col"
-        style={{ paddingBottom: "var(--page-bottom-inset)" }}
-      >
-        <div ref={scrollRef} className="edge-fade-scroll flex-1 overflow-y-auto overscroll-contain">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div
+          ref={scrollRef}
+          className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto overscroll-contain"
+        >
           <div className="bg-surface shadow-card mx-[18px] mt-3 rounded-[20px] p-[18px]">
             <input
               value={draft.title}

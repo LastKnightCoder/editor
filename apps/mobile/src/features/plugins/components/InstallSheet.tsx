@@ -42,7 +42,7 @@ export function InstallSheet({
       backDismiss={!installing}
       onClose={installing ? () => undefined : onClose}
     >
-      <div className="flex flex-col gap-4 px-5 pb-[calc(16px+var(--mobile-safe-bottom,0px))]">
+      <div className="flex flex-col gap-4 px-5 pb-4">
         {state.kind === "resolving" && <Loading minHeight={96} label="正在选择适合此设备的版本…" />}
         {state.kind === "unavailable" && (
           <div role="alert" className="flex flex-col gap-1.5 text-[13px]">
