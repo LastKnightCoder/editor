@@ -7,7 +7,9 @@ import {
   assertPublishable,
   assertVersionsAligned,
   buildAndroidManifest,
+  findMissingJniMethods,
   parseBadging,
+  parseJniKeepRules,
   parseSignerDigest,
   readMobileVersions,
   writeMobileVersion,
@@ -104,4 +106,53 @@ test("与线上清单对账：同版本、降级与换证书", () => {
       assertPublishable(remote, { version: "0.2.6", certSha256: "c".repeat(64) }, { force: true }),
     /签名证书/
   );
+});
+
+const JNI_RULES = `# Rust 经 JNI 调用
+-keepclassmembers class com.txiong.tau_mobile.MainActivity {
+  public java.lang.String takeIncomingFile();
+  public int installAppUpdate(java.lang.String);
+}
+`;
+
+function dexdump(classes) {
+  return Object.entries(classes)
+    .map(
+      ([descriptor, names], index) =>
+        `Class #${index}            -\n  Class descriptor  : '${descriptor}'\n` +
+        names
+          .map(
+            name => `    #0              : (in ${descriptor})\n      name          : '${name}'\n`
+          )
+          .join("")
+    )
+    .join("");
+}
+
+test("解析 proguard-jni.pro 登记的方法，忽略注释", () => {
+  assert.deepEqual(parseJniKeepRules(JNI_RULES), [
+    {
+      className: "com.txiong.tau_mobile.MainActivity",
+      methods: ["takeIncomingFile", "installAppUpdate"],
+    },
+  ]);
+  assert.throws(() => parseJniKeepRules("# 空文件\n"), /没有登记/);
+});
+
+test("JNI 方法被 R8 删掉时列出缺失项", () => {
+  const rules = parseJniKeepRules(JNI_RULES);
+  const intact = dexdump({
+    "LA/a;": ["takeIncomingFile"],
+    "Lcom/txiong/tau_mobile/MainActivity;": ["onCreate", "installAppUpdate", "takeIncomingFile"],
+  });
+  assert.deepEqual(findMissingJniMethods(intact, rules), []);
+  // 同名方法出现在别的（混淆后的）类里也不算
+  const stripped = dexdump({
+    "LA/a;": ["takeIncomingFile"],
+    "Lcom/txiong/tau_mobile/MainActivity;": ["onCreate", "installAppUpdate"],
+  });
+  assert.deepEqual(findMissingJniMethods(stripped, rules), [
+    "com.txiong.tau_mobile.MainActivity.takeIncomingFile",
+  ]);
+  assert.equal(findMissingJniMethods("", rules).length, 2);
 });

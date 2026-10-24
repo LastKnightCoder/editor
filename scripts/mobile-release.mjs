@@ -83,6 +83,37 @@ export function parseSignerDigest(output) {
   return digest.toLowerCase();
 }
 
+/**
+ * 读取 proguard-jni.pro 的保留规则：每个 `-keepclassmembers class X { ... }` 块里带括号的成员即 Rust 经 JNI 调用的方法。
+ * 一条都没登记时视为文件损坏，避免检查静默放行。
+ */
+export function parseJniKeepRules(text) {
+  const blockRe = /-keep(?:classmembers)?\s+class\s+([\w.$]+)\s*\{([^}]*)\}/g;
+  const rules = [];
+  for (const [, className, body] of text.replace(/#.*$/gm, "").matchAll(blockRe)) {
+    const methods = [...body.matchAll(/([\w$]+)\s*\(/g)].map(match => match[1]);
+    if (methods.length > 0) rules.push({ className, methods });
+  }
+  if (rules.length === 0) throw new Error("proguard-jni.pro 中没有登记任何 JNI 方法");
+  return rules;
+}
+
+/** 对照 dexdump 输出，列出被 R8 删掉或改名的 JNI 方法（形如 com.x.MainActivity.takeIncomingFile） */
+export function findMissingJniMethods(dexdumpOutput, rules) {
+  const members = new Map();
+  for (const block of dexdumpOutput.split(/^Class #\d+/m)) {
+    const descriptor = /Class descriptor\s*:\s*'L([^;]+);'/.exec(block)?.[1];
+    if (!descriptor) continue;
+    const names = [...block.matchAll(/^\s+name\s*:\s*'([^']+)'/gm)].map(match => match[1]);
+    members.set(descriptor.replaceAll("/", "."), new Set(names));
+  }
+  return rules.flatMap(({ className, methods }) =>
+    methods
+      .filter(method => !members.get(className)?.has(method))
+      .map(method => `${className}.${method}`)
+  );
+}
+
 export function buildAndroidManifest({ version, size, sha256, certSha256, releaseNotes, now }) {
   return {
     version,

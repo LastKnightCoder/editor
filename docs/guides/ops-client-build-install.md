@@ -64,7 +64,7 @@
 4. 正式发布：`pnpm publish:mobile --version <版本>`。脚本依次：
    - 回写 apps/mobile 的 package.json、tauri.conf.json、Cargo.toml、Cargo.lock 四处版本；
    - 运行 `build:android:release`；
-   - 用 aapt2 核对应用 ID 与版本，用 apksigner 读取签名证书；
+   - 用 aapt2 核对应用 ID 与版本，用 apksigner 读取签名证书，用 dexdump 确认 `proguard-jni.pro` 登记的 JNI 方法都在包里（缺失即拒绝，否则调用时闪退）；
    - 把 APK 和 latest.json 写到 `apps/mobile/release/`；
    - 与线上 latest.json 对账；
    - 先上传 APK，再上传 latest.json；
