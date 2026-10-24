@@ -94,7 +94,9 @@ export function ProjectsPage(props: ProjectsPageProps) {
           >
             <FolderTree size={20} strokeWidth={1.9} className="text-[#5b4a7e]" />
           </span>
-          <p className="text-ink-1 min-w-0 flex-1 truncate text-base font-bold">{project.title}</p>
+          <p className="text-ink-1 mobile-reading-font min-w-0 flex-1 truncate text-base font-bold">
+            {project.title}
+          </p>
           {project.pinned ? (
             <Star size={14} fill="currentColor" className="text-accent-text shrink-0" />
           ) : null}
@@ -111,7 +113,7 @@ export function ProjectsPage(props: ProjectsPageProps) {
           </button>
         </div>
         {project.descText ? (
-          <p className="text-ink-2 mt-2.5 line-clamp-2 text-[12.5px] leading-relaxed">
+          <p className="text-ink-2 mobile-reading-font mt-2.5 line-clamp-2 text-[12.5px] leading-relaxed">
             {clampText(project.descText, 56)}
           </p>
         ) : null}

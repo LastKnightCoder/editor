@@ -480,11 +480,11 @@ Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开
 
 ## 正文字体
 
-「我的 → 外观 → 正文字体」（overlay 页 `settings-reading-font`，`features/settings/readingFont/` + `components/ReadingFontSection.tsx`）让编辑器正文与详情页文档标题换用阅读字体，界面文字不变。选择存 `setting.json` 的 `appearance.readingFont`（`system | lxgw-wenkai | noto-serif-sc`，缺省 `system`），按设备生效。
+「我的 → 外观 → 正文字体」（overlay 页 `settings-reading-font`，`features/settings/readingFont/` + `components/ReadingFontSection.tsx`）让「内容」换用阅读字体：编辑器正文（含卡片、日记列表预览）、详情页与项目详情的标题区、文章 / 项目卡片的标题与摘要、日记卡片的日期标题；控件、行式列表与元信息保持系统字体。选择存 `setting.json` 的 `appearance.readingFont`（`system | lxgw-wenkai | noto-serif-sc`，缺省 `system`），按设备生效。
 
 - **发布源**：`pnpm publish:fonts`（`scripts/publish-fonts.mjs`，字体源登记在 `scripts/reading-fonts.mjs`）按固定 tag 与摘要下载上游字体与许可，fonttools 无损转 WOFF2，传到 R2 的 `fonts/`（`https://dl.taunote.app/fonts/`）。清单 `manifest.json` 为数组，每项 `id`、`name`、`version`、`license`、`files[]`；`files` 每项 `style`、`weight`（CSS 描述符，可变字体为区间如 `200 900`）、`file`（固定为 `<id>-<version>-<style>.woff2`）、`size`、`sha256`。一款字体可有多个字重文件。
 - **原生命令**（`src-tauri/src/reading_font.rs`）：`reading_font_catalog` 读清单；`reading_font_download` 经 `Channel` 回传进度，逐文件下载到 `.editor/fonts/`，边下边算 SHA-256，先写 `.part` 再改名，同摘要文件复用，同时只允许一个下载，`reading_font_cancel_download` 中止；全部文件落盘后写 `<id>.json` 标记，标记有效且文件大小一致才算已安装（`reading_font_installed`）；完成后清理该字体的旧版本文件。`reading_font_read` 按 id + style 返回字节（二进制 IPC），`reading_font_remove` 先删标记再删文件。前端不传 URL 或路径。
-- **加载**：Android WebView 的 asset 协议加载不稳定，两端统一由 `runtime.ts` 读字节注册 `new FontFace("Tau Reading <id>", buffer, { weight })`，加载完成后才在根上写 `--mobile-reading-font` 与 `--mobile-reading-font-synthesis`（两变量只由该模块写入），`.mobile-card-editor-content` 与 `.mobile-reading-title` 消费；加载前、失败或文件缺失时为系统字体。同一字体同一版本只注册一次，换版本或移除时撤下旧字形。
+- **加载**：Android WebView 的 asset 协议加载不稳定，两端统一由 `runtime.ts` 读字节注册 `new FontFace("Tau Reading <id>", buffer, { weight })`，加载完成后才在根上写 `--mobile-reading-font` 与 `--mobile-reading-font-synthesis`（两变量只由该模块写入），`.mobile-card-editor-content`（编辑器正文）与 `.mobile-reading-font`（标题、摘要等不挂编辑器正文类的阅读内容，新增内容卡片按此挂类）消费；加载前、失败或文件缺失时为系统字体。同一字体同一版本只注册一次，换版本或移除时撤下旧字形。
 - **粗体**：思源宋体为可变字体，自带全部字重；霞鹜文楷 Screen 只有常规体，选中时开启 `font-synthesis: weight` 合成粗体（根上默认 `none`）。
 - **前端状态**：已安装列表与线上清单走 react-query（`queries.ts`）；下载状态在模块级 `useReadingFontDownload`，关闭面板下载继续，完成后自动选中。所选字体未安装时「正文字体」行显示「需重新下载」。
 - **授权**：两款字体均为 OFL-1.1，许可文件随字体发布在同目录。霞鹜文楷有保留字体名，作者附加许可允许为网页字体分发转 WOFF2 后沿用原名（不作为可安装桌面字体提供）。

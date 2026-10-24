@@ -125,7 +125,7 @@ const DiaryCardItem = memo(
         }`}
       >
         <div className="mb-2 flex items-center gap-2">
-          <span className="text-ink-1 text-[14px] font-bold">{desc.title}</span>
+          <span className="text-ink-1 mobile-reading-font text-[14px] font-bold">{desc.title}</span>
           <span className="text-ink-3 text-[11.5px]">{desc.sub}</span>
           {segment.tags.length > HEADER_TAG_LIMIT + 1 ? (
             <span className="flex items-center gap-1">
@@ -156,7 +156,8 @@ const DiaryCardItem = memo(
           {hasBody ? (
             <Editor
               kit={contentKit}
-              className="overflow-hidden"
+              // 与详情页同为阅读正文档（字体、字号、两端对齐），列表点开不跳变
+              className="mobile-card-editor-content overflow-hidden"
               readonly={true}
               document={document}
             />
