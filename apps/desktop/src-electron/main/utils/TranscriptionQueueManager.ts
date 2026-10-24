@@ -3,6 +3,13 @@ import path from "path";
 import { app } from "electron";
 import fs from "fs-extra";
 import MediaUtil from "./MediaUtil";
+import { asrAbortError, throwIfASRAborted } from "@tau/asr";
+import type {
+  TranscriptionOptions,
+  TranscriptionResult,
+  TranscriptionSegment as TranscriptSegment,
+} from "../services/whisper-engine";
+export type { TranscriptionOptions, TranscriptionResult } from "../services/whisper-engine";
 
 // 音频分段信息
 export interface AudioSegmentInfo {
@@ -16,41 +23,6 @@ export interface AudioSegmentInfo {
   error?: string;
 }
 
-// 转录结果
-export interface TranscriptionResult {
-  text: string;
-  language: string;
-  languageProbability: number;
-  duration: number;
-  processingTime: number;
-  segments: TranscriptSegment[];
-  wordSegments?: TranscriptSegment[];
-}
-
-export interface TranscriptSegment {
-  text: string;
-  start: number; // 毫秒
-  end: number; // 毫秒
-}
-
-// 转录选项
-export interface TranscriptionOptions {
-  modelSize?:
-    | "tiny"
-    | "base"
-    | "small"
-    | "medium"
-    | "large-v1"
-    | "large-v2"
-    | "large-v3";
-  language?: string;
-  device?: "cpu" | "cuda";
-  computeType?: "int8" | "int16" | "float16" | "float32";
-  wordTimestamps?: boolean;
-  sentenceLevel?: boolean;
-  useLLMOptimization?: boolean;
-}
-
 // 队列配置
 export interface TranscriptionQueueConfig {
   segmentDurationMinutes: number; // 每段时长（分钟）
@@ -62,6 +34,7 @@ export interface TranscriptionQueueConfig {
 export type TranscribeFunction = (
   audioPath: string,
   options: TranscriptionOptions,
+  signal: AbortSignal
 ) => Promise<TranscriptionResult>;
 
 /**
@@ -75,8 +48,6 @@ export class TranscriptionQueueManager extends EventEmitter {
     enableForMinDuration: 30 * 60, // 30 分钟阈值
   };
 
-  private activeJobs: Map<string, Promise<TranscriptionResult>> = new Map();
-
   constructor(config?: Partial<TranscriptionQueueConfig>) {
     super();
     if (config) {
@@ -89,8 +60,9 @@ export class TranscriptionQueueManager extends EventEmitter {
    */
   async shouldSegmentAudio(
     audioPath: string,
+    signal?: AbortSignal
   ): Promise<{ shouldSegment: boolean; duration: number }> {
-    const duration = await MediaUtil.getMediaDuration(audioPath);
+    const duration = await MediaUtil.getMediaDuration(audioPath, signal);
     return {
       shouldSegment: duration >= this.config.enableForMinDuration,
       duration,
@@ -100,17 +72,10 @@ export class TranscriptionQueueManager extends EventEmitter {
   /**
    * 创建音频分段信息
    */
-  async createSegments(
-    _audioPath: string,
-    totalDuration: number,
-  ): Promise<AudioSegmentInfo[]> {
+  async createSegments(_audioPath: string, totalDuration: number): Promise<AudioSegmentInfo[]> {
     const segmentDuration = this.config.segmentDurationMinutes * 60;
     const segments: AudioSegmentInfo[] = [];
-    const tempDir = path.join(
-      app.getPath("temp"),
-      `transcription-${Date.now()}`,
-    );
-    await fs.ensureDir(tempDir);
+    const tempDir = await fs.mkdtemp(path.join(app.getPath("temp"), "transcription-"));
 
     let currentTime = 0;
     let segmentIndex = 0;
@@ -144,87 +109,59 @@ export class TranscriptionQueueManager extends EventEmitter {
     options: TranscriptionOptions,
     transcribeFunc: TranscribeFunction,
     onProgress: (message: string) => void,
+    signal = new AbortController().signal
   ): Promise<TranscriptionResult> {
-    // 1. 提取所有音频分段
-    onProgress(`准备音频分段 (0/${segments.length})...`);
-
-    for (let i = 0; i < segments.length; i++) {
-      const segment = segments[i];
-      await MediaUtil.extractAudioSegmentForTranscription(
-        originalAudioPath,
-        segment.audioPath,
-        segment.startTime,
-        segment.duration,
-      );
-      onProgress(`已准备分段 ${i + 1}/${segments.length}`);
-    }
-
-    // 2. 并行处理转录（控制并发数）
-    const pendingSegments = [...segments];
-    const completedResults: Array<{
-      index: number;
-      result: TranscriptionResult;
-    }> = [];
-
-    const processNext = async (): Promise<void> => {
-      while (
-        pendingSegments.length > 0 &&
-        this.activeJobs.size < this.config.maxConcurrency
-      ) {
-        const segment = pendingSegments.shift()!;
-        segment.status = "processing";
-
-        const job = (async () => {
+    const lifetime = new AbortController();
+    const abort = () => lifetime.abort(asrAbortError());
+    signal.addEventListener("abort", abort, { once: true });
+    if (signal.aborted) abort();
+    const completedResults: Array<{ index: number; result: TranscriptionResult }> = [];
+    let next = 0;
+    let failure: unknown;
+    try {
+      throwIfASRAborted(lifetime.signal);
+      onProgress(`准备音频分段 (0/${segments.length})...`);
+      for (const segment of segments) {
+        throwIfASRAborted(lifetime.signal);
+        await MediaUtil.extractAudioSegmentForTranscription(
+          originalAudioPath,
+          segment.audioPath,
+          segment.startTime,
+          segment.duration,
+          undefined,
+          lifetime.signal
+        );
+        onProgress(`已准备分段 ${segment.segmentIndex + 1}/${segments.length}`);
+      }
+      const worker = async () => {
+        while (next < segments.length && !lifetime.signal.aborted) {
+          const segment = segments[next++];
+          segment.status = "processing";
           try {
-            const result = await transcribeFunc(segment.audioPath, options);
+            const result = await transcribeFunc(segment.audioPath, options, lifetime.signal);
+            throwIfASRAborted(lifetime.signal);
             segment.status = "completed";
             segment.result = result;
             completedResults.push({ index: segment.segmentIndex, result });
-
-            onProgress(
-              `已转录 ${completedResults.length}/${segments.length} 个分段`,
-            );
-
-            return result;
+            onProgress(`已转录 ${completedResults.length}/${segments.length} 个分段`);
           } catch (error) {
             segment.status = "failed";
-            segment.error =
-              error instanceof Error ? error.message : String(error);
-            throw error;
-          } finally {
-            this.activeJobs.delete(segment.audioPath);
-            // 继续处理下一个
-            if (pendingSegments.length > 0) {
-              await processNext();
-            }
+            failure ??= error;
+            abort();
           }
-        })();
-
-        this.activeJobs.set(segment.audioPath, job);
-      }
-    };
-
-    // 启动初始批次
-    const initialBatch = Math.min(
-      this.config.maxConcurrency,
-      pendingSegments.length,
-    );
-    const promises: Promise<void>[] = [];
-    for (let i = 0; i < initialBatch; i++) {
-      promises.push(processNext());
+        }
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(this.config.maxConcurrency, segments.length) }, worker)
+      );
+      if (failure) throw failure;
+      throwIfASRAborted(lifetime.signal);
+      onProgress("合并转录结果...");
+      return this.mergeResults(segments, completedResults);
+    } finally {
+      signal.removeEventListener("abort", abort);
+      await this.cleanup(segments);
     }
-
-    // 等待所有任务完成
-    await Promise.all([...this.activeJobs.values()]);
-
-    // 3. 合并结果
-    onProgress("合并转录结果...");
-    const mergedResult = this.mergeResults(segments, completedResults);
-
-    // 4. 清理临时文件
-    await this.cleanup(segments);
-
-    return mergedResult;
   }
 
   /**
@@ -232,7 +169,7 @@ export class TranscriptionQueueManager extends EventEmitter {
    */
   private mergeResults(
     segments: AudioSegmentInfo[],
-    results: Array<{ index: number; result: TranscriptionResult }>,
+    results: Array<{ index: number; result: TranscriptionResult }>
   ): TranscriptionResult {
     // 按分段索引排序
     results.sort((a, b) => a.index - b.index);
@@ -272,14 +209,10 @@ export class TranscriptionQueueManager extends EventEmitter {
       text: fullText,
       language: results[0]?.result.language || "zh",
       languageProbability: results[0]?.result.languageProbability || 1,
-      duration: segments[segments.length - 1].endTime,
-      processingTime: results.reduce(
-        (sum, r) => sum + r.result.processingTime,
-        0,
-      ),
+      duration: segments.at(-1)?.endTime ?? 0,
+      processingTime: results.reduce((sum, r) => sum + r.result.processingTime, 0),
       segments: mergedSegments,
-      wordSegments:
-        mergedWordSegments.length > 0 ? mergedWordSegments : undefined,
+      wordSegments: mergedWordSegments.length > 0 ? mergedWordSegments : undefined,
     };
   }
 

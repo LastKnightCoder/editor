@@ -123,8 +123,9 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           flashcards: createDesktopFlashcards(workspaceId),
           restartRequired,
           validateEditor: composePluginEditor,
-          openSettings: (key, target) =>
-            target === "sync"
+          openSettings: (key, target) => {
+            if (target === "asr") throw new Error("语音输入设置尚未提供界面入口");
+            return target === "sync"
               ? useSettingsStore.getState().openSettings("sync")
               : target === "upload"
                 ? useSettingsStore.getState().openSettings("imageBed")
@@ -140,7 +141,8 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
                             pluginId: key.split(":")[1],
                             tab: "settings",
                             section: key,
-                          }),
+                          });
+          },
         });
         if (import.meta.env.DEV) {
           const { portableDevelopmentDefinitions } = await import("./portable-development");

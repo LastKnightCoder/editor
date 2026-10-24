@@ -27,6 +27,7 @@ export function mergeProviderSettings(
   return {
     ...previous,
     database: snapshot.database,
+    speechInput: snapshot.speechInput,
     sync: { ...previous.sync, active: snapshot.sync.active, plugin: snapshot.sync.plugin },
     imageBed: {
       ...previous.imageBed,

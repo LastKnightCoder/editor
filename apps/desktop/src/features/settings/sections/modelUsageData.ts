@@ -111,6 +111,7 @@ const FEATURE_LABELS: Record<string, string> = {
   flashcardGeneration: "闪卡生成",
   aiJudgement: "答案评判",
   transcriptionOptimization: "转录断句优化",
+  speechInputRefinement: "语音输入整理",
   videoSummary: "视频总结",
   videoEbookRewrite: "视频电子书重写",
   vibeLearningImageDescription: "图片理解",

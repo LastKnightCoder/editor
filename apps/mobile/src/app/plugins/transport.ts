@@ -1,3 +1,8 @@
+import {
+  createBridgeWebSocket,
+  type SocketClosed,
+  type SocketMessage,
+} from "@tau/plugins/websocket-bridge";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { CHUNK_BYTES } from "@tau/db-schema/sync-protocol";
@@ -230,6 +235,34 @@ export async function connectMobilePluginTransport(runtime: MobilePluginRuntime)
   });
   try {
     token = await invoke<string>("plugin_transport_connect", { database: runtime.workspaceId });
+    const socketToken = token;
+    runtime.websocket = createBridgeWebSocket({
+      open: (id, request) => networkCall("plugin_socket_open", { token: socketToken, id, request }),
+      send: (id, message: SocketMessage) =>
+        networkCall("plugin_socket_send", {
+          token: socketToken,
+          id,
+          message:
+            typeof message === "string"
+              ? { kind: "text", value: message }
+              : { kind: "binary", value: encodePluginBytes(message) },
+        }),
+      receive: async id => {
+        const frame = await networkCall<
+          { type: "message"; data: { kind: "text" | "binary"; value: string } } | SocketClosed
+        >("plugin_socket_receive", { token: socketToken, id });
+        return frame.type === "close"
+          ? frame
+          : {
+              type: "message",
+              data:
+                frame.data.kind === "text" ? frame.data.value : decodePluginBytes(frame.data.value),
+            };
+      },
+      close: (id, code, reason) =>
+        networkCall("plugin_socket_close", { token: socketToken, id, code, reason }),
+      dispose: id => networkCall("plugin_socket_dispose", { token: socketToken, id }),
+    });
     runtime.fetch = createPluginFetch(token, pluginId =>
       pluginId && activeSync.has(pluginId) ? CHUNK_BYTES * 2 : undefined
     );
@@ -241,6 +274,7 @@ export async function connectMobilePluginTransport(runtime: MobilePluginRuntime)
     disposed = true;
     stop();
     runtime.fetch = undefined;
+    runtime.websocket = undefined;
     void invoke("plugin_transport_disconnect", { token }).catch(() => undefined);
     openings.clear();
   };

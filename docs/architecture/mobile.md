@@ -476,3 +476,11 @@ Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开
 - **前端状态**：`useAppUpdate`（zustand，模块级）保存检查结果、阶段、进度与 `checkedAt`，离开关于页下载继续。「我的」页的「关于与更新」行（`AboutUpdateItem`）、关于页与更新内容页挂载时调 `useAutoUpdateCheck`：没检查过或距上次成功检查超过 6 小时才发起，检查/下载中或已下载待安装时不打断。有新版本时「关于与更新」行尾显示红点与版本号。错误码 `APP_UPDATE_*` 映射为中文提示。
 - **JNI 方法保留**：Rust 经 JNI 按名字调用的 Kotlin 方法（`takeIncomingFile`、`installAppUpdate`）在 Kotlin 侧没有调用方，release 构建的 R8 会删掉，调用时 `NoSuchMethodError` 闪退。这类方法一律登记在 `gen/android/app/proguard-jni.pro`（`git add -f` 入库，build.gradle 收集 app 下所有 `*.pro`）；`publish:mobile` 构建后用 dexdump 对照该文件，缺失即拒绝发布。Rust 侧 JNI 调用失败时清掉待处理的 Java 异常，只让该命令报错。
 - **边界**：不做后台静默检查与静默安装；以后进应用商店的渠道包须关闭应用内安装。
+
+## 语音输入
+
+移动宿主保留 ASR 注册表、WebSocket 原生传输、配置存储和 `createMobileSpeechInputService` 编排工厂；壳层不挂载录音 Provider，搜索和设置不提供语音输入按钮或独立页面。ASR 配置声明继续注册，插件详情不显示该表单，设置 open 明确拒绝跳转。
+
+Android 清单包含 RECORD_AUDIO/MODIFY_AUDIO_SETTINGS，iOS 包信息包含麦克风用途说明。`plugin_socket` 命令按工作区 token 及窗口作用域校验，系统网络实现使用 tokio-tungstenite；作者契约见 [WebSocket](/packages/plugins/docs/websocket.md)。采集仅在调用方明确启动服务时申请，插件停用和工作区释放取消会话。普通设置快照保留原生管理的 speechInput 数据。
+
+移动端尚未接入 LLM 整理执行适配；未来语音输入入口及结果呈现由独立消费者决定。

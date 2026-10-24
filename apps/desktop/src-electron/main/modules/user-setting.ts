@@ -304,7 +304,12 @@ class UserSettingModule {
 
   handleSetUserSetting(newSettings: UserSetting, clientId?: string) {
     const snapshot = structuredClone(newSettings);
-    return this.updateSetting(() => snapshot, clientId);
+    return this.updateSetting(current => {
+      // 语音账号由专用命令写入，旧窗口的整份设置不得覆盖它。
+      if (current.speechInput === undefined) delete snapshot.speechInput;
+      else snapshot.speechInput = current.speechInput;
+      return snapshot;
+    }, clientId);
   }
 
   async updateSetting(
