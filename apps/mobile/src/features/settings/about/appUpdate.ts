@@ -1,6 +1,7 @@
 // Android 应用内更新的前端状态：检查 → 下载（校验）→ 交给系统安装器。
 // 命令实现见 src-tauri/src/app_update.rs；状态放模块级 store，离开关于页后下载继续、回来仍能看到进度。
 
+import { useEffect } from "react";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import { toast } from "../../../components/toast";
@@ -31,6 +32,8 @@ export type UpdatePhase = "idle" | "checking" | "latest" | "available" | "downlo
 type AppUpdateState = {
   phase: UpdatePhase;
   check: AppUpdateCheck | null;
+  /** 最近一次检查成功的时间，用于控制自动检查频率 */
+  checkedAt: number | null;
   progress: DownloadProgress | null;
   downloadedVersion: string | null;
   error: string | null;
@@ -81,9 +84,23 @@ export function notesToShow(check: AppUpdateCheck): ReleaseNote[] {
     .sort((a, b) => compareVersions(b.version, a.version));
 }
 
+/** 自动检查的最短间隔：应用长时间留在后台，回到「我的」或关于页时超过该间隔才重新检查 */
+export const AUTO_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+
+export function shouldAutoCheck(
+  state: Pick<AppUpdateState, "phase" | "checkedAt">,
+  now: number
+): boolean {
+  if (state.phase === "checking" || state.phase === "downloading" || state.phase === "ready") {
+    return false;
+  }
+  return state.checkedAt === null || now - state.checkedAt >= AUTO_CHECK_INTERVAL_MS;
+}
+
 export const useAppUpdate = create<AppUpdateState>((set, get) => ({
   phase: "idle",
   check: null,
+  checkedAt: null,
   progress: null,
   downloadedVersion: null,
   error: null,
@@ -95,7 +112,11 @@ export const useAppUpdate = create<AppUpdateState>((set, get) => ({
     try {
       const check = await invoke<AppUpdateCheck>("app_update_check");
       const ready = check.available && get().downloadedVersion === check.latest.version;
-      set({ check, phase: ready ? "ready" : check.available ? "available" : "latest" });
+      set({
+        check,
+        checkedAt: Date.now(),
+        phase: ready ? "ready" : check.available ? "available" : "latest",
+      });
     } catch (error) {
       const previous = get().check;
       const phase = previous ? (previous.available ? "available" : "latest") : "idle";
@@ -136,3 +157,12 @@ export const useAppUpdate = create<AppUpdateState>((set, get) => ({
     }
   },
 }));
+
+/** 挂载时按需检查更新（仅 Android）；结果进模块级 store，「我的」入口与关于页共用 */
+export function useAutoUpdateCheck() {
+  useEffect(() => {
+    if (!supportsInAppUpdate()) return;
+    const state = useAppUpdate.getState();
+    if (shouldAutoCheck(state, Date.now())) void state.checkForUpdate();
+  }, []);
+}

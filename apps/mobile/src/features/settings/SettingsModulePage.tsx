@@ -21,7 +21,7 @@ import { useNavigator } from "../../router";
 function getTitle(module: SettingModuleKey): string {
   switch (module) {
     case "about":
-      return "关于";
+      return "关于与更新";
     case "database":
       return "同步";
     case "databases":
