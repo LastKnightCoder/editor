@@ -57,7 +57,8 @@ useBackHandler(() => {
 ## 页面身份（match 三态）
 
 - `single`：全局一份，重复 push = bringToTop + 更新 params（settings/search/diaryHome/todo/about）
-- `params` + `getId(params)`：按参数身份去重（contentDetail 按 contentId）
+- `params` + `getId(params)`：按参数身份去重（contentDetail 按 contentId）；`popTo(key, params)` 只认参数身份相同的实例，
+  返回是否找到
 - `multi`：每次 push 新实例（todoDetail 嵌套）
 
 单例/多例声明在页面注册处（Android launchMode 宿主声明流），调用方不操心。
@@ -204,7 +205,12 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 ## 手势与转场
 
 - 双页同动：push 时栈顶滑入 + 下层 25% 视差；pop 反向（AnimatePresence exit）
-- 左边缘 28px 跟手返回：位移>40% 或速度>0.5px/ms 判定完成/回弹；仅 slideRight 顶层且无 overlay
+- 左边缘 28px 跟手返回：位移>40% 或速度>0.5px/ms 判定完成/回弹；仅 slideRight 顶层且无 overlay；
+  起手点在 `data-no-edge-back` 标记内（编辑器块把手等自带拖拽的控件）时不跟手；栈顶页有声明 `blockEdgeBack` 的返回消费器
+  （`useSheetBackDismiss` 一律声明：页内浮层、块选择、拖拽等打开期间必定消费返回）时也不跟手，否则页面被拖出、松手后弹回。
+  条件消费的 `useBackHandler`（未保存确认等）不声明，手势照常跟手。页内多级浏览不要用 `useBackHandler` 消费返回来退级
+  （拖出的是整页、露出的是上一页），每级做成同一 page 的独立实例：项目详情 `projectDetail` 按 `projectId:itemId` 身份
+  每层一个实例，进入子层 push、面包屑跳祖先用 `popTo(key, params)`（栈内没有该层时 `replace`）
 - 转场编排集中在 `PageHost`，页面组件不写 motion
 
 ## 常见陷阱
@@ -266,7 +272,7 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
   - 末尾用 `::after` 占位（部分 WebView 不把滚动容器的 padding-bottom 计入可滚动区域）。
   - 占位高度 = `--page-bottom-inset`（16px 呼吸 + `--mobile-screen-safe-bottom`）
     - `--mobile-editor-toolbar-occlusion` + `--pan-occluded-bottom`。
-  - 遮挡变量由当前显示的配件栏、块操作栏、标注栏、PanContainer 写入根元素，只计栏高，不含安全区。
+  - 遮挡变量由当前显示的配件栏、块操作栏、标注栏、阅读态「编辑」悬浮按钮、PanContainer 写入根元素，只计栏高，不含安全区。
   - 底部另有常显操作条、由操作条自己承担安全区时，滚动容器加 `data-page-footer`，末尾只留呼吸。
   - 末尾需要越过 FAB 或批量栏时，在滚动容器上覆盖 `--page-bottom-inset`。
   - 不要在外层容器上挂常驻的 padding-bottom。
@@ -322,9 +328,10 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
   `insertIntoTextControl`；「收起键盘」blur 当前焦点后回阅读态）。`visibleButtons` 以 `AccessoryItemId` 同时过滤配件栏与
   Aa 面板，表格 / 代码块 / 公式 / 流程图模式受 `context-table` / `context-code` / `context-math` / `context-mermaid` 控制。
 - **阅读态**：`features/cards/readingMode/useReadingMode` 管理编辑态，宿主把 `forcedReadonly || !editing` 传给 Editor 与配件栏
-  的 `readonly`（切换不重挂载）。顶栏 `ReadingModeHeaderButton`「编辑」在点击内同步切换并聚焦（回上次选区，否则文末）；
-  双击正文在同一手势内切换并把光标放到双击处（交互元素除外）；「完成」与配件栏「收起键盘」都回阅读态——后者经
-  controller 的 `setExitEditingListener`。只读时勾选框忽略点击，由 hook 在点击捕获阶段直接改待办节点，改动照常经
+  的 `readonly`（切换不重挂载）。顶栏不放编辑入口（只有返回 / 标题 / 宿主操作）：阅读态右下角悬浮按钮 `ReadingModeFab`
+  「编辑」在点击内同步切换并聚焦（回上次选区，否则文末），正文下滑时收成圆形图标、上滑或回顶展开，块选择 / 拖拽 / 标注条出现时隐藏；
+  双击正文在同一手势内切换并把光标放到双击处（交互元素除外）；退出编辑是配件栏右端常驻的「完成」（宿主传 `showDoneButton`，
+  取代各模式的「收起键盘」，面板 / 表格 / 格式 / 媒体模式下排在该模式右端按钮之后），经 controller 的 `setExitEditingListener` 回阅读态。只读时勾选框忽略点击，由 hook 在点击捕获阶段直接改待办节点，改动照常经
   `onChange` 保存；`forcedReadonly`（协作建立中 / 协作只读）时隐藏「编辑」且不改正文。详情页与协作编辑页
   `CollabEditorPage` 同一接法；初始态在内容首次就绪时定一次：空文档或「打开文档时」偏好为直接编辑则进编辑并聚焦。
   偏好存 setting.json 的 `editor.openMode`（`read` 缺省 / `edit`），`hooks/useEditorOpenMode` 经设置桥读取，
@@ -339,9 +346,11 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
   经 `ContentDetailPage` 的 `actionsRef.enterBlockSelection()` 或协作页自身调用，阅读态与编辑态都可用，进入后选中 0 个）。阅读态长按
   留给系统选词，不进入块选择。进入时先经阅读态 `exitEditing` 收键盘。`useBlockSelection` 持有激活与升序选中下标，激活期间以
   `useSheetBackDismiss` 让返回 = 退出，块数变化裁剪越界下标，不可编辑（`forcedReadonly` / 协作只读）时不可进入且立即退出。
+  激活期间编辑器包裹元素加 `BLOCK_SELECTION_INSET_CLASS`（左内边距 28px，带过渡），正文右移空出勾选列，勾选圈不贴屏幕边。
   块选择期间 Editor 保持可写（内核块命令按 `getCommandElementPath` 定位、异步命令经 Submission 提交，二者都要求编辑器可写；覆盖层按下时阻止默认行为，正文获得焦点即失焦并清除 DOM 选区，避免弹出键盘），配件栏
-  `readonly`；顶栏换成 `BlockSelectionHeader`（取消 / 已选 N 个块 / 全选），底部为 `BlockActionBar`（上移、下移、转换、复制、删除、
-  更多；挂载期间写 `--mobile-editor-toolbar-occlusion` 给滚动容器留白），阅读态标注条与 `readingSurfaceProps` 不挂载。
+  `readonly`；顶栏换成 `BlockSelectionHeader`（取消 / 已选 N 个块 / 全选），底部为离开屏幕边缘的悬浮条 `BlockActionBar`（未选中时只显示
+  操作提示，选中后为上移、下移、转换、复制、删除、更多；挂载期间写 `--mobile-editor-toolbar-occlusion` 给滚动容器留白），阅读态标注条与
+  `readingSurfaceProps` 不挂载。
   转换与更多的菜单来自内核聚合的扩展菜单声明（`@tau/editor/api` 的 `resolveElementMenu`，条目带贡献来源 `owner`），由 `blockMenu.ts`
   求值：转换取 `tau.transform` 的子项，多选按 key 取交集，执行时逐块按元素引用重新求值、自后向前调用同 key 的 `onSelect`，合并为一个
   撤销步并保持选择；更多仅单选可用，按菜单分隔线分组，排除操作栏已有的 `tau.block.move-up/move-down/copy/delete` 与 `tau.transform`，
@@ -359,6 +368,8 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
   同级，画原位置虚线占位、克隆块浮层（去掉 contenteditable / data-slate-*，原块 DOM 拖拽期间透明）与插入线，正文其他块不让位。拖拽中
   配件栏隐藏、把手保持挂载以维持指针捕获、返回 = 取消；落下经 `moveBlockTo` 作为一个撤销步移动，光标放到该块开头且不聚焦。
 - **整理结构**：`features/cards/outline/`，底部全屏 `SnapSheet` 中按顶层块重排，「完成」时作为一个撤销步写入，「取消」/ 下拉 / 返回丢弃。
+  面板只有全屏一档、顶边即屏幕顶，顶栏直接用 `PageHeader`（`leading` 放「取消」、`PageHeaderTextButton` 放「完成」），由它承担状态栏安全区；
+  块选择顶栏 `BlockSelectionHeader` 同一写法。
   入口：page「⋯」的「整理结构」（`outlineMenuItem`，经 `ContentDetailPage` 的 `actionsRef.openOutline()` 或协作页自身调用）与块选择
   「更多」的宿主项（`BlockActionBar` 的 `onOpenOutline`，打开后退出块选择）；`useOutlineSheet` 打开前退出块选择、编辑态先收键盘，
   不可编辑时提示且打开中的立即关闭。`outlineModel.ts` 为纯模型：会话以打开时的顶层块快照与原始下标排列 `order` 表示，
@@ -395,7 +406,8 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
 - **字号档位**：`src/styles.css` 的 `:root` 覆盖 `@tau/themes` 的 9 档 `--tau-text-*`（桌面密度正文 13px 不适合手机），`text-tau-*` 语义类随之取移动端值：
   hero 28 / title-lg 22 / title 17 / body-lg 17 / body 16 / meta 14 / sm 13 / micro 12 / tiny 11。`body` 基准字号取 body 档。
   新代码用 `text-tau-*`，同一角色同一档：时间 sm、标签 chip micro、列表行与按钮 body、说明 meta。
-- **编辑器阅读正文**：`.mobile-card-editor-content` 取 body-lg 档（17px / 1.75），内容详情页（卡片、日记、文章、项目文档）、卡片列表预览（`CardItem`）、速记、日程备注、协作编辑与插件说明共用，列表与详情同字号；编辑器内标题块用 `em` 跟随。
+- **编辑器阅读正文**：`.mobile-card-editor-content` 取 body-lg 档（17px / 1.75），内容详情页（卡片、日记、文章、项目文档）、卡片列表预览（`CardItem`）、速记、日程备注、协作编辑与插件说明共用，列表与详情同字号；编辑器内标题块用 `em` 跟随。同一类名下段间距为 0.8em，行内代码去描边、0.84em、7% 墨色淡底（覆盖编辑器包的桌面默认样式）。
+- **内容详情页外观**：`ContentDetailPage` 根容器为纸面（`bg-surface` + `.mobile-paper-page`，后者把 `--topbar-fade-*` 改为表面色），与卡片库里的卡片同底色。脉络入口是元信息行末尾的胶囊（`context/ContextBadge`，关联数为 0 或首次加载未完成时不渲染；关联卡片属于脉络「连接」分区，不另设区块）；页尾只有轻标签（`TagChips` 的 `soft` 变体，品牌淡底小方块）。脉络浮层里点条目先关浮层再跳转，浮层的全局 touchmove 拦截不会留在下层保活页上。
 - **输入框规范**：
   - 输入文字字号 16px（`--mobile-input-font-size`），这是手机端可读下限，也是 iOS 不自动放大的阈值。
   - 表单输入用 `.input-base`：最小高 44px（`--mobile-input-min-height`），底色页面色，聚焦时 accent 描边。它放在

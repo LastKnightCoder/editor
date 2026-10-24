@@ -16,6 +16,7 @@ import type { LucideIcon } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { Editor, type EditorDocument, type EditorRef } from "@tau/editor";
+import { cn } from "@tau/ui";
 import * as tauri from "../../services/tauri";
 import type { ContentDetailResponse } from "../../types";
 import { formatDateTimeCompact } from "../../utils/formatTime";
@@ -23,7 +24,6 @@ import { useEditContent } from "../../hooks/useEditContent";
 import useLocalContentDocument from "../../hooks/useLocalContentDocument";
 import { MobileEditorBottomToolbar } from "./editorToolbar/MobileEditorBottomToolbar";
 import { useMobileEditorToolbarController } from "./editorToolbar/useMobileEditorToolbarController";
-import LinksDisclosure from "./LinksDisclosure";
 import ContextBadge from "../context/ContextBadge";
 import TagChips from "./TagChips";
 import TagInlineEditor from "./TagInlineEditor";
@@ -31,7 +31,7 @@ import type { CollaborativeEditorMode } from "../collaboration/CollaborativeEdit
 import { markLocalFallbackEdit } from "../collaboration/local-fallback";
 import { isEditorContentEmpty } from "./editorContentUtils";
 import { useReadingMode } from "./readingMode/useReadingMode";
-import { ReadingModeHeaderButton } from "./readingMode/ReadingModeHeaderButton";
+import { ReadingModeFab } from "./readingMode/ReadingModeFab";
 import { ReadingSelectionBar } from "./readingMode/ReadingSelectionBar";
 import { useReadingSelection } from "./readingMode/useReadingSelection";
 import { useEditorOpenMode } from "../../hooks/useEditorOpenMode";
@@ -40,7 +40,10 @@ import { BlockActionBar } from "./blockSelection/BlockActionBar";
 import { BlockDragLayer } from "./blockSelection/BlockDragLayer";
 import { BlockHandle } from "./blockSelection/BlockHandle";
 import { BlockSelectionHeader } from "./blockSelection/BlockSelectionHeader";
-import { BlockSelectionLayer } from "./blockSelection/BlockSelectionLayer";
+import {
+  BLOCK_SELECTION_INSET_CLASS,
+  BlockSelectionLayer,
+} from "./blockSelection/BlockSelectionLayer";
 import { useBlockDrag } from "./blockSelection/useBlockDrag";
 import { useEditorBlockSelection } from "./blockSelection/useEditorBlockSelection";
 import { OutlineSheet } from "./outline/OutlineSheet";
@@ -360,17 +363,15 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     )
   ) : null;
 
-  const headerActions = (
-    <>
-      <ReadingModeHeaderButton
-        editing={readingMode.editing}
-        canEdit={readingMode.canEdit}
-        onEnter={readingMode.enterEditing}
-        onExit={readingMode.exitEditing}
-      />
-      {props.headerRight}
-    </>
-  );
+  // 顶栏只放返回 / 标题 / 宿主操作；编辑入口是右下角悬浮按钮，退出编辑在配件栏「完成」
+  const headerActions = props.headerRight;
+  const fabVisible =
+    Boolean(detail && kit) &&
+    readingMode.canEdit &&
+    !readingMode.editing &&
+    !blockSelection.active &&
+    blockDrag.dragging === null &&
+    readingSelection.range === null;
 
   const renderBlockSelectionHeader = (floating: boolean) => (
     <BlockSelectionHeader
@@ -395,7 +396,15 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   ) : null;
 
   const tags = detail?.card?.tags ?? [];
-  const links = detail?.card?.links ?? [];
+  // 脉络胶囊挂在元信息行末尾；关联卡片是脉络「连接」分区的一部分，在浮层里查看
+  const contextChip = props.contextEntity ? (
+    <ContextBadge
+      kind={props.contextEntity.kind}
+      id={props.contextEntity.id}
+      refreshKey={props.refreshKey ?? 0}
+      onError={props.onError}
+    />
+  ) : null;
 
   // 类型徽章（方案 A 定稿）：卡片 / 文章 / 知识库 / 项目文档共用同一胶囊语言
   const typeBadge = props.contentType ? (
@@ -469,6 +478,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
                   </>
                 ) : null}
               </div>
+              {contextChip}
             </div>
             {props.sourceRef ? (
               <button
@@ -507,6 +517,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
                 </>
               ) : null}
             </div>
+            {contextChip}
           </div>
         ) : null}
 
@@ -527,7 +538,10 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
 
         <div
           ref={setEditorWrapEl}
-          className="relative min-h-[45vh] pt-1"
+          className={cn(
+            "relative min-h-[45vh] pt-1 transition-[padding] duration-200",
+            blockSelection.active && BLOCK_SELECTION_INSET_CLASS
+          )}
           // 块选择期间由覆盖层接管点击，阅读态的双击进入编辑与勾选待办不生效
           {...(blockSelection.active ? {} : readingMode.readingSurfaceProps)}
         >
@@ -592,18 +606,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
             onError={props.onError}
           />
         ) : tags.length > 0 ? (
-          <TagChips tags={tags} className="mt-5" />
-        ) : null}
-
-        <LinksDisclosure links={links} onError={props.onError} />
-
-        {props.contextEntity ? (
-          <ContextBadge
-            kind={props.contextEntity.kind}
-            id={props.contextEntity.id}
-            refreshKey={props.refreshKey ?? 0}
-            onError={props.onError}
-          />
+          <TagChips tags={tags} variant="soft" className="mt-6" />
         ) : null}
 
         {props.belowEditor}
@@ -615,7 +618,10 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     );
 
   return (
-    <div ref={setPageRootEl} className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
+    <div
+      ref={setPageRootEl}
+      className="mobile-kb-screen mobile-paper-page bg-surface fixed inset-0 z-50 flex flex-col"
+    >
       {hasCover ? (
         <div ref={coverShellRef} className="relative flex-1 overflow-hidden">
           <div
@@ -671,10 +677,16 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           </div>
         </>
       )}
+      <ReadingModeFab
+        visible={fabVisible}
+        onEnter={readingMode.enterEditing}
+        getScrollContainer={getScrollContainer}
+      />
       <MobileEditorBottomToolbar
         controller={toolbarController}
         portalContainer={pageRootEl}
         readonly={toolbarReadonly}
+        showDoneButton
       />
       {blockSelection.active && kit ? (
         <BlockActionBar

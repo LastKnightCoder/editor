@@ -69,6 +69,7 @@ describe("MobileEditorBottomToolbar", () => {
       readonly?: boolean;
       portalContainer?: HTMLElement | null;
       visibleButtons?: ReadonlySet<AccessoryItemId>;
+      showDoneButton?: boolean;
     } = {}
   ) => {
     act(() => {
@@ -298,6 +299,23 @@ describe("MobileEditorBottomToolbar", () => {
     clickButton("收起键盘");
     expect(controller.exitEditing).toHaveBeenCalled();
     expect(controller.closePanel).not.toHaveBeenCalled();
+  });
+
+  it("showDoneButton：「完成」取代「收起键盘」并退出编辑", () => {
+    const controller = createController();
+    render(controller, { showDoneButton: true });
+    expect(getButton("收起键盘")).toBeNull();
+    expect(getButtonLabels().at(-1)).toBe("完成");
+    clickButton("完成");
+    expect(controller.exitEditing).toHaveBeenCalled();
+  });
+
+  it("showDoneButton：面板打开时右端保留「键盘」，其后仍有「完成」", () => {
+    const controller = createController({ isEditorFocused: false, activePanel: "insert" });
+    render(controller, { showDoneButton: true });
+    expect(getButtonLabels().slice(-2)).toEqual(["键盘", "完成"]);
+    clickButton("完成");
+    expect(controller.exitEditing).toHaveBeenCalled();
   });
 
   it("白名单在两种模式下过滤条目", () => {

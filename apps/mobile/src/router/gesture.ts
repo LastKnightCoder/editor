@@ -18,9 +18,16 @@ export type EdgeBackGestureConfig = {
   controlsMap: Map<string, GestureAnimationControls>;
   /** underlay 完全移出屏外（tab 根压 tab 根）时按全宽跟手，否则默认视差比例 */
   underlayOffscreen?: boolean;
+  /** 起手时询问：栈顶页有必定消费返回的页内层（浮层、块选择等）时为 true，手势不跟手 */
+  isBlocked?: () => boolean;
   /** 返回 true 表示已驱动回退；false（守卫拒绝等）时手势需回弹 */
   onBack: () => Promise<boolean> | boolean;
 };
+
+/** 自带拖拽的控件（如编辑器块把手）标记 data-no-edge-back：从其上起手的触点不参与边缘返回 */
+export function isMarkedNoEdgeBack(node: EventTarget | null): boolean {
+  return node instanceof Element && node.closest("[data-no-edge-back]") !== null;
+}
 
 export function getViewportWidth(): number {
   if (typeof window === "undefined" || window.innerWidth <= 0) {
@@ -74,7 +81,11 @@ export function useEdgeBackGesture(config: EdgeBackGestureConfig): void {
         return;
       }
       const touch = event.touches[0];
-      if (touch.clientX > EDGE_START_WIDTH) {
+      if (
+        touch.clientX > EDGE_START_WIDTH ||
+        isMarkedNoEdgeBack(event.target) ||
+        cfg.isBlocked?.()
+      ) {
         return;
       }
       tracking = true;

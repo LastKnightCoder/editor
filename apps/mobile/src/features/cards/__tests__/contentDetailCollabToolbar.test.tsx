@@ -54,12 +54,12 @@ vi.mock("../../../hooks/useEditContent", async () => {
 vi.mock("../../../services/tauri", () => ({ updateCardTags: vi.fn() }));
 vi.mock("../../../hooks/useScrollState", () => ({ useEdgeFade: vi.fn() }));
 vi.mock("../editorExtensions", () => ({ mobileCardPreviewExtensions: [] }));
-vi.mock("../LinksDisclosure", () => ({ default: () => null }));
 vi.mock("../TagChips", () => ({ default: () => null }));
 vi.mock("../TagInlineEditor", () => ({ default: () => null }));
-vi.mock("../../../components/PageHeader", async () => {
+vi.mock("../../../components/PageHeader", async importOriginal => {
   const React = await import("react");
   return {
+    ...(await importOriginal<typeof import("../../../components/PageHeader")>()),
     PageHeader: (props: { actions?: React.ReactNode }) =>
       React.createElement("header", null, props.actions),
   };

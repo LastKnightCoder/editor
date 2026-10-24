@@ -14,7 +14,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { getPageMeta } from "./core/pageMeta";
+import { getPageMeta, resolveEntryIdentity } from "./core/pageMeta";
 import { sanitizeParams } from "./core/paramsSchema";
 import {
   createEmptyStack,
@@ -150,6 +150,7 @@ export function RouterProvider({
   const settlesRef = useRef(new Map<string, PendingSettle>());
   const guardsRef = useRef(new Map<string, () => boolean | Promise<boolean>>());
   const backHandlersRef = useRef(new Map<string, Array<() => boolean | Promise<boolean>>>());
+  const edgeBackBlockersRef = useRef(new Map<string, number>());
   const historyBackInFlightRef = useRef(false);
   const pendingBackNavRef = useRef<{ depth: number; token: number } | null>(null);
   const nativeBounceRef = useRef<{ state: unknown; token: number } | null>(null);
@@ -377,9 +378,16 @@ export function RouterProvider({
             : undefined;
         void historyBack("code", 1, settle);
       },
-      popTo: key => {
+      popTo: (key, params) => {
         const meta = getPageMeta(key);
-        if (!meta) return;
+        if (!meta) return false;
+        const sanitized = params ? sanitizePageParams(key, params) : null;
+        if (params && sanitized === null) return false;
+        const identity = sanitized ? resolveEntryIdentity(meta, sanitized) : "";
+        const isTarget = (entry: RouteEntry) =>
+          entry.key === key &&
+          (!identity ||
+            resolveEntryIdentity(meta, entry.params as Record<string, unknown>) === identity);
         const screensNow = screensRef.current.entries;
         const overlaysNow = overlaysRef.current.entries;
         // 回退深度 = 当前总深度 - 目标态总深度（history 中 screen 与 overlay 交织，
@@ -388,12 +396,12 @@ export function RouterProvider({
         if (meta.layer === "overlay") {
           let overlayIndex = -1;
           for (let i = overlaysNow.length - 1; i >= 0; i -= 1) {
-            if (overlaysNow[i].key === key) {
+            if (isTarget(overlaysNow[i])) {
               overlayIndex = i;
               break;
             }
           }
-          if (overlayIndex < 0) return;
+          if (overlayIndex < 0) return false;
           // 盖在目标 overlay 之上打开的 screen 也必须一并弹掉（否则浮层不可见）
           const overlayCreatedAt = overlaysNow[overlayIndex].createdAt;
           const keepScreens = screensNow.filter(
@@ -403,12 +411,12 @@ export function RouterProvider({
         } else {
           let screenIndex = -1;
           for (let i = screensNow.length - 1; i >= 0; i -= 1) {
-            if (screensNow[i].key === key) {
+            if (isTarget(screensNow[i])) {
               screenIndex = i;
               break;
             }
           }
-          if (screenIndex < 0) return;
+          if (screenIndex < 0) return false;
           // 弹到目标 screen 时，其上的 overlay 一并清空
           targetTotal = screenIndex + 1;
         }
@@ -416,6 +424,7 @@ export function RouterProvider({
         if (depth > 0) {
           void historyBack("code", depth);
         }
+        return true;
       },
       popToTop: () => {
         const depth = Math.max(totalDepth() - 1, 0);
@@ -497,11 +506,18 @@ export function RouterProvider({
           guardsRef.current.set(entryId, guard);
         }
       },
-      registerBackHandler: (entryId, handler) => {
+      registerBackHandler: (entryId, handler, options) => {
         const handlers = backHandlersRef.current.get(entryId) ?? [];
         handlers.push(handler);
         backHandlersRef.current.set(entryId, handlers);
+        const blockers = edgeBackBlockersRef.current;
+        if (options?.blockEdgeBack) blockers.set(entryId, (blockers.get(entryId) ?? 0) + 1);
         return () => {
+          if (options?.blockEdgeBack) {
+            const count = (blockers.get(entryId) ?? 1) - 1;
+            if (count > 0) blockers.set(entryId, count);
+            else blockers.delete(entryId);
+          }
           const current = backHandlersRef.current.get(entryId);
           if (!current) return;
           const remaining = current.filter(item => item !== handler);
@@ -512,6 +528,7 @@ export function RouterProvider({
           }
         };
       },
+      isEdgeBackBlocked: entryId => (edgeBackBlockersRef.current.get(entryId) ?? 0) > 0,
       getScreenStack: () => screensRef.current,
       getOverlayStack: () => overlaysRef.current,
       getActiveScreen: () => getTopEntry(screensRef.current),

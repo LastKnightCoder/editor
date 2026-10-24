@@ -76,11 +76,23 @@ vi.mock("../../../router", async importOriginal => {
 });
 
 vi.mock("../../../components/PageHeader", () => ({
-  PageHeader: (props: { actions?: ReactNode; children?: ReactNode }) => (
+  PageHeader: (props: {
+    leading?: ReactNode;
+    title?: ReactNode;
+    actions?: ReactNode;
+    children?: ReactNode;
+  }) => (
     <div data-testid="page-header">
+      {props.leading}
+      {props.title}
       {props.children}
       {props.actions}
     </div>
+  ),
+  PageHeaderTextButton: (props: { children?: ReactNode; onClick?: () => void }) => (
+    <button type="button" onClick={props.onClick}>
+      {props.children}
+    </button>
   ),
   PageHeaderButton: (props: { "aria-label"?: string; onClick?: () => void }) => (
     <button type="button" aria-label={props["aria-label"]} onClick={props.onClick} />

@@ -15,6 +15,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor";
+import { cn } from "@tau/ui";
 import { createYjsDocument } from "@tau/editor-collab";
 import { ActionSheet } from "../../components/ActionSheet";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
@@ -24,7 +25,7 @@ import { MobileEditorBottomToolbar } from "../cards/editorToolbar/MobileEditorBo
 import { useMobileEditorToolbarController } from "../cards/editorToolbar/useMobileEditorToolbarController";
 import { isEditorContentEmpty } from "../cards/editorContentUtils";
 import { useReadingMode } from "../cards/readingMode/useReadingMode";
-import { ReadingModeHeaderButton } from "../cards/readingMode/ReadingModeHeaderButton";
+import { ReadingModeFab } from "../cards/readingMode/ReadingModeFab";
 import { ReadingSelectionBar } from "../cards/readingMode/ReadingSelectionBar";
 import { useReadingSelection } from "../cards/readingMode/useReadingSelection";
 import { useEditorOpenMode } from "../../hooks/useEditorOpenMode";
@@ -32,7 +33,10 @@ import { BlockActionBar } from "../cards/blockSelection/BlockActionBar";
 import { BlockDragLayer } from "../cards/blockSelection/BlockDragLayer";
 import { BlockHandle } from "../cards/blockSelection/BlockHandle";
 import { BlockSelectionHeader } from "../cards/blockSelection/BlockSelectionHeader";
-import { BlockSelectionLayer } from "../cards/blockSelection/BlockSelectionLayer";
+import {
+  BLOCK_SELECTION_INSET_CLASS,
+  BlockSelectionLayer,
+} from "../cards/blockSelection/BlockSelectionLayer";
 import { useBlockDrag } from "../cards/blockSelection/useBlockDrag";
 import {
   blockSelectionMenuItem,
@@ -106,7 +110,7 @@ export function CollabEditorPage(props: {
   const [pageRootEl, setPageRootEl] = useState<HTMLDivElement | null>(null);
 
   return (
-    <div ref={setPageRootEl} className="mobile-kb-screen bg-page flex h-full flex-col">
+    <div ref={setPageRootEl} className="mobile-kb-screen bg-page relative flex h-full flex-col">
       {blockSelection.active ? (
         <BlockSelectionHeader
           selectedCount={blockSelection.selected.length}
@@ -134,12 +138,6 @@ export function CollabEditorPage(props: {
           }
           actions={
             <>
-              <ReadingModeHeaderButton
-                editing={readingMode.editing}
-                canEdit={readingMode.canEdit}
-                onEnter={readingMode.enterEditing}
-                onExit={readingMode.exitEditing}
-              />
               <button
                 type="button"
                 aria-label="成员管理"
@@ -203,7 +201,10 @@ export function CollabEditorPage(props: {
           {binding ? (
             <div
               ref={setEditorWrapEl}
-              className="relative min-h-[45vh] pt-2"
+              className={cn(
+                "relative min-h-[45vh] pt-2 transition-[padding] duration-200",
+                blockSelection.active && BLOCK_SELECTION_INSET_CLASS
+              )}
               // 块选择期间由覆盖层接管点击，阅读态的双击进入编辑与勾选待办不生效
               {...(blockSelection.active ? {} : readingMode.readingSurfaceProps)}
             >
@@ -256,10 +257,23 @@ export function CollabEditorPage(props: {
         </div>
       </div>
 
+      <ReadingModeFab
+        visible={
+          Boolean(binding && kit) &&
+          readingMode.canEdit &&
+          !readingMode.editing &&
+          !blockSelection.active &&
+          blockDrag.dragging === null &&
+          readingSelection.range === null
+        }
+        onEnter={readingMode.enterEditing}
+        getScrollContainer={getScrollContainer}
+      />
       <MobileEditorBottomToolbar
         controller={toolbarController}
         portalContainer={pageRootEl}
         readonly={toolbarReadonly}
+        showDoneButton
       />
       {blockSelection.active && kit ? (
         <BlockActionBar

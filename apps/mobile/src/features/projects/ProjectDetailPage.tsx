@@ -1,5 +1,6 @@
 // 项目详情（v1.1 设计稿）：信息卡 + 面包屑逐层下钻（替代桌面常驻侧栏树），
 // 完整结构收进树抽屉；文档节点点击进入编辑器（打开即编辑）。
+// 每一层是一个页面实例（itemId 为空即根层），返回 / 右滑由路由逐层退回。
 
 import { useMemo, useRef, useState, type CSSProperties } from "react";
 import {
@@ -18,7 +19,6 @@ import {
 import type { ProjectItem } from "../../types";
 import { clampText } from "../../utils/richTextText";
 import { formatTimeDisplay } from "../../utils/formatTime";
-import { useBackHandler } from "../../router";
 import { toast } from "../../components/toast";
 import BottomSheet from "../../components/BottomSheet";
 import ActionSheet from "../../components/ActionSheet";
@@ -42,10 +42,36 @@ const FAB_CLEARANCE = "calc(96px + var(--mobile-screen-safe-bottom))";
 
 type PathSegment = { id: number | null; title: string };
 
+/** 从根到 itemId 的节点链（不含根）：沿属于本项目的父节点上溯，节点不存在时为空 */
+function resolveItemChain(
+  itemMap: ReadonlyMap<number, ProjectItem>,
+  projectId: number,
+  itemId: number | null
+): PathSegment[] {
+  const chain: PathSegment[] = [];
+  const seen = new Set<number>();
+  let cursor = itemId === null ? undefined : itemMap.get(itemId);
+  while (cursor && !seen.has(cursor.id)) {
+    seen.add(cursor.id);
+    chain.unshift({ id: cursor.id, title: cursor.title });
+    const parentId = cursor.parents.find(
+      pid => itemMap.get(pid)?.projects.includes(projectId) ?? false
+    );
+    cursor = parentId !== undefined ? itemMap.get(parentId) : undefined;
+  }
+  return chain;
+}
+
 type ProjectDetailPageProps = {
   projectId: number;
+  /** 当前层级节点；null 为项目根层 */
+  itemId: number | null;
   onBack: () => void;
   onBackToList?: () => void;
+  /** 进入某一层级（推入新的层级页面；null 为根层） */
+  onOpenLevel: (itemId: number | null) => void;
+  /** 面包屑跳到祖先层级（栈内有该层则逐层退回，没有则原位替换） */
+  onJumpToLevel: (itemId: number | null) => void;
   onOpenDocEditor: (item: ProjectItem, projectTitle: string) => void;
   onOpenCard: (cardId: number) => void;
   onError: (error: unknown, fallback: string) => void;
@@ -56,7 +82,6 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
   useEdgeFade(scrollRef, { bottom: false });
   const pathRef = useRef<HTMLDivElement>(null);
   useEdgeFadeX(pathRef);
-  const [path, setPath] = useState<PathSegment[]>([{ id: null, title: "" }]);
   const [treeOpen, setTreeOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [addTitle, setAddTitle] = useState("");
@@ -66,17 +91,6 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
   const [menuItem, setMenuItem] = useState<ProjectItem | null>(null);
   const [deleteItemTarget, setDeleteItemTarget] = useState<ProjectItem | null>(null);
   const [deleteProjectOpen, setDeleteProjectOpen] = useState(false);
-
-  // 下钻层级是页内 state，router 只认路由栈：不注册消费器的话，物理返回/侧滑
-  // 会直接弹掉整个详情页（表现为跳回项目/列表，中间层级全丢）。返回上一级即消费。
-  const goUpOneLevel = () => {
-    if (path.length <= 1) {
-      return false;
-    }
-    setPath(prev => prev.slice(0, -1));
-    return true;
-  };
-  useBackHandler(goUpOneLevel);
 
   const { data: project } = useProjectQuery(props.projectId);
   const { data: items, isLoading } = useProjectItemsQuery();
@@ -120,7 +134,11 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
     return { nodeCount, words };
   }, [project, itemMap]);
 
-  const currentId = path[path.length - 1].id;
+  const currentId = props.itemId;
+  const path = useMemo<PathSegment[]>(
+    () => [{ id: null, title: "" }, ...resolveItemChain(itemMap, props.projectId, currentId)],
+    [itemMap, props.projectId, currentId]
+  );
   const currentChildrenIds = useMemo(() => {
     if (currentId === null) {
       return project?.children ?? [];
@@ -182,7 +200,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
 
   const openItem = (item: ProjectItem) => {
     if (item.children.length > 0) {
-      setPath(prev => [...prev, { id: item.id, title: item.title }]);
+      props.onOpenLevel(item.id);
       return;
     }
     if (item.refType === "card" && item.refId > 0) {
@@ -215,11 +233,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
       {/* 标题在内容区页头，顶栏不再重复项目名 */}
       <PageHeader
         center={<span aria-hidden="true" />}
-        onBack={() => {
-          if (!goUpOneLevel()) {
-            props.onBack();
-          }
-        }}
+        onBack={props.onBack}
         actions={
           <PageHeaderButton
             icon={<Ellipsis size={17} />}
@@ -282,7 +296,9 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
                 {index > 0 ? <ChevronRight size={13} className="shrink-0 opacity-50" /> : null}
                 <span
                   className={`active:opacity-60 ${index === path.length - 1 ? "text-ink-1 font-bold" : ""}`}
-                  onClick={() => setPath(prev => prev.slice(0, index + 1))}
+                  onClick={() => {
+                    if (index < path.length - 1) props.onJumpToLevel(segment.id);
+                  }}
                 >
                   {segment.id === null ? project.title : segment.title}
                 </span>
@@ -407,18 +423,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
             item.children.length > 0 ||
             (item.projectItemType !== "document" && !item.contentId)
           ) {
-            // 构造从根到该节点的路径
-            const chain: PathSegment[] = [];
-            let cursor: ProjectItem | undefined = item;
-            while (cursor) {
-              chain.unshift({ id: cursor.id, title: cursor.title });
-              const parentId: number | undefined = cursor.parents.find(
-                (pid: number) =>
-                  itemMap.has(pid) && itemMap.get(pid)!.projects.includes(props.projectId)
-              );
-              cursor = parentId !== undefined ? itemMap.get(parentId) : undefined;
-            }
-            setPath([{ id: null, title: "" }, ...chain]);
+            if (item.id !== currentId) props.onOpenLevel(item.id);
             return;
           }
           openItem(item);

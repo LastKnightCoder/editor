@@ -25,8 +25,11 @@ export type Navigator = {
   replace(key: string, params?: Record<string, unknown>): void;
   /** 返回上一层。result 供 pushForResult 的调用方接收 */
   pop(result?: unknown): void;
-  /** 弹到指定 key 的最近实例（含） */
-  popTo(key: string): void;
+  /**
+   * 弹到指定 key 的最近实例（含）；传 params 时只认参数身份相同的实例（match: params 页面的
+   * 同页多实例，如项目详情的各层级）。返回是否找到目标（找不到时不动栈）。
+   */
+  popTo(key: string, params?: Record<string, unknown>): boolean;
   /** 弹到根页 */
   popToTop(): void;
   /** push 并等待页面 finish(result)/cancel；未 finish 返回（手势/系统键）则 reject */
@@ -51,11 +54,25 @@ export type Navigator = {
    * 同一页面可注册多个（页内多浮层叠加），仲裁按 LIFO——后注册（更上层浮层）先问；
    * 返回注销函数，精确移除自身而不影响同页其它消费器。
    */
-  registerBackHandler(entryId: string, handler: () => boolean | Promise<boolean>): () => void;
+  registerBackHandler(
+    entryId: string,
+    handler: () => boolean | Promise<boolean>,
+    options?: BackHandlerOptions
+  ): () => void;
+  /** 该页面当前是否有声明 blockEdgeBack 的页内层（边缘返回手势据此不跟手） */
+  isEdgeBackBlocked(entryId: string): boolean;
   getScreenStack(): StackSnapshot;
   getOverlayStack(): StackSnapshot;
   getActiveScreen(): RouteEntry | null;
   getTopOverlay(): RouteEntry | null;
+};
+
+export type BackHandlerOptions = {
+  /**
+   * 打开期间必定消费返回的页内层（浮层、块选择等模式）声明为 true：边缘返回手势不再拖动页面，
+   * 否则页面会被拖出露出下层页、松手后因返回被消费而弹回。条件消费的处理器（未保存确认等）不要声明。
+   */
+  blockEdgeBack?: boolean;
 };
 
 export type RouterState = {
