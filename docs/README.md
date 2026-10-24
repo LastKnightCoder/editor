@@ -45,7 +45,7 @@
 | [ops-mac-verification.md](./guides/ops-mac-verification.md)         | mac 实机验证 runbook                  |
 | [ops-macos-code-signing.md](./guides/ops-macos-code-signing.md)     | macOS 代码签名与公证                  |
 | [ops-taunote-domains.md](./guides/ops-taunote-domains.md)           | taunote.app 域名与服务器映射          |
-| [ops-telemetry-umami.md](./guides/ops-telemetry-umami.md)           | Umami 统计部署与埋点（旧版维护资料）  |
+| [ops-telemetry-umami.md](./guides/ops-telemetry-umami.md)           | 旧统计停用与历史数据恢复              |
 | [plugin-development.md](./guides/plugin-development.md)             | 插件开发规范与验收                    |
 | [plugin-portability-spike.md](./guides/plugin-portability-spike.md) | 桌面、Android、iOS 插件验证操作       |
 
