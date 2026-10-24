@@ -2,13 +2,14 @@ import type { TextExtensionOptions } from "../extensions/text";
 import { Descendant } from "slate";
 
 import { getContentLength } from "./text";
+import { isContentEmpty } from "@tau/db-schema/content-metrics";
 
 export const createEmptyRichTextContent = (): Descendant[] => [
   { type: "paragraph", children: [{ type: "formatted", text: "" }] } as unknown as Descendant,
 ];
 
 export const isRichTextContentEmpty = (content: Descendant[] | undefined) =>
-  !content || getContentLength(content) === 0;
+  isContentEmpty(content);
 
 /** 结构化的提交守门宿主：Board 与扩展 WhiteboardAPI 都满足 */
 interface SubmissionHost {
@@ -25,11 +26,14 @@ interface SubmissionHost {
 export const createRichTextContentId = async (
   content: Descendant[],
   board: SubmissionHost,
-  binding: Pick<TextExtensionOptions, "create" | "release"> = {}
+  binding: Pick<TextExtensionOptions, "create" | "release" | "countWords"> = {}
 ): Promise<number | undefined> => {
   const canSubmit = board.captureSubmission?.() ?? (() => !board.readonly && !board.isDestroyed);
   try {
-    const contentId = await binding.create?.(content, getContentLength(content));
+    const contentId = await binding.create?.(
+      content,
+      (binding.countWords ?? getContentLength)(content)
+    );
     if (contentId && !canSubmit()) {
       await binding.release?.(contentId);
       return undefined;

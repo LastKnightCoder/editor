@@ -1,3 +1,4 @@
+import { isContentEmpty } from "@tau/db-schema/content-metrics";
 // 日记信息流卡片（v2 模板）：一个片段一张卡，独立预览、独立编辑、独立删除。
 // 只读 Editor 渲染前两段做预览（对齐卡片库，不做文本摘要提取）；
 // 卡片「···」菜单提供编辑标签与删除该片段（删除确认后延迟落库，可撤销）。
@@ -166,7 +167,7 @@ const DiaryCardItem = memo(
           )}
         </div>
         <div className="text-ink-3 mt-2.5 flex items-center gap-3 text-[11.5px] tabular-nums">
-          <span>{segment.wordCount > 0 ? `${segment.wordCount} 字` : "空白"}</span>
+          <span>{isContentEmpty(segment.content) ? "空白" : `${segment.wordCount} 字`}</span>
           {entry.mood?.type === "emoji" ? (
             <span className="ml-auto text-[13px]">{entry.mood.value}</span>
           ) : null}

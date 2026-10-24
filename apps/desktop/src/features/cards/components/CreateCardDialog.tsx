@@ -14,7 +14,7 @@ import ContentEditor from "@/components/ContentEditor";
 import { ErrorBoundary } from "@tau/ui";
 import { useCardsMutations } from "../queries";
 import { DEFAULT_CARD_CONTENT } from "@/constants";
-import { getContentLength } from "@/utils";
+import { getContentLength, isContentEmpty } from "@/utils";
 import type { ICard } from "@/types";
 import { Button, Dialog, DialogBody, toast } from "@tau/ui";
 
@@ -80,7 +80,7 @@ export function CreateCardDialog({ open, onClose, onCreated, initial }: CreateCa
 
   const handleSave = async () => {
     const value = content;
-    if (getContentLength(value) === 0) {
+    if (isContentEmpty(value)) {
       toast.warning("卡片内容为空");
       return;
     }

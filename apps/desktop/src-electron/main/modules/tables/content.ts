@@ -125,7 +125,7 @@ export default class ContentTable {
       "INSERT INTO contents (id, create_time, update_time, content, count, ref_count) VALUES (?, ?, ?, ?, ?, ?)"
     );
     const now = Date.now();
-    const actualCount = count || (content ? getContentLength(content) : 0);
+    const actualCount = content ? getContentLength(content) : (count ?? 0);
     const res = stmt.run(
       getNextTaskEntityId(db, "contents"),
       now,
@@ -158,7 +158,7 @@ export default class ContentTable {
       "UPDATE contents SET update_time = ?, content = ?, count = ? WHERE id = ?"
     );
     const now = Date.now();
-    const actualCount = count || (content ? getContentLength(content) : 0);
+    const actualCount = content ? getContentLength(content) : (count ?? 0);
     stmt.run(now, JSON.stringify(content || []), actualCount, contentId);
     Operation.insertOperation(db, "content", "update", contentId, now);
     ctx.broadcastOthers("content:updated", { databaseName: basename(db.name), contentId });

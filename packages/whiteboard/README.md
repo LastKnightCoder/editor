@@ -194,3 +194,7 @@ defineElement({ type: "demo.stamp", containment: { canBeContained: false }, rend
 ## 验证
 
 运行 `pnpm --filter @tau/whiteboard check`、`test`、`bench:hit`、`bench:render`；边界检查为 `pnpm check:whiteboard-boundaries`。独立示例使用 `pnpm --filter @example/whiteboard build`。视觉验收由用户完成。
+
+## 富文本字数
+
+富文本宿主服务可提供 `countWords`，正文创建沿用该宿主的扩展统计器；桌面绑定与正文保存共用同一实例。没有宿主时，嵌入式段落/链接套件使用公共计数算法统计文本叶子，画布核心不加载编辑器领域扩展。自动清理单独使用保守的 `isContentEmpty`，含媒体或未知节点的富文本即使零字数也保留。

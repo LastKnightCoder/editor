@@ -12,7 +12,7 @@ const mock = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   openPath: vi.fn(async () => ""),
   download: vi.fn(),
-  validateContent: vi.fn(async () => true),
+  validateContent: vi.fn(async () => ({ editor: true, whiteboard: false, metrics: [] })),
 }));
 vi.mock("../../services/content-execution", () => ({
   contentExecutor: { execute: mock.validateContent },
@@ -144,7 +144,7 @@ it("主进程恢复内容快照，将定义校验交给内容渲染进程", asyn
     artifacts: [{ manifest: { id } }],
   });
   expect(mock.validateContent).toHaveBeenCalledWith(
-    { operation: "validate" },
+    { operation: "inspect", id },
     undefined,
     expect.arrayContaining([expect.objectContaining({ manifest: expect.objectContaining({ id }) })])
   );

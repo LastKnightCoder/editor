@@ -1,3 +1,5 @@
+import { countTextWords } from "@tau/db-schema/content-metrics";
+import { mobileContentMetrics } from "../app/plugins/content";
 import type { SettingCompat } from "../types";
 import { invoke } from "@tauri-apps/api/core";
 import { occurrenceDateMap, projectCompletions, originalOccurrenceDate } from "./task-occurrences";
@@ -262,7 +264,7 @@ export function createQuickCard(params: { content: unknown[]; count: number }) {
   // 引导用户确认而非盲目重试，避免产生重复卡片
   return withTimeout(
     trackedInvoke<CardDetailResponse>("create_quick_card", {
-      payload: params,
+      payload: { ...params, count: mobileContentMetrics.count(params.content) },
     }),
     CARD_INVOKE_TIMEOUT_MS,
     `CARD_INVOKE_TIMEOUT: 创建卡片超时（${CARD_INVOKE_TIMEOUT_MS / 1000} 秒），请返回列表确认是否已创建，勿直接重试`
@@ -272,7 +274,7 @@ export function createQuickCard(params: { content: unknown[]; count: number }) {
 export function updateContent(params: { contentId: number; content: unknown[]; count: number }) {
   return withCardTimeout(
     trackedInvoke<ContentDetailResponse>("update_content", {
-      payload: params,
+      payload: { ...params, count: mobileContentMetrics.count(params.content) },
     }),
     "保存卡片内容"
   );
@@ -347,7 +349,9 @@ export function getDatabaseSchemaStatus(name?: string) {
 }
 
 export function createContent(params: { content: unknown[]; count?: number }) {
-  return trackedInvoke<number>("create_content", { payload: params });
+  return trackedInvoke<number>("create_content", {
+    payload: { ...params, count: mobileContentMetrics.count(params.content ?? []) },
+  });
 }
 
 export function diaryListEntries(payload?: DiaryListPayload) {
@@ -364,7 +368,9 @@ export function diaryGetEntry(payload: { type: DiaryEntry["type"]; date: string 
 }
 
 export function diaryUpsertEntry(payload: DiaryUpsertPayload) {
-  return trackedInvoke<RawDiaryEntry>("diary_upsert_entry", { payload }).then(normalizeDiaryEntry);
+  return trackedInvoke<RawDiaryEntry>("diary_upsert_entry", {
+    payload: { ...payload, wordCount: mobileContentMetrics.count(payload.content) },
+  }).then(normalizeDiaryEntry);
 }
 
 export function diaryDeleteEntry(id: number) {
@@ -460,14 +466,14 @@ async function withAssistantItems(items: TodoItem[]): Promise<TodoItem[]> {
 
 export function todoCreateItem(payload: CreateTodoItemPayload) {
   return trackedInvoke<TodoItem>("todo_create_item", {
-    payload,
+    payload: { ...payload, descriptionCount: countTextWords(payload.description ?? "") },
     timeZone: localTimeZone(),
   });
 }
 
 export function todoCreateItemRelative(payload: CreateTodoItemRelativePayload) {
   return trackedInvoke<TodoItem>("todo_create_item_relative", {
-    payload,
+    payload: { ...payload, descriptionCount: countTextWords(payload.description ?? "") },
     timeZone: localTimeZone(),
   });
 }
@@ -835,7 +841,9 @@ export function articleCreate(params: {
   content?: unknown[];
   count?: number;
 }) {
-  return trackedInvoke<ArticleDetail>("article_create", { payload: params });
+  return trackedInvoke<ArticleDetail>("article_create", {
+    payload: { ...params, count: mobileContentMetrics.count(params.content ?? []) },
+  });
 }
 
 export function articleUpdate(params: {
@@ -896,7 +904,9 @@ export function projectItemCreate(params: {
   content?: unknown[];
   count?: number;
 }) {
-  return trackedInvoke<ProjectItem>("project_item_create", { payload: params });
+  return trackedInvoke<ProjectItem>("project_item_create", {
+    payload: { ...params, count: mobileContentMetrics.count(params.content ?? []) },
+  });
 }
 
 export function projectItemUpdate(params: { id: number; title?: string; tags?: string[] }) {
@@ -953,7 +963,7 @@ export function collabProjectContent(params: {
 }) {
   return trackedInvoke<{ projected: boolean; changed?: boolean; reason?: string }>(
     "collab_project_content",
-    { payload: params }
+    { payload: { ...params, count: mobileContentMetrics.count(params.content) } }
   );
 }
 
@@ -1107,11 +1117,29 @@ export function calendarEventGetByDateRange(payload: {
 }
 
 export function calendarEventCreate(payload: CreateCalendarEventInput) {
-  return trackedInvoke<CalendarEvent>("calendar_event_create", { payload });
+  return trackedInvoke<CalendarEvent>("calendar_event_create", {
+    payload: {
+      ...payload,
+      ...(payload.detailContent
+        ? {
+            detailContentCount: mobileContentMetrics.count(payload.detailContent),
+          }
+        : {}),
+    },
+  });
 }
 
 export function calendarEventUpdate(payload: UpdateCalendarEventInput) {
-  return trackedInvoke<CalendarEvent>("calendar_event_update", { payload });
+  return trackedInvoke<CalendarEvent>("calendar_event_update", {
+    payload: {
+      ...payload,
+      ...(payload.detailContent
+        ? {
+            detailContentCount: mobileContentMetrics.count(payload.detailContent),
+          }
+        : {}),
+    },
+  });
 }
 
 export function calendarEventDelete(id: number) {

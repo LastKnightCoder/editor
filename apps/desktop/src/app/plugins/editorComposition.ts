@@ -1,3 +1,4 @@
+import { createContentMetrics } from "@tau/db-schema/content-metrics";
 import { createEditorKit } from "@tau/editor";
 import { editorMarkdownCodecs } from "@tau/editor/markdown";
 import { createMarkdownProcessor } from "@tau/markdown";
@@ -5,6 +6,11 @@ import type { PluginEditorContribution } from "@tau/plugins";
 
 /** 注册时先完成装配校验，失败不得替换当前可用会话。 */
 export function composePluginEditor(contributions: readonly PluginEditorContribution[]) {
+  for (const item of contributions) {
+    const owned = new Set(item.extension.elements?.map(element => element.type));
+    for (const rule of item.metrics ?? [])
+      if (!owned.has(rule.type)) throw new Error("字数统计规则只能声明本扩展的节点");
+  }
   const codecs = [...editorMarkdownCodecs, ...contributions.flatMap(item => item.codecs ?? [])];
   const types = new Set<string>();
   const directives = new Set<string>();
@@ -19,5 +25,6 @@ export function composePluginEditor(contributions: readonly PluginEditorContribu
   return {
     kit: createEditorKit({ extensions: contributions.map(item => item.extension) }),
     markdown: createMarkdownProcessor({ codecs }),
+    metrics: createContentMetrics(contributions.flatMap(item => item.metrics ?? [])),
   };
 }

@@ -1,3 +1,4 @@
+import type { ContentMetricRule } from "@tau/db-schema/content-metrics";
 import { defineExtension } from "@tau/editor/contracts";
 import type { EditorExtension as InternalExtension } from "@tau/editor/contracts";
 import type { MarkdownCodec } from "@tau/markdown";
@@ -6,6 +7,7 @@ import { normalizePluginEditorExtension, type OpenEditorExtensionField } from ".
 
 export { defineElement as defineEditorElement } from "@tau/editor/contracts";
 export type { ElementRenderProps as EditorElementRenderProps } from "@tau/editor/contracts";
+export type { ContentMetricRule as EditorMetricRule } from "@tau/db-schema/content-metrics";
 export type { MarkdownCodec as EditorMarkdownCodec } from "@tau/markdown";
 export type {
   ContentResourceSpec as EditorResourceSpec,
@@ -53,6 +55,7 @@ export interface PluginEditorContribution {
   extension: PluginEditorExtension;
   /** 纯函数定义可由主进程独立导入，本次只在开发台装配。 */
   codecs?: readonly MarkdownCodec[];
+  metrics?: readonly ContentMetricRule[];
 }
 
 export interface PluginEditor {

@@ -1,3 +1,4 @@
+import { normalizeContentMetricRules } from "@tau/db-schema/content-metrics";
 import { assertContentResourceSpecs } from "@tau/db-schema/content-resources";
 import type { PluginDefinition } from "./contract";
 import type { PluginEditorExtension } from "./editor";
@@ -200,6 +201,8 @@ export function getPluginNodeTypes(definition: PluginDefinition): string[] {
       htmlTypes.add(serializer.type);
     }
   }
+  for (const rule of normalizeContentMetricRules(definition.editorMetrics ?? []))
+    if (!types.includes(rule.type)) throw new Error("字数统计规则只能声明本插件的节点");
   return types;
 }
 

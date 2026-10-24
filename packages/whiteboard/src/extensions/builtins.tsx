@@ -352,7 +352,10 @@ export function createRichTextExtension(options: RichTextFactoryOptions = {}) {
             const content = value as Descendant[];
             const valid = api.captureSubmission();
             if (!valid()) return undefined;
-            const id = await binding.create(content, getContentLength(content));
+            const id = await binding.create(
+              content,
+              (binding.countWords ?? getContentLength)(content)
+            );
             if (id && !valid()) {
               await binding.release?.(id);
               return undefined;

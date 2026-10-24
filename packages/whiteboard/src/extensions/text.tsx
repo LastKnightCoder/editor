@@ -12,6 +12,8 @@ export type WhiteboardTextEditorProps = ComponentPropsWithRef<typeof Editor> & {
 
 /** 宿主提供的白板富文本能力：编辑器组件、测量 kit 与正文持久化。 */
 export interface WhiteboardRichTextService {
+  /** 与宿主正文保存使用同一套扩展统计规则。 */
+  countWords?(content: readonly Descendant[]): number;
   /** 必有：宿主提供的正文编辑器，或兜底实现 */
   Editor: ComponentType<WhiteboardTextEditorProps>;
   /** 测量与只读渲染共用 */
@@ -33,6 +35,7 @@ export const IWhiteboardRichText =
 
 /** 正文扩展私有的绑定，画布内核不读取正文身份或 Kit。 */
 export interface TextExtensionOptions {
+  countWords?(content: readonly Descendant[]): number;
   kit(contentId?: number): EditorKit;
   Editor?: ComponentType<WhiteboardTextEditorProps>;
   Observer?: ComponentType<{ contentId: number; onChange(value: Descendant[]): void }>;
@@ -73,6 +76,7 @@ export function textOptionsFromService(
   Selector?: TextExtensionOptions["Selector"]
 ): TextExtensionOptions {
   return {
+    countWords: service.countWords,
     kit: contentId => service.kit(contentId),
     Editor: service.Editor,
     Observer: service.Observer,

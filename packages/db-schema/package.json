@@ -10,7 +10,8 @@
     "./sync-protocol": "./sync-protocol.ts",
     "./package.json": "./package.json",
     "./schema/*": "./schema/*",
-    "./src/*": "./src/*.ts"
+    "./src/*": "./src/*.ts",
+    "./content-metrics": "./content-metrics.ts"
   },
   "dependencies": {
     "proper-lockfile": "^4.1.2",

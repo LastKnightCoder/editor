@@ -52,3 +52,7 @@ kit 只决定编辑器组合，不决定环境是否存在。默认与自定义 
 | `@tau/editor/extensions/<功能>`              | 内置功能入口；`/presets/standard` 为默认组合                        |
 
 程序化调用为 `editor.commands.execute(id, payload, element, path)`；异步写入用 `/api` 的 `capture*Submission` 守卫（check/commit/dispose 管理有效性与引用释放）。纯入口与渲染入口分开：主进程/脚本使用 markdown 或纯子入口，不从 UI 根入口取 codec。完整外部示例见 `examples/editor-reminder`。
+
+## 正文字数
+
+通用扩展在自己的 metrics.ts 声明文本字段与补充子树，`@tau/editor/content-metrics` 只装配声明，不加载 React 或 DOM。统一算法位于 `@tau/db-schema/content-metrics`，宿主再加入插件规则。普通 children 自动递归；代码分步由 code-step 声明 code，源码与编译缓存不重复统计。自动清理使用独立 isContentEmpty，编辑器交互仍使用各扩展的 isEmpty。

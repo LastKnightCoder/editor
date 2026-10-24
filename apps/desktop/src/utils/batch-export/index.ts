@@ -1,3 +1,4 @@
+import { isContentEmpty } from "@tau/db-schema/content-metrics";
 import type { Descendant } from "slate";
 import { getProjectById } from "@/commands";
 import {
@@ -73,34 +74,6 @@ const escapeHtml = (value: string) =>
 
 const UNTITLED_FILE_NAME = "未命名文档";
 
-/**
- * Slate 层面的"是否有正文"判断：任一文本非空，或存在非段落块（图片/表格等）
- */
-const hasMeaningfulContent = (content: Descendant[]): boolean => {
-  if (!Array.isArray(content) || content.length === 0) {
-    return false;
-  }
-  const walk = (nodes: unknown[]): boolean =>
-    nodes.some(node => {
-      if (!node || typeof node !== "object") {
-        return false;
-      }
-      const record = node as {
-        text?: unknown;
-        type?: unknown;
-        children?: unknown;
-      };
-      if (typeof record.text === "string") {
-        return record.text.trim().length > 0;
-      }
-      if (typeof record.type === "string" && record.type !== "paragraph") {
-        return true;
-      }
-      return Array.isArray(record.children) && walk(record.children);
-    });
-  return walk(content);
-};
-
 const convertProjectNode = (node: ProjectTreeNode, depth: number): BatchExportTreeNode => {
   const exportable = node.item.projectItemType === EProjectItemType.Document;
   return {
@@ -109,7 +82,7 @@ const convertProjectNode = (node: ProjectTreeNode, depth: number): BatchExportTr
     depth,
     itemType: node.item.projectItemType,
     exportable,
-    empty: exportable && !hasMeaningfulContent(node.item.content),
+    empty: exportable && isContentEmpty(node.item.content),
     content: node.item.content || [],
     children: node.children.map(child => convertProjectNode(child, depth + 1)),
   };

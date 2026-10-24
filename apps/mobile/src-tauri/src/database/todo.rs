@@ -149,6 +149,7 @@ pub struct CreateTodoItemPayload {
     #[serde(rename = "type")]
     pub item_type: Option<String>,
     pub description: Option<String>,
+    pub description_count: i64,
     pub start_at: Option<i64>,
     pub due_at: Option<i64>,
     pub remind_before: Option<i64>,
@@ -163,6 +164,7 @@ pub struct CreateTodoItemRelativePayload {
     #[serde(rename = "type")]
     pub item_type: Option<String>,
     pub description: Option<String>,
+    pub description_count: i64,
     pub start_at: Option<i64>,
     pub due_at: Option<i64>,
     pub remind_before: Option<i64>,

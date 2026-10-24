@@ -1,16 +1,10 @@
+import { isContentEmpty } from "@tau/db-schema/content-metrics";
 import type { Descendant } from "slate";
 import { ICard, ICardTree } from "@/types";
 
 /** 卡片正文还是新建时的样子：至多一个只含空文字的段落（有图片、公式等任何元素都不算空） */
-export const isBlankCardContent = (content: Descendant[]) => {
-  if (content.length > 1) return false;
-  const [first] = content as Array<{ type?: string; children?: Array<{ text?: unknown }> }>;
-  return (
-    !first ||
-    (first.type === "paragraph" &&
-      (first.children ?? []).every(child => typeof child.text === "string" && !child.text))
-  );
-};
+export const isBlankCardContent = (content: Descendant[]) =>
+  content.length <= 1 && isContentEmpty(content);
 
 export const findCardsByTags = (cards: ICard[], tags: string[]) => {
   return cards.filter(card =>

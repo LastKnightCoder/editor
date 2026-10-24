@@ -34,3 +34,8 @@ export function check(context: PluginContext, manifest: PortablePluginManifest) 
   // @ts-expect-error 作者不能改宿主环境。
   context.environment.platform = "ios";
 }
+
+export const metricRule: import("@tau/plugins").EditorMetricRule = {
+  type: "example.source",
+  textFields: ["source"],
+};

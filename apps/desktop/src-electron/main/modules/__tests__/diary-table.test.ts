@@ -278,3 +278,28 @@ describe("DiaryTable", () => {
     expect(broadcastOthers).toHaveBeenCalledWith("diary:changed", { databaseName: ":memory:" });
   });
 });
+
+it("正文创建与更新以扩展统计为准，不接受调用方的过时计数", async () => {
+  const { installDesktopPluginMetrics } = await import("../../../../shared/content-metrics");
+  const db = createTestDatabase();
+  try {
+    installDesktopPluginMetrics([{ type: "example.source", textFields: ["source"] }]);
+    const content = [
+      { type: "example.source", source: "你好世界", children: [{ text: "" }] },
+    ] as unknown as Descendant[];
+    const id = ContentTable.createContent(db, { content, count: 999 });
+    expect(ContentTable.getContentById(db, id)?.count).toBe(4);
+    ContentTable.updateContent(db, id, { content: paragraph("hello world"), count: 999 });
+    expect(ContentTable.getContentById(db, id)?.count).toBe(2);
+    ContentTable.updateContent(db, id, {
+      content: [
+        { type: "image", url: "image.png", children: [{ text: "" }] },
+      ] as unknown as Descendant[],
+      count: 999,
+    });
+    expect(ContentTable.getContentById(db, id)?.count).toBe(0);
+  } finally {
+    installDesktopPluginMetrics([]);
+    db.close();
+  }
+});

@@ -69,6 +69,9 @@ fn create_item_with_payload(
     time_zone: crate::database::calendar_time::CalendarTimeZone,
 ) -> Result<TodoItem, String> {
     reject_retired_type(&payload.item_type)?;
+    if payload.description_count < 0 || payload.description_count > 9_007_199_254_740_991 {
+        return Err("TODO_INVALID_WORD_COUNT: invalid word count".to_string());
+    }
     let item_type = normalize_item_type(payload.item_type.clone());
     let sort_index = query_max_sort_index(tx, payload.group_id, payload.parent_id)? + 1024;
     let now = now_millis();
@@ -83,7 +86,7 @@ fn create_item_with_payload(
             Some(insert_content_record(
                 tx,
                 &content,
-                text.chars().count() as i64,
+                payload.description_count,
             )?)
         }
     } else {
@@ -411,6 +414,7 @@ pub fn todo_create_item_relative(
         title: payload.title,
         item_type: payload.item_type,
         description: payload.description,
+        description_count: payload.description_count,
         start_at: payload.start_at,
         due_at: payload.due_at,
         remind_before: payload.remind_before,

@@ -17,7 +17,7 @@ import { useEditorDocument } from "@/features/editor-window/useEditorDocument";
 import useSettingStore from "@/stores/useSettingStore";
 import { deleteCard, getCardById } from "@/commands/card";
 import { DEFAULT_CARD_CONTENT } from "@/constants/card";
-import { getContentLength } from "@/utils";
+import { isContentEmpty } from "@/utils";
 import { useCardsMutations } from "../queries";
 import "@/app/base.css";
 
@@ -49,7 +49,7 @@ async function findReusableCard(databaseName: string): Promise<number | null> {
   if (!id) return null;
   try {
     const card = await getCardById(id);
-    return card && getContentLength(card.content) === 0 ? card.id : null;
+    return card && isContentEmpty(card.content) ? card.id : null;
   } catch {
     return null;
   }
@@ -138,8 +138,8 @@ export default function QuickCardWindow() {
 
 function QuickCardDocument({ cardId, databaseName }: { cardId: number; databaseName: string }) {
   const { document, status, saveState, updateFields } = useEditorDocument(cardDriver, cardId);
-  const emptyRef = useRef(true);
-  emptyRef.current = !document || getContentLength(document.content) === 0;
+  const emptyRef = useRef(false);
+  emptyRef.current = status === "ready" && !!document && isContentEmpty(document.content);
 
   // 关窗时空卡片即删；IPC 在渲染进程销毁前发出即可由主进程执行完
   useEffect(() => {

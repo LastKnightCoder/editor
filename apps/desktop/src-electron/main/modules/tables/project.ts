@@ -327,7 +327,7 @@ export default class ProjectTable {
     } else if (item.projectItemType === EProjectItemType.Document && item.content) {
       contentId = ContentTable.createContent(db, {
         content: item.content,
-        count: item.count || getContentLength(item.content),
+        count: item.count ?? getContentLength(item.content),
       });
     }
 

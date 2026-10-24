@@ -1,10 +1,7 @@
-import { Descendant, Editor } from "slate";
+import { Descendant } from "slate";
 import { FormattedText, ParagraphElement, InlineElement } from "@tau/editor";
-import type { CodeBlockElement } from "@tau/editor/extensions/code-block/types";
-import type { InlineMathElement, BlockMathElement } from "@tau/editor/extensions/math/types";
 import classnames from "classnames";
 import { Katex } from "@tau/editor/extensions/math/renderers";
-import { wordsCount } from "words-count";
 import { StyledTextColorStyle } from "@tau/editor/extensions/styled-text/colors";
 import type { ReactElement } from "react";
 import LocalImage from "@/components/LocalImage";
@@ -127,52 +124,6 @@ export const getEditorText = (value: Descendant[], maxLength = 20): string => {
     .map(node => node.text)
     .join("")
     .slice(0, maxLength);
-};
-
-export const getEditorTextLength = (editor: Editor, value: Descendant[]): number => {
-  // 找到所有的 CodeBlock
-  const codeBlocks: Array<CodeBlockElement> = [];
-  const mathElements: Array<InlineMathElement | BlockMathElement> = [];
-  const traverse = (node: Descendant) => {
-    if (node.type === "code-block") {
-      codeBlocks.push(node);
-      return;
-    }
-    if (node.type === "inline-math" || node.type === "block-math") {
-      mathElements.push(node);
-      return;
-    }
-    // @ts-ignore
-    if (node.children && node.children.length > 0) {
-      // @ts-ignore
-      node.children.forEach(child => {
-        traverse(child);
-      });
-    }
-  };
-  for (const node of value) {
-    traverse(node);
-  }
-  let codeBlockLength = 0;
-  codeBlocks.forEach(node => {
-    codeBlockLength += wordsCount(node.code);
-  });
-
-  let mathLength = 0;
-  mathElements.forEach(node => {
-    mathLength += wordsCount(node.tex);
-  });
-
-  return (
-    wordsCount(
-      Editor.string(editor, {
-        anchor: Editor.start(editor, [0]),
-        focus: Editor.end(editor, []),
-      })
-    ) +
-    codeBlockLength +
-    mathLength
-  );
 };
 
 export const getInlineElementText = (element: InlineElement | FormattedText): string => {

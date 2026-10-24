@@ -1,3 +1,4 @@
+import { isContentEmpty } from "@tau/db-schema/content-metrics";
 import { Descendant } from "slate";
 import {
   CardListItem,
@@ -181,7 +182,7 @@ function createProjectTreeNode(map: Map<number, ProjectItem>, itemId: number): D
     .map(childId => createProjectTreeNode(map, childId))
     .filter((node): node is DocTreeNode => Boolean(node));
   const hasContent =
-    item.projectItemType === EProjectItemType.Document && hasMeaningfulContent(item.content || []);
+    item.projectItemType === EProjectItemType.Document && !isContentEmpty(item.content || []);
   return {
     id: item.id,
     title: item.title || `条目 #${item.id}`,
@@ -189,17 +190,6 @@ function createProjectTreeNode(map: Map<number, ProjectItem>, itemId: number): D
     content: item.content || [],
     children,
   };
-}
-
-/**
- * 判断内容是否有意义
- */
-function hasMeaningfulContent(content: Descendant[]): boolean {
-  if (!Array.isArray(content) || content.length === 0) {
-    return false;
-  }
-  const text = buildPlainText(content);
-  return text.trim().length > 0;
 }
 
 /**
