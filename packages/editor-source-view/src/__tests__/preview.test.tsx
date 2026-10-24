@@ -107,7 +107,12 @@ declare module "@tau/editor/api" {
     "test-preview": PreviewElement;
   }
 }
-const PreviewBlock = ({ attributes, element, children }: ElementRenderProps<PreviewElement>) => {
+const PreviewBlock = ({
+  attributes,
+  element,
+  children,
+  inPlace,
+}: ElementRenderProps<PreviewElement> & { inPlace?: boolean }) => {
   const editor = useSlateStatic();
   return (
     <div {...attributes}>
@@ -117,6 +122,9 @@ const PreviewBlock = ({ attributes, element, children }: ElementRenderProps<Prev
         element={element as never}
         mode="javascript"
         initValue={element.source}
+        inPlace={inPlace}
+        delimiters={inPlace ? "$$" : undefined}
+        immediate={inPlace}
         onChange={source =>
           Transforms.setNodes(editor, { source } as never, {
             at: ReactEditor.findPath(editor, element),
@@ -129,17 +137,20 @@ const PreviewBlock = ({ attributes, element, children }: ElementRenderProps<Prev
     </div>
   );
 };
-const fixture = defineExtension({
-  id: "test.preview",
-  elements: [
-    defineElement<PreviewElement>({
-      type: "test-preview",
-      kind: "block",
-      isVoid: true,
-      render: PreviewBlock,
-    }),
-  ],
-});
+const createFixture = (inPlace = false) =>
+  defineExtension({
+    id: inPlace ? "test.preview-in-place" : "test.preview",
+    elements: [
+      defineElement<PreviewElement>({
+        type: "test-preview",
+        kind: "block",
+        isVoid: true,
+        render: props => <PreviewBlock {...props} inPlace={inPlace} />,
+      }),
+    ],
+  });
+const fixture = createFixture();
+const inPlaceFixture = createFixture(true);
 const paragraph = (text: string): Descendant => ({
   type: "paragraph",
   children: [{ type: "formatted", text }],
@@ -181,13 +192,17 @@ describe("源码预览迁包后的行为", () => {
     outerKey.mockClear();
     outerPaste.mockClear();
   });
-  const mount = async (source: string, touch = false) => {
+  const mount = async (source: string, touch = false, inPlace = false) => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
     const ref = createRef<EditorRef>();
     const kit = createEditorKit({
-      extensions: [previewMenuExtension, fixture, ...(touch ? [defaultMenuExtension] : [])],
+      extensions: [
+        previewMenuExtension,
+        inPlace ? inPlaceFixture : fixture,
+        ...(touch ? [defaultMenuExtension] : []),
+      ],
       services: [
         register => {
           register(IEditorSlots, createDefaultEditorSlots());
@@ -268,6 +283,18 @@ describe("源码预览迁包后的行为", () => {
       await new Promise(resolve => setTimeout(resolve, 350));
     });
   };
+  it("原位模式在触摸策略下保留实时预览并立即回写", async () => {
+    await mount("初始", true, true);
+    await edit();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(observed.editors).toHaveLength(1);
+    expect(host.querySelector("textarea")).toBeTruthy();
+    expect(host.querySelector("output")?.textContent).toBe("初始");
+    expect(host.textContent?.match(/\$\$/g)).toHaveLength(2);
+    await changeSource("更新");
+    expect((editor.children[1] as PreviewElement).source).toBe("更新");
+    expect(host.querySelector("output")?.textContent).toBe("更新");
+  });
   it("触摸源码取消不写入，保存可撤销，块菜单复用标准移动与删除", async () => {
     await mount("初始", true);
     const click = async (label: string) => {

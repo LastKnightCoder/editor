@@ -73,7 +73,7 @@ const SLATE_ELEMENT_SELECTOR = '[data-slate-node="element"]';
 const SLATE_EDITOR_SELECTOR = "[data-slate-editor]";
 /** 图片说明的就地输入（Image 组件在说明区标的 data 属性） */
 const MEDIA_CAPTION_SELECTOR = "[data-media-caption]";
-/** 行内公式弹层输入框（InlineMath 组件的 data 属性），并用选区所在 inline-math 节点二次确认 */
+/** 行内公式原位输入框（InlineMath 组件的 data 属性），并用选区所在 inline-math 节点二次确认 */
 const INLINE_MATH_INPUT_SELECTOR = "input[data-inline-math-input]";
 
 const VOID_EDITOR_KINDS = new Set<EditingContext["kind"]>([

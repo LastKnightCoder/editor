@@ -38,7 +38,7 @@ export function loadConfig(overrides: Partial<ServerConfig> = {}): ServerConfig 
     dataDir: resolve(process.env.COLLAB_DATA_DIR || "./data"),
     host: process.env.COLLAB_HOST || "127.0.0.1",
     port: positiveInteger("COLLAB_PORT", 3210),
-    publicUrl: process.env.COLLAB_PUBLIC_URL || "https://collab.taunote.app",
+    publicUrl: process.env.COLLAB_PUBLIC_URL || "https://collab.xiongtao.life",
     maxDocumentsPerDevice: positiveInteger("COLLAB_MAX_DOCUMENTS", 5),
     maxMembers: positiveInteger("COLLAB_MAX_MEMBERS", 10),
     maxConnections: positiveInteger("COLLAB_MAX_CONNECTIONS", 100),

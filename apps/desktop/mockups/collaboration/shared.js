@@ -142,7 +142,7 @@
   const ME = {
     deviceId: "d7f3a9c2e1b04f5a",
     nickname: "小熊",
-    serverUrl: "https://collab.taunote.app",
+    serverUrl: "https://collab.xiongtao.life",
   };
   const P = {
     lin: { deviceId: "a1b2c3d4e5f60718", nickname: "林一" },
