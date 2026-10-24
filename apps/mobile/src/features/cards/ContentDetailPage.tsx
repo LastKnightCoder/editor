@@ -440,7 +440,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
             <h1 className="text-ink-1 text-[31px] font-extrabold leading-tight tracking-[-0.02em]">
               {props.diaryDate.title}
             </h1>
-            <p className="text-ink-2 mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
+            <p className="text-ink-2 mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
               {props.diaryDate.sub ? <span>{props.diaryDate.sub}</span> : null}
               {props.diaryDate.sub ? <MetaDot /> : null}
               {saveStatusNode}
@@ -539,7 +539,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         <div
           ref={setEditorWrapEl}
           className={cn(
-            "relative min-h-[45vh] pt-1 transition-[padding] duration-200",
+            "relative min-h-[45vh] pt-5 transition-[padding] duration-200",
             blockSelection.active && BLOCK_SELECTION_INSET_CLASS
           )}
           // 块选择期间由覆盖层接管点击，阅读态的双击进入编辑与勾选待办不生效

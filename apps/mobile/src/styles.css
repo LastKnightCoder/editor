@@ -219,9 +219,11 @@ code {
   line-height: 1.75;
 }
 
-/* 段间距收到 0.8em：body-lg 字号下原 1.25em 接近一整行，段落显得被切开 */
+/* 段间距收到 0.8em：body-lg 字号下原 1.25em 接近一整行，段落显得被切开；
+   段落两端对齐：中文标点避头尾会让左对齐的行尾参差。只作用于段落元素，标题、代码块、表格单元格不受影响 */
 .mobile-card-editor-content[data-slate-editor="true"] p[data-slate-node="element"] {
   margin-bottom: 0.8em;
+  text-align: justify;
 }
 
 /* 行内代码去描边、缩字号、淡墨底：body-lg 下描边胶囊近一行高，连续出现时像一排按钮 */
