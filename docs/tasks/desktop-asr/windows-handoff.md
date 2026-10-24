@@ -16,7 +16,7 @@
 - [x] Investigate/Triage/Understand the problem：梳理混合工作区、SDK 依赖及分支基线，确认用户接受本地 master 的既有历史。
 - [x] 在独立工作树提取 ASR 代码、任务文档和子模块引用。
 - [x] 运行隔离源码的相关测试、类型与构建检查，检查改动边界。
-- [ ] 推送分支，验证远端提交及子模块可达，交接 Windows 实测。
+- [x] 推送分支，验证远端提交及子模块可达，交接 Windows 实测。
 
 ## Windows 获取源码
 
@@ -67,3 +67,5 @@ Windows 不要求兼容所有版本。系统版本、硬件、语言模型、包
 - ESLint／Prettier、数据库与白板边界检查通过；文档检查及入口消费者复查通过。真人证据只有计数、耗时和尾词匹配布尔值，不含原始录音和正文。
 
 以上为 Mac 隔离源码检查，Windows 仍待实机验证。
+
+宿主提交 `b2eaa025e` 已推送至主仓库的 `codex/asr-windows-validation`；Seed 和模板固定提交均已核对远端可达。下一步在 Windows 拉取该分支，按本文件完成实机验证，再按授权合并 master。当前 Mac 主工作区仍保留原有修改，未执行 master 合并。
