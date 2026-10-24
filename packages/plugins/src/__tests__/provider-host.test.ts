@@ -80,3 +80,42 @@ it("未启用提供方不能创建任务", async () => {
     registry.execute({ kind: "open", session: "job", pluginId: "missing", config: {} })
   ).rejects.toThrow("未在当前窗口启用");
 });
+
+it("宿主独占的上传字节不复制，普通上传仍隔离调用方字节", async () => {
+  const { RendererUploadRegistry } = await import("../provider-host");
+  const registry = new RendererUploadRegistry();
+  const received: Uint8Array[] = [];
+  const host = new PluginHost({
+    workspaceId: "fixture",
+    storage: createMemoryStorage(),
+    upload: registry,
+  });
+  host.registerTrusted(
+    definePlugin({
+      id: "fixture.upload",
+      name: "fixture",
+      version: "1.0.0",
+      create: () => ({
+        activate(context) {
+          context.upload.register({
+            id: context.pluginId,
+            name: "upload",
+            upload: async file => {
+              received.push(file.content);
+              return "https://example.com/file";
+            },
+          });
+        },
+      }),
+    })
+  );
+  await host.enable("fixture.upload");
+  const content = new Uint8Array([1, 2]);
+  const file = { name: "file", mimeType: "application/octet-stream", content };
+  await registry.uploadOwned("fixture.upload", file, {});
+  await registry.upload("fixture.upload", file, {});
+  expect(received[0]).toBe(content);
+  expect(received[1]).not.toBe(content);
+  expect(received[1]).toEqual(content);
+  await host.dispose();
+});

@@ -4,7 +4,6 @@ use super::common::{
 };
 use super::context::SyncProvider;
 use super::error::AppError;
-use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::Deserialize;
 use std::collections::HashMap;
 
@@ -26,18 +25,9 @@ impl SyncProvider {
             .ok_or_else(|| error("插件没有返回文件存在状态"))
     }
     pub(crate) async fn download(&self, name: &str) -> Result<Vec<u8>, AppError> {
-        let result = self
-            .call("downloadFile", Some(name), None)
-            .await
-            .map_err(error)?;
-        STANDARD
-            .decode(
-                result
-                    .as_str()
-                    .ok_or_else(|| error("插件文件内容格式无效"))?,
-            )
-            .map_err(|_| error("插件文件编码无效"))
+        self.download_bytes(name).await.map_err(error)
     }
+
     pub(crate) async fn upload(&self, name: &str, content: &[u8]) -> Result<(), AppError> {
         if self
             .call("uploadFile", Some(name), Some(content))

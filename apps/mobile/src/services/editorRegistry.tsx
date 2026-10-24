@@ -24,13 +24,10 @@ import { getMobileHomeDir } from "../components/editor/localMedia";
 import {
   remoteResourceToLocal as remoteResourceToLocalCommand,
   uploadResource as uploadResourceCommand,
-  withTimeout,
 } from "./tauri";
 import { getMobileSettingByPath, subscribeMobileSettingSnapshot } from "./mobileSettingsBridge";
 import { mobileVideoContentProviders } from "../editor-providers/videoProviders";
 import { mobileEditorNotifier } from "./editorNotifier";
-import { arrayBufferToBase64 } from "../utils/base64";
-import { compressImageForUpload } from "../utils/imageCompress";
 import { recordUploadFailure, recordUploadSuccess } from "./uploadOutcome";
 import { IEditorInteraction, IOverlayBackDismiss } from "@tau/editor/api";
 import { MobileEditorOverlayDismiss } from "./editorOverlayDismiss";
@@ -53,21 +50,11 @@ function readLastPathSegment(filePath: string): string {
   return segments[segments.length - 1] || "";
 }
 
-// Rust 端网络策略为 12s×3 次重试（约 40s）；前端再兜一层，覆盖 arrayBuffer
-// 读取挂起 / 大字节 invoke 在 Android IPC 上不落起等场景，保证占位可退出并提示
-const UPLOAD_TIMEOUT_MS = 60_000;
-
 async function uploadResourceInMobile(file: File): Promise<string> {
-  // 开启压缩时先在 WebView 内预压缩（相机原图 3–8MB → webp 数百 KB），再 base64 走字符串通道
-  const compress = getMobileSettingByPath<boolean>("imageBed.enableCompression") !== false;
-  const prepared = compress
-    ? await compressImageForUpload(file)
-    : { blob: file, fileName: file.name, mimeType: file.type || "application/octet-stream" };
-  const buffer = await prepared.blob.arrayBuffer();
   return uploadResourceCommand({
-    fileName: prepared.fileName,
-    mimeType: prepared.mimeType,
-    base64: arrayBufferToBase64(buffer),
+    fileName: file.name,
+    mimeType: file.type || "application/octet-stream",
+    content: file,
   });
 }
 
@@ -92,11 +79,7 @@ export const mobileEditorServices: ServiceRegistration = register => {
           ? (getMobileSettingByPath<string>("imageBed.plugin.id") ?? "")
           : "local";
       try {
-        const url = await withTimeout(
-          uploadResourceInMobile(file),
-          UPLOAD_TIMEOUT_MS,
-          `RESOURCE_UPLOAD_TIMEOUT: 资源上传超时（${UPLOAD_TIMEOUT_MS / 1000} 秒），请检查图床网络后重试`
-        );
+        const url = await uploadResourceInMobile(file);
         console.log("[resource-upload] done");
         if (!url) {
           throw new Error("RESOURCE_UPLOAD_FAILED: 资源上传失败");

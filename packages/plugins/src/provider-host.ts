@@ -135,11 +135,29 @@ export class RendererUploadRegistry {
       },
     };
   }
-  async upload(
+  /** 仅用于宿主独占的字节，避免再分配一份完整文件缓冲。 */
+  uploadOwned(
     id: string,
     file: UploadFile,
     config: JsonValue,
     callSignal?: AbortSignal
+  ): Promise<string> {
+    return this.runUpload(id, file, config, callSignal, false);
+  }
+  upload(
+    id: string,
+    file: UploadFile,
+    config: JsonValue,
+    callSignal?: AbortSignal
+  ): Promise<string> {
+    return this.runUpload(id, file, config, callSignal, true);
+  }
+  private async runUpload(
+    id: string,
+    file: UploadFile,
+    config: JsonValue,
+    callSignal: AbortSignal | undefined,
+    copyContent: boolean
   ): Promise<string> {
     const registration = this.registrations.get(id);
     if (!registration || registration.context.signal.aborted)
@@ -159,7 +177,7 @@ export class RendererUploadRegistry {
       Promise.resolve().then(() => {
         signal.throwIfAborted();
         return registration.definition.upload(
-          { ...file, content: new Uint8Array(file.content) },
+          { ...file, content: copyContent ? new Uint8Array(file.content) : file.content },
           copyJson(config),
           signal
         );

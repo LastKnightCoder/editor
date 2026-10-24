@@ -1,29 +1,43 @@
-import { transferableAbortController } from "node:util";
-import { webcrypto } from "node:crypto";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+// @vitest-environment node
+import { afterEach, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
-import { createPluginFetch, decodePluginBytes, encodePluginBytes } from "./transport";
+import { listen } from "@tauri-apps/api/event";
+import { FETCH_CHUNK_BYTES } from "@tau/plugins/fetch-bridge";
+import {
+  createPluginFetch,
+  decodePluginBytes,
+  encodePluginBytes,
+  readProviderFile,
+  writeProviderFile,
+  connectMobilePluginTransport,
+} from "./transport";
+import type { MobilePluginRuntime } from "./runtime";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
-beforeEach(() => {
-  const controller = transferableAbortController();
-  vi.stubGlobal("AbortController", controller.constructor);
-  vi.stubGlobal("AbortSignal", controller.signal.constructor);
-  vi.stubGlobal("crypto", webcrypto);
-});
 afterEach(() => {
   vi.resetAllMocks();
-  vi.unstubAllGlobals();
 });
+const metadata = {
+  status: 403,
+  statusText: "Forbidden",
+  headers: [["x-fixture", "ok"]],
+  url: "https://example.com/dav",
+  redirected: false,
+  type: "default",
+  hasBody: true,
+};
 
-it("请求保留自定义方法、鉴权头和二进制，HTTP 失败仍返回标准 Response", async () => {
-  vi.mocked(invoke).mockResolvedValue({
-    status: 403,
-    statusText: "Forbidden",
-    headers: [["x-fixture", "ok"]],
-    body: encodePluginBytes(new Uint8Array([0, 255, 3])),
-    url: "https://example.com/dav",
+it("请求保留方法、鉴权和字节，HTTP 失败返回 Response；arrayBuffer 按文件句柄读取", async () => {
+  vi.mocked(invoke).mockImplementation(async (command, args) => {
+    if (command === "plugin_fetch_open") return 1;
+    if (command === "plugin_fetch_upload") return true;
+    if (command === "plugin_fetch_response") return metadata;
+    if (command === "plugin_fetch_buffer") return { id: "spool", size: 3 };
+    if (command === "plugin_file_read")
+      return (args as { offset: number }).offset === 0
+        ? encodePluginBytes(new Uint8Array([0, 255, 3]))
+        : null;
   });
   const response = await createPluginFetch("session")("https://example.com/dav", {
     method: "PROPFIND",
@@ -32,54 +46,170 @@ it("请求保留自定义方法、鉴权头和二进制，HTTP 失败仍返回�
   });
   expect(response.status).toBe(403);
   expect(response.ok).toBe(false);
+  expect(response.url).toBe(metadata.url);
   expect(response.headers.get("x-fixture")).toBe("ok");
-  expect(response.url).toBe("https://example.com/dav");
+  expect(() => response.headers.set("x", "1")).toThrow();
   expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([0, 255, 3]));
-  const payload = vi.mocked(invoke).mock.calls[0][1] as {
-    request: { method: string; headers: string[][]; body: string };
+  expect(response.bodyUsed).toBe(true);
+  await expect(response.arrayBuffer()).rejects.toThrow(TypeError);
+  const request = vi
+    .mocked(invoke)
+    .mock.calls.find(([command]) => command === "plugin_fetch_open")![1] as {
+    request: { method: string; headers: string[][]; body?: unknown; bufferedBody?: unknown };
   };
-  expect(payload.request.method).toBe("PROPFIND");
-  expect(payload.request.headers).toContainEqual(["authorization", "Basic fixture"]);
-  expect(decodePluginBytes(payload.request.body)).toEqual(new Uint8Array([255, 1]));
+  expect(request.request.method).toBe("PROPFIND");
+  expect(request.request.headers).toContainEqual(["authorization", "Basic fixture"]);
+  expect(request.request.body).toBeUndefined();
+  expect(request.request.bufferedBody).toBeUndefined();
+  const chunk = vi
+    .mocked(invoke)
+    .mock.calls.find(
+      ([command, args]) => command === "plugin_fetch_upload" && (args as { chunk?: string }).chunk
+    )![1] as { chunk: string };
+  expect(decodePluginBytes(chunk.chunk)).toEqual(new Uint8Array([255, 1]));
 });
-it("取消立即结束等待并通知原生，迟到响应不交付", async () => {
-  let finish!: (value: unknown) => void;
+it("响应头先到达，未消费响应体时不读取；每次读取只拉下一块", async () => {
+  let reads = 0;
+  vi.mocked(invoke).mockImplementation(async command => {
+    if (command === "plugin_fetch_open") return 2;
+    if (command === "plugin_fetch_response") return { ...metadata, status: 200 };
+    if (command === "plugin_fetch_read")
+      return ++reads === 1 ? encodePluginBytes(new Uint8Array([1])) : null;
+  });
+  const response = await createPluginFetch("session")("https://example.com/dav");
+  expect(reads).toBe(0);
+  const reader = response.body!.getReader();
+  expect((await reader.read()).value).toEqual(new Uint8Array([1]));
+  expect(reads).toBe(1);
+  expect((await reader.read()).done).toBe(true);
+  expect(invoke).toHaveBeenCalledWith("plugin_fetch_read", { token: "session", id: 2 });
+});
+it("收到响应头后取消仍使响应体失败并回收原生请求", async () => {
   vi.mocked(invoke).mockImplementation(async command =>
-    command === "plugin_fetch"
-      ? new Promise(resolve => {
-          finish = resolve;
-        })
-      : undefined
+    command === "plugin_fetch_open" ? 3 : command === "plugin_fetch_response" ? metadata : undefined
+  );
+  const controller = new AbortController();
+  const response = await createPluginFetch("session")("https://example.com", {
+    signal: controller.signal,
+  });
+  controller.abort("caller-stop");
+  await expect(response.text()).rejects.toBe("caller-stop");
+  expect(invoke).toHaveBeenCalledWith("plugin_fetch_cancel", { token: "session", id: 3 });
+});
+it("等待响应头时取消立即退出，无需等待原生返回", async () => {
+  vi.mocked(invoke).mockImplementation(async command =>
+    command === "plugin_fetch_open"
+      ? 4
+      : command === "plugin_fetch_response"
+        ? new Promise(() => {})
+        : undefined
   );
   const controller = new AbortController();
   const pending = createPluginFetch("session")("https://example.com", {
     signal: controller.signal,
   });
-  await Promise.resolve();
-  const assertion = expect(pending).rejects.toThrow();
-  controller.abort();
-  await assertion;
-  expect(invoke).toHaveBeenCalledWith(
-    "plugin_fetch_cancel",
-    expect.objectContaining({ token: "session" })
+  await vi.waitFor(() =>
+    expect(invoke).toHaveBeenCalledWith("plugin_fetch_response", expect.anything())
   );
-  finish({ status: 200, statusText: "OK", headers: [], body: "", url: "https://example.com" });
+  controller.abort("cancel-wait");
+  await expect(pending).rejects.toBe("cancel-wait");
 });
-it("HEAD 和空响应状态不构造非法响应体", async () => {
-  vi.mocked(invoke).mockResolvedValue({
-    status: 204,
-    statusText: "No Content",
-    headers: [],
-    body: "",
-    url: "https://example.com",
-  });
+it("HEAD 和空状态保持空响应体，原生字符串错误转换为 TypeError", async () => {
+  vi.mocked(invoke).mockImplementation(async command =>
+    command === "plugin_fetch_open" ? 5 : { ...metadata, hasBody: false, status: 204 }
+  );
   const response = await createPluginFetch("session")("https://example.com", { method: "HEAD" });
   expect(response.body).toBeNull();
-});
-
-it("原生字符串错误转换为标准网络错误，不暴露 IPC 异常类型", async () => {
   vi.mocked(invoke).mockRejectedValue("网络连接失败");
-  const pending = createPluginFetch("session")("https://example.com");
-  await expect(pending).rejects.toBeInstanceOf(TypeError);
-  await expect(pending).rejects.toThrow("网络连接失败");
+  await expect(createPluginFetch("session")("https://example.com")).rejects.toThrow(TypeError);
+});
+it("文件逐块填入同一字节数组，截断、越界和会话失效明确失败", async () => {
+  vi.mocked(invoke).mockImplementation(async (_command, args) =>
+    (args as { offset: number }).offset ? null : encodePluginBytes(new Uint8Array([255, 3]))
+  );
+  expect(await readProviderFile("token", { id: "file", size: 2 }, () => true)).toEqual(
+    new Uint8Array([255, 3])
+  );
+  await expect(readProviderFile("token", { id: "file", size: 3 }, () => true)).rejects.toThrow(
+    "不完整"
+  );
+  await expect(readProviderFile("token", { id: "file", size: 1 }, () => true)).rejects.toThrow(
+    "无效"
+  );
+  await expect(readProviderFile("token", { id: "file", size: 2 }, () => false)).rejects.toThrow(
+    "会话"
+  );
+});
+it("输出逐块等待写入完成，再写下一块", async () => {
+  const bytes = new Uint8Array(FETCH_CHUNK_BYTES + 17).fill(23);
+  let finish!: () => void;
+  vi.mocked(invoke).mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        finish = () => resolve(undefined);
+      })
+  );
+  const pending = writeProviderFile("token", "sink", bytes, () => true);
+  await Promise.resolve();
+  expect(invoke).toHaveBeenCalledTimes(1);
+  finish();
+  await pending;
+  const writes = vi
+    .mocked(invoke)
+    .mock.calls.map(([, args]) => args as { offset: number; chunk: string });
+  expect(writes.map(item => [item.offset, decodePluginBytes(item.chunk).length])).toEqual([
+    [0, FETCH_CHUNK_BYTES],
+    [FETCH_CHUNK_BYTES, 17],
+  ]);
+});
+it("本机存储请求串行加载文件，上一提供方执行结束才读下一文件", async () => {
+  let receive!: (event: { payload: unknown }) => Promise<void>;
+  vi.mocked(listen).mockImplementation(async (_event, handler) => {
+    receive = handler as typeof receive;
+    return () => undefined;
+  });
+  vi.mocked(invoke).mockImplementation(async (command, args) =>
+    command === "plugin_transport_connect"
+      ? "token"
+      : command === "plugin_file_read"
+        ? (args as { offset: number }).offset
+          ? null
+          : encodePluginBytes(new Uint8Array([1]))
+        : undefined
+  );
+  let finish!: () => void;
+  const uploadOwned = vi
+    .fn()
+    .mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = () => resolve("https://example.com/one");
+        })
+    )
+    .mockResolvedValue("https://example.com/two");
+  const runtime = {
+    workspaceId: "db",
+    upload: { uploadOwned },
+    sync: { execute: vi.fn() },
+  } as unknown as MobilePluginRuntime;
+  const disconnect = await connectMobilePluginTransport(runtime);
+  const payload = {
+    token: "token",
+    requestId: "1",
+    kind: "upload",
+    pluginId: "plugin",
+    config: {},
+    file: { id: "one", size: 1 },
+  };
+  const first = receive({ payload });
+  await vi.waitFor(() => expect(uploadOwned).toHaveBeenCalledTimes(1));
+  const second = receive({ payload: { ...payload, requestId: "2", file: { id: "two", size: 1 } } });
+  await Promise.resolve();
+  expect(
+    vi.mocked(invoke).mock.calls.filter(([command]) => command === "plugin_file_read")
+  ).toHaveLength(2);
+  finish();
+  await Promise.all([first, second]);
+  expect(uploadOwned).toHaveBeenCalledTimes(2);
+  disconnect();
 });

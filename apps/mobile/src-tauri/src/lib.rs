@@ -2,6 +2,8 @@ mod collaboration;
 mod database;
 mod models;
 mod plugin_center;
+mod plugin_fetch;
+mod plugin_files;
 mod plugin_provider;
 mod plugin_transport;
 mod plugins;
@@ -66,8 +68,14 @@ pub fn run() {
             plugin_transport::plugin_transport_connect,
             plugin_transport::plugin_transport_disconnect,
             plugin_transport::plugin_transport_reply,
-            plugin_transport::plugin_fetch,
-            plugin_transport::plugin_fetch_cancel,
+            plugin_fetch::plugin_fetch_open,
+            plugin_fetch::plugin_fetch_upload,
+            plugin_fetch::plugin_fetch_response,
+            plugin_fetch::plugin_fetch_read,
+            plugin_fetch::plugin_fetch_buffer,
+            plugin_files::plugin_file_read,
+            plugin_files::plugin_file_write,
+            plugin_fetch::plugin_fetch_cancel,
             plugins::plugin_packages,
             plugins::plugin_apply_pending,
             plugins::plugin_stage,
@@ -197,6 +205,9 @@ pub fn run() {
             database::flashcard_get_review_queue,
             database::flashcard_submit_review,
             database::flashcard_review_stats,
+            resource_upload::resource_upload_begin,
+            resource_upload::resource_upload_write,
+            resource_upload::resource_upload_cancel,
             resource_upload::upload_resource,
             resource_upload::resource_upload_test,
             resource_upload::read_resource_bytes,

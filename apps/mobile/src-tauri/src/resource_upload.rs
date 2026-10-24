@@ -1,12 +1,16 @@
+use crate::plugin_files::{FileLease, TemporaryFile};
+use crate::plugin_transport::{window_allowed, with_host};
+use std::collections::HashMap;
 use std::fs;
 use std::io::Cursor;
 use std::path::Path;
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use base64::Engine;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
-use tauri::AppHandle;
+use tauri::{AppHandle, WebviewWindow};
 use uuid::Uuid;
 
 use crate::setting::{load_or_init_setting, resolve_app_dir};
@@ -153,23 +157,35 @@ fn should_compress_image(mime_type: &str, file_name: &str) -> bool {
     )
 }
 
+// 超出压缩预算时保留原文件上传，避免解码大图放大内存；不限制文件传输大小。
+fn compression_fits_memory(path: &Path) -> bool {
+    if fs::metadata(path).map_or(true, |metadata| metadata.len() > 32 * 1024 * 1024) {
+        return false;
+    }
+    image::ImageReader::open(path)
+        .ok()
+        .and_then(|reader| reader.with_guessed_format().ok())
+        .and_then(|reader| reader.into_dimensions().ok())
+        .is_some_and(|(width, height)| u64::from(width) * u64::from(height) <= 8 * 1024 * 1024)
+}
+
 fn compress_image_if_needed(
     file_name: &str,
     mime_type: &str,
-    bytes: &[u8],
+    bytes: Vec<u8>,
     enable_compression: bool,
 ) -> ProcessedUploadFile {
     let original = ProcessedUploadFile {
         file_name: file_name.to_string(),
         mime_type: mime_type.to_string(),
-        bytes: bytes.to_vec(),
+        bytes,
     };
 
     if !enable_compression || !should_compress_image(mime_type, file_name) {
         return original;
     }
 
-    match try_compress_to_webp(file_name, bytes) {
+    match try_compress_to_webp(file_name, &original.bytes) {
         Ok(processed) => processed,
         Err(error) => {
             eprintln!("[resource-upload] 图片压缩失败，使用原始文件: {error}");
@@ -180,7 +196,8 @@ fn compress_image_if_needed(
 
 fn try_compress_to_webp(file_name: &str, bytes: &[u8]) -> Result<ProcessedUploadFile, String> {
     let decoded = image::load_from_memory(bytes).map_err(|e| format!("图片解码失败: {e}"))?;
-    let rgba = decoded.to_rgba8();
+    let rgba = decoded.thumbnail(2048, 2048).to_rgba8();
+    drop(decoded);
     let (width, height) = rgba.dimensions();
     if width == 0 || height == 0 {
         return Err("图片尺寸无效".to_string());
@@ -252,53 +269,165 @@ fn upload_to_local(
     Ok(format!("~/.editor/{local_path}/{object_name}"))
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UploadResourcePayload {
-    pub file_name: String,
-    pub mime_type: String,
-    pub base64: String,
+struct UploadInput {
+    lease: FileLease,
+    file: TemporaryFile,
+    file_name: String,
+    mime_type: String,
+    provider: ResourceProvider,
+    compress: bool,
 }
-
+type UploadStage = Arc<Mutex<Option<UploadInput>>>;
+fn uploads() -> &'static Mutex<HashMap<String, UploadStage>> {
+    static STATE: OnceLock<Mutex<HashMap<String, UploadStage>>> = OnceLock::new();
+    STATE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+pub(crate) fn invalidate_uploads() {
+    if let Ok(mut state) = uploads().lock() {
+        state.clear();
+    }
+}
+fn upload_stage(id: &str) -> Result<UploadStage, String> {
+    uploads()
+        .lock()
+        .map_err(|_| "资源上传状态不可用")?
+        .get(id)
+        .cloned()
+        .ok_or_else(|| "资源上传已结束".into())
+}
+#[tauri::command]
+pub fn resource_upload_begin(
+    app: AppHandle,
+    window: WebviewWindow,
+    file_name: String,
+    mime_type: String,
+) -> Result<String, String> {
+    window_allowed(&window)?;
+    let setting = load_or_init_setting(&app)?;
+    let token =
+        crate::plugin_transport::host_token(&crate::setting::get_active_database_name(&setting))?;
+    let provider = parse_resource_provider(
+        &app,
+        &setting,
+        &as_string(setting.pointer("/imageBed/active")),
+    )
+    .map_err(format_error)?;
+    let file = TemporaryFile::new(&app)?;
+    let lease = FileLease::open(&token, &file.path, true)?;
+    let id = uuid::Uuid::new_v4().to_string();
+    let stage = Arc::new(Mutex::new(Some(UploadInput {
+        lease,
+        file,
+        file_name: normalized_file_name(&file_name),
+        mime_type,
+        provider,
+        compress: as_bool(setting.pointer("/imageBed/enableCompression")),
+    })));
+    with_host(&token, || {
+        let mut state = uploads().lock().map_err(|_| "资源上传状态不可用")?;
+        if state.len() >= 4 {
+            return Err("资源上传任务过多，请稍后重试".into());
+        }
+        state.insert(id.clone(), stage);
+        Ok(id)
+    })
+}
+#[tauri::command]
+pub async fn resource_upload_write(
+    window: WebviewWindow,
+    id: String,
+    offset: u64,
+    chunk: String,
+) -> Result<(), String> {
+    window_allowed(&window)?;
+    let stage = upload_stage(&id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let input = stage.lock().map_err(|_| "资源上传状态不可用")?;
+        let input = input.as_ref().ok_or("资源上传已结束")?;
+        crate::plugin_files::write_chunk(
+            &input.lease.token,
+            &input.lease.descriptor.id,
+            offset,
+            &chunk,
+        )
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+pub fn resource_upload_cancel(window: WebviewWindow, id: String) -> Result<(), String> {
+    window_allowed(&window)?;
+    uploads()
+        .lock()
+        .map_err(|_| "资源上传状态不可用")?
+        .remove(&id);
+    Ok(())
+}
 #[tauri::command]
 pub async fn upload_resource(
     app: AppHandle,
-    payload: UploadResourcePayload,
+    window: WebviewWindow,
+    id: String,
+    size: u64,
 ) -> Result<String, String> {
-    // Android 的 raw IPC 会把二进制包装成逐字节的 JSON 对象（tauri#10573），不可用；
-    // 移动端统一 base64 字符串通道（开启压缩时前端已预压缩）
-    let bytes = base64::engine::general_purpose::STANDARD
-        .decode(payload.base64.as_bytes())
-        .map_err(|e| format!("RESOURCE_UPLOAD_FAILED: base64 解码失败: {e}"))?;
-    println!(
-        "[upload_resource] invoked: {} bytes, file={}, mime={}",
-        bytes.len(),
-        payload.file_name,
-        payload.mime_type
-    );
-
-    if bytes.is_empty() {
-        return Err(format_error(AppError::new(
-            "RESOURCE_UPLOAD_FAILED",
-            "上传文件内容为空",
-        )));
+    window_allowed(&window)?;
+    let stage = uploads()
+        .lock()
+        .map_err(|_| "资源上传状态不可用")?
+        .remove(&id)
+        .ok_or("资源上传已结束")?;
+    let input = stage
+        .lock()
+        .map_err(|_| "资源上传状态不可用")?
+        .take()
+        .ok_or("资源上传已结束")?;
+    input.lease.finish(size)?;
+    if size == 0 {
+        return Err("RESOURCE_UPLOAD_FAILED:上传文件内容为空".into());
     }
-
-    let setting = load_or_init_setting(&app)
-        .map_err(|e| format!("SETTING_INVALID:读取 setting.json 失败: {e}"))?;
-    let active = as_string(setting.pointer("/imageBed/active"));
-    let provider = parse_resource_provider(&app, &setting, &active).map_err(format_error)?;
-    let file_name = normalized_file_name(&payload.file_name);
-    let compress = as_bool(setting.pointer("/imageBed/enableCompression"));
-    let processed = compress_image_if_needed(&file_name, &payload.mime_type, &bytes, compress);
-    let object_name = build_object_name(&processed.file_name);
-
-    let result = upload_with_provider(&app, &provider, &object_name, &processed).await;
-    match &result {
-        Ok(_) => println!("[upload_resource] done"),
-        Err(error) => println!("[upload_resource] failed: {}", error.code),
+    let UploadInput {
+        lease,
+        file,
+        file_name,
+        mime_type,
+        provider,
+        compress,
+    } = input;
+    let token = lease.token.clone();
+    drop(lease);
+    let compression_memory = crate::plugin_files::memory_permit().await?;
+    let (file_name, mime_type, file) = tauri::async_runtime::spawn_blocking(move || {
+        if compress
+            && should_compress_image(&mime_type, &file_name)
+            && compression_fits_memory(&file.path)
+        {
+            let bytes = fs::read(&file.path).map_err(|e| e.to_string())?;
+            let processed = compress_image_if_needed(&file_name, &mime_type, bytes, true);
+            fs::write(&file.path, &processed.bytes).map_err(|e| e.to_string())?;
+            Ok::<_, String>((processed.file_name, processed.mime_type, file))
+        } else {
+            Ok((file_name, mime_type, file))
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    drop(compression_memory);
+    with_host(&token, || Ok(()))?;
+    let object_name = build_object_name(&file_name);
+    match provider {
+        ResourceProvider::Local(config) => {
+            let local_path = sanitize_local_path(&config.path);
+            let directory = resolve_app_dir(&app)?.join(&local_path);
+            fs::create_dir_all(&directory).map_err(|e| e.to_string())?;
+            fs::copy(&file.path, directory.join(&object_name)).map_err(|e| e.to_string())?;
+            Ok(format!("~/.editor/{local_path}/{object_name}"))
+        }
+        ResourceProvider::Plugin(plugin) => {
+            plugin
+                .upload_resource_path(&object_name, &mime_type, &file.path)
+                .await
+        }
     }
-    result.map_err(format_error)
 }
 
 async fn upload_with_provider(
@@ -563,5 +692,39 @@ pub async fn prewarm_resource_thumbs(app: AppHandle) {
     .await;
     if let Err(error) = generated {
         eprintln!("[thumb-prewarm] 后台任务失败: {error}");
+    }
+}
+
+#[cfg(test)]
+mod memory_tests {
+    use super::*;
+    #[test]
+    fn compression_budget_skips_large_files_without_rejecting_transfer() {
+        let dir = std::env::temp_dir().join(format!("tau-compression-{}", Uuid::new_v4()));
+        let file = TemporaryFile::new_in(&dir).unwrap();
+        fs::write(&file.path, build_test_image().unwrap()).unwrap();
+        assert!(compression_fits_memory(&file.path));
+        let mut bytes = fs::read(&file.path).unwrap();
+        bytes[16..20].copy_from_slice(&20000u32.to_be_bytes());
+        bytes[20..24].copy_from_slice(&20000u32.to_be_bytes());
+        let mut crc = u32::MAX;
+        for byte in &bytes[12..29] {
+            crc ^= u32::from(*byte);
+            for _ in 0..8 {
+                crc = (crc >> 1) ^ (0xedb88320 & 0u32.wrapping_sub(crc & 1));
+            }
+        }
+        bytes[29..33].copy_from_slice(&(!crc).to_be_bytes());
+        fs::write(&file.path, bytes).unwrap();
+        assert!(!compression_fits_memory(&file.path));
+        fs::OpenOptions::new()
+            .write(true)
+            .open(&file.path)
+            .unwrap()
+            .set_len(33 * 1024 * 1024)
+            .unwrap();
+        assert!(!compression_fits_memory(&file.path));
+        drop(file);
+        fs::remove_dir(dir).unwrap();
     }
 }
