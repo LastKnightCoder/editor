@@ -77,6 +77,21 @@ const version = (row: Metadata, env: Env): CenterVersion => ({
   sha256: row.sha256,
   downloadUrl: `${env.API_ORIGIN}/v2/releases/${row.id}/download`,
 });
+type HistoricalHost = CenterHost & { capabilities?: readonly string[] };
+
+function readRequestHost(value: unknown): HistoricalHost {
+  const host = normalizeCenterHost(value as CenterHost);
+  const capabilities = (value as { capabilities?: unknown }).capabilities;
+  if (capabilities === undefined) return host;
+  if (
+    !Array.isArray(capabilities) ||
+    capabilities.length > 128 ||
+    capabilities.some(name => typeof name !== "string" || !/^[a-z][a-zA-Z0-9]{0,127}$/.test(name))
+  )
+    throw new Error("历史客户端能力信息无效");
+  return { ...host, capabilities: [...new Set(capabilities)].sort() };
+}
+
 function compatibility(
   row: Metadata,
   env: Env,
@@ -88,7 +103,29 @@ function compatibility(
       reasons: [{ code: "DISTRIBUTION_UNAVAILABLE" }],
       missingOptional: [],
     };
-  return { ...evaluateCenterCompatibility(version(row, env), host), missingOptional: [] };
+  const result = evaluateCenterCompatibility(version(row, env), host);
+  const available = (host as HistoricalHost | undefined)?.capabilities;
+  const required = host
+    ? (JSON.parse(row.targets_json)[host.platform]?.required as string[] | undefined)
+    : undefined;
+  // 已发布客户端读取历史包时仍需遵守原约束，新清单不携带这些字段。
+  if (
+    result.status === "compatible" &&
+    host &&
+    available &&
+    required?.some(name => !available.includes(name))
+  )
+    return {
+      status: "incompatible",
+      reasons: [
+        {
+          code: "APP_VERSION_TOO_LOW",
+          minAppVersion: host.platform === "desktop" ? "0.59.4" : "0.2.4",
+        },
+      ],
+      missingOptional: [],
+    };
+  return { ...result, missingOptional: [] };
 }
 function validate<T>(fn: () => T): T {
   try {
@@ -282,6 +319,7 @@ async function catalog(request: Request, env: Env) {
   const input = await body(request);
   fields(input, ["platform", "host", "q", "category", "sort", "limit", "cursor"]);
   const query = validate(() => normalizeCenterQuery(input as unknown as CenterCatalogQuery));
+  if (query.host) query.host = validate(() => readRequestHost(input.host));
   const { day, windowStart } = downloadWindow();
   const scope = await sha256(JSON.stringify({ ...query, cursor: null, day }));
   const after = decodeCursor<Position>(query.cursor, scope);
@@ -369,7 +407,7 @@ export async function centerRoute(
     if (plugin[2] === "resolve" && request.method === "POST") {
       const input = await body(request);
       fields(input, ["host", "releaseId"]);
-      const host = validate(() => normalizeCenterHost(input.host as CenterHost));
+      const host = validate(() => readRequestHost(input.host));
       if (
         input.releaseId !== undefined &&
         (typeof input.releaseId !== "string" || !input.releaseId)
