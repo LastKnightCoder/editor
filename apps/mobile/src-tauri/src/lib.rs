@@ -1,3 +1,4 @@
+mod app_update;
 mod chunked_sync;
 mod collaboration;
 mod database;
@@ -62,6 +63,9 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
+            app_update::app_update_check,
+            app_update::app_update_download,
+            app_update::app_update_install,
             plugin_center::plugin_center_refresh,
             plugin_center::plugin_center_config,
             plugin_center::plugin_center_request,

@@ -1,19 +1,22 @@
 import { execFileSync } from "node:child_process";
-import { createReadStream } from "node:fs";
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import OSS from "ali-oss";
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { assertReleaseNote, injectReleaseNotes, releaseNotesUpTo } from "./release-notes.mjs";
 import { assertReleaseArtifacts } from "./release-artifacts.mjs";
+import {
+  R2_BUCKET,
+  R2_ENV_KEYS,
+  R2_PUBLIC_BASE_URL,
+  createR2Client,
+  requiredEnv,
+} from "./r2-client.mjs";
 
 // 更新源自 OSS 切到 R2（dl.taunote.app）；OSS 仅保留给过渡版本与服务存量客户端，
 // ffmpeg / publish-template 资源已由 scripts/migrate-oss-to-r2.mjs 迁往 R2
 const OSS_REGION = "oss-cn-shanghai";
 const OSS_BUCKET = "release-bin";
-const R2_BUCKET = "tau-release";
-const R2_PUBLIC_BASE_URL = "https://dl.taunote.app";
 const DESKTOP_PREFIX = "desktop";
 
 const UPLOAD_TARGETS = {
@@ -25,7 +28,7 @@ const UPLOAD_TARGETS = {
   r2: {
     label: `Cloudflare R2 ${R2_BUCKET}`,
     baseUrl: R2_PUBLIC_BASE_URL,
-    envKeys: ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"],
+    envKeys: R2_ENV_KEYS,
   },
 };
 
@@ -98,12 +101,6 @@ function parseArgs(argv) {
   return options;
 }
 
-function requiredEnv(name) {
-  const value = process.env[name];
-  if (!value) throw new Error(`缺少环境变量 ${name}`);
-  return value;
-}
-
 function readJson(file) {
   return JSON.parse(readFileSync(file, "utf8"));
 }
@@ -118,7 +115,7 @@ function parseLatestYmlVersion(content) {
   return match[1];
 }
 
-// 两个上传目标暴露同一组原语；key 均为 bucket 内对象 key，404 统一表现为返回 null
+// 与 r2-client.mjs 暴露同一组原语；key 均为 bucket 内对象 key，404 统一表现为返回 null
 function createOssClient() {
   const client = new OSS({
     region: OSS_REGION,
@@ -144,54 +141,6 @@ function createOssClient() {
     },
     async putText(key, content, cacheControl) {
       await client.put(key, Buffer.from(content), { headers: { "Cache-Control": cacheControl } });
-    },
-  };
-}
-
-function createR2Client() {
-  const client = new S3Client({
-    region: "auto",
-    endpoint: `https://${requiredEnv("R2_ACCOUNT_ID")}.r2.cloudflarestorage.com`,
-    credentials: {
-      accessKeyId: requiredEnv("R2_ACCESS_KEY_ID"),
-      secretAccessKey: requiredEnv("R2_SECRET_ACCESS_KEY"),
-    },
-  });
-  const isNotFound = error =>
-    error?.$metadata?.httpStatusCode === 404 || error?.name === "NoSuchKey";
-  const contentTypeOf = name =>
-    name.endsWith(".yml") ? "text/plain; charset=utf-8" : "application/octet-stream";
-  return {
-    async getText(key) {
-      try {
-        const result = await client.send(new GetObjectCommand({ Bucket: R2_BUCKET, Key: key }));
-        return await result.Body.transformToString("utf8");
-      } catch (error) {
-        if (isNotFound(error)) return null;
-        throw error;
-      }
-    },
-    async putFile(key, filePath, cacheControl) {
-      await client.send(
-        new PutObjectCommand({
-          Bucket: R2_BUCKET,
-          Key: key,
-          Body: createReadStream(filePath),
-          ContentType: contentTypeOf(key),
-          CacheControl: cacheControl,
-        })
-      );
-    },
-    async putText(key, content, cacheControl) {
-      await client.send(
-        new PutObjectCommand({
-          Bucket: R2_BUCKET,
-          Key: key,
-          Body: content,
-          ContentType: contentTypeOf(key),
-          CacheControl: cacheControl,
-        })
-      );
     },
   };
 }
