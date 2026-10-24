@@ -4,6 +4,8 @@
 
 Windows 接手记录见 [Windows 验证](./windows-validation.md)。用户已确认保留 NSIS、本轮不开放 Windows 原生；接受 Whisper 显式 CPU、CUDA 已知失败、Seed 云端未验证及未签名安装包的范围，剩余检查通过后合并。下文 Mac 结果保留为交接基线。
 
+本轮 Windows 检查已通过并按确认范围合并、推送 master；合并提交为 9675b9ae35e3ed6f8679cf05d27a64a4d7117f15。没有发布客户端，后续从 Windows 验证记录中的未验证项继续。
+
 ## 分支与提取边界
 
 - 主仓库分支：`codex/asr-windows-validation`。

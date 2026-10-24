@@ -8,7 +8,7 @@
 - [x] 原生最小探针和平台取舍；用户选择保留 NSIS，本轮不开放 Windows 原生。
 - [x] Whisper 真实文件转录、取消、Seed 合成宿主与生命周期回归，修复显式 CPU 选择。
 - [x] 最终类型、行为、打包、文档检查。
-- [ ] 最新 master 合并推送。
+- [x] 最新 master 合并推送；本轮 Windows 验证完成，父任务的剩余设备与产品验收继续保留。
 
 ## 环境与源码
 
@@ -86,6 +86,8 @@ pnpm --filter desktop exec vitest run src-electron/main/services/__tests__/whisp
 - 修复后再次完整构建成功；最终桌面相关回归 33 项通过、3 项 Mac 专属跳过，真实 Whisper CPU 测试另行通过。类型检查通过；ESLint 0 错误、12 个测试非空断言警告；check:docs 通过、0 警告。构建日志位于本机临时目录 tau-asr-windows/final-build.log，不提交二进制或完整构建日志。
 
 ## 修复与交付边界
+
+修复提交：384186d433028740d8c3c1ec389ad28a3c7e4450，已推送 codex/asr-windows-validation。合并前再次 fetch，最新 origin/master 为 10fa4e54e6d78ab3d84b09e3a8c315fc600389fb，已包含在验证分支历史内；无冲突，合并树与已验证分支逐字一致。合并提交 9675b9ae35e3ed6f8679cf05d27a64a4d7117f15 已正常推送 origin/master，并以 ls-remote 核对；未强推。合并消息按仓库要求使用 chore(merge)，消息校验、数据库/白板边界、文档检查均通过；为避免再次格式化既有合并历史，合并落盘使用已完成的检查结果，未重跑 lint-staged。仅本记录的收尾更新随后独立提交。
 
 最终本机 NSIS 文件 Tau-v0.59.5-win32.exe 为 217453727 字节，SHA-256：810267db0c7f6440be0dae65958245638f36e38614f06e2a70342f23fe260886。只构建、不上传。
 

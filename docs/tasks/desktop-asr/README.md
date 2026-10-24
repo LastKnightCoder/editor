@@ -2,7 +2,7 @@
 
 状态：宿主能力及 SDK／Seed 发行已完成；新增功能入口已按用户要求撤回，位置待决定。
 
-Windows 实机结果与本轮裁决见 [Windows 验证](./windows-validation.md)：保留 NSIS，本轮不开放 Windows 原生；Whisper 显式 CPU 文件转录通过，CUDA r245.2 崩溃与 base 尾部重复为已接受限制，Seed 云端因无凭据未验证。用户已授权完成剩余检查后合并，不发布客户端。
+Windows 实机结果与本轮裁决见 [Windows 验证](./windows-validation.md)：保留 NSIS，本轮不开放 Windows 原生；Whisper 显式 CPU 文件转录通过，CUDA r245.2 崩溃与 base 尾部重复为已接受限制，Seed 云端因无凭据未验证。本轮检查完成并已合并、推送 master，未发布客户端。
 创建日期：2026-10-24。
 目标：在桌面提供系统原生语音输入、Seed 插件识别与可选 AI 整理，并让现有 Whisper 和媒体转录共享统一识别契约。
 
