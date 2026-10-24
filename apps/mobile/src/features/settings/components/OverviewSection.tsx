@@ -22,7 +22,6 @@ import {
   IconMoon,
   IconUsers,
 } from "./ui";
-import { ActionSheet } from "./ActionSheet";
 import { useAppVersion } from "../about/useAppVersion";
 import { useAppUpdate, useAutoUpdateCheck } from "../about/appUpdate";
 import { LOCAL_UPLOAD_ID, useUploadProviders } from "../upload/providers";
@@ -31,6 +30,7 @@ import { useThemeStore } from "@tau/themes/react";
 import { useNavigator } from "../../../router";
 import * as tauri from "../../../services/tauri";
 import { useAppContext } from "../../../app/AppContext";
+import { ActionSheet } from "../../../components/ActionSheet";
 import {
   normalizeEditorOpenMode,
   withEditorOpenMode,
@@ -43,7 +43,7 @@ const APPEARANCE_LABELS = { light: "浅色", dark: "深色", system: "跟随系�
 const EDITOR_OPEN_MODE_LABELS: Record<EditorOpenMode, string> = { read: "阅读", edit: "编辑" };
 
 const EDITOR_OPEN_MODE_OPTIONS: Array<{ label: string; value: EditorOpenMode }> = [
-  { label: "阅读模式（默认）", value: "read" },
+  { label: "阅读模式", value: "read" },
   { label: "直接编辑", value: "edit" },
 ];
 
@@ -186,15 +186,15 @@ export function EditorOpenModeItem() {
       <ActionSheet
         open={open}
         title="打开文档时"
-        value={value}
-        options={EDITOR_OPEN_MODE_OPTIONS}
+        items={EDITOR_OPEN_MODE_OPTIONS.map(option => ({
+          label: option.label,
+          selected: option.value === value,
+          onClick: () =>
+            app.syncSettings.updateSetting(prev => withEditorOpenMode(prev, option.value), {
+              persist: true,
+            }),
+        }))}
         onClose={() => setOpen(false)}
-        onSelect={next =>
-          app.syncSettings.updateSetting(
-            prev => withEditorOpenMode(prev, normalizeEditorOpenMode(next)),
-            { persist: true }
-          )
-        }
       />
     </>
   );

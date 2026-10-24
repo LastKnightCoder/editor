@@ -102,7 +102,7 @@ export function BottomSheet({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 26, stiffness: 300, mass: 0.9 }}
-            className={`bg-surface absolute bottom-0 left-0 right-0 rounded-t-[30px] shadow-float${
+            className={`bg-surface rounded-t-sheet absolute bottom-0 left-0 right-0 shadow-float${
               dragging ? "select-none" : ""
             }`}
             // 面板贴屏幕底：键盘弹出时整体托到键盘上方，否则让出安全区

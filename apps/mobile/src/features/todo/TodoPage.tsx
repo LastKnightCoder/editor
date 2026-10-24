@@ -673,7 +673,7 @@ export function TodoPage({
         title="选择任务类型"
         items={SELECTABLE_TODO_TYPES.map(t => ({
           label: TYPE_LABELS[t],
-          trailing: newType === t ? <Check strokeWidth={2.6} /> : undefined,
+          selected: newType === t,
           onClick: () => setNewType(t),
         }))}
         onClose={() => setTypeSheetOpen(false)}

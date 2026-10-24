@@ -152,3 +152,35 @@ describe("ActionSheet 下拉关闭与关闭缓冲", () => {
     await cleanup();
   });
 });
+
+describe("ActionSheet 单选当前项", () => {
+  it("selected 项尾部显示 CheckBubble，其余项不显示", async () => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    await act(async () => {
+      root.render(
+        <ActionSheet
+          open
+          title="打开文档时"
+          items={[
+            { label: "阅读模式", selected: true, onClick: vi.fn() },
+            { label: "直接编辑", selected: false, onClick: vi.fn() },
+          ]}
+          onClose={vi.fn()}
+        />
+      );
+    });
+
+    const checks = document.querySelectorAll('[aria-label="当前选中"]');
+    expect(checks).toHaveLength(1);
+    expect(checks[0].getAttribute("class")).toContain("bg-accent");
+    const selectedButton = checks[0].closest("button");
+    expect(selectedButton?.textContent).toContain("阅读模式");
+
+    await act(async () => {
+      root.unmount();
+    });
+    host.remove();
+  });
+});

@@ -419,7 +419,7 @@ export function PanContainer(props: PanContainerProps) {
         ref={panelRef}
         className={cn(
           "bg-surface shadow-float absolute inset-x-0 bottom-0 top-0 flex flex-col",
-          activeState === "full" && !isDragging ? "rounded-none" : "rounded-t-[30px]",
+          activeState === "full" && !isDragging ? "rounded-none" : "rounded-t-sheet",
           isDragging && "select-none",
           props.containerClassName
         )}

@@ -16,7 +16,8 @@ import {
   type ImageShadowPreset,
 } from "@tau/editor/extensions/media/types";
 import { useAppContext } from "../../../app/AppContext";
-import { CheckBubble, GroupRow } from "./ui";
+import { CheckBubble } from "../../../components/CheckBubble";
+import { GroupRow } from "./ui";
 
 // 选项预览：以图片 icon 卡片直接呈现圆角/阴影档位，preset → CSS 值与编辑器渲染同源
 function PresetPreview(props: {

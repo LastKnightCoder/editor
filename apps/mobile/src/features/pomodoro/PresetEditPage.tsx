@@ -2,7 +2,8 @@
 // 未保存离开不拦截（字段轻量，误退可重填），保存后回主页。
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Archive, Check, Minus, Plus, Timer, Trash2 } from "lucide-react";
+import { Archive, Minus, Plus, Timer, Trash2 } from "lucide-react";
+import { CheckBubble } from "../../components/CheckBubble";
 import { PageHeader } from "../../components/PageHeader";
 import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
 import { toast } from "../../components/toast";
@@ -176,9 +177,7 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
                         {card.desc}
                       </span>
                     </span>
-                    {active ? (
-                      <Check size={18} strokeWidth={3} style={{ color: "var(--tau-accent)" }} />
-                    ) : null}
+                    {active ? <CheckBubble /> : null}
                   </button>
                 );
               })}
