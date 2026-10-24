@@ -103,6 +103,8 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 
 ### 实时语音输入
 
+Windows Whisper 文件适配尊重调用方显式的 `device`；未指定时沿用已安装程序的设备默认值。程序必须正常退出才读取本次字幕，不因磁盘已有结果而放行崩溃，也不自动切换 CPU 或云端。
+
 `speech-input` 为 BACKGROUND 模块；跨窗口麦克风租约由主进程维护，窗口销毁、重载、切库、心跳过期及退出会终止会话。渲染层通过 `ensureModule` 获取就绪保障；共用 `@tau/asr` 的 AudioWorklet 采集、重采样、PCM Int16 编码、尾帧排空与取消编排。麦克风仅在用户点击后申请，不自动切换云端提供方。
 
 Mac helper 独立打包在 `bin/darwin/Tau Speech Helper.app`，macOS 26 上采用 SpeechAnalyzer、SpeechTranscriber、medium SpeechDetector，持续消费识别与 VAD 流；管道按实际到达字节读取，输出逐段修订，end 等 finalize 与结果流完成。构建脚本生成当前架构或通用二进制；旧系统及 Windows 探测返回不支持原生路径。

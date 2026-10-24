@@ -450,7 +450,10 @@ export class TranscriptionService {
       const args =
         process.platform === "darwin"
           ? this.buildWhisperCliArgs(modelPath, input, temporary, settings)
-          : this.buildPrecompiledArgs(input, { ...settings, device: program.device });
+          : this.buildPrecompiledArgs(input, {
+              ...settings,
+              device: settings.device ?? program.device,
+            });
       const { language: detected } = await runASRProcess(program.path, args, signal, onProgress);
       throwIfASRAborted(signal);
       const srt = await fs.readFile(path.join(temporary, "input.srt"), "utf8");
