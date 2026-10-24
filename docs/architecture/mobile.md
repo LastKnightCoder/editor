@@ -272,7 +272,7 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
   - 末尾用 `::after` 占位（部分 WebView 不把滚动容器的 padding-bottom 计入可滚动区域）。
   - 占位高度 = `--page-bottom-inset`（16px 呼吸 + `--mobile-screen-safe-bottom`）
     - `--mobile-editor-toolbar-occlusion` + `--pan-occluded-bottom`。
-  - 遮挡变量由当前显示的配件栏、块操作栏、标注栏、阅读态「编辑」悬浮按钮、PanContainer 写入根元素，只计栏高，不含安全区。
+  - 遮挡变量由当前显示的配件栏、块操作栏、标注栏、PanContainer 写入根元素，只计栏高，不含安全区。
   - 底部另有常显操作条、由操作条自己承担安全区时，滚动容器加 `data-page-footer`，末尾只留呼吸。
   - 末尾需要越过 FAB 或批量栏时，在滚动容器上覆盖 `--page-bottom-inset`。
   - 不要在外层容器上挂常驻的 padding-bottom。
@@ -330,6 +330,7 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
 - **阅读态**：`features/cards/readingMode/useReadingMode` 管理编辑态，宿主把 `forcedReadonly || !editing` 传给 Editor 与配件栏
   的 `readonly`（切换不重挂载）。顶栏不放编辑入口（只有返回 / 标题 / 宿主操作）：阅读态右下角悬浮按钮 `ReadingModeFab`
   「编辑」在点击内同步切换并聚焦（回上次选区，否则文末），正文下滑时收成圆形图标、上滑或回顶展开，块选择 / 拖拽 / 标注条出现时隐藏；
+  正文末尾（滚动容器最后一个子元素的底边）滚进按钮区域时淡出且不可点，因此不写遮挡变量、不为按钮在末尾留白；
   双击正文在同一手势内切换并把光标放到双击处（交互元素除外）；退出编辑是配件栏右端常驻的「完成」（宿主传 `showDoneButton`，
   取代各模式的「收起键盘」，面板 / 表格 / 格式 / 媒体模式下排在该模式右端按钮之后），经 controller 的 `setExitEditingListener` 回阅读态。只读时勾选框忽略点击，由 hook 在点击捕获阶段直接改待办节点，改动照常经
   `onChange` 保存；`forcedReadonly`（协作建立中 / 协作只读）时隐藏「编辑」且不改正文。详情页与协作编辑页
