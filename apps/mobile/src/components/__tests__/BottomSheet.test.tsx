@@ -40,7 +40,7 @@ function fireTouch(
 function getPanel(): HTMLElement | null {
   return (
     Array.from(document.querySelectorAll<HTMLElement>("div")).find(
-      el => typeof el.className === "string" && el.className.includes("rounded-t-[30px]")
+      el => typeof el.className === "string" && el.className.includes("rounded-t-sheet")
     ) ?? null
   );
 }

@@ -6,12 +6,45 @@ use serde_json::{json, Value};
 use tauri::AppHandle;
 
 use crate::models::{SyncActionResponse, SyncVersionResponse};
-use crate::setting::{resolve_app_dir, save_setting_value, set_database_version};
+use crate::plugin_files::TemporaryFile;
+use crate::setting::{resolve_app_dir, set_database_version, update_setting_value};
 
 use super::common::{response_err, response_ok, DEFAULT_DB_NAME, SYNC_CHECK_TIMEOUT_SECS};
 use super::context::{build_sync_context, build_sync_context_for, SyncProvider};
 use super::error::AppError;
-const SYNC_MODEL_VERSION: u64 = 5;
+fn sync_model_version() -> u64 {
+    crate::chunked_sync::protocol().model_version
+}
+
+fn validate_remote_metadata(info: &Value) -> Result<(), AppError> {
+    let version = info["version"]
+        .as_u64()
+        .filter(|value| *value <= 9_007_199_254_740_991)
+        .ok_or_else(|| AppError::new("REMOTE_VERSION_PARSE_FAILED", "远端版本号无效"))?;
+    if version == 0
+        && info.get("dataModelVersion").is_none()
+        && info.get("databaseObject").is_none()
+        && info.get("sessionsObject").is_none()
+    {
+        return Ok(());
+    }
+    if info["dataModelVersion"].as_u64() != Some(sync_model_version())
+        || !info["databaseObject"]
+            .as_str()
+            .is_some_and(crate::chunked_sync::valid_snapshot)
+        || info.get("sessionsObject").is_some_and(|value| {
+            !value
+                .as_str()
+                .is_some_and(crate::chunked_sync::valid_snapshot)
+        })
+    {
+        return Err(AppError::new(
+            "DB_MODEL_INCOMPATIBLE",
+            "同步格式不受支持，请确认存储目标和客户端版本",
+        ));
+    }
+    Ok(())
+}
 
 async fn read_remote_info(
     provider: &SyncProvider,
@@ -29,6 +62,7 @@ async fn read_remote_info(
             format!("远端版本文件 JSON 解析失败: {e}"),
         )
     })?;
+    validate_remote_metadata(&parsed)?;
     for depth in 0..10000 {
         let version = parsed["version"]
             .as_u64()
@@ -39,9 +73,10 @@ async fn read_remote_info(
         }
         let next: Value = serde_json::from_slice(&provider.download(&object).await?)
             .map_err(|e| AppError::new("REMOTE_VERSION_PARSE_FAILED", e.to_string()))?;
+        validate_remote_metadata(&next)?;
         if next["parentVersion"].as_u64() != Some(version)
             || next["version"].as_u64().is_none_or(|v| v <= version)
-            || next["commitId"].as_str().is_none()
+            || next["commitId"].as_str().is_none_or(|id| id.is_empty())
         {
             return Err(AppError::new(
                 "REMOTE_VERSION_PARSE_FAILED",
@@ -56,23 +91,7 @@ async fn read_remote_info(
             ));
         }
     }
-    if let Some(version) = parsed.get("dataModelVersion") {
-        if version.as_u64().is_none_or(|v| v > SYNC_MODEL_VERSION) {
-            return Err(AppError::new(
-                "DB_MODEL_INCOMPATIBLE",
-                "远端数据库模型不受支持，请升级全部客户端",
-            ));
-        }
-    }
-    parsed
-        .get("version")
-        .and_then(|v| v.as_u64())
-        .ok_or_else(|| {
-            AppError::new(
-                "REMOTE_VERSION_PARSE_FAILED",
-                "远端版本文件缺少 version 字段",
-            )
-        })?;
+    validate_remote_metadata(&parsed)?;
     Ok(parsed)
 }
 
@@ -86,16 +105,16 @@ fn snapshot_version_payload(mut info: Value, version: u64, object: &str) -> Vec<
     info["parentVersion"] = info["version"].clone();
     info["commitId"] = json!(uuid::Uuid::new_v4().to_string());
     info["version"] = json!(version);
-    info["dataModelVersion"] = json!(SYNC_MODEL_VERSION);
+    info["dataModelVersion"] = json!(sync_model_version());
     info["databaseObject"] = json!(object);
     serde_json::to_vec(&info).expect("版本信息可序列化")
 }
 
 fn remember_session_base(setting: &mut Value, name: &str, info: &Value) {
-    if !setting["mobileSyncBases"].is_object() {
-        setting["mobileSyncBases"] = json!({});
+    if !setting["chunkedSyncBases"].is_object() {
+        setting["chunkedSyncBases"] = json!({});
     }
-    setting["mobileSyncBases"][name] = json!({
+    setting["chunkedSyncBases"][name] = json!({
         "sessionsObject": info.get("sessionsObject"),
         "version": info["version"],
         "commitId": info.get("commitId"),
@@ -109,10 +128,16 @@ fn bind_session_base(
     info: &mut Value,
 ) -> Result<(), AppError> {
     if let Some(base) = setting
-        .get("mobileSyncBases")
+        .get("chunkedSyncBases")
         .and_then(|bases| bases.get(name))
     {
         if let Some(object) = base["sessionsObject"].as_str() {
+            if !crate::chunked_sync::valid_snapshot(object) {
+                return Err(AppError::new(
+                    "SESSION_BASE_UNKNOWN",
+                    "会话文件清单无效，请从数据完整的桌面端重新发布快照",
+                ));
+            }
             info["sessionsObject"] = json!(object);
         } else {
             info.as_object_mut().unwrap().remove("sessionsObject");
@@ -189,7 +214,7 @@ pub async fn sync_upload_database(app: AppHandle) -> SyncActionResponse {
 }
 
 async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
-    let mut ctx = match build_sync_context(&app) {
+    let ctx = match build_sync_context(&app) {
         Ok(ctx) => ctx,
         Err(error) => {
             return response_err(DEFAULT_DB_NAME, 0, 0, error);
@@ -262,7 +287,9 @@ async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
         );
     }
 
-    let db_bytes = match read_database_snapshot(&ctx.database_path) {
+    let snapshot = match TemporaryFile::new(&app)
+        .and_then(|snapshot| create_database_snapshot(&ctx.database_path, snapshot))
+    {
         Ok(bytes) => bytes,
         Err(err) => {
             return response_err(
@@ -274,16 +301,25 @@ async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
         }
     };
 
+    if let Err(error) = assert_session_content_available(&snapshot.path, &remote_info) {
+        return response_err(
+            &ctx.database_name,
+            ctx.local_version,
+            remote_version,
+            AppError::new("SESSION_BASE_UNKNOWN", error),
+        );
+    }
     let next_version = ctx.local_version + 1;
-    let data_object = format!(
-        "{}.snapshot-{}.db",
-        ctx.data_object_name,
-        uuid::Uuid::new_v4()
-    );
+    let data_object = crate::chunked_sync::snapshot_object();
     // 移动端不修改聊天内容，沿用下载版本的会话对象。
     let next_version_payload = snapshot_version_payload(remote_info, next_version, &data_object);
     if let Err(err) = publish_snapshot(
-        ctx.provider.upload(&data_object, &db_bytes),
+        async {
+            ctx.provider
+                .upload_chunked(&data_object, &ctx.database_name, &snapshot.path)
+                .await
+                .map_err(|e| AppError::new("SYNC_UPLOAD_FAILED", e))
+        },
         publish_version_commit(
             &ctx.provider,
             &ctx.version_object_name,
@@ -295,13 +331,14 @@ async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
         return response_err(&ctx.database_name, ctx.local_version, remote_version, err);
     }
 
-    set_database_version(&mut ctx.setting, &ctx.database_name, next_version);
-    remember_session_base(
-        &mut ctx.setting,
-        &ctx.database_name,
-        &serde_json::from_slice(&next_version_payload).expect("有效版本信封"),
-    );
-    if let Err(err) = save_setting_value(&app, &ctx.setting) {
+    if let Err(err) = update_setting_value(&app, |setting| {
+        set_database_version(setting, &ctx.database_name, next_version);
+        remember_session_base(
+            setting,
+            &ctx.database_name,
+            &serde_json::from_slice(&next_version_payload).expect("版本信息可解析"),
+        );
+    }) {
         return response_err(
             &ctx.database_name,
             ctx.local_version,
@@ -336,6 +373,7 @@ async fn publish_version_commit(
 ) -> Result<(), AppError> {
     let next: Value = serde_json::from_slice(bytes)
         .map_err(|e| AppError::new("SYNC_UPLOAD_FAILED", e.to_string()))?;
+    validate_remote_metadata(&next)?;
     let parent = next["parentVersion"]
         .as_u64()
         .ok_or_else(|| AppError::new("SYNC_UPLOAD_FAILED", "缺少父版本"))?;
@@ -361,16 +399,42 @@ async fn publish_version_commit(
     Ok(())
 }
 
-fn read_database_snapshot(path: &PathBuf) -> Result<Vec<u8>, String> {
-    let snapshot = path.with_extension(format!("db.{}.upload", uuid::Uuid::new_v4()));
-    let result = (|| {
-        let conn = rusqlite::Connection::open(path).map_err(|e| e.to_string())?;
-        conn.execute("VACUUM INTO ?1", [snapshot.to_string_lossy().as_ref()])
+fn assert_session_content_available(path: &std::path::Path, info: &Value) -> Result<(), String> {
+    if info["sessionsObject"].is_string() {
+        return Ok(());
+    }
+    let conn =
+        rusqlite::Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
             .map_err(|e| e.to_string())?;
-        fs::read(&snapshot).map_err(|e| e.to_string())
-    })();
-    let _ = fs::remove_file(snapshot);
-    result
+    let table: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='chat_session')",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    let has_content = table
+        && conn
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM chat_session WHERE message_count>0)",
+                [],
+                |row| row.get::<_, bool>(0),
+            )
+            .map_err(|e| e.to_string())?;
+    if has_content {
+        return Err("手机没有对应会话文件，请从保有完整会话内容的客户端首次发布快照".into());
+    }
+    Ok(())
+}
+
+fn create_database_snapshot(
+    path: &PathBuf,
+    snapshot: TemporaryFile,
+) -> Result<TemporaryFile, String> {
+    let conn = rusqlite::Connection::open(path).map_err(|e| e.to_string())?;
+    conn.execute("VACUUM INTO ?1", [snapshot.path.to_string_lossy().as_ref()])
+        .map_err(|e| e.to_string())?;
+    Ok(snapshot)
 }
 
 #[cfg(test)]
@@ -379,17 +443,23 @@ mod tests {
     use std::cell::RefCell;
 
     #[test]
-    fn snapshot_version_preserves_session_archive() {
+    fn snapshot_version_preserves_session_manifest() {
         let payload = snapshot_version_payload(
-            json!({ "version": 7, "sessionsObject": "old.sessions.zip" }),
+            json!({ "version": 7, "sessionsObject": "tau-sync-v1/snapshots/sessions.json" }),
             8,
-            "new.db",
+            "tau-sync-v1/snapshots/database.json",
         );
         let info: Value = serde_json::from_slice(&payload).unwrap();
         assert_eq!(info["version"], 8);
-        assert_eq!(info["dataModelVersion"], SYNC_MODEL_VERSION);
-        assert_eq!(info["databaseObject"], "new.db");
-        assert_eq!(info["sessionsObject"], "old.sessions.zip");
+        assert_eq!(info["dataModelVersion"], sync_model_version());
+        assert_eq!(
+            info["databaseObject"],
+            "tau-sync-v1/snapshots/database.json"
+        );
+        assert_eq!(
+            info["sessionsObject"],
+            "tau-sync-v1/snapshots/sessions.json"
+        );
         assert_eq!(info["parentVersion"], 7);
         assert!(info["commitId"].as_str().is_some_and(|id| !id.is_empty()));
     }
@@ -400,11 +470,15 @@ mod tests {
         remember_session_base(
             &mut setting,
             "data",
-            &json!({ "version": 7, "sessionsObject": "my-base.zip" }),
+            &json!({ "version": 7, "sessionsObject": "tau-sync-v1/snapshots/my-base.json" }),
         );
-        let mut remote = json!({ "version": 8, "sessionsObject": "other-device.zip" });
+        let mut remote =
+            json!({ "version": 8, "sessionsObject": "tau-sync-v1/snapshots/other-device.json" });
         bind_session_base(&setting, "data", 9, &mut remote).unwrap();
-        assert_eq!(remote["sessionsObject"], "my-base.zip");
+        assert_eq!(
+            remote["sessionsObject"],
+            "tau-sync-v1/snapshots/my-base.json"
+        );
         assert_eq!(remote["version"], 8);
         assert!(bind_session_base(&json!({}), "data", 9, &mut remote).is_err());
     }
@@ -457,16 +531,93 @@ mod tests {
     }
 
     #[test]
+    fn remote_metadata_requires_current_format_and_safe_versions() {
+        assert!(validate_remote_metadata(&json!({"version":0})).is_ok());
+        assert!(validate_remote_metadata(&json!({"version":0,"databaseObject":"old.db"})).is_err());
+        for object in [
+            "old.db",
+            "tau-sync-v1/snapshots/../bad.json",
+            "tau-sync-v1/snapshots/nested/bad.json",
+        ] {
+            assert!(validate_remote_metadata(
+                &json!({"version":1,"dataModelVersion":6,"databaseObject":object})
+            )
+            .is_err());
+        }
+        assert!(validate_remote_metadata(&json!({"version":9007199254740992u64,"dataModelVersion":6,"databaseObject":"tau-sync-v1/snapshots/a.json"})).is_err());
+        assert!(validate_remote_metadata(&json!({"version":1,"dataModelVersion":5,"databaseObject":"tau-sync-v1/snapshots/a.json"})).is_err());
+    }
+
+    #[test]
+    fn mobile_cannot_publish_chat_references_without_session_content() {
+        let dir = std::env::temp_dir().join(format!("tau-session-base-{}", uuid::Uuid::new_v4()));
+        fs::create_dir(&dir).unwrap();
+        let path = dir.join("data.db");
+        let conn = rusqlite::Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE chat_session(message_count INTEGER);INSERT INTO chat_session VALUES(1);",
+        )
+        .unwrap();
+        assert!(assert_session_content_available(&path, &json!({})).is_err());
+        assert!(assert_session_content_available(
+            &path,
+            &json!({"sessionsObject":"tau-sync-v1/snapshots/sessions.json"})
+        )
+        .is_ok());
+        conn.execute("UPDATE chat_session SET message_count=0", [])
+            .unwrap();
+        assert!(assert_session_content_available(&path, &json!({})).is_ok());
+        drop(conn);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn large_database_snapshot_stays_on_disk() {
+        let dir = std::env::temp_dir().join(format!("tau-large-snapshot-{}", uuid::Uuid::new_v4()));
+        fs::create_dir(&dir).unwrap();
+        let path = dir.join("large.db");
+        let conn = rusqlite::Connection::open(&path).unwrap();
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0; CREATE TABLE large(payload BLOB);").unwrap();
+        let length = 129_i64 * 1024 * 1024;
+        conn.execute("INSERT INTO large VALUES(zeroblob(?1))", [length])
+            .unwrap();
+        let snapshot =
+            create_database_snapshot(&path, TemporaryFile::new_in(&dir).unwrap()).unwrap();
+        assert!(fs::metadata(&snapshot.path).unwrap().len() > 128 * 1024 * 1024);
+        let check = rusqlite::Connection::open(&snapshot.path).unwrap();
+        assert_eq!(
+            check
+                .query_row("SELECT length(payload) FROM large", [], |row| row
+                    .get::<_, i64>(0))
+                .unwrap(),
+            length
+        );
+        drop(check);
+        drop(conn);
+        drop(snapshot);
+        assert_eq!(
+            fs::read_dir(&dir)
+                .unwrap()
+                .filter_map(Result::ok)
+                .filter(|entry| entry
+                    .path()
+                    .extension()
+                    .is_some_and(|ext| ext == "transfer"))
+                .count(),
+            0
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn upload_snapshot_includes_committed_wal_records() {
         let dir = std::env::temp_dir().join(format!("tau-snapshot-{}", uuid::Uuid::new_v4()));
         fs::create_dir(&dir).unwrap();
         let path = dir.join("data.db");
         let conn = rusqlite::Connection::open(&path).unwrap();
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0; CREATE TABLE sample(value TEXT); INSERT INTO sample VALUES('committed');").unwrap();
-        let bytes = read_database_snapshot(&path).unwrap();
-        let snapshot_path = dir.join("snapshot.db");
-        fs::write(&snapshot_path, bytes).unwrap();
-        let snapshot = rusqlite::Connection::open(snapshot_path).unwrap();
+        let file = create_database_snapshot(&path, TemporaryFile::new_in(&dir).unwrap()).unwrap();
+        let snapshot = rusqlite::Connection::open(&file.path).unwrap();
         assert_eq!(
             snapshot
                 .query_row("SELECT value FROM sample", [], |r| r.get::<_, String>(0))
@@ -524,7 +675,7 @@ pub async fn sync_download_database(app: AppHandle) -> SyncActionResponse {
 }
 
 async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
-    let mut ctx = match build_sync_context(&app) {
+    let ctx = match build_sync_context(&app) {
         Ok(ctx) => ctx,
         Err(error) => {
             return response_err(DEFAULT_DB_NAME, 0, 0, error);
@@ -538,9 +689,6 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
         }
     };
     let remote_version = remote_info["version"].as_u64().unwrap_or(0);
-    let data_object = remote_info["databaseObject"]
-        .as_str()
-        .unwrap_or(&ctx.data_object_name);
 
     if ctx.local_version > remote_version {
         return response_err(
@@ -563,6 +711,10 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
         );
     }
 
+    let data_object = remote_info["databaseObject"]
+        .as_str()
+        .expect("快照文件清单已校验");
+
     let exists = match ctx.provider.exists(data_object).await {
         Ok(value) => value,
         Err(error) => {
@@ -576,17 +728,23 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
             remote_version,
             AppError::new(
                 "REMOTE_FILE_NOT_FOUND",
-                format!("远端数据库文件不存在: {}", ctx.data_object_name),
+                format!("远端数据库文件不存在: {}", data_object),
             ),
         );
     }
 
-    let downloaded = match ctx.provider.download(data_object).await {
-        Ok(bytes) => bytes,
+    let downloaded = match ctx.provider.download_chunked(data_object).await {
+        Ok(file) => file,
         Err(error) => {
-            return response_err(&ctx.database_name, ctx.local_version, remote_version, error);
+            return response_err(
+                &ctx.database_name,
+                ctx.local_version,
+                remote_version,
+                AppError::new("SYNC_DOWNLOAD_FAILED", error),
+            )
         }
     };
+    let tmp_path = &downloaded.path;
 
     let backup_dir = match resolve_app_dir(&app) {
         Ok(dir) => dir.join("backup"),
@@ -634,22 +792,9 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
         }
     }
 
-    let tmp_path = ctx.database_path.with_file_name(format!(
-        "{}.{}.download.tmp",
-        ctx.database_name,
-        uuid::Uuid::new_v4()
-    ));
-    if let Err(err) = fs::write(&tmp_path, downloaded) {
-        return response_err(
-            &ctx.database_name,
-            ctx.local_version,
-            remote_version,
-            AppError::new("SYNC_DOWNLOAD_FAILED", format!("写入临时文件失败: {err}")),
-        );
-    }
-    if let Err(err) = crate::database::validate_download(&tmp_path) {
-        let _ = fs::remove_file(&tmp_path);
-        remove_wal_shm_files(&tmp_path);
+    if let Err(err) = crate::database::validate_download(tmp_path) {
+        let _ = fs::remove_file(tmp_path);
+        remove_wal_shm_files(tmp_path);
         return response_err(
             &ctx.database_name,
             ctx.local_version,
@@ -662,7 +807,7 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
     }
     if ctx.database_path.exists() {
         if let Err(err) = crate::database::force_checkpoint_database(&app, &ctx.database_name) {
-            let _ = fs::remove_file(&tmp_path);
+            let _ = fs::remove_file(tmp_path);
             return response_err(
                 &ctx.database_name,
                 ctx.local_version,
@@ -671,8 +816,8 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
             );
         }
     }
-    if let Err(err) = replace_database_file(&tmp_path, &ctx.database_path) {
-        let _ = fs::remove_file(&tmp_path);
+    if let Err(err) = replace_database_file(tmp_path, &ctx.database_path) {
+        let _ = fs::remove_file(tmp_path);
         return response_err(
             &ctx.database_name,
             ctx.local_version,
@@ -688,9 +833,10 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
     }
     remove_wal_shm_files(&ctx.database_path);
 
-    set_database_version(&mut ctx.setting, &ctx.database_name, remote_version);
-    remember_session_base(&mut ctx.setting, &ctx.database_name, &remote_info);
-    if let Err(err) = save_setting_value(&app, &ctx.setting) {
+    if let Err(err) = update_setting_value(&app, |setting| {
+        set_database_version(setting, &ctx.database_name, remote_version);
+        remember_session_base(setting, &ctx.database_name, &remote_info);
+    }) {
         return response_err(
             &ctx.database_name,
             ctx.local_version,

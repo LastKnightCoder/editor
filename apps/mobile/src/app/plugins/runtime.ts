@@ -1,10 +1,11 @@
+import { ASRProviderRegistry } from "@tau/plugins/asr-host";
+import type { PluginWebSocket } from "@tau/plugins";
+import { RendererSyncRegistry, RendererUploadRegistry } from "@tau/plugins/provider-host";
+import { copyJson } from "@tau/plugins/host";
+import { getMobileSettingSnapshot } from "../../services/mobileSettingsBridge";
 import { PluginHost, normalizePageParams, type StorageAdapter } from "@tau/plugins/host";
 import { ContentPluginRegistry } from "@tau/plugins/content";
-import { type PortablePlatform } from "@tau/plugins/portable";
-import {
-  evaluatePortablePluginPackage,
-  adaptPortablePluginDefinition,
-} from "@tau/plugins/rendering";
+import { evaluatePortablePluginPackage, getPluginNodeTypes } from "@tau/plugins/rendering";
 import type { PluginEnvironmentSource } from "@tau/plugins/environment-host";
 import type {
   PluginContext,
@@ -13,11 +14,7 @@ import type {
   PluginSettingsDefinition,
 } from "@tau/plugins";
 import type { Navigator } from "../../router/navigatorTypes";
-import {
-  verifyMobilePlugin,
-  MOBILE_PLUGIN_CAPABILITIES,
-  type MobilePluginPackage,
-} from "../../services/plugins";
+import { verifyMobilePlugin, type MobilePluginPackage } from "../../services/plugins";
 
 export interface MobilePluginPage {
   context: PluginContext;
@@ -26,6 +23,11 @@ export interface MobilePluginPage {
 }
 export class MobilePluginRuntime {
   readonly host: PluginHost;
+  readonly sync = new RendererSyncRegistry();
+  readonly upload = new RendererUploadRegistry();
+  readonly asr = new ASRProviderRegistry();
+  websocket?: PluginWebSocket;
+  fetch?: (input: RequestInfo | URL, init?: RequestInit, pluginId?: string) => Promise<Response>;
   readonly content = new ContentPluginRegistry();
   readonly pages = new Map<string, MobilePluginPage>();
   readonly entries = new Map<
@@ -59,6 +61,39 @@ export class MobilePluginRuntime {
       restartRequired,
       environmentSource: environment,
       storage,
+      sync: this.sync,
+      asr: this.asr,
+      websocket: {
+        connect: (url, protocols, options) => {
+          if (!this.websocket) throw new Error("插件网络尚未就绪");
+          return this.websocket.connect(url, protocols, options);
+        },
+      },
+      upload: {
+        register: (context, definition) => this.upload.register(context, definition),
+        uploadRemote: (file, signal) => {
+          const setting = getMobileSettingSnapshot()?.imageBed;
+          const id = setting?.plugin?.id;
+          if (setting?.active !== "plugin" || !id)
+            throw new Error("请先配置远端上传插件，本地保存不能提供公网地址");
+          const originalName = file.name.split(/[\\/]/).at(-1) || "file";
+          const dot = originalName.lastIndexOf(".");
+          const name =
+            dot > 0
+              ? `${originalName.slice(0, dot)}_${crypto.randomUUID()}${originalName.slice(dot)}`
+              : `${originalName}_${crypto.randomUUID()}`;
+          return this.upload.upload(
+            id,
+            { ...file, name },
+            copyJson(setting.plugin?.configurations[id] ?? {}),
+            signal
+          );
+        },
+      },
+      fetch: (input, init, owner) => {
+        if (!this.fetch) throw new Error("插件网络尚未就绪");
+        return this.fetch(input, init, owner?.pluginId);
+      },
       pages: {
         register: (context, definition) => {
           const id = `${context.pluginId}:${definition.id}`;
@@ -101,7 +136,13 @@ export class MobilePluginRuntime {
       },
       settings: {
         register: (context, definition) => {
-          if (definition.target) throw new Error("移动端不提供领域设置宿主");
+          if (
+            definition.target &&
+            definition.target !== "sync" &&
+            definition.target !== "upload" &&
+            definition.target !== "asr"
+          )
+            throw new Error("当前移动宿主尚未提供此领域设置");
           const id = `${context.pluginId}:${definition.id}`;
           this.settings.set(id, { context, definition });
           this.publish();
@@ -109,7 +150,12 @@ export class MobilePluginRuntime {
             id,
             open: async () => {
               if (!this.active(context)) throw new Error("插件设置不可用");
-              navigator.push("pluginSettings", { id });
+              if (definition.target === "asr") throw new Error("语音输入设置尚未提供界面入口");
+              else if (definition.target === "sync")
+                navigator.push("syncProvider", { providerId: context.pluginId });
+              else if (definition.target === "upload")
+                navigator.push("uploadProvider", { providerId: context.pluginId });
+              else navigator.push("pluginSettings", { id });
             },
             dispose: () => {
               this.settings.delete(id);
@@ -167,22 +213,18 @@ export class MobilePluginRuntime {
         if (this.disposed) return;
         const definition = evaluatePortablePluginPackage(artifact, modules, {
           environment: this.environment.getSnapshot(),
-          capabilities: MOBILE_PLUGIN_CAPABILITIES,
           appVersion: this.appVersion,
           profiles: ["web-v1"],
         });
-        const platform = this.environment.getSnapshot().platform as PortablePlatform;
-        const adapted = adaptPortablePluginDefinition(definition, artifact.manifest, platform);
-        const contentDefinition = adapted.definition;
+        const contentDefinition = definition;
+        const nodeTypes = getPluginNodeTypes(definition);
         const candidate = new ContentPluginRegistry();
         candidate.install([...this.content.list(), contentDefinition]);
         validateContent?.(candidate);
         this.host.registerTrusted(definition);
         this.content.install(candidate.list());
-        Object.entries(adapted.support).forEach(([type, value]) =>
-          this.elementSupport.set(type, value)
-        );
-        this.packageNodes.set(item.id, Object.keys(adapted.support));
+        nodeTypes.forEach(type => this.elementSupport.set(type, "edit"));
+        this.packageNodes.set(item.id, nodeTypes);
         definitions.push(definition);
         if (artifact.css) {
           const style = document.createElement("style");
@@ -204,10 +246,21 @@ export class MobilePluginRuntime {
     }
     this.publish();
   }
+  /** 插件当前在本会话登记的贡献数量，供详情页「此插件提供」展示。 */
+  contributions(pluginId: string) {
+    const count = (map: Map<string, { context: PluginContext }>) =>
+      [...map.values()].filter(item => item.context.pluginId === pluginId).length;
+    return {
+      elements: this.packageNodes.get(pluginId)?.length ?? 0,
+      pages: count(this.pages),
+      entries: count(this.entries),
+      settings: count(this.settings),
+    };
+  }
   async blockFromCenter(id: string) {
     if (this.disposed) return;
     for (const type of this.packageNodes.get(id) ?? []) this.elementSupport.set(type, "none");
-    this.errors.set(id, "中心已撤回或禁用此版本，请重新打开应用；正文保留");
+    this.errors.set(id, "中心已撤回或禁用此版本，插件已停用；正文保留");
     this.publish();
     if (this.host.listPlugins().some(plugin => plugin.id === id)) await this.host.disable(id);
   }

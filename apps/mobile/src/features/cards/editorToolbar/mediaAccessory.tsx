@@ -32,7 +32,7 @@ import { openImageLightbox, openLocalMediaPicker } from "@tau/editor/extensions/
 import type { Editor as SlateEditor } from "slate";
 
 import { ActionSheet, type ActionSheetItem } from "../../../components/ActionSheet";
-import { AccessoryButton, ContextChip } from "./accessoryControls";
+import { AccessoryButton, ContextChip, LabeledButton } from "./accessoryControls";
 import type { MediaEditingContext, MediaElementType } from "./editingContext";
 import {
   INLINE_IMAGE_SIZES,
@@ -71,27 +71,6 @@ const MEDIA_ICONS: Record<MediaElementType, typeof ImageIcon> = {
 const ALIGN_ICONS = { left: AlignLeft, center: AlignCenter, right: AlignRight } as const;
 
 type MediaSheetKind = "more" | "replace";
-
-/** 带文字标签的配件栏按钮：媒体操作单看图标不好认 */
-function LabeledButton(props: {
-  label: string;
-  icon: ReactNode;
-  active?: boolean;
-  onPress: () => void;
-}) {
-  const { label, icon, active = false, onPress } = props;
-  return (
-    <AccessoryButton
-      label={label}
-      active={active}
-      className="h-11 w-[46px] flex-col gap-px text-[9.5px] font-medium"
-      onPress={onPress}
-    >
-      {icon}
-      <span className="leading-none">{label}</span>
-    </AccessoryButton>
-  );
-}
 
 const icon = (Icon: typeof ImageIcon) => <Icon size={ICON_SIZE} strokeWidth={ICON_STROKE} />;
 const menuIcon = (Icon: typeof ImageIcon) => <Icon size={MENU_ICON_SIZE} />;

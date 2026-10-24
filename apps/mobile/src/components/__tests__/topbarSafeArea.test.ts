@@ -12,7 +12,6 @@ const PAGE_HEADER = "src/components/PageHeader.tsx";
 const PAGE_HEADER_FILES = [
   "src/features/todo/TodoPage.tsx",
   "src/features/todo/TodoDetailPage.tsx",
-  "src/features/about/AboutPage.tsx",
   "src/features/settings/SettingsModulePage.tsx",
   "src/features/articles/ArticlesPage.tsx",
   "src/features/projects/ProjectsPage.tsx",

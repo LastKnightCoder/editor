@@ -102,6 +102,7 @@ export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting):
 };
 
 export interface ISetting {
+  speechInput?: import("@tau/asr").SpeechInputSetting;
   fontSetting: {
     chineseFont: string;
     englishFont: string;
@@ -130,6 +131,7 @@ export interface ISetting {
     databases: Array<{
       name: string;
       version: number;
+      syncFormat?: number;
     }>;
   };
   transcription: {
@@ -171,6 +173,7 @@ export interface ISetting {
     flashcardGeneration: LLMUsageConfigV2 | null;
     aiJudgement: LLMUsageConfigV2 | null;
     transcriptionOptimization: LLMUsageConfigV2 | null;
+    speechInputRefinement: LLMUsageConfigV2 | null;
     videoSummary: LLMUsageConfigV2 | null;
     videoEbookRewrite: LLMUsageConfigV2 | null;
     vibeLearningImageDescription: LLMUsageConfigV2 | null;
@@ -346,6 +349,7 @@ const persistSettingCache = (setting: ISetting) => {
 
   try {
     const persistedSetting = buildPersistedSettingSnapshot(setting);
+    if (persistedSetting.speechInput) persistedSetting.speechInput.plugin.configurations = {};
     window.localStorage.setItem(SETTING_CACHE_KEY, JSON.stringify(persistedSetting));
   } catch (error) {
     console.error("Failed to persist cached setting", error);
@@ -416,6 +420,7 @@ const initialState: IState = {
       flashcardGeneration: null,
       aiJudgement: null,
       transcriptionOptimization: null,
+      speechInputRefinement: null,
       videoSummary: null,
       videoEbookRewrite: null,
       vibeLearningImageDescription: null,

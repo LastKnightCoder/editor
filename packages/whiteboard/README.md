@@ -19,7 +19,7 @@ const extensions = createStandardWhiteboardExtensions();
 ## 扩展边界
 
 - 声明包含唯一 id、apiVersion 和 create(api)。一个扩展可以贡献多个元素、命令、工具、菜单、快捷键、属性面板、导入规则和界面层。装配逐扩展先校验后提交，重复声明、命名空间非法、create 抛错或引用不存在的命令时只禁用该扩展并清理其贡献（先到先得），不中断整板装配。
-- 正文与媒体的宿主能力经服务注册表注入（见「宿主服务」，D-134）：内置 richtext/mind/clipboard optional 声明 `IWhiteboardRichText`，媒体类扩展 optional 声明 `IResourceService`/`IMediaInfoService`/`IDownloadService`，缺失时回退嵌入式或浏览器实现；导出截图与选择器弹窗、媒体动作白名单、图片组件等纯 UI 配置仍为工厂参数。正文编辑、低缩放订阅和离屏测量共用 Kit 与文档绑定。界面层 position 为 canvas 或 outside；canvas 浮层根节点须带 `CANVAS_OVERLAY_ATTR`，其中的输入不归画布。
+- 正文与媒体的宿主能力经服务注册表注入（见「宿主服务」，D-134）：内置 richtext/mind/clipboard 直接获取 `IWhiteboardRichText`，媒体类扩展直接获取 `IResourceService`/`IMediaInfoService`/`IDownloadService`，缺失时回退嵌入式或浏览器实现；导出截图与选择器弹窗、媒体动作白名单、图片组件等纯 UI 配置仍为工厂参数。正文编辑、低缩放订阅和离屏测量共用 Kit 与文档绑定。界面层 position 为 canvas 或 outside；canvas 浮层根节点须带 `CANVAS_OVERLAY_ATTR`，其中的输入不归画布。
 - 文档卡仍使用现有 entityRef 与 title 字段，由 createDocumentExtension 组合纸面与阅读层；已有元素 type 和数据格式不变。
 - outline：受控开关与宽度；实际占宽回调归所属页面，避免实例串扰。
 - API.captureSubmission：异步操作开始时捕获，提交前验证；只读切换、隐藏、卸载和目标删除使旧操作失效。
@@ -114,7 +114,7 @@ const stampExtension = defineWhiteboardExtension({
 宿主能力（富文本编辑器、上传、媒体探测、下载等）按服务标识注册与获取（D-134）：`@tau/whiteboard/extensions` 重导出 `createServiceId` / `createServiceRegistry`，宿主与扩展作者只依赖白板包即可声明与注册。
 
 - 声明：扩展在 `requires` / `optional` 中列出服务标识（`createServiceId` 产物）。`requires` 中的服务在注册表缺失时拒绝装配该扩展（reason `missing-service`）；`optional` 缺失不影响装配，由扩展显式降级。
-- 获取：服务访问只在扩展作用域 api 上提供——`api.getService(id)` 取 requires 声明过的必选服务，`api.tryGetService(id)` 取 requires/optional 声明过的可选服务（未注册返回 undefined）。取未声明的 id、或对 optional 声明的 id 调用 getService 均抛错（编程错误）；主 API 不提供服务访问。扩展 render 内的组件经 `useWhiteboardAPI()` 拿到同一作用域。
+- 获取：服务访问只在扩展作用域 api 上提供——`api.getService(id)` 获取必需服务（缺失抛错），`api.tryGetService(id)` 获取可缺省服务（缺失返回 undefined）。不再重复填写依赖表；主 API 不提供服务访问。扩展 render 内的组件经 `useWhiteboardAPI()` 拿到同一作用域。
 - 注册：宿主用 `createServiceRegistry` 构建注册表，经 `<WhiteBoard services={registry}>` 传入；缺省为空注册表（声明了 requires 的扩展会被拒绝装配）。注册值可为实例或 `(registry) => impl` 惰性工厂。
 
 首批服务（一行一个，注明所在包）：

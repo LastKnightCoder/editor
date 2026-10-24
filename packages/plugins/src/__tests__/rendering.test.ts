@@ -54,7 +54,6 @@ it("编辑器声明缺失、节点重复与不可用共享模块明确失败", (
       {}
     )
   ).toThrow("未提供");
-  expect(() => validatePluginManifest({ ...manifest, editor: false })).toThrow("editor");
   expect(() =>
     getPluginNodeTypes(
       definePlugin({
@@ -76,15 +75,15 @@ it("编辑器声明缺失、节点重复与不可用共享模块明确失败", (
   ).toThrow("重复");
 });
 
-it("已发布插件的编辑器扩展带未开放字段时加载失败", () => {
+it("插件定义只把公开扩展字段交给宿主，附加元信息不阻止装配", () => {
   const withInputRules = code.replace(
     "apiVersion:1,",
     "apiVersion:1,inputRules:[{id:'test.bold',delimiter:'**',marks:{bold:true}}],"
   );
-  expect(() =>
-    evaluatePluginPackage(
-      { manifest: validatePluginManifest(manifest), code: withInputRules },
-      { "@tau/plugins": { definePlugin } }
-    )
-  ).toThrow("未开放的字段：inputRules");
+  const definition = evaluatePluginPackage(
+    { manifest: validatePluginManifest(manifest), code: withInputRules },
+    { "@tau/plugins": { definePlugin } }
+  );
+  expect(getPluginNodeTypes(definition)).toEqual(["test.block"]);
+  expect(definition.editorExtensions?.[0]).not.toHaveProperty("inputRules");
 });

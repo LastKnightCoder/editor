@@ -131,33 +131,15 @@ try {
     assert.equal(await readFile(pointer, "utf8"), originalPointer);
   }
   await writeFile(sourcePath, source);
-  manifest.targets.ios.requires = ["missingFeature"];
-  await writeFile(manifestPath, JSON.stringify(manifest));
-  await assert.rejects(run(process.execPath, ["build.mjs"], author));
-  assert.equal(await readFile(pointer, "utf8"), originalPointer);
-  await writeFile(manifestPath, manifestText);
-  for (const patch of [
-    { permissions: ["cards:read"] },
-    { version: "1.0.0-beta.1" },
-    {
-      targets: {
-        ...JSON.parse(manifestText).targets,
-        ios: { ...JSON.parse(manifestText).targets.ios, optional: ["futureOptional"] },
-      },
-    },
-  ]) {
+  for (const patch of [{ permissions: ["cards:read"] }, { version: "invalid-version" }]) {
     await writeFile(manifestPath, JSON.stringify({ ...JSON.parse(manifestText), ...patch }));
     await assert.rejects(run(process.execPath, ["build.mjs"], author));
     assert.equal(await readFile(pointer, "utf8"), originalPointer);
   }
   await writeFile(manifestPath, manifestText);
-  report.checks.push("未知可选能力、移动权限和预发布版本在构建时拒绝；客户端前向兼容读取");
+  report.checks.push("移动权限和无效版本在构建时拒绝");
   await assert.rejects(run(process.execPath, ["install-local.mjs"], author), /不能写入正式客户端/);
-  report.checks.push(
-    "Node 与宿主入口依赖被拒绝",
-    "未知能力被拒绝且保留上一产物",
-    "正式目录安装被阻止"
-  );
+  report.checks.push("Node 与宿主入口依赖被拒绝", "构建失败保留上一产物", "正式目录安装被阻止");
   await writeFile(
     manifestPath,
     JSON.stringify(desktopAuthorManifest(JSON.parse(manifestText)), null, 2)
@@ -180,11 +162,9 @@ try {
   await cp(archive, path.join(author, "dist/legacy-example.zip"));
   report.checks.push("同一构建器的旧桌面格式回归");
   const editorManifest = JSON.parse(manifestText);
-  editorManifest.editor = { elements: { "example.note": "edit" } };
   for (const platform of ["desktop", "android", "ios"])
     editorManifest.targets[platform] = {
       minAppVersion: editorManifest.targets[platform].minAppVersion,
-      editor: { elements: { "example.note": platform === "desktop" ? "edit" : "render" } },
     };
   await writeFile(manifestPath, JSON.stringify(editorManifest, null, 2));
   await writeFile(sourcePath, "export { default } from '../examples/editor';\n");
@@ -197,7 +177,7 @@ try {
   report.editorArtifact = JSON.parse(editorInspection.trim().split("\n").at(-1));
   await cp(archive, path.join(author, "dist/editor-example.zip"));
   report.editorArtifact.archive = path.join(author, "dist/editor-example.zip");
-  report.checks.push("同一模板的编辑器入口与分级声明构建");
+  report.checks.push("同一模板的编辑器入口直接注册贡献");
   await writeFile(manifestPath, manifestText);
   await writeFile(sourcePath, source);
   await run("pnpm", ["build"], author);

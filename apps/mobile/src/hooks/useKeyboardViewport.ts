@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 
 export type KeyboardViewportState = {
+  /** 可见区顶边相对布局视口的偏移：iOS 弹键盘时可能平移可视视口露出光标，页面外壳据此贴住可见区 */
+  viewportTop: number;
+  /** 可见区高度（键盘以上） */
   viewportHeight: number;
   keyboardHeight: number;
   isKeyboardVisible: boolean;
@@ -65,17 +68,10 @@ function getLayoutViewportHeight(): number {
   if (typeof window === "undefined") {
     return 0;
   }
-  return Math.max(
-    1,
-    Math.round(
-      window.innerHeight || document.documentElement.clientHeight || 1,
-    ),
-  );
+  return Math.max(1, Math.round(window.innerHeight || document.documentElement.clientHeight || 1));
 }
 
-function toKeyboardViewportState(
-  previous: KeyboardViewportState,
-): KeyboardViewportState {
+function toKeyboardViewportState(previous: KeyboardViewportState): KeyboardViewportState {
   const layoutViewportHeight = getLayoutViewportHeight();
   const nativeKeyboardHeight = readNativeKeyboardHeight();
   const normalizedNativeKeyboardHeight =
@@ -87,23 +83,20 @@ function toKeyboardViewportState(
   if (!visualViewport) {
     const keyboardHeight = normalizedNativeKeyboardHeight ?? 0;
     return {
+      viewportTop: 0,
       viewportHeight: Math.max(1, layoutViewportHeight - keyboardHeight),
       keyboardHeight,
       isKeyboardVisible: keyboardHeight > 0,
     };
   }
 
-  const scale =
-    typeof visualViewport.scale === "number" ? visualViewport.scale : 1;
+  const scale = typeof visualViewport.scale === "number" ? visualViewport.scale : 1;
   const isScaled = Math.abs(scale - 1) > SCALE_EPSILON;
   const previousBaseHeight = Math.max(
     1,
-    Math.round(previous.viewportHeight + previous.keyboardHeight),
+    Math.round(previous.viewportTop + previous.viewportHeight + previous.keyboardHeight)
   );
-  const viewportBottom = Math.max(
-    0,
-    Math.round(visualViewport.height + visualViewport.offsetTop),
-  );
+  const viewportBottom = Math.max(0, Math.round(visualViewport.height + visualViewport.offsetTop));
   let baseHeight = Math.max(layoutViewportHeight, previousBaseHeight);
 
   if (!isScaled) {
@@ -117,28 +110,30 @@ function toKeyboardViewportState(
     ? previous.keyboardHeight
     : Math.max(0, Math.round(baseHeight - viewportBottom));
   const keyboardHeight =
-    normalizedNativeKeyboardHeight ??
-    Math.max(0, Math.round(keyboardHeightByViewport));
+    normalizedNativeKeyboardHeight ?? Math.max(0, Math.round(keyboardHeightByViewport));
   const viewportBaseHeight =
     normalizedNativeKeyboardHeight === null ? baseHeight : layoutViewportHeight;
+  // 只有键盘弹出且走 visualViewport 推算时才有平移；收键盘后 iOS 可能残留 offsetTop，不跟随
+  const viewportTop =
+    normalizedNativeKeyboardHeight !== null || keyboardHeight === 0
+      ? 0
+      : isScaled
+        ? previous.viewportTop
+        : Math.max(0, Math.round(visualViewport.offsetTop));
 
-  const viewportHeight = Math.max(
-    1,
-    Math.round(viewportBaseHeight - keyboardHeight),
-  );
+  const viewportHeight = Math.max(1, Math.round(viewportBaseHeight - keyboardHeight - viewportTop));
 
   return {
+    viewportTop,
     viewportHeight,
     keyboardHeight,
     isKeyboardVisible: keyboardHeight > 0,
   };
 }
 
-function isSameState(
-  left: KeyboardViewportState,
-  right: KeyboardViewportState,
-): boolean {
+function isSameState(left: KeyboardViewportState, right: KeyboardViewportState): boolean {
   return (
+    left.viewportTop === right.viewportTop &&
     left.viewportHeight === right.viewportHeight &&
     left.keyboardHeight === right.keyboardHeight &&
     left.isKeyboardVisible === right.isKeyboardVisible
@@ -146,6 +141,7 @@ function isSameState(
 }
 
 const INITIAL_STATE: KeyboardViewportState = {
+  viewportTop: 0,
   viewportHeight: getLayoutViewportHeight(),
   keyboardHeight: 0,
   isKeyboardVisible: false,
@@ -153,14 +149,14 @@ const INITIAL_STATE: KeyboardViewportState = {
 
 export function useKeyboardViewportState(): KeyboardViewportState {
   const [state, setState] = useState<KeyboardViewportState>(() =>
-    toKeyboardViewportState(INITIAL_STATE),
+    toKeyboardViewportState(INITIAL_STATE)
   );
 
   useEffect(() => {
     let rafId: number | null = null;
 
     const update = () => {
-      setState((previous) => {
+      setState(previous => {
         const next = toKeyboardViewportState(previous);
         return isSameState(previous, next) ? previous : next;
       });
@@ -185,10 +181,7 @@ export function useKeyboardViewportState(): KeyboardViewportState {
     });
     document.addEventListener("focusin", scheduleUpdate, true);
     document.addEventListener("focusout", scheduleUpdate, true);
-    window.addEventListener(
-      NATIVE_KEYBOARD_EVENT,
-      scheduleUpdate as EventListener,
-    );
+    window.addEventListener(NATIVE_KEYBOARD_EVENT, scheduleUpdate as EventListener);
     visualViewport?.addEventListener("resize", scheduleUpdate);
     visualViewport?.addEventListener("scroll", scheduleUpdate);
 
@@ -197,10 +190,7 @@ export function useKeyboardViewportState(): KeyboardViewportState {
       window.removeEventListener("orientationchange", scheduleUpdate);
       document.removeEventListener("focusin", scheduleUpdate, true);
       document.removeEventListener("focusout", scheduleUpdate, true);
-      window.removeEventListener(
-        NATIVE_KEYBOARD_EVENT,
-        scheduleUpdate as EventListener,
-      );
+      window.removeEventListener(NATIVE_KEYBOARD_EVENT, scheduleUpdate as EventListener);
       visualViewport?.removeEventListener("resize", scheduleUpdate);
       visualViewport?.removeEventListener("scroll", scheduleUpdate);
       if (rafId !== null) {

@@ -1,377 +1,213 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+// @vitest-environment node
+import { webcrypto, createHash } from "node:crypto";
+import { beforeEach, expect, it, vi } from "vitest";
 import { SYNC_MODEL_VERSION } from "@tau/db-schema/sync-protocol";
-
-const mockContext = vi.hoisted(() => {
-  let settingState = {
+const state = vi.hoisted(() => ({
+  setting: {
     setting: {
-      database: {
-        active: "data.db",
-        databases: [{ name: "data.db", version: 1 }],
-      },
+      database: { active: "data.db", databases: [{ name: "data.db", version: 1, syncFormat: 6 }] },
     },
-  };
-
-  const syncProvider = {
-    createFileIfAbsent: vi.fn(async (_name: string, _data: Uint8Array) => true),
-    uploadFile: vi.fn(async (_name: string, _data: Uint8Array) => true),
-    downloadFile: vi.fn(async (objectName: string) => {
-      if (objectName === "database_data.db.json") {
-        return new TextEncoder().encode(JSON.stringify({ version: 1 }));
-      }
-      return new Uint8Array([1, 2, 3]);
-    }),
-    fileExists: vi.fn(async (objectName: string) => !objectName.includes(".next-")),
-  };
-
-  const useSettingStoreMock = {
-    getState: vi.fn(() => settingState),
-    setState: vi.fn((updater: any) => {
-      settingState = typeof updater === "function" ? updater(settingState) : updater;
-    }),
-  };
-
-  const useGlobalStateStoreMock = {
-    setState: vi.fn(),
-  };
-
-  return {
-    get settingState() {
-      return settingState;
-    },
-    setSettingState(nextState: typeof settingState) {
-      settingState = nextState;
-    },
-    syncProvider,
-    providerFactory: vi.fn(() => syncProvider),
-    useSettingStoreMock,
-    useGlobalStateStoreMock,
-    reconnectDatabaseFast: vi.fn(async () => undefined),
-    connectDatabaseByName: vi.fn(async () => undefined),
-    readBinaryFile: vi.fn(async () => new Uint8Array([9, 9, 9])),
-    writeBinaryFile: vi.fn(async () => undefined),
-    renameFileOrDirectory: vi.fn(async () => undefined),
-    createDir: vi.fn(async () => undefined),
-    pathExists: vi.fn(async () => true),
-    getSep: vi.fn(async () => "/"),
-    closeDatabase: vi.fn(async () => undefined),
-    removeFile: vi.fn(async () => undefined),
-    invoke: vi.fn(async (channel: string) => {
-      if (channel === "get-database-path") {
-        return "/tmp/data.db";
-      }
-      return "";
-    }),
-    piSessionPack: vi.fn(
-      async (_databaseName: string) =>
-        ({ ok: true, archive: new Uint8Array([7, 7]) }) as {
-          ok: boolean;
-          archive?: Uint8Array;
-          error?: string;
-        }
-    ),
-    piSessionUnpack: vi.fn(
-      async (_databaseName: string, _archive: Uint8Array) =>
-        ({ ok: true }) as { ok: boolean; error?: string }
-    ),
-  };
-});
-
-vi.mock("@/electron", () => ({
-  invoke: mockContext.invoke,
+  },
+  remote: new Map<string, Uint8Array>(),
+  local: new Map<string, Uint8Array>(),
+  invoke: vi.fn(),
+  upload: vi.fn(),
+  create: vi.fn(),
+  download: vi.fn(),
+  reconnect: vi.fn(async () => undefined),
+  connect: vi.fn(async () => undefined),
+  close: vi.fn(async () => undefined),
+  sessions: vi.fn(),
+  install: vi.fn(),
+  factory: vi.fn(),
+  unlock: vi.fn(async () => ({ ok: true })),
 }));
-
+const provider = {
+  uploadFile: state.upload,
+  downloadFile: state.download,
+  createFileIfAbsent: state.create,
+  fileExists: async (name: string) => state.remote.has(name),
+};
+vi.mock("@tau/ui", () => ({ toast: { error: vi.fn(), warning: vi.fn() } }));
+vi.mock("@/commands/module-init", () => ({
+  withModule: (_name: string, run: () => unknown) => run(),
+}));
+vi.mock("@/electron", () => ({ invoke: state.invoke }));
 vi.mock("@/commands", () => ({
-  connectDatabaseByName: mockContext.connectDatabaseByName,
-  reconnectDatabaseFast: mockContext.reconnectDatabaseFast,
-  readBinaryFile: mockContext.readBinaryFile,
-  writeBinaryFile: mockContext.writeBinaryFile,
-  renameFileOrDirectory: mockContext.renameFileOrDirectory,
-  createDir: mockContext.createDir,
-  pathExists: mockContext.pathExists,
-  getSep: mockContext.getSep,
-  closeDatabase: mockContext.closeDatabase,
-  removeFile: mockContext.removeFile,
-}));
-
-vi.mock("@/stores/useSettingStore.ts", () => ({
-  default: mockContext.useSettingStoreMock,
-}));
-
-vi.mock("@/stores/useGlobalStateStore", () => ({
-  default: mockContext.useGlobalStateStoreMock,
-}));
-
-vi.mock("@/utils/sync", () => ({
-  SyncProviderFactory: {
-    getSyncProvider: mockContext.providerFactory,
+  connectDatabaseByName: state.connect,
+  reconnectDatabaseFast: state.reconnect,
+  closeDatabase: state.close,
+  createDir: async () => undefined,
+  pathExists: async () => true,
+  getSep: async () => "/",
+  removeFile: async (path: string) => {
+    for (const key of state.local.keys())
+      if (key === path || key.startsWith(path + "/")) state.local.delete(key);
   },
 }));
-
-vi.mock("@/commands/piSession", () => ({
-  piSessionAssertLibrary: vi.fn(async () => ({ ok: true })),
-  piSessionLockLibrary: vi.fn(async () => ({ ok: true })),
-  piSessionUnlockLibrary: vi.fn(async () => ({ ok: true })),
-  piSessionInstallDownload: mockContext.piSessionUnpack,
-  piSessionPack: mockContext.piSessionPack,
-  piSessionUnpack: mockContext.piSessionUnpack,
+vi.mock("@/utils/sync", () => ({ SyncProviderFactory: { getSyncProvider: state.factory } }));
+vi.mock("@/stores/useSettingStore.ts", () => ({
+  default: {
+    getState: () => state.setting,
+    setState: (next: unknown) => {
+      state.setting =
+        typeof next === "function" ? next(state.setting) : (next as typeof state.setting);
+    },
+  },
 }));
-
-import { download, getOriginDatabaseInfo, upload } from "../sync";
-
-const snapshotInfo = (version: number, dataModelVersion = SYNC_MODEL_VERSION) => ({
+vi.mock("@/stores/useGlobalStateStore", () => ({ default: { setState: vi.fn() } }));
+vi.mock("@/commands/piSession", () => ({
+  piSessionSyncFiles: state.sessions,
+  piSessionInstallDownload: state.install,
+  piSessionAssertLibrary: async () => ({ ok: true }),
+  piSessionLockLibrary: async () => ({ ok: true }),
+  piSessionUnlockLibrary: state.unlock,
+}));
+import { upload, download, getOriginDatabaseInfo } from "../sync";
+const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
+const pointer = `tau-sync-v1/databases/${createHash("sha256").update("data.db").digest("hex")}.json`;
+const snapshot = (version: number) => ({
   version,
-  dataModelVersion,
-  databaseObject: "data.db",
+  dataModelVersion: SYNC_MODEL_VERSION,
+  databaseObject: "tau-sync-v1/snapshots/database.json",
 });
-
-describe("sync commands reconnect source", () => {
-  beforeEach(() => {
-    mockContext.providerFactory.mockReset().mockReturnValue(mockContext.syncProvider);
-    mockContext.setSettingState({
-      setting: {
-        database: {
-          active: "data.db",
-          databases: [{ name: "data.db", version: 1 }],
-        },
-      },
-    });
-    mockContext.syncProvider.uploadFile.mockClear();
-    mockContext.syncProvider.uploadFile.mockResolvedValue(true);
-    mockContext.syncProvider.downloadFile.mockClear();
-    mockContext.syncProvider.downloadFile.mockImplementation(async objectName =>
-      objectName === "database_data.db.json"
-        ? new TextEncoder().encode(JSON.stringify(snapshotInfo(1)))
-        : new Uint8Array([1, 2, 3])
-    );
-    mockContext.syncProvider.fileExists.mockClear();
-    mockContext.syncProvider.fileExists.mockImplementation(async name => !name.includes(".next-"));
-    mockContext.syncProvider.createFileIfAbsent.mockClear();
-    mockContext.syncProvider.createFileIfAbsent.mockResolvedValue(true);
-    mockContext.useSettingStoreMock.getState.mockClear();
-    mockContext.useSettingStoreMock.setState.mockClear();
-    mockContext.useGlobalStateStoreMock.setState.mockClear();
-    mockContext.reconnectDatabaseFast.mockClear();
-    mockContext.connectDatabaseByName.mockClear();
-    mockContext.readBinaryFile.mockClear();
-    mockContext.writeBinaryFile.mockClear();
-    mockContext.createDir.mockClear();
-    mockContext.pathExists.mockClear();
-    mockContext.getSep.mockClear();
-    mockContext.closeDatabase.mockClear();
-    mockContext.removeFile.mockClear();
-    mockContext.invoke.mockClear();
-    mockContext.piSessionPack.mockClear();
-    mockContext.piSessionPack.mockResolvedValue({ ok: true, archive: new Uint8Array([7, 7]) });
-    mockContext.piSessionUnpack.mockClear();
-    mockContext.piSessionUnpack.mockResolvedValue({ ok: true });
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.stubGlobal("crypto", webcrypto);
+  state.setting = {
+    setting: {
+      database: { active: "data.db", databases: [{ name: "data.db", version: 1, syncFormat: 6 }] },
+    },
+  };
+  state.remote.clear();
+  state.remote.set(pointer, encode(snapshot(1)));
+  state.local.clear();
+  state.local.set("/tmp/data.db", new Uint8Array([9, 9, 9]));
+  state.local.set("/tmp/chat.jsonl", new Uint8Array([7, 7]));
+  state.factory.mockReturnValue(provider);
+  state.sessions.mockResolvedValue({
+    ok: true,
+    files: [{ name: "chat.jsonl", path: "/tmp/chat.jsonl" }],
   });
-
-  it("上传完成后使用 sync_upload_reconnect 重连", async () => {
-    const success = await upload();
-
-    expect(success).toBe(true);
-    expect(mockContext.syncProvider.createFileIfAbsent).toHaveBeenCalledWith(
-      "database_data.db.json.next-1",
-      expect.anything()
-    );
-    expect(mockContext.syncProvider.uploadFile).toHaveBeenNthCalledWith(
-      1,
-      expect.stringMatching(/^data\.db\.snapshot-.*\.db$/),
-      new Uint8Array([9, 9, 9])
-    );
-    // 对话内容在 pi 会话文件里：.db 之后传会话包，最后才发布版本
-    expect(mockContext.syncProvider.uploadFile).toHaveBeenNthCalledWith(
-      2,
-      expect.stringMatching(/^data\.db\.snapshot-.*\.sessions\.zip$/),
-      new Uint8Array([7, 7])
-    );
-    const published = mockContext.syncProvider.uploadFile.mock.calls[2];
-    expect(published[0]).toBe("database_data.db.json");
-    expect(JSON.parse(new TextDecoder().decode(published[1]))).toMatchObject({
-      version: 2,
-      databaseObject: mockContext.syncProvider.uploadFile.mock.calls[0][0],
-      sessionsObject: mockContext.syncProvider.uploadFile.mock.calls[1][0],
-    });
-    expect(mockContext.settingState.setting.database.databases[0].version).toBe(2);
-    expect(mockContext.reconnectDatabaseFast).toHaveBeenCalledWith(
-      "data.db",
-      "sync_upload_reconnect"
-    );
+  state.install.mockResolvedValue({ ok: true });
+  state.upload.mockImplementation(async (name: string, bytes: Uint8Array) => {
+    state.remote.set(name, new Uint8Array(bytes));
+    return true;
   });
-
-  it("数据库文件上传失败时不发布版本信息且不更新本地版本", async () => {
-    mockContext.syncProvider.uploadFile.mockResolvedValueOnce(false);
-
-    const success = await upload();
-
-    expect(success).toBe(false);
-    expect(mockContext.syncProvider.uploadFile).toHaveBeenCalledTimes(1);
-    expect(mockContext.syncProvider.uploadFile).toHaveBeenCalledWith(
-      expect.stringMatching(/^data\.db\.snapshot-.*\.db$/),
-      new Uint8Array([9, 9, 9])
-    );
-    expect(mockContext.useSettingStoreMock.setState).not.toHaveBeenCalled();
-    expect(mockContext.settingState.setting.database.databases[0].version).toBe(1);
+  state.create.mockImplementation(async (name: string, bytes: Uint8Array) => {
+    if (state.remote.has(name)) return false;
+    state.remote.set(name, new Uint8Array(bytes));
+    return true;
   });
-
-  it("指针上传失败时已提交的后继记录仍算成功", async () => {
-    mockContext.syncProvider.uploadFile
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(false);
-
-    const success = await upload();
-
-    expect(success).toBe(true);
-    expect(mockContext.syncProvider.uploadFile).toHaveBeenCalledTimes(3);
-    expect(mockContext.settingState.setting.database.databases[0].version).toBe(2);
+  state.download.mockImplementation(async (name: string) => {
+    const data = state.remote.get(name);
+    if (!data) throw new Error("缺少对象");
+    return data;
   });
-
-  it("会话包上传失败时不发布版本信息，本地版本不前进", async () => {
-    mockContext.syncProvider.uploadFile.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
-
-    const success = await upload();
-
-    expect(success).toBe(false);
-    expect(mockContext.syncProvider.uploadFile).toHaveBeenCalledTimes(2);
-    expect(mockContext.syncProvider.uploadFile).not.toHaveBeenCalledWith(
-      "database_data.db.json",
-      expect.anything()
-    );
-    expect(mockContext.settingState.setting.database.databases[0].version).toBe(1);
+  state.invoke.mockImplementation(async (command: string, ...args: unknown[]) => {
+    if (command === "get-database-path") return "/tmp/data.db";
+    const path = args[0] as string;
+    if (command === "sync:file-size") return state.local.get(path)!.length;
+    if (command === "sync:file-read")
+      return state.local
+        .get(path)!
+        .slice(args[1] as number, (args[1] as number) + (args[2] as number));
+    if (command === "sync:file-copy") {
+      state.local.set(args[1] as string, state.local.get(path)!.slice());
+      return;
+    }
+    if (command === "sync:file-write") {
+      const offset = args[1] as number,
+        bytes = args[2] as Uint8Array;
+      const data = new Uint8Array(offset + bytes.length);
+      if (offset) data.set(state.local.get(path)!);
+      data.set(bytes, offset);
+      state.local.set(path, data);
+    }
   });
-
-  it("打包会话失败时既不传会话包也不发布版本", async () => {
-    mockContext.piSessionPack.mockResolvedValue({ ok: false, error: "磁盘错误" });
-
-    const success = await upload();
-
-    expect(success).toBe(false);
-    expect(mockContext.syncProvider.uploadFile).toHaveBeenCalledTimes(1);
-    expect(mockContext.settingState.setting.database.databases[0].version).toBe(1);
+});
+it("数据库与每个会话文件分块完成后才发布版本，使用单一提供方", async () => {
+  expect(await upload()).toBe(true);
+  const head = JSON.parse(new TextDecoder().decode(state.remote.get(pointer)));
+  expect(head).toMatchObject({ version: 2, dataModelVersion: 6, parentVersion: 1 });
+  expect(state.create).toHaveBeenCalledWith(`${pointer}.next-1`, expect.any(Uint8Array));
+  const dbManifest = JSON.parse(new TextDecoder().decode(state.remote.get(head.databaseObject)));
+  expect(dbManifest).toMatchObject({ format: "tau-chunked-file", name: "data.db", size: 3 });
+  const sessions = JSON.parse(new TextDecoder().decode(state.remote.get(head.sessionsObject)));
+  expect(sessions).toMatchObject({
+    format: "tau-session-directory",
+    files: [{ name: "chat.jsonl" }],
   });
-
-  it("下载时解包远程会话包", async () => {
-    mockContext.syncProvider.downloadFile.mockImplementation(async (objectName: string) => {
-      if (objectName === "database_data.db.json") {
-        return new TextEncoder().encode(JSON.stringify(snapshotInfo(2)));
-      }
-      return new Uint8Array([1, 2, 3]);
-    });
-
-    expect(await download()).toBe(true);
-    expect(mockContext.piSessionUnpack).toHaveBeenCalledWith("data.db", new Uint8Array([1, 2, 3]));
+  expect(state.factory).toHaveBeenCalledTimes(1);
+  expect(state.reconnect).toHaveBeenCalledWith("data.db", "sync_upload_reconnect");
+  expect(state.invoke.mock.calls.some(([command]) => command === "read-binary-file")).toBe(false);
+});
+it("分块上传失败不发布版本，释放锁并重连", async () => {
+  state.upload.mockResolvedValueOnce(false);
+  expect(await upload()).toBe(false);
+  expect(state.create).not.toHaveBeenCalled();
+  expect(state.setting.setting.database.databases[0].version).toBe(1);
+  expect(state.unlock).toHaveBeenCalled();
+});
+it("会话清单生成失败不发布数据库版本", async () => {
+  state.sessions.mockResolvedValue({ ok: false, error: "磁盘错误" });
+  expect(await upload()).toBe(false);
+  expect(state.create).not.toHaveBeenCalled();
+});
+it("后继已提交而指针响应失败仍记录成功", async () => {
+  const put = state.upload.getMockImplementation()!;
+  state.upload.mockImplementation(async (name: string, bytes: Uint8Array) =>
+    name === pointer ? false : put(name, bytes)
+  );
+  expect(await upload()).toBe(true);
+  expect(state.setting.setting.database.databases[0].version).toBe(2);
+});
+async function uploadedSnapshot() {
+  expect(await upload()).toBe(true);
+  state.setting = structuredClone(state.setting);
+  state.setting.setting.database.databases[0].version = 1;
+  state.local.set("/tmp/data.db", new Uint8Array([3]));
+  vi.clearAllMocks();
+}
+it("下载逐块恢复到临时文件，再安装会话目录并维护重连", async () => {
+  await uploadedSnapshot();
+  expect(await download()).toBe(true);
+  expect(state.install).toHaveBeenCalledWith("data.db", true);
+  expect(state.connect).toHaveBeenCalledWith("data.db", {
+    force: true,
+    mode: "maintenance",
+    source: "sync_download_reconnect",
   });
-
-  it("快照安装失败不推进版本并恢复原数据库", async () => {
-    mockContext.piSessionUnpack.mockResolvedValue({ ok: false, error: "会话包损坏" });
-    expect(await download()).toBe(false);
-    expect(mockContext.settingState.setting.database.databases[0].version).toBe(1);
-    expect(mockContext.writeBinaryFile).toHaveBeenCalledWith(
-      "/tmp/data.db",
-      new Uint8Array([9, 9, 9])
-    );
-  });
-
-  it("当前协议未声明会话包且远程无包时不动本地会话目录", async () => {
-    mockContext.syncProvider.downloadFile.mockImplementation(async (objectName: string) => {
-      if (objectName === "database_data.db.json") {
-        return new TextEncoder().encode(JSON.stringify(snapshotInfo(2)));
-      }
-      return new Uint8Array([1, 2, 3]);
-    });
-    mockContext.syncProvider.fileExists.mockImplementation(
-      async (objectName: string) =>
-        objectName !== "data.db.sessions.zip" && !objectName.includes(".next-")
-    );
-
-    expect(await download()).toBe(true);
-    expect(mockContext.piSessionUnpack).toHaveBeenCalledWith("data.db", undefined);
-  });
-
-  it("下载完成后使用维护模式重连以执行 schema 迁移", async () => {
-    mockContext.syncProvider.downloadFile.mockImplementation(async (objectName: string) => {
-      if (objectName === "database_data.db.json") {
-        return new TextEncoder().encode(JSON.stringify(snapshotInfo(2)));
-      }
-      return new Uint8Array([1, 2, 3]);
-    });
-
-    const success = await download();
-
-    expect(success).toBe(true);
-    expect(mockContext.reconnectDatabaseFast).not.toHaveBeenCalled();
-    expect(mockContext.connectDatabaseByName).toHaveBeenCalledWith("data.db", {
-      force: true,
-      mode: "maintenance",
-      source: "sync_download_reconnect",
-    });
-  });
-
-  it("自动下载即将 reload 也必须先在锁内完成维护重连", async () => {
-    mockContext.syncProvider.downloadFile.mockImplementation(async (objectName: string) => {
-      if (objectName === "database_data.db.json") {
-        return new TextEncoder().encode(JSON.stringify(snapshotInfo(2)));
-      }
-      return new Uint8Array([1, 2, 3]);
-    });
-
-    const success = await download({ onProgress: vi.fn() });
-
-    expect(success).toBe(true);
-    expect(mockContext.reconnectDatabaseFast).not.toHaveBeenCalled();
-    expect(mockContext.connectDatabaseByName).toHaveBeenCalledWith("data.db", {
-      force: true,
-      mode: "maintenance",
-      source: "sync_download_reconnect",
-    });
-    expect(mockContext.useGlobalStateStoreMock.setState).toHaveBeenCalled();
-  });
-
-  it("云端旧协议可检查并通过本地上传升级到当前协议", async () => {
-    mockContext.syncProvider.downloadFile.mockResolvedValue(
-      new TextEncoder().encode(JSON.stringify(snapshotInfo(1, 3)))
-    );
-    expect((await getOriginDatabaseInfo()).databaseInfo).toMatchObject(snapshotInfo(1, 3));
-    expect(await upload()).toBe(true);
-    const published = mockContext.syncProvider.uploadFile.mock.calls[2];
-    expect(JSON.parse(new TextDecoder().decode(published[1]))).toMatchObject({
-      version: 2,
-      dataModelVersion: SYNC_MODEL_VERSION,
-      parentVersion: 1,
-    });
-  });
-
-  it("旧协议下载在关闭数据库或写入文件前拒绝", async () => {
-    mockContext.syncProvider.downloadFile.mockResolvedValue(
-      new TextEncoder().encode(JSON.stringify(snapshotInfo(2, 3)))
-    );
-    await expect(download()).rejects.toThrow("DB_MODEL_INCOMPATIBLE");
-    expect(mockContext.closeDatabase).not.toHaveBeenCalled();
-    expect(mockContext.writeBinaryFile).not.toHaveBeenCalled();
-    expect(mockContext.piSessionUnpack).not.toHaveBeenCalled();
-    expect(mockContext.settingState.setting.database.databases[0].version).toBe(1);
-  });
-
-  it("远端旧协议版本高于本地时仍拒绝上传", async () => {
-    mockContext.syncProvider.downloadFile.mockResolvedValue(
-      new TextEncoder().encode(JSON.stringify(snapshotInfo(2, 3)))
-    );
-    expect(await upload()).toBe(false);
-    expect(mockContext.syncProvider.uploadFile).not.toHaveBeenCalled();
-    expect(mockContext.settingState.setting.database.databases[0].version).toBe(1);
-  });
-
-  it("未来协议不能被本地上传覆盖", async () => {
-    mockContext.syncProvider.downloadFile.mockResolvedValue(
-      new TextEncoder().encode(JSON.stringify(snapshotInfo(1, SYNC_MODEL_VERSION + 1)))
-    );
-    await expect(upload()).rejects.toThrow("DB_MODEL_INCOMPATIBLE");
-    expect(mockContext.closeDatabase).not.toHaveBeenCalled();
-    expect(mockContext.syncProvider.uploadFile).not.toHaveBeenCalled();
-  });
-  it("一轮上传只捕获一次存储目标，读取版本和上传使用同一个提供方", async () => {
-    expect(await upload()).toBe(true);
-    expect(mockContext.providerFactory).toHaveBeenCalledTimes(1);
-  });
+  expect(state.setting.setting.database.databases[0].version).toBe(2);
+});
+it("损坏分块不安装数据库或推进版本", async () => {
+  await uploadedSnapshot();
+  const chunk = [...state.remote.keys()].find(key => key.startsWith("tau-sync-v1/chunks/"))!;
+  state.remote.set(chunk, new Uint8Array([0]));
+  expect(await download()).toBe(false);
+  expect(state.install).not.toHaveBeenCalled();
+  expect(state.setting.setting.database.databases[0].version).toBe(1);
+});
+it("安装失败恢复磁盘备份，不把完整数据库经 IPC 回灌", async () => {
+  await uploadedSnapshot();
+  state.install.mockResolvedValue({ ok: false, error: "校验失败" });
+  expect(await download()).toBe(false);
+  expect(state.invoke).toHaveBeenCalledWith(
+    "sync:file-copy",
+    expect.stringContaining("backup"),
+    "/tmp/data.db"
+  );
+});
+it("旧远端命名空间不参与读取，本地完整文件可直接首次发布", async () => {
+  state.remote.clear();
+  state.remote.set("database_data.db.json", encode({ version: 100, dataModelVersion: 5 }));
+  expect((await getOriginDatabaseInfo()).databaseInfo.version).toBe(0);
+  expect(await upload()).toBe(true);
+  expect(state.download).not.toHaveBeenCalledWith("database_data.db.json");
+});
+it("新命名空间中未知或旧协议在关闭数据库前拒绝", async () => {
+  state.remote.set(pointer, encode({ ...snapshot(2), dataModelVersion: 5 }));
+  await expect(download()).rejects.toThrow("DB_MODEL_INCOMPATIBLE");
+  expect(state.close).not.toHaveBeenCalled();
+  expect(state.create).not.toHaveBeenCalled();
 });

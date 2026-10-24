@@ -43,7 +43,6 @@ it("白板清单缺失、贡献冒用其他插件身份与重复元素均拒绝"
     validatePluginDefinition({ ...manifest, whiteboard: undefined }, definition)
   ).toThrow("声明一致");
   expect(() => validatePluginDefinition(manifest, definePlugin(metadata))).toThrow("声明一致");
-  expect(() => validatePluginManifest({ ...manifest, whiteboard: false })).toThrow("whiteboard");
   expect(() =>
     validatePluginDefinition(manifest, {
       ...definition,

@@ -66,7 +66,6 @@ vi.mock("../../../hooks/useEditContent", async () => {
 vi.mock("../../../services/tauri", () => ({ updateCardTags: vi.fn() }));
 vi.mock("../../../hooks/useScrollState", () => ({ useEdgeFade: vi.fn() }));
 vi.mock("../editorExtensions", () => ({ mobileCardPreviewExtensions: [] }));
-vi.mock("../LinksDisclosure", () => ({ default: () => null }));
 vi.mock("../TagChips", () => ({ default: () => null }));
 vi.mock("../TagInlineEditor", () => ({ default: () => null }));
 vi.mock("../editorExtensions/ContentLinkPickerSheet", () => ({
@@ -75,6 +74,7 @@ vi.mock("../editorExtensions/ContentLinkPickerSheet", () => ({
 }));
 vi.mock("../../../services/editorKit", () => ({
   getMobileContentKit: () => ({}),
+  useMobileContentKit: () => ({}),
   getMobileFlashcardKit: () => ({}),
 }));
 vi.mock("@tau/editor", async importOriginal => {
@@ -209,7 +209,8 @@ describe("ContentDetailPage 块选择模式", () => {
     expect(document.querySelector(ACTION_BAR_SELECTOR)).not.toBeNull();
     expect(document.body.textContent).toContain("选择块");
     expect(document.querySelector("[data-block-highlight]")).toBeNull();
-    expect(buttonByLabel("删除")?.disabled).toBe(true);
+    expect(buttonByLabel("删除")).toBeNull();
+    expect(document.querySelector(ACTION_BAR_SELECTOR)?.textContent).toContain("点按段落来选择");
     expect(harness.readonlyProps.at(-1)).toBe(false);
 
     await act(async () => {

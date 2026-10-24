@@ -2,11 +2,16 @@ import { act, useState, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import { InstallSheet } from "../InstallSheet";
-import { InstalledPluginCard } from "../InstalledPluginCard";
 import { PluginHubTabs, type PluginHubTab } from "../PluginHubTabs";
-import { PluginStatusBadge } from "../PluginStatusBadge";
 import { ReleaseHistoryList } from "../ReleaseHistoryList";
-import { StoreEntryCard } from "../StoreEntryCard";
+import { StoreActionButton } from "../StoreActionButton";
+import { StoreEntryRow } from "../StoreEntryRow";
+import { CompatibilityNote } from "../CompatibilityNote";
+import { PluginManageSheet } from "../PluginManageSheet";
+import { hasPendingChange, lifecycleOf } from "../pluginStatus";
+import type { ManagedPluginItem } from "../../data/usePluginManager";
+import type { CenterCatalogEntry } from "@tau/plugins/center";
+import { centerRelease } from "../../../../../../../tests/fixtures/plugins/center";
 import { PluginListState } from "../PluginListState";
 
 let root: Root | null = null;
@@ -33,148 +38,242 @@ const click = async (element: Element | undefined) => {
   await act(async () => (element as HTMLElement).click());
 };
 
-it("状态徽标覆盖全部客户端状态，下载进度以 progressbar 暴露", async () => {
+it("按钮状态机：获取/更新/待生效/已安装/不可用，下载中点按取消，校验中不可点，失败可重试", async () => {
+  const handlers = { onPress: vi.fn(), onCancel: vi.fn(), onRetry: vi.fn() };
   const view = await mount(
     <>
-      <PluginStatusBadge status={{ kind: "downloading", progress: 0.42 }} />
-      <PluginStatusBadge status={{ kind: "verifying" }} />
-      <PluginStatusBadge status={{ kind: "pending", version: "1.1.0" }} />
-      <PluginStatusBadge status={{ kind: "running" }} />
-      <PluginStatusBadge status={{ kind: "disabled" }} />
-      <PluginStatusBadge status={{ kind: "failed", message: "摘要不匹配" }} />
-      <PluginStatusBadge status={{ kind: "revoked", reason: null }} />
+      <StoreActionButton
+        primary={{ kind: "install", version: "1.0.0", allowed: true }}
+        {...handlers}
+      />
+      <StoreActionButton
+        primary={{ kind: "update", version: "1.2.0", allowed: true }}
+        {...handlers}
+      />
+      <StoreActionButton primary={{ kind: "pending", version: "1.2.0" }} {...handlers} />
+      <StoreActionButton primary={{ kind: "installed", version: "1.0.0" }} {...handlers} />
+      <StoreActionButton primary={{ kind: "unavailable" }} {...handlers} />
     </>
   );
-  for (const label of ["下载中 42%", "校验中", "待生效", "运行中", "已停用", "失败", "已撤回"])
+  for (const label of ["获取", "更新", "待生效", "已安装", "不可用"])
     expect(view.textContent).toContain(label);
-  expect(view.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")).toBe("42");
+  await click(button("获取", view));
+  expect(handlers.onPress).toHaveBeenCalledTimes(1);
+  await act(async () =>
+    root?.render(
+      <>
+        <StoreActionButton
+          primary={{ kind: "install", version: "1.0.0", allowed: true }}
+          phase="downloading"
+          {...handlers}
+        />
+        <StoreActionButton
+          primary={{ kind: "install", version: "1.0.0", allowed: true }}
+          phase="checking"
+          {...handlers}
+        />
+        <StoreActionButton
+          primary={{ kind: "install", version: "1.0.0", allowed: true }}
+          phase="failed"
+          {...handlers}
+        />
+      </>
+    )
+  );
+  await click(view.querySelector('[aria-label="取消下载"]') ?? undefined);
+  expect(handlers.onCancel).toHaveBeenCalled();
+  expect((view.querySelector('[aria-label="正在校验"]') as HTMLButtonElement).disabled).toBe(true);
+  await click(button("重试", view));
+  expect(handlers.onRetry).toHaveBeenCalled();
 });
 
-it("已安装卡片按允许状态呈现动作，不允许的动作禁用并说明原因", async () => {
-  const onAction = vi.fn();
+it("详情大按钮写明版本；安装未开放时禁用", async () => {
   const view = await mount(
-    <InstalledPluginCard
-      name="计数器"
-      pluginId="example.counter"
-      version="1.0.0"
-      status={{ kind: "pending", version: "1.1.0" }}
-      actions={[
-        { kind: "cancelPending", allowed: true },
-        { kind: "disable", allowed: true },
-        { kind: "restore", allowed: false, reason: "没有备份代码" },
-      ]}
-      settings={[{ id: "s1", title: "计数器设置" }]}
-      onAction={onAction}
-      onOpenSetting={vi.fn()}
-    />
+    <>
+      <StoreActionButton
+        size="lg"
+        primary={{ kind: "install", version: "1.4.0", allowed: false, reason: "未开放" }}
+        onPress={vi.fn()}
+        onCancel={vi.fn()}
+        onRetry={vi.fn()}
+      />
+      <StoreActionButton
+        size="lg"
+        primary={{ kind: "pending", version: "1.4.0" }}
+        onPress={vi.fn()}
+        onCancel={vi.fn()}
+        onRetry={vi.fn()}
+      />
+    </>
   );
-  expect(view.textContent).toContain("v1.1.0 将在下次打开应用时生效");
-  await click(button("取消待生效更新", view));
-  expect(onAction).toHaveBeenCalledWith("cancelPending");
-  const restore = button("恢复上一版代码", view);
-  expect(restore?.disabled).toBe(true);
-  const describedBy = restore?.getAttribute("aria-describedby");
-  expect(describedBy && document.getElementById(describedBy)?.textContent).toContain(
-    "没有备份代码"
-  );
-  expect(view.querySelector('[aria-label="插件设置"]')?.textContent).toContain("计数器设置");
+  expect(buttons(view).find(item => item.textContent === "安装 v1.4.0")?.disabled).toBe(true);
+  expect(view.textContent).toContain("v1.4.0 待生效");
 });
 
-it("卸载与清除数据分别确认：卸载说明保留数据，清除只针对当前工作区", async () => {
-  const onAction = vi.fn();
-  const view = await mount(
-    <InstalledPluginCard
-      name="计数器"
-      pluginId="example.counter"
-      version="1.0.0"
-      status={{ kind: "disabled" }}
-      actions={[
-        { kind: "uninstall", allowed: true },
-        { kind: "clearData", allowed: true },
-      ]}
-      onAction={onAction}
-    />
-  );
-  await click(button("卸载", view));
-  expect(document.body.textContent).toContain("正文里的插件内容和插件数据都会保留");
-  expect(onAction).not.toHaveBeenCalled();
-  await click(button("取消"));
-  await click(button("清除此工作区数据", view));
-  expect(document.body.textContent).toContain("只清除当前工作区里这个插件的私有数据");
-  await click(button("清除"));
-  expect(onAction).toHaveBeenCalledTimes(1);
-  expect(onAction).toHaveBeenCalledWith("clearData");
+const entry = (compatible: boolean): CenterCatalogEntry => ({
+  pluginId: "example.counter",
+  name: "计数器",
+  description: "跨端示例",
+  categories: ["page"],
+  keywords: [],
+  publisher: { login: "author", avatarUrl: "" },
+  repository: "https://github.com/a/b",
+  downloadsTotal: 0,
+  downloads7d: 0,
+  likes: 0,
+  latest: centerRelease("2.0.0", "r2"),
+  compatible: compatible ? centerRelease("1.4.0", "r1") : null,
+  compatibility: compatible
+    ? { status: "compatible", reasons: [] }
+    : {
+        status: "incompatible",
+        reasons: [{ code: "APP_VERSION_TOO_LOW", minAppVersion: "0.5.0" }],
+      },
 });
 
-it("撤回与离线状态如实提示，进行中的动作锁定其余按钮", async () => {
-  const view = await mount(
-    <InstalledPluginCard
-      name="计数器"
-      pluginId="example.counter"
-      version="1.0.0"
-      status={{ kind: "revoked", reason: "安全问题" }}
-      statusStale
-      busyAction="disable"
-      actions={[
-        { kind: "disable", allowed: true },
-        { kind: "uninstall", allowed: true },
-      ]}
-      onAction={vi.fn()}
-    />
-  );
-  expect(view.querySelector('[role="alert"]')?.textContent).toContain("中心已撤回此版本：安全问题");
-  expect(view.textContent).toContain("发布状态未刷新");
-  expect(button("卸载", view)?.disabled).toBe(true);
-});
-
-it("商店条目区分最新与可安装版本，安装按钮使用实际可安装版本", async () => {
+it("商店行：整行进详情，按钮单独触发；无兼容版本时以原因替代作者行", async () => {
+  const onOpen = vi.fn();
   const onPrimary = vi.fn();
   const view = await mount(
-    <StoreEntryCard
-      name="计数器"
-      description="跨端示例"
-      publisher="author"
-      latestVersion="2.0.0"
-      compatibleVersion="1.4.0"
-      compatibility={{ status: "compatible", reasons: [], missingOptional: ["dialogs"] }}
-      primary={{ kind: "install", version: "1.4.0", allowed: true }}
-      onOpen={vi.fn()}
-      onPrimary={onPrimary}
-    />
+    <ul>
+      <StoreEntryRow
+        entry={entry(true)}
+        primary={{ kind: "install", version: "1.4.0", allowed: true }}
+        phase={null}
+        divider={false}
+        onOpen={onOpen}
+        onPrimary={onPrimary}
+        onCancel={vi.fn()}
+        onRetry={vi.fn()}
+      />
+    </ul>
   );
-  expect(view.textContent).toContain("最新 v2.0.0");
-  expect(view.textContent).toContain("此设备可安装 v1.4.0");
-  expect(view.textContent).toContain("部分功能在此设备不可用：dialogs");
-  await click(button("安装 v1.4.0", view));
+  expect(view.textContent).toContain("@author");
+  await click(button("获取", view));
   expect(onPrimary).toHaveBeenCalled();
+  expect(onOpen).not.toHaveBeenCalled();
+  await click(buttons(view).find(item => item.textContent?.includes("计数器")));
+  expect(onOpen).toHaveBeenCalled();
+  await act(async () =>
+    root?.render(
+      <ul>
+        <StoreEntryRow
+          entry={entry(false)}
+          primary={{ kind: "unavailable" }}
+          phase={null}
+          divider
+          onOpen={vi.fn()}
+          onPrimary={vi.fn()}
+          onCancel={vi.fn()}
+          onRetry={vi.fn()}
+        />
+      </ul>
+    )
+  );
+  expect(view.textContent).toContain("需要将 Tau 更新到 0.5.0 或更高版本");
+  expect(view.textContent).toContain("不可用");
 });
 
-it("商店条目无兼容版本时列出原因且不提供安装", async () => {
+it("兼容结论：完整可用、可安装版本落后于最新、不可安装原因", async () => {
   const view = await mount(
-    <StoreEntryCard
-      name="计数器"
-      description="跨端示例"
-      publisher="author"
+    <CompatibilityNote
       latestVersion="2.0.0"
-      compatibleVersion={null}
-      compatibility={{
-        status: "incompatible",
-        missingOptional: [],
-        reasons: [
-          { code: "APP_VERSION_TOO_LOW", minAppVersion: "0.5.0" },
-          { code: "DISTRIBUTION_UNAVAILABLE" },
-        ],
-      }}
-      primary={{ kind: "unavailable" }}
-      onOpen={vi.fn()}
-      onPrimary={vi.fn()}
+      compatibleVersion="1.4.0"
+      compatibility={{ status: "compatible", reasons: [] }}
     />
   );
-  const reasons = view.querySelector('[aria-label="不可安装原因"]');
-  expect(reasons?.textContent).toContain("需要将 Tau 更新到 0.5.0 或更高版本");
-  expect(reasons?.textContent).toContain("此平台的插件安装尚未开放");
-  expect(buttons(view).some(item => item.textContent?.includes("安装 v"))).toBe(false);
-  expect(view.textContent).toContain("暂不可安装");
+  expect(view.textContent).toContain("可在此设备完整使用");
+  expect(view.textContent).toContain("此设备可安装 v1.4.0");
+  await act(async () =>
+    root?.render(
+      <CompatibilityNote
+        latestVersion="2.0.0"
+        compatibleVersion={null}
+        compatibility={{
+          status: "incompatible",
+          reasons: [{ code: "DISTRIBUTION_UNAVAILABLE" }],
+        }}
+      />
+    )
+  );
+  expect(view.querySelector('[aria-label="不可安装原因"]')?.textContent).toContain(
+    "此平台的插件安装尚未开放"
+  );
+});
+
+const managed = (overrides: Partial<ManagedPluginItem> = {}): ManagedPluginItem => {
+  const allowed = { allowed: true, reason: null };
+  return {
+    id: "example.counter",
+    name: "计数器",
+    version: "1.0.0",
+    enabled: false,
+    active: false,
+    pending: false,
+    editor: false,
+    error: null,
+    hasBackup: true,
+    settings: [],
+    actions: {
+      enable: allowed,
+      disable: allowed,
+      uninstall: allowed,
+      restore: allowed,
+      clearData: allowed,
+      cancelPending: allowed,
+    },
+    ...overrides,
+  };
+};
+
+it("管理菜单：卸载与清除数据分别确认，不允许的动作说明原因且不执行", async () => {
+  const onAction = vi.fn();
+  await mount(
+    <PluginManageSheet
+      open
+      item={managed({
+        actions: {
+          ...managed().actions,
+          restore: { allowed: false, reason: "请先停用插件并点「立即生效」后再操作" },
+        },
+      })}
+      onClose={vi.fn()}
+      onAction={onAction}
+    />
+  );
+  expect(document.body.textContent).toContain("请先停用插件并点「立即生效」后再操作");
+  await click(buttons().find(item => item.textContent?.includes("恢复上一版代码")));
+  expect(onAction).not.toHaveBeenCalled();
+  await act(async () =>
+    root?.render(
+      <PluginManageSheet
+        key="reopened"
+        open
+        item={managed()}
+        onClose={vi.fn()}
+        onAction={onAction}
+      />
+    )
+  );
+  await click(buttons().find(item => item.textContent?.startsWith("卸载")));
+  expect(document.body.textContent).toContain("正文里的插件内容和插件数据都会保留");
+  expect(onAction).not.toHaveBeenCalled();
+  await click(button("卸载"));
+  expect(onAction).toHaveBeenCalledWith("uninstall");
+});
+
+it("状态投影：安装任务优先，撤回优先于失败，启用意图与运行状态不一致算待生效变更", () => {
+  expect(lifecycleOf(managed(), "downloading").kind).toBe("downloading");
+  expect(
+    lifecycleOf(managed({ revoked: { kind: "revoked", reason: "x" }, error: "坏了" })).kind
+  ).toBe("revoked");
+  expect(lifecycleOf(managed({ pending: true, pendingVersion: "1.1.0" }))).toEqual({
+    kind: "pending",
+    version: "1.1.0",
+  });
+  expect(hasPendingChange(managed({ enabled: true, active: false }))).toBe(true);
+  expect(hasPendingChange(managed({ enabled: true, active: false, error: "失败" }))).toBe(false);
+  expect(hasPendingChange(managed())).toBe(false);
 });
 
 it("列表状态覆盖加载、失败重试、空态与加载更多失败", async () => {
@@ -304,7 +403,7 @@ it("安装面板覆盖不可安装、下载中可取消、待生效与失败重�
   await act(async () =>
     root?.render(<InstallSheet {...props} state={{ kind: "done", version: "1.0.0" }} />)
   );
-  expect(document.body.textContent).toContain("将在下次打开应用时生效");
+  expect(document.body.textContent).toContain("已安装 v1.0.0，正在启用");
   await act(async () =>
     root?.render(
       <InstallSheet

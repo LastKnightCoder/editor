@@ -69,6 +69,7 @@ describe("MobileEditorBottomToolbar", () => {
       readonly?: boolean;
       portalContainer?: HTMLElement | null;
       visibleButtons?: ReadonlySet<AccessoryItemId>;
+      showDoneButton?: boolean;
     } = {}
   ) => {
     act(() => {
@@ -99,9 +100,7 @@ describe("MobileEditorBottomToolbar", () => {
     render(createController());
     const toolbar = getToolbar();
     expect(toolbar).toBeTruthy();
-    expect(toolbar?.getAttribute("style")).toContain(
-      "bottom: max(var(--kb-height, 0px), env(safe-area-inset-bottom, 0px))"
-    );
+    expect(toolbar?.getAttribute("style")).toContain("bottom: var(--mobile-overlay-bottom)");
   });
 
   it("面板打开期间编辑器失焦仍显示配件栏与面板宿主", () => {
@@ -168,7 +167,7 @@ describe("MobileEditorBottomToolbar", () => {
       "无序列表",
       "反缩进",
       "缩进",
-      "关联卡片",
+      "引用内容",
       "图片",
       "撤销",
       "收起键盘",
@@ -186,7 +185,7 @@ describe("MobileEditorBottomToolbar", () => {
     expect(controller.outdent).toHaveBeenCalled();
     clickButton("缩进");
     expect(controller.indent).toHaveBeenCalled();
-    clickButton("关联卡片");
+    clickButton("引用内容");
     expect(controller.executeAction).toHaveBeenCalledWith("content-link");
     clickButton("图片");
     expect(controller.handleInsertImage).toHaveBeenCalled();
@@ -302,6 +301,23 @@ describe("MobileEditorBottomToolbar", () => {
     expect(controller.closePanel).not.toHaveBeenCalled();
   });
 
+  it("showDoneButton：「完成」取代「收起键盘」并退出编辑", () => {
+    const controller = createController();
+    render(controller, { showDoneButton: true });
+    expect(getButton("收起键盘")).toBeNull();
+    expect(getButtonLabels().at(-1)).toBe("完成");
+    clickButton("完成");
+    expect(controller.exitEditing).toHaveBeenCalled();
+  });
+
+  it("showDoneButton：面板打开时右端保留「键盘」，其后仍有「完成」", () => {
+    const controller = createController({ isEditorFocused: false, activePanel: "insert" });
+    render(controller, { showDoneButton: true });
+    expect(getButtonLabels().slice(-2)).toEqual(["键盘", "完成"]);
+    clickButton("完成");
+    expect(controller.exitEditing).toHaveBeenCalled();
+  });
+
   it("白名单在两种模式下过滤条目", () => {
     const flashcardButtons = new Set<AccessoryItemId>([
       "style",
@@ -334,6 +350,46 @@ describe("MobileEditorBottomToolbar", () => {
     });
     expect(getButtonLabels()).toEqual(["格式", "加粗"]);
     expect(getSeparators()).toHaveLength(0);
+  });
+
+  describe("引用上下文", () => {
+    const linkContext = {
+      kind: "content-link" as const,
+      element: {
+        type: "content-link",
+        contentId: 100,
+        contentType: "card",
+        contentTitle: "艾宾浩斯遗忘曲线",
+        refId: 12,
+        children: [{ type: "formatted", text: "遗忘曲线" }],
+      } as never,
+      path: [0, 1],
+    };
+
+    it("左端是显示文字标签，中段预览 / 更换 / 移除，右端收起键盘", () => {
+      const controller = createController({ editingContext: linkContext });
+      render(controller);
+
+      expect(getButtonLabels()).toEqual(["引用内容", "预览", "更换", "移除", "收起键盘"]);
+      const chip = getButton("引用内容");
+      expect(chip?.textContent).toBe("遗忘曲线");
+
+      clickButton("预览");
+      expect(controller.openContentLinkPreview).toHaveBeenCalled();
+      clickButton("更换");
+      expect(controller.retargetContentLink).toHaveBeenCalled();
+      clickButton("移除");
+      expect(controller.executeAction).toHaveBeenCalledWith("content-link");
+      clickButton("引用内容");
+      expect(controller.dismissEditingContext).toHaveBeenCalled();
+    });
+
+    it("白名单不含「引用内容」时按通用模式渲染", () => {
+      render(createController({ editingContext: linkContext }), {
+        visibleButtons: new Set<AccessoryItemId>(["undo"]),
+      });
+      expect(getButtonLabels()).toEqual(["撤销", "收起键盘"]);
+    });
   });
 
   describe("表格上下文", () => {

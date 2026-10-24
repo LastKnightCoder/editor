@@ -2,7 +2,8 @@
 // 未保存离开不拦截（字段轻量，误退可重填），保存后回主页。
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Archive, Check, Minus, Plus, Timer, Trash2 } from "lucide-react";
+import { Archive, Minus, Plus, Timer, Trash2 } from "lucide-react";
+import { CheckBubble } from "../../components/CheckBubble";
 import { PageHeader } from "../../components/PageHeader";
 import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
 import { toast } from "../../components/toast";
@@ -125,15 +126,10 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
         }
       />
 
-      {/* 二级页无吸底 Dock，底部只留常规呼吸空间（同番茄钟主页/详情页）：
-          留白挂外层容器，滚动容器自身不带 padding，内容不会顶到安全区 */}
-      <div
-        className="flex min-h-0 flex-1 flex-col"
-        style={{ paddingBottom: "var(--page-bottom-inset)" }}
-      >
+      <div className="flex min-h-0 flex-1 flex-col">
         <div
           ref={formScrollRef}
-          className="edge-fade-scroll flex-1 overflow-y-auto overscroll-contain px-[18px]"
+          className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto overscroll-contain px-[18px]"
         >
           <section className="rounded-card bg-surface shadow-card mt-3 p-4">
             <label className="text-ink-3 mb-1.5 block text-[11.5px] font-extrabold">名称</label>
@@ -143,7 +139,7 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
               onChange={event => setName(event.target.value)}
               placeholder="如：深度工作"
               maxLength={20}
-              className="bg-page text-ink-1 placeholder:text-ink-3 w-full rounded-[14px] px-3.5 py-3 text-[14.5px] font-bold outline-none"
+              className="input-base w-full px-3.5 py-3 font-bold"
             />
           </section>
 
@@ -181,9 +177,7 @@ export function PresetEditPage({ presetId, onBack, onError }: PresetEditPageProp
                         {card.desc}
                       </span>
                     </span>
-                    {active ? (
-                      <Check size={18} strokeWidth={3} style={{ color: "var(--tau-accent)" }} />
-                    ) : null}
+                    {active ? <CheckBubble /> : null}
                   </button>
                 );
               })}

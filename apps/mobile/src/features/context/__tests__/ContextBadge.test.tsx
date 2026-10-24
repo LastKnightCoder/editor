@@ -1,4 +1,4 @@
-// 脉络入口的渲染条件：加载中显示骨架；关联数为 0 或查询失败时不渲染（对齐桌面 KL-015）；
+// 脉络入口的渲染条件：首次加载不占位；关联数为 0 或查询失败时不渲染（对齐桌面 KL-015）；
 // 有关联时显示「脉络 · N」入口。tauri 命令经 vi.mock 打桩。
 
 import { act } from "react";
@@ -91,7 +91,7 @@ describe("ContextBadge", () => {
   it("有关联时显示「脉络 · N」并按分区合计计数", async () => {
     entityContextGet.mockResolvedValue(contextOf(2, { backlinkTotal: 3 }));
     const cleanup = await render(<ContextBadge kind="card" id={1} />);
-    expect(document.body.textContent).toContain("脉络 · 5");
+    expect(document.querySelector('button[aria-label="脉络 · 5"]')?.textContent).toBe("脉络 5");
     await cleanup();
   });
 });

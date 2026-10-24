@@ -19,6 +19,7 @@ const capturedEditorProps = vi.hoisted(() => ({ value: null as Record<string, un
 // 页面测试不渲染真实编辑器，kit 也不必真实构造
 vi.mock("../../../services/editorKit", () => ({
   getMobileContentKit: () => contentKitSentinel,
+  useMobileContentKit: () => contentKitSentinel,
   getMobileFlashcardKit: () => ({}),
 }));
 vi.mock("@tau/editor", async importOriginal => {
@@ -75,11 +76,23 @@ vi.mock("../../../router", async importOriginal => {
 });
 
 vi.mock("../../../components/PageHeader", () => ({
-  PageHeader: (props: { actions?: ReactNode; children?: ReactNode }) => (
+  PageHeader: (props: {
+    leading?: ReactNode;
+    title?: ReactNode;
+    actions?: ReactNode;
+    children?: ReactNode;
+  }) => (
     <div data-testid="page-header">
+      {props.leading}
+      {props.title}
       {props.children}
       {props.actions}
     </div>
+  ),
+  PageHeaderTextButton: (props: { children?: ReactNode; onClick?: () => void }) => (
+    <button type="button" onClick={props.onClick}>
+      {props.children}
+    </button>
   ),
   PageHeaderButton: (props: { "aria-label"?: string; onClick?: () => void }) => (
     <button type="button" aria-label={props["aria-label"]} onClick={props.onClick} />

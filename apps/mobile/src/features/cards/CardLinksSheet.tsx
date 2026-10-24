@@ -3,9 +3,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDebounceFn, useMemoizedFn } from "ahooks";
-import { Check, Link2, Plus, Search, SearchX } from "lucide-react";
+import { Check, Link2, Plus, SearchX } from "lucide-react";
 
 import { SnapSheet } from "../../components/SnapSheet";
+import { SearchField } from "../../components/SearchField";
 import * as tauri from "../../services/tauri";
 import type { CardListItem } from "../../types";
 import { formatTimeDisplay } from "../../utils/formatTime";
@@ -158,19 +159,13 @@ export function CardLinksSheet({
               完成 · {picked.size}
             </button>
           </div>
-          <div className="relative mt-2.5">
-            <span className="text-ink-3 absolute left-3 top-1/2 -translate-y-1/2">
-              <Search size={15} aria-hidden="true" />
-            </span>
-            <input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={event => setQuery(event.target.value)}
-              placeholder="搜索卡片…"
-              className="input-base text-ink-1 placeholder:text-ink-3 w-full rounded-lg py-2.5 pl-9 pr-3 text-[14px]"
-            />
-          </div>
+          <SearchField
+            inputRef={inputRef}
+            value={query}
+            onValueChange={setQuery}
+            placeholder="搜索卡片…"
+            className="mt-2.5"
+          />
         </header>
 
         <SnapSheet.Scroll ref={scrollRef} className="px-4 pt-2">

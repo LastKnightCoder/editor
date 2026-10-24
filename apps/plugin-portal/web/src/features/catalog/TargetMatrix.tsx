@@ -1,25 +1,6 @@
 import type { CenterTargets } from "@tau/plugins/center";
-import { Tag, cn } from "@tau/ui";
-import {
-  ELEMENT_SUPPORT,
-  PLATFORM_LABELS,
-  PORTABLE_PLATFORMS,
-  capabilityLabel,
-  type PortablePlatform,
-} from "./platforms";
-
-function CapabilityList({ items, empty }: { items: readonly string[]; empty: string }) {
-  if (!items.length) return <span className="text-ink-3">{empty}</span>;
-  return (
-    <ul className="flex flex-wrap gap-1.5">
-      {items.map(item => (
-        <li key={item} title={item}>
-          <Tag>{capabilityLabel(item)}</Tag>
-        </li>
-      ))}
-    </ul>
-  );
-}
+import { cn } from "@tau/ui";
+import { PLATFORM_LABELS, PORTABLE_PLATFORMS, type PortablePlatform } from "./platforms";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -63,26 +44,6 @@ export function TargetMatrix({
                 <Row label="最低 Tau">
                   <span className="font-tau-mono">{target.minAppVersion}</span>
                 </Row>
-                <Row label="必需能力">
-                  <CapabilityList items={target.required} empty="无" />
-                </Row>
-                <Row label="可选能力">
-                  <CapabilityList items={target.optional} empty="无" />
-                </Row>
-                {target.elements && (
-                  <Row label="节点等级">
-                    <ul className="flex flex-col gap-1">
-                      {Object.entries(target.elements).map(([type, support]) => (
-                        <li key={type} className="flex min-w-0 items-center justify-between gap-2">
-                          <span className="font-tau-mono truncate">{type}</span>
-                          <Tag color={ELEMENT_SUPPORT[support].color}>
-                            {ELEMENT_SUPPORT[support].label}
-                          </Tag>
-                        </li>
-                      ))}
-                    </ul>
-                  </Row>
-                )}
               </dl>
             ) : (
               <p className="text-tau-sm text-ink-3">此版本不支持{label}，不会向该平台推荐。</p>

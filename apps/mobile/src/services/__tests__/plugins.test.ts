@@ -51,20 +51,20 @@ it("安装先校验兼容和摘要，坏包只取消暂存，不提交或执行�
     platform: "ios" as const,
     input: { coarsePointer: true, finePointer: false },
   };
-  await expect(installMobilePlugin(source, environment, "0.2.3")).rejects.toThrow("摘要");
+  await expect(installMobilePlugin(source, environment, "0.2.4")).rejects.toThrow("摘要");
   expect(vi.mocked(invoke).mock.calls.map(call => call[0])).toEqual([
     "plugin_stage",
     "plugin_cancel",
   ]);
   vi.mocked(invoke).mockReset().mockResolvedValueOnce({ artifact, sha256: source.sha256 });
-  await installMobilePlugin(source, environment, "0.2.3");
+  await installMobilePlugin(source, environment, "0.2.4");
   expect(invoke).toHaveBeenLastCalledWith("plugin_commit", {
     id: source.id,
     sha256: source.sha256,
   });
 });
 
-it("开发来源严格校验字段、版本、体积与 URL，不接受任意远端 HTTP", async () => {
+it("开发来源校验身份、版本、体积与 URL，不接受任意远端 HTTP", async () => {
   const { readDevelopmentPluginSource } = await import("../plugins");
   const source = {
     id: "example.counter",
@@ -80,7 +80,6 @@ it("开发来源严格校验字段、版本、体积与 URL，不接受任意远
     { size: -1 },
     { version: "1" },
     { id: "../bad" },
-    { extra: true },
   ])
     expect(() => readDevelopmentPluginSource(JSON.stringify({ ...source, ...patch }))).toThrow();
 });

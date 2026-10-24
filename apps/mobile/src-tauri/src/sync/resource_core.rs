@@ -240,16 +240,7 @@ async fn build_resource_sync_plan(
 > {
     let resources_dir = resource_local_dir(app)?;
     let local_files = scan_local_resource_files(&resources_dir)?;
-    let remote_files = match list_remote_resources(provider, &format!("{RESOURCE_PREFIX}/")).await {
-        Ok(files) => files,
-        Err(error) => {
-            println!(
-                "[resource-sync] 远端列表拉取失败，降级为仅本地计划: {}",
-                error.message
-            );
-            Vec::new()
-        }
-    };
+    let remote_files = list_remote_resources(provider).await?;
     let mut remote_map: HashMap<String, ResourceRemoteFileInfo> = HashMap::new();
     for item in remote_files {
         remote_map.insert(item.name.clone(), item);
@@ -290,7 +281,7 @@ async fn build_resource_sync_plan(
                 name: name.clone(),
                 direction: "upload".to_string(),
                 local_path,
-                remote_path: format!("{RESOURCE_PREFIX}/{name}"),
+                remote_path: crate::chunked_sync::resource_object(&name),
                 size,
             });
         }
@@ -358,32 +349,34 @@ async fn execute_resource_sync_task_with_retry(
         if should_cancel_resource_sync() {
             return Err(AppError::new("RESOURCE_SYNC_CANCELLED", "同步已取消"));
         }
-        let result = if task.direction == "upload" {
-            let content = fs::read(&task.local_path).map_err(|e| {
-                AppError::new(
-                    "RESOURCE_SYNC_LOCAL_IO_FAILED",
-                    format!("读取本地文件失败: {e}"),
-                )
-            })?;
-            provider.upload(&task.remote_path, &content).await
-        } else {
-            let content = provider.download(&task.remote_path).await?;
-            if let Some(parent_dir) = task.local_path.parent() {
-                fs::create_dir_all(parent_dir).map_err(|e| {
+        let result = async {
+            if task.direction == "upload" {
+                provider
+                    .upload_chunked_named(&task.remote_path, &task.name, &task.local_path)
+                    .await
+                    .map_err(|e| AppError::new("RESOURCE_SYNC_FAILED", e))
+            } else {
+                let temp = provider
+                    .download_resource_chunked(&task.remote_path, &task.name)
+                    .await
+                    .map_err(|e| AppError::new("RESOURCE_SYNC_FAILED", e))?;
+                if let Some(directory) = task.local_path.parent() {
+                    fs::create_dir_all(directory).map_err(|e| {
+                        AppError::new("RESOURCE_SYNC_LOCAL_IO_FAILED", e.to_string())
+                    })?;
+                }
+                if should_cancel_resource_sync() {
+                    return Err(AppError::new("RESOURCE_SYNC_CANCELLED", "同步已取消"));
+                }
+                fs::rename(&temp.path, &task.local_path).map_err(|e| {
                     AppError::new(
                         "RESOURCE_SYNC_LOCAL_IO_FAILED",
-                        format!("创建本地资源目录失败: {e}"),
+                        format!("保存资源文件失败: {e}"),
                     )
-                })?;
+                })
             }
-            fs::write(&task.local_path, content).map_err(|e| {
-                AppError::new(
-                    "RESOURCE_SYNC_LOCAL_IO_FAILED",
-                    format!("写入本地资源文件失败: {e}"),
-                )
-            })?;
-            Ok(())
-        };
+        }
+        .await;
 
         match result {
             Ok(_) => return Ok(()),

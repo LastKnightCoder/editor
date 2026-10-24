@@ -9,8 +9,7 @@ import { Editor, Transforms } from "slate";
 import { BottomSheet } from "../../../components/BottomSheet";
 import { isBlankElement, type FlashcardBlankElement } from "./flashcardBlankTransforms";
 
-const inputClass =
-  "w-full rounded-[14px] bg-page px-3.5 py-2.5 text-[14px] font-semibold text-ink-1 placeholder:font-medium placeholder:text-ink-3 outline-none focus:bg-surface";
+const inputClass = "input-base w-full px-3.5 py-2.5 font-semibold placeholder:font-medium";
 
 export function FlashcardBlankInline({
   attributes,

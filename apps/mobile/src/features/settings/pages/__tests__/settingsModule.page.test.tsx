@@ -1,3 +1,6 @@
+import { createStorageRuntime } from "../../__tests__/storageProviders";
+import { MobilePluginsContext } from "../../../../app/plugins/context";
+let storageRuntime: Awaited<ReturnType<typeof createStorageRuntime>>;
 // settingsModule 页集成测试：二级模块以路由页入栈，
 // 验证「图片与附件」经上传服务页往返后返回逐级退栈（而非直接回根页），
 // 以及经 Activity 保活原样保留。
@@ -15,17 +18,8 @@ const setting = {
   imageBed: {
     active: "local",
     enableCompression: true,
-    github: { repo: "", branch: "", pathPrefix: "" },
-    aliOSS: { bucket: "", region: "", pathPrefix: "" },
     local: { path: "resources" },
-    s3: { bucket: "", region: "", pathPrefix: "" },
-    webdav: { pathPrefix: "" },
-  },
-  integration: {
-    github: { token: "", user: { name: "", email: "" } },
-    s3: { accessKeyId: "", secretAccessKey: "", endpoint: "", urlStyle: "path" },
-    webdav: { url: "", username: "", password: "" },
-    aliOSS: { accessKeyId: "", accessKeySecret: "" },
+    plugin: { id: "", configurations: {} },
   },
 };
 
@@ -66,9 +60,11 @@ function mountApp(): void {
   act(() => {
     root!.render(
       <RouterProvider rootKey="home">
-        <AppContext.Provider value={appStub}>
-          <PageHost rootContent={<div data-testid="root" />} />
-        </AppContext.Provider>
+        <MobilePluginsContext.Provider value={storageRuntime}>
+          <AppContext.Provider value={appStub}>
+            <PageHost rootContent={<div data-testid="root" />} />
+          </AppContext.Provider>
+        </MobilePluginsContext.Provider>
       </RouterProvider>
     );
   });
@@ -103,12 +99,14 @@ async function waitFor(condition: () => boolean, timeoutMs = 2000): Promise<void
 }
 
 describe("settingsModule 路由页", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    storageRuntime = await createStorageRuntime();
     window.history.replaceState(null, "");
     mountApp();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await storageRuntime.dispose();
     act(() => root?.unmount());
     host?.remove();
     document.body.innerHTML = "";

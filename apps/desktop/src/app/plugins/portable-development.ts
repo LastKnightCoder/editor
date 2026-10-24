@@ -1,14 +1,13 @@
 import { version as appVersion } from "../../../package.json";
 import {
   evaluatePortablePluginPackage,
-  adaptPortablePluginDefinition,
+  getPluginNodeTypes,
   assertUniqueEditorCodecs,
 } from "@tau/plugins/rendering";
 import type { PluginDefinition } from "@tau/plugins";
 import { invoke, isElectron } from "@/electron";
 import { withModule } from "@/commands/module-init";
 import { desktopPluginEnvironment } from "./environment";
-import { DESKTOP_PLUGIN_CAPABILITIES } from "../../../shared/plugin-package";
 import { desktopContentPlugins, desktopPortableSupport } from "../../../shared/content-plugins";
 import type { PortableDevelopmentArtifact } from "../../../shared/portable-development";
 import { getContentKit } from "@/services/editorKit";
@@ -25,26 +24,19 @@ export async function initializePortableDevelopment() {
   for (const artifact of artifacts) {
     const definition = evaluatePortablePluginPackage(artifact, sharedPluginModules, {
       environment: desktopPluginEnvironment.getSnapshot(),
-      capabilities: DESKTOP_PLUGIN_CAPABILITIES,
       appVersion,
       profiles: ["web-v1"],
     });
-    const adapted = adaptPortablePluginDefinition(definition, artifact.manifest, "desktop");
-    Object.entries(adapted.support).forEach(([type, value]) =>
-      desktopPortableSupport.set(type, value)
-    );
+    getPluginNodeTypes(definition).forEach(type => desktopPortableSupport.set(type, "edit"));
     getContentKit().extend({
-      extensions: [
-        ...desktopContentPlugins.extensions,
-        ...(adapted.definition.editorExtensions ?? []),
-      ],
+      extensions: [...desktopContentPlugins.extensions, ...(definition.editorExtensions ?? [])],
     });
     assertUniqueEditorCodecs([
       ...desktopCodecComposition,
       ...desktopContentPlugins.codecs,
-      ...(adapted.definition.editorCodecs ?? []),
+      ...(definition.editorCodecs ?? []),
     ]);
-    desktopContentPlugins.install([...desktopContentPlugins.list(), adapted.definition]);
+    desktopContentPlugins.install([...desktopContentPlugins.list(), definition]);
     portableDevelopmentDefinitions.push(definition);
     markPortableDevelopmentLoaded();
     if (artifact.css) {

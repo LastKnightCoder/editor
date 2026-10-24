@@ -52,13 +52,9 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
     const manifest =
       raw.formatVersion === 3
         ? validatePortableDistributionManifest(raw)
-        : validatePluginManifest(raw, { strict: true });
-    if (
-      typeof raw.description !== "string" ||
-      !raw.description.trim() ||
-      raw.description.length > LIMITS.summary
-    )
-      throw new Error("manifest.description必须为1至160字的简介");
+        : validatePluginManifest(raw);
+    if (typeof raw.description !== "string" || !raw.description.trim())
+      throw new Error("manifest.description必须为非空简介");
     if (manifest.formatVersion !== 3 && !manifest.minAppVersion)
       throw new Error("发布包必须声明最低客户端版本");
     if (manifest.id === "web" || manifest.id.startsWith("core."))

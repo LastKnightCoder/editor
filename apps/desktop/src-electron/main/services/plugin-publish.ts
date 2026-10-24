@@ -37,7 +37,7 @@ export async function readPublishPlugins(
     const artifact = await readPluginPackage(path.join(root, selection.id));
     if (
       artifact.manifest.id !== selection.id ||
-      !artifact.manifest.editor ||
+      (artifact.manifest.formatVersion !== 3 && !artifact.manifest.editor) ||
       artifact.manifest.version !== selection.version ||
       artifact.manifest.integrity[artifact.manifest.main] !== selection.mainHash
     )

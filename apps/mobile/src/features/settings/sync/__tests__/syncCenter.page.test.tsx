@@ -1,3 +1,6 @@
+import { createStorageRuntime } from "../../__tests__/storageProviders";
+import { MobilePluginsContext } from "../../../../app/plugins/context";
+let storageRuntime: Awaited<ReturnType<typeof createStorageRuntime>>;
 // 同步中心集成测试：经真实 router 入栈，覆盖状态卡主按钮（同步后顺带同步资源文件）、首次配置、出错、
 // 服务抽屉 → 服务页 → 设为同步服务（先探测云端再确认）、资源文件行与整库覆盖的可用性。
 
@@ -11,10 +14,11 @@ import "../../../cards/pages/home.page";
 import "../../pages/settingsModule.page";
 import "../../pages/syncProvider.page";
 
-const tauriMock = vi.hoisted(() => ({ syncCheckVersions: vi.fn() }));
+const tauriMock = vi.hoisted(() => ({ syncCheckVersions: vi.fn(), selectPluginProvider: vi.fn() }));
 vi.mock("../../../../services/tauri", async importOriginal => ({
   ...(await importOriginal<object>()),
   syncCheckVersions: tauriMock.syncCheckVersions,
+  selectPluginProvider: tauriMock.selectPluginProvider,
 }));
 
 const toastSpies = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }));
@@ -22,22 +26,37 @@ vi.mock("../../../../components/toast", () => ({ toast: toastSpies }));
 
 function makeSetting(active: string, s3Configured = true): SettingCompat {
   return {
-    sync: {
-      active,
-      webdav: { pathPrefix: "" },
-      aliOSS: { bucket: "", region: "", path: "/" },
-      s3: s3Configured
-        ? { bucket: "tau-sync", region: "ap-southeast-1", pathPrefix: "" }
-        : { bucket: "", region: "", pathPrefix: "" },
-      github: { repo: "tau-data", branch: "main", pathPrefix: "" },
+    database: { active: "data.db", databases: [] },
+    imageBed: {
+      active: "local",
+      enableCompression: true,
+      local: { path: "resources" },
+      plugin: { id: "", configurations: {} },
     },
-    integration: {
-      github: { token: "ghp_x", user: { name: "d7hacx", email: "" } },
-      s3: s3Configured
-        ? { accessKeyId: "AKIAEXAMPLE7Q2M", secretAccessKey: "s", endpoint: "", urlStyle: "path" }
-        : { accessKeyId: "", secretAccessKey: "", endpoint: "", urlStyle: "path" },
-      webdav: { url: "", username: "", password: "" },
-      aliOSS: { accessKeyId: "", accessKeySecret: "" },
+    sync: {
+      active: "plugin",
+      plugin: {
+        id: `tau.sync-${active}`,
+        configurations: {
+          ...(s3Configured
+            ? {
+                "tau.sync-s3": {
+                  bucket: "tau-sync",
+                  region: "ap-southeast-1",
+                  accessKeyId: "fixture",
+                  secretAccessKey: "fixture",
+                },
+              }
+            : {}),
+          "tau.sync-github": {
+            token: "fixture",
+            owner: "d7hacx",
+            repo: "tau-data",
+            branch: "main",
+            pathPrefix: "",
+          },
+        },
+      },
     },
   } as unknown as SettingCompat;
 }
@@ -54,6 +73,20 @@ function createApp(options: {
   resourceStatusFile?: ResourceSyncStatusFile | null;
 }): Harness {
   let setting = options.setting;
+  tauriMock.selectPluginProvider.mockImplementation(async (_database, target, id) => {
+    const section = target === "sync" ? "sync" : "imageBed";
+    return {
+      ...setting,
+      [section]: {
+        ...setting[section],
+        active: id === "local" ? "local" : "plugin",
+        plugin: {
+          ...setting[section].plugin,
+          id: id === "local" ? (setting[section].plugin?.id ?? "") : id,
+        },
+      },
+    };
+  });
   const app = {
     syncSettings: {
       safeSetting: setting,
@@ -110,9 +143,11 @@ function mount(app: AppContextValue): void {
   act(() => {
     root!.render(
       <RouterProvider rootKey="home">
-        <AppContext.Provider value={app}>
-          <PageHost rootContent={<div data-testid="root" />} />
-        </AppContext.Provider>
+        <MobilePluginsContext.Provider value={storageRuntime}>
+          <AppContext.Provider value={app}>
+            <PageHost rootContent={<div data-testid="root" />} />
+          </AppContext.Provider>
+        </MobilePluginsContext.Provider>
       </RouterProvider>
     );
   });
@@ -151,7 +186,7 @@ async function openCenter(app: AppContextValue): Promise<void> {
     getNavigator().push("settingsModule", { module: "database" });
   });
   await waitFor(() => activeTitle() === "同步");
-  if (app.syncSettings.safeSetting?.sync.s3.bucket) {
+  if (app.syncSettings.safeSetting?.sync.plugin?.configurations["tau.sync-s3"]) {
     await waitFor(
       () => (app.handleCheckVersions as ReturnType<typeof vi.fn>).mock.calls.length > 0
     );
@@ -162,12 +197,14 @@ async function openCenter(app: AppContextValue): Promise<void> {
 }
 
 describe("同步中心", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    storageRuntime = await createStorageRuntime();
     vi.clearAllMocks();
     window.history.replaceState(null, "");
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await storageRuntime.dispose();
     act(() => root?.unmount());
     host?.remove();
     document.body.innerHTML = "";
@@ -181,7 +218,7 @@ describe("同步中心", () => {
 
     expect(app.handleCheckVersions).toHaveBeenCalled();
     expect(activePage()?.textContent).toContain("云端有更新");
-    expect(activePage()?.textContent).toContain("tau-sync · ap-southeast-1");
+    expect(activePage()?.textContent).toContain("配置已保存");
 
     await click(findButton("下载更新", activePage()));
     await waitFor(() => (app.handleSyncDownload as ReturnType<typeof vi.fn>).mock.calls.length > 0);
@@ -289,15 +326,15 @@ describe("同步中心", () => {
     await click(findButton("设为同步服务", activePage()));
     await waitFor(() => document.body.textContent?.includes("改为同步到 GitHub 仓库？") ?? false);
     expect(harness.app.syncSettings.persistSetting).toHaveBeenCalled();
-    expect(tauriMock.syncCheckVersions).toHaveBeenCalledWith("github");
-    expect(harness.setting().sync.active).toBe("s3");
+    expect(tauriMock.syncCheckVersions).toHaveBeenCalledWith("tau.sync-github");
+    expect(harness.setting().sync.plugin?.id).toBe("tau.sync-s3");
     expect(document.body.textContent).toContain("用本机数据库覆盖云端");
 
     const confirm = [...document.querySelectorAll("button")].find(
       node => node.textContent?.trim() === "切换"
     );
     await click(confirm ?? null);
-    expect(harness.setting().sync.active).toBe("github");
+    expect(harness.setting().sync.plugin?.id).toBe("tau.sync-github");
     expect(toastSpies.success).toHaveBeenCalledWith("已改为同步到 GitHub 仓库，返回即可同步");
   });
 
@@ -310,11 +347,11 @@ describe("同步中心", () => {
     });
     mount(harness.app);
     act(() => {
-      getNavigator().push("syncProvider", { providerId: "github" });
+      getNavigator().push("syncProvider", { providerId: "tau.sync-github" });
     });
     await waitFor(() => activeTitle() === "GitHub 仓库");
     await click(findButton("设为同步服务", activePage()));
-    await waitFor(() => harness.setting().sync.active === "github");
+    await waitFor(() => harness.setting().sync.plugin?.id === "tau.sync-github");
     expect(document.body.textContent).not.toContain("改为同步到 GitHub 仓库？");
   });
 
@@ -323,12 +360,26 @@ describe("同步中心", () => {
     tauriMock.syncCheckVersions.mockRejectedValue(new Error("SYNC_CHECK_FAILED:仓库不存在"));
     mount(harness.app);
     act(() => {
-      getNavigator().push("syncProvider", { providerId: "github" });
+      getNavigator().push("syncProvider", { providerId: "tau.sync-github" });
     });
     await waitFor(() => activeTitle() === "GitHub 仓库");
     await click(findButton("测试连接", activePage()));
     await waitFor(() => activePage()?.textContent?.includes("仓库不存在") ?? false);
-    expect(harness.setting().sync.active).toBe("s3");
+    expect(harness.setting().sync.plugin?.id).toBe("tau.sync-s3");
+  });
+
+  it("插件账号浮层留在服务页作用域，系统返回先关浮层", async () => {
+    const harness = createApp({ setting: makeSetting("s3"), versions: null });
+    mount(harness.app);
+    act(() => getNavigator().push("syncProvider", { providerId: "tau.sync-github" }));
+    await waitFor(() => activeTitle() === "GitHub 仓库");
+    await click(findButton("更换", activePage()));
+    await waitFor(() => !!activePage()?.querySelector('[role="dialog"]'));
+    await act(async () => {
+      await getNavigator().goBack("android");
+    });
+    expect(activeTitle()).toBe("GitHub 仓库");
+    await waitFor(() => !document.querySelector('[role="dialog"]'));
   });
 
   it("整库覆盖不允许低版本覆盖高版本", async () => {

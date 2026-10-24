@@ -18,7 +18,8 @@ import {
   useKeyboardReservation,
   useKeyboardViewport,
 } from "../../components/KeyboardViewportProvider";
-import { getMobileContentKit } from "../../services/editorKit";
+import { useMobileContentKit } from "../../services/editorKit";
+import { EditorKitPending } from "../../components/EditorKitPending";
 import {
   applyHeaderBlock,
   restoreSelectionAndFocus,
@@ -99,6 +100,7 @@ function textAround(editor: SlateEditor, point: { path: number[]; offset: number
 }
 
 export function EditorLabPage() {
+  const contentKit = useMobileContentKit("edit");
   const pageNavigator = useNavigator();
   const keyboardViewport = useKeyboardViewport();
   const { viewportHeight, keyboardHeight, rawKeyboardHeight, reservedHeight, lastKeyboardHeight } =
@@ -636,26 +638,30 @@ export function EditorLabPage() {
           composingRef.current = false;
         }}
       >
-        <Editor
-          kit={getMobileContentKit()}
-          ref={editorRef}
-          initValue={initialContent}
-          readonly={!editing}
-          className="mobile-card-editor-content outline-none ring-0 focus:outline-none focus:ring-0"
-          onFocus={() => {
-            setEditorFocused(true);
-            if (panelOpenRef.current) closePanelByEditorTap();
-          }}
-          onBlur={() => setEditorFocused(false)}
-          onChange={(_value, editor) => {
-            const operationTypes = editor.operations
-              .map(operation => operation.type)
-              .filter(type => type !== "set_selection");
-            if (operationTypes.length > 0) {
-              log("change", { editing: editingRef.current, operationTypes });
-            }
-          }}
-        />
+        {contentKit ? (
+          <Editor
+            kit={contentKit}
+            ref={editorRef}
+            initValue={initialContent}
+            readonly={!editing}
+            className="mobile-card-editor-content outline-none ring-0 focus:outline-none focus:ring-0"
+            onFocus={() => {
+              setEditorFocused(true);
+              if (panelOpenRef.current) closePanelByEditorTap();
+            }}
+            onBlur={() => setEditorFocused(false)}
+            onChange={(_value, editor) => {
+              const operationTypes = editor.operations
+                .map(operation => operation.type)
+                .filter(type => type !== "set_selection");
+              if (operationTypes.length > 0) {
+                log("change", { editing: editingRef.current, operationTypes });
+              }
+            }}
+          />
+        ) : (
+          <EditorKitPending />
+        )}
       </div>
 
       {showAccessoryBar ? (

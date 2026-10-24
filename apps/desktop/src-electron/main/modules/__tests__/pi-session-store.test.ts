@@ -14,7 +14,6 @@ import {
   readFileSync,
 } from "node:fs";
 import Database from "better-sqlite3";
-import AdmZip from "adm-zip";
 import { validateSessionReferences } from "@tau/db-schema/sync";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -22,9 +21,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   deleteSessionInDir,
   listSessionsInDir,
-  packSessionDir,
+  validateSessionDirectory,
   renameSessionInDir,
-  replaceSessionDir,
   installSessionDownload,
   recoverSessionDownload,
 } from "../pi-session-store";
@@ -95,20 +93,21 @@ describe("数据库与会话成对提交", () => {
     }
   });
 
-  it("完整 JSON 行被截掉或改写时，清单校验拒绝包并保留本地会话", () => {
-    const dir = setup();
-    const source = join(dir, "source");
-    const name = writeChat(source, "source", "问题");
-    const zipPath = join(dir, "archive.zip");
-    writeFileSync(zipPath, packSessionDir(source));
-    const zip = new AdmZip(zipPath);
-    const header = readFileSync(join(source, name), "utf8").split("\n")[0];
-    zip.updateFile(name, Buffer.from(`${header}\n`));
-    const target = join(dir, "target");
+  it("截断会话不覆盖已有数据库和会话", () => {
+    const root = setup();
+    const file = join(root, "data.db");
+    const source = join(root, "source");
+    const target = join(root, "sessions");
     const local = writeChat(target, "local", "本地内容");
-    expect(() => replaceSessionDir(target, zip.toBuffer(), join(dir, "backups"))).toThrow(
-      "完整性校验失败"
-    );
+    const remote = writeChat(source, "remote", "远端内容");
+    const db = new Database(file);
+    db.exec("CREATE TABLE chat_session(id TEXT,session_file TEXT,message_count INTEGER)");
+    db.prepare("INSERT INTO chat_session VALUES(?,?,?)").run("remote", remote, 1);
+    db.close();
+    copyFileSync(file, `${file}.download.tmp`);
+    const header = readFileSync(join(source, remote), "utf8").split("\n")[0];
+    writeFileSync(join(source, remote), header + "\n");
+    expect(() => installSessionDownload(file, target, source)).toThrow("身份不一致");
     expect(existsSync(join(target, local))).toBe(true);
   });
 
@@ -117,11 +116,11 @@ describe("数据库与会话成对提交", () => {
     const name = writeChat(dir, "source", "问题");
     const lines = readFileSync(join(dir, name), "utf8").trim().split("\n");
     writeFileSync(join(dir, name), `${lines.join("\n")}\n${lines[1]}\n`);
-    expect(() => packSessionDir(dir)).toThrow("会话树");
+    expect(() => validateSessionDirectory(dir)).toThrow("会话树");
     const entry = JSON.parse(lines[1]);
     entry.parentId = "missing";
     writeFileSync(join(dir, name), `${lines[0]}\n${JSON.stringify(entry)}\n`);
-    expect(() => packSessionDir(dir)).toThrow("会话树");
+    expect(() => validateSessionDirectory(dir)).toThrow("会话树");
   });
   const writeDb = (file: string, marker: string) => {
     const db = new Database(file);
@@ -144,7 +143,7 @@ describe("数据库与会话成对提交", () => {
     writeDb(file, "local");
     writeDb(`${file}.download.tmp`, "remote");
     const name = writeChat(sessions, "local", "本地问题");
-    expect(() => installSessionDownload(file, sessions, Buffer.from("invalid zip"))).toThrow();
+    expect(() => installSessionDownload(file, sessions, join(dir, "missing"))).toThrow();
     expect(markerOf(file)).toBe("local");
     expect(existsSync(join(sessions, name))).toBe(true);
   });
@@ -217,42 +216,34 @@ describe("扩展对话（无索引表，事实源是会话文件）", () => {
   });
 });
 
-describe("同步的会话目录打包", () => {
-  it("打包只收 .jsonl；解包先整体备份再替换", () => {
+describe("同步的会话目录", () => {
+  it("只收 jsonl，完整目录校验后随数据库原子替换并保留备份", () => {
     const root = setup();
-    const sessionDir = join(root, "sessions", "data");
-    mkdirSync(sessionDir, { recursive: true });
-    writeFileSync(join(sessionDir, "1_a.jsonl"), '{"type":"session","id":"a","version":3}\n');
-    writeFileSync(join(sessionDir, "notes.txt"), "忽略我");
-    const archive = packSessionDir(sessionDir);
-
-    // 本地换成另一份内容，再用远程包替换
-    rmSync(join(sessionDir, "1_a.jsonl"));
-    writeFileSync(join(sessionDir, "2_b.jsonl"), '{"type":"session","id":"b","version":3}\n');
-    const { backupPath } = replaceSessionDir(sessionDir, archive, join(root, "backup"));
-
-    // 解包后目录里只有远程包的内容；替换前的整个目录（含非 .jsonl 文件）在备份里
-    expect(readdirSync(sessionDir)).toEqual(["1_a.jsonl"]);
-    expect(backupPath && readdirSync(backupPath).sort()).toEqual(["2_b.jsonl", "notes.txt"]);
+    const file = join(root, "data.db");
+    const dir = join(root, "sessions");
+    const stage = join(root, "stage");
+    for (const [path, value] of [
+      [file, "local"],
+      [`${file}.download.tmp`, "remote"],
+    ]) {
+      const db = new Database(path);
+      db.exec("CREATE TABLE marker(value TEXT)");
+      db.prepare("INSERT INTO marker VALUES (?)").run(value);
+      db.close();
+    }
+    const local = writeChat(dir, "local", "本地");
+    writeFileSync(join(dir, "notes.txt"), "保留");
+    const remote = writeChat(stage, "remote", "远端");
+    expect([...validateSessionDirectory(stage).keys()]).toEqual([remote]);
+    installSessionDownload(file, dir, stage);
+    expect(readdirSync(dir)).toEqual([remote]);
+    const backup = readdirSync(root).find(name => name.startsWith("sessions.pre-session-sync-"));
+    expect(backup && readdirSync(join(root, backup)).sort()).toEqual([local, "notes.txt"].sort());
   });
-
-  it("目录不存在时给空包（本机还没有对话）", () => {
+  it("空目录有效，非法树和文件名不进入快照", () => {
     const root = setup();
-    const target = join(root, "sessions");
-    replaceSessionDir(target, packSessionDir(join(root, "missing")), join(root, "backup"));
-    expect(readdirSync(target)).toEqual([]);
-  });
-
-  it("解包失败时把备份挪回来，本地不会落到半截目录", () => {
-    const root = setup();
-    const sessionDir = join(root, "sessions", "data");
-    mkdirSync(sessionDir, { recursive: true });
-    writeFileSync(join(sessionDir, "1_a.jsonl"), '{"type":"session"}\n');
-
-    expect(() =>
-      replaceSessionDir(sessionDir, Buffer.from("这不是 zip"), join(root, "backup"))
-    ).toThrow();
-    expect(existsSync(sessionDir)).toBe(true);
-    expect(readdirSync(sessionDir)).toEqual(["1_a.jsonl"]);
+    expect(validateSessionDirectory(root).size).toBe(0);
+    writeFileSync(join(root, "bad.jsonl"), "{}\n");
+    expect(() => validateSessionDirectory(root)).toThrow();
   });
 });

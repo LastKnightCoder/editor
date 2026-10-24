@@ -1,3 +1,4 @@
+import { localSyncVersion } from "@tau/db-schema/sync-protocol";
 /**
  * 本地数据库 —— 同步页第三个 Tab（2026-09-24，从 legacy AppAbout「数据库管理」迁入：
  * 数据库是同步的对象，切库 / 建库与同步放在一起）。
@@ -129,7 +130,7 @@ export function LocalDatabasePanel() {
                 <div className="text-tau-body-lg text-ink-1 truncate font-medium">
                   {displayName(db.name)}
                 </div>
-                <div className="text-tau-meta text-ink-2">版本 {db.version}</div>
+                <div className="text-tau-meta text-ink-2">版本 {localSyncVersion(db)}</div>
               </div>
               <IconButton
                 aria-label={`删除数据库：${displayName(db.name)}`}

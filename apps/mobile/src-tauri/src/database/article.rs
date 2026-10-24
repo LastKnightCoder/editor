@@ -57,6 +57,7 @@ pub struct CreateArticlePayload {
     pub title: String,
     pub author: Option<String>,
     pub content: Option<Value>,
+    pub count: Option<i64>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -201,15 +202,13 @@ pub fn article_create(
         .transaction()
         .map_err(|e| db_err("ARTICLE_CREATE_FAILED", "begin transaction", e))?;
     let now = now_millis();
-    let content = if payload.content.is_some() {
-        payload.content.unwrap()
-    } else {
+    let content = payload.content.unwrap_or_else(|| {
         Value::Array(vec![serde_json::json!({
             "type": "paragraph",
             "children": [{"type": "formatted", "text": ""}]
         })])
-    };
-    let content_id = insert_content_record(&tx, &content, 0, now)?;
+    });
+    let content_id = insert_content_record(&tx, &content, payload.count.unwrap_or(0), now)?;
     tx.execute(
         "
         INSERT INTO articles (title, author, create_time, update_time, tags, links, banner_bg, is_top, is_delete, content_id)

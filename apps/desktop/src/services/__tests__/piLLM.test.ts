@@ -56,6 +56,7 @@ const emitAndResolve = (events: unknown[], ok = true) =>
 beforeEach(() => {
   singleShotMock.mockReset();
   cancelMock.mockReset();
+  cancelMock.mockResolvedValue(true);
 });
 
 describe("pi 系统消息兼容", () => {

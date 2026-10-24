@@ -1,5 +1,9 @@
+import { transferableAbortController } from "node:util";
+import { definePlugin, type PluginContext, type UploadFile, type JsonValue } from "@tau/plugins";
+import { setMobileSettingSnapshot } from "../../services/mobileSettingsBridge";
+import type { SettingCompat } from "../../types";
 import { webcrypto, createHash } from "node:crypto";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createMemoryStorage } from "@tau/plugins/host";
 import { createPluginEnvironmentStore } from "@tau/plugins/environment-host";
 import { portableSharedPluginModules as sharedPluginModules } from "@tau/plugins/portable-shared-modules";
@@ -14,10 +18,76 @@ const environment = (platform: "android" | "ios") =>
     platform,
     input: { coarsePointer: true, finePointer: false },
   });
+beforeEach(() => {
+  const controller = transferableAbortController();
+  vi.stubGlobal("AbortController", controller.constructor);
+  vi.stubGlobal("AbortSignal", controller.signal.constructor);
+});
 afterEach(() => {
   vi.unstubAllGlobals();
+  setMobileSettingSnapshot(null);
   mobileContentPlugins.install([]);
   mobilePluginElementSupport.clear();
+});
+
+it("uploadRemote 使用当前独立配置与原始字节，本地模式不自动选择服务", async () => {
+  vi.stubGlobal("crypto", webcrypto);
+  const runtime = new MobilePluginRuntime(
+    environment("android"),
+    createMemoryStorage(),
+    "A.db",
+    { push: vi.fn() },
+    "0.2.4"
+  );
+  let context!: PluginContext;
+  const upload = vi
+    .fn<(file: UploadFile, config: JsonValue, signal: AbortSignal) => Promise<string>>()
+    .mockResolvedValue("https://example.com/resource");
+  runtime.host.registerTrusted(
+    definePlugin({
+      id: "fixture.upload",
+      name: "fixture",
+      version: "1.0.0",
+      create: () => ({
+        activate(current) {
+          context = current;
+          current.upload.register({ id: current.pluginId, name: "fixture", upload });
+        },
+      }),
+    })
+  );
+  await runtime.host.enable("fixture.upload");
+  const config = { bucket: "original" };
+  const setting = {
+    database: { active: "A.db", databases: [] },
+    sync: { active: "plugin" },
+    imageBed: {
+      active: "local",
+      local: { path: "resources" },
+      enableCompression: false,
+      plugin: { id: "fixture.upload", configurations: { "fixture.upload": config } },
+    },
+  } as SettingCompat;
+  try {
+    setMobileSettingSnapshot(setting);
+    const content = new Uint8Array([1, 255]);
+    const file = { name: "../nested.bin", mimeType: "application/octet-stream", content };
+    await expect(context.upload.uploadRemote(file)).rejects.toThrow("本地保存");
+    expect(upload).not.toHaveBeenCalled();
+    setting.imageBed.active = "plugin";
+    setMobileSettingSnapshot(setting);
+    const pending = context.upload.uploadRemote(file);
+    config.bucket = "changed";
+    content[0] = 3;
+    await expect(pending).resolves.toBe("https://example.com/resource");
+    expect(upload.mock.calls[0][0].name).toMatch(/^nested_[a-f0-9-]+\.bin$/);
+    expect(upload.mock.calls[0][0].content).toEqual(new Uint8Array([1, 255]));
+    expect(upload.mock.calls[0][1]).toEqual({ bucket: "original" });
+    await runtime.host.disable("fixture.upload");
+    await expect(context.upload.uploadRemote(file)).rejects.toThrow();
+  } finally {
+    await runtime.dispose();
+  }
 });
 it.each(["android", "ios"] as const)(
   "%s 使用同一模板和 ABC，真实宿主注册、正文/codec 装配与清理",
@@ -32,7 +102,7 @@ it.each(["android", "ios"] as const)(
       {
         push,
       },
-      "0.2.3"
+      "0.2.4"
     );
     try {
       await runtime.start(
@@ -58,12 +128,12 @@ it.each(["android", "ios"] as const)(
       expect(mobileMarkdown.getMarkdown(nodes)).toContain("C D E F |");
       await entry.context.storage.set("count", 3);
       expect(await entry.context.storage.get("count")).toBe(3);
-      await expect(entry.context.fetch("https://example.invalid")).rejects.toThrow("不支持 fetch");
+      await expect(entry.context.fetch("https://example.invalid")).rejects.toThrow("尚未就绪");
       expect(() =>
         entry.context.settings.register({
           id: "domain",
           title: "领域设置",
-          target: "sync",
+          target: "publish",
           component: () => null,
         })
       ).toThrow("领域设置");
@@ -76,38 +146,23 @@ it.each(["android", "ios"] as const)(
     }
   }
 );
-it("render 不提供插入入口，none 保留未知节点；重新装配相同 ID 不命中旧 Kit", async () => {
+it("已声明平台直接装配实际节点与编辑入口，不需要第二份节点表", async () => {
   vi.stubGlobal("crypto", webcrypto);
   const [, abc] = await portableFixtures();
-  const iosTarget = abc.manifest.targets.ios;
-  if (!iosTarget) throw new Error("测试包缺少 iOS 目标");
-  for (const level of ["render", "none"] as const) {
-    const runtime = new MobilePluginRuntime(
-      environment("ios"),
-      createMemoryStorage(),
-      "A",
-      {
-        push: vi.fn(),
-      },
-      "0.2.3"
-    );
-    const artifact = {
-      ...abc,
-      manifest: {
-        ...abc.manifest,
-        targets: { ios: { ...iosTarget, elements: { abc: level } } },
-      },
-    };
-    try {
-      await runtime.start([{ id: "tau.abc", artifact, enabled: true }], sharedPluginModules);
-      expect([...runtime.errors]).toEqual([]);
-      expect(runtime.content.extensions.every(extension => !extension.blockPanel)).toBe(true);
-      mobileContentPlugins.install(runtime.content.list());
-      runtime.elementSupport.forEach((value, key) => mobilePluginElementSupport.set(key, value));
-      expect(getMobileContentKit().elementTypes.includes("abc")).toBe(level === "render");
-    } finally {
-      await runtime.dispose();
-    }
+  const runtime = new MobilePluginRuntime(
+    environment("ios"),
+    createMemoryStorage(),
+    "A",
+    { push: vi.fn() },
+    "0.2.4"
+  );
+  try {
+    await runtime.start([{ id: "tau.abc", artifact: abc, enabled: true }], sharedPluginModules);
+    expect([...runtime.errors]).toEqual([]);
+    expect(runtime.elementSupport.get("abc")).toBe("edit");
+    expect(runtime.content.extensions.some(extension => extension.blockPanel)).toBe(true);
+  } finally {
+    await runtime.dispose();
   }
 });
 
@@ -132,7 +187,7 @@ it("激活尚未成功时不能打开页面，失败不留下导航副作用", a
     createMemoryStorage(),
     "A",
     { push },
-    "0.2.3"
+    "0.2.4"
   );
   try {
     await runtime.start(
@@ -155,7 +210,7 @@ it("中心撤回立即阻止节点写入并停用页面，保留静态正文到�
     createMemoryStorage(),
     "A",
     { push: vi.fn() },
-    "0.2.3"
+    "0.2.4"
   );
   try {
     await runtime.start(
@@ -163,13 +218,13 @@ it("中心撤回立即阻止节点写入并停用页面，保留静态正文到�
       sharedPluginModules
     );
     expect(runtime.elementSupport.get("abc")).toBe("edit");
-    const abc = artifacts.find(artifact => artifact.manifest.editor)!;
+    const abc = artifacts.find(artifact => artifact.manifest.id === "tau.abc")!;
     const blocked = runtime.blockFromCenter(abc.manifest.id);
     expect(runtime.elementSupport.get("abc")).toBe("none");
     await blocked;
     expect(runtime.isPluginActive(abc.manifest.id)).toBe(false);
     expect(runtime.content.list().length).toBeGreaterThan(0);
-    const page = artifacts.find(artifact => !artifact.manifest.editor)!;
+    const page = artifacts.find(artifact => artifact.manifest.id !== "tau.abc")!;
     await runtime.blockFromCenter(page.manifest.id);
     expect(runtime.entries.size).toBe(0);
   } finally {

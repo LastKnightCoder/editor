@@ -1,3 +1,4 @@
+import { PLUGIN_PORTAL_URL } from "@tau/plugins/center";
 import { useState, type ReactNode } from "react";
 import {
   BookOpen,
@@ -22,7 +23,6 @@ import { openPluginDirectory, stagePluginZip } from "@/commands/plugin-local";
 import type { PluginCategory } from "@tau/plugins/package";
 import type { PluginCatalogEntry, PluginCatalogSort } from "@/types/plugin-center";
 import {
-  PLUGIN_PORTAL_URL,
   PLUGIN_TEMPLATE_URL,
   STATE_LABELS,
   STATIC_PACKAGE_LABELS,

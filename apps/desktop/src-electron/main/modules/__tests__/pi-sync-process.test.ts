@@ -17,7 +17,6 @@ import Database from "better-sqlite3";
 import {
   acquireDatabaseSyncLock,
   assertDatabaseSyncLockOwned,
-  packSessionDir,
   recoverSessionDownload,
 } from "@tau/db-schema/sync";
 import { writeSessionFile } from "../pi-session-files";
@@ -90,7 +89,7 @@ it.each(["journal", "sessions-backup", "sessions-installed", "database-installed
     const dir = mkdtempSync(join(tmpdir(), "pi-sync-crash-"));
     const databasePath = join(dir, "data.db");
     const sessions = join(dir, "sessions");
-    const remote = join(dir, "remote");
+    const remote = join(dir, "remote.download-sessions");
     const writeDb = (path: string, marker: string) => {
       const db = new Database(path);
       db.exec("CREATE TABLE marker(value TEXT)");
@@ -110,8 +109,7 @@ it.each(["journal", "sessions-backup", "sessions-installed", "database-installed
       writeDb(`${databasePath}.download.tmp`, "remote");
       const name = writeChat(sessions, "local");
       writeChat(remote, "remote");
-      const archive = join(dir, "archive.zip");
-      writeFileSync(archive, packSessionDir(remote));
+      const archive = remote;
       const native = createRequire(
         fileURLToPath(new URL("../../../../../collaboration-server/package.json", import.meta.url))
       ).resolve("better-sqlite3");

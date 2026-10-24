@@ -58,7 +58,7 @@ export function CardBatchBar({ open, deckId, selectedIds, onFinished }: CardBatc
   return (
     <>
       <div
-        className={`bg-surface shadow-float absolute bottom-[22px] left-3.5 right-3.5 z-40 flex gap-1 rounded-[20px] p-1.5 transition-transform duration-300 ${
+        className={`bg-surface shadow-float absolute bottom-[calc(22px+var(--mobile-screen-safe-bottom))] left-3.5 right-3.5 z-40 flex gap-1 rounded-[20px] p-1.5 transition-transform duration-300 ${
           open && count > 0 ? "translate-y-0" : "translate-y-[140%]"
         }`}
         style={{ transitionTimingFunction: "var(--ease-bounce)" }}

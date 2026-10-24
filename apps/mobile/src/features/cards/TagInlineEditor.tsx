@@ -1,4 +1,4 @@
-// 详情页标签内联编辑：浮起胶囊 + 行尾「＋ 标签」→ 原位输入 → 回车 / 完成落库。
+// 详情页标签内联编辑：轻标签 + 行尾「＋ 标签」→ 原位输入 → 回车 / 完成落库。
 // 编辑态下 chip 自带 × 可直接删除；新增与删除统一经 onCommit 串行写回。
 // 写回经 onCommit 注入（卡片走 updateCardTags，文章 / 文档走各自 update 命令）。
 
@@ -77,13 +77,13 @@ export function TagInlineEditor({ tags, onCommit, onError }: TagInlineEditorProp
   return (
     <TagChips
       tags={localTags}
-      variant="elevated"
-      className="mt-5"
+      variant="soft"
+      className="mt-6"
       onRemove={editing ? remove : undefined}
       trailing={
         editing ? (
           <>
-            <span className="border-accent bg-page text-ink-1 inline-flex items-center gap-[1px] rounded-full border-[1.5px] border-solid px-3 py-[4px] text-[12px]">
+            <span className="border-accent bg-surface text-ink-1 inline-flex items-center gap-[1px] rounded-[8px] border-[1.5px] border-solid px-3 py-[3px] text-[12px]">
               <span className="text-accent mr-[2px] text-[11px] font-bold" aria-hidden>
                 #
               </span>
@@ -107,7 +107,7 @@ export function TagInlineEditor({ tags, onCommit, onError }: TagInlineEditorProp
             <button
               type="button"
               onClick={() => void commit()}
-              className="border-accent text-accent inline-flex items-center gap-[3px] rounded-full border-[1.5px] border-solid px-2.5 py-[4px] text-[12px] font-semibold"
+              className="border-accent text-accent inline-flex items-center gap-[3px] rounded-[8px] border-[1.5px] border-solid px-2.5 py-[3px] text-[12px] font-semibold"
             >
               <Check size={12.5} strokeWidth={2.5} />
               完成
@@ -117,7 +117,7 @@ export function TagInlineEditor({ tags, onCommit, onError }: TagInlineEditorProp
           <button
             type="button"
             onClick={openEditor}
-            className="border-line-1 text-ink-3 active:bg-hover inline-flex items-center gap-[3px] rounded-full border-[1.5px] border-dashed px-2.5 py-[4px] text-[12px] font-semibold"
+            className="border-line-2 text-ink-3 active:bg-hover inline-flex items-center gap-[3px] rounded-[8px] border border-dashed px-2.5 py-[3px] text-[12px] font-semibold"
           >
             <Plus size={12.5} strokeWidth={2.5} />
             标签

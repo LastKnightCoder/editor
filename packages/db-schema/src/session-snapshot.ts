@@ -1,7 +1,6 @@
 import {
   copyFileSync,
   existsSync,
-  mkdirSync,
   readFileSync,
   readdirSync,
   renameSync,
@@ -12,8 +11,7 @@ import {
   readSync,
 } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { createHash, randomUUID } from "node:crypto";
-import AdmZip from "adm-zip";
+import { randomUUID } from "node:crypto";
 
 export interface SnapshotDatabase {
   prepare(sql: string): { get(...args: unknown[]): unknown; all(...args: unknown[]): unknown[] };
@@ -30,8 +28,6 @@ const resolveFile = (dir: string, name: string) => {
   return join(dir, name);
 };
 
-const MANIFEST = "sessions-manifest.json";
-const digest = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const ENTRY_TYPES = new Set([
   "message",
   "thinking_level_change",
@@ -46,30 +42,57 @@ const ENTRY_TYPES = new Set([
   "session_info",
 ]);
 
+function* sessionEntries(file: string): Generator<Record<string, any>> {
+  const fd = openSync(file, "r");
+  const buffer = Buffer.alloc(64 * 1024);
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  let pending = "";
+  try {
+    while (true) {
+      const count = readSync(fd, buffer, 0, buffer.length, null);
+      pending += count
+        ? decoder.decode(buffer.subarray(0, count), { stream: true })
+        : decoder.decode();
+      let index: number;
+      while ((index = pending.indexOf("\n")) >= 0) {
+        const line = pending.slice(0, index);
+        pending = pending.slice(index + 1);
+        if (line.trim()) yield JSON.parse(line);
+      }
+      if (!count) {
+        if (pending.trim()) yield JSON.parse(pending);
+        return;
+      }
+    }
+  } finally {
+    closeSync(fd);
+  }
+}
+
 /** 只读校验，不能用打开代理会话的方式升级或改写同步载荷。 */
 export function validateSessionDirectory(dir: string): Map<string, { id: string; users: number }> {
   const sessions = new Map<string, { id: string; users: number }>();
   if (!existsSync(dir)) return sessions;
   for (const name of readdirSync(dir)) {
     if (!name.endsWith(".jsonl")) continue;
-    const entries = readFileSync(resolveFile(dir, name), "utf8")
-      .split("\n")
-      .filter(line => line.trim())
-      .map(line => JSON.parse(line));
+    const entries = sessionEntries(resolveFile(dir, name));
+    const header = entries.next();
     if (
-      !entries.length ||
-      entries[0]?.type !== "session" ||
-      typeof entries[0]?.id !== "string" ||
-      !entries[0].id ||
-      entries[0].version !== 3
-    )
+      header.done ||
+      !header.value ||
+      header.value.type !== "session" ||
+      typeof header.value.id !== "string" ||
+      !header.value.id ||
+      header.value.version !== 3
+    ) {
+      entries.return(undefined);
       throw new Error(`无效的会话文件：${name}`);
-    if (entries.some(entry => !entry || typeof entry.type !== "string"))
-      throw new Error(`无效的会话条目：${name}`);
+    }
     const ids = new Set<string>();
     let users = 0;
-    for (const entry of entries.slice(1)) {
+    for (const entry of entries) {
       if (
+        !entry ||
         !ENTRY_TYPES.has(entry.type) ||
         typeof entry.id !== "string" ||
         !entry.id ||
@@ -92,7 +115,7 @@ export function validateSessionDirectory(dir: string): Map<string, { id: string;
       }
       ids.add(entry.id);
     }
-    sessions.set(name, { id: entries[0].id, users });
+    sessions.set(name, { id: header.value.id, users });
   }
   return sessions;
 }
@@ -142,77 +165,6 @@ export function validateDatabaseFile(path: string, openDatabase: OpenSnapshotDat
   }
 }
 
-export function packSessionDir(dir: string): Buffer {
-  const zip = new AdmZip();
-  validateSessionDirectory(dir);
-  const files: Record<string, string> = {};
-  if (existsSync(dir))
-    for (const name of readdirSync(dir))
-      if (name.endsWith(".jsonl")) {
-        const data = readFileSync(resolveFile(dir, name));
-        files[name] = digest(data);
-        zip.addFile(name, data);
-      }
-  zip.addFile(MANIFEST, Buffer.from(JSON.stringify({ version: 1, files })));
-  return zip.toBuffer();
-}
-
-export function replaceSessionDir(
-  dir: string,
-  archive: Buffer,
-  backupRoot: string
-): { backupPath?: string } {
-  mkdirSync(backupRoot, { recursive: true });
-  const stamp = randomUUID();
-  const temp = join(backupRoot, `sessions-download-${stamp}.zip`);
-  const backupPath = existsSync(dir)
-    ? join(backupRoot, `${basename(dir)}-sessions-${stamp}`)
-    : undefined;
-  if (backupPath) renameSync(dir, backupPath);
-  try {
-    writeFileSync(temp, archive);
-    mkdirSync(dir, { recursive: true });
-    const entries = new AdmZip(temp).getEntries();
-    const emptyZip = archive.length === 22 && archive.subarray(0, 4).toString("hex") === "504b0506";
-    if (!entries.length && !emptyZip) throw new Error("会话包内容无法解析");
-    const names = new Set<string>();
-    let manifest: { version: number; files: Record<string, string> } | undefined;
-    for (const entry of entries) {
-      if (entry.isDirectory) continue;
-      const name = entry.entryName;
-      if (name === MANIFEST) {
-        if (manifest) throw new Error("会话包包含重复清单");
-        manifest = JSON.parse(entry.getData().toString("utf8"));
-        continue;
-      }
-      const file = resolveFile(dir, name);
-      if (!name.endsWith(".jsonl") || names.has(name))
-        throw new Error("会话包包含不支持或重复的文件");
-      names.add(name);
-      writeFileSync(file, entry.getData());
-    }
-    if (manifest) {
-      if (
-        manifest.version !== 1 ||
-        !manifest.files ||
-        Object.keys(manifest.files).length !== names.size
-      )
-        throw new Error("会话包清单无效");
-      for (const name of names)
-        if (manifest.files[name] !== digest(readFileSync(resolveFile(dir, name))))
-          throw new Error(`会话包完整性校验失败：${name}`);
-    }
-    validateSessionDirectory(dir);
-    return backupPath ? { backupPath } : {};
-  } catch (error) {
-    rmSync(dir, { recursive: true, force: true });
-    if (backupPath) renameSync(backupPath, dir);
-    throw error;
-  } finally {
-    rmSync(temp, { force: true });
-  }
-}
-
 interface DownloadJournal {
   databaseBackup: string;
   sessionDir: string;
@@ -239,22 +191,26 @@ export function recoverSessionDownload(databasePath: string): void {
   rmSync(journal);
 }
 
-/** 调用方已关闭数据库并持有同步锁；支持旧数据库与新配对快照的同一提交/恢复链路。 */
+/** 已关闭数据库并持有同步锁时，目录和数据库共同提交与恢复。 */
 export function installSessionDownload(
   databasePath: string,
   dir: string,
-  archive: Buffer | undefined,
+  downloadedDirectory: string | undefined,
   openDatabase: OpenSnapshotDatabase
 ): void {
   recoverSessionDownload(databasePath);
   const stamp = randomUUID();
-  const stage = `${dir}.download-${stamp}`;
+  const stage = downloadedDirectory ?? `${dir}.download-${stamp}`;
   const databaseBackup = `${databasePath}.pre-session-sync-${stamp}.bak`;
   const sessionsBackup = `${dir}.pre-session-sync-${stamp}`;
   const journal = `${databasePath}.session-sync.json`;
   try {
-    if (archive) replaceSessionDir(stage, archive, dirname(databaseBackup));
-    validateSessionReferences(`${databasePath}.download.tmp`, archive ? stage : dir, openDatabase);
+    if (downloadedDirectory && !existsSync(stage)) throw new Error("会话下载目录缺失");
+    validateSessionReferences(
+      `${databasePath}.download.tmp`,
+      downloadedDirectory ? stage : dir,
+      openDatabase
+    );
     copyFileSync(databasePath, databaseBackup);
     const hadSessions = existsSync(dir);
     writeFileSync(
@@ -265,12 +221,12 @@ export function installSessionDownload(
         sessionsBackup,
         hadSessions,
         stage,
-        replaceSessions: Boolean(archive),
+        replaceSessions: Boolean(downloadedDirectory),
       }),
       { flag: "wx" }
     );
     renameSync(`${journal}.tmp`, journal);
-    if (archive) {
+    if (downloadedDirectory) {
       if (hadSessions) renameSync(dir, sessionsBackup);
       renameSync(stage, dir);
     }

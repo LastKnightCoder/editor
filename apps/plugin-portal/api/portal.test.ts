@@ -146,7 +146,7 @@ describe("包资料与站内反馈", () => {
     );
     await expect(
       inspectPackage(zip({ manifest: { keywords: ["a", "b", "c", "d", "e", "f"] } }))
-    ).rejects.toThrow("最多 5 个");
+    ).resolves.toMatchObject({ manifest: { keywords: ["a", "b", "c", "d", "e", "f"] } });
   });
   it("未知字段不成为执行入口，额外代码按未声明文件拒绝", async () => {
     const archive = new AdmZip(zip());
@@ -439,15 +439,12 @@ describe("包资料与站内反馈", () => {
     expect(data).not.toHaveProperty("listing");
     expect(f.objects.size).toBe(1);
   });
-  it.each([
-    { readme: null },
-    { readme: " " },
-    { description: "" },
-    { description: "长".repeat(161) },
-    { corrupt: true },
-  ])("拒绝缺少或无效说明、简介及破损包 %j", async options => {
-    await expect(inspectPackage(zip(options))).rejects.toThrow();
-  });
+  it.each([{ readme: null }, { readme: " " }, { description: "" }, { corrupt: true }])(
+    "拒绝缺少或无效说明、简介及破损包 %j",
+    async options => {
+      await expect(inspectPackage(zip(options))).rejects.toThrow();
+    }
+  );
   it("说明大小限制与可选更新说明", async () => {
     await expect(inspectPackage(zip({ readme: "a".repeat(131073) }))).rejects.toThrow("128KiB");
     const file = new AdmZip(zip());

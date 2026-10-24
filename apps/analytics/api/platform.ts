@@ -11,7 +11,7 @@ export interface Env {
   DOWNLOAD_HASH_KEY?: string;
   ALLOWED_ORIGINS: string;
   DOWNLOAD_ORIGIN: string;
-  INGEST_LIMITER?: RateLimiter;
+  VERSION_LIMITER?: RateLimiter;
   LOGIN_LIMITER?: RateLimiter;
   DOWNLOAD_LIMITER?: RateLimiter;
 }

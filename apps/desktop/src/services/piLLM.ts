@@ -196,7 +196,7 @@ export function piStreamChat(
     cancel: () => {
       if (!settled) {
         cancelled = true;
-        void piAiCancel(requestId);
+        void piAiCancel(requestId).catch(() => undefined);
       }
     },
   };

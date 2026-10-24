@@ -1,4 +1,4 @@
-// 脉络面板的「被关联」分区：插件内容按插件声明的类型名显示，移动端没有插件内容页，只读展示。
+// 脉络面板：插件内容按插件声明的类型名只读展示；可跳转条目先关浮层再推入目标页。
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -57,5 +57,26 @@ describe("ContextSheet", () => {
     const buttons = [...document.querySelectorAll("button")].map(button => button.textContent);
     expect(buttons.some(label => label?.includes("渲染为什么卡"))).toBe(false);
     expect(buttons.some(label => label?.includes("周记"))).toBe(false);
+  });
+
+  it("点击可跳转条目：先关闭浮层再推入目标页", async () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    const calls: string[] = [];
+    push.mockImplementation(() => calls.push("push"));
+    const linked: EntityContext = {
+      ...context,
+      links: [{ entity: entity("card", 5, "SIGKILL 与孤儿进程"), inlineOnly: false }],
+    };
+    await act(async () =>
+      root!.render(<ContextSheet open context={linked} onClose={() => calls.push("close")} />)
+    );
+    const row = [...document.querySelectorAll("button")].find(button =>
+      button.textContent?.includes("SIGKILL 与孤儿进程")
+    );
+    await act(async () => row?.click());
+    expect(calls).toEqual(["close", "push"]);
+    expect(push).toHaveBeenCalledWith("contentDetail", { cardId: 5 });
   });
 });

@@ -58,7 +58,7 @@ export function projectManagedPlugin(
   const error =
     item.error || runtime?.errors.get(item.id) || (item.blocked ? "中心版本不可用" : null);
   const unavailable = !runtime || !runtime.isAvailable ? "插件会话未就绪" : null;
-  const inactive = active ? "请停用插件并重新打开应用后操作" : null;
+  const inactive = active ? "请先停用插件并点「立即生效」后再操作" : null;
   return {
     permissions: item.artifact?.manifest.permissions ?? [],
     pendingVersion: item.pendingVersion ?? null,
@@ -75,11 +75,11 @@ export function projectManagedPlugin(
     enabled: item.enabled,
     active,
     pending: !!item.pending,
-    editor: !!item.artifact?.manifest.editor,
+    editor: (runtime?.contributions(item.id).elements ?? 0) > 0,
     error,
     hasBackup: !!item.hasBackup,
     settings: [...(runtime?.settings.entries() ?? [])]
-      .filter(([, entry]) => entry.context.pluginId === item.id && runtime?.active(entry.context))
+      .filter(([, entry]) => entry.context.pluginId === item.id && entry.definition.target !== "asr" && runtime?.active(entry.context))
       .map(([id, entry]) => ({ id, title: entry.definition.title })),
     actions: {
       enable: permission(blocked || error || (item.enabled ? "已保存启用意图" : null)),

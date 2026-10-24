@@ -1,5 +1,8 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 // 文件名即版本号；README.md 等非版本文件不参与
 const NOTE_FILE_RE = /^(\d+\.\d+\.\d+)\.md$/;
@@ -27,13 +30,12 @@ export function listReleaseNotes(dir) {
 /** 发布前卡口：当前版本必须有非空公告 */
 export function assertReleaseNote(dir, version) {
   const file = join(dir, `${version}.md`);
+  const display = relative(repoRoot, file);
   if (!existsSync(file)) {
-    throw new Error(
-      `缺少 v${version} 的升级公告，请先编写 apps/desktop/release-notes/${version}.md（格式见同目录 README.md）`
-    );
+    throw new Error(`缺少 v${version} 的升级公告，请先编写 ${display}（格式见同目录 README.md）`);
   }
   if (!readFileSync(file, "utf8").trim()) {
-    throw new Error(`v${version} 的升级公告为空：apps/desktop/release-notes/${version}.md`);
+    throw new Error(`v${version} 的升级公告为空：${display}`);
   }
 }
 

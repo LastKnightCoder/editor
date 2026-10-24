@@ -1,3 +1,8 @@
+import { selectPluginProvider } from "../../../services/tauri";
+import {
+  enqueueProviderConfigWrite,
+  mergeProviderSettings,
+} from "../../../services/provider-config";
 // 「图片与附件」页：目的地卡回答「新图片存到哪、传得上去吗」，更换位置走抽屉 → 服务页；
 // 资源文件同步不在这里（它跟随同步服务，在同步中心管理），只留一个跳转行。
 
@@ -11,7 +16,7 @@ import { readUploadOutcome, subscribeUploadOutcome } from "../../../services/upl
 import type { SettingModuleKey, SettingsPageProps } from "../components/types";
 import { GroupCard, GroupNote, GroupRow, LetterTile, SwitchButton } from "../components/ui";
 import { ActionButton } from "../storage/fields";
-import { LOCAL_UPLOAD_ID, findUploadProvider } from "./providers";
+import { LOCAL_UPLOAD_ID, useUploadProviders } from "./providers";
 import { LocalTile, UploadTargetSheet } from "./UploadTargetSheet";
 import { deriveDestinationState, type DestinationState } from "./uploadState";
 
@@ -41,6 +46,7 @@ export function UploadCenterSection(props: {
   onOpenModule: (module: SettingModuleKey) => void;
 }) {
   const navigator = useNavigator();
+  const providers = useUploadProviders();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const outcome = useSyncExternalStore(subscribeUploadOutcome, readUploadOutcome);
@@ -51,9 +57,10 @@ export function UploadCenterSection(props: {
     return null;
   }
   const setting = props.setting;
-  const activeId = setting.imageBed.active;
+  const activeId =
+    setting.imageBed.active === "local" ? "local" : (setting.imageBed.plugin?.id ?? "");
   const isLocal = activeId === LOCAL_UPLOAD_ID;
-  const provider = isLocal ? undefined : findUploadProvider(activeId);
+  const provider = isLocal ? undefined : providers.find(item => item.id === activeId);
   const configured = Boolean(provider?.isConfigured(setting));
   const state = deriveDestinationState({ activeId, isLocal, configured, outcome, now });
 
@@ -62,16 +69,18 @@ export function UploadCenterSection(props: {
     navigator.push("uploadProvider", { providerId });
   };
 
-  const selectLocal = () => {
+  const selectLocal = async () => {
     setSheetOpen(false);
     if (isLocal) return;
-    props.updateSetting(
-      prev => ({ ...prev, imageBed: { ...prev.imageBed, active: LOCAL_UPLOAD_ID } }),
-      {
-        persist: true,
-      }
-    );
-    toast.success("之后的新图片会保存在这台手机");
+    try {
+      await enqueueProviderConfigWrite(async () => {
+        const saved = await selectPluginProvider(setting.database.active, "upload", "local", null);
+        props.updateSetting(previous => mergeProviderSettings(previous, saved));
+      });
+      toast.success("之后的新图片会保存在这台手机");
+    } catch (error) {
+      toast.error(String(error));
+    }
   };
 
   const toggleCompression = () =>
@@ -83,7 +92,7 @@ export function UploadCenterSection(props: {
       { persist: true }
     );
 
-  const name = isLocal ? "这台手机" : (provider?.name ?? activeId);
+  const name = isLocal ? "这台手机" : (provider?.name ?? "上传服务未启用");
   const summary = isLocal
     ? "不联网也能插图，占用本机空间"
     : (provider && configured && provider.summary(setting)) || "配置不完整";

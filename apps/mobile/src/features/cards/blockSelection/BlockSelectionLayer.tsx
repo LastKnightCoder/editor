@@ -12,6 +12,12 @@ import {
 /** 勾选圈边长 */
 const CHECK_SIZE = 20;
 
+/**
+ * 块选择期间编辑器包裹元素的左内边距：正文右移 28px，左侧空出勾选列，
+ * 勾选圈离屏幕边缘 12–16px（取决于页面左边距）而不是贴边。宿主随 active 切换。
+ */
+export const BLOCK_SELECTION_INSET_CLASS = "pl-7";
+
 type BlockSelectionLayerProps = {
   editorRef: RefObject<EditorRef | null>;
   /** 包裹编辑器的 relative 元素，覆盖层与测量都以它为参照 */
@@ -67,7 +73,7 @@ export function BlockSelectionLayer(props: BlockSelectionLayerProps) {
             key={`highlight-${index}`}
             data-block-highlight={index}
             aria-hidden="true"
-            className="bg-accent-soft pointer-events-none absolute -left-1.5 -right-1.5 rounded-lg"
+            className="bg-accent-soft pointer-events-none absolute -right-1.5 left-[-16px] rounded-xl"
             style={{ top: rect.top, height: rect.height }}
           />
         ) : null
@@ -80,7 +86,7 @@ export function BlockSelectionLayer(props: BlockSelectionLayerProps) {
             key={`check-${index}`}
             data-block-check={index}
             aria-hidden="true"
-            className={`pointer-events-none absolute left-[-22px] flex h-5 w-5 items-center justify-center rounded-full border-[1.5px] ${
+            className={`pointer-events-none absolute left-[-8px] flex h-5 w-5 items-center justify-center rounded-full border-[1.5px] ${
               checked ? "bg-accent border-accent text-ink-inverse" : "border-ink-3"
             }`}
             style={{ top: alignToFirstLine(rect, CHECK_SIZE) }}

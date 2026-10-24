@@ -19,3 +19,5 @@ pub use resource_commands::{
     resource_sync_cancel, resource_sync_get_progress, resource_sync_get_status,
     resource_sync_refresh, resource_sync_retry_failed, resource_sync_start,
 };
+
+pub(crate) use resource_core::should_cancel_resource_sync;

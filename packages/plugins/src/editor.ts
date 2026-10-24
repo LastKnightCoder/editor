@@ -2,7 +2,7 @@ import { defineExtension } from "@tau/editor/contracts";
 import type { EditorExtension as InternalExtension } from "@tau/editor/contracts";
 import type { MarkdownCodec } from "@tau/markdown";
 import type { Disposable } from "./index";
-import { assertPluginEditorExtension, type OpenEditorExtensionField } from "./editor-fields";
+import { normalizePluginEditorExtension, type OpenEditorExtensionField } from "./editor-fields";
 
 export { defineElement as defineEditorElement } from "@tau/editor/contracts";
 export type { ElementRenderProps as EditorElementRenderProps } from "@tau/editor/contracts";
@@ -44,10 +44,7 @@ export type PluginEditorExtension = Pick<InternalExtension, OpenEditorExtensionF
 export function defineEditorExtension(
   definition: Omit<PluginEditorExtension, "apiVersion">
 ): PluginEditorExtension {
-  if ("plugins" in definition) throw new Error("应用插件不支持原始 Slate 包装器");
-  const extension = defineExtension(definition);
-  assertPluginEditorExtension(extension);
-  return extension;
+  return defineExtension(normalizePluginEditorExtension(definition)) as PluginEditorExtension;
 }
 
 export interface PluginEditorContribution {

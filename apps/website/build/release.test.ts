@@ -4,6 +4,7 @@ import {
   RELEASE_BASE_URL,
   ANALYTICS_DOWNLOAD_BASE_URL,
   fetchReleaseInfo,
+  parseAndroidManifest,
   parseLatestYml,
   renderDownloadButtons,
   renderReleaseMeta,
@@ -86,18 +87,60 @@ describe("parseLatestYml", () => {
   });
 });
 
+const ANDROID_JSON = JSON.stringify({
+  version: "0.2.5",
+  releaseDate: "2026-10-24T00:00:00.000Z",
+  file: "Tau-v0.2.5-android-arm64.apk",
+  size: 62914560,
+  sha256: "a".repeat(64),
+  releaseNotes: [],
+});
+
+describe("parseAndroidManifest", () => {
+  it("清单里唯一的 APK 归到 Android", () => {
+    const targets = DOWNLOAD_TARGETS.filter(t => t.os === "android");
+    expect(parseAndroidManifest(ANDROID_JSON, targets).files).toEqual([
+      { target: "android", file: "Tau-v0.2.5-android-arm64.apk", size: 62914560 },
+    ]);
+  });
+});
+
 describe("fetchReleaseInfo", () => {
+  it("Android 安装包与清单同目录，页面主版本仍取桌面端", async () => {
+    const info = await fetchReleaseInfo(
+      fakeFetch({ "desktop/latest.yml": WINDOWS_YML, "mobile/android/latest.json": ANDROID_JSON })
+    );
+    expect(info.version).toBe("0.58.0");
+    expect(info.targets.find(t => t.target === "android")).toEqual({
+      target: "android",
+      url: `${RELEASE_BASE_URL}/mobile/android/Tau-v0.2.5-android-arm64.apk`,
+      size: 62914560,
+      version: "0.2.5",
+    });
+    expect(renderReleaseMeta(info)).toBe(
+      "v0.58.0 · 2026.10.15 发布 · Windows 约 233 MB · Android v0.2.5 约 60 MB"
+    );
+    expect(renderDownloadButtons(info)).toContain(
+      `href="${RELEASE_BASE_URL}/mobile/android/Tau-v0.2.5-android-arm64.apk"`
+    );
+  });
+
   it("未发布的平台缺席，不影响其他平台", async () => {
-    const info = await fetchReleaseInfo(fakeFetch({ "latest.yml": WINDOWS_YML }));
+    const info = await fetchReleaseInfo(fakeFetch({ "desktop/latest.yml": WINDOWS_YML }));
     expect(info.version).toBe("0.58.0");
     expect(info.targets).toEqual([
-      { target: "windows", url: `${RELEASE_BASE_URL}/Tau-v0.58.0-win32.exe`, size: 243982579 },
+      {
+        target: "windows",
+        url: `${RELEASE_BASE_URL}/desktop/Tau-v0.58.0-win32.exe`,
+        size: 243982579,
+        version: "0.58.0",
+      },
     ]);
   });
 
   it("各平台版本不一致时展示较新的版本号", async () => {
     const info = await fetchReleaseInfo(
-      fakeFetch({ "latest.yml": WINDOWS_YML, "latest-mac.yml": MAC_YML })
+      fakeFetch({ "desktop/latest.yml": WINDOWS_YML, "desktop/latest-mac.yml": MAC_YML })
     );
     expect(info.version).toBe("0.59.0");
     expect(info.targets.map(t => t.target)).toEqual(["mac-arm64", "mac-x64", "windows"]);
@@ -105,7 +148,7 @@ describe("fetchReleaseInfo", () => {
 
   it("Mac 旧版包保留 Apple 芯片下载，不误标为 Intel", async () => {
     const info = await fetchReleaseInfo(
-      fakeFetch({ "latest.yml": WINDOWS_YML, "latest-mac.yml": LEGACY_MAC_YML })
+      fakeFetch({ "desktop/latest.yml": WINDOWS_YML, "desktop/latest-mac.yml": LEGACY_MAC_YML })
     );
     expect(info.version).toBe("0.58.0");
     expect(info.targets.map(t => t.target)).toEqual(["mac-arm64", "windows"]);
@@ -123,7 +166,7 @@ describe("fetchReleaseInfo", () => {
 
 describe("渲染", () => {
   it("未发布平台显示即将推出，第一个已发布平台为主按钮", async () => {
-    const info = await fetchReleaseInfo(fakeFetch({ "latest.yml": WINDOWS_YML }));
+    const info = await fetchReleaseInfo(fakeFetch({ "desktop/latest.yml": WINDOWS_YML }));
     const html = renderDownloadButtons(info);
     expect(html).toContain("macOS 版即将推出");
     expect(html).toMatch(/class="btn primary" data-target="windows"/);
@@ -133,7 +176,7 @@ describe("渲染", () => {
 
   it("mac 两种芯片各一个按钮，Apple 芯片在前且为主按钮", async () => {
     const info = await fetchReleaseInfo(
-      fakeFetch({ "latest.yml": WINDOWS_YML, "latest-mac.yml": MAC_YML })
+      fakeFetch({ "desktop/latest.yml": WINDOWS_YML, "desktop/latest-mac.yml": MAC_YML })
     );
     const html = renderDownloadButtons(info);
     expect(html).toMatch(/class="btn primary" data-target="mac-arm64"/);
@@ -141,7 +184,7 @@ describe("渲染", () => {
     expect(html).toContain(
       `${ANALYTICS_DOWNLOAD_BASE_URL}/Tau-v0.59.0-darwin-x64.dmg?channel=website`
     );
-    expect(html).not.toContain("即将推出");
+    expect(html).not.toContain("macOS 版即将推出");
     expect(renderReleaseMeta(info)).toBe(
       "v0.59.0 · 2026.10.20 发布 · macOS 约 250 MB · Windows 约 233 MB"
     );
@@ -153,7 +196,14 @@ describe("渲染", () => {
       const html = renderDownloadButtons({
         version: "0.59.0",
         releaseDate: "",
-        targets: [{ target, url: `${RELEASE_BASE_URL}/Tau-v0.59.0-darwin-${target.slice(4)}.dmg`, size: 1 }],
+        targets: [
+          {
+            target,
+            url: `${RELEASE_BASE_URL}/desktop/Tau-v0.59.0-darwin-${target.slice(4)}.dmg`,
+            size: 1,
+            version: "0.59.0",
+          },
+        ],
       });
       expect(html).toMatch(new RegExp(`<a class="btn primary" data-target="${target}"`));
       expect(html).toMatch(new RegExp(`<span[^>]+data-target="${other}"[^>]+aria-disabled="true"`));
@@ -161,7 +211,7 @@ describe("渲染", () => {
   });
 
   it("元信息包含版本、日期与大小", async () => {
-    const info = await fetchReleaseInfo(fakeFetch({ "latest.yml": WINDOWS_YML }));
+    const info = await fetchReleaseInfo(fakeFetch({ "desktop/latest.yml": WINDOWS_YML }));
     expect(renderReleaseMeta(info)).toBe("v0.58.0 · 2026.10.15 发布 · Windows 约 233 MB");
   });
 });

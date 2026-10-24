@@ -1,16 +1,11 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  useKeyboardViewportState,
-  type KeyboardViewportState,
-} from "../useKeyboardViewport";
+import { useKeyboardViewportState, type KeyboardViewportState } from "../useKeyboardViewport";
 
 type MockVisualViewport = VisualViewport & {
   emit: (type: "resize" | "scroll") => void;
-  setMetrics: (
-    metrics: Partial<Pick<VisualViewport, "height" | "offsetTop" | "scale">>,
-  ) => void;
+  setMetrics: (metrics: Partial<Pick<VisualViewport, "height" | "offsetTop" | "scale">>) => void;
 };
 
 function setWindowInnerHeight(value: number): void {
@@ -31,10 +26,7 @@ function createMockVisualViewport(params: {
     height: params.height,
     offsetTop: params.offsetTop,
     scale: params.scale,
-    addEventListener: (
-      type: string,
-      listener: EventListenerOrEventListenerObject | null,
-    ) => {
+    addEventListener: (type: string, listener: EventListenerOrEventListenerObject | null) => {
       if (typeof listener !== "function") {
         return;
       }
@@ -42,10 +34,7 @@ function createMockVisualViewport(params: {
       group.add(listener);
       listeners.set(type, group);
     },
-    removeEventListener: (
-      type: string,
-      listener: EventListenerOrEventListenerObject | null,
-    ) => {
+    removeEventListener: (type: string, listener: EventListenerOrEventListenerObject | null) => {
       if (typeof listener !== "function") {
         return;
       }
@@ -57,9 +46,7 @@ function createMockVisualViewport(params: {
         listener(event);
       }
     },
-    setMetrics: (
-      metrics: Partial<Pick<VisualViewport, "height" | "offsetTop" | "scale">>,
-    ) => {
+    setMetrics: (metrics: Partial<Pick<VisualViewport, "height" | "offsetTop" | "scale">>) => {
       if (typeof metrics.height === "number") {
         viewport.height = metrics.height;
       }
@@ -97,12 +84,12 @@ async function flushRaf(): Promise<void> {
 describe("useKeyboardViewportState", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation(callback => {
       return window.setTimeout(() => {
         callback(performance.now());
       }, 0);
     });
-    vi.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => {
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(id => {
       window.clearTimeout(id);
     });
   });
@@ -120,6 +107,46 @@ describe("useKeyboardViewportState", () => {
       value: undefined,
     });
     document.body.innerHTML = "";
+  });
+
+  it("iOS 平移可视视口露出光标时，可见区顶边随 offsetTop 下移、高度等于可视视口", async () => {
+    setWindowInnerHeight(852);
+    const visualViewport = createMockVisualViewport({
+      height: 517,
+      offsetTop: 120,
+      scale: 1,
+    });
+    Object.defineProperty(window, "visualViewport", {
+      configurable: true,
+      value: visualViewport,
+    });
+
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root: Root = createRoot(host);
+    let latestState: KeyboardViewportState | null = null;
+
+    await act(async () => {
+      root.render(
+        <HookProbe
+          onState={state => {
+            latestState = state;
+          }}
+        />
+      );
+    });
+    await flushRaf();
+
+    expect(latestState).toEqual({
+      viewportTop: 120,
+      viewportHeight: 517,
+      keyboardHeight: 215,
+      isKeyboardVisible: true,
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
   });
 
   it("应基于 visualViewport 计算键盘高度与视口高度", async () => {
@@ -142,15 +169,16 @@ describe("useKeyboardViewportState", () => {
     await act(async () => {
       root.render(
         <HookProbe
-          onState={(state) => {
+          onState={state => {
             latestState = state;
           }}
-        />,
+        />
       );
     });
     await flushRaf();
 
     expect(latestState).toEqual({
+      viewportTop: 0,
       viewportHeight: 500,
       keyboardHeight: 300,
       isKeyboardVisible: true,
@@ -181,10 +209,10 @@ describe("useKeyboardViewportState", () => {
     await act(async () => {
       root.render(
         <HookProbe
-          onState={(state) => {
+          onState={state => {
             latestState = state;
           }}
-        />,
+        />
       );
     });
     await flushRaf();
@@ -200,6 +228,7 @@ describe("useKeyboardViewportState", () => {
     await flushRaf();
 
     expect(latestState).toEqual({
+      viewportTop: 0,
       viewportHeight: 500,
       keyboardHeight: 300,
       isKeyboardVisible: true,
@@ -230,10 +259,10 @@ describe("useKeyboardViewportState", () => {
     await act(async () => {
       root.render(
         <HookProbe
-          onState={(state) => {
+          onState={state => {
             latestState = state;
           }}
-        />,
+        />
       );
     });
     await flushRaf();
@@ -246,6 +275,7 @@ describe("useKeyboardViewportState", () => {
     await flushRaf();
 
     expect(latestState).toEqual({
+      viewportTop: 0,
       viewportHeight: 500,
       keyboardHeight: 0,
       isKeyboardVisible: false,
@@ -276,10 +306,10 @@ describe("useKeyboardViewportState", () => {
     await act(async () => {
       root.render(
         <HookProbe
-          onState={(state) => {
+          onState={state => {
             latestState = state;
           }}
-        />,
+        />
       );
     });
     await flushRaf();
@@ -299,6 +329,7 @@ describe("useKeyboardViewportState", () => {
     });
     await flushRaf();
     expect(latestState).toEqual({
+      viewportTop: 0,
       viewportHeight: 700,
       keyboardHeight: 100,
       isKeyboardVisible: true,
@@ -329,10 +360,10 @@ describe("useKeyboardViewportState", () => {
     await act(async () => {
       root.render(
         <HookProbe
-          onState={(state) => {
+          onState={state => {
             latestState = state;
           }}
-        />,
+        />
       );
     });
     await flushRaf();
@@ -348,6 +379,7 @@ describe("useKeyboardViewportState", () => {
     await flushRaf();
 
     expect(latestState).toEqual({
+      viewportTop: 0,
       viewportHeight: 580,
       keyboardHeight: 320,
       isKeyboardVisible: true,

@@ -54,6 +54,26 @@
 
 出现 `INSTALL_FAILED_UPDATE_INCOMPATIBLE` 时恢复原证书/密码并重建，不卸载用户应用来绕过；出现 `INSTALL_FAILED_VERSION_DOWNGRADE` 时核对最终 versionCode，不强制降级。新 keystore 不能恢复旧证书签名身份。
 
+## Android 发布到 R2
+
+发布让已安装用户在「我的 → 关于与更新」收到更新，并更新官网的 Android 下载。只发 Android，iOS 不经此流程。
+
+1. 写好 `apps/mobile/release-notes/<版本>.md`（写法见同目录 README）；缺失或为空时脚本拒绝发布。
+2. 准备 Android 签名（同上节）与 R2 凭据 `R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`。JAVA_HOME、ANDROID_HOME、NDK_HOME 未设置时，脚本按本机默认位置查找。
+3. 先本地演练：`pnpm publish:mobile --version <版本> --dry-run`。dry-run 不回写版本号，所以 `--version` 只在与当前版本相同时能走通；要升版本，就先手动改好四处版本，或直接正式发布。
+4. 正式发布：`pnpm publish:mobile --version <版本>`。脚本依次：
+   - 回写 apps/mobile 的 package.json、tauri.conf.json、Cargo.toml、Cargo.lock 四处版本；
+   - 运行 `build:android:release`；
+   - 用 aapt2 核对应用 ID 与版本，用 apksigner 读取签名证书，用 dexdump 确认 `proguard-jni.pro` 登记的 JNI 方法都在包里（缺失即拒绝，否则调用时闪退）；
+   - 把 APK 和 latest.json 写到 `apps/mobile/release/`；
+   - 与线上 latest.json 对账；
+   - 先上传 APK，再上传 latest.json；
+   - 打 `mobile-v<版本>` 标签（不推送）。
+5. 构建或上传失败时版本号不回滚，修复后加 `--skip-build` 重试。线上已是同版本时需要 `--force`；不允许降级。签名证书与线上不同时拒绝发布，`--force` 也不放行。
+6. 发布后打开 `https://dl.taunote.app/mobile/android/latest.json` 核对版本与 sha256；在装有旧版本的手机上从「我的 → 关于与更新」完成一次检查、下载、安装，确认数据保留。官网下载区随清单自动更新，无需重新部署。
+
+判据：清单版本、APK 摘要与本地 `apps/mobile/release/` 一致，旧版本手机能覆盖升级。
+
 ## iOS 构建与安装
 
 按 [iOS 签名、构建和 TestFlight 手册](/docs/guides/ops-ios-signing.md)执行。App Store Connect 分发 IPA 不能像 APK 一样直接点开安装；本人测试通过 TestFlight，不要求先注册测试设备。

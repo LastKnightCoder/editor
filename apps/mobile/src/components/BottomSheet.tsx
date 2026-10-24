@@ -102,10 +102,11 @@ export function BottomSheet({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 26, stiffness: 300, mass: 0.9 }}
-            className={`bg-surface absolute bottom-0 left-0 right-0 rounded-t-[30px] shadow-float${
+            className={`bg-surface rounded-t-sheet absolute bottom-0 left-0 right-0 shadow-float${
               dragging ? "select-none" : ""
             }`}
-            style={{ y, paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+            // 面板贴屏幕底：键盘弹出时整体托到键盘上方，否则让出安全区
+            style={{ y, paddingBottom: "var(--mobile-overlay-bottom)" }}
             {...panelBindings}
           >
             {/* 拖拽热区：抓手横线与标题，向下拖拽可关闭面板 */}
@@ -121,7 +122,7 @@ export function BottomSheet({
             <div
               ref={contentRef}
               data-allow-touchmove="true"
-              className="max-h-[72dvh] overflow-y-auto overscroll-contain px-5 pb-7 pt-2"
+              className="max-h-[min(72dvh,calc(var(--kb-viewport-height)-6rem))] overflow-y-auto overscroll-contain px-5 pb-7 pt-2"
             >
               {children}
             </div>

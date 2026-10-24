@@ -153,3 +153,4 @@ export { panAroundAnchor, pointFromCenter, type Point as ZoomPanPoint } from "..
 export { FloatingToolbar, ToolbarDivider, ToolbarIconButton } from "../components/FloatingToolbar";
 
 export { IElementEditingPolicy, type ElementEditingPolicy } from "../services/elementEditingPolicy";
+export { IUnknownElementNotice, type UnknownElementNotice } from "../services/unknownElementNotice";

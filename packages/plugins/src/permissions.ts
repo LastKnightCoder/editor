@@ -79,22 +79,17 @@ export interface PluginPermissions {
   request(permissions: readonly PluginPermission[]): Promise<boolean>;
 }
 
-/** 读取 manifest.permissions；strict 用于门户上传，客户端静默丢弃未知权限。 */
-export function readPermissionsField(
-  item: Record<string, unknown>,
-  strict: boolean
-): { permissions?: readonly PluginPermission[] } {
-  const fail = (message: string) => {
-    if (strict) throw new Error(message);
-  };
+/** 权限必须属于宿主已定义的授权范围。 */
+export function readPermissionsField(item: Record<string, unknown>): {
+  permissions?: readonly PluginPermission[];
+} {
   if (item.permissions === undefined) return {};
   if (!Array.isArray(item.permissions)) {
-    fail("permissions 必须是数组");
-    return {};
+    throw new Error("permissions 必须是数组");
   }
   const permissions: PluginPermission[] = [];
   for (const value of item.permissions) {
-    if (!isPluginPermission(value)) fail(`未知插件权限：${String(value)}`);
+    if (!isPluginPermission(value)) throw new Error(`未知插件权限：${String(value)}`);
     else if (!permissions.includes(value)) permissions.push(value);
   }
   return permissions.length ? { permissions: Object.freeze(permissions) } : {};

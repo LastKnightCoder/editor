@@ -6,14 +6,13 @@ import { handle } from "./index";
 import { inspectPackage } from "./package";
 import { testEnvironment } from "./testing";
 import { centerHost } from "../../../tests/fixtures/plugins/center";
-import mobileCapabilities from "../../mobile/plugin-capabilities.json";
 
 let f: ReturnType<typeof testEnvironment>;
 const digest = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");
 function zip(
   version = "1.0.0",
   targets: Record<string, unknown> = {
-    android: { minAppVersion: "0.2.0", required: ["pages"], optional: [] },
+    android: { minAppVersion: "0.2.0" },
   },
   legacy = false,
   editor = false
@@ -31,7 +30,7 @@ function zip(
     format: "cjs",
     main: "main.js",
     categories: ["page"],
-    ...(editor ? { editor: true } : {}),
+    ...(legacy && editor ? { editor: true } : {}),
     integrity: { "main.js": digest(code) },
     ...(legacy ? { minAppVersion: "0.59.0" } : { profile: "web-v1", targets }),
   };
@@ -125,21 +124,15 @@ it("格式 3 上传严格校验，接受逐平台最低版本而非伪造顶层�
   const result = await inspectPackage(zip());
   expect(result.manifest.formatVersion).toBe(3);
   expect("minAppVersion" in result.manifest).toBe(false);
-  await expect(inspectPackage(zip("1.0.0-beta"))).rejects.toThrow("预发布");
-  await expect(inspectPackage(zip("1.0.0", { android: { required: [] } }))).rejects.toThrow("最低");
+  await expect(inspectPackage(zip("1.0.0-beta"))).resolves.toBeDefined();
+  await expect(inspectPackage(zip("1.0.0", { android: {} }))).rejects.toThrow("最低");
   const archive = new AdmZip(zip()),
     manifest = JSON.parse(archive.readAsText("test.portable/manifest.json"));
   archive.updateFile(
     "test.portable/manifest.json",
-    Buffer.from(JSON.stringify({ ...manifest, backend: { entry: "backend.js" } }))
+    Buffer.from(JSON.stringify({ ...manifest, documentation: "extra" }))
   );
-  await expect(inspectPackage(archive.toBuffer())).rejects.toThrow();
-  for (const field of ["required", "optional"]) {
-    const changed = structuredClone(manifest);
-    changed.targets.android[field] = ["futureFeature"];
-    archive.updateFile("test.portable/manifest.json", Buffer.from(JSON.stringify(changed)));
-    await expect(inspectPackage(archive.toBuffer())).rejects.toThrow("未知能力");
-  }
+  await expect(inspectPackage(archive.toBuffer())).resolves.toBeDefined();
   archive.updateFile(
     "test.portable/manifest.json",
     Buffer.from(JSON.stringify({ ...manifest, permissions: ["cards:read"] }))
@@ -257,16 +250,13 @@ it("真实移动宿主可查询编辑器包、精确选版并下载同一摘要"
     {
       android: {
         minAppVersion: "0.2.3",
-        required: ["editor", "editorCodecs", "sourceEditor"],
-        optional: ["runtimeStyles"],
-        elements: { sample: "edit" },
       },
     },
     false,
     true
   );
   const current = await approve(bytes);
-  const host = { ...centerHost, appVersion: "0.2.3", capabilities: mobileCapabilities };
+  const host = { ...centerHost, appVersion: "0.2.3" };
   const catalog = await request("/v2/catalog/query", { platform: "android", host });
   expect(catalog.status).toBe(200);
   expect((await catalog.json()).data.items[0].compatible.releaseId).toBe(current.release.id);
@@ -277,7 +267,7 @@ it("真实移动宿主可查询编辑器包、精确选版并下载同一摘要"
   expect(resolved.status).toBe(200);
   expect((await resolved.json()).data).toMatchObject({
     release: { releaseId: current.release.id, sha256: digest(bytes) },
-    compatibility: { status: "compatible", missingOptional: [] },
+    compatibility: { status: "compatible" },
   });
   const download = await request(`/v2/releases/${current.release.id}/download`);
   expect(download.status).toBe(200);
@@ -363,7 +353,7 @@ it("跨多个候选批次仍填满平台分页，游标不能换过滤条件", a
     const content = JSON.parse(row.content_json as string);
     content.manifest.id = plugin;
     content.manifest.targets = {
-      [platform]: { minAppVersion: "0.2.0", required: [], optional: [] },
+      [platform]: { minAppVersion: "0.2.0" },
     };
     f.sqlite
       .prepare(
@@ -401,4 +391,20 @@ it("跨多个候选批次仍填满平台分页，游标不能换过滤条件", a
     (await request("/v2/catalog/query", { platform: "ios", limit: 2, cursor: first.nextCursor }))
       .status
   ).toBe(400);
+});
+
+it("平台摘要与选版结果只返回统一新协议字段", async () => {
+  const result = await approve(zip());
+  const response = await request(`/v2/releases/${result.release.id}`);
+  const value = (await response.json()).data;
+  expect(value.targets.android).toEqual({ minAppVersion: "0.2.0" });
+  expect(value.content.manifest.targets.android).toEqual({ minAppVersion: "0.2.0" });
+  const catalog = await request("/v2/catalog/query", { platform: "android", host: centerHost });
+  const entry = (await catalog.json()).data.items[0];
+  expect(entry.compatibility).toEqual({ status: "compatible", reasons: [] });
+  const rejected = await request("/v2/catalog/query", {
+    platform: "android",
+    host: { ...centerHost, capabilities: [] },
+  });
+  expect(rejected.status).toBe(200);
 });

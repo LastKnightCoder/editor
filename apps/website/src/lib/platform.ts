@@ -4,10 +4,11 @@
  * 2. WebGL 显卡名：Apple 芯片的 Mac 报「Apple M1」之类，Intel Mac 报 Intel / AMD 显卡；
  * Safari 只报「Apple GPU」且 UA 永远写 Intel，这种情况判断不了，返回 null。
  */
-export type VisitorOs = "mac" | "windows";
+export type VisitorOs = "mac" | "windows" | "android";
 export type VisitorArch = "arm64" | "x64";
 
 export function detectOs(ua = navigator.userAgent): VisitorOs | null {
+  if (/Android/.test(ua)) return "android";
   // iPad 的桌面模式 UA 也写 Macintosh，用触点数区分
   if (/Macintosh|Mac OS X/.test(ua) && !/iPhone|iPad/.test(ua) && navigator.maxTouchPoints <= 1) {
     return "mac";

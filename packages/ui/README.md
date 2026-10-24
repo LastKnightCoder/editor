@@ -32,3 +32,9 @@ Dialog 内自动提供局部 Portal 容器，挂载点位于当前遮罩内、�
 ## 验证
 
 `pnpm --filter @tau/ui check`、`pnpm --filter @tau/ui test`。桌面样板间直接使用公共组件，新增“输入与值展示”档案覆盖控件交互。
+
+## ConfigurationPanel
+
+[ConfigurationPanel](src/patterns/ConfigurationPanel.tsx) 承载账号卡、位置字段和选择弹层。调用方提供字符串配置、账号字段、位置字段与异步 `onSave`，组件不依赖插件 SDK 或应用设置。
+
+位置字段失焦保存，保存使用入队时的独立快照；账号字段保留在草稿中，只有明确保存才提交，取消恢复原值。失败保留当前输入并显示错误，排队旧操作的成功不会覆盖最新失败提示。服务是否选用和网络是否连通由宿主编排，不从配置保存成功推断。

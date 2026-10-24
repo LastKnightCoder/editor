@@ -1,23 +1,18 @@
+use crate::plugin_files::{FileLease, TemporaryFile};
+use crate::plugin_transport::{window_allowed, with_host};
+use std::collections::HashMap;
 use std::fs;
-use std::future::Future;
 use std::io::Cursor;
 use std::path::Path;
-use std::time::{Duration, Instant, SystemTime};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
-use aws_sdk_s3::config::{Credentials as S3Credentials, Region as S3Region};
-use aws_sdk_s3::primitives::ByteStream;
-use aws_sdk_s3::Client as S3Client;
 use base64::Engine;
-use hmac::{Hmac, Mac};
-use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use sha1::Sha1;
-use tauri::AppHandle;
+use serde::Serialize;
+use serde_json::Value;
+use tauri::{AppHandle, WebviewWindow};
 use uuid::Uuid;
 
-use crate::network_policy::{run_with_policy, NetworkPolicy};
-use crate::provider_config::{is_empty_or_http_url, is_http_url, normalize_url_style};
 use crate::setting::{load_or_init_setting, resolve_app_dir};
 
 #[derive(Debug, Clone)]
@@ -35,72 +30,6 @@ impl AppError {
     }
 }
 
-fn extract_http_status(message: &str) -> Option<u16> {
-    for token in message.split(|ch: char| !ch.is_ascii_digit()) {
-        if token.len() != 3 {
-            continue;
-        }
-        if let Ok(status) = token.parse::<u16>() {
-            if (100..=599).contains(&status) {
-                return Some(status);
-            }
-        }
-    }
-    None
-}
-
-fn should_retry_http_status(status: u16) -> bool {
-    status == 408 || status == 429 || (500..=599).contains(&status)
-}
-
-fn is_retryable_resource_error(error: &AppError) -> bool {
-    if matches!(
-        error.code.as_str(),
-        "RESOURCE_CONFIG_MISSING" | "RESOURCE_WRITE_FAILED"
-    ) {
-        return false;
-    }
-    if let Some(status) = extract_http_status(&error.message) {
-        return should_retry_http_status(status);
-    }
-    true
-}
-
-fn summarize_resource_error(error: &AppError) -> String {
-    format!("{}:{}", error.code, error.message)
-}
-
-async fn run_resource_policy<T, F, Fut>(
-    provider: &'static str,
-    op: &'static str,
-    timeout_code: &'static str,
-    timeout_message: &'static str,
-    operation: F,
-) -> Result<T, AppError>
-where
-    F: FnMut(u32) -> Fut,
-    Fut: Future<Output = Result<T, AppError>>,
-{
-    run_with_policy(
-        provider,
-        op,
-        NetworkPolicy::standard(),
-        operation,
-        |attempt, timeout_secs| {
-            AppError::new(
-                timeout_code,
-                format!(
-                    "{}超时（{} 秒） provider={} op={} attempt={}",
-                    timeout_message, timeout_secs, provider, op, attempt
-                ),
-            )
-        },
-        is_retryable_resource_error,
-        summarize_resource_error,
-    )
-    .await
-}
-
 #[derive(Debug, Clone)]
 struct ProcessedUploadFile {
     file_name: String,
@@ -114,51 +43,9 @@ struct LocalConfig {
 }
 
 #[derive(Debug, Clone)]
-struct GithubConfig {
-    token: String,
-    owner: String,
-    repo: String,
-    branch: String,
-    path_prefix: String,
-    committer_name: String,
-    committer_email: String,
-}
-
-#[derive(Debug, Clone)]
-struct AliOssConfig {
-    access_key_id: String,
-    access_key_secret: String,
-    bucket: String,
-    region: String,
-    path_prefix: String,
-}
-
-#[derive(Debug, Clone)]
-struct S3Config {
-    access_key_id: String,
-    secret_access_key: String,
-    bucket: String,
-    region: String,
-    endpoint: String,
-    url_style: String,
-    path_prefix: String,
-}
-
-#[derive(Debug, Clone)]
-struct WebDavConfig {
-    url: String,
-    username: String,
-    password: String,
-    path_prefix: String,
-}
-
-#[derive(Debug, Clone)]
 enum ResourceProvider {
     Local(LocalConfig),
-    Github(GithubConfig),
-    AliOss(AliOssConfig),
-    S3(S3Config),
-    WebDav(WebDavConfig),
+    Plugin(crate::plugin_provider::PluginProvider),
 }
 
 fn as_string(value: Option<&Value>) -> String {
@@ -216,22 +103,6 @@ fn sanitize_local_path(path: &str) -> String {
     }
 }
 
-fn join_path(prefix: &str, file_name: &str) -> String {
-    let normalized_prefix = prefix.trim().trim_matches('/');
-    let normalized_file = file_name.trim().trim_start_matches('/');
-    if normalized_prefix.is_empty() {
-        normalized_file.to_string()
-    } else {
-        format!("{normalized_prefix}/{normalized_file}")
-    }
-}
-
-fn encode_path_keep_slashes(value: &str) -> String {
-    utf8_percent_encode(value, NON_ALPHANUMERIC)
-        .to_string()
-        .replace("%2F", "/")
-}
-
 fn extension_from_file_name(file_name: &str) -> String {
     Path::new(file_name)
         .extension()
@@ -286,23 +157,35 @@ fn should_compress_image(mime_type: &str, file_name: &str) -> bool {
     )
 }
 
+// 超出压缩预算时保留原文件上传，避免解码大图放大内存；不限制文件传输大小。
+fn compression_fits_memory(path: &Path) -> bool {
+    if fs::metadata(path).map_or(true, |metadata| metadata.len() > 32 * 1024 * 1024) {
+        return false;
+    }
+    image::ImageReader::open(path)
+        .ok()
+        .and_then(|reader| reader.with_guessed_format().ok())
+        .and_then(|reader| reader.into_dimensions().ok())
+        .is_some_and(|(width, height)| u64::from(width) * u64::from(height) <= 8 * 1024 * 1024)
+}
+
 fn compress_image_if_needed(
     file_name: &str,
     mime_type: &str,
-    bytes: &[u8],
+    bytes: Vec<u8>,
     enable_compression: bool,
 ) -> ProcessedUploadFile {
     let original = ProcessedUploadFile {
         file_name: file_name.to_string(),
         mime_type: mime_type.to_string(),
-        bytes: bytes.to_vec(),
+        bytes,
     };
 
     if !enable_compression || !should_compress_image(mime_type, file_name) {
         return original;
     }
 
-    match try_compress_to_webp(file_name, bytes) {
+    match try_compress_to_webp(file_name, &original.bytes) {
         Ok(processed) => processed,
         Err(error) => {
             eprintln!("[resource-upload] 图片压缩失败，使用原始文件: {error}");
@@ -313,7 +196,8 @@ fn compress_image_if_needed(
 
 fn try_compress_to_webp(file_name: &str, bytes: &[u8]) -> Result<ProcessedUploadFile, String> {
     let decoded = image::load_from_memory(bytes).map_err(|e| format!("图片解码失败: {e}"))?;
-    let rgba = decoded.to_rgba8();
+    let rgba = decoded.thumbnail(2048, 2048).to_rgba8();
+    drop(decoded);
     let (width, height) = rgba.dimensions();
     if width == 0 || height == 0 {
         return Err("图片尺寸无效".to_string());
@@ -334,139 +218,24 @@ fn try_compress_to_webp(file_name: &str, bytes: &[u8]) -> Result<ProcessedUpload
 }
 
 /// 按指定上传服务解析配置；`active` 通常取 imageBed.active，测试上传时传入待测服务
-fn parse_resource_provider(setting: &Value, active: &str) -> Result<ResourceProvider, AppError> {
-    match active {
-        "local" => Ok(ResourceProvider::Local(LocalConfig {
+fn parse_resource_provider(
+    app: &AppHandle,
+    setting: &Value,
+    active: &str,
+) -> Result<ResourceProvider, AppError> {
+    if active == "local" {
+        return Ok(ResourceProvider::Local(LocalConfig {
             path: sanitize_local_path(&as_string(setting.pointer("/imageBed/local/path"))),
-        })),
-        "github" => {
-            let token = as_string(setting.pointer("/integration/github/token"));
-            let owner = as_string(setting.pointer("/integration/github/user/name"));
-            let repo = as_string(setting.pointer("/imageBed/github/repo"));
-            let branch = as_string(setting.pointer("/imageBed/github/branch"));
-            let path_prefix = as_string(setting.pointer("/imageBed/github/pathPrefix"));
-            let committer_name = if owner.is_empty() {
-                "tau-mobile".to_string()
-            } else {
-                owner.clone()
-            };
-            let committer_email = as_string(setting.pointer("/integration/github/user/email"));
-            let committer_email = if committer_email.is_empty() {
-                format!("{}@users.noreply.github.com", committer_name)
-            } else {
-                committer_email
-            };
-
-            if token.is_empty() || owner.is_empty() || repo.is_empty() || branch.is_empty() {
-                return Err(AppError::new(
-                    "RESOURCE_CONFIG_MISSING",
-                    "Github 资源存储配置不完整",
-                ));
-            }
-
-            Ok(ResourceProvider::Github(GithubConfig {
-                token,
-                owner,
-                repo,
-                branch,
-                path_prefix,
-                committer_name,
-                committer_email,
-            }))
-        }
-        "aliOSS" => {
-            let access_key_id = as_string(setting.pointer("/integration/aliOSS/accessKeyId"));
-            let access_key_secret =
-                as_string(setting.pointer("/integration/aliOSS/accessKeySecret"));
-            let bucket = as_string(setting.pointer("/imageBed/aliOSS/bucket"));
-            let region = as_string(setting.pointer("/imageBed/aliOSS/region"));
-            let path_prefix = as_string(setting.pointer("/imageBed/aliOSS/pathPrefix"));
-
-            if access_key_id.is_empty()
-                || access_key_secret.is_empty()
-                || bucket.is_empty()
-                || region.is_empty()
-            {
-                return Err(AppError::new(
-                    "RESOURCE_CONFIG_MISSING",
-                    "AliOSS 资源存储配置不完整",
-                ));
-            }
-
-            Ok(ResourceProvider::AliOss(AliOssConfig {
-                access_key_id,
-                access_key_secret,
-                bucket,
-                region,
-                path_prefix,
-            }))
-        }
-        "s3" => {
-            let access_key_id = as_string(setting.pointer("/integration/s3/accessKeyId"));
-            let secret_access_key = as_string(setting.pointer("/integration/s3/secretAccessKey"));
-            let endpoint = as_string(setting.pointer("/integration/s3/endpoint"));
-            let url_style = as_string(setting.pointer("/integration/s3/urlStyle"));
-            let bucket = as_string(setting.pointer("/imageBed/s3/bucket"));
-            let region = as_string(setting.pointer("/imageBed/s3/region"));
-            let path_prefix = as_string(setting.pointer("/imageBed/s3/pathPrefix"));
-
-            if access_key_id.is_empty()
-                || secret_access_key.is_empty()
-                || bucket.is_empty()
-                || region.is_empty()
-            {
-                return Err(AppError::new(
-                    "RESOURCE_CONFIG_MISSING",
-                    "S3 资源存储配置不完整",
-                ));
-            }
-            if !is_empty_or_http_url(&endpoint) {
-                return Err(AppError::new(
-                    "RESOURCE_CONFIG_MISSING",
-                    "S3 Endpoint 必须为空或以 http://、https:// 开头",
-                ));
-            }
-            Ok(ResourceProvider::S3(S3Config {
-                access_key_id,
-                secret_access_key,
-                bucket,
-                region,
-                endpoint,
-                url_style: normalize_url_style(&url_style),
-                path_prefix,
-            }))
-        }
-        "webdav" => {
-            let url = as_string(setting.pointer("/integration/webdav/url"));
-            let username = as_string(setting.pointer("/integration/webdav/username"));
-            let password = as_string(setting.pointer("/integration/webdav/password"));
-            let path_prefix = as_string(setting.pointer("/imageBed/webdav/pathPrefix"));
-
-            if url.is_empty() || username.is_empty() || password.is_empty() {
-                return Err(AppError::new(
-                    "RESOURCE_CONFIG_MISSING",
-                    "WebDAV 资源存储配置不完整",
-                ));
-            }
-            if !is_http_url(&url) {
-                return Err(AppError::new(
-                    "RESOURCE_CONFIG_MISSING",
-                    "WebDAV URL 必须以 http:// 或 https:// 开头",
-                ));
-            }
-
-            Ok(ResourceProvider::WebDav(WebDavConfig {
-                url,
-                username,
-                password,
-                path_prefix,
-            }))
-        }
-        _ => Err(AppError::new(
-            "RESOURCE_CONFIG_MISSING",
-            "当前资源存储类型不受支持",
-        )),
+        }));
     }
+    let selected = if active == "plugin" {
+        None
+    } else {
+        Some(active)
+    };
+    crate::plugin_provider::PluginProvider::from_setting(app, setting, "imageBed", selected)
+        .map(ResourceProvider::Plugin)
+        .map_err(|error| AppError::new("RESOURCE_CONFIG_MISSING", error))
 }
 
 fn upload_to_local(
@@ -500,531 +269,179 @@ fn upload_to_local(
     Ok(format!("~/.editor/{local_path}/{object_name}"))
 }
 
-fn github_contents_url(config: &GithubConfig, content_path: &str) -> String {
-    format!(
-        "https://api.github.com/repos/{}/{}/contents/{}",
-        config.owner,
-        config.repo,
-        encode_path_keep_slashes(content_path)
-    )
+struct UploadInput {
+    lease: FileLease,
+    file: TemporaryFile,
+    file_name: String,
+    mime_type: String,
+    provider: ResourceProvider,
+    compress: bool,
 }
-
-/// 读取已存在文件的 sha：Contents API 覆盖同名文件必须带上它，文件不存在时返回 None
-async fn fetch_github_sha(config: &GithubConfig, object_name: &str) -> Option<String> {
-    let content_path = join_path(&config.path_prefix, object_name);
-    let response = reqwest::Client::new()
-        .get(github_contents_url(config, &content_path))
-        .query(&[("ref", config.branch.as_str())])
-        .header("Authorization", format!("token {}", config.token))
-        .header("User-Agent", "tau-mobile")
-        .header("Accept", "application/vnd.github+json")
-        .timeout(Duration::from_secs(12))
-        .send()
-        .await
-        .ok()?;
-    if !response.status().is_success() {
-        return None;
+type UploadStage = Arc<Mutex<Option<UploadInput>>>;
+fn uploads() -> &'static Mutex<HashMap<String, UploadStage>> {
+    static STATE: OnceLock<Mutex<HashMap<String, UploadStage>>> = OnceLock::new();
+    STATE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+pub(crate) fn invalidate_uploads() {
+    if let Ok(mut state) = uploads().lock() {
+        state.clear();
     }
-    let parsed = response.json::<Value>().await.ok()?;
-    let sha = as_string(parsed.get("sha"));
-    (!sha.is_empty()).then_some(sha)
 }
-
-async fn upload_to_github(
-    config: &GithubConfig,
-    object_name: &str,
-    file: &ProcessedUploadFile,
-    existing_sha: Option<String>,
-) -> Result<String, AppError> {
-    let content_path = join_path(&config.path_prefix, object_name);
-    let url = github_contents_url(config, &content_path);
-    let mut body = json!({
-        "message": format!("upload resource {}", file.file_name),
-        "content": base64::engine::general_purpose::STANDARD.encode(&file.bytes),
-        "branch": config.branch,
-        "committer": {
-            "name": config.committer_name,
-            "email": config.committer_email
+fn upload_stage(id: &str) -> Result<UploadStage, String> {
+    uploads()
+        .lock()
+        .map_err(|_| "资源上传状态不可用")?
+        .get(id)
+        .cloned()
+        .ok_or_else(|| "资源上传已结束".into())
+}
+#[tauri::command]
+pub fn resource_upload_begin(
+    app: AppHandle,
+    window: WebviewWindow,
+    file_name: String,
+    mime_type: String,
+) -> Result<String, String> {
+    window_allowed(&window)?;
+    let setting = load_or_init_setting(&app)?;
+    let token =
+        crate::plugin_transport::host_token(&crate::setting::get_active_database_name(&setting))?;
+    let provider = parse_resource_provider(
+        &app,
+        &setting,
+        &as_string(setting.pointer("/imageBed/active")),
+    )
+    .map_err(format_error)?;
+    let file = TemporaryFile::new(&app)?;
+    let lease = FileLease::open(&token, &file.path, true)?;
+    let id = uuid::Uuid::new_v4().to_string();
+    let stage = Arc::new(Mutex::new(Some(UploadInput {
+        lease,
+        file,
+        file_name: normalized_file_name(&file_name),
+        mime_type,
+        provider,
+        compress: as_bool(setting.pointer("/imageBed/enableCompression")),
+    })));
+    with_host(&token, || {
+        let mut state = uploads().lock().map_err(|_| "资源上传状态不可用")?;
+        if state.len() >= 4 {
+            return Err("资源上传任务过多，请稍后重试".into());
         }
-    });
-    if let Some(sha) = existing_sha {
-        body["sha"] = Value::String(sha);
-    }
-    let client = reqwest::Client::new();
-    let raw_text = run_resource_policy(
-        "github",
-        "upload_resource",
-        "RESOURCE_UPLOAD_FAILED",
-        "Github 上传",
-        |_| async {
-            let response = client
-                .put(&url)
-                .header("Authorization", format!("token {}", config.token))
-                .header("User-Agent", "tau-mobile")
-                .header("Accept", "application/vnd.github+json")
-                .json(&body)
-                .send()
-                .await
-                .map_err(|e| {
-                    AppError::new("RESOURCE_UPLOAD_FAILED", format!("Github 上传失败: {e}"))
-                })?;
-
-            let status = response.status();
-            let raw_text = response.text().await.map_err(|e| {
-                AppError::new(
-                    "RESOURCE_UPLOAD_FAILED",
-                    format!("Github 响应读取失败: {e}"),
-                )
-            })?;
-
-            if !status.is_success() {
-                return Err(AppError::new(
-                    "RESOURCE_UPLOAD_FAILED",
-                    format!(
-                        "Github 上传返回异常状态 HTTP {}: {}",
-                        status.as_u16(),
-                        raw_text
-                    ),
-                ));
-            }
-            Ok(raw_text)
-        },
-    )
-    .await?;
-
-    let parsed = serde_json::from_str::<Value>(&raw_text).unwrap_or_else(|_| json!({}));
-    let download_url = as_string(parsed.pointer("/content/download_url"));
-    if !download_url.is_empty() {
-        return Ok(download_url);
-    }
-
-    let raw_path = encode_path_keep_slashes(&content_path);
-    Ok(format!(
-        "https://raw.githubusercontent.com/{}/{}/{}/{}",
-        config.owner, config.repo, config.branch, raw_path
-    ))
+        state.insert(id.clone(), stage);
+        Ok(id)
+    })
 }
-
-fn oss_object_path(path_prefix: &str, object_name: &str) -> String {
-    let base = path_prefix.trim().trim_matches('/');
-    let object = object_name.trim().trim_start_matches('/');
-    if base.is_empty() {
-        object.to_string()
-    } else {
-        format!("{base}/{object}")
-    }
-}
-
-fn encode_oss_path(path: &str) -> String {
-    utf8_percent_encode(path, NON_ALPHANUMERIC)
-        .to_string()
-        .replace("%2F", "/")
-}
-
-fn oss_signature(
-    method: &str,
-    content_type: &str,
-    date: &str,
-    canonical_resource: &str,
-    access_key_secret: &str,
-) -> Result<String, AppError> {
-    let string_to_sign = format!("{method}\n\n{content_type}\n{date}\n{canonical_resource}");
-    let mut mac = Hmac::<Sha1>::new_from_slice(access_key_secret.as_bytes())
-        .map_err(|_| AppError::new("RESOURCE_CONFIG_MISSING", "AliOSS 密钥初始化失败"))?;
-    mac.update(string_to_sign.as_bytes());
-    Ok(base64::engine::general_purpose::STANDARD.encode(mac.finalize().into_bytes()))
-}
-
-fn build_oss_url(config: &AliOssConfig, object_path: &str) -> String {
-    let encoded = encode_oss_path(object_path);
-    format!(
-        "https://{}.{}.aliyuncs.com/{}",
-        config.bucket, config.region, encoded
-    )
-}
-
-async fn upload_to_alioss(
-    config: &AliOssConfig,
-    object_name: &str,
-    file: &ProcessedUploadFile,
-) -> Result<String, AppError> {
-    let object_path = oss_object_path(&config.path_prefix, object_name);
-    let canonical_resource = format!("/{}/{}", config.bucket, object_path);
-    let date = httpdate::fmt_http_date(SystemTime::now());
-    let content_type = if file.mime_type.is_empty() {
-        "application/octet-stream".to_string()
-    } else {
-        file.mime_type.clone()
-    };
-    let signature = oss_signature(
-        "PUT",
-        &content_type,
-        &date,
-        &canonical_resource,
-        &config.access_key_secret,
-    )?;
-    let authorization = format!("OSS {}:{}", config.access_key_id, signature);
-    let url = build_oss_url(config, &object_path);
-
-    let client = reqwest::Client::new();
-    run_resource_policy(
-        "alioss",
-        "upload_resource",
-        "RESOURCE_UPLOAD_FAILED",
-        "AliOSS 上传",
-        |_| async {
-            let response = client
-                .put(&url)
-                .header("Date", date.clone())
-                .header("Authorization", authorization.clone())
-                .header("Content-Type", content_type.clone())
-                .body(file.bytes.clone())
-                .send()
-                .await
-                .map_err(|e| {
-                    AppError::new("RESOURCE_UPLOAD_FAILED", format!("AliOSS 上传失败: {e}"))
-                })?;
-
-            if !response.status().is_success() {
-                return Err(AppError::new(
-                    "RESOURCE_UPLOAD_FAILED",
-                    format!(
-                        "AliOSS 上传返回异常状态: HTTP {}",
-                        response.status().as_u16()
-                    ),
-                ));
-            }
-            Ok(())
-        },
-    )
-    .await?;
-
-    Ok(url)
-}
-
-fn build_s3_url(config: &S3Config, key: &str) -> String {
-    if config.url_style == "virtualHosted" {
-        if !config.endpoint.is_empty() {
-            if let Ok(url) = url::Url::parse(&config.endpoint) {
-                let host = if let Some(port) = url.port() {
-                    format!("{}:{}", url.host_str().unwrap_or_default(), port)
-                } else {
-                    url.host_str().unwrap_or_default().to_string()
-                };
-                return format!(
-                    "{}://{}.{}{}",
-                    url.scheme(),
-                    config.bucket,
-                    host,
-                    format!("/{key}")
-                );
-            }
-            let endpoint_host = config
-                .endpoint
-                .trim()
-                .trim_end_matches('/')
-                .trim_start_matches("https://")
-                .trim_start_matches("http://");
-            let protocol = if config.endpoint.starts_with("http://") {
-                "http"
-            } else {
-                "https"
-            };
-            return format!(
-                "{protocol}://{}.{}{}",
-                config.bucket,
-                endpoint_host,
-                format!("/{key}")
-            );
-        }
-        return format!(
-            "https://{}.s3.{}.amazonaws.com/{}",
-            config.bucket, config.region, key
-        );
-    }
-
-    let endpoint = if config.endpoint.is_empty() {
-        format!("https://s3.{}.amazonaws.com", config.region)
-    } else {
-        config.endpoint.trim_end_matches('/').to_string()
-    };
-    format!("{endpoint}/{}/{}", config.bucket, key)
-}
-
-#[cfg(target_os = "android")]
-fn build_android_s3_http_client() -> aws_sdk_s3::config::SharedHttpClient {
-    use aws_smithy_http_client::hyper_014::HyperClientBuilder;
-    use hyper_rustls::HttpsConnectorBuilder;
-
-    let https_connector = HttpsConnectorBuilder::new()
-        .with_webpki_roots()
-        .https_or_http()
-        .enable_http1()
-        .enable_http2()
-        .build();
-
-    HyperClientBuilder::new().build(https_connector)
-}
-
-async fn upload_to_s3(
-    config: &S3Config,
-    object_name: &str,
-    file: &ProcessedUploadFile,
-) -> Result<String, AppError> {
-    let key = join_path(&config.path_prefix, object_name);
-    let credentials = S3Credentials::new(
-        config.access_key_id.clone(),
-        config.secret_access_key.clone(),
-        None,
-        None,
-        "tau-mobile",
-    );
-    let mut builder = aws_sdk_s3::config::Builder::new()
-        .behavior_version_latest()
-        .region(S3Region::new(config.region.clone()))
-        .credentials_provider(credentials);
-
-    #[cfg(target_os = "android")]
-    {
-        builder.set_http_client(Some(build_android_s3_http_client()));
-    }
-
-    if !config.endpoint.is_empty() {
-        builder = builder.endpoint_url(config.endpoint.clone());
-    }
-    if config.url_style == "path" {
-        builder = builder.force_path_style(true);
-    }
-
-    let client = S3Client::from_conf(builder.build());
-    let content_type = if file.mime_type.is_empty() {
-        None
-    } else {
-        Some(file.mime_type.clone())
-    };
-    let body_bytes = file.bytes.clone();
-
-    run_resource_policy(
-        "s3",
-        "upload_resource",
-        "RESOURCE_UPLOAD_FAILED",
-        "S3 上传",
-        |_| async {
-            let mut request = client
-                .put_object()
-                .bucket(config.bucket.clone())
-                .key(key.clone())
-                .body(ByteStream::from(body_bytes.clone()));
-            if let Some(value) = content_type.clone() {
-                request = request.content_type(value);
-            }
-            request.send().await.map_err(|e| {
-                AppError::new("RESOURCE_UPLOAD_FAILED", format!("S3 上传失败: {e}"))
-            })?;
-            Ok(())
-        },
-    )
-    .await?;
-
-    Ok(build_s3_url(config, &key))
-}
-
-fn webdav_remote_path(path_prefix: &str, object_name: &str) -> String {
-    let prefix = path_prefix.trim().trim_end_matches('/');
-    let object = object_name.trim_start_matches('/');
-    let mut merged = if prefix.is_empty() {
-        format!("/{object}")
-    } else {
-        format!("{prefix}/{object}")
-    };
-    if !merged.starts_with('/') {
-        merged.insert(0, '/');
-    }
-    merged
-}
-
-fn webdav_url(config: &WebDavConfig, remote_path: &str) -> String {
-    let base = config.url.trim_end_matches('/');
-    format!("{base}{remote_path}")
-}
-
-async fn ensure_webdav_directories(
-    config: &WebDavConfig,
-    remote_path: &str,
-) -> Result<(), AppError> {
-    let parts: Vec<&str> = remote_path
-        .trim_start_matches('/')
-        .split('/')
-        .filter(|part| !part.is_empty())
-        .collect();
-
-    if parts.len() <= 1 {
-        return Ok(());
-    }
-
-    let client = reqwest::Client::new();
-    let mkcol = reqwest::Method::from_bytes(b"MKCOL").map_err(|e| {
-        AppError::new(
-            "RESOURCE_UPLOAD_FAILED",
-            format!("WebDAV MKCOL 方法创建失败: {e}"),
+#[tauri::command]
+pub async fn resource_upload_write(
+    window: WebviewWindow,
+    id: String,
+    offset: u64,
+    chunk: String,
+) -> Result<(), String> {
+    window_allowed(&window)?;
+    let stage = upload_stage(&id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let input = stage.lock().map_err(|_| "资源上传状态不可用")?;
+        let input = input.as_ref().ok_or("资源上传已结束")?;
+        crate::plugin_files::write_chunk(
+            &input.lease.token,
+            &input.lease.descriptor.id,
+            offset,
+            &chunk,
         )
-    })?;
-    let mut current = String::new();
-
-    for part in parts.iter().take(parts.len() - 1) {
-        current.push('/');
-        current.push_str(part);
-        let url = webdav_url(config, &current);
-        let response = run_resource_policy(
-            "webdav",
-            "mkcol_directory",
-            "RESOURCE_UPLOAD_FAILED",
-            "WebDAV 创建目录",
-            |_| async {
-                client
-                    .request(mkcol.clone(), &url)
-                    .basic_auth(&config.username, Some(&config.password))
-                    .send()
-                    .await
-                    .map_err(|e| {
-                        AppError::new(
-                            "RESOURCE_UPLOAD_FAILED",
-                            format!("WebDAV 创建目录失败: {e}"),
-                        )
-                    })
-            },
-        )
-        .await?;
-
-        let status = response.status().as_u16();
-        if !(response.status().is_success() || matches!(status, 301 | 302 | 405 | 409)) {
-            return Err(AppError::new(
-                "RESOURCE_UPLOAD_FAILED",
-                format!("WebDAV 创建目录返回异常状态: {}", response.status()),
-            ));
-        }
-    }
-
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+#[tauri::command]
+pub fn resource_upload_cancel(window: WebviewWindow, id: String) -> Result<(), String> {
+    window_allowed(&window)?;
+    uploads()
+        .lock()
+        .map_err(|_| "资源上传状态不可用")?
+        .remove(&id);
     Ok(())
 }
-
-async fn upload_to_webdav(
-    config: &WebDavConfig,
-    object_name: &str,
-    file: &ProcessedUploadFile,
-) -> Result<String, AppError> {
-    let remote_path = webdav_remote_path(&config.path_prefix, object_name);
-    ensure_webdav_directories(config, &remote_path).await?;
-
-    let url = webdav_url(config, &remote_path);
-    let content_type = if file.mime_type.is_empty() {
-        "application/octet-stream".to_string()
-    } else {
-        file.mime_type.clone()
-    };
-
-    let client = reqwest::Client::new();
-    run_resource_policy(
-        "webdav",
-        "upload_resource",
-        "RESOURCE_UPLOAD_FAILED",
-        "WebDAV 上传",
-        |_| async {
-            let response = client
-                .put(&url)
-                .basic_auth(&config.username, Some(&config.password))
-                .header("Content-Type", content_type.clone())
-                .body(file.bytes.clone())
-                .send()
-                .await
-                .map_err(|e| {
-                    AppError::new("RESOURCE_UPLOAD_FAILED", format!("WebDAV 上传失败: {e}"))
-                })?;
-
-            if !response.status().is_success() {
-                return Err(AppError::new(
-                    "RESOURCE_UPLOAD_FAILED",
-                    format!(
-                        "WebDAV 上传返回异常状态: HTTP {}",
-                        response.status().as_u16()
-                    ),
-                ));
-            }
-            Ok(())
-        },
-    )
-    .await?;
-
-    Ok(url)
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UploadResourcePayload {
-    pub file_name: String,
-    pub mime_type: String,
-    pub base64: String,
-}
-
 #[tauri::command]
 pub async fn upload_resource(
     app: AppHandle,
-    payload: UploadResourcePayload,
+    window: WebviewWindow,
+    id: String,
+    size: u64,
 ) -> Result<String, String> {
-    // Android 的 raw IPC 会把二进制包装成逐字节的 JSON 对象（tauri#10573），不可用；
-    // 移动端统一 base64 字符串通道（开启压缩时前端已预压缩）
-    let bytes = base64::engine::general_purpose::STANDARD
-        .decode(payload.base64.as_bytes())
-        .map_err(|e| format!("RESOURCE_UPLOAD_FAILED: base64 解码失败: {e}"))?;
-    println!(
-        "[upload_resource] invoked: {} bytes, file={}, mime={}",
-        bytes.len(),
-        payload.file_name,
-        payload.mime_type
-    );
-
-    if bytes.is_empty() {
-        return Err(format_error(AppError::new(
-            "RESOURCE_UPLOAD_FAILED",
-            "上传文件内容为空",
-        )));
+    window_allowed(&window)?;
+    let stage = uploads()
+        .lock()
+        .map_err(|_| "资源上传状态不可用")?
+        .remove(&id)
+        .ok_or("资源上传已结束")?;
+    let input = stage
+        .lock()
+        .map_err(|_| "资源上传状态不可用")?
+        .take()
+        .ok_or("资源上传已结束")?;
+    input.lease.finish(size)?;
+    if size == 0 {
+        return Err("RESOURCE_UPLOAD_FAILED:上传文件内容为空".into());
     }
-
-    let setting = load_or_init_setting(&app)
-        .map_err(|e| format!("SETTING_INVALID:读取 setting.json 失败: {e}"))?;
-    let active = as_string(setting.pointer("/imageBed/active"));
-    let provider = parse_resource_provider(&setting, &active).map_err(format_error)?;
-    let file_name = normalized_file_name(&payload.file_name);
-    let compress = as_bool(setting.pointer("/imageBed/enableCompression"));
-    let processed = compress_image_if_needed(&file_name, &payload.mime_type, &bytes, compress);
-    let object_name = build_object_name(&processed.file_name);
-
-    let result = upload_with_provider(&app, &provider, &object_name, &processed, None).await;
-    match &result {
-        Ok(url) => println!("[upload_resource] done: {}", url),
-        Err(error) => println!(
-            "[upload_resource] failed: {}",
-            summarize_resource_error(error)
-        ),
+    let UploadInput {
+        lease,
+        file,
+        file_name,
+        mime_type,
+        provider,
+        compress,
+    } = input;
+    let token = lease.token.clone();
+    drop(lease);
+    let compression_memory = crate::plugin_files::memory_permit().await?;
+    let (file_name, mime_type, file) = tauri::async_runtime::spawn_blocking(move || {
+        if compress
+            && should_compress_image(&mime_type, &file_name)
+            && compression_fits_memory(&file.path)
+        {
+            let bytes = fs::read(&file.path).map_err(|e| e.to_string())?;
+            let processed = compress_image_if_needed(&file_name, &mime_type, bytes, true);
+            fs::write(&file.path, &processed.bytes).map_err(|e| e.to_string())?;
+            Ok::<_, String>((processed.file_name, processed.mime_type, file))
+        } else {
+            Ok((file_name, mime_type, file))
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    drop(compression_memory);
+    with_host(&token, || Ok(()))?;
+    let object_name = build_object_name(&file_name);
+    match provider {
+        ResourceProvider::Local(config) => {
+            let local_path = sanitize_local_path(&config.path);
+            let directory = resolve_app_dir(&app)?.join(&local_path);
+            fs::create_dir_all(&directory).map_err(|e| e.to_string())?;
+            fs::copy(&file.path, directory.join(&object_name)).map_err(|e| e.to_string())?;
+            Ok(format!("~/.editor/{local_path}/{object_name}"))
+        }
+        ResourceProvider::Plugin(plugin) => {
+            plugin
+                .upload_resource_path(&object_name, &mime_type, &file.path)
+                .await
+        }
     }
-    result.map_err(format_error)
 }
 
 async fn upload_with_provider(
     app: &AppHandle,
     provider: &ResourceProvider,
-    object_name: &str,
+    name: &str,
     file: &ProcessedUploadFile,
-    github_sha: Option<String>,
 ) -> Result<String, AppError> {
     match provider {
-        ResourceProvider::Local(config) => upload_to_local(app, config, object_name, &file.bytes),
-        ResourceProvider::Github(config) => {
-            upload_to_github(config, object_name, file, github_sha).await
-        }
-        ResourceProvider::AliOss(config) => upload_to_alioss(config, object_name, file).await,
-        ResourceProvider::S3(config) => upload_to_s3(config, object_name, file).await,
-        ResourceProvider::WebDav(config) => upload_to_webdav(config, object_name, file).await,
+        ResourceProvider::Local(config) => upload_to_local(app, config, name, &file.bytes),
+        ResourceProvider::Plugin(plugin) => plugin
+            .upload_resource(name, &file.mime_type, &file.bytes)
+            .await
+            .map_err(|error| AppError::new("RESOURCE_UPLOAD_FAILED", error)),
     }
 }
 
@@ -1070,7 +487,7 @@ pub async fn resource_upload_test(
 ) -> Result<UploadTestResponse, String> {
     let setting = load_or_init_setting(&app)
         .map_err(|e| format!("SETTING_INVALID:读取 setting.json 失败: {e}"))?;
-    let parsed = parse_resource_provider(&setting, &provider).map_err(format_error)?;
+    let parsed = parse_resource_provider(&app, &setting, &provider).map_err(format_error)?;
     if matches!(parsed, ResourceProvider::Local(_)) {
         return Err(format_error(AppError::new(
             "RESOURCE_CONFIG_MISSING",
@@ -1083,11 +500,8 @@ pub async fn resource_upload_test(
         bytes: build_test_image().map_err(format_error)?,
     };
     let started = Instant::now();
-    let github_sha = match &parsed {
-        ResourceProvider::Github(config) => fetch_github_sha(config, UPLOAD_TEST_OBJECT_NAME).await,
-        _ => None,
-    };
-    let url = upload_with_provider(&app, &parsed, UPLOAD_TEST_OBJECT_NAME, &file, github_sha)
+    let name = build_object_name(UPLOAD_TEST_OBJECT_NAME);
+    let url = upload_with_provider(&app, &parsed, &name, &file)
         .await
         .map_err(format_error)?;
     let readable = is_url_readable(&url).await;
@@ -1278,5 +692,39 @@ pub async fn prewarm_resource_thumbs(app: AppHandle) {
     .await;
     if let Err(error) = generated {
         eprintln!("[thumb-prewarm] 后台任务失败: {error}");
+    }
+}
+
+#[cfg(test)]
+mod memory_tests {
+    use super::*;
+    #[test]
+    fn compression_budget_skips_large_files_without_rejecting_transfer() {
+        let dir = std::env::temp_dir().join(format!("tau-compression-{}", Uuid::new_v4()));
+        let file = TemporaryFile::new_in(&dir).unwrap();
+        fs::write(&file.path, build_test_image().unwrap()).unwrap();
+        assert!(compression_fits_memory(&file.path));
+        let mut bytes = fs::read(&file.path).unwrap();
+        bytes[16..20].copy_from_slice(&20000u32.to_be_bytes());
+        bytes[20..24].copy_from_slice(&20000u32.to_be_bytes());
+        let mut crc = u32::MAX;
+        for byte in &bytes[12..29] {
+            crc ^= u32::from(*byte);
+            for _ in 0..8 {
+                crc = (crc >> 1) ^ (0xedb88320 & 0u32.wrapping_sub(crc & 1));
+            }
+        }
+        bytes[29..33].copy_from_slice(&(!crc).to_be_bytes());
+        fs::write(&file.path, bytes).unwrap();
+        assert!(!compression_fits_memory(&file.path));
+        fs::OpenOptions::new()
+            .write(true)
+            .open(&file.path)
+            .unwrap()
+            .set_len(33 * 1024 * 1024)
+            .unwrap();
+        assert!(!compression_fits_memory(&file.path));
+        drop(file);
+        fs::remove_dir(dir).unwrap();
     }
 }

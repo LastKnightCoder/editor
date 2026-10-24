@@ -7,6 +7,7 @@ import {
 export interface DatabaseItem {
   name: string;
   version: number;
+  syncFormat?: number;
 }
 
 export interface BootstrapResponse {
@@ -550,81 +551,22 @@ export interface UpdateTodoRecurrencePayload {
 }
 
 export interface SettingCompat {
+  speechInput?: import("@tau/asr").SpeechInputSetting;
   database: {
     active: string;
     databases: DatabaseItem[];
   };
   imageBed: {
-    active: "local" | "github" | "aliOSS" | "s3" | "webdav" | string;
-    /** 同时控制前端预压缩与后端转 webp，关闭即原图上传；键名与桌面端一致 */
+    active: string;
     enableCompression: boolean;
-    github: {
-      repo: string;
-      branch: string;
-      pathPrefix: string;
-    };
-    aliOSS: {
-      bucket: string;
-      region: string;
-      pathPrefix: string;
-    };
-    local: {
-      path: string;
-    };
-    s3: {
-      bucket: string;
-      region: string;
-      pathPrefix: string;
-    };
-    webdav: {
-      pathPrefix: string;
-    };
+    local: { path: string };
+    plugin?: { id: string; configurations: Record<string, import("@tau/plugins").JsonValue> };
   };
   sync: {
-    active: "webdav" | "aliOSS" | "s3" | "github" | string;
-    webdav: {
-      pathPrefix: string;
-    };
-    aliOSS: {
-      bucket: string;
-      region: string;
-      path: string;
-    };
-    s3: {
-      bucket: string;
-      region: string;
-      pathPrefix: string;
-    };
-    github: {
-      repo: string;
-      branch: string;
-      pathPrefix: string;
-    };
+    active: string;
+    plugin?: { id: string; configurations: Record<string, import("@tau/plugins").JsonValue> };
   };
-  integration: {
-    github: {
-      token: string;
-      user: {
-        name: string;
-        email: string;
-      };
-    };
-    s3: {
-      accessKeyId: string;
-      secretAccessKey: string;
-      endpoint: string;
-      urlStyle: "path" | "virtualHosted" | string;
-    };
-    webdav: {
-      url: string;
-      username: string;
-      password: string;
-    };
-    aliOSS: {
-      accessKeyId: string;
-      accessKeySecret: string;
-    };
-  };
+
   /** 外观类设置（与桌面端 setting.json 的 appearance 节同构）：image 为图片渲染默认外观 */
   appearance?: {
     image?: {
@@ -669,4 +611,10 @@ export interface CollaborationBinding {
   sourceType?: string | null;
   sourceId?: number | null;
   sourceTitle?: string | null;
+}
+
+/** 外部应用打开的 Markdown 文件（title 为不含扩展名的文件名） */
+export interface IncomingMarkdownFile {
+  title: string;
+  markdown: string;
 }

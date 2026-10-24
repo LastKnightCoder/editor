@@ -35,7 +35,7 @@ pnpm --filter mobile build:ios:release
 
 入口明确选择 aarch64 真机目标、release 构建与 app-store-connect 导出。前端构建和数据库 schema 校验随构建运行；`prebuild:ios:release` 先运行 `check:rust`（Rust 格式检查、clippy 与单元测试，rustc 级 warning 即失败）；版本读取移动项目配置，上传新构建前递增 `bundle.iOS.bundleVersion`。输出路径以本次 CLI 完成信息为准，不拿模拟器 .app 或旧目录里的 IPA 代替本次结果。
 
-`prebuild:ios:release` 和 `predev:ios` 会运行 `sync:ios:icons`，按生成工程 `AppIcon.appiconset/Contents.json` 从已提交的 `src-tauri/icons/ios` 同步全部图标，缺图即失败。同步使用 Xcode 自带 Swift / ImageIO，按现有白色背景合成为不含透明通道的 PNG，不新增图像处理依赖；品牌背景变化时同步调整该合成步骤。修改品牌源图后先运行 `pnpm --filter mobile icon:regen` 并提交图标资源；重新初始化工程后也须同步，避免使用 Tauri 模板图标。直接调用 Tauri CLI 或 Xcode 构建时，先手动运行 `pnpm --filter mobile sync:ios:icons`。
+`prebuild:ios:release` 和 `predev:ios` 会运行 `sync:ios:icons`，按生成工程 `AppIcon.appiconset/Contents.json` 从已提交的 `src-tauri/icons/ios` 同步全部图标，缺图即失败。同步使用 Xcode 自带 Swift / ImageIO，按现有白色背景合成为不含透明通道的 PNG，不新增图像处理依赖；品牌背景变化时同步调整该合成步骤。品牌源图 `src-tauri/app-icon.png` 须为满铺正方形（不带圆角、阴影或透明边，圆角由系统裁切），否则主屏图标会多出一圈白边。修改源图后先运行 `pnpm --filter mobile icon:regen` 并提交图标资源：生成工程存在时 `tauri icon` 只写入 `gen/apple`，该命令末尾由 `collect-ios-icons.mjs` 回收到 `src-tauri/icons/ios`，单独调用 `tauri icon` 会让新图在下次同步时被旧图覆盖；重新初始化工程后也须同步，避免使用 Tauri 模板图标。直接调用 Tauri CLI 或 Xcode 构建时，先手动运行 `pnpm --filter mobile sync:ios:icons`。
 
 codesign 请求钥匙串私钥访问时，由用户在系统窗口输入 Mac 登录密码并授权；构建与归档可能分别触发。不要读取、代填或通过修改钥匙串策略绕过该授权。命令最终成功退出后再交付 IPA。
 

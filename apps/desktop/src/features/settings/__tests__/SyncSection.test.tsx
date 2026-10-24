@@ -72,7 +72,7 @@ beforeEach(() => {
         active: ESync.Plugin,
         plugin: { id: "test.sync", configurations: { "test.sync": {} } },
       },
-      database: { active: "data.db", databases: [{ name: "data.db", version: 1 }] },
+      database: { active: "data.db", databases: [{ name: "data.db", version: 1, syncFormat: 6 }] },
     },
   }));
   mocks.model = {
@@ -139,8 +139,8 @@ it("本地数据库 Tab：展示当前库与路径，其他库可删除，新建
       database: {
         active: "notes.db",
         databases: [
-          { name: "notes.db", version: 3 },
-          { name: "work.db", version: 1 },
+          { name: "notes.db", version: 3, syncFormat: 6 },
+          { name: "work.db", version: 1, syncFormat: 6 },
         ],
       },
     },
@@ -164,7 +164,7 @@ it("拉取远程后保留远程版本缓存", async () => {
       ...s.setting,
       database: {
         active: "data.db",
-        databases: [{ name: "data.db", version: 1 }],
+        databases: [{ name: "data.db", version: 1, syncFormat: 6 }],
       },
     },
   }));
@@ -183,7 +183,7 @@ it("拉取远程后保留远程版本缓存", async () => {
         ...s.setting,
         database: {
           ...s.setting.database,
-          databases: [{ name: "data.db", version: 2 }],
+          databases: [{ name: "data.db", version: 2, syncFormat: 6 }],
         },
       },
     }));
@@ -223,14 +223,14 @@ it("旧协议显示远程版本和升级状态，上传成功后清除升级状�
   });
   vi.mocked(upload).mockResolvedValue(true);
   render();
-  await vi.waitFor(() => expect(text()).toContain("需升级云端"));
+  await vi.waitFor(() => expect(text()).toContain("同步格式不匹配"));
   expect(text()).not.toContain("连接失败");
   expect(
     [...container.querySelector("dl")!.querySelectorAll("dd")].map(node => node.textContent?.trim())
   ).toEqual(["1", "1"]);
   await act(async () => button("同步到云端").click());
   expect(upload).toHaveBeenCalledOnce();
-  await vi.waitFor(() => expect(text()).not.toContain("需升级云端"));
+  await vi.waitFor(() => expect(text()).not.toContain("同步格式不匹配"));
 });
 
 it("旧协议远程有更新时禁用拉取，保留真实版本", async () => {
@@ -240,7 +240,7 @@ it("旧协议远程有更新时禁用拉取，保留真实版本", async () => {
     databaseInfoObjectName: "database_data.db.json",
   });
   render();
-  await vi.waitFor(() => expect(text()).toContain("需升级云端"));
+  await vi.waitFor(() => expect(text()).toContain("同步格式不匹配"));
   expect(button("拉取远程").disabled).toBe(true);
   act(() => button("拉取远程").click());
   expect(download).not.toHaveBeenCalled();

@@ -15,7 +15,6 @@ const token = fs
 if (!/^[a-f0-9]{64}$/.test(token)) throw new Error("本机管理员秘密格式无效");
 const marker = `deploy-check-${randomBytes(6).toString("hex")}`;
 const installation = randomUUID();
-const session = randomUUID();
 const report = { tested_at: new Date().toISOString(), origin, marker, checks: [] };
 const request = (url, init = {}) => fetch(url, { ...init, signal: AbortSignal.timeout(20000) });
 const check = name => report.checks.push(name);
@@ -41,74 +40,55 @@ try {
   const headers = { Cookie: cookie.split(";")[0] };
   check("管理员登录与安全会话Cookie");
 
-  const events = Array.from({ length: 50 }, (_, index) => ({
-    event_id: randomUUID(),
-    session_id: session,
-    name: index ? "screen_view" : "session_start",
-    event_version: 1,
-    occurred_at: new Date().toISOString(),
-    context: {
-      app_version: marker,
-      os: "darwin",
-      arch: "arm64",
-      locale: "zh-CN",
-      country: "CN",
-      region_code: "CN-99",
-    },
-    properties: index ? { page: "home" } : { first_run: true },
-  }));
+  const version = `0.0.0-${marker}`;
   const payload = {
     schema_version: 1,
     product: "tau-desktop",
     environment: "development",
     installation_id: installation,
-    events,
+    app_version: version,
+    reported_at: new Date().toISOString(),
   };
   for (let attempt = 0; attempt < 2; attempt++) {
-    const response = await request(origin + "/v1/events/batch", {
+    const response = await request(origin + "/v1/versions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     assert.equal(response.status, 200);
-    const body = await response.json();
-    assert.deepEqual(
-      body.data.accepted,
-      events.map(event => event.event_id)
-    );
-    assert.equal(body.data.rejected.length, 0);
+    assert.deepEqual((await response.json()).data, {
+      app_version: version,
+      reported_at: payload.reported_at,
+    });
   }
-  check("免费计划下50条批量上报与重复确认");
+  check("最小版本上报及重复确认");
+  assert.equal(
+    (await request(origin + "/v1/events/batch", { method: "POST", body: "{}" })).status,
+    410
+  );
+  check("行为采集接口已停用");
 
   const overview = await request(origin + "/v1/admin/overview?environment=development", {
     headers,
   });
   assert.equal(overview.status, 200);
-  assert.ok((await overview.json()).data.events >= 50);
-  for (const endpoint of [
-    "timeseries",
-    "retention",
-    "events",
-    "breakdown?dimension=provinces",
-    "breakdown?dimension=versions",
-  ]) {
+  assert.ok((await overview.json()).data.reporting_installations >= 1);
+  for (const endpoint of ["timeseries", "breakdown?dimension=versions"]) {
     const response = await request(
       `${origin}/v1/admin/${endpoint}${endpoint.includes("?") ? "&" : "?"}environment=development`,
       { headers }
     );
     assert.equal(response.status, 200);
     const body = await response.json();
-    assert.equal(body.meta.metric_version, 1);
-    if (endpoint === "events") {
-      const row = body.data.find(event => event.app_version === marker);
-      assert.ok(row);
-      assert.notEqual(row.region_code, "CN-99");
-      report.geolocation = { country: row.country, region_code: row.region_code };
-    }
+    assert.equal(body.meta.metric_version, 2);
+    if (endpoint.includes("versions"))
+      assert.ok(body.data.some(row => row.key === version && row.count === 1));
   }
-  check("管理查询与服务端地域，忽略客户端伪造省份");
+  for (const endpoint of ["events", "retention"])
+    assert.equal((await request(`${origin}/v1/admin/${endpoint}`, { headers })).status, 404);
+  check("版本分布及下载查询，不再开放行为明细与留存");
 
-  const preflight = await request(origin + "/v1/events/batch", {
+  const preflight = await request(origin + "/v1/versions", {
     method: "OPTIONS",
     headers: { Origin: website, "Access-Control-Request-Method": "POST" },
   });
@@ -116,7 +96,7 @@ try {
   assert.equal(preflight.headers.get("Access-Control-Allow-Origin"), website);
   assert.equal(
     (
-      await request(origin + "/v1/events/batch", {
+      await request(origin + "/v1/versions", {
         method: "OPTIONS",
         headers: { Origin: "https://invalid.example" },
       })
@@ -178,11 +158,7 @@ try {
 } finally {
   const sql =
     [
-      `DELETE FROM sessions WHERE product='tau-desktop' AND environment='development' AND installation_id='${installation}'`,
-      `DELETE FROM installations WHERE product='tau-desktop' AND environment='development' AND installation_id='${installation}'`,
-      `DELETE FROM daily_activity WHERE product='tau-desktop' AND environment='development' AND installation_id='${installation}'`,
-      `DELETE FROM daily_events WHERE product='tau-desktop' AND environment='development' AND app_version='${marker}'`,
-      `DELETE FROM events WHERE product='tau-desktop' AND environment='development' AND installation_id='${installation}'`,
+      `DELETE FROM installation_versions WHERE product='tau-desktop' AND environment='development' AND installation_id='${installation}'`,
       `DELETE FROM download_receipts WHERE channel='${marker}'`,
       `DELETE FROM daily_downloads WHERE channel='${marker}'`,
     ].join("; ") + ";";
@@ -204,7 +180,11 @@ try {
   );
   report.test_data_cleaned = cleaned.status === 0;
   if (!report.test_data_cleaned) failure ??= new Error("验证数据清理失败，请按报告marker检查");
-  const directory = path.join(os.homedir(), ".local/share/tau/analytics/deployments/2026-10-18");
+  const directory = path.join(
+    os.homedir(),
+    ".local/share/tau/analytics/deployments",
+    new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10)
+  );
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   fs.writeFileSync(path.join(directory, `${marker}.json`), JSON.stringify(report, null, 2) + "\n", {
     mode: 0o600,

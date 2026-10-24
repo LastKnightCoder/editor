@@ -43,7 +43,7 @@ if (mode === "lock") {
   installSessionDownload(
     databasePath,
     args[1],
-    fs.readFileSync(args[2]),
+    args[2],
     path => new Database(path, { readonly: true })
   );
   throw new Error("未命中预期崩溃点");

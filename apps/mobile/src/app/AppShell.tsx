@@ -44,6 +44,7 @@ import {
 import { AppContext, type AppContextValue } from "./AppContext";
 import { HomeScreen } from "./HomeScreen";
 import { writeLastSyncTime } from "../features/settings/sync/syncState";
+import { IncomingFileHost } from "../features/markdownImport/IncomingFileHost";
 import "../pages";
 
 const EMPTY_VIEW_CONFIG = {
@@ -483,6 +484,7 @@ function AppShellInner() {
                       <EditorConfirmHost />
                       <EditorPromptHost />
                       <ToastViewport />
+                      <IncomingFileHost />
                       {import.meta.env.DEV && <RouterDevTools />}
                     </main>
                   </MobilePluginProvider>

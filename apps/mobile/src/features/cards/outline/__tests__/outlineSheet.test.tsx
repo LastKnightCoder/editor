@@ -194,6 +194,13 @@ describe("OutlineSheet", () => {
     expect(texts(editor)).toEqual(["A", "B", "C"]);
   });
 
+  it("顶栏用页面顶栏：带状态栏安全区，标题与取消 / 完成同页面规格", () => {
+    render([paragraph("A")]);
+    const header = document.querySelector("header.mobile-topbar");
+    expect(header).not.toBeNull();
+    expect(header?.querySelector("h1")?.textContent).toBe("整理结构");
+  });
+
   it("未改动时完成等同关闭", () => {
     render([paragraph("A"), paragraph("B")]);
     clickText("完成");

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import type { EditorRef } from "@tau/editor";
 import type { Descendant } from "slate";
+import { PageHeader, PageHeaderTextButton } from "../../../components/PageHeader";
 import { SnapSheet } from "../../../components/SnapSheet";
 import { toast } from "../../../components/toast";
 import { getSlateEditor } from "../blockSelection/measureBlocks";
@@ -219,22 +220,25 @@ export function OutlineSheet(props: OutlineSheetProps) {
   };
 
   return (
-    <SnapSheet open={open} state="full" states={SHEET_STATES} onClose={onClose}>
+    <SnapSheet
+      open={open}
+      state="full"
+      states={SHEET_STATES}
+      onClose={onClose}
+      // 面板为表面色：顶栏渐隐跟随表面色，与纸面详情页一致
+      containerClassName="mobile-paper-page"
+    >
       <>
-        <SnapSheet.Handle />
-        <header className="flex items-center justify-between px-4 pb-1">
-          <button type="button" onClick={onClose} className="text-ink-2 py-1 text-[15px]">
-            取消
-          </button>
-          <span className="text-ink-1 text-[15px] font-semibold">整理结构</span>
-          <button
-            type="button"
-            onClick={handleDone}
-            className="text-accent-text py-1 text-[15px] font-semibold"
-          >
-            完成
-          </button>
-        </header>
+        {/* 只有全屏一档：面板顶边即屏幕顶，用页面顶栏承担状态栏安全区，不放拖动条 */}
+        <PageHeader
+          leading={
+            <PageHeaderTextButton tone="muted" onClick={onClose}>
+              取消
+            </PageHeaderTextButton>
+          }
+          title="整理结构"
+          actions={<PageHeaderTextButton onClick={handleDone}>完成</PageHeaderTextButton>}
+        />
         <div className="flex h-8 items-center justify-end px-4">
           {collapsibleKeys.length > 0 ? (
             <button
@@ -246,7 +250,7 @@ export function OutlineSheet(props: OutlineSheetProps) {
             </button>
           ) : null}
         </div>
-        <SnapSheet.Scroll ref={setScrollEl} className="px-3 pb-[env(safe-area-inset-bottom,0px)]">
+        <SnapSheet.Scroll ref={setScrollEl} className="px-3">
           {units.map(renderUnit)}
         </SnapSheet.Scroll>
       </>

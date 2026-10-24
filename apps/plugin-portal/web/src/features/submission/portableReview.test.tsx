@@ -22,8 +22,6 @@ afterEach(() => {
 
 const target = (minAppVersion: string) => ({
   minAppVersion,
-  required: ["pages" as const],
-  optional: [],
 });
 function portableManifest(version: string): PackageManifest {
   const base = centerRelease(version).content.manifest;

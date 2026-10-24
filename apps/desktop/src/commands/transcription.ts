@@ -1,16 +1,12 @@
 import { invoke, on, off } from "@/electron";
+import { ASRError, throwIfASRAborted, type ASRErrorCode } from "@tau/asr";
+import { ensureModule } from "./module-init";
+import { currentCommandScope } from "@/services/command-context";
 
 // ==================== 类型定义 ====================
 
 export interface TranscriptionOptions {
-  modelSize?:
-    | "tiny"
-    | "base"
-    | "small"
-    | "medium"
-    | "large-v1"
-    | "large-v2"
-    | "large-v3";
+  modelSize?: "tiny" | "base" | "small" | "medium" | "large-v1" | "large-v2" | "large-v3";
   language?: "auto" | string;
   device?: "cpu" | "cuda";
   computeType?: "int8" | "int16" | "float16" | "float32";
@@ -42,6 +38,7 @@ export interface TranscriptionResponse {
   success: boolean;
   data?: TranscriptionResult;
   error?: string;
+  errorCode?: ASRErrorCode;
 }
 
 export interface ModelInfo {
@@ -64,23 +61,51 @@ export interface ModelsResponse {
 /**
  * 转录音频文件
  */
-export async function transcribeAudio(
-  audioPath: string,
-  options: TranscriptionOptions = {},
-): Promise<TranscriptionResponse> {
-  return invoke("transcribe-audio", audioPath, options);
+export interface TranscriptionRunOptions {
+  signal?: AbortSignal;
+  onProgress?: (data: { message: string }) => void;
 }
 
-/**
- * 监听转录进度
- */
-export function onTranscriptionProgress(
-  callback: (data: { message: string }) => void,
-): () => void {
-  const handler = (_event: unknown, data: { message: string }) =>
-    callback(data);
-  on("transcription-progress", handler);
-  return () => off("transcription-progress", handler);
+async function runTranscription(
+  channel: string,
+  audioPath: string,
+  options: TranscriptionOptions,
+  run: TranscriptionRunOptions
+) {
+  const signals = [run.signal, currentCommandScope()?.signal].filter(
+    (value): value is AbortSignal => Boolean(value)
+  );
+  const signal = signals.length ? AbortSignal.any(signals) : new AbortController().signal;
+  throwIfASRAborted(signal);
+  await ensureModule("transcription");
+  throwIfASRAborted(signal);
+  const taskId = crypto.randomUUID();
+  const progress = (_event: unknown, data: { taskId: string; message: string }) => {
+    if (!signal.aborted && data.taskId === taskId) run.onProgress?.({ message: data.message });
+  };
+  const cancel = () => {
+    void window.electron.invoke("transcription-cancel", taskId).catch(() => undefined);
+  };
+  on("transcription-progress", progress);
+  signal.addEventListener("abort", cancel, { once: true });
+  try {
+    const response = await invoke<TranscriptionResponse>(channel, audioPath, options, taskId);
+    throwIfASRAborted(signal);
+    if (response.errorCode === "cancelled")
+      throw new ASRError("cancelled", response.error || "识别已取消");
+    return response;
+  } finally {
+    signal.removeEventListener("abort", cancel);
+    off("transcription-progress", progress);
+  }
+}
+
+export function transcribeAudio(
+  audioPath: string,
+  options: TranscriptionOptions = {},
+  run: TranscriptionRunOptions = {}
+): Promise<TranscriptionResponse> {
+  return runTranscription("transcribe-audio", audioPath, options, run);
 }
 
 /**
@@ -93,9 +118,7 @@ export async function getTranscriptionModels(): Promise<ModelsResponse> {
 /**
  * 检查模型是否已下载
  */
-export async function checkTranscriptionModel(
-  modelName: string,
-): Promise<boolean> {
+export async function checkTranscriptionModel(modelName: string): Promise<boolean> {
   return invoke("transcription-check-model", modelName);
 }
 
@@ -124,7 +147,7 @@ export async function openTranscriptionModelsDir(): Promise<void> {
  * 从视频中提取音频
  */
 export async function extractAudioFromVideo(
-  videoPath: string,
+  videoPath: string
 ): Promise<{ success: boolean; audioPath?: string; error?: string }> {
   return invoke("transcription-extract-audio-from-video", videoPath);
 }
@@ -133,7 +156,7 @@ export async function extractAudioFromVideo(
  * 获取音频时长
  */
 export async function getAudioDuration(
-  audioPath: string,
+  audioPath: string
 ): Promise<{ success: boolean; duration?: number; error?: string }> {
   return invoke("transcription-get-audio-duration", audioPath);
 }
@@ -157,8 +180,9 @@ export async function shouldSegmentAudio(audioPath: string): Promise<{
 export async function transcribeAudioSegmented(
   audioPath: string,
   options: TranscriptionOptions = {},
+  run: TranscriptionRunOptions = {}
 ): Promise<TranscriptionResponse> {
-  return invoke("transcription-transcribe-segmented", audioPath, options);
+  return runTranscription("transcription-transcribe-segmented", audioPath, options, run);
 }
 
 // ==================== 数据库 API ====================
@@ -210,27 +234,21 @@ export interface IUpdateTranscription {
 /**
  * 创建转录记录
  */
-export async function createTranscription(
-  data: ICreateTranscription,
-): Promise<ITranscription> {
+export async function createTranscription(data: ICreateTranscription): Promise<ITranscription> {
   return invoke("transcription:create", data);
 }
 
 /**
  * 根据 ID 获取转录记录
  */
-export async function getTranscriptionById(
-  id: number,
-): Promise<ITranscription | null> {
+export async function getTranscriptionById(id: number): Promise<ITranscription | null> {
   return invoke("transcription:get-by-id", id);
 }
 
 /**
  * 根据源文件路径获取转录记录
  */
-export async function getTranscriptionBySource(
-  sourcePath: string,
-): Promise<ITranscription | null> {
+export async function getTranscriptionBySource(sourcePath: string): Promise<ITranscription | null> {
   return invoke("transcription:get-by-source", sourcePath);
 }
 
@@ -239,7 +257,7 @@ export async function getTranscriptionBySource(
  */
 export async function updateTranscription(
   id: number,
-  data: IUpdateTranscription,
+  data: IUpdateTranscription
 ): Promise<ITranscription | null> {
   return invoke("transcription:update", id, data);
 }
@@ -266,8 +284,6 @@ export async function getAllTranscriptions(options?: {
 /**
  * 增加转录记录引用计数
  */
-export async function incrementTranscriptionRefCount(
-  id: number,
-): Promise<void> {
+export async function incrementTranscriptionRefCount(id: number): Promise<void> {
   return invoke("transcription:increment-ref-count", id);
 }

@@ -11,9 +11,10 @@
 | [desktop.md](./architecture/desktop.md)                       | 桌面端权威交接文档：Page 协议、三大协议、交互规范、数据接线、Markdown 会话、只读首屏与目录性能边界                           |
 | [design-system.md](./architecture/design-system.md)           | UI 设计系统：token 三层体系、多主题机制、组件分层                                                                            |
 | 包内文档                                                      | database / whiteboard / editor 架构手册在各包 `docs/architecture.md`；editor-collab / markdown 的投影与缓存边界见各包 README |
+| [storage-sync.md](./architecture/storage-sync.md)             | 数据库、资源与会话文件的宿主分块协议及内存边界                                                                               |
 | [collaboration.md](./architecture/collaboration.md)           | 实时协作功能与架构                                                                                                           |
 | [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                           |
-| [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略                                                                                                       |
+| [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、外部打开 Markdown                                                                                    |
 | [plugin-system.md](./architecture/plugin-system.md)           | 插件体系目标架构与能力                                                                                                       |
 | [plugin-portability.md](./architecture/plugin-portability.md) | 桌面与移动插件宿主、私有包事务及正文适配；作者契约见 [SDK 包内文档](/packages/plugins/docs/portability.md)                   |
 | [plugin-system/](./architecture/plugin-system/)               | 插件体系：安全模型、运行架构、API 闭环、边界约定与能力说明                                                                   |
@@ -29,7 +30,7 @@
 
 ## guides/ — 操作指南
 
-跨端 SDK 与统一模板本地验证见 [plugin-portability-sdk.md](./guides/plugin-portability-sdk.md)，真实客户端接入校验见 [plugin-portability-hosts.md](./guides/plugin-portability-hosts.md)。
+跨端 SDK、统一模板与官方格式 3 插件的候选验证、真实 npm 冻结验证和发行顺序见 [plugin-portability-sdk.md](./guides/plugin-portability-sdk.md)，真实客户端接入校验见 [plugin-portability-hosts.md](./guides/plugin-portability-hosts.md)。
 
 客户端依赖准备、构建、覆盖安装及插件检查从 [客户端构建与安装](./guides/ops-client-build-install.md)进入；iOS 签名、归档、TestFlight 分发与设备安装见 [iOS 手册](./guides/ops-ios-signing.md)。
 
@@ -44,7 +45,7 @@
 | [ops-mac-verification.md](./guides/ops-mac-verification.md)         | mac 实机验证 runbook                  |
 | [ops-macos-code-signing.md](./guides/ops-macos-code-signing.md)     | macOS 代码签名与公证                  |
 | [ops-taunote-domains.md](./guides/ops-taunote-domains.md)           | taunote.app 域名与服务器映射          |
-| [ops-telemetry-umami.md](./guides/ops-telemetry-umami.md)           | Umami 统计部署与埋点（旧版维护资料）  |
+| [ops-telemetry-umami.md](./guides/ops-telemetry-umami.md)           | 旧统计停用与历史数据恢复              |
 | [plugin-development.md](./guides/plugin-development.md)             | 插件开发规范与验收                    |
 | [plugin-portability-spike.md](./guides/plugin-portability-spike.md) | 桌面、Android、iOS 插件验证操作       |
 
@@ -53,6 +54,9 @@
 一个任务一个目录或单文件，收尾三步见 [tasks/README.md](./tasks/README.md)；期限 90 天。
 
 - [长文档视口级挂载](./tasks/long-document-viewport.md)：暂缓、未排期，保留范围与业务验收边界。
+- [移动端字号规范](./tasks/mobile-typography.md)：9 档字号阶梯；档位覆盖与卡片列表/详情同字号已落地，存量字面字号待分批迁移。
+
+- [桌面语音输入与统一 ASR](./tasks/desktop-asr/README.md)：ASR 与整理能力保留，新增界面入口已撤回待用户决定；Windows 保留 NSIS、暂不开放原生，CPU Whisper 与宿主验证见任务记录；SDK 0.43.0／Seed 0.1.0 已发行，其他设备验收保留。
 
 进行中的跨端接入见 [B–D 任务](./tasks/plugin-portability-bcd/README.md)；SDK、清单、移动与网页中心分发及旧插件兼容的后续设计见同任务的 [正式接入方案](./tasks/plugin-portability-bcd/distribution-plan.md)。D 的待验收项继续保留。
 
@@ -60,9 +64,9 @@
 
 已交付的共享类型、数据入口与 PluginManager 控制器见 [逻辑实现与交接](./tasks/plugin-portability-bcd/logic-handoff.md)。
 
-API 支持范围以 [SDK 支持矩阵](/packages/plugins/docs/api-support.md) 为准；当前的前向兼容、统一模板与作者文档收尾见 [API 契约任务](./tasks/plugin-portability-bcd/api-contract.md)。
+当前作者清单、统一 API 与平台支持以 [SDK 跨端契约](/packages/plugins/docs/portability.md)、[SDK 支持矩阵](/packages/plugins/docs/api-support.md) 为准；宿主装配与必要校验边界见 [跨端插件架构](./architecture/plugin-portability.md)。
 
-本轮已确认的作者接口方案见 [作者契约](./tasks/plugin-portability-bcd/author-contract-draft.md)，实施与设备验证见 [编辑器移动适配](./tasks/plugin-portability-bcd/editor-mobile.md)。官方插件和模板在 [plugins/](/plugins/README.md) 以子模块维护；候选实现不代表已发布。
+设备验证与待验收范围见 [编辑器移动适配](./tasks/plugin-portability-bcd/editor-mobile.md)。官方插件和模板在 [plugins/](/plugins/README.md) 以子模块维护；候选实现不代表已发布。
 
 SDK 0.37.0 的正式 npm 发布、24 仓构建及 CI 结果见 [SDK 发行](./tasks/plugin-portability-bcd/sdk-037-release.md)。24 个官方包、Worker 与网页已上线，macOS / Android 正式包已交付，用户已确认两端功能测试通过；发行证据与专项边界见 [正式安装闭环](./tasks/plugin-portability-bcd/production-closeout.md)。[iOS 正式 IPA](./tasks/plugin-portability-bcd/ios-release.md) 已进入 [TestFlight 内部测试](./tasks/plugin-portability-bcd/testflight.md)，图标修复后的 0.2.3（2）可供本人测试，iOS 插件分发已开放；未提交 App Store 正式上架，真机与 D 专项继续保留。
 

@@ -92,6 +92,11 @@ it("桌面交互不受影响：单击图片显示缩放手柄", async () => {
   const view = await mount(imageValue(), { touch: false });
   await clickFrame(view.host);
   expect(handleCount(view.host)).toBeGreaterThan(0);
+  // 选中不出说明占位，块高不变；从属性条「添加说明」进入编辑才出现说明行
+  expect(view.host.querySelector("[data-media-caption]")).toBeNull();
+  const caption = view.host.querySelector<HTMLButtonElement>('button[aria-label="添加说明"]');
+  await act(async () => caption?.click());
+  expect(view.host.querySelector("[data-media-caption]")).toBeTruthy();
 });
 
 it("触屏阅读态单击图片打开查看器", async () => {

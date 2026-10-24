@@ -15,15 +15,14 @@ import { openExternal } from "@/commands/extra";
 import { savePluginVideoConfig } from "@/commands/plugin-video";
 import useSettingStore from "@/stores/useSettingStore";
 import type { PluginCatalogEntry, PluginRelease } from "@/types/plugin-center";
+import { formatSize, pluginPortalUrl } from "@tau/plugins/center";
 import {
   CONTRIBUTION_LABELS,
   STATE_LABELS,
   STATIC_PACKAGE_LABELS,
-  formatSize,
   installState,
   installedPlugins,
   pendingCount,
-  pluginPortalUrl,
   versionRows,
   type InstalledPlugin,
   type VersionRowModel,
@@ -335,7 +334,9 @@ function SettingsTab({
   section?: string;
   onSection: (key: PluginSettingsKey) => void;
 }) {
-  const sections = runtime.listSettings().filter(item => item.context.pluginId === plugin.info.id);
+  const sections = runtime
+    .listSettings()
+    .filter(item => item.context.pluginId === plugin.info.id && item.definition.target !== "asr");
   const active = section ? sections.find(item => item.key === section) : sections[0];
 
   // 为视频插件提供 videoConfig - Hooks 必须在所有条件语句之前调用

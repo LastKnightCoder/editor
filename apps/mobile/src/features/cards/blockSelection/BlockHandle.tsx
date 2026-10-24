@@ -125,6 +125,8 @@ export function BlockHandle(props: BlockHandleProps) {
       type="button"
       aria-label="选择块"
       data-block-handle={blockIndex}
+      // 把手贴近屏幕左缘，长按拖拽不能被当成边缘返回
+      data-no-edge-back="true"
       // touch-none：长按期间浏览器不接管为滚动手势，否则会发 pointercancel
       className={`absolute left-[-26px] z-10 flex h-10 w-8 -translate-x-1.5 touch-none select-none items-center justify-center ${dragging ? "opacity-0" : ""}`}
       style={{ top: visualTop - (HIT_HEIGHT - HANDLE_HEIGHT) / 2 }}
