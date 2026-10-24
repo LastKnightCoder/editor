@@ -206,13 +206,13 @@ export function ProjectsPage(props: ProjectsPageProps) {
           value={createTitle}
           onChange={event => setCreateTitle(event.target.value)}
           placeholder="项目名称，如：十月城市漫步计划"
-          className="input-base mt-3.5 w-full px-4 py-3 text-[14.5px]"
+          className="input-base mt-3.5 w-full px-4 py-3"
         />
         <input
           value={createDesc}
           onChange={event => setCreateDesc(event.target.value)}
           placeholder="一句话描述（可选）"
-          className="input-base mt-2.5 w-full px-4 py-3 text-[14.5px]"
+          className="input-base mt-2.5 w-full px-4 py-3"
         />
         <button
           type="button"

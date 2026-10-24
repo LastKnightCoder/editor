@@ -311,7 +311,7 @@ function CalendarFormSheet({
         value={name}
         onChange={event => setName(event.target.value)}
         placeholder="日历名称，如：工作、生活…"
-        className="bg-page text-ink-1 placeholder:text-ink-3 mt-1 w-full rounded-[13px] border-none px-3.5 py-3 text-[14.5px] font-bold outline-none"
+        className="input-base mt-1 w-full px-3.5 py-3 font-bold"
       />
       <div className="text-ink-3 pb-2 pt-4 text-[11.5px] font-extrabold">
         颜色 · 与桌面端同一套 17 色

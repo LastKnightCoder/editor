@@ -301,7 +301,7 @@ export function DiaryTagEditorSheet({
               }}
               placeholder="新标签名"
               enterKeyHint="done"
-              className="text-ink-1 caret-accent placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-[13px] outline-none"
+              className="text-ink-1 caret-accent placeholder:text-ink-3 input-text min-w-0 flex-1 bg-transparent outline-none"
             />
             <button
               type="button"
@@ -504,7 +504,7 @@ export function DiaryTagManageSheet({
                     }}
                     placeholder="标签名"
                     enterKeyHint="done"
-                    className="bg-surface text-ink-1 caret-accent placeholder:text-ink-3 min-w-0 flex-1 rounded-xl px-3 py-2 text-[13.5px] font-semibold outline-none"
+                    className="input-base bg-surface min-w-0 flex-1 px-3 font-semibold"
                   />
                   <button
                     type="button"
@@ -582,7 +582,7 @@ export function DiaryTagManageSheet({
                 }}
                 placeholder="新标签名"
                 enterKeyHint="done"
-                className="bg-surface text-ink-1 caret-accent placeholder:text-ink-3 min-w-0 flex-1 rounded-xl px-3 py-2 text-[13.5px] font-semibold outline-none"
+                className="input-base bg-surface min-w-0 flex-1 px-3 font-semibold"
               />
             </div>
             <div className="text-ink-3 mt-3 flex items-center gap-2 text-[11.5px] font-semibold">

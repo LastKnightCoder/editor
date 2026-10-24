@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type SyntheticEvent } from "react";
-import { Search } from "lucide-react";
 
 import {
   resolveExpectedKeyboardHeight,
   useKeyboardReservation,
   useKeyboardViewport,
 } from "../../../components/KeyboardViewportProvider";
+import { SearchField } from "../../../components/SearchField";
 import {
   INSERT_GROUPS,
   INSERT_ITEMS,
@@ -241,20 +241,15 @@ export function InsertPanel(props: InsertPanelProps) {
 
   return (
     <div className="px-3.5 pt-3">
-      <label className="bg-page mb-2.5 flex h-[38px] items-center gap-[7px] rounded-[11px] px-[11px]">
-        <Search size={16} strokeWidth={ICON_STROKE} className="text-ink-3 shrink-0" />
-        <input
-          ref={searchInputRef}
-          type="search"
-          value={query}
-          placeholder="搜索块"
-          aria-label="搜索块"
-          className="text-ink-1 placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-[13.5px] outline-none"
-          onFocus={handleSearchFocus}
-          onBlur={handleSearchBlur}
-          onChange={event => setQuery(event.target.value)}
-        />
-      </label>
+      <SearchField
+        inputRef={searchInputRef}
+        value={query}
+        onValueChange={setQuery}
+        placeholder="搜索块"
+        onFocus={handleSearchFocus}
+        onBlur={handleSearchBlur}
+        className="mb-2.5"
+      />
       {hasQuery ? renderResults() : renderBrowse()}
     </div>
   );

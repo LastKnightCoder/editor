@@ -437,7 +437,7 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
           value={addTitle}
           onChange={event => setAddTitle(event.target.value)}
           placeholder="文档标题…"
-          className="input-base mb-3.5 w-full px-4 py-3 text-[14.5px]"
+          className="input-base mb-3.5 w-full px-4 py-3"
         />
         <button
           type="button"

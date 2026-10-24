@@ -549,7 +549,7 @@ export function TodoPage({
             if (e.key === "Enter") void handleCreateGroup();
           }}
           placeholder="请输入分组名称"
-          className="input-base h-11 w-full px-4 text-[14px]"
+          className="input-base w-full px-4"
         />
         <button
           type="button"
@@ -620,7 +620,7 @@ export function TodoPage({
             if (e.key === "Enter") void handleCreateRelative();
           }}
           placeholder="请输入任务标题"
-          className="input-base h-11 w-full px-4 text-[14px]"
+          className="input-base w-full px-4"
         />
         <button
           type="button"
@@ -647,7 +647,7 @@ export function TodoPage({
             if (e.key === "Enter") void handleCreateItem();
           }}
           placeholder="请输入任务标题"
-          className="input-base h-11 w-full px-4 text-[14px]"
+          className="input-base w-full px-4"
         />
         <button
           type="button"

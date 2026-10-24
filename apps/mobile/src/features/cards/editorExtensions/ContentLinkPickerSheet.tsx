@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDebounceFn, useMemoizedFn } from "ahooks";
-import { Link2, Search, SearchX } from "lucide-react";
+import { Link2, SearchX } from "lucide-react";
 
 import { SnapSheet } from "../../../components/SnapSheet";
+import { SearchField } from "../../../components/SearchField";
 import * as tauri from "../../../services/tauri";
 import type { CardListItem } from "../../../types";
 
@@ -152,19 +153,13 @@ export function ContentLinkPickerSheet(props: ContentLinkPickerSheetProps) {
 
         <header className={`px-4 ${panelState === "full" ? "mobile-safe-top-gap pb-3" : "pb-2"}`}>
           <div className="flex items-center gap-3">
-            <div className="relative flex-1">
-              <span className="text-ink-3 absolute left-3 top-1/2 -translate-y-1/2">
-                <Search size={16} aria-hidden="true" />
-              </span>
-              <input
-                ref={inputRef}
-                type="text"
-                value={query}
-                onChange={event => setQuery(event.target.value)}
-                placeholder="搜索关联内容"
-                className="input-base text-ink-1 placeholder:text-ink-3 w-full rounded-lg py-2.5 pl-9 pr-3 text-[15px]"
-              />
-            </div>
+            <SearchField
+              inputRef={inputRef}
+              value={query}
+              onValueChange={setQuery}
+              placeholder="搜索关联内容"
+              className="flex-1"
+            />
             <button type="button" onClick={onClose} className="text-ink-2 shrink-0 text-[15px]">
               取消
             </button>
