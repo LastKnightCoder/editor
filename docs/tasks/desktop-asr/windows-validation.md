@@ -4,6 +4,12 @@
 
 ## 工作清单
 
+后续 GPU 适配：
+
+- [x] 调查已安装应用与测试的差异，确认旧版以已有字幕容忍非零退出。
+- [x] 实现限定程序、退出码、完成标记与字幕结构的恢复；完成 CPU/GPU 和取消实测。
+- [x] 最终类型检查、NSIS 打包、包内原生运行时与文档检查通过；本轮适配完成。
+
 - [x] Investigate/Triage/Understand the problem：核对交接、环境、微软依据与现有宿主。
 - [x] 原生最小探针和平台取舍；用户选择保留 NSIS，本轮不开放 Windows 原生。
 - [x] Whisper 真实文件转录、取消、Seed 合成宿主与生命周期回归，修复显式 CPU 选择。
@@ -68,6 +74,26 @@ pnpm --filter desktop exec vitest run src-electron/main/services/__tests__/whisp
 
 测试未设置上述环境变量时跳过，不能把跳过算作实测通过。测试只替换 Electron 路径与 FFmpeg 定位，实际执行生产引擎、FFmpeg 和 Whisper；输出仅计数、时间与尾词布尔值。
 
+## GPU 完成后退出故障适配
+
+用户反馈应用内 GPU 转录可用后，检查运行中的 C:/Program Files/Tau/Tau.exe（0.59.0）及安装包代码：旧实现明确在 SRT 存在时忽略非零退出码，说明初轮“CUDA 失败”是新宿主严格退出策略与原生退出故障共同导致，不能概括为 GPU 无法识别。截图启用 AI 断句，词级参数独立实测同样在完成后崩溃，未证明其可规避异常。
+
+Windows 事件记录显示同一进程先有 0xE06D7363 C++ 异常，随后 ucrtbase.dll 中 0xC0000409、子码 7 致命退出；驱动为 572.70。准确的原生异常根因仍未定位，未替换程序、驱动或 CUDA 库。用户要求适配既有能力。
+
+当前恢复条件必须全部满足：Windows、程序名 faster-whisper-xxl.exe、退出码按无符号解释为 0xC0000409、stdout 依次出现本次独占目录的字幕写出与规范的 Operation finished 行、本次 SRT 非空且每块连续编号/合法时间戳/非空正文完整。字幕目录仍由宿主创建；其他任务残留文件不能进入判定。进程关闭后才读取，取消优先于恢复，其他非零退出仍失败。恢复只输出固定诊断，不记录转录正文；FFmpeg 和其他程序不享有例外。
+
+当前合成输入实测（单次值，不是 p50/p95）：
+
+| 模式                     | 文件到结果 | 取消调用全程 | 结果                                                      |
+| ------------------------ | ---------- | ------------ | --------------------------------------------------------- |
+| CPU 句级                 | 16349 ms   | 612 ms       | 正常完成                                                  |
+| CUDA 句级                | 6337 ms    | 617 ms       | 已完成字幕恢复，尾词存在，严格尾词结尾为 false            |
+| CUDA 词级（AI 断句输入） | 6459 ms    | 618 ms       | 45 个词段保留，归一化空格后尾词存在，严格尾词结尾为 false |
+
+每个案例成功与取消的两个临时目录均删除；字幕质量与 base 的尾部重复未通过修改文本“修正”。实测扩展沿用 whisper-windows-validation.test.ts，增加 CPU/句级 CUDA/词级 CUDA 三组；上表 CPU 先执行、CUDA 修复测试观测器后单独执行，没有将筛选跳过的 CPU 算成重复成功。初次词级试跑曾未满足恢复条件而拒绝，后续成功不证明任意输入都可恢复。
+
+自动回归 23 项通过：含 9 种恢复边界（正常完成故障、其他退出码、缺完成标记、错目录、其他程序、缺文件、残缺、空结果、完成后取消）、stdout 跨块行与 stderr 隔离、任务/队列/文件适配。真实 GPU 句级与词级均通过，CPU 同轮正常通过；原生崩溃本身未被修复。
+
 ## Seed、AI 与生命周期
 
 - Seed 正式 npm 锁文件安装、类型、构建、6 项协议及 7 项实际构建产物宿主集成测试通过。协议仍在独立子模块；厂商服务为合成夹具，覆盖 partial 修订、尾包、断线、握手失败、停用回收。
@@ -89,8 +115,8 @@ pnpm --filter desktop exec vitest run src-electron/main/services/__tests__/whisp
 
 修复提交：384186d433028740d8c3c1ec389ad28a3c7e4450，已推送 codex/asr-windows-validation。合并前再次 fetch，最新 origin/master 为 10fa4e54e6d78ab3d84b09e3a8c315fc600389fb，已包含在验证分支历史内；无冲突，合并树与已验证分支逐字一致。合并提交 9675b9ae35e3ed6f8679cf05d27a64a4d7117f15 已正常推送 origin/master，并以 ls-remote 核对；未强推。合并消息按仓库要求使用 chore(merge)，消息校验、数据库/白板边界、文档检查均通过；为避免再次格式化既有合并历史，合并落盘使用已完成的检查结果，未重跑 lint-staged。仅本记录的收尾更新随后独立提交。
 
-最终本机 NSIS 文件 Tau-v0.59.5-win32.exe 为 217453727 字节，SHA-256：810267db0c7f6440be0dae65958245638f36e38614f06e2a70342f23fe260886。只构建、不上传。
+初轮本机 NSIS 文件 Tau-v0.59.5-win32.exe 为 217453727 字节，SHA-256：810267db0c7f6440be0dae65958245638f36e38614f06e2a70342f23fe260886。后续 GPU 适配已重新构建同名安装包并通过包内运行时检查；构建日志为本机临时目录 tau-asr-windows/gpu-adaptation-build.log。均只构建、不上传或安装。
 
 主要命令：`pnpm --filter @tau/asr test`、`pnpm --filter @tau/plugins test`、各包 `check`、`pnpm --filter desktop exec tsc --noEmit`、`pnpm --filter desktop exec vitest run <相关测试路径>`、`pnpm --filter desktop build`、`pnpm check:docs`、`git diff --check`。Seed 在子模块运行冻结安装、`pnpm test`、`pnpm build`，并设置 `TAU_HOST_ROOT=D:\coding\editor` 后运行 `pnpm exec vitest run --config validation/vitest.host.config.ts`。
 
-生产修复仅为 Whisper 尊重显式 device；其余为跨平台测试、独立探针与文档。所有新增语音入口仍撤回，没有数据库结构或子模块修改。Windows 验证完成不代表整个 desktop-asr 产品任务完成：入口位置、Mac 正式包/冷下载、移动真机及 P5 仍未结束，因此父任务目录保留，完成时再按沉淀→退役→索引收尾。
+生产修复包括 Whisper 尊重显式 device，以及下述 XXL 完成后退出故障的受限恢复；其余为跨平台测试、独立探针与文档。所有新增语音入口仍撤回，没有数据库结构或子模块修改。Windows 验证完成不代表整个 desktop-asr 产品任务完成：入口位置、Mac 正式包/冷下载、移动真机及 P5 仍未结束，因此父任务目录保留，完成时再按沉淀→退役→索引收尾。

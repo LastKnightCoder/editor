@@ -97,13 +97,13 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 
 ### 文件转录与 ASR
 
-文件语音识别的公共契约与运行时在 [@tau/asr](/packages/asr/README.md)。`transcription` 仍是 BACKGROUND 模块：窗口文件与分段命令通过内置 `createWhisperASR`，结果交回现有媒体流程；`whisper-engine.ts` 复用既有程序与模型目录，先由 ffmpeg 转为 16 kHz 单声道 PCM Int16 WAV，每次识别独占临时目录，只有进程正常退出且本次 SRT 可读才交付结果。词级结果保留原始对齐；旧媒体字段仅在宿主结果扩展 `sourceResult` 中保留，不把推断置信度或字幕末尾时刻当作公共 ASR 的测量值。
+文件语音识别的公共契约与运行时在 [@tau/asr](/packages/asr/README.md)。`transcription` 仍是 BACKGROUND 模块：窗口文件与分段命令通过内置 `createWhisperASR`，结果交回现有媒体流程；`whisper-engine.ts` 复用既有程序与模型目录，先由 ffmpeg 转为 16 kHz 单声道 PCM Int16 WAV，每次识别独占临时目录，进程正常退出且本次 SRT 可读才交付结果；Windows XXL 的特定退出阶段故障按下述完成证明恢复。词级结果保留原始对齐；旧媒体字段仅在宿主结果扩展 `sourceResult` 中保留，不把推断置信度或字幕末尾时刻当作公共 ASR 的测量值。
 
 文件命令第三参数可传 signal/onProgress。渲染端在模块就绪后登记 taskId 并订阅，进度只交给对应任务；取消使用不继承已取消命令作用域的 IPC。主进程按窗口与 taskId 隔离任务，窗口销毁、重载、切库或应用退出会取消；子进程退出后再清理目录，取消后的成功结果不交付。长音频队列每次调用拥有独立工作集，任一分段失败会取消同任务的其他分段并等待退出。媒体导入仍有直接消费共享引擎的入口，其业务编排不归公共 ASR 包。实时会话的格式、尾帧、超时和取消由公共运行时约束；原生和插件语音输入由下述独立编排装配。
 
-### 实时语音输入
+Windows Whisper 文件适配尊重调用方显式的 `device`；未指定时沿用已安装程序的设备默认值。默认要求进程正常退出；仅 faster-whisper-xxl.exe 的 0xC0000409 可在 stdout 依次确认本次目录字幕写出、Operation finished，且本次非空 SRT 的编号、时间戳和正文块完整时恢复。取消优先；其他错误、缺失或残缺结果不交付。恢复仅记录固定诊断，不记录正文，不自动切换 CPU 或云端。
 
-Windows Whisper 文件适配尊重调用方显式的 `device`；未指定时沿用已安装程序的设备默认值。程序必须正常退出才读取本次字幕，不因磁盘已有结果而放行崩溃，也不自动切换 CPU 或云端。
+### 实时语音输入
 
 `speech-input` 为 BACKGROUND 模块；跨窗口麦克风租约由主进程维护，窗口销毁、重载、切库、心跳过期及退出会终止会话。渲染层通过 `ensureModule` 获取就绪保障；共用 `@tau/asr` 的 AudioWorklet 采集、重采样、PCM Int16 编码、尾帧排空与取消编排。麦克风仅在用户点击后申请，不自动切换云端提供方。
 

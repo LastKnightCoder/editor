@@ -8,11 +8,15 @@ vi.mock("electron", () => ({
   app: { getPath: () => state.root, getAppPath: () => state.root },
   shell: { openPath: vi.fn() },
 }));
-vi.mock("../asr-process", () => ({ runASRProcess: state.run }));
+vi.mock("../asr-process", async importOriginal => ({
+  ...(await importOriginal<typeof import("../asr-process")>()),
+  runASRProcess: state.run,
+}));
 vi.mock("../../utils/FfmpegService", () => ({
   default: { ensureFluentFfmpegPath: async () => "ffmpeg-fixture" },
 }));
 import { TranscriptionService } from "../whisper-engine";
+import { ASRProcessExitError } from "../asr-process";
 
 const workingDirectories = new Set<string>();
 beforeEach(async () => {
@@ -54,6 +58,49 @@ afterEach(async () => {
 });
 
 describe.skipIf(!["darwin", "win32"].includes(process.platform))("Whisper 文件边界", () => {
+  it.skipIf(process.platform !== "win32").each([
+    ["完成后退出故障", 0xc0000409, "complete", false, true],
+    ["其他退出故障", 7, "complete", false, false],
+    ["缺少完成标记", 0xc0000409, "written", false, false],
+    ["错误输出目录", 0xc0000409, "wrong-directory", false, false],
+    ["其他程序", 0xc0000409, "wrong-program", false, false],
+    ["缺少字幕", 0xc0000409, "missing", false, false],
+    ["残缺字幕", 0xc0000409, "truncated", false, false],
+    ["空字幕", 0xc0000409, "empty", false, false],
+    ["完成后取消", 0xc0000409, "complete", true, false],
+  ])("%s 的恢复边界", async (_name, code, mode, cancel, succeeds) => {
+    const directory = path.join(state.root, "bin/Faster-Whisper-XXL");
+    await mkdir(directory, { recursive: true });
+    await writeFile(path.join(directory, "faster-whisper-xxl.exe"), "fixture");
+    if (mode === "wrong-program") await rm(directory, { recursive: true });
+    const source = path.join(state.root, "中文 输入.wav");
+    await writeFile(source, "original");
+    const original = state.run.getMockImplementation()!;
+    const controller = new AbortController();
+    state.run.mockImplementation(async (...args: Parameters<typeof original>) => {
+      const result = await original(...args);
+      if (args[0] === "ffmpeg-fixture") return result;
+      const output = args[1].at(-1).replace(/\.wav$/, ".srt");
+      if (mode === "truncated") await writeFile(output, "1\n00:00:00,000 --> 00:00:01,000\n");
+      if (mode === "empty") await writeFile(output, "");
+      if (mode === "missing") await rm(output);
+      args[4]?.(
+        `Subtitles are written to '${mode === "wrong-directory" ? state.root : path.dirname(output)}' directory.`
+      );
+      if (mode !== "written") args[4]?.("Operation finished in:  0:00:04.464");
+      if (cancel) controller.abort();
+      throw new ASRProcessExitError(Number(code), result.language);
+    });
+    const pending = new TranscriptionService().transcribe(source, {}, undefined, controller.signal);
+    if (succeeds)
+      await expect(pending).resolves.toMatchObject({ text: "1234 尾句", language: "zh" });
+    else
+      await expect(pending).rejects.toMatchObject({
+        code: cancel ? "cancelled" : mode === "missing" ? "ENOENT" : "internal",
+      });
+    for (const directory of workingDirectories)
+      await expect(readdir(directory)).rejects.toMatchObject({ code: "ENOENT" });
+  });
   it.skipIf(process.platform !== "win32")("GPU 程序存在时仍尊重显式 CPU 选择", async () => {
     const directory = path.join(state.root, "bin/Faster-Whisper-XXL");
     await mkdir(directory, { recursive: true });
