@@ -2,7 +2,7 @@
 
 ## 已发布 SDK 的作者验证
 
-官方模板使用 npm 的插件 SDK 0.37.0 和 UI 0.4.0。在仓库根运行：
+官方模板使用 npm 的插件 SDK 0.38.0 和 UI 0.5.0。在仓库根运行：
 
 ```sh
 node scripts/plugins/verify-portable-author.mjs output/plugin-release/author-npm.json --published --frozen-template
@@ -23,12 +23,14 @@ API 支持矩阵只编辑 packages/plugins/docs/api-support.md，随后运行 `n
 
 判据：生成插件 SDK 与 UI 两个 tgz；版本取各自 package.json。仅打包，不执行 npm publish；已发布版本不可覆盖，修改公共包内容须使用新版本。
 
+正式发布这两个 tgz 后，确认注册表可查询版本，且 dist.integrity 与本地包一致，再开始真实 npm 验证。npm 返回 202 表示已受理，发布扫描结束前可能仍无法安装；等待扫描完成，不重复发布或覆盖版本。
+
 ## 准备模板输入
 
 进入 `plugins/tau-plugin-template`，使用实际生成的文件名：
 
 ```sh
-node use-local-sdk.mjs ../../output/plugin-phase-a/sdk/xiongtao.xt-tau-plugins-0.37.0.tgz ../../output/plugin-phase-a/sdk/xiongtao.xt-tau-ui-0.4.0.tgz
+node use-local-sdk.mjs ../../output/plugin-phase-a/sdk/xiongtao.xt-tau-plugins-0.38.0.tgz ../../output/plugin-phase-a/sdk/xiongtao.xt-tau-ui-0.5.0.tgz
 pnpm install
 pnpm build
 ```
@@ -84,3 +86,5 @@ pnpm check:docs
 5. 配合根进程边界检查、移动 Rust 测试及 Clippy、两端类型检查和前端构建。视觉、真机、最低系统和后台行为另行验收，不从本机 JSDOM 或 Rust 单测外推。
 
 发行顺序为 SDK/UI、具备新词表的中心、声明移动目标的提供方包，最后发布客户端。客户端升级保留旧配置，服务未安装/未启用时给出恢复入口；不将缺包记为同步成功，不静默改为本地。
+
+SDK/UI 可安装后，用 `TAU_AUTHOR_NAMES` 限定本次发行的作者仓库，执行 `node scripts/plugins/verify-official-authors.mjs --published <报告路径>`。判据是 sdkSource 为 npm，各工程冻结安装、构建及已有测试全部通过。模板另运行本页的 `--published --frozen-template` 验证，通过后推送默认分支；七个提供方再推送版本标签，核对 Actions、GitHub ZIP 与插件中心状态。只发布 SDK、模板或插件不要求同时发布客户端。
