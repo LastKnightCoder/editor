@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 
 import {
+  resolveExpectedKeyboardHeight,
   resolvePanelHeight,
   useKeyboardViewport,
 } from "../../../components/KeyboardViewportProvider";
@@ -135,7 +136,7 @@ type MobileEditorBottomToolbarProps = {
   visibleButtons?: ReadonlySet<AccessoryItemId> | null;
 };
 
-/** 配件栏高度，同时作为滚动容器的遮挡留白（键盘与面板高度已含在 --kb-height） */
+/** 配件栏高度，同时作为滚动容器的遮挡留白（键盘与面板由外壳收缩避让，不计入） */
 const ACCESSORY_BAR_HEIGHT = 46;
 
 const ICON_SIZE = 19;
@@ -744,7 +745,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
             className="bg-surface border-line-1 fixed inset-x-0 flex h-[46px] items-center gap-0.5 border-t px-1"
             style={{
               zIndex: Z_INDEX.POPOVER,
-              bottom: "max(var(--kb-height, 0px), env(safe-area-inset-bottom, 0px))",
+              bottom: "var(--mobile-overlay-bottom)",
             }}
           >
             {leftNode}
@@ -768,12 +769,15 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
       : null;
 
   // 插入面板搜索时键盘在面板下方，面板从键盘顶边起算
-  const panelBottom = panelSearching ? keyboardViewport.rawKeyboardHeight : 0;
+  // 键盘升起前按预计高度先把面板抬到键盘位置之上：搜索框聚焦时已可见，iOS 不会为露出它平移整个视口
+  const panelBottom = panelSearching ? resolveExpectedKeyboardHeight(keyboardViewport) : 0;
   const panelNode =
     activePanel && portalRoot
       ? createPortal(
+          // 面板自行贴住键盘定位，内部输入框（插入面板搜索）不参与自动露出，否则会被卷到上方工具条下
           <div
             data-mobile-editor-panel={activePanel}
+            data-kb-optout="true"
             className="bg-surface fixed inset-x-0"
             style={{
               zIndex: Z_INDEX.POPOVER,
@@ -781,7 +785,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
               height: Math.max(0, keyboardViewport.reservedHeight - panelBottom),
             }}
           >
-            <div className="h-full overflow-y-auto pb-[env(safe-area-inset-bottom)]">
+            <div className="h-full overflow-y-auto pb-[var(--mobile-safe-bottom)]">
               <div data-testid={`editor-panel-${activePanel}`}>
                 {activePanel === "style" ? (
                   <StylePanel controller={controller} visibleButtons={visibleButtons} />

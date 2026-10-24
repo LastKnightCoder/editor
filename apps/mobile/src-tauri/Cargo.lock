@@ -16,6 +16,7 @@ dependencies = [
  "image",
  "jieba-rs",
  "jni",
+ "objc2",
  "percent-encoding",
  "reqwest 0.12.28",
  "rusqlite",

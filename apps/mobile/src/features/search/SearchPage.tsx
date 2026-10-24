@@ -3,6 +3,7 @@ import { Search, SearchX, Trash2 } from "lucide-react";
 import { useSearchHistory } from "../../hooks/useSearchHistory";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import type { UnifiedSearchResponse, UnifiedSearchResult } from "../../types";
+import { SearchField } from "../../components/SearchField";
 
 type SearchPageProps = {
   onClose: () => void;
@@ -105,20 +106,15 @@ export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: Sea
     <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
       {/* 搜索栏 */}
       <div className="mobile-topbar topbar-immersive flex items-center gap-3 px-4 pb-3">
-        <div className="relative flex-1">
-          <span className="text-ink-3 absolute left-3.5 top-1/2 -translate-y-1/2">
-            <Search size={18} aria-hidden="true" />
-          </span>
-          <input
-            ref={inputRef}
-            type="text"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="搜索所有内容"
-            className="input-base text-ink-1 w-full rounded-full py-2.5 pl-10 pr-4 text-[14px]"
-          />
-        </div>
+        <SearchField
+          inputRef={inputRef}
+          tone="surface"
+          value={query}
+          onValueChange={setQuery}
+          onKeyDown={handleKeyDown}
+          placeholder="搜索所有内容"
+          className="flex-1"
+        />
         <button
           type="button"
           onClick={onClose}
@@ -128,14 +124,11 @@ export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: Sea
         </button>
       </div>
 
-      {/* 内容区域：二级页无吸底 Dock，底部只留常规呼吸空间（同番茄钟/详情页）。
-          留白挂外层容器，滚动容器自身不带 padding（mobile-kb-scroll 的滚动容器 padding
-          在 WebView 下不可靠），内容不会顶到安全区；键盘避让由 .mobile-kb-screen 收缩负责 */}
-      <div
-        className="flex min-h-0 flex-1 flex-col"
-        style={{ paddingBottom: "var(--page-bottom-inset)" }}
-      >
-        <div ref={scrollRef} className="edge-fade-scroll flex-1 overflow-y-auto overscroll-contain">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div
+          ref={scrollRef}
+          className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto overscroll-contain"
+        >
           {!hasSearched && history.length > 0 ? (
             <div className="p-4">
               <div className="mb-3 flex items-center justify-between px-1">

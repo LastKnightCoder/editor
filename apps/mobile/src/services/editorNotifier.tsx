@@ -166,7 +166,7 @@ export function EditorPromptHost() {
             submit();
           }
         }}
-        className={`bg-page text-ink-1 caret-accent placeholder:text-ink-3 w-full rounded-[14px] px-3.5 py-3 text-[14px] font-semibold outline-none ${error ? "ring-tag-5 ring-1" : ""}`}
+        className={`input-base w-full px-3.5 py-3 font-semibold ${error ? "ring-tag-5 ring-1" : ""}`}
       />
       {error ? (
         <p role="alert" className="text-tag-5 mt-2 text-[12px] font-semibold">

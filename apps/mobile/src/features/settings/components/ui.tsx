@@ -117,7 +117,7 @@ export function FieldInput(props: {
         onBlur={props.onBlur}
         type={props.type ?? "text"}
         placeholder={props.placeholder}
-        className="input-base text-ink-1 w-full px-4 py-3 text-[14px]"
+        className="input-base w-full px-4 py-3"
       />
     </div>
   );

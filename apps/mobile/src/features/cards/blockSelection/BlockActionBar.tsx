@@ -124,13 +124,10 @@ export function BlockActionBar(props: BlockActionBarProps) {
     pendingRef.current = action;
   };
 
-  // 与配件栏同一遮挡变量：滚动容器据此给操作栏留白
+  // 与配件栏同一遮挡变量：滚动容器据此给操作栏留白（安全区已由滚动末尾留白承担，这里只计栏高）
   useEffect(() => {
     const root = document.documentElement;
-    root.style.setProperty(
-      OCCLUSION_VAR,
-      `calc(env(safe-area-inset-bottom, 0px) + ${ACTION_BAR_HEIGHT}px)`
-    );
+    root.style.setProperty(OCCLUSION_VAR, `${ACTION_BAR_HEIGHT}px`);
     return () => {
       root.style.removeProperty(OCCLUSION_VAR);
     };
@@ -239,7 +236,7 @@ export function BlockActionBar(props: BlockActionBarProps) {
   const actionBar = createPortal(
     <nav
       data-block-action-bar="true"
-      className="bg-surface border-line-1 fixed inset-x-0 bottom-0 flex border-t px-1.5 pb-[calc(env(safe-area-inset-bottom,0px)+6px)] pt-1.5"
+      className="bg-surface border-line-1 fixed inset-x-0 bottom-0 flex border-t px-1.5 pb-[calc(var(--mobile-safe-bottom)+6px)] pt-1.5"
       style={{ zIndex: Z_INDEX.POPOVER }}
     >
       <ActionButton

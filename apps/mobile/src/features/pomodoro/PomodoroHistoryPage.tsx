@@ -154,15 +154,10 @@ export function PomodoroHistoryPage({
     <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
       <PageHeader title="专注记录" onBack={onBack} />
 
-      {/* 二级页无吸底 Dock，底部只留常规呼吸空间（同番茄钟主页/详情页）：
-          留白挂外层容器，滚动容器自身不带 padding，内容不会顶到安全区 */}
-      <div
-        className="flex min-h-0 flex-1 flex-col"
-        style={{ paddingBottom: "var(--page-bottom-inset)" }}
-      >
+      <div className="flex min-h-0 flex-1 flex-col">
         <div
           ref={listScrollRef}
-          className="edge-fade-scroll flex-1 overflow-y-auto overscroll-contain"
+          className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto overscroll-contain"
         >
           {focusedDay !== null ? (
             <div className="bg-accent-soft mx-[18px] mt-3 flex items-center gap-2 rounded-[16px] px-4 py-3">

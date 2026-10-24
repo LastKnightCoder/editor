@@ -169,11 +169,7 @@ export function ProjectsPage(props: ProjectsPageProps) {
         }
       />
 
-      {/* 二级页无吸底 Dock，底部只留常规呼吸空间（dock-pad 是给 Dock 页面的 110px 留白） */}
-      <div
-        className="flex min-h-0 flex-1 flex-col overscroll-contain px-4 pt-1"
-        style={{ paddingBottom: "var(--page-bottom-inset)" }}
-      >
+      <div className="flex min-h-0 flex-1 flex-col overscroll-contain px-4 pt-1">
         {isLoading ? (
           <div className="card space-y-3 p-4">
             <div className="bg-page h-4 w-2/5 animate-pulse rounded" />
@@ -196,7 +192,7 @@ export function ProjectsPage(props: ProjectsPageProps) {
               isFetchingNextPage={isFetchingNextPage}
               fetchNextPage={fetchNextPage}
               edgeFade
-              className="edge-fade-scroll relative flex-1 overflow-y-auto"
+              className="edge-fade-scroll mobile-page-scroll relative flex-1 overflow-y-auto"
               renderItem={(project, index) =>
                 project.archived ? renderArchivedCard(project) : renderProjectCard(project, index)
               }
@@ -210,13 +206,13 @@ export function ProjectsPage(props: ProjectsPageProps) {
           value={createTitle}
           onChange={event => setCreateTitle(event.target.value)}
           placeholder="项目名称，如：十月城市漫步计划"
-          className="input-base mt-3.5 w-full px-4 py-3 text-[14.5px]"
+          className="input-base mt-3.5 w-full px-4 py-3"
         />
         <input
           value={createDesc}
           onChange={event => setCreateDesc(event.target.value)}
           placeholder="一句话描述（可选）"
-          className="input-base mt-2.5 w-full px-4 py-3 text-[14.5px]"
+          className="input-base mt-2.5 w-full px-4 py-3"
         />
         <button
           type="button"

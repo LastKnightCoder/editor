@@ -246,7 +246,7 @@ export function OutlineSheet(props: OutlineSheetProps) {
             </button>
           ) : null}
         </div>
-        <SnapSheet.Scroll ref={setScrollEl} className="px-3 pb-[env(safe-area-inset-bottom,0px)]">
+        <SnapSheet.Scroll ref={setScrollEl} className="px-3">
           {units.map(renderUnit)}
         </SnapSheet.Scroll>
       </>

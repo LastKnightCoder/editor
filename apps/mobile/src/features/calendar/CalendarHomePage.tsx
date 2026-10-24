@@ -324,8 +324,7 @@ export function CalendarHomePage({
       {/* 整页单一滚动容器：顶栏固定，月份导航/月历/过滤条/日期头/日程列表一起滚 */}
       <div
         ref={scrollRef}
-        className="edge-fade-scroll flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain"
-        style={{ paddingBottom: "var(--page-bottom-inset)" }}
+        className="edge-fade-scroll mobile-page-scroll flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain"
       >
         <div className="flex flex-none items-center justify-between px-[18px] pb-0.5 pt-1">
           <button

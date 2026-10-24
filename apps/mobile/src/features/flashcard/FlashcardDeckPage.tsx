@@ -2,9 +2,10 @@
 // 批量操作（风格①长按 + ②菜单叠加，设计稿 flashcard-batch-design.html）：
 // 长按任一卡 0.6s 或 ⋯ 菜单「批量管理」进入多选；底部纸面浮条见 CardBatchBar。
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { MoreHorizontal, Plus, Search } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { MoreHorizontal, Plus } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
+import { SearchField } from "../../components/SearchField";
 import { ActionSheet } from "../../components/ActionSheet";
 import type { ActionSheetItem } from "../../components/ActionSheet";
 import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
@@ -329,25 +330,11 @@ export function FlashcardDeckPage({
           </div>
           {/* 卡片搜索 */}
           <div className="flex-none px-5 pt-3">
-            <div className="bg-page flex items-center gap-2.5 rounded-[16px] px-3.5 py-2.5">
-              <Search size={15} className="text-ink-3 flex-none" />
-              <input
-                value={searchText}
-                onChange={event => setSearchText(event.target.value)}
-                placeholder="搜索本卡组的卡片…"
-                className="text-ink-1 placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-[13.5px] font-semibold outline-none placeholder:font-medium"
-              />
-              {searchText ? (
-                <button
-                  type="button"
-                  aria-label="清空搜索"
-                  onClick={() => setSearchText("")}
-                  className="bg-hover text-ink-2 grid h-5 w-5 flex-none place-items-center rounded-full text-[10px]"
-                >
-                  ✕
-                </button>
-              ) : null}
-            </div>
+            <SearchField
+              value={searchText}
+              onValueChange={setSearchText}
+              placeholder="搜索本卡组的卡片…"
+            />
           </div>
           {/* 状态筛选：左右间距挂外层（同上方搜索框），滚动层只负责滚动与渐隐 */}
           <div className="flex-none px-5 pb-1 pt-3">
@@ -378,12 +365,14 @@ export function FlashcardDeckPage({
       {/* 卡片列表 */}
       <div
         ref={scrollRef}
-        className="edge-fade-scroll flex-1 overflow-y-auto"
-        style={{
-          paddingBottom: batchMode
-            ? "calc(96px + var(--mobile-safe-bottom))"
-            : "var(--page-bottom-inset)",
-        }}
+        className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto"
+        style={
+          batchMode
+            ? ({
+                "--page-bottom-inset": "calc(96px + var(--mobile-screen-safe-bottom))",
+              } as CSSProperties)
+            : undefined
+        }
       >
         <div className="flex flex-col gap-2.5 px-5 pt-2">
           {cardsQuery.isLoading ? (

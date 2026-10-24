@@ -141,11 +141,7 @@ export function SettingsPage(props: SettingsScreenProps) {
         </button>
       </header>
 
-      <div
-        ref={scrollRef}
-        className="edge-fade-scroll dock-pad mobile-kb-scroll flex-1 overflow-y-auto px-4"
-        style={{ paddingBottom: "calc(var(--dock-visual-height) + 28px + var(--kb-height, 0px))" }}
-      >
+      <div ref={scrollRef} className="edge-fade-scroll dock-pad flex-1 overflow-y-auto px-4">
         <div className="mt-4">
           <FeatureGrid
             onOpenTodo={props.onOpenTodo}

@@ -45,6 +45,7 @@ function getDefaultViewportHeight(): number {
 }
 
 const DEFAULT_KEYBOARD_VIEWPORT_STATE: ReservedKeyboardViewportState = {
+  viewportTop: 0,
   viewportHeight: getDefaultViewportHeight(),
   keyboardHeight: 0,
   isKeyboardVisible: false,
@@ -76,6 +77,11 @@ export function resolvePanelHeight(state: ReservedKeyboardViewportState): number
   }
   // 有效值之和等于原始视口高度 + 原始键盘高度
   return Math.round((state.viewportHeight + state.keyboardHeight) * FALLBACK_PANEL_RATIO);
+}
+
+/** 键盘高度：已升起取实测值，尚未升起取面板高度作预计值（供需要提前避让键盘的浮层使用） */
+export function resolveExpectedKeyboardHeight(state: ReservedKeyboardViewportState): number {
+  return state.rawKeyboardHeight > 0 ? state.rawKeyboardHeight : resolvePanelHeight(state);
 }
 
 export function KeyboardViewportProvider(props: { children: ReactNode }) {
@@ -155,6 +161,7 @@ export function KeyboardViewportProvider(props: { children: ReactNode }) {
   const state = useMemo<ReservedKeyboardViewportState>(() => {
     const keyboardHeight = Math.max(rawKeyboardHeight, reservedHeight);
     return {
+      viewportTop: rawState.viewportTop,
       viewportHeight: Math.max(1, rawState.viewportHeight + rawKeyboardHeight - keyboardHeight),
       keyboardHeight,
       isKeyboardVisible: rawState.isKeyboardVisible,
@@ -163,6 +170,7 @@ export function KeyboardViewportProvider(props: { children: ReactNode }) {
       lastKeyboardHeight,
     };
   }, [
+    rawState.viewportTop,
     rawState.viewportHeight,
     rawState.isKeyboardVisible,
     rawKeyboardHeight,
@@ -173,13 +181,15 @@ export function KeyboardViewportProvider(props: { children: ReactNode }) {
   useEffect(() => {
     const rootStyle = document.documentElement.style;
     rootStyle.setProperty("--kb-height", toPx(state.keyboardHeight));
+    rootStyle.setProperty("--kb-viewport-top", toPx(state.viewportTop));
     rootStyle.setProperty("--kb-viewport-height", toPx(state.viewportHeight));
-  }, [state.keyboardHeight, state.viewportHeight]);
+  }, [state.keyboardHeight, state.viewportTop, state.viewportHeight]);
 
   useEffect(() => {
     return () => {
       const rootStyle = document.documentElement.style;
       rootStyle.removeProperty("--kb-height");
+      rootStyle.removeProperty("--kb-viewport-top");
       rootStyle.removeProperty("--kb-viewport-height");
     };
   }, []);

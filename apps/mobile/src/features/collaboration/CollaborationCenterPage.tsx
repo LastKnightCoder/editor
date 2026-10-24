@@ -97,7 +97,7 @@ export function CollaborationCenterPage(props: {
   };
 
   return (
-    <div className="bg-page flex h-full flex-col">
+    <div className="mobile-kb-screen bg-page flex h-full flex-col">
       <PageHeader
         title="协作"
         onBack={props.onBack}
@@ -117,7 +117,10 @@ export function CollaborationCenterPage(props: {
           </>
         }
       />
-      <div ref={scrollRef} className="edge-fade-scroll scrollbar-hide flex-1 overflow-y-auto pb-8">
+      <div
+        ref={scrollRef}
+        className="edge-fade-scroll mobile-page-scroll scrollbar-hide flex-1 overflow-y-auto"
+      >
         {/* 身份摘要：设备即身份，颜色与协作中的头像/光标一致 */}
         <button
           type="button"
