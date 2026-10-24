@@ -49,7 +49,6 @@ export function readDevelopmentPluginSource(text: string): PluginInstallSource {
     !value ||
     typeof value !== "object" ||
     Array.isArray(value) ||
-    Object.keys(value).some(key => !["id", "version", "url", "sha256", "size"].includes(key)) ||
     typeof value.id !== "string" ||
     !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(value.id) ||
     typeof value.version !== "string" ||

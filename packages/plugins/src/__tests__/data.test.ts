@@ -275,7 +275,7 @@ function setup({
 }
 
 describe("插件业务数据与权限", () => {
-  it("manifest 声明权限：客户端丢弃未知值，门户严格报错", () => {
+  it("manifest 权限去重，未知授权范围明确报错", () => {
     const base = {
       formatVersion: 1,
       id: "weekly",
@@ -288,12 +288,11 @@ describe("插件业务数据与权限", () => {
       integrity: { "main.js": "a".repeat(64) },
     };
     expect(
-      validatePluginManifest({ ...base, permissions: ["cards:read", "cards:rename", "cards:read"] })
-        .permissions
+      validatePluginManifest({ ...base, permissions: ["cards:read", "cards:read"] }).permissions
     ).toEqual(["cards:read"]);
-    expect(() =>
-      validatePluginManifest({ ...base, permissions: ["cards:rename"] }, { strict: true })
-    ).toThrow("未知插件权限");
+    expect(() => validatePluginManifest({ ...base, permissions: ["cards:rename"] })).toThrow(
+      "未知插件权限"
+    );
   });
 
   it("宿主公布插件声明的权限，未声明的调用直接拒绝且不询问", async () => {

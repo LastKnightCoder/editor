@@ -69,6 +69,8 @@ coarsePointer 对应 (any-pointer: coarse)，finePointer 对应 (any-pointer: fi
 
 节点结构、codec、校验和渲染共用；静态 editorExtensions/editorCodecs 直接交给 definePlugin，不依赖 activate 或缓存全局 context。博客由自己的宿主提供 web/只读环境，不能启动应用插件生命周期。
 
+宿主只把公开的扩展字段交给编辑器内核，附加属性不会执行。
+
 优先使用 SourceBlockEditor/useSourceBlock 与公开的节点 API。标准插入、选区、源码草稿保存/取消、只读和迟到提交保护由宿主负责；节点允许移动不等于所有平台都采用鼠标拖拽。
 
 图册排序、绘图等专有交互仍由作者实现。基础操作保留可点击/可聚焦按钮，拖拽与悬停只作增强；布局按实际容器调整，共享编辑状态和提交函数，方向或输入变化不能丢失草稿。不能为手机另建一套节点类型。
@@ -93,7 +95,7 @@ useResourceUpload() 在只读或没有资源存储的作用域返回 undefined�
 
 ## 构建和分发
 
-buildPortablePluginManifest(authorManifest, output) 接收作者清单和构建器提供的 main/styles/integrity/skills，输出格式 3、apiVersion 1、profile web-v1、CJS 单入口的发行清单。targets 仅记录各平台 minAppVersion，插件中心只消费规范化结果，不执行作者源码。
+buildPortablePluginManifest(authorManifest, output) 接收作者清单和构建器提供的 main/styles/integrity/skills，输出格式 3、apiVersion 1、profile web-v1、CJS 单入口的发行清单。targets 仅记录各平台 minAppVersion，插件中心只消费规范化结果，不执行作者源码。读取器提取协议字段，忽略附加元信息；只校验身份、协议、授权、文件完整性和实际数据约束，不限制简介、关键词或 Skill 数量。版本使用 SemVer，允许预发布和构建标识。
 
 客户端按平台、最低版本、格式与运行配置检查兼容性，插件中心再检查分发开关。宿主装配时读取实际注册的静态贡献，不依赖重复的能力词表或推测任意 JavaScript 的全部依赖。新发行要求桌面至少 0.59.4、移动至少 0.2.4；客户端安装包单独发行。
 

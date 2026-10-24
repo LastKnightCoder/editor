@@ -1,10 +1,9 @@
-import { assertLocalId } from "./ids.ts";
 export { assertLocalId } from "./ids.ts";
 import { comparePluginVersions } from "./version.ts";
-import { readCatalogFields, type PluginCategory } from "./categories.ts";
-import { readPermissionsField, type PluginPermission } from "./permissions.ts";
+import type { PluginCategory } from "./categories.ts";
+import type { PluginPermission } from "./permissions.ts";
 import { validateBackendManifest, type PluginBackendManifest } from "./backend-manifest.ts";
-import { readSkillFiles, readSkillsField } from "./skills.ts";
+import { readPluginMetadata, readPluginFilePath, readPluginFiles } from "./package-fields.ts";
 export {
   validateBackendManifest,
   PLUGIN_SYSTEM_ACCESS,
@@ -13,13 +12,7 @@ export {
 } from "./backend-manifest.ts";
 
 export { comparePluginVersions } from "./version.ts";
-export {
-  PLUGIN_CATEGORIES,
-  PLUGIN_KEYWORD_LIMIT,
-  PLUGIN_KEYWORD_MAX_LENGTH,
-  isPluginCategory,
-  type PluginCategory,
-} from "./categories.ts";
+export { PLUGIN_CATEGORIES, isPluginCategory, type PluginCategory } from "./categories.ts";
 export { PLUGIN_PERMISSIONS, isPluginPermission, type PluginPermission } from "./permissions.ts";
 export { PLUGIN_AI_CAPABILITIES, isPluginAICapability } from "./ai.ts";
 
@@ -68,11 +61,8 @@ export interface DevelopmentPluginPackage {
   css?: string;
 }
 
-/** strict 供门户上传使用：分类、关键词或权限不合规时报错，客户端默认静默丢弃。 */
-export function validatePluginManifest(
-  value: unknown,
-  options: { strict?: boolean } = {}
-): PluginManifest {
+/** 按实际使用的包字段解析身份、权限、入口和摘要。 */
+export function validatePluginManifest(value: unknown): PluginManifest {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new Error("插件清单必须是对象");
   const item = value as Record<string, unknown>;
@@ -83,26 +73,8 @@ export function validatePluginManifest(
     item.format !== "cjs"
   )
     throw new Error("插件包格式、API 版本或平台不兼容");
-  if (typeof item.id !== "string") throw new Error("插件 ID 无效");
-  assertLocalId(item.id);
-  if (
-    typeof item.name !== "string" ||
-    !item.name.trim() ||
-    typeof item.version !== "string" ||
-    !/^\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(item.version)
-  )
-    throw new Error("插件名称或版本无效");
-  const file = (input: unknown, extension: string) => {
-    if (
-      typeof input !== "string" ||
-      !/^[\w./-]+$/.test(input) ||
-      input.split("/").some(part => !part || part === "." || part === "..") ||
-      !input.endsWith(extension)
-    )
-      throw new Error("插件入口或样式路径无效");
-    return input;
-  };
-  const main = file(item.main, ".js");
+  const metadata = readPluginMetadata(item);
+  const main = readPluginFilePath(item.main, ".js");
   const backend = item.backend === undefined ? undefined : validateBackendManifest(item.backend);
   if ((item.formatVersion === 2) !== Boolean(backend))
     throw new Error("后台声明必须使用包格式 2，普通插件使用格式 1");
@@ -113,33 +85,15 @@ export function validatePluginManifest(
     if (typeof item.minAppVersion !== "string") throw new Error("最低客户端版本无效");
     comparePluginVersions(item.minAppVersion, item.minAppVersion);
   }
-  const styles = item.styles === undefined ? undefined : file(item.styles, ".css");
-  if (item.editor !== undefined && item.editor !== true) throw new Error("editor 只能声明为 true");
-  if (item.whiteboard !== undefined && item.whiteboard !== true)
-    throw new Error("whiteboard 只能声明为 true");
-  const catalog = readCatalogFields(item, options.strict === true);
-  const permissions = readPermissionsField(item, options.strict === true);
-  const integrity: Record<string, string> = {};
-  for (const name of [main, ...(styles ? [styles] : []), ...(backend ? [backend.entry] : [])]) {
-    const hash =
-      item.integrity && typeof item.integrity === "object"
-        ? (item.integrity as Record<string, unknown>)[name]
-        : undefined;
-    if (typeof hash !== "string" || !/^[a-f0-9]{64}$/.test(hash))
-      throw new Error("插件产物缺少有效的完整性摘要");
-    integrity[name] = hash;
-  }
-  const skills = readSkillsField(item.skills);
-  if (skills)
-    Object.assign(
-      integrity,
-      readSkillFiles(skills, (item.integrity ?? {}) as Record<string, unknown>)
-    );
+  const styles = item.styles === undefined ? undefined : readPluginFilePath(item.styles, ".css");
+  const files = readPluginFiles(item, [
+    main,
+    ...(styles ? [styles] : []),
+    ...(backend ? [backend.entry] : []),
+  ]);
   return Object.freeze({
     formatVersion: item.formatVersion,
-    id: item.id,
-    name: item.name,
-    version: item.version,
+    ...metadata,
     ...(typeof item.minAppVersion === "string" ? { minAppVersion: item.minAppVersion } : {}),
     apiVersion: 1,
     platform: "desktop",
@@ -148,10 +102,7 @@ export function validatePluginManifest(
     ...(backend ? { backend } : {}),
     ...(item.editor === true ? { editor: true as const } : {}),
     ...(item.whiteboard === true ? { whiteboard: true as const } : {}),
-    ...catalog,
-    ...permissions,
-    ...(skills ? { skills } : {}),
-    integrity: Object.freeze(integrity),
+    ...files,
     ...(styles === undefined ? {} : { styles }),
   });
 }

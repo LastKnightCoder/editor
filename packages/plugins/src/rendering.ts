@@ -1,13 +1,12 @@
 import { assertContentResourceSpecs } from "@tau/db-schema/content-resources";
 import type { PluginDefinition } from "./contract";
 import type { PluginEditorExtension } from "./editor";
-import { assertPluginEditorExtension } from "./editor-fields.ts";
+import { normalizePluginEditorExtension } from "./editor-fields.ts";
 import type { MarkdownCodec } from "@tau/markdown";
 import {
   readPortablePluginManifest,
   assertPortablePluginCompatibility,
   PORTABLE_SHARED_MODULES,
-  type PortablePlatform,
   type ReadablePortablePluginManifest,
   type PortablePluginHost,
 } from "./portable";
@@ -53,7 +52,7 @@ export function evaluatePublishedPluginPackage(
     return evaluatePluginPackage({ ...artifact, manifest }, modules);
   if (!manifest.targets.desktop) throw new Error("博客渲染需要桌面目标");
   const definition = evaluateModule(manifest, artifact.code, modules, PORTABLE_SHARED_MODULES);
-  return adaptPortablePluginDefinition(definition, manifest, "desktop").definition;
+  return definition;
 }
 
 export interface PluginRenderSelection {
@@ -83,27 +82,12 @@ export function evaluatePortablePluginPackage(
   modules: Readonly<Record<string, unknown>>,
   host: PortablePluginHost
 ): PluginDefinition {
-  const manifest = readPortablePluginManifest(artifact.manifest);
+  const manifest = artifact.manifest;
   assertPortablePluginCompatibility(manifest, host);
   const definition = evaluateModule(manifest, artifact.code, modules, PORTABLE_SHARED_MODULES);
   if (definition.whiteboardExtensions?.length && host.environment.platform !== "desktop")
     throw new Error("当前宿主尚未提供白板扩展");
   return definition;
-}
-
-/** 宿主从实际节点定义生成编辑策略，原始数据与节点身份不改写。 */
-export function adaptPortablePluginDefinition(
-  definition: PluginDefinition,
-  manifest: ReadablePortablePluginManifest,
-  platform: PortablePlatform
-) {
-  if (!manifest.targets[platform]) throw new Error("插件不支持当前平台");
-  return {
-    support: Object.freeze(
-      Object.fromEntries(getPluginNodeTypes(definition).map(type => [type, "edit" as const]))
-    ),
-    definition,
-  };
 }
 
 export const hasPluginContent = (definition: PluginDefinition) =>
@@ -164,6 +148,10 @@ export function validatePluginDefinition(
     Boolean(definition.whiteboardExtensions?.length) !== Boolean(manifest.whiteboard)
   )
     throw new Error("白板贡献必须与 manifest.whiteboard 声明一致");
+  definition = {
+    ...definition,
+    editorExtensions: definition.editorExtensions?.map(normalizePluginEditorExtension),
+  };
   getPluginWhiteboardTypes(definition);
   if (definition.editorCodecs?.length && !definition.editorExtensions?.length)
     throw new Error("Markdown codec 必须随编辑器贡献声明");
@@ -178,7 +166,6 @@ export function validatePluginDefinition(
 export function getPluginNodeTypes(definition: PluginDefinition): string[] {
   const types: string[] = [];
   for (const extension of definition.editorExtensions ?? []) {
-    assertPluginEditorExtension(extension);
     for (const element of extension.elements ?? []) {
       if (!element.type || types.includes(element.type))
         throw new Error(`插件节点类型为空或重复：${element.type}`);

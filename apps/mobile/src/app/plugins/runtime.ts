@@ -3,11 +3,7 @@ import { copyJson } from "@tau/plugins/host";
 import { getMobileSettingSnapshot } from "../../services/mobileSettingsBridge";
 import { PluginHost, normalizePageParams, type StorageAdapter } from "@tau/plugins/host";
 import { ContentPluginRegistry } from "@tau/plugins/content";
-import { type PortablePlatform } from "@tau/plugins/portable";
-import {
-  evaluatePortablePluginPackage,
-  adaptPortablePluginDefinition,
-} from "@tau/plugins/rendering";
+import { evaluatePortablePluginPackage, getPluginNodeTypes } from "@tau/plugins/rendering";
 import type { PluginEnvironmentSource } from "@tau/plugins/environment-host";
 import type {
   PluginContext,
@@ -203,18 +199,15 @@ export class MobilePluginRuntime {
           appVersion: this.appVersion,
           profiles: ["web-v1"],
         });
-        const platform = this.environment.getSnapshot().platform as PortablePlatform;
-        const adapted = adaptPortablePluginDefinition(definition, artifact.manifest, platform);
-        const contentDefinition = adapted.definition;
+        const contentDefinition = definition;
+        const nodeTypes = getPluginNodeTypes(definition);
         const candidate = new ContentPluginRegistry();
         candidate.install([...this.content.list(), contentDefinition]);
         validateContent?.(candidate);
         this.host.registerTrusted(definition);
         this.content.install(candidate.list());
-        Object.entries(adapted.support).forEach(([type, value]) =>
-          this.elementSupport.set(type, value)
-        );
-        this.packageNodes.set(item.id, Object.keys(adapted.support));
+        nodeTypes.forEach(type => this.elementSupport.set(type, "edit"));
+        this.packageNodes.set(item.id, nodeTypes);
         definitions.push(definition);
         if (artifact.css) {
           const style = document.createElement("style");

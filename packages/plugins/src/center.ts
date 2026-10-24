@@ -133,29 +133,15 @@ export interface PluginCenterClient {
 
 export function normalizeCenterHost(host: CenterHost): CenterHost {
   if (!host || !PORTABLE_PLATFORMS.includes(host.platform)) throw new Error("宿主平台无效");
-  if (
-    Object.keys(host).some(
-      key => !["platform", "appVersion", "apiVersions", "formatVersions", "profiles"].includes(key)
-    )
-  )
-    throw new Error("宿主信息包含未知字段");
   comparePluginVersions(host.appVersion, host.appVersion);
   const numbers = (values: readonly number[]) => {
-    if (
-      !Array.isArray(values) ||
-      values.length > 32 ||
-      values.some(value => !Number.isSafeInteger(value) || value < 1)
-    )
+    if (!Array.isArray(values) || values.some(value => !Number.isSafeInteger(value) || value < 1))
       throw new Error("宿主协议版本集合无效");
     return [...new Set(values)].sort((a, b) => a - b);
   };
-  const names = (values: readonly string[], pattern: RegExp) => {
-    if (
-      !Array.isArray(values) ||
-      values.length > 128 ||
-      values.some(value => typeof value !== "string" || !pattern.test(value))
-    )
-      throw new Error("宿主能力或运行配置无效");
+  const names = (values: readonly string[]) => {
+    if (!Array.isArray(values) || values.some(value => typeof value !== "string"))
+      throw new Error("宿主运行配置无效");
     return [...new Set(values)].sort();
   };
   return {
@@ -163,7 +149,7 @@ export function normalizeCenterHost(host: CenterHost): CenterHost {
     appVersion: host.appVersion,
     apiVersions: numbers(host.apiVersions),
     formatVersions: numbers(host.formatVersions),
-    profiles: names(host.profiles, /^[a-z][a-z0-9.-]{0,127}$/),
+    profiles: names(host.profiles),
   };
 }
 
@@ -174,7 +160,6 @@ export function normalizeCenterQuery(input: CenterCatalogQuery) {
   if (host && (input.platform === "all" || input.platform !== host.platform))
     throw new Error("目录与宿主平台不一致");
   const q = (input.q ?? "").trim().toLowerCase();
-  if (q.length > 200) throw new Error("搜索词过长");
   const category = input.category ?? null;
   if (category !== null && !isPluginCategory(category)) throw new Error("分类无效");
   const sort = input.sort ?? "downloads7d";
@@ -182,8 +167,7 @@ export function normalizeCenterQuery(input: CenterCatalogQuery) {
   const limit = input.limit ?? 30;
   if (!Number.isInteger(limit) || limit < 1 || limit > 50) throw new Error("分页大小无效");
   const cursor = input.cursor ?? null;
-  if (cursor !== null && (typeof cursor !== "string" || !cursor || cursor.length > 4096))
-    throw new Error("分页游标无效");
+  if (cursor !== null && (typeof cursor !== "string" || !cursor)) throw new Error("分页游标无效");
   return { platform: input.platform, ...(host ? { host } : {}), q, category, sort, limit, cursor };
 }
 

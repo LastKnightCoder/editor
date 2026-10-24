@@ -31,8 +31,6 @@ export function check(context: PluginContext, manifest: PortablePluginManifest) 
   const readable: ReadablePortablePluginManifest = readPortablePluginManifest(manifest);
   const strict: PortablePluginManifest = readable;
   void strict;
-  // @ts-expect-error 平台配置不再重复登记宿主能力。
-  void strict.targets.ios?.required;
   // @ts-expect-error 作者不能改宿主环境。
   context.environment.platform = "ios";
 }

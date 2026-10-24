@@ -1,7 +1,7 @@
 import { version as appVersion } from "../../../package.json";
 import {
   evaluatePortablePluginPackage,
-  adaptPortablePluginDefinition,
+  getPluginNodeTypes,
   assertUniqueEditorCodecs,
 } from "@tau/plugins/rendering";
 import type { PluginDefinition } from "@tau/plugins";
@@ -27,22 +27,16 @@ export async function initializePortableDevelopment() {
       appVersion,
       profiles: ["web-v1"],
     });
-    const adapted = adaptPortablePluginDefinition(definition, artifact.manifest, "desktop");
-    Object.entries(adapted.support).forEach(([type, value]) =>
-      desktopPortableSupport.set(type, value)
-    );
+    getPluginNodeTypes(definition).forEach(type => desktopPortableSupport.set(type, "edit"));
     getContentKit().extend({
-      extensions: [
-        ...desktopContentPlugins.extensions,
-        ...(adapted.definition.editorExtensions ?? []),
-      ],
+      extensions: [...desktopContentPlugins.extensions, ...(definition.editorExtensions ?? [])],
     });
     assertUniqueEditorCodecs([
       ...desktopCodecComposition,
       ...desktopContentPlugins.codecs,
-      ...(adapted.definition.editorCodecs ?? []),
+      ...(definition.editorCodecs ?? []),
     ]);
-    desktopContentPlugins.install([...desktopContentPlugins.list(), adapted.definition]);
+    desktopContentPlugins.install([...desktopContentPlugins.list(), definition]);
     portableDevelopmentDefinitions.push(definition);
     markPortableDevelopmentLoaded();
     if (artifact.css) {

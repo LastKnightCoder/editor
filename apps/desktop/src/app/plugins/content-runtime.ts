@@ -1,9 +1,6 @@
 import { version as appVersion } from "../../../package.json";
 import { sharedPluginModules } from "@tau/plugins/shared-modules";
-import {
-  evaluatePortablePluginPackage,
-  adaptPortablePluginDefinition,
-} from "@tau/plugins/rendering";
+import { evaluatePortablePluginPackage } from "@tau/plugins/rendering";
 import { evaluateDesktopPluginPackage } from "../../../shared/plugin-rendering";
 import { desktopPortableHost } from "../../../shared/plugin-package";
 import type { PluginDefinition } from "@tau/plugins";
@@ -44,9 +41,7 @@ Object.assign(globalThis, {
             );
             definitions.set(key, definition);
           }
-          snapshot.push(
-            adaptPortablePluginDefinition(definition, artifact.manifest, "desktop").definition
-          );
+          snapshot.push(definition);
         }
       }
       desktopContentPlugins.install(snapshot);

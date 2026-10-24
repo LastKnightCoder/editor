@@ -65,13 +65,10 @@ describe("后台清单", () => {
     { lifetime: "forever" },
     { reason: " " },
     { systemAccess: ["admin"] },
-    { systemAccess: ["network", "network"] },
-    { extra: true },
   ])("客户端与门户都拒绝无效执行字段 %j", override => {
-    for (const strict of [false, true])
-      expect(() =>
-        validatePluginManifest({ ...manifest, backend: { ...backend, ...override } }, { strict })
-      ).toThrow();
+    expect(() =>
+      validatePluginManifest({ ...manifest, backend: { ...backend, ...override } })
+    ).toThrow();
   });
   it("工作区启动只匹配工作区作用域", () => {
     expect(
@@ -89,6 +86,6 @@ describe("后台清单", () => {
         main: undefined,
         template: { protocolVersion: 1, root: "site", entries: ["index.html"] },
       })
-    ).toThrow("不能同时声明");
+    ).toThrow("路径或摘要");
   });
 });

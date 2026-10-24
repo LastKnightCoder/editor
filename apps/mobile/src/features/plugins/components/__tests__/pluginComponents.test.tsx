@@ -244,6 +244,17 @@ it("管理菜单：卸载与清除数据分别确认，不允许的动作说明�
   expect(document.body.textContent).toContain("请先停用插件并点「立即生效」后再操作");
   await click(buttons().find(item => item.textContent?.includes("恢复上一版代码")));
   expect(onAction).not.toHaveBeenCalled();
+  await act(async () =>
+    root?.render(
+      <PluginManageSheet
+        key="reopened"
+        open
+        item={managed()}
+        onClose={vi.fn()}
+        onAction={onAction}
+      />
+    )
+  );
   await click(buttons().find(item => item.textContent?.startsWith("卸载")));
   expect(document.body.textContent).toContain("正文里的插件内容和插件数据都会保留");
   expect(onAction).not.toHaveBeenCalled();

@@ -19,7 +19,6 @@ export type { PluginCategory };
 
 export const LIMITS = {
   ...DISTRIBUTION_LIMITS,
-  summary: 160,
   readmeBytes: 128 * 1024,
 } as const;
 

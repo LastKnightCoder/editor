@@ -33,7 +33,7 @@
 | `context.notifications`                                                         | 已接                                       | 未接                                    | 未接               | 不承诺移动系统通知或后台通知                                                                     |
 | `context.sync`、`context.upload`                                                | 领域提供方已接                             | 同一注册与配置 API 已接                 | 同 Android         | 宿主负责流程与选用，插件实现远端存储；账号独立，不做统一共享                                     |
 | `context.tts`、`context.images`、`context.video`、`context.publish`             | 领域提供方已接                             | 未接                                    | 未接               | 本轮不扩大其他业务领域                                                                           |
-| `context.backend`                                                               | 格式 2 独立后台与授权已接                  | 格式 3 不支持                           | 格式 3 不支持      | Node、子进程、本机程序继续留在旧桌面包；本轮不迁移                                               |
+| `context.backend`                                                               | 格式 2 独立后台与授权已接                  | 格式 3 不支持                           | 格式 3 不支持      | Node、子进程、本机程序使用独立的桌面后台包                                                       |
 
 ## 正文、UI 与交互
 

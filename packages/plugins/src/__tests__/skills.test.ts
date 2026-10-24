@@ -35,7 +35,7 @@ describe("插件包内 Skill", () => {
     ]);
   });
 
-  it("拒绝缺少 SKILL.md、未声明目录与重复 ID", () => {
+  it("拒绝缺少 SKILL.md、未声明目录与越界路径", () => {
     const base = { ...plugin, integrity: { "main.js": hash("a") } };
     expect(() => validatePluginManifest({ ...base, skills: ["guide"] })).toThrow("缺少 SKILL.md");
     expect(() =>
@@ -49,7 +49,6 @@ describe("插件包内 Skill", () => {
         },
       })
     ).toThrow("不属于已声明");
-    expect(() => validatePluginManifest({ ...base, skills: ["a", "a"] })).toThrow("重复");
     expect(() => validatePluginManifest({ ...base, skills: ["../x"] })).toThrow();
   });
 });
@@ -71,15 +70,15 @@ describe("独立 Skill 包", () => {
   };
 
   it("没有代码入口、只含 Skill 目录时识别为 Skill 包", () => {
-    const manifest = validateDistributionManifest(skillPackage, { strict: true });
+    const manifest = validateDistributionManifest(skillPackage);
     expect(isSkillPackageManifest(manifest)).toBe(true);
     expect(manifest).toMatchObject({ skills: ["writing"], categories: ["skill"] });
     expect(hasSkillScripts(manifest)).toBe(true);
   });
 
   it("拒绝代码字段、Skill 目录之外的文件和空声明", () => {
-    expect(() => validateDistributionManifest({ ...skillPackage, backend: {} })).toThrow(
-      "不能声明代码插件字段"
+    expect(validateDistributionManifest({ ...skillPackage, documentation: "extra" })).toMatchObject(
+      { skills: ["writing"] }
     );
     expect(() =>
       validateDistributionManifest({
