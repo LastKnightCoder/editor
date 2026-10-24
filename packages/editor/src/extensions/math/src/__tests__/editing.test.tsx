@@ -3,7 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Editor as SlateEditor } from "slate";
+import type { Descendant, Editor as SlateEditor } from "slate";
 import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
 import { IElementEditingPolicy } from "@tau/editor/api";
 import { IEditorSlots } from "@tau/editor/extensions/media/services";
@@ -12,7 +12,7 @@ import { inlineMathExtension } from "../index";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-const paragraphWithMath = () => ({
+const paragraphWithMath = (): Descendant => ({
   type: "paragraph",
   children: [
     { type: "formatted", text: "前" },
@@ -84,8 +84,14 @@ describe("行内公式原位编辑", () => {
     expect(source.closest("[data-slate-editor]")).toBeTruthy();
     expect(source.value).toBe("x^2");
     await input(source, "y^3");
-    expect(host!.querySelector('[aria-label="公式预览"] .katex')).toBeTruthy();
-    expect(host!.querySelector('[aria-label="公式预览"]')?.textContent).toContain("y");
+    const preview = document.querySelector('[aria-label="公式预览"]');
+    expect(preview?.querySelector(".katex")).toBeTruthy();
+    expect(preview?.textContent).toContain("y");
+    expect(preview?.closest("[data-slate-editor]")).toBeNull();
+    expect(preview?.classList.contains("shadow-card")).toBe(true);
+    expect(preview?.classList.contains("max-w-[calc(100vw-16px)]")).toBe(true);
+    expect((preview as HTMLElement).style.visibility).toBe("visible");
+    expect((preview as HTMLElement).style.left).not.toBe("");
     expect(editor.children[0]).toMatchObject({
       children: expect.arrayContaining([
         expect.objectContaining({ type: "inline-math", tex: "y^3" }),

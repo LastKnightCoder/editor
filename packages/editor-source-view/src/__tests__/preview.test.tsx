@@ -46,6 +46,7 @@ interface FakeEditor {
 }
 interface CodeProps {
   value: string;
+  className?: string;
   onChange(editor: FakeEditor, change: unknown, code: string): void;
   onKeyDown?(editor: FakeEditor, event: KeyboardEvent): void;
   onBlur?(editor: FakeEditor, event: FocusEvent): void;
@@ -97,7 +98,14 @@ vi.mock("react-codemirror2", () => ({
       props.editorDidMount(current.editor);
       return () => props.editorWillUnmount();
     }, []);
-    return <textarea ref={input} defaultValue={props.value} aria-label="源码" />;
+    return (
+      <textarea
+        ref={input}
+        defaultValue={props.value}
+        className={props.className}
+        aria-label="源码"
+      />
+    );
   },
 }));
 
@@ -288,12 +296,32 @@ describe("源码预览迁包后的行为", () => {
     await edit();
     expect(document.querySelector('[role="dialog"]')).toBeNull();
     expect(observed.editors).toHaveLength(1);
-    expect(host.querySelector("textarea")).toBeTruthy();
+    expect(
+      host.querySelector("textarea")?.classList.contains("ed-preview-codemirror--in-place")
+    ).toBe(true);
     expect(host.querySelector("output")?.textContent).toBe("初始");
     expect(host.textContent?.match(/\$\$/g)).toHaveLength(2);
     await changeSource("更新");
     expect((editor.children[1] as PreviewElement).source).toBe("更新");
     expect(host.querySelector("output")?.textContent).toBe("更新");
+  });
+  it.each([" ", "Enter"])("选中原位块后按 %s 进入源码编辑", async key => {
+    await mount("初始", false, true);
+    await act(async () => {
+      Transforms.select(editor, [1]);
+      ReactEditor.focus(editor as ReactEditor);
+      ReactEditor.toDOMNode(editor as ReactEditor, editor).dispatchEvent(
+        new FocusEvent("focus", { bubbles: true })
+      );
+      await new Promise(resolve => setTimeout(resolve, 30));
+    });
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true })
+      );
+      await vi.dynamicImportSettled();
+    });
+    expect(observed.editors).toHaveLength(1);
   });
   it("触摸源码取消不写入，保存可撤销，块菜单复用标准移动与删除", async () => {
     await mount("初始", true);
