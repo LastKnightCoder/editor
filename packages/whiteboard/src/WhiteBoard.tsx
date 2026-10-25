@@ -114,6 +114,8 @@ export interface WhiteBoardProps {
   showToolbar?: boolean;
   showAttributeSetter?: boolean;
   showStatusBar?: boolean;
+  /** 宿主追加在右下状态栏末尾的控件（如协作入口），演示模式下随状态栏隐藏 */
+  statusBarEnd?: React.ReactNode;
   /** 进出演示模式（宿主页面据此收起画布外的浮动件，如页签条） */
   onPresentationModeChange?: (presenting: boolean) => void;
   /** 扩展被禁用时回调（命名空间违规、冲突、创建失败等），画布继续运行 */
@@ -230,6 +232,7 @@ const WhiteBoardCanvas = forwardRef<WhiteBoardRef, WhiteBoardProps & { board: Bo
       showToolbar,
       showAttributeSetter,
       showStatusBar = true,
+      statusBarEnd,
       onPresentationModeChange,
       outline,
     } = props;
@@ -838,6 +841,7 @@ const WhiteBoardCanvas = forwardRef<WhiteBoardRef, WhiteBoardProps & { board: Bo
                               onStartPresentation={handleStartPresentation}
                               onEditSequence={handleEditSequence}
                               onDeleteSequence={handleDeleteSequence}
+                              end={statusBarEnd}
                             />
                           )}
 

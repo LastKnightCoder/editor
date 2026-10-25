@@ -129,6 +129,30 @@ it("未打开文档的历史持有尚未建立时保守阻止实体回收", asyn
   expect(hasDurableEntityHold(db, "whiteboard-content", 900)).toBe(false);
 });
 
+it("共享候选按标题检索整块白板，已共享的不再列出", async () => {
+  const created = await call("create", 1, "A", "doc", Y.encodeStateAsUpdate(source), "board");
+  state.databases
+    .get("A")!
+    .prepare("UPDATE white_boards SET title=? WHERE id=?")
+    .run("产品路线图", created.boardId);
+  expect(call("share-candidates", 1, "A", "路线")).toEqual([
+    {
+      boardId: created.boardId,
+      title: "产品路线图",
+      documentId: "doc",
+      contentId: created.contentIds[0],
+      pages: 1,
+    },
+  ]);
+  expect(call("share-candidates", 1, "A", "")).toHaveLength(1);
+  // LIKE 通配符按字面匹配
+  expect(call("share-candidates", 1, "A", "%")).toEqual([]);
+  state.assetStore!.set("whiteboard-binding:A:doc", {
+    serverUrl: "https://collab.test",
+    documentId: "room",
+  });
+  expect(call("share-candidates", 1, "A", "路线")).toEqual([]);
+});
 it("切库屏障阻止新打开，全部持有者确认后才释放旧租约", async () => {
   const [a, b] = await opened();
   const { prepareDurableDocuments } = await import("../../durable-document-lifecycle");

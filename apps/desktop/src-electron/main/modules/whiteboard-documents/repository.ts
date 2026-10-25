@@ -85,6 +85,31 @@ export class WhiteboardDocumentRepository {
     if (row.content_created_at !== row.create_time) throw new Error("白板页面身份已变化");
     return { document: this.read(row.document_id)!, pageId: row.page_id };
   }
+  /** 按标题检索整块白板（关键词为空时按最近更新），跳过 excluded 中的文档。 */
+  shareCandidates(keyword: string, excluded: string[], limit: number) {
+    const pattern = `%${keyword.replace(/[\\%_]/g, char => `\\${char}`)}%`;
+    return (
+      this.db
+        .prepare(
+          `SELECT b.id AS boardId, coalesce(b.title,'') AS title, d.document_id AS documentId,
+            (SELECT p.content_id FROM whiteboard_document_pages p
+              WHERE p.document_id=d.document_id AND p.visible=1 ORDER BY p.page_index LIMIT 1) AS contentId,
+            (SELECT count(*) FROM whiteboard_document_pages p
+              WHERE p.document_id=d.document_id AND p.visible=1) AS pages
+          FROM whiteboard_documents d JOIN white_boards b ON b.id=d.board_id
+          WHERE coalesce(b.title,'') LIKE ? ESCAPE '\\'
+            AND d.document_id NOT IN (SELECT value FROM json_each(?))
+          ORDER BY b.update_time DESC LIMIT ?`
+        )
+        .all(pattern, JSON.stringify(excluded), limit) as {
+        boardId: number;
+        title: string;
+        documentId: string;
+        contentId: number | null;
+        pages: number;
+      }[]
+    ).filter((row): row is typeof row & { contentId: number } => row.contentId !== null);
+  }
   create(
     documentId: string,
     model: WhiteboardModel,

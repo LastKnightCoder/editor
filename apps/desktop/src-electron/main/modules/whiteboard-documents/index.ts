@@ -39,7 +39,11 @@ import { WhiteboardDocumentSessions } from "./sessions";
 import { WhiteboardDocumentRepository } from "./repository";
 import { registerDurableDocuments, type DocumentDrainScope } from "../durable-document-lifecycle";
 import { registerDurableEntityHolds } from "../durable-entity-holds";
-import type { WhiteboardRemoteStatus, WhiteboardShareStatus } from "@/types/whiteboard-document";
+import type {
+  WhiteboardRemoteStatus,
+  WhiteboardShareCandidate,
+  WhiteboardShareStatus,
+} from "@/types/whiteboard-document";
 import type Database from "better-sqlite3";
 import {
   prepareUnshareCandidate,
@@ -1303,6 +1307,26 @@ class WhiteboardDocumentsModule {
       const found = new WhiteboardDocumentRepository(db, databaseName).byPage(contentId);
       return found ? { documentId: found.document.documentId, pageId: found.pageId } : null;
     });
+    handle(
+      "share-candidates",
+      (event, databaseName: string, keyword: string): WhiteboardShareCandidate[] => {
+        this.owner(event, databaseName);
+        const db = databaseModule.getDatabase(databaseName);
+        if (!db) throw new Error("资料库未连接");
+        const prefix = `whiteboard-binding:${databaseName}:`;
+        const shared = (
+          services.store.db
+            .prepare("SELECT key FROM settings WHERE key LIKE 'whiteboard-binding:%'")
+            .all() as { key: string }[]
+        )
+          .filter(row => row.key.startsWith(prefix))
+          .map(row => row.key.slice(prefix.length));
+        // 未完成的首次发布只能在白板页续做或取消，不作为新候选。
+        return new WhiteboardDocumentRepository(db, databaseName)
+          .shareCandidates(keyword.trim(), shared, 30)
+          .filter(row => !this.transitions.pendingPublication(databaseName, row.documentId));
+      }
+    );
     handle("resolve-page", (event, databaseName: string, documentId: string, pageId: string) => {
       this.owner(event, databaseName);
       const db = databaseModule.getDatabase(databaseName);

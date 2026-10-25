@@ -6,6 +6,7 @@ import type {
   WhiteboardDocumentEvent,
   WhiteboardDocumentFlushRequest,
   WhiteboardRemoteStatus,
+  WhiteboardShareCandidate,
   WhiteboardShareStatus,
 } from "@/types/whiteboard-document";
 const call = <T>(method: string, ...args: unknown[]) =>
@@ -51,6 +52,9 @@ export const convertLegacyWhiteboard = (
   contentId: number,
   editorContracts: import("@tau/db-schema/content-contracts").ContentContractDictionary
 ) => call<{ documentId: string }>("legacy-convert", databaseName, contentId, editorContracts);
+/** 尚未共享的整块白板，按标题检索（空关键词按最近更新），至多 30 条。 */
+export const searchWhiteboardShareCandidates = (databaseName: string, keyword: string) =>
+  call<WhiteboardShareCandidate[]>("share-candidates", databaseName, keyword);
 export const locateWhiteboardDocument = (databaseName: string, contentId: number) =>
   call<{ documentId: string; pageId: string } | null>("locate", databaseName, contentId);
 export const createWhiteboardDocument = (
