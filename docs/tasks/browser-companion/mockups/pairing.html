@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>伴读 · 连接授权</title>
+<link rel="stylesheet" href="shared.css" />
+<style>
+  html, body { margin: 0; }
+  body.tau { background: var(--page); min-height: 100vh; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 72px 32px 96px; }
+  .sec { margin-bottom: 72px; }
+  .sec-h { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+  .sec-h h2 { margin: 0; font-size: 18px; font-weight: 600; }
+  .sec-h span { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+  .sec > p { margin: 0 0 20px; max-width: 760px; color: var(--ink-2); }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .cap { margin: 10px 2px 0; font-size: 12.5px; color: var(--ink-2); }
+  .cap b { color: var(--ink-1); font-weight: 600; margin-right: 6px; }
+
+  /* 浏览器外框（第三方 UI，中性灰） */
+  .browser { border-radius: 12px; overflow: hidden; background: #fff; box-shadow: var(--shadow-card), 0 0 0 1px rgba(0,0,0,0.06); height: 440px; display: flex; flex-direction: column; }
+  .chrome { height: 34px; background: #ececec; display: flex; align-items: center; gap: 6px; padding: 0 10px; flex: none; }
+  .chrome i { width: 9px; height: 9px; border-radius: 50%; background: #cfcfcf; }
+  .chrome .url { flex: 1; height: 20px; margin-left: 8px; border-radius: 6px; background: #fff; font: 11px -apple-system, sans-serif; color: #888; display: flex; align-items: center; padding: 0 8px; }
+  .viewport { position: relative; flex: 1; overflow: hidden; }
+  .fake-page { padding: 22px 24px; }
+  .fake-page .l { height: 8px; border-radius: 4px; background: #eee; margin-bottom: 10px; }
+  .fake-page .h { height: 16px; width: 70%; background: #e2e2e2; margin-bottom: 18px; border-radius: 4px; }
+  .mini-orb { position: absolute; right: -18px; top: 330px; width: 36px; height: 36px; border-radius: 50%; background: var(--surface); box-shadow: var(--shadow-lift), 0 0 0 1px var(--line-1); display: grid; place-items: center; font: italic 600 19px Georgia, serif; color: var(--accent-text); transform: translateX(-30px); }
+  .mini-orb .status { position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 2px var(--surface); }
+  .mini-panel { position: absolute; right: 44px; top: 14px; bottom: 14px; left: 14px; border-radius: 14px; background: var(--surface); box-shadow: var(--shadow-float); display: flex; flex-direction: column; overflow: hidden; }
+  .mp-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px 4px; }
+  .fav { width: 24px; height: 24px; border-radius: 7px; background: #1c1c1c; color: #fff; display: grid; place-items: center; font: 700 12px Georgia, serif; flex: none; }
+  .mp-head .t { min-width: 0; flex: 1; }
+  .mp-head b { display: block; font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mp-head small { display: flex; align-items: center; gap: 5px; color: var(--ink-3); font-size: 11.5px; }
+  .mp-head small .dot { width: 6px; height: 6px; }
+  .mp-body { flex: 1; display: flex; flex-direction: column; justify-content: center; text-align: center; padding: 8px 16px 20px; }
+  .ic { width: 40px; height: 40px; margin: 0 auto 12px; border-radius: 50%; display: grid; place-items: center; }
+  .ic.warn { background: var(--warn-soft); color: var(--warn); }
+  .ic.off { background: var(--hover); color: var(--ink-3); }
+  .ic.bad { background: var(--danger-soft); color: var(--danger); }
+  .mp-body h3 { margin: 0 0 6px; font-size: 14px; }
+  .mp-body p { margin: 0 auto 14px; color: var(--ink-2); font-size: 12px; max-width: 220px; }
+  .code { display: flex; justify-content: center; gap: 5px; margin: 2px 0 12px; }
+  .code b { width: 32px; height: 40px; border-radius: 9px; display: grid; place-items: center; font: 600 19px var(--mono); box-shadow: inset 0 0 0 1px var(--line-1); }
+  .waiting { display: inline-flex; justify-content: center; align-items: center; gap: 7px; color: var(--ink-3); font-size: 12px; }
+  .spin { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--line-1); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { rotate: 360deg; } }
+  .mp-body .btn { margin: 0 auto; }
+  .mp-body .sub { margin-top: 10px; font-size: 11.5px; color: var(--ink-3); }
+
+  /* Tau 窗口 */
+  .app { position: relative; height: 560px; border-radius: 14px; overflow: hidden; background: var(--page); box-shadow: var(--shadow-card), 0 0 0 1px var(--line-1); display: flex; }
+  .app .side { width: 210px; padding: 44px 12px 12px; flex: none; }
+  .app .side .it { height: 30px; border-radius: var(--r-sm); margin-bottom: 4px; display: flex; align-items: center; gap: 8px; padding: 0 10px; color: var(--ink-2); }
+  .app .side .it.on { background: var(--selected); color: var(--ink-1); }
+  .app .side .it svg.i { width: 15px; height: 15px; }
+  .app .main { flex: 1; margin: 12px 12px 12px 0; border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow-card); padding: 28px 32px; overflow: auto; }
+  .lights { position: absolute; top: 14px; left: 16px; display: flex; gap: 7px; }
+  .lights i { width: 11px; height: 11px; border-radius: 50%; background: var(--line-1); }
+  .skel .l { height: 9px; border-radius: 5px; background: var(--hover); margin-bottom: 12px; }
+  .skel .h { height: 18px; width: 40%; border-radius: 5px; background: var(--hover); margin-bottom: 24px; }
+  .scrim { position: absolute; inset: 0; background: var(--overlay); display: grid; place-items: center; animation: fade 0.18s; }
+  @keyframes fade { from { opacity: 0; } }
+  .dialog { width: 440px; border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow-float); padding: 22px 22px 18px; animation: rise 0.22s var(--ease); }
+  @keyframes rise { from { opacity: 0; scale: 0.98; } }
+  .dialog .top { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; }
+  .dialog .logo { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-text); flex: none; }
+  .dialog h3 { margin: 0; font-size: 15.5px; font-weight: 600; }
+  .dialog .top p { margin: 2px 0 0; color: var(--ink-2); font-size: 12.5px; }
+  .facts { display: grid; grid-template-columns: 64px 1fr; gap: 6px 12px; font-size: 12.5px; margin-bottom: 16px; }
+  .facts dt { color: var(--ink-3); }
+  .facts dd { margin: 0; }
+  .facts .mono { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
+  .verify { border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--line-1); padding: 12px 14px; display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+  .verify .code { margin: 0; }
+  .verify span { color: var(--ink-2); font-size: 12.5px; }
+  .perm-h { font-size: 12.5px; color: var(--ink-3); margin-bottom: 4px; }
+  .perm { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+  .perm .txt { flex: 1; }
+  .perm .txt b { display: block; font-weight: 500; }
+  .perm .txt small { color: var(--ink-3); font-size: 12px; }
+  .perm .req { font-size: 11.5px; color: var(--ink-3); }
+  .switch { width: 32px; height: 18px; border-radius: 9px; background: var(--press); position: relative; flex: none; transition: background 0.15s; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,0.2); transition: translate 0.18s var(--ease); }
+  .switch.on { background: var(--accent); }
+  .switch.on::after { translate: 14px 0; }
+  .dialog .foot { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+  .dialog .foot small { flex: 1; color: var(--ink-3); font-size: 12px; }
+  .warn-line { margin-top: 10px; font-size: 12px; color: var(--ink-3); }
+  .toast { position: absolute; left: 50%; bottom: 24px; translate: -50% 0; padding: 9px 14px; border-radius: 10px; background: var(--ink-1); color: var(--surface); font-size: 12.5px; box-shadow: var(--shadow-float); animation: rise 0.18s var(--ease); white-space: nowrap; }
+  .replay { position: absolute; top: 12px; right: 16px; }
+
+  /* 设置 */
+  .set-h { margin: 0 0 4px; font-size: 18px; font-weight: 600; }
+  .set-sub { margin: 0 0 22px; color: var(--ink-2); font-size: 12.5px; }
+  .set-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; }
+  .set-row .txt { flex: 1; }
+  .set-row .txt b { display: block; font-weight: 500; }
+  .set-row .txt small { color: var(--ink-3); font-size: 12px; }
+  .group-h { margin: 22px 0 4px; font-size: 13px; font-weight: 600; }
+  .client { display: flex; align-items: center; gap: 12px; padding: 12px; margin: 0 -12px; border-radius: var(--r-md); }
+  .client:hover { background: var(--hover); }
+  .client .bico { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex: none; box-shadow: inset 0 0 0 1px var(--line-1); color: var(--ink-2); font-weight: 600; font-size: 12px; }
+  .client .txt { flex: 1; min-width: 0; }
+  .client .txt b { font-weight: 500; }
+  .client .txt small { display: block; color: var(--ink-3); font-size: 12px; }
+  .client .scopes { display: flex; gap: 4px; margin-top: 6px; }
+  .client .scopes .chip { height: 22px; font-size: 11.5px; }
+  .empty-line { color: var(--ink-3); font-size: 12.5px; padding: 10px 0; }
+  .rej { display: flex; align-items: center; gap: 10px; padding: 8px 0; color: var(--ink-2); font-size: 12.5px; }
+  .rej .grow { flex: 1; }
+  .rej time { color: var(--ink-3); font-family: var(--mono); font-size: 11.5px; }
+</style>
+</head>
+<body class="tau" data-mode="light">
+<div class="demo-bar" id="demo">
+  <a href="prototype.html" style="color:inherit;text-decoration:none;padding:0 10px">← 页内原型</a>
+  <span class="sep"></span>
+  <button data-theme="light" class="on">浅</button>
+  <button data-theme="dark">深</button>
+</div>
+
+<div class="wrap">
+  <section class="sec">
+    <div class="sec-h"><h2>扩展端：连接状态</h2><span>extension</span></div>
+    <p>连接状态只在面板「对话」页签里展开说明；悬浮球上只有一个状态点。没连上时标注和笔记照常可用，先存在本机。</p>
+    <div class="grid" id="extStates"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-h"><h2>Tau 端：授权对话框</h2><span>first-time pairing</span></div>
+    <p>扩展第一次连接时，Tau 在应用内弹出确认框（不用系统原生对话框）。校验码与浏览器里显示的一致才应允许；允许一次长期有效。点下面的按钮试试。</p>
+    <div class="app" id="app"></div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-h"><h2>Tau 端：设置 › 浏览器扩展</h2><span>settings</span></div>
+    <p>管理已授权的浏览器：看最近活动、调整可选权限、撤销。撤销后扩展立即断开，回到「等待授权」前的状态。</p>
+    <div class="app" id="settings"></div>
+  </section>
+</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const ICONS = {
+  key: '<path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4M21 2l-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/>',
+  plug: '<path d="M12 22v-5M9 8V2M15 8V2M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
+  ban: '<circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/>',
+  unlink: '<path d="m18.84 12.25 1.72-1.71a5 5 0 0 0-7.07-7.07l-1.72 1.71M5.17 11.75l-1.71 1.71a5 5 0 0 0 7.07 7.07l1.71-1.71M8 2v3M2 8h3M16 22v-3M22 16h-3"/>',
+  globe: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20M2 12h20"/>',
+  home: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .7-1.5l7-6a2 2 0 0 1 2.6 0l7 6a2 2 0 0 1 .7 1.5v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68 1.65 1.65 0 0 0 10 3.17V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+  puzzle: '<path d="M19.4 14.7a2 2 0 0 0 0-3.4l-.4-.2V8a2 2 0 0 0-2-2h-3.1l-.2-.4a2 2 0 0 0-3.4 0l-.2.4H7a2 2 0 0 0-2 2v3.1l-.4.2a2 2 0 0 0 0 3.4l.4.2V18a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3.1z"/>',
+};
+const icon = (n) => `<svg class="i" viewBox="0 0 24 24">${ICONS[n]}</svg>`;
+
+document.getElementById("demo").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-theme]"); if (!b) return;
+  document.querySelectorAll("[data-theme]").forEach((x) => x.classList.toggle("on", x === b));
+  document.body.dataset.mode = b.dataset.theme;
+});
+
+/* ———————— 扩展端四种状态 ———————— */
+const STATES = [
+  { key: "off", dot: "off", label: "Tau 未连接", ic: "off", icon: "plug", title: "没有找到 Tau", desc: "对话要用 Tau 里配置的模型。打开 Tau 后会自动连接。", body: `<button class="btn primary">打开 Tau</button><div class="sub">还没有安装？下载 Tau</div>`, cap: ["未检测到 Tau", "Tau 没运行时，扩展每 5 秒静默探测一次；不弹任何提示。"] },
+  { key: "pending", dot: "warn", label: "等待授权", ic: "warn", icon: "key", title: "在 Tau 中确认连接", desc: "核对 Tau 弹窗里的校验码与这里一致，再点「允许」。", body: `<div class="code"><b>4</b><b>8</b><b>2</b><b>7</b></div><span class="waiting"><span class="spin"></span>等待确认…</span>`, cap: ["等待授权", "校验码由双方随机数共同推导，冒充者无法让两边显示同一组数字。"] },
+  { key: "rejected", dot: "off", label: "已拒绝", ic: "bad", icon: "ban", title: "Tau 拒绝了连接", desc: "如果是误操作，可以重新发起请求。", body: `<button class="btn ghost">重新请求</button><div class="sub">连续拒绝 3 次后需等待 10 分钟</div>`, cap: ["被拒绝", "拒绝不记仇：用户随时可以再发起一次，但有频率限制防止弹窗轰炸。"] },
+  { key: "revoked", dot: "off", label: "授权已撤销", ic: "off", icon: "unlink", title: "授权已在 Tau 中撤销", desc: "本机保存的标注与笔记仍在，重新连接后继续同步。", body: `<button class="btn primary">重新连接</button>`, cap: ["被撤销", "Tau 主动推送 revoked 并断开；扩展删除本地 token，回到配对前。"] },
+];
+document.getElementById("extStates").innerHTML = STATES.map((s) => `
+  <div>
+    <div class="browser">
+      <div class="chrome"><i></i><i></i><i></i><div class="url">longform.example/forgetting-curve</div></div>
+      <div class="viewport">
+        <div class="fake-page"><div class="h"></div>${'<div class="l"></div>'.repeat(14)}</div>
+        <div class="mini-panel">
+          <div class="mp-head"><div class="fav">L</div><div class="t"><b>The Forgetting Curve Is a Feature</b><small>longform.example <span class="dot ${s.dot}"></span>${s.label}</small></div></div>
+          <div class="mp-body"><div class="ic ${s.ic}">${icon(s.icon)}</div><h3>${s.title}</h3><p>${s.desc}</p>${s.body}</div>
+        </div>
+        <div class="mini-orb">τ<span class="status" style="background:var(--${s.dot === "warn" ? "warn" : "ink-3"})"></span></div>
+      </div>
+    </div>
+    <p class="cap"><b>${s.cap[0]}</b>${s.cap[1]}</p>
+  </div>`).join("");
+
+/* ———————— Tau 窗口骨架 ———————— */
+const side = (on) => `<div class="lights"><i></i><i></i><i></i></div><div class="side">
+  <div class="it ${on === "home" ? "on" : ""}">${icon("home")}首页</div>
+  <div class="it">${icon("file")}文章</div>
+  <div class="it">${icon("puzzle")}插件</div>
+  <div class="it ${on === "settings" ? "on" : ""}">${icon("settings")}设置</div></div>`;
+
+/* ———————— 授权对话框 ———————— */
+let searchScope = false;
+function renderApp(result) {
+  const app = document.getElementById("app");
+  const skel = `<div class="main skel"><div class="h"></div>${'<div class="l"></div>'.repeat(10)}</div>`;
+  if (result) {
+    app.innerHTML = side("home") + skel + `<div class="toast">${result}</div><button class="btn ghost replay" id="replay">重新演示</button>`;
+    $("#replay").onclick = () => renderApp();
+    return;
+  }
+  app.innerHTML = side("home") + skel + `<div class="scrim"><div class="dialog" role="dialog">
+    <div class="top"><div class="logo">${icon("globe")}</div><div><h3>Chrome 想连接到 Tau</h3><p>来自「Tau 伴读」浏览器扩展</p></div></div>
+    <dl class="facts">
+      <dt>浏览器</dt><dd>Chrome 131 · macOS</dd>
+      <dt>扩展</dt><dd>Tau 伴读 0.1.0 <span class="mono">chrome-extension://kbfh…mopd</span></dd>
+      <dt>请求时间</dt><dd>刚刚</dd>
+    </dl>
+    <div class="verify"><div class="code"><b>4</b><b>8</b><b>2</b><b>7</b></div><span>与浏览器面板里显示的校验码一致吗？不一致请拒绝。</span></div>
+    <div class="perm-h">允许它</div>
+    <div class="perm"><div class="txt"><b>用 Tau 的模型对话</b><small>只在你提问时发送网页内容</small></div><span class="req">必需</span></div>
+    <div class="perm"><div class="txt"><b>读写网页标注与页面笔记</b><small>保存在 Tau，按网址归档</small></div><span class="req">必需</span></div>
+    <div class="perm"><div class="txt"><b>搜索我的笔记</b><small>让 AI 回答时关联你已有的内容</small></div><button class="switch ${searchScope ? "on" : ""}" id="sw" aria-label="搜索我的笔记"></button></div>
+    <div class="foot"><small>允许后长期有效，可在 设置 › 浏览器扩展 撤销</small>
+      <button class="btn ghost" id="deny">拒绝</button><button class="btn primary" id="allow">允许连接</button></div>
+  </div></div>`;
+  $("#sw").onclick = () => { searchScope = !searchScope; $("#sw").classList.toggle("on", searchScope); };
+  $("#deny").onclick = () => renderApp("已拒绝 Chrome 的连接请求");
+  $("#allow").onclick = () => renderApp(`已允许 Chrome 连接${searchScope ? "（含搜索我的笔记）" : ""}`);
+}
+renderApp();
+
+/* ———————— 设置页 ———————— */
+const clients = [
+  { id: "c1", name: "Chrome", os: "macOS", ab: "Ch", last: "2 分钟前活跃", since: "10 月 12 日授权", search: false },
+  { id: "c2", name: "Arc", os: "macOS", ab: "Ar", last: "3 天前活跃", since: "9 月 28 日授权", search: true },
+];
+let acceptNew = true;
+function renderSettings(msg) {
+  const el = document.getElementById("settings");
+  el.innerHTML = side("settings") + `<div class="main">
+    <h3 class="set-h">浏览器扩展</h3>
+    <p class="set-sub">在网页里高亮、批注，并用 Tau 的模型对网页提问。</p>
+    <div class="set-row"><div class="txt"><b>接受新的连接请求</b><small>关闭后，未授权的浏览器发起连接会被直接拒绝，不弹窗</small></div><button class="switch ${acceptNew ? "on" : ""}" data-accept></button></div>
+    <div class="group-h">已授权</div>
+    ${clients.length ? clients.map((c) => `<div class="client">
+      <div class="bico">${c.ab}</div>
+      <div class="txt"><b>${c.name} · ${c.os}</b><small>${c.last} · ${c.since}</small>
+        <div class="scopes"><span class="chip">对话</span><span class="chip">标注与笔记</span><button class="chip ${c.search ? "on" : ""}" data-scope="${c.id}">搜索我的笔记</button></div></div>
+      <button class="btn danger-ghost" data-revoke="${c.id}">撤销</button></div>`).join("") : `<div class="empty-line">还没有授权的浏览器。装好扩展后打开任意网页的面板即可发起连接。</div>`}
+    <div class="group-h">最近拒绝</div>
+    <div class="rej"><span>未知客户端 · 校验失败（来源不是浏览器扩展）</span><span class="grow"></span><time>10:42</time></div>
+  </div>${msg ? `<div class="toast">${msg}</div>` : ""}`;
+  el.onclick = (e) => {
+    if (e.target.closest("[data-accept]")) { acceptNew = !acceptNew; renderSettings(); }
+    const s = e.target.closest("[data-scope]");
+    if (s) { const c = clients.find((x) => x.id === s.dataset.scope); c.search = !c.search; renderSettings(); }
+    const r = e.target.closest("[data-revoke]");
+    if (r) { const i = clients.findIndex((x) => x.id === r.dataset.revoke); const [c] = clients.splice(i, 1); renderSettings(`已撤销 ${c.name} 的授权，连接已断开`); }
+  };
+}
+renderSettings();
+</script>
+</body>
+</html>

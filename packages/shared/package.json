@@ -22,6 +22,7 @@
     "./media-services": "./media-services.ts",
     "./runtime-style": "./runtime-style.ts",
     "./markdown-directives": "./markdown-directives.ts",
+    "./browser-companion": "./browser-companion.ts",
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"

@@ -19,7 +19,7 @@ import { openPage } from "@/services/page-navigation";
 import { TodoCheck } from "@/features/todos/components/TodoBits";
 import type { ToolCallCustomRendererProps } from "./types";
 import TodoToolRenderer from "./TodoToolRenderer";
-import { ToolCard, ToolCardBody, ToolCardHeader, ToolMutedText } from "./ui";
+import { ToolCard, ToolCardBody, ToolCardHeader, ToolMutedText } from "@tau/chat-ui";
 const displayTime = (value: string) =>
   value.length === 10
     ? value

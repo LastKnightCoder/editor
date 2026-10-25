@@ -3,6 +3,7 @@ import {
   CalendarClock,
   Check,
   Download,
+  Globe,
   RotateCw,
   Rocket,
   Sparkles,
@@ -32,6 +33,8 @@ export const NOTIFICATION_ICONS = {
   sparkles: Sparkles,
   /** 站点发布（publishRunStore 的发布结果） */
   rocket: Rocket,
+  /** 浏览器扩展请求连接（browser-companion 配对） */
+  globe: Globe,
 } satisfies Record<string, LucideIcon>;
 
 export type NotificationIconKey = keyof typeof NOTIFICATION_ICONS;

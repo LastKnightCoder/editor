@@ -18,10 +18,14 @@ describe("resolveDevServerOrigin", () => {
 });
 
 describe("isAllowedWsOrigin", () => {
-  it("放行本机 node 客户端、打包渲染端、插件", () => {
+  it("放行本机 node 客户端、打包渲染端", () => {
     expect(isAllowedWsOrigin(undefined, null)).toBe(true);
     expect(isAllowedWsOrigin("file://", null)).toBe(true);
-    expect(isAllowedWsOrigin(EXTENSION, null)).toBe(true);
+  });
+
+  it("浏览器扩展不能连通用路径（只能走 /browser 的配对握手）", () => {
+    expect(isAllowedWsOrigin(EXTENSION, null)).toBe(false);
+    expect(isAllowedWsOrigin(EXTENSION, DEV)).toBe(false);
   });
 
   it("开发期只放行 vite 渲染端自身", () => {
@@ -40,9 +44,9 @@ describe("isAllowedWsOrigin", () => {
 });
 
 describe("resolveCorsOrigin", () => {
-  it("只对插件和开发期渲染端回显", () => {
-    expect(resolveCorsOrigin(EXTENSION, null)).toBe(EXTENSION);
+  it("只对开发期渲染端回显", () => {
     expect(resolveCorsOrigin(DEV, DEV)).toBe(DEV);
+    expect(resolveCorsOrigin(EXTENSION, null)).toBeNull();
   });
 
   it("网页、file:// 与无 Origin 不发 CORS 头", () => {

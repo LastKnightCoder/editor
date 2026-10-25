@@ -30,7 +30,7 @@ import VLNoteTable from "../../tables/vl-note";
 import WhiteBoardContentTable from "../../tables/white-board-content";
 import WhiteboardTable from "../../tables/whiteboard";
 import { CONTENT_AI_META_CHANGED_EVENT } from "../../tables/content-ai-meta";
-import ExcerptTable from "../../tables/excerpt";
+import ExcerptTable, { WEB_EXCERPT_SYNCED_EVENT } from "../../tables/excerpt";
 import PdfTable from "../../tables/pdf";
 import PluginDataTable from "../../tables/plugin-data";
 import PluginEntityTable from "../../tables/plugin-entity";
@@ -451,8 +451,9 @@ describe("CONTEXT_WRITE_EVENTS", () => {
         PluginTransactionTable,
       ].flatMap(table => Object.keys(table.getListenEvents()))
     );
-    // 笔记元信息由 content-ai-queue 写入后补发
+    // 笔记元信息由 content-ai-queue、网页标注由浏览器伴读写入后补发
     registered.add(CONTENT_AI_META_CHANGED_EVENT);
+    registered.add(WEB_EXCERPT_SYNCED_EVENT);
     const unknown = [...CONTEXT_WRITE_EVENTS, ...WHITEBOARD_CANVAS_EVENTS].filter(
       name => !registered.has(name)
     );

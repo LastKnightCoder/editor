@@ -6,7 +6,8 @@
   "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./renderers": "./renderers.ts"
+    "./renderers": "./renderers.ts",
+    "./conversation": "./conversation.ts"
   },
   "scripts": {
     "test": "vitest run",

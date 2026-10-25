@@ -31,7 +31,7 @@ import {
   ToolMutedText,
   ToolSectionTitle,
   ToolValuePill,
-} from "./ui";
+} from "@tau/chat-ui";
 
 type CalendarRendererData =
   | CalendarDashboardResult

@@ -77,24 +77,22 @@ describe("ExcerptTable", () => {
     ]);
   });
 
-  it("插件按页快照：校验后按页同步；非法参数拒绝且不写库", () => {
-    const highlight = { id: "h1", text: "一句", note: "", color: "pink", createdAt: 1 };
+  it("伴读按页快照：校验后按页同步；非法参数拒绝且不写库；listWebPage 只读未删除的", () => {
+    const item = { id: "h1", text: "一句", note: "", color: "green", createdAt: 1 };
     expect(
-      ExcerptTable.syncWebPage(db, {
-        url: "https://a.com/x#t",
-        title: "A",
-        highlights: [highlight],
-      })
+      ExcerptTable.syncWebPage(db, { url: "https://a.com/x#t", title: "A", items: [item] })
     ).toEqual({ inserted: 1, updated: 0, deleted: 0 });
     expect(rowsOf("https://a.com/x")).toHaveLength(1);
-    expect(() =>
-      ExcerptTable.syncWebPage(db, { url: "javascript:1", highlights: [highlight] })
-    ).toThrow();
-    expect(ExcerptTable.syncWebPage(db, { url: "https://a.com/x", highlights: [] })).toEqual({
+    expect(ExcerptTable.listWebPage(db, "https://a.com/x").map(row => row.externalId)).toEqual([
+      "h1",
+    ]);
+    expect(() => ExcerptTable.syncWebPage(db, { url: "javascript:1", items: [item] })).toThrow();
+    expect(ExcerptTable.syncWebPage(db, { url: "https://a.com/x", items: [] })).toEqual({
       inserted: 0,
       updated: 0,
       deleted: 1,
     });
+    expect(ExcerptTable.listWebPage(db, "https://a.com/x")).toEqual([]);
   });
 
   it("deleteSource 软删除整个来源；anchor 读出为对象", () => {

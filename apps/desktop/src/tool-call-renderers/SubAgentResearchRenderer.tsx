@@ -22,7 +22,7 @@ import {
   ToolMutedText,
   ToolSectionTitle,
   ToolValuePill,
-} from "./ui";
+} from "@tau/chat-ui";
 
 const getPayload = (metadata?: Record<string, unknown>): SubAgentResearchPayload | null => {
   const render =

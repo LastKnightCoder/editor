@@ -1,0 +1,1101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>伴读 · 页内原型</title>
+<link rel="stylesheet" href="shared.css" />
+<style>
+  /* ———————— 模拟网页（第三方站点，不属于扩展） ———————— */
+  html, body { margin: 0; }
+  body { background: #fff; }
+  .site {
+    --hl-yellow: #dc9b04; --hl-green: #2ea121; --hl-blue: #245bdb; --hl-purple: #6425d0; --hl-red: #e33a32;
+    --hl-bg-mix: 16%; --hl-line-mix: 65%;
+    color: #1c1c1c;
+    font-family: Charter, "Iowan Old Style", Georgia, "Songti SC", serif;
+  }
+  .site-head {
+    display: flex; align-items: center; justify-content: space-between;
+    max-width: 1080px; margin: 0 auto; padding: 64px 32px 0;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 14px; color: #555;
+  }
+  .site-head .logo { font-family: Georgia, serif; font-size: 22px; font-weight: 700; color: #111; letter-spacing: -0.02em; }
+  .site-head nav { display: flex; gap: 22px; }
+  .article { max-width: 660px; margin: 56px auto 120px; padding: 0 32px; position: relative; }
+  .kicker { font-family: -apple-system, sans-serif; font-size: 13px; font-weight: 600; color: #b3261e; text-transform: uppercase; letter-spacing: 0.06em; }
+  .article h1 { font-size: 44px; line-height: 1.12; letter-spacing: -0.02em; margin: 12px 0 16px; }
+  .dek { font-size: 21px; line-height: 1.5; color: #555; margin: 0 0 24px; }
+  .byline { font-family: -apple-system, sans-serif; font-size: 13px; color: #777; padding-bottom: 28px; margin-bottom: 32px; border-bottom: 1px solid #eee; }
+  .article p { font-size: 19px; line-height: 1.72; margin: 0 0 26px; transition: background 0.4s; border-radius: 4px; }
+  .article h2 { font-size: 26px; margin: 44px 0 16px; letter-spacing: -0.01em; }
+  .article p.flash { animation: flash 1.8s ease-out; }
+  @keyframes flash {
+    0%, 30% { background: hsla(22, 70%, 55%, 0.16); box-shadow: 0 0 0 8px hsla(22, 70%, 55%, 0.16); }
+    100% { background: transparent; box-shadow: 0 0 0 8px transparent; }
+  }
+  .site-foot { text-align: center; font: 13px -apple-system, sans-serif; color: #999; padding: 40px 0 80px; }
+
+  /* ———————— 扩展根（真实实现为 closed Shadow DOM 内） ———————— */
+  #tau { position: absolute; top: 0; left: 0; width: 0; height: 0; z-index: 2147483600; }
+
+  /* 悬浮球 */
+  .orb-wrap { position: fixed; z-index: 30; width: 36px; height: 36px; transition: transform 0.32s var(--ease); touch-action: none; }
+  .orb-wrap[data-side="right"] { right: 0; transform: translateX(50%); }
+  .orb-wrap[data-side="left"] { left: 0; transform: translateX(-50%); }
+  .orb-wrap[data-side="right"]:hover, .orb-wrap[data-side="right"].out { transform: translateX(-12px); }
+  .orb-wrap[data-side="left"]:hover, .orb-wrap[data-side="left"].out { transform: translateX(12px); }
+  .orb-wrap.dragging { transition: none; }
+  /* 悬停热区向上延伸，覆盖快捷动作列 */
+  .orb-wrap:hover::before { content: ""; position: absolute; left: -8px; right: -8px; bottom: 0; height: 168px; }
+  .orb {
+    position: relative; width: 36px; height: 36px; border-radius: 50%;
+    background: var(--surface); box-shadow: var(--shadow-lift), 0 0 0 1px var(--line-1);
+    display: grid; place-items: center; cursor: grab;
+    font: italic 600 19px/1 Georgia, "Times New Roman", serif; color: var(--accent-text);
+    transition: box-shadow 0.15s;
+  }
+  .orb-wrap.dragging .orb { cursor: grabbing; }
+  .orb-wrap.open .orb { box-shadow: var(--shadow-lift), 0 0 0 1.5px var(--accent); }
+  .orb .status { position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 2px var(--surface); }
+  .orb .status.ok { background: var(--ok); }
+  .orb .status.warn { background: var(--warn); }
+  .orb .status.off { background: var(--ink-3); }
+  .orb .badge {
+    position: absolute; top: -5px; left: -5px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+    background: var(--accent); color: var(--ink-inverse); font: 600 10px/16px var(--font); text-align: center; font-style: normal;
+  }
+  .quick {
+    position: absolute; bottom: 46px; left: 50%; translate: -50% 0;
+    display: flex; flex-direction: column; gap: 2px; padding: 4px; border-radius: 999px;
+    background: var(--surface); box-shadow: var(--shadow-float);
+    opacity: 0; pointer-events: none; transition: opacity 0.18s;
+  }
+  .orb-wrap:hover:not(.dragging) .quick { opacity: 1; pointer-events: auto; }
+  .quick .icon-btn { width: 30px; height: 30px; border-radius: 50%; position: relative; }
+  .tip {
+    position: absolute; top: 50%; translate: 0 -50%; white-space: nowrap; pointer-events: none;
+    padding: 4px 8px; border-radius: 6px; background: var(--ink-1); color: var(--surface);
+    font-size: 12px; opacity: 0; transition: opacity 0.12s;
+  }
+  [data-side="right"] .tip { right: 40px; }
+  [data-side="left"] .tip { left: 40px; }
+  .quick .icon-btn:hover .tip { opacity: 1; }
+  .tip .k { opacity: 0.6; margin-left: 6px; font-family: var(--mono); font-size: 11px; }
+
+  /* 首次引导 */
+  .coach {
+    position: fixed; z-index: 31; width: 248px; padding: 14px 14px 12px; border-radius: var(--r-md);
+    background: var(--surface); box-shadow: var(--shadow-float);
+  }
+  .coach h4 { margin: 0 0 4px; font-size: 13.5px; }
+  .coach p { margin: 0 0 10px; color: var(--ink-2); font-size: 12.5px; }
+  .coach .row { display: flex; justify-content: space-between; align-items: center; }
+
+  /* 选区工具条 */
+  .seltool {
+    position: fixed; z-index: 40; height: 38px; padding: 0 5px; border-radius: 12px;
+    display: flex; align-items: center; gap: 2px;
+    background: var(--surface); box-shadow: var(--shadow-float);
+    animation: pop 0.16s var(--ease);
+  }
+  @keyframes pop { from { opacity: 0; translate: 0 4px; } }
+  .seltool .sw-btn { width: 26px; height: 28px; display: grid; place-items: center; border-radius: var(--r-sm); }
+  .seltool .sw-btn:hover { background: var(--hover); }
+  .seltool .sw-btn.cur .swatch { box-shadow: inset 0 0 0 1.5px var(--c), 0 0 0 2px var(--surface), 0 0 0 3.5px var(--c); }
+  .seltool .vsep { width: 1px; height: 18px; background: var(--line-1); margin: 0 4px; }
+  .seltool .t-btn { height: 28px; padding: 0 8px; border-radius: var(--r-sm); display: inline-flex; align-items: center; gap: 5px; color: var(--ink-1); white-space: nowrap; }
+  .seltool .t-btn:hover { background: var(--hover); }
+  .seltool .t-btn svg.i { width: 15px; height: 15px; color: var(--ink-2); }
+  .seltool .t-btn.ai svg.i:first-child { color: var(--accent-text); }
+  .seltool .t-btn.danger:hover { color: var(--danger); background: var(--danger-soft); }
+  .seltool .t-btn.danger:hover svg.i { color: var(--danger); }
+
+  /* 批注编辑 */
+  .note-editor { position: absolute; z-index: 41; width: 300px; padding: 12px; border-radius: var(--r-md); background: var(--surface); box-shadow: var(--shadow-float); animation: pop 0.16s var(--ease); }
+  .note-editor .q { font-size: 12px; color: var(--ink-3); border-left: 2px solid var(--line-1); padding-left: 8px; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .field {
+    width: 100%; border: 0; outline: 0; resize: none; font: inherit; color: var(--ink-1);
+    background: var(--surface); border-radius: var(--r-sm); box-shadow: inset 0 0 0 1px var(--line-1);
+    padding: 8px 10px; transition: box-shadow 0.15s;
+  }
+  .field:focus { box-shadow: inset 0 0 0 1px var(--accent), var(--focus-ring); }
+  .field::placeholder { color: var(--ink-3); }
+  .note-editor .row { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 8px; }
+  .note-editor .row .kbd { margin-right: auto; }
+
+  /* 页边批注标记 */
+  .marker {
+    position: absolute; z-index: 20; width: 20px; height: 20px; border-radius: 6px;
+    display: grid; place-items: center; cursor: pointer;
+    --c: var(--hl-yellow);
+    background: color-mix(in srgb, var(--c) 22%, var(--surface));
+    color: color-mix(in srgb, var(--c) 85%, var(--ink-1));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--c) 35%, transparent);
+  }
+  .marker svg.i { width: 12px; height: 12px; stroke-width: 2.2; }
+  .marker[data-c="green"] { --c: var(--hl-green); }
+  .marker[data-c="blue"] { --c: var(--hl-blue); }
+  .marker[data-c="purple"] { --c: var(--hl-purple); }
+  .marker[data-c="red"] { --c: var(--hl-red); }
+  .marker.pinned { box-shadow: 0 0 0 1.5px var(--c); }
+  .note-card {
+    position: absolute; z-index: 21; width: 248px; padding: 10px 12px; border-radius: var(--r-md);
+    background: var(--surface); box-shadow: var(--shadow-float); animation: pop 0.14s var(--ease);
+  }
+  .note-card .body { white-space: pre-wrap; }
+  .note-card .meta { margin-top: 6px; display: flex; align-items: center; gap: 2px; color: var(--ink-3); font-size: 12px; }
+  .note-card .meta span { margin-right: auto; }
+  .note-card .icon-btn { width: 24px; height: 24px; }
+  .note-card .icon-btn svg.i { width: 14px; height: 14px; }
+
+  /* 面板（方案 A） */
+  .panel {
+    position: fixed; z-index: 35; width: 400px; height: min(640px, calc(100vh - 96px));
+    min-width: 340px; min-height: 420px;
+    display: flex; flex-direction: column; border-radius: var(--r-lg);
+    background: var(--surface); box-shadow: var(--shadow-float); overflow: hidden;
+  }
+  .panel.enter { animation: panelIn 0.22s var(--ease); }
+  @keyframes panelIn { from { opacity: 0; scale: 0.98; } }
+  .p-head { display: flex; align-items: center; gap: 10px; padding: 12px 10px 6px 14px; cursor: move; user-select: none; }
+  .fav { width: 28px; height: 28px; border-radius: 8px; flex: none; display: grid; place-items: center; background: #1c1c1c; color: #fff; font: 700 14px Georgia, serif; }
+  .p-title { min-width: 0; flex: 1; }
+  .p-title b { display: block; font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .p-title small { display: flex; align-items: center; gap: 6px; color: var(--ink-3); font-size: 12px; }
+  .p-title small .dot { width: 6px; height: 6px; }
+  .tabs { display: flex; gap: 18px; padding: 0 16px; }
+  .tab { height: 34px; position: relative; color: var(--ink-3); font-weight: 500; display: inline-flex; align-items: center; gap: 5px; }
+  .tab:hover { color: var(--ink-2); }
+  .tab.on { color: var(--ink-1); }
+  .tab.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: 4px; height: 2px; border-radius: 2px; background: var(--accent); }
+  .tab .n { font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .p-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .resize { position: absolute; left: 0; bottom: 0; width: 18px; height: 18px; cursor: nesw-resize; }
+  .resize::after { content: ""; position: absolute; left: 5px; bottom: 5px; width: 7px; height: 7px; border-left: 1.5px solid var(--ink-3); border-bottom: 1.5px solid var(--ink-3); border-bottom-left-radius: 3px; opacity: 0.6; }
+
+  /* 对话 */
+  .msgs { flex: 1; overflow-y: auto; padding: 8px 16px 12px; scroll-behavior: smooth; }
+  .empty { padding: 28px 2px 8px; }
+  .empty h3 { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+  .empty p { margin: 0 0 16px; color: var(--ink-3); font-size: 12.5px; }
+  .sugg { width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: var(--r-sm); text-align: left; color: var(--ink-1); }
+  .sugg:hover { background: var(--hover); }
+  .sugg svg.i { color: var(--ink-3); }
+  .msg { margin: 14px 0; }
+  .msg.user { display: flex; flex-direction: column; align-items: flex-end; }
+  .msg.user .bubble { max-width: 85%; padding: 8px 12px; border-radius: 14px 14px 4px 14px; background: var(--surface-hover); box-shadow: inset 0 0 0 1px var(--line-1); white-space: pre-wrap; }
+  .quote { max-width: 85%; margin-bottom: 6px; padding: 2px 0 2px 9px; border-left: 2px solid var(--accent); color: var(--ink-2); font-size: 12.5px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .msg.ai .text { white-space: pre-wrap; line-height: 1.65; }
+  .cite {
+    display: inline-grid; place-items: center; min-width: 17px; height: 17px; padding: 0 4px; margin: 0 1px;
+    vertical-align: 1px; border-radius: 5px; font: 600 10.5px/1 var(--font); color: var(--accent-text); background: var(--accent-soft);
+  }
+  .cite:hover { background: var(--accent); color: var(--ink-inverse); }
+  .caret { display: inline-block; width: 7px; height: 14px; margin-left: 2px; vertical-align: -2px; background: var(--accent); border-radius: 1px; animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .ai-actions { display: flex; gap: 2px; margin-top: 6px; margin-left: -6px; }
+  .ai-actions .icon-btn { width: 26px; height: 26px; position: relative; }
+  .ai-actions .icon-btn svg.i { width: 14px; height: 14px; }
+  .ai-actions .icon-btn .tip { top: auto; bottom: 30px; left: 50%; right: auto; translate: -50% 0; }
+  .ai-actions .icon-btn:hover .tip { opacity: 1; }
+  .scope-card { margin-top: 8px; padding: 10px 12px; border-radius: var(--r-md); box-shadow: inset 0 0 0 1px var(--line-1); display: flex; align-items: center; gap: 10px; }
+  .scope-card span { flex: 1; color: var(--ink-2); font-size: 12.5px; }
+
+  .composer { padding: 8px 12px 12px; }
+  .ctx { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; position: relative; }
+  .ctx .model { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 6px 0 8px; border-radius: 6px; color: var(--ink-2); font-size: 12px; }
+  .ctx .model:hover { background: var(--hover); }
+  .ctx .model svg.i { width: 13px; height: 13px; }
+  .chip .x { margin-left: 1px; margin-right: -3px; width: 14px; height: 14px; border-radius: 4px; display: grid; place-items: center; }
+  .chip .x:hover { background: var(--press); }
+  .chip .x svg.i { width: 11px; height: 11px; }
+  .chip .sel-txt { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .input-row { position: relative; }
+  .input-row .field { min-height: 72px; max-height: 160px; padding: 10px 44px 10px 12px; border-radius: var(--r-md); display: block; }
+  .send { position: absolute; right: 8px; bottom: 8px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--ink-inverse); }
+  .send:hover { background: var(--accent-hover); }
+  .send:disabled { background: var(--press); color: var(--ink-3); cursor: default; }
+  .send svg.i { width: 15px; height: 15px; stroke-width: 2.2; }
+
+  /* 连接状态卡 */
+  .state-card { margin: auto 20px; text-align: center; padding: 24px 8px; }
+  .state-card .ic { width: 44px; height: 44px; margin: 0 auto 14px; border-radius: 50%; display: grid; place-items: center; background: var(--warn-soft); color: var(--warn); }
+  .state-card .ic.off { background: var(--hover); color: var(--ink-3); }
+  .state-card h3 { margin: 0 0 6px; font-size: 15px; }
+  .state-card p { margin: 0 auto 16px; max-width: 280px; color: var(--ink-2); font-size: 12.5px; }
+  .code { display: inline-flex; gap: 6px; margin: 4px 0 14px; }
+  .code b { width: 38px; height: 46px; border-radius: 10px; display: grid; place-items: center; font: 600 22px var(--mono); box-shadow: inset 0 0 0 1px var(--line-1); }
+  .waiting { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-3); font-size: 12.5px; }
+  .spin { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid var(--line-1); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { rotate: 360deg; } }
+  .help { margin-top: 14px; font-size: 12px; color: var(--ink-3); }
+  .help button { color: var(--accent-text); }
+  .help ol { text-align: left; margin: 8px auto 0; padding-left: 18px; max-width: 260px; color: var(--ink-2); }
+  .offline-note { margin: 0 12px 8px; padding: 8px 10px; border-radius: var(--r-sm); background: var(--hover); color: var(--ink-2); font-size: 12px; display: flex; align-items: center; gap: 8px; }
+
+  /* 标注列表 */
+  .filters { display: flex; align-items: center; gap: 4px; padding: 8px 16px 6px; }
+  .filters .f { height: 26px; min-width: 26px; padding: 0 8px; border-radius: 999px; display: inline-grid; place-items: center; color: var(--ink-2); font-size: 12px; }
+  .filters .f:hover { background: var(--hover); }
+  .filters .f.on { background: var(--accent-soft); color: var(--accent-text); }
+  .filters .f .swatch { width: 14px; height: 14px; }
+  .filters .f.sw { padding: 0; }
+  .filters .f.sw.on { background: var(--hover); box-shadow: inset 0 0 0 1px var(--line-1); }
+  .ann-list { flex: 1; overflow-y: auto; padding: 2px 8px 8px; }
+  .ann { position: relative; display: flex; gap: 10px; width: 100%; padding: 10px 8px; border-radius: var(--r-sm); text-align: left; }
+  .ann:hover { background: var(--hover); }
+  .ann .bar { --c: var(--hl-yellow); width: 3px; border-radius: 2px; flex: none; background: color-mix(in srgb, var(--c) 75%, transparent); }
+  .ann .bar[data-c="green"] { --c: var(--hl-green); }
+  .ann .bar[data-c="blue"] { --c: var(--hl-blue); }
+  .ann .bar[data-c="purple"] { --c: var(--hl-purple); }
+  .ann .bar[data-c="red"] { --c: var(--hl-red); }
+  .ann .t { font-family: Charter, Georgia, serif; font-size: 13.5px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .ann .n { margin-top: 4px; color: var(--ink-2); font-size: 12.5px; white-space: pre-wrap; }
+  .ann .m { margin-top: 4px; color: var(--ink-3); font-size: 11.5px; }
+  .ann .del { position: absolute; top: 6px; right: 6px; opacity: 0; transition: opacity 0.12s; }
+  .ann:hover .del { opacity: 1; }
+  .ann .del:hover { color: var(--danger); }
+  .p-foot { padding: 8px 16px 12px; display: flex; align-items: center; gap: 8px; color: var(--ink-3); font-size: 12px; }
+  .p-foot .grow { flex: 1; }
+  .list-empty { margin: auto; text-align: center; color: var(--ink-3); padding: 40px 24px; font-size: 12.5px; }
+  .list-empty svg.i { width: 22px; height: 22px; margin-bottom: 8px; }
+
+  /* 笔记 */
+  .note-doc { flex: 1; overflow-y: auto; padding: 10px 18px; outline: none; line-height: 1.7; }
+  .note-doc:empty::before { content: attr(data-ph); color: var(--ink-3); }
+  .note-doc blockquote { margin: 10px 0; padding: 2px 0 2px 12px; border-left: 2px solid var(--line-1); color: var(--ink-2); font-family: Charter, Georgia, serif; }
+  .note-doc blockquote cite { display: block; font: 11.5px var(--font); color: var(--ink-3); font-style: normal; margin-top: 2px; }
+  .note-doc .ai-note { margin: 10px 0; }
+  .note-doc .ai-note small { display: block; color: var(--ink-3); font-size: 11.5px; }
+
+  /* 原位气泡（方案 C / 推荐组合的快答） */
+  .bubble-c {
+    position: absolute; z-index: 42; width: 360px; padding: 12px 14px 8px; border-radius: var(--r-md);
+    background: var(--surface); box-shadow: var(--shadow-float); animation: pop 0.16s var(--ease);
+  }
+  .bubble-c.fixed { position: fixed; }
+  .bubble-c .hd { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; color: var(--ink-3); font-size: 12px; }
+  .bubble-c .hd svg.i { width: 14px; height: 14px; color: var(--accent-text); }
+  .bubble-c .hd .grow { flex: 1; }
+  .bubble-c .hd .icon-btn { width: 24px; height: 24px; }
+  .bubble-c .text { white-space: pre-wrap; line-height: 1.65; max-height: 300px; overflow-y: auto; }
+  .bubble-c .acts { display: flex; align-items: center; gap: 2px; margin: 8px -6px 0; }
+  .bubble-c .acts .t-btn { height: 26px; padding: 0 8px; border-radius: var(--r-sm); display: inline-flex; align-items: center; gap: 5px; color: var(--ink-2); font-size: 12px; }
+  .bubble-c .acts .t-btn:hover { background: var(--hover); color: var(--ink-1); }
+  .bubble-c .acts .t-btn svg.i { width: 13px; height: 13px; }
+  .bubble-c .acts .grow { flex: 1; }
+  .bubble-c .field { margin-top: 4px; }
+  .bubble-c .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+  /* 底部命令条（方案 B） */
+  .cmd { position: fixed; z-index: 45; left: 50%; bottom: 28px; translate: -50% 0; width: min(640px, calc(100vw - 48px)); display: flex; flex-direction: column; gap: 8px; }
+  .cmd .answer { padding: 14px 16px 10px; border-radius: var(--r-lg); background: var(--surface); box-shadow: var(--shadow-float); animation: pop 0.18s var(--ease); }
+  .cmd .answer .text { white-space: pre-wrap; line-height: 1.65; max-height: 42vh; overflow-y: auto; }
+  .cmd .bar {
+    display: flex; align-items: center; gap: 8px; height: 52px; padding: 0 8px 0 14px; border-radius: 16px;
+    background: var(--surface); box-shadow: var(--shadow-float); animation: pop 0.18s var(--ease);
+  }
+  .cmd .bar .tau-mark { font: italic 600 18px Georgia, serif; color: var(--accent-text); }
+  .cmd .bar input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; font: inherit; font-size: 14px; color: var(--ink-1); }
+  .cmd .bar input::placeholder { color: var(--ink-3); }
+  .cmd .hint { display: flex; gap: 6px; justify-content: center; }
+
+  .toast {
+    position: fixed; z-index: 50; left: 50%; bottom: 28px; translate: -50% 0; padding: 9px 14px; border-radius: 10px;
+    background: var(--ink-1); color: var(--surface); font-size: 12.5px; box-shadow: var(--shadow-float); animation: pop 0.16s var(--ease);
+  }
+</style>
+</head>
+<body>
+<div class="demo-bar" id="demo">
+  <span class="label">提问承载</span>
+  <button data-mode="combo" class="on">推荐组合</button>
+  <button data-mode="A">A 浮窗</button>
+  <button data-mode="B">B 命令条</button>
+  <button data-mode="C">C 原位</button>
+  <span class="sep"></span>
+  <span class="label">连接</span>
+  <button data-conn="ok" class="on">已连接</button>
+  <button data-conn="pending">等待授权</button>
+  <button data-conn="off">未连接</button>
+  <span class="sep"></span>
+  <button data-theme="light" class="on">浅</button>
+  <button data-theme="dark">深</button>
+  <span class="sep"></span>
+  <a href="pairing.html" style="color:inherit;text-decoration:none;padding:0 10px">授权流程 →</a>
+</div>
+
+<div class="site">
+  <header class="site-head">
+    <span class="logo">Longform</span>
+    <nav><span>Science</span><span>Culture</span><span>Ideas</span><span>Subscribe</span></nav>
+  </header>
+  <article class="article" id="article">
+    <div class="kicker">Learning</div>
+    <h1>The Forgetting Curve Is a Feature</h1>
+    <p class="dek" data-pid="0">Why the moment you are about to forget something is the best moment to learn it.</p>
+    <div class="byline">By Mara Ellison · 8 min read</div>
+    <p data-pid="1">In 1885, Hermann Ebbinghaus spent months memorizing lists of nonsense syllables—DAX, BOK, YAT—and testing how quickly he lost them. The result, now called the forgetting curve, is one of the oldest replicated findings in psychology: most of what we learn fades within a day unless something interrupts the decline.</p>
+    <p data-pid="2">The usual reading of that curve is pessimistic. Memory leaks; study harder. But the more interesting part of Ebbinghaus's data is what happened when he reviewed. Each review didn't just restore the lost material—it bent the curve, so the next decline was slower than the last.</p>
+    <h2>Why difficulty helps</h2>
+    <p data-pid="3">Later researchers gave this effect a name: desirable difficulty. A review that feels effortless does surprisingly little. A review that happens just as you are about to forget—when retrieval takes real effort—strengthens the memory far more than one done while it is still fresh.</p>
+    <p data-pid="4">This flips a common intuition. Rereading a chapter the next morning feels productive because everything is familiar. But familiarity is not recall. The sense of fluency is precisely the signal that the review is arriving too early to matter.</p>
+    <h2>Three rules that follow</h2>
+    <p data-pid="5">The first rule is timing: schedule reviews for when something is almost forgotten, not when it was just learned. In practice this means the gaps should feel uncomfortable.</p>
+    <p data-pid="6">The second is retrieval. Close the book and try to produce the answer before checking. The act of pulling a memory out is itself the exercise; looking at the answer again is mostly spectating.</p>
+    <p data-pid="7">The third is expansion. Intervals should grow as an item gets easier—one day, then three, then a week, then a month. A fixed weekly review wastes time on what you know and comes too late for what you don't.</p>
+    <p data-pid="8">None of this requires software, though software makes it easier to stay honest. What it does require is a change in attitude: forgetting is not evidence that studying failed. It is the condition that makes the next review worth doing.</p>
+  </article>
+  <footer class="site-foot">© Longform Magazine</footer>
+</div>
+
+<!-- 扩展 UI：真实实现挂在 <tau-companion> 的 closed shadow root 内 -->
+<div id="tau" class="tau" data-mode="light"></div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const tau = $("#tau");
+const article = $("#article");
+
+/* ———————— 图标（lucide 路径） ———————— */
+const ICONS = {
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  pin: '<path d="M12 17v5M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>',
+  up: '<path d="M12 19V5M5 12l7-7 7 7"/>',
+  chat: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  hl: '<path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/>',
+  pen: '<path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.4 2.6a1 1 0 0 1 3 3l-9 9a2 2 0 0 1-.85.5l-2.87.84a.5.5 0 0 1-.62-.62l.84-2.87a2 2 0 0 1 .5-.85z"/>',
+  down: '<path d="m6 9 6 6 6-6"/>',
+  copy: '<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+  quote: '<path d="M17 6H3M21 12H8M21 18H8M3 12v6"/>',
+  spark: '<path d="M9.94 14.06 8 20l-1.94-5.94L0 12l6.06-1.94L8 4l1.94 6.06L16 12z" transform="translate(3 0)"/><path d="M20 3v4M22 5h-4"/>',
+  lang: '<path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/>',
+  list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  more: '<path d="M12 12h.01M19 12h.01M5 12h.01" stroke-width="3"/>',
+  redo: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  trash: '<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  note: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7M17 12H7"/>',
+  eyeoff: '<path d="m2 2 20 20M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 4.2A10 10 0 0 1 22 12a13 13 0 0 1-1.7 2.7M6.6 6.6A13.5 13.5 0 0 0 2 12s3 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/>',
+  plug: '<path d="M12 22v-5M9 8V2M15 8V2M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
+  out: '<path d="M7 7h10v10M7 17 17 7"/>',
+  book: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  key: '<path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4M21 2l-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/>',
+  settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+};
+const icon = (name) => `<svg class="i" viewBox="0 0 24 24">${ICONS[name]}</svg>`;
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const COLORS = ["yellow", "green", "blue", "purple", "red"];
+const COLOR_NAMES = { yellow: "黄", green: "绿", blue: "蓝", purple: "紫", red: "红" };
+
+/* ———————— 模拟回答（原型用，实际来自 Tau 的模型） ———————— */
+const ZH = {
+  1: "1885 年，赫尔曼·艾宾浩斯花了几个月背诵无意义音节——DAX、BOK、YAT——并测试自己忘得有多快。这个结果如今被称为遗忘曲线，是心理学里被重复验证最久的发现之一：学到的东西大多会在一天内淡去，除非有什么打断这个下滑。",
+  2: "通常的解读很悲观：记忆会漏，那就更努力地学。但艾宾浩斯的数据里更有意思的是复习之后发生了什么。每次复习不只是找回了丢失的内容——它把曲线掰弯了，下一次的下滑比上一次更慢。",
+  3: "后来的研究者给这个效应起了名字：合意困难。感觉毫不费力的复习，效果出奇地小；在你快要忘掉、提取需要真正费力的时候复习，记忆被加固的程度远超趁热复习。",
+  4: "这颠覆了一个常见直觉。第二天早上重读一章感觉很有成效，因为一切都很眼熟。但眼熟不等于回忆得起来。那种流畅感，恰恰说明这次复习来得太早、没什么用。",
+  5: "第一条规则是时机：把复习安排在快要忘记的时候，而不是刚学完的时候。实践中，这意味着间隔应该让人有点不舒服。",
+  6: "第二条是提取。合上书，先试着自己说出答案再去核对。把记忆拉出来这个动作本身就是练习；再看一遍答案，多半只是旁观。",
+  7: "第三条是扩展。条目越熟，间隔越长——一天、三天、一周、一个月。固定的每周复习既在已会的内容上浪费时间，又对没会的内容来得太晚。",
+  8: "这些都不需要软件，只是软件更容易让人保持诚实。真正需要的是态度的转变：遗忘不是学习失败的证据，而是让下一次复习值得去做的前提。",
+};
+const EXPLAIN = {
+  1: "作者用艾宾浩斯的实验引出全文：遗忘是默认会发生的，而且发生得很快——这是后面所有论点的起点。[1]",
+  2: "关键在「掰弯曲线」：复习不是把记忆充回满格，而是改变了遗忘的速度，每复习一次，下一次忘得更慢。[2]",
+  3: "「合意困难」是说：有一点难度的提取才有效。快忘时还能想起来，那次费力本身就是加固记忆的过程。[3]",
+  4: "作者在区分两种感觉：「眼熟」只是认得出，「回忆」是能自己说出来。复习时觉得很顺，反而说明时机太早了。[4]",
+  5: "第一条实践：别趁热复习，要等到快忘的时候。间隔「让人不舒服」正是它在起作用的信号。[5]",
+  6: "第二条实践：先回忆、再看答案。看答案是被动接收，自己想出来才是在练。[6]",
+  7: "第三条实践：间隔随熟练度递增，而不是固定周期。熟的少复习，不熟的早复习。[7]",
+  8: "收尾在态度上：遗忘不是失败，而是下一次复习有价值的前提——呼应了标题。[8]",
+};
+const SUMMARY = "这篇文章的核心论点是：遗忘不是记忆的敌人，而是复习起作用的前提。[1] 艾宾浩斯发现，每次复习都会让遗忘曲线变得更平缓。[2]\n\n作者给出三条实践建议：\n· 时机：在快忘的时候复习，而不是刚学完 [5]\n· 提取：先自己回忆，再看答案 [6]\n· 扩展：间隔随熟练度拉长，不用固定周期 [7]\n\n背后的机制是「合意困难」——费力的回忆比轻松的重读更能加固记忆。[3][4]";
+const FREE = "根据本页：复习的价值来自「差点想不起来」时的那次提取。[3] 如果你在做闪卡，可以让间隔逐步拉长（1 天 → 3 天 → 1 周 → 1 月），并且先回忆再翻面。[6][7]\n\n另外要警惕「眼熟感」：翻到背面觉得「我知道」不算数，能自己说出来才算。[4]";
+const POINTS = "本页要点：\n1. 遗忘曲线：学到的东西一天内大多会淡去 [1]\n2. 复习会让下一次遗忘变慢 [2]\n3. 合意困难：费力的提取效果更好 [3]\n4. 眼熟 ≠ 回忆，流畅感说明复习太早 [4]\n5. 三条规则：快忘时复习、先回忆后核对、间隔递增 [5][6][7]";
+const FLAWS = "有几处可以追问：\n· 证据面偏窄：核心依据是艾宾浩斯的自我实验与无意义音节，能否推广到理解型知识，文中没有讨论 [1]\n· 「间隔应该让人不舒服」缺少量化，多难算「合意」、多难算过头，没有给出边界 [5]\n· 扩展间隔的具体节奏（1 天、3 天、1 周）是举例，没有说明来源 [7]";
+
+/* ———————— 状态 ———————— */
+const state = {
+  mode: "combo", conn: "ok", panel: false, tab: "chat", pinned: false,
+  side: "right", orbTop: Math.round(innerHeight * 0.58),
+  anns: [], seq: 0, filter: null,
+  messages: [], quote: null, quotePid: null, ctxPage: true, ctxAnns: false,
+  model: "Claude Sonnet 5.5", noteSaved: false, coach: true,
+};
+let selRange = null;      // 当前选区
+let streaming = null;     // 当前流式定时器
+let panelPos = null;      // 面板被拖动后的位置
+let panelEnter = false;   // 仅在打开时播放入场动画
+
+/* 浮层 LIFO：Esc 只关最上面一层 */
+const layers = [];
+const pushLayer = (key, close) => { popLayer(key); layers.push({ key, close }); };
+const popLayer = (key) => { const i = layers.findIndex((l) => l.key === key); if (i >= 0) layers.splice(i, 1); };
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && layers.length) { e.preventDefault(); layers.pop().close(); }
+  if (e.altKey && e.code === "KeyJ") { e.preventDefault(); askPage(); }
+});
+
+/* ———————— 结构 ———————— */
+tau.innerHTML = `
+  <div class="orb-wrap" id="orbWrap" data-side="right">
+    <div class="quick" id="quick">
+      <button class="icon-btn" data-q="ask">${icon("spark")}<span class="tip">问这页<span class="k">⌥J</span></span></button>
+      <button class="icon-btn" data-q="anns">${icon("hl")}<span class="tip">本页标注</span></button>
+      <button class="icon-btn" data-q="note">${icon("pen")}<span class="tip">页面笔记</span></button>
+    </div>
+    <div class="orb" id="orb">τ<span class="status ok" id="orbStatus"></span></div>
+  </div>
+  <div id="layerSel"></div><div id="layerNote"></div><div id="layerMarkers"></div><div id="layerCard"></div>
+  <div id="layerBubble"></div><div id="layerPanel"></div><div id="layerCmd"></div><div id="layerCoach"></div><div id="layerToast"></div>`;
+
+/* ———————— 演示条 ———————— */
+$("#demo").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  for (const k of ["mode", "conn", "theme"]) {
+    if (b.dataset[k]) {
+      b.parentElement.querySelectorAll(`[data-${k}]`).forEach((x) => x.classList.toggle("on", x === b));
+      if (k === "theme") tau.dataset.mode = b.dataset.theme;
+      else { state[k] = b.dataset[k]; closeBubble(); closeCmd(); if (k === "mode" && state.mode !== "A" && state.mode !== "combo" && state.tab === "chat") state.tab = "anns"; }
+    }
+  }
+  renderOrb(); renderPanel();
+});
+
+/* ———————— 悬浮球 ———————— */
+const orbWrap = $("#orbWrap");
+function renderOrb() {
+  orbWrap.dataset.side = state.side;
+  orbWrap.style.top = state.orbTop + "px";
+  orbWrap.classList.toggle("open", state.panel);
+  orbWrap.classList.toggle("out", state.panel);
+  $("#orbStatus").className = "status " + { ok: "ok", pending: "warn", off: "off" }[state.conn];
+  const old = $("#orb .badge"); old && old.remove();
+  if (state.anns.length) $("#orb").insertAdjacentHTML("beforeend", `<span class="badge">${state.anns.length}</span>`);
+  renderCoach();
+}
+let drag = null;
+$("#orb").addEventListener("pointerdown", (e) => {
+  drag = { x: e.clientX, y: e.clientY, top: state.orbTop, moved: false };
+  $("#orb").setPointerCapture(e.pointerId);
+});
+$("#orb").addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  const dy = e.clientY - drag.y, dx = e.clientX - drag.x;
+  if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+  drag.moved = true; orbWrap.classList.add("dragging");
+  state.orbTop = Math.max(180, Math.min(innerHeight - 52, drag.top + dy));
+  orbWrap.style.top = state.orbTop + "px";
+  const side = e.clientX < innerWidth / 2 ? "left" : "right";
+  if (side !== state.side) { state.side = side; orbWrap.dataset.side = side; }
+});
+$("#orb").addEventListener("pointerup", () => {
+  if (!drag) return;
+  const moved = drag.moved; drag = null; orbWrap.classList.remove("dragging");
+  if (moved) { state.coach = false; renderOrb(); if (state.panel && !panelPos) renderPanel(); return; }
+  state.coach = false;
+  if (state.mode === "B" && !state.panel) return askPage();
+  togglePanel(!state.panel);
+});
+$("#quick").addEventListener("click", (e) => {
+  const q = e.target.closest("[data-q]")?.dataset.q; if (!q) return;
+  state.coach = false;
+  if (q === "ask") askPage();
+  else { state.tab = q; togglePanel(true); }
+});
+
+function renderCoach() {
+  const host = $("#layerCoach");
+  if (!state.coach) { host.innerHTML = ""; return; }
+  const top = state.orbTop - 150;
+  const pos = state.side === "right" ? `right:60px` : `left:60px`;
+  host.innerHTML = `<div class="coach" style="top:${top}px;${pos}">
+    <h4>伴读在这里</h4>
+    <p>选中文字即可高亮、批注或提问；悬停这颗球看快捷动作，拖动可换位置。</p>
+    <div class="row"><span class="kbd">⌥J 问这页</span><button class="btn ghost" id="coachOk" style="height:26px">知道了</button></div></div>`;
+  $("#coachOk").onclick = () => { state.coach = false; renderCoach(); };
+}
+
+/* ———————— 选区工具条 ———————— */
+document.addEventListener("mouseup", (e) => {
+  if (tau.contains(e.target) || e.target.closest("#demo")) return;
+  setTimeout(() => {
+    const sel = getSelection();
+    if (!sel.rangeCount || sel.isCollapsed || !article.contains(sel.anchorNode)) { if (!e.target.closest(".hl")) closeSel(); return; }
+    const r = sel.getRangeAt(0);
+    const a = blockOf(r.startContainer), b = blockOf(r.endContainer);
+    if (!a || a !== b) { closeSel(); toast("原型只演示段内选区；实际实现支持跨段"); return; }
+    selRange = r.cloneRange();
+    state.coach = false; renderCoach();
+    showSel(r.getBoundingClientRect(), { kind: "sel" });
+  }, 10);
+});
+document.addEventListener("mousedown", (e) => {
+  if (tau.contains(e.target)) return;
+  closeCard(true);
+});
+const blockOf = (n) => (n.nodeType === 3 ? n.parentElement : n)?.closest("p[data-pid]");
+
+function showSel(rect, ctx) {
+  const host = $("#layerSel");
+  const isMark = ctx.kind === "mark";
+  const ann = isMark ? state.anns.find((a) => a.id === ctx.id) : null;
+  host.innerHTML = `<div class="seltool" id="seltool">
+    ${COLORS.map((c) => `<button class="sw-btn ${ann && ann.color === c ? "cur" : ""}" data-color="${c}" title="${COLOR_NAMES[c]}色高亮"><span class="swatch" data-c="${c}"></span></button>`).join("")}
+    <span class="vsep"></span>
+    <button class="t-btn" data-act="note">${icon("note")}批注</button>
+    <button class="t-btn ai" data-act="ai">${icon("spark")}问 AI${icon("down")}</button>
+    ${isMark ? `<span class="vsep"></span><button class="t-btn danger" data-act="del">${icon("trash")}删除</button>`
+             : `<button class="t-btn" data-act="excerpt">${icon("quote")}摘录</button><span class="vsep"></span><button class="t-btn" data-act="copy">${icon("copy")}</button>`}
+  </div>`;
+  const el = $("#seltool");
+  const w = el.offsetWidth;
+  let left = rect.left + rect.width / 2 - w / 2;
+  left = Math.max(12, Math.min(innerWidth - w - 12, left));
+  let top = rect.top - 46;
+  if (top < 56) top = rect.bottom + 8;
+  el.style.left = left + "px"; el.style.top = top + "px";
+  el.addEventListener("mousedown", (e) => e.preventDefault()); // 保住页面选区
+  el.addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.color) {
+      if (ann) { ann.color = b.dataset.color; ann.el.dataset.c = ann.color; closeSel(); renderMarkers(); renderPanel(); }
+      else { addHighlight(b.dataset.color); }
+      return;
+    }
+    const act = b.dataset.act;
+    if (act === "ai") return showAiMenu(b, ctx);
+    if (act === "note") { const a = ann || addHighlight("yellow", true); a && openNoteEditor(a); }
+    if (act === "del") { removeAnn(ann.id); }
+    if (act === "copy") { navigator.clipboard?.writeText(selRange.toString()); toast("已复制"); closeSel(); getSelection().removeAllRanges(); }
+    if (act === "excerpt") { addExcerpt(selRange.toString(), +blockOf(selRange.startContainer).dataset.pid); closeSel(); getSelection().removeAllRanges(); }
+  });
+  ctx.rect = rect;
+  pushLayer("sel", closeSel);
+}
+function closeSel() { $("#layerSel").innerHTML = ""; popLayer("sel"); popLayer("aimenu"); }
+
+function showAiMenu(btn, ctx) {
+  const tool = $("#seltool");
+  if ($("#aimenu")) { $("#aimenu").remove(); popLayer("aimenu"); return; }
+  tool.insertAdjacentHTML("beforeend", `<div class="menu" id="aimenu" style="top:42px;left:${btn.offsetLeft}px">
+    <button class="menu-item" data-k="explain">${icon("spark")}解释</button>
+    <button class="menu-item" data-k="translate">${icon("lang")}翻译成中文</button>
+    <button class="menu-item" data-k="summarize">${icon("list")}概括这段</button>
+    <button class="menu-item" data-k="free">${icon("chat")}自由提问…</button></div>`);
+  pushLayer("aimenu", () => { $("#aimenu")?.remove(); });
+  $("#aimenu").addEventListener("click", (e) => {
+    const k = e.target.closest("[data-k]")?.dataset.k; if (!k) return;
+    const text = ctx.kind === "mark" ? state.anns.find((a) => a.id === ctx.id).text : selRange.toString();
+    const pid = ctx.kind === "mark" ? state.anns.find((a) => a.id === ctx.id).pid : +blockOf(selRange.startContainer).dataset.pid;
+    const rect = ctx.rect;
+    closeSel(); getSelection().removeAllRanges();
+    askSelection(k, text, pid, rect);
+  });
+}
+
+/* ———————— 高亮与批注 ———————— */
+function wrapRange(range, color, id) {
+  const mark = document.createElement("mark");
+  mark.className = "hl"; mark.dataset.c = color; mark.dataset.id = id;
+  mark.appendChild(range.extractContents());
+  range.insertNode(mark);
+  return mark;
+}
+function addHighlight(color, keepOpen) {
+  if (!selRange) return null;
+  const id = "a" + ++state.seq;
+  const pid = +blockOf(selRange.startContainer).dataset.pid;
+  const text = selRange.toString();
+  const el = wrapRange(selRange, color, id);
+  const ann = { id, color, text, note: "", pid, el, at: "刚刚" };
+  state.anns.push(ann);
+  sortAnns();
+  getSelection().removeAllRanges(); selRange = null;
+  if (!keepOpen) closeSel();
+  renderOrb(); renderPanel();
+  return ann;
+}
+const sortAnns = () => state.anns.sort((x, y) => (x.el.compareDocumentPosition(y.el) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
+function removeAnn(id) {
+  const a = state.anns.find((x) => x.id === id); if (!a) return;
+  a.el.replaceWith(...a.el.childNodes);
+  state.anns = state.anns.filter((x) => x !== a);
+  closeSel(); closeCard(true); renderMarkers(); renderOrb(); renderPanel();
+  toast("已删除标注");
+}
+article.addEventListener("click", (e) => {
+  const m = e.target.closest(".hl"); if (!m || !getSelection().isCollapsed) return;
+  showSel(m.getBoundingClientRect(), { kind: "mark", id: m.dataset.id });
+});
+
+function openNoteEditor(ann) {
+  closeSel();
+  const r = ann.el.getBoundingClientRect();
+  const host = $("#layerNote");
+  const left = Math.max(12, Math.min(innerWidth - 312, r.left + scrollX));
+  host.innerHTML = `<div class="note-editor" style="top:${r.bottom + scrollY + 10}px;left:${left}px">
+    <div class="q">${esc(ann.text)}</div>
+    <textarea class="field" rows="3" placeholder="写下你的想法…">${esc(ann.note)}</textarea>
+    <div class="row"><span class="kbd">⌘↵ 保存</span><button class="btn ghost" data-a="cancel" style="height:28px">取消</button><button class="btn primary" data-a="save" style="height:28px">保存</button></div></div>`;
+  const ta = $("textarea", host); ta.focus();
+  const save = () => { ann.note = ta.value.trim(); closeNote(); renderMarkers(); renderPanel(); if (ann.note) toast("批注已保存"); };
+  ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) save(); });
+  host.addEventListener("click", (e) => { const a = e.target.closest("[data-a]")?.dataset.a; if (a === "save") save(); if (a === "cancel") closeNote(); });
+  pushLayer("note", closeNote);
+}
+function closeNote() { $("#layerNote").innerHTML = ""; popLayer("note"); }
+
+/* 页边标记：垂直对齐高亮首行，放在正文列右侧，不占阅读宽度 */
+let pinnedCard = null;
+function renderMarkers() {
+  const host = $("#layerMarkers");
+  const ar = article.getBoundingClientRect();
+  const x = ar.right + scrollX - 8;
+  host.innerHTML = state.anns.filter((a) => a.note).map((a) => {
+    const r = a.el.getClientRects()[0] || a.el.getBoundingClientRect();
+    return `<div class="marker ${pinnedCard === a.id ? "pinned" : ""}" data-id="${a.id}" data-c="${a.color}" style="left:${x}px;top:${r.top + scrollY + 4}px">${icon("note")}</div>`;
+  }).join("");
+}
+$("#layerMarkers").addEventListener("mouseover", (e) => { const m = e.target.closest(".marker"); if (m && !pinnedCard) showCard(m.dataset.id); });
+$("#layerMarkers").addEventListener("mouseout", (e) => { const m = e.target.closest(".marker"); if (m && !pinnedCard && !e.relatedTarget?.closest?.(".note-card")) closeCard(); });
+$("#layerMarkers").addEventListener("click", (e) => {
+  const m = e.target.closest(".marker"); if (!m) return;
+  if (pinnedCard === m.dataset.id) { closeCard(true); return; }
+  pinnedCard = m.dataset.id; showCard(m.dataset.id); renderMarkers();
+  pushLayer("card", () => closeCard(true));
+});
+function showCard(id) {
+  const a = state.anns.find((x) => x.id === id); const m = $(`.marker[data-id="${id}"]`); if (!a || !m) return;
+  const left = parseFloat(m.style.left), top = parseFloat(m.style.top);
+  const roomRight = left + 30 + 248 < innerWidth + scrollX - 56;
+  $("#layerCard").innerHTML = `<div class="note-card" style="top:${top - 6}px;left:${roomRight ? left + 28 : left - 256}px">
+    <div class="body">${esc(a.note)}</div>
+    <div class="meta"><span>批注 · ${a.at}</span>
+      <button class="icon-btn" data-a="edit" title="编辑">${icon("pen")}</button>
+      <button class="icon-btn" data-a="ask" title="问 AI">${icon("spark")}</button>
+      <button class="icon-btn" data-a="del" title="删除">${icon("trash")}</button></div></div>`;
+  $("#layerCard .note-card").addEventListener("mouseleave", () => { if (!pinnedCard) closeCard(); });
+  $("#layerCard .note-card").addEventListener("click", (e) => {
+    const act = e.target.closest("[data-a]")?.dataset.a;
+    if (act === "edit") { closeCard(true); openNoteEditor(a); }
+    if (act === "del") removeAnn(a.id);
+    if (act === "ask") { closeCard(true); askSelection("explain", a.text, a.pid, a.el.getBoundingClientRect()); }
+  });
+}
+function closeCard(unpin) { if (unpin && pinnedCard) { pinnedCard = null; popLayer("card"); renderMarkers(); } $("#layerCard").innerHTML = ""; }
+addEventListener("resize", () => { renderMarkers(); closeCard(true); });
+
+/* ———————— 提问路由 ———————— */
+function answerFor(kind, pid) {
+  if (kind === "explain") return EXPLAIN[pid] || FREE;
+  if (kind === "translate") return ZH[pid] ? ZH[pid] + `\n\n（原文第 ${pid} 段）[${pid}]` : FREE;
+  if (kind === "summarize") return EXPLAIN[pid] || SUMMARY;
+  return FREE;
+}
+const KIND_LABEL = { explain: "解释", translate: "翻译", summarize: "概括这段", free: "提问" };
+function notConnected() {
+  if (state.conn === "ok") return false;
+  toast(state.conn === "pending" ? "等待在 Tau 中确认授权，标注不受影响" : "Tau 未连接：标注会先存在本机，连上后同步");
+  return true;
+}
+function askSelection(kind, text, pid, rect) {
+  if (notConnected()) return;
+  const short = kind === "explain" || kind === "translate";
+  const target = state.mode === "combo" ? (short ? "C" : "A") : state.mode;
+  if (target === "A") {
+    state.quote = text; state.quotePid = pid; state.tab = "chat";
+    togglePanel(true);
+    if (kind === "free") { setTimeout(() => $("#input")?.focus(), 30); return; }
+    sendChat(KIND_LABEL[kind], answerFor(kind, pid));
+  } else if (target === "B") {
+    openCmd({ quote: text, pid, kind });
+  } else {
+    openBubble({ rect, quote: text, pid, kind });
+  }
+}
+function askPage() {
+  state.coach = false; renderCoach();
+  if (state.mode === "B") return openCmd({});
+  if (state.mode === "C") return openBubble({ page: true });
+  state.tab = "chat"; togglePanel(true);
+  setTimeout(() => $("#input")?.focus(), 30);
+}
+
+/* 流式输出：[n] 渲染为可回链的引用 */
+const rich = (t) => esc(t).replace(/\[(\d)\]/g, (_, n) => `<button class="cite" data-pid="${n}" title="定位到原文">${n}</button>`);
+function stream(el, text, done) {
+  clearInterval(streaming);
+  let i = 0;
+  streaming = setInterval(() => {
+    i = Math.min(text.length, i + 3);
+    el.innerHTML = rich(text.slice(0, i)) + (i < text.length ? '<span class="caret"></span>' : "");
+    const sc = el.closest(".msgs") || el; sc.scrollTop = sc.scrollHeight;
+    if (i >= text.length) { clearInterval(streaming); streaming = null; done && done(); }
+  }, 16);
+}
+tau.addEventListener("click", (e) => {
+  const c = e.target.closest(".cite"); if (!c) return;
+  const p = $(`p[data-pid="${c.dataset.pid}"]`); if (!p) return;
+  p.scrollIntoView({ behavior: "smooth", block: "center" });
+  p.classList.remove("flash"); void p.offsetWidth; p.classList.add("flash");
+});
+
+/* ———————— 方案 A：面板 ———————— */
+function togglePanel(open) {
+  if (open && !state.panel) panelEnter = true;
+  state.panel = open;
+  if (open) pushLayer("panel", () => togglePanel(false)); else popLayer("panel");
+  renderOrb(); renderPanel();
+}
+function panelStyle() {
+  if (panelPos) return `left:${panelPos.left}px;top:${panelPos.top}px;width:${panelPos.width || 400}px;${panelPos.height ? `height:${panelPos.height}px` : ""}`;
+  const h = Math.min(640, innerHeight - 96);
+  const top = Math.max(64, Math.min(innerHeight - h - 24, state.orbTop + 36 - h));
+  return state.side === "right" ? `right:64px;top:${top}px` : `left:64px;top:${top}px`;
+}
+const chatTabVisible = () => state.mode === "A" || state.mode === "combo";
+function renderPanel() {
+  const host = $("#layerPanel");
+  if (!state.panel) { host.innerHTML = ""; return; }
+  if (!chatTabVisible() && state.tab === "chat") state.tab = "anns";
+  const connLabel = { ok: "Tau 已连接", pending: "等待授权", off: "Tau 未连接" }[state.conn];
+  const dotCls = { ok: "ok", pending: "warn", off: "off" }[state.conn];
+  const keepInput = $("#input")?.value || "";
+  host.innerHTML = `<div class="panel ${panelEnter ? "enter" : ""}" id="panel" style="${panelStyle()}">
+    <div class="p-head" id="phead">
+      <div class="fav">L</div>
+      <div class="p-title"><b>The Forgetting Curve Is a Feature</b><small>longform.example <span class="dot ${dotCls}"></span>${connLabel}</small></div>
+      <button class="icon-btn ${state.pinned ? "on" : ""}" data-h="pin" title="${state.pinned ? "已固定：切换标签页仍保持打开" : "固定面板"}">${icon("pin")}</button>
+      <button class="icon-btn" data-h="more" title="更多">${icon("more")}</button>
+      <button class="icon-btn" data-h="close" title="关闭 Esc">${icon("x")}</button>
+    </div>
+    <div class="tabs">
+      ${chatTabVisible() ? `<button class="tab ${state.tab === "chat" ? "on" : ""}" data-tab="chat">对话</button>` : ""}
+      <button class="tab ${state.tab === "anns" ? "on" : ""}" data-tab="anns">标注 <span class="n">${state.anns.length || ""}</span></button>
+      <button class="tab ${state.tab === "note" ? "on" : ""}" data-tab="note">笔记</button>
+    </div>
+    <div class="p-body" id="pbody"></div>
+    <div class="resize" id="presize"></div>
+  </div>`;
+  panelEnter = false;
+  const body = $("#pbody");
+  if (state.tab === "chat") renderChat(body, keepInput);
+  if (state.tab === "anns") renderAnnList(body);
+  if (state.tab === "note") renderNote(body);
+  bindPanel();
+}
+function bindPanel() {
+  const panel = $("#panel");
+  panel.querySelector(".tabs").addEventListener("click", (e) => { const t = e.target.closest("[data-tab]"); if (t) { state.tab = t.dataset.tab; renderPanel(); } });
+  $("#phead").addEventListener("click", (e) => {
+    const h = e.target.closest("[data-h]")?.dataset.h;
+    if (h === "close") togglePanel(false);
+    if (h === "pin") { state.pinned = !state.pinned; renderPanel(); toast(state.pinned ? "已固定：切换标签页时面板保持打开" : "已取消固定"); }
+    if (h === "more") showMoreMenu(e.target.closest("button"));
+  });
+  // 拖动头部移动面板
+  $("#phead").addEventListener("pointerdown", (e) => {
+    if (e.target.closest("button")) return;
+    const r = panel.getBoundingClientRect(); const sx = e.clientX, sy = e.clientY;
+    const move = (ev) => {
+      panelPos = { ...(panelPos || {}), left: Math.max(8, Math.min(innerWidth - r.width - 8, r.left + ev.clientX - sx)), top: Math.max(8, Math.min(innerHeight - 60, r.top + ev.clientY - sy)), width: r.width, height: r.height };
+      panel.style.cssText = panelStyle();
+    };
+    const up = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", up); };
+    addEventListener("pointermove", move); addEventListener("pointerup", up);
+  });
+  // 左下角缩放
+  $("#presize").addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    const r = panel.getBoundingClientRect(); const sx = e.clientX, sy = e.clientY;
+    const move = (ev) => {
+      const width = Math.max(340, Math.min(720, r.width - (ev.clientX - sx)));
+      const height = Math.max(420, Math.min(innerHeight - r.top - 8, r.height + ev.clientY - sy));
+      panelPos = { left: r.right - width, top: r.top, width, height };
+      panel.style.cssText = panelStyle();
+    };
+    const up = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", up); };
+    addEventListener("pointermove", move); addEventListener("pointerup", up);
+  });
+}
+function showMoreMenu(btn) {
+  if ($("#moremenu")) { $("#moremenu").remove(); popLayer("more"); return; }
+  $("#phead").insertAdjacentHTML("beforeend", `<div class="menu" id="moremenu" style="top:44px;right:10px">
+    <button class="menu-item" data-m="hide">${icon("eyeoff")}在此网站隐藏悬浮球</button>
+    <button class="menu-item" data-m="reset">${icon("redo")}面板回到默认位置</button>
+    <button class="menu-item" data-m="settings">${icon("settings")}在 Tau 中管理扩展</button></div>`);
+  pushLayer("more", () => $("#moremenu")?.remove());
+  $("#moremenu").addEventListener("click", (e) => {
+    const m = e.target.closest("[data-m]")?.dataset.m; $("#moremenu").remove(); popLayer("more");
+    if (m === "hide") toast("已在 longform.example 隐藏，可在扩展图标菜单中恢复");
+    if (m === "reset") { panelPos = null; renderPanel(); }
+    if (m === "settings") toast("已在 Tau 打开 设置 › 浏览器扩展");
+  });
+}
+
+/* 对话页签 */
+function renderChat(body, keepInput) {
+  if (state.conn !== "ok") { body.innerHTML = stateCard(); bindStateCard(body); return; }
+  const msgs = state.messages.length ? state.messages.map(msgHtml).join("") : `
+    <div class="empty"><h3>关于这页，想知道什么？</h3><p>回答会标出原文出处，点编号可跳回原文。</p>
+      <button class="sugg" data-s="summary">${icon("book")}总结本页</button>
+      <button class="sugg" data-s="points">${icon("list")}列出要点</button>
+      <button class="sugg" data-s="flaws">${icon("search")}这篇的论证有哪些可以追问的地方</button>
+      <button class="sugg" data-s="notes">${icon("spark")}和我的笔记有什么关联</button></div>`;
+  body.innerHTML = `<div class="msgs" id="msgs">${msgs}</div>
+    <div class="composer">
+      <div class="ctx">
+        <button class="chip ${state.ctxPage ? "on" : ""}" data-c="page" title="把本页正文作为上下文">${icon("book")}本页 · 6.1k 字</button>
+        ${state.quote ? `<span class="chip on">${icon("quote")}<span class="sel-txt">${esc(state.quote)}</span><span class="x" data-c="unquote">${icon("x")}</span></span>` : ""}
+        <button class="chip ${state.ctxAnns ? "on" : ""}" data-c="anns" title="让 AI 参考本页的高亮与批注">${icon("hl")}我的标注</button>
+        <button class="model" id="modelBtn">${esc(state.model)}${icon("down")}</button>
+      </div>
+      <div class="input-row"><textarea class="field" id="input" rows="2" placeholder="问问这页…  ↵ 发送，⇧↵ 换行"></textarea>
+      <button class="send" id="send">${icon("up")}</button></div>
+    </div>`;
+  const input = $("#input"); input.value = keepInput;
+  const msgsEl = $("#msgs"); msgsEl.scrollTop = msgsEl.scrollHeight;
+  body.addEventListener("click", (e) => {
+    const s = e.target.closest("[data-s]")?.dataset.s;
+    if (s === "summary") sendChat("总结本页", SUMMARY);
+    if (s === "points") sendChat("列出要点", POINTS);
+    if (s === "flaws") sendChat("这篇的论证有哪些可以追问的地方", FLAWS);
+    if (s === "notes") sendChat("和我的笔记有什么关联", null, "scope");
+    const c = e.target.closest("[data-c]")?.dataset.c;
+    if (c === "page") { state.ctxPage = !state.ctxPage; renderPanel(); }
+    if (c === "anns") { state.ctxAnns = !state.ctxAnns; renderPanel(); }
+    if (c === "unquote") { state.quote = null; renderPanel(); }
+    const act = e.target.closest("[data-ai]");
+    if (act) aiAction(act.dataset.ai, +act.dataset.i);
+    if (e.target.closest("[data-scope]")) toast("已在 Tau 打开 设置 › 浏览器扩展 › 权限");
+  });
+  $("#modelBtn").addEventListener("click", (e) => showModelMenu(e.currentTarget));
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); submit(); } });
+  $("#send").addEventListener("click", submit);
+  function submit() { const v = input.value.trim(); if (!v || streaming) return; input.value = ""; sendChat(v, FREE); }
+}
+function msgHtml(m, i) {
+  if (m.role === "user") return `<div class="msg user">${m.quote ? `<div class="quote">${esc(m.quote)}</div>` : ""}<div class="bubble">${esc(m.text)}</div></div>`;
+  const scope = m.scope ? `<div class="scope-card">${icon("key")}<span>这个问题要搜索你在 Tau 里的笔记，当前未授予「搜索我的笔记」权限。</span><button class="btn ghost" data-scope style="height:26px">去开启</button></div>` : "";
+  const acts = m.done && !m.scope ? `<div class="ai-actions">
+      <button class="icon-btn" data-ai="note" data-i="${i}">${icon("pen")}<span class="tip">存为笔记</span></button>
+      <button class="icon-btn" data-ai="copy" data-i="${i}">${icon("copy")}<span class="tip">复制</span></button>
+      <button class="icon-btn" data-ai="redo" data-i="${i}">${icon("redo")}<span class="tip">重答</span></button></div>` : "";
+  return `<div class="msg ai"><div class="text" data-i="${i}">${m.done ? rich(m.text) : ""}</div>${scope}${acts}</div>`;
+}
+function sendChat(text, answer, special) {
+  if (notConnected()) return;
+  state.messages.push({ role: "user", text, quote: state.quote });
+  state.quote = null;
+  const m = { role: "ai", text: special === "scope" ? "" : answer, done: special === "scope", scope: special === "scope" };
+  state.messages.push(m);
+  renderPanel();
+  if (special) return;
+  const el = $(`.msg.ai .text[data-i="${state.messages.length - 1}"]`);
+  stream(el, answer, () => { m.done = true; if (state.tab === "chat") renderPanel(); });
+}
+function aiAction(kind, i) {
+  const m = state.messages[i];
+  if (kind === "copy") { navigator.clipboard?.writeText(m.text); toast("已复制"); }
+  if (kind === "note") { addAiNote(m.text); }
+  if (kind === "redo") { m.done = false; renderPanel(); stream($(`.msg.ai .text[data-i="${i}"]`), m.text, () => { m.done = true; renderPanel(); }); }
+}
+function showModelMenu(btn) {
+  if ($("#modelmenu")) { $("#modelmenu").remove(); popLayer("model"); return; }
+  const models = ["Claude Sonnet 5.5", "Claude Opus 5.5", "Claude Haiku 5.5"];
+  btn.parentElement.insertAdjacentHTML("beforeend", `<div class="menu" id="modelmenu" style="bottom:30px;right:0;min-width:220px">
+    ${models.map((n, i) => `<button class="menu-item" data-model="${n}">${n === state.model ? icon("check") : '<span style="width:16px"></span>'}${n}${i === 0 ? '<span class="meta">Tau 默认</span>' : ""}</button>`).join("")}
+    <button class="menu-item" data-model="">${icon("settings")}在 Tau 中管理模型</button></div>`);
+  pushLayer("model", () => $("#modelmenu")?.remove());
+  $("#modelmenu").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-model]"); if (!b) return;
+    if (b.dataset.model) state.model = b.dataset.model; else toast("已在 Tau 打开 设置 › 模型");
+    popLayer("model"); renderPanel();
+  });
+}
+
+function stateCard() {
+  if (state.conn === "pending") return `<div class="state-card">
+    <div class="ic">${icon("key")}</div><h3>在 Tau 中确认连接</h3>
+    <p>Tau 已弹出授权窗口，请核对校验码与下方一致后点「允许」。只需确认一次。</p>
+    <div class="code"><b>4</b><b>8</b><b>2</b><b>7</b></div><br>
+    <span class="waiting"><span class="spin"></span>等待确认…</span>
+    <div class="help"><button data-help>Tau 没有弹出窗口？</button><div id="helpBody"></div></div></div>`;
+  return `<div class="state-card">
+    <div class="ic off">${icon("plug")}</div><h3>没有找到 Tau</h3>
+    <p>对话要用 Tau 里配置的模型。打开 Tau 后会自动连接；标注和笔记照常可用，连上后同步。</p>
+    <button class="btn primary" data-open>打开 Tau</button>
+    <div class="help">还没有安装？<button>下载 Tau</button></div></div>`;
+}
+function bindStateCard(body) {
+  body.querySelector("[data-help]")?.addEventListener("click", () => {
+    $("#helpBody").innerHTML = `<ol><li>确认 Tau 正在运行且已更新到最新版</li><li>在 Tau「设置 › 浏览器扩展」打开「接受新的连接请求」</li><li>多次拒绝后需等待 10 分钟再试</li></ol>`;
+  });
+  body.querySelector("[data-open]")?.addEventListener("click", () => toast("正在唤起 Tau…"));
+}
+
+/* 标注页签 */
+function renderAnnList(body) {
+  const list = state.anns.filter((a) => !state.filter || a.color === state.filter);
+  const foot = state.conn === "ok" ? `<span class="dot ok" style="width:6px;height:6px"></span>已同步到 Tau` : `<span class="dot off" style="width:6px;height:6px"></span>存在本机，连上 Tau 后同步`;
+  body.innerHTML = `<div class="filters">
+      <button class="f ${!state.filter ? "on" : ""}" data-f="">全部</button>
+      ${COLORS.map((c) => `<button class="f sw ${state.filter === c ? "on" : ""}" data-f="${c}" title="${COLOR_NAMES[c]}"><span class="swatch" data-c="${c}"></span></button>`).join("")}
+    </div>
+    <div class="ann-list">${list.length ? list.map((a) => `
+      <div class="ann" data-id="${a.id}" role="button">
+        <span class="bar" data-c="${a.color}"></span>
+        <div style="min-width:0;flex:1"><div class="t">${esc(a.text)}</div>${a.note ? `<div class="n">${esc(a.note)}</div>` : ""}<div class="m">第 ${a.pid} 段 · ${a.at}</div></div>
+        <button class="icon-btn del" data-del="${a.id}" title="删除">${icon("trash")}</button>
+      </div>`).join("") : `<div class="list-empty">${icon("hl")}<br>${state.filter ? "这个颜色还没有标注" : "选中页面文字即可高亮或批注"}</div>`}</div>
+    <div class="p-foot">${foot}<span class="grow"></span>${state.anns.length} 条</div>`;
+  body.addEventListener("click", (e) => {
+    const f = e.target.closest("[data-f]"); if (f) { state.filter = f.dataset.f || null; renderPanel(); return; }
+    const d = e.target.closest("[data-del]"); if (d) { removeAnn(d.dataset.del); return; }
+    const it = e.target.closest(".ann"); if (!it) return;
+    const a = state.anns.find((x) => x.id === it.dataset.id);
+    a.el.scrollIntoView({ behavior: "smooth", block: "center" });
+    a.el.animate([{ background: "color-mix(in srgb, var(--c) 45%, transparent)" }, {}], { duration: 1400, easing: "ease-out" });
+  });
+}
+
+/* 笔记页签 */
+let noteHtml = "";
+function renderNote(body) {
+  const status = state.noteSaved ? `<span class="dot ok" style="width:6px;height:6px"></span>已保存到 Tau，两端编辑同一份` : `自动保存在本机`;
+  body.innerHTML = `<div class="note-doc" id="noteDoc" contenteditable="true" data-ph="这一页的想法写在这里。选中正文点「摘录」，或把 AI 回答「存为笔记」，都会追加到这里。">${noteHtml}</div>
+    <div class="p-foot">${status}<span class="grow"></span>${state.noteSaved ? "" : `<button class="btn primary" id="saveNote" style="height:28px" ${state.conn === "ok" ? "" : "disabled"}>保存到 Tau</button>`}</div>`;
+  $("#noteDoc").addEventListener("input", (e) => { noteHtml = e.target.innerHTML; });
+  $("#saveNote")?.addEventListener("click", () => { state.noteSaved = true; renderPanel(); toast("已保存到 Tau，附带来源链接"); });
+}
+function addExcerpt(text, pid) {
+  noteHtml += `<blockquote>${esc(text)}<cite>— 第 ${pid} 段 · longform.example</cite></blockquote><p><br></p>`;
+  toast("已摘录到页面笔记");
+  if (state.panel && state.tab === "note") renderPanel();
+}
+function addAiNote(text) {
+  noteHtml += `<div class="ai-note"><small>AI 回答 · ${esc(state.model)}</small>${esc(text).replace(/\n/g, "<br>")}</div><p><br></p>`;
+  toast("已存入页面笔记");
+  if (state.panel && state.tab === "note") renderPanel();
+}
+
+/* ———————— 方案 C：原位气泡 ———————— */
+function openBubble({ rect, quote, pid, kind, page }) {
+  closeBubble();
+  const host = $("#layerBubble");
+  const combo = state.mode === "combo";
+  let style, cls = "bubble-c";
+  if (page) {
+    cls += " fixed";
+    const top = Math.max(64, state.orbTop - 220);
+    style = state.side === "right" ? `right:60px;top:${top}px` : `left:60px;top:${top}px`;
+  } else {
+    const left = Math.max(12, Math.min(innerWidth - 372, rect.left + scrollX));
+    style = `left:${left}px;top:${rect.bottom + scrollY + 10}px`;
+  }
+  const withInput = page || kind === "free";
+  host.innerHTML = `<div class="${cls}" style="${style}">
+    <div class="hd">${icon("spark")}<span>${page ? "问这页" : KIND_LABEL[kind]}</span><span>· ${esc(state.model)}</span><span class="grow"></span>
+      <button class="icon-btn" data-b="close" title="关闭 Esc">${icon("x")}</button></div>
+    ${withInput ? `<input class="field" id="bInput" placeholder="${page ? "问问这页…" : "针对选中的内容提问…"}" style="height:34px">
+      ${page ? `<div class="chips"><button class="chip" data-p="summary">总结本页</button><button class="chip" data-p="points">列出要点</button><button class="chip" data-p="flaws">可以追问的地方</button></div>` : ""}` : ""}
+    <div class="text" id="bText"></div>
+    <div class="acts" id="bActs" style="display:none">
+      <button class="t-btn" data-b="copy">${icon("copy")}复制</button>
+      ${page ? "" : `<button class="t-btn" data-b="ann">${icon("note")}存为批注</button>`}
+      <button class="t-btn" data-b="note">${icon("pen")}存为笔记</button>
+      <span class="grow"></span>
+      ${combo ? `<button class="t-btn" data-b="panel">在面板继续${icon("out")}</button>` : ""}
+    </div></div>`;
+  pushLayer("bubble", closeBubble);
+  let answer = "";
+  const run = (q, a) => { answer = a; $("#bActs").style.display = "none"; stream($("#bText"), a, () => { $("#bActs").style.display = "flex"; }); host.dataset.q = q; };
+  if (!withInput) run(KIND_LABEL[kind], answerFor(kind, pid));
+  else setTimeout(() => $("#bInput").focus(), 20);
+  $("#bInput")?.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing && e.target.value.trim()) run(e.target.value.trim(), FREE); });
+  host.firstElementChild.addEventListener("click", (e) => {
+    const p = e.target.closest("[data-p]")?.dataset.p;
+    if (p) run(p, { summary: SUMMARY, points: POINTS, flaws: FLAWS }[p]);
+    const b = e.target.closest("[data-b]")?.dataset.b;
+    if (b === "close") closeBubble();
+    if (b === "copy") { navigator.clipboard?.writeText(answer); toast("已复制"); }
+    if (b === "note") { addAiNote(answer); }
+    if (b === "ann") {
+      const m = findTextRange(quote, pid);
+      if (m) { selRange = m; const a = addHighlight("purple"); a.note = answer.replace(/\[\d\]/g, "").trim(); renderMarkers(); renderPanel(); toast("已存为批注"); closeBubble(); }
+    }
+    if (b === "panel") {
+      state.messages.push({ role: "user", text: host.dataset.q || "提问", quote }, { role: "ai", text: answer, done: true });
+      closeBubble(); state.tab = "chat"; togglePanel(true);
+    }
+  });
+}
+function closeBubble() { clearInterval(streaming); streaming = null; $("#layerBubble").innerHTML = ""; popLayer("bubble"); }
+
+/* ———————— 方案 B：底部命令条 ———————— */
+function openCmd({ quote, pid, kind }) {
+  closeCmd();
+  const host = $("#layerCmd");
+  host.innerHTML = `<div class="cmd" id="cmd">
+    <div class="answer" id="cAns" style="display:none"><div class="text" id="cText"></div>
+      <div class="ai-actions" id="cActs" style="display:none">
+        <button class="icon-btn" data-c="note">${icon("pen")}<span class="tip">存为笔记</span></button>
+        <button class="icon-btn" data-c="copy">${icon("copy")}<span class="tip">复制</span></button></div></div>
+    <div class="bar"><span class="tau-mark">τ</span>
+      ${quote ? `<span class="chip on">${icon("quote")}<span class="sel-txt">${esc(quote)}</span></span>` : `<span class="chip on">${icon("book")}本页</span>`}
+      <input id="cInput" placeholder="${quote ? "针对选中的内容提问…" : "问问这页…"}" />
+      <span class="kbd">↵</span><span class="kbd">esc</span></div>
+    ${quote ? "" : `<div class="hint"><button class="chip" data-p="summary" style="background:var(--surface)">总结本页</button><button class="chip" data-p="points" style="background:var(--surface)">列出要点</button><button class="chip" data-p="flaws" style="background:var(--surface)">可以追问的地方</button></div>`}
+  </div>`;
+  pushLayer("cmd", closeCmd);
+  let answer = "";
+  const run = (a) => { answer = a; $("#cAns").style.display = "block"; $("#cActs").style.display = "none"; $(".cmd .hint")?.remove(); stream($("#cText"), a, () => { $("#cActs").style.display = "flex"; }); };
+  const input = $("#cInput"); input.focus();
+  if (kind && kind !== "free") { input.value = KIND_LABEL[kind]; run(answerFor(kind, pid)); }
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing && input.value.trim()) run(quote ? answerFor("explain", pid) : FREE); });
+  $("#cmd").addEventListener("click", (e) => {
+    const p = e.target.closest("[data-p]")?.dataset.p;
+    if (p) { input.value = e.target.textContent; run({ summary: SUMMARY, points: POINTS, flaws: FLAWS }[p]); }
+    const c = e.target.closest("[data-c]")?.dataset.c;
+    if (c === "copy") { navigator.clipboard?.writeText(answer); toast("已复制"); }
+    if (c === "note") addAiNote(answer);
+  });
+}
+function closeCmd() { $("#layerCmd").innerHTML = ""; popLayer("cmd"); }
+
+/* ———————— 工具 ———————— */
+let toastTimer;
+function toast(msg) {
+  const host = $("#layerToast");
+  host.innerHTML = `<div class="toast" style="${$("#cmd") ? "bottom:150px" : ""}">${esc(msg)}</div>`;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => (host.innerHTML = ""), 2200);
+}
+function findTextRange(text, pid) {
+  const p = $(`p[data-pid="${pid}"]`); if (!p) return null;
+  const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+  let n;
+  while ((n = walker.nextNode())) {
+    if (n.parentElement.closest(".hl")) continue;
+    const i = n.data.indexOf(text);
+    if (i >= 0) { const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + text.length); return r; }
+  }
+  return null;
+}
+
+/* ———————— 预置两条批注，展示页边标记 ———————— */
+function seed(text, pid, color, note) {
+  selRange = findTextRange(text, pid); if (!selRange) return;
+  const a = addHighlight(color); a.note = note; a.at = "2 天前";
+}
+seed("desirable difficulty", 3, "green", "和闪卡复习里「先回忆再翻面」是同一件事吗？");
+seed("But familiarity is not recall.", 4, "yellow", "这句值得做成一张卡片。");
+seed("Intervals should grow as an item gets easier", 7, "blue", "");
+renderOrb(); renderMarkers();
+addEventListener("load", renderMarkers);
+document.fonts?.ready.then(renderMarkers);
+</script>
+</body>
+</html>

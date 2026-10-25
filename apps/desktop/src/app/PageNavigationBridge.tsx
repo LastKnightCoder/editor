@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { usePage } from "@/page/PageProvider";
 import { bindPageNavigation } from "@/services/page-navigation";
 import { listenMainWindowRequests } from "@/services/main-window-requests";
-import { initAiServer, closeAiServer } from "@/services/aiServer";
 
 export function PageNavigationBridge() {
   const { navigator, state } = usePage();
@@ -13,9 +12,5 @@ export function PageNavigationBridge() {
   useLayoutEffect(() => bindPageNavigation(() => current.current), []);
   // 辅助窗口（番茄小窗、编辑窗口）请求主窗口打开页面 / 内容
   useEffect(() => listenMainWindowRequests(), []);
-  useEffect(() => {
-    initAiServer();
-    return closeAiServer;
-  }, []);
   return null;
 }

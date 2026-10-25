@@ -59,6 +59,8 @@ const HeaderContent: React.FC<HeaderContentProps> = ({
       <Tag
         className={cn(
           "relative flex w-fit flex-wrap items-center gap-[0.25em] pl-[0.1px] font-bold leading-[1.5]",
+          // 空标题作为唯一块时，编辑器占位文字以本元素为定位容器（宽度随内容为 0），不折行才不会逐字竖排
+          "[&_[data-slate-placeholder]]:whitespace-nowrap",
           collapsed ? "mb-0" : "mb-[1em]",
           LEVEL_FONT_SIZE[normalized],
           LEVEL_CLASS[normalized]

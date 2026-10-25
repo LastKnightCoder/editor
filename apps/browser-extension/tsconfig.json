@@ -1,18 +1,23 @@
 {
+  "extends": "./.wxt/tsconfig.json",
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "types": ["chrome", "vite/client"],
+    "types": ["chrome", "vite/client", "react-syntax-highlighter"],
     "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
+    "noUncheckedIndexedAccess": false,
+    "noImplicitOverride": false,
+    "verbatimModuleSyntax": false,
     "paths": {
       "@/*": ["./src/*"]
     }

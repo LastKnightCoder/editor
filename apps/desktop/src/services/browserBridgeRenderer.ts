@@ -1,9 +1,9 @@
 /**
- * 浏览器扩展桥的渲染端协作（M5）：主进程直接驱动扩展对话的宿主会话，但桌面工具（ToolRegistry、MCP）
- * 只有渲染端有。主进程建会话前经 `browser-bridge:tool-catalog` 向主窗口要一份工具清单
- * （风险、来源与桌面聊天同一口径），执行时宿主经已有的 pi-tool-call 工具桥派给这里。
+ * 浏览器伴读的渲染端协作：主进程驱动扩展对话的宿主会话，但桌面工具（ToolRegistry、MCP）只有渲染端有。
+ * 主进程建会话前经 `browser-bridge:tool-catalog` 要一份与桌面对话相同的工具清单（扩展被授予
+ * 「使用 Tau 里的工具」时才要），执行时宿主经已有的 pi-tool-call 工具桥派给这里。
  *
- * 由主窗口挂载（与 aiServer 同一时机）；没有主窗口时主进程只给扩展页面工具。
+ * 由主窗口的 BrowserCompanionHost 安装；没有主窗口时主进程只给扩展页面工具。
  */
 import { on, send } from "@/electron";
 import { getToolRegistryAgentTools } from "@/agent/toolRegistryAgentTools";
@@ -14,6 +14,8 @@ import {
   unregisterPiToolSessionContext,
 } from "./piToolBridge";
 import { getChatDatabase } from "./chatDatabase";
+import useSkillStore from "@/stores/useSkillStore";
+import { buildPiChatSystemPrompt } from "./piChatSession";
 
 let installed = false;
 
@@ -41,8 +43,14 @@ export function installBrowserBridgeRenderer(): void {
   });
   on(
     "browser-bridge:tool-catalog",
-    (_event: unknown, payload: { requestId: string; sessionId: string }) => {
+    async (_event: unknown, payload: { requestId: string; sessionId: string }) => {
       const tools = getToolRegistryAgentTools({ includeBuiltinSkillTools: true });
+      // 与桌面对话同一份 Skills 清单注入（只列清单，正文由 get_skill_readme 按需读取）
+      await useSkillStore
+        .getState()
+        .loadSkills()
+        .catch(() => undefined);
+      const skillsPrompt = buildPiChatSystemPrompt("", useSkillStore.getState().skills, []).trim();
       registerPiToolSessionContext(payload.sessionId, {
         databaseName: getChatDatabase(),
         sessionTools: tools.map(tool => ({ ...tool, executor: tool.execute })),
@@ -50,6 +58,7 @@ export function installBrowserBridgeRenderer(): void {
       send("browser-bridge:tool-catalog-result", {
         requestId: payload.requestId,
         tools: desktopToolCatalog(tools),
+        skillsPrompt,
       });
     }
   );

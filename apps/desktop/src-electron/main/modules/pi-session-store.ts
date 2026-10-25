@@ -7,7 +7,7 @@
  * - 浏览器扩展对话：`browser-sessions/<页面键>/`，无索引表——列表、标题（pi session name）
  *   全部取自会话文件本身；分支在文件内部的会话树上。
  */
-import { existsSync, rmSync } from "node:fs";
+import { existsSync } from "node:fs";
 import {
   installSessionDownload as installPairedSnapshot,
   validateSessionReferences,
@@ -91,28 +91,11 @@ export async function listSessionsInDir(dir: string): Promise<PiBrowserSessionIn
   }));
 }
 
-/** 改名 = 追加 pi 原生 session_info entry（列表的标题就是它） */
-export function renameSessionInDir(dir: string, sessionId: string, title: string): void {
-  const file = findSessionFileById(dir, sessionId);
-  if (!file) throw new Error("对话不存在");
-  SessionManager.open(file).appendSessionInfo(title);
-}
-
-/** 删除对话（分支都在同一文件里，删文件即可） */
-export function deleteSessionInDir(dir: string, sessionId: string): void {
-  const file = findSessionFileById(dir, sessionId);
-  if (file) rmSync(file, { force: true });
-}
-
-// 页面 → 目录的包装（IPC 壳用）
+// 页面 → 目录的包装（浏览器伴读用）
 export const listBrowserSessions = (pageUrl: string) =>
   listSessionsInDir(browserSessionDirOf(pageUrl));
 export const browserSessionFile = (pageUrl: string, sessionId: string) =>
   findSessionFileById(browserSessionDirOf(pageUrl), sessionId);
-export const renameBrowserSession = (pageUrl: string, sessionId: string, title: string) =>
-  renameSessionInDir(browserSessionDirOf(pageUrl), sessionId, title);
-export const deleteBrowserSession = (pageUrl: string, sessionId: string) =>
-  deleteSessionInDir(browserSessionDirOf(pageUrl), sessionId);
 
 // 同步协议由公共 Node 入口维护，桌面只提供本进程的 SQLite 实现。
 export { validateSessionDirectory, recoverSessionDownload } from "@tau/db-schema/sync";

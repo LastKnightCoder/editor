@@ -8,7 +8,6 @@ import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import type { PiThinkingLevel } from "@/types/pi-llm";
 import type {
   ConversationTreeNode,
-  PiBrowserSessionInfo,
   PiHostToolCallResult,
   PiHostToolSpec,
   PiPromptDisplay,
@@ -21,7 +20,7 @@ import type {
   PiSessionInteractionSnapshot,
   PiWorkspaceInfo,
 } from "@/types/pi-session";
-import type { AskQuestionAnswerItem } from "@/tools/askQuestionTypes";
+import type { AskQuestionAnswerItem } from "@tau/shared/chat-core";
 import type { ChatSessionMessage } from "@/types";
 
 export type PiSessionCreateOptions = Omit<PiSessionCreateRequestV2, "sessionId">;
@@ -143,26 +142,6 @@ export function piSessionTree(
   location: PiSessionLocation
 ): Promise<Outcome & { nodes?: ConversationTreeNode[] }> {
   return invoke("pi-session:tree", location);
-}
-
-/** 浏览器扩展对话（M4.5）：按页面列出（按最近活动降序） */
-export function piBrowserSessionList(
-  pageUrl: string
-): Promise<Outcome & { sessions?: PiBrowserSessionInfo[] }> {
-  return invoke("pi-session:browser-list", { pageUrl });
-}
-
-export function piBrowserSessionRename(
-  pageUrl: string,
-  sessionId: string,
-  title: string
-): Promise<Outcome> {
-  return invoke("pi-session:browser-rename", { pageUrl, sessionId, title });
-}
-
-/** 删除对话（分支在文件里，一起删掉） */
-export function piBrowserSessionDelete(pageUrl: string, sessionId: string): Promise<Outcome> {
-  return invoke("pi-session:browser-delete", { pageUrl, sessionId });
 }
 
 /** 同步只枚举当前会话文件，内容由宿主逐块传输。 */

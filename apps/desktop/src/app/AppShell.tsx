@@ -22,6 +22,7 @@ import { SettingsScreen } from "@/features/settings/SettingsScreen";
 import { MarkdownExportHost } from "@/features/transfer/MarkdownExportHost";
 import { ImportWizardHost } from "@/features/transfer/ImportWizardHost";
 import { PluginPermissionPrompt } from "@/features/plugins/permissions/PluginPermissionPrompt";
+import { BrowserCompanionHost } from "@/features/browser-companion/BrowserCompanionHost";
 import { PluginEntityPickerHost } from "@/features/plugins/permissions/PluginEntityPickerHost";
 import { PluginContentActionHost } from "@/features/plugins/permissions/PluginContentActionHost";
 import { FlashcardCreationHost } from "@/features/flashcards/FlashcardCreationHost";
@@ -200,6 +201,8 @@ function ShellLayout() {
       <ImportWizardHost />
       {/* 插件访问业务数据的授权弹窗：调用时询问，队列逐个显示 */}
       <PluginPermissionPrompt />
+      {/* 浏览器伴读：扩展首次连接的授权弹窗、主题上报、打开扩展里保存的卡片 */}
+      <BrowserCompanionHost />
       {/* 插件 context.app.pick 的内容选择弹窗 */}
       <PluginEntityPickerHost />
       {/* 插件 context.app.run 打开的导出、演示与协作界面 */}

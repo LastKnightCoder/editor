@@ -5,7 +5,10 @@
 
 import { memo, type ReactNode } from "react";
 import type { ToolCallExecutionState } from "@tau/shared/chat-renderers";
-import { ToolCallDisplay } from "../ChatComponents/ToolCallDisplay";
+import {
+  ToolCallDisplay,
+  type ToolCallDefaultItemRenderParams,
+} from "../ChatComponents/ToolCallDisplay";
 import { ToolCallRow } from "./ToolCallRow";
 
 export const ToolCallBlock = memo(function ToolCallBlock({
@@ -13,11 +16,14 @@ export const ToolCallBlock = memo(function ToolCallBlock({
   isDark,
   rendererContext,
   renderApproval,
+  renderDefaultItem,
 }: {
   execution: ToolCallExecutionState;
   isDark: boolean;
   rendererContext?: Record<string, unknown>;
   renderApproval?: (execution: ToolCallExecutionState) => ReactNode;
+  /** 没有自定义渲染器时的单项渲染（缺省 ToolCallRow） */
+  renderDefaultItem?: (params: ToolCallDefaultItemRenderParams) => ReactNode;
 }) {
   if (execution.status === "awaiting-approval") {
     return (
@@ -33,6 +39,7 @@ export const ToolCallBlock = memo(function ToolCallBlock({
       isDark={isDark}
       className="my-0 space-y-0"
       rendererContext={rendererContext}
+      renderDefaultItem={renderDefaultItem}
     />
   );
 });

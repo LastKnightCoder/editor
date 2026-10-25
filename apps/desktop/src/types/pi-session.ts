@@ -6,7 +6,7 @@ import type { MessageContent, RequestMessage } from "@/types";
 import type { PiThinkingLevel } from "./pi-llm";
 import type { UsageSource } from "./model-usage";
 import type { ToolRisk } from "./tool";
-import type { AskQuestionPayload } from "@/tools/askQuestionTypes";
+import type { AskQuestionPayload } from "@tau/shared/chat-core";
 
 /** 桌面工具清单项（渲染端 ToolRegistry 序列化）：JSON Schema 直通 pi */
 export interface PiHostToolSpec {

@@ -57,6 +57,19 @@ const isWslBash = (bashPath: string): boolean => {
 };
 
 /**
+ * 只保留宿主桥接 / 宿主注册的工具（allowed），去掉 pi 自带的 read/edit/write/bash 等：
+ * 浏览器伴读这类入口的上下文来自不可信网页，不给读写本机文件与执行命令的能力。
+ */
+export function restrictToHostTools(
+  session: Pick<AgentSession, "getActiveToolNames" | "setActiveToolsByName">,
+  allowed: Set<string>
+): void {
+  const current = session.getActiveToolNames();
+  const next = current.filter(name => allowed.has(name));
+  if (next.length !== current.length) session.setActiveToolsByName(next);
+}
+
+/**
  * 收敛会话的活跃工具集（下一轮生效）：只增删桥接工具，pi 自己的内置活跃默认
  * （read/edit/write + bash 或 powershell 兜底；grep/find/ls 等默认不活跃）原样保留。
  * pi 的工具注册表装配后不可追加定义，所以桥接工具按全集注册、用启用名单取子集；

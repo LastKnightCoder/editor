@@ -1,7 +1,7 @@
 import type { AgentSession, ToolDefinition } from "@earendil-works/pi-coding-agent";
 import type { PiHostToolSpec, PiSessionInteractionSnapshot } from "@/types/pi-session";
 import type { ToolPermissionMode } from "@/services/tool-permission/mode";
-import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
+import { ASK_QUESTION_TOOL_NAME } from "@tau/shared/chat-core";
 import { PiToolPermissions } from "./pi-tool-permissions";
 import { PiUserQuestions } from "./pi-user-questions";
 

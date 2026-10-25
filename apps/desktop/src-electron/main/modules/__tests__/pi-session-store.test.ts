@@ -19,10 +19,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
-  deleteSessionInDir,
   listSessionsInDir,
   validateSessionDirectory,
-  renameSessionInDir,
   installSessionDownload,
   recoverSessionDownload,
 } from "../pi-session-store";
@@ -199,20 +197,6 @@ describe("扩展对话（无索引表，事实源是会话文件）", () => {
     const before = await listSessionsInDir(dir);
     expect(before.find(item => item.id === "parent-1")?.title).toBe("第一问");
     expect(before.find(item => item.id === "parent-1")?.messageCount).toBe(1);
-
-    renameSessionInDir(dir, "parent-1", "我的对话");
-    const after = await listSessionsInDir(dir);
-    expect(after.find(item => item.id === "parent-1")?.title).toBe("我的对话");
-  });
-
-  it("删除对话只删它自己的文件，其它对话不受影响", async () => {
-    const dir = join(setup(), "page");
-    mkdirSync(dir, { recursive: true });
-    writeChat(dir, "parent-1", "第一问");
-    writeChat(dir, "other-1", "无关对话");
-
-    deleteSessionInDir(dir, "parent-1");
-    expect((await listSessionsInDir(dir)).map(item => item.id)).toEqual(["other-1"]);
   });
 });
 

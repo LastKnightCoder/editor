@@ -4,5 +4,4 @@
  */
 
 export { ToolCallBlock } from "./ToolCallBlock";
-export { ToolApprovalBar } from "./ToolApprovalBar";
 export { useChatMarkdownComponents } from "./useChatMarkdownComponents";

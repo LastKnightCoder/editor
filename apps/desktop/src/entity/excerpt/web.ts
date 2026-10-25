@@ -1,10 +1,11 @@
 /**
- * 浏览器插件 → 摘录：校验插件按页发来的划线快照（excerpt.syncPage，KL-035）。纯函数，主进程写库前调用。
+ * 浏览器伴读 → 摘录：校验扩展按页发来的标注快照（annotations.sync）。纯函数，主进程写库前调用。
  *
- * RPC 端口没有鉴权，参数一律当不可信输入：只收 http(s) URL，条数与长度有上限，超出整页拒绝。
+ * 扩展虽经配对授权，参数仍当不可信输入：只收 http(s) URL，条数与长度有上限，超出整页拒绝。
  */
 
-import type { ExcerptInput } from "./types";
+import { HIGHLIGHT_COLORS, WEB_HIGHLIGHT_HASH } from "@tau/shared/browser-companion";
+import type { ExcerptAnchor, ExcerptInput } from "./types";
 
 export const WEB_PAGE_LIMITS = {
   highlights: 5000,
@@ -14,7 +15,7 @@ export const WEB_PAGE_LIMITS = {
   urlChars: 4000,
 } as const;
 
-/** 与插件存储 key 一致：只去掉 #hash，查询参数与大小写原样保留 */
+/** 页面键：只去掉 #hash，查询参数与大小写原样保留（扩展侧同一规则） */
 export function normalizeWebPageUrl(url: string): string | null {
   if (typeof url !== "string" || url.length > WEB_PAGE_LIMITS.urlChars) return null;
   try {
@@ -26,9 +27,7 @@ export function normalizeWebPageUrl(url: string): string | null {
   return url.split("#")[0];
 }
 
-/** 网页摘录打开时带上划线 uuid，浏览器插件据此滚到那条划线 */
-export const WEB_HIGHLIGHT_HASH = "tau-hl";
-
+/** 网页摘录打开时带上标注 id，伴读扩展据此滚到那条标注 */
 export const webExcerptUrl = (pageUrl: string, externalId: string) =>
   `${pageUrl}#${WEB_HIGHLIGHT_HASH}=${encodeURIComponent(externalId)}`;
 
@@ -42,50 +41,64 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 const str = (value: unknown, field: string, max: number): string => {
-  if (typeof value !== "string") throw new Error(`划线字段 ${field} 必须是字符串`);
-  if (value.length > max) throw new Error(`划线字段 ${field} 超过 ${max} 字`);
+  if (typeof value !== "string") throw new Error(`标注字段 ${field} 必须是字符串`);
+  if (value.length > max) throw new Error(`标注字段 ${field} 超过 ${max} 字`);
   return value;
 };
 
 const int = (value: unknown, field: string): number => {
   if (typeof value !== "number" || !Number.isFinite(value))
-    throw new Error(`划线字段 ${field} 必须是数字`);
+    throw new Error(`标注字段 ${field} 必须是数字`);
   return Math.trunc(value);
 };
 
+const CONTEXT_CHARS = 200;
+
+/** 锚点：TextQuote（原文 + 前后文）+ TextPosition（正文字符偏移） */
+function parseAnchor(raw: unknown): ExcerptAnchor | null {
+  if (!isRecord(raw) || !isRecord(raw.quote) || !isRecord(raw.position)) return null;
+  return {
+    quote: {
+      exact: str(raw.quote.exact, "quote.exact", WEB_PAGE_LIMITS.quoteChars),
+      prefix: str(raw.quote.prefix, "quote.prefix", CONTEXT_CHARS),
+      suffix: str(raw.quote.suffix, "quote.suffix", CONTEXT_CHARS),
+    },
+    position: {
+      start: int(raw.position.start, "position.start"),
+      end: int(raw.position.end, "position.end"),
+    },
+  };
+}
+
+/** 浏览器伴读按页发来的标注快照 → 摘录输入；颜色只收编辑器行内色板的色相 id */
 export function parseWebPagePayload(raw: unknown): WebPageExcerpts {
   if (!isRecord(raw)) throw new Error("参数必须是对象");
   const url = normalizeWebPageUrl(raw.url as string);
   if (!url) throw new Error("url 必须是 http(s) 地址");
   const title = typeof raw.title === "string" ? raw.title.slice(0, WEB_PAGE_LIMITS.titleChars) : "";
-  if (!Array.isArray(raw.highlights)) throw new Error("highlights 必须是数组");
-  if (raw.highlights.length > WEB_PAGE_LIMITS.highlights) {
-    throw new Error(`单页划线超过 ${WEB_PAGE_LIMITS.highlights} 条`);
+  if (!Array.isArray(raw.items)) throw new Error("items 必须是数组");
+  if (raw.items.length > WEB_PAGE_LIMITS.highlights) {
+    throw new Error(`单页标注超过 ${WEB_PAGE_LIMITS.highlights} 条`);
   }
 
   const inputs: ExcerptInput[] = [];
-  for (const item of raw.highlights) {
-    if (!isRecord(item)) throw new Error("划线必须是对象");
+  for (const item of raw.items) {
+    if (!isRecord(item)) throw new Error("标注必须是对象");
     const id = str(item.id, "id", 100);
-    if (!id) throw new Error("划线 id 不能为空");
+    if (!id) throw new Error("标注 id 不能为空");
     const quote = str(item.text, "text", WEB_PAGE_LIMITS.quoteChars).trim();
     if (!quote) continue;
-    const anchor = isRecord(item.anchor) ? item.anchor : null;
+    if (!(HIGHLIGHT_COLORS as readonly unknown[]).includes(item.color)) {
+      throw new Error("标注颜色无效");
+    }
     inputs.push({
       externalId: id,
       quote,
       note: item.note == null ? "" : str(item.note, "note", WEB_PAGE_LIMITS.noteChars).trim(),
       location: "",
       url: webExcerptUrl(url, id),
-      anchor: anchor
-        ? {
-            startXPath: str(anchor.startXPath, "startXPath", 2000),
-            startOffset: int(anchor.startOffset, "startOffset"),
-            endXPath: str(anchor.endXPath, "endXPath", 2000),
-            endOffset: int(anchor.endOffset, "endOffset"),
-          }
-        : null,
-      color: item.color == null ? null : str(item.color, "color", 50),
+      anchor: parseAnchor(item.anchor),
+      color: item.color as string,
       sourceTime: item.createdAt == null ? null : int(item.createdAt, "createdAt"),
     });
   }

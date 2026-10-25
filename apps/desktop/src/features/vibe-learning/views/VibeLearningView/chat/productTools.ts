@@ -17,7 +17,7 @@ import type { ToolDefinition, ToolExecutionResult } from "@/types";
 import type { VideoEbookRewriteStyle } from "@/constants/prompts/video-ebook-rewrite";
 import type { VLNoteType } from "@/types/vibe-learning";
 import { getContentLength, importFromMarkdown } from "@/utils";
-import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
+import { ASK_QUESTION_TOOL_NAME } from "@tau/shared/chat-core";
 import { GENERATE_APPS, type GenerateAppKey } from "../appMeta";
 import { ARTICLE_STYLES } from "../generate/styles";
 import { startVLTask } from "../tasks/runner";

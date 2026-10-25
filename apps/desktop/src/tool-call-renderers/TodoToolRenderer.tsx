@@ -10,7 +10,7 @@ import {
   ToolMutedText,
   ToolProgressBar,
   ToolSectionTitle,
-} from "./ui";
+} from "@tau/chat-ui";
 import TodoRowCard from "./todo/TodoRowCard";
 import { parseTodoRendererOutput } from "./todo/utils";
 

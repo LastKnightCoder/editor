@@ -6,7 +6,7 @@ import remarkCjkFriendlyGfmStrikethrough from "remark-cjk-friendly-gfm-strikethr
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
-import { remarkDocumentReference } from "@tau/shared";
+import remarkDocumentReference from "@tau/shared/src/utils/remark-document-reference";
 import { cn } from "@tau/ui";
 import { CodeBlock } from "../Message/CodeBlock";
 import {

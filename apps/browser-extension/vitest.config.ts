@@ -1,19 +1,14 @@
 import { defineConfig } from "vitest/config";
-import path from "path";
+import path from "node:path";
 
 export default defineConfig({
   test: {
     environment: "jsdom",
-    poolOptions: {
-      threads: {
-        singleThread: true,
-      },
-    },
+    restoreMocks: true,
   },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
     },
   },
 });
