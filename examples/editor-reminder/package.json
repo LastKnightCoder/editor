@@ -34,7 +34,7 @@
     "@tailwindcss/vite": "^4.0.0",
     "@vitejs/plugin-react-swc": "^3.5.0",
     "tailwindcss": "^4.0.0",
-    "typescript": "^5.0.4",
+    "typescript": "7.0.2",
     "vite": "^5.0.0",
     "vitest": "^3.2.4",
     "jsdom": "^24.1.3"

@@ -72,7 +72,7 @@ function serve(overrides: Partial<typeof release> = {}, body: Buffer = bytes) {
           },
         })
       : url.endsWith("/download")
-        ? new Response(body)
+        ? new Response(new Uint8Array(body))
         : Response.json({ data: { ...release, ...overrides } });
   });
 }

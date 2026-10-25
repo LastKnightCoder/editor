@@ -10,7 +10,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const script = resolve(root, "scripts/check-database-boundaries.mjs");
 const target = resolve(root, "packages/database/src/DatabaseContext.tsx");
 const require = createRequire(resolve(root, "packages/database/package.json"));
-const ts = require("typescript");
+const ts = require("@typescript/typescript6");
 const source = fs
   .readFileSync(script, "utf8")
   .replaceAll("fileURLToPath(import.meta.url)", JSON.stringify(script));

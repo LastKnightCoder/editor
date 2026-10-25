@@ -3,6 +3,7 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "types": ["chrome", "vite/client"],
     "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "strict": true,

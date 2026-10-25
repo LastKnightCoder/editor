@@ -32,7 +32,8 @@ const rootClass =
 
 type View = { name: "form" } | { name: "annotate"; id: string } | { name: "done" };
 
-const pngBlob = (capture: FeedbackCapture) => new Blob([capture.png], { type: "image/png" });
+const pngBlob = (capture: FeedbackCapture) =>
+  new Blob([new Uint8Array(capture.png)], { type: "image/png" });
 
 export default function FeedbackWindow() {
   useThemeRuntime();

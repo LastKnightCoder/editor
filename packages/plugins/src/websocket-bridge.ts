@@ -71,7 +71,7 @@ class HostSocket extends EventTarget implements WebSocket {
   readonly OPEN = 1;
   readonly CLOSING = 2;
   readonly CLOSED = 3;
-  private state: number = this.CONNECTING;
+  private state: WebSocket["readyState"] = this.CONNECTING;
   private buffered = 0;
   private queuedMessages = 0;
   private selectedProtocol = "";
@@ -80,10 +80,16 @@ class HostSocket extends EventTarget implements WebSocket {
   private sending: Promise<void> = Promise.resolve();
   private closeTimer?: ReturnType<typeof setTimeout>;
   private readonly id = crypto.randomUUID();
-  private handlers = new Map<string, { value: Function | null; listener: EventListener }>();
+  private handlers = new Map<
+    keyof WebSocketEventMap,
+    { value: unknown; listener: EventListener }
+  >();
   readonly url: string;
   get readyState() {
     return this.state;
+  }
+  private isClosed() {
+    return this.state === this.CLOSED;
   }
   get bufferedAmount() {
     return this.buffered;
@@ -124,10 +130,13 @@ class HostSocket extends EventTarget implements WebSocket {
   set onclose(value: WebSocket["onclose"]) {
     this.setHandler("close", value);
   }
-  private handler<T>(type: string): T {
+  private handler<T>(type: keyof WebSocketEventMap): T {
     return (this.handlers.get(type)?.value ?? null) as T;
   }
-  private setHandler(type: string, value: Function | null) {
+  private setHandler<K extends keyof WebSocketEventMap>(
+    type: K,
+    value: ((this: WebSocket, event: WebSocketEventMap[K]) => unknown) | null
+  ) {
     const previous = this.handlers.get(type);
     if (previous) {
       previous.value = value;
@@ -138,7 +147,8 @@ class HostSocket extends EventTarget implements WebSocket {
     } else if (typeof value === "function") {
       const handler = {
         value,
-        listener: ((event: Event) => handler.value?.call(this, event)) as EventListener,
+        listener: ((event: Event) =>
+          handler.value?.call(this, event as WebSocketEventMap[K])) as EventListener,
       };
       this.handlers.set(type, handler);
       this.addEventListener(type, handler.listener);
@@ -176,10 +186,10 @@ class HostSocket extends EventTarget implements WebSocket {
       this.selectedExtensions = opened.extensions;
       this.state = this.OPEN;
       this.dispatchEvent(new Event("open"));
-      while (this.state !== this.CLOSED) {
+      while (!this.isClosed()) {
         const incoming = await this.bridge.receive(this.id);
         await nextTask();
-        if (this.state === this.CLOSED) return;
+        if (this.isClosed()) return;
         if (incoming.type === "close") {
           if (incoming.wasClean) this.finish(incoming);
           else this.fail();
@@ -222,10 +232,10 @@ class HostSocket extends EventTarget implements WebSocket {
           ? new Uint8Array(new Uint8Array(data.buffer, data.byteOffset, data.byteLength))
           : new Uint8Array(new Uint8Array(data));
     this.sending = this.sending.then(async () => {
-      if (this.state === this.CLOSED) return;
+      if (this.isClosed()) return;
       const message =
         snapshot instanceof Blob ? new Uint8Array(await snapshot.arrayBuffer()) : snapshot;
-      if (this.state === this.CLOSED) return;
+      if (this.isClosed()) return;
       await this.bridge.send(this.id, message);
       this.buffered -= bytes;
       this.queuedMessages--;

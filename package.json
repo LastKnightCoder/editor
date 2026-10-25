@@ -55,7 +55,9 @@
     "oxfmt": "0.74.0",
     "oxlint": "1.89.0",
     "oxlint-plugin-eslint": "1.89.0",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "typescript": "7.0.2",
+    "@typescript/typescript6": "6.0.2"
   },
   "commitlint": {
     "extends": [

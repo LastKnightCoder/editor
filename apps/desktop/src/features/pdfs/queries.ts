@@ -211,7 +211,7 @@ export function usePdfActions() {
       try {
         const bytes = await readBinaryFile(entry.raw.filePath);
         const url = await uploadResource(
-          new File([bytes], entry.raw.fileName, { type: "application/pdf" })
+          new File([new Uint8Array(bytes)], entry.raw.fileName, { type: "application/pdf" })
         );
         if (!url) throw new Error("上传未返回地址");
         await updatePdf({ ...entry.raw, isLocal: false, remoteUrl: url, filePath: "" });

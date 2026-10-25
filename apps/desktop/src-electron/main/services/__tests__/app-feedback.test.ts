@@ -103,3 +103,24 @@ it("按状态码归类失败原因并沿用服务端文案", async () => {
     reason: "server",
   });
 });
+
+it("multipart 仅复制共享缓冲区视图内的字节", async () => {
+  const bytes = new Uint8Array(new SharedArrayBuffer(4));
+  bytes.set([9, 1, 2, 9]);
+  const view = bytes.subarray(1, 3);
+  const encoded = await encodeFeedback({
+    meta: { kind: "bug", message: "测试", contact: null, context: null, clientRequestId: "view" },
+    images: [view],
+    log: view,
+    perf: view,
+  });
+  const form = await new Request("http://x", {
+    method: "POST",
+    headers: { "Content-Type": encoded.contentType },
+    body: encoded.body,
+  }).formData();
+  for (const name of ["image", "log", "perf"]) {
+    const file = form.get(name) as File;
+    expect(new Uint8Array(await file.arrayBuffer())).toEqual(new Uint8Array([1, 2]));
+  }
+});

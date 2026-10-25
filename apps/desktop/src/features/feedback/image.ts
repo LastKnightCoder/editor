@@ -82,7 +82,7 @@ export function annotationColors(): AnnotationColors {
 export async function exportScreenshot(
   source: ImageBitmap,
   annotations: readonly Annotation[]
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   const { width, height } = exportSize(source.width, source.height);
   const canvas = new OffscreenCanvas(width, height);
   const context = canvas.getContext("2d");

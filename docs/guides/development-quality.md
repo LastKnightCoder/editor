@@ -39,6 +39,14 @@ pnpm check:docs
 
 发布快照、Markdown 往返夹具、构建输出、vendor、data 和锁文件按配置排除。检查忽略规则时必须确认这些文件的原始字节不变。
 
+## 类型检查
+
+工作区的 `typescript` 固定为原生 TypeScript 7.0.2，继续使用 `tsc`、`pnpm check` 和各包已有的检查命令。浏览器扩展首次检出后先运行 `pnpm --filter browser-extension exec wxt prepare`，再运行 `pnpm --filter browser-extension exec tsc --noEmit`。
+
+需要 `createSourceFile`、`createProgram`、`transpileModule` 或声明文件生成 API 的脚本，显式从 `@typescript/typescript6` 导入，并在所属包声明开发依赖；不要从 `typescript` 根入口调用旧编译器 API。独立作者验证工程使用其自身锁文件中的工具版本。
+
+修改编译器或对应脚本后，执行三项边界检查、`node --test scripts/__tests__/database-boundaries.test.mjs`、SDK 的 API 支持矩阵与声明打包验证。需要生成 JS 的包应显式配置 `rootDir`；环境全局类型在 tsconfig 的 `types` 中列出。CSS 副作用导入使用对应环境声明，不关闭 `noUncheckedSideEffectImports` 来绕过诊断。
+
 ## 性能验证
 
 1. 固定同一提交、文件清单、Node.js 版本及运行机器。
