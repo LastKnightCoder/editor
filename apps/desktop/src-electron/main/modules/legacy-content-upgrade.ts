@@ -234,9 +234,18 @@ export class LegacyContentUpgradeModule {
         .all(prefix.length, prefix) as { value: string }[];
       failures = [
         ...new Map(
-          [...notices.map(row => JSON.parse(row.value) as LegacyUpgradeFailure), ...failures].map(
-            item => [item.key, item]
-          )
+          [
+            ...notices
+              .map(row => JSON.parse(row.value) as LegacyUpgradeFailure)
+              // 旧记录把附件保全缺项也记为升级失败，仅排除明确没有转换问题的记录。
+              .filter(
+                notice =>
+                  !/^有 0 处(?:内容|白板元素)保留了原始载荷，\d+ 项资源缺失，需要核对。保全位置：.+$/.test(
+                    notice.message
+                  )
+              ),
+            ...failures,
+          ].map(item => [item.key, item])
         ).values(),
       ];
       store.set(`legacy-content-upgrade:${name}`, {
