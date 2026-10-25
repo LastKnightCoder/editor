@@ -21,7 +21,12 @@ import * as tauri from "../../services/tauri";
 import type { ContentDetailResponse } from "../../types";
 import { formatDateTimeCompact } from "../../utils/formatTime";
 import { useEditContent } from "../../hooks/useEditContent";
-import useLocalContentDocument from "../../hooks/useLocalContentDocument";
+import { useOptionalPageInstanceContext } from "../../router/pageLifecycle";
+import { collaborationManager } from "../collaboration/core/manager";
+import type { NodeTreeEditor } from "@tau/editor-collab";
+import useLocalContentDocument, {
+  type LocalContentDocument,
+} from "../../hooks/useLocalContentDocument";
 import { MobileEditorBottomToolbar } from "./editorToolbar/MobileEditorBottomToolbar";
 import { useMobileEditorToolbarController } from "./editorToolbar/useMobileEditorToolbarController";
 import ContextBadge from "../context/ContextBadge";
@@ -145,6 +150,8 @@ function detailEditMode(hasCollaboration: boolean, mode: CollaborativeEditorMode
 export function ContentDetailPage(props: ContentDetailPageProps) {
   // 全页只有一个编辑器实例：本机与协作是同谱系的两个文档源，切换即换源（01 §7.3 第 3 层）
   const editorRef = useRef<EditorRef | null>(null);
+  const localDocumentRef = useRef<LocalContentDocument | undefined>(undefined);
+  const pageContext = useOptionalPageInstanceContext();
   const [detail, setDetail] = useState<ContentDetailResponse | null>(null);
   // 回调入 ref：父层传内联函数时，避免其引用变化触发详情重复拉取
   const onErrorRef = useRef(props.onError);
@@ -177,6 +184,9 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     flushNow,
   } = useEditContent(props.contentId, {
     refreshKey: props.refreshKey,
+    beforeSave: async () => {
+      await localDocumentRef.current?.flush();
+    },
     // 协作 live 停用本地直写（云端投影为唯一写者）；connecting 只读过渡期与兜底走投影
     // 通道——绑定出现前节流窗口内可能残留未落库输入，按本地兜底改动处理（标记待裁决），
     // 会话建立后由作者选择保留本机或采用云端，绝不静默丢弃
@@ -204,6 +214,10 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         updateTime: saved.updateTime,
         count: saved.count,
         content: saved.content,
+        librarySourceId: saved.librarySourceId,
+        contracts: saved.contracts,
+        revision: saved.revision,
+        documentId: saved.documentId,
       }));
       props.onSaved?.(saved);
     },
@@ -213,19 +227,48 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   });
   const toolbarController = useMobileEditorToolbarController({ editorRef });
   const localDocument = useLocalContentDocument({
-    contentId: props.contentId,
+    contentId: collabDocument ? undefined : props.contentId,
     content,
+    metadata: detail ?? undefined,
     version: syncVersion,
-    onChange: value => {
-      handleEditorContentChange(value);
+    onChange: (value, contracts) => {
+      handleEditorContentChange(value, contracts);
       toolbarController.syncSelection();
     },
   });
+  localDocumentRef.current = localDocument;
+  const beforeLeave = useRef<() => Promise<boolean>>(async () => true);
+  beforeLeave.current = async () => {
+    try {
+      (
+        editorRef.current?.getEditor() as Partial<NodeTreeEditor> | undefined
+      )?.flushNodeTreeInputs?.();
+      if (collabDocument && collaborationDocumentId)
+        await collaborationManager.flushCache(collaborationDocumentId);
+      else await localDocumentRef.current?.flush();
+      return await flushNow();
+    } catch (failure) {
+      toast({
+        type: "error",
+        text: failure instanceof Error ? failure.message : "输入尚未保存，请保留当前页面",
+      });
+      return false;
+    }
+  };
+  useEffect(() => {
+    if (!pageContext) return;
+    pageContext.navigator.registerGuard(pageContext.entry.id, () => beforeLeave.current());
+    return () => pageContext.navigator.registerGuard(pageContext.entry.id, null);
+  }, [pageContext?.navigator, pageContext?.entry.id]);
   // 协作文档源就绪即用它，否则用本机文档源；两者谱系相同，换源不重建编辑器
   const document = collabDocument ?? localDocument;
   // 协作建立中与协作只读：强制阅读态且隐藏「编辑」
   const forcedReadonly =
-    editMode === "collabConnecting" ? true : editMode === "collabLive" ? collabReadonly : false;
+    editMode === "collabConnecting"
+      ? true
+      : editMode === "collabLive"
+        ? collabReadonly
+        : Boolean(localDocument?.readonly);
   const readingMode = useReadingMode({
     editorRef,
     forcedReadonly,
@@ -437,7 +480,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
       <div>
         {props.diaryDate ? (
           <div className="pt-6">
-            <h1 className="text-ink-1 mobile-reading-font text-[31px] font-extrabold leading-tight tracking-[-0.02em]">
+            <h1 className="text-ink-1 mobile-reading-font text-[31px] leading-tight font-extrabold tracking-[-0.02em]">
               {props.diaryDate.title}
             </h1>
             <p className="text-ink-2 mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
@@ -463,7 +506,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
                 autoGrowTitle(event.target);
               }}
               onBlur={commitTitle}
-              className="text-ink-1 caret-accent placeholder:text-ink-3 mobile-reading-font mt-2 w-full resize-none border-none bg-transparent text-[31px] font-extrabold leading-tight tracking-[-0.02em] outline-none"
+              className="text-ink-1 caret-accent placeholder:text-ink-3 mobile-reading-font mt-2 w-full resize-none border-none bg-transparent text-[31px] leading-tight font-extrabold tracking-[-0.02em] outline-none"
             />
             <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
               {typeBadge}
@@ -546,22 +589,34 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           {...(blockSelection.active ? {} : readingMode.readingSurfaceProps)}
         >
           {kit ? (
-            <Editor
-              kit={kit}
-              ref={editorRef}
-              document={document}
-              className="mobile-card-editor-content"
-              readonly={editorReadonly}
-              onFocus={() => {
-                collabPresence.current?.onFocus();
-                toolbarController.handleEditorFocus();
-              }}
-              onBlur={() => {
-                collabPresence.current?.onBlur();
-                toolbarController.handleEditorBlur();
-              }}
-              onSelectionChange={toolbarController.syncSelection}
-            />
+            <>
+              {localDocument?.recoveryNeeded && (
+                <button
+                  className="text-accent-text p-3"
+                  onClick={() => {
+                    void localDocument.adopt?.().catch(error => toast.error(String(error)));
+                  }}
+                >
+                  保全本机副本并采用已同步正文
+                </button>
+              )}
+              <Editor
+                kit={kit}
+                ref={editorRef}
+                document={document}
+                className="mobile-card-editor-content"
+                readonly={editorReadonly}
+                onFocus={() => {
+                  collabPresence.current?.onFocus();
+                  toolbarController.handleEditorFocus();
+                }}
+                onBlur={() => {
+                  collabPresence.current?.onBlur();
+                  toolbarController.handleEditorBlur();
+                }}
+                onSelectionChange={toolbarController.syncSelection}
+              />
+            </>
           ) : (
             <EditorKitPending />
           )}
@@ -646,7 +701,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
               coverScrollRef.current = node;
               syncCoverHeaderFade();
             }}
-            className="edge-fade-cover-top mobile-page-scroll absolute inset-x-0 bottom-0 top-0 overflow-y-auto"
+            className="edge-fade-cover-top mobile-page-scroll absolute inset-x-0 top-0 bottom-0 overflow-y-auto"
             onScroll={syncCoverHeaderFade}
           >
             {props.coverSlot}
