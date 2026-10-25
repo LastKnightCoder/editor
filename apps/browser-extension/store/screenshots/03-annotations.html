@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+  <head>
+    <meta charset="utf-8" />
+    <title>03 本页标注</title>
+    <link rel="stylesheet" href="shared.css" />
+  </head>
+  <body>
+    <section class="caption">
+      <h1>本页标注一览，点一下回到原文</h1>
+      <p>按颜色筛选，批注写在旁边；离线也能标，连上 Tau 后自动同步。</p>
+    </section>
+
+    <div
+      class="browser"
+      data-host="slowread.example.com"
+      data-path="/posts/write-to-remember"
+      data-title="为什么写下来的想法，更容易被记住"
+    >
+      <div class="viewport">
+        <div class="page narrow" data-article data-scroll="150"></div>
+
+        <section class="panel float" style="left: 656px; top: 16px; height: 524px">
+          <header class="panel-head">
+            <span class="site-icon">慢</span>
+            <div class="panel-title">
+              <b>为什么写下来的想法，更容易被记住</b>
+              <small
+                ><span>slowread.example.com</span><span class="status-dot"></span
+                ><span>Tau 已连接</span></small
+              >
+            </div>
+            <span class="icon-btn"><i data-icon="pin"></i></span>
+            <span class="icon-btn"><i data-icon="ellipsis" data-size="16"></i></span>
+            <span class="icon-btn"><i data-icon="x" data-size="16"></i></span>
+          </header>
+          <nav class="panel-tabs">
+            <span>对话</span><span class="on">标注 <small>4</small></span
+            ><span>笔记</span>
+          </nav>
+          <div class="panel-body">
+            <div class="filters">
+              <span class="all">全部</span>
+              <span class="swatch-btn"><span class="swatch small yellow"></span></span>
+              <span class="swatch-btn"><span class="swatch small green"></span></span>
+              <span class="swatch-btn"><span class="swatch small blue"></span></span>
+              <span class="swatch-btn"><span class="swatch small purple"></span></span>
+              <span class="swatch-btn"><span class="swatch small red"></span></span>
+            </div>
+            <div class="ann-list">
+              <div class="ann">
+                <span class="bar yellow"></span>
+                <div>
+                  <p class="ann-text">真正还能复述出来的内容往往不到两成</p>
+                  <p class="ann-date">2026/10/24</p>
+                </div>
+              </div>
+              <div class="ann hover">
+                <span class="bar green"></span>
+                <div>
+                  <p class="ann-text">自己组织语言写下的内容，比单纯阅读过的内容记得更牢</p>
+                  <p class="ann-note">生成效应——和做闪卡时「先自己答再翻面」是同一个道理。</p>
+                  <p class="ann-date">2026/10/24</p>
+                </div>
+              </div>
+              <div class="ann">
+                <span class="bar blue"></span>
+                <div>
+                  <p class="ann-text">
+                    只有当你用自己的话重新解释一遍，知识才真正和你已有的经验连在一起
+                  </p>
+                  <p class="ann-date">2026/10/25</p>
+                </div>
+              </div>
+              <div class="ann">
+                <span class="bar purple"></span>
+                <div>
+                  <p class="ann-text">留下痕迹的阅读，才会在未来某一天重新被你找到。</p>
+                  <p class="ann-date">2026/10/25</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="panel-foot">
+            <span class="status-dot"></span>已同步到 Tau<span class="grow"></span>4 条
+          </div>
+        </section>
+
+        <div class="orb active" style="right: 18px; top: 504px">
+          τ<span class="dot"></span><span class="badge">4</span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.MARKS = { m1: "yellow", m2: "green", m3: "blue", m5: "purple" };
+    </script>
+    <script src="scene.js"></script>
+    <script src="icons.js"></script>
+  </body>
+</html>

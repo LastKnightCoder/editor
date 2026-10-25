@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="shot-size" content="1400x560" />
+    <title>大宣传图 1400×560</title>
+    <link rel="stylesheet" href="shared.css" />
+    <style>
+      body {
+        width: 1400px;
+        height: 560px;
+      }
+      .pitch {
+        position: absolute;
+        left: 96px;
+        top: 0;
+        bottom: 0;
+        width: 520px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      .pitch .orb {
+        position: static;
+        width: 52px;
+        height: 52px;
+        font-size: 28px;
+        margin-bottom: 26px;
+      }
+      .pitch .orb .dot {
+        width: 13px;
+        height: 13px;
+      }
+      .pitch h1 {
+        font-size: 46px;
+        font-weight: 700;
+        line-height: 1.25;
+      }
+      .pitch p {
+        margin-top: 16px;
+        font-size: 19px;
+        line-height: 1.7;
+        color: var(--tau-ink-2);
+      }
+      .quote {
+        position: absolute;
+        left: 640px;
+        top: 290px;
+        width: 236px;
+        padding: 22px 24px;
+        font: 17px/1.9 var(--serif);
+      }
+      .panel.card {
+        left: 900px;
+        top: 70px;
+        height: 420px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="pitch">
+      <span class="orb">τ<span class="dot"></span></span>
+      <h1>读网页，也能<br />留下自己的痕迹</h1>
+      <p>高亮、批注、页面笔记，再用 Tau 里的模型对着这页提问。<br />一切保存在你自己的电脑上。</p>
+    </div>
+
+    <div class="quote card">
+      <span class="hl green">自己组织语言写下的内容，比单纯阅读过的内容记得更牢</span
+      >。写的时候，你必须把模糊的感觉变成明确的句子。
+    </div>
+
+    <section class="panel card">
+      <header class="panel-head">
+        <span class="site-icon">慢</span>
+        <div class="panel-title">
+          <b>为什么写下来的想法，更容易被记住</b>
+          <small
+            ><span>slowread.example.com</span><span class="status-dot"></span
+            ><span>Tau 已连接</span></small
+          >
+        </div>
+        <span class="icon-btn"><i data-icon="x" data-size="16"></i></span>
+      </header>
+      <nav class="panel-tabs">
+        <span class="on">对话</span><span>标注 <small>4</small></span
+        ><span>笔记</span>
+      </nav>
+      <div class="panel-body chat">
+        <div class="user-msg"><div>这篇文章的核心观点是什么？</div></div>
+        <div class="answer">
+          <p>文章认为，<b>把想法写下来</b>比单纯阅读更能留住知识：</p>
+          <ul>
+            <li>理解不等于记忆<span class="cite">1</span></li>
+            <li>用自己的话写下的内容记得更牢<span class="cite on">2</span></li>
+            <li>间隔回看能拉平遗忘曲线<span class="cite">4</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <script src="icons.js"></script>
+  </body>
+</html>

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+  <head>
+    <meta charset="utf-8" />
+    <title>02 对网页提问</title>
+    <link rel="stylesheet" href="shared.css" />
+  </head>
+  <body>
+    <section class="caption">
+      <h1>对着这页提问，回答标出原文出处</h1>
+      <p>用你在 Tau 里配置的模型；点编号即可跳回原文段落。</p>
+    </section>
+
+    <div
+      class="browser"
+      data-host="slowread.example.com"
+      data-path="/posts/write-to-remember"
+      data-title="为什么写下来的想法，更容易被记住"
+    >
+      <div class="viewport">
+        <div class="page narrow" data-article data-scroll="40"></div>
+
+        <section class="panel float" style="left: 656px; top: 16px; height: 524px">
+          <header class="panel-head">
+            <span class="site-icon">慢</span>
+            <div class="panel-title">
+              <b>为什么写下来的想法，更容易被记住</b>
+              <small
+                ><span>slowread.example.com</span><span class="status-dot"></span
+                ><span>Tau 已连接</span></small
+              >
+            </div>
+            <span class="icon-btn"><i data-icon="pin"></i></span>
+            <span class="icon-btn"><i data-icon="ellipsis" data-size="16"></i></span>
+            <span class="icon-btn"><i data-icon="x" data-size="16"></i></span>
+          </header>
+          <nav class="panel-tabs">
+            <span class="on">对话</span><span>标注 <small>2</small></span
+            ><span>笔记</span>
+          </nav>
+          <div class="panel-body chat">
+            <div class="user-msg"><div>这篇文章的核心观点是什么？</div></div>
+            <div class="tool-row">
+              <i data-icon="check" data-size="14"></i>读取了本页正文 · 5 段
+            </div>
+            <div class="answer">
+              <p>文章认为，<b>把想法写下来</b>比单纯阅读更能留住知识，理由有三点：</p>
+              <ul>
+                <li>理解不等于记忆，一周后还能复述的内容往往不到两成<span class="cite">1</span></li>
+                <li>
+                  「生成效应」：用自己的话写下的内容记得更牢，因为写的过程就是深度加工<span
+                    class="cite on"
+                    >2</span
+                  >
+                </li>
+                <li>间隔回看是一次次提取练习，能把遗忘曲线拉平<span class="cite">4</span></li>
+              </ul>
+              <p>作者的建议是：读到打动你的段落时，标一笔、写一句<span class="cite">5</span>。</p>
+            </div>
+          </div>
+          <div class="composer">
+            <div class="chips">
+              <span class="chip on"
+                ><i data-icon="file-text" data-size="13"></i>本页 · 2.1k 字</span
+              >
+              <span class="chip"><i data-icon="highlighter" data-size="13"></i>我的标注</span>
+              <span class="model">默认模型<i data-icon="chevron-down" data-size="13"></i></span>
+            </div>
+            <div class="input">
+              问问这页… ↵ 发送，⇧↵ 换行<span class="send"
+                ><i data-icon="arrow-up" data-size="15"></i
+              ></span>
+            </div>
+          </div>
+        </section>
+
+        <div class="orb active" style="right: 18px; top: 504px">
+          τ<span class="dot"></span><span class="badge">2</span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.MARKS = { m1: "yellow", m2: "flash", m5: "green" };
+    </script>
+    <script src="scene.js"></script>
+    <script src="icons.js"></script>
+  </body>
+</html>

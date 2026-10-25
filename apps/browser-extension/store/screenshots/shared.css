@@ -1,0 +1,1110 @@
+/*
+ * 商店截图的共用样式：颜色只取 @tau/themes 的 --tau-* 变量（暖纸 · 浅色），
+ * 伴读组件的尺寸与圆角照 src/content/ui 的实现还原。
+ */
+@import "../../../../packages/themes/src/tokens.css";
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --serif: ui-serif, Georgia, "Songti SC", "Noto Serif SC", serif;
+  --hl-yellow: #dc9b04;
+  --hl-green: #2ea121;
+  --hl-blue: #245bdb;
+  --hl-purple: #6425d0;
+  --hl-red: #e33a32;
+}
+
+body {
+  width: 1280px;
+  height: 800px;
+  overflow: hidden;
+  font-family: var(--tau-font);
+  font-size: var(--tau-text-body);
+  color: var(--tau-ink-1);
+  background:
+    radial-gradient(900px 420px at 85% -10%, var(--tau-accent-soft), transparent 70%),
+    var(--tau-bg-page);
+  -webkit-font-smoothing: antialiased;
+  position: relative;
+}
+
+.icon {
+  flex: none;
+  display: block;
+}
+
+/* ---------- 标题区 ---------- */
+.caption {
+  position: absolute;
+  top: 48px;
+  left: 80px;
+  right: 80px;
+}
+.caption h1 {
+  font-size: 34px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  color: var(--tau-ink-1);
+}
+.caption p {
+  margin-top: 10px;
+  font-size: 17px;
+  color: var(--tau-ink-2);
+}
+
+/* ---------- 浏览器窗口 ---------- */
+.browser {
+  position: absolute;
+  top: 168px;
+  left: 80px;
+  width: 1120px;
+  height: 680px;
+  border-radius: 14px;
+  background: var(--tau-bg-surface);
+  box-shadow: var(--tau-shadow-paper);
+  overflow: hidden;
+}
+.chrome {
+  height: 76px;
+  background: var(--tau-bg-surface-hover);
+  border-bottom: 1px solid var(--tau-line-1);
+}
+.tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+}
+.lights {
+  display: flex;
+  gap: 7px;
+  align-self: center;
+  margin-right: 10px;
+}
+.lights span {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--tau-line-1);
+  box-shadow: inset 0 0 0 1px var(--tau-bg-track);
+}
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 232px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 9px 9px 0 0;
+  background: var(--tau-bg-surface);
+  font-size: 12px;
+  color: var(--tau-ink-1);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.tab .favicon {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: var(--tau-ink-1);
+  color: var(--tau-bg-surface);
+  font: 700 9px/14px var(--serif);
+  text-align: center;
+}
+.tab.idle {
+  background: transparent;
+  color: var(--tau-ink-3);
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 14px;
+  background: var(--tau-bg-surface);
+  color: var(--tau-ink-3);
+}
+.address {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 14px;
+  background: var(--tau-bg-surface-hover);
+  font-size: 12.5px;
+  color: var(--tau-ink-2);
+}
+.address b {
+  font-weight: 400;
+  color: var(--tau-ink-1);
+}
+.ext-button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--tau-accent-soft);
+  color: var(--tau-accent-text);
+  font: italic 600 15px/1 var(--serif);
+}
+.viewport {
+  position: relative;
+  height: calc(100% - 76px);
+  overflow: hidden;
+  background: var(--tau-bg-surface);
+}
+
+/* ---------- 示例网页（一篇普通博客） ---------- */
+.site-header {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  height: 52px;
+  padding: 0 64px;
+  border-bottom: 1px solid var(--tau-line-1);
+  font-size: 13px;
+  color: var(--tau-ink-2);
+}
+.site-header .brand {
+  font: 600 16px var(--serif);
+  color: var(--tau-ink-1);
+  margin-right: auto;
+}
+.article {
+  width: 620px;
+  margin-left: 96px;
+  padding-top: 34px;
+  font-family: var(--serif);
+  color: var(--tau-ink-1);
+}
+.article .kicker {
+  font-family: var(--tau-font);
+  font-size: 12px;
+  color: var(--tau-accent-text);
+  letter-spacing: 0.06em;
+}
+.article h2 {
+  margin: 8px 0 6px;
+  font-size: 30px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+.article .meta {
+  margin-bottom: 22px;
+  font-family: var(--tau-font);
+  font-size: 12.5px;
+  color: var(--tau-ink-3);
+}
+.article p {
+  margin-bottom: 16px;
+  font-size: 16.5px;
+  line-height: 1.9;
+  color: var(--tau-ink-1);
+}
+.article h3 {
+  margin: 22px 0 8px;
+  font-size: 19px;
+}
+
+/* 高亮：与 page/highlights.ts 的 ::highlight 规则一致（22% 底色 + 70% 下划线） */
+.hl {
+  text-decoration: underline 2px;
+  text-underline-offset: 3px;
+}
+.hl.yellow {
+  background: color-mix(in srgb, var(--hl-yellow) 22%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--hl-yellow) 70%, transparent);
+}
+.hl.green {
+  background: color-mix(in srgb, var(--hl-green) 22%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--hl-green) 70%, transparent);
+}
+.hl.blue {
+  background: color-mix(in srgb, var(--hl-blue) 22%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--hl-blue) 70%, transparent);
+}
+.hl.purple {
+  background: color-mix(in srgb, var(--hl-purple) 22%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--hl-purple) 70%, transparent);
+}
+.hl.red {
+  background: color-mix(in srgb, var(--hl-red) 22%, transparent);
+  text-decoration-color: color-mix(in srgb, var(--hl-red) 70%, transparent);
+}
+.flash {
+  background: color-mix(in srgb, var(--hl-yellow) 45%, transparent);
+}
+.selected {
+  background: color-mix(in srgb, var(--tau-info) 28%, transparent);
+}
+
+/* ---------- 伴读：悬浮球 ---------- */
+.orb {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--tau-bg-surface);
+  box-shadow:
+    var(--tau-shadow-lift),
+    0 0 0 1px var(--tau-line-1);
+  color: var(--tau-accent-text);
+  font: italic 600 19px/1 var(--serif);
+}
+.orb.active {
+  box-shadow:
+    var(--tau-shadow-lift),
+    0 0 0 1.5px var(--tau-accent);
+}
+.orb .dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--tau-ok);
+  box-shadow: 0 0 0 2px var(--tau-bg-surface);
+}
+.orb .badge {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--tau-accent);
+  color: var(--tau-ink-inverse);
+  font: 600 10px/16px var(--tau-font);
+  font-style: normal;
+  text-align: center;
+}
+
+/* ---------- 伴读：选区工具条 ---------- */
+.float {
+  background: var(--tau-bg-surface);
+  box-shadow: var(--tau-shadow-float);
+}
+.sel-toolbar {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 38px;
+  padding: 0 5px;
+  border-radius: var(--tau-radius-md);
+  font-family: var(--tau-font);
+  font-size: var(--tau-text-body);
+}
+.swatch-btn {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 28px;
+}
+.swatch {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+.swatch.yellow {
+  background: color-mix(in srgb, var(--hl-yellow) 30%, var(--tau-bg-surface));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--hl-yellow) 80%, transparent);
+}
+.swatch.green {
+  background: color-mix(in srgb, var(--hl-green) 30%, var(--tau-bg-surface));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--hl-green) 80%, transparent);
+}
+.swatch.blue {
+  background: color-mix(in srgb, var(--hl-blue) 30%, var(--tau-bg-surface));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--hl-blue) 80%, transparent);
+}
+.swatch.purple {
+  background: color-mix(in srgb, var(--hl-purple) 30%, var(--tau-bg-surface));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--hl-purple) 80%, transparent);
+}
+.swatch.red {
+  background: color-mix(in srgb, var(--hl-red) 30%, var(--tau-bg-surface));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--hl-red) 80%, transparent);
+}
+.swatch.small {
+  width: 14px;
+  height: 14px;
+}
+.tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: var(--tau-radius-sm);
+  color: var(--tau-ink-1);
+  white-space: nowrap;
+}
+.tool .icon {
+  color: var(--tau-ink-2);
+}
+.tool.accent .icon:first-child {
+  color: var(--tau-accent-text);
+}
+.tool.hover {
+  background: var(--tau-bg-hover);
+}
+.divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: var(--tau-line-1);
+}
+.menu {
+  position: absolute;
+  min-width: 168px;
+  padding: 4px;
+  border-radius: var(--tau-radius-md);
+  font-family: var(--tau-font);
+}
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: var(--tau-radius-sm);
+  color: var(--tau-ink-1);
+}
+.menu-item .icon {
+  color: var(--tau-ink-2);
+}
+.menu-item.hover {
+  background: var(--tau-bg-hover);
+}
+
+/* ---------- 伴读：面板 ---------- */
+.panel {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  width: 400px;
+  border-radius: var(--tau-radius-lg);
+  overflow: hidden;
+  font-family: var(--tau-font);
+  font-size: var(--tau-text-body);
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 10px 12px 14px;
+}
+.site-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--tau-ink-1);
+  color: var(--tau-bg-surface);
+  font: 700 14px var(--serif);
+}
+.panel-title {
+  flex: 1;
+  min-width: 0;
+}
+.panel-title b {
+  display: block;
+  overflow: hidden;
+  font-size: var(--tau-text-body-lg);
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.panel-title small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--tau-text-sm);
+  color: var(--tau-ink-3);
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tau-ok);
+}
+.status-dot.warn {
+  background: var(--tau-warn);
+}
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--tau-radius-sm);
+  color: var(--tau-ink-2);
+}
+.panel-tabs {
+  display: flex;
+  gap: 18px;
+  padding: 0 16px;
+}
+.panel-tabs span {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 34px;
+  font-weight: 500;
+  color: var(--tau-ink-3);
+}
+.panel-tabs span.on {
+  color: var(--tau-ink-1);
+}
+.panel-tabs span.on::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--tau-accent);
+}
+.panel-tabs small {
+  font-size: var(--tau-text-micro);
+  color: var(--tau-ink-3);
+}
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 对话 */
+.chat {
+  padding: 8px 16px 12px;
+}
+.quote-line {
+  display: flex;
+  justify-content: flex-end;
+}
+.quote-line div {
+  max-width: 85%;
+  margin-bottom: 6px;
+  padding-left: 10px;
+  border-left: 2px solid var(--tau-accent);
+  font-size: var(--tau-text-meta);
+  color: var(--tau-ink-2);
+}
+.user-msg {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 14px;
+}
+.user-msg div {
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: var(--tau-bg-surface-hover);
+  line-height: 1.6;
+}
+.answer {
+  line-height: 1.75;
+  color: var(--tau-ink-1);
+}
+.answer p {
+  margin-bottom: 10px;
+}
+.answer ul {
+  margin: 0 0 10px 18px;
+}
+.answer li {
+  margin-bottom: 4px;
+}
+.cite {
+  display: inline-grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  margin: 0 1px;
+  padding: 0 4px;
+  border-radius: 5px;
+  background: var(--tau-accent-soft);
+  color: var(--tau-accent-text);
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: 1px;
+}
+.cite.on {
+  background: var(--tau-accent);
+  color: var(--tau-ink-inverse);
+}
+.tool-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: var(--tau-text-meta);
+  color: var(--tau-ink-3);
+}
+.composer {
+  padding: 8px 12px 12px;
+}
+.chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 12px;
+  border: 1px solid var(--tau-line-1);
+  font-size: var(--tau-text-sm);
+  color: var(--tau-ink-2);
+}
+.chip.on {
+  border-color: transparent;
+  background: var(--tau-accent-soft);
+  color: var(--tau-accent-text);
+}
+.model {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  margin-left: auto;
+  padding: 0 6px 0 8px;
+  font-size: var(--tau-text-sm);
+  color: var(--tau-ink-2);
+}
+.input {
+  position: relative;
+  min-height: 72px;
+  padding: 10px 44px 10px 12px;
+  border: 1px solid var(--tau-line-1);
+  border-radius: var(--tau-radius-md);
+  color: var(--tau-ink-3);
+}
+.send {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--tau-bg-press);
+  color: var(--tau-ink-3);
+}
+
+/* 标注列表 */
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px 6px;
+}
+.filters .all {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 13px;
+  background: var(--tau-accent-soft);
+  color: var(--tau-accent-text);
+  font-size: var(--tau-text-sm);
+  line-height: 26px;
+}
+.filters .swatch-btn {
+  width: 26px;
+  height: 26px;
+}
+.ann-list {
+  padding: 2px 8px 8px;
+}
+.ann {
+  display: flex;
+  gap: 10px;
+  padding: 10px 8px;
+  border-radius: var(--tau-radius-sm);
+}
+.ann.hover {
+  background: var(--tau-bg-hover);
+}
+.ann .bar {
+  flex: none;
+  width: 3px;
+  border-radius: 2px;
+}
+.bar.yellow {
+  background: color-mix(in srgb, var(--hl-yellow) 75%, transparent);
+}
+.bar.green {
+  background: color-mix(in srgb, var(--hl-green) 75%, transparent);
+}
+.bar.blue {
+  background: color-mix(in srgb, var(--hl-blue) 75%, transparent);
+}
+.bar.purple {
+  background: color-mix(in srgb, var(--hl-purple) 75%, transparent);
+}
+.bar.red {
+  background: color-mix(in srgb, var(--hl-red) 75%, transparent);
+}
+.ann-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font: var(--tau-text-body-lg) / 1.65 var(--serif);
+  color: var(--tau-ink-1);
+}
+.ann-note {
+  margin-top: 4px;
+  font-size: var(--tau-text-meta);
+  line-height: 1.6;
+  color: var(--tau-ink-2);
+}
+.ann-date {
+  margin-top: 4px;
+  font-size: var(--tau-text-micro);
+  color: var(--tau-ink-3);
+}
+.panel-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 12px;
+  font-size: var(--tau-text-sm);
+  color: var(--tau-ink-3);
+}
+.panel-foot .grow {
+  flex: 1;
+}
+
+/* 连接说明卡 */
+.state-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 44px 28px 24px;
+  text-align: center;
+}
+.state-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 14px;
+  border-radius: 50%;
+  background: var(--tau-warn-soft);
+  color: var(--tau-warn);
+}
+.state-card h3 {
+  margin-bottom: 6px;
+  font-size: var(--tau-text-title);
+  font-weight: 600;
+}
+.state-card p {
+  max-width: 280px;
+  font-size: var(--tau-text-meta);
+  line-height: 1.7;
+  color: var(--tau-ink-2);
+}
+.code {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: 16px 0 4px;
+}
+.code span {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 46px;
+  border: 1px solid var(--tau-line-1);
+  border-radius: 10px;
+  font: 600 22px var(--tau-font-mono);
+  color: var(--tau-ink-1);
+}
+.waiting {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: var(--tau-text-meta);
+  color: var(--tau-ink-3);
+}
+.spinner {
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid var(--tau-line-1);
+  border-top-color: var(--tau-accent);
+  border-radius: 50%;
+}
+
+/* 面板打开时把文章收窄到左侧 */
+.page.narrow .article {
+  width: 540px;
+  margin-left: 64px;
+}
+
+/* ---------- 伴读库（扩展页面 library.html） ---------- */
+.library {
+  display: flex;
+  height: 100%;
+  background: var(--tau-bg-page);
+  font-family: var(--tau-font);
+  font-size: var(--tau-text-body);
+}
+.lib-side {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 2px;
+  width: 208px;
+  padding: 14px 10px;
+  border-right: 1px solid var(--tau-line-1);
+}
+.lib-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px 14px;
+  font-weight: 600;
+}
+.lib-brand span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--tau-radius-sm);
+  background: var(--tau-accent);
+  color: var(--tau-ink-inverse);
+  font: italic 600 13px var(--serif);
+}
+.lib-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  border-radius: var(--tau-radius-sm);
+  color: var(--tau-ink-2);
+}
+.lib-nav.on {
+  background: var(--tau-bg-selected);
+  color: var(--tau-accent-text);
+}
+.lib-nav em {
+  margin-left: auto;
+  font-style: normal;
+  font-size: var(--tau-text-sm);
+  opacity: 0.7;
+}
+.lib-label {
+  padding: 14px 8px 4px;
+  font-size: var(--tau-text-sm);
+  color: var(--tau-ink-3);
+}
+.site-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: var(--tau-bg-track);
+  color: var(--tau-ink-2);
+  font: 600 10px var(--tau-font);
+}
+.lib-foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+  padding: 10px 8px 0;
+  font-size: var(--tau-text-sm);
+  color: var(--tau-ink-3);
+}
+.lib-list {
+  flex: none;
+  width: 330px;
+  padding: 14px 8px;
+  border-right: 1px solid var(--tau-line-1);
+}
+.lib-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  margin: 0 6px 8px;
+  padding: 0 10px;
+  border: 1px solid var(--tau-line-1);
+  border-radius: var(--tau-radius-sm);
+  background: var(--tau-bg-surface);
+  color: var(--tau-ink-3);
+}
+.lib-page {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  border-radius: var(--tau-radius-md);
+}
+.lib-page.on {
+  background: var(--tau-bg-surface);
+  box-shadow: var(--tau-shadow-card);
+}
+.lib-page b {
+  display: block;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.lib-page small {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: var(--tau-text-sm);
+  color: var(--tau-ink-3);
+}
+.lib-page small span:last-child {
+  margin-left: auto;
+}
+.lib-detail {
+  flex: 1;
+  min-width: 0;
+  padding: 26px 30px;
+  background: var(--tau-bg-surface);
+}
+.lib-detail .host {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--tau-text-sm);
+  color: var(--tau-ink-3);
+}
+.lib-detail h1 {
+  margin-top: 8px;
+  font: 700 22px/1.4 var(--serif);
+}
+.lib-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 14px;
+}
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--tau-radius-sm);
+  border: 1px solid var(--tau-line-1);
+  color: var(--tau-ink-1);
+}
+.button.primary {
+  border-color: transparent;
+  background: var(--tau-accent);
+  color: var(--tau-ink-inverse);
+}
+.lib-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 200px;
+  gap: 24px;
+  margin-top: 20px;
+  padding-top: 4px;
+  border-top: 1px solid var(--tau-line-2);
+}
+.lib-grid .ann {
+  padding: 8px 0;
+}
+.note-card {
+  margin-bottom: 8px;
+  padding: 12px;
+  border: 1px solid var(--tau-line-1);
+  border-radius: var(--tau-radius-md);
+}
+.note-card header {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--tau-text-sm);
+  color: var(--tau-ink-3);
+}
+.note-card header b {
+  font-weight: 500;
+  color: var(--tau-ink-1);
+}
+.note-card p {
+  margin-top: 8px;
+  font-size: var(--tau-text-meta);
+  line-height: 1.65;
+}
+.note-card a {
+  display: block;
+  margin-top: 8px;
+  font-size: var(--tau-text-sm);
+  color: var(--tau-accent-text);
+}
+
+/* ---------- 配对：Tau 授权弹窗 ---------- */
+.card {
+  position: absolute;
+  border-radius: var(--tau-radius-lg);
+  background: var(--tau-bg-surface);
+  box-shadow: var(--tau-shadow-paper);
+  font-family: var(--tau-font);
+  font-size: var(--tau-text-body);
+}
+.window-label {
+  position: absolute;
+  font-size: var(--tau-text-sm);
+  color: var(--tau-ink-3);
+  letter-spacing: 0.04em;
+}
+.dialog-head {
+  display: flex;
+  gap: 10px;
+  padding: 18px 20px 12px;
+}
+.dialog-head .glyph {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--tau-radius-sm);
+  background: var(--tau-accent-soft);
+  color: var(--tau-accent-text);
+}
+.dialog-head b {
+  display: block;
+  font-size: var(--tau-text-title);
+  font-weight: 600;
+}
+.dialog-head small {
+  font-size: var(--tau-text-meta);
+  color: var(--tau-ink-3);
+}
+.dialog-body {
+  padding: 4px 20px 0;
+  color: var(--tau-ink-2);
+}
+.dialog-body dl {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: 6px 12px;
+  margin-bottom: 16px;
+  font-size: var(--tau-text-meta);
+}
+.dialog-body dt {
+  color: var(--tau-ink-3);
+}
+.dialog-body dd {
+  color: var(--tau-ink-1);
+}
+.verify {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--tau-line-1);
+  border-radius: var(--tau-radius-md);
+  font-size: var(--tau-text-meta);
+}
+.verify .code {
+  margin: 0;
+}
+.verify .code span {
+  width: 36px;
+  height: 44px;
+  font-size: var(--tau-text-title-lg);
+}
+.scope {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
+}
+.scope div {
+  flex: 1;
+}
+.scope b {
+  display: block;
+  font-weight: 500;
+  color: var(--tau-ink-1);
+}
+.scope small {
+  font-size: var(--tau-text-meta);
+  color: var(--tau-ink-3);
+}
+.scope > span {
+  font-size: var(--tau-text-sm);
+  color: var(--tau-ink-3);
+}
+.switch {
+  position: relative;
+  width: 30px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--tau-accent);
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--tau-bg-surface);
+}
+.dialog-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 20px 18px;
+}
+.link-line {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--tau-font);
+  font-size: var(--tau-text-sm);
+  color: var(--tau-ink-2);
+  text-align: center;
+}
+.link-line .rule {
+  width: 100%;
+  border-top: 1.5px dashed var(--tau-accent);
+  opacity: 0.6;
+}
+.link-line .badge-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--tau-ok-soft);
+  color: var(--tau-ok);
+}

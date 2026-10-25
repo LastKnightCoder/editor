@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+  <head>
+    <meta charset="utf-8" />
+    <title>04 伴读库</title>
+    <link rel="stylesheet" href="shared.css" />
+  </head>
+  <body>
+    <section class="caption">
+      <h1>伴读库：读过的网页和标注都在这里</h1>
+      <p>按站点筛选、跨页浏览全部标注；页面笔记一键存成 Tau 里的卡片。</p>
+    </section>
+
+    <div
+      class="browser"
+      style="height: 612px"
+      data-host="Tau 伴读"
+      data-path="　|　chrome-extension://…/library.html"
+      data-title="伴读库"
+      data-favicon="τ"
+      data-site-icon="puzzle"
+    >
+      <div class="viewport">
+        <div class="library">
+          <aside class="lib-side">
+            <div class="lib-brand"><span>τ</span>伴读库</div>
+            <div class="lib-nav on"><i data-icon="list"></i>页面<em>12</em></div>
+            <div class="lib-nav"><i data-icon="highlighter"></i>全部标注<em>86</em></div>
+            <div class="lib-nav"><i data-icon="notebook-pen"></i>笔记<em>5</em></div>
+            <p class="lib-label">站点</p>
+            <div class="lib-nav">
+              <span class="site-mark">慢</span>slowread.example.com<em>4</em>
+            </div>
+            <div class="lib-nav"><span class="site-mark">D</span>docs.example.dev<em>3</em></div>
+            <div class="lib-nav"><span class="site-mark">周</span>weekly.example.org<em>3</em></div>
+            <div class="lib-nav"><span class="site-mark">W</span>wiki.example.net<em>2</em></div>
+            <div class="lib-foot"><span class="status-dot"></span>已连接</div>
+          </aside>
+
+          <div class="lib-list">
+            <div class="lib-search"><i data-icon="search" data-size="14"></i>搜索页面</div>
+            <p class="lib-label">最近标注</p>
+            <div class="lib-page on">
+              <span class="site-mark">慢</span>
+              <span>
+                <b>为什么写下来的想法，更容易被记住</b>
+                <small><span>4 条标注</span><span>1 张卡片</span><span>今天</span></small>
+              </span>
+            </div>
+            <div class="lib-page">
+              <span class="site-mark">D</span>
+              <span>
+                <b>浏览器扩展里的 Service Worker 生命周期</b>
+                <small><span>7 条标注</span><span>昨天</span></small>
+              </span>
+            </div>
+            <div class="lib-page">
+              <span class="site-mark">周</span>
+              <span>
+                <b>本周阅读：关于专注、休息与长期主义</b>
+                <small><span>5 条标注</span><span>有草稿</span><span>10月21日</span></small>
+              </span>
+            </div>
+            <div class="lib-page">
+              <span class="site-mark">W</span>
+              <span>
+                <b>遗忘曲线</b>
+                <small><span>3 条标注</span><span>10月18日</span></small>
+              </span>
+            </div>
+          </div>
+
+          <main class="lib-detail">
+            <p class="host">
+              <span class="site-mark">慢</span>slowread.example.com · 4 条标注 · 1 条批注 · 1 张卡片
+            </p>
+            <h1>为什么写下来的想法，更容易被记住</h1>
+            <div class="lib-actions">
+              <span class="button"><i data-icon="external-link" data-size="14"></i>打开网页</span>
+              <span class="button"><i data-icon="notebook-pen" data-size="14"></i>写笔记</span>
+            </div>
+            <div class="lib-grid">
+              <div>
+                <p class="lib-label" style="padding-left: 0">标注</p>
+                <div class="ann">
+                  <span class="bar yellow"></span>
+                  <div><p class="ann-text">真正还能复述出来的内容往往不到两成</p></div>
+                </div>
+                <div class="ann">
+                  <span class="bar green"></span>
+                  <div>
+                    <p class="ann-text">自己组织语言写下的内容，比单纯阅读过的内容记得更牢</p>
+                    <p class="ann-note">生成效应——和做闪卡时「先自己答再翻面」是同一个道理。</p>
+                  </div>
+                </div>
+                <div class="ann">
+                  <span class="bar blue"></span>
+                  <div>
+                    <p class="ann-text">
+                      只有当你用自己的话重新解释一遍，知识才真正和你已有的经验连在一起
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <p class="lib-label" style="padding-left: 0">笔记</p>
+                <div class="note-card">
+                  <header><b>卡片</b><span>今天 10:42</span></header>
+                  <p>写下来 = 生成 + 提取。以后读书先合上书，用一句话复述，再回头对照原文。</p>
+                  <a>在 Tau 中打开</a>
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+
+    <script src="scene.js"></script>
+    <script src="icons.js"></script>
+  </body>
+</html>
