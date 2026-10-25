@@ -3,6 +3,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 import { copyFile, mkdir, mkdtemp, readFile, writeFile, readdir } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
+import { assertBlogRuntimeInputs } from "./runtime-boundary.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const isWorkspaceSource = file => {
@@ -73,18 +74,7 @@ const runtime = await build({
     ".ttf": "file",
   },
 });
-for (const input of Object.keys(runtime.metafile.inputs)) {
-  // 资源声明是无依赖的正文协议，编辑器按它找资源字段，不属于数据库实现
-  if (input === "packages/db-schema/content-resources.ts") continue;
-  if (/^(?:apps\/|packages\/db-schema\/)/.test(input))
-    throw new Error(`Editor 不得包含应用或数据库实现：${input}`);
-  if (
-    /tests\/fixtures\/plugins|src\/extensions\/(?:html|custom-block)\/|node_modules\/(?:abcjs|@babel\/standalone)\//.test(
-      input
-    )
-  )
-    throw new Error(`Editor 包包含已迁出实现：${input}`);
-}
+assertBlogRuntimeInputs(Object.keys(runtime.metafile.inputs));
 for (const [file, output] of Object.entries(runtime.metafile.outputs)) {
   if (
     !output.entryPoint ||

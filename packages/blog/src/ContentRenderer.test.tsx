@@ -58,36 +58,64 @@ function result(initial: number): DataResult {
 }
 afterEach(() => vi.unstubAllGlobals());
 
-it("渲染协议 1 加载原始格式 3 清单，只求值正文而不激活插件", async () => {
-  setup();
-  const content = result(7);
+function portableResult(initial: number): DataResult {
+  const content = result(initial);
   const dependency = content.data.pluginRenderers![0];
+  const manifest = dependency.manifest;
   dependency.manifest = {
-    ...dependency.manifest,
+    id: manifest.id,
+    name: manifest.name,
+    version: manifest.version,
+    apiVersion: 1,
+    format: "cjs",
+    main: manifest.main,
+    styles: manifest.styles,
+    integrity: manifest.integrity,
     formatVersion: 3,
     platform: "portable",
     profile: "web-v1",
     targets: {
       desktop: {
         minAppVersion: "0.59.1",
-        required: ["editor"],
-        optional: [],
-        elements: { "example.widget": "edit" },
       },
       android: {
         minAppVersion: "0.2.2",
-        required: ["editor"],
-        optional: [],
-        elements: { "example.widget": "edit" },
       },
     },
   };
+  return content;
+}
+
+it("渲染协议 1 加载原始格式 3 清单，只求值正文而不激活插件", async () => {
+  setup();
+  const content = portableResult(7);
+  const dependency = content.data.pluginRenderers![0];
   const prepared = await prepareContent(content, new AbortController().signal);
   expect(dependency.runtimeVersion).toBe(1);
   expect(prepared.extensions[0].elements?.[0].type).toBe("example.widget");
   expect(prepared.styles).toContain(css);
   dependency.nodeTypes = ["other.node"];
   await expect(prepareContent(content, new AbortController().signal)).rejects.toThrow("节点归属");
+});
+
+it("格式 3 内容包必须实际提供编辑器贡献", async () => {
+  setup();
+  const content = portableResult(7);
+  const dependency = content.data.pluginRenderers![0];
+  const withoutEditor =
+    "module.exports.default=require('@tau/plugins').definePlugin({id:'example.widget',name:'示例',version:'1.0.0',create(){throw Error('不得激活')}});";
+  dependency.manifest = {
+    ...dependency.manifest,
+    integrity: { "main.js": hash(withoutEditor), "main.css": hash(css) },
+  };
+  dependency.nodeTypes = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: URL) => new Response(url.pathname.endsWith(".css") ? css : withoutEditor))
+  );
+  await expect(prepareContent(content, new AbortController().signal)).rejects.toThrow(
+    "缺少编辑器贡献"
+  );
 });
 const paragraph = (...children: ContentNode[]): ContentNode => ({
   type: "paragraph",
