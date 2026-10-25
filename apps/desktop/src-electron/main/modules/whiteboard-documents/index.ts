@@ -413,10 +413,10 @@ class WhiteboardDocumentsModule {
         ],
       });
       recoveryStore.verify(recovery);
-      if (converted.issues.length || resources.missing.length)
+      if (converted.issues.length)
         services.store.set(`legacy-upgrade-issues:${databaseName}:${documentId}`, {
           key: `whiteboard:${target.pages[0].contentId}`,
-          message: `有 ${converted.issues.length} 处白板元素保留了原始载荷，${resources.missing.length} 项资源缺失，需要核对。保全位置：${recovery.manifestPath}`,
+          message: `有 ${converted.issues.length} 处白板内容未能完整转换，原始载荷已保留，需要核对。保全位置：${recovery.manifestPath}`,
         });
       else services.store.delete(`legacy-upgrade-issues:${databaseName}:${documentId}`);
       return await this.migration.prepare(db, databaseName, {

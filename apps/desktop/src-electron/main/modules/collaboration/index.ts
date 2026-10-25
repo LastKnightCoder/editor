@@ -2173,12 +2173,12 @@ export class CollaborationManager {
     );
     const issues = Array.isArray(manifest.provenance.issues) ? manifest.provenance.issues : [];
     const key = `legacy-upgrade-issues:${name}:${session.info.id}`;
-    if (issues.length || manifest.missing.length)
+    if (issues.length)
       this.store.set(key, {
         key: session.info.source
           ? `content:${session.info.source.contentId}`
           : `shared:${session.info.id}`,
-        message: `有 ${issues.length} 处内容保留了原始载荷，${manifest.missing.length} 项资源缺失，需要核对。保全位置：${record.plan.recovery.manifestPath}`,
+        message: `有 ${issues.length} 处内容未能完整转换，原始载荷已保留，需要核对。保全位置：${record.plan.recovery.manifestPath}`,
       });
     else this.store.delete(key);
   }

@@ -1,7 +1,7 @@
 import { cn } from "../cn";
 import React, { useCallback, useState, useEffect } from "react";
 import WidthResizable from "./WidthResizable";
-import SidebarToggleButton from "./SidebarToggleButton";
+import { SidebarCollapseButton, SidebarExpandButton } from "./SidebarToggleButton";
 import useDragAndHideSidebar from "../hooks/useDragAndHideSidebar";
 
 interface ResizeableAndHideableSidebarProps {
@@ -126,7 +126,7 @@ const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) 
 
       {onToggle && open && (
         <div
-          className={`absolute ${sidebarPosition === "left" ? "right-0" : "left-0"} z-5 bottom-0 top-0 w-6`}
+          className={`absolute ${sidebarPosition === "left" ? "right-0" : "left-0"} top-0 bottom-0 z-5 w-6`}
           onMouseEnter={() => setIsHoveringEdge(true)}
           onMouseLeave={() => setIsHoveringEdge(false)}
         >
@@ -135,13 +135,13 @@ const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) 
             className={`transition-opacity duration-200 ${isHoveringEdge ? "opacity-100" : "opacity-0"}`}
             style={{ pointerEvents: isHoveringEdge ? "auto" : "none" }}
           >
-            <SidebarToggleButton.Collapse onToggle={onToggle} side={sidebarPosition} />
+            <SidebarCollapseButton onToggle={onToggle} side={sidebarPosition} />
           </div>
         </div>
       )}
 
       {onToggle && !open && showInternalExpandButtonWhenClosed && (
-        <SidebarToggleButton.Expand isHidden onToggle={onToggle} side={sidebarPosition} />
+        <SidebarExpandButton isHidden onToggle={onToggle} side={sidebarPosition} />
       )}
     </div>
   );

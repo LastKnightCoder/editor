@@ -176,6 +176,9 @@ export default defineConfig(() => {
       reportCompressedSize: false,
       chunkSizeWarningLimit: 2000,
       rolldownOptions: {
+        // framer-motion（motion/react 的实际实现）为兼容 RSC 在每个模块顶部带
+        // "use client"，纯客户端 Electron 环境无语义，逐模块告警纯属噪音
+        checks: { moduleLevelDirective: false },
         input: {
           index: path.resolve(__dirname, "index.html"),
           "content-runtime": path.resolve(__dirname, "content-runtime.html"),

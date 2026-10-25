@@ -58,6 +58,10 @@ export default defineConfig({
         suggested_key: { default: "Alt+J" },
         description: "打开 / 关闭伴读面板",
       },
+      "open-library": {
+        suggested_key: { default: "Alt+Shift+J" },
+        description: "打开伴读库：所有标注过的网页",
+      },
     },
     icons: {
       "16": "icon/16.png",

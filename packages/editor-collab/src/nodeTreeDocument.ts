@@ -2,7 +2,9 @@ import { createEditor } from "slate";
 import { projectNodeTree } from "./nodeTreeProjection";
 import type { ContentNode } from "@tau/collaboration";
 import type { Descendant, Editor } from "slate";
-import { renderElementSpec, type EditorDocument } from "@tau/editor";
+// 主进程经 editor-collab 消费本模块，走 core 子入口避免把编辑器根入口
+// （presets/扩展组件/渲染库）拖进主进程 bundle
+import { renderElementSpec, type EditorDocument } from "@tau/editor/core";
 import type { ElementVersionAccess } from "@tau/editor/api";
 import { createElement } from "react";
 import type { ElementSpec } from "@tau/editor/contracts";

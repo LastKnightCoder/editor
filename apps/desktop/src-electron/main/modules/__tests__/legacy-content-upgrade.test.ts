@@ -153,6 +153,66 @@ it("真实异常集中通知且不把失败记录为完成，其他内容仍完�
   expect(mocks.board).toHaveBeenCalledWith("A", 3, {});
 });
 
+it("已安装内容只有旧附件保全缺项时记为完成，不再发送升级失败通知", async () => {
+  db.exec(
+    "INSERT INTO contents VALUES(1); INSERT INTO content_documents(content_id) VALUES(1); INSERT INTO white_board_contents VALUES(2); INSERT INTO whiteboard_document_pages VALUES(2)"
+  );
+  for (const [key, label] of [
+    ["content:1", "内容"],
+    ["whiteboard:2", "白板元素"],
+  ])
+    mocks.store.set(`legacy-upgrade-issues:A:${key}`, {
+      key,
+      message: `有 0 处${label}保留了原始载荷，3 项资源缺失，需要核对。保全位置：/tmp/manifest.json`,
+    });
+  await new LegacyContentUpgradeModule().init();
+  await vi.waitFor(finished);
+  const report = JSON.parse(
+    (
+      state.prepare("SELECT value FROM settings WHERE key='legacy-content-upgrade:A'").get() as {
+        value: string;
+      }
+    ).value
+  );
+  expect(report).toMatchObject({
+    complete: true,
+    failures: [],
+    remaining: { contents: 0, pages: 0, boards: 0, operations: 0 },
+  });
+  expect(mocks.content).not.toHaveBeenCalled();
+  expect(mocks.board).not.toHaveBeenCalled();
+  expect(mocks.notify).not.toHaveBeenCalled();
+});
+
+it("附件提示不掩盖真实转换问题、安装失败和未知异常", async () => {
+  db.exec("INSERT INTO contents VALUES(1)");
+  const resourceNotice = {
+    key: "content:1",
+    message: "有 0 处内容保留了原始载荷，1 项资源缺失，需要核对。保全位置：/tmp/manifest.json",
+  };
+  mocks.store.set("legacy-upgrade-issues:A:resource", resourceNotice);
+  const conversion = {
+    key: "whiteboard:2",
+    message: "有 1 处白板元素保留了原始载荷，2 项资源缺失，需要核对。保全位置：/tmp/manifest.json",
+  };
+  mocks.store.set("legacy-upgrade-issues:A:conversion", conversion);
+  const unknown = { key: "shared:3", message: "转换结果需要人工核对" };
+  mocks.store.set("legacy-upgrade-issues:A:unknown", unknown);
+  mocks.content.mockRejectedValue(new Error("安装失败"));
+  await new LegacyContentUpgradeModule().init();
+  await vi.waitFor(finished);
+  const report = JSON.parse(
+    (
+      state.prepare("SELECT value FROM settings WHERE key='legacy-content-upgrade:A'").get() as {
+        value: string;
+      }
+    ).value
+  );
+  expect(report.complete).toBe(false);
+  expect(report.failures).toEqual([conversion, unknown, { key: "content:1", message: "安装失败" }]);
+  expect(mocks.notify).toHaveBeenCalledTimes(1);
+});
+
 it("设置中的未打开本地资料库也自动连接升级，不要求切换窗口", async () => {
   const second = new Database(":memory:");
   second.exec(

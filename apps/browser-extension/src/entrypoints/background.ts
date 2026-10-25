@@ -1,11 +1,11 @@
 import { CompanionConnection, type KeyValueStore } from "../background/connection";
 import type { SocketLike } from "../background/rpc-socket";
 import { AnnotationStore } from "../background/annotation-store";
-import { CompanionHub, type PortLike } from "../background/hub";
+import { CompanionHub, extensionPageOf, type PortLike } from "../background/hub";
 import { describeClient } from "../background/client-info";
-import { isNotePageSender } from "../background/hub";
-import { PORT_NAME } from "../shared/messages";
-import { STATUS_KEY, type NotePageMessage, type NotePageReply } from "../shared/note-storage";
+import { LibraryTab } from "../background/library-tab";
+import { PORT_NAME, type ExtensionPageMessage, type ExtensionPageReply } from "../shared/messages";
+import { STATUS_KEY } from "../shared/note-storage";
 
 const storage: KeyValueStore = {
   async get<T>(key: string) {
@@ -39,28 +39,38 @@ export default defineBackground(() => {
     isReady: () => connection.current.state === "ready",
     request: (method, params) => connection.request(method, params),
   });
-  hub.bind(connection, annotations);
+  const library = new LibraryTab(
+    {
+      create: props => chrome.tabs.create(props),
+      update: (tabId, props) => chrome.tabs.update(tabId, props),
+      focusWindow: windowId => chrome.windows.update(windowId, { focused: true }),
+    },
+    chrome.runtime.getURL("/library.html")
+  );
+  hub.bind(connection, annotations, library);
 
   chrome.runtime.onConnect.addListener(port => {
     // 只接受本扩展内容脚本的端口
     if (port.name !== PORT_NAME || port.sender?.id !== chrome.runtime.id) return port.disconnect();
     hub.attach(port as unknown as PortLike, port.sender?.tab?.id);
   });
-  chrome.runtime.onMessage.addListener((message: NotePageMessage, sender, sendResponse) => {
-    if (message?.kind !== "note-rpc" || !isNotePageSender(sender, chrome.runtime.id)) return false;
+  chrome.runtime.onMessage.addListener((message: ExtensionPageMessage, sender, sendResponse) => {
+    const page = message?.kind === "page-rpc" ? extensionPageOf(sender, chrome.runtime.id) : null;
+    if (!page) return false;
     hub
-      .handleNotePage(message.method, message.params)
-      .then(result => sendResponse({ ok: true, result } satisfies NotePageReply))
+      .handleExtensionPage(page, message.method, message.params)
+      .then(result => sendResponse({ ok: true, result } satisfies ExtensionPageReply))
       .catch((error: unknown) =>
         sendResponse({
           ok: false,
           error: error instanceof Error ? error.message : String(error),
-        } satisfies NotePageReply)
+        } satisfies ExtensionPageReply)
       );
     return true;
   });
   chrome.commands.onCommand.addListener((command, tab) => {
     if (command === "toggle-companion") hub.toggle(tab?.id);
+    if (command === "open-library") void library.open();
   });
   chrome.action.onClicked.addListener(tab => hub.toggle(tab.id));
 

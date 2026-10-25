@@ -43,7 +43,11 @@ export default defineConfig({
   build: {
     target: ["chrome107", "edge107", "firefox104", "safari16"],
     outDir: "output/showcase-build",
-    rolldownOptions: { input: path.resolve(__dirname, "showcase.html") },
+    rolldownOptions: {
+      // 与主构建同理：组件档案会打包 framer-motion 的 "use client" 指令告警
+      checks: { moduleLevelDirective: false },
+      input: path.resolve(__dirname, "showcase.html"),
+    },
   },
   clearScreen: false,
   server: {

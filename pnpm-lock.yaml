@@ -125,6 +125,9 @@ importers:
 
   apps/browser-extension:
     dependencies:
+      '@tanstack/react-query':
+        specifier: ^5.101.0
+        version: 5.101.0(react@19.2.0)
       '@tau/chat-ui':
         specifier: workspace:*
         version: link:../../packages/chat-ui

@@ -41,6 +41,8 @@ export interface BackgroundMethods {
     params: { url: string; title: string; items: WebAnnotation[] };
     result: void;
   };
+  /** 打开伴读库（已开着就切过去），page 为要选中的页面键 */
+  "library.open": { params: { page?: string }; result: void };
 }
 
 export type BackgroundMethod = keyof BackgroundMethods;
@@ -56,6 +58,14 @@ export type BackgroundToContent =
   | { kind: "notify"; method: string; data: unknown }
   | { kind: "pageTool"; id: string; name: string; args: unknown }
   | { kind: "toggle" };
+
+/** 扩展自己的页面（笔记页、伴读库）发给后台的消息：扩展页面没有内容脚本的端口，走 runtime.sendMessage */
+export type ExtensionPageMessage = {
+  kind: "page-rpc";
+  method: string;
+  params: unknown;
+};
+export type ExtensionPageReply = { ok: true; result: unknown } | { ok: false; error: string };
 
 /** 页面键：只去掉 #hash（与 Tau 的 normalizeWebPageUrl 一致） */
 export const pageKeyOf = (url: string): string => url.split("#", 1)[0] ?? url;

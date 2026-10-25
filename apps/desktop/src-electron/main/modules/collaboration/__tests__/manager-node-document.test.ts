@@ -1181,6 +1181,41 @@ it("后台升级无需窗口事件，结束后释放会话并能重新打开同�
   expect(session.info.source?.contentDocumentId).toBe(installed.documentId);
 });
 
+it("正文远程附件没有本地副本时保留引用与恢复清单，不记录升级失败", async () => {
+  const f = await setup();
+  f.runtime.stopped = false;
+  const url = "https://example.com/not-cached.png";
+  f.db
+    .prepare(
+      "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES(8,10,20,?,0,1)"
+    )
+    .run(JSON.stringify([{ type: "image", url, children: [{ text: "" }] }]));
+  const image = await prepareContentContract("tau.image", {
+    type: "image",
+    dataVersion: 1,
+    kind: "block",
+    isVoid: true,
+    resources: [{ path: "url", kind: "image" }],
+  });
+  const opened = await f.runtime.openContent(f.event, { contentId: 8 });
+  await (f.runtime as unknown as CollaborationManager).upgradeLegacyContent("library", 8, {
+    [image.id]: image.contract,
+  });
+  expect(JSON.stringify(ContentDocumentTable.read(f.db, 8)!.content)).toContain(url);
+  expect(
+    f.runtime.store.get(`legacy-upgrade-issues:library:${opened.documentId}`, null)
+  ).toBeNull();
+  const row = f.runtime.store.db
+    .prepare("SELECT record FROM migrations WHERE document_id=?")
+    .get(opened.documentId) as { record: string };
+  const record = JSON.parse(row.record);
+  expect(record.phase).toBe("COMPLETE");
+  const manifest = new ContentRecoveryStore(f.runtime.directory, f.runtime.contentState).verify(
+    record.plan.recovery
+  );
+  expect(manifest.missing).toContain(url);
+});
+
 it("已有本机候选的共享会话中断续做不依赖再次联网", async () => {
   const f = await setup();
   f.runtime.stopped = false;
