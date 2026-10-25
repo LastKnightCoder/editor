@@ -78,31 +78,27 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = props =
 
   return (
     <div className="relative">
-      <div
-        className={cn(
-          "relative rounded-[0.5em] border border-[var(--ed-border)] bg-[var(--ed-bg-sunken)] px-[1em] py-[var(--block-distance)] transition-[padding-bottom] duration-200 ease-in-out"
-        )}
-      >
+      <div className="relative rounded-[0.5em] border border-[var(--ed-border)] bg-[var(--ed-bg-hover)] px-[0.75em]">
         <div
-          className={cn(
-            "flex gap-[0.25em] transition-[margin-bottom] duration-200 ease-in-out",
-            showContent && "mb-[calc(var(--block-distance)/2)]"
-          )}
+          className={cn("flex items-center gap-[0.375em] py-[0.5em]", readOnly && "cursor-pointer")}
           contentEditable={false}
           style={{ userSelect: "none" }}
+          // 只读时标题不可编辑，整行都能展开收起
+          onClick={readOnly ? toggleShowContent : undefined}
         >
           <div
             className={cn(
-              "cursor-pointer transition-transform duration-200 ease-linear",
+              "grid size-[1.25em] shrink-0 cursor-pointer place-items-center rounded-[0.25em] text-[0.875em] text-[var(--ed-text-secondary)] transition-transform duration-200 ease-out hover:bg-[var(--ed-bg-press)]",
               showContent && "rotate-90"
             )}
-            onClick={toggleShowContent}
+            onClick={readOnly ? undefined : toggleShowContent}
           >
             <CaretRight />
           </div>
           <div
             data-slate-editor
             ref={titleRef}
+            className="min-w-0 flex-1 font-medium"
             contentEditable={!readOnly}
             suppressContentEditableWarning
             onBlur={onTitleBlur}
@@ -112,8 +108,8 @@ const Detail: React.FC<React.PropsWithChildren<ICollapseElementProps>> = props =
         </div>
         <div
           className={cn(
-            "grid overflow-hidden pl-[1em] transition-all duration-200 [&>div]:min-h-0",
-            showContent ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+            "grid overflow-hidden pl-[1.5em] transition-all duration-200 [&>div]:min-h-0",
+            showContent ? "grid-rows-[1fr] pb-[0.5em]" : "grid-rows-[0fr]"
           )}
         >
           <div {...attributes}>{children}</div>

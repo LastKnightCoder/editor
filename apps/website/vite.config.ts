@@ -14,6 +14,7 @@ import { DOC_ENTRIES, docPageTitle, findDoc, type DocEntry } from "./src/docs/ma
 const root = fileURLToPath(new URL(".", import.meta.url));
 const HOME_HTML = "/index.html";
 const DOCS_HTML = "/docs/index.html";
+const CHANGELOG_HTML = "/changelog/index.html";
 
 /** 首页占位：站点导航入口，以及构建时的下载快照（发布源暂时不可用时由 Pages 回退展示）。 */
 function releaseInfoPlugin(): Plugin {
@@ -53,6 +54,7 @@ const fillDocMeta = (html: string, entry: DocEntry) =>
 /**
  * 使用文档是 /docs/ 下的单页应用：构建时按目录给每篇文档各出一份入口页（标题与描述各自填好），
  * 静态托管直接命中 /docs/<slug>/index.html；开发服务器把 /docs/<slug>/ 改写到同一个模板。
+ * 更新日志 /changelog/ 只有一页，各版本用锚点定位，和文档共用编辑器与样式。
  */
 function docsPagesPlugin(): Plugin {
   return {
@@ -60,15 +62,24 @@ function docsPagesPlugin(): Plugin {
     config: () => ({
       build: {
         rolldownOptions: {
-          input: { main: `${root}index.html`, docs: `${root}docs/index.html` },
+          input: {
+            main: `${root}index.html`,
+            docs: `${root}docs/index.html`,
+            changelog: `${root}changelog/index.html`,
+          },
         },
       },
     }),
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const url = new URL(req.url ?? "/", "http://localhost");
-        if (url.pathname === "/docs") {
-          res.writeHead(301, { Location: `/docs/${url.search}` }).end();
+        if (url.pathname === "/docs" || url.pathname === "/changelog") {
+          res.writeHead(301, { Location: `${url.pathname}/${url.search}` }).end();
+          return;
+        }
+        if (url.pathname === "/changelog/") {
+          req.url = CHANGELOG_HTML + url.search;
+          next();
           return;
         }
         if (url.pathname.startsWith("/docs/") && !url.pathname.includes(".")) {

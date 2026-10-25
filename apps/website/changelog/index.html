@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>更新日志 · Tau</title>
+<meta name="description" content="Tau 桌面端与手机端每个版本的更新内容。" />
+<meta name="theme-color" content="#f3eee2" />
+<link rel="icon" type="image/png" href="/tau-icon.png" />
+<script>
+  // 沿用首页选过的主题
+  try {
+    var saved = localStorage.getItem("tau-site-theme");
+    if (saved) document.documentElement.dataset.theme = saved;
+  } catch (e) {}
+</script>
+</head>
+<body>
+<div id="root"></div>
+<script type="module" src="/src/changelog/main.tsx"></script>
+</body>
+</html>
