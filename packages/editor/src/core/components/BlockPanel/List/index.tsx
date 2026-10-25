@@ -8,8 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { useSlateStatic } from "slate-react";
-import { PortalToBody } from "@tau/shared";
-import { cn, FADE_SCROLL_CLASS, useEdgeFade } from "@tau/ui";
+import { PortalToBody, cn, FADE_SCROLL_CLASS, useEdgeFade } from "@tau/ui";
 
 import { IBlockPanelListItem } from "../../types";
 

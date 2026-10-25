@@ -109,9 +109,6 @@ export default defineConfig(() => {
                   "katex",
                   "cheerio",
                 ],
-                // worker 链路会间接打包 framer-motion 的 "use client" 指令，
-                // 同主构建一样静音
-                checks: { moduleLevelDirective: false },
                 plugins: [
                   {
                     name: "copy-tailwind-runtime-worker",
