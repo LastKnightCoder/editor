@@ -920,7 +920,7 @@ describe("桌面生产会话与真实服务贯通", () => {
     expect(session.info.frozen).toBe(true);
   });
 
-  it("未处理前一次替库副本时拒绝再次覆盖，原回执和缓存不变", async () => {
+  it("前一次替库副本校验通过后允许再次覆盖，旧会话仍关联原恢复包", async () => {
     const { runtime, db, store, state, localId } = await setup();
     const drain = await runtime.drainDatabase({
       databaseName: "library",
@@ -931,10 +931,73 @@ describe("桌面生产会话与真实服务贯通", () => {
     const detached = store.get(`library-detached:${localId}`, null);
     db.prepare("UPDATE library_identity SET source_id='replacement-library'").run();
     drain.commit();
-    await expect(runtime.preserveLibrary("library")).rejects.toThrow("再次覆盖已停止");
-    expect(store.get("library-recovery:library", null)).toEqual(receipt);
+    await runtime.preserveLibrary("library");
+    const nextReceipt = store.get<any>("library-recovery:library", null);
+    expect(nextReceipt.id).not.toBe(receipt.id);
     expect(store.get(`library-detached:${localId}`, null)).toEqual(detached);
     expect(new ContentRecoveryStore(runtime.directory, state).verify(receipt).files.length).toBe(3);
+    expect(
+      new ContentRecoveryStore(runtime.directory, state).verify(nextReceipt).files.length
+    ).toBe(3);
+  });
+
+  it.each(["receipt", "file"])("前次恢复包 %s 缺失时仍拒绝覆盖，不改原关联", async missing => {
+    const { runtime, store, localId } = await setup();
+    const drain = await runtime.drainDatabase({
+      databaseName: "library",
+      reason: "database-change",
+    });
+    await runtime.preserveLibrary("library");
+    const receipt = store.get<any>("library-recovery:library", null);
+    const detached = store.get(`library-detached:${localId}`, null);
+    if (missing === "receipt")
+      store.db.prepare("DELETE FROM recoveries WHERE id=?").run(receipt.id);
+    else rmSync(receipt.manifestPath);
+    await expect(runtime.preserveLibrary("library")).rejects.toThrow();
+    expect(store.get("library-recovery:library", null)).toEqual(receipt);
+    expect(store.get(`library-detached:${localId}`, null)).toEqual(detached);
+    drain.rollback();
+  });
+
+  it.each(["database-change", "quit"] as const)(
+    "主库回退旧格式后 %s 保留新缓存且不投影，整库恢复包仍可生成",
+    async reason => {
+      const { runtime, db, store, state, localId } = await setup();
+      vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      const session = runtime.sessions.get(localId)!;
+      const before = Y.encodeStateAsUpdate(session.doc);
+      db.prepare("DELETE FROM content_documents WHERE content_id=7").run();
+      const original = db.prepare("SELECT content FROM contents WHERE id=7").get();
+      const drain = await runtime.drainDatabase({ databaseName: "library", reason });
+      expect(session.info.frozen).toBe(true);
+      const cached = store.load(localId);
+      expect(Y.encodeStateAsUpdate(cached.doc)).toEqual(before);
+      cached.doc.destroy();
+      expect(db.prepare("SELECT content FROM contents WHERE id=7").get()).toEqual(original);
+      expect(ContentDocumentTable.read(db, 7)).toBeNull();
+      if (reason === "database-change") {
+        await runtime.preserveLibrary("library");
+        const receipt = store.get<any>("library-recovery:library", null);
+        expect(
+          new ContentRecoveryStore(runtime.directory, state).verify(receipt).files.length
+        ).toBe(3);
+      }
+      drain.rollback();
+      expect(session.info.frozen).toBe(reason === "database-change");
+    }
+  );
+
+  it("不同来源缓存未能保存时仍拒绝关库并恢复编辑", async () => {
+    const { runtime, db, store, localId } = await setup();
+    db.prepare("DELETE FROM content_documents WHERE content_id=7").run();
+    runtime.sessions.get(localId)!.dirty = true;
+    vi.spyOn(store, "compact").mockImplementation(() => {
+      throw new Error("缓存磁盘写入失败");
+    });
+    await expect(
+      runtime.drainDatabase({ databaseName: "library", reason: "quit" })
+    ).rejects.toThrow("缓存磁盘写入失败");
+    expect(runtime.sessions.get(localId)!.info.frozen).toBe(false);
   });
 
   it("保全后安装失败且原库未变，重开原文恢复编辑并保留恢复包", async () => {
