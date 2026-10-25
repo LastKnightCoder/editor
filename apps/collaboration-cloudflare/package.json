@@ -23,9 +23,10 @@
     "@types/node": "^24.0.0",
     "@types/ws": "^8.18.1",
     "miniflare": "5.20261012.1-beta",
-    "typescript": "^5.0.4",
+    "typescript": "7.0.2",
     "vitest": "^3.2.4",
     "wrangler": "4.151.1",
-    "ws": "^8.18.3"
+    "ws": "^8.18.3",
+    "@typescript/typescript6": "6.0.2"
   }
 }

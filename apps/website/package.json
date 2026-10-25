@@ -37,7 +37,7 @@
     "@types/react-dom": "19.2.0",
     "@vitejs/plugin-react": "^4.7.0",
     "tailwindcss": "^4.2.0",
-    "typescript": "^5.0.4",
+    "typescript": "7.0.2",
     "vite": "7.2.4",
     "vitest": "^3.2.4",
     "wrangler": "4.151.1",
