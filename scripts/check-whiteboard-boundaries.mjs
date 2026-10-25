@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageRoot = resolve(root, "packages/whiteboard");
-const ts = createRequire(resolve(packageRoot, "package.json"))("typescript");
+const ts = createRequire(resolve(packageRoot, "package.json"))("@typescript/typescript6");
 const ignored = new Set([
   "node_modules",
   ".git",

@@ -11,6 +11,7 @@ const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async ({ mode }) => ({
+  build: { target: ["chrome107", "edge107", "firefox104", "safari16"] },
   define: {
     __TAU_PLUGIN_VALIDATION_SUITE__: JSON.stringify(
       mode === "plugin-validation" ? (process.env.TAU_PLUGIN_VALIDATION_SUITE ?? "basic") : ""

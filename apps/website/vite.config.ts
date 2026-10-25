@@ -59,7 +59,7 @@ function docsPagesPlugin(): Plugin {
     name: "tau-docs-pages",
     config: () => ({
       build: {
-        rollupOptions: {
+        rolldownOptions: {
           input: { main: `${root}index.html`, docs: `${root}docs/index.html` },
         },
       },
@@ -119,5 +119,9 @@ export default defineConfig({
   },
   server: { port: 5180, strictPort: true },
   preview: { port: 5180, strictPort: true },
-  build: { outDir: "dist", emptyOutDir: true },
+  build: {
+    target: ["chrome107", "edge107", "firefox104", "safari16"],
+    outDir: "dist",
+    emptyOutDir: true,
+  },
 });

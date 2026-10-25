@@ -21,13 +21,13 @@
     "@tau/editor": "workspace:*"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.1.17",
-    "@vitejs/plugin-react-swc": "^3.3.0",
+    "@tailwindcss/vite": "4.3.3",
+    "@vitejs/plugin-react-swc": "4.3.3",
     "@types/node": "^20.2.1",
     "@types/react": "19.2.0",
     "@types/react-dom": "19.2.0",
     "tailwindcss": "^4.1.11",
-    "typescript": "^5.0.4",
-    "vite": "7.2.4"
+    "typescript": "7.0.2",
+    "vite": "8.3.5"
   }
 }

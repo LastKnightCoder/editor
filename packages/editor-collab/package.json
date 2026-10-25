@@ -34,7 +34,7 @@
     "slate": "0.126.2",
     "slate-dom": "0.126.0",
     "slate-react": "0.126.4",
-    "typescript": "^5.0.4",
+    "typescript": "7.0.2",
     "vitest": "^3.2.4",
     "@tau/editor": "workspace:*"
   }

@@ -72,7 +72,7 @@ const publish = async (bearer: string, bytes: Buffer = zip()) =>
     new Request(`${f.env.API_ORIGIN}/v1/ci/releases`, {
       method: "POST",
       headers: { Authorization: `Bearer ${bearer}`, "Content-Type": "application/zip" },
-      body: bytes,
+      body: new Uint8Array(bytes),
     }),
     f.env
   );

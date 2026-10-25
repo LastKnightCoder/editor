@@ -43,7 +43,7 @@ function form(
     })
   );
   for (const [name, list] of Object.entries(files))
-    for (const bytes of list) data.append(name, new Blob([bytes]), name);
+    for (const bytes of list) data.append(name, new Blob([new Uint8Array(bytes)]), name);
   return data;
 }
 const submit = (data: FormData, headers: Record<string, string> = {}) =>

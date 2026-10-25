@@ -126,10 +126,23 @@ export async function encodeFeedback(parts: FeedbackRequestParts) {
   const form = new FormData();
   form.set("meta", JSON.stringify(parts.meta));
   for (const image of parts.images)
-    form.append("image", new Blob([image], { type: "image/webp" }), "screenshot.webp");
-  if (parts.log) form.set("log", new Blob([parts.log], { type: "application/gzip" }), "app.log.gz");
+    form.append(
+      "image",
+      new Blob([new Uint8Array(image)], { type: "image/webp" }),
+      "screenshot.webp"
+    );
+  if (parts.log)
+    form.set(
+      "log",
+      new Blob([new Uint8Array(parts.log)], { type: "application/gzip" }),
+      "app.log.gz"
+    );
   if (parts.perf)
-    form.set("perf", new Blob([parts.perf], { type: "application/gzip" }), "perf.json.gz");
+    form.set(
+      "perf",
+      new Blob([new Uint8Array(parts.perf)], { type: "application/gzip" }),
+      "perf.json.gz"
+    );
   const request = new Request("http://feedback.local", { method: "POST", body: form });
   return {
     body: new Uint8Array(await request.arrayBuffer()),

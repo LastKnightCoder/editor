@@ -4,6 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { createThemeBootstrapScript } from "@tau/themes";
 
 export default defineConfig({
+  build: { target: ["chrome107", "edge107", "firefox104", "safari16"] },
   plugins: [
     react(),
     tailwindcss(),

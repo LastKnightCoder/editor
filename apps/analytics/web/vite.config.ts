@@ -12,5 +12,9 @@ export default defineConfig({
     strictPort: true,
     proxy: { "/v1": "http://localhost:8787", "/health": "http://localhost:8787" },
   },
-  build: { outDir: "dist", emptyOutDir: true },
+  build: {
+    target: ["chrome107", "edge107", "firefox104", "safari16"],
+    outDir: "dist",
+    emptyOutDir: true,
+  },
 });

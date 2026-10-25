@@ -8,8 +8,8 @@
   "scripts": {
     "test": "vitest run --config vitest.config.ts",
     "check": "tsc --noEmit",
-    "lint": "eslint src --ext .ts",
-    "format": "prettier --write src package.json tsconfig.json vitest.config.ts"
+    "lint": "oxlint src",
+    "format": "oxfmt --write src package.json tsconfig.json vitest.config.ts"
   },
   "dependencies": {
     "@slate-yjs/core": "1.0.2",
@@ -30,7 +30,7 @@
     "@types/react": "^18.3.12",
     "react": "^18.3.1",
     "slate": "0.123.0",
-    "typescript": "^5.0.4",
+    "typescript": "7.0.2",
     "vitest": "^3.2.4"
   }
 }
