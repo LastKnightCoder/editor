@@ -6,12 +6,14 @@
 
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { initThemeRuntime } from "@tau/themes/react";
 import { initScrollbarAutoHide } from "@tau/ui";
 import { initToolCallRenderers } from "@/tool-call-renderers";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
+import { queryClient } from "@/queryClient";
 import "./showcase.css";
 import { ShowcaseApp } from "./ShowcaseApp";
 
@@ -19,12 +21,15 @@ import { ShowcaseApp } from "./ShowcaseApp";
 initToolCallRenderers();
 
 // 富文本预览（知识检索、内容编辑 diff 视图）里的编辑器与真实壳层用同一个 getContentKit()，
-// 扩展与服务因此与壳层一致，档案里看到的就是真实渲染结果
+// 扩展与服务因此与壳层一致，档案里看到的就是真实渲染结果；
+// 扩展界面层（白板文档阅读/选择器等）依赖 react-query，与壳层共用同一个 QueryClient
 function ShowcaseRoot() {
   return (
-    <DndProvider backend={HTML5Backend}>
-      <ShowcaseApp />
-    </DndProvider>
+    <QueryClientProvider client={queryClient}>
+      <DndProvider backend={HTML5Backend}>
+        <ShowcaseApp />
+      </DndProvider>
+    </QueryClientProvider>
   );
 }
 
