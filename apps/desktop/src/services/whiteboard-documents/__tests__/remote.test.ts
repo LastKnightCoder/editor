@@ -175,4 +175,13 @@ it("错误码前缀解析：无前缀或前缀后为空时保留原文", () => {
   expect(remoteFailureText(new Error("REMOTE_FAILED: 本机视频尚不支持共享发布"))).toBe(
     "本机视频尚不支持共享发布"
   );
+  const pending = remoteFailureText(
+    new Error("DURABLE_DOCUMENT_UNSAVED: 白板窗口未确认保存，已保留会话")
+  );
+  expect(pending).toContain("稍后重试");
+  expect(pending).toContain("（原因：白板窗口未确认保存，已保留会话）");
+  const broken = remoteFailureText(new Error("DURABLE_DOCUMENT_FAILED: 数据库连接代次已变化"));
+  expect(broken).toContain("重新打开");
+  expect(broken).not.toContain("稍后重试");
+  expect(broken).toContain("（原因：数据库连接代次已变化）");
 });

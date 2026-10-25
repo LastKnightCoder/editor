@@ -97,6 +97,8 @@ const remoteStatus = (
   snapshot: RemoteSnapshot,
   status: Omit<WhiteboardRemoteStatus, "pending">
 ): WhiteboardRemoteStatus => ({ ...status, pending: snapshot.pending.length });
+/** 排空时窗口未及回执（不可达、超时、被并发操作取消）；会话本身完好，稍后重试即可。 */
+class DrainInterrupted extends Error {}
 class WhiteboardDocumentsModule {
   private migration!: WhiteboardMigration;
   private transitions!: WhiteboardTransitions;
@@ -1799,17 +1801,17 @@ class WhiteboardDocumentsModule {
               const requestId = randomUUID(),
                 window = BrowserWindow.fromId(view.owner);
               if (!window || window.isDestroyed()) {
-                reject(new Error("白板窗口不可达"));
+                reject(new DrainInterrupted("白板窗口不可达"));
                 return;
               }
               const timer = setTimeout(() => {
                 this.waiters.delete(requestId);
-                reject(new Error("白板窗口未确认保存，已保留会话"));
+                reject(new DrainInterrupted("白板窗口未确认保存，已保留会话"));
               }, 8000);
               cancellations.push(() => {
                 clearTimeout(timer);
                 this.waiters.delete(requestId);
-                reject(new Error("关闭已取消"));
+                reject(new DrainInterrupted("关闭已取消"));
               });
               this.waiters.set(requestId, {
                 owner: view.owner,
@@ -1817,7 +1819,7 @@ class WhiteboardDocumentsModule {
                   clearTimeout(timer);
                   this.waiters.delete(requestId);
                   if (!active) {
-                    reject(new Error("关闭已取消"));
+                    reject(new DrainInterrupted("关闭已取消"));
                     return;
                   }
                   if (error) reject(new Error(error));
@@ -1871,9 +1873,10 @@ class WhiteboardDocumentsModule {
       active = false;
       cancellations.forEach(cancel => cancel());
       resume();
-      throw new Error(
-        `DURABLE_DOCUMENT_UNSAVED: ${error instanceof Error ? error.message : String(error)}`
-      );
+      // 窗口回报的保存错误与落盘错误留在会话里，重试不会消失，需重开白板。
+      const code =
+        error instanceof DrainInterrupted ? "DURABLE_DOCUMENT_UNSAVED" : "DURABLE_DOCUMENT_FAILED";
+      throw new Error(`${code}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }

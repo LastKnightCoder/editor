@@ -145,7 +145,7 @@ it("一方失败后迟到的另一方成功回执不能再次封住活跃视图"
   const [, b] = await opened();
   const { prepareDurableDocuments } = await import("../../durable-document-lifecycle");
   const pending = prepareDurableDocuments({ databaseName: "A", reason: "database-change" });
-  const failed = expect(pending).rejects.toThrow("DURABLE_DOCUMENT_UNSAVED");
+  const failed = expect(pending).rejects.toThrow("DURABLE_DOCUMENT_FAILED: 保存失败");
   await vi.waitFor(() => expect(requests()).toHaveLength(2));
   const [first, second] = requests();
   await call("drained", first.owner, first.data.requestId, "保存失败");
