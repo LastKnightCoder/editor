@@ -17,7 +17,7 @@ for (const path of explicit) {
 const files = (
   mode === "lint:all"
     ? gitPaths(["ls-files", "--cached", "--others", "--exclude-standard", "-z"]).filter(path =>
-        /^(apps|packages|examples)\/.*\.(ts|tsx)$/.test(path)
+        /^(apps|packages|examples)\/.*\.(ts|tsx|mts|cts)$/.test(path)
       )
     : explicit.length
       ? explicit
@@ -34,10 +34,10 @@ const files = (
       mode === "lint:all" ||
       !/(^|\/)(dist|data|node_modules|vendor)\//.test(path))
 );
-const lintFiles = files.filter(path => /\.(ts|tsx|mjs|cjs|js|jsx)$/.test(path));
+const lintFiles = files.filter(path => /\.(ts|tsx|mts|cts|mjs|cjs|js|jsx)$/.test(path));
 const formatFiles = files.filter(
   path =>
-    /\.(ts|tsx|mjs|cjs|js|jsx|json|md|css|less|scss|yml|yaml)$/.test(path) &&
+    /\.(ts|tsx|mts|cts|mjs|cjs|js|jsx|json|md|css|less|scss|yml|yaml)$/.test(path) &&
     !path.endsWith("lock.yaml")
 );
 const supported = mode.startsWith("lint") ? lintFiles : formatFiles;

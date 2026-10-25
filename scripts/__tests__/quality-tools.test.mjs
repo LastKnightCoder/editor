@@ -166,12 +166,14 @@ test("质量命令检查显式 data 路径、含空格文件名与不存在的�
       encoding: "utf8",
     });
   try {
-    const file = "apps/mobile/src/features/plugins/data/quality with spaces.ts";
-    mkdirSync(dirname(resolve(directory, file)), { recursive: true });
-    writeFileSync(resolve(directory, file), 'import { value } from "@tau/editor/src/private";');
-    const lint = run("lint", file);
-    assert.equal(lint.status, 1, lint.stderr || lint.stdout);
-    assert.match(lint.stdout + lint.stderr, /no-restricted-imports/);
+    for (const extension of ["ts", "mts", "cts"]) {
+      const file = `apps/mobile/src/features/plugins/data/quality with spaces.${extension}`;
+      mkdirSync(dirname(resolve(directory, file)), { recursive: true });
+      writeFileSync(resolve(directory, file), 'import { value } from "@tau/editor/src/private";');
+      const lint = run("lint", file);
+      assert.equal(lint.status, 1, lint.stderr || lint.stdout);
+      assert.match(lint.stdout + lint.stderr, /no-restricted-imports/);
+    }
 
     const ignored = "apps/desktop/dist/generated.ts";
     mkdirSync(dirname(resolve(directory, ignored)), { recursive: true });

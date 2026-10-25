@@ -1,5 +1,5 @@
 module.exports = {
-  "*.{js,jsx,ts,tsx,mjs,cjs}": [
+  "*.{js,jsx,ts,tsx,mts,cts,mjs,cjs}": [
     "oxlint --fix --no-error-on-unmatched-pattern",
     "oxfmt --write --no-error-on-unmatched-pattern",
   ],

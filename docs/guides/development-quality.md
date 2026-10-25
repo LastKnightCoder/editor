@@ -25,7 +25,7 @@ pnpm check:plugin-process-boundaries
 pnpm check:docs
 ```
 
-`lint:all` 检查 apps、packages、examples 中 Git 可见的 TS/TSX 文件；不把独立插件子模块纳入宿主检查。长文件列表自动分批，退出码汇总所有批次。`test:quality` 必须通过；架构边界脚本仍须按变更范围执行。
+`lint:all` 检查 apps、packages、examples 中 Git 可见的 TS/TSX/MTS/CTS 文件；不把独立插件子模块纳入宿主检查。长文件列表自动分批，退出码汇总所有批次。`test:quality` 必须通过；架构边界脚本仍须按变更范围执行。
 
 提交钩子通过 lint-staged 对暂存文件执行 `oxlint --fix` 与 `oxfmt --write`，然后执行既有数据库、白板和文档检查。
 
@@ -46,6 +46,21 @@ pnpm check:docs
 需要 `createSourceFile`、`createProgram`、`transpileModule` 或声明文件生成 API 的脚本，显式从 `@typescript/typescript6` 导入，并在所属包声明开发依赖；不要从 `typescript` 根入口调用旧编译器 API。独立作者验证工程使用其自身锁文件中的工具版本。
 
 修改编译器或对应脚本后，执行三项边界检查、`node --test scripts/__tests__/database-boundaries.test.mjs`、SDK 的 API 支持矩阵与声明打包验证。需要生成 JS 的包应显式配置 `rootDir`；环境全局类型在 tsconfig 的 `types` 中列出。CSS 副作用导入使用对应环境声明，不关闭 `noUncheckedSideEffectImports` 来绕过诊断。
+
+## 构建工具验证
+
+工作区直接依赖 Vite 8.3.5；构建插件使用兼容 Vite 8 的版本。Vitest 3 保持自己的内部 Vite 依赖，不通过全局 overrides 强制替换。配置使用 `build.rolldownOptions`、`output.codeSplitting` 和 Oxc 压缩；已有浏览器目标在各应用配置中显式保留。
+
+```sh
+pnpm --filter desktop exec vite build --configLoader runner
+node apps/desktop/scripts/verify-plugin-content.mjs --production
+pnpm --filter mobile build
+pnpm --filter browser-extension build
+pnpm --filter @example/database build
+pnpm --filter @example/whiteboard build
+```
+
+内容进程验证应在桌面 bundle 构建后运行，检查真实构建入口、动态分包及插件编解码。原生安装包继续按 [客户端构建与安装](/docs/guides/ops-client-build-install.md) 验证；单独的 Vite build 不能代替安装包及原生运行时验收。
 
 ## 性能验证
 

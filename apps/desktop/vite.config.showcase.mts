@@ -30,8 +30,21 @@ export default defineConfig({
       "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
     },
   },
-  plugins: [{ name: "tau-theme-bootstrap", transformIndexHtml: () => [{ tag: "script", children: createThemeBootstrapScript(), injectTo: "head-prepend" }] }, react(), tailwindcss()],
-  build: { outDir: "output/showcase-build", rollupOptions: { input: path.resolve(__dirname, "showcase.html") } },
+  plugins: [
+    {
+      name: "tau-theme-bootstrap",
+      transformIndexHtml: () => [
+        { tag: "script", children: createThemeBootstrapScript(), injectTo: "head-prepend" },
+      ],
+    },
+    react(),
+    tailwindcss(),
+  ],
+  build: {
+    target: ["chrome107", "edge107", "firefox104", "safari16"],
+    outDir: "output/showcase-build",
+    rolldownOptions: { input: path.resolve(__dirname, "showcase.html") },
+  },
   clearScreen: false,
   server: {
     port: 6199,
