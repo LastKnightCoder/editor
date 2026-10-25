@@ -46,14 +46,28 @@ export class MarkdownSerializerRegistry {
   private blockTypes: Set<string> = new Set();
   private footnoteCounter = 0;
   private footnoteDefinitions: Map<number, string> = new Map();
+  private readonly resolve?: (element: CustomElement) => MarkdownSerializer | undefined;
 
-  constructor(serializers: MarkdownSerializer[] = []) {
+  constructor(
+    serializers: MarkdownSerializer[] = [],
+    resolve?: (element: CustomElement) => MarkdownSerializer | undefined
+  ) {
+    this.resolve = resolve;
     this.registerMany(serializers);
   }
 
   resetFootnotes(): void {
     this.footnoteCounter = 0;
     this.footnoteDefinitions.clear();
+  }
+
+  captureFootnotes() {
+    return { counter: this.footnoteCounter, definitions: new Map(this.footnoteDefinitions) };
+  }
+
+  restoreFootnotes(snapshot: ReturnType<MarkdownSerializerRegistry["captureFootnotes"]>): void {
+    this.footnoteCounter = snapshot.counter;
+    this.footnoteDefinitions = new Map(snapshot.definitions);
   }
 
   getFootnoteCount(): number {
@@ -93,11 +107,13 @@ export class MarkdownSerializerRegistry {
     serializers.forEach(serializer => this.register(serializer));
   }
 
-  getSerializer(type: string): MarkdownSerializer | undefined {
+  getSerializer(type: string, element?: CustomElement): MarkdownSerializer | undefined {
+    if (element && this.resolve) return this.resolve(element);
     return this.serializers.find(s => s.type === type);
   }
 
   isBlock(element: CustomElement): boolean {
+    if (this.resolve) return Boolean(this.resolve(element)?.isBlock);
     return this.blockTypes.has(element.type);
   }
 }

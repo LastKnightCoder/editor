@@ -1,5 +1,6 @@
+import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { countTextWords } from "@tau/db-schema/content-metrics";
-import { mobileContentMetrics } from "../app/plugins/content";
+import { mobileContentMetrics, mobileContentPlugins } from "../app/plugins/content";
 import type { SettingCompat } from "../types";
 import { invoke } from "@tauri-apps/api/core";
 import { occurrenceDateMap, projectCompletions, originalOccurrenceDate } from "./task-occurrences";
@@ -259,19 +260,43 @@ export function getContentDetail(contentId: number) {
   return trackedInvoke<ContentDetailResponse>("get_content_detail", { contentId });
 }
 
-export function createQuickCard(params: { content: unknown[]; count: number }) {
+async function prepareCreatedContent(
+  content: readonly unknown[],
+  contracts?: ContentContractDictionary
+) {
+  const { getMobileContentKit } = await import("./editorKit");
+  const catalog = await mobileContentPlugins.prepareEditorContracts(
+    getMobileContentKit().extensions
+  );
+  return catalog.createDocument(content as import("slate").Descendant[], contracts);
+}
+
+export async function createQuickCard(params: {
+  content: unknown[];
+  count: number;
+  contracts?: ContentContractDictionary;
+}) {
+  const value = await prepareCreatedContent(params.content, params.contracts);
   // 创建是非幂等操作：超时只代表放弃等待，后端事务可能仍会提交，
   // 引导用户确认而非盲目重试，避免产生重复卡片
   return withTimeout(
     trackedInvoke<CardDetailResponse>("create_quick_card", {
-      payload: { ...params, count: mobileContentMetrics.count(params.content) },
+      payload: { ...params, ...value, count: mobileContentMetrics.count(value.content) },
     }),
     CARD_INVOKE_TIMEOUT_MS,
     `CARD_INVOKE_TIMEOUT: 创建卡片超时（${CARD_INVOKE_TIMEOUT_MS / 1000} 秒），请返回列表确认是否已创建，勿直接重试`
   );
 }
 
-export function updateContent(params: { contentId: number; content: unknown[]; count: number }) {
+export function updateContent(params: {
+  contentId: number;
+  content: unknown[];
+  count: number;
+  contracts?: ContentContractDictionary;
+  expectedRevision?: string;
+  expectedDocumentId?: string;
+  expectedSourceId?: string;
+}) {
   return withCardTimeout(
     trackedInvoke<ContentDetailResponse>("update_content", {
       payload: { ...params, count: mobileContentMetrics.count(params.content) },
@@ -348,9 +373,14 @@ export function getDatabaseSchemaStatus(name?: string) {
   });
 }
 
-export function createContent(params: { content: unknown[]; count?: number }) {
+export async function createContent(params: {
+  content: unknown[];
+  count?: number;
+  contracts?: ContentContractDictionary;
+}) {
+  const document = await prepareCreatedContent(params.content, params.contracts);
   return trackedInvoke<number>("create_content", {
-    payload: { ...params, count: mobileContentMetrics.count(params.content ?? []) },
+    payload: { ...params, ...document, count: mobileContentMetrics.count(document.content) },
   });
 }
 
@@ -367,9 +397,10 @@ export function diaryGetEntry(payload: { type: DiaryEntry["type"]; date: string 
   );
 }
 
-export function diaryUpsertEntry(payload: DiaryUpsertPayload) {
+export async function diaryUpsertEntry(payload: DiaryUpsertPayload) {
+  const document = await prepareCreatedContent(payload.content, payload.contracts);
   return trackedInvoke<RawDiaryEntry>("diary_upsert_entry", {
-    payload: { ...payload, wordCount: mobileContentMetrics.count(payload.content) },
+    payload: { ...payload, ...document, wordCount: mobileContentMetrics.count(document.content) },
   }).then(normalizeDiaryEntry);
 }
 
@@ -464,16 +495,42 @@ async function withAssistantItems(items: TodoItem[]): Promise<TodoItem[]> {
   );
 }
 
-export function todoCreateItem(payload: CreateTodoItemPayload) {
+export async function todoCreateItem(payload: CreateTodoItemPayload) {
+  const { activeDatabase: databaseName } = await listDatabases();
+  const { description, ...input } = payload;
+  const document = description?.trim()
+    ? await prepareCreatedContent([
+        { type: "paragraph", children: [{ type: "formatted", text: description }] },
+      ])
+    : undefined;
   return trackedInvoke<TodoItem>("todo_create_item", {
-    payload: { ...payload, descriptionCount: countTextWords(payload.description ?? "") },
+    databaseName,
+    payload: {
+      ...input,
+      descriptionContent: document?.content,
+      contracts: document?.contracts,
+      descriptionCount: countTextWords(description ?? ""),
+    },
     timeZone: localTimeZone(),
   });
 }
 
-export function todoCreateItemRelative(payload: CreateTodoItemRelativePayload) {
+export async function todoCreateItemRelative(payload: CreateTodoItemRelativePayload) {
+  const { activeDatabase: databaseName } = await listDatabases();
+  const { description, ...input } = payload;
+  const document = description?.trim()
+    ? await prepareCreatedContent([
+        { type: "paragraph", children: [{ type: "formatted", text: description }] },
+      ])
+    : undefined;
   return trackedInvoke<TodoItem>("todo_create_item_relative", {
-    payload: { ...payload, descriptionCount: countTextWords(payload.description ?? "") },
+    databaseName,
+    payload: {
+      ...input,
+      descriptionContent: document?.content,
+      contracts: document?.contracts,
+      descriptionCount: countTextWords(description ?? ""),
+    },
     timeZone: localTimeZone(),
   });
 }
@@ -835,14 +892,19 @@ export function articleGet(id: number) {
   return trackedInvoke<ArticleDetail>("article_get", { payload: { id } });
 }
 
-export function articleCreate(params: {
+export async function articleCreate(params: {
   title: string;
   author?: string;
   content?: unknown[];
+  contracts?: ContentContractDictionary;
   count?: number;
 }) {
+  const document = await prepareCreatedContent(
+    params.content ?? [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }],
+    params.contracts
+  );
   return trackedInvoke<ArticleDetail>("article_create", {
-    payload: { ...params, count: mobileContentMetrics.count(params.content ?? []) },
+    payload: { ...params, ...document, count: mobileContentMetrics.count(document.content) },
   });
 }
 
@@ -894,7 +956,7 @@ export function projectDelete(id: number) {
   return trackedInvoke<number>("project_delete", { payload: { id } });
 }
 
-export function projectItemCreate(params: {
+export async function projectItemCreate(params: {
   projectId: number;
   parentId?: number;
   title: string;
@@ -902,10 +964,18 @@ export function projectItemCreate(params: {
   refType?: string;
   refId?: number;
   content?: unknown[];
+  contracts?: ContentContractDictionary;
   count?: number;
 }) {
+  const document =
+    (params.itemType ?? "document") === "document" && !params.refType
+      ? await prepareCreatedContent(
+          params.content ?? [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }],
+          params.contracts
+        )
+      : { content: params.content, contracts: params.contracts };
   return trackedInvoke<ProjectItem>("project_item_create", {
-    payload: { ...params, count: mobileContentMetrics.count(params.content ?? []) },
+    payload: { ...params, ...document, count: mobileContentMetrics.count(document.content ?? []) },
   });
 }
 
@@ -934,6 +1004,9 @@ export function getHomeStats() {
 
 export function collabBindContent(params: {
   contentId: number;
+  expectedDocumentId: string;
+  expectedSourceId: string;
+  expectedRevision: string;
   serverUrl: string;
   documentId: string;
   sourceType?: string;
@@ -941,6 +1014,58 @@ export function collabBindContent(params: {
   sourceTitle?: string;
 }) {
   return trackedInvoke<CollaborationBinding>("collab_bind_content", { payload: params });
+}
+
+export type CachedContentSession = import("@tau/collaboration").CollaborationSession & {
+  baselineId: string;
+  epoch: number;
+  resourcePaths?: Record<string, string>;
+  resources?: string[];
+};
+export type CachedInputDraft = import("@tau/collaboration").ContentInputDraft & { viewId: string };
+
+export function collabReadCache(documentId: string) {
+  return trackedInvoke<{
+    metadata: CachedContentSession;
+    state: string;
+    updates: string[];
+    revision: string;
+    inputDrafts: CachedInputDraft[];
+  } | null>("collab_cache_read", { documentId });
+}
+export function collabWriteCache(
+  payload: {
+    documentId: string;
+    metadata: CachedContentSession;
+    resources: string[];
+    references: import("@tau/db-schema/content-identities").ContentEntityReference[];
+    state: string;
+    expectedRevision?: string;
+    confirmedDrafts?: CachedInputDraft[];
+  },
+  snapshot = false
+) {
+  return trackedInvoke<string>(snapshot ? "collab_cache_snapshot" : "collab_cache_append", {
+    payload,
+  });
+}
+export function collabNodeViews(documentId: string) {
+  return trackedInvoke<Record<string, Record<string, unknown>>>("collab_node_views", {
+    documentId,
+  });
+}
+export function collabUpdateNodeView(
+  documentId: string,
+  nodeId: string,
+  owner: string,
+  patch: Record<string, unknown>
+) {
+  return trackedInvoke<Record<string, unknown>>("collab_update_node_view", {
+    payload: { documentId, nodeId, owner, patch },
+  });
+}
+export function collabListCache() {
+  return trackedInvoke<CachedContentSession[]>("collab_cache_list");
 }
 
 export function collabGetBinding(contentId: number) {
@@ -957,14 +1082,23 @@ export function collabUnbindContent(contentId: number) {
 
 /** 协作投影专用写通道：绑定漂移时服务端侧自动解绑并返回 reason=drift */
 export function collabProjectContent(params: {
+  documentId: string;
+  contracts?: ContentContractDictionary;
+  expectedRevision?: string;
+  expectedDocumentId?: string;
+  expectedSourceId?: string;
   contentId: number;
   content: unknown[];
   count: number;
 }) {
-  return trackedInvoke<{ projected: boolean; changed?: boolean; reason?: string }>(
-    "collab_project_content",
-    { payload: { ...params, count: mobileContentMetrics.count(params.content) } }
-  );
+  return trackedInvoke<{
+    projected: boolean;
+    changed?: boolean;
+    reason?: string;
+    revision?: string;
+  }>("collab_project_content", {
+    payload: { ...params, count: mobileContentMetrics.count(params.content) },
+  });
 }
 
 /* ── 闪卡 ── */
@@ -1116,26 +1250,36 @@ export function calendarEventGetByDateRange(payload: {
   return trackedInvoke<CalendarEvent[]>("calendar_event_get_by_date_range", { payload });
 }
 
-export function calendarEventCreate(payload: CreateCalendarEventInput) {
+export async function calendarEventCreate(payload: CreateCalendarEventInput) {
+  const document = payload.detailContent
+    ? await prepareCreatedContent(payload.detailContent, payload.contracts)
+    : undefined;
   return trackedInvoke<CalendarEvent>("calendar_event_create", {
     payload: {
       ...payload,
-      ...(payload.detailContent
+      ...(document
         ? {
-            detailContentCount: mobileContentMetrics.count(payload.detailContent),
+            detailContent: document.content,
+            contracts: document.contracts,
+            detailContentCount: mobileContentMetrics.count(document.content),
           }
         : {}),
     },
   });
 }
 
-export function calendarEventUpdate(payload: UpdateCalendarEventInput) {
+export async function calendarEventUpdate(payload: UpdateCalendarEventInput) {
+  const document = payload.detailContent
+    ? await prepareCreatedContent(payload.detailContent, payload.contracts)
+    : undefined;
   return trackedInvoke<CalendarEvent>("calendar_event_update", {
     payload: {
       ...payload,
-      ...(payload.detailContent
+      ...(document
         ? {
-            detailContentCount: mobileContentMetrics.count(payload.detailContent),
+            detailContent: document.content,
+            contracts: document.contracts,
+            detailContentCount: mobileContentMetrics.count(document.content),
           }
         : {}),
     },
@@ -1144,4 +1288,36 @@ export function calendarEventUpdate(payload: UpdateCalendarEventInput) {
 
 export function calendarEventDelete(id: number) {
   return trackedInvoke<number>("calendar_event_delete", { payload: { id } });
+}
+
+export type ContentRecovery = {
+  id: string;
+  workspace?: string;
+  missing?: string[];
+  error?: string;
+};
+export function listContentRecoveries() {
+  return trackedInvoke<ContentRecovery[]>("content_recovery_list");
+}
+export function preserveContentRecovery(documentId: string) {
+  return trackedInvoke<string>("content_recovery_preserve", { documentId });
+}
+export function exportContentRecovery(id: string) {
+  return trackedInvoke<string>("content_recovery_export", { id });
+}
+export function collabAdoptCache(payload: Parameters<typeof collabWriteCache>[0]) {
+  return trackedInvoke<string>("collab_cache_adopt", { payload });
+}
+export function collabInputDraft(payload: {
+  documentId: string;
+  baselineId: string;
+  epoch: number;
+  viewId: string;
+  nodeId: string;
+  field: string;
+  value: string;
+  revision: string;
+  sequence: number;
+}) {
+  return trackedInvoke<void>("collab_input_draft", { payload });
 }

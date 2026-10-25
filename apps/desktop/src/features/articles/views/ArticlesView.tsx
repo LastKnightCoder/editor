@@ -135,7 +135,11 @@ export function ArticlesView() {
   const handleExportMarkdown = useCallback(async (article: ArticlePageItem) => {
     try {
       const full = await findOneArticle(article.id);
-      await exportContentAsMarkdown({ title: full.title, content: full.content });
+      await exportContentAsMarkdown({
+        title: full.title,
+        content: full.content,
+        contentId: full.contentId,
+      });
     } catch {
       toast.error("导出失败");
     }
@@ -188,7 +192,7 @@ export function ArticlesView() {
   const handleImport = useCallback(async () => {
     setBusy(true);
     try {
-      const imported = await importMarkdownFiles(({ title, content }) =>
+      const imported = await importMarkdownFiles(({ title, content, contracts }) =>
         createArticleCommand({
           title,
           bannerBg: "",
@@ -197,6 +201,7 @@ export function ArticlesView() {
           isDelete: false,
           author: "",
           content,
+          contracts,
           tags: [],
           links: [],
           count: getContentLength(content),
@@ -228,7 +233,7 @@ export function ArticlesView() {
   const filtering = Boolean(tag || query);
 
   return (
-    <div className="@container mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+    <div className="@container mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4">
       {/* 一整张纸：工具栏固定在纸顶，月段在纸内滚动 */}
       <div
         className="bg-surface shadow-card rounded-tau-lg relative flex min-h-0 flex-1 flex-col overflow-hidden"
@@ -236,8 +241,8 @@ export function ArticlesView() {
       >
         {importDrop.overlay}
         {/* 工具栏：标题 / 当前标签 + 摘要 + 标题搜索 + 导入 / 新建 */}
-        <div className="mb-3 mt-5 flex h-10 flex-none items-center gap-3 px-8">
-          <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
+        <div className="mt-5 mb-3 flex h-10 flex-none items-center gap-3 px-8">
+          <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em] whitespace-nowrap">
             文章
           </h1>
           {tag && (
@@ -245,7 +250,7 @@ export function ArticlesView() {
               type="button"
               title="清除标签筛选"
               onClick={() => navigator.push("articles", { id: "" })}
-              className="bg-selected text-accent-text inline-flex h-6 max-w-[180px] shrink-0 items-center gap-1 rounded-full pl-2.5 pr-1.5 text-[12px] font-medium"
+              className="bg-selected text-accent-text inline-flex h-6 max-w-[180px] shrink-0 items-center gap-1 rounded-full pr-1.5 pl-2.5 text-[12px] font-medium"
             >
               <span className="truncate">{tag}</span>
               <X className="size-3 shrink-0" strokeWidth={2} />
@@ -499,7 +504,7 @@ function MonthSection({
   return (
     <section className="mb-[26px]">
       {/* sticky 月头：纸色实底、底缘 13px 渐透——卡片向上滚过时在月头下缘淡出 */}
-      <header className="sticky top-0 z-[2] flex items-baseline gap-3 bg-[linear-gradient(180deg,var(--tau-bg-surface)_calc(100%_-_13px),transparent)] pb-[13px] pl-0.5 pt-0.5">
+      <header className="sticky top-0 z-[2] flex items-baseline gap-3 bg-[linear-gradient(180deg,var(--tau-bg-surface)_calc(100%_-_13px),transparent)] pt-0.5 pb-[13px] pl-0.5">
         <span className="text-[16px] font-semibold tracking-[-0.01em]">
           {label}
           {year !== undefined && (

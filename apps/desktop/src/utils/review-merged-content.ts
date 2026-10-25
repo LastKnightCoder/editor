@@ -215,7 +215,10 @@ const getNodeSummaryText = (node: Descendant): string => {
   if (isTextNode(node)) return node.text;
   if (!isElementNode(node)) return "";
   if (node.type === "code-block") {
-    return String((node as { code?: string }).code || "");
+    return node.children
+      .filter(child => isElementNode(child) && child.type === "code-step")
+      .map(child => String((child as unknown as { code: string }).code))
+      .join("\n");
   }
   return extractPlainText([node]);
 };
@@ -244,11 +247,10 @@ const getNodeMetadata = (node: Descendant) => {
     case "code-block":
       return {
         language: (node as { language?: string }).language || "",
-        highlightLines: (node as { highlightLines?: string }).highlightLines || "",
-        magicMove:
-          (node as { magicMove?: unknown }).magicMove == null
-            ? null
-            : JSON.stringify((node as { magicMove?: unknown }).magicMove),
+        steps: node.children.map(child => {
+          const step = child as unknown as { title?: string; highlightLines?: string };
+          return { title: step.title ?? "", highlightLines: step.highlightLines ?? "" };
+        }),
       };
     default:
       return {};
@@ -313,27 +315,14 @@ const describeMetadataDiff = (beforeNode: Descendant, afterNode: Descendant) => 
       return "列表项图标已修改";
     }
     case "code-block": {
-      const beforeCode = beforeNode as {
-        language?: string;
-        highlightLines?: string;
-        magicMove?: unknown;
-      };
-      const afterCode = afterNode as {
-        language?: string;
-        highlightLines?: string;
-        magicMove?: unknown;
-      };
+      const beforeCode = getNodeMetadata(beforeNode) as { language: string; steps: unknown };
+      const afterCode = getNodeMetadata(afterNode) as { language: string; steps: unknown };
       const changes: string[] = [];
-      if ((beforeCode.language || "") !== (afterCode.language || "")) {
+      if (beforeCode.language !== afterCode.language) {
         changes.push(`语言：${beforeCode.language || "plain"} -> ${afterCode.language || "plain"}`);
       }
-      if ((beforeCode.highlightLines || "") !== (afterCode.highlightLines || "")) {
-        changes.push("高亮行已修改");
-      }
-      const beforeMagicMove = JSON.stringify(beforeCode.magicMove || null);
-      const afterMagicMove = JSON.stringify(afterCode.magicMove || null);
-      if (beforeMagicMove !== afterMagicMove) {
-        changes.push("Magic Move 已修改");
+      if (JSON.stringify(beforeCode.steps) !== JSON.stringify(afterCode.steps)) {
+        changes.push("步骤标题或高亮行已修改");
       }
       return changes.length > 0 ? `代码块属性已修改：${changes.join("；")}` : null;
     }
@@ -715,20 +704,14 @@ const renderCodeBlockDiff = (
   afterNode: Descendant,
   diffId: string
 ): Descendant[] => {
-  const beforeCodeNode = beforeNode as {
-    code?: string;
-  };
-  const afterCodeNode = afterNode as {
-    code?: string;
-  };
   const results: Descendant[] = [];
   const metaDescription = describeMetadataDiff(beforeNode, afterNode);
   if (metaDescription) {
     results.push(createSyntheticParagraph(metaDescription, "meta", "replace", diffId));
   }
 
-  const beforeLines = normalizeCodeLines(String(beforeCodeNode.code || ""));
-  const afterLines = normalizeCodeLines(String(afterCodeNode.code || ""));
+  const beforeLines = normalizeCodeLines(getNodeSummaryText(beforeNode));
+  const afterLines = normalizeCodeLines(getNodeSummaryText(afterNode));
   const diffs = computeSequenceDiff(beforeLines, afterLines, (beforeLine, afterLine) =>
     beforeLine === afterLine ? 1 : Number.NEGATIVE_INFINITY
   );

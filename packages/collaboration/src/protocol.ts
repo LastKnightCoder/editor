@@ -70,10 +70,19 @@ export type JoinRequestResult =
   | { id: string; status: "pending"; documentId: string }
   | { status: "approved"; documentId: string };
 
+export interface ContentVersionUpgrade {
+  expectedRevision: string;
+  content: ContentNode[];
+}
+
 export interface SourceBinding {
   databaseName: string;
   contentId: number;
   contentCreatedAt: number;
+  librarySourceId?: string;
+  contentDocumentId?: string;
+  /** 本机缓存最后确认的主库投影修订，不随文档共享。 */
+  projectionRevision?: string;
   sourceType?: SourceType;
   sourceId?: number;
   sourceTitle?: string;
@@ -86,6 +95,7 @@ export interface SourceBinding {
  *  同键幂等（见 store.create 的 UNIQUE(owner_id, creation_key)），不解释键的含义。 */
 
 export interface CollaborationSession extends SharedDocumentInfo {
+  remoteVersionAvailable?: boolean;
   mode?: "local" | "shared";
   frozen?: boolean;
   serverUrl: string;
@@ -111,13 +121,27 @@ export interface ContentSessionSnapshot {
   source?: SourceBinding;
 }
 
+/** 白板房间只在协作状态中列出成员与角色；打开、同步和投影由白板文档会话负责。 */
+export interface SharedWhiteboardInfo extends SharedDocumentInfo {
+  serverUrl: string;
+}
+
 export interface CollaborationState {
   serverUrl: string;
   nickname: string;
   deviceId?: string;
   sessions: CollaborationSession[];
+  whiteboards?: SharedWhiteboardInfo[];
   requests: JoinRequest[];
   error?: string;
+}
+
+export interface ContentInputDraft {
+  nodeId: string;
+  field: string;
+  value: string;
+  revision: string;
+  sequence: number;
 }
 
 export type CollaborationEvent =

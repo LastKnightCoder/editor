@@ -1,0 +1,41 @@
+{
+  "id": "tau.html",
+  "name": "HTML",
+  "version": "0.1.10",
+  "categories": [
+    "editor",
+    "ai"
+  ],
+  "keywords": [
+    "HTML",
+    "网页",
+    "嵌入"
+  ],
+  "apiVersion": 1,
+  "format": "cjs",
+  "main": "main.js",
+  "styles": "main.css",
+  "skills": [
+    "authoring"
+  ],
+  "integrity": {
+    "main.js": "29f6fdf8fc912b3a46f7aa136f44ee6e8e65d6b4d23578bb6df9825bb4124860",
+    "main.css": "468f2feb73a33e5711b1583b609e4ab3818e83d5f19a38dcd9d027b77eb269d8",
+    "skills/authoring/SKILL.md": "5a476fc110584964ab053cb40f0399ec27125bc1d315b6d50b019fbd9b112aa0"
+  },
+  "formatVersion": 3,
+  "platform": "portable",
+  "profile": "web-v1",
+  "description": "在文档中编辑行内与块级 HTML，支持 Tailwind 样式、博客发布和静态导出。",
+  "targets": {
+    "desktop": {
+      "minAppVersion": "0.59.5"
+    },
+    "android": {
+      "minAppVersion": "0.2.7"
+    },
+    "ios": {
+      "minAppVersion": "0.2.7"
+    }
+  }
+}

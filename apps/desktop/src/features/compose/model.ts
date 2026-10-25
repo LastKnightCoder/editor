@@ -40,7 +40,7 @@ export function collectDocuments(children: BoardElement[]): BoardDocument[] {
   const result: BoardDocument[] = [];
   const visit = (elements: BoardElement[]) => {
     for (const element of elements) {
-      if (isDocument(element)) {
+      if (isDocument(element) && element.entityRef) {
         result.push({
           elementId: element.id,
           key: entityRefKey(element.entityRef),

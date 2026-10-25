@@ -31,7 +31,10 @@ describe("Markdown 文件的 Y.Doc 会话", () => {
       const uuid = first.uuid;
       const changed = "```js\nconst a = 2;\n```\n\n新段落\n";
       file.applyMarkdown(changed, "user");
-      expect(file.getContent()[0]).toMatchObject({ uuid, code: "const a = 2;" });
+      expect(file.getContent()[0]).toMatchObject({
+        uuid,
+        children: [{ type: "code-step", code: "const a = 2;" }],
+      });
       expect(file.getText()).toBe(changed);
       file.undo();
       expect(file.getText()).toBe(initial);

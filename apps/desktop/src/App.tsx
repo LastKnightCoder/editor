@@ -64,7 +64,7 @@ const Application = () => {
       updateDataTableView,
       createDataTableView,
       deleteDataTableView,
-      setActiveDataTableView: async (tableId: number, viewId: number | null) => {
+      setActiveDataTableView: async (tableId, viewId) => {
         const result = await setActiveDataTableView(tableId, viewId);
         return result !== null;
       },

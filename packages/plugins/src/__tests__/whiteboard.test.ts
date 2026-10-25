@@ -20,7 +20,7 @@ const manifest = validatePluginManifest({
 const create = vi.fn(() => ({}));
 const extension = defineWhiteboardExtension({
   id: metadata.id,
-  elements: [{ type: `${metadata.id}.box`, render: () => null }],
+  elements: [{ dataVersion: 1, type: `${metadata.id}.box`, render: () => null }],
   create,
 });
 
@@ -59,7 +59,7 @@ it("白板清单缺失、贡献冒用其他插件身份与重复元素均拒绝"
     validatePluginDefinition(manifest, {
       ...definition,
       whiteboardExtensions: [
-        { ...extension, elements: [{ type: "foreign.box", render: () => null }] },
+        { ...extension, elements: [{ dataVersion: 1, type: "foreign.box", render: () => null }] },
       ],
     })
   ).toThrow("不属于");

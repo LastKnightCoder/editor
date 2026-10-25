@@ -1,3 +1,4 @@
+import { readContentForExport } from "@/services/content-transfer";
 import React, { useState } from "react";
 import type { Descendant } from "slate";
 import { FileText } from "lucide-react";
@@ -36,6 +37,7 @@ interface PdfExportModalProps {
   visible: boolean;
   onClose: () => void;
   content: Descendant[];
+  contentId?: number;
   title: string;
   author?: string;
 }
@@ -47,6 +49,7 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
   visible,
   onClose,
   content,
+  contentId,
   title,
   author,
 }) => {
@@ -84,8 +87,9 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
         },
       };
 
+      const document = await readContentForExport(content, contentId);
       const { html: rawHtml, styles } = await buildPdfHtml({
-        content,
+        content: document.content,
         title,
         author,
         chapterBreak,

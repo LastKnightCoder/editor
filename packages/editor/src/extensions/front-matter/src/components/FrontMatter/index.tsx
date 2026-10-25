@@ -1,4 +1,9 @@
-import { useMemo, useCallback, useState, useRef } from "react";
+import { useTextFieldBinding, canEditElement } from "@tau/editor/api";
+import { IEditorTextFields, type EditorTextField } from "@tau/editor/api";
+import { bindTextFieldTextarea } from "@tau/editor-source-view";
+import isHotkey from "is-hotkey";
+import { createYamlScalarField } from "../../yamlScalarField";
+import { useMemo, useCallback, useState, useRef, useLayoutEffect } from "react";
 import { Transforms } from "slate";
 import { RenderElementProps, useSlateStatic, useReadOnly, ReactEditor } from "slate-react";
 import { cn } from "@tau/ui";
@@ -23,9 +28,10 @@ const FIELD_CLASS =
 const FrontMatter = (props: FrontMatterProps) => {
   const { attributes, children, element } = props;
   const editor = useSlateStatic();
-  const readOnly = useReadOnly();
-
-  const { value } = element;
+  const bound = Boolean(editor.tryGetService(IEditorTextFields));
+  const source = useTextFieldBinding(bound ? element : undefined, "value");
+  const readOnly = useReadOnly() || !canEditElement(editor, element) || (bound && source.readOnly);
+  const value = bound ? source.value : element.value;
 
   // 用于跟踪是否正在输入中文
   const isComposingRef = useRef(false);
@@ -37,7 +43,7 @@ const FrontMatter = (props: FrontMatterProps) => {
       const parsed = YAML.parse(value);
       return parsed || {};
     } catch (e) {
-      console.error("Error parsing front matter:", e);
+      console.warn("元数据 YAML 解析失败");
     }
     return {};
   }, [value]);
@@ -146,6 +152,8 @@ const FrontMatter = (props: FrontMatterProps) => {
 
     // 编辑模式：description 使用多行文本框
     if (key === "description") {
+      if (bound && source.binding)
+        return <BoundDescription field={source.binding} initialValue={stringValue} />;
       return (
         <textarea
           className={cn(
@@ -193,7 +201,7 @@ const FrontMatter = (props: FrontMatterProps) => {
   return (
     <div
       {...attributes}
-      className="my-[1em] select-none rounded-[0.5em] bg-[var(--ed-bg-page)] p-[1em]"
+      className="my-[1em] rounded-[0.5em] bg-[var(--ed-bg-page)] p-[1em] select-none"
       contentEditable={false}
     >
       <div className="p-0">
@@ -216,9 +224,66 @@ const FrontMatter = (props: FrontMatterProps) => {
           ))}
         </div>
       </div>
+      {source.error && <div role="alert">{source.error}</div>}
       {children}
     </div>
   );
 };
 
 export default FrontMatter;
+
+function BoundDescription({
+  field,
+  initialValue,
+}: {
+  field: EditorTextField;
+  initialValue: string;
+}) {
+  const input = useRef<HTMLTextAreaElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  useLayoutEffect(() => {
+    if (!input.current) return;
+    setError(null);
+    let scalar: EditorTextField | undefined;
+    let inputBinding: ReturnType<typeof bindTextFieldTextarea> | undefined;
+    try {
+      scalar = createYamlScalarField(field, "description");
+      inputBinding = bindTextFieldTextarea(input.current, scalar, () => {}, setError);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "元数据编辑不可用");
+    }
+    return () => {
+      inputBinding?.dispose();
+      scalar?.dispose();
+    };
+  }, [field]);
+  return (
+    <div className={VALUE_CLASS}>
+      <textarea
+        ref={input}
+        defaultValue={initialValue}
+        readOnly={Boolean(error)}
+        className={cn(
+          FIELD_CLASS,
+          "max-h-[4lh] min-h-[1lh] resize-none overflow-y-auto leading-[1.5] [field-sizing:content]"
+        )}
+        placeholder="请输入描述（简短描述 Skill 的用途）"
+        rows={2}
+        onKeyDown={event => {
+          if (
+            event.nativeEvent.isComposing ||
+            !isHotkey(["mod+z", "mod+shift+z", "mod+y"], event.nativeEvent)
+          )
+            return;
+          event.preventDefault();
+          event.stopPropagation();
+          if (!error) {
+            if (isHotkey(["mod+shift+z", "mod+y"], event.nativeEvent)) field.redo();
+            else field.undo();
+          }
+        }}
+      />
+      {error && <div role="alert">{error}</div>}
+    </div>
+  );
+}

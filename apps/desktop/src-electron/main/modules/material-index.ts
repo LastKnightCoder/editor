@@ -74,7 +74,7 @@ export async function listMaterialIndexDocs(
 ): Promise<MaterialIndexDoc[]> {
   const docs: MaterialIndexDoc[] = [];
   for (const candidate of listMaterialIndexCandidates(mainDb)) {
-    const input = candidate.read();
+    const input = await candidate.read();
     if (!("raw" in input)) {
       docs.push({
         ...input,

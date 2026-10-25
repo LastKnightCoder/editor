@@ -154,7 +154,29 @@ export default class PluginDataTable {
       "plugin-data:create-document": asynchronousDatabaseCommand(this.createDocument.bind(this)),
       "plugin-data:move-document": this.moveDocument.bind(this),
       "plugin-data:update": this.update.bind(this),
-      "plugin-data:delete": this.remove.bind(this),
+      "plugin-data:delete": asynchronousDatabaseCommand(
+        async (
+          db: Database.Database,
+          request: PluginDataScope & {
+            pluginId: string;
+            entity: PluginDataEntity;
+            id: number;
+            expectedRevision: string;
+          }
+        ) => {
+          this.assertDatabase(db, request);
+          if (
+            request.entity === "whiteboard" &&
+            db.prepare("SELECT 1 FROM whiteboard_documents WHERE board_id=?").get(request.id)
+          )
+            return (await import("../whiteboard-documents")).default.deleteBoard(
+              db,
+              request.id,
+              () => this.remove(db, request)
+            );
+          return db.transaction(() => this.remove(db, request))();
+        }
+      ),
       "plugin-data:edit-content": asynchronousDatabaseCommand(this.editContent.bind(this)),
       "plugin-data:operations": this.operations.bind(this),
       "plugin-data:record-operation": this.recordOperation.bind(this),
@@ -233,7 +255,8 @@ export default class PluginDataTable {
       | { id: number; create_time: number; update_time: number; content: string; count: number }
       | undefined;
     if (!row) return null;
-    const nodes = parseList(row.content);
+    const snapshot = ContentTable.getContentById(db, row.id)!;
+    const nodes = snapshot.content;
     const owners = new Set<PluginContentOwnerEntity>();
     for (const ref of EntitySearchTable.locateAll(db, [row.id]).get(row.id) ?? []) {
       if (ref.kind === "card" || ref.kind === "article") owners.add(ref.kind);
@@ -246,8 +269,8 @@ export default class PluginDataTable {
       revision: this.contentRevision(db, row.id),
       wordCount: row.count || 0,
       ...(request.format === "nodes"
-        ? { nodes }
-        : { markdown: await getMarkdownText(nodes as Descendant[]) }),
+        ? { nodes, contracts: snapshot.contracts }
+        : { markdown: await getMarkdownText(nodes as Descendant[], snapshot.contracts) }),
       owners: [...owners],
       pluginOwners: PluginEntityTable.pluginOwners(db, row.id),
     };
@@ -260,7 +283,7 @@ export default class PluginDataTable {
   static async resolveContent(
     db: Database.Database,
     request: PluginDataScope & { content: PluginContentSource }
-  ): Promise<Descendant[]> {
+  ): Promise<Pick<import("@/types/content").IContent, "content" | "contracts">> {
     this.assertDatabase(db, request);
     return resolvePluginContent(db, request.content, []);
   }
@@ -301,7 +324,8 @@ export default class PluginDataTable {
 
   private static articleDeleted(db: Database.Database, id: number) {
     const row = db.prepare("SELECT is_delete FROM articles WHERE id = ?").get(id) as
-      { is_delete: number } | undefined;
+      | { is_delete: number }
+      | undefined;
     return !row || Boolean(row.is_delete);
   }
 
@@ -330,14 +354,14 @@ export default class PluginDataTable {
         input.content.shareOf,
         ctx
       );
-    const content = await resolvePluginContent(db, input.content, DEFAULT_CARD_CONTENT);
+    const document = await resolvePluginContent(db, input.content, DEFAULT_CARD_CONTENT);
     this.assertDatabase(db, request);
     if (!db.open) throw new Error("数据库连接已失效");
     const id = db.transaction(() =>
       writeAsPlugin(request.pluginId, () => {
         if (request.entity === "card")
           return CardTable.createCard(db, {
-            content,
+            ...document,
             tags: input.tags ?? [],
             isTop: Boolean(input.pinned),
           } as Parameters<typeof CardTable.createCard>[1]).id;
@@ -347,7 +371,7 @@ export default class PluginDataTable {
             author: "",
             tags: input.tags ?? [],
             links: [],
-            content,
+            ...document,
             bannerBg: "",
             bannerPosition: "center",
             isTop: false,
@@ -515,8 +539,8 @@ export default class PluginDataTable {
     this.assertDatabase(db, request);
     const { input } = request;
     const shared = input.content && "shareOf" in input.content ? input.content.shareOf : null;
-    const content = shared
-      ? []
+    const document = shared
+      ? { content: [] }
       : await resolvePluginContent(db, input.content, DEFAULT_CARD_CONTENT);
     this.assertDatabase(db, request);
     if (!db.open) throw new Error("数据库连接已失效");
@@ -525,7 +549,7 @@ export default class PluginDataTable {
         if (!ProjectTable.getProjectOrNull(db, input.projectId)) throw new Error("项目不存在");
         const item = {
           title: input.title,
-          content,
+          ...document,
           // 共用正文：项目文档引用同一份正文（建文档时增加引用计数）
           ...(shared ? { contentId: sharedContentId(db, request.pluginId, shared) } : {}),
           children: [],
@@ -700,7 +724,8 @@ export default class PluginDataTable {
     const contentCreatedAt = contentId
       ? ((
           db.prepare("SELECT create_time FROM contents WHERE id = ?").get(contentId) as
-            { create_time: number } | undefined
+            | { create_time: number }
+            | undefined
         )?.create_time ?? null)
       : null;
     const title =
@@ -799,7 +824,8 @@ export default class PluginDataTable {
     return (
       (
         db.prepare("SELECT create_time FROM contents WHERE id = ?").get(contentId) as
-          { create_time: number } | undefined
+          | { create_time: number }
+          | undefined
       )?.create_time ?? null
     );
   }
@@ -824,7 +850,7 @@ export default class PluginDataTable {
     const revision = current.revision ?? `u:${current.updateTime}`;
     if (revision !== request.expectedRevision)
       throw new Error(`${CONFLICT_PREFIX}正文已被修改，请重新读取后再试`);
-    const content = await this.applyEdit(db, current.content, request.edit);
+    const content = await this.applyEdit(db, current, request.edit);
     this.assertDatabase(db, request);
     if (!db.open) throw new Error("数据库连接已失效");
     if (
@@ -834,42 +860,55 @@ export default class PluginDataTable {
       this.contentRevision(db, request.contentId) !== revision
     )
       throw new Error(`${CONFLICT_PREFIX}转换期间正文已变化，请重新读取后再试`);
-    db.transaction(() =>
-      writeAsPlugin(request.pluginId, () =>
-        ContentTable.updateContent(
-          db,
-          request.contentId,
-          { content, expectedRevision: current.revision },
-          ctx
-        )
+    markContentOrigin(basename(db.name), request.contentId, request.pluginId);
+    await writeAsPlugin(request.pluginId, () =>
+      ContentTable.writeContent(
+        db,
+        request.contentId,
+        { ...content, expectedRevision: current.revision },
+        ctx
       )
-    )();
+    );
     markContentOrigin(basename(db.name), request.contentId, request.pluginId);
     return { revision: this.contentRevision(db, request.contentId) };
   }
 
   private static async applyEdit(
     db: Database.Database,
-    current: Descendant[],
+    current: Pick<import("@/types/content").IContent, "content" | "contracts">,
     edit: PluginContentEdit
-  ): Promise<Descendant[]> {
+  ): Promise<Pick<import("@/types/content").IContent, "content" | "contracts">> {
     switch (edit.op) {
-      // 追加只解析新内容，原有节点原样保留
       case "append":
-        return [...current, ...(await resolvePluginContent(db, edit.content, []))];
-      case "prepend":
-        return [...(await resolvePluginContent(db, edit.content, [])), ...current];
-      case "replaceAll":
-        return resolvePluginContent(db, edit.content, DEFAULT_CARD_CONTENT);
+      case "prepend": {
+        const added = await resolvePluginContent(db, edit.content, []);
+        return {
+          content:
+            edit.op === "append"
+              ? [...current.content, ...added.content]
+              : [...added.content, ...current.content],
+          contracts: { ...current.contracts, ...added.contracts },
+        };
+      }
+      case "replaceAll": {
+        const replacement = await resolvePluginContent(db, edit.content, DEFAULT_CARD_CONTENT);
+        return { ...replacement, contracts: { ...current.contracts, ...replacement.contracts } };
+      }
       case "replaceText": {
-        const markdown = await getMarkdownText(current);
+        const markdown = await getMarkdownText(current.content, current.contracts);
         const first = markdown.indexOf(edit.find);
         if (first < 0) throw new Error("没有找到要替换的文字");
         if (markdown.indexOf(edit.find, first + 1) >= 0)
           throw new Error("要替换的文字出现了多次，请提供更长的上下文");
-        const replaced =
-          markdown.slice(0, first) + edit.markdown + markdown.slice(first + edit.find.length);
-        return resolvePluginContent(db, { markdown: replaced }, DEFAULT_CARD_CONTENT);
+        const replacement = await resolvePluginContent(
+          db,
+          {
+            markdown:
+              markdown.slice(0, first) + edit.markdown + markdown.slice(first + edit.find.length),
+          },
+          DEFAULT_CARD_CONTENT
+        );
+        return { ...replacement, contracts: { ...current.contracts, ...replacement.contracts } };
       }
       default:
         throw new Error("未知的正文修改");
@@ -1054,12 +1093,39 @@ export default class PluginDataTable {
 
   /** 画板页须仍在宽限期内；恢复后重新持有每一页 */
   private static restoreWhiteboard(db: Database.Database, row: Record<string, unknown>) {
-    const pages = parseList(row.white_board_content_ids as string).filter((id): id is number =>
+    let pages = parseList(row.white_board_content_ids as string).filter((id): id is number =>
       Number.isSafeInteger(id)
     );
     const exists = db.prepare("SELECT 1 FROM white_board_contents WHERE id = ?");
     if (pages.some(page => !exists.get(page))) throw new Error("画板页已被清理，无法恢复");
     const id = this.reinsertRow(db, "white_boards", row);
+    const mapped = pages.map(
+      page =>
+        db
+          .prepare("SELECT document_id FROM whiteboard_document_pages WHERE content_id=?")
+          .get(page) as { document_id: string } | undefined
+    );
+    if (mapped.some(Boolean)) {
+      const documentId = mapped[0]?.document_id;
+      if (
+        !documentId ||
+        mapped.some(page => page?.document_id !== documentId) ||
+        (
+          db
+            .prepare("SELECT board_id FROM whiteboard_documents WHERE document_id=?")
+            .get(documentId) as { board_id: number | null }
+        ).board_id !== null
+      )
+        throw new Error("白板页已有其他拥有者，不能恢复旧目录");
+      db.prepare(
+        "UPDATE whiteboard_documents SET board_id=?,board_created_at=? WHERE document_id=?"
+      ).run(id, row.create_time as number, documentId);
+      pages = (
+        db
+          .prepare("SELECT content_id FROM whiteboard_document_pages WHERE document_id=?")
+          .all(documentId) as { content_id: number }[]
+      ).map(page => page.content_id);
+    }
     for (const page of pages) WhiteBoardContentTable.incrementRefCount(db, page);
     Operation.insertOperation(db, "whiteboard", "insert", id, Date.now());
     return id;

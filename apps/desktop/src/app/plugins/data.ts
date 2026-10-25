@@ -530,7 +530,9 @@ export function createDesktopData(databaseName: string): DesktopDataAdapter {
           revision: record.revision,
           ...(record.markdown !== undefined ? { markdown: record.markdown } : {}),
           // 主进程按库中 JSON 原样返回编辑器节点
-          ...(record.nodes !== undefined ? { nodes: record.nodes as Descendant[] } : {}),
+          ...(record.nodes !== undefined
+            ? { nodes: record.nodes as Descendant[], contracts: record.contracts }
+            : {}),
           wordCount: record.wordCount,
           updatedAt: record.updatedAt,
         },

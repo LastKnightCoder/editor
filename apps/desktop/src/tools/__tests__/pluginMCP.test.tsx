@@ -73,6 +73,7 @@ function host(
 ) {
   const instance = new PluginHost({
     workspaceId: "workspace-A",
+    environment: { platform: "desktop", input: { coarsePointer: false, finePointer: true } },
     storage: createMemoryStorage(),
     chat: desktopPluginChat,
     mcp: {

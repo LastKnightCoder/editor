@@ -71,6 +71,10 @@ pub struct ContentCardMeta {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ContentDetailResponse {
+    pub library_source_id: Option<String>,
+    pub contracts: Option<serde_json::Value>,
+    pub revision: Option<String>,
+    pub document_id: Option<String>,
     pub content_id: i64,
     pub create_time: i64,
     pub update_time: i64,

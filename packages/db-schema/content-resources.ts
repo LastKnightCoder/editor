@@ -41,8 +41,9 @@ export const BUILTIN_CONTENT_RESOURCES = {
 const UNSAFE_SEGMENTS = new Set(["__proto__", "constructor", "prototype"]);
 const SEGMENT = /^[A-Za-z_$][\w$-]*(\[\])?$/;
 const FIELD = /^[A-Za-z_$][\w$-]*$/;
-const MAX_SPECS = 16;
-const MAX_PATH_LENGTH = 128;
+export const CONTENT_RESOURCE_LIMITS = Object.freeze({ specs: 16, pathLength: 128 });
+const MAX_SPECS = CONTENT_RESOURCE_LIMITS.specs;
+const MAX_PATH_LENGTH = CONTENT_RESOURCE_LIMITS.pathLength;
 
 interface Segment {
   key: string;

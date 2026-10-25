@@ -2,6 +2,7 @@ export { default as Editor } from "./CoreEditor";
 
 export type { MarkSpec, MarkRenderProps } from "./api/marks";
 export { createEditorKit } from "./kit/EditorKit";
+export { renderElementSpec } from "./kit/ExtensionAssembly";
 export { defaultMenuExtension } from "./menu/defaultMenu";
 export type { EditorKit, EditorKitOptions, EditorKitExtendOptions } from "./kit/EditorKit";
 export { createValueDocument } from "./document/EditorDocument";

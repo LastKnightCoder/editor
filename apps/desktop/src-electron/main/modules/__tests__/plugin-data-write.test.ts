@@ -10,6 +10,21 @@ vi.mock("../video-note-index-queue", () => ({
   default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
 }));
 
+vi.mock("../../services/content-execution", () => ({
+  contentExecutor: {
+    execute: async (
+      request: import("../../../../shared/content-execution").ContentExecutionRequest
+    ) => {
+      await import("@/app/plugins/content-runtime");
+      return (
+        globalThis as unknown as { tauContentExecute(input: unknown): Promise<unknown> }
+      ).tauContentExecute({ hash: "unit-fixtures", artifacts: [], request });
+    },
+  },
+}));
+import { prepareContentContract } from "@tau/db-schema/content-contracts";
+import { ContentDocumentTable } from "../tables/content-document";
+
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import { getMarkdown } from "@/utils/markdown.ts";
 import PluginDataTable from "../tables/plugin-data";
@@ -210,9 +225,13 @@ describe("PluginDataTable 写入", () => {
       },
       ctx
     );
-    db.prepare("UPDATE contents SET update_time = update_time + 100 WHERE id = ?").run(
-      card.contentId
-    );
+    const saved = ContentDocumentTable.read(db, card.contentId!)!;
+    const changed = structuredClone(saved);
+    changed.content[0].children = [{ type: "formatted", text: "同时修改" }];
+    ContentDocumentTable.commit(db, card.contentId!, changed, {
+      expectedRevision: saved.revision,
+      count: 4,
+    });
     await expect(pending).rejects.toThrow("转换期间");
     expect(contentOf(card.contentId)).not.toContain("迟到修改");
   });
@@ -232,10 +251,18 @@ describe("PluginDataTable 写入", () => {
           create_time: number;
         }
       ).create_time;
-    // 未安装插件的节点与自定义字段原样保留（ER-006）
+    const declaration = await prepareContentContract("uninstalled-plugin", {
+      type: "uninstalled-plugin-node",
+      dataVersion: 1,
+      kind: "block",
+      isVoid: true,
+      collaboration: { textFields: ["source"] },
+    });
+    // 未安装插件也可按随正文保存的契约复制，节点副本获得新身份。
     const nodes = [
       {
         type: "uninstalled-plugin-node",
+        tauContract: declaration.id,
         source: "x^2",
         children: [{ type: "formatted", text: "" }],
       },
@@ -243,10 +270,14 @@ describe("PluginDataTable 写入", () => {
     ];
     const source = await PluginDataTable.create(
       db,
-      { ...scope, entity: "card", input: { content: { nodes } } },
+      {
+        ...scope,
+        entity: "card",
+        input: { content: { nodes, contracts: { [declaration.id]: declaration.contract } } },
+      },
       ctx
     );
-    expect(rawOf(source.contentId)).toEqual(nodes);
+    expect(rawOf(source.contentId)).toMatchObject(nodes);
 
     const copyOf = { contentId: source.contentId!, createdAt: createdAtOf(source.contentId) };
     const copy = await PluginDataTable.create(
@@ -255,7 +286,7 @@ describe("PluginDataTable 写入", () => {
       ctx
     );
     expect(copy.contentId).not.toBe(source.contentId);
-    expect(rawOf(copy.contentId)).toEqual(nodes);
+    expect(rawOf(copy.contentId)).toMatchObject(nodes);
     await PluginDataTable.editContent(
       db,
       {
@@ -271,7 +302,7 @@ describe("PluginDataTable 写入", () => {
       ctx
     );
     expect(getMarkdown(rawOf(source.contentId)).trim()).toBe("");
-    expect(rawOf(copy.contentId)).toEqual(nodes);
+    expect(rawOf(copy.contentId)).toMatchObject(nodes);
 
     const target = { contentId: copy.contentId!, createdAt: createdAtOf(copy.contentId) };
     const revision = (await PluginDataTable.content(db, { ...scope, ...target, format: "nodes" }))!
@@ -286,19 +317,22 @@ describe("PluginDataTable 写入", () => {
       },
       ctx
     );
-    expect(rawOf(copy.contentId)).toEqual([...nodes, ...nodes]);
+    expect(rawOf(copy.contentId)).toMatchObject([...nodes, ...nodes]);
+    expect(
+      new Set(rawOf(copy.contentId).map((node: { collabId: string }) => node.collabId)).size
+    ).toBe(4);
   });
 
   it("解析正文输入供宿主界面预填：不写入，空输入为空数组，copyOf 范围与写入一致", async () => {
     const nodes = [{ type: "paragraph", children: [{ type: "formatted", text: "预填" }] }];
     const count = () => (db.prepare("SELECT COUNT(*) AS n FROM contents").get() as { n: number }).n;
     const before = count();
-    expect(await PluginDataTable.resolveContent(db, { ...scope, content: { nodes } })).toEqual(
-      nodes
-    );
+    expect(
+      await PluginDataTable.resolveContent(db, { ...scope, content: { nodes } })
+    ).toMatchObject({ content: nodes });
     expect(
       await PluginDataTable.resolveContent(db, { ...scope, content: { markdown: " " } })
-    ).toEqual([]);
+    ).toEqual({ content: [], contracts: {} });
     expect(count()).toBe(before);
     const source = await PluginDataTable.create(
       db,
@@ -315,7 +349,7 @@ describe("PluginDataTable 写入", () => {
         ...scope,
         content: { copyOf: { contentId: source.contentId!, createdAt } },
       })
-    ).toEqual(nodes);
+    ).toMatchObject({ content: nodes });
     await expect(
       PluginDataTable.resolveContent(db, {
         ...scope,

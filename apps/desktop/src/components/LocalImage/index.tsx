@@ -12,6 +12,7 @@ import {
 
 interface ILocalImageProps {
   url: string;
+  resolveResource?: (url: string) => Promise<string>;
   alt?: string;
   className?: string;
   style?: React.CSSProperties;
@@ -22,11 +23,12 @@ interface ILocalImageProps {
 }
 
 const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>((props, ref) => {
-  const { url, alt, className, style, onClick, onLoadError, ...restProps } = props;
+  const { url, alt, className, style, onClick, onLoadError, resolveResource, ...restProps } = props;
   // 本组件既在编辑器内当图片插槽，也被大量宿主界面直接使用。
   // 编辑器内要尊重注册表的覆盖（共享模式下资源经 binding 解析），编辑器外回落默认实现。
+  const resourceService = useOptionalService(IResourceService);
   const remoteResourceToLocalService =
-    useOptionalService(IResourceService)?.remoteResourceToLocal ?? remoteResourceToLocal;
+    resolveResource ?? resourceService?.remoteResourceToLocal ?? remoteResourceToLocal;
   const autoCacheRemoteImage = useSettingStore(state => state.setting.misc.image.autoCacheRemote);
   const cacheKey = imagePreviewCacheKey(url, autoCacheRemoteImage);
 

@@ -24,7 +24,15 @@ export function initializeContentSessions() {
     "collaboration:state",
     (_event, state: { sessions: { id: string; status: string; source?: SourceBinding }[] }) => {
       const signature = JSON.stringify(
-        state.sessions.map(session => [session.id, session.status, session.source])
+        state.sessions.map(({ id, status, source }) => [
+          id,
+          status,
+          source?.databaseName,
+          source?.contentId,
+          source?.contentCreatedAt,
+          source?.librarySourceId,
+          source?.contentDocumentId,
+        ])
       );
       if (bindingSignature === signature) return;
       bindingSignature = signature;

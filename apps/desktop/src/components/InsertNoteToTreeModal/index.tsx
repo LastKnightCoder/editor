@@ -29,6 +29,7 @@ interface InsertNoteToTreeModalProps {
   open: boolean;
   noteTitle: string;
   noteContent: Descendant[];
+  contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
   sourceContentId?: number | null;
   /** copy：复制一份正文成新文档；shared-content：与来源共用正文（投影） */
   insertMode?: "copy" | "shared-content";
@@ -122,6 +123,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
     open,
     noteTitle,
     noteContent,
+    contracts,
     sourceContentId = null,
     insertMode = "copy",
     source,
@@ -206,10 +208,12 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
           toast.success("内容已挂载");
         } else {
           let contentToInsert = noteContent;
+          let sourceContracts = contracts;
           if (sourceContentId) {
             const contentData = await getContentById(sourceContentId);
             if (contentData) {
               contentToInsert = contentData.content;
+              sourceContracts = contentData.contracts;
             }
           }
           const count = getContentLength(contentToInsert);
@@ -217,6 +221,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
           const newItem: CreateProjectItem = {
             title: noteTitle || "VL 笔记",
             content: contentToInsert,
+            contracts: sourceContracts,
             children: [],
             refType: "",
             refId: 0,

@@ -1,4 +1,4 @@
-import { desktopMedia } from "../../media";
+import { whiteboardMedia, prepareWhiteboardImage } from "../../media";
 import { useRef, useEffect, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { toast } from "@tau/ui";
@@ -40,7 +40,7 @@ const ImageSelectorModal = ({ open, onClose, board, action }: ImageSelectorModal
     if (file) {
       const toastId = toast.loading("正在处理图片，请稍候…");
       try {
-        await ImageUtil.insertImage(file, board, desktopMedia);
+        await ImageUtil.insertImage(file, board, whiteboardMedia(board));
       } finally {
         toast.dismiss(toastId);
       }
@@ -69,7 +69,7 @@ const ImageSelectorModal = ({ open, onClose, board, action }: ImageSelectorModal
   const handleGenerateAIImage = useMemoizedFn(async (prompt: string, signal: AbortSignal) => {
     const result = await generateWhiteboardImage(prompt, signal);
     signal.throwIfAborted();
-    await ImageUtil.insertImageFromPath(result.url, board);
+    await ImageUtil.insertImageFromPath(await prepareWhiteboardImage(board, result.url), board);
     toast.success("图片已生成并插入");
     setAiGenerateOpen(false);
     onClose();

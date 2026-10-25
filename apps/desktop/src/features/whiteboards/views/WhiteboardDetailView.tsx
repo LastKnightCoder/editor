@@ -1,3 +1,6 @@
+import useSettingStore from "@/stores/useSettingStore";
+import { resolveWhiteboardDocumentPage } from "@/commands/whiteboard-document";
+import type { WhiteboardElementSnapshot } from "@tau/collaboration";
 /**
  * 白板详情（多页）：一整张画布纸面，页签条浮在纸内左下角（与右下状态栏同款 chrome，一左一右），
  * 元素树展开时让到停靠栏右侧；演示时与状态栏一起收起。
@@ -45,6 +48,7 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
   const { items } = useWhiteboards();
   const canvasRef = useRef<BoardCanvasHandle>(null);
   const [infoOpen, setInfoOpen] = useState(false);
+  const infoTitle = useRef("");
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -62,6 +66,66 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
     return pages[0]?.id ?? null;
   }, [page, pages, board?.activeWhiteBoardContentId]);
   const activePage = pages.find(p => p.id === activeId);
+  const databaseName = useSettingStore(state => state.setting.database.active);
+  const documentId = (
+    board?.whiteBoardContentList.find(item => item.id === activeId)?.data as
+      | { documentId?: string }
+      | undefined
+  )?.documentId;
+  const documentPage = (contentId: number) => {
+    const pageId = (
+      board?.whiteBoardContentList.find(item => item.id === contentId)?.data as
+        | { pageId?: string }
+        | undefined
+    )?.pageId;
+    if (!pageId || !canvasRef.current?.document) throw new Error("白板文档尚未就绪");
+    return { pageId, api: canvasRef.current.document };
+  };
+  const addPage = async (name: string) => {
+    if (!documentId) return pageMutations.add(name);
+    const api = canvasRef.current?.document;
+    if (!api) throw new Error("白板文档尚未就绪");
+    const { createdIds } = await api.submit([{ type: "create_page", title: name }]);
+    return resolveWhiteboardDocumentPage(databaseName, documentId, createdIds[0]);
+  };
+  const renamePage = async (contentId: number, name: string) => {
+    if (!documentId) return pageMutations.rename(contentId, name);
+    const { pageId, api } = documentPage(contentId),
+      current = api.snapshot().pages.find(page => page.id === pageId);
+    if (!current) throw new Error("画板页已失效");
+    await api.submit([
+      {
+        type: "edit_page_title",
+        id: pageId,
+        edit: { offset: 0, remove: current.title.length, text: name },
+      },
+    ]);
+  };
+  const removePage = async (contentId: number) => {
+    if (!documentId) return pageMutations.remove(contentId);
+    const { pageId, api } = documentPage(contentId),
+      snapshot = api.snapshot(),
+      target = snapshot.pages.find(page => page.id === pageId);
+    if (!target || snapshot.pages.length <= 1) throw new Error("白板至少保留一页");
+    const ids = (nodes: readonly WhiteboardElementSnapshot[]): string[] =>
+      nodes.flatMap(node => [node.id, ...ids(node.children)]);
+    await api.submit([
+      {
+        type: "remove_page",
+        id: pageId,
+        observedElementIds: ids([...target.children, ...target.recovery]),
+      },
+    ]);
+  };
+  const reorderPages = async (ids: number[]) => {
+    if (!documentId) return pageMutations.reorder(ids);
+    const api = canvasRef.current?.document;
+    if (!api || api.snapshot().pages.length !== ids.length)
+      throw new Error("页面列表已变化，请重试");
+    const pageIds = ids.map(id => documentPage(id).pageId);
+    if (new Set(pageIds).size !== pageIds.length) throw new Error("页面顺序无效");
+    await api.submit(pageIds.map(id => ({ type: "move_page", id })));
+  };
 
   // 记住停留页（从列表点某一页进来、或切页后）
   useEffect(() => {
@@ -70,7 +134,11 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
   }, [board, activeId, pageMutations]);
 
   const go = useCallback(
-    (pageId: number) => navigator.push(PAGE_KEY, { id, page: pageId, trail: trailParam }),
+    (pageId: number) => {
+      const current = navigator.current();
+      if (current?.key === PAGE_KEY && current.params.id === id)
+        navigator.push(PAGE_KEY, { id, page: pageId, trail: trailParam });
+    },
     [navigator, id, trailParam]
   );
 
@@ -113,7 +181,11 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
           <button
             type="button"
             title="编辑信息"
-            onClick={() => setInfoOpen(true)}
+            onClick={() => {
+              infoTitle.current =
+                canvasRef.current?.document?.snapshot().title ?? board?.title ?? "";
+              setInfoOpen(true);
+            }}
             className="text-ink-1 hover:bg-hover min-w-0 truncate rounded-[6px] px-1.5 py-0.5 font-medium"
           >
             {board.title.trim() || "未命名白板"}
@@ -150,13 +222,14 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
   const fail = (text: string) => () => toast.error(text);
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col px-4 pb-4 pt-1">
+    <div className="relative flex h-full min-h-0 flex-col px-4 pt-1 pb-4">
       <div className="bg-surface shadow-card rounded-tau-lg relative min-h-0 flex-1 overflow-hidden">
         <WhiteboardNavContext value={nav}>
           <BoardCanvas
-            key={activeId}
+            key={documentId ?? activeId}
             id={activeId}
             ref={canvasRef}
+            collaboration
             onPresentationModeChange={setPresenting}
             onDockWidthChange={setDockWidth}
           />
@@ -171,19 +244,30 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
               maxWidth: `max(200px, calc(100% - ${dockWidth + 12}px - 364px))`,
             }}
             pages={pages}
+            textBinding={
+              documentId
+                ? id => {
+                    const { pageId, api } = documentPage(id);
+                    return api.pageTitle(pageId);
+                  }
+                : undefined
+            }
             activeId={activeId}
             onSelect={pageId => pageId !== activeId && go(pageId)}
             onAdd={() =>
-              void pageMutations
-                .add(`第 ${pages.length + 1} 页`)
+              void addPage(`第 ${pages.length + 1} 页`)
                 .then(go)
                 .catch(fail("新建页失败"))
             }
-            onRename={(pageId, name) =>
-              void pageMutations.rename(pageId, name).catch(fail("改名失败"))
-            }
+            onRename={(pageId, name) => void renamePage(pageId, name).catch(fail("改名失败"))}
             onDuplicate={pageId =>
               void (async () => {
+                if (documentId) {
+                  const { pageId: source, api } = documentPage(pageId);
+                  const copied = await api.duplicatePage(source);
+                  go(await resolveWhiteboardDocumentPage(databaseName, documentId, copied));
+                  return;
+                }
                 if (pageId === activeId) await canvasRef.current?.flush();
                 go(await pageMutations.duplicate(pageId));
               })().catch(fail("复制失败"))
@@ -192,7 +276,7 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
               setDeleteTarget(pages.find(p => p.id === pageId) ?? null);
               setDeleteOpen(true);
             }}
-            onReorder={ids => void pageMutations.reorder(ids).catch(fail("排序失败"))}
+            onReorder={ids => void reorderPages(ids).catch(fail("排序失败"))}
           />
         )}
       </div>
@@ -203,7 +287,7 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
         title="删除这一页"
         context={deleteTarget?.name || "未命名"}
         description="这一页上的所有元素会一起删除，其他页不受影响。"
-        impact="删除后无法恢复"
+        impact={documentId ? "可通过撤销恢复" : "删除后无法恢复"}
         danger
         confirmText="删除"
         loading={deleting}
@@ -213,13 +297,18 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
           const neighbor = pages[index + 1] ?? pages[index - 1];
           setDeleting(true);
           try {
-            if (deleteTarget.id === activeId && neighbor) {
-              // 先把这一页未落库的改动存完、切走，再删——免得卸载时的保存落在已删除的页上
-              await canvasRef.current?.flush();
-              go(neighbor.id);
-              await new Promise(requestAnimationFrame);
+            if (documentId) {
+              await removePage(deleteTarget.id);
+              if (neighbor) go(neighbor.id);
+            } else {
+              if (deleteTarget.id === activeId && neighbor) {
+                // 先把这一页未落库的改动存完、切走，再删——免得卸载时的保存落在已删除的页上
+                await canvasRef.current?.flush();
+                go(neighbor.id);
+                await new Promise(requestAnimationFrame);
+              }
+              await removePage(deleteTarget.id);
             }
-            await pageMutations.remove(deleteTarget.id);
             setDeleteOpen(false);
             toast.success(`已删除「${deleteTarget.name || "未命名"}」`);
           } catch {
@@ -236,7 +325,26 @@ function Detail({ id, page, trailParam }: { id: number; page?: number; trailPara
         knownTags={knownTags}
         onClose={() => setInfoOpen(false)}
         onSubmit={async next => {
-          await mutations.saveInfo(id, next);
+          if (documentId) {
+            const api = canvasRef.current?.document;
+            if (!api) throw new Error("白板文档尚未就绪");
+            const current = api.snapshot().title,
+              desired = next.title.trim();
+            if (
+              desired !== infoTitle.current.trim() &&
+              current !== infoTitle.current &&
+              current !== desired
+            )
+              throw new Error("标题已被其他编辑更新，当前输入已保留，请核对后再保存");
+            if (desired !== infoTitle.current.trim() && current !== desired)
+              await api.submit([
+                {
+                  type: "edit_title",
+                  edit: { offset: 0, remove: current.length, text: desired },
+                },
+              ]);
+          }
+          await mutations.saveInfo(id, next, !!documentId);
           toast.success("已保存");
         }}
       />
@@ -303,7 +411,7 @@ function TrailCrumbs({
               type="button"
               title={`回到「${label}」`}
               onClick={() => onSelect(index)}
-              className="text-ink-2 hover:text-ink-1 hover:bg-hover min-w-0 max-w-[160px] truncate rounded-[6px] px-1.5 py-0.5"
+              className="text-ink-2 hover:text-ink-1 hover:bg-hover max-w-[160px] min-w-0 truncate rounded-[6px] px-1.5 py-0.5"
             >
               {label}
             </button>

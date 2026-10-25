@@ -26,6 +26,7 @@ export function toPluginFlashcard(card: Flashcard): PluginCreatedFlashcard {
                 refType: "custom" as const,
                 title: reference.title,
                 customContent: reference.content.content,
+                contracts: reference.content.contracts,
               },
         ];
       }

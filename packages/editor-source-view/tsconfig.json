@@ -1,5 +1,5 @@
 {
   "extends": "../editor/tsconfig.json",
   "compilerOptions": { "strict": true },
-  "include": ["src", "menu.ts", "../shared/styles.d.ts"]
+  "include": ["src", "menu.ts", "overlay.ts", "../shared/styles.d.ts"]
 }

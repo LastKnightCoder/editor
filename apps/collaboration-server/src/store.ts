@@ -8,6 +8,20 @@ import {
   CollaborationError,
   readSharedContent,
   validateDocument,
+  MigrationLedger,
+  DocumentWriteQueue,
+  DocumentOperationLedger,
+  type DocumentOperation,
+  type DocumentOperationRequest,
+  applyStructuredDocumentUpdate,
+  validateStructuredDocument,
+  readDocumentProjection,
+  collectDocumentResources,
+  isStructuredDocumentVersion,
+  assertDocumentMigrationKind,
+  type MigrationDocument,
+  type MigrationSql,
+  type MigrationFingerprint,
   type DeviceIdentity,
   type JoinRequest,
   type JoinRequestResult,
@@ -34,6 +48,7 @@ function collectAssetReferences(value: unknown, into: Set<string>) {
 }
 
 interface DocumentRow {
+  closed_revision: string | null;
   id: string;
   owner_id: string;
   creation_key: string;
@@ -56,8 +71,12 @@ export class CollaborationStore {
   private diskCheckedAt = 0;
   private cachedStorageBytes = -1;
   private assetIds = new Map<string, Set<string>>();
+  readonly migrations: MigrationLedger;
+  readonly operations: DocumentOperationLedger;
+  private readonly writes: DocumentWriteQueue;
 
   constructor(readonly config: ServerConfig) {
+    this.writes = new DocumentWriteQueue(config.maxDocumentBytes * 4);
     mkdirSync(config.dataDir, { recursive: true, mode: 0o700 });
     mkdirSync(join(config.dataDir, "assets"), { recursive: true, mode: 0o700 });
     mkdirSync(join(config.dataDir, "tmp"), { recursive: true, mode: 0o700 });
@@ -97,6 +116,245 @@ export class CollaborationStore {
       )
     )
       this.db.exec("ALTER TABLE assets ADD COLUMN last_referenced_at INTEGER NOT NULL DEFAULT 0");
+    if (
+      !(this.db.prepare("PRAGMA table_info(documents)").all() as { name: string }[]).some(
+        row => row.name === "closed_revision"
+      )
+    )
+      this.db.exec("ALTER TABLE documents ADD COLUMN closed_revision TEXT");
+    this.db.exec(
+      "CREATE TABLE IF NOT EXISTS collaboration_asset_history (document_id TEXT NOT NULL, epoch INTEGER NOT NULL, asset_id TEXT NOT NULL, PRIMARY KEY(document_id,epoch,asset_id))"
+    );
+    const ledgerSql: MigrationSql = {
+      exec: (sql, ...parameters) => {
+        this.db.prepare(sql).run(...parameters);
+      },
+      get: <T>(sql: string, ...parameters: (string | number | null)[]) =>
+        this.db.prepare(sql).get(...parameters) as T | undefined,
+      transaction: action => this.db.transaction(action)(),
+    };
+    this.operations = new DocumentOperationLedger(ledgerSql);
+    this.migrations = new MigrationLedger(ledgerSql, id => this.currentProtocol(id));
+  }
+
+  private currentProtocol(id: string): MigrationDocument {
+    const row = this.document(id),
+      doc = this.loadDocument(id);
+    try {
+      const meta = doc.getMap("meta"),
+        version = Number(meta.get("version") ?? 1);
+      return {
+        id,
+        ownerId: row.owner_id,
+        version,
+        epoch: Number(meta.get("epoch") ?? 0),
+        baselineId: String(meta.get("baselineId") ?? `legacy:${id}`),
+        revision: digest(Y.encodeStateAsUpdate(doc)),
+      };
+    } finally {
+      doc.destroy();
+    }
+  }
+
+  private documentAssets(doc: Y.Doc): Set<string> {
+    const references = new Set<string>();
+    collectAssetReferences(
+      isStructuredDocumentVersion(doc.getMap("meta").get("version"))
+        ? collectDocumentResources(doc)
+        : readSharedContent(doc),
+      references
+    );
+    return references;
+  }
+
+  private retainAssets(id: string, epoch: number, doc: Y.Doc): void {
+    const references = this.documentAssets(doc);
+    const insert = this.db.prepare(
+      "INSERT OR IGNORE INTO collaboration_asset_history(document_id,epoch,asset_id) VALUES (?,?,?)"
+    );
+    for (const assetId of references) insert.run(id, epoch, assetId);
+  }
+
+  async commitMigration(
+    id: string,
+    actorId: string,
+    operationId: string,
+    fingerprint: MigrationFingerprint,
+    state: Uint8Array
+  ) {
+    this.authorize(id, actorId, true);
+    const prior = this.migrations.get(id, operationId, actorId);
+    if (!prior) return fail("MIGRATION_NOT_FOUND", "迁移操作尚未登记", 404);
+    if (prior.state !== "PENDING")
+      return this.migrations.commit(id, operationId, actorId, fingerprint, () => {
+        throw new Error("终态不能安装正文");
+      });
+    if (
+      state.byteLength > this.config.maxDocumentBytes ||
+      digest(state) !== fingerprint.candidateHash ||
+      !isStructuredDocumentVersion(fingerprint.targetVersion)
+    )
+      return fail("INVALID_MIGRATION", "迁移候选容量、版本或摘要不匹配");
+    const candidate = new Y.Doc();
+    try {
+      try {
+        Y.applyUpdate(candidate, state);
+      } catch {
+        return fail("INVALID_MIGRATION", "迁移候选状态损坏或不兼容");
+      }
+      assertDocumentMigrationKind(this.migrations.state(id).version, fingerprint.targetVersion);
+      if (candidate.getMap("meta").get("version") !== fingerprint.targetVersion)
+        return fail("INVALID_MIGRATION", "候选协议不匹配");
+      await validateStructuredDocument(candidate, {
+        documentId: id,
+        epoch: prior.expectedEpoch + 1,
+        baselineId: fingerprint.baselineId,
+      });
+      if (digest(Y.encodeStateAsUpdate(candidate)) !== fingerprint.candidateHash)
+        return fail("INVALID_MIGRATION", "迁移候选必须使用规范化的完整状态");
+      const content = readDocumentProjection(candidate);
+      this.authorize(id, actorId, true);
+      this.validateAssets(id, content, candidate);
+      const result = this.migrations.commit(id, operationId, actorId, fingerprint, () => {
+        this.ensureCapacity(state.byteLength);
+        const previous = this.loadDocument(id);
+        try {
+          this.retainAssets(id, prior.expectedEpoch, previous);
+        } finally {
+          previous.destroy();
+        }
+        this.retainAssets(id, prior.expectedEpoch + 1, candidate);
+        this.operations.advance(id);
+        this.db
+          .prepare("UPDATE snapshots SET state=? WHERE document_id=?")
+          .run(Buffer.from(state), id);
+        this.db.prepare("DELETE FROM updates WHERE document_id=?").run(id);
+        this.db
+          .prepare("UPDATE documents SET title=?,updated_at=? WHERE id=?")
+          .run(content.title, Date.now(), id);
+      });
+      this.cachedStorageBytes = -1;
+      return result;
+    } finally {
+      candidate.destroy();
+    }
+  }
+
+  async submitOperation(
+    id: string,
+    actorId: string,
+    request: DocumentOperationRequest,
+    update?: Uint8Array,
+    cancel = false
+  ) {
+    this.authorize(id, actorId);
+    if (
+      !cancel &&
+      (!update ||
+        update.byteLength > this.config.maxDocumentBytes ||
+        digest(update) !== request.updateHash)
+    )
+      return fail("INVALID_OPERATION", "编辑增量摘要或大小不匹配", 400);
+    if (
+      typeof request.operationId === "string" &&
+      !this.operations.get(id, request.operationId, actorId)
+    )
+      this.ensureCapacity(4096);
+    const operation = this.operations.begin(id, actorId, request);
+    this.cachedStorageBytes = -1;
+    // 未确认提案可能缺依赖，无法完整扫描；先保守持有该房间已上传的资源，退役由恢复流程负责。
+    this.db
+      .prepare(
+        "INSERT OR IGNORE INTO collaboration_asset_history SELECT document_id,?,id FROM assets WHERE document_id=?"
+      )
+      .run(this.migrations.state(id).epoch, id);
+    if (cancel) return this.operations.abort(operation, "cancelled");
+    if (operation.state !== "PENDING") return operation;
+    try {
+      const protocol = this.migrations.state(id);
+      if (
+        protocol.epoch !== request.epoch ||
+        protocol.baselineId !== request.baselineId ||
+        protocol.version !== request.version
+      )
+        return this.operations.abort(operation, "EPOCH_CONFLICT");
+      return await this.appendNodeUpdate(id, actorId, update!, undefined, protocol, operation);
+    } catch (error) {
+      if (
+        error instanceof CollaborationError &&
+        !["MISSING_DEPENDENCIES", "CAPACITY", "MIGRATION_FROZEN"].includes(error.code)
+      )
+        return this.operations.abort(operation, error.code);
+      throw error;
+    }
+  }
+
+  private appendNodeUpdate(
+    id: string,
+    deviceId: string,
+    update: Uint8Array,
+    current: Y.Doc | undefined,
+    protocol: MigrationDocument,
+    operation?: DocumentOperation
+  ): Promise<void | DocumentOperation> {
+    const payload = update.slice();
+    return this.writes.run(id, payload.byteLength, async () => {
+      this.authorize(id, deviceId);
+      if (operation) {
+        const stored = this.operations.get(id, operation.operationId, deviceId)!;
+        if (stored.state !== "PENDING") return stored;
+      }
+      this.migrations.assertWritable(id, protocol);
+      const before = this.loadDocument(id);
+      let candidate: Y.Doc | undefined;
+      try {
+        candidate = await applyStructuredDocumentUpdate(before, payload, {
+          documentId: id,
+          epoch: protocol.epoch,
+          baselineId: protocol.baselineId!,
+        });
+        const content = readDocumentProjection(candidate),
+          delta = Y.encodeStateAsUpdate(candidate, Y.encodeStateVector(before));
+        const previousRevision = digest(Y.encodeStateAsUpdate(before));
+        // 与落盘重载使用相同的 GC 编码，删除文字后的摘要也必须一致。
+        Y.applyUpdate(before, delta);
+        const revision = digest(Y.encodeStateAsUpdate(before));
+        const install = () => {
+          this.authorize(id, deviceId);
+          this.migrations.assertWritable(id, protocol);
+          if (revision === previousRevision) return;
+          this.ensureCapacity(delta.byteLength);
+          this.validateAssets(id, content, candidate);
+          this.db
+            .prepare("INSERT OR IGNORE INTO updates(document_id,hash,state) VALUES (?,?,?)")
+            .run(id, digest(payload), Buffer.from(delta));
+          this.db
+            .prepare("UPDATE documents SET title=?,updated_at=? WHERE id=?")
+            .run(content.title, Date.now(), id);
+          this.retainAssets(id, protocol.epoch, candidate!);
+          this.operations.advance(id);
+          this.migrations.updateRevision(id, revision);
+        };
+        const result = operation
+          ? this.operations.commit(
+              operation,
+              () => {
+                this.authorize(id, deviceId);
+                return this.migrations.assertWritable(id, protocol);
+              },
+              revision,
+              install
+            )
+          : this.db.transaction(install)();
+        if (result && result.state !== "COMMITTED") return result;
+        this.cachedStorageBytes = -1;
+        if (current) Y.applyUpdate(current, Y.encodeStateAsUpdate(candidate));
+        return result;
+      } finally {
+        before.destroy();
+        candidate?.destroy();
+      }
+    });
   }
 
   audit(deviceId: string, documentId: string, action: string) {
@@ -119,7 +377,8 @@ export class CollaborationStore {
     const id = token.slice(0, separator);
     const secret = token.slice(separator + 1);
     const device = this.db.prepare("SELECT * FROM devices WHERE id = ?").get(id) as
-      DeviceRow | undefined;
+      | DeviceRow
+      | undefined;
     const digestBuffer = Buffer.from(digest(secret));
     const expected = device ? Buffer.from(device.secret_hash) : digestBuffer;
     // 等长比较避免 timingSafeEqual 抛异常；设备不存在时也执行一次比较，不泄露 ID 是否存在。
@@ -132,9 +391,23 @@ export class CollaborationStore {
     return device!;
   }
 
-  ticket(deviceId: string, documentId: string | null): string {
+  ticket(
+    deviceId: string,
+    documentId: string | null,
+    protocolVersion?: number,
+    expected?: Pick<MigrationDocument, "epoch" | "baselineId">
+  ): string {
+    const protocol = documentId ? this.migrations.state(documentId) : undefined;
+    if (
+      protocol &&
+      (protocol.version === 3 || expected) &&
+      (expected?.epoch !== protocol.epoch || expected?.baselineId !== protocol.baselineId)
+    )
+      return fail("EPOCH_CONFLICT", "申请白板票据须声明匹配的本机基线与代次", 409);
+    if (protocol && protocol.version > 1 && protocolVersion !== protocol.version)
+      return fail("CLIENT_UPGRADE_REQUIRED", "请使用支持当前文档协议的客户端", 409);
     const body = Buffer.from(
-      JSON.stringify({ deviceId, documentId, expires: Date.now() + 60000 })
+      JSON.stringify({ deviceId, documentId, expires: Date.now() + 60000, protocol })
     ).toString("base64url");
     return `${body}.${createHmac("sha256", this.secret).update(body).digest("base64url")}`;
   }
@@ -152,6 +425,7 @@ export class CollaborationStore {
       deviceId: string;
       documentId: string | null;
       expires: number;
+      protocol?: MigrationDocument;
     };
     try {
       payload = JSON.parse(Buffer.from(body, "base64url").toString());
@@ -168,12 +442,23 @@ export class CollaborationStore {
       .prepare("SELECT * FROM devices WHERE id = ? AND banned = 0")
       .get(payload.deviceId) as DeviceRow | undefined;
     if (!device) fail("UNAUTHORIZED", "身份已停用", 401);
+    if (documentId) {
+      const protocol = this.migrations.state(documentId);
+      if (
+        !payload.protocol ||
+        payload.protocol.epoch !== protocol.epoch ||
+        payload.protocol.version !== protocol.version ||
+        payload.protocol.baselineId !== protocol.baselineId
+      )
+        return fail("EPOCH_CONFLICT", "连接票据属于旧文档基线", 409);
+    }
     return device!;
   }
 
   document(id: string): DocumentRow {
     const row = this.db.prepare("SELECT * FROM documents WHERE id = ?").get(id) as
-      DocumentRow | undefined;
+      | DocumentRow
+      | undefined;
     if (!row) fail("NOT_FOUND", "共享内容不存在", 404);
     return row!;
   }
@@ -186,7 +471,8 @@ export class CollaborationStore {
       )
       .get(id, deviceId) as { role: string } | undefined;
     const device = this.db.prepare("SELECT banned FROM devices WHERE id = ?").get(deviceId) as
-      { banned: number } | undefined;
+      | { banned: number }
+      | undefined;
     if (!device || device.banned || !member || (owner && member.role !== "owner"))
       fail("FORBIDDEN", "没有这段内容的访问权限", 403);
     if (
@@ -202,13 +488,7 @@ export class CollaborationStore {
       const existing = this.db
         .prepare("SELECT * FROM documents WHERE owner_id = ? AND creation_key = ?")
         .get(deviceId, key) as DocumentRow | undefined;
-      if (existing) {
-        if (existing.status !== "closed") return existing;
-        // 历史关闭房间仍受唯一索引约束，先归档幂等键再创建新房间。
-        this.db
-          .prepare("UPDATE documents SET creation_key=? WHERE id=?")
-          .run(`${existing.creation_key}:closed:${existing.id}`, existing.id);
-      }
+      if (existing) return existing;
       const count = (
         this.db
           .prepare(
@@ -236,9 +516,19 @@ export class CollaborationStore {
 
   publish(id: string, deviceId: string, state: Uint8Array) {
     this.authorize(id, deviceId, true, true);
+    if (state.byteLength > this.config.maxDocumentBytes)
+      fail("INVALID_CONTENT", "协作文档超过大小限制");
     const doc = new Y.Doc();
     try {
-      Y.applyUpdate(doc, state);
+      try {
+        Y.applyUpdate(doc, state);
+      } catch {
+        throw new CollaborationError("INVALID_CONTENT", "文档状态损坏或不兼容", 400);
+      }
+      if (doc.store.pendingStructs || doc.store.pendingDs)
+        throw new CollaborationError("MISSING_DEPENDENCIES", "发布状态缺少先行结构", 400);
+      if (isStructuredDocumentVersion(doc.getMap("meta").get("version")))
+        return this.publishNodeDocument(id, deviceId, state.slice());
       const article = validateDocument(doc, this.config.maxDocumentBytes);
       this.validateAssets(id, article);
       return this.db.transaction(() => {
@@ -265,6 +555,71 @@ export class CollaborationStore {
     }
   }
 
+  private publishNodeDocument(id: string, deviceId: string, state: Uint8Array) {
+    return this.writes.run(id, state.byteLength, async () => {
+      const doc = new Y.Doc();
+      try {
+        Y.applyUpdate(doc, state);
+        const baselineId = String(doc.getMap("meta").get("baselineId") ?? "");
+        await validateStructuredDocument(doc, { documentId: id, baselineId, epoch: 0 });
+        const canonical = Y.encodeStateAsUpdate(doc),
+          content = readDocumentProjection(doc);
+        this.authorize(id, deviceId, true, true);
+        this.validateAssets(id, content, doc);
+        return this.db.transaction(() => {
+          this.migrations.publish(
+            {
+              id,
+              ownerId: deviceId,
+              epoch: 0,
+              revision: digest(canonical),
+              version: Number(doc.getMap("meta").get("version")),
+              baselineId,
+            },
+            () => {
+              if (this.document(id).status !== "draft")
+                fail("PUBLICATION_CONFLICT", "原发布回执缺失，不能重建房间");
+              this.ensureCapacity(canonical.byteLength);
+              this.db
+                .prepare("INSERT INTO snapshots(document_id,state) VALUES (?,?)")
+                .run(id, Buffer.from(canonical));
+              this.db
+                .prepare("UPDATE documents SET title=?,status='active',updated_at=? WHERE id=?")
+                .run(content.title, Date.now(), id);
+              this.retainAssets(id, 0, doc);
+              this.accountBytes(canonical.byteLength);
+            }
+          );
+          return { documentId: id, published: true };
+        })();
+      } finally {
+        doc.destroy();
+      }
+    });
+  }
+
+  publicationStatus(id: string, actorId: string) {
+    const row = this.document(id);
+    if (row.owner_id !== actorId) fail("FORBIDDEN", "只有所有者可以读取发布回执", 403);
+    const receipt = this.migrations.publication(id);
+    return {
+      state: receipt ? "COMMITTED" : row.status === "closed" ? "ABORTED" : "PENDING",
+      receipt,
+    };
+  }
+  cancelPublication(id: string, actorId: string) {
+    return this.db.transaction(() => {
+      const status = this.publicationStatus(id, actorId);
+      if (status.state === "PENDING")
+        this.db
+          .prepare(
+            "UPDATE documents SET status='closed',updated_at=? WHERE id=? AND status='draft'"
+          )
+          .run(Date.now(), id);
+      return this.publicationStatus(id, actorId);
+    })();
+  }
+
   rotateCode(id: string, deviceId: string) {
     this.authorize(id, deviceId, true);
     const alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -283,7 +638,8 @@ export class CollaborationStore {
     const invitation = this.db
       .prepare("SELECT document_id FROM invitations WHERE code_hash = ? AND expires_at > ?")
       .get(digest(code.replace(/[\s-]/g, "").toUpperCase()), Date.now()) as
-      { document_id: string } | undefined;
+      | { document_id: string }
+      | undefined;
     if (!invitation || this.document(invitation.document_id).status !== "active")
       fail("INVALID_CODE", "协作码无效或已过期", 404);
     const documentId = invitation!.document_id;
@@ -397,19 +753,51 @@ export class CollaborationStore {
     this.audit(actorId, id, "member_removed");
   }
 
-  closeDocument(id: string, deviceId: string) {
+  closeDocument(id: string, deviceId: string, expectedRevision?: string) {
     const row = this.document(id);
     if (row.owner_id !== deviceId) fail("FORBIDDEN", "只有作者可以结束共享", 403);
-    if (row.status === "closed") return;
+    if (row.status === "closed") {
+      if (expectedRevision !== undefined && expectedRevision !== row.closed_revision)
+        fail("REVISION_CONFLICT", "共享由另一修订结束，请保留本机副本", 409);
+      return row.closed_revision;
+    }
+    const protocol = row.status === "draft" ? undefined : this.currentProtocol(id);
+    if (
+      protocol &&
+      ((protocol.version > 1 && expectedRevision === undefined) ||
+        (expectedRevision !== undefined && expectedRevision !== protocol.revision))
+    )
+      fail("REVISION_CONFLICT", "正文已变化，请重新保全后再结束共享", 409);
     this.db.transaction(() => {
       this.db
-        .prepare("UPDATE documents SET status='closed', creation_key=?, updated_at=? WHERE id=?")
-        .run(`${row.creation_key}:closed:${row.id}`, Date.now(), id);
+        .prepare("UPDATE documents SET status='closed', updated_at=?,closed_revision=? WHERE id=?")
+        .run(Date.now(), protocol?.revision ?? null, id);
       this.db.prepare("DELETE FROM invitations WHERE document_id=?").run(id);
       this.db.prepare("DELETE FROM join_requests WHERE document_id=?").run(id);
     })();
     this.discardDocumentData(id);
     this.audit(deviceId, id, "closed");
+    return protocol?.revision ?? null;
+  }
+
+  retainedAssetIds(id: string): string[] {
+    const doc = this.loadDocument(id);
+    try {
+      return [
+        ...new Set([
+          ...this.documentAssets(doc),
+          ...(
+            this.db
+              .prepare(
+                "SELECT DISTINCT asset_id FROM collaboration_asset_history WHERE document_id=?"
+              )
+              .all(id) as { asset_id: string }[]
+          ).map(row => row.asset_id),
+        ]),
+      ];
+    } finally {
+      doc.destroy();
+    }
   }
 
   /** 结束共享后清空正文、增量和附件，回收存储配额；文档行和审计记录保留。 */
@@ -423,6 +811,7 @@ export class CollaborationStore {
       this.db.prepare("DELETE FROM assets WHERE document_id=?").run(id);
     })();
     for (const { hash } of hashes) this.unlinkIfOrphan(hash);
+    this.migrations.invalidate(id);
     this.assetIds.delete(id);
     this.cachedStorageBytes = -1;
   }
@@ -430,7 +819,8 @@ export class CollaborationStore {
   loadDocument(id: string): Y.Doc {
     const doc = new Y.Doc();
     const snapshot = this.db.prepare("SELECT state FROM snapshots WHERE document_id=?").get(id) as
-      { state: Buffer } | undefined;
+      | { state: Buffer }
+      | undefined;
     if (!snapshot) {
       doc.destroy();
       return fail("NOT_FOUND", "共享内容尚未发布", 404);
@@ -448,8 +838,21 @@ export class CollaborationStore {
     }
   }
 
-  appendUpdate(id: string, deviceId: string, update: Uint8Array, current: Y.Doc) {
+  appendUpdate(
+    id: string,
+    deviceId: string,
+    update: Uint8Array,
+    current: Y.Doc,
+    expected?: MigrationDocument
+  ) {
     this.authorize(id, deviceId);
+    const protocol = this.migrations.assertWritable(id, expected);
+    if (isStructuredDocumentVersion(protocol.version)) {
+      const meta = current.getMap("meta");
+      if (meta.get("epoch") !== protocol.epoch || meta.get("baselineId") !== protocol.baselineId)
+        return fail("EPOCH_CONFLICT", "活动会话属于旧文档基线", 409);
+      return this.appendNodeUpdate(id, deviceId, update, current, protocol);
+    }
     const hash = digest(update);
     if (this.db.prepare("SELECT 1 FROM updates WHERE document_id=? AND hash=?").get(id, hash))
       return;
@@ -457,6 +860,8 @@ export class CollaborationStore {
     try {
       Y.applyUpdate(candidate, Y.encodeStateAsUpdate(current));
       Y.applyUpdate(candidate, update);
+      if (candidate.store.pendingStructs || candidate.store.pendingDs)
+        return fail("MISSING_DEPENDENCIES", "更新缺少先行结构，尚未确认持久化", 409);
       update = Y.encodeStateAsUpdate(candidate, Y.encodeStateVector(current));
       const article = validateDocument(candidate, this.config.maxDocumentBytes);
       this.validateAssets(id, article);
@@ -510,8 +915,11 @@ export class CollaborationStore {
    * 导致引用复活的场景；返回待释放的文件哈希（可能仍被其他文档共享）。
    */
   private pruneUnreferencedAssets(id: string, doc: Y.Doc) {
-    const referenced = new Set<string>();
-    collectAssetReferences(readSharedContent(doc), referenced);
+    const referenced = this.documentAssets(doc);
+    const history = this.db
+      .prepare("SELECT asset_id FROM collaboration_asset_history WHERE document_id=?")
+      .all(id) as { asset_id: string }[];
+    history.forEach(row => referenced.add(row.asset_id));
     const now = Date.now();
     const refresh = this.db.prepare(
       "UPDATE assets SET last_referenced_at=? WHERE document_id=? AND id=?"
@@ -530,7 +938,7 @@ export class CollaborationStore {
     return stale.map(asset => asset.hash);
   }
 
-  validateAssets(id: string, value: unknown) {
+  validateAssets(id: string, value: unknown, doc?: Y.Doc) {
     let known = this.assetIds.get(id);
     if (!known) {
       known = new Set(
@@ -540,8 +948,8 @@ export class CollaborationStore {
       );
       this.assetIds.set(id, known);
     }
-    const referenced = new Set<string>();
-    collectAssetReferences(value, referenced);
+    const referenced = doc ? this.documentAssets(doc) : new Set<string>();
+    if (!doc) collectAssetReferences(value, referenced);
     for (const assetId of referenced)
       if (!known!.has(assetId)) fail("INVALID_ASSET", "资源不属于这篇共享内容");
   }
@@ -561,7 +969,7 @@ export class CollaborationStore {
       return this.cachedStorageBytes;
     const row = this.db
       .prepare(
-        "SELECT (SELECT coalesce(sum(size),0) FROM assets) + (SELECT coalesce(sum(length(state)),0) FROM snapshots) + (SELECT coalesce(sum(length(state)),0) FROM updates) AS bytes"
+        "SELECT (SELECT coalesce(sum(size),0) FROM assets) + (SELECT coalesce(sum(length(state)),0) FROM snapshots) + (SELECT coalesce(sum(length(state)),0) FROM updates) + (SELECT coalesce(sum(length(value)),0) FROM collaboration_operations) + (SELECT count(*)*256 FROM collaboration_asset_history) AS bytes"
       )
       .get() as { bytes: number };
     this.cachedStorageBytes = row.bytes;

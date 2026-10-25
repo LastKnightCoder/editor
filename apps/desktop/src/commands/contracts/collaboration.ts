@@ -1,10 +1,12 @@
 import { command } from "@tau/rpc";
+import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import type {
   CollaborationSession,
   CollaborationState,
   ContentSessionSnapshot,
   ContentSessionTarget,
-  SharedContent,
+  ContentInputDraft,
+  ContentNode,
 } from "@tau/collaboration";
 
 export interface SharedContentResult {
@@ -12,17 +14,33 @@ export interface SharedContentResult {
   /** 创建成功即返回协作码，供发起方直接分享 */
   code: string;
 }
+export interface PreparedContentUpgrade {
+  operationId: string;
+  recoveryId?: string;
+  error?: string;
+  issues: { nodeId: string; reason: string }[];
+}
 
 export interface CollaborationInvitation {
   code: string;
   expiresAt: number;
 }
 
+export interface ContentRecoverySummary {
+  id: string;
+  workspaceId: string;
+  reason: string;
+  missing: string[];
+  documents: { id: string; title: string }[];
+  error?: string;
+}
+
 /** 订阅共享内容获得的本机会话快照 */
 export interface CollaborationSubscribeSnapshot {
+  nodeViews?: Record<string, Record<string, unknown>>;
+  pendingUpgrade?: boolean;
   state: Uint8Array;
   awareness?: Uint8Array;
-  privateNodes: [string, SharedContent["content"][number]][];
   session: CollaborationSession;
   user: { id: string; name: string; color: string };
 }
@@ -35,6 +53,22 @@ export interface CollaborationUploadResourcePayload {
 
 /** 协作域命令契约（主进程注册于 collaboration/ipc-controller，模式 A 直连注册） */
 export const collaborationCommands = {
+  prepareFragment: command<
+    [string, string, ContentNode[], ContentContractDictionary],
+    ContentNode[]
+  >("collaboration:prepare-fragment"),
+  updateNodeView: command<[string, string, Record<string, unknown>], Record<string, unknown>>(
+    "collaboration:node-view"
+  ),
+  recoveries: command<[number], ContentRecoverySummary[]>("collaboration:recoveries"),
+  exportRecovery: command<[string], string | null>("collaboration:export-recovery"),
+  useReplacedContent: command<[string], void>("collaboration:use-replaced-content"),
+  adoptRemoteVersion: command<[string], void>("collaboration:adopt-remote-version"),
+  prepareUpgrade: command<
+    [string, ContentContractDictionary, import("@tau/collaboration").ContentVersionUpgrade?],
+    PreparedContentUpgrade
+  >("collaboration:prepare-upgrade"),
+  finishUpgrade: command<[string, boolean], void>("collaboration:finish-upgrade"),
   join: command<[string], void>("collaboration:join"),
   decide: command<[string, boolean], void>("collaboration:decide"),
   leave: command<[string, (boolean | undefined)?], void>("collaboration:leave"),
@@ -56,11 +90,11 @@ export const collaborationCommands = {
   subscribe: command<[string, string], CollaborationSubscribeSnapshot>("collaboration:subscribe"),
   unsubscribe: command<[string], void>("collaboration:unsubscribe"),
   update: command<[string, Uint8Array, string], void>("collaboration:update"),
-  privateNode: command<[string, string, string, SharedContent["content"][number]], void>(
-    "collaboration:private-node"
+  inputDraft: command<[string, ContentInputDraft], void>("collaboration:input-draft"),
+  documentDraft: command<[string, { state: Uint8Array; sequence: number }], void>(
+    "collaboration:document-draft"
   ),
-  freezeAck: command<[string], void>("collaboration:freeze-ack"),
-  setTabActive: command<[string, string, string], void>("collaboration:set-tab-active"),
+  freezeAck: command<[string, string?], void>("collaboration:freeze-ack"),
   uploadResource: command<[string, CollaborationUploadResourcePayload], string>(
     "collaboration:upload-resource"
   ),

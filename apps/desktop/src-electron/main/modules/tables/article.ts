@@ -194,6 +194,7 @@ export default class ArticleTable {
     // 如果没有提供contentId，则创建content记录
     const contentId = ContentTable.createContent(db, {
       content: content,
+      contracts: article.contracts,
       count: count,
     });
 
@@ -465,7 +466,7 @@ export default class ArticleTable {
 
     const rows = db
       .prepare(
-        `SELECT a.id, a.title, a.author, a.create_time, a.update_time, a.tags,
+        `SELECT a.id, a.content_id, a.title, a.author, a.create_time, a.update_time, a.tags,
                 a.banner_bg, a.banner_position, a.is_top,
                 ct.count, substr(ct.content, 1, 1200) AS excerpt
          FROM articles a
@@ -477,6 +478,7 @@ export default class ArticleTable {
       .all(...params, limit, offset) as Record<string, unknown>[];
 
     const items: ArticlePageItem[] = rows.map(row => ({
+      contentId: row.content_id as number,
       id: row.id as number,
       title: (row.title as string) || "",
       author: (row.author as string) || "",
@@ -536,7 +538,8 @@ export default class ArticleTable {
     const articles = this.getArticleByIds(db, ids);
 
     return mapContentSnapshots(articles, async article => {
-      const markdown = article.content ? await getMarkdownText(article.content) : "";
+      const snapshot = ContentTable.getContentById(db, article.contentId);
+      const markdown = snapshot ? await getMarkdownText(snapshot.content, snapshot.contracts) : "";
       const originalLength = markdown.length;
 
       let finalMarkdown = markdown;

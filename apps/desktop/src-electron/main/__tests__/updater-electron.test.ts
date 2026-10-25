@@ -19,14 +19,16 @@ it.skipIf(process.platform !== "darwin")(
       "fs-extra/esm": "export default { async readJson(){ return { lastVersion: '0.60.0' }; } };",
       "electron-updater": "export default { get autoUpdater(){ return globalThis.updater; } };",
       [join(main, "utils/PathUtil")]: "export default { getAppDir(){ return globalThis.root; } };",
+      [join(main, "modules/durable-document-lifecycle")]:
+        `export async function prepareDurableDocuments(){
+      globalThis.order.push('save');
+      if(globalThis.failSave) throw Error('正文未确认保存');
+      return { commit(){ globalThis.order.push('saved'); }, rollback(){} };
+    }`,
       [join(main, "modules/plugin-backend")]: `export const pluginBackends = {
       beginDrain(){ globalThis.order.push('drain'); }, async dispose(){}, forceDispose(){}
     }; export async function setPluginBackendsPaused(){}`,
-      [join(main, "modules/collaboration")]: `export default { shutdown(){}, async prepareQuit(){
-      globalThis.order.push('save');
-      if(globalThis.failSave) throw Error('正文未确认保存');
-      globalThis.order.push('saved');
-    } };`,
+      [join(main, "modules/collaboration")]: "export default { shutdown(){} };",
       [join(main, "modules/mcp")]: "export default { async disconnectAll(){} };",
       [join(main, "services/content-execution")]: "export const contentExecutor = { dispose(){} };",
       [join(main, "windows/window-state")]:

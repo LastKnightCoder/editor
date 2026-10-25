@@ -13,6 +13,9 @@ export interface BatchExportScope {
  * 展平后的待导出章节（按应用内树的 DFS 顺序）
  */
 export interface BatchExportChapter {
+  contentId?: number;
+  contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
+  markdown?: string;
   id: number;
   title: string;
   depth: number;

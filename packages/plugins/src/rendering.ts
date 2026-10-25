@@ -1,3 +1,4 @@
+import { assertWhiteboardElementVersions } from "@tau/whiteboard/author";
 import { normalizeContentMetricRules } from "@tau/db-schema/content-metrics";
 import { assertContentResourceSpecs } from "@tau/db-schema/content-resources";
 import type { PluginDefinition } from "./contract";
@@ -19,12 +20,24 @@ import {
 } from "./package.ts";
 export type { PublishedPluginRender } from "./render-artifact";
 
-export function assertUniqueEditorCodecs(codecs: readonly MarkdownCodec[]) {
+export function assertUniqueEditorCodecs(
+  codecs: readonly MarkdownCodec[],
+  versions?: ReadonlyMap<string, number | undefined>
+) {
   const types = new Set<string>();
   const directives = new Set<string>();
   for (const codec of codecs) {
-    if (types.has(codec.type)) throw new Error(`插件 Markdown 类型重复：${codec.type}`);
-    types.add(codec.type);
+    const version = codec.dataVersion ?? versions?.get(codec.type);
+    if (
+      codec.dataVersion !== undefined &&
+      (!Number.isSafeInteger(codec.dataVersion) || codec.dataVersion < 1)
+    )
+      throw new Error("Markdown 数据版本无效");
+    const key = JSON.stringify([codec.type, version ?? null]);
+    if (types.has(key)) throw new Error(`插件 Markdown 类型重复：${codec.type}`);
+    types.add(key);
+    if (codec.dataVersion !== undefined && codec.dataVersion !== versions?.get(codec.type))
+      continue;
     for (const name of Object.keys(codec.directives ?? {})) {
       if (directives.has(name)) throw new Error(`插件 Markdown directive 重复：${name}`);
       directives.add(name);
@@ -183,6 +196,11 @@ export function getPluginNodeTypes(definition: PluginDefinition): string[] {
   if (definition.editorExtensions?.length && !types.length)
     throw new Error("编辑器插件必须声明节点类型");
   const htmlTypes = new Set<string>();
+  const declared = new Map(
+    definition.editorExtensions
+      ?.flatMap(extension => extension.elements ?? [])
+      .map(element => [element.type, element])
+  );
   for (const extension of definition.editorExtensions ?? []) {
     for (const source of extension.styleSources ?? [])
       if (
@@ -192,13 +210,23 @@ export function getPluginNodeTypes(definition: PluginDefinition): string[] {
       )
         throw new Error("插件样式源码必须声明本插件的节点字段和语言");
     for (const serializer of extension.htmlSerializers ?? []) {
+      const element = declared.get(serializer.type);
+      const version = serializer.dataVersion ?? element?.dataVersion;
+      const key = JSON.stringify([serializer.type, version ?? null]);
+      const supported = element
+        ? [
+            element.dataVersion,
+            ...(element.previousVersions ?? []).map(item => item.element.dataVersion),
+          ]
+        : [];
       if (
         !types.includes(serializer.type) ||
-        htmlTypes.has(serializer.type) ||
+        htmlTypes.has(key) ||
+        (serializer.dataVersion !== undefined && !supported.includes(serializer.dataVersion)) ||
         typeof serializer.toHtml !== "function"
       )
         throw new Error("插件 HTML 导出类型重复或不属于本插件");
-      htmlTypes.add(serializer.type);
+      htmlTypes.add(key);
     }
   }
   for (const rule of normalizeContentMetricRules(definition.editorMetrics ?? []))
@@ -236,6 +264,9 @@ export function getPluginWhiteboardTypes(definition: PluginDefinition): string[]
         typeof element.render !== "function"
       )
         throw new Error("白板元素重复、缺少渲染或不属于当前插件");
+      assertWhiteboardElementVersions(
+        element as unknown as import("@tau/whiteboard").WhiteboardElementDefinition
+      );
       types.add(element.type);
     }
   }

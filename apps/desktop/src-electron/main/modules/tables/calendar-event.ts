@@ -104,7 +104,8 @@ export default class CalendarEventTable {
   /** 新建待办的全天或定时安排（标题取待办，备注不与待办描述共用）。 */
   static createEventForTodo(db: Database.Database, data: CreateTodoSchedule): CalendarEvent {
     const todo = db.prepare("SELECT title FROM todo_item WHERE id = ?").get(data.todoItemId) as
-      { title: string } | undefined;
+      | { title: string }
+      | undefined;
     if (!todo) throw new Error(`Todo ${data.todoItemId} not found`);
     const calendarId = data.calendarId ?? this.getDefaultUserCalendarId(db);
     if (calendarId == null) throw new Error("NO_USER_CALENDAR: 请先创建一个日历");
@@ -488,7 +489,8 @@ export default class CalendarEventTable {
     }));
     return mapContentSnapshots(snapshots, async ({ event, content }) => {
       let detailContent = "";
-      if (content?.content) detailContent = await getMarkdownText(content.content);
+      if (content?.content)
+        detailContent = await getMarkdownText(content.content, content.contracts);
 
       const maxLength = params.maxLength;
       if (maxLength && detailContent.length > maxLength) {

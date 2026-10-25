@@ -124,6 +124,7 @@ export interface PluginNotebookCreateRequest extends PluginActionBase {
 }
 
 export interface PluginCardCreateRequest extends PluginActionBase {
+  contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
   action: "card.create";
   /** 预填的正文与标签：不读写用户的卡片草稿 */
   content: Descendant[];
@@ -133,6 +134,7 @@ export interface PluginCardCreateRequest extends PluginActionBase {
 
 /** 插入到项目：复制正文为新的项目文档，或与插件内容共用正文；项目与位置由用户在弹窗里选 */
 export interface PluginDocumentInsertRequest extends PluginActionBase {
+  contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
   action: "project.insertDocument";
   title: string;
   content: Descendant[];
@@ -405,25 +407,28 @@ async function runAction(
             { databaseName, signal: context.signal }
           ).getPluginSharedContent(databaseName, context.pluginId, source.shareOf)
         : undefined;
-    const nodes = sharedContentId === undefined ? await resolve(request.content) : [];
+    const document =
+      sharedContentId === undefined ? await resolve(request.content) : { content: [] };
     return showAction<PluginEntityRef | null>(context, null, (finish, id) => ({
       id,
       plugin,
       action: "project.insertDocument",
       title: request.title ?? "未命名文档",
-      content: nodes.length ? nodes : structuredClone(DEFAULT_CARD_CONTENT),
+      content: document.content.length ? document.content : structuredClone(DEFAULT_CARD_CONTENT),
+      contracts: document.contracts,
       ...(sharedContentId !== undefined ? { sharedContentId } : {}),
       close: () => finish(null),
       settle: documentId => finish({ kind: "document", id: String(documentId) }),
     }));
   }
   if (request.action === "card.create") {
-    const nodes = request.content ? await resolve(request.content) : [];
+    const document = request.content ? await resolve(request.content) : { content: [] };
     return showAction<PluginEntityRef | null>(context, null, (finish, id) => ({
       id,
       plugin,
       action: "card.create",
-      content: nodes.length ? nodes : structuredClone(DEFAULT_CARD_CONTENT),
+      content: document.content.length ? document.content : structuredClone(DEFAULT_CARD_CONTENT),
+      contracts: document.contracts,
       tags: request.tags ?? [],
       close: () => finish(null),
       settle: cardId => finish({ kind: "card", id: String(cardId) }),
@@ -448,7 +453,7 @@ async function runAction(
   if (request.action === "content.export" && request.format === "markdown") {
     const { exportContentAsMarkdown } = await import("@/services/content-transfer");
     context.signal.throwIfAborted();
-    await exportContentAsMarkdown({ title, content: target.nodes });
+    await exportContentAsMarkdown({ title, content: target.nodes, contracts: target.contracts });
     return;
   }
   return showAction<void>(context, undefined, (finish, id) => ({

@@ -1,4 +1,4 @@
-import { IElementEditingPolicy } from "@tau/editor/api";
+import { useTouchInteraction } from "@tau/editor/api";
 import { TouchPreviewWithEditor } from "./TouchPreviewWithEditor";
 import React, {
   PropsWithChildren,
@@ -7,35 +7,33 @@ import React, {
   memo,
   useEffect,
   useLayoutEffect,
-  lazy,
-  Suspense,
 } from "react";
-import type { Editor, EditorChange } from "codemirror";
 import { cn } from "@tau/ui";
 import { useClickAway, useDebounceFn, useMemoizedFn } from "ahooks";
 import { ReactEditor, useReadOnly, useSelected, useSlateStatic } from "slate-react";
 import { ErrorBoundary } from "@tau/shared";
 import { Transforms, Path, Element, Node } from "slate";
-import isHotkey from "is-hotkey";
-import { Check, Copy, Pencil, Plus, Trash2, type LucideIcon } from "lucide-react";
+import { Check, Copy, Pencil, Trash2, type LucideIcon } from "lucide-react";
 import { If } from "@tau/shared";
-import { AddParagraph, type AddParagraphRef } from "@tau/editor/api";
+import { AddParagraph, useEditorTheme, type AddParagraphRef } from "@tau/editor/api";
 import { previewActionsMap } from "./menu";
 import { PreviewErrorContext, type PreviewError } from "./previewError";
-import { ErrorBar, KindLabel } from "./parts";
+import { EmptySourcePlaceholder, ErrorBar, KindLabel } from "./parts";
 import { FloatingToolbar, ToolbarDivider, ToolbarIconButton } from "@tau/editor/api";
 
 import type { CustomElement } from "@tau/editor/api";
 import "./PreviewWithEditor.vendor.css";
 import { useIsLastElement } from "@tau/editor/api";
-import {
-  registerBlockNavigation,
-  unregisterBlockNavigation,
-  focusPreviousBlock,
-  focusNextBlock,
-} from "@tau/editor/api";
-
-const CodeEditor = lazy(() => import("./SourceCodeEditor"));
+import { canEditElement } from "@tau/editor/api";
+import type { EditorTextField } from "@tau/editor/api";
+import { focusPreviousBlock, focusNextBlock } from "@tau/editor/api";
+import { useSourceFocusRequests } from "./focusRequests";
+import ShikiOverlayEditor, {
+  type OverlayEditorController,
+  type OverlayKeydownHelpers,
+} from "./overlay/ShikiOverlayEditor";
+import { handleSourceKeyDown } from "./overlay/sourceKeys";
+import { shikiLanguageForMode } from "./sourceLanguage";
 
 export interface IPreviewWithEditorProps {
   mode: string;
@@ -43,7 +41,8 @@ export interface IPreviewWithEditorProps {
   title: string;
   icon: LucideIcon;
   initValue: string;
-  onChange: (value: string) => void;
+  onChange?: (value: string) => void;
+  textBinding?: EditorTextField;
   element: CustomElement;
   center?: boolean;
   extend?: boolean;
@@ -67,22 +66,23 @@ const PointerPreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorPro
       inPlace,
       delimiters,
       immediate,
+      textBinding,
     } = props;
     const [editing, setEditing] = useState(false);
     const [value, setValue] = useState(initValue);
     const [copied, setCopied] = useState(false);
     const [inlineError, setInlineError] = useState<PreviewError | null>(null);
-    const editorRef = useRef<Editor | null>(null);
+    const editorRef = useRef<OverlayEditorController | null>(null);
     const pendingLocalValueRef = useRef<string | null>(null);
     const pendingFocusRef = useRef<"start" | "end" | null>(null);
     const ref = useRef<HTMLDivElement>(null);
     const addParagraphRef = useRef<AddParagraphRef>(null);
     const slateEditor = useSlateStatic();
+    const { isDark } = useEditorTheme();
     const editorReadOnly = useReadOnly();
     const selected = useSelected();
     const readOnly =
-      editorReadOnly ||
-      slateEditor.tryGetService(IElementEditingPolicy)?.canEdit(element.type) === false;
+      editorReadOnly || (!onChange && !textBinding) || !canEditElement(slateEditor, element);
     const isLast = useIsLastElement(element);
     const isEmpty = !(immediate ? value : initValue)?.trim();
     const previousHeightRef = useRef<number | null>(null);
@@ -109,7 +109,6 @@ const PointerPreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorPro
         ],
         { duration: 170, easing: "cubic-bezier(.22,1,.36,1)" }
       );
-      animation.onfinish = () => editorRef.current?.refresh();
       return () => animation.cancel();
     });
 
@@ -117,15 +116,10 @@ const PointerPreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorPro
       run: emitChange,
       flush: flushChange,
       cancel: cancelChange,
-    } = useDebounceFn((_editor: Editor, _change: EditorChange, code: string) => onChange(code), {
-      wait: 500,
-    });
+    } = useDebounceFn((code: string) => onChange?.(code), { wait: 500 });
 
     const focusSource = useMemoizedFn(() => {
-      requestAnimationFrame(() => {
-        editorRef.current?.refresh();
-        editorRef.current?.focus();
-      });
+      requestAnimationFrame(() => editorRef.current?.focus());
     });
 
     const startEditing = useMemoizedFn(() => {
@@ -178,6 +172,11 @@ const PointerPreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorPro
 
     useEffect(() => {
       const nextValue = initValue || "";
+      if (textBinding) {
+        cancelChange();
+        setValue(nextValue);
+        return;
+      }
       if (pendingLocalValueRef.current === nextValue) {
         pendingLocalValueRef.current = null;
         return;
@@ -185,10 +184,7 @@ const PointerPreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorPro
       pendingLocalValueRef.current = null;
       cancelChange();
       setValue(nextValue);
-      if (editorRef.current && editorRef.current.getValue() !== nextValue) {
-        editorRef.current.setValue(nextValue);
-      }
-    }, [initValue, cancelChange]);
+    }, [initValue, cancelChange, textBinding]);
 
     const focusPreviewEditor = useMemoizedFn((position: "start" | "end") => {
       if (readOnly) return false;
@@ -202,46 +198,15 @@ const PointerPreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorPro
         // 节点卸载时不再滚动。
       }
       setEditing(true);
-      const editorInstance = editorRef.current;
-      if (!editorInstance) return true;
-      const doc = editorInstance.getDoc();
-      const targetLine = position === "end" ? doc.lastLine() : doc.firstLine();
-      editorInstance.focus();
-      doc.setCursor({
-        line: targetLine,
-        ch: position === "end" ? doc.getLine(targetLine)?.length || 0 : 0,
-      });
+      const controller = editorRef.current;
+      if (!controller) return true;
+      const line = position === "end" ? controller.lastLine() : 0;
+      controller.setCursor({ line, ch: position === "end" ? controller.getLine(line).length : 0 });
       pendingFocusRef.current = null;
       return true;
     });
 
-    useEffect(() => {
-      const handleFocus = (e: any) => {
-        const detail = e.detail;
-        if (readOnly) {
-          return;
-        }
-        let matched = detail === element || detail?.element === element;
-        if (!matched && Array.isArray(detail?.path)) {
-          try {
-            const currentPath = ReactEditor.findPath(slateEditor, element);
-            matched = Path.equals(currentPath, detail.path as number[]);
-          } catch {
-            matched = false;
-          }
-        }
-        if (!matched) {
-          return;
-        }
-        focusPreviewEditor("start");
-      };
-
-      document.addEventListener("preview-editor-focus", handleFocus);
-
-      return () => {
-        document.removeEventListener("preview-editor-focus", handleFocus);
-      };
-    }, [element, readOnly, slateEditor, focusPreviewEditor]);
+    useSourceFocusRequests(element, focusPreviewEditor);
 
     const deleteElement = useMemoizedFn(() => {
       cancelChange();
@@ -292,105 +257,73 @@ const PointerPreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorPro
       }, 0);
     });
 
-    const onCodeEditorKeyDown = useMemoizedFn((editor, event) => {
-      if (readOnly) return;
-      const editorValue = editor.getValue();
-      if (
-        editorValue.trim().length === 0 &&
-        (isHotkey("backspace", event) || isHotkey("delete", event))
-      ) {
-        event.preventDefault();
-        event.stopPropagation();
-        deleteElement();
-        return;
+    /** 方向键离开首末位置：移到前后可编辑块；向下没有可去的块时补一个段落 */
+    const leaveSource = useMemoizedFn((direction: "backward" | "forward") => {
+      const path = ReactEditor.findPath(slateEditor, element);
+      const meta = { reason: "arrow", direction } as const;
+      const focused =
+        direction === "backward"
+          ? focusPreviousBlock(slateEditor, path, meta)
+          : focusNextBlock(slateEditor, path, meta);
+      if (focused) {
+        finishEditing();
+        return true;
       }
-      const cursor = editor.getCursor();
-      const lastLine = editor.lastLine();
-      const lastCh = editor.getLine(lastLine).length;
-
-      const tryFocusOuterBlock = (direction: "backward" | "forward") => {
-        const path = ReactEditor.findPath(slateEditor, element);
-        const meta = {
-          reason: "arrow",
-          direction,
-        } as const;
-        const focused =
-          direction === "backward"
-            ? focusPreviousBlock(slateEditor, path, meta)
-            : focusNextBlock(slateEditor, path, meta);
-        if (focused) {
-          finishEditing();
-          event.preventDefault();
+      if (direction === "backward") return false;
+      try {
+        const nextElement = Node.get(slateEditor, Path.next(path));
+        if (nextElement && Element.isElement(nextElement)) {
+          document.dispatchEvent(
+            new CustomEvent("element-focus-start", {
+              detail: { focusElement: nextElement, start: true },
+            })
+          );
+        } else {
+          addParagraphRef.current?.addParagraph();
         }
-        return focused;
-      };
-
-      if (isHotkey("up", event)) {
-        if (cursor.line === 0 && cursor.ch === 0) {
-          if (tryFocusOuterBlock("backward")) {
-            return;
-          }
-        }
-        return;
+      } catch {
+        addParagraphRef.current?.addParagraph();
       }
-
-      if (isHotkey("down", event)) {
-        if (cursor.line === lastLine && cursor.ch === lastCh) {
-          if (tryFocusOuterBlock("forward")) {
-            return;
-          }
-          // 如果无法聚焦其他块，沿用原有逻辑
-          const path = ReactEditor.findPath(slateEditor, element);
-          const nextPath = Path.next(path);
-          try {
-            const nextElement = Node.get(slateEditor, nextPath);
-            if (nextElement && Element.isElement(nextElement)) {
-              const focusEvent = new CustomEvent("element-focus-start", {
-                detail: {
-                  focusElement: nextElement,
-                  start: true,
-                },
-              });
-              document.dispatchEvent(focusEvent);
-            } else {
-              addParagraphRef.current?.addParagraph();
-            }
-          } catch (e) {
-            addParagraphRef.current?.addParagraph();
-          } finally {
-            finishEditing();
-            event.preventDefault();
-          }
-        }
-      }
+      finishEditing();
+      return true;
     });
+
+    const onSourceKeyDown = useMemoizedFn(
+      (event: React.KeyboardEvent<HTMLTextAreaElement>, helpers: OverlayKeydownHelpers) => {
+        handleSourceKeyDown(event, helpers, {
+          readOnly,
+          applyChange: helpers.setValue,
+          history: textBinding ?? null,
+          deleteEmpty: deleteElement,
+          focusOuter: leaveSource,
+        });
+      }
+    );
 
     const onAddParagraph = useMemoizedFn(() => {
       finishEditing();
     });
 
-    useEffect(() => {
-      registerBlockNavigation(element, {
-        focusStart: () => focusPreviewEditor("start"),
-        focusEnd: () => focusPreviewEditor("end"),
-      });
-
-      return () => {
-        unregisterBlockNavigation(element);
-      };
-    }, [element, focusPreviewEditor]);
-
-    const handleInputChange = useMemoizedFn(
-      (editor: Editor, change: EditorChange, code: string) => {
-        pendingLocalValueRef.current = code;
-        if (immediate) {
-          setValue(code);
-          onChange(code);
-          return;
-        }
-        emitChange(editor, change, code);
+    const handleInputChange = useMemoizedFn((code: string) => {
+      setValue(code);
+      if (textBinding) return;
+      pendingLocalValueRef.current = code;
+      if (immediate) {
+        onChange?.(code);
+        return;
       }
-    );
+      emitChange(code);
+    });
+
+    const onEditorMount = useMemoizedFn((controller: OverlayEditorController) => {
+      editorRef.current = controller;
+      const position = pendingFocusRef.current;
+      if (position) focusPreviewEditor(position);
+      else controller.focus();
+    });
+    const onEditorUnmount = useMemoizedFn(() => {
+      editorRef.current = null;
+    });
 
     const copySource = useMemoizedFn(() => {
       void navigator.clipboard.writeText(initValue || "").then(() => setCopied(true));
@@ -398,13 +331,11 @@ const PointerPreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorPro
 
     // 预览菜单复用同一个编辑入口。
     useEffect(() => {
-      previewActionsMap.set(element, {
-        edit: startEditing,
-      });
+      previewActionsMap.set(element, { title, icon, edit: startEditing, copySource, readOnly });
       return () => {
         previewActionsMap.delete(element);
       };
-    }, [element, startEditing]);
+    }, [element, title, icon, startEditing, copySource, readOnly]);
 
     const preview = (
       <PreviewErrorContext.Provider value={setInlineError}>
@@ -454,7 +385,7 @@ const PointerPreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorPro
           )}
         >
           <If condition={editing && !inPlace}>
-            <div className="flex h-[2.25em] items-center gap-[0.25em] bg-[var(--ed-code-bg)] pl-[1em] pr-[0.375em]">
+            <div className="flex h-[2.25em] items-center gap-[0.25em] bg-[var(--ed-code-bg)] pr-[0.375em] pl-[1em]">
               <span className="mr-auto">
                 <KindLabel icon={icon} title={title} />
               </span>
@@ -469,53 +400,47 @@ const PointerPreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorPro
             </div>
           </If>
           {editing && (
-            <Suspense fallback={<div className="p-4">正在加载编辑器…</div>}>
+            <div
+              className={cn(
+                "max-h-[50vh] overflow-y-auto",
+                inPlace && "max-h-none overflow-visible",
+                delimiters && "flex items-start gap-[0.5em] py-[0.25em]"
+              )}
+            >
+              {delimiters && (
+                <span className="font-tau-mono text-[0.85em] leading-[1.85] text-[var(--ed-text-tertiary)] select-none">
+                  {delimiters}
+                </span>
+              )}
               <div
                 className={cn(
-                  "max-h-[50vh] overflow-y-auto",
-                  inPlace && "max-h-none overflow-visible",
-                  delimiters && "flex items-start gap-[0.5em] py-[0.25em]"
+                  "ed-preview-source",
+                  inPlace && "ed-preview-source--in-place",
+                  delimiters && "min-w-0 flex-1"
                 )}
               >
-                {delimiters && (
-                  <span className="font-tau-mono select-none text-[0.85em] leading-[1.85] text-[var(--ed-text-tertiary)]">
-                    {delimiters}
-                  </span>
-                )}
-                <div className={cn(delimiters && "min-w-0 flex-1")}>
-                  <CodeEditor
-                    value={value || ""}
-                    autoCursor
-                    autoScroll
-                    mode={mode}
-                    readOnly={readOnly}
-                    lineWrapping={inPlace}
-                    className={cn(
-                      "ed-preview-codemirror h-auto",
-                      inPlace && "ed-preview-codemirror--in-place"
-                    )}
-                    onChange={handleInputChange}
-                    // 失焦即提交最后输入，避免紧接着卸载时取消防抖更新。
-                    onBlur={() => flushChange()}
-                    editorDidMount={editor => {
-                      editorRef.current = editor;
-                      const position = pendingFocusRef.current;
-                      if (position) focusPreviewEditor(position);
-                      else editor.focus();
-                    }}
-                    editorWillUnmount={() => {
-                      editorRef.current = null;
-                    }}
-                    onKeyDown={onCodeEditorKeyDown}
-                  />
-                </div>
-                {delimiters && (
-                  <span className="font-tau-mono select-none text-[0.85em] leading-[1.85] text-[var(--ed-text-tertiary)]">
-                    {delimiters}
-                  </span>
-                )}
+                <ShikiOverlayEditor
+                  className="ed-code-overlay"
+                  value={value || ""}
+                  textBinding={textBinding}
+                  language={shikiLanguageForMode(mode)}
+                  isDark={isDark}
+                  readOnly={readOnly}
+                  wrap={inPlace}
+                  onChange={handleInputChange}
+                  // 失焦即提交最后输入，避免紧接着卸载时取消防抖更新。
+                  onBlur={() => flushChange()}
+                  onDidMount={onEditorMount}
+                  onWillUnmount={onEditorUnmount}
+                  onKeyDown={onSourceKeyDown}
+                />
               </div>
-            </Suspense>
+              {delimiters && (
+                <span className="font-tau-mono text-[0.85em] leading-[1.85] text-[var(--ed-text-tertiary)] select-none">
+                  {delimiters}
+                </span>
+              )}
+            </div>
           )}
           {inlineError ? (
             <ErrorBar message={inlineError.message} stale={inlineError.stale && !isEmpty} />
@@ -525,13 +450,12 @@ const PointerPreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorPro
           {(inPlace && editing) || !isEmpty ? (
             preview
           ) : (
-            <div
-              className="flex h-[3.5em] cursor-pointer select-none items-center justify-center gap-[0.5em] rounded-[0.5625em] bg-[repeating-linear-gradient(-45deg,transparent_0_7px,var(--ed-bg-hover)_7px_8px)] text-[0.9em] text-[var(--ed-text-tertiary)] shadow-[inset_0_0_0_1px_var(--ed-border)] transition-[color,box-shadow] duration-150 hover:text-[var(--ed-text-secondary)] hover:shadow-[inset_0_0_0_1px_var(--ed-text-tertiary)]"
+            <EmptySourcePlaceholder
+              title={title}
+              readOnly={readOnly}
+              hint="点击"
               onClick={startEditing}
-            >
-              <Plus size="1.05em" strokeWidth={1.9} />
-              {readOnly ? `空的${title}` : `${title} · 点击开始编写`}
-            </div>
+            />
           )}
           <If condition={!editing && !isEmpty}>{toolbar}</If>
         </div>
@@ -544,9 +468,7 @@ const PointerPreviewWithEditor: React.FC<PropsWithChildren<IPreviewWithEditorPro
 );
 
 function PreviewWithEditor(props: PropsWithChildren<IPreviewWithEditorProps>) {
-  const editor = useSlateStatic();
-  const policy = editor.tryGetService(IElementEditingPolicy);
-  return policy?.sourcePresentation === "touch" && !props.inPlace ? (
+  return useTouchInteraction() && !props.inPlace ? (
     <TouchPreviewWithEditor {...props} />
   ) : (
     <PointerPreviewWithEditor {...props} />

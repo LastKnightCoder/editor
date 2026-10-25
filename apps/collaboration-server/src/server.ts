@@ -1,3 +1,4 @@
+import { assertPresenceBudget } from "@tau/collaboration";
 import Fastify, { type FastifyRequest } from "fastify";
 import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
@@ -10,6 +11,7 @@ import {
   COLLABORATION_VERSION,
   type CollaborationEvent,
   type Member,
+  type MigrationDocument,
 } from "@tau/collaboration";
 import { loadConfig, type ServerConfig } from "./config";
 import { CollaborationStore } from "./store";
@@ -119,7 +121,11 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
   };
   const presence = new PresenceScheduler(publishPresence);
 
-  const hocuspocus = new Hocuspocus<{ deviceId: string; nickname: string }>({
+  const hocuspocus = new Hocuspocus<{
+    deviceId: string;
+    nickname: string;
+    protocol: MigrationDocument;
+  }>({
     quiet: true,
     debounce: 2000,
     maxDebounce: 10000,
@@ -132,7 +138,15 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
         hocuspocus.getDocumentsCount() >= config.maxActiveDocuments
       )
         throw new CollaborationError("CAPACITY", "服务器活动文章数量已满", 429);
-      return { deviceId: identity.id, nickname: identity.nickname };
+      const protocol = store.migrations.state(documentName);
+      const cached = hocuspocus.documents.get(documentName);
+      if (
+        cached &&
+        protocol.version > 1 &&
+        cached.getMap("meta").get("baselineId") !== protocol.baselineId
+      )
+        throw new CollaborationError("BASELINE_RELOADING", "文档基线正在重新加载，请重试", 409);
+      return { deviceId: identity.id, nickname: identity.nickname, protocol };
     },
     async onLoadDocument({ documentName, document }) {
       const loaded = store.loadDocument(documentName);
@@ -148,14 +162,19 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
     },
     async beforeSync({ type, payload, context, documentName, document }) {
       if (type === 1 || type === 2)
-        store.appendUpdate(documentName, context.deviceId, payload, document);
+        await store.appendUpdate(
+          documentName,
+          context.deviceId,
+          payload,
+          document,
+          context.protocol
+        );
     },
     async beforeHandleAwareness({ context, documentName, states, connection, socketId }) {
       if (!context || !socketId) throw new Error("连接状态异常");
       store.authorize(documentName, context.deviceId);
       awarenessRates.check(socketId);
-      if (states.size > 16 || JSON.stringify([...states]).length > 16384)
-        throw new Error("在线状态超过限制");
+      assertPresenceBudget(states);
       for (const state of states.values()) {
         // 成员识别色由各端 memberColor(deviceId) 本地派生（palette.ts），服务端不注入 UI 概念
         state.user = { id: context.deviceId, name: context.nickname };
@@ -217,6 +236,20 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
     disconnect,
     members,
     mergeOnline,
+    accepted: id => {
+      const current = hocuspocus.documents.get(id);
+      if (!current) return;
+      const loaded = store.loadDocument(id);
+      try {
+        if (
+          current.getMap("meta").get("baselineId") === loaded.getMap("meta").get("baselineId") &&
+          current.getMap("meta").get("epoch") === loaded.getMap("meta").get("epoch")
+        )
+          Y.applyUpdate(current, Y.encodeStateAsUpdate(loaded));
+      } finally {
+        loaded.destroy();
+      }
+    },
   });
 
   registerAssetRoutes(app, store, config, device);

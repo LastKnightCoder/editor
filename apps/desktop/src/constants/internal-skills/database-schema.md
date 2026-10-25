@@ -20,6 +20,57 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ## 表和字段
 
+### `library_identity`
+
+完整库的来源身份与身份基线；`confirmed_snapshot` 为空表示尚未确认传播快照。本机库名不能证明同源。
+
+| 字段                 | SQLite 定义                         |
+| -------------------- | ----------------------------------- |
+| `id`                 | `INTEGER PRIMARY KEY CHECK(id = 1)` |
+| `source_id`          | `TEXT NOT NULL UNIQUE`              |
+| `baseline_id`        | `TEXT NOT NULL`                     |
+| `confirmed_snapshot` | `TEXT`                              |
+| `create_time`        | `INTEGER NOT NULL`                  |
+
+### `content_documents`
+
+正文的稳定身份、格式与不可变契约目录，与 `contents` 同归属；不要整列返回 `contracts`。
+
+| 字段                     | SQLite 定义                                                     |
+| ------------------------ | --------------------------------------------------------------- |
+| `content_id`             | `INTEGER PRIMARY KEY REFERENCES contents(id) ON DELETE CASCADE` |
+| `document_id`            | `TEXT NOT NULL UNIQUE`                                          |
+| `format_version`         | `INTEGER NOT NULL`                                              |
+| `contracts`              | `TEXT NOT NULL`                                                 |
+| `revision`               | `TEXT NOT NULL`                                                 |
+| `migration_operation_id` | `TEXT`                                                          |
+| `migration_receipt`      | `TEXT`                                                          |
+
+### `entity_identities`
+
+库内实体稳定身份到本地记录的映射。支持正文、卡片、文章、日记片段、项目条目、白板、白板页、数据表与视频笔记；物理删除触发器退役身份，数值主键和创建时间同时复用也不能继承原身份。
+
+| 字段          | SQLite 定义        |
+| ------------- | ------------------ |
+| `entity_kind` | `TEXT NOT NULL`    |
+| `entity_id`   | `TEXT NOT NULL`    |
+| `local_id`    | `INTEGER NOT NULL` |
+| `created_at`  | `INTEGER NOT NULL` |
+| `retired_at`  | `INTEGER`          |
+
+### `content_entity_relations`
+
+正文节点持有外部实体的关系账，以正文、节点及槽位去重。本机恢复副本的持有不存入此表。
+
+| 字段          | SQLite 定义                                                                 |
+| ------------- | --------------------------------------------------------------------------- |
+| `document_id` | `TEXT NOT NULL REFERENCES content_documents(document_id) ON DELETE CASCADE` |
+| `node_id`     | `TEXT NOT NULL`                                                             |
+| `slot`        | `TEXT NOT NULL`                                                             |
+| `source_id`   | `TEXT NOT NULL`                                                             |
+| `entity_kind` | `TEXT NOT NULL`                                                             |
+| `entity_id`   | `TEXT NOT NULL`                                                             |
+
 ### `task_assistant_operation`
 
 助理业务操作的执行回执与撤销材料；不要将快照列整列返回模型。
@@ -1230,3 +1281,51 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `answers`       | `TEXT NOT NULL`       |
 | `duration`      | `INTEGER NOT NULL`    |
 | `create_time`   | `INTEGER NOT NULL`    |
+
+### `whiteboard_documents`
+
+白板文档检查点、页面映射或引用关系账；不直接查询完整二进制正文。
+
+| 字段               | SQLite 定义                                                     |
+| ------------------ | --------------------------------------------------------------- |
+| `document_id`      | `TEXT PRIMARY KEY`                                              |
+| `source_id`        | `TEXT NOT NULL`                                                 |
+| `baseline_id`      | `TEXT NOT NULL`                                                 |
+| `epoch`            | `INTEGER NOT NULL CHECK(epoch >= 0)`                            |
+| `board_id`         | `INTEGER UNIQUE REFERENCES white_boards(id) ON DELETE RESTRICT` |
+| `board_created_at` | `INTEGER`                                                       |
+| `revision`         | `INTEGER NOT NULL CHECK(revision >= 0)`                         |
+| `revision_hash`    | `TEXT NOT NULL`                                                 |
+| `creation_hash`    | `TEXT NOT NULL`                                                 |
+| `state`            | `BLOB NOT NULL`                                                 |
+| `contracts`        | `TEXT NOT NULL`                                                 |
+| `snapshot`         | `TEXT NOT NULL`                                                 |
+| `create_time`      | `INTEGER NOT NULL`                                              |
+| `update_time`      | `INTEGER NOT NULL`                                              |
+
+### `whiteboard_document_pages`
+
+白板文档检查点、页面映射或引用关系账；不直接查询完整二进制正文。
+
+| 字段                 | SQLite 定义                                                                      |
+| -------------------- | -------------------------------------------------------------------------------- |
+| `document_id`        | `TEXT NOT NULL REFERENCES whiteboard_documents(document_id) ON DELETE RESTRICT`  |
+| `page_id`            | `TEXT NOT NULL`                                                                  |
+| `content_id`         | `INTEGER NOT NULL UNIQUE REFERENCES white_board_contents(id) ON DELETE RESTRICT` |
+| `content_created_at` | `INTEGER NOT NULL`                                                               |
+| `visible`            | `INTEGER NOT NULL CHECK(visible IN (0,1))`                                       |
+| `page_index`         | `INTEGER NOT NULL`                                                               |
+
+### `whiteboard_entity_relations`
+
+白板文档检查点、页面映射或引用关系账；不直接查询完整二进制正文。
+
+| 字段          | SQLite 定义                                                                     |
+| ------------- | ------------------------------------------------------------------------------- |
+| `document_id` | `TEXT NOT NULL REFERENCES whiteboard_documents(document_id) ON DELETE RESTRICT` |
+| `root_id`     | `TEXT NOT NULL`                                                                 |
+| `node_id`     | `TEXT NOT NULL`                                                                 |
+| `slot`        | `TEXT NOT NULL`                                                                 |
+| `source_id`   | `TEXT NOT NULL`                                                                 |
+| `entity_kind` | `TEXT NOT NULL`                                                                 |
+| `entity_id`   | `TEXT NOT NULL`                                                                 |

@@ -9,7 +9,7 @@ use super::calendar_types::{
     UpdateCalendarPayload,
 };
 use crate::database::common::{
-    db_err, decrement_or_delete_content, now_millis, trigger_reconcile, write_operation,
+    db_err, now_millis, release_content_reference, trigger_reconcile, write_operation,
 };
 use crate::database::schema;
 
@@ -275,7 +275,7 @@ pub fn calendar_delete(app: AppHandle, payload: CalendarByIdPayload) -> Result<i
         let (event_id, content_id) =
             row.map_err(|e| db_err("CALENDAR_DELETE_FAILED", "parse event row", e))?;
         if content_id > 0 {
-            decrement_or_delete_content(&tx, content_id)?;
+            release_content_reference(&tx, content_id)?;
         }
         event_ids.push(event_id);
     }
@@ -288,7 +288,7 @@ pub fn calendar_delete(app: AppHandle, payload: CalendarByIdPayload) -> Result<i
         .map_err(|e| db_err("CALENDAR_DELETE_FAILED", "delete event", e))?;
     }
     if current.description_content_id > 0 {
-        decrement_or_delete_content(&tx, current.description_content_id)?;
+        release_content_reference(&tx, current.description_content_id)?;
     }
     let now = now_millis();
     write_operation(&tx, "calendar", "delete", payload.id, now)?;

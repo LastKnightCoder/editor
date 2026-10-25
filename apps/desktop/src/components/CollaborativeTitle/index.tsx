@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useRef, type ComponentProps } from "react";
 import * as Y from "yjs";
 import { replaceText, type ContentSessionTarget, type SharedContent } from "@tau/collaboration";
-import type { EditorCollaborationBinding } from "@tau/editor-collab";
+import type { ContentCollaborationBinding } from "@tau/editor-collab";
 import { EditText, type EditTextHandle } from "@tau/ui";
 import useContentSession from "@/hooks/useContentSession";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
@@ -13,7 +13,7 @@ type Props = ComponentProps<typeof EditText> & {
 };
 
 type FieldProps = ComponentProps<typeof EditText> & {
-  binding?: EditorCollaborationBinding;
+  binding?: ContentCollaborationBinding;
   article?: SharedContent;
   frozen?: boolean;
   /** 悬停提示的错误文案 */

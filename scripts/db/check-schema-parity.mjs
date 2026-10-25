@@ -12,8 +12,8 @@ const mainSchemaPath = path.join(schemaDir, "main.sql");
 const indexSchemaPath = path.join(schemaDir, "index.sql");
 const vecTemplatePath = path.join(schemaDir, "index/20_vec_template.sql");
 
-const MAIN_TABLE_COUNT = 89;
-const MAIN_INDEX_COUNT = 117;
+const MAIN_TABLE_COUNT = 96;
+const MAIN_INDEX_COUNT = 121;
 const INDEX_CORE_TABLES = [
   "content_fts",
   "vec_index_meta",
@@ -83,6 +83,40 @@ function main() {
 
   const mainTables = extractCreateTableNames(mainSql);
   const mainIndexes = extractCreateIndexNames(mainSql);
+  const contentDocumentSql =
+    mainSql.match(/CREATE TABLE IF NOT EXISTS content_documents\s*\(([\s\S]*?)\);/i)?.[1] ?? "";
+  for (const column of ["migration_operation_id", "migration_receipt"])
+    assert(
+      new RegExp(`\\b${column}\\s+TEXT\\b`).test(contentDocumentSql),
+      `正文迁移缺少耐久安装回执字段 ${column}`
+    );
+  for (const table of [
+    "whiteboard_documents",
+    "whiteboard_document_pages",
+    "whiteboard_entity_relations",
+  ])
+    assert(mainTables.includes(table), `缺少白板文档表 ${table}`);
+  for (const index of [
+    "idx_whiteboard_document_pages_document",
+    "idx_whiteboard_entity_relations_target",
+  ])
+    assert(mainIndexes.includes(index), `缺少白板文档索引 ${index}`);
+  for (const table of [
+    "white_board_contents",
+    "data_tables",
+    "project_item",
+    "cards",
+    "articles",
+    "diary_segments",
+    "white_boards",
+    "contents",
+    "video_notes",
+  ]) {
+    assert(
+      mainSql.includes(`CREATE TRIGGER IF NOT EXISTS trg_entity_identity_${table}_delete`),
+      `稳定实体身份缺少物理删除守门 ${table}`
+    );
+  }
   const indexTables = extractCreateTableNames(indexSql);
 
   assert(

@@ -12,6 +12,7 @@ import TodoCalendarSyncTable from "./todo-calendar-sync";
 import CalendarEventTable from "./calendar-event";
 import TodoNoteLinkTable from "./todo-note-link";
 import { Descendant } from "slate";
+import { prepareTaskNodes } from "../content-task-patches";
 import { getNextTaskEntityId } from "./module-entity-id";
 
 export default class TodoItemTable {
@@ -192,7 +193,11 @@ export default class TodoItemTable {
           children: [{ type: "formatted", text: payload.description }],
         },
       ] satisfies Descendant[];
-      descriptionContentId = ContentTable.createContent(db, { content });
+      const document = prepareTaskNodes(content);
+      descriptionContentId = ContentTable.createContent(db, {
+        content: document.content as Descendant[],
+        contracts: document.contracts,
+      });
     }
 
     // 确定任务类型
@@ -301,7 +306,8 @@ export default class TodoItemTable {
 
     // 获取 description_content_id
     const item = db.prepare(`SELECT description_content_id FROM todo_item WHERE id = ?`).get(id) as
-      { description_content_id: number | null } | undefined;
+      | { description_content_id: number | null }
+      | undefined;
 
     // 删除待办项
     const changes = db.prepare(`DELETE FROM todo_item WHERE id = ?`).run(id).changes;

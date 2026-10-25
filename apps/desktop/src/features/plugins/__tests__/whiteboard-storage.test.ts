@@ -1,3 +1,5 @@
+import { IFileService, IResourceService } from "@tau/shared/host-services";
+import { IWhiteboardAuthorPermission } from "@tau/whiteboard/extensions";
 import { expect, it, vi } from "vitest";
 import { definePlugin, type PluginStorage } from "@tau/plugins";
 import { PluginHost, createMemoryStorage } from "@tau/plugins/host";
@@ -99,4 +101,43 @@ it("读取偏好期间关闭画布，迟到结果不能继续触发保存", asyn
   finish(undefined);
   await rejected;
   expect(storage.set).not.toHaveBeenCalled();
+});
+
+it("作者服务不能继承任意宿主文件/正文能力，已取得的上传引用也受生命周期限制", async () => {
+  const upload = vi.fn(async () => "resource"),
+    parent = createServiceRegistry(register => {
+      register(IResourceService, { upload });
+      register(IFileService, {
+        select: async () => [],
+        readText: async () => "private",
+        getBaseName: value => value,
+        getHomeDir: async () => "/private",
+      });
+    });
+  const definition = definePlugin({
+    id: "demo.services",
+    name: "能力",
+    version: "1.0.0",
+    whiteboardExtensions: [defineWhiteboardExtension({ id: "demo.services", create: () => ({}) })],
+  });
+  const storage = {
+    get: async () => undefined,
+    set: async () => undefined,
+    delete: async () => undefined,
+  };
+  let active = true;
+  const scoped = createWhiteboardPluginServices(
+    parent,
+    [definition],
+    () => storage
+  )("demo.services", { captureSubmission: () => () => active });
+  expect(scoped.tryGet(IFileService)).toBeUndefined();
+  expect(() => scoped.get(IFileService)).toThrow();
+  const resources = scoped.get(IResourceService);
+  await resources.upload(new File(["a"], "a"));
+  expect(upload).toHaveBeenCalledTimes(1);
+  active = false;
+  expect(() => scoped.get(IWhiteboardAuthorPermission).assertActive()).toThrow();
+  await expect(resources.upload(new File(["b"], "b"))).rejects.toThrow();
+  expect(upload).toHaveBeenCalledTimes(1);
 });

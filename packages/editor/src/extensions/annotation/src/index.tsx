@@ -12,6 +12,7 @@ const annotationExtension = defineExtension({
   elements: [
     defineElement<AnnotationElement>({
       type: "annotation",
+      dataVersion: 1,
       kind: "inline",
       isVoid: true,
       render: ({ attributes, element, children }: ElementRenderProps<AnnotationElement>) => (

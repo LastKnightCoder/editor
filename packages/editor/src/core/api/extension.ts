@@ -1,3 +1,8 @@
+import {
+  assertDataVersions,
+  type DataMigration,
+  type PreviousDataVersion,
+} from "@tau/db-schema/data-versions";
 import type { ComponentType, ReactNode } from "react";
 import type { Descendant, Editor, Element, NodeEntry, TextUnit } from "slate";
 import type { RenderElementProps } from "slate-react";
@@ -12,6 +17,13 @@ import type { ElementCopy } from "./copy";
 import type { DecorationSpec, MarkSpec } from "./marks";
 import type { InputRule } from "./inputRules";
 import type { ContentResourceSpec } from "@tau/db-schema/content-resources";
+import {
+  normalizeContentContract,
+  type ContentCollaborationSpec,
+} from "@tau/db-schema/content-contracts";
+
+export type ElementDataMigration = DataMigration;
+export type PreviousElementVersion = PreviousDataVersion<ElementSpec>;
 
 /**
  * 扩展 API v2（01 §5.1）：声明式描述「这个扩展贡献了什么」，内核负责装配、隔离与分发。
@@ -58,6 +70,11 @@ export interface ElementFrame {
 export interface ElementSpec<E extends Element = Element> {
   /** 元素 type；内置类型沿用现有名字，兼容已有文档 */
   type: string;
+  /** 数据结构与同步语义版本；无版本的旧声明不能进入新契约文档。 */
+  dataVersion?: number;
+  collaboration?: ContentCollaborationSpec;
+  previousVersions?: readonly PreviousElementVersion[];
+  migrations?: readonly ElementDataMigration[];
   kind: "block" | "inline";
   isVoid?: boolean;
   /** 后代的方向键/退格导航由领域接管，核心不执行默认相邻块导航。 */
@@ -98,7 +115,8 @@ export interface EditorExtension {
   readonly layers?: readonly ComponentType<ExtensionLayerProps>[];
   /** 块菜单条目；给函数时每次打开菜单求值 */
   readonly blockPanel?:
-    readonly IBlockPanelListItem[] | ((editor: Editor) => readonly IBlockPanelListItem[]);
+    | readonly IBlockPanelListItem[]
+    | ((editor: Editor) => readonly IBlockPanelListItem[]);
   /** 悬浮工具条条目 */
   readonly toolbar?: readonly IConfigItem[];
   /** 贡献的命令：菜单、块面板、宿主都引用命令 id 触发动作 */
@@ -129,6 +147,7 @@ export function defineExtension(definition: ExtensionDefinition): EditorExtensio
   if (!definition.id) throw new Error("[editor] defineExtension 缺少 id");
   const types = new Set<string>();
   for (const element of definition.elements ?? []) {
+    assertElementVersions(element);
     if (types.has(element.type)) {
       throw new Error(`[editor] 扩展 "${definition.id}" 重复声明元素 "${element.type}"`);
     }
@@ -139,7 +158,21 @@ export function defineExtension(definition: ExtensionDefinition): EditorExtensio
 
 /** 按元素类型收窄 render / behaviors 的参数类型；运行时原样返回 */
 export function defineElement<E extends Element>(spec: ElementSpec<E>): ElementSpec {
+  assertElementVersions(spec as unknown as ElementSpec);
   return spec as unknown as ElementSpec;
+}
+
+export function assertElementVersions(spec: ElementSpec): void {
+  assertDataVersions(spec, element =>
+    normalizeContentContract("validation", {
+      type: element.type,
+      dataVersion: element.dataVersion!,
+      kind: element.kind,
+      isVoid: element.isVoid,
+      collaboration: element.collaboration,
+      resources: element.resources,
+    })
+  );
 }
 
 export const isEditorExtension = (value: unknown): value is EditorExtension =>

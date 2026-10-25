@@ -32,7 +32,7 @@ function Skeleton({ title }: { title?: string }) {
   return (
     <div className="flex size-full flex-col gap-3 p-4">
       {title ? (
-        <div className="text-ink-1 line-clamp-2 text-[22px] font-semibold leading-tight">
+        <div className="text-ink-1 line-clamp-2 text-[22px] leading-tight font-semibold">
           {title}
         </div>
       ) : null}
@@ -58,7 +58,7 @@ export const DocumentCard = memo(({ element }: { element: DocumentElement; sketc
 
   const content = (article?.content as Descendant[] | undefined) ?? source?.content ?? [];
   const lowZoom = zoom < simplifiedRenderZoomThreshold;
-  const paperWidth = DOCUMENT_PAPER_WIDTH[element.entityRef.kind];
+  const paperWidth = DOCUMENT_PAPER_WIDTH[source?.kind ?? element.entityRef?.kind ?? "article"];
 
   return (
     <div
@@ -78,7 +78,7 @@ export const DocumentCard = memo(({ element }: { element: DocumentElement; sketc
         <Skeleton title={source?.title ?? element.title} />
       ) : (
         <div
-          className="pointer-events-none absolute left-0 top-0 origin-top-left"
+          className="pointer-events-none absolute top-0 left-0 origin-top-left"
           style={{ transform: `scale(${element.width / paperWidth})` }}
         >
           <DocumentPaper source={source}>
@@ -90,7 +90,7 @@ export const DocumentCard = memo(({ element }: { element: DocumentElement; sketc
       {open && mode === "dock" && !closing && (
         <span
           data-document-badge
-          className="bg-accent text-surface absolute right-2 top-2 rounded-[6px] px-1.5 text-[11px] leading-5"
+          className="bg-accent text-surface absolute top-2 right-2 rounded-[6px] px-1.5 text-[11px] leading-5"
         >
           编辑中
         </span>

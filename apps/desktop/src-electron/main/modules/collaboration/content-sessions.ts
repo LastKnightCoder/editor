@@ -1,14 +1,17 @@
+import { mapNodeResources } from "@tau/db-schema/content-resources";
 import type Database from "better-sqlite3";
 import { createHash } from "node:crypto";
 import * as Y from "yjs";
-import { slateNodesToInsertDelta, yTextToSlateElement } from "@slate-yjs/core";
 import {
-  createSharedDocument,
   getBody,
-  getFields,
   readSharedContent,
   replaceText,
-  validateDocument,
+  NODE_DOCUMENT_VERSION,
+  ASSET_PREFIX,
+  isLocalAssetReference,
+  NODE_DOCUMENT_MAX_BYTES,
+  NodeTree,
+  readNodeDocument,
   type ContentNode,
   type SourceBinding,
 } from "@tau/collaboration";
@@ -17,6 +20,11 @@ import { applySegmentEdits } from "@/entity/text-edits";
 import type { NodeAttributePatcher, TextPatcher, ParagraphPatcher } from "../content-node-patches";
 export { minimalTextEdit } from "@/entity/text-edits";
 import { minimalTextEdit } from "@/entity/text-edits";
+import { nodeText } from "../content-node-patches";
+import { ContentDocumentTable, type ContentDocumentWrite } from "../tables/content-document";
+import { ContentIdentityTable } from "../tables/content-identity";
+import { bindingMatches } from "./content-repository";
+import { findCollaborationBinding } from "../collaboration-guard";
 export type { NodeAttributePatcher, TextPatcher } from "../content-node-patches";
 
 const sessions = new Map<Database.Database, Map<number, RuntimeSession>>();
@@ -41,8 +49,35 @@ export function contentSession(db: Database.Database, contentId: number) {
   const session = sessions.get(db)?.get(contentId);
   if (!session) return;
   const row = db.prepare("SELECT create_time FROM contents WHERE id=?").get(contentId) as
-    { create_time: number } | undefined;
-  if (row?.create_time !== session.info.source?.contentCreatedAt) {
+    | { create_time: number }
+    | undefined;
+  const binding = findCollaborationBinding(db, contentId);
+  const matches =
+    session.info.mode === "local"
+      ? !binding
+      : Boolean(
+          binding &&
+          binding.document_id === session.info.id &&
+          binding.server_url === session.info.serverUrl
+        );
+  const source = session.info.source;
+  let identityMatches =
+    !source?.librarySourceId ||
+    source.librarySourceId === ContentIdentityTable.library(db)?.sourceId;
+  if (identityMatches && source?.contentDocumentId) {
+    const document = db
+      .prepare("SELECT document_id,format_version FROM content_documents WHERE content_id=?")
+      .get(contentId) as { document_id: string; format_version: number } | undefined;
+    if (document && document.format_version !== 2) throw new Error("正文数据格式不兼容");
+    identityMatches = source.contentDocumentId === document?.document_id;
+  }
+  if (
+    !row ||
+    !source ||
+    row.create_time !== source.contentCreatedAt ||
+    !matches ||
+    !identityMatches
+  ) {
     sessions.get(db)?.delete(contentId);
     return;
   }
@@ -51,6 +86,136 @@ export function contentSession(db: Database.Database, contentId: number) {
 
 export function contentRevision(session: RuntimeSession) {
   return createHash("sha256").update(Y.encodeStateAsUpdate(session.doc)).digest("hex");
+}
+
+export function readSessionContent(session: RuntimeSession) {
+  return session.doc.getMap("meta").get("version") === NODE_DOCUMENT_VERSION
+    ? readNodeDocument(session.doc)
+    : readSharedContent(session.doc);
+}
+
+/** 主库读取和复制返回可解析资源路径，不把原房间的资源标识带到新正文。 */
+export function readLocalSessionContent(session: RuntimeSession) {
+  const value = readSessionContent(session);
+  if (session.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION) return value;
+  const contracts = session.doc
+    .getMap("node-tree:contracts")
+    .toJSON() as import("@tau/db-schema/content-contracts").ContentContractDictionary;
+  const visit = (node: ContentNode): ContentNode => {
+    if (!node.children) return node;
+    const definition = contracts[String(node.tauContract)];
+    return {
+      ...mapNodeResources(node, definition?.resources, reference => {
+        if (!isLocalAssetReference(reference) && !reference.startsWith(ASSET_PREFIX))
+          return reference;
+        const path = session.assets?.recoveryPath(reference, session.info.id);
+        if (!path) throw new Error("正文资源尚未在本机就绪，请下载后重试复制或导出");
+        return path;
+      }),
+      children: node.children.map(visit),
+    };
+  };
+  return { ...value, content: value.content.map(visit) };
+}
+
+function patchNodeSession(
+  session: RuntimeSession,
+  patcher: NodeAttributePatcher,
+  textPatcher?: TextPatcher,
+  paragraphPatcher?: ParagraphPatcher
+): number {
+  const candidate = new Y.Doc({ gc: false });
+  Y.applyUpdate(candidate, Y.encodeStateAsUpdate(session.doc));
+  const before = Y.encodeStateVector(candidate);
+  const tree = new NodeTree(candidate);
+  const origin = "content-patch";
+  let patched = 0;
+  const segmentsOf = (id: string) => {
+    const segments: Array<{
+      text: string;
+      write: (index: number, remove: number, insert: string) => void;
+    }> = [];
+    let offset = 0;
+    for (const span of tree.spans(id)) {
+      const start = offset;
+      offset += span.length;
+      if (typeof span.value === "string") {
+        segments.push({
+          text: span.value,
+          write: (index, remove, insert) => {
+            if (remove) tree.deleteText(id, start + index, remove, origin);
+            if (insert) tree.insertText(id, start + index, insert, origin, span.attributes);
+          },
+        });
+      } else segments.push(...segmentsOf(span.value.node));
+    }
+    return segments;
+  };
+  const walk = (id: string, parent: Record<string, unknown>, childIndex: number) => {
+    const node = tree.nodeSnapshot(id);
+    const { children, collabId, ...attributes } = node;
+    const patch = patcher(attributes, {
+      identityKey: `node:${id}`,
+      firstText: nodeText(children?.find(child => Array.isArray(child.children))),
+    });
+    if (
+      patch &&
+      Object.entries(patch).some(
+        ([key, value]) => JSON.stringify(attributes[key]) !== JSON.stringify(value)
+      )
+    ) {
+      tree.setProperties(id, patch, origin);
+      patched++;
+    }
+    let index = 0;
+    const edits: Array<() => void> = [];
+    let offset = 0;
+    for (const span of tree.spans(id)) {
+      const start = offset;
+      offset += span.length;
+      if (typeof span.value !== "string") {
+        walk(span.value.node, attributes, index++);
+        continue;
+      }
+      const next = textPatcher?.(span.value);
+      const edit = next == null ? null : minimalTextEdit(span.value, next);
+      if (edit)
+        edits.push(() => {
+          if (edit.remove) tree.deleteText(id, start + edit.index, edit.remove, origin);
+          if (edit.insert)
+            tree.insertText(id, start + edit.index, edit.insert, origin, span.attributes);
+          patched++;
+        });
+    }
+    edits.reverse().forEach(write => write());
+    if (node.type === "paragraph" && paragraphPatcher) {
+      const segments = segmentsOf(id);
+      patched += applySegmentEdits(
+        segments,
+        paragraphPatcher(segments.map(segment => segment.text).join(""), parent, childIndex)
+      );
+    }
+  };
+  try {
+    candidate.transact(() => {
+      let index = 0;
+      for (const span of tree.spans(null))
+        if (typeof span.value !== "string") walk(span.value.node, {}, index++);
+    }, origin);
+    if (patched) {
+      if (Y.encodeStateAsUpdate(candidate).byteLength > NODE_DOCUMENT_MAX_BYTES)
+        throw new Error("正文超过容量限制");
+      if (!session.persistNodeUpdate) throw new Error("正文持久化服务尚未就绪");
+      const update = Y.encodeStateAsUpdate(candidate, before);
+      session.retainNodeState?.(candidate);
+      session.persistNodeUpdate(update);
+      Y.applyUpdate(session.doc, update, "renderer-persisted");
+    }
+    return patched;
+  } finally {
+    tree.dispose();
+    candidate.destroy();
+  }
 }
 
 function assertSessionWritable(session: RuntimeSession) {
@@ -69,6 +234,8 @@ export function patchSessionNodes(
   paragraphPatcher?: ParagraphPatcher
 ): number {
   assertSessionWritable(session);
+  if (session.doc.getMap("meta").get("version") === NODE_DOCUMENT_VERSION)
+    return patchNodeSession(session, patcher, textPatcher, paragraphPatcher);
   let patched = 0;
   const segmentsOf = (
     text: Y.XmlText
@@ -111,7 +278,8 @@ export function patchSessionNodes(
       const firstChild = element
         .toDelta()
         .find((child: { insert?: unknown }) => child.insert instanceof Y.XmlText)?.insert as
-        Y.XmlText | undefined;
+        | Y.XmlText
+        | undefined;
       const patch = patcher(element.getAttributes() as Record<string, unknown>, {
         identityKey: element._item
           ? `y:${element._item.id.client}:${element._item.id.clock}`
@@ -151,43 +319,6 @@ export function patchSessionNodes(
   };
   session.doc.transact(() => walk(getBody(session.doc)), "content-patch");
   return patched;
-}
-
-export function replaceSessionContent(
-  session: RuntimeSession,
-  content: ContentNode[],
-  expectedRevision?: string
-) {
-  assertSessionWritable(session);
-  if (!expectedRevision || expectedRevision !== contentRevision(session))
-    throw new Error("CONTENT_VERSION_CONFLICT: 内容已变化，请重新读取后重试");
-  const value = readSharedContent(session.doc);
-  // 整篇替换可能携带私有块（getContentById 物化后的真实节点），
-  // 收集剥离结果并合并回会话，避免用户对私有块的修改被静默丢弃。
-  const replacements = new Map<string, ContentNode>();
-  const replacement = createSharedDocument(
-    { ...value, content },
-    session.info.mode === "local" ? undefined : replacements,
-    session.info.mode
-  );
-  try {
-    if (session.info.mode !== "local") validateDocument(replacement);
-    // 在现有文档上替换，保留会话身份和其他视图的增量订阅。
-    session.doc.transact(() => {
-      const body = getBody(session.doc);
-      body.delete(0, body.length);
-      for (const [id, fields] of getFields(replacement))
-        getFields(session.doc).set(id, fields.clone());
-      // Y.XmlText.clone() 会丢失节点属性，通过 Slate 转换保留整棵正文的类型与属性。
-      body.applyDelta(slateNodesToInsertDelta(yTextToSlateElement(getBody(replacement)).children));
-    }, "content-replacement");
-    if (replacements.size) {
-      for (const [id, node] of replacements) session.privateNodes.set(id, node);
-      session.projectionDirty = true;
-    }
-  } finally {
-    replacement.destroy();
-  }
 }
 
 export function canonicalContentTitle(db: Database.Database, contentId: number) {
@@ -243,29 +374,47 @@ export function projectContentTitle(db: Database.Database, contentId: number, ti
   return changed;
 }
 
-export function projectLocalContent(
+export function projectContractContent(
   db: Database.Database,
   source: SourceBinding,
-  content: ContentNode[],
+  session: RuntimeSession,
+  value: ContentDocumentWrite,
+  expectedRevision: string | undefined,
   count: number
-) {
-  const row = db
-    .prepare("SELECT create_time,content FROM contents WHERE id=?")
-    .get(source.contentId) as { create_time: number; content: string } | undefined;
-  if (!row || row.create_time !== source.contentCreatedAt) throw new Error("原内容关联已变化");
-  const json = JSON.stringify(content);
-  if (row.content === json) return false;
-  db.transaction(() => {
-    const now = Date.now();
-    db.prepare("UPDATE contents SET content=?,count=?,update_time=? WHERE id=?").run(
-      json,
-      count,
-      now,
-      source.contentId
-    );
+): boolean {
+  return db.transaction(() => {
+    const row = db
+      .prepare("SELECT create_time,content FROM contents WHERE id=?")
+      .get(source.contentId) as { create_time: number; content: string } | undefined;
+    if (!row || row.create_time !== source.contentCreatedAt) throw new Error("原内容关联已变化");
+    const local = session.info.mode === "local";
+    if (
+      local
+        ? Boolean(findCollaborationBinding(db, source.contentId))
+        : !bindingMatches(db, source, session.info.id, session.info.serverUrl)
+    )
+      throw new Error("正文会话绑定已变化，停止回写");
+    const previous = ContentDocumentTable.read(db, source.contentId);
+    if (
+      (source.librarySourceId &&
+        source.librarySourceId !== ContentIdentityTable.library(db)?.sourceId) ||
+      (source.contentDocumentId && source.contentDocumentId !== previous?.documentId)
+    )
+      throw new Error("资料库或正文身份已变化，原会话仅保留为恢复副本");
+    if (!previous) throw new Error("正文格式尚未安装，必须先恢复迁移安装");
+    if (previous.documentId !== value.documentId)
+      throw new Error("正文身份已变化，必须先恢复迁移安装");
+    if (
+      row.content === JSON.stringify(value.content) &&
+      JSON.stringify(previous.contracts) === JSON.stringify(value.contracts)
+    )
+      return false;
+    if (previous.revision !== expectedRevision)
+      throw new Error("正文投影修订已变化，原缓存已保留，请先处理恢复副本");
+    ContentDocumentTable.commit(db, source.contentId, value, { expectedRevision, count });
     db.prepare(
       "INSERT INTO operation(operation_time,operation_id,operation_content_type,operation_action) VALUES (?,?,'content','update')"
-    ).run(now, source.contentId);
+    ).run(Date.now(), source.contentId);
+    return true;
   })();
-  return true;
 }

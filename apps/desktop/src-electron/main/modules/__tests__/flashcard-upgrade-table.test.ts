@@ -13,6 +13,7 @@ vi.mock("../video-note-index-queue", () => ({
 }));
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
+import CONTENT_CONTRACTS_SQL from "../../../../../../packages/db-schema/schema/main/11_content_contracts.sql?raw";
 import FlashcardTable from "../tables/flashcard";
 
 /** v4 库样本：旧调度列结构（review_level/ease_factor）+ 一张已学卡与历史评分 */
@@ -77,6 +78,8 @@ describe("闪卡 FSRS 表迁移（upgradeTable）", () => {
       .get() as { n: number; s: number };
     expect(history.n).toBe(2);
     expect(history.s).toBe(0);
+
+    db.exec(CONTENT_CONTRACTS_SQL);
 
     // 迁移后调度链路可用
     const card = FlashcardTable.createFlashcard(db, {

@@ -1,3 +1,5 @@
+import { bindDatabaseCommands, currentCommandScope } from "@/services/command-context";
+import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import {
   DiaryEntry,
   DiarySegment,
@@ -63,13 +65,22 @@ interface RawDiaryTagSetting {
 }
 
 export const createDiaryEntry = async (entry: CreateDiaryEntry): Promise<DiaryEntry> => {
+  const command = bindDatabaseCommands({ invoke }, currentCommandScope());
+  const { prepareNewContent } = await import("@/services/editorKit");
+  const documents = await Promise.all(
+    (entry.segments ?? [entry.content ?? []]).map(content =>
+      prepareNewContent(content, entry.contracts)
+    )
+  );
   const serializedEntry = {
     ...entry,
+    segments: documents.map(document => document.content),
+    contracts: Object.assign({}, ...documents.map(document => document.contracts)),
     weather: entry.weather ? JSON.stringify(entry.weather) : null,
     mood: entry.mood ? JSON.stringify(entry.mood) : null,
     tags: entry.tags ? JSON.stringify(entry.tags) : "[]",
   };
-  const result = await invoke<RawDiaryEntry>("create-diary-entry", serializedEntry);
+  const result = await command.invoke<RawDiaryEntry>("create-diary-entry", serializedEntry);
   return deserializeDiaryEntry(result);
 };
 
@@ -176,8 +187,16 @@ export const getDiarySegments = async (diaryId: number): Promise<DiarySegment[]>
 export const createDiarySegment = async (params: {
   diaryId: number;
   content: Descendant[];
+  contracts?: ContentContractDictionary;
 }): Promise<DiarySegment> => {
-  const result = await invoke<RawDiarySegment>("create-diary-segment", params);
+  const command = bindDatabaseCommands({ invoke }, currentCommandScope());
+  const document = await (
+    await import("@/services/editorKit")
+  ).prepareNewContent(params.content, params.contracts);
+  const result = await command.invoke<RawDiarySegment>("create-diary-segment", {
+    ...params,
+    ...document,
+  });
   return deserializeDiarySegment(result);
 };
 
@@ -297,8 +316,16 @@ export const deleteDiaryTagSetting = async (name: string): Promise<number> => {
 export const createDiaryMoment = async (params: {
   date: string;
   content: Descendant[];
+  contracts?: ContentContractDictionary;
   tags?: string[];
 }): Promise<DiarySegmentItem> => {
-  const result = await invoke<RawDiarySegmentItem>("create-diary-moment", params);
+  const command = bindDatabaseCommands({ invoke }, currentCommandScope());
+  const document = await (
+    await import("@/services/editorKit")
+  ).prepareNewContent(params.content, params.contracts);
+  const result = await command.invoke<RawDiarySegmentItem>("create-diary-moment", {
+    ...params,
+    ...document,
+  });
   return deserializeDiarySegmentItem(result);
 };

@@ -1,1 +1,5 @@
-export { previewMenuExtension } from "./src/menu";
+export {
+  previewMenuExtension,
+  getPreviewEditorActions,
+  type PreviewEditorActions,
+} from "./src/menu";

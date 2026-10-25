@@ -1,3 +1,7 @@
+import { getWhiteboardDocument } from "@tau/whiteboard/collaboration";
+import { useQuery } from "@tanstack/react-query";
+import { resolveWhiteboardEntity } from "@/commands/whiteboard-document";
+import useSettingStore from "@/stores/useSettingStore";
 /**
  * 画布里嵌入的白板卡片：引用整块白板（whiteBoardId），显示缩略图 + 标题 + 页数，
  * 双击打开白板详情（上次停留的页）；在白板详情里双击时沿跳转链前进（trail 参数，见 features/whiteboards/navigation.ts），
@@ -60,8 +64,25 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
   const { x, y, width, name } = element;
   const height = WHITEBOARD_CARD_HEIGHT;
 
-  const boardId = element.whiteBoardId ?? null;
-  const legacyPageId = boardId === null ? (element.whiteBoardContentId ?? null) : null;
+  const database = useSettingStore(state => state.setting.database.active);
+  const resolved = useQuery({
+    queryKey: ["whiteboard-entity", database, element.entity],
+    queryFn: () =>
+      element.entity?.kind === "whiteboard"
+        ? resolveWhiteboardEntity(database, element.entity)
+        : Promise.resolve(null),
+    enabled: !!element.entity,
+    refetchOnWindowFocus: true,
+  });
+  const boardId = element.entity
+    ? (resolved.data ?? null)
+    : getWhiteboardDocument(board)
+      ? null
+      : (element.whiteBoardId ?? null);
+  const legacyPageId =
+    !getWhiteboardDocument(board) && !element.entity && boardId === null
+      ? (element.whiteBoardContentId ?? null)
+      : null;
   const detail = useWhiteboardDetail(boardId);
   const { owner, loading: ownerLoading } = useWhiteboardOwner(legacyPageId);
   const whiteBoard = boardId !== null ? detail.board : owner;
@@ -140,7 +161,7 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
             {cover ? (
               <LocalImage
                 url={cover}
-                className="absolute inset-0 size-full select-none object-cover"
+                className="absolute inset-0 size-full object-cover select-none"
                 draggable={false}
                 onLoadError={() => setFailedCover(cover)}
               />
@@ -158,7 +179,7 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
             )}
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span className="text-ink-1 truncate text-[14px] font-semibold leading-[1.4]">
+            <span className="text-ink-1 truncate text-[14px] leading-[1.4] font-semibold">
               {title}
             </span>
             <span className="text-ink-3 truncate text-[12px] tabular-nums">{meta}</span>

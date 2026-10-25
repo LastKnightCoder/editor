@@ -70,7 +70,9 @@ export const blockSerializers: HtmlSerializer[] = [
   {
     type: "code-block",
     isBlock: true,
-    toHtml: async (element, _childrenHtml, _parentElement, options) => {
+    toHtml: async (element, childrenHtml, _parentElement, options) => {
+      if (element.children?.some((node: { type?: string }) => node.type === "code-step"))
+        return childrenHtml;
       const language = element.language?.toLowerCase() || "";
       const code =
         typeof element.code === "string" && element.code.length > 0
@@ -79,6 +81,17 @@ export const blockSerializers: HtmlSerializer[] = [
       const codeTheme = options?.codeTheme || "github-light";
       return await renderCodeWithShiki(code, language, codeTheme);
     },
+  },
+
+  {
+    type: "code-step",
+    isBlock: true,
+    toHtml: (element, _children, parent, options) =>
+      renderCodeWithShiki(
+        element.code ?? "",
+        parent?.language?.toLowerCase() ?? "",
+        options?.codeTheme ?? "github-light"
+      ),
   },
 
   // Blockquote

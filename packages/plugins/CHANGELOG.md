@@ -1,5 +1,14 @@
 # 更新记录
 
+## 0.45.0
+
+- 编辑器节点增加 `dataVersion`、精确历史版本声明与显式数据转换；Markdown 和 HTML 导出可按节点数据版本选择实现。
+- 源码字段通过 `collaboration.textFields` 声明，使用 `SourceBlockEditor` 的 `element + field` 或 `useTextField` 增量编辑，支持输入法、选区与宿主撤销。
+- 正文读取和写入携带 `contracts`，复制未知节点时保留原数据与契约；本机视图状态通过 `view/updateView` 保存。
+- 白板作者接口改为稳定身份命令，提供 `updateElementData`、`getTextBinding` 和宿主历史分组；元素数据版本与转换规则和编辑器保持一致。
+- 适配要求：源码编辑不再使用 `initValue/onChange` 整段回写；白板不再使用路径操作、`apply` 或 `schemaVersion/migrate`。旧插件须按作者文档适配并重新构建，不能仅更新依赖版本。
+- SDK 提供作者契约，运行时仍由匹配的 Tau 客户端提供；白板作者接口仅支持桌面，SDK 发布不会自动转换旧文档或更新用户客户端。
+
 ## 0.44.0
 
 - 新增 EditorMetricRule 与静态 editorMetrics 声明，扩展拥有自己的文本字段规则。

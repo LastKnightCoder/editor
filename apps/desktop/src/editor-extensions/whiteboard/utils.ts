@@ -8,6 +8,10 @@ import {
 } from "@/commands/white-board";
 import { WhiteBoardContent } from "@/types";
 import type { WhiteboardElement } from "./types";
+import {
+  createPendingWhiteBoardContent,
+  getWhiteBoardContentReference,
+} from "@/commands/white-board";
 
 type WhiteboardEditor = Editor & {
   isInsertNewWhiteboard?: boolean;
@@ -15,7 +19,7 @@ type WhiteboardEditor = Editor & {
 
 export const insertWhiteboard = async (editor: Editor) => {
   const whiteboardEditor = editor as WhiteboardEditor;
-  const whiteBoardContent = await createWhiteBoardContent({
+  const initial = {
     data: {
       children: [],
       viewPort: { minX: 0, minY: 0, width: 0, height: 0, zoom: 1 },
@@ -25,14 +29,20 @@ export const insertWhiteboard = async (editor: Editor) => {
     },
     name: "白板",
     imgUrl: "",
-  });
+  };
+  const referenced = "nodeTree" in editor ? await createPendingWhiteBoardContent(initial) : null;
+  const whiteBoardContent = referenced
+    ? referenced.content
+    : await createWhiteBoardContent(initial);
 
   const whiteboard: WhiteboardElement = {
     type: "whiteboard",
     id: getId(),
     height: 400,
     children: [{ type: "formatted", text: "" }],
-    whiteBoardContentId: whiteBoardContent.id,
+    ...(referenced
+      ? { entityRef: referenced.reference }
+      : { whiteBoardContentId: whiteBoardContent.id }),
   };
 
   // 在删除白板时，不能立即删除数据库中的白板，因为可能会被撤回
@@ -51,14 +61,16 @@ export const insertExistingWhiteboard = async (
   whiteBoardContent: WhiteBoardContent
 ) => {
   const whiteboardEditor = editor as WhiteboardEditor;
-  await incrementWhiteBoardContentRefCount(whiteBoardContent.id);
+  const reference =
+    "nodeTree" in editor ? await getWhiteBoardContentReference(whiteBoardContent.id) : undefined;
+  if (!reference) await incrementWhiteBoardContentRefCount(whiteBoardContent.id);
 
   const whiteboard: WhiteboardElement = {
     type: "whiteboard",
     id: getId(),
     height: 400,
     children: [{ type: "formatted", text: "" }],
-    whiteBoardContentId: whiteBoardContent.id,
+    ...(reference ? { entityRef: reference } : { whiteBoardContentId: whiteBoardContent.id }),
   };
 
   // 标记为新建白板，insert_node 时不会再次增加引用计数

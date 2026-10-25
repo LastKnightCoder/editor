@@ -11,8 +11,12 @@ import {
 } from "slate-react";
 import { motion, useReducedMotion } from "motion/react";
 import { useMemoizedFn } from "ahooks";
-import { cn } from "@tau/ui";
+import { cn, mergeRefs } from "@tau/ui";
 import { InlineChromiumBugfix, OverlayBackDismiss } from "@tau/editor/api";
+import { useTextFieldBinding, canEditElement } from "@tau/editor/api";
+import { IEditorTextFields } from "@tau/editor/api";
+import { bindTextFieldTextarea } from "@tau/editor-source-view";
+import isHotkey from "is-hotkey";
 import Katex from "../../renderers/Katex";
 import type { InlineMathElement } from "../../types";
 
@@ -23,16 +27,31 @@ interface InlineMathProps {
 
 const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = props => {
   const { attributes, element, children } = props;
-  const { tex } = element;
   const editor = useSlateStatic();
-  const readOnly = useReadOnly();
+  const bound = Boolean(editor.tryGetService(IEditorTextFields));
+  const source = useTextFieldBinding(bound ? element : undefined, "tex");
+  const readOnly = useReadOnly() || !canEditElement(editor, element) || (bound && source.readOnly);
   const selected = useSelected();
   const focused = useFocused();
   const reduceMotion = useReducedMotion();
   const [isOpen, setIsOpen] = useState(false);
+  const [draft, setDraft] = useState(element.tex);
+  const [bindingError, setBindingError] = useState<string | null>(null);
+  const tex = bound ? (isOpen ? draft : source.value) : element.tex;
   const elementRef = useRef<HTMLElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    if (!isOpen || !source.binding || !inputRef.current) return;
+    setBindingError(null);
+    const binding = bindTextFieldTextarea(
+      inputRef.current,
+      source.binding,
+      setDraft,
+      setBindingError
+    );
+    return () => binding.dispose();
+  }, [isOpen, source.binding]);
 
   const handleTexChange = useMemoizedFn((newTex: string) => {
     const path = ReactEditor.findPath(editor, element);
@@ -62,6 +81,7 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = props => {
   });
 
   const closeInline = useMemoizedFn((direction?: "left" | "right") => {
+    inputRef.current?.blur();
     if (direction) moveCaretOut(direction);
     setIsOpen(false);
   });
@@ -169,7 +189,7 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = props => {
   return (
     <span
       {...attributes}
-      ref={elementRef}
+      ref={mergeRefs(attributes.ref, elementRef)}
       className={cn(
         "relative inline-flex cursor-text items-center rounded-[4px] px-[0.125em] transition-colors duration-150",
         "[&_.katex-display>.katex]:m-0 [&_.katex-display>.katex]:w-auto [&_.katex-display]:overflow-visible [&_.katex-display]:p-0",
@@ -189,16 +209,26 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = props => {
               ref={inputRef}
               data-inline-math-input=""
               aria-label="行内公式 LaTeX 源码"
-              value={tex}
+              value={bound ? undefined : tex}
+              readOnly={readOnly || Boolean(bindingError)}
               size={Math.max(1, tex.length + 1)}
               placeholder="输入公式"
               spellCheck={false}
-              className="duration-120 ease-tau-out min-w-3 max-w-[min(55vw,20rem)] border-none bg-transparent p-0 text-inherit outline-none transition-[width] [field-sizing:content] placeholder:text-[var(--ed-text-tertiary)]"
-              onChange={event => handleTexChange(event.target.value)}
+              className="ease-tau-out [field-sizing:content] max-w-[min(55vw,20rem)] min-w-3 border-none bg-transparent p-0 text-inherit transition-[width] duration-120 outline-none placeholder:text-[var(--ed-text-tertiary)]"
+              onChange={bound ? undefined : event => handleTexChange(event.target.value)}
               onClick={event => event.stopPropagation()}
               onKeyDown={event => {
                 event.stopPropagation();
                 if (event.nativeEvent.isComposing) return;
+                if (bound && isHotkey(["mod+z", "mod+shift+z", "mod+y"], event.nativeEvent)) {
+                  event.preventDefault();
+                  if (!readOnly && !bindingError) {
+                    if (isHotkey(["mod+shift+z", "mod+y"], event.nativeEvent))
+                      source.binding?.redo();
+                    else source.binding?.undo();
+                  }
+                  return;
+                }
                 const input = event.currentTarget;
                 if (event.key === "Escape" || event.key === "Enter") {
                   event.preventDefault();
@@ -233,7 +263,7 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = props => {
               ref={previewRef}
               aria-label="公式预览"
               contentEditable={false}
-              className="z-9999 rounded-tau-sm shadow-card pointer-events-none fixed left-0 top-0 inline-flex max-w-[calc(100vw-16px)] -translate-x-1/2 items-center overflow-x-auto whitespace-nowrap bg-[var(--ed-bg-surface)] px-[0.6em] py-[0.4em] text-[var(--ed-text)]"
+              className="rounded-tau-sm shadow-card pointer-events-none fixed top-0 left-0 z-9999 inline-flex max-w-[calc(100vw-16px)] -translate-x-1/2 items-center overflow-x-auto bg-[var(--ed-bg-surface)] px-[0.6em] py-[0.4em] whitespace-nowrap text-[var(--ed-text)]"
               style={{ visibility: "hidden" }}
               initial={reduceMotion ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -248,6 +278,11 @@ const InlineMath: React.FC<PropsWithChildren<InlineMathProps>> = props => {
             document.body
           )}
       </span>
+      {(source.error || bindingError) && (
+        <span role="alert" contentEditable={false}>
+          {source.error || bindingError}
+        </span>
+      )}
       <OverlayBackDismiss open={isOpen && !readOnly} onDismiss={() => closeInline("right")} />
       <InlineChromiumBugfix />
       {children}

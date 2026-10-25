@@ -73,6 +73,7 @@ export interface PluginContentRecord {
   wordCount: number;
   markdown?: string;
   nodes?: unknown[];
+  contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
   /** 引用这份正文的实体类型，供宿主按实体权限判断 */
   owners: PluginContentOwnerEntity[];
   /** 以这份正文为自有内容的插件实体：插件读写自己的正文不需要业务权限 */
@@ -89,7 +90,10 @@ export interface PluginContentOwner {
 /** 插件正文输入的 IPC 形式：copyOf、shareOf 的 ContentRef 由渲染端解码为正文 ID 与创建时间 */
 export type PluginContentSource =
   | { markdown: string }
-  | { nodes: unknown[] }
+  | {
+      nodes: unknown[];
+      contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
+    }
   | { copyOf: { contentId: number; createdAt: number } }
   | { shareOf: { contentId: number; createdAt: number } };
 
@@ -130,7 +134,9 @@ export interface PluginRefInput {
 }
 
 export type PluginRefDescription =
-  { status: "ok"; title: string } | { status: "missing" } | { status: "denied" };
+  | { status: "ok"; title: string }
+  | { status: "missing" }
+  | { status: "denied" };
 
 /** 项目目录中的一处（IPC 用数字 ID，渲染端转成字符串） */
 export interface PluginProjectNodeRecord {

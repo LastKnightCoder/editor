@@ -1,3 +1,4 @@
+import { LocalFallbackChoiceDialog } from "./components/LocalFallbackChoiceDialog";
 // 协作编辑页（设计稿 03 方案 A）：顶栏 presence + 状态副行 + 离线横幅 + 协作编辑器。
 // 远端光标/选区由 @tau/editor-collab 的文档源自动渲染，本页只负责外壳与状态。
 // 成员视角（本地无内容行）与协作中心入口仍走本页；owner 的原地编辑见详情页 CollaborativeEditor。
@@ -16,7 +17,6 @@ import {
 } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor";
 import { cn } from "@tau/ui";
-import { createYjsDocument } from "@tau/editor-collab";
 import { ActionSheet } from "../../components/ActionSheet";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
 import { useEdgeFade } from "../../hooks/useScrollState";
@@ -55,16 +55,27 @@ export function CollabEditorPage(props: {
 }) {
   const navigator = useNavigator();
   const [moreOpen, setMoreOpen] = useState(false);
-  const { binding, session, loading, error, readonly, presence, status, online, offline, retry } =
-    useCollabSession(props.documentId);
+  const {
+    binding,
+    document: sourceDocument,
+    session,
+    loading,
+    error,
+    readonly,
+    presence,
+    status,
+    online,
+    offline,
+    retry,
+  } = useCollabSession(props.documentId);
   const editorRef = useRef<EditorRef | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(scrollRef);
   const toolbarController = useMobileEditorToolbarController({ editorRef });
   const syncSelection = toolbarController.syncSelection;
   const document = useMemo(
-    () => (binding ? createYjsDocument(binding, { onChange: () => syncSelection() }) : undefined),
-    [binding, syncSelection]
+    () => (sourceDocument ? { ...sourceDocument, onChange: () => syncSelection() } : undefined),
+    [sourceDocument, syncSelection]
   );
   // 协作文档首次就绪（已绑定且不在建立连接中）时决定一次初始编辑态：空文档或偏好为直接编辑
   const openMode = useEditorOpenMode();
@@ -111,6 +122,12 @@ export function CollabEditorPage(props: {
 
   return (
     <div ref={setPageRootEl} className="mobile-kb-screen bg-page relative flex h-full flex-col">
+      <LocalFallbackChoiceDialog
+        open={Boolean(session?.remoteVersionAvailable)}
+        documentId={props.documentId}
+        boundContentId={undefined}
+        onResolved={() => {}}
+      />
       {blockSelection.active ? (
         <BlockSelectionHeader
           selectedCount={blockSelection.selected.length}
@@ -142,7 +159,7 @@ export function CollabEditorPage(props: {
                 type="button"
                 aria-label="成员管理"
                 onClick={() => navigator.push("memberSheet", { documentId: props.documentId })}
-                className="bg-surface shadow-card active:bg-hover flex h-9 items-center gap-1 rounded-full py-1 pl-1.5 pr-2.5 transition-colors"
+                className="bg-surface shadow-card active:bg-hover flex h-9 items-center gap-1 rounded-full py-1 pr-2.5 pl-1.5 transition-colors"
               >
                 <AvatarStack members={online} />
                 <ChevronRight size={14} className="text-ink-3" />

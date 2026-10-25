@@ -372,9 +372,12 @@ class FlashcardTable {
           c.create_time as content_create_time,
           c.update_time as content_update_time,
           c.count as content_count,
-          c.ref_count as content_ref_count
+          c.ref_count as content_ref_count,
+          d.contracts as content_contracts,
+          d.revision as content_revision
         FROM flashcard_references fr
         LEFT JOIN contents c ON fr.content_id = c.id
+        LEFT JOIN content_documents d ON d.content_id = c.id
         WHERE fr.card_id IN (${placeholders})`
       )
       .all(...cardIds) as Array<
@@ -385,6 +388,8 @@ class FlashcardTable {
         content_update_time: number | null;
         content_count: number | null;
         content_ref_count: number | null;
+        content_contracts: string | null;
+        content_revision: string | null;
       }
     >;
 
@@ -404,6 +409,9 @@ class FlashcardTable {
             updateTime: row.content_update_time!,
             count: row.content_count!,
             refCount: row.content_ref_count!,
+            ...(row.content_contracts
+              ? { contracts: JSON.parse(row.content_contracts), revision: row.content_revision! }
+              : {}),
           };
         } catch (e) {
           log.error("[FlashcardTable] Failed to parse content data", e);
@@ -443,6 +451,7 @@ class FlashcardTable {
         }
         const result = ContentTable.createContent(db, {
           content: ref.customContent,
+          contracts: ref.contracts,
           count: 0,
           refCount: 1,
         });
@@ -569,7 +578,8 @@ class FlashcardTable {
 
   static getDeck(db: Database.Database, deckId: number): FlashcardDeck | null {
     const row = db.prepare(`SELECT * FROM flashcard_decks WHERE id = ?`).get(deckId) as
-      DeckRow | undefined;
+      | DeckRow
+      | undefined;
     if (!row) return null;
     const stats = this.getDeckStatsMap(db).get(deckId);
     return this.mapDeckRow(row, stats);
@@ -703,7 +713,8 @@ class FlashcardTable {
 
   static getFlashcard(db: Database.Database, cardId: number): Flashcard | null {
     const row = db.prepare(`SELECT * FROM flashcards WHERE id = ?`).get(cardId) as
-      CardRow | undefined;
+      | CardRow
+      | undefined;
     if (!row) return null;
     const references = this.getReferencesByCardIds(db, [cardId])[cardId] ?? [];
     return this.mapCardRow(row, references);
@@ -764,7 +775,8 @@ class FlashcardTable {
     ctx: CommandContext = fallbackCommandContext
   ): Flashcard | null {
     const existingRow = db.prepare(`SELECT * FROM flashcards WHERE id = ?`).get(payload.id) as
-      CardRow | undefined;
+      | CardRow
+      | undefined;
     if (!existingRow) return null;
     const now = Date.now();
 
@@ -890,7 +902,8 @@ class FlashcardTable {
   ): FlashcardReviewResult | null {
     const result = db.transaction(() => {
       const row = db.prepare(`SELECT * FROM flashcards WHERE id = ?`).get(payload.cardId) as
-        CardRow | undefined;
+        | CardRow
+        | undefined;
       if (!row) return null;
 
       const now = Date.now();
@@ -965,7 +978,8 @@ class FlashcardTable {
     const { previous } = payload;
     const undo = db.transaction(() => {
       const row = db.prepare(`SELECT * FROM flashcards WHERE id = ?`).get(payload.cardId) as
-        CardRow | undefined;
+        | CardRow
+        | undefined;
       if (!row) return null;
       const latest = db
         .prepare(
@@ -973,7 +987,8 @@ class FlashcardTable {
          WHERE card_id = ? ORDER BY id DESC LIMIT 1`
         )
         .get(payload.cardId) as
-        { id: number; review_time: number; stability: number; difficulty: number } | undefined;
+        | { id: number; review_time: number; stability: number; difficulty: number }
+        | undefined;
       if (
         !latest ||
         latest.id !== payload.reviewId ||

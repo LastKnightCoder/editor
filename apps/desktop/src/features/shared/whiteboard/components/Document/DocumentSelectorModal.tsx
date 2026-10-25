@@ -1,3 +1,6 @@
+import { getWhiteboardDocument } from "@tau/whiteboard/collaboration";
+import { referenceWhiteboardEntity } from "@/commands/whiteboard-document";
+import useSettingStore from "@/stores/useSettingStore";
 import { useMemoizedFn } from "ahooks";
 import { v4 as getUuid } from "uuid";
 import { toast } from "@tau/ui";
@@ -14,7 +17,8 @@ import type { EntityCandidate, EntityKind } from "@/types";
 const PICKER_KINDS: EntityKind[] = ["card", "article", "project_item", "diary-moment"];
 const GAP = 32;
 
-type Placement = Pick<DocumentElement, "entityRef" | "title">;
+type Placement = Required<Pick<DocumentElement, "entityRef">> &
+  Pick<DocumentElement, "title" | "entity">;
 
 /** 检索候选的实体身份直接用于文档卡 */
 function toPlacement(candidate: EntityCandidate): Placement | null {
@@ -45,7 +49,9 @@ function insertDocuments(board: Board, placements: Placement[]) {
     const element: DocumentElement = {
       id: getUuid(),
       type: "document",
-      ...placement,
+      ...(getWhiteboardDocument(board)
+        ? { entity: placement.entity, title: placement.title }
+        : placement),
       x,
       y: centerY - size.height / 2,
       ...size,
@@ -82,11 +88,30 @@ export function DocumentSelectorModal({
     onClose();
   });
 
-  const handleConfirm = useMemoizedFn((picked: EntityCandidate[]) => {
+  const handleConfirm = useMemoizedFn(async (picked: EntityCandidate[]) => {
     const canSubmit = board.captureSubmission();
     const placements = picked.map(toPlacement).filter((item): item is Placement => item !== null);
     if (!canSubmit()) return;
     if (placements.length < picked.length) toast.error("部分内容已不存在，未放入");
+    if (getWhiteboardDocument(board)) {
+      const databaseName = useSettingStore.getState().setting.database.active;
+      try {
+        await Promise.all(
+          placements.map(async placement => {
+            placement.entity = await referenceWhiteboardEntity(
+              databaseName,
+              placement.entityRef.kind,
+              placement.entityRef.id
+            );
+          })
+        );
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "引用建立失败");
+        return;
+      }
+      if (!canSubmit() || useSettingStore.getState().setting.database.active !== databaseName)
+        return;
+    }
     insertDocuments(board, placements);
     close();
   });

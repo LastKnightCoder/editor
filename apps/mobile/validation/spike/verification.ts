@@ -126,7 +126,8 @@ export async function runSpikeChecks(driver: typeof Driver) {
     );
     const abc = () =>
       driver.editor!.children.find(node => (node as { type: string }).type === "abc") as unknown as
-        { content: string } | undefined;
+        | { content: string }
+        | undefined;
     if (!abc()) {
       click("[data-spike-insert-menu]");
       await until(() => document.querySelector("[data-spike-insert-abc]"), "插件插入菜单");
@@ -145,11 +146,13 @@ export async function runSpikeChecks(driver: typeof Driver) {
     else {
       if (platform === "desktop") {
         document.dispatchEvent(new CustomEvent("preview-editor-focus", { detail: abc() }));
-        await until(() => document.querySelector(".CodeMirror"), "桌面源码编辑器");
-        const codeMirror = document.querySelector(".CodeMirror") as HTMLElement & {
-          CodeMirror: { setValue(value: string): void };
-        };
-        codeMirror.CodeMirror.setValue(SOURCE);
+        await until(() => document.querySelector(".ed-preview-source textarea"), "桌面源码编辑器");
+        const input = document.querySelector<HTMLTextAreaElement>(".ed-preview-source textarea")!;
+        Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(
+          input,
+          SOURCE
+        );
+        input.dispatchEvent(new Event("input", { bubbles: true }));
       } else {
         click("[data-spike-edit-source]");
         await until(() => document.querySelector("[data-spike-source-input]"), "移动全屏源码编辑");

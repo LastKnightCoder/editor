@@ -1,6 +1,6 @@
 import { useEffect, useState, type ComponentType, type Ref } from "react";
 import { isCollaborationResource } from "@tau/collaboration";
-import type { EditorCollaborationBinding } from "@tau/editor-collab";
+import type { ContentCollaborationBinding } from "@tau/editor-collab";
 
 /**
  * 包装平台媒体组件：将协同资源引用（服务器资产 / 仅本机资源）解析为本地地址后再渲染。
@@ -9,7 +9,7 @@ import type { EditorCollaborationBinding } from "@tau/editor-collab";
  */
 export function createAssetMedia<P extends { src?: string; ref?: Ref<HTMLMediaElement> }>(
   Component: ComponentType<P>,
-  binding: EditorCollaborationBinding,
+  binding: Pick<ContentCollaborationBinding, "resolveResource">,
   label: string
 ): ComponentType<P> {
   function AssetMedia(props: P) {

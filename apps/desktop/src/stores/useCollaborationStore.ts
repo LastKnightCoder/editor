@@ -8,6 +8,7 @@
 import { create } from "zustand";
 import { getCollaborationState } from "@/commands";
 import { on } from "@/electron";
+import { toast } from "@tau/ui";
 import { DEFAULT_COLLABORATION_URL, type CollaborationState } from "@tau/collaboration";
 
 // 直接看桥是否注入（与 @/electron 的 isElectron 同一判据）；模块加载即接线，不读可被测试替身省略的导出
@@ -28,14 +29,21 @@ const useCollaborationStore = create<State>()(() => ({
 }));
 
 function connect() {
+  on("collaboration:save-blocked", (_event, payload: { message: string }) =>
+    toast.error(payload.message)
+  );
   on("collaboration:state", (_event, state: CollaborationState) =>
     useCollaborationStore.setState({ ...state, synced: true })
   );
-  on("collaboration:removed", (_event, { documentId }: { documentId: string }) =>
-    useCollaborationStore.setState(state => ({
-      sessions: state.sessions.filter(session => session.id !== documentId),
-      requests: state.requests.filter(request => request.documentId !== documentId),
-    }))
+  on(
+    "collaboration:removed",
+    (_event, { documentId, replaced }: { documentId: string; replaced?: boolean }) => {
+      if (replaced) return;
+      useCollaborationStore.setState(state => ({
+        sessions: state.sessions.filter(session => session.id !== documentId),
+        requests: state.requests.filter(request => request.documentId !== documentId),
+      }));
+    }
   );
   // 主进程协作模块在窗口显示后初始化，首拉失败时按秒重试
   const load = (remaining: number) => {

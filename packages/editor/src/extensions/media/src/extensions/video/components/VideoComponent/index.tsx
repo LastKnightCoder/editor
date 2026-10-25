@@ -8,7 +8,7 @@ import { ElementRenderProps as IExtensionBaseProps } from "@tau/editor/api";
 import { type VideoElement } from "../../../../types/index";
 import { AddParagraph } from "@tau/editor/api";
 import { useImageResize, ResizeDirection } from "../../../../hooks/useImageResize";
-import { useIsLastElement } from "@tau/editor/api";
+import { useIsLastElement, useTouchVoidSelection } from "@tau/editor/api";
 
 import { If, VideoPlayer } from "@tau/shared";
 
@@ -26,7 +26,6 @@ import {
 } from "../../../../utils/mediaFrameClasses";
 import VideoSelectionToolbar from "./VideoSelectionToolbar";
 import { WIDTH_PRESETS } from "../../../../utils/mediaWidth";
-import { useTouchMediaSelection } from "../../../../hooks/useTouchMediaSelection";
 import { mediaWidthControls } from "../../../../utils/mediaWidthControls";
 
 const MIN_WIDTH = 200;
@@ -52,7 +51,7 @@ const VideoComponent = (props: IExtensionBaseProps<VideoElement>) => {
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
   const [maxWidth, setMaxWidth] = useState<number>(Infinity);
   const [pointerSelected, setIsSelected] = useState(false);
-  const touchSelection = useTouchMediaSelection(element);
+  const touchSelection = useTouchVoidSelection(element);
   const { touch } = touchSelection;
   const isSelected = touch ? touchSelection.selected : pointerSelected;
   const { Video } = useEditorSlots();

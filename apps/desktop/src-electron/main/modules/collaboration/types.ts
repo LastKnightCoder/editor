@@ -8,39 +8,74 @@ import type { CollaborationSession, CollaborationState, ContentNode } from "@tau
 import type { CollaborationClient } from "./client";
 import type { CollaborationAssetService } from "./asset-service";
 import type { CollaborationLocalStore } from "./local-store";
+import type { ContentLocalState, InputDraftIdentity } from "./content-local-state";
+
+export interface CollaborationView {
+  documentId: string;
+  windowId: number;
+  clientIds: number[];
+  inputIdentity: InputDraftIdentity;
+}
 
 export interface RuntimeSession {
   info: CollaborationSession;
   doc: Y.Doc;
   awareness: Awareness;
-  privateNodes: Map<string, ContentNode>;
-  /** 视图上报的激活 Tab（tabs 块 collabId → pane tabKey），落库投影时合并 */
-  viewActiveTabs: Map<string, string>;
+  assets?: CollaborationAssetService;
+  store?: CollaborationLocalStore;
+  replaceContent?: (
+    content: ContentNode[],
+    contracts: import("@tau/db-schema/content-contracts").ContentContractDictionary | undefined,
+    expectedRevision: string | undefined
+  ) => Promise<void>;
   provider?: HocuspocusProvider;
   dirty: boolean;
   projectionDirty?: boolean;
   drainingViews?: Set<string>;
-  /** 助理节点写入在返回成功前同步持久化会话，失败可由操作回执恢复。 */
-  persistTaskChanges?: () => void;
+  /** 宿主补丁在应用和广播前先写入协作缓存。 */
+  persistNodeUpdate?: (update: Uint8Array) => void;
+  retainNodeState?: (candidate: Y.Doc) => void;
 }
 
 export interface CollaborationIpcContext {
+  prepareContentUpgrade(
+    event: IpcMainInvokeEvent,
+    id: string,
+    contracts: import("@tau/db-schema/content-contracts").ContentContractDictionary,
+    versionUpgrade?: import("@tau/collaboration").ContentVersionUpgrade
+  ): Promise<{
+    operationId: string;
+    recoveryId?: string;
+    error?: string;
+    issues: { nodeId: string; reason: string }[];
+  }>;
+  finishContentUpgrade(
+    event: IpcMainInvokeEvent,
+    operationId: string,
+    cancel: boolean
+  ): Promise<void>;
+  useReplacedContent(event: IpcMainInvokeEvent, documentId: string): Promise<void>;
+  adoptRemoteVersion(event: IpcMainInvokeEvent, documentId: string): Promise<void>;
   store: CollaborationLocalStore;
+  contentState: ContentLocalState;
   client: CollaborationClient;
   assets: CollaborationAssetService;
   serverUrl(): string;
   sessions: Map<string, RuntimeSession>;
   /** 按 documentId 找会话，并解析升级 / 降级换身份留下的旧 id */
   findSession(id: string): RuntimeSession | undefined;
-  views: Map<string, { documentId: string; windowId: number; clientIds: number[] }>;
+  views: Map<string, CollaborationView>;
   state(): CollaborationState;
   changed(session?: RuntimeSession): void;
   refresh(): Promise<void>;
   databaseForEvent(event: IpcMainInvokeEvent): { db: Database.Database; name: string };
   requireSession(id: string): RuntimeSession;
-  noteActiveTab(session: RuntimeSession, blockId: string, tabKey: string): void;
-  openContent(event: IpcMainInvokeEvent, target: ContentSessionTarget): ContentSessionSnapshot;
-  acknowledgeFreeze(viewId: string): void;
+  whiteboardRoom(id: string): import("@tau/collaboration").SharedWhiteboardInfo | undefined;
+  openContent(
+    event: IpcMainInvokeEvent,
+    target: ContentSessionTarget
+  ): Promise<ContentSessionSnapshot>;
+  acknowledgeFreeze(viewId: string, requestId?: string): void;
   prepareLeave(session: RuntimeSession): Promise<void>;
   createContent(
     event: IpcMainInvokeEvent,
@@ -57,7 +92,7 @@ export interface CollaborationIpcContext {
   removeView(id: string): void;
   clearBinding(session: RuntimeSession, discard?: boolean): Promise<void>;
   discardLocal(session: RuntimeSession): Promise<void>;
-  removeSession(session: RuntimeSession): void;
+  removeSession(session: RuntimeSession): Promise<void>;
   finishLeave(session: RuntimeSession): Promise<void>;
   flushResources(): Promise<void>;
 }

@@ -9,11 +9,12 @@ import {
 } from "react";
 import { useContentLocation } from "./useContentLocation";
 import { DocTasksStatusBar } from "./DocTasksStatusBar";
+import { ContentUpgrade } from "./ContentUpgrade";
 import { Loader2 } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor";
 import { useCollaborationKit } from "@/hooks/useCollaborationKit";
 import useCollaborationStore from "@/stores/useCollaborationStore";
-import useContentDocument from "@/hooks/useContentDocument";
+import useContentDocument, { useTransientContentDocument } from "@/hooks/useContentDocument";
 import useCollaborationPresence from "@/hooks/useCollaborationPresence";
 import {
   createActiveEditingSessionId,
@@ -30,6 +31,7 @@ import type { Descendant } from "slate";
 type ContentEditorProps = ComponentProps<typeof Editor> & {
   at?: string;
   contentId?: number;
+  contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
   source?: Omit<ContentSessionTarget, "contentId">;
   onLoadError?: (error: string) => void;
   /** 会话就绪前的占位（缺省为转圈）；传只读渲染可让「阅读 → 编辑」切换不闪不跳 */
@@ -54,8 +56,13 @@ function ContentLocation({
   return null;
 }
 
+const containsContract = (nodes: readonly Descendant[]): boolean =>
+  nodes.some(
+    node => "tauContract" in node || ("children" in node && containsContract(node.children))
+  );
+
 const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
-  ({ contentId, source, onLoadError, fallback, editingContext, at, ...props }, ref) => {
+  ({ contentId, contracts, source, onLoadError, fallback, editingContext, at, ...props }, ref) => {
     const [locationEditor, setLocationEditor] = useState<{
       editor: ReturnType<EditorRef["getEditor"]>;
       contentId?: number;
@@ -83,8 +90,16 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     }, [at]);
     const sessions = useCollaborationStore(state => state.sessions);
     const readonly = props.readonly ?? true;
-    const { document, binding, article, error, sessionError, frozen, swapping } =
-      useContentDocument(contentId, source);
+    const {
+      document: storedDocument,
+      binding,
+      article,
+      error: storedError,
+      sessionError,
+      frozen,
+      swapping,
+      pendingUpgrade,
+    } = useContentDocument(contentId, source, props.kit, props.extensions);
     const session = sessions.find(item => item.id === binding?.doc.guid);
     const callback = useRef(props.onChange);
     const editorRef = useRef<EditorRef | null>(null);
@@ -102,6 +117,17 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     const presence = useCollaborationPresence(binding, readonly || frozen);
     // 场景 kit 要经协作派生（共享模式下资源与音视频服务被覆盖），不能让 props.kit 直接覆盖
     const kit = useCollaborationKit(binding, props.kit);
+    const hasContracts =
+      !contentId && (contracts !== undefined || containsContract(props.initValue ?? []));
+    const transient = useTransientContentDocument(
+      hasContracts ? props.initValue : undefined,
+      contracts,
+      kit,
+      readonly,
+      props.onChange
+    );
+    const document = storedDocument ?? transient.document;
+    const error = storedError ?? transient.error;
 
     // AI 编辑上下文（active-editor-session）注册：非只读 + 声明身份才登记
     const { entityType, entityId } = editingContext ?? {};
@@ -153,7 +179,7 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
       };
     }, [canRegisterEditing, contentId, entityType, entityId]);
 
-    if (contentId && !document) {
+    if ((contentId || hasContracts) && !document) {
       if (fallback !== undefined && !sessionError && !error) return <>{fallback}</>;
       return (
         <div role="status" className="text-ink-3 flex min-h-40 items-center justify-center">
@@ -163,6 +189,15 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     }
     return (
       <>
+        {binding?.mode === "local" && !readonly && (
+          <ContentUpgrade
+            binding={binding}
+            pending={pendingUpgrade}
+            documentId={binding.doc.guid}
+            kit={props.kit}
+            extensions={props.extensions}
+          />
+        )}
         {at && !swapping && !frozen && (
           <ContentLocation
             at={at}

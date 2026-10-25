@@ -45,6 +45,7 @@ export const createHeaderExtension = (options: HeaderExtensionOptions = {}) => {
     elements: [
       defineElement<HeaderElement>({
         type: "header",
+        dataVersion: 1,
         kind: "block",
         render,
         drag: {

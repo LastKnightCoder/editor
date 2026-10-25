@@ -1,3 +1,4 @@
+import { ReactEditor } from "slate-react";
 import React, { act, createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { DndProvider } from "react-dnd";
@@ -5,7 +6,7 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Descendant, Editor as SlateEditor } from "slate";
 import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
-import { IElementEditingPolicy } from "@tau/editor/api";
+import { IEditorInteraction } from "@tau/editor/api";
 import { IEditorSlots } from "@tau/editor/extensions/media/services";
 import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
 import { inlineMathExtension } from "../index";
@@ -43,8 +44,7 @@ describe("行内公式原位编辑", () => {
       services: [
         register => {
           register(IEditorSlots, createDefaultEditorSlots());
-          if (touch)
-            register(IElementEditingPolicy, { sourcePresentation: "touch", canEdit: () => true });
+          if (touch) register(IEditorInteraction, { touch: true });
         },
       ],
     });
@@ -64,6 +64,7 @@ describe("行内公式原位编辑", () => {
       expect(host!.querySelector('span[data-slate-node="element"]')).toBeTruthy();
     });
     const math = host!.querySelector('span[data-slate-node="element"]')!;
+    expect(ReactEditor.toSlateNode(editor, math)).toMatchObject({ type: "inline-math" });
     await act(async () => (math as HTMLElement).click());
     const source = host!.querySelector<HTMLInputElement>("input[data-inline-math-input]");
     expect(source).toBeTruthy();

@@ -18,7 +18,8 @@ import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 import SketchRect from "../SketchPaths/SketchRect";
 import SketchStroke from "../SketchPaths/SketchStroke";
 import { If as If } from "@tau/ui";
-import { EditText, EditTextHandle } from "@tau/ui";
+import { type EditTextHandle } from "@tau/ui";
+import { FieldText } from "../FieldText";
 
 import { SELECT_RECT_STROKE, SELECT_RECT_STROKE_WIDTH } from "../../constants";
 import { handTextClass } from "../../utils/sketch";
@@ -80,6 +81,7 @@ const Column = memo(
       // 从编辑元素列表中移除
       board.isEditingElements = board.isEditingElements.filter(eid => eid !== element.id);
 
+      if (board.document) return;
       const newTitle = titleRef.current?.getValue() || "";
       const columnPath = PathUtil.getPathByElement(board, element);
       if (columnPath) {
@@ -316,7 +318,9 @@ const Column = memo(
               titleRef.current?.focusEnd();
             }}
           >
-            <EditText
+            <FieldText
+              elementId={element.id}
+              field="title"
               id={`column-title-${element.id}`}
               ref={titleRef}
               defaultValue={title || "Column"}
@@ -330,7 +334,7 @@ const Column = memo(
               onPressEnter={handleTitleBlur}
             />
             <span
-              className="text-tau-micro pointer-events-none select-none tabular-nums leading-4"
+              className="text-tau-micro pointer-events-none leading-4 tabular-nums select-none"
               style={{ color: COLUMN_COLORS.muted }}
             >
               {ColumnUtil.getCountLabel(element)}
@@ -493,7 +497,7 @@ const Column = memo(
             <div className="flex h-full items-center">
               <button
                 type="button"
-                className="text-ink-3 hover:bg-hover hover:text-ink-1 text-tau-meta pointer-events-auto flex h-7 cursor-pointer items-center gap-1.5 rounded-[4px] px-2 opacity-0 transition-opacity duration-150 focus-visible:opacity-100 group-hover/column:opacity-100"
+                className="text-ink-3 hover:bg-hover hover:text-ink-1 text-tau-meta pointer-events-auto flex h-7 cursor-pointer items-center gap-1.5 rounded-[4px] px-2 opacity-0 transition-opacity duration-150 group-hover/column:opacity-100 focus-visible:opacity-100"
                 onPointerDown={e => e.stopPropagation()}
                 onMouseDown={e => e.stopPropagation()}
                 onDoubleClick={e => e.stopPropagation()}

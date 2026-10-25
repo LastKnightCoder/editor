@@ -268,7 +268,7 @@ pub(crate) fn release_references(conn: &Connection, scope: ReferenceScope) -> Re
     )
     .map_err(|e| format_db_error("FLASHCARD_DELETE_FAILED", "delete references", e))?;
     for content_id in content_ids {
-        crate::database::common::decrement_or_delete_content(conn, content_id)?;
+        crate::database::common::release_content_reference(conn, content_id)?;
     }
     Ok(())
 }
@@ -341,7 +341,7 @@ mod tests {
         let conn = seeded_database();
         release_references(&conn, ReferenceScope::Card(10)).unwrap();
         assert_eq!(ref_count_of(&conn, 100), Some(2));
-        assert_eq!(ref_count_of(&conn, 200), None);
+        assert_eq!(ref_count_of(&conn, 200), Some(0));
         let remaining: i64 = conn
             .query_row("SELECT COUNT(*) FROM flashcard_references", [], |row| {
                 row.get(0)
@@ -355,7 +355,7 @@ mod tests {
         let conn = seeded_database();
         release_references(&conn, ReferenceScope::Deck(1)).unwrap();
         assert_eq!(ref_count_of(&conn, 100), Some(1));
-        assert_eq!(ref_count_of(&conn, 200), None);
+        assert_eq!(ref_count_of(&conn, 200), Some(0));
         let remaining: i64 = conn
             .query_row("SELECT COUNT(*) FROM flashcard_references", [], |row| {
                 row.get(0)

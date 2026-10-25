@@ -1,3 +1,5 @@
+import { prepareContentContract } from "@tau/db-schema/content-contracts";
+import DailyNoteTable from "../tables/daily-note";
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Descendant } from "slate";
@@ -51,6 +53,58 @@ describe("DiaryTable", () => {
     db?.close();
   });
 
+  it("新建日记、碎碎念及每日笔记保留原版本契约和未知字段", async () => {
+    const { id, contract } = await prepareContentContract("plugin.fixture", {
+      type: "fixture-source",
+      kind: "block",
+      isVoid: true,
+      dataVersion: 1,
+      collaboration: { textFields: ["source"] },
+    });
+    const content = [
+      {
+        type: "fixture-source",
+        tauContract: id,
+        source: "v1 源码",
+        unknown: { keep: true },
+        children: [{ type: "formatted", text: "" }],
+      },
+    ] as unknown as Descendant[];
+    const contracts = { [id]: contract };
+    const entry = DiaryTable.createDiaryEntry(db, {
+      type: "daily",
+      date: "2026-10-25",
+      weather: null,
+      mood: null,
+      segments: [content, content],
+      contracts,
+    });
+    const segment = DiaryTable.createDiarySegment(db, { diaryId: entry.id, content, contracts });
+    const moment = DiaryTable.createDiaryMoment(db, { date: "2026-10-25", content, contracts });
+    const daily = DailyNoteTable.createDailyNote(db, {
+      date: "2026-10-25",
+      content,
+      contracts,
+      contentId: 0,
+    });
+    const documents = [...entry.segments, segment, moment, daily].map(value =>
+      ContentTable.getContentById(db, value.contentId)!
+    );
+    for (const document of documents) {
+      expect(document.contracts).toEqual(contracts);
+      expect(document.content[0]).toMatchObject({
+        tauContract: id,
+        source: "v1 源码",
+        unknown: { keep: true },
+      });
+    }
+    expect(
+      new Set(
+        documents.map(document => (document.content[0] as unknown as { collabId: string }).collabId)
+      ).size
+    ).toBe(documents.length);
+  });
+
   it("整体更新 content 时只覆盖首个 segment 并同步 word_count", () => {
     const entry = DiaryTable.createDiaryEntry(db, {
       type: "daily",
@@ -99,7 +153,7 @@ describe("DiaryTable", () => {
       .prepare("SELECT create_time FROM contents WHERE id = ?")
       .get(segment.contentId) as { create_time: number };
     const session = {
-      info: { source: { contentCreatedAt } },
+      info: { mode: "local", source: { contentCreatedAt } },
     } as unknown as RuntimeSession;
     registerContentSession(db, segment.contentId, session);
 

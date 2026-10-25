@@ -1,3 +1,4 @@
+import { createSharedDocument } from "@tau/collaboration/src/testing/legacy-document";
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("electron", () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -16,17 +17,26 @@ import {
   removeAwarenessStates,
 } from "y-protocols/awareness";
 import { createEditor, Transforms } from "slate";
-import { YjsEditor } from "@slate-yjs/core";
-import { createSharedDocument, readSharedContent, validateDocument } from "@tau/collaboration";
-import { withCollaboration } from "@tau/editor-collab";
 import {
-  contentRevision,
+  readSharedContent,
+  validateDocument,
+  createNodeDocument,
+  NodeTree,
+  type ContentNode,
+} from "@tau/collaboration";
+import {
+  prepareContentContract,
+  type ContentContractDictionary,
+} from "@tau/db-schema/content-contracts";
+import { ContentDocumentTable } from "../../tables/content-document";
+import { withNodeTree } from "@tau/editor-collab";
+import {
   contentSession,
   patchSessionNodes,
   projectContentTitle,
-  projectLocalContent,
+  projectContractContent,
+  readSessionContent,
   registerContentSession,
-  replaceSessionContent,
   unregisterContentSession,
 } from "../content-sessions";
 import type { RuntimeSession } from "../types";
@@ -58,8 +68,6 @@ function runtime(content?: unknown[]): RuntimeSession {
   const session: RuntimeSession = {
     doc,
     awareness,
-    privateNodes: new Map(),
-    viewActiveTabs: new Map(),
     dirty: false,
     info: {
       id: "local-test",
@@ -94,7 +102,134 @@ function database() {
   return db;
 }
 
+async function nodeRuntime() {
+  const contracts: Record<string, ContentContractDictionary[string]> = {};
+  const ids = new Map<string, string>();
+  for (const type of ["check-list", "check-list-item", "paragraph", "link", "source"]) {
+    const prepared = await prepareContentContract(`host.${type}`, {
+      type,
+      dataVersion: 1,
+      kind: type === "link" ? "inline" : "block",
+      collaboration: type === "source" ? { textFields: ["code"] } : undefined,
+    });
+    contracts[prepared.id] = prepared.contract;
+    ids.set(type, prepared.id);
+  }
+  const node = (
+    type: string,
+    collabId: string,
+    children: ContentNode[],
+    extra = {}
+  ): ContentNode => ({ type, collabId, tauContract: ids.get(type)!, children, ...extra });
+  const content = [
+    node("check-list", "list", [
+      node("check-list-item", "item", [
+        node("paragraph", "p", [
+          { text: "前 #发布 ", bold: true },
+          node("link", "link", [{ text: "中间" }], { url: "https://example.com" }),
+          { text: " 后 #发布", italic: true },
+        ]),
+      ]),
+    ]),
+    node("source", "source", [{ text: "" }], { code: "源码" }),
+  ];
+  const session = runtime();
+  session.doc = await createNodeDocument(
+    { documentId: session.info.id, baselineId: "baseline", epoch: 0 },
+    { title: "标题", bannerBg: "", bannerPosition: "center", content },
+    contracts
+  );
+  session.persistNodeUpdate = vi.fn();
+  cleanup.push(() => session.doc.destroy());
+  return { session, contracts };
+}
+
 describe("本机内容会话", () => {
+  it("新格式经实际读取、宿主补丁和主库投影保存，重复投影不产生写入", async () => {
+    const db = database();
+    const { session, contracts } = await nodeRuntime();
+    registerContentSession(db, 7, session);
+    const initial = ContentDocumentTable.commit(
+      db,
+      7,
+      {
+        documentId: "stable-body",
+        contracts,
+        content: readSessionContent(session).content,
+      },
+      { count: 0, installDocument: true }
+    );
+    expect(ContentTable.ensureTaskIds(db, 7)).toBe(1);
+    const first = ContentTable.getContentById(db, 7)!;
+    expect(first.content[0]).toMatchObject({ children: [{ taskId: expect.any(String) }] });
+    expect(
+      patchSessionNodes(
+        session,
+        () => null,
+        undefined,
+        text =>
+          [...text.matchAll(/#发布/g)].map(match => ({
+            index: match.index! + 1,
+            remove: 2,
+            insert: "上线",
+          }))
+      )
+    ).toBe(2);
+    const projected = { ...initial, content: readSessionContent(session).content };
+    expect(
+      projectContractContent(db, session.info.source!, session, projected, initial.revision, 12)
+    ).toBe(true);
+    const stored = ContentDocumentTable.read(db, 7)!;
+    expect(stored.content).toEqual(ContentTable.getContentById(db, 7)!.content);
+    expect(JSON.stringify(stored.content)).toContain("#上线");
+    expect(
+      projectContractContent(db, session.info.source!, session, stored, stored.revision, 12)
+    ).toBe(false);
+    expect(
+      db.prepare("SELECT * FROM operation WHERE operation_content_type='content'").all()
+    ).toHaveLength(1);
+    expect(() =>
+      projectContractContent(db, session.info.source!, session, initial, initial.revision, 0)
+    ).toThrow("修订已变化");
+  });
+
+  it("宿主补丁与远端拆段输入合并，坏补丁和磁盘失败不留下半次修改", async () => {
+    const { session } = await nodeRuntime();
+    const peer = new NodeTree(new Y.Doc());
+    Y.applyUpdate(peer.doc, Y.encodeStateAsUpdate(session.doc));
+    cleanup.push(() => {
+      peer.dispose();
+      peer.doc.destroy();
+    });
+    peer.insertText("p", 1, "远端", null);
+    patchSessionNodes(session, attrs =>
+      attrs.type === "check-list-item" ? { checked: true } : null
+    );
+    Y.applyUpdate(session.doc, Y.encodeStateAsUpdate(peer.doc));
+    const before = Y.encodeStateAsUpdate(session.doc);
+    expect(JSON.stringify(readSessionContent(session))).toContain("远端");
+    expect(() =>
+      patchSessionNodes(session, attrs =>
+        attrs.type === "source" ? { code: "覆盖源码" } : { custom: "未完成" }
+      )
+    ).toThrow("文本字段");
+    expect(Y.encodeStateAsUpdate(session.doc)).toEqual(before);
+    session.persistNodeUpdate = () => {
+      throw new Error("磁盘满");
+    };
+    expect(() => patchSessionNodes(session, () => ({ custom: "丢失" }))).toThrow("磁盘满");
+    expect(Y.encodeStateAsUpdate(session.doc)).toEqual(before);
+    expect(() =>
+      projectContractContent(
+        database(),
+        session.info.source!,
+        session,
+        { documentId: "body", contracts: {}, content: [] },
+        "missing",
+        0
+      )
+    ).toThrow("尚未安装");
+  });
   it("缺失身份的离线分叉得到相同 taskId，合并后身份不会换成另一随机值", () => {
     const main = runtime([
       {
@@ -157,20 +292,9 @@ describe("本机内容会话", () => {
     });
   });
 
-  it("冻结会话补身份会暂缓，不影响已有输入更新", () => {
+  it("冻结会话补身份会暂缓，不影响已有输入更新", async () => {
     const db = database();
-    const session = runtime([
-      {
-        type: "check-list",
-        children: [
-          {
-            type: "check-list-item",
-            checked: false,
-            children: [{ type: "paragraph", children: [{ text: "任务" }] }],
-          },
-        ],
-      },
-    ]);
+    const { session } = await nodeRuntime();
     registerContentSession(db, 7, session);
     session.info.frozen = true;
     expect(ContentTable.ensureTaskIds(db, 7)).toBe(0);
@@ -204,35 +328,29 @@ describe("本机内容会话", () => {
     expect(() => validateDocument(doc)).toThrow("本机会话");
   });
 
-  it("多视图并发输入和撤销保持收敛，关闭一个视图只移除自己的光标", () => {
-    const main = runtime();
+  it("多视图并发输入和撤销保持收敛，关闭一个视图只移除自己的光标", async () => {
+    const { session: main } = await nodeRuntime();
     const views = [1, 2].map(() => {
       const doc = new Y.Doc();
       Y.applyUpdate(doc, Y.encodeStateAsUpdate(main.doc));
       const awareness = new Awareness(doc);
-      const editor = withCollaboration(createEditor(), {
-        doc,
-        awareness,
-        origin: {},
-        mode: "local",
-        privateNodes: new Map(),
-        uploadResource: async () => "",
-        resolveResource: async url => url,
-      });
-      YjsEditor.connect(editor);
+      const tree = new NodeTree(doc);
+      const base = createEditor();
+      base.isInline = element => element.type === "link";
+      base.isVoid = element => String(element.type) === "source";
+      const editor = withNodeTree(base, tree, {});
+      editor.connectNodeTree();
       cleanup.push(() => {
-        YjsEditor.disconnect(editor);
+        editor.disposeNodeTree();
+        tree.dispose();
         awareness.destroy();
         doc.destroy();
       });
       return { doc, awareness, editor };
     });
     for (const [index, view] of views.entries()) {
-      Transforms.insertText(view.editor, index ? "乙" : "甲", { at: { path: [0, 0], offset: 1 } });
-      YjsEditor.flushLocalChanges(view.editor);
-      view.editor.sendCursorPosition({
-        anchor: { path: [0, 0], offset: 1 },
-        focus: { path: [0, 0], offset: 1 },
+      Transforms.insertText(view.editor, index ? "乙" : "甲", {
+        at: { path: [0, 0, 0, 0], offset: 1 },
       });
       view.awareness.setLocalStateField("user", { id: "same-device", viewId: String(index) });
       applyAwarenessUpdate(
@@ -243,108 +361,13 @@ describe("本机内容会话", () => {
       Y.applyUpdate(main.doc, Y.encodeStateAsUpdate(view.doc), "ipc");
     }
     for (const view of views) Y.applyUpdate(view.doc, Y.encodeStateAsUpdate(main.doc), "ipc");
-    expect(readSharedContent(views[0].doc)).toEqual(readSharedContent(views[1].doc));
+    expect(new NodeTree(views[0].doc).read()).toEqual(new NodeTree(views[1].doc).read());
     views[0].editor.undo();
-    YjsEditor.flushLocalChanges(views[0].editor);
     Y.applyUpdate(main.doc, Y.encodeStateAsUpdate(views[0].doc));
-    expect(JSON.stringify(readSharedContent(main.doc))).toContain("乙");
-    expect(JSON.stringify(readSharedContent(main.doc))).not.toContain("甲");
-    views[0].editor.sendCursorPosition(null);
-    expect(views[0].awareness.getLocalState()?.selection).toBeTruthy();
+    expect(JSON.stringify(readSessionContent(main))).toContain("乙");
+    expect(JSON.stringify(readSessionContent(main))).not.toContain("甲");
     removeAwarenessStates(main.awareness, [views[0].doc.clientID], "window-closed");
     expect(main.awareness.getStates().has(views[1].doc.clientID)).toBe(true);
-  });
-
-  it("整篇替换必须携带当前版本，冲突和冻结不会修改内容", () => {
-    const session = runtime();
-    const revision = contentRevision(session);
-    const replacement = [{ type: "paragraph", children: [{ text: "替换正文" }] }];
-    expect(() => replaceSessionContent(session, replacement)).toThrow("VERSION_CONFLICT");
-    session.doc.getText("title").insert(0, "新");
-    expect(() => replaceSessionContent(session, replacement, revision)).toThrow("VERSION_CONFLICT");
-    session.info.frozen = true;
-    expect(() => replaceSessionContent(session, replacement, contentRevision(session))).toThrow(
-      "LOCKED"
-    );
-    session.info.frozen = false;
-    replaceSessionContent(session, replacement, contentRevision(session));
-    expect(JSON.stringify(readSharedContent(session.doc))).toContain("替换正文");
-    expect(readSharedContent(session.doc).title).toBe("新标题");
-  });
-
-  it("整篇替换保留嵌套节点属性、格式与源码，并同步到已连接的编辑器", () => {
-    const session = runtime();
-    const doc = new Y.Doc();
-    Y.applyUpdate(doc, Y.encodeStateAsUpdate(session.doc));
-    const awareness = new Awareness(doc);
-    const editor = withCollaboration(createEditor(), {
-      doc,
-      awareness,
-      origin: {},
-      mode: "local",
-      privateNodes: new Map(),
-      uploadResource: async () => "",
-      resolveResource: async url => url,
-    });
-    YjsEditor.connect(editor);
-    cleanup.push(() => {
-      YjsEditor.disconnect(editor);
-      awareness.destroy();
-      doc.destroy();
-    });
-    const replacement = [
-      { type: "header", level: 2, children: [{ type: "formatted", text: "标题" }] },
-      {
-        type: "blockquote",
-        children: [
-          {
-            type: "paragraph",
-            children: [{ type: "formatted", text: "加粗正文", bold: true }],
-          },
-        ],
-      },
-      { type: "code-block", language: "js", code: "const count = 1;", children: [{ text: "" }] },
-      { type: "image", url: "/tmp/new.png", children: [{ text: "" }] },
-    ];
-    replaceSessionContent(session, replacement, contentRevision(session));
-    Y.applyUpdate(doc, Y.encodeStateAsUpdate(session.doc), "ipc");
-
-    expect(readSharedContent(session.doc).content).toMatchObject(replacement);
-    expect(readSharedContent(doc)).toEqual(readSharedContent(session.doc));
-    expect(editor.children.slice(0, 2)).toMatchObject(replacement.slice(0, 2));
-    expect(editor.children[2]).toMatchObject({ type: "code-block", language: "js" });
-    expect(editor.children[3]).toMatchObject(replacement[3]);
-    Transforms.insertText(editor, "新", { at: { path: [0, 0], offset: 0 } });
-    YjsEditor.flushLocalChanges(editor);
-    Y.applyUpdate(session.doc, Y.encodeStateAsUpdate(doc), "ipc");
-    expect(readSharedContent(session.doc).content[0]).toMatchObject({
-      type: "header",
-      children: [{ text: "新标题" }],
-    });
-  });
-
-  it("共享正文替换保留私有块占位和本机真实节点", () => {
-    const session = runtime();
-    session.info.mode = "shared";
-    session.doc.getMap("meta").set("mode", "shared");
-    const replacement = [
-      { type: "paragraph", children: [{ text: "共享正文" }] },
-      {
-        type: "whiteboard",
-        collabId: "private-board",
-        whiteBoardContentId: 42,
-        children: [{ text: "" }],
-      },
-    ];
-    replaceSessionContent(session, replacement, contentRevision(session));
-
-    expect(() => validateDocument(session.doc)).not.toThrow();
-    expect(readSharedContent(session.doc).content[1]).toMatchObject({
-      type: "collaboration-placeholder",
-      collabId: "private-board",
-      label: "whiteboard",
-    });
-    expect(readSharedContent(session.doc, session.privateNodes).content).toMatchObject(replacement);
   });
 
   it("标题回写所有文档类型，保留标签封面和卡片", () => {
@@ -363,25 +386,13 @@ describe("本机内容会话", () => {
     expect(projectContentTitle(db, 7, "统一标题")).toHaveLength(0);
   });
 
-  it("纯删除也改变版本，不能通过旧版本覆盖删除操作", () => {
-    const session = runtime();
-    const revision = contentRevision(session);
-    session.doc.getText("title").delete(0, 1);
-    expect(contentRevision(session)).not.toBe(revision);
-    expect(() => replaceSessionContent(session, [], revision)).toThrow("VERSION_CONFLICT");
-  });
-
-  it("回写按创建标识校验，删除后同号重建不能继承旧会话", () => {
+  it("按创建标识校验，删除后同号重建不能继承旧会话", () => {
     const db = database();
     const session = runtime();
     registerContentSession(db, 7, session);
     expect(contentSession(db, 7)).toBe(session);
-    expect(
-      projectLocalContent(db, session.info.source!, readSharedContent(session.doc).content, 2)
-    ).toBe(true);
     db.exec("UPDATE contents SET create_time=200 WHERE id=7");
     expect(contentSession(db, 7)).toBeUndefined();
-    expect(() => projectLocalContent(db, session.info.source!, [], 0)).toThrow("关联已变化");
   });
 
   it("按属性就地修改嵌套元素，与视图里并发的输入合并、不整篇替换", () => {

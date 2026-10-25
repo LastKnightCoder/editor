@@ -1,15 +1,18 @@
 // 视图侧协作绑定：把运行时会话（Y.Doc / Awareness）包装成 @tau/editor 的
-// EditorCollaborationBinding。移动端视图与会话同进程，直接复用同一 Y.Doc，
+// ContentCollaborationBinding。移动端视图与会话同进程，直接复用同一 Y.Doc，
 // 不存在桌面端的副本与 IPC 同步。
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { EditorCollaborationBinding } from "@tau/editor-collab";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { createNodeTreeDocument, type ContentCollaborationBinding } from "@tau/editor-collab";
+import { NodeTree, NODE_DOCUMENT_VERSION } from "@tau/collaboration";
+import { createValueDocument, type EditorDocument } from "@tau/editor";
+import { getMobileContentKit } from "../../../services/editorKit";
+import { mobileContentPlugins } from "../../../app/plugins/content";
 import { ASSET_PREFIX } from "@tau/collaboration/src/protocol";
 import * as tauri from "../../../services/tauri";
 import { collaborationManager } from "../core/manager";
 import { useCollaborationStore } from "../core/store";
 
 /** 本地写入与远端更新共用同一个 origin 对象即可，editor 层据此区分投影写入 */
-const LOCAL_ORIGIN = { collaboration: "mobile-local" };
 
 function describe(error: unknown) {
   if (error instanceof Error && error.message) return error.message;
@@ -75,17 +78,41 @@ export default function useCollaborationDocument(documentId?: string) {
     };
   }, [documentId, runtime, reloadRev, ended]);
 
-  const binding = useMemo<EditorCollaborationBinding | undefined>(() => {
+  const binding = useMemo<ContentCollaborationBinding | undefined>(() => {
     if (!runtime) return undefined;
+    const viewId = crypto.randomUUID();
+    let sequence = 0;
     return {
       mode: "shared",
       role: runtime.info.role,
       doc: runtime.doc,
       awareness: runtime.awareness,
-      origin: LOCAL_ORIGIN,
-      privateNodes: runtime.privateNodes,
-      putPrivateNode: (collabId, node) => {
-        runtime.privateNodes.set(collabId, node);
+      origin: {},
+      preserveInputDraft: (nodeId, field, draft) => {
+        void collaborationManager
+          .preserveInputDraft(runtime.info.id, {
+            viewId,
+            nodeId,
+            field,
+            ...draft,
+            sequence: ++sequence,
+          })
+          .catch(failure => setError(describe(failure)));
+      },
+      nodeViews: {
+        read: nodeId => runtime.nodeViews[nodeId] ?? {},
+        write: async (nodeId, patch) => {
+          const tree = new NodeTree(runtime.doc);
+          try {
+            const owner = tree.contract(nodeId)?.owner;
+            if (!owner || tree.isDeleted(nodeId)) throw new Error("节点已失效");
+            const value = await tauri.collabUpdateNodeView(runtime.info.id, nodeId, owner, patch);
+            runtime.nodeViews[nodeId] = value;
+            return value;
+          } finally {
+            tree.dispose();
+          }
+        },
       },
       // 附件上传/下载为 P2 范围：此前移动端仅消费远端资源，遇到协作附件给出明确提示
       uploadResource: async () => {
@@ -100,14 +127,78 @@ export default function useCollaborationDocument(documentId?: string) {
     };
   }, [runtime]);
 
+  const pluginRevision = useSyncExternalStore(
+    mobileContentPlugins.subscribe,
+    mobileContentPlugins.getRevision,
+    mobileContentPlugins.getRevision
+  );
+  const tree = useMemo(
+    () =>
+      binding?.doc.getMap("meta").get("version") === NODE_DOCUMENT_VERSION
+        ? new NodeTree(binding.doc)
+        : undefined,
+    [binding]
+  );
+  useEffect(() => () => tree?.dispose(), [tree]);
+  const [prepared, setPrepared] = useState<{
+    binding: ContentCollaborationBinding;
+    document: EditorDocument;
+    revision: number;
+  }>();
+  useEffect(() => {
+    if (!binding || !tree || !runtime) return;
+    let cancelled = false;
+    void mobileContentPlugins
+      .prepareEditorContracts(getMobileContentKit().extensions)
+      .then(async catalog => {
+        if (cancelled) return;
+        if (!runtime.info.frozen && runtime.info.status === "active")
+          await tree.installContracts(catalog.additionalContracts(tree.contracts.toJSON()), null);
+        if (cancelled) return;
+        setPrepared({
+          binding,
+          revision: pluginRevision,
+          document: createNodeTreeDocument(tree, {
+            collaboration: binding,
+            versions: catalog,
+            normalizeOnConnect: false,
+            readonly: Boolean(runtime.info.frozen) || runtime.info.status !== "active",
+            canWrite: () => !runtime.info.frozen && runtime.info.status === "active",
+          }),
+        });
+      })
+      .catch(failure => {
+        if (!cancelled) setError(describe(failure));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [binding, tree, runtime, pluginRevision, session?.frozen, session?.status]);
+  const editorDocument =
+    prepared && prepared.binding === binding && prepared.revision === pluginRevision
+      ? prepared.document
+      : binding && !tree
+        ? createValueDocument(
+            [
+              {
+                type: "paragraph",
+                children: [{ type: "formatted", text: "此文档尚未转换，原始数据已保留。" }],
+              },
+            ],
+            undefined,
+            { readonly: true, lineage: `legacy:${documentId}` }
+          )
+        : undefined;
+
   return {
     binding,
+    document: editorDocument,
     session,
     loading,
     error,
     /** 该房间对应的本地内容 id（由本机发起时才存在），投影回写的目标 */
     boundContentId,
-    frozen: Boolean(session?.frozen) || Boolean(session?.leaving),
+    frozen: Boolean(session?.frozen) || Boolean(session?.leaving) || !tree || !editorDocument,
     /** 曾就绪的会话已消失：共享被结束/退出/撤权（正常业务路径，不应提示重试） */
     ended,
     /** 会话建立失败或已有会话断线后的重试 */

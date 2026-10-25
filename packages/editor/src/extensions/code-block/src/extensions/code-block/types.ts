@@ -1,14 +1,4 @@
-export interface CodeCursorPosition {
-  line: number;
-  ch: number;
-}
-
-export interface CodeBlockController {
-  focus: () => void;
-  getValue: () => string;
-  setValue: (value: string) => void;
-  getCursor: () => CodeCursorPosition;
-  setCursor: (cursor: CodeCursorPosition) => void;
-  getLine: (line: number) => string;
-  lastLine: () => number;
-}
+export type {
+  OverlayCursorPosition as CodeCursorPosition,
+  OverlayEditorController as CodeBlockController,
+} from "@tau/editor-source-view/overlay";

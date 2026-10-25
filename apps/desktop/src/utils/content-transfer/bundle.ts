@@ -69,6 +69,7 @@ export const collectBundleAssets = async (
   contents: Descendant[][],
   options: {
     io?: AssetIo;
+    contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
     onProgress?: (processed: number, total: number) => void;
     /** 传入即同时打包远程资源：下载到本机缓存并返回本机路径 */
     fetchRemote?: (url: string) => Promise<string>;
@@ -78,7 +79,7 @@ export const collectBundleAssets = async (
   const sources = [
     ...new Set(
       contents.flatMap(content =>
-        collectAssetUrls(content)
+        collectAssetUrls(content, undefined, options.contracts)
           .map(ref => ref.url)
           .filter(url => isPortableAssetSource(url) || (!!options.fetchRemote && isRemoteUrl(url)))
       )
@@ -134,6 +135,8 @@ export const relativeBundlePath = (fromDir: string[], toPath: string[]) => {
 export type LinkStyle = "relative" | "wiki" | "text";
 
 export interface LocalizeOptions {
+  contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
+  markdown?: import("@tau/markdown").MarkdownProcessor;
   assets: Map<string, string>;
   /** 当前文件所在目录（包内路径段），资源与链接据此算相对路径 */
   dir: string[];
@@ -187,10 +190,16 @@ const localizeLinks = (node: unknown, options: LocalizeOptions): unknown => {
 
 /** 把正文改写为包内可移植的形态（资源相对路径 + 链接改写），不修改原正文 */
 export const localizeContent = (content: Descendant[], options: LocalizeOptions): Descendant[] => {
-  const withAssets = mapAssetUrls(content, url => {
-    const path = options.assets.get(url);
-    return path ? encodeMarkdownPath(relativeBundlePath(options.dir, path.split("/"))) : undefined;
-  });
+  const withAssets = mapAssetUrls(
+    content,
+    url => {
+      const path = options.assets.get(url);
+      return path
+        ? encodeMarkdownPath(relativeBundlePath(options.dir, path.split("/")))
+        : undefined;
+    },
+    { contracts: options.contracts }
+  );
   return withAssets.map(node => localizeLinks(node, options) as Descendant);
 };
 
@@ -205,7 +214,8 @@ const restoreWikiLinks = (markdown: string) =>
   });
 
 export const toPortableMarkdown = (content: Descendant[], options: LocalizeOptions) => {
-  const markdown = getMarkdown(localizeContent(content, options)).trim() + "\n";
+  const markdown =
+    (options.markdown?.getMarkdown ?? getMarkdown)(localizeContent(content, options)).trim() + "\n";
   return options.linkStyle === "wiki" ? restoreWikiLinks(markdown) : markdown;
 };
 

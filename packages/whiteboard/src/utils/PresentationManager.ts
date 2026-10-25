@@ -64,9 +64,27 @@ export class PresentationManager {
   }
 
   set sequences(value: PresentationSequence[]) {
+    if (this.board.document?.setPresentations) {
+      this.board.document.setPresentations(this._sequences, value);
+      return;
+    }
     this._sequences = value;
     this.emit("presentationSequencesChange", value);
     this.board.emit("change");
+  }
+
+  publishSequences(value: PresentationSequence[]): void {
+    if (JSON.stringify(this._sequences) === JSON.stringify(value)) return;
+    this._sequences = value;
+    if (this._currentSequence) {
+      this._currentSequence =
+        value.find(sequence => sequence.id === this._currentSequence!.id) ?? null;
+      this._currentFrameIndex = Math.min(
+        this._currentFrameIndex,
+        Math.max(0, (this._currentSequence?.frames.length ?? 1) - 1)
+      );
+    }
+    this.emit("presentationSequencesChange", value);
   }
 
   get currentSequence(): PresentationSequence | null {
@@ -140,6 +158,7 @@ export class PresentationManager {
   // 开始演示模式
   startPresentationMode(sequenceId: string) {
     if (this.isCreatingSequence) return;
+    this.board.document?.flushInputs?.();
 
     const success = this.setCurrentSequence(sequenceId);
     if (!success) return;
@@ -160,7 +179,7 @@ export class PresentationManager {
   // 停止演示模式
   stopPresentationMode() {
     // 恢复白板的可编辑状态
-    this.board.readonly = this.originalReadonly;
+    this.board.readonly = this.originalReadonly || this.board.document?.isBlocked?.() === true;
     this.isPresentationMode = false;
   }
 
@@ -171,6 +190,7 @@ export class PresentationManager {
     if (!frame) return;
 
     // 根据帧中记录的元素ID动态计算视口
+    this.board.document?.revealElements?.(frame.elements);
     const elementIdSet = new Set(frame.elements);
     const targetElements = this.getElementsByIds(elementIdSet);
     const computedViewport = this.fitElementsInViewport(targetElements, FIT_VIEW_PADDING);

@@ -104,9 +104,23 @@ void app.whenReady().then(async () => {
     );
     console.log("[plugin-content] 无 Node/业务桥、无激活、闭包 codec 往返、索引分段与失败恢复通过");
     const fixtures = (await readPluginFixtures(process.env.TAU_PLUGIN_FIXTURE_CATALOG!)).filter(
-      artifact => artifact.manifest.editor || artifact.manifest.whiteboard
+      artifact =>
+        artifact.manifest.formatVersion === 3 ||
+        artifact.manifest.editor ||
+        artifact.manifest.whiteboard
     );
     await executor.execute({ operation: "validate" }, undefined, fixtures);
+    const contracts = await executor.execute<
+      import("@tau/db-schema/content-contracts").ContentContractDictionary
+    >({ operation: "upgrade-contracts" }, undefined, fixtures);
+    for (const type of ["paragraph", "whiteboard", "database", "content-link", "file-attachment"])
+      assert.ok(Object.values(contracts).some(contract => contract.type === type));
+    assert.ok(
+      Object.values(contracts).some(
+        contract => contract.type === "code-block" && contract.dataVersion === 2
+      )
+    );
+    console.log("[plugin-content] 后台升级独立准备宿主与插件契约，无需打开正文或白板");
     for (const [language, type] of [
       ["abc", "abc"],
       ["tikz", "tikz"],

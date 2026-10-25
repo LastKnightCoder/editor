@@ -9,7 +9,7 @@ import type { ListItemElement } from "../../../../types";
 import { Editor, Element, Node, Transforms } from "slate";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Popover, cn, mergeRefs } from "@tau/ui";
-import { getCommandElementPath, OverlayBackDismiss } from "@tau/editor/api";
+import { getCommandElementPath, OverlayBackDismiss, useElementView } from "@tau/editor/api";
 import IconPicker from "../IconPicker";
 import { IResourceService } from "@tau/shared/host-services";
 
@@ -21,7 +21,9 @@ interface IListItemProps {
 
 const ListItem = (props: IListItemProps) => {
   const { attributes, children, element } = props;
-  const { isFold = false, allContent = element.children, icon, iconType, iconUrl } = element;
+  const { icon, iconType, iconUrl } = element;
+  const view = useElementView(element);
+  const isFold = view.value.isFold === true;
   const [isMultiline, setIsMultiline] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const listItemRef = useRef<HTMLLIElement>(null);
@@ -65,63 +67,18 @@ const ListItem = (props: IListItemProps) => {
     }
   }, [children]);
 
-  const handleFold = () => {
-    // 设置 allContent 为 element.children
-    // 设置 children 为 [element.children[0]]
+  const handleOnClick = () => {
     const path = getCommandElementPath(editor, { element });
     if (!path || !element.children.length) return;
-    Editor.withoutNormalizing(editor, () => {
-      Transforms.delete(editor, {
-        at: path,
-      });
-      Transforms.insertNodes(
-        editor,
-        {
-          ...element,
-          type: "list-item",
-          isFold: true,
-          allContent: element.children,
-          children: [element.children[0]],
-        },
-        {
-          at: path,
-        }
-      );
-    });
-  };
-
-  const handleUnfold = () => {
-    // 设置 foldContent 为 children
-    // 设置 children 为 [foldContent, ...allContent.slice(1)]
-    const path = getCommandElementPath(editor, { element });
-    if (!path) return;
-    Editor.withoutNormalizing(editor, () => {
-      Transforms.delete(editor, {
-        at: path,
-      });
-      Transforms.insertNodes(
-        editor,
-        {
-          ...element,
-          type: "list-item",
-          allContent: element.allContent,
-          isFold: false,
-          // 折叠时可能对内容有修改，所以第一部分使用 children
-          children: [...element.children, ...allContent.slice(1)],
-        },
-        {
-          at: path,
-        }
-      );
-    });
-  };
-
-  const handleOnClick = () => {
-    if (isFold) {
-      handleUnfold();
-    } else {
-      handleFold();
-    }
+    const focus = editor.selection?.focus.path;
+    if (
+      !isFold &&
+      focus &&
+      path.every((index, at) => focus[at] === index) &&
+      focus[path.length] > 0
+    )
+      Transforms.select(editor, Editor.end(editor, [...path, 0]));
+    view.update({ isFold: !isFold });
   };
 
   const handleEmojiSelect = (emoji: string) => {
@@ -244,7 +201,7 @@ const ListItem = (props: IListItemProps) => {
           )}
         </Popover>
       )}
-      <div className="absolute -left-[2em] top-[0.9em] h-full w-[0.625em]">
+      <div className="absolute top-[0.9em] -left-[2em] h-full w-[0.625em]">
         {/* 折叠三角：可折叠时在列表项悬停时出现 */}
         <div
           contentEditable={false}
@@ -257,7 +214,13 @@ const ListItem = (props: IListItemProps) => {
           onClick={handleOnClick}
         />
       </div>
-      {children}
+      <div
+        className={
+          isFold ? "[&>[data-slate-node=element]~[data-slate-node=element]]:hidden" : undefined
+        }
+      >
+        {children}
+      </div>
     </li>
   );
 };

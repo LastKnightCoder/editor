@@ -32,8 +32,10 @@ vi.mock("../../queries", () => ({
   }),
 }));
 vi.mock("@/features/shared/whiteboard/DesktopWhiteboard", () => ({
-  default: ({ onChange }: { onChange: (data: unknown) => void }) => (
-    <button onClick={() => onChange({ children: ["已编辑"] })}>编辑</button>
+  default: ({ onChange, readonly }: { onChange?: (data: unknown) => void; readonly?: boolean }) => (
+    <button disabled={readonly} onClick={() => onChange?.({ children: ["已编辑"] })}>
+      编辑
+    </button>
   ),
 }));
 
@@ -61,23 +63,25 @@ describe("单页画布", () => {
 });
 
 describe("白板详情保存", () => {
-  it("离页前提交防抖中的最后一次修改，切换 ID 不写入另一块白板", () => {
+  it("旧快照只读，切换页面与卸载都不写回原快照，转换只由用户显式发起", () => {
     vi.useFakeTimers();
     state.id = 11;
     host = document.createElement("div");
     root = createRoot(host);
+    const canvas = () =>
+      [...host.querySelectorAll("button")].find(button => button.textContent === "编辑")!;
     act(() => root!.render(<WhiteBoardContentView />));
-    act(() => host.querySelector("button")!.click());
+    expect(host.textContent).toContain("转换格式");
+    expect(canvas().disabled).toBe(true);
+    act(() => canvas().click());
     expect(state.save).not.toHaveBeenCalled();
     state.id = 12;
     act(() => root!.render(<WhiteBoardContentView />));
-    expect(state.save).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 11, data: { children: ["已编辑"] } })
-    );
-    act(() => host.querySelector("button")!.click());
+    expect(state.save).not.toHaveBeenCalled();
+    expect(canvas().disabled).toBe(true);
+    act(() => canvas().click());
     act(() => root!.unmount());
     root = undefined;
-    expect(state.save).toHaveBeenLastCalledWith(expect.objectContaining({ id: 12 }));
-    expect(state.save).toHaveBeenCalledTimes(2);
+    expect(state.save).not.toHaveBeenCalled();
   });
 });

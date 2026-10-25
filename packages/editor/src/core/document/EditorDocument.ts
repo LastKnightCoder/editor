@@ -7,7 +7,7 @@ import type { ServiceRegistration } from "../services/registry";
 /**
  * 文档源：回答「内容从哪来、改动往哪去、谁管撤销」（docs/editor-refactor 01 §7.2、ER-009）。
  *
- * 普通值（`createValueDocument`）与 Yjs 绑定（`@tau/editor-collab` 的 `createYjsDocument`）
+ * 普通值（`createValueDocument`）与 Yjs 绑定（`@tau/editor-collab` 的 `createNodeTreeDocument`）
  * 是两种实现。同一篇内容在本机与共享之间切换时 `lineage` 不变，内核据此判断是
  * 「换同步方式」（同一个 Slate editor 上 `rebind`）还是「换文档」（重建编辑器）。
  */

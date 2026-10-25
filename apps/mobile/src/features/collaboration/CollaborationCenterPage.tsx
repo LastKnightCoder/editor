@@ -1,3 +1,4 @@
+import { ContentRecoveries } from "./components/ContentRecoveries";
 // 协作中心（设计稿 01 方案 A）：身份卡 + 待审批 + 我发起的 / 我加入的 分组会话列表。
 import { useRef, useState } from "react";
 import { FileText, Loader2, Settings, UserPlus } from "lucide-react";
@@ -98,6 +99,7 @@ export function CollaborationCenterPage(props: {
 
   return (
     <div className="mobile-kb-screen bg-page flex h-full flex-col">
+      <ContentRecoveries />
       <PageHeader
         title="协作"
         onBack={props.onBack}
@@ -125,7 +127,7 @@ export function CollaborationCenterPage(props: {
         <button
           type="button"
           onClick={() => navigator.push("settingsModule", { module: "collaboration" })}
-          className="bg-surface shadow-card active:bg-hover mx-4 mb-4 mt-1.5 flex w-[calc(100%-2rem)] items-center gap-3 rounded-[20px] p-4 text-left transition-colors"
+          className="bg-surface shadow-card active:bg-hover mx-4 mt-1.5 mb-4 flex w-[calc(100%-2rem)] items-center gap-3 rounded-[20px] p-4 text-left transition-colors"
         >
           <Avatar id={deviceId ?? "local"} name={nickname} size="lg" online={status === "ready"} />
           <span className="min-w-0 flex-1">

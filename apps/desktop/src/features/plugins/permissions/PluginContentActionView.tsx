@@ -22,7 +22,7 @@ export default function PluginContentActionView({ request }: { request: PluginAc
     return (
       <CreateCardDialog
         open
-        initial={{ content: request.content, tags: request.tags }}
+        initial={{ content: request.content, tags: request.tags, contracts: request.contracts }}
         onCreated={card => request.settle(card.id)}
         onClose={request.close}
       />
@@ -35,6 +35,7 @@ export default function PluginContentActionView({ request }: { request: PluginAc
         open
         noteTitle={request.title}
         noteContent={request.content}
+        contracts={request.contracts}
         {...(request.sharedContentId !== undefined
           ? { insertMode: "shared-content" as const, sourceContentId: request.sharedContentId }
           : {})}

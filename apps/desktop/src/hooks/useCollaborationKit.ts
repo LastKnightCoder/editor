@@ -2,12 +2,14 @@ import { IResourceService } from "@tau/shared/host-services";
 import { useMemo } from "react";
 import { type EditorKit, type ServiceRegistration } from "@tau/editor";
 import { IEditorSlots } from "@tau/editor/extensions/media/services";
-import type { EditorCollaborationBinding } from "@tau/editor-collab";
+import type { ContentCollaborationBinding } from "@tau/editor-collab";
 import { getContentKit } from "@/services/editorKit";
 import { createAssetMedia } from "@/components/CollaborationUI/AssetMedia";
 import { ITaskIdSource } from "@tau/editor/extensions/list/task-ids";
+import { NODE_DOCUMENT_VERSION } from "@tau/collaboration";
+import { codeBlockV2Extension } from "@tau/editor/extensions/code-block";
 
-const derived = new WeakMap<EditorCollaborationBinding, Map<EditorKit, EditorKit>>();
+const derived = new WeakMap<ContentCollaborationBinding, Map<EditorKit, EditorKit>>();
 
 /**
  * 共享模式下资源要经 binding 解析、音视频要走资产协议，所以派生一个覆盖这两项服务的 kit。
@@ -17,7 +19,7 @@ const derived = new WeakMap<EditorCollaborationBinding, Map<EditorKit, EditorKit
  * 否则每次派生出的新 kit 会让编辑器重建。
  */
 export function collaborationKit(
-  binding?: EditorCollaborationBinding,
+  binding?: ContentCollaborationBinding,
   /** 场景 kit（ER-016）；缺省为 content 正文，因为绝大多数协作内容就是 content 正文 */
   scenarioKit?: EditorKit
 ): EditorKit {
@@ -33,7 +35,11 @@ export function collaborationKit(
   const base = kit.registry;
   const services: ServiceRegistration = register => {
     register(ITaskIdSource, { managed: true });
-    if (binding.mode === "local") return;
+    if (
+      binding.mode === "local" &&
+      binding.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION
+    )
+      return;
     register(IResourceService, {
       ...base.get(IResourceService),
       remoteResourceToLocal: url => binding.resolveResource(url),
@@ -48,13 +54,18 @@ export function collaborationKit(
       };
     });
   };
-  const next = kit.extend({ services: [services] });
+  const next = kit.extend({
+    services: [services],
+    ...(binding.doc.getMap("meta").get("version") === NODE_DOCUMENT_VERSION
+      ? { extensions: [codeBlockV2Extension], override: true }
+      : {}),
+  });
   cache.set(kit, next);
   return next;
 }
 
 export function useCollaborationKit(
-  binding?: EditorCollaborationBinding,
+  binding?: ContentCollaborationBinding,
   scenarioKit?: EditorKit
 ): EditorKit {
   return useMemo(() => collaborationKit(binding, scenarioKit), [binding, scenarioKit]);

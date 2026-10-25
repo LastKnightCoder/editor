@@ -1,3 +1,5 @@
+import { getContentById } from "@/commands/content";
+import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { isContentEmpty } from "@tau/db-schema/content-metrics";
 import type { Descendant } from "slate";
 import { getProjectById } from "@/commands";
@@ -40,6 +42,7 @@ import {
  * 整体导出选择树的节点（嵌套结构，与项目树同序）
  */
 export interface BatchExportTreeNode {
+  contentId?: number;
   id: number;
   title: string;
   depth: number;
@@ -84,6 +87,7 @@ const convertProjectNode = (node: ProjectTreeNode, depth: number): BatchExportTr
     exportable,
     empty: exportable && isContentEmpty(node.item.content),
     content: node.item.content || [],
+    contentId: node.item.contentId,
     children: node.children.map(child => convertProjectNode(child, depth + 1)),
   };
 };
@@ -142,6 +146,7 @@ export const flattenSelectedChapters = (
           title: node.title,
           depth: node.depth,
           content: node.empty ? [] : node.content,
+          contentId: node.contentId,
         });
       } else if (asGroup) {
         chapters.push({
@@ -410,7 +415,7 @@ export const buildMergedMarkdown = (
       const heading = rule.asHeading
         ? getChapterHeadingMarkdown(chapter.title, chapter.depth, rule)
         : "";
-      return (heading + getMarkdown(chapter.content || []).trim()).trim();
+      return (heading + (chapter.markdown ?? getMarkdown(chapter.content || [])).trim()).trim();
     })
     .filter(Boolean);
   const separator = rule.pageBreak ? "\n\n---\n\n" : "\n\n";
@@ -434,12 +439,38 @@ const createUniqueNamer = (reserved: string[] = []) => {
 export const localizeChaptersForMerge = async (
   chapters: BatchExportChapter[]
 ): Promise<{ chapters: BatchExportChapter[]; assetFiles: BundleFile[]; warnings: string[] }> => {
-  const assets = await collectBundleAssets(chapters.map(chapter => chapter.content || []));
+  const snapshots: BatchExportChapter[] = [];
+  for (const chapter of chapters) {
+    const document = chapter.contentId ? await getContentById(chapter.contentId) : null;
+    if (chapter.contentId && !document) throw new Error("待导出正文已删除");
+    snapshots.push(
+      document ? { ...chapter, content: document.content, contracts: document.contracts } : chapter
+    );
+  }
+  const contracts = Object.assign(
+    {},
+    ...snapshots.map(chapter => chapter.contracts ?? {})
+  ) as ContentContractDictionary;
+  const assets = await collectBundleAssets(
+    snapshots.map(chapter => chapter.content || []),
+    { contracts }
+  );
+  const localized: BatchExportChapter[] = [];
+  for (const chapter of snapshots) {
+    const content = localizeContent(chapter.content || [], {
+      assets: assets.paths,
+      dir: [],
+      contracts: chapter.contracts,
+    });
+    const markdown = chapter.contracts
+      ? (
+          await (await import("@/services/editorKit")).prepareContentMarkdown(chapter.contracts)
+        ).getMarkdown(content)
+      : getMarkdown(content);
+    localized.push({ ...chapter, content, markdown });
+  }
   return {
-    chapters: chapters.map(chapter => ({
-      ...chapter,
-      content: localizeContent(chapter.content || [], { assets: assets.paths, dir: [] }),
-    })),
+    chapters: localized,
     assetFiles: assets.files,
     warnings: assets.warnings,
   };
@@ -524,23 +555,38 @@ export const buildMarkdownZipBytes = async (
   }
 
   const contents = new Map<number, Descendant[]>();
+  const contracts = new Map<number, ContentContractDictionary>();
   for (const file of files) {
     if (file.node.empty) continue;
+    const document = file.node.contentId ? await getContentById(file.node.contentId) : null;
+    if (file.node.contentId && !document) throw new Error("待导出正文已删除");
     contents.set(
       file.node.id,
-      file.node.loadContent ? await file.node.loadContent() : file.node.content || []
+      document?.content ??
+        (file.node.loadContent ? await file.node.loadContent() : file.node.content || [])
     );
+    if (document?.contracts) contracts.set(file.node.id, document.contracts);
   }
+  const resourceContracts = Object.assign({}, ...contracts.values()) as ContentContractDictionary;
 
   const assets =
     options.assets === "keep"
       ? { paths: new Map<string, string>(), files: [] as BundleFile[], warnings: [] as string[] }
-      : await collectBundleAssets([...contents.values()], { fetchRemote: options.fetchRemote });
+      : await collectBundleAssets([...contents.values()], {
+          fetchRemote: options.fetchRemote,
+          contracts: resourceContracts,
+        });
   const bundleFiles: BundleFile[] = [];
   for (const [index, { node, dir, path }] of files.entries()) {
     const content = contents.get(node.id);
     const body = content
       ? toPortableMarkdown(content, {
+          contracts: contracts.get(node.id),
+          markdown: contracts.has(node.id)
+            ? await (
+                await import("@/services/editorKit")
+              ).prepareContentMarkdown(contracts.get(node.id)!)
+            : undefined,
           assets: assets.paths,
           dir,
           resolveLink: ref => pathByRef.get(refKey(ref)) ?? null,

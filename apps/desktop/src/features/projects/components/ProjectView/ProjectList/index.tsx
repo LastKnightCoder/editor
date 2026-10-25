@@ -573,11 +573,12 @@ const Project = () => {
       setAddingParentProjectItemId(parentProjectItemId);
       openSelectWhiteBoardModal();
     } else if (key === "import-markdown") {
-      await importMarkdownFiles(async ({ title, content }) => {
+      await importMarkdownFiles(async ({ title, content, contracts }) => {
         const [newProject, item] = await addProjectItemToTarget(
           {
             title,
             content,
+            contracts,
             children: [],
             refType: "",
             refId: 0,
@@ -608,8 +609,8 @@ const Project = () => {
         showDivider
         className="h-full"
       >
-        <div className="border-b-16 box-border flex h-full flex-col border-transparent px-4 pb-0">
-          <div className="flex h-[60px] flex-none items-center justify-between pl-[9px] pr-3">
+        <div className="box-border flex h-full flex-col border-b-16 border-transparent px-4 pb-0">
+          <div className="flex h-[60px] flex-none items-center justify-between pr-3 pl-[9px]">
             <div className="flex min-w-0 items-center overflow-hidden text-ellipsis whitespace-nowrap">
               <button
                 type="button"

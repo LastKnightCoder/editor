@@ -1,17 +1,21 @@
 /** 白板作者入口保持无 DOM 副作用，定义可在纯数据宿主中求值。 */
-export { defineElement, defineWhiteboardExtension } from "./extensions/api";
+export { defineElement, defineWhiteboardExtension, useWhiteboardAPI } from "./extensions/authorApi";
 export type {
   WhiteboardAPI,
   WhiteboardExtension,
   WhiteboardElementDefinition,
   WhiteboardContributions,
-  TypedBoardElement,
-  ElementCreateSpec,
   WhiteboardSnapshot,
-  WhiteboardToolProps,
-} from "./extensions/api";
+  WhiteboardIdCommand,
+  WhiteboardShellPatch,
+  WhiteboardGeometry,
+  WhiteboardData,
+} from "./extensions/authorTypes";
 export type { BoardElement } from "./types/element";
-export { useWhiteboardAPI } from "./extensions/context";
+export type { TypedBoardElement, WhiteboardToolProps } from "./extensions/api";
+export type ElementCreateSpec<TData = unknown> = NonNullable<
+  import("./extensions/authorTypes").WhiteboardElementDefinition<TData>["create"]
+>;
 export { useSketch, usePageSketch } from "./extensions/authorHooks";
 export { AttrPopover, AttrToggle, OptionGrid, Seg } from "./chrome";
 export { default as SketchPopover } from "./components/SketchPopover";
@@ -21,3 +25,5 @@ export type { SketchPath } from "./utils/sketch/types";
 export type { Vec } from "./utils/sketch/geometry";
 export type { SchematicShape, SchematicFill } from "./types/schematic";
 export type { ResolvedSketch, ElementSketch, PageSketch, SketchLevel } from "./types/sketch";
+
+export { assertWhiteboardElementVersions } from "./extensions/versions";

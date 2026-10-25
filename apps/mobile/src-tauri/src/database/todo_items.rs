@@ -1,4 +1,81 @@
 use super::*;
+use crate::database::common::release_content_reference;
+
+#[cfg(test)]
+mod creation_tests {
+    use super::*;
+    use serde_json::json;
+    use sha2::{Digest, Sha256};
+
+    #[test]
+    fn prepared_description_and_todo_share_the_original_transaction() {
+        let mut conn = rusqlite::Connection::open_in_memory().unwrap();
+        crate::database::migrator::ensure_main_schema(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO todo_group(id,title,create_time,update_time) VALUES(1,'测试',1,1)",
+            [],
+        )
+        .unwrap();
+        let contract = json!({"format":2,"domain":"editor-node","owner":"test.note","type":"test.note","dataVersion":1,"kind":"block","isVoid":false,"textFields":["source"],"structuredFields":[],"resources":[]});
+        let id = format!(
+            "{:x}",
+            Sha256::digest(serde_json::to_string(&contract).unwrap().as_bytes())
+        );
+        let payload: CreateTodoItemPayload = serde_json::from_value(json!({
+            "groupId": 1, "title": "待办", "descriptionCount": 2,
+            "descriptionContent": [{"type":"test.note","tauContract":id,"source":"hello world","children":[]}],
+            "contracts": {id.clone(): contract}
+        })).unwrap();
+        let zone = crate::database::calendar_time::CalendarTimeZone(chrono_tz::UTC);
+        let tx = conn.transaction().unwrap();
+        let item = create_item_with_payload(&tx, &payload, zone).unwrap();
+        let content_id = item.description_content_id.unwrap();
+        assert_eq!(
+            item.description_content.unwrap()[0]["source"],
+            "hello world"
+        );
+        let stored: String = tx
+            .query_row(
+                "SELECT contracts FROM content_documents WHERE content_id=?1",
+                [content_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            serde_json::from_str::<Value>(&stored).unwrap(),
+            payload.contracts.clone().unwrap()
+        );
+        tx.commit().unwrap();
+
+        // 正文已写入后让业务实体失败，事务必须连正文及契约一起回滚。
+        conn.execute_batch("CREATE TEMP TRIGGER reject_todo BEFORE INSERT ON todo_item BEGIN SELECT RAISE(ABORT,'测试回滚'); END;").unwrap();
+        let tx = conn.transaction().unwrap();
+        assert!(create_item_with_payload(&tx, &payload, zone).is_err());
+        drop(tx);
+        for table in ["todo_item", "contents", "content_documents"] {
+            assert_eq!(
+                conn.query_row(&format!("SELECT count(*) FROM {table}"), [], |row| row
+                    .get::<_, i64>(0))
+                    .unwrap(),
+                1
+            );
+        }
+        conn.execute_batch("DROP TRIGGER reject_todo").unwrap();
+        let mut missing = payload;
+        missing.contracts = None;
+        let tx = conn.transaction().unwrap();
+        assert!(create_item_with_payload(&tx, &missing, zone)
+            .unwrap_err()
+            .starts_with("CONTENT_CONTRACT_INVALID:"));
+        drop(tx);
+        assert_eq!(
+            conn.query_row("SELECT count(*) FROM todo_item", [], |row| row
+                .get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+    }
+}
 
 fn get_item_by_id(tx: &Transaction<'_>, id: i64) -> Result<Option<TodoItem>, String> {
     tx.query_row(
@@ -75,20 +152,14 @@ fn create_item_with_payload(
     let item_type = normalize_item_type(payload.item_type.clone());
     let sort_index = query_max_sort_index(tx, payload.group_id, payload.parent_id)? + 1024;
     let now = now_millis();
-    let description_content_id = if let Some(text) = &payload.description {
-        if text.trim().is_empty() {
-            None
-        } else {
-            let content = Value::Array(vec![serde_json::json!({
-                "type": "paragraph",
-                "children": [{"type": "formatted", "text": text}]
-            })]);
-            Some(insert_content_record(
-                tx,
-                &content,
-                payload.description_count,
-            )?)
-        }
+    let description_content_id = if let Some(content) = &payload.description_content {
+        Some(insert_content_record(
+            tx,
+            content,
+            payload.contracts.as_ref(),
+            payload.description_count,
+            now,
+        )?)
     } else {
         None
     };
@@ -380,8 +451,12 @@ pub fn todo_create_item(
     app: AppHandle,
     payload: CreateTodoItemPayload,
     time_zone: crate::database::calendar_time::CalendarTimeZone,
+    database_name: String,
 ) -> Result<TodoItem, String> {
     let mut conn = schema::open_active_database(&app)?;
+    if conn.database_name() != database_name {
+        return Err("CONTENT_SOURCE_CONFLICT: 资料库已切换，请返回原资料库后重试".into());
+    }
     let tx = conn
         .transaction()
         .map_err(|e| format_db_error("TODO_CREATE_FAILED", "begin transaction", e))?;
@@ -396,8 +471,12 @@ pub fn todo_create_item_relative(
     app: AppHandle,
     payload: CreateTodoItemRelativePayload,
     time_zone: crate::database::calendar_time::CalendarTimeZone,
+    database_name: String,
 ) -> Result<TodoItem, String> {
     let mut conn = schema::open_active_database(&app)?;
+    if conn.database_name() != database_name {
+        return Err("CONTENT_SOURCE_CONFLICT: 资料库已切换，请返回原资料库后重试".into());
+    }
     let tx = conn
         .transaction()
         .map_err(|e| format_db_error("TODO_CREATE_FAILED", "begin transaction", e))?;
@@ -413,7 +492,8 @@ pub fn todo_create_item_relative(
         },
         title: payload.title,
         item_type: payload.item_type,
-        description: payload.description,
+        description_content: payload.description_content,
+        contracts: payload.contracts,
         description_count: payload.description_count,
         start_at: payload.start_at,
         due_at: payload.due_at,
@@ -627,7 +707,7 @@ pub fn todo_delete_item(app: AppHandle, payload: TodoIdPayload) -> Result<i64, S
         .execute("DELETE FROM todo_item WHERE id = ?1", params![payload.id])
         .map_err(|e| format_db_error("TODO_DELETE_FAILED", "delete todo item", e))?;
     if let Some(content_id) = description_content_id {
-        decrement_or_delete_content(&tx, content_id)?;
+        release_content_reference(&tx, content_id)?;
     }
     tx.commit()
         .map_err(|e| format_db_error("TODO_DELETE_FAILED", "commit transaction", e))?;
@@ -695,7 +775,7 @@ pub fn todo_delete_item_cascade(app: AppHandle, payload: TodoIdPayload) -> Resul
         .map_err(|e| format_db_error("TODO_DELETE_FAILED", "query changed rows", e))?;
 
     for content_id in content_ids {
-        decrement_or_delete_content(&tx, content_id)?;
+        release_content_reference(&tx, content_id)?;
     }
 
     tx.commit()

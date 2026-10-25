@@ -17,10 +17,7 @@ import { PageProvider, useOverlayDismiss } from "../../page/PageProvider";
 import { definePage } from "../../page/definePage";
 import { DesktopEditorOverlayDismiss } from "../editorOverlayDismiss";
 
-// 输入器布局不属于此测试；保留真实预览、公式、编辑器作用域与宿主仲裁。
-vi.mock("react-codemirror2", () => ({
-  UnControlled: ({ value }: { value: string }) => <textarea defaultValue={value} />,
-}));
+// 保留真实预览、公式、编辑器作用域与宿主仲裁。
 vi.mock("motion/react", async importOriginal => ({
   ...(await importOriginal<typeof import("motion/react")>()),
   AnimatePresence: ({ children }: { children: ReactNode }) => children,
@@ -132,7 +129,7 @@ describe("真实编辑器浮层与页面仲裁", () => {
     });
     await settle();
     const input = document.querySelector<HTMLInputElement>(
-      'input[placeholder="输入 LaTeX 公式..."]'
+      'input[aria-label="行内公式 LaTeX 源码"]'
     );
     if (!input) throw new Error("公式输入框未打开");
     return input;
@@ -162,7 +159,7 @@ describe("真实编辑器浮层与页面仲裁", () => {
     await render();
     const input = await openMath();
     await escape(input);
-    expect(document.querySelector('input[placeholder="输入 LaTeX 公式..."]')).toBeNull();
+    expect(document.querySelector('input[aria-label="行内公式 LaTeX 源码"]')).toBeNull();
     expect(host.querySelector("[data-host-open]")?.textContent).toBe("true");
     await escape();
     expect(host.querySelector("[data-host-open]")?.textContent).toBe("false");
@@ -196,7 +193,7 @@ describe("真实编辑器浮层与页面仲裁", () => {
     await render(true, false);
     const input = await openMath();
     await escape(input);
-    expect(document.querySelector('input[placeholder="输入 LaTeX 公式..."]')).toBeNull();
+    expect(document.querySelector('input[aria-label="行内公式 LaTeX 源码"]')).toBeNull();
     expect(editorRef.current?.getEditor().children[0]).toMatchObject({ type: "paragraph" });
   });
 });

@@ -1,18 +1,20 @@
+import {
+  createSharedDocument,
+  getSourceText,
+  prepareNodes,
+  replaceSharedContent,
+} from "./testing/legacy-document";
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import { createEditor, Transforms } from "slate";
 import { withYHistory, withYjs, YjsEditor } from "@slate-yjs/core";
 import {
-  createSharedDocument,
   getBody,
-  getSourceText,
-  prepareNodes,
   readSharedContent,
-  replaceSharedContent,
   replaceText,
   isSafeResource,
   validateDocument,
-} from "./document";
+} from "./legacy-document";
 import { declareDocumentResources, readDocumentResources } from "./resources";
 import { BUILTIN_CONTENT_RESOURCES } from "@tau/db-schema/content-resources";
 
@@ -211,41 +213,6 @@ describe("共享文档", () => {
         contentTitle: "引用文章",
       });
       validateDocument(doc);
-    } finally {
-      doc.destroy();
-    }
-  });
-
-  it("投影时 activeKeyOverrides 应覆盖 tabs 激活态，失效覆盖回落第一个", () => {
-    const paragraph = (text: string) => ({
-      type: "paragraph",
-      children: [{ type: "formatted", text }],
-    });
-    const doc = createSharedDocument({
-      ...article,
-      content: [
-        {
-          type: "tabs",
-          activeKey: "a",
-          children: [
-            { type: "tab-pane", tabKey: "a", title: "A", children: [paragraph("内容 A")] },
-            { type: "tab-pane", tabKey: "b", title: "B", children: [paragraph("内容 B")] },
-          ],
-        } as never,
-      ],
-    });
-    try {
-      const overrides = new Map([["whatever", "b"]]);
-      // collabId 未知，覆盖无效：shared 模式 activeKey 被剥离，回落第一个
-      const fallback = readSharedContent(doc, undefined, overrides);
-      expect(fallback.content[0].activeKey).toBe("a");
-      // 用树中 tabs 块真实 collabId 覆盖
-      const tabsId = String(fallback.content[0].collabId);
-      const applied = readSharedContent(doc, undefined, new Map([[tabsId, "b"]]));
-      expect(applied.content[0].activeKey).toBe("b");
-      // 覆盖值非法（pane 不存在）时回落
-      const invalid = readSharedContent(doc, undefined, new Map([[tabsId, "gone"]]));
-      expect(invalid.content[0].activeKey).toBe("a");
     } finally {
       doc.destroy();
     }

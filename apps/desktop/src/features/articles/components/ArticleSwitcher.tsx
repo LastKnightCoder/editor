@@ -94,6 +94,7 @@ export function ArticleSwitcher({
       await exportContentAsMarkdown({
         title: full.title || `文章-${full.id}`,
         content: full.content,
+        contentId: full.contentId,
       });
     }
   };
@@ -141,7 +142,7 @@ export function ArticleSwitcher({
         trigger={
           <IconButton
             title="置顶 / 导出 / 删除"
-            className="absolute right-1 top-1/2 size-5 -translate-y-1/2 opacity-0 group-hover/row:opacity-100 aria-expanded:opacity-100"
+            className="absolute top-1/2 right-1 size-5 -translate-y-1/2 opacity-0 group-hover/row:opacity-100 aria-expanded:opacity-100"
           >
             <MoreHorizontal className="size-[14px]" strokeWidth={1.75} />
           </IconButton>
@@ -191,7 +192,7 @@ export function ArticleSwitcher({
           <button
             type="button"
             title="切换文章"
-            className="rounded-tau-sm text-ink-2 hover:bg-hover hover:text-ink-1 flex min-w-0 max-w-[280px] items-center gap-1.5 px-1.5 py-0.5 text-[11.5px] transition-colors"
+            className="rounded-tau-sm text-ink-2 hover:bg-hover hover:text-ink-1 flex max-w-[280px] min-w-0 items-center gap-1.5 px-1.5 py-0.5 text-[11.5px] transition-colors"
           >
             <FileText className="size-[13px] shrink-0" strokeWidth={1.75} />
             <span className="truncate">{currentTitle || "未命名文章"}</span>
@@ -205,7 +206,7 @@ export function ArticleSwitcher({
           </button>
         }
       >
-        <div className="flex items-center gap-2 px-3.5 pb-2 pt-3">
+        <div className="flex items-center gap-2 px-3.5 pt-3 pb-2">
           <Search className="text-ink-3 size-3.5 shrink-0" strokeWidth={1.75} />
           <input
             data-autofocus
@@ -234,11 +235,11 @@ export function ArticleSwitcher({
               }
             }}
           >
-            {tops.length > 0 && <div className="text-ink-3 px-3.5 pb-1 pt-2 text-[11px]">置顶</div>}
+            {tops.length > 0 && <div className="text-ink-3 px-3.5 pt-2 pb-1 text-[11px]">置顶</div>}
             {tops.map(renderRow)}
             {months.map(month => (
               <div key={month.key}>
-                <div className="text-ink-3 px-3.5 pb-1 pt-2 text-[11px]">
+                <div className="text-ink-3 px-3.5 pt-2 pb-1 text-[11px]">
                   {month.month} 月
                   <span className="ml-1 text-[10px] tabular-nums">{month.year}</span>
                 </div>

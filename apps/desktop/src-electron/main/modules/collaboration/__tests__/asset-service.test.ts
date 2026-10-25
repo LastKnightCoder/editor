@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { ASSET_PREFIX, LOCAL_ASSET_PREFIX } from "@tau/collaboration";
 import { CollaborationLocalStore } from "../local-store";
 import { CollaborationAssetService } from "../asset-service";
+import { prepareContentContract } from "@tau/db-schema/content-contracts";
 
 const SERVER = "https://collab.example";
 const DOCUMENT = "doc-1";
@@ -47,6 +48,97 @@ function setup() {
 }
 
 describe("发起共享时的资源处理", () => {
+  it("内嵌资源在本机转换为可保全文件，上传使用同一资源路径", async () => {
+    const { assets } = setup();
+    const uri = "data:image/png;base64," + Buffer.from("image-data").toString("base64");
+    const definition = await prepareContentContract("tau.image", {
+      type: "image",
+      dataVersion: 1,
+      kind: "block",
+      isVoid: true,
+      resources: [{ path: "url", kind: "image" }],
+    });
+    const value = {
+      title: "",
+      bannerBg: "",
+      bannerPosition: "center",
+      content: [
+        {
+          type: "image",
+          collabId: "image",
+          tauContract: definition.id,
+          url: uri,
+          children: [{ text: "" }],
+        },
+      ],
+    };
+    const prepared = await assets.prepareLocalDocument(DOCUMENT, value, {
+      [definition.id]: definition.contract,
+    });
+    expect(String(prepared.content[0].url).startsWith(LOCAL_ASSET_PREFIX)).toBe(true);
+    const path = await assets.resolveReference(SERVER, DOCUMENT, String(prepared.content[0].url));
+    expect(readFileSync(path).toString()).toBe("image-data");
+    expect(assets.recoveryFiles(DOCUMENT).missing).toEqual([]);
+  });
+  it("恢复包按声明收集外部附件，重复路径只复制一次，缺失资源明确列出", () => {
+    const { assets, file, root } = setup();
+    const path = file("attachment.pdf", "附件原文");
+    const missing = join(root, "missing.pdf");
+    const result = assets.recoveryFiles(DOCUMENT, [path, path, missing, "tau-collab:unknown"]);
+    expect(result.files).toEqual([{ name: "resource-0", path }]);
+    expect(result.resources).toHaveLength(3);
+    expect(result.missing).toEqual([missing, "tau-collab:unknown"]);
+    expect(readFileSync(result.files[0].path, "utf8")).toBe("附件原文");
+  });
+  it("新文档按每个节点的历史契约映射资源，本机会话不上传文件", async () => {
+    const { assets, file, uploads } = setup();
+    const first = await prepareContentContract("plugin.example", {
+      type: "example",
+      dataVersion: 1,
+      kind: "block",
+      resources: [{ path: "oldCover", kind: "image" }],
+    });
+    const second = await prepareContentContract("plugin.example", {
+      type: "example",
+      dataVersion: 2,
+      kind: "block",
+      resources: [{ path: "cover", kind: "image" }],
+    });
+    const contracts = { [first.id]: first.contract, [second.id]: second.contract };
+    const path = file("cover.png");
+    const value = {
+      title: "资源",
+      bannerBg: "linear-gradient(red,blue)",
+      bannerPosition: "center",
+      content: [
+        {
+          type: "example",
+          tauContract: first.id,
+          oldCover: path,
+          cover: "业务字符串",
+          children: [{ text: "" }],
+        },
+        {
+          type: "example",
+          tauContract: second.id,
+          cover: path,
+          oldCover: "旧业务字段",
+          children: [{ text: "" }],
+        },
+      ],
+    };
+    const prepared = await assets.prepareLocalDocument(DOCUMENT, value, contracts);
+    expect(prepared.content[0]).toMatchObject({
+      oldCover: expect.stringMatching(/^tau-collab-local:/),
+      cover: "业务字符串",
+    });
+    expect(prepared.content[1]).toMatchObject({
+      cover: prepared.content[0].oldCover,
+      oldCover: "旧业务字段",
+    });
+    expect(await assets.localizeDocument(SERVER, DOCUMENT, prepared, contracts)).toEqual(value);
+    expect(uploads).toEqual([]);
+  });
   it("可读取的本地图片上传为服务器资产", async () => {
     const { assets, file, uploads } = setup();
     const shared = await assets.shareReference(SERVER, DOCUMENT, file("a.png"));
@@ -104,4 +196,30 @@ describe("发起共享时的资源处理", () => {
     const foreign = `${LOCAL_ASSET_PREFIX}${crypto.randomUUID()}`;
     expect(await assets.localizeReference(SERVER, DOCUMENT, foreign)).toBe(foreign);
   });
+});
+
+it("旧 Windows 附件路径跨平台并随资料目录迁移，保全副本和实际文件一致", async () => {
+  const { root } = setup();
+  const relocated = join(root, "relocated-library");
+  mkdirSync(join(relocated, "resources"), { recursive: true });
+  const file = join(relocated, "resources", "历史附件.png");
+  writeFileSync(file, "原始附件字节");
+  const store = new CollaborationLocalStore(join(relocated, "collaboration"));
+  cleanup.push(() => store.db.close());
+  const assets = new CollaborationAssetService(store, relocated, async () => {
+    throw new Error("本机升级不得联网");
+  });
+  for (const reference of [
+    "~\\.editor\\resources\\历史附件.png",
+    "~/.editor/resources/历史附件.png",
+  ]) {
+    expect(assets.recoveryPath(reference)).toBe(file);
+    const local = await assets.prepareLocalReference(DOCUMENT, reference);
+    expect(assets.recoveryPath(local, DOCUMENT)).toBe(file);
+    const recovery = assets.recoveryFiles(DOCUMENT, [reference, local]);
+    expect(recovery.missing).toEqual([]);
+    expect(recovery.files.length).toBeGreaterThan(0);
+    for (const entry of recovery.files)
+      expect(readFileSync(entry.path, "utf8")).toBe("原始附件字节");
+  }
 });

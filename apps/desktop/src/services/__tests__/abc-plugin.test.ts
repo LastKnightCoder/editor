@@ -2,15 +2,13 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { Descendant } from "slate";
 import { createMarkdownProcessor } from "@tau/markdown";
-import { evaluatePluginPackage } from "@tau/plugins/rendering";
-import { sharedPluginModules } from "@tau/plugins/shared-modules";
 import { ContentPluginRegistry, createPluginMarkdownProcessor } from "@tau/plugins/content";
-import { assertPluginCompatibility } from "@tau/plugins/host";
+import { assertDesktopPluginCompatibility as assertPluginCompatibility } from "../../../shared/plugin-package";
 import { diagramMarkdownCodecs } from "@tau/editor/extensions/diagram/markdown";
-import { pluginArtifact } from "../../test-fixtures/plugin-packages";
+import { evaluatePluginFixture, pluginArtifact } from "../../test-fixtures/plugin-packages";
 
 const artifact = pluginArtifact("tau.abc");
-const definition = evaluatePluginPackage(artifact, sharedPluginModules);
+const definition = evaluatePluginFixture(artifact);
 const registry = new ContentPluginRegistry();
 afterEach(() => registry.install([]));
 

@@ -81,6 +81,7 @@ function parseMeta(value: string): Record<string, unknown> {
 
 export interface PluginEntityIndexDoc {
   id: number;
+  contentId: number;
   title: string;
   updateTime: number;
   content: Descendant[];
@@ -147,7 +148,8 @@ export default class PluginEntityTable {
 
   private static row(db: Database.Database, pluginId: string, id: number): Row | undefined {
     return db.prepare(`${BASE_SQL} WHERE e.id = ? AND e.plugin_id = ?`).get(id, pluginId) as
-      Row | undefined;
+      | Row
+      | undefined;
   }
 
   /** 宿主按 ID 读取任意插件的实体（检索结果与打开），不撤销孤儿标记 */
@@ -262,7 +264,7 @@ export default class PluginEntityTable {
     db: Database.Database,
     pluginId: string,
     input: PluginEntityCreate,
-    content: Descendant[],
+    content: Pick<import("@/types/content").IContent, "content" | "contracts">,
     id: number
   ): PluginEntityRecord {
     const { kind, key, title, meta } = input;
@@ -272,7 +274,7 @@ export default class PluginEntityTable {
     if (existing) throw new Error(`${CONFLICT_PREFIX}已存在 key 相同的内容`);
     if (db.prepare("SELECT 1 FROM plugin_entities WHERE id = ?").get(id))
       throw new Error("内容 ID 已被占用");
-    const contentId = ContentTable.createContent(db, { content });
+    const contentId = ContentTable.createContent(db, content);
     const now = Date.now();
     db.prepare(
       `INSERT INTO plugin_entities
@@ -460,7 +462,8 @@ export default class PluginEntityTable {
       )
         throw new Error("插件已重新创建了同一项内容，无法恢复");
       const content = db.prepare("SELECT create_time FROM contents WHERE id = ?").get(contentId) as
-        { create_time: number } | undefined;
+        | { create_time: number }
+        | undefined;
       if (!content || content.create_time !== snapshot.contentCreatedAt)
         throw new Error("正文已被清理，无法恢复");
       ContentTable.retain(db, contentId);
@@ -493,18 +496,20 @@ export default class PluginEntityTable {
   static indexDocs(db: Database.Database, id?: number): PluginEntityIndexDoc[] {
     const rows = db
       .prepare(
-        `SELECT e.id, e.title, MAX(e.update_time, ct.update_time) AS update_time, ct.content
+        `SELECT e.id, e.content_id, e.title, MAX(e.update_time, ct.update_time) AS update_time, ct.content
          FROM plugin_entities e JOIN contents ct ON ct.id = e.content_id
          ${id === undefined ? "" : "WHERE e.id = ?"}`
       )
       .all(...(id === undefined ? [] : [id])) as Array<{
       id: number;
+      content_id: number;
       title: string;
       update_time: number;
       content: string;
     }>;
     return rows.map(row => ({
       id: row.id,
+      contentId: row.content_id,
       title: row.title,
       updateTime: row.update_time,
       content: parseContent(row.content),

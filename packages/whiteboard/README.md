@@ -6,7 +6,7 @@
 
 从根入口导入画布、defineWhiteboardExtension、受控 API 与通用组件，从 `@tau/whiteboard/extensions` 导入通用扩展工厂；CSS 使用 `@tau/whiteboard/styles.css`，禁止私有深引。宿主提供 UiProvider、DndProvider 和主题运行时，Tailwind 扫描白板、UI、编辑器及格式/链接扩展源码。React、Slate 与 DnD 使用同一份运行时，完整配置参考 `examples/whiteboard`。
 
-初始化参数只作为初始值；更换文档身份时由宿主更换 key，编辑经 onChange 回传。extensions 必须显式提供且在会话期间保持同一集合。Ref 提供视口适应、缩放、只读元素快照和定位。
+普通值模式的初始化参数只作为初始值，编辑经 onChange 回传；可选 document 模式见文末。更换文档身份时由宿主更换 key。extensions 必须显式提供且在会话期间保持同一集合。Ref 提供视口适应、缩放、只读元素快照和定位。
 
 ```tsx
 import WhiteBoard from "@tau/whiteboard";
@@ -20,7 +20,7 @@ const extensions = createStandardWhiteboardExtensions();
 
 - 声明包含唯一 id、apiVersion 和 create(api)。一个扩展可以贡献多个元素、命令、工具、菜单、快捷键、属性面板、导入规则和界面层。装配逐扩展先校验后提交，重复声明、命名空间非法、create 抛错或引用不存在的命令时只禁用该扩展并清理其贡献（先到先得），不中断整板装配。
 - 正文与媒体的宿主能力经服务注册表注入（见「宿主服务」，D-134）：内置 richtext/mind/clipboard 直接获取 `IWhiteboardRichText`，媒体类扩展直接获取 `IResourceService`/`IMediaInfoService`/`IDownloadService`，缺失时回退嵌入式或浏览器实现；导出截图与选择器弹窗、媒体动作白名单、图片组件等纯 UI 配置仍为工厂参数。正文编辑、低缩放订阅和离屏测量共用 Kit 与文档绑定。界面层 position 为 canvas 或 outside；canvas 浮层根节点须带 `CANVAS_OVERLAY_ATTR`，其中的输入不归画布。
-- 文档卡仍使用现有 entityRef 与 title 字段，由 createDocumentExtension 组合纸面与阅读层；已有元素 type 和数据格式不变。
+- 文档卡由 createDocumentExtension 组合纸面与阅读层。值模式使用本机 entityRef；文档模式保存带来源的稳定 entity，宿主核验后读取原文，不复制或自动共享原文。
 - outline：受控开关与宽度；实际占宽回调归所属页面，避免实例串扰。
 - API.captureSubmission：异步操作开始时捕获，提交前验证；只读切换、隐藏、卸载和目标删除使旧操作失效。
 
@@ -32,28 +32,28 @@ const extensions = createStandardWhiteboardExtensions();
 
 useBoard/useWhiteboardAPI 返回受控接口，不返回内核 Board。快照不可写且按对象身份共享副本；元素查询返回副本，修改走 updateElement 或操作提交。元素、界面层与回调异常独立隔离，先提交快照再通知。未知元素保留原始字段与子树，使用占位和元素树管理。
 
-本轮只支持受信任扩展（同进程装配，Obsidian 式），不提供动态安装、沙箱或权限机制。扩展 API 按「将来可迁入 Worker」设计：数据读写一经受控 api、命令参数可序列化、不暴露内部对象引用。
+画布扩展在同一进程运行，安装、启停和业务权限由宿主管理；受控数据入口不是 JavaScript 沙箱。扩展 API 按「将来可迁入 Worker」设计：数据读写一经受控 api、命令参数可序列化、不暴露内部对象引用。
 
-## 第三方扩展数据契约
+## 第三方协作扩展数据契约
 
 - 命名空间：扩展 id 必须形如 `<命名空间>.<名称>`，命名空间仅限小写字母、数字与连字符。`tau` 为保留命名空间（内置扩展，其元素可用无点裸 type）；其它命名空间声明的元素 type、命令 id 与贡献 id 必须以 `<命名空间>.` 开头。
 - 数据归属：第三方元素的私有数据一律放 `element.data`，顶层字段（id/type/children 等）归内核，内置元素格式不变；`TypedBoardElement<TData>` 提供带类型的元素视图。
-- 版本与迁移：元素定义声明 `schemaVersion`（正整数，缺省 1）与 `migrate[n]`（n→n+1，须覆盖 [1, schemaVersion) 全部步骤）。装配后对已加载数据迁移一次（不进历史、不发 change，随下次编辑落库）；插入路径（粘贴/submit/导入）先迁移再插入；数据版本高于扩展或迁移失败时占位渲染、数据原样保留。
-- 写入校验：定义可带 `schema`（Standard Schema v1，仅同步返回，zod / valibot 可直接传入），只校验 `element.data`。提交时校验变化元素，不合规抛 `WhiteboardValidationError` 且整批操作不应用；undo/redo 重放不校验；加载只校验迁移产物（不合规回退迁移前原样）；粘贴不合规放弃本次粘贴。
+- 作者使用 `@tau/plugins/whiteboard`，声明 dataVersion、previousVersions、migrations；版本规则与编辑器共用，精确摘要而非版本号决定 read/edit/none。旧快照的 schemaVersion/migrate 仅留在宿主升级路径，新作者定义不混用这两套字段。
+- 普通载荷使用 updateElementData，声明文本使用 getTextBinding；submit 只接收身份命令，不公开路径 apply 或绕过历史。首次创建才把准备好的契约与节点原子写入；加载与远端投影不运行迁移或 schema 修复。
+- schema（Standard Schema v1）只验证本机候选，不采用其归一化输出去删未知字段；迁移仅返回业务载荷，受控转换由宿主决定。作者 API 与权限范围详见 [SDK 白板说明](/packages/plugins/docs/whiteboard-collaboration.md)。
 - 冲突与错误报告：任一扩展装配失败只禁用该扩展并清理其 scope，先到先得；经 `WhiteBoard` 的 `onExtensionError` 回调与 console.error 报告（`WhiteboardExtensionError.reason` 见 api.ts），`getRejectedExtensions()` 可查被拒清单。
 - 占位原因：未知或异常元素渲染占位并输出 `data-unknown-reason`，取值 missing（类型未注册）/ too-new（数据版本高于扩展）/ migration-failed / disabled（所属扩展被禁用），原始数据与子树保留。
 
 ```tsx
-import { defineElement } from "@tau/whiteboard/extensions";
+import { defineElement } from "@tau/plugins/whiteboard";
 
 interface StampData {
   label: string;
 }
 
 const stamp = defineElement<StampData>({
-  type: "demo.stamp", // 必须以扩展命名空间开头
-  schemaVersion: 2, // 数据结构版本，缺省 1
-  migrate: { 1: el => ({ ...el, data: { ...el.data, label: String(el.data.label ?? "") } }) },
+  type: "demo.stamp.shape", // 属于 demo.stamp 插件
+  dataVersion: 1,
   schema: {
     // Standard Schema v1，手写示意；zod / valibot 实例可直接传入
     "~standard": {
@@ -73,7 +73,7 @@ const stamp = defineElement<StampData>({
     after: "select", // 创建后选中并回到选择工具（默认）
     build: ctx => ({
       id: crypto.randomUUID(),
-      type: "demo.stamp",
+      type: "demo.stamp.shape",
       x: ctx.rect.x,
       y: ctx.rect.y,
       width: ctx.rect.width,
@@ -87,7 +87,7 @@ const stamp = defineElement<StampData>({
 创建型工具随扩展贡献：`tools` 里给 `element` 字段指向该元素 type 并声明 `label` 与 `icon`，激活后画布按 `create` 规格执行手势；工具参数经 `api.setActiveTool(id, options)` 传入 `build` 的 `options`。第三方工具统一进入「扩展工具」菜单，不占工具栏位。
 
 ```tsx
-import { defineWhiteboardExtension } from "@tau/whiteboard/extensions";
+import { defineWhiteboardExtension } from "@tau/plugins/whiteboard";
 import { Stamp } from "./icons";
 
 const stampExtension = defineWhiteboardExtension({
@@ -195,6 +195,33 @@ defineElement({ type: "demo.stamp", containment: { canBeContained: false }, rend
 
 运行 `pnpm --filter @tau/whiteboard check`、`test`、`bench:hit`、`bench:render`；边界检查为 `pnpm check:whiteboard-boundaries`。独立示例使用 `pnpm --filter @example/whiteboard build`。视觉验收由用户完成。
 
+## 可选协作文档绑定
+
+`@tau/whiteboard/collaboration` 提供 `createWhiteboardBinding(model, { pageId, types, editorVersions? })`。宿主先取得已验证的 `WhiteboardModel` 与契约，再为每个画布视图创建独立绑定，传入 `<WhiteBoard document={binding} extensions={extensions} initData={[]} />`。绑定必须在该组件生命周期中稳定；换文档重建组件，同文档切页调用 `binding.switchPage(pageId)`。该入口不从 `initData` 自动生成 CRDT 基线，也不切换现有桌面保存流程。
+
+`types` 是可信宿主对当前画布字段的映射：每种类型包含 `contractId`，可列出 `dataProperties`（映射到普通 data）、`transientProperties`（仅本机反馈）和 `bodyProperty`（现有富文本属性到稳定 body 根）。不能与身份/几何字段重叠，映射必须匹配同类型契约。契约不匹配时拒绝内部数据编辑，仍保留外壳移动和删除能力。它不是新增插件声明语言；prepareBuiltinWhiteboardTypes 提供内置类型的精确契约与字段归属，作者 SDK 目录仍通过独立 contracts 入口准备。嵌套的 text.content 只用于宿主图形正文适配，不开放任意插件富文本槽。
+
+- 路径操作先按原 BoardOperations 完成整批路径跟踪，再编译为稳定 ID 命令；插入子树保留宿主已经分配的 ID，模型拒绝复用身份。非法批次不会部分改变画布、CRDT 或历史。
+- 拖拽、缩放和连续方向键进入统一预览事务：帧只改变本机投影，结束才提交；取消、只读、切页和远端更新清除未提交预览。高频几何补丁合并，手势仅记一次宿主历史。
+- 文档模式不写 Board.undos/redos，不执行加载/插入自动迁移，不调用旧 onChange 整页保存回调，也不广播会触发资源释放的插入/删除事件。投影更新仍发布渲染通知及稳定元素引用；同步通知期间的内容回写被阻止。
+- 富文本框、图形和脑图的通用 Editor 可消费同一 body 文档，旧内容 onChange 不再写回。`binding.textField(id, field)` 复用公共 EditorTextField，字符串和源码增量、富文本与跨页操作共用该视图的 NodeTreeHistory；其它视图来源不进入此历史。
+- `binding.moveToPage(ids, pageId)` 只改位置，文字根不变。切页不清空文档历史。编辑器聚焦不跳过较新的画布历史。
+- 编辑器输入、源码批次及 undo/redo 先经模型候选预检；预算失败时不动真实文档或历史栈，Slate 中尚未持久的拆分投影恢复为当前 CRDT 内容。异步整段字符串替换仍需宿主条件提交，不能通过同步 replace 绕过。
+
+销毁画布只释放该绑定、编辑器和字段租约以及本视图历史，不销毁共享 Doc/模型。主进程会话、耐久保存、网络回执和资源能力由宿主提供；只有显式传入 document 才使用该模式，旧值模式不会在加载时转换。
+
 ## 富文本字数
 
 富文本宿主服务可提供 `countWords`，正文创建沿用该宿主的扩展统计器；桌面绑定与正文保存共用同一实例。没有宿主时，嵌入式段落/链接套件使用公共计数算法统计文本叶子，画布核心不加载编辑器领域扩展。自动清理单独使用保守的 `isContentEmpty`，含媒体或未知节点的富文本即使零字数也保留。
+
+宿主条件提交使用 `beginConditional(operationId, commands)` 生成未应用提案，只接受文本与用户几何。宿主先冲刷本机编辑并取得服务器整文档修订，以相同 operationId 耐久暂存、提交提案；等待期间，入站更新统一经 `receiveDocument`，不能从另一条路径提前写入同一模型。拿到终态后调用 `finishConditional`：提交成功只加入一次该视图历史，重复回执幂等；结果未知保留冻结与提案，拒绝时不应用候选。新 epoch 由宿主重建会话，不把新基线当普通入站更新合并。该接口不属于插件作者 SDK。
+
+`@tau/whiteboard/contracts` 提供静态 WhiteboardContractCatalog 和宿主适配，准备时不加载画布/编辑器绑定、不执行交互工厂。宿主把 catalog 交给 createWhiteboardBinding，并按每次写入复核 canEditContract；桌面复用启动插件快照与激活实例。作者门面和内部旧画布 API 分开，旧路径只供宿主现有实现使用。
+
+### 内置元素与导入导出
+
+内置富文本、图形和连线标签、脑图文字使用独立公共正文根；框架/分栏标题、图片说明及音频文字使用公共字符串字段。正文、手势、跨页、页名和演示共用每视图一条历史。DOM 测量与自动布局留在本机，普通移动不把测量尺寸写回；拖出自动布局容器时才记录明确的可见几何意图。
+
+长笔迹按稳定子段写入，每段不改写前段；整个手势只有一次撤销，恢复仅依赖已经耐久的段。页级画风与演示序列存入文档，播放进度、视口和选区不共享。
+
+可编辑白板包使用 whiteboard-transfer-v1：当前投影、完整契约、正文和资源清单，托管资源可随文件携带；不包含原始 Yjs 历史、本机字段根或租约。复制分配新身份，只有精确匹配的内置契约才改写连线/分组，未知载荷原样保留；外部实体引用不授权、不拷贝实体。导入按原命令预算分段预检，整体通过后单次提交与撤销；文件、资源与文档预算见 [协作架构](/docs/architecture/collaboration.md)。缺资源不输出声称完整的包。缺少匹配渲染器时，图片导出默认停止，须明确选择带占位标记的导出。

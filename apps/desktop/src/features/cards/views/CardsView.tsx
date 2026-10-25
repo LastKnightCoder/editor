@@ -193,7 +193,11 @@ export function CardsView() {
     onExportMarkdown: card => {
       void requireFullCard(card).then(full => {
         if (!full) return;
-        void exportContentAsMarkdown({ title: String(full.id), content: full.content });
+        void exportContentAsMarkdown({
+          title: String(full.id),
+          content: full.content,
+          contentId: full.contentId,
+        });
       });
     },
     onExportImage: card => {
@@ -214,9 +218,10 @@ export function CardsView() {
   const importDrop = useImportDrop("card");
   const handleImport = async () => {
     await importMarkdownFiles(
-      ({ content }) =>
+      ({ content, contracts }) =>
         mutations.create.mutateAsync({
           content,
+          contracts,
           tags: [],
           count: getContentLength(content),
           isTop: false,
@@ -238,7 +243,7 @@ export function CardsView() {
     card ? titleOfCard(card, 20) || `卡片 #${card.id}` : "";
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full min-w-0 max-w-[1760px] flex-col px-4 pb-4 pt-1">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1760px] min-w-0 flex-col px-4 pt-1 pb-4">
       {/* 一整张纸：工具栏固定在纸顶，视图在纸内滚动 */}
       <div
         className="bg-surface shadow-card rounded-tau-lg relative flex min-h-0 flex-1 flex-col overflow-hidden"
@@ -246,8 +251,8 @@ export function CardsView() {
       >
         {importDrop.overlay}
         {/* 工具栏：标题 / 当前标签 + 摘要 + 导入 / 新建 */}
-        <div className="mb-2 mt-5 flex h-10 flex-none items-center gap-3 px-8">
-          <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
+        <div className="mt-5 mb-2 flex h-10 flex-none items-center gap-3 px-8">
+          <h1 className="text-tau-title-lg shrink-0 font-semibold tracking-[-0.01em] whitespace-nowrap">
             卡片库
           </h1>
           {tag && (
@@ -255,7 +260,7 @@ export function CardsView() {
               type="button"
               title="清除标签筛选"
               onClick={clearTag}
-              className="bg-selected text-accent-text inline-flex h-6 max-w-[200px] shrink-0 items-center gap-1 rounded-full pl-2.5 pr-1.5 text-[12px] font-medium"
+              className="bg-selected text-accent-text inline-flex h-6 max-w-[200px] shrink-0 items-center gap-1 rounded-full pr-1.5 pl-2.5 text-[12px] font-medium"
             >
               <span className="truncate">{tag}</span>
               <X className="size-3 shrink-0" strokeWidth={2} />
@@ -307,7 +312,7 @@ export function CardsView() {
 
         {/* 主体三视图：卡片墙与列表共用空态 */}
         {(view === "wall" || view === "list") && (
-          <div className="flex min-h-0 flex-1 flex-col pb-4 pl-8 pr-8">
+          <div className="flex min-h-0 flex-1 flex-col pr-8 pb-4 pl-8">
             {filtered.length === 0 ? (
               <div className="flex flex-col items-center gap-2 px-0 py-20 text-center">
                 <Layers className="text-ink-3 size-6" strokeWidth={1.75} />

@@ -1,8 +1,5 @@
-import { memo } from "react";
-import { useRemoteCursorOverlayPositions } from "@slate-yjs/react";
 import type { CSSProperties, RefObject } from "react";
 import { memberColor } from "@tau/collaboration";
-import { useCollaboration } from "./context";
 import { effectiveZoom, isOwnDevice, toContainerSpace } from "./cursorOverlay";
 
 const LABEL_MAX_WIDTH = 160;
@@ -10,8 +7,6 @@ const DEFAULT_COLOR = "oklch(0.62 0.11 185)";
 // 标签固定样式推导的高度：11.5px 字号 × 1.4 行高 + 上下 padding 6px，向上取整留余量
 const LABEL_HEIGHT = 23;
 const LABEL_GAP = 3;
-
-type CursorUser = { id?: string; name: string; color: string };
 
 // 标签默认在光标上方；第一行放不下时翻转到下方，上下都放不下（单行文档）时退到光标右侧，
 // 避免被外层 overflow 容器截断。光标靠近右边缘时改为标签右边对齐光标（用 right 定位），
@@ -47,16 +42,22 @@ function getLabelPlacementStyle(
       };
 }
 
-const CollaborationCursors = memo(function CollaborationCursors({
+export interface CursorOverlayData {
+  clientId: number;
+  data?: { id?: string; name?: string; color?: string };
+  caretPosition?: { top: number; left: number; height: number; width?: number } | null;
+  selectionRects: { top: number; left: number; width: number; height: number }[];
+}
+
+export function CursorOverlay({
+  cursors,
   containerRef,
+  localUserId,
 }: {
+  cursors: readonly CursorOverlayData[];
   containerRef: RefObject<HTMLDivElement | null>;
+  localUserId?: string;
 }) {
-  const [cursors] = useRemoteCursorOverlayPositions<CursorUser>({
-    containerRef: containerRef as RefObject<HTMLDivElement>,
-  });
-  const binding = useCollaboration();
-  const localUserId = (binding?.awareness.getLocalState()?.user as CursorUser | undefined)?.id;
   const container = containerRef.current;
   const containerWidth = container?.clientWidth || LABEL_MAX_WIDTH;
   const containerHeight = container?.clientHeight || 0;
@@ -138,6 +139,4 @@ const CollaborationCursors = memo(function CollaborationCursors({
         })}
     </div>
   );
-});
-
-export default CollaborationCursors;
+}

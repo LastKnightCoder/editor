@@ -1,35 +1,45 @@
+import cacheSchema from "@tau/db-schema/schema/collaboration.sql?raw";
 import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 import * as Y from "yjs";
 import type { CollaborationSession, ContentNode } from "@tau/collaboration";
 
 export class CollaborationLocalStore {
   readonly db: Database.Database;
+  readonly failures = new Map<string, string>();
   constructor(directory: string) {
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     this.db = new Database(join(directory, "collaboration.db"));
     this.db.pragma("journal_mode = WAL");
     this.db.pragma("synchronous = FULL");
     const version = Number(this.db.pragma("user_version", { simple: true }));
-    if (version > 1) {
+    if (version > 3) {
       this.db.close();
       throw new Error("本地协作缓存版本较新，请升级 Tau");
     }
     this.db.transaction(() => {
-      this.db.exec(`
-      CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-      CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, metadata TEXT NOT NULL, state BLOB NOT NULL, private_nodes TEXT NOT NULL DEFAULT '[]');
-      CREATE TABLE IF NOT EXISTS updates (id INTEGER PRIMARY KEY, document_id TEXT NOT NULL, state BLOB NOT NULL);
-      CREATE INDEX IF NOT EXISTS updates_document ON updates(document_id);
-      CREATE TABLE IF NOT EXISTS resources (id TEXT PRIMARY KEY, document_id TEXT NOT NULL, name TEXT NOT NULL, mime TEXT NOT NULL, path TEXT NOT NULL, uploaded INTEGER NOT NULL DEFAULT 0);
-      PRAGMA user_version = 1;
-    `);
+      const columns = (table: string) =>
+        new Set(
+          (this.db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map(
+            column => column.name
+          )
+        );
+      if (columns("sessions").size && !columns("sessions").has("state_hash"))
+        this.db.exec("ALTER TABLE sessions ADD COLUMN state_hash TEXT");
+      if (columns("updates").size && !columns("updates").has("hash"))
+        this.db.exec("ALTER TABLE updates ADD COLUMN hash TEXT");
+      this.db.exec(cacheSchema);
+      if (!columns("recoveries").has("workspace_id"))
+        this.db.exec("ALTER TABLE recoveries ADD COLUMN workspace_id TEXT");
+      this.db.pragma("user_version=3");
     })();
   }
   get<T>(key: string, fallback: T): T {
     const row = this.db.prepare("SELECT value FROM settings WHERE key=?").get(key) as
-      { value: string } | undefined;
+      | { value: string }
+      | undefined;
     return row ? (JSON.parse(row.value) as T) : fallback;
   }
   set(key: string, value: unknown) {
@@ -51,57 +61,102 @@ export class CollaborationLocalStore {
     ).map(row => [row.key.slice("identity:".length), JSON.parse(row.value) as string]);
   }
   list() {
+    this.failures.clear();
     return (
-      this.db.prepare("SELECT metadata FROM sessions").all() as {
+      this.db.prepare("SELECT id,metadata FROM sessions").all() as {
+        id: string;
         metadata: string;
       }[]
-    ).map(row => JSON.parse(row.metadata) as CollaborationSession);
+    ).flatMap(row => {
+      try {
+        const value = JSON.parse(row.metadata) as CollaborationSession;
+        if (!value || value.id !== row.id) throw new Error("会话身份不匹配");
+        return [value];
+      } catch {
+        this.failures.set(row.id, "协作缓存元数据不可读，原数据已保留");
+        return [];
+      }
+    });
   }
-  load(id: string): { doc: Y.Doc; privateNodes: Map<string, ContentNode> } {
-    const row = this.db.prepare("SELECT state,private_nodes FROM sessions WHERE id=?").get(id) as
-      { state: Buffer; private_nodes: string } | undefined;
+  load(id: string): {
+    doc: Y.Doc;
+    info: CollaborationSession;
+  } {
+    const row = this.db
+      .prepare("SELECT state,state_hash,metadata FROM sessions WHERE id=?")
+      .get(id) as { state: Buffer; state_hash: string | null; metadata: string } | undefined;
     if (!row) throw new Error("协作内容本地缓存不存在");
-    const doc = new Y.Doc();
-    Y.applyUpdate(doc, row.state);
-    for (const update of this.db
-      .prepare("SELECT state FROM updates WHERE document_id=? ORDER BY id")
-      .all(id) as { state: Buffer }[])
-      Y.applyUpdate(doc, update.state);
-    const privateNodes = new Map<string, ContentNode>(JSON.parse(row.private_nodes));
-    return { doc, privateNodes };
+    const doc = new Y.Doc({ gc: false });
+    try {
+      if (row.state_hash && row.state_hash !== digest(row.state))
+        throw new Error("协作缓存快照摘要不匹配");
+      Y.applyUpdate(doc, row.state);
+      for (const update of this.db
+        .prepare("SELECT state,hash FROM updates WHERE document_id=? ORDER BY id")
+        .all(id) as { state: Buffer; hash: string | null }[]) {
+        if (update.hash && update.hash !== digest(update.state))
+          throw new Error("协作缓存增量摘要不匹配");
+        Y.applyUpdate(doc, update.state);
+      }
+      const info = JSON.parse(row.metadata) as CollaborationSession;
+      if (info.id !== id) throw new Error("协作缓存元数据身份不匹配");
+      return { doc, info };
+    } catch (error) {
+      doc.destroy();
+      throw error;
+    }
   }
-  create(session: CollaborationSession, doc: Y.Doc, privateNodes = new Map()) {
+  create(session: CollaborationSession, doc: Y.Doc) {
+    const state = Buffer.from(Y.encodeStateAsUpdate(doc));
     this.db
       .prepare(
-        "INSERT INTO sessions(id,metadata,state,private_nodes) VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET metadata=excluded.metadata"
+        "INSERT INTO sessions(id,metadata,state,state_hash) VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET metadata=excluded.metadata"
       )
-      .run(
-        session.id,
-        JSON.stringify(session),
-        Buffer.from(Y.encodeStateAsUpdate(doc)),
-        JSON.stringify([...privateNodes])
-      );
+      .run(session.id, JSON.stringify(session), state, digest(state));
   }
   metadata(session: CollaborationSession) {
     this.db
       .prepare("UPDATE sessions SET metadata=? WHERE id=?")
       .run(JSON.stringify(session), session.id);
   }
-  privateNodes(id: string, values: Map<string, ContentNode>) {
-    this.db
-      .prepare("UPDATE sessions SET private_nodes=? WHERE id=?")
-      .run(JSON.stringify([...values]), id);
+  /** 仅供旧数据转换和保全读取；新会话不创建或更新私有块列。 */
+  legacyPrivateNodes(id: string): Map<string, ContentNode> {
+    if (
+      !(this.db.prepare("PRAGMA table_info(sessions)").all() as { name: string }[]).some(
+        column => column.name === "private_nodes"
+      )
+    )
+      return new Map();
+    const row = this.db.prepare("SELECT private_nodes FROM sessions WHERE id=?").get(id) as
+      | { private_nodes: string }
+      | undefined;
+    return new Map(row ? JSON.parse(row.private_nodes) : []);
+  }
+  clearLegacyPrivateNodes(id: string): void {
+    if (
+      !(this.db.prepare("PRAGMA table_info(sessions)").all() as { name: string }[]).some(
+        column => column.name === "private_nodes"
+      )
+    )
+      return;
+    this.db.prepare("UPDATE sessions SET private_nodes='[]' WHERE id=?").run(id);
+    if (!this.db.prepare("SELECT 1 FROM sessions WHERE private_nodes <> '[]' LIMIT 1").get())
+      this.db.exec("ALTER TABLE sessions DROP COLUMN private_nodes");
   }
   append(id: string, update: Uint8Array) {
+    if (!this.db.prepare("SELECT 1 FROM sessions WHERE id=?").get(id))
+      throw new Error("协作缓存会话已失效，尚未保存编辑");
     this.db
-      .prepare("INSERT INTO updates(document_id,state) VALUES (?,?)")
-      .run(id, Buffer.from(update));
+      .prepare("INSERT OR IGNORE INTO updates(document_id,state,hash) VALUES (?,?,?)")
+      .run(id, Buffer.from(update), digest(update));
   }
   compact(id: string, doc: Y.Doc) {
+    const state = Buffer.from(Y.encodeStateAsUpdate(doc));
     this.db.transaction(() => {
-      this.db
-        .prepare("UPDATE sessions SET state=? WHERE id=?")
-        .run(Buffer.from(Y.encodeStateAsUpdate(doc)), id);
+      const result = this.db
+        .prepare("UPDATE sessions SET state=?,state_hash=? WHERE id=?")
+        .run(state, digest(state), id);
+      if (result.changes !== 1) throw new Error("协作缓存会话已失效，不能清理增量");
       this.db.prepare("DELETE FROM updates WHERE document_id=?").run(id);
     })();
   }
@@ -114,3 +169,5 @@ export class CollaborationLocalStore {
     })();
   }
 }
+
+const digest = (value: Uint8Array) => createHash("sha256").update(value).digest("hex");

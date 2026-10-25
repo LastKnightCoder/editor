@@ -1,3 +1,5 @@
+import { useTextFieldBinding } from "@tau/editor/api";
+import { IEditorTextFields } from "@tau/editor/api";
 import React, { PropsWithChildren } from "react";
 import { Transforms } from "slate";
 import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
@@ -14,34 +16,13 @@ interface MermaidProps {
 
 const MermaidChart: React.FC<PropsWithChildren<MermaidProps>> = props => {
   const { attributes, element, children } = props;
-  const { chart, svg, compiledFrom } = element;
+  const { chart } = element;
   const editor = useSlateStatic();
+  const bound = Boolean(editor.tryGetService(IEditorTextFields));
+  const source = useTextFieldBinding(bound ? element : undefined, "chart");
 
   const onChange = (value: string) => {
-    // Clear SVG cache when chart code changes
-    Transforms.setNodes(
-      editor,
-      {
-        chart: value,
-        svg: "",
-        compiledFrom: undefined,
-        compiledAt: undefined,
-      },
-      { at: ReactEditor.findPath(editor, element) }
-    );
-  };
-
-  const handleCompiled = (nextSvg: string, compiledCode: string) => {
-    // Save compiled SVG to element
-    Transforms.setNodes(
-      editor,
-      {
-        svg: nextSvg,
-        compiledFrom: compiledCode,
-        compiledAt: Date.now(),
-      },
-      { at: ReactEditor.findPath(editor, element) }
-    );
+    Transforms.setNodes(editor, { chart: value }, { at: ReactEditor.findPath(editor, element) });
   };
 
   return (
@@ -51,19 +32,16 @@ const MermaidChart: React.FC<PropsWithChildren<MermaidProps>> = props => {
           mode={"mermaid"}
           title="Mermaid"
           icon={Workflow}
-          initValue={chart}
-          onChange={onChange}
+          initValue={bound ? source.value : chart}
+          textBinding={source.binding ?? undefined}
+          onChange={bound ? undefined : onChange}
           element={element}
           center
         >
-          <Mermaid
-            chart={chart}
-            initialSvg={svg}
-            compiledFrom={compiledFrom}
-            onCompiled={handleCompiled}
-          />
+          <Mermaid chart={bound ? source.value : chart} />
         </PreviewWithEditor>
       </div>
+      {source.error && <div role="alert">{source.error}</div>}
       {children}
     </div>
   );

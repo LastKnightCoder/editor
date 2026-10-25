@@ -30,6 +30,16 @@ function fixture(canonical = false) {
   return { client: new CollaborationClient(store), store, values, source, target };
 }
 describe("产品协作端点身份升级", () => {
+  it("编辑期限读取服务端 Date，不使用客户端墙钟", async () => {
+    const value = fixture();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({}, { headers: { Date: "Sun, 25 Oct 2026 00:00:00 GMT" } }))
+    );
+    await value.client.request(legacy, "/v1/documents/doc/protocol");
+    expect(value.client.serverTime(legacy)).toBe(Date.parse("2026-10-25T00:00:00Z"));
+    expect(() => value.client.serverTime(selfHosted)).toThrow("Date");
+  });
   it("本机初始化可延迟网络检查，远程首次使用时再升级", async () => {
     const value = fixture();
     const fetcher = vi.fn(async () =>

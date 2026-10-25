@@ -1,3 +1,4 @@
+import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { basename } from "node:path";
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
@@ -105,6 +106,7 @@ interface CreateDiaryEntryPayload {
   tags?: string | null; // JSON string
   content?: Descendant[];
   segments?: Descendant[][];
+  contracts?: ContentContractDictionary;
 }
 
 export default class DiaryTable {
@@ -339,6 +341,7 @@ export default class DiaryTable {
     segmentsContent.forEach(segContent => {
       const contentId = ContentTable.createContent(db, {
         content: segContent || [],
+        contracts: entry.contracts,
         count: getContentLength(segContent || []),
       });
       insertSegment.run(diaryId, contentId, now, now);
@@ -615,8 +618,11 @@ export default class DiaryTable {
     }
 
     return mapContentSnapshots(entries, async entry => {
-      const fullContent = this.concatSegmentsContent(entry.segments);
-      let markdown = fullContent.length > 0 ? await getMarkdownText(fullContent) : "";
+      const parts = await mapContentSnapshots(entry.segments, async segment => {
+        const document = ContentTable.getContentById(db, segment.contentId);
+        return document ? getMarkdownText(document.content, document.contracts) : "";
+      });
+      let markdown = parts.filter(Boolean).join("\n\n");
       const maxLength = params.maxLength;
 
       if (maxLength && markdown.length > maxLength) {
@@ -666,12 +672,13 @@ export default class DiaryTable {
 
   static createDiarySegment(
     db: Database.Database,
-    params: { diaryId: number; content: Descendant[] }
+    params: { diaryId: number; content: Descendant[]; contracts?: ContentContractDictionary }
   ): DiarySegment {
     const { diaryId, content } = params;
     const now = Date.now();
     const contentId = ContentTable.createContent(db, {
       content: content || [],
+      contracts: params.contracts,
       count: getContentLength(content || []),
     });
 
@@ -700,7 +707,12 @@ export default class DiaryTable {
    */
   static createDiaryMoment(
     db: Database.Database,
-    params: { date: string; content: Descendant[]; tags?: string[] }
+    params: {
+      date: string;
+      content: Descendant[];
+      contracts?: ContentContractDictionary;
+      tags?: string[];
+    }
   ): DiarySegmentItem {
     const run = db.transaction(() => {
       const existing = db
@@ -718,7 +730,11 @@ export default class DiaryTable {
           tags: "[]",
           segments: [],
         }).id;
-      const segment = this.createDiarySegment(db, { diaryId, content: params.content });
+      const segment = this.createDiarySegment(db, {
+        diaryId,
+        content: params.content,
+        contracts: params.contracts,
+      });
       const tags = [...new Set((params.tags ?? []).map(tag => tag.trim()).filter(Boolean))];
       if (tags.length)
         db.prepare(`UPDATE diary_segments SET tags = ? WHERE id = ?`).run(

@@ -1,3 +1,4 @@
+import { tryResolveBoardAccess } from "../access";
 import { v4 as uuid } from "uuid";
 import type { CustomCreateGesture, ElementCreateSpec } from "../api";
 import type { HandwriteElement } from "../../plugins/HandwritePlugin";
@@ -59,7 +60,14 @@ export const handwriteCreateGesture: CustomCreateGesture = {
     const points: HandwriteInputPoint[] = [
       { x: ctx.point.x, y: ctx.point.y, pressure: normalizePressure(ctx.pressure) },
     ];
+    const document = tryResolveBoardAccess(ctx.api)?.document;
+    let committed = 0;
     let elementId: string | null = null;
+    const flush = () => {
+      if (!document?.appendStroke || !elementId || points.length <= committed) return;
+      document.appendStroke(elementId, points.slice(committed), style);
+      committed = points.length;
+    };
     let previewElement: HandwriteElement | null = null;
 
     return {
@@ -86,10 +94,16 @@ export const handwriteCreateGesture: CustomCreateGesture = {
         const nextElement = buildHandwriteElement(points, style, elementId);
         if (!nextElement) return;
         previewElement = nextElement;
+        if (document?.appendStroke && points.length - committed >= 64) flush();
         ctx.preview(nextElement, { bounds: false });
       },
       end: () => {
         if (!previewElement || points.length < 2) return null;
+        if (document?.appendStroke) {
+          flush();
+          saveHandwriteStyle(style);
+          return null;
+        }
         // 旧 up 路径：从临时元素的归一化点重建，保证与旧实现浮点结果一致
         const rebuilt = buildHandwriteElement(
           denormalizePoints(previewElement.points, {
@@ -105,7 +119,9 @@ export const handwriteCreateGesture: CustomCreateGesture = {
         saveHandwriteStyle(rebuilt.style);
         return { element: rebuilt, operations: [clearSelectionOperation(ctx.api.selection)] };
       },
-      cancel: () => undefined,
+      cancel: () => {
+        if (elementId && committed) document?.cancelStroke?.(elementId);
+      },
     };
   },
 };

@@ -20,10 +20,7 @@ const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).dige
 afterEach(async () => {
   await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })));
 });
-function bundle(
-  version: string,
-  options: { required?: string[]; minimum?: string; androidOnly?: boolean } = {}
-) {
+function bundle(version: string, options: { minimum?: string; androidOnly?: boolean } = {}) {
   const code = "throw new Error('静态安装与扫描不能执行插件代码')";
   const manifest = {
     id,
@@ -41,7 +38,6 @@ function bundle(
         ? {
             desktop: {
               minAppVersion: options.minimum ?? "0.59.1",
-              ...(options.required ? { required: options.required } : {}),
             },
           }
         : {}),
@@ -102,13 +98,9 @@ it("格式 3 复用正式安装、扫描、待重启更新和备份恢复，原�
   await rm(path.join(s.root, "plugin-updates/backup-sources", `${id}.json`));
   await expect(restored.restore(id)).rejects.toThrow("固定插件中心");
 });
-it("错误平台、最低版本、重复能力声明及发布清单/摘要不符均拒绝", async () => {
+it("错误平台、最低版本及发布清单/摘要不符均拒绝", async () => {
   const s = await setup();
-  for (const options of [
-    { androidOnly: true },
-    { minimum: "99.0.0" },
-    { required: ["future.v1"] },
-  ]) {
+  for (const options of [{ androidOnly: true }, { minimum: "99.0.0" }]) {
     const item = bundle("1.0.0", options);
     await expect(s.service.stageRelease(item.bytes, item.source)).rejects.toThrow();
   }
@@ -129,7 +121,7 @@ it("待生效包清单被改动时不替换当前版本", async () => {
   await s.service.stageRelease(next.bytes, next.source);
   const file = path.join(s.root, "plugin-updates/pending", id, "package/manifest.json");
   const changed = JSON.parse(await readFile(file, "utf8"));
-  changed.targets.desktop.optional = ["dialogs"];
+  changed.targets.desktop.minAppVersion = "0.59.0";
   await writeFile(file, JSON.stringify(changed));
   await s.create();
   expect((await readPluginPackage(path.join(s.directory, id), "0.59.1")).manifest.version).toBe(

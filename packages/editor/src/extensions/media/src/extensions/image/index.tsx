@@ -17,6 +17,7 @@ export const createImageExtension = (options: ImageExtensionOptions = {}) =>
     elements: [
       defineElement<ImageElement>({
         type: "image",
+        dataVersion: 1,
         resources: BUILTIN_CONTENT_RESOURCES["image"],
         kind: "block",
         isEmpty: element => element.url === "",

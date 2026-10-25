@@ -1,7 +1,9 @@
+import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { Descendant } from "slate";
 import { IPodcast } from "./podcast";
 
 export interface ICard {
+  contracts?: ContentContractDictionary;
   id: number;
   create_time: number;
   update_time: number;
@@ -24,7 +26,7 @@ export type ICreateCard = Omit<
 >;
 export type IUpdateCard = Omit<
   ICard,
-  "create_time" | "update_time" | "content" | "count" | "linkCount"
+  "create_time" | "update_time" | "content" | "contracts" | "count" | "linkCount"
 >;
 
 export type CardMetadataPatch = Partial<Pick<ICard, "tags" | "isTop">>;

@@ -1,5 +1,5 @@
 import type { ColumnDef, RowData } from "@tau/shared";
-import type { DatabaseRowChanges } from "@tau/shared/database-types";
+import type { DatabaseRowChanges, DataTableTarget } from "@tau/shared/database-types";
 
 // Desktop-specific types for data table commands
 export interface CreateDataTable {
@@ -9,7 +9,7 @@ export interface CreateDataTable {
 }
 
 export interface UpdateDataTable {
-  id: number;
+  id: DataTableTarget;
   columns?: ColumnDef[];
   rows?: RowData[];
   activeViewId?: number | null;
@@ -17,14 +17,14 @@ export interface UpdateDataTable {
 }
 
 export interface PatchDataTableRow {
-  tableId: number;
+  tableId: DataTableTarget;
   rowId: string;
   patch: Partial<RowData>;
   expected: Record<string, unknown>;
 }
 
 export interface ApplyDataTableChanges {
-  id: number;
+  id: DataTableTarget;
   rows: DatabaseRowChanges;
   columns?: ColumnDef[];
 }

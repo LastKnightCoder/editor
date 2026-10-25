@@ -91,7 +91,10 @@ describe.each([false, true])("插件资料文档化（HTML 插件启用=%s）", 
     const nodes = toPluginDocument(
       "```html\n<div>代码示例</div>\n```\n\n`<b>行内代码</b>`\n\n&lt;b&gt;实体转义&lt;/b&gt;\n\n\\<i>反斜杠转义\\</i>\n\nx < 3 且 y > 1"
     );
-    expect(nodes[0]).toMatchObject({ type: "code-block", code: "<div>代码示例</div>" });
+    expect(nodes[0]).toMatchObject({
+      type: "code-block",
+      children: [{ type: "code-step", code: "<div>代码示例</div>" }],
+    });
     expect(textOf(nodes)).toContain("<b>行内代码</b>");
     expect(textOf(nodes)).toContain("<b>实体转义</b>");
     expect(textOf(nodes)).toContain("<i>反斜杠转义</i>");
@@ -105,8 +108,16 @@ describe.each([false, true])("插件资料文档化（HTML 插件启用=%s）", 
     expect(types(nodes)).not.toContain("mermaid");
     expect(types(nodes)).not.toContain("tikz");
     expect(nodes).toMatchObject([
-      { type: "code-block", language: "mermaid", code: "graph TD;A-->B" },
-      { type: "code-block", language: "tikz", code: "\\draw (0,0) -- (1,1);" },
+      {
+        type: "code-block",
+        language: "mermaid",
+        children: [{ type: "code-step", code: "graph TD;A-->B" }],
+      },
+      {
+        type: "code-block",
+        language: "tikz",
+        children: [{ type: "code-step", code: "\\draw (0,0) -- (1,1);" }],
+      },
     ]);
   });
 
@@ -148,7 +159,7 @@ describe.each([false, true])("插件资料文档化（HTML 插件启用=%s）", 
     expect(nodes[1]).toMatchObject({
       type: "code-block",
       language: "future-dialect",
-      code: "第三方源码",
+      children: [{ type: "code-step", code: "第三方源码" }],
       filename: "示例",
     });
     expect(textOf(nodes)).toContain("普通正文");

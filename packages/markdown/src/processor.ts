@@ -56,6 +56,13 @@ export interface MarkdownProcessorOptions {
   /** 元素类型的编解码（各扩展的 markdown.ts 提供）；处理器只认这里的类型，其余走 ER-006 兜底 */
   codecs?: MarkdownCodec[];
   textCodecs?: readonly MarkdownTextCodec[];
+  /** 宿主按节点携带的契约选择导出器；undefined 表示该节点需保真回退。 */
+  resolveCodec?: (element: CustomElement) => MarkdownCodec | undefined;
+  serializeUnknown?: (
+    element: CustomElement,
+    parent: CustomElement | null,
+    error?: unknown
+  ) => string;
 }
 
 /**
@@ -145,8 +152,18 @@ export function createMarkdownProcessor(options: MarkdownProcessorOptions = {}):
   const exportConfig: ExportConfig = {
     textRegistry,
     registry: new MarkdownSerializerRegistry(
-      codecs.flatMap(codec => (codec.serializer ? [{ ...codec.serializer, type: codec.type }] : []))
+      codecs.flatMap(codec =>
+        codec.serializer ? [{ ...codec.serializer, type: codec.type }] : []
+      ),
+      options.resolveCodec
+        ? element => {
+            const codec = options.resolveCodec!(element);
+            return codec?.serializer ? { ...codec.serializer, type: element.type } : undefined;
+          }
+        : undefined
     ),
+    resolveCodec: options.resolveCodec,
+    serializeUnknown: options.serializeUnknown,
     voidTypes,
     childSeparators: new Map(
       codecs
@@ -182,7 +199,10 @@ export function createMarkdownProcessor(options: MarkdownProcessorOptions = {}):
           Object.entries(node).every(([key, value]) => key === "children" || immutable(value)) &&
           (isFormattedText(element)
             ? pureText
-            : (!exportConfig.registry.getSerializer(element.type) || types.has(element.type)) &&
+            : (options.resolveCodec
+                ? !options.resolveCodec(element)?.serializer ||
+                  policy.codecs.includes(options.resolveCodec(element)!)
+                : !exportConfig.registry.getSerializer(element.type) || types.has(element.type)) &&
               Object.isFrozen(element.children) &&
               element.children.every(child => reusable(child as Descendant)));
         classified.set(node, result);

@@ -29,3 +29,5 @@ export { browserMediaInfo } from "./media";
 export { createServiceId, type ServiceIdentifier } from "@tau/shared/service-contract";
 export { createServiceRegistry, type ServiceRegistry } from "@tau/shared/service-registry";
 export type { ServiceRegister, ServiceRegistration } from "@tau/shared/service-registry";
+
+export { IWhiteboardAuthorPermission } from "./authorAccess";

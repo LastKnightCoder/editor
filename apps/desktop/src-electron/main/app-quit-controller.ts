@@ -1,3 +1,4 @@
+import { prepareDurableDocuments } from "./modules/durable-document-lifecycle";
 import { app, BrowserWindow, globalShortcut, ipcMain } from "electron";
 import log from "electron-log";
 import collaborationModule from "./modules/collaboration";
@@ -63,7 +64,8 @@ async function runControlledQuit(
   installUpdate?: () => void
 ): Promise<void> {
   try {
-    await collaborationModule.prepareQuit();
+    const drain = await prepareDurableDocuments({ reason: "quit" });
+    drain.commit();
   } catch (error) {
     quitting = false;
     log.error("文档尚未确认保存，保留窗口并取消退出:", error);

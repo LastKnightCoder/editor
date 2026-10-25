@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { isCollaborationResource } from "@tau/collaboration";
-import type { EditorCollaborationBinding } from "./types";
+import type { ContentCollaborationBinding } from "./types";
 
-export const CollaborationContext = createContext<EditorCollaborationBinding | undefined>(
+export const CollaborationContext = createContext<ContentCollaborationBinding | undefined>(
   undefined
 );
 export const useCollaboration = () => useContext(CollaborationContext);

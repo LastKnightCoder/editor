@@ -287,13 +287,13 @@ export function EditorWindow({
       <Menu.Submenu label="复制" icon={<Copy className={iconClass} strokeWidth={1.75} />}>
         <Menu.Item
           icon={<ClipboardCopy className={iconClass} strokeWidth={1.75} />}
-          onSelect={() => void copyMarkdownToClipboard(doc.content, toastAdapter)}
+          onSelect={() => void copyMarkdownToClipboard(doc.content, toastAdapter, doc.contentId)}
         >
           复制 Markdown
         </Menu.Item>
         <Menu.Item
           icon={<MessageSquare className={iconClass} strokeWidth={1.75} />}
-          onSelect={() => void copyWechatHtmlToClipboard(doc.content, toastAdapter)}
+          onSelect={() => void copyWechatHtmlToClipboard(doc.content, toastAdapter, doc.contentId)}
         >
           复制公众号格式
         </Menu.Item>
@@ -301,7 +301,9 @@ export function EditorWindow({
       <Menu.Submenu label="导出" icon={<Download className={iconClass} strokeWidth={1.75} />}>
         <Menu.Item
           icon={<FileText className={iconClass} strokeWidth={1.75} />}
-          onSelect={() => void exportContentAsMarkdown({ title, content: doc.content })}
+          onSelect={() =>
+            void exportContentAsMarkdown({ title, content: doc.content, contentId: doc.contentId })
+          }
         >
           Markdown 文件
         </Menu.Item>
@@ -391,7 +393,7 @@ export function EditorWindow({
             )}
           >
             {/* 纵向 flex：正文区撑满余高，标签行内容短时贴纸面底部、内容长时跟在正文末 */}
-            <div className="col-start-2 flex min-w-0 flex-col px-10 pb-8 pt-8">
+            <div className="col-start-2 flex min-w-0 flex-col px-10 pt-8 pb-8">
               {driver.hasTitle && (
                 <CollaborativeTitleField
                   binding={collab.binding}
@@ -403,7 +405,7 @@ export function EditorWindow({
                   contentEditable
                   onChange={value => updateFields({ title: value })}
                   onPressEnter={() => editorRef.current?.focus()}
-                  className="text-ink-1 text-[25px] font-semibold leading-[1.35] outline-none [--placeholder-color:var(--tau-ink-3)]"
+                  className="text-ink-1 text-[25px] leading-[1.35] font-semibold outline-none [--placeholder-color:var(--tau-ink-3)]"
                 />
               )}
               <div
@@ -457,7 +459,7 @@ export function EditorWindow({
               )}
             </div>
             {outlineAsColumn && !focusMode && (
-              <div className="col-start-3 min-w-0 pl-4 pr-3 pt-8">
+              <div className="col-start-3 min-w-0 pt-8 pr-3 pl-4">
                 {/* 起始与标题同高（同正文列 pt-8），滚动后吸在同一留白处 */}
                 <div className="sticky top-8 max-w-[240px]">{outlineNode}</div>
               </div>
@@ -483,12 +485,14 @@ export function EditorWindow({
         title={title}
       />
       <EpubExportModal
+        contentId={doc.contentId}
         open={exportKind === "epub"}
         onClose={() => setExportKind(null)}
         content={doc.content}
         title={title}
       />
       <PdfExportModal
+        contentId={doc.contentId}
         visible={exportKind === "pdf"}
         onClose={() => setExportKind(null)}
         content={doc.content}

@@ -3,8 +3,17 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import {
   validatePluginManifest,
-  type DevelopmentPluginPackage,
+  type PluginManifest,
 } from "../../../packages/plugins/src/package.ts";
+import {
+  validatePortableDistributionManifest,
+  type PortablePluginManifest,
+} from "../../../packages/plugins/src/portable.ts";
+
+export const readFixtureManifest = (value: unknown): PluginManifest | PortablePluginManifest =>
+  (value as { formatVersion?: unknown } | null)?.formatVersion === 3
+    ? validatePortableDistributionManifest(value)
+    : validatePluginManifest(value);
 
 type PluginFixtureEntry = {
   artifact: string;
@@ -12,6 +21,7 @@ type PluginFixtureEntry = {
   version: string;
   files: Record<string, string>;
   sourceRevision: string;
+  sourcePatch?: { file: string; sha256: string };
   archiveSha256: string;
   repository: string;
 };
@@ -23,7 +33,11 @@ export const isPackagePath = (name: string) =>
 /** 仅供测试读取固定发布包，生产构建不得依赖此目录。 */
 export async function readPluginFixtures(catalogFile: string) {
   const entries: PluginFixtureEntry[] = JSON.parse(await readFile(catalogFile, "utf8"));
-  const packages: DevelopmentPluginPackage[] = [];
+  const packages: Array<{
+    manifest: PluginManifest | PortablePluginManifest;
+    code: string;
+    css?: string;
+  }> = [];
   const ids = new Set<string>();
   for (const entry of entries) {
     if (
@@ -32,6 +46,14 @@ export async function readPluginFixtures(catalogFile: string) {
     )
       throw new Error("测试插件缺少有效的源码仓库或提交");
     const directory = path.dirname(catalogFile);
+    if (entry.sourcePatch) {
+      const { file, sha256 } = entry.sourcePatch;
+      if (!isPackagePath(file) || !/^[a-f0-9]{64}$/.test(sha256))
+        throw new Error("固定插件源码补丁路径或摘要无效");
+      const patch = await readFile(path.join(directory, file));
+      if (createHash("sha256").update(patch).digest("hex") !== sha256)
+        throw new Error("固定插件源码补丁摘要不匹配");
+    }
     const source = path.resolve(directory, entry.artifact);
     const relative = path.relative(directory, source);
     if (!relative || relative.startsWith("..") || path.isAbsolute(relative))
@@ -60,7 +82,7 @@ export async function readPluginFixtures(catalogFile: string) {
       )
         throw new Error(`固定插件产物摘要不匹配：${entry.id}/${file}`);
     }
-    const manifest = validatePluginManifest(
+    const manifest = readFixtureManifest(
       JSON.parse(await readFile(path.join(source, "manifest.json"), "utf8"))
     );
     if (manifest.id !== entry.id || manifest.version !== entry.version)

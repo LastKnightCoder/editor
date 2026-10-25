@@ -1,9 +1,10 @@
-import { createElement, useEffect, useRef } from "react";
+import { createElement, useCallback, useEffect, useRef, useState } from "react";
 import { Editor, Element, Transforms } from "slate";
 import { ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
 import { PreviewWithEditor, useReportPreviewError } from "@tau/editor-source-view";
 import {
   IElementEditingPolicy,
+  canEditElement,
   useEditorTheme,
   setOrInsertNode,
   focusInsertedPreviewElement,
@@ -21,14 +22,31 @@ import {
   ToolbarGap,
 } from "./src/extensions/media/src/components/MediaToolbar";
 import type { SourceEditorRuntime, InlineSourceRuntime, ElementRuntime } from "./source-contracts";
+import { useTextFieldBinding } from "./src/core/api/useTextFieldBinding";
+import { bindTextFieldTextarea } from "./src/core/api/textFieldInput";
+import { useElementView } from "./src/core/api/elementView";
+import type { SourceBlockEditorProps } from "./source-contracts";
+
+function BoundSourceBlock(props: Extract<SourceBlockEditorProps, { field: string }>) {
+  const state = useTextFieldBinding(props.element, props.field);
+  return (
+    <>
+      <PreviewWithEditor
+        {...props}
+        initValue={state.value}
+        textBinding={state.binding ?? undefined}
+      />
+      {state.error && <p role="alert">{state.error}</p>}
+    </>
+  );
+}
 
 export const elementRuntime: ElementRuntime = {
   useElement(element) {
+    const view = useElementView(element);
     const editor = useSlateStatic();
     const editorReadOnly = useReadOnly();
-    const readOnly =
-      editorReadOnly ||
-      editor.tryGetService(IElementEditingPolicy)?.canEdit(element.type) === false;
+    const readOnly = editorReadOnly || !canEditElement(editor, element);
     const frame = useElementFrame();
     const active = useRef(true);
     const state = useRef({ readOnly, element });
@@ -58,6 +76,8 @@ export const elementRuntime: ElementRuntime = {
       }
     };
     return {
+      view: view.value,
+      updateView: view.update,
       readOnly,
       selected: frame?.selected ?? false,
       update: properties => commit(path => Transforms.setNodes(editor, properties, { at: path })),
@@ -93,7 +113,42 @@ export const inlineSourceRuntime: InlineSourceRuntime = {
 };
 
 export const sourceEditorRuntime: SourceEditorRuntime = {
-  SourceBlockEditor: props => createElement(PreviewWithEditor, props),
+  useTextField(element, field) {
+    const state = useTextFieldBinding(element, field);
+    const cleanup = useRef<(() => void) | undefined>(undefined);
+    const [inputError, setInputError] = useState<string | null>(null);
+    const inputRef = useCallback(
+      (input: HTMLInputElement | HTMLTextAreaElement | null) => {
+        cleanup.current?.();
+        cleanup.current = undefined;
+        if (!input || !state.binding) return;
+        setInputError(null);
+        input.readOnly = state.readOnly;
+        const bound = bindTextFieldTextarea(input, state.binding, () => {}, setInputError);
+        cleanup.current = () => bound.dispose();
+      },
+      [state.binding, state.readOnly]
+    );
+    useEffect(() => () => cleanup.current?.(), []);
+    const requireBinding = () => {
+      if (!state.binding || state.readOnly) throw new Error(state.error ?? "当前源码字段不可写");
+      return state.binding;
+    };
+    return {
+      inputRef,
+      value: state.value,
+      revision: state.revision,
+      readOnly: state.readOnly || !!inputError,
+      ready: Boolean(state.binding),
+      error: inputError ?? state.error,
+      edit: change => requireBinding().edit({ ...change, revision: state.revision }),
+      editBatch: changes => requireBinding().editBatch(changes, state.revision),
+      undo: () => requireBinding().undo(),
+      redo: () => requireBinding().redo(),
+    };
+  },
+
+  SourceBlockEditor: props => createElement(BoundSourceBlock, props),
   useSourceBlock(element) {
     const editor = useSlateStatic();
     const theme = useEditorTheme();

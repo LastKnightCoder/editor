@@ -33,7 +33,8 @@ import {
   DEFAULT_DESCRIPTION_ALIGNMENT,
   DEFAULT_DESCRIPTION_FONT_SIZE,
 } from "../../constants/image";
-import { EditText, EditTextHandle } from "@tau/ui";
+import { type EditTextHandle } from "@tau/ui";
+import { FieldText } from "../FieldText";
 import useTheme from "../../hooks/useTheme";
 import LocalImage from "../MediaImage";
 import { handTextClass } from "../../utils/sketch";
@@ -171,7 +172,7 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
   });
 
   const saveDescription = useMemoizedFn(() => {
-    if (tempDescription !== description) {
+    if (!board.document && tempDescription !== description) {
       const path = board.children.findIndex(item => item.id === id);
       if (path !== -1) {
         board.apply({
@@ -269,7 +270,9 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
             onKeyDown={handleKeyDown}
             onDoubleClick={handleDoubleClickDescription}
           >
-            <EditText
+            <FieldText
+              elementId={element.id}
+              field="description"
               ref={editTextRef}
               defaultValue={tempDescription}
               onChange={handleDescriptionChange}
@@ -313,7 +316,7 @@ const ImageElementComponent = memo((props: ImageElementProps) => {
           alt={description}
           width={width}
           height={height}
-          className="select-none object-contain object-center"
+          className="object-contain object-center select-none"
           draggable={false}
           onDoubleClick={stopPropagation}
           style={{

@@ -1,6 +1,6 @@
 # @tau/whiteboard 架构文档
 
-详解 `packages/whiteboard/src` 的架构、插件体系、数据流、渲染与交互原理，以及扩展与调试指南。桌面业务扩展在 `features/shared/whiteboard`，独立示例在 `examples/whiteboard`；装配与生命周期见 [包说明](../README.md)。本文的 IBoardPlugin 是内置扩展复用的私有策略，不是对外插件协议。通用容器来自 `@tau/ui`。
+详解 `packages/whiteboard/src` 的架构、插件体系、数据流、渲染与交互原理，以及扩展与调试指南。桌面业务扩展在 `features/shared/whiteboard`，独立示例在 `examples/whiteboard`；装配与生命周期见 [包说明](/packages/whiteboard/README.md)。本文的 IBoardPlugin 是内置扩展复用的私有策略，不是对外插件协议。通用容器来自 `@tau/ui`。
 
 ## 一、项目概述
 
@@ -37,12 +37,12 @@
   - 通过 Context 提供 board、selection、viewport、boardState。
   - 绑定全局/局部事件（鼠标、键盘、指针、粘贴、拖拽、滚轮、窗口 resize）。
   - 管理侧边栏、工具栏、属性面板、状态栏、右键菜单与资源选择弹窗。
-  - 监听 board `change` 事件回调 `onChange`，注入资源来源 `setResourceSource`。
+  - 无 document 时监听 board `change` 事件回调 `onChange`，注入资源来源 `setResourceSource`。
 
 - **核心引擎**：`Board.tsx`
   - 维护 `children/viewPort/selection/undos/redos` 与快照。
   - 事件总线 + 插件事件分发。
-  - `apply` 统一应用 Operation（依赖 `BoardOperations`），收集元数据、记录历史。
+  - `apply` 在普通模式应用 Operation 并记录路径历史；文档模式将内容交给 document 绑定，预览与本机状态不写共享模型。
   - 渲染入口 `renderElement/renderVisibleElements`，按元素类型调用插件 render。
 
 - **UI 组件**：`components/`
@@ -60,11 +60,11 @@
 
 ### 2.2 初始化流程（入口 `WhiteBoard.tsx`）
 
-1. 通过 `useCreation` 构造 Board，注入初始数据/视口/选区/演示序列/只读标记，然后装配显式 extensions 与可选的宿主服务注册表（`services`，D-134）；扩展集合在实例生命周期内固定。
+1. 渲染期通过 `useCreation` 构造 Board（纯对象，无外部副作用），注入初始数据/视口/选区/演示序列/只读标记；提交期（布局 effect，只执行一次）再连接文档绑定、装配显式 extensions 与可选的宿主服务注册表（`services`，D-134），完成后才挂载画布 `WhiteBoardCanvas`。被丢弃的渲染（挂起、出错重试、StrictMode 双渲染）因此不残留扩展实例、不占用文档绑定；扩展集合与文档绑定在实例生命周期内固定。
 2. 使用 `useSyncExternalStore` 订阅 `board.change`，获取 `children/viewPort/selection`，并订阅演示模式状态。
 3. 绑定事件处理器 `useEventHandlers`（包装 board 事件分发）和节流指针移动。
 4. 渲染各扩展注册的工具、属性面板和界面层；笔记与资源业务由各桌面扩展监听。
-5. 隐藏时暂停交互与扩展副作用，真正卸载时移除监听、释放扩展资源并销毁 Board。
+5. 隐藏时暂停交互与扩展副作用，真正卸载（容器脱离文档）时移除监听、释放扩展资源并销毁 Board；StrictMode 的模拟卸载与 Activity 隐藏不销毁。
 
 ---
 
@@ -89,12 +89,38 @@ Board（数据内核：Operation / undo / 事件总线；阶段 A 未改动，�
 - **消费语义**：手势状态的处理器返回 `true` 表示事件已被处理，Board 跳过插件广播（原 `return false` 的内核化替代）。
 - **插件瘦身**：MovePlugin 已删除；SelectPlugin 仅保留键盘命令（mod+a / delete）；ViewPortPlugin 仅保留滚轮与缩放快捷键；MindPlugin 保留拖拽状态机并通过 `claimPointerGesture` 声明接管。
 
+### 文档绑定数据流
+
+画布可接收稳定的 WhiteboardDocumentBinding。宿主通过 `@tau/whiteboard/collaboration` 将已验证的 WhiteboardModel 绑定到页面；模型是内容真源，Board.children 是渲染投影。普通值模式仍使用原路径历史和 onChange，两个模式不会同时维护同一份内容历史。
+
+文档模式的路径命令经过 BoardOperations 路径跟踪后编译成 ID 命令；手势期间只改本机预览，结束统一提交。富文本框、图形及脑图的公共 Editor 接入同一节点文档和历史；字符串输入复用 EditorTextField。候选预算预检和撤销守门在真实写入/栈弹出之前执行。
+
+投影经 publishDocument 更新选择与渲染引用，通知期间不接收重入的内容写入，不触发资源增减事件、旧整页保存或加载迁移。取消、只读、切页与远端变更清除未提交预览。绑定销毁不销毁宿主共享模型；主进程持有、保存和网络由宿主实现；内置类型字段由 prepareBuiltinWhiteboardTypes 明确映射。具体接入与类型映射见[包说明](/packages/whiteboard/README.md)。
+
+### 作者契约与作用域
+
+作者入口使用 dataVersion/previousVersions/migrations，与编辑器共用 `@tau/db-schema/data-versions`；文本接口的唯一类型位于 editor/text-field-contract。纯数据宿主从 `@tau/whiteboard/contracts` 准备目录，不加载绑定或执行工厂；UI 绑定从 `./collaboration` 获取。目录不修改文档，首次创建用公共规范化器准备的不可变契约在同一事务中登记并创建节点，创建撤销只隐藏创建登记。
+
+作者 API 是独立冻结对象，不继承宿主对象原型，不暴露路径 apply、Y.Doc 或字段根。普通载荷、文本与创建校验真实 owner、精确契约和 edit 权限；宿主通用外壳操作保留缺插件的移动/整体复制/删除/撤销能力。read 版本使用历史渲染定义与只读上下文，文本可以读取但不能修改。投影通知及工厂装配期间不允许作者写入，schema 不反向修复远端状态。
+
+创建工具、预览、自定义手势与异步结束统一使用所属扩展 API；返回值限定本类型单个元素，不允许夹带路径操作。命令、工具与事件按真实插件归属仲裁，不能通过共享命名空间前缀调用其它插件。组件文本绑定复用宿主历史，字段冲刷接入保存/关闭屏障。完整作者用法见 [SDK 白板说明](/packages/plugins/docs/whiteboard-collaboration.md)。
+
+### 完整类型投影与历史
+
+宿主契约覆盖 richtext、geometry、arrow、mind-node、column、frame、handwrite、image、video、audio、webview、document 和 whiteboard。每种类型显式区分 dataProperties、transientProperties 和固定正文槽；同名未知契约不能套用当前映射；只读示意图也从精确契约选择定义，不按类型名或 schemaVersion 猜测协作版本。正文用编辑器同一版本目录，新节点所需契约随用户写入登记，普通安装不转换已有正文。
+
+测量缓存按原始几何尺寸校验，尺寸变化后重测；列布局和脑图排布只改变投影。画布移动保存用户指定几何分量，自动布局拖出保存发起者所见几何，远端投影不调用写入。分段笔迹以内部稳定子记录保存采样点，父元素投影生成轮廓，拖动/缩放不改写已保存段。
+
+演示序列和帧有独立身份、删除标记与位置引用。帧目标集合是一次选择意图，按整体竞争；不同帧独立更新。播放按文档页顺序定位第一个仍有目标的页面，只显示该页可见目标；空帧不改变视口。保存顺序引用不随撤销物理删除；公共历史对竞争导致无法还原的属性保守保留，一次 undo/redo 只处理当前步骤，不继续撤销较早的文字。
+
+无损传输读取当前投影，重新分配页面、元素、正文及演示身份；普通 data、未知版本与固定外部引用保真。只有精确匹配的宿主契约才能解释内部连线/分组。候选分段执行受原命令预算约束，最终以一次增量进入历史，并转交初始化保护范围；初始化载荷不会随创建撤销消失。资源权限与字节读取由宿主完成，失败不部分写入目标。
+
 ## 三、数据模型
 
 ### 3.1 BoardElement 与能力
 
 - `types/board.ts` 定义 `BoardElement` 通用字段：`id/type/name/groupId/children` 与能力控制 `resizable/autoHeight`。
-- 元素可带 `schemaVersion`（正整数，缺省 1）：扩展定义声明同名 `schemaVersion` 与 `migrate[n]`（n→n+1）后即拥有数据结构版本。装配后对已加载数据迁移一次（不进历史、不发 change，随下次编辑落库）；插入路径（粘贴/submit/导入）先迁移再插入；数据版本高于扩展或迁移失败时占位渲染、数据原样保留。
+- 旧值模式元素的 `schemaVersion` 仅参与版本识别与保护。加载、粘贴、插入均不执行旧 `migrate[n]`；转换由宿主显式发起，按当前精确契约生成候选。
 - 当前工具由 activeTool 模型表达：`tau.select` 为显式选择工具（非创建模式哨兵），创建型工具激活后在画布按元素声明的 `create` 规格手势创建；旧创建类型枚举与字段兼容层已删除。
 - `IElementCapabilities`（`types/capabilities.ts`）由插件声明：是否吸附、是否参与参考线、是否可随子元素移动、箭头连接点策略等，`CapabilityService` 统一查询。
 
@@ -107,9 +133,15 @@ Board（数据内核：Operation / undo / 事件总线；阶段 A 未改动，�
 
 - 操作类型集中在 `types/operation.ts`（插入/移动/设置属性/删除/视口/选区等）。
 - `Board.apply` 通过 `BoardOperations.applyOperations` 执行，记录 `metadata.changedElements/removedElements/insertedElements/hasChanges`。
-- 操作在历史中按 1 秒窗口归并，最大 100 条。
+- 无 document 时，操作在路径历史中按 1 秒窗口归并，最大 100 条；文档模式只使用宿主 NodeTreeHistory。
 - `set_sketch` 修改页级画风 `board.sketch`（进历史，变化时 emit `sketch:change`），见 5.1。
-- 写入校验：扩展定义带 `schema`（Standard Schema v1，仅同步返回）时，`Board.apply` 在 applyOperations 产出新树之后、状态提交之前校验变化元素的 `element.data`（按旧/新树元素引用比较剪枝，未变子树不校验）；不合规抛 `WhiteboardValidationError` 且整批操作不应用。undo/redo 重放不校验（提交时已校验过）；加载时只校验迁移产物（不合规回退迁移前原样并计入迁移失败），未迁移的原始数据不校验；粘贴路径捕获校验错误后放弃本次粘贴。
+- 写入校验：扩展定义带 `schema`（Standard Schema v1，仅同步返回）时，`Board.apply` 在 applyOperations 产出新树之后、状态提交之前校验变化元素的 `element.data`（按旧/新树元素引用比较剪枝，未变子树不校验）；不合规抛 `WhiteboardValidationError` 且整批操作不应用。undo/redo 重放不校验（提交时已校验过）；加载不执行转换，原始数据保留；粘贴路径捕获校验错误后放弃本次粘贴。
+
+### 文档迁移边界
+
+宿主从确认投影构建独立候选，保留页面、元素及正文节点的逻辑身份，重建共享根。首次发布只包含选定页面的当前内容，不携带删除历史或恢复区。插件版本转换只处理业务载荷，页面归属、几何、正文及外部引用由宿主校验；旧增量不能套入新根。
+
+桌面通过现有 ContentLocalState 迁移记录保存候选、安装参数、固定指纹与主库/本机日志回执，按同 operationId 续装。白板不依赖恢复包服务，不复制数据库或资产建立恢复档案。旧 outbox 与旧日志保持原位；发现另一基线草稿时拒绝自动合并。页面恢复投影属于并发模型，与恢复包功能无关。
 
 ### 3.4 文档版本
 

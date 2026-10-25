@@ -1,3 +1,4 @@
+import { databaseElementDefinition } from "../entity-definitions";
 import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 import DatabaseBlock from "./components/DatabaseBlock";
 import blockPanelItems from "./block-panel-items";
@@ -10,9 +11,7 @@ export const createDatabaseExtension = () =>
     id: "host.database",
     elements: [
       defineElement<DatabaseElement>({
-        type: "database",
-        kind: "block",
-        isVoid: true,
+        ...databaseElementDefinition,
         render: ({ attributes, element, children }: ElementRenderProps<DatabaseElement>) => (
           <DatabaseBlock element={element} attributes={attributes}>
             {children}

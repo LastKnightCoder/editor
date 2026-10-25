@@ -44,7 +44,16 @@ describe("公开搜索数据", () => {
           id: 10,
           content: [
             ...paragraph("卡片标题"),
-            { type: "code-block", code: "const indexedKeyword = true;", children: [{ text: "" }] },
+            {
+              type: "code-block",
+              children: [
+                {
+                  type: "code-step",
+                  code: "const indexedKeyword = true;",
+                  children: [{ type: "formatted", text: "" }],
+                },
+              ],
+            },
           ],
           tags: ["发布"],
         } as any,

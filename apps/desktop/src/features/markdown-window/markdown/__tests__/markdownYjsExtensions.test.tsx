@@ -49,7 +49,11 @@ it("真实代码块在文件增量更新后保留控制器，编辑仍回写同�
       textarea.dispatchEvent(new Event("input", { bubbles: true }));
       textarea.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
     });
-    expect(file.getContent()[2]).toMatchObject({ uuid: block.uuid, code: "const x = 2;" });
+    // 代码块数据版本 2：源码在代码步骤子节点上
+    expect(file.getContent()[2]).toMatchObject({
+      uuid: block.uuid,
+      children: [{ type: "code-step", code: "const x = 2;" }],
+    });
     expect(file.getText()).toContain("const x = 2;");
     await act(async () => file.undo());
     expect(controller?.getValue()).toBe("const x = 1;");

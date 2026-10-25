@@ -11,6 +11,7 @@ const audioExtension = defineExtension({
   elements: [
     defineElement<AudioElement>({
       type: "audio",
+      dataVersion: 1,
       resources: BUILTIN_CONTENT_RESOURCES["audio"],
       kind: "block",
       isVoid: true,

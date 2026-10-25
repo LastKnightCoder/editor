@@ -1,5 +1,34 @@
 import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 
+/** 只读展示外部实体引用，不改变正文的保存或同步行为。 */
+const referencePlaceholder = (type: "whiteboard" | "database", label: string) =>
+  defineExtension({
+    id: `host.reference-placeholder.${type}`,
+    elements: [
+      defineElement({
+        type,
+        kind: "block",
+        isVoid: true,
+        render: ({ attributes, children }: ElementRenderProps) => (
+          <div
+            {...attributes}
+            contentEditable={false}
+            className="border-line-1 bg-surface text-ink-3 my-2 rounded-xl border border-dashed px-3 py-4 text-center text-xs"
+          >
+            {label}
+            {children}
+          </div>
+        ),
+      }),
+    ],
+  });
+
+export const mobileWhiteboardExtension = referencePlaceholder(
+  "whiteboard",
+  "白板内容请在桌面端查看"
+);
+export const mobileDatabaseExtension = referencePlaceholder("database", "数据库内容请在桌面端查看");
+
 type FileAttachmentElement = {
   type: "file-attachment";
   name?: string;
@@ -45,7 +74,7 @@ export const mobileFileAttachmentExtension = defineExtension({
           >
             <p className="text-ink-1 font-bold">{name}</p>
             <p className="text-ink-3 mt-1 text-[11px]">{`类型: ${fileType} · 大小: ${sizeText}`}</p>
-            <p className="text-ink-3 mt-1 break-all text-[11px]">{urlText}</p>
+            <p className="text-ink-3 mt-1 text-[11px] break-all">{urlText}</p>
             {children}
           </div>
         );

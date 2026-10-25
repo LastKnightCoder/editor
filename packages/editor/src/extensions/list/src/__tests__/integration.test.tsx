@@ -134,17 +134,17 @@ it("列表折叠保留图标与内容，Slate DOM 引用有效，只读不改文
     await act(async () =>
       (view.host.querySelector("[data-list-fold-reveal]") as HTMLElement).click()
     );
+    expect(view.host.querySelector("li")?.getAttribute("data-fold")).toBe("fold");
+    expect(Node.get(view.editor, [0, 0])).toBe(item);
     expect(Node.get(view.editor, [0, 0])).toMatchObject({
       icon: "⭐",
-      isFold: true,
-      allContent: item.children,
+      children: item.children,
     });
     await act(async () =>
       (view.host.querySelector("[data-list-fold-reveal]") as HTMLElement).click()
     );
     expect(Node.get(view.editor, [0, 0])).toMatchObject({
       icon: "⭐",
-      isFold: false,
       children: item.children,
     });
   } finally {

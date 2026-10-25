@@ -114,7 +114,6 @@ export function mapErrorToMessage(code: string, fallback: string): string {
     COLLAB_ASSET_UNSUPPORTED: "移动端暂不支持协作附件",
     COLLABORATION_WRITE_REQUIRED: "这段内容正在协作，请在协作编辑页修改，或先结束共享",
     COLLAB_UNSYNCED: "改动尚未同步完成，请稍后再试",
-    COLLAB_PRIVATE_BLOCK_CONFLICT: "本地内容与协作房间已不一致，请结束共享后重新发起",
     COLLAB_PROJECT_FAILED: "协作内容同步到本地失败，请稍后重试",
     COLLAB_INVALID_CODE: "协作码无效或已过期",
     COLLAB_INVALID_FIELD: "请求参数不正确",

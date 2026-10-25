@@ -1,3 +1,4 @@
+import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import type { Descendant } from "slate";
 import type { PluginContentRef } from "./data";
 
@@ -13,7 +14,12 @@ export interface PluginFlashcardData {
 }
 export type PluginFlashcardReference =
   | { refType: "content"; contentRef: PluginContentRef; title: string }
-  | { refType: "custom"; customContent: Descendant[]; title: string };
+  | {
+      refType: "custom";
+      customContent: Descendant[];
+      contracts?: ContentContractDictionary;
+      title: string;
+    };
 export interface PluginFlashcardDraft {
   type: PluginFlashcardType;
   prompt: Descendant[];

@@ -15,6 +15,7 @@ const mock = vi.hoisted(() => ({
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   openPath: vi.fn(async () => ""),
   download: vi.fn(),
+  catalog: vi.fn(),
   validateContent: vi.fn(async () => ({ editor: true, whiteboard: false, metrics: [] })),
 }));
 vi.mock("../../services/content-execution", () => ({
@@ -37,7 +38,7 @@ vi.mock("electron", () => ({
 vi.mock("../../services/plugin-center", () => ({
   API_ORIGIN: "https://plugins-api.taunote.app",
   downloadPluginRelease: mock.download,
-  fetchPluginCatalog: vi.fn(),
+  fetchPluginCatalog: mock.catalog,
   fetchPluginRelease: vi.fn(),
 }));
 vi.mock("../../utils/PathUtil", () => ({
@@ -315,4 +316,80 @@ it("图片宿主先销毁 WebContents 时广播不中断，仍通知存活窗口
   expect(host.send).not.toHaveBeenCalled();
   expect(alive.webContents.send).toHaveBeenCalledWith("plugin-images:changed");
   await expect(pending).resolves.toMatchObject({ errorName: "AbortError" });
+});
+
+it("正式启动先完成官方插件自动更新，再向所有窗口发布新快照", async () => {
+  const { LEGACY_PLUGIN_UPGRADE_VERSIONS } = await import("../../services/legacy-plugin-upgrade");
+  const ids = [
+    "tau.abc",
+    "tau.custom-block",
+    "tau.html",
+    "tau.image-gallery",
+    "taunote.stickman",
+    "tau.tikz",
+    "tau.typst",
+  ];
+  const code = "throw new Error('主进程不执行插件')";
+  const manifest = (id: string, version: string) => ({
+    formatVersion: 1,
+    apiVersion: 1,
+    id,
+    name: id,
+    version,
+    platform: "desktop",
+    format: "cjs",
+    main: "main.js",
+    editor: true,
+    integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
+  });
+  for (const id of ids) {
+    const directory = path.join(mock.root, ".editor/plugins", id);
+    await mkdir(directory, { recursive: true });
+    await writeFile(
+      path.join(directory, "manifest.json"),
+      JSON.stringify(manifest(id, id === "tau.html" ? "0.1.5" : LEGACY_PLUGIN_UPGRADE_VERSIONS[id]))
+    );
+    await writeFile(path.join(directory, "main.js"), code);
+    await invoke("plugin-local:set-enabled", id, true);
+  }
+  const pkg = manifest("tau.html", "0.1.10"),
+    archive = new AdmZip();
+  archive.addFile("tau.html/manifest.json", Buffer.from(JSON.stringify(pkg)));
+  archive.addFile("tau.html/main.js", Buffer.from(code));
+  const bytes = archive.toBuffer(),
+    sha256 = createHash("sha256").update(bytes).digest("hex");
+  mock.catalog.mockResolvedValue({
+    items: [
+      {
+        pluginId: "tau.html",
+        compatible: { releaseId: "official-html", version: "0.1.10", sha256 },
+      },
+    ],
+  });
+  mock.download.mockImplementationOnce(async () => {
+    expect(mock.validateContent).not.toHaveBeenCalled();
+    return {
+      bytes,
+      source: {
+        kind: "center",
+        pluginId: "tau.html",
+        releaseId: "official-html",
+        version: "0.1.10",
+        sha256,
+      },
+    };
+  });
+  vi.resetModules();
+  mock.handlers.clear();
+  mock.validateContent.mockClear();
+  await (await import("../plugin-local")).default.init();
+  const snapshot = (await invoke("plugin-local:content-startup")) as {
+    artifacts: { manifest: { id: string; version: string } }[];
+    errors: Record<string, string>;
+  };
+  expect(snapshot.errors).toEqual({});
+  expect(snapshot.artifacts.find(entry => entry.manifest.id === "tau.html")?.manifest.version).toBe(
+    "0.1.10"
+  );
+  expect(mock.validateContent).toHaveBeenCalledTimes(7);
 });

@@ -1,3 +1,4 @@
+import { whiteboardElementDefinition } from "../entity-definitions";
 import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 import Whiteboard from "./components/Whiteboard";
 import { withSetting } from "./plugins";
@@ -9,9 +10,7 @@ const whiteboardExtension = defineExtension({
   id: "host.whiteboard",
   elements: [
     defineElement<WhiteboardElement>({
-      type: "whiteboard",
-      kind: "block",
-      isVoid: true,
+      ...whiteboardElementDefinition,
       render: ({ attributes, element, children }: ElementRenderProps<WhiteboardElement>) => (
         <Whiteboard attributes={attributes} element={element}>
           {children}

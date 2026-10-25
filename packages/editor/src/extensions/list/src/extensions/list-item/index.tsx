@@ -10,6 +10,7 @@ const listItemExtension = defineExtension({
   elements: [
     defineElement<ListItemElement>({
       type: "list-item",
+      dataVersion: 1,
       kind: "block",
       isEmpty: (element, context) => element.children.every(context.isEmpty),
       render: ListItem,

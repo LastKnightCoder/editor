@@ -4,7 +4,7 @@
 
 ## 本地文档读写
 
-- `createLocalYjsDocument(initial, options)` 建立 Y.Doc、文档绑定和统一 UndoManager。绑定对象交给编辑器的 `document` 属性；外部更新使用 `updateContent(content, "external")`，不进入用户撤销栈。
+- `createLocalYjsDocument(initial, options)` 建立 Y.Doc、文档绑定和统一 UndoManager。绑定对象交给编辑器的 `document` 属性；外部更新使用 `updateContent(content, "external")`，不进入用户撤销栈。文档注册 `slateTextFields` 作为源码字段服务，`textFields` 声明的字段（代码块步骤、插件源码块）可经 `field` 绑定编辑。
 - `getContent()` 返回独立、可修改的深副本；修改返回值不会修改 Y.Doc。正文写入仍须经 Slate 操作或 Yjs 事务，不能原地修改属性中的普通对象。
 - `getSnapshot()` 返回独立的只读投影。可安全冻结的 JSON 块深冻结，未变化的块复用引用；二进制等可变扩展值或不宜复用的对象图每次独立复制，不参与缓存。调用方不得修改快照，也不得将它作为可写状态。
 - 两个读取入口都会先 flush 已连接编辑器的未提交操作；投影不与任一 Slate 编辑器共享节点对象。
@@ -21,3 +21,25 @@
 投影按 Yjs 深层事件使相关顶层块失效，保留未变块；块内转换继续调用 `@slate-yjs/core` 的转换器，文本合并与空节点规则不另写一套。根结构插入会使被插入对象失效，避免撤销恢复时使用旧内容；删除、属性、远端更新和重排均由同一事件链维护。
 
 顶层直接文本或观察器通知尚未完成的事务内部读取，回退为全量独立投影，保证立即读取和观察器重入时不会返回旧值。该优化仅用于渲染进程的本地文件会话，不改变协作传输协议、数据库结构、CRDT 身份或撤销分组。
+
+## 稳定节点候选的历史接入
+
+withNodeTree 使用 NodeTree.createUndoManager，契约源码字段共享同一编辑视图的历史；删除守门统一调用 isDeleted。实际 remove_node 提交观察到的节点子树，merge_node 等结构操作只移除已完成内容转移的外层节点。稳定记录、创建可见性及删除标记的规则见[协作包](/packages/collaboration/README.md)。
+
+源码组件存在文本绑定时，CodeMirror 的内容只由该绑定驱动，不能再通过 React value 属性整段回灌，否则远端更新会被重复计入本机历史。无绑定模式保留原有值更新行为，两种模式切换重建输入实例。
+
+源码字段 hook 在 Activity 隐藏时释放句柄和订阅，恢复时重新打开；状态读取与订阅均核对当前有效句柄，旧句柄不复活。隐藏期间的远端源码在恢复时从文档重新读取，后续编辑仍使用原节点身份与历史。
+
+createNodeTreeDocument(tree, { history }) 将宿主 NodeTreeHistory 注入编辑器；不同富文本根可以共用同一时间顺序历史，每个绑定仍使用独立 origin。省略 history 时由该绑定建立自有历史。来源租约在连接时注册，断开或失败时释放；不能把共享历史等同于共享同一个绑定 origin。
+
+disconnectNodeTree 用于临时断开，保留历史；最终关闭由拥有者调用 disposeNodeTree，销毁自有历史但不销毁注入历史。宿主关闭共享历史后，尚未释放的编辑器/字段句柄会拒绝写入。不要在一个视图的卸载清理中直接 destroy 借用的历史。
+
+同谱系重绑仅接受同一树包装器和同一历史。默认 lineage 包含根作用域、树实例和历史身份，业务提供的 lineage 只是前缀，不能覆盖这些区别；切根或换历史需重建绑定，避免相同节点 ID 串根。多根视图卸载/重开与失败连接已由真实编辑器测试覆盖。
+
+以上是公共候选能力；白板可选文档绑定已复用，正式房间启用与真实数据迁移仍由宿主流程负责。文本句柄 revision/replace 仅描述本机观察版本，不能当成服务器条件写入承诺。
+
+## 宿主写入准入
+
+createNodeTreeDocument/withNodeTree 可接收 `mutate(write, origin)` 与动态 `canWrite`。mutate 只接收目标 NodeTree 的写入意图，宿主可先对隔离候选执行，再写真实根；节点身份和拆分身份在调用前固定。正文与节点源码字段均经过该入口，失败时 Slate 恢复到当前共享投影，不能遗留未持久的半个拆分。可选 `normalizeOnConnect: false` 禁止连接期运行写规范化，白板绑定使用此设置；原编辑器默认行为保持不变。
+
+`createSharedTextField` 复用字符串观察版本、增量事件、来源租约和宿主历史，供白板普通字符串绑定使用。白板及注入准入的节点源码绑定拒绝同步整段 replace，条件替换仍由异步宿主流程负责。动态只读、页切换、节点失效或最终释放后都拒绝输入；编辑器不另建 Slate 历史。

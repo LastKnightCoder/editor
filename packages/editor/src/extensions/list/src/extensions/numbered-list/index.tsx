@@ -12,6 +12,7 @@ const numberedListExtension = defineExtension({
   elements: [
     defineElement<NumberedListElement>({
       type: "numbered-list",
+      dataVersion: 1,
       kind: "block",
       isEmpty: (element, context) => element.children.every(context.isEmpty),
       render: NumberedList,

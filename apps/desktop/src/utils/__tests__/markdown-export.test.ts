@@ -16,7 +16,10 @@ const mocks = vi.hoisted(() => ({
   resolveLocalMediaPath: vi.fn(),
 }));
 
-vi.mock("@/commands/file", () => ({ readBinaryFile: mocks.readBinaryFile }));
+vi.mock("@/commands/file", async importOriginal => ({
+  ...(await importOriginal<typeof import("@/commands/file")>()),
+  readBinaryFile: mocks.readBinaryFile,
+}));
 vi.mock("@/utils/localMediaPath", () => ({
   resolveLocalMediaPath: mocks.resolveLocalMediaPath,
   getMediaMimeType: () => "image/png",
@@ -179,7 +182,15 @@ describe("导出范围", () => {
     const { loadExportCatalog, groupByFirstTag } = await import("@/services/markdown-export");
     mocks.getArticlePage.mockResolvedValue({
       items: [
-        { id: 1, title: "A", tags: ["读书/方法", "x"], words: 10, createTime: 1, updateTime: 2 },
+        {
+          id: 1,
+          contentId: 11,
+          title: "A",
+          tags: ["读书/方法", "x"],
+          words: 10,
+          createTime: 1,
+          updateTime: 2,
+        },
         { id: 2, title: "", tags: [], words: 0, createTime: 1, updateTime: 2 },
       ],
       total: 2,
@@ -208,7 +219,8 @@ describe("导出范围", () => {
     expect(shape(articles.tree)).toEqual([["读书", [["方法", ["A"]]]], "未命名文章 #2"]);
     const first = articles.tree[0].children[0].children[0];
     expect(first.ref).toEqual({ kind: "article", id: 1 });
-    expect(await first.loadContent?.()).toEqual([paragraph(text("A 正文"))]);
+    expect(first.contentId).toBe(11);
+    expect(mocks.findOneArticle).not.toHaveBeenCalled();
     expect(articles.tree[1].empty).toBe(true);
 
     const all = await loadExportCatalog("all", "db");

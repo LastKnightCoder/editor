@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { FileSymlink, Highlighter, MessageSquarePlus, TextQuote } from "lucide-react";
 import type { EditorRef } from "@tau/editor";
+import type { NodeTreeEditor } from "@tau/editor-collab";
+import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { Editor, Range, Text, Transforms } from "slate";
 import { AppContext } from "../../../app/AppContext";
 import { toast } from "../../../components/toast";
@@ -131,12 +133,16 @@ export function ReadingSelectionBar(props: ReadingSelectionBarProps) {
     const target = resolveTarget();
     if (!target) return;
     const content = normalizeEditorContent(Editor.fragment(target.editor, target.range));
+    const contracts = (target.editor as Partial<NodeTreeEditor>).nodeTree?.contracts.toJSON() as
+      | ContentContractDictionary
+      | undefined;
     onClear();
     if (isEditorContentEmpty(content)) return;
     void (async () => {
       try {
         const created = await tauri.createQuickCard({
           content,
+          contracts,
           count: getContentLength(content),
         });
         toast({

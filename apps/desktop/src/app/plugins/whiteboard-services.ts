@@ -1,6 +1,9 @@
+import { IResourceService } from "@tau/shared/host-services";
+import { IMediaInfoService, IDownloadService } from "@tau/shared/media-services";
+import { IWhiteboardAuthorPermission } from "@tau/whiteboard/extensions";
 import { IPluginStorage, type WhiteboardAPI } from "@tau/plugins/whiteboard";
 import type { PluginDefinition, PluginStorage } from "@tau/plugins";
-import { createChildRegistry, type ServiceRegistry } from "@tau/shared/service-registry";
+import { createServiceRegistry, type ServiceRegistry } from "@tau/shared/service-registry";
 
 /** 所属关系来自已校验的插件定义，不从扩展 ID 猜测插件身份。 */
 export function createWhiteboardPluginServices(
@@ -34,6 +37,40 @@ export function createWhiteboardPluginServices(
       set: async (key, value) => current().set(key, value),
       delete: async key => current().delete(key),
     };
-    return createChildRegistry(parent, register => register(IPluginStorage, storage));
+    const guard =
+      <T extends unknown[], R>(action: (...args: T) => Promise<R>) =>
+      async (...args: T): Promise<R> => {
+        current();
+        const valid = api.captureSubmission();
+        const result = await action(...args);
+        if (!valid()) throw new Error("白板交互已结束");
+        current();
+        return result;
+      };
+    return createServiceRegistry(register => {
+      register(IPluginStorage, storage);
+      register(IWhiteboardAuthorPermission, {
+        assertActive: () => {
+          current();
+        },
+      });
+      const resources = parent.tryGet(IResourceService),
+        media = parent.tryGet(IMediaInfoService),
+        downloads = parent.tryGet(IDownloadService);
+      if (resources)
+        register(IResourceService, {
+          upload: guard(resources.upload.bind(resources)),
+          ...(resources.remoteResourceToLocal
+            ? { remoteResourceToLocal: guard(resources.remoteResourceToLocal.bind(resources)) }
+            : {}),
+        });
+      if (media)
+        register(IMediaInfoService, {
+          imageInfo: guard(media.imageInfo.bind(media)),
+          videoInfo: guard(media.videoInfo.bind(media)),
+        });
+      if (downloads)
+        register(IDownloadService, { download: guard(downloads.download.bind(downloads)) });
+    });
   };
 }

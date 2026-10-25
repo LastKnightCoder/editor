@@ -1,3 +1,6 @@
+import { useLayoutEffect } from "react";
+import { bindTextFieldTextarea } from "@tau/editor/api";
+import type { EditorTextField } from "@tau/editor/text-field-contract";
 /**
  * 白板详情页签条：浮在画布纸面左下角，与右下状态栏同一套画布 chrome 语言（D-049：实底 surface +
  * shadow-lift + 1px 细描边，激活 = accent-soft，组间靠留白不画竖线），一左一右融在同一张纸里。
@@ -26,6 +29,7 @@ export interface SheetBarProps {
   onSelect(id: number): void;
   onAdd(): void;
   onRename(id: number, name: string): void;
+  textBinding?(id: number): EditorTextField;
   onDuplicate(id: number): void;
   onDelete(id: number): void;
   onReorder(ids: number[]): void;
@@ -75,7 +79,7 @@ export function SheetBar(props: SheetBarProps) {
         <button
           type="button"
           onClick={props.onAdd}
-          className="text-ink-2 hover:bg-hover hover:text-ink-1 ease-tau-out inline-flex h-[30px] items-center gap-1.5 rounded-[8px] pl-2 pr-2.5 text-[12.5px] transition-[background-color,color] duration-150"
+          className="text-ink-2 hover:bg-hover hover:text-ink-1 ease-tau-out inline-flex h-[30px] items-center gap-1.5 rounded-[8px] pr-2.5 pl-2 text-[12.5px] transition-[background-color,color] duration-150"
         >
           <Plus className="size-4" strokeWidth={1.75} />
           新建页
@@ -127,13 +131,14 @@ export function SheetBar(props: SheetBarProps) {
             index={index}
             active={p.id === activeId}
             editing={editing === p.id}
+            textBinding={props.textBinding ? () => props.textBinding!(p.id) : undefined}
             canDelete={pages.length > 1}
             onSelect={() => props.onSelect(p.id)}
             onStartRename={() => setEditing(p.id)}
             onRename={name => {
               setEditing(null);
               const next = name.trim();
-              if (next && next !== p.name) props.onRename(p.id, next);
+              if (!props.textBinding && next && next !== p.name) props.onRename(p.id, next);
             }}
             onCancelRename={() => setEditing(null)}
             onDuplicate={() => props.onDuplicate(p.id)}
@@ -156,6 +161,7 @@ function PageTab({
   index,
   active,
   editing,
+  textBinding,
   canDelete,
   onSelect,
   onStartRename,
@@ -170,6 +176,7 @@ function PageTab({
   index: number;
   active: boolean;
   editing: boolean;
+  textBinding?(): EditorTextField;
   canDelete: boolean;
   onSelect(): void;
   onStartRename(): void;
@@ -256,7 +263,12 @@ function PageTab({
         )}
       >
         {editing ? (
-          <RenameInput initial={page.name} onDone={onRename} onCancel={onCancelRename} />
+          <RenameInput
+            initial={page.name}
+            textBinding={textBinding}
+            onDone={onRename}
+            onCancel={onCancelRename}
+          />
         ) : (
           <span className="truncate">{page.name || "未命名"}</span>
         )}
@@ -267,17 +279,31 @@ function PageTab({
 
 function RenameInput({
   initial,
+  textBinding,
   onDone,
   onCancel,
 }: {
   initial: string;
+  textBinding?(): EditorTextField;
   onDone(name: string): void;
   onCancel(): void;
 }) {
   const [value, setValue] = useState(initial);
+  const input = useRef<HTMLInputElement>(null),
+    getBinding = useRef(textBinding);
+  const [error, setError] = useState("");
+  useLayoutEffect(() => {
+    if (!getBinding.current || !input.current) return;
+    const handle = getBinding.current(),
+      bound = bindTextFieldTextarea(input.current, handle, setValue, setError);
+    return () => {
+      bound.dispose();
+      handle.dispose();
+    };
+  }, []);
   const done = useRef(false);
   const finish = (ok: boolean) => {
-    if (done.current) return;
+    if (done.current || error) return;
     done.current = true;
     if (ok) onDone(value);
     else onCancel();
@@ -285,9 +311,13 @@ function RenameInput({
   return (
     <input
       autoFocus
-      value={value}
+      ref={input}
+      title={error || undefined}
+      aria-invalid={!!error}
+      readOnly={!!error}
+      value={textBinding ? undefined : value}
       onFocus={e => e.currentTarget.select()}
-      onChange={e => setValue(e.target.value)}
+      onChange={textBinding ? undefined : e => setValue(e.target.value)}
       onBlur={() => finish(true)}
       onClick={e => e.stopPropagation()}
       onDoubleClick={e => e.stopPropagation()}

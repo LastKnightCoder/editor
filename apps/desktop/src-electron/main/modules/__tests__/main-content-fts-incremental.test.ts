@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   locateAll: vi.fn(),
   getCardById: vi.fn(),
   getArticleByIds: vi.fn(() => []),
+  readText: vi.fn(),
 }));
 
 vi.mock("electron-log", () => ({
@@ -31,6 +32,7 @@ vi.mock("../tables/fts", () => ({
 vi.mock("../tables/entity-search", () => ({ default: { locateAll: mocks.locateAll } }));
 vi.mock("../tables/card", () => ({ default: { getCardById: mocks.getCardById } }));
 vi.mock("../tables/article", () => ({ default: { getArticleByIds: mocks.getArticleByIds } }));
+vi.mock("../tables/content", () => ({ default: { readText: mocks.readText } }));
 vi.mock("../tables/project", () => ({ default: { getProjectItem: vi.fn(() => null) } }));
 vi.mock("../tables/diary", () => ({ default: { getDiaryMoment: vi.fn(() => null) } }));
 vi.mock("../material-index", () => ({ listMaterialIndexDocs: () => [] }));
@@ -45,6 +47,7 @@ import queue from "../main-content-fts-index-queue";
 const db = { name: "/data/alpha.db", memory: false };
 const card = (id: number, content: unknown[]) => ({
   id,
+  contentId: content.length ? 7 : 8,
   content,
   update_time: 10,
 });
@@ -58,8 +61,26 @@ describe("正文写入后的全文增量索引", () => {
     mocks.removeIndexByIdAndType.mockClear();
     mocks.locateAll.mockReset();
     mocks.getCardById.mockReset();
+    mocks.readText.mockReset();
+    mocks.readText.mockImplementation(async (_db: unknown, id: number) => ({
+      content: id === 8 ? "" : "正文",
+    }));
   });
   afterEach(() => vi.useRealTimers());
+
+  it("索引只按正文身份获取文本，不接收或转传契约", async () => {
+    mocks.locateAll.mockReturnValue(new Map([[7, [{ kind: "card", id: 3 }]]]));
+    mocks.getCardById.mockReturnValue({
+      ...card(3, [{ type: "example.old", tauContract: "old", source: "旧源码", children: [] }]),
+      contentId: 7,
+    });
+    mocks.readText.mockResolvedValue({ content: "旧源码", sections: [] });
+    emitContentWritten(db, 7, "update");
+    await vi.advanceTimersByTimeAsync(1100);
+    expect(mocks.readText).toHaveBeenCalledWith(mocks.mainDb, 7, "", true);
+    expect(mocks.indexContent.mock.calls[0][1]).toMatchObject({ content: "旧源码" });
+    expect(mocks.indexContent.mock.calls[0][1]).not.toHaveProperty("contracts");
+  });
 
   it("合并窗口内的多次写入只索引一次引用该正文的实体", async () => {
     mocks.locateAll.mockReturnValue(new Map([[7, [{ kind: "card", id: 3 }]]]));

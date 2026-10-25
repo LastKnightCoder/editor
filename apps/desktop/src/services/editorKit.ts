@@ -67,7 +67,6 @@ export function createDesktopKit(extras: readonly AnyExtension[] = []): EditorKi
         desktopEditorServices,
         register =>
           register(IElementEditingPolicy, {
-            sourcePresentation: "pointer",
             canEdit: type =>
               !desktopPortableSupport.has(type) || desktopPortableSupport.get(type) === "edit",
           }),
@@ -148,10 +147,32 @@ export function getArrowLabelKit(): EditorKit {
       desktopEditorServices,
       register =>
         register(IElementEditingPolicy, {
-          sourcePresentation: "pointer",
           canEdit: type =>
             !desktopPortableSupport.has(type) || desktopPortableSupport.get(type) === "edit",
         }),
     ],
   }));
+}
+
+/** 新建入口以实际装配的节点声明绑定契约，已有契约按原版本保留。 */
+export async function prepareNewContent(
+  content: readonly import("slate").Descendant[],
+  contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary
+) {
+  const catalog = await desktopContentPlugins.prepareEditorContracts(getContentKit().extensions);
+  return catalog.createDocument(content, contracts);
+}
+
+/** 按文档契约选择具体版本的导出器；缺少版本实现时保留无损载荷。 */
+export async function prepareContentMarkdown(
+  contracts: import("@tau/db-schema/content-contracts").ContentContractDictionary,
+  kit: EditorKit = createDesktopKit()
+) {
+  const { desktopCodecComposition } = await import("@/utils/markdown-composition");
+  const { textFormattingCodec } = await import("@tau/editor/extensions/text-formatting/markdown");
+  return desktopContentPlugins.prepareMarkdown(kit.extensions, {
+    contracts,
+    codecs: desktopCodecComposition,
+    textCodecs: [textFormattingCodec],
+  });
 }

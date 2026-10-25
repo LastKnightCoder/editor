@@ -14,6 +14,11 @@ export function registerAssetRoutes(
   config: ServerConfig,
   device: (request: FastifyRequest) => ReturnType<CollaborationStore["authenticate"]>
 ) {
+  app.get("/v1/documents/:id/assets", async request => {
+    const id = params(request).id;
+    store.authorize(id, device(request).id, true);
+    return { ids: store.retainedAssetIds(id) };
+  });
   app.post("/v1/documents/:id/assets", async request => {
     const identity = device(request);
     const id = params(request).id;

@@ -29,7 +29,7 @@ const inside = (file, directory) => file.startsWith(directory + sep);
 const manifest = JSON.parse(readFileSync(resolve(packageRoot, "package.json"), "utf8"));
 assert.deepEqual(
   Object.keys(manifest.exports),
-  [".", "./extensions", "./author", "./styles.css"],
+  [".", "./extensions", "./author", "./styles.css", "./collaboration", "./contracts"],
   "Whiteboard 仅公开画布、扩展、作者契约和样式入口"
 );
 const declared = new Set(
@@ -63,6 +63,8 @@ for (const directory of ["apps", "packages", "examples"]) {
               "@tau/whiteboard/extensions",
               "@tau/whiteboard/author",
               "@tau/whiteboard/styles.css",
+              "@tau/whiteboard/collaboration",
+              "@tau/whiteboard/contracts",
             ].includes(specifier)) &&
             !(local && inside(local, packageRoot)),
           "消费者使用 @tau/whiteboard 公开入口：" + label
@@ -199,6 +201,7 @@ const inspectCore = (file, trail = []) => {
 inspectCore(resolve(packageRoot, "src/WhiteBoard.tsx"));
 inspectCore(resolve(packageRoot, "src/Board.tsx"));
 inspectCore(resolve(packageRoot, "src/index.ts"));
+inspectCore(resolve(packageRoot, "contracts.ts"));
 
 // 作者契约连同 type-only 依赖一起检查，不能通过声明文件重新暴露内核。
 const authorGraph = ts.createProgram([resolve(packageRoot, "src/author.ts")], {
@@ -225,6 +228,10 @@ const authorFiles = new Set([
   "utils/sketch/handText.ts",
   "utils/dash.ts",
   "extensions/api.ts",
+  "extensions/authorTypes.ts",
+  "extensions/authorAccess.ts",
+  "extensions/authorApi.ts",
+  "extensions/versions.ts",
   "extensions/context.ts",
   "extensions/authorHooks.ts",
   "extensions/events.ts",
@@ -249,7 +256,8 @@ for (const source of authorGraph.getSourceFiles()) {
       "白板作者声明依赖内部实现：" + file
     );
   assert(
-    !inside(file, resolve(root, "packages/editor")),
+    !inside(file, resolve(root, "packages/editor")) ||
+      file === resolve(root, "packages/editor/text-field-contract.ts"),
     "白板作者契约不得引入编辑器实现：" + file
   );
 }

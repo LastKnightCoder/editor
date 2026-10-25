@@ -5,7 +5,11 @@ import { useMemoizedFn } from "ahooks";
 import { cn, mergeRefs } from "@tau/ui";
 import { ImageOff } from "lucide-react";
 
-import { InlineChromiumBugfix, getCommandElementPath } from "@tau/editor/api";
+import {
+  InlineChromiumBugfix,
+  getCommandElementPath,
+  useTouchVoidSelection,
+} from "@tau/editor/api";
 import ImageUploader from "../../../../components/ImageUploader";
 import type { InlineImageElement } from "../../../../types";
 import { useImageResize, ResizeDirection } from "../../../../hooks/useImageResize";
@@ -17,7 +21,6 @@ import {
   MEDIA_SELECTED_OUTLINE_CLASS,
 } from "../../../../utils/mediaFrameClasses";
 import { shouldIgnoreBlockKey } from "@tau/editor/api";
-import { useTouchMediaSelection } from "../../../../hooks/useTouchMediaSelection";
 
 interface InlineImageProps extends RenderElementProps {
   element: InlineImageElement;
@@ -45,7 +48,7 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
   const containerRef = useRef<HTMLSpanElement>(null);
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
   const [pointerSelected, setIsSelected] = useState(false);
-  const touchSelection = useTouchMediaSelection(element);
+  const touchSelection = useTouchVoidSelection(element);
   const { touch } = touchSelection;
   const isSelected = touch ? touchSelection.selected : pointerSelected;
   const [failed, setFailed] = useState(false);
@@ -183,7 +186,7 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
               />
             ))}
           {resize.isResizing && (
-            <span className="text-tau-micro pointer-events-none absolute bottom-full left-1/2 z-[3] mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-[var(--ed-text)] px-2 py-0.5 tabular-nums text-[var(--ed-text-inverse)] [font-family:var(--ed-font-mono)]">
+            <span className="text-tau-micro pointer-events-none absolute bottom-full left-1/2 z-[3] mb-1.5 -translate-x-1/2 rounded-full bg-[var(--ed-text)] px-2 py-0.5 [font-family:var(--ed-font-mono)] whitespace-nowrap text-[var(--ed-text-inverse)] tabular-nums">
               {Math.round(resize.size.width || 0)} × {Math.round(resize.size.height || 0)}
             </span>
           )}

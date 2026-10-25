@@ -12,7 +12,7 @@ import PluginEntityTable, { type PluginEntityIndexDoc } from "./tables/plugin-en
 import FTSTable from "./tables/fts";
 import { listMaterialIndexDocs } from "./material-index";
 import { MAIN_CONTENT_INDEX_TYPES } from "./main-content-vec-index-queue";
-import { prepareContentNodes } from "../services/content-conversion";
+import ContentTable from "./tables/content";
 import { MAIN_CHUNK_VERSION, type ContentSection } from "@/entity/sections";
 import type { IndexType } from "@/types";
 import { yieldEvery, yieldToEventLoop } from "../utils/event-loop-yield";
@@ -36,38 +36,53 @@ type ArticleRow = ReturnType<typeof ArticleTable.getAllArticles>[number];
 type ProjectItemRow = ReturnType<typeof ProjectTable.getAllProjectItems>[number];
 type DiaryMomentRow = ReturnType<typeof DiaryTable.getAllDiarySegmentsFlat>[number];
 
-const cardTask = async (card: CardRow): Promise<MainContentFtsIndexTask> => ({
-  ...(await prepareContentNodes(card.content || [], "", true)),
+const cardTask = async (
+  db: Database.Database,
+  card: CardRow
+): Promise<MainContentFtsIndexTask> => ({
+  ...(await ContentTable.readText(db, card.contentId, "", true)),
   id: card.id,
   type: "card",
   updateTime: Number(card.update_time || 0),
 });
 
-const articleTask = async (article: ArticleRow): Promise<MainContentFtsIndexTask> => ({
-  ...(await prepareContentNodes(article.content || [], article.title || "")),
+const articleTask = async (
+  db: Database.Database,
+  article: ArticleRow
+): Promise<MainContentFtsIndexTask> => ({
+  ...(await ContentTable.readText(db, article.contentId, article.title || "")),
   id: article.id,
   type: "article",
   title: article.title,
   updateTime: Number(article.update_time || 0),
 });
 
-const projectItemTask = async (item: ProjectItemRow): Promise<MainContentFtsIndexTask> => ({
-  ...(await prepareContentNodes(item.content || [], item.title || "")),
+const projectItemTask = async (
+  db: Database.Database,
+  item: ProjectItemRow
+): Promise<MainContentFtsIndexTask> => ({
+  ...(await ContentTable.readText(db, item.contentId, item.title || "")),
   id: item.id,
   type: "project-item",
   title: item.title,
   updateTime: Number(item.updateTime || 0),
 });
 
-const diaryMomentTask = async (moment: DiaryMomentRow): Promise<MainContentFtsIndexTask> => ({
-  ...(await prepareContentNodes(moment.content || [], "")),
+const diaryMomentTask = async (
+  db: Database.Database,
+  moment: DiaryMomentRow
+): Promise<MainContentFtsIndexTask> => ({
+  ...(await ContentTable.readText(db, moment.contentId)),
   id: moment.id,
   type: "diary-moment",
   updateTime: Number(moment.updateTime || 0),
 });
 
-const pluginEntityTask = async (doc: PluginEntityIndexDoc): Promise<MainContentFtsIndexTask> => ({
-  ...(await prepareContentNodes(doc.content, doc.title)),
+const pluginEntityTask = async (
+  db: Database.Database,
+  doc: PluginEntityIndexDoc
+): Promise<MainContentFtsIndexTask> => ({
+  ...(await ContentTable.readText(db, doc.contentId, doc.title)),
   id: doc.id,
   type: "plugin-entity",
   title: doc.title,
@@ -160,23 +175,23 @@ class MainContentFtsIndexQueue implements Module {
     switch (kind) {
       case "card": {
         const card = CardTable.getCardById(mainDb, id);
-        return card ? cardTask(card) : null;
+        return card ? cardTask(mainDb, card) : null;
       }
       case "article": {
         const [article] = ArticleTable.getArticleByIds(mainDb, [id]);
-        return article ? articleTask(article) : null;
+        return article ? articleTask(mainDb, article) : null;
       }
       case "project-item": {
         const item = ProjectTable.getProjectItem(mainDb, id);
-        return item ? projectItemTask(item) : null;
+        return item ? projectItemTask(mainDb, item) : null;
       }
       case "diary-moment": {
         const moment = DiaryTable.getDiaryMoment(mainDb, id);
-        return moment ? diaryMomentTask(moment) : null;
+        return moment ? diaryMomentTask(mainDb, moment) : null;
       }
       case "plugin-entity": {
         const [doc] = PluginEntityTable.indexDocs(mainDb, id);
-        return doc ? pluginEntityTask(doc) : null;
+        return doc ? pluginEntityTask(mainDb, doc) : null;
       }
       default:
         return null;
@@ -293,11 +308,15 @@ class MainContentFtsIndexQueue implements Module {
     let processed = 0;
 
     const groups: Array<() => Iterable<() => Promise<MainContentFtsIndexTask>>> = [
-      () => CardTable.getAllCards(mainDb).map(card => () => cardTask(card)),
-      () => ArticleTable.getAllArticles(mainDb).map(article => () => articleTask(article)),
-      () => ProjectTable.getAllProjectItems(mainDb).map(item => () => projectItemTask(item)),
-      () => DiaryTable.getAllDiarySegmentsFlat(mainDb).map(moment => () => diaryMomentTask(moment)),
-      () => PluginEntityTable.indexDocs(mainDb).map(doc => () => pluginEntityTask(doc)),
+      () => CardTable.getAllCards(mainDb).map(card => () => cardTask(mainDb, card)),
+      () => ArticleTable.getAllArticles(mainDb).map(article => () => articleTask(mainDb, article)),
+      () =>
+        ProjectTable.getAllProjectItems(mainDb).map(item => () => projectItemTask(mainDb, item)),
+      () =>
+        DiaryTable.getAllDiarySegmentsFlat(mainDb).map(
+          moment => () => diaryMomentTask(mainDb, moment)
+        ),
+      () => PluginEntityTable.indexDocs(mainDb).map(doc => () => pluginEntityTask(mainDb, doc)),
     ];
     for (const group of groups) {
       for (const load of group()) {
