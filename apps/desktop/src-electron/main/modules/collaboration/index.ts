@@ -2275,6 +2275,39 @@ export class CollaborationManager {
           this.store.compact(session.info.id, session.doc);
           session.dirty = false;
         }
+        const source = session.info.source;
+        const database = source && databaseModule.getDatabase(source.databaseName);
+        if (source && database?.open) {
+          const row = database
+            .prepare("SELECT create_time FROM contents WHERE id=?")
+            .get(source.contentId) as { create_time: number } | undefined;
+          const stored = ContentDocumentTable.read(database, source.contentId);
+          const matches =
+            row?.create_time === source.contentCreatedAt &&
+            (!source.librarySourceId ||
+              source.librarySourceId === ContentIdentityTable.library(database)?.sourceId) &&
+            (!source.contentDocumentId || source.contentDocumentId === stored?.documentId);
+          if (!matches) {
+            // 主库快照回退不能用旧缓存补写；缓存已耐久保存，整库替换另行打包恢复材料。
+            this.store.metadata(session.info);
+            const cached = this.store.load(session.info.id);
+            try {
+              if (contentRevision({ ...session, doc: cached.doc }) !== contentRevision(session))
+                throw new Error("正文缓存尚未完整保存，不能关闭资料库");
+            } finally {
+              cached.doc.destroy();
+            }
+            console.warn(
+              "[collaboration:drain-source-mismatch] 已保存缓存，跳过不同来源的主库投影",
+              {
+                databaseName: source.databaseName,
+                documentId: session.info.id,
+                contentId: source.contentId,
+              }
+            );
+            continue;
+          }
+        }
         await this.project(session);
       }
       return {
@@ -2293,17 +2326,22 @@ export class CollaborationManager {
 
   async preserveLibrary(name: string): Promise<void> {
     if (!this.contentState) throw new Error("正文保全服务尚未就绪");
-    if (
-      this.store
-        .list()
-        .some(
-          session =>
-            session.source?.databaseName === name &&
-            this.store.get(`library-detached:${session.id}`, null)
-        )
-    )
-      throw new Error("请先处理上次替换留下的本机恢复副本，再次覆盖已停止");
     const recovery = new ContentRecoveryStore(this.directory, this.contentState);
+    const verified = new Set<string>();
+    for (const session of this.store.list()) {
+      if (session.source?.databaseName !== name) continue;
+      const detached = this.store.get<{ recoveryId: string } | null>(
+        `library-detached:${session.id}`,
+        null
+      );
+      if (!detached || verified.has(detached.recoveryId)) continue;
+      const receipt = this.contentState.recovery(detached.recoveryId);
+      if (!receipt) throw new Error("上次替换的恢复回执缺失，原数据已保留，停止覆盖");
+      const manifest = recovery.verify(receipt);
+      if (manifest.workspaceId !== name || manifest.reason !== "library-replacement")
+        throw new Error("上次替换的恢复副本归属不匹配，停止覆盖");
+      verified.add(detached.recoveryId);
+    }
     const filename = join(PathUtil.getAppDir(), `${name.replace(/\.db$/, "")}.db`);
     const open = databaseModule.getDatabase(name);
     if (!open?.open && !existsSync(filename)) return;

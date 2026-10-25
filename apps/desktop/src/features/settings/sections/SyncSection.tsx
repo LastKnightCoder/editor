@@ -53,14 +53,15 @@ export function SyncSection() {
   const activeDatabase = database.databases.find(item => item.name === database.active);
   const localVersion = localSyncVersion(activeDatabase);
   const selectedId = sync.plugin?.id;
+  const pluginState = runtime?.host.listPlugins().find(plugin => plugin.id === selectedId)?.state;
   const pluginEnabled =
     !!selectedId &&
     (runtime?.local?.owns(selectedId)
       ? runtime.local.enabled(selectedId)
-      : runtime?.host
-          .listPlugins()
-          .some(plugin => plugin.id === selectedId && plugin.state === "active"));
+      : pluginState === "active");
   const isConfigured = isSyncConfigured(active, sync) && pluginEnabled;
+  // 启用意图先于异步激活完成，检查与同步必须等待当前窗口的插件就绪。
+  const isReady = isConfigured && pluginState === "active";
 
   /* 远程版本：网络查询，配置就绪才拉；检查更新 refetch，同步/下载后手动更新。
      key 含当前库、存储类型与定位字段：切换存储类型立即重新探测，同类型下的字段编辑防抖后再拉 */
@@ -74,11 +75,11 @@ export function SyncSection() {
       const info = await getOriginDatabaseInfo();
       return info.databaseInfo;
     },
-    enabled: isConfigured,
+    enabled: isReady,
     staleTime: Infinity,
     retry: false,
   });
-  const remoteKnown = isConfigured && remoteQuery.data !== undefined;
+  const remoteKnown = isReady && remoteQuery.data !== undefined;
   const remoteVersion = remoteQuery.data?.version ?? 0;
   const protocolUnsupported =
     remoteKnown && remoteQuery.data?.dataModelVersion !== SYNC_MODEL_VERSION && remoteVersion > 0;
@@ -108,7 +109,7 @@ export function SyncSection() {
 
   /* 本地落后远程时拦截并警示风险，用户可强制继续 */
   const onSyncClick = () => {
-    if (isSyncing || !isConfigured) return;
+    if (isSyncing || !isReady) return;
     if (hasUpdate) {
       setForceSyncConfirmOpen(true);
       return;
@@ -117,7 +118,7 @@ export function SyncSection() {
   };
 
   const onCheckUpdate = async () => {
-    if (!isConfigured) return;
+    if (!isReady) return;
     setIsChecking(true);
     try {
       const info = await getOriginDatabaseInfo();
@@ -157,6 +158,10 @@ export function SyncSection() {
 
   const dbChip = !isConfigured ? (
     <StatusChip tone="warn">未配置</StatusChip>
+  ) : !isReady ? (
+    <StatusChip tone="warn">
+      {pluginState === "failed" || pluginState === "restart-required" ? "插件不可用" : "准备中"}
+    </StatusChip>
   ) : remoteQuery.isFetching ? (
     <StatusChip tone="accent">检查中</StatusChip>
   ) : remoteQuery.isError ? (
@@ -190,7 +195,7 @@ export function SyncSection() {
         <>
           <SettingsGroup bare>
             <div className="grid grid-cols-2 gap-3">
-              <Panel pad="none" className="flex min-w-0 flex-col rounded-[14px] px-4 pb-3.5 pt-4">
+              <Panel pad="none" className="flex min-w-0 flex-col rounded-[14px] px-4 pt-4 pb-3.5">
                 <div className="text-tau-body-lg flex items-center gap-2 font-semibold">
                   <Database size={15} strokeWidth={1.75} className="text-ink-2" />
                   数据库
@@ -248,6 +253,7 @@ export function SyncSection() {
                         icon={CloudUpload}
                         loading={isSyncing}
                         loadingText="同步中…"
+                        disabled={!isReady}
                         onClick={onSyncClick}
                       >
                         同步到云端
@@ -258,6 +264,7 @@ export function SyncSection() {
                         icon={RefreshCw}
                         loading={isChecking}
                         loadingText="检查中…"
+                        disabled={!isReady}
                         onClick={() => void onCheckUpdate()}
                       >
                         检查

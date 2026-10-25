@@ -8,7 +8,11 @@ import { ResourceSyncStatus } from "@/types";
 import useSettingStore, { ESync } from "@/stores/useSettingStore";
 import { SyncSection } from "../sections/SyncSection";
 
-const mocks = vi.hoisted(() => ({ model: {} as Record<string, unknown> }));
+const mocks = vi.hoisted(() => ({
+  model: {} as Record<string, unknown>,
+  pluginState: "active",
+  pluginEnabled: true,
+}));
 
 vi.mock("@/commands", () => ({
   download: vi.fn(),
@@ -22,7 +26,8 @@ vi.mock("@/utils/sync", () => ({ isSyncConfigured: () => true }));
 vi.mock("@/app/plugins/context", () => ({
   useDesktopPlugins: () => ({
     listSettings: () => [],
-    host: { listPlugins: () => [{ id: "test.sync", state: "active" }] },
+    local: { owns: () => true, enabled: () => mocks.pluginEnabled },
+    host: { listPlugins: () => [{ id: "test.sync", state: mocks.pluginState }] },
   }),
 }));
 vi.mock("@/services/usageSyncRunner", () => ({ runUsageSync: vi.fn(async () => null) }));
@@ -43,10 +48,11 @@ const file = (syncStatus: ResourceSyncStatus, extra: Record<string, unknown> = {
 
 let container: HTMLDivElement;
 let root: Root;
+let queryClient: QueryClient;
 const render = () =>
   act(() =>
     root.render(
-      <QueryClientProvider client={new QueryClient()}>
+      <QueryClientProvider client={queryClient}>
         <SyncSection />
       </QueryClientProvider>
     )
@@ -56,6 +62,9 @@ const button = (label: string) =>
   [...container.querySelectorAll("button")].find(b => b.textContent?.includes(label))!;
 
 beforeEach(() => {
+  queryClient = new QueryClient();
+  mocks.pluginState = "active";
+  mocks.pluginEnabled = true;
   vi.mocked(upload).mockReset();
   vi.mocked(download).mockReset();
   vi.mocked(getOriginDatabaseInfo).mockReset();
@@ -100,7 +109,50 @@ beforeEach(() => {
 });
 afterEach(() => {
   act(() => root.unmount());
+  queryClient.clear();
   document.body.innerHTML = "";
+});
+
+it("已启用插件仍在激活时等待，就绪后自动检查远程版本", async () => {
+  mocks.pluginState = "activating";
+  render();
+  expect(text()).toContain("准备中");
+  expect(button("检查").disabled).toBe(true);
+  expect(button("同步到云端").disabled).toBe(true);
+  await act(async () => {
+    button("检查").click();
+    button("同步到云端").click();
+  });
+  expect(getOriginDatabaseInfo).not.toHaveBeenCalled();
+  expect(upload).not.toHaveBeenCalled();
+
+  mocks.pluginState = "active";
+  render();
+  await vi.waitFor(() => expect(text()).toContain("已是最新"));
+  expect(getOriginDatabaseInfo).toHaveBeenCalledOnce();
+  expect(text()).not.toContain("检查失败");
+  expect(button("检查").disabled).toBe(false);
+});
+
+it("插件激活失败不发起检查，恢复激活后自动检查", async () => {
+  mocks.pluginState = "failed";
+  render();
+  expect(text()).toContain("插件不可用");
+  expect(getOriginDatabaseInfo).not.toHaveBeenCalled();
+  mocks.pluginState = "active";
+  render();
+  await vi.waitFor(() => expect(text()).toContain("已是最新"));
+  expect(getOriginDatabaseInfo).toHaveBeenCalledOnce();
+});
+
+it("真实检查失败保留错误，手动检查成功后清除", async () => {
+  vi.mocked(getOriginDatabaseInfo).mockRejectedValueOnce(new Error("网络不可用"));
+  render();
+  await vi.waitFor(() => expect(text()).toContain("检查失败"));
+  await act(async () => button("检查").click());
+  await vi.waitFor(() => expect(text()).toContain("已是最新"));
+  expect(getOriginDatabaseInfo).toHaveBeenCalledTimes(2);
+  expect(text()).not.toContain("检查失败");
 });
 
 it("概览并排数据库卡与资源文件卡，Tab 角标为失败数", () => {
