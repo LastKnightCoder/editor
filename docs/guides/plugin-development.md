@@ -56,7 +56,7 @@ C07 必须使用仓库外项目、实际 SDK 包产物和真实 Electron 加载�
 
 ```sh
 git diff --check
-pnpm exec prettier --check "docs/plugin-system/*.md"
+pnpm exec oxfmt --check "docs/architecture/plugin-system/*.md"
 pnpm check
 pnpm --filter desktop exec vitest run <本次相关测试路径>
 pnpm --filter desktop build

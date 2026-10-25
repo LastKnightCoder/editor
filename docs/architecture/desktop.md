@@ -356,12 +356,12 @@ import）注册期即被调用，因此记录数据挂在模块级、import 期�
 通知按来源窗口焦点分流（聚焦进应用内卡栈、失焦进系统通知窗口；两栈互不同步）。接入口径：
 
 - **渲染端业务一律 `appNotify`**（`features/notifications/notify.ts`），禁止直接调用
-  `@tau/ui` 的 `notify`（showcase 样板间与系统通知窗口页除外，ESLint 守护）。`icon` 传
+  `@tau/ui` 的 `notify`（showcase 样板间与系统通知窗口页除外，Oxlint 守护）。`icon` 传
   注册表键（`features/notifications/icons.ts` 的 `NOTIFICATION_ICONS`），不传组件；
   主进程侧 icon 字符串键与注册表的对账由
   `features/notifications/__tests__/main-process-icons.test.ts` 守护。
 - **主进程用 `routeNotification(payload, origin)`**（`src-electron/main/windows/`），
-  禁止 `new Notification(...)` 原生通知（ESLint 守护）；按钮回调放 `origin.handlers`，
+  禁止 `new Notification(...)` 原生通知（Oxlint 守护）；按钮回调放 `origin.handlers`，
   收尾放 `origin.onClose`，关闭走 `dismissNotification(id)`。
 
 ## 3. 三大协议（照抄即用）
@@ -823,4 +823,4 @@ find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘
 - 不造假演示数据（未接线就 null+空态）；
 - 主题/页面必须走 defineXxx 协议注册（禁止中心登记表与散装 CSS）。
 
-迁移期的编辑器数量基线、扩展边界独立扫描与 antd 专项检查已退役，不再执行 `check:editor-refactor` / `check:editor-boundaries` / `check:antd`。现有 ESLint 架构规则、类型、行为、主题契约、数据一致性和其他模块边界仍按变更范围验证。
+迁移期的编辑器数量基线、扩展边界独立扫描与 antd 专项检查已退役，不再执行 `check:editor-refactor` / `check:editor-boundaries` / `check:antd`。现有 Oxlint 架构规则、类型、行为、主题契约、数据一致性和其他模块边界仍按变更范围验证。

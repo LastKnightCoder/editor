@@ -10,8 +10,8 @@
     "check": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
     "admin": "tsx src/admin.ts",
-    "lint": "eslint src --ext .ts",
-    "format": "prettier --write src package.json tsconfig.json tsup.config.ts vitest.config.ts"
+    "lint": "oxlint src",
+    "format": "oxfmt --write src package.json tsconfig.json tsup.config.ts vitest.config.ts"
   },
   "dependencies": {
     "@tau/collaboration": "workspace:*",

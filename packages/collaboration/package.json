@@ -8,8 +8,8 @@
   "scripts": {
     "test": "vitest run --config vitest.config.ts",
     "check": "tsc --noEmit",
-    "lint": "eslint src --ext .ts",
-    "format": "prettier --write src package.json tsconfig.json vitest.config.ts"
+    "lint": "oxlint src",
+    "format": "oxfmt --write src package.json tsconfig.json vitest.config.ts"
   },
   "dependencies": {
     "@slate-yjs/core": "1.0.2",
