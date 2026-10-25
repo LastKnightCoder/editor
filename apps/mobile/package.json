@@ -1,7 +1,7 @@
 {
   "name": "mobile",
   "private": true,
-  "version": "0.2.7",
+  "version": "0.2.8",
   "type": "module",
   "scripts": {
     "dev:plugin-spike": "vite --mode plugin-spike --host 127.0.0.1",
