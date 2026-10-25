@@ -1244,6 +1244,7 @@ class CanvasBinding implements WhiteboardDocumentBinding {
     if (this.closed || !this.board) return;
     const element = flatten(this.board.children).find(node => node.id === id);
     if (!element || !this.options.types[element.type]?.bodyProperty) return;
+    if (element.type === "richtext" && element.entity?.kind === "content") return;
     const body = this.model.elements.get(id)?.get("fieldBindings") as
       | { body?: { mode: string } }
       | undefined;

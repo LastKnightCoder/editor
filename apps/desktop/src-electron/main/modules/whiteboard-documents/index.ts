@@ -381,8 +381,6 @@ class WhiteboardDocumentsModule {
             return null;
           }
         },
-        // 未取得完整独占证明时保留外部引用，不能依赖 ref_count 自动搬迁正文。
-        readExclusiveContent: () => null,
         mapResource: reference => assets.prepareLocalReference(documentId, reference),
       }
     );

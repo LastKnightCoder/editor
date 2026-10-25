@@ -1,4 +1,11 @@
-import { createContext, useContext, type ComponentType, type ComponentPropsWithRef } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useSyncExternalStore,
+  type ComponentType,
+  type ComponentPropsWithRef,
+} from "react";
 import { Editor, createEditorKit, type EditorKit } from "@tau/editor";
 import { textFormattingExtension } from "@tau/editor/extensions/text-formatting";
 import link from "@tau/editor/extensions/link";
@@ -96,6 +103,16 @@ export function textOptionsFromService(
 export function TextEditor({ contentId, editingContext, ...props }: WhiteboardTextEditorProps) {
   const options = useTextExtension();
   const board = useContext(BoardContext);
+  const subscribe = useCallback(
+    (notify: () => void) => {
+      board?.on("readonly:change", notify);
+      return () => {
+        board?.off("readonly:change", notify);
+      };
+    },
+    [board]
+  );
+  const readonly = useSyncExternalStore(subscribe, () => Boolean(board?.readonly));
   const document = props.document;
   if (document)
     return (
@@ -104,7 +121,7 @@ export function TextEditor({ contentId, editingContext, ...props }: WhiteboardTe
         kit={options.kit()}
         document={document}
         onChange={undefined}
-        readonly={props.readonly || board?.readonly || !document}
+        readonly={props.readonly || readonly}
         onFocus={() => {
           board?.document?.splitHistory();
           props.onFocus?.();
@@ -117,7 +134,12 @@ export function TextEditor({ contentId, editingContext, ...props }: WhiteboardTe
     );
   const Component = options.Editor;
   return Component ? (
-    <Component contentId={contentId} editingContext={editingContext} {...props} />
+    <Component
+      contentId={contentId}
+      editingContext={editingContext}
+      {...props}
+      readonly={Boolean(props.readonly || readonly)}
+    />
   ) : (
     <Editor {...props} kit={options.kit(contentId)} />
   );

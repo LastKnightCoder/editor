@@ -127,7 +127,7 @@ interface Side {
 async function side(nickname: string, window: number, database: string): Promise<Side> {
   vi.resetModules();
   state.dir = mkdtempSync(join(tmpdir(), `whiteboard-flow-${database}-`));
-  state.store = new CollaborationLocalStore(join(state.dir, "store"));
+  state.store = new CollaborationLocalStore(join(state.dir, "collaboration"));
   state.assets = new CollaborationAssetService(state.store, state.dir, async () => acting);
   const db = new Database(":memory:");
   db.exec(schema);
@@ -579,6 +579,69 @@ it("旧白板显式转换：安装失败保留原内容，按原操作续做，�
   converted.dispose();
   doc.destroy();
   expect(await call(owner, "legacy-convert", "A", 900, {})).toEqual({ documentId });
+});
+
+it("首次升级并重开旧文字与无标签箭头，保留原正文及其引用计数", async () => {
+  const owner = await side("作者", 1, "A");
+  owner.db
+    .prepare(
+      "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES(701,1,2,?,2,2)"
+    )
+    .run(JSON.stringify([{ type: "paragraph", children: [{ text: "原文" }] }]));
+  const before = owner.db.prepare("SELECT * FROM contents WHERE id=701").get();
+  ContentIdentityTable.reference(owner.db, "content", 701);
+  const geometry = { x: 10, y: 20, width: 100, height: 60, rotation: 0 };
+  owner.db
+    .prepare(
+      "INSERT INTO white_board_contents(id,create_time,update_time,name,data,ref_count) VALUES(900,1,1,'旧页',?,1)"
+    )
+    .run(
+      JSON.stringify({
+        children: [
+          {
+            ...geometry,
+            id: "text",
+            type: "richtext",
+            contentId: 701,
+            content: [{ type: "paragraph", children: [{ text: "旧缓存" }] }],
+          },
+          {
+            ...geometry,
+            id: "arrow",
+            type: "arrow",
+            source: { bindId: "text" },
+            target: {},
+            points: [
+              { x: 0, y: 0 },
+              { x: 100, y: 60 },
+            ],
+          },
+        ],
+      })
+    );
+  await call(owner, "legacy-convert", "A", 900, {});
+  const lease = await call(owner, "open", "A", 900, "first-upgrade");
+  const doc = new Y.Doc();
+  Y.applyUpdate(doc, lease.state);
+  const model = new WhiteboardModel(doc);
+  try {
+    const [text, arrow] = model.read().pages[0].children;
+    expect(text).toMatchObject({ id: "text", type: "richtext", geometry, body: [] });
+    expect(ContentIdentityTable.resolve(owner.db, text.entity!)).toBe(701);
+    expect(arrow).toMatchObject({
+      id: "arrow",
+      type: "arrow",
+      body: [],
+      data: { source: { bindId: "text" } },
+    });
+    expect(owner.db.prepare("SELECT * FROM contents WHERE id=701").get()).toEqual(before);
+    expect(
+      owner.store.get(`legacy-upgrade-issues:A:${lease.identity.documentId}`, null)
+    ).toBeNull();
+  } finally {
+    model.dispose();
+    doc.destroy();
+  }
 });
 
 it.each([false, true])(

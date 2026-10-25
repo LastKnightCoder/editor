@@ -110,9 +110,10 @@ function withBoardResources(resource: ResourceService, base: EditorKit): EditorK
 }
 function DesktopEditor({ editingContext, ...props }: WhiteboardTextEditorProps) {
   const board = useBoard();
-  const kit = getWhiteboardDocument(board)
-    ? withBoardResources(board.getService(IResourceService), getWhiteboardBodyKit())
-    : getContentKit();
+  const kit =
+    !props.contentId && getWhiteboardDocument(board)
+      ? withBoardResources(board.getService(IResourceService), getWhiteboardBodyKit())
+      : getContentKit();
   return (
     <ContentEditor
       {...props}
@@ -162,7 +163,7 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
           Editor: DesktopEditor,
           Observer: ContentSnapshotObserver,
           kit: (contentId?: number) =>
-            props.document
+            !contentId && props.document
               ? withBoardResources(services.get(IResourceService), getWhiteboardBodyKit())
               : collaborationKit(getContentBinding(contentId), getContentKit()),
           content: {

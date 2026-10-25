@@ -276,7 +276,6 @@ it("旧 schemaVersion 快照显式转换仍保留原载荷，不因候选插件�
       title: "旧人物",
       editorContracts: {},
       resolveEntity: () => null,
-      readExclusiveContent: () => null,
       mapResource: async reference => reference,
     }
   );

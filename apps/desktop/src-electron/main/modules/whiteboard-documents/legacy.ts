@@ -29,7 +29,6 @@ export interface LegacyWhiteboardContext {
   title: string;
   editorContracts: ContentContractDictionary;
   resolveEntity(kind: ContentEntityKind, id: number): ContentEntityReference | null;
-  readExclusiveContent(id: number): readonly ContentNode[] | null;
   mapResource(reference: string): Promise<string>;
 }
 
@@ -92,7 +91,13 @@ export async function convertLegacyWhiteboard(
     structure: { container: "free", joins: ["layout"], reference: "entity" },
   });
   const contracts: Record<string, import("@tau/db-schema/content-contracts").DataContract> = {};
-  const issues: { pageId: string; nodeId: string; reason: string }[] = [];
+  const issues: {
+    pageId: string;
+    nodeId: string;
+    reason: string;
+    frameId?: string;
+    previousId?: string;
+  }[] = [];
   const mapping: { pageId: string; path: number[]; previousId: unknown; id: string }[] = [];
   const views = pages.map(page => ({
     pageId: page.id,
@@ -232,9 +237,9 @@ export async function convertLegacyWhiteboard(
       entity = context.resolveEntity(kind, localId as number) ?? undefined;
       if (!entity) return retain("missing-entity");
       if (source.type === "richtext") {
-        const content = context.readExclusiveContent(localId as number);
-        if (!content) return retain("external-content-retained", entity);
-        body = content;
+        if (entity.kind !== "content") return retain("invalid-entity-reference", entity);
+        // 独立正文继续由原会话持有，画布缓存不能变成另一份可编辑正文。
+        body = [];
       } else if (declaration.contract.structure.reference !== "entity")
         return retain("external-content-retained", entity);
     }
@@ -279,6 +284,7 @@ export async function convertLegacyWhiteboard(
       if (data[field] === undefined) data[field] = "";
     let convertedBody: ContentNode[] | undefined;
     if (codec.bodyProperty) {
+      if (source.type === "arrow" && body === undefined) body = [];
       if (!Array.isArray(body)) return retain("missing-or-invalid-body");
       const converted = await convertLegacyContent(body, context.editorContracts, {
         shared: false,
@@ -326,21 +332,57 @@ export async function convertLegacyWhiteboard(
         ? { sketch: page.data.sketch as WhiteboardTransfer["pages"][number]["sketch"] }
         : {}),
     });
+  }
+  // 所有页面先完成换号，演示才能引用后续页面的元素。
+  const references = new Map<string, typeof mapping>();
+  for (const entry of mapping) {
+    if (typeof entry.previousId !== "string") continue;
+    const candidates = references.get(entry.previousId) ?? [];
+    candidates.push(entry);
+    references.set(entry.previousId, candidates);
+  }
+  for (const page of pages) {
     if (Array.isArray(page.data.presentationSequences))
       for (const sequence of page.data
         .presentationSequences as WhiteboardTransfer["presentations"]) {
-        if (sequence.frames.some(frame => frame.elements.some(id => counts.get(id) !== 1))) {
-          issues.push({ pageId: page.id, nodeId: sequence.id, reason: "ambiguous-presentation" });
-          continue;
-        }
         if (bundle.presentations.some(value => value.id === sequence.id))
           throw new Error("旧演示身份重复，须先确认归属");
         bundle.presentations.push({
           ...structuredClone(sequence),
-          frames: sequence.frames.map(frame => ({
-            ...structuredClone(frame),
-            elements: frame.elements.map(id => identities.get(id)!),
-          })),
+          frames: sequence.frames.map(frame => {
+            const occurrences = new Map<string, number>();
+            for (const id of frame.elements) occurrences.set(id, (occurrences.get(id) ?? 0) + 1);
+            const resolved = new Map<string, { ids: string[]; next: number }>();
+            for (const [id, count] of occurrences) {
+              const all = references.get(id) ?? [];
+              const local = all.filter(entry => entry.pageId === page.id);
+              const candidates = local.length ? local : all;
+              if (candidates.length === 1 || (candidates.length > 1 && candidates.length === count))
+                resolved.set(id, { ids: candidates.map(entry => entry.id), next: 0 });
+              else
+                issues.push({
+                  pageId: page.id,
+                  nodeId: sequence.id,
+                  frameId: frame.id,
+                  previousId: id,
+                  reason: candidates.length
+                    ? "ambiguous-presentation-reference"
+                    : "missing-presentation-reference",
+                });
+            }
+            return {
+              ...structuredClone(frame),
+              elements: [
+                ...new Set(
+                  frame.elements.flatMap(id => {
+                    const target = resolved.get(id);
+                    if (!target) return [];
+                    return [target.ids[target.ids.length === 1 ? 0 : target.next++]];
+                  })
+                ),
+              ],
+            };
+          }),
         });
       }
   }

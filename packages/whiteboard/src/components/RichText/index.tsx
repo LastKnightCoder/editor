@@ -157,6 +157,7 @@ const Richtext = (props: RichTextProps) => {
   useEditingElementCleanup(elementId);
   const text = useTextExtension();
   const collaborativeDocument = board.document?.textDocument(elementId);
+  const pendingReference = element.entity?.kind === "content" && !contentId;
   const isArrowMoving = useArrowMove();
   const activeTool = useActiveTool();
   const isMoving = useElementMoving(elementId);
@@ -469,7 +470,11 @@ const Richtext = (props: RichTextProps) => {
               onChange={syncContentSnapshot}
             />
           )}
-          {useSimplifiedRender && simplifiedSkeletonMeta ? (
+          {pendingReference ? (
+            <div role="status" className="text-ink-3 p-3">
+              关联正文尚未就绪
+            </div>
+          ) : useSimplifiedRender && simplifiedSkeletonMeta ? (
             <div
               className={styles.simplifiedSkeleton}
               style={{

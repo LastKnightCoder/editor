@@ -17,7 +17,7 @@ const specs: Readonly<Record<string, BuiltinSpec>> = {
     data: ["maxWidth", "maxHeight", "resized", "variant", "tone", "readonly"],
     transient: ["autoFocus"],
     body: "content",
-    structure: { text: "richtext", joins: ["layout"] },
+    structure: { text: "richtext", joins: ["layout"], reference: "entity" },
   },
   geometry: {
     data: [
