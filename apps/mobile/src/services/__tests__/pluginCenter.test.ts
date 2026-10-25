@@ -91,7 +91,7 @@ it("安装校验审核清单与摘要后才走中心提交，不走开发提交"
     host: {
       ...centerHost,
       platform: "ios",
-      appVersion: iosTarget.minAppVersion,
+      appVersion: "0.2.7",
     },
     installationEnabled: true,
   };
@@ -157,7 +157,7 @@ it("生产门禁和安装中取消均不会发起提交", async () => {
   ]);
 });
 
-it("附加能力元信息不影响安装，最低版本被篡改或高于宿主时拒绝提交", async () => {
+it("平台版本清单必须与审核记录一致，超过宿主版本时不得提交", async () => {
   vi.stubGlobal("crypto", webcrypto);
   const [base] = await portableFixtures();
   const wireTarget = {
@@ -203,13 +203,13 @@ it("附加能力元信息不影响安装，最低版本被篡改或高于宿主�
   vi.mocked(invoke).mockClear();
   release.content.manifest = {
     ...manifest,
-    targets: { ios: { minAppVersion: "0.2.1" } },
+    targets: { ios: { ...target, minAppVersion: "0.1.0" } },
   };
   await expect(installMobileCenterRelease(manifest.id, release.releaseId)).rejects.toThrow("清单");
   expect(invoke).toHaveBeenLastCalledWith("plugin_cancel", { id: manifest.id });
   artifact.manifest = {
     ...manifest,
-    targets: { ios: { minAppVersion: "0.2.1" } },
+    targets: { ios: { ...target, minAppVersion: "0.2.7" } },
   };
   release.content.manifest = artifact.manifest;
   vi.mocked(invoke).mockClear();
