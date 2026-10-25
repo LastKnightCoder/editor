@@ -51,7 +51,14 @@ it("Activity 隐藏释放字段，恢复重新订阅并可连续编辑", async (
     for (const next of ["第二稿", "第三稿"]) {
       const previous = binding!.binding!;
       await act(async () => setHidden(true));
-      expect(() => previous.edit({ offset: 0, remove: 0, text: "过期" })).toThrow();
+      expect(() =>
+        previous.edit({
+          offset: 0,
+          remove: 0,
+          text: "过期",
+          revision: previous.getSnapshot().revision,
+        })
+      ).toThrow();
       await act(async () => setHidden(false));
       expect(binding!.binding).not.toBe(previous);
       await act(async () => binding!.binding!.replace(next, binding!.revision));
