@@ -30,7 +30,7 @@
     "targets": "all",
     "iOS": {
       "developmentTeam": "DFJV94JC29",
-      "bundleVersion": "2"
+      "bundleVersion": "3"
     },
     "icon": [
       "icons/32x32.png",

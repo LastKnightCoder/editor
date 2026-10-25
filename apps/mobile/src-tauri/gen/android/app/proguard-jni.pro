@@ -2,5 +2,6 @@
 # 启动时 Rust 找不到方法即抛 NoSuchMethodError 闪退。新增 JNI 入口必须同步登记。
 -keepclassmembers class com.txiong.tau_mobile.MainActivity {
   public java.lang.String takeIncomingFile();
+  public java.lang.String exportRecovery(java.lang.String, java.lang.String);
   public int installAppUpdate(java.lang.String);
 }
