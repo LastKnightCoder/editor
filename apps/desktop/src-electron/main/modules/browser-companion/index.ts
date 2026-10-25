@@ -47,7 +47,15 @@ import { BrowserClientStore } from "../../services/browser-clients";
 import { CompanionPeer, MAX_FRAME_BYTES } from "./peer";
 import { isClientId, isExtensionOrigin, PairingGate } from "./pairing-gate";
 import { createCompanionRunDriver } from "./run-driver";
-import { listAnnotations, saveNote, syncAnnotations } from "./library";
+import {
+  listAnnotations,
+  listLibraryFeed,
+  listLibraryPages,
+  listLibrarySites,
+  renameLibraryPage,
+  saveNote,
+  syncAnnotations,
+} from "./library";
 
 /** 同时在等用户裁决的配对请求上限（防弹窗轰炸） */
 const MAX_PENDING_PAIRS = 3;
@@ -396,6 +404,14 @@ class BrowserCompanionModule {
         return listAnnotations(value.url);
       case COMPANION_METHODS.annotationsSync:
         return syncAnnotations(params);
+      case COMPANION_METHODS.libraryPages:
+        return listLibraryPages(params);
+      case COMPANION_METHODS.librarySites:
+        return listLibrarySites();
+      case COMPANION_METHODS.libraryFeed:
+        return listLibraryFeed(params);
+      case COMPANION_METHODS.libraryRename:
+        return renameLibraryPage(params);
       case COMPANION_METHODS.noteSave:
         return saveNote(params);
       case COMPANION_METHODS.noteOpen: {

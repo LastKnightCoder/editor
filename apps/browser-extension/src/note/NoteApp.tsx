@@ -8,53 +8,36 @@ import { ArrowUpRight } from "lucide-react";
 import { Editor as SlateEditor, Transforms, type Descendant } from "slate";
 import { Editor } from "@tau/editor";
 import { Button, ToastHost, toast } from "@tau/ui";
-import { applyThemeToDom } from "@tau/themes/dom";
 import { COMPANION_METHODS, type NoteSaveResult } from "@tau/shared/browser-companion";
-import type { ConnectionStatus } from "../shared/messages";
 import {
   noteDraftKey,
+  noteMetaKey,
   notePendingKey,
   noteSavedKey,
-  STATUS_KEY,
-  type NotePageMessage,
-  type NotePageReply,
+  type NoteMeta,
   type SavedNote,
 } from "../shared/note-storage";
-import type { KeyValueStore } from "../background/connection";
+import { callBackground, extensionStorage, useCompanionStatus } from "../shared/extension-page";
 import { EMPTY_NOTE, isEmptyNote, loadDraft, notePreview, takePending } from "./draft";
 import { getNoteKit, markdownToNodes } from "./kit";
 
 const SAVE_DEBOUNCE_MS = 400;
 
-const storage: KeyValueStore = {
-  async get<T>(key: string) {
-    return (await chrome.storage.local.get(key))[key] as T | undefined;
-  },
-  set: (key, value) => chrome.storage.local.set({ [key]: value }),
-  remove: key => chrome.storage.local.remove(key),
-};
-
-async function callTau<T>(method: string, params: unknown): Promise<T> {
-  const reply = (await chrome.runtime.sendMessage({
-    kind: "note-rpc",
-    method,
-    params,
-  } satisfies NotePageMessage)) as NotePageReply | undefined;
-  if (!reply) throw new Error("扩展后台没有响应");
-  if (!reply.ok) throw new Error(reply.error);
-  return reply.result as T;
-}
-
 const params = new URLSearchParams(location.search);
 const pageUrl = params.get("url") ?? "";
 const pageTitle = params.get("title") ?? "";
 
-const prefersDark = () => matchMedia("(prefers-color-scheme: dark)").matches;
+/** 伴读库的笔记汇总据此显示页面标题与时间 */
+const touchMeta = () =>
+  extensionStorage.set(noteMetaKey(pageUrl), {
+    title: pageTitle,
+    updatedAt: Date.now(),
+  } satisfies NoteMeta);
 
 export function NoteApp() {
   const [initial, setInitial] = useState<Descendant[] | null>(null);
   const [empty, setEmpty] = useState(true);
-  const [status, setStatus] = useState<ConnectionStatus>({ state: "unpaired" });
+  const status = useCompanionStatus();
   const [saved, setSaved] = useState<SavedNote[]>([]);
   const [saving, setSaving] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
@@ -65,16 +48,16 @@ export function NoteApp() {
 
   const persist = useCallback((value: Descendant[]) => {
     clearTimeout(timer.current);
-    timer.current = setTimeout(
-      () => void storage.set(noteDraftKey(pageUrl), value),
-      SAVE_DEBOUNCE_MS
-    );
+    timer.current = setTimeout(() => {
+      void extensionStorage.set(noteDraftKey(pageUrl), value);
+      void touchMeta();
+    }, SAVE_DEBOUNCE_MS);
   }, []);
 
   /** 把待追加的片段接到编辑器末尾；编辑器还没就绪时留在队列里，就绪后再取 */
   const drainPending = useCallback(async () => {
     if (!editorRef.current) return;
-    const nodes = await takePending(storage, pageUrl, markdownToNodes);
+    const nodes = await takePending(extensionStorage, pageUrl, markdownToNodes);
     const editor = editorRef.current;
     if (!nodes?.length || !editor) return;
     SlateEditor.withoutNormalizing(editor, () => {
@@ -89,37 +72,25 @@ export function NoteApp() {
 
   useEffect(() => {
     void (async () => {
-      const [draft, currentStatus, savedNotes] = await Promise.all([
-        loadDraft(storage, pageUrl, markdownToNodes),
-        storage.get<ConnectionStatus>(STATUS_KEY),
-        storage.get<SavedNote[]>(noteSavedKey(pageUrl)),
+      const [draft, savedNotes] = await Promise.all([
+        loadDraft(extensionStorage, pageUrl, markdownToNodes),
+        extensionStorage.get<SavedNote[]>(noteSavedKey(pageUrl)),
       ]);
       const value = draft;
       valueRef.current = value;
       setEmpty(isEmptyNote(value));
       setInitial(value);
-      if (currentStatus) setStatus(currentStatus);
       setSaved(savedNotes ?? []);
     })();
     const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
       if (area !== "local") return;
       if (changes[notePendingKey(pageUrl)]?.newValue) void drainPending();
-      const next = changes[STATUS_KEY]?.newValue as ConnectionStatus | undefined;
-      if (next) setStatus(next);
       const nextSaved = changes[noteSavedKey(pageUrl)];
       if (nextSaved) setSaved((nextSaved.newValue as SavedNote[] | undefined) ?? []);
     };
     chrome.storage.onChanged.addListener(onChanged);
     return () => chrome.storage.onChanged.removeListener(onChanged);
   }, [drainPending]);
-
-  useEffect(() => {
-    const appearance = status.appearance;
-    applyThemeToDom(
-      appearance?.theme ?? "paper",
-      appearance?.mode ?? (prefersDark() ? "dark" : "light")
-    );
-  }, [status.appearance]);
 
   const ready = status.state === "ready";
 
@@ -128,7 +99,7 @@ export function NoteApp() {
     if (isEmptyNote(content) || !ready || saving) return;
     setSaving(true);
     try {
-      const result = await callTau<NoteSaveResult>(COMPANION_METHODS.noteSave, {
+      const result = await callBackground<NoteSaveResult>(COMPANION_METHODS.noteSave, {
         url: pageUrl,
         title: pageTitle,
         content,
@@ -137,10 +108,11 @@ export function NoteApp() {
         { cardId: result.cardId, savedAt: Date.now(), preview: notePreview(content) },
         ...saved,
       ].slice(0, 20);
-      await storage.set(noteSavedKey(pageUrl), next);
+      await extensionStorage.set(noteSavedKey(pageUrl), next);
+      await touchMeta();
       setSaved(next);
       clearTimeout(timer.current);
-      await storage.set(noteDraftKey(pageUrl), EMPTY_NOTE);
+      await extensionStorage.set(noteDraftKey(pageUrl), EMPTY_NOTE);
       valueRef.current = EMPTY_NOTE;
       setEmpty(true);
       setInitial(EMPTY_NOTE);
@@ -155,7 +127,7 @@ export function NoteApp() {
   };
 
   const openCard = (cardId: number) =>
-    void callTau(COMPANION_METHODS.noteOpen, { cardId })
+    void callBackground(COMPANION_METHODS.noteOpen, { cardId })
       .then(() => toast.success("已在 Tau 中打开"))
       .catch(() => toast.error("Tau 未连接"));
 
@@ -173,6 +145,8 @@ export function NoteApp() {
               void drainPending();
             }}
             onChange={value => {
+              // 只移动光标时正文引用不变，不写草稿也不刷新笔记时间
+              if (value === valueRef.current) return;
               valueRef.current = value;
               setEmpty(isEmptyNote(value));
               persist(value);
