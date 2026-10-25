@@ -1069,7 +1069,7 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ### `excerpt`
 
-摘录：外部来源的划线，一条一行，由提供方写入——`source_type` 为 `web`（浏览器插件网页划线）或插件 ID（如 `weread`）；`is_deleted = 1` 表示源端已删除（保留原文）。展示用提供方名称（`excerpt_provider.label`）· `source_title` · `location`；`anchor` 是提供方私有定位。
+摘录：外部来源的划线，一条一行，由提供方写入——`source_type` 为 `web`（浏览器插件网页划线）或插件 ID（如 `weread`）；`is_deleted = 1` 表示源端已删除（保留原文）。展示用提供方名称（`excerpt_provider.label`）· `source_title` · `location`；`anchor` 是提供方私有定位。网页来源的 `source_title` 是页面显示名（见 `web_page`）。
 
 | 字段           | SQLite 定义                         |
 | -------------- | ----------------------------------- |
@@ -1098,6 +1098,19 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `source_type` | `TEXT PRIMARY KEY` |
 | `label`       | `TEXT NOT NULL`    |
 | `update_time` | `INTEGER NOT NULL` |
+
+### `web_page`
+
+浏览器伴读标注过或存过笔记的网页，按页一行；`url` 同 `excerpt.source_key`。显示名 = `custom_title`（用户起的名）否则 `page_title`（网页标题），并写进该页摘录的 `source_title`。
+
+| 字段           | SQLite 定义                |
+| -------------- | -------------------------- |
+| `url`          | `TEXT PRIMARY KEY`         |
+| `host`         | `TEXT NOT NULL`            |
+| `page_title`   | `TEXT NOT NULL DEFAULT ''` |
+| `custom_title` | `TEXT`                     |
+| `create_time`  | `INTEGER NOT NULL`         |
+| `update_time`  | `INTEGER NOT NULL`         |
 
 ### `flashcard_decks`
 

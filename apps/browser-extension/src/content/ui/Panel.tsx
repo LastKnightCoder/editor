@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { EyeOff, MoreHorizontal, Pin, RotateCcw, X } from "lucide-react";
+import { EyeOff, Library, MoreHorizontal, Pin, RotateCcw, X } from "lucide-react";
 import { cn, IconButton } from "@tau/ui";
 import { useCompanion, type PanelTab } from "../state/store";
 import { useController, useEscLayer } from "./context";
@@ -160,6 +160,15 @@ export function Panel() {
               role="menu"
               className="bg-surface shadow-float rounded-tau-md absolute top-9 right-0 z-10 min-w-[200px] p-1"
             >
+              <MenuItem
+                icon={Library}
+                onClick={() => {
+                  setMenu(false);
+                  controller.openLibrary();
+                }}
+              >
+                在伴读库中查看本页
+              </MenuItem>
               <MenuItem
                 icon={EyeOff}
                 onClick={() => {

@@ -131,6 +131,11 @@ export class CompanionController {
     showToast(`已在 ${this.siteKey()} 隐藏伴读，点工具栏的 Tau 图标可再次打开`);
   }
 
+  /** 在伴读库里打开本页 */
+  openLibrary(): void {
+    void this.bridge.call("library.open", { page: pageKeyOf(this.url) });
+  }
+
   private async loadPage(): Promise<void> {
     const key = pageKeyOf(this.url);
     const items = await this.bridge.call("annotations.load", { url: key }).catch(() => []);

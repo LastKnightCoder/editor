@@ -7,17 +7,25 @@ import type Database from "better-sqlite3";
 import type { IContent } from "@/types/content";
 import {
   HIGHLIGHT_COLORS,
+  LIBRARY_PAGE_LIMIT,
+  LIBRARY_SORTS,
   type HighlightColor,
+  type LibraryFeedItem,
+  type LibraryList,
+  type LibrarySite,
+  type LibrarySort,
   type NoteSaveParams,
   type WebAnchor,
   type WebAnnotation,
+  type WebPageSummary,
 } from "@tau/shared/browser-companion";
-import { WEB_EXCERPT_SOURCE } from "@/entity/excerpt/types";
+import { WEB_EXCERPT_SOURCE, type Excerpt } from "@/entity/excerpt/types";
 import { normalizeWebPageUrl, parseWebPagePayload, WEB_PAGE_LIMITS } from "@/entity/excerpt/web";
 import databaseModule from "../database";
 import { broadcastDatabaseChange } from "../database-notifications";
 import ExcerptTable, { WEB_EXCERPT_SYNCED_EVENT } from "../tables/excerpt";
 import CardTable from "../tables/card";
+import WebPageTable from "../tables/web-page";
 import { contentExecutor } from "../../services/content-execution";
 import { assertContentNodes } from "@tau/plugins/content-input";
 
@@ -43,26 +51,109 @@ const toWebAnchor = (anchor: unknown): WebAnchor | null => {
     : null;
 };
 
-export function listAnnotations(url: unknown): WebAnnotation[] {
+const toAnnotation = (row: Excerpt): WebAnnotation => ({
+  id: row.externalId,
+  color: toHighlightColor(row.color),
+  text: row.quote,
+  note: row.note,
+  anchor: toWebAnchor(row.anchor),
+  createdAt: row.sourceTime ?? row.createTime,
+});
+
+const requirePageUrl = (url: unknown): string => {
   const pageUrl = normalizeWebPageUrl(url as string);
   if (!pageUrl) throw new Error("url 必须是 http(s) 地址");
-  const rows = ExcerptTable.listWebPage(currentDatabase(), pageUrl);
-  return rows.map(row => ({
-    id: row.externalId,
-    color: toHighlightColor(row.color),
-    text: row.quote,
-    note: row.note,
-    anchor: toWebAnchor(row.anchor),
-    createdAt: row.sourceTime ?? row.createTime,
-  }));
+  return pageUrl;
+};
+
+export function listAnnotations(url: unknown): WebAnnotation[] {
+  return ExcerptTable.listWebPage(currentDatabase(), requirePageUrl(url)).map(toAnnotation);
 }
 
+/** 写入时 source_title 用页面显示名：用户起过名就一直用它，网页标题只记进 web_page */
 export function syncAnnotations(payload: unknown): { ok: true } {
   const db = currentDatabase();
   const { url, title, inputs } = parseWebPagePayload(payload);
-  ExcerptTable.syncSource(db, WEB_EXCERPT_SOURCE, url, title, inputs);
+  db.transaction(() => {
+    ExcerptTable.syncSource(
+      db,
+      WEB_EXCERPT_SOURCE,
+      url,
+      WebPageTable.touch(db, url, title),
+      inputs
+    );
+  })();
   databaseModule.notifyExternalWrite(WEB_EXCERPT_SYNCED_EVENT);
   return { ok: true };
+}
+
+// ———————— 伴读库 ————————
+
+const record = (raw: unknown): Record<string, unknown> =>
+  raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+
+const paging = (value: Record<string, unknown>) => ({
+  offset:
+    Number.isSafeInteger(value.offset) && (value.offset as number) > 0
+      ? (value.offset as number)
+      : 0,
+  limit:
+    Number.isSafeInteger(value.limit) && (value.limit as number) > 0
+      ? Math.min(value.limit as number, LIBRARY_PAGE_LIMIT)
+      : LIBRARY_PAGE_LIMIT,
+});
+
+const optionalText = (value: unknown): string | undefined =>
+  typeof value === "string" && value.trim() ? value.trim().slice(0, 200) : undefined;
+
+export function listLibraryPages(raw: unknown): LibraryList<WebPageSummary> {
+  const value = record(raw);
+  return WebPageTable.listPages(currentDatabase(), {
+    ...paging(value),
+    sort: (LIBRARY_SORTS as readonly unknown[]).includes(value.sort)
+      ? (value.sort as LibrarySort)
+      : "recent",
+    query: optionalText(value.query),
+    host: optionalText(value.host),
+    url: value.url === undefined ? undefined : requirePageUrl(value.url),
+    noted: value.noted === true,
+  });
+}
+
+export function listLibrarySites(): LibrarySite[] {
+  return WebPageTable.listSites(currentDatabase());
+}
+
+export function listLibraryFeed(raw: unknown): LibraryList<LibraryFeedItem> {
+  const value = record(raw);
+  const color = (HIGHLIGHT_COLORS as readonly unknown[]).includes(value.color)
+    ? (value.color as HighlightColor)
+    : undefined;
+  const { items, total } = WebPageTable.listFeed(currentDatabase(), {
+    ...paging(value),
+    color,
+    noted: value.noted === true,
+    query: optionalText(value.query),
+  });
+  return {
+    items: items.map(row => ({
+      ...toAnnotation(row),
+      url: row.sourceKey,
+      title: row.sourceTitle,
+    })),
+    total,
+  };
+}
+
+/** 给页面起名；空串恢复网页标题。改完补发摘录写事件，索引里的来源名随之刷新 */
+export function renameLibraryPage(raw: unknown): WebPageSummary {
+  const value = record(raw);
+  const url = requirePageUrl(value.url);
+  if (typeof value.title !== "string") throw new Error("title 必须是字符串");
+  const title = value.title.trim().slice(0, WEB_PAGE_LIMITS.titleChars);
+  const page = WebPageTable.rename(currentDatabase(), url, title || null);
+  databaseModule.notifyExternalWrite(WEB_EXCERPT_SYNCED_EVENT);
+  return page;
 }
 
 const text = (value: string) => ({ type: "formatted", text: value });
@@ -89,10 +180,12 @@ export async function saveNote(raw: unknown): Promise<{ cardId: number }> {
   // 只有全是空段落才算空（分割线、代码块等没有文字也是内容）
   if (content.every(node => (node as { type?: string }).type === "paragraph" && isBlankNode(node)))
     throw new Error("笔记是空的");
-  const title =
+  const pageTitle =
     typeof params.title === "string" && params.title.trim()
       ? params.title.trim().slice(0, WEB_PAGE_LIMITS.titleChars)
       : url;
+  // 用户给这个页面起过名时，来源段用起的名
+  const title = WebPageTable.displayTitle(currentDatabase(), url) || pageTitle;
 
   const document = (await contentExecutor.execute({
     operation: "prepare-content",

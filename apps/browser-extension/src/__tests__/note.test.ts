@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Descendant } from "slate";
 import { EMPTY_NOTE, isEmptyNote, loadDraft, notePreview, takePending } from "../note/draft";
 import { markdownToNodes } from "../note/kit";
-import { isNotePageSender } from "../background/hub";
+import { extensionPageOf } from "../background/hub";
 import type { KeyValueStore } from "../background/connection";
 
 const memory = (
@@ -59,17 +59,20 @@ describe("草稿", () => {
   });
 });
 
-describe("isNotePageSender", () => {
-  it("只认本扩展的笔记页，不认内容脚本和别的扩展页面", () => {
-    expect(
-      isNotePageSender({ id: "me", url: "chrome-extension://dyn/note.html?url=x" }, "me")
-    ).toBe(true);
-    expect(isNotePageSender({ id: "me", url: "https://evil.com/note.html" }, "me")).toBe(false);
-    expect(isNotePageSender({ id: "other", url: "chrome-extension://dyn/note.html" }, "me")).toBe(
-      false
+describe("extensionPageOf", () => {
+  it("只认本扩展的笔记页与伴读库，不认内容脚本和别的扩展页面", () => {
+    expect(extensionPageOf({ id: "me", url: "chrome-extension://dyn/note.html?url=x" }, "me")).toBe(
+      "note"
     );
-    expect(isNotePageSender({ id: "me", url: "chrome-extension://dyn/options.html" }, "me")).toBe(
-      false
+    expect(
+      extensionPageOf({ id: "me", url: "moz-extension://dyn/library.html?page=x" }, "me")
+    ).toBe("library");
+    expect(extensionPageOf({ id: "me", url: "https://evil.com/note.html" }, "me")).toBe(null);
+    expect(extensionPageOf({ id: "other", url: "chrome-extension://dyn/note.html" }, "me")).toBe(
+      null
+    );
+    expect(extensionPageOf({ id: "me", url: "chrome-extension://dyn/options.html" }, "me")).toBe(
+      null
     );
   });
 });

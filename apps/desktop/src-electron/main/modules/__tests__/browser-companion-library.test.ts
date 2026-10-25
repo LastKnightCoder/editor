@@ -4,6 +4,7 @@ const env = vi.hoisted(() => ({
   prepared: null as unknown,
   created: null as unknown,
   writes: [] as string[],
+  customTitle: null as string | null,
 }));
 
 vi.mock("electron", () => ({ BrowserWindow: { getAllWindows: () => [] } }));
@@ -17,6 +18,9 @@ vi.mock("../database-notifications", () => ({ broadcastDatabaseChange: vi.fn() }
 vi.mock("../tables/excerpt", () => ({
   default: {},
   WEB_EXCERPT_SYNCED_EVENT: "excerpt:sync-web-page",
+}));
+vi.mock("../tables/web-page", () => ({
+  default: { displayTitle: () => env.customTitle },
 }));
 vi.mock("../tables/card", () => ({
   default: {
@@ -44,6 +48,7 @@ beforeEach(() => {
   env.prepared = null;
   env.created = null;
   env.writes = [];
+  env.customTitle = null;
 });
 
 describe("saveNote", () => {
@@ -65,6 +70,17 @@ describe("saveNote", () => {
     ]);
     expect(env.created).toMatchObject({ tags: [], isTop: false });
     expect(env.writes).toContain("create-card");
+  });
+
+  it("页面起过名时来源段用起的名", async () => {
+    env.customTitle = "React 19 新特性";
+    await saveNote({
+      url: "https://a.com/x",
+      title: "React v19",
+      content: [paragraph("正文")],
+    });
+    expect(JSON.stringify(env.prepared)).toContain("React 19 新特性");
+    expect(JSON.stringify(env.prepared)).not.toContain("React v19");
   });
 
   it("拒绝空笔记、非法节点与非 http(s) 地址", async () => {

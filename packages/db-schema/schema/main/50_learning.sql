@@ -221,6 +221,15 @@ CREATE TABLE IF NOT EXISTS excerpt_provider (
         label TEXT NOT NULL,
         update_time INTEGER NOT NULL
       );
+-- 网页：浏览器伴读标注或存过笔记的页面索引。显示名 = COALESCE(custom_title, page_title)，同步写进该页 excerpt.source_title
+CREATE TABLE IF NOT EXISTS web_page (
+        url TEXT PRIMARY KEY,                 -- 页面键，同 excerpt.source_key（去掉 hash 的 URL）
+        host TEXT NOT NULL,
+        page_title TEXT NOT NULL DEFAULT '',  -- 网页最近一次上报的标题
+        custom_title TEXT,                    -- 用户起的名，NULL 为未改名
+        create_time INTEGER NOT NULL,
+        update_time INTEGER NOT NULL
+      );
 CREATE TABLE IF NOT EXISTS flashcard_decks (
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL,
