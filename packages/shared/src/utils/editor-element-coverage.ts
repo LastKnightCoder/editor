@@ -22,13 +22,3 @@ export const CONTENT_ELEMENT_TYPES = [
 ] as const;
 
 export type ContentElementType = (typeof CONTENT_ELEMENT_TYPES)[number];
-
-/**
- * 私有块：数据不在 content 里，而在 desktop 本机数据库。
- * 其他端拿不到数据，所以只需一个只读占位，不必真渲染（ER-017）。
- */
-export const PRIVATE_BLOCK_TYPES: readonly ContentElementType[] = ["whiteboard", "database"];
-
-/** 占位文案：各端占位扩展统一用它，免得三处各写一句 */
-export const privateBlockPlaceholderText = (type: ContentElementType): string =>
-  type === "whiteboard" ? "白板内容请在桌面端查看" : "数据库内容请在桌面端查看";
