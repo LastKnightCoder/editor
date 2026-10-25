@@ -10,7 +10,10 @@ import type {
   PiToolApprovalRequest,
   PiUserQuestionRequest,
 } from "@/types/pi-session";
-import type { AskQuestionAnswerItem } from "@/tools/askQuestionTypes";
+import type { AskQuestionAnswerItem } from "@tau/shared/chat-core";
+import type { ToolCallExecutionState } from "@tau/shared/chat-renderers";
+import { configureToolInteractions, type ToolInteractionHost } from "@tau/chat-ui";
+import { RISK_LABEL } from "@/services/tool-permission/mode";
 import {
   onPiSessionInteractions,
   piSessionAnswerQuestion,
@@ -52,6 +55,7 @@ let initialized = false;
 export const initPiInteractions = (): void => {
   if (initialized) return;
   initialized = true;
+  configureToolInteractions(desktopToolInteractionHost);
   onPiSessionInteractions(receiveInteractions);
   void refreshInteractions().catch(error => console.error("恢复会话交互失败:", error));
 };
@@ -76,4 +80,40 @@ export const answerQuestion = async (
     await refreshInteractions();
     throw new Error(result.error ?? "提交答案失败");
   }
+};
+
+const sessionOf = (execution: ToolCallExecutionState) => {
+  const sessionId = execution.metadata?.piSessionId;
+  return typeof sessionId === "string" ? sessionId : undefined;
+};
+
+/** 桌面的工具交互宿主：审批条与提问卡（@tau/chat-ui）按执行上的 piSessionId 读本 store、经 IPC 提交 */
+export const desktopToolInteractionHost: ToolInteractionHost = {
+  subscribe: listener => usePiInteractionStore.subscribe(listener),
+  approvalOf: execution => {
+    const sessionId = sessionOf(execution);
+    return sessionId
+      ? usePiInteractionStore
+          .getState()
+          .sessions[sessionId]?.approvals.find(item => item.toolCallId === execution.toolCallId)
+      : undefined;
+  },
+  questionOf: execution => {
+    const sessionId = sessionOf(execution);
+    return sessionId
+      ? usePiInteractionStore
+          .getState()
+          .sessions[sessionId]?.questions.find(item => item.toolCallId === execution.toolCallId)
+      : undefined;
+  },
+  isReady: execution => {
+    const sessionId = sessionOf(execution);
+    return Boolean(sessionId && usePiInteractionStore.getState().readySessions[sessionId]);
+  },
+  decideApproval: (_execution, request, choice) =>
+    decideToolApproval(request as PiToolApprovalRequest, choice),
+  answerQuestion: (_execution, request, answers) =>
+    answerQuestion(request as PiUserQuestionRequest, answers),
+  riskLabel: risk => RISK_LABEL[risk as keyof typeof RISK_LABEL] ?? risk,
+  approvalHint: "可在设置「AI 服务 · 工具权限」里改为自动",
 };

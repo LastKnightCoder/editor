@@ -16,6 +16,7 @@ import PathUtil from "../utils/PathUtil";
 import {
   applyActiveTools,
   assembleHostSession,
+  restrictToHostTools,
   createDisplayEntryWriter,
   createHostModelRuntime,
   createHostResourceLoader,
@@ -32,13 +33,10 @@ import {
   installSessionDownload,
   applySessionEditToFile,
   browserSessionFile,
-  deleteBrowserSession,
-  listBrowserSessions,
   validateSessionDirectory,
   assertSessionSyncComplete,
   readConversationTree,
   readTranscript,
-  renameBrowserSession,
   type SessionEdit,
 } from "./pi-session-store";
 import {
@@ -171,6 +169,8 @@ export interface PiSessionCreateRequest {
   retryMaxRetries?: number;
   /** 有审批条与提问卡的入口：注册 ask-question，需确认的工具等待用户 */
   interactive?: boolean;
+  /** 不启用 pi 自带的文件与命令工具（read/edit/write/bash…），只用桥接与宿主工具 */
+  hostToolsOnly?: boolean;
   /** 用量审计归属；缺省按 scope 推导功能 */
   source?: UsageSource;
 }
@@ -486,57 +486,6 @@ class PiSessionHostModule {
           }
         })
     );
-    // 浏览器扩展对话：按页面列出/改名/删除，全部取自 pi 会话文件本身
-    ipcMain.handle("pi-session:browser-list", async (_event, { pageUrl }: { pageUrl: string }) =>
-      PiSessionHostModule.guard(async () => {
-        const release = PiSessionHostModule.access.acquire([browserSessionDirOf(pageUrl)]);
-        try {
-          return { sessions: await listBrowserSessions(pageUrl) };
-        } finally {
-          release();
-        }
-      })
-    );
-    ipcMain.handle(
-      "pi-session:browser-rename",
-      async (
-        _event,
-        { pageUrl, sessionId, title }: { pageUrl: string; sessionId: string; title: string }
-      ) =>
-        PiSessionHostModule.guard(async () => {
-          const file = browserSessionFile(pageUrl, sessionId);
-          const release = PiSessionHostModule.access.acquire(
-            file ? [file] : [browserSessionDirOf(pageUrl)]
-          );
-          try {
-            const hosted = file ? PiSessionHostModule.findByFile(file) : undefined;
-            if (hosted?.closing || hosted?.operations.size)
-              throw new Error("回答进行中，请稍后改名");
-            if (hosted) hosted.session.sessionManager.appendSessionInfo(title);
-            else renameBrowserSession(pageUrl, sessionId, title);
-          } finally {
-            release();
-          }
-          return {};
-        })
-    );
-    ipcMain.handle(
-      "pi-session:browser-delete",
-      async (_event, { pageUrl, sessionId }: { pageUrl: string; sessionId: string }) =>
-        PiSessionHostModule.guard(async () => {
-          const file = browserSessionFile(pageUrl, sessionId);
-          const release = PiSessionHostModule.access.acquire(
-            file ? [file] : [browserSessionDirOf(pageUrl)]
-          );
-          try {
-            if (file) await PiSessionHostModule.disposeByFile(file);
-            deleteBrowserSession(pageUrl, sessionId);
-          } finally {
-            release();
-          }
-          return {};
-        })
-    );
     // 同步仅枚举校验后的会话目录，字节由宿主分块读写。
     ipcMain.handle(
       "pi-session:sync-files",
@@ -849,6 +798,9 @@ class PiSessionHostModule {
       if (request.activeToolNames) {
         applyActiveTools(session, bridgedToolNames, request.activeToolNames);
       }
+      if (request.hostToolsOnly) {
+        restrictToHostTools(session, new Set(customTools.map(tool => tool.name)));
+      }
       if (sender.isDestroyed()) {
         interactions.dispose();
         session.dispose();
@@ -1142,12 +1094,6 @@ class PiSessionHostModule {
       if (hosted.session.sessionFile === file) return hosted;
     }
     return undefined;
-  }
-
-  private static async disposeByFile(file: string): Promise<void> {
-    for (const [id, hosted] of [...PiSessionHostModule.sessions.entries()]) {
-      if (hosted.session.sessionFile === file) await PiSessionHostModule.disposeSession(id);
-    }
   }
 
   private static async guard<T extends object>(

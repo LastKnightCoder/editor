@@ -33,9 +33,16 @@ interface WsServer extends WebSocketServer {
   };
 }
 
-// 固定端口为跨应用契约（browser-extension 硬编码 24678 发现本应用，
+// 固定端口为跨应用契约（浏览器伴读扩展硬编码 24678 发现本应用，
 // convertFileSrc 产出的资产 URL 会持久化进用户文档），不可动态分配
 export const RPC_SERVER_PORT = 24678;
+
+/** 独立处理握手的 WS 路径（自带来源与身份校验，不进通用转发） */
+export type UpgradeRoute = (
+  request: http.IncomingMessage,
+  socket: import("node:stream").Duplex,
+  head: Buffer
+) => void;
 
 const PORT = RPC_SERVER_PORT;
 // 只对本机开放：静态目录与 WS 中转都不应暴露给局域网
@@ -46,6 +53,7 @@ class ServerModule implements Module {
   app: Express.Application;
   server: http.Server;
   wsServers: Record<string, WebSocketServer> = {};
+  private readonly upgradeRoutes = new Map<string, UpgradeRoute>();
   private initialized = false;
   constructor() {
     this.name = "static-server";
@@ -138,6 +146,11 @@ class ServerModule implements Module {
           socket.destroy();
           return;
         }
+        const route = this.upgradeRoutes.get(new URL(request.url, "http://127.0.0.1").pathname);
+        if (route) {
+          route(request, socket, head);
+          return;
+        }
         // 浏览器里的任意网页都能连 ws://localhost，靠浏览器不可伪造的 Origin 拒绝
         if (!isAllowedWsOrigin(request.headers.origin, devServerOrigin)) {
           console.warn(`[ws upgrade] 拒绝来源 ${request.headers.origin} 的连接: ${request.url}`);
@@ -181,6 +194,11 @@ class ServerModule implements Module {
         resolve();
       });
     });
+  }
+
+  /** 登记独立握手路径；路由自行校验来源与身份 */
+  registerUpgradeRoute(path: string, route: UpgradeRoute): void {
+    this.upgradeRoutes.set(path, route);
   }
 
   createWSServer(path: string) {

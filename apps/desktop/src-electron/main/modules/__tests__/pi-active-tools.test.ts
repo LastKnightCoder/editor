@@ -12,6 +12,7 @@ import {
   applyActiveTools,
   assembleHostSession,
   createFauxModelRuntime,
+  restrictToHostTools,
 } from "../pi-session-host-core";
 
 // jsdom 环境的 AbortSignal 缺 any()（见 pi-session-host-core.test.ts）
@@ -113,10 +114,28 @@ describe("活跃工具集收敛", () => {
 
       applyActiveTools(session, new Set(["alpha", "beta"]), ["alpha", "beta"]);
       expect(session.getActiveToolNames()).toEqual(expect.arrayContaining(["alpha", "beta"]));
+
+      // 只留宿主工具：内置的 read / edit / write / bash 全部摘掉
+      restrictToHostTools(session, new Set(["alpha", "beta"]));
+      expect([...session.getActiveToolNames()].sort()).toEqual(["alpha", "beta"]);
     } finally {
       await session?.abort();
       session?.dispose();
       rmSync(workDir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("restrictToHostTools", () => {
+  it("只保留宿主工具，去掉 pi 自带的文件与命令工具；集合不变时不动", () => {
+    let active = ["read", "bash", "edit", "write", "search_knowledge", "ask_question"];
+    const session = {
+      getActiveToolNames: () => active,
+      setActiveToolsByName: vi.fn((names: string[]) => (active = names)),
+    };
+    restrictToHostTools(session, new Set(["search_knowledge", "ask_question", "read_page"]));
+    expect(active).toEqual(["search_knowledge", "ask_question"]);
+    restrictToHostTools(session, new Set(["search_knowledge", "ask_question"]));
+    expect(session.setActiveToolsByName).toHaveBeenCalledTimes(1);
   });
 });

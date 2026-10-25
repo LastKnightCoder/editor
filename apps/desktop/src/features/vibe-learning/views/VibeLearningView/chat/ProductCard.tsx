@@ -7,7 +7,7 @@
 import { Loader2, PenLine } from "lucide-react";
 import { Button, cn } from "@tau/ui";
 import type { ToolCallCustomRendererProps } from "@/tool-call-renderers/types";
-import { ToolCard } from "@/tool-call-renderers/ui";
+import { ToolCard } from "@tau/chat-ui";
 import { GENERATE_APPS } from "../appMeta";
 import { useVLTaskStore, type VLOpenTarget, type VLTask } from "../tasks/store";
 import { VL_PRODUCT_RENDERER_KEY, type VLProductPayload } from "./productPayload";

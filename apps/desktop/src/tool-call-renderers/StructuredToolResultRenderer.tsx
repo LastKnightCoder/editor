@@ -9,7 +9,7 @@ import {
   ToolMutedText,
   ToolSectionTitle,
   ToolValuePill,
-} from "./ui";
+} from "@tau/chat-ui";
 
 type StructuredToolResultPayload = {
   layout?: "operation" | "detail" | "list";

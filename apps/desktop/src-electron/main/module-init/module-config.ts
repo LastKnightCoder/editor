@@ -20,7 +20,7 @@ import piAiRuntimeModule from "../modules/pi-ai-runtime";
 import piSessionHostModule from "../modules/pi-session-host";
 import modelUsageModule from "../modules/model-usage";
 import pluginAiModule from "../modules/plugin-ai";
-import browserBridgeModule from "../modules/browser-bridge";
+import browserCompanionModule from "../modules/browser-companion";
 import mcpModule from "../modules/mcp";
 import tailwindRuntimeModule from "../modules/tailwind-runtime";
 import skillModule from "../modules/skill";
@@ -239,12 +239,12 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     },
   },
   {
-    // 浏览器扩展桥（M5）：扩展侧栏对话由主进程直接驱动 pi 宿主会话，渲染层重载不再打断
-    name: "browser-bridge",
+    // 浏览器伴读：扩展经 /browser 直连主进程（配对授权 + scope），对话由主进程驱动 pi 宿主会话
+    name: "browser-companion",
     layer: InitLayer.BACKGROUND,
     dependencies: ["server", "pi-session"],
     init: async () => {
-      browserBridgeModule.init();
+      browserCompanionModule.init();
     },
   },
   {

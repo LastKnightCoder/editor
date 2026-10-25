@@ -22,7 +22,6 @@ import { WindowFocusContext } from "@/hooks/useWindowFocus";
 import AutoSyncManager from "@/components/AutoSyncManager";
 import { MediaModalHost } from "@/editor-providers/mediaModalHost";
 import ConversationFlashcardModal from "@/features/flashcards/components/ConversationFlashcardDialog";
-import ExtNoteInsertModal from "@/components/ExtNoteInsertModal";
 import GlobalFindBar from "@/components/GlobalFindBar";
 
 import { on, off } from "@/electron";
@@ -149,7 +148,6 @@ const Application = () => {
               <AutoSyncManager />
               <MediaModalHost />
               <ConversationFlashcardModal />
-              <ExtNoteInsertModal />
               <DndProvider backend={HTML5Backend}>
                 <GlobalFindBar />
                 <RouterProvider router={router} />

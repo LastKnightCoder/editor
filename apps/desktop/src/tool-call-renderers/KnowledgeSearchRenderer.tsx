@@ -8,7 +8,7 @@ import {
   ToolCardHeader,
   ToolMutedText,
   ToolSectionTitle,
-} from "./ui";
+} from "@tau/chat-ui";
 import ContentDetailModal from "./knowledge/ContentDetailModal";
 import { ErrorBoundary } from "@tau/ui";
 import { markdownToContent } from "@/services/content-editing";

@@ -7,7 +7,7 @@ import type {
 } from "@/types/pi-session";
 import type { ToolRisk } from "@/types/tool";
 import { requiresApproval, type ToolPermissionMode } from "@/services/tool-permission/mode";
-import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
+import { ASK_QUESTION_TOOL_NAME } from "@tau/shared/chat-core";
 
 type ToolHook = NonNullable<AgentSession["agent"]["beforeToolCall"]>;
 type ToolDecision = Awaited<ReturnType<ToolHook>>;

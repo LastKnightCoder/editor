@@ -20,6 +20,7 @@ import {
   Archive,
   ArrowLeftRight,
   Info,
+  Globe,
   type LucideIcon,
 } from "lucide-react";
 import { AppearanceSection } from "./sections/AppearanceSection";
@@ -32,6 +33,7 @@ import { TransferSection } from "./sections/TransferSection";
 import { ImageGenerationSection } from "./sections/ImageGenerationSection";
 import { VoiceSection } from "./sections/VoiceSection";
 import { AboutSection } from "./sections/AboutSection";
+import { BrowserExtensionSection } from "./sections/BrowserExtensionSection";
 
 export type SettingsSectionKey =
   | "appearance"
@@ -40,6 +42,7 @@ export type SettingsSectionKey =
   | "cache"
   | "transfer"
   | "integration"
+  | "browserExtension"
   | "llm"
   | "embedding"
   | "imageGeneration"
@@ -103,6 +106,18 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
         description: "从其它笔记工具迁入，或把内容连同图片打包带走",
         icon: ArrowLeftRight,
         component: TransferSection,
+      },
+    ],
+  },
+  {
+    label: "连接",
+    sections: [
+      {
+        key: "browserExtension",
+        label: "浏览器扩展",
+        description: "授权「Tau 伴读」扩展在网页里标注、记笔记，并用 Tau 的模型对话",
+        icon: Globe,
+        component: BrowserExtensionSection,
       },
     ],
   },

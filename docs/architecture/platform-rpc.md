@@ -282,13 +282,9 @@ command-registry.ts（中立，零 electron 依赖）
 ### 实施状态（2026-09-13 更新：渲染层还原原生 IPC）
 
 - **HTTP 管道整体拆除**：渲染层 `invoke/send/on/off` 改回 preload bridge 直连 `ipcRenderer`（invoke 保留 No-handler 启动竞态重试，500ms×5s）；删除 `http-invoke.ts` / `event-hub.ts` / `config.ts` 与主进程 `ipc-registry.ts` / `event-broadcaster.ts` / `command-server.ts` / `contract-audit.ts`；vite dev 的 `/rpc` 代理一并移除。
-- **保留的资产**：24678 端口 HTTP server（静态资源 + `/backendServer` `/aiServer` `/extToolServer` WS，browser-extension/cli 硬编码契约）；`packages/rpc` 协议/契约/中立注册表与 `apps/web-server` 骨架——Web Server 走「逐接口承接」路线：同一契约（`command()`）在 Web Server 侧给出自己的实现，渲染层未来按接口迁移，而非全量透传 invoke。
+- **保留的资产**：24678 端口 HTTP server（静态资源 + `/backendServer` WS；浏览器伴读扩展走独立握手的 `/browser`，见 [browser-companion.md](/docs/architecture/browser-companion.md)）；`packages/rpc` 协议/契约/中立注册表与 `apps/web-server` 骨架——Web Server 走「逐接口承接」路线：同一契约（`command()`）在 Web Server 侧给出自己的实现，渲染层未来按接口迁移，而非全量透传 invoke。
 - **契约桥装配点**：渲染侧 `src/commands/contracts/install.ts`（call → IPC invoke），主进程侧 `src-electron/main/rpc/command-bridge-install.ts`（register → ipcMain.handle）。
 - **设计决策——不恢复启动期事件缓冲**：原 event-broadcaster 会缓冲「窗口创建后、渲染层 WS 就绪前」的 `webContents.send` 再 flush；原生 IPC 下该窗口期事件同样会丢（与 HTTP 化之前的原生时代一致，非回归）。重新引入缓冲需 patch `webContents.send` 或改造全部广播点，与去 patch 方向冲突，故不做；若实测出现启动期状态广播丢失，再评估「渲染层就绪握手」方案。
-
-### 实施状态（2026-09-26 更新：浏览器插件聊天并入桌面数据域，D-064）
-
-- `/aiServer` 通道新增聊天会话存储命令面：`chat.list / chat.get / chat.create / chat.update / chat.delete / chat.branch / chat.groups.list / chat.group.ensure`（渲染端 aiServer 内直调既有 Electron IPC → 主进程 chat-message / chat-group 表模块，主进程零新增模块）；`ai.stream.*` 流通知升级为快照语义（全量文本 + turnId + 新增 `ai.stream.turn-finish`）。插件侧会话不再落 chrome.storage，桌面 sqlite 为唯一数据源（`chat_message.source` 列区分来源），旧数据经插件内 `chatMigration` 断点续传导入。统一消息模型与流事件归约器在 `packages/shared/src/chat-core/`，详见 `apps/desktop/docs/redesign/DECISIONS.md` D-059。
 
 ### 实施状态（2026-09-10 更新）
 

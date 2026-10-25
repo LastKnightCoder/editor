@@ -535,8 +535,9 @@ MCP 默认为执行；自定义工具清单携带 risk/source。手动确认、�
 
 待审批与会话授权由 pi 宿主持有，审批回传校验创建窗口与随机 requestId；窗口销毁、会话
 释放或原生 signal 中止时结束等待。渲染端 `services/piInteractions.ts` 只投影带递增版本的快照（审批与
-提问合并在一份 `PiSessionInteractionSnapshot` 里），ToolApprovalBar
-按 sessionId + toolCallId 定位，展示主进程确认的最终参数。piChatRuntime 根据宿主快照投影等待卡，渲染层
+提问合并在一份 `PiSessionInteractionSnapshot` 里）。审批条 ToolApprovalBar 与提问卡 AskQuestionRenderer 在
+`@tau/chat-ui`（`src/interactions/`，与浏览器伴读共用），经 `configureToolInteractions` 登记的交互宿主读写等待项；
+桌面宿主 `desktopToolInteractionHost`（同文件）按执行上的 piSessionId + toolCallId 定位，展示主进程确认的最终参数。piChatRuntime 根据宿主快照投影等待卡，渲染层
 重载后所有对话均按 scope 收养宿主，不以历史消息是否包含未完成工具调用作为恢复条件。
 find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘的回答快照；恢复期间保持发送等待，
 先恢复工具 turn 与续流监听，再开放按钮。订阅后复核宿主状态，补齐恢复间隙开始的回答快照或最终投影；

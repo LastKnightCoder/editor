@@ -1,0 +1,321 @@
+/* 伴读 mockup 共用：暖纸主题 token（取自 packages/themes/src/tokens.css）+ 扩展 UI 基础件 */
+
+.tau[data-mode="light"] {
+  color-scheme: light;
+  --page: #f3eee2;
+  --surface: #fffdf9;
+  --surface-hover: #f6f3ef;
+  --hover: rgba(67, 57, 44, 0.05);
+  --press: rgba(67, 57, 44, 0.09);
+  --selected: rgba(217, 119, 87, 0.12);
+  --ink-1: #43392c;
+  --ink-2: #6a5c49;
+  --ink-3: #a89a85;
+  --ink-inverse: #fff8ef;
+  --line-1: #e9e1d2;
+  --accent: hsl(22 58% 42%);
+  --accent-hover: hsl(22 58% 35%);
+  --accent-soft: hsla(22, 58%, 42%, 0.12);
+  --accent-text: #a05236;
+  --focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.28);
+  --ok: #61795f;
+  --warn: #a38c4d;
+  --warn-soft: #f6efd6;
+  --danger: #b0564d;
+  --danger-soft: #f6e3e0;
+  --overlay: rgba(67, 57, 44, 0.35);
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+  --shadow-lift: 0 1px 2px rgba(120, 100, 70, 0.06), 0 6px 16px -10px rgba(120, 100, 70, 0.22);
+  --shadow-float: 0 0 0 1px rgba(120, 100, 70, 0.08), 0 18px 44px -12px rgba(120, 100, 70, 0.42);
+  /* 编辑器 INLINE_PALETTE 浅色取值 */
+  --hl-yellow: #dc9b04;
+  --hl-green: #2ea121;
+  --hl-blue: #245bdb;
+  --hl-purple: #6425d0;
+  --hl-red: #e33a32;
+  --hl-bg-mix: 16%;
+  --hl-line-mix: 65%;
+}
+
+.tau[data-mode="dark"] {
+  color-scheme: dark;
+  --page: #221d16;
+  --surface: #2e2820;
+  --surface-hover: #39332b;
+  --hover: rgba(236, 226, 208, 0.06);
+  --press: rgba(236, 226, 208, 0.11);
+  --selected: hsla(22, 62%, 65%, 0.2);
+  --ink-1: #ece2d0;
+  --ink-2: #a89a85;
+  --ink-3: #857768;
+  --ink-inverse: #241a10;
+  --line-1: #3a3227;
+  --accent: hsl(22 62% 65%);
+  --accent-hover: hsl(22 62% 72%);
+  --accent-soft: hsla(22, 62%, 65%, 0.16);
+  --accent-text: hsl(22 66% 70%);
+  --focus-ring: 0 0 0 3px hsla(22, 62%, 65%, 0.4);
+  --ok: #8cab87;
+  --warn: #c4a458;
+  --warn-soft: #302917;
+  --danger: #d97e66;
+  --danger-soft: #34201a;
+  --overlay: rgba(10, 8, 5, 0.55);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
+  --shadow-float: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 18px 44px -12px rgba(0, 0, 0, 0.7);
+  --hl-yellow: #fcd456;
+  --hl-green: #6dd162;
+  --hl-blue: #70a0ff;
+  --hl-purple: #a472fc;
+  --hl-red: #fa7873;
+  --hl-bg-mix: 24%;
+  --hl-line-mix: 75%;
+}
+
+.tau {
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans",
+    "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-1);
+  -webkit-font-smoothing: antialiased;
+}
+
+.tau *,
+.tau *::before,
+.tau *::after {
+  box-sizing: border-box;
+}
+
+.tau button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.tau svg.i {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* 基础件 */
+.tau .icon-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  display: inline-grid;
+  place-items: center;
+  color: var(--ink-2);
+  transition: background 0.15s, color 0.15s;
+}
+.tau .icon-btn:hover {
+  background: var(--hover);
+  color: var(--ink-1);
+}
+.tau .icon-btn.on {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+.tau .btn {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--r-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+}
+.tau .btn.primary {
+  background: var(--accent);
+  color: var(--ink-inverse);
+}
+.tau .btn.primary:hover {
+  background: var(--accent-hover);
+}
+.tau .btn.ghost {
+  color: var(--ink-2);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.tau .btn.ghost:hover {
+  background: var(--hover);
+  color: var(--ink-1);
+}
+.tau .btn.danger-ghost {
+  color: var(--danger);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.tau .btn.danger-ghost:hover {
+  background: var(--danger-soft);
+}
+
+.tau .chip {
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--ink-2);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.tau .chip:hover {
+  background: var(--hover);
+}
+.tau .chip.on {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  box-shadow: none;
+}
+.tau .chip svg.i {
+  width: 13px;
+  height: 13px;
+}
+
+.tau .kbd {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  padding: 0 5px;
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+
+.tau .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.tau .dot.ok {
+  background: var(--ok);
+}
+.tau .dot.warn {
+  background: var(--warn);
+}
+.tau .dot.off {
+  background: var(--ink-3);
+}
+
+.tau .menu {
+  position: absolute;
+  min-width: 160px;
+  padding: 4px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-float);
+  z-index: 10;
+}
+.tau .menu-item {
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-1);
+  text-align: left;
+}
+.tau .menu-item:hover {
+  background: var(--hover);
+}
+.tau .menu-item .meta {
+  margin-left: auto;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.tau .menu-item svg.i {
+  color: var(--ink-2);
+}
+
+/* 高亮：同色相淡底 + 底线（与编辑器 inlineHighlight 同算法） */
+.hl {
+  --c: var(--hl-yellow);
+  background: color-mix(in srgb, var(--c) var(--hl-bg-mix), transparent);
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--c) var(--hl-line-mix), transparent);
+  color: inherit;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.hl[data-c="green"] { --c: var(--hl-green); }
+.hl[data-c="blue"] { --c: var(--hl-blue); }
+.hl[data-c="purple"] { --c: var(--hl-purple); }
+.hl[data-c="red"] { --c: var(--hl-red); }
+.swatch {
+  --c: var(--hl-yellow);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--c) 30%, var(--surface));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 80%, transparent);
+}
+.swatch[data-c="green"] { --c: var(--hl-green); }
+.swatch[data-c="blue"] { --c: var(--hl-blue); }
+.swatch[data-c="purple"] { --c: var(--hl-purple); }
+.swatch[data-c="red"] { --c: var(--hl-red); }
+
+/* 演示控制条（不属于扩展 UI） */
+.demo-bar {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: #1d1a16;
+  color: #e9e2d6;
+  font: 12px/1 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.5);
+}
+.demo-bar .label {
+  padding: 0 8px 0 10px;
+  color: #a89e8f;
+}
+.demo-bar button {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  background: none;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.demo-bar button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.demo-bar button.on {
+  background: #e9e2d6;
+  color: #1d1a16;
+}
+.demo-bar .sep {
+  width: 1px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.14);
+  margin: 0 4px;
+}

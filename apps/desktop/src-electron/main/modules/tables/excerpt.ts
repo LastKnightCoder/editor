@@ -65,9 +65,12 @@ const toExcerpt = (row: ExcerptRow): Excerpt => ({
   isDeleted: row.is_deleted === 1,
 });
 
+/** 浏览器伴读写入网页标注后补发的写事件（不是 IPC，经 notifyExternalWrite 发出） */
+export const WEB_EXCERPT_SYNCED_EVENT = "excerpt:sync-web-page";
+
 /** 摘录写入事件：索引编排与脉络刷新只订阅这一份清单 */
 export const EXCERPT_WRITE_EVENTS = [
-  "excerpt:sync-web-page",
+  WEB_EXCERPT_SYNCED_EVENT,
   "excerpt:register-provider",
   "excerpt:replace",
   "excerpt:patch",
@@ -93,7 +96,6 @@ export default class ExcerptTable {
     return {
       "excerpt:get-by-ids": this.getByIds.bind(this),
       "excerpt:find-by-external": this.findByExternal.bind(this),
-      "excerpt:sync-web-page": this.syncWebPage.bind(this),
       "excerpt:register-provider": this.registerProvider.bind(this),
       "excerpt:replace": this.replaceFromProvider.bind(this),
       "excerpt:patch": this.patchFromProvider.bind(this),
@@ -116,10 +118,20 @@ export default class ExcerptTable {
     return null;
   }
 
-  /** 浏览器插件按页发来的划线快照；参数在这里校验（来自无鉴权的 RPC，KL-035） */
+  /** 浏览器伴读按页发来的标注快照；参数在这里校验（扩展输入不可信） */
   static syncWebPage(db: Database.Database, payload: unknown): ExcerptSyncResult {
     const { url, title, inputs } = parseWebPagePayload(payload);
     return this.syncSource(db, WEB_EXCERPT_SOURCE, url, title, inputs);
+  }
+
+  /** 某个网页当前（未删除）的标注，按写入顺序 */
+  static listWebPage(db: Database.Database, pageUrl: string): Excerpt[] {
+    const rows = db
+      .prepare(
+        `SELECT * FROM excerpt WHERE source_type = ? AND source_key = ? AND is_deleted = 0 ORDER BY id`
+      )
+      .all(WEB_EXCERPT_SOURCE, pageUrl) as ExcerptRow[];
+    return rows.map(toExcerpt);
   }
 
   /** 登记提供方名称；名称只增改不删，插件卸载后仍用于展示 */

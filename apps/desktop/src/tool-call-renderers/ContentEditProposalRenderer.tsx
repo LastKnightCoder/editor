@@ -4,7 +4,7 @@ import type React from "react";
 import { CircleCheck, CircleX, MessageSquareText, type LucideIcon } from "lucide-react";
 import { Button, ConfirmDialog, Segmented, Textarea, cn, toast } from "@tau/ui";
 import type { ToolCallCustomRendererProps } from "./types";
-import { ToolBadge, ToolCard, ToolCardBody, ToolCardHeader, ToolMutedText } from "./ui";
+import { ToolBadge, ToolCard, ToolCardBody, ToolCardHeader, ToolMutedText } from "@tau/chat-ui";
 import { Editor } from "@tau/editor";
 import {
   getSnapshot,

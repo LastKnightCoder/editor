@@ -1,5 +1,5 @@
+import { registerInteractionRenderers } from "@tau/chat-ui";
 import { registerToolCallRenderers } from "./registry";
-import AskQuestionRenderer from "./AskQuestionRenderer";
 import TodoToolRenderer from "./TodoToolRenderer";
 import TodoOperationRenderer from "./TodoOperationRenderer";
 import CalendarQueryRenderer from "./CalendarQueryRenderer";
@@ -7,7 +7,6 @@ import CalendarOperationRenderer from "./CalendarOperationRenderer";
 import StructuredToolResultRenderer from "./StructuredToolResultRenderer";
 import KnowledgeSearchRenderer from "./KnowledgeSearchRenderer";
 import ContentEditProposalRenderer from "./ContentEditProposalRenderer";
-import { ASK_QUESTION_TOOL_NAME } from "@/tools/askQuestionTypes";
 import OpenAIImageResultRenderer from "./OpenAIImageResultRenderer";
 import { OPENAI_IMAGE_RENDERER_KEY } from "@/tools/openaiImageTools";
 import SubAgentResearchRenderer from "./SubAgentResearchRenderer";
@@ -18,16 +17,14 @@ import AssistantTaskRenderer from "./AssistantTaskRenderer";
 import { TASK_READ_SCHEMAS, TASK_WRITE_SCHEMAS } from "@tau/shared/task-assistant";
 
 export function initToolCallRenderers(): void {
+  // ask-question 提问卡与浏览器扩展共用，实现在 @tau/chat-ui
+  registerInteractionRenderers();
   const assistantNames = new Set([
     ...Object.keys(TASK_READ_SCHEMAS),
     ...Object.keys(TASK_WRITE_SCHEMAS),
   ]);
   registerToolCallRenderers(
     [
-      {
-        toolName: ASK_QUESTION_TOOL_NAME,
-        renderer: AskQuestionRenderer,
-      },
       {
         toolName: OPENAI_IMAGE_RENDERER_KEY,
         renderer: OpenAIImageResultRenderer,

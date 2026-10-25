@@ -68,18 +68,21 @@ describe.skipIf(!process.env.KL_EXCERPT_SCALE)("摘录规模实测", () => {
       id: `u${i}`,
       text: `网页划线 ${i}`,
       note: "",
-      color: "pink",
+      color: "yellow",
       createdAt: i,
-      anchor: { startXPath: "/p", startOffset: 0, endXPath: "/p", endOffset: 4 },
+      anchor: {
+        quote: { exact: `网页划线 ${i}`, prefix: "", suffix: "" },
+        position: { start: i * 10, end: i * 10 + 6 },
+      },
     }));
-    time("插件单页首次同步", () =>
-      ExcerptTable.syncWebPage(db, { url: "https://a.com/x", title: "A", highlights: page })
+    time("伴读单页首次同步", () =>
+      ExcerptTable.syncWebPage(db, { url: "https://a.com/x", title: "A", items: page })
     );
-    time("插件单页删一条后重发", () =>
+    time("伴读单页删一条后重发", () =>
       ExcerptTable.syncWebPage(db, {
         url: "https://a.com/x",
         title: "A",
-        highlights: page.slice(1),
+        items: page.slice(1),
       })
     );
 

@@ -73,7 +73,7 @@ const reduceIntoRun = (run: ActiveRun, event: AiRunEvent): void => {
   }
 };
 
-/** 设置快照 → 聊天用的服务商与模型（与渲染端 aiServer 的 getLLMConfig 同一口径） */
+/** 设置快照 → 聊天用的服务商与模型（按功能取 llmUsageSettings） */
 export function resolveChatModel(
   setting: Record<string, unknown>,
   feature: string

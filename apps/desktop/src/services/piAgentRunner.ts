@@ -1,7 +1,7 @@
 /**
  * 一次性 pi 会话运行器（带工具路径的统一底座）：创建 inMemory 会话（含工具桥清单与
  * 历史灌入）→ prompt → 事件流回调 → agent_settled 后 dispose。生成编排（vibe_learning）、
- * 行内助手、aiServer、子代理调研等非主聊天带工具场景全部经此。
+ * 行内助手、子代理调研等非主聊天带工具场景全部经此。
  * 事件为 pi 原生 AgentSessionEvent；消费方用 services/piChatEvents 的 reducer 或自行归约。
  */
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";

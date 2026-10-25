@@ -20,4 +20,4 @@
 - `initThemeRuntime()` 返回清理函数；包导入不读取存储、不启动 DOM 监听。多根宿主用 `createThemeRuntime({ storage, root, media, ... })` 隔离。
 - 构建工具通过 `createThemeBootstrapScript()` 注入首帧脚本，与运行时共用主题清单和解析函数。
 - 新增主题要同时写 `themes/<key>.theme.ts` 和 tokens.css 深浅两个数据块，`theme-parity.test.ts` 守护二者一致与 AA 对比度。
-- 桌面端与移动端都引 `tokens.css`，共用全部主题族；自带主题体系的宿主（blog、浏览器扩展）只引 `scale.css`，在自己的 `tau-tokens.css` 里把 `--tau-*` 全键桥接到自有变量，并用 `@tau/themes/testing` 写覆盖测试；不要引 `tokens.css`，否则 `data-theme` 同名主题（mint、ocean）会互相覆盖。
+- 桌面端、移动端与浏览器伴读扩展（样式在 closed Shadow DOM 内，不与网页冲突）都引 `tokens.css`，共用全部主题族；自带主题体系的宿主（blog）只引 `scale.css`，在自己的 `tau-tokens.css` 里把 `--tau-*` 全键桥接到自有变量，并用 `@tau/themes/testing` 写覆盖测试；不要引 `tokens.css`，否则 `data-theme` 同名主题（mint、ocean）会互相覆盖。

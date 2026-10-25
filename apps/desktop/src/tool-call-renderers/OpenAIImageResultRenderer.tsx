@@ -13,7 +13,7 @@ import {
   ToolMutedText,
   ToolSectionTitle,
   ToolBadge,
-} from "./ui";
+} from "@tau/chat-ui";
 
 interface OpenAIImageRenderPayload {
   success: boolean;

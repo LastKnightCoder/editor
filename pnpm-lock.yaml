@@ -125,18 +125,12 @@ importers:
 
   apps/browser-extension:
     dependencies:
-      '@loadable/component':
-        specifier: ^5.16.7
-        version: 5.16.7(react@19.2.0)
       '@tau/chat-ui':
         specifier: workspace:*
         version: link:../../packages/chat-ui
       '@tau/editor':
         specifier: workspace:*
         version: link:../../packages/editor
-      '@tau/editor-source-view':
-        specifier: workspace:*
-        version: link:../../packages/editor-source-view
       '@tau/markdown':
         specifier: workspace:*
         version: link:../../packages/markdown
@@ -155,36 +149,21 @@ importers:
       classnames:
         specifier: ^2.3.2
         version: 2.5.1
-      codemirror:
-        specifier: '5'
-        version: 5.65.21
-      dayjs:
-        specifier: ^1.11.13
-        version: 1.11.23
-      dompurify:
-        specifier: ^3.3.0
-        version: 3.4.15
-      immer:
-        specifier: ^10.0.2
-        version: 10.2.0
       is-hotkey:
         specifier: ^0.2.0
         version: 0.2.0
       katex:
-        specifier: ^0.16.8
+        specifier: ^0.16.25
         version: 0.16.47
+      lodash:
+        specifier: ^4.17.21
+        version: 4.18.1
       lucide-react:
         specifier: ^0.563.0
         version: 0.563.0(react@19.2.0)
-      motion:
-        specifier: 12.26.2
-        version: 12.26.2(@emotion/is-prop-valid@1.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       react:
         specifier: 19.2.0
         version: 19.2.0
-      react-codemirror2:
-        specifier: ^7.2.1
-        version: 7.3.0(codemirror@5.65.21)(react@19.2.0)
       react-dnd:
         specifier: ^16.0.1
         version: 16.0.1(@types/node@24.12.4)(@types/react@19.2.0)(react@19.2.0)
@@ -197,9 +176,6 @@ importers:
       react-icons:
         specifier: ^4.10.1
         version: 4.12.0(react@19.2.0)
-      react-inlinesvg:
-        specifier: ^4.2.0
-        version: 4.5.0(react@19.2.0)
       react-markdown:
         specifier: ^9.1.0
         version: 9.1.0(@types/react@19.2.0)(react@19.2.0)
@@ -221,12 +197,6 @@ importers:
       slate-react:
         specifier: 0.126.4
         version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
-      uuid:
-        specifier: ^9.0.1
-        version: 9.0.1
-      yaml:
-        specifier: ^2.7.1
-        version: 2.9.0
       zustand:
         specifier: ^4.3.8
         version: 4.5.7(@types/react@19.2.0)(immer@10.2.0)(react@19.2.0)
@@ -237,12 +207,6 @@ importers:
       '@types/chrome':
         specifier: ^0.1.36
         version: 0.1.36
-      '@types/codemirror':
-        specifier: ^5.60.7
-        version: 5.60.18
-      '@types/dompurify':
-        specifier: ^3.0.0
-        version: 3.2.0
       '@types/react':
         specifier: 19.2.0
         version: 19.2.0
@@ -252,12 +216,12 @@ importers:
       '@types/react-syntax-highlighter':
         specifier: ^15.5.13
         version: 15.5.13
-      '@types/uuid':
-        specifier: ^9.0.7
-        version: 9.0.8
       '@wxt-dev/module-react':
         specifier: 1.2.2
         version: 1.2.2(vite@8.3.5(@types/node@24.12.4)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0))(wxt@0.21.4(rollup@4.63.1)(typescript@7.0.2)(vite@8.3.5(@types/node@24.12.4)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)))
+      jsdom:
+        specifier: ^24.1.3
+        version: 24.1.3
       tailwindcss:
         specifier: ^4.1.11
         version: 4.1.18
@@ -17065,7 +17029,7 @@ snapshots:
       '@vue/shared': 3.5.25
       estree-walker: 2.0.2
       magic-string: 0.30.21
-      postcss: 8.5.15
+      postcss: 8.5.31
       source-map-js: 1.2.2
 
   '@vue/compiler-ssr@3.5.25':

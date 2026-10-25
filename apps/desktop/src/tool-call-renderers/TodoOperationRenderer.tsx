@@ -6,7 +6,7 @@ import {
   ToolCardHeader,
   ToolMutedText,
   ToolValuePill,
-} from "./ui";
+} from "@tau/chat-ui";
 
 type OperationPayload = {
   success?: boolean;

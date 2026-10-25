@@ -13,7 +13,7 @@ import type { ToolCallExecutionState } from "@tau/shared";
 import { useThemeStore } from "@tau/themes/react";
 import { ToolCallBlock } from "@/components/ChatUI";
 import { receiveInteractions, setInteractionSessionReady } from "@/services/piInteractions";
-import { normalizeAskQuestionPayload } from "@/tools/askQuestionTypes";
+import { normalizeAskQuestionPayload } from "@tau/shared/chat-core";
 import { BlockTitle, CanvasCard, DocHead, MatrixRow, Note } from "../kit";
 import {
   askQuestionForm,

@@ -4,3 +4,4 @@ export * from "./messageSchema";
 export * from "./assistantBlocks";
 export * from "./streamEvents";
 export * from "./aiRunProtocol";
+export * from "./askQuestion";

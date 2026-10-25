@@ -4,11 +4,11 @@ import { posix } from "node:path";
  * 24678 本地服务的访问规则（纯函数，便于单测）。
  *
  * 合法来源：打包渲染端（file:// 页面，WS 握手带 `Origin: file://`，HTTP 请求不带 Origin）、
- * 开发期 vite 渲染端、浏览器插件（chrome-extension://）、不带 Origin 的本机 node 客户端
- * （主进程、CLI）。网页的 Origin 无法伪造，据此挡住浏览器里任意网页的跨站访问。
+ * 开发期 vite 渲染端、不带 Origin 的本机 node 客户端（主进程、CLI）。网页的 Origin 无法伪造，
+ * 据此挡住浏览器里任意网页的跨站访问。浏览器扩展只能走 `/browser`（独立握手，配对授权 + token），
+ * 通用路径一律不放行扩展来源。
  */
 
-const EXTENSION_ORIGIN = /^chrome-extension:\/\/[a-p]{32}$/;
 const RENDERER_FILE_ORIGIN = "file://";
 
 /** 开发期 vite 渲染端的 origin；打包版为 null */
@@ -22,7 +22,7 @@ export const resolveDevServerOrigin = (devServerUrl: string | undefined): string
 };
 
 const isTrustedBrowserOrigin = (origin: string, devServerOrigin: string | null) =>
-  EXTENSION_ORIGIN.test(origin) || (devServerOrigin !== null && origin === devServerOrigin);
+  devServerOrigin !== null && origin === devServerOrigin;
 
 /** WS 升级是否放行 */
 export const isAllowedWsOrigin = (

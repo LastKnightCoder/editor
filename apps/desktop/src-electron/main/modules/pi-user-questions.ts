@@ -8,7 +8,7 @@ import {
   normalizeAskQuestionPayload,
   type AskQuestionAnswerItem,
   type AskQuestionSubmission,
-} from "@/tools/askQuestionTypes";
+} from "@tau/shared/chat-core";
 
 const ASK_QUESTION_PARAMETERS = {
   type: "object",
