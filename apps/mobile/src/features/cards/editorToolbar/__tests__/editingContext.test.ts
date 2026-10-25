@@ -10,7 +10,7 @@ import {
 } from "../editingContext";
 import { caretInCell, createTableEditor } from "./tableTestUtils";
 
-/** 段落 [0]、代码块 [1]、块公式 [2]、mermaid [3]、含行内公式的段落 [4] */
+/** 段落 [0]、代码块 [1]、块公式 [2]、流程图 [3]、含行内公式的段落 [4] */
 function createVoidEditor(): Editor {
   const editor = createEditor();
   editor.children = [
@@ -140,31 +140,17 @@ describe("resolveVoidEditorContext（焦点）", () => {
     expect(getEditingContextKey(context)).toBe("code:1");
   });
 
-  it("块公式与 mermaid 的 CodeMirror 聚焦分别识别，host 为编辑器容器", () => {
+  it("块公式原位编辑的输入框聚焦识别，即使与代码块用同一种输入框", () => {
     const editor = createVoidEditor();
     const mathDom = mountVoidElement(
       editor,
       [2],
-      '<div class="ed-preview-codemirror"><div class="CodeMirror"><textarea></textarea></div></div>'
+      '<div class="ed-preview-source"><div class="ed-code-overlay"><textarea class="code-block-shiki-input"></textarea></div></div>'
     );
     const textarea = focusIn(mathDom.querySelector("textarea"));
     const context = resolveVoidEditorContext(editor, textarea);
     expect(context).toMatchObject({ kind: "block-math", path: [2] });
-    expect(context && "host" in context ? context.host : null).toBe(
-      mathDom.querySelector(".ed-preview-codemirror")
-    );
-
-    vi.restoreAllMocks();
-    const mermaidDom = mountVoidElement(
-      editor,
-      [3],
-      '<div class="ed-preview-codemirror"><textarea></textarea></div>'
-    );
-    const mermaidInput = focusIn(mermaidDom.querySelector("textarea"));
-    expect(resolveVoidEditorContext(editor, mermaidInput)).toMatchObject({
-      kind: "mermaid",
-      path: [3],
-    });
+    expect(context && "input" in context ? context.input : null).toBe(textarea);
   });
 
   it("行内公式弹层输入框按选区所在 inline-math 识别", () => {

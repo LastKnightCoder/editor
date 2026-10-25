@@ -82,7 +82,7 @@ describe("配件栏媒体模式", () => {
     press("尺寸");
     expect(controller.openPanel).toHaveBeenCalledWith("media", expect.any(Number));
     press("键盘");
-    expect(controller.focusAfterMedia).toHaveBeenCalledWith(controller.editingContext);
+    expect(controller.focusAfterVoid).toHaveBeenCalledWith(expect.any(Function));
 
     const opened = createControllerStub({
       isEditorFocused: false,

@@ -38,7 +38,6 @@ import {
   Underline,
   Undo2,
   Unlink,
-  Workflow,
   X,
 } from "lucide-react";
 
@@ -68,12 +67,12 @@ import InsertPanel from "./InsertPanel";
 import MediaPanel from "./MediaPanel";
 import { useMediaAccessory } from "./mediaAccessory";
 import {
-  getSourceSymbolKeys,
+  MATH_SYMBOL_KEYS,
   insertIntoTextControl,
-  insertSourceText,
   type SourceEditingContext,
   type SourceSymbolKey,
 } from "./sourceEditorInput";
+import { useSourceBlockAccessory } from "./sourceBlockAccessory";
 import StylePanel from "./StylePanel";
 import {
   AccessoryButton,
@@ -95,7 +94,7 @@ export type AccessoryItemId =
   | "context-table"
   | "context-code"
   | "context-math"
-  | "context-mermaid"
+  | "context-source-block"
   | "plus"
   | "style"
   | "check-list"
@@ -189,7 +188,7 @@ const ITEM_LABELS: Record<AccessoryItemId, string> = {
   "context-table": "表格",
   "context-code": "代码块",
   "context-math": "公式",
-  "context-mermaid": "流程图",
+  "context-source-block": "源码块",
   plus: "插入",
   style: "样式",
   "check-list": "待办",
@@ -381,14 +380,13 @@ function buildLanguageItems(
   }));
 }
 
-/** 公式 / 流程图模式：无面板且对应白名单项可见时生效 */
+/** 公式模式：无面板且对应白名单项可见时生效 */
 function resolveSourceContext(
   context: EditingContext,
   activePanel: EditorPanelKind | null,
   isVisible: (id: AccessoryItemId) => boolean
 ): SourceEditingContext | null {
   if (activePanel !== null) return null;
-  if (context.kind === "mermaid") return isVisible("context-mermaid") ? context : null;
   if (context.kind === "block-math" || context.kind === "inline-math") {
     return isVisible("context-math") ? context : null;
   }
@@ -435,9 +433,20 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     else controller.openPanel("media", resolvePanelHeight(keyboardViewport));
   };
   const media = useMediaAccessory({ controller, context: mediaContext, toggleMediaPanel });
-  // 语言选择 / 媒体菜单期间焦点可能离开编辑器，配件栏按打开时的上下文保持显示
+  const sourceBlockContext =
+    editingContext.kind === "source-block" &&
+    activePanel === null &&
+    isVisible("context-source-block")
+      ? editingContext
+      : null;
+  const sourceBlock = useSourceBlockAccessory({ controller, context: sourceBlockContext });
+  // 语言选择 / 媒体与源码块菜单期间焦点可能离开编辑器，配件栏按打开时的上下文保持显示
   const showToolbar =
-    !readonly && (controller.isToolbarVisible || languageSheet !== null || media.sheetOpen);
+    !readonly &&
+    (controller.isToolbarVisible ||
+      languageSheet !== null ||
+      media.sheetOpen ||
+      sourceBlock.sheetOpen);
 
   useEffect(() => {
     if (readonly) setLanguageSheet(null);
@@ -609,15 +618,11 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
   };
 
   const pressSourceSymbol = (context: SourceEditingContext, symbol: SourceSymbolKey) => {
-    if (context.kind === "inline-math") {
-      insertIntoTextControl(context.input, symbol.text, symbol.cursorOffset);
-    } else {
-      insertSourceText(context.host, symbol.text, { cursorOffset: symbol.cursorOffset });
-    }
+    insertIntoTextControl(context.input, symbol.text, symbol.cursorOffset);
   };
 
   const renderSourceItems = (context: SourceEditingContext) =>
-    getSourceSymbolKeys(context.kind).map(symbol => (
+    MATH_SYMBOL_KEYS.map(symbol => (
       <CodeKeyButton
         key={symbol.label}
         label={symbol.label}
@@ -658,6 +663,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
   if (codeContext) middleNodes = renderCodeItems(codeContext);
   else if (sourceContext) middleNodes = renderSourceItems(sourceContext);
   else if (mediaContext) middleNodes = media.middleNodes;
+  else if (sourceBlockContext) middleNodes = sourceBlock.middleNodes;
   else if (linkContext) middleNodes = renderContentLinkItems();
   else if (tableContext) middleNodes = renderTableItems(tableContext);
   else {
@@ -678,16 +684,16 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
       />
     );
   } else if (sourceContext) {
-    const isMermaid = sourceContext.kind === "mermaid";
-    const SourceIcon = isMermaid ? Workflow : Sigma;
     leftNode = (
       <ContextChip
-        icon={<SourceIcon size={14} strokeWidth={ICON_STROKE} />}
-        label={ITEM_LABELS[isMermaid ? "context-mermaid" : "context-math"]}
+        icon={<Sigma size={14} strokeWidth={ICON_STROKE} />}
+        label={ITEM_LABELS["context-math"]}
       />
     );
   } else if (mediaContext) {
     leftNode = media.leftNode;
+  } else if (sourceBlockContext) {
+    leftNode = sourceBlock.leftNode;
   } else if (linkContext) {
     leftNode = (
       <ContextChip
@@ -755,6 +761,8 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     );
   } else if (mediaContext) {
     rightNode = media.rightNode;
+  } else if (sourceBlockContext) {
+    rightNode = sourceBlock.rightNode;
   } else if (isFormatMode) {
     rightNode = isVisible("style") ? renderItem("style") : null;
   } else if (tableContext) {
@@ -830,7 +838,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
               {/* 右侧渐隐：提示可横向滚动 */}
               <div
                 aria-hidden="true"
-                className="bg-linear-to-r to-surface pointer-events-none absolute inset-y-0 right-0 w-[22px] from-transparent"
+                className="to-surface pointer-events-none absolute inset-y-0 right-0 w-[22px] bg-linear-to-r from-transparent"
               />
             </div>
             {middleNodes.length > 0 && rightNode ? (
@@ -923,6 +931,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
         onClose={closeLanguageSheet}
       />
       {media.sheets}
+      {sourceBlock.sheets}
       <ContentLinkPreviewSheet
         open={controller.contentLinkPreview !== null}
         target={controller.contentLinkPreview}

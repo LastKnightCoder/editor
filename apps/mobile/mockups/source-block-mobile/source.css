@@ -1,0 +1,466 @@
+/* 源码块 mockup：在 editor-mobile/styles.css、media-mobile/media.css 之上补充源码块、源码页、符号行 */
+
+/* ── 正文里的源码块 ───────────────────────────── */
+.sblk {
+  position: relative;
+  margin: 10px 0 8px;
+  border-radius: 10px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-1);
+}
+.sblk > svg {
+  flex-shrink: 0;
+}
+.sblk.on {
+  outline: 2.5px solid var(--brand);
+  outline-offset: 4px;
+}
+.sblk .fit {
+  position: absolute;
+  right: 4px;
+  bottom: 2px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-surface) 88%, transparent);
+  box-shadow: 0 0 0 1px var(--line-1);
+  font-size: 10.5px;
+  color: var(--ink-3);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+/* 宽内容溢出（现状）：右侧被裁掉 */
+.sblk.overflow {
+  justify-content: flex-start;
+  overflow: hidden;
+}
+.sblk.scroll-x {
+  justify-content: flex-start;
+  overflow: hidden;
+}
+.sblk.scroll-x::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 34px;
+  background: linear-gradient(90deg, transparent, var(--bg-page));
+}
+.sblk .scrollbar {
+  position: absolute;
+  left: 6px;
+  bottom: -6px;
+  height: 3px;
+  width: 42%;
+  border-radius: 2px;
+  background: var(--ink-3);
+  opacity: 0.5;
+}
+
+/* 空块占位：与桌面端斜纹占位同一视觉 */
+.sblk.empty {
+  height: 56px;
+  border-radius: 9px;
+  gap: 7px;
+  font-size: 14px;
+  color: var(--ink-3);
+  background: repeating-linear-gradient(-45deg, transparent 0 7px, var(--bg-press) 7px 8px);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+
+/* 现状：@tau/ui Button 原样堆在预览下面 */
+.old-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 2px 0 10px;
+}
+.old-btn {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 9px;
+  border: 1px solid var(--line-1);
+  background: var(--bg-surface);
+  font-size: 13.5px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink-1);
+}
+.old-btn.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-2);
+}
+.old-btn.pri {
+  background: var(--brand);
+  color: var(--ink-inv);
+  border-color: var(--brand);
+}
+.raw-alert {
+  font-size: 13px;
+  color: var(--danger);
+  margin: 2px 0;
+  line-height: 1.45;
+  word-break: break-all;
+}
+.raw-h2 {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+/* ── 渲染结果的示意：TikZ / Typst / HTML / ABC ───────────────────────────── */
+.math {
+  font-family: "Times New Roman", "Songti SC", serif;
+  font-size: 19px;
+  white-space: nowrap;
+  font-style: italic;
+}
+.math .up {
+  font-style: normal;
+}
+.math sup,
+.math sub {
+  font-size: 0.62em;
+}
+.frac {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: middle;
+  margin: 0 3px;
+}
+.frac > span:first-child {
+  border-bottom: 1px solid currentColor;
+  padding: 0 3px;
+}
+.typ-wide {
+  font-family: "Times New Roman", "Songti SC", serif;
+  font-size: 15px;
+  white-space: nowrap;
+  padding: 8px 0;
+}
+.html-card {
+  width: 100%;
+  border-radius: 10px;
+  border-left: 4px solid var(--sky);
+  background: var(--sky-soft);
+  padding: 10px 12px;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.html-card b {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+.html-table {
+  border-collapse: collapse;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.html-table td,
+.html-table th {
+  border: 1px solid var(--line-1);
+  padding: 4px 10px;
+}
+
+/* ── 源码与语法色（与 cm-s-tau 同一套表意） ───────────────────────────── */
+.src {
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--ink-1);
+  white-space: pre-wrap;
+  word-break: break-all;
+  counter-reset: ln;
+}
+.src.nowrap {
+  white-space: pre;
+  word-break: normal;
+}
+.src .l {
+  display: block;
+  padding-left: 30px;
+  position: relative;
+  min-height: 1.75em;
+}
+.src .l::before {
+  counter-increment: ln;
+  content: counter(ln);
+  position: absolute;
+  left: 0;
+  width: 20px;
+  text-align: right;
+  color: var(--ink-3);
+  font-size: 11px;
+}
+.src.noln .l {
+  padding-left: 0;
+}
+.src.noln .l::before {
+  display: none;
+}
+.src .l.err {
+  background: var(--tau-danger-soft, color-mix(in srgb, var(--danger) 12%, transparent));
+}
+.src .l.err::before {
+  color: var(--danger);
+  font-weight: 700;
+}
+.src .k {
+  color: var(--tau-accent-text);
+}
+.src .s {
+  color: var(--tau-ok, var(--sage));
+}
+.src .n {
+  color: var(--tau-warn, var(--butter));
+}
+.src .p {
+  color: var(--tau-info, var(--sky));
+}
+.src .c {
+  color: var(--ink-3);
+  font-style: italic;
+}
+.src .o {
+  color: var(--ink-2);
+}
+.src .squiggle {
+  text-decoration: underline wavy var(--danger);
+  text-underline-offset: 3px;
+}
+
+/* ── 源码页（方案 A） ───────────────────────────── */
+.sp-nav {
+  height: 48px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+}
+.sp-nav .t {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.sp-nav .ib {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-2);
+  border-radius: 12px;
+}
+.sp-nav .txt {
+  font-size: 15px;
+  padding: 0 10px;
+  color: var(--brand);
+  font-weight: 600;
+}
+.sp-preview {
+  flex-shrink: 0;
+  margin: 0 12px;
+  border-radius: 14px;
+  background: var(--bg-surface);
+  box-shadow: 0 0 0 1px var(--line-2);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.sp-preview .corner {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  display: flex;
+  gap: 2px;
+}
+.sp-preview .corner span {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-3);
+}
+.sp-preview .stale {
+  opacity: 0.38;
+}
+.sp-preview .busy {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--brand), transparent);
+}
+.sp-grip {
+  height: 16px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.sp-grip::after {
+  content: "";
+  width: 34px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-1);
+}
+.sp-state {
+  flex-shrink: 0;
+  margin: 0 12px 6px;
+  min-height: 30px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.sp-state.err {
+  background: var(--tau-danger-soft, color-mix(in srgb, var(--danger) 12%, transparent));
+  color: var(--danger);
+}
+.sp-state .msg {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sp-state .go {
+  flex-shrink: 0;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+.sp-code {
+  flex: 1;
+  overflow: hidden;
+  padding: 2px 16px 0 10px;
+  position: relative;
+}
+
+/* 源码符号行：贴键盘上沿 */
+.acc.sym {
+  gap: 0;
+  padding: 0 4px 0 2px;
+}
+.acc.sym .scroll {
+  gap: 3px;
+}
+.acc.sym .ab.mono {
+  width: 36px;
+  height: 34px;
+  margin: 0;
+  box-shadow: 0 0 0 1px var(--line-2);
+  background: var(--bg-page);
+}
+.acc.sym .ab.mono.w {
+  width: auto;
+  padding: 0 8px;
+}
+
+/* ── 方案 B：就地展开的源码卡片 ───────────────────────────── */
+.inplace {
+  margin: 10px -8px 8px;
+  border-radius: 14px;
+  box-shadow: 0 0 0 1.5px var(--brand);
+  overflow: hidden;
+  background: var(--bg-surface);
+}
+.inplace .ip-src {
+  padding: 8px 10px 6px;
+  background: var(--bg-sunken);
+}
+.inplace .ip-pv {
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  position: relative;
+}
+
+/* ── 方案 C：底部源码抽屉 ───────────────────────────── */
+.drawer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+  background: var(--bg-surface);
+  border-radius: 20px 20px 0 0;
+  box-shadow: var(--tau-shadow-float);
+  display: flex;
+  flex-direction: column;
+}
+.drawer-h {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px 6px 16px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.drawer-h .r {
+  margin-left: auto;
+  color: var(--brand);
+}
+.drawer .src {
+  padding: 0 16px 0 10px;
+}
+
+/* ── 第 5 节：宽内容适配的小样 ───────────────────────────── */
+.mini-cap {
+  font-size: 12px;
+  color: var(--ink-3);
+  text-align: center;
+  margin-top: 2px;
+}
+
+/* 现状 / 方案的根因清单 */
+.cause {
+  font-size: 13px;
+  line-height: 1.65;
+}
+.cause li {
+  margin-bottom: 6px;
+}
+.cause code {
+  font-size: 12px;
+}
+.keyset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.keyset span {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: var(--bg-input);
+  box-shadow: 0 0 0 1px var(--line-1);
+}

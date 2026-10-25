@@ -9,6 +9,7 @@ import {
   type PluginInstallSource,
 } from "@/services/plugins";
 import { createQuickCard, getCardDetail } from "@/services/tauri";
+import { clickSourcePage, openSourcePage, writeSource } from "@validation/host/sourcePage";
 import { mobileMarkdown } from "@/services/editorMarkdown";
 
 declare const __TAU_PLUGIN_VALIDATION_SOURCES__: PluginInstallSource[];
@@ -114,31 +115,13 @@ export async function validateMobileHost(
     navigator.push("contentDetail", { cardId: created.id });
     await until(() => button("编辑") || button("完成"));
     button("编辑")?.click();
-    (
-      await until(
-        () =>
-          button("编辑ABC 乐谱源码") ||
-          button("编辑乐谱源码") ||
-          [...document.querySelectorAll<HTMLButtonElement>("button")].find(
-            element =>
-              element.textContent?.startsWith("编辑") && element.textContent?.endsWith("源码")
-          )
-      )
-    ).click();
-    const mirror = await until(
-      () =>
-        (
-          document.querySelector('[role="dialog"] .CodeMirror') as
-            (HTMLElement & { CodeMirror?: { setValue(value: string): void } }) | null
-        )?.CodeMirror
-    );
-    mirror.setValue("X:1\nT:Portable saved\nM:4/4\nL:1/4\nK:C\nG A B c |");
-    (await until(() => button("保存"))).click();
+    writeSource(await openSourcePage(), "X:1\nT:Portable saved\nM:4/4\nL:1/4\nK:C\nG A B c |");
+    await clickSourcePage("返回");
     await pause(1500);
     const persisted = await getCardDetail(created.id);
     if (!JSON.stringify(persisted).includes("Portable saved"))
       throw new Error("正常正文没有保存源码修改");
-    checks.push("正常正文 ABC 渲染、公共 CodeMirror 编辑、保存往返");
+    checks.push("正常正文 ABC 渲染、点选块经配件栏进入源码页编辑、保存往返");
     const roundTrip = mobileMarkdown.importFromMarkdown(mobileMarkdown.getMarkdown(content));
     if (String(roundTrip[0].type) !== "abc") throw new Error("ABC codec 往返失败");
     checks.push("同一静态快照的 Markdown codec");

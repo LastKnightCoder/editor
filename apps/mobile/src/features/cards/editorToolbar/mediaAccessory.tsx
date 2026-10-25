@@ -42,6 +42,7 @@ import {
   editWebviewUrl,
   getInlineImageSize,
   getMediaAlign,
+  placeCaretAfterMedia,
   renameAudio,
   runMediaCommand,
   setInlineImageSize,
@@ -381,7 +382,10 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
             <Ellipsis size={ICON_SIZE} strokeWidth={ICON_STROKE} />
           </AccessoryButton>
         )}
-        <AccessoryButton label="键盘" onPress={() => controller.focusAfterMedia(context)}>
+        <AccessoryButton
+          label="键盘"
+          onPress={() => controller.focusAfterVoid(editor => placeCaretAfterMedia(editor, context))}
+        >
           <Keyboard size={ICON_SIZE} strokeWidth={ICON_STROKE} />
         </AccessoryButton>
       </>
