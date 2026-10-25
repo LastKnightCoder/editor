@@ -15,6 +15,30 @@ describe("Webview", () => {
     container?.remove();
   });
 
+  it("协作资源只经作用域解析，拒绝读取时不退回原始标识", async () => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+    await act(async () => {
+      root.render(
+        <Webview src="tau-collab-local:asset" remoteResourceToLocal={async () => "/allowed.html"} />
+      );
+    });
+    expect(container.querySelector("iframe")?.getAttribute("src")).toBe("/allowed.html");
+    await act(async () => {
+      root.render(
+        <Webview
+          src="tau-collab-local:denied"
+          remoteResourceToLocal={async () => {
+            throw new Error("拒绝");
+          }}
+        />
+      );
+    });
+    expect(container.querySelector("iframe")?.getAttribute("src") ?? "").not.toContain(
+      "tau-collab"
+    );
+  });
   it("非 Electron 环境使用 iframe 渲染远程网页", async () => {
     container = document.createElement("div");
     document.body.appendChild(container);

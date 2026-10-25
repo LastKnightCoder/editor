@@ -87,6 +87,15 @@ const Webview = forwardRef<WebviewRef, WebviewProps>((props, ref) => {
 
       const trimmedSrc = src.trim();
       const isHttp = /^https?:\/\//i.test(trimmedSrc);
+      if (/^tau-collab-(asset|local):/.test(trimmedSrc)) {
+        try {
+          if (!remoteResourceToLocal) throw new Error("资源解析能力未提供");
+          await resolveLocalFile(await remoteResourceToLocal(trimmedSrc));
+        } catch {
+          if (!cancelled) setResolvedSrc(undefined);
+        }
+        return;
+      }
 
       if (isHttp) {
         if (sourceType === "local" && remoteResourceToLocal) {
