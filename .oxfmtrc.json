@@ -1,0 +1,38 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "semi": true,
+  "singleQuote": false,
+  "printWidth": 100,
+  "tabWidth": 2,
+  "trailingComma": "es5",
+  "useTabs": false,
+  "bracketSpacing": true,
+  "arrowParens": "avoid",
+  "endOfLine": "lf",
+  "sortImports": false,
+  "sortPackageJson": false,
+  "sortTailwindcss": {},
+  "ignorePatterns": [
+    "node_modules",
+    "tests/fixtures/plugins/releases",
+    ".playwright-cli",
+    "**/output",
+    "**/dist",
+    "**/dist-electron",
+    "**/build",
+    "**/release",
+    "**/vendor",
+    "**/data",
+    "pnpm-lock.yaml",
+    "package-lock.json",
+    "**/__fixtures__/*.md"
+  ],
+  "overrides": [
+    {
+      "files": ["apps/promo-video/**"],
+      "options": {
+        "printWidth": 200
+      }
+    }
+  ]
+}

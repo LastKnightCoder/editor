@@ -30,6 +30,8 @@
 
 ## guides/ — 操作指南
 
+日常代码检查、格式化、提交钩子与性能验证见 [代码检查与格式化](./guides/development-quality.md)。
+
 跨端 SDK、统一模板与官方格式 3 插件的候选验证、真实 npm 冻结验证、发行顺序与分发包摘要核验见 [plugin-portability-sdk.md](./guides/plugin-portability-sdk.md)，真实客户端接入校验见 [plugin-portability-hosts.md](./guides/plugin-portability-hosts.md)。
 
 客户端依赖准备、构建、覆盖安装及插件检查从 [客户端构建与安装](./guides/ops-client-build-install.md)进入；iOS 签名、归档、TestFlight 分发与设备安装见 [iOS 手册](./guides/ops-ios-signing.md)。
