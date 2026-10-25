@@ -1,6 +1,5 @@
 import { rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
@@ -11,8 +10,6 @@ import { createThemeBootstrapScript } from "@tau/themes";
 import * as path from "path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const extensionRequire = (_name: string) =>
-  createRequire(path.resolve(__dirname, "../../packages/editor/package.json"));
 
 const runtimeDependencyExternals = [
   "7zip-min",
@@ -101,7 +98,7 @@ export default defineConfig(() => {
               sourcemap: false,
               minify: true,
               outDir: "dist-electron/main",
-              rollupOptions: {
+              rolldownOptions: {
                 external: [
                   ...runtimeDependencyExternals,
                   // Exclude large renderer-only packages to prevent memory overflow
@@ -151,7 +148,7 @@ export default defineConfig(() => {
               sourcemap: false,
               minify: true,
               outDir: "dist-electron/preload",
-              rollupOptions: {
+              rolldownOptions: {
                 external: runtimeDependencyExternals,
               },
             },
@@ -174,19 +171,28 @@ export default defineConfig(() => {
       entries: ["index.html", "src/**/*.{ts,tsx}"],
     },
     build: {
-      minify: "esbuild" as const,
+      minify: "oxc" as const,
       sourcemap: false,
       reportCompressedSize: false,
       chunkSizeWarningLimit: 2000,
-      rollupOptions: {
-        input: { index: path.resolve(__dirname, "index.html"), "content-runtime": path.resolve(__dirname, "content-runtime.html") },
+      rolldownOptions: {
+        input: {
+          index: path.resolve(__dirname, "index.html"),
+          "content-runtime": path.resolve(__dirname, "content-runtime.html"),
+        },
         output: {
-          manualChunks: {
-            react: ["react"],
-            "react-dom": ["react-dom"],
-            "react-router-dom": ["react-router-dom"],
-            mermaid: [extensionRequire("diagram").resolve("mermaid")],
-            katex: ["katex"],
+          codeSplitting: {
+            groups: [
+              { name: "react", test: /[/\\]node_modules[/\\]react[/\\]/, priority: 50 },
+              { name: "react-dom", test: /[/\\]node_modules[/\\]react-dom[/\\]/, priority: 40 },
+              {
+                name: "react-router-dom",
+                test: /[/\\]node_modules[/\\]react-router-dom[/\\]/,
+                priority: 30,
+              },
+              { name: "mermaid", test: /[/\\]node_modules[/\\]mermaid[/\\]/, priority: 20 },
+              { name: "katex", test: /[/\\]node_modules[/\\]katex[/\\]/, priority: 10 },
+            ],
           },
         },
       },

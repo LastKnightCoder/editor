@@ -19,7 +19,7 @@ const blogRoot = path.join(root, "packages/blog");
 const require = createRequire(path.join(editorRoot, "package.json"));
 const desktopRequire = createRequire(path.join(root, "apps/desktop/package.json"));
 const ts = require("@typescript/typescript6");
-const { build } = createRequire(desktopRequire.resolve("vite/package.json"))("esbuild");
+const { build } = desktopRequire("esbuild");
 const editorManifest = JSON.parse(await readFile(path.join(editorRoot, "package.json"), "utf8"));
 const manifest = JSON.parse(await readFile(path.join(blogRoot, "package.json"), "utf8"));
 const output = path.resolve(process.argv[2] ?? path.join(root, "output/blog-package"));
@@ -122,7 +122,7 @@ await buildVite({
     outDir: path.join(directory, "dist"),
     emptyOutDir: false,
     cssMinify: true,
-    rollupOptions: {
+    rolldownOptions: {
       input: path.join(editorRoot, "styles.css"),
       output: {
         assetFileNames: asset =>

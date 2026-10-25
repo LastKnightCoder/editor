@@ -28,6 +28,10 @@ export default defineConfig(({ command, mode }) => {
     resolve: { dedupe: ["react", "react-dom"] },
     server: { port: 5173, strictPort: true },
     preview: { port: 5173, strictPort: true },
-    build: { outDir: "dist", emptyOutDir: true },
+    build: {
+      target: ["chrome107", "edge107", "firefox104", "safari16"],
+      outDir: "dist",
+      emptyOutDir: true,
+    },
   };
 });

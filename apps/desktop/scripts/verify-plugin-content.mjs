@@ -1,6 +1,6 @@
 import { build } from "esbuild";
 import { createRequire } from "node:module";
-import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
+import { cp, mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { spawn } from "node:child_process";
@@ -8,16 +8,27 @@ import { spawn } from "node:child_process";
 const root = path.resolve(import.meta.dirname, "..");
 const directory = await mkdtemp(path.join(tmpdir(), "tau-content-runtime-"));
 try {
-  await build({
-    entryPoints: [path.join(root, "src/app/plugins/content-runtime.ts")],
-    outfile: path.join(directory, "renderer.js"),
-    bundle: true,
-    platform: "browser",
-    format: "esm",
-    tsconfig: path.join(root, "tsconfig.json"),
-    loader: { ".css": "empty", ".svg": "dataurl" },
-    define: { "process.env.NODE_ENV": '"production"', "import.meta.env.DEV": "false" },
-  });
+  if (process.argv.includes("--production")) {
+    await cp(path.join(root, "dist"), directory, { recursive: true });
+  } else {
+    await build({
+      entryPoints: [path.join(root, "src/app/plugins/content-runtime.ts")],
+      outfile: path.join(directory, "renderer.js"),
+      bundle: true,
+      platform: "browser",
+      format: "esm",
+      tsconfig: path.join(root, "tsconfig.json"),
+      loader: { ".css": "empty", ".svg": "dataurl" },
+      define: { "process.env.NODE_ENV": '"production"', "import.meta.env.DEV": "false" },
+    });
+    await writeFile(
+      path.join(directory, "content-runtime.html"),
+      (await readFile(path.join(root, "content-runtime.html"), "utf8")).replace(
+        "/src/app/plugins/content-runtime.ts",
+        "./renderer.js"
+      )
+    );
+  }
   await build({
     entryPoints: [path.join(root, "scripts/plugin-backend/content-main.ts")],
     outfile: path.join(directory, "main.cjs"),
@@ -27,13 +38,6 @@ try {
     external: ["electron"],
     tsconfig: path.join(root, "tsconfig.json"),
   });
-  await writeFile(
-    path.join(directory, "content-runtime.html"),
-    (await readFile(path.join(root, "content-runtime.html"), "utf8")).replace(
-      "/src/app/plugins/content-runtime.ts",
-      "./renderer.js"
-    )
-  );
   const env = {
     ...process.env,
     TAU_BACKEND_TEST_DIRECTORY: directory,

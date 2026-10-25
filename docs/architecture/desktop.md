@@ -431,7 +431,9 @@ export function useXxxSnapshot() {
 
 ## 3.5 构建与打包
 
+- 桌面使用 TypeScript 7 原生编译器与 Vite 8（Rolldown 打包、Oxc 压缩）。入口、外置运行依赖与资源复制在 `vite.config.mts` 声明；分包使用 `rolldownOptions.output.codeSplitting`，保留 React、React DOM、路由、Mermaid 与 KaTeX 分组。
 - Vite 开发、样板间与构建命令统一 `--configLoader runner`（默认 bundle 加载器会把工作区 TS 配置依赖外部化导致 `ERR_UNKNOWN_FILE_EXTENSION`）；配置用 `fileURLToPath(import.meta.url)` 取目录。
+- `node apps/desktop/scripts/verify-plugin-content.mjs --production` 使用已经构建的 dist 内容页面，在隔离的临时 Electron 工作区验证真实内容插件；不带该参数时独立编译源码进行验证。
 - 桌面消费的编辑器扩展包、@tau/ui、@tau/themes 由 Vite 编入产物，统一声明在桌面 devDependencies——放 dependencies 会让 electron-builder 再收集整条生产依赖链；运行时从磁盘加载的外置模块与原生依赖保留生产声明，调整后检查实际安装包与原生运行时。
 - 安装包排除依赖 `.js.map`/`.mjs.map`/`.cjs.map`（afterPack 补复制同样规则），不泛删 `.map` 数据文件；`verify:native-runtime` 用包内 Electron 与依赖执行 pi 冒烟（含 TypeScript 扩展加载、中文路径、JSONL 恢复），临时工作区隔离。
 - pi 只带 SDK（不打包独立 CLI bundle 与 esbuild），`pi-packaging-boundary.mjs` 检查已审核版本与消费者，边界变化必须重新审核；主进程 Vite 的 `resolve.dedupe` 统一桌面入口的 `@earendil-works/pi-ai`（避免 peer 解析重复进 bundle 触发 Anthropic SDK 代码生成错误）。分词词典由外置 `@node-rs/jieba/dict` 从包内加载，不复制不劫持。
