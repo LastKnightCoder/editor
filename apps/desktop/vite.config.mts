@@ -30,6 +30,29 @@ const runtimeDependencyExternals = [
   "ws",
 ];
 
+/** 产物级哨兵：主进程侧 chunk 禁含渲染侧动画库特征，防止依赖泄漏再次静默发生 */
+const rendererLibGuard = (distDir: string) => ({
+  name: "assert-no-renderer-libs",
+  closeBundle() {
+    const features: [RegExp, string][] = [[/AnimatePresence|useReducedMotion/, "framer-motion"]];
+    const offenders: string[] = [];
+    const scan = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) scan(full);
+        else if (entry.name.endsWith(".js")) {
+          const code = fs.readFileSync(full, "utf8");
+          for (const [pattern, label] of features)
+            if (pattern.test(code)) offenders.push(`${path.relative(distDir, full)} 含 ${label}`);
+        }
+      }
+    };
+    scan(distDir);
+    if (offenders.length)
+      throw new Error(`渲染侧库泄漏进主进程 bundle：\n  ${offenders.join("\n  ")}`);
+  },
+});
+
 export default defineConfig(() => {
   rmSync("dist-electron", { recursive: true, force: true });
 
@@ -109,7 +132,12 @@ export default defineConfig(() => {
                   "katex",
                   "cheerio",
                 ],
+                // @tau/ui 桶 re-export 的动画组件会在解析期触碰 framer-motion 的
+                // "use client" 指令（产物经 tree-shaking 已不含渲染库），静音解析期
+                // 告警；真正的泄漏由 rendererLibGuard 在产物级把关
+                checks: { moduleLevelDirective: false },
                 plugins: [
+                  rendererLibGuard("dist-electron/main"),
                   {
                     name: "copy-tailwind-runtime-worker",
                     closeBundle() {
@@ -150,6 +178,7 @@ export default defineConfig(() => {
               outDir: "dist-electron/preload",
               rolldownOptions: {
                 external: runtimeDependencyExternals,
+                plugins: [rendererLibGuard("dist-electron/preload")],
               },
             },
           },
