@@ -31,8 +31,8 @@ export function CardItemView({ card, actions, previewMaxHeight = 150 }: CardItem
       onClick={() => actions.onOpen(card)}
       className={cn(
         "bg-surface border-line-1 ease-tau-out group flex cursor-pointer flex-col gap-2 rounded-[var(--tau-radius-md)] border p-[13px] pb-[11px]",
-        // 落在卡片库那张纸上：细描边分隔（同文章卡），hover = lift 轻抬阴影 + 描边隐去
-        "hover:shadow-lift transition-[box-shadow,border-color] duration-200 hover:border-transparent"
+        // 落在卡片库那张纸上：细描边分隔，hover 只加深描边、不加阴影
+        "hover:border-line-2 transition-[border-color] duration-200"
       )}
       style={card.isTop ? { borderColor: "var(--tau-accent)" } : undefined}
     >

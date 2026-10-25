@@ -192,7 +192,7 @@ export function CardWallList({ cards, actions, resetScrollKey }: CardWallListPro
       {showBackToTop && (
         <IconButton
           title="回到顶部"
-          className="bg-surface enabled:hover:bg-surface-hover shadow-float rounded-tau-md absolute bottom-5 right-3 size-9"
+          className="bg-surface enabled:hover:bg-surface-hover shadow-float rounded-tau-md absolute right-3 bottom-5 size-9"
           onClick={() => {
             virtualizer.scrollToOffset(0);
             setShowBackToTop(false);
@@ -242,12 +242,12 @@ function FeaturedCard({
       onClick={() => actions.onOpen(card)}
       className={cn(
         "bg-surface border-line-1 ease-tau-out group relative flex cursor-pointer overflow-hidden rounded-[var(--tau-radius-lg)] border py-4 pl-[18px] pr-5",
-        "hover:shadow-lift transition-[box-shadow,border-color] duration-200 hover:border-transparent"
+        "hover:border-line-2 transition-[border-color] duration-200"
       )}
     >
       <span className="absolute inset-y-0 left-0 w-1" style={{ background: "var(--tau-accent)" }} />
       <span
-        className="bg-accent-soft text-accent absolute right-3.5 top-3 grid size-[22px] place-items-center rounded-full"
+        className="bg-accent-soft text-accent absolute top-3 right-3.5 grid size-[22px] place-items-center rounded-full"
         title="已置顶"
       >
         <Pin className="size-3" strokeWidth={1.75} />
