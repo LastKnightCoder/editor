@@ -186,6 +186,43 @@ it.each(nodes)("内置 $type 使用精确契约与统一创建撤销", async nod
   expect(f.board.children[0].id).toBe(node.id);
   await f.model.validate();
 });
+it("引用正文的文字解析本机身份，移动与重开后仍复用原正文，不绑定空的板内编辑器", async () => {
+  let resolve!: (id: number | null) => void;
+  const reference = { sourceId: "source", kind: "content" as const, entityId: "body" };
+  const f = await setup(undefined, {
+    resolveEntity: vi.fn(
+      () =>
+        new Promise<number | null>(done => {
+          resolve = done;
+        })
+    ),
+  });
+  const node = base("richtext", { entity: reference, content: [] });
+  f.insert(node);
+  expect(f.binding.textDocument(node.id)).toBeUndefined();
+  expect(f.board.children[0].contentId).toBeUndefined();
+  resolve(7);
+  await Promise.resolve();
+  expect(f.board.children[0].contentId).toBe(7);
+  expect(f.board.extensions!.unknownElementReason(f.board.children[0])).toBeUndefined();
+  f.board.apply({
+    type: "set_node",
+    path: [0],
+    properties: { x: rect.x },
+    newProperties: { x: 300 },
+  });
+  const reopened = await setup(Y.encodeStateAsUpdate(f.doc), { resolveEntity: async () => 7 });
+  await Promise.resolve();
+  expect(reopened.board.children[0]).toMatchObject({
+    id: node.id,
+    entity: reference,
+    contentId: 7,
+    x: 300,
+  });
+  expect(reopened.binding.textDocument(node.id)).toBeUndefined();
+  expect(reopened.model.read().pages[0].children[0].body).toEqual([]);
+  await reopened.model.validate();
+});
 it("多富文本根跨页保留身份，图形文字属性与正文不互相覆盖", async () => {
   const f = await setup();
   const node = nodes[1];

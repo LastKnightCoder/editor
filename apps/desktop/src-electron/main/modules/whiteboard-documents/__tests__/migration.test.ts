@@ -17,7 +17,7 @@ import { CollaborationLocalStore } from "../../collaboration/local-store";
 import { WhiteboardMigration } from "../migration";
 import { WhiteboardJournal, journalKey } from "../journal";
 import { WhiteboardDocumentRepository } from "../repository";
-import { convertLegacyWhiteboard } from "../legacy";
+import { convertLegacyWhiteboard, type LegacyWhiteboardPage } from "../legacy";
 import { inventoryLegacyWhiteboards } from "../legacy-inventory";
 const cleanup: (() => void)[] = [];
 afterEach(() =>
@@ -156,6 +156,192 @@ describe("白板跨存储迁移恢复", () => {
   });
 });
 describe("显式旧白板转换", () => {
+  const shape = (id: string, x = 0) => ({
+    id,
+    type: "frame",
+    x,
+    y: 0,
+    width: 100,
+    height: 50,
+    rotation: 0,
+    title: id,
+  });
+  const presentation = (id: string, frames: { id: string; elements: string[] }[]) => ({
+    id,
+    name: "演示",
+    createTime: 1,
+    updateTime: 2,
+    frames,
+  });
+  const convertPresentations = async (pages: LegacyWhiteboardPage[]) => {
+    const result = await convertLegacyWhiteboard(pages, {
+      documentId: "doc",
+      title: "旧白板",
+      editorContracts: {},
+      resolveEntity: () => null,
+      mapResource: async value => value,
+    });
+    cleanup.push(() => result.doc.destroy());
+    return result;
+  };
+
+  it("正常帧与重复 ID 帧同时保留，八次引用逐一映射八个元素并可重新读取", async () => {
+    const frames = [
+      { id: "normal", elements: ["before", "after"] },
+      {
+        id: "duplicates",
+        elements: ["same", "before", ...Array<string>(7).fill("same"), "after"],
+        viewPort: { minX: 0, minY: 0, width: 800, height: 600, zoom: 1 },
+      },
+      { id: "again", elements: Array<string>(8).fill("same") },
+    ];
+    const pages: LegacyWhiteboardPage[] = [
+      {
+        id: "page",
+        title: "",
+        data: {
+          children: [
+            shape("before"),
+            {
+              ...shape("container"),
+              children: Array.from({ length: 8 }, (_, i) => shape("same", i * 100)),
+            },
+            shape("after"),
+          ],
+          presentationSequences: [presentation("sequence", frames)],
+        },
+      },
+    ];
+    const original = structuredClone(pages);
+    const result = await convertPresentations(pages);
+    const ids = result.mapping.filter(entry => entry.previousId === "same").map(entry => entry.id);
+    expect(new Set(ids).size).toBe(8);
+    const converted = result.bundle.presentations[0];
+    expect(converted).toMatchObject({ id: "sequence", name: "演示", createTime: 1, updateTime: 2 });
+    expect(converted.frames).toEqual([
+      frames[0],
+      { ...frames[1], elements: [ids[0], "before", ...ids.slice(1), "after"] },
+      { ...frames[2], elements: ids },
+    ]);
+    expect(result.issues).toEqual([]);
+    expect(pages).toEqual(original);
+    const restored = new Y.Doc();
+    Y.applyUpdate(restored, Y.encodeStateAsUpdate(result.doc));
+    const model = new WhiteboardModel(restored);
+    try {
+      await model.validate();
+      expect(model.read().presentations).toEqual([
+        { ...converted, frames: converted.frames.map(({ id, elements }) => ({ id, elements })) },
+      ]);
+    } finally {
+      model.dispose();
+      restored.destroy();
+    }
+  });
+
+  it("跨页重复 ID 优先匹配当前页，仍能引用后续页面的唯一元素", async () => {
+    const result = await convertPresentations([
+      {
+        id: "first",
+        title: "",
+        data: {
+          children: [shape("same")],
+          presentationSequences: [
+            presentation("first-sequence", [{ id: "first-frame", elements: ["same", "later"] }]),
+          ],
+        },
+      },
+      {
+        id: "second",
+        title: "",
+        data: {
+          children: [shape("same"), shape("same", 100), shape("later")],
+          presentationSequences: [
+            presentation("second-sequence", [{ id: "second-frame", elements: ["same", "same"] }]),
+          ],
+        },
+      },
+    ]);
+    const first = result.mapping.filter(
+      entry => entry.pageId === "first" && entry.previousId === "same"
+    );
+    const second = result.mapping.filter(
+      entry => entry.pageId === "second" && entry.previousId === "same"
+    );
+    expect(result.bundle.presentations[0].frames[0].elements).toEqual([first[0].id, "later"]);
+    expect(result.bundle.presentations[1].frames[0].elements).toEqual(
+      second.map(entry => entry.id)
+    );
+    expect(result.issues).toEqual([]);
+  });
+
+  it.each([1, 3])(
+    "重复 ID 引用 %i 次但候选为两个时，仅报告该引用，正常帧和空帧仍保留",
+    async count => {
+      const pages: LegacyWhiteboardPage[] = [
+        {
+          id: "page",
+          title: "",
+          data: {
+            children: [shape("good"), shape("same"), shape("same", 100)],
+            presentationSequences: [
+              presentation("sequence", [
+                { id: "normal", elements: ["good", "good"] },
+                {
+                  id: "partial",
+                  elements: ["good", ...Array<string>(count).fill("same"), "missing"],
+                },
+                { id: "unresolved", elements: ["missing"] },
+                { id: "last", elements: ["good"] },
+              ]),
+            ],
+          },
+        },
+      ];
+      const original = structuredClone(pages);
+      const result = await convertPresentations(pages);
+      expect(result.bundle.presentations[0].frames).toEqual([
+        { id: "normal", elements: ["good"] },
+        { id: "partial", elements: ["good"] },
+        { id: "unresolved", elements: [] },
+        { id: "last", elements: ["good"] },
+      ]);
+      expect(result.issues).toEqual([
+        {
+          pageId: "page",
+          nodeId: "sequence",
+          frameId: "partial",
+          previousId: "same",
+          reason: "ambiguous-presentation-reference",
+        },
+        {
+          pageId: "page",
+          nodeId: "sequence",
+          frameId: "partial",
+          previousId: "missing",
+          reason: "missing-presentation-reference",
+        },
+        {
+          pageId: "page",
+          nodeId: "sequence",
+          frameId: "unresolved",
+          previousId: "missing",
+          reason: "missing-presentation-reference",
+        },
+      ]);
+      expect(pages).toEqual(original);
+      const model = new WhiteboardModel(result.doc);
+      try {
+        await model.validate();
+        expect(model.read().presentations?.[0].frames).toEqual(
+          result.bundle.presentations[0].frames
+        );
+      } finally {
+        model.dispose();
+      }
+    }
+  );
+
   it("唯一旧 ID 换号后统一更新跨页连线与演示引用", async () => {
     const geometry = { x: 0, y: 0, width: 100, height: 50, rotation: 0 };
     const result = await convertLegacyWhiteboard(
@@ -196,7 +382,6 @@ describe("显式旧白板转换", () => {
         title: "旧板",
         editorContracts: {},
         resolveEntity: () => null,
-        readExclusiveContent: () => null,
         mapResource: async value => value,
       }
     );
@@ -239,7 +424,6 @@ describe("显式旧白板转换", () => {
         title: "旧板",
         editorContracts: {},
         resolveEntity: () => null,
-        readExclusiveContent: () => null,
         mapResource: async ref => ref,
       }
     );
@@ -513,7 +697,6 @@ for (const field of ["page", "board"] as const)
         title: target.title,
         editorContracts: {},
         resolveEntity: () => null,
-        readExclusiveContent: () => null,
         mapResource: async value => value,
       }
     );
@@ -566,7 +749,6 @@ it("旧连线只存折点时从折点派生矩形，保留原始点和连接", a
       title: "",
       editorContracts: {},
       resolveEntity: () => null,
-      readExclusiveContent: () => null,
       mapResource: async ref => ref,
     }
   );
@@ -585,7 +767,7 @@ it("旧连线只存折点时从折点派生矩形，保留原始点和连接", a
   }
 });
 
-it("分栏中的待恢复旧文本保留原位置与引用，不阻断整板转换", async () => {
+it("分栏中的旧文本保留原位置与正文引用，不把缓存复制成板内正文", async () => {
   const geometry = { x: 0, y: 0, width: 100, height: 40, rotation: 0 };
   const result = await convertLegacyWhiteboard(
     [
@@ -599,7 +781,15 @@ it("分栏中的待恢复旧文本保留原位置与引用，不阻断整板转�
               id: "column",
               type: "column",
               title: "分栏",
-              children: [{ ...geometry, id: "text", type: "richtext", contentId: 7, content: [] }],
+              children: [
+                {
+                  ...geometry,
+                  id: "text",
+                  type: "richtext",
+                  contentId: 7,
+                  content: [{ type: "paragraph", children: [{ text: "过时缓存" }] }],
+                },
+              ],
             },
           ],
         },
@@ -610,16 +800,66 @@ it("分栏中的待恢复旧文本保留原位置与引用，不阻断整板转�
       title: "",
       editorContracts: {},
       resolveEntity: kind => ({ sourceId: "source", kind, entityId: "entity" }),
-      readExclusiveContent: () => null,
       mapResource: async ref => ref,
     }
   );
   try {
     const child = result.bundle.pages[0].elements[0].children[0];
     expect(child.id).toBe("text");
+    expect(child.type).toBe("richtext");
+    expect(child.geometry).toEqual(geometry);
+    expect(child.body).toEqual([]);
     expect(child.entity).toEqual({ sourceId: "source", kind: "content", entityId: "entity" });
+    expect(result.issues).toEqual([]);
+  } finally {
+    result.doc.destroy();
+  }
+});
+
+it("无标签旧箭头保留连线，损坏的非数组标签仍保全原载荷", async () => {
+  const geometry = { x: 0, y: 0, width: 100, height: 40, rotation: 0 };
+  const result = await convertLegacyWhiteboard(
+    [
+      {
+        id: "page",
+        title: "",
+        data: {
+          children: [
+            {
+              ...geometry,
+              id: "empty",
+              type: "arrow",
+              source: {},
+              target: {},
+              points: [
+                { x: 0, y: 0 },
+                { x: 100, y: 40 },
+              ],
+            },
+            { ...geometry, id: "invalid", type: "arrow", description: "损坏标签" },
+          ],
+        },
+      },
+    ],
+    {
+      documentId: "doc",
+      title: "",
+      editorContracts: {},
+      resolveEntity: () => null,
+      mapResource: async ref => ref,
+    }
+  );
+  try {
+    const [empty, invalid] = result.bundle.pages[0].elements;
+    expect(empty.type).toBe("arrow");
+    expect(empty.body).toEqual([]);
+    expect(empty.data.points).toEqual([
+      { x: 0, y: 0 },
+      { x: 100, y: 40 },
+    ]);
+    expect(invalid.type).toBe("host.whiteboard.recovery");
     expect(result.issues).toEqual([
-      { pageId: "page", nodeId: "text", reason: "external-content-retained" },
+      { pageId: "page", nodeId: "invalid", reason: "missing-or-invalid-body" },
     ]);
   } finally {
     result.doc.destroy();
@@ -655,7 +895,6 @@ it("旧白板重复引用接管计数，事务失败和主库提交后中断重�
       title: target.title,
       editorContracts: {},
       resolveEntity: (kind, id) => ContentIdentityTable.reference(f.db, kind, id),
-      readExclusiveContent: () => null,
       mapResource: async value => value,
     }
   );
@@ -770,7 +1009,6 @@ it("先更新的官方火柴人插件为旧白板提供版本 1 契约，保持�
         title: "",
         editorContracts: { [prepared.id]: prepared.contract },
         resolveEntity: () => null,
-        readExclusiveContent: () => null,
         mapResource: async ref => ref,
       }
     );
