@@ -90,6 +90,56 @@ describe("发起共享时的资源处理", () => {
     expect(result.missing).toEqual([missing, "tau-collab:unknown"]);
     expect(readFileSync(result.files[0].path, "utf8")).toBe("附件原文");
   });
+  it("缺失资源诊断保留本地路径，远程凭据和内嵌载荷不进入日志明细", () => {
+    const { assets, root } = setup();
+    const missing = join(root, "missing.pdf");
+    const remote = "https://user:password@example.com/image.png?token=secret#credential";
+    const inline = "data:image/png;base64,c2VjcmV0";
+    const result = assets.recoveryFiles(DOCUMENT, [missing, remote, inline]);
+    expect(result.missing).toEqual([missing, remote, inline]);
+    expect(result.missingDetails).toEqual([
+      {
+        reference: missing,
+        original: missing,
+        resolvedPath: missing,
+        reason: "本地文件不存在或不可访问",
+      },
+      {
+        reference: "https://example.com/image.png",
+        original: "https://example.com/image.png",
+        resolvedPath: null,
+        reason: "引用无法解析为本地文件",
+      },
+      {
+        reference: "data:[已省略载荷]",
+        original: "data:[已省略载荷]",
+        resolvedPath: null,
+        reason: "引用无法解析为本地文件",
+      },
+    ]);
+  });
+  it("整库替换保留外部引用，仍收集本地文件并报告真正缺失的附件", () => {
+    const { assets, file, root } = setup();
+    const local = file("attachment.pdf", "附件原文");
+    const missing = join(root, "missing.pdf");
+    const external = [
+      "https://example.com/image.png",
+      "http://example.com/video.mp4",
+      "notion://page/unused",
+      "data:image/png;base64,aW1hZ2U=",
+    ];
+    const localServer = "http://localhost:24678/resources/missing.png";
+    const result = assets.recoveryFiles(
+      DOCUMENT,
+      [...external, local, missing, localServer, "tau-collab:unknown"],
+      "library-replacement"
+    );
+    expect(result.files).toEqual([{ name: "resource-0", path: local }]);
+    expect(result.missing).toEqual([missing, localServer, "tau-collab:unknown"]);
+    for (const reference of external)
+      expect(result.resources).toContainEqual({ reference, original: reference });
+    expect(assets.recoveryFiles(DOCUMENT, external).missing).toEqual(external);
+  });
   it("新文档按每个节点的历史契约映射资源，本机会话不上传文件", async () => {
     const { assets, file, uploads } = setup();
     const first = await prepareContentContract("plugin.example", {

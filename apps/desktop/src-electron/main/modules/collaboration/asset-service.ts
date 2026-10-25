@@ -39,6 +39,24 @@ const UPLOADED = 1;
 /** 仅本机资源：不上传；path 是本机缓存文件或共享前的原始引用 */
 const LOCAL_ONLY = 2;
 const MAX_BYTES = 25 * 1024 * 1024;
+
+function diagnosticReference(value: string): string {
+  if (isAbsolute(value) || value.startsWith("~/") || value.startsWith("~\\")) return value;
+  try {
+    const url = new URL(value);
+    if (["http:", "https:", "file:", "ltoh:"].includes(url.protocol)) {
+      url.username = "";
+      url.password = "";
+      url.search = "";
+      url.hash = "";
+      return url.href;
+    }
+    if (value.startsWith(ASSET_PREFIX) || isLocalAssetReference(value)) return value;
+    return `${url.protocol}[已省略载荷]`;
+  } catch {
+    return "[无法解析的引用]";
+  }
+}
 const MIME_EXTENSIONS: Record<string, string> = {
   "image/png": ".png",
   "image/jpeg": ".jpg",
@@ -332,10 +350,37 @@ export class CollaborationAssetService {
       | undefined;
   }
 
-  recoveryFiles(documentId: string, references: readonly string[] = []) {
+  recoveryFiles(
+    documentId: string,
+    references: readonly string[] = [],
+    mode: "standalone" | "library-replacement" = "standalone"
+  ) {
     const files: { name: string; path: string }[] = [];
     const resources: { reference: string; original: string; file?: string }[] = [];
     const missing: string[] = [];
+    const missingDetails: {
+      reference: string;
+      original: string;
+      resolvedPath: string | null;
+      reason: string;
+    }[] = [];
+    const recordMissing = (reference: string, original: string, path: string | null) => {
+      // 整库替换保留外部引用，不要求把网络资源和内嵌数据变成离线附件。
+      if (mode === "library-replacement" && !path) {
+        try {
+          if (["http:", "https:", "notion:", "data:"].includes(new URL(original).protocol)) return;
+        } catch {
+          // 无法识别的引用仍记入缺失清单。
+        }
+      }
+      missing.push(reference);
+      missingDetails.push({
+        reference: diagnosticReference(reference),
+        original: diagnosticReference(original),
+        resolvedPath: path,
+        reason: path ? "本地文件不存在或不可访问" : "引用无法解析为本地文件",
+      });
+    };
     const rows = this.store.db
       .prepare("SELECT * FROM resources WHERE document_id=? ORDER BY id")
       .all(documentId) as ResourceRow[];
@@ -344,7 +389,7 @@ export class CollaborationAssetService {
       const path = this.localPath(row.path);
       if (!path || !existsSync(path)) {
         resources.push({ reference, original: row.path });
-        missing.push(reference);
+        recordMissing(reference, row.path, path);
         continue;
       }
       const name = `resource-${files.length}`;
@@ -359,7 +404,7 @@ export class CollaborationAssetService {
       const path = this.recoveryPath(reference, documentId);
       if (!path || !existsSync(path)) {
         resources.push({ reference, original: reference });
-        missing.push(reference);
+        recordMissing(reference, reference, path);
         continue;
       }
       let name = copied.get(path);
@@ -370,7 +415,7 @@ export class CollaborationAssetService {
       }
       resources.push({ reference, original: reference, file: name });
     }
-    return { files, resources, missing };
+    return { files, resources, missing, missingDetails };
   }
 
   recoveryPath(reference: string, documentId?: string): string | null {
