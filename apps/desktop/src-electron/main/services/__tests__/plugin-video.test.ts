@@ -3,7 +3,9 @@ import { EventEmitter } from "node:events";
 import type { WebContents } from "electron";
 import { expect, it, vi } from "vitest";
 
-vi.mock("electron", () => ({ BrowserWindow: { getAllWindows: () => [] } }));
+const broadcasts = vi.hoisted(() => vi.fn(() => [] as any[]));
+vi.mock("electron", () => ({ BrowserWindow: { getAllWindows: broadcasts } }));
+vi.mock("electron-log", () => ({ default: { warn: vi.fn() } }));
 
 const { PluginVideoRelay } = await import("../plugin-video");
 
@@ -77,4 +79,42 @@ it("主进程调用的取消信号转发给宿主；过期会话的释放不影�
   controller.abort();
   await expect(pending).rejects.toMatchObject({ name: "AbortError" });
   expect(sent(host, "plugin-video:cancel")).toHaveLength(1);
+});
+
+it("宿主销毁期间广播失败不阻断在途请求清理，也不阻断存活窗口通知", async () => {
+  const relay = new PluginVideoRelay();
+  const host = window(81),
+    caller = window(82);
+  let destroyed = false;
+  vi.spyOn(host, "isDestroyed").mockImplementation(() => destroyed);
+  const live = {
+    isDestroyed: () => false,
+    webContents: { isDestroyed: () => false, send: vi.fn() },
+  };
+  const racing = {
+    isDestroyed: () => false,
+    webContents: {
+      isDestroyed: () => false,
+      send: vi.fn(() => {
+        throw new Error("Object has been destroyed");
+      }),
+    },
+  };
+  broadcasts.mockReturnValue([{ isDestroyed: () => false, webContents: host }, racing, live]);
+  try {
+    relay.connect(host, "generation");
+    const pending = relay.request(caller, "pending", { kind: "match", url: "u" });
+    const rejected = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    vi.mocked(host.send).mockClear();
+    destroyed = true;
+    expect(() => host.emit("destroyed")).not.toThrow();
+    expect(host.send).not.toHaveBeenCalled();
+    expect(live.webContents.send).toHaveBeenCalledWith("plugin-video:providers", {
+      ready: false,
+      providers: [],
+    });
+    await rejected;
+  } finally {
+    broadcasts.mockReturnValue([]);
+  }
 });

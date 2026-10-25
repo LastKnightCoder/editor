@@ -3,7 +3,6 @@ import {
   checkForUpdate,
   downloadUpdate,
   installUpdate,
-  onInstallFailed,
   onUpdateDownloadProgress,
   onUpdateDownloaded,
   onUpdateError,
@@ -90,7 +89,11 @@ export const useUpdateStore = create<UpdateState>()((set, get) => ({
     }
   },
   install: async () => {
-    await installUpdate();
+    try {
+      await installUpdate();
+    } catch (error) {
+      set({ status: "error", errorMessage: getErrorMessage(error) });
+    }
   },
 }));
 
@@ -112,17 +115,9 @@ export function initUpdateListeners(): () => void {
       useUpdateStore.setState({ status: "error", errorMessage: message });
     }
   });
-  const unsubInstallFailed = onInstallFailed(({ fallbackUrl }) => {
-    useUpdateStore.setState({
-      status: "error",
-      errorMessage: "自动安装失败，请手动下载安装包",
-      ...(fallbackUrl ? { fallbackUrl } : {}),
-    });
-  });
   return () => {
     unsubProgress();
     unsubDownloaded();
     unsubError();
-    unsubInstallFailed();
   };
 }

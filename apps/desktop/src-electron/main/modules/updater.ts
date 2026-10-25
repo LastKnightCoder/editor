@@ -1,9 +1,9 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, autoUpdater as nativeUpdater, BrowserWindow, dialog, ipcMain } from "electron";
 import { join } from "node:path";
 import fsExtra from "fs-extra/esm";
 import log from "electron-log";
 import electronUpdaterPkg from "electron-updater";
-import { isAppQuitting } from "../app-quit-controller";
+import { requestAppQuit } from "../app-quit-controller";
 import { Module } from "../types/module";
 import PathUtil from "../utils/PathUtil";
 
@@ -79,6 +79,10 @@ export interface UpdateDownloadProgressPayload {
 class UpdaterModule implements Module {
   name = "updater";
   private downloading = false;
+  private downloadedVersion: string | null = null;
+  private readyToInstall = false;
+  private installing = false;
+  private installError: Error | null = null;
   private fallbackUrl: string | null = null;
   private versionChange: VersionChangePayload | null = null;
 
@@ -104,12 +108,18 @@ class UpdaterModule implements Module {
     });
 
     autoUpdater.on("update-downloaded", info => {
-      this.downloading = false;
-      this.broadcast("updater:update-downloaded", { version: info.version });
+      this.downloadedVersion = info.version;
+      if (process.platform !== "darwin") this.completeDownload();
     });
+    // macOS 的下载事件早于 Squirrel 验包，原生确认后才允许安装。
+    if (process.platform === "darwin")
+      nativeUpdater.on("update-downloaded", () => this.completeDownload());
 
     autoUpdater.on("error", error => {
       this.downloading = false;
+      this.readyToInstall = false;
+      this.downloadedVersion = null;
+      if (this.installing) this.installError = error;
       log.error("updater error:", error);
       this.broadcast("updater:error", { message: error?.message ?? String(error) });
     });
@@ -149,29 +159,60 @@ class UpdaterModule implements Module {
     ipcMain.handle("updater:download", async (): Promise<{ started: boolean }> => {
       if (!app.isPackaged || this.downloading) return { started: false };
       this.downloading = true;
-      await autoUpdater.downloadUpdate();
-      return { started: true };
+      this.readyToInstall = false;
+      this.downloadedVersion = null;
+      try {
+        await autoUpdater.downloadUpdate();
+        return { started: true };
+      } catch (error) {
+        this.downloading = false;
+        this.readyToInstall = false;
+        this.downloadedVersion = null;
+        throw error;
+      }
     });
 
-    ipcMain.handle("updater:install", () => {
-      autoUpdater.quitAndInstall();
-      // macOS 未正式签名时 Squirrel 校验会失败，quitAndInstall 静默卡死不退出；
-      // 若 3 秒后进程仍在运行且未进入退出流程，判定安装失败并引导手动下载
-      const timer = setTimeout(() => {
-        if (isAppQuitting()) return;
-        log.error("updater install did not restart the app, fallback to manual download");
-        this.broadcast("updater:install-failed", { fallbackUrl: this.fallbackUrl });
-      }, 3000);
-      timer.unref?.();
+    ipcMain.handle("updater:install", async () => {
+      if (this.installing) return;
+      if (!app.isPackaged || !this.readyToInstall) throw new Error("更新尚未准备完成，请稍后重试");
+      this.installing = true;
+      this.installError = null;
+      try {
+        await requestAppQuit(() => {
+          try {
+            if (this.installError) throw this.installError;
+            autoUpdater.quitAndInstall();
+            if (this.installError) throw this.installError;
+          } catch (error) {
+            dialog.showErrorBox(
+              "更新安装失败",
+              `请重新打开应用或手动下载安装包。\n${String(error)}`
+            );
+            throw error;
+          }
+        });
+      } finally {
+        this.installing = false;
+      }
     });
 
     log.info("UpdaterModule initialized");
   }
 
+  private completeDownload(): void {
+    if (!this.downloadedVersion || this.readyToInstall) return;
+    this.downloading = false;
+    this.readyToInstall = true;
+    this.broadcast("updater:update-downloaded", { version: this.downloadedVersion });
+  }
+
   private broadcast(channel: string, payload: unknown): void {
     for (const win of BrowserWindow.getAllWindows()) {
-      if (!win.isDestroyed()) {
+      try {
+        if (win.isDestroyed() || win.webContents.isDestroyed()) continue;
         win.webContents.send(channel, payload);
+      } catch (error) {
+        log.warn(`更新通知发送失败：${channel}`, error);
       }
     }
   }
