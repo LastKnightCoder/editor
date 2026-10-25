@@ -26,6 +26,9 @@ function QuickCaptureScreen() {
     <QuickCaptureSheet
       open
       saving={controller.saving}
+      document={controller.document}
+      editorRef={controller.editorRef}
+      readonly={controller.readonly}
       onContentChange={controller.onContentChange}
       onClear={controller.onClear}
       onRequestClose={() => {

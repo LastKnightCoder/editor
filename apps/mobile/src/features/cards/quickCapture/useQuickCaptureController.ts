@@ -2,17 +2,27 @@
 // 清空即删卡。原先寄生在 AppShell 的约 300 行逻辑下沉至此。
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useMemoizedFn } from "ahooks";
+import type { EditorRef } from "@tau/editor";
+import type { NodeTreeEditor } from "@tau/editor-collab";
+import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import type { Descendant } from "slate";
+import type { ContentDetailResponse } from "../../../types";
 import * as tauri from "../../../services/tauri";
 import { useSingleFlight } from "../../../hooks/useSingleFlight";
+import useLocalContentDocument from "../../../hooks/useLocalContentDocument";
 import {
   EMPTY_EDITOR_CONTENT,
   getContentLength,
   isEditorContentEmpty,
   normalizeEditorContent,
 } from "../editorContentUtils";
-import { clearQuickCaptureDraft, hasQuickCaptureDraft } from "../quickCaptureDraft";
+import {
+  clearQuickCaptureDraft,
+  hasQuickCaptureDraft,
+  writeQuickCaptureDraft,
+} from "../quickCaptureDraft";
 import { toast } from "../../../components/toast";
 
 const QUICK_CAPTURE_DEBOUNCE_MS = 600;
@@ -24,6 +34,9 @@ export type QuickCaptureControllerDeps = {
 
 export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
   const [saving, setSaving] = useState(false);
+  const [detail, setDetail] = useState<ContentDetailResponse>();
+  const metadataRef = useRef<ContentDetailResponse | undefined>(undefined);
+  const editorRef = useRef<EditorRef | null>(null);
 
   const contentRef = useRef<Descendant[]>(EMPTY_EDITOR_CONTENT);
   const cardIdRef = useRef<number | null>(null);
@@ -59,26 +72,29 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
     clearDebounceTimer();
     cardIdRef.current = null;
     contentIdRef.current = null;
+    metadataRef.current = undefined;
+    setDetail(undefined);
     dirtyRef.current = false;
     lastSavedSnapshotRef.current = "";
     contentRef.current = EMPTY_EDITOR_CONTENT;
   });
 
   const persist = useMemoizedFn(async (): Promise<boolean> => {
-    const normalizedContent = normalizeEditorContent(contentRef.current);
-    contentRef.current = normalizedContent;
-    if (isEditorContentEmpty(normalizedContent)) {
-      return true;
-    }
-
-    const contentKey = JSON.stringify(normalizedContent);
-    if (contentKey === lastSavedSnapshotRef.current) {
-      clearQuickCaptureDraft();
-      return true;
-    }
-
-    setSaving(true);
+    // 首次落库前同步暂停临时编辑器，接入持久正文时不覆盖在途输入。
+    if (!metadataRef.current) flushSync(() => setSaving(true));
+    else setSaving(true);
     try {
+      (
+        editorRef.current?.getEditor() as Partial<NodeTreeEditor> | undefined
+      )?.flushNodeTreeInputs?.();
+      await localDocument?.flush();
+      const normalizedContent = structuredClone(normalizeEditorContent(contentRef.current));
+      if (isEditorContentEmpty(normalizedContent)) return true;
+      const contentKey = JSON.stringify(normalizedContent);
+      if (contentKey === lastSavedSnapshotRef.current && metadataRef.current) {
+        clearQuickCaptureDraft();
+        return true;
+      }
       let cardId = cardIdRef.current;
       let contentId = contentIdRef.current;
       if (cardId === null) {
@@ -90,21 +106,41 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
         contentId = created.contentId;
         cardIdRef.current = cardId;
         contentIdRef.current = contentId;
-      } else {
-        if (!contentId || contentId <= 0) {
-          const detail = await tauri.getCardDetail(cardId);
-          contentId = detail.contentId;
-          contentIdRef.current = contentId;
-        }
-        await tauri.updateContent({
-          contentId,
-          content: normalizedContent,
-          count: getContentLength(normalizedContent),
-        });
       }
-
-      lastSavedSnapshotRef.current = contentKey;
-      clearQuickCaptureDraft();
+      if (!contentId) throw new Error("CONTENT_NOT_FOUND: 正文不存在");
+      if (!metadataRef.current) {
+        const created = await tauri.getContentDetail(contentId);
+        if (
+          !created.contracts ||
+          !created.documentId ||
+          !created.librarySourceId ||
+          !created.revision
+        )
+          throw new Error("CONTENT_CONTRACT_INVALID: 新建正文身份不完整");
+        metadataRef.current = created;
+        setDetail(created);
+        contentRef.current = created.content;
+        lastSavedSnapshotRef.current = JSON.stringify(created.content);
+        clearQuickCaptureDraft();
+        return true;
+      }
+      const metadata = metadataRef.current;
+      const updated = await tauri.updateContent({
+        contentId,
+        content: normalizedContent,
+        count: getContentLength(normalizedContent),
+        contracts: metadata.contracts ?? undefined,
+        expectedRevision: metadata.revision ?? undefined,
+        expectedDocumentId: metadata.documentId ?? undefined,
+        expectedSourceId: metadata.librarySourceId ?? undefined,
+      });
+      metadataRef.current = {
+        ...updated,
+        contracts: { ...updated.contracts, ...metadataRef.current.contracts },
+      };
+      setDetail(metadataRef.current);
+      lastSavedSnapshotRef.current = JSON.stringify(updated.content);
+      if (JSON.stringify(contentRef.current) === contentKey) clearQuickCaptureDraft();
       return true;
     } catch (error) {
       presentError(error, "快速捕获保存失败，请稍后重试");
@@ -137,45 +173,53 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
     }, QUICK_CAPTURE_DEBOUNCE_MS);
   });
 
-  const handleContentChange = useMemoizedFn((content: Descendant[]) => {
-    const normalized = normalizeEditorContent(content);
-    // 选区变化/输入法合成会以相同内容重复触发 onChange，
-    // 内容未变时不标脏，否则防抖被无限重启、flush 也会空转
-    if (JSON.stringify(normalized) === JSON.stringify(contentRef.current)) {
-      return;
+  const handleContentChange = useMemoizedFn(
+    (content: Descendant[], contracts?: ContentContractDictionary) => {
+      if (metadataRef.current && contracts)
+        metadataRef.current = { ...metadataRef.current, contracts };
+      const normalized = normalizeEditorContent(content);
+      // 选区变化/输入法合成会以相同内容重复触发 onChange，
+      // 内容未变时不标脏，否则防抖被无限重启、flush 也会空转
+      if (JSON.stringify(normalized) === JSON.stringify(contentRef.current)) {
+        return;
+      }
+      contentRef.current = normalized;
+      writeQuickCaptureDraft(normalized);
+      dirtyRef.current = true;
+      schedulePersist();
     }
-    contentRef.current = normalized;
-    dirtyRef.current = true;
-    schedulePersist();
+  );
+
+  const localDocument = useLocalContentDocument({
+    contentId: detail?.contentId,
+    content: detail?.content ?? EMPTY_EDITOR_CONTENT,
+    metadata: detail,
+    version: 0,
+    onChange: handleContentChange,
   });
 
-  const handleClear = useMemoizedFn(() => {
-    if (saving) return;
+  const handleClear = useMemoizedFn(async (): Promise<boolean> => {
+    if (saving) return false;
     clearDebounceTimer();
-    dirtyRef.current = false;
-    contentRef.current = EMPTY_EDITOR_CONTENT;
-    lastSavedSnapshotRef.current = "";
-    clearQuickCaptureDraft();
-
     const cardId = cardIdRef.current;
-    if (cardId === null) return;
-
     setSaving(true);
-    void (async () => {
-      try {
+    try {
+      if (cardId !== null) {
         const changed = await tauri.deleteCard(cardId);
         if (changed <= 0) {
           throw new Error("CARD_NOT_FOUND: card does not exist");
         }
-        cardIdRef.current = null;
-        contentIdRef.current = null;
         await refreshCards();
-      } catch (error) {
-        presentError(error, "清空快速捕获内容失败，请稍后重试");
-      } finally {
-        setSaving(false);
       }
-    })();
+      resetSession();
+      clearQuickCaptureDraft();
+      return true;
+    } catch (error) {
+      presentError(error, "清空快速捕获内容失败，请稍后重试");
+      return false;
+    } finally {
+      setSaving(false);
+    }
   });
 
   /** 关闭：flush 持久化队列 → 空内容且已建卡则删卡 → 复位并返回 true（调用方负责 goBack） */
@@ -226,10 +270,13 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
   return useMemo(
     () => ({
       saving,
+      editorRef,
+      document: localDocument,
+      readonly: !detail && (saving || cardIdRef.current !== null),
       onContentChange: handleContentChange,
       onClear: handleClear,
       requestClose,
     }),
-    [saving, handleContentChange, handleClear, requestClose]
+    [saving, detail, localDocument, handleContentChange, handleClear, requestClose]
   );
 }

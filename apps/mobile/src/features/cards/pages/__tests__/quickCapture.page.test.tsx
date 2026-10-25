@@ -55,7 +55,17 @@ const tauriMocks = vi.hoisted(() => ({
   updateContent: vi.fn(async () => ({})),
   deleteCard: vi.fn(async () => 1),
   getCardDetail: vi.fn(async () => ({ id: 101, contentId: 201 })),
+  getContentDetail: vi.fn(async () => ({
+    contentId: 201,
+    documentId: "document",
+    librarySourceId: "library",
+    revision: "r1",
+    contracts: {},
+    content: [{ type: "paragraph", children: [{ type: "formatted", text: "hello" }] }],
+  })),
 }));
+
+vi.mock("../../../../hooks/useLocalContentDocument", () => ({ default: () => undefined }));
 
 const appMocks = vi.hoisted(() => ({
   presentError: vi.fn(),
