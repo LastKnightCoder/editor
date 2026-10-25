@@ -45,4 +45,16 @@ export function timeGroup(time: number): string {
   return "更早";
 }
 
-export const pageLabel = (page: Pick<WebPageSummary, "title" | "url">) => page.title || page.url;
+/** 没有标题的页面用「域名 + 路径」代替完整网址 */
+export function readableUrl(url: string): string {
+  try {
+    const { host, pathname, search } = new URL(url);
+    const path = decodeURI(pathname).replace(/\/$/, "");
+    return `${host.replace(/^www\./, "")}${path}${search}`;
+  } catch {
+    return url;
+  }
+}
+
+export const pageLabel = (page: Pick<WebPageSummary, "title" | "url">) =>
+  page.title || readableUrl(page.url);

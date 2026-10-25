@@ -134,7 +134,16 @@ describe("WebPageTable", () => {
       renamed: false,
     });
     expect(sourceTitles("https://a.com/x")).toEqual(["React 19 – React"]);
-    expect(() => WebPageTable.rename(db, "https://none.com/", "x")).toThrow("没有这个页面");
+    // 只有本机笔记的页面：改名即建页面行，并列进伴读库
+    expect(WebPageTable.rename(db, "https://note.com/p", "只有笔记")).toMatchObject({
+      host: "note.com",
+      title: "只有笔记",
+      pageTitle: "",
+      count: 0,
+    });
+    expect(
+      WebPageTable.listPages(db, page({ url: "https://note.com/p" })).items.map(item => item.title)
+    ).toEqual(["只有笔记"]);
   });
 
   it("空标题不覆盖已记下的网页标题", () => {

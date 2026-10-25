@@ -1,7 +1,7 @@
 import { ArrowDownUp, Highlighter, Search } from "lucide-react";
 import type { LibrarySort, WebPageSummary } from "@tau/shared/browser-companion";
 import { cn, FilterPill, Input, Menu } from "@tau/ui";
-import type { LocalNotePage } from "../local";
+import { hostOf, summarize, type LocalNotePage } from "../local";
 import { useLibraryPages, type PagesFilter } from "../queries";
 import { Badge, ColorBar, EmptyState, LoadMore, SiteMark } from "./parts";
 import { formatTime, pageLabel, timeGroup } from "../helpers";
@@ -41,7 +41,7 @@ function PageRow({
         </span>
         <span className="text-tau-sm text-ink-3 mt-1 flex items-center gap-2">
           {page.count > 0 && <ColorBar colors={page.colors} count={page.count} />}
-          <span>{page.count} 条</span>
+          {page.count > 0 && <span>{page.count} 条</span>}
           {notes?.draft && <Badge tone="warn">草稿</Badge>}
           {notes && notes.saved.length > 0 && <Badge tone="ok">{notes.saved.length} 张卡片</Badge>}
           <span className="ml-auto flex-none">{formatTime(page.lastTime)}</span>
@@ -76,6 +76,21 @@ export function PageList({
   const items = pages.data?.pages.flatMap(page => page.items) ?? [];
   const grouped = filter.sort === "recent" || filter.sort === "oldest";
   const filtering = !!(filter.query || filter.noted || filter.host);
+  // 只有本机笔记、没有标注的页面不在 Tau 的列表里：列表加载完后接在末尾
+  const listed = new Set(items.map(page => page.url));
+  const keyword = filter.query?.toLowerCase();
+  const noteOnly =
+    pages.isPending || pages.hasNextPage || filter.noted
+      ? []
+      : [...notes.values()]
+          .filter(page => !listed.has(page.url))
+          .filter(page => !filter.host || hostOf(page.url) === filter.host)
+          .filter(
+            page =>
+              !keyword ||
+              `${page.title}\n${page.url}\n${page.draft ?? ""}`.toLowerCase().includes(keyword)
+          )
+          .map(page => summarize(page.url, page.title, [], page.updatedAt ?? 0));
 
   return (
     <div className="border-line-1 flex min-h-0 w-[340px] flex-none flex-col border-r">
@@ -138,7 +153,7 @@ export function PageList({
         )}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2.5">
-        {pages.isPending ? null : items.length === 0 ? (
+        {pages.isPending ? null : items.length === 0 && noteOnly.length === 0 ? (
           <EmptyState icon={<Highlighter size={22} strokeWidth={1.6} />}>
             {filtering
               ? "没有符合条件的页面"
@@ -163,6 +178,20 @@ export function PageList({
               </div>
             );
           })
+        )}
+        {noteOnly.length > 0 && (
+          <>
+            <p className="text-tau-sm text-ink-3 px-2 pt-2.5 pb-1">只有笔记</p>
+            {noteOnly.map(page => (
+              <PageRow
+                key={page.url}
+                page={page}
+                active={page.url === selected}
+                notes={notes.get(page.url)}
+                onSelect={() => onSelect(page)}
+              />
+            ))}
+          </>
         )}
         <LoadMore
           hasMore={!!pages.hasNextPage}

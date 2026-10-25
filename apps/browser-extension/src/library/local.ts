@@ -5,6 +5,8 @@
 import type { Descendant } from "slate";
 import {
   HIGHLIGHT_COLORS,
+  type LibraryFeedItem,
+  type LibraryFeedParams,
   type LibraryList,
   type LibraryPagesParams,
   type WebAnnotation,
@@ -77,7 +79,7 @@ export function readLocalNotes(snapshot: StorageSnapshot): LocalNotePage[] {
   return [...pages.values()].sort((a, b) => (b.updatedAt ?? -1) - (a.updatedAt ?? -1));
 }
 
-const hostOf = (url: string) => {
+export const hostOf = (url: string) => {
   try {
     return new URL(url).host;
   } catch {
@@ -145,5 +147,28 @@ export function queryCachedPages(
   return {
     items: filtered.slice(params.offset, params.offset + params.limit),
     total: filtered.length,
+  };
+}
+
+/** 没连上 Tau 时的全部标注：本机按页缓存的标注平铺，与 Tau 的 library.feed 同口径筛选、按时间倒序分页 */
+export function queryCachedFeed(
+  snapshot: StorageSnapshot,
+  params: LibraryFeedParams
+): LibraryList<LibraryFeedItem> {
+  const keyword = params.query?.toLowerCase();
+  const items = entriesWithPrefix<{ title?: string; items?: WebAnnotation[] }>(snapshot, "ann:")
+    .flatMap(([url, page]) =>
+      (page?.items ?? []).map(item => ({ ...item, url, title: page.title ?? "" }))
+    )
+    .filter(item => !params.color || item.color === params.color)
+    .filter(item => !params.noted || item.note.trim())
+    .filter(
+      item =>
+        !keyword || `${item.text}\n${item.note}\n${item.title}`.toLowerCase().includes(keyword)
+    )
+    .sort((a, b) => b.createdAt - a.createdAt);
+  return {
+    items: items.slice(params.offset, params.offset + params.limit),
+    total: items.length,
   };
 }
