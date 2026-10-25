@@ -217,6 +217,20 @@
       "runtimeArgs": ["-m", "http.server", "8836", "--bind", "127.0.0.1", "-d", "."],
       "port": 8836,
       "url": "http://localhost:8836"
+    },
+    {
+      "name": "browser-companion-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8837",
+        "--bind",
+        "127.0.0.1",
+        "-d",
+        "docs/tasks/browser-companion/mockups"
+      ],
+      "port": 8837
     }
   ]
 }
