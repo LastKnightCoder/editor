@@ -1,3 +1,4 @@
+import { withDurableDocuments } from "./durable-document-lifecycle";
 import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
 import PathUtil from "../utils/PathUtil";
 import Database from "better-sqlite3";
@@ -616,21 +617,23 @@ class DatabaseModule implements Module {
   }
 
   async reconnectForSync(name: string, source: DatabaseReconnectSource) {
-    log.info(`[database] reconnectForSync: db=${name}, source=${source}`);
-    if (this.databases.has(name)) {
-      this.databases.get(name)!.close();
-      this.databases.delete(name);
-      mainContentIndexDBManager.closeDatabase(name);
-    }
-    await this.openReadyDatabase(
-      name,
-      source === "sync_download_reconnect" ? "maintenance" : "normal",
-      true
-    );
-    this.warmIndexDatabaseInBackground(name, "connect_or_reconnect");
-    this.currentDatabaseName = name;
-    this.notifyDatabaseConnected(name, source);
-    this.hasConnectedDatabase = true;
+    return withDurableDocuments({ databaseName: name, reason: "database-change" }, async () => {
+      log.info(`[database] reconnectForSync: db=${name}, source=${source}`);
+      if (this.databases.has(name)) {
+        this.databases.get(name)!.close();
+        this.databases.delete(name);
+        mainContentIndexDBManager.closeDatabase(name);
+      }
+      await this.openReadyDatabase(
+        name,
+        source === "sync_download_reconnect" ? "maintenance" : "normal",
+        true
+      );
+      this.warmIndexDatabaseInBackground(name, "connect_or_reconnect");
+      this.currentDatabaseName = name;
+      this.notifyDatabaseConnected(name, source);
+      this.hasConnectedDatabase = true;
+    });
   }
 
   async init() {
@@ -677,76 +680,90 @@ class DatabaseModule implements Module {
       mode?: DatabaseConnectMode,
       source?: DatabaseReconnectSource
     ) => {
-      const connectMode: DatabaseConnectMode = mode === "normal" ? "normal" : "maintenance";
-      const appDir = PathUtil.getAppDir();
-      const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
-      const existedBeforeConnect = this.databases.has(name);
+      const ownerWindow = BrowserWindow.fromWebContents(event.sender);
+      const previousName = ownerWindow ? this.windowToDatabase.get(ownerWindow.id) : undefined;
+      const run = async () => {
+        const connectMode: DatabaseConnectMode = mode === "normal" ? "normal" : "maintenance";
+        const appDir = PathUtil.getAppDir();
+        const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
+        const existedBeforeConnect = this.databases.has(name);
 
-      // 检测数据库切换
-      const oldDbName = this.currentDatabaseName;
-      const dbChanged = oldDbName !== name;
+        // 检测数据库切换
+        const oldDbName = this.currentDatabaseName;
+        const dbChanged = oldDbName !== name;
 
-      if (!this.databases.has(name) || force) {
-        log.info(
-          `[database] create-or-connect-database start: db=${name}, dbPath=${dbPath}, force=${Boolean(force)}, mode=${connectMode}`
-        );
-        if (this.databases.has(name)) {
-          this.databases.get(name)!.close();
-          this.databases.delete(name);
-          mainContentIndexDBManager.closeDatabase(name);
+        if (!this.databases.has(name) || force) {
+          log.info(
+            `[database] create-or-connect-database start: db=${name}, dbPath=${dbPath}, force=${Boolean(force)}, mode=${connectMode}`
+          );
+          if (this.databases.has(name)) {
+            this.databases.get(name)!.close();
+            this.databases.delete(name);
+            mainContentIndexDBManager.closeDatabase(name);
+          }
+          await this.openReadyDatabase(
+            name,
+            connectMode,
+            source === "sync_upload_reconnect" || source === "sync_download_reconnect"
+          );
         }
-        await this.openReadyDatabase(
-          name,
-          connectMode,
-          source === "sync_upload_reconnect" || source === "sync_download_reconnect"
-        );
-      }
 
-      const database = this.getDatabase(name);
-      if (!database) {
-        throw new Error(`No database found after connect: ${name}`);
-      }
-
-      const ensureMode = existedBeforeConnect && !force ? "warm_recheck" : "connect_or_reconnect";
-      log.info(
-        `[database] create-or-connect-database index ensureReady scheduled: db=${name}, mode=${ensureMode}`
-      );
-      this.warmIndexDatabaseInBackground(name, ensureMode);
-
-      if (connectMode === "maintenance" && (!existedBeforeConnect || force)) {
-        const checkpointStartAt = Date.now();
-        const checkpointOk = this.forceCheckpoint(name);
-        log.info(
-          `[database] create-or-connect-database checkpoint result: db=${name}, success=${checkpointOk}, elapsedMs=${Date.now() - checkpointStartAt}`
-        );
-      }
-
-      const sender = event.sender;
-      const win = BrowserWindow.fromWebContents(sender);
-      if (win) {
-        this.windowToDatabase.set(win.id, name);
-      }
-
-      let connectReason: DatabaseConnectReason | null = null;
-      if (!this.hasConnectedDatabase) {
-        connectReason = "connect";
-      } else if (dbChanged) {
-        connectReason = "switch";
-      } else if (force) {
-        connectReason = source || "reconnect";
-      } else if (!existedBeforeConnect) {
-        connectReason = "connect";
-      }
-
-      if (connectReason) {
-        this.currentDatabaseName = name;
-        if (dbChanged) {
-          log.info(`Database changed from ${oldDbName} to ${name}`);
-          this.notifyDatabaseChange(name);
+        const database = this.getDatabase(name);
+        if (!database) {
+          throw new Error(`No database found after connect: ${name}`);
         }
-        this.notifyDatabaseConnected(name, connectReason);
-        this.hasConnectedDatabase = true;
-      }
+
+        const ensureMode = existedBeforeConnect && !force ? "warm_recheck" : "connect_or_reconnect";
+        log.info(
+          `[database] create-or-connect-database index ensureReady scheduled: db=${name}, mode=${ensureMode}`
+        );
+        this.warmIndexDatabaseInBackground(name, ensureMode);
+
+        if (connectMode === "maintenance" && (!existedBeforeConnect || force)) {
+          const checkpointStartAt = Date.now();
+          const checkpointOk = this.forceCheckpoint(name);
+          log.info(
+            `[database] create-or-connect-database checkpoint result: db=${name}, success=${checkpointOk}, elapsedMs=${Date.now() - checkpointStartAt}`
+          );
+        }
+
+        const sender = event.sender;
+        const win = BrowserWindow.fromWebContents(sender);
+        if (win) {
+          this.windowToDatabase.set(win.id, name);
+        }
+
+        let connectReason: DatabaseConnectReason | null = null;
+        if (!this.hasConnectedDatabase) {
+          connectReason = "connect";
+        } else if (dbChanged) {
+          connectReason = "switch";
+        } else if (force) {
+          connectReason = source || "reconnect";
+        } else if (!existedBeforeConnect) {
+          connectReason = "connect";
+        }
+
+        if (connectReason) {
+          this.currentDatabaseName = name;
+          if (dbChanged) {
+            log.info(`Database changed from ${oldDbName} to ${name}`);
+            this.notifyDatabaseChange(name);
+          }
+          this.notifyDatabaseConnected(name, connectReason);
+          this.hasConnectedDatabase = true;
+        }
+      };
+      const connect = () =>
+        force && this.databases.has(name)
+          ? withDurableDocuments({ databaseName: name, reason: "database-change" }, run)
+          : run();
+      if (previousName && previousName !== name)
+        return withDurableDocuments(
+          { databaseName: previousName, windowId: ownerWindow?.id, reason: "database-change" },
+          connect
+        );
+      return connect();
     };
 
     ipcMain.handle(
@@ -949,34 +966,38 @@ class DatabaseModule implements Module {
       });
     });
 
-    ipcMain.handle("close-database", async (_event, name) => {
-      if (this.databases.has(name)) {
-        const database = this.databases.get(name);
-        if (!database) throw new Error("No database found");
+    ipcMain.handle("close-database", async (_event, name) =>
+      withDurableDocuments({ databaseName: name, reason: "database-change" }, async () => {
+        if (this.databases.has(name)) {
+          const database = this.databases.get(name);
+          if (!database) throw new Error("No database found");
 
-        if (!this.forceCheckpoint(name)) throw new Error("数据库仍在使用，不能安全关闭和同步");
+          if (!this.forceCheckpoint(name)) throw new Error("数据库仍在使用，不能安全关闭和同步");
 
-        database.close();
-        this.databases.delete(name);
-        this.indexEnsurePromises.delete(name);
-        mainContentIndexDBManager.closeDatabase(name);
-        for (const [id, dbName] of this.windowToDatabase) {
-          if (dbName === name) {
-            this.windowToDatabase.delete(id);
+          database.close();
+          this.databases.delete(name);
+          this.indexEnsurePromises.delete(name);
+          mainContentIndexDBManager.closeDatabase(name);
+          for (const [id, dbName] of this.windowToDatabase) {
+            if (dbName === name) {
+              this.windowToDatabase.delete(id);
+            }
           }
         }
-      }
-    });
+      })
+    );
 
-    ipcMain.handle("close-all-database", async () => {
-      for (const [name, database] of this.databases) {
-        database.close();
-        this.databases.delete(name);
-        this.indexEnsurePromises.delete(name);
-      }
-      mainContentIndexDBManager.closeAll();
-      this.windowToDatabase.clear();
-    });
+    ipcMain.handle("close-all-database", async () =>
+      withDurableDocuments({ reason: "database-change" }, async () => {
+        for (const [name, database] of this.databases) {
+          database.close();
+          this.databases.delete(name);
+          this.indexEnsurePromises.delete(name);
+        }
+        mainContentIndexDBManager.closeAll();
+        this.windowToDatabase.clear();
+      })
+    );
 
     ipcMain.handle("get-database-path", (_, name) => {
       const appDir = PathUtil.getAppDir();

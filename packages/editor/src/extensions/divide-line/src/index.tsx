@@ -36,6 +36,7 @@ const divideLineExtension = defineExtension({
   elements: [
     defineElement<DivideLineElement>({
       type: "divide-line",
+      dataVersion: 1,
       kind: "block",
       isVoid: true,
       render: DivideLine,

@@ -40,7 +40,7 @@ export function WhiteBoardContentView() {
   return (
     <div className="relative flex h-full min-h-0 flex-col px-4 pb-4 pt-1">
       <div className="bg-surface shadow-card rounded-tau-lg relative min-h-0 flex-1 overflow-hidden">
-        <BoardCanvas key={id} id={id} onLoaded={content => setName(content.name)} />
+        <BoardCanvas key={id} id={id} collaboration onLoaded={content => setName(content.name)} />
       </div>
     </div>
   );

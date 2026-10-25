@@ -58,7 +58,7 @@ export const DocumentCard = memo(({ element }: { element: DocumentElement; sketc
 
   const content = (article?.content as Descendant[] | undefined) ?? source?.content ?? [];
   const lowZoom = zoom < simplifiedRenderZoomThreshold;
-  const paperWidth = DOCUMENT_PAPER_WIDTH[element.entityRef.kind];
+  const paperWidth = DOCUMENT_PAPER_WIDTH[source?.kind ?? element.entityRef?.kind ?? "article"];
 
   return (
     <div

@@ -225,7 +225,7 @@ class MainContentVecIndexQueue implements Module {
           const changed =
             forceReindex || indexedTime === undefined || indexedTime < candidate.updateTime;
           if (changed) {
-            const input = candidate.read();
+            const input = await candidate.read(prepareTasks, client.signal);
             const result =
               "raw" in input
                 ? await client.prepare({

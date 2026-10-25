@@ -18,6 +18,7 @@ export const tableExtension = defineExtension({
   elements: [
     defineElement<TableElement>({
       type: "table",
+      dataVersion: 1,
       kind: "block",
       isEmpty: (element, context) =>
         element.children.every(row =>
@@ -47,6 +48,7 @@ export const tableRowExtension = defineExtension({
   elements: [
     defineElement<TableRowElement>({
       type: "table-row",
+      dataVersion: 1,
       kind: "block",
       render: TableRow,
       behaviors: tableRowNormalize,
@@ -65,6 +67,7 @@ export const tableCellExtension = defineExtension({
   elements: [
     defineElement<TableCellElement>({
       type: "table-cell",
+      dataVersion: 1,
       kind: "block",
       render: TableCell,
       behaviors: { ...tableCellBehaviors, ...tableCellNormalize },

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildMergedReviewContent } from "../review-merged-content";
+import { getMarkdown } from "../markdown";
 
 const collectTextLeaves = (nodes: any[]): any[] => {
   const leaves: any[] = [];
@@ -19,11 +20,47 @@ const collectTextLeaves = (nodes: any[]): any[] => {
 
 const getTextContent = (node: any): string => {
   return collectTextLeaves([node])
-    .map((leaf) => leaf.text)
+    .map(leaf => leaf.text)
     .join("");
 };
 
 describe("buildMergedReviewContent", () => {
+  it("多步骤代码的后续源码和步骤属性变化都进入差异预览", () => {
+    const markdown = (code: string, title: string) =>
+      getMarkdown([
+        {
+          type: "code-block",
+          language: "ts",
+          children: [
+            { type: "code-step", code: "保留第一步", children: [{ type: "formatted", text: "" }] },
+            { type: "code-step", code, title, children: [{ type: "formatted", text: "" }] },
+          ],
+        },
+      ] as never);
+    const beforeMarkdown = markdown("旧源码", "旧标题");
+    const afterMarkdown = markdown("新源码", "新标题");
+    const result = buildMergedReviewContent({
+      beforeMarkdown,
+      afterMarkdown,
+      patches: [
+        {
+          operationId: "code-steps",
+          op: "replace",
+          start: 0,
+          end: beforeMarkdown.length,
+          beforeText: beforeMarkdown,
+          afterText: afterMarkdown,
+          charDelta: afterMarkdown.length - beforeMarkdown.length,
+        },
+      ],
+    });
+    const text = result.content.map(getTextContent).join("\n");
+    expect(text).toContain("保留第一步");
+    expect(text).toContain("旧源码");
+    expect(text).toContain("新源码");
+    expect(text).toContain("步骤标题或高亮行已修改");
+  });
+
   it("应在原位置展示整段删除内容", () => {
     const beforeMarkdown = "第一段\n\n第二段";
     const secondParagraphStart = beforeMarkdown.indexOf("第二段");
@@ -46,7 +83,7 @@ describe("buildMergedReviewContent", () => {
     expect(content).toHaveLength(2);
     const secondLeaves = collectTextLeaves([content[1]]);
     expect(getTextContent(content[1])).toBe("第二段");
-    expect(secondLeaves.every((leaf) => leaf.diffType === "delete")).toBe(true);
+    expect(secondLeaves.every(leaf => leaf.diffType === "delete")).toBe(true);
   });
 
   it("应保留列表删除项的结构", () => {
@@ -74,7 +111,7 @@ describe("buildMergedReviewContent", () => {
     const middleItem = (content[0] as any).children[1];
     const middleLeaves = collectTextLeaves([middleItem]);
     expect(getTextContent(middleItem)).toContain("删除项");
-    expect(middleLeaves.every((leaf) => leaf.diffType === "delete")).toBe(true);
+    expect(middleLeaves.every(leaf => leaf.diffType === "delete")).toBe(true);
   });
 
   it("应在简单段落内联展示替换前后文本", () => {
@@ -95,7 +132,7 @@ describe("buildMergedReviewContent", () => {
     }).content;
 
     const leaves = collectTextLeaves(content);
-    expect(leaves.map((leaf) => [leaf.text, leaf.diffType])).toEqual([
+    expect(leaves.map(leaf => [leaf.text, leaf.diffType])).toEqual([
       ["hello ", undefined],
       ["world", "delete"],
       ["tau", "replace"],
@@ -125,26 +162,18 @@ describe("buildMergedReviewContent", () => {
 
     const leaves = collectTextLeaves(content);
     expect(leaves.length).toBeGreaterThan(6);
-    expect(
-      leaves.some(
-        (leaf) => leaf.diffType === undefined && leaf.text.includes("不是"),
-      ),
-    ).toBe(true);
-    expect(
-      leaves.some(
-        (leaf) => leaf.diffType === undefined && leaf.text.includes("癌细胞"),
-      ),
-    ).toBe(true);
-    expect(
-      leaves.some(
-        (leaf) => leaf.diffType === "delete" && leaf.text.includes("导致"),
-      ),
-    ).toBe(true);
-    expect(
-      leaves.some(
-        (leaf) => leaf.diffType === "replace" && leaf.text.includes("拖到不行"),
-      ),
-    ).toBe(true);
+    expect(leaves.some(leaf => leaf.diffType === undefined && leaf.text.includes("不是"))).toBe(
+      true
+    );
+    expect(leaves.some(leaf => leaf.diffType === undefined && leaf.text.includes("癌细胞"))).toBe(
+      true
+    );
+    expect(leaves.some(leaf => leaf.diffType === "delete" && leaf.text.includes("导致"))).toBe(
+      true
+    );
+    expect(leaves.some(leaf => leaf.diffType === "replace" && leaf.text.includes("拖到不行"))).toBe(
+      true
+    );
   });
 
   it("单个大 patch 覆盖整组列表时，仍应按 list-item 对齐而不是整块替换", () => {
@@ -180,36 +209,27 @@ describe("buildMergedReviewContent", () => {
       ],
     }).content;
 
-    const list = content.find(
-      (node: any) => node.type === "bulleted-list",
-    ) as any;
+    const list = content.find((node: any) => node.type === "bulleted-list") as any;
     expect(list).toBeTruthy();
     expect(list.children.length).toBe(4);
 
     const secondItemLeaves = collectTextLeaves([list.children[1]]);
     expect(
       secondItemLeaves.some(
-        (leaf) =>
-          leaf.diffType === undefined && leaf.text.includes("免疫/造血垮掉"),
-      ),
+        leaf => leaf.diffType === undefined && leaf.text.includes("免疫/造血垮掉")
+      )
     ).toBe(true);
     expect(
-      secondItemLeaves.some(
-        (leaf) => leaf.diffType === "replace" && leaf.text.includes("骨髓受累"),
-      ),
+      secondItemLeaves.some(leaf => leaf.diffType === "replace" && leaf.text.includes("骨髓受累"))
     ).toBe(true);
 
     const thirdItemLeaves = collectTextLeaves([list.children[2]]);
     expect(
-      thirdItemLeaves.some(
-        (leaf) => leaf.diffType === undefined && leaf.text.includes("凝血异常"),
-      ),
+      thirdItemLeaves.some(leaf => leaf.diffType === undefined && leaf.text.includes("凝血异常"))
     ).toBe(true);
 
     const fourthItemLeaves = collectTextLeaves([list.children[3]]);
-    expect(fourthItemLeaves.every((leaf) => leaf.diffType === "insert")).toBe(
-      true,
-    );
+    expect(fourthItemLeaves.every(leaf => leaf.diffType === "insert")).toBe(true);
   });
 
   it("callout 内部改写时应递归保留未变子块", () => {
@@ -249,30 +269,14 @@ describe("buildMergedReviewContent", () => {
     const callout = content[0] as any;
     expect(callout.type).toBe("callout");
     const leaves = collectTextLeaves([callout]);
-    expect(leaves.some((leaf) => leaf.text.includes("第一段原文"))).toBe(true);
-    expect(
-      leaves.some(
-        (leaf) => leaf.diffType === "delete" && leaf.text.includes("旧"),
-      ),
-    ).toBe(true);
-    expect(
-      leaves.some(
-        (leaf) => leaf.diffType === "replace" && leaf.text.includes("新"),
-      ),
-    ).toBe(true);
+    expect(leaves.some(leaf => leaf.text.includes("第一段原文"))).toBe(true);
+    expect(leaves.some(leaf => leaf.diffType === "delete" && leaf.text.includes("旧"))).toBe(true);
+    expect(leaves.some(leaf => leaf.diffType === "replace" && leaf.text.includes("新"))).toBe(true);
   });
 
   it("highlight-block 颜色变化时应保留正文并展示属性变更", () => {
-    const beforeMarkdown = [
-      ":::highlight-block{color=yellow}",
-      "高亮内容",
-      ":::",
-    ].join("\n");
-    const afterMarkdown = [
-      ":::highlight-block{color=blue}",
-      "高亮内容",
-      ":::",
-    ].join("\n");
+    const beforeMarkdown = [":::highlight-block{color=yellow}", "高亮内容", ":::"].join("\n");
+    const afterMarkdown = [":::highlight-block{color=blue}", "高亮内容", ":::"].join("\n");
 
     const content = buildMergedReviewContent({
       beforeMarkdown,
@@ -293,25 +297,13 @@ describe("buildMergedReviewContent", () => {
     const highlightBlock = content[0] as any;
     expect(highlightBlock.type).toBe("highlight-block");
     const leaves = collectTextLeaves([highlightBlock]);
-    expect(leaves.some((leaf) => leaf.text.includes("高亮块颜色已修改"))).toBe(
-      true,
-    );
-    expect(leaves.some((leaf) => leaf.text.includes("高亮内容"))).toBe(true);
+    expect(leaves.some(leaf => leaf.text.includes("高亮块颜色已修改"))).toBe(true);
+    expect(leaves.some(leaf => leaf.text.includes("高亮内容"))).toBe(true);
   });
 
   it("code-block 应按代码行展示变更，而不是整块替换", () => {
-    const beforeMarkdown = [
-      "```ts",
-      "const value = 1;",
-      "console.log(value);",
-      "```",
-    ].join("\n");
-    const afterMarkdown = [
-      "```ts",
-      "const value = 2;",
-      "console.log(value);",
-      "```",
-    ].join("\n");
+    const beforeMarkdown = ["```ts", "const value = 1;", "console.log(value);", "```"].join("\n");
+    const afterMarkdown = ["```ts", "const value = 2;", "console.log(value);", "```"].join("\n");
 
     const content = buildMergedReviewContent({
       beforeMarkdown,
@@ -330,39 +322,18 @@ describe("buildMergedReviewContent", () => {
     }).content;
 
     const leaves = collectTextLeaves(content);
-    const paragraphs = content.map((node) => getTextContent(node as any));
-    expect(paragraphs.some((text) => text.includes("- const value = 1;"))).toBe(
-      true,
-    );
-    expect(paragraphs.some((text) => text.includes("+ const value ="))).toBe(
-      true,
-    );
+    const paragraphs = content.map(node => getTextContent(node as any));
+    expect(paragraphs.some(text => text.includes("- const value = 1;"))).toBe(true);
+    expect(paragraphs.some(text => text.includes("+ const value ="))).toBe(true);
+    expect(leaves.some(leaf => leaf.diffType && leaf.text.includes("2"))).toBe(true);
     expect(
-      leaves.some((leaf) => leaf.diffType && leaf.text.includes("2")),
-    ).toBe(true);
-    expect(
-      leaves.some(
-        (leaf) =>
-          leaf.diffType === undefined && leaf.text.includes("console.log"),
-      ),
+      leaves.some(leaf => leaf.diffType === undefined && leaf.text.includes("console.log"))
     ).toBe(true);
   });
 
   it("长文仅显示变更块及上下文窗口", () => {
-    const beforeMarkdown = [
-      "第一段",
-      "第二段",
-      "第三段",
-      "第四段",
-      "第五段",
-    ].join("\n\n");
-    const afterMarkdown = [
-      "第一段",
-      "第二段",
-      "第三段（已改）",
-      "第四段",
-      "第五段",
-    ].join("\n\n");
+    const beforeMarkdown = ["第一段", "第二段", "第三段", "第四段", "第五段"].join("\n\n");
+    const afterMarkdown = ["第一段", "第二段", "第三段（已改）", "第四段", "第五段"].join("\n\n");
 
     const content = buildMergedReviewContent({
       beforeMarkdown,
@@ -384,12 +355,10 @@ describe("buildMergedReviewContent", () => {
       },
     }).content;
 
-    const text = content.map((node) => getTextContent(node as any));
+    const text = content.map(node => getTextContent(node as any));
     expect(text).not.toContain("第一段");
     expect(text).toContain("第二段");
     expect(text).toContain("第四段");
-    expect(text.some((value) => value.includes("…… 已折叠未改动内容 ……"))).toBe(
-      true,
-    );
+    expect(text.some(value => value.includes("…… 已折叠未改动内容 ……"))).toBe(true);
   });
 });

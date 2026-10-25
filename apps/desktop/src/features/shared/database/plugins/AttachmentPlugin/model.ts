@@ -14,5 +14,6 @@ const attachmentItemName = (item: AttachmentPluginValue[number]): string => {
 /** 附件字段的纯数据部分：文件名文本（「、」连接） */
 export const attachmentFieldModel = defineFieldModel({
   type: "attachment",
+  resources: [{ path: "value[].filePath", kind: "file" }],
   toText: value => itemsOf(value).map(attachmentItemName).filter(Boolean).join("、"),
 });

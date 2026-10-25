@@ -9,6 +9,8 @@ const frontMatterExtension = defineExtension({
   elements: [
     defineElement<FrontMatterElement>({
       type: "front-matter",
+      dataVersion: 1,
+      collaboration: { textFields: ["value"] },
       kind: "block",
       isVoid: true,
       render: ({ attributes, element, children }: ElementRenderProps<FrontMatterElement>) => (

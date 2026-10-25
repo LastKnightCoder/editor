@@ -1,7 +1,12 @@
+import { createEmptyWhiteboardDocument, isEmptyWhiteboardPage, hasWhiteboardLibraryBaseline } from "../whiteboard-documents/create";
+import { assertLegacyWhiteboardPage, isDocumentPage } from "../whiteboard-document-guard";
+import { hasDurableEntityHold } from "../durable-entity-holds";
 import Database from "better-sqlite3";
 import { WhiteBoardContent } from "@/types";
 import Operation from "./operation";
 import ContentTable from "./content";
+import { ContentIdentityTable } from "./content-identity";
+import type { ContentEntityTarget } from "@tau/db-schema/content-identities";
 // import log from "electron-log";
 
 /** 与 packages/whiteboard 的 WHITEBOARD_DOCUMENT_VERSION 一致，由 __tests__/white-board-content.test.ts 对账 */
@@ -119,6 +124,7 @@ export default class WhiteboardTable {
     }>;
     let purged = 0;
     for (const page of due) {
+      if (isDocumentPage(db, page.id) || hasDurableEntityHold(db, "whiteboard-content", page.id)) continue;
       purged += db.transaction(() => {
         db.prepare("DELETE FROM white_board_content_pending_releases WHERE content_id = ?").run(
           page.id
@@ -131,6 +137,7 @@ export default class WhiteboardTable {
           // 页数据损坏时无法确认嵌入的正文，仍删除这一页
         }
         db.prepare("DELETE FROM white_board_contents WHERE id = ?").run(page.id);
+        ContentIdentityTable.retire(db, "whiteboard-content", page.id);
         Operation.insertOperation(db, "whiteboard-content", "delete", page.id, Date.now());
         return 1;
       })();
@@ -141,6 +148,8 @@ export default class WhiteboardTable {
   static getListenEvents() {
     return {
       "white-board-content:create": this.createWhiteboardContent.bind(this),
+      "white-board-content:create-pending": this.createPending.bind(this),
+      "white-board-content:reference": this.reference.bind(this),
       "white-board-content:get-by-id": this.getWhiteboardContent.bind(this),
       "white-board-content:update": this.updateWhiteboard.bind(this),
       "white-board-content:delete": this.deleteWhiteboard.bind(this),
@@ -165,6 +174,35 @@ export default class WhiteboardTable {
     db: Database.Database,
     whiteboard: Omit<WhiteBoardContent, "id" | "createTime" | "updateTime" | "refCount">
   ): WhiteBoardContent {
+    return this.insert(db, whiteboard, 1);
+  }
+
+  static reference(db: Database.Database, id: number) {
+    return ContentIdentityTable.reference(db, "whiteboard-content", id);
+  }
+
+  static createPending(db: Database.Database, value: Omit<WhiteBoardContent, "id" | "createTime" | "updateTime" | "refCount">) {
+    if (!ContentIdentityTable.library(db)) throw new Error("资料库尚未完成身份基线升级");
+    return db.transaction(() => {
+      const content = this.insert(db, value, 0);
+      return { content, reference: this.reference(db, content.id) };
+    })();
+  }
+
+  private static insert(
+    db: Database.Database,
+    whiteboard: Omit<WhiteBoardContent, "id" | "createTime" | "updateTime" | "refCount">,
+    initialRefCount: number
+  ): WhiteBoardContent {
+    if (hasWhiteboardLibraryBaseline(db) && isEmptyWhiteboardPage(whiteboard)) return db.transaction(() => {
+      const created = createEmptyWhiteboardDocument(db, whiteboard.name, [whiteboard], "standalone");
+      const id = created.contentIds[0];
+      db.prepare("UPDATE white_board_contents SET img_url=?,ref_count=? WHERE id=?").run(whiteboard.imgUrl ?? "", initialRefCount, id);
+      Operation.insertOperation(db, "whiteboard-content", "insert", id, Date.now());
+      if (!initialRefCount) db.prepare("INSERT INTO white_board_content_pending_releases(content_id,released_at) VALUES (?,?)").run(id, Date.now());
+      return this.getWhiteboardContent(db, id);
+    })();
+    if (initialRefCount !== 0 && initialRefCount !== 1) throw new Error("初始引用数无效");
     const stmt = db.prepare(`
       INSERT INTO white_board_contents
       (data, name, img_url, create_time, update_time, ref_count)
@@ -177,10 +215,11 @@ export default class WhiteboardTable {
       whiteboard.imgUrl || "",
       now,
       now,
-      1
+      initialRefCount
     );
 
     Operation.insertOperation(db, "whiteboard-content", "insert", res.lastInsertRowid, now);
+    if (!initialRefCount) db.prepare("INSERT INTO white_board_content_pending_releases(content_id,released_at) VALUES (?,?)").run(res.lastInsertRowid, now);
 
     return this.getWhiteboardContent(db, Number(res.lastInsertRowid));
   }
@@ -196,8 +235,11 @@ export default class WhiteboardTable {
 
   static updateWhiteboard(
     db: Database.Database,
-    whiteboard: Omit<WhiteBoardContent, "createTime" | "updateTime" | "refCount">
+    request: Omit<WhiteBoardContent, "id" | "createTime" | "updateTime" | "refCount"> & { id: ContentEntityTarget }
   ): WhiteBoardContent {
+    return db.transaction(() => {
+    const whiteboard = { ...request, id: ContentIdentityTable.requireTarget(db, "whiteboard-content", request.id) };
+    assertLegacyWhiteboardPage(db, whiteboard.id);
     const currentWhiteboard = this.getWhiteboardContent(db, whiteboard.id);
     // 库中文档版本更高时拒绝写入，防止旧版本应用覆盖新版本文档
     if (getDocumentVersion(currentWhiteboard?.data) > getDocumentVersion(whiteboard.data)) {
@@ -238,6 +280,7 @@ export default class WhiteboardTable {
     Operation.insertOperation(db, "whiteboard-content", "update", whiteboard.id, now);
 
     return this.getWhiteboardContent(db, whiteboard.id);
+    })();
   }
 
   /**
@@ -255,7 +298,8 @@ export default class WhiteboardTable {
     return 0;
   }
 
-  static getWhiteboardContent(db: Database.Database, id: number): WhiteBoardContent {
+  static getWhiteboardContent(db: Database.Database, target: ContentEntityTarget): WhiteBoardContent {
+    const id = ContentIdentityTable.requireTarget(db, "whiteboard-content", target);
     const stmt = db.prepare("SELECT * FROM white_board_contents WHERE id = ?");
     const whiteboard = stmt.get(id);
     return this.parseWhiteboard(whiteboard);

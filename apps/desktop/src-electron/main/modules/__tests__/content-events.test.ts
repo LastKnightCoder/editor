@@ -79,8 +79,7 @@ describe("正文写入点白名单", () => {
     // createContent / updateContent / deleteContent / patchNodes（发事件）+ patchNodes 静默分支
     //（只补勾选项 taskId，不算编辑、不改 update_time，其他派生数据不读 taskId，故不发事件）
     "main/modules/tables/content.ts": 5,
-    "main/modules/collaboration/content-sessions.ts": 1,
-    "main/modules/collaboration/content-repository.ts": 1,
+    "main/modules/tables/content-document.ts": 1,
   };
 
   const walk = (dir: string): string[] =>

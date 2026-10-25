@@ -3,6 +3,7 @@ import { YjsEditor, type YHistoryEditor } from "@slate-yjs/core";
 import { type Descendant, type Editor } from "slate";
 import type { EditorDocument } from "@tau/editor";
 import { createParagraph } from "@tau/editor/api/paragraph";
+import { IEditorTextFields, slateTextFields } from "@tau/editor/api";
 import { splitYjsUndoStep, withYjsDocument } from "./yjsBinding.ts";
 import { reconcileYContent, type ReconcileOptions } from "./reconcile.ts";
 import type { ReactNode } from "react";
@@ -53,6 +54,8 @@ export function createLocalYjsDocument(
     lineage: `local-yjs:${doc.guid}`,
     history: "external",
     initialValue: [createParagraph()],
+    // 源码字段是节点属性，经 Slate 操作写入后由 slate-yjs 同步进 Y.Doc，撤销走同一个 UndoManager
+    services: register => register(IEditorTextFields, slateTextFields),
     binding: {
       install: editor => {
         assertActive();

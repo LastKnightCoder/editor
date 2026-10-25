@@ -1,3 +1,11 @@
+import { getWhiteboardBodyKit } from "./editorKit";
+import { IEditorSlots } from "@tau/editor/extensions/media/services";
+import { createAssetMedia } from "@/components/CollaborationUI/AssetMedia";
+import type { EditorKit } from "@tau/editor";
+import type { ResourceService } from "@tau/shared/host-services";
+import { useBoard } from "@tau/whiteboard";
+import { getWhiteboardDocument } from "@tau/whiteboard/collaboration";
+import { toLocalMediaPreviewUrl } from "@/utils/localMediaPath";
 import { desktopContentMetrics } from "../../../../shared/content-metrics";
 import {
   createArrowExtension,
@@ -72,11 +80,43 @@ import DocumentTool from "./components/Toolbar/Document";
 import WebviewTool from "./components/Toolbar/Webview";
 import WhiteboardTool from "./components/Toolbar/WhiteBoard";
 
+const resourceKits = new WeakMap<ResourceService, Map<EditorKit, EditorKit>>();
+function withBoardResources(resource: ResourceService, base: EditorKit): EditorKit {
+  let cache = resourceKits.get(resource);
+  if (!cache) {
+    cache = new Map();
+    resourceKits.set(resource, cache);
+  }
+  const previous = cache.get(base);
+  if (previous) return previous;
+  const kit = base.extend({
+    services: [
+      register => {
+        register(IResourceService, resource);
+        const slots = base.registry.tryGet(IEditorSlots);
+        if (slots && resource.remoteResourceToLocal) {
+          const binding = { resolveResource: resource.remoteResourceToLocal };
+          register(IEditorSlots, {
+            ...slots,
+            Video: createAssetMedia(slots.Video, binding, "视频"),
+            Audio: createAssetMedia(slots.Audio, binding, "音频"),
+          });
+        }
+      },
+    ],
+  });
+  cache.set(base, kit);
+  return kit;
+}
 function DesktopEditor({ editingContext, ...props }: WhiteboardTextEditorProps) {
+  const board = useBoard();
+  const kit = getWhiteboardDocument(board)
+    ? withBoardResources(board.getService(IResourceService), getWhiteboardBodyKit())
+    : getContentKit();
   return (
     <ContentEditor
       {...props}
-      kit={getContentKit()}
+      kit={kit}
       editingContext={editingContext ? { ...editingContext, entityType: "whiteboard" } : undefined}
     />
   );
@@ -100,6 +140,7 @@ const NO_EXTENSIONS: readonly WhiteboardExtension[] = [];
 export type DesktopWhiteboardProps = Omit<WhiteBoardProps, "extensions" | "services"> & {
   extensions?: readonly WhiteboardExtension[];
   onDockWidthChange?(width: number): void;
+  documentResources?: import("@tau/shared/host-services").ResourceService;
 };
 export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProps>((props, ref) => {
   const [databaseName] = useState(() => useSettingStore.getState().setting.database.active);
@@ -107,9 +148,11 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
   const pluginRuntimeRef = useRef(pluginRuntime);
   pluginRuntimeRef.current = pluginRuntime;
   const preferences = useWhiteboardOutlineStore();
+  const resourceRef = useRef(props.documentResources);
+  resourceRef.current = props.documentResources;
   const additionalExtensions = props.extensions ?? NO_EXTENSIONS;
   // 宿主服务注册表：与 extensions 同随 databaseName 重建（切库后正文命令必须指向新库）
-  const services = useMemo(() => {
+  const services: ReturnType<typeof createServiceRegistry> = useMemo(() => {
     const commands = bindDatabaseCommands(contentCommands, { databaseName });
     const current = () => useSettingStore.getState().setting.database.active === databaseName;
     return createServiceRegistry(
@@ -119,10 +162,12 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
           Editor: DesktopEditor,
           Observer: ContentSnapshotObserver,
           kit: (contentId?: number) =>
-            collaborationKit(getContentBinding(contentId), getContentKit()),
+            props.document
+              ? withBoardResources(services.get(IResourceService), getWhiteboardBodyKit())
+              : collaborationKit(getContentBinding(contentId), getContentKit()),
           content: {
-            create: async (...args: Parameters<typeof commands.createContent>) =>
-              current() ? commands.createContent(...args) : null,
+            create: async (content, count) =>
+              current() ? commands.createContent(content, count) : null,
             update: async (...args: Parameters<typeof commands.updateContent>) => {
               if (current()) return commands.updateContent(...args);
             },
@@ -141,7 +186,14 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
       // uploadResource 失败返回 null，按 shared 契约归一为空串
       register =>
         register(IResourceService, {
-          upload: async file => (await uploadResource(file)) ?? "",
+          upload: async file =>
+            resourceRef.current
+              ? resourceRef.current.upload(file)
+              : ((await uploadResource(file)) ?? ""),
+          remoteResourceToLocal: async reference => {
+            if (!resourceRef.current?.remoteResourceToLocal) throw new Error("此白板没有资源会话");
+            return resourceRef.current.remoteResourceToLocal(reference);
+          },
         }),
       register => register(IMediaInfoService, desktopMedia),
       register => register(IDownloadService, { download: url => downloadFile(url) })
@@ -160,8 +212,16 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
   );
   const extensions = useMemo(() => {
     return [
-      createArrowExtension(getArrowLabelKit),
-      createGeometryExtension(getDescriptionKit),
+      createArrowExtension(() =>
+        props.document
+          ? withBoardResources(services.get(IResourceService), getArrowLabelKit())
+          : getArrowLabelKit()
+      ),
+      createGeometryExtension(() =>
+        props.document
+          ? withBoardResources(services.get(IResourceService), getDescriptionKit())
+          : getDescriptionKit()
+      ),
       createHandwriteExtension(),
       createDocumentExtension({
         Body: DocumentCard,
@@ -196,6 +256,10 @@ export const DesktopWhiteboard = forwardRef<WhiteBoardRef, DesktopWhiteboardProp
         layers: [selectorLayer("video", VideoSelectorModal)],
       }),
       createAudioExtension({
+        resolveUrl: async url => {
+          const path = await services.get(IResourceService).remoteResourceToLocal!(url);
+          return (await toLocalMediaPreviewUrl(path)).url;
+        },
         actions: desktopMediaActions,
         Tool: AudioTool,
         layers: [selectorLayer("audio", AudioSelectorModal)],

@@ -9,6 +9,7 @@ const styledTextExtension = defineExtension({
   elements: [
     defineElement<StyledTextElement>({
       type: "styled-text",
+      dataVersion: 1,
       kind: "inline",
       isEmpty: element => element.children.length === 1 && element.children[0].text === "",
       render: ({ attributes, element, children }: ElementRenderProps<StyledTextElement>) => (

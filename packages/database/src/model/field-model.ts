@@ -8,6 +8,8 @@ export interface DatabaseFieldModel<TConfig = unknown> {
   toText(value: CellValue, column: ColumnDef<TConfig>): string;
   /** 单元格引用的正文 id（每次出现计一次）；不引用资源的字段不声明 */
   contentRefs?(value: CellValue, column: ColumnDef<TConfig>): number[];
+  /** 沿用资源声明；路径相对于 { value: 单元格值 }，例如 value[].url。 */
+  resources?: readonly ContentResourceSpec[];
   valueType?: ValueType | ((column: ColumnDef<TConfig>) => ValueType | undefined);
   toScalar?(value: CellValue, column: ColumnDef<TConfig>): Scalar;
   /** 当前配置版本；未声明视为 1。列定义的 configVersion 缺省视为 1 */
@@ -17,6 +19,7 @@ export interface DatabaseFieldModel<TConfig = unknown> {
 }
 
 export function defineFieldModel<T>(model: DatabaseFieldModel<T>): DatabaseFieldModel<T> {
+  if (model.resources) assertContentResourceSpecs(model.resources);
   if ((model.configVersion ?? 1) > 1 && typeof model.migrateConfig !== "function") {
     throw new Error(
       `字段 ${model.type} 声明了 configVersion=${model.configVersion} 却没有 migrateConfig，缺少逐级迁移函数`
@@ -24,3 +27,7 @@ export function defineFieldModel<T>(model: DatabaseFieldModel<T>): DatabaseField
   }
   return Object.freeze(model);
 }
+import {
+  assertContentResourceSpecs,
+  type ContentResourceSpec,
+} from "@tau/db-schema/content-resources";

@@ -1,6 +1,6 @@
+import { createSharedDocument } from "@tau/collaboration/src/testing/legacy-document";
 import { BUILTIN_CONTENT_RESOURCES } from "@tau/db-schema/content-resources";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import Database from "better-sqlite3";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -31,11 +31,10 @@ vi.mock("../../video-note-index-queue", () => ({
   default: { push: () => {}, remove: () => {}, destroy: () => {} },
 }));
 
-import { planClosedReshare, restorePrivateNodes } from "../content-repository";
-import { createSharedDocument, type CollaborationSession } from "@tau/collaboration";
+import { planClosedReshare } from "../content-repository";
+import { type CollaborationSession } from "@tau/collaboration";
 import { CollaborationLocalStore } from "../local-store";
 import { CollaborationAssetService } from "../asset-service";
-import MAIN_SCHEMA_SQL from "../../../../../../../packages/db-schema/schema/main.sql?raw";
 
 const cleanup: (() => void)[] = [];
 afterEach(() => {
@@ -46,34 +45,8 @@ const temporary = () => {
   cleanup.push(() => rmSync(dir, { recursive: true, force: true }));
   return dir;
 };
-function database() {
-  const db = new Database(":memory:");
-  cleanup.push(() => db.close());
-  db.exec(MAIN_SCHEMA_SQL);
-  return db;
-}
 
 describe("通用内容和本地恢复", () => {
-  it("恢复跨设备私有组件标识，并阻止不可识别的旧组件被占位符覆盖", () => {
-    const db = database();
-    const original = {
-      type: "whiteboard",
-      collabId: "private-block",
-      whiteBoardContentId: 42,
-      children: [{ text: "" }],
-    };
-    db.prepare("INSERT INTO contents(id,create_time,update_time,content) VALUES (7,100,100,?)").run(
-      JSON.stringify([original])
-    );
-    const source = { databaseName: "data", contentId: 7, contentCreatedAt: 100 };
-    const restored = new Map();
-    restorePrivateNodes(db, source, restored);
-    expect(restored.get("private-block").whiteBoardContentId).toBe(42);
-    db.prepare("UPDATE contents SET content=? WHERE id=7").run(
-      JSON.stringify([{ ...original, collabId: undefined }])
-    );
-    expect(() => restorePrivateNodes(db, source, new Map())).toThrow("缺少本地组件关联标识");
-  });
   it("本地缓存带版本，离线增量跨重启恢复，未知新版本不覆盖", () => {
     const directory = temporary();
     const store = new CollaborationLocalStore(directory);
@@ -105,7 +78,7 @@ describe("通用内容和本地恢复", () => {
     const loaded = restored.load(session.id);
     expect(loaded.doc.getText("title").toString()).toBe("离线初始");
     loaded.doc.destroy();
-    restored.db.pragma("user_version=2");
+    restored.db.pragma("user_version=4");
     restored.db.close();
     expect(() => new CollaborationLocalStore(directory)).toThrow("升级 Tau");
   });

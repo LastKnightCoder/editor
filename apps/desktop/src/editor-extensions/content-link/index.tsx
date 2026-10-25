@@ -13,6 +13,7 @@ const contentLinkExtension = defineExtension({
   elements: [
     defineElement<ContentLinkElement>({
       type: "content-link",
+      dataVersion: 1,
       kind: "inline",
       render: ({ attributes, element, children }: ElementRenderProps<ContentLinkElement>) => (
         <ContentLink attributes={attributes} element={element}>

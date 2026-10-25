@@ -5,7 +5,11 @@ import { useMemoizedFn } from "ahooks";
 import { cn, mergeRefs } from "@tau/ui";
 import { ImageOff } from "lucide-react";
 
-import { InlineChromiumBugfix, getCommandElementPath } from "@tau/editor/api";
+import {
+  InlineChromiumBugfix,
+  getCommandElementPath,
+  useTouchVoidSelection,
+} from "@tau/editor/api";
 import ImageUploader from "../../../../components/ImageUploader";
 import type { InlineImageElement } from "../../../../types";
 import { useImageResize, ResizeDirection } from "../../../../hooks/useImageResize";
@@ -17,7 +21,6 @@ import {
   MEDIA_SELECTED_OUTLINE_CLASS,
 } from "../../../../utils/mediaFrameClasses";
 import { shouldIgnoreBlockKey } from "@tau/editor/api";
-import { useTouchMediaSelection } from "../../../../hooks/useTouchMediaSelection";
 
 interface InlineImageProps extends RenderElementProps {
   element: InlineImageElement;
@@ -45,7 +48,7 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
   const containerRef = useRef<HTMLSpanElement>(null);
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
   const [pointerSelected, setIsSelected] = useState(false);
-  const touchSelection = useTouchMediaSelection(element);
+  const touchSelection = useTouchVoidSelection(element);
   const { touch } = touchSelection;
   const isSelected = touch ? touchSelection.selected : pointerSelected;
   const [failed, setFailed] = useState(false);

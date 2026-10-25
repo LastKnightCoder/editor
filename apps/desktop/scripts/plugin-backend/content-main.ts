@@ -104,7 +104,10 @@ void app.whenReady().then(async () => {
     );
     console.log("[plugin-content] 无 Node/业务桥、无激活、闭包 codec 往返、索引分段与失败恢复通过");
     const fixtures = (await readPluginFixtures(process.env.TAU_PLUGIN_FIXTURE_CATALOG!)).filter(
-      artifact => artifact.manifest.editor || artifact.manifest.whiteboard
+      artifact =>
+        artifact.manifest.formatVersion === 3 ||
+        artifact.manifest.editor ||
+        artifact.manifest.whiteboard
     );
     await executor.execute({ operation: "validate" }, undefined, fixtures);
     for (const [language, type] of [

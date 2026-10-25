@@ -60,6 +60,7 @@ export class InteractionManager {
     if (!point || !claimBoardPointer(this.board, event)) return;
     const state = new ResizingState(this.board, event, point, callbacks);
     this.pointerState = state;
+    this.board.document?.beginGesture();
     event.preventDefault();
     event.stopPropagation();
     BOARD_TO_CONTAINER.get(this.board)?.focus({ preventScroll: true });
@@ -104,6 +105,7 @@ export class InteractionManager {
     const state = CreatingState.tryStart(this.board, event);
     if (!state) return false;
     this.pointerState = state;
+    this.board.document?.beginGesture();
     return true;
   }
 
@@ -123,6 +125,7 @@ export class InteractionManager {
     const state = plugin?.claimPointerGesture?.(this.board, event, hitElement) ?? null;
     if (state) {
       this.pointerState = state;
+      this.board.document?.beginGesture();
       return true;
     }
     return false;
@@ -142,16 +145,19 @@ export class InteractionManager {
     if (selecting) {
       selecting.attachDrag(DraggingState.tryStart(this.board, event));
       this.pointerState = selecting;
+      this.board.document?.beginGesture();
       return;
     }
     const dragging = DraggingState.tryStart(this.board, event);
     if (dragging) {
       this.pointerState = dragging;
+      this.board.document?.beginGesture();
       return;
     }
     const panning = PanningState.tryStart(this.board, event);
     if (panning) {
       this.pointerState = panning;
+      this.board.document?.beginGesture();
     }
   }
 
@@ -164,7 +170,7 @@ export class InteractionManager {
     if (!state) return false;
     const consumed = state.onPointerUp?.(event, this.board) === true;
     if (state.isFinished) {
-      this.exitPointerState();
+      this.exitPointerState(true);
     }
     return consumed;
   }
@@ -178,7 +184,7 @@ export class InteractionManager {
     if (!state) return false;
     const consumed = state.onGlobalPointerUp?.(event, this.board) === true;
     if (state.isFinished) {
-      this.exitPointerState();
+      this.exitPointerState(true);
     }
     return consumed;
   }
@@ -217,6 +223,7 @@ export class InteractionManager {
         this.board.selection.selectedElements.length > 0
           ? new KeyboardMoveState()
           : new ViewportMoveState();
+      this.board.document?.beginGesture();
       this.keyState.onKeyDown?.(event, this.board);
     }
     return false;
@@ -236,21 +243,29 @@ export class InteractionManager {
     if (!state) return false;
     state.onKeyUp?.(event, this.board);
     if (state.isFinished) {
-      this.exitKeyState();
+      this.exitKeyState(true);
     }
     return false;
   }
 
-  private exitPointerState(): void {
+  private exitPointerState(commit = false): void {
     const state = this.pointerState;
     this.pointerState = null;
-    state?.onExit?.(this.board);
+    try {
+      state?.onExit?.(this.board);
+    } finally {
+      if (state) this.board.document?.endGesture(commit);
+    }
   }
 
-  private exitKeyState(): void {
+  private exitKeyState(commit = false): void {
     const state = this.keyState;
     this.keyState = null;
-    state?.onExit?.(this.board);
+    try {
+      state?.onExit?.(this.board);
+    } finally {
+      if (state) this.board.document?.endGesture(commit);
+    }
   }
 
   cancel(): void {

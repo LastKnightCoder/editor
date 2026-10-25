@@ -31,6 +31,7 @@ const SAFE_ELEMENTS = new Set([
   "table-row",
   "table-cell",
   "code-block",
+  "code-step",
   "block-math",
   "inline-math",
   "divide-line",

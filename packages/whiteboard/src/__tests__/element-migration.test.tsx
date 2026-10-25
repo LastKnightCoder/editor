@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import Board from "../Board";
 import type { BoardElement } from "../types";
-import { migrateElementTree } from "../extensions/migration";
 import {
   defineWhiteboardExtension,
   type WhiteboardElementDefinition,
@@ -44,180 +43,6 @@ const install = (board: Board, extensions: readonly WhiteboardExtension[]) => {
 afterEach(() => {
   boards.splice(0).forEach(board => board.destroy());
   vi.restoreAllMocks();
-});
-
-describe("migrateElementTree 纯函数", () => {
-  const v3Definition = definition({
-    type: "acme.card",
-    schemaVersion: 3,
-    migrate: {
-      1: e => ({ ...e, data: `v2:${e.data}` }),
-      2: e => ({ ...e, data: `v3:${e.data}` }),
-    },
-  });
-  const table = new Map([[v3Definition.type, v3Definition]]);
-
-  it("v1 → v3 依次调用两步，最终 schemaVersion=3", () => {
-    const migrate1 = vi.fn(e => ({ ...e, data: `v2:${e.data}` }));
-    const migrate2 = vi.fn(e => ({ ...e, data: `v3:${e.data}` }));
-    const def = definition({
-      type: "acme.card",
-      schemaVersion: 3,
-      migrate: { 1: migrate1, 2: migrate2 },
-    });
-    const source = element({ id: "c1", type: "acme.card", schemaVersion: 1, data: "x" });
-    const { children, changed, failures } = migrateElementTree(
-      [source],
-      new Map([[def.type, def]])
-    );
-
-    expect(changed).toBe(true);
-    expect(failures).toEqual([]);
-    expect(children[0]).toMatchObject({ id: "c1", type: "acme.card", schemaVersion: 3 });
-    expect(migrate1).toHaveBeenCalledTimes(1);
-    expect(migrate2).toHaveBeenCalledTimes(1);
-    // 第一步收到 v1 数据，第二步收到第一步结果且已被标为 v2
-    expect(migrate1.mock.calls[0][0]).toMatchObject({ schemaVersion: 1, data: "x" });
-    expect(migrate2.mock.calls[0][0]).toMatchObject({ schemaVersion: 2, data: "v2:x" });
-    expect(children[0].data).toBe("v3:v2:x");
-  });
-
-  it("迁移步骤收到的是不含 children 的深拷贝，子树由运行时最后重新挂上", () => {
-    const migrate1 = vi.fn((e: BoardElement) => ({ ...e, data: "up" }));
-    const def = definition({ type: "acme.card", schemaVersion: 2, migrate: { 1: migrate1 } });
-    const child = element({ id: "child", type: "acme.card", schemaVersion: 1, data: "c" });
-    const source = element({
-      id: "p1",
-      type: "acme.card",
-      schemaVersion: 1,
-      data: "p",
-      children: [child],
-    });
-    const { children } = migrateElementTree([source], new Map([[def.type, def]]));
-
-    expect("children" in migrate1.mock.calls[0][0]).toBe(false);
-    // 迁移函数改写入参不影响文档数据（深拷贝隔离）
-    expect(source.data).toBe("p");
-    expect(children[0]).toMatchObject({ schemaVersion: 2, data: "up" });
-    expect(children[0]!.children![0]).toMatchObject({ id: "child", schemaVersion: 2, data: "up" });
-  });
-
-  it("嵌套子树各自按定义迁移", () => {
-    const card = definition({
-      type: "acme.card",
-      schemaVersion: 2,
-      migrate: { 1: e => ({ ...e, data: "card" }) },
-    });
-    const box = definition({
-      type: "acme.box",
-      schemaVersion: 2,
-      migrate: { 1: e => ({ ...e, data: "box" }) },
-    });
-    const tree = [
-      element({
-        id: "b1",
-        type: "acme.box",
-        schemaVersion: 1,
-        children: [
-          element({ id: "c1", type: "acme.card", schemaVersion: 1 }),
-          element({
-            id: "c2",
-            type: "acme.card",
-            schemaVersion: 1,
-            children: [element({ id: "c3", type: "acme.card", schemaVersion: 1 })],
-          }),
-        ],
-      }),
-    ];
-    const { children, failures } = migrateElementTree(
-      tree,
-      new Map([
-        [card.type, card],
-        [box.type, box],
-      ])
-    );
-    expect(failures).toEqual([]);
-    expect(children[0]).toMatchObject({ schemaVersion: 2, data: "box" });
-    expect(children[0]!.children![0]).toMatchObject({ schemaVersion: 2, data: "card" });
-    expect(children[0]!.children![1]!.children![0]).toMatchObject({
-      schemaVersion: 2,
-      data: "card",
-    });
-  });
-
-  it("未知 type 原样、v≥当前原样、无变化时返回原数组引用", () => {
-    const unknown = element({ id: "u1", type: "who.unknown", schemaVersion: 1 });
-    const sameVersion = element({ id: "s1", type: "acme.card", schemaVersion: 3 });
-    const newer = element({ id: "n1", type: "acme.card", schemaVersion: 5 });
-    const source = [unknown, sameVersion, newer];
-    const result = migrateElementTree(source, table);
-    expect(result.changed).toBe(false);
-    expect(result.children).toBe(source);
-    expect(result.children[0]).toBe(unknown);
-  });
-
-  it("某步抛错：元素自身保持原字段原版本，子树仍迁移，失败被记录", () => {
-    const broken = definition({
-      type: "acme.card",
-      schemaVersion: 2,
-      migrate: {
-        1: () => {
-          throw new Error("迁移崩溃");
-        },
-      },
-    });
-    const working = definition({
-      type: "acme.leaf",
-      schemaVersion: 2,
-      migrate: { 1: e => ({ ...e, data: "leaf" }) },
-    });
-    const child = element({ id: "child", type: "acme.leaf", schemaVersion: 1, data: "c" });
-    const source = element({
-      id: "p1",
-      type: "acme.card",
-      schemaVersion: 1,
-      data: "p",
-      children: [child],
-    });
-    const { children, failures } = migrateElementTree(
-      [source],
-      new Map([
-        [broken.type, broken],
-        [working.type, working],
-      ])
-    );
-
-    expect(failures).toHaveLength(1);
-    expect(failures[0].element).toBe(source);
-    expect((failures[0].error as Error).message).toBe("迁移崩溃");
-    expect(children[0]).toMatchObject({ schemaVersion: 1, data: "p" });
-    expect(children[0]!.children![0]).toMatchObject({ schemaVersion: 2, data: "leaf" });
-  });
-
-  it("某步改变了 id 或 type 视为失败", () => {
-    const wrongId = definition({
-      type: "acme.card",
-      schemaVersion: 2,
-      migrate: { 1: e => ({ ...e, id: "other" }) },
-    });
-    const wrongType = definition({
-      type: "acme.card",
-      schemaVersion: 2,
-      migrate: { 1: e => ({ ...e, type: "acme.other" }) },
-    });
-    const a = element({ id: "a", type: "acme.card", schemaVersion: 1 });
-    const b = element({ id: "b", type: "acme.card", schemaVersion: 1 });
-    const result = migrateElementTree(
-      [a, b],
-      new Map([
-        [wrongId.type, wrongId],
-        [wrongType.type, wrongType],
-      ])
-    );
-    expect(result.failures).toHaveLength(2);
-    expect(result.children[0]).toBe(a);
-    expect(result.children[1]).toBe(b);
-  });
 });
 
 describe("元素定义版本装配校验", () => {
@@ -284,7 +109,7 @@ const cardExtension = (options: {
   });
 
 describe("加载迁移", () => {
-  it("加载含 v1 元素的数据并安装 v2 扩展：快照为 v2，不 emit change，undo 栈为空", () => {
+  it("加载含 v1 元素的数据并安装 v2 扩展：快照仍为 v1，不 emit change，undo 栈为空", () => {
     const changeSpy = vi.fn();
     const valueChangeSpy = vi.fn();
     const source = element({
@@ -306,8 +131,8 @@ describe("加载迁移", () => {
     expect(errors).toEqual([]);
     expect(board.getSnapshot().children[0]).toMatchObject({
       id: "c1",
-      schemaVersion: 2,
-      data: { text: "旧数据", v2: true },
+      schemaVersion: 1,
+      data: { text: "旧数据" },
     });
     expect(changeSpy).not.toHaveBeenCalled();
     expect(valueChangeSpy).not.toHaveBeenCalled();
@@ -330,7 +155,7 @@ describe("插入迁移（submit / undo / redo）", () => {
       migrate: { 1: e => ({ ...e, data: "v2" }) },
     });
 
-  it("api.submit 插入 v1 元素 → 快照中为 v2，undo/redo 正确", () => {
+  it("api.submit 插入 v1 元素 → 快照中仍为 v1，undo/redo 正确", () => {
     const board = createBoard();
     install(board, [v2Extension()]);
     const api = board.extensions!.api;
@@ -343,18 +168,18 @@ describe("插入迁移（submit / undo / redo）", () => {
     ]);
     expect(api.getSnapshot().children[0]).toMatchObject({
       id: "fresh",
-      schemaVersion: 2,
-      data: "v2",
+      schemaVersion: 1,
+      data: "v1",
     });
 
     board.undo();
     expect(board.children).toHaveLength(0);
     board.redo();
-    // undo/redo 重放的 insert_node 已是新版本数据，迁移 no-op，结果仍是 v2
-    expect(board.children[0]).toMatchObject({ id: "fresh", schemaVersion: 2, data: "v2" });
+    // 撤销恢复原始载荷，不执行加载期转换。
+    expect(board.children[0]).toMatchObject({ id: "fresh", schemaVersion: 1, data: "v1" });
   });
 
-  it("粘贴 v1 元素 → 得到 v2", () => {
+  it("粘贴 v1 元素 → 原样保留 v1", () => {
     const board = createBoard();
     install(board, [v2Extension()]);
     const payload = buildClipboardPayload(board, [
@@ -373,12 +198,12 @@ describe("插入迁移（submit / undo / redo）", () => {
     plugin.onPaste(event, board);
 
     expect(board.children).toHaveLength(1);
-    expect(board.children[0]).toMatchObject({ schemaVersion: 2, data: "v2", x: 30, y: 40 });
+    expect(board.children[0]).toMatchObject({ schemaVersion: 1, data: "v1", x: 30, y: 40 });
   });
 
   it("删除 v2 元素后 undo 恢复的仍是 v2", () => {
     const board = createBoard([
-      element({ id: "c1", type: "acme.card", schemaVersion: 1, data: "v1" }),
+      element({ id: "c1", type: "acme.card", schemaVersion: 2, data: "v2" }),
     ]);
     install(board, [v2Extension()]);
     expect(board.children[0]).toMatchObject({ schemaVersion: 2 });
@@ -473,7 +298,7 @@ describe("不兼容元素按占位渲染", () => {
 });
 
 describe("迁移失败报告", () => {
-  it("经 onExtensionError 每扩展汇总一次（多个失败元素也只一次）", () => {
+  it("加载与插入不执行旧迁移函数", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const board = createBoard([
       element({ id: "a", type: "acme.card", schemaVersion: 1 }),
@@ -489,10 +314,7 @@ describe("迁移失败报告", () => {
         },
       }),
     ]);
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toMatchObject({ extensionId: "acme.cards", reason: "migration-failed" });
-    expect(errors[0].message).toContain("2 个元素");
-    expect(errors[0].message).toContain("迁移崩溃");
+    expect(errors).toHaveLength(0);
 
     // 插入路径的失败不再重复报告
     board.apply({
@@ -500,7 +322,7 @@ describe("迁移失败报告", () => {
       path: [0],
       node: element({ id: "c", type: "acme.card", schemaVersion: 1 }),
     });
-    expect(errors).toHaveLength(1);
+    expect(errors).toHaveLength(0);
     // 扩展的其它贡献不受影响
     expect(board.getPlugin("acme.card")).toBeDefined();
   });

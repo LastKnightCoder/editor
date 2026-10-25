@@ -1,0 +1,696 @@
+import { createEditor, Transforms } from "slate";
+import { prepareContentContract } from "@tau/db-schema/content-contracts";
+import type { NodeTreeEditor } from "@tau/editor-collab";
+import { assertVisualExport } from "../utils/visualExport";
+import { getDefaultHandwriteStyle } from "../utils/HandwriteUtil";
+import { afterEach, expect, it, vi } from "vitest";
+import * as Y from "yjs";
+import {
+  WhiteboardModel,
+  collectWhiteboardRelations,
+  exportWhiteboardTransfer,
+  prepareWhiteboardTransfer,
+} from "@tau/collaboration";
+import { prepareWhiteboardContract } from "@tau/db-schema/content-contracts";
+import Board from "../Board";
+import { createWhiteboardBinding } from "../collaboration/binding";
+import { prepareBuiltinWhiteboardTypes } from "../collaboration/builtins";
+import {
+  createArrowExtension,
+  createGeometryExtension,
+  createRichTextExtension,
+  createMindExtension,
+  createFrameExtension,
+  createColumnExtension,
+  createImageExtension,
+  createAudioExtension,
+  createVideoExtension,
+  createHandwriteExtension,
+  createDocumentExtension,
+  createWhiteboardReferenceExtension,
+  createWebviewExtension,
+} from "../extensions/builtins";
+import type { BoardElement } from "../types/element";
+const cleanup: (() => void)[] = [];
+afterEach(() => {
+  vi.restoreAllMocks();
+  cleanup
+    .splice(0)
+    .reverse()
+    .forEach(fn => fn());
+});
+const text = [{ type: "paragraph", children: [{ type: "formatted", text: "内容" }] }];
+const rect = { x: 10, y: 20, width: 100, height: 60, rotation: 0 };
+const base = (type: string, value = {}): BoardElement => ({
+  id: crypto.randomUUID(),
+  type,
+  ...rect,
+  ...value,
+});
+const entity = { sourceId: "source", kind: "article" as const, entityId: "article" };
+async function setup(
+  state?: Uint8Array,
+  options: Partial<Parameters<typeof createWhiteboardBinding>[1]> = {}
+) {
+  const doc = new Y.Doc({ gc: false });
+  if (state) Y.applyUpdate(doc, state);
+  const model = new WhiteboardModel(doc),
+    builtins = await prepareBuiltinWhiteboardTypes();
+  if (!model.pages.size)
+    model.submit(
+      [
+        { type: "create_page", title: "第一页" },
+        { type: "create_page", title: "第二页" },
+      ],
+      null
+    );
+  const board = new Board(
+    [],
+    { minX: 0, minY: 0, width: 800, height: 600, zoom: 1 },
+    { selectedElements: [], selectArea: null }
+  );
+  board.installExtensions([
+    createArrowExtension(),
+    createGeometryExtension(),
+    createRichTextExtension(),
+    createMindExtension(),
+    createFrameExtension(),
+    createColumnExtension(),
+    createImageExtension(),
+    createAudioExtension(),
+    createVideoExtension(),
+    createHandwriteExtension(),
+    createDocumentExtension({ Body: () => null }),
+    createWhiteboardReferenceExtension({ Body: () => null }),
+    createWebviewExtension({ Body: () => null }),
+  ]);
+  const paragraph = await prepareContentContract("tau.paragraph", {
+    type: "paragraph",
+    dataVersion: 1,
+    kind: "block",
+  });
+  const binding = createWhiteboardBinding(model, {
+    editorVersions: {
+      current: type => (type === "paragraph" ? paragraph : undefined),
+      resolve: node =>
+        node.tauContract === paragraph.id
+          ? {
+              access: "edit",
+              element: { type: "paragraph", kind: "block", dataVersion: 1, render: () => null },
+            }
+          : undefined,
+    },
+    pageId: model.read().pages[0].id,
+    documentId: "doc",
+    types: builtins.types,
+    ...options,
+    preparedContracts: [...builtins.prepared, paragraph, ...(options.preparedContracts ?? [])],
+  });
+  board.attachDocument(binding);
+  cleanup.push(() => {
+    board.destroy();
+    model.dispose();
+    doc.destroy();
+  });
+  return {
+    doc,
+    model,
+    board,
+    binding,
+    builtins,
+    insert: (node: BoardElement) =>
+      board.apply({ type: "insert_node", path: [board.children.length], node }),
+  };
+}
+const nodes = [
+  base("richtext", { content: text, maxWidth: 300, maxHeight: 1000, resized: false }),
+  base("geometry", { geometryType: "rect", paths: [], text: { align: "center", content: text } }),
+  base("arrow", {
+    source: { marker: "none" },
+    target: { marker: "arrow" },
+    points: [
+      { x: 1, y: 1 },
+      { x: 100, y: 100 },
+    ],
+    lineType: "straight",
+    lineWidth: 2,
+    description: text,
+  }),
+  base("mind-node", { text, direction: "right", children: [], actualHeight: 80, level: 1 }),
+  base("column", { title: "列", children: [], padding: 8, gap: 8, minWidth: 200, maxWidth: 600 }),
+  base("frame", {
+    title: "框架",
+    children: [],
+    padding: 10,
+    autoResize: false,
+    minWidth: 100,
+    minHeight: 100,
+    backgroundColor: "transparent",
+    borderColor: "currentColor",
+    borderWidth: 1,
+    borderRadius: 4,
+  }),
+  base("handwrite", {
+    points: [
+      { x: 0, y: 0, pressure: 0.5 },
+      { x: 1, y: 1, pressure: 0.5 },
+    ],
+    outline: [{ x: 0, y: 0 }],
+    style: { size: 2 },
+  }),
+  base("image", { src: "https://example.com/image.png", description: "说明" }),
+  base("video", {
+    src: "https://example.com/video.mp4",
+    metaInfo: { type: "remote", url: "https://example.com/video.mp4" },
+  }),
+  base("audio", { src: "https://example.com/audio.mp3", title: "音频", ttsText: "文本" }),
+  base("webview", { url: "https://example.com/" }),
+  base("document", { entity, title: "外部文章" }),
+  base("whiteboard", {
+    entity: { ...entity, kind: "whiteboard" },
+    name: "外部白板",
+    resized: false,
+    maxWidth: 300,
+    maxHeight: 80,
+  }),
+];
+it.each(nodes)("内置 $type 使用精确契约与统一创建撤销", async node => {
+  const f = await setup();
+  f.insert(node);
+  expect(f.model.read().pages[0].children[0].type).toBe(node.type);
+  expect(f.board.extensions!.unknownElementReason(f.board.children[0])).toBeUndefined();
+  expect(f.binding.history.undoStack).toHaveLength(1);
+  f.board.undo();
+  expect(f.board.children).toHaveLength(0);
+  f.board.redo();
+  expect(f.board.children[0].id).toBe(node.id);
+  await f.model.validate();
+});
+it("多富文本根跨页保留身份，图形文字属性与正文不互相覆盖", async () => {
+  const f = await setup();
+  const node = nodes[1];
+  f.insert(node);
+  const root = f.model.elements.get(node.id)!.get("fieldBindings");
+  f.board.apply({
+    type: "set_node",
+    path: [0],
+    properties: { text: f.board.children[0].text },
+    newProperties: { text: { ...f.board.children[0].text, align: "right" } },
+  });
+  expect(f.model.read().pages[0].children[0].data.text).toEqual({ align: "right" });
+  const second = f.model.read().pages[1].id;
+  f.binding.moveToPage([node.id], second);
+  f.binding.switchPage(second);
+  expect(f.model.elements.get(node.id)!.get("fieldBindings")).toEqual(root);
+  expect(f.board.children[0].text.content[0].children[0].text).toBe("内容");
+  f.board.undo();
+  expect(f.model.read().pages[0].children[0].id).toBe(node.id);
+});
+it("DOM 尺寸与布局只改变本机投影，不回写或记历史", async () => {
+  const f = await setup();
+  const child = base("richtext", { content: text, maxWidth: 300, maxHeight: 1000, resized: false });
+  const column = base("column", {
+    title: "列",
+    children: [child],
+    padding: 8,
+    gap: 8,
+    minWidth: 200,
+    maxWidth: 600,
+  });
+  f.insert(column);
+  const bytes = Y.encodeStateAsUpdate(f.doc),
+    count = f.binding.history.undoStack.length;
+  f.binding.measureElement(child.id, { width: 70, height: 180 });
+  f.binding.refreshLayout();
+  expect(Y.encodeStateAsUpdate(f.doc)).toEqual(bytes);
+  expect(f.binding.history.undoStack).toHaveLength(count);
+  expect(f.board.children[0].children?.[0].height).toBe(180);
+});
+it("图片替换和外部引用删除撤销，关系账不把跨页移动算作新引用", async () => {
+  const f = await setup();
+  f.insert(nodes[11]);
+  const before = collectWhiteboardRelations(f.model);
+  f.binding.moveToPage([nodes[11].id], f.model.read().pages[1].id);
+  expect(collectWhiteboardRelations(f.model)).toEqual(before);
+  f.binding.switchPage(f.model.read().pages[1].id);
+  f.board.apply({ type: "remove_node", path: [0], node: f.board.children[0] });
+  expect(collectWhiteboardRelations(f.model)).toEqual([]);
+  expect(collectWhiteboardRelations(f.model, true)).toEqual(before);
+  f.board.undo();
+  expect(collectWhiteboardRelations(f.model)).toEqual(before);
+});
+it("未知插件无损包保留契约与载荷，复制重新分配全部元素及文字身份", async () => {
+  const f = await setup();
+  const contract = await prepareWhiteboardContract("missing", {
+    type: "missing.source",
+    dataVersion: 9,
+    collaboration: { textFields: ["source"] },
+  });
+  const [id] = f.model.submit(
+    [
+      {
+        type: "create",
+        contractId: contract.id,
+        parent: { kind: "page", id: f.binding.pageId },
+        geometry: rect,
+        data: { source: "源码", unknown: { preserved: true } },
+      },
+    ],
+    null,
+    [contract]
+  ).createdIds;
+  const pack = f.binding.exportTransfer([id]);
+  expect(JSON.stringify(pack)).not.toContain("fieldBindings");
+  const target = await setup();
+  await target.binding.importTransfer(pack);
+  const original = f.model.read().pages[0].children[0],
+    copied = target.model.read().pages[0].children[0];
+  expect(copied.id).not.toBe(id);
+  expect(copied.contractId).toBe(contract.id);
+  expect(copied.data).toEqual(original.data);
+  expect(copied.fieldBindings.data.source).not.toBe(original.fieldBindings.data.source);
+});
+it("跨文档资产没有导入权限时整批零写入，不能沿用源 ACL", async () => {
+  const f = await setup();
+  f.insert(base("image", { src: "tau-collab-asset:00000000-0000-4000-8000-000000000001" }));
+  const pack = exportWhiteboardTransfer(f.model, "source-doc"),
+    target = await setup();
+  const before = Y.encodeStateAsUpdate(target.doc);
+  await expect(
+    prepareWhiteboardTransfer(target.model, pack, {
+      targetDocumentId: "target",
+      pageId: target.binding.pageId,
+    })
+  ).rejects.toThrow("权限");
+  expect(Y.encodeStateAsUpdate(target.doc)).toEqual(before);
+});
+it("异步引用期间目标删除或失活不提交，不操作外部正文历史", async () => {
+  let resolve!: (value: typeof entity) => void;
+  const f = await setup(undefined, {
+    referenceEntity: () =>
+      new Promise(done => {
+        resolve = done;
+      }),
+  });
+  const mind = nodes[3];
+  f.insert(mind);
+  const pending = f.binding.linkEntity(mind.id, "article", 1);
+  f.board.apply({ type: "remove_node", path: [0], node: f.board.children[0] });
+  resolve(entity);
+  expect(await pending).toBe(false);
+  expect(f.model.elements.get(mind.id)!.get("entity")).toBeUndefined();
+});
+it("演示与画风接入画布历史，远端投影不回写", async () => {
+  const f = await setup();
+  f.insert(nodes[0]);
+  f.board.presentationManager.addSequence("演示", [{ id: "frame1", elements: [nodes[0].id] }]);
+  f.board.apply({
+    type: "set_sketch",
+    properties: f.board.sketch,
+    newProperties: { mode: "sketch" },
+  });
+  const peer = await setup(Y.encodeStateAsUpdate(f.doc));
+  expect(peer.board.presentationManager.sequences).toEqual(f.board.presentationManager.sequences);
+  expect(peer.board.sketch.mode).toBe("sketch");
+  expect(peer.binding.history.undoStack).toHaveLength(0);
+  f.board.undo();
+  expect(f.board.sketch.mode).toBe("normal");
+  f.board.undo();
+  expect(f.board.presentationManager.sequences).toEqual([]);
+});
+
+it("长笔迹按稳定分段提交，崩溃副本保留前缀且撤销为一次手势", async () => {
+  const f = await setup(),
+    id = crypto.randomUUID(),
+    style = getDefaultHandwriteStyle();
+  f.binding.beginGesture();
+  f.binding.appendStroke(
+    id,
+    [
+      { x: 0, y: 0, pressure: 0.5 },
+      { x: 20, y: 30, pressure: 0.5 },
+    ],
+    style
+  );
+  const prefix = f.model.read().pages[0].children[0].children[0];
+  const restored = await setup(Y.encodeStateAsUpdate(f.doc));
+  expect(restored.model.read().pages[0].children[0].children[0]).toEqual(prefix);
+  vi.spyOn(Date, "now").mockReturnValue(Date.now() + 5000);
+  f.binding.appendStroke(
+    id,
+    [
+      { x: 40, y: 50, pressure: 0.5 },
+      { x: 60, y: 70, pressure: 0.5 },
+    ],
+    style
+  );
+  f.binding.endGesture(true);
+  vi.restoreAllMocks();
+  expect(f.model.read().pages[0].children[0].children[0]).toEqual(prefix);
+  expect(f.board.children[0].points).toHaveLength(4);
+  expect(f.binding.history.undoStack).toHaveLength(1);
+  f.board.undo();
+  expect(f.board.children).toEqual([]);
+  expect(f.model.read().pages[0].recovery).toEqual([]);
+  f.board.redo();
+  expect(f.board.children[0].points).toHaveLength(4);
+  const node = f.board.children[0];
+  f.board.apply({
+    type: "set_node",
+    path: [0],
+    properties: { x: node.x },
+    newProperties: { x: node.x + 100 },
+  });
+  expect(f.board.children[0].x).toBe(node.x + 100);
+  f.board.undo();
+  expect(f.board.children[0].x).toBe(node.x);
+});
+it("复制内部连线与演示重写身份，缺失目标引用仍保留以供撤销恢复", async () => {
+  const f = await setup();
+  const shape = nodes[1],
+    arrow = { ...nodes[2], source: { marker: "none", bindId: shape.id, connectId: "right" } };
+  f.insert(shape);
+  f.insert(arrow);
+  f.board.presentationManager.addSequence("演示", [
+    { id: "frame-copy", elements: [shape.id, arrow.id] },
+  ]);
+  const target = await setup();
+  await target.binding.importTransfer(f.binding.exportTransfer());
+  const values = target.model.read().pages[0].children,
+    copiedShape = values.find(node => node.type === "geometry")!,
+    copiedArrow = values.find(node => node.type === "arrow")!;
+  expect((copiedArrow.data.source as { bindId: string }).bindId).toBe(copiedShape.id);
+  expect(target.model.read().presentations?.[0].frames[0].elements).toEqual([
+    copiedShape.id,
+    copiedArrow.id,
+  ]);
+  target.binding.submit([{ type: "remove_nodes", ids: [copiedShape.id] }]);
+  expect((target.model.read().pages[0].children[0].data.source as { bindId: string }).bindId).toBe(
+    copiedShape.id
+  );
+  target.board.undo();
+  expect(target.model.read().pages[0].children.some(node => node.id === copiedShape.id)).toBe(true);
+});
+it("缺插件默认阻止完整图片导出，只有明确允许才保留占位导出", async () => {
+  const f = await setup();
+  const contract = await prepareWhiteboardContract("unknown", { type: "geometry", dataVersion: 5 });
+  f.model.submit(
+    [
+      {
+        type: "create",
+        contractId: contract.id,
+        geometry: rect,
+        data: { kept: true },
+        parent: { kind: "page", id: f.binding.pageId },
+      },
+    ],
+    null,
+    [contract]
+  );
+  expect(() => assertVisualExport(f.board, f.board.children)).toThrow("插件");
+  expect(() => assertVisualExport(f.board, f.board.children, true)).not.toThrow();
+  expect(f.binding.exportTransfer().pages[0].elements[0].data).toEqual({ kept: true });
+});
+
+it("复制整页包含画风和新身份，页名输入使用同一历史且保留并发字符", async () => {
+  const f = await setup();
+  f.insert(nodes[1]);
+  f.board.apply({
+    type: "set_sketch",
+    properties: f.board.sketch,
+    newProperties: { mode: "sketch" },
+  });
+  const first = f.binding.pageId,
+    duplicate = await f.binding.duplicatePage(first);
+  expect(f.model.read().pages.find(page => page.id === duplicate)?.sketch?.mode).toBe("sketch");
+  const copied = f.model.read().pages.find(page => page.id === duplicate)!.children[0];
+  expect(copied.id).not.toBe(nodes[1].id);
+  const peer = await setup(Y.encodeStateAsUpdate(f.doc));
+  const field = f.binding.pageTitle(first),
+    revision = field.getSnapshot().revision;
+  field.edit({ offset: 0, remove: 0, text: "本地", revision });
+  peer.binding.submit([
+    { type: "edit_page_title", id: first, edit: { offset: 0, remove: 0, text: "远端" } },
+  ]);
+  await f.model.receive(Y.encodeStateAsUpdate(peer.doc));
+  expect(field.getSnapshot().value).toContain("本地");
+  expect(field.getSnapshot().value).toContain("远端");
+  f.board.undo();
+  expect(f.model.read().pages[0].title).toBe("远端第一页");
+  field.dispose();
+});
+
+it("板内新增编辑器节点时惰性登记公共契约，撤销保留契约与文本根", async () => {
+  const paragraph = await prepareContentContract("tau.paragraph", {
+    type: "paragraph",
+    dataVersion: 1,
+    kind: "block",
+  });
+  const source = await prepareContentContract("test.source", {
+    type: "test.source",
+    dataVersion: 1,
+    kind: "block",
+    collaboration: { textFields: ["source"] },
+  });
+  const entries = new Map([paragraph, source].map(entry => [entry.contract.type, entry]));
+  const f = await setup(undefined, {
+    preparedContracts: [paragraph, source],
+    editorVersions: {
+      current: type => entries.get(type),
+      resolve: node => {
+        const entry = entries.get(String(node.type));
+        if (!entry || node.tauContract !== entry.id) return undefined;
+        return {
+          access: "edit",
+          element: { type: entry.contract.type, dataVersion: 1, kind: "block", render: () => null },
+        };
+      },
+    },
+  });
+  f.insert(nodes[0]);
+  expect(f.model.contracts.has(source.id)).toBe(false);
+  const doc = f.binding.textDocument(nodes[0].id)!;
+  const editor = doc.binding!.install(createEditor()) as NodeTreeEditor;
+  editor.connectNodeTree();
+  Transforms.insertNodes(
+    editor,
+    { type: "test.source", source: "abc", children: [{ text: "" }] } as never,
+    { at: [1] }
+  );
+  expect(f.model.contracts.has(source.id)).toBe(true);
+  expect(f.model.richText(nodes[0].id).read()[1].source).toBe("abc");
+  f.board.undo();
+  expect(f.model.contracts.has(source.id)).toBe(true);
+  f.board.redo();
+  expect(f.model.richText(nodes[0].id).read()[1].source).toBe("abc");
+  editor.disposeNodeTree();
+});
+it("未知宿主版本的同名字段不按当前连线规则改写", async () => {
+  const f = await setup();
+  const future = await prepareWhiteboardContract("host.whiteboard", {
+    type: "arrow",
+    dataVersion: 99,
+  });
+  const [id] = f.model.submit(
+    [
+      {
+        type: "create",
+        contractId: future.id,
+        geometry: rect,
+        data: { source: { bindId: "opaque-business-value" }, groupId: "opaque-group" },
+        parent: { kind: "page", id: f.binding.pageId },
+      },
+    ],
+    null,
+    [future]
+  ).createdIds;
+  const pack = exportWhiteboardTransfer(f.model, "another-document", [id]),
+    target = await setup();
+  await target.binding.importTransfer(pack);
+  expect(target.model.read().pages[0].children[0].data).toEqual(
+    f.model.read().pages[0].children[0].data
+  );
+});
+it("可编辑包带托管资源字节，导入按目标身份重登记且不携带本机路径", async () => {
+  const bytes = new Uint8Array([2, 4, 6]);
+  const source = await setup(undefined, {
+    readResource: async () => ({ name: "image.png", mime: "image/png", bytes }),
+  });
+  source.insert(base("image", { src: "tau-collab-local:00000000-0000-4000-8000-000000000001" }));
+  const blob = await source.binding.exportFile();
+  const json = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(blob);
+  });
+  const upload = vi.fn(async () => "tau-collab-local:00000000-0000-4000-8000-000000000002");
+  const target = await setup(undefined, { uploadResource: upload });
+  await target.binding.importTransfer(JSON.parse(json));
+  expect(upload).toHaveBeenCalledWith({ name: "image.png", mime: "image/png", bytes });
+  expect(target.model.read().pages[0].children[0].data.src).toBe(
+    "tau-collab-local:00000000-0000-4000-8000-000000000002"
+  );
+  expect(json).not.toContain("fieldBindings");
+  expect(json).not.toContain("/private");
+});
+it("资源缺失或包清单被篡改时不生成完整导出，不写入目标", async () => {
+  const source = await setup(undefined, {
+    readResource: async () => {
+      throw new Error("资源缺失");
+    },
+  });
+  source.insert(base("image", { src: "tau-collab-local:00000000-0000-4000-8000-000000000001" }));
+  await expect(source.binding.exportFile()).rejects.toThrow("资源缺失");
+  const pack = source.binding.exportTransfer(),
+    target = await setup(),
+    before = Y.encodeStateAsUpdate(target.doc);
+  pack.resources = [];
+  await expect(target.binding.importTransfer(pack)).rejects.toThrow("清单");
+  expect(Y.encodeStateAsUpdate(target.doc)).toEqual(before);
+});
+it("超过单批命令数的导入分段预检但只记一次历史，整页可撤销恢复", async () => {
+  const source = await setup(),
+    contract = await prepareWhiteboardContract("example", {
+      type: "example.opaque",
+      dataVersion: 1,
+    });
+  for (let batch = 0; batch < 3; batch++)
+    source.model.submit(
+      Array.from({ length: 100 }, (_, index) => ({
+        type: "create" as const,
+        contractId: contract.id,
+        geometry: { ...rect, x: batch * 100 + index },
+        data: {},
+        parent: { kind: "page" as const, id: source.binding.pageId },
+      })),
+      null,
+      [contract]
+    );
+  const target = await setup();
+  await target.binding.importTransfer(source.binding.exportTransfer());
+  expect(target.model.read().pages[0].children).toHaveLength(300);
+  expect(target.binding.history.undoStack).toHaveLength(1);
+  target.board.undo();
+  expect(target.model.read().pages[0].children).toHaveLength(0);
+  target.board.redo();
+  expect(target.model.read().pages[0].children).toHaveLength(300);
+  await target.model.validate();
+});
+it("大文本与多属性导入保持冻结单批预算，撤销仍保留初始化载荷", async () => {
+  const source = await setup(),
+    contract = await prepareWhiteboardContract("opaque", {
+      type: "opaque.source",
+      dataVersion: 1,
+      collaboration: { textFields: ["source"] },
+    });
+  const [id] = source.model.submit(
+    [
+      {
+        type: "create",
+        contractId: contract.id,
+        data: {},
+        geometry: rect,
+        parent: { kind: "page", id: source.binding.pageId },
+      },
+    ],
+    null,
+    [contract]
+  ).createdIds;
+  const value = "x".repeat(16383) + "😀" + "y".repeat(65000);
+  source.model.submit(
+    [
+      { type: "edit_text", id, field: "source", edit: { offset: 0, remove: 0, text: value } },
+      { type: "set_data", id, patch: { a: "a".repeat(40000) } },
+      { type: "set_data", id, patch: { b: "b".repeat(40000) } },
+    ],
+    null
+  );
+  const target = await setup();
+  await target.binding.importTransfer(source.binding.exportTransfer([id]));
+  const copied = target.model.read().pages[0].children[0];
+  expect(copied.data.source).toBe(value);
+  target.board.undo();
+  expect(target.model.strings.get(copied.fieldBindings.data.source)?.toString()).toBe(value);
+  expect((target.model.elements.get(copied.id)!.get("data") as Y.Map<unknown>).get("a")).toBe(
+    "a".repeat(40000)
+  );
+  target.board.redo();
+  expect(target.model.read().pages[0].children[0].data).toEqual(
+    source.model.read().pages[0].children[0].data
+  );
+});
+it("64 层可见子树的无损包不把结构层级算成业务 JSON 深度", async () => {
+  const source = await setup(),
+    contract = await prepareWhiteboardContract("opaque", {
+      type: "opaque.container",
+      dataVersion: 1,
+      structure: { container: "free" },
+    });
+  const ids = Array.from({ length: 64 }, () => crypto.randomUUID());
+  source.model.submit(
+    ids.map((id, index) => ({
+      type: "create" as const,
+      id,
+      contractId: contract.id,
+      data: {},
+      geometry: rect,
+      parent: index
+        ? { kind: "element" as const, id: ids[index - 1] }
+        : { kind: "page" as const, id: source.binding.pageId },
+    })),
+    null,
+    [contract]
+  );
+  const target = await setup();
+  await target.binding.importTransfer(source.binding.exportTransfer());
+  let current = target.model.read().pages[0].children[0],
+    depth = 1;
+  while (current.children.length) {
+    current = current.children[0];
+    depth++;
+  }
+  expect(depth).toBe(64);
+  target.board.undo();
+  expect(target.model.read().pages[0].children).toEqual([]);
+});
+it("合法大资源包的 Base64 校验不耗尽调用栈", async () => {
+  const source = await setup();
+  const reference = "tau-collab-local:00000000-0000-4000-8000-000000000001";
+  source.insert(base("image", { src: reference }));
+  const pack = source.binding.exportTransfer();
+  pack.assets = [
+    { reference, name: "large.png", mime: "image/png", base64: "A".repeat(16 * 1024 * 1024) },
+  ];
+  const target = await setup();
+  await expect(
+    prepareWhiteboardTransfer(target.model, pack, {
+      targetDocumentId: "target",
+      pageId: target.binding.pageId,
+      importResource: async () => "tau-collab-local:00000000-0000-4000-8000-000000000002",
+    })
+  ).resolves.toHaveProperty("commands");
+});
+it("演示结束不能解除宿主冻结，测量反馈不能覆盖用户几何", async () => {
+  let writable = true;
+  const f = await setup(undefined, { canWrite: () => writable });
+  f.insert(nodes[0]);
+  f.binding.measureElement(nodes[0].id, { width: 100, height: 180 });
+  f.board.apply({ type: "set_node", path: [0], properties: { x: 10 }, newProperties: { x: 50 } });
+  expect(f.model.read().pages[0].children[0].geometry.height).toBe(60);
+  f.board.apply({
+    type: "set_node",
+    path: [0],
+    properties: { width: 100 },
+    newProperties: { width: 200 },
+  });
+  expect(f.board.children[0].width).toBe(200);
+  f.board.presentationManager.isPresentationMode = true;
+  f.board.readonly = true;
+  writable = false;
+  f.board.presentationManager.stopPresentationMode();
+  expect(f.board.readonly).toBe(true);
+  expect(() =>
+    f.binding.submit([{ type: "set_node", id: nodes[0].id, patch: { name: "不能写" } }])
+  ).toThrow();
+});

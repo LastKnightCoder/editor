@@ -6,11 +6,12 @@ import { PageNavigationBridge } from "@/app/PageNavigationBridge";
 import { definePage } from "@/page/definePage";
 import { createPageSchema, paramNumber, paramOptional } from "@/page/core/paramsSchema";
 import ProjectListSlate from "..";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 vi.mock("@/services/aiServer", () => ({ initAiServer: vi.fn(), closeAiServer: vi.fn() }));
-vi.mock("@/commands/project", () => ({ getProjectItemById: async () => ({ projects: [7] }) }));
+vi.mock("@/commands/project", () => ({ getProjectItemById: async (id: number) => ({ id, projects: [7] }) }));
 vi.mock("@/stores/useSettingStore", () => ({
-  default: { getState: () => ({ setting: { database: { active: "test" } } }) },
+  default: Object.assign((selector: (state: unknown) => unknown) => selector({ setting: { database: { active: "test" } } }), { getState: () => ({ setting: { database: { active: "test" } } }) }),
 }));
 
 // 宿主组件只验证自身逻辑，不渲染真实编辑器，kit 也不必真实构造
@@ -69,7 +70,7 @@ describe("项目文档列表卡片导航", () => {
     root = createRoot(container);
     await act(async () => {
       root!.render(
-        <PageProvider initialKey="project-detail" initialParams={{ id: 7, itemId: 10 }}>
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })}><PageProvider initialKey="project-detail" initialParams={{ id: 7, itemId: 10 }}>
           <PageNavigationBridge />
           <ProjectListSlate
             element={{
@@ -82,10 +83,11 @@ describe("项目文档列表卡片导航", () => {
             <span />
           </ProjectListSlate>
           <NavigationProbe />
-        </PageProvider>
+        </PageProvider></QueryClientProvider>
       );
     });
 
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 20)); });
     const cards = container.querySelectorAll('[contenteditable="false"]');
     expect(cards.length).toBe(2);
     expect([...cards].map(card => card.textContent)).toEqual(["子文档一摘要一", "子文档二摘要二"]);

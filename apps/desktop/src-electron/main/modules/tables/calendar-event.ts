@@ -488,7 +488,7 @@ export default class CalendarEventTable {
     }));
     return mapContentSnapshots(snapshots, async ({ event, content }) => {
       let detailContent = "";
-      if (content?.content) detailContent = await getMarkdownText(content.content);
+      if (content?.content) detailContent = await getMarkdownText(content.content, content.contracts);
 
       const maxLength = params.maxLength;
       if (maxLength && detailContent.length > maxLength) {

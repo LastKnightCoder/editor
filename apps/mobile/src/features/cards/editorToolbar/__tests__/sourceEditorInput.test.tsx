@@ -1,71 +1,9 @@
 import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { insertCodeText } from "../codeBlockInput";
-import {
-  getSourceSymbolKeys,
-  insertIntoTextControl,
-  insertSourceText,
-  MATH_SYMBOL_KEYS,
-  MERMAID_SYMBOL_KEYS,
-} from "../sourceEditorInput";
-
-type Position = { line: number; ch: number };
-
-/** 单行文档的假 CodeMirror 实例：位置与下标一一对应 */
-function createFakeCodeMirror(options: { from?: number; readOnly?: boolean } = {}) {
-  const toPos = (index: number): Position => ({ line: 0, ch: index });
-  return {
-    replaceSelection: vi.fn(),
-    getCursor: vi.fn(() => toPos(options.from ?? 3)),
-    indexFromPos: vi.fn((position: Position) => position.ch),
-    posFromIndex: vi.fn(toPos),
-    setCursor: vi.fn(),
-    focus: vi.fn(),
-    getOption: vi.fn(() => options.readOnly ?? false),
-  };
-}
-
-function createHost(cm: unknown): HTMLElement {
-  const host = document.createElement("div");
-  host.className = "ed-preview-codemirror";
-  const wrapper = document.createElement("div");
-  wrapper.className = "CodeMirror";
-  (wrapper as unknown as { CodeMirror: unknown }).CodeMirror = cm;
-  host.appendChild(wrapper);
-  return host;
-}
-
-describe("insertSourceText（CodeMirror 5）", () => {
-  it("替换选区并回焦，未给偏移时不移动光标", () => {
-    const cm = createFakeCodeMirror();
-    insertSourceText(createHost(cm), "\\alpha");
-    expect(cm.replaceSelection).toHaveBeenCalledWith("\\alpha");
-    expect(cm.setCursor).not.toHaveBeenCalled();
-    expect(cm.focus).toHaveBeenCalled();
-  });
-
-  it("按插入起点 + cursorOffset 设置光标", () => {
-    const cm = createFakeCodeMirror({ from: 3 });
-    insertSourceText(createHost(cm), "\\frac{}{}", { cursorOffset: 6 });
-    expect(cm.getCursor).toHaveBeenCalledWith("from");
-    expect(cm.replaceSelection).toHaveBeenCalledWith("\\frac{}{}");
-    expect(cm.posFromIndex).toHaveBeenCalledWith(9);
-    expect(cm.setCursor).toHaveBeenCalledWith({ line: 0, ch: 9 });
-    // 光标设置在回焦之前
-    expect(cm.setCursor.mock.invocationCallOrder[0]).toBeLessThan(
-      cm.focus.mock.invocationCallOrder[0]
-    );
-  });
-
-  it("找不到实例或只读时不插入", () => {
-    expect(() => insertSourceText(document.createElement("div"), "x")).not.toThrow();
-    const cm = createFakeCodeMirror({ readOnly: true });
-    insertSourceText(createHost(cm), "x");
-    expect(cm.replaceSelection).not.toHaveBeenCalled();
-  });
-});
+import { insertIntoTextControl, MATH_SYMBOL_KEYS } from "../sourceEditorInput";
 
 describe("insertIntoTextControl", () => {
   let root: Root | null = null;
@@ -139,23 +77,12 @@ describe("insertIntoTextControl", () => {
   });
 });
 
-describe("源码符号键", () => {
-  it("公式与流程图各自的键集合", () => {
-    expect(getSourceSymbolKeys("block-math")).toBe(MATH_SYMBOL_KEYS);
-    expect(getSourceSymbolKeys("inline-math")).toBe(MATH_SYMBOL_KEYS);
-    expect(getSourceSymbolKeys("mermaid")).toBe(MERMAID_SYMBOL_KEYS);
-  });
-
+describe("公式符号键", () => {
   it("模板键的光标偏移落在第一个括号内", () => {
     const byLabel = (label: string) => MATH_SYMBOL_KEYS.find(key => key.label === label);
     expect(byLabel("{ }")).toMatchObject({ text: "{}", cursorOffset: 1 });
     expect(byLabel("( )")).toMatchObject({ text: "()", cursorOffset: 1 });
     expect(byLabel("\\frac")).toMatchObject({ text: "\\frac{}{}", cursorOffset: 6 });
     expect(byLabel("\\sqrt")).toMatchObject({ text: "\\sqrt{}", cursorOffset: 6 });
-    expect(MERMAID_SYMBOL_KEYS.at(-1)).toEqual({
-      label: "↵",
-      text: "\n    ",
-      ariaLabel: "换行缩进",
-    });
   });
 });

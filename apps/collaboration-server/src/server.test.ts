@@ -1,9 +1,10 @@
+import { createSharedDocument } from "@tau/collaboration/src/testing/legacy-document";
 import { afterEach, describe, expect, it } from "vitest";
 import { mkdtempSync, rmSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import * as Y from "yjs";
-import { createSharedDocument, readSharedContent, replaceText, getBody } from "@tau/collaboration";
+import { readSharedContent, replaceText, getBody } from "@tau/collaboration";
 import { createServer } from "./server";
 
 const directories: string[] = [];
@@ -64,7 +65,7 @@ describe("协作权限和持久化", () => {
     doc.destroy();
   });
 
-  it("结束共享后可使用同一幂等键重新发起", async () => {
+  it("结束共享后原幂等键仍指向终态，新分享使用新键", async () => {
     const { store } = await setup();
     const owner = store.register("作者");
     const first = store.create(owner.id, "recreate-after-close");
@@ -72,10 +73,11 @@ describe("协作权限和持久化", () => {
     store.closeDocument(first.id, owner.id);
 
     const second = store.create(owner.id, "recreate-after-close");
-    expect(second.id).not.toBe(first.id);
-    expect(second.status).toBe("draft");
+    expect(second.id).toBe(first.id);
+    expect(second.status).toBe("closed");
+    expect(store.create(owner.id, "new-sharing-instance").id).not.toBe(first.id);
     expect(store.document(first.id).status).toBe("closed");
-    expect(store.document(first.id).creation_key).toContain(`:closed:${first.id}`);
+    expect(store.document(first.id).creation_key).toBe("recreate-after-close");
   });
 
   it("增量提交后可以从磁盘恢复，重复更新不会重复内容，撤权后拒绝写入", async () => {
@@ -145,11 +147,21 @@ describe("协作权限和持久化", () => {
   it("不能伪造票据或跨文档使用票据，并执行配额", async () => {
     const { store } = await setup();
     const owner = store.register("作者");
-    const ticket = store.ticket(owner.id, "first");
-    expect(store.verifyTicket(ticket, "first").id).toBe(owner.id);
+    const first = store.create(owner.id, "0");
+    const content = createSharedDocument({
+      title: "票据",
+      content: [{ type: "paragraph", children: [{ text: "正文" }] }],
+      bannerBg: "",
+      bannerPosition: "center",
+    });
+    store.publish(first.id, owner.id, Y.encodeStateAsUpdate(content));
+    content.destroy();
+    const ticket = store.ticket(owner.id, first.id);
+    expect(store.verifyTicket(ticket, first.id).id).toBe(owner.id);
     expect(() => store.verifyTicket(ticket, "second")).toThrow("过期");
-    expect(() => store.verifyTicket(ticket + "x", "first")).toThrow("无效");
-    for (let i = 0; i < 5; i++) store.create(owner.id, String(i));
+    expect(() => store.verifyTicket(ticket + "x", first.id)).toThrow("无效");
+    expect(() => store.ticket(owner.id, "missing")).toThrow("不存在");
+    for (let i = 1; i < 5; i++) store.create(owner.id, String(i));
     expect(() => store.create(owner.id, "extra")).toThrow("上限");
   });
 

@@ -672,10 +672,11 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       openSelectWhiteBoardModal();
     } else if (key === "import-markdown") {
       if (!projectItem) return;
-      await importMarkdownFiles(async ({ title, content }) => {
+      await importMarkdownFiles(async ({ title, content, contracts }) => {
         const [parentProjectItem] = await addChildProjectItem(projectItemId, {
           title,
           content,
+          contracts,
           children: [],
           refType: "",
           refId: 0,

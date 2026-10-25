@@ -11,6 +11,7 @@ export const createProjectCardListExtension = (projectId?: number) =>
     elements: [
       defineElement<ProjectCardListElement>({
         type: "project-card-list",
+        dataVersion: 1,
         kind: "block",
         isVoid: true,
         render: ({ attributes, element, children }: ElementRenderProps<ProjectCardListElement>) => (

@@ -8,7 +8,6 @@ vi.mock("../editorExtensions/ContentLinkPickerSheet", () => ({
 }));
 
 const sourceInputMocks = vi.hoisted(() => ({
-  insertSourceText: vi.fn(),
   insertIntoTextControl: vi.fn(),
 }));
 
@@ -70,16 +69,13 @@ const MATH_LABELS = [
   "=",
 ];
 
-const MERMAID_LABELS = ["-->", "---", "-.->", "[ ]", "( )", "{ }", "|", ":", ";", "换行缩进"];
-
-describe("MobileEditorBottomToolbar 公式 / 流程图上下文", () => {
+describe("MobileEditorBottomToolbar 公式上下文", () => {
   let container: HTMLDivElement;
   let root: Root;
-  let sourceHost: HTMLDivElement;
+  let sourceInput: HTMLTextAreaElement;
   let mathInput: HTMLInputElement;
 
-  const blockMath = (): EditingContext => ({ kind: "block-math", path: [1], host: sourceHost });
-  const mermaid = (): EditingContext => ({ kind: "mermaid", path: [1], host: sourceHost });
+  const blockMath = (): EditingContext => ({ kind: "block-math", path: [1], input: sourceInput });
   const inlineMath = (): EditingContext => ({
     kind: "inline-math",
     path: [0, 1],
@@ -101,9 +97,9 @@ describe("MobileEditorBottomToolbar 公式 / 流程图上下文", () => {
   };
 
   beforeEach(() => {
-    sourceHost = document.createElement("div");
+    sourceInput = document.createElement("textarea");
     mathInput = document.createElement("input");
-    document.body.append(sourceHost, mathInput);
+    document.body.append(sourceInput, mathInput);
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -126,13 +122,6 @@ describe("MobileEditorBottomToolbar 公式 / 流程图上下文", () => {
     }
   });
 
-  it("流程图：静态「流程图」标签与流程图符号键", () => {
-    render(sourceController(mermaid()));
-    expect(getStaticChip()?.textContent).toBe("流程图");
-    expect(getToolbarLabels()).toEqual([...MERMAID_LABELS, "收起键盘"]);
-    expect(getToolbarButton("换行缩进")?.textContent).toBe("↵");
-  });
-
   it("标签不可点：按下保持焦点，不退回通用模式", () => {
     const controller = sourceController(blockMath());
     render(controller);
@@ -145,8 +134,8 @@ describe("MobileEditorBottomToolbar 公式 / 流程图上下文", () => {
   });
 
   it("符号键按下阻止默认行为，不抢走源码编辑器焦点", () => {
-    render(sourceController(mermaid()));
-    for (const label of ["-->", "[ ]", "换行缩进", "收起键盘"]) {
+    render(sourceController(blockMath()));
+    for (const label of ["\\frac", "{ }", "收起键盘"]) {
       const button = getToolbarButton(label);
       expect(dispatch(button, "pointerdown").defaultPrevented, label).toBe(true);
       expect(dispatch(button, "mousedown").defaultPrevented, label).toBe(true);
@@ -154,27 +143,20 @@ describe("MobileEditorBottomToolbar 公式 / 流程图上下文", () => {
     }
   });
 
-  it("块公式 / 流程图的键插入 CodeMirror，模板带光标偏移", () => {
+  it("块公式的键插入源码输入框，模板带光标偏移", () => {
     render(sourceController(blockMath()));
     act(() => getToolbarButton("\\frac")?.click());
-    expect(sourceInputMocks.insertSourceText).toHaveBeenLastCalledWith(sourceHost, "\\frac{}{}", {
-      cursorOffset: 6,
-    });
+    expect(sourceInputMocks.insertIntoTextControl).toHaveBeenLastCalledWith(
+      sourceInput,
+      "\\frac{}{}",
+      6
+    );
     act(() => getToolbarButton("\\alpha")?.click());
-    expect(sourceInputMocks.insertSourceText).toHaveBeenLastCalledWith(sourceHost, "\\alpha", {
-      cursorOffset: undefined,
-    });
-
-    render(sourceController(mermaid()));
-    act(() => getToolbarButton("[ ]")?.click());
-    expect(sourceInputMocks.insertSourceText).toHaveBeenLastCalledWith(sourceHost, "[]", {
-      cursorOffset: 1,
-    });
-    act(() => getToolbarButton("换行缩进")?.click());
-    expect(sourceInputMocks.insertSourceText).toHaveBeenLastCalledWith(sourceHost, "\n    ", {
-      cursorOffset: undefined,
-    });
-    expect(sourceInputMocks.insertIntoTextControl).not.toHaveBeenCalled();
+    expect(sourceInputMocks.insertIntoTextControl).toHaveBeenLastCalledWith(
+      sourceInput,
+      "\\alpha",
+      undefined
+    );
   });
 
   it("行内公式的键插入 input", () => {
@@ -187,7 +169,6 @@ describe("MobileEditorBottomToolbar 公式 / 流程图上下文", () => {
       "\\sqrt{}",
       6
     );
-    expect(sourceInputMocks.insertSourceText).not.toHaveBeenCalled();
   });
 
   it("收起键盘：当前焦点失焦并退出编辑", () => {
@@ -200,20 +181,14 @@ describe("MobileEditorBottomToolbar 公式 / 流程图上下文", () => {
     expect(controller.exitEditing).toHaveBeenCalled();
   });
 
-  it("白名单分别控制公式与流程图模式，未列入时按通用模式渲染", () => {
+  it("白名单控制公式模式，未列入时按通用模式渲染", () => {
     const onlyMath = new Set<AccessoryItemId>(["context-math", "undo"]);
     render(sourceController(blockMath()), onlyMath);
     expect(getStaticChip()?.textContent).toBe("公式");
 
-    render(sourceController(mermaid()), onlyMath);
+    render(sourceController(inlineMath()), new Set<AccessoryItemId>(["undo"]));
     expect(getStaticChip()).toBeNull();
     expect(getToolbarLabels()).toEqual(["撤销", "收起键盘"]);
-
-    const onlyMermaid = new Set<AccessoryItemId>(["context-mermaid", "undo"]);
-    render(sourceController(inlineMath()), onlyMermaid);
-    expect(getStaticChip()).toBeNull();
-    render(sourceController(mermaid()), onlyMermaid);
-    expect(getStaticChip()?.textContent).toBe("流程图");
   });
 
   it("面板打开时不显示公式上下文", () => {

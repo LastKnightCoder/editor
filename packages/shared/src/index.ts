@@ -45,8 +45,6 @@ export {
 export { markdownCustomDirectives } from "./utils/markdown-custom-directives";
 export {
   CONTENT_ELEMENT_TYPES,
-  PRIVATE_BLOCK_TYPES,
-  privateBlockPlaceholderText,
   type ContentElementType,
 } from "./utils/editor-element-coverage";
 

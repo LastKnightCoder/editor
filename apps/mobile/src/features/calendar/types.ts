@@ -44,6 +44,7 @@ export interface CalendarEvent {
 }
 
 export interface CreateCalendarEventInput {
+  contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
   calendarId: number;
   title: string;
   detailContentId?: number;

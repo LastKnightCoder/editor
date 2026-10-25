@@ -1,3 +1,4 @@
+import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { Descendant } from "slate";
 
 export type DiaryType = "daily" | "weekly" | "monthly";
@@ -43,6 +44,7 @@ export type CreateDiaryEntry = Omit<
 > & {
   content?: Descendant[];
   segments?: Descendant[][];
+  contracts?: ContentContractDictionary;
 };
 
 export type UpdateDiaryEntry = Partial<

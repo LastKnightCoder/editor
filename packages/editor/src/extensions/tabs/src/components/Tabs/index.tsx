@@ -4,9 +4,9 @@ import { v4 as getUUid } from "uuid";
 
 import { ITabItem, TabPaneElement, TabsElement } from "../../types";
 import { AddParagraph, getCommandElementPath } from "@tau/editor/api";
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import TabsHeader from "../TabsHeader";
-import { useIsLastElement } from "@tau/editor/api";
+import { useIsLastElement, useElementView } from "@tau/editor/api";
 
 import { TabsActiveContext, TabsDragScopeContext } from "../../context";
 
@@ -43,12 +43,11 @@ const Tabs = (props: ITabsProps) => {
   const editor = useSlate();
   const readOnly = useReadOnly();
   const scope = useRef({});
-  const [viewKey, setViewKey] = useState<string>();
-  const requestedKey = readOnly ? (viewKey ?? element.activeKey) : element.activeKey;
-  const activeKey = panes.some(pane => pane.tabKey === requestedKey)
+  const view = useElementView(element);
+  const requestedKey = view.value.activeKey;
+  const activeKey = typeof requestedKey === "string" && panes.some(pane => pane.tabKey === requestedKey)
     ? requestedKey
     : panes[0]?.tabKey || "";
-  useEffect(() => setViewKey(undefined), [readOnly, element.activeKey]);
 
   const getPanes = (path: Path): TabPaneElement[] => {
     // element 是渲染快照，连续操作前需从编辑器读最新节点
@@ -61,13 +60,13 @@ const Tabs = (props: ITabsProps) => {
   const handleClickTab = (key: string) => {
     if (key === activeKey || !panes.some(pane => pane.tabKey === key)) return;
     if (readOnly) {
-      setViewKey(key);
+      view.update({ activeKey: key });
       return;
     }
     const path = getCommandElementPath(editor, { element });
     if (!path) return;
     Editor.withoutNormalizing(editor, () => {
-      Transforms.setNodes(editor, { activeKey: key }, { at: path });
+      view.update({ activeKey: key });
       // 选区不能留在被隐藏的旧 pane 里，否则后续输入会打到看不见的 Tab
       if (!readOnly && editor.selection) {
         const index = getPanes(path).findIndex(pane => pane.tabKey === key);
@@ -86,7 +85,7 @@ const Tabs = (props: ITabsProps) => {
     const pane = createEmptyPane("Tab" + (currentPanes.length + 1));
     Editor.withoutNormalizing(editor, () => {
       Transforms.insertNodes(editor, pane, { at: [...path, currentPanes.length] });
-      Transforms.setNodes(editor, { activeKey: pane.tabKey }, { at: path });
+      view.update({ activeKey: pane.tabKey });
       Transforms.select(editor, Editor.start(editor, [...path, currentPanes.length]));
     });
   };
@@ -121,7 +120,7 @@ const Tabs = (props: ITabsProps) => {
         );
       } else if (key === activeKey) {
         const next = remaining[Math.min(index, remaining.length - 1)];
-        Transforms.setNodes(editor, { activeKey: next.tabKey }, { at: path });
+        view.update({ activeKey: next.tabKey });
         const nextIndex = remaining.findIndex(pane => pane.tabKey === next.tabKey);
         if (nextIndex >= 0 && editor.selection) {
           Transforms.select(editor, Editor.start(editor, [...path, nextIndex]));

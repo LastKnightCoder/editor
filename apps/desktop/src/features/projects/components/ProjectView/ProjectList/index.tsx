@@ -573,11 +573,12 @@ const Project = () => {
       setAddingParentProjectItemId(parentProjectItemId);
       openSelectWhiteBoardModal();
     } else if (key === "import-markdown") {
-      await importMarkdownFiles(async ({ title, content }) => {
+      await importMarkdownFiles(async ({ title, content, contracts }) => {
         const [newProject, item] = await addProjectItemToTarget(
           {
             title,
             content,
+          contracts,
             children: [],
             refType: "",
             refId: 0,

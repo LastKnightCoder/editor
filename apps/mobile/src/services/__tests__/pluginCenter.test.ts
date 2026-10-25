@@ -89,7 +89,7 @@ it("安装校验审核清单与摘要后才走中心提交，不走开发提交"
     host: {
       ...centerHost,
       platform: "ios",
-      appVersion: "0.2.3",
+      appVersion: "0.2.7",
     },
     installationEnabled: true,
   };
@@ -155,7 +155,7 @@ it("生产门禁和安装中取消均不会发起提交", async () => {
   ]);
 });
 
-it("未知 optional 可以安装且原样对账，未知 required 或被篡改的能力声明不得提交", async () => {
+it("平台版本清单必须与审核记录一致，超过宿主版本时不得提交", async () => {
   vi.stubGlobal("crypto", webcrypto);
   const [base] = await portableFixtures();
   const manifest: ReadablePortablePluginManifest = {
@@ -191,18 +191,18 @@ it("未知 optional 可以安装且原样对账，未知 required 或被篡改�
   vi.mocked(invoke).mockClear();
   release.content.manifest = {
     ...manifest,
-    targets: { ios: { ...target } },
+    targets: { ios: { ...target, minAppVersion: "0.1.0" } },
   };
   await expect(installMobileCenterRelease(manifest.id, release.releaseId)).rejects.toThrow("清单");
   expect(invoke).toHaveBeenLastCalledWith("plugin_cancel", { id: manifest.id });
   artifact.manifest = {
     ...manifest,
-    targets: { ios: { ...target } },
+    targets: { ios: { ...target, minAppVersion: "0.2.7" } },
   };
   release.content.manifest = artifact.manifest;
   vi.mocked(invoke).mockClear();
   await expect(installMobileCenterRelease(manifest.id, release.releaseId)).rejects.toThrow(
-    "必需能力"
+    "客户端版本低于插件要求"
   );
   expect(vi.mocked(invoke).mock.calls.map(call => call[0])).not.toContain("plugin_center_commit");
 });

@@ -17,6 +17,7 @@ export const checkListExtension = defineExtension({
   elements: [
     defineElement<CheckListElement>({
       type: "check-list",
+      dataVersion: 1,
       kind: "block",
       isEmpty: (element, context) => element.children.every(context.isEmpty),
       render: CheckList,
@@ -44,6 +45,7 @@ export const checkListItemExtension = defineExtension({
   elements: [
     defineElement<CheckListItemElement>({
       type: "check-list-item",
+      dataVersion: 1,
       kind: "block",
       isEmpty: (element, context) => element.children.every(context.isEmpty),
       render: CheckListItem,

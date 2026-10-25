@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { BoardElement } from "../../types";
 import { buildSchematic, parseFill } from "../schematic";
 
@@ -60,4 +60,48 @@ describe("parseFill", () => {
       }
     );
   });
+});
+
+it("受管缩略图按精确契约选择定义，不调用同类型的新版本", () => {
+  const current = vi.fn(() => []),
+    previous = vi.fn(() => [
+      { kind: "rect" as const, x: 0, y: 0, w: 100, h: 50, r: 0, fill: "currentColor" },
+    ]);
+  const node = {
+    id: "n",
+    type: "example.shape",
+    contractId: "old",
+    x: 0,
+    y: 0,
+    width: 100,
+    height: 50,
+    data: {},
+  };
+  const definition = { type: node.type, dataVersion: 2, render: () => null, schematic: current };
+  expect(buildSchematic([node], { ...opts, definitions: [definition] })?.shapes).toHaveLength(1);
+  expect(current).not.toHaveBeenCalled();
+  buildSchematic([node], {
+    ...opts,
+    definitions: [definition],
+    resolveDefinition: value =>
+      value.contractId === "old"
+        ? { ...definition, dataVersion: 1, schematic: previous }
+        : undefined,
+  });
+  expect(previous).toHaveBeenCalledOnce();
+  expect(current).not.toHaveBeenCalled();
+});
+it("不透明同名内置元素的示意图也保留占位", () => {
+  const node = {
+    id: "a",
+    type: "arrow",
+    contractId: "future",
+    x: 0,
+    y: 0,
+    width: 100,
+    height: 50,
+    data: {},
+    points: null,
+  };
+  expect(buildSchematic([node], opts)?.shapes).toHaveLength(1);
 });

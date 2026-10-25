@@ -7,11 +7,12 @@ import { getPageNavigation, openPage } from "./page-navigation";
 import { serializeEntityLocation, type EntityLocation } from "@/entity/locate";
 import { locatePluginEntity } from "@/commands/plugin-entities";
 import { PLUGIN_ENTITY_PAGE_KEY, pluginEntityKind } from "./plugin-entity-kinds";
+import type { ContentEntityReference } from "@tau/db-schema/content-identities";
 
 /** 打开一个实体对应的 Page；异步查询期间切库则放弃导航 */
 export async function openEntity(
   ref: EntityRef,
-  options: { at?: EntityLocation; compose?: boolean } = {}
+  options: { at?: EntityLocation; compose?: boolean; reference?: ContentEntityReference } = {}
 ) {
   const position = options.at ? { at: serializeEntityLocation(options.at) } : {};
   const { kind, id } = ref;
@@ -35,8 +36,9 @@ export async function openEntity(
       return;
     case "project-item": {
       const current = getPageNavigation().navigator.current();
-      const item = await getProjectItemById(id);
+      const item = await getProjectItemById(options.reference ?? id);
       ensureDatabase();
+      if (item && item.id !== id) throw new Error("项目引用身份已变化，请重新打开");
       if (!item?.projects.length) throw new Error("项目文档不存在或未归属项目");
       const currentProjectId =
         current?.key === "project-detail" ? Number(current.params.id) : undefined;
@@ -77,8 +79,8 @@ export async function openEntity(
 }
 
 /** 按正文实体类型打开内容 */
-export async function openContent(type: string, id: number) {
+export async function openContent(type: string, id: number, reference?: ContentEntityReference) {
   const kind = normalizeEntityRefKind(type);
   if (!kind) throw new Error(`暂不支持打开此内容类型：${type}`);
-  await openEntity({ kind, id });
+  await openEntity({ kind, id }, { reference });
 }

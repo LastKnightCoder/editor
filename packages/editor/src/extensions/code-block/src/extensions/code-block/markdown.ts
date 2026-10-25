@@ -2,6 +2,8 @@ import { v4 as uuid } from "uuid";
 import type { Descendant } from "slate";
 import type { MarkdownCodec } from "@tau/markdown";
 import { normalizeCodeBlockLanguageDisplayName } from "@tau/shared/code-block-language";
+import { convertLegacyCodeBlock } from "../../codeStepMigration.ts";
+import type { CodeBlockV2Element, CodeStepElement } from "../../types";
 import { normalizeCodeBlockFilename } from "./utils/filename.ts";
 
 const MAGIC_MOVE_META_PREFIX = "smm=";
@@ -70,7 +72,7 @@ const parseHighlightMeta = (meta: unknown): string | undefined => {
   return normalizeHighlightLines(match[1]);
 };
 
-const parseMagicMoveMeta = (meta: unknown, fallbackCode: string): MagicMovePayload | undefined => {
+const parseMagicMoveMeta = (meta: unknown): MagicMovePayload | undefined => {
   if (typeof meta !== "string" || !meta.trim()) {
     return undefined;
   }
@@ -117,8 +119,6 @@ const parseMagicMoveMeta = (meta: unknown, fallbackCode: string): MagicMovePaylo
       Math.max(Number(parsedRecord.activeStep) || 0, 0),
       steps.length - 1
     );
-    // 围栏里的源码就是激活步的最新内容，覆盖载荷里的旧值
-    steps[activeStep].code = fallbackCode;
 
     return { v: 1, activeStep, steps };
   } catch {
@@ -192,7 +192,7 @@ const resolveActiveCode = (element: any): { code: string; fence: string } => {
         Math.min(Math.max(Number(magicMove.activeStep) || 0, 0), magicMove.steps.length - 1)
       ]
     : undefined;
-  const code = activeStep?.code ?? element.code ?? "";
+  const code = element.code ?? activeStep?.code ?? "";
   const magicMoveMeta = createMagicMoveMeta(magicMove);
   const highlightMeta = createHighlightMeta(activeStep?.highlightLines ?? element.highlightLines);
   const fence = [language, ...createDisplayMeta(element), highlightMeta, magicMoveMeta]
@@ -203,13 +203,14 @@ const resolveActiveCode = (element: any): { code: string; fence: string } => {
 
 export const codeBlockCodec: MarkdownCodec = {
   type: "code-block",
+  dataVersion: 1,
   isVoid: true,
   // 围栏语言先被 fence 声明认领，这里兜底剩下的 code 节点（无语言 / 未知语言 / 缩进代码块）
   importNode: node => {
     if (node.type !== "code") return null;
     const source = node.value ?? "";
     const { rest: meta, filename, wrap, lineNumbers } = parseDisplayMeta(node.meta);
-    const magicMove = parseMagicMoveMeta(meta, source);
+    const magicMove = parseMagicMoveMeta(meta);
     let highlightLines = parseHighlightMeta(meta);
     if (magicMove) {
       const safeStep = Math.min(
@@ -242,12 +243,12 @@ export const codeBlockCodec: MarkdownCodec = {
     isBlock: true,
     toMarkdown: element => {
       const { code, fence } = resolveActiveCode(element);
-      return "```" + fence + "\n" + code + "\n```";
+      return codeFence(code, fence);
     },
     toMarkdownStructured: element => {
       const { code, fence } = resolveActiveCode(element);
       return {
-        output: "```" + fence + "\n" + code + "\n```",
+        output: codeFence(code, fence),
         skipChildren: true,
         propertyMappings: {
           code: {
@@ -257,5 +258,106 @@ export const codeBlockCodec: MarkdownCodec = {
         },
       };
     },
+  },
+};
+
+function codeFence(code: string, meta: string): string {
+  const length = Math.max(3, ...Array.from(code.matchAll(/`+/g), match => match[0].length + 1));
+  const fence = "`".repeat(length);
+  return `${fence}${meta}\n${code}\n${fence}`;
+}
+
+function exportCodeSteps(element: CodeBlockV2Element): string {
+  if (
+    !element.children.length ||
+    element.children.some(step => step.type !== "code-step" || typeof step.code !== "string")
+  ) {
+    throw new Error("代码步骤格式无效，须使用保真导出");
+  }
+  const steps = element.children.map((step, index) => ({
+    ...(index ? { code: step.code } : {}),
+    ...(step.title === undefined ? {} : { title: step.title }),
+    ...(step.highlightLines === undefined ? {} : { highlightLines: step.highlightLines }),
+  }));
+  const extra = steps.length > 1 || steps[0].title !== undefined;
+  const metadata = [
+    element.language || "",
+    ...createDisplayMeta(element),
+    createHighlightMeta(element.children[0].highlightLines),
+    extra ? `${MAGIC_MOVE_META_PREFIX}${encodeBase64Url(JSON.stringify({ v: 2, steps }))}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return codeFence(element.children[0].code, metadata);
+}
+
+/** 标准 Markdown 重新导入当前版本；完整契约与未知属性由 Tau 无损载荷保留。 */
+export const codeBlockV2Codec: MarkdownCodec = {
+  type: "code-block",
+  dataVersion: 2,
+  isVoid: true,
+  importNode: (node, context) => {
+    if (node.type !== "code") return null;
+    const display = parseDisplayMeta(node.meta);
+    const token = display.rest.split(/\s+/).find(item => item.startsWith(MAGIC_MOVE_META_PREFIX));
+    let payload: Record<string, unknown> | undefined;
+    if (token) {
+      const parsed: unknown = JSON.parse(
+        decodeBase64Url(token.slice(MAGIC_MOVE_META_PREFIX.length))
+      );
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+        throw new Error("代码步骤载荷无效");
+      payload = parsed as Record<string, unknown>;
+      if (payload.v !== 1 && payload.v !== 2) throw new Error("不支持此代码步骤版本，请保留原文件");
+    }
+    if (!payload || payload.v === 1) {
+      const old = codeBlockCodec.importNode!(node, context);
+      const converted = convertLegacyCodeBlock(payload ? { ...old, magicMove: payload } : old);
+      for (const candidate of converted.recovery)
+        converted.element.children.push({
+          type: "code-step",
+          code: candidate.code,
+          title: "恢复的围栏源码",
+          children: [{ type: "formatted", text: "" }],
+        });
+      for (const step of converted.element.children) delete step.collabId;
+      return converted.element;
+    }
+    if (!Array.isArray(payload.steps) || !payload.steps.length) throw new Error("代码步骤列表无效");
+    const steps = payload.steps.map((value, index): CodeStepElement => {
+      if (!value || typeof value !== "object" || Array.isArray(value))
+        throw new Error("代码步骤无效");
+      const step = value as Record<string, unknown>;
+      if (
+        (!index && step.code !== undefined) ||
+        (index && typeof step.code !== "string") ||
+        (step.title !== undefined && typeof step.title !== "string") ||
+        (step.highlightLines !== undefined && typeof step.highlightLines !== "string")
+      )
+        throw new Error("代码步骤源码或属性无效");
+      return {
+        type: "code-step",
+        code: index ? (step.code as string) : (node.value ?? ""),
+        ...(step.title === undefined ? {} : { title: step.title as string }),
+        ...(step.highlightLines === undefined
+          ? {}
+          : { highlightLines: step.highlightLines as string }),
+        children: [{ type: "formatted", text: "" }],
+      };
+    });
+    return {
+      type: "code-block",
+      language: normalizeCodeBlockLanguageDisplayName(node.lang),
+      uuid: uuid(),
+      ...(display.filename ? { filename: display.filename } : {}),
+      ...(display.wrap ? { wrap: true } : {}),
+      ...(display.lineNumbers === false ? { lineNumbers: false } : {}),
+      children: steps,
+    } as CodeBlockV2Element;
+  },
+  serializer: {
+    isBlock: true,
+    toMarkdown: exportCodeSteps,
+    toMarkdownStructured: element => ({ output: exportCodeSteps(element), skipChildren: true }),
   },
 };

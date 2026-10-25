@@ -5,6 +5,7 @@ import {
   type ContentResourceSpec,
 } from "@tau/db-schema/content-resources";
 import { CollaborationError } from "./protocol";
+import { assertLegacyDocument } from "./document-version";
 
 /**
  * 资源声明随协作文档传递：节点类型 → 资源字段。协作层只按它找资源（上传、改写、校验），
@@ -13,7 +14,10 @@ import { CollaborationError } from "./protocol";
 const RESOURCES_KEY = "resources";
 const MAX_TYPES = 256;
 
-const resourceMap = (doc: Y.Doc) => doc.getMap<unknown>(RESOURCES_KEY);
+const resourceMap = (doc: Y.Doc) => {
+  assertLegacyDocument(doc);
+  return doc.getMap<unknown>(RESOURCES_KEY);
+};
 
 /**
  * 读取文档携带的声明。strict 时声明损坏即抛 INVALID_CONTENT（服务端与发布前校验），

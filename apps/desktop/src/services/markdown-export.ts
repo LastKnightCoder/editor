@@ -5,7 +5,7 @@ import { isContentEmpty } from "@tau/db-schema/content-metrics";
  * 节点 id 为本次导出内的临时编号，实体身份记在 ref，跨范围互链（卡片 → 文章）照常改写。
  */
 
-import { findOneArticle, getArticlePage } from "@/commands/article";
+import { getArticlePage } from "@/commands/article";
 import { getScopedCards } from "@/commands/card";
 import { saveFileWithDialog, showInFolder } from "@/commands";
 import { getProjectList } from "@/commands/project";
@@ -125,7 +125,7 @@ const loadArticles = async (nextId: IdAllocator) => {
           exportable: true,
           empty: article.words === 0,
           content: [],
-          loadContent: async () => (await findOneArticle(article.id)).content || [],
+          contentId: article.contentId,
           ref: { kind: "article", id: article.id },
           meta: {
             tags: article.tags,
@@ -155,6 +155,7 @@ const loadCards = async (nextId: IdAllocator, databaseName: string) => {
         exportable: true,
         empty: isContentEmpty(card.content),
         content: card.content || [],
+        contentId: card.contentId,
         ref: { kind: "card", id: card.id },
         meta: { tags: card.tags, createTime: card.create_time, updateTime: card.update_time },
         children: [],

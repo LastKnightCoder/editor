@@ -1,3 +1,4 @@
+import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { useEffect, useRef, useState } from "react";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import type { Descendant } from "slate";
@@ -17,6 +18,7 @@ import {
 
 type UseEditContentOptions = {
   wait?: number;
+  beforeSave?: () => Promise<void>;
   onSaved?: (detail: ContentDetailResponse) => void;
   onSaveError?: (error: unknown) => void;
   onContentSync?: (content: Descendant[]) => void;
@@ -40,7 +42,7 @@ type UseEditContentResult = {
   loading: boolean;
   saving: boolean;
   error: string;
-  handleEditorContentChange: (content: Descendant[]) => void;
+  handleEditorContentChange: (content: Descendant[], contracts?: ContentContractDictionary) => void;
   flushNow: () => Promise<boolean>;
   retryLastFailed: () => Promise<boolean>;
 };
@@ -55,6 +57,8 @@ export function useEditContent(
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  const metadataRef = useRef<ContentDetailResponse | undefined>(undefined);
+  const writeTail = useRef<Promise<boolean>>(Promise.resolve(true));
   const sourceIdRef = useRef(createContentSyncSourceId());
   const latestContentRef = useRef<Descendant[]>(EMPTY_EDITOR_CONTENT);
   const lastSavedSnapshotRef = useRef(JSON.stringify(EMPTY_EDITOR_CONTENT));
@@ -68,7 +72,11 @@ export function useEditContent(
     options?.onContentSync?.(next);
   });
 
-  const saveContent = useMemoizedFn(async (next?: Descendant[]) => {
+  const saveContent = useMemoizedFn((next?: Descendant[]) => {
+    const requested = structuredClone(next ?? latestContentRef.current);
+    const generation = loadRequestSeqRef.current;
+    const write = writeTail.current.then(async () => {
+    if (generation !== loadRequestSeqRef.current) return false;
     if (!contentId || contentId <= 0) {
       return false;
     }
@@ -76,7 +84,7 @@ export function useEditContent(
       return true;
     }
 
-    const normalized = normalizeEditorContent(next ?? latestContentRef.current);
+    const normalized = normalizeEditorContent(requested);
     const nextSnapshot = JSON.stringify(normalized);
     if (nextSnapshot === lastSavedSnapshotRef.current) {
       return true;
@@ -85,6 +93,8 @@ export function useEditContent(
     setSaving(true);
     setError("");
     try {
+      await options?.beforeSave?.();
+      if (generation !== loadRequestSeqRef.current) return false;
       const count = getContentLength(normalized);
       let savedContent = normalized;
       let savedCount = count;
@@ -95,7 +105,10 @@ export function useEditContent(
       /** 投影通道写入；未写入（unbound=幂等跳过 / drift=漂移已自动解绑）返回 false，
        *  由常规直写接管——此时绑定已不在，直写会被数据库层放行 */
       const projectContent = async () => {
-        const result = await tauri.collabProjectContent({ contentId, content: normalized, count });
+        const binding = await tauri.collabGetBinding(contentId);
+        if (!binding) return false;
+        const result = await tauri.collabProjectContent({ contentId, documentId: binding.documentId, content: normalized, count, contracts: metadataRef.current?.contracts ?? undefined, expectedRevision: metadataRef.current?.revision ?? undefined, expectedDocumentId: metadataRef.current?.documentId ?? undefined, expectedSourceId: metadataRef.current?.librarySourceId ?? undefined });
+        if (!result.reason) updatedDetail = await tauri.getContentDetail(contentId);
         return !result.reason;
       };
 
@@ -106,7 +119,7 @@ export function useEditContent(
 
       if (!persistedViaProjection) {
         try {
-          const updated = await tauri.updateContent({ contentId, content: normalized, count });
+          const updated = await tauri.updateContent({ contentId, content: normalized, count, contracts: metadataRef.current?.contracts ?? undefined, expectedRevision: metadataRef.current?.revision ?? undefined, expectedDocumentId: metadataRef.current?.documentId ?? undefined, expectedSourceId: metadataRef.current?.librarySourceId ?? undefined });
           updatedDetail = updated;
           savedContent = normalizeEditorContent(updated.content);
           savedCount = updated.count;
@@ -122,7 +135,10 @@ export function useEditContent(
         }
       }
 
-      latestContentRef.current = savedContent;
+      if (generation !== loadRequestSeqRef.current) return true;
+      if (updatedDetail) metadataRef.current = { ...updatedDetail, contracts: updatedDetail.contracts ? { ...updatedDetail.contracts, ...metadataRef.current?.contracts } : undefined };
+      const unchanged = JSON.stringify(latestContentRef.current) === nextSnapshot;
+      if (unchanged) latestContentRef.current = savedContent;
       lastSavedSnapshotRef.current = JSON.stringify(savedContent);
       lastFailedContentRef.current = null;
       publishContentUpdate({
@@ -131,8 +147,9 @@ export function useEditContent(
         sourceId: sourceIdRef.current,
         updateTime,
         count: savedCount,
+        document: updatedDetail,
       });
-      notifyContentSync(savedContent);
+      if (unchanged) notifyContentSync(savedContent);
       // 经投影通道落库＝有本机改动未推云端：宿主据此标记，重连后交作者裁决
       if (persistedViaProjection) options?.onProjectionPersisted?.();
       if (updatedDetail) options?.onSaved?.(updatedDetail);
@@ -148,9 +165,10 @@ export function useEditContent(
       );
       options?.onSaveError?.(saveError);
       return false;
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
+    });
+    writeTail.current = write;
+    return write;
   });
 
   const { run: throttledSave, cancel: cancelThrottledSave } = useThrottleFn(
@@ -164,7 +182,8 @@ export function useEditContent(
     }
   );
 
-  const handleEditorContentChange = useMemoizedFn((next: Descendant[]) => {
+  const handleEditorContentChange = useMemoizedFn((next: Descendant[], contracts?: ContentContractDictionary) => {
+    if (metadataRef.current && contracts) metadataRef.current = { ...metadataRef.current, contracts };
     const normalized = normalizeEditorContent(next);
     latestContentRef.current = normalized;
     throttledSave(normalized);
@@ -206,6 +225,7 @@ export function useEditContent(
         if (loadRequestSeqRef.current !== requestSeq) {
           return;
         }
+        metadataRef.current = result;
         const loaded = normalizeEditorContent(result.content);
         const snapshot = JSON.stringify(loaded);
         latestContentRef.current = loaded;
@@ -239,7 +259,12 @@ export function useEditContent(
     if (nextId <= 0) {
       return;
     }
-    return subscribeContentUpdate(nextId, sourceIdRef.current, nextContent => {
+    return subscribeContentUpdate(nextId, sourceIdRef.current, (nextContent, metadata) => {
+      if (JSON.stringify(latestContentRef.current) !== lastSavedSnapshotRef.current && JSON.stringify(nextContent) !== JSON.stringify(latestContentRef.current)) {
+        setError("正文已在其他视图变化，本机输入仍保留，请先处理保存冲突");
+        return;
+      }
+      if (metadata) metadataRef.current = metadata;
       const normalized = normalizeEditorContent(nextContent);
       latestContentRef.current = normalized;
       lastSavedSnapshotRef.current = JSON.stringify(normalized);

@@ -1,3 +1,5 @@
+import type { DataMigration, PreviousDataVersion } from "@tau/db-schema/data-versions";
+import type { ContentResourceSpec } from "@tau/db-schema/content-resources";
 import type { ComponentType, ReactNode } from "react";
 import type { ServiceIdentifier } from "@tau/shared/service-contract";
 import type { BoardElement, ElementBounds } from "../types/element";
@@ -105,6 +107,11 @@ export interface ElementContainmentSpec {
 }
 
 export interface WhiteboardElementDefinition<TData = unknown> {
+  dataVersion?: number;
+  collaboration?: { textFields?: readonly string[] };
+  resources?: readonly ContentResourceSpec[];
+  previousVersions?: readonly PreviousDataVersion<WhiteboardElementDefinition<TData>>[];
+  migrations?: readonly DataMigration<any>[];
   type: string;
   presentation?: {
     label: string;

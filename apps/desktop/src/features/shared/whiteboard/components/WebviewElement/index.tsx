@@ -30,7 +30,7 @@ import {
   RESIZE_CIRCLE_RADIUS,
   SKETCH_MEDIA_FRAME,
 } from "@tau/whiteboard";
-import useUploadResource from "@/hooks/useUploadResource";
+import { IResourceService } from "@tau/shared/host-services";
 import { selectFile, readTextFile, getFileBaseName } from "@/commands";
 import { normalizeWebviewUrl } from "@/utils";
 
@@ -72,7 +72,7 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
   const [tempUrl, setTempUrl] = useState(url);
   const webviewRef = useRef<WebviewRef>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const uploadResource = useUploadResource();
+  const uploadResource = (file: File) => board.getService(IResourceService).upload(file);
   const [localUploadLoading, setLocalUploadLoading] = useState(false);
 
   const board = useBoard();
@@ -251,7 +251,11 @@ const WebviewElementComponent = memo((props: WebviewElementProps) => {
             }}
             convertFileSrc={convertFileSrc}
             getHomeDir={getHomeDir}
-            remoteResourceToLocal={remoteResourceToLocal}
+            remoteResourceToLocal={value =>
+              value.startsWith("tau-collab-")
+                ? board.getService(IResourceService).remoteResourceToLocal!(value)
+                : remoteResourceToLocal(value)
+            }
           />
         </div>
 

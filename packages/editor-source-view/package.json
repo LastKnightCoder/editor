@@ -6,7 +6,8 @@
   "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./menu": "./menu.ts"
+    "./menu": "./menu.ts",
+    "./overlay": "./overlay.ts"
   },
   "scripts": {
     "test": "vitest run"
@@ -15,10 +16,10 @@
     "@tau/shared": "workspace:*",
     "@tau/ui": "workspace:*",
     "ahooks": "^3.7.7",
-    "codemirror": "5",
-    "react-codemirror2": "^7.2.1",
     "is-hotkey": "^0.2.0",
-    "lucide-react": "^0.399.0"
+    "lucide-react": "^0.399.0",
+    "shiki": "^3.22.0",
+    "shiki-magic-move": "^1.2.1"
   },
   "peerDependencies": {
     "@tau/editor": "workspace:*",
@@ -31,7 +32,6 @@
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
     "@tau/editor": "workspace:*",
-    "@types/codemirror": "^5.60.7",
     "@types/is-hotkey": "^0.1.7",
     "@types/react": "19.1.8",
     "@types/react-dom": "19.1.6",

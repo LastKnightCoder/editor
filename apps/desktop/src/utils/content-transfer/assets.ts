@@ -28,6 +28,7 @@ export const isPortableAssetSource = (value: string) =>
   !!value && !isRemoteUrl(value) && !value.startsWith("blob:");
 
 export interface MapAssetOptions {
+  contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
   /** 新地址是资源存储的上传结果（附件 isLocal=false，与插入附件时「上传」一致）；否则视为引用本机文件 */
   uploaded?: boolean;
 }
@@ -55,10 +56,15 @@ const mapNode = (
   if (!node || typeof node !== "object") return node;
   let record = node as SlateRecord;
   // 附件的本机副本与 isLocal 标记一起换，不按字段逐个改写
-  if (record.type === "file-attachment") record = mapAttachment(record, mapper, options);
+  if (record.type === "file-attachment" && !record.tauContract)
+    record = mapAttachment(record, mapper, options);
   else if (typeof record.type === "string")
-    record = mapNodeResources(record, declarations[record.type], (url, kind) =>
-      url.trim() ? mapper(url.trim(), kind) : undefined
+    record = mapNodeResources(
+      record,
+      typeof record.tauContract === "string"
+        ? options.contracts?.[record.tauContract]?.resources
+        : declarations[record.type],
+      (url, kind) => (url.trim() ? mapper(url.trim(), kind) : undefined)
     );
   const original = record.children;
   if (Array.isArray(original)) {
@@ -81,7 +87,8 @@ export const mapAssetUrls = (
 /** 收集正文中的资源地址（去重，保持出现顺序） */
 export const collectAssetUrls = (
   content: Descendant[],
-  declarations: ContentResourceDeclarations = contentResourceDeclarations()
+  declarations: ContentResourceDeclarations = contentResourceDeclarations(),
+  contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary
 ): Array<{ url: string; kind: AssetKind }> => {
   const found = new Map<string, AssetKind>();
   mapAssetUrls(
@@ -90,7 +97,7 @@ export const collectAssetUrls = (
       if (!found.has(url)) found.set(url, kind);
       return undefined;
     },
-    {},
+    { contracts },
     declarations
   );
   return [...found].map(([url, kind]) => ({ url, kind }));

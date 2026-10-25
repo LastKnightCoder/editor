@@ -287,13 +287,13 @@ export function EditorWindow({
       <Menu.Submenu label="复制" icon={<Copy className={iconClass} strokeWidth={1.75} />}>
         <Menu.Item
           icon={<ClipboardCopy className={iconClass} strokeWidth={1.75} />}
-          onSelect={() => void copyMarkdownToClipboard(doc.content, toastAdapter)}
+          onSelect={() => void copyMarkdownToClipboard(doc.content, toastAdapter, doc.contentId)}
         >
           复制 Markdown
         </Menu.Item>
         <Menu.Item
           icon={<MessageSquare className={iconClass} strokeWidth={1.75} />}
-          onSelect={() => void copyWechatHtmlToClipboard(doc.content, toastAdapter)}
+          onSelect={() => void copyWechatHtmlToClipboard(doc.content, toastAdapter, doc.contentId)}
         >
           复制公众号格式
         </Menu.Item>
@@ -301,7 +301,7 @@ export function EditorWindow({
       <Menu.Submenu label="导出" icon={<Download className={iconClass} strokeWidth={1.75} />}>
         <Menu.Item
           icon={<FileText className={iconClass} strokeWidth={1.75} />}
-          onSelect={() => void exportContentAsMarkdown({ title, content: doc.content })}
+          onSelect={() => void exportContentAsMarkdown({ title, content: doc.content, contentId: doc.contentId })}
         >
           Markdown 文件
         </Menu.Item>
@@ -483,12 +483,14 @@ export function EditorWindow({
         title={title}
       />
       <EpubExportModal
+        contentId={doc.contentId}
         open={exportKind === "epub"}
         onClose={() => setExportKind(null)}
         content={doc.content}
         title={title}
       />
       <PdfExportModal
+        contentId={doc.contentId}
         visible={exportKind === "pdf"}
         onClose={() => setExportKind(null)}
         content={doc.content}

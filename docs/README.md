@@ -42,6 +42,9 @@
 | [ops-client-build-install.md](./guides/ops-client-build-install.md) | 客户端构建、覆盖安装与交付检查        |
 | [ops-ios-signing.md](./guides/ops-ios-signing.md)                   | iOS 签名、图标同步、TestFlight 与安装 |
 | [ops-collaboration-deploy.md](./guides/ops-collaboration-deploy.md) | 协作服务部署                          |
+| [ops-editor-contract-upgrade.md](./guides/ops-editor-contract-upgrade.md) | 正文转换、本机保全及移动端接收 |
+| [ops-collaboration-retirement.md](./guides/ops-collaboration-retirement.md) | 编辑器与白板最后转换版本、新格式版本的删码及验收清单 |
+| [ops-whiteboard-release.md](./guides/ops-whiteboard-release.md) | 白板协作发布前验证与放行判据，不执行发布 |
 | [ops-mac-verification.md](./guides/ops-mac-verification.md)         | mac 实机验证 runbook                  |
 | [ops-macos-code-signing.md](./guides/ops-macos-code-signing.md)     | macOS 代码签名与公证                  |
 | [ops-taunote-domains.md](./guides/ops-taunote-domains.md)           | taunote.app 域名与服务器映射          |
@@ -55,9 +58,12 @@
 
 - [长文档视口级挂载](./tasks/long-document-viewport.md)：暂缓、未排期，保留范围与业务验收边界。
 - [移动端字号规范](./tasks/mobile-typography.md)：9 档字号阶梯；档位覆盖与卡片列表/详情同字号已落地，存量字面字号待分批迁移。
+- [移动端源码块交互](./tasks/mobile-source-block.md)：TikZ / Typst / HTML 等源码块改为点选 + 配件栏 + 分屏源码页；方案已确认，未开工。
 - [移动端正文字体](./tasks/mobile-reading-font.md)：可选霞鹜文楷 / 思源宋体，按需下载、全量字库；字体已上线，待真机验收。
+- [桌面语音输入与统一 ASR](./tasks/desktop-asr/README.md)：Windows 验证完成，保留 NSIS、本轮不开放原生；产品入口仍撤回，其他设备与真实账号验收保留。当前只整理文档、不发布新 SDK，0.44.0 发布包与源码差异见任务发行记录。
+- [白板 Yjs 协作与插件数据契约](./tasks/whiteboard-collaboration/README.md)：W9 容量与三端长会话验证通过，联合行为回归 4868 项通过；[正式版本核对](./tasks/whiteboard-collaboration/validation/w9-release-compatibility.md)仍未放行发行。[火柴人候选适配](./tasks/whiteboard-collaboration/validation/w9-stickman-compatibility.md)已完成本地 SDK、实际插件与服务构建联验，新增 15 项测试和 3665 项相关回归通过。UI 接线由独立会话负责。
 
-- [桌面语音输入与统一 ASR](./tasks/desktop-asr/README.md)：ASR 与整理能力保留，新增界面入口已撤回待用户决定；Windows 保留 NSIS、暂不开放原生，CPU Whisper 与宿主验证见任务记录；SDK 0.43.0／Seed 0.1.0 已发行，其他设备验收保留。
+- [桌面语音输入与统一 ASR](./tasks/desktop-asr/README.md)：Windows 验证完成，保留 NSIS、本轮不开放原生；产品入口仍撤回，其他设备与真实账号验收保留。当前只整理文档、不发布新 SDK，0.44.0 发布包与源码差异见任务发行记录。
 
 进行中的跨端接入见 [B–D 任务](./tasks/plugin-portability-bcd/README.md)；SDK、清单、移动与网页中心分发及旧插件兼容的后续设计见同任务的 [正式接入方案](./tasks/plugin-portability-bcd/distribution-plan.md)。D 的待验收项继续保留。
 

@@ -6,6 +6,19 @@ const hoisted = vi.hoisted(() => ({
   db: undefined as unknown,
   send: vi.fn(),
 }));
+vi.mock("../../services/content-execution", () => ({
+  contentExecutor: {
+    execute: async (
+      request: import("../../../../shared/content-execution").ContentExecutionRequest
+    ) => {
+      await import("@/app/plugins/content-runtime");
+      return (
+        globalThis as unknown as { tauContentExecute(input: unknown): Promise<unknown> }
+      ).tauContentExecute({ hash: "unit-fixtures", artifacts: [], request });
+    },
+  },
+}));
+
 vi.mock("electron", () => ({
   BrowserWindow: {
     getAllWindows: () => [{ isDestroyed: () => false, webContents: { send: hoisted.send } }],

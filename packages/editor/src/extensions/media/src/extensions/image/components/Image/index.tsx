@@ -24,7 +24,7 @@ import {
 } from "../../../../utils/mediaSubmission";
 import { IMediaActions } from "../../../../services/tokens";
 import { useEditorSlots } from "../../../../services/hooks";
-import { useNotifier, useOptionalService } from "@tau/editor/api";
+import { useNotifier, useOptionalService, useTouchVoidSelection } from "@tau/editor/api";
 import { openImageLightbox } from "../../../../stores";
 import type { ImageElement } from "../../../../types";
 import { copyImageElement, imageElementToBlob } from "../../../../utils/imageBlob";
@@ -43,7 +43,6 @@ import { useImageAppearance, type ImageAppearanceOption } from "../../appearance
 import { imageActionsMap } from "../../utils/actionsMap";
 import { getImageAppearanceStyle } from "../../utils/appearance";
 import ImageSelectionToolbar from "./ImageSelectionToolbar";
-import { useTouchMediaSelection } from "../../../../hooks/useTouchMediaSelection";
 import { mediaWidthControls } from "../../../../utils/mediaWidthControls";
 
 interface IImageProps {
@@ -96,7 +95,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
   const appearance = useImageAppearance(appearanceOption);
   const { Image: ImageSlot } = useEditorSlots();
   const isLast = useIsLastElement(element);
-  const touchSelection = useTouchMediaSelection(element);
+  const touchSelection = useTouchVoidSelection(element);
   const { touch } = touchSelection;
 
   const containerRef = useRef<HTMLDivElement>(null);

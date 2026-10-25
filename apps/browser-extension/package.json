@@ -21,7 +21,6 @@
     "@tau/ui": "workspace:*",
     "ahooks": "^3.7.7",
     "classnames": "^2.3.2",
-    "codemirror": "5",
     "dayjs": "^1.11.13",
     "dompurify": "^3.3.0",
     "immer": "^10.0.2",
@@ -30,7 +29,6 @@
     "lucide-react": "^0.563.0",
     "motion": "12.26.2",
     "react": "19.1.0",
-    "react-codemirror2": "^7.2.1",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
     "react-dom": "19.1.0",
@@ -50,7 +48,6 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.17",
     "@types/chrome": "^0.1.36",
-    "@types/codemirror": "^5.60.7",
     "@types/dompurify": "^3.0.0",
     "@types/react": "19.1.8",
     "@types/react-dom": "19.1.6",

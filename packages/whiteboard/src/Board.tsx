@@ -42,6 +42,7 @@ import type {
 import type { ServiceRegistry } from "@tau/shared/service-registry";
 import { WHITEBOARD_DOCUMENT_VERSION } from "./document-version";
 
+import type { WhiteboardDocumentBinding } from "./document";
 import { boardFlag } from "./constants/boardIdentity";
 interface VisibleElementTree {
   element: BoardElement;
@@ -56,6 +57,45 @@ const bindHandler = curry((eventName: Events, plugin: IBoardPlugin): EventHandle
 
 class Board {
   static boardFlag = boardFlag;
+  public document?: WhiteboardDocumentBinding;
+  private disconnectDocument?: () => void;
+  private projectingDocument = false;
+
+  attachDocument(document: WhiteboardDocumentBinding): void {
+    if (this.document) throw new Error("画布文档不能原位替换");
+    if (this.undos.length || this.redos.length) throw new Error("已有本机历史不能隐式切换文档");
+    this.document = document;
+    this.undos = [];
+    this.redos = [];
+    try {
+      this.disconnectDocument = document.connect(this);
+    } catch (error) {
+      this.document = undefined;
+      throw error;
+    }
+  }
+
+  publishDocument(
+    children: BoardElement[],
+    sketch?: PageSketch,
+    sequences?: PresentationSequence[]
+  ): void {
+    this.projectingDocument = true;
+    try {
+      if (sketch && JSON.stringify(this.sketch) !== JSON.stringify(sketch)) {
+        this.sketch = { ...sketch };
+        this.emit("sketch:change", this.sketch);
+      }
+      if (sequences) this.presentationManager.publishSequences(sequences);
+      this.submissionVersion++;
+      this.replaceChildrenSilently(children);
+      this.elementVersion++;
+      this.emit("value:change", children);
+      this.emit("change", { source: "projection" });
+    } finally {
+      this.projectingDocument = false;
+    }
+  }
 
   private plugins: IBoardPlugin[] = [];
   private eventEmitter: EventEmitter;
@@ -83,7 +123,6 @@ class Board {
       extensionServices
     );
     // 装配完成后立即把既有数据迁移到扩展当前版本（不进历史、不发事件）
-    this.extensions.migrateLoadedElements();
   }
 
   /** 加载期迁移落盘：替换 children 并重建快照，不进 undo 历史、不 emit change */
@@ -138,6 +177,8 @@ class Board {
     const elementVersion = element ? (this.removedElementVersions.get(element.id) ?? 0) : 0;
     return () =>
       !this.isDestroyed &&
+      !this.projectingDocument &&
+      !this.presentationManager.isPresentationMode &&
       this.active &&
       !this.readonly &&
       version === this.submissionVersion &&
@@ -295,7 +336,12 @@ class Board {
   }
 
   set readonly(value: boolean) {
-    if (value && value !== this._readonly) this.interactions.cancelResize();
+    if (value && value !== this._readonly) {
+      if (this.document) {
+        this.interactions.cancel();
+        this.document.endGesture(false);
+      } else this.interactions.cancelResize();
+    }
     if (value !== this._readonly) this.submissionVersion++;
     this._readonly = value;
     this.emit("readonly:change", value);
@@ -331,6 +377,8 @@ class Board {
   }
 
   destroy() {
+    this.disconnectDocument?.();
+    this.disconnectDocument = undefined;
     if (this.isDestroyed) return;
     this.interactions.cancelResize();
     this.isDestroyed = true;
@@ -661,6 +709,10 @@ class Board {
   /** 内部操作的唯一历史入口，缩放预览结束后也通过此入口提交。 */
   recordHistory(processedOps: Operation[], historyGroup?: string) {
     if (!processedOps.length) return;
+    if (this.document) {
+      this.document.commitPreview(processedOps, historyGroup);
+      return;
+    }
     const currentTimestamp = Date.now();
     const timeDiff = currentTimestamp - this.lastUndoTimestamp;
 
@@ -694,6 +746,11 @@ class Board {
 
     if (this.isDestroyed) return;
     if (ops.length === 0) return;
+    if (this.document) {
+      if (this.projectingDocument) return;
+      if (this.document.apply(ops, updateHistory, historyGroup)) return;
+      updateHistory = false;
+    }
     const resize = this.interactions?.resizePreview;
     if (resize) {
       resize.validate(ops);
@@ -716,9 +773,7 @@ class Board {
         });
       }
     }
-    // 粘贴 / api.submit / 外部导入的插入数据先迁移到扩展当前版本；
-    // undo/redo 重放的 insert_node 数据已是新版本，此处为 no-op，不破坏历史正确性
-    const submittedOps = this.extensions ? this.extensions.migrateInsertedOperations(ops) : ops;
+    const submittedOps = ops;
 
     // 使用抽离的核心逻辑进行操作应用
     const result = BoardOperations.applyOperations(
@@ -827,7 +882,7 @@ class Board {
       sketchChanged = true;
     }
 
-    if (updateHistory) {
+    if (updateHistory && !this.document) {
       const processedOps =
         executedOps.length > 0 ? executedOps : BoardOperations.preprocessOperations(submittedOps);
       this.recordHistory(processedOps, historyGroup);
@@ -959,6 +1014,7 @@ class Board {
         {children}
       </UnknownElement>
     );
+    if (unknown) return <React.Fragment key={element.id}>{render()}</React.Fragment>;
     try {
       return (
         <ErrorBoundary
@@ -993,6 +1049,10 @@ class Board {
   undo() {
     if (this.interactions.cancelResize()) return;
     if (this.readonly) return;
+    if (this.document) {
+      this.document.undo();
+      return;
+    }
     if (this.undos.length === 0) return;
     const undo = this.undos.pop();
     if (!undo) return;
@@ -1011,6 +1071,10 @@ class Board {
   redo() {
     if (this.interactions.cancelResize()) return;
     if (this.readonly) return;
+    if (this.document) {
+      this.document.redo();
+      return;
+    }
     if (this.redos.length === 0) return;
     const redo = this.redos.pop();
     if (!redo) return;

@@ -22,6 +22,7 @@ const paragraphExtension = defineExtension({
   elements: [
     defineElement<ParagraphElement>({
       type: "paragraph",
+      dataVersion: 1,
       kind: "block",
       render: MemoizedParagraphRenderer as never,
       drag: true,

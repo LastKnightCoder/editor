@@ -9,14 +9,13 @@
  * 附件只显示文件名：`url` / `filePath` 是 desktop 的本地路径，在插件里点不开。
  */
 import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
-import { privateBlockPlaceholderText, type ContentElementType } from "@tau/shared";
 
 const BOX =
   "my-2 rounded-lg border border-dashed border-gray-300 px-3 py-3 text-center text-xs text-gray-500 dark:border-gray-600 dark:text-gray-400";
 
-const createPrivateBlockExtension = (type: ContentElementType) =>
+const referencePlaceholder = (type: "whiteboard" | "database", label: string) =>
   defineExtension({
-    id: `host.private-block.${type}`,
+    id: `host.reference-placeholder.${type}`,
     elements: [
       defineElement({
         type,
@@ -24,7 +23,7 @@ const createPrivateBlockExtension = (type: ContentElementType) =>
         isVoid: true,
         render: ({ attributes, children }: ElementRenderProps) => (
           <div {...attributes} contentEditable={false} className={BOX}>
-            {privateBlockPlaceholderText(type)}
+            {label}
             {children}
           </div>
         ),
@@ -32,8 +31,8 @@ const createPrivateBlockExtension = (type: ContentElementType) =>
     ],
   });
 
-export const extensionWhiteboardExtension = createPrivateBlockExtension("whiteboard");
-export const extensionDatabaseExtension = createPrivateBlockExtension("database");
+export const extensionWhiteboardExtension = referencePlaceholder("whiteboard", "白板内容请在桌面端查看");
+export const extensionDatabaseExtension = referencePlaceholder("database", "数据库内容请在桌面端查看");
 
 type FileAttachmentElement = { fileName?: string; name?: string };
 

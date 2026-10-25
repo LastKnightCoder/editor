@@ -105,3 +105,8 @@ UiHostProvider 只接受平台中立的 dismiss 登记函数。真实 Dialog/Dra
 `ASRProviderRegistry` 统一提供方注册、配置快照、会话取消和最终结果校验；提供方注销、插件停用与工作区失效会使会话终止。`settings target: "asr"` 在两端保留注册与配置契约，表单及跳转入口尚未挂载；程序化 open 返回入口不可用。麦克风及输入目标由应用负责，协议解析属于独立插件仓库。
 
 网络桥的作者接口和限额唯一维护于 [WebSocket 契约](/packages/plugins/docs/websocket.md)。公共 JS 适配器提供 EventTarget 及状态机，桌面通过 Electron IPC 和 ws，移动通过工作区 token 校验的 Tauri 命令和 tokio-tungstenite；内部桥接 Promise 与收包机制不暴露给插件。原生层保留握手头、子协议、消息边界、关闭码和关闭原因；断线不隐式重连，工作区释放回收连接。
+
+
+## 白板作者数据边界
+
+白板 SDK 使用 dataVersion、直接历史版本与同步业务载荷转换，共用编辑器版本规则和公共文本句柄。静态契约准备不执行交互工厂；文档中的精确摘要决定渲染与写权限，未知插件数据保真。作者数据入口不提供路径操作或原始模型，服务与命令按真实归属和激活代次检查；第三方创建回调也不获得宿主 API。详细接口以 [SDK 白板说明](/packages/plugins/docs/whiteboard-collaboration.md) 为准，完整业务元素和迁移安装不由 SDK 自动完成。

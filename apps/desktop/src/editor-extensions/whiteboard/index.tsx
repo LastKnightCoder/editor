@@ -10,6 +10,7 @@ const whiteboardExtension = defineExtension({
   elements: [
     defineElement<WhiteboardElement>({
       type: "whiteboard",
+      dataVersion: 1,
       kind: "block",
       isVoid: true,
       render: ({ attributes, element, children }: ElementRenderProps<WhiteboardElement>) => (

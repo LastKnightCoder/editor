@@ -1,3 +1,7 @@
+import { toast } from "@tau/ui";
+import { getWhiteboardDocument } from "@tau/whiteboard/collaboration";
+import { referenceWhiteboardEntity } from "@/commands/whiteboard-document";
+import useSettingStore from "@/stores/useSettingStore";
 import { useState, useEffect, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { v4 as getUuid } from "uuid";
@@ -41,7 +45,13 @@ const WhiteBoardSelectorModal = ({
     }
   }, [open, action]);
 
-  const insertWhiteBoardElement = useMemoizedFn((whiteBoard: IWhiteBoard) => {
+  const insertWhiteBoardElement = useMemoizedFn(async (whiteBoard: IWhiteBoard) => {
+    const canSubmit = board.captureSubmission();
+    const databaseName = useSettingStore.getState().setting.database.active;
+    const entity = getWhiteboardDocument(board)
+      ? await referenceWhiteboardEntity(databaseName, "whiteboard", whiteBoard.id)
+      : undefined;
+    if (!canSubmit() || useSettingStore.getState().setting.database.active !== databaseName) return;
     const { minX, minY, width, height } = board.viewPort;
     const center = {
       x: minX + width / 2,
@@ -53,7 +63,7 @@ const WhiteBoardSelectorModal = ({
     const element: WhiteBoardElement = {
       id: getUuid(),
       type: "whiteboard",
-      whiteBoardId: whiteBoard.id,
+      ...(entity ? { entity } : { whiteBoardId: whiteBoard.id }),
       name: whiteBoard.title,
       x: center.x - whiteboardWidth / 2,
       y: center.y - whiteboardHeight / 2,
@@ -99,7 +109,7 @@ const WhiteBoardSelectorModal = ({
           const canSubmit = board.captureSubmission();
           if (!canSubmit()) return;
           const created = await mutations.create(info);
-          if (canSubmit()) insertWhiteBoardElement(created);
+          if (canSubmit()) await insertWhiteBoardElement(created);
         }}
       />
     );
@@ -114,7 +124,9 @@ const WhiteBoardSelectorModal = ({
       onCancel={handleCancel}
       onOk={whiteBoards => {
         if (!whiteBoards[0]) return;
-        insertWhiteBoardElement(whiteBoards[0]);
+        void insertWhiteBoardElement(whiteBoards[0]).catch(error =>
+          toast.error(error instanceof Error ? error.message : "引用建立失败")
+        );
         handleCancel();
       }}
       allWhiteBoards={allWhiteBoards}

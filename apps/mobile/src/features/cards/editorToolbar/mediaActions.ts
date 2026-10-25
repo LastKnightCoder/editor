@@ -63,7 +63,10 @@ type MediaFields = {
 const fieldsOf = (element: ElementNode) => element as unknown as MediaFields;
 
 /** 按元素引用重新定位：异步操作期间节点可能已移动或被删除 */
-function currentPathOf(editor: SlateEditor, context: MediaEditingContext): Path | null {
+/** 配件栏操作的目标块：按节点身份重新定位，节点移动后路径仍准确 */
+export type BlockTarget = { element: ElementNode; path: Path };
+
+function currentPathOf(editor: SlateEditor, context: BlockTarget): Path | null {
   if (
     SlateNode.has(editor, context.path) &&
     SlateNode.get(editor, context.path) === context.element
@@ -126,19 +129,32 @@ export function applyMediaWidthPreset(context: MediaEditingContext, ratio: numbe
  * 下一块不存在或也是 void 时在其后插入空段落；行内图片落到它后面。
  */
 export function placeCaretAfterMedia(editor: SlateEditor, context: MediaEditingContext): void {
-  const path = currentPathOf(editor, context);
-  if (!path) return;
-  if (context.mediaType === "inline-image") {
-    const after = SlateEditor.after(editor, path) ?? SlateEditor.end(editor, Path.parent(path));
-    Transforms.select(editor, after);
+  if (context.mediaType !== "inline-image") {
+    placeCaretAfterBlock(editor, context);
     return;
   }
+  const path = currentPathOf(editor, context);
+  if (!path) return;
+  const after = SlateEditor.after(editor, path) ?? SlateEditor.end(editor, Path.parent(path));
+  Transforms.select(editor, after);
+}
+
+/** 把光标放到块级 void 之后（不聚焦）：落到下一个可输入块的开头，下一块不存在或也是 void 时在其后插入空段落 */
+export function placeCaretAfterBlock(editor: SlateEditor, target: BlockTarget): void {
+  const path = currentPathOf(editor, target);
+  if (!path) return;
   const nextPath = Path.next(path);
   const next = SlateNode.has(editor, nextPath) ? SlateNode.get(editor, nextPath) : null;
   if (!next || !SlateElement.isElement(next) || editor.isVoid(next)) {
     Transforms.insertNodes(editor, createParagraph(), { at: nextPath });
   }
   Transforms.select(editor, SlateEditor.start(editor, nextPath));
+}
+
+/** 删除块级 void：走内核删除命令（删除后补空段落） */
+export function deleteBlock(editor: SlateEditor, target: BlockTarget): void {
+  const path = currentPathOf(editor, target);
+  if (path) void editor.commands?.execute("tau.block.delete", undefined, target.element, path);
 }
 
 /** 删除媒体：块级走内核删除命令（void 删除后补空段落），行内图片直接移除 */

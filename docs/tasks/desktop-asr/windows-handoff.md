@@ -70,6 +70,6 @@ Windows 不要求兼容所有版本。系统版本、硬件、语言模型、包
 - 模板使用 npm SDK 0.43.0 冻结安装、构建通过；两份入口撤回文档提交到模板分支 `codex/asr-host-docs`，提交 `20dbcd2`。Seed 保持已发布提交 `5a7acb68b01a3ec0e24359d8166e512f77a5b8f6`，未改版本或重新发布。
 - ESLint／Prettier、数据库与白板边界检查通过；文档检查及入口消费者复查通过。真人证据只有计数、耗时和尾词匹配布尔值，不含原始录音和正文。
 
-以上为 Mac 隔离源码检查，Windows 仍待实机验证。
+以上为当时的 Mac 交接基线；Windows 实测现已完成，结果与限制见本目录 windows-validation.md，不重复执行已完成的交接任务。
 
 Windows 接手基线为 `151df017324cd431aa1aa7ff7153d33009f10bc4`；Seed 和模板固定提交均已核对远端可达。Mac 主工作区原有修改不在本次 Windows 工作区，后续合并和推送状态以 Windows 验证记录为准。

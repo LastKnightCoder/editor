@@ -25,13 +25,13 @@ import {
   WifiOff,
   type LucideIcon,
 } from "lucide-react";
-import { IconButton, Loading, Menu, Popover, Tooltip, cn, toast } from "@tau/ui";
+import { Button, IconButton, Loading, Menu, Popover, Tooltip, cn, toast } from "@tau/ui";
 import type { CollaborationSession, JoinRequest } from "@tau/collaboration";
-import type { EditorCollaborationBinding } from "@tau/editor-collab";
+import type { ContentCollaborationBinding } from "@tau/editor-collab";
 import { FadeScroll } from "@tau/ui";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
 import { Editor } from "@tau/editor";
-import { createYjsDocument } from "@tau/editor-collab";
+import { useBoundContentDocument } from "@/hooks/useContentDocument";
 import { useCollaborationKit } from "@/hooks/useCollaborationKit";
 import useCollaborationPresence from "@/hooks/useCollaborationPresence";
 import { CollaborativeTitleField } from "@/components/CollaborativeTitle";
@@ -53,23 +53,32 @@ import { useInvitation } from "@/components/CollaborationUI/useInvitation";
 import { formatAgo } from "@/utils/formatAgo";
 import { openableSource, sourceInfo } from "../model";
 import { canOpenSource, openSource } from "../openSource";
+import { ContentUpgrade } from "@/components/ContentEditor/ContentUpgrade";
+import { collaborationCommands } from "@/commands/contracts/collaboration";
 
 /** 协作页的正文编辑器：成员加入的房间在本机没有内容行，走 documentId 直接绑定 */
 function RoomEditor({
   binding,
   readonly,
 }: {
-  binding: EditorCollaborationBinding;
+  binding: ContentCollaborationBinding;
   readonly: boolean;
 }) {
   const presence = useCollaborationPresence(binding, readonly);
   const kit = useCollaborationKit(binding);
-  const document = useMemo(() => createYjsDocument(binding), [binding]);
+  const bound = useBoundContentDocument(binding, { frozen: readonly });
+  if (bound.error)
+    return (
+      <div role="alert" className="text-danger">
+        {bound.error}
+      </div>
+    );
+  if (!bound.document) return <Loading />;
   return (
     <Editor
       kit={kit}
-      document={document}
-      readonly={readonly}
+      document={bound.document}
+      readonly={bound.frozen}
       onFocus={presence.onFocus}
       onBlur={presence.onBlur}
     />
@@ -93,11 +102,12 @@ export function CollaborationRoom({
   deviceId?: string;
   onLeft: () => void;
 }) {
-  const { binding, article, error, frozen } = useCollaborationDocument(session.id);
+  const { binding, article, error, frozen, pendingUpgrade } = useCollaborationDocument(session.id);
   const [leaving, setLeaving] = useState(false);
+  const [adopting, setAdopting] = useState(false);
 
   const ownerActive = session.role === "owner" && session.status === "active";
-  const readonly = session.status !== "active" || frozen;
+  const readonly = session.status !== "active" || frozen || binding?.doc.getMap("meta").get("version") === 1;
   const pending = pendingRequests(requests, session.id);
   const info = sourceInfo(session);
   const SourceIcon = (info.source && SOURCE_ICONS[info.source.sourceType ?? ""]) || Users;
@@ -295,6 +305,33 @@ export function CollaborationRoom({
               className="text-ink-1 text-[26px] font-[600] leading-[1.35] tracking-[-0.01em]"
             />
             <div className="mt-6">
+              {session.remoteVersionAvailable ? (
+                <div className="bg-page text-ink-2 rounded-tau-md text-tau-sm mb-3 p-3">
+                  <p>
+                    共享文档已升级。切换前会保留本机旧正文、私有内容和未确认输入，可在“本机恢复副本”中导出。
+                  </p>
+                  <Button
+                    disabled={adopting}
+                    onClick={() => {
+                      setAdopting(true);
+                      void collaborationCommands.adoptRemoteVersion
+                        .call(session.id)
+                        .catch(failure =>
+                          toast.error(
+                            failure instanceof Error ? failure.message : "切换未完成，原副本已保留"
+                          )
+                        )
+                        .finally(() => setAdopting(false));
+                    }}
+                  >
+                    切换到新共享版本
+                  </Button>
+                </div>
+              ) : (
+                (ownerActive || (session.status === "closed" && !!session.source)) && (
+                  <ContentUpgrade binding={binding} pending={pendingUpgrade} documentId={session.id} shared={session.status === "active"} />
+                )
+              )}
               <RoomEditor binding={binding} readonly={readonly} />
             </div>
           </div>

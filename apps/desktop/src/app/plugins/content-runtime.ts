@@ -66,7 +66,18 @@ Object.assign(globalThis, {
       case "publish-search":
         return buildPublishSearchIndexPayload(request.input);
       case "markdown":
+        if (request.contracts) return import("@/services/editorKit").then(async ({ prepareContentMarkdown }) =>
+          (await prepareContentMarkdown(request.contracts!)).getMarkdown(request.nodes));
         return getMarkdown(request.nodes);
+      case "prepare-content":
+        return import("@/services/editorKit").then(async ({ prepareContentMarkdown, createDesktopKit }) => {
+          const catalog = await desktopContentPlugins.prepareEditorContracts(createDesktopKit().extensions);
+          if ("markdown" in request.input) {
+            const parsed = await (await prepareContentMarkdown({})).importDocument(request.input.markdown);
+            return catalog.createDocument(parsed.content, parsed.contracts);
+          }
+          return catalog.createDocument(request.input.nodes, request.input.contracts);
+        });
       case "parse":
         return importFromMarkdown(request.markdown);
       case "markdown-sections":
@@ -76,6 +87,17 @@ Object.assign(globalThis, {
       case "index": {
         const parsed = JSON.parse(request.input.raw);
         const nodes = Array.isArray(parsed) ? parsed : [];
+        if (request.contracts) return import("@/services/editorKit").then(async ({ prepareContentMarkdown }) => {
+          const processor = await prepareContentMarkdown(request.contracts!);
+          const serialize = (value: typeof nodes) => processor.getMarkdown(value);
+          const content = serialize(nodes).trim();
+          return {
+            content,
+            ...(request.input.sections && content
+              ? { sections: splitSections(nodes, request.input.title, request.input.whole, undefined, serialize) }
+              : {}),
+          };
+        });
         const content = getMarkdown(nodes).trim();
         return {
           content,

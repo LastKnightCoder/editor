@@ -116,6 +116,10 @@ vi.mock("../tables/card", () => ({
   },
 }));
 
+vi.mock("../tables/content", () => ({
+  default: { readText: vi.fn(async () => ({ content: "mock-markdown", sections: [] })) },
+}));
+
 vi.mock("../tables/article", () => ({
   default: {
     getAllArticles: () => mockContext.articles,

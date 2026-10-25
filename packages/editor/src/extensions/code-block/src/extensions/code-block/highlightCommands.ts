@@ -1,9 +1,10 @@
 import { Element as SlateElement, Node, Transforms, type Path } from "slate";
 import { ReactEditor } from "slate-react";
 import type { EditorCommand } from "@tau/editor/api";
+import { activeCodeStep, isCodeBlockV2, updateCodeStep } from "../../codeSteps";
 import type { CodeBlockElement } from "../../types";
 import { getActiveStepHighlightLines, normalizeMagicMove } from "./utils/magicMoveOps";
-import { mergeHighlightRange, removeHighlightRange } from "./utils/highlightLineRanges";
+import { mergeHighlightRange, removeHighlightRange } from "@tau/editor-source-view/overlay";
 
 export const highlightCommandIds = {
   add: "tau.code-block.highlight-lines.add",
@@ -59,8 +60,21 @@ const changeHighlight =
     )
       return;
     const block = element as CodeBlockElement;
+    if (isCodeBlockV2(block)) {
+      const { step } = activeCodeStep(editor, block);
+      if (!step) return;
+      const lineCount = step.code.split("\n").length;
+      if (start > lineCount || end > lineCount) return;
+      const next = (remove ? removeHighlightRange : mergeHighlightRange)(
+        step.highlightLines,
+        start,
+        end
+      );
+      updateCodeStep(editor, block, { highlightLines: next || undefined });
+      return;
+    }
     const magicMove = normalizeMagicMove(block.magicMove);
-    const code = magicMove?.steps[magicMove.activeStep]?.code ?? block.code;
+    const code = magicMove?.steps[magicMove.activeStep]?.code ?? block.code ?? "";
     const lineCount = code.split("\n").length;
     if (start > lineCount || end > lineCount) return;
     const current = magicMove ? getActiveStepHighlightLines(magicMove) : block.highlightLines;

@@ -36,7 +36,8 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [loading, setLoading] = useState(false);
   const noFullscreenWidthRef = useRef(0);
-  const { whiteBoardContentId, height } = element;
+  const { height } = element;
+  const whiteBoardContentId = element.entityRef ?? element.whiteBoardContentId;
 
   const [whiteBoardContent, setWhiteBoardContent] = useState<WhiteBoardContent | null>(null);
   const whiteboardData = whiteBoardContent?.data ?? null;
@@ -47,13 +48,12 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
     const fetchWhiteboardContent = async () => {
       setLoading(true);
       try {
-        const targetId = Number(whiteBoardContentId);
-        if (Number.isNaN(targetId)) {
+        if (whiteBoardContentId === undefined) {
           setWhiteBoardContent(null);
           return;
         }
 
-        const content = await getWhiteBoardContentById(targetId);
+        const content = await getWhiteBoardContentById(whiteBoardContentId);
         if (disposed) return;
 
         if (content) {
@@ -78,7 +78,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
     return () => {
       disposed = true;
     };
-  }, [whiteBoardContentId]);
+  }, [element.whiteBoardContentId, element.entityRef?.sourceId, element.entityRef?.entityId]);
 
   // 计算视口中心点
   const calculateViewportCenter = useMemoizedFn(
@@ -115,7 +115,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
   const updateWhiteboardData = useMemoizedFn(async (data: WhiteboardData) => {
     if (readOnly || !whiteBoardContent) return;
     const updatedContent = await updateSubWhiteBoard(
-      whiteBoardContent.id,
+      element.entityRef ?? whiteBoardContent.id,
       whiteBoardContent.name,
       data
     );

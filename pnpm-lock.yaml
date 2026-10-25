@@ -164,9 +164,6 @@ importers:
       classnames:
         specifier: ^2.3.2
         version: 2.5.1
-      codemirror:
-        specifier: '5'
-        version: 5.65.21
       dayjs:
         specifier: ^1.11.13
         version: 1.11.23
@@ -191,9 +188,6 @@ importers:
       react:
         specifier: 19.2.0
         version: 19.2.0
-      react-codemirror2:
-        specifier: ^7.2.1
-        version: 7.3.0(codemirror@5.65.21)(react@19.2.0)
       react-dnd:
         specifier: ^16.0.1
         version: 16.0.1(@types/node@24.12.4)(@types/react@19.2.0)(react@19.2.0)
@@ -246,9 +240,6 @@ importers:
       '@types/chrome':
         specifier: ^0.1.36
         version: 0.1.36
-      '@types/codemirror':
-        specifier: ^5.60.7
-        version: 5.60.18
       '@types/dompurify':
         specifier: ^3.0.0
         version: 3.2.0
@@ -522,12 +513,12 @@ importers:
       '@tanstack/react-virtual':
         specifier: 3.13.12
         version: 3.13.12(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@tau/asr':
-        specifier: workspace:*
-        version: link:../../packages/asr
       '@tau/analytics':
         specifier: workspace:*
         version: link:../analytics
+      '@tau/asr':
+        specifier: workspace:*
+        version: link:../../packages/asr
       '@tau/chat-ui':
         specifier: workspace:*
         version: link:../../packages/chat-ui
@@ -1790,6 +1781,9 @@ importers:
       '@tanstack/react-virtual':
         specifier: 3.13.12
         version: 3.13.12(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@tau/db-schema':
+        specifier: workspace:*
+        version: link:../db-schema
       '@tau/shared':
         specifier: workspace:*
         version: link:../shared
@@ -1982,9 +1976,6 @@ importers:
       '@types/uuid':
         specifier: ^9.0.8
         version: 9.0.8
-      codemirror:
-        specifier: '5'
-        version: 5.65.21
       jsdom:
         specifier: ^24.1.3
         version: 24.1.3
@@ -2027,6 +2018,9 @@ importers:
       '@tau/collaboration':
         specifier: workspace:*
         version: link:../collaboration
+      '@tau/db-schema':
+        specifier: workspace:*
+        version: link:../db-schema
       '@tau/editor':
         specifier: workspace:*
         version: link:../editor
@@ -2082,25 +2076,22 @@ importers:
       ahooks:
         specifier: ^3.7.7
         version: 3.10.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      codemirror:
-        specifier: '5'
-        version: 5.65.21
       is-hotkey:
         specifier: ^0.2.0
         version: 0.2.0
       lucide-react:
         specifier: ^0.399.0
         version: 0.399.0(react@19.2.0)
-      react-codemirror2:
-        specifier: ^7.2.1
-        version: 7.3.0(codemirror@5.65.21)(react@19.2.0)
+      shiki:
+        specifier: ^3.22.0
+        version: 3.22.0
+      shiki-magic-move:
+        specifier: ^1.2.1
+        version: 1.4.0(react@19.2.0)(shiki@3.22.0)(svelte@5.46.0)(vue@3.5.25(typescript@5.8.3))
     devDependencies:
       '@tau/editor':
         specifier: workspace:*
         version: link:../editor
-      '@types/codemirror':
-        specifier: ^5.60.7
-        version: 5.60.18
       '@types/is-hotkey':
         specifier: ^0.1.7
         version: 0.1.10
@@ -2448,12 +2439,18 @@ importers:
 
   packages/whiteboard:
     dependencies:
+      '@tau/collaboration':
+        specifier: workspace:*
+        version: link:../collaboration
       '@tau/db-schema':
         specifier: workspace:*
         version: link:../db-schema
       '@tau/editor':
         specifier: workspace:*
         version: link:../editor
+      '@tau/editor-collab':
+        specifier: workspace:*
+        version: link:../editor-collab
       '@tau/markdown':
         specifier: workspace:*
         version: link:../markdown
@@ -2505,6 +2502,9 @@ importers:
       uuid:
         specifier: ^9.0.1
         version: 9.0.1
+      yjs:
+        specifier: 13.6.32
+        version: 13.6.32
       zustand:
         specifier: ^4.3.8
         version: 4.5.7(@types/react@19.2.0)(immer@10.2.0)(react@19.2.0)
@@ -17288,14 +17288,6 @@ snapshots:
     optionalDependencies:
       vite: 7.3.1(@types/node@20.19.27)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
 
-  '@vitest/mocker@3.2.7(vite@7.3.1(@types/node@20.19.41)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0))':
-    dependencies:
-      '@vitest/spy': 3.2.7
-      estree-walker: 3.0.3
-      magic-string: 0.30.21
-    optionalDependencies:
-      vite: 7.3.1(@types/node@20.19.41)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
-
   '@vitest/mocker@3.2.7(vite@7.3.1(@types/node@24.12.4)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0))':
     dependencies:
       '@vitest/spy': 3.2.7
@@ -17333,7 +17325,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.17
       tinyrainbow: 2.0.0
-      vitest: 3.2.7(@types/debug@4.1.13)(@types/node@20.19.41)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
+      vitest: 3.2.7(@types/debug@4.1.13)(@types/node@24.12.4)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
 
   '@vitest/utils@3.2.7':
     dependencies:
@@ -24549,7 +24541,7 @@ snapshots:
   vitest-canvas-mock@0.3.3(vitest@3.2.7):
     dependencies:
       jest-canvas-mock: 2.5.2
-      vitest: 3.2.7(@types/debug@4.1.13)(@types/node@20.19.41)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
+      vitest: 3.2.7(@types/debug@4.1.13)(@types/node@20.19.27)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0)
 
   vitest@3.2.7(@types/debug@4.1.13)(@types/node@20.19.27)(@vitest/ui@3.2.7)(jiti@2.7.0)(jsdom@24.1.3)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0):
     dependencies:
@@ -24599,7 +24591,7 @@ snapshots:
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/expect': 3.2.7
-      '@vitest/mocker': 3.2.7(vite@7.3.1(@types/node@20.19.41)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0))
+      '@vitest/mocker': 3.2.7(vite@7.3.1(@types/node@24.12.4)(jiti@2.7.0)(less@4.9.1)(lightningcss@1.31.1)(terser@5.48.0)(tsx@4.23.13)(yaml@2.9.0))
       '@vitest/pretty-format': 3.2.7
       '@vitest/runner': 3.2.7
       '@vitest/snapshot': 3.2.7

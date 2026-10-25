@@ -1,3 +1,5 @@
+import { whiteboardAuthorOwner } from "./authorApi";
+import { assertWhiteboardElementVersions } from "./versions";
 import { createElement, Fragment } from "react";
 import { ElementControls, ElementInteraction } from "./ElementInteraction";
 import type { CommonElement } from "../plugins/CommonPlugin";
@@ -9,9 +11,11 @@ import type Board from "../Board";
 import { BoardUtil } from "../utils/BoardUtil";
 import { PathUtil } from "../utils/PathUtil";
 import { PointUtil } from "../utils/PointUtil";
-import BoardOperations from "../utils/BoardOperations";
 import type {
   ElementCreateSpec,
+  CreateBuildContext,
+  CreatePointerContext,
+  CustomCreateGesture,
   WhiteboardAPI,
   WhiteboardCommand,
   WhiteboardContributions,
@@ -31,19 +35,9 @@ import {
   type HotkeyCodeSpec,
 } from "./hotkeys";
 import { detectHotkeyPlatform, formatHotkey } from "../utils/hotkeyFormat";
-import {
-  migrateElementTree,
-  readDefinitionSchemaVersion,
-  readElementSchemaVersion,
-  type MigrationFailure,
-} from "./migration";
+import { readDefinitionSchemaVersion, readElementSchemaVersion } from "./elementVersion";
 import { SELECT_TOOL_ID } from "../constants/tools";
-import {
-  collectChangedElementProblems,
-  formatProblems,
-  validateElementTree,
-  WhiteboardValidationError,
-} from "./validation";
+import { collectChangedElementProblems, WhiteboardValidationError } from "./validation";
 import { UnknownElement } from "../components/UnknownElement";
 import {
   CONTAINER_KINDS,
@@ -57,7 +51,6 @@ import type {
   BoardElement,
   ElementBounds,
 } from "../types/board";
-import type { Operation } from "../types/operation";
 
 /** 与 Board.getBounds 的默认包围盒一致：按 x/y/width/height 计算 */
 function defaultBounds(node: BoardElement): ElementBounds | null {
@@ -137,11 +130,12 @@ export class ExtensionRuntime {
   readonly entries: { id: string; api: WhiteboardAPI; value: WhiteboardContributions }[] = [];
   readonly api: WhiteboardAPI;
   private readonly board: Board;
-  private readonly onExtensionError?: (error: WhiteboardExtensionError) => void;
   private cleanups: (() => void)[] = [];
   private active = false;
   private disposed = false;
   private readonly scopes: ReturnType<typeof createExtensionScope>[] = [];
+  private readonly authorOwners = new Map<string, string>();
+  private readonly authorTypes = new Set<string>();
   private readonly owners = new Map<string, string>();
   private readonly rejectedErrors: WhiteboardExtensionError[] = [];
   /** 已装配扩展声明的元素定义（含版本与迁移函数），type → 定义 */
@@ -154,8 +148,6 @@ export class ExtensionRuntime {
   private readonly extensionNames = new Map<string, string>();
   /** create 成功后被拒的扩展声明的元素 type → 扩展 id（用于占位原因 "disabled"） */
   private readonly rejectedTypeOwners = new Map<string, string>();
-  /** 每个扩展每次装配只汇总报告一次迁移失败 */
-  private readonly migrationReported = new Set<string>();
   /** 快捷键条目：tau 扩展在前（内置键优先），其余按装配顺序，同一扩展内按声明顺序 */
   private readonly hotkeyEntries: HotkeyEntry[] = [];
   private readonly menuActions = new Map<
@@ -207,7 +199,6 @@ export class ExtensionRuntime {
   ) {
     if (!Array.isArray(extensions)) throw new TypeError("白板扩展集合必须是数组");
     this.board = board;
-    this.onExtensionError = onExtensionError;
     const clone = <T,>(value: T): T => structuredClone(value);
     const readSnapshot = createSnapshotReader();
     let source = board.getSnapshot();
@@ -415,13 +406,26 @@ export class ExtensionRuntime {
         report({ extensionId: id, reason: "invalid-definition", message: "静态元素必须为数组" });
         continue;
       }
-      const namespace = id.slice(0, id.indexOf("."));
-      const reserved = isReservedNamespace(namespace);
-      const scopedServices = extensionServices?.(id, this.api) ?? services;
-      const scope = createExtensionScope(this.api, id, { registry: scopedServices });
+      const authorOwner = whiteboardAuthorOwner(extension);
+      const namespace = authorOwner ?? id.slice(0, id.indexOf("."));
+      const reserved = authorOwner === undefined && isReservedNamespace(namespace);
+      let scopedServices = services;
+      const scope = createExtensionScope(
+        this.api,
+        whiteboardAuthorOwner(extension) ?? id,
+        {
+          registry: {
+            get: identifier => scopedServices.get(identifier),
+            tryGet: identifier => scopedServices.tryGet(identifier),
+            has: identifier => scopedServices.has(identifier),
+          },
+        },
+        authorOwner !== undefined
+      );
       let value: WhiteboardContributions;
       try {
         registerBoardAccess(scope.api, board);
+        scopedServices = extensionServices?.(id, scope.api) ?? services;
         value = extension.create(scope.api);
         if (!value || "elements" in value) {
           if (value) this.guard(id, () => value.dispose?.());
@@ -500,6 +504,11 @@ export class ExtensionRuntime {
                 typeof interaction.resize.preserveAspectRatio !== "boolean"))
           )
             return invalidDefinition("元素交互声明无效", type);
+          try {
+            assertWhiteboardElementVersions(element);
+          } catch (error) {
+            return invalidDefinition(String(error), type);
+          }
           const version = element.schemaVersion;
           if (
             version !== undefined &&
@@ -694,12 +703,46 @@ export class ExtensionRuntime {
         continue;
       }
       extensionIds.add(id);
+      if (authorOwner) this.authorOwners.set(id, authorOwner);
       if (extension.name) this.extensionNames.set(id, extension.name);
       for (const type of ownedTypes) elementTypeOwners.set(type, id);
       for (const command of ownedCommands) commandOwners.set(command, id);
       for (const contribution of ownedContributions) contributionOwners.set(contribution, id);
       for (const inspector of ownedInspectors) inspectorOwners.set(inspector, id);
-      for (const element of elements) this.elementDefinitions.set(element.type, element);
+      for (const element of elements) {
+        let definition = element;
+        if (authorOwner && element.create) {
+          const spec = element.create,
+            gesture = spec.gesture;
+          definition = {
+            ...element,
+            create: {
+              ...spec,
+              build:
+                spec.build &&
+                ((context: CreateBuildContext) => spec.build!({ ...context, api: scope.api })),
+              gesture:
+                typeof gesture === "string"
+                  ? gesture
+                  : {
+                      begin(context: Parameters<CustomCreateGesture["begin"]>[0]) {
+                        const session = gesture.begin({ ...context, api: scope.api });
+                        if (!session) return null;
+                        return {
+                          move: (value: CreatePointerContext) =>
+                            session.move({ ...value, api: scope.api }),
+                          end: (value: CreatePointerContext & { moved: boolean }) =>
+                            session.end({ ...value, api: scope.api }),
+                          cancel: () => session.cancel?.(),
+                        };
+                      },
+                    },
+            },
+          };
+        }
+        this.elementDefinitions.set(element.type, definition);
+        if (whiteboardAuthorOwner(extension)) this.authorTypes.add(element.type);
+      }
       // creators 通道并入同一注册表：伪定义只承载 create（渲染仍由内部插件负责）
       for (const [type, spec] of Object.entries(readCreators(value)))
         this.elementDefinitions.set(type, { type, render: () => null, create: spec });
@@ -711,8 +754,23 @@ export class ExtensionRuntime {
       for (const element of elements) {
         const currentVersion = readDefinitionSchemaVersion(element);
         const interaction = new ElementInteraction(element.type);
-        const isVersionCompatible = (node: BoardElement) =>
-          readElementSchemaVersion(node) === currentVersion;
+        const resolved = (node: BoardElement) => {
+          if (
+            this.authorTypes.has(node.type) &&
+            (board.document || element.dataVersion !== undefined)
+          )
+            return typeof node.contractId === "string"
+              ? board.document?.resolveElementDefinition?.(node.contractId)
+              : undefined;
+          return readElementSchemaVersion(node) === currentVersion
+            ? { element, access: "edit" as const }
+            : undefined;
+        };
+        const isVersionCompatible = (node: BoardElement) => {
+          const entry = resolved(node);
+          return entry !== undefined && entry.access !== "none";
+        };
+        const canInteract = (node: BoardElement) => resolved(node)?.access === "edit";
         // 声明了 containment 才提供能力：第三方元素只能声明子元素一侧，
         // 版本不兼容（占位渲染）时收纳能力不随渲染降级
         const containmentSpec = element.containment;
@@ -733,11 +791,21 @@ export class ExtensionRuntime {
               ? createElement(
                   Fragment,
                   null,
-                  createElement(element.render, { ...props, element: readSnapshot(props.element) }),
-                  element.interaction
+                  createElement(
+                    APIContext,
+                    {
+                      value:
+                        resolved(props.element)!.access === "read" ? scope.readonlyAPI : scope.api,
+                    },
+                    createElement(resolved(props.element)!.element.render, {
+                      ...props,
+                      element: readSnapshot(props.element),
+                    })
+                  ),
+                  resolved(props.element)?.element.interaction && canInteract(props.element)
                     ? createElement(ElementControls, {
                         element: props.element as CommonElement,
-                        options: element.interaction,
+                        options: resolved(props.element)!.element.interaction!,
                         adapter: interaction,
                       })
                     : null
@@ -763,11 +831,14 @@ export class ExtensionRuntime {
             : undefined,
           getBounds: element.getBounds
             ? (_board, node) =>
-                isVersionCompatible(node) ? element.getBounds!(clone(node)) : defaultBounds(node)
+                isVersionCompatible(node)
+                  ? (resolved(node)!.element.getBounds?.(clone(node)) ?? defaultBounds(node))
+                  : defaultBounds(node)
             : undefined,
           isHit: (_board, node, x, y) => {
             if (isVersionCompatible(node)) {
-              if (element.isHit) return element.isHit(clone(node), x, y);
+              if (resolved(node)!.element.isHit)
+                return resolved(node)!.element.isHit!(clone(node), x, y);
               const box = board.getBounds(node);
               return !!box && x >= box.minX && x <= box.maxX && y >= box.minY && y <= box.maxY;
             }
@@ -775,8 +846,9 @@ export class ExtensionRuntime {
             return !!box && x >= box.minX && x <= box.maxX && y >= box.minY && y <= box.maxY;
           },
           moveElement: (_board, node, dx, dy) => {
-            if (!isVersionCompatible(node)) return genericMove(board, node, dx, dy);
-            if (element.move) return element.move(clone(node), dx, dy);
+            if (!canInteract(node)) return genericMove(board, node, dx, dy);
+            if (resolved(node)!.element.move)
+              return resolved(node)!.element.move!(clone(node), dx, dy);
             return { ...node, x: node.x + dx, y: node.y + dy };
           },
         });
@@ -860,6 +932,7 @@ export class ExtensionRuntime {
     );
 
     for (const { id, value, scope, plugins } of assembled) {
+      scope.enableWrites();
       this.scopes.push(scope);
       this.entries.push({ id, api: scope.api, value });
       const api = scope.api;
@@ -898,6 +971,13 @@ export class ExtensionRuntime {
   }
 
   /** 渲染 UnknownElement 时的原因判定：未知类型、被拒扩展的元素，或元素版本与定义不兼容 */
+  authorOfType(type: string): string | undefined {
+    const extension = this.owners.get(type);
+    return extension ? this.authorOwners.get(extension) : undefined;
+  }
+  isHostElement(type: string): boolean {
+    return this.owners.has(type) && !this.authorTypes.has(type);
+  }
   getElementDefinition(type: string) {
     return this.elementDefinitions.get(type);
   }
@@ -914,6 +994,25 @@ export class ExtensionRuntime {
     | { reason: "missing" | "too-new" | "migration-failed" | "disabled"; extensionId?: string }
     | undefined {
     const definition = this.elementDefinitions.get(element.type);
+    if (
+      this.owners.has(element.type) &&
+      this.board.document?.supportsElement?.(element.id) === false
+    )
+      return { reason: "too-new", extensionId: this.owners.get(element.type) };
+    if (
+      this.authorTypes.has(element.type) &&
+      !this.board.document &&
+      definition?.dataVersion !== undefined
+    )
+      return { reason: "disabled", extensionId: this.owners.get(element.type) };
+    if (this.board.document && this.authorTypes.has(element.type)) {
+      const entry =
+        typeof element.contractId === "string" &&
+        this.board.document.resolveElementDefinition?.(element.contractId);
+      return entry && entry.access !== "none"
+        ? undefined
+        : { reason: "too-new", extensionId: this.owners.get(element.type) };
+    }
     if (definition) {
       const version = readElementSchemaVersion(element);
       const current = readDefinitionSchemaVersion(definition);
@@ -927,25 +1026,6 @@ export class ExtensionRuntime {
     if (this.owners.has(element.type)) return undefined;
     const rejected = this.rejectedTypeOwners.get(element.type);
     return rejected ? { reason: "disabled", extensionId: rejected } : { reason: "missing" };
-  }
-
-  /** 装配完成后对既有 children 做一次性版本迁移：只替换数据与快照，不进 undo、不发事件 */
-  migrateLoadedElements() {
-    if (this.disposed) return;
-    const { children, changed, failures } = migrateElementTree(
-      this.board.children,
-      this.elementDefinitions,
-      {
-        // 只校验迁移产物；未迁移的原始数据不校验（加载期不因原始数据不合规拒绝），
-        // 产物不合规的元素回退为迁移前原样并计入 migration-failed 报告
-        validateMigrated: element => {
-          const problems = validateElementTree([element], this.elementDefinitions);
-          return problems.length ? formatProblems(problems) : null;
-        },
-      }
-    );
-    this.reportMigrationFailures(failures);
-    if (changed) this.board.replaceChildrenSilently(children);
   }
 
   /** 命令第一个绑定快捷键的展示文字：hotkeyEntries 已按「tau 优先 + 装配顺序」排列，无绑定返回 null */
@@ -971,48 +1051,6 @@ export class ExtensionRuntime {
       this.elementDefinitions
     );
     if (problems.length) throw new WhiteboardValidationError(problems);
-  }
-
-  /** 插入路径迁移：对 insert_node 的 node 及其子树先迁移再执行；undo 重放的新版本数据是 no-op */
-  migrateInsertedOperations(ops: readonly Operation[]): Operation[] {
-    if (this.disposed || this.elementDefinitions.size === 0) return ops as Operation[];
-    let changed = false;
-    const result = ops.map(op => {
-      if (op.type !== "insert_node") return op;
-      const migration = migrateElementTree([op.node], this.elementDefinitions);
-      if (migration.failures.length) this.reportMigrationFailures(migration.failures);
-      if (!migration.changed) return op;
-      changed = true;
-      const migrated = { ...op, node: migration.children[0] } as typeof op;
-      if (BoardOperations.isNormalizedOperation(op)) BoardOperations.markAsNormalized(migrated);
-      return migrated;
-    });
-    return changed ? result : (ops as Operation[]);
-  }
-
-  /** 迁移失败汇总报告：每扩展每次装配至多一次，不影响该扩展的其它元素与贡献 */
-  private reportMigrationFailures(failures: readonly MigrationFailure[]) {
-    if (!failures.length) return;
-    const byExtension = new Map<string, { count: number; first: unknown }>();
-    for (const failure of failures) {
-      const owner = this.owners.get(failure.element.type);
-      if (!owner) continue;
-      const existing = byExtension.get(owner);
-      if (existing) existing.count += 1;
-      else byExtension.set(owner, { count: 1, first: failure.error });
-    }
-    for (const [extensionId, { count, first }] of byExtension) {
-      if (this.migrationReported.has(extensionId)) continue;
-      this.migrationReported.add(extensionId);
-      console.error(`白板扩展 ${extensionId} 的 ${count} 个元素迁移失败`, first);
-      this.onExtensionError?.({
-        extensionId,
-        reason: "migration-failed",
-        message: `白板扩展 ${extensionId} 有 ${count} 个元素迁移失败（首个错误：${
-          first instanceof Error ? first.message : String(first)
-        }），失败元素保留旧版本数据并按占位渲染`,
-      });
-    }
   }
 
   private guard(owner: string, run: () => void) {
@@ -1057,6 +1095,23 @@ export class ExtensionRuntime {
     return undefined;
   }
 
+  authorOfEvent(event: string): string | undefined {
+    let matched: string | undefined;
+    for (const owner of this.authorOwners.values())
+      if (event.startsWith(`${owner}.`) && (!matched || owner.length > matched.length))
+        matched = owner;
+    return matched;
+  }
+  authorOfTool(id: string): string | undefined {
+    const owner = this.toolOwners.get(id);
+    return owner && this.authorOwners.get(owner);
+  }
+  async executeFor(owner: string, id: string, payload?: unknown) {
+    const command = this.findCommand(id);
+    if (!command || this.authorOwners.get(command.owner) !== owner)
+      throw new Error("命令不属于此插件");
+    return this.execute(id, payload);
+  }
   async execute(id: string, payload?: unknown) {
     if (this.disposed) throw new Error("白板已卸载");
     const menu = this.menuActions.get(id);
@@ -1157,6 +1212,12 @@ export class ExtensionRuntime {
     const elementType = this.createTools.get(toolId);
     if (elementType === undefined) return null;
     const definition = this.elementDefinitions.get(elementType);
+    if (
+      this.authorTypes.has(elementType) &&
+      definition?.dataVersion !== undefined &&
+      !this.board.document
+    )
+      return null;
     return definition?.create ? { elementType, definition } : null;
   }
 

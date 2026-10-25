@@ -58,6 +58,7 @@ pub struct DiaryGetPayload {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiaryUpsertPayload {
+    pub contracts: Option<Value>,
     #[serde(rename = "type")]
     pub diary_type: String,
     pub date: String,
@@ -232,69 +233,6 @@ fn serialize_optional_json(value: Option<Value>) -> Result<Option<String>, Strin
             .map(Some)
             .map_err(|e| format_db_error("DIARY_INVALID_JSON", "serialize optional json", e)),
     }
-}
-
-fn insert_content(
-    tx: &Transaction<'_>,
-    content: &Value,
-    count: i64,
-    now: i64,
-) -> Result<i64, String> {
-    let serialized = serde_json::to_string(content)
-        .map_err(|e| format_db_error("DIARY_CONTENT_INVALID", "serialize content", e))?;
-    tx.execute(
-        "
-        INSERT INTO contents (id, create_time, update_time, content, count, ref_count)
-        VALUES (?4, ?1, ?1, ?2, ?3, 1)
-        ",
-        params![
-            now,
-            serialized,
-            count.max(0),
-            super::assistant_tasks::next_id(tx, "contents")?
-        ],
-    )
-    .map_err(|e| format_db_error("DIARY_CONTENT_CREATE_FAILED", "insert content", e))?;
-    Ok(tx.last_insert_rowid())
-}
-
-fn decrement_or_delete_content(
-    tx: &Transaction<'_>,
-    content_id: Option<i64>,
-) -> Result<(), String> {
-    let Some(id) = content_id else {
-        return Ok(());
-    };
-    if id <= 0 {
-        return Ok(());
-    }
-    tx.execute(
-        "UPDATE contents SET ref_count = ref_count - 1 WHERE id = ?1",
-        params![id],
-    )
-    .map_err(|e| format_db_error("DIARY_CONTENT_DELETE_FAILED", "decrease ref_count", e))?;
-    let ref_count = tx
-        .query_row(
-            "SELECT ref_count FROM contents WHERE id = ?1 LIMIT 1",
-            params![id],
-            |row| row.get::<_, i64>(0),
-        )
-        .optional()
-        .map_err(|e| format_db_error("DIARY_CONTENT_DELETE_FAILED", "query ref_count", e))?;
-    if matches!(ref_count, Some(v) if v <= 0) {
-        super::assistant_tasks::reconcile_document_links(tx, id, None)?;
-        // 协作内容禁止级联删除（与桌面端数据库层守卫一致）
-        super::collaboration::assert_content_local(tx, id)?;
-        // 释放两侧显式连接（与桌面 ContentTable.releaseContent 对齐），防悬空边
-        tx.execute(
-            "DELETE FROM content_links WHERE content_id = ?1 OR target_content_id = ?1",
-            params![id],
-        )
-        .map_err(|e| format_db_error("DIARY_CONTENT_DELETE_FAILED", "release content links", e))?;
-        tx.execute("DELETE FROM contents WHERE id = ?1", params![id])
-            .map_err(|e| format_db_error("DIARY_CONTENT_DELETE_FAILED", "delete content", e))?;
-    }
-    Ok(())
 }
 
 fn hydrate_entry(conn: &rusqlite::Connection, mut entry: DiaryEntry) -> Result<DiaryEntry, String> {
@@ -497,9 +435,6 @@ fn upsert_entry(
         .optional()
         .map_err(|e| format_db_error("DIARY_UPSERT_FAILED", "query existing diary entry", e))?;
 
-    let serialized_content = serde_json::to_string(&content)
-        .map_err(|e| format_db_error("DIARY_CONTENT_INVALID", "serialize content", e))?;
-
     let entry_id = if let Some((id, _)) = existing {
         tx.execute(
             "
@@ -556,29 +491,17 @@ fn upsert_entry(
     } else {
         segments.first().copied()
     };
-    if let Some((segment_id, content_id)) = target {
-        // 协作内容禁止直写（云端投影是唯一写者）
-        super::collaboration::assert_content_local(&tx, content_id)?;
-        let changed = tx
-            .execute(
-                "UPDATE contents SET content=?1,count=?2,update_time=?3 WHERE id=?4",
-                params![serialized_content, word_count, now, content_id],
-            )
-            .map_err(|e| e.to_string())?;
-        if changed == 0 {
-            return Err("DIARY_CONTENT_NOT_FOUND: 日记内容不存在".into());
-        }
-        super::assistant_tasks::reconcile_document_links(&tx, content_id, Some(&content))?;
-        tx.execute(
-            "UPDATE diary_segments SET update_time=?1 WHERE content_id=?2",
-            params![now, content_id],
-        )
-        .map_err(|e| e.to_string())?;
-        tx.execute("UPDATE diary_entries SET update_time=?1 WHERE id IN (SELECT diary_id FROM diary_segments WHERE id=?2 OR content_id=?3)", params![now,segment_id,content_id]).map_err(|e| e.to_string())?;
-    } else {
-        let content_id = insert_content(&tx, &content, word_count, now)?;
-        tx.execute("INSERT INTO diary_segments(diary_id,content_id,create_time,update_time) VALUES(?1,?2,?3,?3)", params![entry_id,content_id,now]).map_err(|e| e.to_string())?;
+    if target.is_some() {
+        return Err("DIARY_CONTENT_WRITE_REQUIRED: 已有日记正文请通过正文保存入口修改".into());
     }
+    let content_id = super::common::insert_content_record(
+        &tx,
+        &content,
+        payload.contracts.as_ref(),
+        word_count,
+        now,
+    )?;
+    tx.execute("INSERT INTO diary_segments(diary_id,content_id,create_time,update_time) VALUES(?1,?2,?3,?3)", params![entry_id,content_id,now]).map_err(|e| e.to_string())?;
     sync_word_counts(&tx)?;
 
     tx.commit()
@@ -622,10 +545,10 @@ fn delete_entry(conn: &mut rusqlite::Connection, entry_id: i64) -> Result<i64, S
         .map_err(|e| format_db_error("DIARY_DELETE_FAILED", "delete diary entry", e))?;
 
     if !segment_contents.contains(&content_id.unwrap_or(0)) {
-        decrement_or_delete_content(&tx, content_id)?;
+        super::common::release_content_reference(&tx, content_id.unwrap_or(0))?;
     }
     for content_id in segment_contents {
-        decrement_or_delete_content(&tx, Some(content_id))?;
+        super::common::release_content_reference(&tx, content_id)?;
     }
 
     tx.commit()
@@ -682,7 +605,7 @@ fn delete_segment(
         params![segment_id, diary_id],
     )
     .map_err(|e| e.to_string())?;
-    decrement_or_delete_content(&tx, Some(content_id))?;
+    super::common::release_content_reference(&tx, content_id)?;
 
     let remaining: i64 = tx
         .query_row(
@@ -704,7 +627,7 @@ fn delete_segment(
         tx.execute("DELETE FROM diary_entries WHERE id=?1", [diary_id])
             .map_err(|e| e.to_string())?;
         if legacy_content_id != Some(content_id) {
-            decrement_or_delete_content(&tx, legacy_content_id)?;
+            super::common::release_content_reference(&tx, legacy_content_id.unwrap_or(0))?;
         }
         tx.commit().map_err(|e| e.to_string())?;
         return Ok(None);
@@ -988,6 +911,7 @@ pub fn diary_update_tags(
 mod tests {
     use super::*;
     use serde_json::json;
+    use sha2::{Digest, Sha256};
 
     fn database() -> rusqlite::Connection {
         let conn = rusqlite::Connection::open_in_memory().unwrap();
@@ -996,10 +920,16 @@ mod tests {
     }
 
     fn payload(text: &str, segment_id: Option<i64>, new_segment: bool) -> DiaryUpsertPayload {
+        let contract = json!({"format":2,"domain":"editor-node","owner":"test.paragraph","type":"paragraph","dataVersion":1,"kind":"block","isVoid":false,"textFields":[],"structuredFields":[],"resources":[]});
+        let id = format!(
+            "{:x}",
+            Sha256::digest(serde_json::to_string(&contract).unwrap().as_bytes())
+        );
         DiaryUpsertPayload {
+            contracts: Some(json!({id.clone(): contract})),
             diary_type: "daily".into(),
             date: "2026-09-09".into(),
-            content: json!([{ "type":"paragraph","children":[{"text":text}] }]),
+            content: json!([{ "type":"paragraph","tauContract":id,"children":[{"text":text}] }]),
             word_count: 1,
             weather: None,
             mood: None,
@@ -1015,11 +945,26 @@ mod tests {
         update_segment_tags(&mut conn, first.segments[0].id, vec!["日常".into()]).unwrap();
         let second = upsert_entry(&mut conn, payload("second", None, true)).unwrap();
         let untouched = second.segments[1].clone();
-        let edited = upsert_entry(
-            &mut conn,
-            payload("changed", Some(first.segments[0].id), false),
+        let (contracts,document,revision,source): (String,String,String,String) = conn.query_row("SELECT contracts,document_id,revision,source_id FROM content_documents,library_identity WHERE content_id=?1 AND library_identity.id=1",[first.segments[0].content_id],|row|Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?))).unwrap();
+        let mut content = first.segments[0].content.clone();
+        content[0]["children"][0]["text"] = json!("changed");
+        let contracts: Value = serde_json::from_str(&contracts).unwrap();
+        let tx = conn.transaction().unwrap();
+        super::super::write_content_snapshot(
+            &tx,
+            first.segments[0].content_id,
+            &content,
+            1,
+            now_millis(),
+            "CONTENT_UPDATE_FAILED",
+            Some(&contracts),
+            Some(&revision),
+            Some(&document),
+            Some(&source),
         )
         .unwrap();
+        tx.commit().unwrap();
+        let edited = query_entry_by_id(&conn, first.id).unwrap();
         assert_eq!(edited.segments.len(), 2);
         assert_eq!(edited.segments[0].content_id, first.segments[0].content_id);
         assert_eq!(edited.segments[1].id, untouched.id);
@@ -1031,6 +976,14 @@ mod tests {
         assert_eq!(edited.word_count, 2);
         assert!(upsert_entry(&mut conn, payload("overwrite", None, false)).is_err());
         assert_eq!(query_entry_by_id(&conn, edited.id).unwrap().word_count, 2);
+        let mut rejected = payload("不能绕过正文入口", Some(first.segments[0].id), false);
+        rejected.weather = Some(json!({"label":"不应保存"}));
+        assert!(upsert_entry(&mut conn, rejected)
+            .unwrap_err()
+            .starts_with("DIARY_CONTENT_WRITE_REQUIRED:"));
+        let unchanged = query_entry_by_id(&conn, first.id).unwrap();
+        assert_eq!(unchanged.weather, edited.weather);
+        assert_eq!(unchanged.segments[0].content, edited.segments[0].content);
     }
 
     #[test]
@@ -1074,7 +1027,7 @@ mod tests {
         delete_entry(&mut conn, first.id).unwrap();
         assert_eq!(
             conn.query_row(
-                "SELECT COUNT(*) FROM contents WHERE id=?1",
+                "SELECT ref_count FROM contents WHERE id=?1",
                 [private_id],
                 |r| r.get::<_, i64>(0)
             )
@@ -1110,7 +1063,7 @@ mod tests {
         );
         assert_eq!(
             conn.query_row(
-                "SELECT COUNT(*) FROM contents WHERE id=?1",
+                "SELECT ref_count FROM contents WHERE id=?1",
                 [content_id],
                 |r| r.get::<_, i64>(0)
             )

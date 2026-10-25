@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { CodeBlockController } from "../extensions/code-block/types";
 import { insertCodeBlock } from "../insert";
+import { bindElementDefinitions } from "../../../../core/api/elementVersions";
 
 const { mockedCodeBlockMap } = vi.hoisted(() => ({
   mockedCodeBlockMap: new Map<string, CodeBlockController>(),
@@ -26,6 +27,28 @@ const selectPath = (editor: ReturnType<typeof createEditor>, path: number[], off
 };
 
 describe("insertCodeBlock 焦点恢复", () => {
+  it("当前声明为 v2 时直接创建源码子节点，不生成旧根源码", () => {
+    vi.useFakeTimers();
+    const editor = createEditor();
+    editor.children = [createParagraph("")] as Descendant[];
+    bindElementDefinitions(editor, [
+      {
+        type: "code-block",
+        dataVersion: 2,
+        kind: "block",
+        isVoid: true,
+        render: () => null as never,
+      },
+    ]);
+    selectPath(editor, [0, 0]);
+    insertCodeBlock(editor, "ts", "const value = 1;");
+    expect(editor.children[0]).toMatchObject({
+      type: "code-block",
+      children: [{ type: "code-step", code: "const value = 1;" }],
+    });
+    expect(editor.children[0]).not.toHaveProperty("code");
+  });
+
   afterEach(() => {
     mockedCodeBlockMap.clear();
     vi.restoreAllMocks();

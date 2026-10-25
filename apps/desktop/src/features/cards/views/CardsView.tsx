@@ -193,7 +193,7 @@ export function CardsView() {
     onExportMarkdown: card => {
       void requireFullCard(card).then(full => {
         if (!full) return;
-        void exportContentAsMarkdown({ title: String(full.id), content: full.content });
+        void exportContentAsMarkdown({ title: String(full.id), content: full.content, contentId: full.contentId });
       });
     },
     onExportImage: card => {
@@ -214,9 +214,10 @@ export function CardsView() {
   const importDrop = useImportDrop("card");
   const handleImport = async () => {
     await importMarkdownFiles(
-      ({ content }) =>
+      ({ content, contracts }) =>
         mutations.create.mutateAsync({
           content,
+          contracts,
           tags: [],
           count: getContentLength(content),
           isTop: false,

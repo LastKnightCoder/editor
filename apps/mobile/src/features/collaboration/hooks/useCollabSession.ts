@@ -1,7 +1,7 @@
 // 协作编辑视图的标准组合（设计稿 03）：文档绑定（含失败重试）+ presence 上报 +
 // owner 侧投影 + 稳定状态徽标。详情页原地编辑与独立协作编辑页共用，
 // 避免两页各自拼装四个 hook 与派生逻辑。
-import type { EditorCollaborationBinding } from "@tau/editor-collab";
+import type { ContentCollaborationBinding } from "@tau/editor-collab";
 import useCollaborationDocument from "./useCollaborationDocument";
 import useCollaborationPresence from "./useCollaborationPresence";
 import { useCollabProjection } from "./useCollabProjection";
@@ -15,7 +15,7 @@ export function useCollabSession(
     projectionPaused?: boolean;
   }
 ) {
-  const { binding, session, loading, error, frozen, boundContentId, ended, retry } =
+  const { binding, document, session, loading, error, frozen, boundContentId, ended, retry } =
     useCollaborationDocument(documentId);
   const readonly = frozen || !binding || (session ? session.status !== "active" : false);
   const presence = useCollaborationPresence(binding, readonly);
@@ -24,7 +24,8 @@ export function useCollabSession(
   const online = (session?.members ?? []).filter(member => member.online);
   const offline = session?.connection === "offline" || session?.connection === "error";
   return {
-    binding: binding as EditorCollaborationBinding | undefined,
+    document,
+    binding: binding as ContentCollaborationBinding | undefined,
     session: session as CollaborationSession | undefined,
     loading,
     error,

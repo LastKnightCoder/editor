@@ -18,7 +18,8 @@ import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 import SketchRect from "../SketchPaths/SketchRect";
 import SketchStroke from "../SketchPaths/SketchStroke";
 import { If as If } from "@tau/ui";
-import { EditText, EditTextHandle } from "@tau/ui";
+import { type EditTextHandle } from "@tau/ui";
+import { FieldText } from "../FieldText";
 
 import { SELECT_RECT_STROKE, SELECT_RECT_STROKE_WIDTH } from "../../constants";
 import { handTextClass } from "../../utils/sketch";
@@ -80,6 +81,7 @@ const Column = memo(
       // 从编辑元素列表中移除
       board.isEditingElements = board.isEditingElements.filter(eid => eid !== element.id);
 
+      if (board.document) return;
       const newTitle = titleRef.current?.getValue() || "";
       const columnPath = PathUtil.getPathByElement(board, element);
       if (columnPath) {
@@ -316,7 +318,9 @@ const Column = memo(
               titleRef.current?.focusEnd();
             }}
           >
-            <EditText
+            <FieldText
+              elementId={element.id}
+              field="title"
               id={`column-title-${element.id}`}
               ref={titleRef}
               defaultValue={title || "Column"}

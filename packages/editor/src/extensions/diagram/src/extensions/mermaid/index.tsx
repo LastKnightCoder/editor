@@ -12,6 +12,8 @@ const mermaidExtension = defineExtension({
   elements: [
     defineElement<MermaidElement>({
       type: "mermaid",
+      dataVersion: 1,
+      collaboration: { textFields: ["chart"] },
       kind: "block",
       drag: true,
       isVoid: true,

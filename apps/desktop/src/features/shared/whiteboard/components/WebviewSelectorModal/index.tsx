@@ -12,7 +12,7 @@ import { v4 as getUuid } from "uuid";
 import { Button, Dialog, DialogBody, Input, toast } from "@tau/ui";
 
 import { Board as Board } from "@tau/whiteboard";
-import useUploadResource from "@/hooks/useUploadResource";
+import { IResourceService } from "@tau/shared/host-services";
 import { selectFile, readTextFile, getFileBaseName } from "@/commands";
 
 interface WebviewSelectorModalProps {
@@ -37,7 +37,7 @@ const normalizeUrl = (value: string) => {
 };
 
 const WebviewSelectorModal = ({ open, onClose, board }: WebviewSelectorModalProps) => {
-  const uploadResource = useUploadResource();
+  const uploadResource = (file: File) => board.getService(IResourceService).upload(file);
   const [url, setUrl] = useState("");
   const [uploading, setUploading] = useState(false);
 

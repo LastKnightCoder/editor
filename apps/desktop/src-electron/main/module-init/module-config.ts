@@ -14,6 +14,7 @@ import pluginBackendModule from "../modules/plugin-backend";
 import serverModule from "../modules/server";
 import databaseModule from "../modules/database";
 import collaborationModule from "../modules/collaboration";
+import whiteboardDocumentsModule from "../modules/whiteboard-documents";
 import piAiRuntimeModule from "../modules/pi-ai-runtime";
 import piSessionHostModule from "../modules/pi-session-host";
 import modelUsageModule from "../modules/model-usage";
@@ -126,6 +127,12 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     init: () => domainEventsModule.init(),
   },
   {
+    name: "whiteboard-documents",
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["database", "collaboration"],
+    init: () => whiteboardDocumentsModule.init(),
+  },
+  {
     name: "collaboration",
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database"],
@@ -225,7 +232,7 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   {
     name: "pi-session",
     layer: InitLayer.BACKGROUND,
-    dependencies: ["logger", "model-usage"],
+    dependencies: ["logger", "model-usage", "whiteboard-documents"],
     init: async () => {
       piSessionHostModule.init();
     },

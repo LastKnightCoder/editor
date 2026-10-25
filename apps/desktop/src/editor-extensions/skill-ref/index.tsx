@@ -103,6 +103,7 @@ const skillRefExtension = defineExtension({
   elements: [
     defineElement<SkillRefElement>({
       type: "skill-ref",
+      dataVersion: 1,
       kind: "inline",
       isVoid: true,
       render: ({ attributes, element, children }: ElementRenderProps<SkillRefElement>) => (

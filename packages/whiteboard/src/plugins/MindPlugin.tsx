@@ -537,6 +537,19 @@ export class MindPlugin implements IBoardPlugin {
                   await this.text.release?.(contentId);
                   return;
                 }
+                if (ctx.board.document?.linkEntity) {
+                  try {
+                    if (!(await ctx.board.document.linkEntity(node.id, "content", contentId))) {
+                      await this.text.release?.(contentId);
+                      return;
+                    }
+                  } catch (error) {
+                    await this.text.release?.(contentId);
+                    throw error;
+                  }
+                  ctx.board.emit("tau.note.open", contentId, "");
+                  return;
+                }
                 ctx.board.apply({
                   type: "set_node",
                   path: nodePath,

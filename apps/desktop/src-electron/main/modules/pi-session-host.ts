@@ -10,6 +10,8 @@
 import { ipcMain } from "electron";
 import userSettingModule from "./user-setting";
 import databaseModule from "./database";
+import collaborationModule from "./collaboration";
+import { withDurableDocuments } from "./durable-document-lifecycle";
 import PathUtil from "../utils/PathUtil";
 import {
   applyActiveTools,
@@ -239,16 +241,19 @@ class PiSessionHostModule {
           assertDatabaseSyncLockOwned(
             join(PathUtil.getAppDir(), `${databaseName.replace(/\.db$/, "")}.db`)
           );
-          installSessionDownload(
-            join(PathUtil.getAppDir(), `${databaseName.replace(/\.db$/, "")}.db`),
-            chatSessionDirOf(databaseName),
-            hasSessions
-              ? join(
-                  PathUtil.getAppDir(),
-                  `${databaseName.replace(/\.db$/, "")}.db.sessions.download`
-                )
-              : undefined
-          );
+          await withDurableDocuments({ databaseName, reason: "database-change" }, async () => {
+            await collaborationModule.preserveLibrary(databaseName);
+            installSessionDownload(
+              join(PathUtil.getAppDir(), `${databaseName.replace(/\.db$/, "")}.db`),
+              chatSessionDirOf(databaseName),
+              hasSessions
+                ? join(
+                    PathUtil.getAppDir(),
+                    `${databaseName.replace(/\.db$/, "")}.db.sessions.download`
+                  )
+                : undefined
+            );
+          });
           return {};
         })
     );

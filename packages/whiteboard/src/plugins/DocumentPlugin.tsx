@@ -25,7 +25,7 @@ export type DocumentKind = "card" | "article" | "project-item" | "diary-moment";
 export interface DocumentElement extends CommonElement {
   type: "document";
   /** 正文实体身份；碎碎念的 id 是 diary_segments.id */
-  entityRef: { kind: DocumentKind; id: number };
+  entityRef?: { kind: DocumentKind; id: number };
   /** 插入时的标题快照：元素树行名，正文读不到时兜底 */
   title?: string;
 }

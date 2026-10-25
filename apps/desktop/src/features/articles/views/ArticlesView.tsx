@@ -135,7 +135,7 @@ export function ArticlesView() {
   const handleExportMarkdown = useCallback(async (article: ArticlePageItem) => {
     try {
       const full = await findOneArticle(article.id);
-      await exportContentAsMarkdown({ title: full.title, content: full.content });
+      await exportContentAsMarkdown({ title: full.title, content: full.content, contentId: full.contentId });
     } catch {
       toast.error("导出失败");
     }
@@ -188,7 +188,7 @@ export function ArticlesView() {
   const handleImport = useCallback(async () => {
     setBusy(true);
     try {
-      const imported = await importMarkdownFiles(({ title, content }) =>
+      const imported = await importMarkdownFiles(({ title, content, contracts }) =>
         createArticleCommand({
           title,
           bannerBg: "",
@@ -197,6 +197,7 @@ export function ArticlesView() {
           isDelete: false,
           author: "",
           content,
+          contracts,
           tags: [],
           links: [],
           count: getContentLength(content),

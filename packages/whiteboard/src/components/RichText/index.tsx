@@ -156,6 +156,7 @@ const Richtext = (props: RichTextProps) => {
   const board = useBoard();
   useEditingElementCleanup(elementId);
   const text = useTextExtension();
+  const collaborativeDocument = board.document?.textDocument(elementId);
   const isArrowMoving = useArrowMove();
   const activeTool = useActiveTool();
   const isMoving = useElementMoving(elementId);
@@ -172,7 +173,7 @@ const Richtext = (props: RichTextProps) => {
     if (isSameContent(nextContent, latestContentRef.current)) return;
     latestContentRef.current = nextContent;
     setInitialState(nextContent);
-    if (contentId) onElementChange?.(board, element, { content: nextContent });
+    if (!board.document && contentId) onElementChange?.(board, element, { content: nextContent });
   });
 
   useEffect(() => {
@@ -213,6 +214,7 @@ const Richtext = (props: RichTextProps) => {
   }, [height, padding, useSimplifiedRender]);
 
   const ensureContentId = useMemoizedFn(async () => {
+    if (board.document) return undefined;
     if (contentId) return contentId;
     if (!text.create) return undefined;
     if (pendingContentIdPromiseRef.current) {
@@ -249,6 +251,7 @@ const Richtext = (props: RichTextProps) => {
   }, [x, y, width, height]);
 
   const handleFocus = useMemoizedFn(() => {
+    board.document?.splitHistory();
     if (readonly) return;
     setFocus(true);
     void ensureContentId().catch(error => {
@@ -262,6 +265,7 @@ const Richtext = (props: RichTextProps) => {
   });
 
   const handleBlur = useMemoizedFn(() => {
+    board.document?.splitHistory();
     board.isEditingElements = board.isEditingElements.filter(eid => eid !== elementId);
     if (readonly) return;
     handleResize.flush();
@@ -277,11 +281,11 @@ const Richtext = (props: RichTextProps) => {
 
   const handleOnContentChange = useMemoizedFn((value: Descendant[]) => {
     syncContentSnapshot(value);
-    onContentChange(board, element, value);
+    if (!board.document) onContentChange(board, element, value);
   });
 
   const handleOnEditorSizeChange = useMemoizedFn((width: number, height: number) => {
-    onEditorSizeChange(board, element, width, height);
+    if (!board.document) onEditorSizeChange(board, element, width, height);
   });
 
   const handleRemoveAutoFocus = useMemoizedFn(() => {
@@ -488,6 +492,7 @@ const Richtext = (props: RichTextProps) => {
           ) : (
             <ErrorBoundary>
               <Editor
+                document={collaborativeDocument}
                 contentId={contentId}
                 ref={editorRef}
                 style={fadeStyle}

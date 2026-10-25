@@ -231,6 +231,84 @@ CREATE TABLE IF NOT EXISTS video_notes (
         transcript TEXT DEFAULT ''
       , transcript_segments TEXT DEFAULT '', transcript_word_segments TEXT DEFAULT '', summary TEXT DEFAULT '', highlights TEXT DEFAULT '[]', insights TEXT DEFAULT '');
 
+-- 身份基线随完整库快照传播，不使用本机库名推断同源。
+CREATE TABLE IF NOT EXISTS library_identity (
+  id INTEGER PRIMARY KEY CHECK(id = 1),
+  source_id TEXT NOT NULL UNIQUE,
+  baseline_id TEXT NOT NULL,
+  confirmed_snapshot TEXT,
+  create_time INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS content_documents (
+  content_id INTEGER PRIMARY KEY REFERENCES contents(id) ON DELETE CASCADE,
+  document_id TEXT NOT NULL UNIQUE,
+  format_version INTEGER NOT NULL,
+  contracts TEXT NOT NULL,
+  revision TEXT NOT NULL,
+  migration_operation_id TEXT,
+  migration_receipt TEXT
+);
+CREATE TABLE IF NOT EXISTS entity_identities (
+  entity_kind TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  local_id INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  retired_at INTEGER,
+  PRIMARY KEY(entity_kind, entity_id)
+);
+CREATE TABLE IF NOT EXISTS content_entity_relations (
+  document_id TEXT NOT NULL REFERENCES content_documents(document_id) ON DELETE CASCADE,
+  node_id TEXT NOT NULL,
+  slot TEXT NOT NULL,
+  source_id TEXT NOT NULL,
+  entity_kind TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  PRIMARY KEY(document_id, node_id, slot)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_entity_identities_active
+  ON entity_identities(entity_kind, local_id) WHERE retired_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_content_entity_relations_target
+  ON content_entity_relations(source_id, entity_kind, entity_id);
+
+-- 已建立来源基线的白板文档；页表只存投影，完整二进制用于从库快照恢复同一 CRDT。
+CREATE TABLE IF NOT EXISTS whiteboard_documents (
+  document_id TEXT PRIMARY KEY,
+  source_id TEXT NOT NULL,
+  baseline_id TEXT NOT NULL,
+  epoch INTEGER NOT NULL CHECK(epoch >= 0),
+  board_id INTEGER UNIQUE REFERENCES white_boards(id) ON DELETE RESTRICT,
+  board_created_at INTEGER,
+  revision INTEGER NOT NULL CHECK(revision >= 0),
+  revision_hash TEXT NOT NULL,
+  creation_hash TEXT NOT NULL,
+  state BLOB NOT NULL,
+  contracts TEXT NOT NULL,
+  snapshot TEXT NOT NULL,
+  create_time INTEGER NOT NULL,
+  update_time INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS whiteboard_document_pages (
+  document_id TEXT NOT NULL REFERENCES whiteboard_documents(document_id) ON DELETE RESTRICT,
+  page_id TEXT NOT NULL,
+  content_id INTEGER NOT NULL UNIQUE REFERENCES white_board_contents(id) ON DELETE RESTRICT,
+  content_created_at INTEGER NOT NULL,
+  visible INTEGER NOT NULL CHECK(visible IN (0,1)),
+  page_index INTEGER NOT NULL,
+  PRIMARY KEY(document_id, page_id)
+);
+CREATE TABLE IF NOT EXISTS whiteboard_entity_relations (
+  document_id TEXT NOT NULL REFERENCES whiteboard_documents(document_id) ON DELETE RESTRICT,
+  root_id TEXT NOT NULL,
+  node_id TEXT NOT NULL,
+  slot TEXT NOT NULL,
+  source_id TEXT NOT NULL,
+  entity_kind TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  PRIMARY KEY(document_id, root_id, node_id, slot)
+);
+CREATE INDEX IF NOT EXISTS idx_whiteboard_document_pages_document ON whiteboard_document_pages(document_id, visible, page_index);
+CREATE INDEX IF NOT EXISTS idx_whiteboard_entity_relations_target ON whiteboard_entity_relations(source_id, entity_kind, entity_id);
+
 -- 内容组织域表
 CREATE TABLE IF NOT EXISTS chat_group (
         id INTEGER PRIMARY KEY,
@@ -1070,3 +1148,59 @@ CREATE INDEX IF NOT EXISTS idx_content_links_target ON content_links(target_cont
 CREATE UNIQUE INDEX IF NOT EXISTS idx_compose_boards_page ON compose_boards(page_id);
 -- 首页热力图按年聚合操作流水（get-operation-daily-counts）；带 operation_id 形成覆盖索引，聚合免回表
 CREATE INDEX IF NOT EXISTS idx_operation_time ON operation(operation_time, operation_id);
+
+-- 物理删除即退役稳定身份，数值主键和创建时间同时复用也不能误读新实体。
+CREATE TRIGGER IF NOT EXISTS trg_entity_identity_white_board_contents_delete
+AFTER DELETE ON white_board_contents
+BEGIN
+  UPDATE entity_identities SET retired_at = CAST(strftime('%s','now') AS INTEGER) * 1000
+  WHERE entity_kind = 'whiteboard-content' AND local_id = OLD.id AND retired_at IS NULL;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_entity_identity_data_tables_delete
+AFTER DELETE ON data_tables
+BEGIN
+  UPDATE entity_identities SET retired_at = CAST(strftime('%s','now') AS INTEGER) * 1000
+  WHERE entity_kind = 'data-table' AND local_id = OLD.id AND retired_at IS NULL;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_entity_identity_project_item_delete
+AFTER DELETE ON project_item
+BEGIN
+  UPDATE entity_identities SET retired_at = CAST(strftime('%s','now') AS INTEGER) * 1000
+  WHERE entity_kind = 'project-item' AND local_id = OLD.id AND retired_at IS NULL;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_entity_identity_cards_delete
+AFTER DELETE ON cards
+BEGIN
+  UPDATE entity_identities SET retired_at = CAST(strftime('%s','now') AS INTEGER) * 1000
+  WHERE entity_kind = 'card' AND local_id = OLD.id AND retired_at IS NULL;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_entity_identity_articles_delete
+AFTER DELETE ON articles
+BEGIN
+  UPDATE entity_identities SET retired_at = CAST(strftime('%s','now') AS INTEGER) * 1000
+  WHERE entity_kind = 'article' AND local_id = OLD.id AND retired_at IS NULL;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_entity_identity_diary_segments_delete
+AFTER DELETE ON diary_segments
+BEGIN
+  UPDATE entity_identities SET retired_at = CAST(strftime('%s','now') AS INTEGER) * 1000
+  WHERE entity_kind = 'diary-moment' AND local_id = OLD.id AND retired_at IS NULL;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_entity_identity_white_boards_delete
+AFTER DELETE ON white_boards
+BEGIN
+  UPDATE entity_identities SET retired_at = CAST(strftime('%s','now') AS INTEGER) * 1000
+  WHERE entity_kind = 'whiteboard' AND local_id = OLD.id AND retired_at IS NULL;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_entity_identity_contents_delete
+AFTER DELETE ON contents
+BEGIN
+  UPDATE entity_identities SET retired_at = CAST(strftime('%s','now') AS INTEGER) * 1000
+  WHERE entity_kind = 'content' AND local_id = OLD.id AND retired_at IS NULL;
+END;
+CREATE TRIGGER IF NOT EXISTS trg_entity_identity_video_notes_delete
+AFTER DELETE ON video_notes
+BEGIN
+  UPDATE entity_identities SET retired_at = CAST(strftime('%s','now') AS INTEGER) * 1000
+  WHERE entity_kind = 'video-note' AND local_id = OLD.id AND retired_at IS NULL;
+END;

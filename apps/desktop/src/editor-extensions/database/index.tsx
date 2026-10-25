@@ -11,6 +11,7 @@ export const createDatabaseExtension = () =>
     elements: [
       defineElement<DatabaseElement>({
         type: "database",
+        dataVersion: 1,
         kind: "block",
         isVoid: true,
         render: ({ attributes, element, children }: ElementRenderProps<DatabaseElement>) => (

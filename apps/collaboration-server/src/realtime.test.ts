@@ -1,3 +1,4 @@
+import { createSharedDocument } from "@tau/collaboration/src/testing/legacy-document";
 import { afterEach, describe, expect, it } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -5,7 +6,7 @@ import { join } from "node:path";
 import * as Y from "yjs";
 import { WebSocket } from "ws";
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
-import { createSharedDocument, readSharedContent, replaceText } from "@tau/collaboration";
+import { readSharedContent, replaceText } from "@tau/collaboration";
 import { createServer } from "./server";
 
 const cleanup: (() => Promise<void> | void)[] = [];

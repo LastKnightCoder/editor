@@ -1,3 +1,4 @@
+import { IResourceService } from "@tau/shared/host-services";
 import React, { memo, useCallback, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Tooltip } from "@tau/ui";
@@ -51,7 +52,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
   const { id, x, y, width, height, src, metaInfo, resizable = true } = element;
   const autoCacheRemoteVideo = useSettingStore(state => state.setting.misc.video.autoCacheRemote);
   const shouldUseLocalVideo = useMemo(
-    () => shouldUseLocalVideoCache(src, autoCacheRemoteVideo),
+    () => src.startsWith("tau-collab-") || shouldUseLocalVideoCache(src, autoCacheRemoteVideo),
     [src, autoCacheRemoteVideo]
   );
   const onlineMeta = isOnlineVideoType(metaInfo?.type) ? metaInfo : undefined;
@@ -161,6 +162,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
               <LocalVideo
                 ref={setVideoRef}
                 src={src}
+                resolveResource={board.tryGetService(IResourceService)?.remoteResourceToLocal}
                 className="h-full"
                 onClick={(e: React.MouseEvent) => {
                   e.preventDefault();

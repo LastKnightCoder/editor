@@ -411,11 +411,16 @@ exports[`Markdown 往返基准 > 导入 → 导出 > value 1`] = `
   {
     "children": [
       {
-        "text": "",
-        "type": "formatted",
+        "children": [
+          {
+            "text": "",
+            "type": "formatted",
+          },
+        ],
+        "code": "const a = 1;",
+        "type": "code-step",
       },
     ],
-    "code": "const a = 1;",
     "language": "TypeScript",
     "type": "code-block",
     "uuid": "<uuid>",
@@ -1193,14 +1198,7 @@ exports[`Markdown 往返基准 > 带位置导入 / 导出的映射 > export mapp
     "mdEndLine": 30,
     "mdStartCh": 0,
     "mdStartLine": 28,
-    "propertyMappings": {
-      "code": {
-        "mdEndCh": 12,
-        "mdEndLine": 29,
-        "mdStartCh": 0,
-        "mdStartLine": 29,
-      },
-    },
+    "propertyMappings": undefined,
     "slateElementPath": [
       10,
     ],
@@ -2012,14 +2010,6 @@ exports[`Markdown 往返基准 > 带位置导入 / 导出的映射 > import mapp
     "mdEndLine": 29,
     "mdStartCh": 0,
     "mdStartLine": 27,
-    "propertyMappings": {
-      "code": {
-        "mdEndCh": 12,
-        "mdEndLine": 28,
-        "mdStartCh": 0,
-        "mdStartLine": 28,
-      },
-    },
     "slateElementPath": [
       10,
     ],
@@ -2688,11 +2678,16 @@ exports[`Markdown 往返基准 > 带位置导入 / 导出的映射 > positioned 
   {
     "children": [
       {
-        "text": "",
-        "type": "formatted",
+        "children": [
+          {
+            "text": "",
+            "type": "formatted",
+          },
+        ],
+        "code": "const a = 1;",
+        "type": "code-step",
       },
     ],
-    "code": "const a = 1;",
     "language": "TypeScript",
     "type": "code-block",
     "uuid": "<uuid>",

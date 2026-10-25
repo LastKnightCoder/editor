@@ -1,3 +1,4 @@
+import { missingExportElements } from "../../utils/visualExport";
 /**
  * 导出为图片：预览 + 背景 / 放大倍数 / 边距（D-049）。
  * 预览是按元素数据生成的结构示意（与白板列表缩略图同源），不做真实截图；
@@ -62,6 +63,7 @@ const ExportImageModal = (props: ExportImageModalProps) => {
   const [scale, setScale] = useState<number>(window.devicePixelRatio || 1);
   const [padding, setPadding] = useState<number>(30);
   const [exporting, setExporting] = useState(false);
+  const [allowPlaceholders, setAllowPlaceholders] = useState(false);
 
   const exportAction: ExportImageAction = action === "selection" ? "selection" : "board";
 
@@ -70,6 +72,7 @@ const ExportImageModal = (props: ExportImageModalProps) => {
     setBackground(isDark ? "dark" : "light");
     setScale(window.devicePixelRatio || 1);
     setPadding(30);
+    setAllowPlaceholders(false);
   }, [open, isDark]);
 
   // 预览用的元素快照：打开时取一次（导出时仍重新解析，保持原有逻辑）
@@ -121,6 +124,7 @@ const ExportImageModal = (props: ExportImageModalProps) => {
       );
 
       const blob = await capture({
+        allowPlaceholders,
         elements,
         padding,
         backgroundColor: resolveExportBackgroundColor(background),
@@ -173,6 +177,16 @@ const ExportImageModal = (props: ExportImageModalProps) => {
         locked={exporting}
         footer={
           <>
+            {missingExportElements(board, previewElements).length > 0 && (
+              <label className="text-tau-caption text-ink-2 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={allowPlaceholders}
+                  onChange={event => setAllowPlaceholders(event.target.checked)}
+                />
+                导出包含缺失插件占位的图片
+              </label>
+            )}
             <Button variant="secondary" size="sm" disabled={exporting} onClick={onClose}>
               取消
             </Button>
@@ -211,6 +225,14 @@ const ExportImageModal = (props: ExportImageModalProps) => {
                 {previewElements.length > 0 ? (
                   <PageSchematic
                     definitions={board.extensions?.getElementDefinitions()}
+                    isBuiltin={element =>
+                      board.extensions?.isHostElement(element.type) === true &&
+                      !board.extensions.unknownElementReason(element)
+                    }
+                    resolveDefinition={element => {
+                      const entry = board.document?.resolveElementDefinition?.(element.contractId);
+                      return entry?.access !== "none" ? entry?.element : undefined;
+                    }}
                     elements={previewElements}
                     aspect={previewAspect}
                     className="size-full"

@@ -18,6 +18,7 @@ interface EpubExportModalProps {
   open: boolean;
   onClose: () => void;
   content: Descendant[];
+  contentId?: number;
   title?: string;
 }
 
@@ -108,7 +109,7 @@ const sourceToDataUri = async (source: string) => {
 };
 
 const EpubExportModal = (props: EpubExportModalProps) => {
-  const { open, onClose, content, title } = props;
+  const { open, onClose, content, contentId, title } = props;
   const [exporting, setExporting] = useState(false);
   const [coverCandidates, setCoverCandidates] = useState<CoverCandidate[]>([]);
   const [loadingCoverCandidates, setLoadingCoverCandidates] = useState(false);
@@ -307,6 +308,7 @@ const EpubExportModal = (props: EpubExportModalProps) => {
     try {
       const result = await exportSlateToEpubWithDialog({
         content,
+        contentId,
         metadata: normalizedMetadata,
         defaultFileName: normalizedMetadata.title,
       });

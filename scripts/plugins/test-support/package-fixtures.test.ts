@@ -1,5 +1,5 @@
 import { afterEach, expect, it } from "vitest";
-import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
@@ -78,4 +78,47 @@ it("接受子目录文件（如包内 Skill），并核对其清单与摘要", a
 it("拒绝越界或含反斜杠的路径", () => {
   for (const name of ["../x", "a/./b", "a//b", "a\\b", ""]) expect(isPackagePath(name)).toBe(false);
   expect(isPackagePath("skills/demo/SKILL.md")).toBe(true);
+});
+
+it("保留并校验格式 3 的平台目标，不改写成旧桌面清单", async () => {
+  const { catalog, source, entry } = await fixture();
+  const manifest = JSON.parse(await readFile(path.join(source, "manifest.json"), "utf8"));
+  Object.assign(manifest, {
+    formatVersion: 3,
+    platform: "portable",
+    profile: "web-v1",
+    targets: { desktop: { minAppVersion: "0.59.5" } },
+  });
+  const save = async () => {
+    const content = JSON.stringify(manifest);
+    await writeFile(path.join(source, "manifest.json"), content);
+    entry.files["manifest.json"] = createHash("sha256").update(content).digest("hex");
+    await writeFile(catalog, JSON.stringify([entry]));
+  };
+  await save();
+  expect((await readPluginFixtures(catalog))[0].manifest).toMatchObject({
+    formatVersion: 3,
+    platform: "portable",
+    targets: { desktop: { minAppVersion: "0.59.5" } },
+  });
+  manifest.targets.desktop.minAppVersion = "invalid";
+  await save();
+  await expect(readPluginFixtures(catalog)).rejects.toThrow();
+});
+
+it("固定本地构建的源码补丁，拒绝补丁漂移与越界路径", async () => {
+  const { catalog, entry } = await fixture();
+  const patch = "diff --git a/source.ts b/source.ts\n";
+  const file = "source.patch";
+  await writeFile(path.join(path.dirname(catalog), file), patch);
+  const sourcePatch = { file, sha256: createHash("sha256").update(patch).digest("hex") };
+  await writeFile(catalog, JSON.stringify([{ ...entry, sourcePatch }]));
+  await expect(readPluginFixtures(catalog)).resolves.toHaveLength(1);
+  await writeFile(path.join(path.dirname(catalog), file), "变更");
+  await expect(readPluginFixtures(catalog)).rejects.toThrow("源码补丁摘要不匹配");
+  await writeFile(
+    catalog,
+    JSON.stringify([{ ...entry, sourcePatch: { ...sourcePatch, file: "../source.patch" } }])
+  );
+  await expect(readPluginFixtures(catalog)).rejects.toThrow("源码补丁路径或摘要无效");
 });

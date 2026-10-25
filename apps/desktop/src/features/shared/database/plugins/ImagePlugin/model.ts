@@ -19,5 +19,6 @@ const imageItemName = (item: ImagePluginValue[number]): string => {
 /** 图片字段的纯数据部分：文件名文本（「、」连接） */
 export const imageFieldModel = defineFieldModel({
   type: "image",
+  resources: [{ path: "value[].url", kind: "image", alt: "alt" }],
   toText: value => itemsOf(value).map(imageItemName).filter(Boolean).join("、"),
 });

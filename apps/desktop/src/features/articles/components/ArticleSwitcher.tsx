@@ -94,6 +94,7 @@ export function ArticleSwitcher({
       await exportContentAsMarkdown({
         title: full.title || `文章-${full.id}`,
         content: full.content,
+      contentId: full.contentId,
       });
     }
   };

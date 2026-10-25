@@ -6,6 +6,10 @@ export class IndexContentClient {
   private readonly controller = new AbortController();
   private pending = false;
 
+  get signal(): AbortSignal {
+    return this.controller.signal;
+  }
+
   prepare(input: IndexContentInput): Promise<IndexContentResult> {
     if (this.controller.signal.aborted) return Promise.reject(new Error("正文转换已结束"));
     if (this.pending) return Promise.reject(new Error("正文转换必须串行执行"));

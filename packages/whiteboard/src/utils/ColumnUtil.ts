@@ -106,6 +106,10 @@ export class ColumnUtil {
    * Relayout column and apply changes to board
    */
   static relayout(board: Board, column: ColumnElement): ColumnElement {
+    if (board.document) {
+      board.document.refreshLayout?.();
+      return this.layout(board, column);
+    }
     // 清除高度缓存，确保使用最新的布局计算
     heightCache.delete(column.id);
 

@@ -1,21 +1,15 @@
 import { useRef, useEffect, useState } from "react";
-import { useCreation, useMemoizedFn } from "ahooks";
+import { useCreation } from "ahooks";
 import { renderMermaidSvg } from "../../../renderers/mermaid-render-core";
 import { useEditorTheme } from "@tau/editor/api";
 import { useReportPreviewError } from "@tau/editor-source-view";
 
 interface IMermaidProps {
   chart: string;
-  /** Cached SVG from previous render */
-  initialSvg?: string;
-  /** The chart code that was used to generate the cached SVG */
-  compiledFrom?: string;
-  /** Callback when SVG is compiled */
-  onCompiled?: (svg: string, compiledFrom: string) => void;
 }
 
 const Mermaid = (props: IMermaidProps) => {
-  const { chart, initialSvg, compiledFrom, onCompiled } = props;
+  const { chart } = props;
   // token 随主题族 / 明暗 / 局部强制明暗变化而换引用，借此触发重渲染
   const { isDark, token } = useEditorTheme();
   const ref = useRef<HTMLDivElement>(null);
@@ -24,29 +18,11 @@ const Mermaid = (props: IMermaidProps) => {
   // 在源码预览块内时错误交给块的错误条，这里保留上一次成功的图
   const errorReported = useReportPreviewError(error || null, { stale: !!svgContent });
 
-  const stableOnCompiled = useMemoizedFn(onCompiled ?? (() => {}));
-
-  const initialSvgRef = useRef(initialSvg);
-  const compiledFromRef = useRef(compiledFrom);
-  initialSvgRef.current = initialSvg;
-  compiledFromRef.current = compiledFrom;
-
   const mermaidId = useCreation(() => {
     return `mermaid-${Math.random().toString(36).slice(2)}`;
   }, []);
 
   useEffect(() => {
-    // Capture ref values at the time this effect runs, before any async work
-    const cachedSvg = initialSvgRef.current;
-    const cachedFrom = compiledFromRef.current;
-    const hasCachedSvg = cachedFrom === chart && !!cachedSvg;
-
-    // 先展示缓存 SVG，再继续后台渲染，确保主题切换时可实时刷新
-    if (hasCachedSvg && cachedSvg) {
-      setSvgContent(cachedSvg);
-      setError("");
-    }
-
     let isMounted = true;
 
     const renderMermaid = async () => {
@@ -62,10 +38,6 @@ const Mermaid = (props: IMermaidProps) => {
 
         setSvgContent(svg);
         setError("");
-
-        if (cachedFrom !== chart || cachedSvg !== svg) {
-          stableOnCompiled(svg, chart);
-        }
       } catch (e: unknown) {
         if (!isMounted) return;
         const errorMsg = typeof e === "string" ? e : e instanceof Error ? e.message : "渲染失败";
@@ -78,7 +50,7 @@ const Mermaid = (props: IMermaidProps) => {
     return () => {
       isMounted = false;
     };
-  }, [chart, mermaidId, isDark, token, stableOnCompiled]);
+  }, [chart, mermaidId, isDark, token]);
 
   return (
     <>

@@ -9,6 +9,7 @@ vi.mock("../../services/tauri", () => ({
   getContentDetail: vi.fn(),
   updateContent: vi.fn(),
   collabProjectContent: vi.fn(),
+  collabGetBinding: vi.fn(async (contentId: number) => ({ contentId, contentCreatedAt: 1, documentId: "room", serverUrl: "http://test", sourceType: null, sourceId: null, sourceTitle: null })),
 }));
 
 type HookSnapshot = ReturnType<typeof useEditContent>;
@@ -44,6 +45,7 @@ function HookHarness(props: {
   contentId: number;
   onContentSync?: (content: Descendant[]) => void;
   onProjectionPersisted?: () => void;
+  beforeSave?: () => Promise<void>;
   saveMode?: "direct" | "collabProjection" | false;
   onSnapshot: (snapshot: HookSnapshot) => void;
 }) {
@@ -52,6 +54,7 @@ function HookHarness(props: {
     onContentSync: props.onContentSync,
     saveMode: props.saveMode,
     onProjectionPersisted: props.onProjectionPersisted,
+    beforeSave: props.beforeSave,
   });
   props.onSnapshot(snapshot);
   return null;
@@ -63,6 +66,7 @@ type HookController = {
   rerender: (props: {
     saveMode?: "direct" | "collabProjection" | false;
     onProjectionPersisted?: () => void;
+  beforeSave?: () => Promise<void>;
   }) => Promise<void>;
   latest: () => HookSnapshot | null;
   cleanup: () => Promise<void>;
@@ -77,6 +81,7 @@ function createHookController(): HookController {
   let extraProps: {
     saveMode?: "direct" | "collabProjection" | false;
     onProjectionPersisted?: () => void;
+  beforeSave?: () => Promise<void>;
   } = {};
   let renderedContentId = 0;
 
@@ -324,6 +329,24 @@ describe("useEditContent", () => {
     const ok = await controller.latest()?.retryLastFailed();
     expect(ok).toBe(true);
 
+    await controller.cleanup();
+  });
+
+  it("缓存尚未耐久保存时阻止主库写入，失败输入仍可重试", async () => {
+    const initial = createContent("原文"), updated = createContent("未确认输入");
+    vi.mocked(tauri.getContentDetail).mockResolvedValue(createDetail(405, initial));
+    vi.mocked(tauri.updateContent).mockResolvedValue(createDetail(405, updated));
+    const beforeSave = vi.fn().mockRejectedValue(new Error("缓存落盘失败"));
+    const controller = createHookController();
+    await controller.render(405); await controller.rerender({ beforeSave });
+    await act(async () => {
+      controller.latest()!.handleEditorContentChange(updated);
+      expect(await controller.latest()!.flushNow()).toBe(false);
+    });
+    expect(tauri.updateContent).not.toHaveBeenCalled();
+    beforeSave.mockResolvedValue(undefined);
+    await act(async () => { expect(await controller.latest()!.retryLastFailed()).toBe(true); });
+    expect(tauri.updateContent).toHaveBeenCalledWith(expect.objectContaining({ content: updated }));
     await controller.cleanup();
   });
 

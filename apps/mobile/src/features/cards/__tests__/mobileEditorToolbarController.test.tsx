@@ -39,6 +39,7 @@ vi.mock("../../../components/KeyboardViewportProvider", async importOriginal => 
 }));
 
 import type { ContentLinkPickerResult } from "../editorExtensions/ContentLinkPickerSheet";
+import { placeCaretAfterMedia } from "../editorToolbar/mediaActions";
 import { restoreSelectionAndFocus } from "../editorToolbar/toolbarActions";
 import {
   useMobileEditorToolbarController,
@@ -1203,7 +1204,7 @@ describe("useMobileEditorToolbarController", () => {
       const context = getController().editingContext;
       if (context.kind !== "media") throw new Error("应为媒体上下文");
       act(() => {
-        getController().focusAfterMedia(context);
+        getController().focusAfterVoid(editor => placeCaretAfterMedia(editor, context));
       });
       expect(editor.selection?.anchor).toEqual({ path: [1, 0], offset: 0 });
       expect(ReactEditor.focus).toHaveBeenCalled();

@@ -334,13 +334,13 @@ export function CardDetailView() {
                       icon={<Copy className="size-[15px] shrink-0" strokeWidth={1.75} />}
                     >
                       <Menu.Item
-                        onSelect={() => void copyMarkdownToClipboard(card.content, toastAdapter)}
+                        onSelect={() => void copyMarkdownToClipboard(card.content, toastAdapter, card.contentId)}
                         icon={<ClipboardCopy className="size-[15px] shrink-0" strokeWidth={1.75} />}
                       >
                         复制 Markdown
                       </Menu.Item>
                       <Menu.Item
-                        onSelect={() => void copyWechatHtmlToClipboard(card.content, toastAdapter)}
+                        onSelect={() => void copyWechatHtmlToClipboard(card.content, toastAdapter, card.contentId)}
                         icon={<MessageSquare className="size-[15px] shrink-0" strokeWidth={1.75} />}
                       >
                         复制公众号格式
@@ -355,6 +355,7 @@ export function CardDetailView() {
                           void exportContentAsMarkdown({
                             title: cardTitle,
                             content: card.content,
+      contentId: card.contentId,
                           });
                         }}
                         icon={<FileText className="size-[15px] shrink-0" strokeWidth={1.75} />}
@@ -525,12 +526,14 @@ export function CardDetailView() {
         content={card.content}
       />
       <EpubExportModal
+        contentId={card.contentId}
         open={exportKind === "epub"}
         onClose={() => setExportKind(null)}
         content={card.content}
         title={cardTitle}
       />
       <PdfExportModal
+        contentId={card.contentId}
         visible={exportKind === "pdf"}
         onClose={() => setExportKind(null)}
         content={card.content}

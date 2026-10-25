@@ -1,7 +1,10 @@
-import { expect, it } from "vitest";
+import { beforeAll, expect, it } from "vitest";
 import { pluginMarkdown } from "../plugin-markdown";
 import { getMarkdown, importFromMarkdown } from "@/utils/markdown";
 import type { Descendant } from "@tau/plugins";
+import useDynamicExtensionsStore from "../../stores/useDynamicExtensionsStore";
+
+beforeAll(() => useDynamicExtensionsStore.getState().initExtensions(), 30_000);
 
 it("复用桌面语法，任务列表、表格和代码转换不修改传入节点", async () => {
   const source =

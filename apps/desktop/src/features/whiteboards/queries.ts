@@ -1,3 +1,5 @@
+import { on, off } from "@/electron";
+import { queryClient as appQueryClient } from "@/queryClient";
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import {
@@ -22,6 +24,8 @@ import {
   updateWhiteBoardMeta,
 } from "@/commands";
 import useUploadResource from "@/hooks/useUploadResource";
+import { readWhiteboardShareStatus } from "@/commands/whiteboard-document";
+import { whiteboardShareStatusKey } from "@/services/whiteboard-documents/keys";
 import useSettingStore from "@/stores/useSettingStore";
 import { WHITEBOARD_DOCUMENT_VERSION } from "@tau/whiteboard";
 import type { WhiteBoard, WhiteBoardContent } from "@/types";
@@ -32,6 +36,28 @@ import { normalizeTags, toItem, type WhiteboardItem } from "./model";
 if (typeof indexedDB !== "undefined") indexedDB.deleteDatabase("tau-whiteboard-thumbnails");
 
 const hasBridge = typeof window !== "undefined" && Boolean(window.electron);
+const pendingProjectionRefresh = new Map<string, ReturnType<typeof setTimeout>>();
+const projectionChanged = ({ databaseName }: { databaseName: string }) => {
+  if (pendingProjectionRefresh.has(databaseName)) return;
+  pendingProjectionRefresh.set(
+    databaseName,
+    setTimeout(() => {
+      pendingProjectionRefresh.delete(databaseName);
+      void appQueryClient.invalidateQueries({
+        predicate: query =>
+          ["whiteboards", "whiteboard-content", "whiteboard-share"].includes(
+            String(query.queryKey[0])
+          ) && query.queryKey.includes(databaseName),
+      });
+    }, 100)
+  );
+};
+on("whiteboard-document:projected", projectionChanged);
+import.meta.hot?.dispose(() => {
+  off("whiteboard-document:projected", projectionChanged);
+  pendingProjectionRefresh.forEach(clearTimeout);
+});
+
 const listKey = (database: string) => ["whiteboards", "list", database] as const;
 const detailKey = (database: string, id: number) =>
   ["whiteboards", "detail", database, id] as const;
@@ -118,9 +144,9 @@ export function useWhiteboardMutations() {
         return board;
       },
 
-      saveInfo(id: number, info: WhiteboardInfo) {
+      saveInfo(id: number, info: WhiteboardInfo, titleInDocument = false) {
         return updateMeta(id, {
-          title: info.title.trim(),
+          ...(titleInDocument ? {} : { title: info.title.trim() }),
           description: info.description.trim(),
           tags: normalizeTags(info.tags),
         });
@@ -319,4 +345,18 @@ export function useWhiteBoardContent(id: number) {
     onError: () => toast.error("白板保存失败，请重试"),
   });
   return { ...query, save };
+}
+
+/* ───────── 共享 ───────── */
+
+/** 共享绑定与未完成的发布/升级；与文档客户端挂接远端同步共用同一份缓存。 */
+export function useWhiteboardShareStatus(documentId: string | undefined) {
+  const database = useSettingStore(state => state.setting.database.active);
+  return useQuery({
+    queryKey: whiteboardShareStatusKey(database, documentId ?? ""),
+    queryFn: () => readWhiteboardShareStatus(database, documentId!),
+    enabled: hasBridge && Boolean(documentId),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+  });
 }

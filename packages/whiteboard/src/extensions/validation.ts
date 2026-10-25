@@ -1,7 +1,7 @@
 import type { BoardElement } from "../types";
 import type { StandardSchemaV1 } from "./standard-schema";
-import type { ElementDefinitionTable } from "./migration";
-import { readDefinitionSchemaVersion, readElementSchemaVersion } from "./migration";
+import type { ElementDefinitionTable } from "./elementVersion";
+import { readDefinitionSchemaVersion, readElementSchemaVersion } from "./elementVersion";
 
 /** 单个元素的校验问题：element.data 未通过所属定义的 schema */
 export interface ElementValidationProblem {

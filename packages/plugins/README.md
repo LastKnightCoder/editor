@@ -8,6 +8,8 @@
 
 本包提供应用插件 API 和生命周期。渲染插件与应用在同一环境运行，业务数据接口通过 manifest 声明与运行时授权约束，但不提供安全隔离。格式 2 的本机后台在独立进程执行，需用户另行授权，本机系统权限不受沙箱限制。registerTrusted 是保留的宿主方法名。正式插件从插件中心安装。
 
+白板协作作者的冻结数据接口、版本与权限边界见 [白板协作插件](./docs/whiteboard-collaboration.md)。
+
 ## 入口
 
 核心与协议全部由 TypeScript 维护：`src/contract.ts` 是作者生命周期、命令和私有存储契约，`src/index.ts` 保留原公开导出；`src/host.ts` 是桌面和示例共用的正式宿主，`src/lifecycle.ts`、`src/storage.ts`、`src/file-storage.ts` 承担清理和存储。`scripts/` 只做构建/启动/验收编排，不维护第二套宿主。QuickJS/WASM 选型与权限隔离暂停，历史实验见专题 24/25，当前流程不依赖它们。
@@ -102,3 +104,5 @@ pnpm --filter @example/plugin-workbench demo
 仓库根运行 `node scripts/plugins/package-sdk.mjs`，生成 `@xiongtao.xt/tau-plugins` 与 `@xiongtao.xt/tau-ui` 的可发布压缩包。作者通过 npm 别名安装为 `@tau/plugins` / `@tau/ui`，声明闭包随包交付，根入口运行实现由桌面宿主提供；白板、同步与发布数据子入口的用途见 [site-data.md](../../plugins/tau-plugin-template/docs/site-data.md)。
 
 作者从 [公开模板](https://github.com/LastKnightCoder/tau-plugin-template) 开始，本仓库维护源为 `plugins/tau-plugin-template`。作者文档在模板的 `docs/` 目录（入口 [docs/README.md](../../plugins/tau-plugin-template/docs/README.md)），打包 SDK 时整目录复制进 npm 包；修改公开契约时同步更新对应文档。
+
+编辑器节点的字段声明、源码输入、版本转换、资源与正文传递见[编辑器协作约定](docs/editor-collaboration.md)。

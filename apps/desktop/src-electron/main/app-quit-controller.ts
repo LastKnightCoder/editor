@@ -1,3 +1,4 @@
+import { prepareDurableDocuments } from "./modules/durable-document-lifecycle";
 import { app, BrowserWindow, globalShortcut, ipcMain } from "electron";
 import log from "electron-log";
 import collaborationModule from "./modules/collaboration";
@@ -36,14 +37,22 @@ export function setupQuitController(deps: QuitControllerDeps): void {
   });
 
   app.on("before-quit", event => {
-    if (quitting) return;
     event.preventDefault();
+    if (quitting) return;
     quitting = true;
     void runControlledQuit(deps);
   });
 }
 
 async function runControlledQuit(deps: QuitControllerDeps): Promise<void> {
+  try {
+    const drain = await prepareDurableDocuments({ reason: "quit" });
+    drain.commit();
+  } catch (error) {
+    quitting = false;
+    log.error("文档尚未确认保存，保留窗口并取消退出:", error);
+    return;
+  }
   const forceExitTimer = setTimeout(() => {
     log.warn("受控退出超时，强制退出应用");
     pluginBackends.forceDispose();
@@ -64,8 +73,6 @@ async function runControlledQuit(deps: QuitControllerDeps): Promise<void> {
     await setPluginBackendsPaused(true);
     await pluginBackends.dispose();
 
-    // 协作文档落盘必须在断开连接、销毁窗口之前
-    await collaborationModule.prepareQuit();
     contentExecutor.dispose();
 
     globalShortcut.unregisterAll();

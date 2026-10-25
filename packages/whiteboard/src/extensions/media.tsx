@@ -27,6 +27,7 @@ export interface MediaCapabilities {
 
 /** 宿主对内置媒体扩展的 UI 配置（菜单动作与图片组件），保留为工厂参数、不进服务 */
 export interface MediaExtensionOptions {
+  resolveUrl?: (url: string) => Promise<string>;
   actions?: readonly string[];
   videoSources?: () => readonly VideoSourceEntry[];
   Image?: ComponentType<{

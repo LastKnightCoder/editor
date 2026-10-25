@@ -13,7 +13,7 @@ import {
   resolvePathFrom,
 } from "@/commands/file";
 import { uploadResource } from "@/hooks/useUploadResource";
-import { importFromMarkdown } from "@/utils/markdown";
+import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import {
   baseNameOf,
   collectAssetUrls,
@@ -45,6 +45,7 @@ const defaultImportIo: ImportIo = {
 };
 
 export interface ImportedMarkdown {
+  contracts: ContentContractDictionary;
   /** 文件名（不含扩展名），作为文章 / 文档标题 */
   title: string;
   content: Descendant[];
@@ -119,11 +120,12 @@ export const uploadAssetBytes = async (
 export const ingestLocalAssets = async (
   content: Descendant[],
   baseDir: string,
-  io: ImportIo = defaultImportIo
+  io: ImportIo = defaultImportIo,
+  contracts?: ContentContractDictionary
 ): Promise<{ content: Descendant[]; assetCount: number; warnings: string[] }> => {
   const uploaded = new Map<string, string>();
   const warnings: string[] = [];
-  for (const { url } of collectAssetUrls(content)) {
+  for (const { url } of collectAssetUrls(content, undefined, contracts)) {
     if (!isPortableAssetSource(url) || isDataUri(url)) continue;
     try {
       const path = await toAbsolutePath(url, baseDir, io);
@@ -136,7 +138,7 @@ export const ingestLocalAssets = async (
   }
   return {
     content: uploaded.size
-      ? mapAssetUrls(content, url => uploaded.get(url), { uploaded: true })
+      ? mapAssetUrls(content, url => uploaded.get(url), { uploaded: true, contracts })
       : content,
     assetCount: uploaded.size,
     warnings,
@@ -149,13 +151,20 @@ export const readMarkdownForImport = async (
   io: ImportIo = defaultImportIo
 ): Promise<ImportedMarkdown> => {
   const markdown = await io.readTextFile(path);
-  const parsed = importFromMarkdown(markdown, ["yaml"]);
+  const processor = await (await import("@/services/editorKit")).prepareContentMarkdown({});
+  const parsed = await processor.importDocument(markdown, ["yaml"]);
   const baseDir = await io.getDirectoryName(path);
-  const { content, assetCount, warnings } = await ingestLocalAssets(parsed, baseDir, io);
+  const { content, assetCount, warnings } = await ingestLocalAssets(
+    parsed.content,
+    baseDir,
+    io,
+    parsed.contracts
+  );
   const title = await io.getFileBaseName(path, true);
   return {
     title,
     content,
+    contracts: parsed.contracts,
     assetCount,
     warnings: warnings.map(warning => `${title}：${warning}`),
   };

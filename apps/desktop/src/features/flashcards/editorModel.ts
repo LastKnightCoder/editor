@@ -54,6 +54,7 @@ export function formFromCard(card: Flashcard): FormState {
         title: ref.title,
         contentId: ref.refType === "content" ? ref.contentId : undefined,
         customContent: ref.refType === "custom" ? ref.content?.content : undefined,
+        contracts: ref.refType === "custom" ? ref.content?.contracts : undefined,
       })
     ),
   };

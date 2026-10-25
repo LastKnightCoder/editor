@@ -4,8 +4,8 @@ use serde_json::Value;
 use tauri::AppHandle;
 
 use super::common::{
-    db_err, decrement_or_delete_content, insert_content_record, json_content_plain_text,
-    now_millis, parse_json_content, parse_string_array, write_operation,
+    db_err, insert_content_record, json_content_plain_text, now_millis, parse_json_content,
+    parse_string_array, release_content_reference, write_operation,
 };
 use super::schema;
 
@@ -57,6 +57,7 @@ pub struct CreateArticlePayload {
     pub title: String,
     pub author: Option<String>,
     pub content: Option<Value>,
+    pub contracts: Option<Value>,
     pub count: Option<i64>,
 }
 
@@ -208,7 +209,13 @@ pub fn article_create(
             "children": [{"type": "formatted", "text": ""}]
         })])
     });
-    let content_id = insert_content_record(&tx, &content, payload.count.unwrap_or(0), now)?;
+    let content_id = insert_content_record(
+        &tx,
+        &content,
+        payload.contracts.as_ref(),
+        payload.count.unwrap_or(0),
+        now,
+    )?;
     tx.execute(
         "
         INSERT INTO articles (title, author, create_time, update_time, tags, links, banner_bg, is_top, is_delete, content_id)
@@ -296,7 +303,7 @@ pub fn article_delete(app: AppHandle, payload: ArticleIdPayload) -> Result<i64, 
     .map_err(|e| db_err("ARTICLE_DELETE_FAILED", "mark deleted", e))?;
     write_operation(&tx, "article", "delete", payload.id, now)?;
     if let Some(content_id) = content_id {
-        decrement_or_delete_content(&tx, content_id)?;
+        release_content_reference(&tx, content_id)?;
     }
     tx.commit()
         .map_err(|e| db_err("ARTICLE_DELETE_FAILED", "commit transaction", e))?;

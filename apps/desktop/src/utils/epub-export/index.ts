@@ -1,3 +1,4 @@
+import { readContentForExport } from "@/services/content-transfer";
 import type { Descendant } from "slate";
 import { exportEpubWithDialog } from "@/commands";
 import type { EpubExportPayload, EpubExportResult, EpubMetadataInput } from "@/types";
@@ -8,6 +9,7 @@ import { buildEpubChapters, isMeaningfulHtmlFragment } from "./chaptering";
 
 export interface ExportSlateToEpubInput {
   content: Descendant[];
+  contentId?: number;
   metadata: EpubMetadataInput;
   defaultFileName?: string;
 }
@@ -15,7 +17,8 @@ export interface ExportSlateToEpubInput {
 export const buildEpubExportPayloadFromSlate = async (
   input: ExportSlateToEpubInput
 ): Promise<{ payload: EpubExportPayload; warnings: string[] }> => {
-  const serializedHtml = await htmlSerializerRegistry.serializeAsync(input.content || [], {
+  const document = await readContentForExport(input.content || [], input.contentId);
+  const serializedHtml = await htmlSerializerRegistry.serializeAsync(document.content, {
     codeTheme: "github-light",
   });
 

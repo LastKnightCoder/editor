@@ -1,6 +1,12 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import * as Y from "yjs";
-import { CollaborationError, type CollaborationEvent, type Member } from "@tau/collaboration";
+import {
+  CollaborationError,
+  type CollaborationEvent,
+  type Member,
+  type MigrationFingerprint,
+  type DocumentOperationRequest,
+} from "@tau/collaboration";
 import type { CollaborationStore } from "./store";
 import type { ServerConfig } from "./config";
 const objectBody = (request: FastifyRequest) => {
@@ -24,11 +30,12 @@ interface RouteContext {
   disconnect: (id: string, memberId?: string) => void;
   members: (id: string) => Member[];
   /** 持久化成员行合并实时在线态（文档列表批量组装用） */
+  accepted: (id: string) => void;
   mergeOnline: (id: string, base: Omit<Member, "online" | "activity">[]) => Member[];
 }
 export function registerContentRoutes(
   app: FastifyInstance,
-  { store, config, device, refresh, send, disconnect, members, mergeOnline }: RouteContext
+  { store, config, device, refresh, send, disconnect, mergeOnline, accepted }: RouteContext
 ) {
   app.post(
     "/v1/devices",
@@ -61,9 +68,17 @@ export function registerContentRoutes(
       return { id: row.id, status: row.status };
     }
   );
+  app.get("/v1/documents/:id/publication", async (request, reply) =>
+    reply
+      .header("Cache-Control", "no-store")
+      .send(store.publicationStatus(params(request).id, device(request).id))
+  );
+  app.post("/v1/documents/:id/publication/cancel", async request =>
+    store.cancelPublication(params(request).id, device(request).id)
+  );
   app.post("/v1/documents/:id/publish", async request => {
     const state = textField(objectBody(request), "state", Math.ceil(config.maxDocumentBytes * 1.4));
-    const result = store.publish(
+    const result = await store.publish(
       params(request).id,
       device(request).id,
       Buffer.from(state, "base64")
@@ -77,10 +92,21 @@ export function registerContentRoutes(
   app.get("/v1/documents/:id/state", async (request, reply) => {
     const id = params(request).id;
     store.authorize(id, device(request).id);
+    const protocol = store.migrations.state(id);
+    if (
+      protocol.version > 1 &&
+      request.headers["x-tau-document-version"] !== String(protocol.version)
+    )
+      throw new CollaborationError(
+        "CLIENT_UPGRADE_REQUIRED",
+        "请使用支持当前文档协议的客户端",
+        409
+      );
     const doc = store.loadDocument(id);
     try {
       return reply.header("Cache-Control", "no-store").send({
         state: Buffer.from(Y.encodeStateAsUpdate(doc)).toString("base64"),
+        protocol: { ...store.migrations.state(id), sequence: store.operations.sequence(id) },
       });
     } finally {
       doc.destroy();
@@ -135,12 +161,119 @@ export function registerContentRoutes(
   app.post("/v1/documents/:id/close", async request => {
     const id = params(request).id;
     const identity = device(request);
-    store.closeDocument(id, identity.id);
+    const body = request.body == null ? {} : objectBody(request);
+    const revision = store.closeDocument(
+      id,
+      identity.id,
+      body.expectedRevision as string | undefined
+    );
     for (const member of store.members(id))
       send(member.deviceId, { type: "closed", documentId: id });
     disconnect(id);
     refresh();
-    return { ok: true };
+    return { ok: true, revision };
+  });
+  app.get("/v1/documents/:id/protocol", async (request, reply) => {
+    const id = params(request).id;
+    store.authorize(id, device(request).id);
+    return reply
+      .header("Cache-Control", "no-store")
+      .send({ ...store.migrations.state(id), sequence: store.operations.sequence(id) });
+  });
+  app.get("/v1/documents/:id/operations/:operationId", async (request, reply) => {
+    const { id, operationId } = params(request),
+      actor = device(request).id;
+    store.authorize(id, actor);
+    return reply
+      .header("Cache-Control", "no-store")
+      .send({ operation: store.operations.get(id, operationId, actor) });
+  });
+  app.post("/v1/documents/:id/operations/:operationId", async request => {
+    const { id, operationId } = params(request),
+      body = objectBody(request);
+    const update = Buffer.from(
+      textField(body, "update", Math.ceil(config.maxDocumentBytes * 1.4)),
+      "base64"
+    );
+    const operation = await store.submitOperation(
+      id,
+      device(request).id,
+      { ...body, operationId } as DocumentOperationRequest,
+      update
+    );
+    if (operation?.state === "COMMITTED") accepted(id);
+    return { operation };
+  });
+  app.post("/v1/documents/:id/operations/:operationId/cancel", async request => {
+    const { id, operationId } = params(request),
+      body = objectBody(request);
+    return {
+      operation: await store.submitOperation(
+        id,
+        device(request).id,
+        { ...body, operationId } as DocumentOperationRequest,
+        undefined,
+        true
+      ),
+    };
+  });
+  app.get("/v1/documents/:id/migrations/:operationId", async (request, reply) => {
+    const { id, operationId } = params(request),
+      actor = device(request).id;
+    store.authorize(id, actor, true);
+    return reply
+      .header("Cache-Control", "no-store")
+      .send({ operation: store.migrations.get(id, operationId, actor) });
+  });
+  app.post("/v1/documents/:id/migrations/:operationId/:action", async request => {
+    const { id, operationId, action } = params(request),
+      actorId = device(request).id,
+      body = objectBody(request);
+    store.authorize(id, actorId, true);
+    if (action === "prepare")
+      return {
+        operation: store.migrations.begin(id, {
+          id: operationId,
+          actorId,
+          expectedEpoch: body.expectedEpoch as number,
+          expiresAt: body.expiresAt as number,
+        }),
+      };
+    if (action === "cancel") {
+      const operation = store.migrations.cancel(id, {
+        id: operationId,
+        actorId,
+        expectedEpoch: body.expectedEpoch as number,
+      });
+      refresh();
+      return { operation };
+    }
+    if (action === "freeze") {
+      const operation = store.migrations.freeze(id, operationId, actorId);
+      if (operation.state === "PENDING") disconnect(id);
+      refresh();
+      return { operation };
+    }
+    if (action === "commit") {
+      const state = textField(body, "state", Math.ceil(config.maxDocumentBytes * 1.4));
+      const fingerprint: MigrationFingerprint = {
+        expectedRevision: textField(body, "expectedRevision"),
+        candidateHash: textField(body, "candidateHash"),
+        targetVersion: body.targetVersion as number,
+        baselineId: textField(body, "baselineId"),
+      };
+      const operation = await store.commitMigration(
+        id,
+        actorId,
+        operationId,
+        fingerprint,
+        Buffer.from(state, "base64")
+      );
+      if (operation.state === "COMMITTED") disconnect(id);
+      refresh();
+      return { operation };
+    }
+    throw new CollaborationError("INVALID_MIGRATION", "未知迁移操作");
   });
   app.post("/v1/tickets", async request => {
     const identity = device(request);
@@ -149,6 +282,16 @@ export function registerContentRoutes(
     if (documentId !== null && typeof documentId !== "string")
       throw new CollaborationError("INVALID_FIELD", "documentId 格式不正确");
     if (documentId) store.authorize(documentId, identity.id);
-    return { ticket: store.ticket(identity.id, documentId), expiresIn: 60 };
+    return {
+      ticket: store.ticket(
+        identity.id,
+        documentId,
+        body.protocolVersion as number | undefined,
+        body.epoch !== undefined || body.baselineId !== undefined
+          ? { epoch: body.epoch as number, baselineId: body.baselineId as string }
+          : undefined
+      ),
+      expiresIn: 60,
+    };
   });
 }

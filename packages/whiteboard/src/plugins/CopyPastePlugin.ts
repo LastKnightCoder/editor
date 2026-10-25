@@ -1,3 +1,4 @@
+import { toast } from "@tau/ui";
 import { embeddedTextOptions, type TextExtensionOptions } from "../extensions/text";
 import { WhiteboardValidationError } from "../extensions/validation";
 import {
@@ -67,7 +68,9 @@ export class CopyPastePlugin implements IBoardPlugin {
     const capService = board.capabilityService;
 
     // 找到所有带子元素的容器（如 frame）
-    const containers = elements.filter(el => capService.shouldMoveWithChildren(el));
+    const containers = elements.filter(
+      el => el.children?.length || capService.shouldMoveWithChildren(el)
+    );
 
     // 收集所有容器的所有子元素ID（包括嵌套的）
     const allChildIds = new Set<string>();
@@ -229,6 +232,25 @@ export class CopyPastePlugin implements IBoardPlugin {
       }
     }
 
+    if (targetCount && board.document?.pages && board.document.moveToPage && !board.readonly) {
+      items.push({
+        key: "move-to-page",
+        label: "移动到画板页",
+        icon: React.createElement(Copy, { size: 14 }),
+        priority: 306,
+        onSelect: () => {},
+        children: board.document.pages().map(page => ({
+          key: `move-page-${page.id}`,
+          label: page.title || "未命名页",
+          priority: 0,
+          onSelect: () =>
+            board.document!.moveToPage!(
+              this.filterContainerChildren(board, targetElements).map(element => element.id),
+              page.id
+            ),
+        })),
+      });
+    }
     return items;
   }
 
@@ -269,8 +291,9 @@ export class CopyPastePlugin implements IBoardPlugin {
       }
     }
 
+    if (board.document) this.onCopy(e, board);
     board.apply(ops);
-    this.onCopy(e, board);
+    if (!board.document) this.onCopy(e, board);
     SelectTransforms.updateSelectArea(board, {
       selectArea: null,
       selectedElements: [],
@@ -288,6 +311,12 @@ export class CopyPastePlugin implements IBoardPlugin {
       )
     );
 
+    if (payloadCandidates.some(value => value.length > 32 * 1024 * 1024)) {
+      toast.error("粘贴内容超过导入预算，原内容未改变");
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      return;
+    }
     for (const candidate of payloadCandidates) {
       if (this.tryPasteWhiteboardPayload(candidate, e, board)) {
         return;
@@ -298,13 +327,27 @@ export class CopyPastePlugin implements IBoardPlugin {
   }
 
   private tryPasteWhiteboardPayload(data: string, e: ClipboardEvent, board: Board): boolean {
-    let dataObj: { source?: string; elements?: BoardElement[] } | null = null;
+    let dataObj: { source?: string; format?: string; elements?: BoardElement[] } | null = null;
     try {
       dataObj = JSON.parse(data);
     } catch (_error) {
       return false;
     }
 
+    if (dataObj?.format === "whiteboard-transfer-v1") {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (!board.document?.importTransfer) {
+        toast.error("请在协作文档中导入可编辑白板");
+        return true;
+      }
+      void board.document
+        .importTransfer(dataObj as unknown as import("@tau/collaboration").WhiteboardTransfer)
+        .catch(error =>
+          toast.error(error instanceof Error ? error.message : "导入失败，原内容已保留")
+        );
+      return true;
+    }
     if (dataObj?.source !== "editor-white-board") {
       return false;
     }
@@ -362,7 +405,7 @@ export class CopyPastePlugin implements IBoardPlugin {
       }
       throw error;
     }
-    this.syncPastedContentRefs(elements);
+    if (!board.document) this.syncPastedContentRefs(elements);
     ViewPortTransforms.centerElementsIfNotInViewPort(board, elements);
 
     e.preventDefault();

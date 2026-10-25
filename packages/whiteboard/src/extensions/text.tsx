@@ -2,6 +2,7 @@ import { createContext, useContext, type ComponentType, type ComponentPropsWithR
 import { Editor, createEditorKit, type EditorKit } from "@tau/editor";
 import { textFormattingExtension } from "@tau/editor/extensions/text-formatting";
 import link from "@tau/editor/extensions/link";
+import { BoardContext } from "../context";
 import { createServiceId } from "@tau/shared/service-contract";
 import type { Descendant } from "slate";
 
@@ -92,6 +93,26 @@ export function textOptionsFromService(
 
 export function TextEditor({ contentId, editingContext, ...props }: WhiteboardTextEditorProps) {
   const options = useTextExtension();
+  const board = useContext(BoardContext);
+  const document = props.document;
+  if (document)
+    return (
+      <Editor
+        {...props}
+        kit={options.kit()}
+        document={document}
+        onChange={undefined}
+        readonly={props.readonly || board?.readonly || !document}
+        onFocus={() => {
+          board?.document?.splitHistory();
+          props.onFocus?.();
+        }}
+        onBlur={() => {
+          board?.document?.splitHistory();
+          props.onBlur?.();
+        }}
+      />
+    );
   const Component = options.Editor;
   return Component ? (
     <Component contentId={contentId} editingContext={editingContext} {...props} />

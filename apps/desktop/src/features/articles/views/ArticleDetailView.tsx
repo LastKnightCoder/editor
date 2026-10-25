@@ -264,6 +264,7 @@ export function ArticleDetailView() {
     void exportContentAsMarkdown({
       title: editingArticle.title || `文章-${editingArticle.id}`,
       content: editingArticle.content,
+      contentId: editingArticle.contentId,
     });
   };
 
@@ -364,13 +365,13 @@ export function ArticleDetailView() {
         >
           <Menu.Item
             icon={<ClipboardCopy className="size-[15px] shrink-0" strokeWidth={1.75} />}
-            onSelect={() => void copyMarkdownToClipboard(editingArticle.content, toastAdapter)}
+            onSelect={() => void copyMarkdownToClipboard(editingArticle.content, toastAdapter, editingArticle.contentId)}
           >
             复制 Markdown
           </Menu.Item>
           <Menu.Item
             icon={<MessageSquare className="size-[15px] shrink-0" strokeWidth={1.75} />}
-            onSelect={() => void copyWechatHtmlToClipboard(editingArticle.content, toastAdapter)}
+            onSelect={() => void copyWechatHtmlToClipboard(editingArticle.content, toastAdapter, editingArticle.contentId)}
           >
             复制公众号格式
           </Menu.Item>
@@ -602,12 +603,14 @@ export function ArticleDetailView() {
           title={editingArticle.title}
         />
         <EpubExportModal
+        contentId={editingArticle.contentId}
           open={exportKind === "epub"}
           onClose={() => setExportKind(null)}
           content={editingArticle.content}
           title={editingArticle.title || `文章 #${editingArticle.id}`}
         />
         <PdfExportModal
+        contentId={editingArticle.contentId}
           visible={exportKind === "pdf"}
           onClose={() => setExportKind(null)}
           content={editingArticle.content}

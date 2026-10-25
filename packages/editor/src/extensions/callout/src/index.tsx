@@ -13,6 +13,7 @@ const calloutExtension = defineExtension({
   elements: [
     defineElement<CalloutElement>({
       type: "callout",
+      dataVersion: 1,
       kind: "block",
       isEmpty: (element, context) => element.children.every(context.isEmpty),
       render: Callout,

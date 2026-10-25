@@ -30,6 +30,7 @@ export default class DailyNoteTable {
     // 创建content记录
     const contentId = ContentTable.createContent(db, {
       content: note.content,
+      contracts: note.contracts,
       count: getContentLength(note.content),
     });
 
@@ -60,6 +61,7 @@ export default class DailyNoteTable {
         existingNote.contentId,
         {
           content: note.content,
+          contracts: note.contracts,
           count: getContentLength(note.content),
         },
         ctx
@@ -68,6 +70,7 @@ export default class DailyNoteTable {
       // 创建新的content记录
       const contentId = ContentTable.createContent(db, {
         content: note.content,
+        contracts: note.contracts,
         count: getContentLength(note.content),
       });
 

@@ -1,7 +1,9 @@
+import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { Descendant } from "slate";
 import type { IPodcast } from "./podcast";
 
 export interface ICreateArticle {
+  contracts?: ContentContractDictionary;
   title: string;
   author: string;
   tags: string[];
@@ -14,7 +16,7 @@ export interface ICreateArticle {
   count: number;
 }
 
-export interface IUpdateArticle extends Omit<ICreateArticle, "content" | "count"> {
+export interface IUpdateArticle extends Omit<ICreateArticle, "content" | "contracts" | "count"> {
   id: number;
   contentId: number;
 }
@@ -33,6 +35,7 @@ export type ArticlePageSort = "updated" | "created" | "words";
 
 /** 文章页列表条目：轻量分页契约（不携带正文全文） */
 export interface ArticlePageItem {
+  contentId?: number;
   id: number;
   title: string;
   author: string;

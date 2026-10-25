@@ -1,3 +1,4 @@
+import { hasDurableEntityHold } from "../durable-entity-holds";
 import Database from "better-sqlite3";
 import {
   DataTable,
@@ -12,6 +13,8 @@ import type { Descendant } from "slate";
 import Operation from "./operation";
 import DataTableViewTable from "./data-table-view";
 import ContentTable from "./content";
+import { ContentIdentityTable } from "./content-identity";
+import type { DataTableTarget } from "@tau/shared/database-types";
 import { dataFieldModels } from "./field-models";
 
 export default class DataTableTable {
@@ -75,6 +78,7 @@ export default class DataTableTable {
   static getListenEvents() {
     return {
       "data-table:create": this.create.bind(this),
+      "data-table:create-pending": this.createPending.bind(this),
       "data-table:update": this.update.bind(this),
       "data-table:patch-row": this.patchRow.bind(this),
       "data-table:apply-changes": this.applyChanges.bind(this),
@@ -130,7 +134,8 @@ export default class DataTableTable {
     };
   }
 
-  static getById(db: Database.Database, id: number): DataTable | null {
+  static getById(db: Database.Database, target: DataTableTarget): DataTable | null {
+    const id = ContentIdentityTable.requireTarget(db, "data-table", target);
     const stmt = db.prepare(`SELECT * FROM data_tables WHERE id = ?`);
     const row = stmt.get(id);
     if (!row) return null;
@@ -139,11 +144,12 @@ export default class DataTableTable {
 
   static getDetail(
     db: Database.Database,
-    id: number
+    target: DataTableTarget
   ): {
     table: DataTable | null;
     views: ReturnType<typeof DataTableViewTable.listByTableId>;
   } {
+    const id = ContentIdentityTable.requireTarget(db, "data-table", target);
     const table = this.getById(db, id);
     if (!table) {
       return { table: null, views: [] };
@@ -153,6 +159,11 @@ export default class DataTableTable {
   }
 
   static create(db: Database.Database, table: CreateDataTable): DataTable {
+    return this.insert(db, table, 1);
+  }
+
+  private static insert(db: Database.Database, table: CreateDataTable, initialRefCount: number): DataTable {
+    if (initialRefCount !== 0 && initialRefCount !== 1) throw new Error("初始引用数无效");
     const stmt = db.prepare(`
       INSERT INTO data_tables (create_time, update_time, columns, rows, active_view_id, ref_count)
       VALUES (?, ?, ?, ?, ?, ?)
@@ -164,13 +175,14 @@ export default class DataTableTable {
       JSON.stringify(table.columns || []),
       JSON.stringify(table.rows || []),
       table.activeViewId ?? null,
-      1
+      initialRefCount
     );
     const id = Number(res.lastInsertRowid);
     Operation.insertOperation(db, "data-table", "insert", id, now);
 
-    // 新表 ref_count 为 1：持有初始 rows 中的全部正文引用（D-136）
-    this.syncContentRefs(db, null, {
+    // 尚未挂接的表由正文关系首次提交时取得子正文持有。
+    if (!initialRefCount) db.prepare("INSERT INTO data_table_pending_releases(table_id,released_at) VALUES (?,?)").run(id, now);
+    if (initialRefCount) this.syncContentRefs(db, null, {
       columns: table.columns || [],
       rows: table.rows || [],
     });
@@ -194,7 +206,18 @@ export default class DataTableTable {
     return result;
   }
 
-  static update(db: Database.Database, table: UpdateDataTable): DataTable | null {
+  static createPending(db: Database.Database) {
+    if (!ContentIdentityTable.library(db)) throw new Error("资料库尚未完成身份基线升级");
+    return db.transaction(() => {
+      const table = this.insert(db, { columns: [], rows: [] }, 0);
+      return { table, reference: ContentIdentityTable.reference(db, "data-table", table.id) };
+    })();
+  }
+
+  static update(db: Database.Database, request: UpdateDataTable): DataTable | null {
+    return db.transaction(() => {
+    const table = { ...request, id: ContentIdentityTable.requireTarget(db, "data-table", request.id) };
+    if (table.activeViewId != null) DataTableViewTable.assertBelongsTo(db, table.activeViewId, table.id);
     const stmt = db.prepare(`
       UPDATE data_tables SET
         update_time = ?,
@@ -225,10 +248,12 @@ export default class DataTableTable {
     DataTableViewTable.syncViewsWithTable(db, table.id, table.columns || [], table.rows || []);
 
     return this.getById(db, table.id);
+    })();
   }
 
-  static patchRow(db: Database.Database, input: PatchDataTableRow): boolean {
+  static patchRow(db: Database.Database, request: PatchDataTableRow): boolean {
     return db.transaction(() => {
+      const input = { ...request, tableId: ContentIdentityTable.requireTarget(db, "data-table", request.tableId) };
       const table = this.getById(db, input.tableId);
       if (!table || (table.refCount ?? 0) <= 0) return false;
       const row = table.rows.find(item => item.id === input.rowId);
@@ -261,8 +286,9 @@ export default class DataTableTable {
     })();
   }
 
-  static applyChanges(db: Database.Database, input: ApplyDataTableChanges): DataTable | null {
+  static applyChanges(db: Database.Database, request: ApplyDataTableChanges): DataTable | null {
     return db.transaction(() => {
+      const input = { ...request, id: ContentIdentityTable.requireTarget(db, "data-table", request.id) };
       const table = this.getById(db, input.id);
       if (!table || (table.refCount ?? 0) <= 0) return null;
       const removed = new Set(input.rows.remove);
@@ -431,6 +457,7 @@ export default class DataTableTable {
 
     let collected = 0;
     for (const { table_id: id } of dueRows) {
+      if (hasDurableEntityHold(db,"data-table",id)) continue;
       try {
         // better-sqlite3 事务可嵌套（自动降级为 savepoint），外层已有事务时也能安全调用
         collected += db.transaction(() => {
@@ -466,6 +493,7 @@ export default class DataTableTable {
           }
           db.prepare("DELETE FROM data_table_views WHERE table_id = ?").run(id);
           db.prepare("DELETE FROM data_tables WHERE id = ?").run(id);
+          ContentIdentityTable.retire(db, "data-table", id);
           db.prepare("DELETE FROM data_table_pending_releases WHERE table_id = ?").run(id);
           return 1;
         })();
@@ -478,8 +506,11 @@ export default class DataTableTable {
 
   static setActiveView(
     db: Database.Database,
-    payload: { tableId: number; viewId: number | null }
+    request: { tableId: DataTableTarget; viewId: number | null }
   ): DataTable | null {
+    return db.transaction(() => {
+    const payload = { ...request, tableId: ContentIdentityTable.requireTarget(db, "data-table", request.tableId) };
+    if (payload.viewId !== null) DataTableViewTable.assertBelongsTo(db, payload.viewId, payload.tableId);
     const stmt = db.prepare(
       `UPDATE data_tables SET active_view_id = ?, update_time = ? WHERE id = ?`
     );
@@ -487,5 +518,6 @@ export default class DataTableTable {
     stmt.run(payload.viewId ?? null, now, payload.tableId);
     Operation.insertOperation(db, "data-table", "update", payload.tableId, now);
     return this.getById(db, payload.tableId);
+    })();
   }
 }

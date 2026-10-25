@@ -1,7 +1,7 @@
 import { ElementRenderProps as IExtensionBaseProps } from "@tau/editor/api";
 import { type AudioElement } from "../../../../types/index";
 
-import { AddParagraph, useIsLastElement } from "@tau/editor/api";
+import { AddParagraph, useIsLastElement, useTouchVoidSelection } from "@tau/editor/api";
 import { LoadingOverlay, cn } from "@tau/ui";
 import { If } from "@tau/shared";
 import { useAttrInput } from "../../../../hooks/useAttrInput";
@@ -11,7 +11,6 @@ import { Transforms } from "slate";
 import { useEditorSlots } from "../../../../services/hooks";
 import { openLocalMediaPicker } from "../../../../utils/mediaInsert";
 import { useMediaUploading } from "../../../../utils/mediaSubmission";
-import { useTouchMediaSelection } from "../../../../hooks/useTouchMediaSelection";
 import { MEDIA_SELECTED_OUTLINE_CLASS } from "../../../../utils/mediaFrameClasses";
 
 const Audio = (props: IExtensionBaseProps<AudioElement>) => {
@@ -20,7 +19,7 @@ const Audio = (props: IExtensionBaseProps<AudioElement>) => {
   const readOnly = useReadOnly();
   const isLast = useIsLastElement(element);
   // 触屏下标题不常驻输入框（阅读滚动时易误触弹键盘），改名经宿主工具栏；点卡片即选中
-  const { touch, selected, select } = useTouchMediaSelection(element);
+  const { touch, selected, select } = useTouchVoidSelection(element);
 
   const { Audio: AudioSlot } = useEditorSlots();
 

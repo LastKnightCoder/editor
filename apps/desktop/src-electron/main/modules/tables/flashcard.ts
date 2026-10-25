@@ -372,9 +372,12 @@ class FlashcardTable {
           c.create_time as content_create_time,
           c.update_time as content_update_time,
           c.count as content_count,
-          c.ref_count as content_ref_count
+          c.ref_count as content_ref_count,
+          d.contracts as content_contracts,
+          d.revision as content_revision
         FROM flashcard_references fr
         LEFT JOIN contents c ON fr.content_id = c.id
+        LEFT JOIN content_documents d ON d.content_id = c.id
         WHERE fr.card_id IN (${placeholders})`
       )
       .all(...cardIds) as Array<
@@ -385,6 +388,8 @@ class FlashcardTable {
         content_update_time: number | null;
         content_count: number | null;
         content_ref_count: number | null;
+        content_contracts: string | null;
+        content_revision: string | null;
       }
     >;
 
@@ -404,6 +409,9 @@ class FlashcardTable {
             updateTime: row.content_update_time!,
             count: row.content_count!,
             refCount: row.content_ref_count!,
+            ...(row.content_contracts
+              ? { contracts: JSON.parse(row.content_contracts), revision: row.content_revision! }
+              : {}),
           };
         } catch (e) {
           log.error("[FlashcardTable] Failed to parse content data", e);
@@ -443,6 +451,7 @@ class FlashcardTable {
         }
         const result = ContentTable.createContent(db, {
           content: ref.customContent,
+          contracts: ref.contracts,
           count: 0,
           refCount: 1,
         });

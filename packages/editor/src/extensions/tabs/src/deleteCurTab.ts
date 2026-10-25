@@ -1,3 +1,4 @@
+import { elementView } from "@tau/editor/api";
 import { Editor, NodeEntry, Path, Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import type { TabPaneElement, TabsElement } from "./types";
@@ -15,6 +16,8 @@ export const deleteCurTab = (editor: Editor, panePath: Path) => {
   const panes = ((tabsNode as TabsElement).children || []).filter(
     child => child.type === "tab-pane"
   ) as TabPaneElement[];
+  const view = elementView(editor, tabsNode);
+  const previousKey = view.getSnapshot().activeKey;
   const remaining = panes.filter(item => item.tabKey !== pane.tabKey);
 
   Editor.withoutNormalizing(editor, () => {
@@ -38,11 +41,11 @@ export const deleteCurTab = (editor: Editor, panePath: Path) => {
       );
     } else {
       Transforms.removeNodes(editor, { at: panePath });
-      const activeKey = remaining.some(item => item.tabKey === tabsNode.activeKey)
-        ? tabsNode.activeKey
+      const activeKey = remaining.some(item => item.tabKey === previousKey)
+        ? previousKey
         : remaining[0].tabKey;
-      if (activeKey !== tabsNode.activeKey) {
-        Transforms.setNodes(editor, { activeKey }, { at: tabsPath });
+      if (activeKey !== previousKey) {
+        view.update({ activeKey });
         const nextIndex = remaining.findIndex(item => item.tabKey === activeKey);
         Transforms.select(editor, Editor.start(editor, [...tabsPath, nextIndex]));
       }

@@ -12,7 +12,12 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { describe, expect, it } from "vitest";
 import { Editor, createEditorKit, type EditorRef } from "@tau/editor";
-import { defineExtension, captureElementSubmission } from "@tau/editor/api";
+import {
+  IEditorTextFields,
+  captureElementSubmission,
+  defineElement,
+  defineExtension,
+} from "@tau/editor/api";
 import { createLocalYjsDocument } from "../localDocument";
 import * as Y from "yjs";
 
@@ -294,6 +299,73 @@ it("连接准备失败时仍恢复编辑器的规范化方法", () => {
     expect(editor.normalize).toBe(normalize);
     expect(session.getContent()).toEqual([paragraph("正文")]);
   } finally {
+    session.dispose();
+  }
+});
+
+it("源码字段经 field 绑定在本地文档里可编辑：写入 Y.Doc、外部更新同步，撤销走文档的 UndoManager", async () => {
+  const sourceElement = defineElement({
+    type: "test-source",
+    dataVersion: 1,
+    kind: "block",
+    isVoid: true,
+    collaboration: { textFields: ["source"] },
+    render: ({ attributes, children }) => <div {...attributes}>{children}</div>,
+  });
+  const kit = createEditorKit({
+    extensions: [defineExtension({ id: "test.source", elements: [sourceElement] })],
+  });
+  const session = createLocalYjsDocument([
+    { type: "test-source", source: "初始", children: [{ type: "formatted", text: "" }] },
+    paragraph("后"),
+  ] as unknown as Descendant[]);
+  const ref = createRef<EditorRef>();
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  const read = () => (session.getContent()[0] as unknown as { source: string }).source;
+  try {
+    await act(async () =>
+      root.render(
+        <DndProvider backend={HTML5Backend}>
+          <Editor ref={ref} kit={kit} document={session.document} readonly={false} />
+        </DndProvider>
+      )
+    );
+    const editor = ref.current!.getEditor();
+    const fields = editor.tryGetService(IEditorTextFields);
+    expect(fields).toBeDefined();
+    const field = fields!.open(editor, editor.children[0] as Element, "source");
+    try {
+      await act(async () =>
+        field.edit({ offset: 2, remove: 0, text: "甲", revision: field.getSnapshot().revision })
+      );
+      expect(read()).toBe("初始甲");
+      await act(async () => {
+        session.updateContent(
+          [
+            { type: "test-source", source: "外部", children: [{ type: "formatted", text: "" }] },
+            paragraph("后"),
+          ] as unknown as Descendant[],
+          "external"
+        );
+      });
+      expect(field.getSnapshot().value).toBe("外部");
+      await act(async () =>
+        field.edit({ offset: 2, remove: 0, text: "乙", revision: field.getSnapshot().revision })
+      );
+      expect(read()).toBe("外部乙");
+      await act(async () => field.undo());
+      expect(read()).toBe("外部");
+      expect(() => fields!.open(editor, editor.children[1] as Element, "source")).toThrow(
+        "字段未声明文本编辑语义"
+      );
+    } finally {
+      field.dispose();
+    }
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
     session.dispose();
   }
 });

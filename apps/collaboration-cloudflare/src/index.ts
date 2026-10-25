@@ -1,8 +1,16 @@
+import { assertPresenceBudget } from "@tau/collaboration";
 import { DurableObject } from "cloudflare:workers";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { Hocuspocus } from "@hocuspocus/server";
 import * as Y from "yjs";
-import { CollaborationError, type CollaborationEvent, type Member } from "@tau/collaboration";
+import {
+  CollaborationError,
+  type CollaborationEvent,
+  type Member,
+  type MigrationDocument,
+  type MigrationFingerprint,
+  type DocumentOperationRequest,
+} from "@tau/collaboration";
 import { MAX_DOCUMENT_BYTES, CollaborationStore, fail } from "./store";
 import { assetRequest, AssetOperations } from "./assets";
 
@@ -58,7 +66,11 @@ async function bodyOf(request: Request): Promise<Record<string, unknown>> {
 
 export class CollaborationService extends DurableObject<Env> {
   private readonly store: CollaborationStore;
-  private hocuspocus?: Hocuspocus<{ deviceId: string; nickname: string }>;
+  private hocuspocus?: Hocuspocus<{
+    deviceId: string;
+    nickname: string;
+    protocol: MigrationDocument;
+  }>;
   private readonly sockets = new Set<WebSocket>();
   private readonly events = new Map<WebSocket, string>();
   private readonly assetOperations = new AssetOperations();
@@ -125,7 +137,11 @@ export class CollaborationService extends DurableObject<Env> {
   }
 
   private runtime() {
-    this.hocuspocus ??= new Hocuspocus<{ deviceId: string; nickname: string }>({
+    this.hocuspocus ??= new Hocuspocus<{
+      deviceId: string;
+      nickname: string;
+      protocol: MigrationDocument;
+    }>({
       quiet: true,
       debounce: 100,
       maxDebounce: 1000,
@@ -140,7 +156,15 @@ export class CollaborationService extends DurableObject<Env> {
           if (this.env.MODE !== "production")
             return fail("CAPACITY", "原型最多同时打开 4 份文档", 429);
         if (runtime.getDocumentsCount() >= 20) return fail("CAPACITY", "活动文档数量已满", 429);
-        return { deviceId: device.id, nickname: device.nickname };
+        const protocol = this.store.migrations.state(documentName);
+        const cached = runtime.documents.get(documentName);
+        if (
+          cached &&
+          protocol.version > 1 &&
+          cached.getMap("meta").get("baselineId") !== protocol.baselineId
+        )
+          return fail("BASELINE_RELOADING", "文档基线正在重新加载，请重试", 409);
+        return { deviceId: device.id, nickname: device.nickname, protocol };
       },
       onLoadDocument: async ({ documentName, document }) => {
         const occupied = [...(this.hocuspocus?.documents.keys() ?? [])]
@@ -173,15 +197,19 @@ export class CollaborationService extends DurableObject<Env> {
       },
       beforeSync: async ({ type, payload, context, documentName, document }) => {
         if (type === 1 || type === 2) {
-          const others = [...(this.hocuspocus?.documents.keys() ?? [])]
-            .filter(id => id !== documentName)
-            .reduce((bytes, id) => bytes + this.store.documentBytes(id), 0);
-          this.store.append(
+          const memoryBudget = () => {
+            const others = [...(this.hocuspocus?.documents.keys() ?? [])]
+              .filter(id => id !== documentName)
+              .reduce((bytes, id) => bytes + this.store.documentBytes(id), 0);
+            return Math.min(MAX_DOCUMENT_BYTES, 12 * 1024 * 1024 - others);
+          };
+          await this.store.append(
             documentName,
             context.deviceId,
             payload,
             document,
-            Math.min(MAX_DOCUMENT_BYTES, 12 * 1024 * 1024 - others)
+            memoryBudget,
+            context.protocol
           );
         }
       },
@@ -190,8 +218,7 @@ export class CollaborationService extends DurableObject<Env> {
         this.store.authorize(documentName, context.deviceId);
         const rate = socketId ? this.messageRates.get(socketId) : undefined;
         if (rate && ++rate.awareness > 600) throw new Error("在线状态更新过于频繁");
-        if (states.size > 16 || JSON.stringify([...states]).length > 16_384)
-          throw new Error("在线状态超过限制");
+        assertPresenceBudget(states);
         for (const state of states.values()) {
           state.user = { id: context.deviceId, name: context.nickname };
           if (!["editing", "viewing", "background"].includes(state.activity))
@@ -352,6 +379,13 @@ export class CollaborationService extends DurableObject<Env> {
     const device = this.identity(request);
     const asset = path.match(/^\/v1\/documents\/([^/]+)\/assets(?:\/([^/]+))?$/);
     if (asset) {
+      if (method === "GET" && !asset[2]) {
+        this.store.authorize(asset[1], device.id, true);
+        return Response.json(
+          { ids: this.store.retainedAssetIds(asset[1]) },
+          { headers: { "Cache-Control": "no-store" } }
+        );
+      }
       if (!this.env.ASSETS) return fail("UNAVAILABLE", "此环境未配置资源存储", 503);
       return assetRequest(
         request,
@@ -394,7 +428,14 @@ export class CollaborationService extends DurableObject<Env> {
       if (id !== null && typeof id !== "string") return fail("INVALID_FIELD", "documentId 无效");
       if (typeof id === "string") this.store.authorize(id, device.id);
       return Response.json({
-        ticket: this.store.ticket(device.id, id as string | null),
+        ticket: this.store.ticket(
+          device.id,
+          id as string | null,
+          body.protocolVersion as number | undefined,
+          body.epoch !== undefined || body.baselineId !== undefined
+            ? { epoch: body.epoch as number, baselineId: body.baselineId as string }
+            : undefined
+        ),
         expiresIn: 60,
       });
     }
@@ -413,13 +454,137 @@ export class CollaborationService extends DurableObject<Env> {
       this.refresh();
       return Response.json({ ok: true });
     }
+    const protocolPath = path.match(/^\/v1\/documents\/([^/]+)\/protocol$/);
+    if (protocolPath && method === "GET") {
+      this.store.authorize(protocolPath[1], device.id);
+      return Response.json(
+        {
+          ...this.store.migrations.state(protocolPath[1]),
+          sequence: this.store.operations.sequence(protocolPath[1]),
+        },
+        {
+          headers: { "Cache-Control": "no-store" },
+        }
+      );
+    }
+    const editOperation = path.match(
+      /^\/v1\/documents\/([^/]+)\/operations\/([^/]+)(?:\/(cancel))?$/
+    );
+    if (editOperation) {
+      const [, id, operationId, action] = editOperation;
+      this.store.authorize(id, device.id);
+      if (method === "GET" && !action)
+        return Response.json(
+          { operation: this.store.operations.get(id, operationId, device.id) },
+          { headers: { "Cache-Control": "no-store" } }
+        );
+      if (method === "POST") {
+        const budget = () =>
+          Math.min(
+            MAX_DOCUMENT_BYTES,
+            12 * 1024 * 1024 -
+              [...(this.hocuspocus?.documents.keys() ?? [])]
+                .filter(key => key !== id)
+                .reduce((sum, key) => sum + this.store.documentBytes(key), 0)
+          );
+        if (!action && typeof body.update !== "string")
+          return fail("INVALID_OPERATION", "编辑增量缺失");
+        const operation = await this.store.submitOperation(
+          id,
+          device.id,
+          { ...body, operationId } as DocumentOperationRequest,
+          action ? undefined : Buffer.from(body.update as string, "base64"),
+          action === "cancel",
+          budget
+        );
+        if (operation?.state === "COMMITTED") {
+          const current = this.hocuspocus?.documents.get(id);
+          if (current) {
+            const loaded = this.store.load(id);
+            try {
+              if (
+                current.getMap("meta").get("baselineId") ===
+                  loaded.getMap("meta").get("baselineId") &&
+                current.getMap("meta").get("epoch") === loaded.getMap("meta").get("epoch")
+              )
+                Y.applyUpdate(current, Y.encodeStateAsUpdate(loaded));
+            } finally {
+              loaded.destroy();
+            }
+          }
+        }
+        return Response.json({ operation });
+      }
+    }
+    const migration = path.match(
+      /^\/v1\/documents\/([^/]+)\/migrations\/([^/]+)(?:\/(prepare|freeze|commit|cancel))?$/
+    );
+    if (migration) {
+      const [, id, operationId, action] = migration;
+      this.store.authorize(id, device.id, true);
+      if (method === "GET" && !action)
+        return Response.json(
+          { operation: this.store.migrations.get(id, operationId, device.id) },
+          { headers: { "Cache-Control": "no-store" } }
+        );
+      if (method !== "POST") return fail("NOT_FOUND", "未知迁移操作", 404);
+      if (action === "prepare")
+        return Response.json({
+          operation: this.store.migrations.begin(id, {
+            id: operationId,
+            actorId: device.id,
+            expectedEpoch: body.expectedEpoch as number,
+            expiresAt: body.expiresAt as number,
+          }),
+        });
+      if (action === "cancel") {
+        const operation = this.store.migrations.cancel(id, {
+          id: operationId,
+          actorId: device.id,
+          expectedEpoch: body.expectedEpoch as number,
+        });
+        this.refresh();
+        return Response.json({ operation });
+      }
+      if (action === "freeze") {
+        const operation = this.store.migrations.freeze(id, operationId, device.id);
+        if (operation.state === "PENDING") this.disconnect(id);
+        this.refresh();
+        return Response.json({ operation });
+      }
+      if (action === "commit") {
+        const fingerprint: MigrationFingerprint = {
+          expectedRevision: field(body, "expectedRevision"),
+          candidateHash: field(body, "candidateHash"),
+          targetVersion: body.targetVersion as number,
+          baselineId: field(body, "baselineId"),
+        };
+        const operation = await this.store.commitMigration(
+          id,
+          device.id,
+          operationId,
+          fingerprint,
+          Buffer.from(field(body, "state", Math.ceil(MAX_DOCUMENT_BYTES * 1.4)), "base64")
+        );
+        if (operation.state === "COMMITTED") this.disconnect(id);
+        this.refresh();
+        return Response.json({ operation });
+      }
+      return fail("NOT_FOUND", "未知迁移操作", 404);
+    }
     const document = path.match(
-      /^\/v1\/documents\/([^/]+)\/(publish|state|invitation|close|leave|members\/[^/]+)$/
+      /^\/v1\/documents\/([^/]+)\/(publish|publication|publication\/cancel|state|invitation|close|leave|members\/[^/]+)$/
     );
     if (!document) return fail("NOT_FOUND", "原型不支持此接口", 404);
     const [, id, action] = document;
+    if (action === "publication" && method === "GET")
+      return Response.json(this.store.publicationStatus(id, device.id), {
+        headers: { "Cache-Control": "no-store" },
+      });
+    if (action === "publication/cancel" && method === "POST")
+      return Response.json(this.store.cancelPublication(id, device.id));
     if (action === "publish" && method === "POST") {
-      const result = this.store.publish(
+      const result = await this.store.publish(
         id,
         device.id,
         Buffer.from(field(body, "state", Math.ceil(MAX_DOCUMENT_BYTES * 1.4)), "base64")
@@ -429,6 +594,12 @@ export class CollaborationService extends DurableObject<Env> {
     }
     if (action === "state" && method === "GET") {
       this.store.authorize(id, device.id);
+      const protocol = this.store.migrations.state(id);
+      if (
+        protocol.version > 1 &&
+        request.headers.get("x-tau-document-version") !== String(protocol.version)
+      )
+        return fail("CLIENT_UPGRADE_REQUIRED", "请使用支持当前文档协议的客户端", 409);
       return Response.json(this.store.snapshot(id), { headers: { "Cache-Control": "no-store" } });
     }
     if (action === "invitation" && method === "POST")
@@ -436,7 +607,7 @@ export class CollaborationService extends DurableObject<Env> {
     if (action === "close" && method === "POST") {
       const members = this.store.members(id);
       const hashes = this.store.assets(id).map(row => row.hash);
-      this.store.close(id, device.id);
+      const revision = this.store.close(id, device.id, body.expectedRevision as string | undefined);
       for (const digest of hashes)
         await this.assetOperations.run(digest, async () => {
           if (!this.store.hashReferenced(digest)) await this.env.ASSETS?.delete("assets/" + digest);
@@ -444,7 +615,7 @@ export class CollaborationService extends DurableObject<Env> {
       for (const member of members) this.send(member.deviceId, { type: "closed", documentId: id });
       this.disconnect(id);
       this.refresh();
-      return Response.json({ ok: true });
+      return Response.json({ ok: true, revision });
     }
     if (
       (action === "leave" && method === "POST") ||
@@ -473,7 +644,7 @@ export class CollaborationService extends DurableObject<Env> {
       if (request.method === "GET") return Response.json(this.store.snapshot(document[1]));
       if (request.method === "POST") {
         const body = await bodyOf(request);
-        this.store.importState(
+        await this.store.importState(
           document[1],
           Buffer.from(field(body, "state", Math.ceil(MAX_DOCUMENT_BYTES * 1.4)), "base64")
         );
@@ -485,7 +656,7 @@ export class CollaborationService extends DurableObject<Env> {
         if (!(await this.env.ASSETS?.head("assets/" + row.hash)))
           return fail("INCOMPLETE_IMPORT", "迁移资源缺失", 409);
       }
-      return Response.json(this.store.finishImport());
+      return Response.json(await this.store.finishImport());
     }
     const asset = path.match(/^\/_admin\/assets\/([a-f0-9]{64})$/);
     if (asset && request.method === "PUT") {

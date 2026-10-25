@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { MobilePluginRuntime } from "@/app/plugins/runtime";
 import type { Navigator } from "@/router/navigatorTypes";
 import { createQuickCard, getCardDetail } from "@/services/tauri";
+import { clickSourcePage, openSourcePage, writeSource } from "@validation/host/sourcePage";
 
 const stateKey = "tau-editor-validation";
 const pause = (ms = 100) => new Promise(resolve => setTimeout(resolve, ms));
@@ -187,20 +188,11 @@ export async function validateEditorPlugins(
       });
       await open(card.id);
       await insert(spec.label);
-      const edit = () =>
-        buttons().find(element => /^编辑.+源码$/.test(element.textContent?.trim() ?? ""));
-      (await until(edit, `${spec.id}源码入口`)).click();
-      const mirror = await until(
-        () =>
-          (
-            document.querySelector('[role="dialog"] .CodeMirror') as
-              (HTMLElement & { CodeMirror?: { setValue(value: string): void } }) | null
-          )?.CodeMirror,
-        "源码编辑器"
-      );
-      mirror.setValue(spec.source);
+      // 插入后源码页自动打开；未打开时经点选块与配件栏进入
+      await pause(800);
+      writeSource(await openSourcePage(), spec.source);
       await pause(100);
-      await click("保存");
+      await clickSourcePage("返回");
       const rendered = await until(
         () => document.querySelector<HTMLElement>(spec.rendered),
         `${spec.id}实际渲染`,
@@ -217,24 +209,22 @@ export async function validateEditorPlugins(
         async () => JSON.stringify(await getCardDetail(card.id)).includes(spec.marker),
         "SQLite 保存"
       );
-      (await until(edit, "再次编辑")).click();
-      const draft = await until(
-        () =>
-          (
-            document.querySelector('[role="dialog"] .CodeMirror') as
-              (HTMLElement & { CodeMirror?: { setValue(value: string): void } }) | null
-          )?.CodeMirror,
-        "取消草稿"
-      );
-      draft.setValue("UNSAVED_EDITOR_DRAFT");
+      const draft = await openSourcePage();
+      writeSource(draft, "UNSAVED_EDITOR_DRAFT");
       await pause(100);
-      await click("取消");
+      await clickSourcePage("撤销");
+      await until(() => !draft.value.includes("UNSAVED_EDITOR_DRAFT"), "源码页撤销");
+      await clickSourcePage("返回");
       await pause(300);
       const stored = JSON.stringify(await getCardDetail(card.id));
-      if (stored.includes("UNSAVED_EDITOR_DRAFT") || !stored.includes(`正文 ${spec.id}`))
-        throw new Error(`${spec.id}取消或外层正文被修改`);
+      if (
+        stored.includes("UNSAVED_EDITOR_DRAFT") ||
+        !stored.includes(spec.marker) ||
+        !stored.includes(`正文 ${spec.id}`)
+      )
+        throw new Error(`${spec.id}撤销或外层正文被修改`);
       remember(card.id, spec.id, spec.marker);
-      checks.push(`${spec.id}：真实插入、渲染、编辑保存、取消和正文隔离`);
+      checks.push(`${spec.id}：真实插入、渲染、源码页编辑保存、撤销和正文隔离`);
       await report("running");
       await navigator.goBack("ui");
       await pause(700);
