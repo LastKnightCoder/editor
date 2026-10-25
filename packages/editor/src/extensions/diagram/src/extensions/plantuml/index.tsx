@@ -20,6 +20,8 @@ export const createPlantUMLExtension = (options: PlantUMLExtensionOptions = {}) 
     elements: [
       defineElement<PlantUMLElement>({
         type: "plantuml",
+        dataVersion: 1,
+        collaboration: { textFields: ["content"] },
         kind: "block",
         drag: true,
         isVoid: true,

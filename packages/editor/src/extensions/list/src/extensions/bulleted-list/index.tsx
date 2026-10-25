@@ -12,6 +12,7 @@ const bulletedListExtension = defineExtension({
   elements: [
     defineElement<BulletedListElement>({
       type: "bulleted-list",
+      dataVersion: 1,
       kind: "block",
       isEmpty: (element, context) => element.children.every(context.isEmpty),
       render: BulletedList,

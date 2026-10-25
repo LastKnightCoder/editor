@@ -1,6 +1,7 @@
 import path from "node:path";
 import { readPluginFixtures } from "../../../../scripts/plugins/test-support/package-fixtures";
-import { evaluatePluginPackage } from "@tau/plugins/rendering";
+import { evaluateDesktopPluginPackage } from "../../shared/plugin-rendering";
+import { version } from "../../package.json";
 import { sharedPluginModules } from "@tau/plugins/shared-modules";
 import type { Descendant } from "slate";
 
@@ -34,18 +35,12 @@ export function pluginArtifact(id: string) {
   if (!artifact) throw new Error(`测试插件包缺失：${id}`);
   return artifact;
 }
-export const customBlockDefinition = evaluatePluginPackage(
-  pluginArtifact("tau.custom-block"),
-  sharedPluginModules
-);
+export function evaluatePluginFixture(artifact: ReturnType<typeof pluginArtifact>) {
+  return evaluateDesktopPluginPackage(artifact, sharedPluginModules, version);
+}
+export const customBlockDefinition = evaluatePluginFixture(pluginArtifact("tau.custom-block"));
 export const customBlockExtension = customBlockDefinition.editorExtensions![0];
-export const htmlDefinition = evaluatePluginPackage(
-  pluginArtifact("tau.html"),
-  sharedPluginModules
-);
+export const htmlDefinition = evaluatePluginFixture(pluginArtifact("tau.html"));
 export const htmlExtension = htmlDefinition.editorExtensions![0];
-export const galleryDefinition = evaluatePluginPackage(
-  pluginArtifact("tau.image-gallery"),
-  sharedPluginModules
-);
+export const galleryDefinition = evaluatePluginFixture(pluginArtifact("tau.image-gallery"));
 export const galleryExtension = galleryDefinition.editorExtensions![0];

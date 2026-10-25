@@ -122,7 +122,7 @@ export class RichTextPlugin extends CommonPlugin {
       const richText = targetElements[0] as RichTextElement;
       items.push({
         key: `richtext-create-as-${richText.id}`,
-        label: "创建为",
+        label: context.board.document ? "复制为独立内容" : "创建为",
         icon: <FolderOpen size={14} />,
         priority: 260,
         children: [
@@ -259,6 +259,10 @@ export class RichTextPlugin extends CommonPlugin {
     width: number,
     height: number
   ) => {
+    if (board.document) {
+      board.document.measureElement?.(element.id, { width, height });
+      return;
+    }
     const { width: w, height: h } = element;
     if (w === width && h === height) return;
 

@@ -14,6 +14,7 @@ const tabsExtension = defineExtension({
   elements: [
     defineElement<TabsElement>({
       type: "tabs",
+      dataVersion: 1,
       kind: "block",
       isolateBlockNavigation: true,
       render: ({ attributes, element, children }: ElementRenderProps<TabsElement>) => (
@@ -35,6 +36,7 @@ const tabPaneExtension = defineExtension({
   elements: [
     defineElement<TabPaneElement>({
       type: "tab-pane",
+      dataVersion: 1,
       kind: "block",
       render: ({ attributes, element, children }: ElementRenderProps<TabPaneElement>) => (
         <TabPane attributes={attributes} element={element}>

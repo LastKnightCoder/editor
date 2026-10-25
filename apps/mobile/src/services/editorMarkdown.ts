@@ -18,7 +18,7 @@ import { underlineCodec } from "@tau/editor/extensions/underline/markdown";
 import { styledTextCodec } from "@tau/editor/extensions/styled-text/markdown";
 import { textFormattingCodec } from "@tau/editor/extensions/text-formatting/markdown";
 import { diagramMarkdownCodecs } from "@tau/editor/extensions/diagram/markdown";
-import { codeBlockCodec } from "@tau/editor/extensions/code-block/markdown";
+import { codeBlockV2Codec as codeBlockCodec } from "@tau/editor/extensions/code-block/markdown";
 import { mathMarkdownCodecs } from "@tau/editor/extensions/math/markdown";
 import { emojiCodec } from "@tau/editor/extensions/emoji/markdown";
 import { webviewCodec } from "@tau/editor/extensions/webview/markdown";

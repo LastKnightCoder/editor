@@ -368,12 +368,13 @@ describe("版本兼容与校验范围", () => {
     expect(board.children[0]).toMatchObject({ id: "future", schemaVersion: 3 });
   });
 
-  it("插入 v1 元素先迁移，迁移产物不合规 → 抛错且不插入", () => {
+  it("插入旧版本保留原载荷，不执行当前版本迁移", () => {
     const board = createBoard();
+    const migrate = vi.fn((element: BoardElement) => ({ ...element, schemaVersion: 2 }));
     install(board, [
       stickyExtension(stickySchema, {
         schemaVersion: 2,
-        migrate: { 1: element => ({ ...element, schemaVersion: 2 }) },
+        migrate: { 1: migrate },
       }),
     ]);
     expect(() =>
@@ -382,13 +383,15 @@ describe("版本兼容与校验范围", () => {
         path: [0],
         node: element({ id: "old", type: "acme.sticky", schemaVersion: 1, data: {} }),
       })
-    ).toThrow(WhiteboardValidationError);
-    expect(board.children).toHaveLength(0);
+    ).not.toThrow();
+    expect(board.children).toHaveLength(1);
+    expect(board.children[0]).toMatchObject({ id: "old", schemaVersion: 1, data: {} });
+    expect(migrate).not.toHaveBeenCalled();
   });
 });
 
 describe("加载迁移产物校验", () => {
-  it("迁移产物不合规 → 元素保持迁移前原样，onExtensionError 收到 migration-failed（一次）", () => {
+  it("加载旧版本保持原样，不执行迁移或修复", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const source = element({ id: "m1", type: "acme.sticky", schemaVersion: 1, data: {} });
     const board = createBoard([source]);
@@ -398,9 +401,7 @@ describe("加载迁移产物校验", () => {
         migrate: { 1: element => ({ ...element, schemaVersion: 2 }) },
       }),
     ]);
-    expect(errors).toHaveLength(1);
-    expect(errors[0]).toMatchObject({ extensionId: "acme.stickies", reason: "migration-failed" });
-    expect(errors[0].message).toContain("数据不合规");
+    expect(errors).toHaveLength(0);
     // 元素保持迁移前原样（同一引用）
     expect(board.children[0]).toBe(source);
     expect(board.getSnapshot().children[0]).toMatchObject({ schemaVersion: 1, data: {} });

@@ -14,6 +14,7 @@ const highlightBlockExtension = defineExtension({
   elements: [
     defineElement<HighlightBlockElement>({
       type: "highlight-block",
+      dataVersion: 1,
       kind: "block",
       render: HighlightBlock,
       drag: true,

@@ -1,5 +1,10 @@
 import { invoke } from "@/electron";
+import { withModule } from "./module-init";
 import { WhiteBoard, WhiteBoardContent, ICreateWhiteBoard } from "@/types";
+import type {
+  ContentEntityTarget,
+  ContentEntityReference,
+} from "@tau/db-schema/content-identities";
 
 export const createWhiteBoard = async (whiteBoard: ICreateWhiteBoard): Promise<WhiteBoard> => {
   return invoke("create-white-board", whiteBoard);
@@ -33,7 +38,7 @@ export const updateWhiteBoardMeta = async (
 };
 
 export const deleteWhiteBoard = async (id: number): Promise<void> => {
-  return invoke("delete-white-board", id);
+  return withModule("whiteboard-documents", () => invoke("delete-white-board", id));
 };
 
 export const getWhiteboardByIds = async (ids: number[]): Promise<WhiteBoard[]> => {
@@ -56,7 +61,7 @@ export const deleteSubWhiteBoard = async (
 };
 
 export const updateSubWhiteBoard = async (
-  whiteBoardContentId: number,
+  whiteBoardContentId: ContentEntityTarget,
   name: string,
   whiteBoardData: WhiteBoardContent["data"]
 ): Promise<WhiteBoardContent> => {
@@ -98,13 +103,23 @@ export const createWhiteBoardContent = async (
 ): Promise<WhiteBoardContent> => {
   return invoke("white-board-content:create", whiteBoardContent);
 };
+export const createPendingWhiteBoardContent = (
+  value: Omit<WhiteBoardContent, "id" | "createTime" | "updateTime" | "refCount">
+): Promise<{ content: WhiteBoardContent; reference: ContentEntityReference }> =>
+  invoke("white-board-content:create-pending", value);
+export const getWhiteBoardContentReference = (id: number): Promise<ContentEntityReference> =>
+  invoke("white-board-content:reference", id);
 
-export const getWhiteBoardContentById = async (id: number): Promise<WhiteBoardContent> => {
+export const getWhiteBoardContentById = async (
+  id: ContentEntityTarget
+): Promise<WhiteBoardContent> => {
   return invoke("white-board-content:get-by-id", id);
 };
 
 export const updateWhiteBoardContent = async (
-  whiteBoardContent: Omit<WhiteBoardContent, "createTime" | "updateTime">
+  whiteBoardContent: Omit<WhiteBoardContent, "id" | "createTime" | "updateTime"> & {
+    id: ContentEntityTarget;
+  }
 ): Promise<WhiteBoardContent> => {
   return invoke("white-board-content:update", whiteBoardContent);
 };

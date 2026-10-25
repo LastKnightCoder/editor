@@ -77,7 +77,6 @@ export function getMobileContentKit(): EditorKit {
       services: [
         register =>
           register(IElementEditingPolicy, {
-            sourcePresentation: "touch",
             canEdit: type => !support.has(type) || support.get(type) === "edit",
           }),
         register => register(IUnknownElementNotice, { describe: describeUnknownElement }),

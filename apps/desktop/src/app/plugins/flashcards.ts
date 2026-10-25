@@ -38,6 +38,7 @@ async function resolveReferences(
       resolved.push({
         refType: "custom",
         customContent: reference.customContent,
+        contracts: reference.contracts,
         title: reference.title,
       });
     } else {
@@ -138,6 +139,7 @@ export function createDesktopFlashcards(databaseName: string): FlashcardsAdapter
                     refType: "custom",
                     title: reference.title,
                     customContent: reference.customContent,
+                    contracts: reference.contracts,
                   },
                 ]
               : []

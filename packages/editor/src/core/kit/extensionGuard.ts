@@ -1,4 +1,5 @@
 import { Editor, Element, Node, Text, type Path } from "slate";
+import { getElementVersionResolver } from "../api/elementVersions";
 
 import type { Plugin } from "../utils/plugin";
 import type { IHotKeyConfig } from "../types";
@@ -145,10 +146,29 @@ export function withElementBehaviors(
   behaviors: ReadonlyMap<string, readonly ElementBehaviorEntry[]>,
   breaker: ExtensionCircuitBreaker
 ): Editor {
-  if (behaviors.size === 0) return editor;
   const { insertBreak, deleteBackward, insertText, normalizeNode } = editor;
   type Handlers = ElementBehaviorEntry["behaviors"];
   type Name = keyof Handlers;
+  const entriesFor = (node: Element): readonly ElementBehaviorEntry[] => {
+    const entries = behaviors.get(node.type) ?? [];
+    const resolve = getElementVersionResolver(editor);
+    if (!resolve) return entries;
+    const version = resolve(node);
+    if (version?.access !== "edit") return [];
+    const own = version.element.behaviors;
+    return [
+      ...(own
+        ? [
+            {
+              extension: entries.find(entry => entry.own)?.extension ?? node.type,
+              behaviors: own,
+              own: true,
+            },
+          ]
+        : []),
+      ...entries.filter(entry => !entry.own),
+    ];
+  };
 
   const run = (
     entry: ElementBehaviorEntry,
@@ -170,11 +190,10 @@ export function withElementBehaviors(
     node: Element,
     name: Name,
     invoke: (handlers: Handlers) => boolean | undefined
-  ): boolean =>
-    (behaviors.get(node.type) ?? []).some(entry => !!entry.behaviors[name] && run(entry, invoke));
+  ): boolean => entriesFor(node).some(entry => !!entry.behaviors[name] && run(entry, invoke));
 
   const hasBehavior = (node: Node, name: Name) =>
-    Element.isElement(node) && !!behaviors.get(node.type)?.some(entry => entry.behaviors[name]);
+    Element.isElement(node) && entriesFor(node).some(entry => entry.behaviors[name]);
 
   /** 选区内从最内层元素往外找 */
   const dispatch = (

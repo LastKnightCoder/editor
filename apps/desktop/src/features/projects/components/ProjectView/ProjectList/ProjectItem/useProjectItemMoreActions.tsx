@@ -252,13 +252,14 @@ export const useProjectItemMoreActions = (
     } else if (key === "remove") {
       await handleRemoveProjectItem();
     } else if (key === "copy-markdown") {
-      await copyMarkdownToClipboard(projectItem.content, toast);
+      await copyMarkdownToClipboard(projectItem.content, toast, projectItem.contentId);
     } else if (key === "copy-wechat") {
-      await copyWechatHtmlToClipboard(projectItem.content, toast);
+      await copyWechatHtmlToClipboard(projectItem.content, toast, projectItem.contentId);
     } else if (key === "export-markdown") {
       await exportContentAsMarkdown({
         title: projectItem.title,
         content: projectItem.content,
+        contentId: projectItem.contentId,
       });
     } else if (key === "export-image") {
       setExportModalOpen(true);
@@ -343,12 +344,14 @@ export const useProjectItemMoreActions = (
         title={projectItem?.title || "项目文档"}
       />
       <EpubExportModal
+        contentId={projectItem?.contentId}
         open={epubExportModalOpen}
         onClose={() => setEpubExportModalOpen(false)}
         content={projectItem?.content || []}
         title={projectItem?.title || "项目文档"}
       />
       <PdfExportModal
+        contentId={projectItem?.contentId}
         visible={pdfExportModalOpen}
         onClose={() => setPdfExportModalOpen(false)}
         content={projectItem?.content || []}

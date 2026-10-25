@@ -1,0 +1,40 @@
+{
+  "id": "tau.custom-block",
+  "name": "自定义组件块",
+  "version": "1.0.13",
+  "categories": [
+    "editor",
+    "ai"
+  ],
+  "keywords": [
+    "自定义组件",
+    "React"
+  ],
+  "apiVersion": 1,
+  "format": "cjs",
+  "main": "main.js",
+  "styles": "main.css",
+  "skills": [
+    "authoring"
+  ],
+  "integrity": {
+    "main.js": "a97fa07b8c98d2a3a73c09cc1b1475c85d29f0c5cd78414ab7741829358d91b1",
+    "main.css": "d6bd0ab4cd6e810a26bc98cba3ea419b7a289f9dc22f86af55e03f0bcf5e0ace",
+    "skills/authoring/SKILL.md": "3baf3cf1402c1b01dfdb155ad3e1210d02d4093f737ea10044b460c533be9089"
+  },
+  "formatVersion": 3,
+  "platform": "portable",
+  "profile": "web-v1",
+  "description": "在文档中编写并预览可交互的 React 组件。",
+  "targets": {
+    "desktop": {
+      "minAppVersion": "0.59.5"
+    },
+    "android": {
+      "minAppVersion": "0.2.7"
+    },
+    "ios": {
+      "minAppVersion": "0.2.7"
+    }
+  }
+}

@@ -14,8 +14,15 @@ import {
 import {
   collectContentResources,
   mapContentResources,
+  contentResourceSlots,
+  contentResourceValues,
+  mapNodeResources,
   type ContentResourceDeclarations,
 } from "@tau/db-schema/content-resources";
+import {
+  NODE_CONTRACT_PROPERTY,
+  type ContentContractDictionary,
+} from "@tau/db-schema/content-contracts";
 import type { CollaborationLocalStore } from "./local-store";
 
 export interface ResourceRow {
@@ -50,6 +57,7 @@ const MIME_EXTENSIONS: Record<string, string> = {
   "video/quicktime": ".mov",
   "video/x-matroska": ".mkv",
   "application/pdf": ".pdf",
+  "text/html": ".html",
 };
 const EXTENSION_MIMES: Record<string, string> = {
   ...Object.fromEntries(Object.entries(MIME_EXTENSIONS).map(([mime, ext]) => [ext, mime])),
@@ -100,8 +108,13 @@ export class CollaborationAssetService {
   private localPath(value: string): string | null {
     if (value.startsWith("file:")) return fileURLToPath(value);
     if (value.startsWith("ltoh:///")) return decodeURIComponent(value.slice("ltoh:///".length));
-    if (value.startsWith("~/") || value.startsWith("~\\"))
-      return join(resolve(this.appDirectory, ".."), value.slice(2));
+    if (value.startsWith("~/") || value.startsWith("~\\")) {
+      const relative = value.slice(2).replace(/\\/g, "/");
+      // 历史 Windows 引用跨平台读取，应用内资源跟随当前资料目录。
+      return relative.startsWith(".editor/")
+        ? join(this.appDirectory, relative.slice(".editor/".length))
+        : join(resolve(this.appDirectory, ".."), relative);
+    }
     if (isAbsolute(value)) return value;
     let url: URL;
     try {
@@ -178,7 +191,22 @@ export class CollaborationAssetService {
   }
 
   /** 共享前的原始引用只记在本机，文档里换成不透明标识，不泄露本地路径 */
-  private keepLocalReference(documentId: string, reference: string) {
+  private async keepLocalReference(documentId: string, reference: string) {
+    if (reference.startsWith("data:")) {
+      if (reference.length > MAX_BYTES * 1.5) throw new Error("资源超过 25 MB");
+      const match = /^data:([^;,]*)(;base64)?,([\s\S]*)$/.exec(reference);
+      if (!match) throw new Error("内嵌资源编码无效");
+      const mime = match[1] || "text/plain";
+      if (match[2] && !/^[A-Za-z0-9+/]*={0,2}$/.test(match[3])) throw new Error("内嵌资源编码无效");
+      const bytes = match[2]
+        ? Buffer.from(match[3], "base64")
+        : Buffer.from(decodeURIComponent(match[3]));
+      return this.keepLocalFile(documentId, {
+        name: "embedded" + (MIME_EXTENSIONS[mime] || ".bin"),
+        mime,
+        bytes,
+      });
+    }
     const id = randomUUID();
     this.record({
       id,
@@ -218,7 +246,21 @@ export class CollaborationAssetService {
    * 发起共享时逐引用调用（会话升级）：可上传的本地资源换资产引用；视频、丢失、超限或
    * 无法识别的本地资源换仅本机引用，不阻止共享；远程地址原样返回。
    */
-  async shareReference(url: string, documentId: string, reference: string, field = "") {
+  async shareReference(
+    url: string,
+    documentId: string,
+    reference: string,
+    field = ""
+  ): Promise<string> {
+    if (reference.startsWith("data:")) {
+      const local = await this.keepLocalReference(documentId, reference);
+      return this.shareReference(
+        url,
+        documentId,
+        await this.resolveReference(url, documentId, local),
+        field
+      );
+    }
     if (reference.startsWith(ASSET_PREFIX) || isLocalAssetReference(reference)) return reference;
     let path: string | null;
     try {
@@ -253,6 +295,21 @@ export class CollaborationAssetService {
   }
 
   /** 资源引用解析为本机文件路径；仅本机引用只在记录它的设备上可解析 */
+  async readTransferFile(url: string, documentId: string, reference: string) {
+    const path = await this.resolveReference(url, documentId, reference);
+    const info = await stat(path);
+    if (info.size > MAX_BYTES) throw new Error("资源超过导入导出预算");
+    const row = this.store.db
+      .prepare("SELECT name,mime FROM resources WHERE id=? AND document_id=?")
+      .get(reference.slice(reference.indexOf(":") + 1), documentId) as
+      | { name: string; mime: string }
+      | undefined;
+    return {
+      name: row?.name || basename(path),
+      mime: row?.mime || EXTENSION_MIMES[extname(path).toLowerCase()] || "application/octet-stream",
+      bytes: new Uint8Array(await readFile(path)),
+    };
+  }
   async resolveReference(url: string, documentId: string, reference: string) {
     if (reference.startsWith(ASSET_PREFIX))
       return this.resolve(url, documentId, reference.slice(ASSET_PREFIX.length));
@@ -271,7 +328,61 @@ export class CollaborationAssetService {
     return this.store.db
       .prepare("SELECT * FROM resources WHERE id=? AND document_id=? AND uploaded=?")
       .get(reference.slice(LOCAL_ASSET_PREFIX.length), documentId, LOCAL_ONLY) as
-      ResourceRow | undefined;
+      | ResourceRow
+      | undefined;
+  }
+
+  recoveryFiles(documentId: string, references: readonly string[] = []) {
+    const files: { name: string; path: string }[] = [];
+    const resources: { reference: string; original: string; file?: string }[] = [];
+    const missing: string[] = [];
+    const rows = this.store.db
+      .prepare("SELECT * FROM resources WHERE document_id=? ORDER BY id")
+      .all(documentId) as ResourceRow[];
+    for (const row of rows) {
+      const reference = (row.uploaded === LOCAL_ONLY ? LOCAL_ASSET_PREFIX : ASSET_PREFIX) + row.id;
+      const path = this.localPath(row.path);
+      if (!path || !existsSync(path)) {
+        resources.push({ reference, original: row.path });
+        missing.push(reference);
+        continue;
+      }
+      const name = `resource-${files.length}`;
+      files.push({ name, path });
+      resources.push({ reference, original: row.path, file: name });
+    }
+    const known = new Set(resources.map(resource => resource.reference));
+    const copied = new Map(files.map(file => [file.path, file.name]));
+    for (const reference of references) {
+      if (known.has(reference)) continue;
+      known.add(reference);
+      const path = this.recoveryPath(reference, documentId);
+      if (!path || !existsSync(path)) {
+        resources.push({ reference, original: reference });
+        missing.push(reference);
+        continue;
+      }
+      let name = copied.get(path);
+      if (!name) {
+        name = `resource-${files.length}`;
+        files.push({ name, path });
+        copied.set(path, name);
+      }
+      resources.push({ reference, original: reference, file: name });
+    }
+    return { files, resources, missing };
+  }
+
+  recoveryPath(reference: string, documentId?: string): string | null {
+    if (reference.startsWith(ASSET_PREFIX) || isLocalAssetReference(reference)) {
+      if (!documentId) return null;
+      const id = reference.slice(reference.indexOf(":") + 1);
+      const row = this.store.db
+        .prepare("SELECT path FROM resources WHERE id=? AND document_id=?")
+        .get(id, documentId) as { path: string } | undefined;
+      return row ? this.localPath(row.path) : null;
+    }
+    return this.localPath(reference);
   }
 
   resolve(url: string, documentId: string, assetId: string): Promise<string> {
@@ -315,12 +426,27 @@ export class CollaborationAssetService {
     const mime = response.headers.get("content-type")?.split(";")[0] || "application/octet-stream";
     const directory = join(this.cacheDirectory, documentId);
     await mkdir(directory, { recursive: true });
-    const path = join(directory, assetId + (MIME_EXTENSIONS[mime] || ".bin"));
+    const named = response.headers
+      .get("content-disposition")
+      ?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+    let name = assetId;
+    try {
+      if (named) name = basename(decodeURIComponent(named));
+    } catch {
+      /* 无效名称不改变缓存身份。 */
+    }
+    const extension = extname(name).toLowerCase();
+    const path = join(
+      directory,
+      assetId +
+        (MIME_EXTENSIONS[mime] ||
+          (extension === ".html" || extension === ".htm" ? ".html" : ".bin"))
+    );
     await writeFile(path, Buffer.concat(parts), { mode: 0o600 });
     this.record({
       id: assetId,
       document_id: documentId,
-      name: assetId,
+      name,
       mime,
       path,
       uploaded: UPLOADED,
@@ -365,5 +491,85 @@ export class CollaborationAssetService {
     return mapResources(value, declarations, reference =>
       this.localizeReference(url, documentId, reference)
     );
+  }
+
+  async localizeDocument(
+    url: string,
+    documentId: string,
+    value: SharedContent,
+    contracts: ContentContractDictionary
+  ): Promise<SharedContent> {
+    return this.mapContractDocument(value, contracts, reference =>
+      this.localizeReference(url, documentId, reference)
+    );
+  }
+
+  async prepareLocalReference(documentId: string, reference: string): Promise<string> {
+    return isSafeResource(reference) ? reference : this.keepLocalReference(documentId, reference);
+  }
+
+  async prepareLocalDocument(
+    documentId: string,
+    value: SharedContent,
+    contracts: ContentContractDictionary
+  ): Promise<SharedContent> {
+    return this.mapContractDocument(value, contracts, async (reference, field) =>
+      isSafeResource(reference, field) ? reference : this.keepLocalReference(documentId, reference)
+    );
+  }
+
+  async shareDocument(
+    url: string,
+    fromDocumentId: string,
+    toDocumentId: string,
+    value: SharedContent,
+    contracts: ContentContractDictionary
+  ): Promise<SharedContent> {
+    return this.mapContractDocument(value, contracts, async (reference, field) => {
+      const local =
+        reference.startsWith(ASSET_PREFIX) || isLocalAssetReference(reference)
+          ? await this.localizeReference(url, fromDocumentId, reference)
+          : reference;
+      return this.shareReference(url, toDocumentId, local, field);
+    });
+  }
+
+  private async mapContractDocument(
+    value: SharedContent,
+    contracts: ContentContractDictionary,
+    map: (reference: string, field: string) => Promise<string>
+  ): Promise<SharedContent> {
+    const mapped = new Map<string, Promise<string>>();
+    const transform = (reference: string, field = "") => {
+      const key = JSON.stringify([reference, field]);
+      let result = mapped.get(key);
+      if (!result) {
+        result = map(reference, field);
+        mapped.set(key, result);
+      }
+      return result;
+    };
+    const visit = async (
+      node: SharedContent["content"][number]
+    ): Promise<SharedContent["content"][number]> => {
+      if (!Array.isArray(node.children)) return node;
+      const id = node[NODE_CONTRACT_PROPERTY];
+      const contract = typeof id === "string" ? contracts[id] : undefined;
+      if (!contract || contract.domain !== "editor-node" || contract.type !== node.type)
+        throw new Error("资源投影缺少匹配的节点契约");
+      const replacements = new Map<string, string>();
+      for (const slot of contentResourceSlots(node, contract.resources))
+        for (const reference of contentResourceValues(slot))
+          replacements.set(reference, await transform(reference));
+      return {
+        ...mapNodeResources(node, contract.resources, reference => replacements.get(reference)),
+        children: await Promise.all(node.children.map(visit)),
+      };
+    };
+    return {
+      ...value,
+      bannerBg: value.bannerBg ? await transform(value.bannerBg, "bannerBg") : value.bannerBg,
+      content: await Promise.all(value.content.map(visit)),
+    };
   }
 }

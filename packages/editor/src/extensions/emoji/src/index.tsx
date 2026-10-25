@@ -11,6 +11,7 @@ const emojiExtension = defineExtension({
   elements: [
     defineElement<EmojiElement>({
       type: "emoji",
+      dataVersion: 1,
       kind: "inline",
       isVoid: true,
       render: ({ attributes, element, children }: ElementRenderProps<EmojiElement>) => (

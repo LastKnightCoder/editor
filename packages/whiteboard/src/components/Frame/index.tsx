@@ -16,7 +16,8 @@ import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 import FrameBorder from "./FrameBorder";
 import { If as If } from "@tau/ui";
 import { cn as classnames } from "@tau/ui";
-import { EditText, EditTextHandle } from "@tau/ui";
+import { type EditTextHandle } from "@tau/ui";
+import { FieldText } from "../FieldText";
 
 import {
   SELECT_RECT_STROKE,
@@ -108,6 +109,7 @@ const Frame = memo(
     const handleTitleBlur = () => {
       setIsEditingTitle(false);
       titleRef.current?.blur();
+      if (board.document) return;
       const newTitle = titleRef.current?.getValue() || "";
       const framePath = PathUtil.getPathByElement(board, element);
       if (framePath) {
@@ -229,7 +231,9 @@ const Frame = memo(
               titleRef.current?.focusEnd();
             }}
           >
-            <EditText
+            <FieldText
+              elementId={element.id}
+              field="title"
               id={`frame-title-${element.id}`}
               ref={titleRef}
               defaultValue={title || "Frame"}

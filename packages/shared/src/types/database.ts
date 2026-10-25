@@ -1,4 +1,6 @@
 // ============ Core Database Types ============
+import type { ContentEntityTarget } from "@tau/db-schema/content-identities";
+export type DataTableTarget = ContentEntityTarget;
 
 export interface ColumnDef<T = unknown> {
   id: string;
@@ -100,7 +102,15 @@ export interface TableViewConfig {
 // ============ Footer Types ============
 
 export type AggregateOp =
-  "sum" | "avg" | "median" | "min" | "max" | "countAll" | "countNonEmpty" | "countEmpty" | "unique";
+  | "sum"
+  | "avg"
+  | "median"
+  | "min"
+  | "max"
+  | "countAll"
+  | "countNonEmpty"
+  | "countEmpty"
+  | "unique";
 
 /**
  * 单列汇总，或以各列汇总为叶子的组合表达式。
@@ -152,12 +162,15 @@ export interface DataTableView {
 
 export type CreateDataTableView = Omit<
   DataTableView,
-  "id" | "createTime" | "updateTime" | "config"
+  "id" | "createTime" | "updateTime" | "config" | "tableId"
 > & {
+  tableId: DataTableTarget;
   config?: Partial<TableViewConfig>;
 };
 
-export type UpdateDataTableView = Omit<DataTableView, "createTime" | "updateTime">;
+export type UpdateDataTableView = Omit<DataTableView, "createTime" | "updateTime" | "tableId"> & {
+  tableId: DataTableTarget;
+};
 
 // ============ Filter Types ============
 
@@ -213,6 +226,8 @@ export interface ValidationRule {
 // ============ Hook Result Type ============
 
 export interface DatabaseHookResult {
+  loading?: boolean;
+  error?: string;
   table: DataTable | null;
   views: DataTableView[];
   activeViewId: number | null;

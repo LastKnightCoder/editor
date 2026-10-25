@@ -1,5 +1,5 @@
 import { useMemoizedFn } from "ahooks";
-import { memo, useMemo, useState, useRef, useEffect } from "react";
+import { memo, useMemo, useRef, useEffect } from "react";
 import { RenderElementProps, ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
 import { Transforms } from "slate";
 import { useEditDatabaseWithContext } from "@tau/shared";
@@ -19,15 +19,20 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
   const isLast = useIsLastElement(element);
-  const { tableId, height } = element;
+  const { height } = element;
+  const tableId = useMemo(
+    () => element.entityRef ?? element.tableId,
+    [
+      element.entityRef?.sourceId,
+      element.entityRef?.kind,
+      element.entityRef?.entityId,
+      element.tableId,
+    ]
+  );
   const databaseState = useEditDatabaseWithContext(tableId);
-  const [loading, setLoading] = useState(!databaseState?.table);
+  const loading = databaseState?.loading ?? false;
   const resizeStart = useRef<number | null>(null);
   const startHeight = useRef<number>(height);
-
-  useEffect(() => {
-    setLoading(!databaseState?.table);
-  }, [databaseState?.table]);
 
   const handleResizeMove = useMemoizedFn((event: MouseEvent) => {
     if (resizeStart.current == null) return;
@@ -81,7 +86,9 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
           className="text-ink-3 flex min-h-[12em] items-center justify-center text-[0.875em]"
           style={{ minHeight: `${height}em` }}
         >
-          <span className="text-ink-3 text-tau-sm">未找到对应的数据表</span>
+          <span className="text-ink-3 text-tau-sm">
+            {databaseState?.error ?? "未找到对应的数据表"}
+          </span>
         </div>
       );
     }

@@ -167,10 +167,12 @@ describe("闪卡数据库隔离", () => {
         })
     );
     const update = previous.updateCard({ id: 1, tags: ["a-updated"] });
-    expect(invoke).toHaveBeenCalledWith(
-      "flashcard:update-card",
-      { id: 1, tags: ["a-updated"] },
-      { toolDatabaseName: "a" }
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith(
+        "flashcard:update-card",
+        { id: 1, tags: ["a-updated"] },
+        { toolDatabaseName: "a" }
+      )
     );
     await act(async () => switchDatabase("b"));
     await act(async () => {

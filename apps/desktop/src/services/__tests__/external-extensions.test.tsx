@@ -12,6 +12,7 @@ import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
 import { customBlockExtension, htmlExtension } from "../../test-fixtures/plugin-packages";
 import { stubInlineWorker } from "../../test-fixtures/inline-worker";
 import "@tau/plugins/source-editor-host";
+import { PluginEnvironmentProvider } from "@tau/plugins/environment-host";
 import { diagramExtensions } from "@tau/editor/extensions/diagram";
 import { IRuntimeStyleCompiler } from "@tau/shared/runtime-style";
 import { previewMenuExtension } from "@tau/editor-source-view/menu";
@@ -44,20 +45,19 @@ vi.mock("@emoji-mart/react", () => ({
     </button>
   ),
 }));
-const codeChanges = vi.hoisted(() => [] as Array<(code: string) => void>);
 Object.defineProperty(Element.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
-vi.mock("react-codemirror2", () => ({
-  UnControlled: (props: {
-    value: string;
-    options: { readOnly: boolean };
-    onChange: (editor: unknown, change: unknown, code: string) => void;
-  }) => {
-    codeChanges.push(code => props.onChange({}, {}, code));
-    return (
-      <textarea aria-label="源码" defaultValue={props.value} readOnly={props.options.readOnly} />
-    );
-  },
-}));
+// 源码块进入编辑会聚焦真实输入框，之后的用例读取文档选区位置；jsdom 的 Range 没有布局
+Object.defineProperty(Range.prototype, "getBoundingClientRect", {
+  configurable: true,
+  value: () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 }),
+});
+
+/** 以原生输入的方式整段替换块内源码编辑器的内容 */
+function typeSource(code: string) {
+  const input = document.querySelector<HTMLTextAreaElement>(".ed-preview-source textarea")!;
+  Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(input, code);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
 
 describe("外包扩展的真实编辑器接线", () => {
   let root: Root | undefined;
@@ -73,7 +73,6 @@ describe("外包扩展的真实编辑器接线", () => {
   afterEach(async () => {
     await act(async () => root?.unmount());
     host?.remove();
-    codeChanges.length = 0;
   });
 
   const editSource = async (editor: SlateEditor) => {
@@ -115,9 +114,13 @@ describe("外包扩展的真实编辑器接线", () => {
     const ref = createRef<EditorRef>();
     await act(async () => {
       root?.render(
-        <DndProvider backend={HTML5Backend}>
-          <Editor ref={ref} kit={kit} initValue={value} readonly={false} />
-        </DndProvider>
+        <PluginEnvironmentProvider
+          value={{ platform: "desktop", input: { coarsePointer: false, finePointer: true } }}
+        >
+          <DndProvider backend={HTML5Backend}>
+            <Editor ref={ref} kit={kit} initValue={value} readonly={false} />
+          </DndProvider>
+        </PluginEnvironmentProvider>
       );
     });
     await act(async () => {
@@ -141,7 +144,7 @@ describe("外包扩展的真实编辑器接线", () => {
     expect(compiler).toHaveBeenCalledWith({ source: initial, language: "tsx" });
     const next = "const Component = () => <div>编辑后的模板</div>;";
     await act(async () => {
-      codeChanges.at(-1)!(next);
+      typeSource(next);
       await new Promise(resolve => setTimeout(resolve, 650));
     });
     await act(async () => {
@@ -244,15 +247,18 @@ describe("外包扩展的真实编辑器接线", () => {
     if (type === "plantuml")
       expect(host.querySelector("img")?.src).toContain("plantuml.com/plantuml/svg/");
     await act(async () => {
-      codeChanges.at(-1)!(source + "\n更新");
+      typeSource(source + "\n更新");
       await new Promise(resolve => setTimeout(resolve, 650));
     });
     await act(async () => {
       await new Promise(resolve => setTimeout(resolve, 300));
     });
     expect(editor.children[0]).toMatchObject({ [field]: source + "\n更新" });
-    if (type === "mermaid")
-      expect(editor.children[0]).toMatchObject({ compiledFrom: source + "\n更新" });
+    if (type === "mermaid") {
+      expect(host.querySelector("svg text")?.textContent).toBe(source + "\n更新");
+      expect(editor.children[0]).not.toHaveProperty("compiledFrom");
+      expect(editor.children[0]).not.toHaveProperty("svg");
+    }
   });
 
   it("嵌套 Editor 继承外包扩展和宿主编译服务", async () => {
@@ -312,7 +318,7 @@ describe("外包扩展的真实编辑器接线", () => {
     await editSource(editor);
     const next = '<div class="p-4">更新 HTML</div>';
     await act(async () => {
-      codeChanges.at(-1)!(next);
+      typeSource(next);
       await new Promise(resolve => setTimeout(resolve, 650));
     });
     expect(editor.children[0]).toMatchObject({ type: "html-block", html: next });
@@ -362,7 +368,7 @@ describe("外包扩展的真实编辑器接线", () => {
     expect(host.querySelector(".katex")).toBeTruthy();
     await editSource(editor);
     await act(async () => {
-      codeChanges.at(-1)!("y^2");
+      typeSource("y^2");
       await new Promise(resolve => setTimeout(resolve, 650));
     });
     expect(editor.children[0]).toMatchObject({ type: "block-math", tex: "y^2" });

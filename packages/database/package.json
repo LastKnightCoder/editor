@@ -15,6 +15,7 @@
     "check:boundaries": "node ../../scripts/check-database-boundaries.mjs"
   },
   "dependencies": {
+    "@tau/db-schema": "workspace:*",
     "@tau/shared": "workspace:*",
     "@tau/themes": "workspace:*",
     "@tau/ui": "workspace:*",

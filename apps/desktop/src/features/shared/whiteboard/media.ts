@@ -1,3 +1,10 @@
+import { getWhiteboardDocument } from "@tau/whiteboard/collaboration";
+import { resolveLocalMediaPath } from "@/utils/localMediaPath";
+import { readBinaryFile, getFileBaseName } from "@/commands/file";
+import { createElement, type ComponentProps } from "react";
+import { useBoard } from "@tau/whiteboard";
+import { IResourceService } from "@tau/shared/host-services";
+import type { Board } from "@tau/whiteboard";
 import type { MediaCapabilities, VideoSourceEntry } from "@tau/whiteboard/extensions";
 import { getVideoProviders } from "@/commands/plugin-video";
 import { uploadResource } from "@/hooks/useUploadResource";
@@ -31,4 +38,32 @@ export const desktopVideoSources = (): VideoSourceEntry[] =>
   getVideoProviders().providers.map(provider => ({ id: provider.id, label: provider.name }));
 
 /** 图片渲染组件（本地资源解析等桌面能力） */
-export const desktopMediaImage = LocalImage;
+function DesktopMediaImage(props: ComponentProps<typeof LocalImage>) {
+  const api = useBoard();
+  return createElement(LocalImage, {
+    ...props,
+    resolveResource: api.tryGetService(IResourceService)?.remoteResourceToLocal,
+  });
+}
+export const desktopMediaImage = DesktopMediaImage;
+
+export const whiteboardMedia = (board: Board): MediaCapabilities => ({
+  ...desktopMedia,
+  upload: file => board.getService(IResourceService).upload(file),
+});
+
+export async function prepareWhiteboardImage(board: Board, url: string): Promise<string> {
+  if (!getWhiteboardDocument(board) || /^https?:/.test(url)) return url;
+  const valid = board.captureSubmission();
+  let file: File;
+  if (/^(blob:|data:)/.test(url)) {
+    const blob = await (await fetch(url)).blob();
+    file = new File([blob], "generated.png", { type: blob.type });
+  } else {
+    const path = await resolveLocalMediaPath(url),
+      bytes = await readBinaryFile(path);
+    file = new File([Uint8Array.from(bytes)], await getFileBaseName(path), { type: "image/png" });
+  }
+  if (!valid()) throw new Error("图片目标已变化");
+  return board.getService(IResourceService).upload(file);
+}

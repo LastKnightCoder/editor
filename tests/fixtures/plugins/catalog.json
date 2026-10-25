@@ -33,17 +33,21 @@
   },
   {
     "repository": "https://github.com/LastKnightCoder/tau-plugin-custom-block",
-    "artifact": "releases/tau.custom-block/1.0.8",
+    "artifact": "releases/tau.custom-block/1.0.13",
     "id": "tau.custom-block",
-    "version": "1.0.8",
-    "sourceRevision": "f2b83606aac828c5775b90bff6af54ff12ddfb28",
-    "archiveSha256": "5dbb4731b58da87ae15dab67b3be7422521f0617387b66a93890f8bb8b32617d",
+    "version": "1.0.13",
+    "sourceRevision": "92d8417fc2cf759d3e17aebea53b2a59e747719f",
+    "sourcePatch": {
+      "file": "sources/tau.custom-block/1.0.13.patch",
+      "sha256": "163c85931a2328c30a1911620ab78d5fcec6aa0db551d57e1ef1cdf8f919c883"
+    },
+    "archiveSha256": "cbb622860b4ce67182a0a5b2c41fcad53aa5b52f46b17cdf0f7d9c1a46c49689",
     "files": {
-      "CHANGELOG.md": "a4d07add803c25dc433775d41dff4c98268ef88d65530d5b2fbad0f636736dd2",
+      "CHANGELOG.md": "2edb339ccad0ecc3bda966ea9b5bed6832a6c51964d8fd2fb11805186b32b784",
       "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
       "main.css": "d6bd0ab4cd6e810a26bc98cba3ea419b7a289f9dc22f86af55e03f0bcf5e0ace",
-      "main.js": "07de37c10570773db966b07959189914dd9f2e052bf6f753d52a81b878a2ae71",
-      "manifest.json": "d6cf22209b79635a3abd192a5337673d1ac0f3bdd52ffb6d840eb8148413c162",
+      "main.js": "a97fa07b8c98d2a3a73c09cc1b1475c85d29f0c5cd78414ab7741829358d91b1",
+      "manifest.json": "1c705a0496d99a12d9ad90a9e9600208774a6f0771a9c648d69c5947d1fa2583",
       "README.md": "4f92da06bbc1e5196939c431ae3eb3e5e5580cdf150b9e37b9335fcbd28818ce",
       "skills/authoring/SKILL.md": "3baf3cf1402c1b01dfdb155ad3e1210d02d4093f737ea10044b460c533be9089"
     }
@@ -158,19 +162,23 @@
   },
   {
     "repository": "https://github.com/LastKnightCoder/tau-plugin-html",
-    "artifact": "releases/tau.html/0.1.0",
+    "artifact": "releases/tau.html/0.1.10",
     "id": "tau.html",
-    "version": "0.1.0",
-    "sourceRevision": "7b94f3e85528a0b138a7ac1e7fe7a546df36fa1e",
-    "archiveSha256": "bff18b70ac2b86017c311c76f459fa9cf1bc92ed7cd879cd142fe9d55e0d1c7d",
+    "version": "0.1.10",
+    "sourceRevision": "715664422a846a72dab00538e9eef660bda671b9",
+    "sourcePatch": {
+      "file": "sources/tau.html/0.1.10.patch",
+      "sha256": "cab70c78a95f6f03008b16f85158bbe2743142ba09a30ef780ca54546d44625b"
+    },
+    "archiveSha256": "9c9921c315d2654813ec2c5cd16d1d6da4d5f8e2f4d5030f0f6a6158833c6894",
     "files": {
-      "CHANGELOG.md": "c3724d720b5aaeaf69a8d94e438a848dbd691660a74a0cd3c2893dc72bdefaf6",
-      "LICENSE": "c97f45e26ece942726c445f0c07bac5be59477615d3fc1a4f3afbfc7e34d8005",
+      "CHANGELOG.md": "50bef99ff5d29a6c7b380705b5033631ad8848c8976632d3fea3906b8c86db01",
+      "LICENSE": "85c771999c2cdbf2d024a9315fe98b83877782d07ee06e836607b49fb0008886",
       "main.css": "468f2feb73a33e5711b1583b609e4ab3818e83d5f19a38dcd9d027b77eb269d8",
-      "main.js": "6faf968be95e2a2dc00415a507a9812cc91b4d55b7fc3512a5c661b70b7c6d11",
-      "manifest.json": "f0f47f2a06e398c1dc0f9851dc2eb4a2a9bc6617f8477ff40e81406edb408045",
-      "README.md": "7ece020297218eb105c28f69f28687768dac7c0fac944bffeb3381b6ae32b2eb",
-      "THIRD_PARTY_NOTICES.md": "601c3ecbee8096ac02926a8686c6f23daba5bd89755f9b91042df92f9a28bb96"
+      "main.js": "29f6fdf8fc912b3a46f7aa136f44ee6e8e65d6b4d23578bb6df9825bb4124860",
+      "manifest.json": "fc23bff1799c19758324b3a45c2707a4a7d2b6d26b6ae64dcca9834cfe166bb6",
+      "README.md": "c53b02645c863c8ce7173a79f310aa39679f726664c612c7329ceafa6eb86009",
+      "skills/authoring/SKILL.md": "5a476fc110584964ab053cb40f0399ec27125bc1d315b6d50b019fbd9b112aa0"
     }
   },
   {

@@ -1,5 +1,7 @@
 import { invoke } from "@/electron";
 import { queryClient } from "@/queryClient";
+import type { DataTableTarget } from "@tau/shared/database-types";
+import type { ContentEntityReference } from "@tau/db-schema/content-identities";
 import {
   DataTable,
   CreateDataTable,
@@ -14,6 +16,10 @@ import {
 export const createDataTable = async (table: CreateDataTable): Promise<DataTable> => {
   return invoke("data-table:create", table);
 };
+export const createPendingDataTable = (): Promise<{
+  table: DataTable;
+  reference: ContentEntityReference;
+}> => invoke("data-table:create-pending");
 
 export const updateDataTable = async (table: UpdateDataTable): Promise<DataTable> => {
   const updated = await invoke<DataTable>("data-table:update", table);
@@ -23,7 +29,7 @@ export const updateDataTable = async (table: UpdateDataTable): Promise<DataTable
   return updated;
 };
 
-export const getDataTableById = async (id: number): Promise<DataTable> => {
+export const getDataTableById = async (id: DataTableTarget): Promise<DataTable> => {
   return invoke("data-table:get-by-id", id);
 };
 
@@ -42,13 +48,13 @@ export const updateDataTableChanges = async (
 };
 
 export const getDataTableDetail = async (
-  id: number
+  id: DataTableTarget
 ): Promise<{ table: DataTable | null; views: DataTableView[] }> => {
   return invoke("data-table:get-detail", id);
 };
 
 export const setActiveDataTableView = async (
-  tableId: number,
+  tableId: DataTableTarget,
   viewId: number | null
 ): Promise<DataTable | null> => {
   return invoke("data-table:set-active-view", { tableId, viewId });
@@ -72,17 +78,19 @@ export const updateDataTableView = async (
   return invoke("data-table-view:update", view);
 };
 
-export const deleteDataTableView = async (id: number): Promise<number> => {
+export const deleteDataTableView = async (
+  id: number | { id: number; tableId: DataTableTarget }
+): Promise<number> => {
   return invoke("data-table-view:delete", id);
 };
 
 export const reorderDataTableViews = async (
-  tableId: number,
+  tableId: DataTableTarget,
   orderedIds: number[]
 ): Promise<void> => {
   await invoke("data-table-view:reorder", { tableId, orderedIds });
 };
 
-export const listDataTableViews = async (tableId: number): Promise<DataTableView[]> => {
+export const listDataTableViews = async (tableId: DataTableTarget): Promise<DataTableView[]> => {
   return invoke("data-table-view:list-by-table", tableId);
 };

@@ -1,3 +1,4 @@
+import { getWhiteboardDocument } from "@tau/whiteboard/collaboration";
 import { bindTextContent } from "@tau/whiteboard/extensions";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useMemoizedFn } from "ahooks";
@@ -70,11 +71,14 @@ export function RichTextActionsLayer() {
     >()
   );
   const ensureRichTextContentId = useMemoizedFn(async (elementId: string) => {
+    const managed = getWhiteboardDocument(board);
+    if (managed?.createContentCopy)
+      return { contentId: await managed.createContentCopy(elementId) };
     const contentId = await bindTextContent(
       board,
       elementId,
       {
-        create: createContent,
+        create: (content, count) => createContent(content, count),
         update: updateContent,
         release: deleteContent,
       },
@@ -102,7 +106,7 @@ export function RichTextActionsLayer() {
         if (payload.mode === "card") {
           const card = await buildCardFromContent(contentId);
           if (!canSubmit()) return;
-          if (latestElement) {
+          if (latestElement && !getWhiteboardDocument(board)) {
             const path = PathUtil.getPathByElement(board, latestElement);
             if (path) {
               const newElement = {
@@ -115,13 +119,13 @@ export function RichTextActionsLayer() {
               }
             }
           }
-          toast.success("创建卡片成功");
+          toast.success(getWhiteboardDocument(board) ? "已复制为独立卡片" : "创建卡片成功");
           return;
         }
         if (payload.mode === "article") {
           const article = await buildArticleFromContent(contentId);
           if (!canSubmit()) return;
-          if (latestElement) {
+          if (latestElement && !getWhiteboardDocument(board)) {
             const path = PathUtil.getPathByElement(board, latestElement);
             if (path) {
               const newElement = {
@@ -134,7 +138,7 @@ export function RichTextActionsLayer() {
               }
             }
           }
-          toast.success("创建文章成功");
+          toast.success(getWhiteboardDocument(board) ? "已复制为独立文章" : "创建文章成功");
           return;
         }
         setPendingRichTextTitlePrompt({

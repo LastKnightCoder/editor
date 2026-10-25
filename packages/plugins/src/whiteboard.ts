@@ -23,6 +23,10 @@ export type {
 } from "@tau/whiteboard/author";
 export type {
   WhiteboardAPI,
+  WhiteboardIdCommand,
+  WhiteboardShellPatch,
+  WhiteboardGeometry,
+  WhiteboardData,
   WhiteboardExtension,
   WhiteboardElementDefinition,
   WhiteboardContributions,
@@ -32,8 +36,9 @@ export type {
   BoardElement,
   WhiteboardToolProps,
 } from "@tau/whiteboard/author";
-import { createServiceId } from "@tau/shared/service-contract";
+import { createServiceId, type ServiceIdentifier } from "@tau/shared/service-contract";
 import type { PluginStorage } from "./contract";
 
 /** 由宿主按插件和工作区绑定，交互扩展通过 getService 获取。 */
-export const IPluginStorage = createServiceId<PluginStorage>("tau.plugin.storage");
+export const IPluginStorage: ServiceIdentifier<PluginStorage> =
+  createServiceId<PluginStorage>("tau.plugin.storage");

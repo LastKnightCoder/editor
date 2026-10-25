@@ -1,102 +1,24 @@
 /*
- * 源码 + 预览块（公式、Mermaid、HTML 等）的 CodeMirror 5 覆盖：CodeMirror 的 DOM 由第三方生成，
- * 第三方 DOM 覆盖保留为普通 CSS，作用域为 .ed-preview-codemirror。
+ * 源码预览块（公式、Mermaid、HTML 等）在块内编辑时的叠层编辑器外观：覆盖 .ed-code-overlay 的字号、行高与内边距。
+ * .ed-code-overlay 的基础规则是未分层 CSS，Tailwind 工具类压不过，这里同样用普通 CSS，作用域为 .ed-preview-source。
  */
 
-.ed-preview-codemirror .CodeMirror {
-  height: auto;
-  min-height: 0;
-  padding: 0.25em 0 0.875em;
-  border-radius: 0;
-  font-size: 0.8em;
+.ed-preview-source .ed-code-overlay {
+  --ed-code-pad-top: 0.25em;
+  --ed-code-pad-right: 1em;
+  --ed-code-pad-bottom: 0.875em;
+  --ed-code-pad-left: 1em;
   line-height: 1.7;
-  font-family: var(--ed-font-mono);
   color: var(--ed-text);
   background-color: var(--ed-code-bg);
 }
 
-.ed-preview-codemirror .CodeMirror pre.CodeMirror-line,
-.ed-preview-codemirror .CodeMirror pre.CodeMirror-line-like {
-  padding: 0 var(--ed-cm-line-pad, 1em);
-}
-
-.ed-preview-codemirror--in-place .CodeMirror {
-  padding: 0.125em 0 0.375em;
+.ed-preview-source--in-place .ed-code-overlay {
+  --ed-code-pad-top: 0.125em;
+  --ed-code-pad-right: 0.25em;
+  --ed-code-pad-bottom: 0.375em;
+  --ed-code-pad-left: 0.25em;
   font-size: 0.9em;
   line-height: 1.75;
   background-color: transparent;
-}
-
-.ed-preview-codemirror--in-place .CodeMirror pre.CodeMirror-line,
-.ed-preview-codemirror--in-place .CodeMirror pre.CodeMirror-line-like {
-  padding: 0 0.25em;
-}
-
-.ed-preview-codemirror .CodeMirror-gutters {
-  background-color: unset;
-  border-right: none;
-}
-
-.ed-preview-codemirror .CodeMirror-linenumber {
-  cursor: pointer;
-  color: var(--ed-text-tertiary);
-}
-
-/*
- * 「tau」配色：只引用语义色，随主题族与明暗切换，与聊天代码块的 tauPrismTheme 同一套表意
- * （关键字 accent、字符串 ok、数字 / 常量 warn、函数 / 属性 info、类型 tag-3、注释 ink-3）。
- */
-.cm-s-tau .CodeMirror-cursor {
-  border-left-color: var(--ed-code-caret);
-}
-.cm-s-tau .CodeMirror-selected,
-.cm-s-tau.CodeMirror-focused .CodeMirror-selected,
-.cm-s-tau .CodeMirror-line::selection,
-.cm-s-tau .CodeMirror-line > span::selection,
-.cm-s-tau .CodeMirror-line > span > span::selection {
-  background: var(--ed-code-selection);
-}
-.cm-s-tau .CodeMirror-matchingbracket {
-  color: inherit !important;
-  background: var(--ed-accent-soft);
-}
-.cm-s-tau .cm-keyword,
-.cm-s-tau .cm-tag,
-.cm-s-tau .cm-header,
-.cm-s-tau .cm-meta {
-  color: var(--tau-accent-text);
-}
-.cm-s-tau .cm-string,
-.cm-s-tau .cm-string-2,
-.cm-s-tau .cm-quote {
-  color: var(--tau-ok);
-}
-.cm-s-tau .cm-number,
-.cm-s-tau .cm-atom,
-.cm-s-tau .cm-attribute {
-  color: var(--tau-warn);
-}
-.cm-s-tau .cm-def,
-.cm-s-tau .cm-property,
-.cm-s-tau .cm-variable-2,
-.cm-s-tau .cm-link {
-  color: var(--tau-info);
-}
-.cm-s-tau .cm-type,
-.cm-s-tau .cm-variable-3,
-.cm-s-tau .cm-builtin,
-.cm-s-tau .cm-qualifier {
-  color: var(--tau-tag-3);
-}
-.cm-s-tau .cm-operator,
-.cm-s-tau .cm-bracket,
-.cm-s-tau .cm-hr {
-  color: var(--ed-text-secondary);
-}
-.cm-s-tau .cm-comment {
-  color: var(--ed-text-tertiary);
-  font-style: italic;
-}
-.cm-s-tau .cm-error {
-  color: var(--ed-danger);
 }

@@ -1,3 +1,5 @@
+import type { IContent } from "./content";
+import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import type { Descendant } from "slate";
 
 export type FlashcardType = "single-choice" | "multiple-choice" | "cloze" | "qa" | "boolean";
@@ -50,14 +52,7 @@ export interface FlashcardReference {
 
   // 查询时携带的完整内容（来自 contents 表）
   // 如果内容被删除，此字段为 null
-  content?: {
-    id: number;
-    content: Descendant[];
-    createTime: number;
-    updateTime: number;
-    count: number;
-    refCount: number;
-  } | null;
+  content?: IContent | null;
 }
 
 export interface FlashcardReferenceInput {
@@ -67,6 +62,7 @@ export interface FlashcardReferenceInput {
   contentId?: number; // content 类型时必填
   title: string;
   customContent?: Descendant[]; // custom 类型时必填
+  contracts?: ContentContractDictionary;
 }
 
 export interface FlashcardDeckStats {

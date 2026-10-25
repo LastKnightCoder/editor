@@ -8,6 +8,7 @@
  * 宿主把 codec 列表合成一次建处理器，渲染进程与主进程共用。
  */
 import type {} from "./slate-types.d.ts";
+export { serializeUnknownBlock, serializeUnknownInline, isInlinePosition } from "./unknownNode.ts";
 
 export {
   createMarkdownProcessor,

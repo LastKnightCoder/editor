@@ -9,6 +9,7 @@ const flashcardBlankExtension = defineExtension({
     // flashcard-blank 不是 void 元素，可以包含文本（不设 isVoid）
     defineElement<FlashcardBlankElement>({
       type: "flashcard-blank",
+      dataVersion: 1,
       kind: "inline",
       render: ({ attributes, element, children }: ElementRenderProps<FlashcardBlankElement>) => (
         <FlashcardBlank attributes={attributes} element={element}>

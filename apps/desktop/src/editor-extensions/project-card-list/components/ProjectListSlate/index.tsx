@@ -6,6 +6,7 @@ import { ProjectItem } from "@/types";
 import React from "react";
 import { toast } from "@tau/ui";
 import { openContent } from "@/services/open-content";
+import type { ContentEntityReference } from "@tau/db-schema/content-identities";
 
 interface IProjectCardExtensionProps {
   element: ProjectCardListElement;
@@ -16,9 +17,13 @@ interface IProjectCardExtensionProps {
 const ProjectListSlate = (props: IProjectCardExtensionProps) => {
   const { attributes, children, element } = props;
 
-  const onClickItem = async (item: ProjectItem) => {
+  const onClickItem = async (
+    item: ProjectItem,
+    _index: number,
+    reference?: ContentEntityReference
+  ) => {
     try {
-      await openContent("project-item", item.id);
+      await openContent("project-item", item.id, reference);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "打开项目文档失败");
     }
@@ -28,7 +33,11 @@ const ProjectListSlate = (props: IProjectCardExtensionProps) => {
 
   return (
     <div className="relative">
-      <ProjectList projectItemId={projectItemId} onClick={onClickItem} />
+      <ProjectList
+        projectItemId={projectItemId}
+        reference={element.entityRef}
+        onClick={onClickItem}
+      />
       <div {...attributes}>{children}</div>
       <AddParagraph element={element as any} />
     </div>

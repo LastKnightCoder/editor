@@ -18,11 +18,21 @@ export const overwrite = (editor: Editor) => {
   const { apply } = editor;
 
   editor.apply = op => {
-    if (op.type === "remove_node" && isDatabaseElement(op.node)) {
+    if (
+      op.type === "remove_node" &&
+      isDatabaseElement(op.node) &&
+      !op.node.entityRef &&
+      op.node.tableId !== undefined
+    ) {
       void deleteDataTable(op.node.tableId);
     }
 
-    if (op.type === "insert_node" && isDatabaseElement(op.node)) {
+    if (
+      op.type === "insert_node" &&
+      isDatabaseElement(op.node) &&
+      !op.node.entityRef &&
+      op.node.tableId !== undefined
+    ) {
       if (databaseEditor.isInsertDatabase) {
         databaseEditor.isInsertDatabase = false;
       } else {

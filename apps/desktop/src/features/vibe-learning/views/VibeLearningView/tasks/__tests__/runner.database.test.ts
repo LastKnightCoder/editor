@@ -1,4 +1,4 @@
-import { expect, it, vi } from "vitest";
+import { beforeAll, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => {
   const invoke = vi.fn(async (channel: string): Promise<unknown> => {
     if (channel === "content:create") return 17;
@@ -18,7 +18,10 @@ const state = vi.hoisted(() => {
     parse: vi.fn(),
   };
 });
-vi.mock("@/commands", async () => await import("@/commands/content"));
+vi.mock("@/commands", async importOriginal => ({
+  ...(await importOriginal<typeof import("@/commands")>()),
+  getCollaborationState: vi.fn(async () => ({ rooms: [], connected: false })),
+}));
 vi.mock("@/services/generation-orchestrator", () => ({
   runGenerationTask: (
     _provider: unknown,
@@ -54,11 +57,14 @@ vi.mock("@/tools/vibeLearningSearchTool", () => ({
 vi.mock("@/services/podcast", () => ({ parseScript: state.parse }));
 vi.mock("../podcastAudio", () => ({ synthesizePodcast: state.synthesize }));
 vi.mock("@/utils/tts", () => ({ TTSProviderFactory: { getTTSProvider: () => state.tts } }));
-vi.mock("@/utils", () => ({
+vi.mock("@/utils", async importOriginal => ({
+  ...(await importOriginal<typeof import("@/utils")>()),
   getContentLength: () => 1,
   getMarkdown: () => "",
   importFromMarkdown: (text: string) => [{ type: "paragraph", children: [{ text }] }],
 }));
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
+beforeAll(() => useDynamicExtensionsStore.getState().initExtensions());
 import { startVLTask } from "../runner";
 import { useVLTaskStore } from "../store";
 import { setChatDatabase } from "@/services/chatDatabase";
@@ -143,6 +149,7 @@ it("任务准备期间取消，不会继续登记产物或启动后台生成", a
     resourceNames: [],
     startSignal: controller.signal,
   });
+  await vi.waitFor(() => expect(complete).toBeTypeOf("function"));
   controller.abort();
   complete(17);
   await expect(opening).rejects.toThrow();

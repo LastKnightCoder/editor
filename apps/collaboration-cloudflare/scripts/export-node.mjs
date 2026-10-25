@@ -23,6 +23,18 @@ try {
     )
   );
   tables.identity_merges = [];
+  for (const table of [
+    "collaboration_protocol",
+    "collaboration_migrations",
+    "collaboration_asset_history",
+    "collaboration_operations",
+    "collaboration_sequences",
+  ])
+    tables[table] = db
+      .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?")
+      .get(table)
+      ? db.prepare("SELECT * FROM " + table).all()
+      : [];
   const signingKey = readFileSync(join(source, "signing.key")).toString("hex");
   if (signingKey.length !== 64) throw new Error("来源签名密钥无效");
   for (const row of tables.documents.filter(doc => doc.status === "active")) {
@@ -45,7 +57,7 @@ try {
     if (!/^[a-f0-9]{64}$/.test(digest)) throw new Error("来源资源摘要无效");
     copyFileSync(join(source, "assets", digest), join(target, "assets", digest));
   }
-  writeFileSync(join(target, "metadata.json"), JSON.stringify({ format: 1, signingKey, tables }), {
+  writeFileSync(join(target, "metadata.json"), JSON.stringify({ format: 3, signingKey, tables }), {
     mode: 0o600,
   });
   console.log(

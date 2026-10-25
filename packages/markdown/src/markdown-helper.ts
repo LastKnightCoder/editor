@@ -6,6 +6,7 @@ import { PositionMapper } from "./positionMapper.ts";
 import { isInlinePosition, serializeUnknownBlock, serializeUnknownInline } from "./unknownNode.ts";
 import type { MarkdownPosition, TextMapping, ElementMapping } from "./positionMapper.ts";
 import type { MarkdownTextRegistry, LeafSerializationResult } from "./textCodec.ts";
+import type { MarkdownCodec } from "./codec.ts";
 
 // eslint-disable-next-line no-misleading-character-class
 const ZERO_WIDTH_ONLY_REGEX = /^[\u200B\u200C\u200D\uFEFF]+$/;
@@ -21,6 +22,12 @@ export interface ExportConfig {
   voidTypes: ReadonlySet<string>;
   /** 元素类型的子块级接续符（列表 / 表格为 "\n"，缺省 "\n\n"） */
   childSeparators: ReadonlyMap<string, "\n" | "\n\n">;
+  resolveCodec?: (element: CustomElement) => MarkdownCodec | undefined;
+  serializeUnknown?: (
+    element: CustomElement,
+    parent: CustomElement | null,
+    error?: unknown
+  ) => string;
 }
 
 /** 当前导出调用的配置：随公开入口入栈 / 出栈（同导入端的解析上下文） */
@@ -46,20 +53,27 @@ const withExportConfig = <T>(config: ExportConfig, run: () => T): T => {
 const registry = (): MarkdownSerializerRegistry => currentExportConfig().registry;
 
 /** 子块级接续符（codec 的 childSeparator 声明，缺省 "\n\n"） */
-const joinsChildrenWithSingleNewline = (type: string): boolean =>
-  currentExportConfig().childSeparators.get(type) === "\n";
+const joinsChildrenWithSingleNewline = (element: CustomElement): boolean => {
+  const config = currentExportConfig();
+  return (
+    (config.resolveCodec
+      ? config.resolveCodec(element)?.childSeparator
+      : config.childSeparators.get(element.type)) === "\n"
+  );
+};
 
 /** codec 的序列化器登记脚注（如 annotation 的 [^n]），由导出入口统一追加到文末 */
 export const addExportFootnote = (content: string): number => registry().addFootnote(content);
 
 /** 没有 codec 的元素走兜底语法（unknownNode.ts），整节点原样保留 */
 const isUnknownElement = (element: CustomElement): boolean =>
-  !registry().getSerializer(element.type);
+  !registry().getSerializer(element.type, element);
 
 const serializeUnknown = (element: CustomElement, parentElement: CustomElement | null): string =>
-  isInlinePosition(parentElement)
+  currentExportConfig().serializeUnknown?.(element, parentElement) ??
+  (isInlinePosition(parentElement)
     ? serializeUnknownInline(element)
-    : serializeUnknownBlock(element);
+    : serializeUnknownBlock(element));
 
 /** 块级元素之间要空行；未知元素按所在位置判断 */
 const isBlockElement = (element: CustomElement, parentElement: CustomElement | null): boolean =>
@@ -124,9 +138,21 @@ export const elementToMarkdownUsing = (
 ): string => withExportConfig(config, () => elementToMarkdown(element, parentElement));
 
 const elementToMarkdown = (element: CustomElement, parentElement: CustomElement | null): string => {
+  const footnotes = registry().captureFootnotes();
+  try {
+    return serializeElement(element, parentElement);
+  } catch (error) {
+    const fallback = currentExportConfig().serializeUnknown;
+    if (!fallback) throw error;
+    registry().restoreFootnotes(footnotes);
+    return fallback(element, parentElement, error);
+  }
+};
+
+const serializeElement = (element: CustomElement, parentElement: CustomElement | null): string => {
   if (isUnknownElement(element)) return serializeUnknown(element, parentElement);
   const { type, children } = element;
-  const singleNewlineJoin = joinsChildrenWithSingleNewline(type);
+  const singleNewlineJoin = joinsChildrenWithSingleNewline(element);
 
   const childrenParts: string[] = [];
 
@@ -152,7 +178,7 @@ const elementToMarkdown = (element: CustomElement, parentElement: CustomElement 
 
   const childrenStr = childrenParts.join("");
 
-  const serializer = registry().getSerializer(type);
+  const serializer = registry().getSerializer(type, element);
 
   return serializer ? serializer.toMarkdown(element, childrenStr, parentElement) : childrenStr;
 };
@@ -239,6 +265,39 @@ function serializeElementWithTracking(
   context: SerializationContext,
   positionMap: PositionMapper
 ): string {
+  const footnotes = registry().captureFootnotes();
+  const checkpoint = positionMap.getMappings().length;
+  try {
+    return serializeTrackedElement(element, parentElement, path, context, positionMap);
+  } catch (error) {
+    const fallback = currentExportConfig().serializeUnknown;
+    if (!fallback) throw error;
+    registry().restoreFootnotes(footnotes);
+    positionMap.truncate(checkpoint);
+    const output = fallback(element, parentElement, error);
+    const end = { ...context };
+    updateContext(end, output);
+    positionMap.addElementMapping({
+      type: "element",
+      slateElementPath: path,
+      elementType: element.type,
+      isVoid: true,
+      mdStartLine: context.line,
+      mdStartCh: context.ch,
+      mdEndLine: end.line,
+      mdEndCh: end.ch,
+    });
+    return output;
+  }
+}
+
+function serializeTrackedElement(
+  element: CustomElement,
+  parentElement: CustomElement | null,
+  path: number[],
+  context: SerializationContext,
+  positionMap: PositionMapper
+): string {
   const { type, children } = element;
   const startPos = { ...context };
 
@@ -261,8 +320,8 @@ function serializeElementWithTracking(
   }
 
   // 2. void 元素直接序列化并记录元素级映射
-  if (isVoidElement(type)) {
-    const serializer = registry().getSerializer(type)!;
+  if (isVoidElement(element)) {
+    const serializer = registry().getSerializer(type, element)!;
 
     let output: string;
     let serializerOutput: SerializerOutput | null = null;
@@ -299,7 +358,7 @@ function serializeElementWithTracking(
   }
 
   // 3. 非 void 元素：递归处理子节点
-  const singleNewlineJoin = joinsChildrenWithSingleNewline(type);
+  const singleNewlineJoin = joinsChildrenWithSingleNewline(element);
 
   const childrenParts: string[] = [];
   const childContext = { ...context };
@@ -383,7 +442,7 @@ function serializeElementWithTracking(
   const childrenStr = childrenParts.join("");
 
   // 4. 调用序列化器（未知元素已在第 1 步处理，这里必有）
-  const serializer = registry().getSerializer(type)!;
+  const serializer = registry().getSerializer(type, element)!;
 
   let output: string;
   let serializerOutput: SerializerOutput | null = null;
@@ -443,8 +502,11 @@ function updateContext(context: SerializationContext, output: string): void {
 }
 
 /** 判断元素类型是否为 void（位置映射只记元素级范围） */
-function isVoidElement(type: string): boolean {
-  return currentExportConfig().voidTypes.has(type);
+function isVoidElement(element: CustomElement): boolean {
+  const config = currentExportConfig();
+  return config.resolveCodec
+    ? Boolean(config.resolveCodec(element)?.isVoid)
+    : config.voidTypes.has(element.type);
 }
 
 /**

@@ -19,6 +19,7 @@ mod calendar_holidays;
 mod calendar_time;
 mod collaboration;
 mod common;
+mod content_contracts;
 mod diary;
 mod entity_context;
 mod entity_refs_index;
@@ -50,13 +51,14 @@ pub use index_db::reset_index_database;
 pub use pomodoro::*;
 pub use project::*;
 pub use schema::ensure_database_file;
-pub(crate) use schema::invalidate_cached_connection;
+pub(crate) use schema::install_preserved_download;
 pub use schema::validate_download;
 pub use todo::*;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateQuickCardPayload {
+    pub contracts: Option<Value>,
     pub content: Value,
     pub count: i64,
 }
@@ -84,6 +86,10 @@ pub struct CardsByIdsPayload {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateContentPayload {
+    pub expected_source_id: Option<String>,
+    pub contracts: Option<Value>,
+    pub expected_revision: Option<String>,
+    pub expected_document_id: Option<String>,
     pub content_id: i64,
     pub content: Value,
     pub count: i64,
@@ -98,7 +104,21 @@ fn write_content_snapshot(
     count: i64,
     now: i64,
     code: &str,
+    contracts: Option<&Value>,
+    expected_revision: Option<&str>,
+    expected_document_id: Option<&str>,
+    expected_source_id: Option<&str>,
 ) -> Result<i64, String> {
+    content_contracts::write(
+        tx,
+        content_id,
+        content,
+        contracts,
+        expected_revision,
+        expected_document_id,
+        expected_source_id,
+        now,
+    )?;
     let normalized_content = if content.is_array() {
         content.clone()
     } else {
@@ -250,12 +270,6 @@ pub fn resolve_embedding_fingerprint_for_setting(setting: &Value) -> String {
     index_db::resolve_embedding_fingerprint_from_setting(setting)
 }
 
-pub fn force_checkpoint_database(app: &AppHandle, db_name: &str) -> Result<(), String> {
-    // checkpoint 要求 WAL 无并发连接，缓存连接会让 busy 检查失败
-    schema::invalidate_cached_connection();
-    schema::force_checkpoint(app, db_name)
-}
-
 fn count_non_internal_tables(conn: &rusqlite::Connection) -> Result<i64, String> {
     conn.query_row(
         "SELECT COUNT(1) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
@@ -362,6 +376,8 @@ pub fn create_quick_card(
     } else {
         Value::Array(vec![])
     };
+    let (normalized_content, contracts) =
+        content_contracts::prepare_new(&normalized_content, payload.contracts.as_ref())?;
     let serialized_content = serde_json::to_string(&normalized_content)
         .map_err(|e| format!("CARD_CONTENT_INVALID: Failed to serialize content: {e}"))?;
     let normalized_count = payload.count.max(0);
@@ -389,6 +405,16 @@ pub fn create_quick_card(
     )
     .map_err(|e| format!("CARD_CREATE_FAILED: Failed to insert content: {e}"))?;
     let content_id = tx.last_insert_rowid();
+    content_contracts::write(
+        &tx,
+        content_id,
+        &normalized_content,
+        Some(&contracts),
+        None,
+        None,
+        None,
+        now,
+    )?;
 
     tx.execute(
         "
@@ -451,6 +477,10 @@ pub fn update_content(
         payload.count,
         now,
         "CONTENT_UPDATE_FAILED",
+        payload.contracts.as_ref(),
+        payload.expected_revision.as_deref(),
+        payload.expected_document_id.as_deref(),
+        payload.expected_source_id.as_deref(),
     )?;
     tx.commit()
         .map_err(|e| format!("CONTENT_UPDATE_FAILED: Failed to commit transaction: {e}"))?;
@@ -712,51 +742,7 @@ pub fn delete_card(app: AppHandle, id: i64) -> Result<i64, String> {
     )
     .map_err(|e| format!("CARD_DELETE_FAILED: Failed to write card operation: {e}"))?;
 
-    if content_id > 0 {
-        tx.execute(
-            "
-            UPDATE contents
-            SET ref_count = ref_count - 1
-            WHERE id = ?1
-            ",
-            params![content_id],
-        )
-        .map_err(|e| format!("CARD_DELETE_FAILED: Failed to decrease content ref_count: {e}"))?;
-
-        let ref_count = tx
-            .query_row(
-                "
-                SELECT ref_count
-                FROM contents
-                WHERE id = ?1
-                LIMIT 1
-                ",
-                params![content_id],
-                |row| row.get::<_, i64>(0),
-            )
-            .optional()
-            .map_err(|e| format!("CARD_DELETE_FAILED: Failed to read content ref_count: {e}"))?;
-
-        if matches!(ref_count, Some(count) if count <= 0) {
-            assistant_tasks::reconcile_document_links(&tx, content_id, None)?;
-            // 释放两侧显式连接（与桌面 ContentTable.releaseContent 对齐），防悬空边
-            tx.execute(
-                "DELETE FROM content_links WHERE content_id = ?1 OR target_content_id = ?1",
-                params![content_id],
-            )
-            .map_err(|e| format!("CARD_DELETE_FAILED: Failed to release content links: {e}"))?;
-            tx.execute("DELETE FROM contents WHERE id = ?1", params![content_id])
-                .map_err(|e| format!("CARD_DELETE_FAILED: Failed to delete content: {e}"))?;
-            tx.execute(
-                "
-                INSERT INTO operation (operation_time, operation_id, operation_content_type, operation_action)
-                VALUES (?1, ?2, 'content', 'delete')
-                ",
-                params![now, content_id],
-            )
-            .map_err(|e| format!("CARD_DELETE_FAILED: Failed to write content operation: {e}"))?;
-        }
-    }
+    common::release_content_reference(&tx, content_id)?;
 
     tx.commit()
         .map_err(|e| format!("CARD_DELETE_FAILED: Failed to commit transaction: {e}"))?;
@@ -865,10 +851,9 @@ mod content_link_tests {
         assert_eq!(edge_count(&conn), 0, "共用正文的身份之间不互连");
     }
 
-    /// 引用归零删除正文时释放两侧边（common 路径；delete_card / diary / todo 是同一语句）。
-    /// delete_card / 删日记段是 tauri 命令无法直测，语句与 common.rs 完全一致。
+    /// 归零只进入待回收队列，仍被本机副本使用的正文和连接不能立即删除。
     #[test]
-    fn deleting_content_releases_content_links() {
+    fn released_content_preserves_body_and_links_until_collection() {
         let conn = setup();
         let a = insert_content(&conn, "卡片A");
         let b = insert_content(&conn, "卡片B");
@@ -881,9 +866,28 @@ mod content_link_tests {
         let victim = a.max(b);
 
         conn.execute("BEGIN", []).unwrap();
-        common::decrement_or_delete_content(&conn, victim).unwrap();
+        common::release_content_reference(&conn, victim).unwrap();
         conn.execute("COMMIT", []).unwrap();
 
-        assert_eq!(edge_count(&conn), 0, "正文删除应释放两侧的边");
+        assert_eq!(edge_count(&conn), 1, "待回收正文仍保留显式连接");
+        assert_eq!(
+            conn.query_row(
+                "SELECT ref_count FROM contents WHERE id=?1",
+                [victim],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            0
+        );
+        assert_eq!(
+            conn.query_row(
+                "SELECT count(*) FROM content_pending_releases WHERE content_id=?1",
+                [victim],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            1
+        );
+        assert!(common::release_content_reference(&conn, victim).is_err());
     }
 }

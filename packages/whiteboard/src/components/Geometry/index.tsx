@@ -82,6 +82,7 @@ const Geometry = memo((props: GeometryProps) => {
   const [isEditing, setIsEditing] = useState(false);
 
   const board = useBoard();
+  const collaborativeDocument = board.document?.textDocument(element.id);
   useEditingElementCleanup(id);
   const textBinding = useTextExtension();
   const { isSelected } = useSelectState(id);
@@ -154,11 +155,13 @@ const Geometry = memo((props: GeometryProps) => {
   });
 
   const handleOnFocus = useMemoizedFn(() => {
+    board.document?.splitHistory();
     setIsEditing(true);
     addEditingElement();
   });
 
   const handleOnBlur = useMemoizedFn(() => {
+    board.document?.splitHistory();
     // 延迟设为 readonly
     setTimeout(() => {
       setIsEditing(false);
@@ -290,13 +293,16 @@ const Geometry = memo((props: GeometryProps) => {
           {/* 图形可单独指定文字明暗（深色填充配浅色字），未指定时跟随宿主 */}
           <EditorThemeOverride mode={theme}>
             <Editor
+              document={collaborativeDocument}
               kit={textBinding.kit()}
               ref={textRef}
               initValue={textContent}
               onFocus={handleOnFocus}
               onBlur={handleOnBlur}
-              readonly={!isEditing}
-              onChange={handleTextContentChange}
+              readonly={
+                !isEditing || board.readonly || Boolean(board.document && !collaborativeDocument)
+              }
+              onChange={board.document ? undefined : handleTextContentChange}
               hotkeyConfigs={geometryHotkeyConfigs}
             />
           </EditorThemeOverride>

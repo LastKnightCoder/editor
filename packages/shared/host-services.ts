@@ -1,4 +1,4 @@
-import { createServiceId } from "./service-contract.ts";
+import { createServiceId, type ServiceIdentifier } from "./service-contract.ts";
 
 /** 共用宿主资源能力，上传文件沿用浏览器 File 契约。 */
 
@@ -53,6 +53,9 @@ export interface OpenerService {
   open: (url: string) => void | Promise<void>;
 }
 
-export const IResourceService = createServiceId<ResourceService>("resourceService");
-export const IFileService = createServiceId<FileService>("fileService");
-export const IOpenerService = createServiceId<OpenerService>("openerService");
+export const IResourceService: ServiceIdentifier<ResourceService> =
+  createServiceId<ResourceService>("resourceService");
+export const IFileService: ServiceIdentifier<FileService> =
+  createServiceId<FileService>("fileService");
+export const IOpenerService: ServiceIdentifier<OpenerService> =
+  createServiceId<OpenerService>("openerService");

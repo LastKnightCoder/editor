@@ -19,7 +19,7 @@ it("白板独立贡献进入同一内容目录，启停不影响无关博客发�
       {
         id: "test.board",
         apiVersion: 1,
-        elements: [{ type: "test.board.box", render: () => null }],
+        elements: [{ dataVersion: 1, type: "test.board.box", render: () => null }],
         create: () => ({}),
       },
     ],
@@ -76,7 +76,7 @@ it("编辑器插件启停只改变下次启动意图，不卸载当前渲染快�
       {
         id: "test.ext",
         apiVersion: 1,
-        elements: [{ type: "test.node", kind: "block", render: () => null }],
+        elements: [{ dataVersion: 1, type: "test.node", kind: "block", render: () => null }],
       },
     ],
   });

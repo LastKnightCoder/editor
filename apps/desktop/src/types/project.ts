@@ -1,3 +1,4 @@
+import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { Descendant } from "slate";
 import { IPodcast } from "./podcast";
 
@@ -33,6 +34,7 @@ export enum EProjectItemType {
 }
 
 export interface ProjectItem {
+  contracts?: ContentContractDictionary;
   id: number;
   createTime: number;
   updateTime: number;

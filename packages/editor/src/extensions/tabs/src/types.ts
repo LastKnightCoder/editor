@@ -20,7 +20,7 @@ export interface TabPaneElement {
 
 export interface TabsElement {
   type: "tabs";
-  activeKey: string;
+  activeKey?: string;
   /** @deprecated 旧数据形态，仅迁移读取兼容 */
   tabsContent?: ITabsContent[];
   children: TabPaneElement[];

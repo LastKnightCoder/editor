@@ -17,11 +17,14 @@ import {
   protectPluginBackendChange,
 } from "./plugin-backend";
 import { PluginUpdates } from "../services/plugin-updates";
+import { LegacyPluginUpgrade, waitForLegacyPluginUpgrade } from "../services/legacy-plugin-upgrade";
+import { dismissNotification, routeNotification } from "../windows/notification-router";
 import { isSkillPackage, isTemplatePackage, readPluginPackage } from "../services/plugin-package";
 import { PluginContentStartup } from "../services/plugin-content-startup";
 import {
   appendContentPluginArtifact,
   getContentPluginArtifacts,
+  setLegacyPluginStartupErrors,
 } from "../services/plugin-content-artifacts";
 import { contentExecutor } from "../services/content-execution";
 import { LocalPluginPreferences } from "@tau/plugins/local-state";
@@ -76,6 +79,28 @@ export default {
     const preferences = new LocalPluginPreferences(directory());
     await userSetting.getSettingSnapshot();
     await preferences.load();
+    if (app.isPackaged) {
+      let notified = "";
+      await waitForLegacyPluginUpgrade(new LegacyPluginUpgrade(updates, preferences), error => {
+        const message = error instanceof Error ? error.message : String(error);
+        log.warn("旧内容升级所需插件尚未就绪，将自动重试", error);
+        if (
+          /网络|连接|超时|fetch|ECONN|ENOTFOUND|OFFLINE|timeout/i.test(message) ||
+          notified === message
+        )
+          return;
+        notified = message;
+        routeNotification(
+          {
+            id: "legacy-plugin-upgrade",
+            title: "升级所需插件尚未就绪",
+            body: `${message}。后台会自动重试，原内容尚未转换。`,
+          },
+          { kind: "main" }
+        );
+      });
+      if (notified) dismissNotification("legacy-plugin-upgrade");
+    }
     const readManagedPackage = async (id: string) => {
       const artifact = await readPluginPackage(path.join(directory(), id), app.getVersion());
       if (artifact.manifest.formatVersion === 3 && app.isPackaged) {
@@ -112,6 +137,7 @@ export default {
         )
         .map(entry => entry.id)
     );
+    setLegacyPluginStartupErrors(snapshot.errors);
     ipcMain.handle("plugin-local:content-startup", () => snapshot);
     if (!app.isPackaged)
       ipcMain.handle("plugin-local:portable-development", () => portableDevelopmentArtifacts());

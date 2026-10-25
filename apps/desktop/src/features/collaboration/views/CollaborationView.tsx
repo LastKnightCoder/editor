@@ -11,7 +11,8 @@
  */
 
 import { useState } from "react";
-import { AlertTriangle, KeyRound, Share2, Users } from "lucide-react";
+import { AlertTriangle, KeyRound, PenTool, Share2, Users } from "lucide-react";
+import type { SharedWhiteboardInfo } from "@tau/collaboration";
 import { Button, Loading, Popover } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import useCollaborationStore from "@/stores/useCollaborationStore";
@@ -22,12 +23,16 @@ import { CollaborationRoom } from "../components/CollaborationRoom";
 import { JoinDialog } from "../components/JoinDialog";
 import { NicknameChip } from "../components/NicknameChip";
 import { ShareLocalDialog } from "../components/ShareLocalDialog";
+import { ContentRecoveries } from "../components/ContentRecoveries";
+
+const NO_WHITEBOARDS: SharedWhiteboardInfo[] = [];
 
 export function CollaborationView() {
   const { navigator } = usePage();
   const { id } = usePageParams<{ id?: string }>();
   const synced = useCollaborationStore(state => state.synced);
   const sessions = useCollaborationStore(state => state.sessions);
+  const whiteboards = useCollaborationStore(state => state.whiteboards ?? NO_WHITEBOARDS);
   const requests = useCollaborationStore(state => state.requests);
   const nickname = useCollaborationStore(state => state.nickname);
   const deviceId = useCollaborationStore(state => state.deviceId);
@@ -43,17 +48,20 @@ export function CollaborationView() {
   if (!synced) return <Loading />;
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4">
       {/* 一整张纸：工具栏固定在纸顶，协作副本在纸内（同 Skill 页） */}
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="mt-5 flex h-10 flex-none items-center gap-3 px-8">
-          <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-[600] tracking-[-0.01em]">
+          <h1 className="text-tau-title-lg shrink-0 font-[600] tracking-[-0.01em] whitespace-nowrap">
             协作
           </h1>
-          {sessions.length > 0 && (
+          {sessions.length + whiteboards.length > 0 && (
             <div className="text-ink-2 text-tau-meta flex items-center gap-2">
               <span>
-                <b className="text-ink-1 font-[600] tabular-nums">{sessions.length}</b> 份共享
+                <b className="text-ink-1 font-[600] tabular-nums">
+                  {sessions.length + whiteboards.length}
+                </b>{" "}
+                份共享
               </span>
               {pending.length > 0 && (
                 <>
@@ -83,8 +91,9 @@ export function CollaborationView() {
                             compact
                             className="bg-hover"
                             description={`申请加入「${
-                              sessions.find(session => session.id === request.documentId)?.title ||
-                              "未命名内容"
+                              [...sessions, ...whiteboards].find(
+                                item => item.id === request.documentId
+                              )?.title || "未命名内容"
                             }」`}
                           />
                         ))}
@@ -97,6 +106,7 @@ export function CollaborationView() {
           )}
           <span className="flex-1" />
           <NicknameChip deviceId={deviceId} nickname={nickname} />
+          <ContentRecoveries />
           <Button variant="secondary" icon={KeyRound} onClick={() => setJoining(true)}>
             输入协作码
           </Button>
@@ -123,6 +133,18 @@ export function CollaborationView() {
             deviceId={deviceId}
             onLeft={() => select()}
           />
+        ) : whiteboards.length > 0 ? (
+          <section className="grid flex-1 place-items-center">
+            <div className="flex max-w-[34ch] flex-col items-center gap-2 text-center">
+              <span className="bg-accent-soft text-accent-text mb-1.5 grid size-[52px] place-items-center rounded-[16px]">
+                <PenTool className="size-6" strokeWidth={1.5} />
+              </span>
+              <h2 className="text-ink-1 text-[15px] font-[600]">共享白板在白板页里编辑</h2>
+              <p className="text-ink-2 text-tau-meta">
+                点左侧「协作」下的白板即可打开，改动在白板页里保存和同步。
+              </p>
+            </div>
+          </section>
         ) : (
           <section className="grid flex-1 place-items-center">
             <div className="flex max-w-[34ch] flex-col items-center gap-2 text-center">

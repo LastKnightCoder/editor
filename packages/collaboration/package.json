@@ -9,7 +9,8 @@
     "test": "vitest run --config vitest.config.ts",
     "check": "tsc --noEmit",
     "lint": "oxlint src",
-    "format": "oxfmt --write src package.json tsconfig.json vitest.config.ts"
+    "format": "oxfmt --write src package.json tsconfig.json vitest.config.ts",
+    "test:whiteboard-capacity": "vitest run --config vitest.whiteboard-capacity.config.ts"
   },
   "dependencies": {
     "@slate-yjs/core": "1.0.2",

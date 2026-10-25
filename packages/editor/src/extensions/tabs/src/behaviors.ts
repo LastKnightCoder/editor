@@ -79,13 +79,6 @@ const normalizeTabs: ElementBehaviors<TabsElement>["normalize"] = (editor, [node
     return true;
   }
 
-  // activeKey 失效时修正为第一个 pane（无 pane 的空壳形态保持不动）
-  const panes = children.filter(child => child.type === "tab-pane") as TabPaneElement[];
-  if (panes.length > 0 && !panes.some(pane => pane.tabKey === node.activeKey)) {
-    Transforms.setNodes(editor, { activeKey: panes[0].tabKey }, { at: path });
-    return true;
-  }
-
   return false;
 };
 

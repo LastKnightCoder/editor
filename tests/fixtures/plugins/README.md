@@ -10,6 +10,10 @@ node scripts/plugins/pin-test-fixture.mjs /path/to/plugin.zip <完整源码提�
 
 校验和读取使用scripts/plugins/test-support/package-fixtures.ts；桌面测试由src/test-fixtures/plugin-packages.ts消费。正式插件通过插件中心审核、下载与安装，生产读取用户安装目录。博客发布也只收集用户当前已安装的插件，不读取测试包。
 
+验证尚未提交的插件改动时，在插件仓库执行 `git diff --binary HEAD > /tmp/plugin-source.patch`，构建 ZIP 后将补丁作为固定脚本的第四个参数。`sourceRevision` 填基准 HEAD，`sourcePatch` 记录补丁路径与 SHA-256；`sources/` 保存补丁，`releases/` 仍保留 ZIP 原始字节。复现时检出基准提交再 `git apply` 对应补丁。此类产物是本地验证构建，不代表已发布；正式发布后以真实发布提交和 ZIP 更新夹具。
+
+本地源码补丁构建使用当前工作区 SDK：先运行 `node scripts/plugins/package-sdk.mjs /tmp/tau-fixture-sdk`，在插件的隔离副本里将 `@tau/plugins`、`@tau/ui` 指向生成的 tarball，再安装、测试和构建；不修改作者仓库的正式依赖与锁文件。当前 HTML 行内字段依赖宿主的 `inputRef`，已发布 SDK 0.44.0 尚不包含它，不能将该验证构建视为公开 SDK 的独立发行验收。读取器同时校验旧桌面包与格式 3 包，桌面集成测试通过正式宿主入口检查平台及客户端版本。
+
 白板验收显式传入ZIP，不再有--bundled方式：
 
 ```sh

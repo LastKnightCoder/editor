@@ -1,41 +1,44 @@
-import { useState } from "react";
-import { DocumentCardGrid, toast } from "@tau/ui";
-import { useAsyncEffect } from "ahooks";
+import { DocumentCardGrid } from "@tau/ui";
+import { useQuery } from "@tanstack/react-query";
 import ItemCard from "@/editor-extensions/components/ItemCard";
 
 import { getProjectItemsByIds, getProjectItemById } from "@/commands";
 import { ProjectItem } from "@/types";
+import { getProjectItemChildren } from "@/commands/project";
+import type { ContentEntityReference } from "@tau/db-schema/content-identities";
+import useSettingStore from "@/stores/useSettingStore";
 
 interface IProps {
-  projectItemId: number;
-  onClick: (item: ProjectItem, index: number) => void;
+  projectItemId?: number;
+  reference?: ContentEntityReference;
+  onClick: (item: ProjectItem, index: number, reference?: ContentEntityReference) => void;
 }
 
 const ProjectList = (props: IProps) => {
-  const { projectItemId, onClick } = props;
-
-  const [items, setItems] = useState<ProjectItem[]>([]);
-
-  useAsyncEffect(async () => {
-    if (!projectItemId) return;
-    const projectItem = await getProjectItemById(projectItemId);
-    if (!projectItem) return;
-    const { children } = projectItem;
-
-    try {
-      const items = await getProjectItemsByIds(children);
-      // 根据 children 的顺序重排序
-      items.sort((a, b) => {
-        const indexA = children.indexOf(a.id);
-        const indexB = children.indexOf(b.id);
-        return indexA - indexB;
-      });
-      setItems(items);
-    } catch (e) {
-      console.error(e);
-      toast.error("ProjectItems 拉取失败" + e);
-    }
-  }, [projectItemId]);
+  const { projectItemId, reference, onClick } = props;
+  const database = useSettingStore(state => state.setting.database.active);
+  const query = useQuery({
+    queryKey: ["project-card-list", database, reference ?? projectItemId],
+    enabled: Boolean(reference || projectItemId),
+    refetchOnWindowFocus: true,
+    retry: false,
+    queryFn: async (): Promise<{ item: ProjectItem; reference?: ContentEntityReference }[]> => {
+      if (reference) return getProjectItemChildren(reference);
+      const parent = await getProjectItemById(projectItemId!);
+      if (!parent) return [];
+      const items = await getProjectItemsByIds(parent.children);
+      return items
+        .sort((a, b) => parent.children.indexOf(a.id) - parent.children.indexOf(b.id))
+        .map(item => ({ item }));
+    },
+  });
+  const items = query.data ?? [];
+  if (query.error)
+    return (
+      <p contentEditable={false} role="status" className="text-ink-3 text-tau-sm py-6 text-center">
+        项目来源不可用，请打开原资料库或恢复副本。
+      </p>
+    );
 
   if (items.length === 0) {
     return (
@@ -47,8 +50,8 @@ const ProjectList = (props: IProps) => {
 
   return (
     <DocumentCardGrid>
-      {items.map((item, i) => (
-        <ItemCard key={item.id} item={item} onClick={() => onClick(item, i)} />
+      {items.map(({ item, reference }, i) => (
+        <ItemCard key={item.id} item={item} onClick={() => onClick(item, i, reference)} />
       ))}
     </DocumentCardGrid>
   );

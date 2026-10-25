@@ -6,6 +6,7 @@ import type {
   JoinRequest,
   JoinRequestResult,
   SharedDocumentInfo,
+  MigrationDocument,
 } from "@tau/collaboration";
 
 type RequestInput = {
@@ -15,7 +16,7 @@ type RequestInput = {
   body?: unknown;
 };
 
-function request<T>(input: RequestInput) {
+export function request<T>(input: RequestInput) {
   return invoke<T>("collab_request", {
     payload: {
       serverUrl: input.serverUrl,
@@ -49,12 +50,20 @@ export function getDocumentState(serverUrl: string, documentId: string) {
   });
 }
 
-export function fetchTicket(serverUrl: string, documentId: string | null) {
+export function getDocumentProtocol(serverUrl: string, documentId: string) {
+  return request<MigrationDocument>({ serverUrl, path: `/v1/documents/${documentId}/protocol` });
+}
+
+export function fetchTicket(
+  serverUrl: string,
+  documentId: string | null,
+  protocol?: { protocolVersion: number; epoch: number; baselineId: string }
+) {
   return request<{ ticket: string; expiresIn: number }>({
     serverUrl,
     path: "/v1/tickets",
     method: "POST",
-    body: { documentId },
+    body: { documentId, ...protocol },
   });
 }
 
@@ -114,11 +123,12 @@ export function leaveDocument(serverUrl: string, documentId: string) {
   });
 }
 
-export function closeDocument(serverUrl: string, documentId: string) {
+export function closeDocument(serverUrl: string, documentId: string, expectedRevision: string) {
   return request<{ ok: boolean }>({
     serverUrl,
     path: `/v1/documents/${documentId}/close`,
     method: "POST",
+    body: { expectedRevision },
   });
 }
 

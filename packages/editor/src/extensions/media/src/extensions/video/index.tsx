@@ -12,6 +12,7 @@ const videoExtension = defineExtension({
   elements: [
     defineElement<VideoElement>({
       type: "video",
+      dataVersion: 1,
       resources: BUILTIN_CONTENT_RESOURCES["video"],
       kind: "block",
       isVoid: true,

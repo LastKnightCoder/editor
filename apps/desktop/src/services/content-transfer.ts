@@ -62,15 +62,43 @@ export const reportExportResult = async (
   await showInFolder(result.filePath).catch(error => console.warn("打开导出目录失败:", error));
 };
 
+/** 持久正文按完整快照导出，不能把旧格式交给当前版本猜测。 */
+export async function readContentForExport(content: Descendant[], contentId?: number) {
+  if (!contentId) return { content, contracts: undefined };
+  const document = await (await import("@/commands/content")).getContentById(contentId);
+  if (!document) throw new Error("待导出正文已删除");
+  if (!document.contracts) throw new Error("旧正文请先完成转换后导出");
+  return document;
+}
+
 /**
  * 单篇导出为 Markdown：本机图片 / 音视频 / 附件打包进 assets/ 并改为相对路径；
  * 应用内链接导出为标题文本。
  */
-export const exportContentAsMarkdown = async (input: { title: string; content: Descendant[] }) => {
+export const exportContentAsMarkdown = async (input: {
+  title: string;
+  content: Descendant[];
+  contentId?: number;
+  contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
+}) => {
   try {
     const baseName = sanitizeFileName(input.title, "未命名");
-    const assets = await collectBundleAssets([input.content]);
-    const markdown = toPortableMarkdown(input.content, { assets: assets.paths, dir: [] });
+    const document = input.contentId
+      ? await (await import("@/commands/content")).getContentById(input.contentId)
+      : null;
+    if (input.contentId && !document) throw new Error("待导出正文已删除");
+    const content = document?.content ?? input.content,
+      contracts = document?.contracts ?? input.contracts;
+    const assets = await collectBundleAssets([content], { contracts });
+    const processor = contracts
+      ? await (await import("@/services/editorKit")).prepareContentMarkdown(contracts)
+      : undefined;
+    const markdown = toPortableMarkdown(content, {
+      assets: assets.paths,
+      dir: [],
+      contracts,
+      markdown: processor,
+    });
     const result = await saveMarkdownOutput({ baseName, markdown, assetFiles: assets.files });
     await reportExportResult(result, assets.warnings);
   } catch (error) {

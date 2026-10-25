@@ -1,4 +1,4 @@
-import type { ContentSessionTarget, SharedContent } from "@tau/collaboration";
+import type { ContentSessionTarget, ContentInputDraft } from "@tau/collaboration";
 import {
   collaborationCommands,
   type CollaborationInvitation,
@@ -18,6 +18,10 @@ export type {
 export const joinCollaboration = async (code: string) => {
   return collaborationCommands.join.call(code);
 };
+export const preserveCollaborationDocumentDraft = (
+  viewId: string,
+  draft: { state: Uint8Array; sequence: number }
+) => collaborationCommands.documentDraft.call(viewId, draft);
 
 /** 审批加入申请（approve 为 true 批准、false 拒绝） */
 export const decideJoinRequest = async (requestId: string, approve: boolean) => {
@@ -96,24 +100,12 @@ export const updateCollaborationDocument = async (
   return collaborationCommands.update.call(id, updates, viewId);
 };
 
-/** 提交私有块（不进 Y 文档，主进程单独落库） */
-export const sendCollaborationPrivateNode = async (
-  id: string,
-  viewId: string,
-  collabId: string,
-  node: SharedContent["content"][number]
-) => {
-  return collaborationCommands.privateNode.call(id, viewId, collabId, node);
-};
+export const preserveCollaborationInputDraft = (viewId: string, draft: ContentInputDraft) =>
+  collaborationCommands.inputDraft.call(viewId, draft);
 
 /** 冻结确认（服务端 freeze 后本机完成落盘的回执） */
-export const ackCollaborationFreeze = async (viewId: string) => {
-  return collaborationCommands.freezeAck.call(viewId);
-};
-
-/** 记录激活 Tab（本机视图状态，随投影落库） */
-export const setCollaborationTabActive = async (id: string, collabId: string, value: string) => {
-  return collaborationCommands.setTabActive.call(id, collabId, value);
+export const ackCollaborationFreeze = async (viewId: string, requestId?: string) => {
+  return collaborationCommands.freezeAck.call(viewId, requestId);
 };
 
 /** 上传资源到共享文档，返回资源 URL */

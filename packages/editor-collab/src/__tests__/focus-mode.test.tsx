@@ -6,13 +6,14 @@ import { ReactEditor } from "slate-react";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Awareness } from "y-protocols/awareness";
-import { createSharedDocument } from "@tau/collaboration";
+import { NodeTree } from "@tau/collaboration";
+import * as Y from "yjs";
 import { Editor, createEditorKit } from "@tau/editor";
 import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
 import { IEditorSlots } from "@tau/editor/extensions/media/services";
 import { focusRoleOf } from "../../../editor/src/core/components/FocusPath/focusPath";
-import { createYjsDocument } from "../document";
-import type { EditorCollaborationBinding } from "../types";
+import { createNodeTreeDocument } from "../nodeTreeDocument";
+import type { ContentCollaborationBinding } from "../types";
 
 // 聚焦模式（focusMode）在协作文档下的回归：Yjs 同步整体替换节点对象，按 findPath 判断会卡住过期标记。
 // 随机混合换行 / 输入 / 删除 / 移动光标，每步核对 DOM 标记与选区推导的角色一致。
@@ -24,7 +25,6 @@ const p = (text: string) => ({ type: "paragraph", children: [{ text }] });
 
 for (const mode of ["local", "shared"] as const) {
   it(`${mode} 模式：标记始终跟随选区`, async () => {
-    const privateNodes = new Map();
     const content = [
       p("A"),
       p("B"),
@@ -33,17 +33,14 @@ for (const mode of ["local", "shared"] as const) {
       p("D"),
       p("E"),
     ];
-    const doc = createSharedDocument(
-      { title: "t", content, bannerBg: "", bannerPosition: "center" } as never,
-      privateNodes,
-      mode
-    );
-    const binding: EditorCollaborationBinding = {
+    const doc = new Y.Doc({ gc: false });
+    const tree = new NodeTree(doc);
+    content.forEach((node, index) => tree.insertNode(node, null, index, null));
+    const binding: ContentCollaborationBinding = {
       mode,
       doc,
       awareness: new Awareness(doc),
       origin: {},
-      privateNodes,
       uploadResource: async () => "",
       resolveResource: async url => url,
     };
@@ -51,7 +48,7 @@ for (const mode of ["local", "shared"] as const) {
     document.body.appendChild(host);
     const root = createRoot(host);
     let editor: SlateEditor | null = null;
-    const documentSource = createYjsDocument(binding);
+    const documentSource = createNodeTreeDocument(tree, { collaboration: binding });
     await act(async () =>
       root.render(
         <DndProvider backend={HTML5Backend}>
@@ -107,6 +104,10 @@ for (const mode of ["local", "shared"] as const) {
       }
     }
     await act(async () => root.unmount());
+    binding.awareness.destroy();
+    tree.dispose();
+    doc.destroy();
+    host.remove();
     expect(problems).toEqual([]);
   });
 }

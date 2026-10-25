@@ -1,10 +1,14 @@
+import { createContractMarkdownProcessor } from "./contract-markdown";
 import {
   normalizeContentMetricRules,
   type ContentMetricRule,
 } from "@tau/db-schema/content-metrics";
 import type { PluginDefinition } from "./contract";
-import type { WhiteboardElementDefinition } from "./whiteboard";
+import type { WhiteboardElementDefinition, WhiteboardExtension } from "@tau/whiteboard";
+import { WhiteboardContractCatalog, hostWhiteboardExtensions } from "@tau/whiteboard/contracts";
 import type { DevelopmentPluginPackage } from "./package";
+import { ElementContractCatalog } from "./editor-contracts";
+import type { EditorExtension, ElementSpec } from "@tau/editor/contracts";
 import { createMarkdownProcessor, type MarkdownProcessor } from "@tau/markdown";
 import type {
   ContentResourceDeclarations,
@@ -20,15 +24,28 @@ import {
 export class ContentPluginRegistry {
   constructor(private readonly onMetrics?: (rules: readonly ContentMetricRule[]) => void) {}
   private metricRules: readonly ContentMetricRule[] = Object.freeze([]);
+  private revision = 0;
+  private listeners = new Set<() => void>();
+  readonly getRevision = () => this.revision;
+  readonly subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
   get metrics() {
     return this.metricRules;
   }
 
+  private preparedWhiteboardContracts?: Promise<WhiteboardContractCatalog>;
+  private preparedContracts?: Promise<ElementContractCatalog>;
+  private contractCatalog?: ElementContractCatalog;
+  private kitContracts = new WeakMap<readonly EditorExtension[], Promise<ElementContractCatalog>>();
   private snapshot: {
     definitions: readonly PluginDefinition[];
     extensions: NonNullable<PluginDefinition["editorExtensions"]>;
     codecs: NonNullable<PluginDefinition["editorCodecs"]>;
-    whiteboardExtensions: NonNullable<PluginDefinition["whiteboardExtensions"]>;
+    whiteboardExtensions: readonly WhiteboardExtension[];
     whiteboardElements: readonly WhiteboardElementDefinition[];
     resources: ContentResourceDeclarations;
   } = {
@@ -55,6 +72,118 @@ export class ContentPluginRegistry {
   get codecs() {
     return this.snapshot.codecs;
   }
+
+  currentDataVersions() {
+    return new Map(
+      this.snapshot.extensions
+        .flatMap(extension => extension.elements ?? [])
+        .map(element => [element.type, element.dataVersion])
+    );
+  }
+
+  get importCodecs() {
+    const versions = this.currentDataVersions();
+    return this.snapshot.codecs.filter(
+      codec => codec.dataVersion === undefined || codec.dataVersion === versions.get(codec.type)
+    );
+  }
+
+  prepareWhiteboardContracts(): Promise<WhiteboardContractCatalog> {
+    if (this.preparedWhiteboardContracts) return this.preparedWhiteboardContracts;
+    const snapshot = this.snapshot;
+    const prepared = WhiteboardContractCatalog.prepare(
+      snapshot.definitions.map(definition => ({
+        owner: definition.id,
+        elements: (
+          definition.whiteboardExtensions?.flatMap(extension => extension.elements ?? []) ?? []
+        ).filter(
+          element => element.dataVersion !== undefined
+        ) as unknown as readonly WhiteboardElementDefinition[],
+      }))
+    )
+      .then(catalog => {
+        if (this.snapshot !== snapshot) throw new Error("插件声明已更新，请重新准备白板契约");
+        return catalog;
+      })
+      .catch(error => {
+        if (this.preparedWhiteboardContracts === prepared)
+          this.preparedWhiteboardContracts = undefined;
+        throw error;
+      });
+    return (this.preparedWhiteboardContracts = prepared);
+  }
+  prepareContracts(): Promise<ElementContractCatalog> {
+    if (this.preparedContracts) return this.preparedContracts;
+    const snapshot = this.snapshot;
+    const prepared = ElementContractCatalog.prepare(
+      snapshot.definitions.map(definition => ({
+        owner: definition.id,
+        elements:
+          definition.editorExtensions?.flatMap(extension =>
+            (extension.elements ?? []).filter(element => element.dataVersion !== undefined)
+          ) ?? [],
+      }))
+    )
+      .then(catalog => {
+        if (snapshot !== this.snapshot) throw new Error("插件声明已更新，请重新准备文档契约");
+        this.contractCatalog = catalog;
+        return catalog;
+      })
+      .catch(error => {
+        if (this.preparedContracts === prepared) this.preparedContracts = undefined;
+        throw error;
+      });
+    return (this.preparedContracts = prepared);
+  }
+
+  async prepareMarkdown(
+    extensions: readonly EditorExtension[],
+    options: {
+      contracts: import("@tau/db-schema/content-contracts").ContentContractDictionary;
+      codecs: readonly import("@tau/markdown").MarkdownCodec[];
+      textCodecs?: NonNullable<Parameters<typeof createMarkdownProcessor>[0]>["textCodecs"];
+      onFallback?: (type: string, reason: "unsupported" | "failed") => void;
+    }
+  ) {
+    const snapshot = this.snapshot;
+    const catalog = await this.prepareEditorContracts(extensions);
+    const owned = options.codecs.flatMap(codec => {
+      const owner = catalog.current(codec.type)?.contract.owner;
+      return owner ? [{ owner, codec }] : [];
+    });
+    for (const definition of snapshot.definitions)
+      for (const codec of definition.editorCodecs ?? [])
+        owned.push({ owner: definition.id, codec });
+    return createContractMarkdownProcessor({ ...options, catalog, codecs: owned });
+  }
+
+  prepareEditorContracts(extensions: readonly EditorExtension[]): Promise<ElementContractCatalog> {
+    const existing = this.kitContracts.get(extensions);
+    if (existing) return existing;
+    const snapshot = this.snapshot;
+    const owners = new Map<ElementSpec, string>();
+    for (const definition of snapshot.definitions)
+      for (const extension of definition.editorExtensions ?? [])
+        for (const element of extension.elements ?? []) owners.set(element, definition.id);
+    const active = new Map<string, { owner: string; element: ElementSpec }>();
+    for (const extension of extensions)
+      for (const element of extension.elements ?? [])
+        active.set(element.type, { owner: owners.get(element) ?? extension.id, element });
+    const sources = [...active.values()]
+      .filter(item => item.element.dataVersion !== undefined)
+      .map(item => ({ owner: item.owner, elements: [item.element] }));
+    const result = ElementContractCatalog.prepare(sources)
+      .then(catalog => {
+        if (this.snapshot !== snapshot) throw new Error("插件声明已更新，请重新准备文档契约");
+        return catalog;
+      })
+      .catch(error => {
+        if (this.kitContracts.get(extensions) === result) this.kitContracts.delete(extensions);
+        throw error;
+      });
+    this.kitContracts.set(extensions, result);
+    return result;
+  }
   install(definitions: readonly PluginDefinition[]) {
     const ids = new Set<string>();
     const types = new Set<string>();
@@ -80,7 +209,25 @@ export class ContentPluginRegistry {
         if (!owned.has(rule.type)) throw new Error("字数统计规则只能声明本插件的节点");
     }
     const codecs = definitions.flatMap(definition => definition.editorCodecs ?? []);
-    assertUniqueEditorCodecs(codecs);
+    const elements = new Map(
+      definitions
+        .flatMap(definition => definition.editorExtensions ?? [])
+        .flatMap(extension => extension.elements ?? [])
+        .map(element => [element.type, element])
+    );
+    const versions = new Map([...elements].map(([type, element]) => [type, element.dataVersion]));
+    for (const codec of codecs) {
+      const element = elements.get(codec.type);
+      if (
+        codec.dataVersion !== undefined &&
+        ![
+          element?.dataVersion,
+          ...(element?.previousVersions ?? []).map(previous => previous.element.dataVersion),
+        ].includes(codec.dataVersion)
+      )
+        throw new Error("Markdown 导出版本未在节点声明中登记");
+    }
+    assertUniqueEditorCodecs(codecs, versions);
     const resources: Record<string, readonly ContentResourceSpec[]> = {};
     for (const definition of definitions)
       for (const extension of definition.editorExtensions ?? [])
@@ -88,6 +235,10 @@ export class ContentPluginRegistry {
           if (element.resources?.length) resources[element.type] = element.resources;
     this.onMetrics?.(metrics);
     this.metricRules = metrics;
+    this.preparedWhiteboardContracts = undefined;
+    this.preparedContracts = undefined;
+    this.contractCatalog = undefined;
+    this.kitContracts = new WeakMap();
     this.snapshot = {
       definitions: Object.freeze([...definitions]),
       extensions: Object.freeze(
@@ -95,16 +246,20 @@ export class ContentPluginRegistry {
       ),
       codecs: Object.freeze(codecs),
       whiteboardExtensions: Object.freeze(
-        definitions.flatMap(definition => definition.whiteboardExtensions ?? [])
+        definitions.flatMap(definition =>
+          hostWhiteboardExtensions(definition.whiteboardExtensions ?? [], definition.id)
+        )
       ),
       whiteboardElements: Object.freeze(
         definitions.flatMap(
           definition =>
             definition.whiteboardExtensions?.flatMap(extension => extension.elements ?? []) ?? []
-        )
+        ) as unknown as WhiteboardElementDefinition[]
       ),
       resources: Object.freeze(resources),
     };
+    this.revision++;
+    for (const listener of this.listeners) listener();
   }
   load(artifacts: readonly DevelopmentPluginPackage[], modules: Readonly<Record<string, unknown>>) {
     this.install(artifacts.map(artifact => evaluatePluginPackage(artifact, modules)));
@@ -113,6 +268,37 @@ export class ContentPluginRegistry {
     return this.snapshot.definitions;
   }
   htmlSerializer(type: string) {
+    const versioned = this.currentDataVersions().get(type) !== undefined;
+    if (versioned) {
+      const snapshot = this.snapshot;
+      return {
+        type,
+        toHtml: (element: Record<string, unknown>) => {
+          if (snapshot !== this.snapshot) throw new Error("插件声明已更新，请重新导出");
+          const catalog = this.contractCatalog;
+          if (!catalog) throw new Error("节点契约尚未准备，请重新导出");
+          const entry =
+            element.tauContract === undefined ? catalog.current(type) : catalog.resolve(element);
+          if (!entry || entry.contract.type !== type)
+            throw new Error("当前节点版本不支持 HTML 导出");
+          const currentVersion = catalog.current(type)?.contract.dataVersion;
+          const definition = snapshot.definitions.find(item => item.id === entry.contract.owner);
+          const serializer = definition?.editorExtensions
+            ?.flatMap(extension => extension.htmlSerializers ?? [])
+            .find(
+              item =>
+                item.type === type &&
+                (item.dataVersion ?? currentVersion) === entry.contract.dataVersion
+            );
+          if (!serializer) throw new Error("当前节点版本不支持 HTML 导出");
+          const output = serializer.toHtml(element);
+          if (output && typeof (output as unknown as { then?: unknown }).then === "function")
+            void Promise.resolve(output).catch(() => undefined);
+          if (typeof output !== "string") throw new Error("HTML 导出器必须同步返回字符串");
+          return output;
+        },
+      };
+    }
     for (const extension of this.extensions) {
       const serializer = extension.htmlSerializers?.find(item => item.type === type);
       if (serializer) return serializer;
@@ -127,8 +313,8 @@ export function createPluginMarkdownProcessor(
 ): MarkdownProcessor {
   let previous = registry.codecs;
   const build = () => {
-    const codecs = [...(options?.codecs ?? []), ...registry.codecs];
-    assertUniqueEditorCodecs(codecs);
+    const codecs = [...(options?.codecs ?? []), ...registry.importCodecs];
+    assertUniqueEditorCodecs(codecs, registry.currentDataVersions());
     return createMarkdownProcessor({ ...options, codecs });
   };
   let processor = build();

@@ -13,7 +13,10 @@ export type PluginContentInput =
   /** Markdown，宿主转换为节点；Markdown 表达不了的格式会丢失 */
   | { markdown: string }
   /** 编辑器节点，原样写入，与 content.read 的 nodes 格式相同 */
-  | { nodes: Descendant[] }
+  | {
+      nodes: Descendant[];
+      contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
+    }
   /** 整份复制一份已有正文：只需要目标的写入权限，插件拿不到正文 */
   | { copyOf: PluginContentRef }
   /**
@@ -73,7 +76,9 @@ export function readContentInput(
   options: { allowEmpty: boolean; share?: boolean }
 ): PluginContentInput {
   if (!isRecord(value)) throw new Error("正文输入无效");
-  const keys = Object.keys(value).filter(key => value[key] !== undefined);
+  const keys = Object.keys(value).filter(
+    key => value[key] !== undefined && !(key === "contracts" && "nodes" in value)
+  );
   const kinds = options.share ? "markdown、nodes、copyOf 或 shareOf" : "markdown、nodes 或 copyOf";
   if (keys.length !== 1) throw new Error(`正文输入必须且只能提供 ${kinds} 之一`);
   let input: PluginContentInput;
@@ -86,7 +91,16 @@ export function readContentInput(
     const nodes = copyJson(value.nodes);
     if (JSON.stringify(nodes).length > CONTENT_INPUT_LIMITS.nodes) throw new Error("正文节点过大");
     assertContentNodes(nodes);
-    input = { nodes };
+    input = {
+      nodes,
+      ...(value.contracts === undefined
+        ? {}
+        : {
+            contracts: copyJson(
+              value.contracts
+            ) as unknown as import("@tau/db-schema/content-contracts").ContentContractDictionary,
+          }),
+    };
   } else if (keys[0] === "copyOf") {
     input = { copyOf: readRef(value.copyOf, "copyOf") };
   } else if (keys[0] === "shareOf" && options.share) {

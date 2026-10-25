@@ -2,7 +2,7 @@
  * 协作页域模型（纯函数）：侧栏子项与协作页共用同一排序与选中规则，保证两处指向同一份内容。
  */
 
-import type { CollaborationSession, SourceBinding } from "@tau/collaboration";
+import type { CollaborationSession, SharedWhiteboardInfo, SourceBinding } from "@tau/collaboration";
 import { SOURCE_LABELS } from "@/components/CollaborationUI/model";
 
 export interface SessionGroup {
@@ -16,6 +16,30 @@ export function groupSessions(sessions: CollaborationSession[]): SessionGroup[] 
     { label: "我发起的", sessions: sessions.filter(session => session.role === "owner") },
     { label: "我加入的", sessions: sessions.filter(session => session.role !== "owner") },
   ].filter(group => group.sessions.length > 0);
+}
+
+export interface SharedGroup extends SessionGroup {
+  whiteboards: SharedWhiteboardInfo[];
+}
+
+/** 侧栏分组：白板与正文按同一角色规则归组，白板排在同组正文之后。 */
+export function groupShared(
+  sessions: CollaborationSession[],
+  whiteboards: SharedWhiteboardInfo[]
+): SharedGroup[] {
+  const mine = (role: string) => role === "owner";
+  return [
+    {
+      label: "我发起的",
+      sessions: sessions.filter(session => mine(session.role)),
+      whiteboards: whiteboards.filter(room => mine(room.role)),
+    },
+    {
+      label: "我加入的",
+      sessions: sessions.filter(session => !mine(session.role)),
+      whiteboards: whiteboards.filter(room => !mine(room.role)),
+    },
+  ].filter(group => group.sessions.length + group.whiteboards.length > 0);
 }
 
 export function orderedSessions(sessions: CollaborationSession[]): CollaborationSession[] {

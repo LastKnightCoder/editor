@@ -17,6 +17,9 @@ export const SourceBlockEditor: SourceEditorRuntime["SourceBlockEditor"] = props
   current().SourceBlockEditor(props);
 export const useSourceBlock: SourceEditorRuntime["useSourceBlock"] = element =>
   current().useSourceBlock(element);
+export const useTextField: SourceEditorRuntime["useTextField"] = (element, field) =>
+  current().useTextField(element, field);
+export type { TextFieldEditor } from "@tau/editor/source-contracts";
 export const useReportPreviewError: SourceEditorRuntime["useReportPreviewError"] = (...args) =>
   current().useReportPreviewError(...args);
 export const insertSourceBlock: SourceEditorRuntime["insertSourceBlock"] = (...args) =>

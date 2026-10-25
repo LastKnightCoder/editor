@@ -77,6 +77,7 @@ const MindNode = (props: MindNodeProps) => {
     element;
 
   const board = useBoard();
+  const collaborativeDocument = board.document?.textDocument(element.id);
   useEditingElementCleanup(id);
   const textBinding = useTextExtension();
   const isArrowMoving = useArrowMove();
@@ -129,6 +130,10 @@ const MindNode = (props: MindNodeProps) => {
   }, [textColor]);
 
   const handleEditorResize = useMemoizedFn((width: number, height: number) => {
+    if (board.document) {
+      board.document.measureElement?.(element.id, { width, height });
+      return;
+    }
     // 如果尺寸没有变化，不更新
     if (width === element.width && height === element.height) {
       return;
@@ -205,6 +210,7 @@ const MindNode = (props: MindNodeProps) => {
   }, [handleAutoFocus]);
 
   const handleBlur = useMemoizedFn(() => {
+    board.document?.splitHistory();
     board.isEditingElements = board.isEditingElements.filter(eid => eid !== id);
     handleResize.flush();
     setTimeout(() => {
@@ -314,6 +320,19 @@ const MindNode = (props: MindNodeProps) => {
       return;
     }
 
+    if (board.document?.linkEntity) {
+      try {
+        if (!(await board.document.linkEntity(element.id, "content", contentId))) {
+          await textBinding.release?.(contentId);
+          return;
+        }
+      } catch (error) {
+        await textBinding.release?.(contentId);
+        throw error;
+      }
+      board.emit("tau.note.open", contentId, "");
+      return;
+    }
     const newElement = produce(element, draft => {
       draft.contentId = contentId;
       draft.contentTitle = "";
@@ -346,6 +365,11 @@ const MindNode = (props: MindNodeProps) => {
       return;
     }
 
+    if (board.document?.linkEntity) {
+      if (await board.document.linkEntity(element.id, "content", item.contentId))
+        setContentSelectorOpen(false);
+      return;
+    }
     const canSubmit = board.captureSubmission(element);
     await textBinding.retain?.(item.contentId);
     if (!canSubmit()) {
@@ -529,7 +553,7 @@ const MindNode = (props: MindNodeProps) => {
             onPointerDown={handlePointerDown}
           >
             <div
-              className="absolute left-0 top-0 z-[-1] box-border"
+              className="absolute top-0 left-0 z-[-1] box-border"
               style={{
                 background: (!sketch.enabled && background) || "transparent",
                 border: sketch.enabled
@@ -542,13 +566,16 @@ const MindNode = (props: MindNodeProps) => {
             />
             <EditorThemeOverride mode={editorTheme}>
               <Editor
+                document={collaborativeDocument}
                 kit={textBinding.kit()}
                 ref={editorRef}
                 initValue={text}
-                readonly={!isEditing}
+                readonly={
+                  !isEditing || board.readonly || Boolean(board.document && !collaborativeDocument)
+                }
                 className={cn("box-border w-fit rounded-[4px] p-4", handTextClass(sketch))}
                 style={editorStyle}
-                onChange={onContentChange}
+                onChange={board.document ? undefined : onContentChange}
                 onBlur={handleBlur}
               />
             </EditorThemeOverride>

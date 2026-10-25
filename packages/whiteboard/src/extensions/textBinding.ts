@@ -1,3 +1,4 @@
+import { tryResolveBoardAccess } from "./access";
 import type { Descendant } from "slate";
 import type { WhiteboardAPI } from "./api";
 import type { TextExtensionOptions } from "./text";
@@ -10,6 +11,7 @@ export async function bindTextContent(
   binding: Pick<TextExtensionOptions, "create" | "update" | "release" | "countWords">,
   readContent: () => Descendant[]
 ): Promise<number | undefined> {
+  if (tryResolveBoardAccess(api)?.document) return undefined;
   const element = api.getElement(elementId);
   if (!element || element.type !== "richtext") return undefined;
   if (element.contentId) return element.contentId;

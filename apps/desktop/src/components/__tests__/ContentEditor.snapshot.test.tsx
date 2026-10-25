@@ -12,6 +12,7 @@ const state = vi.hoisted(() => ({
   article: { title: "正文", content: [] as Descendant[] },
 }));
 vi.mock("@/hooks/useContentDocument", () => ({
+  useTransientContentDocument: () => ({}),
   default: () => ({
     document: state.local?.document,
     binding: state.local ? { doc: state.local.doc } : undefined,

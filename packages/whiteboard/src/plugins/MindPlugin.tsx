@@ -193,7 +193,8 @@ export class MindPlugin implements IBoardPlugin {
 
     // 右键点击 MindNode
     const mindNode = targetElements.find(el => el.type === "mind-node") as
-      MindNodeElement | undefined;
+      | MindNodeElement
+      | undefined;
     if (mindNode) {
       const root = MindUtil.getRoot(context.board, mindNode);
       if (!root) return items;
@@ -535,6 +536,19 @@ export class MindPlugin implements IBoardPlugin {
                 const nodePath = current && PathUtil.getPathByElement(ctx.board, current);
                 if (!canSubmit() || !nodePath || current?.contentId !== node.contentId) {
                   await this.text.release?.(contentId);
+                  return;
+                }
+                if (ctx.board.document?.linkEntity) {
+                  try {
+                    if (!(await ctx.board.document.linkEntity(node.id, "content", contentId))) {
+                      await this.text.release?.(contentId);
+                      return;
+                    }
+                  } catch (error) {
+                    await this.text.release?.(contentId);
+                    throw error;
+                  }
+                  ctx.board.emit("tau.note.open", contentId, "");
                   return;
                 }
                 ctx.board.apply({

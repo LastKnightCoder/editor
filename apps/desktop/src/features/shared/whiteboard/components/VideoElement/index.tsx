@@ -1,3 +1,4 @@
+import { IResourceService } from "@tau/shared/host-services";
 import React, { memo, useCallback, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Tooltip } from "@tau/ui";
@@ -51,7 +52,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
   const { id, x, y, width, height, src, metaInfo, resizable = true } = element;
   const autoCacheRemoteVideo = useSettingStore(state => state.setting.misc.video.autoCacheRemote);
   const shouldUseLocalVideo = useMemo(
-    () => shouldUseLocalVideoCache(src, autoCacheRemoteVideo),
+    () => src.startsWith("tau-collab-") || shouldUseLocalVideoCache(src, autoCacheRemoteVideo),
     [src, autoCacheRemoteVideo]
   );
   const onlineMeta = isOnlineVideoType(metaInfo?.type) ? metaInfo : undefined;
@@ -132,7 +133,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
           <Tooltip content="视频笔记">
             <button
               type="button"
-              className="absolute right-5 top-5 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-black/10 bg-white/90 text-gray-600 opacity-0 shadow-sm transition-opacity hover:bg-white hover:text-[var(--tau-accent)] group-hover:opacity-100 dark:border-white/10 dark:bg-zinc-900/90 dark:text-gray-300 dark:hover:bg-zinc-900"
+              className="absolute top-5 right-5 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-black/10 bg-white/90 text-gray-600 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:bg-white hover:text-[var(--tau-accent)] dark:border-white/10 dark:bg-zinc-900/90 dark:text-gray-300 dark:hover:bg-zinc-900"
               style={{ display: isSelected ? "none" : undefined }}
               onClick={handleOpenVideoNote}
               onPointerDown={event => event.stopPropagation()}
@@ -161,6 +162,7 @@ const VideoElementComponent = memo((props: VideoElementProps) => {
               <LocalVideo
                 ref={setVideoRef}
                 src={src}
+                resolveResource={board.tryGetService(IResourceService)?.remoteResourceToLocal}
                 className="h-full"
                 onClick={(e: React.MouseEvent) => {
                   e.preventDefault();

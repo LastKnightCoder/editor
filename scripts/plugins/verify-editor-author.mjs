@@ -86,7 +86,26 @@ try {
   await run("git", ["remote", "add", "origin", release.repository + ".git"], customAuthor);
   await run("git", ["fetch", "--depth=1", "origin", release.sourceRevision], customAuthor);
   await run("git", ["checkout", "--detach", release.sourceRevision], customAuthor);
-  await run("pnpm", ["install", "--frozen-lockfile"], customAuthor);
+  if (release.sourcePatch) {
+    const { readPluginFixtures } = await import("./test-support/package-fixtures.ts");
+    await readPluginFixtures(path.join(root, "tests/fixtures/plugins/catalog.json"));
+    await run(
+      "git",
+      ["apply", path.join(root, "tests/fixtures/plugins", release.sourcePatch.file)],
+      customAuthor
+    );
+    const customPackageFile = path.join(customAuthor, "package.json");
+    const customPackage = JSON.parse(await readFile(customPackageFile, "utf8"));
+    customPackage.dependencies["@tau/plugins"] =
+      `file:${sdk}/xiongtao.xt-tau-plugins-${version}.tgz`;
+    customPackage.dependencies["@tau/ui"] = `file:${sdk}/xiongtao.xt-tau-ui-${uiVersion}.tgz`;
+    await writeFile(customPackageFile, JSON.stringify(customPackage, null, 2));
+  }
+  await run(
+    "pnpm",
+    ["install", ...(release.sourcePatch ? ["--no-frozen-lockfile"] : ["--frozen-lockfile"])],
+    customAuthor
+  );
   await run("pnpm", ["test"], customAuthor);
   await run("pnpm", ["build"], customAuthor);
   await writeFile(

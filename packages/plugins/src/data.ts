@@ -402,6 +402,7 @@ export interface PluginContentSnapshot {
   markdown?: string;
   /** format 为 nodes 时给出编辑器节点，可原样作为 PluginContentInput 的 nodes 写回 */
   nodes?: Descendant[];
+  contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
   /** format 为 nodes 时给出节点结构版本，见 EDITOR_NODE_SCHEMA_VERSION */
   schemaVersion?: number;
   wordCount: number;

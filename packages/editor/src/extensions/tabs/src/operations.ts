@@ -28,7 +28,6 @@ export const insertTabs = (editor: Editor) => {
     editor,
     {
       type: "tabs",
-      activeKey: key,
       children: [pane],
     },
     {

@@ -1,13 +1,11 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { PageProvider } from "@/page/PageProvider";
 import { PageNavigationBridge } from "@/app/PageNavigationBridge";
 import { definePage } from "@/page/definePage";
 import { paramNumber } from "@/page/core/paramsSchema";
 import { getPageNavigation, openPage } from "../page-navigation";
-
-vi.mock("@/services/aiServer", () => ({ initAiServer: vi.fn(), closeAiServer: vi.fn() }));
 
 definePage({ key: "nav-home", label: "首页", params: {}, component: () => null });
 definePage({

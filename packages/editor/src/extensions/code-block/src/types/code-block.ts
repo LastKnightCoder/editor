@@ -1,5 +1,21 @@
 import type { Descendant } from "slate";
 
+export interface CodeStepElement {
+  type: "code-step";
+  code: string;
+  title?: string;
+  highlightLines?: string;
+  collabId?: string;
+  children: Descendant[];
+}
+
+export interface CodeBlockV2Element extends Omit<
+  CodeBlockElement,
+  "code" | "magicMove" | "highlightLines" | "isFold" | "foldHeight" | "children"
+> {
+  children: CodeStepElement[];
+}
+
 export interface CodeBlockMagicMoveStep {
   id: string;
   title?: string;
@@ -16,7 +32,7 @@ export interface CodeBlockMagicMove {
 export interface CodeBlockElement {
   type: "code-block";
   language: string;
-  code: string;
+  code?: string;
   uuid: string;
   magicMove?: CodeBlockMagicMove;
   highlightLines?: string;

@@ -1,6 +1,19 @@
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../../services/content-execution", () => ({
+  contentExecutor: {
+    execute: async (
+      request: import("../../../../shared/content-execution").ContentExecutionRequest
+    ) => {
+      await import("@/app/plugins/content-runtime");
+      return (
+        globalThis as unknown as { tauContentExecute(input: unknown): Promise<unknown> }
+      ).tauContentExecute({ hash: "unit-fixtures", artifacts: [], request });
+    },
+  },
+}));
+
 vi.mock("electron", () => ({
   BrowserWindow: { getAllWindows: () => [] },
   ipcMain: { handle: vi.fn() },
@@ -32,7 +45,8 @@ describe("PluginEntityTable", () => {
   const refCount = (contentId: number) =>
     (
       db.prepare("SELECT ref_count FROM contents WHERE id = ?").get(contentId) as
-        { ref_count: number } | undefined
+        | { ref_count: number }
+        | undefined
     )?.ref_count;
 
   beforeEach(() => {
@@ -99,7 +113,12 @@ describe("PluginEntityTable", () => {
       },
     });
     expect(copy.contentId).not.toBe(created.contentId);
-    expect(raw(copy.contentId)).toBe(raw(created.contentId));
+    const originalNodes = JSON.parse(raw(created.contentId));
+    const copiedNodes = JSON.parse(raw(copy.contentId));
+    expect(copiedNodes[0].collabId).not.toBe(originalNodes[0].collabId);
+    expect(copiedNodes).toEqual(
+      originalNodes.map((node: object) => ({ ...node, collabId: copiedNodes[0].collabId }))
+    );
     expect(refCount(copy.contentId)).toBe(1);
   });
 
@@ -436,8 +455,24 @@ describe("PluginEntityTable", () => {
 
   it("进入检索：定位、展示、结果详情与索引候选", async () => {
     const created = await note("2026-W43");
+    const prepared = await (
+      await import("../../services/content-execution")
+    ).contentExecutor.execute<
+      Awaited<ReturnType<typeof import("@/services/editorKit").prepareNewContent>>
+    >({
+      operation: "prepare-content",
+      input: {
+        nodes: [
+          { type: "paragraph", children: [{ type: "formatted", text: "这周读完了《置身事内》" }] },
+        ],
+      },
+    });
     ContentTable.updateContent(db, created.contentId, {
-      content: [{ type: "paragraph", children: [{ text: "这周读完了《置身事内》" }] }] as never,
+      ...prepared,
+      expectedRevision: (await import("../tables/content-document")).ContentDocumentTable.read(
+        db,
+        created.contentId
+      )!.revision,
     });
     const card = Number(
       db
@@ -473,8 +508,6 @@ describe("PluginEntityTable", () => {
       item => item.type === "plugin-entity"
     );
     expect(candidate).toMatchObject({ id: created.id, title: "周记 2026-W43" });
-    expect(PluginEntityTable.indexDocs(db, created.id)[0].content).toEqual([
-      { type: "paragraph", children: [{ text: "这周读完了《置身事内》" }] },
-    ]);
+    expect(PluginEntityTable.indexDocs(db, created.id)[0].content).toEqual(prepared.content);
   });
 });

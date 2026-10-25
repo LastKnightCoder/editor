@@ -3,8 +3,8 @@ import {
   ackCollaborationFreeze,
   resolveCollaborationResource,
   sendCollaborationAwareness,
-  sendCollaborationPrivateNode,
-  setCollaborationTabActive,
+  preserveCollaborationInputDraft,
+  preserveCollaborationDocumentDraft,
   subscribeCollaborationDocument,
   unsubscribeCollaborationDocument,
   updateCollaborationDocument,
@@ -13,22 +13,34 @@ import {
 import { flushSync } from "react-dom";
 import * as Y from "yjs";
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protocols/awareness";
-import { isCollaborationResource, readSharedContent, type SharedContent } from "@tau/collaboration";
-import type { EditorCollaborationBinding } from "@tau/editor-collab";
+import {
+  isCollaborationResource,
+  readSharedContent,
+  readNodeDocument,
+  NODE_DOCUMENT_VERSION,
+  validateNodeDocument,
+  type SharedContent,
+  type ContentInputDraft,
+} from "@tau/collaboration";
+import type { ContentCollaborationBinding } from "@tau/editor-collab";
 import { on, off } from "@/electron";
+import { collaborationCommands } from "@/commands/contracts/collaboration";
 
 const IPC_ORIGIN = Symbol("main-process");
 
 export default function useCollaborationDocument(documentId?: string) {
-  const [binding, setBinding] = useState<EditorCollaborationBinding>();
+  const [binding, setBinding] = useState<ContentCollaborationBinding>();
   const [article, setArticle] = useState<SharedContent>();
   const [error, setError] = useState<string>();
   const [frozen, setFrozen] = useState(false);
+  const [generation, setGeneration] = useState(0);
+  const [pendingUpgrade, setPendingUpgrade] = useState(false);
   useEffect(() => {
     setBinding(undefined);
     setArticle(undefined);
     setError(undefined);
     setFrozen(false);
+    setPendingUpgrade(false);
     if (!documentId) return;
     const id = documentId;
     const viewId = crypto.randomUUID();
@@ -41,19 +53,42 @@ export default function useCollaborationDocument(documentId?: string) {
     let removed = false;
     let pending: Uint8Array[] = [];
     let sending: Promise<void> | undefined;
-    let activeBinding: EditorCollaborationBinding | undefined;
-    const privateNodes = new Map<string, SharedContent["content"][number]>();
+    let activeBinding: ContentCollaborationBinding | undefined;
     // 私有块数据不经过 Y 文档，单独排队并在失败时重试，确保最终送达主进程。
-    const pendingPrivateNodes = new Map<string, SharedContent["content"][number]>();
-    const sendPrivateNodes = async (): Promise<void> => {
-      for (const [collabId, node] of [...pendingPrivateNodes]) {
-        await sendCollaborationPrivateNode(id, viewId, collabId, node);
-        pendingPrivateNodes.delete(collabId);
-      }
+    const pendingDrafts = new Map<string, ContentInputDraft>();
+    let draftSequence = 0;
+    let documentDraftSequence = 0;
+    const preserveDocument = () =>
+      preserveCollaborationDocumentDraft(viewId, {
+        state: Y.encodeStateAsUpdate(doc),
+        sequence: ++documentDraftSequence,
+      });
+    let sendingDrafts: Promise<void> | undefined;
+    const sendDrafts = (): Promise<void> => {
+      if (sendingDrafts) return sendingDrafts;
+      sendingDrafts = (async () => {
+        while (pendingDrafts.size) {
+          for (const [key, draft] of [...pendingDrafts]) {
+            await preserveCollaborationInputDraft(viewId, draft);
+            if (pendingDrafts.get(key) === draft) pendingDrafts.delete(key);
+          }
+        }
+      })()
+        .catch(failure => {
+          if (!disposed) setError(failure instanceof Error ? failure.message : "输入副本尚未保存");
+          throw failure;
+        })
+        .finally(() => {
+          sendingDrafts = undefined;
+        });
+      return sendingDrafts;
     };
     const publish = () => {
       if (!disposed) {
-        const value = readSharedContent(doc, privateNodes);
+        const value =
+          doc.getMap("meta").get("version") === NODE_DOCUMENT_VERSION
+            ? readNodeDocument(doc)
+            : readSharedContent(doc);
         setArticle(value);
       }
     };
@@ -68,6 +103,7 @@ export default function useCollaborationDocument(documentId?: string) {
             if (!disposed) setError(undefined);
           } catch (failure) {
             pending.unshift(...batch);
+            await preserveDocument();
             if (!disposed) setError(failure instanceof Error ? failure.message : "本地保存失败");
             throw failure;
           }
@@ -77,9 +113,11 @@ export default function useCollaborationDocument(documentId?: string) {
       });
       return sending;
     };
-    const onFreeze = (_event: unknown, payload: { documentId: string; frozen: boolean }) => {
+    const onFreeze = (
+      _event: unknown,
+      payload: { documentId: string; frozen: boolean; requestId?: string }
+    ) => {
       if (payload.documentId !== id) return;
-      if (!disposed) flushSync(() => setFrozen(payload.frozen));
       if (payload.frozen) {
         try {
           activeBinding?.flushLocal?.();
@@ -87,17 +125,21 @@ export default function useCollaborationDocument(documentId?: string) {
           if (!disposed) setError(failure instanceof Error ? failure.message : "本地保存失败");
           return;
         }
-        void Promise.all([sendUpdates(), sendPrivateNodes()])
-          .then(() => ackCollaborationFreeze(viewId))
+        if (!disposed) flushSync(() => setFrozen(true));
+        void Promise.all([sendUpdates(), sendDrafts()])
+          .catch(async () => {
+            await Promise.all([preserveDocument(), sendDrafts()]);
+          })
+          .then(() => ackCollaborationFreeze(viewId, payload.requestId))
           .catch(() => {});
-      }
+      } else if (!disposed) flushSync(() => setFrozen(false));
     };
     const onFlush = (event: unknown, payload: { documentId: string }) =>
       onFreeze(event, { ...payload, frozen: true });
     const onSessionError = (_event: unknown, payload: { documentId: string; error?: string }) => {
       if (payload.documentId === id && !disposed) setError(payload.error);
     };
-    const onRemoved = (_event: unknown, payload: { documentId: string }) => {
+    const onRemoved = (_event: unknown, payload: { documentId: string; replaced?: boolean }) => {
       if (payload.documentId !== id) return;
       removed = true;
       // off 经 contextBridge 可能注销失败，documentId 切换后旧监听器仍会收到
@@ -107,6 +149,7 @@ export default function useCollaborationDocument(documentId?: string) {
       setBinding(undefined);
       setArticle(undefined);
       setError(undefined);
+      if (payload.replaced) setGeneration(value => value + 1);
     };
     const onUpdate = (_event: unknown, payload: { documentId: string; update: Uint8Array }) => {
       if (payload.documentId !== id) return;
@@ -125,15 +168,24 @@ export default function useCollaborationDocument(documentId?: string) {
     on("collaboration:session-error", onSessionError);
     on("collaboration:removed", onRemoved);
     void subscribeCollaborationDocument(id, viewId)
-      .then(snapshot => {
+      .then(async snapshot => {
         if (disposed) {
           void unsubscribeCollaborationDocument(viewId).catch(() => {});
           return;
         }
         Y.applyUpdate(doc, new Uint8Array(snapshot.state), IPC_ORIGIN);
         for (const update of updates) Y.applyUpdate(doc, new Uint8Array(update), IPC_ORIGIN);
-        for (const [collabId, node] of snapshot.privateNodes || [])
-          privateNodes.set(collabId, node);
+        updates.length = 0;
+        if (doc.getMap("meta").get("version") === NODE_DOCUMENT_VERSION) {
+          await validateNodeDocument(doc, {
+            documentId: id,
+            baselineId: String(doc.getMap("meta").get("baselineId")),
+            epoch: Number(doc.getMap("meta").get("epoch")),
+          });
+          if (disposed) return;
+          for (const update of updates) Y.applyUpdate(doc, new Uint8Array(update), IPC_ORIGIN);
+          updates.length = 0;
+        }
         if (snapshot.awareness)
           applyAwarenessUpdate(awareness, new Uint8Array(snapshot.awareness), IPC_ORIGIN);
         for (const state of states)
@@ -167,22 +219,31 @@ export default function useCollaborationDocument(documentId?: string) {
           viewId,
         });
         setFrozen(Boolean(snapshot.session.frozen));
+        setPendingUpgrade(Boolean(snapshot.pendingUpgrade));
         activeBinding = {
+          prepareFragment: (sourceId, content, contracts) =>
+            collaborationCommands.prepareFragment.call(viewId, sourceId, content, contracts),
+          nodeViews: {
+            read: nodeId => snapshot.nodeViews?.[nodeId],
+            write: async (nodeId, patch) => {
+              await sendUpdates();
+              return collaborationCommands.updateNodeView.call(viewId, nodeId, patch);
+            },
+          },
           mode: snapshot.session.mode || "shared",
           role: snapshot.session.role,
           viewId,
           doc,
           awareness,
           origin: {},
-          privateNodes,
-          putPrivateNode: (collabId, node) => {
-            pendingPrivateNodes.set(collabId, node);
-            void sendPrivateNodes().catch(() => {});
-          },
-          onLocalFieldChange: (collabId, key, value) => {
-            // 激活 Tab 是本机视图状态，经主进程记录后随投影落库，实现重开恢复激活
-            if (key === "activeKey" && typeof value === "string")
-              void setCollaborationTabActive(id, collabId, value).catch(() => {});
+          preserveInputDraft: (nodeId, field, draft) => {
+            pendingDrafts.set(JSON.stringify([nodeId, field]), {
+              ...draft,
+              nodeId,
+              field,
+              sequence: ++draftSequence,
+            });
+            void sendDrafts().catch(() => {});
           },
           uploadResource: async file =>
             uploadCollaborationResource(id, {
@@ -201,7 +262,7 @@ export default function useCollaborationDocument(documentId?: string) {
       });
     const retry = setInterval(() => {
       if (pending.length) void sendUpdates().catch(() => {});
-      if (pendingPrivateNodes.size) void sendPrivateNodes().catch(() => {});
+      if (pendingDrafts.size) void sendDrafts().catch(() => {});
     }, 1000);
     return () => {
       try {
@@ -231,22 +292,27 @@ export default function useCollaborationDocument(documentId?: string) {
         attempts += 1;
         void Promise.all([
           !removed && pending.length ? sendUpdates() : Promise.resolve(),
-          !removed ? sendPrivateNodes() : Promise.resolve(),
+          sendDrafts(),
         ])
+          .catch(async () => {
+            await Promise.all([preserveDocument(), sendDrafts()]);
+          })
           .then(() => unsubscribeCollaborationDocument(viewId))
           .then(release)
           .catch(() => {
-            if (attempts < 30) setTimeout(finish, 1000);
-            else release();
+            setTimeout(finish, Math.min(30_000, attempts * 1000));
           });
       };
       finish();
     };
-  }, [documentId]);
+  }, [documentId, generation]);
   return {
     binding: binding?.doc.guid === documentId ? binding : undefined,
     article,
     error,
-    frozen,
+    frozen:
+      frozen ||
+      Boolean(binding && binding.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION),
+    pendingUpgrade,
   };
 }

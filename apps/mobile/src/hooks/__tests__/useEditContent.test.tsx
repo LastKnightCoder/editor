@@ -9,6 +9,15 @@ vi.mock("../../services/tauri", () => ({
   getContentDetail: vi.fn(),
   updateContent: vi.fn(),
   collabProjectContent: vi.fn(),
+  collabGetBinding: vi.fn(async (contentId: number) => ({
+    contentId,
+    contentCreatedAt: 1,
+    documentId: "room",
+    serverUrl: "http://test",
+    sourceType: null,
+    sourceId: null,
+    sourceTitle: null,
+  })),
 }));
 
 type HookSnapshot = ReturnType<typeof useEditContent>;
@@ -44,6 +53,7 @@ function HookHarness(props: {
   contentId: number;
   onContentSync?: (content: Descendant[]) => void;
   onProjectionPersisted?: () => void;
+  beforeSave?: () => Promise<void>;
   saveMode?: "direct" | "collabProjection" | false;
   onSnapshot: (snapshot: HookSnapshot) => void;
 }) {
@@ -52,6 +62,7 @@ function HookHarness(props: {
     onContentSync: props.onContentSync,
     saveMode: props.saveMode,
     onProjectionPersisted: props.onProjectionPersisted,
+    beforeSave: props.beforeSave,
   });
   props.onSnapshot(snapshot);
   return null;
@@ -63,6 +74,7 @@ type HookController = {
   rerender: (props: {
     saveMode?: "direct" | "collabProjection" | false;
     onProjectionPersisted?: () => void;
+    beforeSave?: () => Promise<void>;
   }) => Promise<void>;
   latest: () => HookSnapshot | null;
   cleanup: () => Promise<void>;
@@ -77,6 +89,7 @@ function createHookController(): HookController {
   let extraProps: {
     saveMode?: "direct" | "collabProjection" | false;
     onProjectionPersisted?: () => void;
+    beforeSave?: () => Promise<void>;
   } = {};
   let renderedContentId = 0;
 
@@ -86,26 +99,26 @@ function createHookController(): HookController {
         <HookHarness
           contentId={renderedContentId}
           onContentSync={contentSyncHandler}
-          onSnapshot={(snapshot) => {
+          onSnapshot={snapshot => {
             latestSnapshot = snapshot;
           }}
           {...extraProps}
-        />,
+        />
       );
     });
 
   return {
-    setOnContentSync: (handler) => {
+    setOnContentSync: handler => {
       contentSyncHandler = handler;
     },
-    render: async (contentId) => {
+    render: async contentId => {
       renderedContentId = contentId;
       await paint();
       await act(async () => {
         await Promise.resolve();
       });
     },
-    rerender: async (props) => {
+    rerender: async props => {
       extraProps = props;
       await paint();
     },
@@ -130,17 +143,13 @@ describe("useEditContent", () => {
 
   it("应在初始化时加载 content 详情", async () => {
     const initial = createContent("初始化内容");
-    vi.mocked(tauri.getContentDetail).mockResolvedValue(
-      createDetail(101, initial),
-    );
+    vi.mocked(tauri.getContentDetail).mockResolvedValue(createDetail(101, initial));
 
     const controller = createHookController();
     await controller.render(101);
 
     expect(tauri.getContentDetail).toHaveBeenCalledWith(101);
-    expect(textFromContent(controller.latest()?.content ?? [])).toBe(
-      "初始化内容",
-    );
+    expect(textFromContent(controller.latest()?.content ?? [])).toBe("初始化内容");
 
     await controller.cleanup();
   });
@@ -148,12 +157,8 @@ describe("useEditContent", () => {
   it("同 contentId 的实例应通过总线同步更新", async () => {
     const initial = createContent("old");
     const updated = createContent("new");
-    vi.mocked(tauri.getContentDetail).mockResolvedValue(
-      createDetail(202, initial),
-    );
-    vi.mocked(tauri.updateContent).mockResolvedValue(
-      createDetail(202, updated),
-    );
+    vi.mocked(tauri.getContentDetail).mockResolvedValue(createDetail(202, initial));
+    vi.mocked(tauri.updateContent).mockResolvedValue(createDetail(202, updated));
 
     const editorA = createHookController();
     const editorB = createHookController();
@@ -176,9 +181,7 @@ describe("useEditContent", () => {
   it("保存失败后可通过 retryLastFailed 重试成功", async () => {
     const initial = createContent("before");
     const updated = createContent("after");
-    vi.mocked(tauri.getContentDetail).mockResolvedValue(
-      createDetail(303, initial),
-    );
+    vi.mocked(tauri.getContentDetail).mockResolvedValue(createDetail(303, initial));
     vi.mocked(tauri.updateContent)
       .mockRejectedValueOnce(new Error("save failed"))
       .mockResolvedValueOnce(createDetail(303, updated));
@@ -209,12 +212,8 @@ describe("useEditContent", () => {
     const initial = createContent("first");
     const updated = createContent("second");
     const onContentSync = vi.fn();
-    vi.mocked(tauri.getContentDetail).mockResolvedValue(
-      createDetail(901, initial),
-    );
-    vi.mocked(tauri.updateContent).mockResolvedValue(
-      createDetail(901, updated),
-    );
+    vi.mocked(tauri.getContentDetail).mockResolvedValue(createDetail(901, initial));
+    vi.mocked(tauri.updateContent).mockResolvedValue(createDetail(901, updated));
 
     const editorA = createHookController();
     const controller = createHookController();
@@ -324,6 +323,28 @@ describe("useEditContent", () => {
     const ok = await controller.latest()?.retryLastFailed();
     expect(ok).toBe(true);
 
+    await controller.cleanup();
+  });
+
+  it("缓存尚未耐久保存时阻止主库写入，失败输入仍可重试", async () => {
+    const initial = createContent("原文"),
+      updated = createContent("未确认输入");
+    vi.mocked(tauri.getContentDetail).mockResolvedValue(createDetail(405, initial));
+    vi.mocked(tauri.updateContent).mockResolvedValue(createDetail(405, updated));
+    const beforeSave = vi.fn().mockRejectedValue(new Error("缓存落盘失败"));
+    const controller = createHookController();
+    await controller.render(405);
+    await controller.rerender({ beforeSave });
+    await act(async () => {
+      controller.latest()!.handleEditorContentChange(updated);
+      expect(await controller.latest()!.flushNow()).toBe(false);
+    });
+    expect(tauri.updateContent).not.toHaveBeenCalled();
+    beforeSave.mockResolvedValue(undefined);
+    await act(async () => {
+      expect(await controller.latest()!.retryLastFailed()).toBe(true);
+    });
+    expect(tauri.updateContent).toHaveBeenCalledWith(expect.objectContaining({ content: updated }));
     await controller.cleanup();
   });
 

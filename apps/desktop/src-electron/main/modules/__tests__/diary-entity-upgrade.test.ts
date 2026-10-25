@@ -1,6 +1,7 @@
+import { createSharedDocument } from "@tau/collaboration/src/testing/legacy-document";
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createSharedDocument, readSharedContent } from "@tau/collaboration";
+import { readSharedContent } from "@tau/collaboration";
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import { diaryLinkPatcher, upgradeDiaryEntityReferences } from "../diary-entity-upgrade";
 import { patchSessionNodes } from "../collaboration/content-sessions";

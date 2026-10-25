@@ -24,6 +24,8 @@ export const inlineMathExtension = defineExtension({
   elements: [
     defineElement<InlineMathElement>({
       type: "inline-math",
+      dataVersion: 1,
+      collaboration: { textFields: ["tex"] },
       kind: "inline",
       isVoid: true,
       isEmpty: element => element.tex === "",
@@ -49,6 +51,8 @@ export const blockMathExtension = defineExtension({
   elements: [
     defineElement<BlockMathElement>({
       type: "block-math",
+      dataVersion: 1,
+      collaboration: { textFields: ["tex"] },
       kind: "block",
       drag: true,
       isVoid: true,

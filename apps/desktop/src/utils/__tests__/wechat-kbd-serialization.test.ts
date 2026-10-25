@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { htmlSerializerRegistry } from "../html-serializers";
+
+import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
+beforeAll(() => useDynamicExtensionsStore.getState().initExtensions());
 
 describe("wechat kbd serialization", () => {
   it("应将 kbd 行内元素序列化为带 class 的 kbd 标签", async () => {

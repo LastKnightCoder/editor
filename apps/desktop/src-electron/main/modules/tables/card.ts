@@ -243,6 +243,7 @@ export default class CardTable {
     // 创建content记录
     const contentId = ContentTable.createContent(db, {
       content: content,
+      contracts: card.contracts,
       count: count,
     });
 
@@ -531,7 +532,8 @@ export default class CardTable {
     const cards = this.getCardByIds(db, ids);
 
     return mapContentSnapshots(cards, async card => {
-      const markdown = card.content ? await getMarkdownText(card.content) : "";
+      const snapshot = ContentTable.getContentById(db, card.contentId);
+      const markdown = snapshot ? await getMarkdownText(snapshot.content, snapshot.contracts) : "";
       const originalLength = markdown.length;
 
       let finalMarkdown = markdown;

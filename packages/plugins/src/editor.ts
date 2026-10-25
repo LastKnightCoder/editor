@@ -39,6 +39,7 @@ export type PluginEditorExtension = Pick<InternalExtension, OpenEditorExtensionF
   /** 静态 HTML/EPUB 导出；博客始终使用 elements.render，不经过这里。 */
   htmlSerializers?: readonly {
     type: string;
+    dataVersion?: number;
     toHtml(element: Record<string, unknown>): string;
   }[];
 };

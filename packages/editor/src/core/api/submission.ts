@@ -1,4 +1,4 @@
-import { IElementEditingPolicy } from "../services/elementEditingPolicy";
+import { canEditElement } from "./elementVersions";
 import { Editor, Element, Node, Path, Range, type BaseRange } from "slate";
 import { ReactEditor } from "slate-react";
 import { getCommandElementPath } from "../utils/commandTarget";
@@ -12,9 +12,14 @@ interface SubmissionOptions {
 }
 
 export type SubmissionDiscardReason =
-  "cancelled" | "scope-ended" | "readonly" | "target-lost" | "target-changed";
+  | "cancelled"
+  | "scope-ended"
+  | "readonly"
+  | "target-lost"
+  | "target-changed";
 export type SubmissionOutcome =
-  { status: "committed" } | { status: "discarded"; reason: SubmissionDiscardReason };
+  | { status: "committed" }
+  | { status: "discarded"; reason: SubmissionDiscardReason };
 
 export interface Submission<T> {
   readonly signal: AbortSignal;
@@ -160,8 +165,7 @@ export function captureElementSubmission<E extends Element>(
         throw new Error("[editor] 提交条件必须同步返回 boolean");
       }
       if (!accepted) return { reason: "target-changed" };
-      if (editor.tryGetService?.(IElementEditingPolicy)?.canEdit(node.type) === false)
-        return { reason: "readonly" };
+      if (!canEditElement(editor, node)) return { reason: "readonly" };
       return { target: { element: current, path: currentPath } };
     },
     () => reference?.unref(),

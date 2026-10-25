@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { TodoNoteLink, AttachExistingNotePayload } from "@/types";
 import ContentTable from "./content";
 import { Descendant } from "slate";
+import { prepareTaskNodes } from "../content-task-patches";
 
 export default class TodoNoteLinkTable {
   static getListenEvents() {
@@ -105,11 +106,13 @@ export default class TodoNoteLinkTable {
     db: Database.Database,
     params: { todoId: number; initialTitle?: string }
   ): { link: TodoNoteLink; contentId: number } {
-    const emptyContent: Descendant[] = [
+    const emptyContent = [
       { type: "paragraph", children: [{ type: "formatted", text: "" }] },
-    ];
+    ] satisfies Descendant[];
+    const document = prepareTaskNodes(emptyContent);
     const contentId = ContentTable.createContent(db, {
-      content: emptyContent,
+      content: document.content as Descendant[],
+      contracts: document.contracts,
       count: 0,
     });
     const link = this.attachExisting(

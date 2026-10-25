@@ -502,7 +502,7 @@ describe("插件选择与打开", () => {
     it("插入到项目：复制解析后的正文或共用插件内容的正文，插入后返回项目文档引用，取消返回 null", async () => {
       const { settle, click, unmount } = await mount();
       const app = createDesktopApp("data.db");
-      mocks.resolveContent.mockResolvedValue(nodes);
+      mocks.resolveContent.mockResolvedValue({ content: nodes });
       try {
         const inserted = app.run(context(), plugin, {
           action: "project.insertDocument",
@@ -567,7 +567,7 @@ describe("插件选择与打开", () => {
     it("新建卡片：预填解析后的正文与标签，保存返回卡片引用，取消或停用返回 null", async () => {
       const { settle, click, unmount } = await mount();
       const app = createDesktopApp("data.db");
-      mocks.resolveContent.mockResolvedValue(nodes);
+      mocks.resolveContent.mockResolvedValue({ content: nodes });
       try {
         const saved = app.run(context(), plugin, {
           action: "card.create",

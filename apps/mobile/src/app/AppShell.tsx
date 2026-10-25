@@ -10,8 +10,6 @@ import {
   EditDatabaseDepsProvider,
   UseRemoteVideoDeps,
   UseEditDatabaseDeps,
-  type DataTable,
-  type DataTableView,
 } from "@tau/shared";
 
 import { useBootstrap } from "../hooks/useBootstrap";
@@ -49,12 +47,6 @@ import { writeLastSyncTime } from "../features/settings/sync/syncState";
 import { IncomingFileHost } from "../features/markdownImport/IncomingFileHost";
 import "../pages";
 
-const EMPTY_VIEW_CONFIG = {
-  columnOrder: [],
-  rowOrder: [],
-  sorts: [],
-};
-
 const remoteVideoDeps: UseRemoteVideoDeps = {
   cacheVideo: async ({ url }) => ({
     localUrl: url,
@@ -68,53 +60,17 @@ const remoteVideoDeps: UseRemoteVideoDeps = {
   isRemoteUrl: () => false,
 };
 
+const unsupportedDatabaseWrite = async (): Promise<never> => {
+  throw new Error("当前移动端尚未接入数据表编辑，请在桌面端打开原资料库");
+};
 const editDatabaseDeps: UseEditDatabaseDeps = {
-  getDataTableDetail: async tableId => {
-    const table: DataTable = {
-      id: tableId,
-      createTime: 0,
-      updateTime: 0,
-      columns: [],
-      rows: [],
-      activeViewId: tableId * 1000 + 1,
-    };
-    const view: DataTableView = {
-      id: tableId * 1000 + 1,
-      tableId,
-      name: "默认视图",
-      type: "table",
-      order: 0,
-      config: EMPTY_VIEW_CONFIG,
-      createTime: 0,
-      updateTime: 0,
-    };
-    return { table, views: [view] };
-  },
-  updateDataTable: async data => ({
-    id: data.id,
-    createTime: 0,
-    updateTime: Date.now(),
-    columns: data.columns,
-    rows: data.rows,
-    activeViewId: data.activeViewId ?? null,
-  }),
-  updateDataTableView: async view => view,
-  createDataTableView: async view => ({
-    id: Date.now(),
-    tableId: view.tableId,
-    name: view.name,
-    type: view.type,
-    order: view.order,
-    config: {
-      ...EMPTY_VIEW_CONFIG,
-      ...(view.config ?? {}),
-    },
-    createTime: Date.now(),
-    updateTime: Date.now(),
-  }),
-  deleteDataTableView: async viewId => viewId,
-  setActiveDataTableView: async () => true,
-  reorderDataTableViews: async () => undefined,
+  getDataTableDetail: async () => ({ table: null, views: [] }),
+  updateDataTable: unsupportedDatabaseWrite,
+  updateDataTableView: unsupportedDatabaseWrite,
+  createDataTableView: unsupportedDatabaseWrite,
+  deleteDataTableView: unsupportedDatabaseWrite,
+  setActiveDataTableView: unsupportedDatabaseWrite,
+  reorderDataTableViews: unsupportedDatabaseWrite,
 };
 
 async function withTimeout<T>(

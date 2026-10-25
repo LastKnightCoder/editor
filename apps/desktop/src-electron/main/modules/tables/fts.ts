@@ -1,3 +1,4 @@
+import ContentTable from "./content";
 import Database from "better-sqlite3";
 import { asynchronousDatabaseCommand } from "../database-command";
 import { Jieba } from "@node-rs/jieba";
@@ -11,7 +12,6 @@ import DiaryTable from "./diary";
 import PluginEntityTable from "./plugin-entity";
 import VecDocumentTable from "./vec-document";
 import { searchResultDetails } from "../search-details";
-import { getMarkdownText } from "../../services/content-conversion";
 import {
   pruneContentSections,
   readContentSection,
@@ -302,7 +302,9 @@ class FTSTable {
 
     for (const card of CardTable.getAllCards(mainDb)) {
       if (!shouldIncludeType("card")) continue;
-      const text = (await getMarkdownText(card.content || [])).trim();
+      const text = (
+        await ContentTable.readText(mainDb, card.contentId, "", true, false)
+      ).content.trim();
       if (!text || !isMatch(text)) continue;
       partialResults.push({
         id: card.id,
@@ -314,7 +316,9 @@ class FTSTable {
 
     for (const article of ArticleTable.getAllArticles(mainDb)) {
       if (!shouldIncludeType("article")) continue;
-      const text = (await getMarkdownText(article.content || [])).trim();
+      const text = (
+        await ContentTable.readText(mainDb, article.contentId, article.title, false, false)
+      ).content.trim();
       if (!text || !isMatch(text)) continue;
       partialResults.push({
         id: article.id,
@@ -326,7 +330,9 @@ class FTSTable {
 
     for (const item of ProjectTable.getAllProjectItems(mainDb)) {
       if (!shouldIncludeType("project-item")) continue;
-      const text = (await getMarkdownText(item.content || [])).trim();
+      const text = (
+        await ContentTable.readText(mainDb, item.contentId, item.title, false, false)
+      ).content.trim();
       if (!text || !isMatch(text)) continue;
       partialResults.push({
         id: item.id,
@@ -339,7 +345,9 @@ class FTSTable {
     for (const moment of DiaryTable.getAllDiarySegmentsFlat(mainDb)) {
       const momentType: IndexType = "diary-moment";
       if (!shouldIncludeType(momentType)) continue;
-      const text = (await getMarkdownText(moment.content || [])).trim();
+      const text = (
+        await ContentTable.readText(mainDb, moment.contentId, "", false, false)
+      ).content.trim();
       if (!text || !isMatch(text)) continue;
       partialResults.push({
         id: moment.id,
@@ -351,7 +359,7 @@ class FTSTable {
 
     if (shouldIncludeType("plugin-entity")) {
       for (const doc of PluginEntityTable.indexDocs(mainDb)) {
-        const text = `${doc.title}\n${(await getMarkdownText(doc.content)).trim()}`;
+        const text = `${doc.title}\n${(await ContentTable.readText(mainDb, doc.contentId, doc.title, false, false)).content.trim()}`;
         if (!isMatch(text)) continue;
         partialResults.push({
           id: doc.id,

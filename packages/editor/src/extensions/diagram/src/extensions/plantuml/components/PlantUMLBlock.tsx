@@ -1,3 +1,5 @@
+import { useTextFieldBinding } from "@tau/editor/api";
+import { IEditorTextFields } from "@tau/editor/api";
 import React, { PropsWithChildren } from "react";
 import { Transforms } from "slate";
 import { RenderElementProps, useSlateStatic, ReactEditor } from "slate-react";
@@ -19,6 +21,8 @@ const PlantUMLBlock: React.FC<PropsWithChildren<PlantUMLBlockProps>> = props => 
   const { attributes, element, children, server, darkTheme } = props;
   const { content } = element;
   const editor = useSlateStatic();
+  const bound = Boolean(editor.tryGetService(IEditorTextFields));
+  const source = useTextFieldBinding(bound ? element : undefined, "content");
   const { isDark } = useTheme();
 
   const onChange = (value: string) => {
@@ -38,15 +42,16 @@ const PlantUMLBlock: React.FC<PropsWithChildren<PlantUMLBlockProps>> = props => 
           mode={"text"}
           title="PlantUML"
           icon={Workflow}
-          initValue={content}
-          onChange={onChange}
+          initValue={bound ? source.value : content}
+          textBinding={source.binding ?? undefined}
+          onChange={bound ? undefined : onChange}
           element={element}
           center
         >
           <PreviewErrorReporter>
             {onError => (
               <PlantUML
-                content={content}
+                content={bound ? source.value : content}
                 isDark={isDark}
                 server={server}
                 darkTheme={darkTheme}
@@ -56,6 +61,7 @@ const PlantUMLBlock: React.FC<PropsWithChildren<PlantUMLBlockProps>> = props => 
           </PreviewErrorReporter>
         </PreviewWithEditor>
       </div>
+      {source.error && <div role="alert">{source.error}</div>}
       {children}
     </div>
   );

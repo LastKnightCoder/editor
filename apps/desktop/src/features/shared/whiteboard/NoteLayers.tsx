@@ -1,3 +1,5 @@
+import { IResourceService } from "@tau/shared/host-services";
+import { getWhiteboardDocument } from "@tau/whiteboard/collaboration";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { ConfirmDialog, Drawer, toast, useRetainedValue } from "@tau/ui";
@@ -146,9 +148,17 @@ export function NoteLayers() {
                 }
               }
 
-              const created = await createEmptyVideoNote(
-                getVideoNoteMetaInfo(currentBeforeCreate ?? targetElement)
-              );
+              const meta = getVideoNoteMetaInfo(currentBeforeCreate ?? targetElement);
+              if (
+                meta.type === "local" &&
+                typeof meta.filePath === "string" &&
+                meta.filePath.startsWith("tau-collab-")
+              )
+                meta.filePath = await board.getService(IResourceService).remoteResourceToLocal!(
+                  meta.filePath
+                );
+              if (!canSubmit()) return null;
+              const created = await createEmptyVideoNote(meta);
               if (!created) {
                 return null;
               }
@@ -167,7 +177,16 @@ export function NoteLayers() {
 
               if (!canSubmit()) return null;
               const path = currentElement && PathUtil.getPathByElement(board, currentElement);
-              if (path) {
+              if (getWhiteboardDocument(board)?.linkEntity) {
+                if (
+                  !(await getWhiteboardDocument(board)!.linkEntity!(
+                    element.id,
+                    "video-note",
+                    created.id
+                  ))
+                )
+                  return null;
+              } else if (path) {
                 board.apply({
                   type: "set_node",
                   path,

@@ -11,6 +11,8 @@ const schemaDir = path.join(rootDir, "packages/db-schema/schema");
 const mainSegments = [
   "main/00_pragmas.sql",
   "main/10_core.sql",
+  "main/11_content_contracts.sql",
+  "main/12_whiteboard_documents.sql",
   "main/20_content.sql",
   "main/30_project.sql",
   "main/31_module_split.sql",
@@ -19,6 +21,7 @@ const mainSegments = [
   "main/51_task_assistant.sql",
   "main/60_plugin.sql",
   "main/90_indexes.sql",
+  "main/91_entity_identity_guards.sql",
 ];
 
 const indexSegments = [

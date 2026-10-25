@@ -8,11 +8,12 @@ import { VideoPlayer, type VideoPlayerProps } from "@tau/shared";
 
 type LocalVideoProps = VideoPlayerProps & {
   src: string;
+  resolveResource?: (url: string) => Promise<string>;
 };
 
 const LocalVideo = memo(
   forwardRef<HTMLVideoElement, LocalVideoProps>((props, ref) => {
-    const { src, children, ...rest } = props;
+    const { src, children, resolveResource, ...rest } = props;
     console.log("[LocalVideo] 接收到的 src:", src);
 
     const [previewUrl, setPreviewUrl] = useState<string>("");
@@ -50,6 +51,7 @@ const LocalVideo = memo(
       try {
         const resolved = await resolveMediaSource(src, {
           kind: "video",
+          resolveCollaborationResource: resolveResource,
           autoCacheRemote: true,
           title: videoTitleRef.current,
         });
@@ -74,7 +76,7 @@ const LocalVideo = memo(
       } finally {
         console.timeEnd("localVideo");
       }
-    }, [src]);
+    }, [src, resolveResource]);
 
     useEffect(() => {
       const videoElement = getVideoElement();

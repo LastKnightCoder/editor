@@ -1,3 +1,4 @@
+import { matchingInputDrafts, nodeRetentions } from "./retention";
 // 协作运行时单例：会话编排（发现 / 连接 / 重连 / 退出）、事件流与 presence 汇聚。
 //
 // 与桌面端的架构差异：桌面主进程与渲染进程分处两个 JS 环境，需要 Y.Doc 副本 + IPC
@@ -7,12 +8,13 @@ import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/pro
 import * as Y from "yjs";
 import { Awareness } from "y-protocols/awareness";
 import {
-  createSharedDocument,
-  readSharedContent,
-  replaceSharedContent,
-} from "@tau/collaboration/src/document";
-import {
   DEFAULT_COLLABORATION_URL,
+  createNodeDocument,
+  readNodeDocument,
+  validateNodeDocument,
+  validateDocument,
+  NODE_DOCUMENT_VERSION,
+  type SourceBinding,
   type CollaborationEvent,
   type CollaborationSession,
   type ContentNode,
@@ -20,19 +22,12 @@ import {
   type SharedDocumentInfo,
 } from "@tau/collaboration";
 import { base64ToBytes, bytesToBase64 } from "@tau/collaboration/src/encoding";
-import { getContentLength } from "../../cards/editorContentUtils";
 import * as tauri from "../../../services/tauri";
 import {
   clearCachedInvitation,
   readCachedInvitation,
   writeCachedInvitation,
 } from "./invitation-cache";
-import {
-  cloudContentOf,
-  collectPlaceholderIds,
-  mergeSessionPrivateNodes,
-  restoreOwnerPrivateNodes,
-} from "./private-blocks";
 import * as rest from "./rest";
 import { pushCollaborationNotice, setCollaborationState, useCollaborationStore } from "./store";
 
@@ -47,12 +42,16 @@ const JOIN_REQUEST_TTL_MS = 24 * 60 * 60 * 1000;
 const IDLE_STOP_DELAY_MS = 30_000;
 
 type RuntimeSession = {
+  inputDrafts: Map<string, tauri.CachedInputDraft>;
   info: CollaborationSession;
   doc: Y.Doc;
   awareness: Awareness;
   provider: HocuspocusProvider | null;
-  /** 私有块真身仅保存在数据持有方本机；加入方为空，远端渲染为占位符 */
-  privateNodes: Map<string, ContentNode>;
+  writeTail: Promise<void>;
+  pendingUpdates: Uint8Array[];
+  saveError?: { frozen: boolean };
+  nodeViews: Record<string, Record<string, unknown>>;
+  projection?: Promise<void>;
   /** 会话拆除时摘除 doc 上的标题监听 */
   detachDocListener?: () => void;
 };
@@ -269,15 +268,101 @@ class CollaborationManager {
         await this.reconnect(documentId);
       return this.sessions.get(documentId)?.info ?? existing.info;
     }
-    const { documents } = await rest.listDocuments(this.serverUrl);
+    let documents: SharedDocumentInfo[];
+    try {
+      ({ documents } = await rest.listDocuments(this.serverUrl));
+    } catch (failure) {
+      const cached = await tauri.collabReadCache(documentId);
+      if (
+        !cached ||
+        cached.metadata.serverUrl !== this.serverUrl ||
+        cached.metadata.status !== "active"
+      )
+        throw failure;
+      return (await this.openSession(cached.metadata)).info;
+    }
     const info = documents.find(item => item.id === documentId);
     if (!info) throw new Error("COLLAB_NOT_FOUND: 协作文档不存在或已失去访问权限");
     return (await this.openSession(info)).info;
   }
 
+  async flushCache(documentId: string) {
+    const session = this.sessions.get(documentId);
+    if (session) await (session.saveError ? this.persist(session) : session.writeTail);
+  }
+
+  preserveInputDraft(documentId: string, draft: tauri.CachedInputDraft) {
+    const session = this.sessions.get(documentId);
+    if (!session) return Promise.reject(new Error("原协作副本尚未加载"));
+    session.inputDrafts.set(JSON.stringify([draft.viewId, draft.nodeId, draft.field]), draft);
+    return this.persist(session);
+  }
+
+  async adoptRemote(documentId: string) {
+    const session = this.sessions.get(documentId);
+    if (!session) throw new Error("原协作副本尚未加载");
+    await this.flushCache(documentId);
+    session.info.frozen = true;
+    session.provider?.destroy();
+    session.provider = null;
+    this.changed();
+    await session.writeTail;
+    const cached = await tauri.collabReadCache(documentId);
+    if (!cached) throw new Error("原协作缓存缺失，不能覆盖");
+    const { state } = await this.loadState(documentId);
+    const doc = new Y.Doc({ gc: false });
+    try {
+      Y.applyUpdate(doc, base64ToBytes(state));
+      await validateNodeDocument(doc, {
+        documentId,
+        baselineId: String(doc.getMap("meta").get("baselineId")),
+        epoch: Number(doc.getMap("meta").get("epoch")),
+      });
+      const oldEpoch = Number(session.doc.getMap("meta").get("epoch") ?? 0);
+      const nextEpoch = Number(doc.getMap("meta").get("epoch"));
+      if (
+        nextEpoch < oldEpoch ||
+        (nextEpoch === oldEpoch &&
+          doc.getMap("meta").get("baselineId") !== session.doc.getMap("meta").get("baselineId"))
+      )
+        throw new Error("COLLAB_BASELINE_CHANGED: 不能回退共享代次或在同一代次更换基线");
+      await tauri.collabAdoptCache({
+        documentId,
+        state,
+        ...nodeRetentions(doc),
+        expectedRevision: cached.revision,
+        metadata: {
+          ...session.info,
+          pending: false,
+          frozen: false,
+          remoteVersionAvailable: false,
+          error: undefined,
+          baselineId: String(doc.getMap("meta").get("baselineId")),
+          epoch: Number(doc.getMap("meta").get("epoch")),
+        },
+      });
+    } finally {
+      doc.destroy();
+    }
+    const info = { ...session.info };
+    await this.createSession(info);
+    session.detachDocListener?.();
+    session.awareness.setLocalState(null);
+  }
+
   async reconnect(documentId: string) {
     const session = this.sessions.get(documentId);
     if (!session || session.info.status !== "active" || session.info.leaving) return;
+    try {
+      await this.flushCache(documentId);
+      await this.refreshProtocol(session);
+    } catch (failure) {
+      session.info.connection = "error";
+      session.info.error = describeError(failure, "协作重连失败，请稍后重试");
+      this.changed();
+      return;
+    }
+    if (session.info.frozen) return;
     session.provider?.destroy();
     session.provider = null;
     const transport = this.transports.get(session.info.serverUrl);
@@ -374,8 +459,15 @@ class CollaborationManager {
     }
     const owned = session.info.role === "owner";
     try {
-      if (owned) await rest.closeDocument(this.serverUrl, documentId);
-      else await rest.leaveDocument(this.serverUrl, documentId);
+      await this.project(documentId);
+      if (owned) {
+        const state = Y.encodeStateAsUpdate(session.doc);
+        const digest = await crypto.subtle.digest("SHA-256", Uint8Array.from(state));
+        const revision = [...new Uint8Array(digest)]
+          .map(byte => byte.toString(16).padStart(2, "0"))
+          .join("");
+        await rest.closeDocument(this.serverUrl, documentId, revision);
+      } else await rest.leaveDocument(this.serverUrl, documentId);
     } catch (failure) {
       // 关闭/退出未送达服务器：保留会话（leaving 复位以便再次尝试），否则
       // owner 侧云端房间无人能关、成员侧 refresh 又把会话拉回来
@@ -387,6 +479,8 @@ class CollaborationManager {
       this.changed();
       throw failure;
     }
+    session.info.status = "closed";
+    await this.persist(session);
     this.disposeSession(documentId);
     await this.clearLocalBindings(documentId);
     await this.refresh();
@@ -405,11 +499,7 @@ class CollaborationManager {
     clearCachedInvitation(documentId);
   }
 
-  /** 把本地内容发布为协作房间（设计稿 05）：剥离私有块 → 创建发布 → 绑定 →
-   *  建会话并入私有块 → 首次投影 → 生成协作码。幂等键由内容标识派生，重复发起
-   *  不会得到两个房间；已有绑定时复用现有房间，不重新发布也不轮换协作码
-   *  （轮换会让已分发的旧码立即作废）。任何一步失败都整体抛错——绝不带着
-   *  「私有块真身未并入会话」的状态假成功，否则投影会用占位符覆盖本机数据。 */
+  /** 发布当前正文与契约，发布中的快照先保存在本机，重试复用同一房间。 */
   async shareContent(source: {
     contentId: number;
     title: string;
@@ -420,141 +510,199 @@ class CollaborationManager {
     sourceId?: number;
   }): Promise<{ documentId: string; code: string; expiresAt: number }> {
     await this.whenReady();
-    const serverUrl = this.serverUrl;
-    let existingBinding = await tauri.collabGetBinding(source.contentId).catch(() => null);
-    if (existingBinding) {
-      // 结束共享后服务端会把房间标记为 closed；若本地解绑在退场阶段失败，
-      // 这里不能继续复用旧 documentId，否则重发会一直命中已关闭房间。
-      if (existingBinding.serverUrl !== serverUrl) {
-        await tauri.collabUnbindContent(source.contentId).catch(() => {});
-        clearCachedInvitation(existingBinding.documentId);
-        existingBinding = null;
-      } else {
-        const { documents } = await rest.listDocuments(serverUrl);
-        const active = documents.some(document => document.id === existingBinding?.documentId);
-        if (!active) {
-          await tauri.collabUnbindContent(source.contentId).catch(() => {});
-          clearCachedInvitation(existingBinding.documentId);
-          existingBinding = null;
-        }
+    const detail = await tauri.getContentDetail(source.contentId);
+    if (!detail.contracts || !detail.documentId || !detail.librarySourceId || !detail.revision)
+      throw new Error("请先完成正文格式转换，再发起共享");
+    if (JSON.stringify(detail.content) !== JSON.stringify(source.content))
+      throw new Error("本机编辑尚未确认保存，请保存后重试共享");
+    const existing = await tauri.collabGetBinding(source.contentId);
+    let documentId = existing?.documentId;
+    if (existing && existing.serverUrl !== this.serverUrl)
+      throw new Error("正文仍绑定另一协作服务，请先结束原共享");
+    if (!documentId) {
+      const previous = (await tauri.collabListCache())
+        .filter(
+          item =>
+            item.serverUrl === this.serverUrl &&
+            item.source?.contentDocumentId === detail.documentId &&
+            item.source?.librarySourceId === detail.librarySourceId
+        )
+        .sort((a, b) => b.updatedAt - a.updatedAt)[0];
+      const pending = previous?.status === "active" ? previous : undefined;
+      if (pending) documentId = pending.id;
+      else {
+        const key = await sha256Hex(
+          JSON.stringify([
+            "tau-mobile",
+            this.serverUrl,
+            detail.librarySourceId,
+            detail.documentId,
+            previous?.id ?? "initial",
+          ])
+        );
+        documentId = (await rest.createDocument(this.serverUrl, key)).id;
       }
+      let cached = await tauri.collabReadCache(documentId);
+      if (!cached) {
+        const doc = await createNodeDocument(
+          { documentId, baselineId: crypto.randomUUID(), epoch: 0 },
+          {
+            title: source.title,
+            content: detail.content as ContentNode[],
+            bannerBg: source.bannerBg ?? "",
+            bannerPosition: source.bannerPosition ?? "center",
+          },
+          detail.contracts
+        );
+        try {
+          const metadata: tauri.CachedContentSession = {
+            id: documentId,
+            baselineId: String(doc.getMap("meta").get("baselineId")),
+            epoch: 0,
+            serverUrl: this.serverUrl,
+            mode: "shared",
+            ownerId: this.deviceId!,
+            role: "owner",
+            status: "active",
+            title: source.title,
+            members: [],
+            updatedAt: Date.now(),
+            connection: "offline",
+            pending: true,
+            leaving: false,
+            source: {
+              databaseName: detail.librarySourceId,
+              contentId: detail.contentId,
+              contentCreatedAt: detail.createTime,
+              librarySourceId: detail.librarySourceId,
+              contentDocumentId: detail.documentId,
+              projectionRevision: detail.revision,
+              sourceType: source.sourceType as SourceBinding["sourceType"],
+              sourceId: source.sourceId,
+              sourceTitle: source.title,
+            },
+          };
+          await tauri.collabWriteCache(
+            {
+              documentId,
+              ...nodeRetentions(doc),
+              metadata,
+              state: bytesToBase64(Y.encodeStateAsUpdate(doc)),
+            },
+            true
+          );
+        } finally {
+          doc.destroy();
+        }
+        cached = await tauri.collabReadCache(documentId);
+      }
+      if (!cached || cached.metadata.source?.projectionRevision !== detail.revision)
+        throw new Error("待发布副本与本机正文已变化，原发布快照已保留");
+      await rest.publishDocument(this.serverUrl, documentId, cached.state);
+      await tauri.collabBindContent({
+        ...source,
+        documentId,
+        serverUrl: this.serverUrl,
+        expectedDocumentId: detail.documentId,
+        expectedSourceId: detail.librarySourceId,
+        expectedRevision: detail.revision,
+      });
     }
-    // 私有块（白板/数据库等）剥离后仅留本机；无论新建还是复用房间都要并入会话，
-    // 复用路径依赖首次发起时的投影已把 collabId 标注写回本地内容（见首次投影）
-    const privateNodes = new Map<string, ContentNode>();
-    const doc = createSharedDocument(
-      {
-        title: source.title,
-        content: source.content as ContentNode[],
-        bannerBg: source.bannerBg ?? "",
-        bannerPosition: source.bannerPosition ?? "center",
-      },
-      privateNodes,
-      "shared"
-    );
-    let documentId: string;
-    try {
-      documentId = existingBinding
-        ? existingBinding.documentId
-        : await this.publishNewDocument(source, doc, serverUrl);
-
-      // 就地建会话：不经 refresh（其互斥与容错会静默吞掉建会话失败）
-      const session =
-        this.sessions.get(documentId) ??
-        (await this.openSession({
-          id: documentId,
-          title: source.title,
-          ownerId: this.deviceId ?? "",
-          role: "owner",
-          status: "active",
-          members: [],
-          updatedAt: Date.now(),
-        }));
-      await this.seedSessionPrivateNodes(session, source, privateNodes);
-    } finally {
-      doc.destroy();
-    }
-    const cached = readCachedInvitation(documentId);
-    const invitation = cached ?? (await rest.rotateInvitation(serverUrl, documentId));
+    await this.openDocument(documentId);
+    await this.project(documentId);
+    const invitation =
+      readCachedInvitation(documentId) ?? (await rest.rotateInvitation(this.serverUrl, documentId));
     writeCachedInvitation(documentId, invitation);
-    // 非阻塞刷新：让协作中心列表尽快出现新房间
-    void this.refresh();
     return { documentId, ...invitation };
   }
 
-  /** 无绑定时的新发布路径：创建（幂等键去重）→ 发布快照 → 写本地绑定 */
-  private async publishNewDocument(
-    source: { contentId: number; title: string; sourceType?: string; sourceId?: number },
-    doc: Y.Doc,
-    serverUrl: string
-  ): Promise<string> {
-    const idempotencyKey = await sha256Hex(
-      [
-        "tau-mobile",
-        serverUrl,
-        String(source.contentId),
-        source.sourceType ?? "",
-        String(source.sourceId ?? ""),
-      ].join(":")
-    );
-    const created = await rest.createDocument(serverUrl, idempotencyKey);
-    await rest.publishDocument(serverUrl, created.id, bytesToBase64(Y.encodeStateAsUpdate(doc)));
-    await tauri.collabBindContent({
-      contentId: source.contentId,
-      serverUrl,
-      documentId: created.id,
-      sourceType: source.sourceType,
-      sourceId: source.sourceId,
-      sourceTitle: source.title,
-    });
-    return created.id;
-  }
-
-  /** 并入剥离出的私有块真身并完成首次投影。首次投影以云端文档 + 会话私有块物化，
-   *  把带 collabId 标注的完整内容写回本地库——此后本地私有块与云端占位符共享同一组
-   *  collabId，会话重建时按标注稳定回填。投影失败显式抛错（房间与绑定已就绪，重试
-   *  发起会走复用路径补投影）；绝不带着「标注未写回」的状态假成功，否则后续会话重建
-   *  将失去真身对应关系（无标注即判冲突，不做树位置猜测）。 */
-  private async seedSessionPrivateNodes(
-    session: RuntimeSession,
-    source: { contentId: number; content: unknown[] },
-    stripped: Map<string, ContentNode>
-  ) {
-    const cloudContent = cloudContentOf(session.doc);
-    const merged = mergeSessionPrivateNodes(cloudContent, stripped, session.privateNodes);
-    if (!merged) {
-      throw new Error(
-        "COLLAB_PRIVATE_BLOCK_CONFLICT: 本地内容与协作房间已不一致，请结束共享后重新发起"
-      );
-    }
-    const materialized = readSharedContent(session.doc, session.privateNodes);
-    if (collectPlaceholderIds(materialized.content).length > 0) {
-      throw new Error(
-        "COLLAB_PRIVATE_BLOCK_CONFLICT: 私有块真身未能并入会话，请结束共享后重新发起"
-      );
-    }
-    await tauri
-      .collabProjectContent({
-        contentId: source.contentId,
-        content: materialized.content,
-        count: getContentLength(materialized.content),
-      })
-      .catch(failure => {
-        throw new Error(
-          `COLLAB_PROJECTION_FAILED: 共享已创建，但本地标注写回失败，请重试发起以补齐（${describeError(failure, "投影失败")}）`
-        );
-      });
-  }
-
-  /** 「保留本机」：把协作不可用期间本地编辑的正文整树推回房间（CRDT 替换，远端看到一次
-   *  删+插而非状态覆盖），随后周期投影把同一内容写回本地库。标题不推——房间标题由业务表
-   *  管理，投影通道也只回写正文。 */
-  pushLocalContent(documentId: string, content: ContentNode[]) {
+  async project(documentId: string): Promise<void> {
     const session = this.sessions.get(documentId);
-    if (!session) {
-      throw new Error("COLLAB_SESSION_MISSING: 协作会话尚未就绪，请稍后重试");
-    }
-    replaceSharedContent(session.doc, content, session.privateNodes);
+    if (
+      !session?.info.source ||
+      session.info.frozen ||
+      session.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION
+    )
+      return;
+    if (session.projection) return session.projection;
+    session.projection = (async () => {
+      await this.flushCache(documentId);
+      const source = session.info.source!;
+      const result = await tauri.collabProjectContent({
+        documentId,
+        contentId: source.contentId,
+        content: readNodeDocument(session.doc).content,
+        count: 0,
+        contracts: session.doc.getMap("node-tree:contracts").toJSON(),
+        expectedRevision: source.projectionRevision,
+        expectedDocumentId: source.contentDocumentId,
+        expectedSourceId: source.librarySourceId,
+      });
+      if (!result.projected) throw new Error("本机正文关联已变化，协作副本已保留");
+      source.projectionRevision = result.revision;
+      await this.persist(session);
+    })().finally(() => {
+      session.projection = undefined;
+    });
+    return session.projection;
+  }
+
+  private persist(session: RuntimeSession, update: Uint8Array = new Uint8Array()) {
+    if (update.byteLength) session.pendingUpdates.push(Uint8Array.from(update));
+    const next = session.writeTail
+      .catch(() => undefined)
+      .then(async () => {
+        const updates = session.pendingUpdates.slice();
+        const drafts = [...session.inputDrafts.values()];
+        const confirmedDrafts = matchingInputDrafts(session.doc, drafts);
+        const bytes = bytesToBase64(updates.length ? Y.mergeUpdates(updates) : new Uint8Array());
+        if (session.doc.getMap("meta").get("version") === NODE_DOCUMENT_VERSION)
+          await validateNodeDocument(session.doc);
+        for (const draft of drafts)
+          await tauri.collabInputDraft({
+            ...draft,
+            documentId: session.info.id,
+            baselineId: String(session.doc.getMap("meta").get("baselineId")),
+            epoch: Number(session.doc.getMap("meta").get("epoch")),
+          });
+        await tauri.collabWriteCache({
+          documentId: session.info.id,
+          ...nodeRetentions(session.doc),
+          state: bytes,
+          confirmedDrafts,
+          metadata: {
+            ...session.info,
+            baselineId: String(
+              session.doc.getMap("meta").get("baselineId") ?? `legacy:${session.info.id}`
+            ),
+            epoch: Number(session.doc.getMap("meta").get("epoch") ?? 0),
+          },
+        });
+        session.pendingUpdates.splice(0, updates.length);
+        for (const draft of confirmedDrafts) {
+          const key = JSON.stringify([draft.viewId, draft.nodeId, draft.field]);
+          if (session.inputDrafts.get(key)?.sequence === draft.sequence)
+            session.inputDrafts.delete(key);
+        }
+        if (session.saveError) {
+          session.info.frozen =
+            session.saveError.frozen || Boolean(session.info.remoteVersionAvailable);
+          if (!session.info.frozen) session.info.error = undefined;
+          session.saveError = undefined;
+          this.changed();
+          if (!this.stopped && this.sessions.get(session.info.id) === session) this.attach(session);
+        }
+      });
+    session.writeTail = next;
+    void next.catch(failure => {
+      session.saveError ??= { frozen: Boolean(session.info.frozen) };
+      session.info.frozen = true;
+      session.info.error = describeError(failure, "本机保存失败，当前输入仍保留，请勿关闭应用");
+      session.provider?.destroy();
+      session.provider = null;
+      this.changed();
+    });
+    return next;
   }
 
   private startPolling() {
@@ -585,7 +733,7 @@ class CollaborationManager {
 
   /** 建立或刷新会话（幂等）：已存在的会话只合并服务端权威字段，
    *  并发调用（列表刷新 + 编辑页补建）按 documentId 去重，避免覆盖出双份 Y.Doc。 */
-  private openSession(info: SharedDocumentInfo): Promise<RuntimeSession> {
+  private async openSession(info: SharedDocumentInfo): Promise<RuntimeSession> {
     this.pendingJoins.delete(info.id);
     const existing = this.sessions.get(info.id);
     if (existing) {
@@ -597,6 +745,7 @@ class CollaborationManager {
         pending: existing.info.pending,
         leaving: existing.info.leaving,
       };
+      await this.refreshProtocol(existing);
       this.changed();
       return Promise.resolve(existing);
     }
@@ -608,49 +757,127 @@ class CollaborationManager {
     return pending;
   }
 
+  private async refreshProtocol(session: RuntimeSession): Promise<void> {
+    const protocol = await rest.getDocumentProtocol(session.info.serverUrl, session.info.id);
+    if (this.sessions.get(session.info.id) !== session || this.stopped) return;
+    const meta = session.doc.getMap("meta");
+    if (
+      protocol.version === meta.get("version") &&
+      protocol.epoch === Number(meta.get("epoch") ?? 0) &&
+      protocol.baselineId === meta.get("baselineId")
+    )
+      return;
+    session.info.frozen = true;
+    session.info.remoteVersionAvailable =
+      protocol.version === NODE_DOCUMENT_VERSION && protocol.epoch > Number(meta.get("epoch") ?? 0);
+    session.info.error = session.info.remoteVersionAvailable
+      ? "共享文档已转换，原本机输入已保留，请采用新版本"
+      : "共享文档基线或协议不兼容，原本机输入已保留";
+    session.provider?.destroy();
+    session.provider = null;
+    if (session.saveError) session.saveError.frozen = true;
+    this.changed();
+    await this.persist(session);
+  }
+
   private async createSession(info: SharedDocumentInfo): Promise<RuntimeSession> {
     if (this.stopped) throw new Error("COLLAB_STOPPED: 协作运行时已停止");
-    const { state } = await this.loadState(info.id);
-    // loadState 期间可能发生 stop/切服，迟到会话直接作废，避免停止后残留连接
-    if (this.stopped) throw new Error("COLLAB_STOPPED: 协作运行时已停止");
-    const doc = new Y.Doc({ guid: info.id });
-    Y.applyUpdate(doc, base64ToBytes(state));
-    const privateNodes = new Map<string, ContentNode>();
-    const session: RuntimeSession = {
-      info: {
-        ...info,
-        serverUrl: this.serverUrl,
-        mode: "shared",
-        connection: "connecting",
-        pending: false,
-        leaving: false,
-      },
-      doc,
-      awareness: new Awareness(doc),
-      provider: null,
-      privateNodes,
-    };
-    // 标题是 Y.Text：任何一端改名都要即时反映到会话列表与编辑页顶栏；
-    // 会话拆除时摘除监听（doc 本体可能仍被挂载中的编辑器持有）
-    const onDocUpdate = () => {
-      const title = doc.getText("title").toString();
-      if (session.info.title !== title) {
-        session.info.title = title;
-        this.changed();
+    const cached = await tauri.collabReadCache(info.id);
+    const doc = new Y.Doc({ guid: info.id, gc: false });
+    let frozen = false,
+      remoteVersionAvailable = false;
+    try {
+      if (cached) {
+        Y.applyUpdate(doc, base64ToBytes(cached.state));
+        for (const update of cached.updates) Y.applyUpdate(doc, base64ToBytes(update));
       }
-    };
-    doc.on("update", onDocUpdate);
-    session.detachDocListener = () => doc.off("update", onDocUpdate);
-    this.sessions.set(info.id, session);
-    this.attach(session);
-    this.changed();
-    // 私有块真身仅存本机（云端只有占位符）：会话重建时从本地内容恢复，
-    // 否则编辑/投影会把真身降级成占位符写回本地（对齐桌面 restorePrivateNodes）；
-    // 失败留空，由投影侧的占位符防覆盖兜底
-    void restoreOwnerPrivateNodes(info.id, cloudContentOf(doc), session.privateNodes).catch(
-      () => {}
-    );
-    return session;
+      try {
+        const { state } = await this.loadState(info.id);
+        const remote = new Y.Doc({ gc: false });
+        try {
+          Y.applyUpdate(remote, base64ToBytes(state));
+          if (remote.getMap("meta").get("version") === NODE_DOCUMENT_VERSION)
+            await validateNodeDocument(remote, {
+              documentId: info.id,
+              baselineId: String(remote.getMap("meta").get("baselineId")),
+              epoch: Number(remote.getMap("meta").get("epoch")),
+            });
+          else validateDocument(remote);
+          if (
+            cached &&
+            ["version", "baselineId", "epoch"].some(
+              key => doc.getMap("meta").get(key) !== remote.getMap("meta").get(key)
+            )
+          ) {
+            frozen = true;
+            remoteVersionAvailable = true;
+          } else Y.applyUpdate(doc, base64ToBytes(state));
+        } finally {
+          remote.destroy();
+        }
+      } catch (failure) {
+        if (!cached) throw failure;
+      }
+      if (this.stopped) throw new Error("COLLAB_STOPPED: 协作运行时已停止");
+      const session: RuntimeSession = {
+        inputDrafts: new Map(
+          (cached?.inputDrafts ?? []).map(draft => [
+            JSON.stringify([draft.viewId, draft.nodeId, draft.field]),
+            draft,
+          ])
+        ),
+        info: {
+          ...cached?.metadata,
+          ...info,
+          serverUrl: this.serverUrl,
+          mode: "shared",
+          connection: "connecting",
+          pending: cached?.metadata.pending ?? false,
+          leaving: false,
+          frozen,
+          remoteVersionAvailable,
+          ...(remoteVersionAvailable
+            ? { error: "共享文档已转换，原本机输入已保留，需先恢复后采用新版本" }
+            : {}),
+        },
+        doc,
+        awareness: new Awareness(doc),
+        provider: null,
+        writeTail: Promise.resolve(),
+        pendingUpdates: [],
+        nodeViews: {},
+      };
+      await tauri.collabWriteCache(
+        {
+          documentId: info.id,
+          ...nodeRetentions(doc),
+          metadata: {
+            ...session.info,
+            baselineId: String(doc.getMap("meta").get("baselineId") ?? `legacy:${info.id}`),
+            epoch: Number(doc.getMap("meta").get("epoch") ?? 0),
+          },
+          state: bytesToBase64(Y.encodeStateAsUpdate(doc)),
+          expectedRevision: cached?.revision,
+          confirmedDrafts: matchingInputDrafts(doc, [...session.inputDrafts.values()]),
+        },
+        true
+      );
+      session.nodeViews = await tauri.collabNodeViews(info.id);
+      const onDocUpdate = (update: Uint8Array) => {
+        void this.persist(session, update).catch(() => {});
+        session.info.title = doc.getText("title").toString();
+        this.changed();
+      };
+      doc.on("update", onDocUpdate);
+      session.detachDocListener = () => doc.off("update", onDocUpdate);
+      this.sessions.set(info.id, session);
+      this.attach(session);
+      this.changed();
+      return session;
+    } catch (failure) {
+      doc.destroy();
+      throw failure;
+    }
   }
 
   /** 服务端 state 采用 base64；弱网下允许有限重试，避免单个文档阻塞整个列表。 */
@@ -684,13 +911,27 @@ class CollaborationManager {
 
   private attach(session: RuntimeSession) {
     const { id, serverUrl } = session.info;
-    if (session.provider || session.info.leaving || session.info.status !== "active") return;
+    if (
+      session.provider ||
+      session.info.frozen ||
+      session.info.leaving ||
+      session.info.status !== "active" ||
+      session.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION
+    )
+      return;
     session.provider = new HocuspocusProvider({
       name: id,
       document: session.doc,
       awareness: session.awareness,
       websocketProvider: this.transport(serverUrl),
-      token: async () => (await rest.fetchTicket(serverUrl, id)).ticket,
+      token: async () =>
+        (
+          await rest.fetchTicket(serverUrl, id, {
+            protocolVersion: NODE_DOCUMENT_VERSION,
+            baselineId: String(session.doc.getMap("meta").get("baselineId")),
+            epoch: Number(session.doc.getMap("meta").get("epoch")),
+          })
+        ).ticket,
       onStatus: ({ status }) => {
         session.info.connection =
           status === "connected" ? "connected" : status === "connecting" ? "connecting" : "offline";
@@ -803,6 +1044,7 @@ class CollaborationManager {
 
   /** 等待未同步改动落服务器；超时后仍继续退出（重连时可再交换） */
   private async flush(session: RuntimeSession) {
+    await this.flushCache(session.info.id);
     const provider = session.provider;
     if (!provider) return;
     const deadline = Date.now() + FLUSH_TIMEOUT_MS;

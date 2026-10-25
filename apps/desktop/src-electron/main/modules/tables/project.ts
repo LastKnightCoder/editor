@@ -20,6 +20,8 @@ import { basename } from "node:path";
 import FTSTable from "./fts";
 import VecDocumentTable from "./vec-document";
 import ContentTable from "./content";
+import { ContentIdentityTable } from "./content-identity";
+import type { ContentEntityTarget } from "@tau/db-schema/content-identities";
 import { canonicalContentTitle, setCanonicalContentTitle } from "../collaboration/content-sessions";
 import CardTable from "./card";
 import ArticleTable from "./article";
@@ -97,6 +99,8 @@ export default class ProjectTable {
       "update-project-item": this.updateProjectItem.bind(this),
       "delete-project-item": this.deleteProjectItem.bind(this),
       "get-project-item": this.getProjectItem.bind(this),
+      "project-item:reference": this.reference.bind(this),
+      "project-item:children": this.getChildren.bind(this),
       "get-project-items-by-ids": this.getProjectItemsByIds.bind(this),
       "get-project-item-by-ref": this.getProjectItemByRef.bind(this),
       "get-project-item-count-in-project": this.getProjectItemCountInProject.bind(this),
@@ -327,6 +331,7 @@ export default class ProjectTable {
     } else if (item.projectItemType === EProjectItemType.Document && item.content) {
       contentId = ContentTable.createContent(db, {
         content: item.content,
+        contracts: item.contracts,
         count: item.count ?? getContentLength(item.content),
       });
     }
@@ -403,7 +408,11 @@ export default class ProjectTable {
     }
 
     const stmt = db.prepare("DELETE FROM project_item WHERE id = ?");
-    const changes = stmt.run(id).changes;
+    const changes = db.transaction(() => {
+      const deleted = stmt.run(id).changes;
+      if (deleted) ContentIdentityTable.retire(db, "project-item", id);
+      return deleted;
+    })();
 
     log.info(`删除项目条目数: ${changes}`);
 
@@ -432,7 +441,23 @@ export default class ProjectTable {
     return changes > 0;
   }
 
-  static getProjectItem(db: Database.Database, id: number): ProjectItem | null {
+  static reference(db: Database.Database, id: number) {
+    return ContentIdentityTable.reference(db, "project-item", id);
+  }
+
+  static getChildren(db: Database.Database, target: ContentEntityTarget) {
+    return db.transaction(() => {
+      const parent = this.getProjectItem(db, target);
+      if (!parent) return [];
+      return parent.children.flatMap(id => {
+        const item = this.getProjectItem(db, id);
+        return item ? [{ item, reference: this.reference(db, id) }] : [];
+      });
+    })();
+  }
+
+  static getProjectItem(db: Database.Database, target: ContentEntityTarget): ProjectItem | null {
+    const id = ContentIdentityTable.requireTarget(db, "project-item", target);
     const stmt = db.prepare(`
       SELECT pi.*, c.content, c.count, c.update_time as content_update_time,
         p.id as podcast_id, p.name as podcast_name, p.create_time as podcast_create_time,
@@ -1395,7 +1420,8 @@ export default class ProjectTable {
     const items = this.getProjectItemsByIds(db, ids);
 
     return mapContentSnapshots(items, async item => {
-      const markdown = item.content ? await getMarkdownText(item.content) : "";
+      const snapshot = ContentTable.getContentById(db, item.contentId);
+      const markdown = snapshot ? await getMarkdownText(snapshot.content, snapshot.contracts) : "";
       const originalLength = markdown.length;
 
       let finalMarkdown = markdown;

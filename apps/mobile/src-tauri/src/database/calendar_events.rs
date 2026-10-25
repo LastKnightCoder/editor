@@ -9,7 +9,7 @@ use super::calendar_types::{
     CreateCalendarEventPayload, UpdateCalendarEventPayload,
 };
 use crate::database::common::{
-    db_err, decrement_or_delete_content, insert_content_record, now_millis, trigger_reconcile,
+    db_err, insert_content_record, now_millis, release_content_reference, trigger_reconcile,
     write_operation,
 };
 use crate::database::schema;
@@ -407,9 +407,13 @@ pub(crate) fn insert_event_in_tx(
 ) -> Result<(), String> {
     let now = now_millis();
     let content_id = match &payload.detail_content {
-        Some(content) => {
-            insert_content_record(tx, content, payload.detail_content_count.unwrap_or(0), now)?
-        }
+        Some(content) => insert_content_record(
+            tx,
+            content,
+            payload.contracts.as_ref(),
+            payload.detail_content_count.unwrap_or(0),
+            now,
+        )?,
         None => payload.detail_content_id.unwrap_or(0),
     };
     tx.execute(
@@ -471,9 +475,13 @@ pub fn calendar_event_update(
         )
         .map_err(|e| db_err("CALENDAR_EVENT_UPDATE_FAILED", "get old content id", e))?;
     let new_content_id = match &payload.detail_content {
-        Some(content) => {
-            insert_content_record(&tx, content, payload.detail_content_count.unwrap_or(0), now)?
-        }
+        Some(content) => insert_content_record(
+            &tx,
+            content,
+            payload.contracts.as_ref(),
+            payload.detail_content_count.unwrap_or(0),
+            now,
+        )?,
         None => payload.detail_content_id.unwrap_or(old_content_id),
     };
     tx.execute(
@@ -499,7 +507,7 @@ pub fn calendar_event_update(
     )
     .map_err(|e| db_err("CALENDAR_EVENT_UPDATE_FAILED", "update event", e))?;
     if old_content_id > 0 && old_content_id != new_content_id {
-        decrement_or_delete_content(&tx, old_content_id)?;
+        release_content_reference(&tx, old_content_id)?;
     }
     write_operation(&tx, "calendar_event", "update", payload.id, now)?;
     tx.commit()
@@ -533,7 +541,7 @@ pub(crate) fn delete_event_in_tx(tx: &Transaction<'_>, event_id: i64) -> Result<
         .ok_or_else(|| "CALENDAR_EVENT_NOT_FOUND: 日程不存在".to_string())?;
     assert_user_calendar(tx, calendar_id)?;
     if content_id > 0 {
-        decrement_or_delete_content(tx, content_id)?;
+        release_content_reference(tx, content_id)?;
     }
     write_operation(tx, "calendar_event", "delete", event_id, now_millis())?;
     tx.execute(

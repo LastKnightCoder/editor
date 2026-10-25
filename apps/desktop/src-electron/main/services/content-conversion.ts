@@ -15,10 +15,13 @@ export async function mapContentSnapshots<T, R>(
 }
 
 /** 没有内容插件时保留宿主内置转换；插件转换一律交浏览器进程。 */
-export async function getMarkdownText(nodes: Descendant[]): Promise<string> {
-  if (!getContentPluginArtifacts().length) return getMarkdown(nodes);
+export async function getMarkdownText(
+  nodes: Descendant[],
+  contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary
+): Promise<string> {
+  if (!contracts && !getContentPluginArtifacts().length) return getMarkdown(nodes);
   const { contentExecutor } = await import("./content-execution");
-  return contentExecutor.execute<string>({ operation: "markdown", nodes });
+  return contentExecutor.execute<string>({ operation: "markdown", nodes, contracts });
 }
 export async function parseMarkdownNodes(markdown: string): Promise<Descendant[]> {
   if (!getContentPluginArtifacts().length) return importFromMarkdown(markdown);
@@ -41,17 +44,33 @@ export async function sectionsFromMarkdown(
   });
 }
 export async function prepareContentNodes(
-  nodes: Descendant[],
+  nodes: Descendant[] | string,
   title = "",
-  whole = false
+  whole = false,
+  contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary,
+  sections = true,
+  signal?: AbortSignal
 ): Promise<IndexContentResult> {
-  if (!getContentPluginArtifacts().length) {
+  if (signal?.aborted) throw new Error("正文转换已结束");
+  if (typeof nodes !== "string" && !contracts && !getContentPluginArtifacts().length) {
     const content = getMarkdown(nodes).trim();
-    return { content, sections: content ? splitSections(nodes, title, whole) : [] };
+    return {
+      content,
+      ...(sections ? { sections: content ? splitSections(nodes, title, whole) : [] } : {}),
+    };
   }
   const { contentExecutor } = await import("./content-execution");
-  return contentExecutor.execute<IndexContentResult>({
-    operation: "index",
-    input: { raw: JSON.stringify(nodes), title, whole, sections: true },
-  });
+  return contentExecutor.execute<IndexContentResult>(
+    {
+      operation: "index",
+      contracts,
+      input: {
+        raw: typeof nodes === "string" ? nodes : JSON.stringify(nodes),
+        title,
+        whole,
+        sections,
+      },
+    },
+    signal
+  );
 }

@@ -103,11 +103,12 @@ const skillRefExtension = defineExtension({
   elements: [
     defineElement<SkillRefElement>({
       type: "skill-ref",
+      dataVersion: 1,
       kind: "inline",
       isVoid: true,
       render: ({ attributes, element, children }: ElementRenderProps<SkillRefElement>) => (
         <span {...attributes} contentEditable={false} className="mx-px inline-block align-baseline">
-          <span className="bg-accent-soft text-accent-text text-tau-sm inline-flex h-[22px] items-center gap-1 rounded-full px-2 font-medium leading-none">
+          <span className="bg-accent-soft text-accent-text text-tau-sm inline-flex h-[22px] items-center gap-1 rounded-full px-2 leading-none font-medium">
             <Sparkles className="size-3" strokeWidth={2} />
             {element.name}
           </span>

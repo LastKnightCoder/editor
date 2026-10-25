@@ -32,7 +32,7 @@ vi.mock("@/features/shared/whiteboard/DesktopWhiteboard", () => ({
 }));
 afterEach(() => vi.clearAllMocks());
 
-it("flush 传播保存失败，依赖保存的后续动作不会继续", async () => {
+it("旧快照只读，禁止保存与依赖快照保存的复制", async () => {
   mocks.save.mockRejectedValue(new Error("写入失败"));
   const host = document.createElement("div");
   const root = createRoot(host);
@@ -40,18 +40,15 @@ it("flush 传播保存失败，依赖保存的后续动作不会继续", async (
   const duplicate = vi.fn();
   try {
     await act(async () => root.render(<BoardCanvas id={1} ref={ref} />));
-    mocks.changed!({
-      children: [],
-      selection: { selectedElements: [], selectArea: null },
-      viewPort: { minX: 0, minY: 0, width: 800, height: 600, zoom: 1 },
-      version: 2,
-    });
+    expect(mocks.changed).toBeUndefined();
+    expect(host.textContent).not.toContain("转换格式");
+    expect(host.textContent).not.toContain("准备转换");
     const afterSave = async () => {
       await ref.current!.flush();
       duplicate();
     };
-    await expect(afterSave()).rejects.toThrow("写入失败");
-    expect(mocks.save).toHaveBeenCalledOnce();
+    await expect(afterSave()).rejects.toThrow("后台升级");
+    expect(mocks.save).not.toHaveBeenCalled();
     expect(duplicate).not.toHaveBeenCalled();
   } finally {
     await act(async () => root.unmount());

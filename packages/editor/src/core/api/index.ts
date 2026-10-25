@@ -18,6 +18,14 @@ export {
   type ExtensionLayerProps,
 } from "./extension";
 export type { AnyExtension } from "./legacy";
+export { elementView, useElementView } from "./elementView";
+export {
+  canEditElement,
+  getElementVersionResolver,
+  setElementVersionResolver,
+  type ElementVersionAccess,
+  type ElementVersionResolver,
+} from "./elementVersions";
 export type { CopyDecision, CopyContext, ElementCopy } from "./copy";
 export type { MarkSpec, MarkRenderProps, DecorationSpec } from "./marks";
 export type { InputRule, MarkInputRule, InlineInputRule } from "./inputRules";
@@ -139,6 +147,7 @@ export {
   isTouchInteraction,
   type EditorInteraction,
 } from "../services/interaction";
+export { useTouchVoidSelection } from "../hooks/useTouchVoidSelection";
 
 export { getElementParent, getClosestCurrentElement } from "../utils/editor";
 export { getParentNodeByNode, getPreviousSiblingNode } from "../utils/element";
@@ -154,3 +163,10 @@ export { FloatingToolbar, ToolbarDivider, ToolbarIconButton } from "../component
 
 export { IElementEditingPolicy, type ElementEditingPolicy } from "../services/elementEditingPolicy";
 export { IUnknownElementNotice, type UnknownElementNotice } from "../services/unknownElementNotice";
+export type { EditorTextField, TextFieldDelta, TextFieldSnapshot } from "../../../source-contracts";
+export { useTextFieldBinding } from "./useTextFieldBinding";
+
+export { bindTextFieldTextarea, rebaseTextFieldInput } from "./textFieldInput";
+
+export { IEditorTextFields } from "../../../source-contracts";
+export { slateTextFields } from "./slateTextFields";

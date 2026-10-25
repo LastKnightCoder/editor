@@ -2,6 +2,19 @@ import Database from "better-sqlite3";
 import * as sqliteVec from "sqlite-vec";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../../services/content-execution", () => ({
+  contentExecutor: {
+    execute: async (
+      request: import("../../../../shared/content-execution").ContentExecutionRequest
+    ) => {
+      await import("@/app/plugins/content-runtime");
+      return (
+        globalThis as unknown as { tauContentExecute(input: unknown): Promise<unknown> }
+      ).tauContentExecute({ hash: "unit-fixtures", artifacts: [], request });
+    },
+  },
+}));
+
 vi.mock("electron", () => ({
   BrowserWindow: { getAllWindows: () => [] },
   ipcMain: { handle: vi.fn() },

@@ -1,3 +1,4 @@
+import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { useEffect, useRef, useState } from "react";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import type { Descendant } from "slate";
@@ -17,6 +18,7 @@ import {
 
 type UseEditContentOptions = {
   wait?: number;
+  beforeSave?: () => Promise<void>;
   onSaved?: (detail: ContentDetailResponse) => void;
   onSaveError?: (error: unknown) => void;
   onContentSync?: (content: Descendant[]) => void;
@@ -40,7 +42,7 @@ type UseEditContentResult = {
   loading: boolean;
   saving: boolean;
   error: string;
-  handleEditorContentChange: (content: Descendant[]) => void;
+  handleEditorContentChange: (content: Descendant[], contracts?: ContentContractDictionary) => void;
   flushNow: () => Promise<boolean>;
   retryLastFailed: () => Promise<boolean>;
 };
@@ -55,6 +57,8 @@ export function useEditContent(
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  const metadataRef = useRef<ContentDetailResponse | undefined>(undefined);
+  const writeTail = useRef<Promise<boolean>>(Promise.resolve(true));
   const sourceIdRef = useRef(createContentSyncSourceId());
   const latestContentRef = useRef<Descendant[]>(EMPTY_EDITOR_CONTENT);
   const lastSavedSnapshotRef = useRef(JSON.stringify(EMPTY_EDITOR_CONTENT));
@@ -68,89 +72,128 @@ export function useEditContent(
     options?.onContentSync?.(next);
   });
 
-  const saveContent = useMemoizedFn(async (next?: Descendant[]) => {
-    if (!contentId || contentId <= 0) {
-      return false;
-    }
-    if (options?.saveMode === false) {
-      return true;
-    }
-
-    const normalized = normalizeEditorContent(next ?? latestContentRef.current);
-    const nextSnapshot = JSON.stringify(normalized);
-    if (nextSnapshot === lastSavedSnapshotRef.current) {
-      return true;
-    }
-
-    setSaving(true);
-    setError("");
-    try {
-      const count = getContentLength(normalized);
-      let savedContent = normalized;
-      let savedCount = count;
-      let updateTime = Date.now();
-      let updatedDetail: ContentDetailResponse | undefined;
-      let persistedViaProjection = false;
-
-      /** 投影通道写入；未写入（unbound=幂等跳过 / drift=漂移已自动解绑）返回 false，
-       *  由常规直写接管——此时绑定已不在，直写会被数据库层放行 */
-      const projectContent = async () => {
-        const result = await tauri.collabProjectContent({ contentId, content: normalized, count });
-        return !result.reason;
-      };
-
-      if (options?.saveMode === "collabProjection") {
-        // 协作不可用时的本地兜底：先走投影专用通道（不改动服务端，等作者重连后裁决）
-        persistedViaProjection = await projectContent();
+  const saveContent = useMemoizedFn((next?: Descendant[]) => {
+    const requested = structuredClone(next ?? latestContentRef.current);
+    const generation = loadRequestSeqRef.current;
+    const write = writeTail.current.then(async () => {
+      if (generation !== loadRequestSeqRef.current) return false;
+      if (!contentId || contentId <= 0) {
+        return false;
+      }
+      if (options?.saveMode === false) {
+        return true;
       }
 
-      if (!persistedViaProjection) {
-        try {
-          const updated = await tauri.updateContent({ contentId, content: normalized, count });
-          updatedDetail = updated;
-          savedContent = normalizeEditorContent(updated.content);
-          savedCount = updated.count;
-          updateTime = updated.updateTime;
-        } catch (failure) {
-          // 常规直写被协作守卫拒绝（绑定仍在、会话未就绪）：改走投影通道落本地库
-          if (parseInvokeError(failure).code !== "COLLABORATION_WRITE_REQUIRED") {
-            throw failure;
-          }
+      const normalized = normalizeEditorContent(requested);
+      const nextSnapshot = JSON.stringify(normalized);
+      if (nextSnapshot === lastSavedSnapshotRef.current) {
+        return true;
+      }
+
+      setSaving(true);
+      setError("");
+      try {
+        await options?.beforeSave?.();
+        if (generation !== loadRequestSeqRef.current) return false;
+        const count = getContentLength(normalized);
+        let savedContent = normalized;
+        let savedCount = count;
+        let updateTime = Date.now();
+        let updatedDetail: ContentDetailResponse | undefined;
+        let persistedViaProjection = false;
+
+        /** 投影通道写入；未写入（unbound=幂等跳过 / drift=漂移已自动解绑）返回 false，
+         *  由常规直写接管——此时绑定已不在，直写会被数据库层放行 */
+        const projectContent = async () => {
+          const binding = await tauri.collabGetBinding(contentId);
+          if (!binding) return false;
+          const result = await tauri.collabProjectContent({
+            contentId,
+            documentId: binding.documentId,
+            content: normalized,
+            count,
+            contracts: metadataRef.current?.contracts ?? undefined,
+            expectedRevision: metadataRef.current?.revision ?? undefined,
+            expectedDocumentId: metadataRef.current?.documentId ?? undefined,
+            expectedSourceId: metadataRef.current?.librarySourceId ?? undefined,
+          });
+          if (!result.reason) updatedDetail = await tauri.getContentDetail(contentId);
+          return !result.reason;
+        };
+
+        if (options?.saveMode === "collabProjection") {
+          // 协作不可用时的本地兜底：先走投影专用通道（不改动服务端，等作者重连后裁决）
           persistedViaProjection = await projectContent();
-          // 兜底投影仍未写入（极端竞态下绑定同时消失）：按保存失败处理，绝不静默吞改动
-          if (!persistedViaProjection) throw failure;
         }
-      }
 
-      latestContentRef.current = savedContent;
-      lastSavedSnapshotRef.current = JSON.stringify(savedContent);
-      lastFailedContentRef.current = null;
-      publishContentUpdate({
-        contentId,
-        content: savedContent,
-        sourceId: sourceIdRef.current,
-        updateTime,
-        count: savedCount,
-      });
-      notifyContentSync(savedContent);
-      // 经投影通道落库＝有本机改动未推云端：宿主据此标记，重连后交作者裁决
-      if (persistedViaProjection) options?.onProjectionPersisted?.();
-      if (updatedDetail) options?.onSaved?.(updatedDetail);
-      return true;
-    } catch (saveError) {
-      lastFailedContentRef.current = normalized;
-      // 协作内容被数据库层守卫拒绝直写：给出明确指引而非通用保存失败
-      const parsed = parseInvokeError(saveError);
-      setError(
-        parsed.code === "COLLABORATION_WRITE_REQUIRED"
-          ? "内容协作中，暂不支持直接修改"
-          : "自动保存失败，请稍后重试"
-      );
-      options?.onSaveError?.(saveError);
-      return false;
-    } finally {
-      setSaving(false);
-    }
+        if (!persistedViaProjection) {
+          try {
+            const updated = await tauri.updateContent({
+              contentId,
+              content: normalized,
+              count,
+              contracts: metadataRef.current?.contracts ?? undefined,
+              expectedRevision: metadataRef.current?.revision ?? undefined,
+              expectedDocumentId: metadataRef.current?.documentId ?? undefined,
+              expectedSourceId: metadataRef.current?.librarySourceId ?? undefined,
+            });
+            updatedDetail = updated;
+            savedContent = normalizeEditorContent(updated.content);
+            savedCount = updated.count;
+            updateTime = updated.updateTime;
+          } catch (failure) {
+            // 常规直写被协作守卫拒绝（绑定仍在、会话未就绪）：改走投影通道落本地库
+            if (parseInvokeError(failure).code !== "COLLABORATION_WRITE_REQUIRED") {
+              throw failure;
+            }
+            persistedViaProjection = await projectContent();
+            // 兜底投影仍未写入（极端竞态下绑定同时消失）：按保存失败处理，绝不静默吞改动
+            if (!persistedViaProjection) throw failure;
+          }
+        }
+
+        if (generation !== loadRequestSeqRef.current) return true;
+        if (updatedDetail)
+          metadataRef.current = {
+            ...updatedDetail,
+            contracts: updatedDetail.contracts
+              ? { ...updatedDetail.contracts, ...metadataRef.current?.contracts }
+              : undefined,
+          };
+        const unchanged = JSON.stringify(latestContentRef.current) === nextSnapshot;
+        if (unchanged) latestContentRef.current = savedContent;
+        lastSavedSnapshotRef.current = JSON.stringify(savedContent);
+        lastFailedContentRef.current = null;
+        publishContentUpdate({
+          contentId,
+          content: savedContent,
+          sourceId: sourceIdRef.current,
+          updateTime,
+          count: savedCount,
+          document: updatedDetail,
+        });
+        if (unchanged) notifyContentSync(savedContent);
+        // 经投影通道落库＝有本机改动未推云端：宿主据此标记，重连后交作者裁决
+        if (persistedViaProjection) options?.onProjectionPersisted?.();
+        if (updatedDetail) options?.onSaved?.(updatedDetail);
+        return true;
+      } catch (saveError) {
+        lastFailedContentRef.current = normalized;
+        // 协作内容被数据库层守卫拒绝直写：给出明确指引而非通用保存失败
+        const parsed = parseInvokeError(saveError);
+        setError(
+          parsed.code === "COLLABORATION_WRITE_REQUIRED"
+            ? "内容协作中，暂不支持直接修改"
+            : "自动保存失败，请稍后重试"
+        );
+        options?.onSaveError?.(saveError);
+        return false;
+      } finally {
+        setSaving(false);
+      }
+    });
+    writeTail.current = write;
+    return write;
   });
 
   const { run: throttledSave, cancel: cancelThrottledSave } = useThrottleFn(
@@ -164,11 +207,15 @@ export function useEditContent(
     }
   );
 
-  const handleEditorContentChange = useMemoizedFn((next: Descendant[]) => {
-    const normalized = normalizeEditorContent(next);
-    latestContentRef.current = normalized;
-    throttledSave(normalized);
-  });
+  const handleEditorContentChange = useMemoizedFn(
+    (next: Descendant[], contracts?: ContentContractDictionary) => {
+      if (metadataRef.current && contracts)
+        metadataRef.current = { ...metadataRef.current, contracts };
+      const normalized = normalizeEditorContent(next);
+      latestContentRef.current = normalized;
+      throttledSave(normalized);
+    }
+  );
 
   const flushNow = useMemoizedFn(async () => {
     cancelThrottledSave();
@@ -206,6 +253,7 @@ export function useEditContent(
         if (loadRequestSeqRef.current !== requestSeq) {
           return;
         }
+        metadataRef.current = result;
         const loaded = normalizeEditorContent(result.content);
         const snapshot = JSON.stringify(loaded);
         latestContentRef.current = loaded;
@@ -239,7 +287,15 @@ export function useEditContent(
     if (nextId <= 0) {
       return;
     }
-    return subscribeContentUpdate(nextId, sourceIdRef.current, nextContent => {
+    return subscribeContentUpdate(nextId, sourceIdRef.current, (nextContent, metadata) => {
+      if (
+        JSON.stringify(latestContentRef.current) !== lastSavedSnapshotRef.current &&
+        JSON.stringify(nextContent) !== JSON.stringify(latestContentRef.current)
+      ) {
+        setError("正文已在其他视图变化，本机输入仍保留，请先处理保存冲突");
+        return;
+      }
+      if (metadata) metadataRef.current = metadata;
       const normalized = normalizeEditorContent(nextContent);
       latestContentRef.current = normalized;
       lastSavedSnapshotRef.current = JSON.stringify(normalized);

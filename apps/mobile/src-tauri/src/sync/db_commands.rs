@@ -1,13 +1,13 @@
 use std::fs;
 use std::path::PathBuf;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 use serde_json::{json, Value};
 use tauri::AppHandle;
 
 use crate::models::{SyncActionResponse, SyncVersionResponse};
 use crate::plugin_files::TemporaryFile;
-use crate::setting::{resolve_app_dir, set_database_version, update_setting_value};
+use crate::setting::{set_database_version, update_setting_value};
 
 use super::common::{response_err, response_ok, DEFAULT_DB_NAME, SYNC_CHECK_TIMEOUT_SECS};
 use super::context::{build_sync_context, build_sync_context_for, SyncProvider};
@@ -520,17 +520,6 @@ mod tests {
     }
 
     #[test]
-    fn replacement_failure_restores_original_file() {
-        let dir = std::env::temp_dir().join(format!("tau-replace-{}", uuid::Uuid::new_v4()));
-        fs::create_dir(&dir).unwrap();
-        let original = dir.join("data.db");
-        fs::write(&original, b"original").unwrap();
-        assert!(replace_database_file(&dir.join("missing.db"), &original).is_err());
-        assert_eq!(fs::read(&original).unwrap(), b"original");
-        fs::remove_dir_all(dir).unwrap();
-    }
-
-    #[test]
     fn remote_metadata_requires_current_format_and_safe_versions() {
         assert!(validate_remote_metadata(&json!({"version":0})).is_ok());
         assert!(validate_remote_metadata(&json!({"version":0,"databaseObject":"old.db"})).is_err());
@@ -628,24 +617,6 @@ mod tests {
         drop(conn);
         fs::remove_dir_all(dir).unwrap();
     }
-}
-
-fn replace_database_file(download: &PathBuf, destination: &PathBuf) -> std::io::Result<()> {
-    let previous = destination.with_extension(format!("db.{}.previous", uuid::Uuid::new_v4()));
-    let existed = destination.exists();
-    if existed {
-        fs::rename(destination, &previous)?;
-    }
-    if let Err(error) = fs::rename(download, destination) {
-        if existed {
-            fs::rename(&previous, destination)?;
-        }
-        return Err(error);
-    }
-    if existed {
-        let _ = fs::remove_file(previous);
-    }
-    Ok(())
 }
 
 fn remove_wal_shm_files(db_path: &PathBuf) {
@@ -746,52 +717,6 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
     };
     let tmp_path = &downloaded.path;
 
-    let backup_dir = match resolve_app_dir(&app) {
-        Ok(dir) => dir.join("backup"),
-        Err(err) => {
-            return response_err(
-                &ctx.database_name,
-                ctx.local_version,
-                remote_version,
-                AppError::new("SYNC_DOWNLOAD_FAILED", format!("解析备份目录失败: {err}")),
-            );
-        }
-    };
-    if let Err(err) = fs::create_dir_all(&backup_dir) {
-        return response_err(
-            &ctx.database_name,
-            ctx.local_version,
-            remote_version,
-            AppError::new("SYNC_DOWNLOAD_FAILED", format!("创建备份目录失败: {err}")),
-        );
-    }
-
-    if ctx.database_path.exists() {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
-        let backup_name = format!(
-            "version-{}-{}-{}-{}",
-            ctx.local_version,
-            now,
-            uuid::Uuid::new_v4(),
-            ctx.database_name
-        );
-        let backup_path = backup_dir.join(backup_name);
-        let backup = rusqlite::Connection::open(&ctx.database_path).and_then(|conn| {
-            conn.execute("VACUUM INTO ?1", [backup_path.to_string_lossy().as_ref()])
-        });
-        if let Err(err) = backup {
-            return response_err(
-                &ctx.database_name,
-                ctx.local_version,
-                remote_version,
-                AppError::new("SYNC_DOWNLOAD_FAILED", format!("备份数据库失败: {err}")),
-            );
-        }
-    }
-
     if let Err(err) = crate::database::validate_download(tmp_path) {
         let _ = fs::remove_file(tmp_path);
         remove_wal_shm_files(tmp_path);
@@ -805,33 +730,23 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
             ),
         );
     }
-    if ctx.database_path.exists() {
-        if let Err(err) = crate::database::force_checkpoint_database(&app, &ctx.database_name) {
-            let _ = fs::remove_file(tmp_path);
-            return response_err(
-                &ctx.database_name,
-                ctx.local_version,
-                remote_version,
-                AppError::new("DB_CHECKPOINT_FAILED", err),
-            );
-        }
-    }
-    if let Err(err) = replace_database_file(tmp_path, &ctx.database_path) {
-        let _ = fs::remove_file(tmp_path);
+    if let Err(err) =
+        crate::database::install_preserved_download(&app, &ctx.database_name, tmp_path)
+    {
         return response_err(
             &ctx.database_name,
             ctx.local_version,
             remote_version,
-            AppError::new("SYNC_DOWNLOAD_FAILED", format!("替换数据库文件失败: {err}")),
+            AppError::new(
+                "SYNC_DOWNLOAD_FAILED",
+                format!("未完成保全或安装，原数据已保留: {err}"),
+            ),
         );
     }
-    // 替换后的文件与缓存连接指向不同内容，必须丢弃；同名库的名字比对无法感知
-    crate::database::invalidate_cached_connection();
     // 主库已被远端内容替换，本地索引的 ID 空间整体失效，重置后按需全量重建
     if let Err(err) = crate::database::reset_index_database(&app, &ctx.database_name) {
         eprintln!("[sync] reset index database failed: {}", err);
     }
-    remove_wal_shm_files(&ctx.database_path);
 
     if let Err(err) = update_setting_value(&app, |setting| {
         set_database_version(setting, &ctx.database_name, remote_version);

@@ -1,0 +1,81 @@
+{
+  "profile": "whiteboard-w1-v1",
+  "editor": {
+    "id": "e62549b2a1e972e29354b58695dbcde6a5e2e629825172730c8cdb1e6fc710bb",
+    "contract": {
+      "format": 2,
+      "owner": "example",
+      "type": "example.diagram",
+      "dataVersion": 1,
+      "textFields": ["source"],
+      "structuredFields": [],
+      "resources": [
+        {
+          "path": "cover",
+          "kind": "image"
+        }
+      ],
+      "domain": "editor-node",
+      "kind": "block",
+      "isVoid": false
+    }
+  },
+  "whiteboard": {
+    "id": "491d401fb898425dfd9ff5989a60c06f187c739a0dd7780171d284ab8990b99e",
+    "contract": {
+      "format": 2,
+      "owner": "example",
+      "type": "example.diagram",
+      "dataVersion": 1,
+      "textFields": ["source"],
+      "structuredFields": [],
+      "resources": [
+        {
+          "path": "cover",
+          "kind": "image"
+        }
+      ],
+      "domain": "whiteboard-element",
+      "structure": {
+        "geometry": "rect",
+        "container": "none",
+        "canBeContained": true,
+        "joins": [],
+        "text": "none",
+        "reference": "none"
+      }
+    }
+  },
+  "limits": {
+    "contracts": {
+      "contracts": 1024,
+      "fields": 32,
+      "nameLength": 128,
+      "contractBytes": 16384,
+      "totalBytes": 1048576
+    },
+    "resources": {
+      "specs": 16,
+      "pathLength": 128
+    },
+    "nodeTree": {
+      "roots": 1024,
+      "rootIdLength": 128,
+      "nodes": 150000,
+      "depth": 64
+    },
+    "whiteboard": {
+      "documentBytes": 8388608,
+      "pages": 64,
+      "elements": 5000,
+      "richTextRoots": 1024,
+      "richTextNodes": 150000,
+      "commandsPerBatch": 256,
+      "batchBytes": 524288,
+      "payloadDepth": 64,
+      "patchBytes": 65536,
+      "presenceBytes": 16384,
+      "presencePerMinute": 600
+    }
+  }
+}

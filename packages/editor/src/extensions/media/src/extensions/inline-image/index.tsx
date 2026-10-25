@@ -12,6 +12,7 @@ const inlineImageExtension = defineExtension({
   elements: [
     defineElement<InlineImageElement>({
       type: "inline-image",
+      dataVersion: 1,
       resources: BUILTIN_CONTENT_RESOURCES["inline-image"],
       kind: "inline",
       isEmpty: element => !element.url,

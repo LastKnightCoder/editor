@@ -18,7 +18,13 @@ try {
       platform: "browser",
       format: "esm",
       tsconfig: path.join(root, "tsconfig.json"),
-      loader: { ".css": "empty", ".svg": "dataurl" },
+      loader: {
+        ".css": "empty",
+        ".svg": "dataurl",
+        ".html": "text",
+        ".md": "text",
+        ".sql": "text",
+      },
       define: { "process.env.NODE_ENV": '"production"', "import.meta.env.DEV": "false" },
     });
     await writeFile(

@@ -21,6 +21,8 @@ import TodoGroupTable from "../tables/todo-group";
 import TodoItemTable from "../tables/todo-item";
 import TodoCalendarSyncTable from "../tables/todo-calendar-sync";
 import TodoCalendarMappingTable from "../tables/todo-calendar-mapping";
+import TodoNoteLinkTable from "../tables/todo-note-link";
+import ContentTable from "../tables/content";
 
 function createTestDatabase() {
   const db = new Database(":memory:");
@@ -58,7 +60,8 @@ describe("安排（calendar_event.todo_item_id）", () => {
     CalendarEventTable.createEventForTodo(db, { todoItemId, startDate: day, startTime, endTime });
   const linkOf = (id: number) =>
     db.prepare("SELECT todo_item_id FROM calendar_event WHERE id = ?").get(id) as
-      { todo_item_id: number | null } | undefined;
+      | { todo_item_id: number | null }
+      | undefined;
 
   it("安排进默认用户日历：标题取待办、备注不与待办描述共用、关联待办", () => {
     const item = TodoItemTable.createItem(db, { groupId, title: "写报告", description: "大纲" });
@@ -71,6 +74,21 @@ describe("安排（calendar_event.todo_item_id）", () => {
       endTime: 660,
       allDay: false,
     });
+  });
+
+  it("任务描述和新建笔记从实际段落声明保存契约", () => {
+    const item = TodoItemTable.createItem(db, { groupId, title: "写报告", description: "大纲" });
+    const note = TodoNoteLinkTable.createAndAttach(db, { todoId: item.id });
+    for (const id of [item.descriptionContentId!, note.contentId]) {
+      const document = ContentTable.getContentById(db, id)!;
+      const node = document.content[0] as unknown as { tauContract: string };
+      expect(document.contracts?.[node.tauContract]).toMatchObject({
+        owner: "tau.paragraph",
+        type: "paragraph",
+        dataVersion: 1,
+      });
+      expect(document.refCount).toBe(1);
+    }
   });
 
   it("全天安排关联待办且不占时段，可重复安排并进入安排概况", () => {

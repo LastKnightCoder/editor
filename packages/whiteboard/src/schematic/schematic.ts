@@ -41,6 +41,8 @@ const hasBox = (e: AnyElement) =>
 
 interface Ctx {
   definitions: Map<string, WhiteboardElementDefinition>;
+  resolveDefinition?: (element: BoardElement) => WhiteboardElementDefinition | undefined;
+  isBuiltin?: (element: BoardElement) => boolean;
   snapshot: ReturnType<typeof createSnapshotReader>;
   dark: boolean;
   shapes: SchematicShape[];
@@ -318,13 +320,46 @@ function arrow(ctx: Ctx, e: AnyElement) {
 
 function element(ctx: Ctx, e: AnyElement) {
   if (!e || typeof e !== "object") return;
+  if (typeof e.contractId === "string" && ctx.isBuiltin?.(e) !== true) {
+    if (!hasBox(e)) return;
+    grow(ctx, e.x, e.y, e.width, e.height);
+    const definition = ctx.resolveDefinition?.(e);
+    let drawn = false;
+    if (definition?.schematic)
+      try {
+        const shapes = definition.schematic(ctx.snapshot(e), { dark: ctx.dark });
+        if (Array.isArray(shapes)) {
+          ctx.shapes.push(...shapes);
+          drawn = true;
+        }
+      } catch {
+        /* 不匹配或失败的渲染不改变原数据。 */
+      }
+    if (!drawn)
+      ctx.shapes.push({
+        kind: "rect",
+        x: e.x,
+        y: e.y,
+        w: e.width,
+        h: e.height,
+        r: 8,
+        fill: INK,
+        fillOpacity: 0.06,
+      });
+    for (const child of e.children ?? []) element(ctx, child);
+    return;
+  }
   if (e.type === "arrow") return arrow(ctx, e);
   if (!hasBox(e)) return;
   if (e.type === "mind-node") return mindTree(ctx, e);
 
   grow(ctx, e.x, e.y, e.width, e.height);
   const definition = ctx.definitions.get(e.type);
-  if (definition?.schematic && (e.schemaVersion ?? 1) === (definition.schemaVersion ?? 1)) {
+  if (
+    definition?.schematic &&
+    definition.dataVersion === undefined &&
+    (e.schemaVersion ?? 1) === (definition.schemaVersion ?? 1)
+  ) {
     try {
       const shapes = definition.schematic(ctx.snapshot(e), { dark: ctx.dark });
       if (!Array.isArray(shapes)) throw new Error("缩略图贡献必须返回图元数组");
@@ -433,13 +468,21 @@ function element(ctx: Ctx, e: AnyElement) {
 /** 空画布返回 null（卡片显示「空白画布」） */
 export function buildSchematic(
   elements: BoardElement[] | undefined,
-  options: { aspect: number; dark: boolean; definitions?: readonly WhiteboardElementDefinition[] }
+  options: {
+    aspect: number;
+    dark: boolean;
+    definitions?: readonly WhiteboardElementDefinition[];
+    resolveDefinition?: Ctx["resolveDefinition"];
+    isBuiltin?: Ctx["isBuiltin"];
+  }
 ): Schematic | null {
   if (!elements?.length) return null;
   const ctx: Ctx = {
     definitions: new Map(
       (options.definitions ?? []).map(definition => [definition.type, definition])
     ),
+    resolveDefinition: options.resolveDefinition,
+    isBuiltin: options.isBuiltin,
     snapshot: createSnapshotReader(),
     dark: options.dark,
     shapes: [],

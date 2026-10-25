@@ -4,7 +4,7 @@ use serde_json::Value;
 use tauri::AppHandle;
 
 use super::common::{
-    db_err, decrement_or_delete_content, insert_content_record, now_millis, parse_id_array,
+    db_err, insert_content_record, now_millis, parse_id_array, release_content_reference,
     serialize_id_array, trigger_reconcile, write_operation,
 };
 use super::schema;
@@ -76,6 +76,7 @@ pub struct CreateProjectItemPayload {
     pub ref_id: Option<i64>,
     /// 仅 document 类型生效：导入时直接带正文，缺省为空段落
     pub content: Option<Value>,
+    pub contracts: Option<Value>,
     pub count: Option<i64>,
 }
 
@@ -389,7 +390,7 @@ fn detach_or_delete_subtree(
             .map_err(|e| db_err("PROJECT_DELETE_FAILED", "delete item", e))?;
         write_operation(tx, "project-item", "delete", id, now)?;
         if let Some(content_id) = content_id {
-            decrement_or_delete_content(tx, content_id)?;
+            release_content_reference(tx, content_id)?;
         }
         deleted_ids.push(id);
         deleted += 1;
@@ -651,7 +652,13 @@ pub fn project_item_create(
         let content = payload.content.unwrap_or_else(|| {
             serde_json::json!([{ "type": "paragraph", "children": [{ "type": "formatted", "text": "" }] }])
         });
-        Some(insert_content_record(&tx, &content, count, now)?)
+        Some(insert_content_record(
+            &tx,
+            &content,
+            payload.contracts.as_ref(),
+            count,
+            now,
+        )?)
     } else {
         None
     };

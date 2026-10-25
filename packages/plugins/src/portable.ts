@@ -1,5 +1,5 @@
-import { comparePluginVersions, type PluginManifest } from "./package";
-import { readPluginMetadata, readPluginFilePath, readPluginFiles } from "./package-fields";
+import { comparePluginVersions, type PluginManifest } from "./package.ts";
+import { readPluginMetadata, readPluginFilePath, readPluginFiles } from "./package-fields.ts";
 import type { PluginEnvironment } from "./environment";
 
 export const PORTABLE_PLATFORMS = ["desktop", "android", "ios"] as const;

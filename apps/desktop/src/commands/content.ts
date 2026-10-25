@@ -1,13 +1,17 @@
+import { bindDatabaseCommands, currentCommandScope } from "@/services/command-context";
+import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { invoke } from "@/electron";
 import { Descendant } from "slate";
 import { IContent } from "@/types";
 
 export const createContent = async (
   content: Descendant[],
-  count: number
+  count: number,
+  contracts?: ContentContractDictionary
 ): Promise<number | null> => {
-  return await invoke("content:create", {
-    content,
+  const command = bindDatabaseCommands({ invoke }, currentCommandScope());
+  return await command.invoke("content:create", {
+    ...(await (await import("@/services/editorKit")).prepareNewContent(content, contracts)),
     count,
   });
 };
@@ -15,10 +19,12 @@ export const createContent = async (
 /** 以待回收状态创建正文（ref_count 0），首次保存进表时由差集 retain */
 export const createPendingContent = async (
   content: Descendant[],
-  count?: number
+  count?: number,
+  contracts?: ContentContractDictionary
 ): Promise<number | null> => {
-  return await invoke("content:create-pending", {
-    content,
+  const command = bindDatabaseCommands({ invoke }, currentCommandScope());
+  return await command.invoke("content:create-pending", {
+    ...(await (await import("@/services/editorKit")).prepareNewContent(content, contracts)),
     count,
   });
 };
@@ -26,11 +32,13 @@ export const createPendingContent = async (
 export const updateContent = async (
   contentId: number,
   content: Descendant[],
-  expectedRevision?: string
+  expectedRevision?: string,
+  contracts?: ContentContractDictionary
 ): Promise<IContent | null> => {
   return await invoke("content:update", contentId, {
     content,
     expectedRevision,
+    contracts,
   });
 };
 

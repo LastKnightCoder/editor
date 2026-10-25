@@ -12,6 +12,7 @@ const blockquoteExtension = defineExtension({
   elements: [
     defineElement<BlockquoteElement>({
       type: "blockquote",
+      dataVersion: 1,
       kind: "block",
       isEmpty: (element, context) => element.children.every(context.isEmpty),
       render: Blockquote,

@@ -1,6 +1,7 @@
+import { createSharedDocument } from "@tau/collaboration/src/testing/legacy-document";
 import { expect, it } from "vitest";
 import type { Descendant } from "slate";
-import { createSharedDocument, readSharedContent } from "@tau/collaboration";
+import { readSharedContent } from "@tau/collaboration";
 import { getMarkdown } from "@/utils/markdown";
 import {
   removeActiveEditingSession,

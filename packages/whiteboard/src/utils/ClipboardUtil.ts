@@ -6,6 +6,9 @@ const CLIPBOARD_SOURCE = "editor-white-board";
 export const buildClipboardPayload = (board: Board, elements: BoardElement[]): string | null => {
   if (!elements || elements.length === 0) return null;
 
+  if (board.document?.exportTransfer)
+    return JSON.stringify(board.document.exportTransfer(elements.map(element => element.id)));
+
   const clonedElements: BoardElement[] = JSON.parse(JSON.stringify(elements));
 
   const processedElements = clonedElements

@@ -2,12 +2,12 @@
 import { createRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { act } from "react";
-import type { Descendant } from "slate";
+import { Transforms, type Descendant } from "slate";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-// CodeMirror 5 测量文字要用 Range 的几何接口，jsdom 未实现
+// 编辑器聚焦时需要 Range 的几何接口，jsdom 未实现。
 const emptyRect = () => ({ x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 });
 Range.prototype.getBoundingClientRect = emptyRect as unknown as () => DOMRect;
 Range.prototype.getClientRects = (() => []) as unknown as () => DOMRectList;
@@ -45,6 +45,7 @@ const mount = async (initValue: Descendant[], readonly = false) => {
   });
   return {
     container,
+    editor: ref.current!.getEditor(),
     done: async () => {
       await act(async () => root.unmount());
       container.remove();
@@ -90,33 +91,47 @@ describe("源码预览块", () => {
     await readonly.done();
   });
 
-  it("进入编辑后有类型标题行与完成按钮，完成后回到预览", async () => {
-    const { container, done } = await mount(blockMath("x^2"));
+  it("块公式原位编辑即时写回，点击外部后回到预览", async () => {
+    const { container, editor, done } = await mount(blockMath("x^2"));
     await click(container.querySelector('button[aria-label="编辑"]'));
-    const finish = Array.from(container.querySelectorAll("button")).find(
-      b => b.textContent === "完成"
+    const input = container.querySelector<HTMLTextAreaElement>(
+      ".ed-preview-source--in-place textarea"
     );
-    expect(finish).toBeTruthy();
-    expect(container.textContent).toContain("公式");
-    await click(finish);
+    expect(input?.value).toBe("x^2");
     expect(
       Array.from(container.querySelectorAll("button")).some(b => b.textContent === "完成")
     ).toBe(false);
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(
+        input,
+        "y^3"
+      );
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(editor.children[0]).toMatchObject({ tex: "y^3" });
+    await act(async () => {
+      document.body.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(container.querySelector(".ed-preview-source textarea")).toBeNull();
+    expect(container.querySelector(".katex annotation")?.textContent).toBe("y^3");
     await done();
   });
 
   it("Mermaid 渲染出错时保留上一次的图，错误交给块的错误条", async () => {
-    const chart = "graph LR\n  A -> B";
-    renderMermaidSvg.mockRejectedValue(new Error("Parse error on line 2"));
-    const { container, done } = await mount([
+    const chart = "graph LR\n  A --> B";
+    renderMermaidSvg.mockResolvedValue('<svg data-testid="cached"></svg>');
+    const { container, editor, done } = await mount([
       {
         type: "mermaid",
         chart,
-        svg: '<svg data-testid="cached"></svg>',
-        compiledFrom: chart,
         children: [{ type: "formatted", text: "" }],
       },
     ] as unknown as Descendant[]);
+    await vi.waitFor(() => expect(container.querySelector('[data-testid="cached"]')).toBeTruthy());
+    renderMermaidSvg.mockRejectedValue(new Error("Parse error on line 2"));
+    await act(async () => {
+      Transforms.setNodes(editor, { chart: "graph LR\n  A -> B" }, { at: [0] });
+    });
     // Mermaid 扩展懒加载，等它挂载并上报错误
     await vi.waitFor(async () => {
       await act(async () => {

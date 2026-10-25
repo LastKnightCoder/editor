@@ -1,13 +1,16 @@
 import { Editor } from "slate";
 import { v4 as uuid } from "uuid";
 import { setOrInsertNode } from "@tau/editor";
-import { createDataTable } from "@/commands/data-table";
+import { createDataTable, createPendingDataTable } from "@/commands/data-table";
 
 export const insertDatabase = async (editor: Editor) => {
-  const dataTable = await createDataTable({
-    columns: [],
-    rows: [],
-  });
+  const referenced = "nodeTree" in editor ? await createPendingDataTable() : null;
+  const dataTable = referenced
+    ? referenced.table
+    : await createDataTable({
+        columns: [],
+        rows: [],
+      });
 
   const id = uuid();
 
@@ -16,7 +19,7 @@ export const insertDatabase = async (editor: Editor) => {
   setOrInsertNode(editor, {
     type: "database",
     id,
-    tableId: dataTable.id,
+    ...(referenced ? { entityRef: referenced.reference } : { tableId: dataTable.id }),
     height: 24,
     children: [
       {

@@ -1,3 +1,5 @@
+import { prepareContentContract } from "@tau/db-schema/content-contracts";
+import { formFromCard } from "@/features/flashcards/editorModel";
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -43,7 +45,8 @@ describe("FlashcardTable 参考资料引用计数", () => {
   const refCountOf = (contentId: number) =>
     (
       db.prepare("SELECT ref_count FROM contents WHERE id = ?").get(contentId) as
-        { ref_count: number } | undefined
+        | { ref_count: number }
+        | undefined
     )?.ref_count;
 
   const createCard = (references: FlashcardReferenceInput[]) =>
@@ -58,6 +61,42 @@ describe("FlashcardTable 参考资料引用计数", () => {
     refType: "content",
     contentId: docContentId,
     title: "已有文档",
+  });
+
+  it("自定义资料读回、编辑和插件返回均保留原版契约", async () => {
+    const { id, contract } = await prepareContentContract("plugin.fixture", {
+      type: "fixture-source",
+      kind: "block",
+      isVoid: true,
+      dataVersion: 1,
+      collaboration: { textFields: ["source"] },
+    });
+    const contracts = { [id]: contract };
+    const card = createCard([
+      {
+        refType: "custom",
+        title: "旧版源码",
+        contracts,
+        customContent: [
+          {
+            type: "fixture-source",
+            tauContract: id,
+            source: "旧源码",
+            extra: { keep: true },
+            children: [{ type: "formatted", text: "" }],
+          },
+        ] as never,
+      },
+    ]);
+    const reference = card.references[0];
+    expect(reference.content?.contracts).toEqual(contracts);
+    expect(reference.content?.content[0]).toMatchObject({
+      source: "旧源码",
+      extra: { keep: true },
+    });
+    expect(formFromCard(card).references[0].contracts).toEqual(contracts);
+    expect(toPluginFlashcard(card).references?.[0]).toMatchObject({ contracts });
+    expect(refCountOf(reference.contentId)).toBe(1);
   });
 
   const customRef = (text: string): FlashcardReferenceInput => ({

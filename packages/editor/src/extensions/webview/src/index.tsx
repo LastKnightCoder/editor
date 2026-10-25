@@ -11,6 +11,7 @@ const webviewExtension = defineExtension({
   elements: [
     defineElement<WebviewElement>({
       type: "webview",
+      dataVersion: 1,
       kind: "block",
       isVoid: true,
       render: ({ attributes, element, children }: ElementRenderProps<WebviewElement>) => (

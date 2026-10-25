@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import type { Descendant } from "slate";
 import { assertContentNodes } from "@tau/plugins/content-input";
-import { parseMarkdownNodes } from "../../services/content-conversion";
+import { contentExecutor } from "../../services/content-execution";
 import type { PluginContentSource } from "@/types/plugin-data";
 import ContentTable from "./content";
 import EntitySearchTable from "./entity-search";
@@ -20,7 +20,7 @@ function isAddressable(db: Database.Database, contentId: number): boolean {
 function copyContent(
   db: Database.Database,
   source: { contentId: number; createdAt: number }
-): Descendant[] {
+): Pick<import("@/types/content").IContent, "content" | "contracts"> {
   const exists = db
     .prepare("SELECT 1 FROM contents WHERE id = ? AND create_time = ?")
     .get(source.contentId, source.createdAt);
@@ -29,7 +29,7 @@ function copyContent(
       ? ContentTable.getContentById(db, source.contentId)
       : null;
   if (!content) throw new Error("要复制的正文不存在");
-  return structuredClone(content.content);
+  return structuredClone({ content: content.content, contracts: content.contracts });
 }
 
 /**
@@ -60,16 +60,28 @@ export async function resolvePluginContent(
   db: Database.Database,
   source: PluginContentSource | undefined,
   fallback: readonly Descendant[]
-): Promise<Descendant[]> {
-  let nodes: Descendant[] = [];
+): Promise<Pick<import("@/types/content").IContent, "content" | "contracts">> {
+  let input:
+    | { markdown: string }
+    | {
+        nodes: Descendant[];
+        contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
+      } = { nodes: structuredClone(fallback as Descendant[]) };
   if (source && "markdown" in source) {
-    if (source.markdown.trim()) nodes = await parseMarkdownNodes(source.markdown);
+    if (source.markdown.trim()) input = { markdown: source.markdown };
   } else if (source && "nodes" in source) {
     assertContentNodes(source.nodes);
-    nodes = structuredClone(source.nodes);
-  } else if (source && "copyOf" in source) nodes = copyContent(db, source.copyOf);
-  else if (source && "shareOf" in source)
+    input = {
+      nodes: source.nodes.length
+        ? structuredClone(source.nodes)
+        : structuredClone(fallback as Descendant[]),
+      contracts: source.contracts,
+    };
+  } else if (source && "copyOf" in source) {
+    const original = copyContent(db, source.copyOf);
+    input = { nodes: original.content, contracts: original.contracts };
+  } else if (source && "shareOf" in source)
     throw new Error("shareOf 只能用于新建卡片、文章、项目文档与插入到项目");
   else if (source) throw new Error("正文输入无效");
-  return nodes.length ? nodes : structuredClone(fallback as Descendant[]);
+  return contentExecutor.execute({ operation: "prepare-content", input });
 }

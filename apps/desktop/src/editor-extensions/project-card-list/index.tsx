@@ -1,3 +1,4 @@
+import { projectCardListElementDefinition } from "../entity-definitions";
 import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 import type { ProjectCardListElement } from "./types";
 
@@ -10,9 +11,7 @@ export const createProjectCardListExtension = (projectId?: number) =>
     id: "host.project-card-list",
     elements: [
       defineElement<ProjectCardListElement>({
-        type: "project-card-list",
-        kind: "block",
-        isVoid: true,
+        ...projectCardListElementDefinition,
         render: ({ attributes, element, children }: ElementRenderProps<ProjectCardListElement>) => (
           <ProjectListSlate element={element} attributes={attributes}>
             {children}

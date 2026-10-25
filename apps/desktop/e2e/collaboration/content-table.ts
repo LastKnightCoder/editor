@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
-import { readSharedContent } from "@tau/collaboration";
 import {
   contentSession,
+  readSessionContent,
   contentRevision,
 } from "../../src-electron/main/modules/collaboration/content-sessions";
 
@@ -16,9 +16,7 @@ export default class ContentTable {
       updateTime: row.update_time,
       count: row.count,
       refCount: row.ref_count,
-      content: session
-        ? readSharedContent(session.doc, session.privateNodes).content
-        : JSON.parse(row.content),
+      content: session ? readSessionContent(session).content : JSON.parse(row.content),
       revision: session ? contentRevision(session) : undefined,
     };
   }

@@ -14,10 +14,7 @@ import type { EditorRef } from "@tau/editor";
 import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
 import { IEditorSlots } from "@tau/editor/extensions/media/services";
 import { tabsBehaviors, tabPaneBehaviors } from "../behaviors";
-import {
-  createCircuitBreaker,
-  withElementBehaviors,
-} from "../../../../core/kit/extensionGuard";
+import { createCircuitBreaker, withElementBehaviors } from "../../../../core/kit/extensionGuard";
 import { consoleErrorReporter } from "@tau/editor";
 
 const createNormalizedEditor = (): Editor =>
@@ -70,7 +67,7 @@ describe("tabs normalize 行为", () => {
     expect(node.type).toBe("tabs");
     expect(node.tabsContent).toBeUndefined();
     expect(node.children).toHaveLength(1);
-    expect(node.activeKey).toBe(node.children[0].tabKey);
+    expect(node.activeKey).toBe("b");
     expect(node.children[0]).toMatchObject({ type: "tab-pane", title: "Tab 1" });
     expect(JSON.stringify(node.children[0].children)).toContain("最新");
   });
@@ -94,7 +91,7 @@ describe("tabs normalize 行为", () => {
     ]);
   });
 
-  it("失效 activeKey 应修正为第一个 pane", () => {
+  it("规范化不再回写本机激活字段", () => {
     const editor = createNormalizedEditor();
     editor.children = [
       {
@@ -119,7 +116,7 @@ describe("tabs normalize 行为", () => {
 
     Editor.normalize(editor, { force: true });
     const [node] = editor.children as unknown as [{ activeKey: string }];
-    expect(node.activeKey).toBe("a");
+    expect(node.activeKey).toBe("gone");
   });
 });
 

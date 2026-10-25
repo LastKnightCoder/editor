@@ -1,15 +1,17 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, expect, it, vi } from "vitest";
 import { createMarkdownProcessor } from "@tau/markdown";
 import { textFormattingCodec } from "@tau/editor/extensions/text-formatting/markdown";
 import { desktopCodecComposition } from "../../utils/markdown";
 import { desktopContentPlugins } from "../../../shared/content-plugins";
 import { htmlDefinition, htmlExtension } from "../../test-fixtures/plugin-packages";
 import { HtmlSerializerRegistry } from "../../utils/htmlSerializerRegistry";
+import useDynamicExtensionsStore from "../../stores/useDynamicExtensionsStore";
 
 const compile = vi.hoisted(() => vi.fn(async () => ".p-4{padding:1rem}"));
 vi.mock("../../utils/html-serializers/tailwind-compiler", () => ({
   compileTailwindForHtml: compile,
 }));
+beforeAll(() => useDynamicExtensionsStore.getState().initExtensions(), 30_000);
 afterEach(() => {
   desktopContentPlugins.install([]);
   vi.clearAllMocks();

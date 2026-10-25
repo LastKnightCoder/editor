@@ -1,14 +1,13 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Transforms } from "slate";
 import { ReactEditor, RenderElementProps, useReadOnly, useSlateStatic } from "slate-react";
-import { useNotifier } from "@tau/editor/api";
-import isHotkey from "is-hotkey";
+import { useNotifier, useTextFieldBinding, canEditElement } from "@tau/editor/api";
 import { cn } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 import type { HighlighterCore } from "shiki/core";
 import { ChevronDown } from "lucide-react";
 
-import type { CodeBlockElement, CodeBlockMagicMove } from "../../../../types";
+import type { CodeBlockElement, CodeBlockV2Element, CodeBlockMagicMove } from "../../../../types";
 import {
   AddParagraph,
   type AddParagraphRef,
@@ -25,9 +24,15 @@ import {
 import HighlightMenu from "./HighlightMenu";
 import { highlightCommandIds } from "../../highlightCommands";
 import CodeBlockHeader, { CODE_HOVER_GROUP, type CodeBlockStepNav } from "./CodeBlockHeader";
-import ShikiOverlayEditor, { OverlayKeydownHelpers } from "./ShikiOverlayEditor";
+import {
+  ShikiOverlayEditor,
+  getShikiHighlighter,
+  getShikiTheme,
+  handleSourceKeyDown,
+  hasHighlightedLineInRange,
+  type OverlayKeydownHelpers,
+} from "@tau/editor-source-view/overlay";
 import { codeBlockActionsMap, codeBlockMap } from "../../utils/controllerMaps";
-import { getShikiHighlighter, getShikiTheme } from "../../utils/shikiHighlighter";
 import {
   getActiveStepCode,
   getActiveStepHighlightLines,
@@ -37,20 +42,24 @@ import {
 import { getChangedLines } from "../../utils/lineDiff";
 import { normalizeCodeBlockFilename } from "../../utils/filename";
 import { deleteVoidBlock } from "@tau/editor/api";
-import { hasHighlightedLineInRange } from "../../utils/highlightLineRanges";
 import type { CodeBlockController } from "../../types";
 
-import "./CodeBlock.vendor.css";
-import "shiki-magic-move/style.css";
+import {
+  activeCodeStep,
+  codeBlockView,
+  codeStepId,
+  insertCodeStep,
+  isCodeBlockV2,
+  updateCodeStep,
+} from "../../../../codeSteps";
 
 interface ICodeBlockProps {
   attributes: RenderElementProps["attributes"];
-  element: CodeBlockElement;
+  element: CodeBlockElement | CodeBlockV2Element;
   onDidMount?: (controller: CodeBlockController) => void;
   onWillUnmount?: (controller: CodeBlockController) => void;
 }
 
-const INDENT = "  ";
 const NODE_PERSIST_DELAY = 120;
 const MIN_FOLD_HEIGHT = 200;
 const MAX_FOLD_HEIGHT = 1200;
@@ -59,14 +68,6 @@ const COPIED_FEEDBACK_MS = 1500;
 /** 切步后改动行先亮、再淡出，最后卸载标记 */
 const CHANGED_LINES_VISIBLE_MS = 1200;
 const CHANGED_LINES_CLEAR_MS = 2000;
-const AUTO_CLOSE_MAP: Record<string, string> = {
-  "(": ")",
-  "{": "}",
-  "[": "]",
-  '"': '"',
-  "'": "'",
-  "`": "`",
-};
 
 const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
   children,
@@ -81,14 +82,25 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     uuid,
     magicMove: rawMagicMove,
     highlightLines,
-    isFold = false,
-    foldHeight = DEFAULT_FOLD_HEIGHT,
+    isFold: legacyIsFold = false,
+    foldHeight: legacyFoldHeight = DEFAULT_FOLD_HEIGHT,
     filename,
     wrap = false,
     lineNumbers = true,
-  } = element;
+  } = element as CodeBlockElement;
   const slateEditor = useSlateStatic();
-  const readOnly = useReadOnly();
+  const contextReadOnly = useReadOnly();
+  const stepsModel = isCodeBlockV2(element) ? element : null;
+  const blockIdentity =
+    (element as unknown as { collabId?: string }).collabId ??
+    ReactEditor.findKey(slateEditor, element).id;
+  const view = useMemo(() => codeBlockView(slateEditor, element), [slateEditor, blockIdentity]);
+  const localView = useSyncExternalStore(view.subscribe, view.getSnapshot, view.getSnapshot);
+  const selectedStep = stepsModel ? activeCodeStep(slateEditor, stepsModel) : undefined;
+  const source = useTextFieldBinding(selectedStep?.step, "code");
+  const readOnly = contextReadOnly || !canEditElement(slateEditor, element);
+  const isFold = stepsModel ? (localView.isFold ?? false) : legacyIsFold;
+  const foldHeight = stepsModel ? (localView.foldHeight ?? DEFAULT_FOLD_HEIGHT) : legacyFoldHeight;
   const { isDark } = useTheme();
   const message = useNotifier();
   const isLast = useIsLastElement(element);
@@ -124,12 +136,28 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     step?: number;
   } | null>(null);
 
-  const magicMove = useMemo(() => normalizeMagicMove(rawMagicMove), [rawMagicMove]);
+  const magicMove = useMemo(
+    () =>
+      stepsModel
+        ? {
+            v: 1 as const,
+            activeStep: selectedStep!.index,
+            steps: stepsModel.children
+              .filter(step => step.type === "code-step")
+              .map(step => ({ ...step, id: codeStepId(slateEditor, step) })),
+          }
+        : normalizeMagicMove(rawMagicMove),
+    [rawMagicMove, stepsModel, selectedStep?.index, slateEditor]
+  );
   const hasMagicMove = Boolean(magicMove && magicMove.steps.length > 1);
-  const currentStepIndex = readOnly ? readOnlyStepIndex : (magicMove?.activeStep ?? 0);
+  const currentStepIndex = stepsModel
+    ? selectedStep!.index
+    : readOnly
+      ? readOnlyStepIndex
+      : (magicMove?.activeStep ?? 0);
   const hasPreviousStep = hasMagicMove && currentStepIndex > 0;
   const hasNextStep = hasMagicMove && currentStepIndex < (magicMove?.steps.length ?? 1) - 1;
-  const currentStepCode = magicMove?.steps[currentStepIndex]?.code;
+  const currentStepCode = stepsModel ? source.value : magicMove?.steps[currentStepIndex]?.code;
   const currentStepHighlightLines = magicMove
     ? getActiveStepHighlightLines(magicMove)
     : highlightLines;
@@ -189,7 +217,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
   }, []);
 
   useEffect(() => {
-    if (readOnly || !isFold || canFold) {
+    if (stepsModel || readOnly || !isFold || canFold) {
       return;
     }
     Transforms.setNodes(
@@ -226,6 +254,11 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
   }, [currentStepCode, defaultCode, uuid]);
 
   const setNodeCode = useMemoizedFn((nextCode: string, nextStep?: number) => {
+    if (stepsModel) {
+      if (!source.binding || source.readOnly) return;
+      codeBlockMap.get(uuid)?.setValue(nextCode);
+      return;
+    }
     const path = ReactEditor.findPath(slateEditor, element);
     const payload: Partial<CodeBlockElement> = {
       code: nextCode,
@@ -295,6 +328,10 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
   });
 
   const scheduleNodeCodePersist = useMemoizedFn((nextCode: string, nextStep?: number) => {
+    if (stepsModel) {
+      setNodeCode(nextCode);
+      return;
+    }
     if (readOnly) {
       return;
     }
@@ -335,9 +372,17 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
       setCode(nextCode);
       return;
     }
-    pendingLocalCodeRef.current = nextCode;
-    setCode(nextCode);
-    scheduleNodeCodePersist(nextCode);
+    if (stepsModel) {
+      setNodeCode(nextCode);
+      return;
+    }
+    try {
+      scheduleNodeCodePersist(nextCode);
+      pendingLocalCodeRef.current = nextCode;
+      setCode(nextCode);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "源码写入失败");
+    }
   });
 
   const playStepPreviewAnimation = useMemoizedFn(() => {
@@ -389,6 +434,10 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
       pendingLocalCodeRef.current = nextCode;
       setCode(nextCode);
       setPreviewHeightHint(null);
+      if (stepsModel) {
+        view.update({ activeStepId: magicMove.steps[nextStep].id });
+        return;
+      }
       if (readOnly) {
         setReadOnlyStepIndex(nextStep);
         return;
@@ -411,6 +460,10 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     if (readOnly || !magicMove) {
       return;
     }
+    if (stepsModel) {
+      insertCodeStep(slateEditor, stepsModel);
+      return;
+    }
     flushPendingPersist();
     const nextMagicMove = insertNextMagicMoveStep(magicMove, code || "", currentStepHighlightLines);
     const nextCode = setNodeMagicMove(nextMagicMove, code || "");
@@ -422,6 +475,10 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
 
   const handleStepTitleChange = useMemoizedFn((title: string) => {
     if (readOnly || !magicMove) return;
+    if (stepsModel) {
+      updateCodeStep(slateEditor, stepsModel, { title: title || undefined });
+      return;
+    }
     const steps = magicMove.steps.map((step, index) =>
       index === currentStepIndex ? { ...step, title: title || undefined } : step
     );
@@ -467,6 +524,10 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
       return;
     }
     const safeHeight = Math.min(MAX_FOLD_HEIGHT, Math.max(MIN_FOLD_HEIGHT, nextHeight));
+    if (stepsModel) {
+      view.update({ foldHeight: safeHeight });
+      return;
+    }
     Transforms.setNodes(
       slateEditor,
       { foldHeight: safeHeight },
@@ -500,6 +561,10 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
       return;
     }
     const nextIsFold = !isFolded;
+    if (stepsModel) {
+      view.update({ isFold: nextIsFold, foldHeight: normalizedFoldHeight });
+      return;
+    }
     Transforms.setNodes(
       slateEditor,
       {
@@ -595,142 +660,25 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     );
   });
 
-  const replaceRange = (source: string, start: number, end: number, text: string): string => {
-    return `${source.slice(0, start)}${text}${source.slice(end)}`;
-  };
-
   const handleEditorKeyDown = useMemoizedFn(
     (event: React.KeyboardEvent<HTMLTextAreaElement>, helpers: OverlayKeydownHelpers) => {
       const keyboardEvent = event.nativeEvent;
-      const value = helpers.getValue();
-      const selection = helpers.getSelection();
-      const isCollapsed = selection.start === selection.end;
-
-      const tryFocusOuterBlock = (direction: "backward" | "forward", metaReason: "arrow") => {
-        const path = ReactEditor.findPath(slateEditor, element);
-        const meta = {
-          reason: metaReason,
-          direction,
-        } as const;
-        return direction === "backward"
-          ? focusPreviousBlock(slateEditor, path, meta)
-          : focusNextBlock(slateEditor, path, meta);
-      };
-
-      if (isHotkey(["delete", "backspace"], keyboardEvent) && value === "") {
-        event.preventDefault();
-        if (readOnly) return;
-        cancelPendingPersist();
-        const path = ReactEditor.findPath(slateEditor, element);
-        codeBlockMap.delete(uuid);
-        deleteVoidBlock(slateEditor, path);
-        return;
-      }
-
-      if (isHotkey("up", keyboardEvent) && isCollapsed) {
-        const cursor = helpers.getCursor();
-        if (cursor.line === 0 && cursor.ch === 0) {
-          const focused = tryFocusOuterBlock("backward", "arrow");
-          if (focused) {
-            event.preventDefault();
-            return;
-          }
-        }
-      }
-
-      if (isHotkey("down", keyboardEvent) && isCollapsed) {
-        const cursor = helpers.getCursor();
-        const lastLine = helpers.lastLine();
-        const lastLineText = helpers.getLine(lastLine);
-        if (cursor.line === lastLine && cursor.ch === lastLineText.length) {
-          const focused = tryFocusOuterBlock("forward", "arrow");
-          if (focused) {
-            event.preventDefault();
-            return;
-          }
-        }
-      }
-
-      if (
-        !keyboardEvent.metaKey &&
-        !keyboardEvent.ctrlKey &&
-        !keyboardEvent.altKey &&
-        keyboardEvent.key in AUTO_CLOSE_MAP
-      ) {
-        const closeChar = AUTO_CLOSE_MAP[keyboardEvent.key];
-        event.preventDefault();
-        const nextValue = replaceRange(
-          value,
-          selection.start,
-          selection.end,
-          `${keyboardEvent.key}${value.slice(selection.start, selection.end)}${closeChar}`
-        );
-        applyCodeChange(nextValue);
-        const cursorOffset = isCollapsed ? selection.start + 1 : selection.end + 2;
-        queueMicrotask(() => {
-          helpers.setSelection(cursorOffset, cursorOffset);
-        });
-        return;
-      }
-
-      if (keyboardEvent.key === "Tab") {
-        event.preventDefault();
-        const lineStart = value.lastIndexOf("\n", selection.start - 1) + 1;
-        const lineEndRaw = value.indexOf("\n", selection.end);
-        const lineEnd = lineEndRaw === -1 ? value.length : lineEndRaw;
-        const block = value.slice(lineStart, lineEnd);
-        const lines = block.split("\n");
-
-        if (keyboardEvent.shiftKey) {
-          const updatedLines = lines.map(line => {
-            if (line.startsWith(INDENT)) {
-              return line.slice(INDENT.length);
-            }
-            if (line.startsWith("\t")) {
-              return line.slice(1);
-            }
-            return line;
-          });
-          const nextBlock = updatedLines.join("\n");
-          const nextValue = replaceRange(value, lineStart, lineEnd, nextBlock);
-          applyCodeChange(nextValue);
-          queueMicrotask(() => {
-            const shrink = block.length - nextBlock.length;
-            if (isCollapsed) {
-              const next = Math.max(lineStart, selection.start - Math.min(shrink, INDENT.length));
-              helpers.setSelection(next, next);
-            } else {
-              helpers.setSelection(lineStart, lineStart + nextBlock.length);
-            }
-          });
-        } else {
-          const nextBlock = lines.map(line => `${INDENT}${line}`).join("\n");
-          const nextValue = replaceRange(value, lineStart, lineEnd, nextBlock);
-          applyCodeChange(nextValue);
-          queueMicrotask(() => {
-            if (isCollapsed) {
-              const next = selection.start + INDENT.length;
-              helpers.setSelection(next, next);
-            } else {
-              helpers.setSelection(lineStart, lineStart + nextBlock.length);
-            }
-          });
-        }
-        return;
-      }
-
+      if (keyboardEvent.isComposing) return;
+      // 末尾连续两个空行再回车：去掉空行并跳出代码块
       if (
         keyboardEvent.key === "Enter" &&
         !keyboardEvent.shiftKey &&
         !keyboardEvent.ctrlKey &&
         !keyboardEvent.metaKey &&
-        !keyboardEvent.altKey
+        !keyboardEvent.altKey &&
+        !readOnly
       ) {
+        const selection = helpers.getSelection();
         const cursor = helpers.getCursor();
         const lastLine = helpers.lastLine();
         const currentLine = helpers.getLine(cursor.line);
         if (
-          isCollapsed &&
+          selection.start === selection.end &&
           cursor.line === lastLine &&
           cursor.ch === currentLine.length &&
           currentLine.trim() === "" &&
@@ -738,8 +686,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
           helpers.getLine(cursor.line - 1).trim() === ""
         ) {
           event.preventDefault();
-          const lines = value.split("\n");
-          const nextValue = lines.slice(0, -2).join("\n");
+          const nextValue = helpers.getValue().split("\n").slice(0, -2).join("\n");
           cancelPendingPersist();
           pendingLocalCodeRef.current = nextValue;
           setCode(nextValue);
@@ -747,21 +694,25 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
           addParagraphRef.current?.addParagraph();
           return;
         }
-
-        event.preventDefault();
-        const beforeCursor = value.slice(0, selection.start);
-        const lineStart = beforeCursor.lastIndexOf("\n") + 1;
-        const currentLineBeforeCursor = beforeCursor.slice(lineStart);
-        const indent = currentLineBeforeCursor.match(/^[\t ]*/)?.[0] || "";
-        const shouldExtraIndent = /[{[(]\s*$/.test(currentLineBeforeCursor);
-        const insertion = `\n${indent}${shouldExtraIndent ? INDENT : ""}`;
-        const nextValue = replaceRange(value, selection.start, selection.end, insertion);
-        applyCodeChange(nextValue);
-        const nextCursor = selection.start + insertion.length;
-        queueMicrotask(() => {
-          helpers.setSelection(nextCursor, nextCursor);
-        });
       }
+      handleSourceKeyDown(event, helpers, {
+        readOnly,
+        applyChange: applyCodeChange,
+        history: stepsModel ? source.binding : null,
+        deleteEmpty: () => {
+          cancelPendingPersist();
+          const path = ReactEditor.findPath(slateEditor, element);
+          codeBlockMap.delete(uuid);
+          deleteVoidBlock(slateEditor, path);
+        },
+        focusOuter: direction => {
+          const path = ReactEditor.findPath(slateEditor, element);
+          const meta = { reason: "arrow", direction } as const;
+          return direction === "backward"
+            ? focusPreviousBlock(slateEditor, path, meta)
+            : focusNextBlock(slateEditor, path, meta);
+        },
+      });
     }
   );
 
@@ -790,6 +741,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
     >
       <div {...attributes}>
         {children}
+        {stepsModel && source.error && <div role="alert">{source.error}</div>}
         <div className="overflow-hidden rounded-[0.625em] bg-[var(--ed-code-bg)] shadow-[var(--ed-code-shadow)]">
           <CodeBlockHeader
             language={language}
@@ -823,10 +775,12 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
               onRemove={() => executeHighlight(highlightCommandIds.remove)}
             >
               <ShikiOverlayEditor
+                key={selectedStep?.step ? codeStepId(slateEditor, selectedStep.step) : "legacy"}
+                textBinding={stepsModel ? source.binding : undefined}
                 value={code || ""}
                 language={language}
                 isDark={isDark}
-                readOnly={readOnly}
+                readOnly={readOnly || (stepsModel !== null && source.readOnly)}
                 className="ed-code-overlay"
                 allowScroll={isFolded}
                 displayHeight={overlayDisplayHeight}
@@ -865,7 +819,7 @@ const CodeBlock: React.FC<React.PropsWithChildren<ICodeBlockProps>> = ({
             <div
               role="button"
               tabIndex={-1}
-              className="relative flex h-[2.25em] cursor-pointer select-none items-center justify-center gap-[0.375em] border-t border-dashed border-[var(--ed-border)] text-[0.75em] text-[var(--ed-text-secondary)] transition-colors duration-150 hover:bg-[var(--ed-bg-hover)] hover:text-[var(--ed-text)]"
+              className="relative flex h-[2.25em] cursor-pointer items-center justify-center gap-[0.375em] border-t border-dashed border-[var(--ed-border)] text-[0.75em] text-[var(--ed-text-secondary)] transition-colors duration-150 select-none hover:bg-[var(--ed-bg-hover)] hover:text-[var(--ed-text)]"
               onClick={handleToggleFold}
             >
               {isFolded && (

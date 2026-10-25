@@ -1,4 +1,4 @@
-import { IElementEditingPolicy } from "@tau/editor/api";
+import { IEditorInteraction, IElementEditingPolicy } from "@tau/editor/api";
 import {
   Component,
   createContext,
@@ -130,11 +130,9 @@ function EditorPage() {
       getMobileContentKit().extend({
         extensions: runtime.content.extensions,
         services: [
+          register => register(IElementEditingPolicy, { canEdit: () => true }),
           register =>
-            register(IElementEditingPolicy, {
-              canEdit: () => true,
-              sourcePresentation: runtime.environment.platform === "desktop" ? "pointer" : "touch",
-            }),
+            register(IEditorInteraction, { touch: runtime.environment.platform !== "desktop" }),
         ],
       }),
     [runtime]

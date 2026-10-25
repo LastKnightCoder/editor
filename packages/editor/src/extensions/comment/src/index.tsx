@@ -12,6 +12,7 @@ const commentExtension = defineExtension({
   elements: [
     defineElement<CommentElement>({
       type: "comment",
+      dataVersion: 1,
       kind: "inline",
       render: ({ attributes, element, children }: ElementRenderProps<CommentElement>) => (
         <Comment attributes={attributes} element={element}>

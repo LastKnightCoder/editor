@@ -1,0 +1,139 @@
+{
+  "date": "2026-10-24",
+  "scope": "W1 内存验证；未改写产品候选、真实数据库或正式服务",
+  "command": [
+    "./node_modules/.bin/vitest",
+    "run",
+    "--config",
+    "docs/tasks/whiteboard-collaboration/validation/vitest.config.ts"
+  ],
+  "exitCode": 1,
+  "sourcesStableDuringRun": true,
+  "sourceSha256": {
+    "packages/collaboration/src/node-tree.ts": "8bf1e67de9654a80ee9d1434342f99ab3266deaa8b9ebf98e56d789517f43555",
+    "packages/collaboration/src/shared-values.ts": "ee8c11ca931721641928fceccf5ad43d67838c2e9cd4b3dabbdd20555b74f354",
+    "packages/db-schema/content-contracts.ts": "c5d1130a8f3e0de697d038bef4775739e7e36ad65fe76c3edd5baef98238a115",
+    "packages/editor-collab/src/withNodeTree.ts": "0d0dcfc83fd86a1550affe492bfbe733e34b6444223c3f6cd2e3b80426103c68",
+    "packages/editor-collab/src/nodeTreeProjection.ts": "3c77a21e81ac25f8884d87ee45f053e1a7afa2e76bc9f4ef3467eb4eb18dc0ae",
+    "packages/editor-collab/src/textFieldBinding.ts": "285b209b5b5c6cce9db2edd61454270103889dd4d3d214607b01f45632d072ae",
+    "packages/editor-collab/src/nodeTreeDocument.ts": "0ba85070d9396f3b0fe75ea28c47ecc912dc9d58ccc9f9114cb9f39a01fe6f6d",
+    "docs/tasks/whiteboard-collaboration/validation/editor-binding.test.ts": "13a615168c0eee697abbe7cbc07919e4196700f0419d91b7a62b39e79e480f65",
+    "docs/tasks/whiteboard-collaboration/validation/node-model.test.ts": "934c7724890fb124f40c9be26510dfb76f2717a1610cb1aea8a7e5c9ea887922",
+    "docs/tasks/whiteboard-collaboration/validation/vitest.config.ts": "996597287b4e77d80e20c284b7a570ec0e617dc248761316cdc44a5211f98be5"
+  },
+  "counts": {
+    "total": 20,
+    "passed": 14,
+    "failed": 6,
+    "pending": 0,
+    "todo": 0
+  },
+  "tests": [
+    {
+      "file": "docs/tasks/whiteboard-collaboration/validation/editor-binding.test.ts",
+      "name": "W1：实际编辑器绑定与节点契约对齐 画布式移动和契约源码编辑共用历史，撤销保留另一端输入",
+      "status": "passed"
+    },
+    {
+      "file": "docs/tasks/whiteboard-collaboration/validation/editor-binding.test.ts",
+      "name": "W1：实际编辑器绑定与节点契约对齐 源码字段与正文修改不进入另一个编辑视图的撤销历史",
+      "status": "passed"
+    },
+    {
+      "file": "docs/tasks/whiteboard-collaboration/validation/editor-binding.test.ts",
+      "name": "W1：实际编辑器绑定与节点契约对齐 编辑器双端删除后，仅撤销其中一端不应复活节点",
+      "status": "failed",
+      "failure": "AssertionError: expected [ 'A', 'B' ] to not include 'A'"
+    },
+    {
+      "file": "docs/tasks/whiteboard-collaboration/validation/editor-binding.test.ts",
+      "name": "W1：实际编辑器绑定与节点契约对齐 编辑器撤销创建后，仍保留能承接远端编辑的共享根",
+      "status": "failed",
+      "failure": "AssertionError: 实际编辑器撤销也必须保留原元素记录: expected false to be true // Object.is equality"
+    },
+    {
+      "file": "docs/tasks/whiteboard-collaboration/validation/node-model.test.ts",
+      "name": "W1：复用编辑器契约的稳定内容身份 三端移动/文本/结构字段在消息顺序 '0→1→2' 下收敛",
+      "status": "passed"
+    },
+    {
+      "file": "docs/tasks/whiteboard-collaboration/validation/node-model.test.ts",
+      "name": "W1：复用编辑器契约的稳定内容身份 三端移动/文本/结构字段在消息顺序 '0→2→1' 下收敛",
+      "status": "passed"
+    },
+    {
+      "file": "docs/tasks/whiteboard-collaboration/validation/node-model.test.ts",
+      "name": "W1：复用编辑器契约的稳定内容身份 三端移动/文本/结构字段在消息顺序 '1→0→2' 下收敛",
+      "status": "passed"
+    },
+    {
+      "file": "docs/tasks/whiteboard-collaboration/validation/node-model.test.ts",
+      "name": "W1：复用编辑器契约的稳定内容身份 三端移动/文本/结构字段在消息顺序 '1→2→0' 下收敛",
+      "status": "passed"
+    },
+    {
+      "file": "docs/tasks/whiteboard-collaboration/validation/node-model.test.ts",
+      "name": "W1：复用编辑器契约的稳定内容身份 三端移动/文本/结构字段在消息顺序 '2→0→1' 下收敛",
+      "status": "passed"
+    },
+    {
+      "file": "docs/tasks/whiteboard-collaboration/validation/node-model.test.ts",
+      "name": "W1：复用编辑器契约的稳定内容身份 三端移动/文本/结构字段在消息顺序 '2→1→0' 下收敛",
+      "status": "passed"
+    },
+    {
+      "file": "docs/tasks/whiteboard-collaboration/validation/node-model.test.ts",
+      "name": "W1：复用编辑器契约的稳定内容身份 移动的撤销/重做不改变内容根，远端文字持续保留",
+      "status": "passed"
+    },
+    {
+      "file": "docs/tasks/whiteboard-collaboration/validation/node-model.test.ts",
+      "name": "W1：复用编辑器契约的稳定内容身份 远端已接着移动同一节点时，本人撤销/重做不覆盖远端位置",
+      "status": "passed"
+    },
+    {
+      "file": "docs/tasks/whiteboard-collaboration/validation/node-model.test.ts",
+      "name": "W1：复用编辑器契约的稳定内容身份 几何整体与颜色独立竞争，不拼接两个并发几何值",
+      "status": "passed"
+    },
+    {
+      "file": "docs/tasks/whiteboard-collaboration/validation/node-model.test.ts",
+      "name": "W1：复用编辑器契约的稳定内容身份 白板删除可用已观察 ID 集合表达，不改变正文仅删除父节点的语义",
+      "status": "passed"
+    },
+    {
+      "file": "docs/tasks/whiteboard-collaboration/validation/node-model.test.ts",
+      "name": "W1：复用编辑器契约的稳定内容身份 删除后撤销显示合并后的远端文字，而不是删除前快照",
+      "status": "passed"
+    },
+    {
+      "file": "docs/tasks/whiteboard-collaboration/validation/node-model.test.ts",
+      "name": "W1：待满足的删除与历史门槛 双端删除后第 0 端撤销，另一端的删除仍有效",
+      "status": "passed"
+    },
+    {
+      "file": "docs/tasks/whiteboard-collaboration/validation/node-model.test.ts",
+      "name": "W1：待满足的删除与历史门槛 双端删除后第 1 端撤销，另一端的删除仍有效",
+      "status": "failed",
+      "failure": "AssertionError: expected [ 'P', 'A', 'Q', 'R', 'B' ] to not include 'A'"
+    },
+    {
+      "file": "docs/tasks/whiteboard-collaboration/validation/node-model.test.ts",
+      "name": "W1：待满足的删除与历史门槛 删除观察到的父子树时，并发新增的子节点进入可见恢复投影",
+      "status": "failed",
+      "failure": "AssertionError: expected [ 'Q', 'R', 'B' ] to include 'new-child'"
+    },
+    {
+      "file": "docs/tasks/whiteboard-collaboration/validation/node-model.test.ts",
+      "name": "W1：待满足的删除与历史门槛 撤销创建只隐藏节点，重做仍使用原共享根并保留远端输入",
+      "status": "failed",
+      "failure": "AssertionError: 撤销创建必须保留原元素记录: expected false to be true // Object.is equality"
+    },
+    {
+      "file": "docs/tasks/whiteboard-collaboration/validation/node-model.test.ts",
+      "name": "W1：待满足的删除与历史门槛 在循环恢复区外移动普通节点，不隐式修复其它节点的父关系",
+      "status": "failed",
+      "failure": "AssertionError: expected { a: { parent: null, …(1) }, …(1) } to deeply equal { a: { parent: 'B', …(1) }, …(1) }"
+    }
+  ]
+}

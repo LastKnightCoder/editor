@@ -1,0 +1,186 @@
+{
+  "date": "2026-10-25",
+  "hardware": {
+    "node": "v24.21.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M3 Pro",
+    "logicalCpus": 12,
+    "totalMemoryBytes": 38654705664
+  },
+  "profile": "whiteboard-w1-v1",
+  "passed": 4,
+  "sourceSha256": {
+    "packages/collaboration/src/testing/whiteboard-capacity.bench.ts": "0dd40164dd8f04c29289f07123ad50c64b2af9fabd921358eab56687f8a16997",
+    "packages/collaboration/src/testing/whiteboard-session.bench.ts": "871931fa46a93a0e79211fc572aa955d946e7f3b9cd3f666734432ce54c5ad7b",
+    "packages/collaboration/vitest.whiteboard-capacity.config.ts": "ba9c95f4b7cdc2bfc9f600a97c15019ea2032e93e14a8678f14951aa2c6f8e17",
+    "packages/collaboration/src/whiteboard-model.ts": "1fd6cf6b003cc92945b873d54c265c3476fcccec1e687bbf050dc4b67d2bc364",
+    "packages/collaboration/src/model-limits.ts": "1a9a76fd8b2af149a5333da3a0fbb3673b70801e7ba3770a7250172cff53b428",
+    "packages/collaboration/src/node-tree-history.ts": "e34d3382be3de4ca74aa7900f1f4963baa01e86ff28235b68bde2750bede7616"
+  },
+  "measurements": [
+    {
+      "name": "pages-elements",
+      "pages": 64,
+      "elements": 5000,
+      "buildMs": 1649.921875,
+      "receiveMs": 203.08870799999977,
+      "encodedBytes": 3427282,
+      "move": {
+        "samples": 32,
+        "p50Ms": 152.99175000000014,
+        "p95Ms": 167.43162500000017,
+        "maxMs": 171.646792
+      },
+      "projection": {
+        "samples": 32,
+        "p50Ms": 45.399875000000065,
+        "p95Ms": 49.882166999999754,
+        "maxMs": 50.03179100000034
+      },
+      "rssBytes": 931594240
+    },
+    {
+      "name": "richtext-roots",
+      "roots": 1024,
+      "buildMs": 402.37245900000016,
+      "receiveMs": 431.25675000000047,
+      "encodedBytes": 719235,
+      "rssBytes": 931151872
+    },
+    {
+      "name": "document-bytes",
+      "accepted": 19,
+      "rejected": true,
+      "encodedBytes": 7980437,
+      "latency": {
+        "samples": 19,
+        "p50Ms": 16.388458999999784,
+        "p95Ms": 49.03041699999994,
+        "maxMs": 49.03041699999994
+      },
+      "rssBytes": 1242628096
+    },
+    {
+      "name": "long-session",
+      "clients": 3,
+      "rounds": 3600,
+      "transactions": 7200,
+      "reconnects": 30,
+      "duplicateDelivery": true,
+      "durationMs": 627918.259541,
+      "p50RoundMs": 35.84979199999361,
+      "p95RoundMs": 61.680917000048794,
+      "rssStart": 92127232,
+      "rssEnd": 331563008,
+      "checkpoints": [
+        {
+          "round": 300,
+          "encodedBytes": 155593,
+          "rssBytes": 269680640,
+          "history": [200, 200, 40]
+        },
+        {
+          "round": 600,
+          "encodedBytes": 213643,
+          "rssBytes": 274857984,
+          "history": [400, 400, 0]
+        },
+        {
+          "round": 900,
+          "encodedBytes": 270857,
+          "rssBytes": 279035904,
+          "history": [600, 600, 40]
+        },
+        {
+          "round": 1200,
+          "encodedBytes": 328362,
+          "rssBytes": 285442048,
+          "history": [800, 800, 0]
+        },
+        {
+          "round": 1500,
+          "encodedBytes": 385758,
+          "rssBytes": 291225600,
+          "history": [1000, 1000, 40]
+        },
+        {
+          "round": 1800,
+          "encodedBytes": 443229,
+          "rssBytes": 302972928,
+          "history": [1200, 1200, 0]
+        },
+        {
+          "round": 2100,
+          "encodedBytes": 500599,
+          "rssBytes": 307347456,
+          "history": [1400, 1400, 40]
+        },
+        {
+          "round": 2400,
+          "encodedBytes": 558014,
+          "rssBytes": 311902208,
+          "history": [1600, 1600, 0]
+        },
+        {
+          "round": 2700,
+          "encodedBytes": 615428,
+          "rssBytes": 315850752,
+          "history": [1800, 1800, 40]
+        },
+        {
+          "round": 3000,
+          "encodedBytes": 672939,
+          "rssBytes": 319750144,
+          "history": [2000, 2000, 0]
+        },
+        {
+          "round": 3300,
+          "encodedBytes": 730215,
+          "rssBytes": 330563584,
+          "history": [2200, 2200, 40]
+        },
+        {
+          "round": 3600,
+          "encodedBytes": 787684,
+          "rssBytes": 331104256,
+          "history": [2400, 2400, 0]
+        }
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "name": "白板容量验收（单进程测量，不代表界面帧率） 64 页和 5000 元素的移动、接收、重开与跨界拒绝",
+      "status": "passed",
+      "durationMs": 8854.006542
+    },
+    {
+      "name": "白板容量验收（单进程测量，不代表界面帧率） 1024 个独立富文本根按真实模型接收与拒绝超限",
+      "status": "passed",
+      "durationMs": 886.5840410000001
+    },
+    {
+      "name": "白板容量验收（单进程测量，不代表界面帧率） 长文本历史增长触发 8 MiB 门禁时保持最后确认状态",
+      "status": "passed",
+      "durationMs": 629.0242920000001
+    },
+    {
+      "name": "三端 3600 轮操作、乱序重复、删除撤销及 30 次重连保持身份与内容",
+      "status": "passed",
+      "durationMs": 627919.1789170001
+    }
+  ],
+  "trialNotes": [
+    "首次试跑的容量断言使用大型 TypedArray 深比较，进程 RSS 受测试框架额外分配影响；长会话缺少进度输出，后由操作者停止，该次未完成的长会话不计通过。",
+    "改用 Buffer.compare 保持逐字节相等断言，避免比较框架放大内存；第二次长会话直接比较 JSON 字符串遇到键顺序差异，未记为通过。",
+    "最终长会话使用公共规范化 JSON，仍比较全部字段、值及数组顺序；保留相同操作量、逐条乱序/重复、删除撤销和重连断言。增加进度输出与事件循环让步，执行时限为 15 分钟。"
+  ],
+  "limitations": [
+    "加速工作量验证，不等于真实数小时在线或弱网实机验收",
+    "reconnects 字段表示 30 次模型副本从二进制状态重开，并非实际 WebSocket 重连",
+    "RSS 为整个测试进程，不是单文档堆预算",
+    "各预算独立，不代表可同时耗尽",
+    "5000 元素的纯模型移动存在约 167ms 的 p95 开销，不能据此承诺满额流畅编辑"
+  ]
+}

@@ -1,9 +1,5 @@
-// 重连后的「保留本机 / 采用云端」裁决弹窗：协作不可用期间本地兜底编辑的改动，
-// 在会话恢复时交作者选择。独立于 CollaborativeEditor（裁决是独立用例，编辑器本体
-// 不应感知兜底标记的读写细节）。
 import { useState } from "react";
-import type { ContentNode } from "@tau/collaboration";
-import { MobileConfirmDialog } from "../../../components/MobileConfirmDialog";
+import { BottomSheet } from "../../../components/BottomSheet";
 import { toast } from "../../../components/toast";
 import * as tauri from "../../../services/tauri";
 import { collaborationManager } from "../core/manager";
@@ -13,43 +9,64 @@ export function LocalFallbackChoiceDialog(props: {
   open: boolean;
   documentId: string;
   boundContentId: number | undefined;
-  /** 裁决完成（无论保留本机还是采用云端）：调用方解除投影暂停 */
   onResolved: () => void;
 }) {
-  const [resolving, setResolving] = useState(false);
-
-  /** 保留本机：把本地正文整树推回房间（CRDT 替换，远端看到一次删+插） */
-  const keepLocal = async () => {
-    if (!props.boundContentId) return;
-    setResolving(true);
+  const [busy, setBusy] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const adopt = async () => {
+    setBusy(true);
     try {
-      const detail = await tauri.getContentDetail(props.boundContentId);
-      collaborationManager.pushLocalContent(props.documentId, detail.content as ContentNode[]);
-      clearPendingLocalFallback(props.boundContentId);
+      await collaborationManager.adoptRemote(props.documentId);
+      if (props.boundContentId) clearPendingLocalFallback(props.boundContentId);
       props.onResolved();
     } catch (failure) {
-      toast.error(failure instanceof Error ? failure.message : "本机改动推回云端失败，请重试");
+      toast.error(String(failure));
     } finally {
-      setResolving(false);
+      setBusy(false);
     }
   };
-
-  /** 采用云端：丢弃本机兜底改动，解除投影暂停后由投影把云端内容写回本地 */
-  const adoptCloud = () => {
-    if (props.boundContentId) clearPendingLocalFallback(props.boundContentId);
-    props.onResolved();
+  const exportLocal = async () => {
+    setBusy(true);
+    try {
+      await collaborationManager.flushCache(props.documentId);
+      const id = await tauri.preserveContentRecovery(props.documentId);
+      toast.success(await tauri.exportContentRecovery(id));
+    } catch (failure) {
+      toast.error(String(failure));
+    } finally {
+      setBusy(false);
+    }
   };
-
   return (
-    <MobileConfirmDialog
-      open={props.open}
-      title="协作已恢复，本机有离线期间的改动"
-      description="「保留本机」会把本机正文推回协作房间（覆盖云端当前内容）；「采用云端」会放弃本机改动，改用房间内容。"
-      cancelText="采用云端"
-      confirmText="保留本机"
-      loading={resolving}
-      onCancel={adoptCloud}
-      onConfirm={() => void keepLocal()}
-    />
+    <>
+      {props.open && dismissed && (
+        <button className="text-accent-text p-3" onClick={() => setDismissed(false)}>
+          处理本机恢复副本
+        </button>
+      )}
+      <BottomSheet
+        open={props.open && !dismissed}
+        title="本机副本需要保全"
+        onClose={() => {
+          if (!busy) setDismissed(true);
+        }}
+      >
+        <div className="space-y-3 px-4 pb-6">
+          <p className="text-ink-2 text-sm">
+            采用新版本前会独立保存原正文、协作缓存和可取得的附件。旧输入不会推回新房间，副本可在协作中心导出。旧格式须先在桌面完成转换。
+          </p>
+          <button
+            disabled={busy}
+            className="text-accent-text p-3"
+            onClick={() => void exportLocal()}
+          >
+            导出本机副本
+          </button>
+          <button disabled={busy} className="text-accent-text p-3" onClick={() => void adopt()}>
+            保全并采用新版本
+          </button>
+        </div>
+      </BottomSheet>
+    </>
   );
 }

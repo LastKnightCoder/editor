@@ -6,11 +6,9 @@
 // onDocumentChange 上报：协作与本机的文档源同谱系，切换即换源，编辑器不重建。
 // 会话建立失败时上报「本地兜底」模式，改动经投影通道落本地库，重连后拉出
 // 「保留本机 / 采用云端」裁决。
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronRight, Loader2, RefreshCw, Users, WifiOff } from "lucide-react";
 import type { EditorDocument } from "@tau/editor";
-import { createYjsDocument } from "@tau/editor-collab";
-import { contentLineage } from "../../hooks/useLocalContentDocument";
 import { AvatarStack, StatusDot } from "./components/CollaborationUI";
 import { LocalFallbackChoiceDialog } from "./components/LocalFallbackChoiceDialog";
 import { useCollabSession } from "./hooks/useCollabSession";
@@ -46,12 +44,14 @@ export function CollaborativeEditor(props: {
   const [stalled, setStalled] = useState(false);
   const {
     binding,
+    document,
     loading,
     error,
     boundContentId,
     ended,
     retry,
     readonly,
+    session,
     presence,
     status,
     online,
@@ -79,15 +79,6 @@ export function CollaborativeEditor(props: {
   onDocumentChangeRef.current = props.onDocumentChange;
   const presenceRefCallback = useRef(props.presenceRef);
   presenceRefCallback.current = props.presenceRef;
-  // 与本机文档源共用谱系：编辑器据此在协作与本机之间换源，不重建
-  const document = useMemo(
-    () =>
-      binding
-        ? createYjsDocument(binding, { lineage: contentLineage(props.contentId) })
-        : undefined,
-    [binding, props.contentId]
-  );
-
   // 只读态为真时不上报文档源：待裁决期间正文归本机，避免云端内容盖住待决改动
   useEffect(() => {
     onDocumentChangeRef.current(pendingChoice ? undefined : document);
@@ -203,7 +194,7 @@ export function CollaborativeEditor(props: {
       ) : null}
 
       <LocalFallbackChoiceDialog
-        open={pendingChoice}
+        open={pendingChoice || Boolean(session?.remoteVersionAvailable)}
         documentId={props.documentId}
         boundContentId={boundContentId}
         onResolved={() => setPendingChoice(false)}

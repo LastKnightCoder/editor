@@ -16,17 +16,22 @@ export const PageSchematic = memo(function PageSchematic({
   aspect,
   className,
   definitions,
+  resolveDefinition,
+  isBuiltin,
 }: {
   elements: BoardElement[] | undefined;
   aspect: number;
   className?: string;
   definitions?: readonly WhiteboardElementDefinition[];
+  resolveDefinition?: (element: BoardElement) => WhiteboardElementDefinition | undefined;
+  isBuiltin?: (element: BoardElement) => boolean;
 }) {
   const { isDark } = useTheme();
   const idPrefix = useId();
   const schematic = useMemo(
-    () => buildSchematic(elements, { aspect, dark: isDark, definitions }),
-    [elements, aspect, isDark, definitions]
+    () =>
+      buildSchematic(elements, { aspect, dark: isDark, definitions, resolveDefinition, isBuiltin }),
+    [elements, aspect, isDark, definitions, resolveDefinition, isBuiltin]
   );
   if (!schematic) return null;
   const { viewBox: vb, shapes } = schematic;

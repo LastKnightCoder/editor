@@ -8,6 +8,8 @@ import type {
   DataTableRow,
 } from "@/types";
 import Operation from "./operation";
+import { ContentIdentityTable } from "./content-identity";
+import type { DataTableTarget } from "@tau/shared/database-types";
 
 type FooterSpec = NonNullable<DataTableViewConfig["footer"]>[string];
 
@@ -53,11 +55,17 @@ function normalizeColumnWidths(input: unknown): Record<string, number> | undefin
 }
 
 type ReorderPayload = {
-  tableId: number;
+  tableId: DataTableTarget;
   orderedIds: number[];
 };
 
 export default class DataTableViewTable {
+  static assertBelongsTo(db: Database.Database, id: number, target: DataTableTarget): number {
+    const tableId = ContentIdentityTable.requireTarget(db, "data-table", target);
+    const row = this.getById(db, id);
+    if (!row || row.tableId !== tableId) throw new Error("视图不属于当前引用的数据表");
+    return tableId;
+  }
   static getListenEvents() {
     return {
       "data-table-view:create": this.create.bind(this),
@@ -94,18 +102,24 @@ export default class DataTableViewTable {
     };
   }
 
-  static listByTableId(db: Database.Database, tableId: number): DataTableView[] {
+  static listByTableId(db: Database.Database, target: DataTableTarget): DataTableView[] {
+    const tableId = ContentIdentityTable.requireTarget(db, "data-table", target);
     const stmt = db.prepare(
       `SELECT * FROM data_table_views WHERE table_id = ? ORDER BY sort_order ASC, id ASC`
     );
     return stmt.all(tableId).map(row => this.parse(row));
   }
 
-  static create(db: Database.Database, payload: CreateDataTableView): DataTableView {
-    const config = this.normalizeConfig(payload.config);
-    const now = Date.now();
+  static create(db: Database.Database, request: CreateDataTableView): DataTableView {
+    return db.transaction(() => {
+      const payload = {
+        ...request,
+        tableId: ContentIdentityTable.requireTarget(db, "data-table", request.tableId),
+      };
+      const config = this.normalizeConfig(payload.config);
+      const now = Date.now();
 
-    const stmt = db.prepare(`
+      const stmt = db.prepare(`
       INSERT INTO data_table_views (
         table_id,
         name,
@@ -118,19 +132,20 @@ export default class DataTableViewTable {
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
-    const result = stmt.run(
-      payload.tableId,
-      payload.name,
-      payload.type,
-      JSON.stringify(config),
-      payload.order ?? now,
-      now,
-      now
-    );
+      const result = stmt.run(
+        payload.tableId,
+        payload.name,
+        payload.type,
+        JSON.stringify(config),
+        payload.order ?? now,
+        now,
+        now
+      );
 
-    const id = Number(result.lastInsertRowid);
-    Operation.insertOperation(db, "data-table-view", "insert", id, now);
-    return this.getById(db, id)!;
+      const id = Number(result.lastInsertRowid);
+      Operation.insertOperation(db, "data-table-view", "insert", id, now);
+      return this.getById(db, id)!;
+    })();
   }
 
   static getById(db: Database.Database, id: number): DataTableView | null {
@@ -140,9 +155,14 @@ export default class DataTableViewTable {
     return this.parse(row);
   }
 
-  static update(db: Database.Database, payload: UpdateDataTableView): DataTableView | null {
-    const config = this.normalizeConfig(payload.config);
-    const stmt = db.prepare(`
+  static update(db: Database.Database, request: UpdateDataTableView): DataTableView | null {
+    return db.transaction(() => {
+      const payload = {
+        ...request,
+        tableId: this.assertBelongsTo(db, request.id, request.tableId),
+      };
+      const config = this.normalizeConfig(payload.config);
+      const stmt = db.prepare(`
       UPDATE data_table_views SET
         table_id = ?,
         name = ?,
@@ -152,37 +172,52 @@ export default class DataTableViewTable {
         update_time = ?
       WHERE id = ?
     `);
-    const now = Date.now();
-    stmt.run(
-      payload.tableId,
-      payload.name,
-      payload.type,
-      JSON.stringify(config),
-      payload.order,
-      now,
-      payload.id
-    );
-    Operation.insertOperation(db, "data-table-view", "update", payload.id, now);
-    return this.getById(db, payload.id);
+      const now = Date.now();
+      stmt.run(
+        payload.tableId,
+        payload.name,
+        payload.type,
+        JSON.stringify(config),
+        payload.order,
+        now,
+        payload.id
+      );
+      Operation.insertOperation(db, "data-table-view", "update", payload.id, now);
+      return this.getById(db, payload.id);
+    })();
   }
 
-  static remove(db: Database.Database, id: number): number {
-    const stmt = db.prepare(`DELETE FROM data_table_views WHERE id = ?`);
-    Operation.insertOperation(db, "data-table-view", "delete", id, Date.now());
-    return stmt.run(id).changes;
+  static remove(
+    db: Database.Database,
+    target: number | { id: number; tableId: DataTableTarget }
+  ): number {
+    return db.transaction(() => {
+      const id = typeof target === "number" ? target : target.id;
+      if (typeof target !== "number") this.assertBelongsTo(db, id, target.tableId);
+      const stmt = db.prepare(`DELETE FROM data_table_views WHERE id = ?`);
+      Operation.insertOperation(db, "data-table-view", "delete", id, Date.now());
+      return stmt.run(id).changes;
+    })();
   }
 
-  static reorder(db: Database.Database, payload: ReorderPayload): void {
-    const stmt = db.prepare(
-      `UPDATE data_table_views SET sort_order = ?, update_time = ? WHERE id = ? AND table_id = ?`
-    );
-    const now = Date.now();
-    const transaction = db.transaction((ids: number[]) => {
-      ids.forEach((id, index) => {
-        stmt.run(index, now, id, payload.tableId);
+  static reorder(db: Database.Database, request: ReorderPayload): void {
+    db.transaction(() => {
+      const payload = {
+        ...request,
+        tableId: ContentIdentityTable.requireTarget(db, "data-table", request.tableId),
+      };
+      payload.orderedIds.forEach(id => this.assertBelongsTo(db, id, payload.tableId));
+      const stmt = db.prepare(
+        `UPDATE data_table_views SET sort_order = ?, update_time = ? WHERE id = ? AND table_id = ?`
+      );
+      const now = Date.now();
+      const transaction = db.transaction((ids: number[]) => {
+        ids.forEach((id, index) => {
+          stmt.run(index, now, id, payload.tableId);
+        });
       });
-    });
-    transaction(payload.orderedIds);
+      transaction(payload.orderedIds);
+    })();
   }
 
   static ensureViewConfigIncludesColumnsAndRows(

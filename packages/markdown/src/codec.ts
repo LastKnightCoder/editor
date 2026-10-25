@@ -40,6 +40,8 @@ export interface MarkdownImportContext {
 export interface MarkdownCodec {
   /** 元素 type */
   type: string;
+  /** 省略时归当前节点契约；历史版本只用于明确的导出分发。 */
+  dataVersion?: number;
   /** 导入：按 directive 名解析（container / leaf / text 三种都查），优先于内置分支 */
   directives?: Record<string, CustomDirectiveHandler>;
   /**

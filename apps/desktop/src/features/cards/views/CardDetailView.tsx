@@ -230,7 +230,7 @@ export function CardDetailView() {
   return (
     <div
       ref={rootRef}
-      className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1"
+      className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4"
     >
       {/* 一整张纸（同卡片库/微信读书笔记页）：正文列在纸内居中滚动 */}
       {/* 纸面是形变目标（D-106）：正文会话就绪前由只读全文占位，卡片数据到位即可截图 */}
@@ -239,7 +239,7 @@ export function CardDetailView() {
         className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden"
       >
         <FadeScroll className="my-4 min-h-0 flex-1">
-          <div className="grid grid-cols-[1fr_minmax(0,640px)_1fr] items-start px-[26px] pb-8 pt-6">
+          <div className="grid grid-cols-[1fr_minmax(0,640px)_1fr] items-start px-[26px] pt-6 pb-8">
             <article className="col-start-2 min-w-0">
               {/* 卡头 meta：时间 · ⋯ 菜单（时间右侧）；置顶操作在列表页承担
                 （2026-09-21 裁决，详情页不做） */}
@@ -334,13 +334,17 @@ export function CardDetailView() {
                       icon={<Copy className="size-[15px] shrink-0" strokeWidth={1.75} />}
                     >
                       <Menu.Item
-                        onSelect={() => void copyMarkdownToClipboard(card.content, toastAdapter)}
+                        onSelect={() =>
+                          void copyMarkdownToClipboard(card.content, toastAdapter, card.contentId)
+                        }
                         icon={<ClipboardCopy className="size-[15px] shrink-0" strokeWidth={1.75} />}
                       >
                         复制 Markdown
                       </Menu.Item>
                       <Menu.Item
-                        onSelect={() => void copyWechatHtmlToClipboard(card.content, toastAdapter)}
+                        onSelect={() =>
+                          void copyWechatHtmlToClipboard(card.content, toastAdapter, card.contentId)
+                        }
                         icon={<MessageSquare className="size-[15px] shrink-0" strokeWidth={1.75} />}
                       >
                         复制公众号格式
@@ -355,6 +359,7 @@ export function CardDetailView() {
                           void exportContentAsMarkdown({
                             title: cardTitle,
                             content: card.content,
+                            contentId: card.contentId,
                           });
                         }}
                         icon={<FileText className="size-[15px] shrink-0" strokeWidth={1.75} />}
@@ -525,12 +530,14 @@ export function CardDetailView() {
         content={card.content}
       />
       <EpubExportModal
+        contentId={card.contentId}
         open={exportKind === "epub"}
         onClose={() => setExportKind(null)}
         content={card.content}
         title={cardTitle}
       />
       <PdfExportModal
+        contentId={card.contentId}
         visible={exportKind === "pdf"}
         onClose={() => setExportKind(null)}
         content={card.content}

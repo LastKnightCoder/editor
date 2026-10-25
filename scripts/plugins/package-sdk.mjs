@@ -119,6 +119,16 @@ try {
       const edits = [];
       const pending = [];
       function visit(node) {
+        // 声明包不加载宿主样式，只有无导入绑定的样式副作用可移除。
+        if (
+          ts.isImportDeclaration(node) &&
+          !node.importClause &&
+          ts.isStringLiteral(node.moduleSpecifier) &&
+          /\.(css|less|scss)$/.test(node.moduleSpecifier.text)
+        ) {
+          edits.push([node.getStart(file), node.end, ""]);
+          return;
+        }
         if (
           ts.isStringLiteral(node) &&
           (ts.isImportDeclaration(node.parent) ||

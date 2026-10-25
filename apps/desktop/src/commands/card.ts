@@ -1,3 +1,4 @@
+import { bindDatabaseCommands, currentCommandScope } from "@/services/command-context";
 import { cardCommands } from "@/commands/contracts/card";
 import { openEditorWindow } from "@/commands/window";
 import type { CardContentResult } from "@/commands/contracts/card";
@@ -15,7 +16,16 @@ export async function getScopedCard(databaseName: string, id: number): Promise<I
 }
 
 export async function createScopedCard(databaseName: string, card: ICreateCard): Promise<ICard> {
-  return cardCommands.createScoped.call({ databaseName, card });
+  const command = bindDatabaseCommands(cardCommands.createScoped, currentCommandScope());
+  return command.call({
+    databaseName,
+    card: {
+      ...card,
+      ...(await (
+        await import("@/services/editorKit")
+      ).prepareNewContent(card.content, card.contracts)),
+    },
+  });
 }
 
 export async function patchScopedCard(
@@ -31,7 +41,13 @@ export async function deleteScopedCard(databaseName: string, id: number): Promis
 }
 
 export async function createCard(card: ICreateCard): Promise<ICard> {
-  return cardCommands.create.call(card);
+  const command = bindDatabaseCommands(cardCommands.create, currentCommandScope());
+  return command.call({
+    ...card,
+    ...(await (
+      await import("@/services/editorKit")
+    ).prepareNewContent(card.content, card.contracts)),
+  });
 }
 
 export async function createCardFromProjectItem(projectItemId: number): Promise<ICard> {

@@ -129,6 +129,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
   } = element;
 
   const board = useBoard();
+  const collaborativeDocument = board.document?.textDocument(id);
   useEditingElementCleanup(id);
   const text = useTextExtension();
   const { isSelected } = useSelectState(element.id);
@@ -355,6 +356,7 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
   });
 
   const commitDescription = useMemoizedFn(() => {
+    if (collaborativeDocument) return;
     const currentArrow = BoardUtil.getElementById(board, id) as ArrowElement | null;
     if (!currentArrow) return;
 
@@ -600,10 +602,11 @@ const ArrowElementComponent = memo((props: ArrowElementProps) => {
             })}
           >
             <Editor
-              key={descriptionRevision}
+              key={collaborativeDocument ? id : descriptionRevision}
               ref={editorRef}
               initValue={draftDescription}
-              onChange={handleDescriptionChange}
+              document={collaborativeDocument}
+              onChange={collaborativeDocument ? undefined : handleDescriptionChange}
               onFocus={handleDescriptionFocus}
               onBlur={handleDescriptionBlur}
               readonly={!isEditingDescription}

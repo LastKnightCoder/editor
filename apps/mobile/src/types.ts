@@ -1,3 +1,4 @@
+import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import type { Descendant } from "slate";
 import {
   type ImageBorderRadiusPreset,
@@ -56,6 +57,10 @@ export interface ContentCardMeta {
 }
 
 export interface ContentDetailResponse {
+  librarySourceId?: string | null;
+  contracts?: ContentContractDictionary | null;
+  revision?: string | null;
+  documentId?: string | null;
   contentId: number;
   createTime: number;
   updateTime: number;
@@ -74,7 +79,11 @@ export interface CardsOverviewResponse {
 }
 
 export type UnifiedSearchResultType =
-  "card" | "article" | "project-item" | "diary-daily" | "flashcard";
+  | "card"
+  | "article"
+  | "project-item"
+  | "diary-daily"
+  | "flashcard";
 
 export interface UnifiedSearchResult {
   id: number;
@@ -152,7 +161,13 @@ export interface Project {
 }
 
 export type ProjectItemType =
-  "document" | "white-board" | "video-note" | "web-view" | "table-view" | "pdf" | string;
+  | "document"
+  | "white-board"
+  | "video-note"
+  | "web-view"
+  | "table-view"
+  | "pdf"
+  | string;
 
 export interface ProjectItem {
   id: number;
@@ -293,6 +308,7 @@ export interface DiaryListPayload {
 }
 
 export interface DiaryUpsertPayload {
+  contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
   type: DiaryType;
   date: string;
   content: Descendant[];

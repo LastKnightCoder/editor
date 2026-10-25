@@ -1,3 +1,4 @@
+import { readContentForExport } from "@/services/content-transfer";
 import { Descendant } from "slate";
 import { getMarkdown } from "./markdown";
 import { htmlSerializerRegistry } from "./html-serializers";
@@ -13,10 +14,16 @@ interface MessageApi {
  */
 export async function copyMarkdownToClipboard(
   content: Descendant[],
-  message?: MessageApi
+  message?: MessageApi,
+  contentId?: number
 ): Promise<boolean> {
   try {
-    const markdown = getMarkdown(content);
+    const document = await readContentForExport(content, contentId);
+    const markdown = document.contracts
+      ? (
+          await (await import("@/services/editorKit")).prepareContentMarkdown(document.contracts)
+        ).getMarkdown(document.content)
+      : getMarkdown(document.content);
     await navigator.clipboard.writeText(markdown);
     message?.success("已复制 Markdown 到剪贴板");
     return true;
@@ -32,12 +39,14 @@ export async function copyMarkdownToClipboard(
  */
 export async function copyWechatHtmlToClipboard(
   content: Descendant[],
-  message?: MessageApi
+  message?: MessageApi,
+  contentId?: number
 ): Promise<boolean> {
   try {
     // 1. Serialize Slate content to HTML (async for Tailwind compilation)
     const tailwindCssCollector: string[] = [];
-    const rawHtml = await htmlSerializerRegistry.serializeAsync(content, {
+    const document = await readContentForExport(content, contentId);
+    const rawHtml = await htmlSerializerRegistry.serializeAsync(document.content, {
       codeTheme: "github-light",
       tailwindCssCollector,
     });

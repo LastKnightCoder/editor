@@ -13,11 +13,8 @@
 @import "./src/extensions/underline/styles.css" layer(components);
 @import "./src/extensions/blockquote/styles.css" layer(components);
 @import "../editor-source-view/src/PreviewWithEditor.vendor.css" layer(components);
-@import "./src/extensions/code-block/src/extensions/code-block/components/CodeBlock/CodeBlock.vendor.css"
-  layer(components);
+@import "../editor-source-view/src/overlay/ShikiOverlayEditor.vendor.css" layer(components);
 @import "shiki-magic-move/style.css" layer(components);
-@import "codemirror/lib/codemirror.css" layer(components);
-@import "codemirror/theme/blackboard.css" layer(components);
 @import "katex/dist/katex.min.css" layer(components);
 @source "./src";
 @source "../editor-source-view/src";

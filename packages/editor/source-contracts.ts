@@ -2,22 +2,52 @@ import type { MouseEvent, ReactNode, ReactElement } from "react";
 import type { LucideIcon } from "lucide-react";
 import type { Editor, Element, Path } from "slate";
 import type { ElementBehaviors, ParagraphElement, BlockElement } from "./api";
+import { createServiceId } from "@tau/shared/service-contract";
 
-export interface SourceBlockEditorProps {
+export type { TextFieldSnapshot, TextFieldDelta, EditorTextField } from "./text-field-contract";
+import type { EditorTextField } from "./text-field-contract";
+
+export interface EditorTextFields {
+  open(editor: Editor, element: Element, field: string): EditorTextField;
+}
+export const IEditorTextFields = createServiceId<EditorTextFields>("editorTextFields");
+
+export interface EditorNodeViews {
+  read(nodeId: string): Readonly<Record<string, unknown>> | undefined;
+  write(nodeId: string, patch: Record<string, unknown>): Promise<Readonly<Record<string, unknown>>>;
+}
+export const IEditorNodeViews = createServiceId<EditorNodeViews>("editorNodeViews");
+
+export interface TextFieldEditor {
+  /** 交给原生 input/textarea 的 ref；宿主负责输入法、选区、撤销和卸载冲刷。 */
+  readonly inputRef: import("react").RefCallback<HTMLInputElement | HTMLTextAreaElement>;
+  readonly value: string;
+  readonly revision: string;
+  readonly readOnly: boolean;
+  readonly ready: boolean;
+  readonly error: string | null;
+  edit(change: { offset: number; remove: number; text: string }): void;
+  editBatch(changes: readonly { offset: number; remove: number; text: string }[]): void;
+  undo(): void;
+  redo(): void;
+}
+
+interface SourceBlockEditorBaseProps {
   mode: string;
   title: string;
   icon: LucideIcon;
-  initValue: string;
-  onChange(value: string): void;
   element: Element;
   center?: boolean;
   extend?: boolean;
   children?: ReactNode;
 }
+
+export type SourceBlockEditorProps = SourceBlockEditorBaseProps & { field: string };
 export interface RuntimeStyleCompiler {
   compile(request: { source: string; language: "html" | "tsx" }): Promise<string>;
 }
 export interface SourceEditorRuntime {
+  useTextField(element: Element, field: string): TextFieldEditor;
   SourceBlockEditor(props: SourceBlockEditorProps): ReactElement;
   useSourceBlock(element: Element): {
     theme: { isDark: boolean; token(word: string): string };
@@ -29,6 +59,8 @@ export interface SourceEditorRuntime {
   sourceBlockParagraphBehavior(type: string): ElementBehaviors<ParagraphElement>;
 }
 export interface ElementAccess {
+  view: Readonly<Record<string, unknown>>;
+  updateView(properties: Record<string, unknown>): void;
   readOnly: boolean;
   /** 外框里的块是否被点选；未声明外框时恒为 false */
   selected: boolean;

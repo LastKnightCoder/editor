@@ -23,6 +23,25 @@ const valueTypeOf = (model: DatabaseFieldModel, column: ColumnDef) =>
   typeof model.valueType === "function" ? model.valueType(column) : model.valueType;
 
 describe("defineFieldModel", () => {
+  it("资源字段沿用统一声明校验，不接受可执行回调或危险路径", () => {
+    expect(() =>
+      defineFieldModel({
+        type: "x",
+        toText: () => "",
+        resources: [{ path: "value[].url", kind: "image" }],
+      })
+    ).not.toThrow();
+    expect(() =>
+      defineFieldModel({
+        type: "x",
+        toText: () => "",
+        resources: [{ path: "value.__proto__.url", kind: "image" }],
+      })
+    ).toThrow("资源声明无效");
+    expect(() =>
+      defineFieldModel({ type: "x", toText: () => "", resources: (() => []) as never })
+    ).toThrow("资源声明无效");
+  });
   it("返回冻结对象，成员不可覆盖", () => {
     const model = defineFieldModel({ type: "x", toText: () => "" });
     expect(Object.isFrozen(model)).toBe(true);

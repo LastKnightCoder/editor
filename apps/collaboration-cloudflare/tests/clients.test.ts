@@ -1,3 +1,5 @@
+import { prepareContentContract } from "../../../packages/db-schema/content-contracts";
+import { createSharedDocument } from "@tau/collaboration/src/testing/legacy-document";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
 import { mkdtempSync, rmSync, readFileSync } from "node:fs";
@@ -9,8 +11,10 @@ import { WebSocket } from "ws";
 import * as Y from "yjs";
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
 import {
-  createSharedDocument,
-  readSharedContent,
+  readSharedContent as readLegacyContent,
+  readNodeDocument,
+  createNodeDocument,
+  NodeTree,
   getBody,
   type DeviceIdentity,
 } from "@tau/collaboration";
@@ -21,6 +25,7 @@ const harness = vi.hoisted(() => ({
   url: "",
   key: "",
   mobile: null as DeviceIdentity | null,
+  cache: new Map<string, { metadata: any; state: string; updates: string[]; revision: string }>(),
 }));
 const productionRehearsal = process.env.COLLAB_TEST_ENV === "production-rehearsal";
 
@@ -37,6 +42,25 @@ vi.mock("@tau/collaboration", async importOriginal => ({
 }));
 vi.mock("../../mobile/src/services/tauri", () => ({
   collabListBindings: async () => [],
+  collabReadCache: async (id: string) => harness.cache.get(id) ?? null,
+  collabWriteCache: async (
+    payload: { documentId: string; metadata: unknown; state: string },
+    snapshot: boolean
+  ) => {
+    const previous = harness.cache.get(payload.documentId);
+    const revision = String(Number(previous?.revision ?? 0) + 1);
+    harness.cache.set(payload.documentId, {
+      metadata: payload.metadata,
+      state: snapshot ? payload.state : (previous?.state ?? ""),
+      updates: snapshot
+        ? []
+        : [...(previous?.updates ?? []), ...(payload.state ? [payload.state] : [])],
+      revision,
+    });
+    return revision;
+  },
+  collabNodeViews: async () => ({}),
+  collabListCache: async () => [...harness.cache.values()].map(value => value.metadata),
   readSettingJson: async () => JSON.stringify({ collaboration: { nickname: "移动端原型" } }),
 }));
 // 仅替代本机 Tauri IPC；REST 路径、协作编排、Y.Doc 和 WebSocket 均运行生产实现。
@@ -53,6 +77,7 @@ const prototypeInvoke = async (
     headers: {
       authorization: "Bearer " + identity.id + ":" + identity.secret,
       "content-type": "application/json",
+      "x-tau-document-version": "2",
     },
     body: input.payload.body == null ? undefined : JSON.stringify(input.payload.body),
   });
@@ -174,6 +199,21 @@ afterEach(() => {
   for (const cleanup of cleanups.splice(0).reverse()) cleanup();
 });
 
+const documentIdentities = new Map<
+  string,
+  { protocolVersion: number; baselineId: string; epoch: number }
+>();
+const readSharedContent = (doc: Y.Doc) =>
+  doc.getMap("meta").get("version") === 2 ? readNodeDocument(doc) : readLegacyContent(doc);
+async function closeDocument(id: string) {
+  const protocol = await desktop.request<{ revision: string }>(
+    harness.url,
+    `/v1/documents/${id}/protocol`
+  );
+  await desktop.request(harness.url, `/v1/documents/${id}/close`, "POST", {
+    expectedRevision: protocol.revision,
+  });
+}
 const seed = (title: string, text = "协作正文") =>
   createSharedDocument({
     title,
@@ -181,11 +221,37 @@ const seed = (title: string, text = "协作正文") =>
     bannerBg: "",
     bannerPosition: "center",
   });
-async function publish(title: string, text?: string) {
-  const doc = seed(title, text);
+async function publish(title: string, text?: string, structured = false) {
   const created = await desktop.request<{ id: string }>(harness.url, "/v1/documents", "POST", {
     idempotencyKey: crypto.randomUUID(),
   });
+  const paragraph = structured
+    ? await prepareContentContract("tau.paragraph", {
+        type: "paragraph",
+        dataVersion: 1,
+        kind: "block",
+      })
+    : null;
+  const baselineId = crypto.randomUUID();
+  const doc = paragraph
+    ? await createNodeDocument(
+        { documentId: created.id, baselineId, epoch: 0 },
+        {
+          title,
+          content: [
+            {
+              type: "paragraph",
+              tauContract: paragraph.id,
+              children: [{ text: text ?? "协作正文" }],
+            },
+          ],
+          bannerBg: "",
+          bannerPosition: "center",
+        },
+        { [paragraph.id]: paragraph.contract }
+      )
+    : seed(title, text);
+  if (paragraph) documentIdentities.set(created.id, { protocolVersion: 2, baselineId, epoch: 0 });
   await desktop.request(harness.url, "/v1/documents/" + created.id + "/publish", "POST", {
     state: Buffer.from(Y.encodeStateAsUpdate(doc)).toString("base64"),
   });
@@ -209,6 +275,7 @@ function connect(id: string) {
       (
         await desktop.request<{ ticket: string }>(harness.url, "/v1/tickets", "POST", {
           documentId: id,
+          ...documentIdentities.get(id),
         })
       ).ticket,
   });
@@ -221,6 +288,16 @@ function connect(id: string) {
   return { doc, provider, transport };
 }
 function appendBody(doc: Y.Doc, text: string) {
+  if (doc.getMap("meta").get("version") === 2) {
+    const tree = new NodeTree(doc);
+    try {
+      const id = String(tree.read()[0].collabId);
+      tree.insertText(id, tree.content(id).length, text, "test-input");
+    } finally {
+      tree.dispose();
+    }
+    return;
+  }
   const paragraph = getBody(doc)
     .toDelta()
     .find(item => item.insert instanceof Y.XmlText)?.insert;
@@ -235,10 +312,13 @@ describe("Cloudflare 原型与现有两端客户端", () => {
       expect((await request("/v1/devices", "POST", { nickname: "未授权" })).response.status).toBe(
         403
       );
-    const id = await publish("双端协作");
+    const id = await publish("双端协作", undefined, true);
     const initial = await desktop.request<{ state: string }>(
       harness.url,
-      "/v1/documents/" + id + "/state"
+      "/v1/documents/" + id + "/state",
+      "GET",
+      undefined,
+      2
     );
     const initialDoc = new Y.Doc();
     Y.applyUpdate(initialDoc, Buffer.from(initial.state, "base64"));
@@ -333,7 +413,10 @@ describe("Cloudflare 原型与现有两端客户端", () => {
     await until(async () => {
       const snapshot = await desktop.request<{ state: string }>(
         harness.url,
-        "/v1/documents/" + id + "/state"
+        "/v1/documents/" + id + "/state",
+        "GET",
+        undefined,
+        2
       );
       const recovered = new Y.Doc();
       try {
@@ -352,7 +435,7 @@ describe("Cloudflare 原型与现有两端客户端", () => {
       () => JSON.stringify(readSharedContent(owner.doc).content).includes("重启后继续编辑"),
       "恢复后应能继续协作"
     );
-    await desktop.request(harness.url, "/v1/documents/" + id + "/close", "POST");
+    await closeDocument(id);
     await until(() => !mobile.session(id), "结束共享事件应送达移动端");
   });
 
@@ -361,7 +444,10 @@ describe("Cloudflare 原型与现有两端客户端", () => {
     const id = await publish("大文档", text);
     const snapshot = await desktop.request<{ state: string }>(
       harness.url,
-      "/v1/documents/" + id + "/state"
+      "/v1/documents/" + id + "/state",
+      "GET",
+      undefined,
+      2
     );
     const doc = new Y.Doc();
     try {
@@ -370,7 +456,7 @@ describe("Cloudflare 原型与现有两端客户端", () => {
     } finally {
       doc.destroy();
     }
-    await desktop.request(harness.url, "/v1/documents/" + id + "/close", "POST");
+    await closeDocument(id);
   });
 
   it.runIf(!!process.env.COLLAB_PROTOTYPE_REDEPLOY)(
@@ -398,7 +484,10 @@ describe("Cloudflare 原型与现有两端客户端", () => {
       );
       const snapshot = await desktop.request<{ state: string }>(
         harness.url,
-        "/v1/documents/" + id + "/state"
+        "/v1/documents/" + id + "/state",
+        "GET",
+        undefined,
+        2
       );
       const recovered = new Y.Doc();
       try {
@@ -410,7 +499,7 @@ describe("Cloudflare 原型与现有两端客户端", () => {
       const fresh = connect(id);
       await until(() => fresh.provider.synced, "新连接应从持久化文档恢复");
       expect(readSharedContent(fresh.doc)).toEqual(expected);
-      await desktop.request(harness.url, "/v1/documents/" + id + "/close", "POST");
+      await closeDocument(id);
     },
     180_000
   );

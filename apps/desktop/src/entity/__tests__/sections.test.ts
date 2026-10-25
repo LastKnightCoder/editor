@@ -18,9 +18,14 @@ describe("主内容按节切块", () => {
     const code: Descendant = {
       type: "code-block",
       uuid: "section-code-fixture",
-      code: "const value = 1;\n".repeat(10),
       language: "javascript",
-      children: [{ type: "formatted", text: "" }],
+      children: [
+        {
+          type: "code-step",
+          code: "const value = 1;\n".repeat(10),
+          children: [{ type: "formatted", text: "" }],
+        },
+      ],
     };
     expect(
       splitSections([header("代码观点"), code, header("下一节"), paragraph("正文".repeat(80))], "")

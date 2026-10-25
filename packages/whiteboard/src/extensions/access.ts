@@ -10,3 +10,7 @@ export function resolveBoardAccess(api: WhiteboardAPI): Board {
   if (!board) throw new Error("无效的白板会话");
   return board;
 }
+
+export function tryResolveBoardAccess(api: WhiteboardAPI): Board | undefined {
+  return boards.get(api);
+}

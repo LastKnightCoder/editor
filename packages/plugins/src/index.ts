@@ -27,11 +27,16 @@ export * from "./editor";
 export {
   SourceBlockEditor,
   useSourceBlock,
+  useTextField,
   useReportPreviewError,
   insertSourceBlock,
   sourceBlockParagraphBehavior,
 } from "./source-editor";
-export type { SourceBlockEditorProps, PluginRuntimeStyleCompiler } from "./source-editor";
+export type {
+  SourceBlockEditorProps,
+  PluginRuntimeStyleCompiler,
+  TextFieldEditor,
+} from "./source-editor";
 export { useInlineSource, insertInlineSource, InlineSourceBoundary } from "./inline-source";
 export { ContentEditor, ContentPreview, EntityRef } from "./components";
 export {

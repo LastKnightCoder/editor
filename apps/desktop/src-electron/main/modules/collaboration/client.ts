@@ -10,6 +10,7 @@ export class CollaborationClient {
   private migrationEnabled = false;
   private migrationComplete = false;
   private migrationPending: Promise<void> | null = null;
+  private readonly responseDates = new Map<string, number>();
   constructor(private store: CollaborationLocalStore) {}
   private get nickname() {
     return this.store.get("nickname", "Tau 用户");
@@ -26,6 +27,12 @@ export class CollaborationClient {
         ? DEFAULT_COLLABORATION_URL
         : url)
     );
+  }
+
+  serverTime(url: string): number {
+    const time = this.responseDates.get(this.canonicalUrl(url));
+    if (time === undefined) throw new Error("协作响应缺少有效 Date，未提交本机编辑，请稍后重试");
+    return time;
   }
 
   async migrateOfficialEndpoint(deferNetwork = false) {
@@ -143,7 +150,8 @@ export class CollaborationClient {
     url: string,
     path: string,
     method = "GET",
-    body?: unknown
+    body?: unknown,
+    protocolVersion?: number
   ): Promise<T> {
     url = this.canonicalUrl(url);
     const identity = await this.identity(url);
@@ -152,11 +160,17 @@ export class CollaborationClient {
       method,
       headers: {
         Authorization: `Bearer ${identity.id}:${identity.secret}`,
+        ...(protocolVersion === undefined
+          ? {}
+          : { "x-tau-document-version": String(protocolVersion) }),
         ...(body === undefined ? {} : { "Content-Type": "application/json" }),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(20000),
     });
+    const time = Date.parse(response.headers.get("date") ?? "");
+    if (Number.isFinite(time)) this.responseDates.set(url, time);
+    else this.responseDates.delete(url);
     const result: unknown = await response.json();
     if (!response.ok) {
       const details =

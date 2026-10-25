@@ -1,3 +1,4 @@
+import { assertVisualExport } from "../utils/visualExport";
 /**
  * 画布离屏截图（导出图片 / 列表缩略图共用）：把指定元素按导出视口渲染进一块屏外容器，
  * 等异步媒体就绪后用 snapdom 截成图片。截图层是独立 DOM，不改动画布本身。
@@ -16,6 +17,7 @@ import { calculateExportBounds, createExportViewPort } from "../utils";
 import { isInteriorConnectElement } from "../utils/ConnectPointUtil";
 
 export interface BoardCaptureOptions {
+  allowPlaceholders?: boolean;
   elements: BoardElement[];
   padding: number;
   backgroundColor: string | null;
@@ -157,7 +159,7 @@ const waitImageReady = async (image: HTMLImageElement): Promise<void> => {
   }
 };
 
-const prepareCaptureNode = async (captureTarget: Element) => {
+const prepareCaptureNode = async (captureTarget: Element, allowPlaceholders = false) => {
   // 导出时移除 RichText 容器的 box-shadow，避免阴影影响导出效果
   captureTarget.querySelectorAll<HTMLElement>("[id^='rich-text-container-']").forEach(element => {
     element.style.boxShadow = "none";
@@ -188,8 +190,9 @@ const prepareCaptureNode = async (captureTarget: Element) => {
       image.setAttribute("decoding", "sync");
       try {
         await waitImageReady(image);
-      } catch (_error) {
-        markNodeIgnored(image);
+      } catch (error) {
+        if (!allowPlaceholders) throw error;
+        image.setAttribute("alt", "资源缺失");
       }
     })
   );
@@ -212,6 +215,7 @@ export function useBoardCapture(
   const capture = useMemoizedFn(async (options: BoardCaptureOptions): Promise<Blob | null> => {
     const { elements, padding, backgroundColor, dpr, type = "png", quality = 0.95 } = options;
     if (runningRef.current || elements.length === 0) return null;
+    assertVisualExport(board, elements, options.allowPlaceholders);
     const bounds = calculateExportBounds(board, elements);
     if (!bounds) return null;
 
@@ -252,7 +256,9 @@ export function useBoardCapture(
         await waitForMediaRender(captureTarget);
       }
 
-      await prepareCaptureNode(captureTarget);
+      if (!options.allowPlaceholders && captureTarget.querySelector("[data-unknown-element]"))
+        throw new Error("存在无法完整渲染的元素，未生成不完整图片");
+      await prepareCaptureNode(captureTarget, options.allowPlaceholders);
       await waitDoubleRaf();
 
       const ratio = typeof dpr === "function" ? dpr(viewPort) : dpr;

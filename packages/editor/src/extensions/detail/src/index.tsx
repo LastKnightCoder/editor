@@ -14,6 +14,7 @@ const detailExtension = defineExtension({
   elements: [
     defineElement<DetailElement>({
       type: "detail",
+      dataVersion: 1,
       kind: "block",
       isEmpty: (element, context) => element.children.every(context.isEmpty),
       render: Detail,

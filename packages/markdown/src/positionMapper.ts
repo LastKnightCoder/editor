@@ -105,6 +105,10 @@ export class PositionMapper {
     this.mappings = [];
   }
 
+  truncate(length: number): void {
+    this.mappings.length = length;
+  }
+
   /**
    * Slate 位置 → Markdown 位置
    *

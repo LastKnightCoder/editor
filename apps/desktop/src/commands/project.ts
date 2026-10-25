@@ -1,4 +1,9 @@
+import { bindDatabaseCommands, currentCommandScope } from "@/services/command-context";
 import { invoke } from "@/electron";
+import type {
+  ContentEntityTarget,
+  ContentEntityReference,
+} from "@tau/db-schema/content-identities";
 import { openEditorWindow } from "@/commands/window";
 import { EDragPosition, IDragItem } from "@/hooks/useDragAndDrop";
 import {
@@ -55,9 +60,15 @@ export const deleteProjectItem = async (id: number): Promise<number> => {
   return await invoke("delete-project-item", id);
 };
 
-export const getProjectItemById = async (id: number): Promise<ProjectItem | null> => {
+export const getProjectItemById = async (id: ContentEntityTarget): Promise<ProjectItem | null> => {
   return await invoke("get-project-item", id);
 };
+export const getProjectItemReference = (id: number): Promise<ContentEntityReference> =>
+  invoke("project-item:reference", id);
+export const getProjectItemChildren = (
+  target: ContentEntityTarget
+): Promise<{ item: ProjectItem; reference: ContentEntityReference }[]> =>
+  invoke("project-item:children", target);
 
 export const getProjectItemsByIds = async (ids: number[]): Promise<ProjectItem[]> => {
   return await invoke("get-project-items-by-ids", ids);
@@ -102,14 +113,38 @@ export const addRootProjectItem = async (
   projectId: number,
   projectItem: CreateProjectItem
 ): Promise<[Project, ProjectItem | null]> => {
-  return await invoke("add-root-project-item", projectId, projectItem);
+  const command = bindDatabaseCommands({ invoke }, currentCommandScope());
+  if (
+    projectItem.projectItemType === EProjectItemType.Document &&
+    !projectItem.contentId &&
+    !(projectItem.refType && projectItem.refId)
+  )
+    projectItem = {
+      ...projectItem,
+      ...(await (
+        await import("@/services/editorKit")
+      ).prepareNewContent(projectItem.content, projectItem.contracts)),
+    };
+  return await command.invoke("add-root-project-item", projectId, projectItem);
 };
 
 export const addChildProjectItem = async (
   parentProjectItemId: number,
   projectItem: CreateProjectItem
 ): Promise<[ProjectItem | null, ProjectItem | null]> => {
-  return await invoke("add-child-project-item", parentProjectItemId, projectItem);
+  const command = bindDatabaseCommands({ invoke }, currentCommandScope());
+  if (
+    projectItem.projectItemType === EProjectItemType.Document &&
+    !projectItem.contentId &&
+    !(projectItem.refType && projectItem.refId)
+  )
+    projectItem = {
+      ...projectItem,
+      ...(await (
+        await import("@/services/editorKit")
+      ).prepareNewContent(projectItem.content, projectItem.contracts)),
+    };
+  return await command.invoke("add-child-project-item", parentProjectItemId, projectItem);
 };
 
 export const createSharedProjectItemFromContent = async (params: {

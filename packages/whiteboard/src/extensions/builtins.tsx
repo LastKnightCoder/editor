@@ -582,11 +582,24 @@ export function createAudioExtension(
 ) {
   const { actions, layers = [] } = options;
   const media = lazyMediaCapabilities(actions);
-  return builtin("tau.audio", (_board, api) => [new AudioPlugin(media(api))], {
-    layers,
-    tools: [tool("tau.audio.create", 80, "media", "音频", AudioLines, Tool, open("audio"))],
-    inspectors: { audio: MediaSetter },
-  });
+  return builtin(
+    "tau.audio",
+    (_board, api) => {
+      const plugin = new AudioPlugin(media(api)),
+        render = plugin.render.bind(plugin);
+      plugin.render = (board, props) => (
+        <MediaExtensionContext value={{ resolveUrl: options.resolveUrl }}>
+          {render(board, props)}
+        </MediaExtensionContext>
+      );
+      return [plugin];
+    },
+    {
+      layers,
+      tools: [tool("tau.audio.create", 80, "media", "音频", AudioLines, Tool, open("audio"))],
+      inspectors: { audio: MediaSetter },
+    }
+  );
 }
 export function createFileImportExtension() {
   const media = lazyMediaCapabilities();

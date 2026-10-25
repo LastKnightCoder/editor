@@ -24,7 +24,7 @@ import {
 } from "../../../../utils/mediaSubmission";
 import { IMediaActions } from "../../../../services/tokens";
 import { useEditorSlots } from "../../../../services/hooks";
-import { useNotifier, useOptionalService } from "@tau/editor/api";
+import { useNotifier, useOptionalService, useTouchVoidSelection } from "@tau/editor/api";
 import { openImageLightbox } from "../../../../stores";
 import type { ImageElement } from "../../../../types";
 import { copyImageElement, imageElementToBlob } from "../../../../utils/imageBlob";
@@ -43,7 +43,6 @@ import { useImageAppearance, type ImageAppearanceOption } from "../../appearance
 import { imageActionsMap } from "../../utils/actionsMap";
 import { getImageAppearanceStyle } from "../../utils/appearance";
 import ImageSelectionToolbar from "./ImageSelectionToolbar";
-import { useTouchMediaSelection } from "../../../../hooks/useTouchMediaSelection";
 import { mediaWidthControls } from "../../../../utils/mediaWidthControls";
 
 interface IImageProps {
@@ -96,7 +95,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
   const appearance = useImageAppearance(appearanceOption);
   const { Image: ImageSlot } = useEditorSlots();
   const isLast = useIsLastElement(element);
-  const touchSelection = useTouchMediaSelection(element);
+  const touchSelection = useTouchVoidSelection(element);
   const { touch } = touchSelection;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -554,7 +553,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
               <ImageOff size={17} />
             </span>
             <span className="text-tau-body font-medium text-[var(--ed-text)]">图片加载失败</span>
-            <span className="text-tau-sm line-clamp-2 max-w-[42ch] break-all text-[var(--ed-text-tertiary)] [font-family:var(--ed-font-mono)]">
+            <span className="text-tau-sm line-clamp-2 max-w-[42ch] [font-family:var(--ed-font-mono)] break-all text-[var(--ed-text-tertiary)]">
               {displayUrl}
             </span>
             <span className="mt-1 flex gap-1.5">
@@ -683,7 +682,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
             </div>
           )}
           {dragOver && (
-            <div className="pointer-events-none absolute inset-0 grid place-items-center bg-[var(--ed-accent-soft)] outline-dashed outline-2 -outline-offset-8 outline-[var(--ed-accent)]">
+            <div className="pointer-events-none absolute inset-0 grid place-items-center bg-[var(--ed-accent-soft)] outline-2 -outline-offset-8 outline-[var(--ed-accent)] outline-dashed">
               <span className="text-tau-body rounded-full bg-[var(--ed-bg-surface)] px-3.5 py-1.5 font-semibold text-[var(--ed-accent-text)] shadow-[var(--ed-shadow-float)]">
                 松开以替换这张图片
               </span>
@@ -720,7 +719,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
       {(showDescEditor || description || (touch && isSelected && !readOnly)) && (
         <div
           data-media-caption="true"
-          className="text-tau-sm mt-2 break-words text-center leading-relaxed text-[var(--ed-text-tertiary)]"
+          className="text-tau-sm mt-2 text-center leading-relaxed break-words text-[var(--ed-text-tertiary)]"
         >
           {showDescEditor ? (
             // 编辑与展示同一版式：不加输入框，只有光标，文字位置不动
@@ -795,7 +794,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
           alt=""
           loading="eager"
           crossOrigin="anonymous"
-          className="pointer-events-none fixed left-0 top-0 h-px w-px opacity-0"
+          className="pointer-events-none fixed top-0 left-0 h-px w-px opacity-0"
           onLoad={event => setCropSrc(event.currentTarget.currentSrc)}
           onLoadError={() => {
             notifier.error("原图加载失败，无法裁剪");

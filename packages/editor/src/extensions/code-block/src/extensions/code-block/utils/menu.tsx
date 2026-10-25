@@ -20,6 +20,7 @@ import {
   type EditorMenuContext,
   type EditorMenuEntry,
 } from "@tau/editor/api";
+import { isCodeBlockV2, insertCodeStep, removeCodeStep } from "../../../codeSteps";
 import type { CodeBlockElement } from "../../../types";
 import { codeBlockActionsMap, codeBlockMap } from "./controllerMaps";
 import {
@@ -70,6 +71,10 @@ export const codeBlockCommands: EditorCommand[] = [
     run: (editor, ctx) => {
       const element = asCodeBlock(ctx.element);
       if (!element) return;
+      if (isCodeBlockV2(element)) {
+        insertCodeStep(editor, element);
+        return;
+      }
       const sourceCode = element.code || "";
       setCodeBlockNodes(editor, element, {
         code: sourceCode,
@@ -83,6 +88,10 @@ export const codeBlockCommands: EditorCommand[] = [
     title: "关闭分步演示",
     run: (editor, ctx) => {
       const element = asCodeBlock(ctx.element);
+      if (element && isCodeBlockV2(element)) {
+        removeCodeStep(editor, element, true);
+        return;
+      }
       const magicMove = element && magicMoveOf(element);
       if (!element || !magicMove) return;
       const highlightLines = getActiveStepHighlightLines(magicMove);
@@ -103,6 +112,10 @@ export const codeBlockCommands: EditorCommand[] = [
     title: "新增下一步",
     run: (editor, ctx) => {
       const element = asCodeBlock(ctx.element);
+      if (element && isCodeBlockV2(element)) {
+        insertCodeStep(editor, element);
+        return;
+      }
       const magicMove = element && magicMoveOf(element);
       if (!element || !magicMove) return;
       const nextMagicMove = insertNextMagicMoveStep(
@@ -122,6 +135,10 @@ export const codeBlockCommands: EditorCommand[] = [
     title: "删除当前步骤",
     run: (editor, ctx) => {
       const element = asCodeBlock(ctx.element);
+      if (element && isCodeBlockV2(element)) {
+        removeCodeStep(editor, element);
+        return;
+      }
       const magicMove = element && magicMoveOf(element);
       if (!element || !magicMove) return;
       const result = removeMagicMoveStep(
@@ -195,7 +212,10 @@ export const codeBlockCommands: EditorCommand[] = [
   },
 ];
 
-const hasSteps = (ctx: EditorMenuContext) => Boolean(magicMoveOf(ctx.element as CodeBlockElement));
+const hasSteps = (ctx: EditorMenuContext) => {
+  const element = ctx.element as CodeBlockElement;
+  return isCodeBlockV2(element) ? element.children.length > 1 : Boolean(magicMoveOf(element));
+};
 
 export const codeBlockMenuItems: EditorMenuEntry[] = [
   {

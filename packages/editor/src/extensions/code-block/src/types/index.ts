@@ -1,1 +1,7 @@
-export type { CodeBlockElement, CodeBlockMagicMove, CodeBlockMagicMoveStep } from "./code-block.ts";
+export type {
+  CodeBlockElement,
+  CodeBlockV2Element,
+  CodeStepElement,
+  CodeBlockMagicMove,
+  CodeBlockMagicMoveStep,
+} from "./code-block.ts";

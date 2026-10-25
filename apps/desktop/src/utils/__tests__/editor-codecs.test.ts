@@ -80,43 +80,52 @@ describe("导出：块级", () => {
     const markdown = exportOne({
       type: "code-block",
       language: "ts",
-      code: "const a = 1;",
-      highlightLines: "1",
-      children: [{ type: "formatted", text: "" }],
+
+      children: [
+        {
+          type: "code-step",
+          code: "const a = 1;",
+          highlightLines: "1",
+          children: [{ type: "formatted", text: "" }],
+        },
+      ],
     });
     expect(markdown).toContain("```ts {1}\nconst a = 1;\n```");
   });
 
-  it("code-block 魔法移动导出激活步与 smm 元信息", () => {
+  it("code-block 多步骤导出源码与 smm 元信息，不保存查看步骤", () => {
     const markdown = exportOne({
       type: "code-block",
       language: "ts",
-      code: "旧代码",
-      magicMove: {
-        v: 1,
-        activeStep: 1,
-        steps: [
-          { id: "s1", code: "第一步" },
-          { id: "s2", code: "第二步" },
-        ],
-      },
-      children: [{ type: "formatted", text: "" }],
+      children: ["第一步", "第二步"].map(code => ({
+        type: "code-step",
+        code,
+        children: [{ type: "formatted", text: "" }],
+      })),
     });
-    expect(markdown).toContain("第二步");
-    expect(markdown).not.toContain("旧代码");
+    expect(markdown).toContain("第一步");
     expect(markdown).toMatch(/smm=/);
+    expect(md.importFromMarkdown(markdown)[0]).toMatchObject({
+      children: [{ code: "第一步" }, { code: "第二步" }],
+    });
   });
 
   it("code-block 文件名、换行、关闭行号写进围栏 meta 并能读回", () => {
     const markdown = exportOne({
       type: "code-block",
       language: "ts",
-      code: "const a = 1;",
-      highlightLines: "1",
+
       filename: 'api/"user".ts',
       wrap: true,
       lineNumbers: false,
-      children: [{ type: "formatted", text: "" }],
+      children: [
+        {
+          type: "code-step",
+          code: "const a = 1;",
+          highlightLines: "1",
+          children: [{ type: "formatted", text: "" }],
+        },
+      ],
     });
     expect(markdown).toContain('```ts title="api/user.ts" wrap noLineNumbers {1}\n');
     expect(md.importFromMarkdown(markdown)[0]).toMatchObject({
@@ -124,7 +133,7 @@ describe("导出：块级", () => {
       filename: "api/user.ts",
       wrap: true,
       lineNumbers: false,
-      highlightLines: "1",
+      children: [{ type: "code-step", highlightLines: "1" }],
     });
   });
 
@@ -132,8 +141,7 @@ describe("导出：块级", () => {
     const markdown = exportOne({
       type: "code-block",
       language: "ts",
-      code: "x",
-      children: [{ type: "formatted", text: "" }],
+      children: [{ type: "code-step", code: "x", children: [{ type: "formatted", text: "" }] }],
     });
     expect(markdown).toContain("```ts\nx\n```");
     const imported = md.importFromMarkdown(markdown)[0] as unknown as Record<string, unknown>;
@@ -457,11 +465,9 @@ describe("源码 ↔ 富文本光标映射", () => {
     expect(slateAt(2, 5)!.offset).toBe(1);
   });
 
-  it("代码块：源码光标能查到 code 属性映射与块内相对位置", () => {
+  it("代码块：源码光标不伪造根节点 code 属性映射", () => {
     const hint = positionMap.getElementPropertyByMarkdown({ line: 5, ch: 6 });
-    expect(hint?.mapping.elementType).toBe("code-block");
-    expect(hint?.propertyName).toBe("code");
-    expect(hint?.relativePos).toEqual({ line: 0, ch: 6 });
+    expect(hint?.propertyName).not.toBe("code");
   });
 
   it("表格：光标落到单元格内的文本节点", () => {
@@ -476,15 +482,15 @@ describe("源码 ↔ 富文本光标映射", () => {
     expect(back).toEqual({ line: 0, ch: 3 });
   });
 
-  it("导出方向：代码块的 code 属性映射覆盖块内每一行", () => {
+  it("导出方向：代码块保留块映射，不伪造根 code 属性", () => {
     const exported = md.getMarkdownWithPositions(content);
     const codeBlockPath = content.findIndex(
       node => (node as { type?: string }).type === "code-block"
     );
     const mapping = exported.positionMap.getElementMappingBySlatePath([codeBlockPath]);
     const range = mapping?.propertyMappings?.code;
-    expect(range).toBeTruthy();
-    expect(range!.mdEndLine - range!.mdStartLine).toBe(1);
+    expect(mapping).toBeTruthy();
+    expect(range).toBeUndefined();
   });
 });
 
@@ -552,9 +558,11 @@ describe("代码块语言归一（原 markdown-code-language-normalization）", 
 describe("Node 原生加载桌面 codec 组合", () => {
   it("headless 入口不带 DOM 与 React", () => {
     // 验证宿主组合与各包 codec 的完整加载链，禁止连带 React/DOM。
-    const entryUrl = pathToFileURL(resolve(import.meta.dirname, "../markdown.ts")).href;
+    const entryUrl = pathToFileURL(resolve(import.meta.dirname, "../markdown-composition.ts")).href;
     const script = `
-      const { desktopMarkdown: md } = await import(${JSON.stringify(entryUrl)});
+      const { desktopCodecComposition } = await import(${JSON.stringify(entryUrl)});
+      const { createMarkdownProcessor } = await import("@tau/markdown");
+      const md = createMarkdownProcessor({ codecs: desktopCodecComposition });
       const value = md.importFromMarkdown(":::tip{ title=\\"提示\\"}\\n内容\\n:::");
       console.log(
         JSON.stringify([

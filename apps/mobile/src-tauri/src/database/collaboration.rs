@@ -153,6 +153,9 @@ pub struct CollaborationBinding {
 #[serde(rename_all = "camelCase")]
 pub struct BindContentPayload {
     pub content_id: i64,
+    pub expected_document_id: String,
+    pub expected_source_id: String,
+    pub expected_revision: String,
     pub server_url: String,
     pub document_id: String,
     pub source_type: Option<String>,
@@ -191,7 +194,24 @@ pub fn collab_bind_content(
     app: AppHandle,
     payload: BindContentPayload,
 ) -> Result<CollaborationBinding, String> {
-    let conn = open_active_database(&app)?;
+    let mut connection = open_active_database(&app)?;
+    let conn = connection.transaction().map_err(|e| e.to_string())?;
+    let identity: (String, String, String) = conn.query_row("SELECT d.document_id,d.revision,l.source_id FROM content_documents d CROSS JOIN library_identity l WHERE d.content_id=?1 AND l.id=1", [payload.content_id], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?))).map_err(|_| "COLLAB_BIND_FAILED: 正文身份尚未建立".to_string())?;
+    if identity
+        != (
+            payload.expected_document_id,
+            payload.expected_revision,
+            payload.expected_source_id,
+        )
+    {
+        return Err("COLLAB_BIND_FAILED: 正文或资料库身份已变化".into());
+    }
+    if let Some(previous) = read_binding(&conn, payload.content_id)? {
+        if previous.document_id != payload.document_id || previous.server_url != payload.server_url
+        {
+            return Err("COLLAB_BIND_FAILED: 已关联另一共享文档".into());
+        }
+    }
     let created_at: i64 = conn
         .query_row(
             "SELECT create_time FROM contents WHERE id = ?1",
@@ -223,6 +243,8 @@ pub fn collab_bind_content(
         ],
     )
     .map_err(|e| db_err("COLLAB_BIND_FAILED", "upsert collaboration binding", e))?;
+    conn.commit()
+        .map_err(|e| db_err("COLLAB_BIND_FAILED", "commit binding", e))?;
     Ok(CollaborationBinding {
         content_id: payload.content_id,
         content_created_at: created_at,
@@ -297,6 +319,11 @@ pub fn assert_content_local(conn: &rusqlite::Connection, content_id: i64) -> Res
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectContentPayload {
+    pub expected_source_id: Option<String>,
+    pub document_id: String,
+    pub contracts: Option<Value>,
+    pub expected_revision: Option<String>,
+    pub expected_document_id: Option<String>,
     pub content_id: i64,
     pub content: Value,
     pub count: i64,
@@ -343,6 +370,9 @@ pub fn collab_project_content(
         return Ok(json!({ "projected": false, "reason": "drift" }));
     }
 
+    if payload.document_id != binding.document_id {
+        return Err("COLLAB_PROJECT_FAILED: 共享绑定已变化".into());
+    }
     let changed = super::write_content_snapshot(
         &tx,
         payload.content_id,
@@ -350,12 +380,24 @@ pub fn collab_project_content(
         payload.count,
         now,
         "COLLAB_PROJECT_FAILED",
+        payload.contracts.as_ref(),
+        payload.expected_revision.as_deref(),
+        payload.expected_document_id.as_deref(),
+        payload.expected_source_id.as_deref(),
     )?;
+    let revision: Option<String> = tx
+        .query_row(
+            "SELECT revision FROM content_documents WHERE content_id=?1",
+            [payload.content_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
     tx.commit()
         .map_err(|e| db_err("COLLAB_PROJECT_FAILED", "commit projection", e))?;
 
     let setting = crate::setting::load_or_init_setting(&app)?;
     let db_name = crate::setting::get_active_database_name(&setting);
     super::reconcile::trigger_reconcile(&app, &db_name);
-    Ok(json!({ "projected": true, "changed": changed > 0 }))
+    Ok(json!({ "projected": true, "changed": changed > 0, "revision": revision }))
 }

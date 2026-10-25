@@ -71,13 +71,13 @@ coarsePointer 对应 (any-pointer: coarse)，finePointer 对应 (any-pointer: fi
 
 宿主只把公开的扩展字段交给编辑器内核，附加属性不会执行。
 
-优先使用 SourceBlockEditor/useSourceBlock 与公开的节点 API。标准插入、选区、源码草稿保存/取消、只读和迟到提交保护由宿主负责；节点允许移动不等于所有平台都采用鼠标拖拽。
+优先使用 SourceBlockEditor/useSourceBlock 与公开的节点 API。标准插入、选区、源码增量、只读和迟到提交保护由宿主负责；节点允许移动不等于所有平台都采用鼠标拖拽。
 
 图册排序、绘图等专有交互仍由作者实现。基础操作保留可点击/可聚焦按钮，拖拽与悬停只作增强；布局按实际容器调整，共享编辑状态和提交函数，方向或输入变化不能丢失草稿。不能为手机另建一套节点类型。
 
 ## 宿主服务与当前作用域
 
-源码编辑和样式编译直接通过 SourceBlockEditor/useSourceBlock/useInlineSource 使用，宿主负责注入实现，不再检查字符串声明。只读、取消、编译失败仍遵循接口语义。博客只读环境可以显示已保存内容或源码，不启动应用插件生命周期。
+源码编辑和样式编译直接通过 SourceBlockEditor/useSourceBlock/useInlineSource 使用，宿主负责注入实现，不再检查字符串声明。只读、输入失败与编译失败仍遵循接口语义。博客只读环境可以显示已保存内容或源码，不启动应用插件生命周期。
 
 useResourceUpload() 在只读或没有资源存储的作用域返回 undefined，表示当前不能上传。白板服务直接通过 getService 获取必需服务、tryGetService 获取允许缺省的服务，不另列 requires/optional；宿主仍按扩展绑定服务注册表，插件私有存储按插件和工作区隔离。服务缺失与调用失败按实际 API 返回值或异常处理。
 

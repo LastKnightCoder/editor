@@ -9,28 +9,6 @@ use super::index_db;
 use super::migrator;
 use crate::setting::{get_active_database_name, load_or_init_setting, resolve_database_path};
 
-pub fn force_checkpoint(app: &AppHandle, db_name: &str) -> Result<(), String> {
-    let path = resolve_database_path(app, db_name)
-        .map_err(|e| format!("DB_CHECKPOINT_FAILED: Failed to resolve database path: {e}"))?;
-    let conn = Connection::open(path)
-        .map_err(|e| format!("DB_CHECKPOINT_FAILED: Failed to open database: {e}"))?;
-    let (busy, log, checkpointed) = conn
-        .query_row("PRAGMA wal_checkpoint(FULL)", [], |row| {
-            Ok((
-                row.get::<_, i64>(0)?,
-                row.get::<_, i64>(1)?,
-                row.get::<_, i64>(2)?,
-            ))
-        })
-        .map_err(|e| format!("DB_CHECKPOINT_FAILED: Failed to checkpoint database: {e}"))?;
-    if busy != 0 || log != checkpointed {
-        return Err(format!(
-            "DB_CHECKPOINT_FAILED: busy={busy}, log={log}, wal file is not fully checkpointed"
-        ));
-    }
-    Ok(())
-}
-
 pub fn ensure_database_file(app: &AppHandle, db_name: &str) -> Result<(), String> {
     let database_path = resolve_database_path(app, db_name)
         .map_err(|e| format!("DB_OPEN_FAILED: Failed to resolve database path: {e}"))?;
@@ -119,6 +97,16 @@ pub struct ActiveConnection {
     _guard: MutexGuard<'static, Option<CachedConnection>>,
 }
 
+impl ActiveConnection {
+    pub fn database_name(&self) -> &str {
+        &self
+            ._guard
+            .as_ref()
+            .expect("缓存连接在守卫存续期间必在")
+            .db_name
+    }
+}
+
 impl Deref for ActiveConnection {
     type Target = Connection;
 
@@ -139,20 +127,6 @@ impl DerefMut for ActiveConnection {
             .expect("缓存连接在守卫存续期间必在")
             .conn
     }
-}
-
-/// 丢弃缓存的连接。库切换由 open_active_database 的名字比对自动处理；
-/// 以下场景必须显式失效：checkpoint（要求无并发连接）、下载替换数据库文件
-///（Windows 上文件被占用时 rename 会直接失败）。
-pub fn invalidate_cached_connection() {
-    let Some(cache) = ACTIVE_CONNECTION_CACHE.get() else {
-        return;
-    };
-    let mut guard = match cache.lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => poisoned.into_inner(),
-    };
-    *guard = None;
 }
 
 /// 当前激活数据库文件大小（字节）：主库 + WAL/SHM 附属文件一并计入
@@ -215,6 +189,85 @@ mod tests {
             .unwrap();
         assert_eq!(mode, "delete");
         drop(conn);
+        fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+pub(crate) fn install_preserved_download(
+    app: &AppHandle,
+    name: &str,
+    download: &std::path::PathBuf,
+) -> Result<(), String> {
+    let _cache_lock = crate::collaboration::CACHE_WRITE_LOCK
+        .lock()
+        .map_err(|_| "缓存保存锁不可用")?;
+    let mut connections = ACTIVE_CONNECTION_CACHE
+        .get_or_init(|| Mutex::new(None))
+        .lock()
+        .map_err(|_| "数据库连接锁不可用")?;
+    *connections = None;
+    let destination = resolve_database_path(app, name)?;
+    if destination.exists() {
+        let main = Connection::open(&destination).map_err(|e| e.to_string())?;
+        let cache = crate::collaboration::session_store(app)?;
+        let directory = crate::setting::resolve_app_dir(app)?;
+        crate::content_recovery::preserve_at(
+            &directory,
+            &directory.join("collaboration/content-recoveries"),
+            &main,
+            &cache,
+            name,
+            "library-replacement",
+            None,
+        )?;
+        let (busy, _, _): (i64, i64, i64) = main
+            .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })
+            .map_err(|e| e.to_string())?;
+        if busy != 0 {
+            return Err("数据库仍有写入，停止覆盖".into());
+        }
+        drop(main);
+    }
+    replace_database_file(download, &destination).map_err(|e| e.to_string())?;
+    for suffix in ["-wal", "-shm"] {
+        let _ = fs::remove_file(format!("{}{suffix}", destination.to_string_lossy()));
+    }
+    Ok(())
+}
+fn replace_database_file(
+    download: &std::path::PathBuf,
+    destination: &std::path::PathBuf,
+) -> std::io::Result<()> {
+    let previous = destination.with_extension(format!("db.{}.previous", uuid::Uuid::new_v4()));
+    let existed = destination.exists();
+    if existed {
+        fs::rename(destination, &previous)?;
+    }
+    if let Err(error) = fs::rename(download, destination) {
+        if existed {
+            fs::rename(&previous, destination)?;
+        }
+        return Err(error);
+    }
+    if existed {
+        let _ = fs::remove_file(previous);
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod replacement_tests {
+    use super::*;
+    #[test]
+    fn replacement_failure_restores_original_file() {
+        let dir = std::env::temp_dir().join(format!("tau-replace-{}", uuid::Uuid::new_v4()));
+        fs::create_dir(&dir).unwrap();
+        let original = dir.join("data.db");
+        fs::write(&original, b"original").unwrap();
+        assert!(replace_database_file(&dir.join("missing.db"), &original).is_err());
+        assert_eq!(fs::read(&original).unwrap(), b"original");
         fs::remove_dir_all(dir).unwrap();
     }
 }

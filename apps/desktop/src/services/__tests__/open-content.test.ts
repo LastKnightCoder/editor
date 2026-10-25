@@ -39,7 +39,7 @@ describe("内容打开入口", () => {
     expect(mocks.openPage).toHaveBeenLastCalledWith("card-detail", { id: 3 });
     await openContent("article", 4);
     expect(mocks.openPage).toHaveBeenLastCalledWith("article-detail", { id: 4 });
-    mocks.getProjectItemById.mockResolvedValue({ projects: [8, 7] });
+    mocks.getProjectItemById.mockResolvedValue({ id: 5, projects: [8, 7] });
     await openContent("project-item", 5);
     expect(mocks.openPage).toHaveBeenLastCalledWith("project-detail", { id: 7, itemId: 5 });
   });
@@ -53,7 +53,7 @@ describe("内容打开入口", () => {
     });
     await openContent("diary-moment", 12);
     expect(mocks.getDiaryMoment).toHaveBeenLastCalledWith(12);
-    mocks.getProjectItemById.mockResolvedValue({ projects: [7] });
+    mocks.getProjectItemById.mockResolvedValue({ id: 5, projects: [7] });
     await openContent("project_item", 5);
     expect(mocks.openPage).toHaveBeenLastCalledWith("project-detail", { id: 7, itemId: 5 });
   });
@@ -79,7 +79,7 @@ describe("内容打开入口", () => {
     await expect(openContent("project-item", 5)).rejects.toThrow("不存在");
     mocks.getProjectItemById.mockImplementation(async () => {
       mocks.database = "other";
-      return { projects: [7] };
+      return { id: 5, projects: [7] };
     });
     await expect(openContent("project-item", 5)).rejects.toThrow("数据库已切换");
     expect(mocks.openPage).not.toHaveBeenCalled();

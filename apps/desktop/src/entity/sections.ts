@@ -36,7 +36,8 @@ export function splitSections(
   content: Descendant[],
   title: string,
   whole = false,
-  limits = { minLength: SECTION_MIN_LENGTH, maxLength: SECTION_MAX_LENGTH }
+  limits = { minLength: SECTION_MIN_LENGTH, maxLength: SECTION_MAX_LENGTH },
+  serialize: (nodes: Descendant[]) => string = getMarkdown
 ): ContentSection[] {
   if (!content.length) return [];
   const paths = headingPaths(content);
@@ -62,7 +63,7 @@ export function splitSections(
     }
   });
   ranges.push({ start, end: content.length - 1 });
-  const markdown = content.map(node => getMarkdown([node]));
+  const markdown = content.map(node => serialize([node]));
   const sections: ContentSection[] = [];
   for (let i = 0; i < ranges.length; i++) {
     const range = { ...ranges[i] };

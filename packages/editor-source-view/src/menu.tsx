@@ -1,4 +1,4 @@
-import { Edit3 } from "lucide-react";
+import { Edit3, type LucideIcon } from "lucide-react";
 import React from "react";
 import type { Element } from "slate";
 
@@ -10,10 +10,21 @@ import { defineExtension, type EditorCommand, type EditorMenuEntry } from "@tau/
  */
 
 export interface PreviewEditorActions {
+  /** 块类型名与图标（触屏配件栏的上下文标签） */
+  title: string;
+  icon: LucideIcon;
+  /** 进入源码编辑：桌面原位展开，触屏打开源码页 */
   edit: () => void;
+  copySource: () => void;
+  /** 当前不可编辑（只读文档或宿主禁止编辑该类型） */
+  readOnly: boolean;
 }
 
 export const previewActionsMap = new WeakMap<Element, PreviewEditorActions>();
+
+/** 宿主读取源码预览块登记的动作（如触屏配件栏）；未登记返回 undefined */
+export const getPreviewEditorActions = (element: Element): PreviewEditorActions | undefined =>
+  previewActionsMap.get(element);
 
 const previewCommands: EditorCommand[] = [
   {

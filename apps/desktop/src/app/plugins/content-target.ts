@@ -21,6 +21,7 @@ export interface PluginContentTarget {
   own: { id: number; title: string } | null;
   /** 主库中的正文快照；有协作会话时可能落后约 1 秒 */
   nodes: Descendant[];
+  contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
 }
 
 const LOCATE_KINDS: Record<ContentOwnerEntity, EntityKind> = {
@@ -63,5 +64,6 @@ export async function resolvePluginContentTarget(
       entity && location ? { entity, id: location.id, sourceType: SOURCE_TYPES[entity] } : null,
     own: own ? { id: own.id, title: own.title } : null,
     nodes: (record.nodes ?? []) as Descendant[],
+    contracts: record.contracts,
   };
 }

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 import type {
   DataTable,
   DataTableView,
@@ -9,6 +9,8 @@ import type {
   DatabaseDataChange,
   DatabaseRowChanges,
   ColumnDef,
+  DataTableTarget,
+  UpdateDataTableView,
 } from "../types/database";
 
 // Export only hook-specific types
@@ -17,34 +19,40 @@ export type UseEditDatabaseResult = DatabaseHookResult;
 // Dependency injection interface
 export interface UseEditDatabaseDeps {
   updateDataTableChanges?: (input: {
-    id: number;
+    id: DataTableTarget;
     rows: DatabaseRowChanges;
     columns?: ColumnDef[];
   }) => Promise<DataTable | null>;
   getDataTableDetail: (
-    tableId: number
+    tableId: DataTableTarget
   ) => Promise<{ table: DataTable | null; views: DataTableView[] }>;
   updateDataTable: (
     data: DatabaseData & {
-      id: number;
+      id: DataTableTarget;
       activeViewId: number | null;
     }
   ) => Promise<DataTable | null>;
-  updateDataTableView: (view: DataTableView) => Promise<DataTableView | null>;
+  updateDataTableView: (view: UpdateDataTableView) => Promise<DataTableView | null>;
   createDataTableView: (view: CreateDataTableView) => Promise<DataTableView | null>;
-  deleteDataTableView: (viewId: number) => Promise<number>;
-  setActiveDataTableView: (tableId: number, viewId: number | null) => Promise<boolean>;
-  reorderDataTableViews: (tableId: number, orderedIds: number[]) => Promise<void>;
+  deleteDataTableView: (view: { id: number; tableId: DataTableTarget }) => Promise<number>;
+  setActiveDataTableView: (tableId: DataTableTarget, viewId: number | null) => Promise<boolean>;
+  reorderDataTableViews: (tableId: DataTableTarget, orderedIds: number[]) => Promise<void>;
 }
 
 // Base hook with explicit dependencies
 export function useEditDatabase(
-  tableId: number | undefined,
+  tableId: DataTableTarget | undefined,
   deps?: UseEditDatabaseDeps
 ): DatabaseHookResult | null {
   const [activeViewId, setActiveViewId] = useState<number | null>(null);
   const [views, setViews] = useState<DataTableView[]>([]);
   const [table, setTable] = useState<DataTable | null>(null);
+  const targetKey = JSON.stringify(tableId);
+  const currentTarget = useRef(targetKey);
+  currentTarget.current = targetKey;
+  const [loadedTarget, setLoadedTarget] = useState<string>();
+  const [error, setError] = useState<string>();
+  const current = () => currentTarget.current === targetKey;
 
   useEffect(() => {
     if (!deps) {
@@ -54,78 +62,93 @@ export function useEditDatabase(
 
     if (!tableId) return;
 
-    deps.getDataTableDetail(tableId).then(({ table: dataTable, views: viewList }) => {
-      if (!dataTable || !viewList) return;
-      setTable(dataTable);
-      setViews(viewList);
-      setActiveViewId(dataTable.activeViewId ?? viewList[0]?.id ?? null);
-    });
+    let active = true;
+    setError(undefined);
+    deps
+      .getDataTableDetail(tableId)
+      .then(({ table: dataTable, views: viewList }) => {
+        if (!active) return;
+        setLoadedTarget(targetKey);
+        if (!dataTable || !viewList) return;
+        setTable(dataTable);
+        setViews(viewList);
+        setActiveViewId(dataTable.activeViewId ?? viewList[0]?.id ?? null);
+      })
+      .catch(failure => {
+        if (!active) return;
+        setTable(null);
+        setLoadedTarget(targetKey);
+        setError(failure instanceof Error ? failure.message : "数据表读取失败");
+      });
 
     return () => {
+      active = false;
       setTable(null);
       setViews([]);
       setActiveViewId(null);
     };
-  }, [tableId, deps]);
+  }, [targetKey, deps]);
 
   if (!deps) {
     return null;
   }
 
   const onDataChange = async (data: DatabaseData, change?: DatabaseDataChange) => {
-    if (!table) return;
+    if (!table || !tableId || loadedTarget !== targetKey || !current()) return;
     const updated =
       change && deps.updateDataTableChanges
         ? await deps.updateDataTableChanges({
-            id: table.id,
+            id: tableId,
             rows: change.rows,
             ...(change.columnsChanged ? { columns: data.columns } : {}),
           })
         : await deps.updateDataTable({
-            id: table.id,
+            id: tableId,
             columns: data.columns,
             rows: data.rows,
             activeViewId: table.activeViewId,
           });
-    if (updated) {
+    if (updated && current()) {
       setTable(updated);
     }
   };
 
   const onViewConfigChange = async (config: TableViewConfig) => {
-    if (!table || activeViewId == null) return;
+    if (!table || activeViewId == null || loadedTarget !== targetKey || !current()) return;
     const currentView = views.find(view => view.id === activeViewId);
     if (!currentView) return;
     const updated = await deps.updateDataTableView({
       ...currentView,
+      tableId: tableId!,
       config: {
         ...currentView.config,
         ...config,
       },
     });
-    if (updated) {
+    if (updated && current()) {
       setViews(prev => prev.map(view => (view.id === updated.id ? updated : view)));
     }
   };
 
   const onCreateView = async (view: CreateDataTableView) => {
-    const newView = await deps.createDataTableView(view).catch(e => {
+    if (loadedTarget !== targetKey || !current()) return null;
+    const newView = await deps.createDataTableView({ ...view, tableId: tableId! }).catch(e => {
       console.error("创建视图失败:", e);
       return null;
     });
-    if (!newView) return null;
+    if (!newView || !current()) return null;
     setViews(prev => [...prev, newView].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
     onActiveViewIdChange(newView.id);
     return newView;
   };
 
   const onDeleteView = async (viewId: number) => {
-    if (views.length === 1) return null;
-    const result = await deps.deleteDataTableView(viewId).catch(e => {
+    if (views.length === 1 || loadedTarget !== targetKey || !current()) return null;
+    const result = await deps.deleteDataTableView({ id: viewId, tableId: tableId! }).catch(e => {
       console.error("删除视图失败:", e);
       return null;
     });
-    if (!result) return null;
+    if (!result || !current()) return null;
     setViews(prev => {
       const nextViews = prev.filter(view => view.id !== viewId);
       if (activeViewId === viewId) {
@@ -137,30 +160,32 @@ export function useEditDatabase(
   };
 
   const onActiveViewIdChange = async (viewId: number | null) => {
-    if (!tableId) return;
+    if (!tableId || loadedTarget !== targetKey || !current()) return;
 
     const result = await deps.setActiveDataTableView(tableId, viewId).catch(e => {
       console.error("设置活跃视图失败:", e);
       return null;
     });
-    if (!result) return;
+    if (!result || !current()) return;
 
     setActiveViewId(viewId);
   };
 
   const onRenameView = async (viewId: number, name: string) => {
+    if (loadedTarget !== targetKey || !current()) return null;
     const target = views.find(view => view.id === viewId);
     if (!target) return null;
     const updated = await deps
       .updateDataTableView({
         ...target,
+        tableId: tableId!,
         name,
       })
       .catch(error => {
         console.error("更新视图名称失败:", error);
         return null;
       });
-    if (!updated) return null;
+    if (!updated || !current()) return null;
     setViews(prev =>
       prev
         .map(view => (view.id === updated.id ? updated : view))
@@ -170,7 +195,7 @@ export function useEditDatabase(
   };
 
   const onReorderViews = async (orderedIds: number[]) => {
-    if (!tableId) return;
+    if (!tableId || loadedTarget !== targetKey || !current()) return;
     setViews(prev => {
       const orderMap = new Map<number, number>();
       orderedIds.forEach((id, index) => {
@@ -192,6 +217,7 @@ export function useEditDatabase(
     viewId: number,
     updates: Parameters<NonNullable<DatabaseHookResult["onUpdateView"]>>[1]
   ) => {
+    if (loadedTarget !== targetKey || !current()) return null;
     const target = views.find(view => view.id === viewId);
     if (!target) return null;
 
@@ -208,6 +234,7 @@ export function useEditDatabase(
     const updated = await deps
       .updateDataTableView({
         ...target,
+        tableId: tableId!,
         name: updates.name ?? target.name,
         type: finalType,
         config: finalConfig,
@@ -217,7 +244,7 @@ export function useEditDatabase(
         return null;
       });
 
-    if (!updated) return null;
+    if (!updated || !current()) return null;
 
     setViews(prev =>
       prev
@@ -228,9 +255,11 @@ export function useEditDatabase(
   };
 
   return {
+    loading: Boolean(tableId) && loadedTarget !== targetKey,
+    error,
     activeViewId,
     views,
-    table,
+    table: loadedTarget === targetKey ? table : null,
     onDataChange,
     onViewConfigChange,
     onCreateView,
@@ -246,7 +275,9 @@ export function useEditDatabase(
 const EditDatabaseDepsContext = createContext<UseEditDatabaseDeps | null>(null);
 
 // Convenience hook that gets deps from context
-export function useEditDatabaseWithContext(tableId: number | undefined): DatabaseHookResult | null {
+export function useEditDatabaseWithContext(
+  tableId: DataTableTarget | undefined
+): DatabaseHookResult | null {
   const deps = useContext(EditDatabaseDepsContext);
   if (!deps) {
     console.warn("useEditDatabaseWithContext: deps not provided in context");

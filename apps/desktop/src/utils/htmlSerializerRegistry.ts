@@ -122,7 +122,7 @@ export class HtmlSerializerRegistry {
     const childrenHtmlArray = children
       ? await Promise.all(
           children.map(async (node: Descendant) => {
-            if ("type" in node && node.type === "formatted") {
+            if ("text" in node && !("children" in node)) {
               return this.serializeLeaf(node as FormattedText, options);
             }
             return this.serializeElementAsync(node as CustomElement, element, options);
@@ -162,6 +162,31 @@ export class HtmlSerializerRegistry {
    * Serialize Slate content to HTML (async version)
    */
   async serializeAsync(value: Descendant[], options?: HtmlSerializerOptions): Promise<string> {
+    const { getContentKit } = await import("@/services/editorKit");
+    const catalog = await desktopContentPlugins.prepareEditorContracts(getContentKit().extensions);
+    await desktopContentPlugins.prepareContracts();
+    const inspect = (nodes: Descendant[]) => {
+      for (const node of nodes) {
+        if (!("children" in node)) continue;
+        const element = node as unknown as Record<string, unknown>;
+        if (element.type === "tau.contract-payload")
+          throw new Error("文件包含无损节点载荷，请先导入资料库或继续导出 Markdown");
+        if (element.tauContract !== undefined) {
+          const entry = catalog.resolve(element);
+          if (!entry)
+            throw new Error(
+              `节点 ${String(element.type)} 的保存版本无法导出 HTML，请安装匹配版本或导出无损 Markdown`
+            );
+          if (
+            !desktopContentPlugins.htmlSerializer(String(element.type)) &&
+            catalog.current(String(element.type))?.id !== element.tauContract
+          )
+            throw new Error(`节点 ${String(element.type)} 的旧版本没有 HTML 导出器`);
+        }
+        inspect(node.children as Descendant[]);
+      }
+    };
+    inspect(value);
     const results = await Promise.all(
       value.map(element => this.serializeElementAsync(element as CustomElement, null, options))
     );

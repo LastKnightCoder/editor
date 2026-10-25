@@ -12,6 +12,7 @@ export interface BoardElement {
   resizable?: boolean;
   autoHeight?: boolean;
   entityRef?: EntityRef;
+  entity?: import("@tau/db-schema/content-identities").ContentEntityReference;
   sketch?: ElementSketch;
   schemaVersion?: number;
   [key: string]: any;

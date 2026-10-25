@@ -15,6 +15,8 @@ it("块组件 API 由编辑器宿主注入，作者入口不加载 Slate 或 DOM
   expect(() => useElement(element as never)).toThrow("块组件需要 Tau 编辑器宿主");
 
   const access = {
+    view: {},
+    updateView: vi.fn(),
     readOnly: false,
     selected: true,
     update: vi.fn(),

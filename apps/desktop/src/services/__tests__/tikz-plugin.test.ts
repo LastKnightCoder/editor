@@ -1,14 +1,12 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { createMarkdownProcessor } from "@tau/markdown";
-import { evaluatePluginPackage } from "@tau/plugins/rendering";
-import { sharedPluginModules } from "@tau/plugins/shared-modules";
-import { pluginArtifact } from "../../test-fixtures/plugin-packages";
+import { evaluatePluginFixture, pluginArtifact } from "../../test-fixtures/plugin-packages";
 
 describe("TikZ 真实发布包的纯转换", () => {
   it("无 DOM 求值同一入口，Markdown 往返和 HTML 源码导出不执行编译器", () => {
     expect(typeof document).toBe("undefined");
-    const definition = evaluatePluginPackage(pluginArtifact("tau.tikz"), sharedPluginModules);
+    const definition = evaluatePluginFixture(pluginArtifact("tau.tikz"));
     expect(definition.id).toBe("tau.tikz");
     const extension = definition.editorExtensions![0];
     expect(extension.elements![0]).toMatchObject({ type: "tikz", drag: true, isVoid: true });

@@ -1,3 +1,5 @@
+import type { DataMigration, PreviousDataVersion } from "@tau/db-schema/data-versions";
+import type { ContentResourceSpec } from "@tau/db-schema/content-resources";
 import type { ComponentType, ReactNode } from "react";
 import type { ServiceIdentifier } from "@tau/shared/service-contract";
 import type { BoardElement, ElementBounds } from "../types/element";
@@ -105,6 +107,11 @@ export interface ElementContainmentSpec {
 }
 
 export interface WhiteboardElementDefinition<TData = unknown> {
+  dataVersion?: number;
+  collaboration?: { textFields?: readonly string[] };
+  resources?: readonly ContentResourceSpec[];
+  previousVersions?: readonly PreviousDataVersion<WhiteboardElementDefinition<TData>>[];
+  migrations?: readonly DataMigration<any>[];
   type: string;
   presentation?: {
     label: string;
@@ -162,11 +169,13 @@ export interface CreatePreviewOptions {
 
 /** 手势产出：单个元素，或元素 + 与插入同属一个撤销步的附加操作 */
 export type CreateResult =
-  BoardElement | { element: BoardElement; operations?: readonly Operation[] };
+  | BoardElement
+  | { element: BoardElement; operations?: readonly Operation[] };
 
 /** build 的产出：与 CreateResult 同构（元素或元素 + 附加操作），可异步 */
 export type CreateBuildResult<TData = unknown> =
-  ElementParam<TData> | { element: ElementParam<TData>; operations?: readonly Operation[] };
+  | ElementParam<TData>
+  | { element: ElementParam<TData>; operations?: readonly Operation[] };
 
 /**
  * 一次创建手势会话：begin 之后由内核驱动 move/end/cancel。
@@ -232,7 +241,8 @@ export interface ElementCreateSpec<TData = unknown> {
    * 缺省时按手势兜底：click = 「点击放置 + label」，其它 = 「拖拽绘制 + label」。
    */
   hint?:
-    readonly string[] | ((options: Readonly<Record<string, unknown>> | null) => readonly string[]);
+    | readonly string[]
+    | ((options: Readonly<Record<string, unknown>> | null) => readonly string[]);
 }
 
 /** 元素定义的声明辅助（恒等函数）：传入 schema 时 TData 由其输出类型推断 */

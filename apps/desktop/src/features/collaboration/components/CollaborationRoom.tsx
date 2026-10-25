@@ -25,13 +25,13 @@ import {
   WifiOff,
   type LucideIcon,
 } from "lucide-react";
-import { IconButton, Loading, Menu, Popover, Tooltip, cn, toast } from "@tau/ui";
+import { Button, IconButton, Loading, Menu, Popover, Tooltip, cn, toast } from "@tau/ui";
 import type { CollaborationSession, JoinRequest } from "@tau/collaboration";
-import type { EditorCollaborationBinding } from "@tau/editor-collab";
+import type { ContentCollaborationBinding } from "@tau/editor-collab";
 import { FadeScroll } from "@tau/ui";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
 import { Editor } from "@tau/editor";
-import { createYjsDocument } from "@tau/editor-collab";
+import { useBoundContentDocument } from "@/hooks/useContentDocument";
 import { useCollaborationKit } from "@/hooks/useCollaborationKit";
 import useCollaborationPresence from "@/hooks/useCollaborationPresence";
 import { CollaborativeTitleField } from "@/components/CollaborativeTitle";
@@ -53,23 +53,32 @@ import { useInvitation } from "@/components/CollaborationUI/useInvitation";
 import { formatAgo } from "@/utils/formatAgo";
 import { openableSource, sourceInfo } from "../model";
 import { canOpenSource, openSource } from "../openSource";
+import { ContentUpgrade } from "@/components/ContentEditor/ContentUpgrade";
+import { collaborationCommands } from "@/commands/contracts/collaboration";
 
 /** 协作页的正文编辑器：成员加入的房间在本机没有内容行，走 documentId 直接绑定 */
 function RoomEditor({
   binding,
   readonly,
 }: {
-  binding: EditorCollaborationBinding;
+  binding: ContentCollaborationBinding;
   readonly: boolean;
 }) {
   const presence = useCollaborationPresence(binding, readonly);
   const kit = useCollaborationKit(binding);
-  const document = useMemo(() => createYjsDocument(binding), [binding]);
+  const bound = useBoundContentDocument(binding, { frozen: readonly });
+  if (bound.error)
+    return (
+      <div role="alert" className="text-danger">
+        {bound.error}
+      </div>
+    );
+  if (!bound.document) return <Loading />;
   return (
     <Editor
       kit={kit}
-      document={document}
-      readonly={readonly}
+      document={bound.document}
+      readonly={bound.frozen}
       onFocus={presence.onFocus}
       onBlur={presence.onBlur}
     />
@@ -93,11 +102,13 @@ export function CollaborationRoom({
   deviceId?: string;
   onLeft: () => void;
 }) {
-  const { binding, article, error, frozen } = useCollaborationDocument(session.id);
+  const { binding, article, error, frozen, pendingUpgrade } = useCollaborationDocument(session.id);
   const [leaving, setLeaving] = useState(false);
+  const [adopting, setAdopting] = useState(false);
 
   const ownerActive = session.role === "owner" && session.status === "active";
-  const readonly = session.status !== "active" || frozen;
+  const readonly =
+    session.status !== "active" || frozen || binding?.doc.getMap("meta").get("version") === 1;
   const pending = pendingRequests(requests, session.id);
   const info = sourceInfo(session);
   const SourceIcon = (info.source && SOURCE_ICONS[info.source.sourceType ?? ""]) || Users;
@@ -137,7 +148,7 @@ export function CollaborationRoom({
   return (
     <section className="flex min-h-0 flex-1 flex-col">
       {/* 右侧 26px：末尾图标按钮自带内边距，图形右缘与页头按钮对齐 */}
-      <header className="flex h-[44px] flex-none items-center gap-2 pl-8 pr-[26px]">
+      <header className="flex h-[44px] flex-none items-center gap-2 pr-[26px] pl-8">
         <span className="text-ink-3 text-tau-sm flex min-w-0 items-center gap-1.5">
           <SourceIcon className="size-3.5 flex-none" strokeWidth={1.75} />
           <span className="truncate">
@@ -156,12 +167,12 @@ export function CollaborationRoom({
               <button
                 type="button"
                 aria-label={ownerActive ? "成员与邀请" : "成员"}
-                className="rounded-tau-sm text-ink-2 hover:bg-hover hover:text-ink-1 text-tau-meta flex h-[30px] cursor-pointer items-center gap-2 pl-1.5 pr-2.5"
+                className="rounded-tau-sm text-ink-2 hover:bg-hover hover:text-ink-1 text-tau-meta flex h-[30px] cursor-pointer items-center gap-2 pr-2.5 pl-1.5"
               >
                 <AvatarStack members={session.members} max={4} className="ring-surface" />
                 <span>{othersSummary(session, deviceId)}</span>
                 {pending.length > 0 && (
-                  <span className="bg-accent text-ink-inverse min-w-[18px] rounded-full px-1.5 text-center text-[11px] font-[600] tabular-nums leading-[18px]">
+                  <span className="bg-accent text-ink-inverse min-w-[18px] rounded-full px-1.5 text-center text-[11px] leading-[18px] font-[600] tabular-nums">
                     {pending.length}
                   </span>
                 )}
@@ -185,7 +196,7 @@ export function CollaborationRoom({
               className="border-line-1 text-ink-2 hover:border-ink-3 hover:text-ink-1 rounded-tau-sm flex h-7 cursor-pointer items-center gap-1.5 border px-2.5"
             >
               <KeyRound className="size-[13px]" strokeWidth={1.75} />
-              <span className="font-tau-mono text-[12.5px] tabular-nums tracking-[0.06em]">
+              <span className="font-tau-mono text-[12.5px] tracking-[0.06em] tabular-nums">
                 {formatInvitationCode(invitation.data.code)}
               </span>
             </button>
@@ -281,7 +292,7 @@ export function CollaborationRoom({
       )}
 
       {/* FadeScroll 右侧 6px 透明边 + pr-[34px] = 左侧 pl-10，正文居中不偏 */}
-      <FadeScroll className="mb-4 min-h-0 flex-1 pb-[104px] pl-10 pr-[34px] pt-7">
+      <FadeScroll className="mb-4 min-h-0 flex-1 pt-7 pr-[34px] pb-[104px] pl-10">
         {binding && article ? (
           <div className="mx-auto w-full max-w-[720px]">
             <CollaborativeTitleField
@@ -292,9 +303,42 @@ export function CollaborationRoom({
               error={error}
               contentEditable={!readonly}
               placeholder="未命名内容"
-              className="text-ink-1 text-[26px] font-[600] leading-[1.35] tracking-[-0.01em]"
+              className="text-ink-1 text-[26px] leading-[1.35] font-[600] tracking-[-0.01em]"
             />
             <div className="mt-6">
+              {session.remoteVersionAvailable &&
+              binding?.doc.getMap("meta").get("version") !== 1 ? (
+                <div className="bg-page text-ink-2 rounded-tau-md text-tau-sm mb-3 p-3">
+                  <p>
+                    共享文档已升级。切换前会保留本机旧正文、私有内容和未确认输入，可在“本机恢复副本”中导出。
+                  </p>
+                  <Button
+                    disabled={adopting}
+                    onClick={() => {
+                      setAdopting(true);
+                      void collaborationCommands.adoptRemoteVersion
+                        .call(session.id)
+                        .catch(failure =>
+                          toast.error(
+                            failure instanceof Error ? failure.message : "切换未完成，原副本已保留"
+                          )
+                        )
+                        .finally(() => setAdopting(false));
+                    }}
+                  >
+                    切换到新共享版本
+                  </Button>
+                </div>
+              ) : (
+                (ownerActive || (session.status === "closed" && !!session.source)) && (
+                  <ContentUpgrade
+                    binding={binding}
+                    pending={pendingUpgrade}
+                    documentId={session.id}
+                    shared={session.status === "active"}
+                  />
+                )
+              )}
               <RoomEditor binding={binding} readonly={readonly} />
             </div>
           </div>

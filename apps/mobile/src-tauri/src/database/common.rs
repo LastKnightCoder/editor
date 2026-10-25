@@ -122,12 +122,14 @@ pub(crate) fn write_operation(
 
 /// 新建一条富文本内容（ref_count = 1），返回 content_id
 pub(crate) fn insert_content_record(
-    tx: &Connection,
+    tx: &rusqlite::Transaction<'_>,
     content: &Value,
+    contracts: Option<&Value>,
     count: i64,
     now: i64,
 ) -> Result<i64, String> {
-    let serialized = serde_json::to_string(content)
+    let (content, contracts) = super::content_contracts::prepare_new(content, contracts)?;
+    let serialized = serde_json::to_string(&content)
         .map_err(|e| db_err("CONTENT_INVALID", "serialize content", e))?;
     tx.execute(
         "
@@ -143,44 +145,51 @@ pub(crate) fn insert_content_record(
     )
     .map_err(|e| db_err("CONTENT_CREATE_FAILED", "insert content", e))?;
     let content_id = tx.last_insert_rowid();
+    super::content_contracts::write(
+        tx,
+        content_id,
+        &content,
+        Some(&contracts),
+        None,
+        None,
+        None,
+        now,
+    )?;
     write_operation(tx, "content", "insert", content_id, now)?;
     Ok(content_id)
 }
 
-/// 引用计数减一，归零级联删除
-pub(crate) fn decrement_or_delete_content(tx: &Connection, content_id: i64) -> Result<(), String> {
+/// 引用归零进入已有延迟回收队列，正文与契约保留到持有检查通过之后。
+pub(crate) fn release_content_reference(tx: &Connection, content_id: i64) -> Result<(), String> {
     use rusqlite::OptionalExtension;
     if content_id <= 0 {
         return Ok(());
     }
-    let now = now_millis();
-    tx.execute(
-        "UPDATE contents SET ref_count = ref_count - 1, update_time = ?2 WHERE id = ?1",
-        params![content_id, now],
-    )
-    .map_err(|e| db_err("CONTENT_DELETE_FAILED", "decrease ref_count", e))?;
-    let ref_count = tx
+    let before: Option<i64> = tx
         .query_row(
-            "SELECT ref_count FROM contents WHERE id = ?1 LIMIT 1",
-            params![content_id],
-            |row| row.get::<_, i64>(0),
+            "SELECT ref_count FROM contents WHERE id=?1",
+            [content_id],
+            |row| row.get(0),
         )
         .optional()
-        .map_err(|e| db_err("CONTENT_DELETE_FAILED", "query ref_count", e))?;
-    if matches!(ref_count, Some(v) if v <= 0) {
-        super::assistant_tasks::reconcile_document_links(tx, content_id, None)?;
-        // 协作内容禁止级联删除（与桌面端数据库层守卫一致）
-        super::collaboration::assert_content_local(tx, content_id)?;
-        // 正文删除时释放两侧的显式连接（与桌面 ContentTable.releaseContent 对齐），
-        // 避免 rowid 复用后悬空边变成幽灵连接
-        tx.execute(
-            "DELETE FROM content_links WHERE content_id = ?1 OR target_content_id = ?1",
-            params![content_id],
-        )
-        .map_err(|e| db_err("CONTENT_DELETE_FAILED", "release content links", e))?;
-        tx.execute("DELETE FROM contents WHERE id = ?1", params![content_id])
-            .map_err(|e| db_err("CONTENT_DELETE_FAILED", "delete content", e))?;
-        write_operation(tx, "content", "delete", content_id, now)?;
+        .map_err(|e| db_err("CONTENT_RELEASE_FAILED", "read reference count", e))?;
+    let Some(before) = before else {
+        return Ok(());
+    };
+    if before <= 0 {
+        return Err("CONTENT_RELEASE_FAILED: 正文引用计数已归零".into());
     }
+    let now = now_millis();
+    tx.execute(
+        "UPDATE contents SET ref_count=ref_count-1,update_time=?2 WHERE id=?1",
+        params![content_id, now],
+    )
+    .map_err(|e| db_err("CONTENT_RELEASE_FAILED", "decrease reference count", e))?;
+    if before == 1 {
+        super::collaboration::assert_content_local(tx, content_id)?;
+        super::assistant_tasks::reconcile_document_links(tx, content_id, None)?;
+        tx.execute("INSERT INTO content_pending_releases(content_id,released_at) VALUES (?1,?2) ON CONFLICT(content_id) DO UPDATE SET released_at=excluded.released_at", params![content_id,now]).map_err(|e| db_err("CONTENT_RELEASE_FAILED", "queue delayed release", e))?;
+    }
+    write_operation(tx, "content", "update", content_id, now)?;
     Ok(())
 }

@@ -5,9 +5,10 @@ import { sourceEditorRuntime, elementRuntime } from "@tau/editor/source";
 import { configureSourceEditor } from "@tau/plugins/source-editor-host";
 import { useSheetBackDismiss } from "@/router/useSheetBackDismiss";
 
-function MobileSourceEditor({ initValue, onChange, children, title }: SourceBlockEditorProps) {
+function MobileSourceEditor({ element, field, children, title }: SourceBlockEditorProps) {
+  const source = sourceEditorRuntime.useTextField(element, field);
   const [editing, setEditing] = useState(false);
-  const readOnly = useReadOnly();
+  const readOnly = useReadOnly() || source.readOnly;
   useSheetBackDismiss(editing, () => setEditing(false));
   return (
     <div contentEditable={false} data-spike-source-mode="mobile">
@@ -39,8 +40,9 @@ function MobileSourceEditor({ initValue, onChange, children, title }: SourceBloc
             aria-label={`${title}源码`}
             data-spike-source-input
             className="bg-surface min-h-48 flex-1 p-3 font-mono"
-            value={initValue}
-            onChange={event => onChange(event.target.value)}
+            ref={source.inputRef}
+            defaultValue={source.value}
+            readOnly={source.readOnly}
           />
         </section>
       )}

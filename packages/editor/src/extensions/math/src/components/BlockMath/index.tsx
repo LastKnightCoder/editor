@@ -1,3 +1,5 @@
+import { useTextFieldBinding } from "@tau/editor/api";
+import { IEditorTextFields } from "@tau/editor/api";
 import React, { PropsWithChildren } from "react";
 import { RenderElementProps } from "slate-react";
 import { Transforms } from "slate";
@@ -17,6 +19,8 @@ const BlockMath: React.FC<PropsWithChildren<BlockMathProps>> = props => {
   const { attributes, element, children } = props;
   const { tex } = element;
   const editor = useSlateStatic();
+  const bound = Boolean(editor.tryGetService(IEditorTextFields));
+  const source = useTextFieldBinding(bound ? element : undefined, "tex");
 
   const handleInputChange = (code: string) => {
     const path = ReactEditor.findPath(editor, element);
@@ -38,17 +42,19 @@ const BlockMath: React.FC<PropsWithChildren<BlockMathProps>> = props => {
         mode={"stex"}
         title="公式"
         icon={Sigma}
-        initValue={tex}
-        onChange={handleInputChange}
+        initValue={bound ? source.value : tex}
+        textBinding={source.binding ?? undefined}
+        onChange={bound ? undefined : handleInputChange}
         element={element}
         inPlace
         delimiters="$$"
         immediate
       >
         <PreviewErrorReporter>
-          {onError => <Katex tex={tex} onError={onError} />}
+          {onError => <Katex tex={bound ? source.value : tex} onError={onError} />}
         </PreviewErrorReporter>
       </PreviewWithEditor>
+      {source.error && <div role="alert">{source.error}</div>}
       {children}
     </div>
   );

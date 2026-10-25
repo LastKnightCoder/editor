@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::AppHandle;
 
+use super::common::insert_content_record;
 use super::schema;
 use super::todo_calendar_sync;
 
@@ -92,6 +93,7 @@ pub struct TodoGroupStats {
 #[serde(rename_all = "camelCase")]
 pub struct CreateContentPayload {
     pub content: Value,
+    pub contracts: Option<Value>,
     pub count: Option<i64>,
 }
 
@@ -148,7 +150,8 @@ pub struct CreateTodoItemPayload {
     pub title: String,
     #[serde(rename = "type")]
     pub item_type: Option<String>,
-    pub description: Option<String>,
+    pub description_content: Option<Value>,
+    pub contracts: Option<Value>,
     pub description_count: i64,
     pub start_at: Option<i64>,
     pub due_at: Option<i64>,
@@ -163,7 +166,8 @@ pub struct CreateTodoItemRelativePayload {
     pub title: String,
     #[serde(rename = "type")]
     pub item_type: Option<String>,
-    pub description: Option<String>,
+    pub description_content: Option<Value>,
+    pub contracts: Option<Value>,
     pub description_count: i64,
     pub start_at: Option<i64>,
     pub due_at: Option<i64>,
@@ -386,68 +390,6 @@ fn normalize_item_type(value: Option<String>) -> String {
     }
 }
 
-fn insert_content_record(tx: &Transaction<'_>, content: &Value, count: i64) -> Result<i64, String> {
-    let serialized = serde_json::to_string(content)
-        .map_err(|e| format_db_error("CONTENT_INVALID", "serialize content", e))?;
-    let now = now_millis();
-    tx.execute(
-        "
-        INSERT INTO contents (id, create_time, update_time, content, count, ref_count)
-        VALUES (?4, ?1, ?1, ?2, ?3, 1)
-        ",
-        params![
-            now,
-            serialized,
-            count.max(0),
-            super::assistant_tasks::next_id(tx, "contents")?
-        ],
-    )
-    .map_err(|e| format_db_error("CONTENT_CREATE_FAILED", "insert content", e))?;
-    let content_id = tx.last_insert_rowid();
-    tx.execute(
-        "
-        INSERT INTO operation (operation_time, operation_id, operation_content_type, operation_action)
-        VALUES (?1, ?2, 'content', 'insert')
-        ",
-        params![now, content_id],
-    )
-    .map_err(|e| format_db_error("CONTENT_CREATE_FAILED", "insert operation", e))?;
-    Ok(content_id)
-}
-
-fn decrement_or_delete_content(tx: &Transaction<'_>, content_id: i64) -> Result<(), String> {
-    if content_id <= 0 {
-        return Ok(());
-    }
-    tx.execute(
-        "UPDATE contents SET ref_count = ref_count - 1 WHERE id = ?1",
-        params![content_id],
-    )
-    .map_err(|e| format_db_error("CONTENT_DELETE_FAILED", "decrease ref_count", e))?;
-    let ref_count = tx
-        .query_row(
-            "SELECT ref_count FROM contents WHERE id = ?1 LIMIT 1",
-            params![content_id],
-            |row| row.get::<_, i64>(0),
-        )
-        .optional()
-        .map_err(|e| format_db_error("CONTENT_DELETE_FAILED", "query ref_count", e))?;
-    if matches!(ref_count, Some(v) if v <= 0) {
-        super::assistant_tasks::reconcile_document_links(tx, content_id, None)?;
-        // 协作内容禁止级联删除（与桌面端数据库层守卫一致）
-        super::collaboration::assert_content_local(tx, content_id)?;
-        // 释放两侧显式连接（与桌面 ContentTable.releaseContent 对齐），防悬空边
-        tx.execute(
-            "DELETE FROM content_links WHERE content_id = ?1 OR target_content_id = ?1",
-            params![content_id],
-        )
-        .map_err(|e| format_db_error("CONTENT_DELETE_FAILED", "release content links", e))?;
-        tx.execute("DELETE FROM contents WHERE id = ?1", params![content_id])
-            .map_err(|e| format_db_error("CONTENT_DELETE_FAILED", "delete content", e))?;
-    }
-    Ok(())
-}
-
 fn cleanup_todo_dependencies_in_tx(tx: &Transaction<'_>, todo_item_id: i64) -> Result<(), String> {
     super::assistant_tasks::release_todo_schedules(tx, todo_item_id)?;
     todo_items::delete_recurrence_by_item_in_tx(tx, todo_item_id)?;
@@ -484,7 +426,7 @@ fn delete_note_links_by_todo_in_tx(tx: &Transaction<'_>, todo_item_id: i64) -> R
     )
     .map_err(|e| format_db_error("TODO_DELETE_FAILED", "delete note links", e))?;
     for content_id in content_ids {
-        decrement_or_delete_content(tx, content_id)?;
+        super::common::release_content_reference(tx, content_id)?;
     }
     Ok(())
 }
@@ -512,7 +454,13 @@ pub fn create_content(app: AppHandle, payload: CreateContentPayload) -> Result<i
         Value::Array(vec![])
     };
     let count = payload.count.unwrap_or(0).max(0);
-    let content_id = insert_content_record(&tx, &content, count)?;
+    let content_id = insert_content_record(
+        &tx,
+        &content,
+        payload.contracts.as_ref(),
+        count,
+        now_millis(),
+    )?;
     tx.commit()
         .map_err(|e| format_db_error("CONTENT_CREATE_FAILED", "commit transaction", e))?;
     Ok(content_id)
@@ -524,7 +472,7 @@ mod tests {
     use rusqlite::Connection;
 
     #[test]
-    fn delete_note_links_removes_links_and_unreferenced_content() {
+    fn delete_note_links_releases_links_and_queues_unreferenced_content() {
         let mut conn = Connection::open_in_memory().unwrap();
         conn.execute_batch(include_str!(
             "../../../../../packages/db-schema/schema/main.sql"
@@ -553,7 +501,7 @@ mod tests {
             .unwrap();
         assert_eq!(links, 0);
         let only_ref_gone: i64 = conn
-            .query_row("SELECT COUNT(*) FROM contents WHERE id = 1", [], |r| {
+            .query_row("SELECT ref_count FROM contents WHERE id = 1", [], |r| {
                 r.get(0)
             })
             .unwrap();

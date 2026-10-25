@@ -191,6 +191,7 @@ describe("ReadingSelectionBar", () => {
 
     expect(tauriMock.createQuickCard).toHaveBeenCalledWith({
       content: EXCERPT,
+      contracts: undefined,
       count: getContentLength(EXCERPT),
     });
     expect(onClear).toHaveBeenCalled();

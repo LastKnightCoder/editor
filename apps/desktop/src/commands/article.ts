@@ -1,3 +1,4 @@
+import { bindDatabaseCommands, currentCommandScope } from "@/services/command-context";
 import { articleCommands } from "@/commands/contracts/article";
 import { closeEditorWindow, openEditorWindow } from "@/commands/window";
 import type { ArticleContentResult } from "@/commands/contracts/article";
@@ -13,7 +14,13 @@ import {
 export type { ArticleContentResult };
 
 export async function createArticle(article: ICreateArticle): Promise<IArticle> {
-  return articleCommands.create.call(article);
+  const command = bindDatabaseCommands(articleCommands.create, currentCommandScope());
+  return command.call({
+    ...article,
+    ...(await (
+      await import("@/services/editorKit")
+    ).prepareNewContent(article.content, article.contracts)),
+  });
 }
 
 export async function createArticleFromProjectItem(

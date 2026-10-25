@@ -6,12 +6,16 @@
   "exports": {
     ".": "./src/index.ts",
     "./content-resources": "./content-resources.ts",
+    "./content-contracts": "./content-contracts.ts",
+    "./content-contracts-node": "./content-contracts-node.ts",
+    "./content-identities": "./content-identities.ts",
     "./sync": "./sync.ts",
     "./sync-protocol": "./sync-protocol.ts",
     "./package.json": "./package.json",
     "./schema/*": "./schema/*",
     "./src/*": "./src/*.ts",
-    "./content-metrics": "./content-metrics.ts"
+    "./content-metrics": "./content-metrics.ts",
+    "./data-versions": "./data-versions.ts"
   },
   "dependencies": {
     "proper-lockfile": "^4.1.2",

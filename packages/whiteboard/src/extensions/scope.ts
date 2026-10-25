@@ -1,3 +1,4 @@
+import { bindWhiteboardAuthorAPI } from "./authorApi";
 import type { ServiceRegistry } from "@tau/shared/service-registry";
 import type { WhiteboardAPI } from "./api";
 import { resolveBoardAccess } from "./access";
@@ -16,14 +17,20 @@ export interface ExtensionServiceScope {
 export function createExtensionScope(
   base: WhiteboardAPI,
   owner: string,
-  services: ExtensionServiceScope
+  services: ExtensionServiceScope,
+  restricted = false
 ) {
   type Listener = (...args: any[]) => unknown;
   const cleanups = new Set<() => void>();
-  // 扩展可发出的事件命名空间：扩展 id 第一段（如 "tau.arrow" → "tau"）
-  const namespace = owner.slice(0, owner.indexOf("."));
+  // 作者使用完整插件身份，宿主扩展保留既有事件命名空间。
+  const namespace = restricted ? owner : owner.split(".")[0];
   const events = new Map<string, Map<Listener, () => void>>();
   let disposed = false;
+  let writesEnabled = false;
+  const authorBridge = () => {
+    const bridge = resolveBoardAccess(base).document?.author;
+    return bridge && { ...bridge, canWrite: () => writesEnabled && bridge.canWrite() };
+  };
   const guarded =
     (listener: Listener): Listener =>
     (...args) => {
@@ -67,6 +74,8 @@ export function createExtensionScope(
   const emit = (event: `${string}.${string}`, ...args: unknown[]): void => {
     if (disposed) return;
     assertEmittableEventName(event, namespace);
+    if (restricted && resolveBoardAccess(base).extensions?.authorOfEvent(event) !== owner)
+      throw new Error("事件不属于此插件");
     // 不经主 API 转发（其 emit 限定 tau 命名空间），校验通过后直接走内核事件总线
     resolveBoardAccess(base).emit(event, ...args);
   };
@@ -106,6 +115,18 @@ export function createExtensionScope(
         value: (...args: Parameters<WhiteboardAPI["updateElement"]>) =>
           !disposed && base.updateElement(...args),
       },
+      setActiveTool: {
+        value: (id: string, options?: Record<string, unknown>) => {
+          if (disposed) return false;
+          if (
+            restricted &&
+            id !== "tau.select" &&
+            resolveBoardAccess(base).extensions?.authorOfTool(id) !== owner
+          )
+            throw new Error("工具不属于此插件");
+          return base.setActiveTool(id, options);
+        },
+      },
       select: {
         value: (...args: Parameters<WhiteboardAPI["select"]>) => {
           if (!disposed) base.select(...args);
@@ -114,12 +135,29 @@ export function createExtensionScope(
       emit: { value: emit },
       execute: {
         value: (...args: Parameters<WhiteboardAPI["execute"]>) =>
-          disposed ? Promise.reject(new Error("扩展已卸载")) : base.execute(...args),
+          disposed
+            ? Promise.reject(new Error("扩展已卸载"))
+            : restricted
+              ? (resolveBoardAccess(base).extensions?.executeFor(owner, ...args) ??
+                Promise.reject(new Error("作用域尚未就绪")))
+              : base.execute(...args),
       },
     })
   );
+  track(bindWhiteboardAuthorAPI(api, owner, authorBridge, () => !disposed));
+  const readonlyAPI: WhiteboardAPI = Object.freeze(
+    Object.create(api, {
+      readonly: { value: true },
+      captureSubmission: { value: () => () => false },
+    })
+  );
+  track(bindWhiteboardAuthorAPI(readonlyAPI, owner, authorBridge, () => !disposed));
   return {
     api,
+    readonlyAPI,
+    enableWrites() {
+      writesEnabled = true;
+    },
     dispose() {
       disposed = true;
       for (const cleanup of [...cleanups]) cleanup();

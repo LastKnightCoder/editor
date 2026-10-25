@@ -1,3 +1,4 @@
+import { resolveWhiteboardEntity } from "@/commands/whiteboard-document";
 /**
  * 文档卡的数据：按 entityRef 读出卡片 / 文章 / 项目文档 / 碎碎念的元信息与正文首屏。
  * 正文后续变化由 useContentDocument(contentId) 订阅，这里只负责身份、标题与封面这类元信息。
@@ -47,9 +48,29 @@ export const DOCUMENT_KIND_LABEL: Record<DocumentKind, string> = {
   "diary-moment": "日记",
 };
 
-type DocumentTarget = Pick<DocumentElement, "entityRef">;
+type DocumentTarget = Pick<DocumentElement, "entityRef" | "entity">;
 
-async function loadDocument({ entityRef: ref }: DocumentTarget): Promise<DocumentSource | null> {
+async function loadDocument(
+  target: DocumentTarget,
+  database: string
+): Promise<DocumentSource | null> {
+  let ref = target.entityRef;
+  if (target.entity) {
+    if (!["card", "article", "project-item", "diary-moment"].includes(target.entity.kind))
+      return null;
+    const id = await resolveWhiteboardEntity(database, target.entity);
+    if (id === null) return null;
+    ref = { kind: target.entity.kind as DocumentKind, id };
+  }
+  if (!ref) return null;
+  const value = await loadLocalDocument(ref);
+  if (target.entity && (await resolveWhiteboardEntity(database, target.entity)) !== ref.id)
+    return null;
+  return value;
+}
+async function loadLocalDocument(
+  ref: NonNullable<DocumentElement["entityRef"]>
+): Promise<DocumentSource | null> {
   const base = { kind: ref.kind, id: ref.id, banner: "", projectName: "" };
   switch (ref.kind) {
     case "card": {
@@ -117,8 +138,14 @@ async function loadDocument({ entityRef: ref }: DocumentTarget): Promise<Documen
 export function useDocumentSource(target: DocumentTarget | null) {
   const database = useSettingStore(state => state.setting.database.active);
   const query = useQuery({
-    queryKey: ["whiteboard-document", database, target?.entityRef.kind, target?.entityRef.id],
-    queryFn: () => loadDocument(target!).catch(() => null),
+    queryKey: [
+      "whiteboard-document",
+      database,
+      target?.entity ?? null,
+      target?.entityRef?.kind,
+      target?.entityRef?.id,
+    ],
+    queryFn: () => loadDocument(target!, database).catch(() => null),
     enabled: target !== null,
     refetchOnWindowFocus: true,
   });

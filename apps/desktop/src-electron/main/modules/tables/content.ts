@@ -1,5 +1,9 @@
+import { asynchronousDatabaseCommand } from "../database-command";
+import { hasDurableEntityHold } from "../durable-entity-holds";
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
+import { randomUUID } from "node:crypto";
+import { ContentIdentityTable } from "./content-identity";
 import { dfs, getContentLength } from "@/utils/helper.ts";
 import { IContent, ICreateContent, IUpdateContent } from "@/types";
 import { Descendant } from "slate";
@@ -17,7 +21,7 @@ import {
   contentSession,
   contentRevision,
   patchSessionNodes,
-  replaceSessionContent,
+  readLocalSessionContent,
 } from "../collaboration/content-sessions";
 import {
   nodeText,
@@ -27,9 +31,11 @@ import {
   type ParagraphPatcher,
   type PatchNode,
 } from "../content-node-patches";
-import { readSharedContent, type ContentNode } from "@tau/collaboration";
+import { type ContentNode } from "@tau/collaboration";
 import { createTaskIdPatcher } from "@tau/editor/extensions/list/task-ids";
 import { getNextTaskEntityId } from "./module-entity-id";
+import { ContentDocumentTable } from "./content-document";
+import { NODE_CONTRACT_PROPERTY } from "@tau/db-schema/content-contracts";
 
 /** 引用归零后延迟回收的宽限期：窗口内撤销重新引用即可救回正文（D-136） */
 export const CONTENT_RELEASE_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -43,12 +49,13 @@ export default class ContentTable {
       (session && session.info.status !== "active")
     )
       return 0;
+    if (session && session.doc.getMap("meta").get("version") !== 2) return 0;
     if (session && session.info.mode !== "local" && session.info.role !== "owner") return 0;
     return this.patchNodes(db, contentId, createTaskIdPatcher(), { silent: !session });
   }
   static getListenEvents() {
     return {
-      "content:update": this.updateContent.bind(this),
+      "content:update": asynchronousDatabaseCommand(this.writeContent.bind(this)),
       "content:create": this.createContent.bind(this),
       "content:create-pending": this.createPendingContent.bind(this),
       "content:get-by-id": this.getContentById.bind(this),
@@ -65,6 +72,9 @@ export default class ContentTable {
       content: JSON.parse(content.content),
       count: content.count,
       refCount: content.ref_count,
+      ...(content.contracts
+        ? { contracts: JSON.parse(content.contracts), revision: content.revision }
+        : {}),
     };
   }
 
@@ -74,19 +84,32 @@ export default class ContentTable {
     if (!content) {
       return null;
     }
-    const parsed = this.parseContent(content);
+    const stored = ContentDocumentTable.read(db, Number(contentId));
+    const parsed = {
+      ...this.parseContent(content),
+      ...(stored ? { revision: stored.revision, contracts: stored.contracts } : {}),
+    };
     const session = contentSession(db, Number(contentId));
-    return session
+    return session?.doc.getMap("meta").get("version") === 2
       ? {
           ...parsed,
-          content: readSharedContent(session.doc, session.privateNodes).content as Descendant[],
+          content: readLocalSessionContent(session).content as Descendant[],
           revision: contentRevision(session),
+          ...(session.doc.getMap("meta").get("version") === 2
+            ? {
+                contracts: session.doc
+                  .getMap("node-tree:contracts")
+                  .toJSON() as import("@tau/db-schema/content-contracts").ContentContractDictionary,
+              }
+            : {}),
         }
       : parsed;
   }
 
   static getAllContents(db: Database.Database): IContent[] {
-    const stmt = db.prepare("SELECT * FROM contents ORDER BY create_time DESC");
+    const stmt = db.prepare(
+      "SELECT c.*,d.contracts,d.revision FROM contents c LEFT JOIN content_documents d ON d.content_id=c.id ORDER BY c.create_time DESC"
+    );
     const contents = stmt.all();
     return contents.map(content => this.parseContent(content));
   }
@@ -95,13 +118,51 @@ export default class ContentTable {
     if (contentIds.length === 0) return [];
 
     const placeholders = contentIds.map(() => "?").join(",");
-    const stmt = db.prepare(`SELECT * FROM contents WHERE id IN (${placeholders})`);
+    const stmt = db.prepare(
+      `SELECT c.*,d.contracts,d.revision FROM contents c LEFT JOIN content_documents d ON d.content_id=c.id WHERE c.id IN (${placeholders})`
+    );
     const contents = stmt.all(contentIds);
     return contents.map(content => this.parseContent(content));
   }
 
   static createContent(db: Database.Database, contentData: Partial<ICreateContent>): number {
     return this.insertContent(db, contentData, 1);
+  }
+
+  /** 正文与契约在同一次读取中取得，调用方只消费转换后的文本。 */
+  static async readText(
+    db: Database.Database,
+    contentId: number,
+    title = "",
+    whole = false,
+    sections = true,
+    signal?: AbortSignal
+  ) {
+    if (signal?.aborted) throw new Error("正文转换已结束");
+    const document = db
+      .prepare(
+        "SELECT c.content, d.contracts, d.format_version FROM contents c LEFT JOIN content_documents d ON d.content_id=c.id WHERE c.id=?"
+      )
+      .get(contentId) as
+      | { content: string; contracts: string | null; format_version: number | null }
+      | undefined;
+    if (!document) return { content: "", sections: sections ? [] : undefined };
+    if (document.format_version !== null && document.format_version !== 2)
+      throw new Error("正文数据格式不兼容");
+    const session = contentSession(db, contentId);
+    const active = session?.doc.getMap("meta").get("version") === 2;
+    const raw = active
+      ? JSON.stringify(readLocalSessionContent(session).content)
+      : document.content;
+    const contracts = active
+      ? (session.doc
+          .getMap("node-tree:contracts")
+          .toJSON() as import("@tau/db-schema/content-contracts").ContentContractDictionary)
+      : document.contracts
+        ? JSON.parse(document.contracts)
+        : undefined;
+    const { prepareContentNodes } = await import("../../services/content-conversion");
+    return prepareContentNodes(raw, title, whole, contracts, sections, signal);
   }
 
   /** 以待回收状态创建正文（ref_count 0 + 登记待回收），首次保存进表时由差集 retain（D-136） */
@@ -119,25 +180,61 @@ export default class ContentTable {
     contentData: Partial<ICreateContent>,
     initialRefCount: number
   ): number {
-    const { content, count } = contentData;
-
-    const stmt = db.prepare(
-      "INSERT INTO contents (id, create_time, update_time, content, count, ref_count) VALUES (?, ?, ?, ?, ?, ?)"
-    );
-    const now = Date.now();
-    const actualCount = content ? getContentLength(content) : (count ?? 0);
-    const res = stmt.run(
-      getNextTaskEntityId(db, "contents"),
-      now,
-      now,
-      JSON.stringify(content || []),
-      actualCount,
-      initialRefCount
-    );
-    const createdContentId = Number(res.lastInsertRowid);
-    Operation.insertOperation(db, "content", "insert", createdContentId, now);
+    const createdContentId = db.transaction(() => {
+      const content = structuredClone(contentData.content ?? []);
+      if (contentData.contracts) {
+        const assign = (nodes: ContentNode[]) => {
+          for (const node of nodes)
+            if (Array.isArray(node.children)) {
+              node.collabId = randomUUID();
+              assign(node.children);
+            }
+        };
+        assign(content as ContentNode[]);
+      }
+      const count = getContentLength(content);
+      const now = Date.now();
+      const id = getNextTaskEntityId(db, "contents");
+      db.prepare(
+        "INSERT INTO contents (id,create_time,update_time,content,count,ref_count) VALUES (?,?,?,?,?,?)"
+      ).run(id, now, now, JSON.stringify(content), count, initialRefCount);
+      if (contentData.contracts) {
+        ContentIdentityTable.establishBaseline(db);
+        ContentDocumentTable.commit(
+          db,
+          id,
+          {
+            documentId: randomUUID(),
+            content: content as ContentNode[],
+            contracts: contentData.contracts,
+          },
+          { installDocument: true, count }
+        );
+      }
+      Operation.insertOperation(db, "content", "insert", id, now);
+      return id;
+    })();
     emitContentWritten(db, createdContentId, "create");
     return createdContentId;
+  }
+
+  static async writeContent(
+    db: Database.Database,
+    contentId: number,
+    value: Partial<IUpdateContent> & { content: Descendant[]; expectedRevision?: string },
+    ctx: CommandContext = fallbackCommandContext
+  ): Promise<IContent | null> {
+    const session = contentSession(db, contentId);
+    if (session?.doc.getMap("meta").get("version") === 2) {
+      if (!session.replaceContent) throw new Error("正文写入服务尚未就绪");
+      await session.replaceContent(
+        value.content as ContentNode[],
+        value.contracts,
+        value.expectedRevision
+      );
+      return this.getContentById(db, contentId);
+    }
+    return this.updateContent(db, contentId, value, ctx);
   }
 
   static updateContent(
@@ -149,10 +246,32 @@ export default class ContentTable {
     const { content, count } = contentData;
     const session = contentSession(db, contentId);
     if (session) {
-      replaceSessionContent(session, content as ContentNode[], contentData.expectedRevision);
-      return this.getContentById(db, contentId);
+      throw new Error("CONTENT_VERSION_CONFLICT: 活跃正文必须通过带修订的文档写入入口修改");
     }
     assertContentIsLocal(db, contentId);
+
+    const stored = ContentDocumentTable.read(db, contentId);
+    if (stored) {
+      db.transaction(() => {
+        ContentDocumentTable.commit(
+          db,
+          contentId,
+          {
+            ...stored,
+            content: content as ContentNode[],
+            contracts: contentData.contracts ?? stored.contracts,
+          },
+          {
+            expectedRevision: contentData.expectedRevision,
+            count: getContentLength(content),
+          }
+        );
+        Operation.insertOperation(db, "content", "update", contentId, Date.now());
+      })();
+      ctx.broadcastOthers("content:updated", { databaseName: basename(db.name), contentId });
+      emitContentWritten(db, contentId, "update");
+      return this.getContentById(db, contentId);
+    }
 
     const stmt = db.prepare(
       "UPDATE contents SET update_time = ?, content = ?, count = ? WHERE id = ?"
@@ -207,9 +326,11 @@ export default class ContentTable {
     } else assertContentIsLocal(db, contentId);
 
     const row = db.prepare("SELECT content FROM contents WHERE id = ?").get(contentId) as
-      { content: string } | undefined;
+      | { content: string }
+      | undefined;
     if (!row) return 0;
     const content = JSON.parse(row.content) as Descendant[];
+    const stored = ContentDocumentTable.read(db, contentId);
     let patched = 0;
     let textChanged = false;
     const walk = (node: PatchNode, parent: Record<string, unknown>, index: number) => {
@@ -230,6 +351,20 @@ export default class ContentTable {
         },
       });
       if (patch) {
+        if (stored) {
+          const data = node as unknown as ContentNode;
+          const contractId = data[NODE_CONTRACT_PROPERTY];
+          const contract =
+            typeof contractId === "string" ? stored.contracts[contractId] : undefined;
+          if (!contract) throw new Error("正文节点契约缺失");
+          if (
+            ["children", "collabId", "text", NODE_CONTRACT_PROPERTY, ...contract.textFields].some(
+              key => Object.hasOwn(patch, key)
+            ) ||
+            (Object.hasOwn(patch, "type") && patch.type !== data.type)
+          )
+            throw new Error("节点身份、结构或文本字段不能通过属性补丁改写");
+        }
         Object.assign(node, patch);
         patched++;
       }
@@ -244,6 +379,29 @@ export default class ContentTable {
     };
     content.forEach((node, index) => walk(node as PatchNode, {}, index));
     if (patched === 0) return 0;
+
+    if (stored) {
+      db.transaction(() => {
+        const previous = db
+          .prepare("SELECT update_time FROM contents WHERE id=?")
+          .get(contentId) as { update_time: number };
+        ContentDocumentTable.commit(
+          db,
+          contentId,
+          { ...stored, content: content as ContentNode[] },
+          { expectedRevision: stored.revision, count: getContentLength(content) }
+        );
+        if (options.silent || (options.canonical && !textChanged))
+          db.prepare("UPDATE contents SET update_time=? WHERE id=?").run(
+            previous.update_time,
+            contentId
+          );
+        else Operation.insertOperation(db, "content", "update", contentId, Date.now());
+      })();
+      ctx.broadcastAll("content:updated", { databaseName: basename(db.name), contentId });
+      if (!options.silent) emitContentWritten(db, contentId, "update");
+      return patched;
+    }
 
     if (options.silent || (options.canonical && !textChanged)) {
       db.prepare("UPDATE contents SET content = ? WHERE id = ?").run(
@@ -298,8 +456,16 @@ export default class ContentTable {
     Operation.insertOperation(db, "content", "delete", contentId, Date.now());
     // 删除嵌入的白板内容
     const content = this.getContentById(db, contentId);
+    const stored = ContentDocumentTable.read(db, contentId);
+    if (stored)
+      ContentDocumentTable.commit(
+        db,
+        contentId,
+        { ...stored, content: [] },
+        { expectedRevision: stored.revision, count: 0 }
+      );
     const whiteBoardContentId: number[] = [];
-    dfs(content?.content || [], node => {
+    dfs(stored ? [] : content?.content || [], node => {
       if (node.type === "whiteboard" && node.whiteBoardContentId) {
         whiteBoardContentId.push(node.whiteBoardContentId);
       }
@@ -341,7 +507,8 @@ export default class ContentTable {
       contentId
     );
     const row = db.prepare("SELECT ref_count FROM contents WHERE id = ?").get(contentId) as
-      { ref_count: number } | undefined;
+      | { ref_count: number }
+      | undefined;
     if (!row || row.ref_count > 0) return;
     db.prepare(
       "INSERT OR IGNORE INTO content_pending_releases (content_id, released_at) VALUES (?, ?)"
@@ -358,11 +525,13 @@ export default class ContentTable {
       .all(options.now - options.graceMs) as Array<{ content_id: number }>;
     let purged = 0;
     for (const { content_id: contentId } of dueRows) {
+      if (hasDurableEntityHold(db, "content", contentId)) continue;
       try {
         // better-sqlite3 事务可嵌套（自动降级为 savepoint），外层已有事务时也能安全调用
         purged += db.transaction(() => {
           const row = db.prepare("SELECT ref_count FROM contents WHERE id = ?").get(contentId) as
-            { ref_count: number } | undefined;
+            | { ref_count: number }
+            | undefined;
           if (!row || row.ref_count > 0) {
             db.prepare("DELETE FROM content_pending_releases WHERE content_id = ?").run(contentId);
             return 0;

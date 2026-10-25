@@ -310,7 +310,7 @@ pub(crate) fn reconcile_document_links(
                 };
             if starts > super::common::now_millis() {
                 if detail > 0 {
-                    super::common::decrement_or_delete_content(conn, detail)?;
+                    super::common::release_content_reference(conn, detail)?;
                 }
                 conn.execute("DELETE FROM calendar_event WHERE id=?1", [id])
                     .map_err(|e| e.to_string())?;
@@ -341,7 +341,7 @@ pub(crate) fn release_todo_schedules(conn: &Connection, todo_id: i64) -> Result<
         .map_err(|e| e.to_string())?;
         if start > super::common::now_millis() {
             if detail > 0 {
-                super::common::decrement_or_delete_content(conn, detail)?;
+                super::common::release_content_reference(conn, detail)?;
             }
             conn.execute("DELETE FROM calendar_event WHERE id=?1", [id])
                 .map_err(|e| e.to_string())?;

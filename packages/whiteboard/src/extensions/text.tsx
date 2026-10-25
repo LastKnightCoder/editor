@@ -2,6 +2,7 @@ import { createContext, useContext, type ComponentType, type ComponentPropsWithR
 import { Editor, createEditorKit, type EditorKit } from "@tau/editor";
 import { textFormattingExtension } from "@tau/editor/extensions/text-formatting";
 import link from "@tau/editor/extensions/link";
+import { BoardContext } from "../context";
 import { createServiceId } from "@tau/shared/service-contract";
 import type { Descendant } from "slate";
 
@@ -48,23 +49,25 @@ export interface TextExtensionOptions {
   importMarkdown?(text: string): Descendant[];
 }
 
-const basicKit = createEditorKit({ extensions: [textFormattingExtension, link] });
+let basicKit: EditorKit | undefined;
+const getBasicKit = () =>
+  (basicKit ??= createEditorKit({ extensions: [textFormattingExtension, link] }));
 
 /** 无宿主时的兜底编辑器：与 @tau/editor 的 Editor + basicKit 等价 */
 function EmbeddedTextEditor({ contentId: _contentId, ...props }: WhiteboardTextEditorProps) {
-  return <Editor {...props} kit={basicKit} />;
+  return <Editor {...props} kit={getBasicKit()} />;
 }
 
 /** 无宿主时的嵌入式富文本服务：basicKit + 兜底编辑器，无正文持久化 */
 export function createEmbeddedRichTextService(): WhiteboardRichTextService {
   return {
     Editor: EmbeddedTextEditor,
-    kit: () => basicKit,
+    kit: getBasicKit,
   };
 }
 
 export const embeddedTextOptions: TextExtensionOptions = {
-  kit: () => basicKit,
+  kit: getBasicKit,
   Editor: EmbeddedTextEditor,
 };
 export const TextExtensionContext = createContext<TextExtensionOptions>(embeddedTextOptions);
@@ -92,6 +95,26 @@ export function textOptionsFromService(
 
 export function TextEditor({ contentId, editingContext, ...props }: WhiteboardTextEditorProps) {
   const options = useTextExtension();
+  const board = useContext(BoardContext);
+  const document = props.document;
+  if (document)
+    return (
+      <Editor
+        {...props}
+        kit={options.kit()}
+        document={document}
+        onChange={undefined}
+        readonly={props.readonly || board?.readonly || !document}
+        onFocus={() => {
+          board?.document?.splitHistory();
+          props.onFocus?.();
+        }}
+        onBlur={() => {
+          board?.document?.splitHistory();
+          props.onBlur?.();
+        }}
+      />
+    );
   const Component = options.Editor;
   return Component ? (
     <Component contentId={contentId} editingContext={editingContext} {...props} />

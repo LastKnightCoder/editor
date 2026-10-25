@@ -1,3 +1,6 @@
+import { IEditorTextFields } from "../../source-contracts";
+import { createLocalTextFields } from "./kit/localTextFields";
+import { bindElementDefinitions } from "./api/elementVersions";
 import {
   useCallback,
   useState,
@@ -312,9 +315,19 @@ const Index = memo(
       withNormalizedCopy(slateEditor, assembly.copyPolicies, breaker);
       bindElementResources(slateEditor, assembly.resources);
       initializeSubmissionScope(slateEditor);
-      slateEditor.getService = <T,>(id: ServiceIdentifier<T>): T => registryRef.current.get(id);
+      const definitions = assembly.extensions.flatMap(extension => extension.elements ?? []);
+      bindElementDefinitions(slateEditor, definitions);
+      const localFields = initialBinding
+        ? undefined
+        : createLocalTextFields(slateEditor, definitions);
+      slateEditor.getService = <T,>(id: ServiceIdentifier<T>): T => {
+        if (id === IEditorTextFields && localFields && !registryRef.current.tryGet(id))
+          return localFields as unknown as T;
+        return registryRef.current.get(id);
+      };
       slateEditor.tryGetService = <T,>(id: ServiceIdentifier<T>): T | undefined =>
-        registryRef.current.tryGet(id);
+        registryRef.current.tryGet(id) ??
+        (id === IEditorTextFields ? (localFields as unknown as T) : undefined);
       slateEditor.commands = {
         execute: (id: string, payload?: unknown, element?: Element, path?: Path) =>
           commandDispatcher.execute(slateEditor, id, { payload, element, path }),
@@ -390,7 +403,7 @@ const Index = memo(
 
     const renderByType = useMemoizedFn((props: RenderElementProps) => assembly.render(props));
 
-    // 文档源可以接管个别元素（协作的私有块占位），其余按 type 分发给扩展；
+    // 文档源按保存契约选择元素实现，其余按 type 分发给扩展；
     // 外面统一包拖拽 chrome（BlockDragHost）：块组件不再自己接手柄/插入线/手柄菜单。
     // JSX 恒为真值，未知类型的兜底占位必须在这里显式给出（ElementGuard 内的 ?? 不再可达）
     const renderElementContent = useMemoizedFn((props: RenderElementProps) => (
@@ -619,6 +632,14 @@ const Index = memo(
                     }
                   }}
                   scrollSelectionIntoView={scrollSelectionIntoView}
+                  onFocusCapture={event => {
+                    // 源码原生输入不交给 Slate；恢复页面时 Slate 的 DOM 映射可能尚未就绪。
+                    if (
+                      event.target instanceof HTMLInputElement ||
+                      event.target instanceof HTMLTextAreaElement
+                    )
+                      event.stopPropagation();
+                  }}
                   onFocus={onFocus}
                   onBlur={onBlur}
                 />

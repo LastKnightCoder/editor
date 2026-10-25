@@ -1,171 +1,214 @@
-import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type PropsWithChildren,
-  type SyntheticEvent,
-} from "react";
-import type { Editor as CodeMirror } from "codemirror";
+import { useEffect, useLayoutEffect, useRef, useState, type PropsWithChildren } from "react";
+import { createPortal } from "react-dom";
+import { useDebounceFn, useMemoizedFn } from "ahooks";
+import { Transforms } from "slate";
 import { useReadOnly, useSlateStatic } from "slate-react";
-import { Button, PortalScope, PortalToBody, UiProvider, usePortalContainer } from "@tau/ui";
+import { cn } from "@tau/ui";
 import {
-  IElementEditingPolicy,
-  ElementMenu,
+  AddParagraph,
+  ELEMENT_SELECTED_OUTLINE_CLASS,
   OverlayBackDismiss,
+  canEditElement,
   captureElementSubmission,
+  useIsLastElement,
+  useNotifier,
+  useTouchVoidSelection,
 } from "@tau/editor/api";
+import { useSourceFocusRequests } from "./focusRequests";
+import { previewActionsMap } from "./menu";
+import { EmptySourcePlaceholder, ErrorBar } from "./parts";
 import { PreviewErrorContext, type PreviewError } from "./previewError";
 import type { IPreviewWithEditorProps } from "./PreviewWithEditor";
+import { SourceEditorPage } from "./SourceEditorPage";
 
-const SourceCodeEditor = lazy(() => import("./SourceCodeEditor"));
-const stopInputPropagation = (event: SyntheticEvent) => event.stopPropagation();
+/** 非绑定模式的写回防抖：停顿后写入节点，返回时立即写入；页面隐藏时编辑器提交域已结束，未写入的停顿内输入随之丢弃 */
+const WRITE_DELAY = 300;
 
-function SourcePortal({ children }: PropsWithChildren) {
-  return <PortalToBody container={usePortalContainer()}>{children}</PortalToBody>;
-}
-
-/** 源码草稿只在保存时提交，取消与系统返回不会写入正文。 */
+/**
+ * 触屏源码块：正文只显示预览，编辑态点按把选区放进块（宿主配件栏据此接管操作），编辑在源码页里进行。
+ * 源码页打开期间，预览 DOM 整体移进页面的预览区（同一个 React 子树，不重复编译），块原位保留高度占位。
+ * 字段绑定即时同步；非绑定模式防抖写回，返回即完成。
+ */
 export function TouchPreviewWithEditor({
   element,
   initValue,
   onChange,
   mode,
   title,
+  icon,
+  center,
+  extend,
   children,
+  textBinding,
 }: PropsWithChildren<IPreviewWithEditorProps>) {
   const editor = useSlateStatic();
-  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const notifier = useNotifier();
   const editorReadOnly = useReadOnly();
   const readOnly =
-    editorReadOnly || editor.tryGetService(IElementEditingPolicy)?.canEdit(element.type) === false;
-  const [draft, setDraft] = useState<{ initial: string; value: string } | null>(null);
+    editorReadOnly || (!onChange && !textBinding) || !canEditElement(editor, element);
+  const isLast = useIsLastElement(element);
+  const { selected, select } = useTouchVoidSelection(element);
+  const isEmpty = !initValue.trim();
+  const [open, setOpen] = useState(false);
   const [error, setError] = useState<PreviewError | null>(null);
-  const source = useRef<CodeMirror | null>(null);
-  const submission = useRef<ReturnType<typeof captureElementSubmission> | null>(null);
-  const close = useCallback(() => {
-    submission.current?.dispose();
-    submission.current = null;
-    source.current = null;
-    setMenu(null);
-    setDraft(null);
-  }, []);
+  // 居中的块按内容宽度居中、过宽时从左缘开始滚动；其余按正文宽度排版
+  const [previewHost] = useState(() => {
+    const host = document.createElement("div");
+    host.className = center ? "mx-auto w-fit" : "w-full";
+    return host;
+  });
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [blockSlot, setBlockSlot] = useState<HTMLDivElement | null>(null);
+  const [pageSlot, setPageSlot] = useState<HTMLDivElement | null>(null);
+  const [placeholderHeight, setPlaceholderHeight] = useState<number>();
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const latest = useRef({ element, onChange });
+  latest.current = { element, onChange };
+  /** 非绑定模式最后写入的源码，用来区分自己的回写与外部改写 */
+  const written = useRef(initValue);
+  const [externalRevision, setExternalRevision] = useState(0);
+
+  const write = useMemoizedFn((value: string) => {
+    const { element: current, onChange: commit } = latest.current;
+    if (!commit) return;
+    written.current = value;
+    const submission = captureElementSubmission(editor, { element: current });
+    try {
+      submission.commit(() => {
+        commit(value);
+        return undefined;
+      });
+    } finally {
+      submission.dispose();
+    }
+  });
+  const { run: scheduleWrite, flush, cancel } = useDebounceFn(write, { wait: WRITE_DELAY });
+
+  const close = useMemoizedFn(() => {
+    flush();
+    setOpen(false);
+  });
+  /** 用户返回：关闭后选中本块，配件栏回到该块的上下文 */
+  const finish = useMemoizedFn(() => {
+    close();
+    select();
+  });
   useEffect(() => close, [close]);
   useEffect(() => {
     if (readOnly) close();
   }, [readOnly, close]);
-  const conflict = draft !== null && initValue !== draft.initial;
+
+  useEffect(() => {
+    if (textBinding || initValue === written.current) return;
+    // 外部改写（撤销、协作等）：丢弃尚未写入的输入，页面以节点源码为准
+    cancel();
+    written.current = initValue;
+    setExternalRevision(revision => revision + 1);
+  }, [initValue, textBinding, cancel]);
+
+  useLayoutEffect(() => {
+    const target = open ? pageSlot : blockSlot;
+    if (target && previewHost.parentNode !== target) target.appendChild(previewHost);
+  }, [open, pageSlot, blockSlot, previewHost]);
+
+  useEffect(() => {
+    if (!blockSlot) return;
+    const update = () =>
+      setCanScrollRight(blockSlot.scrollLeft + blockSlot.clientWidth < blockSlot.scrollWidth - 1);
+    update();
+    blockSlot.addEventListener("scroll", update, { passive: true });
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+    observer?.observe(blockSlot);
+    observer?.observe(previewHost);
+    return () => {
+      blockSlot.removeEventListener("scroll", update);
+      observer?.disconnect();
+    };
+  }, [blockSlot, previewHost]);
+
+  const openPage = useMemoizedFn(() => {
+    if (readOnly) return false;
+    setPlaceholderHeight(frameRef.current?.offsetHeight);
+    written.current = initValue;
+    // 源码页打开期间正文不保留选区，配件栏不在页面底下维持本块的上下文
+    Transforms.deselect(editor);
+    setOpen(true);
+    return true;
+  });
+
+  const copySource = useMemoizedFn(() => {
+    void navigator.clipboard?.writeText(initValue).then(
+      () => notifier.success("源码已复制"),
+      () => notifier.error("复制失败")
+    );
+  });
+
+  useSourceFocusRequests(element, () => openPage());
+
+  useEffect(() => {
+    previewActionsMap.set(element, { title, icon, edit: openPage, copySource, readOnly });
+    return () => {
+      previewActionsMap.delete(element);
+    };
+  }, [element, title, icon, openPage, copySource, readOnly]);
+
   return (
     <div contentEditable={false} data-source-presentation="touch">
-      <PreviewErrorContext.Provider value={setError}>{children}</PreviewErrorContext.Provider>
-      {error && <p role="alert">{error.message}</p>}
-      {!readOnly && (
-        <Button
-          onClick={() => {
-            submission.current?.dispose();
-            submission.current = captureElementSubmission(editor, { element });
-            setDraft({ initial: initValue, value: initValue });
-          }}
-        >
-          编辑{title}源码
-        </Button>
+      <div
+        ref={frameRef}
+        className={cn("rounded-[0.625em]", selected && ELEMENT_SELECTED_OUTLINE_CLASS)}
+        style={open ? { height: placeholderHeight } : undefined}
+        onClickCapture={() => {
+          if (!editorReadOnly) select();
+        }}
+      >
+        {isEmpty && !open && (
+          <EmptySourcePlaceholder
+            title={title}
+            readOnly={readOnly}
+            hint="点按"
+            onClick={openPage}
+          />
+        )}
+        <div
+          ref={setBlockSlot}
+          data-source-preview-slot=""
+          className={cn(
+            "box-border flex min-h-[3em] flex-col justify-center overflow-x-auto whitespace-normal transition-opacity duration-150",
+            (isEmpty || open) && "hidden",
+            extend && "py-[0.3125em]",
+            error?.stale && "opacity-40",
+            canScrollRight &&
+              "[mask-image:linear-gradient(to_right,#000_calc(100%-1.5em),transparent)]"
+          )}
+        />
+      </div>
+      {createPortal(
+        <PreviewErrorContext.Provider value={setError}>{children}</PreviewErrorContext.Provider>,
+        previewHost
       )}
-      {!readOnly && (
-        <Button
-          variant="ghost"
-          onClick={event => {
-            const rect = event.currentTarget.getBoundingClientRect();
-            setMenu({ x: rect.left, y: rect.bottom });
-          }}
-        >
-          块操作
-        </Button>
+      {error && !open && (
+        <div className="mt-[0.25em] overflow-hidden rounded-[0.5em]" role="alert">
+          <ErrorBar message={error.message} stale={error.stale && !isEmpty} />
+        </div>
       )}
-      <PortalScope>
-        {menu && <ElementMenu element={element} position={menu} onClose={() => setMenu(null)} />}
-      </PortalScope>
-      <OverlayBackDismiss open={draft !== null} onDismiss={close} />
-      {draft && (
-        <UiProvider className="contents">
-          <SourcePortal>
-            <section
-              role="dialog"
-              aria-modal="true"
-              aria-label={`${title}源码`}
-              data-pan-ignore-drag="true"
-              onBeforeInput={stopInputPropagation}
-              onInput={stopInputPropagation}
-              onCompositionStart={stopInputPropagation}
-              onCompositionUpdate={stopInputPropagation}
-              onCompositionEnd={stopInputPropagation}
-              onCopy={stopInputPropagation}
-              onCut={stopInputPropagation}
-              onPaste={stopInputPropagation}
-              onFocus={stopInputPropagation}
-              onBlur={stopInputPropagation}
-              onClick={stopInputPropagation}
-              onPointerDown={stopInputPropagation}
-              onMouseDown={stopInputPropagation}
-              onKeyDown={event => {
-                // Portal 仍沿 React 树冒泡，源码按键不能交给外层 Slate 热键。
-                event.stopPropagation();
-                if (event.key === "Escape" && !event.nativeEvent.isComposing) {
-                  event.preventDefault();
-                  close();
-                }
-              }}
-              className="bg-page fixed inset-x-0 top-0 z-[400] flex flex-col p-4"
-              style={{
-                height: "var(--kb-viewport-height, 100dvh)",
-                paddingTop: "max(1rem, env(safe-area-inset-top))",
-                paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
-              }}
-            >
-              <PortalScope>
-                <header className="flex items-center justify-between gap-3 pb-3">
-                  <Button onClick={close}>取消</Button>
-                  <h2>{title}源码</h2>
-                  <Button
-                    variant="primary"
-                    disabled={readOnly || conflict}
-                    onClick={() => {
-                      if (readOnly || conflict || !submission.current) return;
-                      submission.current.commit(() => {
-                        onChange(source.current?.getValue() ?? draft.value);
-                        return undefined;
-                      });
-                      close();
-                    }}
-                  >
-                    保存
-                  </Button>
-                </header>
-                {conflict && <p role="alert">正文源码已变化，请取消后重新打开。</p>}
-                <div className="min-h-0 flex-1 overflow-auto">
-                  <Suspense fallback={<p>正在加载源码编辑器…</p>}>
-                    <SourceCodeEditor
-                      mode={mode}
-                      readOnly={readOnly || conflict}
-                      value={draft.initial}
-                      editorDidMount={instance => {
-                        source.current = instance;
-                        instance.focus();
-                      }}
-                      editorWillUnmount={() => {
-                        source.current = null;
-                      }}
-                      onChange={(_instance, _change, value) =>
-                        setDraft(current => current && { ...current, value })
-                      }
-                    />
-                  </Suspense>
-                </div>
-              </PortalScope>
-            </section>
-          </SourcePortal>
-        </UiProvider>
+      {!(readOnly && isLast) && <AddParagraph element={element} />}
+      <OverlayBackDismiss open={open} onDismiss={finish} />
+      {open && (
+        <SourceEditorPage
+          title={title}
+          icon={icon}
+          mode={mode}
+          textBinding={textBinding}
+          value={initValue}
+          externalRevision={externalRevision}
+          onChange={textBinding ? undefined : scheduleWrite}
+          readOnly={readOnly}
+          error={error}
+          previewSlotRef={setPageSlot}
+          onClose={finish}
+        />
       )}
     </div>
   );

@@ -1,8 +1,11 @@
+import type { WhiteboardDocumentBinding } from "./document";
 import React, {
   memo,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
+  useState,
   useSyncExternalStore,
   forwardRef,
   useImperativeHandle,
@@ -92,6 +95,7 @@ import { isDocumentVersionSupported } from "./document-version";
 const simplifiedRenderZoomThreshold = 0.3;
 
 export interface WhiteBoardProps {
+  document?: WhiteboardDocumentBinding;
   extensions: readonly WhiteboardExtension[];
   outline?: WhiteboardOutline;
   className?: string;
@@ -148,16 +152,77 @@ export interface WhiteBoardRef {
   revealElement: (id: string) => boolean;
 }
 
+/**
+ * 画板生命周期：渲染期只构造无副作用的 Board，文档连接与扩展装配放在提交期，完成后才挂载画布。
+ * 被丢弃的渲染（挂起、出错重试、StrictMode 双渲染）因此不会残留扩展实例或占用文档绑定；
+ * 销毁由画布在容器真正脱离文档时执行（见 WhiteBoardCanvas 的容器 effect）。
+ */
 const WhiteBoard = memo(
   forwardRef<WhiteBoardRef, WhiteBoardProps>((props, ref) => {
     const {
-      className,
-      style,
       initData,
       initViewPort = DEFAULT_VIEW_PORT,
       initSelection = DEFAULT_SELECTION,
       initPresentationSequences = DEFAULT_PRESENTATION_SEQUENCES,
       initSketch = DEFAULT_PAGE_SKETCH,
+      readonly,
+      version,
+      onExtensionError,
+      extensions,
+      services,
+      extensionServices,
+    } = props;
+    const documentTooNew = !isDocumentVersionSupported(version ?? 1);
+    const notifyExtensionError = useMemoizedFn((error: WhiteboardExtensionError) =>
+      onExtensionError?.(error)
+    );
+    const board = useCreation<Board>(() => {
+      const instance = new Board(
+        initData,
+        initViewPort,
+        initSelection,
+        [],
+        initPresentationSequences,
+        documentTooNew || readonly,
+        initSketch
+      );
+      instance.readonlyReason = documentTooNew ? "document-too-new" : null;
+      return instance;
+    }, []);
+    const initialDocument = useRef(props.document);
+    if (props.document !== initialDocument.current)
+      throw new Error("白板文档绑定必须稳定，换文档请重建画布");
+    const initialExtensions = useRef(extensions);
+    if (extensions !== initialExtensions.current) throw new Error("白板扩展集合必须稳定");
+
+    const [installed, setInstalled] = useState(false);
+    // StrictMode 与 Activity 会重跑本 effect：装配只做一次，清理时不拆除
+    useLayoutEffect(() => {
+      if (!board.extensions) {
+        if (initialDocument.current) board.attachDocument(initialDocument.current);
+        board.installExtensions(
+          initialExtensions.current,
+          notifyExtensionError,
+          services ?? EMPTY_SERVICE_REGISTRY,
+          extensionServices
+        );
+      }
+      setInstalled(true);
+      // 服务注册表与扩展集合一样只在装配时读取一次
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [board, notifyExtensionError]);
+
+    if (!installed) return null;
+    return <WhiteBoardCanvas ref={ref} {...props} board={board} />;
+  })
+);
+
+const WhiteBoardCanvas = forwardRef<WhiteBoardRef, WhiteBoardProps & { board: Board }>(
+  (props, ref) => {
+    const {
+      board,
+      className,
+      style,
       readonly,
       version,
       onChange,
@@ -166,11 +231,7 @@ const WhiteBoard = memo(
       showAttributeSetter,
       showStatusBar = true,
       onPresentationModeChange,
-      onExtensionError,
-      extensions,
       outline,
-      services,
-      extensionServices,
     } = props;
 
     // 文档版本过高时强制只读：工具栏/属性条一律隐藏，只留只读提示条
@@ -227,31 +288,6 @@ const WhiteBoard = memo(
     // 网格设置
     const { gridVisible, handleGridVisibleChange } = useGridSettings();
 
-    // 创建画板实例
-    const notifyExtensionError = useMemoizedFn((error: WhiteboardExtensionError) =>
-      onExtensionError?.(error)
-    );
-    const board = useCreation<Board>(() => {
-      const instance = new Board(
-        initData,
-        initViewPort,
-        initSelection,
-        [],
-        initPresentationSequences,
-        documentTooNew || readonly,
-        initSketch
-      );
-      instance.readonlyReason = documentTooNew ? "document-too-new" : null;
-      instance.installExtensions(
-        extensions,
-        notifyExtensionError,
-        services ?? EMPTY_SERVICE_REGISTRY,
-        extensionServices
-      );
-      return instance;
-    }, []);
-    const initialExtensions = useRef(extensions);
-    if (extensions !== initialExtensions.current) throw new Error("白板扩展集合必须稳定");
     useEffect(() => {
       board.readonlyReason = documentTooNew ? "document-too-new" : null;
       board.readonly = documentTooNew || (readonly ?? false);
@@ -513,7 +549,7 @@ const WhiteBoard = memo(
       let gestureDirty = false;
       const emitChange = () => {
         // 文档版本过高：视口/选区等查看性变化也不写回，避免旧版本数据覆盖新版本文档
-        if (!documentTooNew) onChange?.(board.extensions!.api.getSnapshot());
+        if (!documentTooNew && !board.document) onChange?.(board.extensions!.api.getSnapshot());
       };
       const handleChange = (payload?: { selectionOnly?: boolean }) => {
         if (inMoveGesture) {
@@ -825,7 +861,7 @@ const WhiteBoard = memo(
         </BoardContext.Provider>
       </WhiteboardAPIProvider>
     );
-  })
+  }
 );
 
 export default WhiteBoard;

@@ -3,11 +3,19 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { Descendant } from "slate";
 
 const conversion = vi.hoisted(() => ({ parse: vi.fn() }));
-vi.mock("../../services/content-conversion", () => ({
-  parseMarkdownNodes: conversion.parse,
-  getMarkdownText: async () => "",
-  mapContentSnapshots: async <T, R>(items: T[], convert: (item: T) => Promise<R>) =>
-    Promise.all(items.map(convert)),
+vi.mock("../../services/content-execution", () => ({
+  contentExecutor: {
+    execute: async (
+      request: import("../../../../shared/content-execution").ContentExecutionRequest
+    ) => {
+      if (request.operation === "prepare-content" && "markdown" in request.input)
+        request = { ...request, input: { nodes: await conversion.parse(request.input.markdown) } };
+      await import("@/app/plugins/content-runtime");
+      return (
+        globalThis as unknown as { tauContentExecute(input: unknown): Promise<unknown> }
+      ).tauContentExecute({ hash: "unit-fixtures", artifacts: [], request });
+    },
+  },
 }));
 vi.mock("electron", () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -20,6 +28,7 @@ vi.mock("../video-note-index-queue", () => ({
 
 import schema from "../../../../../../packages/db-schema/schema/main.sql?raw";
 import PluginDataTable from "../tables/plugin-data";
+import ContentTable from "../tables/content";
 import { executeDatabaseCommand } from "../database-command";
 
 let db: Database.Database;
@@ -127,9 +136,16 @@ it("转换期间另一个命令修改正文时拒绝旧修订，不覆盖已经�
   const rejected = expect(pending).rejects.toThrow("转换期间正文已变化");
   expect(db.inTransaction).toBe(false);
   executeDatabaseCommand(db, () => {
-    db.prepare("UPDATE contents SET update_time=update_time+1000, content=? WHERE id=?").run(
-      JSON.stringify([{ type: "paragraph", children: [{ text: "另一个请求" }] }]),
-      card.contentId
+    const current = ContentTable.getContentById(db, card.contentId!)!;
+    const content = structuredClone(current.content);
+    const paragraph = content[0];
+    if (paragraph.type !== "paragraph") throw new Error("测试正文首节点应为段落");
+    content[0] = { ...paragraph, children: [{ type: "formatted", text: "另一个请求" }] };
+    ContentTable.updateContent(
+      db,
+      card.contentId!,
+      { content, expectedRevision: current.revision, contracts: current.contracts },
+      context
     );
   });
   finish(nodes);

@@ -1,3 +1,4 @@
+import { readContentForExport } from "@/services/content-transfer";
 import type { Descendant } from "slate";
 import { exportPdfWithDialog } from "@/commands";
 import type { PdfExportPayload, PdfExportResult } from "@/types";
@@ -6,6 +7,7 @@ import { buildPdfHtml, processCodeBlocks } from "@/utils/pdf-html-builder";
 
 export interface ExportSlateToPdfInput {
   content: Descendant[];
+  contentId?: number;
   metadata: {
     title: string;
     author?: string;
@@ -36,8 +38,9 @@ const buildPdfHtmlWithCover = (html: string, coverImageSrc?: string) => {
 export const exportSlateToPdfWithDialog = async (
   input: ExportSlateToPdfInput
 ): Promise<PdfExportResult> => {
+  const document = await readContentForExport(input.content || [], input.contentId);
   const { html: bodyHtml, styles } = await buildPdfHtml({
-    content: input.content || [],
+    content: document.content,
     title: input.metadata.title,
     author: input.metadata.author,
     chapterBreak: true,

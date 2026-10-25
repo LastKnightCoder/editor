@@ -15,6 +15,7 @@ const linkExtension = defineExtension({
   elements: [
     defineElement<LinkElement>({
       type: "link",
+      dataVersion: 1,
       kind: "inline",
       isEmpty: element => element.children.length === 1 && element.children[0].text === "",
       render: ({ attributes, element, children }: ElementRenderProps<LinkElement>) => (

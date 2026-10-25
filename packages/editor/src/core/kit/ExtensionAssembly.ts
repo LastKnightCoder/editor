@@ -33,6 +33,7 @@ export interface ExtensionPluginGroup {
 export interface ElementBehaviorEntry {
   readonly extension: string;
   readonly behaviors: ElementBehaviors;
+  readonly own?: boolean;
 }
 
 /** 一个扩展的内容注入声明；owner 用于隔离熔断与日志 */
@@ -63,7 +64,7 @@ const schemaPlugin =
 /** `lazy()` 组件加载期间的空壳：保留 attributes / children，Slate 的 DOM 映射不断 */
 const FRAMED_ATTRIBUTES = Object.freeze({}) as RenderElementProps["attributes"];
 
-const renderSpec = (spec: ElementSpec): ElementRenderer => {
+export const renderElementSpec = (spec: ElementSpec): ElementRenderer => {
   const tag = spec.kind === "inline" ? "span" : "div";
   if (spec.frame) {
     if (spec.kind !== "block" || !spec.isVoid)
@@ -300,12 +301,12 @@ export class ExtensionAssembly {
     const ingest: IngestSource[] = [];
     const elements = extension.elements ?? [];
     for (const spec of elements) {
-      renderers.set(spec.type, renderSpec(spec));
+      renderers.set(spec.type, renderElementSpec(spec));
       if (spec.copy && spec.kind === "block" && !spec.isVoid) {
         copyPolicies.set(spec.type, { owner: extension.id, copy: spec.copy });
       }
       if (spec.behaviors) {
-        behaviors.set(spec.type, { extension: extension.id, behaviors: spec.behaviors });
+        behaviors.set(spec.type, { extension: extension.id, behaviors: spec.behaviors, own: true });
       }
       const dragSpec = normalizeDragSpec(spec.drag);
       if (dragSpec) dragSpecs.set(spec.type, dragSpec);

@@ -1,3 +1,4 @@
+import { useMediaExtension } from "../../extensions/media";
 import { memo, useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { useMemoizedFn } from "ahooks";
 import { If as If } from "@tau/ui";
@@ -99,6 +100,23 @@ const AudioElementComponent = memo((props: AudioElementProps) => {
   const { isDark } = useTheme();
   const accentColor = "var(--tau-accent)";
   const board = useBoard();
+  const { resolveUrl } = useMediaExtension();
+  const [playbackUrl, setPlaybackUrl] = useState<string>();
+  useEffect(() => {
+    let active = true;
+    setPlaybackUrl(undefined);
+    const value = src.startsWith("tau-collab-")
+      ? (resolveUrl?.(src) ?? Promise.reject(new Error("资源未在本机提供")))
+      : Promise.resolve(src);
+    void value
+      .then(url => {
+        if (active) setPlaybackUrl(url);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [src, resolveUrl]);
   const { isSelected } = useSelectState(id);
   const sketch = useSketch(element);
 
@@ -247,7 +265,7 @@ const AudioElementComponent = memo((props: AudioElementProps) => {
           {/* Hidden audio element */}
           <audio
             ref={audioRef}
-            src={src}
+            src={playbackUrl}
             onLoadedMetadata={handleLoadedMetadata}
             onTimeUpdate={handleTimeUpdate}
             onEnded={handleEnded}

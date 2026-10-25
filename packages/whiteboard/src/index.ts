@@ -83,3 +83,5 @@ export { ToolMenu, type ToolMenuItem } from "./components/Toolbar/ToolMenu";
 export { handTextClass } from "./utils/sketch";
 export { CANVAS_OVERLAY_ATTR } from "./utils/events";
 export { DOCUMENT_CARD_RADIUS } from "./components/DocumentElement";
+
+export type { WhiteboardDocumentBinding } from "./document";

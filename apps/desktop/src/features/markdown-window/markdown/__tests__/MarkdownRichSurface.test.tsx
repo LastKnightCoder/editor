@@ -75,7 +75,11 @@ it("首屏卸载不会删除完整代码块控制器，编辑、撤销及源码�
       textarea.dispatchEvent(new Event("input", { bubbles: true }));
       textarea.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
     });
-    expect(file.getContent()[1]).toMatchObject({ uuid: block.uuid, code: "const x = 2;" });
+    // 代码块数据版本 2：源码在代码步骤子节点上
+    expect(file.getContent()[1]).toMatchObject({
+      uuid: block.uuid,
+      children: [{ type: "code-step", code: "const x = 2;" }],
+    });
     await act(async () => file.undo());
     expect(controller?.getValue()).toBe("const x = 1;");
   } finally {

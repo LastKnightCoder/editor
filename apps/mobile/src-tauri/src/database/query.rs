@@ -397,7 +397,38 @@ pub fn query_content_detail(
         None
     };
 
+    let metadata: Option<(String, String, String)> = conn
+        .query_row(
+            "SELECT contracts,revision,document_id FROM content_documents WHERE content_id=?1",
+            [id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()
+        .map_err(|e| format!("DB_OPEN_FAILED: 正文契约读取失败: {e}"))?;
+    let (contracts, revision, document_id) = match metadata {
+        Some((contracts, revision, document)) => (
+            Some(
+                serde_json::from_str(&contracts)
+                    .map_err(|_| "CONTENT_CONTRACT_INVALID: 正文契约损坏".to_string())?,
+            ),
+            Some(revision),
+            Some(document),
+        ),
+        None => (None, None, None),
+    };
+    let library_source_id = conn
+        .query_row(
+            "SELECT source_id FROM library_identity WHERE id=1",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|e| format!("DB_OPEN_FAILED: 资料库来源读取失败: {e}"))?;
     Ok(ContentDetailResponse {
+        library_source_id,
+        contracts,
+        revision,
+        document_id,
         content_id: id,
         create_time,
         update_time,
@@ -437,3 +468,4 @@ pub fn query_cards_overview(
         items: to_card_items(rows),
     })
 }
+use rusqlite::OptionalExtension;

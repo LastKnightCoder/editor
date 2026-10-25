@@ -32,10 +32,9 @@ export const insertCodeBlock = (editor: Editor, language = "javascript", code = 
   const uuid = getUuid();
   const path = setOrInsertNode(editor, {
     type: "code-block",
-    code,
     language,
     uuid,
-    children: [{ type: "formatted", text: "" }],
+    children: [{ type: "code-step", code, children: [{ type: "formatted", text: "" }] }],
   });
   focusInsertedCodeBlock(editor, uuid);
   return path;

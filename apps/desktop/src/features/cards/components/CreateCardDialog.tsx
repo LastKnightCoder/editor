@@ -19,6 +19,7 @@ import type { ICard } from "@/types";
 import { Button, Dialog, DialogBody, toast } from "@tau/ui";
 
 export interface CardDraft {
+  contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
   content: Descendant[];
   tags: string[];
 }
@@ -64,6 +65,7 @@ function useCardDraft(initial: CardDraft | undefined) {
 
 export function CreateCardDialog({ open, onClose, onCreated, initial }: CreateCardDialogProps) {
   const { content, tags, setContent, setTags, reset } = useCardDraft(initial);
+  const contracts = initial?.contracts;
   const [saving, setSaving] = useState(false);
   const editorRef = useRef<EditorRef>(null);
   const [editorRevision, setEditorRevision] = useState(0);
@@ -88,6 +90,7 @@ export function CreateCardDialog({ open, onClose, onCreated, initial }: CreateCa
     try {
       const card = await create.mutateAsync({
         content: value,
+        contracts,
         tags,
         count: getContentLength(value),
         isTop: false,
@@ -141,6 +144,7 @@ export function CreateCardDialog({ open, onClose, onCreated, initial }: CreateCa
               key={editorRevision}
               ref={editorRef}
               initValue={content}
+              contracts={contracts}
               readonly={false}
               onChange={setContent}
               className="min-h-[260px]"

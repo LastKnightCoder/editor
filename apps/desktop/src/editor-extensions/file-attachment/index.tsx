@@ -12,6 +12,7 @@ const fileAttachmentExtension = defineExtension({
   elements: [
     defineElement<FileAttachmentElement>({
       type: "file-attachment",
+      dataVersion: 1,
       resources: BUILTIN_CONTENT_RESOURCES["file-attachment"],
       kind: "block",
       isVoid: true,

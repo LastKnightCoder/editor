@@ -22,7 +22,7 @@ const CHIP =
 export function ComposeCardAccessory({ element }: { element: DocumentElement }) {
   const board = useBoard();
   const session = useComposeSessionApi();
-  const key = entityRefKey(element.entityRef);
+  const key = element.entityRef ? entityRefKey(element.entityRef) : element.id;
   const { source } = useDocumentSource(element);
   const cited = useComposeSession(state => state.cited.has(key));
   const number = useComposeSession(state => state.numbers.get(key) ?? null);
@@ -47,9 +47,10 @@ export function ComposeCardAccessory({ element }: { element: DocumentElement }) 
     };
   }, [board, element.id]);
 
-  const target: LinkTarget | null = source
-    ? { ref: element.entityRef, contentId: source.contentId, title: source.title }
-    : null;
+  const target: LinkTarget | null =
+    source && element.entityRef
+      ? { ref: element.entityRef, contentId: source.contentId, title: source.title }
+      : null;
 
   const insert = (block?: number) => {
     const editor = session.getState().getEditor();
@@ -63,7 +64,7 @@ export function ComposeCardAccessory({ element }: { element: DocumentElement }) 
 
   const uncite = () => {
     const editor = session.getState().getEditor();
-    if (!editor) return;
+    if (!editor || !element.entityRef) return;
     const count = removeEntityLinks(editor, element.entityRef);
     if (!count) return;
     toast.success(count > 1 ? `已取消正文里的 ${count} 处引用` : "已取消引用", {
@@ -87,7 +88,7 @@ export function ComposeCardAccessory({ element }: { element: DocumentElement }) 
         />
       )}
       {number != null && (
-        <span className="bg-info text-surface absolute left-2 top-2 grid size-5 place-items-center rounded-full text-[11px] font-semibold">
+        <span className="bg-info text-surface absolute top-2 left-2 grid size-5 place-items-center rounded-full text-[11px] font-semibold">
           {number}
         </span>
       )}

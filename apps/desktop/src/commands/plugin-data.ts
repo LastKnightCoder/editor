@@ -1,5 +1,4 @@
 import type { PluginNotebookResource } from "@tau/plugins";
-import type { Descendant } from "slate";
 import { invoke } from "@/electron";
 import type { NotebookPlan } from "@/types/vibe-learning";
 import type {
@@ -67,7 +66,8 @@ export const planPluginNotebook = (
 export const resolvePluginContentInput = (
   databaseName: string,
   content: PluginContentSource
-): Promise<Descendant[]> => invoke("plugin-data:resolve-content", { databaseName, content });
+): Promise<Pick<import("@/types/content").IContent, "content" | "contracts">> =>
+  invoke("plugin-data:resolve-content", { databaseName, content });
 
 /** 核对 shareOf 的来源是这个插件内容的正文，返回正文 ID，只在宿主「插入到项目」弹窗中使用 */
 export const getPluginSharedContent = (
