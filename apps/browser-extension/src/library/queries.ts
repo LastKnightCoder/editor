@@ -22,7 +22,13 @@ import {
   type WebPageSummary,
 } from "@tau/shared/browser-companion";
 import { callBackground } from "../shared/extension-page";
-import { queryCachedPages, readCachedPages, readLocalNotes, type StorageSnapshot } from "./local";
+import {
+  queryCachedFeed,
+  queryCachedPages,
+  readCachedPages,
+  readLocalNotes,
+  type StorageSnapshot,
+} from "./local";
 
 export const LIBRARY_PAGE_SIZE = 50;
 
@@ -48,11 +54,11 @@ async function fetchPages(params: LibraryPagesParams, online: boolean) {
 }
 
 /** 离线结果来自本机缓存，挂在 local 下随存储变化失效 */
-const pagesScope = (online: boolean) => (online ? libraryKeys.all : libraryKeys.local);
+const dataScope = (online: boolean) => (online ? libraryKeys.all : libraryKeys.local);
 
 export function useLibraryPages(filter: PagesFilter, online: boolean) {
   return useInfiniteQuery({
-    queryKey: [...pagesScope(online), "pages", filter],
+    queryKey: [...dataScope(online), "pages", filter],
     queryFn: ({ pageParam }) =>
       fetchPages({ ...filter, offset: pageParam, limit: LIBRARY_PAGE_SIZE }, online),
     initialPageParam: 0,
@@ -63,7 +69,7 @@ export function useLibraryPages(filter: PagesFilter, online: boolean) {
 /** 指定页面的汇总（面板跳过来、从别的视图点进来时，列表里未必已加载到） */
 export function useLibraryPage(url: string | null, online: boolean): WebPageSummary | null {
   const page = useQuery({
-    queryKey: [...pagesScope(online), "page", url],
+    queryKey: [...dataScope(online), "page", url],
     queryFn: async () =>
       (await fetchPages({ sort: "recent", url: url ?? undefined, offset: 0, limit: 1 }, online))
         .items[0] ?? null,
@@ -84,16 +90,15 @@ export type FeedFilter = Omit<LibraryFeedParams, "offset" | "limit">;
 
 export function useLibraryFeed(filter: FeedFilter, online: boolean) {
   return useInfiniteQuery({
-    queryKey: [...libraryKeys.all, "feed", filter],
-    queryFn: ({ pageParam }) =>
-      callBackground<LibraryList<LibraryFeedItem>>(COMPANION_METHODS.libraryFeed, {
-        ...filter,
-        offset: pageParam,
-        limit: LIBRARY_PAGE_SIZE,
-      }),
+    queryKey: [...dataScope(online), "feed", filter],
+    queryFn: async ({ pageParam }) => {
+      const params = { ...filter, offset: pageParam, limit: LIBRARY_PAGE_SIZE };
+      if (online)
+        return callBackground<LibraryList<LibraryFeedItem>>(COMPANION_METHODS.libraryFeed, params);
+      return queryCachedFeed(await readSnapshot(), params);
+    },
     initialPageParam: 0,
     getNextPageParam: nextOffset,
-    enabled: online,
   });
 }
 

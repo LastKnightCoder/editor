@@ -181,11 +181,11 @@ export async function saveNote(raw: unknown): Promise<{ cardId: number }> {
   if (content.every(node => (node as { type?: string }).type === "paragraph" && isBlankNode(node)))
     throw new Error("笔记是空的");
   const pageTitle =
-    typeof params.title === "string" && params.title.trim()
+    typeof params.title === "string"
       ? params.title.trim().slice(0, WEB_PAGE_LIMITS.titleChars)
-      : url;
-  // 用户给这个页面起过名时，来源段用起的名
-  const title = WebPageTable.displayTitle(currentDatabase(), url) || pageTitle;
+      : "";
+  // 记下页面；来源段用显示名（用户起过名就是起的名），都没有时用网址
+  const title = WebPageTable.touch(currentDatabase(), url, pageTitle) || url;
 
   const document = (await contentExecutor.execute({
     operation: "prepare-content",

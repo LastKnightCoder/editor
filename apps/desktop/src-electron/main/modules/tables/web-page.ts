@@ -91,14 +91,17 @@ export default class WebPageTable {
     return row?.title ?? null;
   }
 
-  /** 改名；customTitle 为 null 即恢复网页标题。该页摘录的 source_title 同步为新的显示名 */
+  /**
+   * 改名；customTitle 为 null 即恢复网页标题。只有本机笔记、Tau 里还没记录的页面也能改名（新建页面行）。
+   * 该页摘录的 source_title 同步为新的显示名
+   */
   static rename(db: Database.Database, url: string, customTitle: string | null): WebPageSummary {
     return db.transaction(() => {
       const now = Date.now();
-      const changed = db
-        .prepare(`UPDATE web_page SET custom_title = ?, update_time = ? WHERE url = ?`)
-        .run(customTitle, now, url).changes;
-      if (!changed) throw new Error("伴读库里没有这个页面");
+      db.prepare(
+        `INSERT INTO web_page (url, host, custom_title, create_time, update_time) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(url) DO UPDATE SET custom_title = excluded.custom_title, update_time = excluded.update_time`
+      ).run(url, hostOf(url), customTitle, now, now);
       db.prepare(
         `UPDATE excerpt SET source_title = (SELECT COALESCE(custom_title, page_title) FROM web_page WHERE url = ?),
            update_time = ?

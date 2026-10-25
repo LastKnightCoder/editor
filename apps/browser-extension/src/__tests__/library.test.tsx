@@ -220,6 +220,19 @@ describe("伴读库页", () => {
     expect(text()).not.toContain("React 19 新特性");
   });
 
+  it("只有草稿的页面：列在「只有笔记」下，没有标题时显示域名而不是完整网址，连上 Tau 可改名", async () => {
+    store["companion.status"] = { state: "ready" };
+    store["note:https://taunote.app/"] = [{ type: "paragraph", children: [{ text: "写点什么" }] }];
+    pages = [];
+    await render(`?page=${encodeURIComponent("https://taunote.app/")}`);
+    expect(text()).toContain("只有笔记");
+    expect(text()).not.toContain("还没有标注过的网页");
+    expect(container.querySelector("h1")?.textContent).toBe("taunote.app");
+    expect(text()).not.toContain("https://taunote.app/");
+    expect(text()).not.toContain("连上 Tau 后可重命名");
+    expect(container.querySelector<HTMLButtonElement>("h1 button")!.disabled).toBe(false);
+  });
+
   it("从面板跳过来时选中那一页；在原页定位带上标注 id", async () => {
     store["companion.status"] = { state: "ready" };
     await render(`?page=${encodeURIComponent("https://b.com/y")}`);
@@ -228,7 +241,7 @@ describe("伴读库页", () => {
     expect(created).toEqual(["https://b.com/y#tau-hl=a1"]);
   });
 
-  it("没连上 Tau：页面列表用本机缓存，不能改名，全部标注提示连接后可用", async () => {
+  it("没连上 Tau：页面列表与全部标注用本机缓存，不能改名", async () => {
     store["companion.status"] = { state: "offline" };
     store["ann:https://c.com/z"] = { title: "缓存页", items: [annotation("c1")] };
     await render();
@@ -243,7 +256,8 @@ describe("伴读库页", () => {
 
     await act(async () => button("全部标注")!.click());
     await flush();
-    expect(text()).toContain("连上 Tau 后可用");
+    expect(text()).toContain("Tau 未连接，显示本机缓存");
+    expect(text()).toContain("原文 c1");
     expect(methods()).not.toContain("library.feed");
   });
 

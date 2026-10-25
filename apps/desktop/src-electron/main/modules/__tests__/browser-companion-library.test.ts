@@ -20,7 +20,7 @@ vi.mock("../tables/excerpt", () => ({
   WEB_EXCERPT_SYNCED_EVENT: "excerpt:sync-web-page",
 }));
 vi.mock("../tables/web-page", () => ({
-  default: { displayTitle: () => env.customTitle },
+  default: { touch: (_db: unknown, _url: string, title: string) => env.customTitle ?? title },
 }));
 vi.mock("../tables/card", () => ({
   default: {

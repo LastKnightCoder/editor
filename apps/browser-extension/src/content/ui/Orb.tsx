@@ -32,96 +32,107 @@ export function Orb() {
   const clampTop = (value: number) => Math.max(ORB + 120, Math.min(innerHeight - ORB, value));
 
   return (
+    // 悬停判定挂在不动的外层：外层只盖住收起时露出的半颗球，滑出的位移只作用在内层，
+    // 否则球滑走后指针落在它与视口边缘之间，悬停失效又滑回，来回抖动
     <div
-      className={cn(
-        "group fixed z-30 size-9 transition-transform duration-300 ease-tau-out",
-        edge === "right" ? "right-0" : "left-0",
-        drag ? "transition-none" : "",
-        panelOpen
-          ? edge === "right"
-            ? "-translate-x-3"
-            : "translate-x-3"
-          : edge === "right"
-            ? "translate-x-1/2 hover:-translate-x-3"
-            : "-translate-x-1/2 hover:translate-x-3"
-      )}
+      className={cn("group fixed z-30 h-9 w-[18px]", edge === "right" ? "right-0" : "left-0")}
       style={{ top: top - ORB / 2 }}
     >
-      {/* 悬停热区向上延伸，覆盖快捷动作列 */}
-      <div className="absolute -inset-x-2 bottom-0 hidden h-[168px] group-hover:block" />
-      {!drag && (
-        <div className="bg-surface shadow-float pointer-events-none absolute bottom-[46px] left-1/2 flex -translate-x-1/2 flex-col gap-0.5 rounded-full p-1 opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100">
-          <QuickAction
-            label="问这页"
-            hint="⌥J"
-            side={edge}
-            onClick={() => controller.openPanel("chat")}
-          >
-            <Sparkles size={15} strokeWidth={1.8} />
-          </QuickAction>
-          <QuickAction
-            label="本页标注"
-            side={edge}
-            onClick={() => controller.openPanel("annotations")}
-          >
-            <Highlighter size={15} strokeWidth={1.8} />
-          </QuickAction>
-          <QuickAction label="页面笔记" side={edge} onClick={() => controller.openPanel("note")}>
-            <NotebookPen size={15} strokeWidth={1.8} />
-          </QuickAction>
-        </div>
-      )}
-      <button
-        type="button"
-        aria-label={panelOpen ? "关闭伴读面板" : "打开伴读面板"}
+      {/* 悬停热区：从视口边缘一直盖到滑出后的球外侧，并向上覆盖快捷动作列 */}
+      <div
         className={cn(
-          "bg-surface shadow-lift text-accent-text relative grid size-9 cursor-grab place-items-center rounded-full font-serif text-[19px] font-semibold italic leading-none touch-none",
-          panelOpen ? "ring-accent ring-[1.5px]" : "ring-line-1 ring-1",
-          drag && "cursor-grabbing"
+          "absolute bottom-0 hidden h-[168px] w-14 group-hover:block",
+          edge === "right" ? "right-0" : "left-0"
         )}
-        onPointerDown={event => {
-          start.current = { x: event.clientX, y: event.clientY, top, moved: false };
-          event.currentTarget.setPointerCapture(event.pointerId);
-        }}
-        onPointerMove={event => {
-          const origin = start.current;
-          if (!origin) return;
-          if (
-            !origin.moved &&
-            Math.hypot(event.clientX - origin.x, event.clientY - origin.y) < DRAG_THRESHOLD
-          )
-            return;
-          origin.moved = true;
-          setDrag({
-            top: clampTop(origin.top + event.clientY - origin.y),
-            side: event.clientX < innerWidth / 2 ? "left" : "right",
-          });
-        }}
-        onPointerUp={() => {
-          const origin = start.current;
-          start.current = null;
-          if (origin?.moved && drag) {
-            controller.saveOrbPosition(drag.side, drag.top / innerHeight);
-            setDrag(null);
-            return;
-          }
-          setDrag(null);
-          controller.togglePanel();
-        }}
+      />
+      <div
+        className={cn(
+          "absolute top-0 size-9 transition-transform duration-300 ease-tau-out",
+          edge === "right" ? "right-0" : "left-0",
+          drag ? "transition-none" : "",
+          panelOpen
+            ? edge === "right"
+              ? "-translate-x-3"
+              : "translate-x-3"
+            : edge === "right"
+              ? "translate-x-1/2 group-hover:-translate-x-3"
+              : "-translate-x-1/2 group-hover:translate-x-3"
+        )}
       >
-        τ
-        <span
-          className={cn(
-            "ring-surface absolute -bottom-px -right-px size-2.5 rounded-full ring-2",
-            STATUS_DOT[status] ?? "bg-ink-3"
-          )}
-        />
-        {count > 0 && (
-          <span className="bg-accent text-ink-inverse absolute -top-1.5 -left-1.5 h-4 min-w-4 rounded-full px-1 text-center font-sans text-[10px] leading-4 font-semibold not-italic">
-            {count}
-          </span>
+        {!drag && (
+          <div className="bg-surface shadow-float pointer-events-none absolute bottom-[46px] left-1/2 flex -translate-x-1/2 flex-col gap-0.5 rounded-full p-1 opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100">
+            <QuickAction
+              label="问这页"
+              hint="⌥J"
+              side={edge}
+              onClick={() => controller.openPanel("chat")}
+            >
+              <Sparkles size={15} strokeWidth={1.8} />
+            </QuickAction>
+            <QuickAction
+              label="本页标注"
+              side={edge}
+              onClick={() => controller.openPanel("annotations")}
+            >
+              <Highlighter size={15} strokeWidth={1.8} />
+            </QuickAction>
+            <QuickAction label="页面笔记" side={edge} onClick={() => controller.openPanel("note")}>
+              <NotebookPen size={15} strokeWidth={1.8} />
+            </QuickAction>
+          </div>
         )}
-      </button>
+        <button
+          type="button"
+          aria-label={panelOpen ? "关闭伴读面板" : "打开伴读面板"}
+          className={cn(
+            "bg-surface shadow-lift text-accent-text relative grid size-9 cursor-grab place-items-center rounded-full font-serif text-[19px] font-semibold italic leading-none touch-none",
+            panelOpen ? "ring-accent ring-[1.5px]" : "ring-line-1 ring-1",
+            drag && "cursor-grabbing"
+          )}
+          onPointerDown={event => {
+            start.current = { x: event.clientX, y: event.clientY, top, moved: false };
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={event => {
+            const origin = start.current;
+            if (!origin) return;
+            if (
+              !origin.moved &&
+              Math.hypot(event.clientX - origin.x, event.clientY - origin.y) < DRAG_THRESHOLD
+            )
+              return;
+            origin.moved = true;
+            setDrag({
+              top: clampTop(origin.top + event.clientY - origin.y),
+              side: event.clientX < innerWidth / 2 ? "left" : "right",
+            });
+          }}
+          onPointerUp={() => {
+            const origin = start.current;
+            start.current = null;
+            if (origin?.moved && drag) {
+              controller.saveOrbPosition(drag.side, drag.top / innerHeight);
+              setDrag(null);
+              return;
+            }
+            setDrag(null);
+            controller.togglePanel();
+          }}
+        >
+          τ
+          <span
+            className={cn(
+              "ring-surface absolute -bottom-px -right-px size-2.5 rounded-full ring-2",
+              STATUS_DOT[status] ?? "bg-ink-3"
+            )}
+          />
+          {count > 0 && (
+            <span className="bg-accent text-ink-inverse absolute -top-1.5 -left-1.5 h-4 min-w-4 rounded-full px-1 text-center font-sans text-[10px] leading-4 font-semibold not-italic">
+              {count}
+            </span>
+          )}
+        </button>
+      </div>
     </div>
   );
 }

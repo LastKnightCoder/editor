@@ -38,7 +38,8 @@ export function FeedView({
       <header className="border-line-2 bg-surface sticky top-0 z-[1] border-b px-9 pt-6 pb-4">
         <h1 className="text-tau-title-lg text-ink-1 font-serif font-bold">全部标注</h1>
         <p className="text-tau-sm text-ink-3 mt-1">
-          {online ? `${total} 条 · 按时间倒序，跨页面平铺` : "连上 Tau 后可用"}
+          {total} 条 · 按时间倒序，跨页面平铺
+          {!online && " · Tau 未连接，显示本机缓存"}
         </p>
         <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
           <Input
@@ -77,13 +78,11 @@ export function FeedView({
         </div>
       </header>
       <div className="px-9 pt-2 pb-10">
-        {!online ? (
+        {feed.isPending ? null : items.length === 0 ? (
           <EmptyState icon={<Highlighter size={22} strokeWidth={1.6} />}>
-            全部标注由 Tau 汇总，连上 Tau 后可用
-          </EmptyState>
-        ) : feed.isPending ? null : items.length === 0 ? (
-          <EmptyState icon={<Highlighter size={22} strokeWidth={1.6} />}>
-            没有符合条件的标注
+            {online || filter.color || filter.noted || filter.query
+              ? "没有符合条件的标注"
+              : "本机还没有缓存的标注，连上 Tau 后可看到全部"}
           </EmptyState>
         ) : (
           items.map((item, index) => (

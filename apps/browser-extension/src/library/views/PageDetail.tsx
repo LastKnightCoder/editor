@@ -4,7 +4,7 @@ import type { WebAnnotation, WebPageSummary } from "@tau/shared/browser-companio
 import { Button, toast } from "@tau/ui";
 import type { LocalNotePage } from "../local";
 import { usePageAnnotations, useRenamePage } from "../queries";
-import { AnnotationItem, Badge, EmptyState, SiteMark } from "./parts";
+import { AnnotationItem, Badge, SiteMark } from "./parts";
 import { formatTime, openCard, openPage, pageLabel } from "../helpers";
 
 /** 按原文顺序；没有锚点的（早期标注）按时间排在后面 */
@@ -82,7 +82,7 @@ function PageTitle({ page, canRename }: { page: WebPageSummary; canRename: boole
           </button>
         </h1>
       )}
-      <p className="text-tau-sm text-ink-3 mt-1 flex items-center gap-2">
+      <p className="text-tau-sm text-ink-3 mt-1 flex items-center gap-2 empty:hidden">
         {editing ? (
           "回车保存 · Esc 取消 · 清空即恢复网页标题"
         ) : page.renamed ? (
@@ -101,22 +101,11 @@ function PageTitle({ page, canRename }: { page: WebPageSummary; canRename: boole
               </button>
             )}
           </>
-        ) : canRename ? (
-          "网页标题 · 点击可重命名"
-        ) : (
+        ) : canRename ? null : (
           "连上 Tau 后可重命名"
         )}
       </p>
     </>
-  );
-}
-
-function Stat({ value, label }: { value: number; label: string }) {
-  return (
-    <div className="bg-page rounded-tau-sm px-2.5 py-2">
-      <b className="text-tau-title block tabular-nums">{value}</b>
-      <span className="text-tau-sm text-ink-3">{label}</span>
-    </div>
   );
 }
 
@@ -135,86 +124,100 @@ export function PageDetail({
   const items = [...(annotations.data ?? [])].sort(byPosition);
   const noted = items.filter(item => item.note.trim()).length;
 
+  const summary = [
+    items.length ? `${items.length} 条标注` : null,
+    noted ? `${noted} 条批注` : null,
+    notes?.saved.length ? `${notes.saved.length} 张卡片` : null,
+    notes?.draft ? "有草稿" : null,
+  ].filter(Boolean);
+
   return (
     <main className="bg-surface min-h-0 flex-1 overflow-y-auto">
-      <header className="border-line-2 bg-surface sticky top-0 z-[1] border-b px-9 pt-6 pb-4">
-        <p className="text-tau-sm text-ink-3 flex min-w-0 items-center gap-1.5">
-          <SiteMark host={page.host} />
-          <span className="truncate">{page.url}</span>
-        </p>
-        <PageTitle key={page.url} page={page} canRename={canRename} />
-        <div className="mt-3.5 flex gap-1.5">
-          <Button
-            size="sm"
-            variant="primary"
-            icon={ArrowUpRight}
-            onClick={() => openPage(page.url)}
-          >
-            打开网页
-          </Button>
-          <Button size="sm" icon={NotebookPen} onClick={onWriteNote}>
-            {notes?.draft ? "继续写笔记" : "写笔记"}
-          </Button>
-        </div>
-      </header>
-      <div className="grid grid-cols-[minmax(0,1fr)_240px] gap-8 px-9 pt-2 pb-10">
-        <section aria-label="标注">
-          <p className="text-tau-sm text-ink-3 mt-4 mb-1">标注 {items.length} · 按原文顺序</p>
-          {annotations.isPending ? null : items.length === 0 ? (
-            <EmptyState icon={<Highlighter size={22} strokeWidth={1.6} />}>
-              这个页面没有标注
-            </EmptyState>
-          ) : (
-            items.map(item => <AnnotationItem key={item.id} url={page.url} item={item} />)
-          )}
-        </section>
-        <aside>
-          <p className="text-tau-sm text-ink-3 mt-4 mb-1.5">概览</p>
-          <div className="grid grid-cols-2 gap-2">
-            <Stat value={items.length} label="标注" />
-            <Stat value={noted} label="批注" />
-            <Stat value={notes?.saved.length ?? 0} label="卡片" />
+      <div className="mx-auto max-w-[1040px] px-10 pt-7 pb-12">
+        <header>
+          <p className="text-tau-sm text-ink-3 flex min-w-0 items-center gap-1.5" title={page.url}>
+            <SiteMark host={page.host} />
+            <span className="truncate">{page.host.replace(/^www\./, "")}</span>
+            {summary.length > 0 && (
+              <>
+                <span aria-hidden>·</span>
+                <span className="flex-none">{summary.join(" · ")}</span>
+              </>
+            )}
+          </p>
+          <PageTitle key={page.url} page={page} canRename={canRename} />
+          <div className="mt-4 flex gap-1.5">
+            <Button
+              size="sm"
+              variant="primary"
+              icon={ArrowUpRight}
+              onClick={() => openPage(page.url)}
+            >
+              打开网页
+            </Button>
+            <Button size="sm" icon={NotebookPen} onClick={onWriteNote}>
+              {notes?.draft ? "继续写笔记" : "写笔记"}
+            </Button>
           </div>
-          <p className="text-tau-sm text-ink-3 mt-5 mb-1.5">笔记</p>
-          {notes?.draft && (
-            <button
-              type="button"
-              onClick={onWriteNote}
-              className="border-line-1 hover:bg-surface-hover rounded-tau-md mb-2 block w-full border p-3 text-left"
-            >
-              <span className="text-tau-meta flex items-center gap-1.5 font-semibold">
-                <Badge tone="warn">草稿</Badge>未保存
-              </span>
-              <span className="text-tau-sm text-ink-2 mt-1 line-clamp-3">{notes.draft}</span>
-              <span className="text-tau-sm text-ink-3 mt-2 flex justify-between">
-                {notes.updatedAt ? formatTime(notes.updatedAt) : "仅本机"}
-                <span className="text-accent-text">继续编辑</span>
-              </span>
-            </button>
-          )}
-          {notes?.saved.map(card => (
-            <button
-              key={card.cardId}
-              type="button"
-              onClick={() => openCard(card.cardId)}
-              className="border-line-1 hover:bg-surface-hover rounded-tau-md mb-2 block w-full border p-3 text-left"
-            >
-              <span className="text-tau-meta flex items-center gap-1.5 font-semibold">
-                <Badge tone="ok">卡片</Badge>
-                <span className="min-w-0 truncate">{card.preview || "（无文字）"}</span>
-              </span>
-              <span className="text-tau-sm text-ink-3 mt-2 flex justify-between">
-                {formatTime(card.savedAt)}
-                <span className="text-accent-text">在 Tau 中打开</span>
-              </span>
-            </button>
-          ))}
-          {!notes?.draft && !notes?.saved.length && (
-            <p className="text-tau-sm text-ink-3 border-line-1 rounded-tau-md border border-dashed p-3 text-center">
-              这一页还没有笔记
-            </p>
-          )}
-        </aside>
+        </header>
+        <div className="border-line-2 mt-6 grid grid-cols-[minmax(0,1fr)_260px] gap-10 border-t pt-2">
+          <section aria-label="标注">
+            <p className="text-tau-sm text-ink-3 mt-4 mb-1">标注</p>
+            {annotations.isPending ? null : items.length === 0 ? (
+              <p className="text-tau-meta text-ink-3 flex items-center gap-2 py-3">
+                <Highlighter size={15} strokeWidth={1.8} className="flex-none" />
+                还没有标注。打开网页，选中文字即可高亮或批注。
+              </p>
+            ) : (
+              items.map(item => <AnnotationItem key={item.id} url={page.url} item={item} />)
+            )}
+          </section>
+          <aside>
+            <p className="text-tau-sm text-ink-3 mt-4 mb-2">笔记</p>
+            {notes?.draft && (
+              <button
+                type="button"
+                onClick={onWriteNote}
+                className="border-line-1 hover:bg-surface-hover rounded-tau-md mb-2 block w-full border p-3 text-left"
+              >
+                <span className="flex items-center justify-between">
+                  <Badge tone="warn">草稿</Badge>
+                  <span className="text-tau-sm text-ink-3">
+                    {notes.updatedAt ? formatTime(notes.updatedAt) : "仅本机"}
+                  </span>
+                </span>
+                <span className="text-tau-meta text-ink-1 mt-2 line-clamp-4">{notes.draft}</span>
+                <span className="text-tau-sm text-accent-text mt-2 block">继续编辑</span>
+              </button>
+            )}
+            {notes?.saved.map(card => (
+              <button
+                key={card.cardId}
+                type="button"
+                onClick={() => openCard(card.cardId)}
+                className="border-line-1 hover:bg-surface-hover rounded-tau-md mb-2 block w-full border p-3 text-left"
+              >
+                <span className="flex items-center justify-between">
+                  <Badge tone="ok">卡片</Badge>
+                  <span className="text-tau-sm text-ink-3">{formatTime(card.savedAt)}</span>
+                </span>
+                <span className="text-tau-meta text-ink-1 mt-2 line-clamp-4">
+                  {card.preview || "（无文字）"}
+                </span>
+                <span className="text-tau-sm text-accent-text mt-2 block">在 Tau 中打开</span>
+              </button>
+            ))}
+            {!notes?.draft && !notes?.saved.length && (
+              <button
+                type="button"
+                onClick={onWriteNote}
+                className="text-tau-sm text-ink-3 border-line-1 hover:text-ink-2 hover:bg-surface-hover rounded-tau-md w-full border border-dashed p-3 text-center"
+              >
+                这一页还没有笔记，写一条
+              </button>
+            )}
+          </aside>
+        </div>
       </div>
     </main>
   );

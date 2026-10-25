@@ -41,7 +41,7 @@ function NoteDrawer({
       open={!!page}
       onOpenChange={open => !open && onClose()}
       title="页面笔记"
-      subtitle={page?.title || page?.url}
+      subtitle={page && pageLabel(page)}
       size="md"
       fill
     >
@@ -124,9 +124,9 @@ function Library() {
           {page ? (
             <PageDetail
               page={page}
-              canRename={online && !!fromTau}
+              canRename={online}
               notes={selectedNotes}
-              onWriteNote={() => writeNote({ url: page.url, title: pageLabel(page) })}
+              onWriteNote={() => writeNote({ url: page.url, title: page.title })}
             />
           ) : (
             <main className="bg-surface min-h-0 flex-1">
