@@ -2460,10 +2460,17 @@ export class CollaborationManager {
           id,
           id
             ? (boardResources.get(id) ?? [])
-            : references.filter(reference => !represented.has(reference))
+            : references.filter(reference => !represented.has(reference)),
+          "library-replacement"
         );
         resources.resources.forEach(resource => represented.add(resource.reference));
         missing.push(...resources.missing);
+        for (const detail of resources.missingDetails)
+          console.warn("[library-replacement:missing-resource]", {
+            databaseName: name,
+            documentId: id || null,
+            ...detail,
+          });
         const prefix = `assets-${index}-`;
         files.push(...resources.files.map(file => ({ ...file, name: prefix + file.name })));
         manifest.push({
@@ -2475,7 +2482,6 @@ export class CollaborationManager {
         });
       }
       files.push({ name: "resources.json", bytes: Buffer.from(JSON.stringify(manifest)) });
-      if (missing.length) throw new Error("仍有资源未能独立保全，已保留原资料库并停止覆盖");
       const receipt = recovery.save({
         workspaceId: name,
         reason: "library-replacement",
@@ -2487,6 +2493,12 @@ export class CollaborationManager {
         missing,
       });
       this.store.set(`library-recovery:${name}`, receipt);
+      if (missing.length)
+        console.warn("[library-replacement:resource-warning] 已备份本地资料，资源缺失不阻止覆盖", {
+          databaseName: name,
+          missingCount: missing.length,
+          manifestPath: receipt.manifestPath,
+        });
       for (const session of rows) {
         const key = `library-detached:${session.info.id}`;
         if (this.store.get(key, null)) continue;

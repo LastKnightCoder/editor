@@ -953,8 +953,9 @@ describe("桌面生产会话与真实服务贯通", () => {
     expect(new ContentRecoveryStore(runtime.directory, state).verify(receipt).files.length).toBe(3);
   });
 
-  it("覆盖前发现引用文件缺失时保留原库，不登记未完成恢复包", async () => {
-    const { runtime, db, store } = await setup();
+  it("覆盖前引用文件缺失只告警，仍保存可验证的数据库恢复包", async () => {
+    const { runtime, db, store, state } = await setup();
+    const warningLog = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     db.prepare(
       "INSERT INTO contents(id,create_time,update_time,content,ref_count) VALUES (99,1,1,?,1)"
     ).run(
@@ -962,16 +963,64 @@ describe("桌面生产会话与真实服务贯通", () => {
         { type: "image", url: "/unavailable/tau-test-image.png", children: [{ text: "" }] },
       ])
     );
-    const before = store.db.prepare("SELECT count(*) AS count FROM recoveries").get();
     const drain = await runtime.drainDatabase({
       databaseName: "library",
       reason: "database-change",
     });
-    await expect(runtime.preserveLibrary("library")).rejects.toThrow("停止覆盖");
+    await runtime.preserveLibrary("library");
+    expect(warningLog).toHaveBeenCalledWith(
+      "[library-replacement:missing-resource]",
+      expect.objectContaining({
+        databaseName: "library",
+        documentId: null,
+        reference: "/unavailable/tau-test-image.png",
+        resolvedPath: "/unavailable/tau-test-image.png",
+        reason: "本地文件不存在或不可访问",
+      })
+    );
+    const receipt = store.get<any>("library-recovery:library", null);
+    const recovery = new ContentRecoveryStore(runtime.directory, state);
+    const manifest = recovery.verify(receipt);
+    expect(manifest.missing).toEqual(["/unavailable/tau-test-image.png"]);
+    expect(manifest.files.map(file => file.name)).toEqual(
+      expect.arrayContaining(["main.db", "collaboration.db", "resources.json"])
+    );
     drain.rollback();
-    expect(store.get("library-recovery:library", null)).toBeNull();
     expect(db.prepare("SELECT id FROM contents WHERE id=99").get()).toEqual({ id: 99 });
-    expect(store.db.prepare("SELECT count(*) AS count FROM recoveries").get()).toEqual(before);
+  });
+  it("整库替换时网络资源和历史 Notion 记录只保留引用，不产生缺失告警", async () => {
+    const { runtime, db, store, state, localId } = await setup();
+    const warningLog = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const remote = "https://example.com/image.png";
+    const notion = "notion://page/unused";
+    db.prepare(
+      "INSERT INTO contents(id,create_time,update_time,content,ref_count) VALUES (99,1,1,?,1)"
+    ).run(JSON.stringify([{ type: "image", url: remote, children: [{ text: "" }] }]));
+    store.db
+      .prepare("INSERT INTO resources VALUES (?,?,?,?,?,?)")
+      .run("unused-notion", localId, "", "", notion, 2);
+    const drain = await runtime.drainDatabase({
+      databaseName: "library",
+      reason: "database-change",
+    });
+    await runtime.preserveLibrary("library");
+    const receipt = store.get<any>("library-recovery:library", null);
+    const recovery = new ContentRecoveryStore(runtime.directory, state);
+    expect(recovery.verify(receipt).missing).toEqual([]);
+    const resources = JSON.parse(recovery.readFile(receipt, "resources.json").toString());
+    expect(resources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          documentId: localId,
+          resources: expect.arrayContaining([
+            { reference: "tau-collab-local:unused-notion", original: notion },
+          ]),
+        }),
+        { documentId: null, resources: [{ reference: remote, original: remote }] },
+      ])
+    );
+    expect(warningLog).not.toHaveBeenCalled();
+    drain.rollback();
   });
   it("库覆盖前备份失败不生成成功回执，回滚后原会话仍可编辑", async () => {
     const { runtime, db, store, localId } = await setup();
