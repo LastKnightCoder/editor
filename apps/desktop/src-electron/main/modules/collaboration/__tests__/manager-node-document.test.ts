@@ -900,6 +900,40 @@ describe("桌面生产会话与真实服务贯通", () => {
     expect(opened.frozen).toBe(false);
   });
 
+  it.each(["database-change", "quit"] as const)(
+    "主库回退旧格式后 %s 保留新缓存且不投影",
+    async reason => {
+      const { runtime, db, store, localId } = await setup();
+      vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      const session = runtime.sessions.get(localId)!;
+      const before = Y.encodeStateAsUpdate(session.doc);
+      db.prepare("DELETE FROM content_documents WHERE content_id=7").run();
+      const original = db.prepare("SELECT content FROM contents WHERE id=7").get();
+      const drain = await runtime.drainDatabase({ databaseName: "library", reason });
+      expect(session.info.frozen).toBe(true);
+      const cached = store.load(localId);
+      expect(Y.encodeStateAsUpdate(cached.doc)).toEqual(before);
+      cached.doc.destroy();
+      expect(db.prepare("SELECT content FROM contents WHERE id=7").get()).toEqual(original);
+      expect(ContentDocumentTable.read(db, 7)).toBeNull();
+      drain.rollback();
+      expect(session.info.frozen).toBe(false);
+    }
+  );
+
+  it("不同来源缓存未能保存时仍拒绝关库并恢复编辑", async () => {
+    const { runtime, db, store, localId } = await setup();
+    db.prepare("DELETE FROM content_documents WHERE content_id=7").run();
+    runtime.sessions.get(localId)!.dirty = true;
+    vi.spyOn(store, "compact").mockImplementation(() => {
+      throw new Error("缓存磁盘写入失败");
+    });
+    await expect(
+      runtime.drainDatabase({ databaseName: "library", reason: "quit" })
+    ).rejects.toThrow("缓存磁盘写入失败");
+    expect(runtime.sessions.get(localId)!.info.frozen).toBe(false);
+  });
+
   it("资料库连接重开但身份与正文未变时恢复原会话", async () => {
     const { runtime, event, localId } = await setup();
     const drain = await runtime.drainDatabase({

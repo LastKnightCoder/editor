@@ -2273,6 +2273,39 @@ export class CollaborationManager {
           this.store.compact(session.info.id, session.doc);
           session.dirty = false;
         }
+        const source = session.info.source;
+        const database = source && databaseModule.getDatabase(source.databaseName);
+        if (source && database?.open) {
+          const row = database
+            .prepare("SELECT create_time FROM contents WHERE id=?")
+            .get(source.contentId) as { create_time: number } | undefined;
+          const stored = ContentDocumentTable.read(database, source.contentId);
+          const matches =
+            row?.create_time === source.contentCreatedAt &&
+            (!source.librarySourceId ||
+              source.librarySourceId === ContentIdentityTable.library(database)?.sourceId) &&
+            (!source.contentDocumentId || source.contentDocumentId === stored?.documentId);
+          if (!matches) {
+            // 主库快照回退不能用旧缓存补写；缓存已耐久保存，整库替换另行打包恢复材料。
+            this.store.metadata(session.info);
+            const cached = this.store.load(session.info.id);
+            try {
+              if (contentRevision({ ...session, doc: cached.doc }) !== contentRevision(session))
+                throw new Error("正文缓存尚未完整保存，不能关闭资料库");
+            } finally {
+              cached.doc.destroy();
+            }
+            console.warn(
+              "[collaboration:drain-source-mismatch] 已保存缓存，跳过不同来源的主库投影",
+              {
+                databaseName: source.databaseName,
+                documentId: session.info.id,
+                contentId: source.contentId,
+              }
+            );
+            continue;
+          }
+        }
         await this.project(session);
       }
       return {
