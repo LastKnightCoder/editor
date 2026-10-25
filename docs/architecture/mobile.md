@@ -164,7 +164,7 @@ export default definePage({
 ```
 
 - `open` 恒为 `true`：显隐由"栈中是否存在该 entry"决定（OverlayHost 实现），组件卸载即关闭
-- **常规主体面板用默认 ****`backDismiss`**：`BottomSheet`/`ActionSheet` 内置退场缓冲，
+- **常规主体面板用默认 \*\*\*\*`backDismiss`**：`BottomSheet`/`ActionSheet` 内置退场缓冲，
   所有关闭请求（遮罩/返回手势/下拉）先播完退场动画才回调 onClose——返回手势消费后
   handler 即注销，延迟执行的 goBack 不会与拦截互喂死锁，且返回关闭与遮罩关闭一样
   有完整动画
@@ -309,25 +309,24 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
   执行后选区写回 `panelSelection`；需要输入浮层的动作（链接、批注）先回键盘再执行。点正文 = 只关面板，
   选区落在点击处。
 - **上下文识别**：`editorToolbar/editingContext.ts` 的 `useEditingContext` 在 controller 内按「void 内部编辑器 > 展开选区 >
-  媒体 > 内容引用 > 表格 > 通用」给出 `editingContext`。void 内部编辑器靠 document `focusin` / `focusout`（后者等一帧再判）读 activeElement：
-  `.code-block-shiki-input` → code（带 textarea / uuid / language），`.ed-preview-codemirror` 内 → block-math / mermaid，Slate 外
+  媒体 / 源码块 > 内容引用 > 表格 > 通用」给出 `editingContext`。void 内部编辑器靠 document `focusin` / `focusout`（后者等一帧再判）读 activeElement：
+  `.code-block-shiki-input` → code（带 textarea / uuid / language），`.ed-preview-source` 内的输入框 → block-math（先于代码块判断，二者是同一种叠层输入框），Slate 外
   `input[data-inline-math-input]` 且选区在 inline-math 内 → inline-math；节点须经 `toSlateNode` + `findPath` 回到本编辑器确认归属，只读时不识别。
   焦点在 void 内部编辑器时 Slate 失焦但配件栏保持可见（白名单关掉对应上下文时按通用模式渲染）。表格、引用与格式模式的左端标签点击 =
   `dismissEditingContext`，按上下文 key（表格为 `table:<路径>`，引用为 `content-link:<路径>`）记录退回，光标离开该上下文即恢复；代码块标签打开语言选择，
-  公式 / 流程图标签为不可点的静态标签。
+  公式标签为不可点的静态标签。
 - **模式**：通用模式（+ / Aa / 待办 / 列表 / 缩进 / 引用内容 / 图片 / 撤销）；光标折叠在内容引用的文字里为引用模式（左端标签为
   引用的显示文字，中段预览 / 更换 / 移除，见下方「内容引用」）；展开选区为格式模式（行内样式，「格式」标签
   点击折叠选区）；光标在表格为表格模式（下方插行 / 右侧插列 / 删行 / 删列 / 对齐循环，「⋯」用 `ActionSheet` 列移动行列与
   删除表格；菜单打开期间动作作用于打开时保存的选区，关闭时恢复选区并聚焦），动作见 `tableActions.ts`；焦点在代码块 textarea 为代码块模式（语言标签点击打开
   常用语言 / 完整语言两级 `ActionSheet`，经 `tau.code-block.set-language` 设置后在点击内回焦；中段按语言族给符号键，见
   `codeBlockInput.ts`：单字符键与 Tab 在 textarea 上派发 keydown 交给代码块组件处理，组件未处理的键与多字符键以原生 value
-  setter + input 事件插入并替换选区，长按 Tab 450ms 反缩进；「收起键盘」blur textarea 后回阅读态）；焦点在块公式 / 行内公式 /
-  流程图源码编辑器为公式（Sigma「公式」）/ 流程图（Workflow「流程图」）模式（中段为 `sourceEditorInput.ts` 的
-  `MATH_SYMBOL_KEYS` / `MERMAID_SYMBOL_KEYS`，模板键带 `cursorOffset`，如 `\frac{}{}` 光标落在第一个括号内；块公式与流程图经
-  `insertSourceText` 取 `.CodeMirror` 包裹元素上的 CodeMirror 5 实例 `replaceSelection` 并回焦，`PreviewWithEditor` 为
-  react-codemirror2 `UnControlled`，change 事件经组件 onChange 防抖 500ms 写回节点，源码编辑器失焦时立即落库；行内公式 input 与代码块 textarea 共用
+  setter + input 事件插入并替换选区，长按 Tab 450ms 反缩进；「收起键盘」blur textarea 后回阅读态）；焦点在块公式 / 行内公式
+  源码编辑器为公式（Sigma「公式」）模式（中段为 `sourceEditorInput.ts` 的
+  `MATH_SYMBOL_KEYS`，模板键带 `cursorOffset`，如 `\frac{}{}` 光标落在第一个括号内；块公式原位编辑用与代码块相同的
+  `ShikiOverlayEditor` 输入框，改动经组件 onChange 写回节点，源码编辑器失焦时立即落库；块公式输入框、行内公式 input 与代码块 textarea 共用
   `insertIntoTextControl`；「收起键盘」blur 当前焦点后回阅读态）。`visibleButtons` 以 `AccessoryItemId` 同时过滤配件栏与
-  Aa 面板，表格 / 代码块 / 公式 / 流程图模式受 `context-table` / `context-code` / `context-math` / `context-mermaid` 控制，
+  Aa 面板，表格 / 代码块 / 公式 / 源码块模式受 `context-table` / `context-code` / `context-math` / `context-source-block` 控制，
   引用模式与通用模式的「引用内容」同受 `content-link` 控制。
 - **内容引用（content-link）**：`features/cards/editorExtensions/`。行内样式与网页链接同族（`accent-text` 字色 + 45% accent
   点线下划线，网页链接为实线），光标在引用内或预览打开时加 `accent-soft` 淡底；显示文字被删空时 normalize 移除节点。
@@ -410,6 +409,15 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
   「块操作」经 controller 的 `requestBlockSelection` 转给页面登记的块选择（`useEditorBlockSelection` 登记）。白名单项 `context-media` 控制该模式。
   插入面板「高级」组含「网页」。共享播放器在粗指针设备（`useCoarsePointer`）上隐藏音量与画中画、进度圆点常显并加高触控区；视频双击画面左 / 右半边 ±10 秒、
   单击延后 280ms 生效、全屏胶囊收起时点按先唤出、长按加速屏蔽系统菜单、滚出视口自动暂停；音频倍速常显并加 ±15 秒。
+- **源码块（触屏模式）**：TikZ、Typst、HTML、乐谱、自定义块等插件源码块与内置 Mermaid、PlantUML 经 `@tau/editor-source-view`
+  的 `TouchPreviewWithEditor` 渲染（`IEditorInteraction.touch` 为真且非块公式的原位模式）：正文只显示预览，内容过宽时块内横向滚动；
+  编辑态单击经 `useTouchVoidSelection` 把选区放进该 void，空块显示斜纹占位、点按直接打开源码页；插入新块、块后空段退格、方向键进入也打开源码页。
+  源码页 `SourceEditorPage` portal 到 body：顶栏返回 / 撤销 / 重做，上方预览（块的同一份预览 DOM 移入，高度可拖动），出错时 `ErrorBar` 状态行，
+  下方原生输入框 + Shiki 高亮叠层（行号、自动换行）；字段绑定即时同步，返回即完成，返回经 `OverlayBackDismiss` 仲裁，返回后重新选中该块。
+  块经 `@tau/editor-source-view/menu` 登记 `{ title, icon, edit, copySource, readOnly }`，`resolveSourceBlockContext` 据
+  `getPreviewEditorActions` 给出 `source-block` 上下文（与媒体同级），不认具体块类型；controller 与媒体一样收起键盘、保持编辑态。
+  配件栏源码块模式由 `sourceBlockAccessory.tsx` 渲染：左端块名标签，中段「编辑」（可编辑时）/「复制」，右端「⋯」（块操作、删除，
+  不可编辑时无删除）与「键盘」（`focusAfterVoid` + `placeCaretAfterBlock`，与媒体共用）。不提供符号行。
 - **开发实验页**：`features/editorLab/`（仅开发构建注册，入口 RouterDevTools「editor lab」）用同一套预留与收键盘策略，
   可切换策略并复制键盘、位移、输入法、选区恢复日志，用于真机验证。
 
@@ -465,7 +473,7 @@ Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开
 
 - **注册**：iOS 在 `src-tauri/Info.ios.plist` 声明 `CFBundleDocumentTypes` 与 `net.daringfireball.markdown` 导入类型（构建时 Tauri 合并进 gen 的 Info.plist），`LSSupportsOpeningDocumentsInPlace=false`，系统先复制进 `Documents/Inbox`。Android 在 `gen/android/.../AndroidManifest.xml` 给 MainActivity 加 `ACTION_VIEW` 过滤器；微信传来的 `content://` 无扩展名、MIME 常为 `application/octet-stream`，故放宽到 markdown / text/plain / octet-stream，再按文件名判定。`gen/` 整体被忽略，该清单与 `MainActivity.kt` 均以 `git add -f` 入库。
 - **交付**：原生只负责把文件落到本机路径并派发窗口事件 `tau:incoming-file`。iOS 经 `RunEvent::Opened` 记录路径（`incoming_file.rs`）；Android 由 MainActivity 复制进 `cacheDir/incoming`（首次创建与 `onNewIntent` 时接收），Rust 经 JNI `takeIncomingFile` 取路径。前端 `IncomingFileHost`（AppShell 挂载）在挂载时与收到事件时调用 `incoming_file_take`：只接受 md/markdown/mdown/mkd/mkdn 扩展名、≤5 MB、UTF-8；读取后删除源文件，同一文件只交付一次。冷启动时事件早于页面加载而丢失，由挂载时主动取兜底。
-- **解析与落库**：与桌面端 Markdown 导入同口径——标题取文件名（不含扩展名），忽略 YAML 头；卡片只存正文。`article_create` 与 `project_item_create`（document 类型）接受可选 `content`/`count`，一次事务带正文创建。外部单文件无法携带相对路径资源，本机相对图片不导入，远程地址原样保留。
+- **解析与落库**：标题取文件名（不含扩展名），忽略 YAML 头。已有版本化 Markdown 解析器返回正文及契约，未知插件的无损载荷保留原版本；查询按文件内容与插件快照区分，加载或解析失败时不能提交。预览使用只读节点文档按契约选择渲染器。卡片、文章和项目复用原创建事务保存正文及契约。外部单文件无法携带相对路径资源，本机相对图片不导入，远程地址原样保留。
 
 ## 应用内更新（Android）
 

@@ -5,6 +5,7 @@ import { getMobileCenterInstallStore } from "@/app/plugins/center-install";
 import type { Navigator } from "@/router/navigatorTypes";
 import { readMobilePlugins, removeMobilePlugin, clearMobilePluginData } from "@/services/plugins";
 import { createQuickCard, getCardDetail } from "@/services/tauri";
+import { clickSourcePage, openSourcePage, writeSource } from "@validation/host/sourcePage";
 import { mobileMarkdown } from "@/services/editorMarkdown";
 
 const counter = "example.external-counter";
@@ -177,28 +178,8 @@ export async function validateMobileCenter(
       navigator.push("contentDetail", { cardId: card.id });
       await until(() => button("编辑") || button("完成"), "正文阅读态入口");
       button("编辑")?.click();
-      (
-        await until(
-          () =>
-            [...document.querySelectorAll<HTMLButtonElement>("button")].find(
-              element =>
-                visible(element) &&
-                element.textContent?.startsWith("编辑") &&
-                element.textContent?.endsWith("源码")
-            ),
-          "ABC 编辑入口"
-        )
-      ).click();
-      const mirror = await until(
-        () =>
-          (
-            document.querySelector('[role="dialog"] .CodeMirror') as
-              (HTMLElement & { CodeMirror?: { setValue(value: string): void } }) | null
-          )?.CodeMirror,
-        "源码编辑器"
-      );
-      mirror.setValue("X:1\nT:Center saved\nM:4/4\nL:1/4\nK:C\nG A B c |");
-      await click("保存");
+      writeSource(await openSourcePage(), "X:1\nT:Center saved\nM:4/4\nL:1/4\nK:C\nG A B c |");
+      await clickSourcePage("返回");
       await pause(1500);
       await assertData();
       if (

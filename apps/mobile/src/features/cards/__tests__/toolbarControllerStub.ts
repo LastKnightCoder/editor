@@ -29,7 +29,7 @@ export function createControllerStub(
     setExitEditingListener: vi.fn(),
     setBlockSelectionListener: vi.fn(),
     requestBlockSelection: vi.fn(() => false),
-    focusAfterMedia: vi.fn(),
+    focusAfterVoid: vi.fn(),
     getEditableElement: vi.fn(() => null),
     runMediaEdit: vi.fn(),
     runInPanel: vi.fn(),

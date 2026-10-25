@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端源码块交互 · 设计方案</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="../media-mobile/media.css" />
+<link rel="stylesheet" href="source.css" />
+<script src="../editor-mobile/icons.js"></script>
+<script src="../media-mobile/icons-media.js"></script>
+<script src="icons-source.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>移动端源码块交互 · 设计方案<small>TikZ / Typst / HTML / 乐谱 / 自定义块，以及内置的 Mermaid / PlantUML · 颜色取自 @tau/themes · 手机帧 360×760 · 红色标注=问题，绿色标注=设计要点 · 与「媒体交互」方案同源</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="now">1 现状问题</button>
+    <button class="tab" data-tab="a">2 方案 A：点选 + 分屏源码页<span class="rec">推荐</span></button>
+    <button class="tab" data-tab="b">3 方案 B：就地展开</button>
+    <button class="tab" data-tab="c">4 方案 C：底部源码抽屉</button>
+    <button class="tab" data-tab="fit">5 宽内容适配</button>
+    <button class="tab" data-tab="kernel">6 编辑器内核与符号键</button>
+    <button class="tab" data-tab="cmp">7 对比与待你选择</button>
+  </nav>
+</header>
+
+<!-- ═══════════ 1 现状 ═══════════ -->
+<section class="scene" data-scene="now">
+  <p class="scene-intro">所有插件源码块（<code>tau.tikz</code> / <code>tau.typst</code> / <code>tau.html</code> / <code>tau.abc</code> / <code>tau.custom-block</code>）都通过 SDK 的 <code>SourceBlockEditor</code> 渲染，内部是 <code>PreviewWithEditor</code>。移动端注册了 <code>sourcePresentation: "touch"</code>，于是走 <code>TouchPreviewWithEditor</code>。这个触屏版本只是一个能用的骨架：<b>预览下面直接放两个 <code>Button</code>，点开是一个看不到预览的全屏 CodeMirror</b>。根源确实在这一个组件上，所以修好它，所有插件都能受益，插件自己基本不用改。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>三角形的外接圆</h1>
+          <p>三条边的垂直平分线交于一点 O，它到三个顶点的距离相等。</p>
+          <div class="sblk" data-fig="tikz,200"></div>
+          <div class="old-row" style="position:relative"><span class="old-btn">编辑TikZ源码</span><span class="old-btn ghost">块操作</span>
+            <span class="callout-tag" style="left:0;top:-22px">每个源码块下面都固定有两个按钮</span></div>
+          <p>整个流程可以画成一条流水线：</p>
+          <div class="sblk overflow" data-fig="flow"><span class="callout-tag" style="right:0;top:-18px">宽图超出屏幕，右侧被裁掉</span></div>
+          <div class="old-row"><span class="old-btn">编辑TikZ源码</span><span class="old-btn ghost">块操作</span></div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>正文：两个按钮占地方，宽内容被裁掉</div>
+      <details class="note" open><summary>问题</summary><ul>
+        <li><code>TouchPreviewWithEditor</code> 在预览下面直接渲染 <code>编辑{title}源码</code>、<code>块操作</code> 两个 <code>Button</code>，「TikZ」和「源码」之间连空格都没有。</li>
+        <li>点预览本身没有任何反应，只能点按钮。这和图片、表格「点一下就进入上下文配件栏」的做法不一样。</li>
+        <li>「块操作」和移动端已有的块选择（左侧把手、长按）是同一件事，现在重复了一份。</li>
+        <li>预览没有宽度约束：TikZ 的 SVG 按固有尺寸显示，Typst 用 <code>width: auto</code>，HTML 原样渲染，宽内容只能被裁掉或撑出横向滚动。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>小星星</h1>
+          <p>右手部分，先练前两小节：</p>
+          <div style="position:relative;margin:10px 0 2px">
+            <p style="color:var(--ink-3);font-size:14px">暂无乐谱内容</p>
+            <span class="callout-tag" style="left:110px;top:-2px">刚插入的空块</span>
+          </div>
+          <div class="old-row" style="position:relative"><span class="old-btn">编辑乐谱源码</span><span class="old-btn ghost">块操作</span>
+            <span class="callout-tag" style="left:0;top:40px">插入后不会自动打开编辑器</span></div>
+          <p style="margin-top:34px"><span class="caret blink"></span></p>
+        </div>
+        <div class="acc">
+          <span class="ab plus" data-i="plus" data-s="18"></span>
+          <div class="scroll"><span class="ab" data-i="type" data-s="18"></span><span class="ab" data-i="list-todo" data-s="18"></span><span class="ab" data-i="list" data-s="18"></span><span class="ab" data-i="indent-increase" data-s="18"></span><span class="ab" data-i="image" data-s="18"></span></div>
+          <span class="ab" data-i="undo-2" data-s="18"></span>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>插入新块：停在空块后面</div>
+      <details class="note" open><summary>问题</summary><ul>
+        <li>插入时 <code>insertSourceBlock</code> 会派发 <code>preview-editor-focus</code>，但只有桌面版监听了这个事件，触屏版没有。所以插入后光标停在下一段，用户得自己去找按钮。</li>
+        <li>同样的原因，在源码块后面的空段按退格，桌面上会进入源码块编辑，手机上没有反应。</li>
+        <li>空块没有占位：桌面端是斜纹的「TikZ · 点击开始编写」，手机上只有插件自己的一行灰字。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 16px 12px;position:relative">
+          <span class="old-btn">关闭</span><span class="raw-h2">TikZ源码</span><span class="old-btn pri">完成</span>
+          <span class="callout-tag" style="left:16px;top:50px">标题和按钮都是默认样式，没有设计</span>
+        </div>
+        <div style="flex:1;overflow:hidden;padding:26px 16px 0;position:relative">
+          <div class="src noln nowrap" style="font-size:12.8px"><span class="l"><span class="k">\begin</span><span class="o">{</span>tikzpicture<span class="o">}</span></span><span class="l">  <span class="k">\draw</span> (<span class="n">0</span>,<span class="n">0</span>) circle (<span class="n">1.5</span>);</span><span class="l">  <span class="k">\coordinate</span> (A) at (<span class="n">110</span>:<span class="n">1.5</span>); <span class="c">% 顶点 A 放在 110 度方向</span></span><span class="l">  <span class="k">\coordinate</span> (B) at (<span class="n">200</span>:<span class="n">1.5</span>);</span><span class="l">  <span class="k">\draw</span>[thick] (A) -- (B) -- (C) -- cycle;</span><span class="l">  <span class="k">\fill</span> (<span class="n">0</span>,<span class="n">0</span>) circle (<span class="n">1pt</span>) node[above] <span class="s">{$O$}</span>;<span class="caret blink"></span></span></div>
+          <span class="callout-tag" style="right:6px;top:110px">长行不换行，往右滑才能看到</span>
+          <span class="callout-tag" style="left:16px;bottom:44px">看不到预览：要退出再看，写错了也不知道</span>
+        </div>
+        <div style="position:relative"><span class="callout-tag" style="right:12px;top:-24px">键盘上方没有符号行，\ { } 要切两层键盘</span></div>
+        <div class="kb" data-kb="sym"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>编辑源码：盲写的全屏 CodeMirror</div>
+      <details class="note" open><summary>问题</summary><ul>
+        <li>源码层是 <code>fixed z-[400]</code>，通过 portal 挂到 body，盖住了正文，也盖住了移动端的配件栏。</li>
+        <li>这一层的 CodeMirror 没有 <code>.ed-preview-codemirror</code> 类，节点也不在 Slate 里，<code>editingContext</code> 识别不到。<code>mobile.md</code> 里写的「流程图符号键」在这条路径上用不到（按代码推断，未在真机上验证），文档和实现不一致。</li>
+        <li>CodeMirror 5 的选区和光标是自己画的，iOS 上没有系统的选区手柄和放大镜，长按选词也不稳定（项目里已经修过一次「快速回车丢字」）。</li>
+        <li>字段绑定模式下改动是即时同步的，「关闭」和「完成」效果完全一样，两个按钮反而让人困惑。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>等差数列求和</h1>
+          <p>高斯小时候的做法，用 Typst 写出来：</p>
+          <div style="position:relative;margin:8px 0">
+            <p style="color:var(--ink-3);font-size:14px">暂无可用预览。</p>
+            <p class="raw-alert">error: unknown variable: sun</p>
+            <p class="raw-alert">error: unknown variable: sun</p>
+            <span class="callout-tag" style="right:-6px;top:22px">同一个错误显示两次</span>
+          </div>
+          <div class="old-row"><span class="old-btn">编辑Typst源码</span><span class="old-btn ghost">块操作</span></div>
+          <p>首尾两两相加都是 n + 1，一共 n/2 对。</p>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>编译出错：裸红字，还重复</div>
+      <details class="note" open><summary>问题</summary><ul>
+        <li>触屏版用一个没有样式的 <code>&lt;p role="alert"&gt;</code> 显示错误。<code>TypstPreview</code> 自己又渲染了一次，所以同一个错误出现两遍。</li>
+        <li>没有行号，也不能跳到出错的位置；上一次成功的预览也没有保留（桌面版会保留并变淡）。</li>
+        <li>错误只能在退出源码页之后看到，也就是说写的时候根本不知道写错了。</li>
+      </ul></details>
+    </div>
+  </div>
+
+  <div class="frames" style="margin-top:8px">
+    <div class="card" style="flex:1 1 900px">
+      <h3>根因清单（都已在代码里确认）</h3>
+      <ul class="cause" style="padding-left:18px">
+        <li><code>packages/editor-source-view/src/TouchPreviewWithEditor.tsx</code>：只有按钮入口、没有空态、没有预览、错误没有样式、没有监听 <code>preview-editor-focus</code>，源码层是脱离编辑器的 portal。<b>上面 4 帧里的问题大多出自这一个文件。</b></li>
+        <li><code>SourceCodeEditor.tsx</code>：CodeMirror 5，<code>lineWrapping</code> 默认关闭；在手机上不换行就只能横向滚动。</li>
+        <li><code>packages/editor/src/core/components/ElementFrame</code>：带外框的插件块（例如图库）在触屏下也硬塞了一个「块操作」按钮，问题相同。</li>
+        <li>插件侧只有两处小问题：<code>TypstPreview</code> 重复渲染错误；Typst 用的是 <code>mode="stex"</code>（LaTeX 高亮），不是 Typst 语法。</li>
+        <li>移动端已经有现成可复用的部分：媒体块的「点选 → 上下文配件栏 → ⋯ 动作面板」，代码块和公式的符号键（<code>codeBlockInput.ts</code> / <code>sourceEditorInput.ts</code>），<code>OverlayBackDismiss</code> 返回仲裁，以及 <code>bindTextFieldTextarea</code>（原生 textarea 的协作绑定，已经存在）。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 2 方案 A ═══════════ -->
+<section class="scene" data-scene="a">
+  <p class="scene-intro"><span class="opt-badge">推荐</span><b>源码块的交互和图片一样，看作一种「上下文」</b>。正文里的块上不放任何按钮。编辑态点一下块就选中它，键盘收起，配件栏切换到这个块的上下文（编辑 / 查看 / 复制 / ⋯）。点「编辑」进入<b>上下分屏的源码页</b>：上方是实时预览，下方是源码，键盘上方是按语言提供的符号行。这些都改在宿主层，<b>所有插件自动受益，插件代码不用改</b>。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>三角形的外接圆</h1>
+          <p>三条边的垂直平分线交于一点 O，它到三个顶点的距离相等。</p>
+          <div class="sblk" data-fig="tikz,200"></div>
+          <p>整个流程可以画成一条流水线：</p>
+          <div class="sblk" data-fig="flow,300"><span class="fit"><span data-i="zoom-in" data-s="11"></span>58%</span>
+            <span class="callout-tag ok" style="right:-6px;top:-20px">等比缩到屏幕宽度</span></div>
+          <div class="sblk empty" style="position:relative"><span data-i="plus" data-s="15"></span>乐谱 · 点按开始编写
+            <span class="callout-tag ok" style="left:-4px;bottom:-22px">空块和桌面端用同一种斜纹占位</span></div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A1</span>正文：只显示内容，没有按钮</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>块上不放任何按钮。预览就是内容本身，和桌面端正文里看到的一致。</li>
+        <li>宽内容等比缩小到屏幕宽度，右下角显示一个缩放比例小标签，点它打开查看器（见 <b>5 宽内容适配</b>）。</li>
+        <li>插入新块时直接打开源码页（A3），补上触屏版缺少的 <code>preview-editor-focus</code> 监听。在源码块后面的空段按退格也会进入源码页。</li>
+        <li>阅读态（非编辑）点块：SVG 类内容打开查看器，HTML 块里的链接和按钮照常可点。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>三角形的外接圆</h1>
+          <p>三条边的垂直平分线交于一点 O，它到三个顶点的距离相等。</p>
+          <div style="height:16px"></div>
+          <div class="sblk on" data-fig="tikz,200"><span class="mtag" style="top:-28px;left:-5px"><span data-i="pen-tool" data-s="11"></span>TikZ</span>
+            <span class="callout-tag ok" style="right:-8px;top:-26px">单击选中，键盘收起</span></div>
+          <p style="margin-top:14px">整个流程可以画成一条流水线：</p>
+        </div>
+        <div class="acc media" style="position:relative">
+          <span class="ctx-chip plugin"><span data-i="pen-tool" data-s="13"></span>TikZ</span>
+          <div class="scroll" style="gap:0">
+            <span class="ab lbl" data-i="square-pen" data-s="18">编辑</span>
+            <span class="ab lbl" data-i="maximize-2" data-s="18">查看</span>
+            <span class="ab lbl" data-i="copy" data-s="18">复制</span>
+          </div>
+          <span class="ab" data-i="ellipsis" data-s="18"></span>
+          <span class="ab" data-i="keyboard" data-s="18"></span>
+          <span class="callout-tag ok" style="left:70px;top:-24px">和图片的媒体配件栏同一套机制</span>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A2</span>点块：选中，配件栏切到源码上下文</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>做法和媒体块完全一样：编辑态点块会把 Slate 选区放进这个 void 块，<code>editingContext</code> 新增 <code>source</code> 上下文，并且所有源码块共用这一个上下文，不需要为每种块单独写。</li>
+        <li>左侧标签用块自己声明的 <code>title</code> 和 <code>icon</code>，插件块用紫色（<code>ctx-chip.plugin</code>）。</li>
+        <li>「复制」复制源码。「键盘」把光标放到块后面的段落，没有段落就新建一段，和媒体块的处理相同。</li>
+        <li>这一步之所以不直接进源码页，是为了避免滚动正文时误触就跳出全屏页。点两下（先选中，再点「编辑」）就能进入编辑。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="sp-nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"><span data-i="pen-tool" data-s="15"></span>TikZ</span><span class="ib" data-i="undo-2" data-s="19"></span><span class="ib" data-i="redo-2" data-s="19" style="color:var(--ink-3)"></span></div>
+        <div class="sp-preview" style="height:150px;position:relative">
+          <div data-fig="tikz,170"></div>
+          <div class="corner"><span data-i="maximize-2" data-s="15"></span></div>
+          <span class="callout-tag ok" style="left:8px;top:8px">实时预览，编译停顿 400ms 后刷新</span>
+        </div>
+        <div class="sp-grip" style="position:relative"><span class="callout-tag ok" style="right:16px;top:-6px">拖动调整高度</span></div>
+        <div class="sp-state"><span data-i="check" data-s="13" style="color:var(--sage)"></span>已编译 · 0.4 秒</div>
+        <div class="sp-code">
+          <div class="src"><span class="l"><span class="k">\begin</span><span class="o">{</span>tikzpicture<span class="o">}</span></span><span class="l">  <span class="k">\draw</span> (<span class="n">0</span>,<span class="n">0</span>) circle (<span class="n">1.5</span>);</span><span class="l">  <span class="k">\coordinate</span> (A) at (<span class="n">110</span>:<span class="n">1.5</span>); <span class="c">% 顶点 A 放在 110 度方向</span></span><span class="l">  <span class="k">\coordinate</span> (B) at (<span class="n">200</span>:<span class="n">1.5</span>);</span><span class="l">  <span class="k">\draw</span>[thick] (A) -- (B) -- (C) -- cycle;<span class="caret blink"></span></span></div>
+        </div>
+        <div class="acc sym" style="position:relative">
+          <div class="scroll">
+            <span class="ab mono">\</span><span class="ab mono">{ }</span><span class="ab mono">[ ]</span><span class="ab mono">( )</span><span class="ab mono">$</span><span class="ab mono">;</span><span class="ab mono w">--</span><span class="ab mono">%</span>
+          </div>
+          <span class="ab" data-i="arrow-left" data-s="17"></span><span class="ab" data-i="arrow-right" data-s="17"></span>
+          <span class="callout-tag ok" style="left:6px;top:-24px">符号行按语言提供，括号成对插入</span>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A3</span>源码页：上面预览，下面源码</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>页面结构固定：<b>预览区 → 状态行 → 源码 → 符号行 → 键盘</b>。预览区默认约占剩余高度的 40%，可以拖动调整，也可以拖到最小把它收起。</li>
+        <li>改动实时同步（字段绑定本来就是即时写入），所以<b>没有「保存 / 取消」</b>：左上角返回或系统返回就是完成，撤销和重做放在顶栏。</li>
+        <li>源码自动换行并显示行号，长行不用横向滚动。</li>
+        <li>符号行由源码页自己渲染，不依赖全局配件栏去识别 portal 里的 CodeMirror。符号集按 <code>mode</code> 取（见 6）。左右箭头用来移动光标，长按会连续移动。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="sp-nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"><span data-i="pen-tool" data-s="15"></span>TikZ</span><span class="ib" data-i="undo-2" data-s="19"></span><span class="ib" data-i="redo-2" data-s="19" style="color:var(--ink-3)"></span></div>
+        <div class="sp-preview" style="height:236px">
+          <div class="stale" data-fig="tikz,230"></div>
+          <div class="corner"><span data-i="maximize-2" data-s="15"></span></div>
+          <span class="callout-tag ok" style="left:8px;top:8px">保留上次成功的结果，变淡显示</span>
+        </div>
+        <div class="sp-grip"></div>
+        <div class="sp-state err" style="position:relative"><span data-i="circle-alert" data-s="14"></span><span class="msg">Undefined control sequence \drw</span><span class="go">第 5 行</span>
+          <span class="callout-tag ok" style="right:0;top:-22px">点击跳到出错的那一行</span></div>
+        <div class="sp-code">
+          <div class="src"><span class="l"><span class="k">\begin</span><span class="o">{</span>tikzpicture<span class="o">}</span></span><span class="l">  <span class="k">\draw</span> (<span class="n">0</span>,<span class="n">0</span>) circle (<span class="n">1.5</span>);</span><span class="l">  <span class="k">\coordinate</span> (A) at (<span class="n">110</span>:<span class="n">1.5</span>); <span class="c">% 顶点 A 放在 110 度方向</span></span><span class="l">  <span class="k">\coordinate</span> (B) at (<span class="n">200</span>:<span class="n">1.5</span>);</span><span class="l err">  <span class="k squiggle">\drw</span>[thick] (A) -- (B) -- (C) -- cycle;</span><span class="l">  <span class="k">\fill</span> (<span class="n">0</span>,<span class="n">0</span>) circle (<span class="n">1pt</span>) node[above] <span class="s">{$O$}</span>;</span><span class="l"><span class="k">\end</span><span class="o">{</span>tikzpicture<span class="o">}</span></span></div>
+        </div>
+        <div class="acc">
+          <span class="ab txt" style="color:var(--ink-2)"><span data-i="copy" data-s="16" style="margin-right:4px"></span>复制源码</span>
+          <div class="scroll"></div>
+          <span class="ab" data-i="keyboard" data-s="18"></span>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A4</span>收起键盘 + 编译出错</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>收起键盘后预览区自动变大，方便看清整张图；再点源码就回到 A3 的布局。</li>
+        <li>错误统一显示在状态行，样式和桌面端的 <code>ErrorBar</code> 一致。出错的行加底色，错误的词加波浪线（编译器能给出行号时才标）。</li>
+        <li>宿主接管错误显示之后，插件不再自己渲染错误。<code>TypstPreview</code> 那一份要删掉，<code>useReportPreviewError</code> 本来就是为这个设计的。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <p>三条边的垂直平分线交于一点 O，它到三个顶点的距离相等。</p>
+          <div style="height:16px"></div>
+          <div class="sblk on" data-fig="tikz,200"></div>
+        </div>
+        <div class="mask"></div>
+        <div class="sheet" style="bottom:0;background:var(--bg-page);padding-bottom:26px;z-index:4">
+          <div class="grabber"></div>
+          <div class="as-cap" style="padding-top:6px"><span data-i="pen-tool" data-s="12"></span>TikZ · 9 行 · tau.tikz 插件</div>
+          <div class="as-group">
+            <div class="as-item"><span data-i="maximize-2" data-s="18"></span>查看大图</div>
+            <div class="as-item"><span data-i="clipboard-copy" data-s="18"></span>复制源码</div>
+            <div class="as-item"><span data-i="image" data-s="18"></span>复制为图片</div>
+          </div>
+          <div class="as-group">
+            <div class="as-item"><span data-i="layers" data-s="18"></span>块操作（移动 / 复制 / 转换）<span class="sub"><span data-i="chevron-right" data-s="14"></span></span></div>
+            <div class="as-item danger"><span data-i="trash-2" data-s="18"></span>删除 TikZ</div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A5</span>「⋯」：低频操作放进动作面板</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>「块操作」通过 controller 的 <code>requestBlockSelection</code> 进入现有的块选择模式，和媒体块一样，不再单独渲染按钮。</li>
+        <li>菜单项来自元素菜单（<code>ElementMenu</code> 的声明），按移动端白名单过滤后用 <code>ActionSheet</code> 渲染；插件通过 <code>menu</code> 贡献的项会自动出现在这里。</li>
+        <li>「复制为图片」只对 SVG 类内容显示（TikZ / 乐谱 / Typst / Mermaid），HTML 块不显示。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 3 方案 B ═══════════ -->
+<section class="scene" data-scene="b">
+  <p class="scene-intro"><span class="opt-badge alt">备选</span><b>就地展开，和块公式（<code>inPlace</code>）一样</b>。点块之后，块在正文里原地变成「上面源码、下面预览」的卡片，键盘弹起，配件栏显示符号行。好处是完全不离开正文。问题出在手机屏幕高度上：键盘弹起后正文只剩大约 370px，<b>源码稍长一些，预览就被挤到键盘下面了</b>。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <p>右手部分，先练前两小节：</p>
+          <div class="inplace" style="position:relative">
+            <div class="ip-src"><div class="src" style="font-size:12.5px"><span class="l"><span class="k">X:</span><span class="n">1</span></span><span class="l"><span class="k">K:</span>C</span><span class="l">C C G G | A A G2 | F F E E | D D C2<span class="caret blink"></span></span></div></div>
+            <div class="ip-pv" data-fig="abc,250"></div>
+            <span class="callout-tag ok" style="right:4px;top:-20px">源码短的时候正好合适</span>
+          </div>
+          <p>注意第二小节的二分音符。</p>
+        </div>
+        <div class="acc sym">
+          <span class="ctx-chip plugin"><span data-i="music" data-s="13"></span>乐谱</span>
+          <div class="scroll"><span class="ab mono">|</span><span class="ab mono">:</span><span class="ab mono">[ ]</span><span class="ab mono">^</span><span class="ab mono">_</span><span class="ab mono">,</span><span class="ab mono">'</span></div>
+          <span class="ab txt" style="color:var(--brand)">完成</span>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B1</span>短源码：就地编辑很顺手</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>交互和块公式完全一致，用户只需要学一种。符号行直接复用全局配件栏的 <code>source</code> 上下文。</li>
+        <li>实现量最小：去掉触屏分支，把 <code>inPlace</code> 的路径改成上下排列，并加上换行和行号。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc" style="padding-top:0">
+          <div class="inplace" style="margin-top:0;position:relative">
+            <div class="ip-src"><div class="src" style="font-size:12.5px"><span class="l"><span class="o">&lt;</span><span class="k">div</span> <span class="n">class</span>=<span class="s">"callout"</span><span class="o">&gt;</span></span><span class="l">  <span class="o">&lt;</span><span class="k">b</span><span class="o">&gt;</span>提示<span class="o">&lt;/</span><span class="k">b</span><span class="o">&gt;</span></span><span class="l">  <span class="o">&lt;</span><span class="k">p</span><span class="o">&gt;</span>复习间隔按 1、2、4、7、15 天递增，</span><span class="l">  错过一天就从上一档重新开始。<span class="o">&lt;/</span><span class="k">p</span><span class="o">&gt;</span></span><span class="l">  <span class="o">&lt;</span><span class="k">ul</span><span class="o">&gt;</span></span><span class="l">    <span class="o">&lt;</span><span class="k">li</span><span class="o">&gt;</span>早上：新卡<span class="o">&lt;/</span><span class="k">li</span><span class="o">&gt;</span></span><span class="l">    <span class="o">&lt;</span><span class="k">li</span><span class="o">&gt;</span>晚上：复习卡<span class="caret blink"></span><span class="o">&lt;/</span><span class="k">li</span><span class="o">&gt;</span></span><span class="l">  <span class="o">&lt;/</span><span class="k">ul</span><span class="o">&gt;</span></span></div></div>
+            <div class="ip-pv"><div class="html-card"><b>提示</b>复习间隔按 1、2、4、7、15 天递增…</div></div>
+          </div>
+          <span class="callout-tag" style="left:40px;bottom:6px">预览被挤到键盘下面，写的时候看不到</span>
+        </div>
+        <div class="acc sym">
+          <span class="ctx-chip plugin"><span data-i="code-xml" data-s="13"></span>HTML</span>
+          <div class="scroll"><span class="ab mono">&lt;</span><span class="ab mono">&gt;</span><span class="ab mono">/</span><span class="ab mono">=</span><span class="ab mono">"</span><span class="ab mono w">&lt;/…&gt;</span></div>
+          <span class="ab txt" style="color:var(--brand)">完成</span>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B2</span>长源码：预览看不到</div>
+      <details class="note" open><summary>问题</summary><ul>
+        <li>HTML 和 Typst 的源码通常有十几行以上，TikZ 也很容易超过 10 行。光标在源码里时，预览一定在视口外面。</li>
+        <li>如果把顺序换成「预览在上、源码在下」，大图又会把光标行顶出视口，滚动和键盘避让会互相拉扯。</li>
+        <li>适合乐谱、短公式这类内容，不适合作为所有源码块的统一方案。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 4 方案 C ═══════════ -->
+<section class="scene" data-scene="c">
+  <p class="scene-intro"><span class="opt-badge alt">备选</span><b>正文就是预览，源码放在底部抽屉里</b>（<code>SnapSheet</code>）。点「编辑」后，正文自动滚动，让这个块露在抽屉上方并实时刷新，抽屉里是源码和符号行。键盘收起时效果不错。<b>键盘弹起后，抽屉加键盘占掉大半个屏幕</b>，露出来的正文太少，而且抽屉的下拉手势会和源码的滚动冲突。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <p>三条边的垂直平分线交于一点 O，它到三个顶点的距离相等。</p>
+          <div class="sblk on" data-fig="tikz,200" style="margin-top:16px"><span class="callout-tag ok" style="right:-8px;top:-26px">正文里的块实时刷新</span></div>
+        </div>
+        <div class="drawer" style="height:330px">
+          <div class="grabber"></div>
+          <div class="drawer-h"><span data-i="pen-tool" data-s="14"></span>TikZ 源码<span class="r">完成</span></div>
+          <div class="src" style="font-size:12.5px"><span class="l"><span class="k">\begin</span><span class="o">{</span>tikzpicture<span class="o">}</span></span><span class="l">  <span class="k">\draw</span> (<span class="n">0</span>,<span class="n">0</span>) circle (<span class="n">1.5</span>);</span><span class="l">  <span class="k">\coordinate</span> (A) at (<span class="n">110</span>:<span class="n">1.5</span>);</span><span class="l">  <span class="k">\coordinate</span> (B) at (<span class="n">200</span>:<span class="n">1.5</span>);</span><span class="l">  <span class="k">\draw</span>[thick] (A) -- (B) -- (C) -- cycle;</span><span class="l">  <span class="k">\fill</span> (<span class="n">0</span>,<span class="n">0</span>) circle (<span class="n">1pt</span>);</span><span class="l"><span class="k">\end</span><span class="o">{</span>tikzpicture<span class="o">}</span></span></div>
+          <div style="flex:1"></div>
+          <div class="home-ind"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">C1</span>键盘收起：抽屉 + 正文预览</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>预览就是正文里的那个块，不需要另外画一个预览区，宽度适配也和正文完全一致。</li>
+        <li>抽屉支持 <code>normal</code> 和 <code>full</code> 两档；返回或下拉就是完成。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc" style="padding-top:0">
+          <div class="sblk on" data-fig="tikz,200" style="margin-top:-44px"></div>
+          <span class="callout-tag" style="left:50px;top:40px">露出来的只有约 90px，图被切掉一半</span>
+        </div>
+        <div class="drawer" style="position:relative;border-radius:20px 20px 0 0;flex-shrink:0">
+          <div class="grabber"></div>
+          <div class="drawer-h"><span data-i="pen-tool" data-s="14"></span>TikZ 源码<span class="r">完成</span></div>
+          <div class="src" style="font-size:12.5px;position:relative"><span class="l">  <span class="k">\draw</span>[thick] (A) -- (B) -- (C) -- cycle;<span class="caret blink"></span></span><span class="l">  <span class="k">\fill</span> (<span class="n">0</span>,<span class="n">0</span>) circle (<span class="n">1pt</span>);</span>
+            <span class="callout-tag" style="right:0;top:-34px">往下滑：是滚动源码还是收起抽屉？</span></div>
+          <div class="acc sym" style="border-top:1px solid var(--line-2)"><div class="scroll"><span class="ab mono">\</span><span class="ab mono">{ }</span><span class="ab mono">[ ]</span><span class="ab mono">( )</span><span class="ab mono">$</span><span class="ab mono">;</span><span class="ab mono w">--</span></div></div>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">C2</span>键盘弹起：两边都太挤</div>
+      <details class="note" open><summary>问题</summary><ul>
+        <li>抽屉至少要有标题、两行源码和符号行（约 150px），再加上键盘 250px，正文只剩一条缝。</li>
+        <li>块比露出的空间高时，只能显示其中一部分，等于还是看不全预览。</li>
+        <li><code>SnapSheet</code> 的下拉关闭手势和源码区的纵向滚动冲突，需要额外处理，复杂度不比 A 低。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 5 宽内容 ═══════════ -->
+<section class="scene" data-scene="fit">
+  <p class="scene-intro">这个选择<b>和编辑入口无关</b>：正文里的预览比屏幕宽时怎么办。SVG 类内容（TikZ / 乐谱 / Typst / Mermaid / PlantUML）是一张「图」，等比缩小不会丢信息；HTML 是会重新排版的内容，缩小后字会变得很小。所以建议<b>两类分开处理</b>。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <p>整个流程可以画成一条流水线：</p>
+          <div class="sblk" data-fig="flow,300"><span class="fit"><span data-i="zoom-in" data-s="11"></span>58%</span></div>
+          <p>级数展开到六阶：</p>
+          <div class="sblk" style="overflow:hidden"><div class="typ-wide" style="font-size:11.4px"><i>f</i>(<i>x</i>) = <i>a</i><sub>0</sub> + <i>a</i><sub>1</sub><i>x</i> + <i>a</i><sub>2</sub><i>x</i><sup>2</sup> + <i>a</i><sub>3</sub><i>x</i><sup>3</sup> + <i>a</i><sub>4</sub><i>x</i><sup>4</sup> + <i>a</i><sub>5</sub><i>x</i><sup>5</sup> + <i>a</i><sub>6</sub><i>x</i><sup>6</sup> + <i>O</i>(<i>x</i><sup>7</sup>)</div><span class="fit"><span data-i="zoom-in" data-s="11"></span>76%</span></div>
+          <p style="position:relative">最小缩放比例设为 50%，更宽的内容改为横向滚动。<span class="callout-tag ok" style="left:0;top:28px">兜底：再缩就看不清了</span></p>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">W1</span>SVG 类：等比缩小到屏幕宽度<span class="opt-badge" style="margin-left:6px">推荐</span></div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>宿主用一层容器统一处理：测量子内容的固有宽度，超出时用 <code>transform: scale</code> 等比缩小，同时修正高度，插件不需要感知。</li>
+        <li>缩放比例小标签只在实际缩小了的时候出现，点它打开 W3 查看器。</li>
+        <li>缩放比例低于 50% 时改为横向滚动（W2），避免内容小到看不清。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <p>本周复习计划（HTML 块）：</p>
+          <div class="sblk scroll-x" style="padding:4px 0 10px"><table class="html-table"><tr><th>时段</th><th>周一</th><th>周二</th><th>周三</th><th>周四</th></tr><tr><td>早上</td><td>新卡 20</td><td>新卡 20</td><td>休息</td><td>新卡 20</td></tr><tr><td>晚上</td><td>复习</td><td>复习</td><td>复习</td><td>复习</td></tr></table><span class="scrollbar"></span></div>
+          <p style="position:relative">HTML 正常排版，只有表格、代码这类超宽元素横向滚动。<span class="callout-tag" style="left:0;top:52px">左边缘的横滑会和系统的返回手势冲突</span></p>
+          <div class="html-card" style="margin-top:44px"><b>提示</b>普通 HTML 按容器宽度自然排版，不做缩放。</div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">W2</span>HTML：保持排版，超宽元素横向滚动</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>HTML 块默认给根节点加上 <code>max-width: 100%</code>，图片、视频不超出容器宽度，只有 <code>table</code> / <code>pre</code> 这类元素可以横向滚动。</li>
+        <li>右边缘渐隐提示还有内容。横向滚动区域避开屏幕左侧 20px，留给系统的返回手势。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="x" data-s="22"></span><span class="t">TikZ</span><span class="ib" data-i="copy" data-s="19"></span><span class="ib" data-i="share-2" data-s="19"></span></div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;background:var(--bg-surface)">
+          <div data-fig="flow,600" style="transform:translateX(70px)"></div>
+          <span class="callout-tag ok" style="left:14px;top:14px">双指缩放 · 双击在适应宽度和 100% 之间切换</span>
+          <span class="callout-tag ok" style="left:14px;bottom:18px">下滑关闭</span>
+        </div>
+        <div class="home-ind" style="background:var(--bg-surface)"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">W3</span>查看器：放大看细节</div>
+      <details class="note" open><summary>要点</summary><ul>
+        <li>手势和图片查看器一致（双指缩放、双击、下滑关闭），但<b>背景用页面底色</b>：图表是透明底加墨色线条，放在相册那种黑底上会看不见。</li>
+        <li>SVG 是矢量图，放大后依然清晰。复制和分享导出的是 PNG。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 6 内核与符号键 ═══════════ -->
+<section class="scene" data-scene="kernel">
+  <p class="scene-intro">无论选哪个编辑入口，都需要定下这两件事：<b>源码编辑器用什么实现</b>，以及<b>每种语言的符号行放哪些键</b>。</p>
+  <div class="frames" style="gap:18px">
+    <div class="card" style="flex:1 1 640px">
+      <h3>源码编辑器内核三选一（只换触屏路径，桌面端不动）</h3>
+      <table class="cmp">
+        <tr><th></th><th>K1 继续用 CodeMirror 5</th><th>K2 原生 textarea + 高亮叠层<span class="opt-badge" style="margin-left:6px">推荐</span></th><th>K3 换成 CodeMirror 6</th></tr>
+        <tr><td><b>选区手柄 / 放大镜 / 长按菜单</b></td><td>★ 选区是自己画的，iOS 上没有系统手柄</td><td>★★★ 全部由系统提供</td><td>★★★ 原生选区</td></tr>
+        <tr><td><b>中文输入法</b></td><td>★★ 已经修过一次丢字</td><td>★★★ 系统 textarea</td><td>★★★</td></tr>
+        <tr><td><b>协作绑定</b></td><td>现有的 <code>bindTextFieldCodeMirror</code></td><td>现有的 <code>bindTextFieldTextarea</code>（spike 已经用过）</td><td>需要新写一份绑定</td></tr>
+        <tr><td><b>符号键插入</b></td><td><code>insertSourceText</code>（CM 实例 API）</td><td><code>insertIntoTextControl</code>（代码块和行内公式已在用）</td><td>需要新写</td></tr>
+        <tr><td><b>语法高亮</b></td><td>现有的 CM5 mode</td><td>参考代码块的 <code>ShikiOverlayEditor</code> 做叠层；没有对应语法的语言显示纯文本</td><td>需要新的语言包</td></tr>
+        <tr><td><b>新增依赖 / 包体</b></td><td>无</td><td>无（Shiki 已经在用）</td><td>+CM6，约 150 KB 以上（gzip 前）</td></tr>
+        <tr><td><b>实现量</b></td><td>小</td><td>中：叠层对齐、滚动同步、超长文本降级</td><td>中大：两套编辑器和主题并存</td></tr>
+      </table>
+      <p style="margin-top:10px;color:var(--meta)">K2 的思路：移动端代码块已经跑在「textarea + Shiki 叠层」上，配件栏的插入、Tab 键、撤销都现成。源码块在手机上复用同一套做法，触屏只需要维护一种文本编辑方式。</p>
+    </div>
+    <div class="card" style="flex:1 1 460px">
+      <h3>符号行：按 <code>mode</code> 预设，宿主维护</h3>
+      <table class="cmp">
+        <tr><th>块</th><th>符号键（括号类成对插入，光标落在中间）</th></tr>
+        <tr><td><b>TikZ</b></td><td><div class="keyset"><span>\</span><span>{ }</span><span>[ ]</span><span>( )</span><span>$</span><span>;</span><span>--</span><span>%</span><span>,</span></div></td></tr>
+        <tr><td><b>Typst</b></td><td><div class="keyset"><span>#</span><span>$</span><span>[ ]</span><span>( )</span><span>{ }</span><span>*</span><span>_</span><span>=</span><span>/</span></div><div style="font-size:11.5px;color:var(--ink-3);margin-top:4px">现在用的是 <code>mode="stex"</code>（LaTeX 语法），高亮是错的，需要改成 Typst 或纯文本。</div></td></tr>
+        <tr><td><b>HTML</b></td><td><div class="keyset"><span>&lt;</span><span>&gt;</span><span>/</span><span>=</span><span>"</span><span>'</span><span>&lt;/…&gt; 闭合当前标签</span><span>{ }</span></div></td></tr>
+        <tr><td><b>乐谱 ABC</b></td><td><div class="keyset"><span>|</span><span>:</span><span>[ ]</span><span>^</span><span>_</span><span>=</span><span>,</span><span>'</span><span>z</span></div></td></tr>
+        <tr><td><b>Mermaid</b></td><td><div class="keyset"><span>--&gt;</span><span>---</span><span>-.-&gt;</span><span>[ ]</span><span>( )</span><span>{ }</span><span>|</span><span>:</span></div><div style="font-size:11.5px;color:var(--ink-3);margin-top:4px">沿用 <code>MERMAID_SYMBOL_KEYS</code></div></td></tr>
+        <tr><td><b>其他 / 未知</b></td><td><div class="keyset"><span>Tab</span><span>( )</span><span>{ }</span><span>[ ]</span><span>"</span><span>=</span><span>;</span></div></td></tr>
+        <tr><td><b>通用尾部</b></td><td>← → 移动光标（长按连续移动）；撤销 / 重做放在顶栏</td></tr>
+      </table>
+      <p style="margin-top:10px;color:var(--meta)">符号表从 <code>apps/mobile</code> 的配件栏代码移到共享层，按 <code>mode</code> 查询，桌面端不使用。暂时不开放给插件自定义符号键，等有作者需要时再在 SDK 上加 <code>keys</code>。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 7 对比 ═══════════ -->
+<section class="scene" data-scene="cmp">
+  <p class="scene-intro">编辑入口（A / B / C）是最关键的选择，它决定了源码页的形态。宽内容适配、编辑器内核、符号键是相对独立的几项，可以分别选。</p>
+  <div class="frames" style="gap:18px">
+    <div class="card" style="flex:1 1 640px">
+      <h3>编辑入口三方案对比</h3>
+      <table class="cmp">
+        <tr><th></th><th>A 点选 + 分屏源码页</th><th>B 就地展开</th><th>C 底部源码抽屉</th></tr>
+        <tr><td><b>边写边看预览</b></td><td>★★★ 预览区常驻，高度可调</td><td>★ 源码超过约 6 行预览就看不到</td><td>★★ 键盘收起时好，弹起后只露出一条缝</td></tr>
+        <tr><td><b>长源码（HTML / Typst）</b></td><td>★★★ 源码区占满剩余高度</td><td>★</td><td>★★</td></tr>
+        <tr><td><b>与现有机制一致</b></td><td>★★★ 和媒体块同一套「点选 → 上下文配件栏 → ⋯」</td><td>★★★ 和块公式一致</td><td>★★ 新增一种抽屉编辑</td></tr>
+        <tr><td><b>不离开正文</b></td><td>★ 进入全屏页</td><td>★★★</td><td>★★</td></tr>
+        <tr><td><b>手势风险</b></td><td>低：只有返回需要仲裁（已有 <code>OverlayBackDismiss</code>）</td><td>中：键盘避让和滚动互相拉扯</td><td>高：抽屉下拉和源码滚动冲突</td></tr>
+        <tr><td><b>实现量</b></td><td>中：重写 <code>TouchPreviewWithEditor</code> + 新增 <code>source</code> 上下文</td><td>小到中</td><td>中</td></tr>
+        <tr><td><b>插件需要改什么</b></td><td colspan="3">三个方案都不用改插件。只有 Typst 要去掉重复的错误显示并修正 <code>mode</code></td></tr>
+      </table>
+      <p style="margin-top:10px;color:var(--meta)">改动范围：<code>packages/editor-source-view</code>（触屏组件、宽度适配容器、源码页、符号表）、<code>packages/editor</code>（触屏下 <code>ElementFrame</code> 不再塞「块操作」按钮）、<code>apps/mobile</code>（<code>editingContext</code> 新增 <code>source</code> 上下文和配件栏按钮）。桌面端的 <code>PointerPreviewWithEditor</code> 不动。完成后同步 <code>docs/architecture/mobile.md</code>，修正「流程图符号键」那段与实现不一致的描述。</p>
+    </div>
+    <div class="card" style="flex:1 1 420px">
+      <h3>需要你选择的事项</h3>
+      <ol class="decide">
+        <li><b>编辑入口</b>（决定源码页形态）<div class="opts"><span class="rec">A 点选 + 分屏源码页</span><span>B 就地展开</span><span>C 底部源码抽屉</span><span>A + 短源码（乐谱）用 B</span></div></li>
+        <li><b>点块的行为</b>（仅 A）<div class="opts"><span class="rec">先选中，再点「编辑」</span><span>单击直接进源码页</span></div></li>
+        <li><b>正文宽内容</b><div class="opts"><span class="rec">SVG 类缩放 + HTML 横向滚动</span><span>全部横向滚动</span><span>全部缩放</span></div></li>
+        <li><b>源码编辑器内核</b>（仅触屏）<div class="opts"><span class="rec">K2 textarea + 高亮叠层</span><span>K1 继续用 CM5</span><span>K3 换成 CM6</span></div></li>
+        <li><b>源码页预览区</b>（仅 A）<div class="opts"><span class="rec">可拖动高度</span><span>固定 40%</span><span>「预览 / 源码」两个标签切换</span></div></li>
+        <li><b>插件自定义符号键</b><div class="opts"><span class="rec">先由宿主按 mode 预设</span><span>现在就开放 SDK 的 keys</span></div></li>
+        <li><b>非绑定模式的「保存 / 取消」</b>（Mermaid 等内置块的旧路径）<div class="opts"><span class="rec">统一为即时同步 + 撤销</span><span>保留草稿和保存按钮</span></div></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<script src="source.js"></script>
+</body>
+</html>
