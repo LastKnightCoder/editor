@@ -4,7 +4,7 @@ Tau 的产品介绍页。Vite 构建，部署到 Cloudflare Pages；下载信息
 
 页面里的应用示意全部由 HTML/CSS 与少量 TypeScript 生成，不使用截图。颜色直接引用 `@tau/themes/tokens.css`，和桌面端是同一套主题。
 
-站点有两个入口：首页 `/`（原生 TypeScript），使用文档 `/docs/`（React，正文用产品的 Editor 只读渲染）。顶部导航的「使用文档」「插件中心」与 GitHub 链接数据在 `src/lib/site.ts`，两边共用。
+站点有三个入口：首页 `/`（原生 TypeScript），使用文档 `/docs/` 与更新日志 `/changelog/`（React，正文用产品的 Editor 只读渲染）。顶部导航的「使用文档」「更新日志」「插件中心」与 GitHub 链接数据在 `src/lib/site.ts`，各页共用。
 
 ## 命令
 
@@ -40,6 +40,15 @@ pnpm deploy:website   # 构建并上传到 Cloudflare Pages（项目 tau-website
 - 构建时为每篇文档各生成一份 `docs/<slug>/index.html`（标题和描述已填好），静态托管直接命中；开发服务器把 `/docs/<slug>/` 改写到同一个模板。
 - 文档页的样式只用 Tailwind 和 `@tau/themes` 的语义类，不引入首页的 `src/styles/*.css`：那里有不在 layer 里的通配规则，会压过 Tailwind 工具类。
 
+## 更新日志
+
+正文不在本目录维护，构建时直接读取 `apps/desktop/release-notes/<版本号>.md` 与 `apps/mobile/release-notes/<版本号>.md`（写法见两处 README），按版本号从新到旧排列。发布新版本后需要重新部署官网，更新日志才会出现新版本。
+
+- 一页展示一端，顶部切换桌面端与手机端；右侧版本列表随滚动高亮，点击跳到对应版本。
+- 版本号是页面上的二级标题，正文里的标题整体降一级渲染；每个版本一个只读编辑器，滚到底部再补下一批。
+- 地址锚点 `#desktop-<版本号>` / `#mobile-<版本号>` 可直接分享某个版本，`#mobile` 打开手机端。
+- 与使用文档共用顶部导航、编辑器 kit、Markdown 处理器和 `docs.css`。
+
 GitHub 星标数由访客浏览器请求 GitHub 公开 API，本地缓存一小时；不足 100 星或请求失败时只显示 GitHub 入口。
 
 ## 部署
@@ -60,11 +69,13 @@ GitHub 星标数由访客浏览器请求 GitHub 公开 API，本地缓存一小�
 ```
 index.html            首页结构（含 SVG 图标雪碧图）
 docs/index.html       使用文档的页面模板
+changelog/index.html  更新日志的页面模板
 content/docs/         使用文档正文（Markdown）
 src/main.ts           首页入口：引入样式，按顺序初始化各模块
 src/modules/          首页各区块的行为：示意窗口外壳、首屏斜线、主题、所见即所得演示、白板手绘与数据库视图切换、闭环滚动、日常组件、GitHub 星标
 src/styles/           首页按区块拆分的样式，最后是响应式
 src/docs/             使用文档：目录、编辑器 kit 与 Markdown 处理器、页面组件
+src/changelog/        更新日志：读取两端发布说明、页面组件
 src/lib/              两个入口共用的工具：站点链接、GitHub 星标、平台识别
 build/release.ts      构建与运行时共用的清单解析和下载信息渲染
 build/siteNav.ts      首页导航与页脚的入口标记

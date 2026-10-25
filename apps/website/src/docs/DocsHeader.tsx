@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Download, Menu, Star, X } from "lucide-react";
 import { formatStars, loadGithubStars } from "../lib/githubStars.ts";
-import { GITHUB_MARK_PATH, GITHUB_URL, SITE_LINKS } from "../lib/site.ts";
+import { GITHUB_MARK_PATH, GITHUB_URL, SITE_LINKS, type SiteLink } from "../lib/site.ts";
 
 function GithubLink() {
   const [stars, setStars] = useState<number | null>(null);
@@ -33,23 +33,28 @@ function GithubLink() {
 }
 
 interface DocsHeaderProps {
-  navOpen: boolean;
-  onToggleNav: () => void;
+  /** 当前所在的站点入口，导航里高亮 */
+  current: SiteLink["key"];
+  /** 窄屏目录开关；页面没有侧栏目录时不传 */
+  nav?: { open: boolean; onToggle: () => void };
 }
 
-export function DocsHeader({ navOpen, onToggleNav }: DocsHeaderProps) {
+/** 使用文档与更新日志共用的吸顶导航 */
+export function DocsHeader({ current, nav }: DocsHeaderProps) {
   return (
     <header className="border-line-1 bg-page/85 sticky top-0 z-40 border-b backdrop-blur-md">
       <div className="mx-auto flex h-[60px] max-w-[1440px] items-center gap-6 px-6 max-sm:px-4">
-        <button
-          type="button"
-          onClick={onToggleNav}
-          aria-label={navOpen ? "收起文档目录" : "展开文档目录"}
-          aria-expanded={navOpen}
-          className="text-ink-2 hover:bg-hover -ml-1.5 grid size-9 place-items-center rounded-[10px] lg:hidden"
-        >
-          {navOpen ? <X className="size-[18px]" /> : <Menu className="size-[18px]" />}
-        </button>
+        {nav && (
+          <button
+            type="button"
+            onClick={nav.onToggle}
+            aria-label={nav.open ? "收起文档目录" : "展开文档目录"}
+            aria-expanded={nav.open}
+            className="text-ink-2 hover:bg-hover -ml-1.5 grid size-9 place-items-center rounded-[10px] lg:hidden"
+          >
+            {nav.open ? <X className="size-[18px]" /> : <Menu className="size-[18px]" />}
+          </button>
+        )}
         <a href="/" className="flex items-center gap-2.5 font-serif text-[20px] font-semibold">
           <img src="/tau-icon.png" alt="" className="shadow-card size-7 rounded-[8px]" />
           Tau
@@ -60,7 +65,7 @@ export function DocsHeader({ navOpen, onToggleNav }: DocsHeaderProps) {
               key={link.key}
               href={link.href}
               {...(link.external ? { target: "_blank", rel: "noopener" } : {})}
-              aria-current={link.key === "docs" ? "page" : undefined}
+              aria-current={link.key === current ? "page" : undefined}
               className="hover:text-ink-1 aria-[current=page]:text-ink-1 transition-colors aria-[current=page]:font-medium"
             >
               {link.label}

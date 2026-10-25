@@ -28,8 +28,11 @@ export function createDocsEditorServices(navigate: (href: string) => void): Serv
     register(IOpenerService, {
       open: url => {
         const target = new URL(url, location.href);
-        if (target.origin === location.origin && target.pathname.startsWith("/docs/")) {
-          navigate(target.pathname + target.hash);
+        if (target.origin === location.origin) {
+          // 文档页内互链不整页刷新；其他站内页面（如从更新日志跳文档）正常跳转
+          if (target.pathname.startsWith("/docs/") && location.pathname.startsWith("/docs/"))
+            navigate(target.pathname + target.hash);
+          else location.assign(target.href);
           return;
         }
         window.open(target.href, "_blank", "noopener");

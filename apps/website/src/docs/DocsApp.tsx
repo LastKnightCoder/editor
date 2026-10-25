@@ -152,7 +152,7 @@ function DocArticle({ entry }: { entry: DocEntry }) {
           <p className="text-accent-text text-[13px] font-medium tracking-[0.14em]">
             {group?.title}
           </p>
-          <h1 className="mt-3 font-serif text-[38px] font-semibold leading-tight max-sm:text-[30px]">
+          <h1 className="mt-3 font-serif text-[38px] leading-tight font-semibold max-sm:text-[30px]">
             {entry.title}
           </h1>
           <p className="text-ink-2 mt-3 text-[16px] leading-relaxed">{entry.summary}</p>
@@ -222,9 +222,12 @@ export function DocsApp() {
 
   return (
     <div className="bg-page font-tau text-ink-1 min-h-dvh">
-      <DocsHeader navOpen={navOpen} onToggleNav={() => setNavOpen(open => !open)} />
+      <DocsHeader
+        current="docs"
+        nav={{ open: navOpen, onToggle: () => setNavOpen(open => !open) }}
+      />
       {navOpen && entry && (
-        <div className="bg-page fixed inset-x-0 bottom-0 top-[60px] z-30 overflow-y-auto px-4 py-6 lg:hidden">
+        <div className="bg-page fixed inset-x-0 top-[60px] bottom-0 z-30 overflow-y-auto px-4 py-6 lg:hidden">
           <DocsNav current={entry} onNavigate={closeNav} />
         </div>
       )}

@@ -1,5 +1,5 @@
 /*
- * 文档页样式：Tailwind + @tau/themes 语义类，与产品编辑器同一套。
+ * 使用文档与更新日志的样式：Tailwind + @tau/themes 语义类，与产品编辑器同一套。
  * 不引入首页的 styles/*.css——那里的未分层通配规则会压过 Tailwind 工具类。
  */
 @import "@tau/themes/tokens.css";
@@ -12,6 +12,7 @@
 @import "@tau/themes/tailwind.css";
 
 @source "./";
+@source "../changelog";
 @source "../../../../packages/ui/src";
 @source "../../../../packages/editor/src/core";
 @source "../../../../packages/shared/src";
