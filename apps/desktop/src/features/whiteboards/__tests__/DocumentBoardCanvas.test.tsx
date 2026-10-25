@@ -251,6 +251,8 @@ it("未共享白板只显示本机保存并提供共享入口；嵌入画布不�
   const { container } = await mount();
   expect(container.textContent).toContain("已保存在本机");
   expect(container.textContent).toContain("共享");
+  // 共享入口在右下状态栏，不在顶部状态行
+  expect(container.querySelector('[role="status"]')?.textContent).not.toContain("共享");
   expect(mocks.remote.open).not.toHaveBeenCalled();
   await act(async () => root!.unmount());
   root = undefined;

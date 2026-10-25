@@ -3,7 +3,7 @@
  *
  * 会话目录不在页内：共享内容挂在全局侧栏「协作」之下（CollaborationNavSessions），
  * 页面是一整张纸：纸顶工具栏，纸内即协作副本（CollaborationRoom 不再自带卡片外壳）。
- * 当前内容 = 页面参数 id（缺省或失效时落到第一份），
+ * 当前内容 = 页面参数 id（缺省或失效时落到第一份）：正文在纸内编辑，白板展示协作信息；
  * 侧栏子项与 openPage("collaboration", { id }) 都经栈机原位更新参数。
  *
  * 工具栏：标题 + 摘要（份数 · 待处理申请，点开 Popover 就地批复）+ 昵称就地改 +
@@ -11,15 +11,16 @@
  */
 
 import { useState } from "react";
-import { AlertTriangle, KeyRound, PenTool, Share2, Users } from "lucide-react";
+import { AlertTriangle, KeyRound, Share2, Users } from "lucide-react";
 import type { SharedWhiteboardInfo } from "@tau/collaboration";
 import { Button, Loading, Popover } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import useCollaborationStore from "@/stores/useCollaborationStore";
 import { JoinRequestItem } from "@/components/CollaborationUI";
 import { pendingRequests } from "@/components/CollaborationUI/model";
-import { resolveSelected } from "../model";
+import { resolveShared } from "../model";
 import { CollaborationRoom } from "../components/CollaborationRoom";
+import { WhiteboardRoom } from "../components/WhiteboardRoom";
 import { JoinDialog } from "../components/JoinDialog";
 import { NicknameChip } from "../components/NicknameChip";
 import { ShareLocalDialog } from "../components/ShareLocalDialog";
@@ -40,7 +41,7 @@ export function CollaborationView() {
   const [joining, setJoining] = useState(false);
   const [sharing, setSharing] = useState(false);
 
-  const current = resolveSelected(sessions, id);
+  const current = resolveShared(sessions, whiteboards, id);
   const pending = pendingRequests(requests);
   const select = (documentId?: string) =>
     navigator.push("collaboration", documentId ? { id: documentId } : {});
@@ -125,26 +126,21 @@ export function CollaborationView() {
           </div>
         )}
 
-        {current ? (
+        {current?.kind === "session" ? (
           <CollaborationRoom
             key={current.id}
-            session={current}
+            session={current.session}
             requests={requests}
             deviceId={deviceId}
             onLeft={() => select()}
           />
-        ) : whiteboards.length > 0 ? (
-          <section className="grid flex-1 place-items-center">
-            <div className="flex max-w-[34ch] flex-col items-center gap-2 text-center">
-              <span className="bg-accent-soft text-accent-text mb-1.5 grid size-[52px] place-items-center rounded-[16px]">
-                <PenTool className="size-6" strokeWidth={1.5} />
-              </span>
-              <h2 className="text-ink-1 text-[15px] font-[600]">共享白板在白板页里编辑</h2>
-              <p className="text-ink-2 text-tau-meta">
-                点左侧「协作」下的白板即可打开，改动在白板页里保存和同步。
-              </p>
-            </div>
-          </section>
+        ) : current?.kind === "whiteboard" ? (
+          <WhiteboardRoom
+            key={current.id}
+            room={current.room}
+            requests={requests}
+            deviceId={deviceId}
+          />
         ) : (
           <section className="grid flex-1 place-items-center">
             <div className="flex max-w-[34ch] flex-col items-center gap-2 text-center">
@@ -153,7 +149,7 @@ export function CollaborationView() {
               </span>
               <h2 className="text-ink-1 text-[15px] font-[600]">还没有协作内容</h2>
               <p className="text-ink-2 text-tau-meta">
-                把一段本地内容共享出去，或输入别人给你的协作码加入。文章、卡片、项目文档里也能直接发起协作。
+                把一段本地内容或一块白板共享出去，或输入别人给你的协作码加入。文章、卡片、项目文档和白板里也能直接发起协作。
               </p>
               <div className="mt-3 flex gap-2">
                 <Button
@@ -179,6 +175,7 @@ export function CollaborationView() {
         open={sharing}
         onOpenChange={setSharing}
         sessions={sessions}
+        whiteboards={whiteboards}
         onShared={select}
       />
     </div>

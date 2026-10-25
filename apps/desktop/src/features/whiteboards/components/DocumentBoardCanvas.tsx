@@ -34,7 +34,11 @@ import useSettingStore from "@/stores/useSettingStore";
 import { whiteboardDocumentEntry } from "@/services/whiteboard-documents/registry";
 import type { WhiteboardDocumentClient } from "@/services/whiteboard-documents/client";
 import type { BoardCanvasHandle } from "./BoardCanvas";
-import { PendingTransition, WhiteboardCollaborationBar } from "./WhiteboardCollaborationBar";
+import {
+  PendingTransition,
+  WhiteboardCollaborationBar,
+  WhiteboardShareEntry,
+} from "./WhiteboardCollaborationBar";
 import { usePage } from "@/page/PageProvider";
 
 interface Props {
@@ -42,7 +46,7 @@ interface Props {
   documentId: string;
   pageId: string;
   extensions?: readonly WhiteboardExtension[];
-  /** 白板页面提供共享入口；嵌入其它页面的画布只显示保存与同步状态。 */
+  /** 白板页面在右下状态栏提供共享入口；嵌入其它页面的画布只显示保存与同步状态。 */
   collaboration?: boolean;
   onPresentationModeChange?: (value: boolean) => void;
   onDockWidthChange?: (value: number) => void;
@@ -277,6 +281,11 @@ function BoundDocumentCanvas({
           extensions={extensions}
           onPresentationModeChange={onPresentationModeChange}
           onDockWidthChange={onDockWidthChange}
+          statusBarEnd={
+            collaboration ? (
+              <WhiteboardShareEntry client={client} documentId={documentId} />
+            ) : undefined
+          }
         />
       </div>
     </div>

@@ -32,6 +32,8 @@ interface StatusBarProps {
   onStartPresentation: (sequenceId: string) => void;
   onEditSequence: (sequenceId: string) => void;
   onDeleteSequence: (sequenceId: string) => void;
+  /** 宿主追加在末尾的控件（如协作入口） */
+  end?: React.ReactNode;
   ref?: React.Ref<HTMLDivElement>;
 }
 
@@ -40,6 +42,7 @@ interface StatusBarProps {
  * 百分比点开是「视图」菜单：适应全部 / 适应选中 / 缩放档位 / 点阵开关——
  * 低频的背景设置收进菜单，顶层只留缩放与全览。
  * 「演示」一个入口收拢演示序列：点序列即放映，悬停出编辑 / 删除，底部「新建演示序列」。
+ * 末尾是宿主控件（end），演示模式下随状态栏一起隐藏。
  */
 const StatusBar = memo((props: StatusBarProps) => {
   const {
@@ -55,6 +58,7 @@ const StatusBar = memo((props: StatusBarProps) => {
     onStartPresentation,
     onEditSequence,
     onDeleteSequence,
+    end,
     ref,
   } = props;
 
@@ -67,7 +71,7 @@ const StatusBar = memo((props: StatusBarProps) => {
   if (isPresentationMode) return null;
 
   return (
-    <ChromeBar ref={ref} className="bottom-3 right-3 text-[12px]">
+    <ChromeBar ref={ref} className="right-3 bottom-3 text-[12px]">
       <SketchEntry />
       <ChromeButton
         label="缩小"
@@ -145,6 +149,12 @@ const StatusBar = memo((props: StatusBarProps) => {
         onEdit={onEditSequence}
         onDelete={onDeleteSequence}
       />
+      {end && (
+        <>
+          <ChromeGap className="w-1" />
+          {end}
+        </>
+      )}
     </ChromeBar>
   );
 });
@@ -191,7 +201,7 @@ function SketchEntry() {
             </Menu.RadioItem>
           ))}
         </Menu.RadioGroup>
-        <div className="text-ink-3 text-tau-tiny px-2.5 pb-1 pt-1.5">
+        <div className="text-ink-3 text-tau-tiny px-2.5 pt-1.5 pb-1">
           单独设置过画风的元素不受影响
         </div>
       </Menu>
@@ -245,7 +255,7 @@ function SequenceEntry({
           </Button>
         }
       >
-        <div {...stopCanvasEvents} className="w-[268px] px-2.5 pb-2.5 pt-3">
+        <div {...stopCanvasEvents} className="w-[268px] px-2.5 pt-3 pb-2.5">
           <div className="text-ink-1 mb-1.5 px-1.5 text-[12.5px] font-semibold">演示序列</div>
           {sequences.length === 0 ? (
             <div className="text-ink-3 px-1.5 pb-2 text-[12.5px]">还没有演示序列</div>
@@ -266,7 +276,7 @@ function SequenceEntry({
                       onStart(s.id);
                     }
                   }}
-                  className="hover:bg-hover group/seq flex h-10 cursor-pointer items-center gap-2.5 rounded-[9px] pl-2 pr-1 outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
+                  className="hover:bg-hover group/seq flex h-10 cursor-pointer items-center gap-2.5 rounded-[9px] pr-1 pl-2 outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
                 >
                   <span className="bg-accent-soft text-accent-text grid size-[26px] flex-none place-items-center rounded-[8px]">
                     <Play size={12} fill="currentColor" strokeWidth={1.75} />
