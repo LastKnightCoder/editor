@@ -39,6 +39,8 @@ void main();
 
 加载失败交给调用方的 React 错误边界。正文、预览和引用答案可以同时挂载多个渲染器，各自维护状态，卸载时清理插件样式。`hrefFor`、`renderLink` 请传稳定的引用，避免每次渲染都重建链接。
 
+格式 3 内容包需要声明 desktop 目标，编辑器贡献与节点归属按插件实际定义校验；旧格式仍校验 `editor` 声明。渲染器只读取静态贡献，不调用插件的 create/activate 生命周期。
+
 ## 样式与主题
 
 `styles.css` 的内容都在级联层里：主题变量在 `theme` 层，编辑器样式在 `components` 层。模板自己的 Tailwind 工具类可以覆盖编辑器样式，preflight 不会盖掉它们。
@@ -53,4 +55,13 @@ void main();
 
 内容插件在浏览器里经 `new Function` 求值（求值前校验 SHA-256），站点如设置 CSP 需允许 `unsafe-eval`。PlantUML 图表由 plantuml.com 渲染，源码会发往该服务。
 
-源码在 packages/blog，仓库根目录执行 `node scripts/blog/package-blog.mjs` 构建 npm 归档。
+源码在 packages/blog，在仓库根目录验证并构建 npm 归档：
+
+```sh
+pnpm --filter @tau/blog check
+pnpm --filter @tau/blog test
+node --test scripts/__tests__/blog-runtime-boundary.test.mjs
+node scripts/blog/package-blog.mjs
+```
+
+构建校验运行时代码边界、CSS 资源引用与声明依赖闭包；允许的跨端正文协议由 [构建边界](/scripts/blog/runtime-boundary.mjs) 显式列出，数据库实现和宿主代码仍禁止进入产物。输出在 `output/blog-package/`，生成归档不代表已经发布。

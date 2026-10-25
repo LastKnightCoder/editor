@@ -35,7 +35,8 @@ export async function prepareContent(result: DataResult, signal: AbortSignal) {
     if (dependency.runtimeVersion !== PLUGIN_RENDER_VERSION)
       throw new Error("不支持此内容插件协议");
     const manifest = validatePluginManifest(dependency.manifest);
-    if (!manifest.editor || ids.has(manifest.id)) throw new Error("内容插件重复或缺少编辑器声明");
+    if (ids.has(manifest.id) || (manifest.formatVersion !== 3 && !manifest.editor))
+      throw new Error("内容插件重复或缺少编辑器声明");
     ids.add(manifest.id);
     if (Boolean(manifest.styles) !== Boolean(dependency.styles))
       throw new Error("插件样式声明不完整");
@@ -54,6 +55,7 @@ export async function prepareContent(result: DataResult, signal: AbortSignal) {
         : undefined;
     signal.throwIfAborted();
     const definition = evaluatePluginPackage({ manifest, code, css }, pluginModules);
+    if (!definition.editorExtensions?.length) throw new Error("内容插件缺少编辑器贡献");
     assertRenderTypes(definition, dependency.nodeTypes);
     for (const type of dependency.nodeTypes) {
       if (types.has(type)) throw new Error(`内容插件节点冲突：${type}`);

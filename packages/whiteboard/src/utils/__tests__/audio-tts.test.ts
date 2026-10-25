@@ -15,6 +15,8 @@ it.each([
   } as unknown as Board;
   await AudioUtil.insertAudioFromTTS(new Blob(["bytes"], { type: mime }), "朗读", board, {
     upload,
+    imageInfo: vi.fn(async () => null),
+    videoInfo: vi.fn(async () => null),
   });
   const file = upload.mock.calls[0][0];
   expect(file.name.endsWith(extension)).toBe(true);
