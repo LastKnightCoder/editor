@@ -1,3 +1,4 @@
+import log from "electron-log";
 import { randomUUID } from "node:crypto";
 import { BrowserWindow, type WebContents } from "electron";
 import type {
@@ -58,8 +59,14 @@ export class PluginVideoRelay {
 
   private broadcast() {
     const providers = this.providers();
-    for (const window of BrowserWindow.getAllWindows())
-      if (!window.isDestroyed()) window.webContents.send("plugin-video:providers", providers);
+    for (const window of BrowserWindow.getAllWindows()) {
+      try {
+        if (window.isDestroyed() || window.webContents.isDestroyed()) continue;
+        window.webContents.send("plugin-video:providers", providers);
+      } catch (error) {
+        log.warn("视频插件状态通知失败:", error);
+      }
+    }
   }
 
   private watch(contents: WebContents) {

@@ -1,4 +1,6 @@
 // @vitest-environment node
+import { EventEmitter } from "node:events";
+import type { WebContents } from "electron";
 import { mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import AdmZip from "adm-zip";
@@ -9,6 +11,7 @@ import { PluginWorkspaceRegistry } from "../../services/plugin-registry";
 
 const mock = vi.hoisted(() => ({
   root: "",
+  windows: [] as any[],
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   openPath: vi.fn(async () => ""),
   download: vi.fn(),
@@ -18,7 +21,7 @@ vi.mock("../../services/content-execution", () => ({
   contentExecutor: { execute: mock.validateContent },
 }));
 vi.mock("electron", () => ({
-  BrowserWindow: { getAllWindows: () => [] },
+  BrowserWindow: { getAllWindows: () => mock.windows },
   app: {
     isPackaged: true,
     getPath: () => path.join(mock.root, "profile"),
@@ -43,6 +46,7 @@ vi.mock("../../utils/PathUtil", () => ({
 beforeEach(async () => {
   vi.resetModules();
   mock.root = await mkdtemp(path.join(tmpdir(), "tau-local-module-"));
+  mock.windows = [];
   mock.handlers.clear();
   mock.openPath.mockClear();
   mock.validateContent.mockClear();
@@ -267,4 +271,48 @@ it.each([false, true])("中心版本立即安装且停用，更新保留意图�
   }
   await invoke("plugin-local:uninstall", id);
   expect(((await invoke("plugin-local:scan")) as { entries: unknown[] }).entries).toEqual([]);
+});
+
+it("图片宿主先销毁 WebContents 时广播不中断，仍通知存活窗口并结束在途请求", async () => {
+  const { pluginImagesRelay } = await import("../../services/plugin-images");
+  let destroyed = false;
+  const host = Object.assign(new EventEmitter(), {
+    id: 701,
+    isDestroyed: () => destroyed,
+    send: vi.fn(),
+  }) as unknown as WebContents;
+  const caller = Object.assign(new EventEmitter(), {
+    id: 702,
+    isDestroyed: () => false,
+    send: vi.fn(),
+  }) as unknown as WebContents;
+  const racing = {
+    isDestroyed: () => false,
+    webContents: {
+      isDestroyed: () => false,
+      send: vi.fn(() => {
+        throw new Error("Object has been destroyed");
+      }),
+    },
+  };
+  const alive = {
+    isDestroyed: () => false,
+    webContents: { isDestroyed: () => false, send: vi.fn() },
+  };
+  mock.windows = [{ isDestroyed: () => false, webContents: host }, racing, alive];
+  pluginImagesRelay.connect(host, "generation");
+  const pending = pluginImagesRelay.request(caller, "open", {
+    kind: "open",
+    session: "pending",
+    pluginId: "test.images",
+    config: {},
+    modelId: "image",
+  });
+  vi.mocked(host.send).mockClear();
+  alive.webContents.send.mockClear();
+  destroyed = true;
+  expect(() => host.emit("destroyed")).not.toThrow();
+  expect(host.send).not.toHaveBeenCalled();
+  expect(alive.webContents.send).toHaveBeenCalledWith("plugin-images:changed");
+  await expect(pending).resolves.toMatchObject({ errorName: "AbortError" });
 });

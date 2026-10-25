@@ -1,3 +1,4 @@
+import log from "electron-log";
 import { installDesktopPluginMetrics } from "../../../shared/content-metrics";
 import type { ContentMetricRule } from "@tau/db-schema/content-metrics";
 import { portableDevelopmentArtifacts } from "../services/plugin-portable-development";
@@ -114,10 +115,17 @@ export default {
     ipcMain.handle("plugin-local:content-startup", () => snapshot);
     if (!app.isPackaged)
       ipcMain.handle("plugin-local:portable-development", () => portableDevelopmentArtifacts());
-    const stateChanged = () => {
-      for (const window of BrowserWindow.getAllWindows())
-        if (!window.isDestroyed()) window.webContents.send("plugin-local:state-changed");
+    const broadcast = (channel: string) => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        try {
+          if (window.isDestroyed() || window.webContents.isDestroyed()) continue;
+          window.webContents.send(channel);
+        } catch (error) {
+          log.warn(`插件状态通知失败：${channel}`, error);
+        }
+      }
     };
+    const stateChanged = () => broadcast("plugin-local:state-changed");
     const applyInstalled = async (installed: { id: string; version: string }) => {
       await pluginPublishSessions.protect(installed.id, () =>
         protectPluginBackendChange(installed.id, () =>
@@ -139,10 +147,7 @@ export default {
       stateChanged();
       return installed;
     };
-    const imagesChanged = () => {
-      for (const window of BrowserWindow.getAllWindows())
-        if (!window.isDestroyed()) window.webContents.send("plugin-images:changed");
-    };
+    const imagesChanged = () => broadcast("plugin-images:changed");
     pluginImagesRelay.onChange = imagesChanged;
     ipcMain.handle(
       "plugin-local:images-config",

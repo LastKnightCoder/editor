@@ -17,7 +17,6 @@ vi.mock("@/commands/updater", () => ({
   checkForUpdate: vi.fn(),
   downloadUpdate: vi.fn(),
   installUpdate: vi.fn(),
-  onInstallFailed: vi.fn(),
   onUpdateDownloadProgress: vi.fn(),
   onUpdateDownloaded: vi.fn(),
   onUpdateError: vi.fn(),

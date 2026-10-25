@@ -11,10 +11,13 @@ const QUITTING_CHANNEL = "app:quitting";
 const READY_CHANNEL = "app:quitting-ready";
 // 单窗口等待渲染进程收尾的最长时间，超时后继续退出（尽力保存）
 const WINDOW_READY_TIMEOUT_MS = 8000;
-// 受控退出全程的最长时间，超时强制退出，避免"点了退出没反应"
+// 文档确认保存后，收尾和安装交接各自的等待上限
 const FORCE_EXIT_TIMEOUT_MS = 15000;
 
 let quitting = false;
+let nativeQuitAllowed = false;
+let quitTask: Promise<void> | undefined;
+let controllerDeps: QuitControllerDeps | undefined;
 const windowReadyResolvers = new Map<number, () => void>();
 
 export function isAppQuitting(): boolean {
@@ -30,61 +33,117 @@ interface QuitControllerDeps {
  * （协作文档 flush、自动同步 beforeunload）中止后应用残留（macOS 需退出两次）。
  */
 export function setupQuitController(deps: QuitControllerDeps): void {
+  controllerDeps = deps;
   ipcMain.handle(READY_CHANNEL, event => {
     const window = BrowserWindow.fromWebContents(event.sender);
     if (window) windowReadyResolvers.get(window.id)?.();
   });
 
   app.on("before-quit", event => {
-    if (quitting) return;
+    if (nativeQuitAllowed) return;
     event.preventDefault();
-    quitting = true;
-    void runControlledQuit(deps);
+    void requestAppQuit().catch(() => undefined);
   });
 }
 
-async function runControlledQuit(deps: QuitControllerDeps): Promise<void> {
-  const forceExitTimer = setTimeout(() => {
-    log.warn("受控退出超时，强制退出应用");
+/** 更新安装也从保存屏障进入，不能让安装器先关闭业务窗口。 */
+export function requestAppQuit(installUpdate?: () => void): Promise<void> {
+  if (quitTask) return quitTask;
+  if (!controllerDeps) return Promise.reject(new Error("退出控制器尚未初始化"));
+  quitting = true;
+  log.info(installUpdate ? "请求更新退出，等待文档确认保存" : "请求退出，等待文档确认保存");
+  quitTask = runControlledQuit(controllerDeps, installUpdate).finally(() => {
+    if (!quitting) quitTask = undefined;
+  });
+  return quitTask;
+}
+
+async function runControlledQuit(
+  deps: QuitControllerDeps,
+  installUpdate?: () => void
+): Promise<void> {
+  try {
+    await collaborationModule.prepareQuit();
+  } catch (error) {
+    quitting = false;
+    log.error("文档尚未确认保存，保留窗口并取消退出:", error);
+    throw error;
+  }
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    clearTimeout(forceExitTimer);
     pluginBackends.forceDispose();
     contentExecutor.dispose();
-    app.exit(0);
+    // destroy 绕过隐藏窗口和 beforeunload 的关闭拦截。
+    for (const win of BrowserWindow.getAllWindows()) {
+      try {
+        if (!win.isDestroyed()) win.destroy();
+      } catch (error) {
+        log.warn("退出时销毁窗口失败:", error);
+      }
+    }
+    if (!installUpdate) {
+      app.exit(0);
+      return;
+    }
+    nativeQuitAllowed = true;
+    const installExitTimer = setTimeout(() => {
+      log.warn("更新安装已交接，原生退出超时，结束旧进程");
+      app.exit(0);
+    }, FORCE_EXIT_TIMEOUT_MS);
+    installExitTimer.unref?.();
+    app.once("quit", () => clearTimeout(installExitTimer));
+    try {
+      log.info("受控退出收尾完成，交接更新安装器");
+      installUpdate();
+    } catch (error) {
+      clearTimeout(installExitTimer);
+      log.error("更新安装器启动失败:", error);
+      app.exit(1);
+    }
+  };
+  const forceExitTimer = setTimeout(() => {
+    log.warn("退出收尾超时，执行最终退出动作");
+    finish();
   }, FORCE_EXIT_TIMEOUT_MS);
 
   try {
     const windows = BrowserWindow.getAllWindows().filter(
-      win => !win.isDestroyed() && !isContentRuntimeWindow(win)
+      win => !win.isDestroyed() && !win.webContents.isDestroyed() && !isContentRuntimeWindow(win)
     );
     log.info(`受控退出开始，等待 ${windows.length} 个窗口收尾`);
     const ready = windows.map(win => waitForWindowReady(win));
-    for (const win of windows) win.webContents.send(QUITTING_CHANNEL);
+    for (const win of windows) {
+      try {
+        if (win.isDestroyed() || win.webContents.isDestroyed()) {
+          windowReadyResolvers.get(win.id)?.();
+          continue;
+        }
+        win.webContents.send(QUITTING_CHANNEL);
+      } catch (error) {
+        log.warn("窗口退出通知失败:", error);
+        windowReadyResolvers.get(win.id)?.();
+      }
+    }
     await Promise.all(ready);
 
     pluginBackends.beginDrain();
     await setPluginBackendsPaused(true);
     await pluginBackends.dispose();
 
-    // 协作文档落盘必须在断开连接、销毁窗口之前
-    await collaborationModule.prepareQuit();
     contentExecutor.dispose();
 
     globalShortcut.unregisterAll();
     deps.getTrayManager()?.destroyTray();
-
-    // destroy 绕过 beforeunload 与窗口 close 拦截器，退出流程不会被再次中止
-    for (const win of BrowserWindow.getAllWindows()) {
-      if (!win.isDestroyed()) win.destroy();
-    }
 
     await mcpModule.disconnectAll();
     collaborationModule.shutdown();
   } catch (error) {
     log.error("受控退出流程出错:", error);
   } finally {
-    pluginBackends.forceDispose();
-    contentExecutor.dispose();
-    clearTimeout(forceExitTimer);
-    app.exit(0);
+    finish();
   }
 }
 

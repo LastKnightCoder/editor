@@ -66,11 +66,3 @@ export function onUpdateError(callback: (payload: { message: string }) => void):
   on("updater:error", handler);
   return () => off("updater:error", handler);
 }
-
-export function onInstallFailed(
-  callback: (payload: { fallbackUrl: string | null }) => void
-): () => void {
-  const handler = (_event: unknown, payload: { fallbackUrl: string | null }) => callback(payload);
-  on("updater:install-failed", handler);
-  return () => off("updater:install-failed", handler);
-}
