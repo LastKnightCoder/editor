@@ -71,6 +71,11 @@ export const DOC_GROUPS: DocGroup[] = [
     items: [
       { slug: "data", title: "数据与备份", summary: "你的数据存在哪里，如何导出与备份。" },
       { slug: "faq", title: "常见问题", summary: "使用 Tau 时常被问到的问题。" },
+      {
+        slug: "browser-companion-privacy",
+        title: "Tau 伴读隐私政策",
+        summary: "「Tau 伴读」浏览器扩展会处理哪些数据、存在哪里、交给谁。",
+      },
     ],
   },
 ];

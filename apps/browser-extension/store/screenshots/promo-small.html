@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="shot-size" content="440x280" />
+    <title>小宣传图 440×280</title>
+    <link rel="stylesheet" href="shared.css" />
+    <style>
+      body {
+        width: 440px;
+        height: 280px;
+      }
+      .promo {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 0 40px;
+      }
+      .promo .orb {
+        position: static;
+        width: 56px;
+        height: 56px;
+        font-size: 30px;
+        margin-bottom: 20px;
+      }
+      .promo .orb .dot {
+        width: 14px;
+        height: 14px;
+      }
+      .promo h1 {
+        font-size: 30px;
+        font-weight: 700;
+      }
+      .promo p {
+        margin-top: 8px;
+        font-size: 15px;
+        line-height: 1.6;
+        color: var(--tau-ink-2);
+      }
+      .promo .line {
+        font-family: var(--serif);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="promo">
+      <span class="orb">τ<span class="dot"></span></span>
+      <h1>Tau 伴读</h1>
+      <p>
+        在网页上<span class="line hl yellow">高亮</span>、<span class="line hl green">批注</span
+        >、记笔记，<br />用 Tau 里的模型对网页提问。
+      </p>
+    </div>
+  </body>
+</html>

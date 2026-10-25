@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+  <head>
+    <meta charset="utf-8" />
+    <title>01 选中即高亮</title>
+    <link rel="stylesheet" href="shared.css" />
+    <style>
+      .ask-menu {
+        top: 40px;
+        left: 196px;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="caption">
+      <h1>选中文字，就能高亮、批注、问 AI</h1>
+      <p>五种颜色随手标记，标注不改动网页本身，下次打开自动还原。</p>
+    </section>
+
+    <div
+      class="browser"
+      data-host="slowread.example.com"
+      data-path="/posts/write-to-remember"
+      data-title="为什么写下来的想法，更容易被记住"
+    >
+      <div class="viewport">
+        <div class="page" data-article data-scroll="150"></div>
+
+        <div class="sel-toolbar float" data-anchor="m2">
+          <span class="swatch-btn"><span class="swatch yellow"></span></span>
+          <span class="swatch-btn"><span class="swatch green"></span></span>
+          <span class="swatch-btn"><span class="swatch blue"></span></span>
+          <span class="swatch-btn"><span class="swatch purple"></span></span>
+          <span class="swatch-btn"><span class="swatch red"></span></span>
+          <span class="divider"></span>
+          <span class="tool"><i data-icon="message-square-text"></i>批注</span>
+          <span class="tool accent hover"
+            ><i data-icon="sparkles"></i>问 AI<i data-icon="chevron-down" data-size="13"></i
+          ></span>
+          <span class="tool"><i data-icon="quote"></i>摘录</span>
+          <span class="divider"></span>
+          <span class="tool"><i data-icon="copy"></i></span>
+
+          <div class="menu float ask-menu">
+            <div class="menu-item hover"><i data-icon="sparkles"></i>解释</div>
+            <div class="menu-item"><i data-icon="languages"></i>翻译</div>
+            <div class="menu-item"><i data-icon="list"></i>概括这段</div>
+            <div class="menu-item"><i data-icon="message-circle"></i>自由提问…</div>
+          </div>
+        </div>
+
+        <div class="orb" style="right: 18px; top: 330px">
+          τ<span class="dot"></span><span class="badge">3</span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.MARKS = { m1: "yellow", m2: "selected", m3: "green", m5: "blue" };
+    </script>
+    <script src="scene.js"></script>
+    <script src="icons.js"></script>
+  </body>
+</html>

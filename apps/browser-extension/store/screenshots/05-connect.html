@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+  <head>
+    <meta charset="utf-8" />
+    <title>05 与 Tau 配对</title>
+    <link rel="stylesheet" href="shared.css" />
+  </head>
+  <body>
+    <section class="caption">
+      <h1>与 Tau 桌面端配对一次，数据留在你的电脑上</h1>
+      <p>扩展只和本机的 Tau 通信，核对两边的校验码再允许；随时可在 Tau 设置里撤销。</p>
+    </section>
+
+    <span class="window-label" style="left: 80px; top: 186px">TAU 桌面端</span>
+    <section class="card" style="left: 80px; top: 210px; width: 470px">
+      <header class="dialog-head">
+        <span class="glyph"><i data-icon="globe" data-size="16"></i></span>
+        <div><b>Chrome 想连接到 Tau</b><small>来自「Tau 伴读」浏览器扩展</small></div>
+      </header>
+      <div class="dialog-body">
+        <dl>
+          <dt>浏览器</dt>
+          <dd>Chrome · macOS</dd>
+          <dt>扩展</dt>
+          <dd>Tau 伴读 0.1.0</dd>
+        </dl>
+        <div class="verify">
+          <div class="code"><span>4</span><span>8</span><span>1</span><span>7</span></div>
+          <p>与浏览器面板里显示的校验码一致吗？不一致请拒绝。</p>
+        </div>
+        <p style="font-size: var(--tau-text-meta); color: var(--tau-ink-3)">允许它</p>
+        <div class="scope">
+          <div><b>用 Tau 的模型对话</b><small>只在你提问时发送网页内容</small></div>
+          <span>必需</span>
+        </div>
+        <div class="scope">
+          <div><b>读写网页标注</b><small>高亮与批注保存为 Tau 里的网页划线</small></div>
+          <span>必需</span>
+        </div>
+        <div class="scope">
+          <div><b>保存页面笔记</b><small>笔记存为一张带来源链接的卡片</small></div>
+          <span>必需</span>
+        </div>
+        <div class="scope">
+          <div><b>使用 Tau 里的工具</b><small>检索笔记、管理待办与日程</small></div>
+          <span class="switch"></span>
+        </div>
+      </div>
+      <footer class="dialog-foot">
+        <span class="button">拒绝</span>
+        <span class="button primary">允许连接</span>
+      </footer>
+    </section>
+
+    <div class="link-line" style="left: 570px; top: 420px; width: 170px">
+      <span class="badge-icon"><i data-icon="shield-check" data-size="18"></i></span>
+      <span class="rule"></span>
+      <span>本机直连 127.0.0.1<br />不经过任何服务器</span>
+    </div>
+
+    <span class="window-label" style="left: 760px; top: 236px">浏览器 · 伴读面板</span>
+    <section class="panel card" style="left: 760px; top: 260px; height: 470px">
+      <header class="panel-head">
+        <span class="site-icon">慢</span>
+        <div class="panel-title">
+          <b>为什么写下来的想法，更容易被记住</b>
+          <small
+            ><span>slowread.example.com</span><span class="status-dot warn"></span
+            ><span>等待授权</span></small
+          >
+        </div>
+        <span class="icon-btn"><i data-icon="pin"></i></span>
+        <span class="icon-btn"><i data-icon="ellipsis" data-size="16"></i></span>
+        <span class="icon-btn"><i data-icon="x" data-size="16"></i></span>
+      </header>
+      <nav class="panel-tabs"><span class="on">对话</span><span>标注</span><span>笔记</span></nav>
+      <div class="panel-body">
+        <div class="state-card">
+          <span class="state-icon"><i data-icon="key-round" data-size="20"></i></span>
+          <h3>在 Tau 中确认连接</h3>
+          <p>Tau 已弹出授权窗口，请核对校验码与下方一致后点「允许」。只需确认一次。</p>
+          <div class="code"><span>4</span><span>8</span><span>1</span><span>7</span></div>
+          <span class="waiting"><span class="spinner"></span>等待确认…</span>
+        </div>
+      </div>
+    </section>
+
+    <script src="scene.js"></script>
+    <script src="icons.js"></script>
+  </body>
+</html>
