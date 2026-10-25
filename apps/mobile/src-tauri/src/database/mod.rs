@@ -51,8 +51,7 @@ pub use index_db::reset_index_database;
 pub use pomodoro::*;
 pub use project::*;
 pub use schema::ensure_database_file;
-pub(crate) use schema::install_preserved_download;
-pub use schema::validate_download;
+pub(crate) use schema::install_download;
 pub use todo::*;
 
 #[derive(Debug, Deserialize)]
@@ -236,7 +235,6 @@ pub fn create_database(app: AppHandle, name: String) -> Result<DatabaseItem, Str
         .unwrap_or(DatabaseItem {
             name: db_name,
             version: 0,
-            sync_format: crate::chunked_sync::protocol().model_version,
         });
     Ok(item)
 }

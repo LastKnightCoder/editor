@@ -145,7 +145,7 @@ pub(crate) fn preserve_at(
     cache: &Connection,
     workspace: &str,
     reason: &str,
-    document: Option<&str>,
+    document: &str,
 ) -> Result<String, String> {
     fs::create_dir_all(directory).map_err(|e| e.to_string())?;
     let id = uuid::Uuid::new_v4().to_string();
@@ -178,7 +178,7 @@ pub(crate) fn preserve_at(
         };
         let mut files = vec!["collaboration.db".to_string()];
         let mut references = BTreeSet::new();
-        if let Some(document) = document {
+        {
             let metadata: String = saved
                 .query_row(
                     "SELECT metadata FROM sessions WHERE id=?1",
@@ -257,41 +257,6 @@ pub(crate) fn preserve_at(
             saved
                 .execute("DELETE FROM sessions WHERE id<>?1", [document])
                 .map_err(|e| e.to_string())?;
-        } else {
-            snapshot(main, &pending.join("main.db"))?;
-            files.push("main.db".into());
-            saved.execute("DELETE FROM sessions WHERE CASE WHEN json_extract(metadata,'$.source.librarySourceId') IS NOT NULL THEN coalesce(json_extract(metadata,'$.source.librarySourceId')=?1,0) ELSE coalesce(json_extract(metadata,'$.source.databaseName') IN (?2,?3),0) END = 0", rusqlite::params![source_id,workspace.trim_end_matches(".db"),format!("{}.db",workspace.trim_end_matches(".db"))]).map_err(|e|e.to_string())?;
-            // 只读取该库正文及旧外部块的数据值，不遍历整个应用文件目录。
-            for (table, column) in [
-                ("contents", "content"),
-                ("white_board_contents", "data"),
-                ("data_tables", "rows"),
-            ] {
-                let exists: bool = main
-                    .query_row(
-                        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1)",
-                        [table],
-                        |row| row.get(0),
-                    )
-                    .map_err(|e| e.to_string())?;
-                if !exists {
-                    continue;
-                }
-                let mut statement = main
-                    .prepare(&format!("SELECT {column} FROM {table}"))
-                    .map_err(|e| e.to_string())?;
-                for row in statement
-                    .query_map([], |row| row.get::<_, String>(0))
-                    .map_err(|e| e.to_string())?
-                {
-                    local_references(
-                        &serde_json::from_str::<Value>(&row.map_err(|e| e.to_string())?)
-                            .map_err(|e| e.to_string())?,
-                        app_dir,
-                        &mut references,
-                    );
-                }
-            }
         }
         for table in [
             "updates",
@@ -411,6 +376,10 @@ pub(crate) fn preserve_at(
                 missing.push(reference);
                 continue;
             }
+            // 正文文字里提到的目录路径不是附件
+            if path.is_dir() {
+                continue;
+            }
             let name = format!("asset-{}", resources.len());
             copy(&path, &pending.join(&name))?;
             resources.push(json!({"reference":reference,"file":name}));
@@ -440,7 +409,7 @@ pub(crate) fn preserve_at(
             id: id.clone(),
             workspace_id: workspace.into(),
             reason: reason.into(),
-            provenance: json!({"platform":"mobile","documentId":document,"scope":if document.is_some(){"document"}else{"library"}}),
+            provenance: json!({"platform":"mobile","documentId":document,"scope":"document"}),
             files: records,
             missing,
         };
@@ -504,7 +473,7 @@ pub(crate) fn preserve(
         cache,
         &workspace,
         reason,
-        Some(document),
+        document,
     )
 }
 
@@ -879,7 +848,7 @@ mod tests {
     }
     fn root_test(dir: &Path, main: &Connection, cache: &Connection) -> PathBuf {
         let root = dir.join("content-recoveries");
-        let id = preserve_at(dir, &root, main, cache, "library", "migration", Some("doc")).unwrap();
+        let id = preserve_at(dir, &root, main, cache, "library", "migration", "doc").unwrap();
         root.join(id)
     }
     #[test]
@@ -916,96 +885,6 @@ mod tests {
     }
 
     #[test]
-    fn library_preservation_excludes_other_libraries_and_unreferenced_files() {
-        let dir = std::env::temp_dir().join(format!("tau-library-scope-{}", uuid::Uuid::new_v4()));
-        fs::create_dir_all(dir.join("resources")).unwrap();
-        fs::write(dir.join("resources/used.png"), [1]).unwrap();
-        fs::write(dir.join("resources/other.png"), [9]).unwrap();
-        let main = Connection::open_in_memory().unwrap();
-        main.execute_batch("CREATE TABLE library_identity(id INTEGER,source_id TEXT); INSERT INTO library_identity VALUES(1,'source-a'); CREATE TABLE contents(id INTEGER,content TEXT); INSERT INTO contents VALUES(1,'[{\"url\":\"~/.editor/resources/used.png\"}]');").unwrap();
-        let cache = Connection::open_in_memory().unwrap();
-        cache
-            .execute_batch(include_str!(
-                "../../../../packages/db-schema/schema/collaboration.sql"
-            ))
-            .unwrap();
-        for (id, source) in [("a", "source-a"), ("b", "source-b")] {
-            cache.execute("INSERT INTO sessions VALUES (?1,?2,?3,'hash')",rusqlite::params![id,json!({"id":id,"source":{"librarySourceId":source,"contentDocumentId":format!("body-{id}")}}).to_string(),[1u8].as_slice()]).unwrap();
-            cache
-                .execute(
-                    "INSERT INTO updates(document_id,state,hash) VALUES (?1,?2,'hash')",
-                    rusqlite::params![id, [2u8].as_slice()],
-                )
-                .unwrap();
-            cache
-                .execute(
-                    "INSERT INTO node_views VALUES (?1,?2,'node','owner','{}','revision')",
-                    rusqlite::params![source, format!("body-{id}")],
-                )
-                .unwrap();
-            cache
-                .execute(
-                    "INSERT INTO entity_holds VALUES (?1,?2,'undo',?1,'content',?3)",
-                    rusqlite::params![source, format!("document:{id}"), id],
-                )
-                .unwrap();
-        }
-        let directory = dir.join("recoveries");
-        let id = preserve_at(
-            &dir,
-            &directory,
-            &main,
-            &cache,
-            "library.db",
-            "library-replacement",
-            None,
-        )
-        .unwrap();
-        let path = directory.join(id);
-        let manifest = verify(&path).unwrap();
-        assert!(path.join("main.db").exists());
-        assert_eq!(
-            manifest
-                .files
-                .iter()
-                .filter(|file| file.name.starts_with("asset-"))
-                .count(),
-            1
-        );
-        assert_eq!(fs::read(path.join("asset-0")).unwrap(), vec![1]);
-        let saved = Connection::open(path.join("collaboration.db")).unwrap();
-        assert_eq!(
-            saved
-                .query_row("SELECT id FROM sessions", [], |row| row.get::<_, String>(0))
-                .unwrap(),
-            "a"
-        );
-        assert_eq!(
-            saved
-                .query_row("SELECT document_id FROM updates", [], |row| row
-                    .get::<_, String>(0))
-                .unwrap(),
-            "a"
-        );
-        assert_eq!(
-            saved
-                .query_row("SELECT document_id FROM node_views", [], |row| row
-                    .get::<_, String>(0))
-                .unwrap(),
-            "body-a"
-        );
-        assert_eq!(
-            saved
-                .query_row("SELECT holder FROM entity_holds", [], |row| row
-                    .get::<_, String>(0))
-                .unwrap(),
-            "document:a"
-        );
-        drop(saved);
-        fs::remove_dir_all(dir).unwrap();
-    }
-
-    #[test]
     fn uncertain_source_does_not_expand_to_other_libraries() {
         let dir = std::env::temp_dir().join(format!("tau-source-scope-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&dir).unwrap();
@@ -1034,7 +913,7 @@ mod tests {
             &cache,
             "current.db",
             "migration",
-            Some("doc")
+            "doc"
         )
         .unwrap_err()
         .contains("不属于当前资料库"));

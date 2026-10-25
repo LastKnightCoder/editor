@@ -382,7 +382,7 @@ describe("同步中心", () => {
     await waitFor(() => !document.querySelector('[role="dialog"]'));
   });
 
-  it("整库覆盖不允许低版本覆盖高版本", async () => {
+  it("整库覆盖较新一侧时可执行，并在确认面板警示", async () => {
     const versions = { databaseName: "data.db", localVersion: 3, remoteVersion: 5 };
     const { app } = createApp({ setting: makeSetting("s3"), versions });
     mount(app);
@@ -391,8 +391,8 @@ describe("同步中心", () => {
     await waitFor(() => activeTitle() === "整库覆盖");
 
     const upload = findButton("以本机为准", activePage());
-    expect(upload?.getAttribute("aria-disabled")).toBe("true");
-    expect(upload?.textContent).toContain("云端版本更新，需先下载");
-    expect(findButton("以云端为准", activePage())?.getAttribute("aria-disabled")).toBeNull();
+    expect(upload?.getAttribute("aria-disabled")).toBeNull();
+    await click(upload);
+    await waitFor(() => document.body.textContent?.includes("云端版本比本机新") ?? false);
   });
 });

@@ -23,9 +23,6 @@ export interface ObjectStorage {
 }
 export const chunkObject = (hash: string) =>
   `${protocol.namespace}/chunks/${hash.slice(0, 2)}/${hash.slice(2)}.bin`;
-export const snapshotObject = (id: string) => `${protocol.namespace}/snapshots/${id}.json`;
-export const databaseVersionObject = async (name: string, digest: Digest) =>
-  `${protocol.namespace}/databases/${await digest(new TextEncoder().encode(name))}.json`;
 export async function resourceManifestObject(name: string, digest: Digest): Promise<string> {
   const hash = await digest(new TextEncoder().encode(name));
   return `${RESOURCE_OBJECT_PREFIX}${hash.slice(0, 2)}/${hash.slice(2)}.json`;
@@ -147,33 +144,4 @@ export async function downloadChunkedFile(
   }
   check();
   return manifest;
-}
-export interface SessionDirectoryManifest {
-  format: "tau-session-directory";
-  version: 1;
-  files: { name: string; object: string }[];
-}
-export function decodeSessionDirectory(bytes: Uint8Array): SessionDirectoryManifest {
-  if (bytes.length > MANIFEST_BYTES) throw new Error("会话清单过大");
-  const value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
-  if (
-    value?.format !== "tau-session-directory" ||
-    value.version !== 1 ||
-    !Array.isArray(value.files)
-  )
-    throw new Error("会话清单格式无效");
-  const names = new Set<string>();
-  for (const entry of value.files) {
-    assertFileName(entry?.name);
-    if (
-      !entry.name.endsWith(".jsonl") ||
-      names.has(entry.name) ||
-      typeof entry.object !== "string" ||
-      !entry.object.startsWith(`${protocol.namespace}/snapshots/`) ||
-      !/^[a-zA-Z0-9-]+\.json$/.test(entry.object.slice(`${protocol.namespace}/snapshots/`.length))
-    )
-      throw new Error("会话清单条目无效");
-    names.add(entry.name);
-  }
-  return value;
 }

@@ -1,4 +1,4 @@
-// 整库覆盖：以一侧为准整体上传或下载。后端拒绝低版本覆盖高版本，不可用时直接说明原因。
+// 整库覆盖：以一侧为准整体上传或下载；覆盖较新一侧时在确认面板里警示。
 
 import { useState } from "react";
 import {
@@ -98,7 +98,7 @@ export function OverwriteSection(props: OverwriteSectionProps) {
 
   return (
     <div className="page-enter space-y-1">
-      <GroupNote className="pb-2 pt-1">
+      <GroupNote className="pt-1 pb-2">
         日常使用同步页的主按钮即可。只有一侧数据出了问题、需要强制以另一侧为准时，才使用整库覆盖。
       </GroupNote>
       <GroupCard>
@@ -149,6 +149,11 @@ export function OverwriteSection(props: OverwriteSectionProps) {
               />
             </div>
             <p className="text-ink-2 pb-4 text-center text-[12.5px] leading-relaxed">
+              {overwriteAvailability(props.versions, pending).warning && (
+                <span className="text-danger block font-semibold">
+                  {overwriteAvailability(props.versions, pending).warning}
+                </span>
+              )}
               {COPY[pending].loss}
             </p>
             <HoldToConfirmButton

@@ -1,5 +1,4 @@
 {
-  "modelVersion": 6,
   "format": "tau-chunked-file",
   "version": 1,
   "chunkBytes": 8388608,

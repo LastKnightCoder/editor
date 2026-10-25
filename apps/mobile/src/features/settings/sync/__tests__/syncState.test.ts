@@ -55,13 +55,14 @@ describe("deriveSyncHero", () => {
 });
 
 describe("overwriteAvailability", () => {
-  it("不允许低版本覆盖高版本", () => {
+  it("覆盖较新一侧不拦截，只给出警示", () => {
     expect(overwriteAvailability(versions(3, 5), "upload")).toEqual({
-      enabled: false,
-      reason: "云端版本更新，需先下载",
+      enabled: true,
+      reason: null,
+      warning: "云端版本比本机新，其他设备上传的修改会丢失。",
     });
-    expect(overwriteAvailability(versions(5, 3), "download").enabled).toBe(false);
-    expect(overwriteAvailability(versions(5, 5), "upload").enabled).toBe(true);
+    expect(overwriteAvailability(versions(5, 3), "download").warning).toContain("本机版本比云端新");
+    expect(overwriteAvailability(versions(5, 5), "upload").warning).toBeNull();
     expect(overwriteAvailability(versions(5, 5), "download").enabled).toBe(true);
   });
 

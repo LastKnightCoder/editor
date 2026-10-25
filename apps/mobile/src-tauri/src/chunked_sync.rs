@@ -10,7 +10,6 @@ use std::sync::OnceLock;
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Protocol {
-    pub model_version: u64,
     pub format: String,
     pub version: u64,
     pub chunk_bytes: usize,
@@ -43,19 +42,19 @@ pub(crate) fn resource_object(name: &str) -> String {
         )
     }
 }
-pub(crate) fn version_object(name: &str) -> String {
+/// 数据库在云端的固定位置，与 TS 的 databaseSyncObjects 一致；上传即按名覆盖。
+fn database_root(name: &str) -> String {
     format!(
-        "{}/databases/{}.json",
+        "{}/databases/{}",
         protocol().namespace,
         hash(name.as_bytes())
     )
 }
-pub(crate) fn snapshot_object() -> String {
-    format!(
-        "{}/snapshots/{}.json",
-        protocol().namespace,
-        uuid::Uuid::new_v4()
-    )
+pub(crate) fn database_version_object(name: &str) -> String {
+    format!("{}/version.json", database_root(name))
+}
+pub(crate) fn database_file_object(name: &str) -> String {
+    format!("{}/data.db", database_root(name))
 }
 fn chunk_object(hash: &str) -> String {
     format!(
@@ -65,17 +64,6 @@ fn chunk_object(hash: &str) -> String {
         &hash[2..]
     )
 }
-pub(crate) fn valid_snapshot(name: &str) -> bool {
-    name.strip_prefix(&format!("{}/snapshots/", protocol().namespace))
-        .and_then(|name| name.strip_suffix(".json"))
-        .is_some_and(|id| {
-            !id.is_empty()
-                && id
-                    .bytes()
-                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
-        })
-}
-
 pub(crate) fn valid_name(name: &str) -> bool {
     !name.is_empty()
         && !matches!(name, "." | "..")
@@ -352,7 +340,7 @@ mod tests {
         let manifest = Manifest::parse(&bytes).unwrap();
         assert_eq!(resource_object(&manifest.name), fixture["resourceObject"]);
         assert_eq!(
-            version_object(fixture["databaseName"].as_str().unwrap()),
+            database_version_object(fixture["databaseName"].as_str().unwrap()),
             fixture["versionObject"]
         );
         let mut corrupt = fixture["manifest"].clone();
@@ -414,7 +402,7 @@ mod tests {
             max: Cell::new(0),
             fail: Cell::new(false),
         };
-        let object = snapshot_object();
+        let object = database_file_object("roundtrip.db");
         let mut input = File::open(&source).unwrap();
         let manifest = upload_chunks(&store, &object, "source.bin", &mut input, || Ok(()))
             .await
@@ -427,7 +415,7 @@ mod tests {
             .unwrap();
         assert_eq!(output.metadata().unwrap().len(), length as u64);
         assert!(store.max.get() <= protocol().chunk_bytes);
-        let failed = snapshot_object();
+        let failed = database_file_object("failed.db");
         store.fail.set(true);
         let mut input = File::open(&source).unwrap();
         assert!(

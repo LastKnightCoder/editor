@@ -1,18 +1,17 @@
-import { localSyncVersion } from "@tau/db-schema/sync-protocol";
 /** 同步操作由客户端负责，存储配置由启用的同步插件提供。 */
 
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CloudUpload, Database, Download, RefreshCw } from "lucide-react";
 import { produce } from "immer";
-import { SYNC_MODEL_VERSION } from "@tau/db-schema/sync-protocol";
+import { localDatabaseVersion } from "@tau/db-schema/sync-protocol";
 import { Button, ConfirmDialog, Panel, Select, toast } from "@tau/ui";
 import { useDesktopPlugins } from "@/app/plugins/context";
 import { PluginSettingsView } from "@/features/plugins/views/PluginSettingsView";
 import { savePluginSyncConfig } from "@/commands/plugin-local";
 import { copyJson } from "@tau/plugins/host";
 import useSettingStore, { ESync } from "@/stores/useSettingStore";
-import { download, getOriginDatabaseInfo, upload } from "@/commands";
+import { download, getRemoteDatabaseVersion, upload } from "@/commands";
 import { isSyncConfigured } from "@/utils/sync";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { runUsageSync } from "@/services/usageSyncRunner";
@@ -51,7 +50,7 @@ export function SyncSection() {
   const [forceSyncConfirmOpen, setForceSyncConfirmOpen] = useState(false);
 
   const activeDatabase = database.databases.find(item => item.name === database.active);
-  const localVersion = localSyncVersion(activeDatabase);
+  const localVersion = localDatabaseVersion(activeDatabase);
   const selectedId = sync.plugin?.id;
   const pluginEnabled =
     !!selectedId &&
@@ -70,18 +69,13 @@ export function SyncSection() {
   const remoteKey = ["settings", "sync", "remote-version", database.active, remoteTarget];
   const remoteQuery = useQuery({
     queryKey: remoteKey,
-    queryFn: async () => {
-      const info = await getOriginDatabaseInfo();
-      return info.databaseInfo;
-    },
+    queryFn: getRemoteDatabaseVersion,
     enabled: isConfigured,
     staleTime: Infinity,
     retry: false,
   });
   const remoteKnown = isConfigured && remoteQuery.data !== undefined;
   const remoteVersion = remoteQuery.data?.version ?? 0;
-  const protocolUnsupported =
-    remoteKnown && remoteQuery.data?.dataModelVersion !== SYNC_MODEL_VERSION && remoteVersion > 0;
   const hasUpdate = remoteKnown && remoteVersion > localVersion;
 
   const doUpload = async () => {
@@ -90,8 +84,11 @@ export function SyncSection() {
       const ok = await upload();
       if (ok) {
         queryClient.setQueryData(remoteKey, {
-          version: localVersion + 1,
-          dataModelVersion: SYNC_MODEL_VERSION,
+          version: localDatabaseVersion(
+            useSettingStore
+              .getState()
+              .setting.database.databases.find(item => item.name === database.active)
+          ),
         });
         toast.success("同步成功");
         // 用量记录搭车同步，后台跑、失败只记在用量统计页
@@ -120,12 +117,10 @@ export function SyncSection() {
     if (!isConfigured) return;
     setIsChecking(true);
     try {
-      const info = await getOriginDatabaseInfo();
-      const originVersion = info.databaseInfo.version;
-      queryClient.setQueryData(remoteKey, info.databaseInfo);
-      if (originVersion > 0 && info.databaseInfo.dataModelVersion !== SYNC_MODEL_VERSION) {
-        toast.warning("同步格式不受支持，请从数据完整的当前客户端重新发布");
-      } else if (localVersion < originVersion) {
+      const remote = await getRemoteDatabaseVersion();
+      const originVersion = remote.version;
+      queryClient.setQueryData(remoteKey, remote);
+      if (localVersion < originVersion) {
         toast.success(`远程有新版本 v${originVersion}，可下载更新`);
       } else {
         toast.success("已是最新版本");
@@ -160,13 +155,9 @@ export function SyncSection() {
   ) : remoteQuery.isFetching ? (
     <StatusChip tone="accent">检查中</StatusChip>
   ) : remoteQuery.isError ? (
-    <StatusChip tone="danger">
-      {/DB_MODEL_INCOMPATIBLE/.test(String(remoteQuery.error)) ? "协议不兼容" : "检查失败"}
-    </StatusChip>
+    <StatusChip tone="danger">检查失败</StatusChip>
   ) : !remoteKnown ? (
     <StatusChip>未检查</StatusChip>
-  ) : protocolUnsupported ? (
-    <StatusChip tone="warn">同步格式不匹配</StatusChip>
   ) : hasUpdate ? (
     <StatusChip tone="warn">远程有更新</StatusChip>
   ) : (
@@ -190,7 +181,7 @@ export function SyncSection() {
         <>
           <SettingsGroup bare>
             <div className="grid grid-cols-2 gap-3">
-              <Panel pad="none" className="flex min-w-0 flex-col rounded-[14px] px-4 pb-3.5 pt-4">
+              <Panel pad="none" className="flex min-w-0 flex-col rounded-[14px] px-4 pt-4 pb-3.5">
                 <div className="text-tau-body-lg flex items-center gap-2 font-semibold">
                   <Database size={15} strokeWidth={1.75} className="text-ink-2" />
                   数据库
@@ -225,7 +216,6 @@ export function SyncSection() {
                         variant="primary"
                         size="sm"
                         icon={Download}
-                        disabled={protocolUnsupported}
                         onClick={() => setDownloadConfirmOpen(true)}
                       >
                         拉取远程

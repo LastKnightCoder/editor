@@ -1080,6 +1080,48 @@ pub fn collab_update_node_view(app: AppHandle, payload: NodeViewPatch) -> Result
 
 pub(crate) static CACHE_WRITE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+/// 整库被同步下载替换后，本库的正文缓存对应的是旧库：本地会话删除，共享会话解除来源。
+pub(crate) fn release_library_sessions(
+    conn: &rusqlite::Connection,
+    database: &str,
+) -> Result<(), String> {
+    let stem = database.trim_end_matches(".db");
+    let full = format!("{stem}.db");
+    conn.execute_batch("BEGIN IMMEDIATE")
+        .map_err(|e| e.to_string())?;
+    let result = (|| {
+        let owned = "json_extract(metadata,'$.source.databaseName') IN (?1,?2)";
+        let local =
+            format!("{owned} AND coalesce(json_extract(metadata,'$.mode'),'shared')='local'");
+        for table in ["updates", "resources", "input_drafts", "document_drafts"] {
+            conn.execute(
+                &format!("DELETE FROM {table} WHERE document_id IN (SELECT id FROM sessions WHERE {local})"),
+                rusqlite::params![stem, full],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+        conn.execute(
+            &format!("DELETE FROM entity_holds WHERE holder IN (SELECT 'document:' || id FROM sessions WHERE {local})"),
+            rusqlite::params![stem, full],
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute(
+            &format!("DELETE FROM sessions WHERE {local}"),
+            rusqlite::params![stem, full],
+        )
+        .map_err(|e| e.to_string())?;
+        conn.execute(
+            &format!("UPDATE sessions SET metadata=json_remove(metadata,'$.source') WHERE {owned}"),
+            rusqlite::params![stem, full],
+        )
+        .map_err(|e| e.to_string())?;
+        Ok(())
+    })();
+    conn.execute_batch(if result.is_ok() { "COMMIT" } else { "ROLLBACK" })
+        .map_err(|e| e.to_string())?;
+    result
+}
+
 fn check_received_baseline(
     conn: &rusqlite::Connection,
     payload: &SessionCacheWrite,

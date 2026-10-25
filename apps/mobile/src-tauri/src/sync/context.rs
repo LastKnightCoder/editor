@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use serde_json::Value;
 use tauri::AppHandle;
 
 use crate::setting::{
@@ -13,7 +12,6 @@ pub(crate) use crate::plugin_provider::PluginProvider as SyncProvider;
 
 #[derive(Debug, Clone)]
 pub(crate) struct SyncContext {
-    pub(crate) setting: Value,
     pub(crate) provider: SyncProvider,
     pub(crate) database_name: String,
     pub(crate) local_version: u64,
@@ -40,12 +38,11 @@ pub(crate) fn build_sync_context_for(
     let database_path = resolve_database_path(app, &database_name)
         .map_err(|err| AppError::new("DB_OPEN_FAILED", format!("数据库路径解析失败: {err}")))?;
     Ok(SyncContext {
-        setting,
         provider,
         database_name: database_name.clone(),
         local_version,
         database_path,
-        version_object_name: crate::chunked_sync::version_object(&database_name),
+        version_object_name: crate::chunked_sync::database_version_object(&database_name),
     })
 }
 

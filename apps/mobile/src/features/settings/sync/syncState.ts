@@ -104,24 +104,24 @@ export function deriveSyncHero(input: SyncHeroInput): SyncHeroState {
   };
 }
 
-/** 整库覆盖能否执行：后端拒绝「低版本覆盖高版本」，这里提前给出不可用原因 */
+/** 整库覆盖能否执行；覆盖较新一侧时不拦截，只给出确认时的警示 */
 export function overwriteAvailability(
   versions: SyncVersionResponse | null,
   direction: "upload" | "download"
-): { enabled: boolean; reason: string | null } {
+): { enabled: boolean; reason: string | null; warning: string | null } {
   if (!versions) {
-    return { enabled: false, reason: "请先检查云端版本" };
-  }
-  if (direction === "upload" && versions.remoteVersion > versions.localVersion) {
-    return { enabled: false, reason: "云端版本更新，需先下载" };
-  }
-  if (direction === "download" && versions.localVersion > versions.remoteVersion) {
-    return { enabled: false, reason: "本机版本更新，需先上传" };
+    return { enabled: false, reason: "请先检查云端版本", warning: null };
   }
   if (direction === "download" && versions.remoteVersion === 0) {
-    return { enabled: false, reason: "云端还没有数据" };
+    return { enabled: false, reason: "云端还没有数据", warning: null };
   }
-  return { enabled: true, reason: null };
+  if (direction === "upload" && versions.remoteVersion > versions.localVersion) {
+    return { enabled: true, reason: null, warning: "云端版本比本机新，其他设备上传的修改会丢失。" };
+  }
+  if (direction === "download" && versions.localVersion > versions.remoteVersion) {
+    return { enabled: true, reason: null, warning: "本机版本比云端新，本机未上传的修改会丢失。" };
+  }
+  return { enabled: true, reason: null, warning: null };
 }
 
 const LAST_SYNC_STORAGE_KEY = "tau.mobile.lastDatabaseSync";

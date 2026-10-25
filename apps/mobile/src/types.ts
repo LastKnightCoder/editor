@@ -8,7 +8,6 @@ import {
 export interface DatabaseItem {
   name: string;
   version: number;
-  syncFormat?: number;
 }
 
 export interface BootstrapResponse {
