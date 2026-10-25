@@ -38,8 +38,10 @@ const validName = (value: string) =>
   /^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/.test(value) && value !== "manifest.json";
 const hash = (value: Uint8Array) => createHash("sha256").update(value).digest("hex");
 
-function flush(path: string) {
-  const descriptor = openSync(path, "r");
+function flush(path: string, directory = false) {
+  // Windows 的 FlushFileBuffers 需要可写文件句柄，Node 不支持目录刷盘。
+  if (directory && process.platform === "win32") return;
+  const descriptor = openSync(path, directory ? "r" : "r+");
   try {
     fsyncSync(descriptor);
   } finally {
@@ -146,10 +148,10 @@ export class ContentRecoveryStore {
     if (encoded.length > 16 * 1024 * 1024) throw new Error("恢复包清单超过预算");
     writeFileSync(join(temporary, "manifest.json"), encoded, { flag: "wx", mode: 0o600 });
     flush(join(temporary, "manifest.json"));
-    flush(temporary);
+    flush(temporary, true);
     checkpoint?.("files-written");
     renameSync(temporary, destination);
-    flush(this.directory);
+    flush(this.directory, true);
     checkpoint?.("package-installed");
     const receipt = {
       id,
@@ -243,9 +245,9 @@ export class ContentRecoveryStore {
       if (hash(readFileSync(manifestPath)) !== receipt.manifestHash)
         throw new Error("导出的清单校验失败");
       flush(manifestPath);
-      flush(temporary);
+      flush(temporary, true);
       renameSync(temporary, target);
-      flush(parent);
+      flush(parent, true);
       return target;
     } finally {
       rmSync(temporary, { recursive: true, force: true });
@@ -264,7 +266,7 @@ export class ContentRecoveryStore {
           throw new Error("待安装恢复包目录无效");
         if (!existsSync(join(pending, "manifest.json")) || existsSync(final)) continue;
         renameSync(pending, final);
-        flush(this.directory);
+        flush(this.directory, true);
         name = name.slice(9);
       }
       if (!validId(name) || this.state.recovery(name)) continue;

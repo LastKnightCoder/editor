@@ -48,6 +48,27 @@ function setup() {
 }
 
 describe("正文恢复包保全", () => {
+  it("正文迁移的内存快照与资源文件可一起保全、重开和导出", () => {
+    const context = setup();
+    const bytes = Buffer.from([0, 1, 128, 255]);
+    const receipt = context.store.save({
+      ...context.input,
+      reason: "migration",
+      files: [
+        { name: "source-projection.json", bytes: Buffer.from('{"content":[]}') },
+        { name: "document-before.bin", bytes },
+        ...context.input.files,
+      ],
+    });
+    context.reopen();
+    expect(context.state.recovery(receipt.id)).toEqual(receipt);
+    expect(context.store.verify(receipt).files).toHaveLength(3);
+    expect(context.store.readFile(receipt, "document-before.bin")).toEqual(bytes);
+    const exported = context.store.export(receipt, context.directory);
+    expect(readFileSync(join(exported, "document-before.bin"))).toEqual(bytes);
+    expect(readFileSync(join(exported, "main.db"), "utf8")).toBe("数据库快照");
+  });
+
   it("旧缓存登记升级后补齐归属，原恢复包和回执保持不变", () => {
     const context = setup();
     const receipt = context.store.save(context.input);
