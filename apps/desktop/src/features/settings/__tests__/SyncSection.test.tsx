@@ -1,9 +1,8 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { SYNC_MODEL_VERSION } from "@tau/db-schema/sync-protocol";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { download, getOriginDatabaseInfo, upload } from "@/commands";
+import { download, getRemoteDatabaseVersion, upload } from "@/commands";
 import { ResourceSyncStatus } from "@/types";
 import useSettingStore, { ESync } from "@/stores/useSettingStore";
 import { SyncSection } from "../sections/SyncSection";
@@ -13,7 +12,7 @@ const mocks = vi.hoisted(() => ({ model: {} as Record<string, unknown> }));
 vi.mock("@/commands", () => ({
   download: vi.fn(),
   upload: vi.fn(),
-  getOriginDatabaseInfo: vi.fn(async () => ({ databaseInfo: { version: 0 } })),
+  getRemoteDatabaseVersion: vi.fn(async () => ({ version: 0 })),
   getDatabasePath: vi.fn(async (name: string) => `/data/${name}`),
   closeDatabase: vi.fn(),
   removeFile: vi.fn(),
@@ -58,12 +57,8 @@ const button = (label: string) =>
 beforeEach(() => {
   vi.mocked(upload).mockReset();
   vi.mocked(download).mockReset();
-  vi.mocked(getOriginDatabaseInfo).mockReset();
-  vi.mocked(getOriginDatabaseInfo).mockResolvedValue({
-    isDatabaseInfoExist: false,
-    databaseInfo: { version: 0 },
-    databaseInfoObjectName: "database_data.db.json",
-  });
+  vi.mocked(getRemoteDatabaseVersion).mockReset();
+  vi.mocked(getRemoteDatabaseVersion).mockResolvedValue({ version: 0 });
   useSettingStore.setState(s => ({
     setting: {
       ...s.setting,
@@ -72,7 +67,7 @@ beforeEach(() => {
         active: ESync.Plugin,
         plugin: { id: "test.sync", configurations: { "test.sync": {} } },
       },
-      database: { active: "data.db", databases: [{ name: "data.db", version: 1, syncFormat: 6 }] },
+      database: { active: "data.db", databases: [{ name: "data.db", version: 1 }] },
     },
   }));
   mocks.model = {
@@ -139,8 +134,8 @@ it("本地数据库 Tab：展示当前库与路径，其他库可删除，新建
       database: {
         active: "notes.db",
         databases: [
-          { name: "notes.db", version: 3, syncFormat: 6 },
-          { name: "work.db", version: 1, syncFormat: 6 },
+          { name: "notes.db", version: 3 },
+          { name: "work.db", version: 1 },
         ],
       },
     },
@@ -164,26 +159,18 @@ it("拉取远程后保留远程版本缓存", async () => {
       ...s.setting,
       database: {
         active: "data.db",
-        databases: [{ name: "data.db", version: 1, syncFormat: 6 }],
+        databases: [{ name: "data.db", version: 1 }],
       },
     },
   }));
-  vi.mocked(getOriginDatabaseInfo).mockResolvedValue({
-    isDatabaseInfoExist: true,
-    databaseInfo: {
-      version: 2,
-      dataModelVersion: SYNC_MODEL_VERSION,
-      databaseObject: "snapshot.db",
-    },
-    databaseInfoObjectName: "database_data.db.json",
-  });
+  vi.mocked(getRemoteDatabaseVersion).mockResolvedValue({ version: 2 });
   vi.mocked(download).mockImplementation(async () => {
     useSettingStore.setState(s => ({
       setting: {
         ...s.setting,
         database: {
           ...s.setting.database,
-          databases: [{ name: "data.db", version: 2, syncFormat: 6 }],
+          databases: [{ name: "data.db", version: 2 }],
         },
       },
     }));
@@ -215,40 +202,16 @@ it("拉取远程后保留远程版本缓存", async () => {
   });
 });
 
-it("旧协议显示远程版本和升级状态，上传成功后清除升级状态", async () => {
-  vi.mocked(getOriginDatabaseInfo).mockResolvedValue({
-    isDatabaseInfoExist: true,
-    databaseInfo: { version: 1, dataModelVersion: 3, databaseObject: "old.db" },
-    databaseInfoObjectName: "database_data.db.json",
-  });
+it("远程有更新时可确认后强制上传", async () => {
+  vi.mocked(getRemoteDatabaseVersion).mockResolvedValue({ version: 3 });
   vi.mocked(upload).mockResolvedValue(true);
   render();
-  await vi.waitFor(() => expect(text()).toContain("同步格式不匹配"));
-  expect(text()).not.toContain("连接失败");
-  expect(
-    [...container.querySelector("dl")!.querySelectorAll("dd")].map(node => node.textContent?.trim())
-  ).toEqual(["1", "1"]);
-  await act(async () => button("同步到云端").click());
+  await vi.waitFor(() => expect(text()).toContain("远程有更新"));
+  await act(async () => button("强制上传").click());
+  expect(upload).not.toHaveBeenCalled();
+  const confirm = [...document.body.querySelectorAll("button")].find(
+    b => b.textContent?.trim() === "强制同步"
+  )!;
+  await act(async () => confirm.click());
   expect(upload).toHaveBeenCalledOnce();
-  await vi.waitFor(() => expect(text()).not.toContain("同步格式不匹配"));
-});
-
-it("旧协议远程有更新时禁用拉取，保留真实版本", async () => {
-  vi.mocked(getOriginDatabaseInfo).mockResolvedValue({
-    isDatabaseInfoExist: true,
-    databaseInfo: { version: 2, dataModelVersion: 3, databaseObject: "old.db" },
-    databaseInfoObjectName: "database_data.db.json",
-  });
-  render();
-  await vi.waitFor(() => expect(text()).toContain("同步格式不匹配"));
-  expect(button("拉取远程").disabled).toBe(true);
-  act(() => button("拉取远程").click());
-  expect(download).not.toHaveBeenCalled();
-});
-
-it("未来协议查询失败显示协议不兼容", async () => {
-  vi.mocked(getOriginDatabaseInfo).mockRejectedValue(new Error("DB_MODEL_INCOMPATIBLE"));
-  render();
-  await vi.waitFor(() => expect(text()).toContain("协议不兼容"));
-  expect(text()).not.toContain("连接失败");
 });

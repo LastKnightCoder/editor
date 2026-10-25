@@ -30,15 +30,6 @@ export interface ISyncProvider {
   getProviderName(): string;
 }
 
-// 数据库信息类型
-export interface IDatabaseInfo {
-  databaseObject?: string;
-  sessionsObject?: string;
-  version: number;
-  dataModelVersion?: number;
-  [key: string]: unknown;
-}
-
 // 同步结果
 export interface ISyncResult {
   success: boolean;

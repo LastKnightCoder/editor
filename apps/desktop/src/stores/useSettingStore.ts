@@ -131,7 +131,6 @@ export interface ISetting {
     databases: Array<{
       name: string;
       version: number;
-      syncFormat?: number;
     }>;
   };
   transcription: {
@@ -480,7 +479,8 @@ if (cachedSetting) {
 }
 
 let registeredSettingNotificationClient:
-  ReturnType<typeof useBackendWebsocketStore.getState>["client"] | null = null;
+  | ReturnType<typeof useBackendWebsocketStore.getState>["client"]
+  | null = null;
 let registeredSettingNotificationHandler: ((payload: unknown) => void) | null = null;
 
 const useSettingStore = create<IState & IActions>((set, get) => ({

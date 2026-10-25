@@ -11,11 +11,6 @@ import pluginLocal from "../../src-electron/main/modules/plugin-local";
 import fetchModule from "../../src-electron/main/modules/fetch";
 import { pluginSyncSessions } from "../../src-electron/main/services/plugin-sync";
 import { PluginUpdates } from "../../src-electron/main/services/plugin-updates";
-import {
-  publishSnapshot,
-  readSnapshotHead,
-  SYNC_MODEL_VERSION,
-} from "@tau/db-schema/sync-protocol";
 import type { SyncProvider } from "@tau/plugins/sync";
 import { verifySignature } from "./verify-signature";
 import { verifyOssSignature } from "./verify-oss-signature";
@@ -45,7 +40,6 @@ async function main() {
   let window: BrowserWindow | undefined;
   const objects = new Map<string, Buffer>();
   const directories = new Set(["/", "/dav"]);
-  let loseConditionalResponse = false;
   let blocked!: () => void;
   const blockedRequest = new Promise<void>(resolve => {
     blocked = resolve;
@@ -80,12 +74,7 @@ async function main() {
       blocked();
       return;
     }
-    if (github)
-      return handleGithubContents(req, res, objects, () => {
-        const lose = loseConditionalResponse;
-        loseConditionalResponse = false;
-        return lose;
-      });
+    if (github) return handleGithubContents(req, res, objects, () => false);
     if (webdav && handleWebDavDirectory(req, res, objects, directories)) return;
     if (req.method === "PUT") {
       const chunks: Buffer[] = [];
@@ -95,10 +84,6 @@ async function main() {
         : req.headers["if-none-match"] === "*";
       if (conditional && objects.has(key)) return fail(oss ? 409 : 412);
       objects.set(key, Buffer.concat(chunks));
-      if (conditional && loseConditionalResponse) {
-        loseConditionalResponse = false;
-        return fail(400);
-      }
       res.setHeader("ETag", '"test"');
       return res.end();
     }
@@ -310,19 +295,10 @@ async function main() {
     const payload = new Uint8Array([1, 2, 3]);
     assert.equal(await provider.uploadFile("data.db", payload), true);
     assert.equal(await provider.uploadFile("sessions.zip", payload), true);
-    const next = {
-      version: 1,
-      parentVersion: 0,
-      dataModelVersion: SYNC_MODEL_VERSION,
-      commitId: "isolated-commit",
-      databaseObject: "data.db",
-      sessionsObject: "sessions.zip",
-    };
-    await publishSnapshot(provider, "head.json", { version: 0 }, next);
-    assert.equal((await readSnapshotHead(provider, "head.json")).version, 1);
-    loseConditionalResponse = true;
-    await publishSnapshot(provider, "lost-response.json", { version: 0 }, next);
-    assert.equal((await readSnapshotHead(provider, "lost-response.json")).version, 1);
+    // 数据库同步按固定对象名覆盖：再次上传同名对象读回最新内容
+    assert.equal(await provider.uploadFile("data.db", new Uint8Array([4, 5])), true);
+    assert.deepEqual(await provider.downloadFile("data.db"), new Uint8Array([4, 5]));
+    assert.equal(await provider.uploadFile("data.db", payload), true);
     assert.deepEqual(await provider.downloadFile("data.db"), payload);
     if (webdav || github) {
       assert.equal(await provider.createFileIfAbsent("conditional", payload), true);

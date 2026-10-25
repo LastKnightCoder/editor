@@ -35,37 +35,6 @@ pub fn open_database_by_name(app: &AppHandle, db_name: &str) -> Result<Connectio
     Ok(conn)
 }
 
-pub fn validate_download(path: &std::path::Path) -> Result<(), String> {
-    let conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE)
-        .map_err(|e| e.to_string())?;
-    let has_contents: bool = conn
-        .query_row(
-            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='contents' AND type='table')",
-            [],
-            |r| r.get(0),
-        )
-        .map_err(|e| e.to_string())?;
-    if !has_contents {
-        return Err("下载的文件不是 Tau 数据库".into());
-    }
-    let integrity: String = conn
-        .query_row("PRAGMA quick_check", [], |r| r.get(0))
-        .map_err(|e| e.to_string())?;
-    if integrity != "ok" {
-        return Err(format!("数据库完整性检查失败: {integrity}"));
-    }
-    migrator::ensure_main_schema(&conn)?;
-    let busy: i64 = conn
-        .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |r| r.get(0))
-        .map_err(|e| e.to_string())?;
-    if busy != 0 {
-        return Err("下载库仍被占用，无法完成升级".into());
-    }
-    conn.execute_batch("PRAGMA journal_mode=DELETE;")
-        .map_err(|e| e.to_string())?;
-    Ok(())
-}
-
 pub fn open_active_database(app: &AppHandle) -> Result<ActiveConnection, String> {
     let setting = load_or_init_setting(app)?;
     let db_name = get_active_database_name(&setting);
@@ -146,56 +115,11 @@ pub fn active_database_size_bytes(app: &AppHandle) -> Result<u64, String> {
     Ok(total)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn downloaded_file_is_validated_and_migrated_before_use() {
-        let dir = std::env::temp_dir().join(format!("tau-download-{}", uuid::Uuid::new_v4()));
-        fs::create_dir(&dir).unwrap();
-        let path = dir.join("download.db");
-        fs::write(&path, b"not sqlite").unwrap();
-        assert!(validate_download(&path).is_err());
-        fs::remove_file(&path).unwrap();
-        let conn = Connection::open(&path).unwrap();
-        conn.execute_batch("CREATE TABLE unrelated(id INTEGER)")
-            .unwrap();
-        drop(conn);
-        assert!(validate_download(&path).is_err());
-        fs::remove_file(&path).unwrap();
-        // 数据基线门禁：有表但未带 schema 版本的旧端快照被拒绝，且不修改数据
-        let conn = Connection::open(&path).unwrap();
-        conn.execute_batch("CREATE TABLE contents(id INTEGER PRIMARY KEY,create_time INTEGER NOT NULL,update_time INTEGER NOT NULL,content TEXT,count INTEGER DEFAULT 0,ref_count INTEGER DEFAULT 0);").unwrap();
-        drop(conn);
-        let error = validate_download(&path).unwrap_err();
-        assert!(
-            error.contains("DB_LEGACY_SCHEMA"),
-            "unexpected error: {error}"
-        );
-        fs::remove_file(&path).unwrap();
-        // 来自当前版本端的快照：通过校验并按 DELETE 模式落盘
-        let conn = Connection::open(&path).unwrap();
-        migrator::ensure_main_schema(&conn).unwrap();
-        drop(conn);
-        validate_download(&path).unwrap();
-        let conn = Connection::open(&path).unwrap();
-        assert_eq!(
-            migrator::get_meta(&conn, "main_schema_version").unwrap(),
-            Some(migrator::MAIN_SCHEMA_VERSION.to_string())
-        );
-        let mode: String = conn
-            .query_row("PRAGMA journal_mode", [], |r| r.get(0))
-            .unwrap();
-        assert_eq!(mode, "delete");
-        drop(conn);
-        fs::remove_dir_all(dir).unwrap();
-    }
-}
-
-pub(crate) fn install_preserved_download(
+/// 用下载的库文件替换本机库：先合并 WAL 并把旧库复制进 backup/，再丢弃该库的编辑器缓存后原子替换。
+pub(crate) fn install_download(
     app: &AppHandle,
     name: &str,
+    local_version: u64,
     download: &std::path::PathBuf,
 ) -> Result<(), String> {
     let _cache_lock = crate::collaboration::CACHE_WRITE_LOCK
@@ -209,27 +133,22 @@ pub(crate) fn install_preserved_download(
     let destination = resolve_database_path(app, name)?;
     if destination.exists() {
         let main = Connection::open(&destination).map_err(|e| e.to_string())?;
-        let cache = crate::collaboration::session_store(app)?;
-        let directory = crate::setting::resolve_app_dir(app)?;
-        crate::content_recovery::preserve_at(
-            &directory,
-            &directory.join("collaboration/content-recoveries"),
-            &main,
-            &cache,
-            name,
-            "library-replacement",
-            None,
-        )?;
-        let (busy, _, _): (i64, i64, i64) = main
-            .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
-                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
-            })
+        main.execute_batch("PRAGMA wal_checkpoint(TRUNCATE)")
             .map_err(|e| e.to_string())?;
-        if busy != 0 {
-            return Err("数据库仍有写入，停止覆盖".into());
-        }
         drop(main);
+        let backup = crate::setting::resolve_app_dir(app)?.join("backup");
+        fs::create_dir_all(&backup).map_err(|e| e.to_string())?;
+        let stamp = chrono::Local::now().format("%Y-%m-%d-%H-%M-%S");
+        fs::copy(
+            &destination,
+            backup.join(format!("version-{local_version}-{stamp}-{name}")),
+        )
+        .map_err(|e| format!("备份本地数据库失败: {e}"))?;
     }
+    crate::collaboration::release_library_sessions(
+        &crate::collaboration::session_store(app)?,
+        name,
+    )?;
     replace_database_file(download, &destination).map_err(|e| e.to_string())?;
     for suffix in ["-wal", "-shm"] {
         let _ = fs::remove_file(format!("{}{suffix}", destination.to_string_lossy()));

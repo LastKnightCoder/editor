@@ -281,22 +281,12 @@ fn database_items_from_setting(setting: &Value) -> Vec<DatabaseItem> {
             let Ok(name) = normalize_database_name(raw_name) else {
                 continue;
             };
-            let version = if item["syncFormat"].as_u64()
-                == Some(crate::chunked_sync::protocol().model_version)
-            {
-                item["version"]
-                    .as_u64()
-                    .filter(|value| *value <= 9_007_199_254_740_991)
-                    .unwrap_or(0)
-            } else {
-                0
-            };
+            let version = item["version"]
+                .as_u64()
+                .filter(|value| *value <= 9_007_199_254_740_991)
+                .unwrap_or(0);
             if items.iter().all(|db| db.name != name) {
-                items.push(DatabaseItem {
-                    name,
-                    version,
-                    sync_format: crate::chunked_sync::protocol().model_version,
-                });
+                items.push(DatabaseItem { name, version });
             }
         }
     }
@@ -317,14 +307,12 @@ fn normalize_database_section(setting: &mut Value) {
         databases.push(DatabaseItem {
             name: DEFAULT_DATABASE_NAME.to_string(),
             version: 0,
-            sync_format: crate::chunked_sync::protocol().model_version,
         });
     }
     if databases.iter().all(|db| db.name != active) {
         databases.push(DatabaseItem {
             name: active.clone(),
             version: 0,
-            sync_format: crate::chunked_sync::protocol().model_version,
         });
     }
 
@@ -481,7 +469,6 @@ pub fn get_database_items(setting: &Value) -> Vec<DatabaseItem> {
         items.push(DatabaseItem {
             name: active,
             version: 0,
-            sync_format: crate::chunked_sync::protocol().model_version,
         });
     }
     items
@@ -502,7 +489,6 @@ pub fn ensure_database_entry(setting: &mut Value, db_name: &str) -> bool {
         items.push(DatabaseItem {
             name: db_name.to_string(),
             version: 0,
-            sync_format: crate::chunked_sync::protocol().model_version,
         });
     }
     if let Some(database) = setting.get_mut("database") {
@@ -519,7 +505,6 @@ pub fn set_database_version(setting: &mut Value, db_name: &str, version: u64) {
         items.push(DatabaseItem {
             name: db_name.to_string(),
             version,
-            sync_format: crate::chunked_sync::protocol().model_version,
         });
     }
     if let Some(database) = setting.get_mut("database") {
@@ -716,20 +701,5 @@ mod tests {
         let setting = ensure_setting_compat(json!({}));
         assert_eq!(setting["imageBed"]["active"], json!("local"));
         assert_eq!(setting["imageBed"]["enableCompression"], json!(true));
-    }
-}
-
-#[cfg(test)]
-mod chunked_version_tests {
-    use super::*;
-    #[test]
-    fn version_counter_is_scoped_to_current_storage_protocol() {
-        let mut setting = ensure_setting_compat(
-            json!({"database":{"active":"data.db","databases":[{"name":"data.db","version":999}]}}),
-        );
-        assert_eq!(get_database_version(&setting, "data.db"), 0);
-        set_database_version(&mut setting, "data.db", 2);
-        let reread = ensure_setting_compat(setting);
-        assert_eq!(get_database_version(&reread, "data.db"), 2);
     }
 }

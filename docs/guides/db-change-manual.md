@@ -76,7 +76,7 @@ pnpm --filter mobile check:rust
 
 ## 4.2 数据基线门禁（清洁版，D-091 追记）
 
-历史升级链已物理删除，`Table` 接口不再有 `upgradeTable`。桌面开库、下载校验与 CLI 按共享旧表黑名单（`packages/db-schema/src/legacy-tables.json`）拒绝未完成升级的旧库（`DB_LEGACY_SCHEMA`）；已就位库的同版本 schema 演进由 bundle 的 `CREATE TABLE IF NOT EXISTS` 补建新表。**新增列**必须编写显式迁移代码（不再有探列兜底入口），并同步提升移动端 schema 版本。
+历史升级链已物理删除，`Table` 接口不再有 `upgradeTable`。桌面开库按共享旧表黑名单（`packages/db-schema/src/legacy-tables.json`）拒绝未完成升级的旧库（`DB_LEGACY_SCHEMA`）；已就位库的同版本 schema 演进由 bundle 的 `CREATE TABLE IF NOT EXISTS` 补建新表。**新增列**必须编写显式迁移代码（不再有探列兜底入口），并同步提升移动端 schema 版本。
 
 ## 4.3 移动端 schema 演进
 

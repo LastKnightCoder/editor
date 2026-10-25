@@ -13,8 +13,7 @@ import { WebSocket } from "ws";
 import * as Y from "yjs";
 import { Awareness, encodeAwarenessUpdate, removeAwarenessStates } from "y-protocols/awareness";
 import { createHash, randomUUID } from "node:crypto";
-import { rmSync, mkdtempSync, existsSync } from "node:fs";
-import Database from "better-sqlite3";
+import { rmSync } from "node:fs";
 import { basename, join } from "node:path";
 import {
   DEFAULT_COLLABORATION_URL,
@@ -30,7 +29,6 @@ import {
   validateNodeDocument,
   NodeTree,
   collectNodeDocumentResources,
-  collectWhiteboardDocumentResources,
   ASSET_PREFIX,
   type ContentSessionTarget,
   type ContentSessionSnapshot,
@@ -2291,231 +2289,34 @@ export class CollaborationManager {
     }
   }
 
-  async preserveLibrary(name: string): Promise<void> {
-    if (!this.contentState) throw new Error("正文保全服务尚未就绪");
-    if (
-      this.store
-        .list()
-        .some(
-          session =>
-            session.source?.databaseName === name &&
-            this.store.get(`library-detached:${session.id}`, null)
-        )
-    )
-      throw new Error("请先处理上次替换留下的本机恢复副本，再次覆盖已停止");
-    const recovery = new ContentRecoveryStore(this.directory, this.contentState);
-    const filename = join(PathUtil.getAppDir(), `${name.replace(/\.db$/, "")}.db`);
-    const open = databaseModule.getDatabase(name);
-    if (!open?.open && !existsSync(filename)) return;
-    const db = open?.open ? open : new Database(filename, { readonly: true, fileMustExist: true });
-    const staging = mkdtempSync(join(recovery.directory, ".library-"));
-    const journalPath = join(PathUtil.getAppDir(), "whiteboard-documents", "journal.db");
-    const boardJournal = existsSync(journalPath)
-      ? new Database(journalPath, { readonly: true, fileMustExist: true })
-      : undefined;
-    const boardIds = new Set(
-      (
-        db.prepare("SELECT document_id FROM whiteboard_documents").all() as {
-          document_id: string;
-        }[]
-      ).map(row => row.document_id)
-    );
-    if (boardJournal)
-      for (const row of boardJournal
-        .prepare(
-          "SELECT json_extract(identity,'$.documentId') AS id FROM documents WHERE json_extract(identity,'$.databaseName')=?"
-        )
-        .all(name) as { id: string }[])
-        boardIds.add(row.id);
-    try {
-      const rows = [...this.sessions.values()].filter(
-        session => session.info.source?.databaseName === name
-      );
-      if (rows.some(session => !session.info.frozen))
-        throw new Error("资料库覆盖前仍有正文会话未完成冲刷");
-      const dependencies = new ContentRetention(this.contentState).dependencies(
-        db,
-        name,
-        (
-          [
-            ["content", "contents"],
-            ["whiteboard-content", "white_board_contents"],
-            ["data-table", "data_tables"],
-          ] as const
-        ).flatMap(([kind, table]) =>
-          (db.prepare(`SELECT id FROM ${table}`).all() as { id: number }[]).map(row => ({
-            kind,
-            id: row.id,
-          }))
-        )
-      );
-      const references = contentRecoveryResources(db, dependencies);
-      const boardResources = new Map<string, string[]>();
-      const scanBoard = (id: string, state: Uint8Array) => {
-        const doc = new Y.Doc();
-        try {
-          Y.applyUpdate(doc, state);
-          boardResources.set(id, [
-            ...new Set([
-              ...(boardResources.get(id) ?? []),
-              ...collectWhiteboardDocumentResources(doc),
-            ]),
-          ]);
-        } finally {
-          doc.destroy();
-        }
-      };
-      for (const row of db.prepare("SELECT document_id,state FROM whiteboard_documents").all() as {
-        document_id: string;
-        state: Uint8Array;
-      }[])
-        scanBoard(row.document_id, row.state);
-      if (boardJournal)
-        for (const row of boardJournal
-          .prepare(
-            "SELECT json_extract(identity,'$.documentId') AS id,state FROM documents WHERE json_extract(identity,'$.databaseName')=?"
-          )
-          .all(name) as { id: string; state: Uint8Array }[])
-          scanBoard(row.id, row.state);
-      const files: ({ name: string; path: string } | { name: string; bytes: Uint8Array })[] = [];
-      for (const [file, connection] of [
-        ["main.db", db],
-        ["collaboration.db", this.store.db],
-        ...(boardJournal ? [["whiteboard-journal.db", boardJournal] as const] : []),
-      ] as const) {
-        const path = join(staging, file);
-        await connection.backup(path);
-        files.push({ name: file, path });
-        if (file === "whiteboard-journal.db") {
-          const snapshot = new Database(path);
-          try {
-            snapshot.pragma("secure_delete = ON");
-            snapshot
-              .prepare("DELETE FROM documents WHERE json_extract(identity,'$.databaseName')<>?")
-              .run(name);
-            snapshot.exec(
-              "DELETE FROM updates WHERE document_id NOT IN (SELECT document_id FROM documents); DELETE FROM holds WHERE document_id NOT IN (SELECT document_id FROM documents)"
-            );
-            if (snapshot.prepare("SELECT 1 FROM sqlite_master WHERE name='remote_branches'").get())
-              snapshot
-                .prepare(
-                  "DELETE FROM remote_branches WHERE json_extract(scope,'$[2]') NOT IN (SELECT value FROM json_each(?))"
-                )
-                .run(JSON.stringify([...boardIds]));
-            snapshot.exec("VACUUM");
-            snapshot.pragma("wal_checkpoint(TRUNCATE)");
-          } finally {
-            snapshot.close();
-          }
-        } else if (file !== "main.db") {
-          const snapshot = new Database(path);
-          try {
-            snapshot.pragma("secure_delete = ON");
-            snapshot
-              .prepare(
-                "DELETE FROM sessions WHERE coalesce(json_extract(metadata,'$.source.databaseName'),'')<>?"
-              )
-              .run(name);
-            snapshot.exec(
-              "DELETE FROM updates WHERE document_id NOT IN (SELECT id FROM sessions); DELETE FROM settings WHERE key LIKE 'identity:%' OR key='endpoint-aliases';"
-            );
-            snapshot
-              .prepare(
-                "DELETE FROM resources WHERE document_id NOT IN (SELECT id FROM sessions) AND document_id NOT IN (SELECT value FROM json_each(?))"
-              )
-              .run(JSON.stringify([...boardIds]));
-            for (const table of [
-              "node_views",
-              "entity_holds",
-              "migrations",
-              "input_drafts",
-              "document_drafts",
-            ])
-              snapshot
-                .prepare(
-                  `DELETE FROM ${table} WHERE workspace_id<>? AND workspace_id<>'application'`
-                )
-                .run(name);
-            snapshot.exec("DELETE FROM recoveries");
-            snapshot.exec("VACUUM");
-            snapshot.pragma("wal_checkpoint(TRUNCATE)");
-          } finally {
-            snapshot.close();
-          }
-        }
+  /**
+   * 整库被同步下载替换：本库正文缓存对应的是旧库，本地会话直接丢弃，共享会话解除来源。
+   * 调用前 close-database 已把缓存写回旧库，旧库也已复制进 backup/。
+   */
+  async releaseLibrary(name: string): Promise<void> {
+    for (const session of [...this.sessions.values()]) {
+      if (session.info.source?.databaseName !== name) continue;
+      const id = session.info.id;
+      for (const [viewId, view] of this.views) if (view.documentId === id) this.removeView(viewId);
+      unregisterContentSession(session);
+      if (session.info.mode === "local") {
+        session.provider?.destroy();
+        session.awareness.destroy();
+        session.doc.destroy();
+        this.sessions.delete(id);
+        this.store.remove(id);
+        this.contentState?.db
+          .prepare("DELETE FROM entity_holds WHERE holder=?")
+          .run(`document:${id}`);
+        rmSync(join(this.directory, "assets", id), { recursive: true, force: true });
+      } else {
+        session.info.source = undefined;
+        this.retainNodeState(session, session.doc);
+        this.changed(session);
       }
-      const missing: string[] = [];
-      const manifest: unknown[] = [];
-      const ids = new Set([
-        ...boardIds,
-        ...rows.map(session => session.info.id),
-        ...this.store
-          .list()
-          .filter(session => session.source?.databaseName === name)
-          .map(session => session.id),
-      ]);
-      const represented = new Set<string>();
-      for (const [index, id] of [...ids, ""].entries()) {
-        const resources = this.assets.recoveryFiles(
-          id,
-          id
-            ? (boardResources.get(id) ?? [])
-            : references.filter(reference => !represented.has(reference))
-        );
-        resources.resources.forEach(resource => represented.add(resource.reference));
-        missing.push(...resources.missing);
-        const prefix = `assets-${index}-`;
-        files.push(...resources.files.map(file => ({ ...file, name: prefix + file.name })));
-        manifest.push({
-          documentId: id || null,
-          resources: resources.resources.map(resource => ({
-            ...resource,
-            file: resource.file ? prefix + resource.file : undefined,
-          })),
-        });
-      }
-      files.push({ name: "resources.json", bytes: Buffer.from(JSON.stringify(manifest)) });
-      if (missing.length) throw new Error("仍有资源未能独立保全，已保留原资料库并停止覆盖");
-      const receipt = recovery.save({
-        workspaceId: name,
-        reason: "library-replacement",
-        provenance: {
-          sourceId: ContentIdentityTable.library(db)?.sourceId ?? null,
-          databasePath: db.name,
-        },
-        files,
-        missing,
-      });
-      this.store.set(`library-recovery:${name}`, receipt);
-      for (const session of rows) {
-        const key = `library-detached:${session.info.id}`;
-        if (this.store.get(key, null)) continue;
-        const stored = ContentDocumentTable.read(db, session.info.source!.contentId);
-        const row = db
-          .prepare("SELECT content FROM contents WHERE id=?")
-          .get(session.info.source!.contentId) as { content: string } | undefined;
-        this.store.set(key, {
-          recoveryId: receipt.id,
-          sourceId: ContentIdentityTable.library(db)?.sourceId ?? null,
-          documentId: stored?.documentId ?? null,
-          revision:
-            stored?.revision ??
-            createHash("sha256")
-              .update(row?.content ?? "")
-              .digest("hex"),
-          frozen: Boolean(
-            this.contentState
-              .pendingMigrations()
-              .some(record => record.plan.documentId === session.info.id) ||
-            this.store.get(`publishing:${session.info.id}`, null)
-          ),
-        });
-      }
-    } finally {
-      boardJournal?.close();
-      if (db !== open) db.close();
-      rmSync(staging, { recursive: true, force: true });
+      this.broadcast("collaboration:removed", { documentId: id, replaced: true });
     }
+    this.changed();
   }
 
   private async useReplacedContent(event: IpcMainInvokeEvent, id: string): Promise<void> {

@@ -40,22 +40,6 @@ impl SyncProvider {
             Err(error("插件文件上传失败"))
         }
     }
-    pub(crate) async fn create_if_absent(
-        &self,
-        name: &str,
-        content: &[u8],
-    ) -> Result<(), AppError> {
-        if self
-            .call("createFileIfAbsent", Some(name), Some(content))
-            .await
-            .map_err(error)?
-            == true
-        {
-            Ok(())
-        } else {
-            Err(error("远端已存在后继版本或无法确认创建结果"))
-        }
-    }
 }
 pub(crate) async fn list_remote_resources(
     provider: &SyncProvider,

@@ -1,8 +1,4 @@
 import { createSharedDocument } from "@tau/collaboration/src/testing/legacy-document";
-import { WhiteboardJournal } from "../../whiteboard-documents/journal";
-import { WhiteboardDocumentRepository } from "../../whiteboard-documents/repository";
-import { WhiteboardModel } from "@tau/collaboration";
-import { prepareWhiteboardContract } from "@tau/db-schema/content-contracts";
 // @vitest-environment node
 import Database from "better-sqlite3";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -97,7 +93,7 @@ type Runtime = {
   prepareLeave(session: RuntimeSession): Promise<void>;
   finishLeave(session: RuntimeSession): Promise<void>;
   drainDatabase(scope: DocumentDrainScope): Promise<DocumentDrain>;
-  preserveLibrary(name: string): Promise<void>;
+  releaseLibrary(name: string): Promise<void>;
   preserveSession(
     session: RuntimeSession
   ): Promise<import("../content-local-state").LocalRecoveryReceipt>;
@@ -890,100 +886,18 @@ describe("桌面生产会话与真实服务贯通", () => {
         .toString()
     ).toContain("本机真身");
   });
-  it("普通切换不备份，真正覆盖保全主库与本机库，换库不回写同号正文", async () => {
-    const { runtime, event, db, store, state, localId } = await setup();
-    const session = runtime.sessions.get(localId)!;
-    const cancelled = await runtime.drainDatabase({
-      databaseName: "library",
-      reason: "database-change",
-    });
-    expect(session.info.frozen).toBe(true);
-    expect(store.get("library-recovery:library", null)).toBeNull();
-    cancelled.rollback();
-    expect(session.info.frozen).toBe(false);
-    expect(store.get(`library-detached:${localId}`, null)).toBeNull();
-    const replaced = await runtime.drainDatabase({
-      databaseName: "library",
-      reason: "database-change",
-    });
-    await runtime.preserveLibrary("library");
-    const receipt = store.get<any>("library-recovery:library", null);
-    expect(
-      new ContentRecoveryStore(runtime.directory, state)
-        .verify(receipt)
-        .files.map(file => file.name)
-    ).toEqual(expect.arrayContaining(["main.db", "collaboration.db", "resources.json"]));
-    db.prepare("UPDATE library_identity SET source_id='another-library'").run();
-    replaced.commit();
-    await expect(runtime.openContent(event, { contentId: 7 })).rejects.toThrow("快照已替换");
-    expect(new ContentRecoveryStore(runtime.directory, state).verify(receipt).files.length).toBe(3);
-    expect(session.info.frozen).toBe(true);
-  });
-
-  it("未处理前一次替库副本时拒绝再次覆盖，原回执和缓存不变", async () => {
-    const { runtime, db, store, state, localId } = await setup();
+  it("整库被下载替换后丢弃本库的本地缓存，重开正文读新库内容", async () => {
+    const { runtime, event, store, localId } = await setup();
     const drain = await runtime.drainDatabase({
       databaseName: "library",
       reason: "database-change",
     });
-    await runtime.preserveLibrary("library");
-    const receipt = store.get<any>("library-recovery:library", null);
-    const detached = store.get(`library-detached:${localId}`, null);
-    db.prepare("UPDATE library_identity SET source_id='replacement-library'").run();
     drain.commit();
-    await expect(runtime.preserveLibrary("library")).rejects.toThrow("再次覆盖已停止");
-    expect(store.get("library-recovery:library", null)).toEqual(receipt);
-    expect(store.get(`library-detached:${localId}`, null)).toEqual(detached);
-    expect(new ContentRecoveryStore(runtime.directory, state).verify(receipt).files.length).toBe(3);
-  });
-
-  it("保全后安装失败且原库未变，重开原文恢复编辑并保留恢复包", async () => {
-    const { runtime, event, store, state, localId } = await setup();
-    const drain = await runtime.drainDatabase({
-      databaseName: "library",
-      reason: "database-change",
-    });
-    await runtime.preserveLibrary("library");
-    const receipt = store.get<any>("library-recovery:library", null);
-    drain.rollback();
+    await runtime.releaseLibrary("library");
+    expect(runtime.sessions.has(localId)).toBe(false);
+    expect(store.list().some(session => session.id === localId)).toBe(false);
     const opened = await runtime.openContent(event, { contentId: 7 });
-    expect(opened.documentId).toBe(localId);
     expect(opened.frozen).toBe(false);
-    expect(store.get(`library-detached:${localId}`, null)).toBeNull();
-    expect(new ContentRecoveryStore(runtime.directory, state).verify(receipt).files.length).toBe(3);
-  });
-
-  it("覆盖前发现引用文件缺失时保留原库，不登记未完成恢复包", async () => {
-    const { runtime, db, store } = await setup();
-    db.prepare(
-      "INSERT INTO contents(id,create_time,update_time,content,ref_count) VALUES (99,1,1,?,1)"
-    ).run(
-      JSON.stringify([
-        { type: "image", url: "/unavailable/tau-test-image.png", children: [{ text: "" }] },
-      ])
-    );
-    const before = store.db.prepare("SELECT count(*) AS count FROM recoveries").get();
-    const drain = await runtime.drainDatabase({
-      databaseName: "library",
-      reason: "database-change",
-    });
-    await expect(runtime.preserveLibrary("library")).rejects.toThrow("停止覆盖");
-    drain.rollback();
-    expect(store.get("library-recovery:library", null)).toBeNull();
-    expect(db.prepare("SELECT id FROM contents WHERE id=99").get()).toEqual({ id: 99 });
-    expect(store.db.prepare("SELECT count(*) AS count FROM recoveries").get()).toEqual(before);
-  });
-  it("库覆盖前备份失败不生成成功回执，回滚后原会话仍可编辑", async () => {
-    const { runtime, db, store, localId } = await setup();
-    const drain = await runtime.drainDatabase({
-      databaseName: "library",
-      reason: "database-change",
-    });
-    vi.spyOn(db, "backup").mockRejectedValueOnce(new Error("磁盘已满"));
-    await expect(runtime.preserveLibrary("library")).rejects.toThrow("磁盘已满");
-    expect(store.get("library-recovery:library", null)).toBeNull();
-    drain.rollback();
-    expect(runtime.sessions.get(localId)!.info.frozen).toBe(false);
   });
 
   it("资料库连接重开但身份与正文未变时恢复原会话", async () => {
@@ -1046,60 +960,6 @@ describe("桌面生产会话与真实服务贯通", () => {
       count: 1,
     });
   });
-});
-
-it("公共恢复副本包含白板日志与历史资源，普通冲刷不会分离正文会话", async () => {
-  const { runtime, db, store, state, localId } = await setup();
-  const journal = new WhiteboardJournal(join(host.dir, "whiteboard-documents", "journal.db"));
-  const doc = new Y.Doc(),
-    model = new WhiteboardModel(doc);
-  cleanup.push(() => {
-    journal.close();
-    model.dispose();
-    doc.destroy();
-  });
-  const [page] = model.submit([{ type: "create_page", title: "白板" }], null).createdIds;
-  const contract = await prepareWhiteboardContract("host.whiteboard", {
-    type: "image",
-    dataVersion: 1,
-    resources: [{ path: "src", kind: "image" }],
-  });
-  const reference = await runtime.assets.keepLocalFile("preserved-board", {
-    name: "cover.png",
-    mime: "image/png",
-    bytes: new Uint8Array([1, 3, 5]),
-  });
-  model.submit(
-    [
-      {
-        type: "create",
-        contractId: contract.id,
-        data: { src: reference },
-        geometry: { x: 0, y: 0, width: 1, height: 1, rotation: 0 },
-        parent: { kind: "page", id: page },
-      },
-    ],
-    null,
-    [contract]
-  );
-  const stored = new WhiteboardDocumentRepository(db, "library").create(
-    "preserved-board",
-    model,
-    "board"
-  );
-  journal.seed({ ...stored, projectedRevision: stored.revision, projectedHash: stored.hash }, []);
-  const drain = await runtime.drainDatabase({ databaseName: "library", reason: "database-change" });
-  expect(store.get("library-recovery:library", null)).toBeNull();
-  await runtime.preserveLibrary("library");
-  const receipt = store.get<any>("library-recovery:library", null);
-  const manifest = new ContentRecoveryStore(runtime.directory, state).verify(receipt);
-  expect(manifest.files.map(file => file.name)).toContain("whiteboard-journal.db");
-  expect(manifest.files.some(file => file.name.startsWith("assets-") && file.bytes === 3)).toBe(
-    true
-  );
-  expect(manifest.missing).toEqual([]);
-  drain.rollback();
-  expect(runtime.sessions.get(localId)!.info.frozen).toBe(true);
 });
 
 it("后台升级无需窗口事件，结束后释放会话并能重新打开同一份正文", async () => {

@@ -83,7 +83,6 @@ import mainContentIndexDBManager, {
 import MAIN_SCHEMA_SQL from "@tau/db-schema/schema/main.sql?raw";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import { executeReadOnlySql, type SqlQueryInput } from "./sql-query";
-import { recoverSessionDownload } from "./pi-session-store";
 import { assertDatabaseNotSyncing } from "@tau/db-schema/sync";
 import { assertNoLegacyTables } from "@tau/db-schema/src/legacy-table-guard";
 import { upgradeWhiteboardCardElements } from "./whiteboard-document-upgrade";
@@ -362,7 +361,6 @@ class DatabaseModule implements Module {
     const appDir = PathUtil.getAppDir();
     const dbPath = join(appDir, `${this.formatDatabaseName(name)}.db`);
     assertDatabaseNotSyncing(dbPath, allowOwnedSync);
-    recoverSessionDownload(dbPath);
     log.info(`[database] openDatabase start: db=${name}, mode=${mode}, dbPath=${dbPath}`);
 
     const openStartAt = Date.now();
@@ -642,28 +640,6 @@ class DatabaseModule implements Module {
   }
 
   async init() {
-    ipcMain.handle("validate-downloaded-database", (_event, name: string) => {
-      const path = join(PathUtil.getAppDir(), `${this.formatDatabaseName(name)}.db.download.tmp`);
-      const db = new Database(path, { fileMustExist: true });
-      try {
-        loadSqliteVecExtension(db);
-        if (db.pragma("quick_check", { simple: true }) !== "ok")
-          throw new Error("下载数据库完整性检查失败");
-        if (
-          !db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='contents'").get()
-        ) {
-          throw new Error("下载的文件不是 Tau 数据库");
-        }
-        // 数据基线门禁：与本地开库同一接受边界，旧端上传的快照在这里被拒绝
-        assertNoLegacyTables(db);
-        db.exec(MAIN_SCHEMA_SQL);
-        const checkpoint = db.pragma("wal_checkpoint(TRUNCATE)") as { busy: number }[];
-        if (checkpoint.some(row => row.busy !== 0)) throw new Error("下载数据库尚未完整落盘");
-        return true;
-      } finally {
-        db.close();
-      }
-    });
     ipcMain.handle("reset-content-index", (_event, name: string) => {
       // 同步替换主库后本地索引的 ID 空间整体失效，删除索引文件令其全量重建。
       mainContentIndexDBManager.resetDatabase(name);

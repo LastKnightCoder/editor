@@ -5,10 +5,13 @@ import {
   copySyncFile,
 } from "@/services/chunkedSync";
 import {
-  snapshotObject,
-  databaseVersionObject,
-  decodeSessionDirectory,
-  MANIFEST_BYTES,
+  databaseSyncObjects,
+  decodeSessionList,
+  encodeDatabaseSyncVersion,
+  encodeSessionList,
+  localDatabaseVersion,
+  readDatabaseSyncVersion,
+  type DatabaseSyncVersion,
 } from "@tau/db-schema/sync-protocol";
 import { toast } from "@tau/ui";
 import { produce } from "immer";
@@ -33,20 +36,17 @@ import {
   piSessionSyncFiles,
   piSessionLockLibrary,
   piSessionUnlockLibrary,
-  piSessionAssertLibrary,
   piSessionInstallDownload,
 } from "@/commands/piSession";
-import type { IDatabaseInfo, ISyncProvider } from "@/types/sync";
-import {
-  SYNC_MODEL_VERSION,
-  localSyncVersion,
-  assertCompatibleSync,
-  readSnapshotHead,
-  publishSnapshot,
-} from "@tau/db-schema/sync-protocol";
+import type { ISyncProvider } from "@/types/sync";
 
 interface SyncCommandOptions {
   onProgress?: (payload: { value: number; status: string }) => void;
+}
+
+interface UploadOptions extends SyncCommandOptions {
+  /** 自动上传无人确认，云端比本机新时跳过，避免覆盖其他设备的修改。 */
+  skipWhenRemoteNewer?: boolean;
 }
 
 const emitProgress = (options: SyncCommandOptions | undefined, value: number, status: string) => {
@@ -104,124 +104,76 @@ export const getDatabasePath = async (databaseName: string): Promise<string> => 
   }
 };
 
-export const upload = async (options?: SyncCommandOptions) => {
+const setLocalVersion = (databaseName: string, version: number) =>
+  useSettingStore.setState(
+    produce(useSettingStore.getState(), draft => {
+      const database = draft.setting.database.databases.find(item => item.name === databaseName);
+      if (database) database.version = version;
+    })
+  );
+
+const withSyncProvider = async (run: (provider: ISyncProvider) => Promise<boolean>) => {
   const syncProvider = SyncProviderFactory.getSyncProvider();
   if (!syncProvider) {
     toast.error("请先配置同步设置");
     return false;
   }
   try {
-    return await uploadWithProvider(syncProvider, options);
+    return await run(syncProvider);
   } finally {
     await syncProvider.dispose?.();
   }
 };
 
-const uploadWithProvider = async (syncProvider: ISyncProvider, options?: SyncCommandOptions) => {
-  const { active: databaseName, databases } = useSettingStore.getState().setting.database;
+/** 把本机库文件（及桌面对话记录）覆盖到云端固定位置，版本号最后写入。 */
+export const upload = (options?: UploadOptions) =>
+  withSyncProvider(provider => uploadWithProvider(provider, options));
 
+const uploadWithProvider = async (syncProvider: ISyncProvider, options?: UploadOptions) => {
+  const { active: databaseName, databases } = useSettingStore.getState().setting.database;
   const database = databases.find(item => item.name === databaseName);
   if (!database) return false;
-  const currentVersion = localSyncVersion(database);
-
   const databasePath = await getDatabasePath(databaseName);
-
   if (!databasePath) {
     toast.error("请先设置数据库目录");
     return false;
   }
 
   emitProgress(options, 5, "正在准备同步...");
-  const { databaseInfoObjectName, databaseInfo } = await readOriginDatabaseInfo(
-    syncProvider,
-    databaseName
-  );
+  const objects = await databaseSyncObjects(databaseName, chunkDigest);
+  const remote = await readDatabaseSyncVersion(syncProvider, objects.version);
+  if (options?.skipWhenRemoteNewer && remote.version > localDatabaseVersion(database)) {
+    toast.warning(`云端 v${remote.version} 比本机新，已跳过自动上传`);
+    return false;
+  }
 
   const locked = await piSessionLockLibrary(databaseName);
   if (!locked.ok) {
     toast.error(locked.error ?? "数据库会话锁定失败");
     return false;
   }
-
-  setDatabaseConnectionStatus(databaseName, "reconnecting");
   try {
+    setDatabaseConnectionStatus(databaseName, "reconnecting");
+    // 关库会把编辑器缓存写回并合并 WAL，上传的才是完整的库文件
     await closeDatabase(databaseName);
-  } catch (error) {
-    await piSessionUnlockLibrary(databaseName);
-    throw error;
-  }
-  emitProgress(options, 15, "正在关闭数据库连接...");
 
-  emitProgress(options, 25, "正在校验远程数据库版本...");
+    emitProgress(options, 30, "正在上传数据库文件...");
+    await uploadChunkedPath(syncProvider, objects.database, databasePath, databaseName);
 
-  const originVersion = Number(databaseInfo.version || 0);
-  if (isNaN(originVersion)) {
-    toast.error("远程数据库信息版本号不是一个数字");
-    await reconnectAfterSync(databaseName, "sync_upload_reconnect");
-    await piSessionUnlockLibrary(databaseName);
-    return false;
-  }
-  if (originVersion > currentVersion) {
-    toast.error("远程的数据库版本高于本地版本，请先同步远程数据库");
-    await reconnectAfterSync(databaseName, "sync_upload_reconnect");
-    await piSessionUnlockLibrary(databaseName);
-    return false;
-  }
-
-  const newDatabaseInfo: IDatabaseInfo = {
-    ...databaseInfo,
-    version: currentVersion + 1,
-    dataModelVersion: SYNC_MODEL_VERSION,
-    commitId: crypto.randomUUID(),
-    parentVersion: originVersion,
-    databaseObject: snapshotObject(crypto.randomUUID()),
-    sessionsObject: snapshotObject(crypto.randomUUID()),
-  };
-
-  try {
-    const prepared = await piSessionSyncFiles(databaseName);
-    if (!prepared.ok || !prepared.files) throw new Error(prepared.error ?? "读取会话目录失败");
-
-    // 上传数据库文件
-    emitProgress(options, 40, "正在上传数据库文件...");
-    const dataObjectName = newDatabaseInfo.databaseObject!;
-    await uploadChunkedPath(syncProvider, dataObjectName, databasePath, databaseName);
-
-    // 会话包（M4）：对话内容在 pi 会话文件里，目录表随 .db 过去、文件得一起过去，
-    // 否则对面「列表同步过去、点开全空」。与 .db 共用同一个版本号
     emitProgress(options, 60, "正在上传对话记录...");
-    const sessionManifest = {
-      format: "tau-session-directory",
-      version: 1,
-      files: [] as { name: string; object: string }[],
-    };
-    for (const file of prepared.files) {
-      const object = snapshotObject(crypto.randomUUID());
-      await uploadChunkedPath(syncProvider, object, file.path, file.name);
-      sessionManifest.files.push({ name: file.name, object });
-    }
-    const sessionBytes = new TextEncoder().encode(JSON.stringify(sessionManifest));
-    if (
-      sessionBytes.length > MANIFEST_BYTES ||
-      !(await syncProvider.uploadFile(newDatabaseInfo.sessionsObject!, sessionBytes))
-    )
-      throw new Error("会话清单上传失败");
+    const prepared = await piSessionSyncFiles(databaseName);
+    if (!prepared.ok || !prepared.files) throw new Error(prepared.error ?? "读取对话记录失败");
+    for (const file of prepared.files)
+      await uploadChunkedPath(syncProvider, objects.session(file.name), file.path, file.name);
+    const names = prepared.files.map(file => file.name);
+    if (!(await syncProvider.uploadFile(objects.sessions, encodeSessionList(names))))
+      throw new Error("对话记录清单上传失败");
 
-    // 数据库与会话包都上传成功后再发布新版本，避免失败时远程版本提前生效。
-    emitProgress(options, 75, "正在上传版本信息...");
-    const lease = await piSessionAssertLibrary(databaseName);
-    if (!lease.ok) throw new Error(lease.error ?? "同步锁已失效");
-    await publishSnapshot(syncProvider, databaseInfoObjectName, databaseInfo, newDatabaseInfo);
-
-    emitProgress(options, 90, "正在更新本地版本记录...");
-    useSettingStore.setState(
-      produce(useSettingStore.getState(), draft => {
-        const databases = draft.setting.database.databases;
-        const index = databases.findIndex(item => item.name === databaseName);
-        databases[index].version = currentVersion + 1;
-        databases[index].syncFormat = SYNC_MODEL_VERSION;
-      })
-    );
+    emitProgress(options, 85, "正在上传版本信息...");
+    const version = Math.max(localDatabaseVersion(database), remote.version) + 1;
+    if (!(await syncProvider.uploadFile(objects.version, encodeDatabaseSyncVersion(version))))
+      throw new Error("版本信息上传失败");
+    setLocalVersion(databaseName, version);
 
     emitProgress(options, 100, "同步完成");
     return true;
@@ -237,52 +189,27 @@ const uploadWithProvider = async (syncProvider: ISyncProvider, options?: SyncCom
   }
 };
 
-export const download = async (options?: SyncCommandOptions) => {
-  const syncProvider = SyncProviderFactory.getSyncProvider();
-  if (!syncProvider) {
-    toast.error("请先配置同步设置");
-    return false;
-  }
-  try {
-    return await downloadWithProvider(syncProvider, options);
-  } finally {
-    await syncProvider.dispose?.();
-  }
-};
+/** 下载云端库文件覆盖本机，覆盖前把旧库复制进 backup/。 */
+export const download = (options?: SyncCommandOptions) =>
+  withSyncProvider(provider => downloadWithProvider(provider, options));
 
 const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncCommandOptions) => {
   const { active: databaseName, databases } = useSettingStore.getState().setting.database;
-
-  const database = databases.find(item => item.name === databaseName);
-  if (!database) return false;
-  const currentVersion = localSyncVersion(database);
-
+  if (!databases.some(item => item.name === databaseName)) return false;
   const databasePath = await getDatabasePath(databaseName);
-
-  const walFilePath = `${databasePath}-wal`;
-  const shmFilePath = `${databasePath}-shm`;
   if (!databasePath) {
     toast.error("请先设置数据库目录");
     return false;
   }
 
-  emitProgress(options, 5, "正在检查远程版本...");
-
-  const { databaseInfo } = await readOriginDatabaseInfo(syncProvider, databaseName);
-  if (databaseInfo.version === 0) {
-    toast.error("远端尚未发布同步快照");
-    return false;
-  }
-  assertCompatibleSync(databaseInfo);
-
-  const originVersion = Number(databaseInfo.version || 0);
-  if (currentVersion > originVersion) {
-    toast.error("本地的数据库版本高于远程版本，请先同步本地数据库");
+  emitProgress(options, 5, "正在检查云端版本...");
+  const objects = await databaseSyncObjects(databaseName, chunkDigest);
+  const remote = await readDatabaseSyncVersion(syncProvider, objects.version);
+  if (remote.version === 0) {
+    toast.error("云端还没有这个数据库，请先在另一台设备上传");
     return false;
   }
 
-  // 下载数据库文件
-  const dataObjectName = databaseInfo.databaseObject ?? databaseName;
   const locked = await piSessionLockLibrary(databaseName);
   if (!locked.ok) {
     toast.error(locked.error ?? "数据库会话锁定失败");
@@ -291,107 +218,50 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
   try {
     setDatabaseConnectionStatus(databaseName, "reconnecting");
     await closeDatabase(databaseName);
-    emitProgress(options, 20, "正在关闭数据库连接...");
 
+    emitProgress(options, 20, "正在备份本地数据库...");
     const sep = await getSep();
-    // 在覆盖本地文件之前，先备份一下，加上时间
     const backupDir = databasePath.split(sep).slice(0, -1).concat("backup").join(sep);
-    if (!(await pathExists(backupDir))) {
-      await createDir(backupDir);
-    }
+    if (!(await pathExists(backupDir))) await createDir(backupDir);
+    await copySyncFile(
+      databasePath,
+      `${backupDir}${sep}version-${localDatabaseVersion(databases.find(item => item.name === databaseName))}-${dayjs().format("YYYY-MM-DD-HH-mm-ss")}-${databaseName}`
+    );
 
-    const backupPath = String.raw`${backupDir}${sep}version-${originVersion}-${dayjs().format("YYYY-MM-DD-hh-mm-ss")}-${databaseName}`;
-
+    const downloadPath = `${databasePath}.download.tmp`;
+    const sessionDirectory = `${databasePath}.sessions.download`;
     try {
-      await copySyncFile(databasePath, backupPath);
-      emitProgress(options, 40, "正在备份本地数据库...");
-    } catch (e) {
-      toast.warning("备份数据库文件失败，停止下载");
-      console.error(e);
-      return false;
-    }
+      emitProgress(options, 40, "正在下载云端数据库文件...");
+      await downloadChunkedPath(syncProvider, objects.database, downloadPath);
 
-    try {
-      if (await pathExists(walFilePath)) {
-        await removeFile(walFilePath);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-
-    try {
-      if (await pathExists(shmFilePath)) {
-        await removeFile(shmFilePath);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-
-    let databaseDownloadSuccess = true;
-    try {
-      emitProgress(options, 60, "正在下载远程数据库文件...");
-      const downloadPath = `${databasePath}.download.tmp`;
-      try {
-        await downloadChunkedPath(syncProvider, dataObjectName, downloadPath);
-        await invoke("validate-downloaded-database", databaseName);
-        const sessionDirectory = `${databasePath}.sessions.download`;
+      const hasSessions = await syncProvider.fileExists(objects.sessions);
+      if (hasSessions) {
+        emitProgress(options, 65, "正在下载对话记录...");
         await removeFile(sessionDirectory).catch(() => undefined);
-        const hasSessions = Boolean(databaseInfo.sessionsObject);
-        if (databaseInfo.sessionsObject) {
-          const directory = decodeSessionDirectory(
-            await syncProvider.downloadFile(databaseInfo.sessionsObject)
+        await createDir(sessionDirectory);
+        for (const name of decodeSessionList(await syncProvider.downloadFile(objects.sessions)))
+          await downloadChunkedPath(
+            syncProvider,
+            objects.session(name),
+            `${sessionDirectory}${sep}${name}`
           );
-          await createDir(sessionDirectory);
-          const separator = await getSep();
-          for (const file of directory.files)
-            await downloadChunkedPath(
-              syncProvider,
-              file.object,
-              `${sessionDirectory}${separator}${file.name}`
-            );
-        }
-        // 主库已被远端内容替换，本地索引的 ID 空间整体失效，重置后按需全量重建。
-        await invoke("reset-content-index", databaseName);
-        const installed = await piSessionInstallDownload(databaseName, hasSessions);
-        if (!installed.ok) throw new Error(installed.error ?? "同步快照提交失败");
-      } finally {
-        await removeFile(downloadPath).catch(() => undefined);
-        await removeFile(`${databasePath}.sessions.download`).catch(() => undefined);
       }
-      emitProgress(options, 85, "正在更新本地数据库...");
-    } catch (e) {
-      databaseDownloadSuccess = false;
-      console.error("下载数据库文件失败:", e);
+
+      emitProgress(options, 85, "正在替换本地数据库...");
+      const installed = await piSessionInstallDownload(databaseName, hasSessions);
+      if (!installed.ok) throw new Error(installed.error ?? "替换本地数据库失败");
+      // 主库已整体替换，本地索引的 ID 空间失效，重置后按需全量重建
+      await invoke("reset-content-index", databaseName);
+    } finally {
+      await removeFile(downloadPath).catch(() => undefined);
+      await removeFile(sessionDirectory).catch(() => undefined);
     }
 
-    const isSuccessful = databaseDownloadSuccess;
-
-    if (isSuccessful) {
-      useSettingStore.setState(
-        produce(useSettingStore.getState(), draft => {
-          const databases = draft.setting.database.databases;
-          const index = databases.findIndex(item => item.name === databaseName);
-          databases[index].version = originVersion;
-          databases[index].syncFormat = SYNC_MODEL_VERSION;
-        })
-      );
-      emitProgress(options, 100, "下载完成");
-    } else {
-      // 尝试恢复数据库信息，读取备份数据还原
-      try {
-        await copySyncFile(backupPath, databasePath);
-      } catch (e) {
-        toast.error("恢复数据库文件失败，当前数据库文件可能存在损坏，可从备份文件夹手动备份");
-      }
-    }
-
-    if (!isSuccessful) {
-      return false;
-    }
-
+    setLocalVersion(databaseName, remote.version);
+    emitProgress(options, 100, "下载完成");
     return true;
   } catch (e) {
-    toast.error("下载数据库文件失败: " + e);
+    toast.error("下载数据库失败: " + e);
     return false;
   } finally {
     try {
@@ -405,36 +275,15 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
   }
 };
 
-export const getOriginDatabaseInfo = async () => {
+/** 读取当前库的云端版本，云端没有时为 0。 */
+export const getRemoteDatabaseVersion = async (): Promise<DatabaseSyncVersion> => {
   const syncProvider = SyncProviderFactory.getSyncProvider();
+  if (!syncProvider) return { version: 0 };
   const { active: databaseName } = useSettingStore.getState().setting.database;
   try {
-    return await readOriginDatabaseInfo(syncProvider, databaseName);
+    const objects = await databaseSyncObjects(databaseName, chunkDigest);
+    return await readDatabaseSyncVersion(syncProvider, objects.version);
   } finally {
-    await syncProvider?.dispose?.();
+    await syncProvider.dispose?.();
   }
-};
-
-const readOriginDatabaseInfo = async (syncProvider: ISyncProvider | null, databaseName: string) => {
-  const databaseInfoFileName = await databaseVersionObject(databaseName, chunkDigest);
-  const databaseInfoObjectName = databaseInfoFileName;
-
-  let databaseInfo: IDatabaseInfo = { version: 0 };
-  let isDatabaseInfoExist = false;
-
-  if (syncProvider) {
-    try {
-      databaseInfo = await readSnapshotHead(syncProvider, databaseInfoObjectName);
-      isDatabaseInfoExist = databaseInfo.version > 0 || Boolean(databaseInfo.databaseObject);
-    } catch (e) {
-      console.error("获取远程数据库信息失败:", e);
-      throw e;
-    }
-  }
-
-  return {
-    isDatabaseInfoExist,
-    databaseInfo,
-    databaseInfoObjectName,
-  };
 };

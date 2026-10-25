@@ -155,8 +155,6 @@ export const piSessionLockLibrary = (databaseName: string): Promise<Outcome> =>
   invoke("pi-session:lock-library", { databaseName });
 export const piSessionUnlockLibrary = (databaseName: string): Promise<Outcome> =>
   invoke("pi-session:unlock-library", { databaseName });
-export const piSessionAssertLibrary = (databaseName: string): Promise<Outcome> =>
-  invoke("pi-session:assert-library", { databaseName });
 export const piSessionInstallDownload = (
   databaseName: string,
   hasSessions: boolean

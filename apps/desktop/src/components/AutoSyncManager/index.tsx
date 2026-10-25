@@ -1,4 +1,4 @@
-import { localSyncVersion } from "@tau/db-schema/sync-protocol";
+import { localDatabaseVersion } from "@tau/db-schema/sync-protocol";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dialog, DialogBody, toast } from "@tau/ui";
 
@@ -6,7 +6,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import {
   closeWindow,
   download,
-  getOriginDatabaseInfo,
+  getRemoteDatabaseVersion,
   notifyAppQuittingReady,
   upload,
 } from "@/commands";
@@ -57,7 +57,7 @@ const AutoSyncManager = () => {
     () => database.databases.find(item => item.name === database.active),
     [database.active, database.databases]
   );
-  const currentVersion = localSyncVersion(activeDatabase);
+  const currentVersion = localDatabaseVersion(activeDatabase);
   const isConfigured = useMemo(() => isSyncConfigured(sync.active, sync), [sync]);
   const shouldAutoSync = !isDevMode && sync.autoSyncEnabled && isConfigured;
 
@@ -148,6 +148,7 @@ const AutoSyncManager = () => {
     let success = false;
     try {
       success = await upload({
+        skipWhenRemoteNewer: true,
         onProgress: ({ status }) => {
           setUploadState(prev => ({
             ...prev,
@@ -257,12 +258,8 @@ const AutoSyncManager = () => {
     hasCheckedOnLaunch.current = true;
 
     const checkRemoteVersion = async () => {
-      const originDatabaseInfo = await getOriginDatabaseInfo();
-      if (canceled || !originDatabaseInfo) return;
-      const { databaseInfo } = originDatabaseInfo;
-      const remoteVersion = Number(databaseInfo.version || 0);
-      if (!Number.isFinite(remoteVersion)) return;
-      if (currentVersion >= remoteVersion) {
+      const { version: remoteVersion } = await getRemoteDatabaseVersion();
+      if (canceled || currentVersion >= remoteVersion) {
         return;
       }
 

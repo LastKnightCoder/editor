@@ -11,9 +11,9 @@ import {
   chunkObject,
   decodeChunkManifest,
   resourceManifestObject,
-  databaseVersionObject,
+  databaseSyncObjects,
+  decodeSessionList,
   uploadChunkedFile,
-  decodeSessionDirectory,
 } from "@tau/db-schema/sync-protocol";
 let root: string;
 beforeEach(async () => {
@@ -37,7 +37,7 @@ it("TypeScript 与 Rust 共用清单、根哈希和对象名夹具", async () =>
   expect(await resourceManifestObject(fixture.manifest.name, chunkDigest)).toBe(
     fixture.resourceObject
   );
-  expect(await databaseVersionObject(fixture.databaseName, chunkDigest)).toBe(
+  expect((await databaseSyncObjects(fixture.databaseName, chunkDigest)).version).toBe(
     fixture.versionObject
   );
   fixture.manifest.name = "../escape";
@@ -150,26 +150,10 @@ it("取消不发布清单，本地变化不提交；空文件也可验证与恢�
   await downloadChunkedPath(remote.store, "empty", path.join(root, "empty-out"));
   expect((await stat(path.join(root, "empty-out"))).size).toBe(0);
 });
-it("会话目录清单拒绝路径穿越、重复项和外部对象地址", () => {
-  const encode = (files: unknown[]) =>
-    new TextEncoder().encode(
-      JSON.stringify({ format: "tau-session-directory", version: 1, files })
-    );
-  expect(decodeSessionDirectory(encode([])).files).toEqual([]);
-  expect(() =>
-    decodeSessionDirectory(encode([{ name: "../escape", object: "tau-sync-v1/snapshots/a.json" }]))
-  ).toThrow();
-  expect(() =>
-    decodeSessionDirectory(encode([{ name: "a.jsonl", object: "../../escape" }]))
-  ).toThrow();
-  const entry = { name: "a.jsonl", object: "tau-sync-v1/snapshots/a.json" };
-  expect(() => decodeSessionDirectory(encode([entry, entry]))).toThrow();
-});
-
-it("未标记当前同步格式的本地版本从零开始，避免旧计数覆盖新命名空间", async () => {
-  const { localSyncVersion } = await import("@tau/db-schema/sync-protocol");
-  expect(localSyncVersion({ version: 999 })).toBe(0);
-  expect(localSyncVersion({ version: 7, syncFormat: 6 })).toBe(7);
+it("对话记录清单拒绝路径穿越的文件名", () => {
+  const encode = (files: unknown[]) => new TextEncoder().encode(JSON.stringify({ files }));
+  expect(decodeSessionList(encode(["a.jsonl"]))).toEqual(["a.jsonl"]);
+  expect(() => decodeSessionList(encode(["../escape"]))).toThrow();
 });
 
 it.runIf(Boolean(process.env.TAU_CHUNK_INTEROP_DIR))(

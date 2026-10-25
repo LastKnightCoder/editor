@@ -46,8 +46,6 @@ vi.mock("../../collaboration", () => ({
       };
     },
     documentAssets: () => state.assets,
-    preserveLibrary: (name: string) =>
-      state.databases.get(name)!.backup(join(state.dir, "library-recovery.db")),
   },
 }));
 vi.mock("../../database", () => ({
@@ -178,31 +176,6 @@ it("窗口不能提交、关闭或确认另一窗口的租约", async () => {
   drain.rollback();
   expect(call("snapshot", 2, b.leaseId).leaseId).toBe(b.leaseId);
 });
-it("完整恢复副本失败时不执行库替换动作，解除屏障后仍可继续", async () => {
-  await opened();
-  const db = state.databases.get("A")!,
-    backup = vi.spyOn(db, "backup").mockRejectedValueOnce(new Error("backup failed"));
-  const { withDurableDocuments } = await import("../../durable-document-lifecycle");
-  const action = vi.fn(async () => undefined);
-  const pending = withDurableDocuments(
-      { databaseName: "A", reason: "database-change" },
-      async () => {
-        await (await import("../../collaboration")).default.preserveLibrary("A");
-        return action();
-      }
-    ),
-    failed = expect(pending).rejects.toThrow("backup failed");
-  await vi.waitFor(() => expect(requests()).toHaveLength(2));
-  for (const request of requests()) await call("drained", request.owner, request.data.requestId);
-  await failed;
-  backup.mockRestore();
-  expect(action).not.toHaveBeenCalled();
-  expect(db.open).toBe(true);
-  expect(state.sent.filter(event => event.channel === "whiteboard-document:resume")).toHaveLength(
-    2
-  );
-});
-
 it("未绑定共享基线的本机白板不能隐式打开远端房间", async () => {
   const [a] = await opened();
   await expect(call("remote-open", 1, a.leaseId, "https://collab.example")).rejects.toThrow(

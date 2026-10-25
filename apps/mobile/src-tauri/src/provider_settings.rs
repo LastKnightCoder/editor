@@ -111,11 +111,6 @@ pub fn plugin_provider_select(
 /// 普通设置提交不回写原生管理的数据库状态和提供方配置。
 pub(crate) fn preserve_managed_fields(next: &mut Value, current: &Value) {
     next["database"] = current["database"].clone();
-    if let Some(base) = current.get("chunkedSyncBases") {
-        next["chunkedSyncBases"] = base.clone();
-    } else if let Some(object) = next.as_object_mut() {
-        object.remove("chunkedSyncBases");
-    }
     for field in ["speechInput", "ttsProviders", "ttsUsageSettings"] {
         if let Some(value) = current.get(field) {
             next[field] = value.clone();
@@ -373,14 +368,13 @@ mod tests {
         );
     }
     #[test]
-    fn stale_general_settings_cannot_overwrite_provider_or_sync_metadata() {
+    fn stale_general_settings_cannot_overwrite_provider_settings() {
         let current = json!({ "database": { "active": "B.db", "databases": [{ "name": "B.db", "version": 7 }] },
             "sync": { "active": "plugin", "plugin": { "id": "fixture.sync", "configurations": { "fixture.sync": { "token": "new" } } } },
             "imageBed": { "active": "local", "plugin": { "id": "", "configurations": {} } },
             "speechInput": { "active": "plugin", "plugin": { "id": "fixture.asr", "configurations": {} } },
             "ttsProviders": [{ "id": "a", "name": "账号", "pluginId": "tau.tts-minimax", "config": { "apiKey": "new" }, "models": [{ "id": "m1" }] }],
-            "ttsUsageSettings": { "default": { "providerId": "a", "modelId": "m1", "voiceId": "voice" } },
-            "chunkedSyncBases": { "B.db": { "sessionsObject": "snapshot.zip" } } });
+            "ttsUsageSettings": { "default": { "providerId": "a", "modelId": "m1", "voiceId": "voice" } } });
         let mut stale = json!({ "database": {}, "sync": {}, "imageBed": { "enableCompression": false },
             "speechInput": { "active": "native" }, "ttsProviders": [], "ttsUsageSettings": { "default": null } });
         preserve_managed_fields(&mut stale, &current);
@@ -389,7 +383,6 @@ mod tests {
         assert_eq!(stale["speechInput"], current["speechInput"]);
         assert_eq!(stale["ttsProviders"], current["ttsProviders"]);
         assert_eq!(stale["ttsUsageSettings"], current["ttsUsageSettings"]);
-        assert_eq!(stale["chunkedSyncBases"], current["chunkedSyncBases"]);
         assert_eq!(stale["imageBed"]["enableCompression"], false);
         assert!(check_database(&current, "A.db").is_err());
     }

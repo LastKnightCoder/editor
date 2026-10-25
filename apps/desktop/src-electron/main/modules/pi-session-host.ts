@@ -11,7 +11,6 @@ import { ipcMain } from "electron";
 import userSettingModule from "./user-setting";
 import databaseModule from "./database";
 import collaborationModule from "./collaboration";
-import { withDurableDocuments } from "./durable-document-lifecycle";
 import PathUtil from "../utils/PathUtil";
 import {
   applyActiveTools,
@@ -30,11 +29,10 @@ import { retryHostSession } from "./pi-session-retry";
 import { desktopMessagesToPi, PiToolCallBridge } from "./pi-session-bridge";
 import {
   applySessionEdit,
-  installSessionDownload,
+  installDatabaseDownload,
   applySessionEditToFile,
   browserSessionFile,
-  validateSessionDirectory,
-  assertSessionSyncComplete,
+  listSessionFiles,
   readConversationTree,
   readTranscript,
   type SessionEdit,
@@ -191,16 +189,6 @@ class PiSessionHostModule {
 
   public static init() {
     ipcMain.handle(
-      "pi-session:assert-library",
-      (_event, { databaseName }: { databaseName: string }) =>
-        PiSessionHostModule.guard(async () => {
-          assertDatabaseSyncLockOwned(
-            join(PathUtil.getAppDir(), `${databaseName.replace(/\.db$/, "")}.db`)
-          );
-          return {};
-        })
-    );
-    ipcMain.handle(
       "pi-session:lock-library",
       async (event, { databaseName }: { databaseName: string }) =>
         PiSessionHostModule.guard(async () => {
@@ -238,22 +226,18 @@ class PiSessionHostModule {
         PiSessionHostModule.guard(async () => {
           if (!PiSessionHostModule.libraryLeases.has(chatSessionDirOf(databaseName)))
             throw new Error("同步尚未锁定会话目录");
-          assertDatabaseSyncLockOwned(
-            join(PathUtil.getAppDir(), `${databaseName.replace(/\.db$/, "")}.db`)
+          const databasePath = join(
+            PathUtil.getAppDir(),
+            `${databaseName.replace(/\.db$/, "")}.db`
           );
-          await withDurableDocuments({ databaseName, reason: "database-change" }, async () => {
-            await collaborationModule.preserveLibrary(databaseName);
-            installSessionDownload(
-              join(PathUtil.getAppDir(), `${databaseName.replace(/\.db$/, "")}.db`),
-              chatSessionDirOf(databaseName),
-              hasSessions
-                ? join(
-                    PathUtil.getAppDir(),
-                    `${databaseName.replace(/\.db$/, "")}.db.sessions.download`
-                  )
-                : undefined
-            );
-          });
+          assertDatabaseSyncLockOwned(databasePath);
+          await collaborationModule.releaseLibrary(databaseName);
+          installDatabaseDownload(
+            databasePath,
+            `${databasePath}.download.tmp`,
+            chatSessionDirOf(databaseName),
+            hasSessions ? `${databasePath}.sessions.download` : undefined
+          );
           return {};
         })
     );
@@ -486,20 +470,13 @@ class PiSessionHostModule {
           }
         })
     );
-    // 同步仅枚举校验后的会话目录，字节由宿主分块读写。
+    // 同步只枚举会话文件，字节由宿主分块读写。
     ipcMain.handle(
       "pi-session:sync-files",
       async (_event, { databaseName }: { databaseName: string }) =>
         PiSessionHostModule.guard(async () => {
           const dir = chatSessionDirOf(databaseName);
-          assertSessionSyncComplete(
-            join(PathUtil.getAppDir(), `${databaseName.replace(/\.db$/, "")}.db`),
-            dir
-          );
-          const sessions = validateSessionDirectory(dir);
-          return {
-            files: [...sessions.keys()].sort().map(name => ({ name, path: join(dir, name) })),
-          };
+          return { files: listSessionFiles(dir).map(name => ({ name, path: join(dir, name) })) };
         })
     );
     ipcMain.handle("pi-session:find-by-scope", async (event, { scope }: { scope: string }) => {
