@@ -22,7 +22,7 @@ export const SidebarCollapseButton = ({
 
   return (
     <div
-      className={`absolute ${isLeft ? "right-0" : "left-0"} top-1/2 z-20 h-20 w-5 -translate-y-1/2 ${isLeft ? "rounded-l-2xl" : "rounded-r-2xl"} bg-surface/90 border-b border-t backdrop-blur-xl ${isLeft ? "border-l" : "border-r"} border-line-1 hover:bg-hover hover:border-ink-3/50 flex cursor-pointer items-center justify-center ${isLeft ? "shadow-[-2px_0_8px_rgba(0,0,0,0.06)]" : "shadow-[2px_0_8px_rgba(0,0,0,0.06)]"} transition-colors duration-200`}
+      className={`absolute ${isLeft ? "right-0" : "left-0"} top-1/2 z-20 h-20 w-5 -translate-y-1/2 ${isLeft ? "rounded-l-2xl" : "rounded-r-2xl"} bg-surface/90 border-t border-b backdrop-blur-xl ${isLeft ? "border-l" : "border-r"} border-line-1 hover:bg-hover hover:border-ink-3/50 flex cursor-pointer items-center justify-center ${isLeft ? "shadow-[-2px_0_8px_rgba(0,0,0,0.06)]" : "shadow-[2px_0_8px_rgba(0,0,0,0.06)]"} transition-colors duration-200`}
       onClick={onToggle}
       title="收起侧边栏"
     >
@@ -57,7 +57,7 @@ export const SidebarExpandButton = ({
     <AnimatePresence>
       {isHidden && (
         <motion.div
-          className="absolute bottom-0 top-0 z-20"
+          className="absolute top-0 bottom-0 z-20"
           style={{
             [isLeft ? "left" : "right"]: 0,
             width: "20px",
@@ -70,7 +70,7 @@ export const SidebarExpandButton = ({
           transition={{ duration: 0.25, ease: "easeOut" }}
         >
           <div
-            className={`absolute ${isLeft ? "left-0" : "right-0"} top-1/2 h-20 w-5 -translate-y-1/2 ${isLeft ? "rounded-r-2xl" : "rounded-l-2xl"} bg-surface/90 border-b border-t backdrop-blur-xl ${isLeft ? "border-r" : "border-l"} border-line-1 hover:bg-hover hover:border-ink-3/50 flex cursor-pointer items-center justify-center ${isLeft ? "shadow-[2px_0_8px_rgba(0,0,0,0.06)]" : "shadow-[-2px_0_8px_rgba(0,0,0,0.06)]"} transition-all duration-200`}
+            className={`absolute ${isLeft ? "left-0" : "right-0"} top-1/2 h-20 w-5 -translate-y-1/2 ${isLeft ? "rounded-r-2xl" : "rounded-l-2xl"} bg-surface/90 border-t border-b backdrop-blur-xl ${isLeft ? "border-r" : "border-l"} border-line-1 hover:bg-hover hover:border-ink-3/50 flex cursor-pointer items-center justify-center ${isLeft ? "shadow-[2px_0_8px_rgba(0,0,0,0.06)]" : "shadow-[-2px_0_8px_rgba(0,0,0,0.06)]"} transition-all duration-200`}
             style={{
               opacity: isHovering ? 1 : 0,
             }}
@@ -88,29 +88,3 @@ export const SidebarExpandButton = ({
     </AnimatePresence>
   );
 };
-
-/**
- * 侧边栏切换按钮组件（兼容旧的使用方式）
- *
- * 特点：
- * - 把手样式设计，圆润的过渡
- * - 支持左右两侧
- * - 展开/收起状态自动切换图标
- * - 带平滑动画
- *
- * 注意：这个组件同时包含收起和展开按钮
- * 如果需要分开放置，请使用 SidebarCollapseButton 和 SidebarExpandButton
- */
-const SidebarToggleButton = ({ isHidden, onToggle, side = "left" }: SidebarToggleButtonProps) => {
-  return (
-    <>
-      {!isHidden && <SidebarCollapseButton onToggle={onToggle} side={side} />}
-      <SidebarExpandButton isHidden={isHidden} onToggle={onToggle} side={side} />
-    </>
-  );
-};
-
-SidebarToggleButton.Collapse = SidebarCollapseButton;
-SidebarToggleButton.Expand = SidebarExpandButton;
-
-export default SidebarToggleButton;

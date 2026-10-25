@@ -23,6 +23,7 @@
     "./runtime-style": "./runtime-style.ts",
     "./markdown-directives": "./markdown-directives.ts",
     "./browser-companion": "./browser-companion.ts",
+    "./custom-checkbox": "./custom-checkbox.ts",
     ".": {
       "types": "./src/index.ts",
       "default": "./src/index.ts"

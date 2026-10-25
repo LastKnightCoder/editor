@@ -1,7 +1,9 @@
 import React, { PropsWithChildren } from "react";
 import { RenderElementProps, useSlateStatic, useReadOnly } from "slate-react";
 import { getCommandElementPath } from "@tau/editor/api";
-import { CustomCheckbox } from "@tau/shared";
+// 走窄入口，避免 @tau/shared 根桶（含 MediaPlayer 等渲染组件）进入
+// 主进程依赖图（本组件经 checkList 扩展定义被主进程结构性引用）
+import CustomCheckbox from "@tau/shared/custom-checkbox";
 import type { CheckListItemElement } from "../../../../types";
 import { Transforms } from "slate";
 import { useMemoizedFn } from "ahooks";

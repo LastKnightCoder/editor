@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
-import { createEditorKit } from "@tau/editor";
+// 走 core 子入口，避免编辑器根入口把 presets/扩展组件/渲染库拖进主进程 bundle
+import { createEditorKit } from "@tau/editor/core";
 import { checkList, checkListItem } from "@tau/editor/extensions/list";
 import { applyNodeTreeContent } from "@tau/editor-collab";
 import { NodeTree, NODE_DOCUMENT_VERSION, NODE_DOCUMENT_MAX_BYTES } from "@tau/collaboration";
