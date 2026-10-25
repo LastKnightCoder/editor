@@ -57,7 +57,10 @@ export async function body(request: Request): Promise<Record<string, unknown>> {
     return fail(400, "INVALID_INPUT", "请求必须是 JSON 对象");
   }
 }
-export async function readLimited(request: Request, limit: number): Promise<Uint8Array> {
+export async function readLimited(
+  request: Request,
+  limit: number
+): Promise<Uint8Array<ArrayBuffer>> {
   const reader = request.body?.getReader();
   if (!reader) return new Uint8Array();
   const chunks: Uint8Array[] = [];
@@ -81,7 +84,7 @@ export async function readLimited(request: Request, limit: number): Promise<Uint
   return result;
 }
 export async function sha256(value: string | Uint8Array): Promise<string> {
-  const bytes = typeof value === "string" ? new TextEncoder().encode(value) : value;
+  const bytes = typeof value === "string" ? new TextEncoder().encode(value) : new Uint8Array(value);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
 }

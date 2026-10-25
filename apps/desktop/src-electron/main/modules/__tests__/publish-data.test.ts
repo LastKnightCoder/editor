@@ -97,7 +97,10 @@ it("生成的清单能被公开数据客户端读取", async () => {
   const byUrl = new Map(files.map(file => ["https://example.com/notes/" + file.path, file]));
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (url: string) => new Response(byUrl.get(url)!.content))
+    vi.fn(async (url: string) => {
+      const content = byUrl.get(url)!.content;
+      return new Response(typeof content === "string" ? content : new Uint8Array(content));
+    })
   );
   try {
     const client = createClient({ manifestUrl: "https://example.com/notes/" + site.path });

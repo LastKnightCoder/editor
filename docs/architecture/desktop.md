@@ -358,12 +358,12 @@ import）注册期即被调用，因此记录数据挂在模块级、import 期�
 通知按来源窗口焦点分流（聚焦进应用内卡栈、失焦进系统通知窗口；两栈互不同步）。接入口径：
 
 - **渲染端业务一律 `appNotify`**（`features/notifications/notify.ts`），禁止直接调用
-  `@tau/ui` 的 `notify`（showcase 样板间与系统通知窗口页除外，ESLint 守护）。`icon` 传
+  `@tau/ui` 的 `notify`（showcase 样板间与系统通知窗口页除外，Oxlint 守护）。`icon` 传
   注册表键（`features/notifications/icons.ts` 的 `NOTIFICATION_ICONS`），不传组件；
   主进程侧 icon 字符串键与注册表的对账由
   `features/notifications/__tests__/main-process-icons.test.ts` 守护。
 - **主进程用 `routeNotification(payload, origin)`**（`src-electron/main/windows/`），
-  禁止 `new Notification(...)` 原生通知（ESLint 守护）；按钮回调放 `origin.handlers`，
+  禁止 `new Notification(...)` 原生通知（Oxlint 守护）；按钮回调放 `origin.handlers`，
   收尾放 `origin.onClose`，关闭走 `dismissNotification(id)`。
 
 ## 3. 三大协议（照抄即用）
@@ -433,7 +433,9 @@ export function useXxxSnapshot() {
 
 ## 3.5 构建与打包
 
+- 桌面使用 TypeScript 7 原生编译器与 Vite 8（Rolldown 打包、Oxc 压缩）。入口、外置运行依赖与资源复制在 `vite.config.mts` 声明；分包使用 `rolldownOptions.output.codeSplitting`，保留 React、React DOM、路由、Mermaid 与 KaTeX 分组。
 - Vite 开发、样板间与构建命令统一 `--configLoader runner`（默认 bundle 加载器会把工作区 TS 配置依赖外部化导致 `ERR_UNKNOWN_FILE_EXTENSION`）；配置用 `fileURLToPath(import.meta.url)` 取目录。
+- `node apps/desktop/scripts/verify-plugin-content.mjs --production` 使用已经构建的 dist 内容页面，在隔离的临时 Electron 工作区验证真实内容插件；不带该参数时独立编译源码进行验证。
 - 桌面消费的编辑器扩展包、@tau/ui、@tau/themes 由 Vite 编入产物，统一声明在桌面 devDependencies——放 dependencies 会让 electron-builder 再收集整条生产依赖链；运行时从磁盘加载的外置模块与原生依赖保留生产声明，调整后检查实际安装包与原生运行时。
 - 安装包排除依赖 `.js.map`/`.mjs.map`/`.cjs.map`（afterPack 补复制同样规则），不泛删 `.map` 数据文件；`verify:native-runtime` 用包内 Electron 与依赖执行 pi 冒烟（含 TypeScript 扩展加载、中文路径、JSONL 恢复），临时工作区隔离。
 - pi 只带 SDK（不打包独立 CLI bundle 与 esbuild），`pi-packaging-boundary.mjs` 检查已审核版本与消费者，边界变化必须重新审核；主进程 Vite 的 `resolve.dedupe` 统一桌面入口的 `@earendil-works/pi-ai`（避免 peer 解析重复进 bundle 触发 Anthropic SDK 代码生成错误）。分词词典由外置 `@node-rs/jieba/dict` 从包内加载，不复制不劫持。
@@ -825,4 +827,4 @@ find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘
 - 不造假演示数据（未接线就 null+空态）；
 - 主题/页面必须走 defineXxx 协议注册（禁止中心登记表与散装 CSS）。
 
-迁移期的编辑器数量基线、扩展边界独立扫描与 antd 专项检查已退役，不再执行 `check:editor-refactor` / `check:editor-boundaries` / `check:antd`。现有 ESLint 架构规则、类型、行为、主题契约、数据一致性和其他模块边界仍按变更范围验证。
+迁移期的编辑器数量基线、扩展边界独立扫描与 antd 专项检查已退役，不再执行 `check:editor-refactor` / `check:editor-boundaries` / `check:antd`。现有 Oxlint 架构规则、类型、行为、主题契约、数据一致性和其他模块边界仍按变更范围验证。

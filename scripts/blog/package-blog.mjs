@@ -3,6 +3,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 import { copyFile, mkdir, mkdtemp, readFile, writeFile, readdir } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
+import { assertBlogRuntimeInputs } from "./runtime-boundary.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const isWorkspaceSource = file => {
@@ -18,8 +19,8 @@ const editorRoot = path.join(root, "packages/editor");
 const blogRoot = path.join(root, "packages/blog");
 const require = createRequire(path.join(editorRoot, "package.json"));
 const desktopRequire = createRequire(path.join(root, "apps/desktop/package.json"));
-const ts = require("typescript");
-const { build } = createRequire(desktopRequire.resolve("vite/package.json"))("esbuild");
+const ts = require("@typescript/typescript6");
+const { build } = desktopRequire("esbuild");
 const editorManifest = JSON.parse(await readFile(path.join(editorRoot, "package.json"), "utf8"));
 const manifest = JSON.parse(await readFile(path.join(blogRoot, "package.json"), "utf8"));
 const output = path.resolve(process.argv[2] ?? path.join(root, "output/blog-package"));
@@ -73,18 +74,7 @@ const runtime = await build({
     ".ttf": "file",
   },
 });
-for (const input of Object.keys(runtime.metafile.inputs)) {
-  // 资源声明是无依赖的正文协议，编辑器按它找资源字段，不属于数据库实现
-  if (input === "packages/db-schema/content-resources.ts") continue;
-  if (/^(?:apps\/|packages\/db-schema\/)/.test(input))
-    throw new Error(`Editor 不得包含应用或数据库实现：${input}`);
-  if (
-    /tests\/fixtures\/plugins|src\/extensions\/(?:html|custom-block)\/|node_modules\/(?:abcjs|@babel\/standalone)\//.test(
-      input
-    )
-  )
-    throw new Error(`Editor 包包含已迁出实现：${input}`);
-}
+assertBlogRuntimeInputs(Object.keys(runtime.metafile.inputs));
 for (const [file, output] of Object.entries(runtime.metafile.outputs)) {
   if (
     !output.entryPoint ||
@@ -122,7 +112,7 @@ await buildVite({
     outDir: path.join(directory, "dist"),
     emptyOutDir: false,
     cssMinify: true,
-    rollupOptions: {
+    rolldownOptions: {
       input: path.join(editorRoot, "styles.css"),
       output: {
         assetFileNames: asset =>

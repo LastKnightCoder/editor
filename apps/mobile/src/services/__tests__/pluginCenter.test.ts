@@ -84,12 +84,14 @@ it("原生错误保留状态与原因，取消读取不把迟到响应交给 UI"
 it("安装校验审核清单与摘要后才走中心提交，不走开发提交", async () => {
   vi.stubGlobal("crypto", webcrypto);
   const [artifact] = await portableFixtures();
+  const iosTarget = artifact.manifest.targets.ios;
+  if (!iosTarget) throw new Error("测试清单缺少 iOS 目标");
   const config = {
     origin: "https://example.invalid",
     host: {
       ...centerHost,
       platform: "ios",
-      appVersion: "0.2.3",
+      appVersion: iosTarget.minAppVersion,
     },
     installationEnabled: true,
   };
@@ -155,21 +157,31 @@ it("生产门禁和安装中取消均不会发起提交", async () => {
   ]);
 });
 
-it("未知 optional 可以安装且原样对账，未知 required 或被篡改的能力声明不得提交", async () => {
+it("附加能力元信息不影响安装，最低版本被篡改或高于宿主时拒绝提交", async () => {
   vi.stubGlobal("crypto", webcrypto);
   const [base] = await portableFixtures();
+  const wireTarget = {
+    minAppVersion: "0.2.0",
+    optional: ["future.optional"],
+    required: ["future.required"],
+    elements: { "future.node": "edit" },
+  };
   const manifest: ReadablePortablePluginManifest = {
     ...base.manifest,
-    targets: { ios: { minAppVersion: "0.2.0" } },
+    targets: { ios: wireTarget },
   };
   const artifact = { ...base, manifest };
   const target = manifest.targets.ios;
   if (!target) throw new Error("测试清单缺少 iOS 目标");
+  const reviewedManifest: ReadablePortablePluginManifest = {
+    ...manifest,
+    targets: { ios: { minAppVersion: target.minAppVersion } },
+  };
   const release = {
     releaseId: "future-release",
     pluginId: manifest.id,
     sha256: "a".repeat(64),
-    content: { manifest },
+    content: { manifest: reviewedManifest },
   };
   vi.mocked(invoke).mockImplementation(async command =>
     command === "plugin_center_config"
@@ -191,18 +203,18 @@ it("未知 optional 可以安装且原样对账，未知 required 或被篡改�
   vi.mocked(invoke).mockClear();
   release.content.manifest = {
     ...manifest,
-    targets: { ios: { ...target } },
+    targets: { ios: { minAppVersion: "0.2.1" } },
   };
   await expect(installMobileCenterRelease(manifest.id, release.releaseId)).rejects.toThrow("清单");
   expect(invoke).toHaveBeenLastCalledWith("plugin_cancel", { id: manifest.id });
   artifact.manifest = {
     ...manifest,
-    targets: { ios: { ...target } },
+    targets: { ios: { minAppVersion: "0.2.1" } },
   };
   release.content.manifest = artifact.manifest;
   vi.mocked(invoke).mockClear();
   await expect(installMobileCenterRelease(manifest.id, release.releaseId)).rejects.toThrow(
-    "必需能力"
+    "客户端版本低于插件要求"
   );
   expect(vi.mocked(invoke).mock.calls.map(call => call[0])).not.toContain("plugin_center_commit");
 });

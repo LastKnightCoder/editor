@@ -10,8 +10,8 @@
     "check": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
     "admin": "tsx src/admin.ts",
-    "lint": "eslint src --ext .ts",
-    "format": "prettier --write src package.json tsconfig.json tsup.config.ts vitest.config.ts"
+    "lint": "oxlint src",
+    "format": "oxfmt --write src package.json tsconfig.json tsup.config.ts vitest.config.ts"
   },
   "dependencies": {
     "@tau/collaboration": "workspace:*",
@@ -31,7 +31,7 @@
     "@types/ws": "^8.18.1",
     "tsup": "^8.5.0",
     "tsx": "^4.20.0",
-    "typescript": "^5.0.4",
+    "typescript": "7.0.2",
     "vitest": "^3.2.4"
   }
 }

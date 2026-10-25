@@ -1,0 +1,187 @@
+{
+  "date": "2026-10-25",
+  "commit": "b79fd77e058c5b1769d9068dc166a0311aa952e3",
+  "versions": {
+    "eslint": "8.57.1",
+    "typescriptEslint": "5.62.0",
+    "prettier": "3.9.6",
+    "prettierPluginTailwindcss": "0.6.14",
+    "oxlint": "1.89.0",
+    "oxlintPluginEslint": "1.89.0",
+    "oxfmt": "0.74.0"
+  },
+  "sourceSha256": "7fe869649c4b93786f84563dffada0c3aeec78fb49e2b6599e23531d13727fdc",
+  "before": {
+    "files": 5637,
+    "batches": 4,
+    "runs": 3,
+    "warmups": 1,
+    "node": "v24.21.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M3 Pro",
+    "results": {
+      "eslint": {
+        "seconds": [67.251661917, 87.88786420799998, 120.717273167],
+        "median": 87.88786420799998,
+        "statuses": [
+          [0, 0, 1, 0],
+          [0, 0, 1, 0],
+          [0, 0, 1, 0]
+        ]
+      },
+      "eslint-code": {
+        "seconds": [44.56942304099997, 28.46117516699998, 27.24161262500001],
+        "median": 28.46117516699998,
+        "statuses": [
+          [0, 0, 1, 0],
+          [0, 0, 1, 0],
+          [0, 0, 1, 0]
+        ]
+      },
+      "prettier": {
+        "seconds": [77.56257533300004, 72.13398416699992, 61.825760165999995],
+        "median": 72.13398416699992,
+        "statuses": [
+          [1, 1, 1, 0],
+          [1, 1, 1, 0],
+          [1, 1, 1, 0]
+        ]
+      }
+    }
+  },
+  "after": {
+    "files": 5637,
+    "batches": 4,
+    "runs": 3,
+    "warmups": 1,
+    "node": "v24.21.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M3 Pro",
+    "results": {
+      "oxlint": {
+        "seconds": [2.41979775, 2.4464764999999997, 2.472776499999999],
+        "median": 2.4464764999999997,
+        "statuses": [
+          [0, 0, 1, 0],
+          [0, 0, 1, 0],
+          [0, 0, 1, 0]
+        ]
+      },
+      "oxfmt": {
+        "seconds": [1.4327047910000001, 1.4700519590000003, 1.421544667],
+        "median": 1.4327047910000001,
+        "statuses": [
+          [1, 1, 1, 1],
+          [1, 1, 1, 1],
+          [1, 1, 1, 1]
+        ]
+      }
+    }
+  },
+  "diagnostics": {
+    "eslint": {
+      "scanned": 5637,
+      "errors": 7,
+      "warnings": 6337,
+      "rules": {
+        "@typescript-eslint/no-non-null-assertion": 2582,
+        "@typescript-eslint/no-unused-vars": 179,
+        "@typescript-eslint/no-empty-function": 675,
+        "react-hooks/exhaustive-deps": 85,
+        "react-refresh/only-export-components": 533,
+        "prettier/prettier": 1530,
+        "@typescript-eslint/no-explicit-any": 753,
+        "no-restricted-imports": 5,
+        "@typescript-eslint/ban-types": 2
+      }
+    },
+    "eslint-code": {
+      "scanned": 5637,
+      "errors": 7,
+      "warnings": 4807,
+      "rules": {
+        "@typescript-eslint/no-non-null-assertion": 2582,
+        "@typescript-eslint/no-unused-vars": 179,
+        "@typescript-eslint/no-empty-function": 675,
+        "react-hooks/exhaustive-deps": 85,
+        "react-refresh/only-export-components": 533,
+        "@typescript-eslint/no-explicit-any": 753,
+        "no-restricted-imports": 5,
+        "@typescript-eslint/ban-types": 2
+      }
+    },
+    "oxlint": {
+      "scanned": 5637,
+      "errors": 7,
+      "warnings": 4731,
+      "rules": {
+        "typescript(no-explicit-any)": 753,
+        "typescript(no-non-null-assertion)": 2582,
+        "react(only-export-components)": 455,
+        "eslint(no-empty-function)": 675,
+        "eslint(no-unused-vars)": 176,
+        "react-hooks(exhaustive-deps)": 90,
+        "eslint-js(no-restricted-imports)": 5,
+        "typescript(ban-types)": 2
+      }
+    }
+  },
+  "baselineErrors": [
+    {
+      "file": "packages/editor/src/extensions/styled-text/src/components/StyledText/index.tsx",
+      "line": 10,
+      "rule": "no-restricted-imports",
+      "message": "'@tau/editor/extensions/text-formatting/panels' import is restricted from being used by a pattern. 扩展访问内核只能通过 @tau/editor/api"
+    },
+    {
+      "file": "packages/editor/src/extensions/underline/src/colors.ts",
+      "line": 1,
+      "rule": "no-restricted-imports",
+      "message": "'@tau/editor/extensions/text-formatting/palette' import is restricted from being used by a pattern. 扩展访问内核只能通过 @tau/editor/api"
+    },
+    {
+      "file": "packages/editor/src/extensions/underline/src/components/HoveringItem/index.tsx",
+      "line": 10,
+      "rule": "no-restricted-imports",
+      "message": "'@tau/editor/extensions/text-formatting/palette' import is restricted from being used by a pattern. 扩展访问内核只能通过 @tau/editor/api"
+    },
+    {
+      "file": "packages/editor/src/extensions/underline/src/components/UnderlineSelect/index.tsx",
+      "line": 2,
+      "rule": "no-restricted-imports",
+      "message": "'@tau/editor/extensions/text-formatting/palette' import is restricted from being used by a pattern. 扩展访问内核只能通过 @tau/editor/api"
+    },
+    {
+      "file": "packages/editor/src/extensions/underline/src/components/UnderlineSelect/index.tsx",
+      "line": 7,
+      "rule": "no-restricted-imports",
+      "message": "'@tau/editor/extensions/text-formatting/panels' import is restricted from being used by a pattern. 扩展访问内核只能通过 @tau/editor/api"
+    },
+    {
+      "file": "packages/plugins/src/websocket-bridge.ts",
+      "line": 83,
+      "rule": "@typescript-eslint/ban-types",
+      "message": "Don't use `Function` as a type. The `Function` type accepts any function-like value.\nIt provides no type safety when calling the function, which can be a common source of bugs.\nIt also accepts things like class declarations, which will throw at runtime as they will not be called with `new`.\nIf you are expecting the function to accept certain arguments, you should explicitly define the function shape."
+    },
+    {
+      "file": "packages/plugins/src/websocket-bridge.ts",
+      "line": 130,
+      "rule": "@typescript-eslint/ban-types",
+      "message": "Don't use `Function` as a type. The `Function` type accepts any function-like value.\nIt provides no type safety when calling the function, which can be a common source of bugs.\nIt also accepts things like class declarations, which will throw at runtime as they will not be called with `new`.\nIf you are expecting the function to accept certain arguments, you should explicitly define the function shape."
+    }
+  ],
+  "formatting": {
+    "prettierUnformattedFiles": 257,
+    "oxfmtUnformattedFiles": 773,
+    "onlyOxfmt": 566,
+    "onlyPrettier": 50,
+    "formattedFilesScanned": 5633
+  },
+  "validation": {
+    "legacyFixtureCases": 89,
+    "qualityTests": 94,
+    "errorLocationsEquivalent": true
+  }
+}

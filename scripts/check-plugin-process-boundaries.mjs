@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 
 const root = path.resolve(import.meta.dirname, "..");
 const require = createRequire(path.join(root, "packages/plugins/package.json"));
-const ts = require("typescript");
+const ts = require("@typescript/typescript6");
 const mainDirectory = path.join(root, "apps/desktop/src-electron/main");
 const failures = [];
 async function scan(directory) {

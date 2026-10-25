@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import ts from "typescript";
+import ts from "@typescript/typescript6";
 
 const filename = new URL("./wrangler.production.jsonc", import.meta.url);
 const result = ts.parseConfigFileTextToJson(filename.pathname, readFileSync(filename, "utf8"));

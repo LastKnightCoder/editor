@@ -20,7 +20,7 @@ const isWorkspaceSource = source => {
   );
 };
 const require = createRequire(path.join(root, "packages/plugins/package.json"));
-const ts = require("typescript");
+const ts = require("@typescript/typescript6");
 const { build } = require("esbuild");
 const output = path.resolve(process.argv[2] ?? path.join(root, "output/plugin-sdk"));
 await mkdir(path.dirname(output), { recursive: true });

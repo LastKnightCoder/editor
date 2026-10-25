@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import ts from "typescript";
+import ts from "@typescript/typescript6";
 import { expect, it } from "vitest";
 
 it("作者支持矩阵覆盖所有 PluginContext 成员，新增 API 不可漏分类", () => {
