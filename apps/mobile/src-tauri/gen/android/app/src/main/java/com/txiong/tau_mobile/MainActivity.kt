@@ -18,6 +18,35 @@ import kotlin.math.max
 private const val INCOMING_MAX_BYTES = 5L * 1024 * 1024
 
 class MainActivity : TauriActivity() {
+  fun exportRecovery(path: String, name: String): String {
+    val source = File(path).canonicalFile
+    require(source.path.startsWith(filesDir.canonicalPath + File.separator)) { "恢复文件不在应用目录" }
+    require(name.matches(Regex("tau-recovery-[a-f0-9-]+\\.zip"))) { "恢复文件名无效" }
+    if (android.os.Build.VERSION.SDK_INT < 29) {
+      val directory = getExternalFilesDir(android.os.Environment.DIRECTORY_DOCUMENTS)
+        ?: throw IllegalStateException("系统文件目录不可用")
+      val target = File(directory, name)
+      source.copyTo(target, overwrite = false)
+      return target.absolutePath
+    }
+    val values = android.content.ContentValues().apply {
+      put(android.provider.MediaStore.Downloads.DISPLAY_NAME, name)
+      put(android.provider.MediaStore.Downloads.MIME_TYPE, "application/zip")
+      put(android.provider.MediaStore.Downloads.IS_PENDING, 1)
+    }
+    val uri = contentResolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+      ?: throw IllegalStateException("无法创建下载文件")
+    try {
+      contentResolver.openOutputStream(uri)?.use { output -> source.inputStream().use { it.copyTo(output) } }
+        ?: throw IllegalStateException("无法保存恢复文件")
+      contentResolver.update(uri, android.content.ContentValues().apply { put(android.provider.MediaStore.Downloads.IS_PENDING, 0) }, null, null)
+      return "下载/$name"
+    } catch (failure: Throwable) {
+      contentResolver.delete(uri, null, null)
+      throw failure
+    }
+  }
+
   private var lastKeyboardHeight = Int.MIN_VALUE
   private var lastSafeInsets = ""
   private var pendingIncomingPath: String? = null

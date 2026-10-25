@@ -42,6 +42,13 @@ pub fn receive_opened(app: &AppHandle, urls: Vec<url::Url>) {
     else {
         return;
     };
+    // 文件提供方交付的原件不能由导入清理删除。
+    let Ok(directory) = app.path().app_cache_dir() else {
+        return;
+    };
+    let Ok(path) = copy_scoped_file(&path, &directory) else {
+        return;
+    };
     let state = app.state::<PendingIncomingFile>();
     if let Ok(mut pending) = state.0.lock() {
         if let Some(previous) = pending.replace(path) {
@@ -50,6 +57,30 @@ pub fn receive_opened(app: &AppHandle, urls: Vec<url::Url>) {
     }
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.eval("window.dispatchEvent(new Event('tau:incoming-file'))");
+    }
+}
+
+#[cfg(target_os = "ios")]
+fn copy_scoped_file(source: &Path, directory: &Path) -> Result<PathBuf, String> {
+    use objc2::{class, msg_send, runtime::AnyObject};
+    let path =
+        std::ffi::CString::new(source.to_string_lossy().as_bytes()).map_err(|e| e.to_string())?;
+    unsafe {
+        let name: *mut AnyObject = msg_send![class!(NSString), stringWithUTF8String: path.as_ptr()];
+        let url: *mut AnyObject = msg_send![class!(NSURL), fileURLWithPath: name];
+        let scoped: bool = msg_send![url, startAccessingSecurityScopedResource];
+        let result = (|| {
+            read_incoming_file(source)?;
+            let directory = directory.join(format!("tau-incoming-{}", uuid::Uuid::new_v4()));
+            std::fs::create_dir_all(&directory).map_err(|e| e.to_string())?;
+            let target = directory.join(source.file_name().ok_or("文件名无效")?);
+            std::fs::copy(source, &target).map_err(|e| e.to_string())?;
+            Ok(target)
+        })();
+        if scoped {
+            let _: () = msg_send![url, stopAccessingSecurityScopedResource];
+        }
+        result
     }
 }
 
