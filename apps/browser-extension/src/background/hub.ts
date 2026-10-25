@@ -28,28 +28,45 @@ export const RPC_PASSTHROUGH = new Set<string>([
   COMPANION_METHODS.noteOpen,
 ]);
 
-/** 笔记页（扩展自己的页面）可经 runtime.sendMessage 调用的 Tau 方法 */
-export const NOTE_PAGE_METHODS = new Set<string>([
-  COMPANION_METHODS.noteSave,
-  COMPANION_METHODS.noteOpen,
-]);
+export type ExtensionPage = "note" | "library";
 
-/** 只认本扩展的笔记页：内容脚本的 sender.url 是网页地址，扩展页面才是扩展协议 */
-export const isNotePageSender = (
+/** 扩展自己的页面可经 runtime.sendMessage 调用的方法：Tau 方法透传，annotations.load 走本机缓存 */
+export const EXTENSION_PAGE_METHODS: Readonly<Record<ExtensionPage, ReadonlySet<string>>> = {
+  note: new Set([COMPANION_METHODS.noteSave, COMPANION_METHODS.noteOpen]),
+  library: new Set([
+    COMPANION_METHODS.libraryPages,
+    COMPANION_METHODS.librarySites,
+    COMPANION_METHODS.libraryFeed,
+    COMPANION_METHODS.libraryRename,
+    COMPANION_METHODS.noteOpen,
+    "annotations.load",
+  ]),
+};
+
+const EXTENSION_PAGE_PATHS: Record<string, ExtensionPage> = {
+  "/note.html": "note",
+  "/library.html": "library",
+};
+
+/** 认出发消息的是本扩展的哪个页面；内容脚本的 sender.url 是网页地址，扩展页面才是扩展协议 */
+export const extensionPageOf = (
   sender: { id?: string; url?: string },
   extensionId: string
-): boolean => {
-  if (sender.id !== extensionId || !sender.url) return false;
+): ExtensionPage | null => {
+  if (sender.id !== extensionId || !sender.url) return null;
   try {
     const url = new URL(sender.url);
-    return (
-      (url.protocol === "chrome-extension:" || url.protocol === "moz-extension:") &&
-      url.pathname === "/note.html"
-    );
+    if (url.protocol !== "chrome-extension:" && url.protocol !== "moz-extension:") return null;
+    return EXTENSION_PAGE_PATHS[url.pathname] ?? null;
   } catch {
-    return false;
+    return null;
   }
 };
+
+/** 伴读库标签页：开着就切过去，没有就新开 */
+export interface LibraryOpener {
+  open(page?: string): Promise<void>;
+}
 
 const PAGE_TOOL_TIMEOUT_MS = 90_000;
 /** 对话可能很长（模型思考 + 工具），start 只等受理，不等回答 */
@@ -57,7 +74,9 @@ const RPC_TIMEOUT_MS = 60_000;
 
 export interface PortLike {
   postMessage(message: BackgroundToContent): void;
-  onMessage: { addListener(listener: (message: ContentToBackground) => void): void };
+  onMessage: {
+    addListener(listener: (message: ContentToBackground) => void): void;
+  };
   onDisconnect: { addListener(listener: () => void): void };
 }
 
@@ -81,10 +100,16 @@ export class CompanionHub {
   private toolSeq = 0;
   private connection!: CompanionConnection;
   private annotations!: AnnotationStore;
+  private library!: LibraryOpener;
 
-  bind(connection: CompanionConnection, annotations: AnnotationStore): void {
+  bind(
+    connection: CompanionConnection,
+    annotations: AnnotationStore,
+    library: LibraryOpener
+  ): void {
     this.connection = connection;
     this.annotations = annotations;
+    this.library = library;
   }
 
   attach(port: PortLike, tabId: number | undefined): void {
@@ -97,9 +122,15 @@ export class CompanionHub {
     port.postMessage({ kind: "status", status: this.connection.current });
   }
 
-  /** 笔记页的请求（保存为卡片、打开卡片） */
-  async handleNotePage(method: string, params: unknown): Promise<unknown> {
-    if (!NOTE_PAGE_METHODS.has(method)) throw new Error(`不支持的方法：${method}`);
+  /** 扩展页面的请求：笔记页保存 / 打开卡片，伴读库读页面与标注、改名 */
+  async handleExtensionPage(
+    page: ExtensionPage,
+    method: string,
+    params: unknown
+  ): Promise<unknown> {
+    if (!EXTENSION_PAGE_METHODS[page].has(method)) throw new Error(`不支持的方法：${method}`);
+    if (method === "annotations.load")
+      return this.annotations.load((params as { url: string }).url);
     return this.connection.request(method, params, RPC_TIMEOUT_MS);
   }
 
@@ -128,7 +159,11 @@ export class CompanionHub {
   /** Tau 反向请求：在发起对话的页面上执行页面工具 */
   async onRequest(method: string, params: unknown): Promise<unknown> {
     if (method !== COMPANION_METHODS.pageTool) throw new Error(`扩展不支持：${method}`);
-    const { pageUrl, name, args } = params as { pageUrl: string; name: string; args: unknown };
+    const { pageUrl, name, args } = params as {
+      pageUrl: string;
+      name: string;
+      args: unknown;
+    };
     const key = pageKeyOf(pageUrl);
     const candidates = [...this.ports].filter(([, state]) => pageKeyOf(state.url) === key);
     candidates.sort((a, b) => b[1].lastActive - a[1].lastActive);
@@ -185,9 +220,15 @@ export class CompanionHub {
       case "annotations.load":
         return this.annotations.load((params as { url: string }).url);
       case "annotations.save": {
-        const { url, title, items } = params as { url: string; title: string; items: never[] };
+        const { url, title, items } = params as {
+          url: string;
+          title: string;
+          items: never[];
+        };
         return this.annotations.save(url, title, items);
       }
+      case "library.open":
+        return this.library.open((params as { page?: string } | undefined)?.page);
       case "rpc": {
         const request = params as { method: string; params?: unknown };
         if (!RPC_PASSTHROUGH.has(request.method))

@@ -32,6 +32,17 @@ describe("METHOD_SCOPES", () => {
     }
   });
 
+  it("伴读库方法归标注权限", () => {
+    for (const method of [
+      COMPANION_METHODS.libraryPages,
+      COMPANION_METHODS.librarySites,
+      COMPANION_METHODS.libraryFeed,
+      COMPANION_METHODS.libraryRename,
+    ]) {
+      expect(METHOD_SCOPES[method]).toBe("annotations");
+    }
+  });
+
   it("可调方法的 scope 都在必需集或 search 内", () => {
     for (const scope of Object.values(METHOD_SCOPES)) {
       expect([...REQUIRED_SCOPES, "tools"]).toContain(scope);

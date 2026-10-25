@@ -1,0 +1,22 @@
+/* 伴读库页（扩展自己的页面）：与桌面同一套主题 token 与设计系统 */
+@import "tailwindcss";
+@import "@tau/themes/tokens.css";
+@import "@tau/themes/tailwind.css";
+
+@source "../../library";
+@source "../../../../../packages/ui/src";
+
+@custom-variant dark (.dark &);
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--tau-bg-page);
+  color: var(--tau-ink-1);
+  font-family: var(--tau-font);
+}

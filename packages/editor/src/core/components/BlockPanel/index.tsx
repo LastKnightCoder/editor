@@ -1,8 +1,7 @@
 import { Box, Images } from "lucide-react";
-import { PortalToBody } from "@tau/shared";
+import { PortalToBody, cn } from "@tau/ui";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useSlateStatic } from "slate-react";
-import { cn } from "@tau/ui";
 import List, { blockPanelScrollPanelClass } from "./List";
 import { IBlockPanelListItem } from "../../types";
 import type { ExtensionAssembly } from "../../kit/ExtensionAssembly";

@@ -92,6 +92,7 @@ import { upgradeQuestionedInsights } from "./insights-questioned-upgrade";
 import { QuestionMigrationTable } from "./question-plugin-migration";
 import { upgradeDiaryEntityReferences } from "./diary-entity-upgrade";
 import { upgradeExcerptProviders } from "./excerpt-provider-upgrade";
+import { upgradeWebPages } from "./web-page-upgrade";
 import { broadcastScheduleChange, isScheduleWrite } from "./schedule-changes";
 import { broadcastDatabaseChange } from "./database-notifications";
 import { getExtraTableRefsProvider } from "./extra-table-refs";
@@ -416,6 +417,10 @@ class DatabaseModule implements Module {
 
       if (upgradeExcerptProviders(database))
         log.info(`[database] 摘录补齐位置、外链与提供方: db=${name}`);
+
+      const backfilledPages = upgradeWebPages(database);
+      if (backfilledPages > 0)
+        log.info(`[database] 网页摘录补页面索引: db=${name}, pages=${backfilledPages}`);
 
       if (mode === "maintenance") {
         const maintenanceStartAt = Date.now();

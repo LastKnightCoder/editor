@@ -15,6 +15,7 @@ import {
 import { CollaborationAssetService } from "../../collaboration/asset-service";
 import { CollaborationLocalStore } from "../../collaboration/local-store";
 import { ContentLocalState } from "../../collaboration/content-local-state";
+import { ContentRecoveryStore } from "../../collaboration/content-recovery";
 import { ContentIdentityTable } from "../../tables/content-identity";
 import { createServer } from "../../../../../../collaboration-server/src/server";
 
@@ -583,6 +584,7 @@ it("旧白板显式转换：安装失败保留原内容，按原操作续做，�
 
 it("首次升级并重开旧文字与无标签箭头，保留原正文及其引用计数", async () => {
   const owner = await side("作者", 1, "A");
+  const remoteImage = "https://example.com/not-cached.png";
   owner.db
     .prepare(
       "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES(701,1,2,?,2,2)"
@@ -616,6 +618,7 @@ it("首次升级并重开旧文字与无标签箭头，保留原正文及其引�
               { x: 100, y: 60 },
             ],
           },
+          { ...geometry, id: "image", type: "image", src: remoteImage },
         ],
       })
     );
@@ -638,6 +641,17 @@ it("首次升级并重开旧文字与无标签箭头，保留原正文及其引�
     expect(
       owner.store.get(`legacy-upgrade-issues:A:${lease.identity.documentId}`, null)
     ).toBeNull();
+    expect(model.read().pages[0].children[2].data.src).toBe(remoteImage);
+    const row = owner.store.db
+      .prepare("SELECT record FROM migrations WHERE document_id=?")
+      .get(lease.identity.documentId) as { record: string };
+    const record = JSON.parse(row.record);
+    const recovery = JSON.parse(record.plan.prepared.conversion).recovery;
+    const manifest = new ContentRecoveryStore(
+      join(owner.dir, "collaboration"),
+      new ContentLocalState(owner.store.db)
+    ).verify(recovery);
+    expect(manifest.missing).toContain(remoteImage);
   } finally {
     model.dispose();
     doc.destroy();

@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>伴读 · 管理视角 mockups</title>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-surface-hover: #f6f3ef;
+    --bg-hover: rgba(67,57,44,.05); --bg-press: rgba(67,57,44,.09); --bg-selected: rgba(217,119,87,.12);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --line-1: #e9e1d2; --line-2: rgba(233,225,210,.55);
+    --accent: hsl(22 58% 42%); --accent-soft: hsla(22,58%,42%,.12); --accent-text: #a05236;
+    --ok: #61795f; --ok-soft: #e5ede2; --warn: #a38c4d; --warn-soft: #f6efd6;
+    --hl-yellow: #dc9b04; --hl-green: #2ea121; --hl-blue: #245bdb; --hl-purple: #6425d0; --hl-red: #e33a32;
+    --serif: "Songti SC", "Noto Serif SC", Georgia, serif;
+    --sans: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 13px/1.55 var(--sans); color: var(--ink-1); background: #e6dfd1; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  input { font: inherit; color: inherit; }
+
+  /* 说明区 */
+  .doc { max-width: 1320px; margin: 0 auto; padding: 28px 24px 8px; }
+  .doc h1 { font-size: 20px; margin: 0 0 6px; }
+  .doc p { margin: 4px 0; color: var(--ink-2); }
+  .switch { display: flex; gap: 6px; margin: 16px 0 0; flex-wrap: wrap; }
+  .switch button { padding: 6px 14px; border-radius: 999px; color: var(--ink-2); border: 1px solid transparent; }
+  .switch button:hover { background: var(--bg-hover); }
+  .switch button.on { background: var(--bg-surface); border-color: var(--line-1); color: var(--ink-1); font-weight: 600; }
+  .stage { max-width: 1320px; margin: 0 auto; padding: 14px 24px 40px; }
+  .scheme { display: none; }
+  .scheme.on { display: block; }
+  .notes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+  .notes div { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 10px; padding: 12px 14px; }
+  .notes h4 { margin: 0 0 4px; font-size: 13px; }
+  .notes ul { margin: 0; padding-left: 18px; color: var(--ink-2); }
+
+  /* 浏览器外壳 */
+  .browser { border-radius: 12px; overflow: hidden; box-shadow: 0 18px 50px rgba(67,57,44,.18), 0 0 0 1px rgba(67,57,44,.08); background: var(--bg-page); }
+  .chrome { height: 40px; background: #ece6da; display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid var(--line-1); }
+  .dots { display: flex; gap: 6px; } .dots i { width: 11px; height: 11px; border-radius: 50%; background: #d8cfbf; }
+  .url { flex: 1; height: 26px; border-radius: 7px; background: var(--bg-surface); display: flex; align-items: center; padding: 0 10px; color: var(--ink-3); font-size: 12px; gap: 6px; }
+  .url b { color: var(--ink-2); font-weight: 500; }
+
+  /* 方案 A：伴读库 */
+  .lib { display: grid; grid-template-columns: 208px 340px 1fr; height: 760px; }
+  .nav { border-right: 1px solid var(--line-1); padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; }
+  .brand { display: flex; align-items: center; gap: 8px; padding: 2px 8px 14px; font-weight: 600; }
+  .brand .logo { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); color: #fff8ef; display: grid; place-items: center; font-size: 12px; }
+  .navitem { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 8px; border-radius: 7px; color: var(--ink-2); }
+  .navitem:hover { background: var(--bg-hover); }
+  .navitem.on { background: var(--bg-selected); color: var(--accent-text); font-weight: 600; }
+  .navitem .n { margin-left: auto; font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .navitem.on .n { color: var(--accent-text); }
+  .navlabel { font-size: 11px; color: var(--ink-3); padding: 14px 8px 4px; letter-spacing: .04em; }
+  .fav { width: 16px; height: 16px; border-radius: 4px; display: grid; place-items: center; font-size: 9px; font-weight: 700; color: #fff; flex: none; }
+  .navfoot { margin-top: auto; padding: 10px 8px 2px; font-size: 11.5px; color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); display: inline-block; }
+
+  .list { border-right: 1px solid var(--line-1); display: flex; flex-direction: column; min-height: 0; background: var(--bg-page); }
+  .listhead { padding: 14px 14px 8px; display: flex; flex-direction: column; gap: 8px; }
+  .search { height: 32px; border-radius: 8px; border: 1px solid var(--line-1); background: var(--bg-surface); display: flex; align-items: center; gap: 6px; padding: 0 10px; color: var(--ink-3); }
+  .search input { border: 0; outline: 0; background: none; flex: 1; }
+  .tools { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ink-2); }
+  .chip { height: 24px; padding: 0 9px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; }
+  .chip:hover { background: var(--bg-hover); }
+  .chip.on { background: var(--accent-soft); color: var(--accent-text); }
+  .tools .sp { flex: 1; }
+  .scroll { overflow-y: auto; min-height: 0; flex: 1; padding: 0 8px 10px; }
+  .group { font-size: 11px; color: var(--ink-3); padding: 10px 8px 4px; }
+  .row { display: flex; gap: 10px; padding: 9px 8px; border-radius: 8px; cursor: pointer; position: relative; }
+  .row:hover { background: var(--bg-hover); }
+  .row.on { background: var(--bg-surface); box-shadow: 0 0 0 1px var(--line-1), 0 1px 3px rgba(67,57,44,.06); }
+  .row .fav { margin-top: 2px; }
+  .row .t { font-weight: 600; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .row .m { font-size: 11.5px; color: var(--ink-3); margin-top: 3px; display: flex; align-items: center; gap: 8px; }
+  .row .m .bar { display: inline-flex; height: 5px; width: 46px; border-radius: 3px; overflow: hidden; background: var(--line-1); }
+  .row .m .bar i { display: block; height: 100%; }
+  .badge { font-size: 10.5px; padding: 0 5px; border-radius: 4px; line-height: 16px; }
+  .badge.draft { background: var(--warn-soft); color: var(--warn); }
+  .badge.card { background: var(--ok-soft); color: var(--ok); }
+  .badge.miss { background: rgba(227,58,50,.08); color: #b8433a; }
+  .renamed { font-size: 10.5px; color: var(--ink-3); }
+
+  .detail { overflow-y: auto; background: var(--bg-surface); }
+  .dhead { padding: 26px 36px 16px; border-bottom: 1px solid var(--line-2); position: sticky; top: 0; background: var(--bg-surface); z-index: 1; }
+  .site { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-3); }
+  .titlewrap { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+  .title { font-size: 22px; font-weight: 700; font-family: var(--serif); line-height: 1.35; padding: 2px 6px; margin-left: -6px; border-radius: 6px; cursor: text; }
+  .title:hover { background: var(--bg-hover); }
+  .title-input { font-size: 22px; font-weight: 700; font-family: var(--serif); border: 1px solid var(--accent); border-radius: 6px; padding: 2px 6px; margin-left: -7px; outline: 3px solid var(--accent-soft); background: var(--bg-surface); width: 100%; }
+  .orig { font-size: 12px; color: var(--ink-3); margin-top: 4px; display: flex; gap: 8px; align-items: center; }
+  .orig button { color: var(--accent-text); font-size: 12px; }
+  .acts { display: flex; gap: 6px; margin-top: 14px; }
+  .btn { height: 30px; padding: 0 12px; border-radius: 7px; border: 1px solid var(--line-1); background: var(--bg-surface); display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+  .btn:hover { background: var(--bg-surface-hover); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff8ef; }
+  .btn.ghost { border-color: transparent; color: var(--ink-2); }
+  .btn.ghost:hover { background: var(--bg-hover); }
+  .dbody { padding: 8px 36px 40px; display: grid; grid-template-columns: 1fr 260px; gap: 32px; }
+  .sec { font-size: 12px; color: var(--ink-3); margin: 18px 0 6px; display: flex; align-items: center; gap: 6px; }
+  .sec .sp { flex: 1; }
+  .ann { display: flex; gap: 12px; padding: 12px 10px; margin: 0 -10px; border-radius: 8px; }
+  .ann:hover { background: var(--bg-surface-hover); }
+  .ann .stripe { width: 3px; border-radius: 2px; flex: none; }
+  .ann q { quotes: none; font-family: var(--serif); font-size: 14.5px; line-height: 1.7; display: block; }
+  .ann .note { margin-top: 6px; color: var(--ink-2); background: var(--bg-page); border-radius: 6px; padding: 6px 9px; font-size: 12.5px; }
+  .ann .meta { font-size: 11.5px; color: var(--ink-3); margin-top: 6px; display: flex; gap: 10px; align-items: center; }
+  .ann .meta .hov { opacity: 0; display: flex; gap: 10px; }
+  .ann:hover .meta .hov { opacity: 1; }
+  .ann .meta a { color: var(--accent-text); text-decoration: none; cursor: pointer; }
+  .ann.missing q { color: var(--ink-3); }
+  .side .card { border: 1px solid var(--line-1); border-radius: 10px; padding: 12px; margin-bottom: 10px; background: var(--bg-surface); }
+  .side .card h5 { margin: 0 0 4px; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .side .card p { margin: 0; color: var(--ink-2); font-size: 12px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .side .card .f { margin-top: 8px; font-size: 11.5px; color: var(--ink-3); display: flex; justify-content: space-between; }
+  .side .card .f a { color: var(--accent-text); cursor: pointer; }
+  .side .stat { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .side .stat div { background: var(--bg-page); border-radius: 8px; padding: 8px 10px; }
+  .side .stat b { font-size: 18px; display: block; font-variant-numeric: tabular-nums; }
+  .side .stat span { font-size: 11px; color: var(--ink-3); }
+
+  /* 「全部标注」流视图 */
+  .stream { padding: 20px 36px; }
+  .stream .pg { font-size: 12px; color: var(--ink-3); margin: 18px 0 2px; display: flex; gap: 6px; align-items: center; }
+  .stream .pg b { color: var(--ink-2); font-weight: 600; }
+
+  /* 菜单 */
+  .menu { position: absolute; right: 12px; top: 74px; width: 180px; background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 9px; box-shadow: 0 10px 30px rgba(67,57,44,.16); padding: 4px; z-index: 5; font-size: 12.5px; }
+  .menu div { padding: 6px 10px; border-radius: 6px; display: flex; gap: 8px; align-items: center; }
+  .menu div:hover { background: var(--bg-hover); }
+  .menu hr { border: 0; border-top: 1px solid var(--line-1); margin: 4px 0; }
+  .menu .chk { margin-left: auto; color: var(--accent-text); }
+
+  /* 方案 B：Tau 桌面 */
+  .tau { display: grid; grid-template-columns: 196px 1fr; height: 700px; background: var(--bg-page); }
+  .tau .sb { border-right: 1px solid var(--line-1); padding: 14px 10px; }
+  .tau .main { padding: 22px 28px; overflow: auto; }
+  .tau h2 { margin: 0; font-size: 20px; font-family: var(--serif); }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+  .pcard { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .pcard:hover { box-shadow: 0 6px 18px rgba(67,57,44,.08); }
+  .pcard .t { font-weight: 700; font-family: var(--serif); font-size: 14.5px; }
+  .pcard q { quotes: none; font-family: var(--serif); color: var(--ink-2); font-size: 12.5px; border-left: 2px solid; padding-left: 8px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .pcard .m { font-size: 11.5px; color: var(--ink-3); display: flex; gap: 8px; align-items: center; margin-top: auto; }
+
+  /* 方案 C：面板 */
+  .webpage { height: 700px; position: relative; background: #fbfaf7; padding: 40px 80px; font-family: Georgia, serif; color: #333; overflow: hidden; }
+  .webpage h1 { font-size: 30px; margin: 0 0 14px; }
+  .webpage p { max-width: 560px; line-height: 1.8; color: #555; }
+  .webpage mark { background: rgba(220,155,4,.22); color: inherit; }
+  .panel { position: absolute; right: 64px; top: 30px; width: 400px; height: 620px; background: var(--bg-surface); border-radius: 14px; box-shadow: 0 20px 60px rgba(67,57,44,.22), 0 0 0 1px rgba(67,57,44,.08); font-family: var(--sans); display: flex; flex-direction: column; overflow: hidden; color: var(--ink-1); }
+  .ptabs { display: flex; gap: 2px; padding: 10px 12px 0; border-bottom: 1px solid var(--line-2); }
+  .ptabs span { padding: 6px 10px 9px; color: var(--ink-2); border-bottom: 2px solid transparent; }
+  .ptabs span.on { color: var(--ink-1); border-color: var(--accent); font-weight: 600; }
+  .scope { display: flex; align-items: center; gap: 4px; padding: 8px 12px 4px; font-size: 12px; }
+  .orb { position: absolute; right: 18px; top: 560px; width: 36px; height: 36px; border-radius: 50%; background: var(--accent); box-shadow: 0 6px 16px rgba(160,82,54,.4); }
+
+  .annot { position: absolute; font: 11.5px var(--sans); color: #fff; background: #2d2a26; padding: 5px 9px; border-radius: 6px; max-width: 220px; line-height: 1.45; z-index: 9; box-shadow: 0 4px 12px rgba(0,0,0,.2); }
+  .annot::before { content: attr(data-n); background: var(--accent); border-radius: 50%; width: 16px; height: 16px; display: inline-grid; place-items: center; margin-right: 5px; font-size: 10px; font-weight: 700; }
+  .rel { position: relative; }
+</style>
+</head>
+<body>
+<div class="doc">
+  <h1>Tau 伴读 · 管理视角</h1>
+  <p>目标：一个地方看到所有划线过的页面、每页的标注与笔记，并能给页面起一个自己的名字。三个方案都基于现有数据：标注 = Tau <code>excerpt</code>（<code>source_type='web'</code>，按 <code>source_key</code> 分页），笔记 = 扩展本机草稿 + 已存成的 Tau 卡片。</p>
+  <p>深色气泡里的编号是交互说明。方案 A 可点：左侧页面列表、视图切换、页面标题（点击重命名）、「排序」菜单。</p>
+  <div class="switch">
+    <button data-s="a" class="on">方案 A · 扩展内「伴读库」页（推荐）</button>
+    <button data-s="b">方案 B · 放进 Tau 桌面</button>
+    <button data-s="c">方案 C · 面板内「全部页面」</button>
+  </div>
+</div>
+
+<div class="stage">
+  <!-- ================= 方案 A ================= -->
+  <section class="scheme on" id="s-a">
+    <div class="browser rel">
+      <div class="chrome"><div class="dots"><i></i><i></i><i></i></div><div class="url">🧩 <b>Tau 伴读</b> · chrome-extension://…/library.html</div></div>
+      <div class="lib">
+        <!-- 左：视图与站点 -->
+        <aside class="nav">
+          <div class="brand"><span class="logo">τ</span>伴读库</div>
+          <button class="navitem on" data-view="pages">▤ 页面<span class="n">32</span></button>
+          <button class="navitem" data-view="stream">❝ 全部标注<span class="n">214</span></button>
+          <button class="navitem" data-view="notes">✎ 笔记<span class="n">9</span></button>
+          <div class="navlabel">站点</div>
+          <button class="navitem"><span class="fav" style="background:#087ea4">R</span>react.dev<span class="n">4</span></button>
+          <button class="navitem"><span class="fav" style="background:#b7410e">R</span>doc.rust-lang.org<span class="n">6</span></button>
+          <button class="navitem"><span class="fav" style="background:#1b1b1b">M</span>developer.mozilla.org<span class="n">5</span></button>
+          <button class="navitem"><span class="fav" style="background:#d71a1b">少</span>sspai.com<span class="n">3</span></button>
+          <button class="navitem"><span class="fav" style="background:#7a6a55">+</span>其他 11 个站点</button>
+          <div class="navfoot"><span class="dot"></span>Tau 已连接 · 以 Tau 为准</div>
+        </aside>
+
+        <!-- 中：页面列表 -->
+        <div class="list rel">
+          <div class="listhead">
+            <div class="search">⌕ <input placeholder="搜页面名、原文、批注…" /></div>
+            <div class="tools">
+              <button class="chip on">全部</button>
+              <button class="chip">有批注</button>
+              <button class="chip">有笔记</button>
+              <span class="sp"></span>
+              <button class="chip" id="sortBtn">最近标注 ▾</button>
+            </div>
+          </div>
+          <div class="menu" id="sortMenu" style="display:none">
+            <div>最近标注<span class="chk">✓</span></div>
+            <div>最早标注</div>
+            <div>标注最多</div>
+            <div>页面名 A–Z</div>
+            <hr />
+            <div>按站点分组</div>
+          </div>
+          <div class="scroll" id="pageList"></div>
+        </div>
+
+        <!-- 右：页面详情 / 流视图 -->
+        <main class="detail" id="detail"></main>
+      </div>
+      <span class="annot" data-n="1" style="left:230px;top:132px">一行 = 一个页面：自定义名优先，色条 = 各色标注占比，徽标标出草稿 / 已存卡片 / 失锚</span>
+      <span class="annot" data-n="2" style="left:620px;top:96px">点标题即改名；原标题留在下方，可一键恢复</span>
+      <span class="annot" data-n="3" style="right:30px;top:290px">笔记区：本机草稿 + 已存成的 Tau 卡片</span>
+    </div>
+    <div class="notes">
+      <div><h4>入口</h4><ul><li>工具栏图标右键 / 面板 ⋯ 菜单「打开伴读库」</li><li>面板「标注」页签底部「查看全部页面 →」</li><li>快捷键 <code>⌥⇧J</code>（manifest commands）</li></ul></div>
+      <div><h4>数据</h4><ul><li>页面列表走新的聚合命令 <code>annotations.pages</code>（按 source_key GROUP BY，分页），不全量拉 excerpt</li><li>详情复用 <code>annotations.list</code>；未连接时退回本机 <code>ann:*</code> 缓存并标「仅本机」</li><li>笔记：草稿读 <code>note:*</code>，卡片读 <code>notes-saved:*</code></li></ul></div>
+      <div><h4>改名落在哪（待定）</h4><ul><li>推荐：Tau 侧新增「网页来源」记录存自定义名，<code>syncSource</code> 不再用 document.title 覆盖它</li><li>备选：只存扩展本机，同步时把自定义名作为 title 发出（零改表，但多浏览器会互相覆盖）</li></ul></div>
+    </div>
+  </section>
+
+  <!-- ================= 方案 B ================= -->
+  <section class="scheme" id="s-b">
+    <div class="browser rel">
+      <div class="chrome"><div class="dots"><i></i><i></i><i></i></div><div class="url"><b>Tau</b> · 网页摘录</div></div>
+      <div class="tau">
+        <aside class="sb">
+          <div class="brand"><span class="logo">τ</span>Tau</div>
+          <div class="navitem">⌂ 首页</div><div class="navitem">▦ 卡片</div><div class="navitem">▤ 文章</div><div class="navitem">☑ 待办</div>
+          <div class="navitem on">❝ 网页摘录<span class="n">32</span></div>
+          <div class="navitem">◎ 知识图谱</div><div class="navitem">⚙ 设置</div>
+        </aside>
+        <div class="main">
+          <div style="display:flex;align-items:flex-end;gap:12px">
+            <div><h2>网页摘录</h2><div style="color:var(--ink-3);font-size:12px;margin-top:2px">32 个页面 · 214 条标注 · 来自 Tau 伴读</div></div>
+            <span style="flex:1"></span>
+            <div class="search" style="width:260px">⌕ <input placeholder="搜页面、原文、批注…" /></div>
+            <button class="btn">最近标注 ▾</button>
+          </div>
+          <div class="grid" id="tauGrid"></div>
+        </div>
+      </div>
+      <span class="annot" data-n="1" style="left:560px;top:150px">卡片网格，点开进页面详情（definePage，match: params），与 A 的详情同结构</span>
+      <span class="annot" data-n="2" style="left:240px;top:300px">与 Tau 的引用、脉络、AI 检索天然联动；但看不到扩展本机草稿</span>
+    </div>
+    <div class="notes">
+      <div><h4>优点</h4><ul><li>Tau 是真相源，多浏览器 / 多设备汇总一处</li><li>可直接把标注拖进卡片、文章，和「插件摘录」（微信读书等）并列</li></ul></div>
+      <div><h4>缺点</h4><ul><li>不开 Tau 就看不了；离线写在扩展里的标注要等同步</li><li>草稿笔记、页面对话在扩展侧，桌面端只能显示「已存成卡片」那部分</li><li>浏览时想回顾，要切出浏览器</li></ul></div>
+      <div><h4>适合</h4><ul><li>以 Tau 为主工作台、把网页当素材来源的用户</li><li>可作为 A 之后的第二步：复用同一个 <code>annotations.pages</code> 聚合命令</li></ul></div>
+    </div>
+  </section>
+
+  <!-- ================= 方案 C ================= -->
+  <section class="scheme" id="s-c">
+    <div class="browser rel">
+      <div class="chrome"><div class="dots"><i></i><i></i><i></i></div><div class="url">🔒 <b>react.dev</b>/blog/2024/12/05/react-19</div></div>
+      <div class="webpage">
+        <h1>React v19</h1>
+        <p>React 19 is now stable! Additions include <mark>Actions, which simplify handling data mutations and pending states</mark>, new hooks such as useActionState and useOptimistic…</p>
+        <p>In React 19, we're adding support for using async functions in transitions to handle pending states, errors, forms, and optimistic updates automatically.</p>
+        <div class="panel">
+          <div class="ptabs"><span>对话</span><span class="on">标注</span><span>笔记</span></div>
+          <div class="scope">
+            <button class="chip">本页 6</button><button class="chip on">全部页面 32</button>
+            <span style="flex:1"></span><span style="color:var(--ink-3)">⌕</span>
+          </div>
+          <div class="scroll" id="panelList" style="padding:4px 8px"></div>
+          <div style="border-top:1px solid var(--line-2);padding:8px 12px;font-size:12px;color:var(--accent-text)">在伴读库中打开 ↗</div>
+        </div>
+        <div class="orb"></div>
+      </div>
+      <span class="annot" data-n="1" style="right:480px;top:120px">标注页签加「本页 / 全部页面」两个按钮，不新开页面</span>
+      <span class="annot" data-n="2" style="right:480px;top:330px">点一行：打开该网页并定位；改名用行尾 ⋯ 菜单</span>
+    </div>
+    <div class="notes">
+      <div><h4>优点</h4><ul><li>改动最小，不加新入口，就地回顾</li><li>跨页跳转顺手：读 A 页时想起 B 页的划线</li></ul></div>
+      <div><h4>缺点</h4><ul><li>400px 面板只能放列表，看不了某页的全部标注 + 笔记（得跳过去）</li><li>改名、筛选、搜索都挤在窄空间里，不像「管理」</li></ul></div>
+      <div><h4>适合</h4><ul><li>作为 A 的轻入口而非替代：面板里看最近几页，「在伴读库中打开」去管理</li></ul></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const HL = { yellow: "#dc9b04", green: "#2ea121", blue: "#245bdb", purple: "#6425d0", red: "#e33a32" };
+const PAGES = [
+  { id: 1, name: "React 19 新特性梳理", orig: "React v19 – React", site: "react.dev", path: "/blog/2024/12/05/react-19", fav: ["R", "#087ea4"], when: "今天 14:20", group: "今天",
+    colors: { yellow: 3, blue: 2, green: 1 }, draft: true, cards: 1,
+    anns: [
+      { c: "yellow", q: "Actions, which simplify handling data mutations and pending states, error handling, forms, and optimistic updates.", note: "对比一下我们现在 react-query 的 mutation 写法，Actions 能省掉哪些状态？", t: "今天 14:20" },
+      { c: "blue", q: "useActionState is a new hook to make the common cases easier for Actions.", t: "今天 14:18" },
+      { c: "yellow", q: "In React 19, ref is now available as a prop for function components. New function components will no longer need forwardRef.", note: "可以删掉 packages/ui 里一批 forwardRef", t: "今天 14:15" },
+      { c: "green", q: "<Context> as a provider — you can render <Context> as a provider instead of <Context.Provider>.", t: "今天 14:11" },
+      { c: "blue", q: "React 19 adds support for rendering document metadata tags in components natively.", t: "今天 14:09", missing: true },
+      { c: "yellow", q: "useOptimistic lets you show the final state optimistically while the async request is underway.", t: "今天 14:06" },
+    ] },
+  { id: 2, name: "What is Ownership? - The Rust Programming Language", site: "doc.rust-lang.org", path: "/book/ch04-01-what-is-ownership.html", fav: ["R", "#b7410e"], when: "今天 10:02", group: "今天",
+    colors: { green: 7, purple: 3, red: 2 }, cards: 0 },
+  { id: 3, name: "CSS Custom Highlight API - Web APIs | MDN", site: "developer.mozilla.org", path: "/docs/Web/API/CSS_Custom_Highlight_API", fav: ["M", "#1b1b1b"], when: "昨天", group: "昨天",
+    colors: { blue: 3 }, draft: true, cards: 0 },
+  { id: 4, name: "为什么 SQLite 适合本地优先应用", orig: "SQLite 与本地优先：我们为什么回到单机数据库 - 少数派", site: "sspai.com", path: "/post/92011", fav: ["少", "#d71a1b"], when: "10月22日", group: "本周",
+    colors: { yellow: 2, red: 2 }, cards: 2 },
+  { id: 5, name: "How to Do Great Work", site: "paulgraham.com", path: "/greatwork.html", fav: ["P", "#7a6a55"], when: "10月20日", group: "本周",
+    colors: { yellow: 5, purple: 4 }, cards: 0 },
+  { id: 6, name: "Local-first software: You own your data, in spite of the cloud", site: "inkandswitch.com", path: "/local-first/", fav: ["I", "#3b6e8f"], when: "10月12日", group: "更早",
+    colors: { green: 4, yellow: 3 }, cards: 1, missing: 1 },
+];
+const count = p => Object.values(p.colors).reduce((a, b) => a + b, 0);
+const bar = p => `<span class="bar">${Object.entries(p.colors).map(([c, n]) => `<i style="width:${(n / count(p)) * 100}%;background:${HL[c]}"></i>`).join("")}</span>`;
+const fav = p => `<span class="fav" style="background:${p.fav[1]}">${p.fav[0]}</span>`;
+
+let current = 1, view = "pages", editing = false;
+
+function renderList() {
+  let html = "", last = "";
+  for (const p of PAGES) {
+    if (p.group !== last) { html += `<div class="group">${p.group}</div>`; last = p.group; }
+    html += `<div class="row ${p.id === current && view === "pages" ? "on" : ""}" data-id="${p.id}">${fav(p)}
+      <div style="min-width:0;flex:1"><div class="t">${p.name}</div>
+      <div class="m">${bar(p)}<span>${count(p)} 条</span>
+        ${p.draft ? '<span class="badge draft">草稿</span>' : ""}${p.cards ? `<span class="badge card">${p.cards} 张卡片</span>` : ""}${p.missing ? `<span class="badge miss">${p.missing} 条失锚</span>` : ""}
+        <span style="margin-left:auto">${p.when}</span></div>
+      ${p.orig ? '<div class="renamed">已重命名</div>' : ""}</div></div>`;
+  }
+  document.getElementById("pageList").innerHTML = html;
+}
+
+function annHtml(a, withPage) {
+  return `<div class="ann ${a.missing ? "missing" : ""}"><span class="stripe" style="background:${HL[a.c]}"></span><div style="flex:1;min-width:0">
+    <q>${a.q.replace(/</g, "&lt;")}</q>${a.note ? `<div class="note">${a.note}</div>` : ""}
+    <div class="meta"><span>${a.missing ? "页面上找不到这段原文" : a.t}</span>
+    <span class="hov"><a>${a.missing ? "打开原页" : "在原页定位 ↗"}</a><a>复制</a><a>引用到卡片</a><a style="color:var(--ink-3)">删除</a></span></div></div></div>`;
+}
+
+function renderDetail() {
+  const el = document.getElementById("detail");
+  if (view === "stream") {
+    const p = PAGES[0];
+    el.innerHTML = `<div class="dhead"><div style="font-size:22px;font-weight:700;font-family:var(--serif)">全部标注</div>
+      <div class="orig">214 条 · 按时间倒序，跨页面平铺，适合回顾与搜索</div>
+      <div class="acts"><button class="chip on">全部颜色</button>${Object.entries(HL).map(([k, v]) => `<button class="chip"><span class="dot" style="background:${v}"></span></button>`).join("")}<button class="chip">只看有批注</button></div></div>
+      <div class="stream"><div class="pg">${fav(p)}<b>${p.name}</b> · ${p.site}</div>${p.anns.slice(0, 3).map(a => annHtml(a)).join("")}
+      <div class="pg">${fav(PAGES[1])}<b>${PAGES[1].name}</b> · ${PAGES[1].site}</div>
+      ${annHtml({ c: "green", q: "Each value in Rust has an owner. There can only be one owner at a time. When the owner goes out of scope, the value will be dropped.", t: "今天 10:02" })}
+      ${annHtml({ c: "purple", q: "Rust takes a different path: the memory is automatically returned once the variable that owns it goes out of scope.", note: "和 GC / RAII 的区别", t: "今天 09:58" })}</div>`;
+    return;
+  }
+  if (view === "notes") {
+    el.innerHTML = `<div class="dhead"><div style="font-size:22px;font-weight:700;font-family:var(--serif)">笔记</div><div class="orig">2 份草稿在本机 · 7 张已存入 Tau</div></div>
+      <div class="stream side" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      ${[["草稿", "React 19 新特性梳理", "Actions 统一了异步状态：pending / error / optimistic。我们 react-query 的 mutation 层里可以先试 useActionState……", "今天 14:30", "继续编辑"],
+         ["草稿", "CSS Custom Highlight API - Web APIs | MDN", "Highlight 注册表是全局的，多个 shadow root 共用一份……", "昨天", "继续编辑"],
+         ["卡片", "React 19 Actions 要点", "1. Actions 自动管理 pending；2. useOptimistic 搭配……", "10月25日", "在 Tau 中打开"],
+         ["卡片", "SQLite 的 WAL 与本地优先", "WAL 模式让读写并发，单机应用够用……", "10月22日", "在 Tau 中打开"]]
+        .map(([k, page, body, t, act]) => `<div class="card"><h5><span class="badge ${k === "草稿" ? "draft" : "card"}">${k}</span>${k === "草稿" ? page : body.slice(0, 0) + page}</h5><p>${body}</p><div class="f"><span>${k === "卡片" ? "来自 " + page + " · " : ""}${t}</span><a>${act}</a></div></div>`).join("")}</div>`;
+    return;
+  }
+  const p = PAGES.find(x => x.id === current);
+  const anns = p.anns || [{ c: Object.keys(p.colors)[0], q: "（示意）这一页的标注按原文顺序排列。", t: p.when }];
+  el.innerHTML = `<div class="dhead">
+      <div class="site">${fav(p)}${p.site}<span style="opacity:.6">${p.path}</span></div>
+      <div class="titlewrap">${editing
+        ? `<input class="title-input" id="titleInput" value="${p.name}" />`
+        : `<span class="title" id="titleEl" title="点击重命名">${p.name}</span>`}</div>
+      <div class="orig">${editing ? "回车保存 · Esc 取消 · 清空即恢复原标题"
+        : p.orig ? `原标题：${p.orig}<button id="restore">恢复</button>` : "网页标题 · 点击可重命名"}</div>
+      <div class="acts"><button class="btn primary">打开网页 ↗</button><button class="btn">✎ 写笔记</button><button class="btn ghost">导出 Markdown</button><span style="flex:1"></span><button class="btn ghost">⋯</button></div>
+    </div>
+    <div class="dbody"><div>
+      <div class="sec">标注 ${anns.length} · 按原文顺序<span class="sp"></span>${Object.entries(p.colors).map(([c, n]) => `<span class="chip"><span class="dot" style="background:${HL[c]}"></span>${n}</span>`).join("")}</div>
+      ${anns.map(a => annHtml(a)).join("")}
+    </div>
+    <aside class="side">
+      <div class="sec">概览</div>
+      <div class="stat"><div><b>${count(p)}</b><span>标注</span></div><div><b>${p.anns ? 2 : 0}</b><span>批注</span></div><div><b>${p.cards}</b><span>卡片</span></div><div><b>${p.anns ? 4 : 0}</b><span>轮对话</span></div></div>
+      <div class="sec">笔记</div>
+      ${p.draft ? `<div class="card"><h5><span class="badge draft">草稿</span>未保存</h5><p>Actions 统一了异步状态：pending / error / optimistic。我们 react-query 的 mutation 层里可以先试 useActionState……</p><div class="f"><span>今天 14:30 · 仅本机</span><a>继续编辑</a></div></div>` : ""}
+      ${p.cards ? `<div class="card"><h5><span class="badge card">卡片</span>React 19 Actions 要点</h5><p>1. Actions 自动管理 pending；2. useOptimistic 搭配 Server Action……</p><div class="f"><span>10月25日</span><a>在 Tau 中打开</a></div></div>` : ""}
+      ${!p.draft && !p.cards ? `<div class="card" style="text-align:center;color:var(--ink-3)">这一页还没有笔记</div>` : ""}
+    </aside></div>`;
+  const t = document.getElementById("titleEl");
+  if (t) t.onclick = () => { editing = true; renderDetail(); const i = document.getElementById("titleInput"); i.focus(); i.select(); };
+  const i = document.getElementById("titleInput");
+  if (i) i.onkeydown = e => {
+    if (e.key === "Enter") { const v = i.value.trim(); if (!v && p.orig) { p.name = p.orig; delete p.orig; } else if (v && v !== p.name) { if (!p.orig) p.orig = p.name; p.name = v; } editing = false; renderAll(); }
+    if (e.key === "Escape") { editing = false; renderDetail(); }
+  };
+  const r = document.getElementById("restore");
+  if (r) r.onclick = () => { p.name = p.orig; delete p.orig; renderAll(); };
+}
+
+function renderAll() { renderList(); renderDetail(); }
+
+document.getElementById("pageList").onclick = e => {
+  const row = e.target.closest(".row"); if (!row) return;
+  current = +row.dataset.id; view = "pages"; editing = false; setNav(); renderAll();
+};
+function setNav() { document.querySelectorAll("[data-view]").forEach(b => b.classList.toggle("on", b.dataset.view === view)); }
+document.querySelectorAll("[data-view]").forEach(b => b.onclick = () => { view = b.dataset.view; setNav(); renderAll(); });
+document.getElementById("sortBtn").onclick = () => { const m = document.getElementById("sortMenu"); m.style.display = m.style.display === "none" ? "block" : "none"; };
+document.querySelectorAll(".switch button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".switch button").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".scheme").forEach(s => s.classList.toggle("on", s.id === "s-" + b.dataset.s));
+});
+
+// 方案 B
+document.getElementById("tauGrid").innerHTML = PAGES.map(p => `<div class="pcard"><div class="site">${fav(p)}${p.site}<span style="margin-left:auto">${p.when}</span></div>
+  <div class="t">${p.name}</div><q style="border-color:${HL[Object.keys(p.colors)[0]]}">${p.anns ? p.anns[0].q : "Each value in Rust has an owner. There can only be one owner at a time."}</q>
+  <div class="m">${bar(p)}${count(p)} 条${p.cards ? ` · <span class="badge card">${p.cards} 张卡片</span>` : ""}</div></div>`).join("");
+
+// 方案 C
+document.getElementById("panelList").innerHTML = PAGES.map(p => `<div class="row ${p.id === 1 ? "on" : ""}">${fav(p)}<div style="min-width:0;flex:1">
+  <div class="t" style="-webkit-line-clamp:1">${p.name}</div><div class="m">${bar(p)}${count(p)} 条<span style="margin-left:auto">${p.id === 1 ? "当前页" : p.when}</span></div></div></div>`).join("");
+
+renderAll();
+</script>
+</body>
+</html>

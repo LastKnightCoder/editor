@@ -88,6 +88,7 @@ CREATE INDEX IF NOT EXISTS idx_weread_notebook_last_read_date ON weread_notebook
 CREATE INDEX IF NOT EXISTS idx_weread_notebook_updated_at ON weread_notebook(updated_at);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_excerpt_external ON excerpt(source_type, external_id);
 CREATE INDEX IF NOT EXISTS idx_excerpt_source ON excerpt(source_type, source_key);
+CREATE INDEX IF NOT EXISTS idx_web_page_host ON web_page(host);
 CREATE INDEX IF NOT EXISTS idx_flashcards_deck ON flashcards(deck_id);
 CREATE INDEX IF NOT EXISTS idx_flashcards_due_time ON flashcards(due_time);
 CREATE INDEX IF NOT EXISTS idx_flashcard_reviews_card ON flashcard_reviews(card_id);

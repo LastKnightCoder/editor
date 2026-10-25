@@ -1,17 +1,18 @@
 # 浏览器伴读
 
-「Tau 伴读」浏览器扩展（`apps/browser-extension`）在当前网页里提供悬浮球、选区工具条、高亮批注、页面笔记和对网页提问；AI 用的是 Tau 里配置的模型，标注与笔记存进 Tau 的当前库。扩展只通过 `ws://127.0.0.1:24678/browser` 与桌面主进程通信，必须先经用户一次性授权。
+「Tau 伴读」浏览器扩展（`apps/browser-extension`）在当前网页里提供悬浮球、选区工具条、高亮批注、页面笔记和对网页提问，另有扩展页「伴读库」汇总所有标注过的网页；AI 用的是 Tau 里配置的模型，标注与笔记存进 Tau 的当前库。扩展只通过 `ws://127.0.0.1:24678/browser` 与桌面主进程通信，必须先经用户一次性授权。
 
 ## 组成
 
-| 端 | 位置 | 职责 |
-| --- | --- | --- |
-| 协议 | `packages/shared/src/browser-companion/` | 方法名、scope、帧信封、握手与数据类型，校验码推导（WebCrypto，两端共用） |
-| 桌面主进程 | `apps/desktop/src-electron/main/modules/browser-companion/` | `/browser` 握手、配对、token 校验、按 scope 分发，对话驱动 pi 宿主会话，标注 / 笔记写库 |
-| 授权存储 | `apps/desktop/src-electron/main/services/browser-clients.ts` | `userData/browser-clients.json`：已授权实例、token 哈希、scope、拒绝记录；不进库、不同步 |
-| 桌面渲染端 | `apps/desktop/src/features/browser-companion/`、设置分区 `browserExtension` | 壳层挂载的授权弹窗（Esc / 关闭 = 拒绝）、主题上报、打开扩展保存的卡片；设置里管理授权 |
-| 扩展后台 | `apps/browser-extension/src/background/` | 唯一持有 WebSocket；配对状态机、退避重连、20s 心跳；标注本机缓存与发件箱；按标签页路由消息 |
-| 扩展页内 | `apps/browser-extension/src/content/` | closed Shadow DOM（`<tau-companion>`）里的全部 UI；正文提取、锚定、高亮渲染、页面工具 |
+| 端         | 位置                                                                        | 职责                                                                                                                                   |
+| ---------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 协议       | `packages/shared/src/browser-companion/`                                    | 方法名、scope、帧信封、握手与数据类型，校验码推导（WebCrypto，两端共用）                                                               |
+| 桌面主进程 | `apps/desktop/src-electron/main/modules/browser-companion/`                 | `/browser` 握手、配对、token 校验、按 scope 分发，对话驱动 pi 宿主会话，标注 / 笔记写库                                                |
+| 授权存储   | `apps/desktop/src-electron/main/services/browser-clients.ts`                | `userData/browser-clients.json`：已授权实例、token 哈希、scope、拒绝记录；不进库、不同步                                               |
+| 桌面渲染端 | `apps/desktop/src/features/browser-companion/`、设置分区 `browserExtension` | 壳层挂载的授权弹窗（Esc / 关闭 = 拒绝）、主题上报、打开扩展保存的卡片；设置里管理授权                                                  |
+| 扩展后台   | `apps/browser-extension/src/background/`                                    | 唯一持有 WebSocket；配对状态机、退避重连、20s 心跳；标注本机缓存与发件箱；按标签页路由消息                                             |
+| 扩展页内   | `apps/browser-extension/src/content/`                                       | closed Shadow DOM（`<tau-companion>`）里的全部 UI；正文提取、锚定、高亮渲染、页面工具                                                  |
+| 扩展页面   | `apps/browser-extension/src/note/`、`src/library/`                          | 扩展自己的页面：页面笔记 `note.html`、伴读库 `library.html`；共用 `src/shared/extension-page.ts`（存储、经后台调 Tau、连接状态与主题） |
 
 ## 连接与授权
 
@@ -33,12 +34,12 @@
 
 ## scope
 
-| scope | 方法 | 授予 |
-| --- | --- | --- |
-| `chat` | `ai.run.*`、`chat.history`、`models.list` | 必需 |
-| `annotations` | `annotations.list` / `annotations.sync` | 必需 |
-| `notes` | `note.save` / `note.open` | 必需 |
-| `tools` | 对话时使用桌面对话的同一份应用工具（ToolRegistry、Skill、MCP、插件工具） | 可选，授权弹窗里默认勾选；设置里可关 |
+| scope         | 方法                                                                                                                    | 授予                                 |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| `chat`        | `ai.run.*`、`chat.history`、`models.list`                                                                               | 必需                                 |
+| `annotations` | `annotations.list` / `annotations.sync`，伴读库的 `library.pages` / `library.sites` / `library.feed` / `library.rename` | 必需                                 |
+| `notes`       | `note.save` / `note.open`                                                                                               | 必需                                 |
+| `tools`       | 对话时使用桌面对话的同一份应用工具（ToolRegistry、Skill、MCP、插件工具）                                                | 可选，授权弹窗里默认勾选；设置里可关 |
 
 不在 `METHOD_SCOPES` 表里的方法一律拒绝；`models.list` 只返回模型名，不外发服务商配置。
 
@@ -57,7 +58,7 @@
 
 ## 数据
 
-- 标注 = `excerpt` 表 `source_type = 'web'` 的摘录，`source_key` 为去掉 hash 的 URL。`annotations.sync` 是整页快照语义（`ExcerptTable.syncSource` 按 external_id diff），写后补发 `excerpt:sync-web-page` 写事件，索引与脉络随之刷新。锚点为 `{quote:{exact,prefix,suffix}, position:{start,end}}`，颜色只收编辑器行内色板的五个色相 id（yellow/green/blue/purple/red）。
+- 标注 = `excerpt` 表 `source_type = 'web'` 的摘录，`source_key` 为去掉 hash 的 URL。页面索引 = `web_page` 表（每页一行：域名、网页标题 `page_title`、用户起的名 `custom_title`）；显示名 = `custom_title` 否则 `page_title`，`annotations.sync` 先记网页标题再以显示名写该页摘录的 `source_title`，改名时同步改写，Tau 里其余读 `source_title` 的地方（搜索、脉络、移动端）直接读到显示名；`note.save` 的来源段同样用显示名。`annotations.sync` 是整页快照语义（`ExcerptTable.syncSource` 按 external_id diff），写后补发 `excerpt:sync-web-page` 写事件，索引与脉络随之刷新。锚点为 `{quote:{exact,prefix,suffix}, position:{start,end}}`，颜色只收编辑器行内色板的五个色相 id（yellow/green/blue/purple/red）。
 - 页面笔记 = 扩展本机按页保存的草稿（Tau 编辑器的原生节点，`note:<页面键>`）；`note.save` 把节点交给 Tau（主进程 `assertContentNodes` 校验、2 MB 上限），新建一张卡片，正文末尾附「来源：<网页标题>」链接段落。
 - 对话 = 按页面存放的 pi 会话文件（`browser-sessions/<页面键>/`），`chat.history` 取该页最近一段；一轮运行走 v2 协议（`ai.run.start` 立即返回，事件经 `ai.run.event` 只推给发起的连接）。
 - 扩展离线时标注照常写本机并记待同步，就绪后按页补发；Tau 是真相源，连上后以 Tau 为准重载。
@@ -68,5 +69,14 @@
 - 锚定：先按偏移精确核对，失败在全文按原文查找、以前后文相似度挑选；DOM 变化（800ms 防抖）与 URL 变化时重锚，找不到的标注标为「页面上找不到这段原文」而不删除。
 - 正文提取：`article` / `main` 里文字最多的容器，取最内层段落级块按序编号；对话的 `[n]` 引用回链第 n 段。
 - 样式：Tailwind v4 + `@tau/themes` 的 `tokens.css` 内联进 shadow root（`:root` 改写为 `:host`、rem 换算 px，`@property` 另注入页面文档）；主题族与明暗跟随 Tau（未连接时暖纸 + 系统明暗）。
-- 页面笔记页签是扩展自己的页面 `note.html`（iframe，`web_accessible_resources`）：Tau 编辑器在独立文档里运行（选区读取与浮层按普通页面工作，不受网页与 Shadow DOM 影响），只在打开该页签时加载。组件为基础集：段落、标题、列表与待办、引用、代码块、链接、分割线、行内格式与着色、下划线，斜杠菜单与格式工具条，粘贴 Markdown 自动转换（`src/note/kit.ts`）。草稿只由笔记页写入；内容脚本的摘录与「存为笔记」往待追加队列 `note-pending:<页面键>` 放 Markdown，笔记页转换成节点接到末尾。笔记页经 `runtime.sendMessage` 调后台（只认本扩展 `note.html` 发来的 `note.save` / `note.open`），连接状态与主题经后台写入的 `companion.status` 读取。
+- 页面笔记页签是扩展自己的页面 `note.html`（iframe，`web_accessible_resources`；伴读库的笔记抽屉嵌的是同一个页面）：Tau 编辑器在独立文档里运行（选区读取与浮层按普通页面工作，不受网页与 Shadow DOM 影响），只在打开该页签时加载。组件为基础集：段落、标题、列表与待办、引用、代码块、链接、分割线、行内格式与着色、下划线，斜杠菜单与格式工具条，粘贴 Markdown 自动转换（`src/note/kit.ts`）。草稿只由笔记页写入；内容脚本的摘录与「存为笔记」往待追加队列 `note-pending:<页面键>` 放 Markdown，笔记页转换成节点接到末尾。笔记页写草稿或存卡片时顺带记 `note-meta:<页面键>`（页面标题与时间），供伴读库的笔记汇总；连接状态与主题经后台写入的 `companion.status` 读取。
+- 扩展页面经 `runtime.sendMessage`（`page-rpc`）调后台；后台按发送方页面路径（`extensionPageOf`：`/note.html`、`/library.html`）只放行各自白名单里的方法（`EXTENSION_PAGE_METHODS`），内容脚本与别的扩展页面一律拒绝。
 - Esc 仲裁：页内浮层自建 LIFO 栈，无浮层时不拦截网页的 Esc；`⌥J`（manifest `commands`）与工具栏按钮切换面板。
+
+## 伴读库
+
+- 入口：面板 ⋯ 菜单「在伴读库中查看本页」（带上页面键 `library.html?page=`）、快捷键 `⌥⇧J`（manifest `commands` 的 `open-library`）。后台 `LibraryTab` 记住打开过的标签页，再次打开时切过去，关掉了就新开。
+- 视图：页面（列表 + 详情）、全部标注（跨页按时间倒序）、笔记（本机草稿与已存卡片）；左栏按站点筛选。数据走 react-query：页面、站点、全部标注由 Tau 分页给出（`library.*`，每次至多 100 条，按 `web_page` LEFT JOIN 摘录聚合；只列还有标注或改过名的页面，只有本机笔记的页面由扩展在列表加载完后接在末尾「只有笔记」组）；单页标注经后台 `annotations.load`（与内容脚本同一份缓存与发件箱）。没有标题的页面显示「域名 + 路径」。
+- 改名：点详情标题就地改，回车保存、Esc 取消、清空恢复网页标题；`library.rename` 写 `web_page.custom_title`（页面还没记录时新建，只有笔记的页面也能改名）并改写该页摘录的 `source_title`，补发摘录写事件；`note.save` 同样记下页面。
+- 离线：页面列表、详情与全部标注退回本机 `ann:*` 缓存（只含在这个浏览器里看过的页面，同口径筛选排序），不能改名；站点筛选要连上 Tau。本机笔记与缓存随 `chrome.storage` 变化失效重取。
+- 不在伴读库里删标注：打开着该页的标签页会以内存里的快照写回。

@@ -48,6 +48,11 @@ export const COMPANION_METHODS = {
   annotationsSync: "annotations.sync",
   noteSave: "note.save",
   noteOpen: "note.open",
+  // 伴读库（跨页面的管理视角）
+  libraryPages: "library.pages",
+  librarySites: "library.sites",
+  libraryFeed: "library.feed",
+  libraryRename: "library.rename",
   // 外观（桌面 → 扩展，通知）
   appearanceChanged: "appearance.changed",
 } as const;
@@ -64,6 +69,10 @@ export const METHOD_SCOPES: Readonly<Record<string, CompanionScope>> = {
   [COMPANION_METHODS.modelsList]: "chat",
   [COMPANION_METHODS.annotationsList]: "annotations",
   [COMPANION_METHODS.annotationsSync]: "annotations",
+  [COMPANION_METHODS.libraryPages]: "annotations",
+  [COMPANION_METHODS.librarySites]: "annotations",
+  [COMPANION_METHODS.libraryFeed]: "annotations",
+  [COMPANION_METHODS.libraryRename]: "annotations",
   [COMPANION_METHODS.noteSave]: "notes",
   [COMPANION_METHODS.noteOpen]: "notes",
 };
@@ -75,7 +84,12 @@ export const RPC_FRAME = {
 } as const;
 
 export type RpcFrame =
-  | { type: typeof RPC_FRAME.request; id: string; method: string; params?: unknown }
+  | {
+      type: typeof RPC_FRAME.request;
+      id: string;
+      method: string;
+      params?: unknown;
+    }
   | {
       type: typeof RPC_FRAME.response;
       id: string;
@@ -224,6 +238,75 @@ export interface NoteSaveParams {
 
 export interface NoteSaveResult {
   cardId: number;
+}
+
+// ———————— 伴读库 ————————
+
+/** 单次分页的条数上限 */
+export const LIBRARY_PAGE_LIMIT = 100;
+
+export const LIBRARY_SORTS = ["recent", "oldest", "most", "title"] as const;
+export type LibrarySort = (typeof LIBRARY_SORTS)[number];
+
+/** 一个网页的汇总：title 是显示名（用户起的名优先），pageTitle 是网页自己的标题 */
+export interface WebPageSummary {
+  url: string;
+  host: string;
+  title: string;
+  pageTitle: string;
+  renamed: boolean;
+  /** 未删除的标注数 */
+  count: number;
+  /** 带批注的标注数 */
+  noted: number;
+  colors: Partial<Record<HighlightColor, number>>;
+  /** 最近一条标注的时间；没有标注时为页面记录的更新时间 */
+  lastTime: number;
+}
+
+export interface LibraryPagesParams {
+  offset: number;
+  limit: number;
+  sort: LibrarySort;
+  /** 匹配显示名、URL，或该页任一条标注的原文 / 批注 */
+  query?: string;
+  host?: string;
+  /** 只取这一页（页面键） */
+  url?: string;
+  /** 只要带批注的页面 */
+  noted?: boolean;
+}
+
+export interface LibraryList<T> {
+  items: T[];
+  total: number;
+}
+
+export interface LibrarySite {
+  host: string;
+  /** 该站点有标注的页面数 */
+  count: number;
+}
+
+/** 跨页面平铺的标注，按时间倒序 */
+export interface LibraryFeedParams {
+  offset: number;
+  limit: number;
+  color?: HighlightColor;
+  noted?: boolean;
+  query?: string;
+}
+
+export interface LibraryFeedItem extends WebAnnotation {
+  url: string;
+  /** 所在页面的显示名 */
+  title: string;
+}
+
+/** title 为空串即恢复网页自己的标题 */
+export interface LibraryRenameParams {
+  url: string;
+  title: string;
 }
 
 /** 从 Tau 打开网页划线时附在 URL 上的 hash（桌面 excerpt 同值） */
