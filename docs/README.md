@@ -13,7 +13,7 @@
 | 包内文档                                                      | database / whiteboard / editor 架构手册在各包 `docs/architecture.md`；editor-collab / markdown 的投影与缓存边界见各包 README |
 | [storage-sync.md](./architecture/storage-sync.md)             | 数据库、资源与会话文件的宿主分块协议及内存边界                                                                               |
 | [collaboration.md](./architecture/collaboration.md)           | 实时协作功能与架构                                                                                                           |
-| [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点                                              |
+| [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点                                               |
 | [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                           |
 | [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、外部打开 Markdown、正文统计与空文档判断                                                              |
 | [plugin-system.md](./architecture/plugin-system.md)           | 插件体系目标架构与能力                                                                                                       |
@@ -59,13 +59,15 @@
 
 一个任务一个目录或单文件，收尾三步见 [tasks/README.md](./tasks/README.md)；期限 90 天。
 
-- [白板 Yjs 协作与插件数据契约](./tasks/whiteboard-collaboration/README.md)：W9 容量与三端长会话验证通过，联合行为回归 4868 项通过；[正式版本核对](./tasks/whiteboard-collaboration/validation/w9-release-compatibility.md)仍未放行发行。[火柴人候选适配](./tasks/whiteboard-collaboration/validation/w9-stickman-compatibility.md)已完成本地 SDK、实际插件与服务构建联验，新增 15 项测试和 3665 项相关回归通过。UI 接线由独立会话负责。
 - [浏览器扩展重写：页内伴读](./tasks/browser-companion/README.md)：悬浮球 + 就地标注 / 笔记 / 提问，扩展经一次性授权连 Tau；已实现，待真实浏览器联调与视觉验收。
 - [长文档视口级挂载](./tasks/long-document-viewport.md)：暂缓、未排期，保留范围与业务验收边界。
 - [移动端字号规范](./tasks/mobile-typography.md)：9 档字号阶梯；档位覆盖与卡片列表/详情同字号已落地，存量字面字号待分批迁移。
+- [移动端源码块交互](./tasks/mobile-source-block.md)：TikZ / Typst / HTML 等源码块改为点选 + 配件栏 + 分屏源码页；方案已确认，未开工。
 - [移动端正文字体](./tasks/mobile-reading-font.md)：可选霞鹜文楷 / 思源宋体，按需下载、全量字库；字体已上线，待真机验收。
+- [桌面语音输入与统一 ASR](./tasks/desktop-asr/README.md)：Windows 验证完成，保留 NSIS、本轮不开放原生；产品入口仍撤回，其他设备与真实账号验收保留。当前只整理文档、不发布新 SDK，0.44.0 发布包与源码差异见任务发行记录。
+- [白板 Yjs 协作与插件数据契约](./tasks/whiteboard-collaboration/README.md)：W9 容量与三端长会话验证通过，联合行为回归 4868 项通过；[正式版本核对](./tasks/whiteboard-collaboration/validation/w9-release-compatibility.md)仍未放行发行。[火柴人候选适配](./tasks/whiteboard-collaboration/validation/w9-stickman-compatibility.md)已完成本地 SDK、实际插件与服务构建联验，新增 15 项测试和 3665 项相关回归通过。UI 接线由独立会话负责。
 
-- [桌面语音输入与统一 ASR](./tasks/desktop-asr/README.md)：ASR 与整理能力保留，新增界面入口已撤回待用户决定；Windows 保留 NSIS、暂不开放原生，CPU Whisper 与宿主验证见任务记录；SDK 0.43.0／Seed 0.1.0 已发行，其他设备验收保留。
+- [桌面语音输入与统一 ASR](./tasks/desktop-asr/README.md)：Windows 验证完成，保留 NSIS、本轮不开放原生；产品入口仍撤回，其他设备与真实账号验收保留。当前只整理文档、不发布新 SDK，0.44.0 发布包与源码差异见任务发行记录。
 
 进行中的跨端接入见 [B–D 任务](./tasks/plugin-portability-bcd/README.md)；SDK、清单、移动与网页中心分发及旧插件兼容的后续设计见同任务的 [正式接入方案](./tasks/plugin-portability-bcd/distribution-plan.md)。D 的待验收项继续保留。
 
