@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 import {
   WhiteboardModel,
@@ -17,6 +17,7 @@ import { CollaborationLocalStore } from "../../collaboration/local-store";
 import { ContentLocalState } from "../../collaboration/content-local-state";
 import { ContentIdentityTable } from "../../tables/content-identity";
 import { createServer } from "../../../../../../collaboration-server/src/server";
+import { replaceStoredBaseline } from "../../../../../../collaboration-server/src/testing/replace-baseline";
 
 /** 两台设备各自一套主进程白板模块与本机库，经真实服务端路由协作。 */
 const state = vi.hoisted(() => ({
@@ -467,13 +468,6 @@ it("远端换代后暂停同步且不覆盖本机文档，不注册版本恢复�
   const lease = await call(owner, "open", "A", created.contentIds[0], "owner-2");
   await call(owner, "remote-open", lease.leaseId, URL);
   await edit(owner, lease.leaseId, "·旧代次");
-  server.store.migrations.begin(room.documentId, {
-    id: "epoch",
-    actorId: owner.device.id,
-    expectedEpoch: 0,
-    expiresAt: Date.now() + 60_000,
-  });
-  const frozen = server.store.migrations.freeze(room.documentId, "epoch", owner.device.id);
   const fresh = new Y.Doc(),
     freshModel = new WhiteboardModel(fresh);
   freshModel.submit(
@@ -487,19 +481,7 @@ it("远端换代后暂停同步且不覆盖本机文档，不注册版本恢复�
     { documentId: room.documentId, baselineId: "next", epoch: 1 },
     Y.encodeStateAsUpdate(fresh)
   );
-  const candidate = Y.encodeStateAsUpdate(next);
-  await server.store.commitMigration(
-    room.documentId,
-    owner.device.id,
-    "epoch",
-    {
-      expectedRevision: frozen.frozenRevision!,
-      candidateHash: createHash("sha256").update(candidate).digest("hex"),
-      targetVersion: 3,
-      baselineId: "next",
-    },
-    candidate
-  );
+  replaceStoredBaseline(server.store, room.documentId, next);
   freshModel.dispose();
   fresh.destroy();
   next.destroy();

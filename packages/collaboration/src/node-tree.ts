@@ -1012,7 +1012,7 @@ export class NodeTree {
       previous.type === target.type &&
       targetId !== this.properties(id).get(NODE_CONTRACT_PROPERTY)
     )
-      throw new Error("同类型数据版本变化必须通过迁移处理");
+      throw new Error("普通编辑不支持同类型数据版本变化");
     if (
       previous.kind !== target.kind ||
       previous.isVoid !== target.isVoid ||

@@ -8,8 +8,8 @@ export { NodeTreeHistory, type NodeTreeHistoryOptions } from "./node-tree-histor
 export * from "./model-limits";
 export * from "./whiteboard-contract";
 export * from "./node-document";
-export * from "./document-migration";
-export * from "./migration-ledger";
+export * from "./document-protocol";
+export * from "./document-installation";
 export * from "./document-write-queue";
 export * from "./whiteboard-types";
 export * from "./whiteboard-model";

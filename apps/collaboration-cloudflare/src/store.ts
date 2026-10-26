@@ -4,7 +4,8 @@ import {
   CollaborationError,
   readSharedContent,
   validateDocument,
-  MigrationLedger,
+  DocumentProtocolStore,
+  readDocumentProtocol,
   DocumentWriteQueue,
   DocumentOperationLedger,
   type DocumentOperation,
@@ -14,10 +15,8 @@ import {
   readDocumentProjection,
   collectDocumentResources,
   isStructuredDocumentVersion,
-  assertDocumentMigrationKind,
-  type MigrationDocument,
-  type MigrationSql,
-  type MigrationFingerprint,
+  type DocumentProtocol,
+  type DocumentSql,
   ASSET_PREFIX,
   type DeviceIdentity,
   type JoinRequest,
@@ -64,7 +63,7 @@ export type AssetRow = {
 export class CollaborationStore {
   private readonly sql: SqlStorage;
   private signingKey: string;
-  readonly migrations: MigrationLedger;
+  readonly protocols: DocumentProtocolStore;
   readonly operations: DocumentOperationLedger;
   private readonly writes: DocumentWriteQueue;
 
@@ -119,7 +118,7 @@ export class CollaborationStore {
     this.sql.exec(
       "CREATE TABLE IF NOT EXISTS collaboration_asset_history (document_id TEXT NOT NULL, epoch INTEGER NOT NULL, asset_id TEXT NOT NULL, PRIMARY KEY(document_id,epoch,asset_id))"
     );
-    const ledgerSql: MigrationSql = {
+    const ledgerSql: DocumentSql = {
       exec: (sql, ...parameters) => {
         this.sql.exec(sql, ...parameters);
       },
@@ -140,10 +139,9 @@ export class CollaborationStore {
       }
       return fail("IDENTITY_CONFLICT", "设备身份映射循环", 409);
     });
-    this.migrations = new MigrationLedger(
+    this.protocols = new DocumentProtocolStore(
       ledgerSql,
       id => this.currentProtocol(id),
-      Date.now,
       id => {
         const visited = new Set<string>();
         while (!visited.has(id)) {
@@ -160,7 +158,7 @@ export class CollaborationStore {
     );
   }
 
-  private currentProtocol(id: string): MigrationDocument {
+  private currentProtocol(id: string): DocumentProtocol {
     const row = this.document(id),
       doc = this.load(id);
     try {
@@ -202,73 +200,6 @@ export class CollaborationStore {
       );
   }
 
-  async commitMigration(
-    id: string,
-    actorId: string,
-    operationId: string,
-    fingerprint: MigrationFingerprint,
-    state: Uint8Array
-  ) {
-    this.writable();
-    this.authorize(id, actorId, true);
-    const prior = this.migrations.get(id, operationId, actorId);
-    if (!prior) return fail("MIGRATION_NOT_FOUND", "迁移操作尚未登记", 404);
-    if (prior.state !== "PENDING")
-      return this.migrations.commit(id, operationId, actorId, fingerprint, () => {
-        throw new Error("终态不能安装正文");
-      });
-    const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
-    if (
-      state.byteLength > MAX_DOCUMENT_BYTES ||
-      digest(state) !== fingerprint.candidateHash ||
-      !isStructuredDocumentVersion(fingerprint.targetVersion)
-    )
-      return fail("INVALID_MIGRATION", "迁移候选容量、版本或摘要不匹配");
-    const candidate = new Y.Doc();
-    try {
-      try {
-        Y.applyUpdate(candidate, state);
-      } catch {
-        return fail("INVALID_MIGRATION", "迁移候选状态损坏或不兼容");
-      }
-      assertDocumentMigrationKind(this.migrations.state(id).version, fingerprint.targetVersion);
-      if (candidate.getMap("meta").get("version") !== fingerprint.targetVersion)
-        return fail("INVALID_MIGRATION", "候选协议不匹配");
-      await validateStructuredDocument(candidate, {
-        documentId: id,
-        epoch: prior.expectedEpoch + 1,
-        baselineId: fingerprint.baselineId,
-      });
-      if (digest(Y.encodeStateAsUpdate(candidate)) !== fingerprint.candidateHash)
-        return fail("INVALID_MIGRATION", "迁移候选必须使用规范化的完整状态");
-      this.writable();
-      this.authorize(id, actorId, true);
-      const content = readDocumentProjection(candidate);
-      this.validateAssets(id, content, candidate);
-      return this.migrations.commit(id, operationId, actorId, fingerprint, () => {
-        this.ensureCapacity(state.byteLength);
-        const previous = this.load(id);
-        try {
-          this.retainAssets(id, prior.expectedEpoch, previous);
-        } finally {
-          previous.destroy();
-        }
-        this.retainAssets(id, prior.expectedEpoch + 1, candidate);
-        this.operations.advance(id);
-        this.sql.exec("DELETE FROM chunks WHERE document_id=?", id);
-        this.writeChunks(id, 0, state);
-        this.sql.exec(
-          "UPDATE documents SET title=?,updated_at=? WHERE id=?",
-          content.title,
-          Date.now(),
-          id
-        );
-      });
-    } finally {
-      candidate.destroy();
-    }
-  }
-
   async submitOperation(
     id: string,
     actorId: string,
@@ -294,13 +225,13 @@ export class CollaborationStore {
     // 未确认提案可能缺依赖，无法完整扫描；先保守持有该房间已上传的资源，退役由恢复流程负责。
     this.sql.exec(
       "INSERT OR IGNORE INTO collaboration_asset_history SELECT document_id,?,id FROM assets WHERE document_id=?",
-      this.migrations.state(id).epoch,
+      this.protocols.state(id).epoch,
       id
     );
     if (cancel) return this.operations.abort(operation, "cancelled");
     if (operation.state !== "PENDING") return operation;
     try {
-      const protocol = this.migrations.state(id);
+      const protocol = this.protocols.state(id);
       if (
         protocol.epoch !== request.epoch ||
         protocol.baselineId !== request.baselineId ||
@@ -319,7 +250,7 @@ export class CollaborationStore {
     } catch (error) {
       if (
         error instanceof CollaborationError &&
-        !["MISSING_DEPENDENCIES", "CAPACITY", "MIGRATION_FROZEN"].includes(error.code)
+        !["MISSING_DEPENDENCIES", "CAPACITY"].includes(error.code)
       )
         return this.operations.abort(operation, error.code);
       throw error;
@@ -331,7 +262,7 @@ export class CollaborationStore {
     deviceId: string,
     update: Uint8Array,
     current: Y.Doc | undefined,
-    protocol: MigrationDocument,
+    protocol: DocumentProtocol,
     memoryBudget: number | (() => number),
     operation?: DocumentOperation
   ): Promise<void | DocumentOperation> {
@@ -343,7 +274,7 @@ export class CollaborationStore {
         const stored = this.operations.get(id, operation.operationId, deviceId)!;
         if (stored.state !== "PENDING") return stored;
       }
-      this.migrations.assertWritable(id, protocol);
+      this.protocols.assertWritable(id, protocol);
       const before = this.load(id);
       let candidate: Y.Doc | undefined;
       try {
@@ -368,7 +299,7 @@ export class CollaborationStore {
         const install = () => {
           this.writable();
           this.authorize(id, deviceId);
-          this.migrations.assertWritable(id, protocol);
+          this.protocols.assertWritable(id, protocol);
           if (
             Y.encodeStateAsUpdate(candidate!).byteLength >
             (typeof memoryBudget === "function" ? memoryBudget() : memoryBudget)
@@ -390,14 +321,14 @@ export class CollaborationStore {
           );
           this.retainAssets(id, protocol.epoch, candidate!);
           this.operations.advance(id);
-          this.migrations.updateRevision(id, revision);
+          this.protocols.updateRevision(id, revision);
         };
         const result = operation
           ? this.operations.commit(
               operation,
               () => {
                 this.authorize(id, deviceId);
-                return this.migrations.assertWritable(id, protocol);
+                return this.protocols.assertWritable(id, protocol);
               },
               revision,
               install
@@ -606,7 +537,7 @@ export class CollaborationStore {
         this.validateAssets(id, content, doc);
         const awaitHash = createHash("sha256").update(canonical).digest("hex");
         this.storage.transactionSync(() => {
-          this.migrations.publish(
+          this.protocols.publish(
             {
               id,
               ownerId: deviceId,
@@ -640,7 +571,7 @@ export class CollaborationStore {
   publicationStatus(id: string, actorId: string) {
     const row = this.document(id);
     if (row.owner_id !== actorId) fail("FORBIDDEN", "只有所有者可以读取发布回执", 403);
-    const receipt = this.migrations.publication(id);
+    const receipt = this.protocols.publication(id);
     return {
       state: receipt ? "COMMITTED" : row.status === "closed" ? "ABORTED" : "PENDING",
       receipt,
@@ -704,11 +635,11 @@ export class CollaborationStore {
     update: Uint8Array,
     current: Y.Doc,
     memoryBudget: number | (() => number) = MAX_DOCUMENT_BYTES,
-    expected?: MigrationDocument
+    expected?: DocumentProtocol
   ) {
     this.writable();
     this.authorize(id, deviceId);
-    const protocol = this.migrations.assertWritable(id, expected);
+    const protocol = this.protocols.assertWritable(id, expected);
     if (isStructuredDocumentVersion(protocol.version)) {
       const meta = current.getMap("meta");
       if (meta.get("epoch") !== protocol.epoch || meta.get("baselineId") !== protocol.baselineId)
@@ -929,7 +860,7 @@ export class CollaborationStore {
       this.sql.exec("DELETE FROM assets WHERE document_id=?", id);
       this.audit(deviceId, id, "closed");
     });
-    this.migrations.invalidate(id);
+    this.protocols.invalidate(id);
     return protocol.revision;
   }
 
@@ -937,9 +868,9 @@ export class CollaborationStore {
     deviceId: string,
     documentId: string | null,
     protocolVersion?: number,
-    expected?: Pick<MigrationDocument, "epoch" | "baselineId">
+    expected?: Pick<DocumentProtocol, "epoch" | "baselineId">
   ) {
-    const protocol = documentId ? this.migrations.state(documentId) : undefined;
+    const protocol = documentId ? this.protocols.state(documentId) : undefined;
     if (
       protocol &&
       (protocol.version === 3 || expected) &&
@@ -972,7 +903,7 @@ export class CollaborationStore {
     )
       return fail("UNAUTHORIZED", "连接票据已过期", 401);
     if (documentId) {
-      const protocol = this.migrations.state(documentId);
+      const protocol = this.protocols.state(documentId);
       if (
         !value.protocol ||
         value.protocol.epoch !== protocol.epoch ||
@@ -992,7 +923,7 @@ export class CollaborationStore {
     try {
       return {
         state: Buffer.from(Y.encodeStateAsUpdate(doc)).toString("base64"),
-        protocol: { ...this.migrations.state(id), sequence: this.operations.sequence(id) },
+        protocol: { ...this.protocols.state(id), sequence: this.operations.sequence(id) },
         title: this.retainedContent(doc).title,
       };
     } finally {
@@ -1150,7 +1081,7 @@ export class CollaborationStore {
 
   exportMetadata() {
     return {
-      format: 3,
+      format: 4,
       signingKey: this.signingKey,
       tables: Object.fromEntries(
         [
@@ -1163,7 +1094,6 @@ export class CollaborationStore {
           "audit",
           "identity_merges",
           "collaboration_protocol",
-          "collaboration_migrations",
           "collaboration_asset_history",
           "collaboration_operations",
           "collaboration_sequences",
@@ -1176,12 +1106,20 @@ export class CollaborationStore {
     if (this.setting("ready") === "1") fail("ALREADY_READY", "正式库已开放，不能覆盖导入", 409);
     if (!data || typeof data !== "object") fail("INVALID_IMPORT", "迁移数据无效");
     const input = data as ReturnType<CollaborationStore["exportMetadata"]>;
-    if (
-      ![1, 2, 3].includes(input.format) ||
-      !/^[a-f0-9]{64}$/.test(input.signingKey) ||
-      !input.tables
-    )
-      fail("INVALID_IMPORT", "迁移清单格式无效");
+    if (input.format !== 4 || !/^[a-f0-9]{64}$/.test(input.signingKey) || !input.tables)
+      fail("INVALID_IMPORT", "备份清单格式不受支持");
+    if (Object.hasOwn(input.tables, "collaboration_migrations"))
+      fail("INVALID_IMPORT", "备份包含已退役的格式迁移账本");
+    if (!Array.isArray(input.tables.collaboration_protocol))
+      fail("INVALID_IMPORT", "备份清单缺少 collaboration_protocol");
+    for (const row of input.tables.collaboration_protocol) {
+      try {
+        if (typeof row?.value !== "string") throw new Error("协议记录无效");
+        readDocumentProtocol(row.value);
+      } catch {
+        fail("INVALID_IMPORT", "备份协议记录无效或包含已退役的格式迁移状态");
+      }
+    }
     const columns: Record<string, string[]> = {
       devices: ["id", "nickname", "secret_hash", "banned", "created_at"],
       documents: [
@@ -1210,30 +1148,20 @@ export class CollaborationStore {
       audit: ["id", "device_id", "document_id", "action", "created_at"],
       identity_merges: ["source_id", "target_id", "created_at"],
       collaboration_protocol: ["document_id", "value"],
-      collaboration_migrations: ["operation_id", "document_id", "value"],
       collaboration_operations: ["document_id", "operation_id", "value"],
       collaboration_sequences: ["document_id", "sequence"],
       collaboration_asset_history: ["document_id", "epoch", "asset_id"],
     };
-    this.migrations.invalidate();
+    this.protocols.invalidate();
     this.storage.transactionSync(() => {
       for (const table of [...Object.keys(columns), "chunks"])
         this.sql.exec("DELETE FROM " + table);
       for (const [table, fields] of Object.entries(columns)) {
-        const rows =
-          input.tables[table] ??
-          ((input.format === 1 && table.startsWith("collaboration_")) ||
-          (input.format < 3 &&
-            ["collaboration_operations", "collaboration_sequences"].includes(table))
-            ? []
-            : undefined);
+        const rows = input.tables[table];
         if (!Array.isArray(rows)) fail("INVALID_IMPORT", "迁移清单缺少 " + table);
         for (const row of rows) {
           const values = fields.map(field => {
-            const value =
-              table === "documents" && field === "closed_revision" && row[field] === undefined
-                ? null
-                : row[field];
+            const value = row[field];
             if (value !== null && typeof value !== "string" && typeof value !== "number")
               fail("INVALID_IMPORT", "迁移字段无效：" + table + "." + field);
             return value as string | number | null;
@@ -1273,18 +1201,15 @@ export class CollaborationStore {
     try {
       Y.applyUpdate(doc, state);
       if (isStructuredDocumentVersion(doc.getMap("meta").get("version"))) {
-        if (
-          !["2", "3"].includes(this.setting("import_format") ?? "") ||
-          (doc.getMap("meta").get("version") === 3 && this.setting("import_format") !== "3")
-        )
-          return fail("INVALID_IMPORT", "新格式正文必须携带迁移回执及历史资产清单");
+        if (this.setting("import_format") !== "4")
+          return fail("INVALID_IMPORT", "正文备份必须携带当前协议、编辑回执及历史资产清单");
         await validateStructuredDocument(doc, {
           documentId: id,
           epoch: Number(doc.getMap("meta").get("epoch")),
           baselineId: String(doc.getMap("meta").get("baselineId") ?? ""),
         });
       } else validateDocument(doc, MAX_DOCUMENT_BYTES);
-      this.migrations.invalidate(id);
+      this.protocols.invalidate(id);
       this.storage.transactionSync(() => {
         this.sql.exec("DELETE FROM chunks WHERE document_id=?", id);
         this.writeChunks(id, 0, state);
@@ -1308,7 +1233,7 @@ export class CollaborationStore {
             epoch: Number(doc.getMap("meta").get("epoch")),
             baselineId: String(doc.getMap("meta").get("baselineId") ?? ""),
           });
-          this.migrations.state(row.id);
+          this.protocols.state(row.id);
           this.validateAssets(row.id, readDocumentProjection(doc), doc);
         } else this.validateAssets(row.id, validateDocument(doc, MAX_DOCUMENT_BYTES));
       } finally {
@@ -1331,7 +1256,6 @@ export class CollaborationStore {
       "audit",
       "identity_merges",
       "collaboration_protocol",
-      "collaboration_migrations",
       "collaboration_asset_history",
       "collaboration_operations",
       "collaboration_sequences",

@@ -14,6 +14,7 @@ import {
 } from "@tau/collaboration";
 import { prepareWhiteboardContract } from "../../../packages/db-schema/content-contracts";
 import { createServer } from "./server";
+import { replaceStoredBaseline } from "./testing/replace-baseline";
 import { CollaborationStore } from "./store";
 const cleanup: (() => Promise<void>)[] = [];
 afterEach(async () => {
@@ -83,7 +84,7 @@ async function fixture() {
     expiresAt: Date.now() + 60_000,
     ...(conditional
       ? {
-          expectedRevision: server.store.migrations.state(room.id).revision,
+          expectedRevision: server.store.protocols.state(room.id).revision,
           expectedSequence: server.store.operations.sequence(room.id),
         }
       : {}),
@@ -99,7 +100,7 @@ async function fixture() {
 }
 it("并发小增量只在取得队列执行权后加载全文", async () => {
   const f = await fixture();
-  f.store.migrations.state(f.room.id);
+  f.store.protocols.state(f.room.id);
   const live = new Set<Y.Doc>();
   const original = f.store.loadDocument.bind(f.store);
   const loading = vi.spyOn(f.store, "loadDocument").mockImplementation(id => {
@@ -138,7 +139,7 @@ it("并发小增量只在取得队列执行权后加载全文", async () => {
 
 it("摘要轮询不加载全文，文字删除后的回执、摘要和落盘状态一致", async () => {
   const f = await fixture();
-  f.store.migrations.state(f.room.id);
+  f.store.protocols.state(f.room.id);
   const loading = vi.spyOn(f.store, "loadDocument");
   const poll = async () =>
     (
@@ -166,7 +167,7 @@ it("摘要轮询不加载全文，文字删除后的回执、摘要和落盘状�
     expect(loading).not.toHaveBeenCalled();
   }
   loading.mockRestore();
-  const expected = f.store.migrations.state(f.room.id);
+  const expected = f.store.protocols.state(f.room.id);
   f.store.db
     .prepare(
       "UPDATE collaboration_protocol SET value=json_set(value,'$.revision','old-version-revision') WHERE document_id=?"
@@ -175,10 +176,10 @@ it("摘要轮询不加载全文，文字删除后的回执、摘要和落盘状�
   const restarted = new CollaborationStore(f.store.config);
   try {
     const reload = vi.spyOn(restarted, "loadDocument");
-    expect(restarted.migrations.state(f.room.id)).toEqual(expected);
+    expect(restarted.protocols.state(f.room.id)).toEqual(expected);
     expect(reload).toHaveBeenCalledTimes(1);
     reload.mockClear();
-    expect(restarted.migrations.state(f.room.id)).toEqual(expected);
+    expect(restarted.protocols.state(f.room.id)).toEqual(expected);
     expect(reload).not.toHaveBeenCalled();
   } finally {
     restarted.close();
@@ -268,7 +269,7 @@ it("缺依赖不确认、不推进修订；补祖先后原批次可重试", asyn
 });
 it("回执写失败与文档安装原子回滚，重复请求恢复同一操作", async () => {
   const f = await fixture(),
-    before = f.store.migrations.state(f.room.id).revision;
+    before = f.store.protocols.state(f.room.id).revision;
   const update = f.update(() =>
     f.board.submit([{ type: "edit_title", edit: { offset: 0, remove: 0, text: "保存" } }], {})
   );
@@ -277,14 +278,14 @@ it("回执写失败与文档安装原子回滚，重复请求恢复同一操作"
     "CREATE TRIGGER fail_receipt BEFORE UPDATE ON collaboration_operations WHEN json_extract(new.value,'$.state')='COMMITTED' BEGIN SELECT RAISE(ABORT,'disk full'); END;"
   );
   expect((await f.send(request, update)).statusCode).toBe(500);
-  expect(f.store.migrations.state(f.room.id).revision).toBe(before);
+  expect(f.store.protocols.state(f.room.id).revision).toBe(before);
   expect(f.store.operations.sequence(f.room.id)).toBe(0);
   f.store.db.exec("DROP TRIGGER fail_receipt");
   expect((await f.send(request, update)).json().operation.state).toBe("COMMITTED");
 });
 it("非法祖先被拒后依赖分支不能进入确认基线，取消先到不复活", async () => {
   const f = await fixture(),
-    before = f.store.migrations.state(f.room.id).revision;
+    before = f.store.protocols.state(f.room.id).revision;
   const bad = f.update(() => f.doc.getMap("unknown").set("bad", "x"));
   const request = f.request(bad);
   expect((await f.send(request, bad)).json().operation).toMatchObject({
@@ -293,12 +294,12 @@ it("非法祖先被拒后依赖分支不能进入确认基线，取消先到不�
   });
   const child = f.update(() => f.doc.getMap("unknown").set("bad", "y"));
   expect((await f.send(f.request(child), child)).statusCode).toBe(409);
-  expect(f.store.migrations.state(f.room.id).revision).toBe(before);
+  expect(f.store.protocols.state(f.room.id).revision).toBe(before);
   const cancelled = f.request(bad, "cancelled");
   await f.store.submitOperation(f.room.id, f.owner.id, cancelled, undefined, true);
   expect((await f.send(cancelled, bad)).json().operation.state).toBe("ABORTED");
 });
-it("换代复用迁移回执，旧票据/批次隔离；资源历史跨替换保留", async () => {
+it("存储基线变化后旧票据与批次被拒绝，资源历史保持不变", async () => {
   const f = await fixture();
   f.store.insertAsset(f.room.id, "asset-a", "a".repeat(64), "a", "image/png", 1);
   f.store.insertAsset(f.room.id, "asset-b", "b".repeat(64), "b", "image/png", 1);
@@ -315,13 +316,6 @@ it("换代复用迁移回执，旧票据/批次隔离；资源历史跨替换保
     f.store.db.prepare("SELECT asset_id FROM collaboration_asset_history ORDER BY asset_id").all()
   ).toEqual([{ asset_id: "asset-a" }, { asset_id: "asset-b" }]);
   const old = f.store.ticket(f.owner.id, f.room.id, 3, { epoch: 0, baselineId: "base" });
-  f.store.migrations.begin(f.room.id, {
-    id: "epoch",
-    actorId: f.owner.id,
-    expectedEpoch: 0,
-    expiresAt: Date.now() + 60_000,
-  });
-  const frozen = f.store.migrations.freeze(f.room.id, "epoch", f.owner.id);
   const fresh = new Y.Doc(),
     model = new WhiteboardModel(fresh);
   model.submit([{ type: "create_page", title: "新代次" }], {});
@@ -330,24 +324,7 @@ it("换代复用迁移回执，旧票据/批次隔离；资源历史跨替换保
     Y.encodeStateAsUpdate(fresh)
   );
   try {
-    const state = Y.encodeStateAsUpdate(next),
-      fingerprint = {
-        expectedRevision: frozen.frozenRevision!,
-        candidateHash: hash(state),
-        targetVersion: 3,
-        baselineId: "new",
-      };
-    const receipt = await f.store.commitMigration(
-      f.room.id,
-      f.owner.id,
-      "epoch",
-      fingerprint,
-      state
-    );
-    expect(receipt.state).toBe("COMMITTED");
-    expect(
-      await f.store.commitMigration(f.room.id, f.owner.id, "epoch", fingerprint, state)
-    ).toEqual(receipt);
+    replaceStoredBaseline(f.store, f.room.id, next);
     expect(() => f.store.verifyTicket(old, f.room.id)).toThrow();
     expect(() => f.store.ticket(f.owner.id, f.room.id, 3)).toThrow();
     expect(() =>

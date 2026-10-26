@@ -47,7 +47,7 @@ async function fixture() {
         return {
           state: Y.encodeStateAsUpdate(doc),
           protocol: {
-            ...store.migrations.state(room.id),
+            ...store.protocols.state(room.id),
             sequence: store.operations.sequence(room.id),
           },
         };

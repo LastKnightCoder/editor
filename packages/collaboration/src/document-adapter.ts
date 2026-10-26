@@ -68,11 +68,3 @@ export async function applyStructuredDocumentUpdate(
     throw new CollaborationError("INVALID_UPDATE", "更新损坏或不兼容", 400);
   }
 }
-
-export function assertDocumentMigrationKind(current: number, target: number): void {
-  if (
-    !isStructuredDocumentVersion(target) ||
-    (current === WHITEBOARD_DOCUMENT_VERSION) !== (target === WHITEBOARD_DOCUMENT_VERSION)
-  )
-    throw new CollaborationError("DOCUMENT_KIND_CONFLICT", "迁移不能改变文档种类", 409);
-}

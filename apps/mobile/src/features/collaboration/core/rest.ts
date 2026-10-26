@@ -6,7 +6,7 @@ import type {
   JoinRequest,
   JoinRequestResult,
   SharedDocumentInfo,
-  MigrationDocument,
+  DocumentProtocol,
 } from "@tau/collaboration";
 
 type RequestInput = {
@@ -51,7 +51,7 @@ export function getDocumentState(serverUrl: string, documentId: string) {
 }
 
 export function getDocumentProtocol(serverUrl: string, documentId: string) {
-  return request<MigrationDocument>({ serverUrl, path: `/v1/documents/${documentId}/protocol` });
+  return request<DocumentProtocol>({ serverUrl, path: `/v1/documents/${documentId}/protocol` });
 }
 
 export function fetchTicket(

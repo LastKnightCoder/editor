@@ -2,12 +2,12 @@ import * as Y from "yjs";
 import { CollaborationError } from "./protocol";
 import { validateStructuredDocument } from "./document-adapter";
 import { DocumentWriteQueue } from "./document-write-queue";
-import type { MigrationDocument } from "./document-migration";
+import type { DocumentProtocol } from "./document-protocol";
 import type { DocumentOperation, DocumentOperationRequest } from "./document-operations";
 
 export interface ConfirmedDocument {
   state: Uint8Array;
-  protocol: MigrationDocument & { sequence: number };
+  protocol: DocumentProtocol & { sequence: number };
 }
 export interface PendingDocumentOperation {
   request: DocumentOperationRequest;
@@ -43,7 +43,7 @@ const digest = async (bytes: Uint8Array) =>
   [...new Uint8Array(await crypto.subtle.digest("SHA-256", Uint8Array.from(bytes)))]
     .map(x => x.toString(16).padStart(2, "0"))
     .join("");
-const sameBaseline = (left: MigrationDocument, right: MigrationDocument) =>
+const sameBaseline = (left: DocumentProtocol, right: DocumentProtocol) =>
   left.id === right.id &&
   left.epoch === right.epoch &&
   left.version === right.version &&

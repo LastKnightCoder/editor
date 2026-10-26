@@ -7,8 +7,7 @@ import {
   CollaborationError,
   type CollaborationEvent,
   type Member,
-  type MigrationDocument,
-  type MigrationFingerprint,
+  type DocumentProtocol,
   type DocumentOperationRequest,
 } from "@tau/collaboration";
 import { MAX_DOCUMENT_BYTES, CollaborationStore, fail } from "./store";
@@ -69,7 +68,7 @@ export class CollaborationService extends DurableObject<Env> {
   private hocuspocus?: Hocuspocus<{
     deviceId: string;
     nickname: string;
-    protocol: MigrationDocument;
+    protocol: DocumentProtocol;
   }>;
   private readonly sockets = new Set<WebSocket>();
   private readonly events = new Map<WebSocket, string>();
@@ -140,7 +139,7 @@ export class CollaborationService extends DurableObject<Env> {
     this.hocuspocus ??= new Hocuspocus<{
       deviceId: string;
       nickname: string;
-      protocol: MigrationDocument;
+      protocol: DocumentProtocol;
     }>({
       quiet: true,
       debounce: 100,
@@ -156,7 +155,7 @@ export class CollaborationService extends DurableObject<Env> {
           if (this.env.MODE !== "production")
             return fail("CAPACITY", "原型最多同时打开 4 份文档", 429);
         if (runtime.getDocumentsCount() >= 20) return fail("CAPACITY", "活动文档数量已满", 429);
-        const protocol = this.store.migrations.state(documentName);
+        const protocol = this.store.protocols.state(documentName);
         const cached = runtime.documents.get(documentName);
         if (
           cached &&
@@ -459,7 +458,7 @@ export class CollaborationService extends DurableObject<Env> {
       this.store.authorize(protocolPath[1], device.id);
       return Response.json(
         {
-          ...this.store.migrations.state(protocolPath[1]),
+          ...this.store.protocols.state(protocolPath[1]),
           sequence: this.store.operations.sequence(protocolPath[1]),
         },
         {
@@ -516,62 +515,6 @@ export class CollaborationService extends DurableObject<Env> {
         return Response.json({ operation });
       }
     }
-    const migration = path.match(
-      /^\/v1\/documents\/([^/]+)\/migrations\/([^/]+)(?:\/(prepare|freeze|commit|cancel))?$/
-    );
-    if (migration) {
-      const [, id, operationId, action] = migration;
-      this.store.authorize(id, device.id, true);
-      if (method === "GET" && !action)
-        return Response.json(
-          { operation: this.store.migrations.get(id, operationId, device.id) },
-          { headers: { "Cache-Control": "no-store" } }
-        );
-      if (method !== "POST") return fail("NOT_FOUND", "未知迁移操作", 404);
-      if (action === "prepare")
-        return Response.json({
-          operation: this.store.migrations.begin(id, {
-            id: operationId,
-            actorId: device.id,
-            expectedEpoch: body.expectedEpoch as number,
-            expiresAt: body.expiresAt as number,
-          }),
-        });
-      if (action === "cancel") {
-        const operation = this.store.migrations.cancel(id, {
-          id: operationId,
-          actorId: device.id,
-          expectedEpoch: body.expectedEpoch as number,
-        });
-        this.refresh();
-        return Response.json({ operation });
-      }
-      if (action === "freeze") {
-        const operation = this.store.migrations.freeze(id, operationId, device.id);
-        if (operation.state === "PENDING") this.disconnect(id);
-        this.refresh();
-        return Response.json({ operation });
-      }
-      if (action === "commit") {
-        const fingerprint: MigrationFingerprint = {
-          expectedRevision: field(body, "expectedRevision"),
-          candidateHash: field(body, "candidateHash"),
-          targetVersion: body.targetVersion as number,
-          baselineId: field(body, "baselineId"),
-        };
-        const operation = await this.store.commitMigration(
-          id,
-          device.id,
-          operationId,
-          fingerprint,
-          Buffer.from(field(body, "state", Math.ceil(MAX_DOCUMENT_BYTES * 1.4)), "base64")
-        );
-        if (operation.state === "COMMITTED") this.disconnect(id);
-        this.refresh();
-        return Response.json({ operation });
-      }
-      return fail("NOT_FOUND", "未知迁移操作", 404);
-    }
     const document = path.match(
       /^\/v1\/documents\/([^/]+)\/(publish|publication|publication\/cancel|state|invitation|close|leave|members\/[^/]+)$/
     );
@@ -594,7 +537,7 @@ export class CollaborationService extends DurableObject<Env> {
     }
     if (action === "state" && method === "GET") {
       this.store.authorize(id, device.id);
-      const protocol = this.store.migrations.state(id);
+      const protocol = this.store.protocols.state(id);
       if (
         protocol.version > 1 &&
         request.headers.get("x-tau-document-version") !== String(protocol.version)
