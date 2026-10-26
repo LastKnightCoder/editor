@@ -19,7 +19,7 @@ describe("Notebook 外部材料资源", () => {
   beforeEach(() => {
     db = new Database(":memory:");
     db.exec(schema);
-    db.exec("INSERT INTO excerpt_provider VALUES ('weread', '微信读书', 0), ('web', '网页', 0)");
+    db.exec("INSERT INTO excerpt_provider VALUES ('weread', '微信读书', 0)");
   });
   afterEach(() => db.close());
 

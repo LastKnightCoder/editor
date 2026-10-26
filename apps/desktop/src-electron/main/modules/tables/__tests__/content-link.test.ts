@@ -19,13 +19,13 @@ const insertContent = () =>
       )
       .run(clock, clock++).lastInsertRowid
   );
-const insertCard = (contentId: number, links: number[] = []) =>
+const insertCard = (contentId: number) =>
   Number(
     db
       .prepare(
-        `INSERT INTO cards (create_time, update_time, tags, links, content_id) VALUES (?, ?, '[]', ?, ?)`
+        `INSERT INTO cards (create_time, update_time, tags, content_id) VALUES (?, ?, '[]', ?)`
       )
-      .run(clock, clock++, JSON.stringify(links), contentId).lastInsertRowid
+      .run(clock, clock++, contentId).lastInsertRowid
   );
 const edges = () =>
   db
@@ -39,45 +39,6 @@ beforeEach(() => {
   db.exec(MAIN_SQL);
 });
 afterEach(() => db.close());
-
-describe("ContentLinkTable.migrateCardsLinks（与移动端 migrate_v5_to_v6 同语义）", () => {
-  it("双边冗余收敛为无向边、悬空目标丢弃、共用正文不互连、迁移后清空且幂等", () => {
-    const a = insertContent();
-    const b = insertContent();
-    const c = insertContent();
-    const cardA = insertCard(a);
-    const cardB = insertCard(b, [cardA]);
-    const cardC = insertCard(c);
-    // 与 cardA 共用同一份正文的卡：不与 cardA 互连；悬空目标 99 丢弃
-    const sharing = insertCard(a);
-    db.prepare(`UPDATE cards SET links = ? WHERE id = ?`).run(
-      JSON.stringify([cardB, cardC, 99, sharing]),
-      cardA
-    );
-
-    ContentLinkTable.migrateCardsLinks(db);
-    expect(edges()).toEqual([
-      { content_id: Math.min(a, b), target_content_id: Math.max(a, b) },
-      { content_id: Math.min(a, c), target_content_id: Math.max(a, c) },
-    ]);
-    // cards.links 全部清空
-    const remaining = db
-      .prepare(
-        `SELECT COUNT(*) AS n FROM cards WHERE links IS NOT NULL AND links NOT IN ('[]', '', 'null')`
-      )
-      .get() as { n: number };
-    expect(remaining.n).toBe(0);
-    // 幂等：再次执行不再命中护栏，边数不变
-    ContentLinkTable.migrateCardsLinks(db);
-    expect(edges()).toHaveLength(2);
-  });
-
-  it("空库与全部空 links 直接跳过", () => {
-    insertCard(insertContent());
-    ContentLinkTable.migrateCardsLinks(db);
-    expect(edges()).toEqual([]);
-  });
-});
 
 describe("ContentLinkTable 边操作", () => {
   it("同一天两条日记各自连接到正文，解除其中一条不影响另一条", () => {

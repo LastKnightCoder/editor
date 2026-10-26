@@ -54,13 +54,15 @@ packages/database/src/   # 多视图 Database、投影、store 与通用字段�
 
 ### 数据基线门禁
 
-旧业务表的历史迁移与读取兼容已删除；正文与白板只接受当前格式。开库与备份恢复写入前执行统一基线门禁（同步下载不单独校验，替换后由开库执行）：
+主库当前版本唯一来源是 `packages/db-schema/schema/main-version.json`，桌面 `modules/main-schema.ts` 与移动 `database/migrator.rs` 共用。`schema_meta` 属于共享主库结构，保存版本与 SQL 的 SHA-1 指纹。
 
-- 桌面：`assertNoLegacyTables` 按共享旧表黑名单（`packages/db-schema/src/legacy-tables.json`，与 parity 脚本同源）拒绝未完成升级的旧库，报 `DB_LEGACY_SCHEMA`，提示先用最后升级版本打开完成升级。
-- 移动端：`MAIN_SCHEMA_VERSION=9`，高于当前版本拒绝降级（`DB_SCHEMA_INCOMPATIBLE`），4–8 版本执行显式升级，更早非空库拒绝。
-- `migration_meta` 保留项目域共用实体序列与任务、日程、正文的非复用编号高水位。
+- 空库按共享 SQL 建表、索引和初始记录，结构与版本标记同事务提交；建库失败不留下部分结构。
+- 非空库必须具有当前 `main_schema_version`，缺少标记、旧版本或未来版本均报 `DB_SCHEMA_INCOMPATIBLE`，不转换数据、不删表、不创建升级备份。
+- 当前版本且指纹一致时不重复初始化；同版本 SQL 变化仅补齐新表、缺失索引和初始记录，不改列、不替换既有索引定义。字段或既有索引定义变化须调整共享基线版本。
+- 默认系统分组、日记标签、日历与待释放数据回收仍按原维护流程执行。网页摘录的 `web` 提供方由共享 SQL 初始化，已保存名称不覆盖。
+- `migration_meta` 保存项目域共用实体序列与任务、日程、正文的非复用编号高水位，不属于历史转换代码。卡片显式连接只存 `content_links`，`cards` 不含 `links` 列。
 
-schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护）；移动端版本号递增并编写显式迁移，同版本 hash 变化仅补建新表与新索引。聊天会话的事实源是 pi JSONL 文件与 chat_session 目录表。
+整库同步只搬运文件，替换后由开库验证版本。发布前结构变更不维护历史升级链；建库与变更步骤见 [数据库 Schema 流程](/docs/guides/db-schema-workflow.md) 和 [数据库变更手册](/docs/guides/db-change-manual.md)。聊天会话的事实源仍为 pi JSONL 文件与 chat_session 目录表。
 
 正文契约表为 library_identity、content_documents、entity_identities 与 content_entity_relations。新建带契约正文通过 ContentIdentityTable 建立来源，不用本机库名或插件工作区 UUID 证明同源。ContentDocumentTable 在同一事务提交正文、契约与关系差集；本机协作持有不进入随库同步的关系表。ContentTable 读取契约与修订，格式 2 活跃会话的写入经现有节点操作和观察修订校验；旧格式明确拒绝。主库保存 JSON 投影，不保存或重建原 CRDT 基线；缓存缺失生成新基线，旧缓存不能覆盖外部修改后的正文。
 
@@ -72,7 +74,7 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 
 ### 已退役功能与保留边界
 
-以下功能已整体移除，残留旧表的库由数据基线门禁拒绝，不恢复、不保留兼容层：
+以下功能已整体移除；旧版本数据库由基线门禁拒绝，不恢复、不保留兼容层：
 
 - **知识库** → 并入普通文档树项目（project / project_item，条目带 tags，正文复用 contents 原 ID）；侧栏、首页、统计、发布与插件只消费项目。
 - **RSS / 稍后读 / 博客 RSS 输出**：不再有相关 Page、表与 RPC；扩展保留剪藏；博客不再生成 rss.xml，publicUrl 保留用于打开站点。
@@ -216,7 +218,7 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 
 **业务事件**：BACKGROUND 模块 `domain-events` 在每个主库连接注册 `tau_domain_change` 与 TEMP 触发器（`rowTriggers` 规格表生成，覆盖 cards、articles（软删）、非引用型 project_item、white_boards、project、Notebook（资料增删计入）、材料三表、插件可见场景的 chat_session、plugin_entities（软删口径）、contents.content）。规格的 `changed` 列限定修改触发的列——查看状态类写入（打开时间、当前页、转换进度）不发事件；新增表须按对插件可见字段列出。按库合并 500ms（最长 2 秒）广播 `domain-events`；正文修改经 `locateAll` 计入所属实体 updated；触发器在事务内执行，回滚也可能产生事件，事件不携带数据。渲染端 `app/plugins/events.ts` 按库过滤，`entity.*` 只交给 owner 插件，其余按类型与已获准权限串行投递。事件来源：同步写入经 `writeAsPlugin` 标记插件 ID，协作投影延迟落库按 `markContentOrigin` 登记 5 秒。
 
-**问题插件迁移**（一次性升级）：旧问题数据（问题、答案、分组、轨迹、材料关联、立项 Notebook）在插件运行时刷新后单事务迁入问题插件表（实体/记录/关联，谱系 `question` 端点改指 `plugin-entity`，首页布局键改 `plugin:tau.questions:active`）；动手前 `VACUUM INTO` 留备份，失败整体回滚弹「重试」通知下次启动重试；材料保活释放后删旧表，全部设备迁移完成后随清洁版删除迁移代码、旧表名进 legacy-tables.json。
+问题管理只由用户安装的插件提供，启动不探测旧问题表、不自动安装迁移目标，也不转换旧问题、洞见状态或首页布局。
 
 ### 插件中心与管理
 
@@ -493,7 +495,7 @@ export function useXxxSnapshot() {
 
 会话键包含数据库身份，投影、树编辑和目录补丁显式携带创建时的库名。宿主在异步装配前占用文件租约；图片准备也是忙态，释放会话先取消并等待在途操作。删除后不得发布迟到的投影或标题。PDF / 学习项目工具的执行快照归会话持有，不依赖页面继续挂载；运行时 LRU 同时释放已打开投影。
 
-数据库同步只搬运库文件：库文件与会话目录的 JSONL 文件分块上传到固定对象名，最后写版本文件；下载先复制旧库进 backup/，再在主进程替换库文件与会话目录。不做内容校验与格式门禁，版本冲突由设置页确认，自动上传遇到云端更新时跳过。协议与流程见 [宿主分块同步](/docs/architecture/storage-sync.md)。会话运行中拒绝同步，锁持有到维护重连完成。迁移各阶段独立判断完成度，旧行身份写入 migration_meta，崩溃重试不重新分配 ID。
+数据库同步只搬运库文件：库文件与会话目录的 JSONL 文件分块上传到固定对象名，最后写版本文件；下载先复制旧库进 backup/，再在主进程替换库文件与会话目录。不做内容校验与格式门禁，版本冲突由设置页确认，自动上传遇到云端更新时跳过。协议与流程见 [宿主分块同步](/docs/architecture/storage-sync.md)。会话运行中拒绝同步，锁持有到维护重连完成。当前任务的跨存储提交仍使用原幂等记录；实体编号高水位不复用。
 
 桌面同步使用公共 Node 入口 `@tau/db-schema/sync` 的数据库锁。CLI已整体退役；数据库访问仍检查维护锁并保留必要的崩溃恢复，不允许并发写入正在维护的数据库。
 

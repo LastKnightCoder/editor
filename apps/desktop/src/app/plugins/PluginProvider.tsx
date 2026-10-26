@@ -30,7 +30,6 @@ import { connectVideoRenderer, rendererVideoRegistry } from "./video-bridge";
 import { connectPublishRenderer } from "./publish-bridge";
 import { registerPluginMCP } from "@/tools/pluginMCP";
 import { declareContentPluginResources } from "./element-resources";
-import { migrateQuestionsToPlugin } from "./question-migration";
 
 const restartRequired = new Set<string>();
 let pendingCleanup: Promise<void> = Promise.resolve();
@@ -130,15 +129,11 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
         const local = isElectron ? current.attachLocal(window.localStorage) : undefined;
         setRuntime(current);
         if (local) {
-          const runtimeForMigration = current;
           void local
             .refresh()
             .catch(() => undefined)
             .finally(() => {
               rendererVideoRegistry.markReady();
-              // 旧问题数据迁入问题插件（PS-046）：没有旧数据时只查一次
-              if (!cancelled)
-                void migrateQuestionsToPlugin(runtimeForMigration, workspaceId, () => cancelled);
             });
         } else rendererVideoRegistry.markReady();
       })

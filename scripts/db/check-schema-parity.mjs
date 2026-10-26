@@ -12,7 +12,7 @@ const mainSchemaPath = path.join(schemaDir, "main.sql");
 const indexSchemaPath = path.join(schemaDir, "index.sql");
 const vecTemplatePath = path.join(schemaDir, "index/20_vec_template.sql");
 
-const MAIN_TABLE_COUNT = 97;
+const MAIN_TABLE_COUNT = 98;
 const MAIN_INDEX_COUNT = 122;
 const INDEX_CORE_TABLES = [
   "content_fts",
@@ -30,7 +30,7 @@ const INDEX_CORE_TABLES = [
   "doc_task_sources",
   "doc_task_attributes",
 ];
-// 与运行时门禁（packages/db-schema/src/legacy-table-guard.ts）共用同一份黑名单
+// 仅用于阻止已退役的业务表重新进入当前 schema。
 const REMOVED_TABLES = JSON.parse(
   fs.readFileSync(path.join(rootDir, "packages/db-schema/src/legacy-tables.json"), "utf8")
 );
@@ -83,6 +83,11 @@ function main() {
 
   const mainTables = extractCreateTableNames(mainSql);
   const mainIndexes = extractCreateIndexNames(mainSql);
+  const mainVersion = JSON.parse(readText(path.join(schemaDir, "main-version.json")));
+  assert(Number.isSafeInteger(mainVersion) && mainVersion > 0, "主库基线版本必须是正整数");
+  assert(mainTables.includes("schema_meta"), "主库缺少两端共用的 schema_meta");
+  const cardsSql = mainSql.match(/CREATE TABLE IF NOT EXISTS cards\s*\(([\s\S]*?)\);/i)?.[1] ?? "";
+  assert(!/\blinks\s+TEXT\b/i.test(cardsSql), "cards.links 已退役，显式连接只存 content_links");
   const contentDocumentSql =
     mainSql.match(/CREATE TABLE IF NOT EXISTS content_documents\s*\(([\s\S]*?)\);/i)?.[1] ?? "";
   for (const column of ["migration_operation_id", "migration_receipt"])

@@ -96,7 +96,6 @@ CREATE TABLE IF NOT EXISTS cards (
             create_time INTEGER NOT NULL,
             update_time INTEGER NOT NULL,
             tags TEXT,
-            links TEXT,
             content_id INTEGER, is_top INTEGER DEFAULT 0, podcast_id INTEGER DEFAULT NULL);
 CREATE TABLE IF NOT EXISTS articles (
             id INTEGER PRIMARY KEY,

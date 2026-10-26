@@ -111,7 +111,7 @@ describe.skipIf(!process.env.KL_CONTENT_AI_SCALE)("迭代 7a 规模", () => {
       `INSERT INTO contents (create_time, update_time, content, count, ref_count) VALUES (1, 1, ?, ?, 1)`
     );
     const insertCard = main.prepare(
-      `INSERT INTO cards (create_time, update_time, tags, links, content_id) VALUES (1, 1, '[]', ?, ?)`
+      `INSERT INTO cards (create_time, update_time, tags, content_id) VALUES (1, 1, '[]', ?)`
     );
     const insertArticle = main.prepare(
       `INSERT INTO articles (title, create_time, update_time, content_id) VALUES (?, 1, 1, ?)`
@@ -136,14 +136,13 @@ describe.skipIf(!process.env.KL_CONTENT_AI_SCALE)("迭代 7a 规模", () => {
               const contentId = Number(
                 insertContent.run(JSON.stringify(body), 500).lastInsertRowid
               );
-              // 每张卡与前一张双向链接（一半的卡）
-              const links =
-                i % 2 === 1
-                  ? JSON.stringify([i])
-                  : i % 2 === 0 && i + 1 < CARDS
-                    ? JSON.stringify([i + 2])
-                    : "[]";
-              const id = Number(insertCard.run(links, contentId).lastInsertRowid);
+              const id = Number(insertCard.run(contentId).lastInsertRowid);
+              if (i % 2 === 1)
+                main
+                  .prepare(
+                    "INSERT INTO content_links (content_id, target_content_id, create_time) VALUES (?, ?, 1)"
+                  )
+                  .run(cardContents[i - 1], contentId);
               cardContents.push(contentId);
               insertVector.run(`card:${id}`, "card", 0n, vectorNear(i % TOPICS));
               if (i % 10 === 0 && i > 0) insertRef.run(contentId, id - 1, cardContents[i - 1]);

@@ -15,7 +15,7 @@ beforeEach(() => {
   db = new Database(":memory:");
   db.exec(`
     CREATE TABLE cards (id INTEGER PRIMARY KEY, create_time INTEGER, update_time INTEGER,
-      tags TEXT, links TEXT, content_id INTEGER, is_top INTEGER, podcast_id INTEGER);
+      tags TEXT, content_id INTEGER, is_top INTEGER, podcast_id INTEGER);
     CREATE TABLE contents (id INTEGER PRIMARY KEY, content TEXT, count INTEGER, update_time INTEGER);
     CREATE TABLE content_ai_meta (content_id INTEGER PRIMARY KEY, schema_ver INTEGER, text_digest TEXT,
       meta TEXT, model TEXT, create_time INTEGER, update_time INTEGER);
@@ -23,7 +23,7 @@ beforeEach(() => {
       script_lines TEXT, duration INTEGER, speakers TEXT);
     CREATE TABLE content_links (content_id INTEGER, target_content_id INTEGER, create_time INTEGER);
     INSERT INTO contents VALUES (10, '[]', 0, 0);
-    INSERT INTO cards VALUES (1, 1, 1, '["原标签"]', '[2]', 10, 0, NULL);
+    INSERT INTO cards VALUES (1, 1, 1, '["原标签"]', 10, 0, NULL);
   `);
 });
 afterEach(() => db.close());

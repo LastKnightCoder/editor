@@ -5,6 +5,13 @@
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
 
+-- 两端共用的主库基线；版本与 SQL 指纹由建库事务写入。
+CREATE TABLE IF NOT EXISTS schema_meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
 -- 核心内容域表
 CREATE TABLE IF NOT EXISTS podcasts (
         id INTEGER PRIMARY KEY,
@@ -103,7 +110,6 @@ CREATE TABLE IF NOT EXISTS cards (
             create_time INTEGER NOT NULL,
             update_time INTEGER NOT NULL,
             tags TEXT,
-            links TEXT,
             content_id INTEGER, is_top INTEGER DEFAULT 0, podcast_id INTEGER DEFAULT NULL);
 CREATE TABLE IF NOT EXISTS articles (
             id INTEGER PRIMARY KEY,
@@ -342,7 +348,6 @@ CREATE TABLE IF NOT EXISTS chat_session (
 -- 正文之间的显式连接（无向边，一行一条；content_id 规范化为较小一侧）。
 -- 连接绑定 contents.id：共用同一份正文的身份（卡片、文章、项目文档、日记，及从卡片创建
 -- 而共用正文的项目文档）共享同一组连接。任一侧正文删除（引用计数归零）时整条边释放。
--- 卡片旧存储 cards.links 已迁入本表，该列不再读写。
 CREATE TABLE IF NOT EXISTS content_links (
         content_id INTEGER NOT NULL,
         target_content_id INTEGER NOT NULL,
@@ -728,6 +733,9 @@ CREATE TABLE IF NOT EXISTS excerpt_provider (
         label TEXT NOT NULL,
         update_time INTEGER NOT NULL
       );
+INSERT INTO excerpt_provider (source_type, label, update_time)
+  VALUES ('web', '网页', CAST(strftime('%s', 'now') AS INTEGER) * 1000)
+  ON CONFLICT(source_type) DO NOTHING;
 -- 网页：浏览器伴读标注或存过笔记的页面索引。显示名 = COALESCE(custom_title, page_title)，同步写进该页 excerpt.source_title
 CREATE TABLE IF NOT EXISTS web_page (
         url TEXT PRIMARY KEY,                 -- 页面键，同 excerpt.source_key（去掉 hash 的 URL）

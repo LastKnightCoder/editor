@@ -16,5 +16,3 @@ mod flashcard_types;
 pub use flashcard_cards::*;
 pub use flashcard_decks::*;
 pub use flashcard_review::*;
-
-pub(crate) use flashcard_schedule::memory_from_sm2;

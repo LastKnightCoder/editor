@@ -27,7 +27,7 @@ describe("外部材料进索引（KL-037）", () => {
   beforeEach(() => {
     db = new Database(":memory:");
     db.exec(mainSchema);
-    db.exec("INSERT INTO excerpt_provider VALUES ('weread', '微信读书', 0), ('web', '网页', 0)");
+    db.exec("INSERT INTO excerpt_provider VALUES ('weread', '微信读书', 0)");
   });
   afterEach(() => db.close());
 

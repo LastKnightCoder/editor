@@ -2,13 +2,16 @@ use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use sha1::{Digest, Sha1};
 
 const MAIN_SCHEMA_SQL: &str = include_str!("../../../../../packages/db-schema/schema/main.sql");
-const EXCERPT_PROVIDER_UPGRADE_SQL: &str =
-    include_str!("../../../../../packages/db-schema/schema/upgrades/excerpt-provider.sql");
 const INDEX_SCHEMA_SQL: &str = include_str!("../../../../../packages/db-schema/schema/index.sql");
 const INDEX_VEC_TEMPLATE_SQL: &str =
     include_str!("../../../../../packages/db-schema/schema/index/20_vec_template.sql");
 
-pub(super) const MAIN_SCHEMA_VERSION: i64 = 9;
+fn main_schema_version() -> i64 {
+    include_str!("../../../../../packages/db-schema/schema/main-version.json")
+        .trim()
+        .parse()
+        .expect("主库基线版本必须是整数")
+}
 const INDEX_SCHEMA_VERSION: i64 = 1;
 const DEFAULT_VEC_DIMENSION: i64 = 3072;
 
@@ -149,7 +152,7 @@ pub fn set_meta(conn: &Connection, key: &str, value: &str) -> Result<(), String>
     Ok(())
 }
 
-pub(super) fn needs_main_upgrade(conn: &Connection) -> Result<bool, String> {
+pub(super) fn needs_main_initialization(conn: &Connection) -> Result<bool, String> {
     let exists: bool = conn
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='schema_meta' AND type='table')",
@@ -161,247 +164,30 @@ pub(super) fn needs_main_upgrade(conn: &Connection) -> Result<bool, String> {
         return Ok(true);
     }
     Ok(get_meta(conn, "main_schema_version")?.as_deref()
-        != Some(MAIN_SCHEMA_VERSION.to_string().as_str())
+        != Some(main_schema_version().to_string().as_str())
         || get_meta(conn, "main_schema_hash")?.as_deref()
             != Some(compute_hash(MAIN_SCHEMA_SQL).as_str()))
 }
 
-fn has_user_tables(conn: &Connection) -> Result<bool, String> {
-    conn.query_row(
-        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != 'schema_meta')",
-        [],
-        |r| r.get(0),
-    )
-    .map_err(|e| e.to_string())
-}
-
-/// 数据基线门禁：低于 v4 且非空库的数据库来自未完成历史升级的旧版本，拒绝进入；
-/// v4 → v5 走 FSRS 表迁移（migrate_v4_to_v5），v5 → v6 走卡片连接迁移（migrate_v5_to_v6）。
-/// 后续 schema 演进 = 版本号递增 + 显式迁移代码；hash 变化只负责补建新表与新索引。
-/// v4 → v5：闪卡调度从自研间隔阶梯迁移到 FSRS——flashcards/flashcard_reviews 表重建
-/// （review_level/ease_factor 退役，新增 memory_stability/memory_difficulty 与历史快照列），
-/// 存量卡片记忆状态由 fsrs memory_state_from_sm2 从旧 ease 与最近间隔回填。
-/// 建表语句与 packages/db-schema/schema/main/50_learning.sql、90_indexes.sql 同步，
-/// 桌面端等价实现在 apps/desktop/src-electron/main/modules/tables/flashcard.ts 的 upgradeTable；
-/// migration_tests 校验迁移后列结构与全新建库完全一致。
-fn migrate_v4_to_v5(conn: &Connection) -> Result<(), String> {
-    const MIGRATE_SQL: &str = "
-        CREATE TABLE flashcard_reviews_v5 (
-          id INTEGER PRIMARY KEY,
-          card_id INTEGER NOT NULL,
-          deck_id INTEGER NOT NULL,
-          rating TEXT NOT NULL,
-          review_time INTEGER NOT NULL,
-          interval INTEGER NOT NULL,
-          stability REAL NOT NULL DEFAULT 0,
-          difficulty REAL NOT NULL DEFAULT 0,
-          notes TEXT,
-          FOREIGN KEY(card_id) REFERENCES flashcards(id),
-          FOREIGN KEY(deck_id) REFERENCES flashcard_decks(id)
-        );
-        INSERT INTO flashcard_reviews_v5 (id, card_id, deck_id, rating, review_time, interval, notes)
-          SELECT id, card_id, deck_id, rating, review_time, interval, notes FROM flashcard_reviews;
-        DROP TABLE flashcard_reviews;
-        ALTER TABLE flashcard_reviews_v5 RENAME TO flashcard_reviews;
-
-        CREATE TABLE flashcards_v5 (
-          id INTEGER PRIMARY KEY,
-          deck_id INTEGER NOT NULL,
-          type TEXT NOT NULL,
-          prompt TEXT NOT NULL,
-          detail TEXT DEFAULT '',
-          data TEXT NOT NULL,
-          tags TEXT DEFAULT '[]',
-          difficulty TEXT DEFAULT 'standard',
-          due_time INTEGER NOT NULL,
-          last_review_time INTEGER,
-          review_count INTEGER DEFAULT 0,
-          memory_stability REAL,
-          memory_difficulty REAL,
-          status TEXT DEFAULT 'new',
-          reference_summary TEXT,
-          create_time INTEGER NOT NULL,
-          update_time INTEGER NOT NULL,
-          FOREIGN KEY(deck_id) REFERENCES flashcard_decks(id)
-        );
-        INSERT INTO flashcards_v5 (id, deck_id, type, prompt, detail, data, tags, difficulty,
-          due_time, last_review_time, review_count, status, reference_summary, create_time, update_time)
-          SELECT id, deck_id, type, prompt, detail, data, tags, difficulty,
-          due_time, last_review_time, review_count, status, reference_summary, create_time, update_time
-          FROM flashcards;
-        DROP TABLE flashcards;
-        ALTER TABLE flashcards_v5 RENAME TO flashcards;
-
-        CREATE INDEX IF NOT EXISTS idx_flashcards_deck ON flashcards(deck_id);
-        CREATE INDEX IF NOT EXISTS idx_flashcards_due_time ON flashcards(due_time);
-        CREATE INDEX IF NOT EXISTS idx_flashcard_reviews_card ON flashcard_reviews(card_id);
-        CREATE INDEX IF NOT EXISTS idx_flashcard_reviews_time ON flashcard_reviews(review_time);
-    ";
-
-    // 自愈：上次迁移已提交但版本号未写入（表结构已无 ease_factor）时直接补版本号，
-    // 避免重复迁移在读旧列时 no such column 而永久卡死
-    let has_ease_factor: bool = conn
-        .query_row(
-            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('flashcards') WHERE name = 'ease_factor')",
-            [],
-            |r| r.get(0),
-        )
-        .unwrap_or(false);
-    if !has_ease_factor {
-        // 写 v5 而非当前版本：cards.links 的 v5→v6 迁移仍需执行
-        return set_meta(conn, "main_schema_version", "5");
-    }
-
-    // 迁移输入须在旧表重建前读取：旧 ease 与最近一次调度的间隔
-    let mut stmt = conn
-        .prepare(
-            "SELECT f.id, f.ease_factor, COALESCE(\
-             (SELECT r.interval FROM flashcard_reviews r WHERE r.card_id = f.id ORDER BY r.id DESC LIMIT 1), 0) \
-             FROM flashcards f WHERE f.review_count > 0",
-        )
-        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: prepare flashcard v4 input: {e}"))?;
-    let inputs: Vec<(i64, f64, i64)> = stmt
-        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
-        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: query flashcard v4 input: {e}"))?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: parse flashcard v4 input: {e}"))?;
-
-    conn.execute_batch("PRAGMA foreign_keys = OFF;")
-        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: disable foreign_keys: {e}"))?;
-    // 表重建、回填与版本号写入同事务：消除「表已迁移、版本号未写」的中间态
-    let migrate = || -> Result<(), String> {
-        let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
-            .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: begin v4->v5: {e}"))?;
-        tx.execute_batch(MIGRATE_SQL)
-            .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: rebuild flashcard tables: {e}"))?;
-        for (card_id, ease_factor, interval_ms) in &inputs {
-            // memory_from_sm2 以常量参数构造，失败仅理论可能；None 时该卡保持 NULL（=新卡重学）
-            if let Some((stability, difficulty)) =
-                super::flashcard::memory_from_sm2(*ease_factor, *interval_ms)
-            {
-                tx.execute(
-                    "UPDATE flashcards SET memory_stability = ?1, memory_difficulty = ?2 WHERE id = ?3",
-                    params![stability, difficulty, card_id],
-                )
-                .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: backfill memory state: {e}"))?;
-            }
-        }
-        set_meta(&tx, "main_schema_version", "5")?;
-        tx.commit()
-            .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: commit v4->v5: {e}"))
-    };
-    let result = migrate();
-    // 失败路径同样恢复连接级外键约束，避免调用方复用连接时失去保护
-    conn.execute_batch("PRAGMA foreign_keys = ON;")
-        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: restore foreign_keys: {e}"))?;
-    result
-}
-
-/// v5 → v6：卡片显式连接从 cards.links（JSON 卡片 id 数组，双边冗余写）迁到 content_links
-/// （无向边、一行一条、绑定 contents.id）——共用正文的身份（如从卡片创建的项目文档）自此
-/// 共享同一组连接。cards.links 列退役不再读写，但物理保留（避免核心表重建）。
-/// 建表与索引语句同 packages/db-schema/schema/main/20_content.sql、90_indexes.sql；
-/// 桌面端等价实现在 apps/desktop/src-electron/main/modules/tables/content-link.ts 的 migrateCardsLinks。
-fn migrate_v5_to_v6(conn: &Connection) -> Result<(), String> {
-    // 自愈：上次迁移已提交但版本号未写入（cards.links 已全部清空）时直接补版本号
-    let pending: bool = conn
-        .query_row(
-            "SELECT EXISTS(SELECT 1 FROM cards WHERE links IS NOT NULL AND links NOT IN ('[]', '', 'null'))",
-            [],
-            |r| r.get(0),
-        )
-        .unwrap_or(false);
-    if !pending {
-        return set_meta(conn, "main_schema_version", "6");
-    }
-
-    let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
-        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: begin v5->v6: {e}"))?;
-    tx.execute_batch(
-        "
-        CREATE TABLE IF NOT EXISTS content_links (
-          content_id INTEGER NOT NULL,
-          target_content_id INTEGER NOT NULL,
-          create_time INTEGER NOT NULL
-        );
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_content_links_pair
-          ON content_links(content_id, target_content_id);
-        CREATE INDEX IF NOT EXISTS idx_content_links_target ON content_links(target_content_id);
-
-        INSERT OR IGNORE INTO content_links (content_id, target_content_id, create_time)
-        SELECT MIN(c.content_id, t.content_id), MAX(c.content_id, t.content_id),
-               CAST(strftime('%s', 'now') AS INTEGER) * 1000
-        FROM cards c, json_each(CASE WHEN json_valid(c.links) THEN c.links ELSE '[]' END) je
-        JOIN cards t ON t.id = CAST(je.value AS INTEGER) AND t.content_id IS NOT NULL
-        WHERE c.content_id IS NOT NULL AND c.content_id != t.content_id;
-
-        UPDATE cards SET links = '[]';
-        ",
-    )
-    .map_err(|e| {
-        format!("DB_SCHEMA_MIGRATION_FAILED: migrate cards.links to content_links: {e}")
-    })?;
-    set_meta(&tx, "main_schema_version", "6")?;
-    tx.commit()
-        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: commit v5->v6: {e}"))
-}
-
-/// v7 → v8：摘录改由提供方驱动展示——excerpt 增加 location / url 两列，新增 excerpt_provider 名称表，
-/// 存量行按共享升级脚本回填（packages/db-schema/schema/upgrades/excerpt-provider.sql，桌面开库同一份）。
-/// 列已存在时跳过补列（桌面已升级过的库），脚本本身幂等。
-fn migrate_v7_to_v8(conn: &Connection) -> Result<(), String> {
-    let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
-        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: begin v7->v8: {e}"))?;
-    // 先按当前 schema 补齐缺失的表（含 excerpt_provider；更早版本的库可能还没有 excerpt）
-    tx.execute_batch(MAIN_SCHEMA_SQL)
-        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: apply schema v8: {e}"))?;
-    let columns: Vec<String> = {
-        let mut stmt = tx
-            .prepare("SELECT name FROM pragma_table_info('excerpt')")
-            .map_err(|e| e.to_string())?;
-        let rows = stmt
-            .query_map([], |row| row.get::<_, String>(0))
-            .map_err(|e| e.to_string())?;
-        rows.collect::<Result<_, _>>().map_err(|e| e.to_string())?
-    };
-    for (name, definition) in [("location", "TEXT NOT NULL DEFAULT ''"), ("url", "TEXT")] {
-        if !columns.iter().any(|column| column == name) {
-            tx.execute_batch(&format!(
-                "ALTER TABLE excerpt ADD COLUMN {name} {definition}"
-            ))
-            .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: add excerpt.{name}: {e}"))?;
-        }
-    }
-    tx.execute_batch(EXCERPT_PROVIDER_UPGRADE_SQL)
-        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: backfill excerpt providers: {e}"))?;
-    set_meta(&tx, "main_schema_version", "8")?;
-    tx.commit()
-        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: commit v7->v8: {e}"))
-}
-
-/// 问题管理迁为桌面插件（PS-046）后删除旧问题表；移动端从不读写它们，索引随表一并删除。
-const RETIRED_QUESTION_TABLES: [&str; 5] = [
-    "question_event",
-    "question_chat",
-    "question_link",
-    "questions",
-    "question_group",
-];
-
-/// v8 → v9：显式删除旧问题表（共享 schema 已不再建这些表）。
-fn migrate_v8_to_v9(conn: &Connection) -> Result<(), String> {
-    let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
-        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: begin v8->v9: {e}"))?;
-    for table in RETIRED_QUESTION_TABLES {
-        tx.execute_batch(&format!("DROP TABLE IF EXISTS {table}"))
-            .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: drop {table}: {e}"))?;
-    }
-    set_meta(&tx, "main_schema_version", &MAIN_SCHEMA_VERSION.to_string())?;
-    tx.commit()
-        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: commit v8->v9: {e}"))
-}
-
 pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
+    let has_tables: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%')",
+        [], |row| row.get(0),
+    ).map_err(|e| e.to_string())?;
+    if has_tables {
+        let has_meta: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='schema_meta')",
+            [], |row| row.get(0),
+        ).map_err(|e| e.to_string())?;
+        let version = if has_meta {
+            get_meta(conn, "main_schema_version")?
+        } else {
+            None
+        };
+        if version.as_deref() != Some(main_schema_version().to_string().as_str()) {
+            return Err("DB_SCHEMA_INCOMPATIBLE: 数据库版本不受支持，请使用当前版本创建的资料库；原文件未转换".into());
+        }
+    }
     conn.execute_batch(
         "
         PRAGMA journal_mode = WAL;
@@ -411,68 +197,14 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
     )
     .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to set main PRAGMA: {e}"))?;
 
-    ensure_schema_meta(conn)?;
-    let stored_version = get_meta(conn, "main_schema_version")?
-        .and_then(|v| v.parse::<i64>().ok())
-        .unwrap_or(0);
-    if stored_version > MAIN_SCHEMA_VERSION {
-        return Err("DB_SCHEMA_INCOMPATIBLE: 数据库来自更新的移动端，请先升级应用".into());
-    }
-    if stored_version == 4 && has_user_tables(conn)? {
-        migrate_v4_to_v5(conn)?;
-        migrate_v5_to_v6(conn)?;
-        migrate_v7_to_v8(conn)?;
-        migrate_v8_to_v9(conn)?;
-    } else if stored_version == 5 && has_user_tables(conn)? {
-        migrate_v5_to_v6(conn)?;
-        migrate_v7_to_v8(conn)?;
-        migrate_v8_to_v9(conn)?;
-    } else if (stored_version == 6 || stored_version == 7) && has_user_tables(conn)? {
-        // v6 的任务扩展仅新增表与索引，由 v8 迁移里的 schema 补齐一并完成。
-        migrate_v7_to_v8(conn)?;
-        migrate_v8_to_v9(conn)?;
-    } else if stored_version == 8 && has_user_tables(conn)? {
-        migrate_v8_to_v9(conn)?;
-    } else if stored_version < MAIN_SCHEMA_VERSION && has_user_tables(conn)? {
-        return Err(
-            "DB_LEGACY_SCHEMA: 数据库尚未完成历史数据升级（schema 版本低于当前基线）。请先用最后升级版本打开该库完成升级，再更新到当前版本。"
-                .into(),
-        );
-    }
-    if !needs_main_upgrade(conn)? {
+    if !needs_main_initialization(conn)? {
         return Ok(());
     }
 
-    // 全新空库，或 schema 演进（同版本号内的新表/新索引）：按当前 schema 补齐
-    let baseline = Connection::open_in_memory().map_err(|e| e.to_string())?;
-    baseline
-        .execute_batch(MAIN_SCHEMA_SQL)
-        .map_err(|e| e.to_string())?;
     let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
         .map_err(|e| e.to_string())?;
     tx.execute_batch(MAIN_SCHEMA_SQL)
         .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to apply main schema: {e}"))?;
-    let mut indexes = baseline
-        .prepare("SELECT sql FROM sqlite_master WHERE type='index' AND sql IS NOT NULL")
-        .map_err(|e| e.to_string())?;
-    for sql in indexes
-        .query_map([], |row| row.get::<_, String>(0))
-        .map_err(|e| e.to_string())?
-    {
-        let sql = sql.map_err(|e| e.to_string())?;
-        // sqlite_master 会去掉 IF NOT EXISTS，直接重建保证旧定义的索引被替换
-        let name: String = baseline
-            .query_row("SELECT name FROM sqlite_master WHERE sql=?1", [&sql], |r| {
-                r.get(0)
-            })
-            .map_err(|e| e.to_string())?;
-        tx.execute_batch(&format!(
-            "DROP INDEX IF EXISTS \"{}\"",
-            name.replace('"', "\"\"")
-        ))
-        .map_err(|e| e.to_string())?;
-        tx.execute_batch(&sql).map_err(|e| e.to_string())?;
-    }
     tx.execute(
         "INSERT INTO diary_tag_settings(name,color,sort,create_time,update_time)
          VALUES(?1,'#52c41a',0,?2,?2),('月记','#fa8c16',1,?2,?2)
@@ -480,7 +212,11 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
         params!["周记", now_millis()],
     )
     .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to seed diary tag settings: {e}"))?;
-    set_meta(&tx, "main_schema_version", &MAIN_SCHEMA_VERSION.to_string())?;
+    set_meta(
+        &tx,
+        "main_schema_version",
+        &main_schema_version().to_string(),
+    )?;
     set_meta(&tx, "main_schema_hash", &compute_hash(MAIN_SCHEMA_SQL))?;
     tx.commit()
         .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to commit schema update: {e}"))?;

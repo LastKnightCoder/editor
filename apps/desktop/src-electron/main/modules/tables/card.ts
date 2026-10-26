@@ -249,7 +249,7 @@ export default class CardTable {
 
     // 创建card记录
     const stmt = db.prepare(
-      "INSERT INTO cards (create_time, update_time, tags, links, content_id, is_top) VALUES (?, ?, ?, '[]', ?, ?)"
+      "INSERT INTO cards (create_time, update_time, tags, content_id, is_top) VALUES (?, ?, ?, ?, ?)"
     );
     const now = Date.now();
     const res = stmt.run(now, now, JSON.stringify(tags), contentId, isTop ? 1 : 0);
@@ -269,7 +269,7 @@ export default class CardTable {
     ContentTable.incrementRefCount(db, contentId);
 
     const stmt = db.prepare(
-      "INSERT INTO cards (create_time, update_time, tags, links, content_id, is_top) VALUES (?, ?, '[]', '[]', ?, ?)"
+      "INSERT INTO cards (create_time, update_time, tags, content_id, is_top) VALUES (?, ?, '[]', ?, ?)"
     );
     const now = Date.now();
     const res = stmt.run(now, now, contentId, 0);
@@ -412,14 +412,13 @@ export default class CardTable {
       return this.getCardById(db, existing.id) as ICard;
     }
     const insertStmt = db.prepare(
-      "INSERT INTO cards (create_time, update_time, tags, links, content_id, is_top) VALUES (?, ?, ?, ?, ?, ?)"
+      "INSERT INTO cards (create_time, update_time, tags, content_id, is_top) VALUES (?, ?, ?, ?, ?)"
     );
     const now = Date.now();
     const res = insertStmt.run(
       now,
       now,
       JSON.stringify(fields.tags ?? []),
-      JSON.stringify([]),
       contentId,
       fields.isTop ? 1 : 0
     );

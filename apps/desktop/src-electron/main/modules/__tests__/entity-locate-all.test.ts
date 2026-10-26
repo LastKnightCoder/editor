@@ -28,7 +28,7 @@ describe("EntitySearchTable.locateAll", () => {
     Number(
       db
         .prepare(
-          `INSERT INTO cards (create_time, update_time, tags, links, content_id) VALUES (?, ?, '[]', '[]', ?)`
+          `INSERT INTO cards (create_time, update_time, tags, content_id) VALUES (?, ?, '[]', ?)`
         )
         .run(now, now, contentId).lastInsertRowid
     );

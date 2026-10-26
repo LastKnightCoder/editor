@@ -416,10 +416,10 @@ pub fn create_quick_card(
 
     tx.execute(
         "
-        INSERT INTO cards (create_time, update_time, tags, links, content_id, is_top)
-        VALUES (?1, ?2, ?3, ?4, ?5, 0)
+        INSERT INTO cards (create_time, update_time, tags, content_id, is_top)
+        VALUES (?1, ?2, ?3, ?4, 0)
         ",
-        params![now, now, "[]", "[]", content_id],
+        params![now, now, "[]", content_id],
     )
     .map_err(|e| format!("CARD_CREATE_FAILED: Failed to insert card: {e}"))?;
     let card_id = tx.last_insert_rowid();
@@ -774,8 +774,8 @@ mod content_link_tests {
 
     fn insert_card(conn: &rusqlite::Connection, content_id: i64) -> i64 {
         conn.query_row(
-            "INSERT INTO cards (create_time, update_time, tags, links, content_id)
-             VALUES (1, 1, '[]', '[]', ?1) RETURNING id",
+            "INSERT INTO cards (create_time, update_time, tags, content_id)
+             VALUES (1, 1, '[]', ?1) RETURNING id",
             params![content_id],
             |row| row.get(0),
         )

@@ -91,15 +91,6 @@ pub(crate) fn calculate_schedule(
     })
 }
 
-/// SM-2 旧数据 → FSRS 记忆状态迁移（fsrs-rs memory_state_from_sm2，sm2_retention=0.9）
-pub(crate) fn memory_from_sm2(ease_factor: f64, interval_ms: i64) -> Option<(f64, f64)> {
-    let fsrs = FSRS::new(&FSRS_WEIGHTS).ok()?;
-    let state = fsrs
-        .memory_state_from_sm2(ease_factor as f32, interval_ms as f32 / DAY_MS as f32, 0.9)
-        .ok()?;
-    Some((state.stability as f64, state.difficulty as f64))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -127,14 +118,6 @@ mod tests {
         let s = calculate_schedule(Some(5.0), None, Some(NOW - DAY_MS), "easy", NOW).unwrap();
         let fresh = calculate_schedule(None, None, None, "easy", NOW).unwrap();
         assert_eq!(s.stability, fresh.stability);
-    }
-
-    #[test]
-    fn sm2_migration_matches_formula() {
-        let (s, d) = memory_from_sm2(2.5, 7 * DAY_MS).unwrap();
-        // sm2_retention=0.9 时稳定性即旧间隔天数
-        assert!((s - 7.0).abs() < 1e-4);
-        assert!(d > 1.0 && d < 10.0);
     }
 
     /// 生成跨端对拍 fixture：cargo test generate_fixture -- --nocapture，
@@ -165,16 +148,6 @@ mod tests {
                 }));
             }
         }
-        for (ease, interval_days) in [(2.5, 7.0), (1.3, 1.0), (3.5, 60.0)] {
-            let (s, d) = memory_from_sm2(ease, (interval_days * DAY_MS as f64) as i64).unwrap();
-            cases.push(json!({
-                "name": format!("sm2-{ease}-{interval_days}"),
-                "sm2Ease": ease,
-                "sm2IntervalDays": interval_days,
-                "stability": s,
-                "difficulty": d,
-            }));
-        }
         println!("===FSRS-FIXTURE===");
         println!(
             "{}",
@@ -192,15 +165,6 @@ mod tests {
         assert!(cases.len() >= 15, "fixture 用例数异常: {}", cases.len());
         for case in cases {
             let name = case["name"].as_str().unwrap();
-            if let (Some(ease), Some(interval_days)) =
-                (case["sm2Ease"].as_f64(), case["sm2IntervalDays"].as_f64())
-            {
-                let (s, d) = memory_from_sm2(ease, (interval_days * DAY_MS as f64) as i64)
-                    .unwrap_or_else(|| panic!("{name}: sm2 迁移失败"));
-                assert_eq_rel(name, "stability", s, case["stability"].as_f64().unwrap());
-                assert_eq_rel(name, "difficulty", d, case["difficulty"].as_f64().unwrap());
-                continue;
-            }
             let (s, d, elapsed, rating) = (
                 case["memoryStability"].as_f64(),
                 case["memoryDifficulty"].as_f64(),

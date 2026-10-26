@@ -50,7 +50,7 @@ const insertContent = (nodes: unknown[]) =>
   );
 const insertCard = (contentId: number) =>
   run(
-    `INSERT INTO cards (create_time, update_time, tags, links, content_id) VALUES (?, ?, '[]', '[]', ?)`,
+    `INSERT INTO cards (create_time, update_time, tags, content_id) VALUES (?, ?, '[]', ?)`,
     clock,
     clock++,
     contentId
@@ -101,7 +101,7 @@ const contextOf = (kind: "card" | "project-item", id: number) =>
 beforeEach(() => {
   mainDb = new Database(":memory:");
   mainDb.exec(MAIN_SQL);
-  mainDb.exec("INSERT INTO excerpt_provider VALUES ('weread', '微信读书', 0), ('web', '网页', 0)");
+  mainDb.exec("INSERT INTO excerpt_provider VALUES ('weread', '微信读书', 0)");
   indexDb = new Database(":memory:");
   indexDb.exec(INDEX_SQL);
 });

@@ -72,14 +72,14 @@ describe("content-insights", () => {
       )
       .run(key, chunk, heading, chunk, chunk, sectionText.length, sectionText);
   };
-  const addCard = (text: string, vector: number[], links: number[] = [], sectionText = PROSE) => {
+  const addCard = (text: string, vector: number[], sectionText = PROSE) => {
     const contentId = addContent([para(text)]);
     const id = Number(
       main
         .prepare(
-          `INSERT INTO cards (create_time, update_time, tags, links, content_id) VALUES (1, 1, '[]', ?, ?)`
+          `INSERT INTO cards (create_time, update_time, tags, content_id) VALUES (1, 1, '[]', ?)`
         )
-        .run(JSON.stringify(links), contentId).lastInsertRowid
+        .run(contentId).lastInsertRowid
     );
     addVector(`card:${id}`, 0, vector, sectionText);
     return { id, contentId };
@@ -139,7 +139,7 @@ describe("content-insights", () => {
       )
       .run(String(article.ref.id), String(linked.id));
     const good = addCard("掉帧排查", near(0));
-    const short = addCard("只有链接的卡", near(0), [], "[x](http://a)");
+    const short = addCard("只有链接的卡", near(0), "[x](http://a)");
     ContentAiMetaTable.upsert(main, {
       contentId: good.contentId,
       textDigest: "d",

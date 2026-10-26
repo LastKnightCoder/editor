@@ -477,7 +477,7 @@ describe("PluginEntityTable", () => {
     const card = Number(
       db
         .prepare(
-          "INSERT INTO cards (create_time, update_time, tags, links, content_id) VALUES (1, 1, '[]', '[]', ?)"
+          "INSERT INTO cards (create_time, update_time, tags, content_id) VALUES (1, 1, '[]', ?)"
         )
         .run(created.contentId).lastInsertRowid
     );

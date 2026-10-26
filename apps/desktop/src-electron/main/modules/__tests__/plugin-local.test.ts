@@ -175,11 +175,10 @@ function invoke(name: string, ...args: unknown[]) {
   if (!handler) throw new Error("缺少处理器");
   return handler({}, ...args);
 }
-it("扫描与打开始终使用应用约定目录，不接受调用方路径", async () => {
+it("扫描与打开始终使用应用约定目录，额外参数不能改变目录", async () => {
   const foreign = path.join(mock.root, "foreign");
   await mkdir(foreign);
-  await expect(invoke("plugin-local:scan", foreign)).rejects.toThrow("迁移");
-  const scan = await invoke("plugin-local:scan", {});
+  const scan = await invoke("plugin-local:scan", foreign);
   expect(scan).toMatchObject({
     directory: path.join(mock.root, ".editor/plugins"),
     entries: [],
