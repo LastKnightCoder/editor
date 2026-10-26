@@ -13,7 +13,6 @@ export const APP_FEEDBACK_LIMITS = {
 export interface AppFeedbackSubmitInput {
   kind: AppFeedbackKind;
   message: string;
-  contact: string | null;
   /** 同一份草稿重试复用，服务端据此去重 */
   clientRequestId: string;
   includeContext: boolean;
@@ -29,7 +28,8 @@ export interface AppFeedbackSubmitInput {
 export type AppFeedbackFailure = "network" | "limit" | "invalid" | "forbidden" | "server";
 
 export type AppFeedbackResult =
-  { ok: true; id: string } | { ok: false; reason: AppFeedbackFailure; message: string };
+  | { ok: true; id: string }
+  | { ok: false; reason: AppFeedbackFailure; message: string };
 
 export interface AppFeedbackEnvironment {
   appVersion: string;

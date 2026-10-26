@@ -124,7 +124,7 @@ function setAnnotating(win: BrowserWindow, annotating: boolean) {
 }
 
 async function submit(input: AppFeedbackSubmitInput): Promise<AppFeedbackResult> {
-  const { message, contact } = validateInput(input);
+  const { message } = validateInput(input);
   const { logDir, sessionLogPath } = setupLogger();
   const env = environment();
   const page = input.page === undefined ? env.page : input.page;
@@ -136,7 +136,7 @@ async function submit(input: AppFeedbackSubmitInput): Promise<AppFeedbackResult>
       )
     : null;
   const encoded = await encodeFeedback({
-    meta: { kind: input.kind, message, contact, context, clientRequestId: input.clientRequestId },
+    meta: { kind: input.kind, message, context, clientRequestId: input.clientRequestId },
     images: input.images,
     log: input.logs.app ? await collectAppLog(logDir, sessionLogPath) : null,
     perf: input.logs.perf ? await compressPerfSnapshot(buildSnapshot()) : null,

@@ -16,7 +16,7 @@ import {
   Send,
   X,
 } from "lucide-react";
-import { Button, Checkbox, FilterPill, Input, Menu, Switch, Textarea, cn } from "@tau/ui";
+import { Button, Checkbox, FilterPill, Menu, Switch, Textarea, cn } from "@tau/ui";
 import { isMac } from "@/platform";
 import {
   getFeedbackEnvironment,
@@ -148,7 +148,7 @@ function Screenshots({
               type="button"
               aria-label="移除截图"
               onClick={() => draft.removeImage(shot.id)}
-              className="bg-ink-1 text-ink-inverse shadow-card absolute -right-1.5 -top-1.5 grid size-5 place-items-center rounded-full"
+              className="bg-ink-1 text-ink-inverse shadow-card absolute -top-1.5 -right-1.5 grid size-5 place-items-center rounded-full"
             >
               <X size={11} strokeWidth={2.2} />
             </button>
@@ -316,7 +316,7 @@ export function FeedbackForm({
   const { fields } = draft;
   return (
     <>
-      <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-5 pb-2 pt-1">
+      <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-5 pt-1 pb-2">
         <div className="flex flex-wrap gap-1.5">
           {KINDS.map(item => (
             <FilterPill
@@ -351,15 +351,8 @@ export function FeedbackForm({
         />
         <Environment draft={draft} />
         <Logs draft={draft} />
-        <Input
-          aria-label="联系方式"
-          maxLength={APP_FEEDBACK_LIMITS.contact}
-          placeholder="联系方式（选填，需要追问时用）"
-          value={fields.contact}
-          onChange={event => draft.update({ contact: event.target.value })}
-        />
       </div>
-      <footer className="flex flex-col gap-2 px-5 pb-4 pt-3">
+      <footer className="flex flex-col gap-2 px-5 pt-3 pb-4">
         {error && (
           <p role="alert" className="text-tau-sm text-danger">
             {error}

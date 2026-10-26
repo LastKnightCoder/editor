@@ -99,7 +99,6 @@ export interface FeedbackRequestParts {
   meta: {
     kind: AppFeedbackSubmitInput["kind"];
     message: string;
-    contact: string | null;
     context: Record<string, string> | null;
     clientRequestId: string;
   };
@@ -116,9 +115,7 @@ export function validateInput(input: AppFeedbackSubmitInput) {
     throw new Error(`最多附带 ${APP_FEEDBACK_LIMITS.images} 张截图`);
   if (input.images.some(image => image.byteLength > APP_FEEDBACK_LIMITS.imageBytes))
     throw new Error("截图过大，请重新截取");
-  const contact = input.contact?.trim() || null;
-  if (contact && contact.length > APP_FEEDBACK_LIMITS.contact) throw new Error("联系方式过长");
-  return { message, contact };
+  return { message };
 }
 
 /** 用标准 Request 序列化 multipart，得到可交给 net.fetch 的字节与带 boundary 的类型 */
