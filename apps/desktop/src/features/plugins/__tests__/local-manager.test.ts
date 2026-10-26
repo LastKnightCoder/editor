@@ -45,10 +45,8 @@ function setup(
   const manager = new LocalPluginManager(
     host,
     ["core.theme"],
-    async legacy => {
+    async () => {
       const result = await scan();
-      for (const [id, value] of Object.entries(legacy))
-        if (!persisted.has(id) && typeof value === "boolean") persisted.set(id, value);
       return {
         ...result,
         entries: result.entries.map(entry => ({
@@ -96,6 +94,14 @@ it("窗口缓存不可写时仍按主进程意图启停", async () => {
   expect(host.getState("test.local")).toBe("active");
   await manager.disable("test.local");
   expect(persisted.get("test.local")).toBe(false);
+  expect(host.getState("test.local")).toBe("disabled");
+});
+
+it("发现插件不从浏览器镜像恢复启用意图", async () => {
+  localStorage.setItem(localPluginStateKey("test.local"), "true");
+  const { manager, host } = setup(async () => snapshot(artifact()));
+  await manager.refresh();
+  expect(manager.enabled("test.local")).toBe(false);
   expect(host.getState("test.local")).toBe("disabled");
 });
 

@@ -310,17 +310,10 @@ export default {
       "plugin-local:workspace",
       async (_event, name: string) => (await getPluginRegistry().open(name)).id
     );
-    ipcMain.handle("plugin-local:scan", async (_event, legacy?: Record<string, unknown>) => {
-      if (legacy !== undefined) await preferences.importBrowser(legacy);
+    ipcMain.handle("plugin-local:scan", async () => {
       const maintenance = await updates.list();
       const result = await discoverPlugins(directory(), app.getVersion());
       const sources = await updates.sources(result.entries.map(entry => entry.id));
-      if (legacy !== undefined)
-        await preferences.initialize(
-          Object.fromEntries(
-            result.entries.filter(entry => entry.artifact).map(entry => [entry.id, false])
-          )
-        );
       return {
         ...result,
         clientVersion: app.getVersion(),

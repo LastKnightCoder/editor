@@ -20,10 +20,5 @@ export const deletePluginKv = (
   key: string
 ): Promise<void> => invoke("plugin-kv:delete", { databaseName, pluginId, key });
 
-export const importPluginKv = (
-  databaseName: string,
-  entries: Array<{ pluginId: string; key: string; value: string }>
-): Promise<number> => invoke("plugin-kv:import", { databaseName, entries });
-
 export const clearPluginKv = (databaseName: string, pluginId: string): Promise<number> =>
   invoke("plugin-kv:clear", { databaseName, pluginId });

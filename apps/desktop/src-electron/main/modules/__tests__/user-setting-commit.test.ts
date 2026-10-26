@@ -156,7 +156,7 @@ it("旧窗口不能重新写回退役发布字段，拒绝后保留已提交配�
   const settings = await setup();
   await expect(
     settings.handleSetUserSetting({ integration: { github: { token: "old" } } })
-  ).rejects.toThrow("旧发布设置已退役");
+  ).rejects.toThrow("旧服务账号配置不受支持");
   expect(await settings.getSettingSnapshot()).toEqual(initial);
   expect(mocks.broadcast).not.toHaveBeenCalled();
 });

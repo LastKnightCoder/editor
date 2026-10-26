@@ -19,7 +19,6 @@ export default class PluginKvTable {
       "plugin-kv:get": this.get.bind(this),
       "plugin-kv:set": this.set.bind(this),
       "plugin-kv:delete": this.remove.bind(this),
-      "plugin-kv:import": this.importEntries.bind(this),
       "plugin-kv:clear": this.clear.bind(this),
     };
   }
@@ -59,34 +58,6 @@ export default class PluginKvTable {
       request.pluginId,
       request.key
     );
-  }
-
-  /**
-   * 一次性导入本机旧存储的值：库里已有的键保留库里的（可能来自其他设备的同步），
-   * 返回实际写入的条数。一个事务内完成，失败不写入任何一条。
-   */
-  static importEntries(
-    db: Database.Database,
-    request: {
-      databaseName: string;
-      entries: Array<{ pluginId: string; key: string; value: string }>;
-    }
-  ): number {
-    this.assertScope(db, { databaseName: request.databaseName, pluginId: "import" });
-    const insert = db.prepare(
-      "INSERT OR IGNORE INTO plugin_kv (plugin_id, key, value, update_time) VALUES (?, ?, ?, ?)"
-    );
-    const now = Date.now();
-    return db.transaction(() => {
-      let written = 0;
-      for (const entry of request.entries) {
-        if (typeof entry.pluginId !== "string" || !entry.pluginId) throw new Error("插件 ID 无效");
-        if (typeof entry.key !== "string" || !entry.key) throw new Error("存储键无效");
-        this.assertValue(entry.value);
-        written += insert.run(entry.pluginId, entry.key, entry.value, now).changes;
-      }
-      return written;
-    })();
   }
 
   /** 卸载插件并选择清除数据时，删除它在当前库的全部私有存储 */

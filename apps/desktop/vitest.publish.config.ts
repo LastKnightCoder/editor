@@ -11,7 +11,7 @@ export default defineConfig({
       "src-electron/main/modules/__tests__/publish-*.test.ts",
       "src-electron/main/services/__tests__/plugin-updates.test.ts",
       "src-electron/main/services/__tests__/plugin-publish.test.ts",
-      "src-electron/main/services/__tests__/{plugin-publish-provider,publish-settings-migration,git-publication}.test.ts",
+      "src-electron/main/services/__tests__/{plugin-publish-provider,provider-settings,git-publication}.test.ts",
       "src/app/plugins/__tests__/publish-registry.test.ts",
       "src/features/settings/__tests__/IntegrationSection.test.tsx",
       "src/features/publish/__tests__/*.test.ts*",

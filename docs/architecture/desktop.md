@@ -16,7 +16,7 @@
 - 今日页接真实数据（统计并入今日页）；项目只承载文档树，数据库与 Notebook 是独立模块。
 - 主题唯一归属 `@tau/themes`，UI 原语唯一归属 `@tau/ui`；样式载体 Tailwind，手写 CSS 仅限 §4 的四类白名单；Less 与 antd 全仓为零且有门禁。
 - 壳层启动时序：必须等设置 store 的 `inited` 再连接活动数据库——缓存已有库名不代表设置初始化完成；初始化期间保持等待，就绪后自动连接；真实开库失败继续显示错误并支持重试，不得以绕过失败代替连接成功。
-- 窗口角色由 preload 的 `window.electron.windowRole` 提供，不在隔离渲染上下文读取 `process.argv`；设置完整初始化与微信读书启动校验只在主窗口执行。辅助窗口经 `setting-replica` 的 BroadcastChannel 请求主窗口运行时快照后置 `inited`（保留已校验状态、不回灌保存），各窗口仍订阅后端设置变更并可提交本地修改；无主窗口响应的独立窗口 1.5 秒后只读后端快照兜底，迟到响应不覆盖已收快照。主进程设置文件的首次并发读取共享在途任务，失败后允许重试。
+- 窗口角色由 preload 的 `window.electron.windowRole` 提供，不在隔离渲染上下文读取 `process.argv`；设置完整初始化与微信读书启动校验只在主窗口执行。辅助窗口经 `setting-replica` 的 BroadcastChannel 请求主窗口运行时快照后置 `inited`（保留已校验状态、不回灌保存），各窗口仍订阅后端设置变更并可提交本地修改；无主窗口响应的独立窗口 1.5 秒后只读后端快照兜底，迟到响应不覆盖已收快照。主进程设置文件的首次并发读取共享在途任务，失败后允许重试。服务设置在读取与提交时经 `assertCurrentProviderSettings` 校验，只接受当前插件账号与选用；加载不转换旧凭据、不搬迁账本、不安装或启用插件，未支持的配置报错且原文件保留。
 - 切库按活动库名重建壳层与页面栈；`ensureDatabaseReady` 在连接成功且确认仍为当前库后、发布 ready 前清空全局查询缓存，并取消旧查询的结果接收——未带库名的查询不得跨库复用新鲜缓存或在途请求，迟到的旧连接结果不得清除当前库缓存（只作用于查询，不清 mutation 状态）。
 - 交互聊天与一次性带工具运行共用消息准备入口：图片传路径或 data URL、文件传本地定位提示；系统提示中的退役代理片段只从系统提示移除，用户正文保持原样。
 
@@ -92,7 +92,7 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 - 停用先取消上下文，当前页面改为不可用提示并卸载组件与 UI Portal；重新启用以新 mountId 创建组件，错误边界按代次重建。页面栈条目保留；功能入口随注册资源回收。pageContext.registerLeaveGuard 接通用 PageProvider 守卫，离开前依次检查，停用后不继续阻塞。
 - 作者从 `@tau/plugins` 用定义/上下文/页面 API，从 `@tau/ui` 用组件；SDK 根入口只引 React 类型不加载 UI/DOM。`ctx.pages.register` 返回可打开与注销的页面句柄，页面组件不直接导入 Page/store。私有存储 `context.storage` 在 Electron 存当前库 `plugin_kv`（随云同步），浏览器预览用 localStorage 适配。
 - 生产装配：`DesktopPluginProvider` 不默认注册任何业务插件（主题切换示例只在测试夹具）；用户从插件中心安装，生产包禁用 ZIP 安装（开发模式保留）；官方插件与模板以 plugins/ 下的 Git submodule 维护独立 GitHub 历史，主仓库固定提交，安装到 `~/.editor/plugins`。开发构建的「插件开发台」（plugin-workbench.page）与编辑器实验装配仅开发构建加载。
-- 已启用状态：`plugin-local:set-enabled` 写主进程 `plugins/.enabled.json`（唯一写入者），窗口 localStorage 仅镜像；写入广播 `plugin-local:state-changed` 各窗口重读权威快照；SDK Node 入口 local-state 只读。普通页面插件即时启停，静态内容插件完整重启后生效；活跃内容插件须停用并重启后卸载，切库不改变编辑器快照。
+- 已启用状态：`plugin-local:set-enabled` 写主进程 `plugins/.enabled.json`（唯一写入者），窗口 localStorage 仅镜像，不反向导入；首次发现默认停用，旧 `.editor-enabled.json` 不读取；写入广播 `plugin-local:state-changed` 各窗口重读权威快照；SDK Node 入口 local-state 只读。普通页面插件即时启停，静态内容插件完整重启后生效；活跃内容插件须停用并重启后卸载，切库不改变编辑器快照。
 
 应用根部注入响应式插件环境，DesktopPluginRuntime 的语义 navigation 入口复用真实侧栏模型；插件页通过 PortalScope/UiHostProvider 接浮层仲裁。显式开发目录、格式 3 装配及独立内容转换边界见[跨端插件宿主](/docs/architecture/plugin-portability.md)。
 
@@ -124,13 +124,15 @@ Mac helper 独立打包在 `bin/darwin/Tau Speech Helper.app`，macOS 26 上采�
 
 ### 领域提供方插件（TTS / 图片 / 在线视频）
 
-三者为同一模式：渲染进程注册实例、主进程 `plugin-local:<域>-*` 只转发请求/取消/通知、设置页经 `<域>-settings-migration` 备份后逐账号迁移旧配置（不自动安装插件、不自动改用其他付费账号）。
+三者为同一模式：渲染进程注册实例、主进程 `plugin-local:<域>-*` 只转发请求/取消/通知、账号配置只接受当前插件结构，由插件设置显式保存，不在启动时转换旧配置。
 
 - **TTS**：注册与会话核心为 `@tau/plugins/tts-host`（移动端共用），`context.tts` 实例只在主窗口渲染端创建，账号配置按实例 ID 隔离；设置页「试听」用已保存配置合成并页内播放，选择不写回当前服务；播客从脚本到提交固定实例，会话关闭使后续上传/保存失效，普通失败保留空片段。设置提交走 user-setting 串行队列（原子落盘→快照→广播），失败保留已提交快照可重试。
 - **图片生成/编辑**：`context.images.register` 注册实例（生成与编辑至少实现一项，输出图片字节与实际 MIME）；`target: "images"` 配置视图接收 imageConfig。聊天/编辑器/白板共用 `services/image-generation.ts`；输入输出各最多 16 张、总字节各 ≤128 MiB，只收 PNG/JPEG/WebP；能力状态按配置与激活代次异步刷新，执行时复核；历史工具来源与结果键稳定，已生成图片无需插件即可展示。
 - **在线视频**：`context.video.register` 注册实例（`matches / resolve / cacheKey / getPlayback`，返回播放源描述——file 单流 / split 音视频分离 / extract 走宿主 yt-dlp，不传视频字节）。宿主无平台代码：主窗口 `app/plugins/video-registry.ts` 执行并归一化结果，下载/合并/缓存统一在主进程 `online-video-cache`（缓存身份 = 插件 ID + cacheKey 摘要，已缓存不向插件取流）。视频元数据 `metaInfo.type` 即插件 ID（`type/title/thumbnail` 宿主占用，其余字段归插件）；编辑器/白板/视频笔记/学习资料共用 `useOnlineVideo` 与 `OnlineVideoSelectModal`，添加入口按插件生成、弹窗只用该插件解析（链接属其他插件时提示改入口）。界面文案不出现「视频插件」统称：能用来源名用来源名，统称叫「在线视频」；移动端/博客/浏览器扩展只显示降级提示。
 
 ### 插件 MCP 与 AI 服务
+
+MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `baseUrl/apiKey` 配置转换为传输配置。读取失败保留原存储且不装配服务器；当前提供方默认开关仍按注册表补齐，已保存意图优先。
 
 - `ctx.mcp.register` 可注册多项本地 tools 或外部 transport（stdio / streamable-http），两者互斥。激活成功才发布，失败/停用/切库回收；调用名使用可读的「插件 ID__MCP 局部 ID__工具名」（插件 ID 的点转下划线，工具名的下划线转连字符，MCP ID 与插件 ID 末段相同时省去重复段）；有损输入或超长名称带摘要消歧，名称限制为模型接口支持的字符及 64 字符以内。界面显示「MCP ID:工具名」，不展示内部摘要；逐工具开关使用独立 settingsKey，沿用原 SHA-256 稳定 ID。激活/重连代次进执行身份；执行复核实例、数据库、整项与逐工具开关，合并取消信号、限时 60 秒。MCP 页面与聊天快捷面板经 useMcpServers 同源展示并注明插件来源；外部项复用配置/日志/重连，本地项只展示工具；外部连接绑定窗口，窗口关闭/崩溃断开不改变手动服务器生命周期。
 - 插件 AI 两条路径：自定义功能由 `ai.features` 声明并独立分配模型；`context.ai.requestCapability(name)` 复用应用已有分配。能力名/显示名由 SDK 的 PLUGIN_AI_CAPABILITIES 提供（与 llmUsageSettings 键集合测试对账，新增内置分配不得遗漏 SDK）。PluginHost 统一校验声明、懒申请、逐次检查与撤权取消；主进程 BACKGROUND 模块 plugin-ai 用同一插件额度、并发与审计执行 pi-ai，模型解析前登记取消句柄。chat/stream 支持文本与 user 图片（图片与正文不入审计、总大小有界）；插件设置对宿主能力只显示继承模型与额度。作者用法见 `plugins/tau-plugin-template/docs/ai.md`。
@@ -174,7 +176,7 @@ Mac helper 独立打包在 `bin/darwin/Tau Speech Helper.app`，macOS 26 上采�
 
 提供方连接配置归插件详情 › 设置：`ProviderAccountSettings` 管理 TTS/图片的多账号、模型和 ASR/视频/发布的单插件配置，复用现有持久化命令；`ProviderConfigForm` 统一渲染 form 并显式保存，保存失败保留草稿，添加或保存不自动切换服务。应用设置保留当前 TTS 账号/模型/音色与试听、图片账号选择、ASR 选用；视频按 URL 匹配多个来源，只显示来源及配置入口。Bilibili 扫码登录与 GitHub 发布的缓存目录授权保留专用插件组件，同样在插件页承载。
 
-**博客发布提供方**：GitHub 与 S3 发布由独立 tau.publish-github / tau.publish-s3 提供，`context.publish` 注册文件式或快照式实例；发布页只消费活动注册与当前选用，`target: publish` 配置表单在插件详情页承载（按应用级插件身份保存）；本地导出内置不要求发布插件，缺失或停用保留配置不回落其他提供方。渲染端 publish-registry 与常驻 publish-bridge 执行作者代码，主进程 PluginPublishSessions 绑定发起窗口/配置/任务 signal，只转发 open/call/close 与字节；发布占用阻止启停/更新/卸载/重启，切库回收实例。文件式并发受提供方上限约束、依赖成功后才更新入口；快照式整轮远端确认后才记账。Git Push 走受控 `services.git.publishSnapshot`：主进程只执行固定 Git 流程（输入为临时发布句柄、无凭据的 HTTPS 远端、分支、提交者、缓存授权 ID），目录选择由宿主返回句柄，插件不能传任意 cwd/shell；认证经任务级 askpass 环境传递不落盘；拒绝非快进。旧 publish.github/s3 配置由最后升级链备份转换，物理身份字符串保持；无目标账本时完整上传不借用其他数据库全局历史。
+**博客发布提供方**：GitHub 与 S3 发布由独立 tau.publish-github / tau.publish-s3 提供，`context.publish` 注册文件式或快照式实例；发布页只消费活动注册与当前选用，`target: publish` 配置表单在插件详情页承载（按应用级插件身份保存）；本地导出内置不要求发布插件，缺失或停用保留配置不回落其他提供方。渲染端 publish-registry 与常驻 publish-bridge 执行作者代码，主进程 PluginPublishSessions 绑定发起窗口/配置/任务 signal，只转发 open/call/close 与字节；发布占用阻止启停/更新/卸载/重启，切库回收实例。文件式并发受提供方上限约束、依赖成功后才更新入口；快照式整轮远端确认后才记账。Git Push 走受控 `services.git.publishSnapshot`：主进程只执行固定 Git 流程（输入为临时发布句柄、无凭据的 HTTPS 远端、分支、提交者、缓存授权 ID），目录选择由宿主返回句柄，插件不能传任意 cwd/shell；认证经任务级 askpass 环境传递不落盘；拒绝非快进。发布配置只接受 local/plugin 目标；无目标账本时完整上传不借用其他数据库全局历史。
 
 **编译与转换服务**：`context.services` 提供 Tailwind、Typst HTML、Markdown 与 Descendant[] 双向转换、HTML 渲染与 FFmpeg 处理（TikZ 服务已移除——编译器和字体归独立 tau.tikz 插件）。Provider 注入 `app/plugins/services.ts`，SDK 合并调用方与实例 signal，停用不返回迟到结果；服务不读写业务内容、不选存用户文件。主进程 `plugin-services` 为 BACKGROUND 模块：任务按 WebContents 归属，关闭/导航取消；编译器与媒体进程独占任务临时目录、完成后回收；FFmpeg 复用客户端按需下载的二进制。TikZ 文档与博客用插件自己的节点组件与内部编译模块（不依赖 activate），缺插件时保留源码并跳转插件中心；diagram 扩展不再含 TikZ，移动端/扩展不设替代编译器。Markdown 复用 desktopCodecComposition（单次 codecs 不改编辑器注册）；HTML 沿用现有序列化器（保留原始 HTML、外部资源与图表源码回落，不是净化器）。作者契约见 `plugins/tau-plugin-template/docs/services.md`。
 
@@ -210,7 +212,7 @@ Mac helper 独立打包在 `bin/darwin/Tau Speech Helper.app`，macOS 26 上采�
 
 **类型外观**：类型名 + 图标存主库 `plugin_entity_kinds`（图标渲染成单个 SVG 文本，注销不删除，开库维护清理已卸载且无内容的）；显示一律经 `components/EntityKind` 的 `useEntityKindMeta`（`plugin-entities:owners` 同轮合并），列表用 `useEntityKindMetaResolver(refs)` 一次取齐，组件外用 `loadPluginEntityAppearances`；插件图标只作 CSS `mask-image` + currentColor。新增展示内容类型的地方必须经此解析，不得写死「插件内容」。
 
-**私有存储**：主库 `plugin_kv`（单值上限 1 MB）；localStorage 旧键一次性导入（失败中止初始化待重试），卸载清除数据时删本库 `plugin_kv` 与其他工作区旧键，插件内容仍走 7 天宽限。
+**私有存储**：主库 `plugin_kv`（单值上限 1 MB）；启动不扫描或导入旧 localStorage 数据。卸载清除数据时删本库 `plugin_kv`，插件内容仍走 7 天宽限。
 
 **业务事件**：BACKGROUND 模块 `domain-events` 在每个主库连接注册 `tau_domain_change` 与 TEMP 触发器（`rowTriggers` 规格表生成，覆盖 cards、articles（软删）、非引用型 project_item、white_boards、project、Notebook（资料增删计入）、材料三表、插件可见场景的 chat_session、plugin_entities（软删口径）、contents.content）。规格的 `changed` 列限定修改触发的列——查看状态类写入（打开时间、当前页、转换进度）不发事件；新增表须按对插件可见字段列出。按库合并 500ms（最长 2 秒）广播 `domain-events`；正文修改经 `locateAll` 计入所属实体 updated；触发器在事务内执行，回滚也可能产生事件，事件不携带数据。渲染端 `app/plugins/events.ts` 按库过滤，`entity.*` 只交给 owner 插件，其余按类型与已获准权限串行投递。事件来源：同步写入经 `writeAsPlugin` 标记插件 ID，协作投影延迟落库按 `markContentOrigin` 登记 5 秒。
 
@@ -225,7 +227,7 @@ Mac helper 独立打包在 `bin/darwin/Tau Speech Helper.app`，macOS 26 上采�
 - 社区（C28）：详情 `community` 标签仅选中时读取（每页 20 条，写入后失效该插件查询）；IPC 归 plugin-local，复用安装级匿名凭证（渲染端只收 liked/canDelete 不收 token）；评论草稿在标签内存保存，失败重试不重复发表；网站与桌面身份独立，清数据后无法恢复旧身份管理权。
 - 固定目录发现：开发/正式构建均经 BACKGROUND 的 plugin-local 扫描 `PathUtil.getAppDir()/plugins` 直接子目录（目录名须等于 manifest.id，坏包单独显示不阻断好包）；插件页 ⋯ 菜单提供「从 ZIP 安装 / 打开插件目录 / 重新扫描」，无目录选择。`app/plugins/package-loader` 把静态元信息登记为延迟定义，启用才执行 CJS 入口；LocalPluginManager 复用此加载器与正式 PluginHost，本地插件偏好镜像为应用级键；启用意图由主进程写入（中心安装即启用，其余新包停用），重启/切库恢复；活动包变化先回收旧实例登记新定义再按原意图恢复；内容快照与 restart-required 身份不热替换。
 - **生命周期与异常**：激活等待最多 10 秒；停用立即取消 signal，未决激活最多再等 5 秒；deactivate 与逆序清理共用 5 秒预算，超时继续剩余清理；普通失败且清理成功可重试，激活超时或清理失败进 restart-required（管理页显示重启提示并禁用启用）。DesktopPluginProvider 在窗口内保存需重启的插件 ID，等旧宿主有界收尾后才建新宿主（注销/切库不能绕过，不落盘）；超时只能结束等待，不能抢占同步死循环。
-- **本机工作区身份**：`services/plugin-registry.ts` 在 userData 按本机规范化库名分配 UUID（串行暂存写再 rename，只存 name 与 id），plugin-local 与 plugin-backend 共用；这是本机槽位身份不是同步身份——同步替换/重建同名库沿用。PluginProvider 启动先 `migratePluginPreferences`（库名键改挂 UUID，失败保留旧值重试）再 `migrateLegacyPluginStorage`。
+- **本机工作区身份**：`services/plugin-registry.ts` 在 userData 按本机规范化库名分配 UUID（串行暂存写再 rename，只存 name 与 id），plugin-local 与 plugin-backend 共用；这是本机槽位身份不是同步身份——同步替换/重建同名库沿用。PluginProvider 直接按稳定工作区身份初始化，私有存储连接当前库。
 
 ### 插件贡献位
 
@@ -495,7 +497,7 @@ export function useXxxSnapshot() {
 
 桌面同步使用公共 Node 入口 `@tau/db-schema/sync` 的数据库锁。CLI已整体退役；数据库访问仍检查维护锁并保留必要的崩溃恢复，不允许并发写入正在维护的数据库。
 
-同步存储插件只在渲染进程通过 `context.sync.register` 注册五方法提供方，沿用 main.js，不读取旧 manifest.sync 入口；新的显式 backend 独立声明与授权，不自动承载同步提供方。S3使用浏览器SDK构建，网络经已有context.fetch由宿主传输；主进程不执行同步插件代码。同步设置以 target 声明 form，由插件详情 › 设置统一渲染，应用级配置保留。数据库与用量流程直接调用渲染端提供方；资源扫描、计划、账本和重试仍在主进程，存储操作按任务转发给发起窗口。PluginSyncSessions只登记任务与归属并转发数据，任务期间阻止停用、卸载和更新；窗口断开时拒绝待响应请求、清理任务，不转移到Node执行。CLI同步命令、TUI入口、Provider及cli-sync协调接口已删除；通用数据库维护锁保留。S3旧包不再从安装包中自动替换；用户从中心选择新版后仍走原安装事务，配置与启用意图不变。OSS也已按同一渲染进程边界拆分，使用ali-oss官方浏览器构建和宿主fetch；旧配置及资源账本经migrateSyncPluginSettings一次性迁移。旧OSS同步Provider、资源Adapter及同步IPC已删除，资源上传/列桶及其共享凭据仍保留。WebDAV同步同样使用独立插件与官方浏览器客户端，通过SDK公开传输扩展绑定context.fetch；旧配置与账本由同一迁移入口接管，旧Provider/Adapter和exists/list同步IPC已删除。宿主upload/download仍服务资源上传下载。条件创建正确返回412失败，列举仅忽略404；所有插件资源调度统一使用现有插件参数，不按插件身份特判。WebDAV验收见 `docs/plugin-system/57-WebDAV渲染进程拆分.md`。GitHub同步也已通过context.fetch调用原Contents API，普通写入先取SHA，条件创建不传SHA；旧配置与资源账本迁入tau.sync-github，旧同步Provider/Adapter与同步专用工具已删除。四种同步方式现统一为插件，设置 › 同步只列出服务摘要与选用，连接配置在插件详情 › 设置，GitHub 资源按原始地址加载，不做 CDN 地址改写；桌面账号及博客查询工具已迁入发布插件，移动端仍有独立原生消费者。资源调度复用通用插件参数（并发配置5，经现有执行器上限收敛为3），无插件身份特判。GitHub验收见docs/plugin-system/58-GitHub渲染进程拆分.md。codec 的既有 Node 执行链已由 独立后台 M4 迁入独立内容渲染进程，现行边界与验证见插件专题 78。OSS实现与验收见 `docs/plugin-system/56-OSS渲染进程拆分.md`；执行边界见 `docs/plugin-system/55-插件渲染进程边界纠偏.md`。
+同步存储插件只在渲染进程通过 `context.sync.register` 注册五方法提供方，沿用 main.js，不读取旧 manifest.sync 入口；新的显式 backend 独立声明与授权，不自动承载同步提供方。S3使用浏览器SDK构建，网络经已有context.fetch由宿主传输；主进程不执行同步插件代码。同步设置以 target 声明 form，由插件详情 › 设置统一渲染，应用级配置保留。数据库与用量流程直接调用渲染端提供方；资源扫描、计划、账本和重试仍在主进程，存储操作按任务转发给发起窗口。PluginSyncSessions只登记任务与归属并转发数据，任务期间阻止停用、卸载和更新；窗口断开时拒绝待响应请求、清理任务，不转移到Node执行。CLI同步命令、TUI入口、Provider及cli-sync协调接口已删除；通用数据库维护锁保留。S3旧包不再从安装包中自动替换；用户从中心选择新版后仍走原安装事务，配置与启用意图不变。OSS也已按同一渲染进程边界拆分，使用ali-oss官方浏览器构建和宿主fetch；配置和资源账本只使用当前插件格式。旧OSS同步Provider、资源Adapter及同步IPC已删除，资源上传/列桶及其共享凭据仍保留。WebDAV同步同样使用独立插件与官方浏览器客户端，通过SDK公开传输扩展绑定context.fetch；旧Provider/Adapter和exists/list同步IPC已删除。宿主upload/download仍服务资源上传下载。条件创建正确返回412失败，列举仅忽略404；所有插件资源调度统一使用现有插件参数，不按插件身份特判。WebDAV验收见 `docs/plugin-system/57-WebDAV渲染进程拆分.md`。GitHub同步也已通过context.fetch调用原Contents API，普通写入先取SHA，条件创建不传SHA；旧同步Provider/Adapter与同步专用工具已删除。四种同步方式现统一为插件，设置 › 同步只列出服务摘要与选用，连接配置在插件详情 › 设置，GitHub 资源按原始地址加载，不做 CDN 地址改写；桌面账号及博客查询工具已迁入发布插件，移动端仍有独立原生消费者。资源调度复用通用插件参数（并发配置5，经现有执行器上限收敛为3），无插件身份特判。GitHub验收见docs/plugin-system/58-GitHub渲染进程拆分.md。codec 的既有 Node 执行链已由 独立后台 M4 迁入独立内容渲染进程，现行边界与验证见插件专题 78。OSS实现与验收见 `docs/plugin-system/56-OSS渲染进程拆分.md`；执行边界见 `docs/plugin-system/55-插件渲染进程边界纠偏.md`。
 
 同步与上传的渲染注册表实现统一归 @tau/plugins/provider-host，桌面只保留实例装配与 Electron 转发；作者 API 和桌面表单不变。移动迁入独立设置视图并消费相同配置属性，具体持久化与选用行为由各端宿主处理；两端账号配置都按插件独立保存，不做统一账号共享。
 
@@ -753,7 +755,7 @@ find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘
 
 视图与排序由 `features/cards/preferences.ts` 按库持久化；视图切换经 `usePageBreadcrumb` 挂标题栏面包屑。筛选只剩标签条件（卡片墙/列表/表格共用同一会话查询，数据库视图将其与内置筛选叠加、会话条件不写入用户视图）；卡片库不设页内搜索——语义检索走命令面板，空态文案引导同一入口。卡片详情页（card-detail，match params 按 id 去重，连接 chip 经栈机异参原位更新）数据 = `useCardDetail` 单卡全量（含 linkCount），正文由 ContentEditor 文档会话持久化，元数据即时 patch；显式连接不经卡片元数据，存主库 `content_links`（按 contentId 绑定），脉络浮层与 ⋯ 菜单都走 `content-links:add/remove`（原子双边）。播客经 `usePodcastAttachment`。
 
-**卡片数据库视图**：`CardDatabaseView` 与专属链接插件只服务卡片页，通用 Database 留共享层。视图、筛选/排序/分组、列宽按库持久化（`databasePreferences.ts`，tau-card-database-views，库名去 .db 后缀；旧 card-database-views 是首次初始化模板）；实例按库重建，旧实例迟到回调只持有原库动作不认领新库；跨窗口配置经 `view.receive/remove`、`views.reorder`、`column.resize` external 命令接入，不监听 props 覆盖内部状态。宿主经 `dispatch(command, "external")` 接入确认更新（`rows.apply` 提交字段差量、`rows.receive` 提交确认快照），变更事件携带 user/external 来源，保存回调只消费 user 事件。
+**卡片数据库视图**：`CardDatabaseView` 与专属链接插件只服务卡片页，通用 Database 留共享层。视图、筛选/排序/分组、列宽按库持久化（`databasePreferences.ts`，tau-card-database-views，库名去 .db 后缀；只读取当前版本，每个新库从默认视图初始化，不继承旧模板）；实例按库重建，旧实例迟到回调只持有原库动作不认领新库；跨窗口配置经 `view.receive/remove`、`views.reorder`、`column.resize` external 命令接入，不监听 props 覆盖内部状态。宿主经 `dispatch(command, "external")` 接入确认更新（`rows.apply` 提交字段差量、`rows.receive` 提交确认快照），变更事件携带 user/external 来源，保存回调只消费 user 事件。
 
 ### 脉络（features/context）
 

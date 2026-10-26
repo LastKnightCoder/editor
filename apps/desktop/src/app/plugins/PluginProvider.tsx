@@ -16,11 +16,7 @@ import { createDesktopEntities } from "./entities";
 import { createDesktopRecords } from "./records";
 import { createDesktopLinks } from "./links";
 import { createDesktopTransaction } from "./transaction";
-import {
-  createDatabaseStorage,
-  migrateLegacyPluginStorage,
-  migratePluginPreferences,
-} from "./kv-storage";
+import { createDatabaseStorage } from "./kv-storage";
 import { clearPluginKv } from "@/commands/plugin-kv";
 import { clearPluginRefGrants, grantPluginRefs } from "@/commands/plugin-data";
 import { DesktopPermissionBroker } from "./permissions";
@@ -75,12 +71,6 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           ? await getPluginWorkspace(workspaceId)
           : workspaceId;
         if (cancelled) return;
-        if (isElectron) {
-          migratePluginPreferences(window.localStorage, workspaceId, persistentWorkspaceId);
-          // 私有存储迁入主库：失败即中止插件初始化，旧数据保留，下次启动重试
-          await migrateLegacyPluginStorage(window.localStorage, persistentWorkspaceId, workspaceId);
-          if (cancelled) return;
-        }
         const permissions = isElectron
           ? new DesktopPermissionBroker(persistentWorkspaceId)
           : undefined;

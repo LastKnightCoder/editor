@@ -34,16 +34,6 @@ export interface CustomMCPServer {
   transport: TransportConfig;
 }
 
-// 旧版服务器格式（用于迁移）
-interface LegacyCustomMCPServer {
-  id: string;
-  name: string;
-  baseUrl: string;
-  description?: string;
-  apiKey?: string;
-  enabled: boolean;
-}
-
 /** 服务器实际提供的工具（连接成功后由 tools/list 得到，仅用于展示） */
 export interface MCPServerToolInfo {
   name: string;
@@ -96,61 +86,6 @@ const createDefaultStates = (): Record<string, ProviderToggleState> => {
     },
     {} as Record<string, ProviderToggleState>
   );
-};
-
-// 迁移旧的 provider 状态
-const migrateProviderStates = (
-  states: Record<string, ProviderToggleState>
-): Record<string, ProviderToggleState> => {
-  const migrated = { ...states };
-
-  // 确保所有新的 providers 都有默认状态
-  const defaultStates = createDefaultStates();
-  Object.keys(defaultStates).forEach(id => {
-    if (!(id in migrated)) {
-      migrated[id] = defaultStates[id];
-    }
-  });
-
-  return migrated;
-};
-
-// 检查是否为旧版服务器格式
-const isLegacyServer = (server: unknown): server is LegacyCustomMCPServer => {
-  return (
-    typeof server === "object" &&
-    server !== null &&
-    "baseUrl" in server &&
-    typeof (server as LegacyCustomMCPServer).baseUrl === "string" &&
-    !("transport" in server)
-  );
-};
-
-// 迁移旧版自定义服务器到新格式
-const migrateCustomServers = (servers: unknown[]): CustomMCPServer[] => {
-  return servers.map(server => {
-    if (isLegacyServer(server)) {
-      // 将旧的 baseUrl + apiKey 格式转换为 streamable-http 传输
-      const headers: Record<string, string> = {};
-      if (server.apiKey) {
-        headers["Authorization"] = `Bearer ${server.apiKey}`;
-      }
-
-      return {
-        id: server.id,
-        name: server.name,
-        description: server.description,
-        enabled: server.enabled,
-        transport: {
-          type: "streamable-http" as const,
-          url: server.baseUrl,
-          headers: Object.keys(headers).length > 0 ? headers : undefined,
-        },
-      };
-    }
-    // 已经是新格式
-    return server as CustomMCPServer;
-  });
 };
 
 const useMCPStore = create<MCPStoreState>()(
@@ -275,13 +210,33 @@ const useMCPStore = create<MCPStoreState>()(
         pluginTransports: state.pluginTransports,
         disabledTools: state.disabledTools,
       }),
-      onRehydrateStorage: () => state => {
-        if (state) {
-          // 执行 provider 状态迁移
-          state.providerStates = migrateProviderStates(state.providerStates);
-          // 执行自定义服务器迁移
-          state.customServers = migrateCustomServers(state.customServers);
-        }
+      merge: (persisted, current) => {
+        const saved = persisted as Partial<MCPStoreState> | undefined;
+        const servers = saved?.customServers ?? [];
+        if (
+          !Array.isArray(servers) ||
+          servers.some(server => {
+            const transport = server?.transport;
+            return (
+              !transport ||
+              (transport.type === "stdio"
+                ? typeof transport.command !== "string" || !transport.command.trim()
+                : transport.type !== "streamable-http" ||
+                  typeof transport.url !== "string" ||
+                  !transport.url.trim())
+            );
+          })
+        )
+          throw new Error("MCP 服务器配置格式不受支持，请使用当前传输配置");
+        return {
+          ...current,
+          ...saved,
+          providerStates: { ...createDefaultStates(), ...saved?.providerStates },
+          customServers: servers,
+        };
+      },
+      onRehydrateStorage: () => (_state, error) => {
+        if (error) console.error("MCP 配置读取失败，原存储保留", error);
       },
     }
   )

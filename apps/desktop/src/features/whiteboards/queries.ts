@@ -32,9 +32,6 @@ import type { WhiteBoard, WhiteBoardContent } from "@/types";
 import { toast } from "@tau/ui";
 import { normalizeTags, toItem, type WhiteboardItem } from "./model";
 
-// 旧版缩略图是真实截图、存在 IndexedDB；现改为按页数据生成示意图（schematic.ts），清掉遗留缓存
-if (typeof indexedDB !== "undefined") indexedDB.deleteDatabase("tau-whiteboard-thumbnails");
-
 const hasBridge = typeof window !== "undefined" && Boolean(window.electron);
 const pendingProjectionRefresh = new Map<string, ReturnType<typeof setTimeout>>();
 const projectionChanged = ({ databaseName }: { databaseName: string }) => {

@@ -5,7 +5,6 @@ import { assertLocalId } from "./ids";
 
 interface StateFile {
   version: 1;
-  browserImported: boolean;
   enabled: Record<string, boolean>;
 }
 function flags(value: unknown): Record<string, boolean> {
@@ -20,16 +19,15 @@ function flags(value: unknown): Record<string, boolean> {
   return result;
 }
 
-/** 桌面是唯一写入者；CLI读取同一份已落盘意图，不依赖窗口。 */
+/** 主进程是唯一写入者，内容装配读取同一份已落盘意图。 */
 export async function readLocalPluginState(directory: string): Promise<StateFile> {
   const value = JSON.parse(await readFile(path.join(directory, ".enabled.json"), "utf8"));
-  if (value.version !== 1 || typeof value.browserImported !== "boolean")
-    throw new Error("插件启用配置版本无效");
-  return { version: 1, browserImported: value.browserImported, enabled: flags(value.enabled) };
+  if (value.version !== 1) throw new Error("插件启用配置版本无效");
+  return { version: 1, enabled: flags(value.enabled) };
 }
 
 export class LocalPluginPreferences {
-  private state: StateFile = { version: 1, browserImported: false, enabled: {} };
+  private state: StateFile = { version: 1, enabled: {} };
   private pending: Promise<void> = Promise.resolve();
   constructor(private readonly directory: string) {}
   async load() {
@@ -37,18 +35,8 @@ export class LocalPluginPreferences {
       this.state = await readLocalPluginState(this.directory);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-      let previous: unknown = {};
-      try {
-        previous = JSON.parse(
-          await readFile(path.join(this.directory, ".editor-enabled.json"), "utf8")
-        );
-      } catch (issue) {
-        if ((issue as NodeJS.ErrnoException).code !== "ENOENT") throw issue;
-      }
-      await this.save({ version: 1, browserImported: false, enabled: flags(previous) });
+      await this.save({ version: 1, enabled: {} });
     }
-    // 新文件已验证成功后才清除旧事实源，重启可继续完成清理。
-    await rm(path.join(this.directory, ".editor-enabled.json"), { force: true });
   }
   enabled(id: string, fallback: boolean) {
     return Object.hasOwn(this.state.enabled, id) ? this.state.enabled[id] : fallback;
@@ -64,27 +52,6 @@ export class LocalPluginPreferences {
       const enabled = { ...state.enabled };
       delete enabled[id];
       return { ...state, enabled };
-    });
-  }
-  initialize(defaults: Record<string, boolean>) {
-    const values = flags(defaults);
-    return this.update(state =>
-      Object.keys(values).every(id => Object.hasOwn(state.enabled, id))
-        ? state
-        : { ...state, enabled: { ...values, ...state.enabled } }
-    );
-  }
-  importBrowser(value: unknown) {
-    return this.update(state => {
-      if (state.browserImported) return state;
-      if (!value || typeof value !== "object" || Array.isArray(value))
-        throw new Error("插件启用迁移数据无效");
-      const legacy = flags(
-        Object.fromEntries(
-          Object.entries(value).filter(([id]) => !Object.hasOwn(state.enabled, id))
-        )
-      );
-      return { version: 1, browserImported: true, enabled: { ...legacy, ...state.enabled } };
     });
   }
   private update(change: (state: StateFile) => StateFile) {

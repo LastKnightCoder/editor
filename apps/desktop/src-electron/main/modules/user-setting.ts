@@ -5,16 +5,7 @@ import isEqual from "lodash/isEqual";
 import fs from "node:fs/promises";
 import fsExtra from "fs-extra/esm";
 import { join } from "node:path";
-import { migrateSyncPluginSettings } from "../services/sync-settings-migration";
-import { migrateUploadSettings } from "../services/upload-settings-migration";
-import { migrateTTSSettings } from "../services/tts-settings-migration";
-import { migrateImageSettings } from "../services/image-settings-migration";
-import { migrateVideoSettings } from "../services/video-settings-migration";
-import {
-  migratePublishSettings,
-  assertCurrentPublishSettings,
-} from "../services/publish-settings-migration";
-import { publicationGitService } from "../services/publication-git-service";
+import { assertCurrentProviderSettings } from "../services/provider-settings";
 
 type UserSetting = Record<string, any>;
 export interface SettingChangedPayload {
@@ -209,40 +200,8 @@ class UserSettingModule {
     }
     if (!this.settingLoadPromise) {
       this.settingLoadPromise = this.loadSetting()
-        .then(setting =>
-          migrateSyncPluginSettings(setting, PathUtil.getAppDir(), next =>
-            this.saveSetting(JSON.stringify(next, null, 2))
-          )
-        )
-        .then(setting =>
-          migrateUploadSettings(setting, PathUtil.getAppDir(), next =>
-            this.saveSetting(JSON.stringify(next, null, 2))
-          )
-        )
-        .then(setting =>
-          migrateTTSSettings(setting, PathUtil.getAppDir(), next =>
-            this.saveSetting(JSON.stringify(next, null, 2))
-          )
-        )
-        .then(setting =>
-          migrateImageSettings(setting, PathUtil.getAppDir(), next =>
-            this.saveSetting(JSON.stringify(next, null, 2))
-          )
-        )
-        .then(setting =>
-          migratePublishSettings(
-            setting,
-            PathUtil.getAppDir(),
-            next => this.saveSetting(JSON.stringify(next, null, 2)),
-            directory => publicationGitService.registerDirectory(directory)
-          )
-        )
-        .then(setting =>
-          migrateVideoSettings(setting, PathUtil.getAppDir(), next =>
-            this.saveSetting(JSON.stringify(next, null, 2))
-          )
-        )
         .then(setting => {
+          assertCurrentProviderSettings(setting);
           this.userSetting = setting;
           this.settingLoaded = true;
           return setting;
@@ -322,7 +281,7 @@ class UserSettingModule {
       .then(async () => {
         const previous = this.userSetting;
         const next = update(previous);
-        assertCurrentPublishSettings(next);
+        assertCurrentProviderSettings(next);
         if (isEqual(previous, next)) return;
         await this.writeSettingFile(JSON.stringify(next, null, 2));
         this.userSetting = next;
@@ -346,7 +305,6 @@ class UserSettingModule {
     const setting = await fs.readFile(settingPath, "utf-8");
     try {
       const parsedSetting = JSON.parse(setting);
-      this.userSetting = parsedSetting;
       console.info("[UserSettingModule] 读取用户设置");
       return parsedSetting;
     } catch (e) {
@@ -359,11 +317,11 @@ class UserSettingModule {
       });
       const salvaged = salvageLeadingJsonObject(setting);
       if (salvaged) {
+        assertCurrentProviderSettings(salvaged);
         console.info("[UserSettingModule] 已从损坏文件抢救设置", {
           backupPath,
           keys: Object.keys(salvaged).length,
         });
-        this.userSetting = salvaged;
         await this.saveSetting(JSON.stringify(salvaged, null, 2)).catch(() => undefined);
         return salvaged;
       }
