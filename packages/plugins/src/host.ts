@@ -2114,8 +2114,7 @@ export class PluginHost {
           assertLocalId(definition.id);
           if (!definition.title.trim()) throw new Error("设置分区标题不能为空");
           if (definition.form) {
-            if (definition.target !== "sync" && definition.target !== "upload")
-              throw new Error("form 只用于同步与上传设置");
+            if (!definition.target) throw new Error("form 需要声明提供方目标");
             if (definition.component) throw new Error("设置分区不能同时声明 form 与组件");
             assertProviderForm(definition.form);
           } else if (typeof definition.component !== "function")
