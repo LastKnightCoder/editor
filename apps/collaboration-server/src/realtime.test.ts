@@ -1,4 +1,4 @@
-import { createSharedDocument } from "@tau/collaboration/src/testing/legacy-document";
+import { createTestDocument } from "@tau/collaboration/src/testing/node-document";
 import { afterEach, describe, expect, it } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -6,7 +6,7 @@ import { join } from "node:path";
 import * as Y from "yjs";
 import { WebSocket } from "ws";
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
-import { readSharedContent, replaceText } from "@tau/collaboration";
+import { readNodeDocument, replaceText } from "@tau/collaboration";
 import { createServer } from "./server";
 
 const cleanup: (() => Promise<void> | void)[] = [];
@@ -34,13 +34,16 @@ describe("真实 WebSocket 协作", () => {
     for (let groupIndex = 0; groupIndex < 5; groupIndex++) {
       const owner = server.store.register(`创建者 ${groupIndex}`);
       const room = server.store.create(owner.id, "load");
-      const seed = createSharedDocument({
-        title: "",
-        content: [{ type: "paragraph", children: [{ text: "内容" }] }],
-        bannerBg: "",
-        bannerPosition: "center",
-      });
-      server.store.publish(room.id, owner.id, Y.encodeStateAsUpdate(seed));
+      const seed = await createTestDocument(
+        {
+          title: "",
+          content: [{ type: "paragraph", children: [{ text: "内容" }] }],
+          bannerBg: "",
+          bannerPosition: "center",
+        },
+        { documentId: room.id, baselineId: "base", epoch: 0 }
+      );
+      await server.store.publish(room.id, owner.id, Y.encodeStateAsUpdate(seed));
       seed.destroy();
       const invitation = server.store.rotateCode(room.id, owner.id);
       const group: { document: Y.Doc; provider: HocuspocusProvider }[] = [];
@@ -61,7 +64,7 @@ describe("真实 WebSocket 协作", () => {
           name: room.id,
           document,
           websocketProvider: socket,
-          token: () => server.store.ticket(identity.id, room.id),
+          token: () => server.store.ticket(identity.id, room.id, 2),
         });
         cleanup.push(() => {
           provider.destroy();
@@ -101,13 +104,16 @@ describe("真实 WebSocket 协作", () => {
     const owner = server.store.register("作者"),
       guest = server.store.register("访客");
     const room = server.store.create(owner.id, "realtime");
-    const original = createSharedDocument({
-      title: "初始",
-      content: [{ type: "paragraph", children: [{ text: "内容" }] }],
-      bannerBg: "",
-      bannerPosition: "center",
-    });
-    server.store.publish(room.id, owner.id, Y.encodeStateAsUpdate(original));
+    const original = await createTestDocument(
+      {
+        title: "初始",
+        content: [{ type: "paragraph", children: [{ text: "内容" }] }],
+        bannerBg: "",
+        bannerPosition: "center",
+      },
+      { documentId: room.id, baselineId: "base", epoch: 0 }
+    );
+    await server.store.publish(room.id, owner.id, Y.encodeStateAsUpdate(original));
     const request = server.store.requestJoin(
       server.store.rotateCode(room.id, owner.id).code,
       guest.id
@@ -123,7 +129,7 @@ describe("真实 WebSocket 协作", () => {
         name: room.id,
         document,
         websocketProvider: socket,
-        token: () => server.store.ticket(deviceId, room.id),
+        token: () => server.store.ticket(deviceId, room.id, 2),
       });
       provider.attach();
       cleanup.push(() => {
@@ -139,12 +145,12 @@ describe("真实 WebSocket 协作", () => {
     const first = connect(owner.id, offline);
     await until(() => first.provider.synced && !first.provider.hasUnsyncedChanges);
     const persisted = server.store.loadDocument(room.id);
-    expect(readSharedContent(persisted).title).toBe("离线修改已保存");
+    expect(readNodeDocument(persisted).title).toBe("离线修改已保存");
     persisted.destroy();
     const secondDoc = new Y.Doc();
     const second = connect(guest.id, secondDoc);
     await until(() => second.provider.synced);
-    expect(readSharedContent(secondDoc).title).toBe("离线修改已保存");
+    expect(readNodeDocument(secondDoc).title).toBe("离线修改已保存");
     offline.getText("title").insert(0, "同步：");
     await until(() => secondDoc.getText("title").toString().startsWith("同步："));
     const response = await server.app.inject({

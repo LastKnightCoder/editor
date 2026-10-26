@@ -1,4 +1,6 @@
 import { act, useState } from "react";
+import * as Y from "yjs";
+import type { ContentCollaborationBinding } from "@tau/editor-collab";
 import { createRoot } from "react-dom/client";
 import { expect, it } from "vitest";
 import { Transforms, type Descendant, type Editor as SlateEditor } from "slate";
@@ -6,7 +8,31 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { Editor, createEditorKit, defineExtension } from "@tau/editor";
 import { desktopContentPlugins } from "../../../shared/content-plugins";
-import { useTransientContentDocument } from "../useContentDocument";
+import { useBoundContentDocument, useTransientContentDocument } from "../useContentDocument";
+
+it("旧网络协议绑定明确报错，不构造只读替代文档", async () => {
+  const doc = new Y.Doc();
+  doc.getMap("meta").set("version", 1);
+  const before = Y.encodeStateAsUpdate(doc);
+  const binding = { doc, origin: "test" } as unknown as ContentCollaborationBinding;
+  let result: ReturnType<typeof useBoundContentDocument> | undefined;
+  function Probe() {
+    result = useBoundContentDocument(binding);
+    return null;
+  }
+  const host = document.createElement("div"),
+    root = createRoot(host);
+  try {
+    await act(async () => root.render(<Probe />));
+    expect(result?.document).toBeUndefined();
+    expect(result?.error).toContain("UNSUPPORTED");
+    expect(result?.frozen).toBe(true);
+    expect(Y.encodeStateAsUpdate(doc)).toEqual(before);
+  } finally {
+    await act(async () => root.unmount());
+    doc.destroy();
+  }
+});
 
 it("临时草稿按原契约渲染旧版本，输入后保持编辑实例和旧字段", async () => {
   const previous = {

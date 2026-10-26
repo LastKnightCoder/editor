@@ -1,3 +1,4 @@
+import { readDocumentIdentity } from "@tau/collaboration";
 import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
 import * as Y from "yjs";
 import { applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protocols/awareness";
@@ -191,9 +192,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
       inputIdentity: {
         workspaceId,
         documentId: session.info.id,
-        baselineId: String(
-          session.doc.getMap("meta").get("baselineId") ?? `legacy:${session.info.id}`
-        ),
+        baselineId: readDocumentIdentity(session.doc).baselineId,
         epoch: Number(session.doc.getMap("meta").get("epoch") ?? 0),
       },
     });

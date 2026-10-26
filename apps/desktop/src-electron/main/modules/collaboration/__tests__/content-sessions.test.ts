@@ -1,4 +1,4 @@
-import { createSharedDocument } from "@tau/collaboration/src/testing/legacy-document";
+import { createTestDocument } from "@tau/collaboration/src/testing/node-document";
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("electron", () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -18,8 +18,7 @@ import {
 } from "y-protocols/awareness";
 import { createEditor, Transforms } from "slate";
 import {
-  readSharedContent,
-  validateDocument,
+  readNodeDocument,
   createNodeDocument,
   NodeTree,
   type ContentNode,
@@ -48,27 +47,35 @@ const cleanup: (() => void)[] = [];
 afterEach(() => {
   for (const dispose of cleanup.splice(0).reverse()) dispose();
 });
-function runtime(content?: unknown[]): RuntimeSession {
-  const doc = createSharedDocument(
-    {
-      title: "标题",
-      content: (content as never) ?? [
-        { type: "paragraph", children: [{ text: "你好" }] },
-        { type: "whiteboard", whiteBoardContentId: 12, children: [{ text: "" }] },
-        { type: "image", url: "/tmp/local.png", children: [{ text: "" }] },
-      ],
-      bannerBg: "",
-      bannerPosition: "center",
-    },
-    undefined,
-    "local"
-  );
+async function runtime(
+  content?: ContentNode[],
+  contracts?: ContentContractDictionary
+): Promise<RuntimeSession> {
+  const identity = { documentId: "local-test", baselineId: "baseline", epoch: 0 };
+  const value = {
+    title: "标题",
+    content: content ?? [{ type: "paragraph", children: [{ text: "你好" }] }],
+    bannerBg: "",
+    bannerPosition: "center",
+  };
+  const doc = contracts
+    ? await createNodeDocument(identity, value, contracts)
+    : await createTestDocument(
+        value,
+        identity,
+        ["paragraph", "check-list", "check-list-item", "link"].map(type => ({
+          type,
+          dataVersion: 1,
+          kind: type === "link" ? "inline" : "block",
+        }))
+      );
   const awareness = new Awareness(doc);
   awareness.setLocalState(null);
   const session: RuntimeSession = {
     doc,
     awareness,
     dirty: false,
+    persistNodeUpdate: vi.fn(),
     info: {
       id: "local-test",
       mode: "local",
@@ -133,14 +140,7 @@ async function nodeRuntime() {
     ]),
     node("source", "source", [{ text: "" }], { code: "源码" }),
   ];
-  const session = runtime();
-  session.doc = await createNodeDocument(
-    { documentId: session.info.id, baselineId: "baseline", epoch: 0 },
-    { title: "标题", bannerBg: "", bannerPosition: "center", content },
-    contracts
-  );
-  session.persistNodeUpdate = vi.fn();
-  cleanup.push(() => session.doc.destroy());
+  const session = await runtime(content, contracts);
   return { session, contracts };
 }
 
@@ -230,8 +230,8 @@ describe("本机内容会话", () => {
       )
     ).toThrow("CONTENT_FORMAT_UNSUPPORTED");
   });
-  it("缺失身份的离线分叉得到相同 taskId，合并后身份不会换成另一随机值", () => {
-    const main = runtime([
+  it("缺失身份的离线分叉得到相同 taskId，合并后身份不会换成另一随机值", async () => {
+    const main = await runtime([
       {
         type: "check-list",
         children: [
@@ -248,21 +248,21 @@ describe("本机内容会话", () => {
     const other = { ...main, doc: view } as RuntimeSession;
     patchSessionNodes(main, createTaskIdPatcher());
     patchSessionNodes(other, createTaskIdPatcher());
-    const taskId = (readSharedContent(main.doc).content[0].children![0] as { taskId: string })
+    const taskId = (readNodeDocument(main.doc).content[0].children![0] as { taskId: string })
       .taskId;
-    expect((readSharedContent(view).content[0].children![0] as { taskId: string }).taskId).toBe(
+    expect((readNodeDocument(view).content[0].children![0] as { taskId: string }).taskId).toBe(
       taskId
     );
     Y.applyUpdate(main.doc, Y.encodeStateAsUpdate(view));
     Y.applyUpdate(view, Y.encodeStateAsUpdate(main.doc));
-    expect((readSharedContent(main.doc).content[0].children![0] as { taskId: string }).taskId).toBe(
+    expect((readNodeDocument(main.doc).content[0].children![0] as { taskId: string }).taskId).toBe(
       taskId
     );
     view.destroy();
   });
 
-  it("格式和行内元素混排的全段补丁按正确偏移修改", () => {
-    const main = runtime([
+  it("格式和行内元素混排的全段补丁按正确偏移修改", async () => {
+    const main = await runtime([
       {
         type: "paragraph",
         children: [
@@ -283,7 +283,7 @@ describe("本机内容会话", () => {
           insert: "上线",
         }))
     );
-    expect(readSharedContent(main.doc).content[0]).toMatchObject({
+    expect(readNodeDocument(main.doc).content[0]).toMatchObject({
       children: [
         { text: "前 #上线 ", bold: true },
         { type: "link", children: [{ text: "中间" }] },
@@ -301,9 +301,9 @@ describe("本机内容会话", () => {
     session.info.frozen = false;
     expect(ContentTable.ensureTaskIds(db, 7)).toBe(1);
   });
-  it("编辑期间不自动改日期文字，退出编辑后再就地写回", () => {
+  it("编辑期间不自动改日期文字，退出编辑后再就地写回", async () => {
     const db = database();
-    const session = runtime([{ type: "paragraph", children: [{ text: "明天" }] }]);
+    const session = await runtime([{ type: "paragraph", children: [{ text: "明天" }] }]);
     registerContentSession(db, 7, session);
     session.awareness.setLocalState({ activity: "editing" });
     const options = {
@@ -311,21 +311,22 @@ describe("本机内容会话", () => {
       paragraph: () => [{ index: 0, remove: 2, insert: "2026年10月9日" }],
     };
     expect(ContentTable.patchNodes(db, 7, () => null, options)).toBe(0);
-    expect(readSharedContent(session.doc).content[0]).toMatchObject({
+    expect(readNodeDocument(session.doc).content[0]).toMatchObject({
       children: [{ text: "明天" }],
     });
     session.awareness.setLocalState({ activity: "viewing" });
     expect(ContentTable.patchNodes(db, 7, () => null, options)).toBe(1);
-    expect(readSharedContent(session.doc).content[0]).toMatchObject({
+    expect(readNodeDocument(session.doc).content[0]).toMatchObject({
       children: [{ text: "2026年10月9日" }],
     });
   });
-  it("保留本地实体和资源，但禁止直接上传本机文档", () => {
-    const { doc } = runtime();
-    const content = readSharedContent(doc).content;
-    expect(content[1].whiteBoardContentId).toBe(12);
-    expect(content[2].url).toBe("/tmp/local.png");
-    expect(() => validateDocument(doc)).toThrow("本机会话");
+  it("旧协议会话拒绝读取和补丁，原数据不被改写", async () => {
+    const session = await runtime();
+    session.doc.getMap("meta").set("version", 1);
+    const before = Y.encodeStateAsUpdate(session.doc);
+    expect(() => readSessionContent(session)).toThrow("协议");
+    expect(() => patchSessionNodes(session, () => ({ checked: true }))).toThrow("UNSUPPORTED");
+    expect(Y.encodeStateAsUpdate(session.doc)).toEqual(before);
   });
 
   it("多视图并发输入和撤销保持收敛，关闭一个视图只移除自己的光标", async () => {
@@ -370,7 +371,7 @@ describe("本机内容会话", () => {
     expect(main.awareness.getStates().has(views[1].doc.clientID)).toBe(true);
   });
 
-  it("标题回写所有文档类型，保留标签封面和卡片", () => {
+  it("标题回写所有文档类型，保留标签封面和卡片", async () => {
     const db = database();
     db.exec(
       "INSERT INTO articles(id,title,create_time,update_time,content_id,tags,banner_bg) VALUES (1,'文章',1,1,7,'[\"标签\"]','cover'); INSERT INTO project_item(id,title,create_time,update_time,content_id) VALUES (2,'项目',1,1,7); INSERT INTO project_item(id,title,create_time,update_time,content_id,tags) VALUES (3,'知识库',1,1,7,'[\"知识库标签\"]'); INSERT INTO cards(id,create_time,update_time,content_id,tags) VALUES (4,1,1,7,'[\"卡片标签\"]');"
@@ -386,64 +387,60 @@ describe("本机内容会话", () => {
     expect(projectContentTitle(db, 7, "统一标题")).toHaveLength(0);
   });
 
-  it("按创建标识校验，删除后同号重建不能继承旧会话", () => {
+  it("按创建标识校验，删除后同号重建不能继承旧会话", async () => {
     const db = database();
-    const session = runtime();
+    const session = await runtime();
     registerContentSession(db, 7, session);
     expect(contentSession(db, 7)).toBe(session);
     db.exec("UPDATE contents SET create_time=200 WHERE id=7");
     expect(contentSession(db, 7)).toBeUndefined();
   });
 
-  it("按属性就地修改嵌套元素，与视图里并发的输入合并、不整篇替换", () => {
+  it("按属性就地修改嵌套元素，与视图里并发的输入合并、不整篇替换", async () => {
     const item = (taskId: string, text: string) => ({
       type: "check-list-item",
       checked: false,
       taskId,
       children: [{ type: "paragraph", children: [{ text }] }],
     });
-    const main = runtime([{ type: "check-list", children: [item("a", "甲"), item("b", "乙")] }]);
+    const main = await runtime([
+      { type: "check-list", children: [item("a", "甲"), item("b", "乙")] },
+    ]);
 
     // 视图端在补丁之前分叉，随后在第一项的文字里输入
     const view = new Y.Doc();
     Y.applyUpdate(view, Y.encodeStateAsUpdate(main.doc));
-    // 找到第一个段落元素（承载文字的 XmlText）
-    const firstParagraph = (text: Y.XmlText): Y.XmlText | null => {
-      for (const part of text.toDelta() as Array<{ insert: unknown }>) {
-        if (!(part.insert instanceof Y.XmlText)) continue;
-        if (part.insert.getAttribute("type") === "paragraph") return part.insert;
-        const found = firstParagraph(part.insert);
-        if (found) return found;
-      }
-      return null;
-    };
-    firstParagraph(view.get("content", Y.XmlText))!.insert(1, "改");
-
-    const body = main.doc.get("content", Y.XmlText);
-    const listBefore = body.toDelta()[0].insert;
+    const viewTree = new NodeTree(view);
+    const mainTree = new NodeTree(main.doc);
+    const firstParagraphId = String(mainTree.read()[0].children![0].children![0].collabId);
+    viewTree.insertText(firstParagraphId, 1, "改", "view");
+    const listId = String(mainTree.read()[0].collabId);
+    const listBefore = mainTree.nodes.get(listId);
     expect(
       patchSessionNodes(main, attrs =>
         attrs.type === "check-list-item" && attrs.taskId === "b" ? { checked: true } : null
       )
     ).toBe(1);
     // 原元素仍在原位（就地改属性，不是删了重插）
-    expect(body.toDelta()[0].insert).toBe(listBefore);
+    expect(mainTree.nodes.get(listId)).toBe(listBefore);
 
     Y.applyUpdate(main.doc, Y.encodeStateAsUpdate(view));
     Y.applyUpdate(view, Y.encodeStateAsUpdate(main.doc));
     for (const doc of [main.doc, view]) {
-      const [list] = readSharedContent(doc).content as Array<{ children: any[] }>;
+      const [list] = readNodeDocument(doc).content as Array<{ children: any[] }>;
       expect(list.children.map(child => [child.taskId, child.checked])).toEqual([
         ["a", false],
         ["b", true],
       ]);
       expect(list.children[0].children[0].children[0].text).toBe("甲改");
     }
+    viewTree.dispose();
+    mainTree.dispose();
     view.destroy();
   });
 
-  it("会话冻结时拒绝属性修改", () => {
-    const session = runtime();
+  it("会话冻结时拒绝属性修改", async () => {
+    const session = await runtime();
     session.info.frozen = true;
     expect(() => patchSessionNodes(session, () => ({ checked: true }))).toThrow("LOCKED");
   });

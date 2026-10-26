@@ -102,6 +102,17 @@ it("发布中断回滚正文与协议记录，原候选可以重试", () => {
   expect(f.protocols.state("doc")).toMatchObject(f.initial);
 });
 
+it("缺少协议记录时不从正文虚构基线，正常首次发布仍可建立记录", () => {
+  const f = setup();
+  expect(() => f.protocols.state("doc")).toThrow("缺少当前协议记录");
+  expect(f.read).not.toHaveBeenCalled();
+  expect(f.db.prepare("SELECT count(*) AS count FROM collaboration_protocol").get()).toEqual({
+    count: 0,
+  });
+  f.protocols.publish(f.initial, () => f.install());
+  expect(f.protocols.state("doc")).toMatchObject(f.initial);
+});
+
 it("修订缓存随真实 SQL 记录核验，事务回滚和重启不能复用陈旧值", () => {
   const f = setup();
   f.protocols.publish(f.initial, () => f.install());

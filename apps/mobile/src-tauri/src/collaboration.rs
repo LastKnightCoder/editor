@@ -24,88 +24,6 @@ const IDENTITY_FILE: &str = "collaboration/identity.json";
 const DEFAULT_NICKNAME: &str = "Tau 用户";
 const NICKNAME_MAX_CHARS: usize = 40;
 const REQUEST_TIMEOUT_SECS: u64 = 20;
-const PRODUCT_COLLABORATION_URL: &str = "https://collab.taunote.app";
-
-fn migration_hashes() -> &'static std::sync::Mutex<Vec<String>> {
-    static HASHES: OnceLock<std::sync::Mutex<Vec<String>>> = OnceLock::new();
-    HASHES.get_or_init(|| std::sync::Mutex::new(Vec::new()))
-}
-
-fn migrate_active_bindings(app: &AppHandle, url: &str) -> Result<(), String> {
-    if url != PRODUCT_COLLABORATION_URL {
-        return Ok(());
-    }
-    let hashes = migration_hashes()
-        .lock()
-        .map_err(|_| "COLLAB_ENDPOINT_MIGRATION_FAILED: 升级状态不可用".to_string())?
-        .clone();
-    crate::database::migrate_collaboration_endpoints(app, url, &hashes)
-}
-
-async fn migrate_product_identity(
-    app: &AppHandle,
-    url: &str,
-    stored: &mut HashMap<String, DeviceIdentity>,
-) -> Result<(), String> {
-    if url != PRODUCT_COLLABORATION_URL {
-        return Ok(());
-    }
-    let health = send_json(url, "/health/ready", "GET", None, None).await?;
-    if health.get("canonicalUrl").and_then(Value::as_str) != Some(url) {
-        return Ok(());
-    }
-    let hashes: Vec<String> = health
-        .get("legacyOriginHashes")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(Value::as_str)
-        .filter(|hash| hash.len() == 64 && hash.chars().all(|ch| ch.is_ascii_hexdigit()))
-        .map(str::to_string)
-        .collect();
-    let origins: Vec<String> = stored
-        .keys()
-        .filter(|origin| {
-            *origin != url && hashes.contains(&format!("{:x}", Sha256::digest(origin.as_bytes())))
-        })
-        .cloned()
-        .collect();
-    let target = stored.get(url).cloned().or_else(|| {
-        origins
-            .first()
-            .and_then(|origin| stored.get(origin))
-            .cloned()
-    });
-    if let Some(identity) = target {
-        for origin in &origins {
-            let source = stored
-                .get(origin)
-                .ok_or("COLLAB_ENDPOINT_MIGRATION_FAILED: 协作身份缺失")?;
-            if source.id != identity.id {
-                send_json(
-                    url,
-                    "/v1/devices/merge",
-                    "POST",
-                    Some(&json!({
-                        "sourceId": source.id, "sourceSecret": source.secret
-                    })),
-                    Some(&format!("{}:{}", identity.id, identity.secret)),
-                )
-                .await?;
-            }
-        }
-        for origin in origins {
-            stored.insert(origin, identity.clone());
-        }
-        stored.insert(url.to_string(), identity);
-        write_identities(app, stored)?;
-    }
-    *migration_hashes()
-        .lock()
-        .map_err(|_| "COLLAB_ENDPOINT_MIGRATION_FAILED: 升级状态不可用".to_string())? = hashes;
-    migrate_active_bindings(app, url)
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceIdentity {
@@ -303,11 +221,9 @@ async fn ensure_identity(
     let url = normalize_server_url(server_url)?;
     let mut cache = identity_cache().lock().await;
     if let Some(identity) = cache.get(&url) {
-        migrate_active_bindings(app, &url)?;
         return Ok(identity.clone());
     }
     let mut stored = read_identities(app)?;
-    migrate_product_identity(app, &url, &mut stored).await?;
     if let Some(identity) = stored.get(&url) {
         let identity = identity.clone();
         cache.insert(url, identity.clone());

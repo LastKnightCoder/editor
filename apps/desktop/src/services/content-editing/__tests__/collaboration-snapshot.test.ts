@@ -1,7 +1,7 @@
-import { createSharedDocument } from "@tau/collaboration/src/testing/legacy-document";
+import { createTestDocument } from "@tau/collaboration/src/testing/node-document";
 import { expect, it } from "vitest";
 import type { Descendant } from "slate";
-import { readSharedContent } from "@tau/collaboration";
+import { readNodeDocument } from "@tau/collaboration";
 import { getMarkdown } from "@/utils/markdown";
 import {
   removeActiveEditingSession,
@@ -9,7 +9,7 @@ import {
   upsertActiveEditingSession,
 } from "../active-editor-session";
 
-it("协作文档还原后应使用 formatted 文本更新文章快照", () => {
+it("协作文档还原后应使用 formatted 文本更新文章快照", async () => {
   const content = [
     { type: "paragraph", children: [{ type: "formatted", text: "" }] },
     {
@@ -17,12 +17,15 @@ it("协作文档还原后应使用 formatted 文本更新文章快照", () => {
       children: [{ type: "formatted", text: "正文", bold: true }],
     },
   ] satisfies Descendant[];
-  const doc = createSharedDocument({
-    title: "文章",
-    bannerBg: "",
-    bannerPosition: "center",
-    content,
-  });
+  const doc = await createTestDocument(
+    {
+      title: "文章",
+      bannerBg: "",
+      bannerPosition: "center",
+      content,
+    },
+    { documentId: "article", baselineId: "base", epoch: 0 }
+  );
   const sessionId = "article-collaboration-snapshot";
   try {
     upsertActiveEditingSession({
@@ -32,7 +35,7 @@ it("协作文档还原后应使用 formatted 文本更新文章快照", () => {
       entityId: 1,
       content,
     });
-    const restored = readSharedContent(doc).content as Descendant[];
+    const restored = readNodeDocument(doc).content as Descendant[];
     expect(restored[0]).toMatchObject({
       children: [{ type: "formatted", text: "" }],
     });

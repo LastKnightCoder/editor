@@ -1,4 +1,3 @@
-export const COLLABORATION_VERSION = 1;
 export const DEFAULT_COLLABORATION_URL = "https://collab.taunote.app";
 export const ASSET_PREFIX = "tau-collab-asset:";
 /**

@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createNodeTreeDocument, type ContentCollaborationBinding } from "@tau/editor-collab";
 import { NodeTree, NODE_DOCUMENT_VERSION } from "@tau/collaboration";
-import { createValueDocument, type EditorDocument } from "@tau/editor";
+import type { EditorDocument } from "@tau/editor";
 import { getMobileContentKit } from "../../../services/editorKit";
 import { mobileContentPlugins } from "../../../app/plugins/content";
 import { ASSET_PREFIX } from "@tau/collaboration/src/protocol";
@@ -177,25 +177,14 @@ export default function useCollaborationDocument(documentId?: string) {
   const editorDocument =
     prepared && prepared.binding === binding && prepared.revision === pluginRevision
       ? prepared.document
-      : binding && !tree
-        ? createValueDocument(
-            [
-              {
-                type: "paragraph",
-                children: [{ type: "formatted", text: "此文档尚未转换，原始数据已保留。" }],
-              },
-            ],
-            undefined,
-            { readonly: true, lineage: `legacy:${documentId}` }
-          )
-        : undefined;
+      : undefined;
 
   return {
     binding,
     document: editorDocument,
     session,
     loading,
-    error,
+    error: binding && !tree ? "CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持" : error,
     /** 该房间对应的本地内容 id（由本机发起时才存在），投影回写的目标 */
     boundContentId,
     frozen: Boolean(session?.frozen) || Boolean(session?.leaving) || !tree || !editorDocument,

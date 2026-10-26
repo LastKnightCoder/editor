@@ -11,7 +11,8 @@ import { sharedValueEquals } from "./shared-values";
 import { contentResourceSlots, contentResourceValues } from "@tau/db-schema/content-resources";
 import { isSafeResource } from "./resource-policy";
 
-export const NODE_DOCUMENT_VERSION = 2;
+import { NODE_DOCUMENT_VERSION, readDocumentIdentity } from "./document-version";
+export { NODE_DOCUMENT_VERSION } from "./document-version";
 export const NODE_DOCUMENT_MAX_BYTES = 8 * 1024 * 1024;
 const ROOTS = [
   "meta",
@@ -361,7 +362,15 @@ export async function applyNodeDocumentUpdate(
   }
 }
 
+function assertReadableNodeDocument(doc: Y.Doc) {
+  if (readDocumentIdentity(doc).version !== NODE_DOCUMENT_VERSION)
+    fail("UNSUPPORTED_DOCUMENT", "该入口只读取当前正文协议 2");
+  if ([...doc.share.keys()].some(key => !ROOTS.includes(key)))
+    fail("INVALID_DOCUMENT", "文档根结构与协议不匹配");
+}
+
 export function readNodeDocument(doc: Y.Doc): SharedContent {
+  assertReadableNodeDocument(doc);
   const tree = new NodeTree(doc),
     meta = doc.getMap("meta");
   try {
@@ -378,6 +387,7 @@ export function readNodeDocument(doc: Y.Doc): SharedContent {
 
 /** 保留记录也可能被撤销重新显示；只读取各自契约声明的资源位置。 */
 export function collectNodeDocumentResources(doc: Y.Doc): string[] {
+  assertReadableNodeDocument(doc);
   const tree = new NodeTree(doc),
     references = new Set<string>();
   try {

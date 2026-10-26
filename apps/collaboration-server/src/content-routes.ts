@@ -92,10 +92,7 @@ export function registerContentRoutes(
     const id = params(request).id;
     store.authorize(id, device(request).id);
     const protocol = store.protocols.state(id);
-    if (
-      protocol.version > 1 &&
-      request.headers["x-tau-document-version"] !== String(protocol.version)
-    )
+    if (request.headers["x-tau-document-version"] !== String(protocol.version))
       throw new CollaborationError(
         "CLIENT_UPGRADE_REQUIRED",
         "请使用支持当前文档协议的客户端",

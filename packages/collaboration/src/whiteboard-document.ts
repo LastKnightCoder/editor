@@ -12,7 +12,8 @@ import { contentResourceSlots, contentResourceValues } from "@tau/db-schema/cont
 import { isSafeResource } from "./resource-policy";
 import type { WhiteboardFieldBindings } from "./whiteboard-types";
 
-export const WHITEBOARD_DOCUMENT_VERSION = 3;
+import { WHITEBOARD_DOCUMENT_VERSION } from "./document-version";
+export { WHITEBOARD_DOCUMENT_VERSION } from "./document-version";
 const roots = [
   "meta",
   "whiteboard:meta",

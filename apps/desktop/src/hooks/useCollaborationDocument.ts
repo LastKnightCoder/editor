@@ -15,7 +15,6 @@ import * as Y from "yjs";
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protocols/awareness";
 import {
   isCollaborationResource,
-  readSharedContent,
   readNodeDocument,
   NODE_DOCUMENT_VERSION,
   validateNodeDocument,
@@ -52,7 +51,7 @@ export default function useCollaborationDocument(documentId?: string) {
     let pending: Uint8Array[] = [];
     let sending: Promise<void> | undefined;
     let activeBinding: ContentCollaborationBinding | undefined;
-    // 私有块数据不经过 Y 文档，单独排队并在失败时重试，确保最终送达主进程。
+    // 输入草稿独立排队并在失败时重试，确保最终送达主进程。
     const pendingDrafts = new Map<string, ContentInputDraft>();
     let draftSequence = 0;
     let documentDraftSequence = 0;
@@ -83,10 +82,7 @@ export default function useCollaborationDocument(documentId?: string) {
     };
     const publish = () => {
       if (!disposed) {
-        const value =
-          doc.getMap("meta").get("version") === NODE_DOCUMENT_VERSION
-            ? readNodeDocument(doc)
-            : readSharedContent(doc);
+        const value = readNodeDocument(doc);
         setArticle(value);
       }
     };
@@ -174,16 +170,14 @@ export default function useCollaborationDocument(documentId?: string) {
         Y.applyUpdate(doc, new Uint8Array(snapshot.state), IPC_ORIGIN);
         for (const update of updates) Y.applyUpdate(doc, new Uint8Array(update), IPC_ORIGIN);
         updates.length = 0;
-        if (doc.getMap("meta").get("version") === NODE_DOCUMENT_VERSION) {
-          await validateNodeDocument(doc, {
-            documentId: id,
-            baselineId: String(doc.getMap("meta").get("baselineId")),
-            epoch: Number(doc.getMap("meta").get("epoch")),
-          });
-          if (disposed) return;
-          for (const update of updates) Y.applyUpdate(doc, new Uint8Array(update), IPC_ORIGIN);
-          updates.length = 0;
-        }
+        await validateNodeDocument(doc, {
+          documentId: id,
+          baselineId: String(doc.getMap("meta").get("baselineId")),
+          epoch: Number(doc.getMap("meta").get("epoch")),
+        });
+        if (disposed) return;
+        for (const update of updates) Y.applyUpdate(doc, new Uint8Array(update), IPC_ORIGIN);
+        updates.length = 0;
         if (snapshot.awareness)
           applyAwarenessUpdate(awareness, new Uint8Array(snapshot.awareness), IPC_ORIGIN);
         for (const state of states)

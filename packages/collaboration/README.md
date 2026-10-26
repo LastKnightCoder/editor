@@ -1,6 +1,8 @@
 # 协作协议与稳定节点模型
 
-正式正文协作的服务与持久化见[协作架构](/docs/architecture/collaboration.md)。本包的 NodeTree 是已实现并经内存测试的稳定节点候选，尚未切换正式房间或执行存量迁移；不能将候选能力视为已发布的白板协作。
+本包提供协议 2 正文、协议 3 白板及稳定节点模型。当前服务与持久化见[协作架构](/docs/architecture/collaboration.md)；仓库实现不代表线上已部署。
+
+`document-version` 是支持版本的唯一常量来源，信封读取拒绝旧或缺失版本及缺失身份，不创建根或生成替代基线。发布、投影、资源扫描和导入使用当前协议入口；协议 1 的解码器、资源映射和测试构造器已删除。通用 Yjs 值操作继续保留，Markdown 本地编辑的 slate-yjs 依赖归 `@tau/editor-collab`。
 
 ## 节点、删除与位置
 
@@ -71,6 +73,6 @@ preflight 接收可信绑定的纯候选写入函数，验证后由绑定对真�
 
 ## 当前协议与持久提交
 
-`document-protocol` 的 DocumentProtocolStore 保存当前基线、首次发布身份与已核验修订；DocumentSql 是与调用方共用事务的存储接口。协议记录仍带旧格式迁移标记时明确拒绝，不自动解冻。服务端不提供文档格式升级状态机或路由。
+`document-protocol` 的 DocumentProtocolStore 保存当前基线、首次发布身份与已核验修订；DocumentSql 是与调用方共用事务的存储接口。协议记录缺失、版本不受支持或仍带旧格式迁移标记时明确拒绝，不从正文补造记录，也不自动解冻。服务端不提供文档格式升级状态机或路由。
 
 普通编辑由 DocumentOperationLedger 保存幂等回执，与正文及协议修订在同一事务提交。`document-installation` 的 DocumentInstallFingerprint/DocumentInstallReceipt 仅描述当前跨存储安装，供白板首次共享、退出等流程确认候选与回执，不提供历史格式转换。

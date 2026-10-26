@@ -1683,9 +1683,6 @@ importers:
 
   packages/collaboration:
     dependencies:
-      '@slate-yjs/core':
-        specifier: 1.0.2
-        version: 1.0.2(slate@0.126.2)(yjs@13.6.32)
       '@tau/db-schema':
         specifier: workspace:*
         version: link:../db-schema
@@ -1705,9 +1702,6 @@ importers:
       react:
         specifier: 19.2.0
         version: 19.2.0
-      slate:
-        specifier: 0.126.2
-        version: 0.126.2
       typescript:
         specifier: 7.0.2
         version: 7.0.2

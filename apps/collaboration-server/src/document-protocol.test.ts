@@ -67,10 +67,11 @@ describe("真实服务发布与版本边界", () => {
       target,
     ]);
     const metadata = JSON.parse(readFileSync(join(target, "metadata.json"), "utf8"));
-    expect(metadata.format).toBe(4);
+    expect(metadata.format).toBe(5);
     expect(metadata.tables.collaboration_protocol).toHaveLength(1);
     expect(metadata.tables.collaboration_operations).toEqual([]);
     expect(metadata.tables).not.toHaveProperty("collaboration_migrations");
+    expect(metadata.tables).not.toHaveProperty("identity_merges");
     const doc = new Y.Doc();
     try {
       Y.applyUpdate(doc, readFileSync(join(target, "documents", row.id)));

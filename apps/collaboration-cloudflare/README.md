@@ -8,8 +8,8 @@
 - 附件桶：tau-collaboration-assets；备份桶：tau-collaboration-backups。两者r2.dev访问均关闭。
 - API保持 `/v1/*`、`/ws`、`/events`；普通客户端无需原型管理凭据。
 - 元数据、权限、签名密钥与Yjs状态保存在SQLite；快照及增量按512KiB分块，事务落盘后继续同步。
-- 文档格式升级接口已退役；当前协议、首次发布与普通编辑回执继续持久化，旧迁移标记明确拒绝，不自动解冻。
-- 业务配额、内存背压、消息限流、资源回收与端点身份升级见 [协作架构](/docs/architecture/collaboration.md)。发布、数据恢复和域名切换见 [操作指南](/docs/guides/ops-collaboration-deploy.md)。
+- 文档只支持正文协议 2 与白板协议 3；旧版本发布、读取、票据、导入和资源扫描均拒绝。文档格式升级接口已退役；当前协议、首次发布与普通编辑回执继续持久化，旧迁移标记明确拒绝，不自动解冻。
+- 业务配额、内存背压、消息限流、资源回收与服务器身份隔离见 [协作架构](/docs/architecture/collaboration.md)。发布、数据恢复和域名切换见 [操作指南](/docs/guides/ops-collaboration-deploy.md)。
 
 ## 验证命令
 
@@ -20,7 +20,7 @@ pnpm --filter desktop exec vitest run src-electron/main/modules/collaboration/__
 pnpm check:docs
 ```
 
-测试先构建两个目标，运行真实workerd、SQLite和R2模拟存储。覆盖审批、跨端正文同步、两端离线合并、进程重启、大文档、受控导入、凭据保留、身份合并重试、附件鉴权、幂等、关闭清理和完整备份。
+测试先构建两个目标，运行真实workerd、SQLite和R2模拟存储。覆盖审批、跨端正文同步、两端离线合并、进程重启、大文档、受控导入、凭据保留、独立身份权限、附件鉴权、幂等、关闭清理和完整备份。
 
 桌面侧使用生产CollaborationClient和Hocuspocus Provider；移动侧使用生产CollaborationManager、REST和WebSocket，仅替换Tauri IPC及本地绑定读取。完整Electron界面、iOS/Android真机及离线杀进程恢复未由这些测试验收。
 
@@ -46,8 +46,8 @@ COLLAB_PROTOTYPE_URL=<正式Worker的workers.dev地址> \
 
 ## 数据导入约束
 
-导入只允许未激活实例；先导入元数据、状态和附件，核对数量及状态字节，最后激活。已开放实例拒绝覆盖。客户端通过产品端点认可的来源摘要复用凭据，必须证明双方身份才能合并权限；服务不收集自托管凭据。
+导入只允许未激活实例；先导入元数据、状态和附件，核对数量及状态字节，最后激活。已开放实例拒绝覆盖。身份按服务器地址独立保存，不提供跨地址凭据搬迁或设备身份合并接口。
 
-备份元数据只接受格式 4，必须包含当前文档协议、首次发布、普通编辑回执、修订序号与资产关系；不接纳旧格式清单或已退役的格式迁移账本。Node 导出与 Worker 备份使用相同格式。此约束描述仓库实现，不代表正式部署已更新。
+备份元数据只接受格式 5，必须包含当前文档协议、首次发布、普通编辑回执、修订序号与资产关系；不接纳旧格式清单、身份合并账本或已退役的格式迁移账本。已有非空身份合并库在任何初始化写入前被拒绝，原数据保持。Node 导出与 Worker 备份使用相同格式。此约束描述仓库实现，不代表正式部署已更新。
 
 正式管理凭据保存在仓库外 `~/.local/share/tau/collaboration-cloudflare/production.env`，备份位于私有R2及操作员仓库外私有目录，不得提交或打印。代码回滚保留当前数据库，不能用旧备份覆盖新写入。

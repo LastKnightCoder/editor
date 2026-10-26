@@ -1,4 +1,4 @@
-import { createSharedDocument } from "@tau/collaboration/src/testing/legacy-document";
+import { createTestDocument } from "@tau/collaboration/src/testing/node-document";
 import { BUILTIN_CONTENT_RESOURCES } from "@tau/db-schema/content-resources";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
@@ -47,15 +47,18 @@ const temporary = () => {
 };
 
 describe("通用内容和本地恢复", () => {
-  it("本地缓存带版本，离线增量跨重启恢复，未知新版本不覆盖", () => {
+  it("本地缓存带版本，离线增量跨重启恢复，未知新版本不覆盖", async () => {
     const directory = temporary();
     const store = new CollaborationLocalStore(directory);
-    const doc = createSharedDocument({
-      title: "初始",
-      content: [{ text: "内容" }],
-      bannerBg: "",
-      bannerPosition: "center",
-    });
+    const doc = await createTestDocument(
+      {
+        title: "初始",
+        content: [{ type: "paragraph", children: [{ text: "内容" }] }],
+        bannerBg: "",
+        bannerPosition: "center",
+      },
+      { documentId: "offline", baselineId: "base", epoch: 0 }
+    );
     const session: CollaborationSession = {
       id: "offline",
       title: "初始",
