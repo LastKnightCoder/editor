@@ -13,7 +13,7 @@
     "dev": "vite --configLoader runner",
     "showcase": "vite --configLoader runner --config vite.config.showcase.mts",
     "prebuild": "pnpm -w db:schema:prepare && node scripts/build-native-speech.mjs --universal",
-    "build": "cross-env-shell NODE_OPTIONS='--max-old-space-size=8092' \"tsc && vite build --configLoader runner && node scripts/run-electron-builder.mjs && node scripts/verify-native-runtime.mjs\"",
+    "build": "cross-env-shell NODE_OPTIONS='--max-old-space-size=8092' \"tsc && vite build --configLoader runner && node scripts/verify-renderer-startup.mjs && node scripts/run-electron-builder.mjs && node scripts/verify-native-runtime.mjs\"",
     "verify:native-runtime": "node scripts/verify-native-runtime.mjs",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "bench:whiteboard-hit": "pnpm --filter @tau/whiteboard bench:hit",

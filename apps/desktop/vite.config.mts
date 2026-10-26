@@ -217,6 +217,8 @@ export default defineConfig(() => {
             groups: [
               { name: "react", test: /[/\\]node_modules[/\\]react[/\\]/, priority: 50 },
               { name: "react-dom", test: /[/\\]node_modules[/\\]react-dom[/\\]/, priority: 40 },
+              // 加载器须先于业务块初始化，避免落入业务循环依赖后在启动时调用到 undefined。
+              { name: "loadable", test: /[/\\]node_modules[/\\]@loadable[/\\]/, priority: 35 },
               {
                 name: "react-router-dom",
                 test: /[/\\]node_modules[/\\]react-router-dom[/\\]/,

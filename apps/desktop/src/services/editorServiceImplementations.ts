@@ -75,7 +75,14 @@ export { importFromMarkdown as desktopImportFromMarkdown } from "@/utils/markdow
 // ==================== UI Slots ====================
 
 export const desktopEditorSlots: EditorSlots = {
-  Image: LocalImage,
-  Video: LocalVideo,
-  Audio: LocalAudio,
+  // 组件与编辑器服务存在循环依赖，消费时再读取，避免分包初始化时固化 undefined。
+  get Image() {
+    return LocalImage;
+  },
+  get Video() {
+    return LocalVideo;
+  },
+  get Audio() {
+    return LocalAudio;
+  },
 };

@@ -467,7 +467,7 @@ export function useXxxSnapshot() {
 
 ## 3.5 构建与打包
 
-- 桌面使用 TypeScript 7 原生编译器与 Vite 8（Rolldown 打包、Oxc 压缩）。入口、外置运行依赖与资源复制在 `vite.config.mts` 声明；分包使用 `rolldownOptions.output.codeSplitting`，保留 React、React DOM、路由、Mermaid 与 KaTeX 分组。
+- 桌面使用 TypeScript 7 原生编译器与 Vite 8（Rolldown 打包、Oxc 压缩）。入口、外置运行依赖与资源复制在 `vite.config.mts` 声明；分包使用 `rolldownOptions.output.codeSplitting`，保留 React、React DOM、路由、Mermaid 与 KaTeX 分组。`@loadable` 独立分组，避免加载器进入业务循环依赖而在初始化前被调用；`node apps/desktop/scripts/verify-renderer-startup.mjs` 在隔离 Electron 窗口检查生产页面模块求值及 React 首次挂载，阻断网络访问，不代替真实业务或视觉验收。
 - Vite 开发、样板间与构建命令统一 `--configLoader runner`（默认 bundle 加载器会把工作区 TS 配置依赖外部化导致 `ERR_UNKNOWN_FILE_EXTENSION`）；配置用 `fileURLToPath(import.meta.url)` 取目录。
 - `node apps/desktop/scripts/verify-plugin-content.mjs --production` 使用已经构建的 dist 内容页面，在隔离的临时 Electron 工作区验证真实内容插件；不带该参数时独立编译源码进行验证。
 - 桌面消费的编辑器扩展包、@tau/ui、@tau/themes 由 Vite 编入产物，统一声明在桌面 devDependencies——放 dependencies 会让 electron-builder 再收集整条生产依赖链；运行时从磁盘加载的外置模块与原生依赖保留生产声明，调整后检查实际安装包与原生运行时。
