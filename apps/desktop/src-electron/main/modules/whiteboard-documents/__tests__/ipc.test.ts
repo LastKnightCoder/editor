@@ -238,18 +238,12 @@ it("远端接口复用窗口持有，旧本机代次不能以新代次发送", a
   vi.spyOn(remote, "openWhiteboardRemoteSession").mockResolvedValue(session as any);
   try {
     await call("remote-open", 1, local.leaseId, "https://collab.example");
-    await expect(call("remote-stage", 2, local.leaseId, new Uint8Array([0, 0]))).rejects.toThrow(
-      "不属于"
-    );
-    await expect(call("remote-stage", 1, local.leaseId, new Uint8Array([0, 0]))).resolves.toBe(
-      "operation"
-    );
+    await expect(call("remote-sync", 2, local.leaseId)).rejects.toThrow("不属于");
+    expect(state.handlers.has("whiteboard-document:remote-stage")).toBe(false);
+    expect(state.handlers.has("whiteboard-document:remote-cancel")).toBe(false);
     epoch = 1;
-    await expect(call("remote-stage", 1, local.leaseId, new Uint8Array([0, 0]))).rejects.toThrow(
-      "EPOCH_CONFLICT"
-    );
     expect((await call("remote-sync", 1, local.leaseId)).requiresRebind).toBe(true);
-    expect(session.stage).toHaveBeenCalledTimes(1);
+    expect(session.stage).not.toHaveBeenCalled();
     expect(call("snapshot", 1, local.leaseId).state).toEqual(local.state);
   } finally {
     vi.restoreAllMocks();

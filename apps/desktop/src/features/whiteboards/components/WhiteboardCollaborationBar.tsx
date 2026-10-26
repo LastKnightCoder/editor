@@ -3,7 +3,7 @@
  *
  * 未共享：「共享」打开说明对话框，确认后走主进程首次发布（暂停编辑 → 净化候选 → 服务端回执 →
  * 本机安装），结果未知时凭原操作续做或取消，不另建房间。已共享：成员与协作码沿用正文协作面板。
- * 远端换代时只提供「采用新版本」，本机未同步的改动留在原日志，不重投到新版本。
+ * 远端换代时可转为本机白板，本机未同步的改动不重投到新版本。
  */
 
 import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
@@ -15,6 +15,7 @@ import {
   cancelWhiteboardPublication,
   resumeWhiteboardPublication,
   unshareWhiteboard,
+  resumeWhiteboardUnshare,
 } from "@/commands/whiteboard-document";
 import type { WhiteboardShareStatus } from "@/types/whiteboard-document";
 import { AvatarStack, SharePanel, StatusDot } from "@/components/CollaborationUI";
@@ -39,7 +40,7 @@ import {
 const idle = () => () => {};
 const none = (): WhiteboardRemoteState | undefined => undefined;
 
-/** 已绑定共享房间时订阅远端同步状态；未共享返回 undefined。 */
+/** 订阅共享状态读取及远端同步，未绑定时控制器报告本机状态。 */
 function useWhiteboardRemote(client: WhiteboardDocumentClient) {
   const remoteSync = whiteboardRemoteSync(client);
   const remote = useSyncExternalStore(
@@ -232,6 +233,7 @@ function ConfirmAction({
 }
 
 function pendingKind(status?: WhiteboardShareStatus): WhiteboardPendingKind | undefined {
+  if (status?.unshare) return "unshare";
   if (status?.publication) return "publication";
 }
 
@@ -247,6 +249,10 @@ function PendingRecovery({
   status: WhiteboardShareStatus;
   onSettled?: () => void;
 }) {
+  if (status.unshare)
+    return (
+      <UnshareRecovery databaseName={databaseName} documentId={documentId} onSettled={onSettled} />
+    );
   if (!status.publication) return null;
   return (
     <PublicationRecovery
@@ -277,6 +283,7 @@ export function PendingTransition({
   const kind = pendingKind(share.data);
   if (!kind || !share.data) return children;
   const description: Record<WhiteboardPendingKind, string> = {
+    unshare: "上次退出共享尚未完成，白板暂停编辑。请继续原操作，完成后会保留本机白板。",
     publication:
       "上次共享没有完成，白板暂停编辑，内容完好保存在本机。可以继续这次共享，或取消后恢复编辑。",
   };
@@ -290,6 +297,41 @@ export function PendingTransition({
         onSettled={onSettled}
       />
     </div>
+  );
+}
+
+function UnshareRecovery({
+  databaseName,
+  documentId,
+  onSettled,
+}: {
+  databaseName: string;
+  documentId: string;
+  onSettled?: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const resume = async () => {
+    setBusy(true);
+    try {
+      await resumeWhiteboardUnshare(databaseName, documentId);
+      onSettled?.();
+    } catch (error) {
+      toast.error(remoteFailureText(error));
+    } finally {
+      setBusy(false);
+      void queryClient.invalidateQueries({
+        queryKey: whiteboardShareStatusKey(databaseName, documentId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["whiteboard-document", databaseName, documentId],
+      });
+    }
+  };
+  return (
+    <Button size="sm" variant="soft" loading={busy} disabled={busy} onClick={() => void resume()}>
+      继续完成退出共享
+    </Button>
   );
 }
 

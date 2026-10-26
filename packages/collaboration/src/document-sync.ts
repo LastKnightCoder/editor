@@ -22,12 +22,12 @@ export interface DocumentSyncState {
     operations: PendingDocumentOperation[];
     state: Uint8Array;
   }[];
-  receipts: DocumentOperation[];
   blocked: boolean;
 }
 export interface DocumentSyncJournal {
   load(): Promise<DocumentSyncState | null>;
-  save(state: DocumentSyncState): Promise<void>;
+  save(state: DocumentSyncState, receipt?: DocumentOperation): Promise<void>;
+  receipt(operationId: string): Promise<DocumentOperation | null>;
 }
 export interface DocumentSyncTransport {
   /** 最近一次服务端响应的时间；HTTP 宿主消费标准 Date，不推断客户端墙钟偏移。 */
@@ -68,21 +68,10 @@ export class DocumentSyncSession {
     if (saved) {
       await session.check(saved.confirmed);
       session.state = saved;
-      if (saved.receipts.some(receipt => "update" in receipt || "baseline" in receipt)) {
-        const receipts = saved.receipts.map(receipt => {
-          const {
-            update: _update,
-            baseline: _baseline,
-            ...operation
-          } = receipt as DocumentOperation & { update?: Uint8Array; baseline?: ConfirmedDocument };
-          return operation;
-        });
-        await session.persist({ ...saved, receipts });
-      }
     } else {
       const confirmed = await transport.read();
       await session.check(confirmed);
-      session.state = { confirmed, pending: [], rejected: [], receipts: [], blocked: false };
+      session.state = { confirmed, pending: [], rejected: [], blocked: false };
       await session.persist(session.state);
     }
     return session;
@@ -112,8 +101,8 @@ export class DocumentSyncSession {
       doc.destroy();
     }
   }
-  private async persist(state: DocumentSyncState) {
-    await this.journal.save(structuredClone(state));
+  private async persist(state: DocumentSyncState, receipt?: DocumentOperation) {
+    await this.journal.save(structuredClone(state), receipt);
     this.state = state;
   }
   stage(
@@ -126,7 +115,7 @@ export class DocumentSyncSession {
       const updateHash = await digest(copy);
       const existing =
         this.state.pending.find(item => item.request.operationId === operationId)?.request ??
-        this.state.receipts.find(item => item.operationId === operationId);
+        (await this.journal.receipt(operationId));
       if (existing) {
         if (
           existing.updateHash === updateHash &&
@@ -325,11 +314,13 @@ export class DocumentSyncSession {
         )
           throw new CollaborationError("OPERATION_IDENTITY_CONFLICT", "缺少匹配的耐久回执", 409);
         // 先保存终态并移出发送队列；随后读取的快照若已换代，也不会重发已确认内容。
-        await this.persist({
-          ...this.state,
-          pending: this.state.pending.slice(1),
-          receipts: [...this.state.receipts, operation],
-        });
+        await this.persist(
+          {
+            ...this.state,
+            pending: this.state.pending.slice(1),
+          },
+          operation
+        );
         renewed = false;
         await this.refresh();
       }

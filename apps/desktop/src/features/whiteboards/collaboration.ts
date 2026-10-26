@@ -8,15 +8,16 @@ import type { CollaborationSession, SharedWhiteboardInfo } from "@tau/collaborat
 import type { WhiteboardSaveState } from "@/services/whiteboard-documents/client";
 import type { WhiteboardRemoteState } from "@/services/whiteboard-documents/remote";
 
-/** retry-save/retry 重试；adopt 采用新版本；rebuild 用协作端版本重建；detach 转为本机白板。 */
+/** retry-save/retry 重试；detach 转为本机白板。 */
 export type WhiteboardSyncAction = "retry-save" | "retry" | "detach";
 export interface WhiteboardSyncStatus extends SessionStatus {
   actions?: WhiteboardSyncAction[];
 }
 /** 已固定、尚未完成的操作：白板在此期间暂停编辑，只能按原操作继续或取消。 */
-export type WhiteboardPendingKind = "publication";
+export type WhiteboardPendingKind = "publication" | "unshare";
 const PENDING_LABELS: Record<WhiteboardPendingKind, string> = {
   publication: "共享没有完成，白板暂停编辑，内容完好保存在本机",
+  unshare: "退出共享尚未完成，白板暂停编辑，请继续完成原操作",
 };
 
 export function whiteboardSyncStatus(
@@ -35,6 +36,10 @@ export function whiteboardSyncStatus(
     return { label: "正在保存到本机…", tone: "syncing", transientSyncing: true };
   if (!remote) return { label: "已保存在本机", tone: "idle" };
   switch (remote.phase) {
+    case "checking":
+      return { label: "已保存在本机，正在读取共享状态…", tone: "syncing" };
+    case "local":
+      return { label: "已保存在本机", tone: "idle" };
     case "connecting":
       return { label: "已保存在本机，正在连接协作服务…", tone: "syncing" };
     case "syncing":
@@ -44,7 +49,11 @@ export function whiteboardSyncStatus(
         ? { label: "已保存在本机，正在同步…", tone: "syncing", transientSyncing: true }
         : { label: "已同步", tone: "live" };
     case "waiting":
-      return { label: "已保存在本机，等待协作端确认之前的改动…", tone: "syncing" };
+      return {
+        label: remote.message ?? "已保存在本机，等待协作端确认之前的改动…",
+        tone: "syncing",
+        actions: ["retry"],
+      };
     case "offline":
       return remote.unsynced
         ? { label: "离线，改动已存本机，恢复连接后自动同步", tone: "syncing", actions: ["retry"] }

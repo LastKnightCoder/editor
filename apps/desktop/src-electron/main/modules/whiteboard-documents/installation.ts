@@ -34,7 +34,20 @@ export class WhiteboardInstallation {
       db: Database.Database,
       workspaceId: string
     ) => boolean = db => db.open
-  ) {}
+  ) {
+    this.state.db
+      .prepare(
+        "UPDATE migrations SET record=json_set(record,'$.plan.prepared.candidate','','$.plan.prepared.conversion','') WHERE json_extract(record,'$.plan.kind')='whiteboard' AND json_extract(record,'$.phase') IN ('COMPLETE','ABORTED','EXPIRED')"
+      )
+      .run();
+  }
+  private compact(operationId: string) {
+    this.state.db
+      .prepare(
+        "UPDATE migrations SET record=json_set(record,'$.plan.prepared.candidate','','$.plan.prepared.conversion','') WHERE operation_id=? AND json_extract(record,'$.phase') IN ('COMPLETE','ABORTED','EXPIRED')"
+      )
+      .run(operationId);
+  }
   pending(workspaceId: string, documentId: string) {
     return this.state
       .pendingInstallations()
@@ -165,6 +178,16 @@ export class WhiteboardInstallation {
         canonicalContractJson(installation.library)
     )
       throw new Error("资料库来源或基线不同，共享提交记录已保留");
+    if (!this.currentDatabase(db, workspaceId))
+      throw new Error("原资料库连接已变化，共享提交记录已保留");
+    const repository = new WhiteboardDocumentRepository(db, workspaceId, this.counts);
+    if (record.phase === "COMPLETE") {
+      const current = repository.read(record.plan.documentId);
+      if (!current || current.epoch !== installation.target.epoch)
+        throw new Error("已完成共享提交的目标代次已变化");
+      this.compact(operationId);
+      return current;
+    }
     const bytes = Buffer.from(record.plan.prepared.candidate, "base64");
     if (stateHash(bytes) !== record.plan.fingerprint.candidateHash)
       throw new Error("候选摘要不匹配");
@@ -177,13 +200,6 @@ export class WhiteboardInstallation {
         await validateWhiteboardDocument(doc, installation.remoteIdentity);
       if (!this.currentDatabase(db, workspaceId))
         throw new Error("原资料库连接已变化，共享提交记录已保留");
-      const repository = new WhiteboardDocumentRepository(db, workspaceId, this.counts);
-      if (record.phase === "COMPLETE") {
-        const current = repository.read(record.plan.documentId);
-        if (!current || current.epoch !== installation.target.epoch)
-          throw new Error("已完成共享提交的目标代次已变化");
-        return current;
-      }
       if (installation.publication) {
         const proof = this.state.db
           .prepare("SELECT value FROM settings WHERE key=?")
@@ -244,6 +260,7 @@ export class WhiteboardInstallation {
         throw new Error("安装读回不一致");
       this.state.complete(operationId, receipt);
       checkpoint?.("complete");
+      this.compact(operationId);
       return installed;
     } finally {
       model.dispose();

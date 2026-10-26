@@ -6,6 +6,7 @@ import type {
   WhiteboardDocumentEvent,
   WhiteboardDocumentFlushRequest,
   WhiteboardDocumentTarget,
+  WhiteboardDocumentResume,
 } from "@/types/whiteboard-document";
 export interface PendingWhiteboardUpdate {
   batchId: string;
@@ -29,7 +30,7 @@ export interface WhiteboardDocumentBackend {
   release(leaseId: string): Promise<void>;
   events(listener: (event: WhiteboardDocumentEvent) => void): () => void;
   drains(listener: (event: WhiteboardDocumentFlushRequest) => void): () => void;
-  resumes(listener: (leaseId: string) => void): () => void;
+  resumes(listener: (event: WhiteboardDocumentResume) => void): () => void;
   detached?(listener: (leaseId: string) => void): () => void;
   drained(requestId: string, error?: string): Promise<void>;
 }
@@ -88,6 +89,7 @@ export class WhiteboardDocumentClient {
   private closed = false;
   private initialized = false;
   private stale = false;
+  private drains = new Map<string, string>();
   private cleanup: (() => void)[] = [];
   constructor(
     readonly target: WhiteboardDocumentTarget,
@@ -99,8 +101,11 @@ export class WhiteboardDocumentClient {
       backend.drains(event => {
         void this.drain(event);
       }),
-      backend.resumes(leaseId => {
-        if (this.opened?.leaseId === leaseId && !this.stale) this.set({ frozen: false });
+      backend.resumes(event => {
+        if (this.drains.get(event.requestId) !== event.leaseId) return;
+        this.drains.delete(event.requestId);
+        if (this.opened?.leaseId === event.leaseId && !this.stale)
+          this.set({ frozen: [...this.drains.values()].includes(event.leaseId) });
       })
     );
     if (backend.detached)
@@ -307,15 +312,22 @@ export class WhiteboardDocumentClient {
     if (this.pending.length) await this.flush();
   }
   private async drain(event: WhiteboardDocumentFlushRequest): Promise<void> {
+    if (this.closed || this.stale) return;
+    this.drains.set(event.requestId, event.leaseId);
     try {
       await this.ready;
-      if (event.leaseId !== this.opened?.leaseId) return;
+      if (!this.drains.has(event.requestId) || this.closed || this.stale) return;
+      if (event.leaseId !== this.opened?.leaseId) {
+        this.drains.delete(event.requestId);
+        return;
+      }
       this.flushInputs();
       this.set({ frozen: true });
       await this.flush();
-      await this.backend.drained(event.requestId);
+      if (this.drains.has(event.requestId) && !this.closed && !this.stale)
+        await this.backend.drained(event.requestId);
     } catch (error) {
-      if (event.leaseId === this.opened?.leaseId) {
+      if (this.drains.has(event.requestId) && event.leaseId === this.opened?.leaseId) {
         this.fail(error);
         await this.backend
           .drained(event.requestId, error instanceof Error ? error.message : String(error))
@@ -324,8 +336,14 @@ export class WhiteboardDocumentClient {
     }
   }
   async release(): Promise<void> {
-    await this.flush();
-    await this.backend.release(this.opened!.leaseId);
+    if (this.closed) return;
+    try {
+      if (!this.stale) await this.flush();
+      if (!this.stale) await this.backend.release(this.opened!.leaseId);
+    } catch (error) {
+      if (!this.stale) throw error;
+    }
+    if (this.stale) await this.preservePending();
     this.dispose();
   }
   /** 只用于进程终止模拟或已经完成持久化的释放，不把它当作保存。 */
@@ -337,6 +355,7 @@ export class WhiteboardDocumentClient {
     this.model.dispose();
     this.doc.destroy();
     this.inputFlushers.clear();
+    this.drains.clear();
     this.listeners.clear();
   }
 }

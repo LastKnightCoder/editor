@@ -430,7 +430,7 @@ it("缺少依赖的提案保持待确认，不推进远端序号也不误报已�
   const orphan = Y.encodeStateAsUpdate(doc, vector);
   model.dispose();
   doc.destroy();
-  await call(owner, "remote-stage", lease.leaseId, orphan);
+  await (await [...owner.module.remote.values()][0]).stage(orphan);
   const sequence = server.store.operations.sequence(room.documentId);
   const missing = /^MISSING_DEPENDENCIES: /;
   await expect(call(owner, "remote-sync", lease.leaseId)).rejects.toThrow(missing);
@@ -693,9 +693,10 @@ it.each(["command", "reopen"] as const)(
       const completed = owner.store.db
         .prepare("SELECT record FROM migrations WHERE operation_id=?")
         .get("finish-share") as { record: string };
-      expect(JSON.parse(completed.record).plan.prepared.candidate).toBe(
-        JSON.parse(candidate.record).plan.prepared.candidate
+      expect(JSON.parse(completed.record).plan.fingerprint.candidateHash).toBe(
+        JSON.parse(candidate.record).plan.fingerprint.candidateHash
       );
+      expect(JSON.parse(completed.record).plan.prepared.candidate).toBe("");
       const opened = await call(owner, "open", "A", created.contentIds[0], "after-unshare");
       expect(isShared(owner, opened.leaseId)).toBe(false);
       expect(localTitle(owner, opened.leaseId)).toContain("保留");
@@ -705,3 +706,201 @@ it.each(["command", "reopen"] as const)(
     }
   }
 );
+
+async function localBoard(owner: Side, id: string) {
+  const doc = new Y.Doc();
+  const model = new WhiteboardModel(doc);
+  model.submit([{ type: "create_page", title: id }], null);
+  const created = await call(
+    owner,
+    "create",
+    owner.database,
+    id,
+    Y.encodeStateAsUpdate(doc),
+    "board"
+  );
+  const pageIds = model.read().pages.map(page => page.id);
+  model.dispose();
+  doc.destroy();
+  return { created, pageIds };
+}
+it("退出请求响应丢失后保持冻结，按原修订重试关闭而不覆盖输入", async () => {
+  const owner = await side("作者", 1, "A");
+  const { created, room } = await sharedBoard(owner);
+  const lease = await call(owner, "open", "A", created.contentIds[0], "editing");
+  const original = state.client.request.bind(state.client);
+  let lost = false;
+  const request = vi
+    .spyOn(state.client, "request")
+    .mockImplementation(async (...args: unknown[]) => {
+      const result = await original(...args);
+      if (!lost && String(args[1]).endsWith("/close")) {
+        lost = true;
+        throw new TypeError("lost response");
+      }
+      return result;
+    });
+  try {
+    const closing = call(owner, "unshare", lease.leaseId, {
+      operationId: "lost-close",
+      mode: "close",
+    });
+    const rejected = expect(closing).rejects.toThrow("OFFLINE");
+    await acknowledgeDrains(owner);
+    await rejected;
+    expect(server.store.document(room.documentId).status).toBe("closed");
+    await expect(edit(owner, lease.leaseId, "不能放行")).rejects.toThrow();
+    await call(owner, "unshare-resume", "A", created.documentId);
+    const next = await call(owner, "open", "A", created.contentIds[0], "after-close");
+    expect(isShared(owner, next.leaseId)).toBe(false);
+    expect(localTitle(owner, next.leaseId)).toBe("看板");
+  } finally {
+    request.mockRestore();
+  }
+});
+
+it("退出任务首次落盘失败时不关闭远端，原白板可继续编辑", async () => {
+  const owner = await side("作者", 1, "A");
+  const { created, room } = await sharedBoard(owner);
+  const lease = await call(owner, "open", "A", created.contentIds[0], "editing");
+  const original = owner.store.set.bind(owner.store);
+  const save = vi.spyOn(owner.store, "set").mockImplementation((key, value) => {
+    if (key.startsWith("whiteboard-unshare:")) throw new Error("disk full");
+    original(key, value);
+  });
+  try {
+    const closing = call(owner, "unshare", lease.leaseId, {
+      operationId: "save-failed",
+      mode: "close",
+    });
+    const rejected = expect(closing).rejects.toThrow("disk full");
+    await acknowledgeDrains(owner);
+    await rejected;
+    expect(server.store.document(room.documentId).status).toBe("active");
+    await edit(owner, lease.leaseId, "保留编辑");
+    expect(localTitle(owner, lease.leaseId)).toContain("保留编辑");
+  } finally {
+    save.mockRestore();
+  }
+});
+
+it("服务端关闭成功后记录回执失败，原任务继续阻止编辑并可续做", async () => {
+  const owner = await side("作者", 1, "A");
+  const { created, room } = await sharedBoard(owner);
+  const lease = await call(owner, "open", "A", created.contentIds[0], "editing");
+  const original = owner.store.set.bind(owner.store);
+  const save = vi.spyOn(owner.store, "set").mockImplementation((key, value) => {
+    if (key.startsWith("whiteboard-unshare:") && (value as { remoteDone?: boolean }).remoteDone)
+      throw new Error("receipt disk full");
+    original(key, value);
+  });
+  try {
+    const closing = call(owner, "unshare", lease.leaseId, {
+      operationId: "receipt-failed",
+      mode: "close",
+    });
+    const rejected = expect(closing).rejects.toThrow("receipt disk full");
+    await acknowledgeDrains(owner);
+    await rejected;
+    expect(server.store.document(room.documentId).status).toBe("closed");
+    await expect(edit(owner, lease.leaseId, "不能写入")).rejects.toThrow();
+  } finally {
+    save.mockRestore();
+  }
+  await call(owner, "unshare-resume", "A", created.documentId);
+  const reopened = await call(owner, "open", "A", created.contentIds[0], "after-retry");
+  expect(localTitle(owner, reopened.leaseId)).toBe("看板");
+});
+it("A 发布失败只冻结 A，同库其他白板可打开和创建", async () => {
+  const owner = await side("作者", 1, "A");
+  const first = await localBoard(owner, "first");
+  const second = await localBoard(owner, "second");
+  const lease = await call(owner, "open", "A", first.created.contentIds[0], "first-view");
+  offline = true;
+  const publishing = call(owner, "publish", lease.leaseId, {
+    operationId: "offline-publish",
+    serverUrl: URL,
+    pageIds: first.pageIds,
+  });
+  const failed = expect(publishing).rejects.toThrow("OFFLINE");
+  await acknowledgeDrains(owner);
+  await failed;
+  await expect(
+    call(owner, "open", "A", second.created.contentIds[0], "second-view")
+  ).resolves.toMatchObject({ identity: { documentId: "second" } });
+  await expect(localBoard(owner, "third")).resolves.toBeDefined();
+  state.windowToDatabase.set(2, "A");
+  await expect(
+    call({ ...owner, window: 2 }, "open", "A", second.created.contentIds[0], "other-window")
+  ).resolves.toMatchObject({ identity: { documentId: "second" } });
+});
+it.each(["resume", "reopen"] as const)(
+  "结束共享准备失败后禁止旧输入，%s 继续固定候选",
+  async retry => {
+    const owner = await side("作者", 1, "A");
+    const { created, room } = await sharedBoard(owner);
+    const lease = await call(owner, "open", "A", created.contentIds[0], "editing");
+    await call(owner, "remote-open", lease.leaseId, URL);
+    const installation = (owner.module as any).installation;
+    const prepare = vi
+      .spyOn(installation, "prepare")
+      .mockRejectedValueOnce(new Error("disk full before prepare"));
+    const closing = call(owner, "unshare", lease.leaseId, {
+      operationId: "close-probe",
+      mode: "close",
+    });
+    const failed = expect(closing).rejects.toThrow("disk full before prepare");
+    await acknowledgeDrains(owner);
+    await failed;
+    prepare.mockRestore();
+    expect(server.store.document(room.documentId).status).toBe("closed");
+    expect(owner.store.get(`whiteboard-unshare:A:${created.documentId}`, null)).toMatchObject({
+      remoteDone: true,
+    });
+    await expect(edit(owner, lease.leaseId, "失败后新编辑")).rejects.toThrow();
+    expect(call(owner, "share-status", "A", created.documentId).unshare).toMatchObject({
+      operationId: "close-probe",
+    });
+    if (retry === "resume") await call(owner, "unshare-resume", "A", created.documentId);
+    else await call(owner, "open", "A", created.contentIds[0], "resume-by-open");
+    const reopened = await call(owner, "open", "A", created.contentIds[0], "reopened");
+    expect(localTitle(owner, reopened.leaseId)).not.toContain("失败后新编辑");
+  }
+);
+it("全部本机租约释放后驱逐远端内存会话，磁盘分支仍保留", async () => {
+  const owner = await side("作者", 1, "A");
+  const { created } = await sharedBoard(owner);
+  const lease = await call(owner, "open", "A", created.contentIds[0], "editing");
+  await call(owner, "remote-open", lease.leaseId, URL);
+  await call(owner, "release", lease.leaseId);
+  expect((owner.module as any).sessions.holders()).toHaveLength(0);
+  expect((owner.module as any).remoteViews.size).toBe(0);
+  expect(owner.module.remote.size).toBe(0);
+  expect(
+    (owner.module as any).journal.db.prepare("SELECT count(*) AS n FROM remote_branches").get()
+  ).toEqual({ n: 1 });
+});
+
+it("最后一个视图关闭时在途同步继续持有远端会话，结束后再驱逐", async () => {
+  const owner = await side("作者", 1, "A");
+  const { created } = await sharedBoard(owner);
+  const lease = await call(owner, "open", "A", created.contentIds[0], "editing");
+  await call(owner, "remote-open", lease.leaseId, URL);
+  const session = await [...owner.module.remote.values()][0];
+  let finish!: () => void;
+  const synchronize = vi.spyOn(session, "synchronize").mockImplementationOnce(
+    () =>
+      new Promise<void>(resolve => {
+        finish = resolve;
+      })
+  );
+  const syncing = call(owner, "remote-sync", lease.leaseId);
+  const rejected = expect(syncing).rejects.toThrow("失效");
+  await vi.waitFor(() => expect(synchronize).toHaveBeenCalled());
+  await call(owner, "release", lease.leaseId);
+  expect(owner.module.remote.size).toBe(1);
+  finish();
+  await rejected;
+  await vi.waitFor(() => expect(owner.module.remote.size).toBe(0));
+  synchronize.mockRestore();
+});

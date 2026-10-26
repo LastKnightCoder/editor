@@ -5,6 +5,7 @@ import type { WhiteboardRemoteBackend } from "@/services/whiteboard-documents/re
 import type {
   WhiteboardDocumentEvent,
   WhiteboardDocumentFlushRequest,
+  WhiteboardDocumentResume,
   WhiteboardRemoteStatus,
   WhiteboardShareCandidate,
   WhiteboardShareStatus,
@@ -25,8 +26,7 @@ export const whiteboardDocumentBackend: WhiteboardDocumentBackend = {
   events: listener => subscribe<WhiteboardDocumentEvent>("whiteboard-document:update", listener),
   drains: listener =>
     subscribe<WhiteboardDocumentFlushRequest>("whiteboard-document:drain", listener),
-  resumes: listener =>
-    subscribe<{ leaseId: string }>("whiteboard-document:resume", event => listener(event.leaseId)),
+  resumes: listener => subscribe<WhiteboardDocumentResume>("whiteboard-document:resume", listener),
   detached: listener =>
     subscribe<{ leaseId: string }>("whiteboard-document:detached", event =>
       listener(event.leaseId)
@@ -113,6 +113,8 @@ export const resumeWhiteboardPublication = (databaseName: string, operationId: s
   call<{ documentId: string; serverUrl: string }>("publish-resume", databaseName, operationId);
 export const cancelWhiteboardPublication = (databaseName: string, operationId: string) =>
   call<void>("publish-cancel", databaseName, operationId);
+export const resumeWhiteboardUnshare = (databaseName: string, documentId: string) =>
+  call<void>("unshare-resume", databaseName, documentId);
 /** 结束共享（作者）、退出（成员）或在共享已结束/失去权限后转为本机白板。 */
 export const unshareWhiteboard = (
   leaseId: string,

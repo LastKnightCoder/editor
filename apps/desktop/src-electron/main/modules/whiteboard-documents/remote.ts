@@ -17,9 +17,10 @@ export class WhiteboardRemoteJournal implements DocumentSyncJournal {
     private readonly journal: WhiteboardJournal,
     private readonly key: string
   ) {
-    journal.db.exec(
-      "CREATE TABLE IF NOT EXISTS remote_branches (scope TEXT PRIMARY KEY, value TEXT NOT NULL, hash TEXT NOT NULL)"
-    );
+    journal.db.exec(`
+      CREATE TABLE IF NOT EXISTS remote_branches (scope TEXT PRIMARY KEY, value TEXT NOT NULL, hash TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS remote_receipts (scope TEXT NOT NULL, operation_id TEXT NOT NULL, value TEXT NOT NULL, hash TEXT NOT NULL, PRIMARY KEY(scope,operation_id));
+    `);
   }
   async load(): Promise<DocumentSyncState | null> {
     const row = this.journal.db
@@ -32,30 +33,71 @@ export class WhiteboardRemoteJournal implements DocumentSyncJournal {
     if (createHash("sha256").update(row.value).digest("hex") !== row.hash)
       throw new Error("白板远端分支材料损坏，已保留原日志");
     this.hash = row.hash;
-    return JSON.parse(row.value, (_key, value) =>
+    const saved = JSON.parse(row.value, (_key, value) =>
       value &&
       typeof value === "object" &&
       Object.keys(value).length === 1 &&
       typeof value.$bytes === "string"
         ? new Uint8Array(Buffer.from(value.$bytes, "base64"))
         : value
-    );
+    ) as DocumentSyncState & { receipts?: DocumentOperation[] };
+    if (saved.receipts) {
+      const { receipts, ...state } = saved;
+      this.write(
+        state,
+        receipts.map(receipt => {
+          const {
+            update: _update,
+            baseline: _baseline,
+            ...operation
+          } = receipt as DocumentOperation & { update?: unknown; baseline?: unknown };
+          return operation;
+        })
+      );
+      return state;
+    }
+    return saved;
   }
-  async save(state: DocumentSyncState): Promise<void> {
+  async receipt(operationId: string): Promise<DocumentOperation | null> {
+    const row = this.journal.db
+      .prepare("SELECT value,hash FROM remote_receipts WHERE scope=? AND operation_id=?")
+      .get(this.key, operationId) as { value: string; hash: string } | undefined;
+    if (!row) return null;
+    if (createHash("sha256").update(row.value).digest("hex") !== row.hash)
+      throw new Error("白板远端回执损坏，原记录已保留");
+    return JSON.parse(row.value);
+  }
+  async save(state: DocumentSyncState, receipt?: DocumentOperation): Promise<void> {
+    this.write(state, receipt ? [receipt] : []);
+  }
+  private write(state: DocumentSyncState, receipts: readonly DocumentOperation[]): void {
     const value = JSON.stringify(state, (_key, value) =>
       value instanceof Uint8Array ? { $bytes: Buffer.from(value).toString("base64") } : value
     );
     const hash = createHash("sha256").update(value).digest("hex");
-    const result =
-      this.hash === null
-        ? this.journal.db
-            .prepare("INSERT INTO remote_branches VALUES (?,?,?) ON CONFLICT(scope) DO NOTHING")
-            .run(this.key, value, hash)
-        : this.journal.db
-            .prepare("UPDATE remote_branches SET value=?,hash=? WHERE scope=? AND hash=?")
-            .run(value, hash, this.key, this.hash);
-    if (result.changes !== 1)
-      throw new Error("白板远端日志已由另一会话更新，请重新打开，原分支已保留");
+    this.journal.db.transaction(() => {
+      const result =
+        this.hash === null
+          ? this.journal.db
+              .prepare("INSERT INTO remote_branches VALUES (?,?,?) ON CONFLICT(scope) DO NOTHING")
+              .run(this.key, value, hash)
+          : this.journal.db
+              .prepare("UPDATE remote_branches SET value=?,hash=? WHERE scope=? AND hash=?")
+              .run(value, hash, this.key, this.hash);
+      if (result.changes !== 1)
+        throw new Error("白板远端日志已由另一会话更新，请重新打开，原分支已保留");
+      for (const receipt of receipts) {
+        const encoded = JSON.stringify(receipt);
+        const receiptHash = createHash("sha256").update(encoded).digest("hex");
+        const previous = this.journal.db
+          .prepare("SELECT hash FROM remote_receipts WHERE scope=? AND operation_id=?")
+          .get(this.key, receipt.operationId) as { hash: string } | undefined;
+        if (previous && previous.hash !== receiptHash) throw new Error("白板操作回执冲突");
+        this.journal.db
+          .prepare("INSERT OR IGNORE INTO remote_receipts VALUES(?,?,?,?)")
+          .run(this.key, receipt.operationId, encoded, receiptHash);
+      }
+    })();
     this.hash = hash;
   }
 }

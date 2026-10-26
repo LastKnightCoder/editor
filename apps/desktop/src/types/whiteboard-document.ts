@@ -25,6 +25,10 @@ export interface WhiteboardDocumentFlushRequest {
   leaseId: string;
   sealed: boolean;
 }
+export interface WhiteboardDocumentResume {
+  requestId: string;
+  leaseId: string;
+}
 export interface WhiteboardDocumentTarget {
   databaseName: string;
   contentId: number;
@@ -42,9 +46,10 @@ export interface WhiteboardShareCandidate {
 export interface WhiteboardShareStatus {
   binding: { serverUrl: string; documentId: string } | null;
   publication: { operationId: string; roomCreated: boolean } | null;
+  unshare?: { operationId: string; mode: "close" | "leave" | "detach" };
 }
 /**
- * 远端会话摘要：requiresRebind 时本机副本不能继续发送，reason 区分远端已换代（可采用新版本）
+ * 远端会话摘要：requiresRebind 时本机副本不能继续发送，reason 区分远端已换代（停止旧副本同步）
  * 与同一代次的被拒分支（材料已保留，等待处理）。
  */
 export interface WhiteboardRemoteStatus {

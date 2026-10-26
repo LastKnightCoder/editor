@@ -21,6 +21,8 @@ export interface WhiteboardUnshareJob {
   /** 已确认的远端修订；结束共享以它为条件，避免丢掉此后到达的他人编辑。 */
   revision?: string;
   candidate?: string;
+  /** 固定候选对应的本机修订，重试不得采用后来写入的内容作为安装前提。 */
+  sourceHash?: string;
   missing: string[];
   /** 服务端已关闭房间或已退出，只能继续本机安装。 */
   remoteDone?: boolean;
