@@ -15,7 +15,7 @@ import { IElementEditingPolicy, IUnknownElementNotice } from "@tau/editor/api";
 import { createEditorKit, type EditorKit } from "@tau/editor";
 import { createImageExtensions } from "@tau/editor/extensions/media";
 import { standardExtensions } from "@tau/editor/presets/standard";
-import { createMarkdownPasteImportExtension, type AnyExtension } from "@tau/editor";
+import { createMarkdownPasteImportExtension, type EditorExtension } from "@tau/editor";
 import webviewExtension from "@tau/editor/extensions/webview";
 import { diagramExtensions } from "@tau/editor/extensions/diagram";
 import { previewMenuExtension } from "@tau/editor-source-view/menu";
@@ -33,10 +33,8 @@ import {
 const byExtras = new Map<string, EditorKit>();
 
 /** 底座：内置扩展 + mobile 静态扩展（markdown 粘贴导入、webview、图片覆盖）+ mobile 服务 */
-function createMobileKit(extras: readonly AnyExtension[] = []): EditorKit {
-  const key = extras
-    .map(extension => ("type" in extension ? extension.type : extension.id))
-    .join(",");
+function createMobileKit(extras: readonly EditorExtension[] = []): EditorKit {
+  const key = extras.map(extension => extension.id).join(",");
   let kit = byExtras.get(key);
   if (!kit) {
     kit = createEditorKit({
@@ -66,7 +64,7 @@ function createMobileKit(extras: readonly AnyExtension[] = []): EditorKit {
  * 与待办描述（`descriptionContentId`）——后两者虽然像「描述」，但存的是 content 且 desktop
  * 也读写同一条，所以必须覆盖跨端清单（`CONTENT_ELEMENT_TYPES`，见 P10）。
  */
-let contentSnapshot: readonly AnyExtension[] | undefined;
+let contentSnapshot: readonly EditorExtension[] | undefined;
 let contentKit: EditorKit | undefined;
 export function getMobileContentKit(): EditorKit {
   if (contentSnapshot !== mobileContentPlugins.extensions || !contentKit) {
@@ -117,7 +115,7 @@ export function getMobilePluginDocumentKit(): EditorKit {
   return createMobileKit();
 }
 
-let flashcardBlank: AnyExtension | null = null;
+let flashcardBlank: EditorExtension | null = null;
 
 /** 闪卡题干与背面补充：只多一个填空元素；背面与非挖空题不需要 */
 export function getMobileFlashcardKit({ blanks = true }: { blanks?: boolean } = {}): EditorKit {

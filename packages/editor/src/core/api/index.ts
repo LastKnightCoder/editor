@@ -17,7 +17,6 @@ export {
   type ElementRenderProps,
   type ExtensionLayerProps,
 } from "./extension";
-export type { AnyExtension } from "./legacy";
 export { elementView, useElementView } from "./elementView";
 export {
   canEditElement,

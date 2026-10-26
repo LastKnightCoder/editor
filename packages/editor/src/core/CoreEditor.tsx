@@ -57,7 +57,7 @@ import { withIngest, resolveFileDropPoint } from "./plugins/withIngest";
 import { withCaretAffinity } from "./plugins/withCaretAffinity";
 import { withInputRules } from "./kit/inputRules";
 import { registerUndoStepSplitter } from "./utils/undoStep";
-import type { AnyExtension } from "./api/legacy";
+import type { EditorExtension } from "./api/extension";
 import type { EditorRef } from "./types/editor";
 
 import { builtinCommands, builtinHotkeys } from "./hotkeys";
@@ -99,7 +99,7 @@ export interface IEditorProps {
    */
   document?: EditorDocument;
   /** 只作用于本实例的扩展；按元素类型覆盖 kit 里的同名实现 */
-  extensions?: readonly AnyExtension[];
+  extensions?: readonly EditorExtension[];
   hotkeyConfigs?: IHotKeyConfig[];
   hoveringBarConfigs?: IConfigItem[];
   onInit?: (editor: Editor, content: Descendant[]) => void;

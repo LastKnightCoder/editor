@@ -154,7 +154,6 @@ const createAcmeExtension = (overrides: { stickyAfter?: "select" | "edit" | "non
         type: "acme.versioned",
         render: RectRender,
         schemaVersion: 2,
-        migrate: { 1: element => ({ ...element }) },
         create: {
           gesture: "click",
           defaultSize: [40, 40],

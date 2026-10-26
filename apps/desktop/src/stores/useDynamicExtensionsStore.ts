@@ -1,4 +1,4 @@
-import { AnyExtension } from "@tau/editor";
+import { EditorExtension } from "@tau/editor";
 import { create } from "zustand";
 
 /**
@@ -10,7 +10,7 @@ import { create } from "zustand";
  * 装载一次、之后不再变化；消费者只有 `services/editorKit.ts` 与各入口的 bootstrap。
  */
 interface IDynamicExtensionsStore {
-  extensions: AnyExtension[];
+  extensions: EditorExtension[];
   /** 装载是否完成。建 kit 前据此拒绝，避免静默少扩展 */
   initialized: boolean;
   initExtensions: () => Promise<void>;

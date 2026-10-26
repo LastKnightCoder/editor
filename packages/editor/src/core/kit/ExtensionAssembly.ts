@@ -12,7 +12,7 @@ import { CommandRegistry, type EditorHotkey } from "../api/command";
 import { normalizeDragSpec, type ElementDragSpec } from "../api/drag";
 import type { ElementIngestSpec } from "../api/ingest";
 import type { MenuContributionSource } from "../menu/resolveMenu";
-import { toEditorExtension, elementTypesOf, type AnyExtension } from "../api/legacy";
+import { elementTypesOf } from "../api/extension";
 import type { Plugin } from "../utils/plugin";
 import type { IBlockPanelListItem, IConfigItem } from "../types";
 import { registerElementEmpty } from "./elementEmpty";
@@ -131,8 +131,8 @@ export class ExtensionAssembly {
   private readonly renderers = new Map<string, ElementRenderer>();
   private readonly owners = new Map<string, EditorExtension>();
 
-  constructor(extensions: readonly AnyExtension[]) {
-    this.extensions = extensions.map(toEditorExtension);
+  constructor(extensions: readonly EditorExtension[]) {
+    this.extensions = [...extensions];
 
     const pluginGroups: ExtensionPluginGroup[] = [];
     const commandHotkeys: CommandHotkeyEntry[] = [];

@@ -19,7 +19,6 @@ import { emptyQuery, projectDatabase, type DatabaseProjection } from "./core/pro
 import { applyRowChanges, diffRows } from "./core/changes";
 import { cloneViewOptions, setViewOptions } from "./core/viewOptions";
 import { FORMULA_TYPE } from "./core/formula";
-import { upgradeColumnConfig } from "./model/config-version";
 import { ViewRegistry } from "./views/ViewRegistry";
 
 export enum Direction {
@@ -337,23 +336,12 @@ export const createDatabaseStore = (
         if (command.type === "column.configure") {
           const target = get().columns.find(column => column.id === command.id);
           if (!target) return;
-          // 到达的 config 按列当前 configVersion 落位后升级（D-137）；命令不携带版本号
-          const next = upgradeColumnConfig(
-            { ...target, config: command.config },
-            plugins.getModel(target.type)
-          );
-          // 与当前配置一致时不提交：宿主每次刷新都会推送列配置，提交会把外部变更当真、清空撤销栈
-          if (
-            JSON.stringify(target.config) === JSON.stringify(next.config) &&
-            (target.configVersion ?? 1) === (next.configVersion ?? 1)
-          )
-            return;
+          // 与当前配置一致时不提交，避免外部刷新清空撤销栈
+          if (JSON.stringify(target.config) === JSON.stringify(command.config)) return;
           commit(
             state => ({
               columns: state.columns.map(column =>
-                column.id === command.id
-                  ? { ...column, config: next.config, configVersion: next.configVersion }
-                  : column
+                column.id === command.id ? { ...column, config: command.config } : column
               ),
             }),
             source
@@ -590,10 +578,6 @@ export const createDatabaseStore = (
               type: columnData.type || "text",
               ...columnData,
             };
-            // 新建列写入字段 model 声明的当前配置版本（D-137）
-            const configVersion = plugins.getModel(newColumn.type)?.configVersion;
-            if (configVersion) newColumn.configVersion = configVersion;
-
             state.columns.push(newColumn);
             state.viewConfig.columnOrder = [...state.viewConfig.columnOrder, columnId];
             state.columnWidths[columnId] = columnData.width || 200;
@@ -662,14 +646,6 @@ export const createDatabaseStore = (
                 ...state.columns[columnIndex],
                 ...updates,
               };
-              // 改了类型或重写了配置：配置已是目标字段当前形态，版本随之对齐，避免旧版本号触发错误迁移
-              if (updates.type !== undefined || "config" in updates) {
-                const configVersion = plugins.getModel(
-                  state.columns[columnIndex].type
-                )?.configVersion;
-                if (configVersion) state.columns[columnIndex].configVersion = configVersion;
-                else delete state.columns[columnIndex].configVersion;
-              }
               if (typeof updates.width === "number") {
                 const nextWidth = Math.max(50, updates.width);
                 state.columnWidths[columnId] = nextWidth;

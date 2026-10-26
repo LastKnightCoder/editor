@@ -1,6 +1,5 @@
 import paragraphExtension from "../extensions/paragraph";
-import { elementTypesOf, toEditorExtension, type AnyExtension } from "../api/legacy";
-import type { EditorExtension } from "../api/extension";
+import { elementTypesOf, type EditorExtension } from "../api/extension";
 import { createServiceRegistry, createChildRegistry } from "../services/registry";
 import type { ServiceRegistration, ServiceRegistry } from "../services/registry";
 import { IThemeService } from "../services/tokens";
@@ -26,7 +25,7 @@ export interface EditorKit {
 
 export interface EditorKitOptions {
   /** 元素与功能扩展；同元素类型重复会报错，除非 `override: true` */
-  extensions?: readonly AnyExtension[];
+  extensions?: readonly EditorExtension[];
   /** 平台能力与 UI 插槽 */
   services?: ServiceRegistration[];
   /** 主题服务；等价于注册 IThemeService，缺省时编辑器读 DOM */
@@ -36,7 +35,7 @@ export interface EditorKitOptions {
 }
 
 export interface EditorKitExtendOptions {
-  extensions?: readonly AnyExtension[];
+  extensions?: readonly EditorExtension[];
   services?: ServiceRegistration[];
   theme?: ThemeService;
   override?: boolean;
@@ -53,12 +52,11 @@ const themeRegistration =
  */
 const mergeExtensions = (
   base: readonly EditorExtension[],
-  added: readonly AnyExtension[],
+  added: readonly EditorExtension[],
   override: boolean
 ): EditorExtension[] => {
   let merged = [...base];
-  for (const raw of added) {
-    const extension = toEditorExtension(raw);
+  for (const extension of added) {
     const types = new Set(elementTypesOf(extension));
     if (extension.id === paragraphExtension.id || types.has("paragraph")) {
       throw new Error("[editor] paragraph 是核心基础，不能重复注册或覆盖");
@@ -104,10 +102,9 @@ const mergeExtensions = (
  */
 const instanceIds = new WeakMap<EditorExtension, string>();
 let instanceCounter = 0;
-const instanceKey = (extensions: readonly AnyExtension[]): string =>
+const instanceKey = (extensions: readonly EditorExtension[]): string =>
   extensions
-    .map(raw => {
-      const extension = toEditorExtension(raw);
+    .map(extension => {
       let id = instanceIds.get(extension);
       if (!id) {
         id = `${extension.id}#${++instanceCounter}`;

@@ -49,7 +49,6 @@ export {
   defineExtension,
   defineElement,
   type EditorExtension,
-  type AnyExtension,
   type ElementSpec,
   type ElementEmptyContext,
   type ElementBehaviors,
