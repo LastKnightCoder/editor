@@ -53,8 +53,8 @@ export const savePluginUploadConfig = (
   config: import("@tau/plugins").JsonValue
 ): Promise<void> =>
   withModule("plugin-local", () => invoke("plugin-local:upload-config", id, config));
-export const scanLocalPlugins = (legacy?: Record<string, unknown>): Promise<LocalPluginScan> =>
-  withModule("plugin-local", () => invoke("plugin-local:scan", legacy));
+export const scanLocalPlugins = (): Promise<LocalPluginScan> =>
+  withModule("plugin-local", () => invoke("plugin-local:scan"));
 export const openPluginDirectory = (): Promise<void> =>
   withModule("plugin-local", () => invoke("plugin-local:open-directory"));
 export const stagePluginZip = (): Promise<{ id: string; version: string } | null> =>

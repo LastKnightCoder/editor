@@ -30,7 +30,7 @@ it("早于列表排序存下的条目更新时补齐默认值", () => {
   });
 });
 
-it("旧版本持久化数据迁移时丢弃标签与分类筛选，「图谱」回落到卡片墙", async () => {
+it("旧版本持久化偏好不转换，使用当前默认状态", async () => {
   localStorage.setItem(
     "tau-cards-preferences",
     JSON.stringify({
@@ -44,8 +44,5 @@ it("旧版本持久化数据迁移时丢弃标签与分类筛选，「图谱」�
     })
   );
   await useCardsPreferencesStore.persist.rehydrate();
-  expect(useCardsPreferencesStore.getState().byDatabase).toEqual({
-    a: { view: "wall" },
-    b: { view: "wall" },
-  });
+  expect(useCardsPreferencesStore.getState().byDatabase).toEqual({});
 });

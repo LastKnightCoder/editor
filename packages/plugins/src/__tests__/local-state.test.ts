@@ -13,38 +13,26 @@ async function setup() {
 afterEach(async () => {
   await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })));
 });
-it("旧内容状态优先，一次导入普通插件偏好；旧窗口不得覆盖新意图", async () => {
+it("首次加载只创建当前状态文件，旧文件不导入也不删除", async () => {
   const { root, state } = await setup();
-  await writeFile(
-    path.join(root, ".editor-enabled.json"),
-    JSON.stringify({ "test.editor": false })
-  );
+  const oldFile = path.join(root, ".editor-enabled.json");
+  await writeFile(oldFile, JSON.stringify({ "test.editor": true }));
   await state.load();
-  await state.importBrowser({ "test.editor": true, "test.ui": true });
-  await state.initialize({ "test.center": true, "test.zip": false });
-  expect(state.enabled("test.editor", true)).toBe(false);
-  expect(state.enabled("test.ui", false)).toBe(true);
-  await state.set("test.ui", false);
-  await state.importBrowser({ "test.ui": true });
-  expect((await readLocalPluginState(root)).enabled).toEqual({
-    "test.editor": false,
-    "test.ui": false,
-    "test.center": true,
-    "test.zip": false,
-  });
-  await expect(readFile(path.join(root, ".editor-enabled.json"))).rejects.toMatchObject({
-    code: "ENOENT",
-  });
+  expect(state.enabled("test.editor", false)).toBe(false);
+  expect(await readLocalPluginState(root)).toEqual({ version: 1, enabled: {} });
+  expect(JSON.parse(await readFile(oldFile, "utf8"))).toEqual({ "test.editor": true });
 });
-it("无效迁移不能丢失原文件，失败后可重试，主进程值不受损坏镜像影响", async () => {
+it("当前启用状态恢复，损坏文件不会被空配置覆盖", async () => {
   const { root, state } = await setup();
+  const file = path.join(root, ".enabled.json");
+  await writeFile(file, JSON.stringify({ version: 1, enabled: { "test.saved": true } }));
   await state.load();
-  await state.set("test.saved", true);
-  await expect(state.importBrowser({ "test.other": "bad" })).rejects.toThrow("无效");
-  expect((await readLocalPluginState(root)).browserImported).toBe(false);
-  await state.importBrowser({ "test.saved": "bad", "test.other": false });
-  expect((await readLocalPluginState(root)).enabled["test.saved"]).toBe(true);
-  await state.importBrowser(null);
+  expect(state.enabled("test.saved", false)).toBe(true);
+  const invalid = JSON.stringify({ version: 1, enabled: { "test.saved": "bad" } });
+  await writeFile(file, invalid);
+  await expect(state.load()).rejects.toThrow("无效");
+  expect(await readFile(file, "utf8")).toBe(invalid);
+  expect(state.enabled("test.saved", false)).toBe(true);
 });
 it("落盘失败不改变内存意图，重试与重启保持一致", async () => {
   const { root, state } = await setup();
@@ -60,12 +48,11 @@ it("落盘失败不改变内存意图，重试与重启保持一致", async () =
   await restarted.load();
   expect(restarted.enabled("test.ui", true)).toBe(false);
 });
-it("卸载后重新安装按来源取默认值，旧窗口迁移不复活卸载前意图", async () => {
-  const { state } = await setup();
+it("卸载清除启用意图，重新发现默认停用", async () => {
+  const { root, state } = await setup();
   await state.load();
-  await state.importBrowser({ "test.ui": false });
+  await state.set("test.ui", true);
   await state.forget("test.ui");
-  await state.importBrowser({ "test.ui": false });
-  await state.initialize({ "test.ui": true });
-  expect(state.enabled("test.ui", false)).toBe(true);
+  expect(state.enabled("test.ui", false)).toBe(false);
+  expect((await readLocalPluginState(root)).enabled).toEqual({});
 });

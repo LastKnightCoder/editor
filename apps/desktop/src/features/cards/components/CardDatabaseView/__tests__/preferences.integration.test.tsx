@@ -39,7 +39,7 @@ const callbacks = {
 };
 beforeEach(() => {
   localStorage.clear();
-  useCardsDatabasePreferencesStore.setState({ byDatabase: {}, legacyDefaults: null });
+  useCardsDatabasePreferencesStore.setState({ byDatabase: {} });
   dispatch.mockClear();
   host = document.createElement("div");
   document.body.append(host);
@@ -76,7 +76,7 @@ it("跨窗口配置刷新经 external 命令接入，切库后使用独立偏好
   await act(async () => {
     localStorage.setItem(
       CARD_DATABASE_PREFERENCES_KEY,
-      JSON.stringify({ version: 1, state: { legacyDefaults: null, byDatabase: { a: incoming } } })
+      JSON.stringify({ version: 2, state: { byDatabase: { a: incoming } } })
     );
     window.dispatchEvent(new StorageEvent("storage", { key: CARD_DATABASE_PREFERENCES_KEY }));
   });
@@ -119,7 +119,9 @@ it("切库后旧实例迟到的视图回调只更新原库，不认领新库同 
       updateTime: 0,
     })),
   };
-  useCardsDatabasePreferencesStore.setState({ legacyDefaults: snapshot });
+  useCardsDatabasePreferencesStore.setState({
+    byDatabase: { a: structuredClone(snapshot), b: structuredClone(snapshot) },
+  });
   await act(async () =>
     root?.render(
       <QueryClientProvider client={queryClient}>

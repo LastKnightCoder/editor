@@ -430,7 +430,7 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
 移动端不自带主题，主题、明暗与色值全部来自 `@tau/themes`，与桌面端同一套（机制见 [design-system.md](/docs/architecture/design-system.md) §2.4）：
 
 - **CSS**：`src/styles.css` 引入 `@tau/themes/tokens.css`（6 主题族 × 深浅数据块 + 尺度层）与 `@tau/themes/tailwind.css`（语义类名 `bg-page / text-ink-1 / bg-tag-1-soft …`）；自身只定义布局变量（安全区、键盘、Dock 尺寸、边缘渐隐）、由 `--tau-*` 派生的组件变量（`--dock-bg`、`--topbar-fade-*`、`--ring-track`、`--heat-*`）和移动端尺度词（`rounded-card / rounded-bento / ease-bounce`）。
-- **运行时**：`vite.config.ts` 注入 `createThemeBootstrapScript()` 首帧脚本；`AppShell` 调 `initThemeRuntime()`；组件读明暗用 `useThemeStore(s => s.mode)`，切换用 `setTheme / setAppearance`（`@tau/themes/react`）。偏好键 `tau-theme` / `tau-appearance` 与桌面同格式。
+- **运行时**：`vite.config.ts` 注入 `createThemeBootstrapScript()` 首帧脚本；`AppShell` 调 `initThemeRuntime()`；组件读明暗用 `useThemeStore(s => s.mode)`，切换用 `setTheme / setAppearance`（`@tau/themes/react`）。偏好键 `tau-theme` / `tau-appearance` 与桌面同格式；旧 `tau-mobile-theme` 不读取、不转换，缺少当前偏好时使用共享默认值。
 - **设置**：`features/settings/components/ThemeSection.tsx` 明暗三档 × 主题族列表，预览直接读各主题 token。
 - **字号档位**：`src/styles.css` 的 `:root` 覆盖 `@tau/themes` 的 9 档 `--tau-text-*`（桌面密度正文 13px 不适合手机），`text-tau-*` 语义类随之取移动端值：
   hero 28 / title-lg 22 / title 17 / body-lg 17 / body 16 / meta 14 / sm 13 / micro 12 / tiny 11。`body` 基准字号取 body 档。
@@ -457,7 +457,7 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
 
 服务页按插件声明的 form 渲染表单（分组行、上标签下值，选择字段推入全屏选择层并接入返回仲裁），顶栏「保存」显式保存，有未保存修改时返回先确认；保存经固定工作区的原生配置命令只写配置，不改变选用状态，同步服务保存后读取一次云端版本作为连接测试。同步中心「同步到」与「图片与附件」的「更换位置」推入服务列表页：点已配置的行即切换，点 ⓘ 进服务页。同步服务选用先探测云端，有已有数据时按原流程确认；上传选用保留真实上传与回读测试，地址不可读时禁止使用。测试文件使用宿主唯一命名，可能在远端留下小型测试图片；不要求插件实现固定对象覆盖。选用复验测试时的配置，字段变化后必须重新确认。作者不感知这些宿主行为。
 
-各插件独立管理账号、仓库/存储桶和路径，不保留集成账号页面。旧账号经升级复制到各使用者，之后不联动；具体包事务、配置升级和执行边界见[跨端插件宿主](/docs/architecture/plugin-portability.md)。凭据不放主库 plugin_kv。
+各插件独立管理账号、仓库/存储桶和路径，不保留集成账号页面。仅接受当前独立配置，读取与保存不转换旧账号或资源账本；具体包事务与执行边界见[跨端插件宿主](/docs/architecture/plugin-portability.md)。凭据不放主库 plugin_kv。
 
 字段压缩继续使用 imageBed.enableCompression，控制 WebView 预压缩与原生图片处理；本地 resources 保存和缩略图、远端资源缓存仍由原生提供。上传结果按真实插件 ID 记录，切换目的地后不展示旧服务的结果。资源同步列表每次展示 30 条，继续使用既有筛选与停止/重试操作。
 
@@ -507,7 +507,7 @@ Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开
 
 入口为「我的 → 语音」（设置模块 `voice`），应用设置选择当前账号 / 模型 / 音色并提供试听。插件详情及插件设置页的 `target: "tts"` 由 `MobileProviderSettings` 显示该插件的账号列表与添加入口，再进入 `ttsAccount`、`ttsModels`、`ttsClone` 子页；这些子页按 instanceId 保活。ASR 在语音设置中选用，账号与识别模型由插件页配置，保存不改变当前选用。
 
-- **数据**：沿用桌面形状，`ttsProviders[]`（宿主生成的账号实例 ID、插件 ID、名称、插件私有 config、models）与 `ttsUsageSettings.default`。写入只经原生 `plugin_tts_mutate`（`src-tauri/src/tts_settings.rs`），在 `mutate_setting_value` 串行队列内校验窗口、工作区、账号归属与模型去重，成功返回快照后前端才合并；普通全量设置写入由 `preserve_managed_fields` 保留这两个字段。删除当前模型回落到第一个模型并清空音色，没有剩余模型时清空当前选择。旧版内置 MiniMax 凭据在启动升级时带备份迁移为账号，空凭据不建账号。
+- **数据**：沿用桌面形状，`ttsProviders[]`（宿主生成的账号实例 ID、插件 ID、名称、插件私有 config、models）与 `ttsUsageSettings.default`。写入只经原生 `plugin_tts_mutate`（`src-tauri/src/tts_settings.rs`），在 `mutate_setting_value` 串行队列内校验窗口、工作区、账号归属与模型去重，成功返回快照后前端才合并；普通全量设置写入由 `preserve_managed_fields` 保留这两个字段。删除当前模型回落到第一个模型并清空音色，没有剩余模型时清空当前选择。设置读取与保存只接受当前插件账号结构，不转换旧内置凭据或同步账本；不支持的配置报错并保留原文件，当前配置只补齐默认值。
 - **执行**：每个插件运行时持有一份 `@tau/plugins/tts-host` 的 `RendererTTSRegistry`（与桌面同一核心），`services/plugin-tts.ts` 在同一 WebView 内开会话：open 时冻结账号配置与模型，调用方取消、插件停用或工作区释放都会关闭会话并拒绝迟到结果。网络经插件 fetch 原生桥。
 - **账号表单**：账号页由宿主承载显示名称、模型、复刻与删除，凭据字段由插件声明 form，宿主复用 `MobileProviderForm` 显式保存，缺省模型目录由设置分区的 models 提供；特殊组件仍通过配置属性保存；插件不可用时保留配置、不渲染表单。
 - **测试与复刻**：测试页可测任意已保存账号，不改写当前服务；合成字节转 Blob 在页内播放，不自动发声，离开页面即取消并释放。文本限 500 字，只约束测试面板。复刻经常驻 file input 选择参考音频，文件大小、格式与上传前置条件由插件校验；本机保存附件时提示需要公网地址的服务商先配置远端上传。

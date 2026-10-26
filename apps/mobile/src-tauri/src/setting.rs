@@ -1,12 +1,11 @@
 use std::fs;
 use std::io::Write;
 #[cfg(unix)]
-use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+use std::os::unix::fs::OpenOptionsExt;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Manager};
 
 use crate::database::{resolve_embedding_fingerprint_for_setting, trigger_reconcile_for_database};
@@ -123,16 +122,6 @@ fn default_setting_value() -> Value {
         "dataView",
         "settings"
       ],
-      "textToSpeech": {
-        "currentModel": "doubao",
-        "doubao": {
-          "accessToken": "",
-          "secretKey": "",
-          "appid": "",
-          "token": "",
-          "currentSpeakerId": ""
-        }
-      },
       "ttsProviders": [],
       "ttsUsageSettings": { "default": null },
       "transcription": {
@@ -145,22 +134,12 @@ fn default_setting_value() -> Value {
         "configs": []
       },
       "integration": {
-        "minimax": {
-          "enabled": false,
-          "apiKey": "",
-          "userInfo": { "isConnected": false }
-        },
         "weread": {
           "enabled": false,
           "loginMethod": "qr",
           "cookies": [],
           "lastCookieTime": 0,
           "userInfo": { "name": "", "vid": "", "isConnected": false }
-        },
-        "podcastTTS": {
-          "active": "minimax",
-          "currentVoiceId": "",
-          "doubao": { "accessToken": "", "secretKey": "", "appid": "", "token": "" }
         }
       },
       "misc": {
@@ -175,22 +154,10 @@ fn default_setting_value() -> Value {
         }
       },
       "publish": {
-        "active": "github",
-        "github": {
-          "repo": "",
-          "branch": "gh-pages",
-          "basePath": "/",
-          "useGitCli": true,
-          "gitWorkingDir": ""
-        },
-        "s3": {
-          "bucket": "",
-          "region": "",
-          "path": "",
-          "basePath": "/"
-        },
+        "active": "local",
+        "plugin": { "id": "", "configurations": {} },
         "local": { "basePath": "/" },
-        "site": { "title": "", "description": "" }
+        "site": { "title": "", "publicUrl": "", "templateId": "", "fields": {} }
       }
     })
 }
@@ -254,16 +221,11 @@ fn validate_setting_shape(setting: &Value) -> Result<(), String> {
                 validate_pointer_type(setting, &pointer, kind)?;
             }
         }
-        for key in ["webdav", "aliOSS", "github", "s3"] {
-            let pointer = format!("/{section}/{key}");
-            if setting.pointer(&pointer).is_some() {
-                validate_pointer_type(setting, &pointer, "object")?;
-            }
-        }
     }
     if setting.get("integration").is_some() {
         validate_pointer_type(setting, "/integration", "object")?;
     }
+    crate::provider_settings::assert_current(setting)?;
     crate::tts_settings::validate_shape(setting)?;
 
     Ok(())
@@ -322,52 +284,15 @@ fn normalize_database_section(setting: &mut Value) {
     }
 }
 
-pub fn ensure_setting_compat(raw: Value) -> Value {
+pub fn normalize_setting(raw: Value) -> Value {
     let mut setting = if raw.is_object() { raw } else { json!({}) };
-    if let Some(object) = setting.as_object_mut() {
-        object.remove("mobileSyncBases");
-    }
-    retire_image_bed_keys(&mut setting);
-    crate::provider_settings::migrate(&mut setting);
-    let defaults = default_setting_value();
-    merge_defaults(&mut setting, &defaults);
-    // 已退役的模块开关（问题管理迁为桌面插件，PS-046）
-    const RETIRED_MODULES: [&str; 2] = ["resourceManagement", "question"];
-    if let Some(modules) = setting.get_mut("module").and_then(Value::as_object_mut) {
-        for key in RETIRED_MODULES {
-            modules.remove(key);
-        }
-    }
-    if let Some(order) = setting.get_mut("moduleOrder").and_then(Value::as_array_mut) {
-        order.retain(|key| {
-            !key.as_str()
-                .is_some_and(|key| RETIRED_MODULES.contains(&key))
-        });
-    }
-    retire_image_bed_keys(&mut setting);
+    merge_defaults(&mut setting, &default_setting_value());
     normalize_database_section(&mut setting);
     setting
 }
 
-/// 已退役的上传设置：GitHub CDN 改写不再提供。升级前 enableCompression 只管后端转 webp、
-/// 前端始终预压缩，升级后它同时控制两端；旧版设置（带 github.cdn）首次升级时打开压缩，
-/// 延续升级前的实际效果，之后按用户的选择保留。
-fn retire_image_bed_keys(setting: &mut Value) {
-    let Some(image_bed) = setting.get_mut("imageBed").and_then(Value::as_object_mut) else {
-        return;
-    };
-    let legacy = image_bed
-        .get_mut("github")
-        .and_then(Value::as_object_mut)
-        .and_then(|github| github.remove("cdn"))
-        .is_some();
-    if legacy {
-        image_bed.insert("enableCompression".to_string(), Value::Bool(true));
-    }
-    image_bed.remove("githubCdn");
-}
-
 pub fn save_setting_value(app: &AppHandle, setting: &Value) -> Result<(), String> {
+    validate_setting_shape(setting)?;
     let app_dir = resolve_app_dir(app)?;
     fs::create_dir_all(&app_dir).map_err(|e| format!("Failed to create app dir: {e}"))?;
     let setting_path = resolve_setting_path(app)?;
@@ -396,7 +321,7 @@ pub fn load_or_init_setting(app: &AppHandle) -> Result<Value, String> {
 
     let setting_path = resolve_setting_path(app)?;
     if !setting_path.exists() {
-        let setting = ensure_setting_compat(json!({}));
+        let setting = normalize_setting(json!({}));
         save_setting_value(app, &setting)?;
         return Ok(setting);
     }
@@ -406,24 +331,7 @@ pub fn load_or_init_setting(app: &AppHandle) -> Result<Value, String> {
     let parsed = serde_json::from_str::<Value>(&content)
         .map_err(|e| format!("SETTING_INVALID: setting.json 解析失败: {e}"))?;
     validate_setting_shape(&parsed)?;
-    let mut upgraded = parsed.clone();
-    retire_image_bed_keys(&mut upgraded);
-    let statuses = crate::provider_settings::migrate(&mut upgraded);
-    crate::tts_settings::migrate(&mut upgraded);
-    if upgraded != parsed {
-        let backup = app_dir.join(format!(
-            "setting.storage-plugins-{:x}.bak",
-            Sha256::digest(content.as_bytes())
-        ));
-        if !backup.exists() {
-            fs::copy(&setting_path, &backup).map_err(|_| "备份旧存储配置失败")?;
-        }
-        #[cfg(unix)]
-        fs::set_permissions(&backup, fs::Permissions::from_mode(0o600))
-            .map_err(|_| "设置备份权限失败")?;
-        crate::provider_settings::migrate_status_files(&app_dir, &statuses)?;
-    }
-    let setting = ensure_setting_compat(upgraded);
+    let setting = normalize_setting(parsed.clone());
     if setting != parsed {
         save_setting_value(app, &setting)?;
     }
@@ -550,14 +458,7 @@ pub fn write_setting_json(app: AppHandle, payload: String) -> SettingWriteRespon
         };
     }
 
-    if let Err(err) = crate::provider_settings::assert_current(&value) {
-        return SettingWriteResponse {
-            ok: false,
-            code: Some("SETTING_INVALID".into()),
-            message: err,
-        };
-    }
-    let mut normalized = ensure_setting_compat(value);
+    let mut normalized = normalize_setting(value);
     let current = match load_or_init_setting(&app) {
         Ok(value) => value,
         Err(error) => {
@@ -620,17 +521,17 @@ mod tests {
 
     #[test]
     fn new_settings_remain_valid_after_another_load() {
-        let setting = ensure_setting_compat(json!({}));
+        let setting = normalize_setting(json!({}));
         assert!(
             validate_setting_shape(&setting).is_ok(),
             "{:?}",
             validate_setting_shape(&setting)
         );
-        assert_eq!(ensure_setting_compat(setting.clone()), setting);
+        assert_eq!(normalize_setting(setting.clone()), setting);
     }
     #[test]
     fn tts_defaults_and_shape_validation_are_safe() {
-        let setting = ensure_setting_compat(json!({}));
+        let setting = normalize_setting(json!({}));
         assert_eq!(setting["ttsProviders"], json!([]));
         assert_eq!(setting["ttsUsageSettings"]["default"], Value::Null);
         assert!(validate_setting_shape(&setting).is_ok());
@@ -656,50 +557,51 @@ mod tests {
     }
 
     #[test]
-    fn retired_modules_are_removed() {
-        let setting = ensure_setting_compat(json!({
-            "module": { "question": { "enable": true, "name": "问题管理" }, "todo": { "enable": false, "name": "任务列表" } },
-            "moduleOrder": ["question", "todo", "resourceManagement"]
-        }));
-        assert!(setting["module"].get("question").is_none());
-        assert_eq!(setting["module"]["todo"]["enable"], json!(false));
-        let order = setting["moduleOrder"].as_array().unwrap();
-        assert!(!order
-            .iter()
-            .any(|key| key == "question" || key == "resourceManagement"));
-        assert!(order.iter().any(|key| key == "todo"));
-    }
-
-    #[test]
-    fn legacy_setting_turns_compression_on_once() {
-        let setting = ensure_setting_compat(json!({
-            "imageBed": {
-                "active": "github",
-                "enableCompression": false,
-                "githubCdn": "jsdelivr",
-                "github": { "repo": "assets", "branch": "main", "cdn": "jsdelivr", "pathPrefix": "" }
-            }
-        }));
-        let image_bed = &setting["imageBed"];
-        assert!(image_bed["github"].get("cdn").is_none());
-        assert!(image_bed.get("githubCdn").is_none());
-        assert_eq!(image_bed["enableCompression"], json!(true));
-        assert_eq!(
-            image_bed["plugin"]["configurations"]["tau.upload-github"]["repo"],
-            json!("assets")
-        );
-
-        // 升级后用户关掉压缩，再次加载保持关闭
-        let mut upgraded = setting.clone();
-        upgraded["imageBed"]["enableCompression"] = json!(false);
-        let reloaded = ensure_setting_compat(upgraded);
-        assert_eq!(reloaded["imageBed"]["enableCompression"], json!(false));
-    }
-
-    #[test]
     fn fresh_setting_saves_uploads_locally() {
-        let setting = ensure_setting_compat(json!({}));
+        let setting = normalize_setting(json!({}));
         assert_eq!(setting["imageBed"]["active"], json!("local"));
         assert_eq!(setting["imageBed"]["enableCompression"], json!(true));
+    }
+
+    #[test]
+    fn current_settings_preserve_accounts_selection_and_compression() {
+        let mut setting = normalize_setting(json!({}));
+        setting["imageBed"]["enableCompression"] = json!(false);
+        setting["sync"]["plugin"] = json!({
+            "id": "test.sync", "configurations": { "test.sync": { "token": "keep" } }
+        });
+        setting["ttsProviders"] = json!([{
+            "id": "voice", "name": "账号", "pluginId": "test.tts",
+            "config": { "key": "keep" }, "models": [{ "id": "model" }]
+        }]);
+        assert!(validate_setting_shape(&setting).is_ok());
+        assert_eq!(normalize_setting(setting.clone()), setting);
+        assert!(setting["integration"].get("minimax").is_none());
+        assert!(setting["integration"].get("podcastTTS").is_none());
+        assert!(setting["publish"].get("github").is_none());
+        assert!(setting.get("textToSpeech").is_none());
+    }
+
+    #[test]
+    fn unsupported_provider_settings_are_rejected_without_conversion() {
+        for (section, value) in [
+            ("sync", json!({ "active": "s3", "s3": { "bucket": "old" } })),
+            (
+                "imageBed",
+                json!({ "active": "github", "github": { "cdn": "old" } }),
+            ),
+            (
+                "publish",
+                json!({ "active": "github", "github": { "repo": "old" } }),
+            ),
+            ("integration", json!({ "minimax": { "apiKey": "old" } })),
+            ("ttsProviders", json!([{ "providerType": "minimax" }])),
+        ] {
+            let mut setting = normalize_setting(json!({}));
+            setting[section] = value;
+            let before = setting.clone();
+            assert!(validate_setting_shape(&setting).is_err(), "{section}");
+            assert_eq!(setting, before);
+        }
     }
 }

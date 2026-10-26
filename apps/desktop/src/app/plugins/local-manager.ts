@@ -38,7 +38,7 @@ export class LocalPluginManager {
   constructor(
     private readonly host: PluginHost,
     private readonly reserved: readonly string[],
-    private readonly scan: (legacy: Record<string, unknown>) => Promise<LocalPluginScan>,
+    private readonly scan: () => Promise<LocalPluginScan>,
     private readonly getModules: () => Promise<SharedPluginModules>,
     private readonly preferences: Pick<
       Storage,
@@ -47,7 +47,7 @@ export class LocalPluginManager {
     private readonly notify: () => void,
     private readonly removePackage: (id: string) => Promise<void>,
     private readonly setEnabled: (id: string, enabled: boolean) => Promise<void>,
-    /** 清除插件在当前库的私有存储；不传时只清本机旧存储 */
+    /** 清除插件在当前库的私有存储；浏览器宿主使用本机存储。 */
     private readonly purgeStorage?: (id: string) => Promise<void>
   ) {
     this.states = this.activationManager();
@@ -112,9 +112,8 @@ export class LocalPluginManager {
         console.warn("plugin_preference_mirror_unavailable");
       }
       if (purgeData) {
-        await this.purgeStorage?.(id);
-        // 尚未迁入主库的其他工作区旧存储一并清除
-        clearBrowserPluginStorage(this.preferences, id);
+        if (this.purgeStorage) await this.purgeStorage(id);
+        else clearBrowserPluginStorage(this.preferences, id);
       }
       await this.reload();
     });
@@ -122,15 +121,7 @@ export class LocalPluginManager {
 
   private async reload() {
     try {
-      const legacy: Record<string, unknown> = Object.create(null);
-      for (let index = 0; index < this.preferences.length; index++) {
-        const key = this.preferences.key(index);
-        if (!key?.startsWith("tau-local-plugin-enabled:v1:")) continue;
-        const value = this.preferences.getItem(key);
-        legacy[key.slice("tau-local-plugin-enabled:v1:".length)] =
-          value === "true" ? true : value === "false" ? false : value;
-      }
-      const snapshot = await this.scan(legacy);
+      const snapshot = await this.scan();
       this.assertOpen();
       this.directory = snapshot.directory;
       this.updates = snapshot.updates ?? [];

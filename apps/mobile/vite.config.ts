@@ -5,7 +5,6 @@ import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
 import { mobilePluginSpike } from "./scripts/plugin-spike";
 import { createThemeBootstrapScript } from "@tau/themes";
-import { createLegacyThemeMigrationScript } from "./src/theme/legacyThemeMigration";
 
 const host = process.env.TAURI_DEV_HOST;
 
@@ -30,12 +29,12 @@ export default defineConfig(async ({ mode }) => ({
   },
   plugins: [
     {
-      // 首帧前应用主题（与桌面端同一首帧脚本），先把旧版移动端主题偏好迁成新格式
+      // 首帧前应用两端共用的主题偏好。
       name: "tau-theme-bootstrap",
       transformIndexHtml: () => [
         {
           tag: "script",
-          children: createLegacyThemeMigrationScript() + createThemeBootstrapScript(),
+          children: createThemeBootstrapScript(),
           injectTo: "head-prepend",
         },
       ],

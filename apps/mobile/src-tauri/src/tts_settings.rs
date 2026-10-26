@@ -288,132 +288,6 @@ pub fn plugin_tts_mutate(
     })
 }
 
-pub(crate) fn migrate(setting: &mut Value) {
-    if !setting.is_object() {
-        return;
-    }
-    let source = setting.clone();
-    let integration = source.get("integration").and_then(Value::as_object);
-    let legacy_minimax = integration
-        .and_then(|value| value.get("minimax"))
-        .and_then(Value::as_object);
-    let podcast = integration
-        .and_then(|value| value.get("podcastTTS"))
-        .and_then(Value::as_object);
-    let legacy_tts = source
-        .get("misc")
-        .and_then(Value::as_object)
-        .and_then(|value| value.get("tts"))
-        .and_then(Value::as_object);
-    let providers_migrated = legacy_tts
-        .and_then(|value| value.get("providersMigrated"))
-        .and_then(Value::as_bool)
-        == Some(true);
-    let api_key = legacy_minimax
-        .and_then(|value| value.get("apiKey"))
-        .and_then(Value::as_str)
-        .filter(|value| !value.trim().is_empty());
-    let should_migrate = api_key.is_some()
-        || legacy_tts.is_some_and(|value| value.contains_key("providersMigrated"));
-    if !should_migrate {
-        return;
-    }
-
-    let has_valid_default = source
-        .get("ttsUsageSettings")
-        .and_then(|value| value.get("default"))
-        .is_some_and(|selection| {
-            selection["providerId"]
-                .as_str()
-                .is_some_and(|id| !id.trim().is_empty())
-                && selection["modelId"]
-                    .as_str()
-                    .is_some_and(|id| !id.trim().is_empty())
-                && selection["voiceId"].is_string()
-        });
-    let podcast_uses_doubao = podcast
-        .and_then(|value| value.get("active"))
-        .and_then(Value::as_str)
-        == Some("doubao");
-    let mut providers = source
-        .get("ttsProviders")
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default();
-    if providers.is_empty() && !providers_migrated {
-        if let Some(api_key) = api_key {
-            let model_id = podcast
-                .and_then(|value| value.get("minimaxModel"))
-                .and_then(Value::as_str)
-                .filter(|value| !value.is_empty())
-                .unwrap_or("speech-2.8-hd");
-            let models = std::iter::once(model_id)
-                .chain(
-                    [
-                        "speech-2.8-hd",
-                        "speech-2.8-turbo",
-                        "speech-2.6-hd",
-                        "speech-2.6-turbo",
-                    ]
-                    .into_iter()
-                    .filter(|id| *id != model_id),
-                )
-                .map(|id| json!({ "id": id }))
-                .collect::<Vec<_>>();
-            let voice_id = podcast
-                .and_then(|value| value.get("currentVoiceId"))
-                .and_then(Value::as_str)
-                .unwrap_or("");
-            providers.push(json!({
-                "id": "minimax-legacy",
-                "name": "Minimax",
-                "pluginId": "tau.tts-minimax",
-                "config": { "apiKey": api_key },
-                "models": models
-            }));
-            if !has_valid_default && !podcast_uses_doubao {
-                let mut usage = source
-                    .get("ttsUsageSettings")
-                    .and_then(Value::as_object)
-                    .cloned()
-                    .unwrap_or_default();
-                usage.insert(
-                    "default".into(),
-                    json!({
-                        "providerId": "minimax-legacy",
-                        "modelId": model_id,
-                        "voiceId": voice_id
-                    }),
-                );
-                setting["ttsUsageSettings"] = Value::Object(usage);
-            }
-        }
-    }
-    setting["ttsProviders"] = Value::Array(providers);
-
-    if let Some(integration) = setting
-        .get_mut("integration")
-        .and_then(Value::as_object_mut)
-    {
-        integration.remove("minimax");
-    }
-    if let Some(misc) = setting.get_mut("misc").and_then(Value::as_object_mut) {
-        if misc.contains_key("tts") {
-            let mut tts = misc
-                .get("tts")
-                .and_then(Value::as_object)
-                .cloned()
-                .unwrap_or_default();
-            tts.remove("providersMigrated");
-            if tts.is_empty() {
-                misc.remove("tts");
-            } else {
-                misc.insert("tts".into(), Value::Object(tts));
-            }
-        }
-    }
-}
-
 pub(crate) fn validate_shape(setting: &Value) -> Result<(), String> {
     if let Some(value) = setting.get("ttsProviders") {
         let providers = value.as_array().ok_or_else(|| {
@@ -423,6 +297,9 @@ pub(crate) fn validate_shape(setting: &Value) -> Result<(), String> {
             let provider = provider
                 .as_object()
                 .ok_or_else(|| format!("SETTING_INVALID: 语音账号 {provider_index} 必须是对象"))?;
+            if provider.contains_key("providerType") {
+                return Err("SETTING_INVALID: 语音只支持插件账号，请重新配置".into());
+            }
             for field in ["id", "name", "pluginId"] {
                 if !provider.get(field).is_some_and(Value::is_string) {
                     return Err(format!(
@@ -483,7 +360,7 @@ mod tests {
     use super::*;
 
     fn base_setting() -> Value {
-        crate::setting::ensure_setting_compat(json!({
+        crate::setting::normalize_setting(json!({
             "ttsProviders": [
                 {
                     "id": "a",
@@ -554,7 +431,7 @@ mod tests {
 
     #[test]
     fn create_save_and_rename_validate_account_identity() {
-        let mut setting = crate::setting::ensure_setting_compat(json!({}));
+        let mut setting = crate::setting::normalize_setting(json!({}));
         let snapshot = mutate(
             &mut setting,
             json!({ "type": "create", "pluginId": "tau.tts-minimax", "name": "个人" }),
@@ -786,192 +663,5 @@ mod tests {
             .unwrap()
             .is_empty());
         assert_eq!(setting["ttsUsageSettings"]["default"], Value::Null);
-    }
-
-    #[test]
-    fn minimax_migration_preserves_legacy_voice_and_is_idempotent() {
-        let mut setting = json!({
-            "integration": {
-                "minimax": { "enabled": true, "apiKey": " old " },
-                "podcastTTS": {
-                    "active": "minimax",
-                    "minimaxModel": "custom",
-                    "currentVoiceId": "legacy-voice",
-                    "doubao": { "appid": "keep-doubao-app", "token": "keep-doubao-token" },
-                    "unrelated": { "keep": true }
-                },
-                "github": { "token": "keep" }
-            },
-            "textToSpeech": {
-                "currentModel": "doubao",
-                "doubao": { "accessToken": "keep-doubao" }
-            },
-            "misc": { "other": true }
-        });
-        let podcast = setting["integration"]["podcastTTS"].clone();
-        migrate(&mut setting);
-        assert_eq!(
-            setting["ttsProviders"],
-            json!([{
-                "id": "minimax-legacy",
-                "name": "Minimax",
-                "pluginId": "tau.tts-minimax",
-                "config": { "apiKey": " old " },
-                "models": [
-                    { "id": "custom" },
-                    { "id": "speech-2.8-hd" },
-                    { "id": "speech-2.8-turbo" },
-                    { "id": "speech-2.6-hd" },
-                    { "id": "speech-2.6-turbo" }
-                ]
-            }])
-        );
-        assert_eq!(
-            setting["ttsUsageSettings"]["default"],
-            json!({
-                "providerId": "minimax-legacy",
-                "modelId": "custom",
-                "voiceId": "legacy-voice"
-            })
-        );
-        assert_eq!(setting["integration"]["github"]["token"], "keep");
-        assert!(setting["integration"].get("minimax").is_none());
-        assert_eq!(setting["integration"]["podcastTTS"], podcast);
-        assert_eq!(
-            setting["textToSpeech"]["doubao"]["accessToken"],
-            "keep-doubao"
-        );
-        assert_eq!(setting["misc"]["other"], true);
-        let migrated = setting.clone();
-        migrate(&mut setting);
-        assert_eq!(setting, migrated);
-    }
-
-    #[test]
-    fn migration_preserves_existing_default_when_creating_minimax_account() {
-        let selection = json!({
-            "providerId": "existing-account",
-            "modelId": "existing-model",
-            "voiceId": "existing-voice"
-        });
-        let podcast = json!({
-            "active": "minimax",
-            "minimaxModel": "legacy-model",
-            "currentVoiceId": "legacy-voice"
-        });
-        let mut setting = json!({
-            "ttsProviders": [],
-            "ttsUsageSettings": { "default": selection.clone(), "future": { "keep": true } },
-            "integration": {
-                "minimax": { "apiKey": "legacy-key" },
-                "podcastTTS": podcast.clone()
-            }
-        });
-        migrate(&mut setting);
-        assert_eq!(setting["ttsProviders"].as_array().unwrap().len(), 1);
-        assert_eq!(setting["ttsProviders"][0]["id"], "minimax-legacy");
-        assert_eq!(setting["ttsUsageSettings"]["default"], selection);
-        assert_eq!(setting["ttsUsageSettings"]["future"]["keep"], true);
-        assert_eq!(setting["integration"]["podcastTTS"], podcast);
-        let migrated = setting.clone();
-        migrate(&mut setting);
-        assert_eq!(setting, migrated);
-    }
-
-    #[test]
-    fn doubao_active_legacy_setting_creates_minimax_without_switching_default() {
-        let podcast = json!({
-            "active": "doubao",
-            "minimaxModel": "legacy-model",
-            "currentVoiceId": "legacy-voice",
-            "doubao": { "appid": "doubao-app", "token": "doubao-token" }
-        });
-        let mut setting = json!({
-            "ttsProviders": [],
-            "ttsUsageSettings": { "default": null },
-            "integration": {
-                "minimax": { "apiKey": "legacy-key" },
-                "podcastTTS": podcast.clone()
-            }
-        });
-        migrate(&mut setting);
-        assert_eq!(setting["ttsProviders"].as_array().unwrap().len(), 1);
-        assert_eq!(setting["ttsProviders"][0]["pluginId"], "tau.tts-minimax");
-        assert_eq!(setting["ttsProviders"][0]["config"]["apiKey"], "legacy-key");
-        assert_eq!(setting["ttsUsageSettings"]["default"], Value::Null);
-        assert_eq!(setting["integration"]["podcastTTS"], podcast);
-        let migrated = setting.clone();
-        migrate(&mut setting);
-        assert_eq!(setting, migrated);
-    }
-
-    #[test]
-    fn empty_defaults_and_blank_credentials_never_create_accounts() {
-        let mut setting = crate::setting::ensure_setting_compat(json!({}));
-        let before = setting.clone();
-        migrate(&mut setting);
-        assert_eq!(setting, before);
-        assert_eq!(setting["ttsProviders"], json!([]));
-        assert_eq!(setting["ttsUsageSettings"]["default"], Value::Null);
-
-        let mut blank = json!({
-            "integration": {
-                "minimax": { "apiKey": " \n\t " },
-                "podcastTTS": { "currentVoiceId": "unused" }
-            },
-            "unrelated": { "keep": true }
-        });
-        let before = blank.clone();
-        migrate(&mut blank);
-        assert_eq!(blank, before);
-    }
-
-    #[test]
-    fn existing_new_configuration_wins_over_legacy_credentials() {
-        let provider = json!({
-            "id": "current",
-            "name": "当前账号",
-            "pluginId": "example.tts",
-            "config": { "token": "current" },
-            "models": [{ "id": "current-model" }]
-        });
-        let selection = json!({
-            "providerId": "current",
-            "modelId": "current-model",
-            "voiceId": "current-voice"
-        });
-        let mut setting = json!({
-            "ttsProviders": [provider.clone()],
-            "ttsUsageSettings": { "default": selection.clone() },
-            "integration": {
-                "minimax": { "apiKey": "obsolete" },
-                "podcastTTS": { "currentVoiceId": "obsolete" },
-                "weread": { "enabled": true }
-            }
-        });
-        migrate(&mut setting);
-        assert_eq!(setting["ttsProviders"], json!([provider]));
-        assert_eq!(setting["ttsUsageSettings"]["default"], selection);
-        assert_eq!(setting["integration"]["weread"]["enabled"], true);
-        assert!(setting["integration"].get("minimax").is_none());
-    }
-
-    #[test]
-    fn previous_migration_marker_prevents_account_resurrection() {
-        let mut setting = json!({
-            "ttsProviders": [],
-            "ttsUsageSettings": { "default": null },
-            "integration": { "minimax": { "apiKey": "obsolete" } },
-            "misc": { "tts": { "providersMigrated": true, "keep": 1 }, "other": true }
-        });
-        migrate(&mut setting);
-        assert_eq!(setting["ttsProviders"], json!([]));
-        assert_eq!(setting["ttsUsageSettings"]["default"], Value::Null);
-        assert_eq!(setting["misc"]["tts"]["keep"], 1);
-        assert!(setting["misc"]["tts"].get("providersMigrated").is_none());
-        assert_eq!(setting["misc"]["other"], true);
-        let migrated = setting.clone();
-        migrate(&mut setting);
-        assert_eq!(setting, migrated);
     }
 }

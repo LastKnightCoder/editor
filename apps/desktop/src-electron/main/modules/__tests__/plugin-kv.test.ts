@@ -28,31 +28,12 @@ describe("PluginKvTable", () => {
     ).toThrow("1 MB");
   });
 
-  it("导入保留库里已有的值，整批失败不写入；清除只删该插件", () => {
+  it("清除只删除当前插件，不影响其他插件", () => {
     PluginKvTable.set(db, { ...scope, key: "synced", value: '"from-cloud"' });
-    expect(
-      PluginKvTable.importEntries(db, {
-        databaseName: ":memory:",
-        entries: [
-          { pluginId: scope.pluginId, key: "synced", value: '"local"' },
-          { pluginId: scope.pluginId, key: "local", value: "1" },
-          { pluginId: "other", key: "local", value: "2" },
-        ],
-      })
-    ).toBe(2);
-    expect(PluginKvTable.get(db, { ...scope, key: "synced" })).toBe('"from-cloud"');
-    expect(PluginKvTable.get(db, { ...scope, key: "local" })).toBe("1");
-    expect(() =>
-      PluginKvTable.importEntries(db, {
-        databaseName: ":memory:",
-        entries: [
-          { pluginId: scope.pluginId, key: "a", value: "1" },
-          { pluginId: "", key: "b", value: "2" },
-        ],
-      })
-    ).toThrow("插件 ID 无效");
-    expect(PluginKvTable.get(db, { ...scope, key: "a" })).toBeNull();
+    PluginKvTable.set(db, { ...scope, key: "local", value: "1" });
+    PluginKvTable.set(db, { ...scope, pluginId: "other", key: "local", value: "2" });
     expect(PluginKvTable.clear(db, scope)).toBe(2);
+    expect(PluginKvTable.get(db, { ...scope, key: "synced" })).toBeNull();
     expect(PluginKvTable.get(db, { ...scope, pluginId: "other", key: "local" })).toBe("2");
   });
 });
