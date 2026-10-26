@@ -15,6 +15,8 @@ Worker 在边缘按来源 IP 限流，Durable Object 在连接和消息层继续
 
 仓库内 Node 与 Worker 的 Presence 入口共用 `assertPresenceBudget`：状态 JSON 按 UTF-8 编码计量，最多 16384 字节和 16 个客户端状态；每连接每分钟最多 600 次。在线状态不写入文档及撤销历史。源码中的门禁不代表线上版本已更新。
 
+正文光标通过 Awareness 的 `nodeTreeSelection` 发送稳定选区，失焦或视图卸载时只清除本视图拥有的位置。焦点判断读取 Slate 当前状态，同时响应编辑器状态变化与原生焦点事件，覆盖 Android 输入法恢复焦点但不产生新 `focusin` 的路径。
+
 ## 文档与持久化
 
 仓库中的桌面与移动正文编辑使用协议 2：稳定节点池、位置引用、正文片段与不可变契约字典，title 为 Y.Text。移动只调整位置，拆段/合段调整片段归属与边界，不复制文字身份；插件声明的 `textFields` 各自使用 Y.Text。`@tau/editor-collab` 负责 Slate 绑定、光标及源码输入，共享模型与校验位于 `packages/collaboration`。客户端普通编辑拒绝协议 1 的旧格式。
