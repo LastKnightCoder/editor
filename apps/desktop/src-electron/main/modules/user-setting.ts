@@ -82,6 +82,7 @@ class UserSettingModule {
     return { ...this.userSetting };
   }
 
+  /** 只写该插件的配置，当前选用的服务不变。 */
   async updateProviderPlugin(
     group: "sync" | "imageBed",
     id: string,
@@ -92,9 +93,8 @@ class UserSettingModule {
       ...current,
       [group]: {
         ...current[group],
-        active: "plugin",
         plugin: {
-          id,
+          id: current[group]?.plugin?.id ?? "",
           configurations: { ...current[group]?.plugin?.configurations, [id]: snapshot },
         },
       },

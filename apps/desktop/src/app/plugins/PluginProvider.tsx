@@ -125,23 +125,20 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           validateEditor: composePluginEditor,
           openSettings: (key, target) => {
             if (target === "asr") throw new Error("语音输入设置尚未提供界面入口");
-            return target === "sync"
-              ? useSettingsStore.getState().openSettings("sync")
-              : target === "upload"
-                ? useSettingsStore.getState().openSettings("imageBed")
-                : target === "tts"
-                  ? useSettingsStore.getState().openTTSSettings()
-                  : target === "images"
-                    ? useSettingsStore.getState().openSettings("imageGeneration")
-                    : target === "video"
-                      ? useSettingsStore.getState().openSettings("integration")
-                      : target === "publish"
-                        ? navigator.push("publish")
-                        : navigator.push(PLUGIN_DETAIL_KEY, {
-                            pluginId: key.split(":")[1],
-                            tab: "settings",
-                            section: key,
-                          });
+            // 同步与上传的连接配置就在插件详情 › 设置，与普通插件设置同一入口
+            return target === "tts"
+              ? useSettingsStore.getState().openTTSSettings()
+              : target === "images"
+                ? useSettingsStore.getState().openSettings("imageGeneration")
+                : target === "video"
+                  ? useSettingsStore.getState().openSettings("integration")
+                  : target === "publish"
+                    ? navigator.push("publish")
+                    : navigator.push(PLUGIN_DETAIL_KEY, {
+                        pluginId: key.split(":")[1],
+                        tab: "settings",
+                        section: key,
+                      });
           },
         });
         if (import.meta.env.DEV) {

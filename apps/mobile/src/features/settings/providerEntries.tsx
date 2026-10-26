@@ -1,89 +1,27 @@
-/* eslint-disable react-refresh/only-export-components -- 导出订阅式提供方投影，组件由闭包承载。 */
+/* 同步与上传提供方投影：订阅插件注册表，表单声明来自插件设置分区，配置读写经原生串行保存。 */
 import { savePluginProviderConfig } from "../../services/tauri";
 import { enqueueProviderConfigWrite, mergeProviderSettings } from "../../services/provider-config";
-import { useMemo, type ComponentType } from "react";
+import { useMemo } from "react";
 import { copyJson } from "@tau/plugins/host";
-import type { PluginContext, PluginSettingsDefinition } from "@tau/plugins";
-import { ErrorBoundary, UiHostProvider, UiProvider } from "@tau/ui";
+import {
+  isProviderFormComplete,
+  providerFormSummary,
+  type JsonValue,
+  type ProviderForm,
+} from "@tau/plugins";
 import { useMobilePlugins } from "../../app/plugins/context";
 import { useAppContext } from "../../app/AppContext";
-import { usePage, usePageInstanceContext } from "../../router";
 import type { SettingCompat } from "../../types";
-import type { SettingsPageProps, SettingModuleKey } from "./components/types";
 
-export interface ProviderPanelProps {
-  setting: SettingCompat;
-  updateSetting: SettingsPageProps["updateSetting"];
-  onOpenModule: (module: SettingModuleKey) => void;
-}
 export interface ProviderEntry {
   id: string;
   name: string;
-  description: string;
   tile: { letter: string; className: string };
+  /** 旧版插件以组件注册设置时为 null：宿主不渲染其表单，只提示更新 */
+  form: ProviderForm | null;
+  stored: (setting: SettingCompat) => JsonValue | undefined;
   isConfigured: (setting: SettingCompat) => boolean;
   summary: (setting: SettingCompat) => string;
-  Panel: ComponentType<ProviderPanelProps>;
-}
-
-function ProviderPanel({
-  context,
-  definition,
-  target,
-}: {
-  context: PluginContext;
-  definition?: PluginSettingsDefinition;
-  target: "sync" | "upload";
-}) {
-  const app = useAppContext();
-  const runtime = useMobilePlugins();
-  const { navigator, entryId } = usePage();
-  const { phase } = usePageInstanceContext();
-  const section = target === "sync" ? "sync" : "imageBed";
-  const Component = definition?.component;
-  const setting = app.syncSettings.safeSetting;
-  const registerDismiss = useMemo(
-    () => (dismiss: () => void) => {
-      if (phase !== "active") return () => undefined;
-      return navigator.registerBackHandler(entryId, () => {
-        dismiss();
-        return true;
-      });
-    },
-    [navigator, entryId, phase]
-  );
-  if (!setting || !runtime?.active(context)) return <p>插件已停用，请返回插件管理。</p>;
-  if (!Component) return <p>此插件没有提供配置面板。</p>;
-  const config = {
-    value: copyJson(setting[section].plugin?.configurations[context.pluginId] ?? {}),
-    save: (value: import("@tau/plugins").JsonValue) => {
-      const next = copyJson(value);
-      return enqueueProviderConfigWrite(async () => {
-        if (!runtime.active(context)) throw new Error("插件设置已失效");
-        const saved = await savePluginProviderConfig(
-          runtime.workspaceId,
-          target,
-          context.pluginId,
-          next
-        );
-        context.signal.throwIfAborted();
-        if (!runtime.active(context)) throw new Error("插件设置已失效");
-        app.syncSettings.updateSetting(previous => mergeProviderSettings(previous, saved));
-      });
-    },
-  };
-  return (
-    <ErrorBoundary>
-      <UiHostProvider registerDismiss={registerDismiss}>
-        <UiProvider className="contents">
-          <Component
-            context={context}
-            {...(target === "sync" ? { syncConfig: config } : { uploadConfig: config })}
-          />
-        </UiProvider>
-      </UiHostProvider>
-    </ErrorBoundary>
-  );
 }
 
 export function useProviderEntries(target: "sync" | "upload"): readonly ProviderEntry[] {
@@ -91,27 +29,51 @@ export function useProviderEntries(target: "sync" | "upload"): readonly Provider
   const revision = runtime?.getSnapshot();
   return useMemo(() => {
     if (!runtime || revision === undefined) return [];
+    const section = target === "sync" ? "sync" : "imageBed";
     const registrations = target === "sync" ? runtime.sync.list() : runtime.upload.list();
     return registrations
       .filter(item => runtime.active(item.context))
       .map(({ context, definition }) => {
-        const section = target === "sync" ? "sync" : "imageBed";
         const settings = [...runtime.settings.values()].find(
           item => item.context === context && item.definition.target === target
         );
+        const form = settings?.definition.form ?? null;
+        const stored = (setting: SettingCompat) => {
+          const configurations = setting[section].plugin?.configurations ?? {};
+          return Object.hasOwn(configurations, context.pluginId)
+            ? (copyJson(configurations[context.pluginId]) as JsonValue)
+            : undefined;
+        };
         const isConfigured = (setting: SettingCompat) =>
-          Object.hasOwn(setting[section].plugin?.configurations ?? {}, context.pluginId);
+          form ? isProviderFormComplete(form, stored(setting)) : stored(setting) !== undefined;
         return {
           id: context.pluginId,
           name: definition.name,
-          description: settings?.definition.description ?? "配置后可使用此存储服务",
           tile: { letter: definition.name.slice(0, 1), className: "bg-surface text-ink-2" },
+          form,
+          stored,
           isConfigured,
-          summary: (setting: SettingCompat) => (isConfigured(setting) ? "配置已保存" : "尚未配置"),
-          Panel: () => (
-            <ProviderPanel context={context} definition={settings?.definition} target={target} />
-          ),
+          summary: (setting: SettingCompat) =>
+            !form
+              ? "插件版本较旧，更新后才能修改配置"
+              : isConfigured(setting)
+                ? providerFormSummary(form, stored(setting)) || "已配置"
+                : "尚未配置",
         };
       });
   }, [runtime, revision, target]);
+}
+
+/** 保存一个提供方的配置：原生按库与插件串行原子写入，不改变当前选用。 */
+export function useSaveProviderConfig(target: "sync" | "upload") {
+  const app = useAppContext();
+  const runtime = useMobilePlugins();
+  return (pluginId: string, config: JsonValue) => {
+    const next = copyJson(config);
+    return enqueueProviderConfigWrite(async () => {
+      if (!runtime) throw new Error("插件尚未就绪");
+      const saved = await savePluginProviderConfig(runtime.workspaceId, target, pluginId, next);
+      app.syncSettings.updateSetting(previous => mergeProviderSettings(previous, saved));
+    });
+  };
 }

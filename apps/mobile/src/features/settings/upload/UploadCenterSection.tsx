@@ -1,8 +1,3 @@
-import { selectPluginProvider } from "../../../services/tauri";
-import {
-  enqueueProviderConfigWrite,
-  mergeProviderSettings,
-} from "../../../services/provider-config";
 // 「图片与附件」页：目的地卡回答「新图片存到哪、传得上去吗」，更换位置走抽屉 → 服务页；
 // 资源文件同步不在这里（它跟随同步服务，在同步中心管理），只留一个跳转行。
 
@@ -10,14 +5,13 @@ import { useState, useSyncExternalStore } from "react";
 import { ChevronRight, CircleAlert, CircleCheck, Image, RefreshCw, Shrink } from "lucide-react";
 import type { SettingCompat } from "../../../types";
 import { GroupLabel } from "../../../components/GroupLabel";
-import { toast } from "../../../components/toast";
 import { useNavigator, usePageLifecycle } from "../../../router";
 import { readUploadOutcome, subscribeUploadOutcome } from "../../../services/uploadOutcome";
 import type { SettingModuleKey, SettingsPageProps } from "../components/types";
 import { GroupCard, GroupNote, GroupRow, LetterTile, SwitchButton } from "../components/ui";
 import { ActionButton } from "../storage/fields";
 import { LOCAL_UPLOAD_ID, useUploadProviders } from "./providers";
-import { LocalTile, UploadTargetSheet } from "./UploadTargetSheet";
+import { LocalTile } from "./UploadTargetsPage";
 import { deriveDestinationState, type DestinationState } from "./uploadState";
 
 const STATE_TONE: Record<DestinationState["tone"], string> = {
@@ -47,7 +41,6 @@ export function UploadCenterSection(props: {
 }) {
   const navigator = useNavigator();
   const providers = useUploadProviders();
-  const [sheetOpen, setSheetOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const outcome = useSyncExternalStore(subscribeUploadOutcome, readUploadOutcome);
   // 从编辑器或服务页返回时刷新相对时间
@@ -64,24 +57,7 @@ export function UploadCenterSection(props: {
   const configured = Boolean(provider?.isConfigured(setting));
   const state = deriveDestinationState({ activeId, isLocal, configured, outcome, now });
 
-  const openProvider = (providerId: string) => {
-    setSheetOpen(false);
-    navigator.push("uploadProvider", { providerId });
-  };
-
-  const selectLocal = async () => {
-    setSheetOpen(false);
-    if (isLocal) return;
-    try {
-      await enqueueProviderConfigWrite(async () => {
-        const saved = await selectPluginProvider(setting.database.active, "upload", "local", null);
-        props.updateSetting(previous => mergeProviderSettings(previous, saved));
-      });
-      toast.success("之后的新图片会保存在这台手机");
-    } catch (error) {
-      toast.error(String(error));
-    }
-  };
+  const openProvider = (providerId: string) => navigator.push("uploadProvider", { providerId });
 
   const toggleCompression = () =>
     props.updateSetting(
@@ -99,8 +75,8 @@ export function UploadCenterSection(props: {
 
   return (
     <div className="page-enter space-y-1">
-      <section className="setting-group px-4 pb-3.5 pt-[18px]">
-        <p className="text-ink-3 flex items-center gap-1.5 text-[12px]">
+      <section className="setting-group px-4 pt-[18px] pb-3.5">
+        <p className="text-ink-3 text-tau-sm flex items-center gap-1.5">
           <Image size={13} aria-hidden="true" />
           新插入的图片与附件保存到
         </p>
@@ -111,15 +87,15 @@ export function UploadCenterSection(props: {
             <LetterTile letter={provider.tile.letter} className={provider.tile.className} />
           )}
           <span className="min-w-0 flex-1">
-            <span className="text-ink-1 block text-[19px] font-extrabold tracking-tight">
+            <span className="text-ink-1 text-tau-title-lg block font-extrabold tracking-tight">
               {name}
             </span>
-            <span className="text-ink-3 block truncate text-[12px]">{summary}</span>
+            <span className="text-ink-3 text-tau-sm block truncate">{summary}</span>
           </span>
         </div>
         <p
           role="status"
-          className={`border-line-2 mt-3 flex items-center gap-1.5 border-t pt-2.5 text-[12px] ${STATE_TONE[state.tone]}`}
+          className={`border-line-2 text-tau-sm mt-3 flex items-center gap-1.5 border-t pt-2.5 ${STATE_TONE[state.tone]}`}
         >
           <StateIcon tone={state.tone} />
           <span className="min-w-0 flex-1">{state.text}</span>
@@ -127,7 +103,11 @@ export function UploadCenterSection(props: {
       </section>
 
       <div className="flex gap-2.5 pt-3">
-        <ActionButton label="更换位置" emphasis={false} onClick={() => setSheetOpen(true)} />
+        <ActionButton
+          label="更换位置"
+          emphasis={false}
+          onClick={() => navigator.push("uploadTargets", {})}
+        />
         {state.fixLabel && provider && (
           <ActionButton label={state.fixLabel} emphasis onClick={() => openProvider(provider.id)} />
         )}
@@ -140,8 +120,8 @@ export function UploadCenterSection(props: {
             <Shrink size={16} strokeWidth={1.9} aria-hidden="true" />
           </IconBox>
           <span className="min-w-0 flex-1">
-            <span className="text-ink-1 block text-[14.5px] font-medium">压缩大图</span>
-            <span className="text-ink-3 block text-[11.5px]">
+            <span className="text-ink-1 text-tau-body block font-medium">压缩大图</span>
+            <span className="text-ink-3 text-tau-sm block">
               超过 300KB 转为 WebP，长边不超过 2048；关闭则上传原图
             </span>
           </span>
@@ -157,22 +137,14 @@ export function UploadCenterSection(props: {
             <RefreshCw size={16} strokeWidth={1.9} aria-hidden="true" />
           </IconBox>
           <span className="min-w-0 flex-1">
-            <span className="text-ink-1 block text-[14.5px] font-medium">资源文件同步</span>
-            <span className="text-ink-3 block truncate text-[11.5px]">
+            <span className="text-ink-1 text-tau-body block font-medium">资源文件同步</span>
+            <span className="text-ink-3 text-tau-sm block truncate">
               本机图片在设备间同步，跟随「同步」中的服务
             </span>
           </span>
           <ChevronRight size={16} className="text-ink-3" aria-hidden="true" />
         </GroupRow>
       </GroupCard>
-
-      <UploadTargetSheet
-        open={sheetOpen}
-        setting={setting}
-        onClose={() => setSheetOpen(false)}
-        onSelectLocal={selectLocal}
-        onOpenProvider={openProvider}
-      />
     </div>
   );
 }

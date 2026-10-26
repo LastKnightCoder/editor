@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   model: {} as Record<string, unknown>,
   pluginState: "active",
   pluginEnabled: true,
+  sections: [] as unknown[],
+  probe: vi.fn(async () => ({ version: 0 })),
 }));
 
 vi.mock("@/commands", () => ({
@@ -24,14 +26,19 @@ vi.mock("@/commands", () => ({
 vi.mock("@/utils/sync", () => ({ isSyncConfigured: () => true }));
 vi.mock("@/app/plugins/context", () => ({
   useDesktopPlugins: () => ({
-    listSettings: () => [],
+    listSettings: () => mocks.sections,
     local: { owns: () => true, enabled: () => mocks.pluginEnabled },
     host: { listPlugins: () => [{ id: "test.sync", state: mocks.pluginState }] },
   }),
 }));
+vi.mock("@/services/storage-providers", async importOriginal => ({
+  ...(await importOriginal<typeof import("@/services/storage-providers")>()),
+  probeRemoteDatabaseVersion: mocks.probe,
+}));
+vi.mock("@/services/page-navigation", () => ({ openPage: vi.fn() }));
 vi.mock("@/services/usageSyncRunner", () => ({ runUsageSync: vi.fn(async () => null) }));
 vi.mock("@/app/settingsStore", () => ({
-  useSettingsStore: { getState: () => ({ openSettings: vi.fn() }) },
+  useSettingsStore: { getState: () => ({ openSettings: vi.fn(), closeSettings: vi.fn() }) },
 }));
 vi.mock("../sections/useResourceSyncModel", () => ({
   useResourceSyncModel: () => mocks.model,
@@ -60,8 +67,32 @@ const text = () => container.textContent ?? "";
 const button = (label: string) =>
   [...container.querySelectorAll("button")].find(b => b.textContent?.includes(label))!;
 
+const providerSection = (pluginId: string, title: string) => ({
+  key: `plugin:${pluginId}:sync`,
+  mountId: 1,
+  context: { pluginId },
+  definition: {
+    id: "sync",
+    title,
+    target: "sync",
+    form: {
+      groups: [
+        {
+          title: "存储位置",
+          fields: [
+            { key: "bucket", label: "Bucket", type: "text", summary: true },
+            { key: "secret", label: "密钥", type: "secret" },
+          ],
+        },
+      ],
+    },
+  },
+});
+
 beforeEach(() => {
   queryClient = new QueryClient();
+  mocks.sections = [];
+  mocks.probe.mockReset().mockResolvedValue({ version: 0 });
   mocks.pluginState = "active";
   mocks.pluginEnabled = true;
   vi.mocked(upload).mockReset();
@@ -155,10 +186,71 @@ it("概览并排数据库卡与资源文件卡，Tab 角标为失败数", () => 
   expect(text()).toContain("数据库");
   expect(text()).toContain("资源文件");
   expect(text()).toContain("1 个失败");
-  expect(text()).toContain("同步目标");
+  expect(text()).toContain("同步服务");
+  expect(container.querySelector('input[aria-label="Bucket"]')).toBeNull();
   const filesTab = container.querySelector('[role="tab"][data-tab="files"]')!;
   expect(filesTab.textContent).toBe("资源文件1");
   expect(filesTab.getAttribute("aria-selected")).toBe("false");
+});
+
+it("同步服务列表只显示摘要，未配置不可选，切换前先探测云端", async () => {
+  mocks.sections = [providerSection("test.sync", "S3"), providerSection("other.sync", "WebDAV")];
+  useSettingStore.setState(s => ({
+    setting: {
+      ...s.setting,
+      sync: {
+        ...s.setting.sync,
+        plugin: {
+          id: "test.sync",
+          configurations: {
+            "test.sync": { bucket: "notes", secret: "x" },
+            "other.sync": { bucket: "dav", secret: "y" },
+            "third.sync": {},
+          },
+        },
+      },
+    },
+  }));
+  render();
+  expect(text()).toContain("notes");
+  expect(text()).not.toContain("x");
+  const radios = [...container.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
+  expect(radios.map(radio => radio.checked)).toEqual([true, false]);
+  await act(async () => radios[1].click());
+  await vi.waitFor(() =>
+    expect(useSettingStore.getState().setting.sync.plugin?.id).toBe("other.sync")
+  );
+  expect(mocks.probe).toHaveBeenCalledWith("other.sync", { bucket: "dav", secret: "y" });
+});
+
+it("目标云端已有数据时确认后才切换", async () => {
+  mocks.sections = [providerSection("test.sync", "S3"), providerSection("other.sync", "WebDAV")];
+  mocks.probe.mockResolvedValue({ version: 5 });
+  useSettingStore.setState(s => ({
+    setting: {
+      ...s.setting,
+      sync: {
+        ...s.setting.sync,
+        plugin: {
+          id: "test.sync",
+          configurations: {
+            "test.sync": { bucket: "notes", secret: "x" },
+            "other.sync": { bucket: "dav", secret: "y" },
+          },
+        },
+      },
+    },
+  }));
+  render();
+  const radios = [...container.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
+  await act(async () => radios[1].click());
+  await vi.waitFor(() => expect(document.body.textContent).toContain("改为同步到 WebDAV"));
+  expect(useSettingStore.getState().setting.sync.plugin?.id).toBe("test.sync");
+  const confirm = [...document.body.querySelectorAll("button")].find(
+    node => node.textContent?.trim() === "切换"
+  ) as HTMLButtonElement;
+  await act(async () => confirm.click());
+  expect(useSettingStore.getState().setting.sync.plugin?.id).toBe("other.sync");
 });
 
 it("失败项存在时同步按钮改为重试失败，并调用模型动作", () => {

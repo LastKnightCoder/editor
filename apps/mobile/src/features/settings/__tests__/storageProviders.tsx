@@ -1,7 +1,5 @@
-/* eslint-disable react-refresh/only-export-components -- 夹具导出运行时工厂。 */
-import { ConfigurationPanel } from "@tau/ui";
 import { vi } from "vitest";
-import { definePlugin, type PluginSettingsProps } from "@tau/plugins";
+import { definePlugin, type ProviderForm } from "@tau/plugins";
 import { createMemoryStorage } from "@tau/plugins/host";
 import { createPluginEnvironmentStore } from "@tau/plugins/environment-host";
 import { MobilePluginRuntime } from "../../../app/plugins/runtime";
@@ -13,33 +11,85 @@ const providers = [
   ["webdav", "WebDAV"],
 ] as const;
 
-function Settings(props: PluginSettingsProps) {
-  const config = props.syncConfig ?? props.uploadConfig;
-  const value = config?.value;
-  if (!config || !value || typeof value !== "object" || Array.isArray(value))
-    return <p>配置此服务</p>;
-  return (
-    <div>
-      <ConfigurationPanel
-        initialValue={Object.fromEntries(
-          Object.entries(value).filter(
-            (entry): entry is [string, string] => typeof entry[1] === "string"
-          )
-        )}
-        accountFields={[{ key: "token", label: "Token", type: "password" }]}
-        fields={[]}
-        onSave={next => config.save(next)}
-      />
-      <p>{String(value.owner ?? "")}</p>
-      {props.uploadConfig && value.repo && (
-        <p>
-          https://raw.githubusercontent.com/{String(value.owner)}/{String(value.repo)}/
-          {String(value.branch)}/uploads/photo_example.webp
-        </p>
-      )}
-    </div>
-  );
-}
+const forms: Record<(typeof providers)[number][0], ProviderForm> = {
+  s3: {
+    groups: [
+      {
+        title: "账号",
+        fields: [
+          { key: "accessKeyId", label: "Access Key ID", type: "text" },
+          { key: "secretAccessKey", label: "Secret Access Key", type: "secret" },
+        ],
+      },
+      {
+        title: "存储位置",
+        fields: [
+          { key: "bucket", label: "Bucket", type: "text", summary: true },
+          { key: "region", label: "区域", type: "text", summary: true },
+          {
+            key: "urlStyle",
+            label: "地址模式",
+            type: "choice",
+            default: "path",
+            options: [
+              { value: "path", label: "路径模式" },
+              { value: "virtualHosted", label: "虚拟主机模式" },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  oss: {
+    groups: [
+      {
+        title: "账号",
+        fields: [{ key: "accessKeySecret", label: "AccessKey Secret", type: "secret" }],
+      },
+      {
+        title: "存储位置",
+        fields: [{ key: "bucket", label: "Bucket", type: "text", summary: true }],
+      },
+    ],
+  },
+  github: {
+    groups: [
+      { title: "账号", fields: [{ key: "token", label: "访问令牌", type: "secret" }] },
+      {
+        title: "存储位置",
+        fields: [
+          { key: "owner", label: "仓库所有者", type: "text", summary: true },
+          {
+            key: "repo",
+            label: "仓库",
+            type: "remote-choice",
+            summary: true,
+            load: async () => [{ value: "tau-data" }, { value: "tau-assets" }],
+          },
+          {
+            key: "branch",
+            label: "分支",
+            type: "remote-choice",
+            dependsOn: ["repo"],
+            load: async () => [{ value: "main" }],
+          },
+          { key: "pathPrefix", label: "目录", type: "text", optional: true },
+        ],
+      },
+    ],
+  },
+  webdav: {
+    groups: [
+      {
+        title: "账号",
+        fields: [
+          { key: "url", label: "服务地址", type: "url", summary: true },
+          { key: "password", label: "密码", type: "secret" },
+        ],
+      },
+    ],
+  },
+};
 
 export async function createStorageRuntime() {
   const runtime = new MobilePluginRuntime(
@@ -53,6 +103,7 @@ export async function createStorageRuntime() {
     "0.2.3"
   );
   for (const [key, name] of providers) {
+    const form = forms[key];
     for (const target of ["sync", "upload"] as const) {
       const id = `tau.${target}-${key}`;
       runtime.host.registerTrusted(
@@ -80,7 +131,7 @@ export async function createStorageRuntime() {
                   name,
                   upload: async () => "https://example.com/file",
                 });
-              context.settings.register({ id: target, title: name, target, component: Settings });
+              context.settings.register({ id: target, title: name, target, form });
             },
           }),
         })

@@ -1,5 +1,5 @@
 /**
- * 白板画布顶部的状态行：本机保存与远端同步合成一行，右侧是共享入口。
+ * 白板画布顶部的状态行：本机保存与远端同步合成一行；共享入口（WhiteboardShareEntry）在右下状态栏。
  *
  * 未共享：「共享」打开说明对话框，确认后走主进程首次发布（暂停编辑 → 净化候选 → 服务端回执 →
  * 本机安装），结果未知时凭原操作续做或取消，不另建房间。已共享：成员与协作码沿用正文协作面板。
@@ -22,7 +22,6 @@ import {
   cancelWhiteboardPublication,
   finishWhiteboardMigration,
   prepareWhiteboardMigration,
-  publishWhiteboard,
   readPendingWhiteboardUpgrade,
   readWhiteboardMigrationSource,
   resumeWhiteboardPublication,
@@ -34,6 +33,7 @@ import { othersSummary } from "@/components/CollaborationUI/model";
 import type { WhiteboardDocumentClient } from "@/services/whiteboard-documents/client";
 import { whiteboardRemoteSync } from "@/services/whiteboard-documents/registry";
 import { whiteboardShareStatusKey } from "@/services/whiteboard-documents/keys";
+import { publishWhiteboardClient } from "@/services/whiteboard-documents/share";
 import {
   remoteFailureText,
   type WhiteboardRemoteState,
@@ -51,6 +51,17 @@ import {
 const idle = () => () => {};
 const none = (): WhiteboardRemoteState | undefined => undefined;
 
+/** 已绑定共享房间时订阅远端同步状态；未共享返回 undefined。 */
+function useWhiteboardRemote(client: WhiteboardDocumentClient) {
+  const remoteSync = whiteboardRemoteSync(client);
+  const remote = useSyncExternalStore(
+    remoteSync ? remoteSync.subscribe : idle,
+    remoteSync ? remoteSync.getSnapshot : none,
+    remoteSync ? remoteSync.getSnapshot : none
+  );
+  return { remoteSync, remote };
+}
+
 export function WhiteboardCollaborationBar({
   client,
   documentId,
@@ -59,18 +70,13 @@ export function WhiteboardCollaborationBar({
 }: {
   client: WhiteboardDocumentClient;
   documentId: string;
-  /** 只有白板页面提供共享入口；创作模式等嵌入画布只显示保存状态。 */
+  /** 只有白板页面提供插件数据升级；创作模式等嵌入画布只显示保存状态。 */
   collaboration?: boolean;
   /** 已安装插件的版本目录，用于发现并转换历史版本元素。 */
   catalog?: WhiteboardContractCatalog;
 }) {
   const local = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
-  const remoteSync = whiteboardRemoteSync(client);
-  const remote = useSyncExternalStore(
-    remoteSync ? remoteSync.subscribe : idle,
-    remoteSync ? remoteSync.getSnapshot : none,
-    remoteSync ? remoteSync.getSnapshot : none
-  );
+  const { remoteSync, remote } = useWhiteboardRemote(client);
   const share = useWhiteboardShareStatus(documentId);
   const pending = pendingKind(share.data);
   const status = whiteboardSyncStatus(local, remote, pending);
@@ -138,16 +144,6 @@ export function WhiteboardCollaborationBar({
           升级插件数据
         </Button>
       )}
-      {collaboration && share.data && (
-        <WhiteboardShareControl
-          client={client}
-          documentId={documentId}
-          binding={binding}
-          pending={Boolean(pending)}
-          remote={remote}
-          onUnshare={mode => setConfirming(mode)}
-        />
-      )}
       <ConfirmAction
         kind={confirming}
         onClose={() => setConfirming(undefined)}
@@ -158,6 +154,40 @@ export function WhiteboardCollaborationBar({
         catalog={catalog}
       />
     </div>
+  );
+}
+
+/** 右下状态栏的共享入口：未共享为「共享」，已共享为成员按钮（协作码、成员、结束共享）。 */
+export function WhiteboardShareEntry({
+  client,
+  documentId,
+}: {
+  client: WhiteboardDocumentClient;
+  documentId: string;
+}) {
+  const { remote } = useWhiteboardRemote(client);
+  const share = useWhiteboardShareStatus(documentId);
+  const [confirming, setConfirming] = useState<"close" | "leave">();
+  if (!share.data) return null;
+  const binding = share.data.binding ?? null;
+  return (
+    <>
+      <WhiteboardShareControl
+        client={client}
+        binding={binding}
+        pending={Boolean(pendingKind(share.data))}
+        remote={remote}
+        onUnshare={setConfirming}
+      />
+      <ConfirmAction
+        kind={confirming}
+        onClose={() => setConfirming(undefined)}
+        client={client}
+        documentId={documentId}
+        binding={binding}
+        upgradable={0}
+      />
+    </>
   );
 }
 
@@ -511,14 +541,12 @@ export function PublicationRecovery({
 
 function WhiteboardShareControl({
   client,
-  documentId,
   binding,
   pending,
   remote,
   onUnshare,
 }: {
   client: WhiteboardDocumentClient;
-  documentId: string;
   binding: { serverUrl: string; documentId: string } | null;
   /** 首次共享尚未完成：入口隐藏，已打开的对话框保留以显示失败原因。 */
   pending: boolean;
@@ -536,17 +564,22 @@ function WhiteboardShareControl({
     return (
       <>
         {!pending && (
-          <Button size="sm" variant="ghost" icon={Share2} onClick={() => setOpen(true)}>
+          <Button
+            variant="ghost"
+            icon={Share2}
+            className="aria-expanded:bg-press h-[30px] px-2.5"
+            onClick={() => setOpen(true)}
+          >
             共享
           </Button>
         )}
-        <ShareDialog open={open} onOpenChange={setOpen} client={client} documentId={documentId} />
+        <ShareDialog open={open} onOpenChange={setOpen} client={client} />
       </>
     );
   const session = room && whiteboardSession(room, remote);
   return (
     <Popover
-      placement="bottom-end"
+      placement="top-end"
       arrow={false}
       className="w-[340px]"
       open={open}
@@ -555,7 +588,7 @@ function WhiteboardShareControl({
         <button
           type="button"
           aria-label="白板协作成员"
-          className="rounded-tau-sm text-ink-3 hover:bg-hover hover:text-ink-1 text-tau-meta flex h-[26px] cursor-pointer items-center gap-1.5 pr-2 pl-1 transition-colors"
+          className="text-ink-2 hover:bg-hover hover:text-ink-1 aria-expanded:bg-press flex h-[30px] cursor-pointer items-center gap-1.5 rounded-[8px] pr-2.5 pl-1.5 transition-colors"
         >
           {session ? (
             <>
@@ -622,15 +655,11 @@ function ShareDialog({
   open,
   onOpenChange,
   client,
-  documentId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   client: WhiteboardDocumentClient;
-  documentId: string;
 }) {
-  const queryClient = useQueryClient();
-  const serverUrl = useCollaborationStore(state => state.serverUrl);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const snapshot = client.model.read();
@@ -641,25 +670,16 @@ function ShareDialog({
     { icon: VideoOff, text: "本机视频不会上传，含本机视频的白板暂不能共享" },
   ];
   const share = async () => {
-    if (!client.leaseId) return;
     setBusy(true);
     setError(undefined);
     try {
-      // 主进程在建房前固定发布任务；之后的失败由状态行按该任务续做或取消，不会再用新身份重发。
-      await publishWhiteboard(client.leaseId, {
-        operationId: crypto.randomUUID(),
-        serverUrl,
-        pageIds: snapshot.pages.map(page => page.id),
-      });
-      toast.success("白板已共享，点状态行右侧的成员按钮生成协作码");
+      await publishWhiteboardClient(client);
+      toast.success("白板已共享，点右下角的成员按钮查看协作码");
       onOpenChange(false);
     } catch (failure) {
       setError(remoteFailureText(failure));
     } finally {
       setBusy(false);
-      void queryClient.invalidateQueries({
-        queryKey: whiteboardShareStatusKey(client.target.databaseName, documentId),
-      });
     }
   };
   return (

@@ -2,7 +2,7 @@ import { createStorageRuntime } from "../../__tests__/storageProviders";
 import { MobilePluginsContext } from "../../../../app/plugins/context";
 let storageRuntime: Awaited<ReturnType<typeof createStorageRuntime>>;
 // 同步中心集成测试：经真实 router 入栈，覆盖状态卡主按钮（同步后顺带同步资源文件）、首次配置、出错、
-// 服务抽屉 → 服务页 → 设为同步服务（先探测云端再确认）、资源文件行与整库覆盖的可用性。
+// 服务列表页点选切换（先探测云端再确认）、服务页显式保存与连接测试、选择层与离开确认、资源文件行与整库覆盖。
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -13,12 +13,18 @@ import type { ResourceSyncStatusFile, SettingCompat, SyncVersionResponse } from 
 import "../../../cards/pages/home.page";
 import "../../pages/settingsModule.page";
 import "../../pages/syncProvider.page";
+import "../../pages/syncProviders.page";
 
-const tauriMock = vi.hoisted(() => ({ syncCheckVersions: vi.fn(), selectPluginProvider: vi.fn() }));
+const tauriMock = vi.hoisted(() => ({
+  syncCheckVersions: vi.fn(),
+  selectPluginProvider: vi.fn(),
+  savePluginProviderConfig: vi.fn(),
+}));
 vi.mock("../../../../services/tauri", async importOriginal => ({
   ...(await importOriginal<object>()),
   syncCheckVersions: tauriMock.syncCheckVersions,
   selectPluginProvider: tauriMock.selectPluginProvider,
+  savePluginProviderConfig: tauriMock.savePluginProviderConfig,
 }));
 
 const toastSpies = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }));
@@ -83,6 +89,19 @@ function createApp(options: {
         plugin: {
           ...setting[section].plugin,
           id: id === "local" ? (setting[section].plugin?.id ?? "") : id,
+        },
+      },
+    };
+  });
+  tauriMock.savePluginProviderConfig.mockImplementation(async (_database, target, id, config) => {
+    const section = target === "sync" ? "sync" : "imageBed";
+    return {
+      ...setting,
+      [section]: {
+        ...setting[section],
+        plugin: {
+          ...setting[section].plugin,
+          configurations: { ...setting[section].plugin?.configurations, [id]: config },
         },
       },
     };
@@ -218,7 +237,7 @@ describe("同步中心", () => {
 
     expect(app.handleCheckVersions).toHaveBeenCalled();
     expect(activePage()?.textContent).toContain("云端有更新");
-    expect(activePage()?.textContent).toContain("配置已保存");
+    expect(activePage()?.textContent).toContain("tau-sync · ap-southeast-1");
 
     await click(findButton("下载更新", activePage()));
     await waitFor(() => (app.handleSyncDownload as ReturnType<typeof vi.fn>).mock.calls.length > 0);
@@ -303,10 +322,10 @@ describe("同步中心", () => {
 
     await click(findButton("阿里云 OSS", activePage()));
     await waitFor(() => activeTitle() === "阿里云 OSS");
-    expect(findButton("设为同步服务", activePage())?.hasAttribute("disabled")).toBe(true);
+    expect(findButton("设为当前", activePage())?.hasAttribute("disabled")).toBe(true);
   });
 
-  it("服务抽屉 → 服务页：云端已有数据时先确认再切换", async () => {
+  it("服务列表点选：云端已有数据时先确认再切换", async () => {
     const versions = { databaseName: "data.db", localVersion: 131, remoteVersion: 131 };
     const harness = createApp({ setting: makeSetting("s3"), versions });
     tauriMock.syncCheckVersions.mockResolvedValue({
@@ -318,12 +337,10 @@ describe("同步中心", () => {
     await openCenter(harness.app);
 
     await click(findButton("S3 兼容存储", activePage()));
-    await waitFor(() => findButton("GitHub 仓库") !== null);
-    await click(findButton("GitHub 仓库"));
-    await waitFor(() => activeTitle() === "GitHub 仓库");
-    expect(activePage()?.textContent).toContain("d7hacx");
-
-    await click(findButton("设为同步服务", activePage()));
+    await waitFor(() => activeTitle() === "同步服务");
+    expect(activePage()?.textContent).toContain("d7hacx · tau-data");
+    expect(activePage()?.textContent).not.toContain("fixture");
+    await click(findButton("GitHub 仓库", activePage()));
     await waitFor(() => document.body.textContent?.includes("改为同步到 GitHub 仓库？") ?? false);
     expect(harness.app.syncSettings.persistSetting).toHaveBeenCalled();
     expect(tauriMock.syncCheckVersions).toHaveBeenCalledWith("tau.sync-github");
@@ -335,10 +352,22 @@ describe("同步中心", () => {
     );
     await click(confirm ?? null);
     expect(harness.setting().sync.plugin?.id).toBe("tau.sync-github");
-    expect(toastSpies.success).toHaveBeenCalledWith("已改为同步到 GitHub 仓库，返回即可同步");
+    expect(toastSpies.success).toHaveBeenCalledWith("已改为同步到 GitHub 仓库");
   });
 
-  it("目标服务云端为空时直接切换，不弹确认", async () => {
+  it("服务列表的 ⓘ 进入服务页，不切换", async () => {
+    const harness = createApp({ setting: makeSetting("s3"), versions: null });
+    mount(harness.app);
+    act(() => getNavigator().push("syncProviders", {}));
+    await waitFor(() => activeTitle() === "同步服务");
+    const info = activePage()?.querySelector<HTMLElement>('[aria-label="GitHub 仓库 配置"]');
+    await click(info ?? null);
+    await waitFor(() => activeTitle() === "GitHub 仓库");
+    expect(tauriMock.syncCheckVersions).not.toHaveBeenCalled();
+    expect(harness.setting().sync.plugin?.id).toBe("tau.sync-s3");
+  });
+
+  it("服务页「设为当前」：目标云端为空时直接切换，不弹确认", async () => {
     const harness = createApp({ setting: makeSetting("s3"), versions: null });
     tauriMock.syncCheckVersions.mockResolvedValue({
       databaseName: "data.db",
@@ -350,12 +379,12 @@ describe("同步中心", () => {
       getNavigator().push("syncProvider", { providerId: "tau.sync-github" });
     });
     await waitFor(() => activeTitle() === "GitHub 仓库");
-    await click(findButton("设为同步服务", activePage()));
+    await click(findButton("设为当前", activePage()));
     await waitFor(() => harness.setting().sync.plugin?.id === "tau.sync-github");
     expect(document.body.textContent).not.toContain("改为同步到 GitHub 仓库？");
   });
 
-  it("测试连接失败时在连接分组显示原因", async () => {
+  it("服务页显式保存后测试连接，失败时说明配置已保存且不改变选用", async () => {
     const harness = createApp({ setting: makeSetting("s3"), versions: null });
     tauriMock.syncCheckVersions.mockRejectedValue(new Error("SYNC_CHECK_FAILED:仓库不存在"));
     mount(harness.app);
@@ -363,23 +392,73 @@ describe("同步中心", () => {
       getNavigator().push("syncProvider", { providerId: "tau.sync-github" });
     });
     await waitFor(() => activeTitle() === "GitHub 仓库");
-    await click(findButton("测试连接", activePage()));
+    const save = findButton("保存", activePage());
+    expect(save?.hasAttribute("disabled")).toBe(true);
+    const input = activePage()!.querySelector<HTMLInputElement>('input[aria-label="目录"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(
+        input,
+        "notes"
+      );
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(findButton("设为当前", activePage())?.hasAttribute("disabled")).toBe(true);
+    await click(findButton("保存", activePage()));
     await waitFor(() => activePage()?.textContent?.includes("仓库不存在") ?? false);
+    expect(activePage()?.textContent).toContain("配置已保存，但连接失败");
+    expect(tauriMock.savePluginProviderConfig).toHaveBeenCalledWith(
+      "data.db",
+      "sync",
+      "tau.sync-github",
+      expect.objectContaining({ pathPrefix: "notes", token: "fixture" })
+    );
+    expect(harness.setting().sync.plugin?.configurations["tau.sync-github"]).toMatchObject({
+      pathPrefix: "notes",
+    });
     expect(harness.setting().sync.plugin?.id).toBe("tau.sync-s3");
   });
 
-  it("插件账号浮层留在服务页作用域，系统返回先关浮层", async () => {
+  it("选择字段推入全屏选择层，系统返回先关选择层；改仓库清空分支", async () => {
     const harness = createApp({ setting: makeSetting("s3"), versions: null });
     mount(harness.app);
     act(() => getNavigator().push("syncProvider", { providerId: "tau.sync-github" }));
     await waitFor(() => activeTitle() === "GitHub 仓库");
-    await click(findButton("更换", activePage()));
-    await waitFor(() => !!activePage()?.querySelector('[role="dialog"]'));
+    expect(activePage()?.querySelector('[role="dialog"]')).toBeNull();
+    await click(findButton("仓库", activePage()));
+    await waitFor(() => document.body.textContent?.includes("tau-assets") ?? false);
+    expect(document.body.textContent).toContain("选择仓库");
     await act(async () => {
       await getNavigator().goBack("android");
     });
     expect(activeTitle()).toBe("GitHub 仓库");
-    await waitFor(() => !document.querySelector('[role="dialog"]'));
+    expect(document.body.textContent).not.toContain("选择仓库");
+
+    await click(findButton("仓库", activePage()));
+    await waitFor(() => document.body.textContent?.includes("tau-assets") ?? false);
+    await click(findButton("tau-assets"));
+    expect(document.body.textContent).not.toContain("选择仓库");
+    expect(findButton("仓库", activePage())?.textContent).toContain("tau-assets");
+    expect(findButton("分支", activePage())?.textContent).toContain("请选择");
+  });
+
+  it("有未保存的修改时返回先确认，放弃后离开", async () => {
+    const harness = createApp({ setting: makeSetting("s3"), versions: null });
+    mount(harness.app);
+    act(() => getNavigator().push("syncProvider", { providerId: "tau.sync-github" }));
+    await waitFor(() => activeTitle() === "GitHub 仓库");
+    const input = activePage()!.querySelector<HTMLInputElement>('input[aria-label="目录"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "x");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => {
+      await getNavigator().goBack("android");
+    });
+    await waitFor(() => document.body.textContent?.includes("放弃未保存的修改？") ?? false);
+    expect(activeTitle()).toBe("GitHub 仓库");
+    await click(findButton("放弃修改"));
+    await waitFor(() => activeTitle() !== "GitHub 仓库");
+    expect(tauriMock.savePluginProviderConfig).not.toHaveBeenCalled();
   });
 
   it("整库覆盖较新一侧时可执行，并在确认面板警示", async () => {

@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { produce } from "immer";
 import { copyJson } from "@tau/plugins/host";
 import type { JsonValue } from "@tau/plugins";
-import { ExternalLink, Github, Layers, ShieldAlert } from "lucide-react";
+import { ArrowLeft, ExternalLink, Github, Layers, ShieldAlert } from "lucide-react";
 import { Button, FadeScroll, Switch, Tabs } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import { useDesktopPluginError, useDesktopPlugins } from "@/app/plugins/context";
@@ -14,6 +14,7 @@ import {
 import { openExternal } from "@/commands/extra";
 import { savePluginVideoConfig } from "@/commands/plugin-video";
 import useSettingStore from "@/stores/useSettingStore";
+import { useSettingsStore } from "@/app/settingsStore";
 import type { PluginCatalogEntry, PluginRelease } from "@/types/plugin-center";
 import { formatSize, pluginPortalUrl } from "@tau/plugins/center";
 import {
@@ -47,11 +48,19 @@ import { PluginPermissionsTab } from "../permissions/PluginPermissionsTab";
 import { PluginBackendPanel } from "../components/PluginBackendPanel";
 
 type DetailTab =
-  "readme" | "settings" | "permissions" | "backend" | "changelog" | "versions" | "community";
+  | "readme"
+  | "settings"
+  | "permissions"
+  | "backend"
+  | "changelog"
+  | "versions"
+  | "community";
 export type PluginDetailParams = {
   pluginId: string;
   tab?: string;
   section?: string;
+  /** 从哪个设置分区跳来：设置页显示返回条 */
+  from?: string;
 };
 
 export function PluginDetailView() {
@@ -89,7 +98,12 @@ export function PluginDetailView() {
     );
 
   const setTab = (tab: DetailTab, section?: string) =>
-    navigator.push(PLUGIN_DETAIL_KEY, { pluginId: params.pluginId, tab, section });
+    navigator.push(PLUGIN_DETAIL_KEY, {
+      pluginId: params.pluginId,
+      tab,
+      section,
+      ...(tab === "settings" && params.from ? { from: params.from } : {}),
+    });
   const changelog = release.data?.content.changelog;
   const tabs: { key: DetailTab; label: string; children: ReactNode }[] = [
     {
@@ -117,6 +131,7 @@ export function PluginDetailView() {
           runtime={runtime}
           plugin={installed}
           section={params.section}
+          from={params.from}
           onSection={key => setTab("settings", key)}
         />
       ),
@@ -201,9 +216,9 @@ export function PluginDetailView() {
 
 function Paper({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4">
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="flex min-h-0 flex-1 flex-col pb-6 pl-9 pr-[30px] pt-6">{children}</div>
+        <div className="flex min-h-0 flex-1 flex-col pt-6 pr-[30px] pb-6 pl-9">{children}</div>
       </div>
     </div>
   );
@@ -226,7 +241,7 @@ function Header({
       <div className="flex items-center gap-[18px]">
         <PluginIcon id={id} name={name} size="lg" />
         <div className="min-w-0 flex-1">
-          <h1 className="text-[22px] font-semibold leading-[1.3]">{name}</h1>
+          <h1 className="text-[22px] leading-[1.3] font-semibold">{name}</h1>
           <div className="text-tau-meta text-ink-2 mt-1 flex flex-wrap items-center gap-2">
             {entry && <span>@{entry.publisher.login}</span>}
             <span className="tabular-nums">{plugin?.info.version ?? entry?.latest.version}</span>
@@ -327,11 +342,13 @@ function SettingsTab({
   runtime,
   plugin,
   section,
+  from,
   onSection,
 }: {
   runtime: DesktopPluginRuntime;
   plugin: InstalledPlugin;
   section?: string;
+  from?: string;
   onSection: (key: PluginSettingsKey) => void;
 }) {
   const sections = runtime
@@ -366,8 +383,20 @@ function SettingsTab({
         }
       : undefined;
 
+  const returnTo = from === "sync" || from === "imageBed" ? from : undefined;
   return (
     <div className="min-w-0">
+      {returnTo && (
+        <div className="bg-accent-soft text-accent-text text-tau-meta mb-5 flex items-center gap-2 rounded-[12px] px-3 py-2">
+          <ArrowLeft size={14} className="flex-none" />
+          <span className="min-w-0 flex-1">
+            从「设置 › {returnTo === "sync" ? "同步" : "资源存储"}」进入，保存后可回去继续
+          </span>
+          <Button size="sm" onClick={() => useSettingsStore.getState().openSettings(returnTo)}>
+            返回{returnTo === "sync" ? "同步" : "资源存储"}设置
+          </Button>
+        </div>
+      )}
       <PluginAISettings pluginId={plugin.info.id} />
       {sections.length > 1 && (
         <nav aria-label="插件设置分组" className="mb-4 flex flex-wrap gap-2">
