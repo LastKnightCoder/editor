@@ -110,7 +110,7 @@ describe("存储提供方表单", () => {
     expect(() => assertProviderForm(form)).not.toThrow();
   });
 
-  it("form 只用于 sync / upload；旧版组件式存储设置仍可注册，由宿主决定不渲染", async () => {
+  it("提供方均可声明 form；普通设置不能使用 form", async () => {
     const host = new PluginHost({
       workspaceId: "A",
       storage: createMemoryStorage(),
@@ -135,9 +135,13 @@ describe("存储提供方表单", () => {
     expect(() => context.settings.register({ ...legacy, id: "both", form } as never)).toThrow(
       "同时"
     );
-    expect(() =>
-      context.settings.register({ id: "tts", title: "语音", target: "tts", form } as never)
-    ).toThrow("只用于");
+    for (const target of ["tts", "asr", "images", "video", "publish"] as const)
+      expect(() =>
+        context.settings.register({ id: target, title: target, target, form })
+      ).not.toThrow();
+    expect(() => context.settings.register({ id: "plain", title: "普通", form } as never)).toThrow(
+      "目标"
+    );
     expect(() =>
       context.settings.register({ id: "sync", title: "同步", target: "sync", form })
     ).not.toThrow();

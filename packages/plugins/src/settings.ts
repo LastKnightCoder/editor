@@ -36,17 +36,19 @@ interface PluginSettingsBase {
   id: string;
   title: string;
   description?: string;
+  /** 提供方可用的模型目录；账号已保存的模型优先于此初始目录。 */
+  models?: readonly { id: string; label?: string }[];
 }
 
-/** 存储提供方的连接配置：只声明字段，由宿主在插件设置页按平台渲染与保存。 */
+/** 提供方的连接配置：只声明字段，由宿主在插件设置页按平台渲染与保存。 */
 export interface PluginProviderSettingsDefinition extends PluginSettingsBase {
-  target: "sync" | "upload";
+  target: "sync" | "upload" | "tts" | "asr" | "images" | "video" | "publish";
   form: ProviderForm;
   component?: never;
 }
 
 export interface PluginComponentSettingsDefinition extends PluginSettingsBase {
-  /** 提供方配置表单挂载到对应宿主设置；普通插件设置省略。 */
+  /** 特殊交互在插件页承载；普通插件设置省略。 */
   target?: "tts" | "asr" | "images" | "video" | "publish";
   component: ComponentType<PluginSettingsProps>;
   form?: never;
