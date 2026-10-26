@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { MigrationReceipt } from "@tau/collaboration";
+import type { DocumentInstallReceipt } from "@tau/collaboration";
 import { ContentLocalState, type LocalInstallationPlan } from "../content-local-state";
 
 const cleanup: (() => void)[] = [];
@@ -36,7 +36,7 @@ function setup() {
     },
     prepared: { candidate: candidate.toString("base64"), installation: "{}", conversion: "{}" },
   };
-  const receipt: MigrationReceipt = {
+  const receipt: DocumentInstallReceipt = {
     operationId: "op",
     documentId: "document",
     epoch: 5,

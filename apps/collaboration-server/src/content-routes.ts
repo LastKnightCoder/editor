@@ -4,7 +4,6 @@ import {
   CollaborationError,
   type CollaborationEvent,
   type Member,
-  type MigrationFingerprint,
   type DocumentOperationRequest,
 } from "@tau/collaboration";
 import type { CollaborationStore } from "./store";
@@ -92,7 +91,7 @@ export function registerContentRoutes(
   app.get("/v1/documents/:id/state", async (request, reply) => {
     const id = params(request).id;
     store.authorize(id, device(request).id);
-    const protocol = store.migrations.state(id);
+    const protocol = store.protocols.state(id);
     if (
       protocol.version > 1 &&
       request.headers["x-tau-document-version"] !== String(protocol.version)
@@ -106,7 +105,7 @@ export function registerContentRoutes(
     try {
       return reply.header("Cache-Control", "no-store").send({
         state: Buffer.from(Y.encodeStateAsUpdate(doc)).toString("base64"),
-        protocol: { ...store.migrations.state(id), sequence: store.operations.sequence(id) },
+        protocol: { ...store.protocols.state(id), sequence: store.operations.sequence(id) },
       });
     } finally {
       doc.destroy();
@@ -178,7 +177,7 @@ export function registerContentRoutes(
     store.authorize(id, device(request).id);
     return reply
       .header("Cache-Control", "no-store")
-      .send({ ...store.migrations.state(id), sequence: store.operations.sequence(id) });
+      .send({ ...store.protocols.state(id), sequence: store.operations.sequence(id) });
   });
   app.get("/v1/documents/:id/operations/:operationId", async (request, reply) => {
     const { id, operationId } = params(request),
@@ -216,64 +215,6 @@ export function registerContentRoutes(
         true
       ),
     };
-  });
-  app.get("/v1/documents/:id/migrations/:operationId", async (request, reply) => {
-    const { id, operationId } = params(request),
-      actor = device(request).id;
-    store.authorize(id, actor, true);
-    return reply
-      .header("Cache-Control", "no-store")
-      .send({ operation: store.migrations.get(id, operationId, actor) });
-  });
-  app.post("/v1/documents/:id/migrations/:operationId/:action", async request => {
-    const { id, operationId, action } = params(request),
-      actorId = device(request).id,
-      body = objectBody(request);
-    store.authorize(id, actorId, true);
-    if (action === "prepare")
-      return {
-        operation: store.migrations.begin(id, {
-          id: operationId,
-          actorId,
-          expectedEpoch: body.expectedEpoch as number,
-          expiresAt: body.expiresAt as number,
-        }),
-      };
-    if (action === "cancel") {
-      const operation = store.migrations.cancel(id, {
-        id: operationId,
-        actorId,
-        expectedEpoch: body.expectedEpoch as number,
-      });
-      refresh();
-      return { operation };
-    }
-    if (action === "freeze") {
-      const operation = store.migrations.freeze(id, operationId, actorId);
-      if (operation.state === "PENDING") disconnect(id);
-      refresh();
-      return { operation };
-    }
-    if (action === "commit") {
-      const state = textField(body, "state", Math.ceil(config.maxDocumentBytes * 1.4));
-      const fingerprint: MigrationFingerprint = {
-        expectedRevision: textField(body, "expectedRevision"),
-        candidateHash: textField(body, "candidateHash"),
-        targetVersion: body.targetVersion as number,
-        baselineId: textField(body, "baselineId"),
-      };
-      const operation = await store.commitMigration(
-        id,
-        actorId,
-        operationId,
-        fingerprint,
-        Buffer.from(state, "base64")
-      );
-      if (operation.state === "COMMITTED") disconnect(id);
-      refresh();
-      return { operation };
-    }
-    throw new CollaborationError("INVALID_MIGRATION", "未知迁移操作");
   });
   app.post("/v1/tickets", async request => {
     const identity = device(request);

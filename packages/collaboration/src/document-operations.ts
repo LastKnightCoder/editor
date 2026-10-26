@@ -1,6 +1,5 @@
 import { CollaborationError } from "./protocol";
-import type { MigrationSql } from "./migration-ledger";
-import type { MigrationDocument, DocumentMigration } from "./document-migration";
+import type { DocumentSql, DocumentProtocol } from "./document-protocol";
 
 export interface DocumentOperationRequest {
   operationId: string;
@@ -15,7 +14,7 @@ export interface DocumentOperationRequest {
 export interface DocumentOperation extends DocumentOperationRequest {
   documentId: string;
   actorId: string;
-  state: DocumentMigration["state"];
+  state: "PENDING" | "COMMITTED" | "ABORTED" | "EXPIRED";
   reason?: string;
   receipt?: {
     documentId: string;
@@ -40,10 +39,10 @@ const fingerprint = (request: DocumentOperationRequest) =>
     request.expectedSequence ?? null,
   ]);
 
-/** 与迁移账共用 SQL/终态语义，普通条件提交保留 epoch，回执与更新必须同事务提交。 */
+/** 普通条件提交保留 epoch，回执与更新必须同事务提交。 */
 export class DocumentOperationLedger {
   constructor(
-    private readonly sql: MigrationSql,
+    private readonly sql: DocumentSql,
     private readonly now = Date.now,
     private readonly resolveActor: (id: string) => string = id => id
   ) {
@@ -158,7 +157,7 @@ export class DocumentOperationLedger {
   }
   commit(
     operation: DocumentOperation,
-    read: () => MigrationDocument,
+    read: () => DocumentProtocol,
     revision: string,
     install: () => void
   ): DocumentOperation {

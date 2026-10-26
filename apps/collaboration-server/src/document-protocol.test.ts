@@ -1,9 +1,9 @@
-import { createSharedDocument } from "@tau/collaboration/src/testing/legacy-document";
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createHash } from "node:crypto";
 import * as Y from "yjs";
 import { WebSocket } from "ws";
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
@@ -17,13 +17,13 @@ const until = async (condition: () => boolean) => {
     if (condition()) return;
     await new Promise(resolve => setTimeout(resolve, 20));
   }
-  throw new Error("新协议网络同步超时");
+  throw new Error("协议 2 网络同步超时");
 };
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
 });
 async function setup() {
-  const dataDir = mkdtempSync(join(tmpdir(), "tau-migration-api-"));
+  const dataDir = mkdtempSync(join(tmpdir(), "tau-document-protocol-"));
   const server = await createServer({ dataDir, logger: false });
   await server.app.ready();
   cleanups.push(async () => {
@@ -32,29 +32,13 @@ async function setup() {
   });
   const owner = server.store.register("作者"),
     row = server.store.create(owner.id, "baseline");
-  const initial = createSharedDocument({
-    title: "原文",
-    content: [{ type: "paragraph", children: [{ text: "甲乙" }] }],
-    bannerBg: "",
-    bannerPosition: "center",
-  });
-  server.store.publish(row.id, owner.id, Y.encodeStateAsUpdate(initial));
-  initial.destroy();
-  const headers = { authorization: `Bearer ${owner.id}:${owner.secret}` };
-  const invoke = (action: string, payload: Record<string, unknown> = {}) =>
-    server.app.inject({
-      method: "POST",
-      url: `/v1/documents/${row.id}/migrations/operation/${action}`,
-      headers,
-      payload,
-    });
   const { id, contract } = await prepareContentContract("test", {
     type: "paragraph",
     dataVersion: 1,
     kind: "block",
   });
-  const candidate = await createNodeDocument(
-    { documentId: row.id, epoch: 1, baselineId: "new" },
+  const initial = await createNodeDocument(
+    { documentId: row.id, epoch: 0, baselineId: "initial" },
     {
       title: "原文",
       bannerBg: "",
@@ -65,14 +49,39 @@ async function setup() {
     },
     { [id]: contract }
   );
-  cleanups.push(async () => candidate.destroy());
-  return { ...server, owner, row, candidate, invoke, headers };
+  await server.store.publish(row.id, owner.id, Y.encodeStateAsUpdate(initial));
+  initial.destroy();
+  const headers = { authorization: `Bearer ${owner.id}:${owner.secret}` };
+  return { ...server, owner, row, headers };
 }
 
-describe("真实服务迁移入口", () => {
+describe("真实服务发布与版本边界", () => {
+  it("Node 导出使用当前备份格式，保留正文与协议且不附带迁移账本", async () => {
+    const { store, row } = await setup();
+    const target = join(store.config.dataDir, "export");
+    execFileSync(process.execPath, [
+      fileURLToPath(
+        new URL("../../collaboration-cloudflare/scripts/export-node.mjs", import.meta.url)
+      ),
+      store.config.dataDir,
+      target,
+    ]);
+    const metadata = JSON.parse(readFileSync(join(target, "metadata.json"), "utf8"));
+    expect(metadata.format).toBe(4);
+    expect(metadata.tables.collaboration_protocol).toHaveLength(1);
+    expect(metadata.tables.collaboration_operations).toEqual([]);
+    expect(metadata.tables).not.toHaveProperty("collaboration_migrations");
+    const doc = new Y.Doc();
+    try {
+      Y.applyUpdate(doc, readFileSync(join(target, "documents", row.id)));
+      expect(readNodeDocument(doc).title).toBe("原文");
+    } finally {
+      doc.destroy();
+    }
+  });
   it("结束共享拒绝过期保全修订，持久关闭回执防止迟到请求冒充同一份内容", async () => {
     const { app, store, owner, row, headers } = await setup();
-    const previous = store.migrations.state(row.id).revision;
+    const previous = store.protocols.state(row.id).revision;
     const doc = store.loadDocument(row.id);
     try {
       const before = Y.encodeStateVector(doc);
@@ -83,7 +92,7 @@ describe("真实服务迁移入口", () => {
       } finally {
         current.destroy();
       }
-      const latest = store.migrations.state(row.id).revision;
+      const latest = store.protocols.state(row.id).revision;
       const close = (expectedRevision: string) =>
         app.inject({
           method: "POST",
@@ -140,7 +149,7 @@ describe("真实服务迁移入口", () => {
       });
       expect(published.statusCode).toBe(200);
       expect(published.json()).toEqual({ documentId: room.id, published: true });
-      expect(store.migrations.state(room.id)).toMatchObject({
+      expect(store.protocols.state(room.id)).toMatchObject({
         version: 2,
         epoch: 0,
         baselineId: "initial",
@@ -198,24 +207,11 @@ describe("真实服务迁移入口", () => {
     }
   });
 
-  it("冻结、提交、回执重试与旧票据隔离贯通，迁移后接受并发增量", async () => {
-    const { app, store, owner, row, candidate, invoke, headers } = await setup();
-    const oldTicket = store.ticket(owner.id, row.id);
-    expect(
-      (await invoke("prepare", { expectedEpoch: 0, expiresAt: Date.now() + 60_000 })).statusCode
-    ).toBe(200);
-    const frozen = (await invoke("freeze")).json().operation;
-    const state = Y.encodeStateAsUpdate(candidate);
-    const payload = {
-      expectedRevision: frozen.frozenRevision,
-      targetVersion: 2,
-      baselineId: "new",
-      candidateHash: createHash("sha256").update(state).digest("hex"),
-      state: Buffer.from(state).toString("base64"),
-    };
-    const committed = await invoke("commit", payload);
-    expect(committed.statusCode).toBe(200);
-    expect(committed.json().operation.state).toBe("COMMITTED");
+  it("新建协议 2 房间直接接纳 WebSocket 与 HTTP 并发增量，压缩后内容完整", async () => {
+    const { app, store, owner, row, headers } = await setup();
+    const initial = store.loadDocument(row.id);
+    const state = Y.encodeStateAsUpdate(initial);
+    initial.destroy();
     expect(
       (await app.inject({ method: "GET", url: `/v1/documents/${row.id}/state`, headers }))
         .statusCode
@@ -229,16 +225,7 @@ describe("真实服务迁移入口", () => {
         })
       ).statusCode
     ).toBe(200);
-    expect((await invoke("commit", payload)).json()).toEqual(committed.json());
-    expect((await invoke("cancel", { expectedEpoch: 0 })).json()).toEqual(committed.json());
-    expect(() => store.verifyTicket(oldTicket, row.id)).toThrow("旧文档基线");
-    const incompatible = await app.inject({
-      method: "POST",
-      url: "/v1/tickets",
-      headers,
-      payload: { documentId: row.id },
-    });
-    expect(incompatible.statusCode).toBe(409);
+    expect(() => store.ticket(owner.id, row.id)).toThrow();
     const ticket = store.ticket(owner.id, row.id, 2);
     expect(store.verifyTicket(ticket, row.id).id).toBe(owner.id);
     await app.listen({ host: "127.0.0.1", port: 0 });
@@ -306,20 +293,25 @@ describe("真实服务迁移入口", () => {
     }
   });
 
-  it("取消先胜后迟到候选不会覆盖原房间", async () => {
-    const { store, row, candidate, invoke } = await setup();
-    await invoke("prepare", { expectedEpoch: 0, expiresAt: Date.now() + 60_000 });
-    const frozen = (await invoke("freeze")).json().operation;
-    expect((await invoke("cancel", { expectedEpoch: 0 })).json().operation.state).toBe("ABORTED");
-    const state = Y.encodeStateAsUpdate(candidate);
-    const response = await invoke("commit", {
-      expectedRevision: frozen.frozenRevision,
-      targetVersion: 2,
-      baselineId: "new",
-      candidateHash: createHash("sha256").update(state).digest("hex"),
-      state: Buffer.from(state).toString("base64"),
-    });
-    expect(response.json().operation.state).toBe("ABORTED");
-    expect(store.migrations.state(row.id)).toMatchObject({ version: 1, epoch: 0 });
+  it("格式升级路由已退役，不创建迁移账本或改变当前文档", async () => {
+    const { app, store, row, headers } = await setup();
+    const before = store.protocols.state(row.id);
+    for (const action of ["prepare", "freeze", "commit", "cancel"]) {
+      const response = await app.inject({
+        method: "POST",
+        url: `/v1/documents/${row.id}/migrations/old/${action}`,
+        headers,
+        payload: { expectedEpoch: 0, expiresAt: Date.now() + 60000 },
+      });
+      expect(response.statusCode).toBe(404);
+    }
+    expect(
+      (await app.inject({ method: "GET", url: `/v1/documents/${row.id}/migrations/old`, headers }))
+        .statusCode
+    ).toBe(404);
+    expect(store.protocols.state(row.id)).toEqual(before);
+    expect(
+      store.db.prepare("SELECT name FROM sqlite_master WHERE name='collaboration_migrations'").get()
+    ).toBeUndefined();
   });
 });

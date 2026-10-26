@@ -23,7 +23,7 @@ NodeTree 将节点记录、正文和声明的共享字段保存在稳定节点�
 
 该入口使用当前固定版本 Yjs 的 StackItem/DeleteSet 及事务时钟接口；升级 Yjs 时必须运行节点历史、移动、源码字段与实际编辑器回归。历史和文档的销毁仍由拥有者负责。
 
-本候选的可见性格式与旧 deleted 布尔原型不兼容。缺少创建身份或删除集合时明确拒绝读取/写入，不能自动猜测转换旧候选缓存。正式启用前仍需完成协议版本、基线转换和服务端门禁；本包不自行迁移真实数据。
+本候选的可见性格式与旧 deleted 布尔原型不兼容。缺少创建身份或删除集合时明确拒绝读取/写入，不能自动猜测转换旧候选缓存。宿主必须按当前协议与基线校验输入，本包不转换旧格式数据。
 
 ## 多富文本根与历史归属
 
@@ -68,3 +68,9 @@ preflight 接收可信绑定的纯候选写入函数，验证后由绑定对真�
 ## 白板协议与接纳
 
 `whiteboard-document` 适配共享协议 3，`document-adapter` 与正文共用验证/投影/资源入口；`document-operations` 提供持久编辑回执和整文档修订条件提交，`document-sync` 在发送前保存提案并隔离被拒或过期代次。调用方必须提供事务持久化和鉴权传输，不能把 provider 连接状态当作业务回执。完整边界见 [协作架构](/docs/architecture/collaboration.md)。
+
+## 当前协议与持久提交
+
+`document-protocol` 的 DocumentProtocolStore 保存当前基线、首次发布身份与已核验修订；DocumentSql 是与调用方共用事务的存储接口。协议记录仍带旧格式迁移标记时明确拒绝，不自动解冻。服务端不提供文档格式升级状态机或路由。
+
+普通编辑由 DocumentOperationLedger 保存幂等回执，与正文及协议修订在同一事务提交。`document-installation` 的 DocumentInstallFingerprint/DocumentInstallReceipt 仅描述当前跨存储安装，供白板首次共享、退出等流程确认候选与回执，不提供历史格式转换。

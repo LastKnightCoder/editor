@@ -5,7 +5,11 @@ import {
   isContentEntityReference,
   type ContentEntityReference,
 } from "@tau/db-schema/content-identities";
-import type { MigrationFingerprint, MigrationReceipt, ContentInputDraft } from "@tau/collaboration";
+import type {
+  DocumentInstallFingerprint,
+  DocumentInstallReceipt,
+  ContentInputDraft,
+} from "@tau/collaboration";
 
 export interface InputDraftIdentity {
   workspaceId: string;
@@ -25,7 +29,7 @@ interface InstallationPlanFields {
   workspaceId: string;
   documentId: string;
   expectedEpoch: number;
-  fingerprint: MigrationFingerprint;
+  fingerprint: DocumentInstallFingerprint;
 }
 export type LocalInstallationPlan = InstallationPlanFields & {
   kind: "whiteboard";
@@ -37,8 +41,8 @@ export interface LocalInstallationRecord<
 > {
   plan: Plan;
   phase: "PREPARED" | "LOCAL_COMMITTED" | "LOCAL_INSTALLED" | "COMPLETE" | "ABORTED" | "EXPIRED";
-  decision?: MigrationReceipt;
-  installations: Partial<Record<LocalInstallTarget, MigrationReceipt>>;
+  decision?: DocumentInstallReceipt;
+  installations: Partial<Record<LocalInstallTarget, DocumentInstallReceipt>>;
   reason?: string;
 }
 
@@ -515,7 +519,7 @@ export class ContentLocalState {
     });
   }
 
-  private verifyReceipt(record: LocalInstallationRecord, receipt: MigrationReceipt) {
+  private verifyReceipt(record: LocalInstallationRecord, receipt: DocumentInstallReceipt) {
     const { plan } = record;
     if (
       receipt.operationId !== plan.operationId ||
@@ -530,7 +534,7 @@ export class ContentLocalState {
 
   private acceptDecision(
     record: LocalInstallationRecord,
-    receipt: MigrationReceipt,
+    receipt: DocumentInstallReceipt,
     phase: "LOCAL_COMMITTED"
   ) {
     this.verifyReceipt(record, receipt);
@@ -547,7 +551,7 @@ export class ContentLocalState {
   installed(
     id: string,
     target: LocalInstallTarget,
-    receipt: MigrationReceipt
+    receipt: DocumentInstallReceipt
   ): LocalInstallationRecord {
     return this.update(id, record => {
       if (!["main", "collaboration"].includes(target) || !record.decision)
@@ -564,7 +568,7 @@ export class ContentLocalState {
     });
   }
 
-  complete(id: string, readback: MigrationReceipt): LocalInstallationRecord {
+  complete(id: string, readback: DocumentInstallReceipt): LocalInstallationRecord {
     return this.update(id, record => {
       if (record.phase !== "LOCAL_INSTALLED" && record.phase !== "COMPLETE")
         throw new Error("各存储尚未安装完成");

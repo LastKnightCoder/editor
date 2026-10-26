@@ -11,7 +11,7 @@ import {
   COLLABORATION_VERSION,
   type CollaborationEvent,
   type Member,
-  type MigrationDocument,
+  type DocumentProtocol,
 } from "@tau/collaboration";
 import { loadConfig, type ServerConfig } from "./config";
 import { CollaborationStore } from "./store";
@@ -124,7 +124,7 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
   const hocuspocus = new Hocuspocus<{
     deviceId: string;
     nickname: string;
-    protocol: MigrationDocument;
+    protocol: DocumentProtocol;
   }>({
     quiet: true,
     debounce: 2000,
@@ -138,7 +138,7 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
         hocuspocus.getDocumentsCount() >= config.maxActiveDocuments
       )
         throw new CollaborationError("CAPACITY", "服务器活动文章数量已满", 429);
-      const protocol = store.migrations.state(documentName);
+      const protocol = store.protocols.state(documentName);
       const cached = hocuspocus.documents.get(documentName);
       if (
         cached &&

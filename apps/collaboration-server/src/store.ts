@@ -8,7 +8,7 @@ import {
   CollaborationError,
   readSharedContent,
   validateDocument,
-  MigrationLedger,
+  DocumentProtocolStore,
   DocumentWriteQueue,
   DocumentOperationLedger,
   type DocumentOperation,
@@ -18,10 +18,8 @@ import {
   readDocumentProjection,
   collectDocumentResources,
   isStructuredDocumentVersion,
-  assertDocumentMigrationKind,
-  type MigrationDocument,
-  type MigrationSql,
-  type MigrationFingerprint,
+  type DocumentProtocol,
+  type DocumentSql,
   type DeviceIdentity,
   type JoinRequest,
   type JoinRequestResult,
@@ -71,7 +69,7 @@ export class CollaborationStore {
   private diskCheckedAt = 0;
   private cachedStorageBytes = -1;
   private assetIds = new Map<string, Set<string>>();
-  readonly migrations: MigrationLedger;
+  readonly protocols: DocumentProtocolStore;
   readonly operations: DocumentOperationLedger;
   private readonly writes: DocumentWriteQueue;
 
@@ -125,7 +123,7 @@ export class CollaborationStore {
     this.db.exec(
       "CREATE TABLE IF NOT EXISTS collaboration_asset_history (document_id TEXT NOT NULL, epoch INTEGER NOT NULL, asset_id TEXT NOT NULL, PRIMARY KEY(document_id,epoch,asset_id))"
     );
-    const ledgerSql: MigrationSql = {
+    const ledgerSql: DocumentSql = {
       exec: (sql, ...parameters) => {
         this.db.prepare(sql).run(...parameters);
       },
@@ -134,10 +132,10 @@ export class CollaborationStore {
       transaction: action => this.db.transaction(action)(),
     };
     this.operations = new DocumentOperationLedger(ledgerSql);
-    this.migrations = new MigrationLedger(ledgerSql, id => this.currentProtocol(id));
+    this.protocols = new DocumentProtocolStore(ledgerSql, id => this.currentProtocol(id));
   }
 
-  private currentProtocol(id: string): MigrationDocument {
+  private currentProtocol(id: string): DocumentProtocol {
     const row = this.document(id),
       doc = this.loadDocument(id);
     try {
@@ -175,71 +173,6 @@ export class CollaborationStore {
     for (const assetId of references) insert.run(id, epoch, assetId);
   }
 
-  async commitMigration(
-    id: string,
-    actorId: string,
-    operationId: string,
-    fingerprint: MigrationFingerprint,
-    state: Uint8Array
-  ) {
-    this.authorize(id, actorId, true);
-    const prior = this.migrations.get(id, operationId, actorId);
-    if (!prior) return fail("MIGRATION_NOT_FOUND", "迁移操作尚未登记", 404);
-    if (prior.state !== "PENDING")
-      return this.migrations.commit(id, operationId, actorId, fingerprint, () => {
-        throw new Error("终态不能安装正文");
-      });
-    if (
-      state.byteLength > this.config.maxDocumentBytes ||
-      digest(state) !== fingerprint.candidateHash ||
-      !isStructuredDocumentVersion(fingerprint.targetVersion)
-    )
-      return fail("INVALID_MIGRATION", "迁移候选容量、版本或摘要不匹配");
-    const candidate = new Y.Doc();
-    try {
-      try {
-        Y.applyUpdate(candidate, state);
-      } catch {
-        return fail("INVALID_MIGRATION", "迁移候选状态损坏或不兼容");
-      }
-      assertDocumentMigrationKind(this.migrations.state(id).version, fingerprint.targetVersion);
-      if (candidate.getMap("meta").get("version") !== fingerprint.targetVersion)
-        return fail("INVALID_MIGRATION", "候选协议不匹配");
-      await validateStructuredDocument(candidate, {
-        documentId: id,
-        epoch: prior.expectedEpoch + 1,
-        baselineId: fingerprint.baselineId,
-      });
-      if (digest(Y.encodeStateAsUpdate(candidate)) !== fingerprint.candidateHash)
-        return fail("INVALID_MIGRATION", "迁移候选必须使用规范化的完整状态");
-      const content = readDocumentProjection(candidate);
-      this.authorize(id, actorId, true);
-      this.validateAssets(id, content, candidate);
-      const result = this.migrations.commit(id, operationId, actorId, fingerprint, () => {
-        this.ensureCapacity(state.byteLength);
-        const previous = this.loadDocument(id);
-        try {
-          this.retainAssets(id, prior.expectedEpoch, previous);
-        } finally {
-          previous.destroy();
-        }
-        this.retainAssets(id, prior.expectedEpoch + 1, candidate);
-        this.operations.advance(id);
-        this.db
-          .prepare("UPDATE snapshots SET state=? WHERE document_id=?")
-          .run(Buffer.from(state), id);
-        this.db.prepare("DELETE FROM updates WHERE document_id=?").run(id);
-        this.db
-          .prepare("UPDATE documents SET title=?,updated_at=? WHERE id=?")
-          .run(content.title, Date.now(), id);
-      });
-      this.cachedStorageBytes = -1;
-      return result;
-    } finally {
-      candidate.destroy();
-    }
-  }
-
   async submitOperation(
     id: string,
     actorId: string,
@@ -267,11 +200,11 @@ export class CollaborationStore {
       .prepare(
         "INSERT OR IGNORE INTO collaboration_asset_history SELECT document_id,?,id FROM assets WHERE document_id=?"
       )
-      .run(this.migrations.state(id).epoch, id);
+      .run(this.protocols.state(id).epoch, id);
     if (cancel) return this.operations.abort(operation, "cancelled");
     if (operation.state !== "PENDING") return operation;
     try {
-      const protocol = this.migrations.state(id);
+      const protocol = this.protocols.state(id);
       if (
         protocol.epoch !== request.epoch ||
         protocol.baselineId !== request.baselineId ||
@@ -282,7 +215,7 @@ export class CollaborationStore {
     } catch (error) {
       if (
         error instanceof CollaborationError &&
-        !["MISSING_DEPENDENCIES", "CAPACITY", "MIGRATION_FROZEN"].includes(error.code)
+        !["MISSING_DEPENDENCIES", "CAPACITY"].includes(error.code)
       )
         return this.operations.abort(operation, error.code);
       throw error;
@@ -294,7 +227,7 @@ export class CollaborationStore {
     deviceId: string,
     update: Uint8Array,
     current: Y.Doc | undefined,
-    protocol: MigrationDocument,
+    protocol: DocumentProtocol,
     operation?: DocumentOperation
   ): Promise<void | DocumentOperation> {
     const payload = update.slice();
@@ -304,7 +237,7 @@ export class CollaborationStore {
         const stored = this.operations.get(id, operation.operationId, deviceId)!;
         if (stored.state !== "PENDING") return stored;
       }
-      this.migrations.assertWritable(id, protocol);
+      this.protocols.assertWritable(id, protocol);
       const before = this.loadDocument(id);
       let candidate: Y.Doc | undefined;
       try {
@@ -321,7 +254,7 @@ export class CollaborationStore {
         const revision = digest(Y.encodeStateAsUpdate(before));
         const install = () => {
           this.authorize(id, deviceId);
-          this.migrations.assertWritable(id, protocol);
+          this.protocols.assertWritable(id, protocol);
           if (revision === previousRevision) return;
           this.ensureCapacity(delta.byteLength);
           this.validateAssets(id, content, candidate);
@@ -333,14 +266,14 @@ export class CollaborationStore {
             .run(content.title, Date.now(), id);
           this.retainAssets(id, protocol.epoch, candidate!);
           this.operations.advance(id);
-          this.migrations.updateRevision(id, revision);
+          this.protocols.updateRevision(id, revision);
         };
         const result = operation
           ? this.operations.commit(
               operation,
               () => {
                 this.authorize(id, deviceId);
-                return this.migrations.assertWritable(id, protocol);
+                return this.protocols.assertWritable(id, protocol);
               },
               revision,
               install
@@ -395,9 +328,9 @@ export class CollaborationStore {
     deviceId: string,
     documentId: string | null,
     protocolVersion?: number,
-    expected?: Pick<MigrationDocument, "epoch" | "baselineId">
+    expected?: Pick<DocumentProtocol, "epoch" | "baselineId">
   ): string {
-    const protocol = documentId ? this.migrations.state(documentId) : undefined;
+    const protocol = documentId ? this.protocols.state(documentId) : undefined;
     if (
       protocol &&
       (protocol.version === 3 || expected) &&
@@ -425,7 +358,7 @@ export class CollaborationStore {
       deviceId: string;
       documentId: string | null;
       expires: number;
-      protocol?: MigrationDocument;
+      protocol?: DocumentProtocol;
     };
     try {
       payload = JSON.parse(Buffer.from(body, "base64url").toString());
@@ -443,7 +376,7 @@ export class CollaborationStore {
       .get(payload.deviceId) as DeviceRow | undefined;
     if (!device) fail("UNAUTHORIZED", "身份已停用", 401);
     if (documentId) {
-      const protocol = this.migrations.state(documentId);
+      const protocol = this.protocols.state(documentId);
       if (
         !payload.protocol ||
         payload.protocol.epoch !== protocol.epoch ||
@@ -567,7 +500,7 @@ export class CollaborationStore {
         this.authorize(id, deviceId, true, true);
         this.validateAssets(id, content, doc);
         return this.db.transaction(() => {
-          this.migrations.publish(
+          this.protocols.publish(
             {
               id,
               ownerId: deviceId,
@@ -601,7 +534,7 @@ export class CollaborationStore {
   publicationStatus(id: string, actorId: string) {
     const row = this.document(id);
     if (row.owner_id !== actorId) fail("FORBIDDEN", "只有所有者可以读取发布回执", 403);
-    const receipt = this.migrations.publication(id);
+    const receipt = this.protocols.publication(id);
     return {
       state: receipt ? "COMMITTED" : row.status === "closed" ? "ABORTED" : "PENDING",
       receipt,
@@ -811,7 +744,7 @@ export class CollaborationStore {
       this.db.prepare("DELETE FROM assets WHERE document_id=?").run(id);
     })();
     for (const { hash } of hashes) this.unlinkIfOrphan(hash);
-    this.migrations.invalidate(id);
+    this.protocols.invalidate(id);
     this.assetIds.delete(id);
     this.cachedStorageBytes = -1;
   }
@@ -843,10 +776,10 @@ export class CollaborationStore {
     deviceId: string,
     update: Uint8Array,
     current: Y.Doc,
-    expected?: MigrationDocument
+    expected?: DocumentProtocol
   ) {
     this.authorize(id, deviceId);
-    const protocol = this.migrations.assertWritable(id, expected);
+    const protocol = this.protocols.assertWritable(id, expected);
     if (isStructuredDocumentVersion(protocol.version)) {
       const meta = current.getMap("meta");
       if (meta.get("epoch") !== protocol.epoch || meta.get("baselineId") !== protocol.baselineId)

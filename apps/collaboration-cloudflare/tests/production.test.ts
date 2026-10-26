@@ -16,7 +16,7 @@ let worker: Miniflare;
 let url: string;
 const key = "local-production-management";
 const empty = () => ({
-  format: 1,
+  format: 4,
   signingKey: randomBytes(32).toString("hex"),
   tables: {
     devices: [],
@@ -27,6 +27,10 @@ const empty = () => ({
     assets: [],
     audit: [],
     identity_merges: [],
+    collaboration_protocol: [],
+    collaboration_asset_history: [],
+    collaboration_operations: [],
+    collaboration_sequences: [],
   },
 });
 const startWorker = async () => {
@@ -139,7 +143,7 @@ describe("正式 Cloudflare 协作能力", () => {
         (await request("/v1/tickets", "POST", { documentId: id }, owner)).response.status
       ).toBe(409);
       const exported = (await admin("export", undefined, "GET")).value;
-      expect(exported.tables.collaboration_migrations).toHaveLength(0);
+      expect(exported.tables.collaboration_migrations).toBeUndefined();
       await worker.dispose();
       await startWorker();
       expect((await admin("import", exported)).response.status).toBe(200);
@@ -154,82 +158,90 @@ describe("正式 Cloudflare 协作能力", () => {
     }
   });
 
-  it("文档迁移、旧票据隔离及备份恢复保留终态回执", async () => {
+  it("格式升级接口已退役，当前文档和普通协议查询不受影响", async () => {
     await initialize();
-    const owner = await register("迁移作者"),
+    const owner = await register("作者"),
       id = await create(owner);
-    const initial = createSharedDocument({
-      title: "原文",
-      content: [{ type: "paragraph", children: [{ text: "正文" }] }],
-      bannerBg: "",
-      bannerPosition: "center",
-    });
-    await request(
-      `/v1/documents/${id}/publish`,
-      "POST",
-      { state: Buffer.from(Y.encodeStateAsUpdate(initial)).toString("base64") },
-      owner
+    const doc = await createNodeDocument(
+      { documentId: id, baselineId: "current", epoch: 0 },
+      { title: "当前文档", bannerBg: "", bannerPosition: "center", content: [] },
+      {}
     );
-    initial.destroy();
-    const operation = (action: string, body: unknown = {}) =>
-      request(`/v1/documents/${id}/migrations/upgrade/${action}`, "POST", body, owner);
-    expect(
-      (await operation("prepare", { expectedEpoch: 0, expiresAt: Date.now() + 60_000 })).response
-        .status
-    ).toBe(200);
-    const frozen = (await operation("freeze")).value.operation;
-    const prepared = await prepareContentContract("test", {
-      type: "paragraph",
-      dataVersion: 1,
-      kind: "block",
-    });
-    const candidate = await createNodeDocument(
-      { documentId: id, epoch: 1, baselineId: "baseline-2" },
-      {
-        title: "原文",
-        content: [{ type: "paragraph", tauContract: prepared.id, children: [{ text: "正文" }] }],
-        bannerBg: "",
-        bannerPosition: "center",
-      },
-      { [prepared.id]: prepared.contract }
-    );
-    const state = Y.encodeStateAsUpdate(candidate);
-    candidate.destroy();
-    const payload = {
-      expectedRevision: frozen.frozenRevision,
-      candidateHash: createHash("sha256").update(state).digest("hex"),
-      targetVersion: 2,
-      baselineId: "baseline-2",
-      state: Buffer.from(state).toString("base64"),
-    };
-    const committed = await operation("commit", payload);
-    expect(committed.response.status).toBe(200);
-    expect(committed.value.operation.state).toBe("COMMITTED");
-    expect((await operation("commit", payload)).value).toEqual(committed.value);
-    expect((await request("/v1/tickets", "POST", { documentId: id }, owner)).response.status).toBe(
-      409
-    );
-    expect(
-      (await request("/v1/tickets", "POST", { documentId: id, protocolVersion: 2 }, owner)).response
-        .status
-    ).toBe(200);
-    const exported = (await admin("export", undefined, "GET")).value;
-    expect(exported.format).toBe(3);
-    expect(exported.tables.collaboration_migrations).toHaveLength(1);
-    await worker.dispose();
-    await startWorker();
-    expect((await admin("import", exported)).response.status).toBe(200);
-    expect((await admin(`state/${id}`, { state: payload.state })).response.status).toBe(200);
-    expect((await admin("finish-import")).response.status).toBe(200);
-    const restored = await request(
-      `/v1/documents/${id}/migrations/upgrade`,
-      "GET",
-      undefined,
-      owner
-    );
-    expect(restored.value).toEqual(committed.value);
-    expect((await operation("cancel", { expectedEpoch: 0 })).value).toEqual(committed.value);
+    try {
+      expect(
+        (
+          await request(
+            `/v1/documents/${id}/publish`,
+            "POST",
+            { state: Buffer.from(Y.encodeStateAsUpdate(doc)).toString("base64") },
+            owner
+          )
+        ).response.status
+      ).toBe(200);
+      const before = (await request(`/v1/documents/${id}/protocol`, "GET", undefined, owner)).value;
+      for (const action of ["prepare", "freeze", "commit", "cancel"])
+        expect(
+          (
+            await request(
+              `/v1/documents/${id}/migrations/retired/${action}`,
+              "POST",
+              { expectedEpoch: 0, expiresAt: Date.now() + 60000 },
+              owner
+            )
+          ).response.status
+        ).toBe(404);
+      expect(
+        (await request(`/v1/documents/${id}/migrations/retired`, "GET", undefined, owner)).response
+          .status
+      ).toBe(404);
+      expect(
+        (await request(`/v1/documents/${id}/protocol`, "GET", undefined, owner)).value
+      ).toEqual(before);
+      const exported = (await admin("export", undefined, "GET")).value;
+      expect(exported.format).toBe(4);
+      expect(exported.tables).not.toHaveProperty("collaboration_migrations");
+    } finally {
+      doc.destroy();
+    }
   });
+
+  it.each([1, 2, 3])("旧备份格式 %s 在导入写入前被拒绝", async format => {
+    expect((await admin("import", { ...empty(), format })).response.status).toBe(400);
+    const status = (await admin("status", undefined, "GET")).value;
+    expect(status.ready).toBe(false);
+    expect(status.counts.devices).toBe(0);
+    await initialize();
+  });
+
+  it("当前备份也不能携带退役账本或未完成迁移状态", async () => {
+    const input = empty();
+    expect(
+      (
+        await admin("import", {
+          ...input,
+          tables: { ...input.tables, collaboration_migrations: [] },
+        })
+      ).response.status
+    ).toBe(400);
+    expect(
+      (
+        await admin("import", {
+          ...input,
+          tables: {
+            ...input.tables,
+            collaboration_protocol: [
+              {
+                document_id: "old",
+                value: JSON.stringify({ migrationId: "pending", frozen: true }),
+              },
+            ],
+          },
+        })
+      ).response.status
+    ).toBe(400);
+    await initialize();
+  });
+
   it("导入完成前拒绝业务写入，开放后禁止覆盖导入", async () => {
     expect((await request("/health/ready")).response.status).toBe(503);
     expect((await request("/v1/devices", "POST", { nickname: "访客" })).response.status).toBe(503);
@@ -329,6 +341,7 @@ describe("正式 Cloudflare 协作能力", () => {
     const id = crypto.randomUUID(),
       now = Date.now();
     const tables = {
+      ...empty().tables,
       devices: [source, target].map(device => ({
         id: device.id,
         nickname: device.nickname,
@@ -343,6 +356,7 @@ describe("正式 Cloudflare 协作能力", () => {
           title: "原有文档",
           status: "active",
           creation_key: "preserved",
+          closed_revision: null,
           updated_at: now,
           created_at: now,
         },
@@ -357,10 +371,7 @@ describe("正式 Cloudflare 协作能力", () => {
       audit: [],
       identity_merges: [],
     };
-    expect(
-      (await admin("import", { format: 1, signingKey: randomBytes(32).toString("hex"), tables }))
-        .response.status
-    ).toBe(200);
+    expect((await admin("import", { ...empty(), tables })).response.status).toBe(200);
     const doc = createSharedDocument({
       title: "原有文档",
       content: [{ type: "paragraph", children: [{ type: "formatted", text: "需要保留的正文" }] }],
@@ -493,7 +504,7 @@ it("白板条件提交、缺依赖与回执备份在真实 Worker SQLite 中贯�
       (await request(`/v1/documents/${id}/publication/cancel`, "POST", {}, owner)).value.state
     ).toBe("COMMITTED");
     const exported = (await admin("export", undefined, "GET")).value;
-    expect(exported.format).toBe(3);
+    expect(exported.format).toBe(4);
     expect(exported.tables.collaboration_operations).toHaveLength(3);
     const vector = Y.encodeStateVector(doc);
     board.submit([{ type: "edit_title", edit: { offset: 0, remove: 1, text: "丙" } }], {});

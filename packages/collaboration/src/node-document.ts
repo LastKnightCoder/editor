@@ -275,7 +275,7 @@ export async function validateNodeTree(
             prior.isVoid !== contract.isVoid ||
             !sharedValueEquals(prior.textFields, contract.textFields))
         )
-          fail("CONTRACT_MIGRATION_REQUIRED", "该契约变化必须通过文档迁移提交");
+          fail("CONTRACT_VERSION_CONFLICT", "普通编辑不支持改变数据契约版本");
         for (const field of prior.textFields)
           if (!sameType(old.fields(id).get(field), fields.get(field)))
             fail("CONTENT_IDENTITY_CHANGED", "普通增量不能重建共享文本字段");
