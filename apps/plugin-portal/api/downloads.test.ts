@@ -70,6 +70,18 @@ it("浏览器凭证不出现在 JSON；复用、跨站拒绝及停用身份", as
   expect((await visitor("web", { Cookie: cookie.split(";")[0] })).status).toBe(403);
 });
 
+it("移动客户端与桌面同样经 body 领取 token，且拒绝带 Origin", async () => {
+  const response = await visitor("mobile");
+  const data = (await response.json()).data;
+  expect(data.token).toMatch(/^[\w-]{64,128}$/);
+  const again = (await (await visitor("mobile", { Authorization: `Bearer ${data.token}` })).json())
+    .data;
+  expect(again.visitorId).toBe(data.visitorId);
+  expect(again.token).toBeUndefined();
+  expect((await visitor("mobile", { Origin: f.env.WEB_ORIGIN })).status).toBe(400);
+  expect((await visitor("unknown-client")).status).toBe(400);
+});
+
 it("同设备同版本同日并发只计一次；跨日、跨版本和不同设备分别计数", async () => {
   seed("r1");
   seed("r2", "test.reader", "2.0.0");
