@@ -4,27 +4,19 @@
  */
 
 import type { SessionStatus } from "@tau/collaboration/src/view";
-import type {
-  CollaborationSession,
-  SharedWhiteboardInfo,
-  WhiteboardElementSnapshot,
-  WhiteboardModel,
-} from "@tau/collaboration";
-import type { WhiteboardContractCatalog } from "@tau/whiteboard/collaboration";
+import type { CollaborationSession, SharedWhiteboardInfo } from "@tau/collaboration";
 import type { WhiteboardSaveState } from "@/services/whiteboard-documents/client";
 import type { WhiteboardRemoteState } from "@/services/whiteboard-documents/remote";
 
 /** retry-save/retry 重试；adopt 采用新版本；rebuild 用协作端版本重建；detach 转为本机白板。 */
-export type WhiteboardSyncAction = "retry-save" | "retry" | "adopt" | "rebuild" | "detach";
+export type WhiteboardSyncAction = "retry-save" | "retry" | "detach";
 export interface WhiteboardSyncStatus extends SessionStatus {
   actions?: WhiteboardSyncAction[];
 }
 /** 已固定、尚未完成的操作：白板在此期间暂停编辑，只能按原操作继续或取消。 */
-export type WhiteboardPendingKind = "publication" | "upgrade" | "migration";
+export type WhiteboardPendingKind = "publication";
 const PENDING_LABELS: Record<WhiteboardPendingKind, string> = {
   publication: "共享没有完成，白板暂停编辑，内容完好保存在本机",
-  upgrade: "插件数据升级没有完成，白板暂停编辑，内容完好保存在本机",
-  migration: "上次版本更新没有完成，白板暂停编辑，原内容完好保存在本机",
 };
 
 export function whiteboardSyncStatus(
@@ -77,15 +69,15 @@ export function whiteboardSyncStatus(
       };
     case "rebind":
       return {
-        label: "协作端已更新这块白板的版本，采用新版本后继续同步；本机未同步的改动会单独保留",
+        label: "协作端白板基线已变化，同步已暂停",
         tone: "syncing",
-        actions: ["adopt"],
+        actions: ["detach"],
       };
     case "rejected":
       return {
-        label: "协作端没有接受部分改动，改动已单独保留在本机，同步已暂停",
+        label: "协作端没有接受部分改动，同步已暂停",
         tone: "error",
-        actions: ["rebuild"],
+        actions: ["detach"],
       };
     default:
       return {
@@ -94,33 +86,6 @@ export function whiteboardSyncStatus(
         actions: ["retry"],
       };
   }
-}
-
-/**
- * 当前插件版本能直接转换的历史元素：旧版本契约、同一插件仍提供新版本且声明了从该版本的转换。
- * 缺失插件或没有转换的元素不列入，保持原样。
- */
-export function upgradableElementIds(
-  model: WhiteboardModel,
-  catalog: WhiteboardContractCatalog
-): string[] {
-  const ids: string[] = [];
-  const visit = (nodes: readonly WhiteboardElementSnapshot[]) =>
-    nodes.forEach(node => {
-      const entry = catalog.get(node.contractId),
-        target = entry && catalog.current(entry.contract.type);
-      if (
-        entry &&
-        target &&
-        !entry.current &&
-        target.contract.owner === entry.contract.owner &&
-        target.element.migrations?.some(item => item.from === entry.contract.dataVersion)
-      )
-        ids.push(node.id);
-      visit(node.children);
-    });
-  model.read().pages.forEach(page => visit(page.children));
-  return ids;
 }
 
 /** 协作码、成员列表沿用正文协作的面板，白板房间按同一会话形状呈现。 */

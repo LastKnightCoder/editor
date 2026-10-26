@@ -43,7 +43,6 @@ export interface ContentDocument {
   frozen: boolean;
   /** 正在换源：底层会话换了身份（发起 / 结束共享），新订阅还没就绪 */
   swapping: boolean;
-  pendingUpgrade?: boolean;
 }
 
 /** 发起或结束共享时切换文档源，保留正文谱系以复用编辑器外壳。 */
@@ -55,7 +54,7 @@ export default function useContentDocument(
 ): ContentDocument & { sessionError?: string } {
   const { entry, error: sessionError, databaseName } = useContentSession(contentId, source);
   const documentId = entry?.documentId;
-  const { binding, article, error, frozen, pendingUpgrade } = useCollaborationDocument(documentId);
+  const { binding, article, error, frozen } = useCollaborationDocument(documentId);
   const lineage = contentId ? `content:${databaseName}:${contentId}` : undefined;
   const bound = useBoundContentDocument(binding, { frozen, kit: scenarioKit, extensions, lineage });
   useEffect(() => {
@@ -67,7 +66,6 @@ export default function useContentDocument(
     article,
     error: bound.error || error,
     sessionError,
-    pendingUpgrade,
     swapping: Boolean(documentId) && bound.swapping,
   };
 }

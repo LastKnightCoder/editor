@@ -52,7 +52,7 @@ describe("代码步骤 Markdown", () => {
     expect(restored).not.toHaveProperty("activeStep");
   });
 
-  it("旧格式围栏与载荷冲突时保留两份，旧版导出也不覆盖根源码", () => {
+  it("旧格式步骤拒绝导入，不隐式转换或生成恢复副本", () => {
     const oldProcessor = createMarkdownProcessor({ codecs: [codeBlockCodec] });
     const source = {
       type: "code-block",
@@ -69,9 +69,7 @@ describe("代码步骤 Markdown", () => {
     const markdown = oldProcessor.getMarkdown([source] as never);
     const old = oldProcessor.importFromMarkdown(markdown)[0];
     expect(old).toMatchObject({ code: "根源码", magicMove: { steps: [{ code: "步骤源码" }] } });
-    const current = processor.importFromMarkdown(markdown)[0] as CodeBlockV2Element;
-    expect(current.children.map(step => step.code)).toEqual(["步骤源码", "根源码"]);
-    expect(current.children[1].title).toBe("恢复的围栏源码");
+    expect(() => processor.importFromMarkdown(markdown)).toThrow("不支持此代码步骤版本");
   });
 
   it("不能识别的步骤版本和损坏载荷拒绝导入，不丢弃为普通源码", () => {

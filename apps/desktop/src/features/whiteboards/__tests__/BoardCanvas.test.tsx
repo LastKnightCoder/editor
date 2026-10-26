@@ -32,7 +32,7 @@ vi.mock("@/features/shared/whiteboard/DesktopWhiteboard", () => ({
 }));
 afterEach(() => vi.clearAllMocks());
 
-it("旧快照只读，禁止保存与依赖快照保存的复制", async () => {
+it("旧快照拒绝打开，禁止保存与依赖快照保存的复制", async () => {
   mocks.save.mockRejectedValue(new Error("写入失败"));
   const host = document.createElement("div");
   const root = createRoot(host);
@@ -41,13 +41,14 @@ it("旧快照只读，禁止保存与依赖快照保存的复制", async () => {
   try {
     await act(async () => root.render(<BoardCanvas id={1} ref={ref} />));
     expect(mocks.changed).toBeUndefined();
+    expect(host.textContent).toContain("白板格式不受支持");
     expect(host.textContent).not.toContain("转换格式");
     expect(host.textContent).not.toContain("准备转换");
     const afterSave = async () => {
       await ref.current!.flush();
       duplicate();
     };
-    await expect(afterSave()).rejects.toThrow("后台升级");
+    await expect(afterSave()).rejects.toThrow("WHITEBOARD_FORMAT_UNSUPPORTED");
     expect(mocks.save).not.toHaveBeenCalled();
     expect(duplicate).not.toHaveBeenCalled();
   } finally {

@@ -36,16 +36,20 @@ describe("笔记页的 Markdown 转换（基础组件）", () => {
 });
 
 describe("草稿", () => {
-  it("早先的 Markdown 字符串草稿读取时转换一次并写回", async () => {
+  it("旧 Markdown 草稿拒绝读取，不转换或改写原数据", async () => {
     const storage = memory({ "note:https://a.com/x": "## 旧草稿" });
-    const draft = await loadDraft(storage, "https://a.com/x#h", markdownToNodes);
-    expect(types(draft)).toEqual(["header"]);
-    expect(Array.isArray(storage.data["note:https://a.com/x"])).toBe(true);
+    await expect(loadDraft(storage, "https://a.com/x#h")).rejects.toThrow("格式不受支持");
+    expect(storage.data["note:https://a.com/x"]).toBe("## 旧草稿");
+  });
+  it("当前节点草稿正常读取，不改动节点结构", async () => {
+    const nodes = markdownToNodes("## 当前草稿");
+    const storage = memory({ "note:https://a.com/x": nodes });
+    expect(await loadDraft(storage, "https://a.com/x#h")).toEqual(nodes);
   });
 
   it("没有草稿时是一个空段落；取走待追加的片段后清空队列", async () => {
     const storage = memory({ "note-pending:https://a.com/x": ["> 摘录", "AI 回答"] });
-    expect(await loadDraft(storage, "https://a.com/x", markdownToNodes)).toEqual(EMPTY_NOTE);
+    expect(await loadDraft(storage, "https://a.com/x")).toEqual(EMPTY_NOTE);
     const nodes = await takePending(storage, "https://a.com/x", markdownToNodes);
     expect(types(nodes!)).toEqual(["blockquote", "paragraph"]);
     expect(storage.data["note-pending:https://a.com/x"]).toBeUndefined();

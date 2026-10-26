@@ -1,26 +1,23 @@
 // 详情页的原地协作会话（懒加载 chunk，与协作运行时同舟）：绑定协作的内容无需跳转协作页，
 // 直接在详情页切换为 yjs 协同编辑。职责内聚：运行时挂载、Y.Doc 绑定、owner 侧投影、
-// presence 上报、状态条与裁决弹窗。
+// presence 上报与状态条。
 //
 // 正文编辑器由详情页统一渲染（页面只有一个编辑器实例），本组件把协作文档源经
 // onDocumentChange 上报：协作与本机的文档源同谱系，切换即换源，编辑器不重建。
-// 会话建立失败时上报「本地兜底」模式，改动经投影通道落本地库，重连后拉出
-// 「保留本机 / 采用云端」裁决。
+// 会话未建立时只读；已有协作缓存的离线输入沿原会话同步。
 import { useEffect, useRef, useState } from "react";
 import { ChevronRight, Loader2, RefreshCw, Users, WifiOff } from "lucide-react";
 import type { EditorDocument } from "@tau/editor";
 import { AvatarStack, StatusDot } from "./components/CollaborationUI";
-import { LocalFallbackChoiceDialog } from "./components/LocalFallbackChoiceDialog";
 import { useCollabSession } from "./hooks/useCollabSession";
 import { useCollaborationRuntime } from "./hooks/useCollaborationRuntime";
-import { hasPendingLocalFallback, clearPendingLocalFallback } from "./local-fallback";
 import { useNavigator } from "../../router";
 
-/** 会话建立迟迟不成功（无错误但也没就绪）多久后转本地兜底编辑 */
+/** 会话建立迟迟不成功（无错误但也没就绪）多久后转只读等待重试 */
 const CONNECT_STALL_MS = 8000;
 
 /** 宿主据此决定编辑器归属：connecting=本地只读过渡；live=协作编辑；
- *  unavailable=连接不可用，本地兜底编辑；ended=共享已结束，退回普通本地编辑 */
+ *  unavailable=连接不可用，只读等待重试；ended=共享已结束，退回普通本地编辑 */
 export type CollaborativeEditorMode = "connecting" | "live" | "unavailable" | "ended";
 
 export function CollaborativeEditor(props: {
@@ -30,7 +27,7 @@ export function CollaborativeEditor(props: {
   /** 协作文档源上报给宿主（正文编辑器由宿主渲染，全页只有一个实例） */
   onDocumentChange: (document: EditorDocument | undefined) => void;
   presenceRef?: (presence: { onFocus: () => void; onBlur: () => void }) => void;
-  /** 生效只读（binding 未就绪 / 会话冻结 / 非 active / 待裁决）上报：宿主据此收起编辑工具栏 */
+  /** 生效只读（binding 未就绪 / 会话冻结 / 非 active）上报：宿主据此收起编辑工具栏 */
   onReadonlyChange?: (readonly: boolean) => void;
   /** 编辑模式上报（见 CollaborativeEditorMode） */
   onModeChange?: (mode: CollaborativeEditorMode) => void;
@@ -39,27 +36,22 @@ export function CollaborativeEditor(props: {
 }) {
   const navigator = useNavigator();
   useCollaborationRuntime();
-  // 重连后仍有本机兜底改动待裁决：暂停投影（绝不让云端覆盖待决改动），先让作者选择
-  const [pendingChoice, setPendingChoice] = useState(false);
   const [stalled, setStalled] = useState(false);
   const {
     binding,
     document,
     loading,
     error,
-    boundContentId,
     ended,
     retry,
     readonly,
-    session,
     presence,
     status,
     online,
     offline,
-  } = useCollabSession(props.documentId, { projectionPaused: pendingChoice });
-  // 待裁决期间正文只读：本机改动必须先二选一，不允许继续编辑制造第三个版本
-  const viewReadonly = readonly || pendingChoice;
-  // 会话建立失败或长时间未就绪：交给详情页用本地编辑器兜底（作者数据在本地，不应被只读挡住）
+  } = useCollabSession(props.documentId);
+  const viewReadonly = readonly;
+  // 未取得协作文档源时保持只读，避免制造无法同步的独立分支。
   const unavailable = !binding && !loading && (Boolean(error) || stalled);
   // 已结束优先于不可用：作者主动结束共享属正常路径，不该出现「连接失败+重试」
   const mode: CollaborativeEditorMode = ended
@@ -79,17 +71,16 @@ export function CollaborativeEditor(props: {
   onDocumentChangeRef.current = props.onDocumentChange;
   const presenceRefCallback = useRef(props.presenceRef);
   presenceRefCallback.current = props.presenceRef;
-  // 只读态为真时不上报文档源：待裁决期间正文归本机，避免云端内容盖住待决改动
   useEffect(() => {
-    onDocumentChangeRef.current(pendingChoice ? undefined : document);
+    onDocumentChangeRef.current(document);
     return () => onDocumentChangeRef.current(undefined);
-  }, [document, pendingChoice]);
+  }, [document]);
 
   useEffect(() => {
     presenceRefCallback.current?.(presence);
   }, [presence]);
 
-  // 上报的是生效只读（含待裁决）：宿主的那个编辑器据此决定可否编辑
+  // 上报的是生效只读（含未就绪）：宿主的那个编辑器据此决定可否编辑
   useEffect(() => {
     onReadonlyChangeRef.current?.(viewReadonly);
   }, [viewReadonly]);
@@ -98,7 +89,7 @@ export function CollaborativeEditor(props: {
     onModeChangeRef.current?.(mode);
   }, [mode]);
 
-  // 连接迟迟不落地（无错误也无会话，含静默失败）：超过阈值按失败处理，转本地兜底编辑
+  // 连接迟迟不落地（无错误也无会话，含静默失败）：超过阈值按失败处理，转只读等待重试
   useEffect(() => {
     if (binding) {
       setStalled(false);
@@ -107,17 +98,6 @@ export function CollaborativeEditor(props: {
     const timer = setTimeout(() => setStalled(true), CONNECT_STALL_MS);
     return () => clearTimeout(timer);
   }, [binding]);
-
-  // 会话就绪且本机有兜底改动：拉出裁决弹窗（此前投影保持暂停）
-  useEffect(() => {
-    if (!binding || !boundContentId) return;
-    if (hasPendingLocalFallback(boundContentId)) setPendingChoice(true);
-  }, [binding, boundContentId]);
-
-  // 共享已结束：本地内容即真相源，离线兜底标记不再需要裁决
-  useEffect(() => {
-    if (ended && boundContentId) clearPendingLocalFallback(boundContentId);
-  }, [ended, boundContentId]);
 
   /** 打开共享与成员 Sheet；在其中主动结束共享时由 Sheet 回传结果，直接通知宿主退出协作态 */
   const openDetails = async () => {
@@ -140,7 +120,7 @@ export function CollaborativeEditor(props: {
     return unavailable ? (
       <div className="bg-tag-4-soft text-warn mt-4 flex items-center gap-2.5 rounded-[14px] px-3.5 py-2.5 text-[12.5px] font-semibold">
         <WifiOff size={15} className="shrink-0" />
-        <span className="flex-1">协作连接失败，正在编辑本地内容（暂不同步云端）</span>
+        <span className="flex-1">协作会话尚未就绪，正文暂为只读，请重试连接</span>
         <button
           type="button"
           onClick={retry}
@@ -186,19 +166,12 @@ export function CollaborativeEditor(props: {
         </div>
       ) : null}
 
-      {viewReadonly && !offline && !pendingChoice ? (
+      {viewReadonly && !offline ? (
         <div className="bg-tag-4-soft text-warn mt-2.5 flex items-center gap-2.5 rounded-[14px] px-3.5 py-2.5 text-[12.5px] font-semibold">
           <StatusDot tone={status?.tone ?? "idle"} />
           <span className="flex-1">{status?.label ?? "协作暂不可用"} · 正文暂为只读</span>
         </div>
       ) : null}
-
-      <LocalFallbackChoiceDialog
-        open={pendingChoice || Boolean(session?.remoteVersionAvailable)}
-        documentId={props.documentId}
-        boundContentId={boundContentId}
-        onResolved={() => setPendingChoice(false)}
-      />
     </>
   );
 }

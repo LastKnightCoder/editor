@@ -38,7 +38,7 @@ export class ContentIdentityTable {
     if (!isContentEntityReference(target) || target.kind !== kind)
       throw new Error("实体引用类型不匹配");
     const id = this.resolve(db, target);
-    if (id === null) throw new Error("引用不属于当前资料库，或实体已删除；请定位原来源或恢复副本");
+    if (id === null) throw new Error("引用不属于当前资料库，或实体已删除；请定位原来源");
     return id;
   }
 
@@ -53,32 +53,6 @@ export class ContentIdentityTable {
       | undefined;
     if (!row) throw new Error("实体不存在");
     return this.bind(db, kind, id, row.create_time);
-  }
-  /** 转换候选中的身份只暂存，随正文安装事务一起提交。 */
-  static stageReference(db: Database.Database, kind: ContentEntityKind, id: number) {
-    const library = this.library(db);
-    if (!library || !Object.hasOwn(tables, kind) || !Number.isSafeInteger(id))
-      throw new Error("实体来源无效");
-    const row = db.prepare(`SELECT create_time FROM ${tables[kind]} WHERE id=?`).get(id) as
-      | { create_time: number }
-      | undefined;
-    if (!row) throw new Error("实体不存在");
-    const existing = db
-      .prepare(
-        "SELECT * FROM entity_identities WHERE entity_kind=? AND local_id=? AND retired_at IS NULL"
-      )
-      .get(kind, id) as
-      | import("../collaboration/content-baseline").ContentLibraryBaseline["entities"][number]
-      | undefined;
-    if (existing && existing.created_at !== row.create_time) throw new Error("实体来源身份已变化");
-    const entity = existing ?? {
-      entity_kind: kind,
-      entity_id: randomUUID(),
-      local_id: id,
-      created_at: row.create_time,
-      retired_at: null,
-    };
-    return { entity, reference: { sourceId: library.sourceId, kind, entityId: entity.entity_id } };
   }
 
   static library(db: Database.Database): LibraryIdentity | null {

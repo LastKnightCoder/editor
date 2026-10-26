@@ -518,13 +518,6 @@ export class ExtensionRuntime {
               `扩展 ${id} 的元素 ${type} 的 schemaVersion 必须是正整数：${String(version)}`,
               type
             );
-          for (let step = 1; step < (version ?? 1); step++) {
-            if (typeof element.migrate?.[step] !== "function")
-              return invalidDefinition(
-                `扩展 ${id} 的元素 ${type} 声明 schemaVersion=${version} 但缺少 migrate[${step}]`,
-                type
-              );
-          }
           for (const kind of element.containment?.joins ?? []) {
             if (!CONTAINER_KINDS.includes(kind))
               return invalidDefinition(
@@ -783,7 +776,7 @@ export class ExtensionRuntime {
               },
             }
           : undefined;
-        // 版本不兼容（数据比扩展新，或迁移失败停在旧版本）时按占位渲染，不调用作者实现
+        // 版本不兼容（数据比扩展新，或版本不匹配停在旧版本）时按占位渲染，不调用作者实现
         plugins.push({
           name: element.type,
           render: (_board, props) =>
@@ -818,7 +811,7 @@ export class ExtensionRuntime {
                     reason:
                       readElementSchemaVersion(props.element) > currentVersion
                         ? ("too-new" as const)
-                        : ("migration-failed" as const),
+                        : ("unsupported-version" as const),
                   },
                   props.children
                 ),
@@ -991,7 +984,7 @@ export class ExtensionRuntime {
   unknownElementReason(
     element: BoardElement
   ):
-    | { reason: "missing" | "too-new" | "migration-failed" | "disabled"; extensionId?: string }
+    | { reason: "missing" | "too-new" | "unsupported-version" | "disabled"; extensionId?: string }
     | undefined {
     const definition = this.elementDefinitions.get(element.type);
     if (
@@ -1018,7 +1011,7 @@ export class ExtensionRuntime {
       const current = readDefinitionSchemaVersion(definition);
       if (version === current) return undefined;
       return {
-        reason: version > current ? "too-new" : "migration-failed",
+        reason: version > current ? "too-new" : "unsupported-version",
         extensionId: this.owners.get(element.type),
       };
     }

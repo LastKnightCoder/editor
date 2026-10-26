@@ -110,17 +110,6 @@ void app.whenReady().then(async () => {
         artifact.manifest.whiteboard
     );
     await executor.execute({ operation: "validate" }, undefined, fixtures);
-    const contracts = await executor.execute<
-      import("@tau/db-schema/content-contracts").ContentContractDictionary
-    >({ operation: "upgrade-contracts" }, undefined, fixtures);
-    for (const type of ["paragraph", "whiteboard", "database", "content-link", "file-attachment"])
-      assert.ok(Object.values(contracts).some(contract => contract.type === type));
-    assert.ok(
-      Object.values(contracts).some(
-        contract => contract.type === "code-block" && contract.dataVersion === 2
-      )
-    );
-    console.log("[plugin-content] 后台升级独立准备宿主与插件契约，无需打开正文或白板");
     for (const [language, type] of [
       ["abc", "abc"],
       ["tikz", "tikz"],

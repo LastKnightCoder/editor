@@ -190,7 +190,7 @@ describe("本机内容会话", () => {
     ).toHaveLength(1);
     expect(() =>
       projectContractContent(db, session.info.source!, session, initial, initial.revision, 0)
-    ).toThrow("修订已变化");
+    ).toThrow("修订冲突");
   });
 
   it("宿主补丁与远端拆段输入合并，坏补丁和磁盘失败不留下半次修改", async () => {
@@ -228,7 +228,7 @@ describe("本机内容会话", () => {
         "missing",
         0
       )
-    ).toThrow("尚未安装");
+    ).toThrow("CONTENT_FORMAT_UNSUPPORTED");
   });
   it("缺失身份的离线分叉得到相同 taskId，合并后身份不会换成另一随机值", () => {
     const main = runtime([

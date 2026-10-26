@@ -6,24 +6,13 @@
  * 远端换代时只提供「采用新版本」，本机未同步的改动留在原日志，不重投到新版本。
  */
 
-import { useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import * as Y from "yjs";
+import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ArrowRight, KeyRound, Layers, Link2, LogOut, Share2, Users, VideoOff } from "lucide-react";
 import { Button, ConfirmDialog, Dialog, DialogBody, Popover, toast } from "@tau/ui";
-import { WhiteboardModel } from "@tau/collaboration";
 import { useStableStatus } from "@tau/collaboration/src/view";
-import {
-  prepareWhiteboardVersionUpgrade,
-  type WhiteboardContractCatalog,
-} from "@tau/whiteboard/collaboration";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  adoptWhiteboardEpoch,
   cancelWhiteboardPublication,
-  finishWhiteboardMigration,
-  prepareWhiteboardMigration,
-  readPendingWhiteboardUpgrade,
-  readWhiteboardMigrationSource,
   resumeWhiteboardPublication,
   unshareWhiteboard,
 } from "@/commands/whiteboard-document";
@@ -42,7 +31,6 @@ import { openPage } from "@/services/page-navigation";
 import useCollaborationStore from "@/stores/useCollaborationStore";
 import { useWhiteboardShareStatus } from "../queries";
 import {
-  upgradableElementIds,
   whiteboardSession,
   whiteboardSyncStatus,
   type WhiteboardPendingKind,
@@ -65,15 +53,9 @@ function useWhiteboardRemote(client: WhiteboardDocumentClient) {
 export function WhiteboardCollaborationBar({
   client,
   documentId,
-  collaboration,
-  catalog,
 }: {
   client: WhiteboardDocumentClient;
   documentId: string;
-  /** 只有白板页面提供插件数据升级；创作模式等嵌入画布只显示保存状态。 */
-  collaboration?: boolean;
-  /** 已安装插件的版本目录，用于发现并转换历史版本元素。 */
-  catalog?: WhiteboardContractCatalog;
 }) {
   const local = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
   const { remoteSync, remote } = useWhiteboardRemote(client);
@@ -85,14 +67,6 @@ export function WhiteboardCollaborationBar({
   const databaseName = client.target.databaseName;
   const actions = status.actions ?? [];
   const binding = share.data?.binding ?? null;
-  // 只在本机没有未保存改动时计算可升级元素，避免每次输入都遍历整板。
-  const upgradable = useMemo(
-    () =>
-      collaboration && catalog && !pending && local.phase === "saved"
-        ? upgradableElementIds(client.model, catalog).length
-        : 0,
-    [collaboration, catalog, pending, local.phase, local.revision, client.model]
-  );
 
   return (
     <div
@@ -115,43 +89,21 @@ export function WhiteboardCollaborationBar({
           重试同步
         </Button>
       )}
-      {actions.includes("adopt") && remoteSync && (
-        <Button size="sm" variant="soft" onClick={() => setConfirming("adopt")}>
-          采用新版本
-        </Button>
-      )}
-      {actions.includes("rebuild") && remoteSync && (
-        <Button size="sm" variant="soft" onClick={() => setConfirming("rebuild")}>
-          使用协作端版本
-        </Button>
-      )}
       {actions.includes("detach") && remoteSync && (
         <Button size="sm" variant="ghost" onClick={() => setConfirming("detach")}>
           转为本机白板
         </Button>
       )}
       {pending && share.data && (
-        <PendingRecovery
-          databaseName={databaseName}
-          documentId={documentId}
-          status={share.data}
-          catalog={catalog}
-        />
+        <PendingRecovery databaseName={databaseName} documentId={documentId} status={share.data} />
       )}
       <span className="flex-1" />
-      {upgradable > 0 && (binding === null || remote?.phase === "synced") && (
-        <Button size="sm" variant="ghost" onClick={() => setConfirming("upgrade")}>
-          升级插件数据
-        </Button>
-      )}
       <ConfirmAction
         kind={confirming}
         onClose={() => setConfirming(undefined)}
         client={client}
         documentId={documentId}
         binding={binding}
-        upgradable={upgradable}
-        catalog={catalog}
       />
     </div>
   );
@@ -185,30 +137,16 @@ export function WhiteboardShareEntry({
         client={client}
         documentId={documentId}
         binding={binding}
-        upgradable={0}
       />
     </>
   );
 }
 
-type ConfirmKind = "adopt" | "rebuild" | "detach" | "close" | "leave" | "upgrade";
+type ConfirmKind = "detach" | "close" | "leave";
 const CONFIRM_COPY: Record<
   ConfirmKind,
   { title: string; description: string; confirmText: string; impact?: string; danger?: boolean }
 > = {
-  adopt: {
-    title: "采用新版本",
-    description:
-      "协作端已把这块白板更新为新版本。采用后这里换成新版本继续协作；本机尚未同步的改动不会混入新版本，会单独保留在本机。",
-    confirmText: "采用新版本",
-  },
-  rebuild: {
-    title: "使用协作端版本",
-    description:
-      "协作端没有接受这块白板上的部分改动。改用协作端当前的版本后可以继续协作；没被接受的改动不会再发送，会单独保留在本机。",
-    impact: "这块白板上没被接受的改动会从画布上消失",
-    confirmText: "使用协作端版本",
-  },
   detach: {
     title: "转为本机白板",
     description:
@@ -230,13 +168,6 @@ const CONFIRM_COPY: Record<
     confirmText: "退出协作",
     danger: true,
   },
-  upgrade: {
-    title: "升级插件数据",
-    description:
-      "插件有了新的数据格式。升级会把这块白板上用旧格式保存的元素转换为新格式，元素位置和文字不变；其它设备需要采用新版本后继续协作。升级期间白板暂停编辑。",
-    impact: "升级完成后不能退回旧格式",
-    confirmText: "开始升级",
-  },
 };
 
 /** 每种确认操作沿用一个操作身份：失败后重试不换身份，成功后才清空。 */
@@ -245,52 +176,32 @@ function ConfirmAction({
   onClose,
   client,
   documentId,
-  binding,
-  upgradable,
-  catalog,
 }: {
   kind?: ConfirmKind;
   onClose: () => void;
   client: WhiteboardDocumentClient;
   documentId: string;
   binding: { serverUrl: string; documentId: string } | null;
-  upgradable: number;
-  catalog?: WhiteboardContractCatalog;
 }) {
   const queryClient = useQueryClient();
   const operations = useRef<Partial<Record<ConfirmKind, string>>>({});
-  const [shown, setShown] = useState<ConfirmKind>("adopt");
+  const [shown, setShown] = useState<ConfirmKind>("detach");
   if (kind && kind !== shown) setShown(kind);
   const copy = CONFIRM_COPY[kind ?? shown];
   const run = async (action: ConfirmKind) => {
     const leaseId = client.leaseId;
     if (!leaseId) throw new Error("白板会话已关闭");
     const operationId = (operations.current[action] ??= crypto.randomUUID());
-    if (action === "adopt" || action === "rebuild") {
-      if (!binding) throw new Error("这块白板没有共享");
-      await adoptWhiteboardEpoch(leaseId, {
-        operationId,
-        serverUrl: binding.serverUrl,
-        rebuild: action === "rebuild",
-      });
-      toast.success(action === "adopt" ? "已采用新版本" : "已改用协作端版本");
-    } else if (action === "upgrade") {
-      if (!catalog) throw new Error("插件声明尚未就绪，请稍后重试");
-      const source = await readWhiteboardMigrationSource(leaseId, operationId, binding?.serverUrl);
-      await completeUpgrade(client.target.databaseName, operationId, source, catalog);
-      toast.success("插件数据已升级");
-    } else {
-      const { missing } = await unshareWhiteboard(leaseId, { operationId, mode: action });
-      toast.success(
-        missing
-          ? `${action === "close" ? "已结束共享" : action === "leave" ? "已退出协作" : "已转为本机白板"}，${missing} 张图片没有缓存，显示为缺失`
-          : action === "close"
-            ? "已结束共享，白板留在本机"
-            : action === "leave"
-              ? "已退出协作，白板留在本机"
-              : "已转为本机白板"
-      );
-    }
+    const { missing } = await unshareWhiteboard(leaseId, { operationId, mode: action });
+    toast.success(
+      missing
+        ? `${action === "close" ? "已结束共享" : action === "leave" ? "已退出协作" : "已转为本机白板"}，${missing} 张图片没有缓存，显示为缺失`
+        : action === "close"
+          ? "已结束共享，白板留在本机"
+          : action === "leave"
+            ? "已退出协作，白板留在本机"
+            : "已转为本机白板"
+    );
     delete operations.current[action];
   };
   return (
@@ -298,11 +209,7 @@ function ConfirmAction({
       open={Boolean(kind)}
       onOpenChange={open => !open && onClose()}
       title={copy.title}
-      context={
-        (kind ?? shown) === "upgrade"
-          ? `${upgradable} 个元素`
-          : client.model.read().title || "未命名白板"
-      }
+      context={client.model.read().title || "未命名白板"}
       description={copy.description}
       impact={copy.impact}
       danger={copy.danger}
@@ -324,36 +231,8 @@ function ConfirmAction({
   );
 }
 
-/** 按冻结的来源计算转换候选并提交；同一来源与插件声明得到同一候选，续做时重新计算即可。 */
-async function completeUpgrade(
-  databaseName: string,
-  operationId: string,
-  source: { state: string; documentId: string },
-  catalog: WhiteboardContractCatalog
-) {
-  const doc = new Y.Doc({ gc: false });
-  Y.applyUpdate(
-    doc,
-    Uint8Array.from(atob(source.state), char => char.charCodeAt(0))
-  );
-  const model = new WhiteboardModel(doc);
-  try {
-    const ids = upgradableElementIds(model, catalog);
-    if (!ids.length) throw new Error("没有需要升级的元素，请取消这次升级");
-    const bundle = prepareWhiteboardVersionUpgrade(model, source.documentId, catalog, ids);
-    await prepareWhiteboardMigration(databaseName, operationId, bundle);
-  } finally {
-    model.dispose();
-    doc.destroy();
-  }
-  const result = await finishWhiteboardMigration(databaseName, operationId);
-  if (result.phase !== "COMPLETE") throw new Error("升级没有完成，原内容已保留，请稍后继续");
-}
-
 function pendingKind(status?: WhiteboardShareStatus): WhiteboardPendingKind | undefined {
   if (status?.publication) return "publication";
-  if (status?.upgrade) return "upgrade";
-  if (status?.migration) return "migration";
 }
 
 /** 已固定、尚未完成的操作只能按原操作继续或取消。 */
@@ -361,98 +240,36 @@ function PendingRecovery({
   databaseName,
   documentId,
   status,
-  catalog,
   onSettled,
 }: {
   databaseName: string;
   documentId: string;
   status: WhiteboardShareStatus;
-  catalog?: WhiteboardContractCatalog;
   onSettled?: () => void;
 }) {
-  const queryClient = useQueryClient();
-  const [busy, setBusy] = useState<"resume" | "cancel">();
-  if (status.publication)
-    return (
-      <PublicationRecovery
-        databaseName={databaseName}
-        operationId={status.publication.operationId}
-        documentId={documentId}
-        onSettled={onSettled}
-      />
-    );
-  const upgrade = status.upgrade,
-    migration = status.migration;
-  const run = async (kind: "resume" | "cancel") => {
-    setBusy(kind);
-    try {
-      if (upgrade) {
-        if (kind === "cancel") {
-          await finishWhiteboardMigration(databaseName, upgrade.operationId, true);
-          toast.success("已取消升级，白板恢复编辑");
-        } else if (migration?.operationId === upgrade.operationId) {
-          await finishWhiteboardMigration(databaseName, upgrade.operationId);
-          toast.success("插件数据已升级");
-        } else {
-          if (!catalog) throw new Error("插件声明尚未就绪，请稍后重试");
-          const source = await readPendingWhiteboardUpgrade(databaseName, upgrade.operationId);
-          await completeUpgrade(databaseName, upgrade.operationId, source, catalog);
-          toast.success("插件数据已升级");
-        }
-      } else if (migration) {
-        await finishWhiteboardMigration(databaseName, migration.operationId);
-        toast.success("更新已完成");
-      }
-      onSettled?.();
-    } catch (error) {
-      toast.error(remoteFailureText(error));
-    } finally {
-      setBusy(undefined);
-      void queryClient.invalidateQueries({
-        queryKey: whiteboardShareStatusKey(databaseName, documentId),
-      });
-    }
-  };
+  if (!status.publication) return null;
   return (
-    <span className="flex flex-none items-center gap-1">
-      <Button
-        size="sm"
-        variant="soft"
-        loading={busy === "resume"}
-        disabled={Boolean(busy)}
-        onClick={() => void run("resume")}
-      >
-        {upgrade ? "继续升级" : "继续更新"}
-      </Button>
-      {upgrade && (
-        <Button
-          size="sm"
-          variant="ghost"
-          loading={busy === "cancel"}
-          disabled={Boolean(busy)}
-          onClick={() => void run("cancel")}
-        >
-          取消升级
-        </Button>
-      )}
-    </span>
+    <PublicationRecovery
+      databaseName={databaseName}
+      documentId={documentId}
+      operationId={status.publication.operationId}
+      onSettled={onSettled}
+    />
   );
 }
 
 /**
- * 未完成的首次共享或升级会让白板暂停打开；此时给出续做入口，不展示为读取失败。
+ * 未完成的首次共享会让白板暂停打开；此时给出续做入口，不展示为读取失败。
  * 没有待处理操作时显示调用方的原错误。
  */
 export function PendingTransition({
   databaseName,
   documentId,
-  catalog,
   onSettled,
   children,
 }: {
   databaseName: string;
   documentId: string;
-  catalog?: WhiteboardContractCatalog;
   onSettled: () => void;
   children: ReactNode;
 }) {
@@ -462,10 +279,6 @@ export function PendingTransition({
   const description: Record<WhiteboardPendingKind, string> = {
     publication:
       "上次共享没有完成，白板暂停编辑，内容完好保存在本机。可以继续这次共享，或取消后恢复编辑。",
-    upgrade:
-      "上次插件数据升级没有完成，白板暂停编辑，原内容完好保存在本机。可以继续这次升级，或取消后恢复编辑。",
-    migration:
-      "上次版本更新没有完成，白板暂停编辑，原内容完好保存在本机。继续后会按原来的更新完成安装。",
   };
   return (
     <div role="status" className="text-ink-2 text-tau-body flex flex-col items-start gap-3 p-6">
@@ -474,7 +287,6 @@ export function PendingTransition({
         databaseName={databaseName}
         documentId={documentId}
         status={share.data}
-        catalog={catalog}
         onSettled={onSettled}
       />
     </div>

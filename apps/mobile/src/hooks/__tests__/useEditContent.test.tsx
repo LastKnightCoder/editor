@@ -52,16 +52,14 @@ function textFromContent(content: Descendant[]): string {
 function HookHarness(props: {
   contentId: number;
   onContentSync?: (content: Descendant[]) => void;
-  onProjectionPersisted?: () => void;
   beforeSave?: () => Promise<void>;
-  saveMode?: "direct" | "collabProjection" | false;
+  saveMode?: "direct" | false;
   onSnapshot: (snapshot: HookSnapshot) => void;
 }) {
   const snapshot = useEditContent(props.contentId, {
     wait: 1,
     onContentSync: props.onContentSync,
     saveMode: props.saveMode,
-    onProjectionPersisted: props.onProjectionPersisted,
     beforeSave: props.beforeSave,
   });
   props.onSnapshot(snapshot);
@@ -72,8 +70,7 @@ type HookController = {
   setOnContentSync: (handler?: (content: Descendant[]) => void) => void;
   render: (contentId: number) => Promise<void>;
   rerender: (props: {
-    saveMode?: "direct" | "collabProjection" | false;
-    onProjectionPersisted?: () => void;
+    saveMode?: "direct" | false;
     beforeSave?: () => Promise<void>;
   }) => Promise<void>;
   latest: () => HookSnapshot | null;
@@ -87,8 +84,7 @@ function createHookController(): HookController {
   let latestSnapshot: HookSnapshot | null = null;
   let contentSyncHandler: ((content: Descendant[]) => void) | undefined;
   let extraProps: {
-    saveMode?: "direct" | "collabProjection" | false;
-    onProjectionPersisted?: () => void;
+    saveMode?: "direct" | false;
     beforeSave?: () => Promise<void>;
   } = {};
   let renderedContentId = 0;
@@ -236,93 +232,28 @@ describe("useEditContent", () => {
     await controller.cleanup();
   });
 
-  it("saveMode=collabProjection：投影写入成功时不走直写并标记待裁决", async () => {
-    const initial = createContent("before");
-    const updated = createContent("after");
-    const onProjectionPersisted = vi.fn();
-    vi.mocked(tauri.getContentDetail).mockResolvedValue(createDetail(401, initial));
-    vi.mocked(tauri.collabProjectContent).mockResolvedValue({ projected: true, changed: true });
-
-    const controller = createHookController();
-    await controller.render(401);
-    await controller.rerender({ saveMode: "collabProjection", onProjectionPersisted });
-
-    await act(async () => {
-      controller.latest()?.handleEditorContentChange(updated);
-      await controller.latest()?.flushNow();
-      await Promise.resolve();
-    });
-
-    expect(tauri.collabProjectContent).toHaveBeenCalledTimes(1);
-    expect(tauri.updateContent).not.toHaveBeenCalled();
-    expect(onProjectionPersisted).toHaveBeenCalledTimes(1);
-    expect(controller.latest()?.error).toBe("");
-
-    await controller.cleanup();
-  });
-
-  it("saveMode=collabProjection：投影漂移（reason=drift）时回退常规直写", async () => {
-    const initial = createContent("before");
-    const updated = createContent("after");
-    const onProjectionPersisted = vi.fn();
-    vi.mocked(tauri.getContentDetail).mockResolvedValue(createDetail(402, initial));
-    vi.mocked(tauri.collabProjectContent).mockResolvedValue({ projected: false, reason: "drift" });
-    vi.mocked(tauri.updateContent).mockResolvedValue(createDetail(402, updated));
-
-    const controller = createHookController();
-    await controller.render(402);
-    await controller.rerender({ saveMode: "collabProjection", onProjectionPersisted });
-
-    await act(async () => {
-      controller.latest()?.handleEditorContentChange(updated);
-      await controller.latest()?.flushNow();
-      await Promise.resolve();
-    });
-
-    // drift＝绑定已自动解绑且本次未写库：必须由直写接管，否则改动静默丢失
-    expect(tauri.collabProjectContent).toHaveBeenCalledTimes(1);
-    expect(tauri.updateContent).toHaveBeenCalledTimes(1);
-    expect(onProjectionPersisted).not.toHaveBeenCalled();
-    expect(controller.latest()?.error).toBe("");
-
-    await controller.cleanup();
-  });
-
-  it("direct 模式：直写被协作守卫拒绝后转投影，兜底仍未写入则按保存失败处理", async () => {
-    const initial = createContent("before");
-    const updated = createContent("after");
-    const onProjectionPersisted = vi.fn();
+  it("协作守卫拒绝直写时不走投影兜底，保留失败输入供原通道重试", async () => {
+    const initial = createContent("before"),
+      updated = createContent("after");
     vi.mocked(tauri.getContentDetail).mockResolvedValue(createDetail(403, initial));
     vi.mocked(tauri.updateContent).mockRejectedValue(
       "COLLABORATION_WRITE_REQUIRED: 这段内容正在协作"
     );
-    // 第一次兜底写入成功，第二次（重试前）仍未写入（极端竞态），第三次重试成功
-    vi.mocked(tauri.collabProjectContent)
-      .mockResolvedValueOnce({ projected: true, changed: true })
-      .mockResolvedValueOnce({ projected: false, reason: "unbound" })
-      .mockResolvedValue({ projected: true, changed: true });
-
     const controller = createHookController();
     await controller.render(403);
-    await controller.rerender({ onProjectionPersisted });
-
     await act(async () => {
-      controller.latest()?.handleEditorContentChange(updated);
-      await controller.latest()?.flushNow();
-      await Promise.resolve();
+      controller.latest()!.handleEditorContentChange(updated);
+      expect(await controller.latest()!.flushNow()).toBe(false);
     });
-    expect(onProjectionPersisted).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      controller.latest()?.handleEditorContentChange(createContent("again"));
-      await controller.latest()?.flushNow();
-      await Promise.resolve();
-    });
-    // 兜底投影未写入却假装成功＝静默丢改动：必须报保存失败（守卫错误可见）并保留重试凭据
+    expect(tauri.collabProjectContent).not.toHaveBeenCalled();
     expect(controller.latest()?.error).toContain("内容协作中");
-    const ok = await controller.latest()?.retryLastFailed();
-    expect(ok).toBe(true);
-
+    vi.mocked(tauri.updateContent).mockResolvedValue(createDetail(403, updated));
+    await act(async () => {
+      expect(await controller.latest()!.retryLastFailed()).toBe(true);
+    });
+    expect(tauri.updateContent).toHaveBeenLastCalledWith(
+      expect.objectContaining({ contentId: 403, content: updated })
+    );
     await controller.cleanup();
   });
 

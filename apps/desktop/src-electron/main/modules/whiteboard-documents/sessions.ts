@@ -222,7 +222,8 @@ export class WhiteboardDocumentSessions {
     repo: WhiteboardDocumentRepository,
     source: NonNullable<ReturnType<WhiteboardDocumentRepository["read"]>>
   ): Promise<Session> {
-    if (this.blocked(source.databaseName, source.documentId)) throw new Error("白板迁移尚待恢复");
+    if (this.blocked(source.databaseName, source.documentId))
+      throw new Error("白板共享提交尚未完成，请重试");
     const key = journalKey(source),
       cached = this.journal.load(key);
     if (
@@ -270,7 +271,7 @@ export class WhiteboardDocumentSessions {
       session = lease && this.sessions.get(lease.key);
     if (!lease || lease.owner !== owner || !session) throw new Error("白板会话持有已失效");
     if (write && this.blocked(session.value.databaseName, session.value.documentId))
-      throw new Error("白板迁移尚未完成，旧代次禁止写入");
+      throw new Error("白板共享提交尚未完成，旧代次禁止写入");
     if (write && lease.sealed) throw new Error("白板视图已完成关闭屏障");
     this.connection(session);
     return { lease, session };
@@ -294,7 +295,7 @@ export class WhiteboardDocumentSessions {
     return this.run(lease.key, update.byteLength, async () => {
       this.connection(session);
       if (this.blocked(session.value.databaseName, session.value.documentId))
-        throw new Error("白板迁移尚未完成");
+        throw new Error("白板共享提交尚未完成");
       if (lease.sealed) throw new Error("白板视图已经封存");
       if (this.journal.receipt(lease.key, batchId, update) !== null) {
         this.project(session);

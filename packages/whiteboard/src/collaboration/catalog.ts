@@ -87,36 +87,4 @@ export class WhiteboardContractCatalog {
     if ((result as { issues?: readonly unknown[] }).issues?.length)
       throw new Error("白板元素数据不符合声明");
   }
-  migrate(
-    id: string,
-    data: Readonly<Record<string, unknown>>
-  ): { contractId: string; data: Record<string, unknown> } {
-    const source = this.entries.get(id),
-      target = source && this.active.get(source.contract.type);
-    if (!source || !target) throw new Error("历史契约未登记");
-    if (target.id === id) return { contractId: id, data: structuredClone(data) };
-    const conversion = target.element.migrations?.find(
-      value => value.from === source.contract.dataVersion
-    );
-    if (
-      !conversion ||
-      JSON.stringify(source.contract.structure) !== JSON.stringify(target.contract.structure)
-    )
-      throw new Error("缺少直接转换或转换涉及结构");
-    assertWhiteboardJson(data);
-    for (const field of source.contract.textFields)
-      if (typeof data[field] !== "string") throw new Error("历史载荷文本字段无效");
-    const output = conversion.migrate(freeze(structuredClone(data)));
-    if (output && typeof output.then === "function") {
-      void Promise.resolve(output).catch(() => undefined);
-      throw new Error("转换必须同步返回载荷");
-    }
-    assertWhiteboardJson(output);
-    if (!output || typeof output !== "object" || Array.isArray(output))
-      throw new Error("转换只能返回业务载荷");
-    for (const field of target.contract.textFields)
-      if (typeof output[field] !== "string") throw new Error("转换后的文本字段无效");
-    this.validate(target, output);
-    return { contractId: target.id, data: structuredClone(output) };
-  }
 }

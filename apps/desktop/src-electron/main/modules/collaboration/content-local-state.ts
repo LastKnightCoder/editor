@@ -5,12 +5,7 @@ import {
   isContentEntityReference,
   type ContentEntityReference,
 } from "@tau/db-schema/content-identities";
-import type {
-  DocumentMigration,
-  MigrationFingerprint,
-  MigrationReceipt,
-  ContentInputDraft,
-} from "@tau/collaboration";
+import type { MigrationFingerprint, MigrationReceipt, ContentInputDraft } from "@tau/collaboration";
 
 export interface InputDraftIdentity {
   workspaceId: string;
@@ -25,51 +20,23 @@ export interface NodeViewKey {
   nodeId: string;
   owner: string;
 }
-export interface LocalRecoveryReceipt {
-  id: string;
-  manifestHash: string;
-  manifestPath: string;
-}
-export interface RemoteMigrationPreparation {
+interface InstallationPlanFields {
   operationId: string;
   workspaceId: string;
   documentId: string;
   expectedEpoch: number;
-  expiresAt: number;
-}
-interface MigrationPlanFields {
-  remoteDocumentId?: string;
-  expiresAt?: number;
-  operationId: string;
-  workspaceId: string;
-  documentId: string;
-  expectedEpoch: number;
-  targetEpoch?: number;
-  remote: boolean;
   fingerprint: MigrationFingerprint;
 }
-export type LocalMigrationPlan = MigrationPlanFields &
-  (
-    | { kind?: undefined; recovery: LocalRecoveryReceipt; prepared?: never }
-    | {
-        kind: "whiteboard";
-        recovery?: never;
-        prepared: { candidate: string; installation: string; conversion: string };
-      }
-  );
+export type LocalInstallationPlan = InstallationPlanFields & {
+  kind: "whiteboard";
+  prepared: { candidate: string; installation: string; conversion: string };
+};
 export type LocalInstallTarget = "main" | "collaboration";
-export interface LocalMigrationRecord<Plan extends LocalMigrationPlan = LocalMigrationPlan> {
+export interface LocalInstallationRecord<
+  Plan extends LocalInstallationPlan = LocalInstallationPlan,
+> {
   plan: Plan;
-  phase:
-    | "PREPARED"
-    | "BACKED_UP"
-    | "FROZEN"
-    | "SERVER_COMMITTED"
-    | "LOCAL_COMMITTED"
-    | "LOCAL_INSTALLED"
-    | "COMPLETE"
-    | "ABORTED"
-    | "EXPIRED";
+  phase: "PREPARED" | "LOCAL_COMMITTED" | "LOCAL_INSTALLED" | "COMPLETE" | "ABORTED" | "EXPIRED";
   decision?: MigrationReceipt;
   installations: Partial<Record<LocalInstallTarget, MigrationReceipt>>;
   reason?: string;
@@ -82,9 +49,7 @@ const token = (value: unknown): value is string =>
   ![...value].some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127);
 const digest = (value: unknown): value is string =>
   typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
-const committed = (record: LocalMigrationRecord) => Boolean(record.decision);
-const ended = (record: LocalMigrationRecord) =>
-  ["ABORTED", "EXPIRED", "COMPLETE"].includes(record.phase);
+const committed = (record: LocalInstallationRecord) => Boolean(record.decision);
 const same = (left: unknown, right: unknown) =>
   canonicalContractJson(left) === canonicalContractJson(right);
 function viewJson(value: unknown): string {
@@ -153,14 +118,12 @@ export class ContentLocalState {
       !draft.state.byteLength ||
       draft.state.byteLength > 8 * 1024 * 1024
     )
-      throw new Error("文档恢复副本参数无效");
-    const legacy = this.hasLegacyDraftsColumn();
-    const legacySize = legacy ? "length(CAST(private_nodes AS BLOB))" : "0";
+      throw new Error("未确认文档输入参数无效");
     const digest = createHash("sha256").update(draft.state).digest("hex");
     this.db.transaction(() => {
       const previous = this.db
         .prepare(
-          `SELECT workspace_id,document_id,baseline_id,epoch,sequence,digest,length(state)+${legacySize} AS size,${legacy ? "private_nodes" : "'[]'"} AS legacy FROM document_drafts WHERE view_id=?`
+          `SELECT workspace_id,document_id,baseline_id,epoch,sequence,digest,length(state) AS size FROM document_drafts WHERE view_id=?`
         )
         .get(viewId) as
         | {
@@ -171,11 +134,9 @@ export class ContentLocalState {
             sequence: number;
             digest: string;
             size: number;
-            legacy: string;
           }
         | undefined;
       if (previous) {
-        if (previous.legacy !== "[]") throw new Error("旧私有草稿尚未恢复，不能覆盖原始记录");
         if (
           previous.workspace_id !== identity.workspaceId ||
           previous.document_id !== identity.documentId ||
@@ -195,15 +156,15 @@ export class ContentLocalState {
       const used = (
         this.db
           .prepare(
-            `SELECT coalesce(sum(length(state)+${legacySize}),0) AS bytes FROM document_drafts WHERE workspace_id=?`
+            `SELECT coalesce(sum(length(state)),0) AS bytes FROM document_drafts WHERE workspace_id=?`
           )
           .get(identity.workspaceId) as { bytes: number }
       ).bytes;
       if (used - (previous?.size ?? 0) + draft.state.byteLength > 128 * 1024 * 1024)
-        throw new Error("未确认文档副本超过本机容量，请先恢复或导出已有副本");
+        throw new Error("未确认文档输入超过本机容量，请先完成保存");
       this.db
         .prepare(
-          `INSERT INTO document_drafts(view_id,workspace_id,document_id,baseline_id,epoch,state,${legacy ? "private_nodes," : ""}digest,sequence,applied) VALUES (?,?,?,?,?,?,${legacy ? "'[]'," : ""}?,?,0) ON CONFLICT(view_id) DO UPDATE SET state=excluded.state,digest=excluded.digest,sequence=excluded.sequence,applied=0`
+          `INSERT INTO document_drafts(view_id,workspace_id,document_id,baseline_id,epoch,state,digest,sequence,applied) VALUES (?,?,?,?,?,?,?,?,0) ON CONFLICT(view_id) DO UPDATE SET state=excluded.state,digest=excluded.digest,sequence=excluded.sequence,applied=0`
         )
         .run(
           viewId,
@@ -218,29 +179,6 @@ export class ContentLocalState {
     })();
   }
 
-  private hasLegacyDraftsColumn(): boolean {
-    return (this.db.prepare("PRAGMA table_info(document_drafts)").all() as { name: string }[]).some(
-      column => column.name === "private_nodes"
-    );
-  }
-
-  documentDrafts(workspaceId: string) {
-    return this.db
-      .prepare(
-        `SELECT view_id AS viewId,document_id AS documentId,baseline_id AS baselineId,epoch,state,${this.hasLegacyDraftsColumn() ? "private_nodes" : "'[]'"} AS legacyPrivateNodes,digest,sequence FROM document_drafts WHERE workspace_id=? AND applied=0 ORDER BY view_id`
-      )
-      .all(workspaceId) as {
-      viewId: string;
-      documentId: string;
-      baselineId: string;
-      epoch: number;
-      state: Buffer;
-      legacyPrivateNodes: string;
-      digest: string;
-      sequence: number;
-    }[];
-  }
-
   confirmDocumentDrafts(
     documentId: string,
     baselineId: string,
@@ -249,7 +187,7 @@ export class ContentLocalState {
   ): void {
     const drafts = this.db
       .prepare(
-        `SELECT view_id,state,digest FROM document_drafts WHERE document_id=? AND baseline_id=? AND epoch=? AND applied=0${this.hasLegacyDraftsColumn() ? " AND private_nodes='[]'" : ""}`
+        `SELECT view_id,state,digest FROM document_drafts WHERE document_id=? AND baseline_id=? AND epoch=? AND applied=0`
       )
       .all(documentId, baselineId, epoch) as { view_id: string; state: Buffer; digest: string }[];
     for (const draft of drafts)
@@ -257,6 +195,22 @@ export class ContentLocalState {
         this.db
           .prepare("UPDATE document_drafts SET applied=1 WHERE view_id=? AND digest=?")
           .run(draft.view_id, draft.digest);
+  }
+
+  documentDrafts(workspaceId: string) {
+    return this.db
+      .prepare(
+        "SELECT view_id AS viewId,document_id AS documentId,baseline_id AS baselineId,epoch,state,digest,sequence FROM document_drafts WHERE workspace_id=? AND applied=0 ORDER BY view_id"
+      )
+      .all(workspaceId) as {
+      viewId: string;
+      documentId: string;
+      baselineId: string;
+      epoch: number;
+      state: Buffer;
+      digest: string;
+      sequence: number;
+    }[];
   }
 
   hasDocumentDrafts(workspaceId: string): boolean {
@@ -345,8 +299,7 @@ export class ContentLocalState {
         this.db
           .prepare("DELETE FROM input_drafts WHERE workspace_id=? AND applied=1")
           .run(identity.workspaceId);
-      if (bytes() > 64 * 1024 * 1024)
-        throw new Error("待恢复输入超过本机预算，请先导出或处理已有副本");
+      if (bytes() > 64 * 1024 * 1024) throw new Error("未确认输入超过本机预算，请先完成保存");
     })();
   }
 
@@ -403,13 +356,13 @@ export class ContentLocalState {
   replaceHolds(
     workspaceId: string,
     holder: string,
-    reason: "shared-membership" | "undo" | "offline-edit" | "recovery",
+    reason: "shared-membership" | "undo" | "offline-edit",
     targets: readonly ContentEntityReference[]
   ) {
     if (
       !token(workspaceId) ||
       !token(holder) ||
-      !["shared-membership", "undo", "offline-edit", "recovery"].includes(reason) ||
+      !["shared-membership", "undo", "offline-edit"].includes(reason) ||
       targets.some(target => !isContentEntityReference(target))
     )
       throw new Error("本机持有记录无效");
@@ -446,100 +399,7 @@ export class ContentLocalState {
       ) as (ContentEntityReference & { holder: string; reason: string })[];
   }
 
-  /** 仅在恢复包已落盘并逐文件校验后登记；登记不能代替恢复包的完整性校验。 */
-  registerRecovery(receipt: LocalRecoveryReceipt, workspaceId: string) {
-    if (
-      !token(receipt.id) ||
-      !digest(receipt.manifestHash) ||
-      !receipt.manifestPath ||
-      !token(workspaceId)
-    )
-      throw new Error("恢复包回执无效");
-    const old = this.recovery(receipt.id);
-    if (old && !same(old, receipt)) throw new Error("恢复包身份冲突");
-    const scope = this.db
-      .prepare("SELECT workspace_id FROM recoveries WHERE id=?")
-      .get(receipt.id) as { workspace_id: string | null } | undefined;
-    if (scope?.workspace_id && scope.workspace_id !== workspaceId)
-      throw new Error("恢复包不能更换资料库归属");
-    this.db
-      .prepare(
-        "INSERT INTO recoveries(id,manifest_hash,manifest_path,workspace_id) VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET workspace_id=excluded.workspace_id"
-      )
-      .run(receipt.id, receipt.manifestHash, receipt.manifestPath, workspaceId);
-  }
-
-  recovery(id: string): LocalRecoveryReceipt | null {
-    return (
-      (this.db
-        .prepare(
-          "SELECT id,manifest_hash AS manifestHash,manifest_path AS manifestPath FROM recoveries WHERE id=?"
-        )
-        .get(id) as LocalRecoveryReceipt | undefined) ?? null
-    );
-  }
-
-  preparation(documentId: string): RemoteMigrationPreparation | null {
-    const row = this.db
-      .prepare(
-        "SELECT record FROM migrations WHERE document_id=? AND json_extract(record,'$.phase')='PREPARING'"
-      )
-      .get(documentId) as { record: string } | undefined;
-    return row ? JSON.parse(row.record).plan : null;
-  }
-
-  preparations(workspaceId: string): RemoteMigrationPreparation[] {
-    return (
-      this.db
-        .prepare(
-          "SELECT record FROM migrations WHERE workspace_id=? AND json_extract(record,'$.phase')='PREPARING'"
-        )
-        .all(workspaceId) as { record: string }[]
-    ).map(row => JSON.parse(row.record).plan);
-  }
-
-  prepareRemote(plan: RemoteMigrationPreparation): RemoteMigrationPreparation {
-    if (
-      ![plan.operationId, plan.workspaceId, plan.documentId].every(token) ||
-      !Number.isSafeInteger(plan.expectedEpoch) ||
-      plan.expectedEpoch < 0 ||
-      !Number.isSafeInteger(plan.expiresAt)
-    )
-      throw new Error("迁移准备身份无效");
-    return this.db.transaction(() => {
-      const current = this.preparation(plan.documentId);
-      if (current) return current;
-      if (this.pendingMigrations(plan.documentId).length) throw new Error("原迁移仍待恢复");
-      this.db
-        .prepare("INSERT INTO migrations VALUES (?,?,?,?)")
-        .run(
-          plan.operationId,
-          plan.workspaceId,
-          plan.documentId,
-          canonicalContractJson({ preparing: true, phase: "PREPARING", plan })
-        );
-      return plan;
-    })();
-  }
-
-  finishPreparation(operation: DocumentMigration): void {
-    const plan = this.preparation(operation.documentId);
-    if (
-      !plan ||
-      plan.operationId !== operation.id ||
-      plan.expectedEpoch !== operation.expectedEpoch ||
-      !["ABORTED", "EXPIRED"].includes(operation.state)
-    )
-      throw new Error("迁移准备终态不匹配");
-    this.db
-      .prepare("UPDATE migrations SET record=? WHERE operation_id=?")
-      .run(
-        canonicalContractJson({ preparing: true, phase: operation.state, plan }),
-        plan.operationId
-      );
-  }
-
-  migration(id: string): LocalMigrationRecord | null {
+  installation(id: string): LocalInstallationRecord | null {
     const row = this.db.prepare("SELECT record FROM migrations WHERE operation_id=?").get(id) as
       | { record: string }
       | undefined;
@@ -547,59 +407,34 @@ export class ContentLocalState {
     return record?.preparing ? null : record;
   }
 
-  pendingMigrations(documentId?: string): LocalMigrationRecord[] {
+  pendingInstallations(documentId?: string): LocalInstallationRecord[] {
     return (
       this.db
         .prepare(
           `SELECT record FROM migrations WHERE ${documentId === undefined ? "" : "document_id=? AND "}json_extract(record,'$.phase') NOT IN ('PREPARING','COMPLETE','ABORTED','EXPIRED')`
         )
         .all(...(documentId === undefined ? [] : [documentId])) as { record: string }[]
-    ).map(row => JSON.parse(row.record) as LocalMigrationRecord);
+    ).map(row => JSON.parse(row.record) as LocalInstallationRecord);
   }
 
-  begin<Plan extends LocalMigrationPlan>(plan: Plan): LocalMigrationRecord<Plan> {
+  begin<Plan extends LocalInstallationPlan>(plan: Plan): LocalInstallationRecord<Plan> {
     if (
       ![plan.operationId, plan.workspaceId, plan.documentId, plan.fingerprint.baselineId].every(
         token
       ) ||
-      typeof plan.remote !== "boolean" ||
-      (plan.kind !== undefined && plan.kind !== "whiteboard") ||
-      (plan.remoteDocumentId !== undefined &&
-        (plan.kind !== "whiteboard" || !plan.remote || !token(plan.remoteDocumentId))) ||
+      plan.kind !== "whiteboard" ||
       !Number.isSafeInteger(plan.expectedEpoch) ||
       plan.expectedEpoch < 0 ||
-      (plan.targetEpoch !== undefined &&
-        (!Number.isSafeInteger(plan.targetEpoch) ||
-          plan.targetEpoch <= plan.expectedEpoch ||
-          (plan.remote && plan.targetEpoch !== plan.expectedEpoch + 1))) ||
-      plan.fingerprint.targetVersion !== (plan.kind === "whiteboard" ? 3 : 2) ||
-      (plan.expiresAt !== undefined &&
-        (!Number.isSafeInteger(plan.expiresAt) || plan.expiresAt <= 0)) ||
+      plan.fingerprint.targetVersion !== 3 ||
       !digest(plan.fingerprint.candidateHash) ||
       !token(plan.fingerprint.expectedRevision)
     )
-      throw new Error("本机迁移计划无效");
+      throw new Error("本机白板提交计划无效");
     return this.db.transaction(() => {
-      const previous = this.migration(plan.operationId);
+      const previous = this.installation(plan.operationId);
       if (previous) {
-        if (!same(previous.plan, plan)) throw new Error("迁移操作不能更换计划");
-        return previous as LocalMigrationRecord<Plan>;
-      }
-      const row = this.db
-        .prepare("SELECT record FROM migrations WHERE operation_id=?")
-        .get(plan.operationId) as { record: string } | undefined;
-      if (row) {
-        const preparation = JSON.parse(row.record);
-        if (
-          !preparation.preparing ||
-          preparation.phase !== "PREPARING" ||
-          !plan.remote ||
-          preparation.plan.documentId !== plan.documentId ||
-          preparation.plan.workspaceId !== plan.workspaceId ||
-          preparation.plan.expectedEpoch !== plan.expectedEpoch ||
-          preparation.plan.expiresAt !== plan.expiresAt
-        )
-          throw new Error("迁移准备不能更换身份或复活");
+        if (!same(previous.plan, plan)) throw new Error("白板提交操作不能更换计划");
+        return previous as LocalInstallationRecord<Plan>;
       }
       if (plan.kind === "whiteboard") {
         if (
@@ -612,11 +447,10 @@ export class ContentLocalState {
             .update(Buffer.from(plan.prepared.candidate, "base64"))
             .digest("hex") !== plan.fingerprint.candidateHash
         )
-          throw new Error("迁移候选不完整或摘要不匹配");
+          throw new Error("白板提交候选不完整或摘要不匹配");
         JSON.parse(plan.prepared.installation);
         JSON.parse(plan.prepared.conversion);
-      } else if (!same(this.recovery(plan.recovery.id), plan.recovery))
-        throw new Error("恢复材料尚未完成保存");
+      }
       if (
         this.db
           .prepare(
@@ -624,10 +458,10 @@ export class ContentLocalState {
           )
           .get(plan.workspaceId, plan.documentId, plan.operationId)
       )
-        throw new Error("该文档仍有待恢复迁移");
-      const record: LocalMigrationRecord<Plan> = {
+        throw new Error("该文档仍有待恢复白板提交");
+      const record: LocalInstallationRecord<Plan> = {
         plan,
-        phase: plan.kind === "whiteboard" ? "PREPARED" : "BACKED_UP",
+        phase: "PREPARED",
         installations: {},
       };
       this.db
@@ -639,10 +473,13 @@ export class ContentLocalState {
     })();
   }
 
-  private update(id: string, change: (record: LocalMigrationRecord) => void): LocalMigrationRecord {
+  private update(
+    id: string,
+    change: (record: LocalInstallationRecord) => void
+  ): LocalInstallationRecord {
     return this.db.transaction(() => {
-      const record = this.migration(id);
-      if (!record) throw new Error("迁移记录不存在，不能推断已经取消");
+      const record = this.installation(id);
+      if (!record) throw new Error("白板提交记录不存在，不能推断已经取消");
       change(record);
       this.db
         .prepare("UPDATE migrations SET record=? WHERE operation_id=?")
@@ -651,78 +488,14 @@ export class ContentLocalState {
     })();
   }
 
-  observeRemote(id: string, operation: DocumentMigration | null): LocalMigrationRecord {
+  decideLocal(id: string, decision: "commit" | "abort"): LocalInstallationRecord {
     return this.update(id, record => {
-      if (!record.plan.remote) throw new Error("纯本机迁移不能使用服务端回执");
-      if (!operation) return;
-      const plan = record.plan;
-      if (
-        operation.id !== id ||
-        operation.documentId !== (plan.remoteDocumentId ?? plan.documentId) ||
-        operation.expectedEpoch !== plan.expectedEpoch ||
-        (operation.fingerprint && !same(operation.fingerprint, plan.fingerprint))
-      )
-        throw new Error("服务端迁移回执身份不匹配");
-      if (operation.state === "COMMITTED") {
-        if (!operation.fingerprint || !operation.receipt) throw new Error("服务端提交回执不完整");
-        this.acceptDecision(record, operation.receipt, "SERVER_COMMITTED");
-      } else if (operation.state === "ABORTED" || operation.state === "EXPIRED") {
-        if (committed(record) || (ended(record) && record.phase !== operation.state))
-          throw new Error("服务端终态与本机已确认决定冲突");
-        record.phase = operation.state;
-        record.reason = operation.reason ?? operation.state;
-      } else if (!ended(record) && !committed(record) && operation.frozenRevision) {
-        if (operation.frozenRevision !== plan.fingerprint.expectedRevision)
-          throw new Error("写入屏障修订已变化");
-        record.phase = "FROZEN";
-      }
-    });
-  }
-
-  /** 后台本机升级按原文校验续做，不因客户端离线时间丢弃未决候选。 */
-  continueLocal(id: string): LocalMigrationRecord {
-    const record = this.migration(id);
-    if (!record || record.plan.remote || ended(record))
-      throw new Error("该迁移不能作为本机未决操作续做");
-    if (record.plan.expiresAt === undefined || record.decision) return record;
-    return this.update(id, current => {
-      delete current.plan.expiresAt;
-    });
-  }
-
-  decideLocal(
-    id: string,
-    decision: "commit" | "abort",
-    verifiedUninstalled = false
-  ): LocalMigrationRecord {
-    const current = this.migration(id);
-    if (
-      current &&
-      !current.plan.remote &&
-      !committed(current) &&
-      !ended(current) &&
-      current.plan.expiresAt !== undefined &&
-      Date.now() >= current.plan.expiresAt
-    ) {
-      this.update(id, record => {
-        record.phase = "EXPIRED";
-        record.reason = "deadline";
-      });
-    }
-    return this.update(id, record => {
-      if (record.plan.remote) throw new Error("共享迁移必须查询服务端裁决");
       if (record.phase === "ABORTED" || record.phase === "EXPIRED") {
-        if (decision === "commit") throw new Error("已终止的迁移不能复活");
+        if (decision === "commit") throw new Error("已终止的白板提交不能复活");
         return;
       }
       if (decision === "abort") {
-        if (
-          verifiedUninstalled &&
-          (record.plan.kind !== "whiteboard" || Object.keys(record.installations).length)
-        )
-          throw new Error("只能取消已核对未安装的本机白板转换");
-        if (committed(record) && !verifiedUninstalled)
-          throw new Error("已提交的本机迁移只能继续安装");
+        if (committed(record)) throw new Error("已提交的白板操作只能继续安装");
         delete record.decision;
         record.phase = "ABORTED";
         record.reason = "local-cancel";
@@ -732,7 +505,7 @@ export class ContentLocalState {
           {
             operationId: id,
             documentId: record.plan.documentId,
-            epoch: record.plan.targetEpoch ?? record.plan.expectedEpoch + 1,
+            epoch: record.plan.expectedEpoch + 1,
             revision: record.plan.fingerprint.candidateHash,
             version: record.plan.fingerprint.targetVersion,
             baselineId: record.plan.fingerprint.baselineId,
@@ -742,29 +515,29 @@ export class ContentLocalState {
     });
   }
 
-  private verifyReceipt(record: LocalMigrationRecord, receipt: MigrationReceipt) {
+  private verifyReceipt(record: LocalInstallationRecord, receipt: MigrationReceipt) {
     const { plan } = record;
     if (
       receipt.operationId !== plan.operationId ||
-      receipt.documentId !== (plan.remoteDocumentId ?? plan.documentId) ||
-      receipt.epoch !== (plan.targetEpoch ?? plan.expectedEpoch + 1) ||
+      receipt.documentId !== plan.documentId ||
+      receipt.epoch !== plan.expectedEpoch + 1 ||
       receipt.version !== plan.fingerprint.targetVersion ||
       receipt.baselineId !== plan.fingerprint.baselineId ||
       receipt.revision !== plan.fingerprint.candidateHash
     )
-      throw new Error("迁移安装回执不匹配");
+      throw new Error("白板提交安装回执不匹配");
   }
 
   private acceptDecision(
-    record: LocalMigrationRecord,
+    record: LocalInstallationRecord,
     receipt: MigrationReceipt,
-    phase: "SERVER_COMMITTED" | "LOCAL_COMMITTED"
+    phase: "LOCAL_COMMITTED"
   ) {
     this.verifyReceipt(record, receipt);
     if (record.phase === "ABORTED" || record.phase === "EXPIRED")
-      throw new Error("已终止的迁移不能复活");
+      throw new Error("已终止的白板提交不能复活");
     if (record.decision) {
-      if (!same(record.decision, receipt)) throw new Error("迁移提交决定冲突");
+      if (!same(record.decision, receipt)) throw new Error("白板提交提交决定冲突");
       return;
     }
     record.decision = receipt;
@@ -775,10 +548,10 @@ export class ContentLocalState {
     id: string,
     target: LocalInstallTarget,
     receipt: MigrationReceipt
-  ): LocalMigrationRecord {
+  ): LocalInstallationRecord {
     return this.update(id, record => {
       if (!["main", "collaboration"].includes(target) || !record.decision)
-        throw new Error("迁移未确认提交或安装目标无效");
+        throw new Error("白板提交未确认提交或安装目标无效");
       this.verifyReceipt(record, receipt);
       record.installations[target] = receipt;
       if (
@@ -791,7 +564,7 @@ export class ContentLocalState {
     });
   }
 
-  complete(id: string, readback: MigrationReceipt): LocalMigrationRecord {
+  complete(id: string, readback: MigrationReceipt): LocalInstallationRecord {
     return this.update(id, record => {
       if (record.phase !== "LOCAL_INSTALLED" && record.phase !== "COMPLETE")
         throw new Error("各存储尚未安装完成");

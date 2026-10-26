@@ -1,5 +1,5 @@
 import type { DataJson } from "@tau/db-schema/content-contracts";
-import type { DataMigration, PreviousDataVersion } from "@tau/db-schema/data-versions";
+import type { PreviousDataVersion } from "@tau/db-schema/data-versions";
 import type { EditorTextField } from "@tau/editor/text-field-contract";
 import type {
   WhiteboardAPI as HostAPI,
@@ -77,11 +77,10 @@ export interface WhiteboardAPI extends Omit<
 }
 export interface WhiteboardElementDefinition<TData = unknown> extends Omit<
   HostElement<TData>,
-  "schemaVersion" | "migrate" | "previousVersions" | "migrations" | "create"
+  "schemaVersion" | "previousVersions" | "create"
 > {
   dataVersion: number;
   previousVersions?: readonly PreviousDataVersion<WhiteboardElementDefinition<any>>[];
-  migrations?: readonly DataMigration<Record<string, DataJson>>[];
   create?: Omit<NonNullable<HostElement<TData>["create"]>, "build" | "gesture"> & {
     gesture:
       | "click"
@@ -119,7 +118,6 @@ export interface WhiteboardElementDefinition<TData = unknown> extends Omit<
       | Promise<import("./api").TypedBoardElement<TData> | null>;
   };
   schemaVersion?: never;
-  migrate?: never;
 }
 export interface WhiteboardContributions extends Omit<
   HostContributions,

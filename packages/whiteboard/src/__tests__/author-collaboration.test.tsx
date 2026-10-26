@@ -183,20 +183,17 @@ it.each(["read", "edit", "none"] as const)(
     const old = v1(),
       first = await fixture(old),
       id = first.create({ source: "旧数据", unknown: 1 });
-    const migrate = vi.fn(data => ({ ...data })),
-      latest = defineElement({
-        ...old,
-        dataVersion: 2,
-        render: () => <g data-version="two" />,
-        previousVersions: [{ element: old, access }],
-        migrations: [{ from: 1, migrate }],
-      });
+    const latest = defineElement({
+      ...old,
+      dataVersion: 2,
+      render: () => <g data-version="two" />,
+      previousVersions: [{ element: old, access }],
+    });
     const f = await fixture(latest, Y.encodeStateAsUpdate(first.doc)),
       initial = Y.encodeStateAsUpdate(f.doc);
     const output = renderToStaticMarkup(<svg>{f.board.renderElement(f.board.children[0])}</svg>);
     expect(output.includes('data-version="one"')).toBe(access !== "none");
     expect(output).not.toContain('data-version="two"');
-    expect(migrate).not.toHaveBeenCalled();
     if (access === "edit") f.api.updateElementData(id, { title: "可编辑" });
     else {
       expect(() => f.api.updateElementData(id, { title: "禁止" })).toThrow();
@@ -270,30 +267,6 @@ it("远端投影的订阅回调不能触发作者回写", async () => {
   expect(f.api.getElement(id)?.data).not.toHaveProperty("echo");
   peer.dispose();
   other.destroy();
-});
-it("目录拒绝重复历史版本与资源/文本重叠，显式迁移仅转换业务载荷", async () => {
-  const old = v1();
-  expect(() =>
-    defineElement({ ...old, previousVersions: [{ element: old, access: "read" }] })
-  ).toThrow();
-  expect(() => defineElement({ ...old, resources: [{ path: "source", kind: "file" }] })).toThrow();
-  expect(() => defineElement({ ...old, schemaVersion: 1 } as any)).toThrow();
-  const f = await fixture(
-    defineElement({
-      ...old,
-      dataVersion: 2,
-      previousVersions: [{ element: old, access: "edit" }],
-      migrations: [{ from: 1, migrate: data => ({ ...data, new: true }) }],
-    })
-  );
-  const entry = Object.entries(f.catalog.dictionary).find(
-    ([, contract]) => contract.dataVersion === 1
-  )!;
-  expect(f.catalog.migrate(entry[0], { source: "旧", unknown: 123 }).data).toEqual({
-    source: "旧",
-    unknown: 123,
-    new: true,
-  });
 });
 
 it("只读版本可通过同一文本句柄渲染，组件上下文明确只读", async () => {
@@ -515,34 +488,6 @@ it("嵌套插件 ID 不共享写权限、命令或事件归属", async () => {
   expect(run).not.toHaveBeenCalled();
   await board.extensions!.execute("example.board.child.run");
   expect(run).toHaveBeenCalledOnce();
-});
-it("显式迁移拒绝异步结果、不安全属性和无效历史文本，输入保持原样", async () => {
-  const old = v1(),
-    source = { source: "旧", nested: { keep: true } };
-  for (const migrate of [
-    async () => source,
-    () => JSON.parse('{"source":"旧","__proto__":{}}'),
-    (data: any) => {
-      data.nested.keep = false;
-      return data;
-    },
-  ] as any[]) {
-    const f = await fixture(
-      defineElement({
-        ...old,
-        dataVersion: 2,
-        previousVersions: [{ element: old, access: "read" }],
-        migrations: [{ from: 1, migrate }],
-      })
-    );
-    const id = Object.entries(f.catalog.dictionary).find(
-      ([, value]) => value.dataVersion === 1
-    )![0];
-    expect(() => f.catalog.migrate(id, source)).toThrow();
-    expect(source).toEqual({ source: "旧", nested: { keep: true } });
-    expect(() => f.catalog.migrate(id, { source: 42 })).toThrow("文本字段");
-    expect(f.model.contracts.size).toBe(0);
-  }
 });
 
 it("创建 build 收到本扩展作用域 API，不能夹带路径操作或冒用类型", async () => {

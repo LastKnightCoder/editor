@@ -105,20 +105,20 @@ export default definePlugin({ ...__PLUGIN_META__, whiteboardExtensions: [boxExte
 
 ### 元素声明
 
-| 字段                             | 说明                                                                                 |
-| -------------------------------- | ------------------------------------------------------------------------------------ |
-| `type`                           | 元素类型                                                                             |
-| `render`                         | 渲染组件，收到 `element`，返回 SVG 内容                                              |
-| `presentation`                   | 可选。`label`（类型名）、`icon`（图标）、`getName(element)`（列表中显示的名称）      |
-| `create`                         | 可选。创建方式，声明后才能注册创建型工具，见[创建工具](#创建工具)                    |
-| `interaction`                    | 可选。缩放手柄与连接点，见下文                                                       |
-| `schema`                         | 可选。约束 `data` 结构的 [Standard Schema](https://standardschema.dev)，必须同步校验 |
-| `dataVersion`                    | 必填正整数；表示业务数据版本，与插件发行版本分开                                     |
-| `collaboration.textFields`       | 可选，data 中需要协作编辑的顶层字符串字段                                            |
-| `resources`                      | 可选，data 中资源位置的纯数据声明；不授予读取或上传权限                              |
-| `previousVersions`、`migrations` | 可选，直接历史版本与纯业务载荷转换；加载不执行转换                                   |
-| `sketch`                         | 可选。为 `true` 时元素支持手绘画风，见[手绘画风](#手绘画风)                          |
-| `schematic`                      | 可选。简略预览，见[简略预览](#简略预览)                                              |
+| 字段                       | 说明                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------ |
+| `type`                     | 元素类型                                                                             |
+| `render`                   | 渲染组件，收到 `element`，返回 SVG 内容                                              |
+| `presentation`             | 可选。`label`（类型名）、`icon`（图标）、`getName(element)`（列表中显示的名称）      |
+| `create`                   | 可选。创建方式，声明后才能注册创建型工具，见[创建工具](#创建工具)                    |
+| `interaction`              | 可选。缩放手柄与连接点，见下文                                                       |
+| `schema`                   | 可选。约束 `data` 结构的 [Standard Schema](https://standardschema.dev)，必须同步校验 |
+| `dataVersion`              | 必填正整数；表示业务数据版本，与插件发行版本分开                                     |
+| `collaboration.textFields` | 可选，data 中需要协作编辑的顶层字符串字段                                            |
+| `resources`                | 可选，data 中资源位置的纯数据声明；不授予读取或上传权限                              |
+| `previousVersions`         | 可选，精确历史版本及其读取、编辑权限；不执行版本转换                                 |
+| `sketch`                   | 可选。为 `true` 时元素支持手绘画风，见[手绘画风](#手绘画风)                          |
+| `schematic`                | 可选。简略预览，见[简略预览](#简略预览)                                              |
 
 用 `defineElement<TData>` 声明 `data` 的类型，或者传入 `schema` 让类型自动推断：
 
@@ -152,9 +152,9 @@ interaction: {
 
 `presentation.getName(element)` 返回元素在列表中显示的名称，例如便签显示它的文字。用户手动起的名字优先；返回空时显示 `label`。
 
-### 版本迁移
+### 版本读取边界
 
-数据结构有不兼容变化时提高 `dataVersion`，登记需要识别的精确历史定义，并提供直接转换到当前版本的函数：
+数据结构有不兼容变化时提高 `dataVersion`，登记需要读取或编辑的精确历史定义：
 
 ```ts
 const sourceV1 = defineElement({
@@ -168,21 +168,10 @@ const sourceV2 = defineElement({
   dataVersion: 2,
   collaboration: { textFields: ["code"] },
   previousVersions: [{ element: sourceV1, access: "read" }],
-  migrations: [
-    {
-      from: 1,
-      migrate(data) {
-        if (typeof data.source !== "string" || Object.hasOwn(data, "code"))
-          throw new Error("旧源码无效或目标字段已存在");
-        const { source, ...rest } = data;
-        return { ...rest, code: source };
-      },
-    },
-  ],
 });
 ```
 
-转换函数只处理业务载荷，输入不可修改，保留未知属性，不接触网络、数据库、时间或随机数。身份、位置、正文与资源权限由宿主维护。安装插件不会转换现有节点；跨字段根的变化通过宿主整文档换代，插件不能设置 epoch。缺插件、未知版本按原契约保留，不能拿最新版 schema 自动修复。旧 `schemaVersion/migrate` 不属于当前作者接口。
+宿主不提供数据升级或旧格式转换。已有元素使用保存时的精确契约，缺少对应定义时保留原数据并禁写。新插入元素使用当前版本。
 
 ## 创建工具
 

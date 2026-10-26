@@ -1290,24 +1290,6 @@ export function calendarEventDelete(id: number) {
   return trackedInvoke<number>("calendar_event_delete", { payload: { id } });
 }
 
-export type ContentRecovery = {
-  id: string;
-  workspace?: string;
-  missing?: string[];
-  error?: string;
-};
-export function listContentRecoveries() {
-  return trackedInvoke<ContentRecovery[]>("content_recovery_list");
-}
-export function preserveContentRecovery(documentId: string) {
-  return trackedInvoke<string>("content_recovery_preserve", { documentId });
-}
-export function exportContentRecovery(id: string) {
-  return trackedInvoke<string>("content_recovery_export", { id });
-}
-export function collabAdoptCache(payload: Parameters<typeof collabWriteCache>[0]) {
-  return trackedInvoke<string>("collab_cache_adopt", { payload });
-}
 export function collabInputDraft(payload: {
   documentId: string;
   baselineId: string;

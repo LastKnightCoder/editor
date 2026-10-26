@@ -136,3 +136,11 @@ describe("结束共享残留的重新发起判定", () => {
     expect(planClosedReshare({ status: "active", pending: true })).toBeNull();
   });
 });
+
+it("旧缓存版本拒绝打开，不在启动时改写用户缓存", () => {
+  const directory = temporary();
+  const store = new CollaborationLocalStore(directory);
+  store.db.pragma("user_version=2");
+  store.db.close();
+  expect(() => new CollaborationLocalStore(directory)).toThrow("CONTENT_FORMAT_UNSUPPORTED");
+});

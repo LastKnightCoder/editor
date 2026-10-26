@@ -46,7 +46,7 @@ afterEach(() => {
 });
 
 describe("元素定义版本装配校验", () => {
-  it("schemaVersion=2 但缺 migrate[1] → invalid-definition", () => {
+  it("同版本声明直接装配，不要求升级函数", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const board = createBoard();
     const errors = install(board, [
@@ -56,10 +56,8 @@ describe("元素定义版本装配校验", () => {
         create: () => ({}),
       }),
     ]);
-    expect(errors).toMatchObject([
-      { extensionId: "acme.cards", reason: "invalid-definition", target: "acme.card" },
-    ]);
-    expect(board.getPlugin("acme.card")).toBeUndefined();
+    expect(errors).toEqual([]);
+    expect(board.getPlugin("acme.card")).toBeDefined();
   });
 
   it("schemaVersion=0 → invalid-definition", () => {
@@ -76,7 +74,7 @@ describe("元素定义版本装配校验", () => {
     expect(board.getPlugin("acme.card")).toBeUndefined();
   });
 
-  it("schemaVersion 缺省或 1 时无需 migrate，正常装配", () => {
+  it("schemaVersion 缺省或 1 时正常装配", () => {
     const board = createBoard();
     const errors = install(board, [
       defineWhiteboardExtension({
@@ -92,7 +90,6 @@ describe("元素定义版本装配校验", () => {
 
 const cardExtension = (options: {
   schemaVersion: number;
-  migrate?: WhiteboardElementDefinition["migrate"];
   render?: WhiteboardElementDefinition["render"];
 }) =>
   defineWhiteboardExtension({
@@ -101,7 +98,6 @@ const cardExtension = (options: {
       definition({
         type: "acme.card",
         schemaVersion: options.schemaVersion,
-        migrate: options.migrate,
         ...(options.render ? { render: options.render } : {}),
       }),
     ],
@@ -125,7 +121,6 @@ describe("加载迁移", () => {
     const errors = install(board, [
       cardExtension({
         schemaVersion: 2,
-        migrate: { 1: e => ({ ...e, data: { text: (e.data as any).text, v2: true } }) },
       }),
     ]);
     expect(errors).toEqual([]);
@@ -152,7 +147,6 @@ describe("插入迁移（submit / undo / redo）", () => {
   const v2Extension = () =>
     cardExtension({
       schemaVersion: 2,
-      migrate: { 1: e => ({ ...e, data: "v2" }) },
     });
 
   it("api.submit 插入 v1 元素 → 快照中仍为 v1，undo/redo 正确", () => {
@@ -226,7 +220,6 @@ describe("不兼容元素按占位渲染", () => {
     install(board, [
       cardExtension({
         schemaVersion: 2,
-        migrate: { 1: e => ({ ...e, data: "v2" }) },
         render: authorRender,
       }),
     ]);
@@ -243,22 +236,17 @@ describe("不兼容元素按占位渲染", () => {
     expect(board.children[0]).toEqual(source);
   });
 
-  it("迁移失败停在旧版本：migration-failed 占位", () => {
+  it("版本不匹配停在旧版本：unsupported-version 占位", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const source = element({ id: "m1", type: "acme.card", schemaVersion: 1, data: "v1" });
     const board = createBoard([source]);
     install(board, [
       cardExtension({
         schemaVersion: 2,
-        migrate: {
-          1: () => {
-            throw new Error("迁移崩溃");
-          },
-        },
       }),
     ]);
     const html = renderElement(board, board.children[0]);
-    expect(html).toContain('data-unknown-reason="migration-failed"');
+    expect(html).toContain('data-unknown-reason="unsupported-version"');
     expect(board.children[0]).toEqual(source);
   });
 
@@ -297,7 +285,7 @@ describe("不兼容元素按占位渲染", () => {
   });
 });
 
-describe("迁移失败报告", () => {
+describe("版本不匹配报告", () => {
   it("加载与插入不执行旧迁移函数", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const board = createBoard([
@@ -307,11 +295,6 @@ describe("迁移失败报告", () => {
     const errors = install(board, [
       cardExtension({
         schemaVersion: 2,
-        migrate: {
-          1: () => {
-            throw new Error("迁移崩溃");
-          },
-        },
       }),
     ]);
     expect(errors).toHaveLength(0);

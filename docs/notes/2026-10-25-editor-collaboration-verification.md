@@ -1,6 +1,6 @@
 # 编辑器插件协作：本地实现与验证记录
 
-本记录是 2026-10-25 的验证快照。当前实现说明见[协作架构](/docs/architecture/collaboration.md)，操作见[正文转换与保全](/docs/guides/ops-editor-contract-upgrade.md)，作者 API 与完整 v1→v2 示例见[作者文档](/packages/plugins/docs/editor-collaboration.md)。
+本记录是 2026-10-25 的验证快照。当前实现说明见[协作架构](/docs/architecture/collaboration.md)，操作见[正文转换与保全](/docs/architecture/collaboration.md)，作者 API 与完整 v1→v2 示例见[作者文档](/packages/plugins/docs/editor-collaboration.md)。
 
 纠正此前验收结论：上一轮测试没有覆盖单篇副本携带无关主库数据、未知旧插件附件漏报、折叠区实体引用重复记账这三个场景，因此当时“全部完成”和“单篇保全已收窄”的表述不成立。本轮仅针对这三处修复，历史测试数量不能作为这三项已通过的证据。
 

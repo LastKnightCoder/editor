@@ -1,4 +1,4 @@
-import type { DataMigration, PreviousDataVersion } from "@tau/db-schema/data-versions";
+import type { PreviousDataVersion } from "@tau/db-schema/data-versions";
 import type { ContentResourceSpec } from "@tau/db-schema/content-resources";
 import type { ComponentType, ReactNode } from "react";
 import type { ServiceIdentifier } from "@tau/shared/service-contract";
@@ -111,7 +111,6 @@ export interface WhiteboardElementDefinition<TData = unknown> {
   collaboration?: { textFields?: readonly string[] };
   resources?: readonly ContentResourceSpec[];
   previousVersions?: readonly PreviousDataVersion<WhiteboardElementDefinition<TData>>[];
-  migrations?: readonly DataMigration<any>[];
   type: string;
   presentation?: {
     label: string;
@@ -128,11 +127,9 @@ export interface WhiteboardElementDefinition<TData = unknown> {
   getBounds?(element: ElementParam<TData>): ElementBounds | null;
   isHit?(element: ElementParam<TData>, x: number, y: number): boolean;
   move?(element: ElementParam<TData>, dx: number, dy: number): BoardElement;
-  /** 元素数据结构版本（正整数，缺省 1）；数据低于该版本时按 migrate 逐步升级 */
+  /** 元素数据结构版本（正整数，缺省 1）；仅匹配同版本数据，不执行格式转换 */
   schemaVersion?: number;
-  /** 键 n 表示“从 n 升到 n+1”的单步迁移；装配时要求覆盖 [1, schemaVersion) 的全部步骤 */
-  migrate?: Record<number, (element: ElementParam<TData>) => BoardElement>;
-  /** 约束 element.data 的 Standard Schema v1；提交与迁移产物校验均要求同步返回结果 */
+  /** 约束 element.data 的 Standard Schema v1；提交校验要求同步返回结果 */
   schema?: StandardSchemaV1<unknown, TData>;
   /** 收纳声明：未声明时可被容器收纳（能进 frame，不能进 layout 类受限容器） */
   containment?: ElementContainmentSpec;
@@ -330,7 +327,7 @@ export type WhiteboardExtensionErrorReason =
   | "missing-service"
   | "invalid-definition"
   | "create-failed"
-  | "migration-failed";
+  | "unsupported-version";
 
 export interface WhiteboardExtensionError {
   extensionId: string;

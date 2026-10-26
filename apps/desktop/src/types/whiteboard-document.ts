@@ -42,10 +42,6 @@ export interface WhiteboardShareCandidate {
 export interface WhiteboardShareStatus {
   binding: { serverUrl: string; documentId: string } | null;
   publication: { operationId: string; roomCreated: boolean } | null;
-  /** 已固定候选、尚未安装完的本机转换或新代次采用。 */
-  migration: { operationId: string; phase: string } | null;
-  /** 已冻结来源、尚未提交的插件数据升级。 */
-  upgrade: { operationId: string } | null;
 }
 /**
  * 远端会话摘要：requiresRebind 时本机副本不能继续发送，reason 区分远端已换代（可采用新版本）

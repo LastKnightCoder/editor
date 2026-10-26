@@ -8,18 +8,12 @@ import { useCollabProjection } from "./useCollabProjection";
 import { useStableSessionStatus, type SessionStatus } from "../session-status";
 import type { CollaborationSession } from "@tau/collaboration";
 
-export function useCollabSession(
-  documentId: string,
-  options?: {
-    /** 暂停投影（重连后有本地兜底改动待作者选择时） */
-    projectionPaused?: boolean;
-  }
-) {
+export function useCollabSession(documentId: string) {
   const { binding, document, session, loading, error, frozen, boundContentId, ended, retry } =
     useCollaborationDocument(documentId);
   const readonly = frozen || !binding || (session ? session.status !== "active" : false);
   const presence = useCollaborationPresence(binding, readonly);
-  useCollabProjection(binding, boundContentId, options?.projectionPaused);
+  useCollabProjection(binding, boundContentId);
   const status = useStableSessionStatus(session);
   const online = (session?.members ?? []).filter(member => member.online);
   const offline = session?.connection === "offline" || session?.connection === "error";

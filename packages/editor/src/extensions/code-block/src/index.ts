@@ -6,4 +6,3 @@ export type { CodeBlockElement, CodeBlockMagicMove, CodeBlockMagicMoveStep } fro
 export { insertCodeBlock } from "./insert";
 
 export { codeBlockV2Extension, codeStepElement } from "./extensions/code-block";
-export { convertLegacyCodeBlock } from "./codeStepMigration";

@@ -96,36 +96,6 @@ async function fixture() {
   io.protocol.mockResolvedValue({ id: "doc", version: 2, baselineId: "base", epoch: 0 });
   return { doc, content, info, state, contracts: { [contract.id]: contract.contract } };
 }
-it.each([
-  { epoch: 0, baselineId: "other", oldEpoch: 0 },
-  { epoch: 0, baselineId: "base", oldEpoch: 1 },
-])("共享采用拒绝旧代次或同代次换基线：%j", async ({ epoch, baselineId, oldEpoch }) => {
-  const { doc, info, content, contracts } = await fixture();
-  doc.getMap("meta").set("epoch", oldEpoch);
-  const state = bytesToBase64(Y.encodeStateAsUpdate(doc));
-  io.read.mockResolvedValue({
-    metadata: { ...info, epoch: oldEpoch },
-    state,
-    updates: [],
-    revision: "cache-revision",
-  });
-  io.remote.mockResolvedValue({ state });
-  const session = await manager.createSession(info);
-  const remote = await createNodeDocument(
-    { documentId: "doc", baselineId, epoch },
-    content,
-    contracts
-  );
-  try {
-    io.remote.mockResolvedValue({ state: bytesToBase64(Y.encodeStateAsUpdate(remote)) });
-    await expect(collaborationManager.adoptRemote("doc")).rejects.toThrow("不能回退");
-    expect(io.adopt).not.toHaveBeenCalled();
-    expect(manager.sessions.get("doc")).toBe(session);
-  } finally {
-    remote.destroy();
-    doc.destroy();
-  }
-});
 it("重启合入同一真实基线，未确认的本机输入不会被服务器旧快照覆盖", async () => {
   const { doc, info, state } = await fixture();
   const before = Y.encodeStateVector(doc),
@@ -234,43 +204,6 @@ it("源码草稿随实际增量确认，保存失败不清理未确认输入", a
     original.dispose();
     doc.destroy();
   }
-});
-
-it("采用新版本先请求原生保全安装，失败保留旧会话，成功不发送旧基线", async () => {
-  const { doc, info, state, content, contracts } = await fixture();
-  io.read.mockResolvedValue({ metadata: info, state, updates: [], revision: "cache-revision" });
-  const session = await manager.createSession(info);
-  const remote = await createNodeDocument(
-    { documentId: "doc", baselineId: "new-base", epoch: 1 },
-    content,
-    contracts
-  );
-  const next = bytesToBase64(Y.encodeStateAsUpdate(remote));
-  io.remote.mockResolvedValue({ state: next });
-  io.adopt.mockRejectedValueOnce(new Error("备份失败"));
-  await expect(collaborationManager.adoptRemote("doc")).rejects.toThrow("备份失败");
-  expect(manager.sessions.get("doc")).toBe(session);
-  expect(session.doc.getMap("meta").get("baselineId")).toBe("base");
-  io.adopt.mockImplementationOnce(async payload => {
-    io.read.mockResolvedValue({
-      metadata: payload.metadata,
-      state: payload.state,
-      updates: [],
-      revision: "adopted",
-    });
-    return "adopted";
-  });
-  await collaborationManager.adoptRemote("doc");
-  expect(io.adopt.mock.calls.at(-1)?.[0]).toMatchObject({
-    expectedRevision: "cache-revision",
-    metadata: { baselineId: "new-base", epoch: 1, pending: false },
-  });
-  expect(manager.sessions.get("doc")?.doc.getMap("meta").get("baselineId")).toBe("new-base");
-  expect(manager.sessions.get("doc")?.info.frozen).toBe(false);
-  session.awareness.destroy();
-  session.doc.destroy();
-  remote.destroy();
-  doc.destroy();
 });
 
 it("写盘失败后重试保留祖先和后继，成功才解除保存冻结", async () => {

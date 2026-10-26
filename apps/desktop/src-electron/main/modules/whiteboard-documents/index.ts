@@ -1,7 +1,5 @@
-import { prepareWhiteboardLibraryBaseline } from "./library-baseline";
 import { WhiteboardTransitions } from "./transitions";
-import { inventoryLegacyWhiteboards } from "./legacy-inventory";
-import { WhiteboardMigration } from "./migration";
+import { WhiteboardInstallation } from "./installation";
 import { isVideoFile } from "../collaboration/asset-service";
 import ContentTable, { CONTENT_RELEASE_GRACE_MS } from "../tables/content";
 import {
@@ -12,11 +10,6 @@ import {
 import * as Y from "yjs";
 import {
   normalizeServerUrl,
-  collectWhiteboardDocumentResources,
-  createWhiteboardBaseline,
-  assertWhiteboardVersionUpgrade,
-  validateWhiteboardDocument,
-  type WhiteboardTransfer,
   WhiteboardModel,
   exportWhiteboardTransfer,
   type DocumentSyncSession,
@@ -31,8 +24,6 @@ import { join } from "node:path";
 import databaseModule from "../database";
 import PathUtil from "../../utils/PathUtil";
 import { ContentIdentityTable } from "../tables/content-identity";
-import { ContentRecoveryStore } from "../collaboration/content-recovery";
-import { contentRecoveryResources } from "../collaboration/content-recovery-resources";
 import { ContentRetention } from "../collaboration/content-retention";
 import { WhiteboardJournal, stateHash } from "./journal";
 import { WhiteboardDocumentSessions } from "./sessions";
@@ -50,21 +41,6 @@ import {
   type WhiteboardUnshareJob,
   type WhiteboardUnshareMode,
 } from "./unshare";
-
-interface MigrationSource {
-  name: string;
-  documentId: string;
-  sourceHash: string;
-  state: string;
-  serverUrl?: string;
-  roomId?: string;
-  expectedEpoch?: number;
-  expiresAt?: number;
-  candidate?: string;
-  proposalHash?: string;
-  operation?: import("@tau/collaboration").DocumentMigration;
-  done?: boolean;
-}
 type WhiteboardDrainScope = DocumentDrainScope & { documentId?: string };
 type RemoteSnapshot = ReturnType<DocumentSyncSession["snapshot"]>;
 const ROOM_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
@@ -104,7 +80,7 @@ const remoteStatus = (
 /** 排空时窗口未及回执（不可达、超时、被并发操作取消）；会话本身完好，稍后重试即可。 */
 class DrainInterrupted extends Error {}
 class WhiteboardDocumentsModule {
-  private migration!: WhiteboardMigration;
+  private installation!: WhiteboardInstallation;
   private transitions!: WhiteboardTransitions;
   private transitionPreparing = new Map<string, Promise<void>>();
   private transitionOwners = new Map<string, string>();
@@ -118,7 +94,7 @@ class WhiteboardDocumentsModule {
   private remoteViews = new Map<string, { key: string; rejectedCount: number }>();
   private remoteSyncs = new Map<string, Promise<unknown>>();
   private journal!: WhiteboardJournal;
-  private store!: ReturnType<typeof collaborationModule.documentMigration>["store"];
+  private store!: ReturnType<typeof collaborationModule.documentStorage>["store"];
   private assertOwnerDeletion(db: Database.Database, id: number): string {
     const name = [...databaseModule.databases].find(([, value]) => value === db)?.[0];
     if (name === undefined || !this.sessions || !this.store)
@@ -180,7 +156,7 @@ class WhiteboardDocumentsModule {
   collectPendingDocuments(db: Database.Database, now: number, graceMs: number): number {
     const name = [...databaseModule.databases].find(([, value]) => value === db)?.[0];
     if (name === undefined || !this.sessions || !this.store) return 0;
-    const retention = new ContentRetention(collaborationModule.documentMigration().state);
+    const retention = new ContentRetention(collaborationModule.documentStorage().state);
     let collected = 0;
     for (const { document_id } of db
       .prepare("SELECT document_id FROM whiteboard_documents WHERE board_id IS NULL")
@@ -317,249 +293,6 @@ class WhiteboardDocumentsModule {
     this.owner(event, view.databaseName);
     return owner;
   }
-  private projected(databaseName: string, documentId: string) {
-    for (const window of BrowserWindow.getAllWindows())
-      if (!window.isDestroyed())
-        window.webContents.send("whiteboard-document:projected", { databaseName, documentId });
-  }
-
-  private async prepareLegacy(
-    databaseName: string,
-    operationId: string,
-    documentId: string,
-    editorContracts: import("@tau/db-schema/content-contracts").ContentContractDictionary
-  ) {
-    const services = collaborationModule.documentMigration();
-
-    const db = databaseModule.getDatabase(databaseName);
-    if (!db) throw new Error("资料库未连接");
-    const existing = services.state.migration(operationId);
-    if (existing) {
-      if (
-        existing.plan.kind !== "whiteboard" ||
-        existing.plan.workspaceId !== databaseName ||
-        existing.plan.documentId !== documentId
-      )
-        throw new Error("旧快照转换操作目标不匹配");
-      return existing;
-    }
-    const identified = services.store.get<unknown>(
-      `whiteboard-library-baseline:${operationId}`,
-      null
-    );
-    if (!ContentIdentityTable.library(db) && !identified)
-      throw new Error("须先显式准备选定完整库的来源基线");
-    const baseline = identified
-      ? await prepareWhiteboardLibraryBaseline(db, databaseName, operationId, services.store)
-      : null;
-    const target = (baseline?.documents ?? inventoryLegacyWhiteboards(db)).find(
-      value => value.documentId === documentId
-    );
-    if (!target) throw new Error("待转换白板不存在");
-    const assets = collaborationModule.documentAssets();
-    const { convertLegacyWhiteboard } = await import("./legacy");
-    const converted = await convertLegacyWhiteboard(
-      target.pages.map(page => ({
-        id: page.pageId,
-        title: page.title,
-        data: JSON.parse(page.data),
-      })),
-      {
-        documentId,
-        title: target.title,
-        editorContracts,
-        resolveEntity: (kind, id) => {
-          try {
-            if (baseline) {
-              const entity = baseline.baseline.entities.find(
-                row => row.entity_kind === kind && row.local_id === id && row.retired_at === null
-              );
-              return entity
-                ? {
-                    sourceId: baseline.baseline.library.source_id,
-                    kind,
-                    entityId: entity.entity_id,
-                  }
-                : null;
-            }
-            return ContentIdentityTable.reference(db, kind, id);
-          } catch {
-            return null;
-          }
-        },
-        mapResource: reference => assets.prepareLocalReference(documentId, reference),
-      }
-    );
-    try {
-      if (databaseModule.getDatabase(databaseName) !== db) throw new Error("转换期间资料库已变化");
-      const dependencies = new ContentRetention(services.state).dependencies(
-        db,
-        databaseName,
-        target.pages.map(page => ({ kind: "whiteboard-content" as const, id: page.contentId })),
-        documentId
-      );
-      const resources = assets.recoveryFiles(documentId, [
-        ...contentRecoveryResources(db, dependencies),
-        ...collectWhiteboardDocumentResources(converted.doc),
-      ]);
-      const recoveryStore = new ContentRecoveryStore(
-        join(PathUtil.getAppDir(), "collaboration"),
-        services.state
-      );
-      const recovery = recoveryStore.save({
-        workspaceId: databaseName,
-        reason: "migration",
-        provenance: { operationId, documentId, kind: "whiteboard", issues: converted.issues },
-        missing: resources.missing,
-        files: [
-          { name: "source-pages.json", bytes: Buffer.from(JSON.stringify(target)) },
-          { name: "candidate.bin", bytes: Y.encodeStateAsUpdate(converted.doc) },
-          { name: "resources.json", bytes: Buffer.from(JSON.stringify(resources.resources)) },
-          ...resources.files,
-        ],
-      });
-      recoveryStore.verify(recovery);
-      if (converted.issues.length)
-        services.store.set(`legacy-upgrade-issues:${databaseName}:${documentId}`, {
-          key: `whiteboard:${target.pages[0].contentId}`,
-          message: `有 ${converted.issues.length} 处白板内容未能完整转换，原始载荷已保留，需要核对。保全位置：${recovery.manifestPath}`,
-        });
-      else services.store.delete(`legacy-upgrade-issues:${databaseName}:${documentId}`);
-      return await this.migration.prepare(db, databaseName, {
-        operationId,
-        documentId,
-        candidate: Y.encodeStateAsUpdate(converted.doc),
-        target: { boardId: target.boardId, boardTitle: target.title, pages: target.pages },
-        evidence: {
-          recovery,
-          mapping: converted.mapping,
-          issues: converted.issues,
-          views: converted.views,
-        },
-        ...(baseline ? { baseline: { hash: baseline.hash, value: baseline.baseline } } : {}),
-      });
-    } finally {
-      converted.doc.destroy();
-    }
-  }
-
-  async upgradeLegacyWhiteboard(
-    databaseName: string,
-    contentId: number,
-    editorContracts: import("@tau/db-schema/content-contracts").ContentContractDictionary
-  ) {
-    const services = collaborationModule.documentMigration();
-    const db = databaseModule.getDatabase(databaseName);
-    if (!db) throw new Error("资料库未连接");
-    const mapped = new WhiteboardDocumentRepository(db, databaseName).byPage(contentId);
-    let pending = services.state
-      .pendingMigrations()
-      .find(
-        record =>
-          record.plan.kind === "whiteboard" &&
-          record.plan.workspaceId === databaseName &&
-          JSON.parse(record.plan.prepared.installation).target.pages.some(
-            (page: { contentId: number }) => page.contentId === contentId
-          )
-      );
-    if (pending?.plan.kind === "whiteboard" && !mapped && !pending.plan.remote) {
-      const installation = JSON.parse(pending.plan.prepared.installation);
-      if (
-        installation.beforeHash === null &&
-        !installation.publication &&
-        ((installation.baseline && installation.baseline.hash !== stateHash(db.serialize())) ||
-          installation.target.pages.some(
-            (page: { contentId: number; createdAt: number; data: string; title?: string }) => {
-              const row = db
-                .prepare("SELECT create_time,data,name FROM white_board_contents WHERE id=?")
-                .get(page.contentId) as
-                | { create_time: number; data: string; name: string }
-                | undefined;
-              return (
-                !row ||
-                row.create_time !== page.createdAt ||
-                row.data !== page.data ||
-                (page.title !== undefined && (row.name ?? "") !== page.title)
-              );
-            }
-          ) ||
-          (installation.target.boardId !== null &&
-            (() => {
-              const row = db
-                .prepare("SELECT title,white_board_content_ids FROM white_boards WHERE id=?")
-                .get(installation.target.boardId) as
-                | { title: string; white_board_content_ids: string }
-                | undefined;
-              return (
-                !row ||
-                (installation.target.boardTitle !== undefined &&
-                  (row.title ?? "") !== installation.target.boardTitle) ||
-                JSON.stringify(JSON.parse(row.white_board_content_ids)) !==
-                  JSON.stringify(
-                    installation.target.pages.map((page: { contentId: number }) => page.contentId)
-                  )
-              );
-            })()))
-      ) {
-        const cancelled = await this.migration.cancel(db, databaseName, pending.plan.operationId);
-        if (cancelled.phase === "COMPLETE") return { documentId: cancelled.plan.documentId };
-        pending = undefined;
-      }
-    }
-    if (mapped && !pending) return { documentId: mapped.document.documentId };
-    const page = db
-      .prepare("SELECT create_time FROM white_board_contents WHERE id=?")
-      .get(contentId) as { create_time: number } | undefined;
-    if (!page) throw new Error("待转换白板不存在");
-    // 同一旧白板的转换沿用固定操作身份；终止后的操作不复活，另起新身份。
-    const key = `whiteboard-legacy-operation:${databaseName}:page:${contentId}:${page.create_time}`;
-    let operationId = pending?.plan.operationId ?? services.store.get<string | null>(key, null);
-    const previous = operationId ? services.state.migration(operationId) : null;
-    const preparedBaseline =
-      operationId &&
-      services.store.get<{ hash: string } | null>(
-        `whiteboard-library-baseline:${operationId}`,
-        null
-      );
-    if (
-      operationId &&
-      !previous &&
-      preparedBaseline &&
-      preparedBaseline.hash !== stateHash(db.serialize())
-    ) {
-      services.store.delete(`whiteboard-library-baseline:${operationId}`);
-      operationId = null;
-    }
-    if (!operationId || (previous && ["ABORTED", "EXPIRED"].includes(previous.phase))) {
-      operationId = `legacy-${randomUUID()}`;
-      services.store.set(key, operationId);
-    }
-    let documentId = pending?.plan.documentId;
-    if (!documentId && ContentIdentityTable.library(db)) {
-      try {
-        documentId = inventoryLegacyWhiteboards(db).find(entry =>
-          entry.pages.some(page => page.contentId === contentId)
-        )?.documentId;
-      } catch (error) {
-        if (!(error instanceof Error) || !error.message.includes("实体身份尚未登记")) throw error;
-      }
-    }
-    if (!documentId)
-      documentId = (
-        await prepareWhiteboardLibraryBaseline(db, databaseName, operationId, services.store)
-      ).documents.find(entry => entry.pages.some(page => page.contentId === contentId))?.documentId;
-    if (!documentId) throw new Error("待转换白板不存在");
-    await this.prepareLegacy(databaseName, operationId, documentId, editorContracts);
-    const prepared = services.state.migration(operationId)!;
-    if (!prepared.plan.remote && !["COMPLETE", "ABORTED", "EXPIRED"].includes(prepared.phase))
-      services.state.continueLocal(operationId);
-    const result = await this.transitions.finishMigration(db, databaseName, operationId, "", false);
-    if (result.phase === "COMPLETE") {
-      services.store.delete(key);
-      this.projected(databaseName, documentId);
-    } else throw new Error("白板升级尚未完成，将自动续做");
-    return { documentId };
-  }
 
   async init(): Promise<void> {
     const journal = new WhiteboardJournal(
@@ -589,9 +322,9 @@ class WhiteboardDocumentsModule {
       projected,
       (name, id) => this.transitions.blocked(name, id)
     );
-    const services = collaborationModule.documentMigration();
+    const services = collaborationModule.documentStorage();
     this.store = services.store;
-    this.migration = new WhiteboardMigration(
+    this.installation = new WhiteboardInstallation(
       services.state,
       journal,
       (db, kind, id, delta) => {
@@ -604,7 +337,7 @@ class WhiteboardDocumentsModule {
       (db, name) => db.open && databaseModule.getDatabase(name) === db
     );
     this.transitions = new WhiteboardTransitions(
-      this.migration,
+      this.installation,
       services.store,
       collaborationModule.documentClient(),
       collaborationModule.documentAssets()
@@ -617,12 +350,12 @@ class WhiteboardDocumentsModule {
       operationId: string
     ) => {
       if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(operationId))
-        throw new Error("迁移操作身份无效");
+        throw new Error("共享操作身份无效");
       const owner = this.leaseOwner(event, leaseId);
       const source = this.sessions.snapshot(leaseId, owner);
       const scope = JSON.stringify([source.identity.databaseName, source.identity.documentId]);
       if (this.transitionOwners.has(scope) && this.transitionOwners.get(scope) !== operationId)
-        throw new Error("白板已有正在处理的迁移操作");
+        throw new Error("白板已有正在处理的共享操作");
       this.transitionOwners.set(scope, operationId);
       if (!this.transitionDrains.has(operationId)) {
         let preparing = this.transitionPreparing.get(operationId);
@@ -654,26 +387,6 @@ class WhiteboardDocumentsModule {
         documentId: current.identity.documentId,
       };
     };
-    handle("library-baseline-prepare", async (event, databaseName: string, operationId: string) => {
-      this.owner(event, databaseName);
-      const db = databaseModule.getDatabase(databaseName);
-      if (!db) throw new Error("资料库未连接");
-      return prepareWhiteboardLibraryBaseline(db, databaseName, operationId, services.store);
-    });
-    handle("legacy-inventory", (event, databaseName: string) => {
-      this.owner(event, databaseName);
-      const db = databaseModule.getDatabase(databaseName);
-      if (!db) throw new Error("资料库未连接");
-      return inventoryLegacyWhiteboards(db);
-    });
-    handle("legacy-prepare", (event, databaseName, operationId, documentId, contracts) => {
-      this.owner(event, databaseName);
-      return this.prepareLegacy(databaseName, operationId, documentId, contracts);
-    });
-    handle("legacy-convert", (event, databaseName, contentId, contracts) => {
-      this.assertOpenAllowed(this.owner(event, databaseName), databaseName);
-      return this.upgradeLegacyWhiteboard(databaseName, contentId, contracts);
-    });
     handle(
       "publish",
       async (
@@ -740,7 +453,7 @@ class WhiteboardDocumentsModule {
         if (services.store.get<WhiteboardUnshareJob | null>(unshareKey, null)?.remoteDone) {
           const db = databaseModule.getDatabase(databaseName),
             stored = db && new WhiteboardDocumentRepository(db, databaseName).read(documentId);
-          if (stored && !this.migration.pending(databaseName, documentId)) {
+          if (stored && !this.installation.pending(databaseName, documentId)) {
             const doc = new Y.Doc();
             Y.applyUpdate(doc, stored.state);
             if (!doc.share.has("meta") || doc.getMap("meta").get("version") !== 3) {
@@ -750,37 +463,13 @@ class WhiteboardDocumentsModule {
             doc.destroy();
           }
         }
-        const migration = this.migration.pending(databaseName, documentId);
-        const upgrade = services.store.db
-          .prepare(
-            "SELECT key FROM settings WHERE key LIKE 'whiteboard-migration-source:%' AND json_extract(value,'$.name')=? AND json_extract(value,'$.documentId')=? AND coalesce(json_extract(value,'$.done'),0)=0"
-          )
-          .get(databaseName, documentId) as { key: string } | undefined;
         const publication = this.transitions.pendingPublication(databaseName, documentId);
         return {
           binding: services.store.get<WhiteboardShareStatus["binding"]>(bindingKey, null),
           publication,
-          migration:
-            migration && !publication
-              ? { operationId: migration.plan.operationId, phase: migration.phase }
-              : null,
-          upgrade: upgrade
-            ? { operationId: upgrade.key.slice("whiteboard-migration-source:".length) }
-            : null,
         };
       }
     );
-    // 插件数据升级被暂停后无法再打开画布取得租约，凭原操作读取已固定的来源继续。
-    handle("migration-source-read", (event, databaseName: string, operationId: string) => {
-      this.owner(event, databaseName);
-      const saved = services.store.get<MigrationSource | null>(
-        `whiteboard-migration-source:${operationId}`,
-        null
-      );
-      if (!saved || saved.name !== databaseName || saved.done)
-        throw new Error("升级操作不存在或已结束");
-      return { state: saved.state, documentId: saved.documentId };
-    });
     handle(
       "remote-install",
       async (event, databaseName: string, serverUrl: string, roomId: string) => {
@@ -843,273 +532,6 @@ class WhiteboardDocumentsModule {
         services.store.delete(installKey);
         projected(databaseName, install.documentId);
         return pages(install.documentId)!;
-      }
-    );
-    handle(
-      "migration-source",
-      async (event, leaseId: string, operationId: string, serverUrl?: string) => {
-        const context = await transitionContext(event, leaseId, operationId);
-        const key = `whiteboard-migration-source:${operationId}`;
-        let saved = services.store.get<MigrationSource | null>(key, null);
-        if (
-          saved &&
-          (saved.name !== context.name || saved.documentId !== context.documentId || saved.done)
-        )
-          throw new Error("迁移操作目标冲突或已终止");
-        if (!saved) {
-          const doc = new Y.Doc();
-          Y.applyUpdate(doc, context.source.state);
-          try {
-            const meta = doc.share.has("meta") ? doc.getMap("meta") : undefined;
-            if (serverUrl && meta?.get("version") !== 3) throw new Error("白板尚未共享");
-            saved = {
-              name: context.name,
-              documentId: context.documentId,
-              sourceHash: stateHash(context.source.state),
-              state: Buffer.from(context.source.state).toString("base64"),
-              ...(serverUrl
-                ? {
-                    serverUrl: collaborationModule
-                      .documentClient()
-                      .canonicalUrl(normalizeServerUrl(serverUrl)),
-                    roomId: String(meta!.get("documentId")),
-                    expectedEpoch: Number(meta!.get("epoch")),
-                    expiresAt: Date.now() + 240_000,
-                  }
-                : {}),
-            };
-            services.store.set(key, saved);
-          } finally {
-            doc.destroy();
-          }
-        }
-        if (saved.serverUrl && !saved.operation) {
-          const source = saved;
-          const { key: remoteKey, session: remote } = await this.remoteSession(
-            source.serverUrl!,
-            source.roomId!
-          );
-          await this.serialRemote(remoteKey, async () => {
-            const { operation: existing } = await collaborationModule
-              .documentClient()
-              .request<{ operation: import("@tau/collaboration").DocumentMigration | null }>(
-                source.serverUrl!,
-                `/v1/documents/${source.roomId}/migrations/${encodeURIComponent(operationId)}`
-              );
-            if (!existing?.frozenRevision && (!existing || existing.state === "PENDING")) {
-              await remote.flush();
-              await remote.synchronize();
-              if (
-                remote.snapshot().blocked ||
-                remote.snapshot().confirmed.protocol.epoch !== source.expectedEpoch
-              )
-                throw new Error("旧分支须先保全并采用新代次");
-              await this.pushLocal(remote, Buffer.from(source.state, "base64"));
-              if (remote.snapshot().blocked) throw new Error("本机分支未被接纳，不能启动迁移");
-            }
-            const confirmed = await this.transitions.remoteCandidate(
-              source.serverUrl!,
-              source.roomId!,
-              operationId,
-              source.expectedEpoch!,
-              source.expiresAt!
-            );
-            saved = {
-              ...source,
-              state: Buffer.from(confirmed.state).toString("base64"),
-              operation: confirmed.operation,
-            };
-            services.store.set(key, saved);
-          });
-        }
-        return saved;
-      }
-    );
-    handle(
-      "migration-prepare",
-      async (event, databaseName: string, operationId: string, bundle: WhiteboardTransfer) => {
-        this.owner(event, databaseName);
-        const source = services.store.get<MigrationSource | null>(
-          `whiteboard-migration-source:${operationId}`,
-          null
-        );
-        if (!source || source.name !== databaseName) throw new Error("迁移来源不存在");
-        const db = databaseModule.getDatabase(databaseName)!;
-        const original = new WhiteboardDocumentRepository(db, databaseName).read(
-          source.documentId
-        )!;
-        if (original.hash !== source.sourceHash) throw new Error("原白板已变化");
-        const doc = new Y.Doc();
-        Y.applyUpdate(doc, Buffer.from(source.state, "base64"));
-        const model = new WhiteboardModel(doc);
-        try {
-          if (model.read().recovery.length || model.read().pages.some(page => page.recovery.length))
-            throw new Error("须先确认恢复区归属");
-          const before = exportWhiteboardTransfer(model, source.documentId);
-          assertWhiteboardVersionUpgrade(before, bundle);
-          const meta = doc.share.has("meta") ? doc.getMap("meta") : undefined;
-          const proposalHash = stateHash(Buffer.from(JSON.stringify(bundle)));
-          if (source.proposalHash && source.proposalHash !== proposalHash)
-            throw new Error("同一迁移不能更换候选");
-          const candidate = source.candidate
-            ? new Y.Doc({ gc: false })
-            : await createWhiteboardBaseline(
-                bundle,
-                meta
-                  ? {
-                      documentId: String(meta.get("documentId")),
-                      baselineId: randomUUID(),
-                      epoch: Number(meta.get("epoch")) + 1,
-                    }
-                  : undefined
-              );
-          if (source.candidate) Y.applyUpdate(candidate, Buffer.from(source.candidate, "base64"));
-          else
-            services.store.set(`whiteboard-migration-source:${operationId}`, {
-              ...source,
-              proposalHash,
-              candidate: Buffer.from(Y.encodeStateAsUpdate(candidate)).toString("base64"),
-            });
-          try {
-            return await this.migration.prepare(db, databaseName, {
-              operationId,
-              documentId: source.documentId,
-              candidate: Y.encodeStateAsUpdate(candidate),
-              target: { boardId: original.boardId, pages: [] },
-              operation: source.operation,
-            });
-          } finally {
-            candidate.destroy();
-          }
-        } finally {
-          model.dispose();
-          doc.destroy();
-        }
-      }
-    );
-    handle(
-      "migration-finish",
-      async (event, databaseName: string, operationId: string, cancel = false) => {
-        this.owner(event, databaseName);
-        const source = services.store.get<MigrationSource | null>(
-          `whiteboard-migration-source:${operationId}`,
-          null
-        );
-        const db = databaseModule.getDatabase(databaseName);
-        if (!db) throw new Error("原资料库未连接");
-        if (!services.state.migration(operationId)) {
-          if (!source || source.name !== databaseName || !cancel)
-            throw new Error("转换候选尚未准备，请先取消或继续准备");
-          if (source.serverUrl) {
-            const { operation } = await collaborationModule
-              .documentClient()
-              .request<{ operation: import("@tau/collaboration").DocumentMigration }>(
-                source.serverUrl,
-                `/v1/documents/${source.roomId}/migrations/${encodeURIComponent(operationId)}/cancel`,
-                "POST",
-                { expectedEpoch: source.expectedEpoch }
-              );
-            if (!["ABORTED", "EXPIRED"].includes(operation.state))
-              throw new Error("远端已提交，须按回执恢复");
-          }
-          services.store.set(`whiteboard-migration-source:${operationId}`, {
-            ...source,
-            done: true,
-          });
-          this.transitionDrains.get(operationId)?.rollback();
-          this.clearTransition(operationId);
-          return { phase: "ABORTED" };
-        }
-        const result = await this.transitions.finishMigration(
-          db,
-          databaseName,
-          operationId,
-          source?.serverUrl ?? "",
-          cancel
-        );
-        const drain = this.transitionDrains.get(operationId);
-        if (["ABORTED", "EXPIRED"].includes(result.phase)) drain?.rollback();
-        else if (result.phase === "COMPLETE") {
-          drain?.commit();
-          projected(databaseName, result.plan.documentId);
-        }
-        if (["ABORTED", "EXPIRED", "COMPLETE"].includes(result.phase)) {
-          this.clearTransition(operationId);
-          if (source)
-            services.store.set(`whiteboard-migration-source:${operationId}`, {
-              ...source,
-              done: true,
-            });
-        }
-        return result;
-      }
-    );
-    handle(
-      "adopt",
-      async (
-        event,
-        leaseId: string,
-        request: { operationId: string; serverUrl: string; rebuild?: boolean }
-      ) => {
-        const context = await transitionContext(event, leaseId, request.operationId);
-        const old = new Y.Doc();
-        Y.applyUpdate(old, context.source.state);
-        const remote = new Y.Doc({ gc: false });
-        try {
-          const meta = old.getMap("meta"),
-            roomId = String(meta.get("documentId"));
-          // 取自同一远端会话的确认快照，重开时本机副本与确认修订一致即可从确认基线恢复发送。
-          const { key, session } = await this.remoteSession(request.serverUrl, roomId).catch(
-            remoteFailure
-          );
-          await session.synchronize().catch(remoteFailure);
-          const snapshot = session.snapshot();
-          Y.applyUpdate(remote, snapshot.confirmed.state);
-          await validateWhiteboardDocument(remote);
-          const remoteMeta = remote.getMap("meta");
-          if (remoteMeta.get("documentId") !== roomId) throw new Error("远端白板身份不一致");
-          if (request.rebuild) {
-            // 同一代次的被拒分支：只能以确认快照重建本机副本，被拒材料继续留在原日志与网络分支中。
-            if (
-              remoteMeta.get("epoch") !== meta.get("epoch") ||
-              remoteMeta.get("baselineId") !== meta.get("baselineId") ||
-              !(snapshot.blocked || taintedBy(snapshot, this.cleanRejected(key)))
-            )
-              throw new Error("协作端没有需要处理的被拒改动");
-          } else if (Number(remoteMeta.get("epoch")) <= Number(meta.get("epoch")))
-            throw new Error("远端代次未前进");
-          const original = new WhiteboardDocumentRepository(context.db, context.name).read(
-            context.documentId
-          )!;
-          await this.migration.prepare(context.db, context.name, {
-            operationId: request.operationId,
-            documentId: context.documentId,
-            candidate: Y.encodeStateAsUpdate(remote),
-            target: { boardId: original.boardId, pages: [] },
-            evidence: {
-              reason: request.rebuild ? "rejected-branch" : "offline-epoch",
-              previousEpoch: meta.get("epoch"),
-            },
-          });
-          await this.migration.install(context.db, context.name, request.operationId);
-          if (request.rebuild)
-            services.store.set(`whiteboard-remote-clean:${key}`, snapshot.rejected.length);
-          // 新本机副本来自确认快照；解除隔离后重开即可发送，不依赖届时远端是否又有新修订。
-          await session.restartFromConfirmed().catch(() => undefined);
-          this.transitionDrains.get(request.operationId)?.commit();
-          this.clearTransition(request.operationId);
-          projected(context.name, context.documentId);
-        } catch (error) {
-          // 候选尚未固定时恢复原视图；已固定的迁移保持暂停，按原操作继续安装。
-          if (!this.transitions.blocked(context.name, context.documentId)) {
-            this.transitionDrains.get(request.operationId)?.rollback();
-            this.clearTransition(request.operationId);
-          }
-          throw error;
-        } finally {
-          old.destroy();
-          remote.destroy();
-        }
       }
     );
     handle(
@@ -1363,6 +785,17 @@ class WhiteboardDocumentsModule {
     );
     handle("open", async (event, databaseName: string, contentId: number, viewId: string) => {
       const owner = this.owner(event, databaseName);
+      if (
+        [...this.drains].some(
+          scope =>
+            !scope.documentId &&
+            (scope.windowId === undefined || scope.windowId === owner) &&
+            (!scope.databaseName || scope.databaseName === databaseName)
+        )
+      )
+        throw new Error("白板正在关闭或切库，请稍后重试");
+      await this.finishPendingUnshare(databaseName, contentId);
+      this.owner(event, databaseName);
       this.assertOpenAllowed(owner, databaseName);
       const result = await this.prepareView(
         owner,
@@ -1707,16 +1140,20 @@ class WhiteboardDocumentsModule {
     const binding = store.get<{ serverUrl: string; documentId: string } | null>(bindingKey, null);
     if (!binding) throw new Error("这块白板没有共享");
     const previous = store.get<WhiteboardUnshareJob | null>(jobKey, null);
-    const job: WhiteboardUnshareJob =
-      previous?.remoteDone && previous.roomId === binding.documentId
-        ? { ...previous, operationId: request.operationId }
-        : {
-            operationId: request.operationId,
-            mode: request.mode,
-            serverUrl: binding.serverUrl,
-            roomId: binding.documentId,
-            missing: [],
-          };
+    if (previous?.remoteDone && previous.roomId === binding.documentId) {
+      const candidate =
+        previous.candidate ??
+        this.installation.state.installation(previous.operationId)?.plan.prepared.candidate;
+      if (!candidate) throw new Error("结束共享的提交候选缺失，不能更换原内容");
+      return this.finishUnshare(context, previous, Buffer.from(candidate, "base64"));
+    }
+    const job: WhiteboardUnshareJob = {
+      operationId: request.operationId,
+      mode: request.mode,
+      serverUrl: binding.serverUrl,
+      roomId: binding.documentId,
+      missing: [],
+    };
     const mode = job.remoteDone ? "detach" : request.mode;
     let confirmed: Uint8Array | undefined;
     let remoteKey: string | undefined;
@@ -1757,25 +1194,67 @@ class WhiteboardDocumentsModule {
       });
     else if (mode === "leave")
       await client.request(job.serverUrl, `/v1/documents/${job.roomId}/leave`, "POST", {});
-    store.set(jobKey, { ...job, remoteDone: true, missing: prepared.missing });
+    const submitted = {
+      ...job,
+      remoteDone: true,
+      missing: prepared.missing,
+      candidate: Buffer.from(prepared.candidate).toString("base64"),
+    };
+    store.set(jobKey, submitted);
+    if (remoteKey) this.remote.delete(remoteKey);
+    return this.finishUnshare(context, submitted, prepared.candidate);
+  }
+
+  private async finishUnshare(
+    context: { db: Database.Database; name: string; documentId: string },
+    job: WhiteboardUnshareJob,
+    candidate: Uint8Array
+  ): Promise<{ missing: number }> {
     const original = new WhiteboardDocumentRepository(context.db, context.name).read(
       context.documentId
     )!;
-    await this.migration.prepare(context.db, context.name, {
+    await this.installation.prepare(context.db, context.name, {
       operationId: job.operationId,
       documentId: context.documentId,
-      candidate: prepared.candidate,
+      candidate,
       target: { boardId: original.boardId, pages: [] },
-      evidence: { reason: `unshare-${job.mode}`, roomId: job.roomId, missing: prepared.missing },
+      evidence: { reason: `unshare-${job.mode}`, roomId: job.roomId, missing: job.missing },
     });
-    await this.migration.install(context.db, context.name, job.operationId);
-    store.delete(bindingKey);
-    store.delete(jobKey);
-    if (remoteKey) {
-      this.remote.delete(remoteKey);
-      store.delete(`whiteboard-remote-clean:${remoteKey}`);
+    await this.installation.install(context.db, context.name, job.operationId);
+    this.store.delete(`whiteboard-binding:${context.name}:${context.documentId}`);
+    this.store.delete(`whiteboard-unshare:${context.name}:${context.documentId}`);
+    return { missing: job.missing.length };
+  }
+
+  private readonly pendingUnshares = new Map<string, Promise<void>>();
+  private async finishPendingUnshare(name: string, contentId: number) {
+    const db = databaseModule.getDatabase(name);
+    if (!db) throw new Error("资料库未连接");
+    const page = db
+      .prepare("SELECT document_id FROM whiteboard_document_pages WHERE content_id=?")
+      .get(contentId) as { document_id: string } | undefined;
+    if (!page) return;
+    const key = `whiteboard-unshare:${name}:${page.document_id}`;
+    const job = this.store.get<WhiteboardUnshareJob | null>(key, null);
+    if (!job?.remoteDone) return;
+    let pending = this.pendingUnshares.get(key);
+    if (!pending) {
+      pending = (async () => {
+        const candidate =
+          job.candidate ??
+          this.installation.state.installation(job.operationId)?.plan.prepared.candidate;
+        if (!candidate) throw new Error("结束共享的提交候选缺失，不能更换原内容");
+        await this.finishUnshare(
+          { db, name, documentId: page.document_id },
+          job,
+          Buffer.from(candidate, "base64")
+        );
+        this.transitionDrains.get(job.operationId)?.commit();
+        this.clearTransition(job.operationId);
+      })().finally(() => this.pendingUnshares.delete(key));
+      this.pendingUnshares.set(key, pending);
     }
-    return { missing: prepared.missing.length };
+    await pending;
   }
   private clearTransition(operationId: string) {
     this.transitionDrains.delete(operationId);

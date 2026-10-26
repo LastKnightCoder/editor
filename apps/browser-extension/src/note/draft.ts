@@ -1,5 +1,5 @@
 /**
- * 笔记页的草稿读写：草稿是编辑器原生节点；早先存成 Markdown 字符串的草稿在读取时转换一次。
+ * 笔记页的草稿读写：草稿只接受编辑器原生节点，不转换旧格式。
  * 待追加队列里的 Markdown 片段在这里转换后接到草稿末尾，并清空队列。
  */
 import type { Descendant } from "slate";
@@ -28,17 +28,10 @@ export const notePreview = (nodes: readonly Descendant[]) =>
     ?.trim()
     .slice(0, 80) ?? "";
 
-export async function loadDraft(
-  storage: KeyValueStore,
-  url: string,
-  toNodes: (markdown: string) => Descendant[]
-): Promise<Descendant[]> {
+export async function loadDraft(storage: KeyValueStore, url: string): Promise<Descendant[]> {
   const stored = await storage.get<unknown>(noteDraftKey(url));
-  if (typeof stored === "string") {
-    const converted = stored.trim() ? toNodes(stored) : EMPTY_NOTE;
-    await storage.set(noteDraftKey(url), converted);
-    return converted;
-  }
+  if (stored !== undefined && stored !== null && !Array.isArray(stored))
+    throw new Error("笔记草稿格式不受支持，原始数据未改动");
   return Array.isArray(stored) && stored.length ? (stored as Descendant[]) : EMPTY_NOTE;
 }
 

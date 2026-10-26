@@ -70,11 +70,6 @@ export type JoinRequestResult =
   | { id: string; status: "pending"; documentId: string }
   | { status: "approved"; documentId: string };
 
-export interface ContentVersionUpgrade {
-  expectedRevision: string;
-  content: ContentNode[];
-}
-
 export interface SourceBinding {
   databaseName: string;
   contentId: number;

@@ -307,34 +307,6 @@ const button = (label: string) =>
 /** 对话框渲染在页面末尾，同名的确认按钮取最后一个。 */
 const confirmButton = (label: string) =>
   [...document.querySelectorAll("button")].filter(item => item.textContent === label).at(-1)!;
-it("被拒改动暂停同步时，确认后以协作端版本重建，同一次失败重试沿用原操作", async () => {
-  mocks.shareStatus.mockResolvedValue({
-    binding: SHARED,
-    publication: null,
-    migration: null,
-    upgrade: null,
-  });
-  mocks.remote.open.mockResolvedValue({ requiresRebind: true, reason: "rejected", pending: 0 });
-  await mount();
-  await vi.waitFor(() => expect(button("使用协作端版本")).toBeTruthy());
-  expect(document.body.textContent).toContain("协作端没有接受部分改动");
-  expect(mocks.remote.sync).not.toHaveBeenCalled();
-  mocks.adopt.mockRejectedValueOnce(new Error("OFFLINE: fetch failed"));
-  await act(async () => button("使用协作端版本")!.click());
-  await act(async () => confirmButton("使用协作端版本").click());
-  await vi.waitFor(() => expect(mocks.adopt).toHaveBeenCalledTimes(1));
-  const first = (mocks.adopt.mock.calls[0] as unknown[])[1] as { operationId: string };
-  expect(mocks.adopt.mock.calls[0]).toEqual([
-    "lease",
-    { operationId: first.operationId, serverUrl: "https://collab.test", rebuild: true },
-  ]);
-  // 失败后对话框留在原处，再次确认。
-  await act(async () => confirmButton("使用协作端版本").click());
-  await vi.waitFor(() => expect(mocks.adopt).toHaveBeenCalledTimes(2));
-  expect(((mocks.adopt.mock.calls[1] as unknown[])[1] as { operationId: string }).operationId).toBe(
-    first.operationId
-  );
-});
 it("共享已结束时提供转为本机白板，确认后以 detach 方式执行", async () => {
   mocks.shareStatus.mockResolvedValue({
     binding: SHARED,
@@ -354,20 +326,4 @@ it("共享已结束时提供转为本机白板，确认后以 detach 方式执�
       mode: "detach",
     })
   );
-});
-it("插件数据升级未完成时只提供按原操作继续或取消", async () => {
-  mocks.shareStatus.mockResolvedValue({
-    binding: SHARED,
-    publication: null,
-    migration: null,
-    upgrade: { operationId: "upgrade-1" },
-  });
-  mocks.remote.open.mockResolvedValue({ requiresRebind: false, pending: 0 });
-  mocks.remote.sync.mockResolvedValue({ requiresRebind: false, localRevision: 0, pending: 0 });
-  await mount();
-  await vi.waitFor(() => expect(button("取消升级")).toBeTruthy());
-  expect(document.body.textContent).toContain("插件数据升级没有完成");
-  expect(button("继续升级")).toBeTruthy();
-  await act(async () => button("取消升级")!.click());
-  await vi.waitFor(() => expect(mocks.finish).toHaveBeenCalledWith("A", "upgrade-1", true));
 });

@@ -35,6 +35,7 @@ const touchMeta = () =>
   } satisfies NoteMeta);
 
 export function NoteApp() {
+  const [loadError, setLoadError] = useState<string>();
   const [initial, setInitial] = useState<Descendant[] | null>(null);
   const [empty, setEmpty] = useState(true);
   const status = useCompanionStatus();
@@ -73,7 +74,7 @@ export function NoteApp() {
   useEffect(() => {
     void (async () => {
       const [draft, savedNotes] = await Promise.all([
-        loadDraft(extensionStorage, pageUrl, markdownToNodes),
+        loadDraft(extensionStorage, pageUrl),
         extensionStorage.get<SavedNote[]>(noteSavedKey(pageUrl)),
       ]);
       const value = draft;
@@ -81,7 +82,7 @@ export function NoteApp() {
       setEmpty(isEmptyNote(value));
       setInitial(value);
       setSaved(savedNotes ?? []);
-    })();
+    })().catch(error => setLoadError(error instanceof Error ? error.message : "草稿读取失败"));
     const onChanged = (changes: Record<string, chrome.storage.StorageChange>, area: string) => {
       if (area !== "local") return;
       if (changes[notePendingKey(pageUrl)]?.newValue) void drainPending();
@@ -134,6 +135,11 @@ export function NoteApp() {
   return (
     <div className="bg-surface text-ink-1 flex h-full flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto">
+        {loadError && (
+          <p role="alert" className="text-danger p-4">
+            {loadError}
+          </p>
+        )}
         {initial && (
           <Editor
             key={editorKey}

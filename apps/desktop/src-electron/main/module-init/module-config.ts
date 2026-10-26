@@ -14,7 +14,6 @@ import pluginBackendModule from "../modules/plugin-backend";
 import serverModule from "../modules/server";
 import databaseModule from "../modules/database";
 import collaborationModule from "../modules/collaboration";
-import legacyContentUpgradeModule from "../modules/legacy-content-upgrade";
 import whiteboardDocumentsModule from "../modules/whiteboard-documents";
 import piAiRuntimeModule from "../modules/pi-ai-runtime";
 import piSessionHostModule from "../modules/pi-session-host";
@@ -416,12 +415,6 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database", "pdf-index-queue"],
     init: () => pdfIndexOrchestrator.init(),
-  },
-  {
-    name: "legacy-content-upgrade",
-    layer: InitLayer.BACKGROUND,
-    dependencies: ["database", "collaboration", "whiteboard-documents", "plugin-local"],
-    init: () => legacyContentUpgradeModule.init(),
   },
   {
     name: "telemetry",

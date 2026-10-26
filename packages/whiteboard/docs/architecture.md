@@ -99,7 +99,7 @@ Board（数据内核：Operation / undo / 事件总线；阶段 A 未改动，�
 
 ### 作者契约与作用域
 
-作者入口使用 dataVersion/previousVersions/migrations，与编辑器共用 `@tau/db-schema/data-versions`；文本接口的唯一类型位于 editor/text-field-contract。纯数据宿主从 `@tau/whiteboard/contracts` 准备目录，不加载绑定或执行工厂；UI 绑定从 `./collaboration` 获取。目录不修改文档，首次创建用公共规范化器准备的不可变契约在同一事务中登记并创建节点，创建撤销只隐藏创建登记。
+作者入口使用 dataVersion/previousVersions，与编辑器共用 `@tau/db-schema/data-versions`；文本接口的唯一类型位于 editor/text-field-contract。纯数据宿主从 `@tau/whiteboard/contracts` 准备目录，不加载绑定或执行工厂；UI 绑定从 `./collaboration` 获取。目录不修改文档，首次创建用公共规范化器准备的不可变契约在同一事务中登记并创建节点，创建撤销只隐藏创建登记。
 
 作者 API 是独立冻结对象，不继承宿主对象原型，不暴露路径 apply、Y.Doc 或字段根。普通载荷、文本与创建校验真实 owner、精确契约和 edit 权限；宿主通用外壳操作保留缺插件的移动/整体复制/删除/撤销能力。read 版本使用历史渲染定义与只读上下文，文本可以读取但不能修改。投影通知及工厂装配期间不允许作者写入，schema 不反向修复远端状态。
 
@@ -120,7 +120,7 @@ Board（数据内核：Operation / undo / 事件总线；阶段 A 未改动，�
 ### 3.1 BoardElement 与能力
 
 - `types/board.ts` 定义 `BoardElement` 通用字段：`id/type/name/groupId/children` 与能力控制 `resizable/autoHeight`。
-- 旧值模式元素的 `schemaVersion` 仅参与版本识别与保护。加载、粘贴、插入均不执行旧 `migrate[n]`；转换由宿主显式发起，按当前精确契约生成候选。
+- 旧值模式元素的 `schemaVersion` 仅参与版本识别与保护。加载、粘贴、插入均不转换数据，不再声明或校验升级函数；版本不匹配时保留原数据并按未知元素处理。
 - 当前工具由 activeTool 模型表达：`tau.select` 为显式选择工具（非创建模式哨兵），创建型工具激活后在画布按元素声明的 `create` 规格手势创建；旧创建类型枚举与字段兼容层已删除。
 - `IElementCapabilities`（`types/capabilities.ts`）由插件声明：是否吸附、是否参与参考线、是否可随子元素移动、箭头连接点策略等，`CapabilityService` 统一查询。
 

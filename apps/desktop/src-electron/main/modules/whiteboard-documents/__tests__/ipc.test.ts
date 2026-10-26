@@ -38,7 +38,7 @@ vi.mock("electron", () => ({
 vi.mock("../../collaboration", () => ({
   default: {
     documentClient: vi.fn(),
-    documentMigration: () => {
+    documentStorage: () => {
       const local = new ContentLocalState(state.assetStore!.db);
       return {
         state: local,
@@ -371,48 +371,4 @@ it("显式复制板内正文创建独立身份和契约，不改写原正文或�
   });
   expect(model.read()).toEqual(before);
   model.dispose();
-});
-
-it("整板迁移冲刷两个窗口的显示/隐藏页，安装后全部旧租约失效", async () => {
-  const model = new WhiteboardModel(source);
-  model.submit([{ type: "create_page", title: "隐藏页" }], null);
-  const created = await call("create", 1, "A", "doc", Y.encodeStateAsUpdate(source), "board");
-  const first = await call("open", 1, "A", created.contentIds[0], "visible");
-  const second = await call("open", 2, "A", created.contentIds[1], "hidden");
-  const reading = call("migration-source", 1, first.leaseId, "local-upgrade");
-  await vi.waitFor(() => expect(requests()).toHaveLength(2));
-  for (const request of requests()) await call("drained", request.owner, request.data.requestId);
-  const input = await reading;
-  const doc = new Y.Doc();
-  Y.applyUpdate(doc, Buffer.from(input.state, "base64"));
-  const { exportWhiteboardTransfer } = await import("@tau/collaboration");
-  const current = new WhiteboardModel(doc);
-  try {
-    const prepared = await call(
-      "migration-prepare",
-      1,
-      "A",
-      "local-upgrade",
-      exportWhiteboardTransfer(current, "doc")
-    );
-    expect(prepared.plan.kind).toBe("whiteboard");
-    await expect(
-      call("append", 2, second.leaseId, "stale", new Uint8Array([0, 0]))
-    ).rejects.toThrow("迁移");
-    expect((await call("migration-finish", 1, "A", "local-upgrade")).phase).toBe("COMPLETE");
-    expect(
-      state.sent
-        .filter(event => event.channel === "whiteboard-document:detached")
-        .map(event => event.owner)
-        .sort()
-    ).toEqual([1, 2]);
-    expect(() => call("snapshot", 2, second.leaseId)).toThrow("不属于");
-    const fresh = await call("open", 2, "A", created.contentIds[1], "reopened");
-    expect(fresh.identity.epoch).toBe(1);
-    expect(fresh.pageId).toBe(second.pageId);
-  } finally {
-    current.dispose();
-    doc.destroy();
-    model.dispose();
-  }
 });

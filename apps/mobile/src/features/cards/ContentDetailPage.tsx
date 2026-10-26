@@ -33,7 +33,6 @@ import ContextBadge from "../context/ContextBadge";
 import TagChips from "./TagChips";
 import TagInlineEditor from "./TagInlineEditor";
 import type { CollaborativeEditorMode } from "../collaboration/CollaborativeEditor";
-import { markLocalFallbackEdit } from "../collaboration/local-fallback";
 import { isEditorContentEmpty } from "./editorContentUtils";
 import { useReadingMode } from "./readingMode/useReadingMode";
 import { ReadingModeFab } from "./readingMode/ReadingModeFab";
@@ -136,14 +135,14 @@ function MetaDot() {
 
 /** 详情页编辑归属的唯一状态源：local=普通本地编辑（含共享已结束）；
  *  collabConnecting=协作会话建立中（本地只读占位，避免双正文）；collabLive=协作编辑
- *  （云端唯一写者）；collabFallback=协作不可用的本地兜底（改动经投影通道，重连后裁决） */
-type DetailEditMode = "local" | "collabConnecting" | "collabLive" | "collabFallback";
+ *  （会话负责同步与本机投影）。 */
+type DetailEditMode = "local" | "collabConnecting" | "collabLive";
 
 function detailEditMode(hasCollaboration: boolean, mode: CollaborativeEditorMode): DetailEditMode {
   if (!hasCollaboration) return "local";
   if (mode === "live") return "collabLive";
   if (mode === "connecting") return "collabConnecting";
-  if (mode === "unavailable") return "collabFallback";
+  if (mode === "unavailable") return "collabConnecting";
   return "local"; // ended：共享已结束，本地即真相源
 }
 
@@ -157,7 +156,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   const onErrorRef = useRef(props.onError);
   onErrorRef.current = props.onError;
   // 协作编辑模式（由协作会话组件上报）：connecting 过渡期只读，live 用协作文档源，
-  // unavailable（会话建立失败/迟迟未就绪）改为本机文档源兜底可编辑
+  // unavailable（会话未就绪）仍保持只读，已有缓存的离线编辑由协作会话承载
   const collaborationDocumentId = props.collaboration?.documentId;
   const [collabMode, setCollabMode] = useState<CollaborativeEditorMode>("connecting");
   const [collabReadonly, setCollabReadonly] = useState(true);
@@ -173,7 +172,6 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   const openInEditModeRef = useRef(false);
   openInEditModeRef.current = Boolean(props.openInEditMode) || openMode === "edit";
   const editMode = detailEditMode(Boolean(collaborationDocumentId), collabMode);
-  const localFallback = editMode === "collabFallback";
   const {
     content,
     syncVersion,
@@ -187,20 +185,8 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     beforeSave: async () => {
       await localDocumentRef.current?.flush();
     },
-    // 协作 live 停用本地直写（云端投影为唯一写者）；connecting 只读过渡期与兜底走投影
-    // 通道——绑定出现前节流窗口内可能残留未落库输入，按本地兜底改动处理（标记待裁决），
-    // 会话建立后由作者选择保留本机或采用云端，绝不静默丢弃
-    saveMode:
-      editMode === "collabLive"
-        ? false
-        : localFallback || editMode === "collabConnecting"
-          ? "collabProjection"
-          : "direct",
-    // 经投影通道落库＝有本机改动未推云端，一律标记待裁决（含 direct 模式被守卫拒绝的
-    // 兜底——守卫拒绝本身就证明绑定仍在，本地并非唯一真相源）；重连后交作者选择
-    onProjectionPersisted: () => {
-      markLocalFallbackEdit(props.contentId);
-    },
+    // 绑定协作后只由会话落库，未就绪时不创建独立写入分支。
+    saveMode: editMode === "local" ? "direct" : false,
     onLoaded: result => {
       setDetail(result);
       setInitialEditing(
@@ -590,16 +576,6 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         >
           {kit ? (
             <>
-              {localDocument?.recoveryNeeded && (
-                <button
-                  className="text-accent-text p-3"
-                  onClick={() => {
-                    void localDocument.adopt?.().catch(error => toast.error(String(error)));
-                  }}
-                >
-                  保全本机副本并采用已同步正文
-                </button>
-              )}
               <Editor
                 kit={kit}
                 ref={editorRef}

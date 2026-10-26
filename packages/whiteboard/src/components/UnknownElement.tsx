@@ -9,9 +9,13 @@ import {
 import { cn } from "@tau/ui";
 import type { BoardElement } from "../types";
 
-/** 占位原因：missing=完全未知类型；disabled=所属扩展被禁用；too-new/migration-failed=元素版本与扩展定义不兼容；error=作者 render 抛错被 ErrorBoundary 兜底 */
+/** 占位原因：missing=完全未知类型；disabled=所属扩展被禁用；too-new/unsupported-version=元素版本与扩展定义不兼容；error=作者 render 抛错被 ErrorBoundary 兜底 */
 export type UnknownElementReason =
-  "missing" | "too-new" | "migration-failed" | "disabled" | "error";
+  | "missing"
+  | "too-new"
+  | "unsupported-version"
+  | "disabled"
+  | "error";
 
 interface PlaceholderLook {
   icon: LucideIcon;
@@ -34,11 +38,11 @@ const REASON_LOOK: Record<UnknownElementReason, PlaceholderLook> = {
     title: "需要更新扩展",
     description: "此元素由更新版本的扩展创建，数据已完整保留",
   },
-  "migration-failed": {
+  "unsupported-version": {
     icon: TriangleAlert,
     iconClass: "text-warn",
-    title: "数据升级失败",
-    description: "扩展无法升级此元素，原始数据已保留",
+    title: "数据版本不匹配",
+    description: "当前扩展不支持此数据版本，原始数据已保留",
   },
   disabled: {
     icon: Ban,
@@ -95,7 +99,7 @@ export function UnknownElement({
                 aria-hidden
               />
               {!iconOnly && (
-                <div className="text-tau-sm text-ink-2 font-medium leading-[1.4]">{look.title}</div>
+                <div className="text-tau-sm text-ink-2 leading-[1.4] font-medium">{look.title}</div>
               )}
               {showDescription && (
                 <div className="text-tau-micro text-ink-3 max-w-[26em] leading-[1.45]">

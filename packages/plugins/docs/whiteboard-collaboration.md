@@ -2,7 +2,7 @@
 
 从 `@tau/plugins/whiteboard` 使用 `defineElement`、`defineWhiteboardExtension` 和 `useWhiteboardAPI`。此作者入口面向已绑定协作文档的画布；旧快照的转换、首次共享和完整业务类型适配由宿主负责，不在插件加载时执行。
 
-本页对应 SDK 0.45.0。0.44.0 及更早版本的路径写入接口不能直接用于当前宿主：将 `schemaVersion/migrate` 改为 `dataVersion/previousVersions/migrations`，将路径操作和 `apply` 改为稳定 ID 命令，业务数据使用 `updateElementData`，文本使用 `getTextBinding`。这不是字段的机械改名，须按下文的数据与历史语义逐项适配。
+本页对应 SDK 0.45.0。0.44.0 及更早版本的路径写入接口不能直接用于当前宿主：将 `schemaVersion/migrate` 改为 `dataVersion/previousVersions`，将路径操作和 `apply` 改为稳定 ID 命令，业务数据使用 `updateElementData`，文本使用 `getTextBinding`。这不是字段的机械改名，须按下文的数据与历史语义逐项适配。
 
 SDK 安装成功只证明作者依赖可取得。插件仍只声明 desktop，并将最低宿主版本设为实际通过组合验收的桌面发行版；不要以 SDK 版本或 Worker 已部署推断客户端已经支持。
 
@@ -24,7 +24,7 @@ const source = defineElement({
 
 `previousVersions: [{ element, access: "read" | "edit" | "none" }]` 只登记直接列出的精确历史契约。相同版本号不代表相同契约；owner、领域、结构、字段或资源声明不匹配时保真占位。read 使用历史版本渲染和只读上下文，允许读取文本句柄但拒绝写入。缺失或不可识别版本仍保留载荷、文字根和契约，宿主可执行通用移动、整体复制、删除与撤销。
 
-`migrations: [{ from, migrate(data) }]` 与编辑器共用直接转换规则，来源必须显式登记。输入是冻结的业务载荷副本，输出为同步有限 JSON 业务对象；保留不主动删除的未知字段，元素外层身份、几何、子树和字段根由宿主保留。转换不自动运行，改版本或存储根须交给宿主受控转换。新定义不能混用 `schemaVersion/migrate`。
+宿主不提供数据版本转换函数。`previousVersions` 只声明历史数据的读取和编辑权限，新内容使用当前版本。
 
 ## 最小数据入口
 

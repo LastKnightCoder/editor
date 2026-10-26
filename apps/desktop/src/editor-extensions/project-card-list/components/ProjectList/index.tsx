@@ -36,7 +36,7 @@ const ProjectList = (props: IProps) => {
   if (query.error)
     return (
       <p contentEditable={false} role="status" className="text-ink-3 text-tau-sm py-6 text-center">
-        项目来源不可用，请打开原资料库或恢复副本。
+        项目来源不可用，请打开原资料库。
       </p>
     );
 
