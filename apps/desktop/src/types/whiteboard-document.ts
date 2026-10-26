@@ -29,6 +29,15 @@ export interface WhiteboardDocumentTarget {
   databaseName: string;
   contentId: number;
 }
+/** 协作页「共享本地内容」的白板候选：已转换为白板文档、尚未共享的整块白板。 */
+export interface WhiteboardShareCandidate {
+  boardId: number;
+  title: string;
+  documentId: string;
+  /** 第一页的页面内容 id，用于打开白板文档会话 */
+  contentId: number;
+  pages: number;
+}
 /** 本机白板与共享房间的绑定、未完成的首次发布；不含房间正文。 */
 export interface WhiteboardShareStatus {
   binding: { serverUrl: string; documentId: string } | null;

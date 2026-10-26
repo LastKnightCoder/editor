@@ -11,6 +11,7 @@ const schema = createPageSchema({
   pluginId: paramString(),
   tab: paramOptional(paramString()),
   section: paramOptional(paramString()),
+  from: paramOptional(paramString()),
 });
 
 export default definePage({

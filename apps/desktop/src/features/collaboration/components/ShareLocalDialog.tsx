@@ -1,5 +1,5 @@
 /**
- * 共享本地内容：检索选择一段内容 → 主进程冻结本地编辑、上传附件、创建共享文档 →
+ * 共享本地内容：检索选择一段内容或一块白板 → 主进程冻结本地编辑、上传附件、创建共享文档 →
  * 原位展示协作码。已共享的内容不出现在候选里；共享后内容仍在原处照常编辑。
  */
 
@@ -11,16 +11,21 @@ import {
   FolderKanban,
   Layers,
   PenLine,
+  PenTool,
   Search,
   type LucideIcon,
 } from "lucide-react";
 import { Button, Dialog, DialogBody, Input, Loading, Segmented } from "@tau/ui";
-import type { CollaborationSession, SourceType } from "@tau/collaboration";
+import type { CollaborationSession, SharedWhiteboardInfo, SourceType } from "@tau/collaboration";
 import { createSharedContent } from "@/commands";
 import { InvitationCode } from "@/components/CollaborationUI";
 import { clampText, richTextPlainText } from "@tau/shared/rich-text-text";
 import type { ContentIndexType, SearchResult } from "@/types";
-import { useShareCandidates } from "../queries";
+import { remoteFailureText } from "@/services/whiteboard-documents/remote";
+import { shareWhiteboardCandidate } from "@/services/whiteboard-documents/share";
+import useSettingStore from "@/stores/useSettingStore";
+import { whiteboardSession } from "@/features/whiteboards/collaboration";
+import { useShareCandidates, useWhiteboardShareCandidates, type ShareType } from "../queries";
 
 const TYPE_META: Record<ContentIndexType, { label: string; icon: LucideIcon; source: SourceType }> =
   {
@@ -40,52 +45,97 @@ const titleOf = (item: SearchResult) =>
   `${metaOf(item).label} #${item.contentId}`;
 
 type Phase =
-  { kind: "pick" } | { kind: "sharing"; title: string } | { kind: "done"; documentId: string };
+  | { kind: "pick" }
+  | { kind: "sharing"; title: string }
+  | { kind: "done"; documentId: string };
+
+/** 正文与白板合成同一张候选表；share 返回协作文档 id。 */
+interface Candidate {
+  key: string;
+  title: string;
+  label: string;
+  icon: LucideIcon;
+  share(): Promise<string>;
+  failureText(error: unknown): string;
+}
 
 export function ShareLocalDialog({
   open,
   onOpenChange,
   sessions,
+  whiteboards,
   onShared,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   sessions: CollaborationSession[];
+  whiteboards: SharedWhiteboardInfo[];
   /** 共享完成（协作码已展示）后跳到这份内容 */
   onShared: (documentId: string) => void;
 }) {
   const [query, setQuery] = useState("");
-  const [type, setType] = useState<ContentIndexType | "all">("all");
+  const [type, setType] = useState<ShareType>("all");
   const [phase, setPhase] = useState<Phase>({ kind: "pick" });
   const [error, setError] = useState<string>();
   const keyword = useDebounce(query, { wait: 250 });
   const candidates = useShareCandidates(keyword, type);
+  const boards = useWhiteboardShareCandidates(keyword, type);
+  const databaseName = useSettingStore(state => state.setting.database.active);
   // 仅活跃共享占用候选；已结束（含未清理的残留）不占用——主进程创建时会先写回并拆除残留再重建
   const sharedIds = new Set(
     sessions
       .filter(session => session.status === "active")
       .map(session => session.source?.contentId)
   );
-  const list = (candidates.data ?? []).filter(item => !sharedIds.has(item.contentId));
-  const shared =
+  const list: Candidate[] = [
+    ...(type === "whiteboard" ? [] : (candidates.data ?? []))
+      .filter(item => !sharedIds.has(item.contentId))
+      .map(item => {
+        const meta = metaOf(item);
+        const title = titleOf(item);
+        return {
+          key: `${item.type}-${item.id}`,
+          title,
+          label: meta.label,
+          icon: meta.icon,
+          share: async () =>
+            (
+              await createSharedContent(
+                item.contentId,
+                meta.source,
+                meta.source === "content" ? item.contentId : item.id,
+                // 卡片不参与标题同步
+                item.type === "card" ? undefined : title
+              )
+            ).documentId,
+          failureText: (failure: unknown) =>
+            failure instanceof Error ? failure.message : "共享失败",
+        };
+      }),
+    ...(type === "whiteboard" || type === "all" ? (boards.data ?? []) : []).map(board => ({
+      key: `whiteboard-${board.boardId}`,
+      title: board.title || "未命名白板",
+      label: `白板 · ${board.pages} 页`,
+      icon: PenTool,
+      share: async () => (await shareWhiteboardCandidate(databaseName, board)).documentId,
+      failureText: remoteFailureText,
+    })),
+  ];
+  const sharedSession =
     phase.kind === "done" ? sessions.find(session => session.id === phase.documentId) : undefined;
+  const sharedRoom =
+    phase.kind === "done" ? whiteboards.find(room => room.id === phase.documentId) : undefined;
+  const shared = sharedSession ?? (sharedRoom && whiteboardSession(sharedRoom));
+  const searching = type === "whiteboard" || keyword.trim().length > 0;
+  const loading = candidates.isLoading || boards.isLoading;
 
-  const share = async (item: SearchResult) => {
-    const meta = metaOf(item);
-    const title = titleOf(item);
+  const share = async (item: Candidate) => {
     setError(undefined);
-    setPhase({ kind: "sharing", title });
+    setPhase({ kind: "sharing", title: item.title });
     try {
-      const result = await createSharedContent(
-        item.contentId,
-        meta.source,
-        meta.source === "content" ? item.contentId : item.id,
-        // 卡片不参与标题同步
-        item.type === "card" ? undefined : title
-      );
-      setPhase({ kind: "done", documentId: result.documentId });
+      setPhase({ kind: "done", documentId: await item.share() });
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : "共享失败");
+      setError(item.failureText(failure));
       setPhase({ kind: "pick" });
     }
   };
@@ -145,6 +195,7 @@ export function ShareLocalDialog({
               {(Object.keys(TYPE_META) as ContentIndexType[]).map(key => (
                 <Segmented.Item key={key} value={key} label={TYPE_META[key].label} />
               ))}
+              <Segmented.Item value="whiteboard" label="白板" />
             </Segmented>
             {error && (
               <p
@@ -155,20 +206,20 @@ export function ShareLocalDialog({
               </p>
             )}
             <div className="-mx-2 h-[280px] overflow-y-auto px-2">
-              {!keyword.trim() ? (
+              {!searching ? (
                 <p className="text-ink-3 text-tau-meta pt-16 text-center">
-                  输入关键词，搜索文章、卡片、项目文档或日记
+                  输入关键词，搜索文章、卡片、项目文档、日记或白板
                 </p>
-              ) : candidates.isPending ? (
+              ) : loading ? (
                 <Loading />
               ) : list.length === 0 ? (
                 <p className="text-ink-3 text-tau-meta pt-16 text-center">没有找到可共享的内容</p>
               ) : (
                 <ul className="flex flex-col">
                   {list.map(item => {
-                    const Icon = metaOf(item).icon;
+                    const Icon = item.icon;
                     return (
-                      <li key={`${item.type}-${item.id}`}>
+                      <li key={item.key}>
                         <button
                           type="button"
                           onClick={() => void share(item)}
@@ -178,8 +229,8 @@ export function ShareLocalDialog({
                             <Icon className="size-[15px]" strokeWidth={1.75} />
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className="text-tau-body block truncate">{titleOf(item)}</span>
-                            <span className="text-ink-3 text-tau-sm">{metaOf(item).label}</span>
+                            <span className="text-tau-body block truncate">{item.title}</span>
+                            <span className="text-ink-3 text-tau-sm">{item.label}</span>
                           </span>
                           <ArrowRight
                             className="text-ink-3 size-4 flex-none opacity-0 group-hover:opacity-100"

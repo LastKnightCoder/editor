@@ -5,24 +5,13 @@
 import type { CollaborationSession, SharedWhiteboardInfo, SourceBinding } from "@tau/collaboration";
 import { SOURCE_LABELS } from "@/components/CollaborationUI/model";
 
-export interface SessionGroup {
+export interface SharedGroup {
   label: string;
   sessions: CollaborationSession[];
-}
-
-/** 我发起的在前、我加入的在后；组内保持主进程顺序 */
-export function groupSessions(sessions: CollaborationSession[]): SessionGroup[] {
-  return [
-    { label: "我发起的", sessions: sessions.filter(session => session.role === "owner") },
-    { label: "我加入的", sessions: sessions.filter(session => session.role !== "owner") },
-  ].filter(group => group.sessions.length > 0);
-}
-
-export interface SharedGroup extends SessionGroup {
   whiteboards: SharedWhiteboardInfo[];
 }
 
-/** 侧栏分组：白板与正文按同一角色规则归组，白板排在同组正文之后。 */
+/** 侧栏分组：我发起的在前、我加入的在后，白板排在同组正文之后；组内保持主进程顺序，空组不出现。 */
 export function groupShared(
   sessions: CollaborationSession[],
   whiteboards: SharedWhiteboardInfo[]
@@ -42,16 +31,22 @@ export function groupShared(
   ].filter(group => group.sessions.length + group.whiteboards.length > 0);
 }
 
-export function orderedSessions(sessions: CollaborationSession[]): CollaborationSession[] {
-  return groupSessions(sessions).flatMap(group => group.sessions);
-}
+/** 协作页当前内容：正文在页内编辑，白板在页内展示协作信息。 */
+export type SharedSelection =
+  | { kind: "session"; id: string; session: CollaborationSession }
+  | { kind: "whiteboard"; id: string; room: SharedWhiteboardInfo };
 
-/** 页面参数里的 id 失效（已退出 / 被移除）或缺省时，落到第一份 */
-export function resolveSelected(
+/** 页面参数里的 id 失效（已退出 / 被移除）或缺省时，落到侧栏第一项 */
+export function resolveShared(
   sessions: CollaborationSession[],
+  whiteboards: SharedWhiteboardInfo[],
   id: string | undefined
-): CollaborationSession | undefined {
-  return sessions.find(session => session.id === id) ?? orderedSessions(sessions)[0];
+): SharedSelection | undefined {
+  const items = groupShared(sessions, whiteboards).flatMap((group): SharedSelection[] => [
+    ...group.sessions.map(session => ({ kind: "session" as const, id: session.id, session })),
+    ...group.whiteboards.map(room => ({ kind: "whiteboard" as const, id: room.id, room })),
+  ]);
+  return items.find(item => item.id === id) ?? items[0];
 }
 
 export interface SourceInfo {

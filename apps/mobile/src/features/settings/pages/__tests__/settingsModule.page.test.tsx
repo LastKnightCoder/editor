@@ -13,6 +13,7 @@ import { AppContext, type AppContextValue } from "../../../../app/AppContext";
 import "../../../cards/pages/home.page";
 import "../settingsModule.page";
 import "../uploadProvider.page";
+import "../uploadTargets.page";
 
 const setting = {
   imageBed: {
@@ -119,18 +120,24 @@ describe("settingsModule 路由页", () => {
     await waitFor(() => activeTitle() === "图片与附件");
     expect(document.querySelector('[data-page-active="true"]')?.textContent).toContain("这台手机");
 
-    // 更换位置 → 抽屉 → 进入 WebDAV 服务页，返回后主页原样保留（Activity 保活，而非重置）
+    // 更换位置 → 位置列表 → 进入未配置的 WebDAV 服务页，逐级返回后主页原样保留（Activity 保活，而非重置）
     act(() => {
       activeButton("更换位置")!.click();
     });
-    await waitFor(() => Boolean(document.body.textContent?.includes("保存到哪里")));
-    const webdav = [...document.querySelectorAll("button")].find(node =>
-      node.textContent?.includes("WebDAV")
-    );
+    await waitFor(() => activeTitle() === "保存到哪里");
+    const webdav = [
+      ...(document
+        .querySelector('[data-page-active="true"]')
+        ?.querySelectorAll<HTMLElement>("[role='button']") ?? []),
+    ].find(node => node.textContent?.includes("WebDAV"));
     act(() => {
       webdav!.click();
     });
     await waitFor(() => activeTitle() === "WebDAV");
+    act(() => {
+      getNavigator().goBack("code");
+    });
+    await waitFor(() => activeTitle() === "保存到哪里");
     act(() => {
       getNavigator().goBack("code");
     });

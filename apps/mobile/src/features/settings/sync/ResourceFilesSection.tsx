@@ -186,16 +186,16 @@ export function ResourceFilesSection(props: ResourceFilesProps) {
 
   return (
     <div className="page-enter space-y-1">
-      <section className="setting-group px-[18px] pb-4 pt-6 text-center">
+      <section className="setting-group px-[18px] pt-6 pb-4 text-center">
         <span
           className={`mx-auto mb-3 grid h-[76px] w-[76px] place-items-center rounded-full ${ORB_TONE[hero.tone]}`}
         >
           <HeroIcon icon={hero.icon} />
         </span>
-        <h2 className="text-ink-1 text-[21px] font-extrabold tracking-tight">{hero.title}</h2>
-        <p className="text-ink-2 mt-1 text-[12.5px] leading-relaxed">{hero.description}</p>
+        <h2 className="text-ink-1 text-tau-title-lg font-extrabold tracking-tight">{hero.title}</h2>
+        <p className="text-ink-2 text-tau-sm mt-1 leading-relaxed">{hero.description}</p>
         {running && props.progress.currentFile && (
-          <p className="text-ink-3 mt-0.5 truncate text-[11.5px]">{props.progress.currentFile}</p>
+          <p className="text-ink-3 text-tau-sm mt-0.5 truncate">{props.progress.currentFile}</p>
         )}
         {running && (
           <div className="bg-line-1 mx-2 mt-3.5 h-1.5 overflow-hidden rounded-full">
@@ -219,7 +219,7 @@ export function ResourceFilesSection(props: ResourceFilesProps) {
 
       {counts.total > 0 && !configMissing && (
         <>
-          <div className="flex gap-1.5 overflow-x-auto px-0.5 pb-0.5 pt-4" role="tablist">
+          <div className="flex gap-1.5 overflow-x-auto px-0.5 pt-4 pb-0.5" role="tablist">
             {filters.map(key => (
               <button
                 key={key}
@@ -230,7 +230,7 @@ export function ResourceFilesSection(props: ResourceFilesProps) {
                   setFilter(key);
                   setLimit(PAGE_SIZE);
                 }}
-                className={`h-[30px] shrink-0 rounded-full px-3 text-[12.5px] ${
+                className={`text-tau-sm h-[30px] shrink-0 rounded-full px-3 ${
                   activeFilter === key
                     ? "bg-accent-soft text-accent-text font-semibold"
                     : "bg-surface text-ink-2"
@@ -255,11 +255,11 @@ export function ResourceFilesSection(props: ResourceFilesProps) {
                     )}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="text-ink-1 block truncate text-[14px] font-medium">
+                    <span className="text-ink-1 text-tau-body block truncate font-medium">
                       {baseName(path)}
                     </span>
                     <span
-                      className={`block truncate text-[11.5px] ${status.syncStatus === "error" ? "text-danger" : "text-ink-3"}`}
+                      className={`text-tau-sm block truncate ${status.syncStatus === "error" ? "text-danger" : "text-ink-3"}`}
                     >
                       {status.syncStatus === "error"
                         ? [
@@ -286,7 +286,7 @@ export function ResourceFilesSection(props: ResourceFilesProps) {
                 <button
                   type="button"
                   onClick={() => setLimit(value => value + PAGE_SIZE)}
-                  className="text-accent-text active:bg-hover h-12 w-full text-[14px] font-semibold"
+                  className="text-accent-text active:bg-hover text-tau-body h-12 w-full font-semibold"
                 >
                   显示更多（还有 {entries.length - limit} 个）
                 </button>

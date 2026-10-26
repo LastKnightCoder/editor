@@ -1,21 +1,18 @@
 /**
  * 侧栏「协作」入口的两件（A3 侧栏嵌套）：
  *  - CollaborationNavBadge：待审批加入申请数（离开协作页也看得到；收起为图标列时退化为角点）；
- *  - CollaborationNavSessions：在协作页时于入口下方展开共享内容子项（我发起的 / 我加入的），
- *    点击经页面参数切换当前内容——全局只剩一条侧栏，不再有页内会话目录。
+ *  - CollaborationNavSessions：在协作页时于入口下方展开共享内容子项（我发起的 / 我加入的，
+ *    正文与白板同组），点击经页面参数切换当前内容——全局只剩一条侧栏，不再有页内会话目录。
  */
 
-import { useState } from "react";
 import { PenTool } from "lucide-react";
-import { cn, toast } from "@tau/ui";
+import { cn } from "@tau/ui";
 import { sessionStatus, useStableSessionStatus } from "@tau/collaboration/src/view";
 import type { CollaborationSession, SharedWhiteboardInfo } from "@tau/collaboration";
 import useCollaborationStore from "@/stores/useCollaborationStore";
 import { StatusDot } from "@/components/CollaborationUI";
 import { pendingRequests } from "@/components/CollaborationUI/model";
-import { openSharedWhiteboard } from "@/services/whiteboard-documents/open-shared";
-import { remoteFailureText } from "@/services/whiteboard-documents/remote";
-import { groupShared, resolveSelected } from "../model";
+import { groupShared, resolveShared } from "../model";
 
 export function CollaborationNavBadge({ collapsed }: { collapsed: boolean }) {
   const count = useCollaborationStore(state => pendingRequests(state.requests).length);
@@ -43,7 +40,7 @@ export function CollaborationNavSessions({
   const sessions = useCollaborationStore(state => state.sessions);
   const whiteboards = useCollaborationStore(state => state.whiteboards ?? EMPTY_BOARDS);
   const requests = useCollaborationStore(state => state.requests);
-  const current = resolveSelected(sessions, selectedId);
+  const current = resolveShared(sessions, whiteboards, selectedId);
   return (
     <div className="mt-0.5 mb-1 space-y-px" role="group" aria-label="共享内容">
       {groupShared(sessions, whiteboards).map(group => (
@@ -65,7 +62,9 @@ export function CollaborationNavSessions({
             <WhiteboardItem
               key={`${room.serverUrl}/${room.id}`}
               room={room}
+              active={room.id === current?.id}
               requests={pendingRequests(requests, room.id).length}
+              onClick={() => onSelect(room.id)}
             />
           ))}
         </div>
@@ -76,24 +75,35 @@ export function CollaborationNavSessions({
 
 const EMPTY_BOARDS: SharedWhiteboardInfo[] = [];
 
-/** 白板与正文在同一组里列出；白板点开即进入白板页，不在协作页内编辑。 */
-function WhiteboardItem({ room, requests }: { room: SharedWhiteboardInfo; requests: number }) {
-  const [opening, setOpening] = useState(false);
+/** 子项选中 = 当前内容：accent 淡底（父项此时降为「所在区」样式，不抢选中态） */
+const childClass = (active: boolean) =>
+  cn(
+    "text-tau-meta ease-tau-out flex h-[calc(1.5em+10px)] min-w-0 flex-1 items-center gap-2.5 rounded-[9px] px-2.5 text-left transition-[background,color] duration-[160ms]",
+    active ? "bg-selected text-ink-1 font-medium" : "text-ink-2 hover:bg-hover hover:text-ink-1"
+  );
+
+/** 白板与正文在同一组里列出；点开在协作页展示协作信息，编辑仍在白板页。 */
+function WhiteboardItem({
+  room,
+  active,
+  requests,
+  onClick,
+}: {
+  room: SharedWhiteboardInfo;
+  active: boolean;
+  requests: number;
+  onClick: () => void;
+}) {
   const title = room.title || "未命名白板";
   return (
     <div className="flex gap-2.5">
       <span aria-hidden className="text-tau-body w-[1.06em] shrink-0" />
       <button
         type="button"
-        disabled={opening}
+        onClick={onClick}
+        aria-current={active ? "page" : undefined}
         title={`${title} · 白板`}
-        onClick={() => {
-          setOpening(true);
-          openSharedWhiteboard(room)
-            .catch(error => toast.error(remoteFailureText(error)))
-            .finally(() => setOpening(false));
-        }}
-        className="text-tau-meta ease-tau-out text-ink-2 hover:bg-hover hover:text-ink-1 flex h-[calc(1.5em+10px)] min-w-0 flex-1 items-center gap-2.5 rounded-[9px] px-2.5 text-left transition-[background,color] duration-[160ms] disabled:opacity-60"
+        className={childClass(active)}
       >
         <PenTool className="text-ink-3 size-3 shrink-0" strokeWidth={1.75} />
         <span className="min-w-0 flex-1 truncate">{title}</span>
@@ -130,13 +140,7 @@ function SessionItem({
         onClick={onClick}
         aria-current={active ? "page" : undefined}
         title={`${title} · ${status.label}`}
-        className={cn(
-          "text-tau-meta ease-tau-out flex h-[calc(1.5em+10px)] min-w-0 flex-1 items-center gap-2.5 rounded-[9px] px-2.5 text-left transition-[background,color] duration-[160ms]",
-          // 子项选中 = 当前内容：accent 淡底（父项此时降为「所在区」样式，不抢选中态）
-          active
-            ? "bg-selected text-ink-1 font-medium"
-            : "text-ink-2 hover:bg-hover hover:text-ink-1"
-        )}
+        className={childClass(active)}
       >
         <StatusDot tone={status.tone} className="size-1.5 shrink-0" />
         <span className="min-w-0 flex-1 truncate">{title}</span>

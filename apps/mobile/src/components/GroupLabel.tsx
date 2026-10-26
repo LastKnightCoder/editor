@@ -35,7 +35,7 @@ export function GroupLabel(props: {
 }) {
   return (
     <p
-      className={`${LABEL_TONE[props.tone ?? "ink"]} ${LABEL_INSET[props.inset ?? "settings"]} mt-4 mb-[7px] text-[12.5px] leading-relaxed first:mt-1 ${props.className ?? ""}`}
+      className={`${LABEL_TONE[props.tone ?? "ink"]} ${LABEL_INSET[props.inset ?? "settings"]} text-tau-sm mt-4 mb-[7px] leading-relaxed first:mt-1 ${props.className ?? ""}`}
     >
       {props.children}
     </p>
