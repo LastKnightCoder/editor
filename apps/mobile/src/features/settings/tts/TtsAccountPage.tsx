@@ -1,3 +1,4 @@
+import { ProviderConfigForm } from "../../plugins/ProviderConfigForm";
 import { useEffect, useMemo, useState } from "react";
 import { copyJson } from "@tau/plugins/host";
 import { ErrorBoundary } from "@tau/ui";
@@ -165,7 +166,26 @@ export function TtsAccountPage({ instanceId }: { instanceId: string }) {
             </div>
           </div>
         </TtsSection>
-        {available && Component ? (
+        {available && provider.definition.form ? (
+          <ProviderConfigForm
+            key={account.id}
+            form={provider.definition.form}
+            context={provider.context}
+            stored={config}
+            save={async nextConfig => {
+              if (!runtime?.active(provider.context)) throw new Error("插件设置已失效");
+              await applySnapshot(() =>
+                saveTtsConfig(
+                  database,
+                  account.id,
+                  account.pluginId,
+                  copyJson(nextConfig),
+                  account.models.length ? account.models : [...(provider.definition.models ?? [])]
+                )
+              );
+            }}
+          />
+        ) : available && Component ? (
           <ErrorBoundary key={account.id}>
             <Component
               context={provider.context}

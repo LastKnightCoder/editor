@@ -1,3 +1,4 @@
+import { MobileProviderSettings } from "./ProviderSettings";
 import { useId, useState, type ReactNode } from "react";
 import { ExternalLink, Github, Layers, MoreHorizontal, ShieldAlert } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -508,10 +509,7 @@ function SettingsTab({
   const navigator = useNavigator();
   const { phase } = useMobilePluginStatus();
   const sections = [...(runtime?.settings.entries() ?? [])].filter(
-    ([, entry]) =>
-      entry.context.pluginId === item.id &&
-      entry.definition.target !== "asr" &&
-      runtime?.active(entry.context)
+    ([, entry]) => entry.context.pluginId === item.id && runtime?.active(entry.context)
   );
   const [selected, setSelected] = useState<string | null>(null);
   if (!item.active)
@@ -544,10 +542,8 @@ function SettingsTab({
         </nav>
       )}
       <section aria-label={active.definition.title} className="min-w-0">
-        {active.definition.target === "tts" ? (
-          <Button onClick={() => navigator.push("settingsModule", { module: "voice" })}>
-            打开语音配置
-          </Button>
+        {active.definition.target === "tts" || active.definition.target === "asr" ? (
+          <MobileProviderSettings key={id} entry={active} />
         ) : active.definition.target === "sync" || active.definition.target === "upload" ? (
           <Button
             onClick={() =>

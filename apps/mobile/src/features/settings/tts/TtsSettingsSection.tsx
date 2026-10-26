@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ChevronRight, Plus, Volume2 } from "lucide-react";
 import { useNavigator, usePageLifecycle } from "../../../router";
-import { createTtsAccount, selectTtsUsage } from "../../../services/tts-settings";
+import { selectTtsUsage } from "../../../services/tts-settings";
 import type { TTSUsageConfig } from "../../../types";
 import { GroupCard, GroupRow } from "../components/ui";
 import { ActionButton } from "../storage/fields";
@@ -60,26 +60,6 @@ export function TtsSettingsSection() {
     }
   };
 
-  const addAccount = async (pluginId: string, name: string) => {
-    if (busy) return;
-    setBusy(true);
-    setError("");
-    const previousIds = new Set(accounts.map(account => account.id));
-    try {
-      const saved = await applySnapshot(() => createTtsAccount(database, pluginId, name));
-      if (!saved || !isPageActive()) return;
-      const created = saved.ttsProviders?.find(
-        account => account.pluginId === pluginId && !previousIds.has(account.id)
-      );
-      setSheet(null);
-      if (created) navigator.push("ttsAccount", { instanceId: created.id });
-    } catch (issue) {
-      setError(ttsErrorMessage(issue, undefined, "无法添加语音账号"));
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const eligibleAccounts = accounts.filter(
     account => account.models.length > 0 && !!providerFor(account.pluginId)
   );
@@ -88,7 +68,7 @@ export function TtsSettingsSection() {
   const addSheet = (
     <TtsChoiceSheet
       open={sheet === "add"}
-      title="添加语音服务"
+      title="配置语音插件"
       choices={providers.map(provider => ({
         id: provider.context.pluginId,
         label: provider.definition.title,
@@ -96,7 +76,10 @@ export function TtsSettingsSection() {
       }))}
       onSelect={id => {
         const provider = providers.find(item => item.context.pluginId === id);
-        if (provider) void addAccount(id, provider.definition.title);
+        if (provider) {
+          setSheet(null);
+          navigator.push("pluginSettings", { id: provider.id });
+        }
       }}
       onClose={() => setSheet(null)}
     />
@@ -112,14 +95,14 @@ export function TtsSettingsSection() {
             title="还没有语音服务"
             description={
               providers.length
-                ? "添加语音插件的账号，选择模型与音色后即可合成试听。"
+                ? "到插件页添加账号，随后在这里选择模型与音色。"
                 : "先在插件中心安装并启用支持语音合成的插件，再回来添加账号。"
             }
             actions={
               providers.length ? (
                 <>
                   <ActionButton
-                    label={busy ? "正在添加…" : "添加语音服务"}
+                    label={busy ? "正在添加…" : "配置语音插件"}
                     emphasis
                     busy={busy}
                     disabled={busy}
@@ -149,9 +132,7 @@ export function TtsSettingsSection() {
             {providers.map(provider => (
               <GroupRow
                 key={provider.id}
-                onClick={() =>
-                  void addAccount(provider.context.pluginId, provider.definition.title)
-                }
+                onClick={() => navigator.push("pluginSettings", { id: provider.id })}
               >
                 <TtsProviderTile name={provider.definition.title} />
                 <span className="min-w-0 flex-1">
@@ -258,7 +239,10 @@ export function TtsSettingsSection() {
           return (
             <GroupRow
               key={account.id}
-              onClick={() => navigator.push("ttsAccount", { instanceId: account.id })}
+              onClick={() => {
+                const provider = providerFor(account.pluginId);
+                if (provider) navigator.push("pluginSettings", { id: provider.id });
+              }}
             >
               <TtsProviderTile name={account.name} />
               <span className="min-w-0 flex-1">
@@ -278,7 +262,7 @@ export function TtsSettingsSection() {
         })}
         <GroupRow disabled={busy} onClick={() => setSheet("add")}>
           <Plus size={18} className="text-accent-text" aria-hidden="true" />
-          <span className="text-accent-text text-tau-body flex-1 font-medium">添加语音服务</span>
+          <span className="text-accent-text text-tau-body flex-1 font-medium">配置语音插件</span>
         </GroupRow>
       </TtsSection>
       <TtsChoiceSheet

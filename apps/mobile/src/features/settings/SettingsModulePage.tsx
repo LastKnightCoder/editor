@@ -12,6 +12,7 @@ import { OverwriteSection } from "./sync/OverwriteSection";
 import { ResourceFilesSection } from "./sync/ResourceFilesSection";
 import { SyncCenterSection } from "./sync/SyncCenterSection";
 import { UploadCenterSection } from "./upload/UploadCenterSection";
+import { SpeechInputSection } from "./SpeechInputSection";
 import { TtsSettingsSection } from "./tts/TtsSettingsSection";
 import type { SettingModuleKey, SettingsPageProps } from "./components/types";
 import { CheckBubble } from "../../components/CheckBubble";
@@ -38,7 +39,7 @@ function getTitle(module: SettingModuleKey): string {
     case "resource":
       return "图片与附件";
     case "voice":
-      return "语音合成";
+      return "语音";
     case "feedback":
       return "反馈";
     default:
@@ -113,7 +114,12 @@ function ModuleSection(props: ModuleSectionProps) {
         />
       );
     case "voice":
-      return <TtsSettingsSection />;
+      return (
+        <>
+          <SpeechInputSection />
+          <TtsSettingsSection />
+        </>
+      );
     case "about":
       return <AboutSection />;
     case "feedback":

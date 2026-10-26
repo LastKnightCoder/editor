@@ -1,11 +1,12 @@
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { AppContext, type AppContextValue } from "../../app/AppContext";
 import type { CenterCatalogEntry, CenterRelease, CenterResolution } from "@tau/plugins/center";
 import { centerRelease } from "../../../../../tests/fixtures/plugins/center";
 import { storePrimaryAction } from "./components/storeActions";
 
-const navigator = { push: vi.fn() };
+const navigator = { push: vi.fn(), getActiveScreen: () => ({ id: "test-entry" }) };
 const state = vi.hoisted(() => ({
   config: { host: null as unknown, installationEnabled: true },
   catalog: [] as unknown[],
@@ -98,6 +99,8 @@ vi.mock("./components/PluginMarkdown", () => ({
 vi.mock("../../router", () => ({
   useNavigator: () => navigator,
   usePage: () => ({ params: state.pageParams }),
+  usePageInstanceContext: () => ({ entry: { id: "test-entry" }, navigator, phase: "active" }),
+  usePageLifecycle: () => undefined,
 }));
 vi.mock("./PluginPageView", () => ({
   PluginPageShell: (props: {
@@ -435,7 +438,6 @@ it("详情：插件中心没有记录时仍展示本机已安装插件，并可�
 it.each([
   ["sync", "打开同步配置", "syncProvider", { providerId: "example.counter" }],
   ["upload", "打开上传配置", "uploadProvider", { providerId: "example.counter" }],
-  ["tts", "打开语音配置", "settingsModule", { module: "voice" }],
 ])("详情：%s 设置进入宿主配置页", async (target, label, page, params) => {
   const component = vi.fn(() => <p>提供方表单</p>);
   const context = { pluginId: "example.counter" };
@@ -454,6 +456,37 @@ it.each([
   await click(button("设置"));
   await click(button(label));
   expect(navigator.push).toHaveBeenCalledWith(page, params);
+  expect(component).not.toHaveBeenCalled();
+});
+
+it("详情：tts 设置内联显示账号管理入口，不跳转", async () => {
+  const component = vi.fn(() => <p>提供方表单</p>);
+  const context = { pluginId: "example.counter" };
+  state.runtime = {
+    settings: new Map([
+      [
+        "provider",
+        { context, definition: { id: "provider", title: "语音配置", target: "tts", component } },
+      ],
+    ]),
+    active: () => true,
+    // 无插件会话：快照恒为空，账号列表来自设置而非运行时
+    getSnapshot: () => undefined,
+  };
+  state.installed = [installedItem()];
+  state.pageParams = { pluginId: context.pluginId };
+  const appStub = {
+    syncSettings: { safeSetting: null, updateSetting: vi.fn() },
+  } as unknown as AppContextValue;
+  await mount(
+    <AppContext.Provider value={appStub}>
+      <PluginDetail />
+    </AppContext.Provider>
+  );
+  await click(button("设置"));
+  expect(document.body.textContent).toContain("管理此插件的账号");
+  expect(button("添加账号")).toBeDefined();
+  expect(navigator.push).not.toHaveBeenCalled();
   expect(component).not.toHaveBeenCalled();
 });
 
