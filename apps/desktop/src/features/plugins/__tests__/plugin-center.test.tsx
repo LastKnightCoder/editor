@@ -173,6 +173,8 @@ beforeEach(async () => {
       entries: [{ id: ID, directory: "/x", artifact: artifact(), source: center }],
       updates: [],
     };
+    // 主进程首次从中心安装时写入启用意图
+    if (!mock.preferences.has(ID)) mock.preferences.set(ID, true);
     return { id: ID, version: "1.0.0" };
   });
   mock.uninstall.mockImplementation(async () => {
@@ -214,7 +216,7 @@ afterEach(async () => {
   vi.clearAllMocks();
 });
 
-it("发现页安装后立即登记且停用，用户从已安装主动启用", async () => {
+it("发现页安装后立即登记并启用，用户可从已安装停用", async () => {
   expect(page().textContent).toContain("中心插件");
   expect(page().textContent).toContain("@author");
   await click("安装");
@@ -225,14 +227,14 @@ it("发现页安装后立即登记且停用，用户从已安装主动启用", a
   expect(page().textContent).toContain("已安装");
   expect(page().textContent).not.toContain("重启后生效");
   expect(mock.relaunch).not.toHaveBeenCalled();
-  expect(runtime.host.getState(ID)).toBe("disabled");
-  await click("已安装 1");
-  const enable = page().querySelector<HTMLButtonElement>('[aria-label="启用 中心插件"]');
-  expect(enable).not.toBeNull();
-  await act(async () => enable?.click());
-  await settle();
   expect(runtime.host.getState(ID)).toBe("active");
-  expect(mock.preferences.get(ID)).toBe(true);
+  await click("已安装 1");
+  const disable = page().querySelector<HTMLButtonElement>('[aria-label="停用 中心插件"]');
+  expect(disable).not.toBeNull();
+  await act(async () => disable?.click());
+  await settle();
+  expect(runtime.host.getState(ID)).toBe("disabled");
+  expect(mock.preferences.get(ID)).toBe(false);
 });
 
 it("勾选不再提示后再次安装普通插件直接开始，可从插件页菜单恢复提示", async () => {
@@ -299,15 +301,15 @@ it("发现页卡片右上角的开关直接启用和停用已安装插件", asyn
   await click("安装", dialog());
   const toggle = () =>
     page().querySelector<HTMLButtonElement>('[aria-label$=" 中心插件"][role="switch"]');
-  expect(toggle()?.getAttribute("aria-label")).toBe("启用 中心插件");
-  await act(async () => toggle()?.click());
-  await settle();
-  expect(runtime.host.getState(ID)).toBe("active");
   expect(toggle()?.getAttribute("aria-label")).toBe("停用 中心插件");
   await act(async () => toggle()?.click());
   await settle();
   expect(runtime.host.getState(ID)).toBe("disabled");
   expect(mock.preferences.get(ID)).toBe(false);
+  await act(async () => toggle()?.click());
+  await settle();
+  expect(runtime.host.getState(ID)).toBe("active");
+  expect(toggle()?.getAttribute("aria-label")).toBe("停用 中心插件");
 });
 
 it("详情页读取 README 安全子集，卸载默认保留私有数据", async () => {

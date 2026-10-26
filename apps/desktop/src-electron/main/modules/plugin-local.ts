@@ -126,13 +126,19 @@ export default {
       }
     };
     const stateChanged = () => broadcast("plugin-local:state-changed");
-    const applyInstalled = async (installed: { id: string; version: string }) => {
-      await pluginPublishSessions.protect(installed.id, () =>
+    /** 首次安装：插件中心来源直接启用，本地 ZIP 默认停用；更新保留原启用意图。 */
+    const applyInstalled = async (
+      installed: { id: string; version: string },
+      enableOnInstall = false
+    ) => {
+      let fresh = false;
+      const applied = await pluginPublishSessions.protect(installed.id, () =>
         protectPluginBackendChange(installed.id, () =>
           updates.apply(installed.id, async (artifact, replacing) => {
             if (await contentStartup.uses(installed.id)) return false;
+            // 模板与 Skill 包不参与启停，安装后立即可用。
+            fresh = !replacing && !isTemplatePackage(artifact) && !isSkillPackage(artifact);
             if (!replacing) await preferences.set(installed.id, false);
-            // 模板与 Skill 包不是内容插件，安装后立即可用。
             const deferred =
               !isTemplatePackage(artifact) &&
               !isSkillPackage(artifact) &&
@@ -144,6 +150,11 @@ export default {
           })
         )
       );
+      // 内容插件的启动快照不含新包，先以停用落盘，再写入启用意图，由重启加载。
+      if (applied && fresh && enableOnInstall) {
+        await protectPluginTasks(installed.id, () => preferences.set(installed.id, true));
+        void activatePluginBackends().catch(() => undefined);
+      }
       stateChanged();
       return installed;
     };
@@ -426,7 +437,7 @@ export default {
     );
     ipcMain.handle("plugin-local:stage-release", async (_event, id: string) => {
       const { bytes, source } = await downloadPluginRelease(id, app.getVersion());
-      return applyInstalled(await updates.stageRelease(bytes, source));
+      return applyInstalled(await updates.stageRelease(bytes, source), true);
     });
     // 走正常退出流程，窗口的关闭守卫仍生效；用户取消退出时重启在下次退出后执行。
     ipcMain.handle("plugin-local:relaunch", async () => {

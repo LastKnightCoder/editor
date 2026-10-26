@@ -80,7 +80,7 @@ export function PluginsView() {
   };
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pt-1 pb-4">
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="flex flex-none flex-col px-8 pt-5">
           <div className="flex h-10 items-center gap-3">
@@ -188,7 +188,7 @@ export function PluginsView() {
           />
         </div>
 
-        <FadeScroll className="mb-4 min-h-0 flex-1 pb-2 pl-8 pr-[26px] pt-4">
+        <FadeScroll className="mb-4 min-h-0 flex-1 pt-4 pr-[26px] pb-2 pl-8">
           <div className="mb-4 flex flex-col gap-2 empty:hidden">
             <RestartBar count={pendingCount(runtime)} />
             {tab === "discover" && catalog.data && catalog.error && (
@@ -477,7 +477,7 @@ function Installed({
         <p className="text-tau-meta text-ink-2 flex items-center gap-2 px-1">
           <FolderOpen className="text-ink-3 size-4" strokeWidth={1.75} />
           插件目录 <span className="font-tau-mono text-[12px]">{runtime.local.directory}</span>
-          <span className="text-ink-3">· 新安装的插件默认停用，请手动启用</span>
+          <span className="text-ink-3">· 放入目录或从 ZIP 安装的插件默认停用，请手动启用</span>
         </p>
       )}
     </>
