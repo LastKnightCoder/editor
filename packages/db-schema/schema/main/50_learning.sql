@@ -221,6 +221,9 @@ CREATE TABLE IF NOT EXISTS excerpt_provider (
         label TEXT NOT NULL,
         update_time INTEGER NOT NULL
       );
+INSERT INTO excerpt_provider (source_type, label, update_time)
+  VALUES ('web', '网页', CAST(strftime('%s', 'now') AS INTEGER) * 1000)
+  ON CONFLICT(source_type) DO NOTHING;
 -- 网页：浏览器伴读标注或存过笔记的页面索引。显示名 = COALESCE(custom_title, page_title)，同步写进该页 excerpt.source_title
 CREATE TABLE IF NOT EXISTS web_page (
         url TEXT PRIMARY KEY,                 -- 页面键，同 excerpt.source_key（去掉 hash 的 URL）

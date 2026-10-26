@@ -45,9 +45,7 @@ const content = (nodes: unknown[] = [p(text("正文"))], count = 2, updateTime =
 const card = (contentId: number, tags: string[] = [], updateTime = clock) =>
   Number(
     mainDb
-      .prepare(
-        `INSERT INTO cards (create_time, update_time, tags, links, content_id) VALUES (?, ?, ?, '[]', ?)`
-      )
+      .prepare(`INSERT INTO cards (create_time, update_time, tags, content_id) VALUES (?, ?, ?, ?)`)
       .run(updateTime, updateTime, JSON.stringify(tags), contentId).lastInsertRowid
   );
 /** 两份正文之间建显式连接（content_links 无向边） */

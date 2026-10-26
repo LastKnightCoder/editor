@@ -16,12 +16,6 @@ export const FSRS_WEIGHTS = [
 
 export const FSRS_DESIRED_RETENTION = 0.9;
 
-/** SM-2 迁移公式假设的旧算法保留率（fsrs-rs 侧为同值字面量），与调度用的期望保留率是独立概念 */
-const FSRS_SM2_RETENTION = 0.9;
-
-/** fsrs-rs 短期稳定性下限（model.rs S_MIN），迁移公式沿用 */
-const FSRS_S_MIN = 0.001;
-
 export const FSRS_DAY_MS = 86_400_000;
 
 const algorithm = new FSRSAlgorithm(
@@ -100,28 +94,4 @@ export function fsrsIntervalMs(intervalDays: number): number {
 /** 评分后的状态：间隔 ≥1 天为巩固，否则学习中（"new"/"suspended" 由调用方维护） */
 export function fsrsStatusAfter(intervalDays: number): "learning" | "review" {
   return intervalDays >= 1 ? "review" : "learning";
-}
-
-/**
- * SM-2 旧数据 → FSRS 记忆状态迁移（fsrs-rs memory_state_from_sm2 同式，sm2_retention 固定 0.9）。
- * intervalDays 为旧算法最后一次调度的间隔（天）。
- */
-export function fsrsMemoryFromSm2(easeFactor: number, intervalDays: number): FsrsMemoryState {
-  const w = FSRS_WEIGHTS;
-  const decay = -w[20];
-  const factor = Math.exp(Math.log(0.9) / decay) - 1;
-  const stability =
-    (Math.max(intervalDays, FSRS_S_MIN) * factor) / (Math.pow(FSRS_SM2_RETENTION, 1 / decay) - 1);
-  const difficulty = Math.min(
-    10,
-    Math.max(
-      1,
-      11 -
-        (easeFactor - 1) /
-          (Math.exp(w[8]) *
-            Math.pow(stability, -w[9]) *
-            (Math.exp((1 - FSRS_SM2_RETENTION) * w[10]) - 1))
-    )
-  );
-  return { stability, difficulty };
 }

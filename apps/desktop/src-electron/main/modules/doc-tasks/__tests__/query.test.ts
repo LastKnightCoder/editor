@@ -47,7 +47,7 @@ const insertContent = (nodes: unknown[], time = 1_000) =>
 const insertCard = (contentId: number) =>
   mainDb
     .prepare(
-      `INSERT INTO cards (create_time, update_time, tags, links, content_id) VALUES (0, 0, '[]', '[]', ?)`
+      `INSERT INTO cards (create_time, update_time, tags, content_id) VALUES (0, 0, '[]', ?)`
     )
     .run(contentId);
 const insertArticle = (contentId: number, title: string, isDelete = 0) =>

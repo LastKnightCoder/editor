@@ -30,9 +30,7 @@ const insertContent = (text: string, count: number) =>
 const insertCard = (contentId: number | null, tags: string[] = []) =>
   Number(
     db
-      .prepare(
-        `INSERT INTO cards (create_time, update_time, tags, links, content_id) VALUES (?, ?, ?, '[]', ?)`
-      )
+      .prepare(`INSERT INTO cards (create_time, update_time, tags, content_id) VALUES (?, ?, ?, ?)`)
       .run(tick(), tick(), JSON.stringify(tags), contentId).lastInsertRowid
   );
 

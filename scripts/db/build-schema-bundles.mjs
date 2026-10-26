@@ -10,6 +10,7 @@ const schemaDir = path.join(rootDir, "packages/db-schema/schema");
 
 const mainSegments = [
   "main/00_pragmas.sql",
+  "main/00_meta.sql",
   "main/10_core.sql",
   "main/11_content_contracts.sql",
   "main/12_whiteboard_documents.sql",

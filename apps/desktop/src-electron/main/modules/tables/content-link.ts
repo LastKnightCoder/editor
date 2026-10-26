@@ -1,7 +1,7 @@
 /**
  * 正文显式连接（content_links）：无向边、一行一条、绑定 contents.id。
  * 共用同一份正文的身份共享同一组连接；add/remove 由 database.ts 通用包装层包在
- * 单事务里，无向边单行写入即天然原子双边（取代旧 cards.links 的两次补丁双边写）。
+ * 单事务里，无向边单行写入即天然原子双边。
  */
 
 import Database from "better-sqlite3";
@@ -225,29 +225,5 @@ export default class ContentLinkTable {
       contentId,
       contentId
     );
-  }
-
-  /**
-   * cards.links → content_links 一次性迁移（maintenance 模式开库执行）。
-   * 幂等护栏：所有卡片的 links 清空后不再命中；迁移与清空同一事务。
-   */
-  static migrateCardsLinks(db: Database.Database): void {
-    const pending = db
-      .prepare(
-        `SELECT 1 FROM cards
-         WHERE links IS NOT NULL AND links NOT IN ('[]', '', 'null') LIMIT 1`
-      )
-      .get();
-    if (!pending) return;
-    db.transaction(() => {
-      db.prepare(
-        `INSERT OR IGNORE INTO content_links (content_id, target_content_id, create_time)
-         SELECT MIN(c.content_id, t.content_id), MAX(c.content_id, t.content_id), ?
-         FROM cards c, json_each(CASE WHEN json_valid(c.links) THEN c.links ELSE '[]' END) je
-         JOIN cards t ON t.id = CAST(je.value AS INTEGER) AND t.content_id IS NOT NULL
-         WHERE c.content_id IS NOT NULL AND c.content_id != t.content_id`
-      ).run(Date.now());
-      db.prepare(`UPDATE cards SET links = '[]'`).run();
-    })();
   }
 }

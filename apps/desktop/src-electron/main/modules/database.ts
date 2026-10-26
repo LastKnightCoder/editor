@@ -80,16 +80,10 @@ import mainContentIndexDBManager, {
   IndexRebuildState,
   IndexRebuildTarget,
 } from "./main-content-index-db";
-import MAIN_SCHEMA_SQL from "@tau/db-schema/schema/main.sql?raw";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import { executeReadOnlySql, type SqlQueryInput } from "./sql-query";
 import { assertDatabaseNotSyncing } from "@tau/db-schema/sync";
-import { assertNoLegacyTables } from "@tau/db-schema/src/legacy-table-guard";
-import { upgradeDataTableViewOptions } from "./data-table-view-options-upgrade";
-import { upgradeQuestionedInsights } from "./insights-questioned-upgrade";
-import { QuestionMigrationTable } from "./question-plugin-migration";
-import { upgradeExcerptProviders } from "./excerpt-provider-upgrade";
-import { upgradeWebPages } from "./web-page-upgrade";
+import { ensureMainSchema } from "./main-schema";
 import { broadcastScheduleChange, isScheduleWrite } from "./schedule-changes";
 import { broadcastDatabaseChange } from "./database-notifications";
 
@@ -316,7 +310,6 @@ class DatabaseModule implements Module {
       PluginElementResourcesTable,
       PluginRefsTable,
       PluginReadonlyDataTable,
-      QuestionMigrationTable,
     ] as unknown as Table[];
 
     this.eventAndHandlers = this.tables.reduce(
@@ -381,42 +374,16 @@ class DatabaseModule implements Module {
         `[database] openDatabase vec_version read: db=${name}, vec_version=${vec_version}, elapsedMs=${Date.now() - vecVersionStartAt}`
       );
 
-      const pragmaStartAt = Date.now();
-      database.pragma("journal_mode = WAL");
-      log.info(
-        `[database] openDatabase journal_mode done: db=${name}, elapsedMs=${Date.now() - pragmaStartAt}`
-      );
-
-      // 数据基线门禁：残留历史旧表的库来自未完成最后升级的旧版本，在任何写入之前拒绝进入
-      assertNoLegacyTables(database);
-
       const schemaStartAt = Date.now();
-      database.exec(MAIN_SCHEMA_SQL);
+      ensureMainSchema(database);
       log.info(
         `[database] openDatabase main schema done: db=${name}, elapsedMs=${Date.now() - schemaStartAt}`
       );
-
-      const upgradedViews = upgradeDataTableViewOptions(database);
-      if (upgradedViews > 0)
-        log.info(`[database] 数据表视图配置收进 viewOptions: db=${name}, views=${upgradedViews}`);
-
-      const upgradedInsights = upgradeQuestionedInsights(database);
-      if (upgradedInsights > 0)
-        log.info(`[database] 洞见「记为问题」状态改为不相关: db=${name}, rows=${upgradedInsights}`);
-
-      if (upgradeExcerptProviders(database))
-        log.info(`[database] 摘录补齐位置、外链与提供方: db=${name}`);
-
-      const backfilledPages = upgradeWebPages(database);
-      if (backfilledPages > 0)
-        log.info(`[database] 网页摘录补页面索引: db=${name}, pages=${backfilledPages}`);
 
       if (mode === "maintenance") {
         const maintenanceStartAt = Date.now();
         TodoGroupTable.ensureSystemGroups(database);
         DiaryTable.ensureDefaultTagSettings(database);
-        FlashcardTable.upgradeTable(database);
-        ContentLinkTable.migrateCardsLinks(database);
         TodoCalendarSyncTable.ensureTodoCalendars(database);
         try {
           TodoCalendarSyncTable.cleanupOrphanedEvents(database);

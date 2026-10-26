@@ -39,7 +39,7 @@ describe("PluginLinkTable", () => {
     Number(
       db
         .prepare(
-          "INSERT INTO cards (create_time, update_time, tags, links, content_id) VALUES (?, 1, '[]', '[]', 0)"
+          "INSERT INTO cards (create_time, update_time, tags, content_id) VALUES (?, 1, '[]', 0)"
         )
         .run(1000 + seq).lastInsertRowid
     );

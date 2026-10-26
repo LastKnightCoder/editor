@@ -239,7 +239,7 @@ describe("插件关联：待办与日程候选、引用存在性", () => {
       "INSERT INTO contents (create_time, update_time, content, count) VALUES (1, 1, '[]', 0)"
     );
     const card = insert(
-      "INSERT INTO cards (create_time, update_time, tags, links, content_id) VALUES (1, 1, '[]', '[]', ?)",
+      "INSERT INTO cards (create_time, update_time, tags, content_id) VALUES (1, 1, '[]', ?)",
       contentId
     );
     const entity = insert(

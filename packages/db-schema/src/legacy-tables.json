@@ -44,5 +44,10 @@
   "goal_progress_entries",
   "goal_note_link",
   "goal_progress_note_link",
-  "weread_view"
+  "weread_view",
+  "question_event",
+  "question_chat",
+  "question_link",
+  "questions",
+  "question_group"
 ]

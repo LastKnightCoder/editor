@@ -50,7 +50,7 @@ const insertCardContent = (nodes: unknown[]) => {
   );
   mainDb
     .prepare(
-      `INSERT INTO cards (create_time, update_time, tags, links, content_id) VALUES (0, 0, '[]', '[]', ?)`
+      `INSERT INTO cards (create_time, update_time, tags, content_id) VALUES (0, 0, '[]', ?)`
     )
     .run(id);
   return id;

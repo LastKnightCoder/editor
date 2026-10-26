@@ -1,12 +1,17 @@
 use super::*;
 
+fn total_changes(conn: &Connection) -> i64 {
+    conn.query_row("SELECT total_changes()", [], |row| row.get(0))
+        .unwrap()
+}
+
 #[test]
 fn fresh_database_is_initialized_at_current_schema_version() {
     let conn = Connection::open_in_memory().unwrap();
     ensure_main_schema(&conn).unwrap();
     assert_eq!(
         get_meta(&conn, "main_schema_version").unwrap(),
-        Some(MAIN_SCHEMA_VERSION.to_string())
+        Some(main_schema_version().to_string())
     );
     let tables: i64 = conn
         .query_row(
@@ -20,7 +25,7 @@ fn fresh_database_is_initialized_at_current_schema_version() {
     ensure_main_schema(&conn).unwrap();
     assert_eq!(
         get_meta(&conn, "main_schema_version").unwrap(),
-        Some(MAIN_SCHEMA_VERSION.to_string())
+        Some(main_schema_version().to_string())
     );
 }
 
@@ -34,7 +39,7 @@ fn legacy_database_below_baseline_is_rejected_without_modification() {
     .unwrap();
     let error = ensure_main_schema(&conn).unwrap_err();
     assert!(
-        error.contains("DB_LEGACY_SCHEMA"),
+        error.contains("DB_SCHEMA_INCOMPATIBLE"),
         "unexpected error: {error}"
     );
     // 拒绝进入不修改数据：旧表保持原样
@@ -64,7 +69,7 @@ fn future_version_is_not_downgraded() {
 }
 
 #[test]
-fn schema_hash_drift_rebuilds_indexes_at_same_version() {
+fn schema_hash_drift_adds_missing_indexes_at_same_version() {
     let conn = Connection::open_in_memory().unwrap();
     ensure_main_schema(&conn).unwrap();
     // 同版本号下模拟 schema 演进：删掉一个索引并使 hash 失效，重新打开应按当前 schema 重建
@@ -86,248 +91,71 @@ fn schema_hash_drift_rebuilds_indexes_at_same_version() {
     );
 }
 
-/// v4 库样本：旧调度列结构（review_level/ease_factor）+ 一张已学卡与历史评分
-fn v4_database_with_flashcards() -> Connection {
-    let conn = Connection::open_in_memory().unwrap();
-    conn.execute_batch(
-        "CREATE TABLE schema_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL);
-         INSERT INTO schema_meta VALUES ('main_schema_version', '4', 0);
-         CREATE TABLE flashcard_decks(id INTEGER PRIMARY KEY, name TEXT NOT NULL, description TEXT DEFAULT '',
-           cover_color TEXT DEFAULT '#2563eb', emoji TEXT DEFAULT '🧠', sort_order INTEGER DEFAULT 0, meta TEXT,
-           create_time INTEGER NOT NULL, update_time INTEGER NOT NULL);
-         CREATE TABLE flashcards(id INTEGER PRIMARY KEY, deck_id INTEGER NOT NULL, type TEXT NOT NULL,
-           prompt TEXT NOT NULL, detail TEXT DEFAULT '', data TEXT NOT NULL, tags TEXT DEFAULT '[]',
-           difficulty TEXT DEFAULT 'standard', review_level INTEGER DEFAULT 0, due_time INTEGER NOT NULL,
-           last_review_time INTEGER, review_count INTEGER DEFAULT 0, ease_factor REAL DEFAULT 2.5,
-           status TEXT DEFAULT 'new', reference_summary TEXT, create_time INTEGER NOT NULL, update_time INTEGER NOT NULL);
-         CREATE TABLE flashcard_reviews(id INTEGER PRIMARY KEY, card_id INTEGER NOT NULL, deck_id INTEGER NOT NULL,
-           rating TEXT NOT NULL, review_time INTEGER NOT NULL, interval INTEGER NOT NULL,
-           review_level INTEGER NOT NULL, ease_factor REAL NOT NULL, notes TEXT);
-         INSERT INTO flashcard_decks VALUES (1, '卡组', '', '#2563eb', '🧠', 0, NULL, 0, 0);
-         INSERT INTO flashcards VALUES (10, 1, 'qa', '[]', '[]', '{}', '[]', 'standard',
-           3, 1000, 500, 2, 2.5, 'review', NULL, 0, 0);
-         INSERT INTO flashcards VALUES (11, 1, 'qa', '[]', '[]', '{}', '[]', 'standard',
-           0, 1000, NULL, 0, 2.5, 'new', NULL, 0, 0);
-         INSERT INTO flashcard_reviews VALUES (1, 10, 1, 'normal', 500, 86400000, 1, 2.5, NULL);
-         INSERT INTO flashcard_reviews VALUES (2, 10, 1, 'normal', 500, 604800000, 3, 2.5, NULL);",
-    )
-    .unwrap();
-    conn
-}
-
 #[test]
-fn v4_database_migrates_flashcards_to_fsrs_columns() {
-    let conn = v4_database_with_flashcards();
-    // v4 先升 v5（FSRS），再链式升 v6（卡片连接迁 content_links）
-    ensure_main_schema(&conn).unwrap();
-
-    assert_eq!(
-        get_meta(&conn, "main_schema_version").unwrap().as_deref(),
-        Some(MAIN_SCHEMA_VERSION.to_string()).as_deref()
-    );
-    // 旧调度列退役，新记忆状态列就位；已学卡按 SM-2 公式回填（0.9 保留率下稳定性=旧间隔天数）
-    let (stability, difficulty): (Option<f64>, Option<f64>) = conn
-        .query_row(
-            "SELECT memory_stability, memory_difficulty FROM flashcards WHERE id = 10",
-            [],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )
-        .unwrap();
-    assert!((stability.unwrap() - 7.0).abs() < 1e-4);
-    assert!(difficulty.unwrap() > 1.0 && difficulty.unwrap() < 10.0);
-    // 新卡不回填，历史评分保留且快照列按默认 0 落库
-    let new_card: Option<f64> = conn
-        .query_row(
-            "SELECT memory_stability FROM flashcards WHERE id = 11",
-            [],
-            |r| r.get(0),
-        )
-        .unwrap();
-    assert!(new_card.is_none());
-    let (history, snapshot): (i64, f64) = conn
-        .query_row(
-            "SELECT COUNT(*), MAX(stability) FROM flashcard_reviews WHERE card_id = 10",
-            [],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        )
-        .unwrap();
-    assert_eq!(history, 2);
-    assert_eq!(snapshot, 0.0);
-}
-
-/// 迁移是手写 DDL，钉住「迁移后列结构 == 全新建库列结构」，防止与 schema 分片漂移
-#[test]
-fn migrated_flashcard_tables_match_fresh_schema_columns() {
-    let migrated = v4_database_with_flashcards();
-    ensure_main_schema(&migrated).unwrap();
-    let fresh = Connection::open_in_memory().unwrap();
-    ensure_main_schema(&fresh).unwrap();
-
-    for table in ["flashcards", "flashcard_reviews"] {
-        let columns = |conn: &Connection| {
-            conn.prepare(&format!("PRAGMA table_info({table})"))
-                .unwrap()
-                .query_map([], |row| {
-                    Ok((
-                        row.get::<_, String>(1)?,
-                        row.get::<_, String>(2)?,
-                        row.get::<_, i64>(3)?,
-                        row.get::<_, Option<String>>(4)?,
-                    ))
-                })
-                .unwrap()
-                .collect::<Result<Vec<_>, _>>()
-                .unwrap()
-        };
-        assert_eq!(columns(&migrated), columns(&fresh), "table {table}");
+fn unsupported_versions_keep_original_tables_and_rows() {
+    for version in [4, 5, 6, 7, 8, 9, 999] {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("CREATE TABLE schema_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL);
+            CREATE TABLE questions(id INTEGER PRIMARY KEY, content TEXT);
+            INSERT INTO questions VALUES (1, '保留原数据');").unwrap();
+        set_meta(&conn, "main_schema_version", &version.to_string()).unwrap();
+        let before = total_changes(&conn);
+        assert!(ensure_main_schema(&conn)
+            .unwrap_err()
+            .contains("DB_SCHEMA_INCOMPATIBLE"));
+        assert_eq!(total_changes(&conn), before);
+        assert_eq!(
+            get_meta(&conn, "main_schema_version").unwrap(),
+            Some(version.to_string())
+        );
+        assert_eq!(
+            conn.query_row("SELECT content FROM questions", [], |row| row
+                .get::<_, String>(0))
+                .unwrap(),
+            "保留原数据"
+        );
     }
 }
 
-/// v5 库样本：cards.links（JSON 卡片 id 数组）里存着双向卡片连接
-fn v5_database_with_card_links() -> Connection {
-    let conn = Connection::open_in_memory().unwrap();
-    conn.execute_batch(
-        "CREATE TABLE schema_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL);
-         INSERT INTO schema_meta VALUES ('main_schema_version', '5', 0);
-         CREATE TABLE cards(id INTEGER PRIMARY KEY, create_time INTEGER NOT NULL, update_time INTEGER NOT NULL,
-           tags TEXT, links TEXT, content_id INTEGER, is_top INTEGER DEFAULT 0, podcast_id INTEGER DEFAULT NULL);
-         INSERT INTO cards VALUES (1, 0, 0, '[]', '[2,3,6,8]', 11, 0, NULL);
-         INSERT INTO cards VALUES (2, 0, 0, '[]', '[1]', 12, 0, NULL);
-         INSERT INTO cards VALUES (3, 0, 0, '[]', '[1]', 13, 0, NULL);
-         INSERT INTO cards VALUES (4, 0, 0, '[]', '[]', 14, 0, NULL);
-         INSERT INTO cards VALUES (5, 0, 0, '[]', '[99]', 15, 0, NULL);
-         -- 6 与 1 共用正文 11：不互连；7 的 links 是坏 JSON：不产出边、不炸迁移；8 的 content_id 为 NULL：跳过
-         INSERT INTO cards VALUES (6, 0, 0, '[]', '[1]', 11, 0, NULL);
-         INSERT INTO cards VALUES (7, 0, 0, '[]', '{bad json', 17, 0, NULL);
-         INSERT INTO cards VALUES (8, 0, 0, '[]', '[1]', NULL, 0, NULL);",
-    )
-    .unwrap();
-    conn
-}
-
 #[test]
-fn v5_database_migrates_card_links_to_content_links() {
-    let conn = v5_database_with_card_links();
+fn current_baseline_has_no_card_links_and_seeds_web_provider() {
+    let conn = Connection::open_in_memory().unwrap();
     ensure_main_schema(&conn).unwrap();
-
-    assert_eq!(
-        get_meta(&conn, "main_schema_version").unwrap().as_deref(),
-        Some(MAIN_SCHEMA_VERSION.to_string()).as_deref()
-    );
-    // 双边冗余写收敛为无向边单行（规范化小正文 id 在前）：1↔2、1↔3；悬空目标（卡 99）丢弃
-    let edges: Vec<(i64, i64)> = conn
-        .prepare("SELECT content_id, target_content_id FROM content_links ORDER BY content_id, target_content_id")
-        .unwrap()
-        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
-        .unwrap()
-        .collect::<Result<Vec<_>, _>>()
-        .unwrap();
-    assert_eq!(edges, vec![(11, 12), (11, 13)]);
-    // cards.links 清空（列退役），重复打开幂等不再触发迁移写
-    let remaining: i64 = conn
+    let retired: i64 = conn
         .query_row(
-            "SELECT COUNT(*) FROM cards WHERE links IS NOT NULL AND links NOT IN ('[]', '', 'null')",
+            "SELECT COUNT(*) FROM pragma_table_info('cards') WHERE name='links'",
             [],
-            |r| r.get(0),
+            |row| row.get(0),
         )
         .unwrap();
-    assert_eq!(remaining, 0);
-    ensure_main_schema(&conn).unwrap();
-    let edges_after: i64 = conn
-        .query_row("SELECT COUNT(*) FROM content_links", [], |r| r.get(0))
-        .unwrap();
-    assert_eq!(edges_after, 2);
-}
-
-/// v7 库样本：excerpt 还没有 location / url，没有 excerpt_provider
-fn v7_database_with_excerpts() -> Connection {
-    let conn = Connection::open_in_memory().unwrap();
-    conn.execute_batch(
-        "CREATE TABLE schema_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL);
-         INSERT INTO schema_meta VALUES ('main_schema_version', '7', 0);
-         CREATE TABLE weread_notebook(book_id TEXT PRIMARY KEY, title TEXT NOT NULL, pc_url TEXT,
-           last_read_date TEXT, reading_status INTEGER DEFAULT 0,
-           created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);
-         INSERT INTO weread_notebook (book_id, title, pc_url, created_at, updated_at)
-           VALUES ('b1', '书', 'https://weread.qq.com/web/reader/x', 0, 0);
-         CREATE TABLE excerpt(id INTEGER PRIMARY KEY AUTOINCREMENT, source_type TEXT NOT NULL,
-           source_key TEXT NOT NULL, source_title TEXT NOT NULL DEFAULT '', external_id TEXT NOT NULL,
-           quote TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', anchor TEXT, color TEXT, source_time INTEGER,
-           create_time INTEGER NOT NULL, update_time INTEGER NOT NULL, is_deleted INTEGER NOT NULL DEFAULT 0);
-         INSERT INTO excerpt (id, source_type, source_key, source_title, external_id, quote, anchor, create_time, update_time)
-           VALUES (5, 'weread', 'b1', '书', 'b1:1', '引文', '{\"chapterTitle\":\"第一章\"}', 1, 1),
-                  (6, 'web', 'https://a.com/p', '', 'u1', '网页', NULL, 1, 1);",
-    )
-    .unwrap();
-    conn
-}
-
-#[test]
-fn v7_database_backfills_excerpt_providers() {
-    let conn = v7_database_with_excerpts();
-    ensure_main_schema(&conn).unwrap();
+    assert_eq!(retired, 0);
     assert_eq!(
-        get_meta(&conn, "main_schema_version").unwrap(),
-        Some(MAIN_SCHEMA_VERSION.to_string())
-    );
-    let rows: Vec<(i64, String, Option<String>)> = conn
-        .prepare("SELECT id, location, url FROM excerpt ORDER BY id")
-        .unwrap()
-        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
-        .unwrap()
-        .collect::<Result<Vec<_>, _>>()
-        .unwrap();
-    assert_eq!(
-        rows,
-        vec![
-            (
-                5,
-                "第一章".into(),
-                Some("https://weread.qq.com/web/reader/x".into())
-            ),
-            (6, "".into(), Some("https://a.com/p#tau-hl=u1".into())),
-        ]
-    );
-    let labels: Vec<(String, String)> = conn
-        .prepare("SELECT source_type, label FROM excerpt_provider ORDER BY source_type")
-        .unwrap()
-        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
-        .unwrap()
-        .collect::<Result<Vec<_>, _>>()
-        .unwrap();
-    assert_eq!(
-        labels,
-        vec![
-            ("web".into(), "网页".into()),
-            ("weread".into(), "微信读书".into())
-        ]
-    );
-    ensure_main_schema(&conn).unwrap();
-}
-
-#[test]
-fn v8_database_drops_retired_question_tables() {
-    let conn = Connection::open_in_memory().unwrap();
-    ensure_main_schema(&conn).unwrap();
-    conn.execute_batch(
-        "UPDATE schema_meta SET value = '8' WHERE key = 'main_schema_version';
-         CREATE TABLE questions(id INTEGER PRIMARY KEY, question_content TEXT);
-         CREATE INDEX idx_questions_status ON questions(question_content);
-         CREATE TABLE question_link(id INTEGER PRIMARY KEY, question_id INTEGER NOT NULL);
-         INSERT INTO questions VALUES (1, '旧问题');",
-    )
-    .unwrap();
-    ensure_main_schema(&conn).unwrap();
-    assert_eq!(
-        get_meta(&conn, "main_schema_version").unwrap(),
-        Some(MAIN_SCHEMA_VERSION.to_string())
-    );
-    let leftover: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM sqlite_master WHERE name LIKE 'question%' OR name = 'idx_questions_status'",
+        conn.query_row(
+            "SELECT label FROM excerpt_provider WHERE source_type='web'",
             [],
-            |r| r.get(0),
+            |row| row.get::<_, String>(0)
         )
+        .unwrap(),
+        "网页"
+    );
+    let before = total_changes(&conn);
+    ensure_main_schema(&conn).unwrap();
+    assert_eq!(total_changes(&conn), before);
+}
+
+#[test]
+fn failed_initialization_does_not_leave_partial_schema_or_version() {
+    let conn = Connection::open_in_memory().unwrap();
+    conn.execute_batch("CREATE VIEW contents AS SELECT 1 AS id")
         .unwrap();
-    assert_eq!(leftover, 0);
+    assert!(ensure_main_schema(&conn).is_err());
+    assert_eq!(
+        conn.query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
+            [],
+            |row| row.get::<_, i64>(0)
+        )
+        .unwrap(),
+        0
+    );
 }

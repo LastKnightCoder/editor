@@ -21,11 +21,9 @@ import {
 } from "@/types";
 import ContentTable from "./content";
 import {
-  FSRS_DAY_MS,
   fsrsElapsedDays,
   fsrsGradeOf,
   fsrsIntervalMs,
-  fsrsMemoryFromSm2,
   fsrsSchedule,
   fsrsStatusAfter,
   type FsrsMemoryState,
@@ -103,101 +101,6 @@ class FlashcardTable {
     };
   }
 
-  /**
-   * 旧调度列（间隔阶梯+ease）→ FSRS 表结构迁移，开库维护阶段调用；幂等。
-   * 建表语句与 packages/db-schema/schema/main/50_learning.sql、90_indexes.sql 同步，
-   * 移动端等价实现在 src-tauri/src/database/migrator.rs 的 migrate_v4_to_v5。
-   */
-  static upgradeTable(db: Database.Database): void {
-    const columns = (db.pragma("table_info(flashcards)") as Array<{ name: string }>).map(
-      c => c.name
-    );
-    if (!columns.includes("review_level")) return;
-
-    // 迁移输入须在旧表重建前读取：旧 ease 与最近一次调度的间隔
-    const inputs = db
-      .prepare(
-        `SELECT f.id AS id, f.ease_factor AS ease,
-         COALESCE((SELECT r.interval FROM flashcard_reviews r WHERE r.card_id = f.id ORDER BY r.id DESC LIMIT 1), 0) AS last_interval
-         FROM flashcards f WHERE f.review_count > 0`
-      )
-      .all() as Array<{ id: number; ease: number; last_interval: number }>;
-
-    // 桌面主进程默认 foreign_keys = OFF，这里按原值恢复而非硬编码 ON，避免翻转连接语义
-    const foreignKeysBefore = db.pragma("foreign_keys", { simple: true }) as number;
-    db.pragma("foreign_keys = OFF");
-    try {
-      db.transaction(() => {
-        db.exec(`
-          CREATE TABLE flashcard_reviews_v5 (
-            id INTEGER PRIMARY KEY,
-            card_id INTEGER NOT NULL,
-            deck_id INTEGER NOT NULL,
-            rating TEXT NOT NULL,
-            review_time INTEGER NOT NULL,
-            interval INTEGER NOT NULL,
-            stability REAL NOT NULL DEFAULT 0,
-            difficulty REAL NOT NULL DEFAULT 0,
-            notes TEXT,
-            FOREIGN KEY(card_id) REFERENCES flashcards(id),
-            FOREIGN KEY(deck_id) REFERENCES flashcard_decks(id)
-          );
-          INSERT INTO flashcard_reviews_v5 (id, card_id, deck_id, rating, review_time, interval, notes)
-            SELECT id, card_id, deck_id, rating, review_time, interval, notes FROM flashcard_reviews;
-          DROP TABLE flashcard_reviews;
-          ALTER TABLE flashcard_reviews_v5 RENAME TO flashcard_reviews;
-
-          CREATE TABLE flashcards_v5 (
-            id INTEGER PRIMARY KEY,
-            deck_id INTEGER NOT NULL,
-            type TEXT NOT NULL,
-            prompt TEXT NOT NULL,
-            detail TEXT DEFAULT '',
-            data TEXT NOT NULL,
-            tags TEXT DEFAULT '[]',
-            difficulty TEXT DEFAULT 'standard',
-            due_time INTEGER NOT NULL,
-            last_review_time INTEGER,
-            review_count INTEGER DEFAULT 0,
-            memory_stability REAL,
-            memory_difficulty REAL,
-            status TEXT DEFAULT 'new',
-            reference_summary TEXT,
-            create_time INTEGER NOT NULL,
-            update_time INTEGER NOT NULL,
-            FOREIGN KEY(deck_id) REFERENCES flashcard_decks(id)
-          );
-          INSERT INTO flashcards_v5 (id, deck_id, type, prompt, detail, data, tags, difficulty,
-            due_time, last_review_time, review_count, status, reference_summary, create_time, update_time)
-            SELECT id, deck_id, type, prompt, detail, data, tags, difficulty,
-            due_time, last_review_time, review_count, status, reference_summary, create_time, update_time
-            FROM flashcards;
-          DROP TABLE flashcards;
-          ALTER TABLE flashcards_v5 RENAME TO flashcards;
-
-          CREATE INDEX IF NOT EXISTS idx_flashcards_deck ON flashcards(deck_id);
-          CREATE INDEX IF NOT EXISTS idx_flashcards_due_time ON flashcards(due_time);
-          CREATE INDEX IF NOT EXISTS idx_flashcard_reviews_card ON flashcard_reviews(card_id);
-          CREATE INDEX IF NOT EXISTS idx_flashcard_reviews_time ON flashcard_reviews(review_time);
-        `);
-        const backfill = db.prepare(
-          `UPDATE flashcards SET memory_stability = ?, memory_difficulty = ? WHERE id = ?`
-        );
-        for (const { id, ease, last_interval } of inputs) {
-          const state = fsrsMemoryFromSm2(ease, last_interval / FSRS_DAY_MS);
-          backfill.run(state.stability, state.difficulty, id);
-        }
-      })();
-      // 只检查本次重建的两张表：全库扫描会被无关表的历史孤儿行阻断开库
-      const violations = db.pragma("foreign_key_check(flashcards)") as unknown[];
-      const reviewViolations = db.pragma("foreign_key_check(flashcard_reviews)") as unknown[];
-      if (violations.length > 0 || reviewViolations.length > 0) {
-        throw new Error("闪卡表 FSRS 迁移后存在外键违例");
-      }
-    } finally {
-      db.pragma(`foreign_keys = ${foreignKeysBefore ? "ON" : "OFF"}`);
-    }
-  }
   private static parseJSON<T>(value: string | null | undefined, fallback: T): T {
     if (!value) return fallback;
     try {

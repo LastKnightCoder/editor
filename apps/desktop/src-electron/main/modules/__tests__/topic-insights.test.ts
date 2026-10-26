@@ -101,7 +101,7 @@ describe("topic-insights 分层阅读", () => {
     const id = Number(
       main
         .prepare(
-          `INSERT INTO cards (create_time, update_time, tags, links, content_id) VALUES (?, 1, '[]', '[]', ?)`
+          `INSERT INTO cards (create_time, update_time, tags, content_id) VALUES (?, 1, '[]', ?)`
         )
         .run(now - 30 * 24 * HOUR, contentId).lastInsertRowid
     );
@@ -442,10 +442,34 @@ describe("topic-insights 分层阅读", () => {
           { id: 13, parent: 0, label: "模块", colorSlot: 0, size: 3 },
         ],
         nodes: [
-          ...["c1", "c2", "c9"].map(name => ({ key: keys[name], x: 0, y: 0, topic: 0, subtopic: 10 })),
-          ...["c3", "c4", "c10"].map(name => ({ key: keys[name], x: 0, y: 0, topic: 0, subtopic: 11 })),
-          ...["c5", "a1", "c11"].map(name => ({ key: keys[name], x: 0, y: 0, topic: 0, subtopic: 12 })),
-          ...["c6", "c7", "c12"].map(name => ({ key: keys[name], x: 0, y: 0, topic: 0, subtopic: 13 })),
+          ...["c1", "c2", "c9"].map(name => ({
+            key: keys[name],
+            x: 0,
+            y: 0,
+            topic: 0,
+            subtopic: 10,
+          })),
+          ...["c3", "c4", "c10"].map(name => ({
+            key: keys[name],
+            x: 0,
+            y: 0,
+            topic: 0,
+            subtopic: 11,
+          })),
+          ...["c5", "a1", "c11"].map(name => ({
+            key: keys[name],
+            x: 0,
+            y: 0,
+            topic: 0,
+            subtopic: 12,
+          })),
+          ...["c6", "c7", "c12"].map(name => ({
+            key: keys[name],
+            x: 0,
+            y: 0,
+            topic: 0,
+            subtopic: 13,
+          })),
         ],
       },
       "model-a"

@@ -31,7 +31,6 @@ CREATE TABLE IF NOT EXISTS chat_session (
 -- 正文之间的显式连接（无向边，一行一条；content_id 规范化为较小一侧）。
 -- 连接绑定 contents.id：共用同一份正文的身份（卡片、文章、项目文档、日记，及从卡片创建
 -- 而共用正文的项目文档）共享同一组连接。任一侧正文删除（引用计数归零）时整条边释放。
--- 卡片旧存储 cards.links 已迁入本表，该列不再读写。
 CREATE TABLE IF NOT EXISTS content_links (
         content_id INTEGER NOT NULL,
         target_content_id INTEGER NOT NULL,

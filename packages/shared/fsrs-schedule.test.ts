@@ -11,11 +11,8 @@ import {
   FSRS_DESIRED_RETENTION,
   fsrsGradeOf,
   fsrsSchedule,
-  fsrsMemoryFromSm2,
   type FsrsMemoryState,
 } from "./fsrs-schedule";
-
-const DAY_MS = 86_400_000;
 
 // ts-fsrs 以 f64 计算、fsrs-rs 为 f32，对拍容差统一取 1e-3 相对误差
 function expectClose(actual: number, expected: number) {
@@ -28,17 +25,6 @@ function expectClose(actual: number, expected: number) {
 describe("fsrsSchedule 跨端对拍", () => {
   for (const fixtureCase of fixture.cases) {
     const name = fixtureCase.name as string;
-    if ("sm2Ease" in fixtureCase) {
-      it(`${name}：SM-2 迁移公式与 fsrs-rs memory_state_from_sm2 一致`, () => {
-        const state = fsrsMemoryFromSm2(
-          fixtureCase.sm2Ease as number,
-          fixtureCase.sm2IntervalDays as number
-        );
-        expectClose(state.stability, fixtureCase.stability as number);
-        expectClose(state.difficulty, fixtureCase.difficulty as number);
-      });
-      continue;
-    }
     it(`${name}：调度输出与 fsrs-rs next_states 一致`, () => {
       const memory: FsrsMemoryState | null =
         fixtureCase.memoryStability == null

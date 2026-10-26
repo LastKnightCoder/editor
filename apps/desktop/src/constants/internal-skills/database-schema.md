@@ -20,6 +20,16 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 
 ## 表和字段
 
+### `schema_meta`
+
+桌面与移动共用的数据库版本及结构指纹；应用只打开当前基线。
+
+| 字段         | SQLite 定义        |
+| ------------ | ------------------ |
+| `key`        | `TEXT PRIMARY KEY` |
+| `value`      | `TEXT NOT NULL`    |
+| `updated_at` | `INTEGER NOT NULL` |
+
 ### `library_identity`
 
 完整库的来源身份与身份基线；`confirmed_snapshot` 为空表示尚未确认传播快照。本机库名不能证明同源。
@@ -392,7 +402,6 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `create_time` | `INTEGER NOT NULL`     |
 | `update_time` | `INTEGER NOT NULL`     |
 | `tags`        | `TEXT`                 |
-| `links`       | `TEXT`                 |
 | `content_id`  | `INTEGER`              |
 | `is_top`      | `INTEGER DEFAULT 0`    |
 | `podcast_id`  | `INTEGER DEFAULT NULL` |
