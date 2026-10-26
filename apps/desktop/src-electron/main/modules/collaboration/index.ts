@@ -404,6 +404,18 @@ export class CollaborationManager {
     const binding = findCollaborationBinding(db, target.contentId);
     const id = binding?.document_id || localSessionId(db.name, content.id, content.createTime);
     let session = this.findSession(id);
+    if (session?.info.mode === "local" && session.info.source) {
+      const source = session.info.source;
+      const stored = ContentDocumentTable.read(db, content.id);
+      if (
+        (source.librarySourceId &&
+          source.librarySourceId !== ContentIdentityTable.library(db)?.sourceId) ||
+        (source.contentDocumentId && source.contentDocumentId !== stored?.documentId)
+      ) {
+        await this.releaseReplacedSession(session);
+        return this.openContent(event, target);
+      }
+    }
     if (session) {
       const detached = this.store.get<{
         sourceId: string | null;
@@ -700,7 +712,7 @@ export class CollaborationManager {
     }
   }
 
-  private async preserveSession(session: RuntimeSession) {
+  private async preserveSession(session: RuntimeSession, replaced = false) {
     if (!this.contentState) throw new Error("恢复服务尚未就绪");
     const privateNodes = this.store.legacyPrivateNodes(session.info.id);
     const revision = createHash("sha256")
@@ -752,10 +764,10 @@ export class CollaborationManager {
         .workspaceId ??
       "application";
     const source = session.info.source;
-    const db = source ? databaseModule.getDatabase(workspaceId) : undefined;
+    const db = source && !replaced ? databaseModule.getDatabase(workspaceId) : undefined;
     const encode = (value: unknown) => Buffer.from(JSON.stringify(value));
     const files: ({ name: string; path: string } | { name: string; bytes: Uint8Array })[] = [];
-    if (source) {
+    if (source && !replaced) {
       if (!db?.open) throw new Error("请打开原资料库以保全引用实体");
       const row = db
         .prepare("SELECT content,create_time FROM contents WHERE id=?")
@@ -847,7 +859,7 @@ export class CollaborationManager {
     }
     const receipt = recovery.save({
       workspaceId,
-      reason: "offline-edit",
+      reason: replaced ? "library-replacement" : "offline-edit",
       provenance: {
         documentId: session.info.id,
         source: source ?? null,
@@ -856,6 +868,7 @@ export class CollaborationManager {
       files,
       missing: [
         ...resources.missing,
+        ...(source && replaced ? ["原资料库实体保留在同步前备份中，不从新资料库取代"] : []),
         ...(!source && privateNodes.size ? ["旧私有实体的资料库来源尚未核对"] : []),
       ],
     });
@@ -2322,14 +2335,15 @@ export class CollaborationManager {
     }
   }
 
-  /**
-   * 整库被同步下载替换：本库正文缓存对应的是旧库，本地会话直接丢弃，共享会话解除来源。
-   * 调用前 close-database 已把缓存写回旧库，旧库也已复制进 backup/。
-   */
-  async releaseLibrary(name: string): Promise<void> {
-    for (const session of [...this.sessions.values()]) {
-      if (session.info.source?.databaseName !== name) continue;
-      const id = session.info.id;
+  private readonly replacementReleases = new Map<string, Promise<void>>();
+
+  private releaseReplacedSession(session: RuntimeSession): Promise<void> {
+    const id = session.info.id;
+    const pending = this.replacementReleases.get(id);
+    if (pending) return pending;
+    const release = (async () => {
+      // 冷缓存可能从未参与关库投影，必须先独立保全再解除旧来源。
+      await this.preserveSession(session, true);
       for (const [viewId, view] of this.views) if (view.documentId === id) this.removeView(viewId);
       unregisterContentSession(session);
       if (session.info.mode === "local") {
@@ -2341,13 +2355,26 @@ export class CollaborationManager {
         this.contentState?.db
           .prepare("DELETE FROM entity_holds WHERE holder=?")
           .run(`document:${id}`);
-        rmSync(join(this.directory, "assets", id), { recursive: true, force: true });
       } else {
         session.info.source = undefined;
         this.retainNodeState(session, session.doc);
         this.changed(session);
       }
+      this.store.delete(`library-detached:${id}`);
       this.broadcast("collaboration:removed", { documentId: id, replaced: true });
+    })().finally(() => this.replacementReleases.delete(id));
+    this.replacementReleases.set(id, release);
+    return release;
+  }
+
+  /** 同步替换覆盖磁盘冷缓存；旧库由同步命令备份，会话另行保全。 */
+  async releaseLibrary(name: string): Promise<void> {
+    const candidates = new Map(this.store.list().map(info => [info.id, info]));
+    for (const session of this.sessions.values()) candidates.set(session.info.id, session.info);
+    for (const info of candidates.values()) {
+      if (info.source?.databaseName !== name) continue;
+      const session = this.findSession(info.id);
+      if (session) await this.releaseReplacedSession(session);
     }
     this.changed();
   }

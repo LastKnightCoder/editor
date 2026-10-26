@@ -900,6 +900,62 @@ describe("桌面生产会话与真实服务贯通", () => {
     expect(opened.frozen).toBe(false);
   });
 
+  it("同步替换保全并清理未加载的冷缓存", async () => {
+    const { runtime, event, store, state, localId } = await setup();
+    const session = runtime.sessions.get(localId)!;
+    const before = Y.encodeStateAsUpdate(session.doc);
+    unregisterContentSession(session);
+    session.awareness.destroy();
+    session.doc.destroy();
+    runtime.sessions.delete(localId);
+    await runtime.releaseLibrary("library");
+    expect(store.list().some(info => info.id === localId)).toBe(false);
+    const saved = store.get<{ recoveryId: string }>(`recovery:${localId}`, { recoveryId: "" });
+    const receipt = state.recovery(saved.recoveryId)!;
+    const recovery = new ContentRecoveryStore(runtime.directory, state);
+    expect(recovery.verify(receipt).reason).toBe("library-replacement");
+    expect(new Uint8Array(recovery.readFile(receipt, "document.bin"))).toEqual(before);
+    expect((await runtime.openContent(event, { contentId: 7 })).frozen).toBe(false);
+  });
+
+  it("旧来源冷缓存自动保全，按当前主库重建并允许并发打开", async () => {
+    const { runtime, event, db, store, state, localId } = await setup();
+    const session = runtime.sessions.get(localId)!;
+    const before = Y.encodeStateAsUpdate(session.doc);
+    unregisterContentSession(session);
+    session.awareness.destroy();
+    session.doc.destroy();
+    runtime.sessions.delete(localId);
+    db.prepare("UPDATE library_identity SET source_id='downloaded-library'").run();
+    const original = ContentDocumentTable.read(db, 7)!;
+    const opened = await Promise.all([
+      runtime.openContent(event, { contentId: 7 }),
+      runtime.openContent(event, { contentId: 7 }),
+    ]);
+    expect(opened[0].source?.librarySourceId).toBe("downloaded-library");
+    expect(opened[1].documentId).toBe(opened[0].documentId);
+    expect(ContentDocumentTable.read(db, 7)).toEqual(original);
+    const saved = store.get<{ recoveryId: string }>(`recovery:${localId}`, { recoveryId: "" });
+    const recovery = new ContentRecoveryStore(runtime.directory, state);
+    expect(
+      new Uint8Array(recovery.readFile(state.recovery(saved.recoveryId)!, "document.bin"))
+    ).toEqual(before);
+    await expect(runtime.project(runtime.sessions.get(localId)!)).resolves.toBeUndefined();
+  });
+
+  it("旧缓存保全失败时保留原会话和主库", async () => {
+    const { runtime, event, db, store, localId } = await setup();
+    db.prepare("UPDATE library_identity SET source_id='downloaded-library'").run();
+    const original = ContentDocumentTable.read(db, 7)!;
+    vi.spyOn(ContentRecoveryStore.prototype, "save").mockImplementation(() => {
+      throw new Error("恢复盘不可写");
+    });
+    await expect(runtime.openContent(event, { contentId: 7 })).rejects.toThrow("恢复盘不可写");
+    expect(runtime.sessions.has(localId)).toBe(true);
+    expect(store.list().some(info => info.id === localId)).toBe(true);
+    expect(ContentDocumentTable.read(db, 7)).toEqual(original);
+  });
+
   it.each(["database-change", "quit"] as const)(
     "主库回退旧格式后 %s 保留新缓存且不投影",
     async reason => {

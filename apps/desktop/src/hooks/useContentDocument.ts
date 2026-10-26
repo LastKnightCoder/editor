@@ -83,6 +83,17 @@ export function useBoundContentDocument(
   } = {}
 ) {
   const { frozen = false, kit: scenarioKit, extensions, lineage } = options;
+  const current = useRef<{ binding: ContentCollaborationBinding; document: EditorDocument }>(null);
+  const retainedDoc = binding?.doc ?? current.current?.binding.doc;
+  useSyncExternalStore(
+    notify => {
+      retainedDoc?.on("destroy", notify);
+      return () => retainedDoc?.off("destroy", notify);
+    },
+    () => retainedDoc?.isDestroyed ?? false
+  );
+  if (binding?.doc.isDestroyed) binding = undefined;
+  if (current.current?.binding.doc.isDestroyed) current.current = null;
   const pluginRevision = useSyncExternalStore(
     desktopContentPlugins.subscribe,
     desktopContentPlugins.getRevision,
@@ -106,14 +117,14 @@ export function useBoundContentDocument(
     void desktopContentPlugins
       .prepareEditorContracts(kit.extensions)
       .then(async catalog => {
-        if (cancelled) return;
+        if (cancelled || binding.doc.isDestroyed) return;
         const tree = treeFor(binding);
         if (!frozen)
           await tree.installContracts(
             catalog.additionalContracts(tree.contracts.toJSON()),
             binding.origin
           );
-        if (cancelled) return;
+        if (cancelled || binding.doc.isDestroyed) return;
         const document = createNodeTreeDocument(tree, {
           lineage,
           collaboration: binding,
@@ -134,10 +145,12 @@ export function useBoundContentDocument(
   const contractReady =
     !structured ||
     Boolean(
-      prepared?.binding === binding && prepared.kit === kit && prepared.revision === pluginRevision
+      prepared &&
+      prepared.binding === binding &&
+      prepared.kit === kit &&
+      prepared.revision === pluginRevision
     );
   // 文档源按 binding 缓存：每次渲染新建会被内核视为换了文档
-  const current = useRef<{ binding: ContentCollaborationBinding; document: EditorDocument }>(null);
   if (binding && structured && contractReady && prepared)
     current.current = { binding, document: prepared.document };
   else if (binding && !structured && current.current?.binding !== binding)
