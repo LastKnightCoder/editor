@@ -53,7 +53,7 @@ export function remoteFailureText(error: unknown): string {
     case "CLIENT_UPGRADE_REQUIRED":
       return "协作端需要更新版本的应用，白板内容完好保存在本机，请升级后再试。";
     case "DURABLE_DOCUMENT_UNSAVED":
-      return `有窗口里的白板还没确认保存，这次操作没有开始，请稍后重试；反复出现时关闭这块白板再打开。（原因：${message}）`;
+      return `应用未能完成白板保存确认，本次操作已中止。请稍后重试。（原因：${message}）`;
     case "DURABLE_DOCUMENT_FAILED":
       return `这块白板在本机保存出错，这次操作没有开始，已保存的内容不受影响。请关闭所有打开它的页面，重新打开后再试。（原因：${message}）`;
     default:

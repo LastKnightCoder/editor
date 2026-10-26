@@ -137,7 +137,9 @@ it("权限拒绝、版本不兼容与换代不自动重投，只在用户操作�
   client.edit();
   await vi.advanceTimersByTimeAsync(800);
   expect(sync.getSnapshot().phase).toBe("rebind");
-  expect(whiteboardSyncStatus(client.getSnapshot(), sync.getSnapshot()).actions).toEqual(["adopt"]);
+  expect(whiteboardSyncStatus(client.getSnapshot(), sync.getSnapshot()).actions).toEqual([
+    "detach",
+  ]);
   const calls = backend.sync.mock.calls.length;
   client.edit();
   await vi.advanceTimersByTimeAsync(120_000);
@@ -176,10 +178,13 @@ it("错误码前缀解析：无前缀或前缀后为空时保留原文", () => {
     "本机视频尚不支持共享发布"
   );
   const pending = remoteFailureText(
-    new Error("DURABLE_DOCUMENT_UNSAVED: 白板窗口未确认保存，已保留会话")
+    new Error("DURABLE_DOCUMENT_UNSAVED: 等待白板保存确认超时，已保留会话")
   );
   expect(pending).toContain("稍后重试");
-  expect(pending).toContain("（原因：白板窗口未确认保存，已保留会话）");
+  expect(pending).toContain("应用未能完成白板保存确认，本次操作已中止");
+  expect(pending).not.toContain("窗口");
+  expect(pending).not.toContain("再打开");
+  expect(pending).toContain("（原因：等待白板保存确认超时，已保留会话）");
   const broken = remoteFailureText(new Error("DURABLE_DOCUMENT_FAILED: 数据库连接代次已变化"));
   expect(broken).toContain("重新打开");
   expect(broken).not.toContain("稍后重试");
