@@ -76,6 +76,9 @@ export type ToolRisk = "read" | "write" | "execute";
 export interface ToolDefinition {
   executionIdentity?: string;
   name: string;
+  /** 逐工具偏好的稳定键；未指定时使用调用名。 */
+  settingsKey?: string;
+  displayName?: string;
   description: string;
   parameters: ToolJsonSchema;
   execution?: ToolExecutionPolicy;
