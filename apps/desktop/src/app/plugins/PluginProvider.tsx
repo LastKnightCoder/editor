@@ -124,7 +124,7 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           restartRequired,
           validateEditor: composePluginEditor,
           openSettings: (key, target) => {
-            if (target === "asr") throw new Error("语音输入设置尚未提供界面入口");
+            if (target === "asr") return useSettingsStore.getState().openSpeechInputSettings();
             // 同步与上传的连接配置就在插件详情 › 设置，与普通插件设置同一入口
             return target === "tts"
               ? useSettingsStore.getState().openTTSSettings()

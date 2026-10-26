@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>豆包语音识别设置 · 跨端组件重设计 mockup</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="../sync-mobile/sync.css" />
+<link rel="stylesheet" href="../tts-mobile/tts.css" />
+<link rel="stylesheet" href="asr.css" />
+<link rel="stylesheet" href="desktop.css" />
+<script src="../sync-mobile/icons.js"></script>
+<script src="../tts-mobile/icons.js"></script>
+<script src="icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>豆包语音识别设置 · 跨端组件重设计<small>决策稿 · 手机帧 360×760 / 桌面设置窗 980×640 · 账号与识别结果均为示意</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="now">0 现状问题</button>
+    <button class="tab" data-tab="mobile">1 移动端<span class="rec">推荐</span></button>
+    <button class="tab" data-tab="mstates">2 移动端状态</button>
+    <button class="tab" data-tab="desktop">3 桌面端</button>
+    <button class="tab" data-tab="kit">4 @tau/ui 组件方案</button>
+    <button class="tab" data-tab="decl">5 D 方案：字段声明<span class="rec">新</span></button>
+  </nav>
+</header>
+
+<section class="scene" data-scene="now">
+  <p class="scene-intro"><b>问题根因不在豆包插件本身，而在 @tau/ui 只有“桌面密度”的组件。</b>插件拿 <code>SettingRow</code>（左标题、右控件槽）+ <code>Input</code> + 原生 <code>&lt;select&gt;</code> 拼表单，在 360px 宽的手机上必然挤成“标题一列、控件一列”。移动端自己的 <code>GroupCard / GroupRow / FieldInput / SwitchButton</code> 都留在 <code>apps/mobile</code>，插件够不着。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">豆包语音识别</span><span class="ib"></span></div>
+        <div class="scr" style="padding:0 16px">
+          <div class="tts-tabs" style="padding:0 4px 10px;margin:0 -16px 12px"><span>介绍</span><span class="on">设置</span><span>权限</span></div>
+          <div style="position:relative" class="bad">
+            <span class="pin" style="left:-8px;top:-8px">1</span>
+            <div style="display:flex;gap:12px;align-items:center;padding:10px 4px"><b style="width:70px;font-weight:500">API Key</b><span class="cur-input"></span></div>
+            <div style="display:flex;gap:12px;align-items:center;padding:10px 4px"><b style="width:70px;font-weight:500">计费资源</b><span style="flex:1" class="cur-select" >按时长<span data-i="chevron-down" data-s="14"></span></span></div>
+          </div>
+          <div style="position:relative;margin-top:14px" class="bad">
+            <span class="pin" style="left:-8px;top:-8px">2</span>
+            <p style="font-size:12px;color:var(--ink-3);line-height:1.6;padding:4px">使用豆包语音控制台开通的流式识别 2.0 资源。音频会发送给所配置的语音服务。</p>
+          </div>
+          <div style="position:relative;margin-top:14px;display:inline-block" class="bad">
+            <span class="pin" style="left:-8px;top:-8px">3</span>
+            <span class="cur-btn">保存账号</span>
+          </div>
+          <div style="position:relative;margin-top:22px" class="bad">
+            <span class="pin" style="left:-8px;top:-8px">4</span>
+            <div style="padding:10px;border-radius:12px;background:var(--bg-surface);font-size:12.5px;color:var(--sage);display:flex;gap:8px"><span data-i="circle-check" data-s="15"></span>可在此设备完整使用</div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">0</span>现状还原（插件详情 → 设置）</div>
+    </div>
+    <div class="card" style="flex:1 1 440px;max-width:640px">
+      <h3>问题清单</h3>
+      <ol>
+        <li><b>①桌面行式布局直接搬到手机。</b><code>SettingRow</code> 是“左标题 + 右控件”，手机上标题列和输入框挤在一行；输入框只有 34px 高，低于 44px 触控下限；原生 select 没有说明文字，用户不知道“按时长/按并发”差别。</li>
+        <li><b>②没有分组卡片。</b>表单裸放在页面底色上，和移动端其它设置（同步、语音合成）的“灰底 + 白色圆角分组”不是一套语言。</li>
+        <li><b>③保存按钮像桌面次级按钮。</b>小、靠左、不在拇指区；保存结果只是一行小字。</li>
+        <li><b>④兼容性提示放在表单末尾。</b>和设置内容无关，像是表单的一部分。</li>
+        <li><b>更深一层：入口错位。</b>ASR 是“语音输入”的服务账号，按 TTS 的先例应由宿主设置页承载（账号状态、测试、当前服务），插件只提供厂商字段。现在插件详情直接渲染表单，宿主的 <code>asrConfig</code> 上下文也没有入口。</li>
+      </ol>
+      <h3 style="margin-top:14px">结论</h3>
+      <p>是的，应该在 <code>@tau/ui</code> 导出移动端组件，但不建议另起一套 <code>@tau/ui/mobile</code>。推荐“同名组件 + 密度上下文”：宿主用 <code>UiProvider density="touch"</code> 包住插件，同一个 <code>SettingsGroup / SettingsField / ChoiceList</code> 在桌面渲染行式、在手机渲染触控式。插件只写一份表单，详见第 4 页。</p>
+    </div>
+  </div>
+</section>
+<section class="scene" data-scene="mobile">
+  <p class="scene-intro"><b>推荐：宿主承载“语音输入”页，插件只渲染厂商字段。</b>和语音合成同一结构：宿主管理当前服务、测试和 AI 整理；豆包插件的表单用 @tau/ui 的触控密度组件写成，挂进宿主的账号页。入口位置（“我的 → 语音”分组）是建议，等你确认后再接线。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="big-title">我的</div>
+        <div class="scr">
+          <div class="gl">数据</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-sky" data-i="cloud" data-s="17"></span><span class="mid"><b>同步</b></span><span class="val">本地</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row"><span class="tile t-butter" data-i="folder" data-s="17"></span><span class="mid"><b>图片与附件</b></span><span class="val">这台手机</span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gl">语音</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-lilac" data-i="audio-lines" data-s="18"></span><span class="mid"><b>语音合成</b></span><span class="val">MiniMax 主账号</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row tts-highlight"><span class="tile t-sage" data-i="mic" data-s="17"></span><span class="mid"><b>语音输入</b></span><span class="val">豆包语音</span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gl">外观</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-rose" data-i="moon" data-s="17"></span><span class="mid"><b>主题</b></span><span class="val">暖纸 · 跟随系统</span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+        </div>
+        <div class="tts-dock"><span data-i="calendar" data-s="20">今天</span><span data-i="file-text" data-s="20">卡片</span><span data-i="search" data-s="20">搜索</span><span class="on" data-i="settings-2" data-s="20">我的</span></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>入口：语音分组下的“语音输入”</div>
+      <details class="note"><summary>设计说明</summary><ul><li>沿用 TTS 稿预留的“语音”分组，值直接显示当前识别服务。</li><li>插件详情的“设置”改为一张“打开语音输入设置”卡（同 TTS），不再裸渲染表单。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">语音输入</span><span class="ib"></span></div>
+        <div class="scr tts-scroll">
+          <div class="gl">识别服务</div>
+          <div class="grp">
+            <div class="opt on"><span class="tile t-sage" data-i="mic" data-s="17"></span><span class="mid"><b>豆包语音</b><span>流式识别 2.0 · 按时长计费 · 云端</span></span><span class="ck" data-i="check" data-s="13"></span></div>
+            <div class="opt"><span class="tile t-mute" data-i="smartphone" data-s="17"></span><span class="mid"><b>系统识别</b><span>使用手机自带语音识别 · 无需账号</span></span><span class="ck"></span></div>
+          </div>
+          <div class="gn">识别服务用于搜索、聊天和编辑器的语音输入。云端服务会上传录音。</div>
+          <div class="gl">豆包语音</div>
+          <div class="grp">
+            <div class="row plain"><span class="mid"><b>账号</b><span>API Key 已保存 · 按时长</span></span><span class="chip ok">可用</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row action"><span data-i="mic" data-s="16"></span>测试识别</div>
+          </div>
+          <div class="gl">识别后</div>
+          <div class="grp">
+            <div class="row plain"><span class="mid"><b>AI 整理文本</b><span>去口头禅、补标点，使用“语音输入整理”模型</span></span><span class="sw on"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>语音输入主页（宿主）</div>
+      <details class="note"><summary>设计说明</summary><ul><li>服务选择用 ChoiceList：整行可点、右侧勾选，副标题直接说明计费与是否上传。</li><li>账号行显示状态胶囊（可用 / 未配置 / 插件停用），点进去才是插件字段。</li><li>AI 整理复用现有 <code>llmUsageSettings.speechInputRefinement</code>，只放开关。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">豆包语音</span><span class="ib"></span></div>
+        <div class="scr tts-scroll">
+          <div class="asr-hero"><span class="tile lg t-sage" data-i="mic" data-s="21"></span><span class="mid"><b>豆包语音识别</b><small>插件 v0.1.0 · 流式识别 2.0</small></span><span class="chip ok">可用</span></div>
+          <div class="gl">账号</div>
+          <div class="grp">
+            <div class="tf"><label>API Key <em>在豆包语音控制台获取</em></label><div class="box"><span class="mono">••••••••••••••••7f3a</span><span class="end"><span data-i="eye" data-s="17"></span></span></div></div>
+          </div>
+          <div class="gl">计费资源</div>
+          <div class="grp">
+            <div class="opt on"><span class="mid"><b>按时长</b><span>按识别音频时长计费，适合个人日常输入</span></span><span class="ck" data-i="check" data-s="13"></span></div>
+            <div class="opt"><span class="mid"><b>按并发</b><span>按购买的并发路数计费，需在控制台单独开通</span></span><span class="ck"></span></div>
+          </div>
+          <div class="gn">需在控制台开通“流式语音识别 2.0”。录音会发送到豆包语音服务，<a>查看说明</a></div>
+        </div>
+        <div class="foot"><div class="btn soft" data-i="mic" data-s="17">测试识别</div><div class="btn pri">保存</div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>豆包账号页（插件字段 + 宿主底栏）</div>
+      <details class="note" open><summary>设计说明</summary><ul><li>中间两组是插件用 <code>SettingsGroup + SettingsField + ChoiceList</code> 写的同一份代码，在 touch 密度下渲染成“标签在上、46px 输入框、整行选项”。</li><li>底栏主按钮由宿主提供（<code>asrConfig.save</code>），插件不用自己放保存按钮、不用自己管 busy / 错误 / 迟到结果。</li><li>计费资源只有 2 项，用 ChoiceList 平铺，比下拉更易读；超过 5 项再用 Select（手机上弹 BottomSheet）。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">测试识别</span><span class="ib"></span></div>
+        <div class="scr tts-scroll">
+          <div class="tts-context" style="margin-top:2px"><span class="tile t-sage" data-i="mic" data-s="17"></span><span class="mid"><b>豆包语音</b><small>流式识别 2.0 · 中文 · 测试结果不会保存</small></span></div>
+          <div class="listen">今天下午三点和设计组过一下移动端设置页的方案，<span class="tmp">顺便把语音输入的入口</span>
+            <div class="meta"><span>首字 420 ms</span><span>00:07</span></div>
+          </div>
+          <div class="mic-wrap" style="padding-top:34px"><span class="mic" data-i="mic" data-s="30"></span></div>
+          <div class="lvl" data-lvl></div>
+          <div class="mic-cap">正在听… 点按结束</div>
+        </div>
+        <div class="foot"><div class="btn soft">清空</div><div class="btn soft" data-i="copy" data-s="16">复制结果</div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>测试识别（宿主）</div>
+      <details class="note"><summary>设计说明</summary><ul><li>灰字是临时结果，黑字是已确定的分句，直观看到“流式”效果。</li><li>测试使用页面上未保存的字段也可以（先试再存），失败直接在本页给出可读原因。</li></ul></details>
+    </div>
+  </div>
+</section>
+<section class="scene" data-scene="mstates">
+  <p class="scene-intro"><b>输入、错误、空态与停用。</b>这些状态全部由组件和宿主外壳统一提供，插件作者不需要写任何状态 UI。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">豆包语音</span><span class="ib"></span></div>
+        <div class="scr" style="padding-bottom:0">
+          <div class="gl">账号</div>
+          <div class="grp">
+            <div class="tf focus"><label>API Key <em>在豆包语音控制台获取</em></label><div class="box"><span class="mono">sk-9c2e41</span><span class="caret"></span><span class="end"><span data-i="eye-off" data-s="17"></span></span></div><div class="hint">粘贴后会自动去掉首尾空格</div></div>
+          </div>
+        </div>
+        <div class="foot" style="padding-bottom:10px"><div class="btn soft" data-i="mic" data-s="17">测试识别</div><div class="btn pri">保存</div></div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>输入态：底栏贴住键盘</div>
+      <details class="note"><summary>设计说明</summary><ul><li>底栏跟随 <code>KeyboardViewportProvider</code> 抬起，不被键盘挡住。</li><li>密钥框关闭自动大写 / 纠错 / 联想，右侧可切换明文。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">豆包语音</span><span class="ib"></span></div>
+        <div class="scr tts-scroll">
+          <div class="banner err"><span data-i="circle-alert" data-s="17"></span><div><b>鉴权失败</b><p>服务返回 401：API Key 无效或未开通流式识别 2.0。请到控制台确认后重试。</p></div></div>
+          <div class="gl">账号</div>
+          <div class="grp">
+            <div class="tf err"><label>API Key</label><div class="box"><span class="mono">••••••••••••••••7f3a</span><span class="end"><span data-i="eye" data-s="17"></span></span></div><div class="hint">这个 Key 没有通过校验</div></div>
+          </div>
+          <div class="gl">计费资源</div>
+          <div class="grp">
+            <div class="opt on"><span class="mid"><b>按时长</b><span>按识别音频时长计费</span></span><span class="ck" data-i="check" data-s="13"></span></div>
+            <div class="opt"><span class="mid"><b>按并发</b><span>按购买的并发路数计费</span></span><span class="ck"></span></div>
+          </div>
+        </div>
+        <div class="foot"><div class="btn soft" data-i="mic" data-s="17">测试识别</div><div class="btn pri">保存</div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>测试失败：错误落到字段</div>
+      <details class="note"><summary>设计说明</summary><ul><li>顶部横幅说原因和下一步；能定位到字段的错误同时标红该字段（<code>SettingsField error</code>）。</li><li>文案来自 <code>ASRError</code> 的 code 映射，原始报文不外露。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">语音输入</span><span class="ib"></span></div>
+        <div class="scr tts-scroll">
+          <div class="tts-empty">
+            <span class="empty-icon" data-i="mic" data-s="27"></span>
+            <h3>还没有云端识别服务</h3>
+            <p>当前使用系统语音识别。<br />安装豆包语音插件可获得更准确的中文识别。</p>
+            <div class="btn pri" data-i="puzzle" data-s="17">去插件中心</div>
+          </div>
+          <div class="gl">识别服务</div>
+          <div class="grp">
+            <div class="opt on"><span class="tile t-mute" data-i="smartphone" data-s="17"></span><span class="mid"><b>系统识别</b><span>使用手机自带语音识别 · 无需账号</span></span><span class="ck" data-i="check" data-s="13"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>空态：未安装识别插件</div>
+      <details class="note"><summary>设计说明</summary><ul><li>系统识别是否可用以实际探测结果为准，不可用时显示原因而不是隐藏。</li><li>不展示未安装的插件清单，只给一个去插件中心的出口。</li></ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">语音输入</span><span class="ib"></span></div>
+        <div class="scr tts-scroll">
+          <div class="banner info" style="background:color-mix(in srgb, var(--butter) 11%, var(--bg-surface));color:var(--butter)"><span data-i="triangle-alert" data-s="17"></span><div><b>豆包语音插件已停用</b><p>账号配置仍保留。启用后自动恢复为当前识别服务。</p><span class="link" style="display:inline-block;margin-top:6px">去插件中心启用</span></div></div>
+          <div class="gl">识别服务</div>
+          <div class="grp">
+            <div class="opt dim"><span class="tile t-sage" data-i="mic" data-s="17"></span><span class="mid"><b>豆包语音</b><span>插件停用 · 暂不可选</span></span><span class="chip warn">停用</span></div>
+            <div class="opt on"><span class="tile t-mute" data-i="smartphone" data-s="17"></span><span class="mid"><b>系统识别</b><span>临时使用</span></span><span class="ck" data-i="check" data-s="13"></span></div>
+          </div>
+        </div>
+        <div class="toast" style="bottom:40px"><span data-i="circle-check" data-s="15"></span>已切换到系统识别</div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>插件停用 / 保存反馈</div>
+      <details class="note"><summary>设计说明</summary><ul><li>保存、切换的成功反馈统一用 Toast，不在表单里堆小字。</li><li>停用时不清除配置，也不静默改写用户选择；是否自动回退系统识别需要你定（见第 4 页待决策）。</li></ul></details>
+    </div>
+  </div>
+</section>
+<section class="scene" data-scene="desktop">
+  <p class="scene-intro"><b>桌面：设置 → 语音，新增“语音输入”Tab。</b>与“语音转录 / 语音合成”同页。上方选识别引擎（系统 / Whisper / 插件服务），下方是选中服务的配置小节。豆包插件仍是同一份表单代码，在默认 compact 密度下渲染成行式。</p>
+  <div class="frames" style="flex-direction:column">
+    <div>
+      <div class="dw"><div class="dwin">
+        <div class="dside">
+          <div class="it"><span data-i="settings-2" data-s="15"></span>通用</div>
+          <div class="it"><span data-i="moon" data-s="15"></span>外观</div>
+          <div class="sec">AI</div>
+          <div class="it"><span data-i="layers" data-s="15"></span>大语言模型</div>
+          <div class="it on"><span data-i="audio-lines" data-s="15"></span>语音</div>
+          <div class="sec">数据</div>
+          <div class="it"><span data-i="cloud" data-s="15"></span>同步</div>
+          <div class="it"><span data-i="folder" data-s="15"></span>资源</div>
+          <div class="it"><span data-i="puzzle" data-s="15"></span>插件</div>
+        </div>
+        <div class="dmain">
+          <h2>语音</h2>
+          <div class="dtabs"><span>语音转录</span><span>语音合成</span><span class="on">语音输入</span></div>
+          <div class="dg">
+            <div class="dg-h"><div class="mid"><h3>识别引擎</h3><p>搜索、聊天与编辑器的语音输入使用这里的选择</p></div></div>
+            <div class="dengine">
+              <div class="dcard"><b><span data-i="monitor" data-s="15"></span>系统识别</b><p>macOS 原生实时识别，不上传录音</p></div>
+              <div class="dcard"><b><span data-i="hard-drive" data-s="15"></span>Whisper 本地</b><p>停止后转录，需下载模型</p></div>
+              <div class="dcard on"><span class="chip on">当前</span><b><span data-i="mic" data-s="15"></span>豆包语音</b><p>流式识别 2.0 · 云端 · 插件提供</p></div>
+            </div>
+          </div>
+          <div class="dg">
+            <div class="dg-h"><div class="mid"><h3>豆包语音</h3><p>账号凭据由插件保存在本机</p></div><span class="dbtn ghost"><span data-i="external-link" data-s="14"></span>控制台</span></div>
+            <div class="dpanel">
+              <div class="drow"><div class="mid"><b>API Key</b><span>在豆包语音控制台“API Key 管理”中创建</span></div><div class="dfield"><span class="mono" style="font-size:12px">••••••••••••••••••••7f3a</span><span class="end"><i data-i="eye" data-s="14"></i><i data-i="copy" data-s="14"></i></span></div></div>
+              <div class="drow"><div class="mid"><b>计费资源</b><span>需与控制台开通的资源一致</span></div><div class="dseg"><span class="on">按时长</span><span>按并发</span></div></div>
+              <div class="dactions"><span class="msg ok"><span data-i="circle-check" data-s="14"></span>已保存 · 测试通过（首字 380 ms）</span><span class="dbtn sec"><span data-i="mic" data-s="14"></span>测试识别</span><span class="dbtn pri dis">保存</span></div>
+            </div>
+          </div>
+          <div class="dg">
+            <div class="dg-h"><div class="mid"><h3>识别后</h3></div></div>
+            <div class="dpanel">
+              <div class="drow"><div class="mid"><b>AI 整理文本</b><span>去口头禅、补标点；模型在“大语言模型 → 功能分配”中设置</span></div><span class="dsw on"></span></div>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap" style="margin-top:12px"><span class="no">D1</span>语音输入 Tab · 豆包已配置</div>
+      <details class="note" style="max-width:980px"><summary>设计说明</summary><ul><li>引擎用三张选择卡而不是 Select：三种引擎的隐私、延迟差别需要一句话说明。</li><li>插件字段区和其它设置共用 SettingsGroup 面板；“保存 / 测试”由宿主放在小节右下，未改动时保存置灰。</li><li>计费资源 2 项用 Segmented；同一份 ChoiceList 代码在 compact 密度下自动渲染为分段器（≤3 项）或 Select（更多项）。</li></ul></details>
+    </div>
+
+    <div>
+      <div class="dw"><div class="dwin" style="position:relative">
+        <div class="dside">
+          <div class="it"><span data-i="settings-2" data-s="15"></span>通用</div>
+          <div class="it"><span data-i="moon" data-s="15"></span>外观</div>
+          <div class="sec">AI</div>
+          <div class="it"><span data-i="layers" data-s="15"></span>大语言模型</div>
+          <div class="it on"><span data-i="audio-lines" data-s="15"></span>语音</div>
+          <div class="sec">数据</div>
+          <div class="it"><span data-i="cloud" data-s="15"></span>同步</div>
+          <div class="it"><span data-i="puzzle" data-s="15"></span>插件</div>
+        </div>
+        <div class="dmain">
+          <h2>语音</h2>
+          <div class="dtabs"><span>语音转录</span><span>语音合成</span><span class="on">语音输入</span></div>
+          <div class="dg">
+            <div class="dg-h"><div class="mid"><h3>豆包语音</h3><p>账号凭据由插件保存在本机</p></div></div>
+            <div class="dpanel">
+              <div class="drow"><div class="mid"><b>API Key</b><span style="color:var(--danger)">鉴权失败：Key 无效或未开通流式识别 2.0</span></div><div class="dfield err"><span class="mono" style="font-size:12px">••••••••••••••••••••7f3a</span><span class="end"><i data-i="eye" data-s="14"></i></span></div></div>
+              <div class="drow"><div class="mid"><b>计费资源</b><span>需与控制台开通的资源一致</span></div><div class="dseg"><span class="on">按时长</span><span>按并发</span></div></div>
+              <div class="dactions"><span class="msg err"><span data-i="circle-alert" data-s="14"></span>测试失败（401）</span><span class="dbtn sec"><span data-i="mic" data-s="14"></span>重新测试</span><span class="dbtn pri">保存</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="ddialog-mask">
+          <div class="ddialog">
+            <div class="ddialog-h"><span>测试识别 · 豆包语音</span><span data-i="x" data-s="16" style="color:var(--ink-3)"></span></div>
+            <div class="ddialog-b">
+              <div style="min-height:96px;padding:12px;border-radius:10px;background:var(--bg-page);font-size:14px;line-height:1.7">今天下午三点和设计组过一下设置页的方案，<span style="color:var(--ink-3)">顺便把语音输入</span></div>
+              <div style="display:flex;align-items:center;gap:12px;margin-top:14px"><span style="width:40px;height:40px;border-radius:50%;background:var(--brand);color:var(--ink-inv);display:grid;place-items:center" data-i="mic" data-s="18"></span><div class="lvl" data-lvl style="margin:0;justify-content:flex-start;flex:1"></div><span class="mono" style="font-size:11px;color:var(--ink-3);letter-spacing:0">00:07</span></div>
+            </div>
+            <div class="ddialog-f"><span class="dbtn ghost"><span data-i="copy" data-s="14"></span>复制</span><span class="dbtn sec">停止</span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap" style="margin-top:12px"><span class="no">D2</span>错误态 + 测试识别对话框</div>
+      <details class="note" style="max-width:980px"><summary>设计说明</summary><ul><li>错误同时落在小节底栏和字段描述上，字段描边变红。</li><li>测试走 Dialog（Esc 由 <code>useOverlayDismiss</code> 仲裁），不另开页面。</li></ul></details>
+    </div>
+  </div>
+</section>
+<section class="scene" data-scene="kit">
+  <p class="scene-intro"><b>推荐方案 A：同名组件 + 密度上下文。</b><code>UiProvider</code> 增加 <code>density: "compact" | "touch"</code>，移动宿主挂插件时传 <code>touch</code>。插件只写一份表单，两端各自得到合适的形态。移动端现有 <code>GroupCard / GroupRow / SwitchButton / FieldInput</code> 上收进 @tau/ui，移动 app 改为消费同一组件。</p>
+  <div class="frames">
+    <div class="card" style="flex:1 1 520px;max-width:760px">
+      <h3>一份插件代码（豆包设置改写后）</h3>
+<pre>import { SettingsGroup, SettingsField, SecretInput, ChoiceList,
+         useProviderForm } from "@tau/ui";
+
+function Settings({ asrConfig }: PluginSettingsProps) {
+  const form = useProviderForm(asrConfig, parseConfig);   // 宿主负责保存/测试/错误
+  return (
+    &lt;&gt;
+      &lt;SettingsGroup title="账号"&gt;
+        &lt;SettingsField label="API Key" hint="在豆包语音控制台获取"
+                       error={form.errors.apiKey}&gt;
+          &lt;SecretInput {...form.bind("apiKey")} /&gt;
+        &lt;/SettingsField&gt;
+      &lt;/SettingsGroup&gt;
+      &lt;SettingsGroup title="计费资源"&gt;
+        &lt;ChoiceList {...form.bind("resourceId")} options={[
+          { value: "…duration",   label: "按时长", description: "按识别音频时长计费" },
+          { value: "…concurrent", label: "按并发", description: "按购买的并发路数计费" },
+        ]} /&gt;
+      &lt;/SettingsGroup&gt;
+    &lt;/&gt;
+  );
+}</pre>
+      <p style="margin-top:8px">保存、测试按钮和结果提示不在插件里：宿主外壳读 <code>form</code> 的 dirty / 校验结果渲染底栏（移动）或小节操作区（桌面）。</p>
+    </div>
+
+    <div class="card" style="flex:1 1 520px;max-width:760px">
+      <h3>新增 / 上收的组件</h3>
+      <table class="cmp">
+        <tr><th>组件</th><th>compact（桌面）</th><th>touch（移动）</th><th>来源</th></tr>
+        <tr><td><b>SettingsGroup</b></td><td>组标题 + surface 面板（现桌面 SettingsGroup）</td><td>灰色小标题 + 16px 圆角白卡，组下注记</td><td>桌面 SettingsGroup + 移动 GroupCard/GroupNote 合并</td></tr>
+        <tr><td><b>SettingsRow</b></td><td>左标题右控件，56px</td><td>图标块 + 标题 + 值 + 箭头，可点</td><td>现 SettingRow + 移动 GroupRow/ListItem</td></tr>
+        <tr><td><b>SettingsField</b></td><td>同 SettingsRow，控件 300px 定宽</td><td>标签在上、控件整宽、46px，hint/error 在下</td><td>新增（替代移动 FieldInput）</td></tr>
+        <tr><td><b>SecretInput</b></td><td>框内显隐 + 复制</td><td>框内显隐，关闭大写/纠错</td><td>桌面 ProviderLayout 上收</td></tr>
+        <tr><td><b>ChoiceList</b></td><td>≤3 项 Segmented，更多 Select</td><td>整行选项 + 勾选，支持说明文字</td><td>新增</td></tr>
+        <tr><td><b>Switch</b></td><td>34×20</td><td>46×28（移动 SwitchButton 尺寸）</td><td>现 Switch 加 touch 尺寸</td></tr>
+        <tr><td><b>Select</b></td><td>下拉面板</td><td>BottomSheet 选项列表</td><td>现 Select + 移动 BottomSheet</td></tr>
+        <tr><td><b>StatusBanner / Chip</b></td><td colspan="2">ok / warn / error / info 四态，两端同色、尺寸随密度</td><td>移动 TtsStatus + 桌面 StatusChip 合并</td></tr>
+        <tr><td><b>useProviderForm</b></td><td colspan="2">字段绑定、dirty、parseConfig 校验映射到字段、串行保存、停用后丢弃迟到结果</td><td>从 ConfigurationPanel 抽出</td></tr>
+      </table>
+    </div>
+
+    <div class="card" style="flex:1 1 520px;max-width:760px">
+      <h3>方案对比</h3>
+      <table class="cmp">
+        <tr><th></th><th>A 密度上下文（推荐）</th><th>B 导出 @tau/ui/mobile 子入口</th><th>C 插件自己分两份视图</th></tr>
+        <tr><td><b>插件作者</b></td><td>写一份</td><td>写两份，按 <code>usePluginEnvironment</code> 分支</td><td>写两份（现 MiniMax 做法）</td></tr>
+        <tr><td><b>组件维护</b></td><td>每个组件内部两套样式</td><td>两套组件，API 会慢慢分叉</td><td>不动组件，样式散到各插件</td></tr>
+        <tr><td><b>一致性</b></td><td>宿主统一决定，最好</td><td>中</td><td>差，插件各写各的</td></tr>
+        <tr><td><b>成本</b></td><td>中：改 6–8 个组件 + 移动 app 迁移</td><td>中：新增入口 + 迁移</td><td>低，但每个插件都要做</td></tr>
+        <tr><td><b>风险</b></td><td>密度只影响尺寸与排布，不改语义，可逐个组件落地</td><td>作者容易混用两套</td><td>已有 4 个插件需要双份</td></tr>
+      </table>
+      <p style="margin-top:8px">ConfigurationPanel（同步 / 上传插件在用）保留，内部改为由上述组件拼装，外部 API 不变。</p>
+    </div>
+
+    <div class="card" style="flex:1 1 520px;max-width:760px">
+      <h3>需要你决定</h3>
+      <ol>
+        <li><b>组件方案：</b>A 密度上下文 / B mobile 子入口 / C 维持插件双视图。</li>
+        <li><b>语音输入入口：</b>移动“我的 → 语音 → 语音输入”、桌面“设置 → 语音 → 语音输入 Tab”，是否认可？（此前入口已按你的要求撤回）</li>
+        <li><b>保存按钮归属：</b>宿主统一底栏（推荐，插件更薄）还是插件自带？</li>
+        <li><b>插件停用时：</b>自动回退系统识别并 Toast 提示，还是保持选择、使用时报错？</li>
+      </ol>
+      <h3 style="margin-top:12px">落地顺序（确认后）</h3>
+      <ol>
+        <li>@tau/ui：<code>density</code> 上下文 + SettingsGroup / SettingsField / SecretInput / ChoiceList，补行为测试。</li>
+        <li>移动 app 迁移到新组件，删掉 <code>features/settings/components/ui.tsx</code> 中的重复实现。</li>
+        <li>豆包插件改写为单份表单，宿主接入语音输入设置页（需你确认入口后）。</li>
+        <li>MiniMax / Qwen 的 <code>mobile-settings.tsx</code> 合并回单份。</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section class="scene" data-scene="decl">
+  <p class="scene-intro"><b>D 方案：插件只声明字段，宿主按平台排版。</b>每一行左边是插件写的全部设置代码，中间是移动宿主的渲染结果，右边是桌面宿主的渲染结果。编号 <span class="mk">1</span> 表示同一个字段在三处的对应关系。插件代码里没有 JSX、没有保存按钮、也没有状态处理。</p>
+
+  <div class="dz-title">例 1 · 豆包语音识别<small>2 个字段：密钥 + 两项选择</small></div>
+  <div class="dz">
+    <div>
+<div class="decl"><span class="c">// tau-plugin-asr-seed/src/index.tsx</span>
+context.settings.register({
+  id: "asr",
+  title: "豆包语音",
+  target: "asr",
+  fields: [
+    { key: "apiKey",<span class="mk">1</span>
+      label: "API Key",
+      type: "secret",
+      hint: "在豆包语音控制台获取" },
+    { key: "resourceId",<span class="mk">2</span>
+      label: "计费资源",
+      type: "choice",
+      default: "volc.seedasr.sauc.duration",
+      options: [
+        { value: "volc.seedasr.sauc.duration",
+          label: "按时长",
+          description: "按识别音频时长计费" },
+        { value: "volc.seedasr.sauc.concurrent",
+          label: "按并发",
+          description: "按购买的并发路数计费" },
+      ] },
+  ],
+  note: "需开通流式语音识别 2.0。<span class="mk">3</span>
+         录音会发送到豆包语音服务。",
+  link: { label: "控制台", url: "https://…" },<span class="mk">4</span>
+  parse: parseConfig,  <span class="c">// 抛 FieldError 定位字段</span>
+});</div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">豆包语音</span><span class="ib" data-i="external-link" data-s="18" style="color:var(--brand-text)"></span></div>
+        <div class="scr tts-scroll">
+          <div class="asr-hero"><span class="tile lg t-sage" data-i="mic" data-s="21"></span><span class="mid"><b>豆包语音识别</b><small>插件 v0.1.0</small></span><span class="chip ok">可用</span></div>
+          <div class="gl">账号</div>
+          <div class="grp">
+            <div class="tf"><label>API Key<span class="mk">1</span> <em>在豆包语音控制台获取</em></label><div class="box"><span class="mono">••••••••••••••••7f3a</span><span class="end"><span data-i="eye" data-s="17"></span></span></div></div>
+          </div>
+          <div class="gl"><span>计费资源<span class="mk">2</span></span></div>
+          <div class="grp">
+            <div class="opt on"><span class="mid"><b>按时长</b><span>按识别音频时长计费</span></span><span class="ck" data-i="check" data-s="13"></span></div>
+            <div class="opt"><span class="mid"><b>按并发</b><span>按购买的并发路数计费</span></span><span class="ck"></span></div>
+          </div>
+          <div class="gn">需开通流式语音识别 2.0。录音会发送到豆包语音服务。<span class="mk">3</span></div>
+        </div>
+        <div class="foot"><div class="btn soft" data-i="mic" data-s="17">测试识别</div><div class="btn pri">保存</div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">M</span>移动宿主渲染</div>
+    </div>
+
+    <div>
+      <div class="dg dpanel-solo" style="margin:0">
+        <div class="dg-h"><div class="mid"><h3>豆包语音</h3><p>需开通流式语音识别 2.0。录音会发送到豆包语音服务。<span class="mk">3</span></p></div><span class="dbtn ghost"><span data-i="external-link" data-s="14"></span>控制台<span class="mk">4</span></span></div>
+        <div class="dpanel">
+          <div class="drow"><div class="mid"><b>API Key<span class="mk">1</span></b><span>在豆包语音控制台获取</span></div><div class="dfield"><span class="mono" style="font-size:12px">••••••••••••••••••••7f3a</span><span class="end"><i data-i="eye" data-s="14"></i><i data-i="copy" data-s="14"></i></span></div></div>
+          <div class="drow"><div class="mid"><b>计费资源<span class="mk">2</span></b><span>按时长：按识别音频时长计费</span></div><div class="dseg"><span class="on">按时长</span><span>按并发</span></div></div>
+          <div class="dactions"><span class="msg ok"><span data-i="circle-check" data-s="14"></span>已保存</span><span class="dbtn sec"><span data-i="mic" data-s="14"></span>测试识别</span><span class="dbtn pri dis">保存</span></div>
+        </div>
+      </div>
+      <div class="frame-cap" style="margin-top:10px"><span class="no">D</span>桌面宿主渲染（语音 → 语音输入 Tab 内的小节）</div>
+    </div>
+  </div>
+
+  <div class="dz-title">例 2 · 字段更多时（以 MiniMax 语音合成为例）<small>密钥 + 地址 + 多项选择 + 开关</small></div>
+  <div class="dz">
+    <div>
+<div class="decl">fields: [
+  { key: "apiKey", label: "API Key",<span class="mk">1</span>
+    type: "secret" },
+  { key: "baseUrl", label: "服务地址",<span class="mk">2</span>
+    type: "url", optional: true,
+    placeholder: "留空使用官方地址" },
+  { key: "region", label: "区域",<span class="mk">3</span>
+    type: "choice",
+    options: [ <span class="c">/* 6 项 */</span> ] },
+  { key: "stream", label: "流式返回",<span class="mk">4</span>
+    type: "switch",
+    hint: "边合成边播放" },
+],
+groups: [  <span class="c">// 可选：不写时宿主自动分组</span>
+  { title: "账号", keys: ["apiKey", "baseUrl"] },
+  { title: "合成", keys: ["region", "stream"] },
+],</div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">MiniMax 主账号</span><span class="ib"></span></div>
+        <div class="scr tts-scroll">
+          <div class="gl">账号</div>
+          <div class="grp">
+            <div class="tf"><label>API Key<span class="mk">1</span></label><div class="box"><span class="mono">••••••••••••c81d</span><span class="end"><span data-i="eye" data-s="17"></span></span></div></div>
+            <div class="tf"><label>服务地址<span class="mk">2</span> <em>可选</em></label><div class="box"><span class="ph">留空使用官方地址</span></div></div>
+          </div>
+          <div class="gl">合成</div>
+          <div class="grp">
+            <div class="row plain"><span class="mid"><b>区域<span class="mk">3</span></b></span><span class="val">中国大陆</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row plain"><span class="mid"><b>流式返回<span class="mk">4</span></b><span>边合成边播放</span></span><span class="sw on"></span></div>
+          </div>
+        </div>
+        <div class="foot"><div class="btn soft" data-i="volume-2" data-s="17">测试</div><div class="btn pri">保存</div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">M</span>6 项选择收成一行，点开 BottomSheet</div>
+    </div>
+
+    <div>
+      <div class="dg dpanel-solo" style="margin:0">
+        <div class="dg-h"><div class="mid"><h3>MiniMax 主账号</h3></div></div>
+        <div class="dpanel">
+          <div class="dsec">账号</div>
+          <div class="drow"><div class="mid"><b>API Key<span class="mk">1</span></b></div><div class="dfield"><span class="mono" style="font-size:12px">••••••••••••••••c81d</span><span class="end"><i data-i="eye" data-s="14"></i><i data-i="copy" data-s="14"></i></span></div></div>
+          <div class="drow"><div class="mid"><b>服务地址<span class="mk">2</span></b><span>可选</span></div><div class="dfield"><span class="ph">留空使用官方地址</span></div></div>
+          <div class="dsec" style="margin-top:4px">合成</div>
+          <div class="drow"><div class="mid"><b>区域<span class="mk">3</span></b></div><div class="dselect">中国大陆<span data-i="chevron-down" data-s="14" style="color:var(--ink-3)"></span></div></div>
+          <div class="drow"><div class="mid"><b>流式返回<span class="mk">4</span></b><span>边合成边播放</span></div><span class="dsw on"></span></div>
+          <div class="dactions"><span class="dbtn sec"><span data-i="volume-2" data-s="14"></span>测试</span><span class="dbtn pri">保存</span></div>
+        </div>
+      </div>
+      <div class="frame-cap" style="margin-top:10px"><span class="no">D</span>组标题变成面板内小节头，仍是一个面板</div>
+    </div>
+  </div>
+
+  <div class="rules">
+    <div class="card">
+      <h3>字段类型 → 两端控件</h3>
+      <table class="cmp">
+        <tr><th>type</th><th>移动</th><th>桌面</th></tr>
+        <tr><td><b>secret</b></td><td>标签在上，46px 框，显隐；关大写/纠错</td><td>行内 300px 框，显隐 + 复制</td></tr>
+        <tr><td><b>text / url</b></td><td>同上，url 用 URL 键盘</td><td>行内 300px 框</td></tr>
+        <tr><td><b>choice ≤3 项且有说明</b></td><td>独立组：组标题 + 整行选项卡</td><td>行内 Segmented，说明进行描述</td></tr>
+        <tr><td><b>choice 4 项以上</b></td><td>一行显示当前值，点开 BottomSheet</td><td>行内 Select</td></tr>
+        <tr><td><b>switch</b></td><td>行内 46×28 开关</td><td>行内 34×20 开关</td></tr>
+        <tr><td><b>number</b></td><td>标签在上，数字键盘</td><td>行内 NumberInput</td></tr>
+        <tr><td><b>remoteChoice</b></td><td>点开 BottomSheet 加载</td><td>点开 Dialog 加载（现 loadOptions）</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>排版规则（宿主负责）</h3>
+      <ul>
+        <li><b>分组：</b>插件给了 <code>groups</code> 就按它分；没给时，宿主把 secret/text/url 归进“账号”，每个带说明的 choice 单独一组，其余归进“选项”。</li>
+        <li><b>移动：</b>每组一张卡，组标题在卡外；<code>note</code> 放在最后一组下方；<code>link</code> 放在导航栏右上。</li>
+        <li><b>桌面：</b>整个服务一个面板，组标题变成面板内小节头；<code>note</code> 和 <code>link</code> 放在面板标题行。</li>
+        <li><b>保存与测试：</b>宿主统一提供。<code>parse</code> 抛出 <code>FieldError(key, 文案)</code> 时，对应字段标红；其他错误显示在顶部横幅（移动）或操作区（桌面）。</li>
+        <li><b>兜底：</b>字段描述不够用（音色复刻、模型管理）时仍可注册 <code>component</code>，用 @tau/ui 的密度组件自己写。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>与现状的关系</h3>
+      <ul>
+        <li><code>ConfigurationField</code>（key / label / type / options / hint / loadOptions / reset）已经在同步、上传插件和 MiniMax 移动设置中使用。D 方案是把它扩成正式字段契约：补 secret、url、switch、number、choice 说明、default、optional，并让桌面也按字段渲染。</li>
+        <li>字段契约放在 <code>@tau/plugins</code>（属于领域 API），两端渲染器放在宿主，共用的控件仍来自 <code>@tau/ui</code>。</li>
+        <li>迁移后，豆包、MiniMax、Qwen 的设置代码都会变成纯声明，去掉现在的两份视图。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<script src="asr.js"></script>
+<script>
+  // 桌面窗按视口宽度缩放
+  const fitDesktop = () => {
+    const s = Math.max(0.5, Math.min(1, (window.innerWidth - 80) / 1000));
+    document.documentElement.style.setProperty("--ds", s.toFixed(3));
+  };
+  fitDesktop();
+  window.addEventListener("resize", fitDesktop);
+</script>
+</body>
+</html>

@@ -9,7 +9,7 @@ import type { ConnectionState, PublishConfig } from "../usePublishConfig";
 import { PluginSettingsView } from "@/features/plugins/views/PluginSettingsView";
 import { openPage } from "@/services/page-navigation";
 
-/** 组内行：左标签 64px + 右控件，行间 line-2 分隔；发布插件表单按同一度量渲染自己的行（见 PUBLISH.md） */
+/** 组内行：左标签 64px + 右控件，行间 line-2 分隔；发布插件的 form 由宿主以同一度量渲染（ProviderFormFields 的 inline 布局） */
 function Row({
   label,
   top,

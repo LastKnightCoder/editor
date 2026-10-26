@@ -2,6 +2,7 @@ import { cp, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveCommand } from "./spawn-command.mjs";
 import { execFileSync, spawn } from "node:child_process";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -71,7 +72,12 @@ async function run(cwd, command, args, log) {
     const env = { ...process.env, pnpm_config_verify_deps_before_run: "warn" };
     delete env.NODE_PATH;
     delete env.NODE_OPTIONS;
-    const child = spawn(command, args, { cwd, env, stdio: ["ignore", "pipe", "pipe"] });
+    const [executable, executableArgs] = resolveCommand(command, args);
+    const child = spawn(executable, executableArgs, {
+      cwd,
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
     let output = "";
     child.stdout.on("data", value => {
       output += value;

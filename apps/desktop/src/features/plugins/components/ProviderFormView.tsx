@@ -1,33 +1,25 @@
+/* eslint-disable react-refresh/only-export-components -- 表单视图与同域的存储绑定 hook 一起导出 */
 /**
- * 存储提供方连接配置（插件详情 › 设置）：按插件声明的表单渲染账号与存储位置，
- * 显式保存；同步服务保存后读取一次云端版本作为连接测试。保存不改变当前选用。
+ * 声明式提供方设置：字段区由 ProviderFormFields 渲染，宿主统一提供保存栏。
+ * 配置存哪里、保存后是否测试、头部是否显示选用卡，由调用方传入的绑定决定；
+ * 同步与资源存储的绑定见 useStorageBinding（保存不改变当前选用）。
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { CircleAlert, CircleCheck, Image, LoaderCircle, RefreshCw } from "lucide-react";
 import {
-  CircleAlert,
-  CircleCheck,
-  Eye,
-  EyeOff,
-  Image,
-  LoaderCircle,
-  RefreshCw,
-} from "lucide-react";
-import {
+  isProviderFieldError,
   isProviderFormComplete,
   mergeProviderFormValues,
   patchProviderFormValues,
   readProviderFormValues,
   validateProviderFormValues,
   type JsonValue,
-  type PluginProviderSettingsDefinition,
-  type ProviderChoiceOption,
-  type ProviderField,
-  type ProviderRemoteChoiceField,
+  type PluginContext,
+  type ProviderForm,
 } from "@tau/plugins";
-import { Button, IconButton, Input, Panel, Select, SettingRow, cn } from "@tau/ui";
+import { Button, Panel, cn } from "@tau/ui";
 import { StatusChip } from "@/features/settings/components/StatusChip";
-import type { PluginContext } from "@tau/plugins";
 import useSettingStore, { EImageBed, ESync } from "@/stores/useSettingStore";
 import { useSyncProviderSwitch } from "@/hooks/useSyncProviderSwitch";
 import {
@@ -35,6 +27,7 @@ import {
   saveProviderConfig,
   selectUploadTarget,
 } from "@/services/storage-providers";
+import { ProviderFormFields } from "./ProviderFormFields";
 
 type Values = Record<string, string>;
 type Outcome = { tone: "ok" | "danger"; text: string } | null;
@@ -117,152 +110,71 @@ function CapabilityCard({
   );
 }
 
-function SecretInput(props: {
-  label: string;
-  value: string;
-  invalid: boolean;
-  disabled: boolean;
-  onChange(value: string): void;
-}) {
-  const [visible, setVisible] = useState(false);
-  return (
-    <>
-      <Input
-        wrapperClassName="w-[260px]"
-        aria-label={props.label}
-        aria-invalid={props.invalid}
-        type={visible ? "text" : "password"}
-        value={props.value}
-        autoComplete="off"
-        spellCheck={false}
-        disabled={props.disabled}
-        onChange={event => props.onChange(event.target.value)}
-      />
-      <IconButton
-        aria-label={visible ? "隐藏" : "显示"}
-        onClick={() => setVisible(value => !value)}
-      >
-        {visible ? <EyeOff size={15} /> : <Eye size={15} />}
-      </IconButton>
-    </>
-  );
+/** 表单与宿主存储的连接：读已存配置、写回配置，可选的保存后测试与头部卡片。 */
+export interface ProviderFormBinding {
+  stored: JsonValue | undefined;
+  persist(config: JsonValue): Promise<void>;
+  /** 保存成功后执行（如连接测试），返回结果行文案；抛错时提示「已保存，但…」 */
+  afterSave?(config: JsonValue): Promise<string>;
+  /** 保存中的进度文案 */
+  savingText?: string;
+  saveLabel?: string;
+  /** 表单上方的宿主卡片（选用状态等） */
+  header?: ReactNode;
+  /** 自动保存（停止输入片刻、离开时落盘），不显示保存栏；所在容器自带「修改自动保存」语义时使用 */
+  autoSave?: boolean;
+  /** 字段布局，见 ProviderFormFields */
+  layout?: "rows" | "inline";
 }
 
-function RemoteChoice(props: {
-  field: ProviderRemoteChoiceField;
-  values: Values;
-  invalid: boolean;
-  disabled: boolean;
-  signal: AbortSignal;
-  onChange(value: string): void;
-}) {
-  const [options, setOptions] = useState<readonly ProviderChoiceOption[]>([]);
-  const [state, setState] = useState<"idle" | "loading" | "error">("idle");
-  const [error, setError] = useState("");
-  const request = useRef(0);
-  const value = props.values[props.field.key] ?? "";
-  const load = async () => {
-    const current = ++request.current;
-    setState("loading");
-    try {
-      const result = await props.field.load(props.values, props.signal);
-      if (current !== request.current) return;
-      setOptions(result);
-      setState("idle");
-    } catch (issue) {
-      if (current !== request.current) return;
-      setError(errorText(issue));
-      setState("error");
-    }
+const AUTO_SAVE_DELAY = 600;
+
+export function useStorageBinding(
+  target: "sync" | "upload",
+  pluginId: string,
+  name: string,
+  form: ProviderForm
+): ProviderFormBinding {
+  const stored = useStoredConfig(target, pluginId);
+  return {
+    stored,
+    persist: config => saveProviderConfig(target, pluginId, config),
+    afterSave:
+      target === "sync"
+        ? async config => {
+            const remote = await probeRemoteDatabaseVersion(pluginId, config);
+            return remote.version > 0
+              ? `连接正常 · 云端已有数据库 v${remote.version}`
+              : "连接正常 · 云端还没有这个数据库，首次同步会上传";
+          }
+        : undefined,
+    savingText: target === "sync" ? "正在保存并测试连接…" : undefined,
+    saveLabel: target === "sync" ? "保存并测试" : undefined,
+    header: (
+      <CapabilityCard
+        target={target}
+        pluginId={pluginId}
+        name={name}
+        configured={isProviderFormComplete(form, stored)}
+      />
+    ),
   };
-  const merged =
-    value && !options.some(option => option.value === value) ? [{ value }, ...options] : options;
-  return (
-    <Select
-      className="w-[260px]"
-      aria-label={props.field.label}
-      aria-invalid={props.invalid}
-      status={props.invalid ? "error" : undefined}
-      searchable
-      creatable
-      disabled={props.disabled}
-      placeholder={props.field.placeholder ?? "请选择"}
-      emptyText={state === "loading" ? "正在加载…" : state === "error" ? error : "无可选项"}
-      value={value || null}
-      options={merged.map(option => ({ value: option.value, label: option.label ?? option.value }))}
-      onOpenChange={open => {
-        if (open) void load();
-      }}
-      onValueChange={props.onChange}
-    />
-  );
-}
-
-function FieldControl(props: {
-  field: ProviderField;
-  values: Values;
-  invalid: boolean;
-  disabled: boolean;
-  signal: AbortSignal;
-  onChange(value: string): void;
-}) {
-  const { field } = props;
-  const value = props.values[field.key] ?? "";
-  if (field.type === "secret")
-    return (
-      <SecretInput
-        label={field.label}
-        value={value}
-        invalid={props.invalid}
-        disabled={props.disabled}
-        onChange={props.onChange}
-      />
-    );
-  if (field.type === "choice")
-    return (
-      <Select
-        className="w-[260px]"
-        aria-label={field.label}
-        disabled={props.disabled}
-        value={value || null}
-        options={field.options.map(option => ({
-          value: option.value,
-          label: option.label ?? option.value,
-        }))}
-        onValueChange={props.onChange}
-      />
-    );
-  if (field.type === "remote-choice") return <RemoteChoice {...props} field={field} />;
-  return (
-    <Input
-      wrapperClassName="w-[260px]"
-      aria-label={field.label}
-      aria-invalid={props.invalid}
-      type="text"
-      inputMode={field.type === "url" ? "url" : undefined}
-      value={value}
-      placeholder={field.placeholder}
-      autoComplete="off"
-      spellCheck={false}
-      disabled={props.disabled}
-      onChange={event => props.onChange(event.target.value)}
-    />
-  );
 }
 
 export function ProviderFormView({
-  definition,
+  form,
   context,
-  name,
+  binding,
 }: {
-  definition: PluginProviderSettingsDefinition;
+  form: ProviderForm;
   context: PluginContext;
-  name: string;
+  binding: ProviderFormBinding;
 }) {
-  const { form, target } = definition;
-  const pluginId = context.pluginId;
-  const stored = useStoredConfig(target, pluginId);
-  const baseline = useMemo(() => readProviderFormValues(form, stored), [form, stored]);
+  const { stored } = binding;
+  const storedKey = JSON.stringify(stored ?? null);
+  // 已存配置变化（保存成功、同步回写）后以新值为基线
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const baseline = useMemo(() => readProviderFormValues(form, stored), [form, storedKey]);
   const [values, setValues] = useState<Values>(baseline);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -276,79 +188,116 @@ export function ProviderFormView({
     setOutcome(null);
   };
 
+  // 自动保存时串行写入：进行中再次触发只记一次，结束后按最新值补写
+  const inFlight = useRef(false);
+  const again = useRef(false);
+  const valuesRef = useRef(values);
+  valuesRef.current = values;
+
   const save = async () => {
-    const missing = validateProviderFormValues(form, values);
+    if (inFlight.current) {
+      again.current = true;
+      return;
+    }
+    const values = valuesRef.current;
+    // 自动保存允许保存未填完的草稿，完整性由所在页面的连接检测说明
+    const missing = binding.autoSave ? {} : validateProviderFormValues(form, values);
     setErrors(missing);
     if (Object.keys(missing).length > 0) return;
+    inFlight.current = true;
     setSaving(true);
     setOutcome(null);
     try {
-      const prepared = form.beforeSave ? await form.beforeSave(values, context.signal) : values;
+      let prepared: Values;
+      try {
+        prepared = form.beforeSave
+          ? { ...(await form.beforeSave(values, context.signal)) }
+          : values;
+      } catch (error) {
+        if (isProviderFieldError(error)) {
+          setErrors({ [error.key]: error.message });
+          return;
+        }
+        throw error;
+      }
       context.signal.throwIfAborted();
       const config = mergeProviderFormValues(stored, prepared);
-      await saveProviderConfig(target, pluginId, config);
-      setValues(readProviderFormValues(form, config));
-      if (target === "upload") {
+      await binding.persist(config);
+      context.signal.throwIfAborted();
+      // 保存期间用户继续输入时保留输入，基线随已存配置更新
+      if (valuesRef.current === values) setValues(readProviderFormValues(form, config));
+      if (!binding.afterSave) {
         setOutcome({ tone: "ok", text: "配置已保存" });
         return;
       }
       try {
-        const remote = await probeRemoteDatabaseVersion(pluginId, config);
-        setOutcome({
-          tone: "ok",
-          text:
-            remote.version > 0
-              ? `连接正常 · 云端已有数据库 v${remote.version}`
-              : "连接正常 · 云端还没有这个数据库，首次同步会上传",
-        });
+        setOutcome({ tone: "ok", text: await binding.afterSave(config) });
       } catch (error) {
         setOutcome({ tone: "danger", text: `配置已保存，但连接失败：${errorText(error)}` });
       }
     } catch (error) {
       if (!context.signal.aborted) setOutcome({ tone: "danger", text: errorText(error) });
     } finally {
+      inFlight.current = false;
       if (!context.signal.aborted) setSaving(false);
+      if (again.current && !context.signal.aborted) {
+        again.current = false;
+        void saveRef.current();
+      }
     }
   };
 
+  // 自动保存：值变化后防抖落盘，卸载时冲掉未到期的修改；校验未过时等用户补全
+  const saveRef = useRef(save);
+  saveRef.current = save;
+  const pendingRef = useRef(false);
+  pendingRef.current = dirty;
+  useEffect(() => {
+    if (!binding.autoSave || !dirty) return;
+    const timer = setTimeout(() => void saveRef.current(), AUTO_SAVE_DELAY);
+    return () => clearTimeout(timer);
+  }, [binding.autoSave, dirty, values]);
+  useEffect(
+    () => () => {
+      if (binding.autoSave && pendingRef.current) void saveRef.current();
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  const fields = (
+    <ProviderFormFields
+      form={form}
+      values={values}
+      errors={errors}
+      disabled={saving && !binding.autoSave}
+      context={context}
+      layout={binding.layout}
+      onChange={patch}
+    />
+  );
+  if (binding.autoSave)
+    return (
+      <div className="min-w-0">
+        {binding.header}
+        {fields}
+        {outcome?.tone === "danger" && (
+          <p
+            role="alert"
+            className="text-tau-meta text-danger border-line-2 flex items-center gap-1.5 border-t px-3 py-2"
+          >
+            <CircleAlert size={14} className="flex-none" />
+            <span className="min-w-0">{outcome.text}</span>
+          </p>
+        )}
+      </div>
+    );
+
   return (
     <div className="min-w-0">
-      <CapabilityCard target={target} pluginId={pluginId} name={name} configured={configured} />
-      {form.groups.map(group => (
-        <section key={group.title} className="mb-6" aria-label={group.title}>
-          <div className="px-1 pb-2">
-            <h3 className="text-tau-body-lg text-ink-1 font-semibold">{group.title}</h3>
-            {group.description && <p className="text-tau-meta text-ink-2">{group.description}</p>}
-          </div>
-          <Panel pad="none" className="rounded-[14px] p-1.5">
-            {group.fields.map(field => {
-              const error = errors[field.key];
-              const note = [field.description, field.optional ? "可选" : ""]
-                .filter(Boolean)
-                .join("，");
-              return (
-                <SettingRow
-                  key={field.key}
-                  title={field.label}
-                  description={
-                    error ? <span className="text-danger">{error}</span> : note || undefined
-                  }
-                >
-                  <FieldControl
-                    field={field}
-                    values={values}
-                    invalid={!!error}
-                    disabled={saving}
-                    signal={context.signal}
-                    onChange={value => patch(field.key, value)}
-                  />
-                </SettingRow>
-              );
-            })}
-          </Panel>
-        </section>
-      ))}
-      <div className="flex items-center gap-2 px-1">
+      {binding.header}
+      {fields}
+      <div className="mt-4 flex items-center gap-2 px-1">
         <p
           role={outcome?.tone === "danger" ? "alert" : "status"}
           className={cn(
@@ -359,7 +308,7 @@ export function ProviderFormView({
           {saving ? (
             <>
               <LoaderCircle size={14} className="animate-spin" />
-              {target === "sync" ? "正在保存并测试连接…" : "正在保存…"}
+              {binding.savingText ?? "正在保存…"}
             </>
           ) : outcome ? (
             <>
@@ -386,7 +335,7 @@ export function ProviderFormView({
           还原
         </Button>
         <Button variant="primary" disabled={!dirty && configured} loading={saving} onClick={save}>
-          {target === "sync" ? "保存并测试" : "保存"}
+          {binding.saveLabel ?? "保存"}
         </Button>
       </div>
     </div>

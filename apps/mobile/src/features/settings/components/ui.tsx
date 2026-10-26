@@ -8,6 +8,7 @@ import {
   Database,
   Folder,
   Image as ImageIcon,
+  Mic,
   Moon,
   Type,
   Users,
@@ -87,6 +88,14 @@ export function IconAudioLines() {
   return (
     <IconTile className="bg-tag-3-soft text-tag-3">
       <AudioLines size={18} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
+}
+
+export function IconMic() {
+  return (
+    <IconTile className="bg-tag-1-soft text-tag-1">
+      <Mic size={17} strokeWidth={1.9} aria-hidden="true" />
     </IconTile>
   );
 }

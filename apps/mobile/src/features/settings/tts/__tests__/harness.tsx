@@ -2,7 +2,7 @@
 import { useCallback, useState, type ReactNode } from "react";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { definePlugin, type PluginSettingsProps } from "@tau/plugins";
+import { definePlugin, type PluginSettingsProps, type ProviderForm } from "@tau/plugins";
 import { createMemoryStorage } from "@tau/plugins/host";
 import { createPluginEnvironmentStore } from "@tau/plugins/environment-host";
 import { AppContext, type AppContextValue } from "../../../../app/AppContext";
@@ -77,7 +77,7 @@ function DefaultSettings({ ttsConfig }: PluginSettingsProps) {
 }
 
 export async function createTtsRuntime(
-  component: React.ComponentType<PluginSettingsProps> = DefaultSettings
+  component: React.ComponentType<PluginSettingsProps> | ProviderForm = DefaultSettings
 ) {
   const runtime = new MobilePluginRuntime(
     createPluginEnvironmentStore({
@@ -96,12 +96,11 @@ export async function createTtsRuntime(
       version: "1.0.0",
       create: () => ({
         activate(context) {
-          context.settings.register({
-            id: "voice",
-            title: "Fixture Voice",
-            target: "tts",
-            component,
-          });
+          context.settings.register(
+            typeof component === "function"
+              ? { id: "voice", title: "Fixture Voice", target: "tts", component }
+              : { id: "voice", title: "Fixture Voice", target: "tts", form: component }
+          );
         },
       }),
     })

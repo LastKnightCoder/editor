@@ -1,10 +1,16 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { PluginContext, PluginProviderSettingsDefinition } from "@tau/plugins";
+import {
+  ProviderFieldError,
+  type PluginContext,
+  type PluginProviderSettingsDefinition,
+  type PluginSettingsProps,
+} from "@tau/plugins";
 import { UiProvider } from "@tau/ui";
 import useSettingStore, { EImageBed, ESync } from "@/stores/useSettingStore";
-import { ProviderFormView } from "../components/ProviderFormView";
+import type { RegisteredPluginSettings } from "@/app/plugins/runtime";
+import { PluginSettingsView } from "../views/PluginSettingsView";
 
 const mocks = vi.hoisted(() => ({
   saveSync: vi.fn(async () => undefined),
@@ -42,11 +48,22 @@ const definition = (target: "sync" | "upload"): PluginProviderSettingsDefinition
 
 let container: HTMLDivElement;
 let root: Root;
-const render = (target: "sync" | "upload") =>
+const section = (definition: PluginProviderSettingsDefinition) =>
+  ({
+    key: `plugin:test.s3:${definition.id}`,
+    definition,
+    context,
+    mountId: 1,
+  }) as RegisteredPluginSettings;
+const render = (
+  target: "sync" | "upload",
+  props: Partial<Pick<PluginSettingsProps, "ttsConfig">> = {},
+  override?: PluginProviderSettingsDefinition
+) =>
   act(() =>
     root.render(
       <UiProvider>
-        <ProviderFormView definition={definition(target)} context={context} name="S3" />
+        <PluginSettingsView section={section(override ?? definition(target))} {...props} />
       </UiProvider>
     )
   );
@@ -144,4 +161,122 @@ it("上传：保留未声明的键，设为上传目标后显示使用中", asyn
   expect(imageBed.active).toBe(EImageBed.Plugin);
   expect(imageBed.plugin?.id).toBe("test.s3");
   expect(text()).toContain("使用中");
+});
+
+it("TTS：配置交给账号实例保存，不写资源存储，也不显示选用卡", async () => {
+  const save = vi.fn(async () => undefined);
+  const tts: PluginProviderSettingsDefinition = {
+    id: "tts",
+    title: "MiniMax",
+    target: "tts",
+    models: [{ id: "speech-2.8-hd" }],
+    form: {
+      groups: [
+        {
+          title: "连接",
+          fields: [
+            { key: "apiKey", label: "API Key", type: "secret" },
+            { key: "stream", label: "流式返回", type: "switch", default: true },
+          ],
+        },
+      ],
+      beforeSave: async values => {
+        if (values.apiKey === "bad") throw new ProviderFieldError("apiKey", "API Key 无效");
+        return values;
+      },
+    },
+  };
+  render("upload", { ttsConfig: { instanceId: "a1", value: { keep: 1 }, models: [], save } }, tts);
+  expect(text()).not.toContain("设为上传目标");
+  await type("API Key", "bad");
+  await act(async () => button("保存").click());
+  await vi.waitFor(() => expect(text()).toContain("API Key 无效"));
+  expect(save).not.toHaveBeenCalled();
+  await type("API Key", "good");
+  await act(async () => button("保存").click());
+  await vi.waitFor(() => expect(text()).toContain("配置已保存"));
+  expect(save).toHaveBeenCalledWith({ keep: 1, apiKey: "good", stream: "true" }, [
+    { id: "speech-2.8-hd" },
+  ]);
+  expect(mocks.saveUpload).not.toHaveBeenCalled();
+});
+
+it("TTS：从插件详情打开（无账号上下文）时只给跳转", () => {
+  const tts: PluginProviderSettingsDefinition = {
+    id: "tts",
+    title: "MiniMax",
+    target: "tts",
+    form: { groups: [{ title: "连接", fields: [{ key: "k", label: "K", type: "secret" }] }] },
+  };
+  render("upload", {}, tts);
+  expect(text()).toContain("在语音设置中配置");
+  expect(container.querySelector("input")).toBeNull();
+});
+
+it("发布：嵌入抽屉时自动保存，开关控制缓存目录，服务选择同时写入标识与显示名", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  const save = vi.fn(async () => undefined);
+  const selectCacheDirectory = vi.fn(async () => ({ id: "c1", label: "~/blog-cache" }));
+  const publishContext = {
+    ...context,
+    services: { git: { selectCacheDirectory } },
+  } as unknown as PluginContext;
+  const publish: PluginProviderSettingsDefinition = {
+    id: "publish",
+    title: "GitHub",
+    target: "publish",
+    form: {
+      groups: [
+        {
+          title: "推送",
+          fields: [
+            { key: "useGitCli", label: "Git Push", type: "switch", default: true },
+            {
+              key: "cacheId",
+              label: "缓存目录",
+              type: "service-choice",
+              service: "git.cacheDirectory",
+              labelKey: "cacheLabel",
+              placeholder: "应用缓存目录（默认）",
+              visibleWhen: { key: "useGitCli", equals: "true" },
+            },
+          ],
+        },
+      ],
+    },
+  };
+  await act(async () =>
+    root.render(
+      <UiProvider>
+        <PluginSettingsView
+          section={
+            {
+              key: "plugin:test.s3:publish",
+              definition: publish,
+              context: publishContext,
+              mountId: 1,
+            } as RegisteredPluginSettings
+          }
+          embedded
+          publishConfig={{ value: { token: "keep" }, save }}
+        />
+      </UiProvider>
+    )
+  );
+  expect(text()).toContain("应用缓存目录（默认）");
+  expect(button("保存")).toBeUndefined();
+
+  await act(async () => button("选择…").click());
+  expect(text()).toContain("~/blog-cache");
+  await act(async () => vi.advanceTimersByTimeAsync(700));
+  expect(save).toHaveBeenLastCalledWith({
+    token: "keep",
+    useGitCli: "true",
+    cacheId: "c1",
+    cacheLabel: "~/blog-cache",
+  });
+
+  await act(async () => container.querySelector<HTMLButtonElement>('[role="switch"]')!.click());
+  expect(text()).not.toContain("缓存目录");
+  vi.useRealTimers();
 });
