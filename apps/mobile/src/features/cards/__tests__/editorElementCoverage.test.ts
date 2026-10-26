@@ -4,6 +4,9 @@
  */
 import { describe, expect, it } from "vitest";
 import { CONTENT_ELEMENT_TYPES } from "@tau/shared";
+import { prepareContentContract } from "@tau/db-schema/content-contracts";
+import { BUILTIN_CONTENT_RESOURCES } from "@tau/db-schema/content-resources";
+import { mobileContentPlugins } from "../../../app/plugins/content";
 import { getMobileContentKit, getMobileFlashcardKit } from "../../../services/editorKit";
 
 describe("mobile content 场景的元素覆盖", () => {
@@ -25,6 +28,42 @@ describe("mobile content 场景的元素覆盖", () => {
     for (const required of CONTENT_ELEMENT_TYPES) {
       expect(types, `mobile 缺少 ${required}，该块只会显示通用占位`).toContain(required);
     }
+  });
+
+  it.each([
+    ["正文", getMobileContentKit],
+    ["闪卡", getMobileFlashcardKit],
+  ] as const)("%s 的全部节点都有可解析的当前契约", async (_scene, getKit) => {
+    const kit = getKit();
+    const catalog = await mobileContentPlugins.prepareEditorContracts(kit.extensions);
+    for (const type of kit.elementTypes) {
+      const current = catalog.current(type);
+      expect(current, `${type} 缺少版本契约`).toBeDefined();
+      expect(catalog.resolve({ type, tauContract: current?.id })).toBe(current);
+    }
+  });
+
+  it.each([
+    ["content-link", "inline", false],
+    ["file-attachment", "block", true],
+    ["whiteboard", "block", true],
+    ["database", "block", true],
+    ["flashcard-blank", "inline", false],
+  ] as const)("可解析桌面端保存的 %s v1 节点", async (type, kind, isVoid) => {
+    const persisted = await prepareContentContract(`host.${type}`, {
+      type,
+      dataVersion: 1,
+      kind,
+      isVoid,
+      resources: type === "file-attachment" ? BUILTIN_CONTENT_RESOURCES[type] : undefined,
+    });
+    const kit = type === "flashcard-blank" ? getMobileFlashcardKit() : getMobileContentKit();
+    const catalog = await mobileContentPlugins.prepareEditorContracts(kit.extensions);
+    const resolved = catalog.resolve({ type, tauContract: persisted.id });
+    expect(resolved, `${type} 的跨端契约不匹配`).toBeDefined();
+    expect(resolved?.access).toBe("edit");
+    expect(resolved?.contract).toEqual(persisted.contract);
+    expect(resolved?.element.render).toBeTypeOf("function");
   });
 
   it("场景 kit 保留已拆扩展并复用实例", () => {

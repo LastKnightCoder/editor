@@ -113,6 +113,7 @@ export const mobileContentLinkExtension = defineExtension({
   elements: [
     defineElement({
       type: CONTENT_LINK_TYPE,
+      dataVersion: 1,
       kind: "inline",
       render: ({ attributes, children, element }: ElementRenderProps) => (
         <ContentLink attributes={attributes} element={element as unknown as ContentLinkElement}>
