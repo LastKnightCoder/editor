@@ -3,14 +3,6 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { initPerfObservers } from "./utils/perf";
-// 方案 B：内置 MiSans（离线可用；先于全局样式加载）。
-// 注意各字面声明的字重是 330/380/520/630/700——Heavy(700) 必须加载，
-// 否则 font-extrabold(800) 会回落到更细的 Bold(630) 字面，标题「不黑」
-import "misans/lib/Normal/MiSans-Regular.min.css";
-import "misans/lib/Normal/MiSans-Medium.min.css";
-import "misans/lib/Normal/MiSans-Semibold.min.css";
-import "misans/lib/Normal/MiSans-Bold.min.css";
-import "misans/lib/Normal/MiSans-Heavy.min.css";
 import "./styles.css";
 
 type ErrorBoundaryState = {
