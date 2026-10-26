@@ -1,24 +1,8 @@
-/**
- * 使用文档的目录：分组、顺序与标题都在这里，正文在 content/docs/<slug>.md（首篇为 index.md）。
- * 纯数据，vite.config.ts 构建时也按它为每篇文档生成入口页。
- */
-export interface DocEntry {
-  /** 地址段：/docs/<slug>/；首篇为空串，对应 /docs/ */
-  slug: string;
-  title: string;
-  /** 页面描述，用于 <meta name="description"> */
-  summary: string;
-  /** 不进目录与上下篇（如隐私政策），只能经链接打开 */
-  hidden?: boolean;
-}
-
-export interface DocGroup {
-  title: string;
-  items: DocEntry[];
-}
+/** 使用文档的目录：分组、顺序与标题都在这里，正文在 content/docs/<slug>.md（首篇为 index.md）。 */
+import { createDocCollection, type DocGroup } from "./collection.ts";
 
 /** 分组与软件侧栏一致（app/navigation.ts），用户在软件里看到什么，目录里就找得到什么 */
-export const DOC_GROUPS: DocGroup[] = [
+const DOC_GROUPS: DocGroup[] = [
   {
     title: "开始",
     items: [
@@ -193,21 +177,11 @@ export const DOC_GROUPS: DocGroup[] = [
   },
 ];
 
-/** 全部文档，含不进目录的 */
-export const ALL_DOC_ENTRIES: DocEntry[] = DOC_GROUPS.flatMap(group => group.items);
+export const userDocs = createDocCollection({
+  site: "docs",
+  basePath: "/docs/",
+  name: "Tau 使用文档",
+  groups: DOC_GROUPS,
+});
 
-/** 目录里显示、参与上下篇的文档 */
-export const DOC_ENTRIES: DocEntry[] = ALL_DOC_ENTRIES.filter(entry => !entry.hidden);
-
-export const docHref = (slug: string) => (slug ? `/docs/${slug}/` : "/docs/");
-
-/** /docs/、/docs/install、/docs/install/ 都能找到对应文档；找不到返回 undefined */
-export function findDoc(pathname: string): DocEntry | undefined {
-  const match = /^\/docs(?:\/([^/]*))?\/?$/.exec(pathname);
-  if (!match) return undefined;
-  const slug = decodeURIComponent(match[1] ?? "");
-  return ALL_DOC_ENTRIES.find(entry => entry.slug === slug);
-}
-
-export const docPageTitle = (entry: DocEntry) =>
-  entry.slug ? `${entry.title} · Tau 使用文档` : "Tau 使用文档";
+export const docHref = userDocs.href;

@@ -1,6 +1,7 @@
 /** 文档页的编辑器服务：只读展示，媒体用原生元素，站内链接交给文档路由 */
 import type { ServiceRegistration } from "@tau/editor";
 import { IOpenerService } from "@tau/shared/host-services";
+import { DOC_BASE_PATHS } from "../lib/site.ts";
 import {
   IEditorSlots,
   type AudioSlotProps,
@@ -29,9 +30,9 @@ export function createDocsEditorServices(navigate: (href: string) => void): Serv
       open: url => {
         const target = new URL(url, location.href);
         if (target.origin === location.origin) {
-          // 文档页内互链不整页刷新；其他站内页面（如从更新日志跳文档）正常跳转
-          if (target.pathname.startsWith("/docs/") && location.pathname.startsWith("/docs/"))
-            navigate(target.pathname + target.hash);
+          // 同一文档集内互链不整页刷新；其他站内页面（如从更新日志跳文档）正常跳转
+          const base = DOC_BASE_PATHS.find(path => target.pathname.startsWith(path));
+          if (base && location.pathname.startsWith(base)) navigate(target.pathname + target.hash);
           else location.assign(target.href);
           return;
         }

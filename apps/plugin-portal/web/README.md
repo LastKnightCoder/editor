@@ -3,6 +3,7 @@
 页面（版式见 `../mockups/redesign/index.html` 方案A）：
 
 - 公开：/plugins 插件中心（v2 目录；平台筛选 `?platform=desktop|android|ios`、分类、搜索防抖、排序菜单，卡片显示声明平台）、/plugins/:pluginId 插件详情（v2 版本历史；介绍/更新说明/平台支持/版本/评论，最新版本按SemVer取，`?platform=` 只突出该平台声明）。
+- 顶栏「开发文档」链接官网 /developers/（插件开发文档，正文与官方模板同源），「我的提交」空态也引导到这里。
 - 网页没有真实宿主：目录不带 host 查询，兼容结论恒为未核验，只引导到应用内安装，不显示“当前设备可安装”；ZIP 经 v2 下载，下载不等于安装。上线须先部署 /v2 服务端，再发布本前端。
 - 工作台（需登录，左侧栏）：/submissions 我的提交（一个插件一行，展开看各次提交；筛选与计数按每个插件最该处理的那次提交）、/submissions/new、/submissions/:id 提交编辑、/review 审核队列、/review/:id 审核、/moderation 评论管理；后三个仅审核者。
 

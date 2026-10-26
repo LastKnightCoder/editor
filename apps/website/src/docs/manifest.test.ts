@@ -1,7 +1,9 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { ALL_DOC_ENTRIES, DOC_ENTRIES, findDoc } from "./manifest.ts";
+import { userDocs } from "./manifest.ts";
+
+const { all: ALL_DOC_ENTRIES, entries: DOC_ENTRIES, find: findDoc } = userDocs;
 import { DEMO_NAMES } from "./showcase/registry.ts";
 import { splitDocSegments } from "./segments.ts";
 

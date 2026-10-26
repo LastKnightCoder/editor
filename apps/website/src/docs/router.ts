@@ -1,4 +1,4 @@
-/** 文档页内的前进后退：只在 /docs/ 下用 History API 切换，不整页刷新 */
+/** 文档页内的前进后退：只在当前文档集下用 History API 切换，不整页刷新 */
 import { useSyncExternalStore } from "react";
 
 const listeners = new Set<() => void>();
@@ -16,9 +16,13 @@ function subscribe(listener: () => void) {
 export function navigate(href: string) {
   const target = new URL(href, location.href);
   if (target.pathname === location.pathname && target.hash === location.hash) return;
+  const samePage = target.pathname === location.pathname;
   history.pushState(null, "", target.pathname + target.hash);
-  scrollTo({ top: 0 });
+  // 带锚点的跳转由文档页滚到对应标题
+  if (!samePage && !target.hash) scrollTo({ top: 0 });
   notify();
 }
 
 export const usePathname = () => useSyncExternalStore(subscribe, () => location.pathname);
+
+export const useHash = () => useSyncExternalStore(subscribe, () => location.hash);

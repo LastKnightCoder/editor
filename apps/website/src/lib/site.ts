@@ -4,9 +4,12 @@ export const GITHUB_URL = `https://github.com/${GITHUB_REPO}`;
 export const PLUGIN_CENTER_URL = "https://plugins.taunote.app";
 export const DOCS_PATH = "/docs/";
 export const CHANGELOG_PATH = "/changelog/";
+export const DEVELOPERS_PATH = "/developers/";
+/** 各自是一个单页应用的文档集前缀：同一前缀内切换不整页刷新 */
+export const DOC_BASE_PATHS = [DOCS_PATH, DEVELOPERS_PATH] as const;
 
 export interface SiteLink {
-  key: "docs" | "changelog" | "plugins";
+  key: "docs" | "developers" | "changelog" | "plugins";
   label: string;
   href: string;
   external?: boolean;
@@ -15,6 +18,7 @@ export interface SiteLink {
 export const SITE_LINKS: readonly SiteLink[] = [
   { key: "docs", label: "使用文档", href: DOCS_PATH },
   { key: "changelog", label: "更新日志", href: CHANGELOG_PATH },
+  { key: "developers", label: "插件开发", href: DEVELOPERS_PATH },
   { key: "plugins", label: "插件中心", href: PLUGIN_CENTER_URL, external: true },
 ];
 
