@@ -8,8 +8,6 @@ export interface ColumnDef<T = unknown> {
   type: string;
   width?: number;
   config?: T;
-  /** 字段配置版本；缺省视为 1，由字段 model 的 configVersion / migrateConfig 逐级升级（D-137） */
-  configVersion?: number;
   validation?: ValidationRule;
   hidden?: boolean;
   isPrimary?: boolean;

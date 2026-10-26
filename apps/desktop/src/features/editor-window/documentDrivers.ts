@@ -9,7 +9,7 @@
 import type { Descendant } from "slate";
 import { CreditCard, FileText, FolderOpen, type LucideIcon } from "lucide-react";
 import type { EditorWindowKind } from "@tau/platform";
-import type { AnyExtension } from "@tau/editor";
+import type { EditorExtension } from "@tau/editor";
 import { getCardById, updateCard } from "@/commands/card";
 import { findOneArticle, updateArticle } from "@/commands/article";
 import { getProjectItemById, updateProjectItem } from "@/commands/project";
@@ -59,7 +59,7 @@ export interface DocumentDriver<Entity = unknown> {
     subscribe(id: number, onRemote: (entity: Entity) => void): () => void;
   };
   /** 该类型额外的编辑器扩展 */
-  extensions?(id: number): AnyExtension[];
+  extensions?(id: number): EditorExtension[];
 }
 
 /** 元数据变更比对：正文与字数不参与（正文另有链路，字数由主进程按正文计算） */

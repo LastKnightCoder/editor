@@ -15,7 +15,7 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 
 import { Editor, createEditorKit } from "../index";
 import type { EditorRef } from "../types/editor";
-import { defineExtension, type AnyExtension } from "../api";
+import { defineExtension, type EditorExtension } from "../api";
 import { IExtensionErrorReporter, type ExtensionErrorEvent } from "../services";
 import { IUnknownElementNotice } from "../services/unknownElementNotice";
 import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
@@ -25,7 +25,7 @@ import { CIRCUIT_BREAKER_THRESHOLD, withUnknownElements } from "../kit/extension
 const text = (value: string) => ({ type: "formatted" as const, text: value });
 const paragraph = (value: string) => ({ type: "paragraph" as const, children: [text(value)] });
 
-const createKit = (extensions: AnyExtension[] = []) => {
+const createKit = (extensions: EditorExtension[] = []) => {
   const events: ExtensionErrorEvent[] = [];
   const kit = createEditorKit({
     extensions,

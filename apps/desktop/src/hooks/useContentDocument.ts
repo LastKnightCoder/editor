@@ -9,7 +9,7 @@ import {
   type SharedContent,
 } from "@tau/collaboration";
 import { createNodeTreeDocument, type ContentCollaborationBinding } from "@tau/editor-collab";
-import { type EditorDocument, type EditorKit, type AnyExtension } from "@tau/editor";
+import { type EditorDocument, type EditorKit, type EditorExtension } from "@tau/editor";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
 import useContentSession from "@/hooks/useContentSession";
 import { registerContentBinding } from "@/services/contentBindings";
@@ -44,7 +44,7 @@ export default function useContentDocument(
   contentId?: number,
   source?: Omit<ContentSessionTarget, "contentId">,
   scenarioKit?: EditorKit,
-  extensions?: readonly AnyExtension[]
+  extensions?: readonly EditorExtension[]
 ): ContentDocument & { sessionError?: string } {
   const { entry, error: sessionError, databaseName } = useContentSession(contentId, source);
   const documentId = entry?.documentId;
@@ -70,7 +70,7 @@ export function useBoundContentDocument(
   options: {
     frozen?: boolean;
     kit?: EditorKit;
-    extensions?: readonly AnyExtension[];
+    extensions?: readonly EditorExtension[];
     lineage?: string;
   } = {}
 ) {

@@ -5,10 +5,10 @@
  * 这里失败，迫使改动者说明理由。P6.5 曾在没有这层守护时静默改掉 36 个调用点的扩展集。
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { AnyExtension } from "@tau/editor";
+import type { EditorExtension } from "@tau/editor";
 import { defineExtension } from "@tau/editor/api";
 
-const extensionOf = (type: string): AnyExtension =>
+const extensionOf = (type: string): EditorExtension =>
   defineExtension({
     id: `test.${type}`,
     elements: [{ type, kind: "block", render: () => null }],

@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo } from "react";
 import type { ReactNode } from "react";
 
-import type { AnyExtension } from "../api/legacy";
+import type { EditorExtension } from "../api/extension";
 import type { EditorKit } from "./EditorKit";
 
 /**
@@ -45,7 +45,7 @@ export function useResolvedKit(explicit: EditorKit | undefined): EditorKit {
  */
 export function useKitWithExtensions(
   kit: EditorKit,
-  extensions: readonly AnyExtension[] | undefined
+  extensions: readonly EditorExtension[] | undefined
 ): EditorKit {
   return useMemo(
     () => (extensions?.length ? kit.extend({ extensions: [...extensions], override: true }) : kit),

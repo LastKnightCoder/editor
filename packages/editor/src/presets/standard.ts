@@ -1,4 +1,4 @@
-import type { AnyExtension } from "../../api";
+import type { EditorExtension } from "../../api";
 import blockquote from "../extensions/blockquote/src";
 import callout from "../extensions/callout/src";
 import detail from "../extensions/detail/src";
@@ -20,7 +20,7 @@ import { default as styledText } from "../extensions/styled-text/src";
 import { image, inlineImage, audio, video, mediaUiExtension } from "../extensions/media/src";
 
 /** 产品的显式扩展组合，顺序保持原场景；核心不得依赖此模块。 */
-export const standardExtensions: readonly AnyExtension[] = [
+export const standardExtensions: readonly EditorExtension[] = [
   defaultMenuExtension,
   underline,
   header,

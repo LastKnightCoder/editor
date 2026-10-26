@@ -15,7 +15,6 @@ import {
 } from "../types/frame";
 import { isRectIntersect, getRectIntersectionArea } from "./common";
 import { PathUtil } from "./PathUtil";
-import { canNest } from "./Constraints";
 
 const LOCAL_STORAGE_KEY = "whiteboard-frame";
 
@@ -121,7 +120,7 @@ export class FrameUtil {
     }
 
     // 使用能力系统检查嵌套约束
-    if (!canNest(board, frame, child)) {
+    if (!board.capabilityService.canContain(frame, child)) {
       return frame;
     }
 

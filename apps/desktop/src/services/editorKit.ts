@@ -11,7 +11,7 @@
  * 用函数而不是模块级常量：`@/editor-extensions` 会经扩展组件绕回本模块，
  * 模块初始化期创建 kit 会拿到未初始化的导入（详见 04 踩坑）。首次调用时才创建并缓存。
  */
-import { createEditorKit, type AnyExtension, type EditorKit } from "@tau/editor";
+import { createEditorKit, type EditorExtension, type EditorKit } from "@tau/editor";
 import { textFormattingExtension } from "@tau/editor/extensions/text-formatting";
 import { default as link } from "@tau/editor/extensions/link";
 import { standardExtensions } from "@tau/editor/presets/standard";
@@ -30,7 +30,7 @@ import { IElementEditingPolicy } from "@tau/editor/api";
 import { desktopContentPlugins, desktopPortableSupport } from "../../shared/content-plugins.ts";
 
 /** 异步装载的宿主扩展必须先就位：kit 只建一次，少拿了就整个应用少几种块，且不会报错 */
-function requireHostExtensions(): AnyExtension[] {
+function requireHostExtensions(): EditorExtension[] {
   const state = useDynamicExtensionsStore.getState();
   if (!state.initialized) {
     throw new Error(
@@ -44,12 +44,10 @@ const byExtras = new Map<string, EditorKit>();
 
 /**
  * 建一个场景 kit：底座（内置 + desktop 静态 + desktop 服务）加上该场景的额外扩展。
- * 按额外扩展的标识（旧扩展 type、v2 扩展 id）缓存，同一场景反复调用拿到同一个实例（否则编辑器会被重建）。
+ * 按额外扩展的 id 缓存，同一场景反复调用拿到同一个实例（否则编辑器会被重建）。
  */
-export function createDesktopKit(extras: readonly AnyExtension[] = []): EditorKit {
-  const key = extras
-    .map(extension => ("type" in extension ? extension.type : extension.id))
-    .join(",");
+export function createDesktopKit(extras: readonly EditorExtension[] = []): EditorKit {
+  const key = extras.map(extension => extension.id).join(",");
   let kit = byExtras.get(key);
   if (!kit) {
     kit = createEditorKit({
@@ -122,7 +120,7 @@ export function getPluginDocumentKit(): EditorKit {
   return createDesktopKit();
 }
 
-let flashcardBlank: AnyExtension | null = null;
+let flashcardBlank: EditorExtension | null = null;
 
 /**
  * 闪卡正文与背面：只多一个填空元素。

@@ -17,7 +17,6 @@ export * from "./MindUtil.ts";
 export * from "./MindThemeUtil.ts";
 export * from "./FrameUtil.ts";
 export * from "./ColumnUtil.ts";
-export * from "./Constraints";
 export * from "./SelectionActionUtil";
 export * from "./ClipboardUtil";
 export * from "./ArrowStyleUtil";

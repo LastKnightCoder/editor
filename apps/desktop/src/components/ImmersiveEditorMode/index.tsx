@@ -19,7 +19,7 @@ import { ReactEditor } from "slate-react";
 import { useLatest, useMemoizedFn } from "ahooks";
 import { Focus, Minimize2, Minus, Moon, Plus, Sun, TextCursorInput } from "lucide-react";
 import { EditorThemeOverride, type EditorRef } from "@tau/editor";
-import type { AnyExtension } from "@tau/editor";
+import type { EditorExtension } from "@tau/editor";
 import { cn, PortalScope } from "@tau/ui";
 import ContentEditor from "@/components/ContentEditor";
 import { PortalToBody } from "@tau/ui";
@@ -37,7 +37,7 @@ export interface ImmersiveEditorExitPayload {
 
 interface ImmersiveEditorModeProps {
   /** 实例特有扩展（如项目文档的卡片列表）；宿主通用扩展来自 kit，不必传 */
-  extensions?: AnyExtension[];
+  extensions?: EditorExtension[];
   contentId?: number;
   initValue: Descendant[];
   initialSelection?: Range | null;
@@ -129,7 +129,7 @@ function SessionStats({
 interface SurfaceProps {
   editorRef: Ref<EditorRef>;
   contentId?: number;
-  extensions?: AnyExtension[];
+  extensions?: EditorExtension[];
   initValue: Descendant[];
   onChange?(content: Descendant[]): void;
   onInit(editor: SlateEditor, content: Descendant[]): void;
@@ -286,14 +286,14 @@ export default function ImmersiveEditorMode({
           <EditorThemeOverride mode={stageTheme.mode}>
             <div
               ref={setViewport}
-              className="absolute inset-0 overflow-y-auto overflow-x-hidden"
+              className="absolute inset-0 overflow-x-hidden overflow-y-auto"
               style={fadeMask(typewriter)}
             >
               {/* 留白在 zoom 之外：上下各留大半屏，首行与末行也能停在视线高度 */}
-              <div className={typewriter ? "pb-[55vh] pt-[45vh]" : "pb-[50vh] pt-[16vh]"}>
+              <div className={typewriter ? "pt-[45vh] pb-[55vh]" : "pt-[16vh] pb-[50vh]"}>
                 <div
                   ref={setColumn}
-                  className="text-(length:--font-size) mx-auto"
+                  className="mx-auto text-(length:--font-size)"
                   style={
                     {
                       width: columnWidth(viewportWidth, zoom),

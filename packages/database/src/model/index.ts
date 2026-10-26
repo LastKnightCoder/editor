@@ -8,7 +8,6 @@ export {
   type AnyConfigFieldModel,
   type FieldModelRegistry,
 } from "./content-refs";
-export { upgradeColumnConfig, upgradeColumns } from "./config-version";
 export {
   tableToMarkdown,
   type TableToMarkdownInput,
