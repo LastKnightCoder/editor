@@ -36,6 +36,7 @@ import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { SettingsTabs } from "../components/SettingsTabs";
 import { StatusChip } from "../components/StatusChip";
+import { SpeechInputSection } from "./SpeechInputSection";
 import { VoiceTtsPanel } from "./VoiceTtsPanel";
 import { useSettingsStore } from "@/app/settingsStore";
 
@@ -65,7 +66,14 @@ export function VoiceSection() {
           { key: "tts", label: "语音合成" },
         ]}
       />
-      {tab === "transcription" ? <TranscriptionPanel /> : <VoiceTtsPanel />}
+      {tab === "transcription" ? (
+        <>
+          <SpeechInputSection />
+          <TranscriptionPanel />
+        </>
+      ) : (
+        <VoiceTtsPanel />
+      )}
     </>
   );
 }

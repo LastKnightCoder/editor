@@ -34,7 +34,13 @@ vi.mock("@/app/plugins/context", () => {
   const runtime = {
     listSettings: () =>
       mocks.active
-        ? [{ definition: { target: "tts" }, context: { pluginId: "tau.tts-minimax" } }]
+        ? [
+            {
+              key: "tts",
+              definition: { title: "MiniMax", target: "tts" },
+              context: { pluginId: "tau.tts-minimax" },
+            },
+          ]
         : [],
   };
   return { useDesktopPlugins: () => runtime };
@@ -42,10 +48,8 @@ vi.mock("@/app/plugins/context", () => {
 vi.mock("@/utils/tts", () => ({
   TTSProviderFactory: { getSpeechSynthesizer: mocks.synthesize },
 }));
-vi.mock("../sections/TTSPluginSettings", () => ({ TTSPluginSettings: () => null }));
 vi.mock("../sections/TTSPluginCloneSection", () => ({ TTSPluginCloneSection: () => null }));
 vi.mock("../sections/TTSPreviewSection", () => ({ TTSPreviewSection: () => null }));
-vi.mock("../components/TtsProviderCreateDialog", () => ({ TtsProviderCreateDialog: () => null }));
 
 const container = document.createElement("div");
 const root = createRoot(container);

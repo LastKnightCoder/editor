@@ -3,7 +3,7 @@
  * 显式保存；同步服务保存后读取一次云端版本作为连接测试。保存不改变当前选用。
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import {
   CircleAlert,
   CircleCheck,
@@ -21,6 +21,7 @@ import {
   validateProviderFormValues,
   type JsonValue,
   type PluginProviderSettingsDefinition,
+  type ProviderForm,
   type ProviderChoiceOption,
   type ProviderField,
   type ProviderRemoteChoiceField,
@@ -260,14 +261,78 @@ export function ProviderFormView({
   name: string;
 }) {
   const { form, target } = definition;
+  if (target !== "sync" && target !== "upload") throw new Error("不是存储提供方");
+  return <StorageProviderForm form={form} target={target} context={context} name={name} />;
+}
+
+function StorageProviderForm({
+  form,
+  target,
+  context,
+  name,
+}: {
+  form: ProviderForm;
+  target: "sync" | "upload";
+  context: PluginContext;
+  name: string;
+}) {
   const pluginId = context.pluginId;
   const stored = useStoredConfig(target, pluginId);
+  return (
+    <ProviderConfigForm
+      form={form}
+      context={context}
+      stored={stored}
+      saveConfig={config => saveProviderConfig(target, pluginId, config)}
+      probe={
+        target === "sync"
+          ? async config => {
+              const remote = await probeRemoteDatabaseVersion(pluginId, config);
+              return remote.version > 0
+                ? `连接正常 · 云端已有数据库 v${remote.version}`
+                : "连接正常 · 云端还没有这个数据库，首次同步会上传";
+            }
+          : undefined
+      }
+      header={
+        <CapabilityCard
+          target={target}
+          pluginId={pluginId}
+          name={name}
+          configured={isProviderFormComplete(form, stored)}
+        />
+      }
+    />
+  );
+}
+
+export function ProviderConfigForm({
+  form,
+  context,
+  stored,
+  saveConfig,
+  probe,
+  header,
+  children,
+  changed = false,
+  onReset,
+}: {
+  form: ProviderForm;
+  context: PluginContext;
+  stored: JsonValue | undefined;
+  saveConfig(config: JsonValue): Promise<void>;
+  probe?(config: JsonValue): Promise<string>;
+  header?: ReactNode;
+  children?: ReactNode;
+  changed?: boolean;
+  onReset?(): void;
+}) {
   const baseline = useMemo(() => readProviderFormValues(form, stored), [form, stored]);
   const [values, setValues] = useState<Values>(baseline);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [outcome, setOutcome] = useState<Outcome>(null);
-  const dirty = Object.keys(values).some(key => values[key] !== baseline[key]);
+  const dirty = changed || Object.keys(values).some(key => values[key] !== baseline[key]);
   const configured = isProviderFormComplete(form, stored);
 
   const patch = (key: string, value: string) => {
@@ -286,21 +351,14 @@ export function ProviderFormView({
       const prepared = form.beforeSave ? await form.beforeSave(values, context.signal) : values;
       context.signal.throwIfAborted();
       const config = mergeProviderFormValues(stored, prepared);
-      await saveProviderConfig(target, pluginId, config);
+      await saveConfig(config);
       setValues(readProviderFormValues(form, config));
-      if (target === "upload") {
+      if (!probe) {
         setOutcome({ tone: "ok", text: "配置已保存" });
         return;
       }
       try {
-        const remote = await probeRemoteDatabaseVersion(pluginId, config);
-        setOutcome({
-          tone: "ok",
-          text:
-            remote.version > 0
-              ? `连接正常 · 云端已有数据库 v${remote.version}`
-              : "连接正常 · 云端还没有这个数据库，首次同步会上传",
-        });
+        setOutcome({ tone: "ok", text: await probe(config) });
       } catch (error) {
         setOutcome({ tone: "danger", text: `配置已保存，但连接失败：${errorText(error)}` });
       }
@@ -313,7 +371,7 @@ export function ProviderFormView({
 
   return (
     <div className="min-w-0">
-      <CapabilityCard target={target} pluginId={pluginId} name={name} configured={configured} />
+      {header}
       {form.groups.map(group => (
         <section key={group.title} className="mb-6" aria-label={group.title}>
           <div className="px-1 pb-2">
@@ -348,6 +406,7 @@ export function ProviderFormView({
           </Panel>
         </section>
       ))}
+      {children}
       <div className="flex items-center gap-2 px-1">
         <p
           role={outcome?.tone === "danger" ? "alert" : "status"}
@@ -359,7 +418,7 @@ export function ProviderFormView({
           {saving ? (
             <>
               <LoaderCircle size={14} className="animate-spin" />
-              {target === "sync" ? "正在保存并测试连接…" : "正在保存…"}
+              {probe ? "正在保存并测试连接…" : "正在保存…"}
             </>
           ) : outcome ? (
             <>
@@ -379,6 +438,7 @@ export function ProviderFormView({
           disabled={!dirty || saving}
           onClick={() => {
             setValues(baseline);
+            onReset?.();
             setErrors({});
             setOutcome(null);
           }}
@@ -386,7 +446,7 @@ export function ProviderFormView({
           还原
         </Button>
         <Button variant="primary" disabled={!dirty && configured} loading={saving} onClick={save}>
-          {target === "sync" ? "保存并测试" : "保存"}
+          {probe ? "保存并测试" : "保存"}
         </Button>
       </div>
     </div>

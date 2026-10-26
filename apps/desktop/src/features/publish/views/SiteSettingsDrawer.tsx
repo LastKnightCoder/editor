@@ -6,10 +6,10 @@ import type { SiteFieldValue, TemplateSiteField } from "@tau/plugins/template";
 import LocalImage from "@/components/LocalImage";
 import { EPublishProvider } from "@/stores/useSettingStore";
 import type { ConnectionState, PublishConfig } from "../usePublishConfig";
-import { PluginSettingsView } from "@/features/plugins/views/PluginSettingsView";
+import { openProviderSettings } from "@/services/open-provider-settings";
 import { openPage } from "@/services/page-navigation";
 
-/** 组内行：左标签 64px + 右控件，行间 line-2 分隔；发布插件表单按同一度量渲染自己的行（见 PUBLISH.md） */
+/** 组内行：左标签 64px + 右控件，行间 line-2 分隔；连接配置由插件页承载 */
 function Row({
   label,
   top,
@@ -249,11 +249,16 @@ export function SiteSettingsDrawer({
             />
           </Row>
         ) : (
-          <PluginSettingsView
-            section={config.section}
-            embedded
-            publishConfig={{ value: config.providerConfig, save: config.saveConfig }}
-          />
+          <Row label="连接配置">
+            <Button
+              onClick={() => {
+                onClose();
+                openProviderSettings(config.pluginId, config.section?.key);
+              }}
+            >
+              在插件页配置
+            </Button>
+          </Row>
         )}
         <Row label="公开 URL">
           <Input

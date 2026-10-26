@@ -1,7 +1,5 @@
-import { useMemo, useState, type ReactNode } from "react";
-import { produce } from "immer";
-import { copyJson } from "@tau/plugins/host";
-import type { JsonValue } from "@tau/plugins";
+import { SETTINGS_SECTIONS } from "@/features/settings/sections";
+import { useState, type ReactNode } from "react";
 import { ArrowLeft, ExternalLink, Github, Layers, ShieldAlert } from "lucide-react";
 import { Button, FadeScroll, Switch, Tabs } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
@@ -12,8 +10,6 @@ import {
   type PluginSettingsKey,
 } from "@/app/plugins/runtime";
 import { openExternal } from "@/commands/extra";
-import { savePluginVideoConfig } from "@/commands/plugin-video";
-import useSettingStore from "@/stores/useSettingStore";
 import { useSettingsStore } from "@/app/settingsStore";
 import type { PluginCatalogEntry, PluginRelease } from "@/types/plugin-center";
 import { formatSize, pluginPortalUrl } from "@tau/plugins/center";
@@ -351,15 +347,8 @@ function SettingsTab({
   from?: string;
   onSection: (key: PluginSettingsKey) => void;
 }) {
-  const sections = runtime
-    .listSettings()
-    .filter(item => item.context.pluginId === plugin.info.id && item.definition.target !== "asr");
+  const sections = runtime.listSettings().filter(item => item.context.pluginId === plugin.info.id);
   const active = section ? sections.find(item => item.key === section) : sections[0];
-
-  // 为视频插件提供 videoConfig - Hooks 必须在所有条件语句之前调用
-  const pluginId = plugin.info.id;
-  const stored = useSettingStore(state => state.setting.onlineVideo.configurations[pluginId]);
-  const videoConfigValue = useMemo(() => copyJson((stored ?? {}) as JsonValue), [stored]);
 
   if (plugin.info.state !== "active")
     return (
@@ -368,32 +357,17 @@ function SettingsTab({
       </p>
     );
 
-  const videoConfig =
-    active?.definition.target === "video"
-      ? {
-          value: videoConfigValue,
-          save: async (value: JsonValue) => {
-            await savePluginVideoConfig(pluginId, value);
-            useSettingStore.setState(state => ({
-              setting: produce(state.setting, draft => {
-                draft.onlineVideo.configurations[pluginId] = value;
-              }),
-            }));
-          },
-        }
-      : undefined;
-
-  const returnTo = from === "sync" || from === "imageBed" ? from : undefined;
+  const returnTo = SETTINGS_SECTIONS.find(item => item.key === from);
   return (
     <div className="min-w-0">
       {returnTo && (
         <div className="bg-accent-soft text-accent-text text-tau-meta mb-5 flex items-center gap-2 rounded-[12px] px-3 py-2">
           <ArrowLeft size={14} className="flex-none" />
           <span className="min-w-0 flex-1">
-            从「设置 › {returnTo === "sync" ? "同步" : "资源存储"}」进入，保存后可回去继续
+            从「设置 › {returnTo.label}」进入，保存后可回去继续
           </span>
-          <Button size="sm" onClick={() => useSettingsStore.getState().openSettings(returnTo)}>
-            返回{returnTo === "sync" ? "同步" : "资源存储"}设置
+          <Button size="sm" onClick={() => useSettingsStore.getState().openSettings(returnTo.key)}>
+            返回{returnTo.label}设置
           </Button>
         </div>
       )}
@@ -419,7 +393,7 @@ function SettingsTab({
           {active.definition.description && (
             <p className="text-tau-meta text-ink-2 mb-4">{active.definition.description}</p>
           )}
-          <PluginSettingsView section={active} videoConfig={videoConfig} />
+          <PluginSettingsView section={active} />
         </section>
       ) : section ? (
         <PluginSettingsView />
