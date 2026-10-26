@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>服务商设置归位 · 设计方案</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+/* 服务商设置归位 mockup：颜色取自 @tau/themes；桌面帧用桌面字号档，手机帧用移动端 9 档 */
+:root {
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --shell: color-mix(in srgb, var(--tau-bg-sunken) 55%, var(--tau-bg-page));
+  --bad: #c4453a; --good: #3f8a5a;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: var(--shell); color: var(--tau-ink-1); -webkit-font-smoothing: antialiased; }
+button, select, input { font: inherit; color: inherit; background: none; border: 0; }
+button { cursor: pointer; }
+svg.lucide { width: 1em; height: 1em; stroke-width: 1.8; flex: none; }
+
+/* ── 文档外壳 ── */
+.page-head { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--shell) 92%, transparent); backdrop-filter: blur(12px); padding: 16px 28px 0; border-bottom: 1px solid var(--tau-line-1); }
+.head-row { display: flex; align-items: center; gap: 16px; }
+.head-row h1 { font-size: 20px; font-weight: 700; flex: 1; }
+.head-row h1 small { display: block; font-size: 12.5px; font-weight: 400; color: var(--tau-ink-2); margin-top: 2px; }
+.theme-pick { display: flex; gap: 8px; }
+.theme-pick select, .theme-pick button { background: var(--tau-bg-surface); border-radius: 10px; padding: 6px 12px; font-size: 13px; box-shadow: var(--tau-shadow-card); }
+.tabs { display: flex; gap: 4px; margin-top: 12px; overflow-x: auto; }
+.tab { padding: 10px 14px; font-size: 13.5px; color: var(--tau-ink-2); border-bottom: 2px solid transparent; white-space: nowrap; }
+.tab.on { color: var(--tau-ink-1); font-weight: 600; border-color: var(--tau-accent); }
+.rec { margin-left: 6px; font-size: 11px; padding: 1px 6px; border-radius: 999px; background: var(--tau-accent-soft); color: var(--tau-accent-text); }
+.scene { display: none; padding: 24px 28px 80px; }
+.scene.on { display: block; }
+.intro { max-width: 1020px; font-size: 14.5px; line-height: 1.75; color: var(--tau-ink-2); margin-bottom: 22px; }
+.intro b { color: var(--tau-ink-1); }
+.frames { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+.cap { font-size: 13px; color: var(--tau-ink-2); margin: 10px 4px 0; max-width: 380px; line-height: 1.6; }
+.cap b { color: var(--tau-ink-1); }
+.doc { background: var(--tau-bg-surface); border-radius: 16px; padding: 20px 22px; box-shadow: var(--tau-shadow-card); font-size: 14px; line-height: 1.75; max-width: 1020px; margin-bottom: 20px; }
+.doc h3 { font-size: 16px; margin-bottom: 8px; }
+.doc ul, .doc ol { padding-left: 20px; }
+.doc li + li { margin-top: 4px; }
+.doc code, .intro code { font-family: var(--mono); font-size: 12.5px; background: var(--tau-bg-hover); padding: 1px 5px; border-radius: 5px; }
+pre.code { font-family: var(--mono); font-size: 12.5px; line-height: 1.6; background: var(--tau-bg-page); border-radius: 12px; padding: 14px 16px; overflow-x: auto; white-space: pre; color: var(--tau-ink-1); }
+table.cmp { border-collapse: collapse; width: 100%; font-size: 13.5px; line-height: 1.6; }
+table.cmp th, table.cmp td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--tau-line-1); vertical-align: top; }
+table.cmp th { color: var(--tau-ink-2); font-weight: 600; white-space: nowrap; }
+table.cmp td.y { color: var(--good); } table.cmp td.n { color: var(--bad); }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; max-width: 1020px; margin-bottom: 20px; }
+.cols .doc { margin: 0; }
+.tagrec { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--tau-accent-soft); color: var(--tau-accent-text); margin-left: 6px; font-weight: 500; vertical-align: 2px; }
+
+/* 标注 */
+.anno { position: absolute; z-index: 5; font-size: 11.5px; line-height: 1.45; padding: 5px 8px; border-radius: 8px; max-width: 220px; color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,.18); font-weight: 500; }
+.anno.bad { background: var(--bad); }
+.anno.good { background: var(--good); }
+.anno i { font-style: normal; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: rgba(255,255,255,.25); font-size: 10.5px; margin-right: 4px; }
+.ring-bad { outline: 2px dashed var(--bad); outline-offset: 2px; border-radius: 8px; }
+.ring-good { outline: 2px dashed var(--good); outline-offset: 2px; border-radius: 8px; }
+.legend { list-style: none; padding: 0 !important; }
+.legend li { display: flex; gap: 8px; }
+.legend .n { flex: none; width: 18px; height: 18px; border-radius: 50%; background: var(--bad); color: #fff; font-size: 11px; display: grid; place-items: center; margin-top: 4px; }
+.legend .n.g { background: var(--good); }
+
+/* ═══════ 桌面帧（桌面字号档） ═══════ */
+.dwin { width: 1040px; height: 700px; border-radius: 14px; overflow: hidden; background: var(--tau-bg-page); box-shadow: 0 2px 6px rgba(0,0,0,.06), 0 20px 50px rgba(0,0,0,.12); display: grid; grid-template-columns: 210px minmax(0,1fr); position: relative; font-size: 13px; line-height: 1.6; }
+.dwin.short { height: 600px; }
+.dside { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; }
+.dside .dots { display: flex; gap: 7px; padding: 4px 8px 14px; } .dside .dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--tau-bg-track); }
+.dside .back { display: flex; gap: 8px; align-items: center; padding: 5px 8px; color: var(--tau-ink-2); font-size: 12.5px; margin-bottom: 6px; }
+.dside .g { font-size: 11px; color: var(--tau-ink-3); padding: 10px 8px 3px; }
+.dside .it { display: flex; gap: 9px; align-items: center; height: 30px; padding: 0 8px; border-radius: 8px; color: var(--tau-ink-2); font-size: 13px; }
+.dside .it svg { font-size: 15px; }
+.dside .it.on { background: var(--tau-bg-selected); color: var(--tau-accent-text); font-weight: 500; }
+.dmain { overflow: hidden; padding: 26px 40px 30px 24px; position: relative; }
+.dcol { max-width: 680px; }
+.dph h2 { font-size: 20px; font-weight: 600; } .dph p { color: var(--tau-ink-2); font-size: 12.5px; margin-top: 2px; }
+.dph { margin-bottom: 20px; }
+.dtabs { display: flex; gap: 22px; margin: -6px 0 20px; font-size: 13px; color: var(--tau-ink-2); }
+.dtabs b { font-weight: 600; color: var(--tau-ink-1); position: relative; padding-bottom: 6px; }
+.dtabs b::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 2px; background: var(--tau-accent); }
+.dgt { display: flex; align-items: flex-end; gap: 10px; padding: 0 4px 8px; }
+.dgt h3 { font-size: 13.5px; font-weight: 600; } .dgt p { font-size: 12.5px; color: var(--tau-ink-2); }
+.dgt .r { margin-left: auto; }
+.dgroup { margin-bottom: 22px; }
+.dpanel { background: var(--tau-bg-surface); border-radius: 14px; box-shadow: var(--tau-shadow-card); padding: 6px; }
+.drow { display: flex; align-items: center; gap: 14px; padding: 9px 12px; min-height: 50px; border-radius: 10px; }
+.dpanel > .drow + .drow { box-shadow: 0 -1px 0 var(--tau-line-2); border-top-left-radius: 0; border-top-right-radius: 0; }
+.drow .t { flex: 1; min-width: 0; } .drow .t b { display: block; font-weight: 500; font-size: 13.5px; }
+.drow .t small { display: block; color: var(--tau-ink-2); font-size: 12.5px; }
+.drow .t small.mono { font-family: var(--mono); font-size: 11.5px; }
+.inp { width: 260px; height: 32px; border-radius: 8px; box-shadow: 0 0 0 1px var(--tau-line-1) inset; background: var(--tau-bg-surface); display: inline-flex; align-items: center; padding: 0 10px; font-size: 12.5px; color: var(--tau-ink-1); gap: 6px; }
+.inp.ph { color: var(--tau-ink-3); } .inp .sp { flex: 1; } .inp svg { color: var(--tau-ink-3); }
+.btn { height: 30px; padding: 0 12px; border-radius: 8px; background: var(--tau-bg-surface); box-shadow: 0 0 0 1px var(--tau-line-1) inset; font-size: 12.5px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.btn.pri { background: var(--tau-accent); color: var(--tau-ink-inverse); box-shadow: none; }
+.btn.ghost { box-shadow: none; color: var(--tau-ink-2); }
+.btn.sm { height: 26px; padding: 0 10px; font-size: 12px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; padding: 1px 8px; border-radius: 999px; background: var(--tau-bg-hover); color: var(--tau-ink-2); white-space: nowrap; }
+.chip.ok { background: var(--tau-ok-soft); color: var(--tau-ok); } .chip.warn { background: var(--tau-warn-soft); color: var(--tau-warn); }
+.chip.acc { background: var(--tau-accent-soft); color: var(--tau-accent-text); } .chip.danger { background: var(--tau-danger-soft); color: var(--tau-danger); }
+.tile { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; font-weight: 700; font-size: 13px; flex: none; }
+.t1 { background: var(--tau-tag-1-soft); color: var(--tau-tag-1); } .t2 { background: var(--tau-tag-2-soft); color: var(--tau-tag-2); }
+.t3 { background: var(--tau-tag-3-soft); color: var(--tau-tag-3); } .t4 { background: var(--tau-tag-4-soft); color: var(--tau-tag-4); }
+.t5 { background: var(--tau-tag-5-soft); color: var(--tau-tag-5); } .tm { background: var(--tau-bg-page); color: var(--tau-ink-2); }
+.radio { width: 16px; height: 16px; border-radius: 50%; box-shadow: 0 0 0 1.5px var(--tau-line-1) inset; flex: none; }
+.radio.on { box-shadow: 0 0 0 5px var(--tau-accent) inset; }
+.stat2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 22px; }
+.scard { background: var(--tau-bg-surface); border-radius: 14px; box-shadow: var(--tau-shadow-card); padding: 14px 16px 12px; }
+.scard h4 { font-size: 13.5px; display: flex; gap: 8px; align-items: center; } .scard h4 .chip { margin-left: auto; font-weight: 400; }
+.scard .sub { color: var(--tau-ink-2); font-size: 12px; margin-top: 1px; }
+.scard .nums { display: flex; gap: 28px; margin: 12px 0; } .scard .nums b { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; display: block; } .scard .nums small { color: var(--tau-ink-3); font-size: 11.5px; }
+.scard .acts { display: flex; gap: 6px; }
+.dnote { display: flex; gap: 8px; align-items: center; color: var(--tau-ink-2); font-size: 12.5px; padding: 0 4px; }
+.pd-head { display: flex; gap: 14px; align-items: center; margin-bottom: 18px; }
+.pd-head .tile { width: 44px; height: 44px; border-radius: 12px; font-size: 18px; }
+.pd-head h2 { font-size: 19px; font-weight: 600; } .pd-head p { color: var(--tau-ink-2); font-size: 12.5px; }
+.banner { display: flex; align-items: center; gap: 10px; background: var(--tau-accent-soft); color: var(--tau-accent-text); border-radius: 12px; padding: 9px 12px; font-size: 12.5px; margin-bottom: 18px; }
+.banner .r { margin-left: auto; }
+.cap-row { display: flex; gap: 10px; margin-bottom: 22px; }
+.capcard { flex: 1; background: var(--tau-bg-surface); border-radius: 14px; box-shadow: var(--tau-shadow-card); padding: 12px 14px; display: flex; gap: 12px; align-items: center; }
+.capcard .t { flex: 1; } .capcard b { font-size: 13.5px; font-weight: 600; display: block; } .capcard small { color: var(--tau-ink-2); font-size: 12px; }
+.savebar { display: flex; align-items: center; gap: 8px; padding: 4px; }
+.savebar .msg { color: var(--tau-ink-2); font-size: 12.5px; display: flex; gap: 6px; align-items: center; }
+.savebar .r { margin-left: auto; display: flex; gap: 8px; }
+.drawer { position: absolute; top: 0; right: 0; bottom: 0; width: 440px; background: var(--tau-bg-page); box-shadow: var(--tau-shadow-float); padding: 20px 22px; z-index: 3; }
+.dscrim { position: absolute; inset: 0; background: var(--tau-overlay); z-index: 2; }
+
+/* 旧样式（现状帧里模拟插件自绘的不一致） */
+.old-msg { font-size: 13px; color: var(--tau-ink-2); }
+.old-msg.sm { font-size: 12px; }
+
+/* ═══════ 手机帧（移动端 9 档） ═══════ */
+.phone { width: 375px; height: 780px; border-radius: 44px; background: var(--tau-bg-page); box-shadow: 0 0 0 10px #1d1b19, 0 24px 60px rgba(0,0,0,.25); overflow: hidden; position: relative; display: flex; flex-direction: column; font-size: 16px; line-height: 1.5; margin: 10px; }
+.status { height: 46px; flex: none; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 28px 6px; font-size: 14px; font-weight: 600; }
+.mnav { height: 48px; flex: none; display: flex; align-items: center; padding: 0 8px; gap: 4px; }
+.mnav .ib { width: 40px; height: 40px; display: grid; place-items: center; font-size: 22px; color: var(--tau-ink-1); }
+.mnav .t { flex: 1; text-align: center; font-size: 17px; font-weight: 600; }
+.mnav .act { min-width: 40px; padding: 0 10px; font-size: 16px; font-weight: 600; color: var(--tau-accent-text); text-align: right; }
+.mnav .act.dis { color: var(--tau-ink-3); }
+.mscr { flex: 1; overflow: hidden; padding-bottom: 20px; position: relative; }
+.mgl { font-size: 13px; color: var(--tau-ink-3); padding: 18px 20px 7px; display: flex; justify-content: space-between; }
+.mgrp { background: var(--tau-bg-surface); margin: 0 16px; border-radius: 16px; overflow: hidden; }
+.mrow { min-height: 52px; padding: 11px 16px; display: flex; align-items: center; gap: 12px; position: relative; font-size: 16px; }
+.mrow + .mrow::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; border-top: 1px solid var(--tau-line-2); }
+.mrow.ic + .mrow.ic::before { left: 60px; }
+.mrow .mid { flex: 1; min-width: 0; } .mrow .mid b { display: block; font-weight: 500; }
+.mrow .mid span { display: block; font-size: 14px; color: var(--tau-ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mrow .val { color: var(--tau-ink-3); font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; }
+.mrow .chev { color: var(--tau-ink-3); font-size: 18px; display: grid; }
+.mrow .check { color: var(--tau-accent); font-size: 20px; display: grid; }
+.mrow .mtile { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; font-weight: 700; font-size: 14px; flex: none; }
+.mnote { font-size: 13px; color: var(--tau-ink-3); padding: 7px 20px 0; line-height: 1.45; }
+/* 字段行：上标签下值（方案 M1） */
+.frow { padding: 10px 16px 11px; position: relative; }
+.frow + .frow::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; border-top: 1px solid var(--tau-line-2); }
+.frow label { display: block; font-size: 13px; color: var(--tau-ink-3); }
+.frow .v { display: flex; align-items: center; gap: 8px; font-size: 16px; min-height: 26px; }
+.frow .v .x { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.frow .v .x.ph { color: var(--tau-ink-3); }
+.frow .v .ico { color: var(--tau-ink-3); font-size: 18px; display: grid; }
+.frow.focus { box-shadow: inset 3px 0 0 var(--tau-accent); } .frow.focus .v .x::after { content: "|"; color: var(--tau-accent); margin-left: 1px; font-weight: 300; }
+.frow.err label { color: var(--tau-danger); }
+.frow .hint { font-size: 13px; color: var(--tau-danger); margin-top: 2px; }
+/* 字段行：左标签右值（方案 M2） */
+.irow { min-height: 50px; padding: 0 16px; display: flex; align-items: center; gap: 12px; position: relative; font-size: 16px; }
+.irow + .irow::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; border-top: 1px solid var(--tau-line-2); }
+.irow .k { width: 96px; flex: none; }
+.irow .x { flex: 1; min-width: 0; text-align: right; color: var(--tau-ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.irow .x.ph { color: var(--tau-ink-3); }
+.mbtn { height: 50px; border-radius: 14px; font-size: 16px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1; }
+.mbtn.pri { background: var(--tau-accent); color: var(--tau-ink-inverse); box-shadow: var(--tau-shadow-lift); }
+.mbtn.sec { background: var(--tau-bg-surface); box-shadow: var(--tau-shadow-card); }
+.mfoot { display: flex; gap: 10px; padding: 8px 16px 30px; flex: none; }
+.hero { background: var(--tau-bg-surface); margin: 0 16px; border-radius: 16px; padding: 22px 18px 16px; text-align: center; }
+.hero .orb { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto 10px; font-size: 32px; background: var(--tau-ok-soft); color: var(--tau-ok); }
+.hero h2 { font-size: 22px; font-weight: 700; } .hero p { font-size: 14px; color: var(--tau-ink-2); margin-top: 2px; }
+.hero .vers { font-size: 13px; color: var(--tau-ink-3); margin-top: 10px; display: flex; gap: 14px; justify-content: center; }
+.conn { display: flex; gap: 10px; align-items: center; }
+.conn .ok { color: var(--tau-ok); font-size: 18px; display: grid; }
+.mbadge { font-size: 12px; padding: 1px 8px; border-radius: 999px; font-weight: 600; white-space: nowrap; }
+.mbadge.acc { background: var(--tau-accent-soft); color: var(--tau-accent-text); }
+.mbadge.ok { background: var(--tau-ok-soft); color: var(--tau-ok); }
+.mbadge.mute { background: var(--tau-bg-hover); color: var(--tau-ink-3); }
+.search { margin: 0 16px; height: 38px; border-radius: 12px; background: var(--tau-bg-surface); display: flex; align-items: center; gap: 8px; padding: 0 12px; color: var(--tau-ink-3); font-size: 16px; }
+.kbd { position: absolute; left: 0; right: 0; bottom: 0; height: 250px; background: color-mix(in srgb, var(--tau-bg-sunken) 70%, var(--tau-bg-page)); display: grid; place-items: center; color: var(--tau-ink-3); font-size: 13px; }
+/* 旧移动端（现状） */
+.old-dialog-scrim { position: absolute; inset: 0; background: var(--tau-overlay); display: grid; place-items: center; z-index: 4; }
+.old-dialog { width: 310px; background: var(--tau-bg-page); border-radius: 16px; padding: 16px; box-shadow: var(--tau-shadow-float); font-size: 13px; }
+.old-dialog h5 { font-size: 14.5px; margin-bottom: 10px; }
+.old-field { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; color: var(--tau-ink-3); font-size: 12.5px; }
+.old-field .inp { width: 100%; }
+.old-card { background: var(--tau-bg-surface); box-shadow: var(--tau-shadow-card); border-radius: 16px; }
+.old-sel { height: 32px; border-radius: 8px; box-shadow: 0 0 0 1px var(--tau-line-1) inset; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; font-size: 12.5px; color: var(--tau-ink-1); }
+.flow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13.5px; margin: 6px 0 2px; }
+.flow .n { background: var(--tau-bg-page); border-radius: 10px; padding: 6px 10px; }
+.flow .n.k { background: var(--tau-accent-soft); color: var(--tau-accent-text); font-weight: 600; }
+.flow svg { color: var(--tau-ink-3); }
+</style>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>服务商设置归位 · 设计方案<small>同步 / 资源存储：设置页只回答「用哪个」，插件页回答「怎么连」· 颜色取自 @tau/themes · 红色=现状问题，绿色=设计要点</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="now">1 现状问题</button>
+    <button class="tab" data-tab="ia">2 信息架构<span class="rec">核心</span></button>
+    <button class="tab" data-tab="form">3 表单从哪来</button>
+    <button class="tab" data-tab="desk">4 桌面端</button>
+    <button class="tab" data-tab="mob">5 移动端</button>
+    <button class="tab" data-tab="dec">6 决策</button>
+  </nav>
+</header>
+
+<!-- ═══════════ 1 现状 ═══════════ -->
+<section class="scene" data-scene="now">
+  <p class="intro">现状是<b>「宿主设置页嵌插件自绘表单」</b>：设置 › 同步、设置 › 资源存储各自用 <code>PluginSettingsView</code> 挂插件组件，插件详情页的「设置」反而只有一个跳转按钮。7 个存储插件每个都手写<b>两套</b>表单（桌面 <code>index.tsx</code> + 移动 <code>mobile-settings.tsx</code>），于是同一类配置出现了不同的说明、按钮文案、字号和保存语义；移动端套用的 <code>ConfigurationPanel</code> 又用了桌面 Dialog / Select。</p>
+  <div class="frames">
+    <div>
+      <div class="dwin short" style="width:760px">
+        <div class="dside">
+          <div class="dots"><i></i><i></i><i></i></div>
+          <div class="back"><i data-lucide="arrow-left"></i>返回</div>
+          <div class="g">数据</div>
+          <div class="it on"><i data-lucide="refresh-cw"></i>同步</div>
+          <div class="it"><i data-lucide="hard-drive"></i>资源存储</div>
+        </div>
+        <div class="dmain">
+          <div class="dcol">
+            <div class="dph"><h2>同步</h2><p>把数据库和本地资源文件同步到远端</p></div>
+            <div class="dgroup">
+              <div class="dgt"><h3>同步目标</h3><p>数据库与资源文件共用同一个远端</p></div>
+              <div class="dpanel">
+                <div class="drow"><div class="t"><b>同步插件</b></div><span class="inp" style="width:160px">S3 同步存储<span class="sp"></span><i data-lucide="chevron-down"></i></span></div>
+                <div class="drow ring-bad"><div class="t"><b>Endpoint</b><small>可选，自定义 S3 服务地址</small></div><span class="inp ph">https://s3.example.com</span></div>
+                <div class="drow"><div class="t"><b>Bucket</b><small>同步存储桶名称</small></div><span class="inp">tau-sync</span></div>
+                <div class="drow"><div class="t"><b>Access Key ID</b></div><span class="inp">AKIA••••</span></div>
+                <div class="drow"><div class="t"><b></b></div><span class="old-msg">配置已保存，可以使用客户端的检查、上传和下载。</span></div>
+                <div class="drow"><div class="t"><b></b></div><span class="btn ring-bad">保存同步配置</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="anno bad" style="left:420px;top:210px"><i>1</i>插件表单整块嵌进宿主设置页，宿主页被「Endpoint / Bucket…」撑成配置页</div>
+        <div class="anno bad" style="left:520px;top:490px"><i>2</i>空标题行硬塞提示与按钮；按钮文案每个插件不同</div>
+      </div>
+      <p class="cap"><b>桌面 · 设置 › 同步</b>：「选哪个」与「怎么连」挤在一页，切换插件下拉后整块表单替换。</p>
+    </div>
+    <div>
+      <div class="dwin short" style="width:560px;grid-template-columns:0 1fr">
+        <div></div>
+        <div class="dmain">
+          <div class="pd-head"><span class="tile t2">G</span><div><h2>GitHub 图床</h2><p>tau-plugin-upload-github · 1.2.0</p></div></div>
+          <div class="dtabs"><span>介绍</span><b>设置</b><span>权限</span><span>版本</span></div>
+          <div class="ring-bad" style="display:inline-block;padding:4px"><span class="btn">在资源存储中配置</span></div>
+          <div class="dgroup" style="margin-top:28px">
+            <div class="dgt"><h3>对比：上传插件自绘的表单</h3></div>
+            <div class="dpanel">
+              <div class="drow"><div class="t"><b>访问令牌</b></div><span class="inp">ghp_••••</span></div>
+              <div class="drow"><div class="t"><b>邮箱（可选）</b></div><span class="inp ph"></span></div>
+              <div class="drow ring-bad"><div class="t"><b></b></div><span class="old-msg sm">返回的资源地址须能公开访问；插件不会自动修改桶或仓库权限。</span></div>
+              <div class="drow"><div class="t"><b></b></div><span class="btn">保存并使用</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="anno bad" style="left:200px;top:150px"><i>3</i>插件自己的设置页只有一个跳转按钮——归属反了</div>
+        <div class="anno bad" style="left:300px;top:390px"><i>4</i>无说明行、提示字号 12 vs 13、「可选」写进标题</div>
+      </div>
+      <p class="cap"><b>桌面 · 插件详情 › 设置</b>：真正的配置不在这里。</p>
+    </div>
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●●</span></div>
+        <div class="mnav"><span class="ib"><i data-lucide="chevron-left"></i></span><span class="t">GitHub</span><span class="ib"></span></div>
+        <div class="mscr" style="padding:0 16px">
+          <p style="font-size:12.5px;color:var(--tau-ink-3);padding:10px 16px 6px">账号</p>
+          <div class="old-card" style="display:flex;align-items:center;padding:16px;gap:12px"><div style="flex:1"><p style="font-size:13.5px">已填写账号</p><p style="font-size:12.5px;color:var(--tau-ink-3)">仅用于当前服务</p></div><span class="btn ghost">更换</span></div>
+          <p style="font-size:12.5px;color:var(--tau-ink-3);padding:14px 16px 6px">存储位置</p>
+          <div class="old-card">
+            <div class="old-field" style="padding:12px 16px">仓库<span style="color:var(--tau-ink-1);font-size:13.5px;display:flex;justify-content:space-between">tau-notes<i data-lucide="chevron-right"></i></span></div>
+            <div class="old-field" style="padding:12px 16px">目录<span class="inp ph">uploads（可选）</span></div>
+          </div>
+          <p style="font-size:11.5px;color:var(--tau-ink-3);padding:6px 15px">修改会自动保存</p>
+        </div>
+        <div class="old-dialog-scrim">
+          <div class="old-dialog">
+            <h5>选择仓库</h5>
+            <p style="color:var(--tau-ink-2)">正在加载…</p>
+            <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+              <span class="btn ghost">tau-notes</span><span class="btn ghost">blog-images</span><span class="btn ghost">dotfiles</span>
+            </div>
+          </div>
+        </div>
+        <div class="anno bad" style="left:10px;top:120px"><i>5</i>账号与「选仓库」都是居中 Dialog——移动端应为推入页</div>
+        <div class="anno bad" style="left:150px;top:560px"><i>6</i>12.5 / 13.5 / 11.5 混用，未走移动端 9 档；卡片是 shadow-card 而宿主是 setting-group</div>
+      </div>
+      <p class="cap"><b>移动 · 服务页（插件 ConfigurationPanel）</b>：桌面组件直接搬到手机上。</p>
+    </div>
+  </div>
+  <div class="doc" style="margin-top:24px">
+    <h3>问题清单</h3>
+    <ul class="legend">
+      <li><span class="n">1</span><span><b>职责混在一起</b>：宿主设置页同时承担「选服务 + 看状态 + 填配置」，配置字段让同步页最长的部分变成了别人的表单。</span></li>
+      <li><span class="n">2</span><span><b>样式无约束</b>：插件拿 <code>SettingRow / Input / Button</code> 自由拼，说明有无、按钮文案（保存同步配置 / 保存并使用）、提示字号（tau-body / tau-sm）、字段顺序、「可选」写法（标题括号 / 说明 / placeholder）各不相同。</span></li>
+      <li><span class="n">3</span><span><b>归属反转</b>：插件详情 › 设置 对 sync / upload / tts / publish 都只放跳转按钮。</span></li>
+      <li><span class="n">4</span><span><b>保存语义不一</b>：桌面显式「保存」；移动端位置字段失焦即存、账号却要在 Dialog 里点「保存账号」。</span></li>
+      <li><span class="n">5</span><span><b>移动端交互是桌面的</b>：账号 Dialog、远程选项 Dialog + ghost Button 列表、枚举用 Select 下拉浮层；无全屏推入、无勾选列表、无键盘让位。</span></li>
+      <li><span class="n">6</span><span><b>字号排版</b>：插件面板用 <code>text-tau-*</code>，宿主外壳用 <code>text-[14.5px]/[11.5px]</code>；两套卡片皮（shadow-card vs setting-group）上下拼接。</span></li>
+      <li><span class="n">7</span><span><b>双份维护</b>：每个插件两套 UI；S3 / OSS / GitHub 的同步插件与上传插件分家，同一把密钥要填两次。</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══════════ 2 信息架构 ═══════════ -->
+<section class="scene" data-scene="ia">
+  <p class="intro">核心原则一句话：<b>设置页回答「用哪个、现在怎样」，插件页回答「怎么连」</b>。宿主设置页只放与服务无关的东西（当前服务、同步状态与操作、压缩等宿主策略）；连接参数（账号、桶、仓库、路径）属于插件，住在插件详情 › 设置。两个页面互相只放一行「入口」。</p>
+  <div class="cols">
+    <div class="doc">
+      <h3>设置 › 同步 / 资源存储（宿主）</h3>
+      <ul>
+        <li>状态：数据库版本、资源文件、上次同步、错误</li>
+        <li>操作：同步 / 拉取 / 检查 / 整库覆盖</li>
+        <li><b>服务选择</b>：已安装且具备该能力的插件列表，单选；每行显示「已配置 · bucket/仓库摘要」或「未配置」</li>
+        <li>每行尾部「配置 ›」→ 插件页；底部「添加服务 ›」→ 插件中心</li>
+        <li>宿主策略：上传压缩、本地存储目录</li>
+      </ul>
+    </div>
+    <div class="doc">
+      <h3>插件详情 › 设置（插件）</h3>
+      <ul>
+        <li><b>能力卡</b>：此插件可用于「同步」「资源存储」，各显示「当前使用 / 设为当前」</li>
+        <li>连接表单：账号 → 存储位置 → 测试连接，由宿主统一渲染</li>
+        <li>保存即测试；保存成功且尚无当前服务时提示「设为同步服务」</li>
+        <li>从设置页进入时顶部带「← 返回同步设置」</li>
+      </ul>
+    </div>
+  </div>
+  <div class="doc">
+    <h3>首次配置路径</h3>
+    <div class="flow"><span class="n">设置 › 同步</span><i data-lucide="arrow-right"></i><span class="n">选择 S3（未配置）</span><i data-lucide="arrow-right"></i><span class="n k">插件页 › 设置</span><i data-lucide="arrow-right"></i><span class="n">填账号/位置 → 保存并测试</span><i data-lucide="arrow-right"></i><span class="n">「设为同步服务」</span><i data-lucide="arrow-right"></i><span class="n">返回同步设置，立即同步</span></div>
+    <p style="color:var(--tau-ink-2);font-size:13px;margin-top:8px">往返成本靠两处抵消：插件页能力卡可直接「设为当前」；返回条一键回到来源设置分区。移动端本来就是推入栈，返回即回到同步中心。</p>
+    <h3 style="margin-top:16px">桌面端跳转承载（待决策 Q2）</h3>
+    <ul>
+      <li><b>N1 跳插件页</b><span class="tagrec">推荐</span>：设置是全窗口浮层，点「配置 ›」关闭设置、push 插件详情 settings 标签（参数 <code>from=sync</code>），页顶返回条重新打开设置并定位到同步分区。插件页是唯一配置位置，心智最干净。</li>
+      <li><b>N2 设置内抽屉</b>：在设置页右侧拉出抽屉渲染同一份表单，不离开设置；插件页也渲染同一份。改动小、无往返，但「配置在哪」又变成两处可见（数据仍是一份）。</li>
+    </ul>
+  </div>
+  <div class="doc">
+    <h3>同一原则可推广到的目标</h3>
+    <p style="font-size:13.5px;color:var(--tau-ink-2)">插件设置 target 现有 sync / upload / tts / asr / images / video / publish。本轮建议<b>只做 sync + upload</b>（问题最集中、字段最规整）；tts（模型、音色克隆等多页）与 publish（发布页自有工作台）结构不同，验证后再评估（Q5）。</p>
+  </div>
+</section>
+
+<!-- ═══════════ 3 表单从哪来 ═══════════ -->
+<section class="scene" data-scene="form">
+  <p class="intro">「样式不一」的根因是<b>插件在写 UI</b>。只要插件还能自由拼组件，规范就会漂移；把配置表单改成<b>插件声明字段、宿主按平台渲染</b>，一份声明在桌面是 SettingRow + Input，在手机是分组行 + 推入选择页，插件不再写 <code>mobile-settings.tsx</code>。</p>
+  <div class="cols">
+    <div class="doc">
+      <h3>方案 A：声明式字段<span class="tagrec">推荐</span></h3>
+      <p style="font-size:13.5px;color:var(--tau-ink-2)">插件注册 <code>fields</code>（分组 + 类型 + 校验 + 远程选项），可选 <code>prepare</code>（换取用户信息）与 <code>test</code>（连接测试）钩子；宿主负责布局、文案、保存、错误、加载态、键盘与平台差异。</p>
+      <ul style="font-size:13.5px;margin-top:8px">
+        <li>✅ 一致性由结构保证，无需评审兜底</li>
+        <li>✅ 每插件少一套 UI（约 60–140 行/插件）</li>
+        <li>✅ 移动端交互一次改对，所有插件受益</li>
+        <li>⚠️ 需要设计字段类型集；极少数特殊配置（OAuth 登录）留 <code>custom</code> 逃生口</li>
+      </ul>
+    </div>
+    <div class="doc">
+      <h3>方案 B：自适应组件套件</h3>
+      <p style="font-size:13.5px;color:var(--tau-ink-2)">@tau/ui 提供 <code>ProviderForm / ProviderField</code>，内部按平台切换渲染；插件仍写 JSX 但只能用这套。</p>
+      <ul style="font-size:13.5px;margin-top:8px">
+        <li>✅ 插件 API 不变，迁移是换组件</li>
+        <li>⚠️ 插件仍能在中间夹 <code>&lt;p&gt;</code>、自定义类名，漂移可能复发</li>
+        <li>⚠️ 保存 / 测试 / 错误展示仍各写各的</li>
+      </ul>
+    </div>
+    <div class="doc">
+      <h3>方案 C：保持现状 + 规范</h3>
+      <p style="font-size:13.5px;color:var(--tau-ink-2)">只做位置迁移（表单搬到插件页），出一份插件 UI 规范与 lint 规则。</p>
+      <ul style="font-size:13.5px;margin-top:8px">
+        <li>✅ 成本最低</li>
+        <li>❌ 不解决两套 UI 与移动端交互</li>
+        <li>❌ 第三方插件不受约束</li>
+      </ul>
+    </div>
+  </div>
+  <div class="doc">
+    <h3>方案 A 的声明长什么样（以 S3 为例）</h3>
+<pre class="code">context.settings.register({
+  id: "sync",
+  title: "S3",
+  target: "sync",
+  form: {
+    groups: [
+      { key: "account", title: "账号", fields: [
+        { key: "accessKeyId", label: "Access Key ID", type: "text", required: true },
+        { key: "secretAccessKey", label: "Secret Access Key", type: "secret", required: true },
+      ]},
+      { key: "location", title: "存储位置", fields: [
+        { key: "endpoint", label: "服务地址", type: "url", placeholder: "https://s3.amazonaws.com", optional: true },
+        { key: "bucket", label: "Bucket", type: "text", required: true },
+        { key: "region", label: "区域", type: "text", placeholder: "us-east-1", required: true },
+        { key: "pathPrefix", label: "目录", type: "text", placeholder: "sync", optional: true },
+        { key: "urlStyle", label: "地址模式", type: "choice", default: "path",
+          options: [{ value: "path", label: "路径模式" }, { value: "virtualHosted", label: "虚拟主机模式" }] },
+      ]},
+    ],
+  },
+  // 宿主在「保存并测试」时调用；返回的摘要显示在设置页服务行
+  test: async config => ({ summary: `${config.bucket} · ${config.region}` }),
+});</pre>
+    <p style="font-size:13px;color:var(--tau-ink-2);margin-top:10px">字段类型建议最小集：<code>text</code> <code>secret</code> <code>url</code> <code>choice</code>（静态枚举）<code>remote-choice</code>（<code>loadOptions</code>，如仓库/分支，可 <code>dependsOn</code>）<code>toggle</code>。「可选」统一由宿主渲染为说明，不写进标题。旧组件式注册在迁移完成后删除（无兼容层）。</p>
+  </div>
+</section>
+
+<!-- ═══════════ 4 桌面端 ═══════════ -->
+<section class="scene" data-scene="desk">
+  <p class="intro">桌面端两个画面：<b>设置 › 同步</b>的「同步服务」组变成单选服务列表（只显示摘要与状态），<b>插件详情 › 设置</b>由宿主渲染统一表单。资源存储同构：服务列表首项是「本地」，压缩开关仍留在设置页。</p>
+  <div class="frames">
+    <div>
+      <div class="dwin">
+        <div class="dside">
+          <div class="dots"><i></i><i></i><i></i></div>
+          <div class="back"><i data-lucide="arrow-left"></i>返回</div>
+          <div class="g">通用</div><div class="it"><i data-lucide="palette"></i>外观</div>
+          <div class="g">数据</div>
+          <div class="it on"><i data-lucide="refresh-cw"></i>同步</div>
+          <div class="it"><i data-lucide="hard-drive"></i>资源存储</div>
+          <div class="it"><i data-lucide="archive"></i>剪藏与缓存</div>
+          <div class="it"><i data-lucide="arrow-left-right"></i>导入与导出</div>
+        </div>
+        <div class="dmain">
+          <div class="dcol">
+            <div class="dph"><h2>同步</h2><p>把数据库和本地资源文件同步到你自己的存储，全部手动触发</p></div>
+            <div class="dtabs"><b>概览</b><span>资源文件</span><span>本地数据库</span></div>
+            <div class="stat2">
+              <div class="scard"><h4><i data-lucide="database"></i>数据库<span class="chip ok">已是最新</span></h4><div class="sub">default · S3</div>
+                <div class="nums"><div><b>128</b><small>本地版本</small></div><div><b>128</b><small>远程版本</small></div></div>
+                <div class="acts"><span class="btn pri sm"><i data-lucide="cloud-upload"></i>同步到云端</span><span class="btn sm"><i data-lucide="refresh-cw"></i>检查</span></div></div>
+              <div class="scard"><h4><i data-lucide="image"></i>资源文件<span class="chip">3 个待上传</span></h4><div class="sub">resources 目录镜像</div>
+                <div class="nums"><div><b>1,204</b><small>已同步</small></div><div><b>3</b><small>待上传</small></div></div>
+                <div class="acts"><span class="btn sm">同步资源</span><span class="btn ghost sm">查看文件</span></div></div>
+            </div>
+            <div class="dgroup ring-good" style="padding:2px">
+              <div class="dgt"><h3>同步服务</h3><p>同一时间只同步到一个服务</p></div>
+              <div class="dpanel">
+                <div class="drow"><span class="radio on"></span><span class="tile t2">S</span><div class="t"><b>S3 <span class="chip acc" style="margin-left:4px">当前</span></b><small class="mono">tau-sync · ap-southeast-1 · 上次测试 2 分钟前</small></div><span class="btn ghost sm">配置<i data-lucide="chevron-right"></i></span></div>
+                <div class="drow"><span class="radio"></span><span class="tile t3">G</span><div class="t"><b>GitHub</b><small class="mono">lastknight/tau-backup · main</small></div><span class="btn ghost sm">配置<i data-lucide="chevron-right"></i></span></div>
+                <div class="drow"><span class="radio" style="opacity:.4"></span><span class="tile t1">W</span><div class="t"><b>WebDAV</b><small>未配置</small></div><span class="btn sm">去配置<i data-lucide="chevron-right"></i></span></div>
+                <div class="drow"><span class="tile tm" style="margin-left:30px"><i data-lucide="plus"></i></span><div class="t"><b style="color:var(--tau-ink-2)">添加同步服务</b><small>在插件中心安装 OSS、坚果云等</small></div><i data-lucide="external-link" style="color:var(--tau-ink-3)"></i></div>
+              </div>
+            </div>
+            <div class="dnote"><i data-lucide="info"></i>切换服务前会先探测目标云端；已有数据时确认后再切换。</div>
+          </div>
+        </div>
+        <div class="anno good" style="left:760px;top:440px"><i>1</i>只显示摘要与状态，不再出现任何字段输入</div>
+        <div class="anno good" style="left:740px;top:560px"><i>2</i>未配置不可选，行尾是「去配置」；配置入口统一指向插件页</div>
+      </div>
+      <p class="cap"><b>设置 › 同步</b>：页面短了一半，只剩状态、操作、选服务。</p>
+    </div>
+
+    <div>
+      <div class="dwin" style="grid-template-columns:0 1fr">
+        <div></div>
+        <div class="dmain" style="padding-left:40px">
+          <div class="dcol" style="max-width:720px">
+            <div class="banner"><i data-lucide="arrow-left"></i>从「设置 › 同步」进入<span class="r btn sm">返回同步设置</span></div>
+            <div class="pd-head"><span class="tile t2">S</span><div><h2>S3</h2><p>tau-plugin-s3 · 1.4.0 · 已启用</p></div></div>
+            <div class="dtabs"><span>介绍</span><b>设置</b><span>权限</span><span>更新日志</span><span>版本</span></div>
+            <div class="cap-row ring-good">
+              <div class="capcard"><span class="tile t2" style="width:28px;height:28px"><i data-lucide="refresh-cw"></i></span><div class="t"><b>同步</b><small>当前同步服务</small></div><span class="chip ok"><i data-lucide="check"></i>使用中</span></div>
+              <div class="capcard"><span class="tile t4" style="width:28px;height:28px"><i data-lucide="image"></i></span><div class="t"><b>资源存储</b><small>图片与附件上传</small></div><span class="btn sm">设为上传目标</span></div>
+            </div>
+            <div class="dgroup">
+              <div class="dgt"><h3>账号</h3><p>仅保存在本机设置中</p></div>
+              <div class="dpanel">
+                <div class="drow"><div class="t"><b>Access Key ID</b></div><span class="inp">AKIA4XQ7M2••••</span></div>
+                <div class="drow"><div class="t"><b>Secret Access Key</b></div><span class="inp">••••••••••••••••<span class="sp"></span><i data-lucide="eye"></i></span></div>
+              </div>
+            </div>
+            <div class="dgroup">
+              <div class="dgt"><h3>存储位置</h3></div>
+              <div class="dpanel">
+                <div class="drow"><div class="t"><b>Bucket</b></div><span class="inp">tau-sync</span></div>
+                <div class="drow"><div class="t"><b>区域</b></div><span class="inp">ap-southeast-1</span></div>
+                <div class="drow"><div class="t"><b>服务地址</b><small>可选，兼容 S3 的服务（R2、MinIO）填写</small></div><span class="inp ph">https://s3.amazonaws.com</span></div>
+                <div class="drow"><div class="t"><b>目录</b><small>可选</small></div><span class="inp">sync</span></div>
+                <div class="drow"><div class="t"><b>地址模式</b></div><span class="inp" style="width:160px">路径模式<span class="sp"></span><i data-lucide="chevron-down"></i></span></div>
+              </div>
+            </div>
+            <div class="savebar ring-good">
+              <span class="msg"><i data-lucide="circle-check" style="color:var(--tau-ok)"></i>连接正常 · 云端已有数据库 v128</span>
+              <span class="r"><span class="btn ghost">还原</span><span class="btn pri">保存并测试</span></span>
+            </div>
+          </div>
+        </div>
+        <div class="anno good" style="left:600px;top:150px"><i>3</i>能力卡：一个插件可用于哪些用途、当前是否在用，可直接「设为当前」</div>
+        <div class="anno good" style="left:660px;top:640px"><i>4</i>宿主统一的保存栏：文案、测试、错误、脏状态全部一致</div>
+      </div>
+      <p class="cap"><b>插件详情 › 设置</b>：宿主按插件声明渲染，所有存储插件长一样；「可选」进说明而非标题。</p>
+    </div>
+
+    <div>
+      <div class="dwin short" style="width:760px">
+        <div class="dside">
+          <div class="dots"><i></i><i></i><i></i></div>
+          <div class="back"><i data-lucide="arrow-left"></i>返回</div>
+          <div class="g">数据</div>
+          <div class="it"><i data-lucide="refresh-cw"></i>同步</div>
+          <div class="it on"><i data-lucide="hard-drive"></i>资源存储</div>
+        </div>
+        <div class="dmain">
+          <div class="dcol">
+            <div class="dph"><h2>资源存储</h2><p>笔记里新插入的图片和附件保存到哪里</p></div>
+            <div class="dgroup">
+              <div class="dgt"><h3>保存到</h3><p>只影响之后插入的资源</p></div>
+              <div class="dpanel">
+                <div class="drow"><span class="radio"></span><span class="tile tm"><i data-lucide="hard-drive"></i></span><div class="t"><b>本地</b><small>应用目录 resources，随同步服务镜像</small></div></div>
+                <div class="drow"><span class="radio on"></span><span class="tile t3">G</span><div class="t"><b>GitHub 图床 <span class="chip acc" style="margin-left:4px">当前</span></b><small class="mono">lastknight/images · main · /uploads</small></div><span class="btn ghost sm">配置<i data-lucide="chevron-right"></i></span></div>
+                <div class="drow"><span class="radio"></span><span class="tile t2">S</span><div class="t"><b>S3</b><small class="mono">tau-sync · 与同步共用账号</small></div><span class="btn ghost sm">配置<i data-lucide="chevron-right"></i></span></div>
+              </div>
+            </div>
+            <div class="dgroup">
+              <div class="dgt"><h3>处理</h3></div>
+              <div class="dpanel"><div class="drow"><div class="t"><b>上传压缩</b><small>png / jpeg 保存前转为 webp</small></div><span class="chip acc">开</span></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="anno good" style="left:470px;top:330px"><i>5</i>与同步同构：本地是一个普通选项，不再用 Segmented 切「本地 / 上传插件」</div>
+      </div>
+      <p class="cap"><b>设置 › 资源存储</b>：去掉 Segmented + 下拉两级选择，合成一个单选列表。</p>
+    </div>
+
+    <div>
+      <div class="dwin short" style="width:760px">
+        <div class="dside">
+          <div class="dots"><i></i><i></i><i></i></div>
+          <div class="back"><i data-lucide="arrow-left"></i>返回</div>
+          <div class="g">数据</div>
+          <div class="it on"><i data-lucide="refresh-cw"></i>同步</div>
+        </div>
+        <div class="dmain">
+          <div class="dcol"><div class="dph"><h2>同步</h2><p>…</p></div><div class="stat2"><div class="scard" style="height:120px"></div><div class="scard" style="height:120px"></div></div></div>
+          <div class="dscrim"></div>
+          <div class="drawer">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px"><span class="tile t1">W</span><b style="font-size:15px;flex:1">配置 WebDAV</b><i data-lucide="x" style="color:var(--tau-ink-2)"></i></div>
+            <div class="dgt"><h3>账号</h3></div>
+            <div class="dpanel" style="margin-bottom:16px">
+              <div class="drow"><div class="t"><b>服务地址</b></div><span class="inp" style="width:220px">https://dav.jianguoyun.com</span></div>
+              <div class="drow"><div class="t"><b>用户名</b></div><span class="inp" style="width:220px">me@example.com</span></div>
+              <div class="drow"><div class="t"><b>应用密码</b></div><span class="inp ph" style="width:220px">必填</span></div>
+            </div>
+            <div class="savebar"><span class="r"><span class="btn pri">保存并测试</span></span></div>
+            <p style="font-size:12px;color:var(--tau-ink-3);margin-top:12px">同一份表单也显示在插件详情 › 设置</p>
+          </div>
+        </div>
+      </div>
+      <p class="cap"><b>备选 N2</b>：设置内抽屉。不离开设置，但「配置在哪」有两处入口。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 5 移动端 ═══════════ -->
+<section class="scene" data-scene="mob">
+  <p class="intro">移动端全部按<b>推入页 + 分组行</b>重做，去掉所有居中 Dialog：配置页是全屏页，选仓库/分支/枚举是推入的勾选列表页，只有「确认切换服务」这类需要停顿的决定用底部面板。字号全部走移动端 9 档（正文 16、说明 14、分组标题 13）。字段行有两种写法（Q4），下面先展示推荐的 M1。</p>
+  <div class="frames">
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●●</span></div>
+        <div class="mnav"><span class="ib"><i data-lucide="chevron-left"></i></span><span class="t">同步</span><span class="ib"></span></div>
+        <div class="mscr">
+          <div class="hero"><div class="orb"><i data-lucide="circle-check"></i></div><h2>已是最新</h2><p>上次同步 2 分钟前</p><div class="vers"><span>本机 v128</span><span>云端 v128</span><span>default</span></div></div>
+          <div class="mfoot" style="padding:12px 16px 0"><span class="mbtn pri">立即同步</span></div>
+          <div class="mgl">同步到</div>
+          <div class="mgrp ring-good">
+            <div class="mrow ic"><span class="mtile t2">S</span><span class="mid"><b>S3</b><span>tau-sync · ap-southeast-1</span></span><span class="chev"><i data-lucide="chevron-right"></i></span></div>
+          </div>
+          <div class="mgl">内容</div>
+          <div class="mgrp">
+            <div class="mrow ic"><span class="mtile t3"><i data-lucide="database"></i></span><span class="mid"><b>数据库</b></span><span class="val">default</span><span class="chev"><i data-lucide="chevron-right"></i></span></div>
+            <div class="mrow ic"><span class="mtile t4"><i data-lucide="image"></i></span><span class="mid"><b>资源文件</b><span>1,207 个</span></span><span class="mbadge acc">3 待上传</span><span class="chev"><i data-lucide="chevron-right"></i></span></div>
+          </div>
+        </div>
+        <div class="anno good" style="left:150px;top:470px"><i>1</i>点「同步到」推入服务列表页（不再是抽屉）</div>
+      </div>
+      <p class="cap"><b>① 同步中心</b>：保留现有结构，字号收敛到 9 档。</p>
+    </div>
+
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●●</span></div>
+        <div class="mnav"><span class="ib"><i data-lucide="chevron-left"></i></span><span class="t">同步服务</span><span class="ib"></span></div>
+        <div class="mscr">
+          <div class="mnote" style="padding-top:8px">同一时间只同步到一个服务。点选切换，点 ⓘ 修改配置。</div>
+          <div class="mgl">已安装</div>
+          <div class="mgrp">
+            <div class="mrow ic"><span class="mtile t2">S</span><span class="mid"><b>S3</b><span>tau-sync · ap-southeast-1</span></span><span class="check"><i data-lucide="check"></i></span><span class="chev" style="color:var(--tau-accent-text)"><i data-lucide="info"></i></span></div>
+            <div class="mrow ic"><span class="mtile t3">G</span><span class="mid"><b>GitHub</b><span>lastknight/tau-backup</span></span><span class="chev" style="color:var(--tau-accent-text)"><i data-lucide="info"></i></span></div>
+            <div class="mrow ic"><span class="mtile t1">W</span><span class="mid"><b>WebDAV</b><span>未配置</span></span><span class="mbadge mute">去配置</span><span class="chev"><i data-lucide="chevron-right"></i></span></div>
+          </div>
+          <div class="mgrp" style="margin-top:16px">
+            <div class="mrow ic"><span class="mtile tm"><i data-lucide="plus"></i></span><span class="mid"><b style="color:var(--tau-accent-text)">添加同步服务</b></span><span class="chev"><i data-lucide="chevron-right"></i></span></div>
+          </div>
+        </div>
+        <div class="anno good" style="left:150px;top:150px"><i>2</i>行=切换（先探测云端），ⓘ=进插件配置页；未配置的行整行进配置</div>
+      </div>
+      <p class="cap"><b>② 服务列表</b>：iOS「Wi-Fi」同款语义——点行选择，点 ⓘ 看详情。</p>
+    </div>
+
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●●</span></div>
+        <div class="mnav"><span class="ib"><i data-lucide="chevron-left"></i></span><span class="t">GitHub</span><span class="act">保存</span></div>
+        <div class="mscr">
+          <div class="mgl">用于</div>
+          <div class="mgrp">
+            <div class="mrow ic"><span class="mtile t2"><i data-lucide="refresh-cw"></i></span><span class="mid"><b>同步</b></span><span class="mbadge mute">设为当前</span></div>
+            <div class="mrow ic"><span class="mtile t4"><i data-lucide="image"></i></span><span class="mid"><b>资源存储</b></span><span class="mbadge ok">使用中</span></div>
+          </div>
+          <div class="mgl">账号</div>
+          <div class="mgrp ring-good">
+            <div class="frow"><label>访问令牌</label><div class="v"><span class="x">ghp_••••••••••••7Qa</span><span class="ico"><i data-lucide="eye"></i></span></div></div>
+          </div>
+          <div class="mnote">已验证为 lastknight，所有者与邮箱已自动填好</div>
+          <div class="mgl">存储位置</div>
+          <div class="mgrp">
+            <div class="frow"><label>仓库</label><div class="v"><span class="x">lastknight/images</span><span class="ico"><i data-lucide="chevron-right"></i></span></div></div>
+            <div class="frow"><label>分支</label><div class="v"><span class="x">main</span><span class="ico"><i data-lucide="chevron-right"></i></span></div></div>
+            <div class="frow focus"><label>目录 · 可选</label><div class="v"><span class="x">uploads</span></div></div>
+          </div>
+          <div class="kbd">系统键盘（保存栏在导航栏，不被遮挡）</div>
+        </div>
+        <div class="anno good" style="left:160px;top:62px"><i>3</i>导航栏右上「保存」，有改动才亮；保存即测试</div>
+        <div class="anno good" style="left:170px;top:330px"><i>4</i>行本身就是输入框：上标签下值，长 URL 不截断</div>
+      </div>
+      <p class="cap"><b>③ 插件配置页（M1 上标签下值）</b>：从插件详情或服务列表 ⓘ 进入，同一页面。</p>
+    </div>
+
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●●</span></div>
+        <div class="mnav"><span class="ib"><i data-lucide="chevron-left"></i></span><span class="t">选择仓库</span><span class="ib"></span></div>
+        <div class="mscr">
+          <div class="search"><i data-lucide="search"></i>搜索仓库</div>
+          <div class="mgl">lastknight · 最近更新</div>
+          <div class="mgrp">
+            <div class="mrow"><span class="mid"><b>images</b><span>公开 · 2 天前</span></span><span class="check"><i data-lucide="check"></i></span></div>
+            <div class="mrow"><span class="mid"><b>tau-backup</b><span>私有 · 5 天前</span></span></div>
+            <div class="mrow"><span class="mid"><b>blog</b><span>公开 · 3 周前</span></span></div>
+            <div class="mrow"><span class="mid"><b>dotfiles</b><span>公开 · 2 月前</span></span></div>
+          </div>
+          <div class="mnote">私有仓库的图片地址需要令牌才能访问，图床请选公开仓库。</div>
+          <div class="mgrp" style="margin-top:16px"><div class="mrow"><span class="mid"><b style="color:var(--tau-accent-text)">手动输入仓库名</b></span></div></div>
+        </div>
+        <div class="anno good" style="left:150px;top:220px"><i>5</i>远程选项=推入勾选列表，点选即返回；加载失败在本页重试</div>
+      </div>
+      <p class="cap"><b>④ 选择页</b>：remote-choice 与 choice（地址模式等）共用；枚举 ≤ 3 项也走这里，不用 Segmented/下拉。</p>
+    </div>
+
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●●</span></div>
+        <div class="mnav"><span class="ib"><i data-lucide="chevron-left"></i></span><span class="t">S3</span><span class="act">保存</span></div>
+        <div class="mscr">
+          <div class="mgl">账号</div>
+          <div class="mgrp">
+            <div class="irow"><span class="k">Access Key</span><span class="x">AKIA4XQ7M2••••</span></div>
+            <div class="irow"><span class="k">Secret</span><span class="x">••••••••</span></div>
+          </div>
+          <div class="mgl">存储位置</div>
+          <div class="mgrp">
+            <div class="irow"><span class="k">Bucket</span><span class="x">tau-sync</span></div>
+            <div class="irow"><span class="k">区域</span><span class="x">ap-southeast-1</span></div>
+            <div class="irow ring-bad"><span class="k">服务地址</span><span class="x">https://8f2a…r2.cloudflarest…</span></div>
+            <div class="irow"><span class="k">地址模式</span><span class="x">路径模式 ›</span></div>
+          </div>
+          <div class="mgl">连接</div>
+          <div class="mgrp"><div class="mrow"><span class="conn"><span class="ok"><i data-lucide="circle-check"></i></span>连接正常 · 云端 v128</span></div></div>
+        </div>
+        <div class="anno bad" style="left:140px;top:420px"><i>!</i>左标签右值紧凑，但 URL / 令牌被截断</div>
+      </div>
+      <p class="cap"><b>⑤ 备选 M2 左标签右值</b>：iOS 设置风格，更紧凑；长值体验差。</p>
+    </div>
+
+    <div>
+      <div class="phone">
+        <div class="status"><span>9:41</span><span>●●●</span></div>
+        <div class="mnav"><span class="ib"><i data-lucide="chevron-left"></i></span><span class="t">WebDAV</span><span class="act">保存</span></div>
+        <div class="mscr">
+          <div class="mgl">账号</div>
+          <div class="mgrp">
+            <div class="frow"><label>服务地址</label><div class="v"><span class="x">https://dav.jianguoyun.com/dav/</span></div></div>
+            <div class="frow"><label>用户名</label><div class="v"><span class="x">me@example.com</span></div></div>
+            <div class="frow err"><label>应用密码</label><div class="v"><span class="x">••••••••</span><span class="ico"><i data-lucide="eye"></i></span></div><div class="hint">认证失败（401），请使用坚果云「应用密码」</div></div>
+          </div>
+          <div class="mgl">连接</div>
+          <div class="mgrp"><div class="mrow"><span class="conn" style="color:var(--tau-danger)"><i data-lucide="circle-alert"></i>配置已保存，但连接失败</span></div></div>
+        </div>
+        <div style="position:absolute;inset:0;background:var(--tau-overlay);z-index:4"></div>
+        <div style="position:absolute;left:0;right:0;bottom:0;z-index:5;background:var(--tau-bg-surface);border-radius:22px 22px 0 0;padding:10px 18px 30px">
+          <div style="width:36px;height:5px;border-radius:3px;background:var(--tau-line-1);margin:0 auto 14px"></div>
+          <p style="font-size:17px;font-weight:600;text-align:center">改为同步到 WebDAV？</p>
+          <p style="font-size:14px;color:var(--tau-ink-2);text-align:center;margin:6px 0 14px">WebDAV 上已有数据库 v96，本机 v128。切换后「立即同步」会用本机覆盖云端。</p>
+          <div style="display:flex;gap:10px"><span class="mbtn sec">取消</span><span class="mbtn pri">切换</span></div>
+        </div>
+        <div class="anno good" style="left:150px;top:300px"><i>6</i>错误贴在字段下；只有需要停顿的决定才用底部面板</div>
+      </div>
+      <p class="cap"><b>⑥ 错误与确认</b>：字段级错误 + 底部面板确认切换（现有逻辑保留）。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 6 决策 ═══════════ -->
+<section class="scene" data-scene="dec">
+  <div class="doc">
+    <h3>已定决策（Q1–Q5 按推荐；账号复用不做）</h3>
+    <table class="cmp">
+      <tr><th>#</th><th>问题</th><th>选项</th><th>结论</th></tr>
+      <tr><td>Q1</td><td>配置表单从哪来</td><td>A 声明式字段 / B 自适应组件套件 / C 只搬位置 + 规范</td><td><b>A</b>，保留 custom 逃生口</td></tr>
+      <tr><td>Q2</td><td>桌面「配置 ›」怎么承载</td><td>N1 跳插件详情页 + 返回条 / N2 设置内抽屉</td><td><b>N1</b></td></tr>
+      <tr><td>Q3</td><td>保存语义</td><td>显式「保存并测试」（两端一致）/ 失焦自动保存</td><td><b>显式保存</b>：凭据要先测试再生效，自动保存会把半填的错误配置写进去</td></tr>
+      <tr><td>Q4</td><td>移动端字段行</td><td>M1 上标签下值 / M2 左标签右值</td><td><b>M1</b>：URL、令牌、路径都长</td></tr>
+      <tr><td>Q5</td><td>范围</td><td>只做 sync + upload / 连同 tts、images、publish、video</td><td><b>先做 sync + upload</b>，其他 target 验证后再评估</td></tr>
+    </table>
+  </div>
+  <div class="doc">
+    <h3>落地顺序</h3>
+    <ol>
+      <li><code>@tau/plugins</code>：<code>PluginSettingsDefinition</code> 增加 <code>form</code> + <code>test</code>；宿主表单渲染器桌面版（SettingRow）与移动版（分组行 + 选择页）。</li>
+      <li>桌面：设置 › 同步 / 资源存储 改为服务单选列表；插件详情 › 设置 渲染宿主表单 + 能力卡 + 返回条。</li>
+      <li>移动：服务列表页取代 SyncProviderSheet / UploadTargetSheet；插件配置页取代 SyncProviderPage / UploadProviderPage 内的插件面板；删除 <code>ConfigurationPanel</code>。</li>
+      <li>7 个存储插件改为声明式，删除各自 <code>mobile-settings.tsx</code> 与桌面表单组件，删除旧组件式注册（无兼容层）。</li>
+    </ol>
+  </div>
+</section>
+
+<script>
+const tabs = document.querySelectorAll(".tab[data-tab]");
+const scenes = document.querySelectorAll(".scene");
+function show(key) {
+  tabs.forEach(t => t.classList.toggle("on", t.dataset.tab === key));
+  scenes.forEach(s => s.classList.toggle("on", s.dataset.scene === key));
+  history.replaceState(null, "", "#" + key);
+}
+tabs.forEach(t => t.addEventListener("click", () => show(t.dataset.tab)));
+show(location.hash.slice(1) || "now");
+const root = document.documentElement;
+document.getElementById("theme-family").addEventListener("change", e => (root.dataset.theme = e.target.value));
+document.getElementById("theme-mode").addEventListener("click", e => {
+  const dark = root.dataset.mode !== "dark";
+  root.dataset.mode = dark ? "dark" : "light";
+  e.target.textContent = dark ? "深色" : "浅色";
+});
+if (window.lucide) lucide.createIcons();
+</script>
+</body>
+</html>

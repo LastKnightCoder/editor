@@ -50,11 +50,11 @@ function Endpoint(props: { kind: "local" | "cloud"; version: number | null; targ
       >
         <Icon size={20} aria-hidden="true" />
       </span>
-      <span className="text-ink-1 block text-[13px] font-semibold">
+      <span className="text-ink-1 text-tau-meta block font-semibold">
         {props.kind === "local" ? "本机" : "云端"}
       </span>
       <span
-        className={`text-[12px] tabular-nums ${props.target ? "text-danger line-through" : "text-ink-2"}`}
+        className={`text-tau-sm tabular-nums ${props.target ? "text-danger line-through" : "text-ink-2"}`}
       >
         v{props.version ?? "?"}
       </span>
@@ -116,8 +116,8 @@ export function OverwriteSection(props: OverwriteSectionProps) {
                 <Icon size={17} aria-hidden="true" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="text-ink-1 block text-[14.5px] font-medium">{row.label}</span>
-                <span className="text-ink-3 block truncate text-[11.5px] tabular-nums">
+                <span className="text-ink-1 text-tau-body block font-medium">{row.label}</span>
+                <span className="text-ink-3 text-tau-sm block truncate tabular-nums">
                   {availability.reason ?? row.detail}
                 </span>
               </span>
@@ -148,7 +148,7 @@ export function OverwriteSection(props: OverwriteSectionProps) {
                 target
               />
             </div>
-            <p className="text-ink-2 pb-4 text-center text-[12.5px] leading-relaxed">
+            <p className="text-ink-2 text-tau-sm pb-4 text-center leading-relaxed">
               {overwriteAvailability(props.versions, pending).warning && (
                 <span className="text-danger block font-semibold">
                   {overwriteAvailability(props.versions, pending).warning}
@@ -164,7 +164,7 @@ export function OverwriteSection(props: OverwriteSectionProps) {
             <button
               type="button"
               onClick={() => setPending(null)}
-              className="text-ink-2 active:bg-hover mt-1.5 h-11 w-full rounded-[14px] text-[15px] font-semibold"
+              className="text-ink-2 active:bg-hover text-tau-body mt-1.5 h-11 w-full rounded-[14px] font-semibold"
             >
               取消
             </button>

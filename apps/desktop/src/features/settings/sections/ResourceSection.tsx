@@ -1,93 +1,53 @@
-import { useMemo, useState } from "react";
 import { produce } from "immer";
-import { copyJson } from "@tau/plugins/host";
 import { Info } from "lucide-react";
-import { Segmented, Select, Switch } from "@tau/ui";
+import { Radio, ROW_DIVIDER, Switch } from "@tau/ui";
 import useSettingStore, { EImageBed } from "@/stores/useSettingStore";
 import { useDesktopPlugins } from "@/app/plugins/context";
-import { savePluginUploadConfig } from "@/commands/plugin-local";
-import { PluginSettingsView } from "@/features/plugins/views/PluginSettingsView";
+import { LOCAL_UPLOAD_TARGET, selectUploadTarget } from "@/services/storage-providers";
 import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup, SettingsNote } from "../components/SettingsGroup";
+import { isProviderSection, ProviderChoiceList } from "../components/ProviderChoiceList";
+import { StatusChip } from "../components/StatusChip";
 
 export function ResourceSection() {
   const imageBed = useSettingStore(state => state.setting.imageBed);
   const runtime = useDesktopPlugins();
   const sections =
-    runtime?.listSettings().filter(section => section.definition.target === "upload") ?? [];
-  const [selected, setSelected] = useState("");
-  const pluginId = selected || imageBed.plugin?.id || sections[0]?.context.pluginId || "";
-  const section = sections.find(section => section.context.pluginId === pluginId);
-  const stored = imageBed.plugin?.configurations[pluginId];
-  const config = useMemo(() => copyJson(stored ?? {}), [stored]);
+    runtime?.listSettings().filter(section => isProviderSection(section, "upload")) ?? [];
+  const current =
+    imageBed.active === EImageBed.Local ? LOCAL_UPLOAD_TARGET : (imageBed.plugin?.id ?? "");
   return (
     <>
-      <SettingsGroup title="上传目标" description="编辑器内上传的图片与附件保存到所选存储">
-        <SettingRow title="存储位置">
-          <Segmented
-            label="上传目标"
-            size="sm"
-            value={imageBed.active}
-            onValueChange={value =>
-              useSettingStore.setState(state => ({
-                setting: produce(state.setting, draft => {
-                  draft.imageBed.active = value as EImageBed;
-                }),
-              }))
-            }
-          >
-            <Segmented.Item value={EImageBed.Local} label="本地" />
-            <Segmented.Item value={EImageBed.Plugin} label="上传插件" />
-          </Segmented>
-        </SettingRow>
-        {imageBed.active === EImageBed.Local ? (
-          <SettingRow
-            title="存储目录"
-            description="资源保存在应用目录的 resources 文件夹；独立 Markdown 文件保留文档旁的本地保存规则。"
-          />
-        ) : (
-          <>
-            <SettingRow title="上传插件">
-              <Select
-                aria-label="上传插件"
-                value={pluginId}
-                onValueChange={setSelected}
-                options={sections.map(section => ({
-                  value: section.context.pluginId,
-                  label: section.definition.title,
-                }))}
+      <SettingsGroup title="保存到" description="只影响之后插入的图片与附件，已插入的保留原地址">
+        <ProviderChoiceList
+          sections={sections}
+          configurations={imageBed.plugin?.configurations}
+          current={current}
+          from="imageBed"
+          addLabel="添加上传服务"
+          onSelect={pluginId => selectUploadTarget(pluginId)}
+          leading={name => (
+            <div className={`flex min-h-14 items-center gap-3 px-3 py-2 ${ROW_DIVIDER}`}>
+              <Radio
+                name={name}
+                value={LOCAL_UPLOAD_TARGET}
+                checked={current === LOCAL_UPLOAD_TARGET}
+                onChange={() => selectUploadTarget(LOCAL_UPLOAD_TARGET)}
+                label={
+                  <span className="text-tau-body-lg text-ink-1 inline-flex items-center gap-2 font-medium">
+                    本地
+                    {current === LOCAL_UPLOAD_TARGET && <StatusChip tone="accent">当前</StatusChip>}
+                  </span>
+                }
+                description={
+                  <span className="text-tau-meta text-ink-2">
+                    应用目录的 resources 文件夹，随同步服务镜像到其他设备
+                  </span>
+                }
               />
-            </SettingRow>
-            {section ? (
-              <PluginSettingsView
-                key={section.key}
-                section={section}
-                uploadConfig={{
-                  value: config,
-                  save: async value => {
-                    await savePluginUploadConfig(pluginId, value);
-                    useSettingStore.setState(state => ({
-                      setting: produce(state.setting, draft => {
-                        draft.imageBed.active = EImageBed.Plugin;
-                        draft.imageBed.plugin = {
-                          id: pluginId,
-                          configurations: {
-                            ...draft.imageBed.plugin?.configurations,
-                            [pluginId]: value,
-                          },
-                        };
-                      }),
-                    }));
-                  },
-                }}
-              />
-            ) : (
-              <p role="status" className="text-ink-2 text-tau-body">
-                请在插件中心安装并启用上传插件。已保存配置会保留，插件不可用时上传会明确报错。
-              </p>
-            )}
-          </>
-        )}
+            </div>
+          )}
+        />
       </SettingsGroup>
       <SettingsGroup title="处理">
         <SettingRow title="上传压缩" description="png / jpeg / jpg 保存前自动转为 webp">
@@ -105,7 +65,8 @@ export function ResourceSection() {
         </SettingRow>
       </SettingsGroup>
       <SettingsNote icon={<Info size={14} />}>
-        本地 resources 目录与云端的镜像同步在「同步 · 资源文件」中管理。
+        独立 Markdown 文件保留文档旁的本地保存规则；本地 resources 目录与云端的镜像在「同步 ·
+        资源文件」中管理。
       </SettingsNote>
     </>
   );

@@ -29,7 +29,6 @@ import type { SettingModuleKey } from "../components/types";
 import { GroupCard, GroupRow, LetterTile } from "../components/ui";
 import { ActionButton } from "../storage/fields";
 import { useSyncProviders } from "./providers";
-import { SyncProviderSheet } from "./SyncProviderSheet";
 import { countResources, resourceBadge } from "./resourceState";
 import { resolveSyncErrorMessage } from "./syncErrors";
 import {
@@ -93,19 +92,21 @@ function SyncHero(props: {
   versions: SyncVersionResponse | null;
 }) {
   return (
-    <section className="setting-group px-[18px] pb-4 pt-6 text-center">
+    <section className="setting-group px-[18px] pt-6 pb-4 text-center">
       <span
         className={`mx-auto mb-3 grid h-[76px] w-[76px] place-items-center rounded-full ${ORB_TONE[props.hero.tone]}`}
       >
         <HeroIcon icon={props.hero.icon} />
       </span>
-      <h2 className="text-ink-1 text-[21px] font-extrabold tracking-tight">{props.hero.title}</h2>
-      <p className="text-ink-2 mt-1 text-[12.5px] leading-relaxed">{props.hero.description}</p>
+      <h2 className="text-ink-1 text-tau-title-lg font-extrabold tracking-tight">
+        {props.hero.title}
+      </h2>
+      <p className="text-ink-2 text-tau-sm mt-1 leading-relaxed">{props.hero.description}</p>
       {props.lastSyncText && (
-        <p className="text-ink-2 text-[12.5px] leading-relaxed">上次同步 {props.lastSyncText}</p>
+        <p className="text-ink-2 text-tau-sm leading-relaxed">上次同步 {props.lastSyncText}</p>
       )}
       {props.versions && (
-        <p className="text-ink-3 mt-3 flex justify-center gap-3.5 text-[11px] tabular-nums">
+        <p className="text-ink-3 text-tau-sm mt-3 flex justify-center gap-3.5 tabular-nums">
           <span>本机 v{props.versions.localVersion}</span>
           <span>云端 v{props.versions.remoteVersion}</span>
           <span className="truncate">{props.versions.databaseName}</span>
@@ -121,12 +122,14 @@ function FirstRunView(props: { setting: SettingCompat; onOpenProvider: (id: stri
   const navigator = useNavigator();
   return (
     <div className="space-y-1">
-      <section className="setting-group px-[18px] pb-5 pt-6 text-center">
+      <section className="setting-group px-[18px] pt-6 pb-5 text-center">
         <span className="bg-accent-soft text-accent-text mx-auto mb-3 grid h-[76px] w-[76px] place-items-center rounded-full">
           <Cloud size={34} strokeWidth={1.9} aria-hidden="true" />
         </span>
-        <h2 className="text-ink-1 text-[21px] font-extrabold tracking-tight">在多台设备间同步</h2>
-        <p className="text-ink-2 mt-1 text-[12.5px] leading-relaxed">
+        <h2 className="text-ink-1 text-tau-title-lg font-extrabold tracking-tight">
+          在多台设备间同步
+        </h2>
+        <p className="text-ink-2 text-tau-sm mt-1 leading-relaxed">
           选择一个你自己的存储服务，数据只存在你的空间里
         </p>
       </section>
@@ -139,9 +142,11 @@ function FirstRunView(props: { setting: SettingCompat; onOpenProvider: (id: stri
           <GroupRow key={provider.id} onClick={() => props.onOpenProvider(provider.id)}>
             <LetterTile letter={provider.tile.letter} className={provider.tile.className} />
             <span className="min-w-0 flex-1">
-              <span className="text-ink-1 block text-[14.5px] font-medium">{provider.name}</span>
-              <span className="text-ink-3 block truncate text-[11.5px]">
-                {provider.isConfigured(props.setting) ? "已配置，未启用" : provider.description}
+              <span className="text-ink-1 text-tau-body block font-medium">{provider.name}</span>
+              <span className="text-ink-3 text-tau-sm block truncate">
+                {provider.isConfigured(props.setting)
+                  ? "已配置，未启用"
+                  : provider.summary(props.setting)}
               </span>
             </span>
             <ChevronRight size={16} className="text-ink-3" aria-hidden="true" />
@@ -160,7 +165,6 @@ export function SyncCenterSection(props: SyncCenterProps) {
   const [checking, setChecking] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
 
   const providers = useSyncProviders();
   const provider = providers.find(item => item.id === props.setting?.sync.plugin?.id);
@@ -226,10 +230,7 @@ export function SyncCenterSection(props: SyncCenterProps) {
     }
   };
 
-  const openProvider = (providerId: string) => {
-    setSheetOpen(false);
-    navigator.push("syncProvider", { providerId });
-  };
+  const openProvider = (providerId: string) => navigator.push("syncProvider", { providerId });
 
   if (!props.setting) {
     return null;
@@ -273,11 +274,11 @@ export function SyncCenterSection(props: SyncCenterProps) {
 
       <GroupLabel>同步到</GroupLabel>
       <GroupCard>
-        <GroupRow onClick={() => setSheetOpen(true)} disabled={syncing}>
+        <GroupRow onClick={() => navigator.push("syncProviders", {})} disabled={syncing}>
           <LetterTile letter={provider.tile.letter} className={provider.tile.className} />
           <span className="min-w-0 flex-1">
-            <span className="text-ink-1 block text-[14.5px] font-medium">{provider.name}</span>
-            <span className="text-ink-3 block truncate text-[11.5px]">
+            <span className="text-ink-1 text-tau-body block font-medium">{provider.name}</span>
+            <span className="text-ink-3 text-tau-sm block truncate">
               {syncing ? "同步中不可切换" : provider.summary(props.setting)}
             </span>
           </span>
@@ -291,8 +292,8 @@ export function SyncCenterSection(props: SyncCenterProps) {
           <span className="bg-tag-3-soft text-tag-3 grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl">
             <Database size={17} strokeWidth={1.9} aria-hidden="true" />
           </span>
-          <span className="text-ink-1 min-w-0 flex-1 text-[14.5px] font-medium">数据库</span>
-          <span className="text-ink-3 max-w-[45%] truncate text-[13px]">
+          <span className="text-ink-1 text-tau-body min-w-0 flex-1 font-medium">数据库</span>
+          <span className="text-ink-3 text-tau-meta max-w-[45%] truncate">
             {props.activeDatabase}
           </span>
           <ChevronRight size={16} className="text-ink-3" aria-hidden="true" />
@@ -302,14 +303,14 @@ export function SyncCenterSection(props: SyncCenterProps) {
             <ImageIcon size={17} strokeWidth={1.9} aria-hidden="true" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="text-ink-1 block text-[14.5px] font-medium">资源文件</span>
-            <span className="text-ink-3 block truncate text-[11.5px]">
+            <span className="text-ink-1 text-tau-body block font-medium">资源文件</span>
+            <span className="text-ink-3 text-tau-sm block truncate">
               {resourceCounts.total > 0 ? `${resourceCounts.total} 个` : "图片与附件"}
             </span>
           </span>
           {badge && (
             <span
-              className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${BADGE_TONE[badge.tone]}`}
+              className={`text-tau-micro shrink-0 rounded-full px-2 py-0.5 font-semibold ${BADGE_TONE[badge.tone]}`}
             >
               {badge.text}
             </span>
@@ -324,17 +325,10 @@ export function SyncCenterSection(props: SyncCenterProps) {
           <span className="bg-tag-5-soft text-tag-5 grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl">
             <ShieldAlert size={17} strokeWidth={1.9} aria-hidden="true" />
           </span>
-          <span className="text-ink-1 min-w-0 flex-1 text-[14.5px] font-medium">整库覆盖</span>
+          <span className="text-ink-1 text-tau-body min-w-0 flex-1 font-medium">整库覆盖</span>
           <ChevronRight size={16} className="text-ink-3" aria-hidden="true" />
         </GroupRow>
       </GroupCard>
-
-      <SyncProviderSheet
-        open={sheetOpen}
-        setting={props.setting}
-        onClose={() => setSheetOpen(false)}
-        onOpenProvider={openProvider}
-      />
     </div>
   );
 }

@@ -6,11 +6,10 @@ import { useSettingsStore } from "@/app/settingsStore";
 import { ErrorState, RecoverableBoundary } from "@/components/ErrorState";
 import type { RegisteredPluginSettings } from "@/app/plugins/runtime";
 import { openPage } from "@/services/page-navigation";
+import { ProviderFormView } from "../components/ProviderFormView";
 
 export function PluginSettingsView({
   section,
-  syncConfig,
-  uploadConfig,
   ttsConfig,
   imageConfig,
   videoConfig,
@@ -18,8 +17,6 @@ export function PluginSettingsView({
   embedded = false,
 }: {
   section?: RegisteredPluginSettings;
-  syncConfig?: PluginSettingsProps["syncConfig"];
-  uploadConfig?: PluginSettingsProps["uploadConfig"];
   ttsConfig?: PluginSettingsProps["ttsConfig"];
   imageConfig?: PluginSettingsProps["imageConfig"];
   videoConfig?: PluginSettingsProps["videoConfig"];
@@ -35,17 +32,24 @@ export function PluginSettingsView({
     );
     return embedded ? notice : <Panel>{notice}</Panel>;
   }
-  if (section.definition.target === "sync" && !syncConfig)
+  if (section.definition.form)
     return (
-      <Button onClick={() => useSettingsStore.getState().openSettings("sync")}>
-        在同步设置中配置
-      </Button>
+      <ProviderFormView
+        key={section.mountId}
+        definition={section.definition}
+        context={section.context}
+        name={section.definition.title}
+      />
     );
-  if (section.definition.target === "upload" && !uploadConfig)
+  // 旧版插件仍以组件注册存储设置：宿主不再渲染，只提示更新
+  const legacyTarget: string | undefined = section.definition.target;
+  if (legacyTarget === "sync" || legacyTarget === "upload")
     return (
-      <Button onClick={() => useSettingsStore.getState().openSettings("imageBed")}>
-        在资源存储中配置
-      </Button>
+      <Panel>
+        <p className="text-tau-body text-ink-2">
+          此插件版本较旧，请更新到最新版本后在这里修改连接配置；已保存的配置仍然有效。
+        </p>
+      </Panel>
     );
   if (section.definition.target === "asr") return null;
   if (section.definition.target === "tts" && !ttsConfig)
@@ -70,8 +74,6 @@ export function PluginSettingsView({
       <SettingsScope
         key={imageConfig?.instanceId ?? ttsConfig?.instanceId}
         section={section}
-        syncConfig={syncConfig}
-        uploadConfig={uploadConfig}
         ttsConfig={ttsConfig}
         imageConfig={imageConfig}
         videoConfig={videoConfig}
@@ -83,16 +85,12 @@ export function PluginSettingsView({
 
 function SettingsScope({
   section,
-  syncConfig,
-  uploadConfig,
   ttsConfig,
   imageConfig,
   videoConfig,
   publishConfig,
 }: {
   section: RegisteredPluginSettings;
-  syncConfig?: PluginSettingsProps["syncConfig"];
-  uploadConfig?: PluginSettingsProps["uploadConfig"];
   ttsConfig?: PluginSettingsProps["ttsConfig"];
   imageConfig?: PluginSettingsProps["imageConfig"];
   videoConfig?: PluginSettingsProps["videoConfig"];
@@ -106,13 +104,12 @@ function SettingsScope({
       })
   );
   const Component = section.definition.component;
+  if (!Component) return null;
   return (
     <QueryClientProvider client={client}>
       <UiProvider className="contents">
         <Component
           context={section.context}
-          syncConfig={syncConfig}
-          uploadConfig={uploadConfig}
           ttsConfig={ttsConfig}
           imageConfig={imageConfig}
           videoConfig={videoConfig}

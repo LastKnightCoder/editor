@@ -95,7 +95,7 @@ export function PluginDetail() {
           <p className="text-ink-1 text-[15px] font-semibold">
             {failure ? "插件资料暂时打不开" : "找不到这个插件"}
           </p>
-          <p className="text-ink-2 break-words text-[13px]">
+          <p className="text-ink-2 text-[13px] break-words">
             {failure ? String(failure) : "它可能已下架，或者还没有发布。"}
           </p>
           {failure && (
@@ -180,7 +180,7 @@ export function PluginDetail() {
         )}
         {installed && hasPendingChange(installed) && <PluginChangesBanner changes={[name]} />}
         {installed?.error && (
-          <p role="alert" className="text-danger break-words text-[12.5px]">
+          <p role="alert" className="text-danger text-[12.5px] break-words">
             {installed.error}
           </p>
         )}
@@ -326,7 +326,7 @@ function Hero({
     <header className="flex items-center gap-3.5 pt-1">
       <PluginIcon id={pluginId} name={name} size="xl" />
       <div className="min-w-0 flex-1">
-        <h1 className="text-ink-1 text-[21px] font-extrabold leading-tight">{name}</h1>
+        <h1 className="text-ink-1 text-[21px] leading-tight font-extrabold">{name}</h1>
         <p className="text-ink-2 mt-0.5 truncate text-[12.5px]">
           {[publisher && `@${publisher}`, version && `v${version}`].filter(Boolean).join(" · ")}
         </p>
@@ -561,11 +561,11 @@ function SettingsTab({
           >
             {active.definition.target === "sync" ? "打开同步配置" : "打开上传配置"}
           </Button>
-        ) : (
+        ) : Component ? (
           <ErrorBoundary key={id}>
             <Component context={active.context} />
           </ErrorBoundary>
-        )}
+        ) : null}
       </section>
     </>
   );

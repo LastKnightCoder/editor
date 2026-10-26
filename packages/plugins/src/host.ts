@@ -31,6 +31,7 @@ import type {
   PluginStorage,
 } from "./index";
 import { assertLocalId, copyJson } from "./values";
+import { assertProviderForm } from "./provider-form";
 import { normalizePluginEditorExtension } from "./editor-fields";
 import {
   sidebarDragType,
@@ -865,7 +866,12 @@ function readId(id: unknown): string {
 
 /** 字段规则：数字为非空字符串的最大长度，对象形式可允许空串；meta 为插件自有内容的 meta */
 type FieldRule =
-  number | { max: number; allowEmpty: true } | "boolean" | "tags" | "nullable-time" | "meta";
+  | number
+  | { max: number; allowEmpty: true }
+  | "boolean"
+  | "tags"
+  | "nullable-time"
+  | "meta";
 
 /** 按字段表读取输入：string 可带最大长度，tags 为标签数组；required 中的字段必填，至少要有一个字段 */
 function readFields<T>(
@@ -973,7 +979,12 @@ export interface ChatAdapter {
 }
 
 export type PluginState =
-  "disabled" | "activating" | "active" | "deactivating" | "failed" | "restart-required";
+  | "disabled"
+  | "activating"
+  | "active"
+  | "deactivating"
+  | "failed"
+  | "restart-required";
 
 export interface CommandInfo {
   id: string;
@@ -1823,27 +1834,45 @@ export class PluginHost {
       asr: Object.freeze({
         register: (definition: ASRProviderDefinition) => {
           this.assertActive(entry, activation);
-          if (definition.id !== scope.pluginId || !definition.name.trim() || typeof definition.create !== "function")
+          if (
+            definition.id !== scope.pluginId ||
+            !definition.name.trim() ||
+            typeof definition.create !== "function"
+          )
             throw new Error("识别提供方必须属于当前插件");
           if (!this.options.asr) throw new Error("当前宿主不支持语音识别插件");
-          return registerAs("asr", this.options.asr.register(context, {
-            id: scope.pluginId, name: definition.name,
-            create: (config, modelId) => {
-              this.assertActive(entry, activation);
-              if (entry.state !== "active") throw new Error("识别插件尚未激活");
-              const instance = definition.create(copyJson(config), modelId);
-              if (typeof instance?.probe !== "function" || (!instance.openStream && !instance.transcribeFile))
-                throw new Error("识别提供方实现不完整");
-              return instance;
-            },
-          }));
+          return registerAs(
+            "asr",
+            this.options.asr.register(context, {
+              id: scope.pluginId,
+              name: definition.name,
+              create: (config, modelId) => {
+                this.assertActive(entry, activation);
+                if (entry.state !== "active") throw new Error("识别插件尚未激活");
+                const instance = definition.create(copyJson(config), modelId);
+                if (
+                  typeof instance?.probe !== "function" ||
+                  (!instance.openStream && !instance.transcribeFile)
+                )
+                  throw new Error("识别提供方实现不完整");
+                return instance;
+              },
+            })
+          );
         },
       }),
       websocket: Object.freeze({
-        connect: (url: string, protocols: string | string[] = [], options: PluginSocketOptions = {}) => {
+        connect: (
+          url: string,
+          protocols: string | string[] = [],
+          options: PluginSocketOptions = {}
+        ) => {
           this.assertActive(entry, activation);
           if (!this.options.websocket) throw new Error("当前宿主不支持 WebSocket");
-          const signal = AbortSignal.any([scope.signal, ...(options.signal ? [options.signal] : [])]);
+          const signal = AbortSignal.any([
+            scope.signal,
+            ...(options.signal ? [options.signal] : []),
+          ]);
           return this.options.websocket.connect(url, protocols, { ...options, signal });
         },
       }),
@@ -2084,6 +2113,13 @@ export class PluginHost {
           this.assertActive(entry, activation);
           assertLocalId(definition.id);
           if (!definition.title.trim()) throw new Error("设置分区标题不能为空");
+          if (definition.form) {
+            if (definition.target !== "sync" && definition.target !== "upload")
+              throw new Error("form 只用于同步与上传设置");
+            if (definition.component) throw new Error("设置分区不能同时声明 form 与组件");
+            assertProviderForm(definition.form);
+          } else if (typeof definition.component !== "function")
+            throw new Error("设置分区缺少组件");
           if (!this.options.settings) throw new Error("当前宿主不支持设置分区");
           const handle = this.options.settings.register(context, Object.freeze({ ...definition }));
           let disposed = false;

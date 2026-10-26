@@ -43,7 +43,7 @@ export function HoldToConfirmButton(props: {
       onPointerLeave={cancel}
       onPointerCancel={cancel}
       onContextMenu={event => event.preventDefault()}
-      className="bg-danger text-ink-inverse relative h-12 w-full select-none overflow-hidden rounded-[14px] text-[15px] font-semibold disabled:opacity-50"
+      className="bg-danger text-ink-inverse text-tau-body relative h-12 w-full overflow-hidden rounded-[14px] font-semibold select-none disabled:opacity-50"
     >
       <span
         aria-hidden="true"

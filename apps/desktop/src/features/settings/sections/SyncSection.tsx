@@ -1,26 +1,22 @@
 /** 同步操作由客户端负责，存储配置由启用的同步插件提供。 */
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CloudUpload, Database, Download, RefreshCw } from "lucide-react";
-import { produce } from "immer";
 import { localDatabaseVersion } from "@tau/db-schema/sync-protocol";
-import { Button, ConfirmDialog, Panel, Select, toast } from "@tau/ui";
+import { Button, ConfirmDialog, Panel, toast } from "@tau/ui";
 import { useDesktopPlugins } from "@/app/plugins/context";
-import { PluginSettingsView } from "@/features/plugins/views/PluginSettingsView";
-import { savePluginSyncConfig } from "@/commands/plugin-local";
-import { copyJson } from "@tau/plugins/host";
-import useSettingStore, { ESync } from "@/stores/useSettingStore";
+import useSettingStore from "@/stores/useSettingStore";
 import { download, getRemoteDatabaseVersion, upload } from "@/commands";
 import { isSyncConfigured } from "@/utils/sync";
-import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { runUsageSync } from "@/services/usageSyncRunner";
-import { SettingRow } from "../components/SettingRow";
+import { useSyncProviderSwitch } from "@/hooks/useSyncProviderSwitch";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { SettingsTabs } from "../components/SettingsTabs";
 import { StatusChip } from "../components/StatusChip";
 import { SyncActions, SyncStats } from "../components/SyncCard";
 import { LocalDatabasePanel } from "./LocalDatabasePanel";
+import { isProviderSection, ProviderChoiceList } from "../components/ProviderChoiceList";
 import { ResourceSyncCard, ResourceSyncFiles } from "./ResourceSync";
 import { useResourceSyncModel, type FileFilter } from "./useResourceSyncModel";
 
@@ -33,16 +29,9 @@ export function SyncSection() {
   const active = sync.active;
   const runtime = useDesktopPlugins();
   const pluginSections =
-    runtime?.listSettings().filter(section => section.definition.target === "sync") ?? [];
-  const [selectedPlugin, setSelectedPlugin] = useState("");
-  const pluginId = selectedPlugin || sync.plugin?.id || pluginSections[0]?.context.pluginId || "";
-  const pluginSection = pluginSections.find(section => section.context.pluginId === pluginId);
-  const storedPluginConfig =
-    sync.plugin && Object.hasOwn(sync.plugin.configurations, pluginId)
-      ? sync.plugin.configurations[pluginId]
-      : undefined;
-  const pluginConfig = useMemo(() => copyJson(storedPluginConfig ?? {}), [storedPluginConfig]);
-  const configKey = useMemo(() => (sync.plugin ? crypto.randomUUID() : ""), [sync.plugin]);
+    runtime?.listSettings().filter(section => isProviderSection(section, "sync")) ?? [];
+  const switcher = useSyncProviderSwitch();
+  const storedConfig = sync.plugin?.id ? sync.plugin.configurations[sync.plugin.id] : undefined;
 
   const [isSyncing, setIsSyncing] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
@@ -63,11 +52,15 @@ export function SyncSection() {
   const isReady = isConfigured && pluginState === "active";
 
   /* 远程版本：网络查询，配置就绪才拉；检查更新 refetch，同步/下载后手动更新。
-     key 含当前库、存储类型与定位字段：切换存储类型立即重新探测，同类型下的字段编辑防抖后再拉 */
-  const rawTarget = JSON.stringify([active, sync.plugin?.id, configKey]);
-  const debouncedTarget = useDebouncedValue(rawTarget, 500);
-  const remoteTarget = debouncedTarget.startsWith(`["${active}"`) ? debouncedTarget : rawTarget;
-  const remoteKey = ["settings", "sync", "remote-version", database.active, remoteTarget];
+     key 含当前库、服务与已保存配置：切换服务或在插件页保存新配置后重新探测 */
+  const remoteKey = [
+    "settings",
+    "sync",
+    "remote-version",
+    database.active,
+    sync.plugin?.id ?? "",
+    JSON.stringify(storedConfig ?? null),
+  ];
   const remoteQuery = useQuery({
     queryKey: remoteKey,
     queryFn: getRemoteDatabaseVersion,
@@ -212,9 +205,7 @@ export function SyncSection() {
                 />
                 <SyncActions>
                   {!isConfigured ? (
-                    <span className="text-tau-meta text-ink-2">
-                      在下方选择同步目标并完成配置后即可同步
-                    </span>
+                    <span className="text-tau-meta text-ink-2">在下方选择同步服务后即可同步</span>
                   ) : hasUpdate ? (
                     <>
                       <Button
@@ -282,51 +273,22 @@ export function SyncSection() {
             </div>
           </SettingsGroup>
 
-          <SettingsGroup title="同步目标" description="数据库与资源文件共用同一个远端">
-            {active === ESync.Plugin && (
-              <>
-                <SettingRow title="同步插件">
-                  <Select
-                    aria-label="同步插件"
-                    value={pluginId}
-                    onValueChange={setSelectedPlugin}
-                    options={pluginSections.map(section => ({
-                      value: section.context.pluginId,
-                      label: section.definition.title,
-                    }))}
-                  />
-                </SettingRow>
-                {pluginSection ? (
-                  <PluginSettingsView
-                    key={pluginSection.key}
-                    section={pluginSection}
-                    syncConfig={{
-                      value: pluginConfig,
-                      save: async config => {
-                        await savePluginSyncConfig(pluginId, config);
-                        useSettingStore.setState(state => ({
-                          setting: produce(state.setting, draft => {
-                            draft.sync.active = ESync.Plugin;
-                            draft.sync.plugin = {
-                              id: pluginId,
-                              configurations: {
-                                ...draft.sync.plugin?.configurations,
-                                [pluginId]: config,
-                              },
-                            };
-                          }),
-                        }));
-                      },
-                    }}
-                  />
-                ) : (
-                  <p role="status" className="text-ink-2 text-tau-body">
-                    请先在插件页安装并启用同步插件；已保存配置不会因停用而删除。
-                  </p>
-                )}
-              </>
-            )}
+          <SettingsGroup
+            title="同步服务"
+            description="同一时间只同步到一个服务，数据库与资源文件共用"
+          >
+            <ProviderChoiceList
+              sections={pluginSections}
+              configurations={sync.plugin?.configurations}
+              current={sync.plugin?.id ?? ""}
+              from="sync"
+              disabled={isSyncing}
+              probing={switcher.probing}
+              addLabel="添加同步服务"
+              onSelect={(pluginId, title) => void switcher.request(pluginId, title)}
+            />
           </SettingsGroup>
+          {switcher.dialog}
         </>
       ) : tab === "files" ? (
         <ResourceSyncFiles

@@ -20,9 +20,12 @@ export type {
 export type {
   PluginSettings,
   PluginSettingsDefinition,
+  PluginProviderSettingsDefinition,
+  PluginComponentSettingsDefinition,
   PluginSettingsProps,
   PluginSettingsHandle,
 } from "./settings";
+export * from "./provider-form";
 export * from "./editor";
 export {
   SourceBlockEditor,
