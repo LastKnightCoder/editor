@@ -72,8 +72,8 @@ type ProviderFormValues = Readonly<Record<string, string>>;
 - [x] SDK：`provider-form.ts`（类型与纯函数）、`PluginSettingsDefinition` 拆为 form / component 两类、注册校验（旧版组件式存储设置照常注册，宿主不渲染）、文档与 CHANGELOG「未发布」条目
 - [x] 桌面：`ProviderFormView`（插件详情 › 设置，能力卡 + 分组字段 + 保存栏）、`ProviderChoiceList`（同步 / 资源存储单选列表）、`useSyncProviderSwitch`、`services/storage-providers.ts`；主进程 `updateProviderPlugin` 只写配置
 - [x] 移动：`MobileProviderForm` 与全屏选择层、`useProviderDraft`、服务页显式保存与离开确认、`syncProviders` / `uploadTargets` 列表页取代两个 BottomSheet；涉及页面字号改用 `text-tau-*`，`GroupLabel` 收到 sm 档
-- [x] 插件（子模块，未提交）：7 个存储插件改为声明 `form`，删除桌面表单组件、`mobile-settings.tsx` 与上传插件的 `styles.css`；GitHub 两插件新增 `src/form.ts`
-- [ ] 发行：发布含 form 的 SDK → 7 个插件依赖改为新 SDK、版本号与 CHANGELOG、`minAppVersion` 提到含本改动的客户端版本（桌面 > 0.60.1、移动 > 0.2.8）后构建上架；其他插件仓库里的 SYNC.md / UPLOAD.md 副本随下次更新同步模板
+- [x] 插件（子模块，已提交并推送）：7 个存储插件改为声明 `form`，删除桌面表单组件、`mobile-settings.tsx` 与上传插件的 `styles.css`；GitHub 两插件新增 `src/form.ts`
+- [x] 发行：7 个插件使用已公开发布的 SDK 0.46.0，S3 同步发布 v0.4.3，其余发布 v0.3.3；最低客户端版本为桌面 0.60.2、Android / iOS 0.2.9。七仓 main 与标签已推送，GitHub Release 和插件中心均已发布，线上 ZIP 与仓库外验证构建逐文件一致；其他插件仓库里的 SYNC.md / UPLOAD.md 副本随下次更新同步模板
 - [ ] 视觉验收（用户）
 - [ ] 收尾：方案沉淀（架构文档已同步当前事实），删除本目录，更新 docs/README
 
@@ -81,6 +81,6 @@ type ProviderFormValues = Readonly<Record<string, string>>;
 
 - `packages/plugins`：`tsc --noEmit` 通过；`vitest run` 58 文件 / 289 用例通过（含 `provider-form.test.ts`）。
 - 桌面：`tsc --noEmit` 通过；`src/features/settings`、`src/features/plugins` 35 文件 / 191 用例通过（新增 `ProviderFormView.test.tsx`、`SyncSection.test.tsx` 增加列表与切换用例，删除依赖旧插件 ZIP 表单的 `SyncPluginSection.test.tsx`）。全量 3960 通过、3 失败为既有失败（`markdown-roundtrip-baseline`、`WhiteBoardContentView`，未改动时同样失败）。
-- 移动：`tsc --noEmit` 通过；全量 141 文件 / 921 用例通过（同步中心、图片与附件、settingsModule 用例按新流程改写）。`validation/storage/hosts.test.tsx` 改为核对发行包声明 form，需作者构建报告才能运行，未运行。
-- 插件：用本地 SDK 源码对 7 个插件入口做类型检查，新代码无错误（仅剩未安装依赖的既有报错）；插件单测因依赖未安装未运行。
+- 移动：`tsc --noEmit` 通过；全量 141 文件 / 921 用例通过（同步中心、图片与附件、settingsModule 用例按新流程改写）。同一批发行产物以计划最低版本 0.60.2 / 0.2.9 装配当前宿主源码，desktop/android/ios 三端契约验证通过：各端注册四个同步、四个上传提供方及八个可保存表单；不代表对应客户端已发布。
+- 插件：七仓在仓库外以公开 npm SDK 0.46.0 和新缓存冻结安装，类型检查、构建及 35 项已有测试通过。SDK/UI 公开下载与 npm 元数据摘要一致；七个中心 ZIP 的 SHA-256 与 GitHub Release 资产一致，包内文件与验证构建一致。
 - `pnpm check:docs` 通过；改动文件 lint 无错误。
