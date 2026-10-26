@@ -15,8 +15,9 @@ export async function visitorRoute(request: Request, env: Env, path: string) {
   if (path !== "/v1/visitor-session" || request.method !== "POST") return null;
   if (request.headers.get("X-Tau-Visitor") !== "1") fail(403, "FORBIDDEN", "缺少匿名会话请求标识");
   const input = await body(request);
-  const desktop = input.client === "desktop";
-  if ((!desktop && input.client !== "web") || (desktop && request.headers.has("Origin")))
+  // 原生客户端（desktop/mobile）经 body 领取 token 且不能带 Origin；网页凭 HttpOnly Cookie
+  const native = input.client === "desktop" || input.client === "mobile";
+  if ((!native && input.client !== "web") || (native && request.headers.has("Origin")))
     fail(400, "INVALID_INPUT", "匿名会话客户端类型无效");
   const previous = await visitorFor(request, env);
   if (previous?.revoked) fail(403, "FORBIDDEN", "匿名身份已停用");
@@ -37,8 +38,8 @@ export async function visitorRoute(request: Request, env: Env, path: string) {
   await env.DB.prepare("INSERT INTO visitors(id,token_hash,created_at) VALUES(?,?,?)")
     .bind(id, await sha256(token), new Date().toISOString())
     .run();
-  const response = json<VisitorSession>({ visitorId: id, ...(desktop ? { token } : {}) });
-  if (!desktop)
+  const response = json<VisitorSession>({ visitorId: id, ...(native ? { token } : {}) });
+  if (!native)
     response.headers.set("Set-Cookie", setCookie(env, "tau_visitor", token, 365 * 86400));
   return response;
 }
