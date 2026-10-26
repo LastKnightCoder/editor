@@ -96,7 +96,7 @@ it("回执丢失保留待发送数据，重启查询终态且不重复提交", a
   const restored = await DocumentSyncSession.open(f.room.id, f.remote, f.transport);
   await restored.flush();
   expect(restored.snapshot().pending).toHaveLength(0);
-  expect(restored.snapshot().receipts).toHaveLength(1);
+  expect(f.journal.db.prepare("SELECT count(*) AS n FROM remote_receipts").get()).toEqual({ n: 1 });
   expect(f.store.operations.sequence(f.room.id)).toBe(1);
 });
 it("普通增量断网六分钟并重启后续传完整因果链，旧操作保持过期", async () => {
@@ -281,7 +281,7 @@ it("旧日志实例不能覆盖另一实例的待确认操作，落盘失败也�
   await expect(other.stage(f.update("后继"))).rejects.toThrow("disk full");
   f.journal.db.exec("DROP TRIGGER fail_remote");
   await other.flush();
-  expect(other.snapshot().receipts[0].operationId).toBe(operationId);
+  expect(await otherJournal.receipt(operationId)).toMatchObject({ operationId });
 });
 
 it("本机暂存回执丢失后同 ID 重试幂等，不能偷偷更换候选", async () => {
@@ -308,15 +308,24 @@ it("成功回执只保存幂等信息，重开清除旧全文副本但保留未�
     await f.session.flush();
   }
   const saved = (await f.remote.load())!;
-  expect(saved.receipts).toHaveLength(50);
-  expect(saved.receipts.every(receipt => !("update" in receipt) && !("baseline" in receipt))).toBe(
-    true
+  expect(saved).not.toHaveProperty("receipts");
+  expect(f.journal.db.prepare("SELECT count(*) AS n FROM remote_receipts").get()).toEqual({
+    n: 50,
+  });
+  const operations = await Promise.all(
+    Array.from({ length: 50 }, (_, i) => f.remote.receipt(`edit-${i}`))
   );
+  expect(
+    operations.every(receipt => receipt && !("update" in receipt) && !("baseline" in receipt))
+  ).toBe(true);
   await expect(f.session.stage(first, undefined, "edit-0")).resolves.toBe("edit-0");
+  await expect(f.session.stage(f.update("不同内容"), undefined, "edit-0")).rejects.toThrow(
+    "不能更换"
+  );
   expect(f.session.snapshot().pending).toEqual([]);
   const legacy = {
     ...saved,
-    receipts: saved.receipts.map(operation => ({
+    receipts: operations.map(operation => ({
       ...operation,
       update: first,
       baseline: saved.confirmed,
@@ -326,5 +335,24 @@ it("成功回执只保存幂等信息，重开清除旧全文副本但保留未�
   await f.remote.save(legacy);
   const restored = await DocumentSyncSession.open(f.room.id, f.remote, f.transport);
   expect(restored.snapshot().rejected).toEqual(legacy.rejected);
-  expect((await f.remote.load())!.receipts.every(receipt => !("baseline" in receipt))).toBe(true);
+  expect(await f.remote.load()).not.toHaveProperty("receipts");
+  expect(await f.remote.receipt("edit-0")).not.toHaveProperty("baseline");
+});
+
+it("归档回执写入失败时保留待确认提案，重试只读原服务端终态", async () => {
+  const f = await fixture();
+  const id = await f.session.stage(f.update("原操作"));
+  f.journal.db.exec(
+    "CREATE TEMP TRIGGER fail_receipt BEFORE INSERT ON remote_receipts BEGIN SELECT RAISE(ABORT, 'disk full'); END"
+  );
+  await expect(f.session.flush()).rejects.toThrow("disk full");
+  expect(f.session.snapshot().pending).toHaveLength(1);
+  expect((await f.remote.load())?.pending).toHaveLength(1);
+  expect(await f.remote.receipt(id)).toBeNull();
+  expect(f.store.operations.sequence(f.room.id)).toBe(1);
+  f.journal.db.exec("DROP TRIGGER fail_receipt");
+  await f.session.flush();
+  expect(f.session.snapshot().pending).toHaveLength(0);
+  expect(await f.remote.receipt(id)).toMatchObject({ state: "COMMITTED" });
+  expect(f.store.operations.sequence(f.room.id)).toBe(1);
 });

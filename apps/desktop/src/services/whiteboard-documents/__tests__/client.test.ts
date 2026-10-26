@@ -17,6 +17,7 @@ import {
 import type {
   WhiteboardDocumentEvent,
   WhiteboardDocumentFlushRequest,
+  WhiteboardDocumentResume,
 } from "@/types/whiteboard-document";
 const cleanups: (() => void)[] = [];
 afterEach(() =>
@@ -85,7 +86,7 @@ async function fixture() {
     const listeners = new Set<(event: WhiteboardDocumentEvent) => void>();
     events.set(owner, listeners);
     const drains = new Set<(event: WhiteboardDocumentFlushRequest) => void>(),
-      resumes = new Set<(leaseId: string) => void>();
+      resumes = new Set<(event: WhiteboardDocumentResume) => void>();
     const api: WhiteboardDocumentBackend = {
       open: (target, viewId) => sessions.open(target.databaseName, target.contentId, owner, viewId),
       append: vi.fn((lease, batch, update) => sessions.append(lease, owner, batch, update)),
@@ -300,7 +301,7 @@ describe("W4 渲染会话与耐久待发送队列", () => {
     );
     await vi.waitFor(() => expect(a.api.drained).toHaveBeenCalledWith("close"));
     expect(client.getSnapshot()).toMatchObject({ frozen: true, pending: 0, phase: "saved" });
-    a.resumes.forEach(listener => listener(client.leaseId!));
+    a.resumes.forEach(listener => listener({ leaseId: client.leaseId!, requestId: "close" }));
     expect(client.getSnapshot().frozen).toBe(false);
   });
   it("已有 flush 期间的新输入也要排空，不能返回旧的成功", async () => {

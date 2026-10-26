@@ -31,15 +31,16 @@ export class WhiteboardJournal {
     this.db.pragma("journal_mode=WAL");
     this.db.pragma("synchronous=FULL");
     const version = Number(this.db.pragma("user_version", { simple: true }));
-    if (version > 1) {
+    if (version > 2) {
       this.db.close();
       throw new Error("白板本机日志版本较新");
     }
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS documents(document_id TEXT PRIMARY KEY, identity TEXT NOT NULL, state BLOB NOT NULL, revision INTEGER NOT NULL, hash TEXT NOT NULL, projected_revision INTEGER NOT NULL, projected_hash TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS updates(document_id TEXT NOT NULL, batch_id TEXT NOT NULL, revision INTEGER NOT NULL, update_hash TEXT NOT NULL, state BLOB NOT NULL, state_hash TEXT NOT NULL, PRIMARY KEY(document_id,batch_id), UNIQUE(document_id,revision));
+      CREATE INDEX IF NOT EXISTS updates_pending_payload ON updates(document_id,revision) WHERE length(state)>0;
       CREATE TABLE IF NOT EXISTS holds(document_id TEXT NOT NULL, source_id TEXT NOT NULL, entity_kind TEXT NOT NULL, entity_id TEXT NOT NULL, PRIMARY KEY(document_id,source_id,entity_kind,entity_id));
-      PRAGMA user_version=1;
+      PRAGMA user_version=2;
     `);
   }
   load(documentId: string): JournalDocument | null {
@@ -132,17 +133,26 @@ export class WhiteboardJournal {
     return next;
   }
   markProjected(document: JournalDocument): void {
-    this.db
-      .prepare(
-        "UPDATE documents SET projected_revision=?,projected_hash=? WHERE document_id=? AND revision=? AND hash=?"
-      )
-      .run(
-        document.revision,
-        document.hash,
-        journalKey(document),
-        document.revision,
-        document.hash
-      );
+    this.db.transaction(() => {
+      const result = this.db
+        .prepare(
+          "UPDATE documents SET projected_revision=?,projected_hash=? WHERE document_id=? AND revision=? AND hash=?"
+        )
+        .run(
+          document.revision,
+          document.hash,
+          journalKey(document),
+          document.revision,
+          document.hash
+        );
+      if (result.changes !== 1) throw new Error("白板投影回执与当前日志不一致");
+      // 完整检查点和主库已确认后只保留批次摘要，重复提交仍能校验原字节。
+      this.db
+        .prepare(
+          "UPDATE updates SET state=x'' WHERE document_id=? AND revision<=? AND length(state)>0"
+        )
+        .run(journalKey(document), document.revision);
+    })();
   }
   private hold(documentId: string, references: readonly ContentEntityReference[]): void {
     const insert = this.db.prepare("INSERT OR IGNORE INTO holds VALUES(?,?,?,?)");

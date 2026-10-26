@@ -202,6 +202,12 @@ describe("净化首次发布与恢复", () => {
     expect(f.server.db.prepare("SELECT count(*) AS n FROM documents").get()).toEqual({ n: 1 });
     expect(f.repo.read("local")?.epoch).toBe(1);
     expect(f.cache.get(`whiteboard-binding:A:local`, null)).toEqual(result);
+    const terminal = f.transitions.publications.get("publish");
+    expect(terminal).toMatchObject({ completed: true, pageIds: ["visible", "hidden"] });
+    expect(terminal).not.toHaveProperty("bundle");
+    expect(terminal).not.toHaveProperty("state");
+    expect(f.state.installation("publish")?.plan.prepared.candidate).toBe("");
+    await expect(f.transitions.resumePublication(f.db, "A", "publish")).resolves.toEqual(result);
     await expect(f.transitions.cancelPublication("A", "publish")).rejects.toThrow("已激活");
   });
   it("服务端激活后主库安装失败，凭原回执继续安装", async () => {

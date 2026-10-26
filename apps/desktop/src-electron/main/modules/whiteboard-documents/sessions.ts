@@ -27,7 +27,7 @@ interface Lease {
   viewId: string;
   key: string;
   pageId: string;
-  sealed: boolean;
+  seals: Set<string>;
 }
 export class WhiteboardDocumentSessions {
   private sessions = new Map<string, Session>();
@@ -199,9 +199,9 @@ export class WhiteboardDocumentSessions {
       viewId,
       key,
       pageId: mapping.pageId,
-      sealed: false,
+      seals: new Set<string>(),
     };
-    if (lease.sealed) throw new Error("视图正在关闭或切库");
+    if (lease.seals.size) throw new Error("视图正在关闭或切库");
     lease.pageId = mapping.pageId;
     this.leases.set(lease.id, lease);
     return {
@@ -272,7 +272,7 @@ export class WhiteboardDocumentSessions {
     if (!lease || lease.owner !== owner || !session) throw new Error("白板会话持有已失效");
     if (write && this.blocked(session.value.databaseName, session.value.documentId))
       throw new Error("白板共享提交尚未完成，旧代次禁止写入");
-    if (write && lease.sealed) throw new Error("白板视图已完成关闭屏障");
+    if (write && lease.seals.size) throw new Error("白板视图已完成关闭屏障");
     this.connection(session);
     return { lease, session };
   }
@@ -296,7 +296,7 @@ export class WhiteboardDocumentSessions {
       this.connection(session);
       if (this.blocked(session.value.databaseName, session.value.documentId))
         throw new Error("白板共享提交尚未完成");
-      if (lease.sealed) throw new Error("白板视图已经封存");
+      if (lease.seals.size) throw new Error("白板视图已经封存");
       if (this.journal.receipt(lease.key, batchId, update) !== null) {
         this.project(session);
         return this.receipt(session);
@@ -387,9 +387,10 @@ export class WhiteboardDocumentSessions {
         databaseName: this.sessions.get(lease.key)!.value.databaseName,
       }));
   }
-  seal(leaseId: string, owner: number, sealed: boolean): void {
+  seal(leaseId: string, owner: number, requestId: string, sealed: boolean): void {
     const { lease } = this.require(leaseId, owner);
-    lease.sealed = sealed;
+    if (sealed) lease.seals.add(requestId);
+    else lease.seals.delete(requestId);
   }
   abandon(owner: number): void {
     for (const lease of [...this.leases.values()])

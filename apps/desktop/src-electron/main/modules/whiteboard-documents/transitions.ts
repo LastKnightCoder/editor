@@ -18,19 +18,7 @@ import { WhiteboardDocumentRepository } from "./repository";
 import { stateHash } from "./journal";
 import { WhiteboardInstallation } from "./installation";
 
-interface PublicationJob {
-  operationId: string;
-  workspaceId: string;
-  documentId: string;
-  sourceHash: string;
-  serverUrl: string;
-  bundle: WhiteboardTransfer;
-  roomId?: string;
-  mappings: Record<string, string>;
-  state?: string;
-  completed?: boolean;
-  cancelled?: boolean;
-}
+import { WhiteboardPublications, type PublicationJob } from "./publications";
 
 /** 按精确契约声明替换元素载荷与板内正文中的资源引用；未登记的引用原样保留。 */
 export function mapTransferResources(
@@ -65,41 +53,31 @@ export function mapTransferResources(
 
 /** 仅宿主显式调用，所有网络重试使用已经耐久固定的候选和房间身份。 */
 export class WhiteboardTransitions {
+  readonly publications: WhiteboardPublications;
   private readonly queue = new DocumentWriteQueue(16 * 1024 * 1024);
   constructor(
     readonly installation: WhiteboardInstallation,
     private readonly store: CollaborationLocalStore,
     private readonly client: CollaborationClient,
     private readonly assets: CollaborationAssetService
-  ) {}
+  ) {
+    this.publications = new WhiteboardPublications(store);
+  }
   blocked(name: string, documentId: string) {
-    return (
-      Boolean(this.installation.pending(name, documentId)) ||
-      this.store
-        .get<PublicationJob[]>("whiteboard-publications", [])
-        .some(job => job.workspaceId === name && job.documentId === documentId && !job.completed)
+    return Boolean(
+      this.installation.pending(name, documentId) || this.publications.pending(name, documentId)
     );
   }
-  /** 未完成的首次发布；界面据此续做或取消原操作，不另起新房间。 */
   pendingPublication(name: string, documentId: string) {
-    const job = this.store
-      .get<PublicationJob[]>("whiteboard-publications", [])
-      .find(
-        value => value.workspaceId === name && value.documentId === documentId && !value.completed
-      );
+    const job = this.publications.pending(name, documentId);
     return job ? { operationId: job.operationId, roomCreated: Boolean(job.roomId) } : null;
   }
   publicationDocument(name: string, operationId: string) {
-    return this.store
-      .get<PublicationJob[]>("whiteboard-publications", [])
-      .find(value => value.workspaceId === name && value.operationId === operationId)?.documentId;
+    const job = this.publications.get(operationId);
+    return job?.workspaceId === name ? job.documentId : undefined;
   }
   private save(job: PublicationJob) {
-    const jobs = this.store.get<PublicationJob[]>("whiteboard-publications", []);
-    this.store.set("whiteboard-publications", [
-      ...jobs.filter(value => value.operationId !== job.operationId),
-      job,
-    ]);
+    this.publications.save(job);
   }
   publish(
     db: Database.Database,
@@ -121,15 +99,14 @@ export class WhiteboardTransitions {
       source = repo.read(documentId);
     if (!source) throw new Error("白板不存在");
     const url = this.client.canonicalUrl(normalizeServerUrl(request.serverUrl));
-    let job = this.store
-      .get<PublicationJob[]>("whiteboard-publications", [])
-      .find(value => value.operationId === request.operationId);
+    let job = this.publications.get(request.operationId);
     if (
       job &&
       (job.workspaceId !== name ||
         job.documentId !== documentId ||
         job.serverUrl !== url ||
-        JSON.stringify(job.bundle.pages.map(page => page.id)) !== JSON.stringify(request.pageIds))
+        JSON.stringify(job.pageIds ?? job.bundle?.pages.map(page => page.id)) !==
+          JSON.stringify(request.pageIds))
     )
       throw new Error("首次发布操作不能更换目标或范围");
     if (job?.cancelled) throw new Error("已取消的发布不能复活");
@@ -165,6 +142,7 @@ export class WhiteboardTransitions {
         doc.destroy();
       }
     }
+    if (!job.bundle) throw new Error("发布候选缺失，原记录已保留");
     const record = this.installation.state.installation(job.operationId);
     if (!record?.decision && repo.read(documentId)?.hash !== job.sourceHash)
       throw new Error("原白板已变化，发布候选已保留");
@@ -236,29 +214,23 @@ export class WhiteboardTransitions {
     return { documentId: job.roomId, serverUrl: url };
   }
   async resumePublication(db: Database.Database, name: string, operationId: string) {
-    const job = this.store
-      .get<PublicationJob[]>("whiteboard-publications", [])
-      .find(value => value.operationId === operationId);
+    const job = this.publications.get(operationId);
     if (!job || job.workspaceId !== name) throw new Error("发布操作不存在");
     return this.publish(db, name, job.documentId, {
       operationId,
       serverUrl: job.serverUrl,
-      pageIds: job.bundle.pages.map(page => page.id),
+      pageIds: job.pageIds ?? job.bundle?.pages.map(page => page.id) ?? [],
     });
   }
   async cancelPublication(name: string, operationId: string) {
-    const job = this.store
-      .get<PublicationJob[]>("whiteboard-publications", [])
-      .find(value => value.operationId === operationId);
+    const job = this.publications.get(operationId);
     if (!job || job.workspaceId !== name) throw new Error("发布操作不存在");
     return this.queue.run(JSON.stringify([name, job.documentId]), 0, () =>
       this.cancelPublicationOnce(name, operationId)
     );
   }
   private async cancelPublicationOnce(name: string, operationId: string) {
-    const job = this.store
-      .get<PublicationJob[]>("whiteboard-publications", [])
-      .find(value => value.operationId === operationId);
+    const job = this.publications.get(operationId);
     if (!job || job.workspaceId !== name) throw new Error("发布操作不存在");
     if (job.cancelled) return;
     // 创建响应丢失也先按原操作找回房间，再由服务端原子取消。

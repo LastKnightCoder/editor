@@ -13,7 +13,7 @@ const outbox = new IndexedWhiteboardOutbox();
 const entries = new Map<string, WhiteboardDocumentEntry>();
 const remotes = new WeakMap<WhiteboardDocumentClient, WhiteboardRemoteSync>();
 
-/** 已绑定共享房间的客户端才有远端同步；随客户端一起创建和释放。 */
+/** 共享状态控制器随客户端存活，确认绑定后才执行远端同步。 */
 export function whiteboardRemoteSync(client: WhiteboardDocumentClient) {
   return remotes.get(client);
 }
@@ -51,7 +51,11 @@ export class WhiteboardDocumentEntry {
       disposeClient(this.client);
       this.client = undefined;
     }
-    if (this.client && !this.client.isDisposed) return this.client;
+    if (this.client && !this.client.isDisposed) {
+      this.attachRemote(this.client);
+      remotes.get(this.client)?.retry(false);
+      return this.client;
+    }
     if (this.opening) return this.opening;
     const client = new WhiteboardDocumentClient(this.target, whiteboardDocumentBackend, outbox);
     const task = client.ready.then(async () => {
@@ -67,7 +71,7 @@ export class WhiteboardDocumentEntry {
           });
         }
       });
-      await this.attachRemote(client);
+      this.attachRemote(client);
       return client;
     });
     this.opening = task;
@@ -87,31 +91,38 @@ export class WhiteboardDocumentEntry {
     }
   }
   /** 共享状态与画布的共享入口共用一份查询缓存；读取失败时仍可本机编辑。 */
-  private async attachRemote(client: WhiteboardDocumentClient): Promise<void> {
-    try {
-      const status = await queryClient.fetchQuery({
-        queryKey: whiteboardShareStatusKey(this.target.databaseName, this.documentId),
-        queryFn: () => readWhiteboardShareStatus(this.target.databaseName, this.documentId),
-        staleTime: 0,
-      });
-      if (!status.binding || client.isDisposed || remotes.has(client)) return;
-      const sync = new WhiteboardRemoteSync(client, status.binding, whiteboardRemoteBackend);
-      remotes.set(client, sync);
-      sync.start();
-    } catch {
-      // 画布的共享入口会再次读取并展示失败原因。
-    }
+  private attachRemote(client: WhiteboardDocumentClient): void {
+    if (client.isDisposed || remotes.has(client)) return;
+    const sync = new WhiteboardRemoteSync(
+      client,
+      async () => {
+        const status = await queryClient.fetchQuery({
+          queryKey: whiteboardShareStatusKey(this.target.databaseName, this.documentId),
+          queryFn: () => readWhiteboardShareStatus(this.target.databaseName, this.documentId),
+          staleTime: 0,
+        });
+        return status.binding;
+      },
+      whiteboardRemoteBackend
+    );
+    remotes.set(client, sync);
+    sync.start();
   }
   private async releaseIdle(): Promise<void> {
     if (this.holders || this.closing || !this.client) return;
     const client = this.client;
     const task = (async () => {
-      await client.flush();
-      if (this.holders) return;
+      if (!client.needsReopen && !client.isDisposed) {
+        try {
+          await client.flush();
+        } catch (error) {
+          if (!client.needsReopen) throw error;
+        }
+        if (this.holders && !client.needsReopen) return;
+      }
       // 远端同步随最后一个持有者停止；未提交的差异仍在主进程日志中，下次打开再同步。
-      remotes.get(client)?.dispose();
-      remotes.delete(client);
       await client.release();
+      disposeClient(client);
       if (this.client === client) this.client = undefined;
     })();
     this.closing = task;

@@ -7,9 +7,11 @@ export interface WhiteboardRemoteBackend {
 }
 /**
  * connecting/syncing/synced 为正常流转；offline 与 waiting 会自动重试；
- * 其余需要用户处理（重试、更新应用或采用新版本），不会自动重投。
+ * 其余需要用户处理（重试、更新应用或转为本机白板），不会自动重投。
  */
 export type WhiteboardRemotePhase =
+  | "checking"
+  | "local"
   | "connecting"
   | "syncing"
   | "synced"
@@ -106,10 +108,13 @@ export class WhiteboardRemoteSync {
   private cleanup: (() => void)[] = [];
   constructor(
     private readonly client: WhiteboardDocumentClient,
-    readonly binding: { serverUrl: string; documentId: string },
+    private readonly binding:
+      | { serverUrl: string; documentId: string }
+      | (() => Promise<{ serverUrl: string; documentId: string } | null>),
     private readonly backend: WhiteboardRemoteBackend,
     private readonly options = { pollMs: 10_000, debounceMs: 800, maxBackoffMs: 60_000 }
   ) {
+    if (typeof binding === "function") this.state = { phase: "checking", unsynced: false };
     this.cleanup.push(
       client.subscribe(() => {
         const local = client.getSnapshot();
@@ -137,7 +142,9 @@ export class WhiteboardRemoteSync {
   }
   /** 需要用户处理的状态不自动重试，避免把被拒或旧代次材料反复发给服务端。 */
   private blocked() {
-    return !["connecting", "syncing", "synced", ...AUTOMATIC].includes(this.state.phase);
+    return !["checking", "connecting", "syncing", "synced", ...AUTOMATIC].includes(
+      this.state.phase
+    );
   }
   start(): void {
     this.schedule(0);
@@ -177,8 +184,23 @@ export class WhiteboardRemoteSync {
       const leaseId = this.client.leaseId;
       if (this.disposed || !leaseId || this.client.needsReopen) return;
       if (!this.opened) {
-        this.set({ phase: "connecting" });
-        const opened = await this.backend.open(leaseId, this.binding.serverUrl);
+        let binding;
+        try {
+          binding = typeof this.binding === "function" ? await this.binding() : this.binding;
+        } catch {
+          if (!this.disposed) {
+            this.set({ phase: "waiting", message: "共享状态读取失败，正在重试", unsynced: true });
+            this.schedule(this.backoff());
+          }
+          return;
+        }
+        if (this.disposed || this.client.needsReopen) return;
+        if (!binding) {
+          this.set({ phase: "local", unsynced: false, message: undefined });
+          return;
+        }
+        this.set({ phase: "connecting", message: undefined });
+        const opened = await this.backend.open(leaseId, binding.serverUrl);
         if (this.disposed) return;
         if (opened.requiresRebind) {
           this.set({ phase: opened.reason === "rejected" ? "rejected" : "rebind", unsynced: true });
@@ -188,6 +210,7 @@ export class WhiteboardRemoteSync {
       }
       // 本机输入须先进入主进程日志，再计算发往房间的差异。
       await this.client.flush();
+      if (this.disposed || this.client.needsReopen) return;
       if (this.state.unsynced && this.state.phase !== "connecting") this.set({ phase: "syncing" });
       const result = await this.backend.sync(leaseId);
       if (this.disposed) return;

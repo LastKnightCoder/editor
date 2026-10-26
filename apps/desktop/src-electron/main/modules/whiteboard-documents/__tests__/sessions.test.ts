@@ -172,6 +172,9 @@ describe("W4 主进程白板会话与耐久投影", () => {
     expect(JSON.parse(pages[1].data).children[0].data.source).toBe("保存");
     await f.sessions.append(a.leaseId, 1, "batch", update);
     expect(f.journal.db.prepare("SELECT COUNT(*) AS n FROM updates").get()).toEqual({ n: 1 });
+    expect(f.journal.db.prepare("SELECT length(state) AS bytes FROM updates").get()).toEqual({
+      bytes: 0,
+    });
     await expect(f.sessions.append(a.leaseId, 1, "batch", new Uint8Array([0, 0]))).rejects.toThrow(
       "复用"
     );

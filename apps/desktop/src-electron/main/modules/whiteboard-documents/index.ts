@@ -11,6 +11,7 @@ import * as Y from "yjs";
 import {
   normalizeServerUrl,
   WhiteboardModel,
+  DocumentWriteQueue,
   exportWhiteboardTransfer,
   type DocumentSyncSession,
 } from "@tau/collaboration";
@@ -93,8 +94,35 @@ class WhiteboardDocumentsModule {
   private remote = new Map<string, Promise<DocumentSyncSession>>();
   private remoteViews = new Map<string, { key: string; rejectedCount: number }>();
   private remoteSyncs = new Map<string, Promise<unknown>>();
+  private remoteUsers = new Map<string, number>();
+  private evictRemote(key: string) {
+    if (
+      this.remoteUsers.has(key) ||
+      this.remoteSyncs.has(key) ||
+      [...this.remoteViews.values()].some(view => view.key === key)
+    )
+      return;
+    this.remote.delete(key);
+  }
+  private releaseRemoteView(leaseId: string) {
+    const view = this.remoteViews.get(leaseId);
+    this.remoteViews.delete(leaseId);
+    if (view) this.evictRemote(view.key);
+  }
   private journal!: WhiteboardJournal;
   private store!: ReturnType<typeof collaborationModule.documentStorage>["store"];
+  private unshareQueue = new DocumentWriteQueue(16 * 1024 * 1024);
+  private pendingUnshare(name: string, documentId: string) {
+    return this.store.get<WhiteboardUnshareJob | null>(
+      `whiteboard-unshare:${name}:${documentId}`,
+      null
+    );
+  }
+  private blocked(name: string, documentId: string) {
+    return (
+      this.transitions.blocked(name, documentId) || Boolean(this.pendingUnshare(name, documentId))
+    );
+  }
   private assertOwnerDeletion(db: Database.Database, id: number): string {
     const name = [...databaseModule.databases].find(([, value]) => value === db)?.[0];
     if (name === undefined || !this.sessions || !this.store)
@@ -105,8 +133,7 @@ class WhiteboardDocumentsModule {
     if (!row) return "";
     if (this.store.get(`whiteboard-binding:${name}:${row.document_id}`, null))
       throw new Error("请先结束共享或退出协作，再删除本机白板");
-    if (this.transitions.blocked(name, row.document_id))
-      throw new Error("白板仍有未完成转换，不能删除");
+    if (this.blocked(name, row.document_id)) throw new Error("白板仍有未完成转换，不能删除");
     return row.document_id;
   }
   async deleteBoard(
@@ -163,7 +190,7 @@ class WhiteboardDocumentsModule {
       .all() as { document_id: string }[]) {
       if (
         this.sessions.isActive(name, document_id) ||
-        this.transitions.blocked(name, document_id) ||
+        this.blocked(name, document_id) ||
         this.store.get(`whiteboard-binding:${name}:${document_id}`, null)
       )
         continue;
@@ -174,13 +201,7 @@ class WhiteboardDocumentsModule {
       const rooms = new Set([
         document_id,
         ...(previousRoom ? [previousRoom.roomId] : []),
-        ...this.store
-          .get<{ workspaceId: string; documentId: string; roomId?: string }[]>(
-            "whiteboard-publications",
-            []
-          )
-          .filter(job => job.workspaceId === name && job.documentId === document_id && job.roomId)
-          .map(job => job.roomId!),
+        ...this.transitions.publications.rooms(name, document_id),
       ]);
       if (
         this.journal.db.prepare("SELECT 1 FROM sqlite_master WHERE name='remote_branches'").get() &&
@@ -234,6 +255,13 @@ class WhiteboardDocumentsModule {
       url = client.canonicalUrl(normalizeServerUrl(serverUrl)),
       identity = await client.identity(url);
     const key = JSON.stringify([url, identity.id, documentId]);
+    this.remoteUsers.set(key, (this.remoteUsers.get(key) ?? 0) + 1);
+    const release = () => {
+      const remaining = (this.remoteUsers.get(key) ?? 1) - 1;
+      if (remaining) this.remoteUsers.set(key, remaining);
+      else this.remoteUsers.delete(key);
+      this.evictRemote(key);
+    };
     let opening = this.remote.get(key);
     if (!opening) {
       opening = openWhiteboardRemoteSession(this.journal, client, url, documentId);
@@ -242,7 +270,12 @@ class WhiteboardDocumentsModule {
         if (this.remote.get(key) === opening) this.remote.delete(key);
       });
     }
-    return { key, url, session: await opening };
+    try {
+      return { key, url, session: await opening, release };
+    } catch (error) {
+      release();
+      throw error;
+    }
   }
   /** 同一房间的同步串行执行，避免两个窗口把同一份本机差异重复提交。 */
   private serialRemote<T>(key: string, task: () => Promise<T>): Promise<T> {
@@ -253,13 +286,24 @@ class WhiteboardDocumentsModule {
       .catch(() => undefined)
       .finally(() => {
         if (this.remoteSyncs.get(key) === next) this.remoteSyncs.delete(key);
+        this.evictRemote(key);
       });
     return next;
   }
   private drains = new Set<WhiteboardDrainScope>();
-  private preparing = new Set<{ owner: number; databaseName: string; task: Promise<unknown> }>();
-  private async prepareView<T>(owner: number, databaseName: string, task: Promise<T>): Promise<T> {
-    const entry = { owner, databaseName, task };
+  private preparing = new Set<{
+    owner: number;
+    databaseName: string;
+    documentId: string;
+    task: Promise<unknown>;
+  }>();
+  private async prepareView<T>(
+    owner: number,
+    databaseName: string,
+    documentId: string,
+    task: Promise<T>
+  ): Promise<T> {
+    const entry = { owner, databaseName, documentId, task };
     this.preparing.add(entry);
     try {
       return await task;
@@ -267,12 +311,13 @@ class WhiteboardDocumentsModule {
       this.preparing.delete(entry);
     }
   }
-  private assertOpenAllowed(owner: number, databaseName: string): void {
+  private assertOpenAllowed(owner: number, databaseName: string, documentId?: string): void {
     if (
       [...this.drains].some(
         scope =>
           (scope.windowId === undefined || scope.windowId === owner) &&
-          (!scope.databaseName || scope.databaseName === databaseName)
+          (!scope.databaseName || scope.databaseName === databaseName) &&
+          (!scope.documentId || scope.documentId === documentId)
       )
     )
       throw new Error("白板正在关闭或切库，请稍后重试");
@@ -320,7 +365,7 @@ class WhiteboardDocumentsModule {
         else WhiteboardContentTable.deleteWhiteboard(db, id);
       },
       projected,
-      (name, id) => this.transitions.blocked(name, id)
+      (name, id) => this.blocked(name, id)
     );
     const services = collaborationModule.documentStorage();
     this.store = services.store;
@@ -413,7 +458,7 @@ class WhiteboardDocumentsModule {
           void collaborationModule.refreshShared?.().catch(() => undefined);
           return result;
         } catch (error) {
-          if (!this.transitions.blocked(context.name, context.documentId)) {
+          if (!this.blocked(context.name, context.documentId)) {
             this.transitionDrains.get(request.operationId)?.rollback();
             this.clearTransition(request.operationId);
           }
@@ -450,21 +495,28 @@ class WhiteboardDocumentsModule {
         const bindingKey = `whiteboard-binding:${databaseName}:${documentId}`,
           unshareKey = `whiteboard-unshare:${databaseName}:${documentId}`;
         // 本机替换已装完、只差清除绑定时补完收尾，避免本机文档再去连接已关闭的房间。
-        if (services.store.get<WhiteboardUnshareJob | null>(unshareKey, null)?.remoteDone) {
+        const unshareJob = services.store.get<WhiteboardUnshareJob | null>(unshareKey, null);
+        if (unshareJob?.remoteDone) {
           const db = databaseModule.getDatabase(databaseName),
             stored = db && new WhiteboardDocumentRepository(db, databaseName).read(documentId);
           if (stored && !this.installation.pending(databaseName, documentId)) {
             const doc = new Y.Doc();
             Y.applyUpdate(doc, stored.state);
             if (!doc.share.has("meta") || doc.getMap("meta").get("version") !== 3) {
-              services.store.delete(bindingKey);
-              services.store.delete(unshareKey);
+              services.store.db.transaction(() => {
+                services.store.delete(bindingKey);
+                services.store.delete(unshareKey);
+              })();
+              this.transitionDrains.get(unshareJob.operationId)?.commit();
+              this.clearTransition(unshareJob.operationId);
             }
             doc.destroy();
           }
         }
         const publication = this.transitions.pendingPublication(databaseName, documentId);
+        const unshare = this.pendingUnshare(databaseName, documentId);
         return {
+          ...(unshare ? { unshare: { operationId: unshare.operationId, mode: unshare.mode } } : {}),
           binding: services.store.get<WhiteboardShareStatus["binding"]>(bindingKey, null),
           publication,
         };
@@ -514,16 +566,21 @@ class WhiteboardDocumentsModule {
         };
         services.store.set(installKey, install);
         if (!pages(install.documentId)) {
-          const { session } = await this.remoteSession(url, roomId).catch(remoteFailure);
-          await session.synchronize().catch(remoteFailure);
-          const confirmed = session.snapshot().confirmed;
-          if (confirmed.protocol.id !== roomId) throw new Error("共享白板身份与远端确认不一致");
-          this.owner(event, databaseName);
-          await this.prepareView(
-            windowId,
-            databaseName,
-            this.sessions.create(databaseName, install.documentId, confirmed.state, "board")
-          );
+          const { session, release } = await this.remoteSession(url, roomId).catch(remoteFailure);
+          try {
+            await session.synchronize().catch(remoteFailure);
+            const confirmed = session.snapshot().confirmed;
+            if (confirmed.protocol.id !== roomId) throw new Error("共享白板身份与远端确认不一致");
+            this.owner(event, databaseName);
+            await this.prepareView(
+              windowId,
+              databaseName,
+              install.documentId,
+              this.sessions.create(databaseName, install.documentId, confirmed.state, "board")
+            );
+          } finally {
+            release();
+          }
         }
         services.store.set(`${prefix}${install.documentId}`, {
           serverUrl: url,
@@ -543,16 +600,23 @@ class WhiteboardDocumentsModule {
       ) => {
         if (!["close", "leave", "detach"].includes(request?.mode))
           throw new Error("结束共享方式无效");
+        const identity = this.sessions.snapshot(leaseId, this.leaseOwner(event, leaseId)).identity;
+        const pending = this.pendingUnshare(identity.databaseName, identity.documentId);
+        if (pending) request = { operationId: pending.operationId, mode: pending.mode };
         const context = await transitionContext(event, leaseId, request.operationId);
         try {
-          const result = await this.unshare(context, request);
+          const result = await this.unshareQueue.run(
+            JSON.stringify([context.name, context.documentId]),
+            0,
+            () => this.unshare(context, request)
+          );
           this.transitionDrains.get(request.operationId)?.commit();
           this.clearTransition(request.operationId);
           projected(context.name, context.documentId);
           void collaborationModule.refreshShared?.().catch(() => undefined);
           return result;
         } catch (error) {
-          if (!this.transitions.blocked(context.name, context.documentId)) {
+          if (!this.blocked(context.name, context.documentId)) {
             this.transitionDrains.get(request.operationId)?.rollback();
             this.clearTransition(request.operationId);
           }
@@ -560,10 +624,22 @@ class WhiteboardDocumentsModule {
         }
       }
     );
+    handle("unshare-resume", async (event, databaseName: string, documentId: string) => {
+      this.owner(event, databaseName);
+      const db = databaseModule.getDatabase(databaseName);
+      if (!db) throw new Error("原资料库未连接");
+      const page = db
+        .prepare("SELECT content_id FROM whiteboard_document_pages WHERE document_id=? LIMIT 1")
+        .get(documentId) as { content_id: number } | undefined;
+      if (!page) throw new Error("白板文档不存在");
+      await this.finishPendingUnshare(databaseName, page.content_id);
+      projected(databaseName, documentId);
+      void collaborationModule.refreshShared?.().catch(() => undefined);
+    });
     const resourceContext = (event: IpcMainInvokeEvent, leaseId: string) => {
       const owner = this.leaseOwner(event, leaseId),
         local = this.sessions.snapshot(leaseId, owner);
-      this.assertOpenAllowed(owner, local.identity.databaseName);
+      this.assertOpenAllowed(owner, local.identity.databaseName, local.identity.documentId);
       const key = this.remoteViews.get(leaseId)?.key;
       const binding = services.store.get<{ serverUrl: string; documentId: string } | null>(
         `whiteboard-binding:${local.identity.databaseName}:${local.identity.documentId}`,
@@ -777,6 +853,7 @@ class WhiteboardDocumentsModule {
         const created = await this.prepareView(
           windowId,
           databaseName,
+          requestId,
           this.sessions.create(databaseName, requestId, state, owner)
         );
         projected(databaseName, created.documentId);
@@ -796,10 +873,15 @@ class WhiteboardDocumentsModule {
         throw new Error("白板正在关闭或切库，请稍后重试");
       await this.finishPendingUnshare(databaseName, contentId);
       this.owner(event, databaseName);
-      this.assertOpenAllowed(owner, databaseName);
+      const db = databaseModule.getDatabase(databaseName);
+      const documentId =
+        db &&
+        new WhiteboardDocumentRepository(db, databaseName).byPage(contentId)?.document.documentId;
+      this.assertOpenAllowed(owner, databaseName, documentId);
       const result = await this.prepareView(
         owner,
         databaseName,
+        documentId ?? "",
         this.sessions.open(databaseName, contentId, owner, viewId)
       );
       try {
@@ -822,16 +904,17 @@ class WhiteboardDocumentsModule {
     handle("release", (event, leaseId: string) => {
       const owner = this.leaseOwner(event, leaseId);
       return this.sessions.release(leaseId, owner).then(() => {
-        this.remoteViews.delete(leaseId);
+        this.releaseRemoteView(leaseId);
       });
     });
     handle("remote-open", async (event, leaseId: string, serverUrl: string) => {
       const owner = this.leaseOwner(event, leaseId),
         local = this.sessions.snapshot(leaseId, owner);
-      this.assertOpenAllowed(owner, local.identity.databaseName);
+      this.assertOpenAllowed(owner, local.identity.databaseName, local.identity.documentId);
       return this.prepareView(
         owner,
         local.identity.databaseName,
+        local.identity.documentId,
         (async () => {
           const doc = new Y.Doc();
           try {
@@ -840,93 +923,57 @@ class WhiteboardDocumentsModule {
               documentId = meta.get("documentId");
             if (meta.get("version") !== 3 || typeof documentId !== "string")
               throw new Error("白板尚未绑定共享基线；首次发布须经独立发布流程");
-            const { key, session: remote } = await this.remoteSession(serverUrl, documentId).catch(
-              remoteFailure
-            );
-            this.leaseOwner(event, leaseId);
-            const onBaseline = (value: RemoteSnapshot) =>
-              meta.get("epoch") === value.confirmed.protocol.epoch &&
-              meta.get("baselineId") === value.confirmed.protocol.baselineId;
-            let snapshot = remote.snapshot();
-            // 本机已装新代次（作者升级或采用新版本）而网络会话仍停在旧确认时，先取回最新确认再比较。
-            if (!onBaseline(snapshot)) {
-              await remote.synchronize().catch(remoteFailure);
-              snapshot = remote.snapshot();
+            const {
+              key,
+              session: remote,
+              release,
+            } = await this.remoteSession(serverUrl, documentId).catch(remoteFailure);
+            try {
+              this.leaseOwner(event, leaseId);
+              const onBaseline = (value: RemoteSnapshot) =>
+                meta.get("epoch") === value.confirmed.protocol.epoch &&
+                meta.get("baselineId") === value.confirmed.protocol.baselineId;
+              let snapshot = remote.snapshot();
+              // 本机已装新代次（作者升级或采用新版本）而网络会话仍停在旧确认时，先取回最新确认再比较。
+              if (!onBaseline(snapshot)) {
+                await remote.synchronize().catch(remoteFailure);
+                snapshot = remote.snapshot();
+              }
+              const clean = stateHash(local.state) === snapshot.confirmed.protocol.revision;
+              // 本机副本位于当前确认基线且未混入同基线的被拒分支（或恰为确认快照）时，解除隔离继续发送。
+              if (
+                snapshot.blocked &&
+                onBaseline(snapshot) &&
+                (clean || !taintedBy(snapshot, this.cleanRejected(key)))
+              ) {
+                await remote.restartFromConfirmed().catch(remoteFailure);
+                snapshot = remote.snapshot();
+              }
+              if (!onBaseline(snapshot))
+                return remoteStatus(snapshot, { requiresRebind: true, reason: "epoch" });
+              if (
+                (snapshot.blocked || taintedBy(snapshot, this.cleanRejected(key))) &&
+                stateHash(local.state) !== snapshot.confirmed.protocol.revision
+              )
+                return remoteStatus(snapshot, { requiresRebind: true, reason: "rejected" });
+              this.remoteViews.set(leaseId, { key, rejectedCount: snapshot.rejected.length });
+              return remoteStatus(snapshot, { requiresRebind: false });
+            } finally {
+              release();
             }
-            const clean = stateHash(local.state) === snapshot.confirmed.protocol.revision;
-            // 本机副本位于当前确认基线且未混入同基线的被拒分支（或恰为确认快照）时，解除隔离继续发送。
-            if (
-              snapshot.blocked &&
-              onBaseline(snapshot) &&
-              (clean || !taintedBy(snapshot, this.cleanRejected(key)))
-            ) {
-              await remote.restartFromConfirmed().catch(remoteFailure);
-              snapshot = remote.snapshot();
-            }
-            if (!onBaseline(snapshot))
-              return remoteStatus(snapshot, { requiresRebind: true, reason: "epoch" });
-            if (
-              (snapshot.blocked || taintedBy(snapshot, this.cleanRejected(key))) &&
-              stateHash(local.state) !== snapshot.confirmed.protocol.revision
-            )
-              return remoteStatus(snapshot, { requiresRebind: true, reason: "rejected" });
-            this.remoteViews.set(leaseId, { key, rejectedCount: snapshot.rejected.length });
-            return remoteStatus(snapshot, { requiresRebind: false });
           } finally {
             doc.destroy();
           }
         })()
       );
     });
-    handle(
-      "remote-stage",
-      async (
-        event,
-        leaseId: string,
-        update: Uint8Array,
-        condition?: { revision: string; sequence: number },
-        operationId?: string
-      ) => {
-        const owner = this.leaseOwner(event, leaseId),
-          local = this.sessions.snapshot(leaseId, owner);
-        this.assertOpenAllowed(owner, local.identity.databaseName);
-        const binding = this.remoteViews.get(leaseId),
-          key = binding?.key,
-          session = key && this.remote.get(key);
-        if (!session) throw new Error("白板远端会话未打开");
-        return this.prepareView(
-          owner,
-          local.identity.databaseName,
-          (async () => {
-            const remote = await session;
-            if (remote.snapshot().rejected.length !== binding!.rejectedCount)
-              throw new Error("BRANCH_RETAINED: 被拒分支已保全，请重建确认副本");
-            const protocol = remote.snapshot().confirmed.protocol,
-              doc = new Y.Doc();
-            try {
-              Y.applyUpdate(doc, local.state);
-              const meta = doc.getMap("meta");
-              if (
-                meta.get("documentId") !== protocol.id ||
-                meta.get("baselineId") !== protocol.baselineId ||
-                meta.get("epoch") !== protocol.epoch
-              )
-                throw new Error("EPOCH_CONFLICT: 旧白板材料已保留，请先完成基线重绑");
-              return remote.stage(new Uint8Array(update), condition, operationId);
-            } finally {
-              doc.destroy();
-            }
-          })()
-        );
-      }
-    );
     handle("remote-sync", async (event, leaseId: string) => {
       const owner = this.leaseOwner(event, leaseId),
         binding = this.remoteViews.get(leaseId),
         pending = binding && this.remote.get(binding.key);
       if (!pending) throw new Error("白板远端会话未打开");
-      const session = await pending;
       return this.serialRemote(binding!.key, async () => {
+        const session = await pending;
         const rebind = (snapshot: RemoteSnapshot, meta: { get(key: string): unknown }) =>
           remoteStatus(snapshot, {
             requiresRebind: true,
@@ -1006,16 +1053,6 @@ class WhiteboardDocumentsModule {
         }
       });
     });
-    handle("remote-cancel", async (event, leaseId: string, operationId: string) => {
-      this.leaseOwner(event, leaseId);
-      const binding = this.remoteViews.get(leaseId),
-        key = binding?.key,
-        pending = key && this.remote.get(key);
-      if (!pending) throw new Error("白板远端会话未打开");
-      const session = await pending;
-      await session.cancel(operationId);
-      return session.snapshot();
-    });
     handle("drained", (event, requestId: string, error?: string) => {
       const owner = this.owner(event),
         waiter = this.waiters.get(requestId);
@@ -1090,7 +1127,7 @@ class WhiteboardDocumentsModule {
     const watch = (window: BrowserWindow) => {
       const release = () => {
         for (const view of this.sessions.holders({ owner: window.id }))
-          this.remoteViews.delete(view.leaseId);
+          this.releaseRemoteView(view.leaseId);
         this.sessions.abandon(window.id);
       };
       window.once("closed", release);
@@ -1123,7 +1160,7 @@ class WhiteboardDocumentsModule {
   }
   /**
    * 结束共享、退出或转为本机：服务端完成后才替换本机副本，失败前白板保持共享且内容不变。
-   * 服务端已关闭/已退出但本机未装完时，再次执行即只用已缓存的资源完成本机替换。
+   * 结果未知或服务端已完成时复用固定候选，不重新选择内容和源修订。
    */
   private async unshare(
     context: {
@@ -1140,12 +1177,9 @@ class WhiteboardDocumentsModule {
     const binding = store.get<{ serverUrl: string; documentId: string } | null>(bindingKey, null);
     if (!binding) throw new Error("这块白板没有共享");
     const previous = store.get<WhiteboardUnshareJob | null>(jobKey, null);
-    if (previous?.remoteDone && previous.roomId === binding.documentId) {
-      const candidate =
-        previous.candidate ??
-        this.installation.state.installation(previous.operationId)?.plan.prepared.candidate;
-      if (!candidate) throw new Error("结束共享的提交候选缺失，不能更换原内容");
-      return this.finishUnshare(context, previous, Buffer.from(candidate, "base64"));
+    if (previous) {
+      if (previous.roomId !== binding.documentId) throw new Error("退出任务与共享绑定不一致");
+      return this.completeUnshare(context, previous);
     }
     const job: WhiteboardUnshareJob = {
       operationId: request.operationId,
@@ -1154,25 +1188,27 @@ class WhiteboardDocumentsModule {
       roomId: binding.documentId,
       missing: [],
     };
-    const mode = job.remoteDone ? "detach" : request.mode;
+    const mode = request.mode;
     let confirmed: Uint8Array | undefined;
-    let remoteKey: string | undefined;
     try {
-      const { key, session } = await this.remoteSession(job.serverUrl, job.roomId);
-      remoteKey = key;
-      if (mode !== "detach") {
-        try {
-          if (mode === "leave" && !session.snapshot().blocked)
-            await this.pushLocal(session, context.source.state);
-          await session.synchronize();
-        } catch (error) {
-          // 重试时房间可能已由本操作关闭或已退出：以最后确认的修订继续，由服务端按条件裁决。
-          const code = String((error as { code?: unknown }).code);
-          if (!["DOCUMENT_CLOSED", "FORBIDDEN"].includes(code)) throw error;
+      const { session, release } = await this.remoteSession(job.serverUrl, job.roomId);
+      try {
+        if (mode !== "detach") {
+          try {
+            if (mode === "leave" && !session.snapshot().blocked)
+              await this.pushLocal(session, context.source.state);
+            await session.synchronize();
+          } catch (error) {
+            // 重试时房间可能已由本操作关闭或已退出：以最后确认的修订继续，由服务端按条件裁决。
+            const code = String((error as { code?: unknown }).code);
+            if (!["DOCUMENT_CLOSED", "FORBIDDEN"].includes(code)) throw error;
+          }
         }
+        confirmed = session.snapshot().confirmed.state;
+        job.revision = session.snapshot().confirmed.protocol.revision;
+      } finally {
+        release();
       }
-      confirmed = session.snapshot().confirmed.state;
-      job.revision = session.snapshot().confirmed.protocol.revision;
     } catch (error) {
       if (mode !== "detach") throw error;
     }
@@ -1187,22 +1223,51 @@ class WhiteboardDocumentsModule {
       },
       collaborationModule.documentAssets()
     );
-    const client = collaborationModule.documentClient();
-    if (mode === "close")
-      await client.request(job.serverUrl, `/v1/documents/${job.roomId}/close`, "POST", {
-        expectedRevision: job.revision,
-      });
-    else if (mode === "leave")
-      await client.request(job.serverUrl, `/v1/documents/${job.roomId}/leave`, "POST", {});
-    const submitted = {
+    const preparedJob = {
       ...job,
-      remoteDone: true,
+      sourceHash: stateHash(context.source.state),
       missing: prepared.missing,
       candidate: Buffer.from(prepared.candidate).toString("base64"),
     };
-    store.set(jobKey, submitted);
-    if (remoteKey) this.remote.delete(remoteKey);
-    return this.finishUnshare(context, submitted, prepared.candidate);
+    store.set(jobKey, preparedJob);
+    return this.completeUnshare(context, preparedJob);
+  }
+
+  private async completeUnshare(
+    context: { db: Database.Database; name: string; documentId: string },
+    job: WhiteboardUnshareJob
+  ): Promise<{ missing: number }> {
+    const record = this.installation.state.installation(job.operationId);
+    if (record?.phase === "COMPLETE") {
+      await this.installation.install(context.db, context.name, job.operationId);
+      return this.clearUnshare(context.name, context.documentId, job);
+    }
+    const candidate = job.candidate ?? record?.plan.prepared.candidate;
+    if (!candidate) throw new Error("退出共享候选缺失，原内容已保留");
+    const current = new WhiteboardDocumentRepository(context.db, context.name).read(
+      context.documentId
+    );
+    if (!record && (!job.sourceHash || current?.hash !== job.sourceHash))
+      throw new Error("退出共享的源修订不匹配，不能覆盖当前白板");
+    const jobKey = `whiteboard-unshare:${context.name}:${context.documentId}`;
+    if (!job.remoteDone) {
+      const client = collaborationModule.documentClient();
+      try {
+        if (job.mode === "close")
+          await client.request(job.serverUrl, `/v1/documents/${job.roomId}/close`, "POST", {
+            expectedRevision: job.revision,
+          });
+        else if (job.mode === "leave")
+          await client.request(job.serverUrl, `/v1/documents/${job.roomId}/leave`, "POST", {});
+      } catch (error) {
+        // 明确拒绝关闭时没有远端提交，允许重新取回最新修订生成候选。
+        if ((error as { code?: string }).code === "REVISION_CONFLICT") this.store.delete(jobKey);
+        throw error;
+      }
+      job = { ...job, remoteDone: true };
+      this.store.set(jobKey, job);
+    }
+    return this.finishUnshare(context, job, Buffer.from(candidate, "base64"));
   }
 
   private async finishUnshare(
@@ -1221,8 +1286,13 @@ class WhiteboardDocumentsModule {
       evidence: { reason: `unshare-${job.mode}`, roomId: job.roomId, missing: job.missing },
     });
     await this.installation.install(context.db, context.name, job.operationId);
-    this.store.delete(`whiteboard-binding:${context.name}:${context.documentId}`);
-    this.store.delete(`whiteboard-unshare:${context.name}:${context.documentId}`);
+    return this.clearUnshare(context.name, context.documentId, job);
+  }
+  private clearUnshare(name: string, documentId: string, job: WhiteboardUnshareJob) {
+    this.store.db.transaction(() => {
+      this.store.delete(`whiteboard-binding:${name}:${documentId}`);
+      this.store.delete(`whiteboard-unshare:${name}:${documentId}`);
+    })();
     return { missing: job.missing.length };
   }
 
@@ -1236,22 +1306,26 @@ class WhiteboardDocumentsModule {
     if (!page) return;
     const key = `whiteboard-unshare:${name}:${page.document_id}`;
     const job = this.store.get<WhiteboardUnshareJob | null>(key, null);
-    if (!job?.remoteDone) return;
+    if (!job) return;
     let pending = this.pendingUnshares.get(key);
     if (!pending) {
-      pending = (async () => {
-        const candidate =
-          job.candidate ??
-          this.installation.state.installation(job.operationId)?.plan.prepared.candidate;
-        if (!candidate) throw new Error("结束共享的提交候选缺失，不能更换原内容");
-        await this.finishUnshare(
-          { db, name, documentId: page.document_id },
-          job,
-          Buffer.from(candidate, "base64")
-        );
-        this.transitionDrains.get(job.operationId)?.commit();
-        this.clearTransition(job.operationId);
-      })().finally(() => this.pendingUnshares.delete(key));
+      pending = this.unshareQueue
+        .run(JSON.stringify([name, page.document_id]), 0, async () => {
+          try {
+            const pending = this.pendingUnshare(name, page.document_id);
+            if (pending)
+              await this.completeUnshare({ db, name, documentId: page.document_id }, pending);
+            this.transitionDrains.get(job.operationId)?.commit();
+            this.clearTransition(job.operationId);
+          } catch (error) {
+            if (!this.blocked(name, page.document_id)) {
+              this.transitionDrains.get(job.operationId)?.rollback();
+              this.clearTransition(job.operationId);
+            }
+            throw error;
+          }
+        })
+        .finally(() => this.pendingUnshares.delete(key));
       this.pendingUnshares.set(key, pending);
     }
     await pending;
@@ -1277,23 +1351,27 @@ class WhiteboardDocumentsModule {
         .filter(
           entry =>
             (scope.windowId === undefined || scope.windowId === entry.owner) &&
-            (!scope.databaseName || scope.databaseName === entry.databaseName)
+            (!scope.databaseName || scope.databaseName === entry.databaseName) &&
+            (!scope.documentId || scope.documentId === entry.documentId)
         )
         .map(entry => entry.task)
     );
-    const views = this.views(scope);
+    const views = this.views(scope).map(view => ({ ...view, requestId: randomUUID() }));
     let active = true;
     const cancellations: (() => void)[] = [];
     const resume = () => {
       for (const view of views) {
         try {
-          this.sessions.seal(view.leaseId, view.owner, false);
+          this.sessions.seal(view.leaseId, view.owner, view.requestId, false);
         } catch {
           // 已消失的租约无需解封，其它视图仍需收到恢复通知。
         }
         const window = BrowserWindow.fromId(view.owner);
         if (window && !window.isDestroyed())
-          window.webContents.send("whiteboard-document:resume", { leaseId: view.leaseId });
+          window.webContents.send("whiteboard-document:resume", {
+            leaseId: view.leaseId,
+            requestId: view.requestId,
+          });
       }
     };
     try {
@@ -1301,7 +1379,7 @@ class WhiteboardDocumentsModule {
         views.map(
           view =>
             new Promise<void>((resolve, reject) => {
-              const requestId = randomUUID(),
+              const requestId = view.requestId,
                 window = BrowserWindow.fromId(view.owner);
               if (!window || window.isDestroyed()) {
                 reject(new DrainInterrupted("白板窗口不可达"));
@@ -1328,7 +1406,7 @@ class WhiteboardDocumentsModule {
                   if (error) reject(new Error(error));
                   else {
                     try {
-                      this.sessions.seal(view.leaseId, view.owner, true);
+                      this.sessions.seal(view.leaseId, view.owner, requestId, true);
                       resolve();
                     } catch (cause) {
                       reject(cause);
@@ -1360,7 +1438,7 @@ class WhiteboardDocumentsModule {
           this.drains.delete(scope);
           views.forEach(view => {
             this.sessions.detach(view.leaseId, view.owner);
-            this.remoteViews.delete(view.leaseId);
+            this.releaseRemoteView(view.leaseId);
             const window = BrowserWindow.fromId(view.owner);
             if (window && !window.isDestroyed())
               window.webContents.send("whiteboard-document:detached", { leaseId: view.leaseId });

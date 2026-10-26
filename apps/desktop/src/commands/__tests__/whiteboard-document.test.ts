@@ -36,7 +36,7 @@ describe("白板文档 Electron 通知", () => {
   it.each([
     ["events", "update", { documentId: "document", revision: 1 }],
     ["drains", "drain", { leaseId: "lease", requestId: "request", sealed: true }],
-    ["resumes", "resume", { leaseId: "lease" }],
+    ["resumes", "resume", { leaseId: "lease", requestId: "request" }],
     ["detached", "detached", { leaseId: "lease" }],
   ] as const)("%s 读取业务载荷并只注销自己的监听", (method, event, payload) => {
     const listener = vi.fn();
@@ -46,7 +46,7 @@ describe("白板文档 Electron 通知", () => {
     const unsubscribe = subscribe(listener);
     const unsubscribeOther = subscribe(other);
     const channel = `whiteboard-document:${event}`;
-    const expected = method === "resumes" || method === "detached" ? "lease" : payload;
+    const expected = method === "detached" ? "lease" : payload;
 
     emit(channel, payload);
     expect(listener).toHaveBeenCalledExactlyOnceWith(expected);
@@ -116,7 +116,7 @@ describe("白板文档 Electron 通知", () => {
           undefined
         )
       );
-      emit("whiteboard-document:resume", { leaseId: "lease" });
+      emit("whiteboard-document:resume", { leaseId: "lease", requestId: "request" });
       expect(client.getSnapshot().frozen).toBe(false);
       emit("whiteboard-document:detached", { leaseId: "lease" });
       expect(client.needsReopen).toBe(true);

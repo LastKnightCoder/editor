@@ -14,6 +14,21 @@ it("待续操作期间暂停编辑，被拒、结束与无权限分别给出可�
     projectedRevision: 1,
   } as const;
   expect(whiteboardSyncStatus(saved, undefined, "publication").label).toContain("共享没有完成");
+  expect(whiteboardSyncStatus(saved, undefined, "unshare").label).toContain("继续完成原操作");
+  expect(whiteboardSyncStatus(saved, { phase: "checking", unsynced: false }).label).toContain(
+    "读取共享状态"
+  );
+  expect(whiteboardSyncStatus(saved, { phase: "local", unsynced: false })).toEqual({
+    label: "已保存在本机",
+    tone: "idle",
+  });
+  expect(
+    whiteboardSyncStatus(saved, {
+      phase: "waiting",
+      unsynced: true,
+      message: "共享状态读取失败，正在重试",
+    })
+  ).toMatchObject({ label: "共享状态读取失败，正在重试", actions: ["retry"] });
   expect(whiteboardSyncStatus(saved, { phase: "rejected", unsynced: true }).actions).toEqual([
     "detach",
   ]);
