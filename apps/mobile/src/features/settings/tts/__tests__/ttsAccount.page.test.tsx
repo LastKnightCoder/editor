@@ -175,6 +175,38 @@ describe("TTS 账号与模型页面", () => {
     });
   });
 
+  it("声明式账号表单显式保存，失败保留草稿且不改模型或默认服务", async () => {
+    await runtime.dispose();
+    runtime = await createTtsRuntime({
+      groups: [{ title: "连接", fields: [{ key: "apiKey", label: "API Key", type: "secret" }] }],
+    });
+    const state: SettingState = { current: makeSetting([makeAccount()]) };
+    installNative(state);
+    mounted = mountTtsHarness(state, runtime);
+    await openPage("ttsAccount", { instanceId: "account-a" });
+    await waitFor(() => activeTitle() === "测试账号");
+    const input = document.querySelector<HTMLInputElement>('input[aria-label="API Key"]');
+    if (!input) throw new Error("缺少声明式表单字段");
+    await setInputValue(input, "updated-secret");
+    expect(native.save).not.toHaveBeenCalled();
+    native.save.mockRejectedValueOnce(new Error("保存失败"));
+    await click(findButton("保存配置", activePage()));
+    await waitFor(() => activePage()?.textContent?.includes("保存失败") ?? false);
+    expect(state.current.ttsProviders?.[0].config).toEqual({ apiKey: "super-secret-key" });
+    expect(input.value).toBe("updated-secret");
+    await click(findButton("保存配置", activePage()));
+    await waitFor(() => activePage()?.textContent?.includes("配置已保存") ?? false);
+    expect(native.save).toHaveBeenLastCalledWith(
+      "data.db",
+      "account-a",
+      "fixture.tts",
+      { apiKey: "updated-secret" },
+      [{ id: "model-a" }]
+    );
+    expect(state.current.ttsUsageSettings?.default).toBeNull();
+    expect(native.select).not.toHaveBeenCalled();
+  });
+
   it("停用插件后保留配置并隐藏作者表单", async () => {
     const state: SettingState = { current: makeSetting([makeAccount()]) };
     installNative(state);

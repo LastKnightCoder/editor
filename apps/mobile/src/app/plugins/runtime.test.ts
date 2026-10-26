@@ -232,7 +232,7 @@ it("中心撤回立即阻止节点写入并停用页面，保留静态正文到�
   }
 });
 
-it("每个 runtime 独立注册 TTS 并导航到语音设置", async () => {
+it("每个 runtime 独立注册 TTS 并打开插件设置页", async () => {
   vi.stubGlobal("crypto", webcrypto);
   const push = vi.fn();
   const runtime = new MobilePluginRuntime(
@@ -293,7 +293,7 @@ it("每个 runtime 独立注册 TTS 并导航到语音设置", async () => {
       )
     ).resolves.toMatchObject({ canClone: false, textInstructions: "移动" });
     await openSettings();
-    expect(push).toHaveBeenCalledWith("settingsModule", { module: "voice" });
+    expect(push).toHaveBeenCalledWith("pluginSettings", { id: "fixture.tts:voice" });
     await runtime.tts.execute({ kind: "close", session: "runtime" }, signal);
   } finally {
     await runtime.dispose();

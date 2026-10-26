@@ -1,7 +1,8 @@
+import { MobileProviderSettings } from "./ProviderSettings";
 import { useCallback, useMemo, useRef, useEffect, type ReactNode } from "react";
 import { normalizePageParams } from "@tau/plugins/host";
 import type { PluginPageContext } from "@tau/plugins";
-import { Button, ErrorBoundary, Loading, PortalScope, UiHostProvider, UiProvider } from "@tau/ui";
+import { ErrorBoundary, Loading, PortalScope, UiHostProvider, UiProvider } from "@tau/ui";
 import { PageHeader } from "../../components/PageHeader";
 import { usePage } from "../../router";
 import { usePageInstanceContext, usePageGuard } from "../../router/pageLifecycle";
@@ -137,21 +138,19 @@ export function PluginPageView() {
 export function PluginSettingsView() {
   const runtime = useMobilePlugins();
   const { phase } = useMobilePluginStatus();
-  const { params, navigator } = usePage<{ id: string }>();
+  const { params } = usePage<{ id: string }>();
   const registered = runtime?.settings.get(params.id);
-  const setting = registered?.definition.target === "asr" ? undefined : registered;
+  const setting = registered;
   const Component = setting?.definition.component;
   return (
     <PluginPageShell title={setting?.definition.title ?? "插件设置"}>
-      {setting && Component && runtime?.active(setting.context) ? (
+      {setting && runtime?.active(setting.context) ? (
         <ErrorBoundary>
-          {setting.definition.target === "tts" ? (
-            <Button onClick={() => navigator.push("settingsModule", { module: "voice" })}>
-              打开语音配置
-            </Button>
-          ) : (
+          {setting.definition.target === "tts" || setting.definition.target === "asr" ? (
+            <MobileProviderSettings entry={setting} />
+          ) : Component ? (
             <Component context={setting.context} />
-          )}
+          ) : null}
         </ErrorBoundary>
       ) : phase === "starting" ? (
         PLUGIN_STARTING

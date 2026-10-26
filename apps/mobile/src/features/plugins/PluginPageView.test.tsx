@@ -7,6 +7,12 @@ import { createPluginEnvironmentStore } from "@tau/plugins/environment-host";
 import { MobilePluginRuntime } from "../../app/plugins/runtime";
 import { PluginPageView, PluginSettingsView } from "./PluginPageView";
 
+vi.mock("./ProviderSettings", () => ({
+  MobileProviderSettings: ({ entry }: { entry: { definition: { target: string } } }) => (
+    <p>插件配置 {entry.definition.target}</p>
+  ),
+}));
+
 let runtime: MobilePluginRuntime | null;
 let phase = "ready";
 let pageId = "test.params:main";
@@ -90,7 +96,7 @@ it("插件会话启动中打开插件页显示加载态，落定后仍不可用�
   }
 });
 
-it("TTS 设置进入统一语音配置而不裸渲染作者表单", async () => {
+it("TTS 设置由插件页账号配置承载，不跳回应用设置", async () => {
   const component = vi.fn(() => <p>不应裸渲染</p>);
   const created = new MobilePluginRuntime(
     createPluginEnvironmentStore({
@@ -123,15 +129,8 @@ it("TTS 设置进入统一语音配置而不裸渲染作者表单", async () => 
   const root = createRoot(container);
   try {
     await act(async () => root.render(<PluginSettingsView />));
-    const button = [...container.querySelectorAll("button")].find(node =>
-      node.textContent?.includes("打开语音配置")
-    );
-    expect(button).toBeTruthy();
-    await act(async () => {
-      button?.click();
-      await Promise.resolve();
-    });
-    expect(navigator.push).toHaveBeenCalledWith("settingsModule", { module: "voice" });
+    expect(container.textContent).toContain("插件配置 tts");
+    expect(navigator.push).not.toHaveBeenCalled();
     expect(component).not.toHaveBeenCalled();
   } finally {
     await act(async () => root.unmount());
@@ -142,7 +141,7 @@ it("TTS 设置进入统一语音配置而不裸渲染作者表单", async () => 
   }
 });
 
-it("ASR 保留注册能力，但不开放设置跳转或渲染配置入口", async () => {
+it("ASR 设置可从插件注册句柄打开，并交由宿主配置表单承载", async () => {
   const environment = createPluginEnvironmentStore({
     platform: "android",
     input: { coarsePointer: true, finePointer: false },
@@ -187,8 +186,8 @@ it("ASR 保留注册能力，但不开放设置跳转或渲染配置入口", asy
   expect(created.asr.list()).toHaveLength(1);
   expect(created.settings.has(pageId)).toBe(true);
   if (!openSettings) throw new Error("设置注册失败");
-  await expect(openSettings()).rejects.toThrow("尚未提供界面入口");
-  expect(navigator.push).not.toHaveBeenCalled();
+  await expect(openSettings()).resolves.toBeUndefined();
+  expect(navigator.push).toHaveBeenCalledWith("pluginSettings", { id: pageId });
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -196,7 +195,7 @@ it("ASR 保留注册能力，但不开放设置跳转或渲染配置入口", asy
     await act(async () => root.render(<PluginSettingsView />));
     expect(component).not.toHaveBeenCalled();
     expect(container.textContent).not.toContain("ASR 账号表单");
-    expect(container.textContent).not.toContain("前往语音输入设置");
+    expect(container.textContent).toContain("插件配置 asr");
   } finally {
     await act(async () => root.unmount());
     await created.dispose();

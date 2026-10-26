@@ -117,12 +117,15 @@ describe("语音设置入口与账号添加", () => {
     installNative(state);
     mounted = mountTtsHarness(state, runtime);
     await openPage("settingsModule", { module: "voice" });
-    await waitFor(() => activeTitle() === "语音合成");
+    await waitFor(() => activeTitle() === "语音");
     expect(activePageText()).toContain("还没有语音服务");
     expect(activePageText()).toContain("Fixture Voice");
 
-    await click(findButton("添加语音服务", activePage()));
+    await click(findButton("配置语音插件", activePage()));
     await click(findButton("Fixture Voice"));
+    await waitFor(() => activeTitle() === "Fixture Voice");
+    expect(native.create).not.toHaveBeenCalled();
+    await click(findButton("添加账号", activePage()));
     await waitFor(() => activeTitle() === "Fixture Voice");
     expect(native.create).toHaveBeenCalledWith("data.db", "fixture.tts", "Fixture Voice");
     expect(state.current.ttsProviders).toHaveLength(1);
@@ -136,9 +139,9 @@ describe("语音设置入口与账号添加", () => {
     installNative(state);
     mounted = mountTtsHarness(state, runtime);
     await openPage("settingsModule", { module: "voice" });
-    await waitFor(() => activeTitle() === "语音合成");
+    await waitFor(() => activeTitle() === "语音");
     expect(activePageText()).not.toContain("MiniMax");
-    expect(findButton("添加语音服务", activePage())).toBeNull();
+    expect(findButton("配置语音插件", activePage())).toBeNull();
     await click(findButton("去插件中心", activePage()));
     await waitFor(() => document.body.textContent?.includes("插件中心") ?? false);
   });
@@ -148,7 +151,7 @@ describe("语音设置入口与账号添加", () => {
     installNative(state);
     mounted = mountTtsHarness(state, runtime);
     await openPage("settingsModule", { module: "voice" });
-    await waitFor(() => activeTitle() === "语音合成");
+    await waitFor(() => activeTitle() === "语音");
     expect(native.select).not.toHaveBeenCalled();
     await click(findButton("未设置", activePage()));
     const options = [...document.querySelectorAll("button")].filter(node =>
@@ -173,7 +176,7 @@ describe("语音设置入口与账号添加", () => {
     installNative(state);
     mounted = mountTtsHarness(state, runtime);
     await openPage("settingsModule", { module: "voice" });
-    await waitFor(() => activeTitle() === "语音合成");
+    await waitFor(() => activeTitle() === "语音");
     await click(findButton("未设置", activePage()));
     await click(findButton("测试账号（account-b）"));
     await waitFor(() => state.current.ttsUsageSettings?.default?.providerId === "account-b");
@@ -195,8 +198,11 @@ describe("语音设置入口与账号添加", () => {
     native.create.mockReturnValue(pending.promise);
     mounted = mountTtsHarness(state, runtime);
     await openPage("settingsModule", { module: "voice" });
-    await click(findButton("添加语音服务", activePage()));
+    await click(findButton("配置语音插件", activePage()));
     await click(findButton("Fixture Voice"));
+    await waitFor(() => activeTitle() === "Fixture Voice");
+    expect(native.create).not.toHaveBeenCalled();
+    await click(findButton("添加账号", activePage()));
     await waitFor(() => native.create.mock.calls.length === 1);
     await act(async () => {
       getNavigator().replace("settingsModule", { module: "resource" });
@@ -224,8 +230,11 @@ describe("语音设置入口与账号添加", () => {
     native.create.mockReturnValue(pending.promise);
     mounted = mountTtsHarness(state, runtime);
     await openPage("settingsModule", { module: "voice" });
-    await click(findButton("添加语音服务", activePage()));
+    await click(findButton("配置语音插件", activePage()));
     await click(findButton("Fixture Voice"));
+    await waitFor(() => activeTitle() === "Fixture Voice");
+    expect(native.create).not.toHaveBeenCalled();
+    await click(findButton("添加账号", activePage()));
     await waitFor(() => native.create.mock.calls.length === 1);
     const next = makeSetting([makeAccount({ id: "account-b", name: "B 账号" })]);
     next.database.active = "B.db";
@@ -250,8 +259,8 @@ describe("语音设置入口与账号添加", () => {
     expect(state.current.database.active).toBe("B.db");
     expect(state.current.sync.plugin?.id).toBe("sync-b");
     expect(state.current.imageBed.plugin?.id).toBe("upload-b");
-    expect(activeTitle()).toBe("语音合成");
-    expect(getNavigator().getActiveScreen()?.key).toBe("settingsModule");
+    expect(activeTitle()).toBe("Fixture Voice");
+    expect(getNavigator().getActiveScreen()?.key).toBe("pluginSettings");
   });
 });
 

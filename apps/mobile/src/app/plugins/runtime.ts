@@ -154,9 +154,8 @@ export class MobilePluginRuntime {
             id,
             open: async () => {
               if (!this.active(context)) throw new Error("插件设置不可用");
-              if (definition.target === "asr") throw new Error("语音输入设置尚未提供界面入口");
-              else if (definition.target === "tts")
-                navigator.push("settingsModule", { module: "voice" });
+              if (definition.target === "asr" || definition.target === "tts")
+                navigator.push("pluginSettings", { id });
               else if (definition.target === "sync")
                 navigator.push("syncProvider", { providerId: context.pluginId });
               else if (definition.target === "upload")
