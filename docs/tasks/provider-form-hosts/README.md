@@ -52,7 +52,8 @@
 - [x] 插件（子模块工作区，未提交）：asr-seed 分组说明 / 控制台链接 / 选项说明；tts-minimax、tts-qwen、images-openai、publish-s3、s3、upload-s3 补说明；images-openai、youtube 地址解析失败给可读错误
 - [x] publish-github 改为声明式：SDK 新增 `service-choice`（`git.cacheDirectory`）与 `visibleWhen`；桌面 form 增 `inline` 布局与自动保存，发布抽屉按此嵌入；插件新增 `src/form.ts` 与测试，删除自绘组件与 `styles.css`，`useGitCli` 兼容字符串取值
 - [x] bilibili（扫码登录）、weread（连接状态与断开）按用户决定保留组件
-- [ ] 插件发行：依赖新 SDK 发布后构建，更新 minAppVersion（需用户授权）
+- [x] 发行：SDK 0.48.0 已公开发布；九个插件已发布到 GitHub Release 与插件中心，最低客户端版本不变（桌面 0.60.2、移动 0.2.9）
+- [ ] 客户端 0.60.2 / 0.2.9 从包含本任务提交的版本构建发布（publish-github 0.1.9 依赖新字段校验）
 - [ ] 视觉验收（用户）
 - [ ] 收尾：方案沉淀，删除本目录，更新 docs/README
 
