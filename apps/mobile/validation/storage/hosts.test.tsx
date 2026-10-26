@@ -18,6 +18,14 @@ import {
 } from "@tau/plugins";
 import { MobilePluginRuntime } from "../../src/app/plugins/runtime";
 
+// 用两端当前版本装配，避免插件最低版本上调后夹具版本过期
+const desktopVersion = JSON.parse(
+  await readFile(path.resolve(import.meta.dirname, "../../../desktop/package.json"), "utf8")
+).version;
+const mobileVersion = JSON.parse(
+  await readFile(path.resolve(import.meta.dirname, "../../package.json"), "utf8")
+).version;
+
 afterEach(() => {
   vi.unstubAllGlobals();
   document.body.innerHTML = "";
@@ -57,7 +65,7 @@ it.each(["desktop", "android", "ios"] as const)(
             createMemoryStorage(),
             "fixture.db",
             { push: vi.fn() },
-            "0.2.3"
+            mobileVersion
           );
     if (mobile) mobile.fetch = fetch;
     const host =
@@ -105,7 +113,7 @@ it.each(["desktop", "android", "ios"] as const)(
           {
             environment: environment.getSnapshot(),
 
-            appVersion: platform === "desktop" ? "0.59.2" : "0.2.3",
+            appVersion: platform === "desktop" ? desktopVersion : mobileVersion,
             profiles: ["web-v1"],
           }
         );
