@@ -58,7 +58,6 @@
 一个任务一个目录或单文件，收尾三步见 [tasks/README.md](./tasks/README.md)；期限 90 天。
 
 - [浏览器扩展重写：页内伴读](./tasks/browser-companion/README.md)：悬浮球 + 就地标注 / 笔记 / 提问，扩展经一次性授权连 Tau；已实现，待真实浏览器联调与视觉验收。
-- [服务商设置归位](./tasks/provider-settings/README.md)：同步与资源存储的连接配置移到插件设置页，插件声明表单、宿主两端渲染，移动改推入式交互；宿主与 SDK 已实现，插件待 SDK 发布后构建。
 - [长文档视口级挂载](./tasks/long-document-viewport.md)：暂缓、未排期，保留范围与业务验收边界。
 - [移动端字号规范](./tasks/mobile-typography.md)：9 档字号阶梯；档位覆盖与卡片列表/详情同字号已落地，存量字面字号待分批迁移。
 - [移动端源码块交互](./tasks/mobile-source-block.md)：TikZ / Typst / HTML 等源码块改为点选 + 配件栏 + 分屏源码页；方案已确认，未开工。

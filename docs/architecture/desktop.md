@@ -116,7 +116,7 @@ Windows Whisper 文件适配尊重调用方显式的 `device`；未指定时沿�
 
 Mac helper 独立打包在 `bin/darwin/Tau Speech Helper.app`，macOS 26 上采用 SpeechAnalyzer、SpeechTranscriber、medium SpeechDetector，持续消费识别与 VAD 流；管道按实际到达字节读取，输出逐段修订，end 等 finalize 与结果流完成。构建脚本生成当前架构或通用二进制；旧系统及 Windows 探测返回不支持原生路径。
 
-插件通过公共 `context.asr` 注册，账号经语音输入设置的专用命令保存，普通全量设置提交保留主进程已保存的 speechInput，渲染缓存不持久化账号。`context.websocket` 提供标准事件、状态和同步 send/close，鉴权头、取消与有界背压由通用宿主桥接；不包含厂商协议。
+插件通过公共 `context.asr` 注册，账号经插件设置的专用命令保存，普通全量设置提交保留主进程已保存的 speechInput，渲染缓存不持久化账号。`context.websocket` 提供标准事件、状态和同步 send/close，鉴权头、取消与有界背压由通用宿主桥接；不包含厂商协议。
 
 当前桌面只保留语音输入服务，不挂载麦克风按钮、语音输入设置、AI 整理配置行或输入目标。`desktopSpeechInput` 与 `prepareSpeechRefinement` 由未来消费者显式调用，壳层不触发录音或模型请求。ASR 设置声明仍可注册，插件详情不显示其表单，open 返回入口不可用；现有视频转录与 TTS 界面独立保留。
 
@@ -167,12 +167,14 @@ Mac helper 独立打包在 `bin/darwin/Tau Speech Helper.app`，macOS 26 上采�
 - 宿主只生成数据：六类摘要 JSON、ContentRef、`version/documents` 搜索索引与内容插件产物；不提供阅读器、预览 UI、路由、React 依赖映射或站点脚本。公开类型从 `@tau/plugins/publish-data` 消费，数据客户端由 `@tau/blog` 或 `@tau/plugins/publish-client` 提供。发布命令附带编辑器内置类型、插件节点归属与 JS/CSS 摘要；主进程重验磁盘包，worker 的 PublishPluginCatalog 只处理数据不执行作者代码；缺渲染支持的节点按类型汇总警告不阻止发布，节点数据原样输出（网站按未知节点保护显示占位）。每份内容声明实际使用的插件依赖，产物写入带版本与摘要的 `plugin-assets/`。
 - 站点级数据（发布外观、项目列表、卡片标签树、项目目录树）只写清单一次；内容文件只含自身正文、资源依赖与 `links`（本文已发布的站内链接目标）——增删一条内容只影响链接到它的文件。动态 CSS 过渡为 `data/styles/<sha256>.css` 按原文全局生效；图标在 `_tau/site/`。同一项目内共享文档可在多个目录分支，入口全保留，正文/前后篇/搜索按文档 ID 去重，面包屑取深度优先首现；不同项目的 key 按项目 ID 隔离。`project-card-list` 在生成阶段保留卡片节点，按项目树顺序生成已发布子文档的卡片快照（标题、80 字摘要、ContentRef），`@tau/blog` 内置渲染与桌面共用 DocumentCard/Grid。
 - 博客模板用静态分发分支 `template: { protocolVersion, root, entries }`：只含静态产物，声明代码入口的模板包直接拒绝；沿用中心安装/更新/恢复事务；发布设置从已安装模板选择，主进程冻结全部资产并校验 SHA-256。宿主保留 `_tau/`、`data/`、`plugin-assets/` 协议目录；只替换入口 HTML 真实属性里的 `__TAU_MANIFEST__`/`__TAU_BASE__`（未知占位符报错），JS/CSS 字节不变、不执行模板构建；深链由模板自己处理（官方模板把 404.html 列为第二入口）。
-- 站点配置分两层：宿主只保留标题、图标与发布目标公开 URL；其余字段由模板在 `template.siteFields` 声明（text/textarea/url/select/switch），宿主校验后在「站点设置 · 博客模板」按声明渲染，值按模板 id 存 `publish.site.fields`，发布时 `resolveSiteFields` 只输出已声明键回落默认。连接状态与测试连接归宿主，发布插件表单按宿主行式渲染自动保存。
+- 站点配置分两层：宿主只保留标题、图标与发布目标公开 URL；其余字段由模板在 `template.siteFields` 声明（text/textarea/url/select/switch），宿主校验后在「站点设置 · 博客模板」按声明渲染，值按模板 id 存 `publish.site.fields`，发布时 `resolveSiteFields` 只输出已声明键回落默认。连接状态与测试连接归宿主；发布页只选择目标，连接配置在插件详情的设置中显式保存。
 - 发布计划在 worker 计算，只回传路径/摘要/依赖描述；实际发布按物理目标记录成功资源，增量上传依赖后才更新入口；失败重跑完整计划，无按文件重试接口。`publish-releases/` 只保留当前与前一轮有变化的成功元信息；撤下内容清理旧正文/聚合/索引优先于缓存保留；Git 发布只提交计划内文件不强推；S3 仅为协议保证的摘要资源设不可变缓存。官方模板在独立 `tau-blog-template` 工程（路径路由 + 404 回退、按 key 取数、正文/预览各持数据上下文与 EditorKit），不是第三方模板准入要求。
 
 ### 插件服务与提供方
 
-**博客发布提供方**：GitHub 与 S3 发布由独立 tau.publish-github / tau.publish-s3 提供，`context.publish` 注册文件式或快照式实例；发布页只消费活动注册与 `target: publish` 配置表单（publishConfig 按应用级插件身份保存）；本地导出内置不要求发布插件，缺失或停用保留配置不回落其他提供方。渲染端 publish-registry 与常驻 publish-bridge 执行作者代码，主进程 PluginPublishSessions 绑定发起窗口/配置/任务 signal，只转发 open/call/close 与字节；发布占用阻止启停/更新/卸载/重启，切库回收实例。文件式并发受提供方上限约束、依赖成功后才更新入口；快照式整轮远端确认后才记账。Git Push 走受控 `services.git.publishSnapshot`：主进程只执行固定 Git 流程（输入为临时发布句柄、无凭据的 HTTPS 远端、分支、提交者、缓存授权 ID），目录选择由宿主返回句柄，插件不能传任意 cwd/shell；认证经任务级 askpass 环境传递不落盘；拒绝非快进。旧 publish.github/s3 配置由最后升级链备份转换，物理身份字符串保持；无目标账本时完整上传不借用其他数据库全局历史。
+提供方连接配置归插件详情 › 设置：`ProviderAccountSettings` 管理 TTS/图片的多账号、模型和 ASR/视频/发布的单插件配置，复用现有持久化命令；`ProviderConfigForm` 统一渲染 form 并显式保存，保存失败保留草稿，添加或保存不自动切换服务。应用设置保留当前 TTS 账号/模型/音色与试听、图片账号选择、ASR 选用；视频按 URL 匹配多个来源，只显示来源及配置入口。Bilibili 扫码登录与 GitHub 发布的缓存目录授权保留专用插件组件，同样在插件页承载。
+
+**博客发布提供方**：GitHub 与 S3 发布由独立 tau.publish-github / tau.publish-s3 提供，`context.publish` 注册文件式或快照式实例；发布页只消费活动注册与当前选用，`target: publish` 配置表单在插件详情页承载（按应用级插件身份保存）；本地导出内置不要求发布插件，缺失或停用保留配置不回落其他提供方。渲染端 publish-registry 与常驻 publish-bridge 执行作者代码，主进程 PluginPublishSessions 绑定发起窗口/配置/任务 signal，只转发 open/call/close 与字节；发布占用阻止启停/更新/卸载/重启，切库回收实例。文件式并发受提供方上限约束、依赖成功后才更新入口；快照式整轮远端确认后才记账。Git Push 走受控 `services.git.publishSnapshot`：主进程只执行固定 Git 流程（输入为临时发布句柄、无凭据的 HTTPS 远端、分支、提交者、缓存授权 ID），目录选择由宿主返回句柄，插件不能传任意 cwd/shell；认证经任务级 askpass 环境传递不落盘；拒绝非快进。旧 publish.github/s3 配置由最后升级链备份转换，物理身份字符串保持；无目标账本时完整上传不借用其他数据库全局历史。
 
 **编译与转换服务**：`context.services` 提供 Tailwind、Typst HTML、Markdown 与 Descendant[] 双向转换、HTML 渲染与 FFmpeg 处理（TikZ 服务已移除——编译器和字体归独立 tau.tikz 插件）。Provider 注入 `app/plugins/services.ts`，SDK 合并调用方与实例 signal，停用不返回迟到结果；服务不读写业务内容、不选存用户文件。主进程 `plugin-services` 为 BACKGROUND 模块：任务按 WebContents 归属，关闭/导航取消；编译器与媒体进程独占任务临时目录、完成后回收；FFmpeg 复用客户端按需下载的二进制。TikZ 文档与博客用插件自己的节点组件与内部编译模块（不依赖 activate），缺插件时保留源码并跳转插件中心；diagram 扩展不再含 TikZ，移动端/扩展不设替代编译器。Markdown 复用 desktopCodecComposition（单次 codecs 不改编辑器注册）；HTML 沿用现有序列化器（保留原始 HTML、外部资源与图表源码回落，不是净化器）。作者契约见 `plugins/tau-plugin-template/docs/services.md`。
 

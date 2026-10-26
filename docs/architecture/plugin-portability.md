@@ -102,7 +102,7 @@ UiHostProvider 只接受平台中立的 dismiss 登记函数。真实 Dialog/Dra
 
 ## ASR 与 WebSocket 宿主
 
-`ASRProviderRegistry` 统一提供方注册、配置快照、会话取消和最终结果校验；提供方注销、插件停用与工作区失效会使会话终止。`settings target: "asr"` 在两端保留注册与配置契约，表单及跳转入口尚未挂载；程序化 open 返回入口不可用。麦克风及输入目标由应用负责，协议解析属于独立插件仓库。
+`ASRProviderRegistry` 统一提供方注册、配置快照、会话取消和最终结果校验；提供方注销、插件停用与工作区失效会使会话终止。`settings target: "asr"` 在两端插件页承载声明式配置表单与识别模型，程序化 open 打开插件设置；应用语音设置独立选用已配置提供方。麦克风及输入目标由应用负责，协议解析属于独立插件仓库。
 
 网络桥的作者接口和限额唯一维护于 [WebSocket 契约](/packages/plugins/docs/websocket.md)。公共 JS 适配器提供 EventTarget 及状态机，桌面通过 Electron IPC 和 ws，移动通过工作区 token 校验的 Tauri 命令和 tokio-tungstenite；内部桥接 Promise 与收包机制不暴露给插件。原生层保留握手头、子协议、消息边界、关闭码和关闭原因；断线不隐式重连，工作区释放回收连接。
 
