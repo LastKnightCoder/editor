@@ -32,7 +32,9 @@ pnpm deploy:website   # 构建并上传到 Cloudflare Pages（项目 tau-website
 
 ## 使用文档
 
-正文是 `content/docs/<slug>.md`（首篇为 `index.md`），目录、顺序、标题和描述在 `src/docs/manifest.ts`。新增一篇：写好 Markdown，再在 manifest 里登记；`manifest.test.ts` 会检查两边一一对应。
+正文是 `content/docs/<slug>.md`（首篇为 `index.md`），目录、顺序、标题和描述在 `src/docs/manifest.ts`。目录分组与桌面端侧边栏（`apps/desktop/src/app/navigation.ts`）一致；`hidden: true` 的文档（如隐私政策）不进目录和上下篇，只能经链接打开。新增一篇：写好 Markdown，再在 manifest 里登记；`manifest.test.ts` 会检查两边一一对应、正文引用的示意都存在、站内链接都指向已有文档。
+
+- 可交互示意：正文里独占一行写 `::demo{name="todos" caption="…"}`，就会在此处嵌入一块示意。示意是 `src/docs/showcase/<分组>/<name>.demo.tsx` 的默认导出组件（文件即登记，按需加载），用 `@tau/ui` 与 Tailwind 语义类按桌面端对应 `features/` 组件的结构重建，外壳用 `showcase/AppWindow.tsx`。示意只用写死的示例数据，不读写任何真实内容；编辑器示意直接嵌入可编辑的 `<Editor>`，内容不保存。
 
 - Markdown 经 `@tau/markdown` 与产品同一套 codec 转成编辑器内容，再由 `<Editor readonly>` 渲染，效果与桌面端一致。除标准语法外可以用提示块 `:::tip{title="…"}`（另有 note / info / warning / danger）、折叠块 `:::detail{title="…"}`、`<kbd>`、`$公式$` 与代码块。
 - 页面标题与描述来自 manifest，正文里从二级标题写起；右侧大纲取正文中的各级标题。
@@ -75,6 +77,7 @@ src/main.ts           首页入口：引入样式，按顺序初始化各模块
 src/modules/          首页各区块的行为：示意窗口外壳、首屏斜线、主题、所见即所得演示、白板手绘与数据库视图切换、闭环滚动、日常组件、GitHub 星标
 src/styles/           首页按区块拆分的样式，最后是响应式
 src/docs/             使用文档：目录、编辑器 kit 与 Markdown 处理器、页面组件
+src/docs/showcase/    使用文档里的可交互示意，按目录分组
 src/changelog/        更新日志：读取两端发布说明、页面组件
 src/lib/              两个入口共用的工具：站点链接、GitHub 星标、平台识别
 build/release.ts      构建与运行时共用的清单解析和下载信息渲染
