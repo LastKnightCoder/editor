@@ -100,9 +100,8 @@ it("正式 IPC 安装跨端内容包，启用重启后从原始格式 3 快照�
   mock.download.mockResolvedValue({ bytes, source });
   await invoke("plugin-local:stage-release", "portable-release");
   expect(await invoke("plugin-local:scan")).toMatchObject({
-    entries: [{ id, enabled: false, artifact: { manifest: { formatVersion: 3 } } }],
+    entries: [{ id, enabled: true, artifact: { manifest: { formatVersion: 3 } } }],
   });
-  await invoke("plugin-local:set-enabled", id, true);
   vi.resetModules();
   mock.handlers.clear();
   await (await import("../plugin-local")).default.init();
@@ -201,7 +200,7 @@ it("保留原工作区映射的稳定身份，不按扫描创建新身份", asyn
   expect(await invoke("plugin-local:workspace", "A")).toBe(first);
   expect(await invoke("plugin-local:workspace", "B")).not.toBe(first);
 });
-it.each([false, true])("中心版本立即安装且停用，更新保留意图，内容快照=%s", async editor => {
+it.each([false, true])("中心版本安装即启用，更新保留意图，内容快照=%s", async editor => {
   const id = "test.center";
   const download = (version: string) => {
     const code = `module.exports.default=require('@tau/plugins').definePlugin({id:'${id}',name:'中心插件',version:'${version}',${editor ? "editorExtensions:[{id:'test.center',apiVersion:1,elements:[{type:'test.center.node',kind:'block',render:()=>null}]}]," : ""}create:()=>({activate(){}})});`;
@@ -239,15 +238,17 @@ it.each([false, true])("中心版本立即安装且停用，更新保留意图�
   expect(await invoke("plugin-local:stage-release", "r1")).toEqual({ id, version: "1.0.0" });
   expect(mock.download).toHaveBeenCalledWith("r1", "0.59.0");
   expect(await invoke("plugin-local:scan", {})).toMatchObject({
-    entries: [{ id, source, enabled: false }],
+    entries: [{ id, source, enabled: true }],
     updates: [],
   });
   mock.handlers.clear();
   await (await import("../plugin-local")).default.init();
   const [entry] = ((await invoke("plugin-local:scan")) as { entries: unknown[] }).entries;
-  expect(entry).toMatchObject({ id, source, enabled: false });
-  expect(await invoke("plugin-local:content-startup")).toMatchObject({ artifacts: [] });
-  await invoke("plugin-local:set-enabled", id, true);
+  expect(entry).toMatchObject({ id, source, enabled: true });
+  // 内容插件安装时不进当前快照，重启后才加载
+  expect(await invoke("plugin-local:content-startup")).toMatchObject({
+    artifacts: editor ? [{ manifest: { id } }] : [],
+  });
   mock.handlers.clear();
   await (await import("../plugin-local")).default.init();
   const updatedSource = download("1.1.0");
