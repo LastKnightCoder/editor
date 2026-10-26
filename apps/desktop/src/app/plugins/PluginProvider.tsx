@@ -26,7 +26,6 @@ import { clearPluginRefGrants, grantPluginRefs } from "@/commands/plugin-data";
 import { DesktopPermissionBroker } from "./permissions";
 import { createDesktopFlashcards } from "./flashcards";
 import { desktopPluginServices } from "./services";
-import { useSettingsStore } from "@/app/settingsStore";
 import { connectSyncRenderer } from "./sync-bridge";
 import { connectUploadRenderer } from "./upload-bridge";
 import { connectTTSRenderer } from "./tts-bridge";
@@ -123,23 +122,12 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           flashcards: createDesktopFlashcards(workspaceId),
           restartRequired,
           validateEditor: composePluginEditor,
-          openSettings: (key, target) => {
-            if (target === "asr") throw new Error("语音输入设置尚未提供界面入口");
-            // 同步与上传的连接配置就在插件详情 › 设置，与普通插件设置同一入口
-            return target === "tts"
-              ? useSettingsStore.getState().openTTSSettings()
-              : target === "images"
-                ? useSettingsStore.getState().openSettings("imageGeneration")
-                : target === "video"
-                  ? useSettingsStore.getState().openSettings("integration")
-                  : target === "publish"
-                    ? navigator.push("publish")
-                    : navigator.push(PLUGIN_DETAIL_KEY, {
-                        pluginId: key.split(":")[1],
-                        tab: "settings",
-                        section: key,
-                      });
-          },
+          openSettings: key =>
+            navigator.push(PLUGIN_DETAIL_KEY, {
+              pluginId: key.split(":")[1],
+              tab: "settings",
+              section: key,
+            }),
         });
         if (import.meta.env.DEV) {
           const { portableDevelopmentDefinitions } = await import("./portable-development");

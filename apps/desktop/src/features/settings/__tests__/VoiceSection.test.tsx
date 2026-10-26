@@ -92,12 +92,12 @@ it("语音转录：渲染行为 / 程序 / 模型分组，「使用」切换当�
   expect(useSettingStore.getState().setting.transcription.currentModel).toBe("medium");
 });
 
-it("语音合成：无服务商时显示空态，配置后展示多服务商面板", async () => {
+it("语音合成：只展示服务选择，凭据与账号管理归插件页", async () => {
   await render();
   const tab = container.querySelector('[role="tab"][data-tab="tts"]') as HTMLButtonElement;
   await act(async () => tab.click());
-  expect(text()).toContain("还没有服务商");
-  expect(text()).toContain("添加服务商");
+  expect(text()).toContain("请到插件中心安装并启用语音合成插件");
+  expect(container.querySelector('input[type="password"]')).toBeNull();
 
   await act(async () => {
     useSettingStore.setState(s => ({
@@ -115,11 +115,11 @@ it("语音合成：无服务商时显示空态，配置后展示多服务商面�
       },
     }));
   });
-  // 插件未启用的服务商照常显示，配置保留，可在此删除
-  expect(text()).toContain("Minimax");
-  expect(text()).toContain("插件设置暂不可用");
-  expect(text()).toContain("删除服务商");
-  expect(text()).toContain("插件");
-  expect(text()).toContain("模型");
+  expect(useSettingStore.getState().setting.ttsProviders[0]).toMatchObject({
+    name: "Minimax",
+    config: { apiKey: "key" },
+  });
+  expect(text()).not.toContain("删除服务商");
+  expect(container.querySelector('input[type="password"]')).toBeNull();
   expect(text()).toContain("当前服务");
 });
