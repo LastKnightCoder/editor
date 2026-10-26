@@ -100,7 +100,7 @@ schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护
 
 ### 聊天工具自定义渲染
 
-唯一注册表在 `@tau/chat-ui/renderers`。作者在 activate 中 `await ctx.chat.registerToolRenderer({ mcpId, toolName, component })`，只引用本插件 MCP 的原始工具名；PluginHost 激活前校验、成功后发布，工具名 SHA-256 与历史偏好键不变。展示不受 MCP 执行开关/连接状态影响；signal 失效立即卸载，切库先清理旧运行时。本地工具返回 `{ content, render?: { version, data } }`（有限 JSON + 正整数版本），经 pi details 保存，实时与历史投影都保留 details；失败/取消回通用工具行，未知数据版本由插件 renderDefault 回退。渲染选择再校验绑定：只按实际 execution.toolName 命中，插件不能改选他人绑定；插件接收 execution 独立快照，不能改写宿主消息。不新增聊天 schema、内置工具覆盖或 MCP Apps 运行器。
+唯一注册表在 `@tau/chat-ui/renderers`。作者在 activate 中 `await ctx.chat.registerToolRenderer({ mcpId, toolName, component })`，只引用本插件 MCP 的原始工具名；PluginHost 激活前校验、成功后发布；调用名与稳定内部 ID 分离，渲染器同时绑定二者，历史消息仍按原 SHA-256 标识命中。展示不受 MCP 执行开关/连接状态影响；signal 失效立即卸载，切库先清理旧运行时。本地工具返回 `{ content, render?: { version, data } }`（有限 JSON + 正整数版本），经 pi details 保存，实时与历史投影都保留 details；失败/取消回通用工具行，未知数据版本由插件 renderDefault 回退。渲染选择再校验绑定：只按实际 execution.toolName 命中，插件不能改选他人绑定；插件接收 execution 独立快照，不能改写宿主消息。不新增聊天 schema、内置工具覆盖或 MCP Apps 运行器。
 
 ### 文件转录与 ASR
 
@@ -132,7 +132,7 @@ Mac helper 独立打包在 `bin/darwin/Tau Speech Helper.app`，macOS 26 上采�
 
 ### 插件 MCP 与 AI 服务
 
-- `ctx.mcp.register` 可注册多项本地 tools 或外部 transport（stdio / streamable-http），两者互斥。激活成功才发布，失败/停用/切库回收；来源按「插件 + MCP 局部 ID」隔离生成稳定工具名，激活/重连代次进执行身份；执行复核实例、数据库、整项与逐工具开关，合并取消信号、限时 60 秒。MCP 页面与聊天快捷面板经 useMcpServers 同源展示并注明插件来源；外部项复用配置/日志/重连，本地项只展示工具；外部连接绑定窗口，窗口关闭/崩溃断开不改变手动服务器生命周期。
+- `ctx.mcp.register` 可注册多项本地 tools 或外部 transport（stdio / streamable-http），两者互斥。激活成功才发布，失败/停用/切库回收；调用名使用可读的「插件 ID__MCP 局部 ID__工具名」（插件 ID 的点转下划线，工具名的下划线转连字符，MCP ID 与插件 ID 末段相同时省去重复段）；有损输入或超长名称带摘要消歧，名称限制为模型接口支持的字符及 64 字符以内。界面显示「MCP ID:工具名」，不展示内部摘要；逐工具开关使用独立 settingsKey，沿用原 SHA-256 稳定 ID。激活/重连代次进执行身份；执行复核实例、数据库、整项与逐工具开关，合并取消信号、限时 60 秒。MCP 页面与聊天快捷面板经 useMcpServers 同源展示并注明插件来源；外部项复用配置/日志/重连，本地项只展示工具；外部连接绑定窗口，窗口关闭/崩溃断开不改变手动服务器生命周期。
 - 插件 AI 两条路径：自定义功能由 `ai.features` 声明并独立分配模型；`context.ai.requestCapability(name)` 复用应用已有分配。能力名/显示名由 SDK 的 PLUGIN_AI_CAPABILITIES 提供（与 llmUsageSettings 键集合测试对账，新增内置分配不得遗漏 SDK）。PluginHost 统一校验声明、懒申请、逐次检查与撤权取消；主进程 BACKGROUND 模块 plugin-ai 用同一插件额度、并发与审计执行 pi-ai，模型解析前登记取消句柄。chat/stream 支持文本与 user 图片（图片与正文不入审计、总大小有界）；插件设置对宿主能力只显示继承模型与额度。作者用法见 `plugins/tau-plugin-template/docs/ai.md`。
 
 ### 独立后台

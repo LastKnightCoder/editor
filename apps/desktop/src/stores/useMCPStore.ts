@@ -47,6 +47,7 @@ interface LegacyCustomMCPServer {
 /** 服务器实际提供的工具（连接成功后由 tools/list 得到，仅用于展示） */
 export interface MCPServerToolInfo {
   name: string;
+  displayName?: string;
   description?: string;
   parameters?: ToolJsonSchema;
 }

@@ -42,7 +42,7 @@ export class ToolRegistry {
   }
 
   private isActive(tool: RegisteredTool): boolean {
-    return tool.enabled && !this.disabledTools.get(tool.source)?.has(tool.name);
+    return tool.enabled && !this.disabledTools.get(tool.source)?.has(tool.settingsKey ?? tool.name);
   }
 
   registerTools(source: string, definitions: ToolDefinition[], enabled = true): void {

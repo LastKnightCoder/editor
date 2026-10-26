@@ -10,7 +10,7 @@ import type {
 } from "@/types/tool";
 import { disconnectFromServer, fetchToolsFromServer, onConnectionStatusChange } from "./customMCP";
 import toolRegistry from "./toolRegistry";
-import { getPluginToolName } from "./plugin-tool-name";
+import { getPluginToolId, getPluginToolName } from "./plugin-tool-name";
 
 export interface PluginMCPServerInfo {
   id: string;
@@ -93,13 +93,20 @@ async function wrapTools(
         entry.definition.id,
         definition.name
       );
+      const settingsKey = await getPluginToolId(
+        entry.context.pluginId,
+        entry.definition.id,
+        definition.name
+      );
       return {
         ...definition,
         name,
+        settingsKey,
+        displayName: `${entry.definition.id}:${definition.name.replace(/_/g, "-")}`,
         risk: "execute" as const,
         executionIdentity: `${entry.owner.executionIdentity}:${revision}:${definition.executionIdentity ?? "local"}`,
         executor: async (args: Record<string, unknown>, context?: ToolExecutionContext) => {
-          assertAvailable(entry, revision, name, context);
+          assertAvailable(entry, revision, settingsKey, context);
           const controller = new AbortController();
           const signal = AbortSignal.any([
             entry.context.signal,
@@ -107,13 +114,13 @@ async function wrapTools(
             AbortSignal.timeout(60_000),
             ...(context?.signal ? [context.signal] : []),
           ]);
-          entry.calls.set(controller, name);
+          entry.calls.set(controller, settingsKey);
           try {
             const result = await cancellable(signal, async () =>
               definition.executor(args, { ...context, signal })
             );
             signal.throwIfAborted();
-            assertAvailable(entry, revision, name, context);
+            assertAvailable(entry, revision, settingsKey, context);
             if (!result || typeof result === "string") return result;
             const render = entry.definition.tools
               ? (result.metadata?.render as { version?: number; payload?: unknown } | undefined)
@@ -220,7 +227,12 @@ function refresh(entry: Entry): void {
     toolRegistry.registerTools(entry.info.id, tools);
     store.setServerTools(
       entry.info.id,
-      tools.map(({ name, description, parameters }) => ({ name, description, parameters }))
+      tools.map(({ name, settingsKey, displayName, description, parameters }) => ({
+        name: settingsKey ?? name,
+        displayName,
+        description,
+        parameters,
+      }))
     );
     store.setConnectionStatus(entry.info.id, "connected");
   })().catch(error => {

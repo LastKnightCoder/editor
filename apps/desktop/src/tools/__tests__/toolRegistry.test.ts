@@ -9,6 +9,17 @@ const tool = (name: string) => ({
 });
 
 describe("ToolRegistry 逐工具停用", () => {
+  it("调用名与偏好键独立，沿用稳定键控制新名称", () => {
+    const registry = new ToolRegistry();
+    registry.setDisabledTools("questions", ["stable-id"]);
+    registry.registerTools("questions", [
+      { ...tool("questions__list-questions"), settingsKey: "stable-id" },
+    ]);
+    expect(registry.hasEnabledTool("questions__list-questions")).toBe(false);
+    expect(registry.getToolSchemas()).toEqual([]);
+    registry.setDisabledTools("questions", []);
+    expect(registry.hasEnabledTool("questions__list-questions")).toBe(true);
+  });
   it("停用的工具不出现在 schema 中、执行时拒绝，重新注册后仍保留", async () => {
     const registry = new ToolRegistry();
     registry.setDisabledTools("fs", ["write_file"]);

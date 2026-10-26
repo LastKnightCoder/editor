@@ -78,7 +78,9 @@ function ToolsPane({
   const q = query.trim().toLowerCase();
   const tools = q
     ? item.tools.filter(
-        t => t.name.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q)
+        t =>
+          (t.displayName ?? t.name).toLowerCase().includes(q) ||
+          t.description?.toLowerCase().includes(q)
       )
     : item.tools;
   const enabledCount = item.tools.filter(tool => !item.disabledTools.has(tool.name)).length;
@@ -198,6 +200,7 @@ function ToolsPane({
       </div>
       <ul className="-mx-2 flex flex-col">
         {tools.map(tool => {
+          const label = tool.displayName ?? tool.name;
           const enabled = locked || !item.disabledTools.has(tool.name);
           const params = Object.keys(tool.parameters?.properties ?? {});
           const required = new Set(tool.parameters?.required ?? []);
@@ -207,7 +210,7 @@ function ToolsPane({
               className="hover:bg-hover flex items-start gap-3 rounded-[10px] px-2 py-2.5"
             >
               <div className={cn("min-w-0 flex-1", !enabled && "opacity-50")}>
-                <div className="font-tau-mono text-ink-1 break-all text-[12.5px]">{tool.name}</div>
+                <div className="font-tau-mono text-ink-1 text-[12.5px] break-all">{label}</div>
                 {tool.description && (
                   <p className="text-tau-sm text-ink-3 mt-0.5 line-clamp-2">{tool.description}</p>
                 )}
@@ -227,9 +230,7 @@ function ToolsPane({
               </div>
               <Switch
                 size="sm"
-                aria-label={
-                  locked ? `${tool.name}（常开）` : `${enabled ? "停用" : "启用"} ${tool.name}`
-                }
+                aria-label={locked ? `${label}（常开）` : `${enabled ? "停用" : "启用"} ${label}`}
                 checked={enabled}
                 disabled={locked}
                 onCheckedChange={v => setToolsEnabled(item, [tool.name], v)}
