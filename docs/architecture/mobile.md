@@ -294,6 +294,8 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
 
 ## 编辑器配件栏与键盘预留
 
+正文与闪卡的宿主节点按版本契约匹配渲染器。`content-link`、`file-attachment`、`whiteboard`、`database`、`flashcard-blank` 与桌面端保持相同的 `host.<type>` 归属、`dataVersion: 1` 和结构声明；附件复用 `BUILTIN_CONTENT_RESOURCES`。白板与数据库仍显示移动端专用提示，但契约身份与桌面端一致。`editorElementCoverage.test.ts` 检查全部已装配节点的契约覆盖及这五类节点的跨端版本匹配。
+
 编辑页的格式工具是贴住键盘上沿的配件栏 `MobileEditorBottomToolbar`（`features/cards/editorToolbar/`），
 动作与选区由 `useMobileEditorToolbarController` 管理，宿主页面只传 controller / portalContainer / readonly / visibleButtons。
 

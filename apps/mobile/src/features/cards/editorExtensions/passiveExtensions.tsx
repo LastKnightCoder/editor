@@ -1,12 +1,14 @@
+import { BUILTIN_CONTENT_RESOURCES } from "@tau/db-schema/content-resources";
 import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 
 /** 只读展示外部实体引用，不改变正文的保存或同步行为。 */
 const referencePlaceholder = (type: "whiteboard" | "database", label: string) =>
   defineExtension({
-    id: `host.reference-placeholder.${type}`,
+    id: `host.${type}`,
     elements: [
       defineElement({
         type,
+        dataVersion: 1,
         kind: "block",
         isVoid: true,
         render: ({ attributes, children }: ElementRenderProps) => (
@@ -54,6 +56,8 @@ export const mobileFileAttachmentExtension = defineExtension({
   elements: [
     defineElement({
       type: "file-attachment",
+      dataVersion: 1,
+      resources: BUILTIN_CONTENT_RESOURCES["file-attachment"],
       kind: "block",
       isVoid: true,
       render: ({ attributes, children, element }: ElementRenderProps) => {
