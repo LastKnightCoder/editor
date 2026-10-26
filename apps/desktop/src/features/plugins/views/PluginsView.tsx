@@ -1,4 +1,4 @@
-import { PLUGIN_PORTAL_URL } from "@tau/plugins/center";
+import { PLUGIN_DEVELOPER_DOCS_URL, PLUGIN_PORTAL_URL } from "@tau/plugins/center";
 import { useState, type ReactNode } from "react";
 import {
   ArrowUpCircle,
@@ -24,7 +24,6 @@ import { openPluginDirectory, stagePluginZip } from "@/commands/plugin-local";
 import type { PluginCategory } from "@tau/plugins/package";
 import type { PluginCatalogEntry, PluginCatalogSort } from "@/types/plugin-center";
 import {
-  PLUGIN_TEMPLATE_URL,
   STATE_LABELS,
   STATIC_PACKAGE_LABELS,
   catalogCategories,
@@ -160,7 +159,7 @@ export function PluginsView() {
               <Menu.Separator />
               <Menu.Item
                 icon={<BookOpen strokeWidth={1.75} />}
-                onSelect={() => void openExternal(PLUGIN_TEMPLATE_URL)}
+                onSelect={() => void openExternal(PLUGIN_DEVELOPER_DOCS_URL)}
               >
                 开发插件文档
               </Menu.Item>
@@ -327,9 +326,9 @@ function Discover({
           size="sm"
           icon={BookOpen}
           className="mt-2"
-          onClick={() => void openExternal(PLUGIN_TEMPLATE_URL)}
+          onClick={() => void openExternal(PLUGIN_DEVELOPER_DOCS_URL)}
         >
-          查看作者文档
+          查看开发文档
         </Button>
       </Empty>
     );

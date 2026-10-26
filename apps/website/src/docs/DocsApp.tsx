@@ -4,66 +4,51 @@ import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import type { Descendant } from "slate";
 import { Editor } from "@tau/editor";
+import type { DocCollection, DocEntry } from "./collection.ts";
 import { DocsHeader } from "./DocsHeader.tsx";
 import { DocsNav } from "./DocsNav.tsx";
 import { DocsOutline } from "./DocsOutline.tsx";
 import { getDocsKit } from "./editorKit.ts";
-import { docsMarkdown } from "./editorMarkdown.ts";
-import {
-  DOC_ENTRIES,
-  DOC_GROUPS,
-  docHref,
-  docPageTitle,
-  findDoc,
-  type DocEntry,
-} from "./manifest.ts";
 import { DocDemo } from "./showcase/DocDemo.tsx";
-import { extractOutline, queryHeadingElements, type OutlineItem } from "./outline.ts";
-import { navigate, usePathname } from "./router.ts";
-import { splitDocSegments } from "./segments.ts";
+import {
+  extractOutline,
+  headingAnchor,
+  queryHeadingElements,
+  type OutlineItem,
+} from "./outline.ts";
+import { navigate, useHash, usePathname } from "./router.ts";
 
-const sources = import.meta.glob<string>("../../content/docs/*.md", {
-  query: "?raw",
-  import: "default",
-});
-
-type LoadedBlock =
+export type DocBlock =
   | { kind: "markdown"; value: Descendant[] }
   | { kind: "demo"; name: string; caption?: string };
 
+/** 读一篇文档的正文；找不到时 reject */
+export type DocLoader = (entry: DocEntry) => Promise<DocBlock[]>;
+
 interface LoadedDoc {
   slug: string;
-  blocks: LoadedBlock[];
+  blocks: DocBlock[];
   outline: OutlineItem[];
 }
 
-const loaded = new Map<string, Promise<LoadedDoc>>();
-
-function loadDoc(entry: DocEntry): Promise<LoadedDoc> {
-  let pending = loaded.get(entry.slug);
-  if (!pending) {
-    const source = sources[`../../content/docs/${entry.slug || "index"}.md`];
-    pending = source
-      ? source().then(markdown => {
-          const blocks = splitDocSegments(markdown).map<LoadedBlock>(segment =>
-            segment.kind === "markdown"
-              ? {
-                  kind: "markdown",
-                  value: docsMarkdown.importFromMarkdown(segment.markdown),
-                }
-              : segment
-          );
-          const outline = blocks.flatMap(block =>
-            block.kind === "markdown" ? extractOutline(block.value) : []
-          );
-          return { slug: entry.slug, blocks, outline };
-        })
-      : Promise.reject(new Error(`缺少文档正文：${entry.slug || "index"}.md`));
-    // 失败的不缓存，下次进入重新加载
-    pending.catch(() => loaded.delete(entry.slug));
-    loaded.set(entry.slug, pending);
-  }
-  return pending;
+function createDocCache(load: DocLoader) {
+  const loaded = new Map<string, Promise<LoadedDoc>>();
+  return (entry: DocEntry) => {
+    let pending = loaded.get(entry.slug);
+    if (!pending) {
+      pending = load(entry).then(blocks => ({
+        slug: entry.slug,
+        blocks,
+        outline: blocks.flatMap(block =>
+          block.kind === "markdown" ? extractOutline(block.value) : []
+        ),
+      }));
+      // 失败的不缓存，下次进入重新加载
+      pending.catch(() => loaded.delete(entry.slug));
+      loaded.set(entry.slug, pending);
+    }
+    return pending;
+  };
 }
 
 /** 标题越过吸顶导航下方这条线就算「正在读」 */
@@ -97,33 +82,68 @@ function useActiveHeading(doc: LoadedDoc | null) {
   return activeIndex;
 }
 
-function scrollToHeading(index: number) {
+function scrollToHeading(index: number, behavior: ScrollBehavior = "smooth") {
   const heading = queryHeadingElements()[index];
   if (!heading) return;
   scrollTo({
     top: heading.getBoundingClientRect().top + scrollY - (READING_LINE - 24),
-    behavior: "smooth",
+    behavior,
   });
 }
 
-function useDocMeta(entry: DocEntry | undefined) {
+function useDocMeta(collection: DocCollection, entry: DocEntry | undefined) {
   useEffect(() => {
-    document.title = entry ? docPageTitle(entry) : "页面不存在 · Tau 使用文档";
+    document.title = entry ? collection.pageTitle(entry) : `页面不存在 · ${collection.name}`;
     document
       .querySelector('meta[name="description"]')
-      ?.setAttribute("content", entry?.summary ?? "Tau 使用文档");
-  }, [entry]);
+      ?.setAttribute("content", entry?.summary ?? collection.name);
+  }, [collection, entry]);
 }
 
-function DocLink({ entry, direction }: { entry: DocEntry; direction: "prev" | "next" }) {
+/** 正文排版稳定（代码块等异步撑开高度）前，锚点跳转持续对齐的最长时间 */
+const HASH_SETTLE_MS = 2000;
+
+/** 地址带锚点时，正文渲染后滚到对应标题；排版仍在变时跟着对齐，用户自己滚动就停 */
+function useHashScroll(doc: LoadedDoc | null) {
+  const hash = useHash();
+  useEffect(() => {
+    if (!doc || !hash) return;
+    const anchor = decodeURIComponent(hash.slice(1));
+    const index = doc.outline.findIndex(item => headingAnchor(item.title) === anchor);
+    if (index < 0) return;
+    const align = () => scrollToHeading(index, "instant");
+    const observer = new ResizeObserver(align);
+    observer.observe(document.body);
+    const stop = () => {
+      observer.disconnect();
+      clearTimeout(timer);
+      for (const type of ["wheel", "touchstart", "keydown"])
+        removeEventListener(type, stop, { capture: true });
+    };
+    const timer = setTimeout(stop, HASH_SETTLE_MS);
+    for (const type of ["wheel", "touchstart", "keydown"])
+      addEventListener(type, stop, { capture: true, passive: true });
+    return stop;
+  }, [doc, hash]);
+}
+
+function DocLink({
+  href,
+  entry,
+  direction,
+}: {
+  href: string;
+  entry: DocEntry;
+  direction: "prev" | "next";
+}) {
   const Icon = direction === "prev" ? ArrowLeft : ArrowRight;
   return (
     <a
-      href={docHref(entry.slug)}
+      href={href}
       onClick={event => {
         if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
         event.preventDefault();
-        navigate(docHref(entry.slug));
+        navigate(href);
       }}
       className={`border-line-1 hover:border-accent group flex min-w-0 flex-1 flex-col gap-1 rounded-[12px] border px-4 py-3 transition-colors ${direction === "next" ? "items-end text-right" : ""}`}
     >
@@ -137,7 +157,15 @@ function DocLink({ entry, direction }: { entry: DocEntry; direction: "prev" | "n
   );
 }
 
-function DocArticle({ entry }: { entry: DocEntry }) {
+function DocArticle({
+  collection,
+  entry,
+  loadDoc,
+}: {
+  collection: DocCollection;
+  entry: DocEntry;
+  loadDoc: (entry: DocEntry) => Promise<LoadedDoc>;
+}) {
   const [doc, setDoc] = useState<LoadedDoc | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -152,15 +180,16 @@ function DocArticle({ entry }: { entry: DocEntry }) {
     return () => {
       cancelled = true;
     };
-  }, [entry]);
+  }, [entry, loadDoc]);
 
   const current = doc?.slug === entry.slug ? doc : null;
   const activeIndex = useActiveHeading(current);
-  const group = DOC_GROUPS.find(item => item.items.includes(entry));
+  useHashScroll(current);
+  const group = collection.groups.find(item => item.items.includes(entry));
   // 不进目录的文档没有上下篇
-  const position = DOC_ENTRIES.indexOf(entry);
-  const prev = position < 0 ? undefined : DOC_ENTRIES[position - 1];
-  const next = position < 0 ? undefined : DOC_ENTRIES[position + 1];
+  const position = collection.entries.indexOf(entry);
+  const prev = position < 0 ? undefined : collection.entries[position - 1];
+  const next = position < 0 ? undefined : collection.entries[position + 1];
 
   return (
     <>
@@ -203,8 +232,16 @@ function DocArticle({ entry }: { entry: DocEntry }) {
           </div>
           {(prev || next) && (
             <div className="mt-16 flex gap-4 max-sm:flex-col">
-              {prev ? <DocLink entry={prev} direction="prev" /> : <span className="flex-1" />}
-              {next ? <DocLink entry={next} direction="next" /> : <span className="flex-1" />}
+              {prev ? (
+                <DocLink href={collection.href(prev.slug)} entry={prev} direction="prev" />
+              ) : (
+                <span className="flex-1" />
+              )}
+              {next ? (
+                <DocLink href={collection.href(next.slug)} entry={next} direction="next" />
+              ) : (
+                <span className="flex-1" />
+              )}
             </div>
           )}
         </article>
@@ -222,23 +259,25 @@ function DocArticle({ entry }: { entry: DocEntry }) {
   );
 }
 
-function NotFound() {
+function NotFound({ collection }: { collection: DocCollection }) {
   return (
     <main className="min-w-0 flex-1 py-24 text-center">
       <h1 className="font-serif text-[32px] font-semibold">没有找到这一页</h1>
       <p className="text-ink-2 mt-3">文档可能已经改名或移走了。</p>
-      <a href={docHref("")} className="text-accent-text mt-6 inline-block font-medium">
+      <a href={collection.href("")} className="text-accent-text mt-6 inline-block font-medium">
         回到文档首页
       </a>
     </main>
   );
 }
 
-export function DocsApp() {
-  const entry = findDoc(usePathname());
+/** 一个文档集的单页应用：左侧目录、中间正文、右侧本页大纲 */
+export function DocsApp({ collection, load }: { collection: DocCollection; load: DocLoader }) {
+  const entry = collection.find(usePathname());
+  const [loadDoc] = useState(() => createDocCache(load));
   const [navOpen, setNavOpen] = useState(false);
   const closeNav = useCallback(() => setNavOpen(false), []);
-  useDocMeta(entry);
+  useDocMeta(collection, entry);
 
   useEffect(() => {
     if (!navOpen) return;
@@ -250,19 +289,23 @@ export function DocsApp() {
   return (
     <div className="bg-page font-tau text-ink-1 min-h-dvh">
       <DocsHeader
-        current="docs"
+        current={collection.site}
         nav={{ open: navOpen, onToggle: () => setNavOpen(open => !open) }}
       />
       {navOpen && entry && (
         <div className="bg-page fixed inset-x-0 top-[60px] bottom-0 z-30 overflow-y-auto px-4 py-6 lg:hidden">
-          <DocsNav current={entry} onNavigate={closeNav} />
+          <DocsNav collection={collection} current={entry} onNavigate={closeNav} />
         </div>
       )}
       <div className="mx-auto flex max-w-[1440px] gap-12 px-6 max-sm:px-5">
         <aside className="sticky top-[60px] hidden h-[calc(100dvh-60px)] w-[220px] shrink-0 overflow-y-auto py-10 lg:block">
-          {entry && <DocsNav current={entry} />}
+          {entry && <DocsNav collection={collection} current={entry} />}
         </aside>
-        {entry ? <DocArticle entry={entry} /> : <NotFound />}
+        {entry ? (
+          <DocArticle collection={collection} entry={entry} loadDoc={loadDoc} />
+        ) : (
+          <NotFound collection={collection} />
+        )}
       </div>
     </div>
   );

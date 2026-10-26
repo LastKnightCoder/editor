@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { PLUGIN_DEVELOPER_DOCS_URL } from "@tau/plugins/center";
 import { CloudOff, PackagePlus, Plus } from "lucide-react";
 import { Button, ConfirmDialog, Loading, Panel } from "@tau/ui";
 import type { SubmissionCounts, SubmissionStatus, SubmissionSummary } from "../../../contracts";
@@ -82,7 +83,16 @@ export function SubmissionsPage() {
   else if (!groups.length)
     body = (
       <StateBlock icon={PackagePlus} title="还没有提交" actions={<NewButton />}>
-        上传包含 README.md 的插件 ZIP，关联源码仓库即可提交审核。
+        上传包含 README.md 的插件 ZIP，关联源码仓库即可提交审核。还没做好插件？先看
+        <a
+          href={PLUGIN_DEVELOPER_DOCS_URL}
+          target="_blank"
+          rel="noopener"
+          className="text-accent-text hover:underline"
+        >
+          开发文档
+        </a>
+        。
       </StateBlock>
     );
   else

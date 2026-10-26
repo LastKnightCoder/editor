@@ -40,8 +40,6 @@ export const CONTRIBUTION_LABELS: Record<PluginContributionKind, string> = {
   "entity-panel": "详情区块",
 };
 
-export const PLUGIN_TEMPLATE_URL = "https://github.com/LastKnightCoder/tau-plugin-template";
-
 export const SYSTEM_ACCESS_LABELS: Record<PluginSystemAccess, string> = {
   filesystem: "文件",
   network: "网络",

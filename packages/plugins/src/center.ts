@@ -284,5 +284,7 @@ export function formatSize(bytes: number) {
 }
 
 export const PLUGIN_PORTAL_URL = "https://plugins.taunote.app";
+/** 官网上的插件开发文档，正文与官方插件模板 docs/ 同源 */
+export const PLUGIN_DEVELOPER_DOCS_URL = "https://taunote.app/developers/";
 export const pluginPortalUrl = (pluginId: string) =>
   `${PLUGIN_PORTAL_URL}/plugins/${encodeURIComponent(pluginId)}`;

@@ -4,7 +4,7 @@ Tau 的产品介绍页。Vite 构建，部署到 Cloudflare Pages；下载信息
 
 页面里的应用示意全部由 HTML/CSS 与少量 TypeScript 生成，不使用截图。颜色直接引用 `@tau/themes/tokens.css`，和桌面端是同一套主题。
 
-站点有三个入口：首页 `/`（原生 TypeScript），使用文档 `/docs/` 与更新日志 `/changelog/`（React，正文用产品的 Editor 只读渲染）。顶部导航的「使用文档」「更新日志」「插件中心」与 GitHub 链接数据在 `src/lib/site.ts`，各页共用。
+站点有四个入口：首页 `/`（原生 TypeScript），使用文档 `/docs/`、插件开发文档 `/developers/` 与更新日志 `/changelog/`（React，正文用产品的 Editor 只读渲染）。顶部导航的「使用文档」「更新日志」「插件开发」「插件中心」与 GitHub 链接数据在 `src/lib/site.ts`，各页共用。
 
 ## 命令
 
@@ -42,6 +42,15 @@ pnpm deploy:website   # 构建并上传到 Cloudflare Pages（项目 tau-website
 - 构建时为每篇文档各生成一份 `docs/<slug>/index.html`（标题和描述已填好），静态托管直接命中；开发服务器把 `/docs/<slug>/` 改写到同一个模板。
 - 文档页的样式只用 Tailwind 和 `@tau/themes` 的语义类，不引入首页的 `src/styles/*.css`：那里有不在 layer 里的通配规则，会压过 Tailwind 工具类。
 
+## 插件开发文档
+
+`/developers/` 与使用文档共用同一套三栏页面（`src/docs/DocsApp.tsx`，按 `src/docs/collection.ts` 的文档集参数化），正文不在本目录维护：构建时直接读取官方模板子模块 `plugins/tau-plugin-template/docs/**/*.md`，与模板仓库同源。部署前先 `git submodule update --init plugins/tau-plugin-template`；模板文档更新后需要更新子模块指针并重新部署官网。
+
+- 目录、分组与描述在 `src/docs/developers/manifest.ts`。slug 即 docs/ 下去掉 `.md` 的路径，`README.md` 对应所在目录（`providers/README.md` → `/developers/providers/`）。
+- 页面标题取目录里的标题，正文的生成注释与一级标题在导入时去掉。`developers/manifest.test.ts` 会检查目录与模板文件一一对应、目录标题与一级标题一致、文档间链接与锚点都存在。模板增删文档后测试会失败，在 manifest 里补登记即可。
+- 模板里写给 GitHub 的相对链接（`ui.md`、`../site-data.md`、`/docs/websocket.md`、`#锚点`）导入时改写成站内地址，锚点按 GitHub 规则对应标题；指向仓库其他文件的链接改到 GitHub 模板仓库。
+- 插件中心顶栏与桌面端插件页的「开发插件文档」都链接到这里（`PLUGIN_DEVELOPER_DOCS_URL`，在 `@tau/plugins/center`）。
+
 ## 更新日志
 
 正文不在本目录维护，构建时直接读取 `apps/desktop/release-notes/<版本号>.md` 与 `apps/mobile/release-notes/<版本号>.md`（写法见两处 README），按版本号从新到旧排列。发布新版本后需要重新部署官网，更新日志才会出现新版本。
@@ -71,13 +80,15 @@ GitHub 星标数由访客浏览器请求 GitHub 公开 API，本地缓存一小�
 ```
 index.html            首页结构（含 SVG 图标雪碧图）
 docs/index.html       使用文档的页面模板
+developers/index.html 插件开发文档的页面模板
 changelog/index.html  更新日志的页面模板
 content/docs/         使用文档正文（Markdown）
 src/main.ts           首页入口：引入样式，按顺序初始化各模块
 src/modules/          首页各区块的行为：示意窗口外壳、首屏斜线、主题、所见即所得演示、白板手绘与数据库视图切换、闭环滚动、日常组件、GitHub 星标
 src/styles/           首页按区块拆分的样式，最后是响应式
-src/docs/             使用文档：目录、编辑器 kit 与 Markdown 处理器、页面组件
+src/docs/             文档页：文档集、使用文档目录、编辑器 kit 与 Markdown 处理器、页面组件
 src/docs/showcase/    使用文档里的可交互示意，按目录分组
+src/docs/developers/  插件开发文档：目录、读取模板 docs/ 与链接改写
 src/changelog/        更新日志：读取两端发布说明、页面组件
 src/lib/              两个入口共用的工具：站点链接、GitHub 星标、平台识别
 build/release.ts      构建与运行时共用的清单解析和下载信息渲染

@@ -1,7 +1,16 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Github, LogIn, LogOut, PackagePlus, Puzzle } from "lucide-react";
+import { PLUGIN_DEVELOPER_DOCS_URL } from "@tau/plugins/center";
+import {
+  ArrowUpRight,
+  ChevronDown,
+  Github,
+  LogIn,
+  LogOut,
+  PackagePlus,
+  Puzzle,
+} from "lucide-react";
 import { Button, Menu, cn, toast } from "@tau/ui";
 import type { Session, User } from "../../../contracts";
 import { errorMessage } from "../api/errors";
@@ -137,6 +146,15 @@ export function TopBar() {
             发布与审核
             {session.data?.user && <WorkBadge session={session.data} />}
           </Link>
+          <a
+            href={PLUGIN_DEVELOPER_DOCS_URL}
+            target="_blank"
+            rel="noopener"
+            className={navClass(false)}
+          >
+            开发文档
+            <ArrowUpRight size={13} className="text-ink-3" />
+          </a>
         </nav>
         <div className="ml-auto flex items-center gap-2">
           {user ? (
