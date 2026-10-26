@@ -9,7 +9,7 @@ import {
   type ReleaseInfo,
 } from "./build/release.ts";
 import { renderSiteNav } from "./build/siteNav.ts";
-import { DOC_ENTRIES, docPageTitle, findDoc, type DocEntry } from "./src/docs/manifest.ts";
+import { ALL_DOC_ENTRIES, docPageTitle, findDoc, type DocEntry } from "./src/docs/manifest.ts";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
 const HOME_HTML = "/index.html";
@@ -92,7 +92,7 @@ function docsPagesPlugin(): Plugin {
       // 构建时留着占位，generateBundle 里逐篇填
       if (ctx.path !== DOCS_HTML || !ctx.originalUrl) return html;
       const entry = findDoc(new URL(ctx.originalUrl, "http://localhost").pathname);
-      return fillDocMeta(html, entry ?? DOC_ENTRIES[0]);
+      return fillDocMeta(html, entry ?? ALL_DOC_ENTRIES[0]);
     },
     generateBundle: {
       // HTML 产物由 Vite 自己的 generateBundle 输出，要排在它之后
@@ -101,10 +101,14 @@ function docsPagesPlugin(): Plugin {
         const template = bundle[DOCS_HTML.slice(1)];
         if (template?.type !== "asset") throw new Error("[website] 构建产物里缺少 docs/index.html");
         const html = String(template.source);
-        for (const entry of DOC_ENTRIES) {
+        for (const entry of ALL_DOC_ENTRIES) {
           const source = fillDocMeta(html, entry);
           if (entry.slug)
-            this.emitFile({ type: "asset", fileName: `docs/${entry.slug}/index.html`, source });
+            this.emitFile({
+              type: "asset",
+              fileName: `docs/${entry.slug}/index.html`,
+              source,
+            });
           else template.source = source;
         }
       },

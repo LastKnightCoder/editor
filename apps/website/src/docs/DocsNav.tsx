@@ -15,24 +15,26 @@ export function DocsNav({ current, onNavigate }: DocsNavProps) {
             {group.title}
           </p>
           <ul className="flex flex-col gap-0.5">
-            {group.items.map(entry => (
-              <li key={entry.slug}>
-                <a
-                  href={docHref(entry.slug)}
-                  aria-current={entry === current ? "page" : undefined}
-                  onClick={event => {
-                    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0)
-                      return;
-                    event.preventDefault();
-                    navigate(docHref(entry.slug));
-                    onNavigate?.();
-                  }}
-                  className="text-ink-2 hover:bg-hover hover:text-ink-1 aria-[current=page]:bg-selected aria-[current=page]:text-accent-text block rounded-[8px] px-3 py-1.5 transition-colors aria-[current=page]:font-medium"
-                >
-                  {entry.title}
-                </a>
-              </li>
-            ))}
+            {group.items
+              .filter(entry => !entry.hidden)
+              .map(entry => (
+                <li key={entry.slug}>
+                  <a
+                    href={docHref(entry.slug)}
+                    aria-current={entry === current ? "page" : undefined}
+                    onClick={event => {
+                      if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0)
+                        return;
+                      event.preventDefault();
+                      navigate(docHref(entry.slug));
+                      onNavigate?.();
+                    }}
+                    className="text-ink-2 hover:bg-hover hover:text-ink-1 aria-[current=page]:bg-selected aria-[current=page]:text-accent-text block rounded-[8px] px-3 py-1.5 transition-colors aria-[current=page]:font-medium"
+                  >
+                    {entry.title}
+                  </a>
+                </li>
+              ))}
           </ul>
         </div>
       ))}

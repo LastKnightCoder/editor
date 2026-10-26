@@ -17,17 +17,23 @@ import {
   findDoc,
   type DocEntry,
 } from "./manifest.ts";
+import { DocDemo } from "./showcase/DocDemo.tsx";
 import { extractOutline, queryHeadingElements, type OutlineItem } from "./outline.ts";
 import { navigate, usePathname } from "./router.ts";
+import { splitDocSegments } from "./segments.ts";
 
 const sources = import.meta.glob<string>("../../content/docs/*.md", {
   query: "?raw",
   import: "default",
 });
 
+type LoadedBlock =
+  | { kind: "markdown"; value: Descendant[] }
+  | { kind: "demo"; name: string; caption?: string };
+
 interface LoadedDoc {
   slug: string;
-  value: Descendant[];
+  blocks: LoadedBlock[];
   outline: OutlineItem[];
 }
 
@@ -39,8 +45,18 @@ function loadDoc(entry: DocEntry): Promise<LoadedDoc> {
     const source = sources[`../../content/docs/${entry.slug || "index"}.md`];
     pending = source
       ? source().then(markdown => {
-          const value = docsMarkdown.importFromMarkdown(markdown);
-          return { slug: entry.slug, value, outline: extractOutline(value) };
+          const blocks = splitDocSegments(markdown).map<LoadedBlock>(segment =>
+            segment.kind === "markdown"
+              ? {
+                  kind: "markdown",
+                  value: docsMarkdown.importFromMarkdown(segment.markdown),
+                }
+              : segment
+          );
+          const outline = blocks.flatMap(block =>
+            block.kind === "markdown" ? extractOutline(block.value) : []
+          );
+          return { slug: entry.slug, blocks, outline };
         })
       : Promise.reject(new Error(`缺少文档正文：${entry.slug || "index"}.md`));
     // 失败的不缓存，下次进入重新加载
@@ -141,9 +157,10 @@ function DocArticle({ entry }: { entry: DocEntry }) {
   const current = doc?.slug === entry.slug ? doc : null;
   const activeIndex = useActiveHeading(current);
   const group = DOC_GROUPS.find(item => item.items.includes(entry));
+  // 不进目录的文档没有上下篇
   const position = DOC_ENTRIES.indexOf(entry);
-  const prev = DOC_ENTRIES[position - 1];
-  const next = DOC_ENTRIES[position + 1];
+  const prev = position < 0 ? undefined : DOC_ENTRIES[position - 1];
+  const next = position < 0 ? undefined : DOC_ENTRIES[position + 1];
 
   return (
     <>
@@ -164,12 +181,22 @@ function DocArticle({ entry }: { entry: DocEntry }) {
             ) : (
               current && (
                 <DndProvider backend={HTML5Backend}>
-                  <Editor
-                    key={current.slug}
-                    kit={getDocsKit()}
-                    initValue={current.value}
-                    readonly
-                  />
+                  {current.blocks.map((block, index) =>
+                    block.kind === "markdown" ? (
+                      <Editor
+                        key={`${current.slug}:${index}`}
+                        kit={getDocsKit()}
+                        initValue={block.value}
+                        readonly
+                      />
+                    ) : (
+                      <DocDemo
+                        key={`${current.slug}:${index}`}
+                        name={block.name}
+                        caption={block.caption}
+                      />
+                    )
+                  )}
                 </DndProvider>
               )
             )}
