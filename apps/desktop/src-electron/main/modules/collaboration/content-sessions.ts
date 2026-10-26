@@ -108,7 +108,7 @@ export function readLocalSessionContent(session: RuntimeSession) {
       ...mapNodeResources(node, definition?.resources, reference => {
         if (!isLocalAssetReference(reference) && !reference.startsWith(ASSET_PREFIX))
           return reference;
-        const path = session.assets?.recoveryPath(reference, session.info.id);
+        const path = session.assets?.resolveLocalFile(reference, session.info.id);
         if (!path) throw new Error("正文资源尚未在本机就绪，请下载后重试复制或导出");
         return path;
       }),
@@ -400,17 +400,17 @@ export function projectContractContent(
         source.librarySourceId !== ContentIdentityTable.library(db)?.sourceId) ||
       (source.contentDocumentId && source.contentDocumentId !== previous?.documentId)
     )
-      throw new Error("资料库或正文身份已变化，原会话仅保留为恢复副本");
-    if (!previous) throw new Error("正文格式尚未安装，必须先恢复迁移安装");
+      throw new Error("资料库或正文身份已变化，已暂停原会话写入");
+    if (!previous) throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
     if (previous.documentId !== value.documentId)
-      throw new Error("正文身份已变化，必须先恢复迁移安装");
+      throw new Error("正文身份已变化，请重新打开当前正文");
     if (
       row.content === JSON.stringify(value.content) &&
       JSON.stringify(previous.contracts) === JSON.stringify(value.contracts)
     )
       return false;
     if (previous.revision !== expectedRevision)
-      throw new Error("正文投影修订已变化，原缓存已保留，请先处理恢复副本");
+      throw new Error("正文投影修订冲突，已保留原缓存并暂停写入");
     ContentDocumentTable.commit(db, source.contentId, value, { expectedRevision, count });
     db.prepare(
       "INSERT INTO operation(operation_time,operation_id,operation_content_type,operation_action) VALUES (?,?,'content','update')"

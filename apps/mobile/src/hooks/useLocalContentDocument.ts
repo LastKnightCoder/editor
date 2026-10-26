@@ -29,8 +29,6 @@ import { toast } from "../components/toast";
 
 export type LocalContentDocument = EditorDocument & {
   flush(): Promise<void>;
-  recoveryNeeded?: boolean;
-  adopt?: () => Promise<void>;
 };
 
 export const contentLineage = (contentId?: number) => `content:${contentId ?? 0}`;
@@ -52,7 +50,7 @@ export default function useLocalContentDocument(options: {
       value.version,
     ]);
   const key = identity(options);
-  const [reload, setReload] = useState(0);
+  const [reload] = useState(0);
   const revision = useSyncExternalStore(
     mobileContentPlugins.subscribe,
     mobileContentPlugins.getRevision,
@@ -156,7 +154,7 @@ export default function useLocalContentDocument(options: {
             metadata.source.projectionRevision !== current.metadata.revision &&
             JSON.stringify(value) !== JSON.stringify(current.content)
           )
-            throw new Error("主库正文已被更新，原本机输入已保留，需先处理恢复副本");
+            throw new Error("主库正文与本机缓存修订冲突，已暂停写入");
           metadata.source.projectionRevision = current.metadata.revision;
         } catch (failure) {
           doc.destroy();
@@ -442,7 +440,7 @@ export default function useLocalContentDocument(options: {
                       children: [
                         {
                           type: "formatted",
-                          text: "此文档须先在桌面端完成升级。原始内容已保留，可在协作中心导出本机副本。",
+                          text: "此文档格式不受支持，无法编辑。",
                         },
                       ],
                     },
@@ -460,65 +458,5 @@ export default function useLocalContentDocument(options: {
   );
   return prepared?.key === key && prepared.tree === loaded?.tree && prepared.revision === revision
     ? prepared.document
-    : preview && {
-        ...preview,
-        recoveryNeeded: Boolean(storageError && options.metadata?.contracts),
-        adopt: async () => {
-          const metadata = latest.current.metadata;
-          if (!metadata?.contracts || !metadata.documentId || !metadata.librarySourceId)
-            throw new Error("请先在桌面完成转换");
-          const cacheId = `local:${metadata.librarySourceId}:${metadata.documentId}`;
-          const cached = await tauri.collabReadCache(cacheId);
-          if (!cached) throw new Error("原缓存缺失，不能确认采用");
-          const resourcePaths: Record<string, string> = {};
-          const map = (nodes: ContentNode[]): ContentNode[] =>
-            nodes.map(node =>
-              !node.children
-                ? node
-                : {
-                    ...mapNodeResources(
-                      node,
-                      metadata.contracts![String(node.tauContract)]?.resources,
-                      path => {
-                        if (isSafeResource(path)) return path;
-                        const reference = LOCAL_ASSET_PREFIX + crypto.randomUUID();
-                        resourcePaths[reference] = path;
-                        return reference;
-                      }
-                    ),
-                    children: map(node.children),
-                  }
-            );
-          const content = map(latest.current.content as ContentNode[]);
-          const doc = await createNodeDocument(
-            { documentId: metadata.documentId, baselineId: crypto.randomUUID(), epoch: 0 },
-            { title: "", bannerBg: "", bannerPosition: "center", content },
-            metadata.contracts
-          );
-          try {
-            await tauri.collabAdoptCache({
-              documentId: cacheId,
-              state: bytesToBase64(Y.encodeStateAsUpdate(doc)),
-              ...nodeRetentions(doc),
-              expectedRevision: cached.revision,
-              metadata: {
-                ...cached.metadata,
-                resourcePaths,
-                baselineId: String(doc.getMap("meta").get("baselineId")),
-                epoch: 0,
-                pending: false,
-                source: {
-                  ...cached.metadata.source!,
-                  projectionRevision: metadata.revision ?? undefined,
-                },
-              },
-            });
-            setLoaded(undefined);
-            setPrepared(undefined);
-            setReload(value => value + 1);
-          } finally {
-            doc.destroy();
-          }
-        },
-      };
+    : preview;
 }

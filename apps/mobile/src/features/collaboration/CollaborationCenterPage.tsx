@@ -1,4 +1,3 @@
-import { ContentRecoveries } from "./components/ContentRecoveries";
 // 协作中心（设计稿 01 方案 A）：身份卡 + 待审批 + 我发起的 / 我加入的 分组会话列表。
 import { useRef, useState } from "react";
 import { FileText, Loader2, Settings, UserPlus } from "lucide-react";
@@ -99,7 +98,6 @@ export function CollaborationCenterPage(props: {
 
   return (
     <div className="mobile-kb-screen bg-page flex h-full flex-col">
-      <ContentRecoveries />
       <PageHeader
         title="协作"
         onBack={props.onBack}

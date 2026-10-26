@@ -24,7 +24,6 @@ import { WhiteboardRoom } from "../components/WhiteboardRoom";
 import { JoinDialog } from "../components/JoinDialog";
 import { NicknameChip } from "../components/NicknameChip";
 import { ShareLocalDialog } from "../components/ShareLocalDialog";
-import { ContentRecoveries } from "../components/ContentRecoveries";
 
 const NO_WHITEBOARDS: SharedWhiteboardInfo[] = [];
 
@@ -107,7 +106,7 @@ export function CollaborationView() {
           )}
           <span className="flex-1" />
           <NicknameChip deviceId={deviceId} nickname={nickname} />
-          <ContentRecoveries />
+
           <Button variant="secondary" icon={KeyRound} onClick={() => setJoining(true)}>
             输入协作码
           </Button>

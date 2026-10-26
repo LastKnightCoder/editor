@@ -1,7 +1,6 @@
-import { createSharedDocument } from "@tau/collaboration/src/testing/legacy-document";
 // @vitest-environment node
 import Database from "better-sqlite3";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -14,10 +13,7 @@ import {
   type CollaborationSession,
   type ContentNode,
 } from "@tau/collaboration";
-import {
-  prepareContentContract,
-  type ContentContractDictionary,
-} from "@tau/db-schema/content-contracts";
+import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 import type { IpcMainInvokeEvent } from "electron";
 import { createServer } from "../../../../../../collaboration-server/src/server";
@@ -32,9 +28,6 @@ import { ContentDocumentTable } from "../../tables/content-document";
 import { ContentIdentityTable } from "../../tables/content-identity";
 import { unregisterContentSession } from "../content-sessions";
 import type { DocumentDrain, DocumentDrainScope } from "../../durable-document-lifecycle";
-import { ContentRecoveryStore } from "../content-recovery";
-import { ContentPluginRegistry } from "@tau/plugins/content";
-import { contentRevision } from "../content-sessions";
 import { TaskAssistantEngine, readTask } from "../../task-assistant/engine";
 
 const host = vi.hoisted(() => ({
@@ -78,44 +71,14 @@ type Runtime = {
     event: IpcMainInvokeEvent,
     target: { contentId: number }
   ): Promise<ContentSessionSnapshot>;
-  prepareContentUpgrade(
-    event: IpcMainInvokeEvent,
-    id: string,
-    contracts: ContentContractDictionary,
-    upgrade?: import("@tau/collaboration").ContentVersionUpgrade
-  ): Promise<{ operationId: string; error?: string }>;
-  finishContentUpgrade(
-    event: IpcMainInvokeEvent,
-    operationId: string,
-    cancel: boolean
-  ): Promise<void>;
   createContent(event: IpcMainInvokeEvent, contentId: number): Promise<{ documentId: string }>;
   prepareLeave(session: RuntimeSession): Promise<void>;
   finishLeave(session: RuntimeSession): Promise<void>;
   drainDatabase(scope: DocumentDrainScope): Promise<DocumentDrain>;
   releaseLibrary(name: string): Promise<void>;
-  preserveSession(
-    session: RuntimeSession
-  ): Promise<import("../content-local-state").LocalRecoveryReceipt>;
   project(session: RuntimeSession): Promise<void>;
   restore(info: CollaborationSession, doc: Y.Doc): RuntimeSession;
-  adoptRemoteVersion(event: IpcMainInvokeEvent, id: string): Promise<void>;
 };
-function seedLegacyPrivateNodes(
-  store: CollaborationLocalStore,
-  id: string,
-  values: Map<string, ContentNode>
-) {
-  if (
-    !(store.db.prepare("PRAGMA table_info(sessions)").all() as { name: string }[]).some(
-      column => column.name === "private_nodes"
-    )
-  )
-    store.db.exec("ALTER TABLE sessions ADD COLUMN private_nodes TEXT NOT NULL DEFAULT '[]'");
-  store.db
-    .prepare("UPDATE sessions SET private_nodes=? WHERE id=?")
-    .run(JSON.stringify([...values]), id);
-}
 async function setup() {
   const root = mkdtempSync(join(tmpdir(), "tau-manager-flow-"));
   host.dir = root;
@@ -196,16 +159,32 @@ async function setup() {
     rmSync(root, { recursive: true, force: true });
   });
   const event = { sender: {} } as IpcMainInvokeEvent;
-  const opened = await runtime.openContent(event, { contentId: 7 });
   const paragraph = await prepareContentContract("tau.paragraph", {
     type: "paragraph",
     dataVersion: 1,
     kind: "block",
   });
-  const prepared = await runtime.prepareContentUpgrade(event, opened.documentId, {
-    [paragraph.id]: paragraph.contract,
-  });
-  await runtime.finishContentUpgrade(event, prepared.operationId, false);
+  ContentIdentityTable.establishBaseline(db);
+  ContentDocumentTable.commit(
+    db,
+    7,
+    {
+      documentId: "test-content",
+      contracts: { [paragraph.id]: paragraph.contract },
+      content: [
+        {
+          type: "paragraph",
+          collabId: "paragraph",
+          tauContract: paragraph.id,
+          svg: "用户业务内容",
+          isFold: true,
+          children: [{ text: "正文" }],
+        },
+      ],
+    },
+    { installDocument: true, count: 2 }
+  );
+  const opened = await runtime.openContent(event, { contentId: 7 });
   return {
     runtime,
     db,
@@ -251,106 +230,6 @@ describe("桌面生产会话与真实服务贯通", () => {
     await expect(runtime.drainDatabase({ reason: "quit" })).rejects.toThrow("disk full");
     expect(session.info.frozen).toBe(false);
   });
-  it("带来源会话重复保全复用副本，附件原位变化必须另存原始材料", async () => {
-    const { runtime, state, store, localId } = await setup();
-    const session = runtime.sessions.get(localId)!;
-    const path = join(runtime.directory, "kept.png");
-    writeFileSync(path, "one");
-    store.db
-      .prepare("INSERT INTO resources VALUES (?,?,?,?,?,?)")
-      .run("image", localId, "kept.png", "image/png", path, 1);
-    const recovery = new ContentRecoveryStore(runtime.directory, state);
-    const first = await runtime.preserveSession(session);
-    expect(await runtime.preserveSession(session)).toEqual(first);
-    writeFileSync(path, "two");
-    const changed = await runtime.preserveSession(session);
-    expect(changed.id).not.toBe(first.id);
-    const resource = JSON.parse(recovery.readFile(first, "resources.json").toString())[0];
-    expect(recovery.readFile(first, resource.file).toString()).toBe("one");
-    expect(await runtime.preserveSession(session)).toEqual(changed);
-  });
-
-  it("单篇会话副本不包含同库其他正文、草稿、视图和附件", async () => {
-    const { runtime, db, state, localId } = await setup();
-    const session = runtime.sessions.get(localId)!;
-    db.prepare(
-      "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES (999,2,2,?,0,1)"
-    ).run(
-      JSON.stringify([{ type: "image", url: "/其他附件.png", children: [{ text: "无关正文" }] }])
-    );
-    state.replaceHolds("library", "document:other", "recovery", [
-      ContentIdentityTable.reference(db, "content", 999),
-    ]);
-    for (const documentId of [localId, "other"]) {
-      const identity = { workspaceId: "library", documentId, baselineId: "base", epoch: 0 };
-      state.saveInputDraft(identity, documentId, {
-        nodeId: "node",
-        field: "code",
-        value: documentId,
-        revision: "r",
-        sequence: 1,
-      });
-      state.saveDocumentDraft(identity, documentId, {
-        state: Y.encodeStateAsUpdate(session.doc),
-        sequence: 1,
-      });
-      state.writeView(
-        {
-          workspaceId: "library",
-          documentId: documentId === localId ? session.info.source!.contentDocumentId! : documentId,
-          nodeId: "node",
-          owner: "tau.paragraph",
-        },
-        { title: documentId },
-        null
-      );
-    }
-    const receipt = await runtime.preserveSession(session);
-    const recovery = new ContentRecoveryStore(runtime.directory, state);
-    const manifest = recovery.verify(receipt);
-    expect(manifest.files.some(file => file.name.endsWith(".db"))).toBe(false);
-    const projection = JSON.parse(recovery.readFile(receipt, "source-projection.json").toString());
-    expect(projection.source.contentId).toBe(7);
-    expect(projection.contracts).toEqual(ContentDocumentTable.read(db, 7)!.contracts);
-    expect(JSON.stringify(projection)).not.toContain("无关正文");
-    const drafts = JSON.parse(recovery.readFile(receipt, "input-drafts.json").toString());
-    expect(drafts).toHaveLength(1);
-    expect(drafts[0].documentId).toBe(localId);
-    expect(JSON.parse(recovery.readFile(receipt, "node-views.json").toString())).toHaveLength(1);
-    expect(manifest.files.filter(file => /^view-.*\.bin$/.test(file.name))).toHaveLength(1);
-    expect(manifest.missing).not.toContain("/其他附件.png");
-    expect(recovery.readFile(receipt, "resources.json").toString()).not.toContain("其他附件");
-  });
-
-  it("无来源会话不打包当前主库，视图变化后重新保全", async () => {
-    const { runtime, db, state, localId } = await setup();
-    const session = runtime.sessions.get(localId)!;
-    session.info.source = undefined;
-    host.databases.set("application", db);
-    const recovery = new ContentRecoveryStore(runtime.directory, state);
-    const first = await runtime.preserveSession(session);
-    expect(
-      recovery
-        .verify(first)
-        .files.some(file => file.name.endsWith(".db") || file.name === "source-projection.json")
-    ).toBe(false);
-    state.writeView(
-      { workspaceId: "application", documentId: localId, nodeId: "node", owner: "tau.paragraph" },
-      { isFold: true },
-      null
-    );
-    const next = await runtime.preserveSession(session);
-    expect(next.id).not.toBe(first.id);
-    expect(JSON.parse(recovery.readFile(next, "node-views.json").toString())).toHaveLength(1);
-  });
-
-  it("单篇保全拒绝来源已变化的同号正文", async () => {
-    const { runtime, db, localId } = await setup();
-    db.prepare("UPDATE library_identity SET source_id='different'").run();
-    await expect(runtime.preserveSession(runtime.sessions.get(localId)!)).rejects.toThrow(
-      "来源已变化"
-    );
-  });
 
   it("缓存缺失重建使用新协作基线，稳定正文身份不变", async () => {
     const { runtime, db, store, localId, event } = await setup();
@@ -382,7 +261,7 @@ describe("桌面生产会话与真实服务贯通", () => {
       expectedRevision: before.revision,
       count: 5,
     });
-    await expect(runtime.project(session)).rejects.toThrow("修订已变化");
+    await expect(runtime.project(session)).rejects.toThrow("修订冲突");
     expect(ContentDocumentTable.read(db, 7)!.content[0].children).toEqual([{ text: "外部新正文" }]);
     const retained = store.load(localId);
     try {
@@ -601,291 +480,6 @@ describe("桌面生产会话与真实服务贯通", () => {
     await validateNodeDocument(session.doc);
     tree.dispose();
   });
-  for (const shared of [false, true])
-    it(`${shared ? "共享" : "本机"}正文通过作者 migrations 从 v1 转为 v2，并保留未知属性与节点身份`, async () => {
-      const { runtime, event, db, localId } = await setup();
-      const v1 = {
-        type: "example.diagram",
-        dataVersion: 1,
-        kind: "block" as const,
-        isVoid: true,
-        collaboration: { textFields: ["source"] },
-        render: () => null,
-      };
-      const catalog = await new ContentPluginRegistry().prepareEditorContracts([
-        {
-          apiVersion: 1,
-          id: "example",
-          elements: [
-            {
-              ...v1,
-              dataVersion: 2,
-              collaboration: { textFields: ["code"] },
-              previousVersions: [{ element: v1, access: "read" }],
-              migrations: [
-                {
-                  from: 1,
-                  migrate: data => {
-                    const { source, ...rest } = data;
-                    return { ...rest, code: source };
-                  },
-                },
-              ],
-            },
-          ],
-        },
-      ]);
-      const old = Object.entries(catalog.dictionary).find(
-        ([, contract]) => contract.dataVersion === 1
-      )!;
-      let session = runtime.sessions.get(localId)!;
-      const tree = new NodeTree(session.doc);
-      await tree.installContracts({ [old[0]]: old[1] }, null);
-      tree.insertNode(
-        {
-          type: v1.type,
-          collabId: "diagram",
-          tauContract: old[0],
-          source: "原源码",
-          custom: "保留",
-          children: [{ text: "" }],
-        },
-        null,
-        1,
-        null,
-        true
-      );
-      tree.dispose();
-      await runtime.project(session);
-      if (shared) {
-        const published = await runtime.createContent(event, 7);
-        session = runtime.sessions.get(published.documentId)!;
-      }
-      const before = readNodeDocument(session.doc);
-      const content = before.content.map(node =>
-        node.type === v1.type ? (catalog.migrate(node) as ContentNode) : node
-      );
-      const contracts = {
-        ...session.doc.getMap("node-tree:contracts").toJSON(),
-        ...catalog.dictionary,
-      } as ContentContractDictionary;
-      const prepared = await runtime.prepareContentUpgrade(event, session.info.id, contracts, {
-        expectedRevision: contentRevision(session),
-        content,
-      });
-      expect(prepared.error).toBeUndefined();
-      await runtime.finishContentUpgrade(event, prepared.operationId, false);
-      const saved = ContentDocumentTable.read(db, 7)!;
-      expect(saved.content[1]).toMatchObject({
-        collabId: "diagram",
-        tauContract: catalog.current(v1.type)!.id,
-        code: "原源码",
-        custom: "保留",
-      });
-      expect(saved.content[1]).not.toHaveProperty("source");
-    });
-  it("准备阶段已冻结但响应丢失时仍能取消，并保持原文和原格式", async () => {
-    const { runtime, server, owner, event, store, state } = await setup();
-    const room = server.store.create(owner.id, "cancel-preparing");
-    const doc = createSharedDocument({
-      title: "旧文档",
-      content: [{ type: "paragraph", children: [{ text: "保留原文" }] }],
-      bannerBg: "",
-      bannerPosition: "center",
-    });
-    server.store.publish(room.id, owner.id, Y.encodeStateAsUpdate(doc));
-    const info = {
-      ...runtime.sessions.values().next().value!.info,
-      id: room.id,
-      mode: "shared",
-      serverUrl: "http://test",
-      ownerId: owner.id,
-      source: undefined,
-    } as CollaborationSession;
-    store.create(info, doc);
-    runtime.restore(info, doc);
-    const original = runtime.client.request.bind(runtime.client);
-    const request = vi.spyOn(runtime.client, "request").mockImplementation(async (...args) => {
-      const result = await original(...args);
-      if (args[1].endsWith("/freeze")) throw new Error("模拟冻结响应丢失");
-      return result;
-    });
-    const result = await runtime.prepareContentUpgrade(event, room.id, {});
-    expect(state.preparation(room.id)?.operationId).toBe(result.operationId);
-    expect(runtime.sessions.get(room.id)!.info.frozen).toBe(true);
-    request.mockRestore();
-    await runtime.finishContentUpgrade(event, result.operationId, true);
-    expect(state.preparation(room.id)).toBeNull();
-    expect(runtime.sessions.get(room.id)!.info.frozen).toBe(false);
-    const current = server.store.loadDocument(room.id);
-    try {
-      expect(current.getMap("meta").get("version")).toBe(1);
-    } finally {
-      current.destroy();
-    }
-  });
-  for (const cancel of [false, true])
-    it(`旧共享正文转换${cancel ? "取消保持原文" : "提交丢响应后按回执恢复"}，私有真身不自动公开`, async () => {
-      const { runtime, store, server, owner, event, state, loseCommit } = await setup();
-      const room = server.store.create(owner.id, `legacy-${cancel}`),
-        privateNodes = new Map<string, ContentNode>();
-      const doc = createSharedDocument(
-        {
-          title: "旧共享",
-          bannerBg: "",
-          bannerPosition: "center",
-          content: [
-            { type: "paragraph", children: [{ text: "公开正文" }] },
-            {
-              type: "whiteboard",
-              whiteBoardContentId: 42,
-              secret: "私有真身",
-              children: [{ text: "" }],
-            },
-          ],
-        },
-        privateNodes
-      );
-      server.store.publish(room.id, owner.id, Y.encodeStateAsUpdate(doc));
-      const info = {
-        ...runtime.sessions.values().next().value!.info,
-        id: room.id,
-        mode: "shared",
-        serverUrl: "http://test",
-        ownerId: owner.id,
-        source: undefined,
-        frozen: false,
-      } as CollaborationSession;
-      store.create(info, doc);
-      expect(
-        (store.db.prepare("PRAGMA table_info(sessions)").all() as { name: string }[]).some(
-          column => column.name === "private_nodes"
-        )
-      ).toBe(false);
-      seedLegacyPrivateNodes(store, info.id, privateNodes);
-      runtime.restore(info, doc);
-      const offline = new Y.Doc({ gc: false });
-      Y.applyUpdate(offline, Y.encodeStateAsUpdate(doc));
-      offline.getText("title").insert(0, "未确认输入");
-      const paragraph = await prepareContentContract("tau.paragraph", {
-        type: "paragraph",
-        dataVersion: 1,
-        kind: "block",
-      });
-      const prepared = await runtime.prepareContentUpgrade(event, room.id, {
-        [paragraph.id]: paragraph.contract,
-      });
-      if (!cancel) {
-        loseCommit();
-        await expect(
-          runtime.finishContentUpgrade(event, prepared.operationId, false)
-        ).rejects.toThrow("响应丢失");
-        expect(runtime.sessions.get(room.id)!.info.frozen).toBe(true);
-      }
-      await runtime.finishContentUpgrade(event, prepared.operationId, cancel);
-      const current = server.store.loadDocument(room.id);
-      try {
-        expect(current.getMap("meta").get("version")).toBe(cancel ? 1 : 2);
-        expect(state.migration(prepared.operationId)?.phase).toBe(cancel ? "ABORTED" : "COMPLETE");
-        if (!cancel) {
-          expect(JSON.stringify(readNodeDocument(current))).not.toContain("私有真身");
-          expect(store.legacyPrivateNodes(room.id).size).toBe(0);
-          expect(
-            (store.db.prepare("PRAGMA table_info(sessions)").all() as { name: string }[]).some(
-              column => column.name === "private_nodes"
-            )
-          ).toBe(false);
-        }
-        const record = state.migration(prepared.operationId)!;
-        if (record.plan.kind === "whiteboard") throw new Error("正文迁移种类错误");
-        const recovery = new ContentRecoveryStore(runtime.directory, state);
-        expect(recovery.readFile(record.plan.recovery, "private-before.json").toString()).toContain(
-          "私有真身"
-        );
-        if (!cancel) {
-          const installed = runtime.sessions.get(room.id)!;
-          installed.awareness.destroy();
-          installed.doc.destroy();
-          runtime.sessions.delete(room.id);
-          store.compact(room.id, offline);
-          seedLegacyPrivateNodes(store, room.id, privateNodes);
-          runtime.restore({ ...info, role: "editor", remoteVersionAvailable: true }, offline);
-          await runtime.adoptRemoteVersion(event, room.id);
-          expect(runtime.sessions.get(room.id)!.doc.getMap("meta").get("version")).toBe(2);
-          expect(runtime.sessions.get(room.id)!.doc.getText("title").toString()).not.toContain(
-            "未确认输入"
-          );
-          const latest = state.db
-            .prepare("SELECT record FROM migrations ORDER BY rowid DESC LIMIT 1")
-            .get() as { record: string };
-          const retained = new Y.Doc();
-          try {
-            Y.applyUpdate(
-              retained,
-              recovery.readFile(JSON.parse(latest.record).plan.recovery, "document-before.bin")
-            );
-            expect(retained.getText("title").toString()).toContain("未确认输入");
-          } finally {
-            retained.destroy();
-          }
-        } else offline.destroy();
-      } finally {
-        current.destroy();
-      }
-    });
-  it("已结束旧共享在原库转换为本机正文，旧真身只进入本机和恢复包", async () => {
-    const { runtime, event, db, store, state } = await setup();
-    const original: ContentNode[] = [
-      { type: "whiteboard", whiteBoardContentId: 42, secret: "本机真身", children: [{ text: "" }] },
-    ];
-    db.prepare(
-      "INSERT INTO white_board_contents(id,create_time,update_time,data,ref_count) VALUES (42,1,1,'{}',1)"
-    ).run();
-    db.prepare(
-      "INSERT INTO contents(id,create_time,update_time,content,ref_count) VALUES (8,2,2,?,1)"
-    ).run(JSON.stringify(original));
-    db.prepare(
-      "INSERT INTO collaboration_bindings VALUES (8,2,'http://test','closed-room',NULL,NULL,NULL)"
-    ).run();
-    const privateNodes = new Map<string, ContentNode>();
-    const doc = createSharedDocument(
-      { title: "旧共享", content: original, bannerBg: "", bannerPosition: "center" },
-      privateNodes
-    );
-    const info = {
-      ...runtime.sessions.values().next().value!.info,
-      id: "closed-room",
-      mode: "shared",
-      serverUrl: "http://test",
-      status: "closed",
-      source: { databaseName: "library", contentId: 8, contentCreatedAt: 2 },
-    } as CollaborationSession;
-    store.create(info, doc);
-    seedLegacyPrivateNodes(store, info.id, privateNodes);
-    runtime.restore(info, doc);
-    const whiteboard = await prepareContentContract("host.whiteboard", {
-      type: "whiteboard",
-      dataVersion: 1,
-      kind: "block",
-      isVoid: true,
-    });
-    const prepared = await runtime.prepareContentUpgrade(event, info.id, {
-      [whiteboard.id]: whiteboard.contract,
-    });
-    expect(prepared.error).toBeUndefined();
-    await runtime.finishContentUpgrade(event, prepared.operationId, false);
-    const opened = await runtime.openContent(event, { contentId: 8 });
-    expect(opened.mode).toBe("local");
-    expect(JSON.stringify(ContentDocumentTable.read(db, 8)!.content)).toContain("本机真身");
-    expect(store.legacyPrivateNodes(opened.documentId).size).toBe(0);
-    const record = state.migration(prepared.operationId)!;
-    if (record.plan.kind === "whiteboard") throw new Error("正文迁移种类错误");
-    expect(
-      new ContentRecoveryStore(runtime.directory, state)
-        .readFile(record.plan.recovery, "private-before.json")
-        .toString()
-    ).toContain("本机真身");
-  });
   it("整库被下载替换后丢弃本库的本地缓存，重开正文读新库内容", async () => {
     const { runtime, event, store, localId } = await setup();
     const drain = await runtime.drainDatabase({
@@ -996,116 +590,17 @@ describe("桌面生产会话与真实服务贯通", () => {
   });
 });
 
-it("后台升级无需窗口事件，结束后释放会话并能重新打开同一份正文", async () => {
-  const f = await setup();
-  f.runtime.stopped = false;
-  f.db
-    .prepare(
-      "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES(8,10,20,?,2,1)"
-    )
-    .run(JSON.stringify([{ type: "paragraph", children: [{ text: "后台正文" }] }]));
-  const paragraph = await prepareContentContract("tau.paragraph", {
-    type: "paragraph",
-    dataVersion: 1,
-    kind: "block",
-  });
-  const manager = f.runtime as unknown as CollaborationManager;
-  await manager.upgradeLegacyContent("library", 8, { [paragraph.id]: paragraph.contract });
-  const installed = ContentDocumentTable.read(f.db, 8)!;
-  expect(JSON.stringify(installed.content)).toContain("后台正文");
-  expect(f.db.prepare("SELECT update_time FROM contents WHERE id=8").get()).toEqual({
-    update_time: 20,
-  });
-  expect(
-    [...f.runtime.sessions.values()].some(session => session.info.source?.contentId === 8)
-  ).toBe(false);
-  const reopened = await f.runtime.openContent(f.event, { contentId: 8 });
-  const session = f.runtime.sessions.get(reopened.documentId)!;
-  expect(session.doc.getMap("meta").get("version")).toBe(2);
-  expect(JSON.stringify(readNodeDocument(session.doc).content)).toContain("后台正文");
-  expect(session.info.source?.contentDocumentId).toBe(installed.documentId);
-});
-
-it("正文远程附件没有本地副本时保留引用与恢复清单，不记录升级失败", async () => {
-  const f = await setup();
-  f.runtime.stopped = false;
-  const url = "https://example.com/not-cached.png";
-  f.db
-    .prepare(
-      "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES(8,10,20,?,0,1)"
-    )
-    .run(JSON.stringify([{ type: "image", url, children: [{ text: "" }] }]));
-  const image = await prepareContentContract("tau.image", {
-    type: "image",
-    dataVersion: 1,
-    kind: "block",
-    isVoid: true,
-    resources: [{ path: "url", kind: "image" }],
-  });
-  const opened = await f.runtime.openContent(f.event, { contentId: 8 });
-  await (f.runtime as unknown as CollaborationManager).upgradeLegacyContent("library", 8, {
-    [image.id]: image.contract,
-  });
-  expect(JSON.stringify(ContentDocumentTable.read(f.db, 8)!.content)).toContain(url);
-  expect(
-    f.runtime.store.get(`legacy-upgrade-issues:library:${opened.documentId}`, null)
-  ).toBeNull();
-  const row = f.runtime.store.db
-    .prepare("SELECT record FROM migrations WHERE document_id=?")
-    .get(opened.documentId) as { record: string };
-  const record = JSON.parse(row.record);
-  expect(record.phase).toBe("COMPLETE");
-  const manifest = new ContentRecoveryStore(f.runtime.directory, f.runtime.contentState).verify(
-    record.plan.recovery
+it("旧正文拒绝打开且不改写原始内容", async () => {
+  const { runtime, db, event } = await setup();
+  const original = JSON.stringify([{ type: "paragraph", children: [{ text: "旧正文" }] }]);
+  db.prepare(
+    "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES (8,2,2,?,3,1)"
+  ).run(original);
+  await expect(runtime.openContent(event, { contentId: 8 })).rejects.toThrow(
+    "CONTENT_FORMAT_UNSUPPORTED"
   );
-  expect(manifest.missing).toContain(url);
-});
-
-it("已有本机候选的共享会话中断续做不依赖再次联网", async () => {
-  const f = await setup();
-  f.runtime.stopped = false;
-  f.db
-    .prepare(
-      "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES(8,10,20,?,2,1)"
-    )
-    .run(JSON.stringify([{ type: "paragraph", children: [{ text: "待续做" }] }]));
-  const opened = await f.runtime.openContent(f.event, { contentId: 8 });
-  const paragraph = await prepareContentContract("tau.paragraph", {
-    type: "paragraph",
-    dataVersion: 1,
-    kind: "block",
+  expect(db.prepare("SELECT content FROM contents WHERE id=8").get()).toEqual({
+    content: original,
   });
-  const prepared = await f.runtime.prepareContentUpgrade(f.event, opened.documentId, {
-    [paragraph.id]: paragraph.contract,
-  });
-  const session = f.runtime.sessions.get(opened.documentId)!;
-  session.info.mode = "shared";
-  const request = vi.spyOn(f.runtime.client, "request").mockRejectedValue(new Error("离线"));
-  await (f.runtime as unknown as CollaborationManager).upgradeLegacySession(
-    "library",
-    opened.documentId,
-    {}
-  );
-  expect(request).not.toHaveBeenCalled();
-  expect(f.state.migration(prepared.operationId)?.phase).toBe("COMPLETE");
-  expect(JSON.stringify(ContentDocumentTable.read(f.db, 8)?.content)).toContain("待续做");
-});
-
-it("主库已升级也不能掩盖未能恢复的损坏缓存", async () => {
-  const f = await setup();
-  f.runtime.stopped = false;
-  const session = f.runtime.sessions.get(f.localId)!;
-  unregisterContentSession(session);
-  session.awareness.destroy();
-  session.doc.destroy();
-  f.runtime.sessions.delete(f.localId);
-  const current = ContentDocumentTable.read(f.db, 7);
-  f.store.db.prepare("UPDATE sessions SET state_hash='损坏摘要' WHERE id=?").run(f.localId);
-  await expect(
-    (f.runtime as unknown as CollaborationManager).upgradeLegacyContent("library", 7, {})
-  ).rejects.toThrow("摘要");
-  expect(ContentDocumentTable.read(f.db, 7)).toEqual(current);
-  expect(f.store.db.prepare("SELECT state_hash FROM sessions WHERE id=?").get(f.localId)).toEqual({
-    state_hash: "损坏摘要",
-  });
+  expect(ContentDocumentTable.read(db, 8)).toBeNull();
 });

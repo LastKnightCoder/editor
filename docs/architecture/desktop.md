@@ -54,7 +54,7 @@ packages/database/src/   # 多视图 Database、投影、store 与通用字段�
 
 ### 数据基线门禁
 
-旧业务表的历史迁移与读取兼容已删除；正文与白板格式仍由本版本的一次性后台升级处理。开库与备份恢复写入前执行统一基线门禁（同步下载不单独校验，替换后由开库执行）：
+旧业务表的历史迁移与读取兼容已删除；正文与白板只接受当前格式。开库与备份恢复写入前执行统一基线门禁（同步下载不单独校验，替换后由开库执行）：
 
 - 桌面：`assertNoLegacyTables` 按共享旧表黑名单（`packages/db-schema/src/legacy-tables.json`，与 parity 脚本同源）拒绝未完成升级的旧库，报 `DB_LEGACY_SCHEMA`，提示先用最后升级版本打开完成升级。
 - 移动端：`MAIN_SCHEMA_VERSION=9`，高于当前版本拒绝降级（`DB_SCHEMA_INCOMPATIBLE`），4–8 版本执行显式升级，更早非空库拒绝。
@@ -62,21 +62,13 @@ packages/database/src/   # 多视图 Database、投影、store 与通用字段�
 
 schema 演进：桌面修改 schema 分片并重建 bundle（parity 校验守护）；移动端版本号递增并编写显式迁移，同版本 hash 变化仅补建新表与新索引。聊天会话的事实源是 pi JSONL 文件与 chat_session 目录表。
 
-正文契约表为 library_identity、content_documents、entity_identities 与 content_entity_relations。新建带契约正文和后台转换通过 ContentIdentityTable 建立来源，不用本机库名或插件工作区 UUID 证明同源。ContentDocumentTable 在同一事务提交正文、契约与关系差集；本机协作/恢复持有不进入随库同步的关系表。ContentTable 读取契约与修订，格式 2 活跃会话的写入经现有节点操作和观察修订校验；旧格式在后台转换期间保持原文只读预览，转换先保全。主库保存 JSON 投影，不保存或重建原 CRDT 基线；缓存缺失生成新基线，旧缓存不能覆盖外部修改后的正文。
+正文契约表为 library_identity、content_documents、entity_identities 与 content_entity_relations。新建带契约正文通过 ContentIdentityTable 建立来源，不用本机库名或插件工作区 UUID 证明同源。ContentDocumentTable 在同一事务提交正文、契约与关系差集；本机协作持有不进入随库同步的关系表。ContentTable 读取契约与修订，格式 2 活跃会话的写入经现有节点操作和观察修订校验；旧格式明确拒绝。主库保存 JSON 投影，不保存或重建原 CRDT 基线；缓存缺失生成新基线，旧缓存不能覆盖外部修改后的正文。
 
-### 正文与白板的后台格式升级
+### 正文与白板格式边界
 
-正式客户端先在 `plugin-local` 的启动快照之前自动安装旧内容需要的官方插件版本，再启动资料库和内容升级；未下载成功会自动重试，旧内容不进入转换。插件已达到固定下限时不要求联网。编辑器和白板转换共用这次启动准备的契约，已安装但定义加载失败同样不能放行。一次性插件升级的范围及启停规则见[跨端插件宿主](/docs/architecture/plugin-portability.md)。
+客户端只编辑当前格式：正文协议 2、白板协议 3。旧正文与旧白板明确拒绝，不执行后台扫描、首次转换或插件数据版本升级，也不创建、登记、导出或安装正文/白板恢复包。
 
-BACKGROUND 模块 `legacy-content-upgrade` 依赖 database、collaboration、whiteboard-documents 和插件启动快照。启动覆盖已连接资料库及设置中已有的本地资料库文件，不切换活动库、不创建缺失库；连接与同步下载重连补扫。主进程按每批 32 个 ID 串行处理全部正文和白板页，包含没有独立白板拥有者的内嵌页、创作页，普通页面无需触发或确认。新接入的旧协作会话也入队；所有者自动转换共享正文，成员等待并保全后自动采用新基线。
-
-未完成迁移回执及 PREPARING 记录先于旧格式扫描续做，按文档身份寻址，不依赖本地主库来源或内存会话；主库已安装但缓存或日志未确认的操作仍会被处理。已有本机候选直接续装，远端提交仍查询原回执，不额外要求先探测网络协议。后台按保全中的原协议识别旧格式操作，不自动提交当前格式仍待确认的插件版本更新。正文复用冻结、恢复包、迁移裁决与跨存储安装，白板复用原页面归属校验和安装事务；恢复材料不随成功删除。已有来源基线的正文只暂存所需实体身份，不逐篇复制整库；格式升级保留用户修改时间。退出和切库先暂停队列、等待当前安装结束，再执行原文档保存屏障，回滚后继续队列。数据库打开也在队列内执行，暂停期间的定时重试只排队；已关闭的连接不由旧定时器重开。
-
-本机旧缓存与主库正文不同先保全两个版本，核对前不自动覆盖；正文主库安装回执必须与当前正文、契约和来源一致，拒绝续装覆盖中断后新内容。旧白板候选核对页名、标题与页面快照；尚未安装的过时候选可取消重做，已安装候选只续做。旧格式展示原文只读预览，不显示逐篇转换按钮，安装成功广播刷新。单项失败有限重试后继续其他项，网络及等待所有者等暂态每分钟重试；无法自动处理的转换失败、未知载荷和安装错误按资料库集中通知，提供详情和重试。附件未下载或缺少本地副本只记入恢复清单，不计为升级失败、不阻止完成判定；汇总时排除旧版本明确记录为零转换问题的附件缺项，保留真实转换问题和未知异常。核对结果保存在本机协作缓存的 `legacy-content-upgrade:<库名>`，未核对异常不记为完成；完成前重新统计旧正文、未托管页、未托管白板拥有者和未完成操作，任一非零均不记完成；异常版本、非正数 ID、空白板目录及无法恢复的缓存不能因普通扫描未命中而消失。该记录不替代实际数据验收。一次性调度与旧读取的删除条件见[旧格式退役指南](/docs/guides/ops-collaboration-retirement.md)。
-
-白板兜底富文本 kit 按首次使用初始化，不在模块加载时创建，避免内容执行器生产分包的循环依赖阻断后台契约准备。
-
-恢复包的文件与清单以可写句柄刷盘，随后校验摘要并登记回执；Windows 跳过 Node 不支持的目录刷盘，其他平台保留目录刷盘。文件写入、刷盘或校验失败仍阻止升级，未登记材料由重启恢复流程重新校验。
+正文与白板保留正常创建、保存、协作同步、输入草稿和撤销重做。共享发布、退出协作通过既有提交记录确认跨存储写入结果；这些记录保存本次待提交候选及回执，不用于备份或恢复历史正文。远端基线变化时停止旧会话写入，不提供采用新版本或用远端内容重建本机副本的入口。结束共享在服务端确认后固定本机候选；落盘失败的重试和重新打开复用同一候选，不再受旧升级超时限制，也不重新生成文档身份。已存在的用户备份文件不由客户端删除。
 
 ### 已退役功能与保留边界
 
@@ -253,7 +245,7 @@ Mac helper 独立打包在 `bin/darwin/Tau Speech Helper.app`，macOS 26 上采�
 
 公开数据类型位于 types/element.ts、containment.ts 等纯类型文件，extensions/api.ts 与 events.ts 直接依赖它们。types/board.ts 保留内部 Board/IBoardPlugin，仅重新导出同一份元素类型供内部消费者使用，不重复定义数据；作者子入口的含类型依赖图由 check-whiteboard-boundaries.mjs 检查，禁止进入内核和编辑器实现。火柴人作为独立插件从中心安装，不默认随客户端提供。白板核心不携带人物代码；相关发布包只保留在tests/fixtures/plugins做集成测试。博客发布仍只收集编辑器贡献，不额外增加移动端/扩展端白板插件支持。
 
-通用白板归 `@tau/whiteboard`：根入口提供画布、受控 API 和通用组件，`/extensions` 提供扩展工厂，CSS 使用 `styles.css`。WhiteBoard 必须显式传稳定的 extensions；元素、工具、命令、属性面板、导入与界面层由扩展贡献，核心运行时不加载 Slate、EditorKit、Markdown 或截图实现。桌面入口统一使用 `features/shared/whiteboard/DesktopWhiteboard`；白板域负责列表、多页管理与查询；托管白板通过文档会话提交增量，离页 flush 失败必须拒绝，依赖保存的页面复制中止；旧快照仅提供只读预览。拖动/连续移动的手势帧不触发 onChange（宿主落库防抖不被高频重置），手势结束统一补发一次最终快照；仅选区变化（点选/框选）同样不触发 onChange（视口变化仍通知，停顿后落库一次以记住视图位置）。元素级选中态经 useSelectState 按元素 id 布尔订阅 selection:change（通知侧短路，未翻转不重渲），只关心缩放的组件经 useZoom 订阅 viewport:change（纯平移零重渲），静态元素层独立 memo，截图树的选区隔离由 useBoardCapture 在树根挂 StaticSelectionContext。视口剔除保持精确盒（不量化扩边），元素渲染统一经 memo 的 ElementHost 包装（按 element 引用与子元素集合浅比较，剔除/分层每帧重建包装时未变子树整体 bail out），剔除追赶经 useDeferredValue 低优先级执行、紧急渲染只更新 viewBox。全库列表接口返回投影数据（剔除媒体地址与选区，保留示意图所需结构），画布保存后就地 patch 列表缓存中该页的元素数与更新时间、不失效整表重拉；打开画布始终走单页全量通道。
+通用白板归 `@tau/whiteboard`：根入口提供画布、受控 API 和通用组件，`/extensions` 提供扩展工厂，CSS 使用 `styles.css`。WhiteBoard 必须显式传稳定的 extensions；元素、工具、命令、属性面板、导入与界面层由扩展贡献，核心运行时不加载 Slate、EditorKit、Markdown 或截图实现。桌面入口统一使用 `features/shared/whiteboard/DesktopWhiteboard`；白板域负责列表、多页管理与查询；托管白板通过文档会话提交增量，离页 flush 失败必须拒绝，依赖保存的页面复制中止；旧快照拒绝打开。拖动/连续移动的手势帧不触发 onChange（宿主落库防抖不被高频重置），手势结束统一补发一次最终快照；仅选区变化（点选/框选）同样不触发 onChange（视口变化仍通知，停顿后落库一次以记住视图位置）。元素级选中态经 useSelectState 按元素 id 布尔订阅 selection:change（通知侧短路，未翻转不重渲），只关心缩放的组件经 useZoom 订阅 viewport:change（纯平移零重渲），静态元素层独立 memo，截图树的选区隔离由 useBoardCapture 在树根挂 StaticSelectionContext。视口剔除保持精确盒（不量化扩边），元素渲染统一经 memo 的 ElementHost 包装（按 element 引用与子元素集合浅比较，剔除/分层每帧重建包装时未变子树整体 bail out），剔除追赶经 useDeferredValue 低优先级执行、紧急渲染只更新 viewBox。全库列表接口返回投影数据（剔除媒体地址与选区，保留示意图所需结构），画布保存后就地 patch 列表缓存中该页的元素数与更新时间、不失效整表重拉；打开画布始终走单页全量通道。
 
 每个 Board 创建独立扩展运行时和脑图预览状态；宿主能力经服务注册表注入：DesktopWhiteboard 用 `createServiceRegistry` 注册 `IWhiteboardRichText`、`IResourceService`、`IMediaInfoService`、`IDownloadService`（随数据库重建）并经 `WhiteBoard` 的 `services` 传入，扩展直接通过 getService/tryGetService 获取（必需服务缺失抛错，可缺省服务返回 undefined），不再维护依赖表，不恢复全局 services/slots 集合；导出截图与业务弹窗等纯 UI 配置仍为工厂参数。正文编辑、低缩放订阅与测量使用富文本服务提供的同一套 Kit/文档绑定。包外 useBoard 返回受控 API，快照不可写且按对象身份共享副本，不公开历史栈和插件实例。桌面命令固定初始数据库；异步提交在只读切换、隐藏、卸载或目标删除后失效。Activity 暂停 activate 副作用，真正卸载时 dispose 并销毁 Board。
 
@@ -265,15 +257,11 @@ Mac helper 独立打包在 `bin/darwin/Tau Speech Helper.app`，macOS 26 上采�
 
 第三方白板服务是独立白名单注册表，只提供该插件的 IPluginStorage、写入权限检查及已装配的上传/媒体探测/下载能力；不继承主服务表的文件/正文能力。能力引用在使用前后复核工作区、视图作用域与激活实例，订阅和字段租约随作用域释放。普通插件节点使用 SDK 身份命令与公共文本接口，旧宿主路径 API 不进入作者对象原型。
 
-白板格式迁移和首次发布由 whiteboard-documents 宿主服务执行，读取公共 documentMigration 返回的 ContentLocalState 与协作缓存。白板候选及安装参数保存在现有 migrations 记录，服务端结果未知时查询原操作，主库或日志安装失败按原回执重试。旧快照画布在后台转换期间提供只读预览；首次旧格式转换保存原始页、候选和可取得资源的恢复副本，安装前验证摘要。当前格式白板迁移仍保留历史日志；另一基线的 outbox 记录保持原位并阻止自动混入新基线。
-
-旧白板后台转换复用已有完整库基线准备：在隔离库补齐来源和实体身份，再与目标白板候选一起事务安装。操作身份按原页面及创建时间保存，多页及中断重试沿用同一未完成迁移；没有来源身份的旧库也自动准备并安装；已有完整身份时不重复复制整库。
-
 原白板列表及插件删除入口经文档服务冲刷目标视图，再在原主库事务内解除拥有者并释放页面引用；插件操作记录与删除同事务。仍共享的白板须先结束共享或退出协作。被引用的页保留为无白板拥有者的文档，隐藏页的拥有者引用也同时释放；插件恢复会重新认领保留文档。资料库连接时沿用原宽限期检查无拥有者文档，所有页无引用、无活跃编辑、无未决转换/网络分支且日志与主库一致时，才回收文档关系和日志，并交原页面回收处理。失败保留主库检查点，不能放宽旧快照写入守卫。
 
 正文与白板都参加退出前的 durable-document-lifecycle 保存屏障，冻结输入并等待耐久确认；超时或保存失败取消退出、恢复编辑并保留窗口。正文保存回执核对本次冻结请求，迟到回执不能确认下一次退出。文档屏障完成后才开始窗口/插件后台的退出收尾和强制退出计时；正文不再使用超时即成功的独立 prepareQuit 路径。
 
-新格式白板由 BACKGROUND 模块 `whiteboard-documents` 维护主进程文档会话，命令通过 `ensureModule` 接入。`whiteboard_documents` 持有完整 CRDT 检查点、契约和整板投影，`whiteboard_document_pages` 维护稳定 pageId 与本地 contentId 的映射，隐藏与恢复沿用原映射；来源与基线复用 `ContentIdentityTable`。`white_board_contents.data` 的 version 3 投影包含 documentKind/documentId/pageId/epoch/revision；旧快照、标题、页增删及排序入口拒绝覆盖托管结构。新格式创建要求库已具备来源基线，旧白板由统一后台队列转换。
+新格式白板由 BACKGROUND 模块 `whiteboard-documents` 维护主进程文档会话，命令通过 `ensureModule` 接入。`whiteboard_documents` 持有完整 CRDT 检查点、契约和整板投影，`whiteboard_document_pages` 维护稳定 pageId 与本地 contentId 的映射，隐藏与恢复沿用原映射；来源与基线复用 `ContentIdentityTable`。`white_board_contents.data` 的 version 3 投影包含 documentKind/documentId/pageId/epoch/revision；旧快照、标题、页增删及排序入口拒绝覆盖托管结构。新格式创建要求库已具备来源基线，旧白板不转换。
 
 本机 `whiteboard-documents/journal.db` 位于整库替换范围之外，以 SQLite FULL/WAL 保存增量幂等批次、完整检查点、已投影修订及历史实体持有。写入顺序为候选校验 → 本机提交 → 更新会话 → 主库事务更新所有页、拥有者和关系差集 → 日志推进投影回执。日志失败不广播，投影失败仍保留日志并拒绝关闭；重开与事件接收均按同源、同基线、同 epoch 校验，迟到的旧身份事件不进入当前会话；主库回退或分叉、日志损坏均保留材料并报错。`whiteboard_entity_relations` 只记录可见关系，键包含富文本 rootId 与节点身份；曾引用实体的本机持有不计入业务 ref_count，不随主库同步。回收同时检查正文与白板的保全提供者，未建立本机持有的新文档保守阻止实体回收。
 
@@ -283,19 +271,19 @@ DocumentBoardCanvas 同时准备内置白板契约和编辑器版本目录，画
 
 媒体资源复用 CollaborationAssetService，上传/读取/跨文档复制先校验窗口租约与会话状态，结果回来后再次检查。视频按既有本机资源边界处理，不扩大上传支持；本机引用不公开路径。可编辑导出携带托管资产字节，公网 URL 保持地址，外部实体只保存引用；读取失败停止完整导出。
 
-关窗、切库、重连与退出通过 `durable-document-lifecycle` 排空所有相关视图，包括正在打开的会话；窗口冻结输入、排空 outbox 后确认，主进程封住租约并完成投影。超时或失败恢复可编辑状态，保留窗口和草稿；重复退出同样不得绕过屏障。普通切库和重连只冲刷。同步下载整库替换时，关库已排空并投影所有文档，安装入口再调用 releaseLibrary 丢弃该库的正文缓存会话（本地会话删除、共享会话解除来源），旧库由同步命令复制进 backup/。普通窗口切库只释放该窗口的租约，其它窗口继续持有。尚未完成 IndexedDB 或主进程耐久提交的输入不具备断电恢复保证。旧白板转换、首次共享和代次重绑有独立边界。主进程的 remote-open/stage/sync/cancel 复用窗口租约，仅接受已具备共享文档身份的白板；同一服务地址、设备身份与房间共用一个网络会话，remote-sync 按房间串行：排空网络提案、补交本机差异后，只把本机尚缺的确认内容作为一个批次写回本机日志并投影（无新内容不推进本机修订），远端投影经主进程事件到达画布，不进 outbox、不记本机撤销历史。网络等待期间新增的本机修订标记 requiresSync，不冒充全部同步；远端换代返回 reason=epoch，同一确认基线上的被拒分支返回 reason=rejected，原本机文档不被新根覆盖。远端接口返回摘要（是否需重绑、原因、待确认数、对应本机修订），不把确认快照传回渲染端；失败按服务端代码加前缀（OFFLINE、FORBIDDEN、DOCUMENT_CLOSED、CLIENT_UPGRADE_REQUIRED、MISSING_DEPENDENCIES 等）。网络分支和回执保存在同一耐久日志库的 remote_branches，与主库关系账隔离；首次发布与当前格式的代次重绑保留原操作入口；旧数据格式转换由后台队列自动执行。
+关窗、切库、重连与退出通过 `durable-document-lifecycle` 排空所有相关视图，包括正在打开的会话；窗口冻结输入、排空 outbox 后确认，主进程封住租约并完成投影。超时或失败恢复可编辑状态，保留窗口和草稿；重复退出同样不得绕过屏障。普通切库和重连只冲刷。同步下载整库替换时，关库已排空并投影所有文档，安装入口再调用 releaseLibrary 丢弃该库的正文缓存会话（本地会话删除、共享会话解除来源），旧库由同步命令复制进 backup/。普通窗口切库只释放该窗口的租约，其它窗口继续持有。尚未完成 IndexedDB 或主进程耐久提交的输入不具备断电恢复保证。首次共享有独立提交边界。主进程的 remote-open/stage/sync/cancel 复用窗口租约，仅接受已具备共享文档身份的白板；同一服务地址、设备身份与房间共用一个网络会话，remote-sync 按房间串行：排空网络提案、补交本机差异后，只把本机尚缺的确认内容作为一个批次写回本机日志并投影（无新内容不推进本机修订），远端投影经主进程事件到达画布，不进 outbox、不记本机撤销历史。网络等待期间新增的本机修订标记 requiresSync，不冒充全部同步；远端换代返回 reason=epoch，同一确认基线上的被拒分支返回 reason=rejected，原本机文档不被新根覆盖。远端接口返回摘要（是否需重绑、原因、待确认数、对应本机修订），不把确认快照传回渲染端；失败按服务端代码加前缀（OFFLINE、FORBIDDEN、DOCUMENT_CLOSED、CLIENT_UPGRADE_REQUIRED、MISSING_DEPENDENCIES 等）。网络分支和回执保存在同一耐久日志库的 remote_branches，与主库关系账隔离；首次发布保留原操作入口；旧数据格式拒绝接入。
 
-**白板协作的用户入口**：白板详情与单页画布页给 BoardCanvas 传 `collaboration`，画布顶部 `WhiteboardCollaborationBar` 合成本机保存与远端同步状态（远端确认覆盖本机修订才显示「已同步」）；共享入口 `WhiteboardShareEntry` 经 WhiteBoard 的 `statusBarEnd` 宿主插槽放在右下状态栏末尾，演示模式随状态栏隐藏；创作模式等嵌入画布只显示状态、不提供共享入口。`share-status` 返回共享绑定、未完成的首次发布与已固定候选的本机迁移，与画布共用 `whiteboard-share` 查询缓存。未共享时「共享」对话框说明范围后调用 publish（整板全部页，服务器地址取协作状态）；发布任务在建房前固定，结果未知或中途失败时状态行只提供按原操作「继续共享 / 取消共享」，打开被阻止时 `PendingTransition` 提供同样入口，未完成的本机迁移按原操作「继续更新」。已共享时成员与协作码复用 CollaborationUI 的 SharePanel：协作模块在刷新房间列表时把白板房间（协议 3）列入 `CollaborationState.whiteboards`，invitation/remove-member 按房间地址签发与移除，仍由服务端按设备身份鉴权。远端同步由 `services/whiteboard-documents/remote.ts` 的 WhiteboardRemoteSync 承担：registry 在客户端就绪后读取共享状态，已绑定才挂接；本机修订先经 client.flush 进入主进程日志再调用 remote-sync，本机变化防抖 0.8 秒同步，空闲每 10 秒轮询接收远端（窗口隐藏时 30 秒），窗口聚焦立即同步；断网与等待前序确认按 2 秒起指数退避（上限 60 秒）自动重试，权限拒绝、共享结束、版本不兼容、换代与被拒分支停止自动重试，等待用户「重试同步」或「采用新版本」（adopt 以同一远端会话的确认快照为候选，失败沿用原操作）。最后一个持有者释放时停止同步，未提交差异留在主进程日志，下次打开再同步。协作页侧栏「协作」下白板与正文同组列出（`groupShared`/`resolveShared` 统一排序与选中），选中白板时页内 `WhiteboardRoom` 展示协作码、待审批与成员，画布不在协作页编辑；「打开白板」经 `remote-install` 落到当前资料库：先固定本机文档身份再按远端确认快照创建，已落库直接复用，随后在白板页里编辑与同步。协作页「共享本地内容」可选白板：主进程 `share-candidates` 按标题检索已转换、未共享且没有未完成首次发布的整块白板（空关键词按最近更新，至多 30 条），渲染端经 `services/whiteboard-documents/share.ts` 临时持有文档会话发布，与白板页共用 `publishWhiteboardClient`。旧快照白板在后台升级期间只读预览，不提供转换按钮；后台固定操作身份并复用原转换与安装事务，失败保留原内容并沿原操作重试。旧富文本的独立正文保留稳定实体引用，继续通过原正文会话读写，不把画布中的缓存复制为板内正文；引用解析完成前不创建空白编辑器。无标签箭头按空标签转换，非数组等损坏标签仍保全并报告。
+**白板协作的用户入口**：白板详情与单页画布页给 BoardCanvas 传 `collaboration`，画布顶部 `WhiteboardCollaborationBar` 合成本机保存与远端同步状态（远端确认覆盖本机修订才显示「已同步」）；共享入口 `WhiteboardShareEntry` 经 WhiteBoard 的 `statusBarEnd` 宿主插槽放在右下状态栏末尾，演示模式随状态栏隐藏；创作模式等嵌入画布只显示状态、不提供共享入口。`share-status` 返回共享绑定与未完成的首次发布，与画布共用 `whiteboard-share` 查询缓存。未共享时「共享」对话框说明范围后调用 publish（整板全部页，服务器地址取协作状态）；发布任务在建房前固定，结果未知或中途失败时状态行只提供按原操作「继续共享 / 取消共享」，打开被阻止时 `PendingTransition` 提供同样入口。已共享时成员与协作码复用 CollaborationUI 的 SharePanel：协作模块在刷新房间列表时把白板房间（协议 3）列入 `CollaborationState.whiteboards`，invitation/remove-member 按房间地址签发与移除，仍由服务端按设备身份鉴权。远端同步由 `services/whiteboard-documents/remote.ts` 的 WhiteboardRemoteSync 承担：registry 在客户端就绪后读取共享状态，已绑定才挂接；本机修订先经 client.flush 进入主进程日志再调用 remote-sync，本机变化防抖 0.8 秒同步，空闲每 10 秒轮询接收远端（窗口隐藏时 30 秒），窗口聚焦立即同步；断网与等待前序确认按 2 秒起指数退避（上限 60 秒）自动重试，权限拒绝、共享结束、版本不兼容、换代与被拒分支停止自动重试，等待用户「重试同步」。最后一个持有者释放时停止同步，未提交差异留在主进程日志，下次打开再同步。协作页侧栏「协作」下白板与正文同组列出（`groupShared`/`resolveShared` 统一排序与选中），选中白板时页内 `WhiteboardRoom` 展示协作码、待审批与成员，画布不在协作页编辑；「打开白板」经 `remote-install` 落到当前资料库：先固定本机文档身份再按远端确认快照创建，已落库直接复用，随后在白板页里编辑与同步。协作页「共享本地内容」可选白板：主进程 `share-candidates` 按标题检索已转换、未共享且没有未完成首次发布的整块白板（空关键词按最近更新，至多 30 条），渲染端经 `services/whiteboard-documents/share.ts` 临时持有文档会话发布，与白板页共用 `publishWhiteboardClient`。
 
-**结束共享、重建与插件数据升级**：成员面板底部为作者提供「结束共享」、为成员提供「退出协作」；共享已结束或失去权限时状态行提供「转为本机白板」。三者走 `unshare`（close/leave/detach）：先经 transitionContext 排空并冻结所有视图，close 先取回远端确认、leave 先补交本机差异，再由 `unshare.ts` 合并本机副本与远端确认、导出当前投影并以 `mapTransferResources` 把托管资产换成本机文件（仍有权限时下载失败即中止、白板保持共享；detach 只用已缓存文件，取不到的引用原样保留并计入缺失数），重建不带 meta 的本机基线；随后 close 以确认修订为条件关闭房间、leave 退出房间，服务端完成后记 `whiteboard-unshare:` 任务，再经迁移账安装为本机新代次，最后删除共享绑定。服务端完成而本机未装完时，重试按 detach 续做；share-status 发现本机已不是共享格式会补删残留绑定。关闭后的白板可再次共享，按首次发布建新房间。同一确认基线上的被拒分支在状态行提供「使用协作端版本」：adopt 带 `rebuild` 时只接受同代次且确有被拒分支，以确认快照安装为本机新代次，记下已处理的分支数（`whiteboard-remote-clean:`），被拒材料留在 remote_branches；adopt 完成后对远端会话 restartFromConfirmed，remote-open 在本机已装新代次而网络会话仍停在旧确认时先 synchronize 再比较。当前插件能直接转换的旧版本元素（`upgradableElementIds`：同插件、非当前版本、声明了 from 该版本的转换）存在且已同步时，状态行提供「升级插件数据」：migration-source 冻结来源（共享白板还在服务端 prepare/freeze），渲染端以 `prepareWhiteboardVersionUpgrade` 计算候选后 migration-prepare/finish；中断后 share-status.upgrade 报告待续操作，`migration-source-read` 不经画布读回固定来源，「继续升级 / 取消升级」按原操作续做（同一来源与插件声明得到同一候选，主进程以 proposalHash 拒绝更换）。远端轮询先读 `/protocol` 的确认摘要与序号，未变化时不下载完整状态（`DocumentSyncTransport.peek`）。
+**结束共享与退出协作**：成员面板底部为作者提供「结束共享」、为成员提供「退出协作」；共享已结束或失去权限时状态行提供「转为本机白板」。三者走 `unshare`（close/leave/detach）：先经 transitionContext 排空并冻结所有视图，close 先取回远端确认、leave 先补交本机差异，再由 `unshare.ts` 合并本机副本与远端确认、导出当前投影并以 `mapTransferResources` 把托管资产换成本机文件（仍有权限时下载失败即中止、白板保持共享；detach 只用已缓存文件，取不到的引用原样保留并计入缺失数），重建不带 meta 的本机基线；随后 close 以确认修订为条件关闭房间、leave 退出房间，服务端完成后记 `whiteboard-unshare:` 任务，再经共享提交记录安装为本机新代次，最后删除共享绑定。服务端完成而本机未装完时，重试按 detach 续做；share-status 发现本机已不是共享格式会补删残留绑定。关闭后的白板可再次共享，按首次发布建新房间。远端基线变化或提案被拒时暂停同步，保留本机当前内容；不提供覆盖式恢复或插件数据升级入口。
 
 FadeScroll、可拖宽侧栏、If、ErrorBoundary、PortalToBody 和编辑目标判断统一归 `@tau/ui`，禁止复制到白板包。实体/媒体类型、颜色和摘要纯工具经 shared 公开入口复用。元素树开关与宽度沿用 `tau-whiteboard-outline`，实际占宽归所属页面。
 
 宿主提供主题运行时、UiProvider、DndProvider 和 Tailwind 扫描。缺失扩展时没有其创建入口；未知元素保留数据和子树，显示通用占位，并支持元素树定位与删除。状态和快照先提交，再逐个隔离通知观察者，扩展异常不得阻断保存通知。扩展数据契约扩展 id 与元素/命令/贡献按命名空间隔离（`tau` 保留），装配失败只禁用该扩展并清理其贡献；元素私有数据收敛在 `element.data`，由定义的 schema（Standard Schema v1，仅同步）和精确数据契约负责校验，版本转换由宿主显式发起；快照带必填顶层 `version`，文档版本高于当前应用时画布强制只读、不回调 onChange。创建交互开放元素经 `create` 声明创建方式（click/drag/自定义手势），内核统一负责约束、预览与提交（预览不写文档）；工具模型为 activeTool（`tau.select` 为显式选择工具，旧创建类型枚举与兼容层已删除），受控 API 提供 setActiveTool / onActiveToolChange、坐标转换与 canContain。事件分层与快捷键仲裁内核事件只有内核能发、扩展只能监听，扩展事件按命名空间隔离（`tau.*` 归内置，界面操作统一为 `tau.modal.open` 这类扩展事件，`internal:` 包内专用），快捷键只是「按键 → 命令」（内置优先，命令 enabled 不满足不拦截），mod+k/p/j、alt+方向、escape 为宿主保留键，显示文字统一经 `getShortcut` 取。独立 `@example/whiteboard` 构建、`pnpm check:whiteboard-boundaries` 与 pre-commit 守护源码和运行时模块图边界；Schema 不变（文档快照新增顶层 version 字段；卡片元素改为文档卡见下节），视觉验收由用户完成。
 
-**文档卡与阅读纸**：卡片 / 文章 / 项目文档 / 日记在白板上是 `document` 元素（`entityRef` + `title` 快照，不存 contentId；日记直接存 `{ kind: "diary-moment", id: 片段id }`，不额外存 segmentId，选择器经 EntityPicker 逐条检索），包内 `DocumentPlugin` 负责外壳（选中、缩放、连线、手绘框）与展开请求（双击 / ↵ / 属性条 / 右键 → `board.emit(DOCUMENT_OPEN_EVENT, id)`），纸面由宿主 `createDocumentExtension({ Body })` 渲染，阅读纸由 `position: "canvas"` 承载；两者在 `features/shared/whiteboard/components/Document/`：`source.ts`（react-query 按 entityRef 读元信息，日记按片段 id 取正文与所属日期信息，正文变化走 `useContentDocument`）、`DocumentPaper`（卡片与阅读纸共用的版式，版宽固定，形变只做 transform）、`DocumentCard`、`DocumentReader`（居中 / 停靠、形变、Esc 经 `DesktopEditorOverlayDismiss`；日记编辑时节流 `updateDiarySegment` 并失效同窗口的日记缓存）、`readerStore`（摆放方式全局偏好 + 按 Board 隔离的展开状态）、`DocumentSelectorModal`（工具条与右键共用）、`DocumentHostContext`（嵌白板的宿主定制：`allowDock` 关掉停靠、`cardAccessory` 往卡面上叠宿主内容，创作模式在用）。`position: "canvas"` 渲染在画布容器内：宿主浮层根节点必须带 `CANVAS_OVERLAY_ATTR`，其中的按键、剪贴板、指针、滚轮不归画布；不要用 stopPropagation 截断，否则 document 上的 Esc 仲裁与编辑器弹层的外部点击会收不到事件。旧 `card` 元素由开库升级 `whiteboard-document-upgrade.ts` 一次性改写，随下一次清洁版删除。
+**文档卡与阅读纸**：卡片 / 文章 / 项目文档 / 日记在白板上是 `document` 元素（`entityRef` + `title` 快照，不存 contentId；日记直接存 `{ kind: "diary-moment", id: 片段id }`，不额外存 segmentId，选择器经 EntityPicker 逐条检索），包内 `DocumentPlugin` 负责外壳（选中、缩放、连线、手绘框）与展开请求（双击 / ↵ / 属性条 / 右键 → `board.emit(DOCUMENT_OPEN_EVENT, id)`），纸面由宿主 `createDocumentExtension({ Body })` 渲染，阅读纸由 `position: "canvas"` 承载；两者在 `features/shared/whiteboard/components/Document/`：`source.ts`（react-query 按 entityRef 读元信息，日记按片段 id 取正文与所属日期信息，正文变化走 `useContentDocument`）、`DocumentPaper`（卡片与阅读纸共用的版式，版宽固定，形变只做 transform）、`DocumentCard`、`DocumentReader`（居中 / 停靠、形变、Esc 经 `DesktopEditorOverlayDismiss`；日记编辑时节流 `updateDiarySegment` 并失效同窗口的日记缓存）、`readerStore`（摆放方式全局偏好 + 按 Board 隔离的展开状态）、`DocumentSelectorModal`（工具条与右键共用）、`DocumentHostContext`（嵌白板的宿主定制：`allowDock` 关掉停靠、`cardAccessory` 往卡面上叠宿主内容，创作模式在用）。`position: "canvas"` 渲染在画布容器内：宿主浮层根节点必须带 `CANVAS_OVERLAY_ATTR`，其中的按键、剪贴板、指针、滚轮不归画布；不要用 stopPropagation 截断，否则 document 上的 Esc 仲裁与编辑器弹层的外部点击会收不到事件。旧 `card` 元素不再自动改写。
 
-**日记正文身份与搜索**：EntityKind、EntityRefKind 与 ContentIndexType 均使用 `diary-moment`，id 为 `diary_segments.id`，界面类型 label 仍为「日记」；`diary_entries` 仅承载日期、天气心情与分组，不能作为正文搜索结果。实体候选、FTS 回退与全文/向量索引、内容链接、白板引用和脉络均落在同一条正文；`entity:locate` 返回片段 id + diaryId/date，`openEntity` 通过 date + moment + at 精确回跳。日记页的搜索命中集合使用片段 id。新增或删除片段及正文编辑继续触发现有索引对账。开库由 `diary-entity-upgrade.ts` 单事务转换旧日级引用，不改正文编辑时间、引用计数；不存在的目标保留原数据，不猜测。已有 Yjs 会话打开时也增量修正旧链接属性，防止缓存快照回写旧身份。索引库以 `diary_entity_version=moment-1` 清除旧日级 FTS/向量/节索引、标记重建；引用解析版本为 5、白板引用为 3。全部设备升级后删除主库与会话转换代码。移动端独立索引不在本次改动范围。
+**日记正文身份与搜索**：EntityKind、EntityRefKind 与 ContentIndexType 均使用 `diary-moment`，id 为 `diary_segments.id`，界面类型 label 仍为「日记」；`diary_entries` 仅承载日期、天气心情与分组，不能作为正文搜索结果。实体候选、FTS 回退与全文/向量索引、内容链接、白板引用和脉络均落在同一条正文；`entity:locate` 返回片段 id + diaryId/date，`openEntity` 通过 date + moment + at 精确回跳。日记页的搜索命中集合使用片段 id。新增或删除片段及正文编辑继续触发现有索引对账。旧日级引用不再自动改写。
 
 ### 2.1 公共 UI
 
@@ -312,7 +300,7 @@ Database 的字段插件、视图、聚合算子、命令与插槽只经 `extens
 
 **数据表正文引用**：存活的数据表（`data_tables.ref_count > 0`）对声明了 `contentRefs` 的字段单元格（rich-text 单元格 contentId）与行 `detailContentId` 的每次出现各持有一份 contents 引用，已删除的表不持有。收集口径由字段 model 的 `contentRefs` 声明：`@tau/database/model` 的 `collectContentRefs`/`diffContentRefs`，主进程 `modules/tables/field-models.ts` 登记内置与桌面字段 model；主进程 `DataTableTable` 每条写路径（create / update / patchRow / applyChanges / remove / incrementRefCount）在同一事务内按新旧差集 `retain` / `releaseDeferred`。渲染端不增减或删除这类正文引用，新建正文一律 `createPendingContent`（ref 0 + 待回收登记，进表时 retain）。释放到 0 只登记 `content_pending_releases`，开库（maintenance）回收超过 `CONTENT_RELEASE_GRACE_MS`（7 天）且仍为 0 的正文，删除级联同 `deleteContent`；宽限期内的撤销、粘贴与块复活会重新引用并撤销登记。没有 tableId 的宿主（卡片视图）行不带 detailContentId，删行即删除对应实体；`DesktopDatabase` 不再自行删除行正文，只在库仍为当前库时转发 `onRowCleanup`。
 
-**数据表物理回收**：`data_tables.ref_count` 只是提示，不作删除依据（协作撤销删块、删除正文与项目条目都不回写计数）。`remove` 下限为 0，1→0 时登记 `data_table_pending_releases`，`incrementRefCount` 0→1 撤销登记。开库 maintenance 先执行 `DataTableTable.collectPendingTables`、后执行正文回收（复活的表 retain 正文，救回同批待回收正文）：存量 ref_count ≤ 0 的表补登记并归零；到期登记按实际引用对账——`database_item`、`project_item(ref_type='data-table')`、正文 JSON 中 `database` 节点的 `tableId`（一次调用只扫描一遍）以及本机协作会话私有块（协作模块经 `modules/extra-table-refs.ts` 注册 provider，按会话 `source.databaseName` 归属）。仍有引用的按引用数复活并告警，无引用才删除表与视图；provider 未就绪或读取失败时整批跳过，不能确认就不删。新增任何持有 tableId 的位置，必须同时接入这份对账。
+**数据表物理回收**：`data_tables.ref_count` 只是提示，不作删除依据（协作撤销删块、删除正文与项目条目都不回写计数）。`remove` 下限为 0，1→0 时登记 `data_table_pending_releases`，`incrementRefCount` 0→1 撤销登记。开库 maintenance 先执行 `DataTableTable.collectPendingTables`、后执行正文回收（复活的表 retain 正文，救回同批待回收正文）：存量 ref_count ≤ 0 的表补登记并归零；到期登记按实际引用对账——`database_item`、`project_item(ref_type='data-table')`、正文 JSON 中 `database` 节点的 `tableId`（一次调用只扫描一遍）以及本机协作与撤销历史的实体持有。仍有引用的按引用数复活并告警，无引用才删除表与视图；实体持有检查未就绪或失败时保守保留。新增任何持有 tableId 的位置，必须同时接入这份对账。
 
 - EditText 与 EditTextHandle 从 `@tau/ui` 消费；占位符样式同归 UI。日期周起始与日历事件布局纯函数经 `@tau/shared/calendar-utils` 共用，不依赖桌面日程类型。
 
@@ -322,7 +310,7 @@ Database 的字段插件、视图、聚合算子、命令与插槽只经 `extens
 
 ### 协作网络与端点升级
 
-白板迁移补交与普通同步复用同一房间会话及串行队列，未知提交结果按原操作身份续做。网络分支日志写入核对上次读取的摘要，陈旧实例或写盘失败不能覆盖另一实例已保存的待确认分支；日志未提交时不推进本机观察值。
+白板共享补交与普通同步复用同一房间会话及串行队列，未知提交结果按原操作身份续做。网络分支日志写入核对上次读取的摘要，陈旧实例或写盘失败不能覆盖另一实例已保存的待确认分支；日志未提交时不推进本机观察值。
 
 协作主进程使用共享产品入口；旧来源身份按产品端点认可的摘要升级，双身份需通过双凭据证明后合并。端点升级失败不会阻断本机内容会话，自托管身份不外发；旧缓存的网络、附件与事件连接统一经过端点解析。持久化与权限协议见[协作架构](/docs/architecture/collaboration.md)。
 

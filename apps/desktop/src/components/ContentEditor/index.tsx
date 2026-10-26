@@ -9,7 +9,6 @@ import {
 } from "react";
 import { useContentLocation } from "./useContentLocation";
 import { DocTasksStatusBar } from "./DocTasksStatusBar";
-import { ContentUpgrade } from "./ContentUpgrade";
 import { Loader2 } from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor";
 import { useCollaborationKit } from "@/hooks/useCollaborationKit";
@@ -98,7 +97,6 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
       sessionError,
       frozen,
       swapping,
-      pendingUpgrade,
     } = useContentDocument(contentId, source, props.kit, props.extensions);
     const session = sessions.find(item => item.id === binding?.doc.guid);
     const callback = useRef(props.onChange);
@@ -189,15 +187,6 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     }
     return (
       <>
-        {binding?.mode === "local" && !readonly && (
-          <ContentUpgrade
-            binding={binding}
-            pending={pendingUpgrade}
-            documentId={binding.doc.guid}
-            kit={props.kit}
-            extensions={props.extensions}
-          />
-        )}
         {at && !swapping && !frozen && (
           <ContentLocation
             at={at}

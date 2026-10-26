@@ -1,7 +1,4 @@
-import { BrowserWindow, ipcMain, app, type IpcMainInvokeEvent } from "electron";
-import { dirname } from "node:path";
-import { ContentRecoveryStore } from "./content-recovery";
-import type { LocalRecoveryReceipt } from "./content-local-state";
+import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
 import * as Y from "yjs";
 import { applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protocols/awareness";
 import {
@@ -90,68 +87,8 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
       return prepared.content;
     }
   );
-  handle("recoveries", (_event, offset = 0) => {
-    if (typeof offset !== "number" || !Number.isSafeInteger(offset) || offset < 0)
-      throw new Error("恢复清单页码无效");
-    const store = new ContentRecoveryStore(dirname(context.store.db.name), context.contentState);
-    const receipts = context.contentState.db
-      .prepare(
-        "SELECT id,manifest_hash AS manifestHash,manifest_path AS manifestPath FROM recoveries ORDER BY rowid DESC LIMIT 30 OFFSET ?"
-      )
-      .all(offset) as LocalRecoveryReceipt[];
-    return receipts.map(receipt => {
-      try {
-        const manifest = store.manifest(receipt);
-        const detached = [...context.sessions.values()].filter(
-          session =>
-            context.store.get<{ recoveryId: string } | null>(
-              `library-detached:${session.info.id}`,
-              null
-            )?.recoveryId === receipt.id
-        );
-        return {
-          id: receipt.id,
-          workspaceId: manifest.workspaceId,
-          reason: manifest.reason,
-          missing: manifest.missing,
-          documents: detached.map(session => ({ id: session.info.id, title: session.info.title })),
-        };
-      } catch {
-        return {
-          id: receipt.id,
-          workspaceId: "",
-          reason: "unreadable",
-          missing: [],
-          documents: [],
-          error: "清单损坏，原文件仍保留",
-        };
-      }
-    });
-  });
-  handle("export-recovery", async (_event, id: string) => {
-    const receipt = context.contentState.recovery(id);
-    if (!receipt) throw new Error("恢复包不存在");
-    return new ContentRecoveryStore(dirname(context.store.db.name), context.contentState).export(
-      receipt,
-      app.getPath("downloads")
-    );
-  });
-  handle("use-replaced-content", (event, id: string) => context.useReplacedContent(event, id));
-  handle("adopt-remote-version", (event, id: string) => context.adoptRemoteVersion(event, id));
   handle("open-content", (event, target: ContentSessionTarget) =>
     context.openContent(event, target)
-  );
-  handle(
-    "prepare-upgrade",
-    (
-      event,
-      id: string,
-      contracts: import("@tau/db-schema/content-contracts").ContentContractDictionary,
-      versionUpgrade?: import("@tau/collaboration").ContentVersionUpgrade
-    ) => context.prepareContentUpgrade(event, id, contracts, versionUpgrade)
-  );
-  handle("finish-upgrade", (event, operationId: string, cancel: boolean) =>
-    context.finishContentUpgrade(event, operationId, cancel)
   );
   handle("freeze-ack", (event, viewId: string, requestId?: string) => {
     const view = context.views.get(viewId);
@@ -273,9 +210,6 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
           }[]
         ).map(row => [row.node_id, JSON.parse(row.value)])
       ),
-      pendingUpgrade: context.contentState
-        .pendingMigrations()
-        .some(record => record.plan.documentId === session.info.id),
       state: Y.encodeStateAsUpdate(session.doc),
       awareness: awareness
         ? encodeAwarenessUpdate(awareness, [...awareness.getStates().keys()])
@@ -294,7 +228,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
       throw new Error("编辑视图已失效");
     const session = context.requireSession(view.documentId);
     if (session.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION)
-      throw new Error("请先转换旧正文");
+      throw new Error("正文格式不受支持");
     const tree = new NodeTree(session.doc);
     try {
       const contract = tree.contract(nodeId);
@@ -328,7 +262,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
         cached.doc.destroy();
       }
     } catch {
-      /* 保存副本独立于正文可读性；未能核对的副本保持待恢复。 */
+      /* 未确认输入独立保存，只有匹配的耐久正文回执可以清除。 */
     }
   });
   handle(
@@ -398,7 +332,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
       context.changed(session);
       return;
     }
-    throw new Error("旧格式正文只读，请先完成转换");
+    throw new Error("正文格式不受支持，禁止写入");
   });
   handle("awareness", (event, id: string, viewId: string, update: Uint8Array, clientId: number) => {
     const session = context.findSession(id);

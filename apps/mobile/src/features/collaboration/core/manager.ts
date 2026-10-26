@@ -298,58 +298,6 @@ class CollaborationManager {
     return this.persist(session);
   }
 
-  async adoptRemote(documentId: string) {
-    const session = this.sessions.get(documentId);
-    if (!session) throw new Error("原协作副本尚未加载");
-    await this.flushCache(documentId);
-    session.info.frozen = true;
-    session.provider?.destroy();
-    session.provider = null;
-    this.changed();
-    await session.writeTail;
-    const cached = await tauri.collabReadCache(documentId);
-    if (!cached) throw new Error("原协作缓存缺失，不能覆盖");
-    const { state } = await this.loadState(documentId);
-    const doc = new Y.Doc({ gc: false });
-    try {
-      Y.applyUpdate(doc, base64ToBytes(state));
-      await validateNodeDocument(doc, {
-        documentId,
-        baselineId: String(doc.getMap("meta").get("baselineId")),
-        epoch: Number(doc.getMap("meta").get("epoch")),
-      });
-      const oldEpoch = Number(session.doc.getMap("meta").get("epoch") ?? 0);
-      const nextEpoch = Number(doc.getMap("meta").get("epoch"));
-      if (
-        nextEpoch < oldEpoch ||
-        (nextEpoch === oldEpoch &&
-          doc.getMap("meta").get("baselineId") !== session.doc.getMap("meta").get("baselineId"))
-      )
-        throw new Error("COLLAB_BASELINE_CHANGED: 不能回退共享代次或在同一代次更换基线");
-      await tauri.collabAdoptCache({
-        documentId,
-        state,
-        ...nodeRetentions(doc),
-        expectedRevision: cached.revision,
-        metadata: {
-          ...session.info,
-          pending: false,
-          frozen: false,
-          remoteVersionAvailable: false,
-          error: undefined,
-          baselineId: String(doc.getMap("meta").get("baselineId")),
-          epoch: Number(doc.getMap("meta").get("epoch")),
-        },
-      });
-    } finally {
-      doc.destroy();
-    }
-    const info = { ...session.info };
-    await this.createSession(info);
-    session.detachDocListener?.();
-    session.awareness.setLocalState(null);
-  }
-
   async reconnect(documentId: string) {
     const session = this.sessions.get(documentId);
     if (!session || session.info.status !== "active" || session.info.leaving) return;
@@ -512,7 +460,7 @@ class CollaborationManager {
     await this.whenReady();
     const detail = await tauri.getContentDetail(source.contentId);
     if (!detail.contracts || !detail.documentId || !detail.librarySourceId || !detail.revision)
-      throw new Error("请先完成正文格式转换，再发起共享");
+      throw new Error("正文格式不受支持，无法发起共享");
     if (JSON.stringify(detail.content) !== JSON.stringify(source.content))
       throw new Error("本机编辑尚未确认保存，请保存后重试共享");
     const existing = await tauri.collabGetBinding(source.contentId);
@@ -836,9 +784,7 @@ class CollaborationManager {
           leaving: false,
           frozen,
           remoteVersionAvailable,
-          ...(remoteVersionAvailable
-            ? { error: "共享文档已转换，原本机输入已保留，需先恢复后采用新版本" }
-            : {}),
+          ...(remoteVersionAvailable ? { error: "共享文档基线已变化，已暂停当前会话同步" } : {}),
         },
         doc,
         awareness: new Awareness(doc),

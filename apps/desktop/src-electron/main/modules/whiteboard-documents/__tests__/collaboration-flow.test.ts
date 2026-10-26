@@ -15,7 +15,6 @@ import {
 import { CollaborationAssetService } from "../../collaboration/asset-service";
 import { CollaborationLocalStore } from "../../collaboration/local-store";
 import { ContentLocalState } from "../../collaboration/content-local-state";
-import { ContentRecoveryStore } from "../../collaboration/content-recovery";
 import { ContentIdentityTable } from "../../tables/content-identity";
 import { createServer } from "../../../../../../collaboration-server/src/server";
 
@@ -43,7 +42,7 @@ vi.mock("electron", () => ({
 vi.mock("../../collaboration", () => ({
   default: {
     documentClient: () => state.client,
-    documentMigration: () => ({
+    documentStorage: () => ({
       state: new ContentLocalState(state.store!.db),
       store: state.store,
     }),
@@ -462,7 +461,7 @@ it("权限撤销与版本不兼容只报告原因，本机内容不被覆盖", a
   );
 });
 
-it("远端换代后旧代次编辑不重投，采用新版本后旧日志保留并恢复同步", async () => {
+it("远端换代后暂停同步且不覆盖本机文档，不注册版本恢复入口", async () => {
   const owner = await side("作者", 1, "A");
   const { created, room } = await sharedBoard(owner);
   const lease = await call(owner, "open", "A", created.contentIds[0], "owner-2");
@@ -511,194 +510,8 @@ it("远端换代后旧代次编辑不重投，采用新版本后旧日志保留�
   });
   expect(remoteTitle(room.documentId)).toBe("新代次");
   expect(call(owner, "snapshot", lease.leaseId).state).toEqual(before.state);
-  const adopting = call(owner, "adopt", lease.leaseId, { operationId: "adopt-1", serverUrl: URL });
-  await acknowledgeDrains(owner);
-  await adopting;
-  const reopened = await call(owner, "open", "A", created.contentIds[0], "owner-3");
-  expect(localTitle(owner, reopened.leaseId)).toBe("新代次");
-  expect(await call(owner, "remote-open", reopened.leaseId, URL)).toMatchObject({
-    requiresRebind: false,
-  });
-  await edit(owner, reopened.leaseId, "·继续");
-  await call(owner, "remote-sync", reopened.leaseId);
-  expect(remoteTitle(room.documentId)).toBe("新代次·继续");
-  // 旧代次的本机修订仍在原日志中，没有被清除或混入新代次。
-  const { WhiteboardJournal, journalKey } = await import("../journal");
-  const journal = new WhiteboardJournal(join(owner.dir, "whiteboard-documents", "journal.db"));
-  try {
-    const old = journal.load(journalKey(before.identity));
-    expect(old?.hash).toBe(createHash("sha256").update(before.state).digest("hex"));
-  } finally {
-    journal.close();
-  }
+  expect(owner.handlers.has("whiteboard-document:adopt")).toBe(false);
 });
-
-it("旧白板显式转换：安装失败保留原内容，按原操作续做，缺失插件数据保真", async () => {
-  const owner = await side("作者", 1, "A");
-  owner.db
-    .prepare(
-      "INSERT INTO white_board_contents(id,create_time,update_time,name,data,ref_count) VALUES(900,1,1,'旧页',?,1)"
-    )
-    .run(
-      JSON.stringify({
-        children: [
-          {
-            id: "kept",
-            type: "missing.plugin",
-            x: 0,
-            y: 0,
-            width: 10,
-            height: 10,
-            rotation: 0,
-            data: { secret: "原样保留" },
-          },
-        ],
-      })
-    );
-  const original = owner.db.prepare("SELECT data FROM white_board_contents WHERE id=900").get();
-  owner.db.exec(
-    "CREATE TEMP TRIGGER fail_install BEFORE INSERT ON whiteboard_documents BEGIN SELECT RAISE(ABORT, 'disk full'); END"
-  );
-  await expect(call(owner, "legacy-convert", "A", 900, {})).rejects.toThrow("disk full");
-  expect(owner.db.prepare("SELECT data FROM white_board_contents WHERE id=900").get()).toEqual(
-    original
-  );
-  const operation = owner.store.get<string | null>(
-    "whiteboard-legacy-operation:A:page:900:1",
-    null
-  );
-  expect(operation).toMatch(/^legacy-/);
-  owner.db.exec("DROP TRIGGER fail_install");
-  const { documentId } = await call(owner, "legacy-convert", "A", 900, {});
-  expect(new ContentLocalState(owner.store.db).migration(operation!)?.phase).toBe("COMPLETE");
-  const lease = await call(owner, "open", "A", 900, "converted");
-  expect(lease.identity.documentId).toBe(documentId);
-  const doc = new Y.Doc();
-  Y.applyUpdate(doc, lease.state);
-  const converted = new WhiteboardModel(doc);
-  expect(JSON.stringify(converted.read())).toContain("原样保留");
-  converted.dispose();
-  doc.destroy();
-  expect(await call(owner, "legacy-convert", "A", 900, {})).toEqual({ documentId });
-});
-
-it("首次升级并重开旧文字与无标签箭头，保留原正文及其引用计数", async () => {
-  const owner = await side("作者", 1, "A");
-  const remoteImage = "https://example.com/not-cached.png";
-  owner.db
-    .prepare(
-      "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES(701,1,2,?,2,2)"
-    )
-    .run(JSON.stringify([{ type: "paragraph", children: [{ text: "原文" }] }]));
-  const before = owner.db.prepare("SELECT * FROM contents WHERE id=701").get();
-  ContentIdentityTable.reference(owner.db, "content", 701);
-  const geometry = { x: 10, y: 20, width: 100, height: 60, rotation: 0 };
-  owner.db
-    .prepare(
-      "INSERT INTO white_board_contents(id,create_time,update_time,name,data,ref_count) VALUES(900,1,1,'旧页',?,1)"
-    )
-    .run(
-      JSON.stringify({
-        children: [
-          {
-            ...geometry,
-            id: "text",
-            type: "richtext",
-            contentId: 701,
-            content: [{ type: "paragraph", children: [{ text: "旧缓存" }] }],
-          },
-          {
-            ...geometry,
-            id: "arrow",
-            type: "arrow",
-            source: { bindId: "text" },
-            target: {},
-            points: [
-              { x: 0, y: 0 },
-              { x: 100, y: 60 },
-            ],
-          },
-          { ...geometry, id: "image", type: "image", src: remoteImage },
-        ],
-      })
-    );
-  await call(owner, "legacy-convert", "A", 900, {});
-  const lease = await call(owner, "open", "A", 900, "first-upgrade");
-  const doc = new Y.Doc();
-  Y.applyUpdate(doc, lease.state);
-  const model = new WhiteboardModel(doc);
-  try {
-    const [text, arrow] = model.read().pages[0].children;
-    expect(text).toMatchObject({ id: "text", type: "richtext", geometry, body: [] });
-    expect(ContentIdentityTable.resolve(owner.db, text.entity!)).toBe(701);
-    expect(arrow).toMatchObject({
-      id: "arrow",
-      type: "arrow",
-      body: [],
-      data: { source: { bindId: "text" } },
-    });
-    expect(owner.db.prepare("SELECT * FROM contents WHERE id=701").get()).toEqual(before);
-    expect(
-      owner.store.get(`legacy-upgrade-issues:A:${lease.identity.documentId}`, null)
-    ).toBeNull();
-    expect(model.read().pages[0].children[2].data.src).toBe(remoteImage);
-    const row = owner.store.db
-      .prepare("SELECT record FROM migrations WHERE document_id=?")
-      .get(lease.identity.documentId) as { record: string };
-    const record = JSON.parse(row.record);
-    const recovery = JSON.parse(record.plan.prepared.conversion).recovery;
-    const manifest = new ContentRecoveryStore(
-      join(owner.dir, "collaboration"),
-      new ContentLocalState(owner.store.db)
-    ).verify(recovery);
-    expect(manifest.missing).toContain(remoteImage);
-  } finally {
-    model.dispose();
-    doc.destroy();
-  }
-});
-
-it.each([false, true])(
-  "普通转换入口补齐旧库身份（已有部分身份=%s），失败不改原库",
-  async partial => {
-    const owner = await side("作者", 1, "A");
-    if (!partial) owner.db.exec("DELETE FROM entity_identities; DELETE FROM library_identity");
-    owner.db
-      .prepare(
-        "INSERT INTO white_board_contents(id,create_time,update_time,name,data,ref_count) VALUES (901,1,1,'旧页',?,1)"
-      )
-      .run(JSON.stringify({ children: [] }));
-    const originalLibrary = ContentIdentityTable.library(owner.db);
-    owner.db.exec(
-      "CREATE TEMP TRIGGER fail_install BEFORE INSERT ON whiteboard_documents BEGIN SELECT RAISE(ABORT,'disk full'); END"
-    );
-    await expect(call(owner, "legacy-convert", "A", 901, {})).rejects.toThrow("disk full");
-    expect(ContentIdentityTable.library(owner.db)).toEqual(originalLibrary);
-    const migrations = new ContentLocalState(owner.store.db);
-    const operation = owner.store.get<string>("whiteboard-legacy-operation:A:page:901:1", "");
-    expect(migrations.migration(operation)?.decision).toBeUndefined();
-    if (!partial) migrations.decideLocal(operation, "commit");
-    owner.db
-      .prepare(
-        "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES(999,1,1,'[]',0,1)"
-      )
-      .run();
-    expect(
-      owner.db
-        .prepare(
-          "SELECT entity_id FROM entity_identities WHERE entity_kind='whiteboard-content' AND local_id=901"
-        )
-        .get()
-    ).toBeUndefined();
-    owner.db.exec("DROP TRIGGER fail_install");
-    const result = await call(owner, "legacy-convert", "A", 901, {});
-    expect(migrations.migration(operation)?.phase).toBe("ABORTED");
-    const opened = await call(owner, "open", "A", 901, "converted-first");
-    expect(opened.identity.documentId).toBe(result.documentId);
-    expect(ContentIdentityTable.library(owner.db)).not.toBeNull();
-    expect(await call(owner, "legacy-convert", "A", 901, {})).toEqual(result);
-  }
-);
 
 /** 作者邀请、成员加入并落库，返回成员侧已连接远端的租约。 */
 async function joinMember(owner: Side, roomId: string) {
@@ -727,7 +540,12 @@ const isShared = (target: Side, leaseId: string) => {
     doc.destroy();
   }
 };
-async function unshare(target: Side, leaseId: string, mode: string, operationId = randomUUID()) {
+async function unshare(
+  target: Side,
+  leaseId: string,
+  mode: string,
+  operationId: string = randomUUID()
+) {
   const running = call(target, "unshare", leaseId, { operationId, mode });
   await acknowledgeDrains(target);
   return running;
@@ -749,7 +567,6 @@ it("作者结束共享：房间关闭、本机留下不带共享身份的白板�
   // 断网失败：仍是共享白板，绑定与内容都没变，也没有遗留待装的本机迁移。
   expect(call(owner, "share-status", "A", created.documentId)).toMatchObject({
     binding: { documentId: room.documentId },
-    migration: null,
   });
   expect(isShared(owner, lease.leaseId)).toBe(true);
 
@@ -801,9 +618,9 @@ it("成员退出前补交本机编辑，退出后作者房间保留其改动，�
   expect(isShared(member, kept.leaseId)).toBe(false);
 });
 
-it("同一代次被拒的改动：暂停同步，以协作端版本重建后继续，被拒材料仍留在网络分支", async () => {
+it("同一代次被拒的改动暂停同步，重开不覆盖本机副本", async () => {
   const owner = await side("作者", 1, "A");
-  const { created, room } = await sharedBoard(owner);
+  const { created } = await sharedBoard(owner);
   const lease = await call(owner, "open", "A", created.contentIds[0], "owner-2");
   await call(owner, "remote-open", lease.leaseId, URL);
   const doc = new Y.Doc();
@@ -824,110 +641,7 @@ it("同一代次被拒的改动：暂停同步，以协作端版本重建后继�
     requiresRebind: true,
     reason: "rejected",
   });
-  // 换代采用不能拿来处理同一代次的被拒分支。
-  const wrong = call(owner, "adopt", reopened.leaseId, { operationId: "adopt-x", serverUrl: URL });
-  await acknowledgeDrains(owner);
-  await expect(wrong).rejects.toThrow("代次未前进");
-  const rebuilding = call(owner, "adopt", reopened.leaseId, {
-    operationId: "rebuild-1",
-    serverUrl: URL,
-    rebuild: true,
-  });
-  await acknowledgeDrains(owner);
-  await rebuilding;
-  const fresh = await call(owner, "open", "A", created.contentIds[0], "owner-4");
-  expect(await call(owner, "remote-open", fresh.leaseId, URL)).toMatchObject({
-    requiresRebind: false,
-  });
-  await edit(owner, fresh.leaseId, "·继续");
-  await call(owner, "remote-sync", fresh.leaseId);
-  expect(remoteTitle(room.documentId)).toBe("看板·继续");
-  const branches = owner.dir;
-  const { WhiteboardJournal } = await import("../journal");
-  const journal = new WhiteboardJournal(join(branches, "whiteboard-documents", "journal.db"));
-  try {
-    const rows = journal.db.prepare("SELECT value FROM remote_branches").all() as {
-      value: string;
-    }[];
-    expect(rows.some(row => JSON.parse(row.value).rejected.length === 1)).toBe(true);
-  } finally {
-    journal.close();
-  }
-});
-
-it("作者发起插件数据升级：暂停后凭原操作续做，成员随后采用新版本", async () => {
-  const owner = await side("作者", 1, "A");
-  const { created, room } = await sharedBoard(owner);
-  const { member, lease: memberLease } = await joinMember(owner, room.documentId);
-  const lease = await call(owner, "open", "A", created.contentIds[0], "owner-2");
-  const reading = call(owner, "migration-source", lease.leaseId, "upgrade-1", URL);
-  await acknowledgeDrains(owner);
-  const source = await reading;
-  // 冻结来源后中断：白板暂停打开，状态报告待续的升级，并能不经画布读回固定来源。
-  expect(call(owner, "share-status", "A", created.documentId).upgrade).toEqual({
-    operationId: "upgrade-1",
-  });
-  await expect(call(owner, "open", "A", created.contentIds[0], "blocked")).rejects.toThrow();
-  const stored = call(owner, "migration-source-read", "A", "upgrade-1");
-  expect(stored).toEqual({ state: source.state, documentId: created.documentId });
-  const doc = new Y.Doc();
-  Y.applyUpdate(doc, Buffer.from(stored.state, "base64"));
-  const model = new WhiteboardModel(doc);
-  const { exportWhiteboardTransfer } = await import("@tau/collaboration");
-  const bundle = exportWhiteboardTransfer(model, created.documentId);
-  model.dispose();
-  doc.destroy();
-  await call(owner, "migration-prepare", "A", "upgrade-1", bundle);
-  expect((await call(owner, "migration-finish", "A", "upgrade-1")).phase).toBe("COMPLETE");
-  expect(call(owner, "share-status", "A", created.documentId)).toMatchObject({
-    upgrade: null,
-    migration: null,
-  });
-  expect(server.store.migrations.state(room.documentId).epoch).toBe(1);
-  const reopened = await call(owner, "open", "A", created.contentIds[0], "owner-3");
-  expect(await call(owner, "remote-open", reopened.leaseId, URL)).toMatchObject({
-    requiresRebind: false,
-  });
-  expect(await call(member, "remote-sync", memberLease.leaseId)).toMatchObject({
-    requiresRebind: true,
-    reason: "epoch",
-  });
-});
-
-it("迁移与正常同步复用同一房间会话，未知回执经原身份续做", async () => {
-  const owner = await side("作者", 1, "A");
-  const { created, room } = await sharedBoard(owner);
-  const lease = await call(owner, "open", "A", created.contentIds[0], "owner-upgrade");
-  await call(owner, "remote-open", lease.leaseId, URL);
-  const remote = await [...owner.module.remote.values()][0];
-  const stage = vi.spyOn(remote, "stage");
-  await edit(owner, lease.leaseId, "·待迁移编辑");
-  const original = state.client.request.bind(state.client);
-  let dropped = false;
-  vi.spyOn(state.client, "request").mockImplementation(async (...args: any[]) => {
-    const result = await original(...args);
-    if (!dropped && String(args[1]).includes("/operations/") && args[2] === "POST") {
-      dropped = true;
-      throw new TypeError("response lost");
-    }
-    return result;
-  });
-  const preparing = call(owner, "migration-source", lease.leaseId, "shared-owner", URL);
-  const failed = expect(preparing).rejects.toThrow("response lost");
-  await acknowledgeDrains(owner);
-  await failed;
-  expect(stage).toHaveBeenCalledTimes(1);
-  const pending = remote.snapshot().pending[0].request.operationId;
-  expect(server.store.operations.get(room.documentId, pending, owner.device.id)?.state).toBe(
-    "COMMITTED"
-  );
-  await call(owner, "remote-sync", lease.leaseId);
-  expect(remote.snapshot().pending).toHaveLength(0);
-  expect(remote.snapshot().receipts.some(receipt => receipt.operationId === pending)).toBe(true);
-  await call(owner, "migration-source", lease.leaseId, "shared-owner", URL);
-  expect(stage).toHaveBeenCalledTimes(1);
-  expect(owner.module.remote.size).toBe(1);
-  expect(remoteTitle(room.documentId)).toContain("待迁移编辑");
+  expect(owner.handlers.has("whiteboard-document:adopt")).toBe(false);
 });
 
 it("轮询远端未变化时只读确认摘要，不下载完整状态", async () => {
@@ -942,3 +656,52 @@ it("轮询远端未变化时只读确认摘要，不下载完整状态", async (
   expect(paths.some(path => path.endsWith("/protocol"))).toBe(true);
   expect(paths.some(path => path.endsWith("/state"))).toBe(false);
 });
+
+it.each(["command", "reopen"] as const)(
+  "结束共享写入失败后 %s 复用原候选，超过旧升级期限仍可完成",
+  async retry => {
+    const owner = await side("作者", 1, "A");
+    const { created, room } = await sharedBoard(owner);
+    const lease = await call(owner, "open", "A", created.contentIds[0], "owner-unshare");
+    await call(owner, "remote-open", lease.leaseId, URL);
+    await edit(owner, lease.leaseId, "·保留");
+    const installation = (
+      owner.module as unknown as {
+        installation: { install(...args: unknown[]): Promise<unknown> };
+      }
+    ).installation;
+    const install = vi.spyOn(installation, "install").mockRejectedValueOnce(new Error("disk full"));
+    await expect(unshare(owner, lease.leaseId, "close", "finish-share")).rejects.toThrow(
+      "disk full"
+    );
+    expect(
+      server.store.db.prepare("SELECT status FROM documents WHERE id=?").get(room.documentId)
+    ).toEqual({ status: "closed" });
+    const candidate = owner.store.db
+      .prepare("SELECT record FROM migrations WHERE operation_id=?")
+      .get("finish-share") as { record: string };
+    const later = Date.now() + 20 * 60_000;
+    const now = vi.spyOn(Date, "now").mockReturnValue(later);
+    try {
+      if (retry === "command") {
+        await expect(
+          call(owner, "unshare", lease.leaseId, { operationId: "finish-share", mode: "close" })
+        ).resolves.toEqual({ missing: 0 });
+      } else {
+        await call(owner, "open", "A", created.contentIds[0], "retry-unshare");
+      }
+      const completed = owner.store.db
+        .prepare("SELECT record FROM migrations WHERE operation_id=?")
+        .get("finish-share") as { record: string };
+      expect(JSON.parse(completed.record).plan.prepared.candidate).toBe(
+        JSON.parse(candidate.record).plan.prepared.candidate
+      );
+      const opened = await call(owner, "open", "A", created.contentIds[0], "after-unshare");
+      expect(isShared(owner, opened.leaseId)).toBe(false);
+      expect(localTitle(owner, opened.leaseId)).toContain("保留");
+    } finally {
+      now.mockRestore();
+      install.mockRestore();
+    }
+  }
+);

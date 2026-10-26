@@ -18,7 +18,6 @@ import { basename, join } from "node:path";
 import {
   DEFAULT_COLLABORATION_URL,
   SOURCE_TYPES,
-  createLegacySnapshot,
   collectSharedResources,
   replaceText,
   validateDocument,
@@ -36,7 +35,6 @@ import {
   type CollaborationSession,
   type CollaborationState,
   type ContentNode,
-  type DocumentMigration,
   type JoinRequest,
   type SharedDocumentInfo,
   type SharedWhiteboardInfo,
@@ -54,7 +52,6 @@ import {
   isContentEntityReference,
   type ContentEntityReference,
 } from "@tau/db-schema/content-identities";
-import { setExtraTableRefsProvider } from "../extra-table-refs";
 import { bindingMatches, planClosedReshare, restoreContentBinding } from "./content-repository";
 import { CollaborationAssetService } from "./asset-service";
 import { CollaborationClient } from "./client";
@@ -63,21 +60,16 @@ import type { RuntimeSession, CollaborationView } from "./types";
 import { getContentLength } from "@/utils/helper";
 import { CollaborationLocalStore } from "./local-store";
 import { ContentLocalState } from "./content-local-state";
-import { ContentRecoveryStore, fileDigest } from "./content-recovery";
-import { ContentMigration } from "./content-migration";
 import { ContentRetention } from "./content-retention";
-import { contentRecoveryResources } from "./content-recovery-resources";
 import { registerDurableEntityHolds } from "../durable-entity-holds";
 import { getDevelopmentServerUrl } from "./dev-server";
 import { findCollaborationBinding } from "../collaboration-guard";
 import { emitContentWritten } from "../content-events";
-import { diaryLinkPatcher } from "../diary-entity-upgrade";
 import { localSessionId } from "./session-identity";
 import {
   findContentTitle,
   projectContentTitle,
   projectContractContent,
-  patchSessionNodes,
   registerContentSession,
   contentSession,
   unregisterContentSession,
@@ -93,10 +85,8 @@ export class CollaborationManager {
   private assets!: CollaborationAssetService;
   private client!: CollaborationClient;
   private projecting = new Set<string>();
-  // 会话完成知识库引用转换后不再重复整树比对；会话对象重建时自然重查（迁移幂等）
   private directory = "";
   private sessions = new Map<string, RuntimeSession>();
-  // 旧 documentId → 新 documentId（升级 / 降级换身份后的过渡期，见 rekeySession）
   private transports = new Map<string, HocuspocusProviderWebsocket>();
   private events = new Map<string, WebSocket>();
   private views = new Map<string, CollaborationView>();
@@ -116,23 +106,6 @@ export class CollaborationManager {
   private autoFlushInterval: ReturnType<typeof setInterval> | null = null;
   private refreshInterval: ReturnType<typeof setInterval> | null = null;
   private quitting = false;
-
-  /** 数据表回收对账（D-136）：私有块树里 database 节点按 tableId 计数，含嵌套子节点 */
-  private collectPrivateTableRefs(databaseName: string): Map<number, number> {
-    const counts = new Map<number, number>();
-    const walk = (node: ContentNode) => {
-      if (node.type === "database" && typeof node.tableId === "number")
-        counts.set(node.tableId, (counts.get(node.tableId) ?? 0) + 1);
-      node.children?.forEach(walk);
-    };
-    // 共享正文里数据库块的真实节点只存在 private_nodes；会话按 source.databaseName
-    // 归属主库（与 databaseModule 的库名同口径），内存会话恒为最新（初始化时已全量恢复）
-    for (const session of this.sessions.values()) {
-      if (session.info.source?.databaseName !== databaseName) continue;
-      for (const node of this.store.legacyPrivateNodes(session.info.id).values()) walk(node);
-    }
-    return counts;
-  }
 
   private get serverUrl() {
     return getDevelopmentServerUrl() || DEFAULT_COLLABORATION_URL;
@@ -265,19 +238,15 @@ export class CollaborationManager {
     });
   }
   private restore(info: CollaborationSession, doc: Y.Doc) {
+    if (doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION)
+      throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
     if (info.source && !Number.isSafeInteger(info.source.contentCreatedAt))
       info.source = this.findLocalSource(info.id, info.serverUrl);
     const session: RuntimeSession = {
       info: {
         ...info,
         frozen: Boolean(
-          info.remoteVersionAvailable ||
-          this.contentState
-            ?.pendingMigrations()
-            .some(record => record.plan.documentId === info.id) ||
-          this.store.get(`publishing:${info.id}`, null) ||
-          this.store.get(`library-detached:${info.id}`, null) ||
-          this.contentState?.preparation(info.id)
+          info.remoteVersionAvailable || this.store.get(`publishing:${info.id}`, null)
         ),
         connection: info.mode === "local" ? "connected" : "connecting",
       },
@@ -289,7 +258,7 @@ export class CollaborationManager {
       projectionDirty: true,
     };
     session.awareness.setLocalState(null);
-    // 广播与落盘一律读 session.info.id：会话升级 / 降级会换 documentId（见 rekeySession），
+    // 广播与落盘一律读 session.info.id：发起或结束共享会换 documentId，
     // 捕获创建时的 info.id 会让换身份之后的更新写错会话
     session.awareness.on(
       "update",
@@ -341,8 +310,6 @@ export class CollaborationManager {
       if (session.info.status === "active") ContentTable.ensureTaskIds(db, source.contentId);
     }
     this.attach(session);
-    if (doc.getMap("meta").get("version") === 1)
-      this.legacyContentListener?.(source?.databaseName ?? databaseModule.getCurrentDatabaseName());
     return session;
   }
   private retainNodeState(session: RuntimeSession, doc: Y.Doc) {
@@ -404,36 +371,10 @@ export class CollaborationManager {
     const binding = findCollaborationBinding(db, target.contentId);
     const id = binding?.document_id || localSessionId(db.name, content.id, content.createTime);
     let session = this.findSession(id);
-    if (session) {
-      const detached = this.store.get<{
-        sourceId: string | null;
-        documentId: string | null;
-        revision: string;
-        frozen: boolean;
-      } | null>(`library-detached:${id}`, null);
-      if (detached) {
-        const stored = ContentDocumentTable.read(db, content.id);
-        const revision =
-          stored?.revision ??
-          createHash("sha256").update(JSON.stringify(content.content)).digest("hex");
-        if (
-          detached.sourceId !== (ContentIdentityTable.library(db)?.sourceId ?? null) ||
-          detached.documentId !== (stored?.documentId ?? null) ||
-          detached.revision !== revision
-        )
-          throw new Error("资料库快照已替换，原编辑会话已保存在恢复包；请先处理本机恢复副本");
-        this.store.delete(`library-detached:${id}`);
-        if (!detached.frozen) this.unfreeze(session);
-        registerContentSession(db, content.id, session);
-        session.provider?.attach();
-        this.attach(session);
-        this.changed(session);
-      }
-    }
     if (binding && !session) throw new Error("协作会话尚未恢复，请稍后重试");
     if (!session) {
       if (this.store.db.prepare("SELECT 1 FROM sessions WHERE id=?").get(id))
-        throw new Error("该正文仍有未恢复的协作缓存，请先恢复原数据");
+        throw new Error("该正文的协作缓存不可读，已暂停写入");
       const source: SourceBinding = {
         ...target,
         databaseName: name,
@@ -457,18 +398,12 @@ export class CollaborationManager {
         bannerBg: "",
         bannerPosition: "center",
       };
-      const doc = stored
-        ? await createNodeDocument(
-            { documentId: id, baselineId: randomUUID(), epoch: 0 },
-            await this.assets.prepareLocalDocument(id, value, stored.contracts),
-            stored.contracts
-          )
-        : createLegacySnapshot({
-            title,
-            content: content.content as ContentNode[],
-            bannerBg: "",
-            bannerPosition: "center",
-          });
+      if (!stored) throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
+      const doc = await createNodeDocument(
+        { documentId: id, baselineId: randomUUID(), epoch: 0 },
+        await this.assets.prepareLocalDocument(id, value, stored.contracts),
+        stored.contracts
+      );
       if (!db.open || databaseModule.getDatabase(name) !== db) {
         doc.destroy();
         throw new Error("资料库已切换，请重新打开内容");
@@ -502,14 +437,6 @@ export class CollaborationManager {
     }
     if (session.info.source?.contentCreatedAt !== content.createTime)
       throw new Error("原内容关联已变化");
-    // 缓存的会话正文也需同步日记引用身份，避免旧快照覆盖开库转换后的正文。
-    if (
-      session.doc.getMap("meta").get("version") === NODE_DOCUMENT_VERSION &&
-      session.info.status === "active" &&
-      !session.info.frozen &&
-      !session.info.leaving
-    )
-      patchSessionNodes(session, diaryLinkPatcher(db));
     registerContentSession(db, content.id, session);
     ContentTable.ensureTaskIds(db, content.id);
     return {
@@ -670,7 +597,7 @@ export class CollaborationManager {
           Number(meta.get("epoch") ?? 0) !== protocol.epoch ||
           String(meta.get("baselineId") ?? `legacy:${session.info.id}`) !== protocol.baselineId
         )
-          throw new Error("房间基线已变化，须先恢复本机副本");
+          throw new Error("房间基线已变化，已暂停当前会话同步");
         Y.applyUpdate(session.doc, bytes, session.provider);
         const resources = await this.client.request<{ ids: string[] }>(
           session.info.serverUrl,
@@ -682,7 +609,6 @@ export class CollaborationManager {
             session.info.id,
             ASSET_PREFIX + id
           );
-        await this.preserveSession(session);
         this.store.set(`close-revision:${session.info.id}`, protocol.revision);
       } else {
         const references =
@@ -692,498 +618,10 @@ export class CollaborationManager {
         for (const reference of references)
           if (reference.startsWith(ASSET_PREFIX))
             await this.assets.localizeReference(session.info.serverUrl, session.info.id, reference);
-        await this.preserveSession(session);
       }
     } catch (error) {
       this.unfreeze(session);
       throw error;
-    }
-  }
-
-  private async preserveSession(session: RuntimeSession) {
-    if (!this.contentState) throw new Error("恢复服务尚未就绪");
-    const privateNodes = this.store.legacyPrivateNodes(session.info.id);
-    const revision = createHash("sha256")
-      .update(contentRevision(session))
-      .update(JSON.stringify([...privateNodes]))
-      .update(
-        JSON.stringify(
-          this.store.db
-            .prepare("SELECT * FROM resources WHERE document_id=? ORDER BY id")
-            .all(session.info.id)
-        )
-      )
-      .update(
-        JSON.stringify(
-          this.contentState.db
-            .prepare(
-              "SELECT digest,sequence FROM document_drafts WHERE document_id=? AND applied=0 ORDER BY view_id"
-            )
-            .all(session.info.id)
-        )
-      )
-      .update(
-        JSON.stringify(
-          this.contentState.db
-            .prepare(
-              "SELECT view_id,node_id,field,value,revision,sequence FROM input_drafts WHERE document_id=? AND applied=0 ORDER BY view_id,node_id,field"
-            )
-            .all(session.info.id)
-        )
-      )
-      .update(
-        JSON.stringify(
-          this.contentState.db
-            .prepare(
-              "SELECT workspace_id,node_id,owner,value FROM node_views WHERE document_id=? ORDER BY workspace_id,node_id,owner"
-            )
-            .all(session.info.source?.contentDocumentId ?? session.info.id)
-        )
-      )
-      .digest("hex");
-    const previous = this.store.get<{ revision: string; recoveryId: string } | null>(
-      `recovery:${session.info.id}`,
-      null
-    );
-    const recovery = new ContentRecoveryStore(this.directory, this.contentState);
-    const workspaceId =
-      session.info.source?.databaseName ??
-      [...this.views.values()].find(view => view.documentId === session.info.id)?.inputIdentity
-        .workspaceId ??
-      "application";
-    const source = session.info.source;
-    const db = source ? databaseModule.getDatabase(workspaceId) : undefined;
-    const encode = (value: unknown) => Buffer.from(JSON.stringify(value));
-    const files: ({ name: string; path: string } | { name: string; bytes: Uint8Array })[] = [];
-    if (source) {
-      if (!db?.open) throw new Error("请打开原资料库以保全引用实体");
-      const row = db
-        .prepare("SELECT content,create_time FROM contents WHERE id=?")
-        .get(source.contentId) as { content: string; create_time: number } | undefined;
-      const document = ContentDocumentTable.read(db, source.contentId);
-      if (
-        !row ||
-        row.create_time !== source.contentCreatedAt ||
-        (source.librarySourceId &&
-          ContentIdentityTable.library(db)?.sourceId !== source.librarySourceId) ||
-        (source.contentDocumentId && document?.documentId !== source.contentDocumentId)
-      )
-        throw new Error("原正文来源已变化，停止保全与替换");
-      files.push({
-        name: "source-projection.json",
-        bytes: encode({
-          source,
-          content: JSON.parse(row.content),
-          contracts: document?.contracts ?? null,
-        }),
-      });
-    }
-    const dependencies =
-      db && source
-        ? new ContentRetention(this.contentState).dependencies(
-            db,
-            workspaceId,
-            [{ kind: "content", id: source.contentId }],
-            session.info.id
-          )
-        : [];
-    const references =
-      session.doc.getMap("meta").get("version") === NODE_DOCUMENT_VERSION
-        ? collectNodeDocumentResources(session.doc)
-        : collectSharedResources(session.doc);
-    const resources = this.assets.recoveryFiles(session.info.id, [
-      ...references,
-      ...(db ? contentRecoveryResources(db, dependencies) : []),
-    ]);
-    files.push(
-      { name: "document.bin", bytes: Y.encodeStateAsUpdate(session.doc) },
-      { name: "session.json", bytes: encode(session.info) },
-      { name: "private.json", bytes: encode([...privateNodes]) },
-      { name: "resources.json", bytes: encode(resources.resources) },
-      ...resources.files
-    );
-    for (const [index, draft] of this.contentState
-      .documentDrafts(workspaceId)
-      .filter(draft => draft.documentId === session.info.id)
-      .entries()) {
-      const { state, ...metadata } = draft;
-      files.push(
-        { name: `view-${index}.bin`, bytes: state },
-        { name: `view-${index}.json`, bytes: encode(metadata) }
-      );
-    }
-    files.push(
-      {
-        name: "input-drafts.json",
-        bytes: encode(
-          this.contentState
-            .inputDrafts(workspaceId)
-            .filter(draft => draft.documentId === session.info.id)
-        ),
-      },
-      {
-        name: "node-views.json",
-        bytes: encode(
-          this.contentState.db
-            .prepare("SELECT * FROM node_views WHERE workspace_id=? AND document_id=?")
-            .all(workspaceId, source?.contentDocumentId ?? session.info.id)
-        ),
-      }
-    );
-    const materialRevision = createHash("sha256")
-      .update(revision)
-      .update(JSON.stringify(files.filter(file => file.name === "source-projection.json")))
-      .update(
-        JSON.stringify(resources.files.map(file => ({ name: file.name, ...fileDigest(file.path) })))
-      )
-      .update(JSON.stringify(resources.missing))
-      .digest("hex");
-    if (previous?.revision === materialRevision) {
-      const receipt = this.contentState.recovery(previous.recoveryId);
-      if (receipt) {
-        recovery.verify(receipt);
-        return receipt;
-      }
-    }
-    const receipt = recovery.save({
-      workspaceId,
-      reason: "offline-edit",
-      provenance: {
-        documentId: session.info.id,
-        source: source ?? null,
-        unresolvedLegacySource: !source && privateNodes.size > 0,
-      },
-      files,
-      missing: [
-        ...resources.missing,
-        ...(!source && privateNodes.size ? ["旧私有实体的资料库来源尚未核对"] : []),
-      ],
-    });
-    this.contentState.db
-      .prepare(
-        "INSERT OR IGNORE INTO entity_holds SELECT workspace_id,?,'recovery',source_id,entity_kind,entity_id FROM entity_holds WHERE holder=?"
-      )
-      .run(`recovery:${receipt.id}`, `document:${session.info.id}`);
-    this.store.set(`recovery:${session.info.id}`, {
-      revision: materialRevision,
-      recoveryId: receipt.id,
-    });
-    return receipt;
-  }
-
-  private async prepareContentUpgrade(
-    event: IpcMainInvokeEvent | { db: import("better-sqlite3").Database; name: string },
-    id: string,
-    contracts: ContentContractDictionary,
-    versionUpgrade?: import("@tau/collaboration").ContentVersionUpgrade
-  ) {
-    const session = this.requireSession(id);
-    const { db, name } = this.databaseForEvent(event);
-    if (!this.contentState || (session.info.source && session.info.source.databaseName !== name))
-      throw new Error("请在原资料库打开文档后转换");
-    if (
-      session.info.mode !== "local" &&
-      session.info.status === "active" &&
-      session.info.role !== "owner"
-    )
-      throw new Error("只有所有者可以转换共享正文");
-    const recovery = new ContentRecoveryStore(this.directory, this.contentState);
-    const previous = this.contentState
-      .pendingMigrations(session.info.id)
-      .find(record => record.plan.documentId === session.info.id);
-    if (previous) {
-      if (previous.plan.kind === "whiteboard") throw new Error("白板迁移须经白板文档入口处理");
-      const plan = JSON.parse(
-        recovery.readFile(previous.plan.recovery, "installation.json").toString()
-      ) as { issues: { nodeId: string; reason: string }[] };
-      return {
-        operationId: previous.plan.operationId,
-        recoveryId: previous.plan.recovery.id,
-        issues: plan.issues,
-      };
-    }
-    if (!session.info.frozen) await this.freeze(session);
-    try {
-      await this.project(session);
-      const migration = new ContentMigration(
-        this.contentState,
-        this.store,
-        this.assets,
-        recovery,
-        current => databaseModule.getDatabase(name) === current && current.open
-      );
-      let prepared;
-      if (session.info.mode === "local" || session.info.status === "closed")
-        prepared = await migration.prepare(db, session, contracts, undefined, versionUpgrade);
-      else {
-        session.provider?.detach();
-        let request = this.contentState.preparation(session.info.id);
-        if (!request) {
-          const protocol = await this.client.request<{ epoch: number }>(
-            session.info.serverUrl,
-            `/v1/documents/${session.info.id}/protocol`
-          );
-          request = this.contentState.prepareRemote({
-            workspaceId: name,
-            documentId: session.info.id,
-            operationId: randomUUID(),
-            expectedEpoch: protocol.epoch,
-            expiresAt: Date.now() + 4 * 60_000,
-          });
-        }
-        const route = `/v1/documents/${session.info.id}/migrations/${request.operationId}`;
-        await this.client.request(session.info.serverUrl, `${route}/prepare`, "POST", request);
-        const { operation } = await this.client.request<{ operation: DocumentMigration }>(
-          session.info.serverUrl,
-          `${route}/freeze`,
-          "POST",
-          {}
-        );
-        if (operation.state !== "PENDING") {
-          if (operation.state === "COMMITTED") throw new Error("服务端已提交，须恢复原迁移计划");
-          this.contentState.finishPreparation(operation);
-          this.unfreeze(session);
-          session.provider?.attach();
-          this.attach(session);
-          throw new Error(
-            operation.state === "EXPIRED" ? "本次转换已过期，请重新准备" : "本次转换已取消"
-          );
-        }
-        const { state } = await this.client.request<{ state: string }>(
-          session.info.serverUrl,
-          `/v1/documents/${session.info.id}/state`,
-          "GET",
-          undefined,
-          NODE_DOCUMENT_VERSION
-        );
-        const confirmed = new Y.Doc({ gc: false });
-        try {
-          Y.applyUpdate(confirmed, Buffer.from(state, "base64"));
-          if (confirmed.getMap("meta").get("version") === NODE_DOCUMENT_VERSION)
-            await validateNodeDocument(confirmed, {
-              documentId: session.info.id,
-              baselineId: String(confirmed.getMap("meta").get("baselineId")),
-              epoch: Number(confirmed.getMap("meta").get("epoch")),
-            });
-          else validateDocument(confirmed);
-          prepared = await migration.prepare(
-            session.info.source ? db : undefined,
-            session,
-            contracts,
-            { operation, document: confirmed, workspaceId: name },
-            versionUpgrade
-          );
-          this.contentState.observeRemote(prepared.plan.operationId, operation);
-        } finally {
-          confirmed.destroy();
-        }
-      }
-      this.changed(session);
-      const manifest = recovery.verify(prepared.plan.recovery);
-      return {
-        operationId: prepared.plan.operationId,
-        recoveryId: prepared.plan.recovery.id,
-        issues: manifest.provenance.issues as { nodeId: string; reason: string }[],
-      };
-    } catch (failure) {
-      if (session.info.mode === "local" || session.info.status === "closed") this.unfreeze(session);
-      this.changed(session);
-      const pending = this.contentState.preparation(session.info.id);
-      if (pending)
-        return {
-          operationId: pending.operationId,
-          issues: [],
-          error: failure instanceof Error ? failure.message : "转换准备失败，原始数据已保留",
-        };
-      throw failure;
-    }
-  }
-
-  private async finishContentUpgrade(
-    event: IpcMainInvokeEvent | { db: import("better-sqlite3").Database; name: string },
-    operationId: string,
-    cancel: boolean
-  ) {
-    const { db, name } = this.databaseForEvent(event);
-    let record = this.contentState?.migration(operationId);
-    if (!record && cancel && this.contentState) {
-      const row = this.contentState.db
-        .prepare(
-          "SELECT document_id FROM migrations WHERE operation_id=? AND workspace_id=? AND json_extract(record,'$.phase')='PREPARING'"
-        )
-        .get(operationId, name) as { document_id: string } | undefined;
-      if (row) {
-        const session = this.requireSession(row.document_id);
-        if (session.info.role !== "owner") throw new Error("只有所有者可以取消转换");
-        const request = this.contentState.preparation(row.document_id)!;
-        const { operation } = await this.client.request<{ operation: DocumentMigration }>(
-          session.info.serverUrl,
-          `/v1/documents/${row.document_id}/migrations/${operationId}/cancel`,
-          "POST",
-          { expectedEpoch: request.expectedEpoch }
-        );
-        this.contentState.finishPreparation(operation);
-        this.unfreeze(session);
-        session.provider?.attach();
-        this.attach(session);
-        this.changed(session);
-        return;
-      }
-    }
-    if (!record || record.plan.workspaceId !== name) throw new Error("升级操作不属于当前资料库");
-    if (record.phase === "COMPLETE" && !cancel) return;
-    const session = this.requireSession(record.plan.documentId);
-    if (record.plan.remote) {
-      const route = `/v1/documents/${session.info.id}/migrations/${operationId}`;
-      let { operation } = await this.client.request<{ operation: DocumentMigration | null }>(
-        session.info.serverUrl,
-        route
-      );
-      if (cancel && operation?.state !== "COMMITTED")
-        ({ operation } = await this.client.request<{ operation: DocumentMigration }>(
-          session.info.serverUrl,
-          `${route}/cancel`,
-          "POST",
-          { expectedEpoch: record.plan.expectedEpoch }
-        ));
-      if (!operation) throw new Error("服务端裁决尚未确认，保留本机副本并继续暂停");
-      record = this.contentState!.observeRemote(operationId, operation);
-      if (record.phase === "ABORTED" || record.phase === "EXPIRED") {
-        this.unfreeze(session);
-        session.provider?.attach();
-        this.attach(session);
-        this.changed(session);
-        return;
-      }
-      if (operation.state === "PENDING") {
-        if (record.plan.kind === "whiteboard") throw new Error("白板迁移须经白板文档入口处理");
-        const recovery = new ContentRecoveryStore(this.directory, this.contentState!);
-        const bytes = recovery.readFile(record.plan.recovery, "candidate.bin");
-        ({ operation } = await this.client.request<{ operation: DocumentMigration }>(
-          session.info.serverUrl,
-          `${route}/commit`,
-          "POST",
-          { ...record.plan.fingerprint, state: bytes.toString("base64") }
-        ));
-        record = this.contentState!.observeRemote(operationId, operation);
-        if (!record.decision) throw new Error("服务端未提交本次转换，请读取终态后重新准备");
-      }
-    } else if (cancel) {
-      this.contentState!.decideLocal(operationId, "abort");
-      this.unfreeze(session);
-      this.changed(session);
-      return;
-    }
-    if (!session.info.frozen) await this.freeze(session);
-    const migration = new ContentMigration(
-      this.contentState!,
-      this.store,
-      this.assets,
-      new ContentRecoveryStore(this.directory, this.contentState!),
-      current => databaseModule.getDatabase(name) === current && current.open
-    );
-    this.databaseForEvent(event);
-    const doc = await migration.install(session.info.source ? db : undefined, operationId);
-    const source = session.info.source;
-    const installed = source ? ContentDocumentTable.read(db, source.contentId)! : undefined;
-    const info = {
-      ...session.info,
-      source: source
-        ? {
-            ...source,
-            librarySourceId: ContentIdentityTable.library(db)!.sourceId,
-            contentDocumentId: installed!.documentId,
-            projectionRevision: installed!.revision,
-          }
-        : undefined,
-      error: undefined,
-      frozen: false,
-      remoteVersionAvailable: false,
-    };
-    for (const [viewId, view] of this.views)
-      if (view.documentId === session.info.id) this.removeView(viewId);
-    unregisterContentSession(session);
-    session.provider?.destroy();
-    session.awareness.destroy();
-    session.doc.destroy();
-    this.sessions.delete(session.info.id);
-    this.store.metadata(info);
-    const restored = this.restore(info, doc);
-    if (info.status === "closed" && info.source) await this.demoteSession(restored);
-    this.broadcast("collaboration:removed", { documentId: info.id, replaced: true });
-    if (source) {
-      emitContentWritten(db, source.contentId, "update");
-      this.broadcast("content:updated", { databaseName: name, contentId: source.contentId });
-    }
-    this.changed();
-  }
-
-  private async adoptRemoteVersion(
-    event: IpcMainInvokeEvent | { db: import("better-sqlite3").Database; name: string },
-    id: string
-  ) {
-    const session = this.requireSession(id),
-      { db, name } = this.databaseForEvent(event);
-    if (
-      session.info.mode === "local" ||
-      !this.contentState ||
-      (session.info.source && session.info.source.databaseName !== name)
-    )
-      throw new Error("请在原资料库切换共享版本");
-    const pending = this.contentState
-      .pendingMigrations()
-      .find(record => record.plan.documentId === id);
-    if (pending) {
-      await this.finishContentUpgrade(event, pending.plan.operationId, false);
-      return;
-    }
-    if (!session.info.frozen) await this.freeze(session);
-    session.provider?.detach();
-    await this.preserveSession(session);
-    const protocol = await this.client.request<{
-      version: number;
-      epoch: number;
-      baselineId: string;
-      revision: string;
-    }>(session.info.serverUrl, `/v1/documents/${id}/protocol`);
-    if (
-      protocol.version !== NODE_DOCUMENT_VERSION ||
-      protocol.epoch <= Number(session.doc.getMap("meta").get("epoch") ?? 0)
-    )
-      throw new Error("没有可切换的新正文代次");
-    const { state } = await this.client.request<{ state: string }>(
-      session.info.serverUrl,
-      `/v1/documents/${id}/state`,
-      "GET",
-      undefined,
-      NODE_DOCUMENT_VERSION
-    );
-    const bytes = Buffer.from(state, "base64");
-    if (createHash("sha256").update(bytes).digest("hex") !== protocol.revision)
-      throw new Error("远端正文仍在变化，请重试切换");
-    const snapshot = new Y.Doc({ gc: false });
-    try {
-      Y.applyUpdate(snapshot, bytes);
-      await validateNodeDocument(snapshot, {
-        documentId: id,
-        baselineId: protocol.baselineId,
-        epoch: protocol.epoch,
-      });
-      const migration = new ContentMigration(
-        this.contentState,
-        this.store,
-        this.assets,
-        new ContentRecoveryStore(this.directory, this.contentState)
-      );
-      const prepared = await migration.prepare(
-        session.info.source ? db : undefined,
-        session,
-        {},
-        { document: snapshot, workspaceId: name }
-      );
-      await this.finishContentUpgrade(event, prepared.plan.operationId, false);
-    } finally {
-      snapshot.destroy();
     }
   }
 
@@ -1272,15 +710,11 @@ export class CollaborationManager {
               }>(url, `/v1/documents/${info.id}/protocol`);
               if (
                 protocol.version === NODE_DOCUMENT_VERSION &&
-                protocol.epoch > Number(existing.doc.getMap("meta").get("epoch") ?? 0) &&
-                !this.contentState
-                  ?.pendingMigrations()
-                  .some(record => record.plan.documentId === info.id)
+                protocol.epoch > Number(existing.doc.getMap("meta").get("epoch") ?? 0)
               ) {
                 existing.info.remoteVersionAvailable = true;
                 if (!existing.info.frozen) await this.freeze(existing);
                 existing.provider?.detach();
-                await this.preserveSession(existing);
               }
               this.store.metadata(existing.info);
               continue;
@@ -1372,7 +806,7 @@ export class CollaborationManager {
   ) {
     if (!("sender" in event)) {
       if (!event.db.open || databaseModule.getDatabase(event.name) !== event.db)
-        throw new Error("资料库连接已变化，后台升级等待重新连接");
+        throw new Error("资料库连接已变化，请重新打开正文");
       return event;
     }
     const window = BrowserWindow.fromWebContents(event.sender);
@@ -1441,7 +875,7 @@ export class CollaborationManager {
         try {
           if (!local.info.frozen) await this.freeze(local);
           else if (!this.store.get(`publishing:${local.info.id}`, null))
-            throw new Error("正文正在转换，请先完成恢复");
+            throw new Error("正文已暂停编辑，请等待当前保存或共享操作完成");
           if (sourceType !== "card" && sourceTitle !== undefined)
             replaceText(local.doc.getText("title"), sourceTitle.slice(0, 500));
           await this.project(local);
@@ -1454,7 +888,7 @@ export class CollaborationManager {
           this.unfreeze(local);
           return result;
         } catch (failure) {
-          // 升级已回滚（文档仍是本机形态），恢复可编辑即可
+          // 共享尚未提交时解除输入冻结
           if (
             this.sessions.has(local.info.id) &&
             !this.store.get(`publishing:${local.info.id}`, null)
@@ -1471,14 +905,14 @@ export class CollaborationManager {
     return operation;
   }
 
-  /** 首次共享只发布当前正文；原本机历史先进入独立恢复包。 */
+  /** 首次共享固定当前正文候选，提交失败沿原房间身份重试。 */
   private async publishSession(
     event: IpcMainInvokeEvent,
     session: RuntimeSession,
     target: { contentId: number; sourceType?: SourceType; sourceId?: number; sourceTitle?: string }
   ) {
     if (session.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION)
-      throw new Error("请先在正文中完成协作格式转换，再发起共享");
+      throw new Error("正文格式不受支持，无法发起共享");
     const { db, name } = this.databaseForEvent(event);
     const stored = ContentDocumentTable.read(db, target.contentId);
     const source = session.info.source;
@@ -1496,7 +930,6 @@ export class CollaborationManager {
       serverUrl: string;
     } | null>(key, null);
     if (!prepared) {
-      await this.preserveSession(session);
       const idempotencyKey = createHash("sha256")
         .update(
           JSON.stringify({
@@ -1540,7 +973,7 @@ export class CollaborationManager {
       }
     }
     if (prepared.serverUrl !== url || prepared.revision !== contentRevision(session))
-      throw new Error("共享准备后原正文已变化，原状态已保留，请恢复后重试");
+      throw new Error("共享准备后原正文已变化，原状态已保留，请重新打开后重试");
     await this.client.request(url, `/v1/documents/${prepared.documentId}/publish`, "POST", {
       state: prepared.state,
     });
@@ -1646,8 +1079,7 @@ export class CollaborationManager {
   }
 
   /**
-   * 结束共享 = 降级回本机（走升级的同一条路径）：占位换回私有块真身、资产取回本地，
-   * 同一个 Y.Doc 继续用，会话换回本机身份。
+   * 结束共享后把当前正文与资源保存到本机，并创建独立的本机会话身份。
    */
   private async demoteSession(session: RuntimeSession) {
     const source = session.info.source;
@@ -1662,10 +1094,10 @@ export class CollaborationManager {
         return;
       }
       const stored = ContentDocumentTable.read(db, source.contentId);
-      if (!stored) throw new Error("主库基线尚未安装，请先恢复转换");
+      if (!stored) throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
       const nextId = localSessionId(db.name, source.contentId, source.contentCreatedAt);
       if (this.store.db.prepare("SELECT 1 FROM sessions WHERE id=?").get(nextId))
-        throw new Error("本机目标会话尚有旧副本，请先完成共享恢复");
+        throw new Error("本机目标会话已存在，不能覆盖其内容");
       const contracts = session.doc
         .getMap("node-tree:contracts")
         .toJSON() as ContentContractDictionary;
@@ -1684,7 +1116,7 @@ export class CollaborationManager {
       );
       try {
         if (!db.open || databaseModule.getDatabase(source.databaseName) !== db)
-          throw new Error("资料库已切换，请重试恢复");
+          throw new Error("资料库已切换，请在原资料库重试");
         db.transaction(() => {
           if (!bindingMatches(db, source, previousId, serverUrl)) throw new Error("正文绑定已变化");
           ContentDocumentTable.commit(
@@ -1731,7 +1163,7 @@ export class CollaborationManager {
         throw failure;
       }
     }
-    throw new Error("请先转换旧格式正文，再恢复本机编辑");
+    throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
   }
 
   /** 服务器只存码的哈希，明文仅签发时返回一次：缓存到本机供作者随时重新复制 */
@@ -1881,7 +1313,6 @@ export class CollaborationManager {
 
   private async project(session: RuntimeSession) {
     if (session.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION) return;
-    if (this.store.get(`library-detached:${session.info.id}`, null)) return;
     if (!session.info.source || this.projecting.has(session.info.id)) return;
     const database = databaseModule.getDatabase(session.info.source.databaseName);
     if (!database?.open) return;
@@ -1891,12 +1322,9 @@ export class CollaborationManager {
       if (!source) return;
       const local = session.info.mode === "local";
       if (local && findCollaborationBinding(database, source.contentId)) return;
-      if (session.info.status === "active" && !session.info.frozen && !session.info.leaving) {
-        patchSessionNodes(session, diaryLinkPatcher(database));
-      }
       session.projectionDirty = false;
       const stored = ContentDocumentTable.read(database, source.contentId);
-      if (!stored) throw new Error("正文格式尚未安装，须先完成迁移恢复");
+      if (!stored) throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
       const contracts = session.doc
         .getMap("node-tree:contracts")
         .toJSON() as ContentContractDictionary;
@@ -1962,7 +1390,6 @@ export class CollaborationManager {
     // 直接解除本共享的残留记录——否则写回必然失败，清理永远卡住
     const bound = bindingMatches(db, source, session.info.id, session.info.serverUrl);
     if (!discard && bound) await this.project(session);
-    await this.preserveSession(session);
     db.prepare("DELETE FROM collaboration_bindings WHERE content_id=? AND document_id=?").run(
       source.contentId,
       session.info.id
@@ -1984,14 +1411,6 @@ export class CollaborationManager {
       [...this.views.values()].some(view => view.documentId === session.info.id)
     )
       await this.freeze(session);
-    const workspace = session.info.source?.databaseName ?? "application";
-    if (
-      session.info.mode !== "local" ||
-      session.info.pending ||
-      this.store.legacyPrivateNodes(session.info.id).size ||
-      this.contentState?.hasDocumentDrafts(workspace)
-    )
-      await this.preserveSession(session);
     for (const [id, view] of this.views)
       if (view.documentId === session.info.id) this.removeView(id);
     unregisterContentSession(session);
@@ -2077,154 +1496,8 @@ export class CollaborationManager {
     }
   }
 
-  /** 后台与交互入口复用同一冻结、保全和安装事务。 */
-  async upgradeLegacyContent(
-    name: string,
-    contentId: number,
-    contracts: ContentContractDictionary
-  ) {
-    const db = databaseModule.getDatabase(name);
-    if (!db?.open || this.stopped) throw new Error("资料库未连接");
-    const context = { db, name };
-    const pending = this.contentState!.pendingMigrations().find(
-      record =>
-        record.plan.kind !== "whiteboard" &&
-        record.plan.workspaceId === name &&
-        this.sessions.get(record.plan.documentId)?.info.source?.contentId === contentId
-    );
-    if (!pending && ContentDocumentTable.read(db, contentId)) {
-      const cached = this.store
-        .list()
-        .find(info => info.source?.databaseName === name && info.source.contentId === contentId);
-      if (cached) this.requireSession(cached.id);
-      const old = [...this.sessions.values()].find(
-        session =>
-          session.info.source?.databaseName === name &&
-          session.info.source.contentId === contentId &&
-          session.doc.getMap("meta").get("version") === 1
-      );
-      if (old) {
-        if (!old.info.frozen) await this.freeze(old);
-        await this.preserveSession(old);
-        throw new Error("本机旧正文与已升级资料库存在不同基线，已保全，请核对本机恢复副本");
-      }
-      return;
-    }
-    const opened = await this.openContent(context, { contentId });
-    const id = opened.documentId;
-    await this.upgradeLegacySession(name, id, contracts);
-    if (!ContentDocumentTable.read(db, contentId)) throw new Error("正文升级尚未完成，将自动续做");
-    const restored = this.sessions.get(id);
-    if (
-      restored?.info.mode === "local" &&
-      ![...this.views.values()].some(view => view.documentId === id)
-    ) {
-      unregisterContentSession(restored);
-      restored.provider?.destroy();
-      restored.awareness.destroy();
-      restored.doc.destroy();
-      this.sessions.delete(id);
-    }
-  }
-
-  private legacyContentListener?: (name: string) => void;
-
-  onLegacyContent(listener: (name: string) => void) {
-    this.legacyContentListener = listener;
-  }
-
-  legacySessions(name: string) {
-    return [...this.sessions.values()]
-      .filter(
-        session =>
-          session.doc.getMap("meta").get("version") === 1 &&
-          (session.info.source?.databaseName === name ||
-            (!session.info.source && databaseModule.getCurrentDatabaseName() === name))
-      )
-      .map(session => session.info);
-  }
-
-  isLegacyUpgrade(record: import("./content-local-state").LocalMigrationRecord): boolean {
-    if (record.plan.kind === "whiteboard") return false;
-    const original = new Y.Doc({ gc: false });
-    try {
-      const recovery = new ContentRecoveryStore(this.directory, this.contentState!);
-      Y.applyUpdate(original, recovery.readFile(record.plan.recovery, "document-before.bin"));
-      return original.getMap("meta").get("version") === 1;
-    } finally {
-      original.destroy();
-    }
-  }
-
-  isLegacySession(id: string): boolean {
-    return this.requireSession(id).doc.getMap("meta").get("version") === 1;
-  }
-
-  private recordLegacyUpgradeIssues(
-    name: string,
-    session: RuntimeSession,
-    record: import("./content-local-state").LocalMigrationRecord
-  ) {
-    if (record.plan.kind === "whiteboard") throw new Error("正文迁移目标不匹配");
-    const manifest = new ContentRecoveryStore(this.directory, this.contentState!).manifest(
-      record.plan.recovery
-    );
-    const issues = Array.isArray(manifest.provenance.issues) ? manifest.provenance.issues : [];
-    const key = `legacy-upgrade-issues:${name}:${session.info.id}`;
-    if (issues.length)
-      this.store.set(key, {
-        key: session.info.source
-          ? `content:${session.info.source.contentId}`
-          : `shared:${session.info.id}`,
-        message: `有 ${issues.length} 处内容未能完整转换，原始载荷已保留，需要核对。保全位置：${record.plan.recovery.manifestPath}`,
-      });
-    else this.store.delete(key);
-  }
-
-  async upgradeLegacySession(name: string, id: string, contracts: ContentContractDictionary) {
-    const db = databaseModule.getDatabase(name);
-    if (!db?.open || this.stopped) throw new Error("资料库未连接");
-    const context = { db, name },
-      session = this.requireSession(id);
-    if (session.info.source && session.info.source.databaseName !== name)
-      throw new Error("正文资料库不匹配");
-    const pending = this.contentState!.pendingMigrations(id).find(
-      record => record.plan.documentId === id && record.plan.workspaceId === name
-    );
-    if (pending) {
-      if (pending.plan.kind === "whiteboard") throw new Error("正文迁移目标不匹配");
-      if (!pending.plan.remote) this.contentState!.continueLocal(pending.plan.operationId);
-      this.recordLegacyUpgradeIssues(name, session, pending);
-      await this.finishContentUpgrade(context, pending.plan.operationId, false);
-      if (this.contentState!.migration(pending.plan.operationId)?.phase !== "COMPLETE")
-        throw new Error("原转换已终止，将自动续做新的升级");
-      return;
-    }
-    if (session.doc.getMap("meta").get("version") !== 1) return;
-    if (session.info.mode !== "local" && session.info.status === "active") {
-      const protocol = await this.client.request<{ version: number }>(
-        session.info.serverUrl,
-        `/v1/documents/${id}/protocol`
-      );
-      if (protocol.version === NODE_DOCUMENT_VERSION) {
-        await this.adoptRemoteVersion(context, id);
-        return;
-      }
-      if (session.info.role !== "owner") throw new Error("等待共享文档所有者的客户端自动升级版本");
-    }
-    const prepared = await this.prepareContentUpgrade(context, id, contracts);
-    if (!prepared.recoveryId) throw new Error(prepared.error ?? "原始数据保全尚未完成");
-    const record = this.contentState!.migration(prepared.operationId)!;
-    if (record.plan.kind === "whiteboard") throw new Error("正文升级目标无效");
-    if (!record.plan.remote) this.contentState!.continueLocal(prepared.operationId);
-    this.recordLegacyUpgradeIssues(name, session, record);
-    await this.finishContentUpgrade(context, prepared.operationId, false);
-    if (this.requireSession(id).doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION)
-      throw new Error("正文升级尚未完成，将自动续做");
-  }
-
-  documentMigration() {
-    if (!this.contentState) throw new Error("文档迁移服务未就绪");
+  documentStorage() {
+    if (!this.contentState) throw new Error("文档存储服务未就绪");
     return {
       state: this.contentState,
       store: this.store,
@@ -2254,7 +1527,6 @@ export class CollaborationManager {
     const resumed: RuntimeSession[] = [];
     const resume = () => {
       for (const session of resumed) {
-        if (this.store.get(`library-detached:${session.info.id}`, null)) continue;
         this.unfreeze(session);
         session.provider?.attach();
         this.attach(session);
@@ -2263,7 +1535,6 @@ export class CollaborationManager {
     };
     try {
       for (const session of affected) {
-        if (this.store.get(`library-detached:${session.info.id}`, null)) continue;
         if (!session.info.frozen) {
           resumed.push(session);
           await this.freeze(session);
@@ -2286,7 +1557,7 @@ export class CollaborationManager {
               source.librarySourceId === ContentIdentityTable.library(database)?.sourceId) &&
             (!source.contentDocumentId || source.contentDocumentId === stored?.documentId);
           if (!matches) {
-            // 主库快照回退不能用旧缓存补写；缓存已耐久保存，整库替换另行打包恢复材料。
+            // 主库来源变化不能用旧缓存补写；先确认缓存已耐久保存。
             this.store.metadata(session.info);
             const cached = this.store.load(session.info.id);
             try {
@@ -2352,41 +1623,6 @@ export class CollaborationManager {
     this.changed();
   }
 
-  private async useReplacedContent(event: IpcMainInvokeEvent, id: string): Promise<void> {
-    const session = this.requireSession(id),
-      { name } = this.databaseForEvent(event);
-    const detached = this.store.get<{ recoveryId: string } | null>(`library-detached:${id}`, null);
-    if (!detached || session.info.source?.databaseName !== name || !this.contentState)
-      throw new Error("该会话不是当前资料库的待恢复副本");
-    if (
-      this.contentState.pendingMigrations().some(record => record.plan.documentId === id) ||
-      this.store.get(`publishing:${id}`, null)
-    )
-      throw new Error("请先完成或取消原迁移、发布操作");
-    const receipt = this.contentState.recovery(detached.recoveryId);
-    if (!receipt) throw new Error("原内容的恢复回执缺失，不能解除关联");
-    new ContentRecoveryStore(this.directory, this.contentState).verify(receipt);
-    for (const [viewId, view] of this.views) if (view.documentId === id) this.removeView(viewId);
-    unregisterContentSession(session);
-    if (session.info.mode === "local") {
-      session.awareness.destroy();
-      session.doc.destroy();
-      this.sessions.delete(id);
-      this.store.remove(id);
-    } else {
-      session.info.source = undefined;
-      this.retainNodeState(session, session.doc);
-      this.unfreeze(session);
-      session.provider?.attach();
-      this.attach(session);
-      this.changed(session);
-    }
-    this.store.delete(`library-detached:${id}`);
-    this.contentState.replaceHolds(name, `document:${id}`, "undo", []);
-    this.broadcast("collaboration:removed", { documentId: id, replaced: true });
-    this.changed();
-  }
-
   async init() {
     this.directory = join(PathUtil.getAppDir(), "collaboration");
     this.store = new CollaborationLocalStore(this.directory);
@@ -2404,11 +1640,6 @@ export class CollaborationManager {
         retention.has(db, workspaceId, kind, id)
       );
     }, "content");
-    try {
-      new ContentRecoveryStore(this.directory, this.contentState).recoverUnregistered();
-    } catch {
-      this.error = "存在未通过完整性校验的恢复材料，已保留原文件，相关迁移暂不可继续";
-    }
     if (!this.store.get("localDeviceId", "")) this.store.set("localDeviceId", randomUUID());
     this.client = new CollaborationClient(this.store);
     if (!getDevelopmentServerUrl())
@@ -2428,34 +1659,21 @@ export class CollaborationManager {
     });
     const cachedSessions = this.store.list();
     if (this.store.failures.size)
-      this.error = "部分协作缓存元数据不可读，原数据已保留，请通过恢复入口处理";
-    const pendingDocuments = new Set(
-      this.contentState.pendingMigrations().map(record => record.plan.documentId)
-    );
+      this.error = "部分协作缓存元数据不可读，原数据已保留，请检查本机文件";
     for (const info of cachedSessions) {
-      if (
-        info.mode === "local" &&
-        info.source?.contentDocumentId &&
-        !pendingDocuments.has(info.id) &&
-        !this.contentState.preparation(info.id)
-      )
-        continue;
+      if (info.mode === "local" && info.source?.contentDocumentId) continue;
       // 单条损坏缓存不阻断其他会话；未确认编辑与本机真身可能无法从服务器补回。
       try {
         const { doc } = this.store.load(info.id);
         this.restore(info, doc);
       } catch (error) {
-        const message = "本地协作缓存无法打开，原数据和资源已保留，恢复前暂停该会话";
+        const message = "本地协作缓存无法打开，原数据和资源已保留，暂停该会话";
         console.error(`[collaboration] 会话 ${info.id} ${message}`, error);
         this.store.metadata({ ...info, error: message });
         this.error = message;
       }
     }
     registerCollaborationIpc({
-      prepareContentUpgrade: this.prepareContentUpgrade.bind(this),
-      finishContentUpgrade: this.finishContentUpgrade.bind(this),
-      useReplacedContent: this.useReplacedContent.bind(this),
-      adoptRemoteVersion: this.adoptRemoteVersion.bind(this),
       store: this.store,
       contentState: this.contentState,
       client: this.client,
@@ -2482,7 +1700,6 @@ export class CollaborationManager {
       finishLeave: this.finishLeave.bind(this),
       flushResources: this.flushResources.bind(this),
     });
-    setExtraTableRefsProvider(databaseName => this.collectPrivateTableRefs(databaseName));
     for (const window of BrowserWindow.getAllWindows()) this.registerWindow(window);
     app.on("browser-window-created", (_event, window) => this.registerWindow(window));
     this.autoFlushInterval = setInterval(() => {

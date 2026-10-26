@@ -7,8 +7,6 @@ import {
   createWhiteboardBaseline,
   whiteboardPublicationScope,
   WhiteboardModel,
-  validateWhiteboardDocument,
-  type DocumentMigration,
   type WhiteboardTransfer,
   type ContentNode,
 } from "@tau/collaboration";
@@ -18,7 +16,7 @@ import type { CollaborationLocalStore } from "../collaboration/local-store";
 import { isVideoFile, type CollaborationAssetService } from "../collaboration/asset-service";
 import { WhiteboardDocumentRepository } from "./repository";
 import { stateHash } from "./journal";
-import { WhiteboardMigration } from "./migration";
+import { WhiteboardInstallation } from "./installation";
 
 interface PublicationJob {
   operationId: string;
@@ -69,21 +67,14 @@ export function mapTransferResources(
 export class WhiteboardTransitions {
   private readonly queue = new DocumentWriteQueue(16 * 1024 * 1024);
   constructor(
-    readonly migration: WhiteboardMigration,
+    readonly installation: WhiteboardInstallation,
     private readonly store: CollaborationLocalStore,
     private readonly client: CollaborationClient,
     private readonly assets: CollaborationAssetService
   ) {}
   blocked(name: string, documentId: string) {
     return (
-      Boolean(this.migration.pending(name, documentId)) ||
-      Boolean(
-        this.store.db
-          .prepare(
-            "SELECT 1 FROM settings WHERE key LIKE 'whiteboard-migration-source:%' AND json_extract(value,'$.name')=? AND json_extract(value,'$.documentId')=? AND coalesce(json_extract(value,'$.done'),0)=0"
-          )
-          .get(name, documentId)
-      ) ||
+      Boolean(this.installation.pending(name, documentId)) ||
       this.store
         .get<PublicationJob[]>("whiteboard-publications", [])
         .some(job => job.workspaceId === name && job.documentId === documentId && !job.completed)
@@ -146,7 +137,7 @@ export class WhiteboardTransitions {
     if (!job) {
       if (this.store.get(`whiteboard-binding:${name}:${documentId}`, null))
         throw new Error("此白板已绑定共享，不能再次创建并行房间");
-      if (this.blocked(name, documentId)) throw new Error("原白板操作尚待恢复");
+      if (this.blocked(name, documentId)) throw new Error("原白板共享操作尚未完成");
       const doc = new Y.Doc();
       Y.applyUpdate(doc, source.state);
       const model = new WhiteboardModel(doc);
@@ -174,7 +165,7 @@ export class WhiteboardTransitions {
         doc.destroy();
       }
     }
-    const record = this.migration.state.migration(job.operationId);
+    const record = this.installation.state.installation(job.operationId);
     if (!record?.decision && repo.read(documentId)?.hash !== job.sourceHash)
       throw new Error("原白板已变化，发布候选已保留");
     if (!job.roomId) {
@@ -210,7 +201,7 @@ export class WhiteboardTransitions {
         candidate.destroy();
       }
     }
-    await this.migration.prepare(db, name, {
+    await this.installation.prepare(db, name, {
       operationId: job.operationId,
       documentId,
       candidate: Buffer.from(job.state, "base64"),
@@ -235,7 +226,7 @@ export class WhiteboardTransitions {
     )
       throw new Error("发布结果尚未确认，候选已保留");
     this.store.set(`whiteboard-publication-receipt:${job.operationId}`, status.receipt);
-    await this.migration.install(db, name, job.operationId);
+    await this.installation.install(db, name, job.operationId);
     this.store.set(`whiteboard-binding:${name}:${documentId}`, {
       serverUrl: url,
       documentId: job.roomId,
@@ -288,81 +279,10 @@ export class WhiteboardTransitions {
       {}
     );
     if (result.state !== "ABORTED") throw new Error("服务端已激活，请继续安装原发布结果");
-    if (this.migration.state.migration(operationId))
-      this.migration.state.decideLocal(operationId, "abort");
+    if (this.installation.state.installation(operationId))
+      this.installation.state.decideLocal(operationId, "abort");
     job.cancelled = true;
     job.completed = true;
     this.save(job);
-  }
-  async finishMigration(
-    db: Database.Database,
-    name: string,
-    operationId: string,
-    url: string,
-    cancel = false
-  ) {
-    if (
-      this.store
-        .get<PublicationJob[]>("whiteboard-publications", [])
-        .some(job => job.operationId === operationId)
-    )
-      throw new Error("首次发布请从原发布入口重试或取消");
-    const record = this.migration.state.migration(operationId);
-    if (!record || record.plan.workspaceId !== name || record.plan.kind !== "whiteboard")
-      throw new Error("白板迁移不存在");
-    if (record.plan.remote) {
-      const route = `/v1/documents/${record.plan.remoteDocumentId ?? record.plan.documentId}/migrations/${encodeURIComponent(operationId)}`;
-      let result = await this.client.request<{ operation: DocumentMigration | null }>(url, route);
-      if (!result.operation || result.operation.state === "PENDING") {
-        if (cancel)
-          result = await this.client.request(url, `${route}/cancel`, "POST", {
-            expectedEpoch: record.plan.expectedEpoch,
-          });
-        else
-          result = await this.client.request(url, `${route}/commit`, "POST", {
-            ...record.plan.fingerprint,
-            state: record.plan.prepared.candidate,
-          });
-      }
-      this.migration.state.observeRemote(operationId, result.operation);
-    } else if (cancel) return this.migration.cancel(db, name, operationId);
-    const current = this.migration.state.migration(operationId)!;
-    if (["ABORTED", "EXPIRED"].includes(current.phase)) return current;
-    await this.migration.install(db, name, operationId);
-    return this.migration.state.migration(operationId)!;
-  }
-  async remoteCandidate(
-    serverUrl: string,
-    roomId: string,
-    operationId: string,
-    expectedEpoch: number,
-    expiresAt: number
-  ) {
-    const route = `/v1/documents/${roomId}/migrations/${encodeURIComponent(operationId)}`;
-    await this.client.request(serverUrl, `${route}/prepare`, "POST", { expectedEpoch, expiresAt });
-    const { operation } = await this.client.request<{ operation: DocumentMigration }>(
-      serverUrl,
-      `${route}/freeze`,
-      "POST",
-      {}
-    );
-    if (operation.state !== "PENDING") throw new Error("服务端迁移已结束");
-    const value = await this.client.request<{ state: string }>(
-      serverUrl,
-      `/v1/documents/${roomId}/state`,
-      "GET",
-      undefined,
-      3
-    );
-    const doc = new Y.Doc({ gc: false });
-    try {
-      Y.applyUpdate(doc, Buffer.from(value.state, "base64"));
-      await validateWhiteboardDocument(doc);
-      if (stateHash(Y.encodeStateAsUpdate(doc)) !== operation.frozenRevision)
-        throw new Error("服务端屏障修订不一致");
-      return { operation, state: new Uint8Array(Buffer.from(value.state, "base64")) };
-    } finally {
-      doc.destroy();
-    }
   }
 }

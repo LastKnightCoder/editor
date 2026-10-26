@@ -109,7 +109,6 @@ export function DocumentBoardCanvas(props: Props) {
       <PendingTransition
         databaseName={databaseName}
         documentId={props.documentId}
-        catalog={contracts.data?.catalog}
         onSettled={() => void query.refetch()}
       >
         <div role="alert" className="text-ink-2 p-6">
@@ -250,12 +249,7 @@ function BoundDocumentCanvas({
   );
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <WhiteboardCollaborationBar
-        client={client}
-        documentId={documentId}
-        collaboration={collaboration}
-        catalog={catalog}
-      />
+      <WhiteboardCollaborationBar client={client} documentId={documentId} />
       <div className="min-h-0 flex-1">
         <WhiteBoard
           key={client.viewId}

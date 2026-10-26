@@ -1,8 +1,4 @@
-import {
-  assertDataVersions,
-  type DataMigration,
-  type PreviousDataVersion,
-} from "@tau/db-schema/data-versions";
+import { assertDataVersions, type PreviousDataVersion } from "@tau/db-schema/data-versions";
 import type { ComponentType, ReactNode } from "react";
 import type { Descendant, Editor, Element, NodeEntry, TextUnit } from "slate";
 import type { RenderElementProps } from "slate-react";
@@ -22,7 +18,6 @@ import {
   type ContentCollaborationSpec,
 } from "@tau/db-schema/content-contracts";
 
-export type ElementDataMigration = DataMigration;
 export type PreviousElementVersion = PreviousDataVersion<ElementSpec>;
 
 /**
@@ -74,7 +69,6 @@ export interface ElementSpec<E extends Element = Element> {
   dataVersion?: number;
   collaboration?: ContentCollaborationSpec;
   previousVersions?: readonly PreviousElementVersion[];
-  migrations?: readonly ElementDataMigration[];
   kind: "block" | "inline";
   isVoid?: boolean;
   /** 后代的方向键/退格导航由领域接管，核心不执行默认相邻块导航。 */

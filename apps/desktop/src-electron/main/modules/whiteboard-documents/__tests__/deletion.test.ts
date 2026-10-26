@@ -42,7 +42,7 @@ vi.mock("../../video-note-index-queue", () => ({
 }));
 vi.mock("../../collaboration", () => ({
   default: {
-    documentMigration: () => ({ state: new ContentLocalState(host.cache!.db), store: host.cache }),
+    documentStorage: () => ({ state: new ContentLocalState(host.cache!.db), store: host.cache }),
     documentAssets: () => ({}),
     documentClient: () => ({}),
   },
@@ -209,14 +209,12 @@ it("插件原删除入口在同一事务保存操作记录，恢复时重新认�
   const plugin = (await import("../../tables/plugin-data")).default;
   const scope = { databaseName: ":memory:", pluginId: "test.delete" };
   const current = plugin.get(f.db, { ...scope, entity: "whiteboard", id: f.boardId })!;
-  await plugin
-    .getListenEvents()
-    ["plugin-data:delete"](f.db, {
-      ...scope,
-      entity: "whiteboard",
-      id: f.boardId,
-      expectedRevision: current.revision,
-    });
+  await plugin.getListenEvents()["plugin-data:delete"](f.db, {
+    ...scope,
+    entity: "whiteboard",
+    id: f.boardId,
+    expectedRevision: current.revision,
+  });
   const operation = plugin.operations(f.db, scope)[0];
   expect(operation.entity).toBe("whiteboard");
   const restored = plugin.restore(f.db, { ...scope, id: operation.id }, {

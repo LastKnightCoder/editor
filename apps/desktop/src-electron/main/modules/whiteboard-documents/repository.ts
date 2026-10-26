@@ -200,8 +200,7 @@ export class WhiteboardDocumentRepository {
         data: string;
         title?: string;
       }[];
-    },
-    legacyReferences: readonly { kind: "whiteboard-content" | "data-table"; id: number }[] = []
+    }
   ): StoredWhiteboardDocument {
     return this.db.transaction(() => {
       const library = ContentIdentityTable.library(this.db);
@@ -299,8 +298,7 @@ export class WhiteboardDocumentRepository {
         },
         model,
         0,
-        hash,
-        expected ? [] : legacyReferences
+        hash
       );
       // 未进入新投影的旧页仍保有原内容，但不再是可写页面。
       const pages = new Set(model.read().pages.map(page => page.id));
@@ -321,8 +319,7 @@ export class WhiteboardDocumentRepository {
     identity: WhiteboardDocumentIdentity,
     model: WhiteboardModel,
     revision: number,
-    hash: string,
-    legacyReferences: readonly { kind: "whiteboard-content" | "data-table"; id: number }[] = []
+    hash: string
   ): void {
     const db = this.db,
       snapshot = model.read(),
@@ -349,18 +346,7 @@ export class WhiteboardDocumentRepository {
       oldKeys = new Set(previous.map(whiteboardRelationKey)),
       newKeys = new Set(next.map(whiteboardRelationKey));
     for (const ref of previous) if (!newKeys.has(whiteboardRelationKey(ref))) this.adjust(ref, -1);
-    const inherited = new Map<string, number>();
-    for (const ref of legacyReferences) {
-      const key = `${ref.kind}:${ref.id}`;
-      inherited.set(key, (inherited.get(key) ?? 0) + 1);
-    }
-    for (const ref of next) {
-      if (oldKeys.has(whiteboardRelationKey(ref))) continue;
-      const key = `${ref.target.kind}:${ContentIdentityTable.resolve(db, ref.target)}`;
-      const count = inherited.get(key) ?? 0;
-      if (count > 0) inherited.set(key, count - 1);
-      else this.adjust(ref, 1);
-    }
+    for (const ref of next) if (!oldKeys.has(whiteboardRelationKey(ref))) this.adjust(ref, 1);
     db.prepare("DELETE FROM whiteboard_entity_relations WHERE document_id=?").run(
       identity.documentId
     );

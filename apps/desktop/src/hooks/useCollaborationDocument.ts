@@ -34,13 +34,11 @@ export default function useCollaborationDocument(documentId?: string) {
   const [error, setError] = useState<string>();
   const [frozen, setFrozen] = useState(false);
   const [generation, setGeneration] = useState(0);
-  const [pendingUpgrade, setPendingUpgrade] = useState(false);
   useEffect(() => {
     setBinding(undefined);
     setArticle(undefined);
     setError(undefined);
     setFrozen(false);
-    setPendingUpgrade(false);
     if (!documentId) return;
     const id = documentId;
     const viewId = crypto.randomUUID();
@@ -219,7 +217,6 @@ export default function useCollaborationDocument(documentId?: string) {
           viewId,
         });
         setFrozen(Boolean(snapshot.session.frozen));
-        setPendingUpgrade(Boolean(snapshot.pendingUpgrade));
         activeBinding = {
           prepareFragment: (sourceId, content, contracts) =>
             collaborationCommands.prepareFragment.call(viewId, sourceId, content, contracts),
@@ -313,6 +310,5 @@ export default function useCollaborationDocument(documentId?: string) {
     frozen:
       frozen ||
       Boolean(binding && binding.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION),
-    pendingUpgrade,
   };
 }

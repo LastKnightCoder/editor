@@ -4,7 +4,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import * as Y from "yjs";
-import type { CollaborationSession, ContentNode } from "@tau/collaboration";
+import type { CollaborationSession } from "@tau/collaboration";
 
 export class CollaborationLocalStore {
   readonly db: Database.Database;
@@ -19,20 +19,15 @@ export class CollaborationLocalStore {
       this.db.close();
       throw new Error("本地协作缓存版本较新，请升级 Tau");
     }
+    const existing = this.db
+      .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sessions'")
+      .get();
+    if (existing && version !== 3) {
+      this.db.close();
+      throw new Error("CONTENT_FORMAT_UNSUPPORTED: 本机协作缓存格式不受支持");
+    }
     this.db.transaction(() => {
-      const columns = (table: string) =>
-        new Set(
-          (this.db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map(
-            column => column.name
-          )
-        );
-      if (columns("sessions").size && !columns("sessions").has("state_hash"))
-        this.db.exec("ALTER TABLE sessions ADD COLUMN state_hash TEXT");
-      if (columns("updates").size && !columns("updates").has("hash"))
-        this.db.exec("ALTER TABLE updates ADD COLUMN hash TEXT");
       this.db.exec(cacheSchema);
-      if (!columns("recoveries").has("workspace_id"))
-        this.db.exec("ALTER TABLE recoveries ADD COLUMN workspace_id TEXT");
       this.db.pragma("user_version=3");
     })();
   }
@@ -118,30 +113,6 @@ export class CollaborationLocalStore {
     this.db
       .prepare("UPDATE sessions SET metadata=? WHERE id=?")
       .run(JSON.stringify(session), session.id);
-  }
-  /** 仅供旧数据转换和保全读取；新会话不创建或更新私有块列。 */
-  legacyPrivateNodes(id: string): Map<string, ContentNode> {
-    if (
-      !(this.db.prepare("PRAGMA table_info(sessions)").all() as { name: string }[]).some(
-        column => column.name === "private_nodes"
-      )
-    )
-      return new Map();
-    const row = this.db.prepare("SELECT private_nodes FROM sessions WHERE id=?").get(id) as
-      | { private_nodes: string }
-      | undefined;
-    return new Map(row ? JSON.parse(row.private_nodes) : []);
-  }
-  clearLegacyPrivateNodes(id: string): void {
-    if (
-      !(this.db.prepare("PRAGMA table_info(sessions)").all() as { name: string }[]).some(
-        column => column.name === "private_nodes"
-      )
-    )
-      return;
-    this.db.prepare("UPDATE sessions SET private_nodes='[]' WHERE id=?").run(id);
-    if (!this.db.prepare("SELECT 1 FROM sessions WHERE private_nodes <> '[]' LIMIT 1").get())
-      this.db.exec("ALTER TABLE sessions DROP COLUMN private_nodes");
   }
   append(id: string, update: Uint8Array) {
     if (!this.db.prepare("SELECT 1 FROM sessions WHERE id=?").get(id))

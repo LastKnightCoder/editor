@@ -14,31 +14,15 @@ export interface SharedContentResult {
   /** 创建成功即返回协作码，供发起方直接分享 */
   code: string;
 }
-export interface PreparedContentUpgrade {
-  operationId: string;
-  recoveryId?: string;
-  error?: string;
-  issues: { nodeId: string; reason: string }[];
-}
 
 export interface CollaborationInvitation {
   code: string;
   expiresAt: number;
 }
 
-export interface ContentRecoverySummary {
-  id: string;
-  workspaceId: string;
-  reason: string;
-  missing: string[];
-  documents: { id: string; title: string }[];
-  error?: string;
-}
-
 /** 订阅共享内容获得的本机会话快照 */
 export interface CollaborationSubscribeSnapshot {
   nodeViews?: Record<string, Record<string, unknown>>;
-  pendingUpgrade?: boolean;
   state: Uint8Array;
   awareness?: Uint8Array;
   session: CollaborationSession;
@@ -60,15 +44,6 @@ export const collaborationCommands = {
   updateNodeView: command<[string, string, Record<string, unknown>], Record<string, unknown>>(
     "collaboration:node-view"
   ),
-  recoveries: command<[number], ContentRecoverySummary[]>("collaboration:recoveries"),
-  exportRecovery: command<[string], string | null>("collaboration:export-recovery"),
-  useReplacedContent: command<[string], void>("collaboration:use-replaced-content"),
-  adoptRemoteVersion: command<[string], void>("collaboration:adopt-remote-version"),
-  prepareUpgrade: command<
-    [string, ContentContractDictionary, import("@tau/collaboration").ContentVersionUpgrade?],
-    PreparedContentUpgrade
-  >("collaboration:prepare-upgrade"),
-  finishUpgrade: command<[string, boolean], void>("collaboration:finish-upgrade"),
   join: command<[string], void>("collaboration:join"),
   decide: command<[string, boolean], void>("collaboration:decide"),
   leave: command<[string, (boolean | undefined)?], void>("collaboration:leave"),

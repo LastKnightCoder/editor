@@ -22,13 +22,8 @@ type UseEditContentOptions = {
   onSaved?: (detail: ContentDetailResponse) => void;
   onSaveError?: (error: unknown) => void;
   onContentSync?: (content: Descendant[]) => void;
-  /** 保存模式：direct=常规直写（默认）；collabProjection=协作不可用期的本地兜底，改动
-   *  经 collab_project_content 专用通道落本地库（不触碰服务端，云端单一写者约束不变），
-   *  重连后由作者选择保留本机或采用云端；false=停用保存（内容绑定协作且会话 live：
-   *  云端 Y.Doc 为唯一写者，本地库只接收投影；加载路径保留供元数据展示与降级只读兜底） */
-  saveMode?: "direct" | "collabProjection" | false;
-  /** saveMode=collabProjection 且写入成功：宿主据此标记「有本地兜底改动待裁决」 */
-  onProjectionPersisted?: () => void;
+  /** 协作正文由会话负责保存；本机正文走 direct。 */
+  saveMode?: "direct" | false;
   /** 变化时强制重拉一次（页面 onResume 等）；拉回内容与当前一致则不重建编辑器 */
   refreshKey?: number;
   /** 首载/重拉成功：完整响应透出（含元数据），调用方不必再发一次 getContentDetail */
@@ -96,70 +91,26 @@ export function useEditContent(
         await options?.beforeSave?.();
         if (generation !== loadRequestSeqRef.current) return false;
         const count = getContentLength(normalized);
-        let savedContent = normalized;
-        let savedCount = count;
-        let updateTime = Date.now();
-        let updatedDetail: ContentDetailResponse | undefined;
-        let persistedViaProjection = false;
-
-        /** 投影通道写入；未写入（unbound=幂等跳过 / drift=漂移已自动解绑）返回 false，
-         *  由常规直写接管——此时绑定已不在，直写会被数据库层放行 */
-        const projectContent = async () => {
-          const binding = await tauri.collabGetBinding(contentId);
-          if (!binding) return false;
-          const result = await tauri.collabProjectContent({
-            contentId,
-            documentId: binding.documentId,
-            content: normalized,
-            count,
-            contracts: metadataRef.current?.contracts ?? undefined,
-            expectedRevision: metadataRef.current?.revision ?? undefined,
-            expectedDocumentId: metadataRef.current?.documentId ?? undefined,
-            expectedSourceId: metadataRef.current?.librarySourceId ?? undefined,
-          });
-          if (!result.reason) updatedDetail = await tauri.getContentDetail(contentId);
-          return !result.reason;
-        };
-
-        if (options?.saveMode === "collabProjection") {
-          // 协作不可用时的本地兜底：先走投影专用通道（不改动服务端，等作者重连后裁决）
-          persistedViaProjection = await projectContent();
-        }
-
-        if (!persistedViaProjection) {
-          try {
-            const updated = await tauri.updateContent({
-              contentId,
-              content: normalized,
-              count,
-              contracts: metadataRef.current?.contracts ?? undefined,
-              expectedRevision: metadataRef.current?.revision ?? undefined,
-              expectedDocumentId: metadataRef.current?.documentId ?? undefined,
-              expectedSourceId: metadataRef.current?.librarySourceId ?? undefined,
-            });
-            updatedDetail = updated;
-            savedContent = normalizeEditorContent(updated.content);
-            savedCount = updated.count;
-            updateTime = updated.updateTime;
-          } catch (failure) {
-            // 常规直写被协作守卫拒绝（绑定仍在、会话未就绪）：改走投影通道落本地库
-            if (parseInvokeError(failure).code !== "COLLABORATION_WRITE_REQUIRED") {
-              throw failure;
-            }
-            persistedViaProjection = await projectContent();
-            // 兜底投影仍未写入（极端竞态下绑定同时消失）：按保存失败处理，绝不静默吞改动
-            if (!persistedViaProjection) throw failure;
-          }
-        }
+        const updatedDetail = await tauri.updateContent({
+          contentId,
+          content: normalized,
+          count,
+          contracts: metadataRef.current?.contracts ?? undefined,
+          expectedRevision: metadataRef.current?.revision ?? undefined,
+          expectedDocumentId: metadataRef.current?.documentId ?? undefined,
+          expectedSourceId: metadataRef.current?.librarySourceId ?? undefined,
+        });
+        const savedContent = normalizeEditorContent(updatedDetail.content);
+        const savedCount = updatedDetail.count;
+        const updateTime = updatedDetail.updateTime;
 
         if (generation !== loadRequestSeqRef.current) return true;
-        if (updatedDetail)
-          metadataRef.current = {
-            ...updatedDetail,
-            contracts: updatedDetail.contracts
-              ? { ...updatedDetail.contracts, ...metadataRef.current?.contracts }
-              : undefined,
-          };
+        metadataRef.current = {
+          ...updatedDetail,
+          contracts: updatedDetail.contracts
+            ? { ...updatedDetail.contracts, ...metadataRef.current?.contracts }
+            : undefined,
+        };
         const unchanged = JSON.stringify(latestContentRef.current) === nextSnapshot;
         if (unchanged) latestContentRef.current = savedContent;
         lastSavedSnapshotRef.current = JSON.stringify(savedContent);
@@ -173,9 +124,7 @@ export function useEditContent(
           document: updatedDetail,
         });
         if (unchanged) notifyContentSync(savedContent);
-        // 经投影通道落库＝有本机改动未推云端：宿主据此标记，重连后交作者裁决
-        if (persistedViaProjection) options?.onProjectionPersisted?.();
-        if (updatedDetail) options?.onSaved?.(updatedDetail);
+        options?.onSaved?.(updatedDetail);
         return true;
       } catch (saveError) {
         lastFailedContentRef.current = normalized;

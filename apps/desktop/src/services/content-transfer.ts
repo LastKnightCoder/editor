@@ -67,7 +67,7 @@ export async function readContentForExport(content: Descendant[], contentId?: nu
   if (!contentId) return { content, contracts: undefined };
   const document = await (await import("@/commands/content")).getContentById(contentId);
   if (!document) throw new Error("待导出正文已删除");
-  if (!document.contracts) throw new Error("旧正文请先完成转换后导出");
+  if (!document.contracts) throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
   return document;
 }
 

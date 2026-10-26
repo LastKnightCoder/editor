@@ -5,6 +5,5 @@ export type {
   ElementSpec,
   ElementRenderProps,
   ElementFrame,
-  ElementDataMigration,
   PreviousElementVersion,
 } from "./src/core/api/extension";

@@ -8,7 +8,7 @@
 2. 为节点声明 `dataVersion`，把需要并发编辑的字符串列入 `collaboration.textFields`；资源字段沿用 `resources`。
 3. 将源码编辑改为 `SourceBlockEditor` 的 `element + field` 或 `useTextField`，移除 `initValue/onChange` 及通过普通属性补丁整段覆盖源码的写法。
 4. 无损传递正文时同时保留 `nodes` 和 `contracts`；需要保留的折叠、标签等本机视图状态使用 `view/updateView`。
-5. 保存形状变化须声明精确的 `previousVersions` 和 `migrations`，由宿主显式执行转换。只升级插件包不改写已有文档。
+5. 保存形状变化须声明精确的 `previousVersions`，旧数据按对应版本读取或编辑；宿主不提供数据升级函数，也不改写已有文档。
 
 ## 声明与源码编辑
 
@@ -132,17 +132,6 @@ const v2 = defineEditorElement<DiagramV2>({
   collaboration: { textFields: ["code"] },
   render: DiagramV2View,
   previousVersions: [{ element: v1, access: "edit" }],
-  migrations: [
-    {
-      from: 1,
-      migrate(data) {
-        if (typeof data.source !== "string") throw new Error("旧版源码字段无效");
-        if (Object.hasOwn(data, "code")) throw new Error("目标字段已存在，请保留两份内容后处理");
-        const { source, ...rest } = data;
-        return { ...rest, code: source };
-      },
-    },
-  ],
 });
 
 export default definePlugin({
@@ -170,9 +159,9 @@ export default definePlugin({
 });
 ```
 
-上例是 v2 的完整相关入口，`__PLUGIN_META__` 由模板注入。v1 发布时注册 `v1`，创建动作写 `source`；升级后只注册 `v2`，旧定义放在 `previousVersions`，不并列注册同名类型。新增可选 `title` 不改变文本或资源解释，仍可使用数据版本 1。安装 v2 不改写已有节点；共享文档的字段改名由宿主显式转换并切换基线。
+上例是 v2 的完整相关入口，`__PLUGIN_META__` 由模板注入。v1 发布时注册 `v1`，创建动作写 `source`；升级后只注册 `v2`，旧定义放在 `previousVersions`，不并列注册同名类型。新增可选 `title` 不改变文本或资源解释，仍可使用数据版本 1。安装 v2 不改写已有节点；已有共享节点继续使用保存时的字段与精确版本声明，不提供字段改名转换。
 
-`previousVersions` 按需保留准确的旧声明和渲染，`access` 选 `read` 或 `edit`。省略旧版本时宿主保留原数据并禁写，不把旧节点交给新版渲染器猜测。`migrations` 是旧版本到当前版本的直接转换，不需要维护任意版本之间的图。
+`previousVersions` 按需保留准确的旧声明和渲染，`access` 选 `read` 或 `edit`。省略旧版本时宿主保留原数据并禁写，不把旧节点交给新版渲染器猜测。宿主不提供数据版本转换，新建内容使用当前声明。
 
 转换函数同步返回完整业务属性，保留未知属性；不能访问网络、数据库、时间或随机数。`type`、`children` 与宿主身份由宿主保留，转换函数不能修改。宿主在用户选择升级后备份、校验并安装，不在打开文档或规范化时偷偷转换。
 

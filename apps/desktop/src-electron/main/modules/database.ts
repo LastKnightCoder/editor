@@ -85,16 +85,13 @@ import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import { executeReadOnlySql, type SqlQueryInput } from "./sql-query";
 import { assertDatabaseNotSyncing } from "@tau/db-schema/sync";
 import { assertNoLegacyTables } from "@tau/db-schema/src/legacy-table-guard";
-import { upgradeWhiteboardCardElements } from "./whiteboard-document-upgrade";
 import { upgradeDataTableViewOptions } from "./data-table-view-options-upgrade";
 import { upgradeQuestionedInsights } from "./insights-questioned-upgrade";
 import { QuestionMigrationTable } from "./question-plugin-migration";
-import { upgradeDiaryEntityReferences } from "./diary-entity-upgrade";
 import { upgradeExcerptProviders } from "./excerpt-provider-upgrade";
 import { upgradeWebPages } from "./web-page-upgrade";
 import { broadcastScheduleChange, isScheduleWrite } from "./schedule-changes";
 import { broadcastDatabaseChange } from "./database-notifications";
-import { getExtraTableRefsProvider } from "./extra-table-refs";
 
 export type DatabaseConnectMode = "normal" | "maintenance";
 export type DatabaseReconnectSource = "sync_upload_reconnect" | "sync_download_reconnect";
@@ -399,10 +396,6 @@ class DatabaseModule implements Module {
         `[database] openDatabase main schema done: db=${name}, elapsedMs=${Date.now() - schemaStartAt}`
       );
 
-      const upgradedPages = upgradeWhiteboardCardElements(database);
-      if (upgradedPages > 0)
-        log.info(`[database] 白板卡片元素升级为文档卡: db=${name}, pages=${upgradedPages}`);
-
       const upgradedViews = upgradeDataTableViewOptions(database);
       if (upgradedViews > 0)
         log.info(`[database] 数据表视图配置收进 viewOptions: db=${name}, views=${upgradedViews}`);
@@ -410,8 +403,6 @@ class DatabaseModule implements Module {
       const upgradedInsights = upgradeQuestionedInsights(database);
       if (upgradedInsights > 0)
         log.info(`[database] 洞见「记为问题」状态改为不相关: db=${name}, rows=${upgradedInsights}`);
-
-      upgradeDiaryEntityReferences(database);
 
       if (upgradeExcerptProviders(database))
         log.info(`[database] 摘录补齐位置、外链与提供方: db=${name}`);
@@ -434,19 +425,12 @@ class DatabaseModule implements Module {
         }
         try {
           // 表回收先于正文回收：表按实际引用复活时 retain 正文，能救回同批待回收正文（D-136）。
-          // 协作私有块是表引用的事实来源之一，来源未就绪或读取失败就不能确认无引用，跳过本次
-          const extraTableRefs = getExtraTableRefsProvider();
-          if (extraTableRefs) {
-            const collectedTables = DataTableTable.collectPendingTables(database, {
-              now: Date.now(),
-              graceMs: CONTENT_RELEASE_GRACE_MS,
-              extraTableRefs: () => extraTableRefs(name),
-            });
-            if (collectedTables > 0)
-              log.info(`[database] 回收超宽限期数据表: db=${name}, count=${collectedTables}`);
-          } else {
-            log.warn(`[database] 协作模块未就绪，本次跳过数据表回收: db=${name}`);
-          }
+          const collectedTables = DataTableTable.collectPendingTables(database, {
+            now: Date.now(),
+            graceMs: CONTENT_RELEASE_GRACE_MS,
+          });
+          if (collectedTables > 0)
+            log.info(`[database] 回收超宽限期数据表: db=${name}, count=${collectedTables}`);
         } catch (error) {
           log.error("[database] 回收待释放数据表失败:", error);
         }

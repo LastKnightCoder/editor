@@ -37,7 +37,6 @@
     "./extensions/code-block": "./src/extensions/code-block/src/index.ts",
     "./extensions/code-block/markdown": "./src/extensions/code-block/markdown.ts",
     "./extensions/code-block/types": "./src/extensions/code-block/src/types/index.ts",
-    "./extensions/code-block/migration": "./src/extensions/code-block/src/codeStepMigration.ts",
     "./extensions/code-block/runtime": "./src/extensions/code-block/runtime.ts",
     "./extensions/comment": "./src/extensions/comment/src/index.tsx",
     "./extensions/comment/types": "./src/extensions/comment/src/types.ts",

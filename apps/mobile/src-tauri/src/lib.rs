@@ -1,7 +1,6 @@
 mod app_update;
 mod chunked_sync;
 mod collaboration;
-mod content_recovery;
 mod database;
 mod incoming_file;
 #[cfg(target_os = "ios")]
@@ -249,10 +248,6 @@ pub fn run() {
             collaboration::collab_get_identity,
             collaboration::collab_update_nickname,
             collaboration::collab_request,
-            content_recovery::content_recovery_preserve,
-            content_recovery::content_recovery_list,
-            content_recovery::content_recovery_export,
-            collaboration::collab_cache_adopt,
             collaboration::collab_input_draft,
             collaboration::collab_cache_read,
             collaboration::collab_cache_snapshot,

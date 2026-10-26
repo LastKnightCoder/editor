@@ -1,5 +1,3 @@
-import { dirname } from "node:path";
-import { ContentRecoveryStore } from "./content-recovery";
 import type Database from "better-sqlite3";
 import { collectContentRefs } from "@tau/database/model";
 import type { ContentEntityKind, ContentEntityReference } from "@tau/db-schema/content-identities";
@@ -63,20 +61,9 @@ export class ContentRetention {
     extra: readonly RetainedContentEntity[] = [],
     documentId?: string
   ) {
-    const recovery = new ContentRecoveryStore(dirname(this.state.db.name), this.state);
-    const unresolved =
-      documentId === undefined &&
-      (
-        this.state.db
-          .prepare(
-            "SELECT id,manifest_hash AS manifestHash,manifest_path AS manifestPath FROM recoveries WHERE workspace_id=? OR workspace_id IS NULL"
-          )
-          .all(workspaceId) as import("./content-local-state").LocalRecoveryReceipt[]
-      ).some(receipt => recovery.manifest(receipt).provenance.unresolvedLegacySource === true);
     const uncertain =
       documentId === undefined &&
-      (unresolved ||
-        this.state.hasDocumentDrafts(workspaceId) ||
+      (this.state.hasDocumentDrafts(workspaceId) ||
         (workspaceId !== "application" && this.state.hasDocumentDrafts("application")));
     if (uncertain && includeMain) throw new Error("未确认文档副本尚待核对引用");
     const pending: { kind: Kind; id: number }[] = [];

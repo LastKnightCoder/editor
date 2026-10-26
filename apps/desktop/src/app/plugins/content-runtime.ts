@@ -71,45 +71,6 @@ Object.assign(globalThis, {
             (await prepareContentMarkdown(request.contracts!)).getMarkdown(request.nodes)
           );
         return getMarkdown(request.nodes);
-      case "upgrade-contracts":
-        return Promise.all([
-          import("@/services/editorKit"),
-          import("@/editor-extensions"),
-          import("@/editor-extensions/entity-definitions"),
-          import("@tau/editor/extensions/code-block"),
-          import("@tau/db-schema/content-contracts"),
-          import("@tau/db-schema/content-identities"),
-        ]).then(
-          async ([
-            { createDesktopKit },
-            { contentLinkExtension, fileAttachmentExtension },
-            { entityElementDefinitions },
-            { codeBlockV2Extension },
-            { prepareContentContract },
-            { CONTENT_ENTITY_NODE_CONTRACTS },
-          ]) => {
-            const kit = createDesktopKit([
-              contentLinkExtension,
-              fileAttachmentExtension,
-              codeBlockV2Extension,
-            ]);
-            const catalog = await desktopContentPlugins.prepareEditorContracts(kit.extensions);
-            const whiteboards = await desktopContentPlugins.prepareWhiteboardContracts();
-            const entities = await Promise.all(
-              entityElementDefinitions.map(definition =>
-                prepareContentContract(
-                  CONTENT_ENTITY_NODE_CONTRACTS[definition.type].owner,
-                  definition
-                )
-              )
-            );
-            return {
-              ...catalog.dictionary,
-              ...whiteboards.dictionary,
-              ...Object.fromEntries(entities.map(entry => [entry.id, entry.contract])),
-            };
-          }
-        );
       case "prepare-content":
         return import("@/services/editorKit").then(
           async ({ prepareContentMarkdown, createDesktopKit }) => {

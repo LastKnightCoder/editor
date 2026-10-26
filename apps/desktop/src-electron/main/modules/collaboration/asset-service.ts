@@ -332,48 +332,7 @@ export class CollaborationAssetService {
       | undefined;
   }
 
-  recoveryFiles(documentId: string, references: readonly string[] = []) {
-    const files: { name: string; path: string }[] = [];
-    const resources: { reference: string; original: string; file?: string }[] = [];
-    const missing: string[] = [];
-    const rows = this.store.db
-      .prepare("SELECT * FROM resources WHERE document_id=? ORDER BY id")
-      .all(documentId) as ResourceRow[];
-    for (const row of rows) {
-      const reference = (row.uploaded === LOCAL_ONLY ? LOCAL_ASSET_PREFIX : ASSET_PREFIX) + row.id;
-      const path = this.localPath(row.path);
-      if (!path || !existsSync(path)) {
-        resources.push({ reference, original: row.path });
-        missing.push(reference);
-        continue;
-      }
-      const name = `resource-${files.length}`;
-      files.push({ name, path });
-      resources.push({ reference, original: row.path, file: name });
-    }
-    const known = new Set(resources.map(resource => resource.reference));
-    const copied = new Map(files.map(file => [file.path, file.name]));
-    for (const reference of references) {
-      if (known.has(reference)) continue;
-      known.add(reference);
-      const path = this.recoveryPath(reference, documentId);
-      if (!path || !existsSync(path)) {
-        resources.push({ reference, original: reference });
-        missing.push(reference);
-        continue;
-      }
-      let name = copied.get(path);
-      if (!name) {
-        name = `resource-${files.length}`;
-        files.push({ name, path });
-        copied.set(path, name);
-      }
-      resources.push({ reference, original: reference, file: name });
-    }
-    return { files, resources, missing };
-  }
-
-  recoveryPath(reference: string, documentId?: string): string | null {
+  resolveLocalFile(reference: string, documentId?: string): string | null {
     if (reference.startsWith(ASSET_PREFIX) || isLocalAssetReference(reference)) {
       if (!documentId) return null;
       const id = reference.slice(reference.indexOf(":") + 1);

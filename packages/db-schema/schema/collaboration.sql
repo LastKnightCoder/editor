@@ -1,4 +1,4 @@
--- 本机协作文档、视图、草稿与恢复日志，不进入主库同步。
+-- 本机协作文档、视图、草稿与白板提交记录，不进入主库同步。
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, metadata TEXT NOT NULL, state BLOB NOT NULL, state_hash TEXT);
       CREATE TABLE IF NOT EXISTS updates (id INTEGER PRIMARY KEY, document_id TEXT NOT NULL, state BLOB NOT NULL, hash TEXT);
@@ -14,7 +14,6 @@ CREATE TABLE IF NOT EXISTS node_views (
         PRIMARY KEY(workspace_id,holder,source_id,entity_kind,entity_id)
       );
       CREATE INDEX IF NOT EXISTS entity_holds_target ON entity_holds(workspace_id,source_id,entity_kind,entity_id);
-      CREATE TABLE IF NOT EXISTS recoveries (id TEXT PRIMARY KEY, manifest_hash TEXT NOT NULL, manifest_path TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS migrations (operation_id TEXT PRIMARY KEY, workspace_id TEXT NOT NULL, document_id TEXT NOT NULL, record TEXT NOT NULL);
       CREATE INDEX IF NOT EXISTS migrations_document ON migrations(document_id);
       CREATE INDEX IF NOT EXISTS migrations_pending ON migrations(workspace_id,document_id) WHERE json_extract(record,'$.phase') NOT IN ('PREPARING','COMPLETE','ABORTED','EXPIRED');

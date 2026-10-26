@@ -78,17 +78,6 @@ describe("发起共享时的资源处理", () => {
     expect(String(prepared.content[0].url).startsWith(LOCAL_ASSET_PREFIX)).toBe(true);
     const path = await assets.resolveReference(SERVER, DOCUMENT, String(prepared.content[0].url));
     expect(readFileSync(path).toString()).toBe("image-data");
-    expect(assets.recoveryFiles(DOCUMENT).missing).toEqual([]);
-  });
-  it("恢复包按声明收集外部附件，重复路径只复制一次，缺失资源明确列出", () => {
-    const { assets, file, root } = setup();
-    const path = file("attachment.pdf", "附件原文");
-    const missing = join(root, "missing.pdf");
-    const result = assets.recoveryFiles(DOCUMENT, [path, path, missing, "tau-collab:unknown"]);
-    expect(result.files).toEqual([{ name: "resource-0", path }]);
-    expect(result.resources).toHaveLength(3);
-    expect(result.missing).toEqual([missing, "tau-collab:unknown"]);
-    expect(readFileSync(result.files[0].path, "utf8")).toBe("附件原文");
   });
   it("新文档按每个节点的历史契约映射资源，本机会话不上传文件", async () => {
     const { assets, file, uploads } = setup();
@@ -198,7 +187,7 @@ describe("发起共享时的资源处理", () => {
   });
 });
 
-it("旧 Windows 附件路径跨平台并随资料目录迁移，保全副本和实际文件一致", async () => {
+it("旧 Windows 附件路径跨平台并随资料目录迁移，本机引用指向实际文件", async () => {
   const { root } = setup();
   const relocated = join(root, "relocated-library");
   mkdirSync(join(relocated, "resources"), { recursive: true });
@@ -207,19 +196,15 @@ it("旧 Windows 附件路径跨平台并随资料目录迁移，保全副本和�
   const store = new CollaborationLocalStore(join(relocated, "collaboration"));
   cleanup.push(() => store.db.close());
   const assets = new CollaborationAssetService(store, relocated, async () => {
-    throw new Error("本机升级不得联网");
+    throw new Error("本机资源读取不得联网");
   });
   for (const reference of [
     "~\\.editor\\resources\\历史附件.png",
     "~/.editor/resources/历史附件.png",
   ]) {
-    expect(assets.recoveryPath(reference)).toBe(file);
+    expect(assets.resolveLocalFile(reference)).toBe(file);
     const local = await assets.prepareLocalReference(DOCUMENT, reference);
-    expect(assets.recoveryPath(local, DOCUMENT)).toBe(file);
-    const recovery = assets.recoveryFiles(DOCUMENT, [reference, local]);
-    expect(recovery.missing).toEqual([]);
-    expect(recovery.files.length).toBeGreaterThan(0);
-    for (const entry of recovery.files)
-      expect(readFileSync(entry.path, "utf8")).toBe("原始附件字节");
+    expect(assets.resolveLocalFile(local, DOCUMENT)).toBe(file);
+    expect(readFileSync(file, "utf8")).toBe("原始附件字节");
   }
 });

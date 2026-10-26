@@ -38,31 +38,13 @@ export interface RuntimeSession {
 }
 
 export interface CollaborationIpcContext {
-  prepareContentUpgrade(
-    event: IpcMainInvokeEvent,
-    id: string,
-    contracts: import("@tau/db-schema/content-contracts").ContentContractDictionary,
-    versionUpgrade?: import("@tau/collaboration").ContentVersionUpgrade
-  ): Promise<{
-    operationId: string;
-    recoveryId?: string;
-    error?: string;
-    issues: { nodeId: string; reason: string }[];
-  }>;
-  finishContentUpgrade(
-    event: IpcMainInvokeEvent,
-    operationId: string,
-    cancel: boolean
-  ): Promise<void>;
-  useReplacedContent(event: IpcMainInvokeEvent, documentId: string): Promise<void>;
-  adoptRemoteVersion(event: IpcMainInvokeEvent, documentId: string): Promise<void>;
   store: CollaborationLocalStore;
   contentState: ContentLocalState;
   client: CollaborationClient;
   assets: CollaborationAssetService;
   serverUrl(): string;
   sessions: Map<string, RuntimeSession>;
-  /** 按 documentId 找会话，并解析升级 / 降级换身份留下的旧 id */
+  /** 按 documentId 获取当前会话，未加载时读取本机缓存。 */
   findSession(id: string): RuntimeSession | undefined;
   views: Map<string, CollaborationView>;
   state(): CollaborationState;

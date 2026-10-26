@@ -46,7 +46,10 @@ afterEach(async () => {
 const LOOK_BY_REASON: Record<UnknownElementReason, { title: string; description: string }> = {
   missing: { title: "缺少扩展", description: "需要安装对应的扩展才能显示，数据已完整保留" },
   "too-new": { title: "需要更新扩展", description: "此元素由更新版本的扩展创建，数据已完整保留" },
-  "migration-failed": { title: "数据升级失败", description: "扩展无法升级此元素，原始数据已保留" },
+  "unsupported-version": {
+    title: "数据版本不匹配",
+    description: "当前扩展不支持此数据版本，原始数据已保留",
+  },
   disabled: { title: "扩展已停用", description: "所属扩展与其他扩展冲突，数据已完整保留" },
   error: { title: "无法显示", description: "此元素渲染出错，数据已完整保留" },
 };

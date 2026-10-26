@@ -46,12 +46,6 @@ export const installSharedWhiteboard = (databaseName: string, serverUrl: string,
     serverUrl,
     roomId
   );
-/** 用户确认后显式转换旧快照白板；失败时原内容不变，重试沿用原操作。 */
-export const convertLegacyWhiteboard = (
-  databaseName: string,
-  contentId: number,
-  editorContracts: import("@tau/db-schema/content-contracts").ContentContractDictionary
-) => call<{ documentId: string }>("legacy-convert", databaseName, contentId, editorContracts);
 /** 尚未共享的整块白板，按标题检索（空关键词按最近更新），至多 30 条。 */
 export const searchWhiteboardShareCandidates = (databaseName: string, keyword: string) =>
   call<WhiteboardShareCandidate[]>("share-candidates", databaseName, keyword);
@@ -110,16 +104,6 @@ export const readWhiteboardDocumentResource = (leaseId: string, reference: strin
 
 export const copyWhiteboardDocumentContent = (leaseId: string, elementId: string) =>
   call<number>("copy-content", leaseId, elementId);
-
-/** 显式宿主维护入口，加载画布不会调用这些命令。 */
-export const inventoryLegacyWhiteboards = (databaseName: string) =>
-  call("legacy-inventory", databaseName);
-export const prepareLegacyWhiteboard = (
-  databaseName: string,
-  operationId: string,
-  documentId: string,
-  contracts: import("@tau/db-schema/content-contracts").ContentContractDictionary
-) => call("legacy-prepare", databaseName, operationId, documentId, contracts);
 export const publishWhiteboard = (
   leaseId: string,
   request: { operationId: string; serverUrl: string; pageIds: string[] }
@@ -128,35 +112,8 @@ export const resumeWhiteboardPublication = (databaseName: string, operationId: s
   call<{ documentId: string; serverUrl: string }>("publish-resume", databaseName, operationId);
 export const cancelWhiteboardPublication = (databaseName: string, operationId: string) =>
   call<void>("publish-cancel", databaseName, operationId);
-export const readWhiteboardMigrationSource = (
-  leaseId: string,
-  operationId: string,
-  serverUrl?: string
-) =>
-  call<{ state: string; documentId: string }>("migration-source", leaseId, operationId, serverUrl);
-export const prepareWhiteboardMigration = (
-  databaseName: string,
-  operationId: string,
-  bundle: import("@tau/collaboration/whiteboard-types").WhiteboardTransfer
-) => call("migration-prepare", databaseName, operationId, bundle);
-export const finishWhiteboardMigration = (
-  databaseName: string,
-  operationId: string,
-  cancel = false
-) => call<{ phase: string }>("migration-finish", databaseName, operationId, cancel);
-/** rebuild：同一版本被拒时用协作端确认快照重建本机副本，被拒材料留在本机记录。 */
-export const adoptWhiteboardEpoch = (
-  leaseId: string,
-  request: { operationId: string; serverUrl: string; rebuild?: boolean }
-) => call<void>("adopt", leaseId, request);
 /** 结束共享（作者）、退出（成员）或在共享已结束/失去权限后转为本机白板。 */
 export const unshareWhiteboard = (
   leaseId: string,
   request: { operationId: string; mode: "close" | "leave" | "detach" }
 ) => call<{ missing: number }>("unshare", leaseId, request);
-/** 升级被暂停后不经画布读取已固定的来源。 */
-export const readPendingWhiteboardUpgrade = (databaseName: string, operationId: string) =>
-  call<{ state: string; documentId: string }>("migration-source-read", databaseName, operationId);
-
-export const prepareWhiteboardLibraryBaseline = (databaseName: string, operationId: string) =>
-  call("library-baseline-prepare", databaseName, operationId);

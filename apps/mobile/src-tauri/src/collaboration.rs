@@ -408,6 +408,16 @@ pub(crate) fn session_store(app: &AppHandle) -> Result<rusqlite::Connection, Str
     if version > 2 {
         return Err("COLLAB_CACHE_VERSION: 本机文档格式较新".into());
     }
+    let existing: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='sessions')",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    if existing && version != 2 {
+        return Err("COLLAB_CACHE_VERSION: 本机协作缓存格式不受支持".into());
+    }
     conn.pragma_update(None, "journal_mode", "WAL")
         .map_err(|e| e.to_string())?;
     conn.pragma_update(None, "synchronous", "FULL")
@@ -792,64 +802,6 @@ mod cache_tests {
         }
     }
     #[test]
-    fn received_baseline_requires_recovery_and_observed_revision() {
-        let mut db = database();
-        write_cache_snapshot(&mut db, payload(&[1], None)).unwrap();
-        let observed = write_cache_update(&mut db, payload(&[2], None)).unwrap();
-        let mut next = payload(&[3], Some(observed.clone()));
-        next.metadata["baselineId"] = json!("new");
-        next.metadata["epoch"] = json!(1);
-        assert!(install_received_cache(&mut db, next, "missing").is_err());
-        assert_eq!(
-            db.query_row("SELECT count(*) FROM updates", [], |row| row
-                .get::<_, i64>(0))
-                .unwrap(),
-            1
-        );
-        db.execute("INSERT INTO recoveries VALUES ('saved','hash','path')", [])
-            .unwrap();
-        let mut stale = payload(&[3], Some("stale".into()));
-        stale.metadata["baselineId"] = json!("new");
-        assert!(install_received_cache(&mut db, stale, "saved").is_err());
-        let mut next = payload(&[3], Some(observed));
-        next.metadata["baselineId"] = json!("new");
-        next.metadata["epoch"] = json!(1);
-        install_received_cache(&mut db, next, "saved").unwrap();
-        assert_eq!(
-            db.query_row("SELECT state FROM sessions", [], |row| row
-                .get::<_, Vec<u8>>(0))
-                .unwrap(),
-            vec![3]
-        );
-        assert_eq!(
-            db.query_row("SELECT count(*) FROM updates", [], |row| row
-                .get::<_, i64>(0))
-                .unwrap(),
-            0
-        );
-        assert!(write_cache_update(&mut db, payload(&[4], None)).is_err());
-    }
-    #[test]
-    fn shared_adoption_rejects_epoch_regression_and_same_epoch_other_baseline() {
-        let mut db = database();
-        let mut original = payload(&[1], None);
-        original.metadata["epoch"] = json!(2);
-        let observed = write_cache_snapshot(&mut db, original).unwrap();
-        db.execute("INSERT INTO recoveries VALUES ('saved','hash','path')", [])
-            .unwrap();
-        for (epoch, baseline) in [(1, "base"), (2, "another")] {
-            let mut next = payload(&[2], Some(observed.clone()));
-            next.metadata["epoch"] = json!(epoch);
-            next.metadata["baselineId"] = json!(baseline);
-            assert!(install_received_cache(&mut db, next, "saved").is_err());
-            assert_eq!(cache_revision(&db, "doc").unwrap(), observed);
-        }
-        let mut next = payload(&[3], Some(observed));
-        next.metadata["epoch"] = json!(2);
-        install_received_cache(&mut db, next, "saved").unwrap();
-    }
-
-    #[test]
     fn drafts_are_confirmed_with_durable_state_and_late_receipts_keep_newer_input() {
         let mut db = database();
         write_cache_snapshot(&mut db, payload(&[1], None)).unwrap();
@@ -1120,122 +1072,6 @@ pub(crate) fn release_library_sessions(
     conn.execute_batch(if result.is_ok() { "COMMIT" } else { "ROLLBACK" })
         .map_err(|e| e.to_string())?;
     result
-}
-
-fn check_received_baseline(
-    conn: &rusqlite::Connection,
-    payload: &SessionCacheWrite,
-) -> Result<(), String> {
-    let previous: String = conn
-        .query_row(
-            "SELECT metadata FROM sessions WHERE id=?1",
-            [&payload.document_id],
-            |row| row.get(0),
-        )
-        .map_err(|e| e.to_string())?;
-    let previous: Value = serde_json::from_str(&previous).map_err(|e| e.to_string())?;
-    if previous["mode"] != payload.metadata["mode"]
-        || previous["serverUrl"] != payload.metadata["serverUrl"]
-    {
-        return Err("COLLAB_BASELINE_CHANGED: 不能更换文档归属".into());
-    }
-    if previous["mode"] == "local" {
-        return Ok(());
-    }
-    let next = payload.metadata["epoch"].as_u64().ok_or("共享代次无效")?;
-    let old = if previous["epoch"].is_null() {
-        0
-    } else {
-        previous["epoch"].as_u64().ok_or("原共享代次无效")?
-    };
-    if next > 9_007_199_254_740_991 || old > 9_007_199_254_740_991 {
-        return Err("共享代次超出范围".into());
-    }
-    session_id(
-        payload.metadata["baselineId"]
-            .as_str()
-            .ok_or("共享基线无效")?,
-    )?;
-    if next < old || (next == old && payload.metadata["baselineId"] != previous["baselineId"]) {
-        return Err("COLLAB_BASELINE_CHANGED: 不能回退共享代次或在同一代次更换基线".into());
-    }
-    Ok(())
-}
-
-#[tauri::command]
-pub fn collab_cache_adopt(app: AppHandle, payload: SessionCacheWrite) -> Result<String, String> {
-    let _lock = CACHE_WRITE_LOCK.lock().map_err(|_| "缓存保存锁不可用")?;
-    let mut conn = session_store(&app)?;
-    cache_bytes(&payload)?;
-    if payload.expected_revision.as_deref()
-        != Some(cache_revision(&conn, &payload.document_id)?.as_str())
-    {
-        return Err("COLLAB_CACHE_CONFLICT: 原缓存仍在变化，请重试".into());
-    }
-    check_received_baseline(&conn, &payload)?;
-    let recovery =
-        crate::content_recovery::preserve(&app, &conn, "migration", Some(&payload.document_id))?;
-    install_received_cache(&mut conn, payload, &recovery)
-}
-fn install_received_cache(
-    conn: &mut rusqlite::Connection,
-    payload: SessionCacheWrite,
-    recovery: &str,
-) -> Result<String, String> {
-    let bytes = cache_bytes(&payload)?;
-    let tx = conn
-        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
-        .map_err(|e| e.to_string())?;
-    if payload.expected_revision.as_deref()
-        != Some(cache_revision(&tx, &payload.document_id)?.as_str())
-    {
-        return Err("COLLAB_CACHE_CONFLICT".into());
-    }
-    check_received_baseline(&tx, &payload)?;
-    let registered: bool = tx
-        .query_row(
-            "SELECT EXISTS(SELECT 1 FROM recoveries WHERE id=?1)",
-            [recovery],
-            |row| row.get(0),
-        )
-        .map_err(|e| e.to_string())?;
-    if !registered {
-        return Err("原缓存尚未独立保全".into());
-    }
-    tx.execute("INSERT OR IGNORE INTO entity_holds SELECT workspace_id,?1,'recovery',source_id,entity_kind,entity_id FROM entity_holds WHERE holder=?2", rusqlite::params![format!("recovery:{recovery}"),format!("document:{}",payload.document_id)]).map_err(|e|e.to_string())?;
-    let metadata = cache_metadata(&tx, &payload)?;
-    tx.execute(
-        "UPDATE sessions SET metadata=?1,state=?2,state_hash=?3 WHERE id=?4",
-        rusqlite::params![
-            metadata,
-            bytes,
-            format!("{:x}", Sha256::digest(&bytes)),
-            payload.document_id
-        ],
-    )
-    .map_err(|e| e.to_string())?;
-    tx.execute(
-        "DELETE FROM updates WHERE document_id=?1",
-        [&payload.document_id],
-    )
-    .map_err(|e| e.to_string())?;
-    let has_private: bool = tx
-        .query_row(
-            "SELECT EXISTS(SELECT 1 FROM pragma_table_info('sessions') WHERE name='private_nodes')",
-            [],
-            |row| row.get(0),
-        )
-        .map_err(|e| e.to_string())?;
-    if has_private {
-        tx.execute(
-            "UPDATE sessions SET private_nodes='[]' WHERE id=?1",
-            [&payload.document_id],
-        )
-        .map_err(|e| e.to_string())?;
-    }
-    let revision = cache_revision(&tx, &payload.document_id)?;
-    tx.commit().map_err(|e| e.to_string())?;
-    Ok(revision)
 }
 
 #[derive(Deserialize)]

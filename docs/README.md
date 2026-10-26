@@ -12,7 +12,7 @@
 | [design-system.md](./architecture/design-system.md)           | UI 设计系统：token 三层体系、多主题机制、组件分层                                                                            |
 | 包内文档                                                      | database / whiteboard / editor 架构手册在各包 `docs/architecture.md`；editor-collab / markdown 的投影与缓存边界见各包 README |
 | [storage-sync.md](./architecture/storage-sync.md)             | 数据库、资源与会话文件的宿主分块协议及内存边界                                                                               |
-| [collaboration.md](./architecture/collaboration.md)           | 实时协作功能与架构                                                                                                           |
+| [collaboration.md](./architecture/collaboration.md)           | 实时协作、当前正文/白板格式边界与提交协议                                                                                    |
 | [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点                                               |
 | [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                           |
 | [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、外部打开 Markdown、正文统计与空文档判断                                                              |
@@ -37,23 +37,21 @@
 
 客户端依赖准备、构建、覆盖安装及插件检查从 [客户端构建与安装](./guides/ops-client-build-install.md)进入；iOS 签名、归档、TestFlight 分发与设备安装见 [iOS 手册](./guides/ops-ios-signing.md)。
 
-| 指南                                                                        | 内容                                                 |
-| --------------------------------------------------------------------------- | ---------------------------------------------------- |
-| [db-change-manual.md](./guides/db-change-manual.md)                         | 数据库变更开发手册                                   |
-| [db-schema-workflow.md](./guides/db-schema-workflow.md)                     | 数据库 Schema 与建库流程                             |
-| [ops-build-size.md](./guides/ops-build-size.md)                             | 安装包体积构成与产物一致性排查                       |
-| [ops-client-build-install.md](./guides/ops-client-build-install.md)         | 客户端构建、覆盖安装与交付检查                       |
-| [ops-ios-signing.md](./guides/ops-ios-signing.md)                           | iOS 签名、图标同步、TestFlight 与安装                |
-| [ops-collaboration-deploy.md](./guides/ops-collaboration-deploy.md)         | 协作服务部署                                         |
-| [ops-editor-contract-upgrade.md](./guides/ops-editor-contract-upgrade.md)   | 正文与白板后台自动升级、本机保全及移动端接收         |
-| [ops-collaboration-retirement.md](./guides/ops-collaboration-retirement.md) | 编辑器与白板最后转换版本、新格式版本的删码及验收清单 |
-| [ops-whiteboard-release.md](./guides/ops-whiteboard-release.md)             | 白板协作发布前验证与放行判据，不执行发布             |
-| [ops-mac-verification.md](./guides/ops-mac-verification.md)                 | mac 实机验证 runbook                                 |
-| [ops-macos-code-signing.md](./guides/ops-macos-code-signing.md)             | macOS 代码签名与公证                                 |
-| [ops-taunote-domains.md](./guides/ops-taunote-domains.md)                   | taunote.app 域名与服务器映射                         |
-| [ops-telemetry-umami.md](./guides/ops-telemetry-umami.md)                   | 旧统计停用与历史数据恢复                             |
-| [plugin-development.md](./guides/plugin-development.md)                     | 插件开发规范与验收                                   |
-| [plugin-portability-spike.md](./guides/plugin-portability-spike.md)         | 桌面、Android、iOS 插件验证操作                      |
+| 指南                                                                | 内容                                     |
+| ------------------------------------------------------------------- | ---------------------------------------- |
+| [db-change-manual.md](./guides/db-change-manual.md)                 | 数据库变更开发手册                       |
+| [db-schema-workflow.md](./guides/db-schema-workflow.md)             | 数据库 Schema 与建库流程                 |
+| [ops-build-size.md](./guides/ops-build-size.md)                     | 安装包体积构成与产物一致性排查           |
+| [ops-client-build-install.md](./guides/ops-client-build-install.md) | 客户端构建、覆盖安装与交付检查           |
+| [ops-ios-signing.md](./guides/ops-ios-signing.md)                   | iOS 签名、图标同步、TestFlight 与安装    |
+| [ops-collaboration-deploy.md](./guides/ops-collaboration-deploy.md) | 协作服务部署                             |
+| [ops-whiteboard-release.md](./guides/ops-whiteboard-release.md)     | 白板协作发布前验证与放行判据，不执行发布 |
+| [ops-mac-verification.md](./guides/ops-mac-verification.md)         | mac 实机验证 runbook                     |
+| [ops-macos-code-signing.md](./guides/ops-macos-code-signing.md)     | macOS 代码签名与公证                     |
+| [ops-taunote-domains.md](./guides/ops-taunote-domains.md)           | taunote.app 域名与服务器映射             |
+| [ops-telemetry-umami.md](./guides/ops-telemetry-umami.md)           | 旧统计停用与历史数据恢复                 |
+| [plugin-development.md](./guides/plugin-development.md)             | 插件开发规范与验收                       |
+| [plugin-portability-spike.md](./guides/plugin-portability-spike.md) | 桌面、Android、iOS 插件验证操作          |
 
 ## tasks/ — 进行中任务
 

@@ -6,5 +6,3 @@ export { createNodeTreeDocument, applyNodeTreeContent } from "./nodeTreeDocument
 export type { NodeTreeDocumentOptions } from "./nodeTreeDocument";
 
 export { createSharedTextField } from "./textFieldBinding";
-
-export { convertLegacyContent, type LegacyUpgradeResult } from "./legacyUpgrade";

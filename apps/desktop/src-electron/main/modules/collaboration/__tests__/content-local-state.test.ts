@@ -1,11 +1,12 @@
+import { createHash } from "node:crypto";
 import { CollaborationLocalStore } from "../local-store";
 // @vitest-environment node
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { DocumentMigration, MigrationReceipt } from "@tau/collaboration";
-import { ContentLocalState, type LocalMigrationPlan } from "../content-local-state";
+import type { MigrationReceipt } from "@tau/collaboration";
+import { ContentLocalState, type LocalInstallationPlan } from "../content-local-state";
 
 const cleanup: (() => void)[] = [];
 afterEach(() =>
@@ -14,48 +15,34 @@ afterEach(() =>
     .reverse()
     .forEach(run => run())
 );
-function setup(remote = true) {
+function setup() {
   const directory = mkdtempSync(join(tmpdir(), "tau-local-content-"));
   cleanup.push(() => rmSync(directory, { recursive: true, force: true }));
   let state = new ContentLocalState(new CollaborationLocalStore(directory).db);
   cleanup.push(() => state.db.close());
-  const recovery = {
-    id: "backup",
-    manifestHash: "b".repeat(64),
-    manifestPath: join(directory, "manifest.json"),
-  };
-  state.registerRecovery(recovery, "workspace");
-  const plan: LocalMigrationPlan = {
+  const candidate = Buffer.from("whiteboard-candidate");
+  const candidateHash = createHash("sha256").update(candidate).digest("hex");
+  const plan: LocalInstallationPlan = {
+    kind: "whiteboard",
     operationId: "op",
     workspaceId: "workspace",
     documentId: "document",
     expectedEpoch: 4,
-    remote,
     fingerprint: {
       expectedRevision: "old-revision",
-      candidateHash: "a".repeat(64),
-      targetVersion: 2,
+      candidateHash,
+      targetVersion: 3,
       baselineId: "new-baseline",
     },
-    recovery,
+    prepared: { candidate: candidate.toString("base64"), installation: "{}", conversion: "{}" },
   };
   const receipt: MigrationReceipt = {
     operationId: "op",
     documentId: "document",
     epoch: 5,
-    revision: "a".repeat(64),
-    version: 2,
+    revision: candidateHash,
+    version: 3,
     baselineId: "new-baseline",
-  };
-  const operation: DocumentMigration = {
-    id: "op",
-    documentId: "document",
-    actorId: "owner",
-    expectedEpoch: 4,
-    expiresAt: 100,
-    state: "COMMITTED",
-    fingerprint: plan.fingerprint,
-    receipt,
   };
   return {
     get state() {
@@ -63,7 +50,6 @@ function setup(remote = true) {
     },
     plan,
     receipt,
-    operation,
     reopen: () => {
       state.db.close();
       state = new ContentLocalState(new CollaborationLocalStore(directory).db);
@@ -72,29 +58,6 @@ function setup(remote = true) {
 }
 
 describe("本机视图、持有与迁移日志", () => {
-  it("共享准备重启沿用同一日志，形成候选后原行续做，取消记录不能复活", () => {
-    const context = setup();
-    const preparation = {
-      operationId: "op",
-      workspaceId: "workspace",
-      documentId: "document",
-      expectedEpoch: 4,
-      expiresAt: 100,
-    };
-    context.state.prepareRemote(preparation);
-    context.reopen();
-    expect(context.state.preparation("document")).toEqual(preparation);
-    context.state.begin({ ...context.plan, expiresAt: 100 });
-    expect(context.state.preparation("document")).toBeNull();
-    expect(context.state.db.prepare("SELECT count(*) AS n FROM migrations").get()).toEqual({
-      n: 1,
-    });
-    const second = setup();
-    second.state.prepareRemote(preparation);
-    second.state.finishPreparation({ ...second.operation, state: "EXPIRED" });
-    expect(() => second.state.begin({ ...second.plan, expiresAt: 100 })).toThrow("复活");
-  });
-
   it("输入草稿重启可读，迟到批次不覆盖新输入，只按正确代次的耐久正文确认", () => {
     const context = setup();
     const identity = {
@@ -156,7 +119,7 @@ describe("本机视图、持有与迁移日志", () => {
     const context = setup();
     const ref = { sourceId: "source", kind: "data-table" as const, entityId: "entity" };
     context.state.replaceHolds("workspace", "room", "shared-membership", [ref, ref]);
-    context.state.replaceHolds("workspace", "backup", "recovery", [ref]);
+    context.state.replaceHolds("workspace", "other-view", "undo", [ref]);
     context.reopen();
     expect(context.state.holders("workspace")).toHaveLength(2);
     context.state.replaceHolds("workspace", "room", "shared-membership", []);
@@ -164,65 +127,10 @@ describe("本机视图、持有与迁移日志", () => {
     expect(context.state.isHeld("other", ref)).toBe(false);
     expect(context.state.isHeld("workspace", { ...ref, sourceId: "other" })).toBe(false);
   });
-
-  it("提交响应丢失后只查询续做，逐个安装边界重启也不回退已提交决定", () => {
-    const context = setup();
-    context.state.begin(context.plan);
-    context.reopen();
-    expect(context.state.observeRemote("op", null).phase).toBe("BACKED_UP");
-    expect(() => context.state.begin({ ...context.plan, operationId: "another" })).toThrow(
-      "待恢复"
-    );
-    context.state.observeRemote("op", context.operation);
-    context.reopen();
-    expect(() =>
-      context.state.observeRemote("op", { ...context.operation, state: "ABORTED" })
-    ).toThrow();
-    for (const target of ["main", "collaboration"] as const) {
-      context.state.installed("op", target, context.receipt);
-      context.reopen();
-      expect(context.state.migration("op")!.installations[target]).toEqual(context.receipt);
-    }
-    expect(context.state.complete("op", context.receipt).phase).toBe("COMPLETE");
-    context.reopen();
-    expect(context.state.observeRemote("op", context.operation).phase).toBe("COMPLETE");
-    expect(context.state.recovery("backup")).toEqual(context.plan.recovery);
-  });
-
-  it.each(["ABORTED", "EXPIRED"] as const)("%s 终态重启后不复活，不能更换同一操作的候选", phase => {
-    const context = setup();
-    context.state.begin(context.plan);
-    context.state.observeRemote("op", { ...context.operation, state: phase, receipt: undefined });
-    context.reopen();
-    expect(context.state.observeRemote("op", null).phase).toBe(phase);
-    expect(() => context.state.observeRemote("op", context.operation)).toThrow("不能复活");
-    expect(() =>
-      context.state.begin({
-        ...context.plan,
-        fingerprint: { ...context.plan.fingerprint, candidateHash: "c".repeat(64) },
-      })
-    ).toThrow("更换计划");
-    expect(context.state.begin({ ...context.plan, operationId: "retry" }).phase).toBe("BACKED_UP");
-  });
-
-  it("纯本机提交使用自己的耐久决定，部分安装不能宣布完成", () => {
-    const context = setup(false);
-    context.state.begin(context.plan);
-    expect(() => context.state.observeRemote("op", context.operation)).toThrow("纯本机");
-    context.state.decideLocal("op", "commit");
-    context.reopen();
-    expect(() => context.state.decideLocal("op", "abort")).toThrow("继续安装");
-    context.state.installed("op", "main", context.receipt);
-    expect(() => context.state.complete("op", context.receipt)).toThrow("尚未安装");
-    expect(() =>
-      context.state.installed("op", "collaboration", { ...context.receipt, epoch: 9 })
-    ).toThrow();
-    expect(context.state.migration("op")!.installations.collaboration).toBeUndefined();
-  });
 });
 
 it("按文档查询待恢复操作使用索引，已完成历史不会混入或逐篇全表扫描", () => {
-  const { state, plan } = setup(false);
+  const { state, plan } = setup();
   state.begin(plan);
   state.begin({ ...plan, documentId: "another", operationId: "another-op" });
   state.begin({ ...plan, documentId: "finished", operationId: "finished-op" });
@@ -231,13 +139,13 @@ it("按文档查询待恢复操作使用索引，已完成历史不会混入或�
       "UPDATE migrations SET record=json_set(record,'$.phase','COMPLETE') WHERE operation_id='finished-op'"
     )
     .run();
-  expect(state.pendingMigrations("document").map(record => record.plan.operationId)).toEqual([
+  expect(state.pendingInstallations("document").map(record => record.plan.operationId)).toEqual([
     "op",
   ]);
-  expect(state.pendingMigrations("finished")).toEqual([]);
+  expect(state.pendingInstallations("finished")).toEqual([]);
   expect(
     state
-      .pendingMigrations()
+      .pendingInstallations()
       .map(record => record.plan.operationId)
       .sort()
   ).toEqual(["another-op", "op"]);

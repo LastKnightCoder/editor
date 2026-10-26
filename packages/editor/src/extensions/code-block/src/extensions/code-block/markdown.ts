@@ -2,7 +2,6 @@ import { v4 as uuid } from "uuid";
 import type { Descendant } from "slate";
 import type { MarkdownCodec } from "@tau/markdown";
 import { normalizeCodeBlockLanguageDisplayName } from "@tau/shared/code-block-language";
-import { convertLegacyCodeBlock } from "../../codeStepMigration.ts";
 import type { CodeBlockV2Element, CodeStepElement } from "../../types";
 import { normalizeCodeBlockFilename } from "./utils/filename.ts";
 
@@ -296,7 +295,7 @@ export const codeBlockV2Codec: MarkdownCodec = {
   type: "code-block",
   dataVersion: 2,
   isVoid: true,
-  importNode: (node, context) => {
+  importNode: node => {
     if (node.type !== "code") return null;
     const display = parseDisplayMeta(node.meta);
     const token = display.rest.split(/\s+/).find(item => item.startsWith(MAGIC_MOVE_META_PREFIX));
@@ -308,20 +307,11 @@ export const codeBlockV2Codec: MarkdownCodec = {
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
         throw new Error("代码步骤载荷无效");
       payload = parsed as Record<string, unknown>;
-      if (payload.v !== 1 && payload.v !== 2) throw new Error("不支持此代码步骤版本，请保留原文件");
+      if (payload.v !== 2) throw new Error("不支持此代码步骤版本，请保留原文件");
     }
-    if (!payload || payload.v === 1) {
-      const old = codeBlockCodec.importNode!(node, context);
-      const converted = convertLegacyCodeBlock(payload ? { ...old, magicMove: payload } : old);
-      for (const candidate of converted.recovery)
-        converted.element.children.push({
-          type: "code-step",
-          code: candidate.code,
-          title: "恢复的围栏源码",
-          children: [{ type: "formatted", text: "" }],
-        });
-      for (const step of converted.element.children) delete step.collabId;
-      return converted.element;
+    if (!payload) {
+      const highlightLines = parseHighlightMeta(display.rest);
+      payload = { v: 2, steps: [{ ...(highlightLines ? { highlightLines } : {}) }] };
     }
     if (!Array.isArray(payload.steps) || !payload.steps.length) throw new Error("代码步骤列表无效");
     const steps = payload.steps.map((value, index): CodeStepElement => {

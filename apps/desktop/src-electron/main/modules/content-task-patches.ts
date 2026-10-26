@@ -52,7 +52,7 @@ export function readTaskContent(db: Database.Database, contentId: number, create
 export function assertTaskContentWritable(db: Database.Database, contentId: number) {
   const session = contentSession(db, contentId);
   if (session && session.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION)
-    fail("READ_ONLY", "请先转换旧格式正文");
+    fail("READ_ONLY", "正文格式不受支持");
   if (session && session.info.mode !== "local") fail("READ_ONLY", "共享正文请通过协作编辑器修改");
   if (
     session?.info.frozen ||
