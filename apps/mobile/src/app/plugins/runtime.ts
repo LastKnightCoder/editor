@@ -239,6 +239,7 @@ export class MobilePluginRuntime {
           this.styles.push(style);
         }
       } catch (error) {
+        console.error(`[plugins] 插件加载失败 id=${item.id}`, error);
         this.errors.set(item.id, String(error));
       }
     }
@@ -247,6 +248,7 @@ export class MobilePluginRuntime {
       try {
         await this.host.enable(definition.id);
       } catch (error) {
+        console.error(`[plugins] 插件启用失败 id=${definition.id}`, error);
         this.errors.set(definition.id, String(error));
       }
     }

@@ -1,3 +1,4 @@
+mod app_feedback;
 mod app_update;
 mod chunked_sync;
 mod collaboration;
@@ -5,6 +6,7 @@ mod database;
 mod incoming_file;
 #[cfg(target_os = "ios")]
 mod ios_input_accessory;
+mod logger;
 mod models;
 mod plugin_center;
 mod plugin_fetch;
@@ -66,6 +68,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
+            logger::app_log,
+            app_feedback::app_feedback_image_write,
+            app_feedback::app_feedback_image_discard,
+            app_feedback::app_feedback_submit,
             app_update::app_update_check,
             app_update::app_update_download,
             app_update::app_update_install,
@@ -264,6 +270,8 @@ pub fn run() {
             request_background
         ])
         .setup(|app| {
+            // 最先打开日志文件，后续所有模块的启动输出才能落盘
+            logger::init(app.handle());
             #[cfg(target_os = "ios")]
             {
                 use tauri::Manager;

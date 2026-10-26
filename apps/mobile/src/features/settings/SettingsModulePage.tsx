@@ -6,6 +6,7 @@
 
 import { useRef } from "react";
 import { AboutSection } from "./about/AboutSection";
+import { FeedbackSection } from "./feedback/FeedbackSection";
 import { CollaborationSection } from "./components/CollaborationSection";
 import { OverwriteSection } from "./sync/OverwriteSection";
 import { ResourceFilesSection } from "./sync/ResourceFilesSection";
@@ -38,6 +39,8 @@ function getTitle(module: SettingModuleKey): string {
       return "图片与附件";
     case "voice":
       return "语音合成";
+    case "feedback":
+      return "反馈";
     default:
       return "设置";
   }
@@ -113,6 +116,8 @@ function ModuleSection(props: ModuleSectionProps) {
       return <TtsSettingsSection />;
     case "about":
       return <AboutSection />;
+    case "feedback":
+      return <FeedbackSection />;
     case "collaboration":
       return <CollaborationSection />;
     case "sync-status-resource":

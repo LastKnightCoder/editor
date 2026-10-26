@@ -295,10 +295,10 @@ fn prune_cache_with_limit(
             continue;
         };
         if let Err(err) = fs::remove_file(&meta.local_path) {
-            eprintln!(
+            crate::logger::warn(format!(
                 "[remote-resource-cache] 删除缓存文件失败 path={} err={}",
                 meta.local_path, err
-            );
+            ));
             continue;
         }
         total_size = total_size.saturating_sub(meta.size_bytes);
@@ -473,20 +473,20 @@ pub async fn remote_resource_to_local(
 
     match &result {
         Ok(local_path) => {
-            eprintln!(
+            crate::logger::debug(format!(
                 "[remote-resource-cache] success url={} local_path={} elapsed_ms={}",
                 normalized_url,
                 local_path,
                 started_at.elapsed().as_millis()
-            );
+            ));
         }
         Err(error) => {
-            eprintln!(
+            crate::logger::warn(format!(
                 "[remote-resource-cache] failed url={} error={} elapsed_ms={}",
                 normalized_url,
                 error,
                 started_at.elapsed().as_millis()
-            );
+            ));
         }
     }
 

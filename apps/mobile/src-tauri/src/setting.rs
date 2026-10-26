@@ -582,10 +582,10 @@ pub fn write_setting_json(app: AppHandle, payload: String) -> SettingWriteRespon
     let next_fingerprint = resolve_embedding_fingerprint_for_setting(&normalized);
     if previous_fingerprint != next_fingerprint {
         let db_name = get_active_database_name(&normalized);
-        eprintln!(
+        crate::logger::info(format!(
             "[mobile-setting] embedding fingerprint changed, trigger reconcile: db={}",
             db_name
-        );
+        ));
         trigger_reconcile_for_database(&app, &db_name);
     }
 

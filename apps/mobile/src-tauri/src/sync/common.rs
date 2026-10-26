@@ -25,6 +25,9 @@ pub(crate) fn response_ok(
     remote_version: u64,
     message: &str,
 ) -> SyncActionResponse {
+    crate::logger::info(format!(
+        "[sync] {message} db={database_name} local={local_version} remote={remote_version}"
+    ));
     SyncActionResponse {
         ok: true,
         code: None,
@@ -41,6 +44,10 @@ pub(crate) fn response_err(
     remote_version: u64,
     error: AppError,
 ) -> SyncActionResponse {
+    crate::logger::warn(format!(
+        "[sync] {}: {} db={database_name} local={local_version} remote={remote_version}",
+        error.code, error.message
+    ));
     SyncActionResponse {
         ok: false,
         code: Some(error.code),

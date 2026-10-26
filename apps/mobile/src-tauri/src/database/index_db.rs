@@ -172,10 +172,10 @@ fn resolve_embedding_snapshot_from_app_setting(app: &AppHandle) -> EmbeddingSnap
     match load_or_init_setting(app) {
         Ok(setting) => resolve_embedding_snapshot_from_setting(&setting),
         Err(error) => {
-            eprintln!(
+            crate::logger::warn(format!(
                 "[mobile-index-db] resolve embedding snapshot fallback: failed to load setting, error={}",
                 error
-            );
+            ));
             default_embedding_snapshot()
         }
     }
@@ -277,20 +277,20 @@ pub fn reset_index_database(app: &AppHandle, main_db_name: &str) -> Result<(), S
                 .map_err(|e| format!("DB_OPEN_FAILED: Failed to reset index database: {e}"))?;
         }
     }
-    eprintln!(
+    crate::logger::info(format!(
         "[mobile-index-db] reset index database done: main_db={}",
         main_db_name
-    );
+    ));
     Ok(())
 }
 
 pub fn open_index_database(app: &AppHandle, main_db_name: &str) -> Result<Connection, String> {
     let path = resolve_index_database_path(app, main_db_name)?;
-    eprintln!(
+    crate::logger::debug(format!(
         "[mobile-index-db] open index database start: main_db={}, path={}",
         main_db_name,
         path.display()
-    );
+    ));
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| {
             format!("DB_OPEN_FAILED: Failed to create index database directory: {e}")
@@ -320,18 +320,18 @@ pub fn open_index_database(app: &AppHandle, main_db_name: &str) -> Result<Connec
 
     if vec_recreated || fingerprint_changed {
         set_meta(&conn, REBUILD_STATE_KEY, "pending")?;
-        eprintln!(
+        crate::logger::info(format!(
             "[mobile-index-db] embedding schema changed: main_db={}, vec_dimensions={}, vec_recreated={}, fingerprint_changed={}",
             main_db_name,
             embedding_snapshot.vec_dimensions,
             vec_recreated,
             fingerprint_changed
-        );
+        ));
     }
-    eprintln!(
+    crate::logger::debug(format!(
         "[mobile-index-db] open index database done: main_db={}",
         main_db_name
-    );
+    ));
     Ok(conn)
 }
 
@@ -341,16 +341,16 @@ pub fn ensure_index_database(
     _main_conn: &Connection,
 ) -> Result<(), String> {
     let started_at = Instant::now();
-    eprintln!(
+    crate::logger::debug(format!(
         "[mobile-index-db] ensure index database start: main_db={}",
         main_db_name
-    );
+    ));
     open_index_database(app, main_db_name)?;
-    eprintln!(
+    crate::logger::debug(format!(
         "[mobile-index-db] ensure index database done: main_db={}, elapsed_ms={}",
         main_db_name,
         started_at.elapsed().as_millis()
-    );
+    ));
     Ok(())
 }
 

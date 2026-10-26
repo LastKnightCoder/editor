@@ -8,6 +8,7 @@ import {
   Database,
   Folder,
   Image as ImageIcon,
+  MessageSquare,
   Moon,
   Type,
   Users,
@@ -111,6 +112,14 @@ export function IconUsers() {
   return (
     <IconTile className="bg-accent-soft text-accent">
       <Users size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
+}
+
+export function IconMessageSquare() {
+  return (
+    <IconTile className="bg-tag-2-soft text-tag-2">
+      <MessageSquare size={17} strokeWidth={1.9} aria-hidden="true" />
     </IconTile>
   );
 }

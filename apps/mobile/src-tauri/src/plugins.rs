@@ -318,6 +318,22 @@ pub(crate) async fn stage_package(
     source: InstallSource,
     center: Option<Value>,
 ) -> Result<Value, String> {
+    let id = source.id.clone();
+    let version = source.version.clone();
+    let result = stage_package_inner(app, source, center).await;
+    match &result {
+        Ok(_) => crate::logger::info(format!("[plugins] 暂存完成 id={id} version={version}")),
+        Err(error) => crate::logger::warn(format!(
+            "[plugins] 暂存失败 id={id} version={version} error={error}"
+        )),
+    }
+    result
+}
+async fn stage_package_inner(
+    app: AppHandle,
+    source: InstallSource,
+    center: Option<Value>,
+) -> Result<Value, String> {
     install_mode(center.is_some())?;
     identifier(&source.id)?;
     if source.size == 0 || source.size > LIMIT || source.sha256.len() != 64 {
@@ -411,8 +427,21 @@ fn commit_package(
     sha256: String,
     center: Option<(&str, &str)>,
 ) -> Result<(), String> {
+    let result = commit_package_inner(app, &id, &sha256, center);
+    match &result {
+        Ok(()) => crate::logger::info(format!("[plugins] 提交待生效 id={id}")),
+        Err(error) => crate::logger::warn(format!("[plugins] 提交失败 id={id} error={error}")),
+    }
+    result
+}
+fn commit_package_inner(
+    app: AppHandle,
+    id: &str,
+    sha256: &str,
+    center: Option<(&str, &str)>,
+) -> Result<(), String> {
     install_mode(center.is_some())?;
-    identifier(&id)?;
+    identifier(id)?;
     let _lock = STORE_LOCK.lock().map_err(fail)?;
     let directory = root(&app)?.join(id);
     recover(&directory)?;
@@ -843,18 +872,23 @@ pub fn plugin_apply_pending(app: AppHandle) -> Result<(), String> {
             continue;
         }
         let directory = entry.path();
+        let name = entry.file_name().to_string_lossy().into_owned();
         let result = (|| -> Result<(), String> {
             recover(&directory)?;
             if directory.join("pending.json").exists() {
                 if directory.join("next").exists() {
                     artifact(&directory.join("next"))?;
                     switch(&directory)?;
+                    crate::logger::info(format!("[plugins] 待生效版本已切换 id={name}"));
                 }
                 fs::remove_file(directory.join("pending.json")).map_err(fail)?;
             }
             Ok(())
         })();
         if let Err(error) = result {
+            crate::logger::error(format!(
+                "[plugins] 应用待生效版本失败 id={name} error={error}"
+            ));
             write_json(&directory.join("error.json"), &json!(error))?;
         } else if directory.join("error.json").exists() {
             fs::remove_file(directory.join("error.json")).map_err(fail)?;

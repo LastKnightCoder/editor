@@ -188,7 +188,9 @@ fn compress_image_if_needed(
     match try_compress_to_webp(file_name, &original.bytes) {
         Ok(processed) => processed,
         Err(error) => {
-            eprintln!("[resource-upload] 图片压缩失败，使用原始文件: {error}");
+            crate::logger::warn(format!(
+                "[resource-upload] 图片压缩失败，使用原始文件: {error}"
+            ));
             original
         }
     }
@@ -680,18 +682,21 @@ pub async fn prewarm_resource_thumbs(app: AppHandle) {
                 }
                 Ok(None) => {}
                 Err(error) => {
-                    eprintln!("[thumb-prewarm] 生成失败 {}: {error}", path.display());
+                    crate::logger::warn(format!(
+                        "[thumb-prewarm] 生成失败 {}: {error}",
+                        path.display()
+                    ));
                 }
             }
         }
         if total > 0 {
-            eprintln!("[thumb-prewarm] 补齐缩略图 {generated}/{total}");
+            crate::logger::info(format!("[thumb-prewarm] 补齐缩略图 {generated}/{total}"));
         }
         generated
     })
     .await;
     if let Err(error) = generated {
-        eprintln!("[thumb-prewarm] 后台任务失败: {error}");
+        crate::logger::error(format!("[thumb-prewarm] 后台任务失败: {error}"));
     }
 }
 

@@ -207,7 +207,7 @@ export function TtsClonePage({
                       <span className="text-ink-1 text-tau-body block font-medium">
                         {clone.result.name}
                       </span>
-                      <span className="text-ink-3 text-tau-sm block break-all font-mono">
+                      <span className="text-ink-3 text-tau-sm block font-mono break-all">
                         {clone.result.id}
                       </span>
                       {clone.result.description && (
@@ -275,7 +275,7 @@ export function TtsClonePage({
                     value={name}
                     onChange={event => setName(event.currentTarget.value)}
                     disabled={clone.pending}
-                    className="input-base w-full rounded-xl px-3"
+                    className="input-base bg-surface shadow-card w-full rounded-xl px-3"
                     placeholder="为新音色命名"
                     maxLength={100}
                   />

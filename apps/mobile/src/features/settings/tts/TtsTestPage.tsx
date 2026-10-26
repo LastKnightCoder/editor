@@ -210,7 +210,7 @@ export function TtsTestPage({
             maxLength={500}
             rows={6}
             disabled={test.pending}
-            className="input-base w-full resize-none rounded-2xl p-4"
+            className="input-base bg-surface shadow-card w-full resize-none rounded-2xl p-4"
           />
           <div className="text-ink-3 text-tau-sm mt-1 text-right tabular-nums">
             {text.length} / 500
