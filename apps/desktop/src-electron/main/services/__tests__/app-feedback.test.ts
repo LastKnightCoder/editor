@@ -22,7 +22,6 @@ afterEach(() => rm(dir, { recursive: true, force: true }));
 const input = (overrides = {}) => ({
   kind: "bug" as const,
   message: " 卡住了 ",
-  contact: "  ",
   clientRequestId: crypto.randomUUID(),
   includeContext: true,
   theme: null,
@@ -54,13 +53,12 @@ it("性能快照超限时先去掉启动剖析", async () => {
   });
 });
 
-it("校验正文、截图数量与联系方式", () => {
-  expect(validateInput(input())).toEqual({ message: "卡住了", contact: null });
+it("校验正文与截图数量", () => {
+  expect(validateInput(input())).toEqual({ message: "卡住了" });
   expect(() => validateInput(input({ message: "  " }))).toThrow("反馈内容");
   expect(() => validateInput(input({ images: Array(4).fill(new Uint8Array(1)) }))).toThrow(
     "最多附带"
   );
-  expect(() => validateInput(input({ contact: "a".repeat(201) }))).toThrow("联系方式");
 });
 
 it("组装 multipart：meta、截图与日志字段", async () => {
@@ -68,7 +66,6 @@ it("组装 multipart：meta、截图与日志字段", async () => {
     meta: {
       kind: "idea",
       message: "建议",
-      contact: null,
       context: null,
       clientRequestId: "request-id-000001",
     },
@@ -109,7 +106,7 @@ it("multipart 仅复制共享缓冲区视图内的字节", async () => {
   bytes.set([9, 1, 2, 9]);
   const view = bytes.subarray(1, 3);
   const encoded = await encodeFeedback({
-    meta: { kind: "bug", message: "测试", contact: null, context: null, clientRequestId: "view" },
+    meta: { kind: "bug", message: "测试", context: null, clientRequestId: "view" },
     images: [view],
     log: view,
     perf: view,

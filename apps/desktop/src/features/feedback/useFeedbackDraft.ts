@@ -21,7 +21,6 @@ export interface Screenshot {
 export interface FeedbackFields {
   kind: AppFeedbackKind;
   message: string;
-  contact: string;
   includeContext: boolean;
   logs: { app: boolean; perf: boolean };
 }
@@ -29,7 +28,6 @@ export interface FeedbackFields {
 const EMPTY_FIELDS: FeedbackFields = {
   kind: "bug",
   message: "",
-  contact: "",
   includeContext: true,
   logs: { app: false, perf: false },
 };
@@ -153,7 +151,6 @@ export function useFeedbackDraft() {
     return {
       kind: fields.kind,
       message: fields.message,
-      contact: fields.contact.trim() || null,
       clientRequestId: request.current.id,
       includeContext: fields.includeContext,
       theme: fields.includeContext ? theme : null,

@@ -193,9 +193,7 @@ export default function FeedbackWindow() {
             <Check size={22} />
           </span>
           <h1 className="text-tau-title text-ink-1 font-semibold">反馈已发送，谢谢你</h1>
-          <p className="text-tau-sm text-ink-2">
-            我们会逐条看。如果留了联系方式，需要追问时会联系你。
-          </p>
+          <p className="text-tau-sm text-ink-2">我们会逐条看。</p>
           <div className="mt-3 flex gap-2">
             <Button
               onClick={() => {

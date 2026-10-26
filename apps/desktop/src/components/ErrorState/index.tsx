@@ -86,7 +86,6 @@ function ReportButton({
       const result = await submitFeedback({
         kind: "bug",
         message: errorReportMessage(title, summary, detail),
-        contact: null,
         clientRequestId: requestId.current,
         includeContext: true,
         theme: `${theme} · ${mode}`,
@@ -233,7 +232,7 @@ export function ErrorState({
               </button>
             </div>
             {expanded && (
-              <pre className="bg-sunken border-line-1 text-ink-2 font-tau-mono rounded-tau-md mt-2 max-h-[220px] overflow-auto whitespace-pre-wrap break-words border px-3 py-2 text-[11.5px] leading-relaxed">
+              <pre className="bg-sunken border-line-1 text-ink-2 font-tau-mono rounded-tau-md mt-2 max-h-[220px] overflow-auto border px-3 py-2 text-[11.5px] leading-relaxed break-words whitespace-pre-wrap">
                 {summary}
                 {detail && `\n\n${detail}`}
               </pre>
