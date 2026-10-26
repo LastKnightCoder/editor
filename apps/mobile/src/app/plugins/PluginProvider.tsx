@@ -110,22 +110,28 @@ export function MobilePluginProvider({
         safe ? { phase: "safe", message: SAFE_MESSAGE } : { phase: "ready", message: "" }
       );
       const openInstalled = () => navigator.push("plugins", { tab: "installed" });
-      if (safe)
+      if (safe) {
+        console.warn("[plugins] 上次启动未结束，本次进入安全模式跳过全部插件");
         toast({
           type: "warning",
           text: SAFE_MESSAGE,
           duration: 8000,
           action: { label: "管理插件", onClick: openInstalled },
         });
+      }
       const failed = data.packages
         .filter(item => runtime?.errors.has(item.id))
         .map(item => `「${item.name ?? item.artifact?.manifest.name ?? item.id}」`);
-      if (failed.length)
+      if (failed.length) {
+        console.warn(`[plugins] 会话就绪，${failed.length} 个插件启动失败：${failed.join("")}`);
         toast({
           type: "warning",
           text: `${failed.join("")}启动失败`,
           action: { label: "查看", onClick: openInstalled },
         });
+      } else {
+        console.info(`[plugins] 会话就绪，已加载 ${runtime.host.listPlugins().length} 个插件`);
+      }
       let checking = false;
       const activeRuntime = runtime;
       // 撤回状态先用本地缓存启动，联网核验放在会话就绪之后，命中撤回再按 blockFromCenter 停用
@@ -176,6 +182,7 @@ export function MobilePluginProvider({
     })()
       .catch(error => {
         if (cancelled) return;
+        console.error("[plugins] 插件会话启动失败", error);
         mobilePluginState.set({ phase: "failed", message: String(error) });
         toast({
           type: "error",

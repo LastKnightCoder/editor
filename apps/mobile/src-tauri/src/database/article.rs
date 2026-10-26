@@ -171,14 +171,13 @@ pub fn article_list(
     for row in rows {
         items.push(row.map_err(|e| db_err("ARTICLE_QUERY_FAILED", "parse article row", e))?);
     }
-    #[cfg(debug_assertions)]
-    eprintln!(
+    crate::logger::debug(format!(
         "[perf] article_list offset={} items={}/{} {:?}",
         offset,
         items.len(),
         total,
         started.elapsed()
-    );
+    ));
     Ok(ArticleListResponse { items, total })
 }
 

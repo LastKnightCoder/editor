@@ -18,6 +18,7 @@ export const SETTINGS_MODULE_KEYS = [
   "sync-status-resource",
   "resource",
   "voice",
+  "feedback",
 ] as const;
 
 export type SettingModule = (typeof SETTINGS_MODULE_KEYS)[number] | null;

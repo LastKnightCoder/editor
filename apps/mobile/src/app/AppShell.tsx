@@ -115,6 +115,7 @@ function AppShellInner() {
   const presentError = useMemoizedFn(
     (error: unknown, fallback: string, type: "error" | "info" | "success" = "error") => {
       const parsed = parseInvokeError(error);
+      if (type === "error") console.error(`[app] ${parsed.code ?? fallback}`, error);
       toast({
         type,
         text: mapErrorToMessage(parsed.code, parsed.message || fallback),

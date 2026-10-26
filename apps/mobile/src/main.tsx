@@ -1,3 +1,4 @@
+import "./utils/console-logger-install";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
@@ -41,7 +42,7 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, ErrorBou
         <main className="min-h-screen px-4 py-6">
           <section className="bg-tag-5-soft text-danger shadow-card mx-auto w-full max-w-md rounded-3xl p-4">
             <h1 className="text-base font-semibold">页面渲染异常</h1>
-            <p className="mt-2 break-all text-sm">{this.state.error.message}</p>
+            <p className="mt-2 text-sm break-all">{this.state.error.message}</p>
             <button
               type="button"
               onClick={this.resetError}
@@ -50,7 +51,7 @@ class AppErrorBoundary extends React.Component<React.PropsWithChildren, ErrorBou
               重试渲染
             </button>
             {import.meta.env.DEV && stack ? (
-              <pre className="bg-surface text-ink-2 mt-3 overflow-auto whitespace-pre-wrap rounded-xl p-3 text-xs">
+              <pre className="bg-surface text-ink-2 mt-3 overflow-auto rounded-xl p-3 text-xs whitespace-pre-wrap">
                 {stack}
               </pre>
             ) : null}

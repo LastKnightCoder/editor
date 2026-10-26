@@ -466,28 +466,28 @@ fn reconcile_content_indexes(
 
 fn run_reconcile(app: &AppHandle, db_name: &str) -> Result<(), String> {
     let started_at = Instant::now();
-    eprintln!(
+    crate::logger::info(format!(
         "[mobile-reconcile] run start: db={}, stage=open-main",
         db_name
-    );
+    ));
     let main_conn = schema::open_database_by_name(app, db_name)?;
-    eprintln!(
+    crate::logger::info(format!(
         "[mobile-reconcile] run progress: db={}, stage=ensure-index",
         db_name
-    );
+    ));
     index_db::ensure_index_database(app, db_name, &main_conn)?;
     let index_conn = index_db::open_index_database(app, db_name)?;
 
     index_db::set_rebuild_state(&index_conn, "building")?;
-    eprintln!(
+    crate::logger::info(format!(
         "[mobile-reconcile] run progress: db={}, stage=building",
         db_name
-    );
+    ));
     let reconcile_result = reconcile_content_indexes(&main_conn, &index_conn);
     match reconcile_result {
         Ok(stats) => {
             index_db::set_rebuild_state(&index_conn, "ready")?;
-            eprintln!(
+            crate::logger::info(format!(
                 "[mobile-reconcile] run done: db={}, rebuild_state=ready, scanned={}, indexed={}, removed={}, removed_empty={}, removed_stale={}, skipped_up_to_date={}, elapsed_ms={}",
                 db_name,
                 stats.scanned,
@@ -497,7 +497,7 @@ fn run_reconcile(app: &AppHandle, db_name: &str) -> Result<(), String> {
                 stats.removed_stale,
                 stats.skipped_up_to_date,
                 started_at.elapsed().as_millis()
-            );
+            ));
             // FTS 就绪后通知前端对账 entity_refs（解析器在 JS 侧，与桌面同一份代码）
             use tauri::Emitter;
             let _ = app.emit("entity-refs:rebuild", ());
@@ -505,12 +505,12 @@ fn run_reconcile(app: &AppHandle, db_name: &str) -> Result<(), String> {
         }
         Err(err) => {
             let _ = index_db::set_rebuild_state(&index_conn, "failed");
-            eprintln!(
+            crate::logger::error(format!(
                 "[mobile-reconcile] run failed: db={}, rebuild_state=failed, error={}, elapsed_ms={}",
                 db_name,
                 err,
                 started_at.elapsed().as_millis()
-            );
+            ));
             Err(err)
         }
     }
@@ -519,27 +519,33 @@ fn run_reconcile(app: &AppHandle, db_name: &str) -> Result<(), String> {
 pub fn trigger_reconcile(app: &AppHandle, db_name: &str) {
     let db_name_owned = db_name.to_string();
     if !try_mark_running(&db_name_owned) {
-        eprintln!(
+        crate::logger::info(format!(
             "[mobile-reconcile] trigger skipped: db={}, reason=already-running",
             db_name
-        );
+        ));
         return;
     }
-    eprintln!("[mobile-reconcile] trigger accepted: db={}", db_name);
+    crate::logger::info(format!(
+        "[mobile-reconcile] trigger accepted: db={}",
+        db_name
+    ));
 
     let app_clone = app.clone();
     tauri::async_runtime::spawn(async move {
         let result = run_reconcile(&app_clone, &db_name_owned);
         if let Err(err) = result {
-            eprintln!("[mobile-reconcile] rebuild failed: {err}");
+            crate::logger::error(format!("[mobile-reconcile] rebuild failed: {err}"));
         } else {
-            eprintln!("[mobile-reconcile] rebuild completed: db={}", db_name_owned);
+            crate::logger::info(format!(
+                "[mobile-reconcile] rebuild completed: db={}",
+                db_name_owned
+            ));
         }
         let rerun = mark_finished(&db_name_owned);
-        eprintln!(
+        crate::logger::info(format!(
             "[mobile-reconcile] trigger finished: db={}, running=false, rerun={}",
             db_name_owned, rerun
-        );
+        ));
         if rerun {
             trigger_reconcile(&app_clone, &db_name_owned);
         }

@@ -100,12 +100,14 @@ pub async fn load_holidays(
                     if let Err(error) = std::fs::create_dir_all(&dir)
                         .and_then(|_| std::fs::write(&file, serde_json::to_vec(&saved)?))
                     {
-                        eprintln!("CALENDAR_HOLIDAY_CACHE_FAILED: {error}");
+                        crate::logger::warn(format!("CALENDAR_HOLIDAY_CACHE_FAILED: {error}"));
                     }
                     cache.insert(year, (saved, 0));
                 }
                 Err(error) => {
-                    eprintln!("CALENDAR_HOLIDAY_UNAVAILABLE: {year}: {error}; 使用缓存或周末规则");
+                    crate::logger::warn(format!(
+                        "CALENDAR_HOLIDAY_UNAVAILABLE: {year}: {error}; 使用缓存或周末规则"
+                    ));
                     let entry = cache.entry(year).or_insert((
                         YearCache {
                             fetched_at: 0,

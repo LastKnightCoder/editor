@@ -29,7 +29,8 @@ export function useBootstrap() {
       await refreshDatabases();
       try {
         await refreshVersions();
-      } catch {
+      } catch (error) {
+        console.warn("[bootstrap] 启动时同步状态检查失败", error);
         setVersions(null);
       }
       return boot;

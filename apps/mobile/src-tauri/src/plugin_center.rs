@@ -11,9 +11,9 @@ const ZIP_LIMIT: usize = 16 * 1024 * 1024;
 
 #[derive(Debug, Serialize)]
 pub struct CenterError {
-    status: u16,
-    code: String,
-    message: String,
+    pub(crate) status: u16,
+    pub(crate) code: String,
+    pub(crate) message: String,
 }
 fn error(status: u16, code: &str, message: &str) -> CenterError {
     CenterError {
@@ -37,7 +37,7 @@ fn identifier(value: &str) -> Result<(), CenterError> {
     }
     Ok(())
 }
-fn center_origin() -> Result<Url, CenterError> {
+pub(crate) fn center_origin() -> Result<Url, CenterError> {
     let configured = if cfg!(debug_assertions) {
         std::env::var("TAU_PLUGIN_CENTER_API")
             .ok()
@@ -50,7 +50,7 @@ fn center_origin() -> Result<Url, CenterError> {
         cfg!(debug_assertions),
     )
 }
-fn validate_origin(value: &str, development: bool) -> Result<Url, CenterError> {
+pub(crate) fn validate_origin(value: &str, development: bool) -> Result<Url, CenterError> {
     let url = Url::parse(value).map_err(|_| invalid("中心地址无效"))?;
     let local = url.scheme() == "http"
         && matches!(url.host_str(), Some("localhost" | "127.0.0.1" | "[::1]"));
@@ -66,7 +66,7 @@ fn validate_origin(value: &str, development: bool) -> Result<Url, CenterError> {
     }
     Ok(url)
 }
-fn platform() -> &'static str {
+pub(crate) fn platform() -> &'static str {
     if cfg!(target_os = "android") {
         "android"
     } else if cfg!(target_os = "ios") {

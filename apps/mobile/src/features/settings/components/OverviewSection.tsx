@@ -20,6 +20,7 @@ import {
   IconCloud,
   IconFolder,
   IconImage,
+  IconMessageSquare,
   IconMoon,
   IconType,
   IconUsers,
@@ -42,7 +43,7 @@ import { normalizeReadingFontId, readingFontOption } from "../readingFont/fonts"
 import { useInstalledReadingFonts } from "../readingFont/queries";
 import type { SettingModule } from "./types";
 
-const APPEARANCE_LABELS = { light: "浅色", dark: "深色", system: "跟随系统" } as const;
+export const APPEARANCE_LABELS = { light: "浅色", dark: "深色", system: "跟随系统" } as const;
 
 const EDITOR_OPEN_MODE_LABELS: Record<EditorOpenMode, string> = { read: "阅读", edit: "编辑" };
 
@@ -185,6 +186,11 @@ export function OverviewSection(props: OverviewSectionProps) {
         <h2 className="text-ink-1 text-[16.5px] font-extrabold">关于</h2>
       </div>
       <div className="list-group">
+        <ListItem
+          icon={<IconMessageSquare />}
+          label="反馈"
+          onClick={() => props.onOpenModule("feedback")}
+        />
         <AboutUpdateItem onOpen={() => props.onOpenModule("about")} />
       </div>
     </div>
@@ -261,7 +267,7 @@ export function AboutUpdateItem(props: { onOpen: () => void }) {
 function UpdateBadge({ version }: { version: string }) {
   return (
     <span
-      className="bg-danger-soft text-danger flex items-center gap-1.5 rounded-full py-0.5 pl-1.5 pr-2 text-[11.5px] font-semibold tabular-nums"
+      className="bg-danger-soft text-danger flex items-center gap-1.5 rounded-full py-0.5 pr-2 pl-1.5 text-[11.5px] font-semibold tabular-nums"
       aria-label={`有新版本 ${version}`}
     >
       <span className="bg-danger h-1.5 w-1.5 rounded-full" aria-hidden="true" />

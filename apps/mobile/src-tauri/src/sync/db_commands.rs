@@ -226,7 +226,7 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
     }
     // 主库已被远端内容替换，本地索引的 ID 空间整体失效，重置后按需全量重建
     if let Err(err) = crate::database::reset_index_database(&app, &ctx.database_name) {
-        eprintln!("[sync] reset index database failed: {}", err);
+        crate::logger::error(format!("[sync] reset index database failed: {}", err));
     }
     if let Err(error) = save_local_version(&app, &ctx, remote_version) {
         return fail(remote_version, error);

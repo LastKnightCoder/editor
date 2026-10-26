@@ -438,7 +438,9 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
 - **输入框规范**：
   - 输入文字字号 16px（`--mobile-input-font-size`），这是手机端可读下限，也是 iOS 不自动放大的阈值。
   - 表单输入用 `.input-base`：最小高 44px（`--mobile-input-min-height`），底色页面色，聚焦时 accent 描边。它放在
-    `@layer components`，调用处可以用工具类覆盖底色、圆角、内边距，但不要覆盖字号和高度。
+    `@layer components`，调用处可以用工具类覆盖底色、圆角、内边距，但不要覆盖字号和高度。直接放在页面底上（非卡片/
+    浮层宿主内）时必须覆盖 `bg-surface`（可配 `shadow-card`），否则与页面同底、空态失去可输入轮廓（反馈正文与
+    TTS 测试文本即此用法）。
   - 搜索统一用 `components/SearchField`：40px 胶囊，图标 18，自带清空按钮。`tone` 按所在底色选：放在页面底上用
     `surface`，放在卡片或面板里用 `page`。
   - 无外框的就地输入（标签草稿、闪卡选项、答题区）加 `.input-text`，只统一字号。
@@ -516,6 +518,16 @@ Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开
 Android 清单包含 RECORD_AUDIO/MODIFY_AUDIO_SETTINGS，iOS 包信息包含麦克风用途说明。`plugin_socket` 命令按工作区 token 及窗口作用域校验，系统网络实现使用 tokio-tungstenite；作者契约见 [WebSocket](/packages/plugins/docs/websocket.md)。采集仅在调用方明确启动服务时申请，插件停用和工作区释放取消会话。普通设置快照保留原生管理的 speechInput 数据。
 
 移动端尚未接入 LLM 整理执行适配；未来语音输入入口及结果呈现由独立消费者决定。
+
+## 日志与反馈
+
+日志统一落盘在 Rust 侧（`src-tauri/src/logger.rs`）：`<app_data_dir>/.editor/logs/session-<日期>_<时间>-<后缀>.log`，每次启动一个文件，单文件 10MB 轮转为 `*.old.log`，超过 3 天的 session 文件启动时清理。行格式与桌面 electron-log 一致（`[时间] [级别] 消息`），debug 只进开发终端不落盘；`lib.rs` 的 setup 中最先初始化，初始化之前的 Rust 日志先进内存缓冲（上限 256 条）。
+
+前端 console 劫持（`src/utils/console-logger.ts`，main.tsx 首个 import 安装）：保留原输出同时经 `app_log` 命令写入同一文件（带 `[ui]` 来源标记）；单条 4000 字截断、每秒 100 条限流并汇总丢弃数，未捕获异常与 unhandledrejection 一并上报；非 Tauri 环境（浏览器 dev）不安装。关键埋点：插件加载/启用失败（runtime.ts 的 errors.set 处）、插件会话失败与安全模式（PluginProvider）、错误 toast 呈现（AppShell presentError）、同步结果（sync 的 response_ok/response_err 出口）与插件暂存/提交/应用待生效（plugins.rs）。
+
+反馈入口在「我的 → 关于 → 反馈」（settingsModule 的 `feedback` 模块，`features/settings/feedback/`）。表单含类型（问题/建议/其他）、正文（≤4000 字）、截图（≤3 张，前端压 WebP/JPEG 长边 1920 后暂存 Rust）、环境信息开关（版本/系统/主题，platform/arch 由 Rust 补齐）、日志开关。文本草稿持久化 localStorage（提交成功后清除），clientRequestId 按草稿签名生成、原样重试复用（服务端幂等）。
+
+提交链路（`src-tauri/src/app_feedback.rs`）：截图经 `app_feedback_image_write` 按 256KB base64 分块暂存内存（Android 字符串 IPC 限制，与 uploadResource 同一模式）；`app_feedback_submit` 先取匿名身份（`.editor/feedback/visitor.json`，`/v1/visitor-session` 传 `client:"mobile"`，与 desktop 同为无 Origin 原生客户端），再 multipart POST `/v1/app-feedback`（`meta` + `image`×N + `log` gzip，日志取本次运行尾部 2MiB + 上次 1MiB）。网络失败返回可重试结果并保留草稿；协议与限额以 `apps/plugin-portal/contracts` 为准。移动端不提供截图标注与性能日志附件。
 
 ## 正文字数与空文档
 
