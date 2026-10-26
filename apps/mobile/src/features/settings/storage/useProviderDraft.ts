@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import {
+  isProviderFieldError,
   mergeProviderFormValues,
   readProviderFormValues,
   validateProviderFormValues,
@@ -52,7 +53,8 @@ export function useProviderDraft(
       setValues(readProviderFormValues(form, config));
       return config;
     } catch (issue) {
-      setError(issue instanceof Error ? issue.message : "保存失败");
+      if (isProviderFieldError(issue)) setErrors({ [issue.key]: issue.message });
+      else setError(issue instanceof Error ? issue.message : "保存失败");
       return null;
     } finally {
       setSaving(false);

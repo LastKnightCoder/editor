@@ -1,12 +1,85 @@
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Button, Panel, UiProvider, cn } from "@tau/ui";
-import type { PluginSettingsProps } from "@tau/plugins";
+import type { PluginSettingsProps, ProviderForm } from "@tau/plugins";
 import { useSettingsStore } from "@/app/settingsStore";
 import { ErrorState, RecoverableBoundary } from "@/components/ErrorState";
 import type { RegisteredPluginSettings } from "@/app/plugins/runtime";
 import { openPage } from "@/services/page-navigation";
-import { ProviderFormView } from "../components/ProviderFormView";
+import {
+  ProviderFormView,
+  useStorageBinding,
+  type ProviderFormBinding,
+} from "../components/ProviderFormView";
+
+type ProviderConfigs = Pick<
+  PluginSettingsProps,
+  "ttsConfig" | "imageConfig" | "videoConfig" | "publishConfig" | "asrConfig"
+>;
+
+/** 非存储目标的配置由调用方给出；按目标取对应配置的值与保存，模型与实例上下文保持原样。 */
+function configBinding(
+  section: RegisteredPluginSettings,
+  configs: ProviderConfigs
+): ProviderFormBinding | null {
+  const models = section.definition.models ?? [];
+  switch (section.definition.target) {
+    case "tts": {
+      const config = configs.ttsConfig;
+      if (!config) return null;
+      return {
+        stored: config.value,
+        persist: value => config.save(value, config.models.length ? config.models : models),
+      };
+    }
+    case "images": {
+      const config = configs.imageConfig;
+      if (!config) return null;
+      return {
+        stored: config.value,
+        persist: value => config.save(value, config.modelId || models[0]?.id || ""),
+      };
+    }
+    case "asr": {
+      const config = configs.asrConfig;
+      if (!config) return null;
+      return {
+        stored: config.value,
+        persist: value => config.save(value, config.modelId || models[0]?.id || ""),
+      };
+    }
+    case "video":
+      return configs.videoConfig
+        ? { stored: configs.videoConfig.value, persist: configs.videoConfig.save }
+        : null;
+    case "publish":
+      // 发布页抽屉「修改自动保存」：随抽屉语义自动落盘，窄容器里字段堆叠
+      return configs.publishConfig
+        ? {
+            stored: configs.publishConfig.value,
+            persist: configs.publishConfig.save,
+            autoSave: true,
+            layout: "inline",
+          }
+        : null;
+    default:
+      return null;
+  }
+}
+
+function StorageFormView({
+  section,
+  target,
+  form,
+}: {
+  section: RegisteredPluginSettings;
+  target: "sync" | "upload";
+  form: ProviderForm;
+}) {
+  const { definition, context } = section;
+  const binding = useStorageBinding(target, context.pluginId, definition.title, form);
+  return <ProviderFormView form={form} context={context} binding={binding} />;
+}
 
 export function PluginSettingsView({
   section,
@@ -14,6 +87,7 @@ export function PluginSettingsView({
   imageConfig,
   videoConfig,
   publishConfig,
+  asrConfig,
   embedded = false,
 }: {
   section?: RegisteredPluginSettings;
@@ -21,6 +95,7 @@ export function PluginSettingsView({
   imageConfig?: PluginSettingsProps["imageConfig"];
   videoConfig?: PluginSettingsProps["videoConfig"];
   publishConfig?: PluginSettingsProps["publishConfig"];
+  asrConfig?: PluginSettingsProps["asrConfig"];
   /** 已处于调用方的描边容器内：不可用提示以设置行文字呈现，不再叠阴影卡 */
   embedded?: boolean;
 }) {
@@ -32,15 +107,27 @@ export function PluginSettingsView({
     );
     return embedded ? notice : <Panel>{notice}</Panel>;
   }
-  if (section.definition.form)
-    return (
-      <ProviderFormView
-        key={section.mountId}
-        definition={section.definition}
-        context={section.context}
-        name={section.definition.title}
-      />
-    );
+  const { form, target } = section.definition;
+  if (form && (target === "sync" || target === "upload"))
+    return <StorageFormView key={section.mountId} section={section} target={target} form={form} />;
+  if (form) {
+    const binding = configBinding(section, {
+      ttsConfig,
+      imageConfig,
+      videoConfig,
+      publishConfig,
+      asrConfig,
+    });
+    if (binding)
+      return (
+        <ProviderFormView
+          key={`${section.mountId}:${ttsConfig?.instanceId ?? imageConfig?.instanceId ?? ""}`}
+          form={form}
+          context={section.context}
+          binding={binding}
+        />
+      );
+  }
   // 旧版插件仍以组件注册存储设置：宿主不再渲染，只提示更新
   const legacyTarget: string | undefined = section.definition.target;
   if (legacyTarget === "sync" || legacyTarget === "upload")
@@ -51,7 +138,12 @@ export function PluginSettingsView({
         </p>
       </Panel>
     );
-  if (section.definition.target === "asr") return null;
+  if (section.definition.target === "asr" && !asrConfig)
+    return (
+      <Button onClick={() => useSettingsStore.getState().openSpeechInputSettings()}>
+        在语音输入设置中配置
+      </Button>
+    );
   if (section.definition.target === "tts" && !ttsConfig)
     return (
       <Button onClick={() => useSettingsStore.getState().openTTSSettings()}>
@@ -60,6 +152,13 @@ export function PluginSettingsView({
     );
   if (section.definition.target === "publish" && !publishConfig)
     return <Button onClick={() => openPage("publish")}>在博客发布页中配置</Button>;
+  // 其余目标的 form 分区缺少宿主上下文时（如从插件详情直接打开）不渲染表单
+  if (form)
+    return (
+      <Panel>
+        <p className="text-tau-body text-ink-2">请在对应的应用设置中配置此服务。</p>
+      </Panel>
+    );
   return (
     <RecoverableBoundary
       key={section.mountId}
@@ -74,6 +173,7 @@ export function PluginSettingsView({
       <SettingsScope
         key={imageConfig?.instanceId ?? ttsConfig?.instanceId}
         section={section}
+        asrConfig={asrConfig}
         ttsConfig={ttsConfig}
         imageConfig={imageConfig}
         videoConfig={videoConfig}
@@ -85,12 +185,14 @@ export function PluginSettingsView({
 
 function SettingsScope({
   section,
+  asrConfig,
   ttsConfig,
   imageConfig,
   videoConfig,
   publishConfig,
 }: {
   section: RegisteredPluginSettings;
+  asrConfig?: PluginSettingsProps["asrConfig"];
   ttsConfig?: PluginSettingsProps["ttsConfig"];
   imageConfig?: PluginSettingsProps["imageConfig"];
   videoConfig?: PluginSettingsProps["videoConfig"];
@@ -110,6 +212,7 @@ function SettingsScope({
       <UiProvider className="contents">
         <Component
           context={section.context}
+          asrConfig={asrConfig}
           ttsConfig={ttsConfig}
           imageConfig={imageConfig}
           videoConfig={videoConfig}

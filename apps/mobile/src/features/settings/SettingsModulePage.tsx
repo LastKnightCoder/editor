@@ -12,6 +12,7 @@ import { ResourceFilesSection } from "./sync/ResourceFilesSection";
 import { SyncCenterSection } from "./sync/SyncCenterSection";
 import { UploadCenterSection } from "./upload/UploadCenterSection";
 import { TtsSettingsSection } from "./tts/TtsSettingsSection";
+import { SpeechInputSection } from "./speech/SpeechInputSection";
 import type { SettingModuleKey, SettingsPageProps } from "./components/types";
 import { CheckBubble } from "../../components/CheckBubble";
 import { GroupCard, GroupNote, GroupRow, IconDatabase } from "./components/ui";
@@ -38,6 +39,8 @@ function getTitle(module: SettingModuleKey): string {
       return "图片与附件";
     case "voice":
       return "语音合成";
+    case "speech-input":
+      return "语音输入";
     default:
       return "设置";
   }
@@ -111,6 +114,8 @@ function ModuleSection(props: ModuleSectionProps) {
       );
     case "voice":
       return <TtsSettingsSection />;
+    case "speech-input":
+      return <SpeechInputSection />;
     case "about":
       return <AboutSection />;
     case "collaboration":

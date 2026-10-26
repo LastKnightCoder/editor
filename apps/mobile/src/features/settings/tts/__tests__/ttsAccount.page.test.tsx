@@ -309,3 +309,45 @@ describe("TTS 账号与模型页面", () => {
     expect(getNavigator().getActiveScreen()?.key).toBe("ttsAccount");
   });
 });
+
+describe("声明式表单的 TTS 账号", () => {
+  it("渲染插件字段，导航栏保存写回本账号并保留模型", async () => {
+    await runtime.dispose();
+    runtime = await createTtsRuntime({
+      groups: [
+        {
+          title: "连接",
+          fields: [
+            { key: "apiKey", label: "API Key", type: "secret" },
+            { key: "baseUrl", label: "服务地址", type: "url", optional: true },
+          ],
+        },
+      ],
+    });
+    const state: SettingState = { current: makeSetting([makeAccount()]) };
+    installNative(state);
+    mounted = mountTtsHarness(state, runtime);
+    await openPage("ttsAccount", { instanceId: "account-a" });
+    await waitFor(() => activeTitle() === "测试账号");
+    const page = activePage()!;
+    const key = page.querySelector<HTMLInputElement>('input[aria-label="API Key"]')!;
+    expect(key.value).toBe("super-secret-key");
+    const save = () =>
+      [...activePage()!.querySelectorAll("button")].find(
+        node => node.textContent?.trim() === "保存"
+      ) as HTMLButtonElement;
+    expect(save().disabled).toBe(true);
+
+    await setInputValue(key, "rotated");
+    await waitFor(() => !save().disabled);
+    await click(save());
+    await waitFor(() => native.save.mock.calls.length === 1);
+    expect(native.save).toHaveBeenCalledWith(
+      "data.db",
+      "account-a",
+      "fixture.tts",
+      { apiKey: "rotated", baseUrl: "" },
+      [{ id: "model-a" }]
+    );
+  });
+});

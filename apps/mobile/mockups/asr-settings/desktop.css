@@ -1,0 +1,371 @@
+/* 桌面设置窗口示意：取值同 apps/desktop 设置页（SettingsGroup / SettingRow / ProviderSection）。 */
+.dw {
+  width: calc(980px * var(--ds, 1));
+  height: calc(640px * var(--ds, 1));
+}
+.dwin {
+  width: 980px;
+  height: 640px;
+  transform: scale(var(--ds, 1));
+  transform-origin: top left;
+  display: flex;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-page);
+  box-shadow:
+    0 0 0 1px var(--line-1),
+    0 30px 60px -24px rgba(60, 45, 25, 0.45);
+  font-size: 13px;
+}
+.dside {
+  width: 196px;
+  flex: none;
+  padding: 40px 10px 12px;
+  background: color-mix(in srgb, var(--bg-sunken) 40%, var(--bg-page));
+  border-right: 1px solid var(--line-1);
+}
+.dside .it {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 8px;
+  color: var(--ink-2);
+}
+.dside .it.on {
+  background: var(--bg-selected);
+  color: var(--brand-text);
+  font-weight: 600;
+}
+.dside .sec {
+  margin: 14px 10px 4px;
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.dmain {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  padding: 30px 36px;
+}
+.dmain h2 {
+  font-size: 20px;
+  font-weight: 650;
+  margin-bottom: 14px;
+}
+.dtabs {
+  display: flex;
+  gap: 22px;
+  margin-bottom: 20px;
+}
+.dtabs span {
+  position: relative;
+  padding-bottom: 7px;
+  color: var(--ink-2);
+}
+.dtabs span.on {
+  color: var(--ink-1);
+  font-weight: 600;
+}
+.dtabs span.on::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  border-radius: 99px;
+  background: var(--brand);
+}
+.dg {
+  margin-bottom: 22px;
+}
+.dg-h {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 0 4px 8px;
+}
+.dg-h .mid {
+  flex: 1;
+}
+.dg-h h3 {
+  font-size: 14px;
+  font-weight: 600;
+}
+.dg-h p {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.dpanel {
+  background: var(--bg-surface);
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow: var(--shadow-card);
+}
+.drow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 56px;
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+.drow + .drow::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 12px;
+  right: 12px;
+  border-top: 1px solid var(--line-2);
+}
+.drow .mid {
+  flex: 1;
+  min-width: 0;
+}
+.drow .mid b {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+}
+.drow .mid span {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-2);
+  margin-top: 1px;
+}
+.dfield {
+  width: 300px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px 0 10px;
+  border-radius: 8px;
+  background: var(--bg-surface);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.dfield .ph {
+  color: var(--ink-3);
+}
+.dfield .end {
+  margin-left: auto;
+  display: flex;
+  gap: 2px;
+  color: var(--ink-3);
+}
+.dfield .end i {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+}
+.dfield.focus {
+  box-shadow:
+    inset 0 0 0 1px var(--brand),
+    0 0 0 3px var(--brand-soft);
+}
+.dfield.err {
+  box-shadow: inset 0 0 0 1px var(--danger);
+}
+.dseg {
+  display: inline-flex;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px var(--line-1);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+.dseg span {
+  height: 32px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-2);
+}
+.dseg span + span {
+  box-shadow: inset 1px 0 0 var(--line-1);
+}
+.dseg span.on {
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  font-weight: 600;
+}
+.dbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+.dbtn.pri {
+  background: var(--brand);
+  color: var(--ink-inv);
+}
+.dbtn.sec {
+  background: var(--bg-surface);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.dbtn.ghost {
+  color: var(--ink-2);
+}
+.dbtn.dis {
+  opacity: 0.45;
+}
+.dsw {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  border-radius: 99px;
+  background: var(--line-1);
+  flex: none;
+}
+.dsw::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.dsw.on {
+  background: var(--sage);
+}
+.dsw.on::after {
+  left: 16px;
+}
+.dengine {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.dcard {
+  position: relative;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--bg-surface);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.dcard.on {
+  box-shadow: inset 0 0 0 1.5px var(--brand);
+  background: color-mix(in srgb, var(--brand-soft) 35%, var(--bg-surface));
+}
+.dcard b {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.dcard p {
+  margin-top: 4px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.dcard .chip {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+.dsub {
+  margin-top: 10px;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.dsub-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px 4px;
+}
+.dsub-h b {
+  font-size: 13.5px;
+}
+.dsub-h small {
+  color: var(--ink-2);
+  font-size: 12px;
+  flex: 1;
+}
+.dactions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 10px 12px 12px;
+}
+.dactions .msg {
+  margin-right: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.dactions .msg.ok {
+  color: var(--sage);
+}
+.dactions .msg.err {
+  color: var(--danger);
+}
+.dnote {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 0 4px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.ddialog-mask {
+  position: absolute;
+  inset: 0;
+  background: var(--mask);
+  display: grid;
+  place-items: center;
+}
+.ddialog {
+  width: 440px;
+  border-radius: 14px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-float);
+}
+.ddialog-h {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line-1);
+  font-size: 15px;
+  font-weight: 600;
+}
+.ddialog-h span {
+  flex: 1;
+}
+.ddialog-b {
+  padding: 14px 16px;
+}
+.ddialog-b .lab {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  margin: 10px 0 6px;
+}
+.ddialog-b .lab:first-child {
+  margin-top: 0;
+}
+.ddialog-b .dfield {
+  width: 100%;
+}
+.ddialog-f {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line-1);
+}

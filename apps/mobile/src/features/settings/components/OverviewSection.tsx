@@ -20,6 +20,7 @@ import {
   IconCloud,
   IconFolder,
   IconImage,
+  IconMic,
   IconMoon,
   IconType,
   IconUsers,
@@ -27,6 +28,7 @@ import {
 import { useAppVersion } from "../about/useAppVersion";
 import { useAppUpdate, useAutoUpdateCheck } from "../about/appUpdate";
 import { LOCAL_UPLOAD_ID, useUploadProviders } from "../upload/providers";
+import { useSpeechInputProviders } from "../speech/providers";
 import { getTheme } from "@tau/themes";
 import { useThemeStore } from "@tau/themes/react";
 import { useNavigator } from "../../../router";
@@ -99,6 +101,12 @@ export function OverviewSection(props: OverviewSectionProps) {
   const ttsAccountName = syncSettings.safeSetting?.ttsProviders?.find(
     account => account.id === ttsUsage?.providerId
   )?.name;
+  const speechProviders = useSpeechInputProviders();
+  const speech = syncSettings.safeSetting?.speechInput;
+  const speechInputName =
+    speech?.active === "plugin"
+      ? (speechProviders.find(item => item.id === speech.plugin.id)?.name ?? "插件已停用")
+      : "系统识别";
   // 桌面端旧设置 shadow 为布尔（true 视作中阴影），展示前归一为 preset
   const imageAppearanceValue = `${findPresetLabel(
     IMAGE_BORDER_RADIUS_OPTIONS,
@@ -152,6 +160,12 @@ export function OverviewSection(props: OverviewSectionProps) {
           label="语音合成"
           value={ttsAccountName ?? "未设置"}
           onClick={() => props.onOpenModule("voice")}
+        />
+        <ListItem
+          icon={<IconMic />}
+          label="语音输入"
+          value={speechInputName}
+          onClick={() => props.onOpenModule("speech-input")}
         />
       </div>
 
@@ -261,7 +275,7 @@ export function AboutUpdateItem(props: { onOpen: () => void }) {
 function UpdateBadge({ version }: { version: string }) {
   return (
     <span
-      className="bg-danger-soft text-danger flex items-center gap-1.5 rounded-full py-0.5 pl-1.5 pr-2 text-[11.5px] font-semibold tabular-nums"
+      className="bg-danger-soft text-danger flex items-center gap-1.5 rounded-full py-0.5 pr-2 pl-1.5 text-[11.5px] font-semibold tabular-nums"
       aria-label={`有新版本 ${version}`}
     >
       <span className="bg-danger h-1.5 w-1.5 rounded-full" aria-hidden="true" />

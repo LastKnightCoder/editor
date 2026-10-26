@@ -142,7 +142,7 @@ it("TTS 设置进入统一语音配置而不裸渲染作者表单", async () => 
   }
 });
 
-it("ASR 保留注册能力，但不开放设置跳转或渲染配置入口", async () => {
+it("ASR 设置打开语音输入账号页，通用插件设置页不渲染其组件", async () => {
   const environment = createPluginEnvironmentStore({
     platform: "android",
     input: { coarsePointer: true, finePointer: false },
@@ -187,8 +187,8 @@ it("ASR 保留注册能力，但不开放设置跳转或渲染配置入口", asy
   expect(created.asr.list()).toHaveLength(1);
   expect(created.settings.has(pageId)).toBe(true);
   if (!openSettings) throw new Error("设置注册失败");
-  await expect(openSettings()).rejects.toThrow("尚未提供界面入口");
-  expect(navigator.push).not.toHaveBeenCalled();
+  await openSettings();
+  expect(navigator.push).toHaveBeenCalledWith("speechInputProvider", { providerId: "test.asr" });
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -196,7 +196,6 @@ it("ASR 保留注册能力，但不开放设置跳转或渲染配置入口", asy
     await act(async () => root.render(<PluginSettingsView />));
     expect(component).not.toHaveBeenCalled();
     expect(container.textContent).not.toContain("ASR 账号表单");
-    expect(container.textContent).not.toContain("前往语音输入设置");
   } finally {
     await act(async () => root.unmount());
     await created.dispose();

@@ -126,7 +126,7 @@ Mac helper 独立打包在 `bin/darwin/Tau Speech Helper.app`，macOS 26 上采�
 
 插件通过公共 `context.asr` 注册，账号经语音输入设置的专用命令保存，普通全量设置提交保留主进程已保存的 speechInput，渲染缓存不持久化账号。`context.websocket` 提供标准事件、状态和同步 send/close，鉴权头、取消与有界背压由通用宿主桥接；不包含厂商协议。
 
-当前桌面只保留语音输入服务，不挂载麦克风按钮、语音输入设置、AI 整理配置行或输入目标。`desktopSpeechInput` 与 `prepareSpeechRefinement` 由未来消费者显式调用，壳层不触发录音或模型请求。ASR 设置声明仍可注册，插件详情不显示其表单，open 返回入口不可用；现有视频转录与 TTS 界面独立保留。
+设置 › 语音 › 语音输入（`VoiceInputPanel`）选识别服务（系统识别 / 识别插件卡片）、渲染所选插件的 form（`asrConfig` 绑定 `speech-input:settings`）并设置 AI 整理风格；整理模型在 大语言模型 › 功能分配 的「语音输入整理」中选择。选用的插件停用后保留选择并提示。插件详情的 asr 分区与 open 都跳到该 Tab。当前不挂载麦克风按钮或输入目标，`desktopSpeechInput` 与 `prepareSpeechRefinement` 由未来消费者显式调用，壳层不触发录音或模型请求。
 
 整理服务读取 `llmUsageSettings.speechInputRefinement` 与 `speechInput.refinement`，复用 piStreamText 无工具单发，仅处理最终转录；原始结果与整理文本分开，失败／超时回退原文，取消不交付结果。配置数据和保存命令保留；入口、预览、原文查看及草稿提交界面由后续消费者决定。
 
