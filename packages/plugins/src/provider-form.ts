@@ -1,6 +1,6 @@
 import type { JsonValue } from "./json";
 
-/** 存储提供方配置表单：插件只声明字段，桌面与移动宿主各自渲染、保存与校验。 */
+/** 提供方配置表单：插件只声明字段，桌面与移动宿主各自渲染、保存与校验。 */
 export type ProviderFormValues = Readonly<Record<string, string>>;
 
 interface ProviderFieldBase {
@@ -16,6 +16,7 @@ interface ProviderFieldBase {
 
 export interface ProviderTextField extends ProviderFieldBase {
   type: "text" | "secret" | "url";
+  default?: string;
 }
 
 export interface ProviderChoiceOption {
@@ -58,7 +59,7 @@ export function providerFormFields(form: ProviderForm): readonly ProviderField[]
 
 export function assertProviderForm(form: ProviderForm): void {
   if (!form || !Array.isArray(form.groups) || form.groups.length === 0)
-    throw new Error("存储提供方设置必须声明表单分组");
+    throw new Error("提供方设置必须声明表单分组");
   const keys = new Set<string>();
   for (const group of form.groups) {
     if (!group.title?.trim()) throw new Error("表单分组标题不能为空");
@@ -84,7 +85,7 @@ export function assertProviderForm(form: ProviderForm): void {
         if (!keys.has(dependency)) throw new Error(`字段 ${field.key} 依赖的字段不存在`);
 }
 
-/** 从已存配置读出表单初值：只取声明字段的字符串值，choice 缺省时取 default。 */
+/** 从已存配置读出表单初值：只取声明字段的字符串值，字段缺省时取声明的 default。 */
 export function readProviderFormValues(
   form: ProviderForm,
   stored: JsonValue | undefined
@@ -94,7 +95,7 @@ export function readProviderFormValues(
   for (const field of providerFormFields(form)) {
     const value = source[field.key];
     values[field.key] =
-      typeof value === "string" ? value : field.type === "choice" ? (field.default ?? "") : "";
+      typeof value === "string" ? value : "default" in field ? (field.default ?? "") : "";
   }
   return values;
 }
