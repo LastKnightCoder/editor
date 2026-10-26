@@ -47,8 +47,8 @@
 ```tsx
 import { Input, Button } from "@tau/ui";
 
-export function OSSSettings({ syncConfig }) {
-  const [config, setConfig] = useState(syncConfig.value);
+export function VideoSettings({ videoConfig }) {
+  const [config, setConfig] = useState(videoConfig.value);
 
   return (
     <div className="space-y-4">
@@ -66,7 +66,7 @@ export function OSSSettings({ syncConfig }) {
           onChange={e => setConfig({ ...config, region: e.target.value })}
         />
       </div>
-      <Button onClick={() => syncConfig.save(config)}>保存同步配置</Button>
+      <Button onClick={() => videoConfig.save(config)}>保存</Button>
     </div>
   );
 }
@@ -77,8 +77,8 @@ export function OSSSettings({ syncConfig }) {
 ```tsx
 import { SettingRow, Input, Button } from "@tau/ui";
 
-export function OSSSettings({ syncConfig }) {
-  const [config, setConfig] = useState(syncConfig.value);
+export function VideoSettings({ videoConfig }) {
+  const [config, setConfig] = useState(videoConfig.value);
 
   return (
     <>
@@ -111,7 +111,7 @@ export function OSSSettings({ syncConfig }) {
       </SettingRow>
 
       <SettingRow title="">
-        <Button onClick={() => syncConfig.save(config)}>保存同步配置</Button>
+        <Button onClick={() => videoConfig.save(config)}>保存</Button>
       </SettingRow>
     </>
   );

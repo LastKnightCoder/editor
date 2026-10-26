@@ -2,19 +2,20 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { webcrypto } from "node:crypto";
 import { transferableAbortController } from "node:util";
-import { act } from "react";
-import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import { PluginHost, createMemoryStorage } from "@tau/plugins/host";
 import { RendererSyncRegistry, RendererUploadRegistry } from "@tau/plugins/provider-host";
-import {
-  createPluginEnvironmentStore,
-  PluginEnvironmentProvider,
-} from "@tau/plugins/environment-host";
+import { createPluginEnvironmentStore } from "@tau/plugins/environment-host";
 import { evaluatePortablePluginPackage } from "@tau/plugins/rendering";
 import { portableSharedPluginModules } from "@tau/plugins/portable-shared-modules";
-import type { PluginContext, PluginSettingsDefinition } from "@tau/plugins";
-import { UiProvider } from "@tau/ui";
+import {
+  assertProviderForm,
+  mergeProviderFormValues,
+  readProviderFormValues,
+  validateProviderFormValues,
+  type PluginContext,
+  type PluginSettingsDefinition,
+} from "@tau/plugins";
 import { MobilePluginRuntime } from "../../src/app/plugins/runtime";
 
 afterEach(() => {
@@ -23,7 +24,7 @@ afterEach(() => {
 });
 
 it.each(["desktop", "android", "ios"] as const)(
-  "%s 加载相同七个发行包，调用相同设置 API，保留各端视图",
+  "%s 加载相同七个发行包，存储设置均为可保存的声明式表单",
   async platform => {
     const reportPath = process.env.TAU_STORAGE_AUTHORS_REPORT;
     if (!reportPath) throw new Error("请通过 TAU_STORAGE_AUTHORS_REPORT 指定仓库外作者构建报告");
@@ -137,65 +138,17 @@ it.each(["desktop", "android", "ios"] as const)(
           pathPrefix: "notes",
           publicBaseUrl: "",
         };
-        const save = vi.fn<(value: unknown) => Promise<void>>().mockResolvedValue(undefined);
-        const container = document.createElement("div");
-        document.body.appendChild(container);
-        const root = createRoot(container);
-        const Component = definition.component;
-        try {
-          await act(async () =>
-            root.render(
-              <PluginEnvironmentProvider source={environment}>
-                <UiProvider>
-                  <Component
-                    context={context}
-                    {...(definition.target === "sync"
-                      ? { syncConfig: { value: config, save } }
-                      : { uploadConfig: { value: config, save } })}
-                  />
-                </UiProvider>
-              </PluginEnvironmentProvider>
-            )
-          );
-          if (platform === "desktop") {
-            expect(container.textContent).not.toContain("仅用于当前服务");
-            const button = [...container.querySelectorAll("button")].find(button =>
-              button.textContent?.includes("保存")
-            );
-            expect(button).toBeTruthy();
-            await act(async () => button!.click());
-          } else {
-            expect(container.textContent).toContain("仅用于当前服务");
-            expect(container.textContent).toContain("存储位置");
-            const edit = [...container.querySelectorAll("button")].find(
-              button => button.textContent === "更换"
-            );
-            await act(async () => edit!.click());
-            const button = [...document.querySelectorAll("button")].find(
-              button =>
-                button.textContent?.includes("保存账号") ||
-                button.textContent?.includes("验证并保存")
-            );
-            expect(button).toBeTruthy();
-            await act(async () => {
-              button!.click();
-              await Promise.resolve();
-              await Promise.resolve();
-            });
-          }
-          for (let attempt = 0; attempt < 40 && save.mock.calls.length === 0; attempt++)
-            await act(async () => {
-              await new Promise(resolve => setTimeout(resolve, 10));
-            });
-          expect(
-            save,
-            `${platform} ${context.pluginId}:${definition.target} ${document.body.textContent}`
-          ).toHaveBeenCalledOnce();
-          expect(save.mock.calls[0][0]).toEqual(expect.objectContaining({ token: "fixture" }));
-        } finally {
-          await act(async () => root.unmount());
-          container.remove();
-        }
+        // 存储设置只声明表单：各端渲染由宿主负责，这里核对声明完整且夹具配置可保存
+        if (!definition.form) throw new Error(`${context.pluginId} 仍以组件注册存储设置`);
+        expect(() => assertProviderForm(definition.form!)).not.toThrow();
+        const values = readProviderFormValues(definition.form, config);
+        expect(validateProviderFormValues(definition.form, values)).toEqual({});
+        const prepared = definition.form.beforeSave
+          ? await definition.form.beforeSave(values, new AbortController().signal)
+          : values;
+        expect(mergeProviderFormValues(config, prepared)).toEqual(
+          expect.objectContaining(prepared)
+        );
       }
     } finally {
       await (mobile ? mobile.dispose() : host.dispose());

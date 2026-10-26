@@ -1,5 +1,11 @@
 # 更新记录
 
+## 未发布
+
+- 同步与上传设置改为声明式表单：`settings.register({ target: "sync" | "upload", form })` 声明账号与存储位置分组，字段类型为 `text`、`secret`、`url`、`choice`、`remote-choice`，可选 `beforeSave` 补全或校验。桌面与移动由 Tau 在插件详情 › 设置里渲染、保存与测试，设置页只负责选用服务。
+- 新增 `@tau/plugins` 导出 `ProviderForm` 等类型与 `readProviderFormValues`、`validateProviderFormValues`、`providerFormSummary` 等纯函数。
+- 适配要求：`PluginSettingsProps` 不再包含 `syncConfig`、`uploadConfig`；存储插件删除自绘的桌面与移动表单，改为声明 `form` 后重新构建。旧版以组件注册的存储设置仍能激活与同步，但 Tau 不再显示其表单，会提示用户更新插件。
+
 ## 0.45.0
 
 - 编辑器节点增加 `dataVersion`、精确历史版本声明与显式数据转换；Markdown 和 HTML 导出可按节点数据版本选择实现。
