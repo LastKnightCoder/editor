@@ -101,8 +101,7 @@ export class CollaborationAssetService {
   constructor(
     private store: CollaborationLocalStore,
     private appDirectory: string,
-    private identity: (url: string) => Promise<DeviceIdentity>,
-    private canonicalUrl: (url: string) => string = url => url
+    private identity: (url: string) => Promise<DeviceIdentity>
   ) {}
 
   private localPath(value: string): string | null {
@@ -220,9 +219,7 @@ export class CollaborationAssetService {
   }
 
   private async upload(url: string, resource: ResourceRow) {
-    url = this.canonicalUrl(url);
     const identity = await this.identity(url);
-    url = this.canonicalUrl(url);
     const bytes = await readFile(resource.path);
     if (bytes.byteLength > MAX_BYTES) throw new Error("资源超过 25 MB");
     const form = new FormData();
@@ -356,13 +353,11 @@ export class CollaborationAssetService {
   }
 
   private async download(url: string, documentId: string, assetId: string) {
-    url = this.canonicalUrl(url);
     const cached = this.store.db
       .prepare("SELECT * FROM resources WHERE id=? AND document_id=?")
       .get(assetId, documentId) as ResourceRow | undefined;
     if (cached && existsSync(cached.path)) return cached.path;
     const identity = await this.identity(url);
-    url = this.canonicalUrl(url);
     const response = await fetch(`${url}/v1/documents/${documentId}/assets/${assetId}`, {
       headers: { Authorization: `Bearer ${identity.id}:${identity.secret}` },
       signal: AbortSignal.timeout(120000),

@@ -143,7 +143,6 @@ describe("净化首次发布与恢复", () => {
       failAssets = false;
     const candidates: string[] = [];
     const client = {
-      canonicalUrl: (url: string) => url,
       serverTime: () => Date.now(),
       request: async (_url: string, path: string, _method?: string, body?: any) => {
         if (path === "/v1/documents") return server.create(owner.id, body.idempotencyKey);

@@ -4,18 +4,12 @@ import type { ContentContractDictionary } from "@tau/db-schema/content-contracts
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   NodeTree,
-  readSharedContent,
   NODE_DOCUMENT_VERSION,
   type ContentSessionTarget,
   type SharedContent,
 } from "@tau/collaboration";
 import { createNodeTreeDocument, type ContentCollaborationBinding } from "@tau/editor-collab";
-import {
-  createValueDocument,
-  type EditorDocument,
-  type EditorKit,
-  type AnyExtension,
-} from "@tau/editor";
+import { type EditorDocument, type EditorKit, type AnyExtension } from "@tau/editor";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
 import useContentSession from "@/hooks/useContentSession";
 import { registerContentBinding } from "@/services/contentBindings";
@@ -138,19 +132,11 @@ export function useBoundContentDocument(
   const current = useRef<{ binding: ContentCollaborationBinding; document: EditorDocument }>(null);
   if (binding && structured && contractReady && prepared)
     current.current = { binding, document: prepared.document };
-  else if (binding && !structured && current.current?.binding !== binding)
-    current.current = {
-      binding,
-      document: createValueDocument(
-        readSharedContent(binding.doc).content as Descendant[],
-        undefined,
-        { lineage, readonly: true }
-      ),
-    };
   return {
-    document: current.current?.document,
+    document: binding && !structured ? undefined : current.current?.document,
     binding: binding ?? current.current?.binding,
-    error: preparationError,
+    error:
+      binding && !structured ? "CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持" : preparationError,
     frozen: Boolean(binding) && (frozen || !structured || !contractReady),
     swapping: !binding && Boolean(current.current),
   };

@@ -252,7 +252,7 @@ class WhiteboardDocumentsModule {
   /** 同一服务地址、设备身份与房间只建立一个网络会话，多窗口和多视图共用。 */
   private async remoteSession(serverUrl: string, documentId: string) {
     const client = collaborationModule.documentClient(),
-      url = client.canonicalUrl(normalizeServerUrl(serverUrl)),
+      url = normalizeServerUrl(serverUrl),
       identity = await client.identity(url);
     const key = JSON.stringify([url, identity.id, documentId]);
     this.remoteUsers.set(key, (this.remoteUsers.get(key) ?? 0) + 1);
@@ -531,9 +531,7 @@ class WhiteboardDocumentsModule {
           throw new Error("共享白板身份无效");
         const db = databaseModule.getDatabase(databaseName);
         if (!db) throw new Error("资料库未连接");
-        const url = collaborationModule
-          .documentClient()
-          .canonicalUrl(normalizeServerUrl(serverUrl));
+        const url = normalizeServerUrl(serverUrl);
         const pages = (documentId: string) => {
           const stored = new WhiteboardDocumentRepository(db, databaseName).read(documentId);
           if (!stored) return null;

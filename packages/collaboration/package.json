@@ -13,7 +13,6 @@
     "test:whiteboard-capacity": "vitest run --config vitest.whiteboard-capacity.config.ts"
   },
   "dependencies": {
-    "@slate-yjs/core": "1.0.2",
     "@tau/db-schema": "workspace:*",
     "fast-diff": "1.3.0",
     "words-count": "^2.0.2",
@@ -30,7 +29,6 @@
   "devDependencies": {
     "@types/react": "^18.3.12",
     "react": "^18.3.1",
-    "slate": "0.123.0",
     "typescript": "7.0.2",
     "vitest": "^3.2.4"
   }

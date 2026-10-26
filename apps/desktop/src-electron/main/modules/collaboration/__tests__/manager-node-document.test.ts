@@ -100,7 +100,6 @@ async function setup() {
   const client = {
     identities: new Map([["http://test", owner]]),
     identity: async () => owner,
-    canonicalUrl: (url: string) => url,
     request: async (
       _url: string,
       path: string,

@@ -12,7 +12,7 @@ import {
   WHITEBOARD_DOCUMENT_VERSION,
 } from "./whiteboard-document";
 import { WhiteboardModel } from "./whiteboard-model";
-import { readSharedContent } from "./legacy-document";
+import { readDocumentIdentity } from "./document-version";
 import { CollaborationError } from "./protocol";
 
 export const isStructuredDocumentVersion = (version: unknown): boolean =>
@@ -22,8 +22,8 @@ export function validateStructuredDocument(
   identity?: NodeDocumentIdentity,
   previous?: Y.Doc
 ): Promise<void> {
-  const version = doc.getMap("meta").get("version");
-  if (previous && previous.getMap("meta").get("version") !== version)
+  const version = readDocumentIdentity(doc).version;
+  if (previous && readDocumentIdentity(previous).version !== version)
     throw new CollaborationError("BASELINE_CONFLICT", "普通更新不能改变文档种类", 409);
   if (version === NODE_DOCUMENT_VERSION) return validateNodeDocument(doc, identity, previous);
   if (version === WHITEBOARD_DOCUMENT_VERSION)
@@ -31,6 +31,7 @@ export function validateStructuredDocument(
   throw new CollaborationError("UNSUPPORTED_DOCUMENT", "未知文档协议", 409);
 }
 export function readDocumentProjection(doc: Y.Doc) {
+  readDocumentIdentity(doc);
   if (doc.getMap("meta").get("version") === WHITEBOARD_DOCUMENT_VERSION) {
     const model = new WhiteboardModel(doc);
     try {
@@ -40,14 +41,15 @@ export function readDocumentProjection(doc: Y.Doc) {
     }
   }
   if (doc.getMap("meta").get("version") === NODE_DOCUMENT_VERSION) return readNodeDocument(doc);
-  return readSharedContent(doc);
+  throw new CollaborationError("UNSUPPORTED_DOCUMENT", "不支持的文档协议", 409);
 }
 export function collectDocumentResources(doc: Y.Doc): unknown {
+  readDocumentIdentity(doc);
   if (doc.getMap("meta").get("version") === WHITEBOARD_DOCUMENT_VERSION)
     return collectWhiteboardDocumentResources(doc);
   if (doc.getMap("meta").get("version") === NODE_DOCUMENT_VERSION)
     return collectNodeDocumentResources(doc);
-  return readSharedContent(doc);
+  throw new CollaborationError("UNSUPPORTED_DOCUMENT", "不支持的文档协议", 409);
 }
 export async function applyStructuredDocumentUpdate(
   current: Y.Doc,

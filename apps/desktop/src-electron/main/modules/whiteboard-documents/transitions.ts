@@ -98,7 +98,7 @@ export class WhiteboardTransitions {
     const repo = new WhiteboardDocumentRepository(db, name),
       source = repo.read(documentId);
     if (!source) throw new Error("白板不存在");
-    const url = this.client.canonicalUrl(normalizeServerUrl(request.serverUrl));
+    const url = normalizeServerUrl(request.serverUrl);
     let job = this.publications.get(request.operationId);
     if (
       job &&

@@ -1,4 +1,5 @@
 import { CollaborationError } from "./protocol";
+import { assertCurrentDocumentVersion } from "./document-version";
 
 export interface DocumentProtocol {
   id: string;
@@ -6,7 +7,7 @@ export interface DocumentProtocol {
   epoch: number;
   revision: string;
   version: number;
-  baselineId?: string;
+  baselineId: string;
   publication?: { candidateHash: string; baselineId: string; version: number };
 }
 
@@ -24,6 +25,14 @@ export function readDocumentProtocol(value: string): DocumentProtocol {
     throw new CollaborationError("INVALID_DOCUMENT", "持久化协议记录无效", 409);
   if (Object.hasOwn(document, "migrationId") || Object.hasOwn(document, "frozen"))
     throw new CollaborationError("UNSUPPORTED_DOCUMENT", "文档包含已退役的格式迁移状态", 409);
+  assertCurrentDocumentVersion(document.version);
+  if (
+    typeof document.baselineId !== "string" ||
+    !document.baselineId ||
+    !Number.isSafeInteger(document.epoch) ||
+    document.epoch < 0
+  )
+    throw new CollaborationError("INVALID_DOCUMENT", "持久化文档基线无效", 409);
   return document as DocumentProtocol;
 }
 
@@ -32,8 +41,7 @@ export class DocumentProtocolStore {
   private readonly verified = new Map<string, string>();
   constructor(
     private readonly sql: DocumentSql,
-    private readonly readCurrent: (id: string) => DocumentProtocol,
-    private readonly resolveActor: (id: string) => string = id => id
+    private readonly readCurrent: (id: string) => DocumentProtocol
   ) {
     sql.exec(
       "CREATE TABLE IF NOT EXISTS collaboration_protocol (document_id TEXT PRIMARY KEY, value TEXT NOT NULL)"
@@ -48,6 +56,7 @@ export class DocumentProtocolStore {
   }
 
   publish(document: DocumentProtocol, install: () => void): void {
+    assertCurrentDocumentVersion(document.version);
     this.sql.transaction(() => {
       const previous = this.publication(document.id);
       const publication = {
@@ -74,10 +83,9 @@ export class DocumentProtocolStore {
       "SELECT value FROM collaboration_protocol WHERE document_id=?",
       id
     );
-    if (!row) return this.readCurrent(id);
+    if (!row) throw new CollaborationError("UNSUPPORTED_DOCUMENT", "文档缺少当前协议记录", 409);
     const stored = readDocumentProtocol(row.value);
-    if (stored.version > 1 && this.verified.get(id) === row.value)
-      return { ...stored, ownerId: this.resolveActor(stored.ownerId) };
+    if (this.verified.get(id) === row.value) return stored;
     const live = this.readCurrent(id);
     if (
       stored.epoch !== live.epoch ||
@@ -86,12 +94,10 @@ export class DocumentProtocolStore {
     )
       throw new CollaborationError("PROTOCOL_STORAGE_CONFLICT", "持久化协议与正文基线不一致", 409);
     const current = { ...stored, id: live.id, ownerId: live.ownerId, revision: live.revision };
-    if (current.version > 1) {
-      const value = JSON.stringify(current);
-      this.sql.exec("UPDATE collaboration_protocol SET value=? WHERE document_id=?", value, id);
-      // 缓存绑定实际 SQL 值，事务回滚后旧值不会命中；重启后首次读取重新校验全文。
-      this.verified.set(id, value);
-    }
+    const value = JSON.stringify(current);
+    this.sql.exec("UPDATE collaboration_protocol SET value=? WHERE document_id=?", value, id);
+    // 缓存绑定实际 SQL 值，事务回滚后旧值不会命中；重启后首次读取重新校验全文。
+    this.verified.set(id, value);
     return current;
   }
 

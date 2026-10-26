@@ -156,12 +156,11 @@ export async function openWhiteboardRemoteSession(
   serverUrl: string,
   documentId: string
 ) {
-  const canonical = client.canonicalUrl(serverUrl);
-  const identity = await client.identity(canonical);
+  const identity = await client.identity(serverUrl);
   const session = await DocumentSyncSession.open(
     documentId,
-    new WhiteboardRemoteJournal(journal, JSON.stringify([canonical, identity.id, documentId])),
-    whiteboardRemoteTransport(client, canonical, documentId)
+    new WhiteboardRemoteJournal(journal, JSON.stringify([serverUrl, identity.id, documentId])),
+    whiteboardRemoteTransport(client, serverUrl, documentId)
   );
   if (session.snapshot().confirmed.protocol.version !== 3) throw new Error("远端文档不是白板");
   return session;

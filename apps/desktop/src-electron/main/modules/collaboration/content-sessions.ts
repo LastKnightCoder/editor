@@ -3,8 +3,6 @@ import type Database from "better-sqlite3";
 import { createHash } from "node:crypto";
 import * as Y from "yjs";
 import {
-  getBody,
-  readSharedContent,
   replaceText,
   NODE_DOCUMENT_VERSION,
   ASSET_PREFIX,
@@ -89,15 +87,12 @@ export function contentRevision(session: RuntimeSession) {
 }
 
 export function readSessionContent(session: RuntimeSession) {
-  return session.doc.getMap("meta").get("version") === NODE_DOCUMENT_VERSION
-    ? readNodeDocument(session.doc)
-    : readSharedContent(session.doc);
+  return readNodeDocument(session.doc);
 }
 
 /** 主库读取和复制返回可解析资源路径，不把原房间的资源标识带到新正文。 */
 export function readLocalSessionContent(session: RuntimeSession) {
   const value = readSessionContent(session);
-  if (session.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION) return value;
   const contracts = session.doc
     .getMap("node-tree:contracts")
     .toJSON() as import("@tau/db-schema/content-contracts").ContentContractDictionary;
@@ -234,91 +229,9 @@ export function patchSessionNodes(
   paragraphPatcher?: ParagraphPatcher
 ): number {
   assertSessionWritable(session);
-  if (session.doc.getMap("meta").get("version") === NODE_DOCUMENT_VERSION)
-    return patchNodeSession(session, patcher, textPatcher, paragraphPatcher);
-  let patched = 0;
-  const segmentsOf = (
-    text: Y.XmlText
-  ): Array<{ text: string; write: (index: number, remove: number, insert: string) => void }> => {
-    let offset = 0;
-    const segments: ReturnType<typeof segmentsOf> = [];
-    for (const part of text.toDelta()) {
-      if (typeof part.insert === "string") {
-        const start = offset;
-        segments.push({
-          text: part.insert,
-          write: (index, remove, insert) => {
-            if (remove) text.delete(start + index, remove);
-            if (insert) text.insert(start + index, insert, part.attributes);
-          },
-        });
-        offset += part.insert.length;
-      } else {
-        if (part.insert instanceof Y.XmlText) segments.push(...segmentsOf(part.insert));
-        offset++;
-      }
-    }
-    return segments;
-  };
-  const walk = (text: Y.XmlText) => {
-    let offset = 0;
-    const edits: Array<{ index: number; remove: number; insert: string; format?: object }> = [];
-    let childIndex = 0;
-    for (const part of text.toDelta() as Array<{ insert: unknown; attributes?: object }>) {
-      if (typeof part.insert === "string") {
-        const next = textPatcher?.(part.insert);
-        const edit = next == null ? null : minimalTextEdit(part.insert, next);
-        if (edit) edits.push({ ...edit, index: offset + edit.index, format: part.attributes });
-        offset += part.insert.length;
-        continue;
-      }
-      offset += 1;
-      if (!(part.insert instanceof Y.XmlText)) continue;
-      const element = part.insert;
-      const firstChild = element
-        .toDelta()
-        .find((child: { insert?: unknown }) => child.insert instanceof Y.XmlText)?.insert as
-        | Y.XmlText
-        | undefined;
-      const patch = patcher(element.getAttributes() as Record<string, unknown>, {
-        identityKey: element._item
-          ? `y:${element._item.id.client}:${element._item.id.clock}`
-          : undefined,
-        get firstText() {
-          return firstChild
-            ? segmentsOf(firstChild)
-                .map(segment => segment.text)
-                .join("")
-            : "";
-        },
-      });
-      if (patch) {
-        for (const [key, value] of Object.entries(patch)) element.setAttribute(key, value as never);
-        patched++;
-      }
-      walk(element);
-      if (element.getAttribute("type") === "paragraph" && paragraphPatcher) {
-        const segments = segmentsOf(element);
-        patched += applySegmentEdits(
-          segments,
-          paragraphPatcher(
-            segments.map(segment => segment.text).join(""),
-            text.getAttributes(),
-            childIndex
-          )
-        );
-      }
-      childIndex++;
-    }
-    // 从后往前改，前面的偏移不受影响
-    for (const edit of edits.reverse()) {
-      if (edit.remove) text.delete(edit.index, edit.remove);
-      if (edit.insert) text.insert(edit.index, edit.insert, edit.format as never);
-      patched++;
-    }
-  };
-  session.doc.transact(() => walk(getBody(session.doc)), "content-patch");
-  return patched;
+  if (session.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION)
+    throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
+  return patchNodeSession(session, patcher, textPatcher, paragraphPatcher);
 }
 
 export function canonicalContentTitle(db: Database.Database, contentId: number) {

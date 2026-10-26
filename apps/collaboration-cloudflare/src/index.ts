@@ -5,6 +5,7 @@ import { Hocuspocus } from "@hocuspocus/server";
 import * as Y from "yjs";
 import {
   CollaborationError,
+  SUPPORTED_DOCUMENT_VERSIONS,
   type CollaborationEvent,
   type Member,
   type DocumentProtocol,
@@ -21,7 +22,6 @@ interface Env {
   PUBLIC_URL?: string;
   INSTANCE_NAME?: string;
   ADMIN_KEY?: string;
-  LEGACY_ORIGIN_HASHES?: string;
   ASSETS?: R2Bucket;
   BACKUPS?: R2Bucket;
   REQUEST_LIMITER?: RateLimit;
@@ -157,11 +157,7 @@ export class CollaborationService extends DurableObject<Env> {
         if (runtime.getDocumentsCount() >= 20) return fail("CAPACITY", "活动文档数量已满", 429);
         const protocol = this.store.protocols.state(documentName);
         const cached = runtime.documents.get(documentName);
-        if (
-          cached &&
-          protocol.version > 1 &&
-          cached.getMap("meta").get("baselineId") !== protocol.baselineId
-        )
+        if (cached && cached.getMap("meta").get("baselineId") !== protocol.baselineId)
           return fail("BASELINE_RELOADING", "文档基线正在重新加载，请重试", 409);
         return { deviceId: device.id, nickname: device.nickname, protocol };
       },
@@ -338,7 +334,7 @@ export class CollaborationService extends DurableObject<Env> {
           instance: this.env.INSTANCE_NAME ?? "isolated-prototype-v1",
           build: this.env.BUILD_REV,
           canonicalUrl: this.env.PUBLIC_URL,
-          legacyOriginHashes: (this.env.LEGACY_ORIGIN_HASHES ?? "").split(",").filter(Boolean),
+          documentVersions: SUPPORTED_DOCUMENT_VERSIONS,
         },
         {
           status:
@@ -400,15 +396,6 @@ export class CollaborationService extends DurableObject<Env> {
       request.body && (method === "POST" || method === "PATCH") ? await bodyOf(request) : {};
     if (path === "/v1/devices/me" && method === "PATCH") {
       const result = this.store.rename(device.id, field(body, "nickname", 40));
-      this.refresh();
-      return Response.json(result);
-    }
-    if (path === "/v1/devices/merge" && method === "POST") {
-      const result = this.store.mergeIdentity(
-        device.id,
-        field(body, "sourceId", 100) + ":" + field(body, "sourceSecret", 200)
-      );
-      this.hocuspocus?.closeConnections();
       this.refresh();
       return Response.json(result);
     }
@@ -538,10 +525,7 @@ export class CollaborationService extends DurableObject<Env> {
     if (action === "state" && method === "GET") {
       this.store.authorize(id, device.id);
       const protocol = this.store.protocols.state(id);
-      if (
-        protocol.version > 1 &&
-        request.headers.get("x-tau-document-version") !== String(protocol.version)
-      )
+      if (request.headers.get("x-tau-document-version") !== String(protocol.version))
         return fail("CLIENT_UPGRADE_REQUIRED", "请使用支持当前文档协议的客户端", 409);
       return Response.json(this.store.snapshot(id), { headers: { "Cache-Control": "no-store" } });
     }

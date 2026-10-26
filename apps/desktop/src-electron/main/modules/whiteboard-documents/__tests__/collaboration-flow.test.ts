@@ -80,7 +80,6 @@ let upgrade = false;
 /** 与 CollaborationClient 相同的错误形状：status/code 来自服务端，断网是 TypeError。 */
 function client(): any {
   return {
-    canonicalUrl: (url: string) => url,
     serverTime: () => Date.now(),
     identity: async () => acting,
     async request(_url: string, path: string, method = "GET", body?: unknown, version?: number) {

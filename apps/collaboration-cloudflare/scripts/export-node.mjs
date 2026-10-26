@@ -22,7 +22,6 @@ try {
       table => [table, db.prepare("SELECT * FROM " + table).all()]
     )
   );
-  tables.identity_merges = [];
   for (const table of [
     "collaboration_protocol",
     "collaboration_asset_history",
@@ -48,6 +47,8 @@ try {
         .prepare("SELECT state FROM updates WHERE document_id=? ORDER BY seq")
         .all(row.id))
         Y.applyUpdate(doc, update.state);
+      if (![2, 3].includes(doc.getMap("meta").get("version")))
+        throw new Error("来源包含不支持的文档协议，原数据保持不变");
       writeFileSync(join(target, "documents", row.id), Y.encodeStateAsUpdate(doc), { mode: 0o600 });
     } finally {
       doc.destroy();
@@ -57,7 +58,7 @@ try {
     if (!/^[a-f0-9]{64}$/.test(digest)) throw new Error("来源资源摘要无效");
     copyFileSync(join(source, "assets", digest), join(target, "assets", digest));
   }
-  writeFileSync(join(target, "metadata.json"), JSON.stringify({ format: 4, signingKey, tables }), {
+  writeFileSync(join(target, "metadata.json"), JSON.stringify({ format: 5, signingKey, tables }), {
     mode: 0o600,
   });
   console.log(

@@ -1,6 +1,10 @@
 export * from "./protocol";
-export * from "./legacy-document";
-export * from "./resources";
+export { replaceText } from "./shared-values";
+export {
+  assertCurrentDocumentVersion,
+  readDocumentIdentity,
+  SUPPORTED_DOCUMENT_VERSIONS,
+} from "./document-version";
 export * from "./palette";
 export * from "./encoding";
 export * from "./node-tree";

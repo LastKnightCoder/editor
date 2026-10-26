@@ -43,8 +43,7 @@ const fingerprint = (request: DocumentOperationRequest) =>
 export class DocumentOperationLedger {
   constructor(
     private readonly sql: DocumentSql,
-    private readonly now = Date.now,
-    private readonly resolveActor: (id: string) => string = id => id
+    private readonly now = Date.now
   ) {
     sql.exec(
       "CREATE TABLE IF NOT EXISTS collaboration_operations (document_id TEXT NOT NULL, operation_id TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY(document_id,operation_id))"
@@ -88,8 +87,7 @@ export class DocumentOperationLedger {
     );
     if (!row) return null;
     const operation = JSON.parse(row.value) as DocumentOperation;
-    if (this.resolveActor(operation.actorId) !== actorId)
-      fail("OPERATION_IDENTITY_CONFLICT", "操作不属于此设备");
+    if (operation.actorId !== actorId) fail("OPERATION_IDENTITY_CONFLICT", "操作不属于此设备");
     if (operation.state === "PENDING" && this.now() >= operation.expiresAt)
       return this.save({ ...operation, state: "EXPIRED", reason: "deadline" });
     return operation;
@@ -144,11 +142,7 @@ export class DocumentOperationLedger {
   }
   abort(operation: DocumentOperation, reason: string): DocumentOperation {
     return this.sql.transaction(() => {
-      const current = this.get(
-        operation.documentId,
-        operation.operationId,
-        this.resolveActor(operation.actorId)
-      );
+      const current = this.get(operation.documentId, operation.operationId, operation.actorId);
       if (!current) return fail("OPERATION_NOT_FOUND", "操作不存在");
       return current.state === "PENDING"
         ? this.save({ ...current, state: "ABORTED", reason })
@@ -162,11 +156,7 @@ export class DocumentOperationLedger {
     install: () => void
   ): DocumentOperation {
     return this.sql.transaction(() => {
-      const current = this.get(
-        operation.documentId,
-        operation.operationId,
-        this.resolveActor(operation.actorId)
-      );
+      const current = this.get(operation.documentId, operation.operationId, operation.actorId);
       if (!current) return fail("OPERATION_NOT_FOUND", "操作不存在");
       if (current.state !== "PENDING") return current;
       const document = read();

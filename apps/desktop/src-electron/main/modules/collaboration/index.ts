@@ -1,3 +1,4 @@
+import { readDocumentIdentity } from "@tau/collaboration";
 import { applyNodeTreeContent } from "@tau/editor-collab";
 import { NodeSessionUpdates } from "./node-session-updates";
 import {
@@ -18,9 +19,7 @@ import { basename, join } from "node:path";
 import {
   DEFAULT_COLLABORATION_URL,
   SOURCE_TYPES,
-  collectSharedResources,
   replaceText,
-  validateDocument,
   NODE_DOCUMENT_VERSION,
   WHITEBOARD_DOCUMENT_VERSION,
   readNodeDocument,
@@ -166,7 +165,7 @@ export class CollaborationManager {
     let transport = this.transports.get(url);
     if (!transport) {
       transport = new HocuspocusProviderWebsocket({
-        url: `${this.client.canonicalUrl(url).replace(/^http/, "ws")}/ws`,
+        url: `${url.replace(/^http/, "ws")}/ws`,
         WebSocketPolyfill: WebSocket,
         initialDelay: 1000,
         maxDelay: 30000,
@@ -595,7 +594,7 @@ export class CollaborationManager {
         const meta = session.doc.getMap("meta");
         if (
           Number(meta.get("epoch") ?? 0) !== protocol.epoch ||
-          String(meta.get("baselineId") ?? `legacy:${session.info.id}`) !== protocol.baselineId
+          readDocumentIdentity(session.doc).baselineId !== protocol.baselineId
         )
           throw new Error("房间基线已变化，已暂停当前会话同步");
         Y.applyUpdate(session.doc, bytes, session.provider);
@@ -611,10 +610,7 @@ export class CollaborationManager {
           );
         this.store.set(`close-revision:${session.info.id}`, protocol.revision);
       } else {
-        const references =
-          session.doc.getMap("meta").get("version") === NODE_DOCUMENT_VERSION
-            ? collectNodeDocumentResources(session.doc)
-            : collectSharedResources(session.doc);
+        const references = collectNodeDocumentResources(session.doc);
         for (const reference of references)
           if (reference.startsWith(ASSET_PREFIX))
             await this.assets.localizeReference(session.info.serverUrl, session.info.id, reference);
@@ -631,7 +627,7 @@ export class CollaborationManager {
       documentId: null,
     });
     if (this.events.has(url) || this.stopped) return;
-    const socket = new WebSocket(`${this.client.canonicalUrl(url).replace(/^http/, "ws")}/events`, {
+    const socket = new WebSocket(`${url.replace(/^http/, "ws")}/events`, {
       maxPayload: 1024 * 1024,
     });
     this.events.set(url, socket);
@@ -670,16 +666,6 @@ export class CollaborationManager {
     if (this.refreshing || this.stopped || this.pendingCreates.size > 0) return;
     this.refreshing = true;
     try {
-      if (!getDevelopmentServerUrl()) {
-        await this.client.migrateOfficialEndpoint();
-        for (const [origin, transport] of this.transports) {
-          const url = `${this.client.canonicalUrl(origin).replace(/^http/, "ws")}/ws`;
-          if (transport.configuration.url !== url) transport.setConfiguration({ url });
-        }
-        for (const [origin, socket] of this.events)
-          if (socket.url !== `${this.client.canonicalUrl(origin).replace(/^http/, "ws")}/events`)
-            socket.close();
-      }
       const urls = new Set([
         this.serverUrl,
         ...[...this.sessions.values()]
@@ -747,13 +733,11 @@ export class CollaborationManager {
             const doc = new Y.Doc();
             try {
               Y.applyUpdate(doc, Buffer.from(state, "base64"));
-              if (doc.getMap("meta").get("version") === NODE_DOCUMENT_VERSION)
-                await validateNodeDocument(doc, {
-                  documentId: info.id,
-                  baselineId: String(doc.getMap("meta").get("baselineId")),
-                  epoch: Number(doc.getMap("meta").get("epoch")),
-                });
-              else validateDocument(doc);
+              await validateNodeDocument(doc, {
+                documentId: info.id,
+                baselineId: String(doc.getMap("meta").get("baselineId")),
+                epoch: Number(doc.getMap("meta").get("epoch")),
+              });
             } catch (failure) {
               doc.destroy();
               throw failure;
@@ -820,18 +804,6 @@ export class CollaborationManager {
       if (!db.open) continue;
       const source = restoreContentBinding(db, name, documentId, serverUrl);
       if (source) return source;
-      const candidates = db
-        .prepare("SELECT DISTINCT server_url FROM collaboration_bindings WHERE document_id=?")
-        .all(documentId) as { server_url: string }[];
-      for (const { server_url: origin } of candidates) {
-        if (this.client.canonicalUrl(origin) !== this.client.canonicalUrl(serverUrl)) continue;
-        const migrated = restoreContentBinding(db, name, documentId, origin);
-        if (!migrated) continue;
-        db.prepare(
-          "UPDATE collaboration_bindings SET server_url=? WHERE document_id=? AND server_url=?"
-        ).run(serverUrl, documentId, origin);
-        return migrated;
-      }
     }
   }
   private async createContent(
@@ -1642,15 +1614,8 @@ export class CollaborationManager {
     }, "content");
     if (!this.store.get("localDeviceId", "")) this.store.set("localDeviceId", randomUUID());
     this.client = new CollaborationClient(this.store);
-    if (!getDevelopmentServerUrl())
-      await this.client.migrateOfficialEndpoint(true).catch(error => {
-        this.error = error instanceof Error ? error.message : "协作端点升级暂时不可用";
-      });
-    this.assets = new CollaborationAssetService(
-      this.store,
-      PathUtil.getAppDir(),
-      url => this.client.identity(url),
-      url => this.client.canonicalUrl(url)
+    this.assets = new CollaborationAssetService(this.store, PathUtil.getAppDir(), url =>
+      this.client.identity(url)
     );
     this.stopDocumentDrain = registerDurableDocuments({
       has: scope =>

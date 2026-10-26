@@ -6,8 +6,6 @@ import * as Y from "yjs";
 import {
   ASSET_PREFIX,
   CollaborationError,
-  readSharedContent,
-  validateDocument,
   DocumentProtocolStore,
   DocumentWriteQueue,
   DocumentOperationLedger,
@@ -17,7 +15,7 @@ import {
   validateStructuredDocument,
   readDocumentProjection,
   collectDocumentResources,
-  isStructuredDocumentVersion,
+  readDocumentIdentity,
   type DocumentProtocol,
   type DocumentSql,
   type DeviceIdentity,
@@ -139,14 +137,15 @@ export class CollaborationStore {
     const row = this.document(id),
       doc = this.loadDocument(id);
     try {
-      const meta = doc.getMap("meta"),
-        version = Number(meta.get("version") ?? 1);
+      const identity = readDocumentIdentity(doc);
+      if (identity.documentId !== id)
+        return fail("INVALID_DOCUMENT", "文档身份与持久记录不一致", 409);
       return {
         id,
         ownerId: row.owner_id,
-        version,
-        epoch: Number(meta.get("epoch") ?? 0),
-        baselineId: String(meta.get("baselineId") ?? `legacy:${id}`),
+        version: identity.version,
+        epoch: identity.epoch,
+        baselineId: identity.baselineId,
         revision: digest(Y.encodeStateAsUpdate(doc)),
       };
     } finally {
@@ -156,12 +155,7 @@ export class CollaborationStore {
 
   private documentAssets(doc: Y.Doc): Set<string> {
     const references = new Set<string>();
-    collectAssetReferences(
-      isStructuredDocumentVersion(doc.getMap("meta").get("version"))
-        ? collectDocumentResources(doc)
-        : readSharedContent(doc),
-      references
-    );
+    collectAssetReferences(collectDocumentResources(doc), references);
     return references;
   }
 
@@ -330,6 +324,7 @@ export class CollaborationStore {
     protocolVersion?: number,
     expected?: Pick<DocumentProtocol, "epoch" | "baselineId">
   ): string {
+    if (documentId) this.authorize(documentId, deviceId);
     const protocol = documentId ? this.protocols.state(documentId) : undefined;
     if (
       protocol &&
@@ -337,7 +332,7 @@ export class CollaborationStore {
       (expected?.epoch !== protocol.epoch || expected?.baselineId !== protocol.baselineId)
     )
       return fail("EPOCH_CONFLICT", "申请白板票据须声明匹配的本机基线与代次", 409);
-    if (protocol && protocol.version > 1 && protocolVersion !== protocol.version)
+    if (protocol && protocolVersion !== protocol.version)
       return fail("CLIENT_UPGRADE_REQUIRED", "请使用支持当前文档协议的客户端", 409);
     const body = Buffer.from(
       JSON.stringify({ deviceId, documentId, expires: Date.now() + 60000, protocol })
@@ -460,29 +455,8 @@ export class CollaborationStore {
       }
       if (doc.store.pendingStructs || doc.store.pendingDs)
         throw new CollaborationError("MISSING_DEPENDENCIES", "发布状态缺少先行结构", 400);
-      if (isStructuredDocumentVersion(doc.getMap("meta").get("version")))
-        return this.publishNodeDocument(id, deviceId, state.slice());
-      const article = validateDocument(doc, this.config.maxDocumentBytes);
-      this.validateAssets(id, article);
-      return this.db.transaction(() => {
-        // 状态检查放在事务内，两个并发 publish 只有一个生效，另一个按幂等处理。
-        const row = this.document(id);
-        if (row.status === "active") return { documentId: id, published: true };
-        this.ensureCapacity(state.byteLength);
-        this.db
-          .prepare(
-            "INSERT INTO snapshots(document_id, state) VALUES (?, ?) ON CONFLICT(document_id) DO NOTHING"
-          )
-          .run(id, Buffer.from(state));
-        const changes = this.db
-          .prepare(
-            "UPDATE documents SET title = ?, status = 'active', updated_at = ? WHERE id = ? AND status = 'draft'"
-          )
-          .run(article.title, Date.now(), id).changes;
-        if (!changes) return { documentId: id, published: true };
-        this.accountBytes(state.byteLength);
-        return { documentId: id, published: true };
-      })();
+      readDocumentIdentity(doc);
+      return this.publishNodeDocument(id, deviceId, state.slice());
     } finally {
       doc.destroy();
     }
@@ -697,7 +671,7 @@ export class CollaborationStore {
     const protocol = row.status === "draft" ? undefined : this.currentProtocol(id);
     if (
       protocol &&
-      ((protocol.version > 1 && expectedRevision === undefined) ||
+      (expectedRevision === undefined ||
         (expectedRevision !== undefined && expectedRevision !== protocol.revision))
     )
       fail("REVISION_CONFLICT", "正文已变化，请重新保全后再结束共享", 409);
@@ -764,6 +738,7 @@ export class CollaborationStore {
         .prepare("SELECT state FROM updates WHERE document_id=? ORDER BY seq")
         .all(id) as { state: Buffer }[])
         Y.applyUpdate(doc, row.state);
+      readDocumentIdentity(doc);
       return doc;
     } catch (error) {
       doc.destroy();
@@ -780,37 +755,14 @@ export class CollaborationStore {
   ) {
     this.authorize(id, deviceId);
     const protocol = this.protocols.assertWritable(id, expected);
-    if (isStructuredDocumentVersion(protocol.version)) {
-      const meta = current.getMap("meta");
-      if (meta.get("epoch") !== protocol.epoch || meta.get("baselineId") !== protocol.baselineId)
-        return fail("EPOCH_CONFLICT", "活动会话属于旧文档基线", 409);
-      return this.appendNodeUpdate(id, deviceId, update, current, protocol);
-    }
-    const hash = digest(update);
-    if (this.db.prepare("SELECT 1 FROM updates WHERE document_id=? AND hash=?").get(id, hash))
-      return;
-    const candidate = new Y.Doc();
-    try {
-      Y.applyUpdate(candidate, Y.encodeStateAsUpdate(current));
-      Y.applyUpdate(candidate, update);
-      if (candidate.store.pendingStructs || candidate.store.pendingDs)
-        return fail("MISSING_DEPENDENCIES", "更新缺少先行结构，尚未确认持久化", 409);
-      update = Y.encodeStateAsUpdate(candidate, Y.encodeStateVector(current));
-      const article = validateDocument(candidate, this.config.maxDocumentBytes);
-      this.validateAssets(id, article);
-      this.db.transaction(() => {
-        this.ensureCapacity(update.byteLength);
-        this.db
-          .prepare("INSERT INTO updates(document_id,hash,state) VALUES (?,?,?)")
-          .run(id, hash, Buffer.from(update));
-        this.db
-          .prepare("UPDATE documents SET title=?,updated_at=? WHERE id=?")
-          .run(article.title, Date.now(), id);
-        this.accountBytes(update.byteLength);
-      })();
-    } finally {
-      candidate.destroy();
-    }
+    const identity = readDocumentIdentity(current);
+    if (
+      identity.documentId !== id ||
+      identity.epoch !== protocol.epoch ||
+      identity.baselineId !== protocol.baselineId
+    )
+      return fail("EPOCH_CONFLICT", "活动会话属于旧文档基线", 409);
+    return this.appendNodeUpdate(id, deviceId, update, current, protocol);
   }
 
   compact(id: string) {

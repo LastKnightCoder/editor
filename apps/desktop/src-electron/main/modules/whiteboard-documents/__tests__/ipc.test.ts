@@ -215,7 +215,6 @@ it("远端接口复用窗口持有，旧本机代次不能以新代次发送", a
   const local = await call("open", 1, "A", created.contentIds[0], "a");
   const client = (await import("../../collaboration")).default.documentClient;
   vi.mocked(client).mockReturnValue({
-    canonicalUrl: (url: string) => url,
     serverTime: () => Date.now(),
     identity: async () => ({ id: "actor" }),
   } as any);

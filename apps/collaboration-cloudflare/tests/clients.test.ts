@@ -1,5 +1,4 @@
 import { prepareContentContract } from "../../../packages/db-schema/content-contracts";
-import { createSharedDocument } from "@tau/collaboration/src/testing/legacy-document";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { Miniflare, convertV4MiniflareOptions } from "miniflare";
 import { mkdtempSync, rmSync, readFileSync } from "node:fs";
@@ -11,11 +10,9 @@ import { WebSocket } from "ws";
 import * as Y from "yjs";
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
 import {
-  readSharedContent as readLegacyContent,
   readNodeDocument,
   createNodeDocument,
   NodeTree,
-  getBody,
   type DeviceIdentity,
 } from "@tau/collaboration";
 import { CollaborationClient } from "../../desktop/src-electron/main/modules/collaboration/client";
@@ -203,8 +200,6 @@ const documentIdentities = new Map<
   string,
   { protocolVersion: number; baselineId: string; epoch: number }
 >();
-const readSharedContent = (doc: Y.Doc) =>
-  doc.getMap("meta").get("version") === 2 ? readNodeDocument(doc) : readLegacyContent(doc);
 async function closeDocument(id: string) {
   const protocol = await desktop.request<{ revision: string }>(
     harness.url,
@@ -214,44 +209,33 @@ async function closeDocument(id: string) {
     expectedRevision: protocol.revision,
   });
 }
-const seed = (title: string, text = "协作正文") =>
-  createSharedDocument({
-    title,
-    content: [{ type: "paragraph", children: [{ type: "formatted", text }] }],
-    bannerBg: "",
-    bannerPosition: "center",
-  });
-async function publish(title: string, text?: string, structured = false) {
+async function publish(title: string, text?: string) {
   const created = await desktop.request<{ id: string }>(harness.url, "/v1/documents", "POST", {
     idempotencyKey: crypto.randomUUID(),
   });
-  const paragraph = structured
-    ? await prepareContentContract("tau.paragraph", {
-        type: "paragraph",
-        dataVersion: 1,
-        kind: "block",
-      })
-    : null;
+  const paragraph = await prepareContentContract("tau.paragraph", {
+    type: "paragraph",
+    dataVersion: 1,
+    kind: "block",
+  });
   const baselineId = crypto.randomUUID();
-  const doc = paragraph
-    ? await createNodeDocument(
-        { documentId: created.id, baselineId, epoch: 0 },
+  const doc = await createNodeDocument(
+    { documentId: created.id, baselineId, epoch: 0 },
+    {
+      title,
+      content: [
         {
-          title,
-          content: [
-            {
-              type: "paragraph",
-              tauContract: paragraph.id,
-              children: [{ text: text ?? "协作正文" }],
-            },
-          ],
-          bannerBg: "",
-          bannerPosition: "center",
+          type: "paragraph",
+          tauContract: paragraph.id,
+          children: [{ text: text ?? "协作正文" }],
         },
-        { [paragraph.id]: paragraph.contract }
-      )
-    : seed(title, text);
-  if (paragraph) documentIdentities.set(created.id, { protocolVersion: 2, baselineId, epoch: 0 });
+      ],
+      bannerBg: "",
+      bannerPosition: "center",
+    },
+    { [paragraph.id]: paragraph.contract }
+  );
+  documentIdentities.set(created.id, { protocolVersion: 2, baselineId, epoch: 0 });
   await desktop.request(harness.url, "/v1/documents/" + created.id + "/publish", "POST", {
     state: Buffer.from(Y.encodeStateAsUpdate(doc)).toString("base64"),
   });
@@ -288,21 +272,13 @@ function connect(id: string) {
   return { doc, provider, transport };
 }
 function appendBody(doc: Y.Doc, text: string) {
-  if (doc.getMap("meta").get("version") === 2) {
-    const tree = new NodeTree(doc);
-    try {
-      const id = String(tree.read()[0].collabId);
-      tree.insertText(id, tree.content(id).length, text, "test-input");
-    } finally {
-      tree.dispose();
-    }
-    return;
+  const tree = new NodeTree(doc);
+  try {
+    const id = String(tree.read()[0].collabId);
+    tree.insertText(id, tree.content(id).length, text, "test-input");
+  } finally {
+    tree.dispose();
   }
-  const paragraph = getBody(doc)
-    .toDelta()
-    .find(item => item.insert instanceof Y.XmlText)?.insert;
-  if (!(paragraph instanceof Y.XmlText)) throw new Error("测试文档缺少正文段落");
-  paragraph.insert(paragraph.length, text);
 }
 
 describe("Cloudflare 原型与现有两端客户端", () => {
@@ -312,7 +288,7 @@ describe("Cloudflare 原型与现有两端客户端", () => {
       expect((await request("/v1/devices", "POST", { nickname: "未授权" })).response.status).toBe(
         403
       );
-    const id = await publish("双端协作", undefined, true);
+    const id = await publish("双端协作");
     const initial = await desktop.request<{ state: string }>(
       harness.url,
       "/v1/documents/" + id + "/state",
@@ -322,7 +298,7 @@ describe("Cloudflare 原型与现有两端客户端", () => {
     );
     const initialDoc = new Y.Doc();
     Y.applyUpdate(initialDoc, Buffer.from(initial.state, "base64"));
-    expect(readSharedContent(initialDoc).title).toBe("双端协作");
+    expect(readNodeDocument(initialDoc).title).toBe("双端协作");
     initialDoc.destroy();
     console.info("验证阶段：双端加入与同步");
     const owner = connect(id);
@@ -350,12 +326,12 @@ describe("Cloudflare 原型与现有两端客户端", () => {
     await until(() => !!guest.provider?.synced, "移动端应完成初始同步");
     appendBody(owner.doc, "｜桌面输入");
     await until(
-      () => JSON.stringify(readSharedContent(guest.doc).content).includes("桌面输入"),
+      () => JSON.stringify(readNodeDocument(guest.doc).content).includes("桌面输入"),
       "移动端应收到桌面正文"
     );
     appendBody(guest.doc, "｜手机输入");
     await until(
-      () => JSON.stringify(readSharedContent(owner.doc).content).includes("手机输入"),
+      () => JSON.stringify(readNodeDocument(owner.doc).content).includes("手机输入"),
       "桌面端应收到手机正文"
     );
     await until(
@@ -369,7 +345,7 @@ describe("Cloudflare 原型与现有两端客户端", () => {
     appendBody(owner.doc, "｜桌面在线");
     window.dispatchEvent(new Event("online"));
     await until(() => {
-      const text = JSON.stringify(readSharedContent(owner.doc).content);
+      const text = JSON.stringify(readNodeDocument(owner.doc).content);
       return (
         text.includes("手机离线") &&
         text.includes("桌面在线") &&
@@ -377,7 +353,7 @@ describe("Cloudflare 原型与现有两端客户端", () => {
         !guest.provider?.hasUnsyncedChanges
       );
     }, "移动端恢复网络后应自动合并离线和在线改动");
-    expect(readSharedContent(guest.doc)).toEqual(readSharedContent(owner.doc));
+    expect(readNodeDocument(guest.doc)).toEqual(readNodeDocument(owner.doc));
     console.info("验证阶段：桌面端离线恢复");
 
     owner.transport.disconnect();
@@ -387,12 +363,12 @@ describe("Cloudflare 原型与现有两端客户端", () => {
     await owner.transport.connect();
     await until(
       () =>
-        JSON.stringify(readSharedContent(guest.doc).content).includes("桌面离线") &&
+        JSON.stringify(readNodeDocument(guest.doc).content).includes("桌面离线") &&
         !owner.provider.hasUnsyncedChanges,
       "桌面端恢复连接后应合并离线改动"
     );
     await until(() => !guest.provider?.hasUnsyncedChanges, "手机改动应已保存");
-    const expected = readSharedContent(owner.doc);
+    const expected = readNodeDocument(owner.doc);
     const oldPort = Number(new URL(harness.url).port);
     console.info("验证阶段：重启 workerd 并读取持久化数据");
     if (worker) {
@@ -421,7 +397,7 @@ describe("Cloudflare 原型与现有两端客户端", () => {
       const recovered = new Y.Doc();
       try {
         Y.applyUpdate(recovered, Buffer.from(snapshot.state, "base64"));
-        return JSON.stringify(readSharedContent(recovered)) === JSON.stringify(expected);
+        return JSON.stringify(readNodeDocument(recovered)) === JSON.stringify(expected);
       } finally {
         recovered.destroy();
       }
@@ -432,7 +408,7 @@ describe("Cloudflare 原型与现有两端客户端", () => {
     );
     appendBody(guest.doc, "｜重启后继续编辑");
     await until(
-      () => JSON.stringify(readSharedContent(owner.doc).content).includes("重启后继续编辑"),
+      () => JSON.stringify(readNodeDocument(owner.doc).content).includes("重启后继续编辑"),
       "恢复后应能继续协作"
     );
     await closeDocument(id);
@@ -452,7 +428,7 @@ describe("Cloudflare 原型与现有两端客户端", () => {
     const doc = new Y.Doc();
     try {
       Y.applyUpdate(doc, Buffer.from(snapshot.state, "base64"));
-      expect(readSharedContent(doc).content[0].children?.[0]?.text).toBe(text);
+      expect(readNodeDocument(doc).content[0].children?.[0]?.text).toBe(text);
     } finally {
       doc.destroy();
     }
@@ -468,7 +444,7 @@ describe("Cloudflare 原型与现有两端客户端", () => {
       await until(() => owner.provider.synced, "部署前应完成同步");
       appendBody(owner.doc, "｜部署前已确认的编辑");
       await until(() => !owner.provider.hasUnsyncedChanges, "部署前应确认写入已落盘");
-      const expected = readSharedContent(owner.doc);
+      const expected = readNodeDocument(owner.doc);
       owner.transport.disconnect();
       await until(() => !owner.provider.synced, "发布切换前应释放旧连接");
       const revision = "validation-" + Date.now();
@@ -492,13 +468,13 @@ describe("Cloudflare 原型与现有两端客户端", () => {
       const recovered = new Y.Doc();
       try {
         Y.applyUpdate(recovered, Buffer.from(snapshot.state, "base64"));
-        expect(readSharedContent(recovered)).toEqual(expected);
+        expect(readNodeDocument(recovered)).toEqual(expected);
       } finally {
         recovered.destroy();
       }
       const fresh = connect(id);
       await until(() => fresh.provider.synced, "新连接应从持久化文档恢复");
-      expect(readSharedContent(fresh.doc)).toEqual(expected);
+      expect(readNodeDocument(fresh.doc)).toEqual(expected);
       await closeDocument(id);
     },
     180_000

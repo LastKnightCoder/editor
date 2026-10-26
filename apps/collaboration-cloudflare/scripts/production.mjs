@@ -142,8 +142,7 @@ if (!execute && action !== "status") {
 }
 if (action === "deploy") {
   wrangler(["deploy"]);
-  for (const name of ["ADMIN_KEY", "LEGACY_ORIGIN_HASHES"])
-    if (secrets[name]) wrangler(["secret", "put", name], secrets[name] + "\n");
+  if (secrets.ADMIN_KEY) wrangler(["secret", "put", "ADMIN_KEY"], secrets.ADMIN_KEY + "\n");
   const extra = process.env.COLLAB_INSTANCE_NAME
     ? ["--var", "INSTANCE_NAME:" + process.env.COLLAB_INSTANCE_NAME]
     : [];

@@ -2,7 +2,6 @@ import * as Y from "yjs";
 import { describe, expect, it } from "vitest";
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import { NodeTree } from "./node-tree";
-import { readSharedContent } from "./legacy-document";
 import {
   applyNodeDocumentUpdate,
   createNodeDocument,
@@ -74,16 +73,17 @@ describe("节点文档协议与增量准入", () => {
       restored.destroy();
     }
   });
-  it("旧内容入口拒绝新协议，不先创建空正文或修改共享模式", async () => {
-    const { doc, dispose } = await setup();
+  it("当前内容入口拒绝旧协议，不创建新根或改写输入", () => {
+    const doc = new Y.Doc();
+    doc.getMap("meta").set("version", 1);
     try {
       const roots = [...doc.share.keys()],
         before = Y.encodeStateAsUpdate(doc);
-      expect(() => readSharedContent(doc)).toThrow("不支持该文档协议");
+      expect(() => readNodeDocument(doc)).toThrow("协议");
       expect([...doc.share.keys()]).toEqual(roots);
       expect(Y.encodeStateAsUpdate(doc)).toEqual(before);
     } finally {
-      dispose();
+      doc.destroy();
     }
   });
   it("按契约建立净化基线，保存读取后仍可验证", async () => {

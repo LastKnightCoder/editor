@@ -1,3 +1,4 @@
+import { readDocumentIdentity } from "@tau/collaboration";
 import { matchingInputDrafts, nodeRetentions } from "./retention";
 // 协作运行时单例：会话编排（发现 / 连接 / 重连 / 退出）、事件流与 presence 汇聚。
 //
@@ -12,7 +13,6 @@ import {
   createNodeDocument,
   readNodeDocument,
   validateNodeDocument,
-  validateDocument,
   NODE_DOCUMENT_VERSION,
   type SourceBinding,
   type CollaborationEvent,
@@ -620,9 +620,7 @@ class CollaborationManager {
           confirmedDrafts,
           metadata: {
             ...session.info,
-            baselineId: String(
-              session.doc.getMap("meta").get("baselineId") ?? `legacy:${session.info.id}`
-            ),
+            baselineId: readDocumentIdentity(session.doc).baselineId,
             epoch: Number(session.doc.getMap("meta").get("epoch") ?? 0),
           },
         });
@@ -719,7 +717,7 @@ class CollaborationManager {
     session.info.remoteVersionAvailable =
       protocol.version === NODE_DOCUMENT_VERSION && protocol.epoch > Number(meta.get("epoch") ?? 0);
     session.info.error = session.info.remoteVersionAvailable
-      ? "共享文档已转换，原本机输入已保留，请采用新版本"
+      ? "共享文档基线已变化，原本机输入已保留"
       : "共享文档基线或协议不兼容，原本机输入已保留";
     session.provider?.destroy();
     session.provider = null;
@@ -738,19 +736,22 @@ class CollaborationManager {
       if (cached) {
         Y.applyUpdate(doc, base64ToBytes(cached.state));
         for (const update of cached.updates) Y.applyUpdate(doc, base64ToBytes(update));
+        await validateNodeDocument(doc, {
+          documentId: info.id,
+          baselineId: String(doc.getMap("meta").get("baselineId")),
+          epoch: Number(doc.getMap("meta").get("epoch")),
+        });
       }
       try {
         const { state } = await this.loadState(info.id);
         const remote = new Y.Doc({ gc: false });
         try {
           Y.applyUpdate(remote, base64ToBytes(state));
-          if (remote.getMap("meta").get("version") === NODE_DOCUMENT_VERSION)
-            await validateNodeDocument(remote, {
-              documentId: info.id,
-              baselineId: String(remote.getMap("meta").get("baselineId")),
-              epoch: Number(remote.getMap("meta").get("epoch")),
-            });
-          else validateDocument(remote);
+          await validateNodeDocument(remote, {
+            documentId: info.id,
+            baselineId: String(remote.getMap("meta").get("baselineId")),
+            epoch: Number(remote.getMap("meta").get("epoch")),
+          });
           if (
             cached &&
             ["version", "baselineId", "epoch"].some(
@@ -799,7 +800,7 @@ class CollaborationManager {
           ...nodeRetentions(doc),
           metadata: {
             ...session.info,
-            baselineId: String(doc.getMap("meta").get("baselineId") ?? `legacy:${info.id}`),
+            baselineId: readDocumentIdentity(doc).baselineId,
             epoch: Number(doc.getMap("meta").get("epoch") ?? 0),
           },
           state: bytesToBase64(Y.encodeStateAsUpdate(doc)),

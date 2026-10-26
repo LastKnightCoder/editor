@@ -118,6 +118,21 @@ it("重启合入同一真实基线，未确认的本机输入不会被服务器�
   tree.dispose();
   doc.destroy();
 });
+
+it("旧协议缓存拒绝打开，不拿远端新快照覆盖原缓存或投影", async () => {
+  const { info } = await fixture();
+  const old = new Y.Doc();
+  old.getMap("meta").set("version", 1);
+  old.get("content", Y.XmlText).insert(0, "未确认的旧输入");
+  const state = bytesToBase64(Y.encodeStateAsUpdate(old));
+  old.destroy();
+  io.read.mockResolvedValue({ metadata: info, state, updates: [], revision: "old-cache" });
+  await expect(manager.createSession(info)).rejects.toThrow();
+  expect(io.remote).not.toHaveBeenCalled();
+  expect(io.write).not.toHaveBeenCalled();
+  expect(io.project).not.toHaveBeenCalled();
+  expect(io.adopt).not.toHaveBeenCalled();
+});
 it("远端换代时冻结旧副本，既不合并不同基线也不丢弃本机输入", async () => {
   const { doc, info, state, content, contracts } = await fixture();
   io.read.mockResolvedValue({ metadata: info, state, updates: [], revision: "cache-revision" });

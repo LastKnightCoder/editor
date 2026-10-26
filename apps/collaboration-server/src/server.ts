@@ -8,7 +8,7 @@ import { WebSocket } from "ws";
 import * as Y from "yjs";
 import {
   CollaborationError,
-  COLLABORATION_VERSION,
+  SUPPORTED_DOCUMENT_VERSIONS,
   type CollaborationEvent,
   type Member,
   type DocumentProtocol,
@@ -140,11 +140,7 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
         throw new CollaborationError("CAPACITY", "服务器活动文章数量已满", 429);
       const protocol = store.protocols.state(documentName);
       const cached = hocuspocus.documents.get(documentName);
-      if (
-        cached &&
-        protocol.version > 1 &&
-        cached.getMap("meta").get("baselineId") !== protocol.baselineId
-      )
+      if (cached && cached.getMap("meta").get("baselineId") !== protocol.baselineId)
         throw new CollaborationError("BASELINE_RELOADING", "文档基线正在重新加载，请重试", 409);
       return { deviceId: identity.id, nickname: identity.nickname, protocol };
     },
@@ -215,14 +211,14 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
   });
   app.get("/health/live", async () => ({
     ok: true,
-    version: COLLABORATION_VERSION,
+    documentVersions: SUPPORTED_DOCUMENT_VERSIONS,
   }));
   app.get("/health/ready", async (_request, reply) => {
     try {
       store.db.prepare("SELECT 1").get();
       store.ensureCapacity(0);
       if (stopping) throw new Error();
-      return { ok: true };
+      return { ok: true, documentVersions: SUPPORTED_DOCUMENT_VERSIONS };
     } catch {
       return reply.code(503).send({ ok: false });
     }
