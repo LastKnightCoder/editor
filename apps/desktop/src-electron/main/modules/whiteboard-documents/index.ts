@@ -1309,7 +1309,7 @@ class WhiteboardDocumentsModule {
               }
               const timer = setTimeout(() => {
                 this.waiters.delete(requestId);
-                reject(new DrainInterrupted("白板窗口未确认保存，已保留会话"));
+                reject(new DrainInterrupted("等待白板保存确认超时，已保留会话"));
               }, 8000);
               cancellations.push(() => {
                 clearTimeout(timer);

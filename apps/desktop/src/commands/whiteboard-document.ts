@@ -12,8 +12,9 @@ import type {
 const call = <T>(method: string, ...args: unknown[]) =>
   withModule("whiteboard-documents", () => invoke<T>(`whiteboard-document:${method}`, ...args));
 const subscribe = <T>(channel: string, listener: (value: T) => void) => {
-  on(channel, listener);
-  return () => off(channel, listener);
+  const handler = (_event: unknown, value: T) => listener(value);
+  on(channel, handler);
+  return () => off(channel, handler);
 };
 export const whiteboardDocumentBackend: WhiteboardDocumentBackend = {
   open: (target, viewId) => call("open", target.databaseName, target.contentId, viewId),
