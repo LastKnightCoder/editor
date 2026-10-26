@@ -211,7 +211,7 @@ export function ShareLocalDialog({
                   输入关键词，搜索文章、卡片、项目文档、日记或白板
                 </p>
               ) : loading ? (
-                <Loading />
+                <Loading minHeight={0} />
               ) : list.length === 0 ? (
                 <p className="text-ink-3 text-tau-meta pt-16 text-center">没有找到可共享的内容</p>
               ) : (
@@ -245,12 +245,13 @@ export function ShareLocalDialog({
             </div>
           </div>
         )}
-        {phase.kind === "sharing" && (
-          <div className="grid h-[120px] place-items-center">
-            <Loading />
-          </div>
-        )}
-        {phase.kind === "done" && (shared ? <InvitationCode session={shared} /> : <Loading />)}
+        {phase.kind === "sharing" && <Loading minHeight={120} className="h-auto" />}
+        {phase.kind === "done" &&
+          (shared ? (
+            <InvitationCode session={shared} />
+          ) : (
+            <Loading minHeight={120} className="h-auto" />
+          ))}
       </DialogBody>
     </Dialog>
   );
