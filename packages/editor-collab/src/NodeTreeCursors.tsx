@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
-import { ReactEditor, useFocused, useSlateSelection, useSlateStatic } from "slate-react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { ReactEditor, useSlateSelection, useSlateSelector, useSlateStatic } from "slate-react";
 import { Range } from "slate";
 import { CursorOverlay, type CursorOverlayData } from "./Cursors";
 import type { NodeTreeEditor } from "./withNodeTree";
@@ -14,27 +14,34 @@ export function NodeTreeCursors({
   containerRef: RefObject<HTMLDivElement | null>;
 }) {
   const editor = useSlateStatic() as NodeTreeEditor;
-  const selection = useSlateSelection(),
-    focused = useFocused();
+  const selection = useSlateSelection();
+  const focused = useSlateSelector(editor => ReactEditor.isFocused(editor));
   const owner = useRef(crypto.randomUUID());
   const [cursors, setCursors] = useState<CursorOverlayData[]>([]);
-  useLayoutEffect(() => {
+  const publishSelection = useCallback(() => {
     const current = binding.awareness.getLocalState()?.nodeTreeSelection;
-    if (focused) {
+    if (ReactEditor.isFocused(editor)) {
       binding.awareness.setLocalStateField("nodeTreeSelection", {
         owner: owner.current,
         range: editor.captureNodeTreeSelection(),
       });
     } else if (current?.owner === owner.current)
       binding.awareness.setLocalStateField("nodeTreeSelection", null);
-  }, [binding, editor, selection, focused]);
-  useEffect(
-    () => () => {
-      if (binding.awareness.getLocalState()?.nodeTreeSelection?.owner === owner.current)
+  }, [binding, editor]);
+  // Android 输入法可在没有 focusin 事件时恢复焦点，须同时订阅编辑器状态变化。
+  useLayoutEffect(publishSelection, [publishSelection, selection, focused]);
+  useEffect(() => {
+    const document = ReactEditor.getWindow(editor).document;
+    const selectionOwner = owner.current;
+    document.addEventListener("focusin", publishSelection);
+    document.addEventListener("focusout", publishSelection);
+    return () => {
+      document.removeEventListener("focusin", publishSelection);
+      document.removeEventListener("focusout", publishSelection);
+      if (binding.awareness.getLocalState()?.nodeTreeSelection?.owner === selectionOwner)
         binding.awareness.setLocalStateField("nodeTreeSelection", null);
-    },
-    [binding]
-  );
+    };
+  }, [binding, editor, publishSelection]);
   useLayoutEffect(() => {
     let frame = 0;
     const measure = () => {
