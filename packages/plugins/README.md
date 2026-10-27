@@ -1,6 +1,6 @@
 # 应用插件契约与开发宿主
 
-跨端公共 API、作者职责与校验规则见 [跨端契约](./docs/portability.md)，逐项宿主支持和作者适配范围见 [API 支持矩阵](./docs/api-support.md)。
+跨端公共 API、作者职责与校验规则见 [跨端契约](/plugins/tau-plugin-template/docs/portability.md)，逐项宿主支持和作者适配范围见 [API 支持矩阵](/plugins/tau-plugin-template/docs/portability.md#各平台可用的接口)。
 
 生产边界：官方应用插件新发行统一使用格式 3，按目标平台、最低客户端版本与实际宿主实现选版；桌面、Android、iOS 通过固定插件中心安装。作者只使用现有插件 API 与平台声明，构建器自动生成白板装配信息；内部宿主入口不随作者 tarball 发布。当前边界见[跨端宿主架构](/docs/architecture/plugin-portability.md)。
 
@@ -8,7 +8,7 @@
 
 本包提供应用插件 API 和生命周期。渲染插件与应用在同一环境运行，业务数据接口通过 manifest 声明与运行时授权约束，但不提供安全隔离。格式 2 的本机后台在独立进程执行，需用户另行授权，本机系统权限不受沙箱限制。registerTrusted 是保留的宿主方法名。正式插件从插件中心安装。
 
-白板协作作者的冻结数据接口、版本与权限边界见 [白板协作插件](./docs/whiteboard-collaboration.md)。
+白板协作作者的冻结数据接口、版本与权限边界见 [白板协作插件](/plugins/tau-plugin-template/docs/whiteboard.md)。
 
 ## 入口
 
@@ -105,4 +105,4 @@ pnpm --filter @example/plugin-workbench demo
 
 作者从 [公开模板](https://github.com/LastKnightCoder/tau-plugin-template) 开始，本仓库维护源为 `plugins/tau-plugin-template`。作者文档在模板的 `docs/` 目录（入口 [docs/README.md](../../plugins/tau-plugin-template/docs/README.md)），打包 SDK 时整目录复制进 npm 包；修改公开契约时同步更新对应文档。
 
-编辑器节点的字段声明、源码输入、版本转换、资源与正文传递见[编辑器协作约定](docs/editor-collaboration.md)。
+编辑器节点的字段声明、源码输入、版本转换、资源与正文传递见[编辑器协作约定](/plugins/tau-plugin-template/docs/editor-collaboration.md)。

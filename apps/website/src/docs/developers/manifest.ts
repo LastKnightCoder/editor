@@ -20,7 +20,7 @@ const DEVELOPER_GROUPS: DocGroup[] = [
       {
         slug: "getting-started",
         title: "快速开始",
-        summary: "装好环境，跑通模板自带的计数器，再改成自己的插件。",
+        summary: "跑通模板自带的计数器，在 Tau 里调试，再改成自己的插件。",
       },
       {
         slug: "plugin-basics",
@@ -29,13 +29,8 @@ const DEVELOPER_GROUPS: DocGroup[] = [
       },
       {
         slug: "portability",
-        title: "多端插件作者契约",
-        summary: "一个插件包如何同时运行在桌面、Android 与 iOS。",
-      },
-      {
-        slug: "api-support",
-        title: "插件 API 支持矩阵",
-        summary: "各项插件接口在桌面与移动端的支持情况。",
+        title: "多端适配",
+        summary: "声明支持的平台、各平台可用的接口，以及适配手机屏幕。",
       },
     ],
   },
@@ -45,12 +40,12 @@ const DEVELOPER_GROUPS: DocGroup[] = [
       {
         slug: "ui",
         title: "界面",
-        summary: "页面、侧边栏入口、命令、设置项与通知。",
+        summary: "页面、功能入口、设置、命令，以及桌面的侧边栏与通知。",
       },
       {
         slug: "storage-and-network",
         title: "存储与网络",
-        summary: "保存插件自己的数据，以及发起网络请求。",
+        summary: "保存插件自己的数据，发起网络请求与 WebSocket 连接。",
       },
       {
         slug: "user-data",
@@ -79,23 +74,13 @@ const DEVELOPER_GROUPS: DocGroup[] = [
       },
       {
         slug: "editor-collaboration",
-        title: "编辑器节点的同步与协作",
-        summary: "自定义块的数据版本、文本字段与协作约束。",
-      },
-      {
-        slug: "content-metrics",
-        title: "正文字数与空文档",
-        summary: "声明节点的文本字段，让字数统计和空文档判断正确。",
+        title: "块的数据版本与协作",
+        summary: "修改已发布块的数据结构，支持多人同时编辑块里的文字。",
       },
       {
         slug: "whiteboard",
         title: "白板扩展",
-        summary: "在白板上添加自定义元素和工具。",
-      },
-      {
-        slug: "whiteboard-collaboration",
-        title: "白板协作插件",
-        summary: "白板元素的数据版本、命令与协作约束。",
+        summary: "在白板上添加自定义元素和工具，修改画布与数据版本。",
       },
     ],
   },
@@ -129,11 +114,6 @@ const DEVELOPER_GROUPS: DocGroup[] = [
         summary: "运行 Node.js 代码、调用本机程序。",
       },
       {
-        slug: "websocket",
-        title: "WebSocket",
-        summary: "建立双向连接的标准接口。",
-      },
-      {
         slug: "site-data",
         title: "站点数据",
         summary: "开发独立博客站点，读取 Tau 发布的数据。",
@@ -165,8 +145,8 @@ const DEVELOPER_GROUPS: DocGroup[] = [
       },
       {
         slug: "providers/asr",
-        title: "语音识别提供方",
-        summary: "接入语音识别服务。",
+        title: "语音识别",
+        summary: "用你接入的服务把语音转成文字。",
       },
       {
         slug: "providers/images",

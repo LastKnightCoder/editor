@@ -517,7 +517,7 @@ Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开
 
 移动宿主保留 ASR 注册表、WebSocket 原生传输、配置存储和 `createMobileSpeechInputService` 编排工厂；壳层不挂载录音 Provider，搜索不提供语音输入按钮。我的 › 语音 › 语音输入（`settingsModule` 的 `speech-input`）列出系统识别与已启用的识别插件，点已配置的插件即切换，未配置或点箭头进入插件设置页 `pluginSettings`（插件 form 与识别模型）；选用的插件停用后保留选择并提示。插件设置 open 同样打开插件设置页。
 
-Android 清单包含 RECORD_AUDIO/MODIFY_AUDIO_SETTINGS，iOS 包信息包含麦克风用途说明。`plugin_socket` 命令按工作区 token 及窗口作用域校验，系统网络实现使用 tokio-tungstenite；作者契约见 [WebSocket](/packages/plugins/docs/websocket.md)。采集仅在调用方明确启动服务时申请，插件停用和工作区释放取消会话。普通设置快照保留原生管理的 speechInput 数据。
+Android 清单包含 RECORD_AUDIO/MODIFY_AUDIO_SETTINGS，iOS 包信息包含麦克风用途说明。`plugin_socket` 命令按工作区 token 及窗口作用域校验，系统网络实现使用 tokio-tungstenite；作者契约见 [WebSocket](/plugins/tau-plugin-template/docs/storage-and-network.md#websocket)。采集仅在调用方明确启动服务时申请，插件停用和工作区释放取消会话。普通设置快照保留原生管理的 speechInput 数据。
 
 移动端尚未接入 LLM 整理执行适配；未来语音输入入口及结果呈现由独立消费者决定。
 
@@ -533,4 +533,4 @@ Android 清单包含 RECORD_AUDIO/MODIFY_AUDIO_SETTINGS，iOS 包信息包含麦
 
 ## 正文字数与空文档
 
-移动内容注册表以通用扩展规则加静态插件 editorMetrics 创建统一统计器；编辑、卡片保存、协作投影与日记提交使用同一实例。日记的 wordCount 和待办备注的 descriptionCount 在 TypeScript 命令边界计算，Rust 只校验非负安全整数并存储，不另外提取文本计字符。卡片、文章、项目文档、日程和协作写入边界同样重算，调用方传入的旧 count 不覆盖统一结果。片段复用与空态显示使用独立 isContentEmpty，图片和未知节点不因零字数被视为空白。协议见 [SDK 字数说明](/packages/plugins/docs/content-metrics.md)。
+移动内容注册表以通用扩展规则加静态插件 editorMetrics 创建统一统计器；编辑、卡片保存、协作投影与日记提交使用同一实例。日记的 wordCount 和待办备注的 descriptionCount 在 TypeScript 命令边界计算，Rust 只校验非负安全整数并存储，不另外提取文本计字符。卡片、文章、项目文档、日程和协作写入边界同样重算，调用方传入的旧 count 不覆盖统一结果。片段复用与空态显示使用独立 isContentEmpty，图片和未知节点不因零字数被视为空白。协议见 [SDK 字数说明](/plugins/tau-plugin-template/docs/editor.md#字数统计)。

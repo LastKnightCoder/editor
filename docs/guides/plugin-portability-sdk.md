@@ -15,11 +15,10 @@ node scripts/plugins/verify-portable-author.mjs output/plugin-release/author-npm
 在仓库根运行：
 
 ```sh
-node scripts/plugins/sync-author-docs.mjs --check
 node scripts/plugins/package-sdk.mjs output/plugin-phase-a/sdk
 ```
 
-API 支持矩阵只编辑 packages/plugins/docs/api-support.md，随后运行 `node scripts/plugins/sync-author-docs.mjs --write` 更新模板副本；打包器强制检查一致性，同一副本随 SDK tarball 分发。不要分别维护两张矩阵。
+作者文档（含平台接口表）唯一维护于模板子仓库 `plugins/tau-plugin-template/docs/`，打包器整目录复制进 SDK tarball，官网 `/developers/` 构建时读取同一目录。
 
 判据：生成插件 SDK 与 UI 两个 tgz；版本取各自 package.json。仅打包，不执行 npm publish；已发布版本不可覆盖，修改公共包内容须使用新版本。
 
@@ -91,7 +90,7 @@ SDK/UI 可安装后，用 `TAU_AUTHOR_NAMES` 限定本次发行的作者仓库�
 
 ## 字数协议候选验证
 
-1. 构建 SDK 0.44.0 候选包；公共字段说明见 [正文字数与空文档](/packages/plugins/docs/content-metrics.md)。
+1. 构建 SDK 0.44.0 候选包；公共字段说明见 [正文字数与空文档](/plugins/tau-plugin-template/docs/editor.md#字数统计)。
 2. 以 TAU_AUTHOR_NAMES 限定 tau-plugin-html、tau-plugin-tikz、tau-plugin-typst、tau-plugin-abc、tau-plugin-custom-block、tau-plugin-image-gallery 与 tau-plugin-template，运行 verify-official-authors.mjs，核对每个独立工程冻结安装、构建与已有测试结果。
 3. 候选阶段不改写模板正式 registry 锁文件。确认 SDK 已公开可安装后，在各作者仓库重新安装生成真实锁文件，再执行 published/frozen 验证。
 4. 不从源码版本号推断 SDK、插件或客户端已经发布；没有明确发布授权不执行 npm publish、上传或发布标签。
@@ -112,4 +111,4 @@ SDK/UI 可安装后，用 `TAU_AUTHOR_NAMES` 限定本次发行的作者仓库�
 
 判据：所有公开接口变化都有明确来源和兼容性结论；已发布包不可覆盖，版本号、依赖、锁文件和发行记录一致。文档修改本身不代表新版本已发布。
 
-SDK 打包从作者模板取得通用使用文档，并在归档内用 `packages/plugins/docs/` 的权威契约页覆盖对应副本；不会回写模板子仓库。运行 `node scripts/plugins/verify-portable-author.mjs /tmp/tau-author-report.json` 核对归档文档字节、仓库外安装、类型与构建，报告通过后才视为本地发行验证完成。需要主动更新模板文档时，单独执行 `node scripts/plugins/sync-author-docs.mjs --write` 并在模板仓库审核差异。
+SDK 打包把模板 `docs/` 整目录复制进归档。运行 `node scripts/plugins/verify-portable-author.mjs /tmp/tau-author-report.json` 核对仓库外安装、类型与构建，报告通过后才视为本地发行验证完成。

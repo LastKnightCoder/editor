@@ -14,7 +14,7 @@
 
 ## 范围与决策
 
-本方案同时列出已实现与剩余的接入目标；当前宿主能力以 [SDK 支持矩阵](/packages/plugins/docs/api-support.md) 为准。公共 SDK、统一模板与调试宿主已经实现，中心接收格式 3 待审包但禁止批准发布，移动 release 拒绝安装和启用。Android/iOS 同包中心模拟器联调已通过，D 的真机和完整归档等验收未关闭。
+本方案同时列出已实现与剩余的接入目标；当前宿主能力以 [SDK 支持矩阵](/plugins/tau-plugin-template/docs/portability.md) 为准。公共 SDK、统一模板与调试宿主已经实现，中心接收格式 3 待审包但禁止批准发布，移动 release 拒绝安装和启用。Android/iOS 同包中心模拟器联调已通过，D 的真机和完整归档等验收未关闭。
 
 - 一个 SDK、一套模板、同一插件 ID；第一版正式跨端发行采用一个版本对应一个不可变 ZIP，三端下载相同字节。平台差异写在包内组件和 targets 中，不建立三套 SDK 或插件身份。
 - 第一版正式范围为 formatVersion 3、profile web-v1 的页面和正文扩展；不纳入 Node 后台或原生二进制加载。已有 backend、whiteboard、Skill、静态博客模板继续走原有桌面协议。web 环境只表示渲染上下文，网页插件中心不是插件运行宿主。
