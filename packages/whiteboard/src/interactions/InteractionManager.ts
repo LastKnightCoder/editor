@@ -158,7 +158,7 @@ export class InteractionManager {
     const panning = PanningState.tryStart(this.board, event);
     if (panning) {
       this.pointerState = panning;
-      this.board.document?.beginGesture();
+      // 平移与右键菜单只改变本机视口，不开启文档编辑事务。
     }
   }
 
@@ -257,7 +257,7 @@ export class InteractionManager {
     try {
       state?.onExit?.(this.board);
     } finally {
-      if (state) this.board.document?.endGesture(commit);
+      if (state && !(state instanceof PanningState)) this.board.document?.endGesture(commit);
     }
   }
 

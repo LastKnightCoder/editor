@@ -1,3 +1,7 @@
+import { act } from "react";
+import { createRoot } from "react-dom/client";
+import { useContextMenu } from "../hooks/useContextMenu";
+import { BOARD_TO_CONTAINER } from "../constants/map";
 import { createEditor, Transforms } from "slate";
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import type { NodeTreeEditor } from "@tau/editor-collab";
@@ -948,6 +952,43 @@ it.each(["delete", "cut", "move"])(
     expect(f.board.children[0].x).toBe(rect.x);
   }
 );
+
+it.each([false, true])("右键菜单在手势结束后保持打开（命中元素：%s）", async hit => {
+  const f = await setup();
+  f.insert(base("image", { src: "https://example.com/a.png" }));
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  cleanup.push(() => {
+    act(() => root.unmount());
+    BOARD_TO_CONTAINER.delete(f.board);
+    host.remove();
+  });
+  BOARD_TO_CONTAINER.set(f.board, host);
+  vi.spyOn(host, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 800, 600));
+  function MenuProbe() {
+    const { context } = useContextMenu(f.board);
+    return context ? <div role="menu">{context.targetElements.length}</div> : null;
+  }
+  await act(async () => root.render(<MenuProbe />));
+  const pointer = (type: string) =>
+    new MouseEvent(type, {
+      button: 2,
+      clientX: hit ? 30 : 400,
+      clientY: hit ? 30 : 300,
+    }) as PointerEvent;
+  await act(async () => {
+    f.board.onPointerDown(pointer("pointerdown"));
+    f.board.onPointerUp(pointer("pointerup"));
+    f.board.onGlobalPointerUp(pointer("pointerup"));
+  });
+  expect(host.querySelector('[role="menu"]')?.textContent).toBe(hit ? "1" : "0");
+  expect(f.board.interactions.activePointerState).toBeNull();
+  await act(async () => {
+    f.binding.submit([{ type: "set_node", id: f.board.children[0].id, patch: { name: "更新" } }]);
+  });
+  expect(host.querySelector('[role="menu"]')).toBeNull();
+});
 
 it("文档更新后旧右键菜单失效，重新打开菜单可操作最新元素", async () => {
   const f = await setup();
