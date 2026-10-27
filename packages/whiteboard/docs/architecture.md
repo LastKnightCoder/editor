@@ -93,7 +93,7 @@ Board（数据内核：Operation / undo / 事件总线；阶段 A 未改动，�
 
 画布可接收稳定的 WhiteboardDocumentBinding。宿主通过 `@tau/whiteboard/collaboration` 将已验证的 WhiteboardModel 绑定到页面；模型是内容真源，Board.children 是渲染投影。普通值模式仍使用原路径历史和 onChange，两个模式不会同时维护同一份内容历史。
 
-文档模式的路径命令经过 BoardOperations 路径跟踪后编译成 ID 命令；手势期间只改本机预览，结束统一提交。富文本框、图形及脑图的公共 Editor 接入同一节点文档和历史；字符串输入复用 EditorTextField。候选预算预检和撤销守门在真实写入/栈弹出之前执行。
+文档模式的路径命令经过 BoardOperations 路径跟踪后编译成 ID 命令；手势期间只改本机预览，结束统一提交。正式刷新与手势预览发布前共用绑定箭头端点计算，按当前投影中的目标位置更新固定或自定义连接点；派生端点不单独写共享模型或历史。富文本框、图形及脑图的公共 Editor 接入同一节点文档和历史；字符串输入复用 EditorTextField。候选预算预检和撤销守门在真实写入/栈弹出之前执行。
 
 投影经 publishDocument 更新选择与渲染引用，并在选区引用变化时发布 selection:change，通知期间不接收重入的内容写入，不触发资源增减事件、旧整页保存或加载迁移。取消、只读、切页与远端变更清除未提交预览。创建预览尚未进入文档，当前预览对象不查询文档节点是否受支持，仍按已安装扩展定义检查版本；正式元素继续校验文档契约。绑定销毁不销毁宿主共享模型；主进程持有、保存和网络由宿主实现；内置类型字段由 prepareBuiltinWhiteboardTypes 明确映射。具体接入与类型映射见[包说明](/packages/whiteboard/README.md)。
 
