@@ -5,7 +5,7 @@
  */
 
 import type { Descendant } from "slate";
-import { createContent, getContentById, updateContent } from "@/commands";
+import { createContent, getContentById, replaceContent } from "@/commands";
 import { createVLNote, updateVLNote } from "@/commands/vibe-learning";
 import { createPodcast } from "@/commands/podcast";
 import { createVLQuizSet, createVLQuizItemsBatch } from "@/commands/vl-quiz";
@@ -26,7 +26,7 @@ import type { VideoEbookRewriteStyle } from "@/constants/prompts/video-ebook-rew
 import type { LLMModelSetting, LLMProviderSetting } from "@/types/pi-llm";
 import type { PodcastSpeaker } from "@/types/podcast";
 import type { VLNote, VLNoteType } from "@/types/vibe-learning";
-import { getContentLength, getMarkdown, importFromMarkdown } from "@/utils";
+import { getContentLength, getMarkdown } from "@/utils";
 import { parsePartialQuizPrompts, parseQuizResponse } from "./quizParse";
 import { synthesizePodcast } from "./podcastAudio";
 import { useVLTaskStore, type VLTask, type VLTaskKind, type VLTaskTurn } from "./store";
@@ -88,7 +88,7 @@ const commandsFor = (databaseName: string, signal?: AbortSignal) =>
     {
       createContent,
       getContentById,
-      updateContent,
+      replaceContent,
       createVLNote,
       updateVLNote,
       createPodcast,
@@ -117,7 +117,7 @@ function llmConfig(feature: "chat" | "podcastGeneration"): {
 }
 
 const htmlTitle = (html: string) => html.match(/<title>(.*?)<\/title>/i)?.[1]?.trim();
-const htmlToNoteContent = (html: string) => importFromMarkdown(`\`\`\`html\n${html}\n\`\`\``);
+const htmlNoteMarkdown = (html: string) => `\`\`\`html\n${html}\n\`\`\``;
 
 /** 节流写 store：流式回调很密，80ms 合并一次 */
 function createWriter(id: string) {
@@ -381,7 +381,7 @@ async function executeInner(
       if (!output || output === liveSaved) return;
       liveSaved = output;
       void commands
-        .updateContent(contentId, importFromMarkdown(output))
+        .replaceContent(contentId, { markdown: output })
         .catch(error => console.error("[vl-task] 中途保存失败", error));
     }, 3000);
   }
@@ -544,7 +544,7 @@ async function persist(taskId: string, runtime: Runtime, content: string) {
     case "highlights":
     case "article":
     case "mindmap":
-      if (contentId) await commands.updateContent(contentId, importFromMarkdown(content.trim()));
+      if (contentId) await commands.replaceContent(contentId, { markdown: content.trim() });
       return;
     case "ppt":
     case "report":
@@ -554,7 +554,7 @@ async function persist(taskId: string, runtime: Runtime, content: string) {
       const html = isPPT ? cleanPPTHtmlContent(content) : cleanReportHtmlContent(content);
       if (!html.trim()) throw new Error("没有解析出可用的 HTML");
       if (!contentId) return;
-      await commands.updateContent(contentId, htmlToNoteContent(html));
+      await commands.replaceContent(contentId, { markdown: htmlNoteMarkdown(html) });
       const title = htmlTitle(html);
       if (task?.noteId && title) {
         await commands.updateVLNote({ id: task.noteId, title });
@@ -614,7 +614,7 @@ async function persist(taskId: string, runtime: Runtime, content: string) {
       });
       const script = audio.lines.map(line => `**${line.speaker}**: ${line.text}`).join("\n\n");
       if (contentId)
-        await commands.updateContent(contentId, importFromMarkdown(`# ${name}\n\n${script}`));
+        await commands.replaceContent(contentId, { markdown: `# ${name}\n\n${script}` });
       if (task?.noteId) await commands.updateVLNote({ id: task.noteId, podcastId: podcast.id });
       return;
     }

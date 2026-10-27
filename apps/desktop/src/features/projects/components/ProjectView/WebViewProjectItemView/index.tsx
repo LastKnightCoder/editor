@@ -72,7 +72,7 @@ import {
   getWebClipById,
   getContentById,
   createContent,
-  updateContent,
+  replaceContent,
   createWebNote,
   updateWebNote,
   deleteWebNote,
@@ -399,8 +399,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     if (existingWebClipId) {
       const existingWebClip = await getWebClipById(existingWebClipId);
       if (existingWebClip) {
-        const previous = await getContentById(existingWebClip.contentId);
-        await updateContent(existingWebClip.contentId, content, previous?.revision);
+        await replaceContent(existingWebClip.contentId, { nodes: content });
         const updatedWebClip = await updateWebClip({
           id: existingWebClip.id,
           url: currentUrl || existingWebClip.url,
@@ -889,10 +888,10 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       <div className="h-full py-4">
         <FadeScroll
           scrollRef={setEditorContainer}
-          className="@container/web-clip-editor tau-sheet-scroll h-full w-full [--edge-fade-bottom-size:24px] [--edge-fade-top-size:24px]"
+          className="tau-sheet-scroll @container/web-clip-editor h-full w-full [--edge-fade-bottom-size:24px] [--edge-fade-top-size:24px]"
         >
           <div className="mx-auto flex w-full items-start justify-center gap-6 px-5 py-5">
-            <div className="relative min-w-0 max-w-[720px] flex-1">
+            <div className="relative max-w-[720px] min-w-0 flex-1">
               {isAnyClipping && (
                 <div className="border-line-1 bg-hover text-ink-1 mx-20 mb-4 flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm">
                   <Loader2 className="size-4 animate-spin" strokeWidth={1.75} />
@@ -925,7 +924,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
               />
             </div>
             {showComments && (
-              <div className="@[900px]/web-clip-editor:block hidden w-[260px] flex-none self-start">
+              <div className="hidden w-[260px] flex-none self-start @[900px]/web-clip-editor:block">
                 <EditorComment
                   className="w-full"
                   editorRef={slateEditorRef}
@@ -944,7 +943,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const renderRailBody = () => {
     if (activeRailTab === "outline") {
       return (
-        <FadeScroll className="h-full py-3 pl-4 pr-2.5">
+        <FadeScroll className="h-full py-3 pr-2.5 pl-4">
           {hasClipResult || isAnyClipping ? (
             <ContentOutline
               className="w-full"
@@ -993,7 +992,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       {/* Header：标题 · 视图切换 · 侧栏开关 · ⋯ */}
       <div className="border-line-1 flex items-center gap-3 border-b px-4 py-2.5">
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <h1 className="m-0 truncate text-lg font-semibold leading-snug">{title}</h1>
+          <h1 className="m-0 truncate text-lg leading-snug font-semibold">{title}</h1>
           <Tooltip content="编辑标题" delay={500}>
             <IconButton
               className="text-ink-3 size-7 shrink-0"

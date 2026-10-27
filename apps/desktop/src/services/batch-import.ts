@@ -6,7 +6,7 @@
 import { v4 as uuid } from "uuid";
 import { createArticle, deleteArticle } from "@/commands/article";
 import { createScopedCard, deleteScopedCard } from "@/commands/card";
-import { updateContent } from "@/commands/content";
+import { replaceContent } from "@/commands/content";
 import { getDataTableById, updateDataTable } from "@/commands/data-table";
 import { createDatabaseItem, deleteDatabaseItem } from "@/commands/database-item";
 import { getHomeDir, pathExists, readBinaryFile, resolvePathFrom } from "@/commands/file";
@@ -123,7 +123,7 @@ export const executeImport = async (
         });
         return { id: card.id, contentId: card.contentId };
       },
-      updateContent: (contentId, content) => updateContent(contentId, content),
+      replaceContent: (contentId, content) => replaceContent(contentId, { nodes: content }),
       createDatabase: async ({ title, headers, rows }) => {
         const item = await createDatabaseItem({ title });
         const table = await getDataTableById(item.dataTableId);

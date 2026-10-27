@@ -42,6 +42,36 @@ export const updateContent = async (
   });
 };
 
+/**
+ * 整篇替换已有正文：Markdown 按契约解析（还原无损载荷），节点绑定契约与身份，合并原文档契约后写入。
+ * 不传 expectedRevision 时以写入前读到的修订为准；已有正文的写回一律走这里，不要用裸节点调 updateContent。
+ */
+export const replaceContent = async (
+  contentId: number,
+  input: { markdown: string; ignoreTypes?: string[] } | { nodes: Descendant[] },
+  expectedRevision?: string
+): Promise<IContent | null> => {
+  const scope = currentCommandScope();
+  const current = await bindDatabaseCommands({ getContentById }, scope).getContentById(contentId);
+  if (!current) return null;
+  const { prepareContentContracts, prepareContentMarkdown } = await import("@/services/editorKit");
+  const parsed =
+    "markdown" in input
+      ? await (await prepareContentMarkdown({})).importDocument(input.markdown, input.ignoreTypes)
+      : { content: input.nodes, contracts: {} };
+  const catalog = await prepareContentContracts();
+  const document = await catalog.createDocument(parsed.content, {
+    ...current.contracts,
+    ...parsed.contracts,
+  });
+  return bindDatabaseCommands({ updateContent }, scope).updateContent(
+    contentId,
+    document.content,
+    expectedRevision ?? current.revision,
+    { ...current.contracts, ...document.contracts }
+  );
+};
+
 export const getContentById = async (contentId: number): Promise<IContent | null> => {
   return await invoke("content:get-by-id", contentId);
 };

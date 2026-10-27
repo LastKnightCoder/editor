@@ -87,7 +87,7 @@ const fakeDeps = () => {
       calls.push(`card[${tags.join(",")}]`);
       return make();
     },
-    updateContent: async (contentId, content) => {
+    replaceContent: async (contentId, content) => {
       updates.set(contentId, content);
     },
     createDatabase: async ({ title, headers, rows }) => {

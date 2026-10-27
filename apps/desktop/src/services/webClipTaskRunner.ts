@@ -1,6 +1,6 @@
 import { Role } from "@/constants";
 import { buildWebClipConvertPrompt } from "@/constants/prompts/web-clip";
-import { createContent, updateContent } from "@/commands/content";
+import { createContent, replaceContent } from "@/commands/content";
 import { findClippedWebClipId, recordWebClip } from "@/commands/lineage";
 import { createWebClip, getWebClipById, updateWebClip } from "@/commands/web-clip";
 import { piStreamChat, piTextOf, type PiChatHandle } from "@/services/piLLM";
@@ -127,7 +127,7 @@ const saveWebClipToDatabase = async (params: {
   if (existingWebClipId) {
     const existingWebClip = await getWebClipById(existingWebClipId);
     if (existingWebClip) {
-      await updateContent(existingWebClip.contentId, content);
+      await replaceContent(existingWebClip.contentId, { nodes: content });
       const updatedWebClip = await updateWebClip({
         id: existingWebClip.id,
         url: params.url || existingWebClip.url,
