@@ -4,7 +4,6 @@ import type { BootstrapResponse, DatabaseListResponse, SyncVersionResponse } fro
 import * as tauri from "../services/tauri";
 
 export function useBootstrap() {
-  const [isLoading, setIsLoading] = useState(true);
   const [bootstrap, setBootstrap] = useState<BootstrapResponse | null>(null);
   const [databases, setDatabases] = useState<DatabaseListResponse | null>(null);
   const [versions, setVersions] = useState<SyncVersionResponse | null>(null);
@@ -22,27 +21,21 @@ export function useBootstrap() {
   });
 
   const initialize = useMemoizedFn(async () => {
-    setIsLoading(true);
+    const boot = await tauri.bootstrapApp();
+    setBootstrap(boot);
+    await refreshDatabases();
     try {
-      const boot = await tauri.bootstrapApp();
-      setBootstrap(boot);
-      await refreshDatabases();
-      try {
-        await refreshVersions();
-      } catch (error) {
-        console.warn("[bootstrap] 启动时同步状态检查失败", error);
-        setVersions(null);
-      }
-      return boot;
-    } finally {
-      setIsLoading(false);
+      await refreshVersions();
+    } catch (error) {
+      console.warn("[bootstrap] 启动时同步状态检查失败", error);
+      setVersions(null);
     }
+    return boot;
   });
 
   // 返回值 memo 化：字段不变时引用稳定，避免 AppContext 因新对象引用全量重渲染
   return useMemo(
     () => ({
-      isLoading,
       bootstrap,
       databases,
       versions,
@@ -51,15 +44,6 @@ export function useBootstrap() {
       refreshVersions,
       setVersions,
     }),
-    [
-      isLoading,
-      bootstrap,
-      databases,
-      versions,
-      initialize,
-      refreshDatabases,
-      refreshVersions,
-      setVersions,
-    ]
+    [bootstrap, databases, versions, initialize, refreshDatabases, refreshVersions, setVersions]
   );
 }

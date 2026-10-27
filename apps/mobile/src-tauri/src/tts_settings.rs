@@ -288,71 +288,125 @@ pub fn plugin_tts_mutate(
     })
 }
 
+fn validate_provider(provider_index: usize, provider: &Value) -> Result<(), String> {
+    let provider = provider
+        .as_object()
+        .ok_or_else(|| format!("SETTING_INVALID: 语音账号 {provider_index} 必须是对象"))?;
+    if provider.contains_key("providerType") {
+        return Err("SETTING_INVALID: 语音只支持插件账号，请重新配置".into());
+    }
+    for field in ["id", "name", "pluginId"] {
+        if !provider.get(field).is_some_and(Value::is_string) {
+            return Err(format!(
+                "SETTING_INVALID: 语音账号 {provider_index} 的 `{field}` 必须是字符串"
+            ));
+        }
+    }
+    if !provider.contains_key("config") {
+        return Err(format!(
+            "SETTING_INVALID: 语音账号 {provider_index} 缺少 `config`"
+        ));
+    }
+    let models = provider
+        .get("models")
+        .and_then(Value::as_array)
+        .ok_or_else(|| {
+            format!("SETTING_INVALID: 语音账号 {provider_index} 的 `models` 必须是数组")
+        })?;
+    for (model_index, model) in models.iter().enumerate() {
+        let model = model.as_object().ok_or_else(|| {
+            format!("SETTING_INVALID: 语音模型 {provider_index}/{model_index} 必须是对象")
+        })?;
+        if !model.get("id").is_some_and(Value::is_string) {
+            return Err(format!(
+                "SETTING_INVALID: 语音模型 {provider_index}/{model_index} 的 `id` 必须是字符串"
+            ));
+        }
+        if model.get("label").is_some_and(|label| !label.is_string()) {
+            return Err(format!(
+                "SETTING_INVALID: 语音模型 {provider_index}/{model_index} 的 `label` 必须是字符串"
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_selection(selection: &Value) -> Result<(), String> {
+    if selection.is_null() {
+        return Ok(());
+    }
+    let selection = selection.as_object().ok_or_else(|| {
+        "SETTING_INVALID: 字段 `/ttsUsageSettings/default` 必须是对象或 null".to_string()
+    })?;
+    for field in ["providerId", "modelId", "voiceId"] {
+        if !selection.get(field).is_some_and(Value::is_string) {
+            return Err(format!(
+                "SETTING_INVALID: 当前语音选择的 `{field}` 必须是字符串"
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn validate_shape(setting: &Value) -> Result<(), String> {
     if let Some(value) = setting.get("ttsProviders") {
         let providers = value.as_array().ok_or_else(|| {
             "SETTING_INVALID: 字段 `/ttsProviders` 类型错误，期望 array".to_string()
         })?;
         for (provider_index, provider) in providers.iter().enumerate() {
-            let provider = provider
-                .as_object()
-                .ok_or_else(|| format!("SETTING_INVALID: 语音账号 {provider_index} 必须是对象"))?;
-            if provider.contains_key("providerType") {
-                return Err("SETTING_INVALID: 语音只支持插件账号，请重新配置".into());
-            }
-            for field in ["id", "name", "pluginId"] {
-                if !provider.get(field).is_some_and(Value::is_string) {
-                    return Err(format!(
-                        "SETTING_INVALID: 语音账号 {provider_index} 的 `{field}` 必须是字符串"
-                    ));
-                }
-            }
-            if !provider.contains_key("config") {
-                return Err(format!(
-                    "SETTING_INVALID: 语音账号 {provider_index} 缺少 `config`"
-                ));
-            }
-            let models = provider
-                .get("models")
-                .and_then(Value::as_array)
-                .ok_or_else(|| {
-                    format!("SETTING_INVALID: 语音账号 {provider_index} 的 `models` 必须是数组")
-                })?;
-            for (model_index, model) in models.iter().enumerate() {
-                let model = model.as_object().ok_or_else(|| {
-                    format!("SETTING_INVALID: 语音模型 {provider_index}/{model_index} 必须是对象")
-                })?;
-                if !model.get("id").is_some_and(Value::is_string) {
-                    return Err(format!(
-                        "SETTING_INVALID: 语音模型 {provider_index}/{model_index} 的 `id` 必须是字符串"
-                    ));
-                }
-                if model.get("label").is_some_and(|label| !label.is_string()) {
-                    return Err(format!(
-                        "SETTING_INVALID: 语音模型 {provider_index}/{model_index} 的 `label` 必须是字符串"
-                    ));
-                }
-            }
+            validate_provider(provider_index, provider)?;
         }
     }
     if let Some(value) = setting.get("ttsUsageSettings") {
         let usage = value.as_object().ok_or_else(|| {
             "SETTING_INVALID: 字段 `/ttsUsageSettings` 类型错误，期望 object".to_string()
         })?;
-        if let Some(selection) = usage.get("default").filter(|value| !value.is_null()) {
-            let selection = selection.as_object().ok_or_else(|| {
-                "SETTING_INVALID: 字段 `/ttsUsageSettings/default` 必须是对象或 null".to_string()
-            })?;
-            for field in ["providerId", "modelId", "voiceId"] {
-                if !selection.get(field).is_some_and(Value::is_string) {
-                    return Err(format!(
-                        "SETTING_INVALID: 当前语音选择的 `{field}` 必须是字符串"
-                    ));
-                }
-            }
+        if let Some(selection) = usage.get("default") {
+            validate_selection(selection)?;
         }
     }
     Ok(())
+}
+
+/// 丢弃不符合当前结构的语音账号与选择，使 `validate_shape` 成立。
+pub(crate) fn heal(setting: &mut Value, healed: &mut Vec<String>) {
+    let Some(object) = setting.as_object_mut() else {
+        return;
+    };
+    match object.get_mut("ttsProviders") {
+        Some(Value::Array(providers)) => {
+            let before = providers.len();
+            let mut index = 0;
+            providers.retain(|provider| {
+                index += 1;
+                validate_provider(index - 1, provider).is_ok()
+            });
+            if providers.len() != before {
+                healed.push("/ttsProviders".into());
+            }
+        }
+        Some(_) => {
+            object.insert("ttsProviders".into(), json!([]));
+            healed.push("/ttsProviders".into());
+        }
+        None => {}
+    }
+    match object.get_mut("ttsUsageSettings") {
+        Some(Value::Object(usage)) => {
+            if usage
+                .get("default")
+                .is_some_and(|selection| validate_selection(selection).is_err())
+            {
+                usage.insert("default".into(), Value::Null);
+                healed.push("/ttsUsageSettings/default".into());
+            }
+        }
+        Some(_) => {
+            object.insert("ttsUsageSettings".into(), json!({ "default": null }));
+            healed.push("/ttsUsageSettings".into());
+        }
+        None => {}
+    }
 }
 
 #[cfg(test)]

@@ -68,7 +68,7 @@
 
 其余提供方（tts / asr / images / video / publish）的 form 同样由宿主渲染，配置入口统一在插件详情 › 设置（应用设置页只选用服务、点「配置」跳回插件详情）：桌面 `ProviderFormView` 接收调用方给出的绑定（已存值、写回、可选的保存后测试与头部卡片），sync / upload 走 `useStorageBinding`，tts / images 的多账号与 asr / video / publish 的单份配置由 `ProviderAccountSettings` 绑定到各自的保存命令；发布页抽屉另以 `inline` 布局嵌入同一份 publish 配置并自动保存（`autoSave`），不显示保存栏。移动插件设置页（`pluginSettings`）承载 tts 账号列表与 asr 账号表单，TTS 账号页复用 `MobileProviderForm` + `useProviderDraft`，保存在导航栏。字段类型为 text / secret / url / choice / remote-choice / switch / service-choice（宿主服务选择，目前仅桌面 `git.cacheDirectory`，移动只读展示）；字段可用 `visibleWhen` 条件显示，隐藏时不校验；分组可带外部链接；≤3 项且带说明的 choice 在移动平铺为整行单选、在桌面短选项为分段器；beforeSave 抛 `ProviderFieldError` 时宿主把文案标在对应字段。
 
-账号与目标配置分别存 sync.plugin/imageBed.plugin 的 configurations，按插件 ID 隔离，不使用共享账号引用或主库 KV。读取与提交均校验当前服务选择，不转换旧 integration 凭据或搬迁资源账本；不支持的配置报错并保留原文件。WebDAV 一个包可同时注册同步和上传，二者配置独立。
+账号与目标配置分别存 sync.plugin/imageBed.plugin 的 configurations，按插件 ID 隔离，不使用共享账号引用或主库 KV。提交校验当前服务选择，不转换旧 integration 凭据或搬迁资源账本；移动端读取时先备份原文件，剔除不支持的服务配置，服务选择回落到插件（同步）或本地（上传）。WebDAV 一个包可同时注册同步和上传，二者配置独立。
 
 ## 原生文件事务与数据
 

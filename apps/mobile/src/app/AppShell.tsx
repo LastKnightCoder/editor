@@ -1,7 +1,7 @@
 import { MobilePluginProvider } from "./plugins/PluginProvider";
 // AppShell：全局数据编排 + Provider 组装。导航/页面/浮层全部交给 router。
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -43,6 +43,7 @@ import {
 } from "../router";
 import { AppContext, type AppContextValue } from "./AppContext";
 import { HomeScreen } from "./HomeScreen";
+import { StartupFailure } from "./StartupFailure";
 import { writeLastSyncTime } from "../features/settings/sync/syncState";
 import { IncomingFileHost } from "../features/markdownImport/IncomingFileHost";
 import "../pages";
@@ -96,6 +97,11 @@ async function withTimeout<T>(
   }
 }
 
+type StartupState =
+  | { phase: "starting" }
+  | { phase: "failed"; message: string; detail: string }
+  | { phase: "ready" };
+
 export default function AppShell() {
   // AppShellInner 顶层即消费 useCardsQuery（useQueryClient），QueryClient 必须先于它挂载
   return (
@@ -111,6 +117,7 @@ function AppShellInner() {
   const syncSettings = useSyncSettings();
   const resourceSync = useResourceSync();
   const initialized = useRef(false);
+  const [startupState, setStartupState] = useState<StartupState>({ phase: "starting" });
 
   const presentError = useMemoizedFn(
     (error: unknown, fallback: string, type: "error" | "info" | "success" = "error") => {
@@ -180,32 +187,45 @@ function AppShellInner() {
     [refreshAfterDatabaseChange]
   );
 
-  // 初始化（仅执行一次）
+  // 设置与数据库是启动必需项，失败停在启动失败页由用户重试；其余数据失败只提示
+  const startup = useMemoizedFn(async () => {
+    setStartupState({ phase: "starting" });
+    try {
+      await bootstrap.initialize();
+      await syncSettings.loadSetting();
+    } catch (error) {
+      const parsed = parseInvokeError(error);
+      console.error(`[app] 启动失败 ${parsed.code}`, error);
+      setStartupState({
+        phase: "failed",
+        message: mapErrorToMessage(parsed.code, "读取设置或打开数据库失败"),
+        detail: String(error ?? "").replace(/^Error:\s*/, ""),
+      });
+      return;
+    }
+    setStartupState({ phase: "ready" });
+    try {
+      await cards.refreshCards({ page: 1 });
+    } catch (error) {
+      presentError(error, "卡片读取失败");
+    }
+    try {
+      await bootstrap.refreshVersions();
+    } catch {
+      // 同步未配置时版本检查会失败，忽略
+    }
+    try {
+      await resourceSync.refreshResourceStatus();
+    } catch {
+      // 资源同步未配置时会失败，忽略
+    }
+  });
+
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-
-    (async () => {
-      try {
-        await bootstrap.initialize();
-        await syncSettings.loadSetting();
-        await cards.refreshCards({ page: 1 });
-        try {
-          await bootstrap.refreshVersions();
-        } catch {
-          // 同步未配置时版本检查会失败，忽略
-        }
-        try {
-          await resourceSync.refreshResourceStatus();
-        } catch {
-          // 资源同步未配置时会失败，忽略
-        }
-      } catch (error) {
-        presentError(error, "初始化失败");
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void startup();
+  }, [startup]);
 
   useEffect(() => {
     document.body.classList.add("mobile-app-shell");
@@ -392,7 +412,7 @@ function AppShellInner() {
   );
 
   // 加载态 - 使用内联样式作为后备，确保即使 CSS 未加载也能显示
-  if (bootstrap.isLoading) {
+  if (startupState.phase === "starting") {
     return (
       <main
         className="bg-page flex min-h-dvh items-center justify-center px-6"
@@ -421,6 +441,16 @@ function AppShellInner() {
         </div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </main>
+    );
+  }
+
+  if (startupState.phase === "failed") {
+    return (
+      <StartupFailure
+        message={startupState.message}
+        detail={startupState.detail}
+        onRetry={() => void startup()}
+      />
     );
   }
 
