@@ -744,18 +744,3 @@ describe("桌面生产会话与真实服务贯通", () => {
     });
   });
 });
-
-it("旧正文拒绝打开且不改写原始内容", async () => {
-  const { runtime, db, event } = await setup();
-  const original = JSON.stringify([{ type: "paragraph", children: [{ text: "旧正文" }] }]);
-  db.prepare(
-    "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES (8,2,2,?,3,1)"
-  ).run(original);
-  await expect(runtime.openContent(event, { contentId: 8 })).rejects.toThrow(
-    "CONTENT_FORMAT_UNSUPPORTED"
-  );
-  expect(db.prepare("SELECT content FROM contents WHERE id=8").get()).toEqual({
-    content: original,
-  });
-  expect(ContentDocumentTable.read(db, 8)).toBeNull();
-});

@@ -22,6 +22,11 @@ export type ContentExecutionRequest =
             contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
           };
     }
+  | {
+      operation: "repair-content";
+      content: unknown;
+      contracts?: import("@tau/db-schema/content-contracts").ContentContractDictionary;
+    }
   | { operation: "markdown-sections"; markdown: string; title: string; whole: boolean }
   | { operation: "sections"; nodes: Descendant[]; title: string; whole: boolean }
   | {

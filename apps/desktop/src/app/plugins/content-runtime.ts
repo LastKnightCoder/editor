@@ -84,6 +84,10 @@ Object.assign(globalThis, {
             return catalog.createDocument(request.input.nodes, request.input.contracts);
           }
         );
+      case "repair-content":
+        return import("@/services/editorKit").then(async ({ prepareContentContracts }) =>
+          (await prepareContentContracts()).repairDocument(request.content, request.contracts)
+        );
       case "parse":
         return importFromMarkdown(request.markdown);
       case "markdown-sections":

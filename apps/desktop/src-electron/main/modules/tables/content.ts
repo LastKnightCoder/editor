@@ -58,7 +58,7 @@ export default class ContentTable {
       "content:update": asynchronousDatabaseCommand(this.writeContent.bind(this)),
       "content:create": this.createContent.bind(this),
       "content:create-pending": this.createPendingContent.bind(this),
-      "content:get-by-id": this.getContentById.bind(this),
+      "content:get-by-id": asynchronousDatabaseCommand(this.readContent.bind(this)),
       "content:delete": this.deleteContent.bind(this),
       "content:increment-ref-count": this.incrementRefCount.bind(this),
       "content:decrement-ref-count": this.decrementRefCount.bind(this),
@@ -76,6 +76,14 @@ export default class ContentTable {
         ? { contracts: JSON.parse(content.contracts), revision: content.revision }
         : {}),
     };
+  }
+
+  /** 渲染端读取正文：不合格的正文先自愈（备份原文、补身份与契约）再返回，读到的总能编辑与写回 */
+  static async readContent(db: Database.Database, contentId: number): Promise<IContent | null> {
+    const { repairContentForOpen } = await import("../content-repair");
+    const name = basename(db.name, ".db");
+    await repairContentForOpen(db, name, contentId, () => db.open);
+    return this.getContentById(db, contentId);
   }
 
   static getContentById(db: Database.Database, contentId: number | bigint): IContent | null {

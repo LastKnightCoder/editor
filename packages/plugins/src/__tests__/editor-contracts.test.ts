@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { defineEditorElement, defineEditorExtension, definePlugin } from "../index";
 import { ContentPluginRegistry } from "../content";
+import { ElementContractCatalog, RECOVERED_OWNER } from "../editor-contracts";
+import type { ElementContractDefinition } from "@tau/editor/contracts";
 
 const v1 = () =>
   defineEditorElement({
@@ -87,5 +89,72 @@ describe("无界面转换的契约目录", () => {
         codecs: [codec],
       })
     ).resolves.toBeDefined();
+  });
+});
+
+describe("修复已存正文", () => {
+  const paragraph: ElementContractDefinition = { type: "paragraph", dataVersion: 1, kind: "block" };
+  const link: ElementContractDefinition = { type: "content-link", dataVersion: 1, kind: "inline" };
+  const catalog = () =>
+    ElementContractCatalog.prepare([
+      { owner: "tau.paragraph", elements: [paragraph] },
+      { owner: "host.content-link", elements: [link] },
+    ]);
+  const text = (value: string) => ({ type: "formatted", text: value });
+
+  it("合格正文原样返回，不改身份与契约", async () => {
+    const value = await catalog();
+    const good = await value.createDocument([
+      { type: "paragraph", children: [text("正文")] },
+    ] as never);
+    const result = await value.repairDocument(good.content, good.contracts);
+    expect(result.repaired).toBe(false);
+    expect(result.content).toEqual(good.content);
+  });
+
+  it("补身份与契约、重复身份重新分配，已有有效身份保留", async () => {
+    const value = await catalog();
+    const pid = value.current("paragraph")!.id;
+    const result = await value.repairDocument([
+      { type: "paragraph", collabId: "keep", tauContract: pid, children: [text("a")] },
+      { type: "paragraph", collabId: "keep", tauContract: "deadbeef", children: [text("b")] },
+      {
+        type: "paragraph",
+        children: [text("c"), { type: "content-link", contentId: 2, children: [text("链接")] }],
+      },
+    ]);
+    expect(result.repaired).toBe(true);
+    const nodes = result.content as unknown as Record<string, unknown>[];
+    expect(nodes[0].collabId).toBe("keep");
+    expect(nodes[1].collabId).not.toBe("keep");
+    expect(nodes[1].tauContract).toBe(pid);
+    const inline = (nodes[2].children as Record<string, unknown>[])[1];
+    expect(inline).toMatchObject({ type: "content-link", contentId: 2 });
+    expect(result.contracts[inline.tauContract as string].owner).toBe("host.content-link");
+  });
+
+  it("当前没有声明的节点保留原数据，按内联/块级合成保留契约", async () => {
+    const value = await catalog();
+    const result = await value.repairDocument([
+      { type: "missing.block", source: "旧源码", children: [text("")] },
+      { type: "paragraph", children: [text("x"), { type: "missing.inline", v: 1, children: [] }] },
+    ]);
+    const [block, para] = result.content as unknown as Record<string, unknown>[];
+    expect(block).toMatchObject({ type: "missing.block", source: "旧源码" });
+    expect(result.contracts[block.tauContract as string]).toMatchObject({
+      owner: RECOVERED_OWNER,
+      kind: "block",
+    });
+    const inline = (para.children as Record<string, unknown>[])[1];
+    expect(inline).toMatchObject({ type: "missing.inline", v: 1, children: [text("")] });
+    expect(result.contracts[inline.tauContract as string]).toMatchObject({ kind: "inline" });
+  });
+
+  it("根上的裸文本包成段落，空正文得到空段落，损坏的字典整体弃用", async () => {
+    const value = await catalog();
+    const result = await value.repairDocument([text("裸文本")], { broken: { x: 1 } } as never);
+    expect(result.content).toMatchObject([{ type: "paragraph", children: [text("裸文本")] }]);
+    expect(result.contracts.broken).toBeUndefined();
+    expect((await value.repairDocument([])).content).toMatchObject([{ type: "paragraph" }]);
   });
 });
