@@ -1,7 +1,7 @@
 {
   "name": "tau",
   "private": true,
-  "version": "0.60.2",
+  "version": "0.60.3",
   "scripts": {
     "check:whiteboard-boundaries": "node scripts/check-whiteboard-boundaries.mjs",
     "check:plugin-process-boundaries": "node scripts/check-plugin-process-boundaries.mjs",
