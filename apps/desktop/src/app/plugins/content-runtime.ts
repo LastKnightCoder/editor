@@ -73,9 +73,9 @@ Object.assign(globalThis, {
         return getMarkdown(request.nodes);
       case "prepare-content":
         return import("@/services/editorKit").then(
-          async ({ prepareContentMarkdown, createDesktopKit }) => {
+          async ({ prepareContentMarkdown, getContentConversionKit }) => {
             const catalog = await desktopContentPlugins.prepareEditorContracts(
-              createDesktopKit().extensions
+              getContentConversionKit().extensions
             );
             if ("markdown" in request.input) {
               const parsed = await (

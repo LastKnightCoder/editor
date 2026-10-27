@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import type { Descendant } from "slate";
 import Editor from "@/components/ContentEditor";
 import type { ToolCallCustomRendererProps } from "./types";
 import {
@@ -41,6 +42,22 @@ interface KnowledgeSearchOutput {
 }
 
 const PREVIEW_BLOCK_COUNT = 3;
+const CONTRACT_PAYLOAD = "tau.contract-payload";
+
+type PreviewNode = {
+  type?: string;
+  node?: PreviewNode;
+  children?: PreviewNode[];
+};
+
+/** 索引正文里没有 Markdown 语法的节点存成无损载荷（children 为空，编辑器无法渲染），预览前还原为原节点 */
+const unwrapContractPayloads = (nodes: PreviewNode[]): PreviewNode[] =>
+  nodes.map(entry => {
+    const node = entry.type === CONTRACT_PAYLOAD && entry.node ? entry.node : entry;
+    return Array.isArray(node.children)
+      ? { ...node, children: unwrapContractPayloads(node.children) }
+      : node;
+  });
 
 const parseOutput = (output?: string): KnowledgeSearchOutput | null => {
   if (!output) return null;
@@ -84,7 +101,11 @@ const ResultItemPreview = ({
   // 预览是搜索时输出里的快照（纯渲染，不回源拉内容）；点击进详情弹窗才按需取实时内容
   const previewContent = useMemo(
     () =>
-      item.content.trim() ? markdownToContent(item.content).slice(0, PREVIEW_BLOCK_COUNT) : [],
+      item.content.trim()
+        ? (unwrapContractPayloads(
+            markdownToContent(item.content).slice(0, PREVIEW_BLOCK_COUNT) as PreviewNode[]
+          ) as Descendant[])
+        : [],
     [item.content]
   );
 
