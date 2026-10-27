@@ -9,7 +9,7 @@ import {
 } from "@tau/collaboration";
 import type { CollaborationClient } from "../collaboration/client";
 
-/** 网络副本只接收服务端已持久化的内容，本机写入继续使用耐久操作回执。 */
+/** 网络副本收发本机已耐久保存的增量；HTTP 会话负责确认对账和断线补偿。 */
 export class WhiteboardRealtime {
   private readonly doc = new Y.Doc();
   private readonly socket: HocuspocusProviderWebsocket;
@@ -19,13 +19,15 @@ export class WhiteboardRealtime {
   private running = false;
   private timer?: ReturnType<typeof setTimeout>;
   private peerCount = 0;
+  private readonly localOrigin = {};
 
   constructor(
     client: CollaborationClient,
     serverUrl: string,
     private readonly protocol: DocumentProtocol,
     private readonly receive: (state: Uint8Array) => Promise<void>,
-    private readonly notify: (event: { connected: boolean; peers: WhiteboardPeer[] }) => void
+    private readonly notify: (event: { connected: boolean; peers: WhiteboardPeer[] }) => void,
+    private readonly readLocal?: () => Uint8Array | undefined
   ) {
     this.socket = new HocuspocusProviderWebsocket({
       url: `${serverUrl.replace(/^http/, "ws")}/ws`,
@@ -50,6 +52,14 @@ export class WhiteboardRealtime {
         if (!state || this.closed) return;
         console.info("[whiteboard-sync] 推送连接就绪", { documentId: protocol.id });
         this.publish();
+        try {
+          this.publishDocument();
+        } catch (error) {
+          console.warn("[whiteboard-sync] 重连补发失败，等待耐久对账", {
+            documentId: protocol.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
         this.changed();
       },
       onStatus: ({ status }) => {
@@ -67,6 +77,18 @@ export class WhiteboardRealtime {
     this.provider.attach();
     void this.socket.connect().catch(() => {
       if (!this.closed) this.notify({ connected: false, peers: [] });
+    });
+  }
+
+  publishDocument(): void {
+    if (this.closed || !this.provider.synced) return;
+    const state = this.readLocal?.();
+    if (!state) return;
+    const update = Y.diffUpdate(state, Y.encodeStateVector(this.doc));
+    Y.applyUpdate(this.doc, update, this.localOrigin);
+    console.info("[whiteboard-sync] 实时增量发送", {
+      documentId: this.protocol.id,
+      bytes: update.byteLength,
     });
   }
 
@@ -102,7 +124,8 @@ export class WhiteboardRealtime {
     this.notify({ connected: true, peers });
   }
 
-  private readonly changed = () => {
+  private readonly changed = (_update?: Uint8Array, origin?: unknown) => {
+    if (origin === this.localOrigin) return;
     if (this.closed) return;
     this.pending = true;
     if (this.running || this.timer) return;

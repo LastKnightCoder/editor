@@ -30,6 +30,7 @@ const state = vi.hoisted(() => ({
   windows: [] as any[],
   sent: [] as { owner: number; channel: string; data: any }[],
   client: null as any,
+  pushedStates: [] as Uint8Array[],
   pushReceivers: [] as ((state: Uint8Array) => Promise<void>)[],
 }));
 // 此处验证耐久 HTTP 编排；真实推送连接由 realtime.test.ts 覆盖。
@@ -39,9 +40,15 @@ vi.mock("../realtime", () => ({
       _client: unknown,
       _url: unknown,
       _protocol: unknown,
-      receive: (state: Uint8Array) => Promise<void>
+      receive: (state: Uint8Array) => Promise<void>,
+      _notify: unknown,
+      private readonly readLocal?: () => Uint8Array | undefined
     ) {
       state.pushReceivers.push(receive);
+    }
+    publishDocument() {
+      const update = this.readLocal?.();
+      if (update) state.pushedStates.push(update);
     }
     presence() {}
     dispose() {}
@@ -282,6 +289,7 @@ beforeEach(async () => {
   state.client = client();
   state.sent = [];
   state.pushReceivers = [];
+  state.pushedStates = [];
   state.databases.clear();
   state.windowToDatabase.clear();
   state.windows = [1, 2].map(id => ({
@@ -428,6 +436,43 @@ it("服务端推送立即耐久投影，重复状态不推进修订，释放后�
   } finally {
     model.dispose();
     doc.destroy();
+  }
+});
+
+it("耐久保存后立即发送实时增量，不等待在途 HTTP；无效输入不发送", async () => {
+  const owner = await side("作者", 1, "A");
+  const { created } = await sharedBoard(owner);
+  const lease = await call(owner, "open", "A", created.contentIds[0], "live-send");
+  await call(owner, "remote-open", lease.leaseId, URL);
+  let unblock!: () => void;
+  const gate = new Promise<void>(resolve => {
+    unblock = resolve;
+  });
+  const waiting = owner.module.serialRemote(
+    owner.module.remoteViews.get(lease.leaseId)!.key,
+    () => gate
+  );
+  try {
+    await edit(owner, lease.leaseId, "·直推");
+    expect(state.pushedStates).toHaveLength(1);
+    const doc = new Y.Doc();
+    const model = new WhiteboardModel(doc);
+    try {
+      Y.applyUpdate(doc, state.pushedStates[0]);
+      expect(model.read().title).toBe("看板·直推");
+      const saved = call(owner, "snapshot", lease.leaseId);
+      expect(saved.projectedRevision).toBe(saved.revision);
+    } finally {
+      model.dispose();
+      doc.destroy();
+    }
+    await expect(
+      call(owner, "append", lease.leaseId, "invalid", new Uint8Array([255]))
+    ).rejects.toThrow();
+    expect(state.pushedStates).toHaveLength(1);
+  } finally {
+    unblock();
+    await waiting;
   }
 });
 

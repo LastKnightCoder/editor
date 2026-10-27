@@ -6,6 +6,8 @@ import type { Operation } from "./types/operation";
 
 /** 文档绑定只接管内容与历史；视口和选区仍由画布本机实例管理。 */
 export interface WhiteboardDocumentBinding {
+  presenceVersion?(): string | undefined;
+  hasPresenceVersion?(version: string): boolean;
   isBlocked?(): boolean;
   flushInputs?(): void;
   createContentCopy?(elementId: string): Promise<number>;

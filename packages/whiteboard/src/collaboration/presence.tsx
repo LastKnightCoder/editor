@@ -56,13 +56,14 @@ export function useWhiteboardPresence(
         const geometry = [x, y, width, height, rotation].every(Number.isFinite)
           ? { x, y, width, height, rotation }
           : undefined;
-        return [{ id: selected.id, ...bounds, ...(moving && geometry ? { geometry } : {}) }];
+        return [{ id: selected.id, ...bounds, ...(geometry ? { geometry } : {}) }];
       });
       const value: WhiteboardPresence = {
         pageId,
         cursor: pointer.getSnapshot(),
         selection,
         moving,
+        version: board.document?.presenceVersion?.(),
       };
       while (
         new TextEncoder().encode(JSON.stringify(value)).byteLength > 8_000 &&
@@ -126,16 +127,13 @@ export function useWhiteboardPresence(
 export function previewPeerElements(
   elements: BoardElement[],
   peers: readonly WhiteboardPeer[],
-  localSelection: readonly BoardElement[]
+  hasVersion: (version: string) => boolean = () => true
 ): BoardElement[] {
-  const local = new Set(localSelection.map(element => element.id));
   const geometry = new Map(
     peers
-      .filter(peer => peer.moving)
+      .filter(peer => peer.moving || (peer.version && !hasVersion(peer.version)))
       .flatMap(peer =>
-        peer.selection
-          .filter(rect => rect.geometry && !local.has(rect.id))
-          .map(rect => [rect.id, rect.geometry!] as const)
+        peer.selection.filter(rect => rect.geometry).map(rect => [rect.id, rect.geometry!] as const)
       )
   );
   if (!geometry.size) return elements;
@@ -151,6 +149,29 @@ export function previewPeerElements(
     return changed ? projected : items;
   };
   return project(elements);
+}
+
+/** 选框只从同一帧的元素投影取位置，不能独立使用远端坐标抢跑。 */
+export function alignPeerSelections(
+  board: Pick<Board, "getBounds">,
+  elements: readonly BoardElement[],
+  peers: readonly WhiteboardPeer[]
+): WhiteboardPeer[] {
+  const byId = new Map<string, BoardElement>();
+  const collect = (items: readonly BoardElement[]) =>
+    items.forEach(element => {
+      byId.set(element.id, element);
+      if (element.children) collect(element.children);
+    });
+  collect(elements);
+  return peers.map(peer => ({
+    ...peer,
+    selection: peer.selection.flatMap(selected => {
+      const element = byId.get(selected.id);
+      const bounds = element && board.getBounds(element);
+      return bounds ? [{ ...selected, ...bounds }] : [];
+    }),
+  }));
 }
 
 const colors = ["var(--tau-accent)", "var(--tau-tag-1)", "var(--tau-tag-3)", "var(--tau-tag-5)"];

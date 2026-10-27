@@ -11,7 +11,11 @@ import MindDragOverlay from "../MindDragOverlay";
 import { CreationPreview } from "../CreationPreview";
 import Board from "../../Board";
 import { SelectionContext } from "../../context";
-import { WhiteboardPresenceOverlay, previewPeerElements } from "../../collaboration/presence";
+import {
+  WhiteboardPresenceOverlay,
+  previewPeerElements,
+  alignPeerSelections,
+} from "../../collaboration/presence";
 import type { WhiteboardPeer } from "@tau/collaboration";
 
 interface BoardContentProps extends SVGProps<SVGSVGElement> {
@@ -88,9 +92,22 @@ const BoardContent = memo(
 
     const preview = (items: BoardElement[]) =>
       showAssistLayers
-        ? previewPeerElements(items, peers, selection?.selectedElements ?? [])
+        ? previewPeerElements(
+            items,
+            peers,
+            version => board.document?.hasPresenceVersion?.(version) ?? true
+          )
         : items;
     const elementsToRender = preview(renderElementsOverride ?? noneCenterConnectArrows);
+    const alignedPeers = alignPeerSelections(
+      board,
+      [
+        ...elementsToRender,
+        ...preview(centerConnectArrows),
+        ...preview(centerConnectAndSelectedArrows),
+      ],
+      peers
+    );
 
     // 剔除用滞后视口：平移/缩放帧只紧急更新 svg viewBox（一个属性）保证跟手，
     // 全树剔除与 JSX 重建以低优先级并发追赶；剔除盒带 100px 缓冲，滞后不可感知
@@ -170,7 +187,7 @@ const BoardContent = memo(
         <CreationPreview board={board} zoom={zoom} />
         {showAssistLayers && (
           <>
-            <WhiteboardPresenceOverlay peers={peers} zoom={zoom} />
+            <WhiteboardPresenceOverlay peers={alignedPeers} zoom={zoom} />
             <g data-export-ignore="true">
               <SelectArea />
             </g>
