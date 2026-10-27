@@ -95,7 +95,7 @@ Board（数据内核：Operation / undo / 事件总线；阶段 A 未改动，�
 
 文档模式的路径命令经过 BoardOperations 路径跟踪后编译成 ID 命令；手势期间只改本机预览，结束统一提交。富文本框、图形及脑图的公共 Editor 接入同一节点文档和历史；字符串输入复用 EditorTextField。候选预算预检和撤销守门在真实写入/栈弹出之前执行。
 
-投影经 publishDocument 更新选择与渲染引用，通知期间不接收重入的内容写入，不触发资源增减事件、旧整页保存或加载迁移。取消、只读、切页与远端变更清除未提交预览。绑定销毁不销毁宿主共享模型；主进程持有、保存和网络由宿主实现；内置类型字段由 prepareBuiltinWhiteboardTypes 明确映射。具体接入与类型映射见[包说明](/packages/whiteboard/README.md)。
+投影经 publishDocument 更新选择与渲染引用，并在选区引用变化时发布 selection:change，通知期间不接收重入的内容写入，不触发资源增减事件、旧整页保存或加载迁移。取消、只读、切页与远端变更清除未提交预览。创建预览尚未进入文档，当前预览对象不查询文档节点是否受支持，仍按已安装扩展定义检查版本；正式元素继续校验文档契约。绑定销毁不销毁宿主共享模型；主进程持有、保存和网络由宿主实现；内置类型字段由 prepareBuiltinWhiteboardTypes 明确映射。具体接入与类型映射见[包说明](/packages/whiteboard/README.md)。
 
 ### 作者契约与作用域
 
@@ -125,16 +125,18 @@ Board（数据内核：Operation / undo / 事件总线；阶段 A 未改动，�
 - 当前工具由 activeTool 模型表达：`tau.select` 为显式选择工具（非创建模式哨兵），创建型工具激活后在画布按元素声明的 `create` 规格手势创建；旧创建类型枚举与字段兼容层已删除。
 - `IElementCapabilities`（`types/capabilities.ts`）由插件声明：是否吸附、是否参与参考线、是否可随子元素移动、箭头连接点策略等，`CapabilityService` 统一查询。
 
+快捷键与剪贴板写入口通过 captureSubmission 检查当前文档冻结状态，不等待宿主 readonly 属性更新；输入框与可编辑区域保留自身按键和剪贴板行为。方向键持续移动在冻结时终止并回退未提交预览，焦点转入输入框后仍处理松键以结束已有手势。右键菜单在内容或选区变化时关闭，旧菜单动作同时检查生成时的上下文与菜单代次，不能对新状态执行旧操作。
+
 ### 3.2 ViewPort 与 Selection
 
-- `ViewPort`：`minX/minY/width/height/zoom`，由 `ViewPortPlugin` 管理缩放和平移。
+- `ViewPort`：`minX/minY/width/height/zoom`，由 `ViewPortPlugin` 管理缩放和平移。适应选区只改变视口，不延迟写回旧选区；新动画或直接视口操作接管后，旧动画停止，销毁后不再提交动画帧。
 - `Selection`：`selectArea`（框选锚点+焦点）与 `selectedElements` 列表，更新统一走 `SelectTransforms`（全选命令 `tau.selection.select-all` 亦然，见 4.5）。
 
 ### 3.3 Operation
 
 - 操作类型集中在 `types/operation.ts`（插入/移动/设置属性/删除/视口/选区等）。`set_node` 只修改当前节点属性；`properties` 或 `newProperties` 携带 `children` 时，无论开发或生产环境均抛错，整批不提交。结构变化通过 insert/remove/move 表达；普通属性修改的 metadata 只记录当前节点。
 - `Board.apply` 通过 `BoardOperations.applyOperations` 执行，记录 `metadata.changedElements/removedElements/insertedElements/hasChanges`。
-- 无 document 时，操作在路径历史中按 1 秒窗口归并，最大 100 条；文档模式只使用宿主 NodeTreeHistory。
+- 无 document 时，操作在路径历史中按 1 秒窗口归并，最大 100 条；文档模式只使用宿主 NodeTreeHistory。撤销与重做命令的可用性统一经 Board.canUndo/canRedo 查询：文档模式读取绑定历史并检查冻结状态，普通模式读取画布本机历史；快捷键不直接访问本机历史栈。
 - `set_sketch` 修改页级画风 `board.sketch`（进历史，变化时 emit `sketch:change`），见 5.1。
 - 写入校验：扩展定义带 `schema`（Standard Schema v1，仅同步返回）时，`Board.apply` 在 applyOperations 产出新树之后、状态提交之前校验变化元素的 `element.data`（按旧/新树元素引用比较剪枝，未变子树不校验）；不合规抛 `WhiteboardValidationError` 且整批操作不应用。undo/redo 重放不校验（提交时已校验过）；加载不执行转换，原始数据保留；粘贴路径捕获校验错误后放弃本次粘贴。
 

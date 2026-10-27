@@ -12,6 +12,10 @@ export class KeyboardMoveState extends ContinuousArrowMoveState {
   readonly name = "keyboard-move";
 
   protected navigate(board: Board, offsetX: number, offsetY: number): boolean {
+    if (!board.captureSubmission()()) {
+      board.interactions.cancel();
+      return false;
+    }
     return this.moveSelectedElementsByOffset(board, offsetX, offsetY);
   }
 

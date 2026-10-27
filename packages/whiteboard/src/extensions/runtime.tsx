@@ -179,11 +179,27 @@ export class ExtensionRuntime {
     const owner = this.ownerOf(type);
     return items.map(item => {
       const id = `${owner}.${type}.menu.${item.key}`;
-      this.menuActions.set(id, { owner, run: item.onSelect });
+      const children = this.board.children;
+      const selection = this.board.selection;
+      const canSubmit = this.board.captureSubmission();
+      const action = {
+        owner,
+        run: (context: ContextMenuContext) => {
+          if (
+            !canSubmit() ||
+            this.board.children !== children ||
+            this.board.selection !== selection
+          )
+            return;
+          return item.onSelect(context);
+        },
+      };
+      this.menuActions.set(id, action);
       return {
         ...item,
         children: item.children ? this.registerMenu(type, item.children) : undefined,
         onSelect: context => {
+          if (this.menuActions.get(id) !== action) return;
           void this.execute(id, context).catch(() => {});
         },
       };
@@ -989,6 +1005,8 @@ export class ExtensionRuntime {
     const definition = this.elementDefinitions.get(element.type);
     if (
       this.owners.has(element.type) &&
+      // 创建预览尚未提交到文档，只按当前扩展定义检查版本。
+      element !== this.board.creationPreview?.element &&
       this.board.document?.supportsElement?.(element.id) === false
     )
       return { reason: "too-new", extensionId: this.owners.get(element.type) };

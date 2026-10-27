@@ -36,6 +36,7 @@ import type { WhiteboardDocumentClient } from "@/services/whiteboard-documents/c
 import type { BoardCanvasHandle } from "./BoardCanvas";
 import {
   PendingTransition,
+  WhiteboardCollaborationBoundary,
   WhiteboardCollaborationBar,
   WhiteboardShareEntry,
 } from "./WhiteboardCollaborationBar";
@@ -90,48 +91,53 @@ export function DocumentBoardCanvas(props: Props) {
   );
   // Activity 停驻会回收普通 effect，插入期持有只在真实卸载或目标变化时释放。
   useInsertionEffect(() => entry.retain(), [entry]);
-  const query = useQuery({
-    queryKey: ["whiteboard-document", databaseName, props.documentId],
-    queryFn: () => entry.open(),
-    placeholderData: previous =>
-      previous?.identity?.databaseName === databaseName &&
-      previous.identity.documentId === props.documentId &&
-      !previous.isDisposed
-        ? previous
-        : undefined,
-    gcTime: 0,
-    staleTime: 0,
-    refetchOnWindowFocus: false,
-  });
-  if (contracts.isPending || query.isPending || query.data?.isDisposed) return <Loading />;
-  if (query.isError || !query.data || contracts.isError || !contracts.data)
-    return (
+  const session = useSyncExternalStore(entry.subscribe, entry.getSnapshot, entry.getSnapshot);
+  const retry = () => void entry.open().catch(() => undefined);
+  useEffect(() => {
+    void entry.open().catch(() => undefined);
+  }, [entry]);
+  if (contracts.isPending) return <Loading />;
+  const error = session.error ?? contracts.error;
+  const recovery = (
+    <WhiteboardCollaborationBoundary resetKey={props.documentId}>
       <PendingTransition
         databaseName={databaseName}
         documentId={props.documentId}
-        onSettled={() => void query.refetch()}
+        onSettled={retry}
       >
-        <div role="alert" className="text-ink-2 p-6">
-          白板文档读取失败，原材料已保留：
-          {(query.error ?? contracts.error) instanceof Error
-            ? (query.error ?? contracts.error)!.message
-            : "请重试"}
-          <Button onClick={() => void Promise.allSettled([query.refetch(), contracts.refetch()])}>
+        <div role="alert" className="text-ink-2 p-3">
+          {session.client ? "白板会话切换失败，当前画布只读。" : "白板文档读取失败。"}
+          {error instanceof Error ? error.message : "请重试"}
+          <Button onClick={() => void Promise.allSettled([entry.open(), contracts.refetch()])}>
             重试
           </Button>
         </div>
       </PendingTransition>
-    );
+    </WhiteboardCollaborationBoundary>
+  );
+  if (contracts.isError || !contracts.data) return recovery;
+  if (!session.client || session.client.isDisposed)
+    return session.phase === "error" ? recovery : <Loading />;
   return (
-    <BoundDocumentCanvas
-      key={pluginRevision}
-      {...props}
-      client={query.data}
-      catalog={contracts.data.catalog}
-      builtins={contracts.data.builtins}
-      editor={contracts.data.editor}
-      editorPrepared={contracts.data.prepared}
-    />
+    <div className="flex h-full min-h-0 flex-col">
+      {session.phase === "error" && recovery}
+      {session.phase === "opening" && (
+        <div role="status" className="text-ink-2 p-3">
+          正在切换白板会话，当前画布只读…
+        </div>
+      )}
+      <div className="min-h-0 flex-1">
+        <BoundDocumentCanvas
+          key={`${pluginRevision}:${session.client.viewId}`}
+          {...props}
+          client={session.client}
+          catalog={contracts.data.catalog}
+          builtins={contracts.data.builtins}
+          editor={contracts.data.editor}
+          editorPrepared={contracts.data.prepared}
+        />
+      </div>
+    </div>
   );
 }
 function BoundDocumentCanvas({
@@ -158,6 +164,7 @@ function BoundDocumentCanvas({
     runtimeRef = useRef(pluginRuntime);
   runtimeRef.current = pluginRuntime;
   const state = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
+  useInsertionEffect(() => client.retainModel(), [client]);
   const { registerLeaveGuard } = usePage();
   const initialPage = useRef(pageId);
   const binding = useMemo(() => {
@@ -239,6 +246,10 @@ function BoundDocumentCanvas({
     () =>
       registerLeaveGuard(async () => {
         try {
+          if (client.needsReopen || client.isDisposed) {
+            await client.preservePending();
+            return true;
+          }
           await client.flush();
           return true;
         } catch {
@@ -249,7 +260,9 @@ function BoundDocumentCanvas({
   );
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <WhiteboardCollaborationBar client={client} documentId={documentId} />
+      <WhiteboardCollaborationBoundary resetKey={client.viewId}>
+        <WhiteboardCollaborationBar client={client} documentId={documentId} />
+      </WhiteboardCollaborationBoundary>
       <div className="min-h-0 flex-1">
         <WhiteBoard
           key={client.viewId}
@@ -277,7 +290,9 @@ function BoundDocumentCanvas({
           onDockWidthChange={onDockWidthChange}
           statusBarEnd={
             collaboration ? (
-              <WhiteboardShareEntry client={client} documentId={documentId} />
+              <WhiteboardCollaborationBoundary resetKey={client.viewId}>
+                <WhiteboardShareEntry client={client} documentId={documentId} />
+              </WhiteboardCollaborationBoundary>
             ) : undefined
           }
         />

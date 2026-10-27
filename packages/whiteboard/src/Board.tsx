@@ -80,6 +80,7 @@ class Board {
     sketch?: PageSketch,
     sequences?: PresentationSequence[]
   ): void {
+    const previousSelection = this.selection;
     this.projectingDocument = true;
     try {
       if (sketch && JSON.stringify(this.sketch) !== JSON.stringify(sketch)) {
@@ -91,6 +92,7 @@ class Board {
       this.replaceChildrenSilently(children);
       this.elementVersion++;
       this.emit("value:change", children);
+      if (this.selection !== previousSelection) this.emit("selection:change", this.selection);
       this.emit("change", { source: "projection" });
     } finally {
       this.projectingDocument = false;
@@ -180,6 +182,7 @@ class Board {
       !this.presentationManager.isPresentationMode &&
       this.active &&
       !this.readonly &&
+      !this.document?.isBlocked?.() &&
       version === this.submissionVersion &&
       (!element ||
         ((this.removedElementVersions.get(element.id) ?? 0) === elementVersion &&
@@ -573,7 +576,11 @@ class Board {
   }
 
   onKeyDown(event: KeyboardEvent) {
-    if (event.isComposing || (event.altKey && ["ArrowLeft", "ArrowRight"].includes(event.key)))
+    if (
+      event.isComposing ||
+      isEditableTarget(event.target) ||
+      (event.altKey && ["ArrowLeft", "ArrowRight"].includes(event.key))
+    )
       return;
     if (this.extensions?.onKeyDown(event)) return;
     if (this.interactions.routeKeyDown(event)) return;
@@ -658,25 +665,26 @@ class Board {
   }
 
   onPaste(event: ClipboardEvent) {
-    if (this.readonly) return;
+    if (!this.captureSubmission()() || isEditableTarget(event.target)) return;
     if (this.extensions?.ingest("paste", event)) return;
     const fns = this.plugins.map(bindHandler("onPaste")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onCopy(event: ClipboardEvent) {
+    if (isEditableTarget(event.target)) return;
     const fns = this.plugins.map(bindHandler("onCopy")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onCut(event: ClipboardEvent) {
-    if (this.readonly) return;
+    if (!this.captureSubmission()() || isEditableTarget(event.target)) return;
     const fns = this.plugins.map(bindHandler("onCut")).filter(isValid);
     executeSequence(fns, event, this);
   }
 
   onDrop(event: DragEvent) {
-    if (this.readonly) return;
+    if (!this.captureSubmission()() || isEditableTarget(event.target)) return;
     if (this.extensions?.ingest("drop", event)) return;
     const fns = this.plugins.map(bindHandler("onDrop")).filter(isValid);
     executeSequence(fns, event, this);
@@ -1043,6 +1051,14 @@ class Board {
   getArrowBindPoint(element: BoardElement, connectId: string, customOffset?: CustomOffset) {
     const plugin = this.plugins.find(plugin => plugin.name === element.type);
     return plugin?.getArrowBindPoint?.(this, element, connectId, customOffset) ?? null;
+  }
+
+  canUndo(): boolean {
+    return !this.readonly && (this.document ? this.document.canUndo() : this.undos.length > 0);
+  }
+
+  canRedo(): boolean {
+    return !this.readonly && (this.document ? this.document.canRedo() : this.redos.length > 0);
   }
 
   undo() {

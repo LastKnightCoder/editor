@@ -42,51 +42,12 @@ const useEventHandlers = (board: Board) => {
       }
     }
 
-    // 检查事件目标，如果在编辑器内部，不处理方向键
-    const target = event.target as HTMLElement;
-    if (
-      target &&
-      (target.getAttribute("contenteditable") === "true" ||
-        target.closest('[contenteditable="true"]') ||
-        target.closest("[data-slate-editor]") ||
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA")
-    ) {
-      // 对于方向键，直接返回，让编辑器处理
-      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
-        return;
-      }
-    }
-
     board.onKeyDown(event);
   });
 
   const handleKeyUp = useMemoizedFn((event: KeyboardEvent) => {
     if (!ownsBoardEvent(board, event)) return;
-    // 如果有元素正在编辑，不处理方向键（避免干扰文本编辑器内的光标移动）
-    if (board.isEditingElements.length > 0) {
-      // 对于方向键，直接返回，让编辑器处理
-      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
-        return;
-      }
-    }
-
-    // 检查事件目标，如果在编辑器内部，不处理方向键
-    const target = event.target as HTMLElement;
-    if (
-      target &&
-      (target.getAttribute("contenteditable") === "true" ||
-        target.closest('[contenteditable="true"]') ||
-        target.closest("[data-slate-editor]") ||
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA")
-    ) {
-      // 对于方向键，直接返回，让编辑器处理
-      if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) {
-        return;
-      }
-    }
-
+    // 已开始的方向键手势必须收到释放，即使焦点已转到画布内的输入框。
     board.onKeyUp(event);
   });
   const handleGlobalMouseDown = eventHandlerGenerator("onGlobalMouseDown");

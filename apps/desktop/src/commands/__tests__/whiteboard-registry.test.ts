@@ -184,3 +184,23 @@ it("失效临时会话释放时保留草稿并销毁，不向旧租约保存", a
   expect(bridge.listeners.get("whiteboard-document:drain")?.size).toBe(0);
   expect(bridge.invoke).not.toHaveBeenCalledWith("whiteboard-document:flush", "lease");
 });
+
+it("失效后并发重开共用完整交接，新客户端就绪才释放旧客户端", async () => {
+  vi.useFakeTimers();
+  bridge.invoke.mockResolvedValue(openedFixture());
+  query.fetchQuery.mockReset().mockResolvedValue({ binding: null });
+  const entry = new WhiteboardDocumentEntry({ databaseName: "A", contentId: 1 }, "doc");
+  const release = entry.retain();
+  const previous = await entry.open();
+  emit("whiteboard-document:detached", { leaseId: "lease" });
+  const [first, second] = await Promise.all([entry.open(), entry.open()]);
+  expect(first).toBe(second);
+  expect(first).not.toBe(previous);
+  expect(previous.isDisposed).toBe(true);
+  expect(
+    bridge.invoke.mock.calls.filter(args => args[0] === "whiteboard-document:open")
+  ).toHaveLength(2);
+  release();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(first.isDisposed).toBe(true);
+});

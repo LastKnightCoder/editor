@@ -9,6 +9,11 @@ import { WhiteboardModel } from "@tau/collaboration";
 import { queryClient } from "@/queryClient";
 import { DocumentBoardCanvas } from "../components/DocumentBoardCanvas";
 import type { BoardCanvasHandle } from "../components/BoardCanvas";
+import {
+  whiteboardDocumentEntry,
+  whiteboardRemoteSync,
+} from "@/services/whiteboard-documents/registry";
+import { WhiteboardCollaborationBoundary } from "../components/WhiteboardCollaborationBar";
 
 const mocks = vi.hoisted(() => ({
   state: new Uint8Array() as Uint8Array,
@@ -17,8 +22,10 @@ const mocks = vi.hoisted(() => ({
   revision: 0,
   open: vi.fn(),
   release: vi.fn(),
+  detached: new Set<(leaseId: string) => void>(),
+  publish: vi.fn(),
   binding: undefined as unknown,
-  guard: vi.fn(() => () => {}),
+  guard: vi.fn((_guard: () => Promise<boolean>) => () => {}),
   shareStatus: vi.fn(),
   remote: { open: vi.fn(), sync: vi.fn() },
   adopt: vi.fn(async () => {}),
@@ -37,6 +44,7 @@ vi.mock("@/stores/useSettingStore", () => ({
 vi.mock("@/page/PageProvider", () => ({ usePage: () => ({ registerLeaveGuard: mocks.guard }) }));
 vi.mock("@/commands/whiteboard-document", () => ({
   readWhiteboardShareStatus: mocks.shareStatus,
+  publishWhiteboard: mocks.publish,
   whiteboardRemoteBackend: mocks.remote,
   adoptWhiteboardEpoch: mocks.adopt,
   unshareWhiteboard: mocks.unshare,
@@ -50,6 +58,10 @@ vi.mock("@/commands/whiteboard-document", () => ({
     events: () => () => {},
     drains: () => () => {},
     resumes: () => () => {},
+    detached: (listener: (leaseId: string) => void) => {
+      mocks.detached.add(listener);
+      return () => mocks.detached.delete(listener);
+    },
     drained: async () => {},
   },
 }));
@@ -247,12 +259,12 @@ const mount = async (collaboration = true) => {
   });
   return { container, ref };
 };
-it("未共享白板只显示本机保存并提供共享入口；嵌入画布不提供", async () => {
+it("未共享白板不显示常态保存提示并提供共享入口；嵌入画布不提供", async () => {
   const { container } = await mount();
-  expect(container.textContent).toContain("已保存在本机");
+  expect(container.textContent).not.toContain("已保存在本机");
   expect(container.textContent).toContain("共享");
   // 共享入口在右下状态栏，不在顶部状态行
-  expect(container.querySelector('[role="status"]')?.textContent).not.toContain("共享");
+  expect(container.querySelector('[role="status"]')).toBeNull();
   expect(mocks.remote.open).not.toHaveBeenCalled();
   await act(async () => root!.unmount());
   root = undefined;
@@ -260,7 +272,7 @@ it("未共享白板只显示本机保存并提供共享入口；嵌入画布不�
   expect(embedded.container.querySelector("button")?.textContent ?? "").not.toBe("共享");
   expect(embedded.container.textContent).not.toContain("共享");
 });
-it("已共享白板经同一租约连接远端，远端确认后才显示已同步", async () => {
+it("已共享白板照常同步，确认前后均不显示常态同步提示", async () => {
   mocks.shareStatus.mockResolvedValue({
     binding: { serverUrl: "https://collab.test", documentId: "room" },
     publication: null,
@@ -281,9 +293,14 @@ it("已共享白板经同一租约连接远端，远端确认后才显示已同�
   );
   await vi.waitFor(() => expect(mocks.remote.sync).toHaveBeenCalled());
   expect(container.textContent).not.toContain("已同步");
-  expect(container.textContent).toContain("已保存在本机");
+  expect(container.textContent).not.toContain("已保存在本机");
   await act(async () => release());
-  await vi.waitFor(() => expect(container.textContent).toContain("已同步"));
+  const client = whiteboardDocumentEntry(
+    { databaseName: "A", contentId: 1 },
+    mocks.docId
+  ).getSnapshot().client!;
+  await vi.waitFor(() => expect(whiteboardRemoteSync(client)?.getSnapshot().phase).toBe("synced"));
+  expect(container.textContent).not.toContain("已同步");
   expect(container.textContent).toContain("已共享");
 });
 it("首次共享未完成时只提供按原操作继续或取消", async () => {
@@ -307,6 +324,43 @@ const button = (label: string) =>
 /** 对话框渲染在页面末尾，同名的确认按钮取最后一个。 */
 const confirmButton = (label: string) =>
   [...document.querySelectorAll("button")].filter(item => item.textContent === label).at(-1)!;
+it("发起共享时旧会话失效，弹窗完成渲染后释放旧模型并接入新会话", async () => {
+  await mount();
+  const entry = whiteboardDocumentEntry({ databaseName: "A", contentId: 1 }, mocks.docId);
+  const previous = entry.getSnapshot().client!;
+  const dispose = vi.spyOn(previous.model, "dispose");
+  const originalOpen = await mocks.open.mock.results[0].value;
+  let finishOpen!: () => void;
+  mocks.open.mockImplementationOnce(
+    () =>
+      new Promise(resolve => {
+        finishOpen = () => resolve({ ...originalOpen, leaseId: "shared-lease" });
+      })
+  );
+  mocks.publish.mockImplementation(async () => {
+    for (const listener of mocks.detached) listener("lease");
+    // 查询尚未提交到 React 时，弹窗仍持有旧模型。
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(previous.isDisposed).toBe(false);
+    expect(dispose).not.toHaveBeenCalled();
+    expect(previous.model.read().pages).toHaveLength(2);
+    return SHARED;
+  });
+  await act(async () => button("共享")!.click());
+  await act(async () => confirmButton("发起共享").click());
+  expect(mocks.publish).toHaveBeenCalledTimes(1);
+  await expect(mocks.publish.mock.results[0].value).resolves.toEqual(SHARED);
+  await act(async () => finishOpen());
+  await vi.waitFor(() => expect(dispose).toHaveBeenCalledTimes(1));
+  await vi.waitFor(() => {
+    const current = entry.getSnapshot().client!;
+    expect(current.leaseId).toBe("shared-lease");
+    expect(current.isDisposed).toBe(false);
+  });
+  expect(document.body.textContent).not.toContain("白板文档已释放");
+});
+
 it("共享已结束时提供转为本机白板，确认后以 detach 方式执行", async () => {
   mocks.shareStatus.mockResolvedValue({
     binding: SHARED,
@@ -326,4 +380,59 @@ it("共享已结束时提供转为本机白板，确认后以 detach 方式执�
       mode: "detach",
     })
   );
+});
+
+it("协作区域渲染异常只替换局部，画布仍挂载并可恢复面板", async () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  let failed = true;
+  const panel = () => {
+    if (failed) throw new Error("共享面板渲染故障");
+    return <span>协作面板正常</span>;
+  };
+  const Panel = panel;
+  const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    await act(async () =>
+      root!.render(
+        <>
+          <div data-testid="canvas">画布仍在</div>
+          <WhiteboardCollaborationBoundary resetKey="view">
+            <Panel />
+          </WhiteboardCollaborationBoundary>
+        </>
+      )
+    );
+    const canvas = container.querySelector('[data-testid="canvas"]');
+    expect(container.textContent).toContain("协作面板暂时不可用");
+    failed = false;
+    await act(async () => button("重试")!.click());
+    expect(container.querySelector('[data-testid="canvas"]')).toBe(canvas);
+    expect(container.textContent).toContain("协作面板正常");
+  } finally {
+    errors.mockRestore();
+  }
+});
+
+it("交接打开失败保留旧画布只读，重试成功才释放旧模型", async () => {
+  const { ref, container } = await mount();
+  const entry = whiteboardDocumentEntry({ databaseName: "A", contentId: 1 }, mocks.docId);
+  const old = entry.getSnapshot().client!;
+  const binding = mocks.binding;
+  mocks.open.mockRejectedValueOnce(new Error("重新打开失败"));
+  await act(async () => {
+    for (const listener of mocks.detached) listener("lease");
+  });
+  await vi.waitFor(() => expect(entry.getSnapshot().phase).toBe("error"));
+  expect(container.textContent).toContain("当前画布只读");
+  expect(mocks.binding).toBe(binding);
+  expect(old.isDisposed).toBe(false);
+  expect(old.getSnapshot().frozen).toBe(true);
+  expect(ref.current?.document?.snapshot().pages).toHaveLength(2);
+  await expect(mocks.guard.mock.calls.at(-1)![0]()).resolves.toBe(true);
+  await act(async () => button("重试")!.click());
+  await vi.waitFor(() => expect(entry.getSnapshot().phase).toBe("ready"));
+  expect(entry.getSnapshot().client).not.toBe(old);
+  expect(old.isDisposed).toBe(true);
 });

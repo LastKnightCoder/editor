@@ -219,6 +219,8 @@ export class InteractionManager {
       return false;
     }
     if (!this.board.presentationManager.isPresentationMode && ARROW_KEYS.includes(event.key)) {
+      if (this.board.selection.selectedElements.length > 0 && !this.board.captureSubmission()())
+        return false;
       this.keyState =
         this.board.selection.selectedElements.length > 0
           ? new KeyboardMoveState()

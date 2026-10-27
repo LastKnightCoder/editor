@@ -13,8 +13,12 @@ import { whiteboardDocumentEntry } from "./registry";
 export async function publishWhiteboardClient(
   client: WhiteboardDocumentClient
 ): Promise<{ documentId: string; serverUrl: string }> {
-  if (!client.leaseId || !client.identity) throw new Error("白板会话已关闭");
+  if (client.isDisposed || client.needsReopen || !client.leaseId || !client.identity)
+    throw new Error("白板会话已关闭");
   try {
+    // 预检读取主进程快照，先保证本视图新建的页面和输入已经耐久保存。
+    await client.flush();
+    if (client.isDisposed || client.needsReopen) throw new Error("白板会话已变化，请重试");
     return await publishWhiteboard(client.leaseId, {
       operationId: crypto.randomUUID(),
       serverUrl: useCollaborationStore.getState().serverUrl,

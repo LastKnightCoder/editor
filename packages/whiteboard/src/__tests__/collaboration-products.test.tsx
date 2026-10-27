@@ -13,9 +13,12 @@ import {
 } from "@tau/collaboration";
 import { prepareWhiteboardContract } from "@tau/db-schema/content-contracts";
 import Board from "../Board";
+import { ViewPortTransforms } from "../transforms";
 import { createWhiteboardBinding } from "../collaboration/binding";
 import { prepareBuiltinWhiteboardTypes } from "../collaboration/builtins";
 import {
+  createInteractionExtension,
+  createClipboardExtension,
   createArrowExtension,
   createGeometryExtension,
   createRichTextExtension,
@@ -31,8 +34,11 @@ import {
   createWebviewExtension,
 } from "../extensions/builtins";
 import type { BoardElement } from "../types/element";
+import { restoreHotkeyPlatform, stubHotkeyPlatform } from "./hotkey-platform-stub";
 const cleanup: (() => void)[] = [];
 afterEach(() => {
+  restoreHotkeyPlatform();
+  vi.useRealTimers();
   vi.restoreAllMocks();
   cleanup
     .splice(0)
@@ -70,6 +76,8 @@ async function setup(
     { selectedElements: [], selectArea: null }
   );
   board.installExtensions([
+    createInteractionExtension(),
+    createClipboardExtension(),
     createArrowExtension(),
     createGeometryExtension(),
     createRichTextExtension(),
@@ -174,6 +182,21 @@ const nodes = [
     maxHeight: 80,
   }),
 ];
+it.each(nodes)("内置 $type 创建预览不依赖尚未提交的文档节点", async node => {
+  const f = await setup();
+  f.board.setCreationPreview(node);
+  expect(f.binding.supportsElement(node.id)).toBe(false);
+  expect(f.board.extensions!.unknownElementReason(node)).toBeUndefined();
+  expect(f.model.read().pages[0].children).toHaveLength(0);
+  expect(f.binding.history.undoStack).toHaveLength(0);
+  // 只有当前预览对象可以跳过文档查询，同 ID 的其它对象仍接受检查。
+  expect(f.board.extensions!.unknownElementReason({ ...node })).toBeDefined();
+  f.board.setCreationPreview(null);
+  expect(f.board.extensions!.unknownElementReason(node)).toBeDefined();
+  f.insert(node);
+  expect(f.board.extensions!.unknownElementReason(f.board.children[0])).toBeUndefined();
+});
+
 it.each(nodes)("内置 $type 使用精确契约与统一创建撤销", async node => {
   const f = await setup();
   f.insert(node);
@@ -730,4 +753,241 @@ it("演示结束不能解除宿主冻结，测量反馈不能覆盖用户几何"
   expect(() =>
     f.binding.submit([{ type: "set_node", id: nodes[0].id, patch: { name: "不能写" } }])
   ).toThrow();
+});
+
+it("文档白板通过 Ctrl+Z 和 Ctrl+Shift+Z 撤销和重做", async () => {
+  stubHotkeyPlatform("other");
+  const f = await setup();
+  const node = base("image", { src: "https://example.com/image.png" });
+  f.insert(node);
+  expect(f.board.undos).toHaveLength(0);
+  expect(f.binding.history.undoStack).toHaveLength(1);
+  const press = (shiftKey = false) => {
+    const event = new KeyboardEvent("keydown", {
+      key: "z",
+      cancelable: true,
+      shiftKey,
+      ctrlKey: true,
+    });
+    f.board.onKeyDown(event);
+    return event;
+  };
+  expect(press().defaultPrevented).toBe(true);
+  expect(f.board.children).toHaveLength(0);
+  expect(f.model.read().pages[0].children).toHaveLength(0);
+  expect(press().defaultPrevented).toBe(false);
+  expect(press(true).defaultPrevented).toBe(true);
+  expect(f.board.children[0].id).toBe(node.id);
+  expect(press(true).defaultPrevented).toBe(false);
+  f.board.readonly = true;
+  expect(press().defaultPrevented).toBe(false);
+  expect(f.board.children).toHaveLength(1);
+});
+
+it("文档白板冻结时不消费撤销按键，恢复后仍可撤销", async () => {
+  stubHotkeyPlatform("other");
+  let writable = true;
+  const f = await setup(undefined, { canWrite: () => writable });
+  f.insert(base("image", { src: "https://example.com/image.png" }));
+  const press = () => {
+    const event = new KeyboardEvent("keydown", { key: "z", ctrlKey: true, cancelable: true });
+    f.board.onKeyDown(event);
+    return event;
+  };
+  writable = false;
+  expect(press().defaultPrevented).toBe(false);
+  expect(f.board.children).toHaveLength(1);
+  writable = true;
+  expect(press().defaultPrevented).toBe(true);
+  expect(f.board.children).toHaveLength(0);
+});
+
+it("适应选区完成后不把旧选区写回", async () => {
+  vi.useFakeTimers();
+  vi.spyOn(ViewPortTransforms, "fitAllElements").mockImplementation(() => {});
+  const f = await setup();
+  f.insert(base("image", { src: "https://example.com/a.png" }));
+  f.insert(base("image", { src: "https://example.com/b.png" }));
+  const select = (index: number) =>
+    f.board.apply(
+      {
+        type: "set_selection",
+        properties: f.board.selection,
+        newProperties: { selectArea: null, selectedElements: [f.board.children[index]] },
+      },
+      false
+    );
+  select(0);
+  await f.board.extensions!.execute("tau.viewport.fit");
+  select(1);
+  vi.runOnlyPendingTimers();
+  expect(f.board.selection.selectedElements).toEqual([f.board.children[1]]);
+});
+
+it.each(["delete", "cut", "move"])(
+  "文档冻结但 UI 尚未更新时，%s 不消费事件或触发写入",
+  async action => {
+    let writable = true;
+    const f = await setup(undefined, { canWrite: () => writable });
+    f.insert(base("image", { src: "https://example.com/a.png" }));
+    f.board.apply(
+      {
+        type: "set_selection",
+        properties: f.board.selection,
+        newProperties: { selectArea: null, selectedElements: [...f.board.children] },
+      },
+      false
+    );
+    const event = new KeyboardEvent("keydown", {
+      key: action === "move" ? "ArrowRight" : "Delete",
+      cancelable: true,
+    });
+    const clipboard = { setData: vi.fn() };
+    Object.defineProperty(event, "clipboardData", { value: clipboard });
+    writable = false;
+    expect(() =>
+      action === "cut"
+        ? f.board.onCut(event as unknown as ClipboardEvent)
+        : f.board.onKeyDown(event)
+    ).not.toThrow();
+    expect(event.defaultPrevented).toBe(false);
+    expect(clipboard.setData).not.toHaveBeenCalled();
+    expect(f.model.read().pages[0].children).toHaveLength(1);
+    expect(f.board.children[0].x).toBe(rect.x);
+  }
+);
+
+it("文档更新后旧右键菜单失效，重新打开菜单可操作最新元素", async () => {
+  const f = await setup();
+  f.insert(base("image", { src: "https://example.com/a.png" }));
+  const context = () => ({
+    board: f.board,
+    clientX: 0,
+    clientY: 0,
+    viewPortPoint: { x: 0, y: 0 },
+    selectedElements: [...f.board.children],
+    hitElements: [...f.board.children],
+    targetElements: [...f.board.children],
+    isHitSelected: true,
+  });
+  const previous = context();
+  const oldMenu = f.board.getContextMenu(previous).find(item => item.key === "delete")!;
+  f.binding.submit([{ type: "set_node", id: f.board.children[0].id, patch: { name: "新状态" } }]);
+  oldMenu.onSelect(previous);
+  expect(f.model.read().pages[0].children).toHaveLength(1);
+  const current = context();
+  const newMenu = f.board.getContextMenu(current).find(item => item.key === "delete")!;
+  newMenu.onSelect(current);
+  expect(f.model.read().pages[0].children).toHaveLength(0);
+});
+
+it("文档投影更新选中元素后发布最新选区，删除后通知选区清空", async () => {
+  const f = await setup();
+  f.insert(base("image", { src: "https://example.com/a.png" }));
+  f.board.apply(
+    {
+      type: "set_selection",
+      properties: f.board.selection,
+      newProperties: { selectArea: null, selectedElements: [...f.board.children] },
+    },
+    false
+  );
+  const listener = vi.fn();
+  f.board.on("selection:change", listener);
+  f.binding.submit([{ type: "set_node", id: f.board.children[0].id, patch: { name: "更新后" } }]);
+  expect(listener).toHaveBeenLastCalledWith(f.board.selection);
+  expect(f.board.selection.selectedElements[0]).toBe(f.board.children[0]);
+  f.binding.submit([{ type: "remove_nodes", ids: [f.board.children[0].id] }]);
+  expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({ selectedElements: [] }));
+});
+
+it("持续方向键移动期间冻结会终止计时并回退未提交预览", async () => {
+  vi.useFakeTimers();
+  let writable = true;
+  const f = await setup(undefined, { canWrite: () => writable });
+  f.insert(base("image", { src: "https://example.com/a.png" }));
+  f.board.apply(
+    {
+      type: "set_selection",
+      properties: f.board.selection,
+      newProperties: { selectArea: null, selectedElements: [...f.board.children] },
+    },
+    false
+  );
+  f.board.onKeyDown(new KeyboardEvent("keydown", { key: "ArrowRight" }));
+  expect(f.board.children[0].x).toBe(rect.x + 5);
+  writable = false;
+  expect(() => vi.advanceTimersByTime(240)).not.toThrow();
+  expect(f.board.children[0].x).toBe(rect.x);
+  writable = true;
+  vi.advanceTimersByTime(240);
+  expect(f.board.children[0].x).toBe(rect.x);
+});
+
+it.each(["copy", "cut", "paste"])("%s 让位画布内的纯文本编辑区域", async action => {
+  const f = await setup();
+  f.insert(base("image", { src: "https://example.com/a.png" }));
+  f.board.apply(
+    {
+      type: "set_selection",
+      properties: f.board.selection,
+      newProperties: { selectArea: null, selectedElements: [...f.board.children] },
+    },
+    false
+  );
+  const input = document.createElement("div");
+  input.setAttribute("contenteditable", "plaintext-only");
+  Object.defineProperty(input, "isContentEditable", { value: true });
+  const event = new Event(action, { cancelable: true });
+  const clipboard = { getData: vi.fn(() => "文字"), setData: vi.fn(), items: [] };
+  Object.defineProperties(event, { target: { value: input }, clipboardData: { value: clipboard } });
+  const handlers = {
+    copy: f.board.onCopy.bind(f.board),
+    cut: f.board.onCut.bind(f.board),
+    paste: f.board.onPaste.bind(f.board),
+  };
+  handlers[action as keyof typeof handlers](event as ClipboardEvent);
+  expect(event.defaultPrevented).toBe(false);
+  expect(clipboard.getData).not.toHaveBeenCalled();
+  expect(clipboard.setData).not.toHaveBeenCalled();
+  expect(f.board.children).toHaveLength(1);
+});
+
+it.each(["手动视口", "新动画"])("适应视口的旧动画不会覆盖之后的%s", async mode => {
+  vi.useFakeTimers();
+  const frame = vi
+    .spyOn(window, "requestAnimationFrame")
+    .mockImplementation(callback => window.setTimeout(() => callback(performance.now()), 16));
+  try {
+    const f = await setup();
+    const animation = ViewPortTransforms.animateToViewport(
+      f.board,
+      f.board.viewPort,
+      { ...f.board.viewPort, zoom: 2, minX: 100 },
+      160
+    );
+    vi.advanceTimersByTime(32);
+    const next =
+      mode === "新动画"
+        ? ViewPortTransforms.animateToViewport(
+            f.board,
+            f.board.viewPort,
+            { ...f.board.viewPort, zoom: 3, minX: 500 },
+            32
+          )
+        : f.board.apply(
+            {
+              type: "set_viewport",
+              properties: f.board.viewPort,
+              newProperties: { zoom: 3, minX: 500 },
+            },
+            false
+          );
+    vi.advanceTimersByTime(200);
+    await Promise.all([animation, next]);
+    expect(f.board.viewPort.zoom).toBe(3);
+    expect(f.board.viewPort.minX).toBe(500);
+  } finally {
+    frame.mockRestore();
+  }
 });

@@ -1,5 +1,5 @@
 /**
- * 白板画布顶部的状态行：本机保存与远端同步合成一行；共享入口（WhiteboardShareEntry）在右下状态栏。
+ * 白板画布顶部只显示需处理的保存与协作状态；共享入口（WhiteboardShareEntry）在右下状态栏。
  *
  * 未共享：「共享」打开说明对话框，确认后走主进程首次发布（暂停编辑 → 净化候选 → 服务端回执 →
  * 本机安装），结果未知时凭原操作续做或取消，不另建房间。已共享：成员与协作码沿用正文协作面板。
@@ -9,7 +9,6 @@
 import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { ArrowRight, KeyRound, Layers, Link2, LogOut, Share2, Users, VideoOff } from "lucide-react";
 import { Button, ConfirmDialog, Dialog, DialogBody, Popover, toast } from "@tau/ui";
-import { useStableStatus } from "@tau/collaboration/src/view";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   cancelWhiteboardPublication,
@@ -28,6 +27,7 @@ import {
   remoteFailureText,
   type WhiteboardRemoteState,
 } from "@/services/whiteboard-documents/remote";
+import { RecoverableBoundary } from "@/components/ErrorState";
 import { openPage } from "@/services/page-navigation";
 import useCollaborationStore from "@/stores/useCollaborationStore";
 import { useWhiteboardShareStatus } from "../queries";
@@ -36,6 +36,30 @@ import {
   whiteboardSyncStatus,
   type WhiteboardPendingKind,
 } from "../collaboration";
+
+export function WhiteboardCollaborationBoundary({
+  children,
+  resetKey,
+}: {
+  children: ReactNode;
+  resetKey: string;
+}) {
+  return (
+    <RecoverableBoundary
+      resetKeys={[resetKey]}
+      fallback={({ reset }) => (
+        <span role="alert" className="text-ink-2 text-tau-meta inline-flex items-center gap-2 p-2">
+          协作面板暂时不可用
+          <Button size="sm" variant="ghost" onClick={reset}>
+            重试
+          </Button>
+        </span>
+      )}
+    >
+      {children}
+    </RecoverableBoundary>
+  );
+}
 
 const idle = () => () => {};
 const none = (): WhiteboardRemoteState | undefined => undefined;
@@ -63,19 +87,19 @@ export function WhiteboardCollaborationBar({
   const share = useWhiteboardShareStatus(documentId);
   const pending = pendingKind(share.data);
   const status = whiteboardSyncStatus(local, remote, pending);
-  const shown = useStableStatus(status) ?? status;
   const [confirming, setConfirming] = useState<ConfirmKind>();
   const databaseName = client.target.databaseName;
   const actions = status.actions ?? [];
   const binding = share.data?.binding ?? null;
+  if (!pending && actions.length === 0 && !confirming) return null;
 
   return (
     <div
       className="text-tau-caption text-ink-2 flex min-h-8 items-center gap-2 px-3 py-1"
       role={status.tone === "error" ? "alert" : "status"}
     >
-      <StatusDot tone={shown.tone} />
-      <span className="min-w-0 truncate">{shown.label}</span>
+      <StatusDot tone={status.tone} />
+      <span className="min-w-0 truncate">{status.label}</span>
       {actions.includes("retry-save") && (
         <Button
           size="sm"
@@ -121,7 +145,7 @@ export function WhiteboardShareEntry({
   const { remote } = useWhiteboardRemote(client);
   const share = useWhiteboardShareStatus(documentId);
   const [confirming, setConfirming] = useState<"close" | "leave">();
-  if (!share.data) return null;
+  if (!share.data || client.needsReopen || client.isDisposed) return null;
   const binding = share.data.binding ?? null;
   return (
     <>
@@ -129,6 +153,7 @@ export function WhiteboardShareEntry({
         client={client}
         binding={binding}
         pending={Boolean(pendingKind(share.data))}
+        publication={share.data.publication}
         remote={remote}
         onUnshare={setConfirming}
       />
@@ -184,6 +209,7 @@ function ConfirmAction({
   documentId: string;
   binding: { serverUrl: string; documentId: string } | null;
 }) {
+  const summary = useSyncExternalStore(client.subscribe, client.getSummary, client.getSummary);
   const queryClient = useQueryClient();
   const operations = useRef<Partial<Record<ConfirmKind, string>>>({});
   const [shown, setShown] = useState<ConfirmKind>("detach");
@@ -210,7 +236,7 @@ function ConfirmAction({
       open={Boolean(kind)}
       onOpenChange={open => !open && onClose()}
       title={copy.title}
-      context={client.model.read().title || "未命名白板"}
+      context={summary.title || "未命名白板"}
       description={copy.description}
       impact={copy.impact}
       danger={copy.danger}
@@ -323,9 +349,6 @@ function UnshareRecovery({
       void queryClient.invalidateQueries({
         queryKey: whiteboardShareStatusKey(databaseName, documentId),
       });
-      void queryClient.invalidateQueries({
-        queryKey: ["whiteboard-document", databaseName, documentId],
-      });
     }
   };
   return (
@@ -397,6 +420,7 @@ function WhiteboardShareControl({
   client,
   binding,
   pending,
+  publication,
   remote,
   onUnshare,
 }: {
@@ -404,6 +428,7 @@ function WhiteboardShareControl({
   binding: { serverUrl: string; documentId: string } | null;
   /** 首次共享尚未完成：入口隐藏，已打开的对话框保留以显示失败原因。 */
   pending: boolean;
+  publication?: WhiteboardShareStatus["publication"];
   remote?: WhiteboardRemoteState;
   onUnshare: (mode: "close" | "leave") => void;
 }) {
@@ -427,7 +452,7 @@ function WhiteboardShareControl({
             共享
           </Button>
         )}
-        <ShareDialog open={open} onOpenChange={setOpen} client={client} />
+        <ShareDialog open={open} onOpenChange={setOpen} client={client} publication={publication} />
       </>
     );
   const session = room && whiteboardSession(room, remote);
@@ -509,17 +534,19 @@ function ShareDialog({
   open,
   onOpenChange,
   client,
+  publication,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   client: WhiteboardDocumentClient;
+  publication?: WhiteboardShareStatus["publication"];
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
-  const snapshot = client.model.read();
+  const snapshot = useSyncExternalStore(client.subscribe, client.getSummary, client.getSummary);
   const points = [
     { icon: KeyRound, text: "生成一个 12 位协作码，对方输入后需要你同意" },
-    { icon: Layers, text: `共享整块白板的全部 ${snapshot.pages.length} 页` },
+    { icon: Layers, text: `共享整块白板的全部 ${snapshot.pageCount} 页` },
     { icon: Link2, text: "引用的文章、卡片只带卡面标题，原文不会随之共享" },
     { icon: VideoOff, text: "本机视频不会上传，含本机视频的白板暂不能共享" },
   ];
@@ -528,7 +555,7 @@ function ShareDialog({
     setError(undefined);
     try {
       await publishWhiteboardClient(client);
-      toast.success("白板已共享，点右下角的成员按钮查看协作码");
+      toast.success("白板已共享");
       onOpenChange(false);
     } catch (failure) {
       setError(remoteFailureText(failure));
@@ -546,21 +573,30 @@ function ShareDialog({
       title="共享白板"
       context={snapshot.title || "未命名白板"}
       footer={
-        <>
-          <Button variant="secondary" onClick={() => onOpenChange(false)}>
-            取消
-          </Button>
-          <Button
-            variant="primary"
-            icon={Share2}
-            data-autofocus
-            loading={busy}
-            loadingText="正在共享…"
-            onClick={() => void share()}
-          >
-            发起共享
-          </Button>
-        </>
+        publication ? (
+          <PublicationRecovery
+            databaseName={client.target.databaseName}
+            documentId={client.identity!.documentId}
+            operationId={publication.operationId}
+            onSettled={() => onOpenChange(false)}
+          />
+        ) : (
+          <>
+            <Button variant="secondary" onClick={() => onOpenChange(false)}>
+              取消
+            </Button>
+            <Button
+              variant="primary"
+              icon={Share2}
+              data-autofocus
+              loading={busy}
+              loadingText="正在共享…"
+              onClick={() => void share()}
+            >
+              发起共享
+            </Button>
+          </>
+        )
       }
     >
       <DialogBody>

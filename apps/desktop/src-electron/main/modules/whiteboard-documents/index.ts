@@ -444,6 +444,8 @@ class WhiteboardDocumentsModule {
           bindingKey = `whiteboard-binding:${identity.databaseName}:${identity.documentId}`;
         if (services.store.get(bindingKey, null))
           throw new Error("此白板已绑定共享，不能再次创建并行房间");
+        const source = this.sessions.snapshot(leaseId, this.leaseOwner(event, leaseId));
+        await this.transitions.preflight(source.state, identity.documentId, request.pageIds);
         const context = await transitionContext(event, leaseId, request.operationId);
         try {
           const result = await this.transitions.publish(
