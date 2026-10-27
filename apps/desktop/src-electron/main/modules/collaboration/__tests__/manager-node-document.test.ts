@@ -1,6 +1,6 @@
 // @vitest-environment node
 import Database from "better-sqlite3";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -248,6 +248,49 @@ describe("桌面生产会话与真实服务贯通", () => {
       ContentDocumentTable.read(db, 7)!.revision
     );
     await runtime.project(current);
+  });
+
+  it("冷缓存损坏时备份后丢弃，打开正文按主库重建", async () => {
+    const { runtime, db, store, localId, event } = await setup();
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const previous = runtime.sessions.get(localId)!;
+    unregisterContentSession(previous);
+    previous.awareness.destroy();
+    previous.doc.destroy();
+    runtime.sessions.delete(localId);
+    store.db.prepare("UPDATE sessions SET state_hash='broken' WHERE id=?").run(localId);
+    const opened = await runtime.openContent(event, { contentId: 7 });
+    expect(opened.documentId).toBe(localId);
+    expect(runtime.sessions.get(localId)!.doc.getText("title")).toBeDefined();
+    expect(() => store.load(localId)).not.toThrow();
+    expect(readdirSync(join(runtime.directory, "discarded"))).toHaveLength(1);
+    expect(ContentDocumentTable.read(db, 7)).not.toBeNull();
+  });
+
+  it("共享冷缓存损坏不阻断刷新，按远端快照重建并清除错误", async () => {
+    const { runtime, store, localId, event } = await setup();
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const { documentId } = await runtime.createContent(event, 7);
+    expect(runtime.sessions.has(localId)).toBe(false);
+    const shared = runtime.sessions.get(documentId)!;
+    unregisterContentSession(shared);
+    shared.awareness.destroy();
+    shared.doc.destroy();
+    runtime.sessions.delete(documentId);
+    store.db.prepare("UPDATE sessions SET state_hash='broken' WHERE id=?").run(documentId);
+    runtime.stopped = false;
+    vi.spyOn(
+      runtime as unknown as { connectEvents(): Promise<void> },
+      "connectEvents"
+    ).mockResolvedValue();
+    store.set("identity:http://test", "{}");
+    await (runtime as unknown as { refresh(): Promise<void> }).refresh();
+    runtime.stopped = true;
+    const rebuilt = runtime.sessions.get(documentId)!;
+    expect(rebuilt.info.serverUrl).toBe("http://test");
+    expect(rebuilt.info.source?.contentId).toBe(7);
+    expect((runtime as unknown as { error?: string }).error).toBeUndefined();
+    expect(readdirSync(join(runtime.directory, "discarded"))).toHaveLength(1);
   });
 
   it("外部正文已更新时旧缓存不能借最新修订覆盖，原输入仍留在缓存", async () => {

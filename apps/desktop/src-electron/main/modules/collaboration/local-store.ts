@@ -1,6 +1,6 @@
 import cacheSchema from "@tau/db-schema/schema/collaboration.sql?raw";
 import Database from "better-sqlite3";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import * as Y from "yjs";
@@ -8,8 +8,7 @@ import type { CollaborationSession } from "@tau/collaboration";
 
 export class CollaborationLocalStore {
   readonly db: Database.Database;
-  readonly failures = new Map<string, string>();
-  constructor(directory: string) {
+  constructor(private readonly directory: string) {
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     this.db = new Database(join(directory, "collaboration.db"));
     this.db.pragma("journal_mode = WAL");
@@ -47,8 +46,8 @@ export class CollaborationLocalStore {
   delete(key: string) {
     this.db.prepare("DELETE FROM settings WHERE key=?").run(key);
   }
+  /** 元数据不可读的缓存行备份后丢弃，不阻断其他会话。 */
   list() {
-    this.failures.clear();
     return (
       this.db.prepare("SELECT id,metadata FROM sessions").all() as {
         id: string;
@@ -60,7 +59,7 @@ export class CollaborationLocalStore {
         if (!value || value.id !== row.id) throw new Error("会话身份不匹配");
         return [value];
       } catch {
-        this.failures.set(row.id, "协作缓存元数据不可读，原数据已保留");
+        this.discard(row.id, "协作缓存元数据不可读");
         return [];
       }
     });
@@ -122,6 +121,33 @@ export class CollaborationLocalStore {
       if (result.changes !== 1) throw new Error("协作缓存会话已失效，不能清理增量");
       this.db.prepare("DELETE FROM updates WHERE document_id=?").run(id);
     })();
+  }
+  /**
+   * 无法恢复的缓存：原始快照与增量写入 discarded/ 备份后删除，
+   * 调用方随后按远端或主库重建，坏缓存不让功能停摆。
+   */
+  discard(id: string, reason: string) {
+    const row = this.db.prepare("SELECT metadata,state FROM sessions WHERE id=?").get(id) as
+      | { metadata: string; state: Buffer }
+      | undefined;
+    if (!row) return;
+    const updates = this.db
+      .prepare("SELECT state FROM updates WHERE document_id=? ORDER BY id")
+      .all(id) as { state: Buffer }[];
+    const directory = join(this.directory, "discarded");
+    mkdirSync(directory, { recursive: true, mode: 0o700 });
+    writeFileSync(
+      join(directory, `${Date.now()}-${digest(Buffer.from(id)).slice(0, 16)}.json`),
+      JSON.stringify({
+        id,
+        reason,
+        metadata: row.metadata,
+        state: row.state.toString("base64"),
+        updates: updates.map(update => update.state.toString("base64")),
+      }),
+      { mode: 0o600 }
+    );
+    this.remove(id);
   }
   remove(id: string) {
     this.db.transaction(() => {

@@ -92,6 +92,8 @@ export class CollaborationManager {
   private requests: JoinRequest[] = [];
   private refreshing = false;
   private readonly nonContentRooms = new Set<string>();
+  /** 最近一次刷新得到的各服务器共享文档 ID，用于判定残留绑定。 */
+  private readonly remoteDocuments = new Map<string, Set<string>>();
   /** 白板房间按 `${url}/${id}` 记录成员与角色，内容由白板文档会话同步。 */
   private readonly whiteboardRooms = new Map<string, SharedWhiteboardInfo>();
   private syncingResources = false;
@@ -343,12 +345,32 @@ export class CollaborationManager {
     }
   }
   private findSession(id: string): RuntimeSession | undefined {
-    let session = this.sessions.get(id);
-    if (!session && this.store?.db.prepare("SELECT 1 FROM sessions WHERE id=?").get(id)) {
+    return this.sessions.get(id) ?? this.loadCached(id);
+  }
+  /** 恢复冷缓存；打不开的缓存备份后丢弃并返回 undefined，由调用方按远端或主库重建。 */
+  private loadCached(id: string, info?: CollaborationSession): RuntimeSession | undefined {
+    if (!this.store?.db.prepare("SELECT 1 FROM sessions WHERE id=?").get(id)) return undefined;
+    let doc: Y.Doc | undefined;
+    try {
       const cached = this.store.load(id);
-      session = this.restore(cached.info, cached.doc);
+      doc = cached.doc;
+      return this.restore(info ?? cached.info, doc);
+    } catch (error) {
+      const partial = this.sessions.get(id);
+      if (partial && partial.doc === doc) {
+        unregisterContentSession(partial);
+        partial.awareness.destroy();
+        this.sessions.delete(id);
+      }
+      doc?.destroy();
+      const reason = error instanceof Error ? error.message : "协作缓存无法打开";
+      console.warn(`[collaboration] 会话 ${id} 缓存无法打开，已备份并丢弃后重建`, error);
+      this.store.discard(id, reason);
+      this.contentState?.db
+        .prepare("DELETE FROM entity_holds WHERE holder=?")
+        .run(`document:${id}`);
+      return undefined;
     }
-    return session;
   }
   private requireSession(id: string): RuntimeSession {
     const session = this.findSession(id);
@@ -383,10 +405,20 @@ export class CollaborationManager {
         return this.openContent(event, target);
       }
     }
-    if (binding && !session) throw new Error("协作会话尚未恢复，请稍后重试");
+    if (binding && !session) {
+      await this.refresh();
+      session = this.findSession(id);
+      // 服务器已确认不再有这份共享：解除残留绑定，按主库正文转为本机编辑
+      if (!session && this.remoteDocuments.get(binding.server_url)?.has(id) === false) {
+        db.prepare("DELETE FROM collaboration_bindings WHERE content_id=? AND document_id=?").run(
+          content.id,
+          id
+        );
+        return this.openContent(event, target);
+      }
+      if (!session) throw new Error("协作会话尚未恢复，请稍后重试");
+    }
     if (!session) {
-      if (this.store.db.prepare("SELECT 1 FROM sessions WHERE id=?").get(id))
-        throw new Error("该正文的协作缓存不可读，已暂停写入");
       const source: SourceBinding = {
         ...target,
         databaseName: name,
@@ -685,89 +717,25 @@ export class CollaborationManager {
           .filter(session => session.info.mode !== "local")
           .map(session => session.info.serverUrl),
       ]);
+      const errors: string[] = [];
       for (const url of urls) {
         if (!this.store.get(`identity:${url}`, null)) continue;
         try {
           const { documents } = await this.client.request<{
             documents: SharedDocumentInfo[];
           }>(url, "/v1/documents");
-          for (const info of documents) {
-            const roomKey = `${url}/${info.id}`;
-            if (this.nonContentRooms.has(roomKey)) {
-              if (this.whiteboardRooms.has(roomKey))
-                this.whiteboardRooms.set(roomKey, { ...info, serverUrl: url });
-              continue;
-            }
-            const existing = this.sessions.get(info.id);
-            if (existing) {
-              Object.assign(existing.info, info);
-              existing.info.source ||= this.findLocalSource(info.id, url);
-              const protocol = await this.client.request<{
-                version: number;
-                epoch: number;
-                baselineId: string;
-              }>(url, `/v1/documents/${info.id}/protocol`);
-              if (
-                protocol.version === NODE_DOCUMENT_VERSION &&
-                protocol.epoch > Number(existing.doc.getMap("meta").get("epoch") ?? 0)
-              ) {
-                existing.info.remoteVersionAvailable = true;
-                if (!existing.info.frozen) await this.freeze(existing);
-                existing.provider?.detach();
-              }
-              this.store.metadata(existing.info);
-              continue;
-            }
-            if (this.store.db.prepare("SELECT 1 FROM sessions WHERE id=?").get(info.id))
-              throw new Error("该文档仍有未恢复的本机缓存，不能以远端快照覆盖");
-            let state: string;
-            try {
-              ({ state } = await this.client.request<{ state: string }>(
-                url,
-                `/v1/documents/${info.id}/state`,
-                "GET",
-                undefined,
-                NODE_DOCUMENT_VERSION
-              ));
-            } catch (failure) {
-              if ((failure as { code?: string }).code === "CLIENT_UPGRADE_REQUIRED") {
-                const protocol = await this.client.request<{ version: number }>(
-                  url,
-                  `/v1/documents/${info.id}/protocol`
-                );
-                if (protocol.version === WHITEBOARD_DOCUMENT_VERSION) {
-                  this.nonContentRooms.add(roomKey);
-                  this.whiteboardRooms.set(roomKey, { ...info, serverUrl: url });
-                  continue;
-                }
-              }
-              throw failure;
-            }
-            const doc = new Y.Doc();
-            try {
-              Y.applyUpdate(doc, Buffer.from(state, "base64"));
-              await validateNodeDocument(doc, {
-                documentId: info.id,
-                baselineId: String(doc.getMap("meta").get("baselineId")),
-                epoch: Number(doc.getMap("meta").get("epoch")),
-              });
-            } catch (failure) {
-              doc.destroy();
-              throw failure;
-            }
-            const source = this.findLocalSource(info.id, url);
-            const session: CollaborationSession = {
-              ...info,
-              serverUrl: url,
-              source,
-              connection: "connecting",
-              pending: false,
-              leaving: false,
-            };
-            this.store.create(session, doc);
-            this.restore(session, doc);
-          }
           const available = new Set(documents.map(info => info.id));
+          this.remoteDocuments.set(url, available);
+          // 单篇失败只跳过该篇，列表、成员与撤权检测照常进行
+          const failed: string[] = [];
+          for (const info of documents)
+            try {
+              await this.syncRemoteDocument(url, info);
+            } catch (error) {
+              console.warn(`[collaboration] 共享文档 ${info.id} 暂时无法加载`, error);
+              failed.push(`《${info.title || "未命名"}》`);
+            }
+          if (failed.length) errors.push(`${failed.join("、")}暂时无法加载，稍后自动重试`);
           for (const key of this.nonContentRooms)
             if (key.startsWith(`${url}/`) && !available.has(key.slice(url.length + 1))) {
               this.nonContentRooms.delete(key);
@@ -787,17 +755,90 @@ export class CollaborationManager {
               await this.client.request<{ requests: JoinRequest[] }>(url, "/v1/join-requests")
             ).requests;
           void this.connectEvents(url).catch(() => {});
-          this.error = undefined;
         } catch (error) {
-          this.error = error instanceof Error ? error.message : "协作服务器暂时无法连接";
+          errors.push(error instanceof Error ? error.message : "协作服务器暂时无法连接");
         }
       }
+      this.error = errors[0];
       this.changed();
     } finally {
       this.refreshing = false;
     }
   }
-
+  /** 对齐一篇远端共享：内存会话更新元数据，冷缓存先恢复，缓存缺失或损坏按远端快照重建。 */
+  private async syncRemoteDocument(url: string, info: SharedDocumentInfo) {
+    const roomKey = `${url}/${info.id}`;
+    if (this.nonContentRooms.has(roomKey)) {
+      if (this.whiteboardRooms.has(roomKey))
+        this.whiteboardRooms.set(roomKey, { ...info, serverUrl: url });
+      return;
+    }
+    const existing = this.findSession(info.id);
+    if (existing) {
+      Object.assign(existing.info, info);
+      existing.info.source ||= this.findLocalSource(info.id, url);
+      const protocol = await this.client.request<{
+        version: number;
+        epoch: number;
+        baselineId: string;
+      }>(url, `/v1/documents/${info.id}/protocol`);
+      if (
+        protocol.version === NODE_DOCUMENT_VERSION &&
+        protocol.epoch > Number(existing.doc.getMap("meta").get("epoch") ?? 0)
+      ) {
+        existing.info.remoteVersionAvailable = true;
+        if (!existing.info.frozen) await this.freeze(existing);
+        existing.provider?.detach();
+      }
+      this.store.metadata(existing.info);
+      return;
+    }
+    let state: string;
+    try {
+      ({ state } = await this.client.request<{ state: string }>(
+        url,
+        `/v1/documents/${info.id}/state`,
+        "GET",
+        undefined,
+        NODE_DOCUMENT_VERSION
+      ));
+    } catch (failure) {
+      if ((failure as { code?: string }).code === "CLIENT_UPGRADE_REQUIRED") {
+        const protocol = await this.client.request<{ version: number }>(
+          url,
+          `/v1/documents/${info.id}/protocol`
+        );
+        if (protocol.version === WHITEBOARD_DOCUMENT_VERSION) {
+          this.nonContentRooms.add(roomKey);
+          this.whiteboardRooms.set(roomKey, { ...info, serverUrl: url });
+          return;
+        }
+      }
+      throw failure;
+    }
+    const doc = new Y.Doc();
+    try {
+      Y.applyUpdate(doc, Buffer.from(state, "base64"));
+      await validateNodeDocument(doc, {
+        documentId: info.id,
+        baselineId: String(doc.getMap("meta").get("baselineId")),
+        epoch: Number(doc.getMap("meta").get("epoch")),
+      });
+    } catch (failure) {
+      doc.destroy();
+      throw failure;
+    }
+    const session: CollaborationSession = {
+      ...info,
+      serverUrl: url,
+      source: this.findLocalSource(info.id, url),
+      connection: "connecting",
+      pending: false,
+      leaving: false,
+    };
+    this.store.create(session, doc);
+    this.restore(session, doc);
+  }
   private databaseForEvent(
     event: IpcMainInvokeEvent | { db: import("better-sqlite3").Database; name: string }
   ) {
@@ -1037,8 +1078,8 @@ export class CollaborationManager {
         this.store.metadata(existing.info);
         registerContentSession(db, source.contentId, existing);
       } else {
-        if (this.store.db.prepare("SELECT 1 FROM sessions WHERE id=?").get(info.id))
-          throw new Error("共享缓存尚待恢复，不能覆盖原缓存");
+        // 刚发布的房间以远端确认快照为准，同 ID 的冷缓存只可能是旧残留
+        this.store.discard(info.id, "发布时发现同房间的旧缓存");
         source.projectionRevision = ContentDocumentTable.read(db, source.contentId)!.revision;
         this.store.create(info, doc);
         this.restore(info, doc);
@@ -1081,8 +1122,9 @@ export class CollaborationManager {
       const stored = ContentDocumentTable.read(db, source.contentId);
       if (!stored) throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
       const nextId = localSessionId(db.name, source.contentId, source.contentCreatedAt);
-      if (this.store.db.prepare("SELECT 1 FROM sessions WHERE id=?").get(nextId))
-        throw new Error("本机目标会话已存在，不能覆盖其内容");
+      if (this.sessions.has(nextId)) throw new Error("本机正文仍在编辑，请稍后重试");
+      // 共享期间的本机冷缓存早于共享内容，备份后让位给结束共享的最终正文
+      this.store.discard(nextId, "结束共享时发现旧本机缓存");
       const contracts = session.doc
         .getMap("node-tree:contracts")
         .toJSON() as ContentContractDictionary;
@@ -1652,22 +1694,9 @@ export class CollaborationManager {
         scope.reason === "database-change" || (scope.reason === "quit" && this.sessions.size > 0),
       prepare: scope => this.drainDatabase(scope),
     });
-    const cachedSessions = this.store.list();
-    if (this.store.failures.size)
-      this.error = "部分协作缓存元数据不可读，原数据已保留，请检查本机文件";
-    for (const info of cachedSessions) {
-      if (info.mode === "local" && info.source?.contentDocumentId) continue;
-      // 单条损坏缓存不阻断其他会话；未确认编辑与本机真身可能无法从服务器补回。
-      try {
-        const { doc } = this.store.load(info.id);
-        this.restore(info, doc);
-      } catch (error) {
-        const message = "本地协作缓存无法打开，原数据和资源已保留，暂停该会话";
-        console.error(`[collaboration] 会话 ${info.id} ${message}`, error);
-        this.store.metadata({ ...info, error: message });
-        this.error = message;
-      }
-    }
+    // 打不开的缓存由 loadCached 备份后丢弃，共享会话随后按远端快照重建，本机正文按主库重建
+    for (const info of this.store.list())
+      if (info.mode !== "local" || !info.source?.contentDocumentId) this.loadCached(info.id, info);
     registerCollaborationIpc({
       store: this.store,
       contentState: this.contentState,
