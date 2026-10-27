@@ -39,11 +39,11 @@ useBoard/useWhiteboardAPI 返回受控接口，不返回内核 Board。快照不
 
 - 命名空间：扩展 id 必须形如 `<命名空间>.<名称>`，命名空间仅限小写字母、数字与连字符。`tau` 为保留命名空间（内置扩展，其元素可用无点裸 type）；其它命名空间声明的元素 type、命令 id 与贡献 id 必须以 `<命名空间>.` 开头。
 - 数据归属：第三方元素的私有数据一律放 `element.data`，顶层字段（id/type/children 等）归内核，内置元素格式不变；`TypedBoardElement<TData>` 提供带类型的元素视图。
-- 作者使用 `@tau/plugins/whiteboard`，声明 dataVersion、previousVersions、migrations；版本规则与编辑器共用，精确摘要而非版本号决定 read/edit/none。旧快照的 schemaVersion/migrate 仅留在宿主升级路径，新作者定义不混用这两套字段。
+- 作者使用 `@tau/plugins/whiteboard`，声明 dataVersion、previousVersions、migrations；版本规则与编辑器共用，精确摘要而非版本号决定 read/edit/none。普通值模式的 schemaVersion 只用于版本识别与保护，不执行加载升级；新作者定义使用数据契约。
 - 普通载荷使用 updateElementData，声明文本使用 getTextBinding；submit 只接收身份命令，不公开路径 apply 或绕过历史。首次创建才把准备好的契约与节点原子写入；加载与远端投影不运行迁移或 schema 修复。
 - schema（Standard Schema v1）只验证本机候选，不采用其归一化输出去删未知字段；迁移仅返回业务载荷，受控转换由宿主决定。作者 API 与权限范围详见 [SDK 白板说明](/packages/plugins/docs/whiteboard-collaboration.md)。
 - 冲突与错误报告：任一扩展装配失败只禁用该扩展并清理其 scope，先到先得；经 `WhiteBoard` 的 `onExtensionError` 回调与 console.error 报告（`WhiteboardExtensionError.reason` 见 api.ts），`getRejectedExtensions()` 可查被拒清单。
-- 占位原因：未知或异常元素渲染占位并输出 `data-unknown-reason`，取值 missing（类型未注册）/ too-new（数据版本高于扩展）/ migration-failed / disabled（所属扩展被禁用），原始数据与子树保留。
+- 占位原因：未知或异常元素渲染占位并输出 `data-unknown-reason`，取值 missing（类型未注册）/ too-new（数据版本高于扩展）/ unsupported-version（低于当前声明）/ disabled（所属扩展被禁用），原始数据与子树保留。
 
 ```tsx
 import { defineElement } from "@tau/plugins/whiteboard";

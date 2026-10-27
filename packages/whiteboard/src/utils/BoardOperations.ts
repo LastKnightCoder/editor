@@ -16,68 +16,27 @@ type ChildrenMutationContext = {
 };
 
 export class BoardOperations {
-  // 仅用于测试/诊断：允许通过全局变量强制指定“是否 DEV”。
-  // 线上不应设置该值；未设置时仍以 import.meta.env.DEV 为准。
-  private static isDevEnvironment(): boolean {
-    const forced = (globalThis as unknown as { __TAU_WHITEBOARD_FORCE_DEV__?: unknown })
-      .__TAU_WHITEBOARD_FORCE_DEV__;
-    if (typeof forced === "boolean") return forced;
-    return Boolean((import.meta as any).env?.DEV);
-  }
-
-  // 迁移期：用于去重 `set_node` 携带 children 的 warning，避免拖拽等高频场景刷屏。
-  private static readonly setNodeChildrenWarningDedup = new Set<string>();
-
-  private static warnIfSetNodeContainsChildren(
+  private static assertSetNodeProperties(
     op: Extract<Operation, { type: "set_node" }>,
     node: BoardElement
   ): void {
-    const hasChildrenInProps = Object.prototype.hasOwnProperty.call(
-      op.properties ?? {},
-      "children"
-    );
-    const hasChildrenInNewProps = Object.prototype.hasOwnProperty.call(
-      op.newProperties ?? {},
-      "children"
-    );
-    if (!hasChildrenInProps && !hasChildrenInNewProps) return;
-
-    const isDev = BoardOperations.isDevEnvironment();
-    const propsKeys = Object.keys(op.properties ?? {}).sort();
-    const newPropsKeys = Object.keys(op.newProperties ?? {}).sort();
-
-    // 最终门禁：禁止通过 set_node 写 children
-    // - 开发环境：直接抛异常，强制迁移
-    // - 生产环境：打印一次 warning，便于线上回溯但不中断用户操作
-    if (isDev) {
-      const error = new Error(
+    if (
+      !Object.prototype.hasOwnProperty.call(op.properties, "children") &&
+      !Object.prototype.hasOwnProperty.call(op.newProperties, "children")
+    )
+      return;
+    throw Object.assign(
+      new Error(
         "[WhiteBoard][BoardOperations] 禁止 set_node(children)：请使用 insert_node/remove_node/move_node 表达结构变化；set_node 仅用于 patch 当前节点自身属性。"
-      );
-      (error as any).detail = {
-        elementId: node.id,
-        elementType: node.type,
-        path: op.path,
-        propertiesKeys: propsKeys,
-        newPropertiesKeys: newPropsKeys,
-      };
-      throw error;
-    }
-
-    // 用“元素类型 + 传入字段形状”作为去重 key；同一类调用点只提示一次。
-    const dedupKey = `${node.type}|${propsKeys.join(",")}|${newPropsKeys.join(",")}`;
-    if (BoardOperations.setNodeChildrenWarningDedup.has(dedupKey)) return;
-    BoardOperations.setNodeChildrenWarningDedup.add(dedupKey);
-
-    const stack = new Error().stack;
-    console.warn(
-      "[WhiteBoard][BoardOperations] set_node 包含 children（迁移期警告）：请使用 insert_node/remove_node/move_node 表达结构变化；仅用 set_node 更新当前节点自身属性。",
+      ),
       {
-        elementId: node.id,
-        elementType: node.type,
-        path: op.path,
-        propertiesKeys: propsKeys,
-        newPropertiesKeys: newPropsKeys,
-        stack,
+        detail: {
+          elementId: node.id,
+          elementType: node.type,
+          path: op.path,
+          propertiesKeys: Object.keys(op.properties).sort(),
+          newPropertiesKeys: Object.keys(op.newProperties).sort(),
+        },
       }
     );
   }
@@ -440,7 +399,7 @@ export class BoardOperations {
         if (!node) return false;
 
         const setOp = op as Extract<Operation, { type: "set_node" }>;
-        BoardOperations.warnIfSetNodeContainsChildren(setOp, node);
+        BoardOperations.assertSetNodeProperties(setOp, node);
 
         const { newProperties } = setOp;
         for (const key in newProperties) {
@@ -452,23 +411,7 @@ export class BoardOperations {
           }
         }
 
-        const hasChildrenInProps = Object.prototype.hasOwnProperty.call(
-          setOp.properties ?? {},
-          "children"
-        );
-        const hasChildrenInNewProps = Object.prototype.hasOwnProperty.call(
-          setOp.newProperties ?? {},
-          "children"
-        );
-        // 迁移期兼容：只有当 set_node 明确携带 children（老逻辑）时才 DFS 记录子树变化。
-        // 新逻辑下 set_node 只做 patch，此处只记录当前节点，避免大量 set_node 导致 O(n^2) 的 metadata 采集成本。
-        if (hasChildrenInProps || hasChildrenInNewProps) {
-          BoardOperations.dfsElement(node, child => {
-            metadata.changedElements.push(child);
-          });
-        } else {
-          metadata.changedElements.push(node);
-        }
+        metadata.changedElements.push(node);
         metadata.hasChanges = true;
         return true;
       }

@@ -8,7 +8,6 @@ import { FoldHorizontal, FoldVertical } from "lucide-react";
 
 import { RichTextUtil } from "../../../utils";
 import {
-  LEGACY_TEXT_STYLE_KEYS,
   TEXT_COLORS,
   TEXT_TONES,
   TextStyle,
@@ -93,10 +92,6 @@ const RichTextSetter = (props: RichTextSetterProps) => {
       draft.variant = next.variant;
       if (next.tone) draft.tone = next.tone;
       else delete draft.tone;
-      // 旧版外观字段一并清掉，之后只认 variant/tone
-      for (const legacyKey of LEGACY_TEXT_STYLE_KEYS) {
-        delete (draft as Record<string, unknown>)[legacyKey];
-      }
     });
     if (element.type === "richtext") RichTextUtil.save(next);
     onChange(newElement);

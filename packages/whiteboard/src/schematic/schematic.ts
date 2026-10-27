@@ -118,7 +118,7 @@ function textBars(ctx: Ctx, x: number, y: number, w: number, h: number, color = 
 
 function card(ctx: Ctx, e: AnyElement) {
   const r = Math.min(10, e.height / 4);
-  // 富文本走语义样式（含旧色值换算）；文档卡、白板引用等其它类型按白卡画
+  // 富文本走语义样式；文档卡、白板引用等其它类型按白卡画
   const style =
     e.type === "richtext"
       ? resolveTextStyle(e as Parameters<typeof resolveTextStyle>[0])

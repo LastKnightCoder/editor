@@ -108,11 +108,15 @@ describe("MindThemeUtil 分支着色", () => {
   });
 });
 
-describe("旧主题兼容", () => {
-  it("旧 id 映射到新配色，未知 id 回落默认", () => {
-    expect(getPaletteById("rainbow").id).toBe("classic");
-    expect(getPaletteById("hawaii").id).toBe("classic");
-    expect(getPaletteById("nope").id).toBe("classic");
-    expect(getPaletteById("ocean").id).toBe("ocean");
+describe("当前主题解析", () => {
+  it.each(MIND_PALETTES)("当前主题 $id 保持原配色", palette => {
+    expect(getPaletteById(palette.id)).toBe(palette);
   });
+
+  it.each([undefined, "nope", "code", "breeze", "fireplace"])(
+    "未登记主题 %s 回落默认，不映射旧配色",
+    id => {
+      expect(getPaletteById(id).id).toBe("classic");
+    }
+  );
 });
