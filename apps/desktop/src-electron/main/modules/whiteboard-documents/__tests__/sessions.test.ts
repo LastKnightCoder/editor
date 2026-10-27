@@ -9,10 +9,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import schema from "@tau/db-schema/schema/main.sql?raw";
-import {
-  prepareContentContract,
-  prepareWhiteboardContract,
-} from "@tau/db-schema/content-contracts";
+import { prepareWhiteboardContract } from "@tau/db-schema/content-contracts";
 import { WhiteboardModel } from "@tau/collaboration";
 import { ContentIdentityTable } from "../../tables/content-identity";
 import { WhiteboardJournal, journalKey } from "../journal";
@@ -435,11 +432,6 @@ describe("W4 主进程白板会话与耐久投影", () => {
               .digest("hex")
           ),
       ],
-      [
-        "来源基线变化",
-        (db: Database.Database) =>
-          db.prepare("UPDATE whiteboard_documents SET baseline_id='old'").run(),
-      ],
     ] as const)
       it(`${name}：按主库快照修复后打开，元素与标题不丢，原记录有备份`, async () => {
         const f = await fixture(),
@@ -462,6 +454,18 @@ describe("W4 主进程白板会话与耐久投影", () => {
         );
         expect(repairs()).toHaveLength(1);
       });
+  });
+  it("来源基线错位不改写，保持报错且检查点不动", async () => {
+    const f = await fixture();
+    f.db.prepare("UPDATE whiteboard_documents SET baseline_id='old'").run();
+    const before = f.db.prepare("SELECT revision_hash FROM whiteboard_documents").get();
+    await expect(f.sessions.open("A", f.created.contentIds[0], 1, "x")).rejects.toThrow("基线");
+    expect(
+      f.db.prepare("SELECT revision_hash,baseline_id FROM whiteboard_documents").get()
+    ).toEqual({
+      ...(before as object),
+      baseline_id: "old",
+    });
   });
   it("新格式页拒绝旧快照写入口，页映射不因删除/撤销而重分配", async () => {
     const f = await fixture(),
@@ -646,139 +650,4 @@ it("外部实体删除后即便数值 ID 与创建时间同时复用，旧引用
   const current = ContentIdentityTable.reference(db, "article", 81);
   expect(current.entityId).not.toBe(previous.entityId);
   expect(ContentIdentityTable.resolve(db, current)).toBe(81);
-});
-
-describe("旧 JSON 白板页打开时转换", () => {
-  const backups = join(tmpdir(), "tau-whiteboard-documents");
-  beforeEach(() => rmSync(backups, { recursive: true, force: true }));
-  const legacyPage = {
-    version: 2,
-    viewPort: { minX: 0, minY: 0, width: 800, height: 600, zoom: 1 },
-    children: [
-      {
-        id: "r1",
-        type: "geometry",
-        geometryType: "rectangle",
-        x: 0,
-        y: 0,
-        width: 100,
-        height: 60,
-        text: { content: [{ type: "paragraph", children: [{ type: "formatted", text: "方框" }] }] },
-      },
-      {
-        id: "t1",
-        type: "richtext",
-        x: 200,
-        y: 0,
-        width: 160,
-        height: 80,
-        content: [{ type: "paragraph", children: [{ type: "formatted", text: "便签正文" }] }],
-      },
-      {
-        id: "a1",
-        type: "arrow",
-        source: { bindId: "r1", connectId: "right" },
-        target: { bindId: "t1", connectId: "left" },
-        points: [
-          { x: 100, y: 30 },
-          { x: 200, y: 40 },
-        ],
-      },
-      { id: "p1", type: "plugin.unknown", x: 0, y: 200, width: 50, height: 50, secret: 7 },
-    ],
-  };
-  const sessionsFor = (db: Database.Database, journal: WhiteboardJournal) => {
-    const sessions = new WhiteboardDocumentSessions(
-      journal,
-      () => db,
-      () => {},
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      {
-        editorContracts: {},
-        // 测试只验证白板结构转换，正文补齐用最小实现
-        repairBody: async nodes => {
-          const paragraph = await prepareContentContract("tau.paragraph", {
-            type: "paragraph",
-            dataVersion: 1,
-            kind: "block",
-          });
-          const visit = (node: Record<string, unknown>): Record<string, unknown> =>
-            typeof node.text === "string"
-              ? node
-              : {
-                  ...node,
-                  collabId: crypto.randomUUID(),
-                  tauContract: paragraph.id,
-                  children: (node.children as Record<string, unknown>[]).map(visit),
-                };
-          return {
-            content: (nodes as Record<string, unknown>[]).map(visit) as never,
-            contracts: { [paragraph.id]: paragraph.contract },
-          };
-        },
-      }
-    );
-    cleanups.push(() => sessions.dispose());
-    return sessions;
-  };
-
-  it("多页旧白板整体转换：元素、连线、正文保留，未知元素原样保留，原页有备份", async () => {
-    const db = database(),
-      journal = new WhiteboardJournal(":memory:");
-    cleanups.push(() => journal.close());
-    const insert = (name: string, data: unknown) =>
-      Number(
-        db
-          .prepare(
-            "INSERT INTO white_board_contents(create_time,update_time,name,data,ref_count) VALUES (1,1,?,?,1)"
-          )
-          .run(name, JSON.stringify(data)).lastInsertRowid
-      );
-    const first = insert("第一页", legacyPage),
-      second = insert("第二页", { version: 2, children: [] });
-    db.prepare(
-      "INSERT INTO white_boards(create_time,update_time,tags,title,description,snapshot,white_board_content_ids) VALUES (1,1,'[]','旧白板','','',?)"
-    ).run(JSON.stringify([first, second]));
-    const sessions = sessionsFor(db, journal);
-    const opened = await sessions.open("A", second, 1, "v");
-    const snapshot = document(opened.state).read();
-    expect(snapshot.title).toBe("旧白板");
-    expect(snapshot.pages.map(page => page.title)).toEqual(["第一页", "第二页"]);
-    const nodes = snapshot.pages[0].children;
-    expect(nodes.map(node => node.type).sort()).toEqual(
-      ["arrow", "geometry", "host.whiteboard.recovery", "richtext"].sort()
-    );
-    expect(JSON.stringify(nodes)).toContain("便签正文");
-    expect(JSON.stringify(nodes)).toContain("方框");
-    const arrow = nodes.find(node => node.type === "arrow")!;
-    const ids = new Set(nodes.map(node => node.id));
-    expect(ids.has((arrow.data.source as { bindId: string }).bindId)).toBe(true);
-    expect(nodes.find(node => node.type === "host.whiteboard.recovery")!.data).toMatchObject({
-      original: { type: "plugin.unknown", secret: 7 },
-    });
-    // 两页都接入了同一文档，另一页也能直接打开
-    await expect(sessions.open("A", first, 2, "w")).resolves.toBeTruthy();
-    const files = readdirSync(join(backups, "repairs"));
-    expect(files).toHaveLength(1);
-    expect(readFileSync(join(backups, "repairs", files[0]), "utf8")).toContain("plugin.unknown");
-  });
-
-  it("没有拥有者的独立旧页也能转换打开", async () => {
-    const db = database(),
-      journal = new WhiteboardJournal(":memory:");
-    cleanups.push(() => journal.close());
-    const id = Number(
-      db
-        .prepare(
-          "INSERT INTO white_board_contents(create_time,update_time,name,data,ref_count) VALUES (1,1,'内嵌',?,1)"
-        )
-        .run(JSON.stringify(legacyPage)).lastInsertRowid
-    );
-    const opened = await sessionsFor(db, journal).open("A", id, 1, "v");
-    expect(document(opened.state).read().pages).toHaveLength(1);
-  });
 });

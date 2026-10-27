@@ -259,7 +259,7 @@ describe("打开时自愈", () => {
       ).toBe(original);
     });
 
-  it("文档记录格式版本无法识别：沿用稳定身份，按正文重建契约后打开", async () => {
+  it("文档记录格式版本较新（新版客户端写入）：拒绝打开，原数据不动、不备份", async () => {
     const { runtime, db, event } = await setup();
     const paragraph = Object.keys(ContentDocumentTable.read(db, 7)!.contracts)[0];
     db.prepare(
@@ -272,15 +272,15 @@ describe("打开时自愈", () => {
     db.prepare(
       "INSERT INTO content_documents(content_id,document_id,format_version,contracts,revision) VALUES (8,'doc-8',3,'{\"未来\":1}','r9')"
     ).run();
-    await expect(runtime.openContent(event, { contentId: 8 })).resolves.toBeTruthy();
-    const stored = ContentDocumentTable.read(db, 8)!;
-    expect(stored.documentId).toBe("doc-8");
-    expect(JSON.stringify(stored.content)).toContain("新格式");
-    expect(ContentDocumentTable.problem(stored.content, stored.contracts)).toBeNull();
-    const backup = readdirSync(join(host.dir, "content-repairs"))[0];
+    await expect(runtime.openContent(event, { contentId: 8 })).rejects.toThrow("格式不兼容");
     expect(
-      JSON.parse(readFileSync(join(host.dir, "content-repairs", backup), "utf8")).document
-    ).toMatchObject({ format_version: 3, contracts: '{"未来":1}' });
+      db
+        .prepare(
+          "SELECT format_version,contracts,revision FROM content_documents WHERE content_id=8"
+        )
+        .get()
+    ).toEqual({ format_version: 3, contracts: '{"未来":1}', revision: "r9" });
+    expect(existsSync(join(host.dir, "content-repairs"))).toBe(false);
   });
 
   it("合格正文打开不改写、不备份", async () => {

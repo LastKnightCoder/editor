@@ -14,7 +14,7 @@ import type {
 } from "@/types/whiteboard-document";
 import { WhiteboardJournal, journalKey, type JournalDocument } from "./journal";
 import { WhiteboardDocumentRepository, type WhiteboardRelationCounter } from "./repository";
-import { repairWhiteboardDocument, upgradeLegacyWhiteboardPage } from "./repair";
+import { repairWhiteboardDocument } from "./repair";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -61,9 +61,7 @@ export class WhiteboardDocumentSessions {
     private readonly projected: (databaseName: string, documentId: string) => void = () => {},
     private readonly blocked: (databaseName: string, documentId: string) => boolean = () => false,
     private readonly repairs = join(journalDirectory(journal), "repairs"),
-    private readonly discarded = join(journalDirectory(journal), "discarded"),
-    /** 旧 JSON 页转换所需的正文修复；不提供时旧页保持「尚未接入文档会话」 */
-    private readonly legacy?: Omit<Parameters<typeof upgradeLegacyWhiteboardPage>[4], "current">
+    private readonly discarded = join(journalDirectory(journal), "discarded")
   ) {}
   private repository(name: string): WhiteboardDocumentRepository {
     const db = this.database(name);
@@ -285,24 +283,17 @@ export class WhiteboardDocumentSessions {
       throw error;
     }
   }
-  /** 页读取（white-board-content:get-by-id）前调用：旧 JSON 页先转换，渲染端才能拿到文档页 */
+  /** 页读取（white-board-content:get-by-id）前调用，与打开会话同一份检查点修复 */
   async healPage(databaseName: string, contentId: number): Promise<void> {
     if (!Number.isSafeInteger(contentId) || contentId <= 0) return;
     await this.heal(this.repository(databaseName), contentId);
   }
-  /** 打开前修复主库检查点（摘要坏、字节坏、基线或拥有者错位）；修复后丢弃同文档的内存会话 */
+  /** 打开前修复主库检查点（摘要不符、字节读不出）；有内存会话时以会话为准，不修复 */
   private async heal(repo: WhiteboardDocumentRepository, contentId: number): Promise<void> {
     const row = repo.db
       .prepare("SELECT document_id FROM whiteboard_document_pages WHERE content_id=?")
       .get(contentId) as { document_id: string } | undefined;
-    if (!row) {
-      if (this.legacy)
-        await upgradeLegacyWhiteboardPage(repo.db, repo.databaseName, contentId, this.repairs, {
-          ...this.legacy,
-          current: () => this.repository(repo.databaseName).db === repo.db,
-        });
-      return;
-    }
+    if (!row) return;
     const live = [...this.sessions.values()].some(
       session => session.value.documentId === row.document_id && session.db === repo.db
     );

@@ -24,7 +24,6 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import databaseModule from "../database";
 import PathUtil from "../../utils/PathUtil";
-import { contentExecutor } from "../../services/content-execution";
 import { ContentIdentityTable } from "../tables/content-identity";
 import { ContentRetention } from "../collaboration/content-retention";
 import { WhiteboardJournal, stateHash } from "./journal";
@@ -377,17 +376,7 @@ class WhiteboardDocumentsModule {
         else WhiteboardContentTable.deleteWhiteboard(db, id);
       },
       projected,
-      (name, id) => this.blocked(name, id),
-      undefined,
-      undefined,
-      {
-        // 插件白板元素的旧版本没有声明来源，转换时一律按恢复元素保留
-        editorContracts: {},
-        repairBody: nodes =>
-          contentExecutor.execute({ operation: "repair-content", content: nodes, contracts: {} }),
-        mapResource: (documentId, reference) =>
-          collaborationModule.documentAssets().prepareLocalReference(documentId, reference),
-      }
+      (name, id) => this.blocked(name, id)
     );
     const services = collaborationModule.documentStorage();
     this.store = services.store;
