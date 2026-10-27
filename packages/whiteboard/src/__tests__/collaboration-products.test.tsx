@@ -427,6 +427,96 @@ it("长笔迹按稳定分段提交，崩溃副本保留前缀且撤销为一次�
   f.board.undo();
   expect(f.board.children[0].x).toBe(node.x);
 });
+it.each([false, true])("箭头在连续拖动预览中跟随双端绑定，提交=%s", async commit => {
+  const f = await setup();
+  const source = { ...nodes[1], ...rect, id: crypto.randomUUID() };
+  const target = { ...nodes[1], ...rect, id: crypto.randomUUID(), x: 300, y: 200 };
+  const arrow = {
+    ...nodes[2],
+    source: { marker: "none", bindId: source.id, connectId: "right" },
+    target: {
+      marker: "arrow",
+      bindId: target.id,
+      connectId: "custom",
+      customOffset: { u: 0, v: 0.25 },
+    },
+    points: [
+      { x: 0, y: 0 },
+      { x: 220, y: 100 },
+      { x: 0, y: 0 },
+    ],
+  };
+  f.insert(source);
+  f.insert(target);
+  f.insert(arrow);
+  const originalPoints = structuredClone(f.board.children[2].points);
+  const before = Y.encodeStateAsUpdate(f.doc);
+  const historyLength = f.binding.history.undoStack.length;
+  f.binding.beginGesture();
+  for (const offset of [30, 80]) {
+    f.board.apply(
+      [0, 1].map(index => ({
+        type: "set_node" as const,
+        path: [index],
+        properties: { x: f.board.children[index].x, y: f.board.children[index].y },
+        newProperties: {
+          x: [source, target][index].x + offset,
+          y: [source, target][index].y + offset,
+        },
+      })),
+      false
+    );
+    expect(f.board.children[2].points).toEqual([
+      { x: 110 + offset, y: 50 + offset },
+      { x: 220, y: 100 },
+      { x: 300 + offset, y: 215 + offset },
+    ]);
+    expect(Y.encodeStateAsUpdate(f.doc)).toEqual(before);
+    expect(f.binding.history.undoStack).toHaveLength(historyLength);
+  }
+  const previewPoints = structuredClone(f.board.children[2].points);
+  f.binding.endGesture(commit);
+  expect(f.board.children[2].points).toEqual(commit ? previewPoints : originalPoints);
+  expect(f.binding.history.undoStack).toHaveLength(historyLength + Number(commit));
+  if (commit) {
+    f.board.undo();
+    expect(f.board.children[0].x).toBe(source.x);
+    expect(f.board.children[1].x).toBe(target.x);
+    expect(f.board.children[2].points).toEqual(originalPoints);
+    f.board.redo();
+    expect(f.board.children[2].points).toEqual(previewPoints);
+  } else {
+    expect(Y.encodeStateAsUpdate(f.doc)).toEqual(before);
+  }
+});
+
+it("拖动容器内元素时箭头实时跟随，未绑定端点保持原位", async () => {
+  const f = await setup();
+  const shape = { ...nodes[1], ...rect, id: crypto.randomUUID() };
+  const arrow = {
+    ...nodes[2],
+    target: { marker: "arrow", bindId: shape.id, connectId: "left" },
+  };
+  f.insert({ ...nodes[5], children: [shape] });
+  f.insert(arrow);
+  const before = Y.encodeStateAsUpdate(f.doc);
+  const originalPoints = structuredClone(f.board.children[1].points);
+  f.binding.beginGesture();
+  f.board.apply(
+    {
+      type: "set_node",
+      path: [0, 0],
+      properties: { x: shape.x, y: shape.y },
+      newProperties: { x: 90, y: 120 },
+    },
+    false
+  );
+  expect(f.board.children[1].points).toEqual([originalPoints[0], { x: 90, y: 150 }]);
+  expect(Y.encodeStateAsUpdate(f.doc)).toEqual(before);
+  f.binding.endGesture(false);
+  expect(f.board.children[1].points).toEqual(originalPoints);
+});
+
 it("复制内部连线与演示重写身份，缺失目标引用仍保留以供撤销恢复", async () => {
   const f = await setup();
   const shape = nodes[1],

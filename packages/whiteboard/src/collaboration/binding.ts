@@ -384,25 +384,7 @@ class CanvasBinding implements WhiteboardDocumentBinding {
         })
         .catch(() => undefined);
     }
-    const all = flatten(children);
-    const connect = (node: BoardElement): BoardElement => {
-      if (node.type === "arrow" && this.options.types.arrow?.contractId === node.contractId) {
-        const points = [...(node.points ?? [])];
-        for (const [key, at] of [
-          ["source", 0],
-          ["target", points.length - 1],
-        ] as const) {
-          const end = node[key],
-            target = end?.bindId && all.find(item => item.id === end.bindId);
-          const point =
-            target && this.board!.getArrowBindPoint(target, end.connectId, end.customOffset);
-          if (point && at >= 0) points[at] = point;
-        }
-        return equal(points, node.points) ? node : { ...node, points };
-      }
-      return node.children ? { ...node, children: node.children.map(connect) } : node;
-    };
-    children = children.map(connect);
+    children = this.resolveArrowBindings(children);
     const retained = new Set(flatten(children).map(node => node.id));
     for (const id of this.projections.keys()) if (!retained.has(id)) this.projections.delete(id);
     this.board.publishDocument(
@@ -412,6 +394,27 @@ class CanvasBinding implements WhiteboardDocumentBinding {
         snapshot.presentations ?? []
       ) as import("../types/presentation").PresentationSequence[]
     );
+  }
+  private resolveArrowBindings(children: BoardElement[]): BoardElement[] {
+    const elements = new Map(flatten(children).map(node => [node.id, node]));
+    const connect = (node: BoardElement): BoardElement => {
+      if (node.type === "arrow" && this.options.types.arrow?.contractId === node.contractId) {
+        const points = [...(node.points ?? [])];
+        for (const [key, at] of [
+          ["source", 0],
+          ["target", points.length - 1],
+        ] as const) {
+          const end = node[key],
+            target = end?.bindId && elements.get(end.bindId);
+          const point =
+            target && this.board!.getArrowBindPoint(target, end.connectId, end.customOffset);
+          if (point && at >= 0) points[at] = point;
+        }
+        return equal(points, node.points) ? node : { ...node, points };
+      }
+      return node.children ? { ...node, children: node.children.map(connect) } : node;
+    };
+    return children.map(connect);
   }
   createContentCopy(id: string): Promise<number> {
     this.assertWritable();
@@ -1115,7 +1118,7 @@ class CanvasBinding implements WhiteboardDocumentBinding {
     if (this.gesture) {
       this.pending = this.compact([...this.pending, ...commands]);
       this.pendingFeedback.push(...feedback);
-      this.board!.publishDocument(children);
+      this.board!.publishDocument(this.resolveArrowBindings(children));
     } else {
       if (commands.length) this.submit(commands, historyGroup);
       if (feedback.length) {
