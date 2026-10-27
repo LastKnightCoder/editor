@@ -1,0 +1,982 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>提供方配置放哪 · 本地 vs 远端</title>
+    <style>
+      :root {
+        --bg-page: #f3eee2;
+        --bg-surface: #fffdf9;
+        --bg-hover: rgba(67, 57, 44, 0.05);
+        --bg-selected: rgba(217, 119, 87, 0.12);
+        --ink-1: #43392c;
+        --ink-2: #6a5c49;
+        --ink-3: #a89a85;
+        --ink-inverse: #fff8ef;
+        --line-1: #e9e1d2;
+        --line-2: rgba(233, 225, 210, 0.75);
+        --accent: hsl(22 58% 42%);
+        --accent-soft: hsla(22, 58%, 42%, 0.12);
+        --accent-text: #a05236;
+        --ok: #61795f;
+        --ok-soft: #e5ede2;
+        --warn: #a38c4d;
+        --warn-soft: #f6efd6;
+        --info: #5c7d99;
+        --shadow-card:
+          0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+        --stage: #e8e1d1;
+        font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+        color: var(--ink-1);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--stage);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      header.top {
+        padding: 22px 28px 8px;
+        max-width: 1480px;
+        margin: 0 auto;
+      }
+      header.top h1 {
+        margin: 0 0 4px;
+        font-size: 20px;
+      }
+      header.top p {
+        margin: 0;
+        color: var(--ink-2);
+      }
+      .scenes {
+        display: flex;
+        gap: 6px;
+        margin: 16px 0 0;
+        flex-wrap: wrap;
+      }
+      .scenes button {
+        border: 1px solid var(--line-1);
+        background: var(--bg-surface);
+        color: var(--ink-2);
+        padding: 6px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        font: inherit;
+      }
+      .scenes button[aria-pressed="true"] {
+        background: var(--ink-1);
+        color: var(--ink-inverse);
+        border-color: var(--ink-1);
+      }
+      main {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        padding: 16px 28px 28px;
+        max-width: 1480px;
+        margin: 0 auto;
+      }
+      @media (max-width: 1100px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+      }
+      .col h2 {
+        margin: 0 0 4px;
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .col .sub {
+        color: var(--ink-2);
+        margin: 0 0 10px;
+        min-height: 40px;
+      }
+      .pill {
+        font-size: 11px;
+        padding: 1px 8px;
+        border-radius: 99px;
+        font-weight: 500;
+      }
+      .pill.local {
+        background: var(--accent-soft);
+        color: var(--accent-text);
+      }
+      .pill.remote {
+        background: #dfe8f0;
+        color: var(--info);
+      }
+
+      /* 应用窗口 */
+      .win {
+        background: var(--bg-page);
+        border-radius: 12px;
+        box-shadow: var(--shadow-card);
+        overflow: hidden;
+        border: 1px solid var(--line-1);
+      }
+      .bar {
+        height: 30px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--line-1);
+      }
+      .bar i {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #e0d6c3;
+      }
+      .bar span {
+        margin-left: 8px;
+        color: var(--ink-3);
+        font-size: 12px;
+      }
+      .body {
+        display: flex;
+        min-height: 470px;
+      }
+      .side {
+        width: 150px;
+        padding: 12px 8px;
+        border-right: 1px solid var(--line-1);
+      }
+      .side div {
+        padding: 5px 10px;
+        border-radius: 6px;
+        color: var(--ink-2);
+      }
+      .side div.on {
+        background: var(--bg-selected);
+        color: var(--accent-text);
+        font-weight: 500;
+      }
+      .side .h {
+        color: var(--ink-3);
+        font-size: 11px;
+        padding: 10px 10px 4px;
+        letter-spacing: 0.1em;
+      }
+      .content {
+        flex: 1;
+        padding: 16px 18px;
+        min-width: 0;
+      }
+      .crumb {
+        color: var(--ink-3);
+        font-size: 12px;
+        margin-bottom: 6px;
+      }
+      .content h3 {
+        margin: 0 0 12px;
+        font-size: 16px;
+      }
+      .tabs {
+        display: flex;
+        gap: 16px;
+        border-bottom: 1px solid var(--line-1);
+        margin-bottom: 12px;
+      }
+      .tabs span {
+        padding: 6px 0;
+        color: var(--ink-2);
+        border-bottom: 2px solid transparent;
+      }
+      .tabs span.on {
+        color: var(--ink-1);
+        border-color: var(--accent);
+        font-weight: 500;
+      }
+      .tabs span.new::after {
+        content: "新";
+        font-size: 10px;
+        margin-left: 4px;
+        color: var(--info);
+      }
+      .panel {
+        background: var(--bg-surface);
+        border: 1px solid var(--line-1);
+        border-radius: 10px;
+        margin-bottom: 12px;
+      }
+      .panel .ph {
+        padding: 10px 14px 4px;
+        font-weight: 600;
+      }
+      .panel .pd {
+        padding: 0 14px 8px;
+        color: var(--ink-3);
+        font-size: 12px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 14px;
+        border-top: 1px solid var(--line-2);
+      }
+      .row .t {
+        flex: 1;
+        min-width: 0;
+      }
+      .row .t b {
+        font-weight: 500;
+        display: block;
+      }
+      .row .t small {
+        color: var(--ink-3);
+        font-size: 12px;
+      }
+      .ctl {
+        min-width: 150px;
+        height: 28px;
+        border: 1px solid var(--line-1);
+        border-radius: 7px;
+        background: var(--bg-page);
+        display: flex;
+        align-items: center;
+        padding: 0 9px;
+        color: var(--ink-2);
+        font-size: 12px;
+      }
+      .ctl.secret {
+        letter-spacing: 2px;
+      }
+      .btn {
+        height: 28px;
+        padding: 0 12px;
+        border-radius: 7px;
+        border: 1px solid var(--line-1);
+        background: var(--bg-surface);
+        color: var(--ink-1);
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: var(--ink-inverse);
+        border-color: var(--accent);
+      }
+      .btn.link {
+        border-color: transparent;
+        color: var(--accent-text);
+        padding: 0 4px;
+      }
+      .status {
+        font-size: 11px;
+        padding: 1px 7px;
+        border-radius: 99px;
+      }
+      .status.ok {
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
+      .status.warn {
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+      .radio {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 1.5px solid var(--ink-3);
+        flex: none;
+      }
+      .radio.on {
+        border: 4px solid var(--accent);
+      }
+      .switch {
+        width: 30px;
+        height: 18px;
+        border-radius: 99px;
+        background: var(--accent);
+        position: relative;
+        flex: none;
+      }
+      .switch::after {
+        content: "";
+        position: absolute;
+        right: 2px;
+        top: 2px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: #fff;
+      }
+      .foot {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        padding: 10px 14px;
+        border-top: 1px solid var(--line-2);
+      }
+      .hl {
+        outline: 2px dashed var(--info);
+        outline-offset: 3px;
+        border-radius: 10px;
+      }
+      .hl.l {
+        outline-color: var(--accent);
+      }
+      .acct {
+        display: flex;
+        gap: 6px;
+        padding: 8px 14px 10px;
+        flex-wrap: wrap;
+      }
+      .acct span {
+        padding: 3px 10px;
+        border-radius: 99px;
+        border: 1px solid var(--line-1);
+        color: var(--ink-2);
+        font-size: 12px;
+      }
+      .acct span.on {
+        background: var(--ink-1);
+        color: var(--ink-inverse);
+        border-color: var(--ink-1);
+      }
+      .detail-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 9px;
+        background: var(--accent-soft);
+        color: var(--accent-text);
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+      }
+      .hint {
+        background: var(--warn-soft);
+        color: #7a6630;
+        border-radius: 8px;
+        padding: 7px 10px;
+        font-size: 12px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+      .jump {
+        padding: 26px 14px;
+        text-align: center;
+        color: var(--ink-2);
+      }
+      .flow {
+        margin-top: 10px;
+        background: var(--bg-surface);
+        border: 1px solid var(--line-1);
+        border-radius: 10px;
+        padding: 10px 14px;
+      }
+      .flow b {
+        display: block;
+        margin-bottom: 4px;
+      }
+      .flow ol {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--ink-2);
+      }
+      .drawer-wrap {
+        position: relative;
+      }
+      .drawer {
+        position: absolute;
+        right: -18px;
+        top: -16px;
+        bottom: -16px;
+        width: 300px;
+        background: var(--bg-surface);
+        border-left: 1px solid var(--line-1);
+        box-shadow: -12px 0 30px -18px rgba(80, 60, 30, 0.35);
+        padding: 14px;
+      }
+      .drawer h4 {
+        margin: 0 0 10px;
+        font-size: 14px;
+      }
+      .irow {
+        display: grid;
+        grid-template-columns: 64px 1fr;
+        gap: 8px;
+        align-items: center;
+        padding: 7px 0;
+        border-bottom: 1px solid var(--line-2);
+      }
+      .irow label {
+        color: var(--ink-2);
+        font-size: 12px;
+      }
+      .saved {
+        color: var(--ok);
+        font-size: 11px;
+        margin-top: 8px;
+      }
+      section.diff {
+        max-width: 1480px;
+        margin: 0 auto;
+        padding: 0 28px 36px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--bg-surface);
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: var(--shadow-card);
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--line-2);
+        vertical-align: top;
+      }
+      th {
+        background: var(--bg-page);
+        font-weight: 600;
+      }
+      td:first-child {
+        color: var(--ink-2);
+        width: 160px;
+      }
+      .scene {
+        display: none;
+      }
+      .scene.on {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="top">
+      <h1>提供方配置放在哪：本地 vs 远端</h1>
+      <p>
+        以「MiniMax 语音合成」「豆包语音识别」「S3 发布」为例。虚线框是这条路线里填写连接信息（API
+        Key 等）的位置。
+      </p>
+      <div class="scenes" role="group" aria-label="场景">
+        <button data-scene="tts" aria-pressed="true">语音合成 TTS</button>
+        <button data-scene="asr" aria-pressed="false">语音识别 ASR</button>
+        <button data-scene="detail" aria-pressed="false">插件详情 › 设置</button>
+        <button data-scene="publish" aria-pressed="false">博客发布抽屉</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- ================= 本地 ================= -->
+      <div class="col">
+        <h2>本地 master <span class="pill local">d1268bc08 · 77dad6c89</span></h2>
+        <p class="sub">
+          设置页只「选用」服务；账号、密钥、模型统一在<b>插件详情 › 设置</b
+          >里管理，设置页点「配置」跳过去。
+        </p>
+
+        <div class="scene on" data-scene="tts">
+          <div class="win">
+            <div class="bar"><i></i><i></i><i></i><span>设置</span></div>
+            <div class="body">
+              <div class="side">
+                <div>通用</div>
+                <div>大语言模型</div>
+                <div class="on">语音</div>
+                <div>图像生成</div>
+                <div>同步</div>
+                <div>资源存储</div>
+              </div>
+              <div class="content">
+                <h3>语音</h3>
+                <div class="tabs"><span>语音转录</span><span class="on">语音合成</span></div>
+                <div class="panel">
+                  <div class="ph">语音账号</div>
+                  <div class="pd">连接信息、模型目录与音色复刻在插件页管理。</div>
+                  <div class="row">
+                    <div class="t"><b>MiniMax 语音 · 主账号</b><small>speech-02-hd</small></div>
+                    <span class="status ok">已配置</span><span class="btn">配置 ↗</span>
+                  </div>
+                  <div class="row">
+                    <div class="t"><b>Qwen 语音</b><small>未配置</small></div>
+                    <span class="status warn">待配置</span><span class="btn">配置 ↗</span>
+                  </div>
+                </div>
+                <div class="panel">
+                  <div class="ph">当前服务</div>
+                  <div class="pd">编辑器朗读与播客生成使用的语音服务</div>
+                  <div class="row">
+                    <div class="t"><b>提供商</b></div>
+                    <span class="ctl">MiniMax · 主账号 ▾</span>
+                  </div>
+                  <div class="row">
+                    <div class="t"><b>模型</b></div>
+                    <span class="ctl">speech-02-hd ▾</span>
+                  </div>
+                  <div class="row">
+                    <div class="t"><b>音色</b></div>
+                    <span class="ctl">温柔女声 ▾</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flow">
+            <b>填 API Key 的路径</b>
+            <ol>
+              <li>设置 › 语音 › 语音合成，点「配置 ↗」</li>
+              <li>跳到 插件详情 › 设置（顶部提示「返回语音设置」）</li>
+              <li>在账号表单里填写并保存，再返回设置页选用</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="scene" data-scene="asr">
+          <div class="win">
+            <div class="bar"><i></i><i></i><i></i><span>设置</span></div>
+            <div class="body">
+              <div class="side">
+                <div>通用</div>
+                <div>大语言模型</div>
+                <div class="on">语音</div>
+                <div>图像生成</div>
+              </div>
+              <div class="content">
+                <h3>语音</h3>
+                <div class="tabs"><span class="on">语音转录</span><span>语音合成</span></div>
+                <div class="panel">
+                  <div class="ph">语音输入</div>
+                  <div class="pd">选择实时语音输入服务；账号和识别模型在插件页配置。</div>
+                  <div class="row">
+                    <span class="radio"></span>
+                    <div class="t">
+                      <b>系统语音识别</b><small>可用性取决于当前系统支持。</small>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <span class="radio on"></span>
+                    <div class="t"><b>豆包语音识别</b><small>bigmodel</small></div>
+                    <span class="btn">配置 ↗</span>
+                  </div>
+                </div>
+                <div class="panel">
+                  <div class="ph">语音转录</div>
+                  <div class="pd">本地 Whisper 模型、下载源、时间戳粒度……</div>
+                  <div class="row">
+                    <div class="t"><b>模型</b></div>
+                    <span class="ctl">small ▾</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flow">
+            <b>特点</b>
+            <ol>
+              <li>语音输入只是「语音转录」页里的一个小节，没有单独 Tab</li>
+              <li>没有「识别后 AI 整理」设置</li>
+              <li>豆包的密钥同样跳到插件详情去填</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="scene" data-scene="detail">
+          <div class="win">
+            <div class="bar"><i></i><i></i><i></i><span>插件 › MiniMax 语音</span></div>
+            <div class="body">
+              <div class="content">
+                <div class="hint">
+                  <span>正在为「语音设置」配置服务</span
+                  ><span class="btn link">← 返回语音设置</span>
+                </div>
+                <div class="detail-head">
+                  <div class="icon">M</div>
+                  <div>
+                    <b>MiniMax 语音</b>
+                    <div style="color: var(--ink-3); font-size: 12px">v0.1.13 · 语音合成</div>
+                  </div>
+                </div>
+                <div class="tabs">
+                  <span>介绍</span><span class="on">设置</span><span>权限</span
+                  ><span>更新日志</span>
+                </div>
+                <div class="panel hl l">
+                  <div class="ph">账号</div>
+                  <div class="pd">可为同一插件保存多个账号；添加和保存不会切换当前服务。</div>
+                  <div class="acct">
+                    <span class="on">主账号</span><span>备用</span><span>＋ 添加账号</span>
+                  </div>
+                  <div class="row">
+                    <div class="t"><b>账号名称</b></div>
+                    <span class="ctl">主账号</span>
+                  </div>
+                  <div class="row">
+                    <div class="t"><b>API Key</b></div>
+                    <span class="ctl secret">••••••••••</span>
+                  </div>
+                  <div class="row">
+                    <div class="t"><b>Group ID</b></div>
+                    <span class="ctl">1789…</span>
+                  </div>
+                  <div class="row">
+                    <div class="t"><b>模型</b><small>选择或输入模型 ID</small></div>
+                    <span class="ctl">speech-02-hd ＋</span>
+                  </div>
+                  <div class="foot">
+                    <span class="btn">删除账号</span><span class="btn primary">保存</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flow">
+            <b>特点</b>
+            <ol>
+              <li>所有提供方（同步 / 上传 / TTS / 图片 / 视频 / ASR）都在这里填，入口统一</li>
+              <li>支持一个插件多个账号</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="scene" data-scene="publish">
+          <div class="win">
+            <div class="bar"><i></i><i></i><i></i><span>发布</span></div>
+            <div class="body">
+              <div class="content drawer-wrap">
+                <h3>我的博客</h3>
+                <div class="panel">
+                  <div class="row">
+                    <div class="t"><b>上次发布</b><small>3 天前</small></div>
+                    <span class="btn primary">发布</span>
+                  </div>
+                </div>
+                <div class="drawer">
+                  <h4>站点设置</h4>
+                  <div class="irow"><label>标题</label><span class="ctl">我的博客</span></div>
+                  <div class="irow"><label>发布到</label><span class="ctl">S3 发布 ▾</span></div>
+                  <div class="irow">
+                    <label>连接</label><span><span class="btn">去插件页配置 ↗</span></span>
+                  </div>
+                  <p style="color: var(--ink-3); font-size: 12px; margin-top: 10px">
+                    连接配置由插件页承载
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flow">
+            <b>注意</b>
+            <ol>
+              <li>抽屉里只给跳转，不渲染表单</li>
+              <li>
+                publish-github 0.1.9 已上线，它的 git 缓存目录（service-choice）字段依赖远端新增的
+                SDK 能力，本地路线也要接入
+              </li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= 远端 ================= -->
+      <div class="col">
+        <h2>远端 origin/master <span class="pill remote">835201e9e · SDK 0.48.0</span></h2>
+        <p class="sub">
+          表单<b>就地渲染</b>在各自的设置页；插件详情里的这类分区只放一个「去对应设置」按钮。新增独立的「语音输入」Tab。
+        </p>
+
+        <div class="scene on" data-scene="tts">
+          <div class="win">
+            <div class="bar"><i></i><i></i><i></i><span>设置</span></div>
+            <div class="body">
+              <div class="side">
+                <div>通用</div>
+                <div>大语言模型</div>
+                <div class="on">语音</div>
+                <div>图像生成</div>
+                <div>同步</div>
+                <div>资源存储</div>
+              </div>
+              <div class="content">
+                <h3>语音</h3>
+                <div class="tabs">
+                  <span>语音转录</span><span class="on">语音合成</span
+                  ><span class="new">语音输入</span>
+                </div>
+                <div class="panel">
+                  <div class="ph">语音合成服务商</div>
+                  <div class="acct">
+                    <span class="on">MiniMax 语音</span><span>Qwen 语音</span
+                    ><span>＋ 添加服务商</span>
+                  </div>
+                  <div class="hl" style="margin: 4px 10px 10px">
+                    <div class="row" style="border-top: 0">
+                      <div class="t"><b>API Key</b><small>在 MiniMax 控制台 ↗ 获取</small></div>
+                      <span class="ctl secret">••••••••••</span>
+                    </div>
+                    <div class="row">
+                      <div class="t"><b>Group ID</b></div>
+                      <span class="ctl">1789…</span>
+                    </div>
+                    <div class="foot"><span class="btn primary">保存</span></div>
+                  </div>
+                </div>
+                <div class="panel">
+                  <div class="ph">当前服务</div>
+                  <div class="row">
+                    <div class="t"><b>模型</b></div>
+                    <span class="ctl">speech-02-hd ▾</span>
+                  </div>
+                  <div class="row">
+                    <div class="t"><b>音色</b></div>
+                    <span class="ctl">温柔女声 ▾</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flow">
+            <b>填 API Key 的路径</b>
+            <ol>
+              <li>设置 › 语音 › 语音合成，选中服务商</li>
+              <li>当页填写并保存，不离开设置页</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="scene" data-scene="asr">
+          <div class="win">
+            <div class="bar"><i></i><i></i><i></i><span>设置</span></div>
+            <div class="body">
+              <div class="side">
+                <div>通用</div>
+                <div>大语言模型</div>
+                <div class="on">语音</div>
+                <div>图像生成</div>
+              </div>
+              <div class="content">
+                <h3>语音</h3>
+                <div class="tabs">
+                  <span>语音转录</span><span>语音合成</span><span class="on new">语音输入</span>
+                </div>
+                <div class="panel">
+                  <div class="ph">识别服务</div>
+                  <div class="pd">搜索、聊天与编辑器的语音输入使用这里的选择</div>
+                  <div class="row">
+                    <span class="radio"></span>
+                    <div class="t">
+                      <b>系统识别</b><small>使用系统自带的实时识别，录音不离开本机</small>
+                    </div>
+                    <span class="status ok">可用</span>
+                  </div>
+                  <div class="row">
+                    <span class="radio on"></span>
+                    <div class="t">
+                      <b>豆包语音识别</b><small>云端识别 · 录音会发送到该服务</small>
+                    </div>
+                    <span class="status ok">已配置</span>
+                  </div>
+                  <div class="hl" style="margin: 4px 10px 10px">
+                    <div class="row" style="border-top: 0">
+                      <div class="t"><b>App ID</b><small>火山引擎控制台 ↗</small></div>
+                      <span class="ctl">8392…</span>
+                    </div>
+                    <div class="row">
+                      <div class="t"><b>Access Token</b></div>
+                      <span class="ctl secret">••••••••</span>
+                    </div>
+                    <div class="foot"><span class="btn primary">保存</span></div>
+                  </div>
+                </div>
+                <div class="panel">
+                  <div class="ph">识别后</div>
+                  <div class="row">
+                    <div class="t">
+                      <b>AI 整理文本</b><small>补标点、去掉口语重复，不改变原意</small>
+                    </div>
+                    <span class="switch"></span>
+                  </div>
+                  <div class="row">
+                    <div class="t"><b>整理方式</b></div>
+                    <span class="ctl">轻度整理 ▾</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flow">
+            <b>特点</b>
+            <ol>
+              <li>独立「语音输入」Tab：选识别服务 + 当页填密钥 + 识别后 AI 整理</li>
+              <li>移动端对应 我的 › 语音 › 语音输入（单独模块）</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="scene" data-scene="detail">
+          <div class="win">
+            <div class="bar"><i></i><i></i><i></i><span>插件 › MiniMax 语音</span></div>
+            <div class="body">
+              <div class="content">
+                <div class="detail-head">
+                  <div class="icon">M</div>
+                  <div>
+                    <b>MiniMax 语音</b>
+                    <div style="color: var(--ink-3); font-size: 12px">v0.1.13 · 语音合成</div>
+                  </div>
+                </div>
+                <div class="tabs">
+                  <span>介绍</span><span class="on">设置</span><span>权限</span
+                  ><span>更新日志</span>
+                </div>
+                <div class="panel">
+                  <div class="ph">语音合成</div>
+                  <div class="jump">
+                    请在对应的应用设置中配置此服务。<br /><br /><span class="btn"
+                      >在语音设置中配置 ↗</span
+                    >
+                  </div>
+                </div>
+                <div class="panel hl">
+                  <div class="ph">（同步 / 上传类插件，如 S3 同步）</div>
+                  <div class="row">
+                    <div class="t"><b>Endpoint</b></div>
+                    <span class="ctl">https://s3…</span>
+                  </div>
+                  <div class="row">
+                    <div class="t"><b>Secret Key</b></div>
+                    <span class="ctl secret">••••••</span>
+                  </div>
+                  <div class="foot">
+                    <span class="btn">测试连接</span><span class="btn primary">保存</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flow">
+            <b>特点</b>
+            <ol>
+              <li>插件详情只承载同步 / 上传两类的表单</li>
+              <li>TTS / ASR / 图片 / 视频 / 发布 显示跳转按钮，去各自设置页填</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="scene" data-scene="publish">
+          <div class="win">
+            <div class="bar"><i></i><i></i><i></i><span>发布</span></div>
+            <div class="body">
+              <div class="content drawer-wrap">
+                <h3>我的博客</h3>
+                <div class="panel">
+                  <div class="row">
+                    <div class="t"><b>上次发布</b><small>3 天前</small></div>
+                    <span class="btn primary">发布</span>
+                  </div>
+                </div>
+                <div class="drawer">
+                  <h4>站点设置</h4>
+                  <div class="irow"><label>标题</label><span class="ctl">我的博客</span></div>
+                  <div class="irow"><label>发布到</label><span class="ctl">S3 发布 ▾</span></div>
+                  <div class="hl" style="margin-top: 6px">
+                    <div class="irow"><label>Bucket</label><span class="ctl">my-blog</span></div>
+                    <div class="irow"><label>Region</label><span class="ctl">ap-east-1</span></div>
+                    <div class="irow">
+                      <label>Secret</label><span class="ctl secret">••••••</span>
+                    </div>
+                  </div>
+                  <div class="saved">✓ 修改自动保存</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="flow">
+            <b>特点</b>
+            <ol>
+              <li>插件表单以 inline 布局直接嵌进抽屉，改动自动保存</li>
+              <li>publish-github 0.1.9 的「缓存目录」等新字段在这里渲染</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <section class="diff">
+      <table>
+        <thead>
+          <tr>
+            <th>维度</th>
+            <th>本地：收进插件详情</th>
+            <th>远端：就地渲染</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>填密钥的位置</td>
+            <td>统一在 插件详情 › 设置</td>
+            <td>同步 / 上传在插件详情；其余在各自设置页 / 发布抽屉</td>
+          </tr>
+          <tr>
+            <td>设置页职责</td>
+            <td>只选用服务、看状态</td>
+            <td>选用 + 填写连接信息</td>
+          </tr>
+          <tr>
+            <td>多账号</td>
+            <td>插件详情里的账号切换（所有目标同一套）</td>
+            <td>TTS 在设置页「添加服务商」；其他目标单份配置</td>
+          </tr>
+          <tr>
+            <td>语音输入</td>
+            <td>语音转录页里的一个小节，无 AI 整理</td>
+            <td>独立 Tab，含 AI 整理；移动端独立模块</td>
+          </tr>
+          <tr>
+            <td>插件 openSettings()</td>
+            <td>一律打开插件详情</td>
+            <td>按目标跳到对应设置页</td>
+          </tr>
+          <tr>
+            <td>用户路径</td>
+            <td>多一跳，但入口唯一</td>
+            <td>不离开当前页，但入口分散在 5 处</td>
+          </tr>
+          <tr>
+            <td>已上线插件依赖</td>
+            <td>要补：发布抽屉里渲染 publish-github 0.1.9 表单</td>
+            <td>已支持</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <script>
+      const buttons = document.querySelectorAll(".scenes button");
+      buttons.forEach(button =>
+        button.addEventListener("click", () => {
+          buttons.forEach(item => item.setAttribute("aria-pressed", String(item === button)));
+          document
+            .querySelectorAll(".scene")
+            .forEach(scene =>
+              scene.classList.toggle("on", scene.dataset.scene === button.dataset.scene)
+            );
+        })
+      );
+    </script>
+  </body>
+</html>
