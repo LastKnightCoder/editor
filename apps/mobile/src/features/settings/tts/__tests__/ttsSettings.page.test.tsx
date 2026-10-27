@@ -117,7 +117,7 @@ describe("语音设置入口与账号添加", () => {
     installNative(state);
     mounted = mountTtsHarness(state, runtime);
     await openPage("settingsModule", { module: "voice" });
-    await waitFor(() => activeTitle() === "语音");
+    await waitFor(() => activeTitle() === "语音合成");
     expect(activePageText()).toContain("还没有语音服务");
     expect(activePageText()).toContain("Fixture Voice");
 
@@ -139,7 +139,7 @@ describe("语音设置入口与账号添加", () => {
     installNative(state);
     mounted = mountTtsHarness(state, runtime);
     await openPage("settingsModule", { module: "voice" });
-    await waitFor(() => activeTitle() === "语音");
+    await waitFor(() => activeTitle() === "语音合成");
     expect(activePageText()).not.toContain("MiniMax");
     expect(findButton("配置语音插件", activePage())).toBeNull();
     await click(findButton("去插件中心", activePage()));
@@ -151,7 +151,7 @@ describe("语音设置入口与账号添加", () => {
     installNative(state);
     mounted = mountTtsHarness(state, runtime);
     await openPage("settingsModule", { module: "voice" });
-    await waitFor(() => activeTitle() === "语音");
+    await waitFor(() => activeTitle() === "语音合成");
     expect(native.select).not.toHaveBeenCalled();
     await click(findButton("未设置", activePage()));
     const options = [...document.querySelectorAll("button")].filter(node =>
@@ -176,7 +176,7 @@ describe("语音设置入口与账号添加", () => {
     installNative(state);
     mounted = mountTtsHarness(state, runtime);
     await openPage("settingsModule", { module: "voice" });
-    await waitFor(() => activeTitle() === "语音");
+    await waitFor(() => activeTitle() === "语音合成");
     await click(findButton("未设置", activePage()));
     await click(findButton("测试账号（account-b）"));
     await waitFor(() => state.current.ttsUsageSettings?.default?.providerId === "account-b");

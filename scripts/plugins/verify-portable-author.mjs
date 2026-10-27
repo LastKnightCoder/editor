@@ -2,6 +2,7 @@ import { cp, mkdtemp, readFile, writeFile, rm, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveCommand } from "./spawn-command.mjs";
 import { spawn } from "node:child_process";
 import assert from "node:assert/strict";
 import { desktopAuthorManifest } from "./author-compat.mjs";
@@ -27,7 +28,12 @@ function run(command, args, cwd) {
     const env = { ...process.env };
     delete env.NODE_PATH;
     delete env.NODE_OPTIONS;
-    const child = spawn(command, args, { cwd, env, stdio: ["ignore", "pipe", "pipe"] });
+    const [executable, executableArgs] = resolveCommand(command, args);
+    const child = spawn(executable, executableArgs, {
+      cwd,
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
     let result = "";
     child.stdout.on("data", chunk => {
       result += chunk;

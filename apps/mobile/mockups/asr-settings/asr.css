@@ -1,0 +1,448 @@
+/* ASR 设置 mockup：手机帧与通用件复用 editor-mobile / sync-mobile / tts-mobile，这里只放本稿特有结构。 */
+.asr-hero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 16px 4px;
+  padding: 14px;
+  border-radius: 18px;
+  background: var(--bg-surface);
+}
+.asr-hero .mid {
+  flex: 1;
+  min-width: 0;
+}
+.asr-hero b {
+  display: block;
+  font-size: 15.5px;
+}
+.asr-hero small {
+  display: block;
+  margin-top: 1px;
+  color: var(--ink-3);
+  font-size: 11.5px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 10.5px;
+  font-weight: 650;
+  background: var(--bg-page);
+  color: var(--ink-2);
+}
+.chip.on {
+  background: var(--brand-soft);
+  color: var(--brand-text);
+}
+.chip.ok {
+  background: var(--sage-soft);
+  color: var(--sage);
+}
+.chip.warn {
+  background: var(--butter-soft);
+  color: var(--butter);
+}
+.chip.err {
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg-surface));
+  color: var(--danger);
+}
+
+/* 触控表单：标签在上、控件在下（SettingsField touch 形态） */
+.tf {
+  position: relative;
+  padding: 11px 14px 12px;
+}
+.tf + .tf::before,
+.opt + .opt::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 14px;
+  right: 0;
+  border-top: 1px solid var(--line-2);
+}
+.tf label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  margin-bottom: 7px;
+}
+.tf label em {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--ink-3);
+}
+.tf .box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: var(--bg-page);
+  border: 1.5px solid transparent;
+  font-size: 15px;
+}
+.tf .box .ph {
+  color: var(--ink-3);
+}
+.tf .box .end {
+  margin-left: auto;
+  color: var(--ink-3);
+  display: flex;
+  gap: 12px;
+}
+.tf.focus .box {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-soft);
+}
+.tf.focus .box .caret {
+  width: 2px;
+  height: 18px;
+  background: var(--brand);
+  margin-left: -6px;
+}
+.tf.err .box {
+  border-color: var(--danger);
+}
+.tf .hint {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+.tf.err .hint {
+  color: var(--danger);
+}
+.mono {
+  font-family: var(--mono);
+  letter-spacing: 1px;
+}
+
+/* 选项列表（ChoiceList touch 形态：整行可点 + 勾选） */
+.opt {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 14px;
+}
+.opt .mid {
+  flex: 1;
+  min-width: 0;
+}
+.opt .mid b {
+  display: block;
+  font-weight: 500;
+  font-size: 14.5px;
+}
+.opt .mid span {
+  display: block;
+  margin-top: 1px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  line-height: 1.45;
+}
+.opt .ck {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-1);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.opt.on .ck {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--ink-inv);
+}
+.opt .tick {
+  color: var(--brand);
+}
+.opt.dim {
+  opacity: 0.5;
+}
+
+.sw {
+  position: relative;
+  width: 46px;
+  height: 28px;
+  border-radius: 99px;
+  background: var(--line-1);
+  flex: none;
+}
+.sw::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.18);
+}
+.sw.on {
+  background: var(--sage);
+}
+.sw.on::after {
+  left: 21px;
+}
+
+.foot {
+  display: flex;
+  flex: none;
+  gap: 10px;
+  padding: 10px 16px 22px;
+  border-top: 1px solid var(--line-2);
+  background: var(--bg-page);
+}
+.foot .btn {
+  height: 46px;
+}
+.link {
+  color: var(--brand-text);
+  font-weight: 600;
+}
+.gn a {
+  color: var(--brand-text);
+  font-weight: 600;
+}
+.banner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 10px 16px 0;
+  padding: 12px 14px;
+  border-radius: 15px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.banner b {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 1px;
+}
+.banner p {
+  color: var(--ink-2);
+}
+.banner.ok {
+  background: color-mix(in srgb, var(--sage) 11%, var(--bg-surface));
+  color: var(--sage);
+}
+.banner.err {
+  background: color-mix(in srgb, var(--danger) 9%, var(--bg-surface));
+  color: var(--danger);
+}
+.banner.info {
+  background: var(--bg-surface);
+  color: var(--ink-2);
+}
+.banner .ic {
+  margin-top: 1px;
+}
+
+/* 测试识别 */
+.listen {
+  margin: 6px 16px 0;
+  min-height: 120px;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--bg-surface);
+  font-size: 15px;
+  line-height: 1.7;
+}
+.listen .tmp {
+  color: var(--ink-3);
+}
+.listen .meta {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  font-family: var(--mono);
+}
+.mic-wrap {
+  display: grid;
+  place-items: center;
+  padding: 18px 0 6px;
+}
+.mic {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--brand);
+  color: var(--ink-inv);
+  box-shadow:
+    0 0 0 10px var(--brand-soft),
+    0 0 0 22px color-mix(in srgb, var(--brand-soft) 45%, transparent);
+}
+.mic-cap {
+  text-align: center;
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.lvl {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  margin-top: 12px;
+}
+.lvl i {
+  width: 3px;
+  border-radius: 99px;
+  background: var(--brand);
+}
+
+/* 当前问题标注 */
+.bad {
+  outline: 2px dashed var(--danger);
+  outline-offset: 2px;
+  border-radius: 10px;
+  position: relative;
+}
+.pin {
+  position: absolute;
+  z-index: 3;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+.cur-select {
+  width: 100%;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--bg-page);
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+}
+.cur-input {
+  flex: 1;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--line-1);
+  background: var(--bg-surface);
+}
+.cur-btn {
+  display: inline-flex;
+  height: 32px;
+  padding: 0 14px;
+  align-items: center;
+  border-radius: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--line-1);
+  font-size: 13px;
+}
+
+/* D 方案：字段声明 ↔ 两端渲染对照 */
+.dz {
+  display: grid;
+  grid-template-columns: minmax(300px, 380px) calc(360px * var(--s)) minmax(560px, 1fr);
+  gap: 26px;
+  align-items: start;
+  margin-bottom: 34px;
+}
+.dz-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 4px 0 10px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.dz-title small {
+  font-weight: 400;
+  color: var(--meta);
+  font-size: 12px;
+}
+.decl {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.7;
+  background: var(--ink-1);
+  color: var(--ink-inv);
+  padding: 14px 16px;
+  border-radius: 14px;
+  white-space: pre;
+  overflow-x: auto;
+}
+.decl .c {
+  opacity: 0.55;
+}
+.mk {
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--brand);
+  color: var(--ink-inv);
+  font: 700 10px/1 var(--font);
+  vertical-align: 1px;
+  margin-left: 4px;
+  flex: none;
+}
+.decl .mk {
+  margin-left: 6px;
+}
+.dpanel-solo {
+  width: 100%;
+  max-width: 640px;
+  font-size: 13px;
+}
+.dpanel-solo .dsec {
+  padding: 8px 12px 2px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.dpanel-solo .dsec + .drow::before {
+  display: none;
+}
+.dselect {
+  width: 300px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--bg-surface);
+  box-shadow: inset 0 0 0 1px var(--line-1);
+}
+.rules {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 20px;
+}
+@media (max-width: 1360px) {
+  .dz {
+    grid-template-columns: minmax(300px, 380px) calc(360px * var(--s));
+  }
+  .dz > :last-child {
+    grid-column: 1 / -1;
+  }
+}

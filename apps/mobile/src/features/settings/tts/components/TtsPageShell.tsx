@@ -8,10 +8,13 @@ export function TtsPageShell({
   title,
   children,
   footer,
+  actions,
 }: {
   title: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
+  /** 导航栏右侧操作（如表单的「保存」） */
+  actions?: ReactNode;
 }) {
   const { navigator, entryId } = usePage();
   const { phase } = usePageInstanceContext();
@@ -30,7 +33,7 @@ export function TtsPageShell({
 
   return (
     <div className="mobile-kb-screen bg-page fixed inset-0 flex flex-col">
-      <PageHeader title={title} onBack={() => void navigator.goBack("ui")} />
+      <PageHeader title={title} actions={actions} onBack={() => void navigator.goBack("ui")} />
       <div
         ref={scrollRef}
         data-page-footer={footer ? true : undefined}

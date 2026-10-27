@@ -3,7 +3,10 @@ import { definePlugin, type PluginContext, type ProviderForm } from "../index";
 import { createMemoryStorage, PluginHost } from "../host";
 import {
   assertProviderForm,
+  isProviderFieldError,
+  isProviderFieldVisible,
   isProviderFormComplete,
+  ProviderFieldError,
   mergeProviderFormValues,
   patchProviderFormValues,
   providerFormSummary,
@@ -41,6 +44,122 @@ const form: ProviderForm = {
     },
   ],
 };
+
+describe("开关字段、字段错误与分组链接", () => {
+  const toggles: ProviderForm = {
+    groups: [
+      {
+        title: "选项",
+        link: { label: "控制台", url: "https://example.com" },
+        fields: [
+          { key: "stream", label: "流式返回", type: "switch", default: true },
+          { key: "verbose", label: "详细日志", type: "switch" },
+        ],
+      },
+    ],
+  };
+
+  it("开关取值读成字符串，缺省取 default，且不参与必填校验", () => {
+    expect(readProviderFormValues(toggles, undefined)).toEqual({
+      stream: "true",
+      verbose: "false",
+    });
+    expect(readProviderFormValues(toggles, { stream: false, verbose: "true" })).toEqual({
+      stream: "false",
+      verbose: "true",
+    });
+    expect(validateProviderFormValues(toggles, { stream: "", verbose: "" })).toEqual({});
+  });
+
+  it("拒绝非 https 链接与开关摘要", () => {
+    expect(() => assertProviderForm(toggles)).not.toThrow();
+    expect(() =>
+      assertProviderForm({
+        groups: [{ ...toggles.groups[0], link: { label: "控制台", url: "http://x" } }],
+      })
+    ).toThrow("链接");
+    expect(() =>
+      assertProviderForm({
+        groups: [{ title: "g", fields: [{ key: "s", label: "S", type: "switch", summary: true }] }],
+      })
+    ).toThrow("摘要");
+  });
+
+  it("字段错误按名称识别，跨模块副本也能识别", () => {
+    expect(isProviderFieldError(new ProviderFieldError("apiKey", "无效"))).toBe(true);
+    const copy = Object.assign(new Error("无效"), { name: "ProviderFieldError", key: "apiKey" });
+    expect(isProviderFieldError(copy)).toBe(true);
+    expect(isProviderFieldError(new Error("x"))).toBe(false);
+  });
+});
+
+describe("宿主服务选择与条件显示", () => {
+  const publish: ProviderForm = {
+    groups: [
+      {
+        title: "推送",
+        fields: [
+          { key: "useGitCli", label: "Git Push", type: "switch", default: true },
+          {
+            key: "cacheId",
+            label: "缓存目录",
+            type: "service-choice",
+            service: "git.cacheDirectory",
+            labelKey: "cacheLabel",
+            placeholder: "应用缓存目录（默认）",
+            visibleWhen: { key: "useGitCli", equals: "true" },
+          },
+          {
+            key: "apiRoot",
+            label: "API 地址",
+            type: "url",
+            visibleWhen: { key: "useGitCli", equals: "false" },
+          },
+        ],
+      },
+    ],
+  };
+
+  it("服务选择同时读出标识与显示名，留空不算缺失", () => {
+    expect(assertProviderForm(publish)).toBeUndefined();
+    const values = readProviderFormValues(publish, { cacheId: "c1", cacheLabel: "~/cache" });
+    expect(values).toMatchObject({ cacheId: "c1", cacheLabel: "~/cache", useGitCli: "true" });
+    expect(readProviderFormValues(publish, {}).cacheLabel).toBe("");
+    expect(mergeProviderFormValues({ token: "t" }, values)).toMatchObject({
+      token: "t",
+      cacheId: "c1",
+      cacheLabel: "~/cache",
+    });
+  });
+
+  it("隐藏字段不参与必填校验", () => {
+    const shown = readProviderFormValues(publish, { useGitCli: false });
+    expect(isProviderFieldVisible(publish.groups[0].fields[2], shown)).toBe(true);
+    expect(validateProviderFormValues(publish, shown)).toEqual({ apiRoot: "请填写API 地址" });
+    const hidden = readProviderFormValues(publish, { useGitCli: true });
+    expect(isProviderFieldVisible(publish.groups[0].fields[2], hidden)).toBe(false);
+    expect(validateProviderFormValues(publish, hidden)).toEqual({});
+  });
+
+  it("拒绝未知服务、缺失或冲突的 labelKey 与悬空显示条件", () => {
+    const field = publish.groups[0].fields[1];
+    const form = (next: object) => ({
+      groups: [{ title: "g", fields: [publish.groups[0].fields[0], { ...field, ...next }] }],
+    });
+    expect(() => assertProviderForm(form({ service: "fs.any" }) as ProviderForm)).toThrow(
+      "宿主服务"
+    );
+    expect(() => assertProviderForm(form({ labelKey: "cacheId" }) as ProviderForm)).toThrow(
+      "labelKey"
+    );
+    expect(() => assertProviderForm(form({ labelKey: "useGitCli" }) as ProviderForm)).toThrow(
+      "labelKey"
+    );
+    expect(() =>
+      assertProviderForm(form({ visibleWhen: { key: "nope", equals: "x" } }) as ProviderForm)
+    ).toThrow("显示条件");
+  });
+});
 
 describe("存储提供方表单", () => {
   it("读取初值只取声明字段的字符串，choice 缺省取 default", () => {

@@ -2,11 +2,12 @@
  * 语音 —— 定稿初版（2026-09-24，mockups/settings/index.html 第三版「语音」）。
  *
  * 合并 legacy TranscriptionSetting 与 TextToSpeechSetting（PodcastTTSSetting），页内分
- * 「语音转录 / 语音合成」两个 Tab：
+ * 「语音转录 / 语音合成 / 语音输入」三个 Tab：
  * - 语音转录：转录行为（断句粒度 / AI 优化断句 / 长视频分段）、转录程序（faster-whisper
  *   预编译程序，沿用 legacy 的 !isMac 判定）、转录模型（当前模型 / 下载源 / 模型目录 / 模型列表）
  * - 语音合成：多服务商配置（ttsProviders，对齐大语言模型的 llmProviders 模式）+ 当前服务
  *   （提供商 / 模型 / 音色），实现见 VoiceTtsPanel
+ * - 语音输入：识别服务（系统识别 / 识别插件）、插件账号与 AI 整理，实现见 VoiceInputPanel
  */
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -36,7 +37,7 @@ import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { SettingsTabs } from "../components/SettingsTabs";
 import { StatusChip } from "../components/StatusChip";
-import { SpeechInputSection } from "./SpeechInputSection";
+import { VoiceInputPanel } from "./VoiceInputPanel";
 import { VoiceTtsPanel } from "./VoiceTtsPanel";
 import { useSettingsStore } from "@/app/settingsStore";
 
@@ -64,15 +65,15 @@ export function VoiceSection() {
         items={[
           { key: "transcription", label: "语音转录" },
           { key: "tts", label: "语音合成" },
+          { key: "input", label: "语音输入" },
         ]}
       />
       {tab === "transcription" ? (
-        <>
-          <SpeechInputSection />
-          <TranscriptionPanel />
-        </>
-      ) : (
+        <TranscriptionPanel />
+      ) : tab === "tts" ? (
         <VoiceTtsPanel />
+      ) : (
+        <VoiceInputPanel />
       )}
     </>
   );

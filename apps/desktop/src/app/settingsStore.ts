@@ -11,11 +11,13 @@ import { persist } from "zustand/middleware";
 import type { SettingsSectionKey } from "@/features/settings/sections";
 
 export type SettingsLocation = SettingsSectionKey;
+export type VoiceTab = "transcription" | "tts" | "input";
 
 interface SettingsUiStore {
-  voiceTab: "transcription" | "tts";
-  setVoiceTab: (tab: "transcription" | "tts") => void;
+  voiceTab: VoiceTab;
+  setVoiceTab: (tab: VoiceTab) => void;
   openTTSSettings: () => void;
+  openSpeechInputSettings: () => void;
   llmTab: "providers" | "assignment" | "permission" | "usage";
   usagePluginId: string;
   openAIUsage: (pluginId?: string) => void;
@@ -33,6 +35,7 @@ export const useSettingsStore = create<SettingsUiStore>()(
       voiceTab: "transcription",
       setVoiceTab: voiceTab => set({ voiceTab }),
       openTTSSettings: () => set({ open: true, section: "voice", voiceTab: "tts" }),
+      openSpeechInputSettings: () => set({ open: true, section: "voice", voiceTab: "input" }),
       llmTab: "providers",
       usagePluginId: "",
       openAIUsage: (pluginId = "") =>

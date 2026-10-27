@@ -493,6 +493,37 @@ describe("桌面生产会话与真实服务贯通", () => {
     expect(opened.frozen).toBe(false);
   });
 
+  it("同步替换释放未加载的冷缓存，之后按新库重新打开", async () => {
+    const { runtime, event, store, localId } = await setup();
+    const session = runtime.sessions.get(localId)!;
+    unregisterContentSession(session);
+    session.awareness.destroy();
+    session.doc.destroy();
+    runtime.sessions.delete(localId);
+    await runtime.releaseLibrary("library");
+    expect(store.list().some(info => info.id === localId)).toBe(false);
+    expect((await runtime.openContent(event, { contentId: 7 })).frozen).toBe(false);
+  });
+
+  it("旧来源冷缓存按当前主库重建，并发打开得到同一会话", async () => {
+    const { runtime, event, db, localId } = await setup();
+    const session = runtime.sessions.get(localId)!;
+    unregisterContentSession(session);
+    session.awareness.destroy();
+    session.doc.destroy();
+    runtime.sessions.delete(localId);
+    db.prepare("UPDATE library_identity SET source_id='downloaded-library'").run();
+    const original = ContentDocumentTable.read(db, 7)!;
+    const opened = await Promise.all([
+      runtime.openContent(event, { contentId: 7 }),
+      runtime.openContent(event, { contentId: 7 }),
+    ]);
+    expect(opened[0].source?.librarySourceId).toBe("downloaded-library");
+    expect(opened[1].documentId).toBe(opened[0].documentId);
+    expect(ContentDocumentTable.read(db, 7)).toEqual(original);
+    await expect(runtime.project(runtime.sessions.get(localId)!)).resolves.toBeUndefined();
+  });
+
   it.each(["database-change", "quit"] as const)(
     "主库回退旧格式后 %s 保留新缓存且不投影",
     async reason => {

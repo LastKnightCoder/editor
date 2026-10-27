@@ -120,7 +120,7 @@ Mac helper 独立打包在 `bin/darwin/Tau Speech Helper.app`，macOS 26 上采�
 
 插件通过公共 `context.asr` 注册，账号经插件设置的专用命令保存，普通全量设置提交保留主进程已保存的 speechInput，渲染缓存不持久化账号。`context.websocket` 提供标准事件、状态和同步 send/close，鉴权头、取消与有界背压由通用宿主桥接；不包含厂商协议。
 
-当前桌面只保留语音输入服务，不挂载麦克风按钮、语音输入设置、AI 整理配置行或输入目标。`desktopSpeechInput` 与 `prepareSpeechRefinement` 由未来消费者显式调用，壳层不触发录音或模型请求。ASR 设置声明仍可注册，插件详情不显示其表单，open 返回入口不可用；现有视频转录与 TTS 界面独立保留。
+设置 › 语音 › 语音输入（`VoiceInputPanel`）选识别服务（系统识别 / 识别插件卡片）并设置 AI 整理风格；识别账号与模型在插件详情 › 设置填写（`speech-input:settings`），未配置的插件点选或「去配置」都跳到插件详情并带回「返回语音设置」。整理模型在 大语言模型 › 功能分配 的「语音输入整理」中选择。选用的插件停用后保留选择并提示；open 打开插件详情。当前不挂载麦克风按钮或输入目标，`desktopSpeechInput` 与 `prepareSpeechRefinement` 由未来消费者显式调用，壳层不触发录音或模型请求。
 
 整理服务读取 `llmUsageSettings.speechInputRefinement` 与 `speechInput.refinement`，复用 piStreamText 无工具单发，仅处理最终转录；原始结果与整理文本分开，失败／超时回退原文，取消不交付结果。配置数据和保存命令保留；入口、预览、原文查看及草稿提交界面由后续消费者决定。
 
@@ -176,7 +176,7 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 
 ### 插件服务与提供方
 
-提供方连接配置归插件详情 › 设置：`ProviderAccountSettings` 管理 TTS/图片的多账号、模型和 ASR/视频/发布的单插件配置，复用现有持久化命令；`ProviderConfigForm` 统一渲染 form 并显式保存，保存失败保留草稿，添加或保存不自动切换服务。应用设置保留当前 TTS 账号/模型/音色与试听、图片账号选择、ASR 选用；视频按 URL 匹配多个来源，只显示来源及配置入口。Bilibili 扫码登录与 GitHub 发布的缓存目录授权保留专用插件组件，同样在插件页承载。
+提供方连接配置归插件详情 › 设置：`ProviderAccountSettings` 管理 TTS/图片的多账号、模型和 ASR/视频/发布的单插件配置，复用现有持久化命令；`ProviderFormView`（字段区 `ProviderFormFields` + 宿主保存栏，按调用方绑定写回）统一渲染 form 并显式保存，保存失败保留草稿，添加或保存不自动切换服务。应用设置保留当前 TTS 账号/模型/音色与试听、图片账号选择、ASR 选用；视频按 URL 匹配多个来源，只显示来源及配置入口。发布页「站点设置」抽屉以 `inline` 布局嵌入同一份 publish 配置并自动保存，与插件详情写同一份配置。Bilibili 扫码登录保留专用插件组件，同样在插件页承载。
 
 **博客发布提供方**：GitHub 与 S3 发布由独立 tau.publish-github / tau.publish-s3 提供，`context.publish` 注册文件式或快照式实例；发布页只消费活动注册与当前选用，`target: publish` 配置表单在插件详情页承载（按应用级插件身份保存）；本地导出内置不要求发布插件，缺失或停用保留配置不回落其他提供方。渲染端 publish-registry 与常驻 publish-bridge 执行作者代码，主进程 PluginPublishSessions 绑定发起窗口/配置/任务 signal，只转发 open/call/close 与字节；发布占用阻止启停/更新/卸载/重启，切库回收实例。文件式并发受提供方上限约束、依赖成功后才更新入口；快照式整轮远端确认后才记账。Git Push 走受控 `services.git.publishSnapshot`：主进程只执行固定 Git 流程（输入为临时发布句柄、无凭据的 HTTPS 远端、分支、提交者、缓存授权 ID），目录选择由宿主返回句柄，插件不能传任意 cwd/shell；认证经任务级 askpass 环境传递不落盘；拒绝非快进。发布配置只接受 local/plugin 目标；无目标账本时完整上传不借用其他数据库全局历史。
 
@@ -281,7 +281,7 @@ DocumentBoardCanvas 同时准备内置白板契约和编辑器版本目录，画
 
 媒体资源复用 CollaborationAssetService，上传/读取/跨文档复制先校验窗口租约与会话状态，结果回来后再次检查。视频按既有本机资源边界处理，不扩大上传支持；本机引用不公开路径。可编辑导出携带托管资产字节，公网 URL 保持地址，外部实体只保存引用；读取失败停止完整导出。
 
-关窗、切库、重连与退出通过 `durable-document-lifecycle` 排空所有相关视图，包括正在打开的会话；窗口冻结输入、排空 outbox 后确认，主进程封住租约并完成投影。超时或失败恢复可编辑状态，保留窗口和草稿；重复退出同样不得绕过屏障。普通切库和重连只冲刷。同步下载整库替换时，关库已排空并投影所有文档，安装入口再调用 releaseLibrary 丢弃该库的正文缓存会话（本地会话删除、共享会话解除来源），旧库由同步命令复制进 backup/。普通窗口切库只释放该窗口的租约，其它窗口继续持有。尚未完成 IndexedDB 或主进程耐久提交的输入不具备断电恢复保证。首次共享有独立提交边界。主进程的 remote-open/sync 复用窗口租约，仅接受已具备共享文档身份的白板；同一服务地址、设备身份与房间共用一个网络会话，remote-sync 按房间串行：排空网络提案、补交本机差异后，只把本机尚缺的确认内容作为一个批次写回本机日志并投影（无新内容不推进本机修订），远端投影经主进程事件到达画布，不进 outbox、不记本机撤销历史。网络等待期间新增的本机修订标记 requiresSync，不冒充全部同步；远端换代返回 reason=epoch，同一确认基线上的被拒分支返回 reason=rejected，原本机文档不被新根覆盖。远端接口返回摘要（是否需重绑、原因、待确认数、对应本机修订），不把确认快照传回渲染端；失败按服务端代码加前缀（OFFLINE、FORBIDDEN、DOCUMENT_CLOSED、CLIENT_UPGRADE_REQUIRED、MISSING_DEPENDENCIES 等）。网络分支和回执保存在同一耐久日志库的 remote_branches，与主库关系账隔离；首次发布保留原操作入口；旧数据格式拒绝接入。
+关窗、切库、重连与退出通过 `durable-document-lifecycle` 排空所有相关视图，包括正在打开的会话；窗口冻结输入、排空 outbox 后确认，主进程封住租约并完成投影。超时或失败恢复可编辑状态，保留窗口和草稿；重复退出同样不得绕过屏障。普通切库和重连只冲刷。同步下载整库替换时，关库已排空并投影内存中的文档，安装入口再调用 releaseLibrary 释放该库的正文缓存：内存会话与磁盘冷缓存一并处理（冷缓存从未参与关库写回），本地会话删除、共享会话解除来源，同一会话并发释放只执行一次；旧库由同步命令复制进 backup/。打开正文发现本地缓存的资料库或正文身份与主库不一致时，丢弃旧缓存并从当前主库重建。普通窗口切库只释放该窗口的租约，其它窗口继续持有。尚未完成 IndexedDB 或主进程耐久提交的输入不具备断电恢复保证。首次共享有独立提交边界。主进程的 remote-open/sync 复用窗口租约，仅接受已具备共享文档身份的白板；同一服务地址、设备身份与房间共用一个网络会话，remote-sync 按房间串行：排空网络提案、补交本机差异后，只把本机尚缺的确认内容作为一个批次写回本机日志并投影（无新内容不推进本机修订），远端投影经主进程事件到达画布，不进 outbox、不记本机撤销历史。网络等待期间新增的本机修订标记 requiresSync，不冒充全部同步；远端换代返回 reason=epoch，同一确认基线上的被拒分支返回 reason=rejected，原本机文档不被新根覆盖。远端接口返回摘要（是否需重绑、原因、待确认数、对应本机修订），不把确认快照传回渲染端；失败按服务端代码加前缀（OFFLINE、FORBIDDEN、DOCUMENT_CLOSED、CLIENT_UPGRADE_REQUIRED、MISSING_DEPENDENCIES 等）。网络分支和回执保存在同一耐久日志库的 remote_branches，与主库关系账隔离；首次发布保留原操作入口；旧数据格式拒绝接入。
 
 **白板协作的用户入口**：白板详情与单页画布页给 BoardCanvas 传 `collaboration`，画布顶部 `WhiteboardCollaborationBar` 合成本机保存与远端同步状态（远端确认覆盖本机修订才显示「已同步」）；共享入口 `WhiteboardShareEntry` 经 WhiteBoard 的 `statusBarEnd` 宿主插槽放在右下状态栏末尾，演示模式随状态栏隐藏；创作模式等嵌入画布只显示状态、不提供共享入口。`share-status` 返回共享绑定与未完成的首次发布，与画布共用 `whiteboard-share` 查询缓存。未共享时「共享」对话框说明范围后调用 publish（整板全部页，服务器地址取协作状态）；发布任务在建房前固定，结果未知或中途失败时状态行只提供按原操作「继续共享 / 取消共享」，打开被阻止时 `PendingTransition` 提供同样入口。已共享时成员与协作码复用 CollaborationUI 的 SharePanel：协作模块在刷新房间列表时把白板房间（协议 3）列入 `CollaborationState.whiteboards`，invitation/remove-member 按房间地址签发与移除，仍由服务端按设备身份鉴权。远端同步由 `services/whiteboard-documents/remote.ts` 的 WhiteboardRemoteSync 承担：registry 在客户端就绪后建立共享状态控制器，绑定读取失败显示等待与重试并自动退避，复用同客户端也可重试；没有绑定时停止调度，确认已绑定才打开远端；本机修订先经 client.flush 进入主进程日志再调用 remote-sync，本机变化防抖 0.8 秒同步，空闲每 10 秒轮询接收远端（窗口隐藏时 30 秒），窗口聚焦立即同步；断网与等待前序确认按 2 秒起指数退避（上限 60 秒）自动重试，权限拒绝、共享结束、版本不兼容、换代与被拒分支停止自动重试，等待用户「重试同步」。最后一个持有者释放时停止同步；已 detached 的临时客户端先保留草稿再销毁，不再向失效租约保存。主进程网络会话由视图、在途打开与同步任务共同持有，无持有者后驱逐内存；未提交差异留在主进程日志，下次打开再同步。协作页侧栏「协作」下白板与正文同组列出（`groupShared`/`resolveShared` 统一排序与选中），选中白板时页内 `WhiteboardRoom` 展示协作码、待审批与成员，画布不在协作页编辑；「打开白板」经 `remote-install` 落到当前资料库：先固定本机文档身份再按远端确认快照创建，已落库直接复用，随后在白板页里编辑与同步。协作页「共享本地内容」可选白板：主进程 `share-candidates` 按标题检索已转换、未共享且没有未完成首次发布的整块白板（空关键词按最近更新，至多 30 条），渲染端经 `services/whiteboard-documents/share.ts` 临时持有文档会话发布，与白板页共用 `publishWhiteboardClient`。
 
@@ -455,7 +455,7 @@ export function useXxxSnapshot() {
 
 **主题模式与切换**：`@tau/themes/react` 提供 `createThemeRuntime` 与默认 store；mode 可以是主题 key 或 system。AppShell 挂载运行时并在清理时释放系统监听；DOM 应用由公共主题实现负责，业务代码不操作 data-theme。Vite 构建入口调用 `createThemeBootstrapScript()` 注入首帧脚本。桌面侧栏、标题栏尺寸留在 app/base.css，不作为公共主题尺度。
 
-**编辑器主题与局部明暗**：`data-theme` 是主题族 key，明暗由 `data-mode` 与主题运行时管理。编辑器无全局 Provider，宿主显式传场景 EditorKit，取色走 `--ed-*`/`--tau-*` 与 ThemeService；`useEditorTheme` 订阅明暗、主题族与通知修订号（同明暗换主题也刷新 ECharts 等取色组件）。新 editor 实例有独立 Slate 挂载键与内容/选区快照；同谱系文档换源保留实例；新页面不以 documentId 为 key 强制重建内容编辑器。编辑器子树用 `<EditorThemeOverride mode>`；整块区域换主题族（导出图片）节点同时写 data-theme/data-mode；演示和沉浸舞台经 PortalScope 挂回 UI 浮层避免继承 body 明暗。JavaScript 明暗统一消费 `useThemeStore(s => s.mode)`；设置不再有 darkMode/accent，图片圆角/阴影在 appearance.image。
+**编辑器主题与局部明暗**：`data-theme` 是主题族 key，明暗由 `data-mode` 与主题运行时管理。编辑器无全局 Provider，宿主显式传场景 EditorKit，取色走 `--ed-*`/`--tau-*` 与 ThemeService；`useEditorTheme` 订阅明暗、主题族与通知修订号（同明暗换主题也刷新 ECharts 等取色组件）。新 editor 实例有独立 Slate 挂载键与内容/选区快照；同谱系文档换源保留实例；换源等待只复用仍存活的文档，底层 Y.Doc 销毁后撤下旧绑定，异步契约准备不向已销毁文档发布结果；新页面不以 documentId 为 key 强制重建内容编辑器。编辑器子树用 `<EditorThemeOverride mode>`；整块区域换主题族（导出图片）节点同时写 data-theme/data-mode；演示和沉浸舞台经 PortalScope 挂回 UI 浮层避免继承 body 明暗。JavaScript 明暗统一消费 `useThemeStore(s => s.mode)`；设置不再有 darkMode/accent，图片圆角/阴影在 appearance.image。
 
 **字体设置链路**：`fontSetting` → `useSyncFont()`（App 根挂载一次）→ root 级覆盖。用户字体/字号是应用级默认（界面与编辑器统一）：字体族覆盖 `--tau-font`/`--tau-font-mono`；字号按 13px 基准**阻尼**缩放 `--tau-text-*` 全部档位（半速率传导，与内容区解耦——宿主可用 `--font-size` 为内容容器提供原始字号，Editor 继承所在容器；排版层级保持，间距圆角不动；例外：侧边栏条目行高/图标按 em 折算）；`--font / --font-size / --mono-font` 一并写 root。默认字体变量在 :root，body 不重复声明；Editor 根节点不声明字体族/字号。**Tailwind v4 陷阱**：`@theme inline` 对字面值会把值内联进工具类，运行时覆盖 CSS 变量无效——字号 token 必须经 `:root` 字面值层 + `@theme inline` var 桥接，`useSyncFont` 覆盖字面值层。
 

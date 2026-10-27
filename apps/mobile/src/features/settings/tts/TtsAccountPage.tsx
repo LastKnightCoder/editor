@@ -1,9 +1,9 @@
-import { ProviderConfigForm } from "../../plugins/ProviderConfigForm";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { copyJson } from "@tau/plugins/host";
 import { ErrorBoundary } from "@tau/ui";
 import { ChevronRight, Mic, Trash2 } from "lucide-react";
 import { MobileConfirmDialog } from "../../../components/MobileConfirmDialog";
+import { PageHeaderTextButton } from "../../../components/PageHeader";
 import { useNavigator } from "../../../router";
 import {
   deleteTtsAccount,
@@ -13,6 +13,7 @@ import {
 } from "../../../services/tts-settings";
 import { GroupNote, GroupRow } from "../components/ui";
 import { ActionButton } from "../storage/fields";
+import { TtsAccountForm, type TtsAccountDraft } from "./components/TtsAccountForm";
 import { TtsPageShell } from "./components/TtsPageShell";
 import { TtsCurrentBadge, TtsEmpty, TtsSection, TtsStatus } from "./components/TtsUi";
 import { ttsErrorMessage } from "./errors";
@@ -30,6 +31,8 @@ export function TtsAccountPage({ instanceId }: { instanceId: string }) {
   const [busy, setBusy] = useState<"name" | "current" | "delete" | null>(null);
   const [error, setError] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [draft, setDraft] = useState<TtsAccountDraft | null>(null);
+  const onDraft = useCallback((next: TtsAccountDraft) => setDraft(next), []);
   const accountConfig = account?.config;
   const config = useMemo(() => (accountConfig ? copyJson(accountConfig) : {}), [accountConfig]);
   const modelId = resolveTtsModel(account, usage);
@@ -94,9 +97,35 @@ export function TtsAccountPage({ instanceId }: { instanceId: string }) {
   }
 
   const Component = provider?.definition.component;
+  const form = provider?.definition.form;
+  const saveConfig = async (
+    nextConfig: import("@tau/plugins").JsonValue,
+    models: readonly { id: string; label?: string }[]
+  ) => {
+    if (!provider || !runtime?.active(provider.context)) throw new Error("插件设置已失效");
+    await applySnapshot(() =>
+      saveTtsConfig(
+        database,
+        account.id,
+        account.pluginId,
+        copyJson(nextConfig),
+        models.map(model => ({ ...model }))
+      )
+    );
+  };
   return (
     <TtsPageShell
       title={account.name}
+      actions={
+        available && form && draft ? (
+          <PageHeaderTextButton
+            disabled={!draft.dirty || draft.saving || !!busy}
+            onClick={() => void draft.save()}
+          >
+            {draft.saving ? "保存中" : "保存"}
+          </PageHeaderTextButton>
+        ) : undefined
+      }
       footer={
         <>
           <ActionButton
@@ -166,24 +195,19 @@ export function TtsAccountPage({ instanceId }: { instanceId: string }) {
             </div>
           </div>
         </TtsSection>
-        {available && provider.definition.form ? (
-          <ProviderConfigForm
+        {available && form ? (
+          <TtsAccountForm
             key={account.id}
-            form={provider.definition.form}
-            context={provider.context}
+            form={form}
             stored={config}
-            save={async nextConfig => {
-              if (!runtime?.active(provider.context)) throw new Error("插件设置已失效");
-              await applySnapshot(() =>
-                saveTtsConfig(
-                  database,
-                  account.id,
-                  account.pluginId,
-                  copyJson(nextConfig),
-                  account.models.length ? account.models : [...(provider.definition.models ?? [])]
-                )
-              );
-            }}
+            disabled={!!busy}
+            onDraft={onDraft}
+            persist={nextConfig =>
+              saveConfig(
+                nextConfig,
+                account.models.length ? account.models : (provider.definition.models ?? [])
+              )
+            }
           />
         ) : available && Component ? (
           <ErrorBoundary key={account.id}>
@@ -193,18 +217,7 @@ export function TtsAccountPage({ instanceId }: { instanceId: string }) {
                 instanceId: account.id,
                 value: config,
                 models: account.models,
-                save: async (nextConfig, models) => {
-                  if (!runtime?.active(provider.context)) throw new Error("插件设置已失效");
-                  await applySnapshot(() =>
-                    saveTtsConfig(
-                      database,
-                      account.id,
-                      account.pluginId,
-                      copyJson(nextConfig),
-                      models.map(model => ({ ...model }))
-                    )
-                  );
-                },
+                save: saveConfig,
               }}
             />
           </ErrorBoundary>

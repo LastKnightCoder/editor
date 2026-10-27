@@ -12,7 +12,7 @@ import { savePluginVideoConfig } from "@/commands/plugin-video";
 import { savePublishPluginConfig, checkPublishConnection } from "@/commands/publish";
 import { updateSpeechInput } from "@/services/speechInput";
 import { TTSPluginCloneSection } from "@/features/settings/sections/TTSPluginCloneSection";
-import { ProviderConfigForm } from "./ProviderFormView";
+import { ProviderFormView } from "./ProviderFormView";
 
 type Account = {
   id: string;
@@ -214,11 +214,10 @@ function AccountForm({
     );
   }
   return (
-    <ProviderConfigForm
+    <ProviderFormView
       form={section.definition.form}
       context={section.context}
-      stored={stored}
-      saveConfig={config => save(config)}
+      binding={{ stored, persist: config => save(config) }}
       changed={
         target === "tts"
           ? JSON.stringify(models) !== JSON.stringify(account.models)
@@ -266,7 +265,7 @@ function AccountForm({
           />
         </SettingRow>
       )}
-    </ProviderConfigForm>
+    </ProviderFormView>
   );
 }
 
@@ -298,28 +297,30 @@ function SingleAccount({ section }: { section: RegisteredPluginSettings }) {
   };
   if (section.definition.form)
     return (
-      <ProviderConfigForm
+      <ProviderFormView
         form={section.definition.form}
         context={section.context}
-        stored={stored}
-        saveConfig={config => save(config)}
+        binding={{
+          stored,
+          persist: config => save(config),
+          ...(target === "publish" && {
+            afterSave: async config => {
+              const connected = await checkPublishConnection({
+                providerType: "plugin",
+                pluginId,
+                providerConfig: config,
+                basePath: setting.publish.local.basePath,
+                siteConfig: setting.publish.site,
+              });
+              if (!connected) throw new Error("连接失败，请检查账号与目标");
+              return "连接正常";
+            },
+            savingText: "正在保存并测试连接…",
+            saveLabel: "保存并测试",
+          }),
+        }}
         changed={target === "asr" && modelId !== account?.modelId}
         onReset={() => setModelId(account?.modelId || section.definition.models?.[0]?.id || "")}
-        probe={
-          target === "publish"
-            ? async config => {
-                const connected = await checkPublishConnection({
-                  providerType: "plugin",
-                  pluginId,
-                  providerConfig: config,
-                  basePath: setting.publish.local.basePath,
-                  siteConfig: setting.publish.site,
-                });
-                if (!connected) throw new Error("连接失败，请检查账号与目标");
-                return "连接正常";
-              }
-            : undefined
-        }
       >
         {target === "asr" && (
           <SettingRow title="识别模型">
@@ -336,7 +337,7 @@ function SingleAccount({ section }: { section: RegisteredPluginSettings }) {
             />
           </SettingRow>
         )}
-      </ProviderConfigForm>
+      </ProviderFormView>
     );
   const Component = section.definition.component;
   if (!Component) return null;

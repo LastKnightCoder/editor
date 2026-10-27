@@ -1,5 +1,13 @@
 # 更新记录
 
+## 0.48.0
+
+- 提供方表单新增 `switch` 字段（取值 "true" / "false"，不参与必填校验）与分组 `link`（https 外部链接，如服务商控制台）。
+- `beforeSave` 可抛出 `ProviderFieldError(key, message)`，宿主把错误标在对应字段；新增 `isProviderFieldError`。
+- 选项的 `description` 在两端显示：移动对 ≤3 项且带说明的 choice 平铺为整行单选，桌面在字段说明中显示当前选项说明。
+- 宿主为 tts、asr、images、video、publish 的 form 渲染并按目标保存；ASR 表单在语音输入设置中显示。
+- 新增 `service-choice` 字段（`service: "git.cacheDirectory"`，值与 `labelKey` 显示名一起保存）与字段 `visibleWhen` 条件显示；发布页抽屉内的 form 随抽屉自动保存。
+
 ## 0.47.0
 
 - 服务提供方连接配置统一在插件页管理，应用设置只负责选用；声明式 form 扩展到 TTS、ASR、图片、视频与发布。
