@@ -8,6 +8,7 @@ import type { Operation } from "./types/operation";
 export interface WhiteboardDocumentBinding {
   presenceVersion?(): string | undefined;
   hasPresenceVersion?(version: string): boolean;
+  isRealtimeGesture?(): boolean;
   isBlocked?(): boolean;
   flushInputs?(): void;
   createContentCopy?(elementId: string): Promise<number>;
@@ -53,7 +54,7 @@ export interface WhiteboardDocumentBinding {
   connect(board: Board): () => void;
   apply(operations: Operation[], updateHistory: boolean, historyGroup?: string): boolean;
   commitPreview(operations: Operation[], historyGroup?: string): void;
-  beginGesture(): void;
+  beginGesture(options?: { realtime?: boolean }): void;
   splitHistory(): void;
   endGesture(commit: boolean): void;
   canUndo(): boolean;

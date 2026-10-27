@@ -13,6 +13,7 @@ it("合并同一内容的在线状态并在关闭时取消待发消息", () => {
   expect(publish).toHaveBeenCalledTimes(1);
   scheduler.schedule("content");
   scheduler.close();
+  scheduler.schedule("迟到的断连通知");
   vi.advanceTimersByTime(250);
   expect(publish).toHaveBeenCalledTimes(1);
 });

@@ -132,6 +132,9 @@ class CanvasBinding implements WhiteboardDocumentBinding {
   private closed = false;
   private page: string;
   private gesture = false;
+  private gestureHistory?: NodeTreeHistory;
+  private streamingGesture = false;
+  private gestureTimer?: ReturnType<typeof setTimeout>;
   private gestureCaptureTimeout?: number;
   private pending: WhiteboardModelCommand[] = [];
   private pendingFeedback: { id: string; patch: Record<string, unknown> }[] = [];
@@ -265,6 +268,7 @@ class CanvasBinding implements WhiteboardDocumentBinding {
     if (this.closed) return;
     this.closed = true;
     this.board?.interactions.cancel();
+    this.endGesture(false);
     this.model.doc.off("afterTransaction", this.changed);
     this.model.doc.off("destroy", this.disconnect);
     for (const editor of this.editors) editor.disposeNodeTree();
@@ -278,7 +282,7 @@ class CanvasBinding implements WhiteboardDocumentBinding {
     this.board = undefined;
   };
   private readonly changed = (transaction: Y.Transaction) => {
-    if (this.closed || this.writing) return;
+    if (this.closed || this.writing || transaction.changed.size === 0) return;
     const local =
       transaction.origin === this.history || this.history.trackedOrigins.has(transaction.origin);
     if (this.gesture && !local) {
@@ -708,10 +712,11 @@ class CanvasBinding implements WhiteboardDocumentBinding {
     )[] = []
   ) {
     this.assertWritable(false);
-    if (this.gesture) {
+    if (this.gesture && !this.streamingGesture) {
       this.board?.interactions.cancel();
       this.endGesture(false);
     }
+    const origin = this.streamingGesture ? this.gestureHistory! : this.origin;
     const bodyContracts = new Set<string>();
     const collect = (nodes: readonly import("@tau/collaboration").ContentNode[]) => {
       for (const node of nodes) {
@@ -742,7 +747,7 @@ class CanvasBinding implements WhiteboardDocumentBinding {
     this.validating = true;
     try {
       this.model.preflight(candidate => {
-        const created = candidate.submit(commands, this.origin, prepared).createdIds;
+        const created = candidate.submit(commands, origin, prepared).createdIds;
         const touched = new Set([
           ...created,
           ...commands.flatMap(command => (command.type === "set_data" ? [command.id] : [])),
@@ -767,10 +772,10 @@ class CanvasBinding implements WhiteboardDocumentBinding {
     } finally {
       this.validating = false;
     }
-    this.enterGroup(historyGroup);
+    if (!this.streamingGesture) this.enterGroup(historyGroup);
     this.writing = true;
     try {
-      return this.model.submit(commands, this.origin, prepared);
+      return this.model.submit(commands, origin, prepared);
     } finally {
       this.writing = false;
       this.refresh();
@@ -1062,26 +1067,94 @@ class CanvasBinding implements WhiteboardDocumentBinding {
     for (const { id, patch } of values)
       this.feedback.set(id, { ...this.feedback.get(id), ...patch });
   }
-  beginGesture(): void {
+  beginGesture(options?: { realtime?: boolean }): void {
     if (this.gesture || this.closed) return;
     this.splitHistory();
     this.pendingFeedback = [];
     this.gesture = true;
     this.gestureCaptureTimeout = this.history.captureTimeout;
     this.history.captureTimeout = Number.POSITIVE_INFINITY;
+    if (options?.realtime) {
+      // 独立捕获整次拖动，结束后移交一个撤销项；取消不破坏已有撤销/重做栈。
+      this.gestureHistory = this.model.createUndoManager({
+        trackedOrigins: new Set(),
+        captureTimeout: Number.POSITIVE_INFINITY,
+        beforeChange: (history, direction) => this.model.preflightHistory(history, direction),
+      });
+    }
     this.pending = [];
+  }
+  isRealtimeGesture(): boolean {
+    return !!this.gestureHistory;
+  }
+  private scheduleGesture(): void {
+    if (!this.gestureHistory || this.gestureTimer !== undefined) return;
+    this.gestureTimer = setTimeout(() => {
+      this.gestureTimer = undefined;
+      if (this.isBlocked()) {
+        this.endGesture(false);
+        return;
+      }
+      try {
+        this.flushGesture();
+      } catch (error) {
+        this.board?.interactions.cancel();
+        this.endGesture(false);
+        console.error("白板拖动增量提交失败", error);
+      }
+    }, 50);
+  }
+  private flushGesture(): void {
+    if (!this.gestureHistory || !this.pending.length) return;
+    const commands = this.compact(this.pending);
+    this.streamingGesture = true;
+    try {
+      this.submit(commands);
+      this.pending = [];
+    } finally {
+      this.streamingGesture = false;
+    }
   }
   endGesture(commit: boolean): void {
     if (!this.gesture) return;
+    clearTimeout(this.gestureTimer);
+    this.gestureTimer = undefined;
+    if (commit && this.gestureHistory) {
+      try {
+        this.flushGesture();
+      } catch (error) {
+        this.endGesture(false);
+        throw error;
+      }
+    }
     const pending = this.compact(this.pending),
-      feedback = this.pendingFeedback;
+      feedback = this.pendingFeedback,
+      history = this.gestureHistory;
     this.pendingFeedback = [];
     this.gesture = false;
+    this.gestureHistory = undefined;
     this.pending = [];
     try {
-      if (commit && pending.length) this.submit(pending);
+      if (history && !this.model.doc.isDestroyed) {
+        if (commit || this.options.canWrite?.() === false) {
+          if (history.undoStack.length) {
+            this.history.clear(false, true);
+            this.history.undoStack.push(...history.undoStack);
+            history.undoStack = [];
+          }
+        } else if (history.undoStack.length) {
+          this.writing = true;
+          try {
+            history.undo();
+            history.clear();
+          } finally {
+            this.writing = false;
+          }
+        }
+      } else if (commit && pending.length) this.submit(pending);
       if (commit) this.applyFeedback(feedback);
     } finally {
+      history?.destroy();
       this.history.captureTimeout = this.gestureCaptureTimeout ?? 500;
       this.gestureCaptureTimeout = undefined;
       this.splitHistory();
@@ -1135,6 +1208,7 @@ class CanvasBinding implements WhiteboardDocumentBinding {
       this.pending = this.compact([...this.pending, ...commands]);
       this.pendingFeedback.push(...feedback);
       this.board!.publishDocument(this.resolveArrowBindings(children));
+      this.scheduleGesture();
     } else {
       if (commands.length) this.submit(commands, historyGroup);
       if (feedback.length) {
@@ -1151,8 +1225,10 @@ class CanvasBinding implements WhiteboardDocumentBinding {
   commitPreview(operations: Operation[], historyGroup?: string): void {
     this.assertWritable();
     const { commands } = this.compile(operations);
-    if (this.gesture) this.pending = this.compact([...this.pending, ...commands]);
-    else if (commands.length) this.submit(commands, historyGroup);
+    if (this.gesture) {
+      this.pending = this.compact([...this.pending, ...commands]);
+      this.scheduleGesture();
+    } else if (commands.length) this.submit(commands, historyGroup);
   }
   flushInputs(): void {
     for (const editor of this.editors) editor.flushNodeTreeInputs();
