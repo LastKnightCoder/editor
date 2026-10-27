@@ -171,6 +171,8 @@ pub fn article_list(
     for row in rows {
         items.push(row.map_err(|e| db_err("ARTICLE_QUERY_FAILED", "parse article row", e))?);
     }
+    // perf 日志只在 debug 构建存在，与上方 started 的 cfg 保持对称，release 下零开销
+    #[cfg(debug_assertions)]
     crate::logger::debug(format!(
         "[perf] article_list offset={} items={}/{} {:?}",
         offset,
