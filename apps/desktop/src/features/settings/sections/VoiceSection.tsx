@@ -14,7 +14,16 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { AudioLines, Cpu, Download, FolderOpen, RefreshCw } from "lucide-react";
 import clsx from "clsx";
 import { produce } from "immer";
-import { Button, ConfirmDialog, IconButton, Select, Switch, toast } from "@tau/ui";
+import {
+  ROW_DIVIDER,
+  SettingRow,
+  Button,
+  ConfirmDialog,
+  IconButton,
+  Select,
+  Switch,
+  toast,
+} from "@tau/ui";
 import useSettingStore from "@/stores/useSettingStore";
 import {
   deleteModel,
@@ -32,8 +41,6 @@ import {
   type ProgramInfo,
 } from "@/commands";
 import { isMac } from "@/platform";
-import { ROW_DIVIDER } from "../components/rowDivider";
-import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { SettingsTabs } from "../components/SettingsTabs";
 import { StatusChip } from "../components/StatusChip";

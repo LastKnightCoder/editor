@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Play, RefreshCw } from "lucide-react";
-import { Button, toast } from "@tau/ui";
+import { SettingRow, Button, toast } from "@tau/ui";
 import {
   getEmbeddingIndexStatus,
   onEmbeddingIndexProgress,
@@ -18,7 +18,6 @@ import {
   type EmbeddingIndexProgress,
   type EmbeddingIndexStatus,
 } from "@/commands";
-import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
 
@@ -233,7 +232,7 @@ export function EmbeddingIndexStatusGroup({ modelKey }: { modelKey: string }) {
         {lastRun?.phase === "done" && <StatusChip tone="ok">完成</StatusChip>}
       </SettingRow>
       {lastRun?.phase === "failed" && lastRun.error && (
-        <div className="text-tau-sm text-danger break-all px-3 pb-3">{lastRun.error}</div>
+        <div className="text-tau-sm text-danger px-3 pb-3 break-all">{lastRun.error}</div>
       )}
     </SettingsGroup>
   );

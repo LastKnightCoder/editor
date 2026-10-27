@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Check, Pencil, RefreshCw, Trash2, X } from "lucide-react";
-import { Button, ConfirmDialog, IconButton, Input, toast } from "@tau/ui";
+import { ROW_DIVIDER, Button, ConfirmDialog, IconButton, Input, toast } from "@tau/ui";
 import { getUsageSyncStatus, setUsageDeviceName } from "@/commands";
 import type { UsageDeviceInfo, UsageSyncStatus } from "@/types/model-usage";
 import useSettingStore from "@/stores/useSettingStore";
@@ -13,7 +13,6 @@ import { isSyncConfigured } from "@/utils/sync";
 import { removeDeviceFromUsageSync, runUsageSync } from "@/services/usageSyncRunner";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
-import { ROW_DIVIDER } from "../components/rowDivider";
 import { formatEventTime } from "./modelUsageData";
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));

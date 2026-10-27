@@ -27,6 +27,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
+  SettingRow,
+  ROW_DIVIDER,
   Button,
   ConfirmDialog,
   Dialog,
@@ -43,8 +45,6 @@ import type {
   LLMUsageConfigV2,
   PiThinkingLevel,
 } from "@/types/pi-llm";
-import { SettingRow } from "../components/SettingRow";
-import { ROW_DIVIDER } from "../components/rowDivider";
 import { SettingsGroup } from "../components/SettingsGroup";
 import {
   FieldBox,

@@ -25,6 +25,7 @@ import {
   X,
 } from "lucide-react";
 import {
+  ROW_DIVIDER,
   Button,
   Checkbox,
   Dialog,
@@ -36,7 +37,6 @@ import {
 } from "@tau/ui";
 import { ResourceSyncStatus } from "@/types";
 import type { IFileSyncStatus } from "@/types";
-import { ROW_DIVIDER } from "../components/rowDivider";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
 import { SyncActions, SyncStats } from "../components/SyncCard";
@@ -110,7 +110,7 @@ export function ResourceSyncCard({
   );
 
   return (
-    <Panel pad="none" className="flex min-w-0 flex-col rounded-[14px] px-4 pb-3.5 pt-4">
+    <Panel pad="none" className="flex min-w-0 flex-col rounded-[14px] px-4 pt-4 pb-3.5">
       <div className="text-tau-body-lg flex items-center gap-2 font-semibold">
         <FolderSync size={15} strokeWidth={1.75} className="text-ink-2" />
         资源文件
@@ -128,7 +128,7 @@ export function ResourceSyncCard({
 
       {isSyncing ? (
         <>
-          <div className="text-tau-sm text-ink-2 mb-1.5 mt-3.5 flex justify-between tabular-nums">
+          <div className="text-tau-sm text-ink-2 mt-3.5 mb-1.5 flex justify-between tabular-nums">
             <span>
               已处理 {progress.processedFiles} / {progress.totalFiles}
             </span>
@@ -276,7 +276,7 @@ export function ResourceSyncFiles({
             ) : (
               <div
                 ref={setListEl}
-                className="edge-fade-scroll max-h-[360px] overflow-y-auto overflow-x-hidden"
+                className="edge-fade-scroll max-h-[360px] overflow-x-hidden overflow-y-auto"
               >
                 {filtered.map(([name, status]) => (
                   <FileRow key={name} name={name} status={status} />
@@ -309,7 +309,7 @@ export function ResourceSyncFiles({
             {blacklist.items.map(item => (
               <span
                 key={item.id}
-                className="bg-hover text-ink-2 font-tau-mono inline-flex items-center gap-1 rounded-full py-0.5 pl-2.5 pr-1 text-[12px]"
+                className="bg-hover text-ink-2 font-tau-mono inline-flex items-center gap-1 rounded-full py-0.5 pr-1 pl-2.5 text-[12px]"
               >
                 {item.fileName}
                 <button

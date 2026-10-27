@@ -12,14 +12,13 @@
 
 import { useEffect, useState } from "react";
 import { Download, ExternalLink, RefreshCw, RotateCw } from "lucide-react";
-import { Button, Panel, Switch } from "@tau/ui";
+import { SettingRow, Button, Panel, Switch } from "@tau/ui";
 import logo from "@/assets/logo.png";
 import useSettingStore from "@/stores/useSettingStore";
 import { useUpdateStore, type UpdateStatus } from "@/stores/useUpdateStore";
 import { getVersions, openExternal } from "@/commands";
 import { bundledNotesBetween } from "@/features/release-notes/notes";
 import { useReleaseNotesStore } from "@/features/release-notes/releaseNotesStore";
-import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
 import { BackgroundGroup } from "./BackgroundGroup";
@@ -58,7 +57,7 @@ export function AboutSection() {
               src={logo}
               alt="Tau"
               draggable={false}
-              className="size-[52px] shrink-0 select-none mix-blend-multiply dark:mix-blend-normal dark:brightness-[0.85]"
+              className="size-[52px] shrink-0 mix-blend-multiply select-none dark:mix-blend-normal dark:brightness-[0.85]"
             />
             <div className="min-w-0">
               <div className="text-tau-body-lg text-ink-1 font-semibold">Tau</div>

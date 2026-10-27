@@ -5,11 +5,10 @@
  */
 
 import { FolderOpen } from "lucide-react";
-import { Button, Input } from "@tau/ui";
+import { SettingRow, Button, Input } from "@tau/ui";
 import useSettingStore from "@/stores/useSettingStore";
 import { selectDirectoryWithDialog } from "@/commands";
 import { useWorkspaceInfo } from "@/features/chat/workspaceQueries";
-import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { FieldBox } from "../components/ProviderLayout";
 

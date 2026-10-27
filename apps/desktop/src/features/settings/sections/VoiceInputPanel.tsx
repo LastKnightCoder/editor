@@ -6,7 +6,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Check, Mic, Monitor } from "lucide-react";
-import { Button, Segmented, Textarea, cn, toast } from "@tau/ui";
+import { SettingRow, Button, Segmented, Textarea, cn, toast } from "@tau/ui";
 import {
   DEFAULT_SPEECH_REFINEMENT,
   defaultSpeechInputSetting,
@@ -20,7 +20,6 @@ import { ensureModule } from "@/commands/module-init";
 import { updateSpeechInput } from "@/services/speechInput";
 import { openProviderSettings } from "@/services/open-provider-settings";
 import useSettingStore from "@/stores/useSettingStore";
-import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup, SettingsNote } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
 

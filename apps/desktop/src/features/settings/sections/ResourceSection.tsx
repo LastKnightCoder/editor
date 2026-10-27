@@ -1,10 +1,9 @@
 import { produce } from "immer";
 import { Info } from "lucide-react";
-import { Radio, ROW_DIVIDER, Switch } from "@tau/ui";
+import { SettingRow, Radio, ROW_DIVIDER, Switch } from "@tau/ui";
 import useSettingStore, { EImageBed } from "@/stores/useSettingStore";
 import { useDesktopPlugins } from "@/app/plugins/context";
 import { LOCAL_UPLOAD_TARGET, selectUploadTarget } from "@/services/storage-providers";
-import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup, SettingsNote } from "../components/SettingsGroup";
 import { isProviderSection, ProviderChoiceList } from "../components/ProviderChoiceList";
 import { StatusChip } from "../components/StatusChip";

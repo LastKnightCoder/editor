@@ -68,10 +68,9 @@ try {
   assert.equal(built.targets.desktop.minAppVersion, "0.59.0");
   const output = path.join(root, "output/plugin-sdk");
   await mkdir(output, { recursive: true });
-  await cp(
-    path.join(author, "dist/example.portable-counter-1.0.0.zip"),
-    path.join(output, "example.portable-counter-1.0.0.zip")
-  );
+  const archiveName = `${built.id}-${built.version}.zip`;
+  const archive = path.join(output, archiveName);
+  await cp(path.join(author, "dist", archiveName), archive);
   const distribution = JSON.parse(
     await readFile(path.join(root, "tests/fixtures/plugins/catalog.json"), "utf8")
   );
@@ -113,6 +112,9 @@ try {
         independentInstall: true,
         customBlockIndependentBuild: true,
         sourceTypecheck: true,
+        archive,
+        pluginId: built.id,
+        pluginVersion: built.version,
         formatVersion: built.formatVersion,
         targets: built.targets,
       },

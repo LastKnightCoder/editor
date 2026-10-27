@@ -3,12 +3,11 @@ import { openProviderSettings } from "@/services/open-provider-settings";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import clsx from "clsx";
-import { Button, IconButton, Select, toast } from "@tau/ui";
+import { SettingRow, Button, IconButton, Select, toast } from "@tau/ui";
 import useSettingStore from "@/stores/useSettingStore";
 import { type TTSVoice } from "@/types/tts";
 import { TTSPreviewSection } from "./TTSPreviewSection";
 import { TTSProviderFactory } from "@/utils/tts";
-import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { useDesktopPlugins } from "@/app/plugins/context";
 

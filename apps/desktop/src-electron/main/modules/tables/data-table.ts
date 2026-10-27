@@ -18,63 +18,6 @@ import type { DataTableTarget } from "@tau/shared/database-types";
 import { dataFieldModels } from "./field-models";
 
 export default class DataTableTable {
-  static upgradePrimaryColumn(db: Database.Database) {
-    const selectStmt = db.prepare(`SELECT * FROM data_tables`);
-    const updateStmt = db.prepare(
-      `UPDATE data_tables SET columns = ?, rows = ?, update_time = ? WHERE id = ?`
-    );
-
-    const tables = selectStmt.all();
-
-    tables.forEach((table: unknown) => {
-      const tableData = table as { id: number; columns: string; rows: string };
-      const columns = JSON.parse(tableData.columns || "[]");
-      const rows = JSON.parse(tableData.rows || "[]");
-      let hasChanges = false;
-
-      // 检查是否已有主列
-      const hasPrimaryColumn = columns.some((col: { isPrimary?: boolean }) => col.isPrimary);
-
-      if (!hasPrimaryColumn) {
-        // 查找第一个 text 类型的列
-        const firstTextColumn = columns.find((col: { type: string }) => col.type === "text");
-
-        if (firstTextColumn) {
-          // 设置为主列
-          firstTextColumn.isPrimary = true;
-        } else {
-          // 创建新的主列
-          const newPrimaryColumn = {
-            id: `col_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            title: "名称",
-            type: "text",
-            width: 200,
-            isPrimary: true,
-          };
-          columns.unshift(newPrimaryColumn);
-
-          // 为所有行添加这个新列
-          rows.forEach((row: Record<string, unknown>) => {
-            row[newPrimaryColumn.id] = "";
-          });
-        }
-        hasChanges = true;
-      }
-
-      // 为所有行添加 detailContentId 字段（如果不存在）
-      rows.forEach((row: Record<string, unknown>) => {
-        if (row.detailContentId === undefined) {
-          row.detailContentId = 0;
-          hasChanges = true;
-        }
-      });
-
-      if (hasChanges) {
-        updateStmt.run(JSON.stringify(columns), JSON.stringify(rows), Date.now(), tableData.id);
-      }
-    });
-  }
-
   static getListenEvents() {
     return {
       "data-table:create": this.create.bind(this),

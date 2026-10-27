@@ -17,7 +17,7 @@ const mock = vi.hoisted(() => ({
   openPath: vi.fn(async () => ""),
   download: vi.fn(),
   catalog: vi.fn(),
-  validateContent: vi.fn(async () => ({ editor: true, whiteboard: false, metrics: [] })),
+  validateContent: vi.fn(async () => ({ editor: false, whiteboard: false, metrics: [] })),
 }));
 vi.mock("../../services/content-execution", () => ({
   contentExecutor: { execute: mock.validateContent },
@@ -54,7 +54,10 @@ beforeEach(async () => {
   mock.windows = [];
   mock.handlers.clear();
   mock.openPath.mockClear();
-  mock.validateContent.mockClear();
+  mock.validateContent
+    .mockReset()
+    .mockResolvedValue({ editor: false, whiteboard: false, metrics: [] });
+  mock.download.mockReset();
   const module = await import("../plugin-local");
   await module.default.init();
 });
@@ -65,6 +68,7 @@ it("正式客户端不提供ZIP安装入口，初次启动没有预装插件", a
 });
 
 it("正式 IPC 安装跨端内容包，启用重启后从原始格式 3 快照装配；错来源不放行", async () => {
+  mock.validateContent.mockResolvedValue({ editor: true, whiteboard: false, metrics: [] });
   const id = "test.portable";
   const code = "throw new Error('主进程不得执行定义')";
   const manifest = {
@@ -123,6 +127,7 @@ it("正式 IPC 安装跨端内容包，启用重启后从原始格式 3 快照�
 });
 
 it("主进程恢复开发内容快照，将定义校验交给内容渲染进程", async () => {
+  mock.validateContent.mockResolvedValue({ editor: true, whiteboard: false, metrics: [] });
   mock.packaged = false;
   const id = "test.editor";
   const folder = path.join(mock.root, ".editor/plugins", id);
@@ -208,6 +213,7 @@ it("保留原工作区映射的稳定身份，不按扫描创建新身份", asyn
   expect(await invoke("plugin-local:workspace", "B")).not.toBe(first);
 });
 it.each([false, true])("中心版本安装即启用，更新保留意图，内容快照=%s", async editor => {
+  mock.validateContent.mockResolvedValue({ editor, whiteboard: false, metrics: [] });
   const id = "test.center";
   const download = (version: string) => {
     const code = `module.exports.default=require('@tau/plugins').definePlugin({id:'${id}',name:'中心插件',version:'${version}',${editor ? "editorExtensions:[{id:'test.center',apiVersion:1,elements:[{type:'test.center.node',kind:'block',render:()=>null}]}]," : ""}create:()=>({activate(){}})});`;
@@ -224,7 +230,6 @@ it.each([false, true])("中心版本安装即启用，更新保留意图，内�
           platform: "portable" as const,
           format: "cjs",
           main: "main.js",
-          ...(editor ? { editor: true } : {}),
           integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
 
           profile: "web-v1" as const,
@@ -259,25 +264,25 @@ it.each([false, true])("中心版本安装即启用，更新保留意图，内�
   expect(entry).toMatchObject({ id, source, enabled: true });
   // 格式 3 的实际内容贡献统一交给渲染进程判定。
   expect(await invoke("plugin-local:content-startup")).toMatchObject({
-    artifacts: [{ manifest: { id } }],
+    artifacts: editor ? [{ manifest: { id } }] : [],
   });
   mock.handlers.clear();
   await (await import("../plugin-local")).default.init();
-  download("1.1.0");
+  const updatedSource = download("1.1.0");
   await invoke("plugin-local:stage-release", "r2");
   expect(await invoke("plugin-local:scan", {})).toMatchObject({
     entries: [
       {
         id,
         enabled: true,
-        artifact: { manifest: { version: "1.0.0" } },
-        source,
+        artifact: { manifest: { version: editor ? "1.0.0" : "1.1.0" } },
+        source: editor ? source : updatedSource,
       },
     ],
-    updates: [{ pending: true, pendingVersion: "1.1.0" }],
+    updates: [editor ? { pending: true, pendingVersion: "1.1.0" } : { previousVersion: "1.0.0" }],
   });
   await invoke("plugin-local:set-enabled", id, false);
-  {
+  if (editor) {
     await expect(invoke("plugin-local:uninstall", id)).rejects.toThrow("重启");
     mock.handlers.clear();
     await (await import("../plugin-local")).default.init();

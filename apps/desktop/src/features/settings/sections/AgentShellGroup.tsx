@@ -6,11 +6,10 @@
 
 import { useEffect, useState } from "react";
 import { FolderOpen } from "lucide-react";
-import { Button, Input } from "@tau/ui";
+import { SettingRow, Button, Input } from "@tau/ui";
 import useSettingStore from "@/stores/useSettingStore";
 import { piSessionShellInfo, type PiShellInfo } from "@/commands/piSession";
 import { selectFile } from "@/commands";
-import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { FieldBox } from "../components/ProviderLayout";
 
