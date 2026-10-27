@@ -1,5 +1,5 @@
 import type { CSSProperties, RefObject } from "react";
-import { memberColor } from "@tau/collaboration";
+import { MEMBER_INK, memberColor } from "@tau/collaboration";
 import { effectiveZoom, isOwnDevice, toContainerSpace } from "./cursorOverlay";
 
 const LABEL_MAX_WIDTH = 160;
@@ -122,7 +122,7 @@ export function CursorOverlay({
                       fontSize: 11.5,
                       fontWeight: 500,
                       lineHeight: 1.4,
-                      color: "white",
+                      color: MEMBER_INK,
                       background: color,
                       boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
                       whiteSpace: "nowrap",

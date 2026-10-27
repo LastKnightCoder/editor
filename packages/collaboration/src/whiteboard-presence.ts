@@ -18,6 +18,8 @@ export interface WhiteboardPresence {
 
 export interface WhiteboardPeer extends WhiteboardPresence {
   clientId: number;
+  /** 连接身份（设备 ID），用于派生与正文协作一致的成员色。 */
+  userId: string;
   name: string;
 }
 

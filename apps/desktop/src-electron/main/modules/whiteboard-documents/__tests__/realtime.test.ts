@@ -104,6 +104,7 @@ it("HTTP 提交的位置和文字经真实推送到达，光标选区独立同�
   await vi.waitFor(
     () =>
       expect(views[1].state.peers[0]).toMatchObject({
+        userId: owner.id,
         name: "作者",
         pageId,
         cursor: { x: 40, y: 50 },

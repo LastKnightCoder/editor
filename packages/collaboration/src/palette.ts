@@ -17,6 +17,9 @@ const MEMBER_PALETTE = [
   "oklch(0.58 0.2 355)", // 玫红
 ] as const;
 
+/** 成员色底上的文字与描边色：色板亮度按白色可读设计，明暗主题通用。 */
+export const MEMBER_INK = "white";
+
 /** 由设备 ID 稳定派生成员色：同一成员在头像、光标、名牌、选区上颜色一致。 */
 export function memberColor(id: string): string {
   let hash = 0;

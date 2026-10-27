@@ -7,7 +7,7 @@ import Board from "../Board";
 import BoardContent from "../components/BoardContent";
 import { BoardContext, SelectionContext, ViewPortContext } from "../context";
 import type { WhiteboardDocumentBinding } from "../document";
-import { readWhiteboardPresence, type WhiteboardPeer } from "@tau/collaboration";
+import { memberColor, readWhiteboardPresence, type WhiteboardPeer } from "@tau/collaboration";
 import {
   previewPeerElements,
   alignPeerSelections,
@@ -22,6 +22,7 @@ afterEach(() => {
 const element = { id: "rect", type: "geometry", x: 0, y: 0, width: 100, height: 80, rotation: 0 };
 const peer: WhiteboardPeer = {
   clientId: 1,
+  userId: "device-a",
   name: "甲",
   pageId: "page",
   cursor: { x: 20, y: 30 },
@@ -203,6 +204,11 @@ it("鼠标与选区按节流发送；页面隔离，失焦与卸载清空，不�
       await vi.advanceTimersByTimeAsync(120);
     });
     expect(host.querySelectorAll("rect")).toHaveLength(1);
+    // 颜色跟随连接身份，与正文协作的成员色一致。
+    expect(host.querySelector<SVGGElement>("[data-peer]")?.style.color).toBe(
+      memberColor("device-a")
+    );
+    expect(host.textContent).toContain("甲");
     expect(host.querySelector("g[transform]")?.getAttribute("transform")).toContain("scale(0.5)");
     publishPresence.mockClear();
     for (let i = 0; i < 100; i++) {
