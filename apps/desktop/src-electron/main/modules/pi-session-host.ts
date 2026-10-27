@@ -11,6 +11,7 @@ import { ipcMain } from "electron";
 import userSettingModule from "./user-setting";
 import databaseModule from "./database";
 import collaborationModule from "./collaboration";
+import whiteboardDocumentsModule from "./whiteboard-documents";
 import PathUtil from "../utils/PathUtil";
 import {
   applyActiveTools,
@@ -232,6 +233,7 @@ class PiSessionHostModule {
           );
           assertDatabaseSyncLockOwned(databasePath);
           await collaborationModule.releaseLibrary(databaseName);
+          whiteboardDocumentsModule.releaseLibrary(databaseName);
           installDatabaseDownload(
             databasePath,
             `${databasePath}.download.tmp`,

@@ -404,6 +404,24 @@ export class CollaborationManager {
         await this.releaseReplacedSession(session);
         return this.openContent(event, target);
       }
+      // 主库在缓存之后被其它入口改写（插件、MCP、任务改名等）：旧缓存不能盖住新内容。
+      // 先试着把缓存未投影的编辑写回；修订已冲突时备份缓存后按主库重建。
+      const stored = ContentDocumentTable.read(db, content.id);
+      if (
+        stored &&
+        source.projectionRevision !== stored.revision &&
+        ![...this.views.values()].some(view => view.documentId === id)
+      ) {
+        try {
+          await this.project(session);
+        } catch (error) {
+          if (ContentDocumentTable.read(db, content.id)?.revision === source.projectionRevision)
+            throw error;
+          console.warn(`[collaboration] 正文 ${content.id} 的缓存落后于主库，已备份后按主库重建`);
+          await this.releaseReplacedSession(session, "主库在缓存之后被改写");
+          return this.openContent(event, target);
+        }
+      }
     }
     if (binding && !session) {
       await this.refresh();
@@ -531,6 +549,10 @@ export class CollaborationManager {
     });
     try {
       await drained;
+    } catch (error) {
+      // 视图未确认保存时恢复编辑：渲染端仍持有未送达的编辑，冻结不能悬空
+      if (this.freezeWaiters.get(session.info.id)?.id === requestId) this.unfreeze(session);
+      throw error;
     } finally {
       this.freezeWaiters.delete(session.info.id);
     }
@@ -1622,8 +1644,11 @@ export class CollaborationManager {
 
   private readonly replacementReleases = new Map<string, Promise<void>>();
 
-  /** 本地会话直接丢弃，共享会话解除来源；同一会话并发释放只执行一次。 */
-  private releaseReplacedSession(session: RuntimeSession): Promise<void> {
+  /** 本地会话备份后丢弃，共享会话解除来源；同一会话并发释放只执行一次。 */
+  private releaseReplacedSession(
+    session: RuntimeSession,
+    reason = "资料库或正文身份已变化"
+  ): Promise<void> {
     const id = session.info.id;
     const pending = this.replacementReleases.get(id);
     if (pending) return pending;
@@ -1631,11 +1656,13 @@ export class CollaborationManager {
       for (const [viewId, view] of this.views) if (view.documentId === id) this.removeView(viewId);
       unregisterContentSession(session);
       if (session.info.mode === "local") {
+        // 缓存里可能有尚未投影的编辑，删除前留一份可恢复的原始字节
+        if (session.dirty) this.store.compact(id, session.doc);
+        this.store.discard(id, reason);
         session.provider?.destroy();
         session.awareness.destroy();
         session.doc.destroy();
         this.sessions.delete(id);
-        this.store.remove(id);
         this.contentState?.db
           .prepare("DELETE FROM entity_holds WHERE holder=?")
           .run(`document:${id}`);

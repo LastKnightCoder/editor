@@ -180,6 +180,13 @@ class WhiteboardDocumentsModule {
       throw error;
     }
   }
+  /** 整库被同步下载替换：本机日志对应旧库，留着会让新库的白板判为分叉而无法打开。 */
+  releaseLibrary(name: string): void {
+    if (!this.sessions) return;
+    const released = this.sessions.releaseLibrary(name);
+    if (released)
+      console.info(`[whiteboard-documents] 资料库 ${name} 被替换，释放 ${released} 份白板日志`);
+  }
   collectPendingDocuments(db: Database.Database, now: number, graceMs: number): number {
     const name = [...databaseModule.databases].find(([, value]) => value === db)?.[0];
     if (name === undefined || !this.sessions || !this.store) return 0;
