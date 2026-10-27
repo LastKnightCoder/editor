@@ -2,7 +2,7 @@
  * 「笔记元信息」「AI 洞见」功能槽的说明与进度（KL-055 / KL-063）；进度行与嵌入「索引覆盖」同一行式。
  */
 
-import { SettingRow } from "../components/SettingRow";
+import { SettingRow } from "@tau/ui";
 import { StatusChip } from "../components/StatusChip";
 import { useContentAiStatus } from "./useContentAiStatus";
 

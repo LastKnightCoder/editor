@@ -23,10 +23,6 @@ interface ResizeableAndHideableSidebarProps {
    * - 右侧侧边栏通常传 `left`
    */
   resizeHandleSide?: "left" | "right";
-  /**
-   * @deprecated 兼容旧调用，等价于 `resizeHandleSide`
-   */
-  side?: "left" | "right";
   /** 侧边栏的位置（左侧或右侧），用于确定按钮显示位置 */
   sidebarPosition?: "left" | "right";
   disableResize?: boolean;
@@ -54,8 +50,7 @@ const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) 
     children,
     minWidth = 200,
     maxWidth = 500,
-    resizeHandleSide,
-    side,
+    resizeHandleSide = "right",
     sidebarPosition = "left",
     disableResize = false,
     handleOffset,
@@ -65,7 +60,6 @@ const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) 
   } = props;
 
   const [isHoveringEdge, setIsHoveringEdge] = useState(false);
-  const resolvedResizeHandleSide = resizeHandleSide ?? side ?? "right";
   const actualWidth = Math.min(Math.max(width, minWidth), maxWidth);
 
   useEffect(() => {
@@ -114,7 +108,7 @@ const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) 
           style={{
             height: "100%",
           }}
-          side={resolvedResizeHandleSide}
+          side={resizeHandleSide}
           disableResize={disableResize}
           handleOffset={handleOffset}
           showDivider={showDivider}

@@ -13,7 +13,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Minus, Plus } from "lucide-react";
 import clsx from "clsx";
 import { produce } from "immer";
-import { type ImageBorderRadiusPreset, type ImageShadowPreset } from "@tau/editor/extensions/media/types";
+import {
+  type ImageBorderRadiusPreset,
+  type ImageShadowPreset,
+} from "@tau/editor/extensions/media/types";
 import { useThemeStore } from "@tau/themes/react";
 import type { CSSProperties, ReactNode } from "react";
 import {
@@ -24,10 +27,9 @@ import {
   type SemanticTokens,
   type ThemeDefinition,
 } from "@tau/themes";
-import { Select } from "@tau/ui";
+import { SettingRow, Select } from "@tau/ui";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
 import { getAllFonts } from "@/commands";
-import { SettingRow } from "../components/SettingRow";
 import { FontSelect } from "../components/FontSelect";
 import { SettingsGroup } from "../components/SettingsGroup";
 
@@ -89,7 +91,7 @@ export function AppearanceSection() {
   return (
     <>
       <SettingsGroup title="明暗" description="跟随系统时，按系统明暗切换当前主题的深浅配色">
-        <div className="grid grid-cols-3 gap-3 px-1.5 pb-1 pt-2.5">
+        <div className="grid grid-cols-3 gap-3 px-1.5 pt-2.5 pb-1">
           {APPEARANCE_OPTIONS.map(option => (
             <ChoiceCard
               key={option.value}
@@ -108,7 +110,7 @@ export function AppearanceSection() {
             </ChoiceCard>
           ))}
         </div>
-        <div className="text-tau-meta text-ink-2 px-3 pb-2 pt-1.5">
+        <div className="text-tau-meta text-ink-2 px-3 pt-1.5 pb-2">
           当前生效：
           <span className="text-ink-1 font-medium">
             {currentTheme.name} · {mode === "dark" ? "深色" : "浅色"}
@@ -118,7 +120,7 @@ export function AppearanceSection() {
       </SettingsGroup>
 
       <SettingsGroup title="主题" description="每套主题都包含深浅两套配色">
-        <div className="grid grid-cols-3 gap-3 px-1.5 pb-2.5 pt-2.5">
+        <div className="grid grid-cols-3 gap-3 px-1.5 pt-2.5 pb-2.5">
           {themes.map(theme => (
             <ChoiceCard
               key={theme.key}
@@ -252,15 +254,15 @@ function WindowPreview({ tokens, lit }: { tokens: SemanticTokens; lit: boolean }
     <div className="absolute inset-0" style={pageStyle(tokens)}>
       <div className="absolute inset-y-0 left-0 w-10 border-r" style={railStyle(tokens)} />
       <div
-        className="absolute left-[52px] top-3 h-[7px] w-[58px] rounded-full"
+        className="absolute top-3 left-[52px] h-[7px] w-[58px] rounded-full"
         style={barStyle(tokens)}
       />
       <div
-        className="absolute left-[52px] top-[26px] h-[7px] w-[80px] rounded-full"
+        className="absolute top-[26px] left-[52px] h-[7px] w-[80px] rounded-full"
         style={barStyle(tokens)}
       />
       <div
-        className="absolute left-[52px] top-10 h-[10px] w-[42px] rounded-[4px] transition-colors duration-[160ms]"
+        className="absolute top-10 left-[52px] h-[10px] w-[42px] rounded-[4px] transition-colors duration-[160ms]"
         style={{ background: lit ? tokens.accent : tokens["bg-sunken"] }}
       />
     </div>
@@ -276,30 +278,30 @@ function SplitPreview({ theme, lit }: { theme: ThemeDefinition; lit: boolean }) 
       <div className="absolute inset-y-0 left-0 w-1/2" style={pageStyle(light)}>
         <div className="absolute inset-y-0 left-0 w-[18px] border-r" style={railStyle(light)} />
         <div
-          className="absolute left-[24px] top-[22px] h-[6px] w-[26px] rounded-full"
+          className="absolute top-[22px] left-[24px] h-[6px] w-[26px] rounded-full"
           style={barStyle(light)}
         />
         <div
-          className="absolute left-[24px] top-[34px] h-[6px] w-[34px] rounded-full"
+          className="absolute top-[34px] left-[24px] h-[6px] w-[34px] rounded-full"
           style={barStyle(light)}
         />
         <div
-          className="absolute left-[24px] top-[46px] h-[8px] w-[20px] rounded-[3px] transition-colors duration-[160ms]"
+          className="absolute top-[46px] left-[24px] h-[8px] w-[20px] rounded-[3px] transition-colors duration-[160ms]"
           style={{ background: lit ? light.accent : light["bg-sunken"] }}
         />
       </div>
       <div className="absolute inset-y-0 right-0 w-1/2" style={pageStyle(dark)}>
         <div className="absolute inset-y-0 right-0 w-[18px] border-l" style={railStyle(dark)} />
         <div
-          className="absolute right-[24px] top-[22px] h-[6px] w-[26px] rounded-full"
+          className="absolute top-[22px] right-[24px] h-[6px] w-[26px] rounded-full"
           style={barStyle(dark)}
         />
         <div
-          className="absolute right-[24px] top-[34px] h-[6px] w-[34px] rounded-full"
+          className="absolute top-[34px] right-[24px] h-[6px] w-[34px] rounded-full"
           style={barStyle(dark)}
         />
         <div
-          className="absolute right-[24px] top-[46px] h-[8px] w-[20px] rounded-[3px] transition-colors duration-[160ms]"
+          className="absolute top-[46px] right-[24px] h-[8px] w-[20px] rounded-[3px] transition-colors duration-[160ms]"
           style={{ background: lit ? dark.accent : dark["bg-sunken"] }}
         />
       </div>

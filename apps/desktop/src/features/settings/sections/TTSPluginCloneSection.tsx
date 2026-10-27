@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { Select, toast } from "@tau/ui";
+import { SettingRow, Select, toast } from "@tau/ui";
 import { VoiceClonePanel } from "@/components/PodcastGenerationModal/VoiceClonePanel";
 import type { CloneVoiceItem } from "@/components/PodcastGenerationModal/types";
 import type { PluginTTSProviderSetting } from "@/types/tts";
 import { TTSProviderFactory } from "@/utils/tts";
 import { ProviderSection } from "../components/ProviderLayout";
-import { SettingRow } from "../components/SettingRow";
 
 export function TTSPluginCloneSection({
   provider,

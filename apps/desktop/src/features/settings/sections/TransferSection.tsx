@@ -5,13 +5,12 @@
 
 import { useState } from "react";
 import { ArrowRight } from "lucide-react";
-import { Button, ConfirmDialog, Dialog, DialogBody, toast } from "@tau/ui";
+import { SettingRow, Button, ConfirmDialog, Dialog, DialogBody, toast } from "@tau/ui";
 import { useSettingsStore } from "@/app/settingsStore";
 import { useTransferStore } from "@/app/transferStore";
 import { undoImport } from "@/services/batch-import";
 import useSettingStore from "@/stores/useSettingStore";
 import { useImportHistoryStore, type ImportRecord } from "@/stores/useImportHistoryStore";
-import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
 
 const recordTitle = (record: ImportRecord) =>

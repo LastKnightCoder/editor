@@ -9,7 +9,7 @@ import { useSettingsStore } from "@/app/settingsStore";
 import { getModelUsagePlugins } from "@/commands/model-usage";
 import { PluginAIActivity } from "./PluginAIActivity";
 import { RefreshCw } from "lucide-react";
-import { Button, Segmented, Select, toast } from "@tau/ui";
+import { ROW_DIVIDER, Button, Segmented, Select, toast } from "@tau/ui";
 import {
   getModelUsageBreakdown,
   getModelUsageSummary,
@@ -27,7 +27,6 @@ import type {
 } from "@/types/model-usage";
 import { SettingsGroup } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
-import { ROW_DIVIDER } from "../components/rowDivider";
 import { UsageChart, useUsageChartPalette, type UsageChartPalette } from "../components/UsageChart";
 import { UsageDevicesGroup } from "./UsageDevicesGroup";
 import {
@@ -277,7 +276,7 @@ function KpiRow({
             className={index > 0 ? "border-line-2 border-l px-5 py-4" : "px-5 py-4"}
           >
             <div className="text-tau-meta text-ink-2">{item.label}</div>
-            <div className="text-ink-1 font-tau-mono mt-1 text-[22px] font-semibold tabular-nums leading-tight">
+            <div className="text-ink-1 font-tau-mono mt-1 text-[22px] leading-tight font-semibold tabular-nums">
               {item.value}
             </div>
             <div className="text-tau-tiny text-ink-3 mt-1 h-4 truncate tabular-nums">
@@ -817,7 +816,7 @@ function EventRow({
       {open && (
         <dl
           id={detailId}
-          className="text-tau-meta grid grid-cols-[88px_minmax(0,1fr)_88px_minmax(0,1fr)] gap-x-3 gap-y-1.5 px-3 pb-3 pt-1"
+          className="text-tau-meta grid grid-cols-[88px_minmax(0,1fr)_88px_minmax(0,1fr)] gap-x-3 gap-y-1.5 px-3 pt-1 pb-3"
         >
           <Detail label="服务商" value={item.providerName ?? item.providerId} />
           <Detail label="数据库" value={item.library ?? "未知"} />

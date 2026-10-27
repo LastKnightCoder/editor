@@ -24,6 +24,8 @@ import {
   Zap,
 } from "lucide-react";
 import {
+  ROW_DIVIDER,
+  SettingRow,
   Button,
   ConfirmDialog,
   Dialog,
@@ -46,8 +48,6 @@ import {
   type EmbeddingModelInfo,
 } from "@/commands";
 import { DEFAULT_LOCAL_EMBEDDING_DISTANCE } from "@/constants/embedding";
-import { ROW_DIVIDER } from "../components/rowDivider";
-import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup, SettingsNote } from "../components/SettingsGroup";
 import { StatusChip } from "../components/StatusChip";
 import { EmbeddingIndexStatusGroup } from "./EmbeddingIndexStatusGroup";

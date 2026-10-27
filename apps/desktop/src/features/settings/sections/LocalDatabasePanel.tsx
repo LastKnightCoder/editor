@@ -15,6 +15,8 @@ import { Database, Info, Plus, Trash2 } from "lucide-react";
 import clsx from "clsx";
 import { produce } from "immer";
 import {
+  ROW_DIVIDER,
+  SettingRow,
   Button,
   ConfirmDialog,
   Dialog,
@@ -26,8 +28,6 @@ import {
 } from "@tau/ui";
 import useSettingStore from "@/stores/useSettingStore";
 import { closeDatabase, getDatabasePath, removeFile } from "@/commands";
-import { ROW_DIVIDER } from "../components/rowDivider";
-import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup, SettingsNote } from "../components/SettingsGroup";
 
 const displayName = (name: string) => name.replace(/\.db$/i, "");

@@ -1,7 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Switch } from "@tau/ui";
+import { SettingRow, Switch } from "@tau/ui";
 import { backendRequest } from "@/commands/plugin-backend";
-import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
 
 interface BackgroundPreferences {

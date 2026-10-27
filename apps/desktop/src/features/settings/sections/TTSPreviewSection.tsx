@@ -7,10 +7,9 @@ import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import clsx from "clsx";
 import { AudioPlayer } from "@tau/shared";
-import { Button, IconButton, Select, Textarea } from "@tau/ui";
+import { SettingRow, Button, IconButton, Select, Textarea } from "@tau/ui";
 import type { TTSProviderSetting } from "@/types/tts";
 import { TTSProviderFactory } from "@/utils/tts";
-import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
 
 const DEFAULT_TEXT = "你好，这是一段语音合成试听。可以修改文本，再选择音色重新生成。";

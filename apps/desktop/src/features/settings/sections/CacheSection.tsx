@@ -12,6 +12,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import { Eye, Film, Image as ImageIcon, Music, Trash2 } from "lucide-react";
 import {
+  ROW_DIVIDER,
+  SettingRow,
   Button,
   Checkbox,
   ConfirmDialog,
@@ -47,8 +49,6 @@ import {
   listOnlineVideoCache,
 } from "@/commands/online-video-cache";
 import { getVideoProviders } from "@/commands/plugin-video";
-import { ROW_DIVIDER } from "../components/rowDivider";
-import { SettingRow } from "../components/SettingRow";
 import { SettingsGroup } from "../components/SettingsGroup";
 
 type Media = "video" | "audio" | "image";
@@ -462,7 +462,7 @@ export function CacheSection() {
             </div>
             <div
               ref={setListEl}
-              className="edge-fade-scroll max-h-[400px] overflow-y-auto overflow-x-hidden"
+              className="edge-fade-scroll max-h-[400px] overflow-x-hidden overflow-y-auto"
             >
               {items.map(item => (
                 <CacheRow
