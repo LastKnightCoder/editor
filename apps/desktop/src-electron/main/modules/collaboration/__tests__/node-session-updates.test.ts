@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -10,6 +10,9 @@ import { CollaborationLocalStore } from "../local-store";
 import { NodeSessionUpdates } from "../node-session-updates";
 import { ContentLocalState } from "../content-local-state";
 import type { RuntimeSession } from "../types";
+
+const directory = (store: CollaborationLocalStore) =>
+  (store as unknown as { directory: string }).directory;
 
 const cleanup: (() => void)[] = [];
 afterEach(() => {
@@ -171,12 +174,16 @@ describe("协议 2 桌面增量接纳", () => {
     }
   });
 
-  it("坏会话元数据不会清理原始缓存，也不妨碍列出其他会话", async () => {
+  it("坏会话元数据备份后丢弃，不妨碍列出其他会话", async () => {
     const { store, session } = await setup();
     store.create({ ...session.info, id: "healthy" }, session.doc);
     store.db.prepare("UPDATE sessions SET metadata='bad' WHERE id=?").run(session.info.id);
     expect(store.list().map(info => info.id)).toEqual(["healthy"]);
-    expect(store.failures.has("document")).toBe(true);
-    expect(store.db.prepare("SELECT 1 FROM sessions WHERE id='document'").get()).toBeDefined();
+    expect(store.db.prepare("SELECT 1 FROM sessions WHERE id='document'").get()).toBeUndefined();
+    const discarded = join(directory(store), "discarded");
+    const [file] = readdirSync(discarded);
+    const backup = JSON.parse(readFileSync(join(discarded, file), "utf8"));
+    expect(backup).toMatchObject({ id: "document", metadata: "bad" });
+    expect(backup.state.length).toBeGreaterThan(0);
   });
 });
