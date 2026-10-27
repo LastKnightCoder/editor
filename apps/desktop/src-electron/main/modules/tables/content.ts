@@ -156,13 +156,8 @@ export default class ContentTable {
       | { content: string; contracts: string | null; format_version: number | null }
       | undefined;
     if (!document) return { content: "", sections: sections ? [] : undefined };
-    // 索引只读文本、每篇一次查询，不在主进程解析正文；只有格式版本无法识别时先自愈再重读
-    if (document.format_version !== null && document.format_version !== 2) {
-      if (findCollaborationBinding(db, contentId)) throw new Error("正文数据格式不兼容");
-      const { repairContentForOpen } = await import("../content-repair");
-      await repairContentForOpen(db, basename(db.name, ".db"), contentId, () => db.open);
-      return this.readText(db, contentId, title, whole, sections, signal);
-    }
+    if (document.format_version !== null && document.format_version !== 2)
+      throw new Error("正文数据格式不兼容");
     const session = contentSession(db, contentId);
     const active = session?.doc.getMap("meta").get("version") === 2;
     const raw = active

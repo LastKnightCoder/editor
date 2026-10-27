@@ -204,37 +204,6 @@ describe("正文身份、契约与关系账的持久化", () => {
     }
   });
 
-  it("索引遇到格式版本无法识别的记录先自愈再重读，不把正文漏出索引", async () => {
-    const db = database();
-    const paragraph = await prepareContentContract("tau.paragraph", {
-      type: "paragraph",
-      dataVersion: 1,
-      kind: "block",
-    });
-    ContentIdentityTable.establishBaseline(db);
-    db.prepare("UPDATE contents SET content=? WHERE id=1").run(
-      JSON.stringify([
-        { type: "paragraph", collabId: "a", tauContract: paragraph.id, children: [{ text: "x" }] },
-      ])
-    );
-    db.prepare(
-      "INSERT INTO content_documents(content_id,document_id,format_version,contracts,revision) VALUES (1,'doc-1',3,'{}','r')"
-    ).run();
-    execution.execute.mockReset();
-    execution.execute.mockImplementation(
-      async (request: { operation: string; content?: unknown }) =>
-        request.operation === "repair-content"
-          ? { content: request.content, contracts: { [paragraph.id]: paragraph.contract } }
-          : { content: "x" }
-    );
-    expect(await ContentTable.readText(db, 1, "", false, false)).toEqual({ content: "x" });
-    expect(
-      db
-        .prepare("SELECT format_version,document_id FROM content_documents WHERE content_id=1")
-        .get()
-    ).toEqual({ format_version: 2, document_id: "doc-1" });
-  });
-
   it("无契约正文仍原样送往转换进程，转换期间取消不会返回结果", async () => {
     const db = database();
     const raw = '\n [{"type":"paragraph","children":[{"text":"原始正文"}]}] ';
