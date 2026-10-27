@@ -1,6 +1,6 @@
 # 白板协作插件
 
-从 `@tau/plugins/whiteboard` 使用 `defineElement`、`defineWhiteboardExtension` 和 `useWhiteboardAPI`。此作者入口面向已绑定协作文档的画布；旧快照的转换、首次共享和完整业务类型适配由宿主负责，不在插件加载时执行。
+从 `@tau/plugins/whiteboard` 使用 `defineElement`、`defineWhiteboardExtension` 和 `useWhiteboardAPI`。此作者入口面向已绑定协作文档的画布；首次共享和完整业务类型适配由宿主负责，不在插件加载时执行。
 
 本页对应 SDK 0.45.0。0.44.0 及更早版本的路径写入接口不能直接用于当前宿主：将 `schemaVersion/migrate` 改为 `dataVersion/previousVersions`，将路径操作和 `apply` 改为稳定 ID 命令，业务数据使用 `updateElementData`，文本使用 `getTextBinding`。这不是字段的机械改名，须按下文的数据与历史语义逐项适配。
 
