@@ -14,6 +14,7 @@ import {
   type ContentContractDictionary,
 } from "@tau/db-schema/content-contracts";
 import type { ElementContractCatalog } from "./editor-contracts";
+import type { ElementContractDefinition } from "@tau/editor/contracts";
 
 const CARRIER = "tau.contract-payload";
 type NodeData = { type: string; children: NodeData[]; [key: string]: unknown };
@@ -27,7 +28,7 @@ export interface ContractMarkdownDocument {
 }
 
 export async function createContractMarkdownProcessor(options: {
-  catalog: ElementContractCatalog;
+  catalog: ElementContractCatalog<ElementContractDefinition>;
   contracts: ContentContractDictionary;
   codecs: readonly OwnedMarkdownCodec[];
   textCodecs?: MarkdownProcessorOptions["textCodecs"];

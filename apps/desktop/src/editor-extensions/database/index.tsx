@@ -1,4 +1,4 @@
-import { databaseElementDefinition } from "../entity-definitions";
+import { databaseElementDefinition } from "../element-definitions";
 import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 import DatabaseBlock from "./components/DatabaseBlock";
 import blockPanelItems from "./block-panel-items";

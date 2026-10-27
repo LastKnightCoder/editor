@@ -1,4 +1,8 @@
-import { assertElementVersions, type ElementSpec } from "@tau/editor/contracts";
+import {
+  assertElementVersions,
+  type ElementContractDefinition,
+  type ElementSpec,
+} from "@tau/editor/contracts";
 import {
   prepareContentContract,
   NODE_CONTRACT_PROPERTY,
@@ -8,30 +12,35 @@ import {
 } from "@tau/db-schema/content-contracts";
 import type { Descendant } from "slate";
 
-export interface RegisteredElementContract {
+export interface RegisteredElementContract<E extends ElementContractDefinition = ElementSpec> {
   readonly id: string;
   readonly contract: ContentContract;
-  readonly element: ElementSpec;
+  readonly element: E;
   readonly access: "read" | "edit" | "none";
   readonly current: boolean;
 }
 
-export interface ElementContractSource {
+export interface ElementContractSource<E extends ElementContractDefinition = ElementSpec> {
   owner: string;
-  elements: readonly ElementSpec[];
+  elements: readonly E[];
 }
 
-/** 静态声明的准备结果；文档始终按已有摘要匹配，不用当前插件重新解释旧数据。 */
-export class ElementContractCatalog {
+/**
+ * 静态声明的准备结果；文档始终按已有摘要匹配，不用当前插件重新解释旧数据。
+ * 编辑器装配传完整 ElementSpec（按版本分发行为）；无界面转换只传持久化声明。
+ */
+export class ElementContractCatalog<E extends ElementContractDefinition = ElementSpec> {
   private constructor(
-    private readonly entries: ReadonlyMap<string, RegisteredElementContract>,
-    private readonly active: ReadonlyMap<string, RegisteredElementContract>,
+    private readonly entries: ReadonlyMap<string, RegisteredElementContract<E>>,
+    private readonly active: ReadonlyMap<string, RegisteredElementContract<E>>,
     readonly dictionary: ContentContractDictionary
   ) {}
 
-  static async prepare(sources: readonly ElementContractSource[]): Promise<ElementContractCatalog> {
-    const entries = new Map<string, RegisteredElementContract>();
-    const active = new Map<string, RegisteredElementContract>();
+  static async prepare<E extends ElementContractDefinition>(
+    sources: readonly ElementContractSource<E>[]
+  ): Promise<ElementContractCatalog<E>> {
+    const entries = new Map<string, RegisteredElementContract<E>>();
+    const active = new Map<string, RegisteredElementContract<E>>();
     const dictionary: Record<string, ContentContract> = {};
     for (const source of sources) {
       for (const element of source.elements) {
@@ -40,7 +49,13 @@ export class ElementContractCatalog {
         if (active.has(element.type)) throw new Error(`节点类型重复：${element.type}`);
         for (const item of [
           { element, access: "edit" as const, current: true },
-          ...(element.previousVersions ?? []).map(previous => ({ ...previous, current: false })),
+          // 历史版本与当前声明同构（ElementSpec 的历史仍是 ElementSpec）
+          ...(
+            (element.previousVersions ?? []) as readonly {
+              element: E;
+              access: "read" | "edit" | "none";
+            }[]
+          ).map(previous => ({ ...previous, current: false })),
         ]) {
           const prepared = await prepareContentContract(source.owner, {
             type: item.element.type,
@@ -61,11 +76,11 @@ export class ElementContractCatalog {
     return new ElementContractCatalog(entries, active, Object.freeze(dictionary));
   }
 
-  get(id: string): RegisteredElementContract | undefined {
+  get(id: string): RegisteredElementContract<E> | undefined {
     return this.entries.get(id);
   }
 
-  current(type: string): RegisteredElementContract | undefined {
+  current(type: string): RegisteredElementContract<E> | undefined {
     return this.active.get(type);
   }
 
@@ -80,7 +95,7 @@ export class ElementContractCatalog {
     );
   }
 
-  resolve(node: Record<string, unknown>): RegisteredElementContract | undefined {
+  resolve(node: Record<string, unknown>): RegisteredElementContract<E> | undefined {
     const id = node[NODE_CONTRACT_PROPERTY];
     const entry = typeof id === "string" ? this.entries.get(id) : undefined;
     return entry?.contract.type === node.type ? entry : undefined;

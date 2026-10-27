@@ -156,7 +156,18 @@ export function defineElement<E extends Element>(spec: ElementSpec<E>): ElementS
   return spec as unknown as ElementSpec;
 }
 
-export function assertElementVersions(spec: ElementSpec): void {
+/** 节点的持久化声明：进入文档契约只需这些字段，Markdown 转换等无界面场景直接使用 */
+export interface ElementContractDefinition {
+  type: string;
+  dataVersion?: number;
+  collaboration?: ContentCollaborationSpec;
+  previousVersions?: readonly PreviousDataVersion<ElementContractDefinition>[];
+  kind: "block" | "inline";
+  isVoid?: boolean;
+  resources?: readonly ContentResourceSpec[];
+}
+
+export function assertElementVersions(spec: ElementContractDefinition): void {
   assertDataVersions(spec, element =>
     normalizeContentContract("validation", {
       type: element.type,

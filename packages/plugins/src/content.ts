@@ -8,7 +8,7 @@ import type { WhiteboardElementDefinition, WhiteboardExtension } from "@tau/whit
 import { WhiteboardContractCatalog, hostWhiteboardExtensions } from "@tau/whiteboard/contracts";
 import type { DevelopmentPluginPackage } from "./package";
 import { ElementContractCatalog } from "./editor-contracts";
-import type { EditorExtension, ElementSpec } from "@tau/editor/contracts";
+import type { EditorExtension, ElementContractDefinition } from "@tau/editor/contracts";
 import { createMarkdownProcessor, type MarkdownProcessor } from "@tau/markdown";
 import type {
   ContentResourceDeclarations,
@@ -20,6 +20,12 @@ import {
   getPluginWhiteboardTypes,
   assertUniqueEditorCodecs,
 } from "./rendering.ts";
+
+/** 一组节点持久化声明，按 id 归属；EditorExtension 结构上即满足，无界面场景可直接写纯数据 */
+export interface ElementContractGroup {
+  readonly id: string;
+  readonly elements?: readonly ElementContractDefinition[];
+}
 
 export class ContentPluginRegistry {
   constructor(private readonly onMetrics?: (rules: readonly ContentMetricRule[]) => void) {}
@@ -41,6 +47,10 @@ export class ContentPluginRegistry {
   private preparedContracts?: Promise<ElementContractCatalog>;
   private contractCatalog?: ElementContractCatalog;
   private kitContracts = new WeakMap<readonly EditorExtension[], Promise<ElementContractCatalog>>();
+  private groupContracts = new WeakMap<
+    readonly ElementContractGroup[],
+    Promise<ElementContractCatalog<ElementContractDefinition>>
+  >();
   private snapshot: {
     definitions: readonly PluginDefinition[];
     extensions: NonNullable<PluginDefinition["editorExtensions"]>;
@@ -136,8 +146,12 @@ export class ContentPluginRegistry {
     return (this.preparedContracts = prepared);
   }
 
+  /**
+   * 契约感知的 Markdown 处理器：节点声明取宿主声明组加已装插件，与编辑器 kit 无关。
+   * 每个 codec 必须有对应的节点声明，否则导出会静默退化成无损载荷，故直接报错。
+   */
   async prepareMarkdown(
-    extensions: readonly EditorExtension[],
+    groups: readonly ElementContractGroup[],
     options: {
       contracts: import("@tau/db-schema/content-contracts").ContentContractDictionary;
       codecs: readonly import("@tau/markdown").MarkdownCodec[];
@@ -146,10 +160,11 @@ export class ContentPluginRegistry {
     }
   ) {
     const snapshot = this.snapshot;
-    const catalog = await this.prepareEditorContracts(extensions);
-    const owned = options.codecs.flatMap(codec => {
+    const catalog = await this.prepareElementContracts(groups);
+    const owned = options.codecs.map(codec => {
       const owner = catalog.current(codec.type)?.contract.owner;
-      return owner ? [{ owner, codec }] : [];
+      if (!owner) throw new Error(`Markdown codec 缺少节点声明：${codec.type}`);
+      return { owner, codec };
     });
     for (const definition of snapshot.definitions)
       for (const codec of definition.editorCodecs ?? [])
@@ -157,18 +172,40 @@ export class ContentPluginRegistry {
     return createContractMarkdownProcessor({ ...options, catalog, codecs: owned });
   }
 
+  /** 按 kit 实际装配的元素建契约目录 */
   prepareEditorContracts(extensions: readonly EditorExtension[]): Promise<ElementContractCatalog> {
-    const existing = this.kitContracts.get(extensions);
+    return this.cachedContracts(this.kitContracts, extensions, extensions);
+  }
+
+  /** 按宿主声明组加已装插件的全部元素建契约目录，供不装配编辑器的转换使用 */
+  prepareElementContracts(
+    groups: readonly ElementContractGroup[]
+  ): Promise<ElementContractCatalog<ElementContractDefinition>> {
+    return this.cachedContracts(this.groupContracts, groups, [
+      ...groups,
+      ...this.snapshot.extensions,
+    ]);
+  }
+
+  private cachedContracts<
+    E extends ElementContractDefinition,
+    G extends { readonly id: string; readonly elements?: readonly E[] },
+  >(
+    cache: WeakMap<readonly G[], Promise<ElementContractCatalog<E>>>,
+    key: readonly G[],
+    groups: readonly G[]
+  ): Promise<ElementContractCatalog<E>> {
+    const existing = cache.get(key);
     if (existing) return existing;
     const snapshot = this.snapshot;
-    const owners = new Map<ElementSpec, string>();
+    const owners = new Map<ElementContractDefinition, string>();
     for (const definition of snapshot.definitions)
       for (const extension of definition.editorExtensions ?? [])
         for (const element of extension.elements ?? []) owners.set(element, definition.id);
-    const active = new Map<string, { owner: string; element: ElementSpec }>();
-    for (const extension of extensions)
-      for (const element of extension.elements ?? [])
-        active.set(element.type, { owner: owners.get(element) ?? extension.id, element });
+    const active = new Map<string, { owner: string; element: E }>();
+    for (const group of groups)
+      for (const element of group.elements ?? [])
+        active.set(element.type, { owner: owners.get(element) ?? group.id, element });
     const sources = [...active.values()]
       .filter(item => item.element.dataVersion !== undefined)
       .map(item => ({ owner: item.owner, elements: [item.element] }));
@@ -178,12 +215,13 @@ export class ContentPluginRegistry {
         return catalog;
       })
       .catch(error => {
-        if (this.kitContracts.get(extensions) === result) this.kitContracts.delete(extensions);
+        if (cache.get(key) === result) cache.delete(key);
         throw error;
       });
-    this.kitContracts.set(extensions, result);
+    cache.set(key, result);
     return result;
   }
+
   install(definitions: readonly PluginDefinition[]) {
     const ids = new Set<string>();
     const types = new Set<string>();
@@ -239,6 +277,7 @@ export class ContentPluginRegistry {
     this.preparedContracts = undefined;
     this.contractCatalog = undefined;
     this.kitContracts = new WeakMap();
+    this.groupContracts = new WeakMap();
     this.snapshot = {
       definitions: Object.freeze([...definitions]),
       extensions: Object.freeze(

@@ -21,17 +21,15 @@ import { previewMenuExtension } from "@tau/editor-source-view/menu";
 import codeBlockExtension from "@tau/editor/extensions/code-block";
 import { mathExtensions } from "@tau/editor/extensions/math";
 import emojiExtension from "@tau/editor/extensions/emoji";
-import {
-  contentLinkExtension,
-  createDesktopEditorExtensions,
-  fileAttachmentExtension,
-} from "@/editor-extensions";
+import { createDesktopEditorExtensions, fileAttachmentExtension } from "@/editor-extensions";
+import { hostElementGroups } from "@/editor-extensions/element-definitions";
 import flashcardBlankExtension from "@/editor-extensions/flashcard-blank";
 import docTasksExtension from "@/editor-extensions/doc-tasks";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { desktopEditorServices } from "./editorRegistry";
 import { IElementEditingPolicy } from "@tau/editor/api";
 import { desktopContentPlugins, desktopPortableSupport } from "../../shared/content-plugins.ts";
+import type { ElementContractGroup } from "@tau/plugins/content";
 
 /** 异步装载的宿主扩展必须先就位：kit 只建一次，少拿了就整个应用少几种块，且不会报错 */
 function requireHostExtensions(): EditorExtension[] {
@@ -165,22 +163,25 @@ export async function prepareNewContent(
   return catalog.createDocument(content, contracts);
 }
 
-/**
- * 正文与 Markdown 互转：底座之外只装有 Markdown 语法的宿主节点（内容链接、附件）。
- * 不经 `getContentKit`，后台转换窗口不装载白板 / 数据库扩展；那些块本就没有语法，按无损载荷保留。
- */
-export function getContentConversionKit(): EditorKit {
-  return createDesktopKit([contentLinkExtension, fileAttachmentExtension]);
+let elementGroups: readonly ElementContractGroup[] | null = null;
+
+/** 正文可能出现的全部节点声明：编辑器内置节点（描述底座）加宿主节点持久化声明，不装配界面扩展 */
+function contentElementGroups(): readonly ElementContractGroup[] {
+  return (elementGroups ??= [...getDescriptionKit().extensions, ...hostElementGroups]);
+}
+
+/** 无界面转换（Markdown 互转、后台建文档）用的契约目录 */
+export function prepareContentContracts() {
+  return desktopContentPlugins.prepareElementContracts(contentElementGroups());
 }
 
 /** 按文档契约选择具体版本的导出器；缺少版本实现时保留无损载荷。 */
 export async function prepareContentMarkdown(
-  contracts: import("@tau/db-schema/content-contracts").ContentContractDictionary,
-  kit: EditorKit = getContentConversionKit()
+  contracts: import("@tau/db-schema/content-contracts").ContentContractDictionary
 ) {
   const { desktopCodecComposition } = await import("@/utils/markdown-composition");
   const { textFormattingCodec } = await import("@tau/editor/extensions/text-formatting/markdown");
-  return desktopContentPlugins.prepareMarkdown(kit.extensions, {
+  return desktopContentPlugins.prepareMarkdown(contentElementGroups(), {
     contracts,
     codecs: desktopCodecComposition,
     textCodecs: [textFormattingCodec],
