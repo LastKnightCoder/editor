@@ -26,6 +26,15 @@ const makeBoard = (children: BoardElement[]) => {
 };
 
 describe("deleteEmptyRichText", () => {
+  it("引用独立正文的元素不因板内空槽或过期空快照被删除", () => {
+    const entity = { kind: "content" as const, sourceId: "source", entityId: "body" };
+    const element = text({ entity, content: [] });
+    const { board, apply } = makeBoard([element]);
+    expect(deleteEmptyRichText(board, element)).toBe(false);
+    expect(deleteEmptyRichText(board, text())).toBe(false);
+    expect(apply).not.toHaveBeenCalled();
+  });
+
   it("空白富文本被移除", () => {
     const element = text();
     const { board, apply } = makeBoard([element]);

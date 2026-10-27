@@ -3,6 +3,16 @@ import { canvasFields, prepareBuiltinWhiteboardTypes } from "../collaboration/bu
 import { resolveTextStyle } from "../constants/text-style";
 
 describe("旧白板外观只读兼容", () => {
+  it("引用正文不把板内空槽投影成空内容", async () => {
+    const { types } = await prepareBuiltinWhiteboardTypes();
+    const codec = types.richtext;
+    const node = { contractId: codec.contractId, data: {}, body: [] };
+    expect(canvasFields({ ...node, entity: { kind: "content" } }, codec)).not.toHaveProperty(
+      "content"
+    );
+    expect(canvasFields(node, codec)).toEqual({ content: [] });
+  });
+
   it("升级时原样保存在 data 里的旧色值投影到画布元素并换算成语义样式", async () => {
     const { types } = await prepareBuiltinWhiteboardTypes();
     const codec = types.richtext;

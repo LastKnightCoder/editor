@@ -203,7 +203,12 @@ export async function prepareBuiltinWhiteboardTypes(): Promise<{
 }
 /** 同一字段映射供活动画布与只读示意图使用，不推断未知契约。 */
 export function canvasFields(
-  node: { contractId: string; data: Readonly<Record<string, unknown>>; body?: unknown },
+  node: {
+    contractId: string;
+    data: Readonly<Record<string, unknown>>;
+    body?: unknown;
+    entity?: { kind: string };
+  },
   codec?: WhiteboardCanvasType
 ): Record<string, unknown> {
   if (!codec || codec.contractId !== node.contractId) return {};
@@ -212,7 +217,8 @@ export function canvasFields(
       .filter(key => Object.hasOwn(node.data, key))
       .map(key => [key, node.data[key]])
   );
-  if (codec.bodyProperty && node.body !== undefined) {
+  // 引用正文由宿主加载，板内空槽不能作为其内容快照。
+  if (codec.bodyProperty && node.body !== undefined && node.entity?.kind !== "content") {
     const path = codec.bodyProperty.split(".");
     let current = result;
     for (const key of path.slice(0, -1)) {

@@ -224,6 +224,7 @@ it("引用正文的文字解析本机身份，移动与重开后仍复用原正�
   f.insert(node);
   expect(f.binding.textDocument(node.id)).toBeUndefined();
   expect(f.board.children[0].contentId).toBeUndefined();
+  expect(f.board.children[0].content).toBeUndefined();
   resolve(7);
   await Promise.resolve();
   expect(f.board.children[0].contentId).toBe(7);
@@ -243,6 +244,7 @@ it("引用正文的文字解析本机身份，移动与重开后仍复用原正�
     x: 300,
   });
   expect(reopened.binding.textDocument(node.id)).toBeUndefined();
+  expect(reopened.board.children[0].content).toBeUndefined();
   expect(reopened.model.read().pages[0].children[0].body).toEqual([]);
   await reopened.model.validate();
 });

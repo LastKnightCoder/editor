@@ -81,11 +81,13 @@ export const deleteBoardElements = (board: Board, elements: BoardElement[]): boo
 export const deleteEmptyRichText = (board: Board, element: BoardElement): boolean => {
   const richText = element as RichTextElement;
   if (richText.type !== "richtext") return false;
+  if (richText.entity?.kind === "content") return false;
   if (richText.readonly || richText.linkedCardId || richText.linkedArticleId) return false;
   if (!isRichTextContentEmpty(richText.content)) return false;
 
   const latest = BoardUtil.getElementById(board, richText.id) as RichTextElement | null;
-  if (!latest || !isRichTextContentEmpty(latest.content)) return false;
+  if (!latest || latest.entity?.kind === "content" || !isRichTextContentEmpty(latest.content))
+    return false;
   const path = PathUtil.getPathByElement(board, latest);
   if (!path) return false;
 

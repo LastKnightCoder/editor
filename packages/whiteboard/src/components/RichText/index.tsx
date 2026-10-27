@@ -286,7 +286,7 @@ const Richtext = (props: RichTextProps) => {
   });
 
   const handleOnEditorSizeChange = useMemoizedFn((width: number, height: number) => {
-    if (!board.document) onEditorSizeChange(board, element, width, height);
+    onEditorSizeChange(board, element, width, height);
   });
 
   const handleRemoveAutoFocus = useMemoizedFn(() => {
@@ -355,7 +355,7 @@ const Richtext = (props: RichTextProps) => {
       surface.style.width = `${w}px`;
       surface.style.height = `${h}px`;
     };
-    if (!editorEl) return;
+    if (!editorEl || (!focus && !autoHeight)) return;
 
     const observer = new ResizeObserver(entries => {
       const box = entries[0]?.borderBoxSize?.[0];
@@ -367,7 +367,7 @@ const Richtext = (props: RichTextProps) => {
       observer.disconnect();
       paint(storedSizeRef.current.width, storedSizeRef.current.height);
     };
-  }, [editorEl]);
+  }, [editorEl, focus, autoHeight]);
 
   // 新建元素自动进入编辑：等编辑器真正挂上再聚焦，否则 ref 还是空的，焦点就丢了
   useEffect(() => {
