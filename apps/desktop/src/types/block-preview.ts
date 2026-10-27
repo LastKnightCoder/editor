@@ -48,7 +48,7 @@ export interface BlockInlineProps {
 
 export interface BlockRenderer {
   type: BlockType;
-  /** 等价的围栏语言（如 latex-tikz） */
+  /** 等价的围栏语言（如 mindmap） */
   aliases?: string[];
   /** 类型名（界面显示） */
   label: string;
@@ -65,8 +65,6 @@ export interface BlockRenderer {
    * keep-last = 渲染器自行保留上次成功结果；live = 边写边画。默认 keep-last。
    */
   streaming?: "source-first" | "keep-last" | "live";
-  /** 旧格式：旧数据照常可看，不在任何提示词 / 技能里出现（TikZ / Typst） */
-  legacy?: boolean;
   /** 预览底：white = 白纸（网页）；canvas = 点阵画布；默认 plain（纸色） */
   surface?: "white" | "canvas" | "plain";
   /** 头部类型行的补充说明（如「由 plantuml.com 渲染」） */

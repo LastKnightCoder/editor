@@ -20,15 +20,18 @@ async function put(version = "1.0.0", destination = plugins) {
   await writeFile(
     path.join(location, "manifest.json"),
     JSON.stringify({
-      formatVersion: 1,
+      formatVersion: 3,
       apiVersion: 1,
       id: "example.local",
       name: "本地验证",
       version,
-      platform: "desktop",
+      platform: "portable" as const,
       format: "cjs",
       main: "main.js",
       integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
+
+      profile: "web-v1" as const,
+      targets: { desktop: { minAppVersion: "0.0.0" } },
     })
   );
 }

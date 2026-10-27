@@ -71,8 +71,7 @@ describe("平台感知分发契约", () => {
       description: "旧包",
       version: "1.0.0",
       minAppVersion: "0.59.0",
-      main: "main.js",
-      format: "cjs" as const,
+      template: { protocolVersion: 1 as const, root: "site", entries: ["index.html"] },
       integrity: {},
     };
     expect(Object.keys(centerManifestTargets(manifest))).toEqual(["desktop"]);

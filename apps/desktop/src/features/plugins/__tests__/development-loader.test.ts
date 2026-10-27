@@ -15,9 +15,9 @@ function setup(
   hosts.push(host);
   const artifact: DevelopmentPluginPackage = {
     manifest: {
-      formatVersion: 1,
+      formatVersion: 3,
       apiVersion: 1,
-      platform: "desktop",
+      platform: "portable" as const,
       format: "cjs",
       id,
       name: id,
@@ -25,6 +25,9 @@ function setup(
       main: "main.js",
       styles: "main.css",
       integrity: { "main.js": "a".repeat(64), "main.css": "b".repeat(64) },
+
+      profile: "web-v1" as const,
+      targets: { desktop: { minAppVersion: "0.0.0" } },
     },
     code: `module.exports.default=require('@tau/plugins').definePlugin({id:${JSON.stringify(id)},name:${JSON.stringify(id)},version:'1.0.0',create:()=>({activate(context){${source}}})});`,
     css: ".example-external::before {content: 'test'}",

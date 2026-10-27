@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import assert from "node:assert/strict";
-import { desktopAuthorManifest } from "./author-compat.mjs";
+import { readAuthorDocuments } from "./author-documents.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const directory = await mkdtemp(path.join(tmpdir(), "tau-portable-author-"));
@@ -28,6 +28,8 @@ function run(command, args, cwd) {
     delete env.NODE_PATH;
     delete env.NODE_OPTIONS;
     const child = spawn(command, args, { cwd, env, stdio: ["ignore", "pipe", "pipe"] });
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
     let result = "";
     child.stdout.on("data", chunk => {
       result += chunk;
@@ -60,6 +62,21 @@ try {
   const uiVersion = JSON.parse(
     await readFile(path.join(root, "packages/ui/package.json"), "utf8")
   ).version;
+  if (!published) {
+    for (const [file, content] of await readAuthorDocuments()) {
+      const archived = await run(
+        "tar",
+        [
+          "-xOf",
+          path.join(sdk, `xiongtao.xt-tau-plugins-${pluginVersion}.tgz`),
+          `package/docs/${file}`,
+        ],
+        root
+      );
+      assert.equal(archived, content, `SDK 文档未使用权威来源：${file}`);
+    }
+    report.checks.push("SDK 归档契约文档与维护源逐字节一致");
+  }
   if (!published)
     await run(
       process.execPath,
@@ -140,27 +157,11 @@ try {
   report.checks.push("移动权限和无效版本在构建时拒绝");
   await assert.rejects(run(process.execPath, ["install-local.mjs"], author), /不能写入正式客户端/);
   report.checks.push("Node 与宿主入口依赖被拒绝", "构建失败保留上一产物", "正式目录安装被阻止");
-  await writeFile(
-    manifestPath,
-    JSON.stringify(desktopAuthorManifest(JSON.parse(manifestText)), null, 2)
-  );
-  await run("pnpm", ["build"], author);
-  await run(
-    process.execPath,
-    [
-      "--input-type=module",
-      "-e",
-      `import {readFile} from 'node:fs/promises'; import assert from 'node:assert/strict'; import {validatePluginManifest} from '@tau/plugins/package'; const m=JSON.parse(await readFile('manifest.json','utf8')); const p=JSON.parse(await readFile('dist/tau-build-'+m.id+'.json','utf8')); const result=validatePluginManifest(JSON.parse(await readFile('dist/'+p.directory+'/manifest.json','utf8'))); assert.equal(result.platform,'desktop'); assert.equal(result.formatVersion,1);`,
-    ],
-    author
-  );
   const archive = path.join(
     author,
     "dist",
     `${JSON.parse(manifestText).id}-${JSON.parse(manifestText).version}.zip`
   );
-  await cp(archive, path.join(author, "dist/legacy-example.zip"));
-  report.checks.push("同一构建器的旧桌面格式回归");
   const editorManifest = JSON.parse(manifestText);
   for (const platform of ["desktop", "android", "ios"])
     editorManifest.targets[platform] = {

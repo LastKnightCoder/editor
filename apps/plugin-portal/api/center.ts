@@ -48,6 +48,9 @@ interface Position {
   time: string;
   id: string;
 }
+// 旧可执行包保留审计记录，不参与当前目录与选版；静态模板和 Skill 仍使用格式 1。
+const CURRENT_PACKAGE =
+  "(r.format_version <> 1 OR json_type(r.content_json, '$.manifest.main') IS NULL)";
 const columns =
   "r.id,r.plugin_id,r.version,r.format_version,r.profile,r.targets_json,r.published_at,r.size,r.sha256,r.name,r.description,r.categories,r.keywords,r.repository,p.login,p.avatar_url";
 const platformWhere =
@@ -113,7 +116,7 @@ function decodeCursor<T>(value: string | null, scope: string): T | null {
 }
 async function release(env: Env, id: string): Promise<CenterRelease> {
   const row = await env.DB.prepare(
-    `SELECT r.*,p.login,p.avatar_url FROM releases r JOIN publishers p ON p.id=r.publisher_id WHERE r.id=? AND r.state='published' AND ${VISIBLE_PLUGIN}`
+    `SELECT r.*,p.login,p.avatar_url FROM releases r JOIN publishers p ON p.id=r.publisher_id WHERE r.id=? AND r.state='published' AND ${VISIBLE_PLUGIN} AND ${CURRENT_PACKAGE}`
   )
     .bind(id)
     .first<ReleaseRow & Metadata>();
@@ -130,7 +133,7 @@ async function release(env: Env, id: string): Promise<CenterRelease> {
 }
 async function metadata(env: Env, pluginId: string, platform: CenterPlatform = "all") {
   const rows = await env.DB.prepare(
-    `SELECT ${columns} FROM releases r JOIN publishers p ON p.id=r.publisher_id WHERE r.plugin_id=? AND r.state='published' AND ${VISIBLE_PLUGIN} AND ${platformWhere}`
+    `SELECT ${columns} FROM releases r JOIN publishers p ON p.id=r.publisher_id WHERE r.plugin_id=? AND r.state='published' AND ${VISIBLE_PLUGIN} AND ${CURRENT_PACKAGE} AND ${platformWhere}`
   )
     .bind(pluginId, platform, platform)
     .all<Metadata>();
@@ -154,7 +157,7 @@ async function* entries(
       SELECT r.plugin_id,MAX(r.published_at) AS time,COALESCE(t.downloads,0) AS total,COALESCE(d.downloads,0) AS recent
       FROM releases r LEFT JOIN plugin_download_totals t ON t.plugin_id=r.plugin_id
       LEFT JOIN (SELECT plugin_id,SUM(downloads) AS downloads FROM plugin_download_daily WHERE day>=? AND day<=? GROUP BY plugin_id) d ON d.plugin_id=r.plugin_id
-      WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND ${platformWhere} GROUP BY r.plugin_id
+      WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND ${CURRENT_PACKAGE} AND ${platformWhere} GROUP BY r.plugin_id
     ), ranked AS (SELECT *,${rank} AS rank FROM candidates)
     SELECT * FROM ranked ${position ? "WHERE rank<? OR (rank=? AND (time<? OR (time=? AND plugin_id>?)))" : ""} ORDER BY rank DESC,time DESC,plugin_id ASC LIMIT 50`
     )
@@ -173,7 +176,7 @@ async function* entries(
       marks = ids.map(() => "?").join(",");
     const [rows, likes] = await Promise.all([
       env.DB.prepare(
-        `SELECT ${columns} FROM releases r JOIN publishers p ON p.id=r.publisher_id WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND ${platformWhere} AND r.plugin_id IN (${marks})`
+        `SELECT ${columns} FROM releases r JOIN publishers p ON p.id=r.publisher_id WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND ${CURRENT_PACKAGE} AND ${platformWhere} AND r.plugin_id IN (${marks})`
       )
         .bind(query.platform, query.platform, ...ids)
         .all<Metadata>(),
@@ -227,14 +230,14 @@ async function facets(env: Env, query: ReturnType<typeof normalizeCenterQuery>) 
   let after = "";
   for (;;) {
     const page = await env.DB.prepare(
-      `SELECT DISTINCT r.plugin_id FROM releases r WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND r.plugin_id>? ORDER BY r.plugin_id LIMIT 50`
+      `SELECT DISTINCT r.plugin_id FROM releases r WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND ${CURRENT_PACKAGE} AND r.plugin_id>? ORDER BY r.plugin_id LIMIT 50`
     )
       .bind(after)
       .all<{ plugin_id: string }>();
     if (!page.results.length) break;
     const ids = page.results.map(item => item.plugin_id);
     const rows = await env.DB.prepare(
-      `SELECT ${columns} FROM releases r JOIN publishers p ON p.id=r.publisher_id WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND r.plugin_id IN (${ids.map(() => "?").join(",")})`
+      `SELECT ${columns} FROM releases r JOIN publishers p ON p.id=r.publisher_id WHERE r.state='published' AND ${VISIBLE_PLUGIN} AND ${CURRENT_PACKAGE} AND r.plugin_id IN (${ids.map(() => "?").join(",")})`
     )
       .bind(...ids)
       .all<Metadata>();
@@ -404,7 +407,7 @@ export async function centerRoute(
     identifier(match[1]);
     if (!match[2]) return json(await release(env, match[1]));
     const row = await env.DB.prepare(
-      `SELECT r.* FROM releases r WHERE r.id=? AND r.state='published' AND ${VISIBLE_PLUGIN}`
+      `SELECT r.* FROM releases r WHERE r.id=? AND r.state='published' AND ${VISIBLE_PLUGIN} AND ${CURRENT_PACKAGE}`
     )
       .bind(match[1])
       .first<ReleaseRow>();

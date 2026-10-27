@@ -220,3 +220,13 @@ describe("日期单元格渲染", () => {
     expect(container.textContent).toBe("");
   });
 });
+
+it("读取只消费日期范围，当前时间戳输入仍可保存为范围", () => {
+  const timestamp = 1700000000000;
+  expect(DatePlugin.beforeSave?.(timestamp, {})).toEqual({ start: timestamp, end: timestamp });
+  expect(DatePlugin.afterLoad?.(timestamp, {})).toEqual({ start: null, end: null });
+  expect(DatePlugin.afterLoad?.({ start: timestamp, end: timestamp }, {})).toEqual({
+    start: timestamp,
+    end: timestamp,
+  });
+});

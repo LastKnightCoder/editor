@@ -17,15 +17,18 @@ async function fixture(overrides = {}) {
   directories.push(directory);
   const code = "throw new Error('目录扫描不能执行此入口');";
   const manifest = {
-    formatVersion: 1,
+    formatVersion: 3,
     apiVersion: 1,
-    platform: "desktop",
+    platform: "portable" as const,
     format: "cjs",
     id: "example.fixture",
     name: "读取样本",
     version: "1.0.0",
     main: "main.js",
     integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
+
+    profile: "web-v1" as const,
+    targets: { desktop: { minAppVersion: "0.0.0" } },
     ...overrides,
   };
   await writeFile(path.join(directory, "manifest.json"), JSON.stringify(manifest));
@@ -38,6 +41,7 @@ describe("开发插件包读取", () => {
     const backendCode = "throw new Error('扫描不得执行后台');";
     const directory = await fixture({
       formatVersion: 2,
+      platform: "desktop",
       minAppVersion: "0.59.0",
       backend: {
         entry: "backend.js",
@@ -85,13 +89,7 @@ describe("开发插件包读取", () => {
         },
       })
     );
-    await expect(readPluginPackage(directory)).resolves.toMatchObject({
-      manifest: { formatVersion: 1 },
-    });
-    await writeFile(path.join(directory, "sync.js"), sync);
-    expect((await readPluginPackage(directory)).manifest).not.toHaveProperty("sync");
-    await writeFile(path.join(directory, "sync.js"), "changed");
-    expect((await readPluginPackage(directory)).manifest.integrity).not.toHaveProperty("sync.js");
+    await expect(readPluginPackage(directory)).rejects.toThrow("未声明文件");
   });
   it("检查产物后返回快照，读取不执行 JS", async () => {
     const result = await readPluginPackage(await fixture());
@@ -99,6 +97,7 @@ describe("开发插件包读取", () => {
     expect(result.code).toContain("目录扫描不能执行");
   });
   it.each([
+    { formatVersion: 1 },
     { apiVersion: 2 },
     { format: "esm" },
     { platform: "mobile" },

@@ -19,7 +19,7 @@ import {
   type PermissionsAdapter,
 } from "../host";
 import type { PluginDomainEvent } from "../events";
-import { validatePluginManifest } from "../package";
+import { validatePortablePluginManifest } from "../portable";
 import { EDITOR_NODE_SCHEMA_VERSION } from "../content-input";
 
 const card = {
@@ -277,22 +277,26 @@ function setup({
 describe("插件业务数据与权限", () => {
   it("manifest 权限去重，未知授权范围明确报错", () => {
     const base = {
-      formatVersion: 1,
+      formatVersion: 3,
       id: "weekly",
       name: "每周回顾",
       version: "1.0.0",
       apiVersion: 1,
-      platform: "desktop",
+      platform: "portable" as const,
       format: "cjs",
       main: "main.js",
       integrity: { "main.js": "a".repeat(64) },
+
+      profile: "web-v1" as const,
+      targets: { desktop: { minAppVersion: "0.0.0" } },
     };
     expect(
-      validatePluginManifest({ ...base, permissions: ["cards:read", "cards:read"] }).permissions
+      validatePortablePluginManifest({ ...base, permissions: ["cards:read", "cards:read"] })
+        .permissions
     ).toEqual(["cards:read"]);
-    expect(() => validatePluginManifest({ ...base, permissions: ["cards:rename"] })).toThrow(
-      "未知插件权限"
-    );
+    expect(() =>
+      validatePortablePluginManifest({ ...base, permissions: ["cards:rename"] })
+    ).toThrow("未知插件权限");
   });
 
   it("宿主公布插件声明的权限，未声明的调用直接拒绝且不询问", async () => {

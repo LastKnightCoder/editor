@@ -116,7 +116,6 @@
     "./extensions/front-matter/metrics": "./src/extensions/front-matter/metrics.ts",
     "./extensions/media/metrics": "./src/extensions/media/metrics.ts",
     "./extensions/list/metrics": "./src/extensions/list/metrics.ts",
-    "./extensions/tabs/metrics": "./src/extensions/tabs/metrics.ts",
     "./text-field-contract": "./text-field-contract.ts"
   },
   "scripts": {

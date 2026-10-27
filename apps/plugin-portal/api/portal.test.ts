@@ -32,14 +32,17 @@ function zip(
         name: "阅读插件",
         description: options.description ?? "同步阅读摘录",
         version: options.version ?? "1.0.0",
-        minAppVersion: options.minAppVersion ?? "0.59.0",
-        formatVersion: 1,
+
+        formatVersion: 3,
         apiVersion: 1,
-        platform: "desktop",
+        platform: "portable" as const,
         format: "cjs",
         main: "main.js",
         integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
         ...options.manifest,
+
+        profile: "web-v1" as const,
+        targets: { desktop: { minAppVersion: options.minAppVersion ?? "0.59.0" } },
       })
     )
   );
@@ -73,6 +76,8 @@ describe("包资料与站内反馈", () => {
           JSON.stringify({
             ...manifest,
             formatVersion: 2,
+            platform: "desktop",
+            minAppVersion: "0.59.0",
             backend,
             integrity: {
               ...manifest.integrity,
@@ -167,7 +172,7 @@ describe("包资料与站内反馈", () => {
         })
       )
     );
-    await expect(inspectPackage(archive.toBuffer())).resolves.toBeDefined();
+    await expect(inspectPackage(archive.toBuffer())).rejects.toThrow("未声明文件");
     archive.addFile("test.reader/sync.js", Buffer.from(code));
     await expect(inspectPackage(archive.toBuffer())).rejects.toThrow("未声明文件");
     archive.updateFile("test.reader/sync.js", Buffer.from("changed"));
@@ -179,6 +184,8 @@ describe("包资料与站内反馈", () => {
     admin = true;
   beforeEach(() => {
     f = testEnvironment();
+    f.env.PORTABLE_PUBLISH_ENABLED = "true";
+    f.env.PORTABLE_PLATFORMS = "desktop,android,ios";
     cookie = "";
     csrf = "";
     admin = true;
@@ -224,6 +231,18 @@ describe("包资料与站内反馈", () => {
       }),
       f.env
     );
+  const catalog = (appVersion = "0.59.0", extra: Record<string, unknown> = {}) =>
+    req("/v2/catalog/query", "POST", {
+      platform: "desktop",
+      host: {
+        platform: "desktop",
+        appVersion,
+        apiVersions: [1],
+        formatVersions: [1, 2, 3],
+        profiles: ["web-v1"],
+      },
+      ...extra,
+    });
   async function login() {
     const start = await req("/v1/auth/github");
     const state = new URL(start.headers.get("Location")!).searchParams.get("state");
@@ -288,6 +307,8 @@ describe("包资料与站内反馈", () => {
         JSON.stringify({
           ...manifest,
           formatVersion: 2,
+          platform: "desktop",
+          minAppVersion: "0.59.0",
           backend: {
             entry: "backend.js",
             runtime: "node",
@@ -345,9 +366,9 @@ describe("包资料与站内反馈", () => {
       downloadUrl: null,
       revokedAt: expect.any(String),
     });
-    expect((await req(`/v1/releases/${approved.release.id}`)).status).toBe(404);
-    expect((await req(`/v1/releases/${approved.release.id}/download`)).status).toBe(404);
-    expect((await (await req("/v1/catalog?appVersion=0.59.0")).json()).data.items).toHaveLength(0);
+    expect((await req(`/v2/releases/${approved.release.id}`)).status).toBe(404);
+    expect((await req(`/v2/releases/${approved.release.id}/download`)).status).toBe(404);
+    expect((await (await catalog()).json()).data.items).toHaveLength(0);
     expect((await req(`/v1/submissions/${d.id}/publish`, "POST")).status).toBe(409);
     expect((await req(`/v1/submissions/${d.id}/revoke`, "POST", input)).status).toBe(200);
     expect(
@@ -622,8 +643,10 @@ describe("包资料与站内反馈", () => {
       ).status
     ).toBe(403);
     expect((await req(`/v1/submissions/${d.id}/publish`, "POST")).status).toBe(403);
-    expect((await (await req("/v1/releases")).json()).data.items).toHaveLength(0);
-    expect((await req(`/v1/releases/${d.id}/download`)).status).toBe(404);
+    expect(
+      (await (await req("/v2/plugins/test.reader/releases?platform=desktop")).json()).data.items
+    ).toHaveLength(0);
+    expect((await req(`/v2/releases/${d.id}/download`)).status).toBe(404);
   });
   it("批准绑定当前修订，发布后匿名可下载，重复审核不会重复发布", async () => {
     await login();
@@ -652,7 +675,9 @@ describe("包资料与站内反馈", () => {
         .update(Buffer.from(await download.arrayBuffer()))
         .digest("hex")
     ).toBe(detail.release.sha256);
-    expect((await (await req("/v1/releases")).json()).data.items).toHaveLength(1);
+    expect(
+      (await (await req("/v2/plugins/test.reader/releases?platform=desktop")).json()).data.items
+    ).toHaveLength(1);
   });
   it("要求修改必须给原因，作者可同版本修订重提，旧审核不可沿用", async () => {
     await login();
@@ -723,7 +748,9 @@ describe("包资料与站内反馈", () => {
     expect(result).toMatchObject({ status: "rejected", canEdit: false });
     expect((await submit(result)).status).toBe(409);
     expect((await req(`/v1/submissions/${d.id}/feedback`)).status).toBe(200);
-    expect((await (await req("/v1/releases")).json()).data.items).toHaveLength(0);
+    expect(
+      (await (await req("/v2/plugins/test.reader/releases?platform=desktop")).json()).data.items
+    ).toHaveLength(0);
   });
   it("并发互斥的审核只有一个生效", async () => {
     await login();
@@ -759,7 +786,7 @@ describe("包资料与站内反馈", () => {
     ).data;
     expect(result.release.state).toBe("failed");
     expect(f.objects.size).toBe(1);
-    expect((await req(`/v1/releases/${result.release.id}/download`)).status).toBe(404);
+    expect((await req(`/v2/releases/${result.release.id}/download`)).status).toBe(404);
     expect((await (await req(`/v1/submissions/${d.id}`)).json()).data.status).toBe("approved");
     const retried = (await (await req(`/v1/submissions/${d.id}/publish`, "POST")).json()).data;
     expect(retried.release.state).toBe("published");
@@ -989,9 +1016,9 @@ describe("包资料与站内反馈", () => {
     });
     expect((await req(new URL(published.downloadUrl).pathname)).status).toBe(200);
     expect(
-      (await (await req("/v1/releases")).json()).data.items.map(
-        (x: { version: string }) => x.version
-      )
+      (
+        await (await req("/v2/plugins/test.reader/releases?platform=desktop")).json()
+      ).data.items.map((x: { version: string }) => x.version)
     ).toEqual(["1.0.0"]);
   });
   it("目录每个插件一条，按客户端版本选兼容版本，并公开发布者与仓库", async () => {
@@ -1009,24 +1036,25 @@ describe("包资料与站内反馈", () => {
       });
     }
     cookie = "";
-    const list = async (query: string) => (await (await req(`/v1/catalog?${query}`)).json()).data;
-    const [entry] = (await list("appVersion=0.59.0")).items;
+    const list = async (appVersion: string, extra: Record<string, unknown> = {}) =>
+      (await (await catalog(appVersion, extra)).json()).data;
+    const [entry] = (await list("0.59.0")).items;
     expect(entry).toMatchObject({
       pluginId: "test.reader",
       name: "阅读插件",
       description: "同步阅读摘录",
       publisher: { login: "author" },
       repository: "https://github.com/author/plugin",
-      latest: { version: "1.1.0", minAppVersion: "0.60.0" },
-      compatible: { version: "1.0.0", minAppVersion: "0.58.0" },
+      latest: { version: "1.1.0", targets: { desktop: { minAppVersion: "0.60.0" } } },
+      compatible: { version: "1.0.0", targets: { desktop: { minAppVersion: "0.58.0" } } },
     });
-    expect((await list("appVersion=0.60.0-beta.1")).items[0].compatible.version).toBe("1.0.0");
-    expect((await list("appVersion=0.57.0")).items[0].compatible).toBeNull();
-    expect((await list("appVersion=0.60.0&q=阅读")).items[0].compatible.version).toBe("1.1.0");
-    expect((await list("appVersion=0.60.0&q=日历")).items).toHaveLength(0);
-    expect((await req("/v1/catalog")).status).toBe(400);
-    expect((await req("/v1/catalog?appVersion=latest")).status).toBe(400);
-    const detail = (await (await req(`/v1/releases/${entry.latest.releaseId}`)).json()).data;
+    expect((await list("0.60.0-beta.1")).items[0].compatible.version).toBe("1.0.0");
+    expect((await list("0.57.0")).items[0].compatible).toBeNull();
+    expect((await list("0.60.0", { q: "阅读" })).items[0].compatible.version).toBe("1.1.0");
+    expect((await list("0.60.0", { q: "日历" })).items).toHaveLength(0);
+    expect((await req("/v2/catalog/query", "POST", { platform: "invalid" })).status).toBe(400);
+    expect((await catalog("latest")).status).toBe(400);
+    const detail = (await (await req(`/v2/releases/${entry.latest.releaseId}`)).json()).data;
     expect(detail).toMatchObject({
       version: "1.1.0",
       commit: "a".repeat(40),
@@ -1050,17 +1078,17 @@ describe("包资料与站内反馈", () => {
       });
     }
     cookie = "";
-    const list = async (query: string) =>
-      (await (await req(`/v1/catalog?appVersion=0.59.0&${query}`)).json()).data;
-    const all = await list("");
+    const list = async (query: Record<string, unknown>) =>
+      (await (await catalog("0.59.0", query)).json()).data;
+    const all = await list({});
     expect(all.items[0]).toMatchObject({ categories: ["editor", "ai"], keywords: ["MinIO"] });
     expect(all.categoryCounts).toEqual({ editor: 1, ai: 1 });
-    expect((await list("category=editor")).items).toHaveLength(1);
-    expect((await list("category=sync")).items).toHaveLength(0);
-    expect((await list("q=minio")).items).toHaveLength(1);
-    expect((await list("q=旧词")).items).toHaveLength(0);
-    expect((await list("q=旧词")).categoryCounts).toEqual({});
-    expect((await req("/v1/catalog?appVersion=0.59.0&category=reading")).status).toBe(400);
+    expect((await list({ category: "editor" })).items).toHaveLength(1);
+    expect((await list({ category: "sync" })).items).toHaveLength(0);
+    expect((await list({ q: "minio" })).items).toHaveLength(1);
+    expect((await list({ q: "旧词" })).items).toHaveLength(0);
+    expect((await list({ q: "旧词" })).categoryCounts).toEqual({});
+    expect((await catalog("0.59.0", { category: "reading" })).status).toBe(400);
   });
   it("0008为已有发布记录回填分类与关键词", () => {
     const db = new DatabaseSync(":memory:");
@@ -1465,7 +1493,7 @@ describe("包资料与站内反馈", () => {
       comment: "",
     });
     const catalogIds = async () =>
-      (await (await req("/v1/catalog?appVersion=0.59.0")).json()).data.items.map(
+      (await (await catalog()).json()).data.items.map(
         (item: { pluginId: string }) => item.pluginId
       );
     expect(await catalogIds()).toEqual(["test.reader"]);
@@ -1492,7 +1520,8 @@ describe("包资料与站内反馈", () => {
     expect(await catalogIds()).toEqual([]);
     expect((await act("enable_plugin")).status).toBe(200);
     expect(await catalogIds()).toEqual(["test.reader"]);
-    const versions = (await (await req("/v1/releases?pluginId=test.reader")).json()).data.items;
+    const versions = (await (await req("/v2/plugins/test.reader/releases?platform=desktop")).json())
+      .data.items;
     expect(versions.map((item: { version: string }) => item.version).sort()).toEqual([
       "1.0.0",
       "1.0.1",

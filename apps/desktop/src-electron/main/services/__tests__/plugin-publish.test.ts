@@ -24,13 +24,16 @@ async function setup() {
     name: "test",
     version: "1.0.0",
     apiVersion: 1,
-    formatVersion: 1,
-    platform: "desktop",
+    formatVersion: 3,
+    platform: "portable" as const,
     format: "cjs",
     main: "main.js",
     styles: "main.css",
-    editor: true,
+
     integrity: { "main.js": sha("code"), "main.css": sha("style") },
+
+    profile: "web-v1" as const,
+    targets: { desktop: { minAppVersion: "0.0.0" } },
   };
   await writeFile(path.join(folder, "manifest.json"), JSON.stringify(manifest));
   await writeFile(path.join(folder, "main.js"), "code");

@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import AdmZip from "adm-zip";
 import { afterEach, expect, it } from "vitest";
 import { PluginUpdates } from "../plugin-updates";
+import type { LocalPluginSource } from "@/types/plugin-local";
 import { discoverPlugins } from "../plugin-discovery";
 import { readTemplatePackage } from "../template-package";
 
@@ -70,16 +71,18 @@ async function setup() {
 async function zip(root: string, version: string, minimum?: string, corrupt = false) {
   const code = `throw new Error('静态校验不应执行代码 ${version}');`;
   const manifest = {
-    formatVersion: 1,
+    formatVersion: 3,
     apiVersion: 1,
     id,
     name: "更新测试",
     version,
-    platform: "desktop",
+    platform: "portable" as const,
     format: "cjs",
     main: "main.js",
-    ...(minimum ? { minAppVersion: minimum } : {}),
     integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
+
+    profile: "web-v1" as const,
+    targets: { desktop: { minAppVersion: minimum ?? "0.0.0" } },
   };
   const archive = new AdmZip();
   archive.addFile(id + "/manifest.json", Buffer.from(JSON.stringify(manifest)));
@@ -150,7 +153,7 @@ it("最低版本、坏哈希、重复更新和非递增版本不覆盖当前包"
   const s = await setup();
   await install(s);
   await expect(s.service.stageZip(await zip(s.root, "2.0.0", "0.59.0"))).rejects.toThrow(
-    "需要 Tau"
+    "客户端版本低于插件要求"
   );
   await expect(s.service.stageZip(await zip(s.root, "2.0.0", undefined, true))).rejects.toThrow(
     "产物不完整"
@@ -212,7 +215,7 @@ it("直接解压的不兼容包在扫描时明确拒绝，旧包未声明仍可�
   archive.extractAllTo(s.directory);
   const result = await discoverPlugins(s.directory, "0.57.2");
   expect(result.entries[0].artifact).toBeUndefined();
-  expect(result.entries[0].error).toContain("需要 Tau 0.58.0");
+  expect(result.entries[0].error).toContain("客户端版本低于插件要求");
 });
 
 it("首次安装中断恢复未安装状态，失败包保留用于排查", async () => {
@@ -247,13 +250,33 @@ it("损坏事务保持阻断，损坏待更新仍能取消", async () => {
   expect(await s.version()).toBe("1.0.0");
 });
 
-const center = (version: string) => ({
-  kind: "center" as const,
-  releaseId: `release-${version}`,
-  pluginId: id,
-  version,
-  sha256: "c".repeat(64),
-});
+type CenterSource = Extract<LocalPluginSource, { kind: "center" }>;
+const centerSources = new Map<string, CenterSource>();
+const center = (version: string): CenterSource => {
+  let source = centerSources.get(version);
+  if (!source) {
+    source = {
+      kind: "center",
+      releaseId: `release-${version}`,
+      pluginId: id,
+      version,
+      sha256: "c".repeat(64),
+    };
+    centerSources.set(version, source);
+  }
+  return source;
+};
+afterEach(() => centerSources.clear());
+async function stageReviewed(service: PluginUpdates, bytes: Buffer, source: CenterSource) {
+  const manifest = JSON.parse(new AdmZip(bytes).readAsText(`${id}/manifest.json`));
+  if (manifest.formatVersion === 3)
+    Object.assign(source, {
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+      manifest,
+      apiOrigin: "https://plugins-api.taunote.app",
+    });
+  return service.stageRelease(bytes, source);
+}
 async function documented(root: string, version: string, extra?: string) {
   const archive = new AdmZip(await zip(root, version));
   archive.addFile(id + "/README.md", Buffer.from("# 更新测试"));
@@ -271,7 +294,7 @@ it.each(["center", "zip"])("%s 安装允许额外普通文件，保存但不执�
   archive.addFile(id + "/docs/notes.txt", Buffer.from("附带说明"));
   archive.addFile(id + "/unused.js", Buffer.from("throw new Error('不能自动执行');"));
   if (source === "center") {
-    await s.service.stageRelease(archive.toBuffer(), center("1.0.0"));
+    await stageReviewed(s.service, archive.toBuffer(), center("1.0.0"));
   } else {
     const file = path.join(s.root, "extra.zip");
     await writeFile(file, archive.toBuffer());
@@ -311,7 +334,7 @@ it.each([
   const entry = archive.getEntry(`${id}/notes.txt`);
   if (!entry) throw new Error("测试包缺少附带文件");
   entry.entryName = name;
-  await expect(s.service.stageRelease(archive.toBuffer(), center("1.1.0"))).rejects.toThrow();
+  await expect(stageReviewed(s.service, archive.toBuffer(), center("1.1.0"))).rejects.toThrow();
   expect(await s.version()).toBe("1.0.0");
   expect(await s.service.list()).toEqual([]);
   expect(await readdir(path.join(s.root, "plugin-updates/pending"))).toEqual([]);
@@ -323,7 +346,9 @@ it.each(["notes.txt", "docs/"])("额外符号链接拒绝安装：%s", async nam
   const entry = archive.getEntry(`${id}/${name}`);
   if (!entry) throw new Error("测试包缺少链接条目");
   entry.attr = (0xa1ff << 16) >>> 0;
-  await expect(s.service.stageRelease(archive.toBuffer(), center("1.0.0"))).rejects.toThrow("链接");
+  await expect(stageReviewed(s.service, archive.toBuffer(), center("1.0.0"))).rejects.toThrow(
+    "链接"
+  );
 });
 
 it.each(["missing", "corrupt"])("额外文件不绕过必需资源校验：%s", async fault => {
@@ -331,17 +356,17 @@ it.each(["missing", "corrupt"])("额外文件不绕过必需资源校验：%s", 
   const archive = new AdmZip(await documented(s.root, "1.0.0", "notes.txt"));
   if (fault === "missing") archive.deleteFile(`${id}/main.js`);
   else archive.updateFile(`${id}/main.js`, Buffer.from("损坏的入口"));
-  await expect(s.service.stageRelease(archive.toBuffer(), center("1.0.0"))).rejects.toThrow();
+  await expect(stageReviewed(s.service, archive.toBuffer(), center("1.0.0"))).rejects.toThrow();
   expect(await s.service.list()).toEqual([]);
 });
 
 it("中心来源与包一起恢复到上一版，本地 ZIP 更新清除来源", async () => {
   const s = await setup();
-  await s.service.stageRelease(await documented(s.root, "1.0.0"), center("1.0.0"));
+  await stageReviewed(s.service, await documented(s.root, "1.0.0"), center("1.0.0"));
   expect((await s.service.sources([id]))[id]).toEqual({ kind: "zip" });
   await s.restart();
   expect((await s.service.sources([id]))[id]).toEqual(center("1.0.0"));
-  await s.service.stageRelease(await documented(s.root, "1.1.0"), center("1.1.0"));
+  await stageReviewed(s.service, await documented(s.root, "1.1.0"), center("1.1.0"));
   await s.restart();
   await s.service.restore(id);
   await s.restart();
@@ -354,7 +379,7 @@ it("中心来源与包一起恢复到上一版，本地 ZIP 更新清除来源",
 
 it("提交后中断恢复时补写中心来源", async () => {
   const s = await setup();
-  await s.service.stageRelease(await documented(s.root, "1.0.0"), center("1.0.0"));
+  await stageReviewed(s.service, await documented(s.root, "1.0.0"), center("1.0.0"));
   const transaction = path.join(s.root, "plugin-updates/transactions", id);
   await rename(path.join(s.root, "plugin-updates/pending", id), transaction);
   const recordPath = path.join(transaction, "record.json");
@@ -378,6 +403,8 @@ it("后台更新提交后中断仍能恢复备份审核来源，来源缺失的�
         JSON.stringify({
           ...manifest,
           formatVersion: 2,
+          platform: "desktop",
+          minAppVersion: "0.0.0",
           backend: {
             entry: "backend.js",
             runtime: "node",
@@ -398,9 +425,12 @@ it("后台更新提交后中断仍能恢复备份审核来源，来源缺失的�
     return archive.toBuffer();
   };
   const first = { ...center("1.0.0"), systemReviewed: true };
-  await s.service.stageRelease(await native("1.0.0"), first);
+  await stageReviewed(s.service, await native("1.0.0"), first);
   await s.restart();
-  await s.service.stageRelease(await native("1.1.0"), { ...center("1.1.0"), systemReviewed: true });
+  await stageReviewed(s.service, await native("1.1.0"), {
+    ...center("1.1.0"),
+    systemReviewed: true,
+  });
   const transaction = path.join(s.root, "plugin-updates/transactions", id);
   await rename(path.join(s.root, "plugin-updates/pending", id), transaction);
   const recordPath = path.join(transaction, "record.json");
@@ -420,16 +450,16 @@ it("后台更新提交后中断仍能恢复备份审核来源，来源缺失的�
 it("下载包与发布记录身份不符时不暂存", async () => {
   const s = await setup();
   await expect(
-    s.service.stageRelease(await documented(s.root, "1.0.0"), center("1.0.1"))
+    stageReviewed(s.service, await documented(s.root, "1.0.0"), center("1.0.1"))
   ).rejects.toThrow("不一致");
   expect(await s.service.list()).toEqual([]);
 });
 
 it("卸载移除包、备份、待更新与来源，有未完成事务时拒绝", async () => {
   const s = await setup();
-  await s.service.stageRelease(await documented(s.root, "1.0.0"), center("1.0.0"));
+  await stageReviewed(s.service, await documented(s.root, "1.0.0"), center("1.0.0"));
   await s.restart();
-  await s.service.stageRelease(await documented(s.root, "1.1.0"), center("1.1.0"));
+  await stageReviewed(s.service, await documented(s.root, "1.1.0"), center("1.1.0"));
   await s.restart();
   await s.service.stageZip(await zip(s.root, "1.2.0"));
   await s.service.uninstall(id);

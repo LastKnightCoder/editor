@@ -14,7 +14,7 @@ function zip(
   targets: Record<string, unknown> = {
     android: { minAppVersion: "0.2.0" },
   },
-  legacy = false,
+  desktopBackend = false,
   editor = false
 ) {
   const archive = new AdmZip(),
@@ -25,17 +25,35 @@ function zip(
     description: "跨端包",
     version,
     apiVersion: 1,
-    formatVersion: legacy ? 1 : 3,
-    platform: legacy ? "desktop" : "portable",
+    formatVersion: desktopBackend ? 2 : 3,
+    platform: desktopBackend ? "desktop" : "portable",
     format: "cjs",
     main: "main.js",
     categories: ["page"],
-    ...(legacy && editor ? { editor: true } : {}),
-    integrity: { "main.js": digest(code) },
-    ...(legacy ? { minAppVersion: "0.59.0" } : { profile: "web-v1", targets }),
+    ...(desktopBackend && editor ? { editor: true } : {}),
+    ...(desktopBackend
+      ? {
+          backend: {
+            entry: "backend.js",
+            runtime: "node",
+            apiVersion: 1,
+            scope: "application",
+            activation: "on-demand",
+            lifetime: "idle",
+            reason: "测试后台",
+            systemAccess: [],
+          },
+        }
+      : {}),
+    integrity: {
+      "main.js": digest(code),
+      ...(desktopBackend ? { "backend.js": digest(code) } : {}),
+    },
+    ...(desktopBackend ? { minAppVersion: "0.59.0" } : { profile: "web-v1", targets }),
   };
   archive.addFile("test.portable/manifest.json", Buffer.from(JSON.stringify(manifest)));
   archive.addFile("test.portable/main.js", Buffer.from(code));
+  if (desktopBackend) archive.addFile("test.portable/backend.js", Buffer.from(code));
   archive.addFile("test.portable/README.md", Buffer.from("# 使用说明"));
   return archive.toBuffer();
 }
@@ -97,6 +115,7 @@ async function approve(bytes = zip()) {
       revision: 1,
       decision: "approve",
       comment: "允许上架",
+      systemReviewConfirmed: true,
     },
     true
   );
@@ -407,4 +426,32 @@ it("平台摘要与选版结果只返回统一新协议字段", async () => {
     host: { ...centerHost, capabilities: [] },
   });
   expect(rejected.status).toBe(200);
+});
+
+it("历史可执行格式 1 保留审计原文，但不参与当前目录和选版", async () => {
+  const published = await approve();
+  const releaseId = published.release.id;
+  const row = f.sqlite.prepare("SELECT content_json FROM releases WHERE id=?").get(releaseId)!;
+  const content = JSON.parse(row.content_json as string);
+  Object.assign(content.manifest, {
+    formatVersion: 1,
+    platform: "desktop",
+    minAppVersion: "0.59.0",
+  });
+  const original = JSON.stringify(content);
+  f.sqlite
+    .prepare(
+      "UPDATE releases SET content_json=?, format_version=1, profile=NULL, targets_json=? WHERE id=?"
+    )
+    .run(original, JSON.stringify({ desktop: { minAppVersion: "0.59.0" } }), releaseId);
+  f.sqlite
+    .prepare("UPDATE release_targets SET platform='desktop' WHERE release_id=?")
+    .run(releaseId);
+  const result = await request("/v2/catalog/query", { platform: "desktop" });
+  expect(result.status).toBe(200);
+  expect((await result.json()).data.items).toEqual([]);
+  expect((await request(`/v2/releases/${releaseId}`)).status).toBe(404);
+  expect(
+    f.sqlite.prepare("SELECT content_json FROM releases WHERE id=?").get(releaseId)?.content_json
+  ).toBe(original);
 });

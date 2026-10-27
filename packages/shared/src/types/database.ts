@@ -206,8 +206,6 @@ export type GroupGranularity = "day" | "week" | "month";
 export interface GroupRule {
   id: string;
   fieldId: string;
-  /** @deprecated 不再写入，读取方不存在；存量数据中的该键被忽略 */
-  strategy?: "text" | "select" | "multiSelect" | "checkbox" | "star" | string;
   granularity?: GroupGranularity;
 }
 
