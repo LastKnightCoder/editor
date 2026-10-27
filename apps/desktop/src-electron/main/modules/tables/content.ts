@@ -80,9 +80,10 @@ export default class ContentTable {
 
   /** 渲染端读取正文：不合格的正文先自愈（备份原文、补身份与契约）再返回，读到的总能编辑与写回 */
   static async readContent(db: Database.Database, contentId: number): Promise<IContent | null> {
-    const { repairContentForOpen } = await import("../content-repair");
-    const name = basename(db.name, ".db");
-    await repairContentForOpen(db, name, contentId, () => db.open);
+    if (!findCollaborationBinding(db, contentId)) {
+      const { repairContentForOpen } = await import("../content-repair");
+      await repairContentForOpen(db, basename(db.name, ".db"), contentId, () => db.open);
+    }
     return this.getContentById(db, contentId);
   }
 
@@ -145,7 +146,7 @@ export default class ContentTable {
     whole = false,
     sections = true,
     signal?: AbortSignal
-  ) {
+  ): Promise<import("../index-content-protocol").IndexContentResult> {
     if (signal?.aborted) throw new Error("正文转换已结束");
     const document = db
       .prepare(
@@ -155,8 +156,13 @@ export default class ContentTable {
       | { content: string; contracts: string | null; format_version: number | null }
       | undefined;
     if (!document) return { content: "", sections: sections ? [] : undefined };
-    if (document.format_version !== null && document.format_version !== 2)
-      throw new Error("正文数据格式不兼容");
+    // 索引只读文本、每篇一次查询，不在主进程解析正文；只有格式版本无法识别时先自愈再重读
+    if (document.format_version !== null && document.format_version !== 2) {
+      if (findCollaborationBinding(db, contentId)) throw new Error("正文数据格式不兼容");
+      const { repairContentForOpen } = await import("../content-repair");
+      await repairContentForOpen(db, basename(db.name, ".db"), contentId, () => db.open);
+      return this.readText(db, contentId, title, whole, sections, signal);
+    }
     const session = contentSession(db, contentId);
     const active = session?.doc.getMap("meta").get("version") === 2;
     const raw = active

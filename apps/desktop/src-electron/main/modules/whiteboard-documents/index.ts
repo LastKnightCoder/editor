@@ -24,6 +24,7 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import databaseModule from "../database";
 import PathUtil from "../../utils/PathUtil";
+import { contentExecutor } from "../../services/content-execution";
 import { ContentIdentityTable } from "../tables/content-identity";
 import { ContentRetention } from "../collaboration/content-retention";
 import { WhiteboardJournal, stateHash } from "./journal";
@@ -110,6 +111,10 @@ class WhiteboardDocumentsModule {
     if (view) this.evictRemote(view.key);
   }
   private journal!: WhiteboardJournal;
+  /** 页读取前自愈；模块尚未初始化（启动早期、测试）时不处理 */
+  async healPage(databaseName: string, contentId: number): Promise<void> {
+    await this.sessions?.healPage(databaseName, contentId);
+  }
   private store!: ReturnType<typeof collaborationModule.documentStorage>["store"];
   private unshareQueue = new DocumentWriteQueue(16 * 1024 * 1024);
   private pendingUnshare(name: string, documentId: string) {
@@ -372,7 +377,17 @@ class WhiteboardDocumentsModule {
         else WhiteboardContentTable.deleteWhiteboard(db, id);
       },
       projected,
-      (name, id) => this.blocked(name, id)
+      (name, id) => this.blocked(name, id),
+      undefined,
+      undefined,
+      {
+        // 插件白板元素的旧版本没有声明来源，转换时一律按恢复元素保留
+        editorContracts: {},
+        repairBody: nodes =>
+          contentExecutor.execute({ operation: "repair-content", content: nodes, contracts: {} }),
+        mapResource: (documentId, reference) =>
+          collaborationModule.documentAssets().prepareLocalReference(documentId, reference),
+      }
     );
     const services = collaborationModule.documentStorage();
     this.store = services.store;
@@ -1468,4 +1483,5 @@ class WhiteboardDocumentsModule {
     }
   }
 }
-export default new WhiteboardDocumentsModule();
+const whiteboardDocumentsModule = new WhiteboardDocumentsModule();
+export default whiteboardDocumentsModule;
