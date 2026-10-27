@@ -400,7 +400,8 @@ const Table: React.FC<React.PropsWithChildren<ITableProps>> = props => {
     <div className="group/table relative">
       <div
         ref={boxRef}
-        className="relative"
+        // 编辑态为底部「添加行」条留位：它透明时仍可点，否则会盖住下方 AddParagraph 的点击区
+        className={cn("relative", !readOnly && "mb-[22px]")}
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setHover(null)}
       >

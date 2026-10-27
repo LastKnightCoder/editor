@@ -232,3 +232,17 @@ it("右侧 / 底部「+」追加列与行", async () => {
     await view.dispose();
   }
 });
+
+it("表格下方的 AddParagraph 可在表格后插入段落", async () => {
+  const view = await mount([table()]);
+  try {
+    const addParagraph = view.host.querySelector<HTMLElement>(".h-\\(--block-distance\\)");
+    expect(addParagraph?.closest("table")).toBeNull();
+    await act(async () => addParagraph?.click());
+    expect(view.editor.children).toHaveLength(2);
+    expect(view.editor.children[1]).toEqual(paragraph());
+    expect(view.editor.selection?.anchor.path).toEqual([1, 0]);
+  } finally {
+    await view.dispose();
+  }
+});
