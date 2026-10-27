@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { defineEditorElement, defineEditorExtension, definePlugin } from "../index";
-import { ElementContractCatalog } from "../editor-contracts";
 import { ContentPluginRegistry } from "../content";
 
 const v1 = () =>

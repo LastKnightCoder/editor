@@ -2,15 +2,15 @@ import { comparePluginVersions } from "@tau/plugins/package";
 import { invoke } from "@tauri-apps/api/core";
 import type { StorageAdapter } from "@tau/plugins/host";
 import { copyJson } from "@tau/plugins/host";
-import type { ReadablePortablePluginManifest } from "@tau/plugins/portable";
+import type { PortablePluginManifest } from "@tau/plugins/portable";
 import {
-  readPortablePluginManifest,
+  validatePortablePluginManifest,
   assertPortablePluginCompatibility,
 } from "@tau/plugins/portable";
 import type { PluginEnvironment } from "@tau/plugins";
 import { isCenterStatusStale } from "./pluginCenterState";
 export interface MobilePluginArtifact {
-  manifest: ReadablePortablePluginManifest;
+  manifest: PortablePluginManifest;
   code: string;
   css?: string;
 }
@@ -102,7 +102,7 @@ export async function verifyMobilePlugin(
   environment: PluginEnvironment,
   appVersion: string
 ) {
-  const manifest = readPortablePluginManifest(artifact.manifest);
+  const manifest = validatePortablePluginManifest(artifact.manifest);
   assertPortablePluginCompatibility(manifest, {
     environment,
     appVersion,

@@ -22,7 +22,7 @@
 
 支持矩阵的唯一权威位置为 packages/plugins/docs/api-support.md；模板中的同名文件由显式同步脚本复制，附带来源说明并验证字节一致，避免两份矩阵独立维护。
 
-严格作者类型保留 PluginCapability 词表，消费者使用 ReadablePortablePluginManifest 保留未来能力字符串。readPortablePluginManifest 只放宽已校验能力名的读取，不放宽结构、权限词表、profile、节点等级或摘要。上传与模板使用 validatePortableDistributionManifest，拒绝未知能力、预发布版本和含移动目标的非空权限。移动兼容检查在求值前再拒绝未支持权限，能力不等于授权。所有部署与发行开关不改。
+作者和消费者共用 PortablePluginManifest 与 validatePortablePluginManifest；清单只读取平台最低版本等当前字段，不维护能力名或节点等级。上传与模板使用 validatePortableDistributionManifest，拒绝含移动目标的非空业务权限，接受合法的预发布与构建标识。移动兼容检查在求值前再次拒绝未支持权限，能力不等于授权。所有部署与发行开关不改。
 
 ## 验证结果与交接
 

@@ -1,13 +1,13 @@
 import { validatePluginManifest, type PluginManifest } from "@tau/plugins/package";
 import {
-  readPortablePluginManifest,
+  validatePortablePluginManifest,
   assertPortablePluginCompatibility,
-  type ReadablePortablePluginManifest,
+  type PortablePluginManifest,
 } from "@tau/plugins/portable";
 import { assertPluginCompatibility } from "@tau/plugins/host";
 import type { CenterHost } from "@tau/plugins/center";
 
-export type DesktopPortableManifest = ReadablePortablePluginManifest & {
+export type DesktopPortableManifest = PortablePluginManifest & {
   backend?: never;
   minAppVersion?: never;
 };
@@ -37,7 +37,7 @@ export const desktopPortableHost = (appVersion: string) => ({
 
 export function readDesktopPluginManifest(value: unknown): DesktopPluginManifest {
   return (value as { formatVersion?: unknown } | null)?.formatVersion === 3
-    ? readPortablePluginManifest(value)
+    ? validatePortablePluginManifest(value)
     : validatePluginManifest(value);
 }
 

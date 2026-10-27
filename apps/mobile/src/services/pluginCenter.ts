@@ -6,7 +6,7 @@ import {
   type CenterRelease,
   type PluginCenterClient,
 } from "@tau/plugins/center";
-import { readPortablePluginManifest } from "@tau/plugins/portable";
+import { validatePortablePluginManifest } from "@tau/plugins/portable";
 import { cancelMobilePlugin, verifyMobilePlugin, type MobilePluginArtifact } from "./plugins";
 import { markCenterStatusFailure, markCenterStatusRefresh } from "./pluginCenterState";
 
@@ -127,7 +127,7 @@ export async function installMobileCenterRelease(
     );
     if (
       canonical(artifact.manifest) !==
-      canonical(readPortablePluginManifest(staged.release.content.manifest))
+      canonical(validatePortablePluginManifest(staged.release.content.manifest))
     )
       throw new Error("包清单与审核记录不一致");
     signal?.throwIfAborted();

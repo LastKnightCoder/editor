@@ -6,10 +6,10 @@ import type { PluginEditorExtension } from "./editor";
 import { normalizePluginEditorExtension } from "./editor-fields.ts";
 import type { MarkdownCodec } from "@tau/markdown";
 import {
-  readPortablePluginManifest,
+  validatePortablePluginManifest,
   assertPortablePluginCompatibility,
   PORTABLE_SHARED_MODULES,
-  type ReadablePortablePluginManifest,
+  type PortablePluginManifest,
   type PortablePluginHost,
 } from "./portable";
 import {
@@ -49,13 +49,13 @@ export const PLUGIN_RENDER_VERSION = 1;
 /** 发布站只读取静态贡献；清单保持原格式，不启动应用插件生命周期。 */
 export function readPublishedPluginManifest(value: unknown) {
   return (value as { formatVersion?: unknown } | null)?.formatVersion === 3
-    ? readPortablePluginManifest(value)
+    ? validatePortablePluginManifest(value)
     : validatePluginManifest(value);
 }
 
 export function evaluatePublishedPluginPackage(
   artifact: {
-    manifest: PluginManifest | ReadablePortablePluginManifest;
+    manifest: PluginManifest | PortablePluginManifest;
     code: string;
     css?: string;
   },
@@ -92,7 +92,7 @@ export function evaluatePluginPackage(
 
 /** 只供显式接入跨端协议的宿主；执行前必须先由包读取器验证文件完整性。 */
 export function evaluatePortablePluginPackage(
-  artifact: { manifest: ReadablePortablePluginManifest; code: string; css?: string },
+  artifact: { manifest: PortablePluginManifest; code: string; css?: string },
   modules: Readonly<Record<string, unknown>>,
   host: PortablePluginHost
 ): PluginDefinition {

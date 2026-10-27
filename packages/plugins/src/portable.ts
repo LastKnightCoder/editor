@@ -4,7 +4,6 @@ import type { PluginEnvironment } from "./environment";
 
 export const PORTABLE_PLATFORMS = ["desktop", "android", "ios"] as const;
 export type PortablePlatform = (typeof PORTABLE_PLATFORMS)[number];
-export type PluginElementSupport = "none" | "render" | "edit";
 export const PORTABLE_SHARED_MODULES = [
   "@tau/plugins",
   "@tau/plugins/whiteboard",
@@ -31,18 +30,12 @@ export interface PortablePluginManifest extends Omit<
   readonly targets: Readonly<Partial<Record<PortablePlatform, PortablePluginTarget>>>;
 }
 
-export type ReadablePortablePluginManifest = PortablePluginManifest;
-
-export interface PluginAuthorTarget {
-  readonly minAppVersion: string;
-}
-
 export interface PluginAuthorManifest extends Pick<
   PluginManifest,
   "id" | "name" | "version" | "categories" | "keywords" | "permissions"
 > {
   readonly description?: string;
-  readonly targets: Readonly<Partial<Record<PortablePlatform, PluginAuthorTarget>>>;
+  readonly targets: Readonly<Partial<Record<PortablePlatform, PortablePluginTarget>>>;
 }
 
 export interface PluginBuildOutput {
@@ -92,12 +85,6 @@ function record(value: unknown, label: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-/** 作者、中心和宿主读取同一份平台与版本契约。 */
-export function validatePortablePluginManifest(value: unknown): PortablePluginManifest {
-  return parsePortablePluginManifest(value);
-}
-export const readPortablePluginManifest = validatePortablePluginManifest;
-
 /** 构建器与中心共用发行范围；不代表中心已开放批准发布。 */
 export function validatePortableDistributionManifest(value: unknown): PortablePluginManifest {
   const manifest = validatePortablePluginManifest(value);
@@ -106,7 +93,8 @@ export function validatePortableDistributionManifest(value: unknown): PortablePl
   return manifest;
 }
 
-function parsePortablePluginManifest(value: unknown): PortablePluginManifest {
+/** 作者、中心和宿主读取同一份平台与版本契约。 */
+export function validatePortablePluginManifest(value: unknown): PortablePluginManifest {
   const item = record(value, "跨端清单");
   if (item.formatVersion !== 3 || item.platform !== "portable" || item.profile !== "web-v1")
     throw new Error("跨端包格式或运行配置不兼容");
@@ -149,7 +137,7 @@ function parsePortablePluginManifest(value: unknown): PortablePluginManifest {
 }
 
 export function assertPortablePluginCompatibility(
-  manifest: ReadablePortablePluginManifest,
+  manifest: PortablePluginManifest,
   host: PortablePluginHost
 ): PortablePluginTarget {
   if (!host.profiles.includes(manifest.profile)) throw new Error("宿主未接入跨端运行配置");

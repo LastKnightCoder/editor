@@ -10,7 +10,7 @@ import { portableFixtures } from "../../../../../tests/fixtures/plugins/portable
 import { centerHost } from "../../../../../tests/fixtures/plugins/center";
 import { refreshMobileCenterInstallations } from "../pluginCenter";
 import { readMobilePlugins } from "../plugins";
-import type { ReadablePortablePluginManifest } from "@tau/plugins/portable";
+import type { PortablePluginManifest } from "@tau/plugins/portable";
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 afterEach(() => {
   vi.resetAllMocks();
@@ -166,14 +166,14 @@ it("平台版本清单必须与审核记录一致，超过宿主版本时不得�
     required: ["future.required"],
     elements: { "future.node": "edit" },
   };
-  const manifest: ReadablePortablePluginManifest = {
+  const manifest: PortablePluginManifest = {
     ...base.manifest,
     targets: { ios: wireTarget },
   };
   const artifact = { ...base, manifest };
   const target = manifest.targets.ios;
   if (!target) throw new Error("测试清单缺少 iOS 目标");
-  const reviewedManifest: ReadablePortablePluginManifest = {
+  const reviewedManifest: PortablePluginManifest = {
     ...manifest,
     targets: { ios: { minAppVersion: target.minAppVersion } },
   };

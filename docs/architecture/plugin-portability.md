@@ -8,7 +8,7 @@
 
 ## 中心数据边界
 
-逐 API 的支持与作者适配要求以 [SDK 支持矩阵](/packages/plugins/docs/api-support.md) 为准。作者、上传和客户端共用格式 3 清单读取；targets 只保留 minAppVersion，不再承载宿主能力、可选需求或节点等级。正文和白板从实际静态定义识别，不再复制进清单。permissions 继续约束用户数据访问，移动非空权限在构建、中心和运行前拒绝。
+逐 API 的支持与作者适配要求以 [SDK 支持矩阵](/packages/plugins/docs/api-support.md) 为准。作者、上传和客户端共用 `PortablePluginManifest` 与 `validatePortablePluginManifest` 读取格式 3 清单；发行入口 `validatePortableDistributionManifest` 额外检查移动业务权限，运行入口独立检查宿主兼容性。targets 只保留 minAppVersion，不再承载宿主能力、可选需求或节点等级。正文和白板从实际静态定义识别，不再复制进清单。permissions 继续约束用户数据访问，移动非空权限在构建、中心和运行前拒绝。
 
 `@tau/plugins/center` 提供中心与宿主共用的目标摘要、结构化兼容原因和客户端接口。兼容性检查平台、最低客户端版本、API/格式版本和 profile，调用方继续核验发布状态、来源和权限。宿主请求只携带真实平台、版本与协议集合；中心不执行插件代码，历史发布 ZIP 和审计内容保持原文，平台摘要仅返回最低版本，选版结果只包含状态与原因，不保留旧能力字段、空数组或旧客户端适配分支。读取器只提取协议字段，忽略不使用的附加元信息；不为已删除的字段建立禁止规则。该入口不进入作者 tarball。
 

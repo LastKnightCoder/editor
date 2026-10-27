@@ -45,7 +45,7 @@
 
 权限与能力分开：required/optional 只表示 API 可用性，permissions 仍走现有业务授权；宿主没有实现或授权的权限调用明确失败，不用“兼容”标签暗示数据访问已获准。第一版发布校验只允许各目标已接线的权限集合，不能为了通过校验给移动端虚报桌面权限。
 
-能力演进规则：上传端只接受已登记能力名；客户端遇到未知 required 返回缺能力，未知 optional 保留但视为不可用。SDK 将作者/上传严格校验与 readPortablePluginManifest 前向读取分开，结构、权限词表、profile 与节点等级仍严格；对账完整审核清单不删除未来 optional。当前能力集合的精确边界见支持矩阵，新增业务能力先接宿主和授权再登记词表。
+清单读取规则：SDK 由 validatePortablePluginManifest 统一解析作者与消费方使用的发行结构，仅提取当前协议字段；validatePortableDistributionManifest 额外限制移动业务权限。宿主选版不使用能力名或节点等级，未知附加元信息不参与审核清单对账。新增业务 API 先接宿主与授权，再更新支持矩阵。
 
 ## 格式 3 清单与构建产物
 

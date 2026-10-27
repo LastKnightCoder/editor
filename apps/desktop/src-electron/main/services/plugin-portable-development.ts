@@ -2,7 +2,7 @@ import { readFile, readdir, lstat } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { app } from "electron";
-import { readPortablePluginManifest } from "@tau/plugins/portable";
+import { validatePortablePluginManifest } from "@tau/plugins/portable";
 import type { PortableDevelopmentArtifact } from "../../../shared/portable-development";
 
 let snapshot: Promise<PortableDevelopmentArtifact[]> | undefined;
@@ -22,7 +22,7 @@ async function readArtifacts(): Promise<PortableDevelopmentArtifact[]> {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     if (!entry.isDirectory() || !enabled.includes(entry.name)) continue;
     const root = path.join(directory, entry.name);
-    const manifest = readPortablePluginManifest(
+    const manifest = validatePortablePluginManifest(
       JSON.parse(await readFile(path.join(root, "manifest.json"), "utf8"))
     );
     if (manifest.id !== entry.name) throw new Error("开发插件目录身份不一致");

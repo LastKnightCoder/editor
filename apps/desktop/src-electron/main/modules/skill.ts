@@ -21,10 +21,7 @@ import {
   zipDirectory,
 } from "../utils/skill-import";
 import { cancelSkillScript, runSkillScript } from "../utils/skill-script-runner";
-import {
-  readPortablePluginManifest,
-  type ReadablePortablePluginManifest,
-} from "@tau/plugins/portable";
+import { validatePortablePluginManifest, type PortablePluginManifest } from "@tau/plugins/portable";
 import {
   isSkillPackageManifest,
   validateDistributionManifest,
@@ -174,12 +171,12 @@ class SkillModule implements Module {
     for (const folder of folders) {
       if (folder.name.startsWith(".")) continue;
       const directory = join(pluginsDir, folder.name);
-      let manifest: DistributionManifest | ReadablePortablePluginManifest;
+      let manifest: DistributionManifest | PortablePluginManifest;
       try {
         const raw = JSON.parse(await fs.readFile(join(directory, "manifest.json"), "utf-8"));
         manifest =
           raw?.formatVersion === 3
-            ? readPortablePluginManifest(raw)
+            ? validatePortablePluginManifest(raw)
             : validateDistributionManifest(raw);
       } catch {
         continue;

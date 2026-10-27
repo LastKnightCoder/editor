@@ -2,10 +2,8 @@
 import { usePluginEnvironment, type PluginContext, type PluginPageProps } from "@tau/plugins";
 import {
   validatePortablePluginManifest,
-  readPortablePluginManifest,
   validatePortableDistributionManifest,
   type PortablePluginManifest,
-  type ReadablePortablePluginManifest,
 } from "@tau/plugins/portable";
 
 export function Page({ context }: PluginPageProps) {
@@ -26,11 +24,9 @@ export function check(context: PluginContext, manifest: PortablePluginManifest) 
     params: { n: 1 },
   });
   void entry.dispose();
-  validatePortablePluginManifest(manifest);
   validatePortableDistributionManifest(manifest);
-  const readable: ReadablePortablePluginManifest = readPortablePluginManifest(manifest);
-  const strict: PortablePluginManifest = readable;
-  void strict;
+  const validated: PortablePluginManifest = validatePortablePluginManifest(manifest);
+  void validated;
   // @ts-expect-error 作者不能改宿主环境。
   context.environment.platform = "ios";
 }

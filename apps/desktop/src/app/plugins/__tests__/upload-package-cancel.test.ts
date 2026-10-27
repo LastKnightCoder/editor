@@ -50,7 +50,7 @@ it.skipIf(!zip)("真实上传包把单次取消信号传给网络请求", async 
     artifact.manifest.formatVersion === 3
       ? evaluatePortablePluginPackage(
           artifact as DevelopmentPluginPackage & {
-            manifest: import("@tau/plugins/portable").ReadablePortablePluginManifest;
+            manifest: import("@tau/plugins/portable").PortablePluginManifest;
           },
           portableSharedPluginModules,
           {
