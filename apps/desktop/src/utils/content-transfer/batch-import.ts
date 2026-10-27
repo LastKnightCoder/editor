@@ -424,7 +424,8 @@ export interface ImportDeps {
     tags: string[];
   }) => Promise<CreatedEntity>;
   createCard: (input: { content: Descendant[]; tags: string[] }) => Promise<CreatedEntity>;
-  updateContent: (contentId: number, content: Descendant[]) => Promise<unknown>;
+  /** 整篇替换已有正文（回填链接）；实现须绑定契约与身份，不能裸写节点 */
+  replaceContent: (contentId: number, content: Descendant[]) => Promise<unknown>;
   /** 新建数据库并写入表格（列均为文本，首列为主列），返回数据库 id */
   createDatabase: (input: {
     title: string;
@@ -615,7 +616,7 @@ export const runImport = async (
         };
       });
       if (replaced > 0) {
-        await write(() => deps.updateContent(self.contentId, next));
+        await write(() => deps.replaceContent(self.contentId, next));
         result.linkCount += replaced;
       }
       hooks.onProgress?.("links", index + 1, linking.length, doc.title);

@@ -182,7 +182,7 @@ describe("Obsidian", () => {
       addProjectItem: vi.fn(),
       createArticle: async () => ({ id: ++id, contentId: id * 10 }),
       createCard: vi.fn(),
-      updateContent: async (contentId, content) => void updates.set(contentId, content),
+      replaceContent: async (contentId, content) => void updates.set(contentId, content),
       createDatabase: vi.fn(),
     };
     const result = await runImport(
@@ -263,7 +263,7 @@ describe("Notion", () => {
         addProjectItem: vi.fn(),
         createArticle: vi.fn(),
         createCard: vi.fn(),
-        updateContent: vi.fn(),
+        replaceContent: vi.fn(),
         createDatabase,
       }
     );
