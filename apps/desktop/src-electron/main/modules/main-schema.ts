@@ -5,7 +5,7 @@ import MAIN_SCHEMA_VERSION from "@tau/db-schema/schema/main-version.json";
 
 const schemaHash = createHash("sha1").update(MAIN_SCHEMA_SQL).digest("hex");
 
-/** 非空库先验证基线；初始化结构与版本标记在同一事务提交。 */
+/** 版本标记仅记录初始化结果，不作为开库门禁；结构与标记同事务提交。 */
 export function ensureMainSchema(db: Database.Database): void {
   const tables = db
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
@@ -17,13 +17,13 @@ export function ensureMainSchema(db: Database.Database): void {
         ).map(({ key, value }) => [key, value])
       )
     : {};
-  if (tables.length > 0 && meta.main_schema_version !== String(MAIN_SCHEMA_VERSION))
-    throw new Error(
-      "DB_SCHEMA_INCOMPATIBLE: 数据库版本不受支持，请使用当前版本创建的资料库；原文件未转换"
-    );
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
-  if (meta.main_schema_hash === schemaHash) return;
+  if (
+    meta.main_schema_hash === schemaHash &&
+    meta.main_schema_version === String(MAIN_SCHEMA_VERSION)
+  )
+    return;
   db.transaction(() => {
     db.exec(MAIN_SCHEMA_SQL);
     const write = db.prepare(

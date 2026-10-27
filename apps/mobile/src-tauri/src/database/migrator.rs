@@ -170,24 +170,6 @@ pub(super) fn needs_main_initialization(conn: &Connection) -> Result<bool, Strin
 }
 
 pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
-    let has_tables: bool = conn.query_row(
-        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%')",
-        [], |row| row.get(0),
-    ).map_err(|e| e.to_string())?;
-    if has_tables {
-        let has_meta: bool = conn.query_row(
-            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='schema_meta')",
-            [], |row| row.get(0),
-        ).map_err(|e| e.to_string())?;
-        let version = if has_meta {
-            get_meta(conn, "main_schema_version")?
-        } else {
-            None
-        };
-        if version.as_deref() != Some(main_schema_version().to_string().as_str()) {
-            return Err("DB_SCHEMA_INCOMPATIBLE: 数据库版本不受支持，请使用当前版本创建的资料库；原文件未转换".into());
-        }
-    }
     conn.execute_batch(
         "
         PRAGMA journal_mode = WAL;

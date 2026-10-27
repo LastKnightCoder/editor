@@ -77,7 +77,7 @@ it("真实数据库 IPC 按会话库执行，checkpoint 被占用时拒绝关闭
   }
 });
 
-it.each(["connect", "download"])("%s：残留旧聊天表的库被数据基线门禁拒绝", async source => {
+it.each(["connect", "download"])("%s：版本标记缺失不阻止开库且保留旧聊天表", async source => {
   paths.root = mkdtempSync(join(tmpdir(), "pi-legacy-guard-"));
   const file = join(paths.root, "data.db");
   const legacy = new Database(file);
@@ -94,11 +94,10 @@ it.each(["connect", "download"])("%s：残留旧聊天表的库被数据基线�
       ? database.reconnectForSync("data", "sync_download_reconnect")
       : paths.handlers.get("create-or-connect-database")!({ sender: {} }, "data");
   try {
-    await expect(Promise.all([connect(), connect()])).rejects.toThrow("DB_SCHEMA_INCOMPATIBLE");
+    await Promise.all([connect(), connect()]);
     expect(open).toHaveBeenCalledTimes(1);
-    expect(database.databases.has("data")).toBe(false);
-    expect(database.windowToDatabase.has(1)).toBe(false);
-    // 旧库拒绝进入且保持原样，不执行转换或删除。
+    expect(database.databases.has("data")).toBe(true);
+    // 开库补齐标记，不删除已有业务表。
     const verify = new Database(file);
     try {
       expect(verify.prepare("SELECT COUNT(*) AS n FROM chat_message").get()).toEqual({ n: 0 });

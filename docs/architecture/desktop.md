@@ -57,12 +57,12 @@ packages/database/src/   # 多视图 Database、投影、store 与通用字段�
 主库当前版本唯一来源是 `packages/db-schema/schema/main-version.json`，桌面 `modules/main-schema.ts` 与移动 `database/migrator.rs` 共用。`schema_meta` 属于共享主库结构，保存版本与 SQL 的 SHA-1 指纹。
 
 - 空库按共享 SQL 建表、索引和初始记录，结构与版本标记同事务提交；建库失败不留下部分结构。
-- 非空库必须具有当前 `main_schema_version`，缺少标记、旧版本或未来版本均报 `DB_SCHEMA_INCOMPATIBLE`，不转换数据、不删表、不创建升级备份。
+- `main_schema_version` 是初始化记录，不作为开库门禁；缺少或不同版本标记均正常初始化，并在成功事务中写入当前版本，不删除旧表或额外字段。已有桌面库的结构升级曾独立于版本标记运行，不能由旧标记推断实际结构落后。
 - 当前版本且指纹一致时不重复初始化；同版本 SQL 变化仅补齐新表、缺失索引和初始记录，不改列、不替换既有索引定义。字段或既有索引定义变化须调整共享基线版本。
 - 默认系统分组、日记标签、日历与待释放数据回收仍按原维护流程执行。网页摘录的 `web` 提供方由共享 SQL 初始化，已保存名称不覆盖。
 - `migration_meta` 保存项目域共用实体序列与任务、日程、正文的非复用编号高水位，不属于历史转换代码。卡片显式连接只存 `content_links`，`cards` 不含 `links` 列。
 
-整库同步只搬运文件，替换后由开库验证版本。发布前结构变更不维护历史升级链；建库与变更步骤见 [数据库 Schema 流程](/docs/guides/db-schema-workflow.md) 和 [数据库变更手册](/docs/guides/db-change-manual.md)。聊天会话的事实源仍为 pi JSONL 文件与 chat_session 目录表。
+整库同步只搬运文件，替换后执行正常开库初始化。结构变更必须保留已有资料库的正常打开路径；建库与变更步骤见 [数据库 Schema 流程](/docs/guides/db-schema-workflow.md) 和 [数据库变更手册](/docs/guides/db-change-manual.md)。聊天会话的事实源仍为 pi JSONL 文件与 chat_session 目录表。
 
 正文契约表为 library_identity、content_documents、entity_identities 与 content_entity_relations。新建带契约正文通过 ContentIdentityTable 建立来源，不用本机库名或插件工作区 UUID 证明同源。ContentDocumentTable 在同一事务提交正文、契约与关系差集；本机协作持有不进入随库同步的关系表。ContentTable 读取契约与修订，格式 2 活跃会话的写入经现有节点操作和观察修订校验；旧格式明确拒绝。主库保存 JSON 投影，不保存或重建原 CRDT 基线；缓存缺失生成新基线，旧缓存不能覆盖外部修改后的正文。
 
@@ -74,7 +74,7 @@ packages/database/src/   # 多视图 Database、投影、store 与通用字段�
 
 ### 已退役功能与保留边界
 
-以下功能已整体移除；旧版本数据库由基线门禁拒绝，不恢复、不保留兼容层：
+以下功能已整体移除；开库保留已有数据，不因历史版本标记拒绝进入：
 
 - **知识库** → 并入普通文档树项目（project / project_item，条目带 tags，正文复用 contents 原 ID）；侧栏、首页、统计、发布与插件只消费项目。
 - **RSS / 稍后读 / 博客 RSS 输出**：不再有相关 Page、表与 RPC；扩展保留剪藏；博客不再生成 rss.xml，publicUrl 保留用于打开站点。

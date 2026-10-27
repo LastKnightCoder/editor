@@ -22,19 +22,19 @@ pnpm db:schema:prepare
 
 入口：`apps/desktop/src-electron/main/modules/database.ts` → `main-schema.ts`。
 
-1. 打开数据库，先核对现有主库的版本标记。
-2. 只有空库或当前版本可继续，开启 WAL 和外键。
-3. 当前 SQL 指纹不一致时，在同一事务执行共享 SQL 并写入版本、指纹；失败整体回滚。
+1. 打开数据库，读取已有版本与 SQL 指纹；版本标记不作为准入条件。
+2. 开启 WAL 和外键。
+3. 版本标记或 SQL 指纹不一致时，在同一事务执行共享 SQL 并写入当前版本、指纹；失败整体回滚。
 4. maintenance 模式继续维护系统分组、日记标签、日历、统计与数据回收。
 
-判据：当前版本重开不重复初始化；旧库报 `DB_SCHEMA_INCOMPATIBLE` 且不转换数据。完整协议见 [数据基线门禁](/docs/architecture/desktop.md#数据基线门禁)。
+判据：当前版本与指纹一致时重开不写入；缺少或不同版本标记不阻止开库，已有业务数据、旧表及额外字段保留。完整协议见 [数据基线门禁](/docs/architecture/desktop.md#数据基线门禁)。
 
 ## 4. 移动建库
 
 入口：`apps/mobile/src-tauri/src/database/schema.rs` → `migrator::ensure_main_schema`。
 
-1. 打开或创建目标文件，核对非空库的共享基线版本。
-2. 按指纹决定是否执行共享 SQL，在同一事务补齐结构、日记标签及版本记录。
+1. 打开或创建目标文件，读取版本与指纹，不按版本拒绝已有库。
+2. 按版本标记和指纹决定是否执行共享 SQL，在同一事务补齐结构、日记标签及版本记录。
 3. `index_db::ensure_index_database` 初始化独立索引库。
 4. 通过 `get_database_schema_status` 查询实际版本、指纹和表数量。
 
@@ -52,3 +52,17 @@ pnpm db:schema:prepare
 - 桌面通过 Vite 的 `?raw` 将 SQL 编入主进程。
 - 移动通过 Rust `include_str!` 编入 SQL 和共享版本文件。
 - 构建前运行 `db:schema:prepare`，再执行两端类型检查、行为测试与构建；无需在安装目录另行拷贝 SQL。
+
+## 7. 批量接续版本 10 标记
+
+1. 对已完成结构升级的资料库执行（可传多个文件或目录；目录仅扫描直属 `.db`）：
+
+   ```bash
+   node scripts/db/upgrade-main-version-10.mjs ~/.editor
+   ```
+
+2. 检查每个输出结果：`updated` 表示已写入 10，并给出 `backupPath`；`unchanged` 表示已经是 10；`skipped` 表示不是主资料库。任一错误使进程非零退出。
+3. 核验备份位于资料库旁的 `backup/schema-version-10-*/`。脚本使用 SQLite 在线备份包含已提交 WAL 数据，随后在事务内只更新版本记录；业务表、正文、额外字段和原 SQL 指纹保持原样。重复执行不再备份或写入。
+4. 发布修复后的客户端；其他用户的资料库在首次成功打开时自动接续当前版本标记，无需逐一运行脚本。
+
+此脚本不负责历史业务数据转换，不用它替代实际字段变更所需的升级。

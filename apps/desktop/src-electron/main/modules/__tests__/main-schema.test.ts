@@ -57,31 +57,31 @@ describe("主库当前基线", () => {
     expect(db.prepare("SELECT total_changes() AS count").get()).toEqual(changes);
   });
 
-  it("无版本的旧库拒绝打开，不创建元数据或转换内容", () => {
-    db.exec(
-      "CREATE TABLE cards(id INTEGER PRIMARY KEY, links TEXT); INSERT INTO cards VALUES (1, '[2]')"
-    );
-    const before = schema();
-    expect(() => ensureMainSchema(db)).toThrow("DB_SCHEMA_INCOMPATIBLE");
-    expect(schema()).toEqual(before);
-    expect(db.prepare("SELECT * FROM cards").all()).toEqual([{ id: 1, links: "[2]" }]);
-  });
-
-  it.each([4, 5, 6, 7, 8, 9, 999])("拒绝版本 %s，保留原问题表与版本", oldVersion => {
-    db.exec(
-      "CREATE TABLE schema_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL); CREATE TABLE questions(id INTEGER PRIMARY KEY, content TEXT); INSERT INTO questions VALUES (1, '保留原数据')"
-    );
-    db.prepare("INSERT INTO schema_meta VALUES ('main_schema_version', ?, 0)").run(
-      String(oldVersion)
-    );
-    const before = schema();
-    expect(() => ensureMainSchema(db)).toThrow("DB_SCHEMA_INCOMPATIBLE");
-    expect(schema()).toEqual(before);
-    expect(db.prepare("SELECT content FROM questions").get()).toEqual({ content: "保留原数据" });
-    expect(db.prepare("SELECT value FROM schema_meta").get()).toEqual({
-      value: String(oldVersion),
-    });
-  });
+  it.each([undefined, "4", "5", "6", "7", "8", "9", "999"])(
+    "版本标记 %s 不阻止开库，业务记录与额外字段保持原样",
+    oldVersion => {
+      ensureMainSchema(db);
+      db.exec(
+        "ALTER TABLE cards ADD COLUMN links TEXT; CREATE TABLE questions(id INTEGER PRIMARY KEY, content TEXT); INSERT INTO questions VALUES (1, '保留原数据')"
+      );
+      if (oldVersion === undefined) db.exec("DROP TABLE schema_meta");
+      else
+        db.prepare("UPDATE schema_meta SET value = ? WHERE key = 'main_schema_version'").run(
+          oldVersion
+        );
+      ensureMainSchema(db);
+      expect(db.prepare("SELECT content FROM questions").get()).toEqual({ content: "保留原数据" });
+      expect(
+        db.prepare("SELECT name FROM pragma_table_info('cards') WHERE name = 'links'").get()
+      ).toEqual({ name: "links" });
+      expect(
+        db.prepare("SELECT value FROM schema_meta WHERE key = 'main_schema_version'").get()
+      ).toEqual({ value: String(version) });
+      const changes = db.prepare("SELECT total_changes() AS count").get();
+      ensureMainSchema(db);
+      expect(db.prepare("SELECT total_changes() AS count").get()).toEqual(changes);
+    }
+  );
 
   it("同版本补齐缺失索引，不改写已有数据和提供方名称", () => {
     ensureMainSchema(db);
