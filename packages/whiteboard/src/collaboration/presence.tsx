@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
-import { MousePointer2 } from "lucide-react";
 import {
+  MEMBER_INK,
+  memberColor,
   WHITEBOARD_PRESENCE_INTERVAL,
   type WhiteboardPeer,
   type WhiteboardPresence,
@@ -174,7 +175,35 @@ export function alignPeerSelections(
   }));
 }
 
-const colors = ["var(--tau-accent)", "var(--tau-tag-1)", "var(--tau-tag-3)", "var(--tau-tag-5)"];
+// 指针尖端位于 (0,0)，外描边保证在任意画布底色上可辨。
+const POINTER_PATH = "M0 0 L0 16.5 L4.6 12.3 L7.6 19 L10.4 17.8 L7.5 11.3 L13.6 11.3 Z";
+const LABEL_WIDTH = 168;
+const LABEL_HEIGHT = 22;
+
+function PeerLabel({ name, x, y, corner }: { name: string; x: number; y: number; corner: string }) {
+  return (
+    <foreignObject x={x} y={y} width={LABEL_WIDTH} height={LABEL_HEIGHT} overflow="visible">
+      <div
+        className="text-tau-tiny shadow-card inline-block max-w-full truncate bg-current px-2 py-0.5 leading-[18px] font-medium whitespace-nowrap"
+        style={{ borderRadius: corner }}
+      >
+        <span style={{ color: MEMBER_INK }}>{name}</span>
+      </div>
+    </foreignObject>
+  );
+}
+
+function selectionUnion(selection: WhiteboardPeer["selection"]) {
+  return selection.reduce(
+    (union, rect) => ({
+      minX: Math.min(union.minX, rect.minX),
+      minY: Math.min(union.minY, rect.minY),
+    }),
+    { minX: Infinity, minY: Infinity }
+  );
+}
+
+/** 成员色由连接身份派生，与正文协作的头像、光标、选区同色。 */
 export function WhiteboardPresenceOverlay({
   peers,
   zoom,
@@ -182,45 +211,60 @@ export function WhiteboardPresenceOverlay({
   peers: readonly WhiteboardPeer[];
   zoom: number;
 }) {
+  const unit = 1 / zoom;
   return (
     <g className="pointer-events-none" data-export-ignore="true" data-whiteboard-presence="true">
-      {peers.map(peer => (
-        <g key={peer.clientId} style={{ color: colors[peer.clientId % colors.length] }}>
-          {peer.selection.map(rect => (
-            <g key={rect.id}>
+      {peers.map(peer => {
+        const union = peer.selection.length ? selectionUnion(peer.selection) : null;
+        return (
+          <g
+            key={peer.clientId}
+            data-peer={peer.userId}
+            style={{ color: memberColor(peer.userId) }}
+          >
+            {peer.selection.map(rect => (
               <rect
+                key={rect.id}
                 x={rect.minX}
                 y={rect.minY}
                 width={rect.maxX - rect.minX}
                 height={rect.maxY - rect.minY}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2 / zoom}
-                strokeDasharray={peer.moving ? `${6 / zoom} ${3 / zoom}` : undefined}
-              />
-              <text x={rect.minX} y={rect.minY - 5 / zoom} fontSize={12 / zoom} fill="currentColor">
-                {peer.name}
-                {peer.moving ? " · 正在移动" : " · 已选中"}
-              </text>
-            </g>
-          ))}
-          {peer.cursor && (
-            <g transform={`translate(${peer.cursor.x} ${peer.cursor.y}) scale(${1 / zoom})`}>
-              <MousePointer2
-                x={-4}
-                y={-3}
-                size={24}
                 fill="currentColor"
-                stroke="var(--tau-bg-page)"
-                strokeWidth="1.5"
+                fillOpacity={0.06}
+                stroke="currentColor"
+                strokeWidth={1.5 * unit}
+                strokeDasharray={peer.moving ? `${6 * unit} ${3 * unit}` : undefined}
               />
-              <text x="18" y="26" fill="currentColor" fontSize="12">
-                {peer.name}
-              </text>
-            </g>
-          )}
-        </g>
-      ))}
+            ))}
+            {union && !peer.cursor && (
+              <g transform={`translate(${union.minX} ${union.minY}) scale(${unit})`}>
+                <PeerLabel name={peer.name} x={0} y={-LABEL_HEIGHT - 2} corner="6px 6px 6px 2px" />
+              </g>
+            )}
+            {peer.cursor && (
+              // 平移按发送间隔补间，抹平节流造成的跳动；缩放随本机视口立即生效。
+              <g
+                data-peer-cursor="true"
+                style={{
+                  transform: `translate(${peer.cursor.x}px, ${peer.cursor.y}px)`,
+                  transition: `transform ${WHITEBOARD_PRESENCE_INTERVAL}ms linear`,
+                }}
+              >
+                <g transform={`scale(${unit})`}>
+                  <path
+                    d={POINTER_PATH}
+                    fill="currentColor"
+                    stroke={MEMBER_INK}
+                    strokeWidth={1.5}
+                    strokeLinejoin="round"
+                  />
+                  <PeerLabel name={peer.name} x={12} y={18} corner="2px 6px 6px 6px" />
+                </g>
+              </g>
+            )}
+          </g>
+        );
+      })}
     </g>
   );
 }

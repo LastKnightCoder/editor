@@ -111,6 +111,8 @@ export class WhiteboardRealtime {
         peers.push({
           ...presence,
           clientId,
+          userId:
+            typeof state.user?.id === "string" ? state.user.id.slice(0, 200) : String(clientId),
           name: typeof state.user?.name === "string" ? state.user.name.slice(0, 80) : "协作者",
         });
     }
