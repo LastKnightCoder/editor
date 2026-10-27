@@ -13,7 +13,7 @@ describe("editorContentUtils", () => {
     expect(normalizeEditorContent([])).toEqual(EMPTY_EDITOR_CONTENT);
   });
 
-  it("getContentLength 计算 formatted / code-block / tabs(非激活页) 的内容", () => {
+  it("getContentLength 计算 formatted / code-block / tabs 全部面板 的内容", () => {
     const content = [
       {
         type: "paragraph",
@@ -27,31 +27,24 @@ describe("editorContentUtils", () => {
       {
         type: "tabs",
         activeKey: "tab-1",
-        tabsContent: [
+        children: [
           {
-            key: "tab-1",
-            content: [
-              {
-                type: "paragraph",
-                children: [{ type: "formatted", text: "ignored text" }],
-              },
-            ],
+            type: "tab-pane",
+            tabKey: "tab-1",
+            title: "一",
+            children: [{ type: "paragraph", children: [{ type: "formatted", text: "e f" }] }],
           },
           {
-            key: "tab-2",
-            content: [
-              {
-                type: "paragraph",
-                children: [{ type: "formatted", text: "e f" }],
-              },
-            ],
+            type: "tab-pane",
+            tabKey: "tab-2",
+            title: "二",
+            children: [{ type: "paragraph", children: [{ type: "formatted", text: "g h" }] }],
           },
         ],
-        children: [{ type: "formatted", text: "" }],
       },
     ] as unknown as Descendant[];
 
-    expect(getContentLength(content)).toBe(6);
+    expect(getContentLength(content)).toBe(8);
   });
 
   it("isEditorContentEmpty 能区分纯空文本与有结构节点内容", () => {

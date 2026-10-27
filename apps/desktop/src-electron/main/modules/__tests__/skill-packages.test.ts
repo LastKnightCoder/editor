@@ -50,6 +50,7 @@ async function writePackage(id: string, manifest: Record<string, unknown>, skill
       ...manifest,
       integrity: Object.fromEntries([
         ...(manifest.main ? [["main.js", hash("c")]] : []),
+        ...(manifest.backend ? [["backend.js", hash("d")]] : []),
         ...skills.flatMap(skill => [
           [`skills/${skill}/SKILL.md`, hash("a")],
           [`skills/${skill}/scripts/hello.js`, hash("b")],
@@ -105,7 +106,26 @@ it("跨端包的纯文档 Skill 继续列入桌面管理", async () => {
 });
 
 it("列出插件与 Skill 包中声明的 Skill，名称与描述取自 SKILL.md", async () => {
-  await writePackage("test.plugin", { format: "cjs", main: "main.js" }, ["guide"]);
+  await writePackage(
+    "test.plugin",
+    {
+      formatVersion: 2,
+      format: "cjs",
+      main: "main.js",
+      minAppVersion: "0.0.0",
+      backend: {
+        entry: "backend.js",
+        runtime: "node",
+        apiVersion: 1,
+        scope: "application",
+        activation: "on-demand",
+        lifetime: "idle",
+        reason: "Skill 脚本",
+        systemAccess: [],
+      },
+    },
+    ["guide"]
+  );
   await writePackage("test.pack", {}, ["style"]);
   const skills = (await call("skill:list")) as Array<Record<string, unknown>>;
   expect(skills).toEqual(

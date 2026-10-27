@@ -150,15 +150,18 @@ it("正式 Provider 启动发现本地包，管理启用后重建恢复，刷新
         directory: "/test/.editor/plugins/test.local",
         artifact: {
           manifest: {
-            formatVersion: 1,
+            formatVersion: 3,
             apiVersion: 1,
-            platform: "desktop",
+            platform: "portable" as const,
             format: "cjs",
             id: "test.local",
             name: "本地插件",
             version: "1.0.0",
             main: "main.js",
             integrity: { "main.js": "a".repeat(64) },
+
+            profile: "web-v1" as const,
+            targets: { desktop: { minAppVersion: "0.0.0" } },
           },
           code: "module.exports.default=require('@tau/plugins').definePlugin({id:'test.local',name:'本地插件',version:'1.0.0',create:()=>({activate(ctx){ctx.commands.register({id:'run',title:'本地执行',run:()=>42});}})});",
         },

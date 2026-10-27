@@ -1,4 +1,3 @@
-import { desktopAuthorManifest } from "./author-compat.mjs";
 import { mkdtemp, cp, readFile, writeFile, mkdir, rm, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -57,9 +56,7 @@ try {
       )
     );
   }
-  const manifest = desktopAuthorManifest(
-    JSON.parse(await readFile(path.join(author, "manifest.json"), "utf8"))
-  );
+  const manifest = JSON.parse(await readFile(path.join(author, "manifest.json"), "utf8"));
   Object.assign(manifest, {
     id: "example.chat-renderer",
     name: "聊天计数查询",

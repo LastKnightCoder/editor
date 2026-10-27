@@ -54,8 +54,6 @@
 
 ## tasks/ — 进行中任务
 
-- [发布前历史负担清理](./tasks/history-cleanup/README.md)：按设置、数据库、协作与扩展、发布链路分批清理；保留当前功能与数据安全边界。
-
 一个任务一个目录或单文件，收尾三步见 [tasks/README.md](./tasks/README.md)；期限 90 天。
 
 - [浏览器扩展重写：页内伴读](./tasks/browser-companion/README.md)：悬浮球 + 就地标注 / 笔记 / 提问，扩展经一次性授权连 Tau；已实现，待真实浏览器联调与视觉验收。

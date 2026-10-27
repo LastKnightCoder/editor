@@ -5,7 +5,6 @@ import { diagramMetricRules } from "./src/extensions/diagram/metrics";
 import { frontMatterMetricRules } from "./src/extensions/front-matter/metrics";
 import { mediaMetricRules } from "./src/extensions/media/metrics";
 import { listMetricRules } from "./src/extensions/list/metrics";
-import { tabsMetricRules } from "./src/extensions/tabs/metrics";
 
 export const editorMetricRules = [
   ...codeBlockMetricRules,
@@ -14,5 +13,4 @@ export const editorMetricRules = [
   ...frontMatterMetricRules,
   ...mediaMetricRules,
   ...listMetricRules,
-  ...tabsMetricRules,
 ] as const;

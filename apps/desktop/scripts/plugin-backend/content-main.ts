@@ -2,7 +2,7 @@ import { app } from "electron";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { validatePluginManifest } from "@tau/plugins/package";
+import { validatePortablePluginManifest } from "@tau/plugins/portable";
 import { configureWindowContext } from "../../src-electron/main/windows/context";
 import { ContentExecutor } from "../../src-electron/main/services/content-execution";
 import type { Descendant } from "slate";
@@ -30,17 +30,20 @@ void app.whenReady().then(async () => {
       });`;
     const artifact = {
       code,
-      manifest: validatePluginManifest({
+      manifest: validatePortablePluginManifest({
         id: "example.isolated",
         name: "隔离内容",
         version: "1.0.0",
         apiVersion: 1,
-        formatVersion: 1,
-        platform: "desktop",
+        formatVersion: 3,
+        platform: "portable" as const,
         format: "cjs",
         main: "main.js",
-        editor: true,
+
         integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
+
+        profile: "web-v1" as const,
+        targets: { desktop: { minAppVersion: "0.0.0" } },
       }),
     };
     const markdown = "~~~isolated\n第三方内容\n~~~";

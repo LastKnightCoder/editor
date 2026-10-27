@@ -35,17 +35,20 @@ it("泛型上一版本选择保留调用方结构，按语义版本而非数组�
 it("跨端最低版本由平台矩阵对比，不显示不存在的顶层最低 Tau", () => {
   const next = centerRelease().content.manifest;
   const previous = {
-    formatVersion: 1 as const,
+    formatVersion: 3 as const,
     apiVersion: 1 as const,
-    platform: "desktop" as const,
+    platform: "portable" as const,
     id: next.id,
     name: next.name,
     description: next.description,
     version: "0.9.0",
-    minAppVersion: "0.59.0",
+
     format: "cjs" as const,
     main: "main.js",
     integrity: {},
+
+    profile: "web-v1" as const,
+    targets: { desktop: { minAppVersion: "0.59.0" } },
   };
   expect(diffManifest(previous, next).some(change => change.label === "最低 Tau")).toBe(false);
 });

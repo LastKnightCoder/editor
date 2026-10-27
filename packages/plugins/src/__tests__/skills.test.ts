@@ -5,7 +5,7 @@ import { hasSkillScripts } from "../skills";
 
 const hash = (char: string) => char.repeat(64);
 const plugin = {
-  formatVersion: 1,
+  formatVersion: 2,
   id: "example.skills",
   name: "示例",
   version: "1.0.0",
@@ -13,6 +13,18 @@ const plugin = {
   platform: "desktop",
   format: "cjs",
   main: "main.js",
+
+  minAppVersion: "0.59.0",
+  backend: {
+    entry: "backend.js",
+    runtime: "node",
+    apiVersion: 1,
+    scope: "application",
+    activation: "on-demand",
+    lifetime: "idle",
+    reason: "执行 Skill",
+    systemAccess: [],
+  },
 };
 
 describe("插件包内 Skill", () => {
@@ -22,6 +34,7 @@ describe("插件包内 Skill", () => {
       skills: ["guide"],
       integrity: {
         "main.js": hash("a"),
+        "backend.js": hash("d"),
         "skills/guide/SKILL.md": hash("b"),
         "skills/guide/references/api.md": hash("c"),
         "notes.txt": hash("d"),
@@ -29,6 +42,7 @@ describe("插件包内 Skill", () => {
     });
     expect(manifest.skills).toEqual(["guide"]);
     expect(Object.keys(manifest.integrity).sort()).toEqual([
+      "backend.js",
       "main.js",
       "skills/guide/SKILL.md",
       "skills/guide/references/api.md",
@@ -36,7 +50,7 @@ describe("插件包内 Skill", () => {
   });
 
   it("拒绝缺少 SKILL.md、未声明目录与越界路径", () => {
-    const base = { ...plugin, integrity: { "main.js": hash("a") } };
+    const base = { ...plugin, integrity: { "main.js": hash("a"), "backend.js": hash("d") } };
     expect(() => validatePluginManifest({ ...base, skills: ["guide"] })).toThrow("缺少 SKILL.md");
     expect(() =>
       validatePluginManifest({

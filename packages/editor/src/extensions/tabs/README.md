@@ -10,7 +10,7 @@ export const kit = createEditorKit({ extensions: tabsExtensions });
 ```
 
 - 根入口提供 tabsExtensions、默认 tabsExtension、tabPaneExtension、insertTabs 与模型类型；/types 提供模型声明，块内容引用核心公开映射。
-- 不新增专用 Markdown 语法或空 codec。现有通用 tau-node 载体保留活动 key、标题及全部面板内容；旧 tabsContent 沿用 db-schema 的迁移规则。
+- 不新增专用 Markdown 语法或空 codec。现有通用 tau-node 载体保留活动 key、标题及全部面板内容；全部面板内容由 tab-pane 子树承载，不读取或换算旧 tabsContent。
 - 宿主样式扫描包含 src，不增加单独 CSS。已有 DndProvider 会复用；每个 tabs 实例持有独立拖拽作用域，复制了相同 key 的其他实例不能重排本组。
 - 编辑切换会把现有选区移到新面板；只读切换是本地视图状态，不写 activeKey。添加/删除/重命名验证当前节点，删除最后一个面板回到空段落及光标落点。
 - 根级孤儿 pane 提升正文，重命名时输入法组合中的 Enter 不提交。

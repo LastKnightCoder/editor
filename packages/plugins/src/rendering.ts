@@ -86,8 +86,13 @@ export function evaluatePluginPackage(
   artifact: DevelopmentPluginPackage,
   modules: Readonly<Record<string, unknown>>
 ): PluginDefinition {
-  const manifest = validatePluginManifest(artifact.manifest);
-  return evaluateModule(manifest, artifact.code, modules, PLUGIN_SHARED_MODULES);
+  const manifest = readPublishedPluginManifest(artifact.manifest);
+  return evaluateModule(
+    manifest,
+    artifact.code,
+    modules,
+    manifest.formatVersion === 3 ? PORTABLE_SHARED_MODULES : PLUGIN_SHARED_MODULES
+  );
 }
 
 /** 只供显式接入跨端协议的宿主；执行前必须先由包读取器验证文件完整性。 */

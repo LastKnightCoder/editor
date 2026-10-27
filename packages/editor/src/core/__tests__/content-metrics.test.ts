@@ -20,20 +20,28 @@ describe("getContentLength", () => {
     expect(length).toBeGreaterThan(0);
   });
 
-  it("旧 tabs 形态只补算非激活 Tab 的内容", () => {
+  it("tabs 所有面板沿当前 children 子树统计", () => {
     const length = getContentLength([
       {
         type: "tabs",
         activeKey: "a",
-        tabsContent: [
-          { key: "a", content: [{ type: "formatted", text: "激活内容" }] },
-          { key: "b", content: [{ type: "formatted", text: "后台内容" }] },
+        children: [
+          {
+            type: "tab-pane",
+            tabKey: "a",
+            title: "一",
+            children: [{ type: "formatted", text: "激活内容" }],
+          },
+          {
+            type: "tab-pane",
+            tabKey: "b",
+            title: "二",
+            children: [{ type: "formatted", text: "后台内容" }],
+          },
         ],
-        children: [],
       } as never,
     ]);
-    // 激活 Tab 的内容由 children 树覆盖（此例为空），只应统计到后台 Tab
-    expect(length).toBe(getContentLength([{ type: "formatted", text: "后台内容" }]));
+    expect(length).toBe(getContentLength([{ type: "formatted", text: "激活内容后台内容" }]));
   });
 
   it("空内容为 0", () => {

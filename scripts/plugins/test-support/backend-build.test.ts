@@ -33,11 +33,21 @@ it("独立作者项目构建两个入口并校验后台摘要，未声明时不�
   await writeFile(path.join(directory, "package.json"), JSON.stringify({ type: "module" }));
   await writeFile(
     path.join(directory, "node_modules/@tau/plugins/package.json"),
-    JSON.stringify({ type: "module", exports: { "./package": "./package.js" } })
+    JSON.stringify({
+      type: "module",
+      exports: { "./package": "./package.js", "./portable": "./portable.js" },
+    })
   );
   await build({
     entryPoints: [path.join(root, "packages/plugins/src/package.ts")],
     outfile: path.join(directory, "node_modules/@tau/plugins/package.js"),
+    bundle: true,
+    format: "esm",
+    platform: "node",
+  });
+  await build({
+    entryPoints: [path.join(root, "packages/plugins/src/portable.ts")],
+    outfile: path.join(directory, "node_modules/@tau/plugins/portable.js"),
     bundle: true,
     format: "esm",
     platform: "node",
@@ -57,9 +67,11 @@ it("独立作者项目构建两个入口并校验后台摘要，未声明时不�
     description: "设备状态",
     version: "1.0.0",
     minAppVersion: "0.59.0",
-    formatVersion: 1,
+    formatVersion: 3,
+    profile: "web-v1",
+    targets: { desktop: { minAppVersion: "0.59.0" } },
     apiVersion: 1,
-    platform: "desktop",
+    platform: "portable",
     format: "cjs",
     main: "main.js",
   };
@@ -77,6 +89,8 @@ it("独立作者项目构建两个入口并校验后台摘要，未声明时不�
     JSON.stringify({
       ...manifest,
       formatVersion: 2,
+      platform: "desktop",
+      targets: undefined,
       backend: {
         entry: "backend.js",
         runtime: "node",
