@@ -44,6 +44,7 @@ import PathUtil from "../../utils/PathUtil";
 import databaseModule from "../database";
 import ContentTable from "../tables/content";
 import { ContentDocumentTable } from "../tables/content-document";
+import { repairContentForOpen } from "../content-repair";
 import { ContentIdentityTable } from "../tables/content-identity";
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import {
@@ -437,6 +438,15 @@ export class CollaborationManager {
       if (!session) throw new Error("协作会话尚未恢复，请稍后重试");
     }
     if (!session) {
+      if (
+        await repairContentForOpen(
+          db,
+          name,
+          content.id,
+          () => databaseModule.getDatabase(name) === db
+        )
+      )
+        return this.openContent(event, target);
       const source: SourceBinding = {
         ...target,
         databaseName: name,

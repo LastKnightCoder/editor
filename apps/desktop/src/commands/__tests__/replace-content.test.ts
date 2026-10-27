@@ -4,13 +4,16 @@ import type { Descendant } from "slate";
 
 // 渲染端命令直连真实主进程正文表：验证写回过得了主进程的身份与契约校验
 const bridge = vi.hoisted(() => {
-  const state = { db: null as import("better-sqlite3").Database | null };
+  const state = {
+    db: null as import("better-sqlite3").Database | null,
+    dir: `/tmp/tau-replace-content-${process.pid}`,
+  };
   const invoke = vi.fn(async (channel: string, ...args: unknown[]) => {
     const { default: ContentTable } =
       await import("../../../src-electron/main/modules/tables/content");
     const ctx = { broadcastOthers: () => {}, broadcastAll: () => {} };
     if (channel === "content:get-by-id")
-      return ContentTable.getContentById(state.db!, args[0] as number);
+      return ContentTable.readContent(state.db!, args[0] as number);
     if (channel === "content:create")
       return ContentTable.createContent(state.db!, args[0] as never);
     if (channel === "content:update")
@@ -30,6 +33,19 @@ vi.mock("electron", () => ({
   BrowserWindow: { getAllWindows: () => [] },
   ipcMain: { handle: vi.fn() },
   app: { getPath: () => "/tmp" },
+}));
+vi.mock("../../../src-electron/main/services/content-execution", () => ({
+  contentExecutor: {
+    execute: async (request: unknown) => {
+      await import("@/app/plugins/content-runtime");
+      return (
+        globalThis as unknown as { tauContentExecute(input: unknown): Promise<unknown> }
+      ).tauContentExecute({ hash: "unit-fixtures", artifacts: [], request });
+    },
+  },
+}));
+vi.mock("../../../src-electron/main/utils/PathUtil", () => ({
+  default: { getAppDir: () => bridge.dir },
 }));
 vi.mock("../../../src-electron/main/modules/video-note-index-queue", () => ({
   default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
@@ -104,4 +120,16 @@ it("AI 改写应用后可写入，检查点恢复保留节点身份", async () =
     expectedRevision: applied.updated.revision,
   });
   expect(restored.updated.content).toEqual(before.content);
+});
+
+it("读取不合格的旧正文时自愈：返回带契约与修订的正文，之后能正常写回", async () => {
+  bridge
+    .db!.prepare(
+      "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES (90,1,1,?,2,1)"
+    )
+    .run(JSON.stringify([{ type: "paragraph", children: [{ text: "旧正文" }] }]));
+  const healed = (await getContentById(90))!;
+  expect(healed.revision).toBeTruthy();
+  expect(JSON.stringify(healed.content)).toContain("旧正文");
+  await expect(replaceContent(90, { markdown: "改写" })).resolves.toBeTruthy();
 });

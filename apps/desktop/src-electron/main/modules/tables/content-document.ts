@@ -92,6 +92,16 @@ function validateContent(
 }
 
 export class ContentDocumentTable {
+  /** 正文与字典是否能通过写入校验；不合格时返回原因，供打开前判断是否需要修复 */
+  static problem(content: unknown, contracts: unknown): string | null {
+    try {
+      validateContent(content as ContentNode[], validateContentContractsSync(contracts as never));
+      return null;
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+  }
+
   static read(db: Database.Database, contentId: number): StoredContentDocument | null {
     const row = db
       .prepare(
