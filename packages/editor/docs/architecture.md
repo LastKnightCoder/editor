@@ -253,15 +253,11 @@ export interface BuiltinElementMap {
   "inline-math": InlineMathElement; // 行内数学公式
   "block-math": BlockMathElement; // 块级数学公式
   mermaid: MermaidElement; // Mermaid 图表
-  tikz: TikzElement; // TikZ 图形
-  typst: TypstElement; // Typst 排版
-  abc: AbcElement; // ABC 音乐记谱
   plantuml: PlantUMLElement; // PlantUML 图
 
   // 多媒体
   image: ImageElement; // 块级图片
   "inline-image": InlineImageElement; // 行内图片
-  "image-gallery": ImageGalleryElement; // 图片画廊
   audio: AudioElement; // 音频
   video: VideoElement; // 视频
 
@@ -3740,3 +3736,5 @@ insertTable(editor, 3, 3);
 **应用级业务扩展** (apps/desktop/src/editor-extensions/): whiteboard, database, chat-reference, file-attachment, question-card, content-link, inline-ai-assistant, flashcard-blank, document-card-list, project-card-list
 
 ---
+
+ABC、TikZ、Typst 和图片画廊由独立插件提供节点声明与渲染；内置图表包仅保留 Mermaid 与 PlantUML，不提供旧 Typst 缓存渲染器。

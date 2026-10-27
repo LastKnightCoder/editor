@@ -31,7 +31,7 @@ import Database, { type DatabaseRef } from "@tau/database";
 
 文件资源沿用 `@tau/db-schema/content-resources` 的静态声明和解析器，路径以 `{ value: 单元格值 }` 为根，例如图片字段 `resources: [{ path: "value[].url", kind: "image" }]`；不增加资源枚举回调。
 
-字段配置按当前结构直接读写：Database 初始化保留输入配置，外部 `column.configure` 原样应用配置；配置相同时不提交，避免宿主刷新清空撤销栈。字段 model 不声明历史配置升级器。
+字段配置按当前结构直接读写：Database 初始化保留输入配置，外部 `column.configure` 原样应用配置；配置相同时不提交，避免宿主刷新清空撤销栈。字段 model 不声明历史配置升级器。 日期持久化只读取 `{ start, end }` 范围；时间戳和 Date 输入在保存入口归一化。
 
 宿主 Tailwind v4 入口导入主题 token、主题 Tailwind 桥接和 UI 公共样式，并显式扫描本包与 UI 源码：
 

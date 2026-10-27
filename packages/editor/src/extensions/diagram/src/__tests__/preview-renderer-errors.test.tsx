@@ -4,7 +4,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import PlantUML from "../renderers/PlantUML";
-import Typst from "../renderers/Typst";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -29,33 +28,6 @@ afterEach(async () => {
   root = null;
   container = null;
 });
-describe("Typst onError", () => {
-  it("编译失败时保留上一次的结果，不自己画红字", async () => {
-    vi.useFakeTimers();
-    const onError = vi.fn();
-    const compileTypst = vi
-      .fn()
-      .mockResolvedValueOnce("<p>ok</p>")
-      .mockRejectedValueOnce(new Error("unexpected token"));
-    const host = await render(
-      <Typst content="= A" compileTypst={compileTypst} onError={onError} />
-    );
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(250);
-    });
-    expect(host.innerHTML).toContain("<p>ok</p>");
-
-    await render(<Typst content="= A #" compileTypst={compileTypst} onError={onError} />);
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(250);
-    });
-    expect(onError).toHaveBeenLastCalledWith("unexpected token", true);
-    expect(host.innerHTML).toContain("<p>ok</p>");
-    expect(host.textContent).not.toContain("unexpected token");
-    vi.useRealTimers();
-  });
-});
-
 describe("PlantUML onError", () => {
   it("新图加载失败时退回上一张成功的图并上报", async () => {
     const onError = vi.fn();

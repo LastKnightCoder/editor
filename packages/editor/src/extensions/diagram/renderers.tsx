@@ -1,7 +1,6 @@
 import loadable from "@loadable/component";
 
 export const PlantUML = loadable(() => import("./src/renderers/PlantUML"));
-export const Typst = loadable(() => import("./src/renderers/Typst"));
 export const MermaidRenderer = loadable(() => import("./src/renderers/MermaidRenderer"));
 export type { MermaidRendererProps } from "./src/renderers/MermaidRenderer";
 

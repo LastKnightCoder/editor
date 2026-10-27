@@ -1,6 +1,6 @@
 import { expect, it, vi } from "vitest";
 import { definePlugin } from "../index";
-import { validatePluginManifest } from "../package";
+import { validatePortablePluginManifest } from "../portable";
 import {
   evaluatePluginPackage,
   getPluginNodeTypes,
@@ -9,23 +9,26 @@ import {
 } from "../rendering";
 
 const manifest = {
-  formatVersion: 1,
+  formatVersion: 3,
   apiVersion: 1,
   id: "test.editor",
   name: "测试",
   version: "1.0.0",
-  platform: "desktop",
+  platform: "portable" as const,
   format: "cjs",
-  editor: true,
+
   main: "main.js",
   integrity: { "main.js": "a".repeat(64) },
+
+  profile: "web-v1" as const,
+  targets: { desktop: { minAppVersion: "0.0.0" } },
 };
 const code = `module.exports.default = require('@tau/plugins').definePlugin({id:'test.editor',name:'测试',version:'1.0.0',editorExtensions:[{id:'test.block',apiVersion:1,elements:[{type:'test.block',kind:'block',render:()=>null}]}]});`;
 
 it("静态贡献只定义一次，读取定义不执行 activate，纯编辑器插件可省略 create", () => {
   const factory = vi.fn(definePlugin);
   const definition = evaluatePluginPackage(
-    { manifest: validatePluginManifest(manifest), code },
+    { manifest: validatePortablePluginManifest(manifest), code },
     { "@tau/plugins": { definePlugin: factory } }
   );
   expect(getPluginNodeTypes(definition)).toEqual(["test.block"]);
@@ -35,7 +38,7 @@ it("静态贡献只定义一次，读取定义不执行 activate，纯编辑器�
   expect(() => assertRenderTypes(definition, ["other"])).toThrow("归属");
 });
 
-it("编辑器声明缺失、节点重复与不可用共享模块明确失败", () => {
+it("节点重复与不可用共享模块明确失败", () => {
   expect(() =>
     assertUniqueEditorCodecs([
       { type: "a", directives: { same: () => null } },
@@ -44,13 +47,7 @@ it("编辑器声明缺失、节点重复与不可用共享模块明确失败", (
   ).toThrow("directive 重复");
   expect(() =>
     evaluatePluginPackage(
-      { manifest: validatePluginManifest({ ...manifest, editor: undefined }), code },
-      { "@tau/plugins": { definePlugin } }
-    )
-  ).toThrow("声明一致");
-  expect(() =>
-    evaluatePluginPackage(
-      { manifest: validatePluginManifest(manifest), code: "require('node:fs')" },
+      { manifest: validatePortablePluginManifest(manifest), code: "require('node:fs')" },
       {}
     )
   ).toThrow("未提供");
@@ -81,7 +78,7 @@ it("插件定义只把公开扩展字段交给宿主，附加元信息不阻止�
     "apiVersion:1,inputRules:[{id:'test.bold',delimiter:'**',marks:{bold:true}}],"
   );
   const definition = evaluatePluginPackage(
-    { manifest: validatePluginManifest(manifest), code: withInputRules },
+    { manifest: validatePortablePluginManifest(manifest), code: withInputRules },
     { "@tau/plugins": { definePlugin } }
   );
   expect(getPluginNodeTypes(definition)).toEqual(["test.block"]);

@@ -2,12 +2,6 @@ import type { Descendant } from "slate";
 import type { ImageCropTransform } from "../../components/ImageCropEditor/geometry";
 import type { ImageBorderRadiusPreset, ImageShadowPreset } from "./image-appearance";
 
-/** 旧版 cropperjs 的裁剪参数：保留在存量文档里，不再解读（再次裁剪从原图开始） */
-export interface LegacyCropTransform {
-  version: "1.0";
-  [key: string]: unknown;
-}
-
 export interface ImageElement {
   type: "image";
   /** 原图地址（裁剪不改它） */
@@ -17,10 +11,7 @@ export interface ImageElement {
   pasteUploading?: boolean;
 
   /** 裁剪参数：再次裁剪时据此恢复 */
-  cropTransform?: ImageCropTransform | LegacyCropTransform;
-
-  /** @deprecated 使用 cropTransform 代替 */
-  crop?: any;
+  cropTransform?: ImageCropTransform;
 
   /** 显示用地址：未裁剪时等于 url，裁剪后为裁剪结果；导出链路同样取它 */
   previewUrl?: string;

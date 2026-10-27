@@ -1,33 +1,37 @@
 import { expect, it } from "vitest";
-import { PLUGIN_CATEGORIES, validatePluginManifest } from "../package";
+import { PLUGIN_CATEGORIES } from "../package";
+import { validatePortablePluginManifest } from "../portable";
 
 const manifest = {
-  formatVersion: 1,
+  formatVersion: 3,
   apiVersion: 1,
   id: "test.catalog",
   name: "测试",
   version: "1.0.0",
-  platform: "desktop",
+  platform: "portable" as const,
   format: "cjs",
   main: "main.js",
   integrity: { "main.js": "a".repeat(64) },
+
+  profile: "web-v1" as const,
+  targets: { desktop: { minAppVersion: "0.0.0" } },
 };
 
 it("分类与关键词去重保序，空值不写入清单", () => {
-  const result = validatePluginManifest({
+  const result = validatePortablePluginManifest({
     ...manifest,
     categories: ["editor", "ai", "editor"],
     keywords: [" LaTeX ", "绘图", "LaTeX"],
   });
   expect(result.categories).toEqual(["editor", "ai"]);
   expect(result.keywords).toEqual(["LaTeX", "绘图"]);
-  const empty = validatePluginManifest({ ...manifest, categories: [], keywords: [] });
+  const empty = validatePortablePluginManifest({ ...manifest, categories: [], keywords: [] });
   expect("categories" in empty || "keywords" in empty).toBe(false);
 });
 
 it("拒绝无效分类与非文本关键词", () => {
   const strict = (extra: Record<string, unknown>) => () =>
-    validatePluginManifest({ ...manifest, ...extra });
+    validatePortablePluginManifest({ ...manifest, ...extra });
   expect(strict({ categories: ["reading"] })).toThrow("未知插件分类");
   expect(strict({ categories: "editor" })).toThrow("必须是数组");
   expect(strict({ keywords: [""] })).toThrow("非空文本");
@@ -37,7 +41,7 @@ it("拒绝无效分类与非文本关键词", () => {
 
 it("关键词不截断已提供的有效搜索信息", () => {
   const keywords = ["a", "b", "c", "d", "e", "f", "a".repeat(40)];
-  expect(validatePluginManifest({ ...manifest, keywords }).keywords).toEqual(keywords);
+  expect(validatePortablePluginManifest({ ...manifest, keywords }).keywords).toEqual(keywords);
 });
 
 it("分类 ID 唯一且均有显示名", () => {

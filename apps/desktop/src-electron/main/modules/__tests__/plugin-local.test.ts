@@ -11,6 +11,7 @@ import { PluginWorkspaceRegistry } from "../../services/plugin-registry";
 
 const mock = vi.hoisted(() => ({
   root: "",
+  packaged: true,
   windows: [] as any[],
   handlers: new Map<string, (...args: unknown[]) => unknown>(),
   openPath: vi.fn(async () => ""),
@@ -24,7 +25,9 @@ vi.mock("../../services/content-execution", () => ({
 vi.mock("electron", () => ({
   BrowserWindow: { getAllWindows: () => mock.windows },
   app: {
-    isPackaged: true,
+    get isPackaged() {
+      return mock.packaged;
+    },
     getPath: () => path.join(mock.root, "profile"),
     getAppPath: () => path.join(mock.root, "app"),
     getVersion: () => "0.59.0",
@@ -46,6 +49,7 @@ vi.mock("../../utils/PathUtil", () => ({
 }));
 beforeEach(async () => {
   vi.resetModules();
+  mock.packaged = true;
   mock.root = await mkdtemp(path.join(tmpdir(), "tau-local-module-"));
   mock.windows = [];
   mock.handlers.clear();
@@ -118,7 +122,8 @@ it("正式 IPC 安装跨端内容包，启用重启后从原始格式 3 快照�
   await expect(invoke("plugin-local:set-enabled", id, true)).rejects.toThrow("固定插件中心");
 });
 
-it("主进程恢复内容快照，将定义校验交给内容渲染进程", async () => {
+it("主进程恢复开发内容快照，将定义校验交给内容渲染进程", async () => {
+  mock.packaged = false;
   const id = "test.editor";
   const folder = path.join(mock.root, ".editor/plugins", id);
   await mkdir(folder);
@@ -127,16 +132,19 @@ it("主进程恢复内容快照，将定义校验交给内容渲染进程", asyn
   await writeFile(
     path.join(folder, "manifest.json"),
     JSON.stringify({
-      formatVersion: 1,
+      formatVersion: 3,
       apiVersion: 1,
       id,
       name: "编辑器",
       version: "1.0.0",
-      platform: "desktop",
+      platform: "portable" as const,
       format: "cjs",
-      editor: true,
+
       main: "main.js",
       integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
+
+      profile: "web-v1" as const,
+      targets: { desktop: { minAppVersion: "0.0.0" } },
     })
   );
   await invoke("plugin-local:set-enabled", id, true);
@@ -208,16 +216,19 @@ it.each([false, true])("中心版本安装即启用，更新保留意图，内�
       `${id}/manifest.json`,
       Buffer.from(
         JSON.stringify({
-          formatVersion: 1,
+          formatVersion: 3,
           apiVersion: 1,
           id,
           name: "中心插件",
           version,
-          platform: "desktop",
+          platform: "portable" as const,
           format: "cjs",
           main: "main.js",
           ...(editor ? { editor: true } : {}),
           integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
+
+          profile: "web-v1" as const,
+          targets: { desktop: { minAppVersion: "0.0.0" } },
         })
       )
     );
@@ -228,7 +239,9 @@ it.each([false, true])("中心版本安装即启用，更新保留意图，内�
       releaseId: `r-${version}`,
       pluginId: id,
       version,
-      sha256: "d",
+      sha256: createHash("sha256").update(archive.toBuffer()).digest("hex"),
+      manifest: JSON.parse(archive.readAsText(`${id}/manifest.json`)),
+      apiOrigin: "https://plugins-api.taunote.app",
     };
     mock.download.mockResolvedValueOnce({ bytes: archive.toBuffer(), source });
     return source;
@@ -244,27 +257,27 @@ it.each([false, true])("中心版本安装即启用，更新保留意图，内�
   await (await import("../plugin-local")).default.init();
   const [entry] = ((await invoke("plugin-local:scan")) as { entries: unknown[] }).entries;
   expect(entry).toMatchObject({ id, source, enabled: true });
-  // 内容插件安装时不进当前快照，重启后才加载
+  // 格式 3 的实际内容贡献统一交给渲染进程判定。
   expect(await invoke("plugin-local:content-startup")).toMatchObject({
-    artifacts: editor ? [{ manifest: { id } }] : [],
+    artifacts: [{ manifest: { id } }],
   });
   mock.handlers.clear();
   await (await import("../plugin-local")).default.init();
-  const updatedSource = download("1.1.0");
+  download("1.1.0");
   await invoke("plugin-local:stage-release", "r2");
   expect(await invoke("plugin-local:scan", {})).toMatchObject({
     entries: [
       {
         id,
         enabled: true,
-        artifact: { manifest: { version: editor ? "1.0.0" : "1.1.0" } },
-        source: editor ? source : updatedSource,
+        artifact: { manifest: { version: "1.0.0" } },
+        source,
       },
     ],
-    updates: [editor ? { pending: true, pendingVersion: "1.1.0" } : { previousVersion: "1.0.0" }],
+    updates: [{ pending: true, pendingVersion: "1.1.0" }],
   });
   await invoke("plugin-local:set-enabled", id, false);
-  if (editor) {
+  {
     await expect(invoke("plugin-local:uninstall", id)).rejects.toThrow("重启");
     mock.handlers.clear();
     await (await import("../plugin-local")).default.init();

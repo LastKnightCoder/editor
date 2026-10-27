@@ -3,13 +3,9 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { cp, mkdir, readFile, writeFile, mkdtemp, rm } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
+import { readAuthorDocuments } from "./author-documents.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-execFileSync(
-  process.execPath,
-  [path.join(root, "scripts/plugins/sync-author-docs.mjs"), "--check"],
-  { stdio: "inherit" }
-);
 const isWorkspaceSource = source => {
   const relative = path.relative(root, source);
   return (
@@ -265,6 +261,8 @@ try {
       await cp(path.join(root, "plugins/tau-plugin-template/docs"), path.join(directory, "docs"), {
         recursive: true,
       });
+      for (const [file, content] of await readAuthorDocuments())
+        await writeFile(path.join(directory, "docs", file), content);
       await writeFile(
         path.join(directory, "CHANGELOG.md"),
         await readFile(path.join(root, "packages/plugins/CHANGELOG.md"))

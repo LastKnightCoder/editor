@@ -1,20 +1,23 @@
 import { expect, it } from "vitest";
 import { ContentPluginRegistry, createPluginMarkdownProcessor } from "../content";
 import { sharedPluginModules } from "../shared-modules";
-import { validatePluginManifest } from "../package";
+import { validatePortablePluginManifest } from "../portable";
 
 const artifact = {
-  manifest: validatePluginManifest({
+  manifest: validatePortablePluginManifest({
     id: "external.example",
     name: "外部插件",
     version: "1.0.0",
     apiVersion: 1,
-    formatVersion: 1,
-    platform: "desktop",
+    formatVersion: 3,
+    platform: "portable" as const,
     format: "cjs",
-    editor: true,
+
     main: "main.js",
     integrity: { "main.js": "a".repeat(64) },
+
+    profile: "web-v1" as const,
+    targets: { desktop: { minAppVersion: "0.0.0" } },
   }),
   code: `const sdk=require('@tau/plugins'); const language='external-example';
   module.exports.default=sdk.definePlugin({id:'external.example',name:'外部插件',version:'1.0.0',

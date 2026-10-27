@@ -7,12 +7,12 @@ import { comparePluginVersions } from "./version";
 import { PLUGIN_AI_CAPABILITIES, isPluginAICapability } from "./ai";
 
 /** 分发契约供中心与客户端消费，不属于插件运行时能力。 */
-export type LegacyCenterManifest = DistributionManifest & {
+export type DesktopDistributionManifest = DistributionManifest & {
   description: string;
   minAppVersion: string;
 };
 export type CenterManifest =
-  | LegacyCenterManifest
+  | DesktopDistributionManifest
   | (PortablePluginManifest & { description: string; minAppVersion?: never });
 export type CenterPlatform = PortablePlatform | "all";
 export type CenterSort = "downloads7d" | "downloadsTotal" | "updated";
@@ -92,8 +92,8 @@ export interface CenterCatalogQuery {
   cursor?: string | null;
 }
 export interface CenterCatalogPage {
-  /** 首页返回各平台声明数；缺省兼容旧缓存，续页为 null。 */
-  platformCounts?: Record<CenterPlatform, number> | null;
+  /** 首页返回各平台声明数，续页为 null。 */
+  platformCounts: Record<CenterPlatform, number> | null;
   items: CenterCatalogEntry[];
   nextCursor: string | null;
   windowStart: string;
