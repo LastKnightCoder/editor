@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { createHash } from "node:crypto";
-import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import type { WhiteboardDocumentIdentity } from "@/types/whiteboard-document";
 import type { ContentEntityReference } from "@tau/db-schema/content-identities";
 
@@ -71,6 +71,36 @@ export class WhiteboardJournal {
       projectedRevision: row.projected_revision,
       projectedHash: row.projected_hash,
     };
+  }
+  /**
+   * 坏日志自愈：原始行写入 `discarded/` 后删除该文档的日志，调用方再按主库重建。
+   * 只用于读不出或与主库无法对齐的日志；能读出且领先主库的日志含未保存改动，不走这里。
+   */
+  quarantine(documentId: string, directory: string, reason: string): void {
+    const row = this.db.prepare("SELECT * FROM documents WHERE document_id=?").get(documentId) as
+      | Record<string, unknown>
+      | undefined;
+    if (!row) return;
+    const updates = this.db
+      .prepare("SELECT * FROM updates WHERE document_id=? ORDER BY revision")
+      .all(documentId) as Record<string, unknown>[];
+    const encode = (value: Record<string, unknown>) =>
+      Object.fromEntries(
+        Object.entries(value).map(([key, item]) => [
+          key,
+          Buffer.isBuffer(item) ? item.toString("base64") : item,
+        ])
+      );
+    mkdirSync(directory, { recursive: true, mode: 0o700 });
+    writeFileSync(
+      join(directory, `${Date.now()}-${stateHash(Buffer.from(documentId)).slice(0, 16)}.json`),
+      JSON.stringify({ reason, document: encode(row), updates: updates.map(encode) }),
+      { mode: 0o600 }
+    );
+    this.db.transaction(() => {
+      for (const table of ["holds", "updates", "documents"])
+        this.db.prepare(`DELETE FROM ${table} WHERE document_id=?`).run(documentId);
+    })();
   }
   contains(identity: WhiteboardDocumentIdentity): boolean {
     return !!this.db

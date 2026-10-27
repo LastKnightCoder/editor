@@ -12,6 +12,8 @@ import { ContentIdentityTable } from "./tables/content-identity";
 import Operation from "./tables/operation";
 import { emitContentWritten } from "./content-events";
 
+const CONTENT_DOCUMENT_FORMAT = 2;
+
 interface RawContent {
   content: string;
   document?: { document_id: string; format_version: number; contracts: string; revision: string };
@@ -39,9 +41,9 @@ const parse = (value: string | undefined): unknown => {
 };
 
 /**
- * 打开前自愈：正文缺身份、缺契约、契约不匹配或尚无文档记录（旧格式）时，
+ * 打开前自愈：正文缺身份、缺契约、契约不匹配、尚无文档记录（旧格式）或文档记录格式版本无法识别时，
  * 先把原始字节备份到 `content-repairs/`，再按当前节点声明补齐并写回主库；合格正文不动。
- * 返回是否改写了正文。字典版本不是协议 2 的记录不在此修复范围，保持原报错。
+ * 格式版本无法识别的记录只沿用其稳定文档身份，契约字典按正文重建。返回是否改写了正文。
  */
 export async function repairContentForOpen(
   db: Database.Database,
@@ -50,10 +52,13 @@ export async function repairContentForOpen(
   current: () => boolean
 ): Promise<boolean> {
   const raw = readRaw(db, contentId);
-  if (!raw || (raw.document && raw.document.format_version !== 2)) return false;
+  if (!raw) return false;
+  const known = raw.document?.format_version === CONTENT_DOCUMENT_FORMAT;
   const content = parse(raw.content);
-  const contracts = parse(raw.document?.contracts) as ContentContractDictionary | undefined;
-  if (raw.document && ContentDocumentTable.problem(content, contracts) === null) return false;
+  const contracts = known
+    ? (parse(raw.document?.contracts) as ContentContractDictionary | undefined)
+    : undefined;
+  if (known && ContentDocumentTable.problem(content, contracts) === null) return false;
   const repaired = await contentExecutor.execute<{
     content: ContentNode[];
     contracts: ContentContractDictionary;
@@ -75,6 +80,12 @@ export async function repairContentForOpen(
   );
   db.transaction(() => {
     if (!raw.document) ContentIdentityTable.establishBaseline(db);
+    // 格式版本无法识别：就地改为当前版本并清空旧字典（不删行，删行会级联掉实体关系账），
+    // 修订号同步置换，commit 再按修复结果整体覆盖
+    if (raw.document && !known)
+      db.prepare(
+        "UPDATE content_documents SET format_version=?,contracts='{}',revision=? WHERE content_id=?"
+      ).run(CONTENT_DOCUMENT_FORMAT, `repair:${raw.document.revision}`, contentId);
     ContentDocumentTable.commit(
       db,
       contentId,
@@ -85,7 +96,11 @@ export async function repairContentForOpen(
       },
       {
         installDocument: true,
-        expectedRevision: raw.document?.revision,
+        expectedRevision: raw.document
+          ? known
+            ? raw.document.revision
+            : `repair:${raw.document.revision}`
+          : undefined,
         count: getContentLength(repaired.content as never),
       }
     );

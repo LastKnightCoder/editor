@@ -388,6 +388,14 @@ export class CollaborationManager {
       throw new Error("不支持的内容来源，请升级客户端");
     if (!Number.isSafeInteger(target.contentId) || target.contentId <= 0)
       throw new Error("内容 ID 不合法");
+    // 协作中的正文以会话为准，不按主库修复
+    if (!findCollaborationBinding(db, target.contentId))
+      await repairContentForOpen(
+        db,
+        name,
+        target.contentId,
+        () => databaseModule.getDatabase(name) === db
+      );
     const content = ContentTable.getContentById(db, target.contentId);
     if (!content) throw new Error("内容不存在");
     const binding = findCollaborationBinding(db, target.contentId);
@@ -438,15 +446,6 @@ export class CollaborationManager {
       if (!session) throw new Error("协作会话尚未恢复，请稍后重试");
     }
     if (!session) {
-      if (
-        await repairContentForOpen(
-          db,
-          name,
-          content.id,
-          () => databaseModule.getDatabase(name) === db
-        )
-      )
-        return this.openContent(event, target);
       const source: SourceBinding = {
         ...target,
         databaseName: name,

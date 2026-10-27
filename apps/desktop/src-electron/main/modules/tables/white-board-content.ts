@@ -6,6 +6,8 @@ import {
 import { assertLegacyWhiteboardPage, isDocumentPage } from "../whiteboard-document-guard";
 import { hasDurableEntityHold } from "../durable-entity-holds";
 import Database from "better-sqlite3";
+import { basename } from "node:path";
+import { asynchronousDatabaseCommand } from "../database-command";
 import { WhiteBoardContent } from "@/types";
 import Operation from "./operation";
 import ContentTable from "./content";
@@ -155,7 +157,9 @@ export default class WhiteboardTable {
       "white-board-content:create": this.createWhiteboardContent.bind(this),
       "white-board-content:create-pending": this.createPending.bind(this),
       "white-board-content:reference": this.reference.bind(this),
-      "white-board-content:get-by-id": this.getWhiteboardContent.bind(this),
+      "white-board-content:get-by-id": asynchronousDatabaseCommand(
+        this.readWhiteboardContent.bind(this)
+      ),
       "white-board-content:update": this.updateWhiteboard.bind(this),
       "white-board-content:delete": this.deleteWhiteboard.bind(this),
       "white-board-content:increment-ref-count": this.incrementRefCount.bind(this),
@@ -326,6 +330,21 @@ export default class WhiteboardTable {
         "INSERT OR IGNORE INTO white_board_content_pending_releases (content_id, released_at) VALUES (?, ?)"
       ).run(id, Date.now());
     return 0;
+  }
+
+  /** 渲染端读取页：旧 JSON 页或损坏的文档检查点先自愈，再返回当前页投影 */
+  static async readWhiteboardContent(
+    db: Database.Database,
+    target: ContentEntityTarget
+  ): Promise<WhiteBoardContent> {
+    const id = ContentIdentityTable.requireTarget(db, "whiteboard-content", target);
+    const { default: documents } = await import("../whiteboard-documents");
+    await documents
+      .healPage(basename(db.name, ".db"), id)
+      .catch(error =>
+        console.warn(`[whiteboard-repair] 白板页 ${id} 自愈失败，按原数据返回`, error)
+      );
+    return this.getWhiteboardContent(db, id);
   }
 
   static getWhiteboardContent(

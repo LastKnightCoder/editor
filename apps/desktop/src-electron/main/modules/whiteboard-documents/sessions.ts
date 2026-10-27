@@ -14,6 +14,13 @@ import type {
 } from "@/types/whiteboard-document";
 import { WhiteboardJournal, journalKey, type JournalDocument } from "./journal";
 import { WhiteboardDocumentRepository, type WhiteboardRelationCounter } from "./repository";
+import { repairWhiteboardDocument, upgradeLegacyWhiteboardPage } from "./repair";
+import { dirname, join } from "node:path";
+import { tmpdir } from "node:os";
+
+/** 修复备份与日志同目录；内存日志（测试）落到系统临时目录 */
+const journalDirectory = (journal: WhiteboardJournal) =>
+  journal.db.memory ? join(tmpdir(), "tau-whiteboard-documents") : dirname(journal.db.name);
 
 interface Session {
   value: JournalDocument;
@@ -52,7 +59,11 @@ export class WhiteboardDocumentSessions {
     private readonly emit: (owner: number, event: WhiteboardDocumentEvent) => void = () => {},
     private readonly counts?: WhiteboardRelationCounter,
     private readonly projected: (databaseName: string, documentId: string) => void = () => {},
-    private readonly blocked: (databaseName: string, documentId: string) => boolean = () => false
+    private readonly blocked: (databaseName: string, documentId: string) => boolean = () => false,
+    private readonly repairs = join(journalDirectory(journal), "repairs"),
+    private readonly discarded = join(journalDirectory(journal), "discarded"),
+    /** 旧 JSON 页转换所需的正文修复；不提供时旧页保持「尚未接入文档会话」 */
+    private readonly legacy?: Omit<Parameters<typeof upgradeLegacyWhiteboardPage>[4], "current">
   ) {}
   private repository(name: string): WhiteboardDocumentRepository {
     const db = this.database(name);
@@ -171,8 +182,9 @@ export class WhiteboardDocumentSessions {
       viewId.length > 128
     )
       throw new Error("白板会话目标无效");
-    const repo = this.repository(databaseName),
-      mapping = repo.byPage(contentId);
+    const repo = this.repository(databaseName);
+    await this.heal(repo, contentId);
+    const mapping = repo.byPage(contentId);
     if (!mapping) throw new Error("白板页面尚未接入文档会话");
     const key = journalKey(mapping.document);
     let session = this.sessions.get(key);
@@ -224,17 +236,28 @@ export class WhiteboardDocumentSessions {
   ): Promise<Session> {
     if (this.blocked(source.databaseName, source.documentId))
       throw new Error("白板共享提交尚未完成，请重试");
-    const key = journalKey(source),
+    const key = journalKey(source);
+    let cached: JournalDocument | null;
+    try {
       cached = this.journal.load(key);
+      if (cached && journalKey(cached) !== key) throw new Error("白板日志身份损坏");
+    } catch (error) {
+      // 读不出的本机日志：备份后丢弃，按主库重建（主库是权威，日志可重建）
+      this.journal.quarantine(key, this.discarded, String(error));
+      cached = null;
+    }
     if (
       cached &&
       !(
         (source.revision === cached.projectedRevision && source.hash === cached.projectedHash) ||
         (source.revision === cached.revision && source.hash === cached.hash)
       )
-    )
-      throw new Error("主库快照与白板本机日志分叉，两个版本均已保留");
-    if (cached && journalKey(cached) !== key) throw new Error("白板日志身份损坏，原材料已保留");
+    ) {
+      // 与主库对不上的日志：主库已被别处改写（整库替换、同步下载），日志改动无法安全合入。
+      // 备份后按主库打开；备份里保有日志全部字节，不静默丢失
+      this.journal.quarantine(key, this.discarded, "主库快照与本机日志分叉");
+      cached = null;
+    }
     const value = cached ?? {
       ...source,
       projectedRevision: source.revision,
@@ -261,6 +284,30 @@ export class WhiteboardDocumentSessions {
       doc.destroy();
       throw error;
     }
+  }
+  /** 页读取（white-board-content:get-by-id）前调用：旧 JSON 页先转换，渲染端才能拿到文档页 */
+  async healPage(databaseName: string, contentId: number): Promise<void> {
+    if (!Number.isSafeInteger(contentId) || contentId <= 0) return;
+    await this.heal(this.repository(databaseName), contentId);
+  }
+  /** 打开前修复主库检查点（摘要坏、字节坏、基线或拥有者错位）；修复后丢弃同文档的内存会话 */
+  private async heal(repo: WhiteboardDocumentRepository, contentId: number): Promise<void> {
+    const row = repo.db
+      .prepare("SELECT document_id FROM whiteboard_document_pages WHERE content_id=?")
+      .get(contentId) as { document_id: string } | undefined;
+    if (!row) {
+      if (this.legacy)
+        await upgradeLegacyWhiteboardPage(repo.db, repo.databaseName, contentId, this.repairs, {
+          ...this.legacy,
+          current: () => this.repository(repo.databaseName).db === repo.db,
+        });
+      return;
+    }
+    const live = [...this.sessions.values()].some(
+      session => session.value.documentId === row.document_id && session.db === repo.db
+    );
+    if (live) return;
+    await repairWhiteboardDocument(repo.db, row.document_id, this.repairs);
   }
   private require(
     leaseId: string,

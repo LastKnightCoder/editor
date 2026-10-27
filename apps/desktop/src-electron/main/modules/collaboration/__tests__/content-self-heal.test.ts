@@ -259,6 +259,30 @@ describe("打开时自愈", () => {
       ).toBe(original);
     });
 
+  it("文档记录格式版本无法识别：沿用稳定身份，按正文重建契约后打开", async () => {
+    const { runtime, db, event } = await setup();
+    const paragraph = Object.keys(ContentDocumentTable.read(db, 7)!.contracts)[0];
+    db.prepare(
+      "INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES (8,2,2,?,3,1)"
+    ).run(
+      JSON.stringify([
+        { type: "paragraph", collabId: "a", tauContract: paragraph, children: [text("新格式")] },
+      ])
+    );
+    db.prepare(
+      "INSERT INTO content_documents(content_id,document_id,format_version,contracts,revision) VALUES (8,'doc-8',3,'{\"未来\":1}','r9')"
+    ).run();
+    await expect(runtime.openContent(event, { contentId: 8 })).resolves.toBeTruthy();
+    const stored = ContentDocumentTable.read(db, 8)!;
+    expect(stored.documentId).toBe("doc-8");
+    expect(JSON.stringify(stored.content)).toContain("新格式");
+    expect(ContentDocumentTable.problem(stored.content, stored.contracts)).toBeNull();
+    const backup = readdirSync(join(host.dir, "content-repairs"))[0];
+    expect(
+      JSON.parse(readFileSync(join(host.dir, "content-repairs", backup), "utf8")).document
+    ).toMatchObject({ format_version: 3, contracts: '{"未来":1}' });
+  });
+
   it("合格正文打开不改写、不备份", async () => {
     const { runtime, db, event } = await setup();
     const before = ContentDocumentTable.read(db, 7)!;
