@@ -122,10 +122,9 @@ class Board {
       services,
       extensionServices
     );
-    // 装配完成后立即把既有数据迁移到扩展当前版本（不进历史、不发事件）
   }
 
-  /** 加载期迁移落盘：替换 children 并重建快照，不进 undo 历史、不 emit change */
+  /** 替换 children 并重建快照与选区引用，不进 undo 历史、不 emit change */
   replaceChildrenSilently(children: BoardElement[]) {
     this.children = children;
     // selection.selectedElements 持有的是元素快照，children 替换后需重新绑定，避免旧字段被写回

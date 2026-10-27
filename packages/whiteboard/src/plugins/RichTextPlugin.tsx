@@ -41,10 +41,6 @@ export interface RichTextElement extends CommonElement {
   autoFocus?: boolean;
   variant?: TextVariant;
   tone?: TextTone;
-  /** @deprecated 旧版外观字段，只读，由 resolveTextStyle 换算成 variant/tone */
-  background?: string;
-  /** @deprecated 同上 */
-  topColor?: string;
 }
 
 export class RichTextPlugin extends CommonPlugin {

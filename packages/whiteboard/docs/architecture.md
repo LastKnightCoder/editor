@@ -120,6 +120,7 @@ Board（数据内核：Operation / undo / 事件总线；阶段 A 未改动，�
 ### 3.1 BoardElement 与能力
 
 - `types/board.ts` 定义 `BoardElement` 通用字段：`id/type/name/groupId/children` 与能力控制 `resizable/autoHeight`。
+- 富文本外观只读取 `variant/tone`，未指定时使用透明样式；不从旧背景或色带值换算，也不在设置样式时删除未知字段。渲染、尺寸测量与缩略图使用同一解析函数。脑图只识别当前 `MIND_PALETTES` 的主题 ID，未登记值回落默认配色，不映射历史主题。
 - 旧值模式元素的 `schemaVersion` 仅参与版本识别与保护。加载、粘贴、插入均不转换数据，不再声明或校验升级函数；版本不匹配时保留原数据并按未知元素处理。
 - 当前工具由 activeTool 模型表达：`tau.select` 为显式选择工具（非创建模式哨兵），创建型工具激活后在画布按元素声明的 `create` 规格手势创建；旧创建类型枚举与字段兼容层已删除。
 - `IElementCapabilities`（`types/capabilities.ts`）由插件声明：是否吸附、是否参与参考线、是否可随子元素移动、箭头连接点策略等，`CapabilityService` 统一查询。
@@ -131,17 +132,17 @@ Board（数据内核：Operation / undo / 事件总线；阶段 A 未改动，�
 
 ### 3.3 Operation
 
-- 操作类型集中在 `types/operation.ts`（插入/移动/设置属性/删除/视口/选区等）。
+- 操作类型集中在 `types/operation.ts`（插入/移动/设置属性/删除/视口/选区等）。`set_node` 只修改当前节点属性；`properties` 或 `newProperties` 携带 `children` 时，无论开发或生产环境均抛错，整批不提交。结构变化通过 insert/remove/move 表达；普通属性修改的 metadata 只记录当前节点。
 - `Board.apply` 通过 `BoardOperations.applyOperations` 执行，记录 `metadata.changedElements/removedElements/insertedElements/hasChanges`。
 - 无 document 时，操作在路径历史中按 1 秒窗口归并，最大 100 条；文档模式只使用宿主 NodeTreeHistory。
 - `set_sketch` 修改页级画风 `board.sketch`（进历史，变化时 emit `sketch:change`），见 5.1。
 - 写入校验：扩展定义带 `schema`（Standard Schema v1，仅同步返回）时，`Board.apply` 在 applyOperations 产出新树之后、状态提交之前校验变化元素的 `element.data`（按旧/新树元素引用比较剪枝，未变子树不校验）；不合规抛 `WhiteboardValidationError` 且整批操作不应用。undo/redo 重放不校验（提交时已校验过）；加载不执行转换，原始数据保留；粘贴路径捕获校验错误后放弃本次粘贴。
 
-### 文档迁移边界
+### 文档安装边界
 
-宿主从确认投影构建独立候选，保留页面、元素及正文节点的逻辑身份，重建共享根。首次发布只包含选定页面的当前内容，不携带删除历史或恢复区。插件版本转换只处理业务载荷，页面归属、几何、正文及外部引用由宿主校验；旧增量不能套入新根。
+首次发布与退出共享由宿主从确认投影构建独立候选，保留页面、元素及正文节点的逻辑身份，重建共享根。首次发布只包含选定页面的当前内容，不携带删除历史或恢复区；旧增量不能套入新根。
 
-桌面通过现有 ContentLocalState 迁移记录保存候选、安装参数、固定指纹与主库/本机日志回执，按同 operationId 续装。白板不依赖恢复包服务，不复制数据库或资产建立恢复档案。旧 outbox 与旧日志保持原位；发现另一基线草稿时拒绝自动合并。页面恢复投影属于并发模型，与恢复包功能无关。
+安装候选、固定指纹、幂等回执与失败重试由宿主管理，白板绑定不转换历史格式或自动合并另一基线的草稿。协议与首次发布流程以[协作架构](/docs/architecture/collaboration.md)为准，本机日志与安装流程见[桌面架构](/docs/architecture/desktop.md)。
 
 ### 3.4 文档版本
 
@@ -403,21 +404,21 @@ Board 在各事件入口通过 `bindHandler(eventName)` 收集插件实现的 ha
 
 ## 附录：核心文件索引
 
-| 文件                                                        | 说明                                                                                                                                                                                           |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/whiteboard/src/index.tsx`                         | 入口组件，创建 Board、注册插件、绑定事件、渲染 UI                                                                                                                                              |
-| `packages/whiteboard/src/Board.tsx`                         | 核心引擎，插件分发、apply/历史、参考线、渲染入口                                                                                                                                               |
-| `packages/whiteboard/src/document-version.ts`               | 白板文档版本常量与归一/支持判断                                                                                                                                                                |
-| `packages/whiteboard/src/extensions/*`                      | 扩展声明（api）、运行时装配与冲突降级（runtime）、服务作用域与声明过滤（scope）、事件分层与快捷键仲裁（events / hotkeys / interactionCommands）、元素迁移（migration）、写入校验（validation） |
-| `packages/whiteboard/src/types/*.ts`                        | 数据模型、Operation、能力声明、演示类型                                                                                                                                                        |
-| `packages/whiteboard/src/plugins/*`                         | 内置插件实现（视口、移动、复制、几何/媒体/导图/Frame/Webview/WhiteBoard 等）                                                                                                                   |
-| `packages/whiteboard/src/utils/BoardOperations.ts`          | Operation 预处理与纯函数执行，元数据收集                                                                                                                                                       |
-| `packages/whiteboard/src/utils/snap/`                       | 吸附纯几何（SnapGeometry）、等距（SnapGaps）与吸附会话（SnapManager）                                                                                                                          |
-| `packages/whiteboard/src/utils/PresentationManager.ts`      | 演示模式序列管理                                                                                                                                                                               |
-| `packages/whiteboard/src/transforms/*`                      | 选区与视口变换工具                                                                                                                                                                             |
-| `packages/whiteboard/src/components/BoardContent/index.tsx` | SVG 渲染容器，过滤视口内元素                                                                                                                                                                   |
-| `packages/whiteboard/src/components/ContextMenuLayer`       | 右键菜单聚合与渲染                                                                                                                                                                             |
-| `packages/whiteboard/src/components/*`                      | 各元素视图、工具栏、侧边栏、状态栏、资源选择器                                                                                                                                                 |
+| 文件                                                        | 说明                                                                                                                                                                                                    |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/whiteboard/src/index.tsx`                         | 入口组件，创建 Board、注册插件、绑定事件、渲染 UI                                                                                                                                                       |
+| `packages/whiteboard/src/Board.tsx`                         | 核心引擎，插件分发、apply/历史、参考线、渲染入口                                                                                                                                                        |
+| `packages/whiteboard/src/document-version.ts`               | 白板文档版本常量与归一/支持判断                                                                                                                                                                         |
+| `packages/whiteboard/src/extensions/*`                      | 扩展声明（api）、运行时装配与冲突降级（runtime）、服务作用域与声明过滤（scope）、事件分层与快捷键仲裁（events / hotkeys / interactionCommands）、元素版本识别（elementVersion）、写入校验（validation） |
+| `packages/whiteboard/src/types/*.ts`                        | 数据模型、Operation、能力声明、演示类型                                                                                                                                                                 |
+| `packages/whiteboard/src/plugins/*`                         | 内置插件实现（视口、移动、复制、几何/媒体/导图/Frame/Webview/WhiteBoard 等）                                                                                                                            |
+| `packages/whiteboard/src/utils/BoardOperations.ts`          | Operation 预处理与纯函数执行，元数据收集                                                                                                                                                                |
+| `packages/whiteboard/src/utils/snap/`                       | 吸附纯几何（SnapGeometry）、等距（SnapGaps）与吸附会话（SnapManager）                                                                                                                                   |
+| `packages/whiteboard/src/utils/PresentationManager.ts`      | 演示模式序列管理                                                                                                                                                                                        |
+| `packages/whiteboard/src/transforms/*`                      | 选区与视口变换工具                                                                                                                                                                                      |
+| `packages/whiteboard/src/components/BoardContent/index.tsx` | SVG 渲染容器，过滤视口内元素                                                                                                                                                                            |
+| `packages/whiteboard/src/components/ContextMenuLayer`       | 右键菜单聚合与渲染                                                                                                                                                                                      |
+| `packages/whiteboard/src/components/*`                      | 各元素视图、工具栏、侧边栏、状态栏、资源选择器                                                                                                                                                          |
 
 ## 交互内核遗留注记
 

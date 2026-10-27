@@ -92,64 +92,15 @@ export function getTextBandColor(style: TextStyle): string | null {
   return toneOf(style.tone)?.solid ?? null;
 }
 
-/** 旧版硬编码色值 → 新样式（取色值里第一个 hex 就近映射） */
-const LEGACY_BACKGROUND_MAP: Record<string, TextStyle> = {
-  "#ff6a63": { variant: "tinted", tone: "red" },
-  "#ffa02c": { variant: "tinted", tone: "yellow" },
-  "#f4d63b": { variant: "tinted", tone: "yellow" },
-  "#24b079": { variant: "tinted", tone: "green" },
-  "#865cc2": { variant: "tinted", tone: "purple" },
-  "#3f71fb": { variant: "tinted", tone: "blue" },
-  "#ffe0fc": { variant: "tinted", tone: "red" },
-  "#f3ffd0": { variant: "tinted", tone: "yellow" },
-  "#d9f9f3": { variant: "tinted", tone: "green" },
-  "#d6ebff": { variant: "tinted", tone: "blue" },
-  "#eddeff": { variant: "tinted", tone: "purple" },
-  "#cccae9": { variant: "tinted", tone: "purple" },
-};
-const LEGACY_TOP_COLOR_MAP: Record<string, TextTone> = {
-  "#f7ce66": "yellow",
-  "#f24a6e": "red",
-  "#20ceae": "green",
-  "#9770f6": "purple",
-};
-
-const firstHex = (value?: string) => value?.match(/#[0-9a-f]{3,8}\b/i)?.[0].toLowerCase();
-const isTransparent = (value?: string) => !value || value === "transparent" || value === "none";
-
 interface TextStyleSource {
   type: string;
   variant?: TextVariant;
   tone?: TextTone;
-  /** @deprecated 旧版字段，仅用于换算 */
-  background?: string;
-  /** @deprecated 旧版字段，仅用于换算 */
-  topColor?: string;
 }
 
-/** 读出元素的有效样式：新字段优先，否则由旧色值换算，都没有则取类型默认 */
+/** 未指定语义样式时使用透明默认值。 */
 export function resolveTextStyle(element: TextStyleSource): TextStyle {
-  if (element.variant) return { variant: element.variant, tone: element.tone };
-
-  const fallback = DEFAULT_RICHTEXT_STYLE;
-  const { background, topColor } = element;
-
-  if (!isTransparent(topColor)) {
-    const tone = LEGACY_TOP_COLOR_MAP[firstHex(topColor) ?? ""];
-    return tone ? { variant: "band", tone } : { variant: "plain" };
-  }
-  if (background === undefined) return fallback;
-  if (isTransparent(background)) return { variant: "none" };
-  return LEGACY_BACKGROUND_MAP[firstHex(background) ?? ""] ?? { variant: "plain" };
+  return element.variant
+    ? { variant: element.variant, tone: element.tone }
+    : DEFAULT_RICHTEXT_STYLE;
 }
-
-/** 选中新样式时一并清掉的旧版外观字段 */
-export const LEGACY_TEXT_STYLE_KEYS = [
-  "background",
-  "topColor",
-  "color",
-  "theme",
-  "shadowSize",
-  "paddingWidth",
-  "paddingHeight",
-] as const;

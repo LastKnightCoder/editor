@@ -136,6 +136,33 @@ function move(board: Board, x: number) {
 }
 
 describe("W3 画布与编辑器统一写入", () => {
+  it("拒绝 set_node(children) 时不写共享文档、投影或撤销历史", async () => {
+    vi.stubEnv("DEV", false);
+    try {
+      const f = await fixture();
+      const { board, binding } = view(f.model, f.page, f.types);
+      const before = Y.encodeStateAsUpdate(f.model.doc);
+      const children = board.children;
+      expect(() =>
+        board.apply([
+          { type: "set_node", path: [0], properties: { x: 0 }, newProperties: { x: 10 } },
+          {
+            type: "set_node",
+            path: [1],
+            properties: {},
+            newProperties: { children: [] },
+          } as unknown as Operation,
+        ])
+      ).toThrow(/禁止 set_node\(children\)/);
+      expect(Y.encodeStateAsUpdate(f.model.doc)).toEqual(before);
+      expect(board.children).toBe(children);
+      expect(binding.history.undoStack).toHaveLength(0);
+      expect(board.undos).toHaveLength(0);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("两视图投影一致，路径入口编译为 ID；远端不写回、不触发资产事件", async () => {
     const f = await fixture(),
       left = view(f.model, f.page, f.types),

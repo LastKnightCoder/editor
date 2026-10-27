@@ -11,76 +11,52 @@ const createRect = (id: string): BoardElement => ({
   height: 80,
 });
 
-afterEach(() => {
-  // 清理强制标记，避免影响其他测试文件。
-  delete (globalThis as unknown as { __TAU_WHITEBOARD_FORCE_DEV__?: boolean })
-    .__TAU_WHITEBOARD_FORCE_DEV__;
-  vi.restoreAllMocks();
-});
+afterEach(() => vi.unstubAllEnvs());
 
-describe("BoardOperations - set_node(children) 门禁", () => {
-  it("DEV：set_node 携带 children 会抛异常（避免结构变化偷渡到 set_node）", () => {
-    (
-      globalThis as unknown as { __TAU_WHITEBOARD_FORCE_DEV__?: boolean }
-    ).__TAU_WHITEBOARD_FORCE_DEV__ = true;
+describe.each([true, false])("set_node(children) 门禁：DEV=%s", dev => {
+  it.each(["properties", "newProperties"] as const)(
+    "拒绝 %s 的 children，整批不污染原数据",
+    key => {
+      vi.stubEnv("DEV", dev);
+      const child = createRect("child");
+      const parent: BoardElement = { ...createRect("parent"), children: [child] };
+      const base = [parent, createRect("sibling")];
+      const before = structuredClone(base);
+      // 绕过静态类型以验证 JavaScript 调用仍受运行时门禁约束。
+      const invalid = {
+        type: "set_node",
+        path: [0],
+        properties: {},
+        newProperties: {},
+        [key]: { children: undefined },
+      } as unknown as Operation;
+      expect(() =>
+        BoardOperations.applyOperations({ children: base }, [
+          { type: "set_node", path: [1], properties: { x: 0 }, newProperties: { x: 100 } },
+          invalid,
+        ])
+      ).toThrow(/禁止 set_node\(children\)/);
+      expect(base).toEqual(before);
+      expect(base[0]).toBe(parent);
+      expect(base[0].children![0]).toBe(child);
+    }
+  );
 
-    const base: BoardElement[] = [
+  it("普通父节点属性补丁只记录自身，不遍历或替换子节点", () => {
+    vi.stubEnv("DEV", dev);
+    const child = createRect("child");
+    const parent: BoardElement = { ...createRect("parent"), children: [child] };
+    const result = BoardOperations.applyOperations({ children: [parent] }, [
       {
-        ...createRect("parent"),
-        type: "test-gate",
-        children: [createRect("c1")],
+        type: "set_node",
+        path: [0],
+        properties: { x: 0 },
+        newProperties: { x: 10 },
       },
-    ];
-
-    // 故意绕过类型门禁：验证运行时门禁在 “any/JS 调用” 下仍能拦截。
-    const op = {
-      type: "set_node",
-      path: [0],
-      properties: { children: base[0].children },
-      newProperties: { children: [createRect("c1"), createRect("c2")] },
-    } as unknown as Operation;
-
-    expect(() =>
-      BoardOperations.applyOperations({ children: JSON.parse(JSON.stringify(base)) }, [op], {
-        skipSelectionOperations: true,
-        skipViewPortOperations: true,
-      })
-    ).toThrow(/禁止 set_node\(children\)/);
-  });
-
-  it("PROD：set_node(children) 只 warning 且去重，同时 metadata.changedElements 会按子树记录（兼容老逻辑）", () => {
-    (
-      globalThis as unknown as { __TAU_WHITEBOARD_FORCE_DEV__?: boolean }
-    ).__TAU_WHITEBOARD_FORCE_DEV__ = false;
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-
-    const base: BoardElement[] = [
-      {
-        ...createRect("parent"),
-        type: "test-gate",
-        children: [createRect("c1")],
-      },
-    ];
-
-    const op = {
-      type: "set_node",
-      path: [0],
-      properties: { children: base[0].children },
-      newProperties: { children: [createRect("c1"), createRect("c2")] },
-    } as unknown as Operation;
-
-    const applyOnce = () =>
-      BoardOperations.applyOperations({ children: JSON.parse(JSON.stringify(base)) }, [op], {
-        skipSelectionOperations: true,
-        skipViewPortOperations: true,
-      });
-
-    const result = applyOnce();
-    expect(result.data.children[0].children?.map(c => c.id)).toEqual(["c1", "c2"]);
-    expect(result.metadata.changedElements.map(el => el.id)).toEqual(["parent", "c1", "c2"]);
-
-    // 相同 “元素类型 + 字段形状” 的调用点仅提示一次
-    applyOnce();
-    expect(warn).toHaveBeenCalledTimes(1);
+    ]);
+    expect(result.metadata.changedElements.map(node => node.id)).toEqual(["parent"]);
+    expect(result.data.children[0].children![0]).toBe(child);
+    expect(parent.x).toBe(0);
+    expect(result.data.children[0].x).toBe(10);
   });
 });
