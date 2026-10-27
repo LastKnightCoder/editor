@@ -163,12 +163,12 @@ class Board {
   private submissionVersion = 0;
   private removedElementVersions = new Map<string, number>();
   setActive(active: boolean) {
+    if (!active && this.active) this.interactions.cancel();
     if (this.active !== active) this.submissionVersion++;
     this.active = active;
     this.extensions?.setActive(active);
     if (!active) {
       this.isEditingElements = [];
-      this.interactions.cancel();
       this.snap.end();
       this.emit("element:move-end");
     }

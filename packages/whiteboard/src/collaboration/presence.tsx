@@ -41,6 +41,7 @@ export function useWhiteboardPresence(
     const viewId = crypto.randomUUID();
     let timer: ReturnType<typeof setTimeout> | undefined;
     let moving = false;
+    let movingIds: string[] = [];
     let last = "";
     const publish = () => {
       timer = undefined;
@@ -48,8 +49,11 @@ export function useWhiteboardPresence(
         channel.publishPresence(viewId, null);
         return;
       }
-      const selection = (board.selection?.selectedElements ?? []).slice(0, 64).flatMap(selected => {
-        const element = BoardUtil.getElementById(board, selected.id);
+      const ids = moving
+        ? movingIds
+        : (board.selection?.selectedElements ?? []).map(element => element.id);
+      const selection = ids.slice(0, 64).flatMap(id => {
+        const element = BoardUtil.getElementById(board, id);
         const bounds = element && board.getBounds(element);
         if (!bounds || !element) return [];
         const { x, y, width, height } = element;
@@ -57,7 +61,13 @@ export function useWhiteboardPresence(
         const geometry = [x, y, width, height, rotation].every(Number.isFinite)
           ? { x, y, width, height, rotation }
           : undefined;
-        return [{ id: selected.id, ...bounds, ...(geometry ? { geometry } : {}) }];
+        return [
+          {
+            id,
+            ...bounds,
+            ...(geometry && !board.document?.isRealtimeGesture?.() ? { geometry } : {}),
+          },
+        ];
       });
       const value: WhiteboardPresence = {
         pageId,
@@ -80,12 +90,14 @@ export function useWhiteboardPresence(
     const schedule = () => {
       if (!timer) timer = setTimeout(publish, WHITEBOARD_PRESENCE_INTERVAL);
     };
-    const onMove = () => {
+    const onMove = (elements: BoardElement[]) => {
       moving = true;
+      movingIds = elements.map(element => element.id);
       schedule();
     };
     const onEnd = () => {
       moving = false;
+      movingIds = [];
       schedule();
     };
     const focus = () => {

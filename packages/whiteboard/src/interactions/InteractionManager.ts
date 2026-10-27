@@ -125,7 +125,7 @@ export class InteractionManager {
     const state = plugin?.claimPointerGesture?.(this.board, event, hitElement) ?? null;
     if (state) {
       this.pointerState = state;
-      this.board.document?.beginGesture();
+      this.board.document?.beginGesture({ realtime: true });
       return true;
     }
     return false;
@@ -143,15 +143,16 @@ export class InteractionManager {
     if (this.pointerState) return;
     const selecting = SelectingState.tryStart(this.board, event);
     if (selecting) {
-      selecting.attachDrag(DraggingState.tryStart(this.board, event));
+      const dragging = DraggingState.tryStart(this.board, event);
+      selecting.attachDrag(dragging);
       this.pointerState = selecting;
-      this.board.document?.beginGesture();
+      this.board.document?.beginGesture({ realtime: !!dragging });
       return;
     }
     const dragging = DraggingState.tryStart(this.board, event);
     if (dragging) {
       this.pointerState = dragging;
-      this.board.document?.beginGesture();
+      this.board.document?.beginGesture({ realtime: true });
       return;
     }
     const panning = PanningState.tryStart(this.board, event);
