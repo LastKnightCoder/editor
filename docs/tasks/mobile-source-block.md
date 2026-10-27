@@ -101,7 +101,7 @@
 
 ### 3.6 插件侧
 
-- SDK 的 `SourceBlockEditor` 不加属性。作者文档（`plugins/tau-plugin-template/docs/editor.md`、`packages/plugins/docs/`）补一句：移动端源码块由宿主提供源码页与配件栏，`mode` 用通用语言名可获得源码高亮。
+- SDK 的 `SourceBlockEditor` 不加属性。作者文档（`plugins/tau-plugin-template/docs/editor.md`）补一句：移动端源码块由宿主提供源码页与配件栏，`mode` 用通用语言名可获得源码高亮。
 - `tau.typst` 自行修复：`mode` 改为 `typst`；在源码预览块内不再自己渲染错误（`useReportPreviewError` 返回 `true` 时交给块显示）；编译改用编译器的结构化诊断格式，错误消息带原始原因与用户源码行号。其他插件不改。
 
 ### 3.7 源码编辑器两端统一（桌面源码块迁移）

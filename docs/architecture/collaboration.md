@@ -21,7 +21,7 @@ Worker 在边缘按来源 IP 限流，Durable Object 在连接和消息层继续
 
 仓库中的桌面与移动正文编辑使用协议 2：稳定节点池、位置引用、正文片段与不可变契约字典，title 为 Y.Text。移动只调整位置，拆段/合段调整片段归属与边界，不复制文字身份；插件声明的 `textFields` 各自使用 Y.Text。`@tau/editor-collab` 负责 Slate 绑定、光标及源码输入，共享模型与校验位于 `packages/collaboration`。两端与服务端只接纳正文协议 2、白板协议 3；版本 1、缺失版本及未知版本在发布、读取、票据和导入入口明确拒绝，不转换原数据。文档协议与 `/v1` HTTP API 前缀、备份格式 5 相互独立。
 
-契约是节点数据版本的 JSON 说明，按内容摘要去重；节点保存契约引用。声明及完整 v1→v2 示例以[插件作者文档](/packages/plugins/docs/editor-collaboration.md)为准。普通属性默认同步，没有 `SOURCE_FIELDS`、字段名黑名单或 private blocks 同步开关；折叠、当前步骤等视图状态放本机记录，编译结果放可重建缓存。内置代码块的数据版本 2 用 `code-step` 子节点保存各步源码，复用同一 `textFields` 机制。源码字段服务 `IEditorTextFields` 由文档提供：节点树文档按 Y.Text 增量写入；本地 Y.Doc 文档（`createLocalYjsDocument`，如 Markdown 文件窗口）注册 `@tau/editor/api` 的 `slateTextFields`，字段是节点属性，经 Slate 操作整段写入后由 slate-yjs 同步，撤销走该文档的 UndoManager；无文档的临时编辑器由内核提供同样的本地字段。
+契约是节点数据版本的 JSON 说明，按内容摘要去重；节点保存契约引用。声明及完整 v1→v2 示例以[插件作者文档](/plugins/tau-plugin-template/docs/editor-collaboration.md)为准。普通属性默认同步，没有 `SOURCE_FIELDS`、字段名黑名单或 private blocks 同步开关；折叠、当前步骤等视图状态放本机记录，编译结果放可重建缓存。内置代码块的数据版本 2 用 `code-step` 子节点保存各步源码，复用同一 `textFields` 机制。源码字段服务 `IEditorTextFields` 由文档提供：节点树文档按 Y.Text 增量写入；本地 Y.Doc 文档（`createLocalYjsDocument`，如 Markdown 文件窗口）注册 `@tau/editor/api` 的 `slateTextFields`，字段是节点属性，经 Slate 操作整段写入后由 slate-yjs 同步，撤销走该文档的 UndoManager；无文档的临时编辑器由内核提供同样的本地字段。
 
 主库 `contents` 与 `content_documents` 在同一事务保存正文、稳定正文身份、契约和投影修订。CRDT 的真实基线和 epoch 只属于协作缓存及服务端，不能从主库 JSON 冒充原基线；缓存缺失时建立新基线。活跃会话保持其正文及契约，主库接收带来源和观察修订的投影。正文准备、版本转换与校验归正文入口；业务元数据不解释契约，复合创建仍在原事务内携带正文。共用正文只增加原正文引用；独立复制生成新身份并保留来源契约。
 

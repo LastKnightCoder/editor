@@ -22,7 +22,7 @@
 3. `docs/tasks/plugin-portability-bcd/distribution-plan.md`：后续目标协议，尤其是目录、选版、状态、各端改动与旧插件兼容；不是已实现接口。
 4. `docs/tasks/plugin-portability-bcd/README.md`：现有实现、验证与 D 的待验收项，不得关闭或删除它们。
    同时阅读 `docs/tasks/plugin-portability-bcd/logic-handoff.md`，区分已交付的类型/客户端适配器与尚未实现的服务端、移动正式安装。
-5. `packages/plugins/docs/portability.md`、`docs/architecture/plugin-portability.md`：现有 SDK 和宿主事实。
+5. `plugins/tau-plugin-template/docs/portability.md`、`docs/architecture/plugin-portability.md`：现有 SDK 和宿主事实。
 6. 网页：`apps/plugin-portal/AGENTS.md`、`README.md`、`web/README.md`、`docs/协议.md`、`contracts/index.ts`。目录内的相对路径以 `apps/plugin-portal/` 为根。版式参考 `apps/plugin-portal/mockups/redesign/index.html`，沿用方案 A 的商店+工作台、统一顶栏、工作台侧栏和提交/审核双栏。
 7. 移动：`docs/architecture/mobile.md` 全文、`apps/mobile/README.md`，以及 `apps/mobile/src/features/plugins/`、`features/settings/` 的现有页面；遵循 definePage、页面栈、返回与保活机制。
 8. 公共设计：`docs/architecture/design-system.md`、`docs/decisions.md`，复用 @tau/ui、@tau/themes 和现有 Tailwind 语义样式。

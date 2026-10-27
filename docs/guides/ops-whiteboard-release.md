@@ -22,7 +22,7 @@ SDK 是作者类型依赖，用户无需安装；插件运行时由宿主提供�
 3. 运行联合回归、类型检查、`pnpm check:whiteboard-boundaries`、`pnpm check:plugin-process-boundaries` 与 `pnpm check:docs`。保留明确的跳过原因；禁止用宽松断言、减少数据规模或丢弃分支换取通过。
 4. 在协作包执行 `pnpm test:whiteboard-capacity`，记录机器、Node 版本、测试参数、编码字节和延迟分位数。以操作轮数描述加速长会话，不把它称作真实数小时在线验收；进程 RSS 不等于单文档堆占用。
 5. 分别执行 `pnpm --filter @tau/whiteboard bench:hit`、`bench:render`。Profiler 是脚本测量，不替代真实设备的视觉/交互验收。存储上限不等于可用容量；对高负载延迟未达预期的版本不得承诺满额流畅编辑。
-6. 执行 `node scripts/plugins/sync-author-docs.mjs --check`，本地打包 SDK，在仓库外编译作者示例与负向类型夹具，再构建模板。使用 `node scripts/plugins/verify-stickman-collaboration.mjs` 验证火柴人候选、宿主绑定与实际本地 Node 服务构建；检查脚本输出的产物摘要和原依赖/锁文件未改写断言。确认白板仅声明 desktop，旧路径 API、schemaVersion/migrate、Y.Doc 与通用 CAS 不出现在当前作者写入口中。
+6. 本地打包 SDK，在仓库外编译作者示例与负向类型夹具，再构建模板。使用 `node scripts/plugins/verify-stickman-collaboration.mjs` 验证火柴人候选、宿主绑定与实际本地 Node 服务构建；检查脚本输出的产物摘要和原依赖/锁文件未改写断言。确认白板仅声明 desktop，旧路径 API、schemaVersion/migrate、Y.Doc 与通用 CAS 不出现在当前作者写入口中。
 7. 核对普通界面的真实调用链：共享（白板状态行「共享」→ publish）、续做/取消（「继续共享 / 取消共享」→ publish-resume/publish-cancel）、成员打开（协作页侧栏白板 → remote-install）、网络收发（WhiteboardRemoteSync → remote-open/remote-sync）、保存失败与重试。运行 `collaboration-flow.test.ts`（真实服务端路由的两设备流程）与渲染端 remote/DocumentBoardCanvas 测试；交互功能须有真实界面消费者，不能只验证孤立 handler。
 8. 使用隔离测试库和本地服务验证同源身份、旧快照拒绝、隐藏页与多窗口、回执丢失及各存储失败重试。旧增量留在原日志/outbox，未确认分支不能被新 epoch 接纳。本步骤不生成恢复包，不自动清理历史资源。
 9. 在目标桌面系统完成由用户负责的中文输入、选择、拖动、缩放、媒体、插件缺失、关闭与重新打开验收。容量/长会话、产品入口、版本及设备任一门禁未满足时记录阻断，不以本地构建成功替代。

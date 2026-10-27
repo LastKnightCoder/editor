@@ -5,7 +5,6 @@ import { fileURLToPath } from "node:url";
 import { resolveCommand } from "./spawn-command.mjs";
 import { spawn } from "node:child_process";
 import assert from "node:assert/strict";
-import { readAuthorDocuments } from "./author-documents.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const directory = await mkdtemp(path.join(tmpdir(), "tau-portable-author-"));
@@ -68,21 +67,6 @@ try {
   const uiVersion = JSON.parse(
     await readFile(path.join(root, "packages/ui/package.json"), "utf8")
   ).version;
-  if (!published) {
-    for (const [file, content] of await readAuthorDocuments()) {
-      const archived = await run(
-        "tar",
-        [
-          "-xOf",
-          path.join(sdk, `xiongtao.xt-tau-plugins-${pluginVersion}.tgz`),
-          `package/docs/${file}`,
-        ],
-        root
-      );
-      assert.equal(archived, content, `SDK 文档未使用权威来源：${file}`);
-    }
-    report.checks.push("SDK 归档契约文档与维护源逐字节一致");
-  }
   if (!published)
     await run(
       process.execPath,

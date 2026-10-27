@@ -20,7 +20,7 @@
 
 ## 方案与验证
 
-支持矩阵的唯一权威位置为 packages/plugins/docs/api-support.md；模板中的同名文件由显式同步脚本复制，附带来源说明并验证字节一致，避免两份矩阵独立维护。
+平台接口表的唯一权威位置为模板 `plugins/tau-plugin-template/docs/portability.md`，SDK 打包与官网直接读取该目录，不维护副本。
 
 作者和消费者共用 PortablePluginManifest 与 validatePortablePluginManifest；清单只读取平台最低版本等当前字段，不维护能力名或节点等级。上传与模板使用 validatePortableDistributionManifest，拒绝含移动目标的非空业务权限，接受合法的预发布与构建标识。移动兼容检查在求值前再次拒绝未支持权限，能力不等于授权。所有部署与发行开关不改。
 

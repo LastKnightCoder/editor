@@ -2,13 +2,13 @@
 
 ## 范围与分发边界
 
-桌面、Android 和 iOS 共用一个 SDK、一套作者模板和格式 3 的 web-v1 包。旧可执行格式 1 在读取和上传时拒绝；格式 2 只承载有明确后台声明的桌面包，静态模板与独立 Skill 的格式 1 属于独立协议，继续支持。公共 API 与作者约定以 [SDK 跨端契约](/packages/plugins/docs/portability.md) 为准；本页描述客户端装配。仓库作者契约使用 SDK 0.42.0/UI 0.5.0（发行状态与仓库实现分别核验），对应模板的最低宿主版本为桌面 0.59.4、Android/iOS 0.2.4。中心通过人工上架审核与 /v2 分发，具审核权限的作者本人经已绑定仓库 CI 发布可自动批准；作者负责平台适配和测试，审核者不承担平台测试或验证记录。平台开关独立于客户端安装能力，线上配置以[门户运维手册](/apps/plugin-portal/infra/运维手册.md)为准。正式构建只接受固定中心安装，拒绝任意开发来源安装。
+桌面、Android 和 iOS 共用一个 SDK、一套作者模板和格式 3 的 web-v1 包。旧可执行格式 1 在读取和上传时拒绝；格式 2 只承载有明确后台声明的桌面包，静态模板与独立 Skill 的格式 1 属于独立协议，继续支持。公共 API 与作者约定以 [SDK 跨端契约](/plugins/tau-plugin-template/docs/portability.md) 为准；本页描述客户端装配。仓库作者契约使用 SDK 0.42.0/UI 0.5.0（发行状态与仓库实现分别核验），对应模板的最低宿主版本为桌面 0.59.4、Android/iOS 0.2.4。中心通过人工上架审核与 /v2 分发，具审核权限的作者本人经已绑定仓库 CI 发布可自动批准；作者负责平台适配和测试，审核者不承担平台测试或验证记录。平台开关独立于客户端安装能力，线上配置以[门户运维手册](/apps/plugin-portal/infra/运维手册.md)为准。正式构建只接受固定中心安装，拒绝任意开发来源安装。
 
 可信插件与宿主共享 JavaScript、React 和 DOM；摘要、模块白名单、API 能力与数据授权不构成恶意代码沙箱。同线程同步死循环只能在后续启动恢复，不能承诺抢占或后台常驻。
 
 ## 中心数据边界
 
-逐 API 的支持与作者适配要求以 [SDK 支持矩阵](/packages/plugins/docs/api-support.md) 为准。作者、上传和客户端共用 `PortablePluginManifest` 与 `validatePortablePluginManifest` 读取格式 3 清单；发行入口 `validatePortableDistributionManifest` 额外检查移动业务权限，运行入口独立检查宿主兼容性。targets 只保留 minAppVersion，不再承载宿主能力、可选需求或节点等级。正文和白板从实际静态定义识别，不再复制进清单。permissions 继续约束用户数据访问，移动非空权限在构建、中心和运行前拒绝。
+逐 API 的支持与作者适配要求以 [SDK 支持矩阵](/plugins/tau-plugin-template/docs/portability.md#各平台可用的接口) 为准。作者、上传和客户端共用 `PortablePluginManifest` 与 `validatePortablePluginManifest` 读取格式 3 清单；发行入口 `validatePortableDistributionManifest` 额外检查移动业务权限，运行入口独立检查宿主兼容性。targets 只保留 minAppVersion，不再承载宿主能力、可选需求或节点等级。正文和白板从实际静态定义识别，不再复制进清单。permissions 继续约束用户数据访问，移动非空权限在构建、中心和运行前拒绝。
 
 `@tau/plugins/center` 提供中心与宿主共用的目标摘要、结构化兼容原因和客户端接口。兼容性检查平台、最低客户端版本、API/格式版本和 profile，调用方继续核验发布状态、来源和权限。宿主请求只携带真实平台、版本与协议集合；中心不执行插件代码，历史发布 ZIP 和审计内容保持原文，平台摘要仅返回最低版本，选版结果只包含状态与原因，不保留旧能力字段、空数组或旧客户端适配分支。读取器只提取协议字段，忽略不使用的附加元信息；不为已删除的字段建立禁止规则。该入口不进入作者 tarball。
 
@@ -106,8 +106,8 @@ UiHostProvider 只接受平台中立的 dismiss 登记函数。真实 Dialog/Dra
 
 `ASRProviderRegistry` 统一提供方注册、配置快照、会话取消和最终结果校验；提供方注销、插件停用与工作区失效会使会话终止。`settings target: "asr"` 在两端插件页承载声明式配置表单与识别模型，程序化 open 打开插件设置；应用语音输入设置（桌面 设置 › 语音 › 语音输入，移动 我的 › 语音 › 语音输入）只选用已配置的提供方，未配置时跳到插件页填写。账号保存为 `{ modelId, config }`，保存不改变选用，选用核验配置未变化；选用的插件停用后保留选择并提示，不自动回退系统识别。聊天、搜索等使用入口不在设置范围。麦克风及输入目标由应用负责，协议解析属于独立插件仓库。
 
-网络桥的作者接口和限额唯一维护于 [WebSocket 契约](/packages/plugins/docs/websocket.md)。公共 JS 适配器提供 EventTarget 及状态机，桌面通过 Electron IPC 和 ws，移动通过工作区 token 校验的 Tauri 命令和 tokio-tungstenite；内部桥接 Promise 与收包机制不暴露给插件。原生层保留握手头、子协议、消息边界、关闭码和关闭原因；断线不隐式重连，工作区释放回收连接。
+网络桥的作者接口和限额唯一维护于 [WebSocket 契约](/plugins/tau-plugin-template/docs/storage-and-network.md#websocket)。公共 JS 适配器提供 EventTarget 及状态机，桌面通过 Electron IPC 和 ws，移动通过工作区 token 校验的 Tauri 命令和 tokio-tungstenite；内部桥接 Promise 与收包机制不暴露给插件。原生层保留握手头、子协议、消息边界、关闭码和关闭原因；断线不隐式重连，工作区释放回收连接。
 
 ## 白板作者数据边界
 
-白板 SDK 使用 dataVersion、直接历史版本与同步业务载荷转换，共用编辑器版本规则和公共文本句柄。静态契约准备不执行交互工厂；文档中的精确摘要决定渲染与写权限，未知插件数据保真。作者数据入口不提供路径操作或原始模型，服务与命令按真实归属和激活代次检查；第三方创建回调也不获得宿主 API。详细接口以 [SDK 白板说明](/packages/plugins/docs/whiteboard-collaboration.md) 为准，完整业务元素和迁移安装不由 SDK 自动完成。
+白板 SDK 使用 dataVersion、直接历史版本与同步业务载荷转换，共用编辑器版本规则和公共文本句柄。静态契约准备不执行交互工厂；文档中的精确摘要决定渲染与写权限，未知插件数据保真。作者数据入口不提供路径操作或原始模型，服务与命令按真实归属和激活代次检查；第三方创建回调也不获得宿主 API。详细接口以 [SDK 白板说明](/plugins/tau-plugin-template/docs/whiteboard.md) 为准，完整业务元素和迁移安装不由 SDK 自动完成。

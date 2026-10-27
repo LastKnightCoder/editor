@@ -17,7 +17,7 @@
 | [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                           |
 | [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、外部打开 Markdown、正文统计与空文档判断                                                              |
 | [plugin-system.md](./architecture/plugin-system.md)           | 插件体系目标架构与能力                                                                                                       |
-| [plugin-portability.md](./architecture/plugin-portability.md) | 桌面与移动插件宿主、私有包事务及正文适配；作者契约见 [SDK 包内文档](/packages/plugins/docs/portability.md)                   |
+| [plugin-portability.md](./architecture/plugin-portability.md) | 桌面与移动插件宿主、私有包事务及正文适配；作者契约见 [SDK 包内文档](/plugins/tau-plugin-template/docs/portability.md)        |
 | [plugin-system/](./architecture/plugin-system/)               | 插件体系：安全模型、运行架构、API 闭环、边界约定与能力说明                                                                   |
 | [knowledge-loop/](./architecture/knowledge-loop/)             | 知识闭环：产品方向与技术方案                                                                                                 |
 
@@ -73,7 +73,7 @@
 
 已交付的共享类型、数据入口与 PluginManager 控制器见 [逻辑实现与交接](./tasks/plugin-portability-bcd/logic-handoff.md)。
 
-当前作者清单、统一 API 与平台支持以 [SDK 跨端契约](/packages/plugins/docs/portability.md)、[SDK 支持矩阵](/packages/plugins/docs/api-support.md) 为准；宿主装配与必要校验边界见 [跨端插件架构](./architecture/plugin-portability.md)。
+当前作者清单、统一 API 与平台支持以 [SDK 跨端契约](/plugins/tau-plugin-template/docs/portability.md)、[SDK 支持矩阵](/plugins/tau-plugin-template/docs/portability.md#各平台可用的接口) 为准；宿主装配与必要校验边界见 [跨端插件架构](./architecture/plugin-portability.md)。
 
 设备验证与待验收范围见 [编辑器移动适配](./tasks/plugin-portability-bcd/editor-mobile.md)。官方插件和模板在 [plugins/](/plugins/README.md) 以子模块维护；候选实现不代表已发布。
 

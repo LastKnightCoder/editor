@@ -164,7 +164,7 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 
 统一算法为 `@tau/db-schema/content-metrics`，内置规则归各编辑器扩展的 metrics.ts，`@tau/editor/content-metrics` 只装配。插件以静态 editorMetrics 提供字段规则；ContentPluginRegistry 校验归属与重复，窗口安装同一快照。主进程经内容进程 inspect 取得纯数据规则，在 shared/content-metrics 装配，不执行插件代码。正文保存、导入、协作投影、状态栏与白板宿主服务使用该统计器；Markdown 块缓存随规则修订失效。
 
-空文档自动清理独立使用 isContentEmpty：只认空文本/段落，媒体、结构块、未知节点与损坏输入保守保留。编辑器 isEmpty 是交互语义，独立保留；禁止用 count 等于零判定可删除或可复用正文。作者字段协议见 [SDK 字数说明](/packages/plugins/docs/content-metrics.md)。
+空文档自动清理独立使用 isContentEmpty：只认空文本/段落，媒体、结构块、未知节点与损坏输入保守保留。编辑器 isEmpty 是交互语义，独立保留；禁止用 count 等于零判定可删除或可复用正文。作者字段协议见 [SDK 字数说明](/plugins/tau-plugin-template/docs/editor.md#字数统计)。
 
 ### 博客发布（宿主与模板分工）
 
