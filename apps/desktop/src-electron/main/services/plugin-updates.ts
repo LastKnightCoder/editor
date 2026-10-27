@@ -197,7 +197,22 @@ export class PluginUpdates {
           .protect(id, () => this.applyPending(id, async () => true))
           .catch(error => this.error(id, error));
       }
+      await this.pruneBackups();
     });
+  }
+  /** 备份只是旧版代码副本，当前客户端读不了的清单（如已停用的包格式）既无法恢复也不该挂错误，直接移除。 */
+  private async pruneBackups() {
+    for (const id of await this.folders("backups")) {
+      const backup = this.location("backups", id);
+      try {
+        validatePluginManifest(
+          JSON.parse(await readFile(path.join(backup, "manifest.json"), "utf8"))
+        );
+      } catch {
+        await rm(backup, { recursive: true, force: true });
+        await rm(this.location("backup-sources", id) + ".json", { force: true });
+      }
+    }
   }
   /** 调用方根据当前启动快照决定能否立即提交；拒绝时保留待更新包。 */
   apply(
