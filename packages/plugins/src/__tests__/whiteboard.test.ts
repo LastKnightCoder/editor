@@ -2,20 +2,24 @@ import { expect, it, vi } from "vitest";
 import { definePlugin } from "../index";
 import { defineWhiteboardExtension } from "../whiteboard";
 import { ContentPluginRegistry } from "../content";
-import { validatePluginManifest, isContentPlugin } from "../package";
+import { validatePortablePluginManifest } from "../portable";
+import { hasPluginContent } from "../rendering";
 import { evaluatePluginPackage, validatePluginDefinition } from "../rendering";
 import { sharedPluginModules } from "../shared-modules";
 
 const metadata = { id: "sample.board", name: "白板验证", version: "1.0.0" };
-const manifest = validatePluginManifest({
+const manifest = validatePortablePluginManifest({
   ...metadata,
   apiVersion: 1,
-  formatVersion: 1,
-  whiteboard: true,
-  platform: "desktop",
+  formatVersion: 3,
+
+  platform: "portable" as const,
   format: "cjs",
   main: "main.js",
   integrity: { "main.js": "a".repeat(64) },
+
+  profile: "web-v1" as const,
+  targets: { desktop: { minAppVersion: "0.0.0" } },
 });
 const create = vi.fn(() => ({}));
 const extension = defineWhiteboardExtension({
@@ -32,17 +36,13 @@ it("静态白板目录不创建 Board 或执行交互工厂，且与编辑器命
   expect(registry.whiteboardExtensions).toEqual([extension]);
   expect(registry.extensions).toEqual([]);
   expect(create).not.toHaveBeenCalled();
-  expect(isContentPlugin(manifest)).toBe(true);
+  expect(hasPluginContent(definition)).toBe(true);
   registry.install([]);
   expect(registry.whiteboardExtensions).toEqual([]);
 });
 
-it("白板清单缺失、贡献冒用其他插件身份与重复元素均拒绝", () => {
+it("白板贡献冒用其他插件身份与重复元素均拒绝", () => {
   const definition = definePlugin({ ...metadata, whiteboardExtensions: [extension] });
-  expect(() =>
-    validatePluginDefinition({ ...manifest, whiteboard: undefined }, definition)
-  ).toThrow("声明一致");
-  expect(() => validatePluginDefinition(manifest, definePlugin(metadata))).toThrow("声明一致");
   expect(() =>
     validatePluginDefinition(manifest, {
       ...definition,

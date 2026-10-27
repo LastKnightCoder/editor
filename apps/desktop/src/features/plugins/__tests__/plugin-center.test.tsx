@@ -69,9 +69,11 @@ const center = {
 function artifact(): DevelopmentPluginPackage {
   return {
     manifest: {
-      formatVersion: 1,
+      formatVersion: 3,
+      profile: "web-v1",
+      targets: { desktop: { minAppVersion: "0.0.0" } },
       apiVersion: 1,
-      platform: "desktop",
+      platform: "portable",
       format: "cjs",
       id: ID,
       name: "中心插件",

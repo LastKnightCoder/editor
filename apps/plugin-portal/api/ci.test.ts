@@ -51,14 +51,17 @@ function zip(version = "1.1.0", main = "module.exports={activate(){}}") {
         name: "阅读插件",
         description: "同步阅读摘录",
         version,
-        minAppVersion: "0.59.0",
-        formatVersion: 1,
+
+        formatVersion: 3,
         apiVersion: 1,
-        platform: "desktop",
+        platform: "portable" as const,
         format: "cjs",
         main: "main.js",
         categories: ["page"],
         integrity: { "main.js": createHash("sha256").update(main).digest("hex") },
+
+        profile: "web-v1" as const,
+        targets: { desktop: { minAppVersion: "0.59.0" } },
       })
     )
   );
@@ -93,6 +96,8 @@ beforeAll(async () => {
 beforeEach(() => {
   resetActionsKeyCache();
   f = testEnvironment();
+  f.env.PORTABLE_PUBLISH_ENABLED = "true";
+  f.env.PORTABLE_PLATFORMS = "desktop,android,ios";
   f.env.REVIEWER_GITHUB_IDS = AUTHOR;
   f.sqlite.exec(`
     INSERT INTO publishers VALUES ('${AUTHOR}','author','');
@@ -125,6 +130,8 @@ describe("CI 发布", () => {
         JSON.stringify({
           ...manifest,
           formatVersion: 2,
+          platform: "desktop",
+          minAppVersion: "0.59.0",
           backend: {
             entry: "backend.js",
             runtime: "node",
@@ -160,11 +167,18 @@ describe("CI 发布", () => {
     const script = "print('审核不得执行脚本')";
     archive.addFile("test.reader/skills/notes/SKILL.md", Buffer.from(readme));
     archive.addFile("test.reader/skills/notes/scripts/run.py", Buffer.from(script));
+    archive.deleteFile("test.reader/main.js");
+    delete manifest.main;
+    delete manifest.format;
+    delete manifest.integrity["main.js"];
     archive.updateFile(
       "test.reader/manifest.json",
       Buffer.from(
         JSON.stringify({
           ...manifest,
+          formatVersion: 1,
+          platform: "desktop",
+          minAppVersion: "0.59.0",
           skills: ["notes"],
           integrity: {
             ...manifest.integrity,

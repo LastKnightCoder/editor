@@ -1,4 +1,3 @@
-import { desktopAuthorManifest } from "./author-compat.mjs";
 import { mkdtemp, cp, readFile, writeFile, mkdir, rm, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -36,15 +35,12 @@ try {
   pkg.dependencies["@tau/plugins"] = `file:${sdk}/xiongtao.xt-tau-plugins-${version}.tgz`;
   pkg.dependencies["@tau/ui"] = `file:${sdk}/xiongtao.xt-tau-ui-${uiVersion}.tgz`;
   await writeFile(path.join(author, "package.json"), JSON.stringify(pkg, null, 2));
-  const manifest = desktopAuthorManifest(
-    JSON.parse(await readFile(path.join(author, "manifest.json"), "utf8"))
-  );
+  const manifest = JSON.parse(await readFile(path.join(author, "manifest.json"), "utf8"));
   Object.assign(manifest, {
     id: "example.portable-counter",
     name: "可发布计数块",
     description: "验证文档与博客共用同一交互块，计数仅为当前页面的展示状态。",
-    minAppVersion: "0.59.0",
-    editor: true,
+    targets: { desktop: { minAppVersion: "0.59.0" } },
   });
   await writeFile(path.join(author, "manifest.json"), JSON.stringify(manifest, null, 2));
   await writeFile(
@@ -68,8 +64,8 @@ try {
   const built = JSON.parse(
     await readFile(path.join(author, "dist", pointer.directory, "manifest.json"), "utf8")
   );
-  assert.equal(built.editor, true);
-  assert.equal(built.minAppVersion, "0.59.0");
+  assert.equal(built.formatVersion, 3);
+  assert.equal(built.targets.desktop.minAppVersion, "0.59.0");
   const output = path.join(root, "output/plugin-sdk");
   await mkdir(output, { recursive: true });
   await cp(
@@ -117,8 +113,8 @@ try {
         independentInstall: true,
         customBlockIndependentBuild: true,
         sourceTypecheck: true,
-        packagedEditorFlag: built.editor,
-        minAppVersion: built.minAppVersion,
+        formatVersion: built.formatVersion,
+        targets: built.targets,
       },
       null,
       2

@@ -111,3 +111,5 @@ SDK/UI 可安装后，用 `TAU_AUTHOR_NAMES` 限定本次发行的作者仓库�
 4. 源码对齐后，重跑独立作者工程的冻结安装、类型、构建与相关宿主测试，核对包可由固定提交重现。
 
 判据：所有公开接口变化都有明确来源和兼容性结论；已发布包不可覆盖，版本号、依赖、锁文件和发行记录一致。文档修改本身不代表新版本已发布。
+
+SDK 打包从作者模板取得通用使用文档，并在归档内用 `packages/plugins/docs/` 的权威契约页覆盖对应副本；不会回写模板子仓库。运行 `node scripts/plugins/verify-portable-author.mjs /tmp/tau-author-report.json` 核对归档文档字节、仓库外安装、类型与构建，报告通过后才视为本地发行验证完成。需要主动更新模板文档时，单独执行 `node scripts/plugins/sync-author-docs.mjs --write` 并在模板仓库审核差异。

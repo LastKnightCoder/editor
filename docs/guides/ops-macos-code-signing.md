@@ -47,7 +47,7 @@ xcrun stapler validate "apps/desktop/release/mac-arm64/Tau.app"
 3. 先执行本地发布预检：
 
    ```sh
-   pnpm publish:desktop --target r2 --skip-build --dry-run
+   pnpm publish:desktop --skip-build --dry-run
    ```
 
    该命令不上传，但会校验产物并把公告写入本地 latest*.yml，不是完全只读。确认版本、摘要与产物集合匹配。
@@ -55,12 +55,10 @@ xcrun stapler validate "apps/desktop/release/mac-arm64/Tau.app"
 4. 在已批准的发行范围内发布已验产物：
 
    ```sh
-   pnpm publish:desktop --target r2 --skip-build
+   pnpm publish:desktop --skip-build
    ```
 
-   需要先改版本再重新构建时使用 `pnpm publish:desktop --target r2 --version x.y.z`。脚本上传成功后尝试创建版本 tag，不自动推送；核对日志与 tag 结果，不能把上传成功当作 Git 已推送。不要用 `--force` 覆盖已发布版本来修复客户端。
-
-5. OSS 只保留旧客户端的过渡更新链路，不作为当前默认发布目标，也不要覆盖或删除其过渡版本清单。迁移操作先核对 `node scripts/publish-desktop.mjs --help`。
+   需要先改版本再重新构建时使用 `pnpm publish:desktop --version x.y.z`。脚本上传成功后尝试创建版本 tag，不自动推送；核对日志与 tag 结果，不能把上传成功当作 Git 已推送。不要用 `--force` 覆盖已发布版本来修复客户端。
 
 ## 安装、更新与失败处理
 

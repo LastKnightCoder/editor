@@ -20,15 +20,18 @@ async function put(directory: string, folder: string, id = folder) {
   await writeFile(
     path.join(target, "manifest.json"),
     JSON.stringify({
-      formatVersion: 1,
+      formatVersion: 3,
       apiVersion: 1,
       id,
       name: id,
       version: "1.0.0",
-      platform: "desktop",
+      platform: "portable" as const,
       format: "cjs",
       main: "main.js",
       integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
+
+      profile: "web-v1" as const,
+      targets: { desktop: { minAppVersion: "0.0.0" } },
     })
   );
 }

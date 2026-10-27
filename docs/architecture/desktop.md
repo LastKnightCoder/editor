@@ -873,3 +873,5 @@ find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘
 - 主题/页面必须走 defineXxx 协议注册（禁止中心登记表与散装 CSS）。
 
 迁移期的编辑器数量基线、扩展边界独立扫描与 antd 专项检查已退役，不再执行 `check:editor-refactor` / `check:editor-boundaries` / `check:antd`。现有 Oxlint 架构规则、类型、行为、主题契约、数据一致性和其他模块边界仍按变更范围验证。
+
+对话块预览由当前 `renderers` 声明收集；未注册语言作为普通代码展示。TikZ/Typst 的编辑器渲染与编译由插件和当前服务提供。

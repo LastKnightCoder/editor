@@ -10,15 +10,18 @@ const persisted = new Map<string, boolean>();
 function artifact(id = "test.local", version = "1.0.0"): DevelopmentPluginPackage {
   return {
     manifest: {
-      formatVersion: 1,
+      formatVersion: 3,
       apiVersion: 1,
-      platform: "desktop",
+      platform: "portable" as const,
       format: "cjs",
       id,
       name: id,
       version,
       main: "main.js",
       integrity: { "main.js": "a".repeat(64) },
+
+      profile: "web-v1" as const,
+      targets: { desktop: { minAppVersion: "0.0.0" } },
     },
     code: `module.exports.default=require('@tau/plugins').definePlugin({id:'${id}',name:'${id}',version:'${version}',create:()=>({activate(ctx){ctx.commands.register({id:'run',title:'执行',run:()=> '${version}'});}})});`,
   };

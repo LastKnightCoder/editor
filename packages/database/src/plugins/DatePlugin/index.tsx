@@ -71,7 +71,7 @@ const DatePlugin: CellPlugin<DatePluginConfig> = {
       return { start, end };
     }
 
-    // 兼容旧数据：number → { start, end }
+    // 时间戳输入统一为日期范围。
     if (typeof value === "number") {
       return { start: value, end: value };
     }
@@ -84,24 +84,19 @@ const DatePlugin: CellPlugin<DatePluginConfig> = {
     return { start: null, end: null };
   },
 
-  // 加载后返回统一格式，并迁移旧数据
+  // 读取当前日期范围，非法字段按空值处理。
   afterLoad: value => {
     if (value === null || value === undefined) {
       return { start: null, end: null };
     }
 
-    // 如果已经是新格式
+    // 只读取日期范围结构。
     if (typeof value === "object" && value !== null && "start" in value && "end" in value) {
       const dateValue = value as DateValue;
       return {
         start: typeof dateValue.start === "number" ? dateValue.start : null,
         end: typeof dateValue.end === "number" ? dateValue.end : null,
       };
-    }
-
-    // 迁移旧数据：number → { start, end }
-    if (typeof value === "number") {
-      return { start: value, end: value };
     }
 
     return { start: null, end: null };

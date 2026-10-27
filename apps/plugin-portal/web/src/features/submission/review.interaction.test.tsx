@@ -27,6 +27,11 @@ async function setup(withBackend = false) {
   if (withBackend && pending.content) {
     pending.content.manifest = {
       ...pending.content.manifest,
+      formatVersion: 2,
+      platform: "desktop",
+      minAppVersion: "0.59.0",
+      main: "main.js",
+      format: "cjs",
       backend: {
         entry: "backend.js",
         runtime: "node",

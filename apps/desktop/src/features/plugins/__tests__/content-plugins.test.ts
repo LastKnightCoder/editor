@@ -31,13 +31,16 @@ it("白板独立贡献进入同一内容目录，启停不影响无关博客发�
         id: definition.id,
         name: definition.name,
         version: definition.version,
-        formatVersion: 1,
+        formatVersion: 3,
         apiVersion: 1,
-        platform: "desktop",
+        platform: "portable" as const,
         format: "cjs",
         main: "main.js",
-        whiteboard: true,
+
         integrity: { "main.js": "a".repeat(64) },
+
+        profile: "web-v1" as const,
+        targets: { desktop: { minAppVersion: "0.0.0" } },
       },
     },
     definition
@@ -58,13 +61,16 @@ it("编辑器插件启停只改变下次启动意图，不卸载当前渲染快�
       id: "test.editor",
       name: "test",
       version: "1.0.0",
-      formatVersion: 1 as const,
+      formatVersion: 3 as const,
       apiVersion: 1 as const,
-      platform: "desktop" as const,
+      platform: "portable" as const,
       format: "cjs" as const,
-      editor: true as const,
+
       main: "main.js",
       integrity: { "main.js": "a".repeat(64) },
+
+      profile: "web-v1" as const,
+      targets: { desktop: { minAppVersion: "0.0.0" } },
     },
     code: "unused",
   };

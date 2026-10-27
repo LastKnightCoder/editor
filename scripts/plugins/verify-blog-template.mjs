@@ -64,16 +64,17 @@ const bundled = await build({
 const code = bundled.outputFiles[0].text;
 const css = ".portable-counter { padding: 8px; }";
 const manifest = {
-  formatVersion: 1,
+  formatVersion: 3,
+  profile: "web-v1",
+  targets: { desktop: { minAppVersion: "0.59.0" } },
   apiVersion: 1,
-  platform: "desktop",
+  platform: "portable",
   format: "cjs",
   id: "example.portable-counter",
   name: "可发布计数块",
   version: "1.0.0",
   main: "main.js",
   styles: "style.css",
-  editor: true,
   integrity: { "main.js": hash(code), "style.css": hash(css) },
 };
 const catalog = JSON.parse(

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { validatePluginManifest } from "../package";
+import { validatePortablePluginManifest } from "../portable";
 import { distributionFiles, validateDistributionManifest } from "../template";
 
 const backend = {
@@ -34,14 +35,18 @@ describe("后台清单", () => {
     expect(Object.isFrozen(result.backend?.systemAccess)).toBe(true);
   });
   it("普通包不会从未知字段和摘要推断后台", () => {
-    const result = validatePluginManifest({
+    const result = validatePortablePluginManifest({
       ...manifest,
-      formatVersion: 1,
+      formatVersion: 3,
+      platform: "portable",
+      profile: "web-v1",
+      targets: { desktop: { minAppVersion: "0.59.0" } },
+      integrity: { "main.js": "a".repeat(64) },
       backend: undefined,
       sync: "backend.js",
     });
-    expect(result.backend).toBeUndefined();
-    expect(distributionFiles(result)).toEqual(["main.js"]);
+    expect(result).not.toHaveProperty("backend");
+    expect(Object.keys(result.integrity)).toEqual(["main.js"]);
   });
   it.each([
     { formatVersion: 1 },

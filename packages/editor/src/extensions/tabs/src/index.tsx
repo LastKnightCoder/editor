@@ -53,5 +53,5 @@ export { tabPaneExtension };
 export default tabsExtension;
 
 export const tabsExtensions = [tabsExtension, tabPaneExtension] as const;
-export type { TabsElement, TabPaneElement, ITabItem, ITabsContent } from "./types";
+export type { TabsElement, TabPaneElement, ITabItem } from "./types";
 export { insertTabs } from "./operations";

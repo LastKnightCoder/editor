@@ -29,7 +29,7 @@ export const PLUGIN_SHARED_MODULES = [
 ] as const;
 
 export interface PluginManifest {
-  formatVersion: 1 | 2;
+  formatVersion: 2;
   id: string;
   name: string;
   version: string;
@@ -56,7 +56,7 @@ export interface PluginManifest {
 
 /** 宿主内部传输的已读取产物，不属于作者运行时 API。 */
 export interface DevelopmentPluginPackage {
-  manifest: PluginManifest;
+  manifest: PluginManifest | import("./portable").PortablePluginManifest;
   code: string;
   css?: string;
 }
@@ -67,7 +67,7 @@ export function validatePluginManifest(value: unknown): PluginManifest {
     throw new Error("插件清单必须是对象");
   const item = value as Record<string, unknown>;
   if (
-    (item.formatVersion !== 1 && item.formatVersion !== 2) ||
+    item.formatVersion !== 2 ||
     item.apiVersion !== 1 ||
     item.platform !== "desktop" ||
     item.format !== "cjs"
@@ -76,8 +76,7 @@ export function validatePluginManifest(value: unknown): PluginManifest {
   const metadata = readPluginMetadata(item);
   const main = readPluginFilePath(item.main, ".js");
   const backend = item.backend === undefined ? undefined : validateBackendManifest(item.backend);
-  if ((item.formatVersion === 2) !== Boolean(backend))
-    throw new Error("后台声明必须使用包格式 2，普通插件使用格式 1");
+  if (!backend) throw new Error("桌面包格式 2 必须声明后台，普通插件使用格式 3");
   if (backend?.entry === main) throw new Error("后台入口不能与渲染入口相同");
   if (backend && typeof item.minAppVersion !== "string")
     throw new Error("后台插件必须声明最低客户端版本");
