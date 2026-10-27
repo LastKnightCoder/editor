@@ -1,9 +1,14 @@
 import type { WhiteboardRemoteStatus } from "@/types/whiteboard-document";
 import type { WhiteboardDocumentClient } from "./client";
+import type { WhiteboardPeer, WhiteboardPresence } from "@tau/collaboration";
 
 export interface WhiteboardRemoteBackend {
   open(leaseId: string, serverUrl: string): Promise<WhiteboardRemoteStatus>;
   sync(leaseId: string): Promise<WhiteboardRemoteStatus>;
+  presence?(leaseId: string, value: WhiteboardPresence | null): Promise<void>;
+  realtime?(
+    listener: (event: { leaseId: string; connected: boolean; peers: WhiteboardPeer[] }) => void
+  ): () => void;
 }
 /**
  * connecting/syncing/synced 为正常流转；offline 与 waiting 会自动重试；
@@ -95,6 +100,23 @@ export function classifyRemoteError(error: unknown): {
  * 远端确认经主进程日志投影回客户端（不是本机编辑，不进撤销历史）。客户端重开即换一条新同步。
  */
 export class WhiteboardRemoteSync {
+  private peers: readonly WhiteboardPeer[] = [];
+  private peerListeners = new Set<() => void>();
+  private connected = false;
+  private localPresence?: { viewId: string; value: WhiteboardPresence };
+  getPeers = () => this.peers;
+  subscribePeers = (listener: () => void) => {
+    this.peerListeners.add(listener);
+    return () => {
+      this.peerListeners.delete(listener);
+    };
+  };
+  publishPresence = (viewId: string, value: WhiteboardPresence | null) => {
+    if (this.disposed || (!value && this.localPresence?.viewId !== viewId)) return;
+    this.localPresence = value ? { viewId, value } : undefined;
+    if (this.opened && this.client.leaseId)
+      void this.backend.presence?.(this.client.leaseId, value).catch(() => undefined);
+  };
   private state: WhiteboardRemoteState = { phase: "connecting", unsynced: true };
   private listeners = new Set<() => void>();
   private opened = false;
@@ -112,8 +134,25 @@ export class WhiteboardRemoteSync {
       | { serverUrl: string; documentId: string }
       | (() => Promise<{ serverUrl: string; documentId: string } | null>),
     private readonly backend: WhiteboardRemoteBackend,
-    private readonly options = { pollMs: 10_000, debounceMs: 800, maxBackoffMs: 60_000 }
+    private readonly options = { pollMs: 10_000, debounceMs: 50, maxBackoffMs: 60_000 }
   ) {
+    if (backend.realtime)
+      this.cleanup.push(
+        backend.realtime(event => {
+          if (this.disposed || event.leaseId !== this.client.leaseId) return;
+          const restored = event.connected && !this.connected;
+          const disconnected = !event.connected && this.connected;
+          this.connected = event.connected;
+          this.peers = event.peers;
+          this.peerListeners.forEach(listener => listener());
+          if (restored) {
+            if (this.localPresence)
+              this.publishPresence(this.localPresence.viewId, this.localPresence.value);
+            this.retry(false);
+          }
+          if (disconnected) this.retry(false);
+        })
+      );
     if (typeof binding === "function") this.state = { phase: "checking", unsynced: false };
     this.cleanup.push(
       client.subscribe(() => {
@@ -138,6 +177,10 @@ export class WhiteboardRemoteSync {
   };
   private set(patch: Partial<WhiteboardRemoteState>) {
     this.state = { ...this.state, ...patch };
+    if (this.blocked() && this.peers.length) {
+      this.peers = [];
+      this.peerListeners.forEach(listener => listener());
+    }
     for (const listener of this.listeners) listener();
   }
   /** 需要用户处理的状态不自动重试，避免把被拒或旧代次材料反复发给服务端。 */
@@ -179,6 +222,7 @@ export class WhiteboardRemoteSync {
     }, delay);
   }
   private async run(): Promise<void> {
+    const started = performance.now();
     try {
       await this.client.ready;
       const leaseId = this.client.leaseId;
@@ -207,12 +251,21 @@ export class WhiteboardRemoteSync {
           return;
         }
         this.opened = true;
+        if (this.localPresence)
+          this.publishPresence(this.localPresence.viewId, this.localPresence.value);
       }
       // 本机输入须先进入主进程日志，再计算发往房间的差异。
       await this.client.flush();
       if (this.disposed || this.client.needsReopen) return;
       if (this.state.unsynced && this.state.phase !== "connecting") this.set({ phase: "syncing" });
       const result = await this.backend.sync(leaseId);
+      console.info("[whiteboard-sync] 同步轮次完成", {
+        leaseId,
+        elapsedMs: Math.round(performance.now() - started),
+        pending: result.pending,
+        localRevision: result.localRevision,
+        pushConnected: this.connected,
+      });
       if (this.disposed) return;
       if (result.requiresRebind) {
         this.set({ phase: result.reason === "rejected" ? "rejected" : "rebind", unsynced: true });
@@ -229,6 +282,11 @@ export class WhiteboardRemoteSync {
       if (unsynced) this.again = true;
       else this.schedule(this.pollDelay());
     } catch (error) {
+      console.warn("[whiteboard-sync] 同步轮次失败", {
+        leaseId: this.client.leaseId,
+        elapsedMs: Math.round(performance.now() - started),
+        code: splitRemoteError(error).code ?? "UNKNOWN",
+      });
       if (this.disposed) return;
       this.again = false;
       clearTimeout(this.timer);
@@ -245,19 +303,26 @@ export class WhiteboardRemoteSync {
     }
   }
   private pollDelay() {
+    if (this.connected) return 60_000;
     return typeof document !== "undefined" && document.hidden
       ? this.options.pollMs * 3
       : this.options.pollMs;
   }
   private backoff() {
     this.failures++;
-    return Math.min(this.options.maxBackoffMs, 2_000 * 2 ** (this.failures - 1));
+    const delay = Math.min(this.options.maxBackoffMs, 2_000 * 2 ** (this.failures - 1));
+    console.info("[whiteboard-sync] 安排重试", { failures: this.failures, delayMs: delay });
+    return delay;
   }
   dispose(): void {
     if (this.disposed) return;
+    if (this.localPresence) this.publishPresence(this.localPresence.viewId, null);
     this.disposed = true;
     clearTimeout(this.timer);
     this.cleanup.splice(0).forEach(fn => fn());
     this.listeners.clear();
+    this.peers = [];
+    this.peerListeners.forEach(listener => listener());
+    this.peerListeners.clear();
   }
 }

@@ -254,6 +254,7 @@ export class WhiteboardDocumentClient {
       event.epoch !== identity.epoch
     )
       return;
+    const receivedAt = performance.now();
     this.receiveTail = this.receiveTail
       .catch(() => undefined)
       .then(async () => {
@@ -264,6 +265,12 @@ export class WhiteboardDocumentClient {
             const snapshot = await this.backend.snapshot(this.opened!.leaseId);
             await this.model.receive(snapshot.state);
           }
+          console.info("[whiteboard-sync] 渲染端应用增量", {
+            documentId: identity.documentId,
+            revision: event.revision,
+            bytes: event.update.byteLength,
+            elapsedMs: Math.round(performance.now() - receivedAt),
+          });
         }
         if (event.revision >= this.state.revision)
           this.set({
@@ -309,7 +316,15 @@ export class WhiteboardDocumentClient {
                   ]
                     .map(value => value.toString(16).padStart(2, "0"))
                     .join("");
+            const started = performance.now();
             const receipt = await this.backend.append(this.opened!.leaseId, batchId, update);
+            console.info("[whiteboard-sync] 本机耐久保存完成", {
+              documentId: this.opened!.identity.documentId,
+              batchId,
+              bytes: update.byteLength,
+              revision: receipt.revision,
+              elapsedMs: Math.round(performance.now() - started),
+            });
             for (const record of records) {
               await this.outbox.remove(record.batchId);
               this.persisted.delete(record.batchId);

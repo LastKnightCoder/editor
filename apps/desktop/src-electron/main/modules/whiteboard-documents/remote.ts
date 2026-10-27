@@ -107,11 +107,49 @@ export function whiteboardRemoteTransport(
   documentId: string
 ): DocumentSyncTransport {
   const path = `/v1/documents/${encodeURIComponent(documentId)}`;
+  async function measuredRequest<T>(
+    ...args: Parameters<CollaborationClient["request"]>
+  ): Promise<T> {
+    const started = performance.now();
+    const operation = args[1].slice(path.length).split("/")[1] || "document";
+    const operationId =
+      operation === "operations" ? args[1].slice(path.length).split("/")[2] : undefined;
+    try {
+      const result = await client.request<T>(...args);
+      console.info("[whiteboard-sync] HTTP 完成", {
+        documentId,
+        operation,
+        operationId,
+        method: args[2] ?? "GET",
+        elapsedMs: Math.round(performance.now() - started),
+      });
+      return result;
+    } catch (error) {
+      const failure = (error ?? {}) as {
+        name?: string;
+        code?: string;
+        status?: number;
+        cause?: { code?: string };
+      };
+      console.warn("[whiteboard-sync] HTTP 失败", {
+        documentId,
+        operation,
+        operationId,
+        elapsedMs: Math.round(performance.now() - started),
+        name: failure.name,
+        code: failure.code,
+        status: failure.status,
+        cause: failure.cause?.code,
+      });
+      throw error;
+    }
+  }
+
   return {
     now: () => client.serverTime(serverUrl),
-    peek: () => client.request<ConfirmedDocument["protocol"]>(serverUrl, `${path}/protocol`),
+    peek: () => measuredRequest<ConfirmedDocument["protocol"]>(serverUrl, `${path}/protocol`),
     async read() {
-      const result = await client.request<{
+      const result = await measuredRequest<{
         state: string;
         protocol: ConfirmedDocument["protocol"];
       }>(serverUrl, `${path}/state`, "GET", undefined, 3);
@@ -122,7 +160,7 @@ export function whiteboardRemoteTransport(
     },
     async submit(request, update) {
       return (
-        await client.request<{ operation: DocumentOperation }>(
+        await measuredRequest<{ operation: DocumentOperation }>(
           serverUrl,
           `${path}/operations/${encodeURIComponent(request.operationId)}`,
           "POST",
@@ -132,7 +170,7 @@ export function whiteboardRemoteTransport(
     },
     async receipt(id) {
       return (
-        await client.request<{ operation: DocumentOperation | null }>(
+        await measuredRequest<{ operation: DocumentOperation | null }>(
           serverUrl,
           `${path}/operations/${encodeURIComponent(id)}`
         )
@@ -140,7 +178,7 @@ export function whiteboardRemoteTransport(
     },
     async cancel(request) {
       return (
-        await client.request<{ operation: DocumentOperation }>(
+        await measuredRequest<{ operation: DocumentOperation }>(
           serverUrl,
           `${path}/operations/${encodeURIComponent(request.operationId)}/cancel`,
           "POST",

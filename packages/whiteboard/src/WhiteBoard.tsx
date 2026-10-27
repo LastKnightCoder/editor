@@ -1,4 +1,5 @@
 import type { WhiteboardDocumentBinding } from "./document";
+import { useWhiteboardPresence, type WhiteboardPresenceOptions } from "./collaboration/presence";
 import React, {
   memo,
   useEffect,
@@ -95,6 +96,7 @@ import { isDocumentVersionSupported } from "./document-version";
 const simplifiedRenderZoomThreshold = 0.3;
 
 export interface WhiteBoardProps {
+  presence?: WhiteboardPresenceOptions;
   document?: WhiteboardDocumentBinding;
   extensions: readonly WhiteboardExtension[];
   outline?: WhiteboardOutline;
@@ -289,6 +291,7 @@ const WhiteBoardCanvas = forwardRef<WhiteBoardRef, WhiteBoardProps & { board: Bo
     }, [connectPointOwnerStore, pointerViewportStore]);
 
     // 网格设置
+    const peers = useWhiteboardPresence(board, pointerViewportStore, props.presence);
     const { gridVisible, handleGridVisibleChange } = useGridSettings();
 
     useEffect(() => {
@@ -816,6 +819,7 @@ const WhiteBoardCanvas = forwardRef<WhiteBoardRef, WhiteBoardProps & { board: Bo
                               isolateStaticSelection={isolateStaticSelection}
                               gridVisible={gridVisible}
                               connectPointOverlayRef={connectPointOverlayRef}
+                              peers={peers}
                             />
 
                             <CreationPreviewBadge board={board} />

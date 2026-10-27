@@ -12,11 +12,13 @@ import {
   normalizeServerUrl,
   WhiteboardModel,
   DocumentWriteQueue,
+  readWhiteboardPresence,
   exportWhiteboardTransfer,
   type DocumentSyncSession,
 } from "@tau/collaboration";
 import collaborationModule from "../collaboration";
 import { openWhiteboardRemoteSession } from "./remote";
+import { WhiteboardRealtime } from "./realtime";
 import DataTableTable from "../tables/data-table";
 import WhiteboardContentTable from "../tables/white-board-content";
 import { app, BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
@@ -95,6 +97,7 @@ class WhiteboardDocumentsModule {
   private remoteViews = new Map<string, { key: string; rejectedCount: number }>();
   private remoteSyncs = new Map<string, Promise<unknown>>();
   private remoteUsers = new Map<string, number>();
+  private realtime = new Map<string, WhiteboardRealtime>();
   private evictRemote(key: string) {
     if (
       this.remoteUsers.has(key) ||
@@ -105,6 +108,8 @@ class WhiteboardDocumentsModule {
     this.remote.delete(key);
   }
   private releaseRemoteView(leaseId: string) {
+    this.realtime.get(leaseId)?.dispose();
+    this.realtime.delete(leaseId);
     const view = this.remoteViews.get(leaseId);
     this.remoteViews.delete(leaseId);
     if (view) this.evictRemote(view.key);
@@ -968,6 +973,53 @@ class WhiteboardDocumentsModule {
               )
                 return remoteStatus(snapshot, { requiresRebind: true, reason: "rejected" });
               this.remoteViews.set(leaseId, { key, rejectedCount: snapshot.rejected.length });
+              if (!this.realtime.has(leaseId)) {
+                const protocol = snapshot.confirmed.protocol;
+                const realtime = new WhiteboardRealtime(
+                  collaborationModule.documentClient(),
+                  normalizeServerUrl(serverUrl),
+                  snapshot.confirmed.protocol,
+                  async state => {
+                    if (this.realtime.get(leaseId) !== realtime || remote.snapshot().blocked)
+                      return;
+                    this.leaseOwner(event, leaseId);
+                    const current = new Y.Doc();
+                    const incoming = new Y.Doc();
+                    try {
+                      Y.applyUpdate(current, this.sessions.snapshot(leaseId, owner).state);
+                      Y.applyUpdate(incoming, state);
+                      const incomingMeta = incoming.getMap("meta");
+                      if (
+                        incomingMeta.get("baselineId") !== protocol.baselineId ||
+                        incomingMeta.get("epoch") !== protocol.epoch
+                      )
+                        throw new Error("推送基线与本机会话不一致");
+                      const before = stateHash(Y.encodeStateAsUpdate(current));
+                      const update = Y.encodeStateAsUpdate(incoming, Y.encodeStateVector(current));
+                      Y.applyUpdate(current, update);
+                      if (stateHash(Y.encodeStateAsUpdate(current)) !== before)
+                        await this.sessions.append(
+                          leaseId,
+                          owner,
+                          `push:${stateHash(update)}`,
+                          update
+                        );
+                    } finally {
+                      current.destroy();
+                      incoming.destroy();
+                    }
+                  },
+                  value => {
+                    const window = BrowserWindow.fromId(owner);
+                    if (window && !window.isDestroyed() && !window.webContents.isDestroyed())
+                      window.webContents.send("whiteboard-document:realtime", {
+                        leaseId,
+                        ...value,
+                      });
+                  }
+                );
+                this.realtime.set(leaseId, realtime);
+              }
               return remoteStatus(snapshot, { requiresRebind: false });
             } finally {
               release();
@@ -978,6 +1030,12 @@ class WhiteboardDocumentsModule {
         })()
       );
     });
+    handle("presence", (event, leaseId: string, value: unknown) => {
+      this.leaseOwner(event, leaseId);
+      const presence = readWhiteboardPresence(value);
+      if (value !== null && !presence) throw new Error("白板在线状态无效");
+      this.realtime.get(leaseId)?.presence(presence);
+    });
     handle("remote-sync", async (event, leaseId: string) => {
       const owner = this.leaseOwner(event, leaseId),
         binding = this.remoteViews.get(leaseId),
@@ -985,8 +1043,10 @@ class WhiteboardDocumentsModule {
       if (!pending) throw new Error("白板远端会话未打开");
       return this.serialRemote(binding!.key, async () => {
         const session = await pending;
-        const rebind = (snapshot: RemoteSnapshot, meta: { get(key: string): unknown }) =>
-          remoteStatus(snapshot, {
+        const rebind = (snapshot: RemoteSnapshot, meta: { get(key: string): unknown }) => {
+          this.realtime.get(leaseId)?.dispose();
+          this.realtime.delete(leaseId);
+          return remoteStatus(snapshot, {
             requiresRebind: true,
             reason:
               meta.get("epoch") !== snapshot.confirmed.protocol.epoch ||
@@ -994,6 +1054,7 @@ class WhiteboardDocumentsModule {
                 ? "epoch"
                 : "rejected",
           });
+        };
         const metaOf = (state: Uint8Array) => {
           const doc = new Y.Doc();
           try {

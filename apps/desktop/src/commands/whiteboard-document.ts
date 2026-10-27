@@ -38,6 +38,8 @@ export const readWhiteboardShareStatus = (databaseName: string, documentId: stri
 export const whiteboardRemoteBackend: WhiteboardRemoteBackend = {
   open: (leaseId, serverUrl) => call<WhiteboardRemoteStatus>("remote-open", leaseId, serverUrl),
   sync: leaseId => call<WhiteboardRemoteStatus>("remote-sync", leaseId),
+  presence: (leaseId, value) => call<void>("presence", leaseId, value),
+  realtime: listener => subscribe("whiteboard-document:realtime", listener),
 };
 /** 把已加入的共享白板落到当前资料库；已落库时返回原文档。 */
 export const installSharedWhiteboard = (databaseName: string, serverUrl: string, roomId: string) =>

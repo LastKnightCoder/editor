@@ -68,6 +68,35 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+it("推送连通后降低补偿轮询，断线立即恢复同步，在线状态只接受本租约", async () => {
+  let receive!: Parameters<NonNullable<WhiteboardRemoteBackend["realtime"]>>[0];
+  const presence = vi.fn(async () => {});
+  Object.assign(backend, {
+    presence,
+    realtime: (listener: typeof receive) => {
+      receive = listener;
+      return () => {};
+    },
+  });
+  create();
+  await vi.advanceTimersByTimeAsync(0);
+  receive({ leaseId: "other", connected: true, peers: [] });
+  const count = backend.sync.mock.calls.length;
+  receive({ leaseId: "lease", connected: true, peers: [] });
+  await vi.advanceTimersByTimeAsync(0);
+  expect(backend.sync.mock.calls.length).toBe(count + 1);
+  await vi.advanceTimersByTimeAsync(10_000);
+  expect(backend.sync.mock.calls.length).toBe(count + 1);
+  sync.publishPresence("a", { pageId: "page", cursor: null, moving: false, selection: [] });
+  sync.publishPresence("b", null);
+  expect(presence).toHaveBeenCalledTimes(1);
+  receive({ leaseId: "lease", connected: false, peers: [] });
+  await vi.advanceTimersByTimeAsync(0);
+  expect(backend.sync.mock.calls.length).toBe(count + 2);
+  sync.dispose();
+  expect(presence).toHaveBeenLastCalledWith("lease", null);
+});
+
 it("远端确认覆盖本机修订才显示已同步；新的本机编辑先回到已保存在本机", async () => {
   create();
   await vi.advanceTimersByTimeAsync(0);
