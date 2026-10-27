@@ -21,7 +21,11 @@ import { previewMenuExtension } from "@tau/editor-source-view/menu";
 import codeBlockExtension from "@tau/editor/extensions/code-block";
 import { mathExtensions } from "@tau/editor/extensions/math";
 import emojiExtension from "@tau/editor/extensions/emoji";
-import { createDesktopEditorExtensions, fileAttachmentExtension } from "@/editor-extensions";
+import {
+  contentLinkExtension,
+  createDesktopEditorExtensions,
+  fileAttachmentExtension,
+} from "@/editor-extensions";
 import flashcardBlankExtension from "@/editor-extensions/flashcard-blank";
 import docTasksExtension from "@/editor-extensions/doc-tasks";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
@@ -161,10 +165,18 @@ export async function prepareNewContent(
   return catalog.createDocument(content, contracts);
 }
 
+/**
+ * 正文与 Markdown 互转：底座之外只装有 Markdown 语法的宿主节点（内容链接、附件）。
+ * 不经 `getContentKit`，后台转换窗口不装载白板 / 数据库扩展；那些块本就没有语法，按无损载荷保留。
+ */
+export function getContentConversionKit(): EditorKit {
+  return createDesktopKit([contentLinkExtension, fileAttachmentExtension]);
+}
+
 /** 按文档契约选择具体版本的导出器；缺少版本实现时保留无损载荷。 */
 export async function prepareContentMarkdown(
   contracts: import("@tau/db-schema/content-contracts").ContentContractDictionary,
-  kit: EditorKit = createDesktopKit()
+  kit: EditorKit = getContentConversionKit()
 ) {
   const { desktopCodecComposition } = await import("@/utils/markdown-composition");
   const { textFormattingCodec } = await import("@tau/editor/extensions/text-formatting/markdown");
