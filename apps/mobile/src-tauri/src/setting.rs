@@ -197,38 +197,56 @@ fn validate_pointer_type(setting: &Value, pointer: &str, expected: &str) -> Resu
     }
 }
 
+/// (指针, 期望类型, 是否必填)；父级在前，读取自愈按此顺序删除类型不符的字段。
+const SHAPE: [(&str, &str, bool); 14] = [
+    ("/database", "object", true),
+    ("/database/active", "string", true),
+    ("/database/databases", "array", true),
+    ("/sync", "object", true),
+    ("/sync/active", "string", true),
+    ("/sync/plugin", "object", false),
+    ("/sync/plugin/id", "string", false),
+    ("/sync/plugin/configurations", "object", false),
+    ("/imageBed", "object", false),
+    ("/imageBed/active", "string", false),
+    ("/imageBed/plugin", "object", false),
+    ("/imageBed/plugin/id", "string", false),
+    ("/imageBed/plugin/configurations", "object", false),
+    ("/integration", "object", false),
+];
+
 fn validate_setting_shape(setting: &Value) -> Result<(), String> {
     if !setting.is_object() {
         return Err("SETTING_INVALID: setting.json 根节点必须是对象".to_string());
     }
-
-    validate_pointer_type(setting, "/database", "object")?;
-    validate_pointer_type(setting, "/database/active", "string")?;
-    validate_pointer_type(setting, "/database/databases", "array")?;
-
-    validate_pointer_type(setting, "/sync", "object")?;
-    validate_pointer_type(setting, "/sync/active", "string")?;
-    for section in ["sync", "imageBed"] {
-        for (field, kind) in [
-            ("", "object"),
-            ("/active", "string"),
-            ("/plugin", "object"),
-            ("/plugin/id", "string"),
-            ("/plugin/configurations", "object"),
-        ] {
-            let pointer = format!("/{section}{field}");
-            if setting.pointer(&pointer).is_some() {
-                validate_pointer_type(setting, &pointer, kind)?;
-            }
+    for (pointer, kind, required) in SHAPE {
+        if required || setting.pointer(pointer).is_some() {
+            validate_pointer_type(setting, pointer, kind)?;
         }
-    }
-    if setting.get("integration").is_some() {
-        validate_pointer_type(setting, "/integration", "object")?;
     }
     crate::provider_settings::assert_current(setting)?;
     crate::tts_settings::validate_shape(setting)?;
 
     Ok(())
+}
+
+/// 读取自愈：删除类型不符与已不支持的字段（随后由默认值补齐），返回被改动的字段指针。
+fn heal_setting(setting: &mut Value) -> Vec<String> {
+    let mut healed = Vec::new();
+    for (pointer, kind, _) in SHAPE {
+        if setting.pointer(pointer).is_some()
+            && validate_pointer_type(setting, pointer, kind).is_err()
+        {
+            let (parent, key) = pointer.rsplit_once('/').expect("指针以 / 开头");
+            if let Some(object) = setting.pointer_mut(parent).and_then(Value::as_object_mut) {
+                object.remove(key);
+            }
+            healed.push(pointer.to_string());
+        }
+    }
+    crate::provider_settings::heal(setting, &mut healed);
+    crate::tts_settings::heal(setting, &mut healed);
+    healed
 }
 
 fn database_items_from_setting(setting: &Value) -> Vec<DatabaseItem> {
@@ -284,34 +302,6 @@ fn normalize_database_section(setting: &mut Value) {
     }
 }
 
-/// 0.2.9 默认值合并每次都会写回、移动端已无任何读取方的旧键。
-const RETIRED_KEYS: [(&str, &str); 4] = [
-    ("integration", "minimax"),
-    ("integration", "podcastTTS"),
-    ("publish", "github"),
-    ("publish", "s3"),
-];
-
-/// 剔除 0.2.9 残留的旧键；同步与上传的旧账号不在此列，仍由校验拒绝。
-fn strip_retired_defaults(setting: &mut Value) -> bool {
-    let mut changed = false;
-    for (section, key) in RETIRED_KEYS {
-        if let Some(object) = setting.get_mut(section).and_then(Value::as_object_mut) {
-            changed |= object.remove(key).is_some();
-        }
-    }
-    if let Some(publish) = setting.get_mut("publish").and_then(Value::as_object_mut) {
-        if publish
-            .get("active")
-            .is_some_and(|active| active != "plugin" && active != "local")
-        {
-            publish.insert("active".into(), json!("local"));
-            changed = true;
-        }
-    }
-    changed
-}
-
 pub fn normalize_setting(raw: Value) -> Value {
     let mut setting = if raw.is_object() { raw } else { json!({}) };
     merge_defaults(&mut setting, &default_setting_value());
@@ -354,31 +344,48 @@ pub fn load_or_init_setting(app: &AppHandle) -> Result<Value, String> {
         return Ok(setting);
     }
 
-    let content = fs::read_to_string(&setting_path)
-        .map_err(|e| format!("Failed to read setting.json: {e}"))?;
-    let parsed = serde_json::from_str::<Value>(&content)
-        .map_err(|e| format!("SETTING_INVALID: setting.json 解析失败: {e}"))?;
-    let mut current = parsed.clone();
-    let stripped = strip_retired_defaults(&mut current);
-    validate_setting_shape(&current)?;
-    if stripped {
-        let backup = app_dir.join(format!(
-            "setting.json.retired-defaults-{}.bak",
-            uuid::Uuid::new_v4()
+    let content =
+        fs::read(&setting_path).map_err(|e| format!("Failed to read setting.json: {e}"))?;
+    let (setting, healed) = repair_setting(&content);
+    if !healed.is_empty() {
+        backup_setting(&app_dir, &content)?;
+        crate::logger::warn(format!(
+            "[mobile-setting] setting.json 已备份并自愈: {}",
+            healed.join(", ")
         ));
-        fs::write(&backup, &content).map_err(|e| format!("备份旧设置失败: {e}"))?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(&backup, fs::Permissions::from_mode(0o600))
-                .map_err(|e| format!("设置备份权限失败: {e}"))?;
-        }
     }
-    let setting = normalize_setting(current);
-    if setting != parsed {
-        save_setting_value(app, &setting)?;
+    if healed.is_empty() && serde_json::from_slice::<Value>(&content).ok() == Some(setting.clone())
+    {
+        return Ok(setting);
     }
+    save_setting_value(app, &setting)?;
     Ok(setting)
+}
+
+/// 设置读取不拒绝：解析失败或根节点不是对象时从默认值重建，其余不合规字段剔除后补默认值。
+fn repair_setting(content: &[u8]) -> (Value, Vec<String>) {
+    let mut healed = Vec::new();
+    let mut current = match serde_json::from_slice::<Value>(content) {
+        Ok(value) if value.is_object() => value,
+        _ => {
+            healed.push("/".to_string());
+            json!({})
+        }
+    };
+    healed.extend(heal_setting(&mut current));
+    (normalize_setting(current), healed)
+}
+
+fn backup_setting(app_dir: &std::path::Path, content: &[u8]) -> Result<(), String> {
+    let backup = app_dir.join(format!("setting.json.{}.bak", uuid::Uuid::new_v4()));
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    options.mode(0o600);
+    options
+        .open(&backup)
+        .and_then(|mut file| file.write_all(content))
+        .map_err(|e| format!("备份旧设置失败: {e}"))
 }
 
 pub fn update_setting_value(
@@ -648,41 +655,95 @@ mod tests {
         setting
     }
 
+    fn repair(value: &Value) -> (Value, Vec<String>) {
+        repair_setting(&serde_json::to_vec(value).unwrap())
+    }
+
     #[test]
-    fn retired_defaults_from_0_2_9_are_stripped_before_validation() {
+    fn retired_defaults_are_healed_on_read() {
         let mut setting = setting_written_by_0_2_9();
+        setting["integration"]["bilibili"] = json!({
+            "enabled": false,
+            "credentials": { "SESSDATA": "", "bfe_id": "" },
+            "userInfo": { "name": "", "avatar": "", "isLogin": false, "vipStatus": 0 }
+        });
+        setting["integration"]["youtube"] = json!({ "enabled": false, "proxy": "" });
         assert!(validate_setting_shape(&setting).is_err());
-        assert!(strip_retired_defaults(&mut setting));
-        assert!(validate_setting_shape(&setting).is_ok());
-        assert!(setting["integration"].get("minimax").is_none());
-        assert!(setting["integration"].get("podcastTTS").is_none());
-        assert!(setting["integration"].get("weread").is_some());
-        assert_eq!(setting["publish"]["active"], json!("local"));
-        assert_eq!(setting["publish"]["site"]["title"], json!(""));
-        let normalized = normalize_setting(setting);
-        assert!(validate_setting_shape(&normalized).is_ok());
-        let mut again = normalized.clone();
-        assert!(!strip_retired_defaults(&mut again));
-        assert_eq!(again, normalized);
+        let (healed, changes) = repair(&setting);
+        assert!(validate_setting_shape(&healed).is_ok());
+        for key in ["minimax", "podcastTTS", "bilibili", "youtube"] {
+            assert!(healed["integration"].get(key).is_none(), "{key}");
+        }
+        assert!(changes.contains(&"/integration/bilibili".to_string()));
+        assert!(healed["integration"].get("weread").is_some());
+        assert_eq!(healed["publish"]["active"], json!("local"));
+        assert_eq!(healed["publish"]["site"]["title"], json!(""));
+        assert_eq!(healed["database"], setting["database"]);
+        let (again, changes) = repair(&healed);
+        assert!(changes.is_empty());
+        assert_eq!(again, healed);
     }
 
     #[test]
-    fn edited_retired_keys_are_also_stripped_but_old_sync_accounts_still_rejected() {
-        let mut setting = setting_written_by_0_2_9();
-        setting["integration"]["podcastTTS"]["currentVoiceId"] = json!("voice");
-        setting["publish"]["github"]["repo"] = json!("me/site");
-        assert!(strip_retired_defaults(&mut setting));
-        assert!(validate_setting_shape(&setting).is_ok());
-
-        let mut old_sync = setting_written_by_0_2_9();
-        old_sync["integration"]["s3"] = json!({ "bucket": "old" });
-        strip_retired_defaults(&mut old_sync);
-        assert!(validate_setting_shape(&old_sync).is_err());
-        assert_eq!(old_sync["integration"]["s3"]["bucket"], json!("old"));
+    fn unsupported_services_fall_back_while_current_accounts_are_kept() {
+        let mut setting = normalize_setting(json!({}));
+        setting["database"] =
+            json!({ "active": "B.db", "databases": [{ "name": "B.db", "version": 7 }] });
+        setting["sync"] = json!({ "active": "s3", "s3": { "bucket": "old" },
+            "plugin": { "id": "fixture.sync", "configurations": { "fixture.sync": { "token": "keep" } } } });
+        setting["imageBed"]["active"] = json!("github");
+        setting["imageBed"]["github"] = json!({ "cdn": "old" });
+        setting["integration"]["s3"] = json!({ "bucket": "old" });
+        setting["ttsProviders"] = json!([
+            { "providerType": "minimax" },
+            { "id": "a", "name": "账号", "pluginId": "tau.tts", "config": {}, "models": [{ "id": "m" }] }
+        ]);
+        let (healed, _) = repair(&setting);
+        assert!(validate_setting_shape(&healed).is_ok());
+        assert_eq!(healed["database"], setting["database"]);
+        assert_eq!(healed["sync"]["active"], json!("plugin"));
+        assert_eq!(healed["sync"]["plugin"], setting["sync"]["plugin"]);
+        assert!(healed["sync"].get("s3").is_none());
+        assert_eq!(healed["imageBed"]["active"], json!("local"));
+        assert!(healed["imageBed"].get("github").is_none());
+        assert!(healed["integration"].get("s3").is_none());
+        assert_eq!(healed["ttsProviders"].as_array().unwrap().len(), 1);
+        assert_eq!(healed["ttsProviders"][0]["id"], json!("a"));
     }
 
     #[test]
-    fn unsupported_provider_settings_are_rejected_without_conversion() {
+    fn malformed_fields_are_replaced_by_defaults() {
+        let mut setting = normalize_setting(json!({}));
+        setting["database"]["active"] = json!(1);
+        setting["sync"] = json!("broken");
+        setting["imageBed"]["plugin"] = json!([]);
+        setting["integration"] = json!(null);
+        setting["ttsProviders"] = json!({});
+        setting["ttsUsageSettings"]["default"] = json!({ "providerId": "a", "modelId": "m" });
+        let (healed, changes) = repair(&setting);
+        assert!(
+            validate_setting_shape(&healed).is_ok(),
+            "{:?}",
+            validate_setting_shape(&healed)
+        );
+        assert_eq!(healed["database"]["active"], json!(DEFAULT_DATABASE_NAME));
+        assert_eq!(healed["sync"]["active"], json!("plugin"));
+        assert_eq!(healed["ttsProviders"], json!([]));
+        assert_eq!(healed["ttsUsageSettings"]["default"], Value::Null);
+        assert!(!changes.is_empty());
+    }
+
+    #[test]
+    fn unreadable_setting_is_rebuilt_from_defaults() {
+        for content in [&b"{ not json"[..], b"[]", b"null"] {
+            let (healed, changes) = repair_setting(content);
+            assert_eq!(healed, normalize_setting(json!({})));
+            assert_eq!(changes, vec!["/".to_string()]);
+        }
+    }
+
+    #[test]
+    fn writes_with_unsupported_settings_are_still_rejected() {
         for (section, value) in [
             ("sync", json!({ "active": "s3", "s3": { "bucket": "old" } })),
             (
@@ -698,9 +759,7 @@ mod tests {
         ] {
             let mut setting = normalize_setting(json!({}));
             setting[section] = value;
-            let before = setting.clone();
             assert!(validate_setting_shape(&setting).is_err(), "{section}");
-            assert_eq!(setting, before);
         }
     }
 }

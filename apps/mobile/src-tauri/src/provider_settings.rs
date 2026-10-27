@@ -128,29 +128,38 @@ pub(crate) fn status_file_name(id: &str, config: &Value) -> String {
     format!("plugin-{}.json", &format!("{digest:x}")[..24])
 }
 
+/// 插件化之前的内置服务账号，移动端已无读取方。
+const RETIRED_INTEGRATIONS: [&str; 8] = [
+    "s3",
+    "aliOSS",
+    "github",
+    "webdav",
+    "minimax",
+    "podcastTTS",
+    "bilibili",
+    "youtube",
+];
+const RETIRED_SERVICES: [&str; 5] = ["s3", "aliOSS", "github", "webdav", "githubCdn"];
+const SERVICE_SECTIONS: [&str; 3] = ["sync", "imageBed", "publish"];
+
+fn supported_active(section: &str, active: &Value) -> bool {
+    active == "plugin" || (section != "sync" && active == "local")
+}
+
 pub(crate) fn assert_current(setting: &Value) -> Result<(), String> {
-    if [
-        "s3",
-        "aliOSS",
-        "github",
-        "webdav",
-        "minimax",
-        "podcastTTS",
-        "bilibili",
-        "youtube",
-    ]
-    .iter()
-    .any(|key| setting["integration"].get(key).is_some())
+    if RETIRED_INTEGRATIONS
+        .iter()
+        .any(|key| setting["integration"].get(key).is_some())
     {
         return Err("SETTING_INVALID: 旧服务账号配置不受支持，请在插件设置中重新配置".into());
     }
-    for section in ["sync", "imageBed", "publish"] {
+    for section in SERVICE_SECTIONS {
         if let Some(active) = setting[section].get("active") {
-            if active != "plugin" && !(section != "sync" && active == "local") {
+            if !supported_active(section, active) {
                 return Err("SETTING_INVALID: 不支持旧服务选择，请重新配置".into());
             }
         }
-        if ["s3", "aliOSS", "github", "webdav", "githubCdn"]
+        if RETIRED_SERVICES
             .iter()
             .any(|key| setting[section].get(key).is_some())
         {
@@ -158,6 +167,38 @@ pub(crate) fn assert_current(setting: &Value) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+/// 剔除旧服务账号与配置，旧服务选择回落到插件（同步）或本地（上传、发布），使 `assert_current` 成立。
+pub(crate) fn heal(setting: &mut Value, healed: &mut Vec<String>) {
+    if let Some(integration) = setting
+        .get_mut("integration")
+        .and_then(Value::as_object_mut)
+    {
+        for key in RETIRED_INTEGRATIONS {
+            if integration.remove(key).is_some() {
+                healed.push(format!("/integration/{key}"));
+            }
+        }
+    }
+    for section in SERVICE_SECTIONS {
+        let Some(object) = setting.get_mut(section).and_then(Value::as_object_mut) else {
+            continue;
+        };
+        for key in RETIRED_SERVICES {
+            if object.remove(key).is_some() {
+                healed.push(format!("/{section}/{key}"));
+            }
+        }
+        if object
+            .get("active")
+            .is_some_and(|active| !supported_active(section, active))
+        {
+            let fallback = if section == "sync" { "plugin" } else { "local" };
+            object.insert("active".into(), json!(fallback));
+            healed.push(format!("/{section}/active"));
+        }
+    }
 }
 
 #[cfg(test)]
