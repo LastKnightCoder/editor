@@ -20,6 +20,13 @@ const host = vi.hoisted(() => ({
   handlers: new Map<string, (...args: any[]) => any>(),
   windows: [] as any[],
 }));
+// 此处验证耐久 HTTP 编排；真实推送连接由 realtime.test.ts 覆盖。
+vi.mock("../realtime", () => ({
+  WhiteboardRealtime: class {
+    presence() {}
+    dispose() {}
+  },
+}));
 vi.mock("electron", () => ({
   app: { on: vi.fn(), getPath: () => "/tmp" },
   ipcMain: { handle: (name: string, fn: (...args: any[]) => any) => host.handlers.set(name, fn) },

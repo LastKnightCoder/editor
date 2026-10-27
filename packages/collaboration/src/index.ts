@@ -34,3 +34,4 @@ export { isSafeResource } from "./resource-policy";
 
 export * from "./whiteboard-baseline";
 export { assertPresenceBudget } from "./presence-budget";
+export * from "./whiteboard-presence";

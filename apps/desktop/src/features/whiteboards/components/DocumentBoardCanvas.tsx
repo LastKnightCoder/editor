@@ -31,7 +31,10 @@ import {
 import type { WhiteboardExtension } from "@tau/whiteboard";
 import WhiteBoard from "@/features/shared/whiteboard/DesktopWhiteboard";
 import useSettingStore from "@/stores/useSettingStore";
-import { whiteboardDocumentEntry } from "@/services/whiteboard-documents/registry";
+import {
+  whiteboardDocumentEntry,
+  whiteboardRemoteSync,
+} from "@/services/whiteboard-documents/registry";
 import type { WhiteboardDocumentClient } from "@/services/whiteboard-documents/client";
 import type { BoardCanvasHandle } from "./BoardCanvas";
 import {
@@ -267,6 +270,11 @@ function BoundDocumentCanvas({
         <WhiteBoard
           key={client.viewId}
           document={binding}
+          presence={
+            whiteboardRemoteSync(client)
+              ? { pageId, channel: whiteboardRemoteSync(client)! }
+              : undefined
+          }
           documentResources={{
             upload: async file => {
               if (!client.leaseId || client.getSnapshot().frozen)

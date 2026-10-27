@@ -26,6 +26,13 @@ const state = vi.hoisted(() => ({
   windows: [] as any[],
   sent: [] as { owner: number; channel: string; data: any }[],
 }));
+// 此处验证耐久 HTTP 编排；真实推送连接由 realtime.test.ts 覆盖。
+vi.mock("../realtime", () => ({
+  WhiteboardRealtime: class {
+    presence() {}
+    dispose() {}
+  },
+}));
 vi.mock("electron", () => ({
   app: { on: vi.fn() },
   ipcMain: { handle: (name: string, fn: (...args: any[]) => any) => state.handlers.set(name, fn) },

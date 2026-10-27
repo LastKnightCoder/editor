@@ -30,6 +30,22 @@ const state = vi.hoisted(() => ({
   windows: [] as any[],
   sent: [] as { owner: number; channel: string; data: any }[],
   client: null as any,
+  pushReceivers: [] as ((state: Uint8Array) => Promise<void>)[],
+}));
+// 此处验证耐久 HTTP 编排；真实推送连接由 realtime.test.ts 覆盖。
+vi.mock("../realtime", () => ({
+  WhiteboardRealtime: class {
+    constructor(
+      _client: unknown,
+      _url: unknown,
+      _protocol: unknown,
+      receive: (state: Uint8Array) => Promise<void>
+    ) {
+      state.pushReceivers.push(receive);
+    }
+    presence() {}
+    dispose() {}
+  },
 }));
 vi.mock("electron", () => ({
   app: { on: vi.fn() },
@@ -115,7 +131,11 @@ function client(): any {
 }
 
 interface Side {
-  module: { remote: Map<string, Promise<DocumentSyncSession>> };
+  module: {
+    remote: Map<string, Promise<DocumentSyncSession>>;
+    remoteViews: Map<string, { key: string }>;
+    serialRemote<T>(key: string, task: () => Promise<T>): Promise<T>;
+  };
   device: Device;
   window: number;
   database: string;
@@ -261,6 +281,7 @@ beforeEach(async () => {
   upgrade = false;
   state.client = client();
   state.sent = [];
+  state.pushReceivers = [];
   state.databases.clear();
   state.windowToDatabase.clear();
   state.windows = [1, 2].map(id => ({
@@ -368,6 +389,46 @@ it("成员落库、双向同步：本机保存与远端确认分开，远端投�
   const again = await call(owner, "remote-sync", ownerLease.leaseId);
   expect(again.localRevision).toBe(received.localRevision);
   expect(server.store.operations.sequence(room.documentId)).toBe(sequence);
+});
+
+it("服务端推送立即耐久投影，重复状态不推进修订，释放后忽略迟到推送", async () => {
+  const owner = await side("作者", 1, "A");
+  const { created, room } = await sharedBoard(owner);
+  const lease = await call(owner, "open", "A", created.contentIds[0], "push-view");
+  await call(owner, "remote-open", lease.leaseId, URL);
+  const receive = state.pushReceivers.at(-1)!;
+  const doc = server.store.loadDocument(room.documentId);
+  const model = new WhiteboardModel(doc);
+  try {
+    model.submit([{ type: "edit_title", edit: { offset: 2, remove: 0, text: "·推送" } }], {});
+    const before = call(owner, "snapshot", lease.leaseId).revision;
+    let unblock!: () => void;
+    const gate = new Promise<void>(resolve => {
+      unblock = resolve;
+    });
+    const key = owner.module.remoteViews.get(lease.leaseId)!.key;
+    const waiting = owner.module.serialRemote(key, () => gate);
+    try {
+      let applied = false;
+      const receiving = receive(Y.encodeStateAsUpdate(doc)).then(() => {
+        applied = true;
+      });
+      await vi.waitFor(() => expect(applied).toBe(true), { timeout: 1000 });
+      await receiving;
+    } finally {
+      unblock();
+      await waiting;
+    }
+    expect(localTitle(owner, lease.leaseId)).toBe("看板·推送");
+    expect(call(owner, "snapshot", lease.leaseId).revision).toBe(before + 1);
+    await receive(Y.encodeStateAsUpdate(doc));
+    expect(call(owner, "snapshot", lease.leaseId).revision).toBe(before + 1);
+    await call(owner, "release", lease.leaseId);
+    await expect(receive(Y.encodeStateAsUpdate(doc))).resolves.toBeUndefined();
+  } finally {
+    model.dispose();
+    doc.destroy();
+  }
 });
 
 it("断连与关页：待发送内容留在本机日志，重开重连后只提交一次", async () => {

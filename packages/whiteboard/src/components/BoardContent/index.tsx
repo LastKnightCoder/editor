@@ -11,8 +11,11 @@ import MindDragOverlay from "../MindDragOverlay";
 import { CreationPreview } from "../CreationPreview";
 import Board from "../../Board";
 import { SelectionContext } from "../../context";
+import { WhiteboardPresenceOverlay, previewPeerElements } from "../../collaboration/presence";
+import type { WhiteboardPeer } from "@tau/collaboration";
 
 interface BoardContentProps extends SVGProps<SVGSVGElement> {
+  peers?: readonly WhiteboardPeer[];
   board: Board;
   viewPort: ViewPort;
   centerConnectArrows: BoardElement[];
@@ -31,6 +34,7 @@ const STATIC_LAYER_SELECTION: Selection = {
   selectArea: null,
   selectedElements: [],
 };
+const EMPTY_PEERS: readonly WhiteboardPeer[] = [];
 
 /**
  * 静态元素层（底两层）。独立 memo：BoardContent 因顶层选区 context 穿透重渲时，
@@ -74,6 +78,7 @@ const BoardContent = memo(
       backgroundColor = null,
       renderElementsOverride,
       connectPointOverlayRef,
+      peers = EMPTY_PEERS,
       ...svgProps
     } = props;
 
@@ -81,7 +86,11 @@ const BoardContent = memo(
     const selection = useContext(SelectionContext);
     const staticLayerSelection = isolateStaticSelection ? STATIC_LAYER_SELECTION : selection;
 
-    const elementsToRender = renderElementsOverride ?? noneCenterConnectArrows;
+    const preview = (items: BoardElement[]) =>
+      showAssistLayers
+        ? previewPeerElements(items, peers, selection?.selectedElements ?? [])
+        : items;
+    const elementsToRender = preview(renderElementsOverride ?? noneCenterConnectArrows);
 
     // 剔除用滞后视口：平移/缩放帧只紧急更新 svg viewBox（一个属性）保证跟手，
     // 全树剔除与 JSX 重建以低优先级并发追赶；剔除盒带 100px 缓冲，滞后不可感知
@@ -90,11 +99,19 @@ const BoardContent = memo(
     // 过滤视口内的元素（性能优化）
     const visibleCenterConnectArrows = useMemo(() => {
       if (disableViewportFilter) {
-        return board.renderElements(centerConnectArrows);
+        return board.renderElements(preview(centerConnectArrows));
       }
-      const visibleElements = board.filterElementsInViewport(centerConnectArrows, 100);
+      const visibleElements = board.filterElementsInViewport(preview(centerConnectArrows), 100);
       return board.renderVisibleElements(visibleElements);
-    }, [board, centerConnectArrows, disableViewportFilter, cullViewPort]);
+    }, [
+      board,
+      centerConnectArrows,
+      disableViewportFilter,
+      cullViewPort,
+      peers,
+      selection,
+      showAssistLayers,
+    ]);
 
     const visibleNoneCenterConnectArrows = useMemo(() => {
       if (disableViewportFilter) {
@@ -106,11 +123,22 @@ const BoardContent = memo(
 
     const visibleCenterConnectAndSelectedArrows = useMemo(() => {
       if (disableViewportFilter) {
-        return board.renderElements(centerConnectAndSelectedArrows);
+        return board.renderElements(preview(centerConnectAndSelectedArrows));
       }
-      const visibleElements = board.filterElementsInViewport(centerConnectAndSelectedArrows, 100);
+      const visibleElements = board.filterElementsInViewport(
+        preview(centerConnectAndSelectedArrows),
+        100
+      );
       return board.renderVisibleElements(visibleElements);
-    }, [board, centerConnectAndSelectedArrows, disableViewportFilter, cullViewPort]);
+    }, [
+      board,
+      centerConnectAndSelectedArrows,
+      disableViewportFilter,
+      cullViewPort,
+      peers,
+      selection,
+      showAssistLayers,
+    ]);
 
     return (
       <svg
@@ -142,6 +170,7 @@ const BoardContent = memo(
         <CreationPreview board={board} zoom={zoom} />
         {showAssistLayers && (
           <>
+            <WhiteboardPresenceOverlay peers={peers} zoom={zoom} />
             <g data-export-ignore="true">
               <SelectArea />
             </g>
