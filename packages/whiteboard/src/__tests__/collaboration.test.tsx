@@ -137,6 +137,21 @@ function move(board: Board, x: number) {
 }
 
 describe("W3 画布与编辑器统一写入", () => {
+  it("在线预览的状态向量只在对应文档增量到达后被覆盖", async () => {
+    const f = await fixture();
+    const left = view(f.model, f.page, f.types);
+    const peer = makeModel(Y.encodeStateAsUpdate(f.model.doc));
+    const right = view(peer, f.page, f.types);
+    const before = left.binding.presenceVersion()!;
+    expect(right.binding.hasPresenceVersion(before)).toBe(true);
+    move(left.board, 100);
+    const after = left.binding.presenceVersion()!;
+    expect(right.binding.hasPresenceVersion(after)).toBe(false);
+    await peer.receive(Y.encodeStateAsUpdate(f.model.doc));
+    expect(right.binding.hasPresenceVersion(after)).toBe(true);
+    expect(right.board.children[0].x).toBe(100);
+    expect(right.binding.history.undoStack).toHaveLength(0);
+  });
   it("拒绝 set_node(children) 时不写共享文档、投影或撤销历史", async () => {
     vi.stubEnv("DEV", false);
     try {

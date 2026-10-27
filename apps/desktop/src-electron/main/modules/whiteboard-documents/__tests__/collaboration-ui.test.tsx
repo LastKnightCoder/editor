@@ -35,6 +35,7 @@ const state = vi.hoisted(() => ({
 // 此处验证耐久 HTTP 编排；真实推送连接由 realtime.test.ts 覆盖。
 vi.mock("../realtime", () => ({
   WhiteboardRealtime: class {
+    publishDocument() {}
     presence() {}
     dispose() {}
   },

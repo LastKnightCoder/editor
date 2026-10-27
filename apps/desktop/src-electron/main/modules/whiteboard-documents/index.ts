@@ -107,6 +107,13 @@ class WhiteboardDocumentsModule {
       return;
     this.remote.delete(key);
   }
+  private stopRealtime(key: string) {
+    for (const [leaseId, view] of this.remoteViews) {
+      if (view.key !== key) continue;
+      this.realtime.get(leaseId)?.dispose();
+      this.realtime.delete(leaseId);
+    }
+  }
   private releaseRemoteView(leaseId: string) {
     this.realtime.get(leaseId)?.dispose();
     this.realtime.delete(leaseId);
@@ -908,9 +915,25 @@ class WhiteboardDocumentsModule {
       }
       return result;
     });
-    handle("append", (event, leaseId: string, batchId: string, update: Uint8Array) =>
-      this.sessions.append(leaseId, this.leaseOwner(event, leaseId), batchId, update)
-    );
+    handle("append", async (event, leaseId: string, batchId: string, update: Uint8Array) => {
+      const receipt = await this.sessions.append(
+        leaseId,
+        this.leaseOwner(event, leaseId),
+        batchId,
+        update
+      );
+      if (!receipt.error) {
+        try {
+          this.realtime.get(leaseId)?.publishDocument();
+        } catch (error) {
+          console.warn("[whiteboard-sync] 实时发送失败，保留耐久更新等待补偿", {
+            leaseId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+      return receipt;
+    });
     handle("snapshot", (event, leaseId: string) =>
       this.sessions.snapshot(leaseId, this.leaseOwner(event, leaseId))
     );
@@ -1016,6 +1039,17 @@ class WhiteboardDocumentsModule {
                         leaseId,
                         ...value,
                       });
+                  },
+                  () => {
+                    const current = remote.snapshot();
+                    if (
+                      this.realtime.get(leaseId) !== realtime ||
+                      current.blocked ||
+                      current.rejected.length !== snapshot.rejected.length
+                    )
+                      return;
+                    this.leaseOwner(event, leaseId);
+                    return this.sessions.snapshot(leaseId, owner).state;
                   }
                 );
                 this.realtime.set(leaseId, realtime);
@@ -1043,9 +1077,12 @@ class WhiteboardDocumentsModule {
       if (!pending) throw new Error("白板远端会话未打开");
       return this.serialRemote(binding!.key, async () => {
         const session = await pending;
+        const failure = (error: unknown): never => {
+          if (session.snapshot().blocked) this.stopRealtime(binding!.key);
+          return remoteFailure(error);
+        };
         const rebind = (snapshot: RemoteSnapshot, meta: { get(key: string): unknown }) => {
-          this.realtime.get(leaseId)?.dispose();
-          this.realtime.delete(leaseId);
+          this.stopRealtime(binding!.key);
           return remoteStatus(snapshot, {
             requiresRebind: true,
             reason:
@@ -1064,8 +1101,8 @@ class WhiteboardDocumentsModule {
             doc.destroy();
           }
         };
-        if (!session.snapshot().blocked) await session.flush().catch(remoteFailure);
-        if (!session.snapshot().blocked) await session.synchronize().catch(remoteFailure);
+        if (!session.snapshot().blocked) await session.flush().catch(failure);
+        if (!session.snapshot().blocked) await session.synchronize().catch(failure);
         let snapshot = session.snapshot();
         const local = this.sessions.snapshot(leaseId, owner),
           doc = new Y.Doc();
@@ -1081,7 +1118,7 @@ class WhiteboardDocumentsModule {
             meta.get("epoch") !== protocol.epoch
           )
             return rebind(snapshot, meta);
-          await this.pushLocal(session, local.state).catch(remoteFailure);
+          await this.pushLocal(session, local.state).catch(failure);
           snapshot = session.snapshot();
           if (
             snapshot.blocked ||

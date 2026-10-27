@@ -12,6 +12,8 @@ export interface WhiteboardPresence {
     geometry?: WhiteboardGeometry;
   }[];
   moving: boolean;
+  /** 松手后的预览保留到接收端包含该文档状态。 */
+  version?: string;
 }
 
 export interface WhiteboardPeer extends WhiteboardPresence {
@@ -30,6 +32,10 @@ export function readWhiteboardPresence(value: unknown): WhiteboardPresence | nul
     typeof state.pageId !== "string" ||
     state.pageId.length > 200 ||
     typeof state.moving !== "boolean" ||
+    (state.version !== undefined &&
+      (typeof state.version !== "string" ||
+        state.version.length > 4096 ||
+        !/^[A-Za-z0-9+/]*={0,2}$/.test(state.version))) ||
     !Array.isArray(state.selection) ||
     state.selection.length > 64 ||
     (state.cursor !== null &&
@@ -62,6 +68,7 @@ export function readWhiteboardPresence(value: unknown): WhiteboardPresence | nul
     pageId: state.pageId,
     cursor: state.cursor && { x: state.cursor.x, y: state.cursor.y },
     moving: state.moving,
+    ...(state.version ? { version: state.version } : {}),
     selection: state.selection.map(({ id, minX, minY, maxX, maxY, geometry }) => ({
       id,
       minX,

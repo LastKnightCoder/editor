@@ -66,7 +66,7 @@ it("HTTP 提交的位置和文字经真实推送到达，光标选区独立同�
     editing.dispose();
     doc.destroy();
   });
-  const views = [0, 1].map(() => {
+  const views = [0, 1].map(index => {
     const received = new Y.Doc();
     const board = new WhiteboardModel(received);
     const state = { connected: false, peers: [] as WhiteboardPeer[] };
@@ -77,7 +77,8 @@ it("HTTP 提交的位置和文字经真实推送到达，光标选区独立同�
       async bytes => {
         expect((await board.receive(bytes)).status).toBe("applied");
       },
-      event => Object.assign(state, event)
+      event => Object.assign(state, event),
+      index === 0 ? () => Y.encodeStateAsUpdate(doc) : undefined
     );
     cleanup.push(() => {
       realtime.dispose();
@@ -147,6 +148,29 @@ it("HTTP 提交的位置和文字经真实推送到达，光标选区独立同�
       }),
     { timeout: 2000 }
   );
+  editing.submit(
+    [
+      {
+        type: "set_node",
+        id: elementId,
+        patch: { geometry: { x: 450, y: 350, width: 100, height: 80, rotation: 0 } },
+      },
+      {
+        type: "edit_text",
+        id: elementId,
+        field: "text",
+        edit: { offset: 0, remove: 4, text: "实时直推" },
+      },
+    ],
+    {}
+  );
+  const sequence = server.store.operations.sequence(room.id);
+  views[0].realtime.publishDocument();
+  await vi.waitFor(() => expect(views[1].board.read().pages[0].children[0].geometry.x).toBe(450), {
+    timeout: 2000,
+  });
+  expect(server.store.operations.sequence(room.id)).toBeGreaterThan(sequence);
+  expect(views[1].board.read().pages[0].children[0].data.text).toBe("实时直推");
   views[0].realtime.presence(null);
   await vi.waitFor(() => expect(views[1].state.peers).toEqual([]), { timeout: 2000 });
   const socket = (
@@ -177,10 +201,10 @@ it("HTTP 提交的位置和文字经真实推送到达，光标选区独立同�
     },
     offlineUpdate
   );
-  expect(views[1].board.read().pages[0].children[0].data.text).toBe("实时输入");
+  expect(views[1].board.read().pages[0].children[0].data.text).toBe("实时直推");
   await socket.connect();
   await vi.waitFor(
-    () => expect(views[1].board.read().pages[0].children[0].data.text).toBe("实时输入·重连"),
+    () => expect(views[1].board.read().pages[0].children[0].data.text).toBe("实时直推·重连"),
     { timeout: 5000 }
   );
 });

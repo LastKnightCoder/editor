@@ -7,6 +7,8 @@ import type { WhiteboardContractCatalog, WhiteboardContractEntry } from "./catal
 import * as Y from "yjs";
 import {
   WhiteboardModel,
+  bytesToBase64,
+  base64ToBytes,
   isSafeResource,
   exportWhiteboardTransfer,
   prepareWhiteboardTransfer,
@@ -110,6 +112,20 @@ export function createWhiteboardBinding(model: WhiteboardModel, options: Whitebo
 }
 
 class CanvasBinding implements WhiteboardDocumentBinding {
+  presenceVersion(): string | undefined {
+    const encoded = bytesToBase64(Y.encodeStateVector(this.model.doc));
+    return encoded.length <= 4096 ? encoded : undefined;
+  }
+  hasPresenceVersion(version: string): boolean {
+    try {
+      const local = Y.decodeStateVector(Y.encodeStateVector(this.model.doc));
+      return [...Y.decodeStateVector(base64ToBytes(version))].every(
+        ([id, clock]) => (local.get(id) ?? 0) >= clock
+      );
+    } catch {
+      return true;
+    }
+  }
   readonly history: NodeTreeHistory;
   private readonly origin = {};
   private board?: Board;
