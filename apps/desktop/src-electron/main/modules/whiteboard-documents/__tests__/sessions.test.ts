@@ -337,6 +337,43 @@ describe("W4 主进程白板会话与耐久投影", () => {
     await expect(f.sessions.open("A", f.created.contentIds[0], 1, "again")).rejects.toThrow("分叉");
     expect(f.journal.load(journalKey(a.identity))!.revision).toBe(1);
   });
+  it("整库被另一台设备的较新版本替换：释放旧日志后按新库打开", async () => {
+    const f = await fixture(),
+      a = await f.sessions.open("A", f.created.contentIds[0], 1, "a");
+    const edit = (state: Uint8Array, text: string) => {
+      const client = document(state);
+      return delta(client, () =>
+        client.submit([{ type: "edit_title", edit: { offset: 0, remove: 0, text } }], {})
+      );
+    };
+    await f.sessions.append(a.leaseId, 1, "a1", edit(a.state, "甲"));
+    await f.sessions.release(a.leaseId, 1);
+    // 另一台设备在同一份白板上又编辑了两次，并把整库上传；本机下载后主库领先于本机日志
+    const local = f.journal.load(journalKey(a.identity))!;
+    const remote = document(local.state);
+    remote.submit([{ type: "edit_title", edit: { offset: 0, remove: 0, text: "乙" } }], {});
+    const remoteState = Y.encodeStateAsUpdate(remote.doc);
+    const remoteHash = createHash("sha256").update(remoteState).digest("hex");
+    f.db
+      .prepare("UPDATE whiteboard_documents SET revision=3,revision_hash=?,state=?")
+      .run(remoteHash, Buffer.from(remoteState));
+    await expect(f.sessions.open("A", f.created.contentIds[0], 1, "stale")).rejects.toThrow("分叉");
+
+    expect(f.sessions.releaseLibrary("A")).toBe(1);
+    const reopened = await f.sessions.open("A", f.created.contentIds[0], 1, "fresh");
+    expect(document(reopened.state).title.toString()).toBe("乙甲");
+    expect(f.journal.load(journalKey(a.identity))!.revision).toBe(3);
+  });
+  it("资料库替换前仍有未投影或在编的白板时拒绝释放日志", async () => {
+    const f = await fixture(),
+      a = await f.sessions.open("A", f.created.contentIds[0], 1, "a");
+    expect(() => f.sessions.releaseLibrary("A")).toThrow("仍在编辑");
+    await f.sessions.release(a.leaseId, 1);
+    // 模拟日志已提交但尚未投影进主库的改动
+    f.journal.db.prepare("UPDATE documents SET projected_hash='pending'").run();
+    expect(() => f.sessions.releaseLibrary("A")).toThrow("未保存进资料库");
+    expect(f.journal.load(journalKey(a.identity))).not.toBeNull();
+  });
   it("损坏日志不删除或用主库旧状态重建，原字节可供恢复", async () => {
     const f = await fixture(),
       a = await f.sessions.open("A", f.created.contentIds[0], 1, "a");

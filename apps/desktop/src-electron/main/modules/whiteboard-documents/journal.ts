@@ -176,6 +176,25 @@ export class WhiteboardJournal {
       }[]
     ).map(row => ({ sourceId: row.source_id, kind: row.entity_kind, entityId: row.entity_id }));
   }
+  /** 整库被替换前释放该库的日志：只有已完整投影进旧库的日志才能释放，否则整体拒绝。 */
+  releaseLibrary(databaseName: string): number {
+    return this.db.transaction(() => {
+      const rows = this.db
+        .prepare(
+          "SELECT document_id FROM documents WHERE json_extract(identity,'$.databaseName')=?"
+        )
+        .all(databaseName) as { document_id: string }[];
+      for (const row of rows) {
+        const saved = this.load(row.document_id)!;
+        if (saved.projectedRevision !== saved.revision || saved.projectedHash !== saved.hash)
+          throw new Error("白板仍有未保存进资料库的改动，不能替换资料库");
+      }
+      for (const row of rows)
+        for (const table of ["holds", "updates", "documents"])
+          this.db.prepare(`DELETE FROM ${table} WHERE document_id=?`).run(row.document_id);
+      return rows.length;
+    })();
+  }
   retire(identity: WhiteboardDocumentIdentity): void {
     this.db.transaction(() => {
       const rows = this.db

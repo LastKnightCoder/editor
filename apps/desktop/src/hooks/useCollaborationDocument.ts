@@ -120,10 +120,8 @@ export default function useCollaborationDocument(documentId?: string) {
           return;
         }
         if (!disposed) flushSync(() => setFrozen(true));
+        // 只有编辑确认进入主进程会话才回执；失败时副本已另存，不回执让冻结方超时并恢复编辑。
         void Promise.all([sendUpdates(), sendDrafts()])
-          .catch(async () => {
-            await Promise.all([preserveDocument(), sendDrafts()]);
-          })
           .then(() => ackCollaborationFreeze(viewId, payload.requestId))
           .catch(() => {});
       } else if (!disposed) flushSync(() => setFrozen(false));
@@ -277,7 +275,7 @@ export default function useCollaborationDocument(documentId?: string) {
         awareness.destroy();
         doc.destroy();
       };
-      // 保存与注销完成前继续响应窗口冻结，避免卸载中的视图阻塞结束共享或退出。
+      // 编辑确认进入主进程会话后才注销；未送达时保留视图并重试，冻结方会等待而不是放行。
       let attempts = 0;
       const finish = () => {
         attempts += 1;
@@ -285,9 +283,6 @@ export default function useCollaborationDocument(documentId?: string) {
           !removed && pending.length ? sendUpdates() : Promise.resolve(),
           sendDrafts(),
         ])
-          .catch(async () => {
-            await Promise.all([preserveDocument(), sendDrafts()]);
-          })
           .then(() => unsubscribeCollaborationDocument(viewId))
           .then(release)
           .catch(() => {

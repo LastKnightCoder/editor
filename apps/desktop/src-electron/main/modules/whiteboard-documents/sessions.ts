@@ -470,6 +470,23 @@ export class WhiteboardDocumentSessions {
         this.evict(key);
       }
   }
+  /** 资料库文件被整体替换前调用：先排空关库流程已完成，这里只释放旧库的内存会话与本机日志。 */
+  releaseLibrary(databaseName: string): number {
+    const owned = [...this.sessions].filter(
+      ([, session]) => session.value.databaseName === databaseName
+    );
+    if (owned.some(([key]) => [...this.leases.values()].some(lease => lease.key === key)))
+      throw new Error("白板仍在编辑，不能替换资料库");
+    if (owned.some(([key]) => this.pendingWrites.has(key) || this.opening.has(key)))
+      throw new Error("白板仍在保存，不能替换资料库");
+    const released = this.journal.releaseLibrary(databaseName);
+    for (const [key, session] of owned) {
+      session.model.dispose();
+      session.model.doc.destroy();
+      this.sessions.delete(key);
+    }
+    return released;
+  }
   detach(leaseId: string, owner: number): void {
     const lease = this.leases.get(leaseId);
     if (!lease || lease.owner !== owner) return;

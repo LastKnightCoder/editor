@@ -1,6 +1,6 @@
 // @vitest-environment node
 import Database from "better-sqlite3";
-import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -14,6 +14,7 @@ import {
   type ContentNode,
 } from "@tau/collaboration";
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
+import { applyNodeTreeContent } from "@tau/editor-collab";
 import schema from "@tau/db-schema/schema/main.sql?raw";
 import type { IpcMainInvokeEvent } from "electron";
 import { createServer } from "../../../../../../collaboration-server/src/server";
@@ -73,6 +74,7 @@ type Runtime = {
   ): Promise<ContentSessionSnapshot>;
   createContent(event: IpcMainInvokeEvent, contentId: number): Promise<{ documentId: string }>;
   prepareLeave(session: RuntimeSession): Promise<void>;
+  discardLocal(session: RuntimeSession): Promise<void>;
   finishLeave(session: RuntimeSession): Promise<void>;
   drainDatabase(scope: DocumentDrainScope): Promise<DocumentDrain>;
   releaseLibrary(name: string): Promise<void>;
@@ -222,6 +224,18 @@ describe("桌面生产会话与真实服务贯通", () => {
     drain.commit();
     expect(session.info.frozen).toBe(true);
   });
+  it("丢弃本机会话等待保存确认超时后恢复编辑，视图与缓存保留", async () => {
+    const { runtime, store, localId } = await setup();
+    const session = runtime.sessions.get(localId)!;
+    runtime.views.set("unsaved-view", { documentId: localId, windowId: 1 });
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const discarding = expect(runtime.discardLocal(session)).rejects.toThrow("未完成保存");
+    await vi.advanceTimersByTimeAsync(10_000);
+    await discarding;
+    expect(session.info.frozen).toBe(false);
+    expect(runtime.views.has("unsaved-view")).toBe(true);
+    expect(store.list().some(info => info.id === localId)).toBe(true);
+  });
   it("正文投影失败不放行退出，已冻结会话回滚后仍可编辑", async () => {
     const { runtime, localId } = await setup();
     const session = runtime.sessions.get(localId)!;
@@ -293,6 +307,74 @@ describe("桌面生产会话与真实服务贯通", () => {
     expect(readdirSync(join(runtime.directory, "discarded"))).toHaveLength(1);
   });
 
+  it("重启后主库先被其它入口改写：打开正文显示新内容，旧缓存备份后重建，后续编辑能落库", async () => {
+    const { runtime, db, store, localId, event } = await setup();
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const previous = runtime.sessions.get(localId)!;
+    const tree = new NodeTree(previous.doc);
+    try {
+      const [node] = readNodeDocument(previous.doc).content;
+      applyNodeTreeContent(tree, [{ ...node, children: [{ text: "缓存里未投影的正文" }] }], {});
+    } finally {
+      tree.dispose();
+    }
+    store.compact(localId, previous.doc);
+    // 模拟重启：内存会话消失，只剩冷缓存
+    unregisterContentSession(previous);
+    previous.awareness.destroy();
+    previous.doc.destroy();
+    runtime.sessions.delete(localId);
+    // 打开前插件/MCP 改写了主库
+    const before = ContentDocumentTable.read(db, 7)!;
+    const replacement = structuredClone(before);
+    replacement.content[0].children = [{ text: "外部新正文" }];
+    ContentDocumentTable.commit(db, 7, replacement, {
+      expectedRevision: before.revision,
+      count: 5,
+    });
+
+    await runtime.openContent(event, { contentId: 7 });
+    const reopened = runtime.sessions.get(localId)!;
+    expect(JSON.stringify(readNodeDocument(reopened.doc).content)).toContain("外部新正文");
+    expect(reopened.info.source?.projectionRevision).toBe(
+      ContentDocumentTable.read(db, 7)!.revision
+    );
+    const [backup] = readdirSync(join(runtime.directory, "discarded"));
+    expect(backup).toBeDefined();
+    expect(
+      JSON.stringify(
+        readNodeDocument(
+          (() => {
+            const doc = new Y.Doc({ gc: false });
+            const saved = JSON.parse(
+              readFileSync(join(runtime.directory, "discarded", backup), "utf8")
+            );
+            Y.applyUpdate(doc, Buffer.from(saved.state, "base64"));
+            for (const update of saved.updates) Y.applyUpdate(doc, Buffer.from(update, "base64"));
+            return doc;
+          })()
+        ).content
+      )
+    ).toContain("缓存里未投影的");
+
+    reopened.doc.getText("title").insert(0, "新标题");
+    await expect(runtime.project(reopened)).resolves.toBeUndefined();
+  });
+  it("冷缓存修订落后但主库只是投影相同内容时直接写回，不重建", async () => {
+    const { runtime, store, localId, event } = await setup();
+    const previous = runtime.sessions.get(localId)!;
+    previous.doc.getText("title").insert(0, "未投影标题");
+    store.compact(localId, previous.doc);
+    const baseline = previous.doc.getMap("meta").get("baselineId");
+    unregisterContentSession(previous);
+    previous.awareness.destroy();
+    previous.doc.destroy();
+    runtime.sessions.delete(localId);
+    await runtime.openContent(event, { contentId: 7 });
+    const reopened = runtime.sessions.get(localId)!;
+    expect(reopened.doc.getMap("meta").get("baselineId")).toBe(baseline);
+    expect(reopened.doc.getText("title").toString()).toContain("未投影标题");
+  });
   it("外部正文已更新时旧缓存不能借最新修订覆盖，原输入仍留在缓存", async () => {
     const { runtime, db, store, localId } = await setup();
     const session = runtime.sessions.get(localId)!;
