@@ -196,9 +196,13 @@ it("同请求ID重试幂等，不同参数或状态已变返回409，未知插�
 });
 
 it("恢复后立即重新可见，操作记录按时间倒序列出禁用与恢复", async () => {
+  vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-27T00:00:00Z") });
   await act("disable_plugin");
   expect(await catalogIds()).toEqual(["other.plugin"]);
+  // 同一毫秒的两条记录按随机 id 排序，倒序断言需要两次操作的时间不同
+  vi.setSystemTime(new Date("2026-10-27T00:00:01Z"));
   const restore = await act("enable_plugin", "test.plugin", crypto.randomUUID(), "作者已整改");
+  vi.useRealTimers();
   expect(restore.status).toBe(200);
   expect(await catalogIds()).toEqual(["other.plugin", "test.plugin"]);
   expect((await anonymous("/v1/releases/r1")).status).toBe(200);
