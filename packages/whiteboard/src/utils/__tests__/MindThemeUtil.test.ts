@@ -113,10 +113,13 @@ describe("当前主题解析", () => {
     expect(getPaletteById(palette.id)).toBe(palette);
   });
 
-  it.each([undefined, "nope", "code", "breeze", "fireplace"])(
-    "未登记主题 %s 回落默认，不映射旧配色",
-    id => {
-      expect(getPaletteById(id).id).toBe("classic");
-    }
-  );
+  it.each([
+    ["code", "ink"],
+    ["breeze", "mist"],
+    ["fireplace", "autumn"],
+    [undefined, "classic"],
+    ["nope", "classic"],
+  ])("旧主题 %s 映射到 %s，未知主题回落默认", (id, expected) => {
+    expect(getPaletteById(id).id).toBe(expected);
+  });
 });

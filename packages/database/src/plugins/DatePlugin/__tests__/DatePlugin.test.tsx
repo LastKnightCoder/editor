@@ -221,10 +221,11 @@ describe("日期单元格渲染", () => {
   });
 });
 
-it("读取只消费日期范围，当前时间戳输入仍可保存为范围", () => {
+it("早期单个时间戳读作同一天的范围，保存仍归一化为范围", () => {
   const timestamp = 1700000000000;
   expect(DatePlugin.beforeSave?.(timestamp, {})).toEqual({ start: timestamp, end: timestamp });
-  expect(DatePlugin.afterLoad?.(timestamp, {})).toEqual({ start: null, end: null });
+  expect(DatePlugin.afterLoad?.(timestamp, {})).toEqual({ start: timestamp, end: timestamp });
+  expect(DatePlugin.afterLoad?.("2025-10-01", {})).toEqual({ start: null, end: null });
   expect(DatePlugin.afterLoad?.({ start: timestamp, end: timestamp }, {})).toEqual({
     start: timestamp,
     end: timestamp,

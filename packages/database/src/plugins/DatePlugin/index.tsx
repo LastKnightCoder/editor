@@ -84,13 +84,17 @@ const DatePlugin: CellPlugin<DatePluginConfig> = {
     return { start: null, end: null };
   },
 
-  // 读取当前日期范围，非法字段按空值处理。
+  // 读取日期范围，非法字段按空值处理。
   afterLoad: value => {
     if (value === null || value === undefined) {
       return { start: null, end: null };
     }
 
-    // 只读取日期范围结构。
+    // 早期版本把单个时间戳直接存进单元格，读取时视作同一天的范围。
+    if (typeof value === "number") {
+      return { start: value, end: value };
+    }
+
     if (typeof value === "object" && value !== null && "start" in value && "end" in value) {
       const dateValue = value as DateValue;
       return {

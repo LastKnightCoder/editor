@@ -55,6 +55,7 @@ import WebViewPreferenceTable from "./tables/web-view-preference";
 import HomeLayoutTable from "./tables/home-layout";
 import EntityLineageTable from "./tables/entity-lineage";
 import ExcerptTable from "./tables/excerpt";
+import WebPageTable from "./tables/web-page";
 import MaterialTable from "./tables/material";
 import FlashcardTable from "./tables/flashcard";
 import RandomWalkTable from "./tables/random-walk";
@@ -379,6 +380,11 @@ class DatabaseModule implements Module {
       log.info(
         `[database] openDatabase main schema done: db=${name}, elapsedMs=${Date.now() - schemaStartAt}`
       );
+
+      // 0.60.2 之前的网页摘录没有页面行；已补齐时不改动任何行
+      const backfilledPages = WebPageTable.backfill(database);
+      if (backfilledPages > 0)
+        log.info(`[database] 网页摘录补页面索引: db=${name}, pages=${backfilledPages}`);
 
       if (mode === "maintenance") {
         const maintenanceStartAt = Date.now();

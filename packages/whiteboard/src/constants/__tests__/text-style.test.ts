@@ -19,10 +19,44 @@ describe("resolveTextStyle", () => {
     expect(resolveTextStyle({ type: "richtext" })).toEqual({ variant: "none" });
   });
 
-  it("不换算或改写旧色值字段", () => {
-    const element = { type: "richtext", background: "#3F71FB", topColor: "#F24A6E" };
+  it("新字段优先于旧色值", () => {
+    expect(
+      resolveTextStyle({ type: "richtext", variant: "tinted", tone: "blue", background: "#fff" })
+    ).toEqual({ variant: "tinted", tone: "blue" });
+  });
+
+  it("旧版透明底 → 透明，白底 → 白卡", () => {
+    expect(resolveTextStyle({ type: "richtext", background: "transparent" })).toEqual({
+      variant: "none",
+    });
+    expect(resolveTextStyle({ type: "richtext", background: "#fff" })).toEqual({
+      variant: "plain",
+    });
+  });
+
+  it("旧版顶部色条 → 色带", () => {
+    expect(resolveTextStyle({ type: "richtext", background: "#fff", topColor: "#F24A6E" })).toEqual(
+      { variant: "band", tone: "red" }
+    );
+  });
+
+  it("旧版纯色与渐变 → 柔色", () => {
+    expect(resolveTextStyle({ type: "richtext", background: "#3F71FB" })).toEqual({
+      variant: "tinted",
+      tone: "blue",
+    });
+    expect(
+      resolveTextStyle({
+        type: "richtext",
+        background: "linear-gradient(313.06deg, #EDDEFF 1.85%, #DDEAFF 101.12%)",
+      })
+    ).toEqual({ variant: "tinted", tone: "purple" });
+  });
+
+  it("认不出的旧色值按白卡，且不改写元素", () => {
+    const element = { type: "richtext", background: "#000", topColor: "#5B5D70" };
     const before = structuredClone(element);
-    expect(resolveTextStyle(element)).toEqual({ variant: "none" });
+    expect(resolveTextStyle(element)).toEqual({ variant: "plain" });
     expect(element).toEqual(before);
   });
 });

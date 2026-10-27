@@ -171,4 +171,21 @@ describe("WebPageTable", () => {
       items: [{ externalId: "b1", sourceTitle: "B" }],
     });
   });
+
+  it("回填存量网页摘录的页面行；再次执行不改动", () => {
+    ExcerptTable.syncSource(db, "web", "https://a.com/x", "旧标题", [input("a1")]);
+    ExcerptTable.syncSource(db, "weread", "book", "书", [input("w1")]);
+    sync("https://b.com/y", "B", [input("b1")]);
+
+    expect(WebPageTable.backfill(db)).toBe(1);
+    expect(WebPageTable.getPage(db, "https://a.com/x")).toMatchObject({
+      host: "a.com",
+      title: "旧标题",
+      count: 1,
+    });
+    expect(WebPageTable.backfill(db)).toBe(0);
+    expect(db.prepare("SELECT COUNT(*) AS n FROM web_page").get()).toEqual({
+      n: 2,
+    });
+  });
 });

@@ -284,6 +284,34 @@ fn normalize_database_section(setting: &mut Value) {
     }
 }
 
+/// 0.2.9 默认值合并每次都会写回、移动端已无任何读取方的旧键。
+const RETIRED_KEYS: [(&str, &str); 4] = [
+    ("integration", "minimax"),
+    ("integration", "podcastTTS"),
+    ("publish", "github"),
+    ("publish", "s3"),
+];
+
+/// 剔除 0.2.9 残留的旧键；同步与上传的旧账号不在此列，仍由校验拒绝。
+fn strip_retired_defaults(setting: &mut Value) -> bool {
+    let mut changed = false;
+    for (section, key) in RETIRED_KEYS {
+        if let Some(object) = setting.get_mut(section).and_then(Value::as_object_mut) {
+            changed |= object.remove(key).is_some();
+        }
+    }
+    if let Some(publish) = setting.get_mut("publish").and_then(Value::as_object_mut) {
+        if publish
+            .get("active")
+            .is_some_and(|active| active != "plugin" && active != "local")
+        {
+            publish.insert("active".into(), json!("local"));
+            changed = true;
+        }
+    }
+    changed
+}
+
 pub fn normalize_setting(raw: Value) -> Value {
     let mut setting = if raw.is_object() { raw } else { json!({}) };
     merge_defaults(&mut setting, &default_setting_value());
@@ -330,8 +358,23 @@ pub fn load_or_init_setting(app: &AppHandle) -> Result<Value, String> {
         .map_err(|e| format!("Failed to read setting.json: {e}"))?;
     let parsed = serde_json::from_str::<Value>(&content)
         .map_err(|e| format!("SETTING_INVALID: setting.json 解析失败: {e}"))?;
-    validate_setting_shape(&parsed)?;
-    let setting = normalize_setting(parsed.clone());
+    let mut current = parsed.clone();
+    let stripped = strip_retired_defaults(&mut current);
+    validate_setting_shape(&current)?;
+    if stripped {
+        let backup = app_dir.join(format!(
+            "setting.json.retired-defaults-{}.bak",
+            uuid::Uuid::new_v4()
+        ));
+        fs::write(&backup, &content).map_err(|e| format!("备份旧设置失败: {e}"))?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&backup, fs::Permissions::from_mode(0o600))
+                .map_err(|e| format!("设置备份权限失败: {e}"))?;
+        }
+    }
+    let setting = normalize_setting(current);
     if setting != parsed {
         save_setting_value(app, &setting)?;
     }
@@ -580,6 +623,62 @@ mod tests {
         assert!(setting["integration"].get("podcastTTS").is_none());
         assert!(setting["publish"].get("github").is_none());
         assert!(setting.get("textToSpeech").is_none());
+    }
+
+    /// 0.2.9 读取后写回的设置：迁移已完成，但默认值合并又补回了空的旧键。
+    fn setting_written_by_0_2_9() -> Value {
+        let mut setting = normalize_setting(json!({}));
+        setting["integration"]["minimax"] =
+            json!({ "enabled": false, "apiKey": "", "userInfo": { "isConnected": false } });
+        setting["integration"]["podcastTTS"] = json!({
+            "active": "minimax",
+            "currentVoiceId": "",
+            "doubao": { "accessToken": "", "secretKey": "", "appid": "", "token": "" }
+        });
+        setting["publish"] = json!({
+            "active": "github",
+            "github": {
+                "repo": "", "branch": "gh-pages", "basePath": "/",
+                "useGitCli": true, "gitWorkingDir": ""
+            },
+            "s3": { "bucket": "", "region": "", "path": "", "basePath": "/" },
+            "local": { "basePath": "/" },
+            "site": { "title": "", "description": "" }
+        });
+        setting
+    }
+
+    #[test]
+    fn retired_defaults_from_0_2_9_are_stripped_before_validation() {
+        let mut setting = setting_written_by_0_2_9();
+        assert!(validate_setting_shape(&setting).is_err());
+        assert!(strip_retired_defaults(&mut setting));
+        assert!(validate_setting_shape(&setting).is_ok());
+        assert!(setting["integration"].get("minimax").is_none());
+        assert!(setting["integration"].get("podcastTTS").is_none());
+        assert!(setting["integration"].get("weread").is_some());
+        assert_eq!(setting["publish"]["active"], json!("local"));
+        assert_eq!(setting["publish"]["site"]["title"], json!(""));
+        let normalized = normalize_setting(setting);
+        assert!(validate_setting_shape(&normalized).is_ok());
+        let mut again = normalized.clone();
+        assert!(!strip_retired_defaults(&mut again));
+        assert_eq!(again, normalized);
+    }
+
+    #[test]
+    fn edited_retired_keys_are_also_stripped_but_old_sync_accounts_still_rejected() {
+        let mut setting = setting_written_by_0_2_9();
+        setting["integration"]["podcastTTS"]["currentVoiceId"] = json!("voice");
+        setting["publish"]["github"]["repo"] = json!("me/site");
+        assert!(strip_retired_defaults(&mut setting));
+        assert!(validate_setting_shape(&setting).is_ok());
+
+        let mut old_sync = setting_written_by_0_2_9();
+        old_sync["integration"]["s3"] = json!({ "bucket": "old" });
+        strip_retired_defaults(&mut old_sync);
+        assert!(validate_setting_shape(&old_sync).is_err());
+        assert_eq!(old_sync["integration"]["s3"]["bucket"], json!("old"));
     }
 
     #[test]
