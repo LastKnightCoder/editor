@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ProviderForm } from "@tau/plugins";
 import { Panel, UiProvider } from "@tau/ui";
 import { ErrorState, RecoverableBoundary } from "@/components/ErrorState";
 import type { RegisteredPluginSettings } from "@/app/plugins/runtime";
 import { ProviderAccountSettings } from "../components/ProviderAccountSettings";
-import { ProviderFormView } from "../components/ProviderFormView";
+import { ProviderFormView, useStorageBinding } from "../components/ProviderFormView";
 
 export function PluginSettingsView({ section }: { section?: RegisteredPluginSettings }) {
   if (!section)
@@ -18,11 +19,11 @@ export function PluginSettingsView({ section }: { section?: RegisteredPluginSett
   if (section.definition.target === "sync" || section.definition.target === "upload") {
     if (section.definition.form)
       return (
-        <ProviderFormView
+        <StorageFormView
           key={section.mountId}
-          definition={section.definition}
-          context={section.context}
-          name={section.definition.title}
+          section={section}
+          target={section.definition.target}
+          form={section.definition.form}
         />
       );
     return (
@@ -48,6 +49,20 @@ export function PluginSettingsView({ section }: { section?: RegisteredPluginSett
     </RecoverableBoundary>
   );
 }
+function StorageFormView({
+  section,
+  target,
+  form,
+}: {
+  section: RegisteredPluginSettings;
+  target: "sync" | "upload";
+  form: ProviderForm;
+}) {
+  const { definition, context } = section;
+  const binding = useStorageBinding(target, context.pluginId, definition.title, form);
+  return <ProviderFormView form={form} context={context} binding={binding} />;
+}
+
 function SettingsScope({ section }: { section: RegisteredPluginSettings }) {
   // 缓存跟随本次挂载，旧请求不能污染重新启用后的分区。
   const [client] = useState(

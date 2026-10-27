@@ -6,10 +6,11 @@ import type { SiteFieldValue, TemplateSiteField } from "@tau/plugins/template";
 import LocalImage from "@/components/LocalImage";
 import { EPublishProvider } from "@/stores/useSettingStore";
 import type { ConnectionState, PublishConfig } from "../usePublishConfig";
+import { ProviderFormView } from "@/features/plugins/components/ProviderFormView";
 import { openProviderSettings } from "@/services/open-provider-settings";
 import { openPage } from "@/services/page-navigation";
 
-/** 组内行：左标签 64px + 右控件，行间 line-2 分隔；连接配置由插件页承载 */
+/** 组内行：左标签 64px + 右控件，行间 line-2 分隔；发布插件的 form 由宿主以同一度量渲染（ProviderFormFields 的 inline 布局） */
 function Row({
   label,
   top,
@@ -248,6 +249,19 @@ export function SiteSettingsDrawer({
               onChange={event => config.setLocalBasePath(event.target.value)}
             />
           </Row>
+        ) : config.section?.definition.form ? (
+          // 与插件详情 › 设置写同一份配置；抽屉本身「修改自动保存」
+          <ProviderFormView
+            key={config.section.mountId}
+            form={config.section.definition.form}
+            context={config.section.context}
+            binding={{
+              stored: config.providerConfig,
+              persist: config.saveConfig,
+              autoSave: true,
+              layout: "inline",
+            }}
+          />
         ) : (
           <Row label="连接配置">
             <Button

@@ -2,8 +2,19 @@
 // 选择类字段推入全屏选择层，不用居中弹窗或下拉浮层。保存由服务页决定时机。
 
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronRight, CircleAlert, Eye, EyeOff, LoaderCircle, Search } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import {
+  Check,
+  ChevronRight,
+  CircleAlert,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  LoaderCircle,
+  Search,
+} from "lucide-react";
+import {
+  isProviderFieldVisible,
   patchProviderFormValues,
   type ProviderChoiceField,
   type ProviderChoiceOption,
@@ -11,10 +22,11 @@ import {
   type ProviderForm,
   type ProviderRemoteChoiceField,
 } from "@tau/plugins";
+import { CheckBubble } from "../../../components/CheckBubble";
 import { GroupLabel } from "../../../components/GroupLabel";
 import { PageHeader } from "../../../components/PageHeader";
 import { useBackHandler } from "../../../router";
-import { GroupCard } from "../components/ui";
+import { GroupCard, SwitchButton } from "../components/ui";
 
 type Values = Record<string, string>;
 
@@ -25,7 +37,10 @@ function FieldLabel(props: { field: ProviderField; error?: string }) {
   return (
     <span className={`text-tau-sm block ${props.error ? "text-danger" : "text-ink-3"}`}>
       {props.field.label}
-      {props.field.optional && " · 可选"}
+      {props.field.type !== "switch" &&
+        props.field.type !== "service-choice" &&
+        props.field.optional &&
+        " · 可选"}
     </span>
   );
 }
@@ -287,6 +302,121 @@ function ChoiceScreen(props: {
   );
 }
 
+function GroupLink(props: { link: { label: string; url: string } }) {
+  return (
+    <button
+      type="button"
+      className="text-accent-text ml-1 inline-flex items-center gap-0.5 font-semibold"
+      onClick={() => void openUrl(props.link.url).catch(() => undefined)}
+    >
+      {props.link.label}
+      <ExternalLink size={12} aria-hidden="true" />
+    </button>
+  );
+}
+
+/** 宿主服务选择：移动宿主没有对应服务，只展示已存的显示名，不提供修改。 */
+function ServiceFieldRow(props: { field: ProviderField; label: string }) {
+  return (
+    <div className={FIELD_ROW}>
+      <FieldLabel field={props.field} />
+      <span className="text-ink-3 text-tau-body block min-h-[28px] leading-[28px]">
+        {props.label || props.field.placeholder || "默认"} · 请在桌面端修改
+      </span>
+    </div>
+  );
+}
+
+function SwitchFieldRow(props: {
+  field: ProviderField;
+  value: string;
+  disabled: boolean;
+  onChange(value: string): void;
+}) {
+  const checked = props.value === "true";
+  return (
+    <div className={`${FIELD_ROW} flex items-center gap-3`}>
+      <span className="min-w-0 flex-1">
+        <span className="text-ink-1 text-tau-body block">{props.field.label}</span>
+        {props.field.description && (
+          <span className="text-ink-3 text-tau-sm mt-0.5 block">{props.field.description}</span>
+        )}
+      </span>
+      <SwitchButton
+        checked={checked}
+        onChange={() => {
+          if (!props.disabled) props.onChange(String(!checked));
+        }}
+      />
+    </div>
+  );
+}
+
+/** 少量带说明的选项直接平铺成整行单选，免去推入选择层。 */
+function isInlineChoice(field: ProviderField): field is ProviderChoiceField {
+  return (
+    field.type === "choice" &&
+    field.options.length <= 3 &&
+    field.options.some(option => option.description)
+  );
+}
+
+function InlineChoiceGroup(props: {
+  field: ProviderChoiceField;
+  value: string;
+  error?: string;
+  disabled: boolean;
+  onChange(value: string): void;
+}) {
+  const note = props.error ?? props.field.description;
+  return (
+    <section aria-label={props.field.label}>
+      <GroupLabel>{props.field.label}</GroupLabel>
+      <GroupCard>
+        <div role="radiogroup" aria-label={props.field.label}>
+          {props.field.options.map(option => {
+            const selected = option.value === props.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                disabled={props.disabled}
+                className={`${FIELD_ROW} active:bg-hover flex w-full items-center gap-3 text-left`}
+                onClick={() => props.onChange(option.value)}
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="text-ink-1 text-tau-body block">
+                    {option.label ?? option.value}
+                  </span>
+                  {option.description && (
+                    <span className="text-ink-3 text-tau-sm mt-0.5 block">
+                      {option.description}
+                    </span>
+                  )}
+                </span>
+                {selected ? (
+                  <CheckBubble />
+                ) : (
+                  <span className="border-line-1 h-[21px] w-[21px] shrink-0 rounded-full border-[1.5px]" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </GroupCard>
+      {note && (
+        <p
+          className={`text-tau-sm px-[15px] pt-[7px] leading-relaxed ${props.error ? "text-danger" : "text-ink-3"}`}
+        >
+          {note}
+        </p>
+      )}
+    </section>
+  );
+}
+
 export function MobileProviderForm(props: {
   form: ProviderForm;
   values: Values;
@@ -302,39 +432,75 @@ export function MobileProviderForm(props: {
     props.onChange(patchProviderFormValues(props.form, props.values, key, value), key);
   return (
     <>
-      {props.form.groups.map(group => (
-        <section key={group.title} aria-label={group.title}>
-          <GroupLabel>{group.title}</GroupLabel>
-          <GroupCard>
-            {group.fields.map(field =>
-              field.type === "choice" || field.type === "remote-choice" ? (
-                <ChoiceFieldRow
-                  key={field.key}
-                  field={field}
-                  value={props.values[field.key] ?? ""}
-                  error={props.errors[field.key]}
-                  disabled={props.disabled}
-                  onOpen={() => setChoosing(field)}
-                />
-              ) : (
-                <TextFieldRow
-                  key={field.key}
-                  field={field}
-                  value={props.values[field.key] ?? ""}
-                  error={props.errors[field.key]}
-                  disabled={props.disabled}
-                  onChange={value => patch(field.key, value)}
-                />
-              )
+      {props.form.groups.map(group => {
+        // 平铺的选择字段自成一组，其余字段按声明顺序留在分组卡内
+        const shown = group.fields.filter(field => isProviderFieldVisible(field, props.values));
+        const rows: readonly ProviderField[] = shown.filter(field => !isInlineChoice(field));
+        const inline = shown.filter(isInlineChoice);
+        if (!shown.length) return null;
+        return (
+          <section key={group.title} aria-label={group.title}>
+            {rows.length > 0 && (
+              <>
+                <GroupLabel>{group.title}</GroupLabel>
+                <GroupCard>
+                  {rows.map(field =>
+                    field.type === "choice" || field.type === "remote-choice" ? (
+                      <ChoiceFieldRow
+                        key={field.key}
+                        field={field}
+                        value={props.values[field.key] ?? ""}
+                        error={props.errors[field.key]}
+                        disabled={props.disabled}
+                        onOpen={() => setChoosing(field)}
+                      />
+                    ) : field.type === "service-choice" ? (
+                      <ServiceFieldRow
+                        key={field.key}
+                        field={field}
+                        label={props.values[field.labelKey] ?? ""}
+                      />
+                    ) : field.type === "switch" ? (
+                      <SwitchFieldRow
+                        key={field.key}
+                        field={field}
+                        value={props.values[field.key] ?? ""}
+                        disabled={props.disabled}
+                        onChange={value => patch(field.key, value)}
+                      />
+                    ) : (
+                      <TextFieldRow
+                        key={field.key}
+                        field={field}
+                        value={props.values[field.key] ?? ""}
+                        error={props.errors[field.key]}
+                        disabled={props.disabled}
+                        onChange={value => patch(field.key, value)}
+                      />
+                    )
+                  )}
+                </GroupCard>
+              </>
             )}
-          </GroupCard>
-          {group.description && (
-            <p className="text-ink-3 text-tau-sm px-[15px] pt-[7px] leading-relaxed">
-              {group.description}
-            </p>
-          )}
-        </section>
-      ))}
+            {inline.map(field => (
+              <InlineChoiceGroup
+                key={field.key}
+                field={field}
+                value={props.values[field.key] ?? ""}
+                error={props.errors[field.key]}
+                disabled={props.disabled}
+                onChange={value => patch(field.key, value)}
+              />
+            ))}
+            {(group.description || group.link) && (
+              <p className="text-ink-3 text-tau-sm px-[15px] pt-[7px] leading-relaxed">
+                {group.description}
+                {group.link && <GroupLink link={group.link} />}
+              </p>
+            )}
+          </section>
+        );
+      })}
       {choosing && (
         <ChoiceScreen
           field={choosing}

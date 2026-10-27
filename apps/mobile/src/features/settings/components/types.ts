@@ -19,6 +19,7 @@ export const SETTINGS_MODULE_KEYS = [
   "resource",
   "voice",
   "feedback",
+  "speech-input",
 ] as const;
 
 export type SettingModule = (typeof SETTINGS_MODULE_KEYS)[number] | null;

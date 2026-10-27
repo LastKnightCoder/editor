@@ -91,6 +91,8 @@ pub fn plugin_provider_select(
         }
         if target == "upload" && plugin_id == "local" {
             setting[section]["active"] = json!("local");
+        } else if target == "asr" && plugin_id == "native" {
+            setting[section]["active"] = json!("native");
         } else {
             validate_plugin_id(&plugin_id)?;
             if setting[section]["plugin"]["configurations"].get(&plugin_id)

@@ -1,9 +1,16 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { PluginContext, PluginProviderSettingsDefinition } from "@tau/plugins";
+import {
+  ProviderFieldError,
+  type PluginContext,
+  type PluginProviderSettingsDefinition,
+  type ProviderForm,
+} from "@tau/plugins";
 import { UiProvider } from "@tau/ui";
 import useSettingStore, { EImageBed, ESync } from "@/stores/useSettingStore";
+import type { RegisteredPluginSettings } from "@/app/plugins/runtime";
+import { PluginSettingsView } from "../views/PluginSettingsView";
 import { ProviderFormView } from "../components/ProviderFormView";
 
 const mocks = vi.hoisted(() => ({
@@ -42,11 +49,18 @@ const definition = (target: "sync" | "upload"): PluginProviderSettingsDefinition
 
 let container: HTMLDivElement;
 let root: Root;
-const render = (target: "sync" | "upload") =>
+const section = (definition: PluginProviderSettingsDefinition) =>
+  ({
+    key: `plugin:test.s3:${definition.id}`,
+    definition,
+    context,
+    mountId: 1,
+  }) as RegisteredPluginSettings;
+const render = (target: "sync" | "upload", override?: PluginProviderSettingsDefinition) =>
   act(() =>
     root.render(
       <UiProvider>
-        <ProviderFormView definition={definition(target)} context={context} name="S3" />
+        <PluginSettingsView section={section(override ?? definition(target))} />
       </UiProvider>
     )
   );
@@ -144,4 +158,97 @@ it("上传：保留未声明的键，设为上传目标后显示使用中", asyn
   expect(imageBed.active).toBe(EImageBed.Plugin);
   expect(imageBed.plugin?.id).toBe("test.s3");
   expect(text()).toContain("使用中");
+});
+
+it("字段错误标在对应字段上，开关以字符串保存", async () => {
+  const withSwitch: PluginProviderSettingsDefinition = {
+    id: "upload",
+    title: "S3",
+    target: "upload",
+    form: {
+      groups: [
+        {
+          title: "连接",
+          fields: [
+            { key: "secret", label: "密钥", type: "secret" },
+            { key: "path", label: "路径风格", type: "switch", default: true },
+          ],
+        },
+      ],
+      beforeSave: async values => {
+        if (values.secret === "bad") throw new ProviderFieldError("secret", "密钥无效");
+        return values;
+      },
+    },
+  };
+  render("upload", withSwitch);
+  await type("密钥", "bad");
+  await act(async () => button("保存").click());
+  await vi.waitFor(() => expect(text()).toContain("密钥无效"));
+  expect(mocks.saveUpload).not.toHaveBeenCalled();
+  await type("密钥", "good");
+  await act(async () => button("保存").click());
+  await vi.waitFor(() => expect(text()).toContain("配置已保存"));
+  expect(mocks.saveUpload).toHaveBeenCalledWith("test.s3", {
+    legacy: "keep",
+    bucket: "old",
+    secret: "good",
+    path: "true",
+  });
+});
+
+it("发布抽屉内嵌：自动保存，开关控制缓存目录，服务选择同时写入标识与显示名", async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  const save = vi.fn(async () => undefined);
+  const selectCacheDirectory = vi.fn(async () => ({ id: "c1", label: "~/blog-cache" }));
+  const publishContext = {
+    ...context,
+    services: { git: { selectCacheDirectory } },
+  } as unknown as PluginContext;
+  const form: ProviderForm = {
+    groups: [
+      {
+        title: "推送",
+        fields: [
+          { key: "useGitCli", label: "Git Push", type: "switch", default: true },
+          {
+            key: "cacheId",
+            label: "缓存目录",
+            type: "service-choice",
+            service: "git.cacheDirectory",
+            labelKey: "cacheLabel",
+            placeholder: "应用缓存目录（默认）",
+            visibleWhen: { key: "useGitCli", equals: "true" },
+          },
+        ],
+      },
+    ],
+  };
+  await act(async () =>
+    root.render(
+      <UiProvider>
+        <ProviderFormView
+          form={form}
+          context={publishContext}
+          binding={{ stored: { token: "keep" }, persist: save, autoSave: true, layout: "inline" }}
+        />
+      </UiProvider>
+    )
+  );
+  expect(text()).toContain("应用缓存目录（默认）");
+  expect(button("保存")).toBeUndefined();
+
+  await act(async () => button("选择…").click());
+  expect(text()).toContain("~/blog-cache");
+  await act(async () => vi.advanceTimersByTimeAsync(700));
+  expect(save).toHaveBeenLastCalledWith({
+    token: "keep",
+    useGitCli: "true",
+    cacheId: "c1",
+    cacheLabel: "~/blog-cache",
+  });
+
+  await act(async () => container.querySelector<HTMLButtonElement>('[role="switch"]')!.click());
+  expect(text()).not.toContain("缓存目录");
+  vi.useRealTimers();
 });

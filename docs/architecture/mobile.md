@@ -509,13 +509,13 @@ Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开
 
 - **数据**：沿用桌面形状，`ttsProviders[]`（宿主生成的账号实例 ID、插件 ID、名称、插件私有 config、models）与 `ttsUsageSettings.default`。写入只经原生 `plugin_tts_mutate`（`src-tauri/src/tts_settings.rs`），在 `mutate_setting_value` 串行队列内校验窗口、工作区、账号归属与模型去重，成功返回快照后前端才合并；普通全量设置写入由 `preserve_managed_fields` 保留这两个字段。删除当前模型回落到第一个模型并清空音色，没有剩余模型时清空当前选择。设置读取与保存只接受当前插件账号结构，不转换旧内置凭据或同步账本；不支持的配置报错并保留原文件，当前配置只补齐默认值。
 - **执行**：每个插件运行时持有一份 `@tau/plugins/tts-host` 的 `RendererTTSRegistry`（与桌面同一核心），`services/plugin-tts.ts` 在同一 WebView 内开会话：open 时冻结账号配置与模型，调用方取消、插件停用或工作区释放都会关闭会话并拒绝迟到结果。网络经插件 fetch 原生桥。
-- **账号表单**：账号页由宿主承载显示名称、模型、复刻与删除，凭据字段由插件声明 form，宿主复用 `MobileProviderForm` 显式保存，缺省模型目录由设置分区的 models 提供；特殊组件仍通过配置属性保存；插件不可用时保留配置、不渲染表单。
+- **账号表单**：账号页由宿主承载显示名称、模型、复刻与删除；凭据字段由插件以 form 声明，宿主用 `MobileProviderForm` 渲染、导航栏「保存」经 `saveTtsConfig` 写回本账号实例（模型取账号已有模型或插件声明的初始目录）。仍以组件注册的旧插件收到 `ttsConfig`；插件不可用时保留配置、不渲染表单。
 - **测试与复刻**：测试页可测任意已保存账号，不改写当前服务；合成字节转 Blob 在页内播放，不自动发声，离开页面即取消并释放。文本限 500 字，只约束测试面板。复刻经常驻 file input 选择参考音频，文件大小、格式与上传前置条件由插件校验；本机保存附件时提示需要公网地址的服务商先配置远端上传。
 - **边界**：不含编辑器朗读、播客、后台或锁屏播放；凭据与桌面一样保存在应用私有设置文件。
 
 ## 语音输入
 
-移动宿主保留 ASR 注册表、WebSocket 原生传输、配置存储和 `createMobileSpeechInputService` 编排工厂；壳层不挂载录音 Provider，搜索和设置不提供语音输入按钮或独立页面。ASR 配置声明继续注册，插件详情不显示该表单，设置 open 明确拒绝跳转。
+移动宿主保留 ASR 注册表、WebSocket 原生传输、配置存储和 `createMobileSpeechInputService` 编排工厂；壳层不挂载录音 Provider，搜索不提供语音输入按钮。我的 › 语音 › 语音输入（`settingsModule` 的 `speech-input`）列出系统识别与已启用的识别插件，点已配置的插件即切换，未配置或点箭头进入插件设置页 `pluginSettings`（插件 form 与识别模型）；选用的插件停用后保留选择并提示。插件设置 open 同样打开插件设置页。
 
 Android 清单包含 RECORD_AUDIO/MODIFY_AUDIO_SETTINGS，iOS 包信息包含麦克风用途说明。`plugin_socket` 命令按工作区 token 及窗口作用域校验，系统网络实现使用 tokio-tungstenite；作者契约见 [WebSocket](/packages/plugins/docs/websocket.md)。采集仅在调用方明确启动服务时申请，插件停用和工作区释放取消会话。普通设置快照保留原生管理的 speechInput 数据。
 

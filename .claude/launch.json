@@ -231,6 +231,13 @@
         "docs/tasks/browser-companion/mockups"
       ],
       "port": 8837
+    },
+    {
+      "name": "asr-settings-mock",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8838", "--bind", "127.0.0.1", "-d", "."],
+      "port": 8838,
+      "url": "http://localhost:8838"
     }
   ]
 }

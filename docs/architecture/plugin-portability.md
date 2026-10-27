@@ -66,6 +66,8 @@
 
 配置界面由宿主按插件声明渲染，连接配置住在插件详情 › 设置：桌面为设置行加保存栏，移动为服务页（`syncProvider` / `uploadProvider`）的分组行，选择类字段推入全屏选择层。两端都是显式保存：必填校验 → 插件 beforeSave → 与已存配置合并写回，未声明的键保留；同步目标保存后读取一次云端版本作为连接测试，失败时说明配置已保存。保存只写配置、不改变选用；选用是独立动作：设置 › 同步 / 资源存储（移动为同步服务、上传位置列表页）列出各服务的摘要与状态，切换同步服务前探测目标云端，已有数据时确认。移动保存经原生固定库、固定插件的串行原子更新，选用核验配置未变化。旧版以组件注册的存储设置仍可激活与同步，宿主不渲染其表单，只提示更新插件。普通设置快照不能覆盖提供方配置、选择及原生数据库同步元数据。
 
+其余提供方（tts / asr / images / video / publish）的 form 同样由宿主渲染，配置入口统一在插件详情 › 设置（应用设置页只选用服务、点「配置」跳回插件详情）：桌面 `ProviderFormView` 接收调用方给出的绑定（已存值、写回、可选的保存后测试与头部卡片），sync / upload 走 `useStorageBinding`，tts / images 的多账号与 asr / video / publish 的单份配置由 `ProviderAccountSettings` 绑定到各自的保存命令；发布页抽屉另以 `inline` 布局嵌入同一份 publish 配置并自动保存（`autoSave`），不显示保存栏。移动插件设置页（`pluginSettings`）承载 tts 账号列表与 asr 账号表单，TTS 账号页复用 `MobileProviderForm` + `useProviderDraft`，保存在导航栏。字段类型为 text / secret / url / choice / remote-choice / switch / service-choice（宿主服务选择，目前仅桌面 `git.cacheDirectory`，移动只读展示）；字段可用 `visibleWhen` 条件显示，隐藏时不校验；分组可带外部链接；≤3 项且带说明的 choice 在移动平铺为整行单选、在桌面短选项为分段器；beforeSave 抛 `ProviderFieldError` 时宿主把文案标在对应字段。
+
 账号与目标配置分别存 sync.plugin/imageBed.plugin 的 configurations，按插件 ID 隔离，不使用共享账号引用或主库 KV。读取与提交均校验当前服务选择，不转换旧 integration 凭据或搬迁资源账本；不支持的配置报错并保留原文件。WebDAV 一个包可同时注册同步和上传，二者配置独立。
 
 ## 原生文件事务与数据
@@ -102,7 +104,7 @@ UiHostProvider 只接受平台中立的 dismiss 登记函数。真实 Dialog/Dra
 
 ## ASR 与 WebSocket 宿主
 
-`ASRProviderRegistry` 统一提供方注册、配置快照、会话取消和最终结果校验；提供方注销、插件停用与工作区失效会使会话终止。`settings target: "asr"` 在两端插件页承载声明式配置表单与识别模型，程序化 open 打开插件设置；应用语音设置独立选用已配置提供方。麦克风及输入目标由应用负责，协议解析属于独立插件仓库。
+`ASRProviderRegistry` 统一提供方注册、配置快照、会话取消和最终结果校验；提供方注销、插件停用与工作区失效会使会话终止。`settings target: "asr"` 在两端插件页承载声明式配置表单与识别模型，程序化 open 打开插件设置；应用语音输入设置（桌面 设置 › 语音 › 语音输入，移动 我的 › 语音 › 语音输入）只选用已配置的提供方，未配置时跳到插件页填写。账号保存为 `{ modelId, config }`，保存不改变选用，选用核验配置未变化；选用的插件停用后保留选择并提示，不自动回退系统识别。聊天、搜索等使用入口不在设置范围。麦克风及输入目标由应用负责，协议解析属于独立插件仓库。
 
 网络桥的作者接口和限额唯一维护于 [WebSocket 契约](/packages/plugins/docs/websocket.md)。公共 JS 适配器提供 EventTarget 及状态机，桌面通过 Electron IPC 和 ws，移动通过工作区 token 校验的 Tauri 命令和 tokio-tungstenite；内部桥接 Promise 与收包机制不暴露给插件。原生层保留握手头、子协议、消息边界、关闭码和关闭原因；断线不隐式重连，工作区释放回收连接。
 

@@ -370,6 +370,19 @@ export class CollaborationManager {
     const binding = findCollaborationBinding(db, target.contentId);
     const id = binding?.document_id || localSessionId(db.name, content.id, content.createTime);
     let session = this.findSession(id);
+    // 本地缓存的资料库或正文身份与主库不一致（如同步替换后的冷缓存）：丢弃旧缓存，从当前主库重建
+    if (session?.info.mode === "local" && session.info.source) {
+      const source = session.info.source;
+      if (
+        (source.librarySourceId &&
+          source.librarySourceId !== ContentIdentityTable.library(db)?.sourceId) ||
+        (source.contentDocumentId &&
+          source.contentDocumentId !== ContentDocumentTable.read(db, content.id)?.documentId)
+      ) {
+        await this.releaseReplacedSession(session);
+        return this.openContent(event, target);
+      }
+    }
     if (binding && !session) throw new Error("协作会话尚未恢复，请稍后重试");
     if (!session) {
       if (this.store.db.prepare("SELECT 1 FROM sessions WHERE id=?").get(id))
@@ -1565,14 +1578,14 @@ export class CollaborationManager {
     }
   }
 
-  /**
-   * 整库被同步下载替换：本库正文缓存对应的是旧库，本地会话直接丢弃，共享会话解除来源。
-   * 调用前 close-database 已把缓存写回旧库，旧库也已复制进 backup/。
-   */
-  async releaseLibrary(name: string): Promise<void> {
-    for (const session of [...this.sessions.values()]) {
-      if (session.info.source?.databaseName !== name) continue;
-      const id = session.info.id;
+  private readonly replacementReleases = new Map<string, Promise<void>>();
+
+  /** 本地会话直接丢弃，共享会话解除来源；同一会话并发释放只执行一次。 */
+  private releaseReplacedSession(session: RuntimeSession): Promise<void> {
+    const id = session.info.id;
+    const pending = this.replacementReleases.get(id);
+    if (pending) return pending;
+    const release = (async () => {
       for (const [viewId, view] of this.views) if (view.documentId === id) this.removeView(viewId);
       unregisterContentSession(session);
       if (session.info.mode === "local") {
@@ -1591,6 +1604,23 @@ export class CollaborationManager {
         this.changed(session);
       }
       this.broadcast("collaboration:removed", { documentId: id, replaced: true });
+    })().finally(() => this.replacementReleases.delete(id));
+    this.replacementReleases.set(id, release);
+    return release;
+  }
+
+  /**
+   * 整库被同步下载替换：本库正文缓存对应的是旧库。内存会话与磁盘冷缓存一并释放——
+   * 冷缓存从未参与关库写回，留着会在下次打开时拿旧库内容覆盖新库。
+   * 调用前 close-database 已把内存会话写回旧库，旧库也已复制进 backup/。
+   */
+  async releaseLibrary(name: string): Promise<void> {
+    const candidates = new Map(this.store.list().map(info => [info.id, info]));
+    for (const session of this.sessions.values()) candidates.set(session.info.id, session.info);
+    for (const info of candidates.values()) {
+      if (info.source?.databaseName !== name) continue;
+      const session = this.findSession(info.id);
+      if (session) await this.releaseReplacedSession(session);
     }
     this.changed();
   }

@@ -1,7 +1,8 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { produce } from "immer";
 import { toast } from "@tau/ui";
+import type { JsonValue } from "@tau/plugins";
 import { copyJson } from "@tau/plugins/host";
 import { resolveSiteFields, type SiteFieldValue } from "@tau/plugins/template";
 import useSettingStore, { EPublishProvider } from "@/stores/useSettingStore";
@@ -11,6 +12,7 @@ import {
   listPublishTemplates,
   describePublishTarget,
   checkPublishConnection,
+  savePublishPluginConfig,
 } from "@/commands/publish";
 import {
   createDir,
@@ -57,6 +59,7 @@ export function usePublishConfig() {
     runtime?.subscribe ?? noSubscribe,
     runtime?.getRevision ?? zeroRevision
   );
+  const client = useQueryClient();
   const templatesQuery = useQuery({
     queryKey: ["publish", "templates", pluginRevision],
     queryFn: listPublishTemplates,
@@ -131,6 +134,13 @@ export function usePublishConfig() {
     updateSetting(draft => {
       draft.publish.local.basePath = value;
     });
+  const saveConfig = async (value: JsonValue) => {
+    await savePublishPluginConfig(pluginId, value);
+    updateSetting(draft => {
+      draft.publish.plugin.configurations[pluginId] = value;
+    });
+    await client.invalidateQueries({ queryKey: ["publish", "target"] });
+  };
   /* ── favicon：选择后缓存本地 ── */
   const setFavicon = (favicon?: IPublishFaviconConfig) =>
     updateSetting(draft => {
@@ -221,6 +231,7 @@ export function usePublishConfig() {
     request,
     providers,
     section,
+    saveConfig,
     credentialReady: targetReady,
     targetReady,
     targetError:

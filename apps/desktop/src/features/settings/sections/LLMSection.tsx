@@ -95,6 +95,11 @@ const ASSIGNMENT_CATEGORIES: Array<{ label: string; features: FeatureDef[] }> = 
       { key: "videoSummary", label: "视频总结", desc: "视频转写稿的摘要与要点" },
       { key: "videoEbookRewrite", label: "视频电子书重写", desc: "视频内容重写为电子书章节" },
       { key: "transcriptionOptimization", label: "转录断句优化", desc: "语音转录文本的断句与顺滑" },
+      {
+        key: "speechInputRefinement",
+        label: "语音输入整理",
+        desc: "语音输入识别后的标点与口语整理",
+      },
     ],
   },
   {
@@ -115,7 +120,6 @@ const FEATURE_LABELS = {
   ...Object.fromEntries(
     ASSIGNMENT_CATEGORIES.flatMap(category => category.features.map(f => [f.key, f.label]))
   ),
-  speechInputRefinement: "语音输入整理",
 } as Record<FeatureKey, string>;
 
 /** 推理档位的界面文案：与输入框的档位选择同一套说法，不暴露内部档位名 */
@@ -318,7 +322,7 @@ function ModelRow({
 
 function CapChip({ label }: { label: string }) {
   return (
-    <span className="bg-hover text-ink-2 text-tau-tiny rounded-full px-2 font-medium leading-[17px]">
+    <span className="bg-hover text-ink-2 text-tau-tiny rounded-full px-2 leading-[17px] font-medium">
       {label}
     </span>
   );
@@ -326,7 +330,7 @@ function CapChip({ label }: { label: string }) {
 
 function MetaChip({ children }: { children: ReactNode }) {
   return (
-    <span className="border-line-1 text-ink-3 font-tau-mono text-tau-tiny rounded-full border px-2 tabular-nums leading-[17px]">
+    <span className="border-line-1 text-ink-3 font-tau-mono text-tau-tiny rounded-full border px-2 leading-[17px] tabular-nums">
       {children}
     </span>
   );

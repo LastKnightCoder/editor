@@ -38,7 +38,7 @@
 
 ## ASR 与 WebSocket
 
-SDK 0.43.0 的 `context.asr`、`context.websocket` 与 `settings target: "asr"` 已接桌面 0.59.5、Android/iOS 0.2.7 宿主源码。移动插件使用同一注册、配置和事件接口，音频由宿主采集，插件不访问麦克风。当前仅保留能力层，语音输入与整理的按钮、设置页和导航尚未挂载；ASR 表单可注册，open 返回入口不可用。设备与真实云端账号验收单独记录；Windows 已完成平台评估，本轮保留 NSIS 且不开放原生识别；Whisper 文件转录已实测，Seed 完成宿主契约验证但未验证真实云端账号。
+SDK 0.43.0 的 `context.asr`、`context.websocket` 与 `settings target: "asr"` 已接桌面 0.59.5、Android/iOS 0.2.7 宿主源码。移动插件使用同一注册、配置和事件接口，音频由宿主采集，插件不访问麦克风。ASR 表单在语音输入设置中由宿主渲染（桌面 设置 › 语音 › 语音输入，移动 我的 › 语音 › 语音输入），open 跳到对应位置；语音输入按钮与输入目标尚未挂载。设备与真实云端账号验收单独记录；Windows 已完成平台评估，本轮保留 NSIS 且不开放原生识别；Whisper 文件转录已实测，Seed 完成宿主契约验证但未验证真实云端账号。
 
 ASR 支持能力探测、可取消的流式会话与可选文件任务；提供方必须真实声明能力，Seed 当前仅流式。WebSocket 的工厂仅扩展鉴权头和 signal，连接保留标准事件、状态、同步 send/close；详见 [WebSocket 契约](websocket.md)。桌面整理服务复用现有模型配置，保留原文和失败回退；输入目标及界面位置由后续接入方决定。
 
