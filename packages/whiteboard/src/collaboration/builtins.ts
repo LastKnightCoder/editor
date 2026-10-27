@@ -14,7 +14,17 @@ const common = ["groupId", "resizable", "autoHeight", "sketch"];
 /** 仅分类宿主已知字段；未知插件仍由其精确契约处理。 */
 const specs: Readonly<Record<string, BuiltinSpec>> = {
   richtext: {
-    data: ["maxWidth", "maxHeight", "resized", "variant", "tone", "readonly"],
+    // background/topColor 是旧版外观字段，只读投影给 resolveTextStyle 换算
+    data: [
+      "maxWidth",
+      "maxHeight",
+      "resized",
+      "variant",
+      "tone",
+      "readonly",
+      "background",
+      "topColor",
+    ],
     transient: ["autoFocus"],
     body: "content",
     structure: { text: "richtext", joins: ["layout"], reference: "entity" },

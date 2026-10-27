@@ -120,7 +120,7 @@ Board（数据内核：Operation / undo / 事件总线；阶段 A 未改动，�
 ### 3.1 BoardElement 与能力
 
 - `types/board.ts` 定义 `BoardElement` 通用字段：`id/type/name/groupId/children` 与能力控制 `resizable/autoHeight`。
-- 富文本外观只读取 `variant/tone`，未指定时使用透明样式；不从旧背景或色带值换算，也不在设置样式时删除未知字段。渲染、尺寸测量与缩略图使用同一解析函数。脑图只识别当前 `MIND_PALETTES` 的主题 ID，未登记值回落默认配色，不映射历史主题。
+- 富文本外观优先读取 `variant/tone`；没有时由旧版 `background/topColor` 只读换算（这两个字段随画布投影，不改写存量数据），都没有时使用透明样式。设置样式时不删除未知字段。渲染、尺寸测量与缩略图使用同一解析函数。脑图的旧主题 ID 读取时映射到当前 `MIND_PALETTES` 配色，未登记值回落默认配色。
 - 旧值模式元素的 `schemaVersion` 仅参与版本识别与保护。加载、粘贴、插入均不转换数据，不再声明或校验升级函数；版本不匹配时保留原数据并按未知元素处理。
 - 当前工具由 activeTool 模型表达：`tau.select` 为显式选择工具（非创建模式哨兵），创建型工具激活后在画布按元素声明的 `create` 规格手势创建；旧创建类型枚举与字段兼容层已删除。
 - `IElementCapabilities`（`types/capabilities.ts`）由插件声明：是否吸附、是否参与参考线、是否可随子元素移动、箭头连接点策略等，`CapabilityService` 统一查询。

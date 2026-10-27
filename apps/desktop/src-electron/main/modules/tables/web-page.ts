@@ -196,6 +196,30 @@ export default class WebPageTable {
     return { items: ids.flatMap(({ id }) => byId.get(id) ?? []), total };
   }
 
+  /** 存量网页摘录补页面行（标题取该页摘录的 source_title）；返回补了几页 */
+  static backfill(db: Database.Database): number {
+    const missing = db
+      .prepare(
+        `SELECT source_key AS url, MAX(source_title) AS title, MIN(create_time) AS created
+         FROM excerpt WHERE source_type = ? AND source_key NOT IN (SELECT url FROM web_page)
+         GROUP BY source_key`
+      )
+      .all(WEB_EXCERPT_SOURCE) as {
+      url: string;
+      title: string;
+      created: number;
+    }[];
+    if (!missing.length) return 0;
+    const insert = db.prepare(
+      `INSERT INTO web_page (url, host, page_title, create_time, update_time) VALUES (?, ?, ?, ?, ?)`
+    );
+    db.transaction(() => {
+      for (const page of missing)
+        insert.run(page.url, hostOf(page.url), page.title, page.created, page.created);
+    })();
+    return missing.length;
+  }
+
   private static pageSelect(): string {
     return `SELECT p.url, p.host, COALESCE(p.custom_title, p.page_title) AS title, p.page_title,
         p.custom_title IS NOT NULL AS renamed, COALESCE(s.count, 0) AS count, COALESCE(s.noted, 0) AS noted,

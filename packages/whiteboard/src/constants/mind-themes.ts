@@ -124,11 +124,49 @@ export const MIND_PALETTES: MindPalette[] = [
 export const DEFAULT_THEME_ID = "classic";
 export const DEFAULT_THEME_STYLE: MindThemeStyle = "solid";
 
+/** 旧版 34 套主题 → 新配色，存量导图的 themeId 原样保存、读取时换算 */
+const LEGACY_THEME_MAP: Record<string, string> = {
+  rainbow: "classic",
+  vitality: "classic",
+  dance: "classic",
+  colorful: "classic",
+  dazzling: "classic",
+  candy: "classic",
+  holiday: "classic",
+  macaron: "classic",
+  hawaii: "classic",
+  gorgeous: "classic",
+  code: "ink",
+  pure: "ink",
+  elegant: "ink",
+  refined: "ink",
+  space: "ink",
+  breeze: "mist",
+  watercolor: "mist",
+  cream: "mist",
+  vanilla: "mist",
+  dessert: "mist",
+  lotus: "mist",
+  island: "forest",
+  woodland: "forest",
+  pinecone: "forest",
+  "green-tea": "forest",
+  rose: "berry",
+  "cherry-blossom": "berry",
+  wisteria: "berry",
+  ocean: "ocean",
+  fireplace: "autumn",
+  retro: "autumn",
+  neon: "neon",
+  dystopia: "neon",
+};
+
 /** DEFAULT_THEME_ID 必须指向 MIND_PALETTES 里的一项，兜底靠它 */
 const DEFAULT_PALETTE = MIND_PALETTES.find(p => p.id === DEFAULT_THEME_ID) ?? MIND_PALETTES[0];
 
 export function getPaletteById(id: string | undefined): MindPalette {
-  return MIND_PALETTES.find(p => p.id === id) ?? DEFAULT_PALETTE;
+  const resolved = id ? (LEGACY_THEME_MAP[id] ?? id) : DEFAULT_THEME_ID;
+  return MIND_PALETTES.find(p => p.id === resolved) ?? DEFAULT_PALETTE;
 }
 
 export function isMindThemeStyle(v: unknown): v is MindThemeStyle {
