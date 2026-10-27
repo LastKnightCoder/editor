@@ -238,6 +238,27 @@
       "runtimeArgs": ["-m", "http.server", "8838", "--bind", "127.0.0.1", "-d", "."],
       "port": 8838,
       "url": "http://localhost:8838"
+    },
+    {
+      "name": "website",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev:website"],
+      "port": 5180
+    },
+    {
+      "name": "website-preview",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "apps/website",
+        "exec",
+        "vite",
+        "preview",
+        "--port",
+        "5181",
+        "--strictPort"
+      ],
+      "port": 5181
     }
   ]
 }
