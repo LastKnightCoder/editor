@@ -54,3 +54,38 @@ describe("作者节点契约与精确版本读取", () => {
     expect(next.current("example.diagram")?.contract.dataVersion).toBe(2);
   });
 });
+
+describe("无界面转换的契约目录", () => {
+  const link = { type: "host.link", dataVersion: 1, kind: "inline" } as const;
+
+  it("纯声明组加已装插件建目录，按组 id 与插件 id 归属", async () => {
+    const registry = new ContentPluginRegistry();
+    registry.install([
+      definePlugin({
+        id: "example",
+        name: "示例",
+        version: "1",
+        editorExtensions: [defineEditorExtension({ id: "example", elements: [v2()] })],
+      }),
+    ]);
+    const groups = [{ id: "host.link", elements: [link] }];
+    const catalog = await registry.prepareElementContracts(groups);
+    expect(catalog.current("host.link")?.contract.owner).toBe("host.link");
+    expect(catalog.current("example.diagram")?.contract.owner).toBe("example");
+    expect(await registry.prepareElementContracts(groups)).toBe(catalog);
+  });
+
+  it("codec 没有对应节点声明时建处理器即失败，而不是导出为无损载荷", async () => {
+    const registry = new ContentPluginRegistry();
+    const codec = { type: "host.link", serializer: { toMarkdown: () => "" } };
+    await expect(registry.prepareMarkdown([], { contracts: {}, codecs: [codec] })).rejects.toThrow(
+      "Markdown codec 缺少节点声明：host.link"
+    );
+    await expect(
+      registry.prepareMarkdown([{ id: "host.link", elements: [link] }], {
+        contracts: {},
+        codecs: [codec],
+      })
+    ).resolves.toBeDefined();
+  });
+});

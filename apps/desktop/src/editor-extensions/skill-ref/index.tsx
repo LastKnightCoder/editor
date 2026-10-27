@@ -16,6 +16,7 @@ import {
 } from "@tau/editor";
 import type { ParagraphElement } from "@tau/editor";
 import type { SkillRefElement } from "./types";
+import { skillRefElementDefinition } from "../element-definitions";
 import {
   closeSkillPicker,
   isPickerOpenFor,
@@ -102,10 +103,7 @@ const skillRefExtension = defineExtension({
   id: "host.skill-ref",
   elements: [
     defineElement<SkillRefElement>({
-      type: "skill-ref",
-      dataVersion: 1,
-      kind: "inline",
-      isVoid: true,
+      ...skillRefElementDefinition,
       render: ({ attributes, element, children }: ElementRenderProps<SkillRefElement>) => (
         <span {...attributes} contentEditable={false} className="mx-px inline-block align-baseline">
           <span className="bg-accent-soft text-accent-text text-tau-sm inline-flex h-[22px] items-center gap-1 rounded-full px-2 leading-none font-medium">

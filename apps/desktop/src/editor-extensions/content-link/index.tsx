@@ -1,4 +1,5 @@
 import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
+import { contentLinkElementDefinition } from "../element-definitions";
 
 import type { ContentLinkElement } from "./types";
 import ContentLink from "./components/ContentLink";
@@ -12,9 +13,7 @@ const contentLinkExtension = defineExtension({
   id: "host.content-link",
   elements: [
     defineElement<ContentLinkElement>({
-      type: "content-link",
-      dataVersion: 1,
-      kind: "inline",
+      ...contentLinkElementDefinition,
       render: ({ attributes, element, children }: ElementRenderProps<ContentLinkElement>) => (
         <ContentLink attributes={attributes} element={element}>
           {children}

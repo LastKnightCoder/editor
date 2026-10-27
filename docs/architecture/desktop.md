@@ -146,7 +146,7 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 - 应用退出与更新共用 `app-quit-controller.requestAppQuit`：先排空并确认持久文档，失败保留窗口并允许重试；确认后登记窗口回执，再广播收尾，期间保留退出同步所需的后台调用。窗口等待上限 8 秒，确认保存后的收尾期限 15 秒，之后拒绝新调用并回收后台、销毁全部窗口。更新安装在这之后交接 `quitAndInstall`，仅此阶段放行原生 `before-quit`，安装器须在 15 秒内退出旧进程；重复请求与迟到收尾只执行一次最终动作。安装器启动错误通过原生错误框报告并结束已收尾的旧进程。
 - macOS 安装入口只在 Electron 原生更新器确认验包后就绪，不能把 electron-updater 的 ZIP 下载事件当成安装就绪。下载或验包失败清除就绪状态；保存失败经安装 IPC 返回，渲染端显示原始原因。更新通知、插件状态及图片/视频宿主释放广播逐窗口检查 BrowserWindow 和 WebContents，并隔离发送竞态，单个窗口失效不阻断其他窗口和在途请求回收。`updater-electron.test.ts` 在隔离资料目录中验证真实隐藏窗口、beforeunload、保存失败重试及原生退出事件。
 - 异步数据库命令：同步命令用 better-sqlite3 同步事务/保存点；异步编排不包外层事务，网络等待后由领域写入方法开同步事务并重查修订；索引异步写入不跨等待持有事务。后台会话被授权变更/撤销/停用关闭时通知渲染端丢弃令牌，恢复仍有效的订阅；失败 RPC 不自动重放。
-- 内容转换统一经 `ContentExecutor`：独立 `content-runtime.html`（sandbox、禁 Node、无业务 preload）消费固定包快照；队列/超时/取消有界，写入前复核库连接与修订，失败不写过时结果；无插件快照时可用纯内置转换。生产主进程与 Node worker 不求值插件定义（`pnpm check:plugin-process-boundaries` 守护）。
+- 内容转换统一经 `ContentExecutor`：独立 `content-runtime.html`（sandbox、禁 Node、无业务 preload）消费固定包快照；队列/超时/取消有界，写入前复核库连接与修订，失败不写过时结果；无插件快照时可用纯内置转换。宿主节点（内容链接、附件、白板等）的持久化声明集中在 `editor-extensions/element-definitions.ts`，界面扩展展开同一份声明；转换窗口按这些声明建契约目录（`prepareContentContracts`/`prepareContentMarkdown`），不装载白板、数据库等界面扩展。生产主进程与 Node worker 不求值插件定义（`pnpm check:plugin-process-boundaries` 守护）。
 - 安全与更新：插件中心后台版本必须人工系统能力审核（CI 不自动批准）；客户端来源记录绑定 Release/版本/ZIP 摘要，本机授权再绑定安装路径与完整清单；联网状态缓存 ≤1 分钟，运行后台与插件 stdio MCP 定期复核已知下架；离线不能感知未获取的撤回。插件 stdio MCP 须匹配 backend.tools 并获后台授权；更新在有任务/订阅/MCP 租约时拒绝切换，空闲后整包原子切换、新版本等待独立授权。
 - 下载统计：插件中心按 downloads7d/Total/updated 排序，主进程按页读取供发现/更新/详情共用并按 pluginId 去重；匿名凭证存 userData/plugin-center（按 API origin 区分、0600、跨工作区复用、不经 IPC 返回）；旧服务无统计窗口时不展示虚构零值。
 

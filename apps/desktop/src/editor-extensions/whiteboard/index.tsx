@@ -1,4 +1,4 @@
-import { whiteboardElementDefinition } from "../entity-definitions";
+import { whiteboardElementDefinition } from "../element-definitions";
 import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 import Whiteboard from "./components/Whiteboard";
 import { withSetting } from "./plugins";

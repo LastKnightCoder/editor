@@ -1,4 +1,4 @@
-import { projectCardListElementDefinition } from "../entity-definitions";
+import { projectCardListElementDefinition } from "../element-definitions";
 import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
 import type { ProjectCardListElement } from "./types";
 

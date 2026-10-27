@@ -6,4 +6,5 @@ export type {
   ElementRenderProps,
   ElementFrame,
   PreviousElementVersion,
+  ElementContractDefinition,
 } from "./src/core/api/extension";

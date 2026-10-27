@@ -1,7 +1,6 @@
 import { expect, it } from "vitest";
 import type { Descendant } from "slate";
-import { desktopContentPlugins } from "../../../../shared/content-plugins";
-import { getContentConversionKit } from "@/services/editorKit";
+import { prepareContentContracts } from "@/services/editorKit";
 
 const execute = async (request: unknown) => {
   await import("../content-runtime");
@@ -13,9 +12,7 @@ const execute = async (request: unknown) => {
 };
 
 it("按契约建索引时内容链接导出为 Markdown 语法，不退化为无损载荷", async () => {
-  const catalog = await desktopContentPlugins.prepareEditorContracts(
-    getContentConversionKit().extensions
-  );
+  const catalog = await prepareContentContracts();
   const document = await catalog.createDocument([
     {
       type: "paragraph",

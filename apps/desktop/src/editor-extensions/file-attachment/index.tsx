@@ -1,5 +1,5 @@
-import { BUILTIN_CONTENT_RESOURCES } from "@tau/db-schema/content-resources";
 import { defineElement, defineExtension, type ElementRenderProps } from "@tau/editor";
+import { fileAttachmentElementDefinition } from "../element-definitions";
 
 import FileAttachment from "./components/FileAttachment";
 import blockPanelItems from "./block-panel-items";
@@ -11,11 +11,7 @@ const fileAttachmentExtension = defineExtension({
   id: "host.file-attachment",
   elements: [
     defineElement<FileAttachmentElement>({
-      type: "file-attachment",
-      dataVersion: 1,
-      resources: BUILTIN_CONTENT_RESOURCES["file-attachment"],
-      kind: "block",
-      isVoid: true,
+      ...fileAttachmentElementDefinition,
       render: ({ attributes, element, children }: ElementRenderProps<FileAttachmentElement>) => (
         <FileAttachment element={element} attributes={attributes}>
           {children}

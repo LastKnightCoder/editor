@@ -2,6 +2,7 @@ import { Node, Path, Text, Transforms } from "slate";
 import { VideoController } from "../../VideoController";
 import { defineElement, defineExtension, type ElementRenderProps, type Plugin } from "@tau/editor";
 import SummaryTimestamp from "./components/SummaryTimestamp";
+import { summaryTimestampElementDefinition } from "@/editor-extensions/element-definitions";
 
 export interface SummaryTimestampElement {
   type: "summary-timestamp";
@@ -69,9 +70,7 @@ export const createSummaryTimestampExtension = (videoController: VideoController
     id: "host.summary-timestamp",
     elements: [
       defineElement({
-        type: "summary-timestamp",
-        kind: "inline",
-        isVoid: true,
+        ...summaryTimestampElementDefinition,
         render: (props: ElementRenderProps<SummaryTimestampElement>) => (
           <SummaryTimestamp
             {...props}
