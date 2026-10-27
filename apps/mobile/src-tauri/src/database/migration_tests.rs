@@ -30,45 +30,6 @@ fn fresh_database_is_initialized_at_current_schema_version() {
 }
 
 #[test]
-fn legacy_database_below_baseline_is_rejected_without_modification() {
-    let conn = Connection::open_in_memory().unwrap();
-    conn.execute_batch(
-        "CREATE TABLE contents(id INTEGER PRIMARY KEY, create_time INTEGER, update_time INTEGER, content TEXT, count INTEGER, ref_count INTEGER);
-         CREATE TABLE chat_message(id INTEGER PRIMARY KEY, messages TEXT);",
-    )
-    .unwrap();
-    let error = ensure_main_schema(&conn).unwrap_err();
-    assert!(
-        error.contains("DB_SCHEMA_INCOMPATIBLE"),
-        "unexpected error: {error}"
-    );
-    // 拒绝进入不修改数据：旧表保持原样
-    let preserved: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM sqlite_master WHERE name='chat_message'",
-            [],
-            |r| r.get(0),
-        )
-        .unwrap();
-    assert_eq!(preserved, 1);
-}
-
-#[test]
-fn future_version_is_not_downgraded() {
-    let conn = Connection::open_in_memory().unwrap();
-    conn.execute_batch(
-        "CREATE TABLE schema_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL);
-         INSERT INTO schema_meta VALUES ('main_schema_version', '999', 0);",
-    )
-    .unwrap();
-    let error = ensure_main_schema(&conn).unwrap_err();
-    assert!(
-        error.contains("DB_SCHEMA_INCOMPATIBLE"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
 fn schema_hash_drift_adds_missing_indexes_at_same_version() {
     let conn = Connection::open_in_memory().unwrap();
     ensure_main_schema(&conn).unwrap();
@@ -92,21 +53,34 @@ fn schema_hash_drift_adds_missing_indexes_at_same_version() {
 }
 
 #[test]
-fn unsupported_versions_keep_original_tables_and_rows() {
-    for version in [4, 5, 6, 7, 8, 9, 999] {
+fn version_markers_do_not_block_opening_or_remove_data() {
+    for version in [
+        None,
+        Some("4"),
+        Some("5"),
+        Some("6"),
+        Some("7"),
+        Some("8"),
+        Some("9"),
+        Some("999"),
+    ] {
         let conn = Connection::open_in_memory().unwrap();
-        conn.execute_batch("CREATE TABLE schema_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL);
+        ensure_main_schema(&conn).unwrap();
+        conn.execute_batch(
+            "ALTER TABLE cards ADD COLUMN links TEXT;
             CREATE TABLE questions(id INTEGER PRIMARY KEY, content TEXT);
-            INSERT INTO questions VALUES (1, '保留原数据');").unwrap();
-        set_meta(&conn, "main_schema_version", &version.to_string()).unwrap();
-        let before = total_changes(&conn);
-        assert!(ensure_main_schema(&conn)
-            .unwrap_err()
-            .contains("DB_SCHEMA_INCOMPATIBLE"));
-        assert_eq!(total_changes(&conn), before);
+            INSERT INTO questions VALUES (1, '保留原数据');",
+        )
+        .unwrap();
+        if let Some(version) = version {
+            set_meta(&conn, "main_schema_version", version).unwrap();
+        } else {
+            conn.execute_batch("DROP TABLE schema_meta").unwrap();
+        }
+        ensure_main_schema(&conn).unwrap();
         assert_eq!(
             get_meta(&conn, "main_schema_version").unwrap(),
-            Some(version.to_string())
+            Some(main_schema_version().to_string())
         );
         assert_eq!(
             conn.query_row("SELECT content FROM questions", [], |row| row
@@ -114,6 +88,9 @@ fn unsupported_versions_keep_original_tables_and_rows() {
                 .unwrap(),
             "保留原数据"
         );
+        let before = total_changes(&conn);
+        ensure_main_schema(&conn).unwrap();
+        assert_eq!(total_changes(&conn), before);
     }
 }
 
