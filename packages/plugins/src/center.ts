@@ -1,5 +1,5 @@
 import type { DistributionManifest } from "./template";
-import type { PortablePlatform, ReadablePortablePluginManifest } from "./portable";
+import type { PortablePlatform, PortablePluginManifest } from "./portable";
 import { PORTABLE_PLATFORMS } from "./portable";
 import type { PluginCategory } from "./categories";
 import { isPluginCategory } from "./categories";
@@ -13,7 +13,7 @@ export type LegacyCenterManifest = DistributionManifest & {
 };
 export type CenterManifest =
   | LegacyCenterManifest
-  | (ReadablePortablePluginManifest & { description: string; minAppVersion?: never });
+  | (PortablePluginManifest & { description: string; minAppVersion?: never });
 export type CenterPlatform = PortablePlatform | "all";
 export type CenterSort = "downloads7d" | "downloadsTotal" | "updated";
 export interface CenterHost {

@@ -6,7 +6,6 @@ import AdmZip from "adm-zip";
 import { validatePluginManifest } from "@tau/plugins/package";
 import {
   validatePortablePluginManifest,
-  readPortablePluginManifest,
   validatePortableDistributionManifest,
   assertPortablePluginCompatibility,
 } from "@tau/plugins/portable";

@@ -14,7 +14,7 @@ import * as Plugins from "../../../packages/plugins/src/index";
 import * as SDK from "../../../packages/plugins/src/whiteboard";
 import * as UI from "../../../packages/ui/src/index";
 import { evaluatePortablePluginPackage } from "../../../packages/plugins/src/rendering";
-import { readPortablePluginManifest } from "../../../packages/plugins/src/portable";
+import { validatePortablePluginManifest } from "../../../packages/plugins/src/portable";
 import { ContentPluginRegistry } from "../../../packages/plugins/src/content";
 import {
   WhiteboardModel,
@@ -33,7 +33,7 @@ import type { StickmanCommands } from "../../../plugins/tau-plugin-stickman/src/
 const root = path.resolve(import.meta.dirname, "../../..");
 const artifact = process.env.TAU_STICKMAN_ARTIFACT;
 if (!artifact) throw new Error("请通过 verify-stickman-collaboration.mjs 构建候选组合");
-const manifest = readPortablePluginManifest(
+const manifest = validatePortablePluginManifest(
   JSON.parse(await readFile(path.join(artifact, "manifest.json"), "utf8"))
 );
 const code = await readFile(path.join(artifact, manifest.main), "utf8");

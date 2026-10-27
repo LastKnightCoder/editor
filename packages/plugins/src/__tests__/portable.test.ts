@@ -9,7 +9,7 @@ import {
 import {
   buildPortablePluginManifest,
   validatePortableDistributionManifest,
-  readPortablePluginManifest,
+  validatePortablePluginManifest,
   assertPortablePluginCompatibility,
   type PortablePluginHost,
 } from "../portable";
@@ -34,7 +34,7 @@ const code = `module.exports.default = require('@tau/plugins').definePlugin({id:
 
 it("作者与发行清单只声明平台最低版本，三端直接使用宿主上下文", async () => {
   const manifest = raw();
-  expect(readPortablePluginManifest(manifest)).toEqual(manifest);
+  expect(validatePortablePluginManifest(manifest)).toEqual(manifest);
   for (const platform of ["desktop", "android", "ios"] as const) {
     expect(manifest.targets[platform]).toEqual({ minAppVersion: "1.0.0" });
     const fetch = vi.fn().mockResolvedValue(new Response("ok"));
@@ -55,7 +55,7 @@ it("构建与读取只提取协议数据，多余元信息不影响实际功能"
     { ...output, cache: true } as typeof output
   );
   expect(manifest.targets.desktop).toEqual({ minAppVersion: "1.0.0" });
-  expect(readPortablePluginManifest({ ...manifest, documentation: "extra" })).toEqual(manifest);
+  expect(validatePortablePluginManifest({ ...manifest, documentation: "extra" })).toEqual(manifest);
 });
 
 it("节点、codec 和白板从真实定义读取，不需要清单贡献标记", () => {
@@ -116,7 +116,7 @@ it("兼容检查在代码求值前拒绝平台、低版本和运行配置", () =
 });
 
 it("用户数据权限与实际资源、节点校验继续生效", () => {
-  const manifest = readPortablePluginManifest({ ...raw(), permissions: ["cards:read"] });
+  const manifest = validatePortablePluginManifest({ ...raw(), permissions: ["cards:read"] });
   expect(() => assertPortablePluginCompatibility(manifest, host("ios"))).toThrow("业务数据授权");
   expect(() => validatePortableDistributionManifest(manifest)).toThrow("业务数据授权");
   expect(() =>
@@ -129,7 +129,9 @@ it("用户数据权限与实际资源、节点校验继续生效", () => {
       output
     )
   ).not.toThrow();
-  expect(() => readPortablePluginManifest({ ...raw(), permissions: ["future:read"] })).toThrow();
+  expect(() =>
+    validatePortablePluginManifest({ ...raw(), permissions: ["future:read"] })
+  ).toThrow();
   for (const patch of [
     { profile: "web-v2" },
     { formatVersion: 4 },
@@ -137,7 +139,7 @@ it("用户数据权限与实际资源、节点校验继续生效", () => {
     { targets: { linux: { minAppVersion: "1.0.0" } } },
     { targets: { ios: { minAppVersion: "bad" } } },
   ])
-    expect(() => readPortablePluginManifest({ ...raw(), ...patch })).toThrow();
+    expect(() => validatePortablePluginManifest({ ...raw(), ...patch })).toThrow();
 });
 
 it("Skill 和文件摘要由实际包结构生成，构建输入不可覆盖身份", () => {
@@ -159,7 +161,7 @@ it("Skill 和文件摘要由实际包结构生成，构建输入不可覆盖身�
     "skills/guide/../escape.md",
   ])
     expect(() =>
-      readPortablePluginManifest({
+      validatePortablePluginManifest({
         ...manifest,
         integrity: { ...manifest.integrity, [file]: "c".repeat(64) },
       })
