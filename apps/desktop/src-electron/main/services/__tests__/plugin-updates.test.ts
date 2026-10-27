@@ -470,3 +470,21 @@ it("卸载移除包、备份、待更新与来源，有未完成事务时拒绝"
   await expect(s.service.uninstall(id)).rejects.toThrow("未完成的更新");
   await expect(s.service.uninstall("core.theme")).rejects.toThrow("内置");
 });
+
+it("启动时移除当前客户端读不了的旧格式备份，不再报清单损坏", async () => {
+  const s = await setup();
+  await install(s, "1.0.0");
+  await s.service.stageZip(await zip(s.root, "1.1.0"));
+  await s.restart();
+  const backup = path.join(s.root, "plugin-updates/backups", id);
+  const manifest = JSON.parse(await readFile(path.join(backup, "manifest.json"), "utf8"));
+  await writeFile(
+    path.join(backup, "manifest.json"),
+    JSON.stringify({ ...manifest, formatVersion: 1, platform: "desktop" })
+  );
+  await writeFile(path.join(s.root, "plugin-updates/backup-sources", `${id}.json`), "{}");
+  const next = await s.restart();
+  expect(await next.list()).toEqual([]);
+  expect(await readdir(path.join(s.root, "plugin-updates/backup-sources"))).toEqual([]);
+  expect(await s.version()).toBe("1.1.0");
+});
