@@ -1,0 +1,30 @@
+{
+  "id": "weread",
+  "name": "微信读书",
+  "version": "1.0.13",
+  "categories": [
+    "page"
+  ],
+  "keywords": [
+    "微信读书",
+    "划线",
+    "书架"
+  ],
+  "apiVersion": 1,
+  "format": "cjs",
+  "main": "main.js",
+  "styles": "main.css",
+  "integrity": {
+    "main.js": "a3073b892f93a59859a7545daac5c364f2705396b85ac744e548a760143d4792",
+    "main.css": "de1925ef61fae3ba60767c340fd019db86ed19ef007d047a3c2ae40f29f7bfab"
+  },
+  "formatVersion": 3,
+  "platform": "portable",
+  "profile": "web-v1",
+  "description": "同步微信读书书架、划线与想法，并在 Tau 中查看和引用摘录。",
+  "targets": {
+    "desktop": {
+      "minAppVersion": "0.59.4"
+    }
+  }
+}

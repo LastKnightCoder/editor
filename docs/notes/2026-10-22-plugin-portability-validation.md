@@ -45,7 +45,7 @@ Android 通过 `adb input keyevent 4` 验证了系统返回先关浮层再退页
 
 ## 讨论内容保存
 
-完整作者侧结论已沉淀到 `packages/plugins/docs/portability.md`；长期规则在 `docs/decisions.md`；当前实现结构在 `docs/architecture/plugin-portability.md`；复现步骤在 `docs/guides/plugin-portability-spike.md`。下面保留本次任务中的讨论依据，避免未提交的过程文档退役后丢失。
+完整作者侧结论已沉淀到 `packages/plugins/docs/portability.md`；长期规则在 `docs/decisions.md`；当前实现结构在 `docs/architecture/plugin-portability.md`；复现步骤在 `docs/guides/plugin-portability-hosts.md`。下面保留本次任务中的讨论依据，避免未提交的过程文档退役后丢失。
 
 ### 一个 SDK、一套模板、同一个插件身份
 

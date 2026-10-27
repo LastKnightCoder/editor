@@ -4,9 +4,6 @@
   "version": "0.2.8",
   "type": "module",
   "scripts": {
-    "dev:plugin-spike": "vite --mode plugin-spike --host 127.0.0.1",
-    "build:plugin-spike": "tsc && vite build --mode plugin-spike --outDir dist-plugin-spike",
-    "preview:plugin-spike": "vite preview --mode plugin-spike --outDir dist-plugin-spike --host 127.0.0.1 --port 2420 --strictPort",
     "predev": "pnpm -w db:schema:prepare",
     "dev": "vite",
     "predev:ios": "pnpm -w db:schema:prepare && pnpm run sync:ios:icons",

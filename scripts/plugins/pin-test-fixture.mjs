@@ -1,13 +1,10 @@
 import AdmZip from "adm-zip";
+import { validatePortableDistributionManifest } from "../../packages/plugins/src/portable.ts";
 import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, readFile, writeFile, rename, rm, stat, cp } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
-import {
-  isPackagePath,
-  readFixtureManifest,
-  readPluginFixtures,
-} from "./test-support/package-fixtures.ts";
+import { isPackagePath, readPluginFixtures } from "./test-support/package-fixtures.ts";
 
 const [archive, sourceRevision, repository, sourcePatchFile] = process.argv.slice(2);
 if (
@@ -26,7 +23,9 @@ const files = new Map();
 const entries = new AdmZip(content).getEntries().filter(entry => !entry.isDirectory);
 const manifestEntry = entries.find(entry => /(^|\/)manifest\.json$/.test(entry.entryName));
 if (!manifestEntry) throw new Error("ZIP 缺少 manifest.json");
-const manifest = readFixtureManifest(JSON.parse(manifestEntry.getData().toString("utf8")));
+const manifest = validatePortableDistributionManifest(
+  JSON.parse(manifestEntry.getData().toString("utf8"))
+);
 const prefix = manifestEntry.entryName.slice(0, -"manifest.json".length);
 for (const entry of entries) {
   const name = entry.entryName.slice(prefix.length);

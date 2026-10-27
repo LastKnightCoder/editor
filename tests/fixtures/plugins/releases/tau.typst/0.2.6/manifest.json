@@ -1,0 +1,39 @@
+{
+  "id": "tau.typst",
+  "name": "Typst 排版",
+  "version": "0.2.6",
+  "categories": [
+    "editor",
+    "ai"
+  ],
+  "keywords": [
+    "Typst",
+    "排版",
+    "公式"
+  ],
+  "apiVersion": 1,
+  "format": "cjs",
+  "main": "main.js",
+  "skills": [
+    "authoring"
+  ],
+  "integrity": {
+    "main.js": "8ab8283fbf45edecd03e4ea7c8a570a10a731fb26f7c3760d61433756b38a3ad",
+    "skills/authoring/SKILL.md": "a0ab39e0b364e0ca3c3fdc74f2711cdc186eadeb2cb0f49c31885573c47c5e4a"
+  },
+  "formatVersion": 3,
+  "platform": "portable",
+  "profile": "web-v1",
+  "description": "编辑 Typst 文档块，在本地 WebAssembly 引擎中编译并预览排版结果，保存后可发布到博客。",
+  "targets": {
+    "desktop": {
+      "minAppVersion": "0.59.5"
+    },
+    "android": {
+      "minAppVersion": "0.2.7"
+    },
+    "ios": {
+      "minAppVersion": "0.2.7"
+    }
+  }
+}

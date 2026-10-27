@@ -1,0 +1,36 @@
+{
+  "id": "tau.sync-webdav",
+  "name": "WebDAV 存储",
+  "version": "0.3.3",
+  "categories": [
+    "sync",
+    "upload"
+  ],
+  "keywords": [
+    "WebDAV",
+    "坚果云",
+    "NAS",
+    "备份"
+  ],
+  "apiVersion": 1,
+  "format": "cjs",
+  "main": "main.js",
+  "integrity": {
+    "main.js": "a51d7df225eb2406ee3bcb569eac25a86a6d92368faba40c5848392f046320d7"
+  },
+  "formatVersion": 3,
+  "platform": "portable",
+  "profile": "web-v1",
+  "description": "使用 WebDAV 同步数据库或上传图片附件，账号按用途独立配置。",
+  "targets": {
+    "desktop": {
+      "minAppVersion": "0.60.2"
+    },
+    "android": {
+      "minAppVersion": "0.2.9"
+    },
+    "ios": {
+      "minAppVersion": "0.2.9"
+    }
+  }
+}
