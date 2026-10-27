@@ -1,0 +1,35 @@
+{
+  "id": "tau.sync-s3",
+  "name": "S3 同步存储",
+  "version": "0.4.3",
+  "categories": [
+    "sync"
+  ],
+  "keywords": [
+    "S3",
+    "MinIO",
+    "R2",
+    "备份"
+  ],
+  "apiVersion": 1,
+  "format": "cjs",
+  "main": "main.js",
+  "integrity": {
+    "main.js": "bd59695eb0fe93bd9c82d25420417d5929dd09b9365747bddd3f35a687aa6186"
+  },
+  "formatVersion": 3,
+  "platform": "portable",
+  "profile": "web-v1",
+  "description": "通过 S3 兼容存储同步数据，在插件设置中填写账号与存储位置。",
+  "targets": {
+    "desktop": {
+      "minAppVersion": "0.60.2"
+    },
+    "android": {
+      "minAppVersion": "0.2.9"
+    },
+    "ios": {
+      "minAppVersion": "0.2.9"
+    }
+  }
+}

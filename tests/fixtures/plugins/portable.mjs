@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { readPluginFixtures } from "../../../scripts/plugins/test-support/package-fixtures.ts";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const esbuild = createRequire(path.join(root, "apps/mobile/package.json")).resolve("esbuild");
 const { buildPortablePluginManifest } = await import(
@@ -47,30 +48,8 @@ export async function portableFixtures() {
     main: "main.js",
     integrity: { "main.js": createHash("sha256").update(code).digest("hex") },
   });
-  const directory = path.join(root, "tests/fixtures/plugins/releases/tau.abc/0.1.0");
-  const abc = JSON.parse(await readFile(path.join(directory, "manifest.json"), "utf8"));
-  delete abc.minAppVersion;
-  delete abc.editor;
-  delete abc.whiteboard;
-  Object.assign(abc, {
-    formatVersion: 3,
-    platform: "portable",
-    profile: "web-v1",
-    targets: Object.fromEntries(
-      ["desktop", "android", "ios"].map(platform => [
-        platform,
-        {
-          minAppVersion: platform === "desktop" ? "0.59.0" : "0.2.0",
-        },
-      ])
-    ),
-  });
-  return [
-    { manifest: packaged, code },
-    {
-      manifest: abc,
-      code: await readFile(path.join(directory, abc.main), "utf8"),
-      css: await readFile(path.join(directory, abc.styles), "utf8"),
-    },
-  ];
+  const fixtures = await readPluginFixtures(path.join(root, "tests/fixtures/plugins/catalog.json"));
+  const abc = fixtures.find(artifact => artifact.manifest.id === "tau.abc");
+  if (!abc || abc.manifest.formatVersion !== 3) throw new Error("缺少当前格式的 ABC 测试包");
+  return [{ manifest: packaged, code }, abc];
 }

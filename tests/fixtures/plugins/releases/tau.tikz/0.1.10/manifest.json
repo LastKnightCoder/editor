@@ -1,0 +1,39 @@
+{
+  "id": "tau.tikz",
+  "name": "TikZ 绘图",
+  "version": "0.1.10",
+  "categories": [
+    "editor",
+    "ai"
+  ],
+  "keywords": [
+    "TikZ",
+    "LaTeX",
+    "绘图"
+  ],
+  "apiVersion": 1,
+  "format": "cjs",
+  "main": "main.js",
+  "skills": [
+    "authoring"
+  ],
+  "integrity": {
+    "main.js": "651fb7e251395a8cffb53519c0d84631ea5f17fb923ec054c70f4136f05cfb4a",
+    "skills/authoring/SKILL.md": "94d93759dd4f55d9f27894165a3fe35b7ec57c776f0f4e84ef3e1526e9f960c8"
+  },
+  "formatVersion": 3,
+  "platform": "portable",
+  "profile": "web-v1",
+  "description": "在文档和博客中离线编译 TikZ，支持源码编辑与 SVG 预览。",
+  "targets": {
+    "desktop": {
+      "minAppVersion": "0.59.5"
+    },
+    "android": {
+      "minAppVersion": "0.2.7"
+    },
+    "ios": {
+      "minAppVersion": "0.2.7"
+    }
+  }
+}

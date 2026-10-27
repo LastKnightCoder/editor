@@ -1,0 +1,33 @@
+{
+  "id": "tau.sync-github",
+  "name": "GitHub 同步存储",
+  "version": "0.3.3",
+  "categories": [
+    "sync"
+  ],
+  "keywords": [
+    "GitHub",
+    "备份"
+  ],
+  "apiVersion": 1,
+  "format": "cjs",
+  "main": "main.js",
+  "integrity": {
+    "main.js": "c53b4916267f1c7137fd5ac4f998aad9069eb25d672e335cb46c573cd91e2296"
+  },
+  "formatVersion": 3,
+  "platform": "portable",
+  "profile": "web-v1",
+  "description": "使用 GitHub 仓库同步数据，在插件设置中填写令牌与仓库。",
+  "targets": {
+    "desktop": {
+      "minAppVersion": "0.60.2"
+    },
+    "android": {
+      "minAppVersion": "0.2.9"
+    },
+    "ios": {
+      "minAppVersion": "0.2.9"
+    }
+  }
+}

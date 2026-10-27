@@ -24,8 +24,14 @@ describe("ABC 真实插件包", () => {
     expect(extension.htmlSerializers![0].toHtml({ content: "<script>&</script>" })).toContain(
       "&lt;script&gt;&amp;&lt;/script&gt;"
     );
-    expect(() => assertPluginCompatibility(artifact.manifest, "0.58.0")).toThrow(/插件需要 Tau/);
-    expect(() => assertPluginCompatibility(artifact.manifest, "0.59.0")).not.toThrow();
+    expect(() => assertPluginCompatibility(artifact.manifest, "0.58.0")).toThrow(
+      "客户端版本低于插件要求"
+    );
+    if (artifact.manifest.formatVersion !== 3 || !artifact.manifest.targets.desktop)
+      throw new Error("ABC 夹具必须声明当前桌面目标");
+    expect(() =>
+      assertPluginCompatibility(artifact.manifest, artifact.manifest.targets.desktop!.minAppVersion)
+    ).not.toThrow();
   });
 
   it.each(["X:1\nK:C\nC D E F |", "X:1\nT:中文\n% ``` 原始注释\n\nK:C\nG A B c |"])(

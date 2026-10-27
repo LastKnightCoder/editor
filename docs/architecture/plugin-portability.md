@@ -98,7 +98,7 @@ UiHostProvider 只接受平台中立的 dismiss 登记函数。真实 Dialog/Dra
 
 `plugin-validation` 模式保留正常 AppShell，只注入行为验证器；独立应用标识复用专用测试应用，输出 dist-plugin-validation。验证器调用正式原生安装服务，随后从真实“我的”页打开计数器、在正常卡片正文编辑 ABC；报告写入隔离测试库的 validation.host/report。普通构建不包含自动验证器或固定包来源。
 
-旧 `plugin-spike` 仍是独立验证壳，仅用于历史最小实验；其 localStorage 双包、替换入口、历史重置和文本编辑面板不是正式路径。正式宿主复现见 [接入校验指南](/docs/guides/plugin-portability-hosts.md)，旧壳复现见 [spike 指南](/docs/guides/plugin-portability-spike.md)。
+正式宿主复现见 [接入校验指南](/docs/guides/plugin-portability-hosts.md)。验证沿用正式 AppShell、原生安装、运行时和正文编辑入口。
 
 ## ASR 与 WebSocket 宿主
 

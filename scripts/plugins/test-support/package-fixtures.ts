@@ -2,18 +2,9 @@ import { readFile, readdir } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import {
-  validatePluginManifest,
-  type PluginManifest,
-} from "../../../packages/plugins/src/package.ts";
-import {
   validatePortableDistributionManifest,
   type PortablePluginManifest,
 } from "../../../packages/plugins/src/portable.ts";
-
-export const readFixtureManifest = (value: unknown): PluginManifest | PortablePluginManifest =>
-  (value as { formatVersion?: unknown } | null)?.formatVersion === 3
-    ? validatePortableDistributionManifest(value)
-    : validatePluginManifest(value);
 
 type PluginFixtureEntry = {
   artifact: string;
@@ -34,7 +25,7 @@ export const isPackagePath = (name: string) =>
 export async function readPluginFixtures(catalogFile: string) {
   const entries: PluginFixtureEntry[] = JSON.parse(await readFile(catalogFile, "utf8"));
   const packages: Array<{
-    manifest: PluginManifest | PortablePluginManifest;
+    manifest: PortablePluginManifest;
     code: string;
     css?: string;
   }> = [];
@@ -82,7 +73,7 @@ export async function readPluginFixtures(catalogFile: string) {
       )
         throw new Error(`固定插件产物摘要不匹配：${entry.id}/${file}`);
     }
-    const manifest = readFixtureManifest(
+    const manifest = validatePortableDistributionManifest(
       JSON.parse(await readFile(path.join(source, "manifest.json"), "utf8"))
     );
     if (manifest.id !== entry.id || manifest.version !== entry.version)

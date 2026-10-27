@@ -21,8 +21,10 @@ async function fixture() {
       name: "测试",
       version: "1.0.0",
       apiVersion: 1,
-      formatVersion: 1,
-      platform: "desktop",
+      formatVersion: 3,
+      platform: "portable",
+      profile: "web-v1",
+      targets: { desktop: { minAppVersion: "0.59.5" } },
       format: "cjs",
       main: "main.js",
       integrity: { "main.js": hash(code) },
@@ -104,6 +106,11 @@ it("保留并校验格式 3 的平台目标，不改写成旧桌面清单", asyn
   manifest.targets.desktop.minAppVersion = "invalid";
   await save();
   await expect(readPluginFixtures(catalog)).rejects.toThrow();
+  manifest.targets.desktop.minAppVersion = "0.59.5";
+  manifest.formatVersion = 1;
+  manifest.platform = "desktop";
+  await save();
+  await expect(readPluginFixtures(catalog)).rejects.toThrow("跨端包格式");
 });
 
 it("固定本地构建的源码补丁，拒绝补丁漂移与越界路径", async () => {

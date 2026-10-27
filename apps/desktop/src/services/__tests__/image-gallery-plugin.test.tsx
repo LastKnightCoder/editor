@@ -12,6 +12,7 @@ import { createDefaultEditorSlots } from "@tau/editor/extensions/media/slots";
 import { mediaUiExtension } from "@tau/editor/extensions/media";
 import { configureMedia } from "@tau/plugins/media";
 import { ContentPluginRegistry } from "@tau/plugins/content";
+import { PluginEnvironmentProvider } from "@tau/plugins/environment-host";
 import "@tau/plugins/source-editor-host";
 import { galleryDefinition, galleryExtension } from "../../test-fixtures/plugin-packages";
 
@@ -74,9 +75,13 @@ describe("图册插件", () => {
     const ref = createRef<EditorRef>();
     await act(async () => {
       root!.render(
-        <DndProvider backend={HTML5Backend}>
-          <Editor ref={ref} kit={kit} initValue={value} readonly={readonly} />
-        </DndProvider>
+        <PluginEnvironmentProvider
+          value={{ platform: "desktop", input: { coarsePointer: false, finePointer: true } }}
+        >
+          <DndProvider backend={HTML5Backend}>
+            <Editor ref={ref} kit={kit} initValue={value} readonly={readonly} />
+          </DndProvider>
+        </PluginEnvironmentProvider>
       );
     });
     return ref.current!.getEditor();
@@ -130,9 +135,10 @@ describe("图册插件", () => {
     expect(document.body.querySelector('[aria-label="图片预览"]')).toBeTruthy();
   });
 
-  it("内容插件注册 Markdown 与 HTML 导出及资源声明", () => {
+  it("内容插件注册 Markdown 与 HTML 导出及资源声明", async () => {
     const registry = new ContentPluginRegistry();
     registry.install([galleryDefinition]);
+    await registry.prepareContracts();
     expect(registry.resources["image-gallery"]?.[0]).toMatchObject({ path: "images[].url" });
     const html = registry
       .htmlSerializer("image-gallery")!
