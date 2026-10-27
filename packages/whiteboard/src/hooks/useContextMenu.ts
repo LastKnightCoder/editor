@@ -31,10 +31,14 @@ export const useContextMenu = (board: Board) => {
   }, [context, hide]);
 
   useEffect(() => {
-    const handleReadonlyChange = () => hide();
-    board.on("readonly:change", handleReadonlyChange);
+    const handleContextChange = () => hide();
+    board.on("readonly:change", handleContextChange);
+    board.on("value:change", handleContextChange);
+    board.on("selection:change", handleContextChange);
     return () => {
-      board.off("readonly:change", handleReadonlyChange);
+      board.off("readonly:change", handleContextChange);
+      board.off("value:change", handleContextChange);
+      board.off("selection:change", handleContextChange);
     };
   }, [board, hide]);
 

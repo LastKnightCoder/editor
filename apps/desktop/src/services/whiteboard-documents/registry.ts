@@ -23,7 +23,24 @@ function disposeClient(client: WhiteboardDocumentClient) {
   client.dispose();
 }
 
+export interface WhiteboardSessionState {
+  phase: "idle" | "opening" | "ready" | "error";
+  client?: WhiteboardDocumentClient;
+  error?: unknown;
+}
+
 export class WhiteboardDocumentEntry {
+  private state: WhiteboardSessionState = { phase: "idle" };
+  private listeners = new Set<() => void>();
+  getSnapshot = () => this.state;
+  subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  };
+  private set(state: WhiteboardSessionState) {
+    this.state = state;
+    for (const listener of this.listeners) listener();
+  }
   private holders = 0;
   private client?: WhiteboardDocumentClient;
   private opening?: Promise<WhiteboardDocumentClient>;
@@ -44,50 +61,59 @@ export class WhiteboardDocumentEntry {
       });
     };
   }
-  async open(): Promise<WhiteboardDocumentClient> {
-    if (this.closing) await this.closing.catch(() => undefined);
-    if (this.client?.needsReopen) {
-      await this.client.preservePending();
-      disposeClient(this.client);
-      this.client = undefined;
-    }
-    if (this.client && !this.client.isDisposed) {
-      this.attachRemote(this.client);
-      remotes.get(this.client)?.retry(false);
-      return this.client;
-    }
+  open(): Promise<WhiteboardDocumentClient> {
     if (this.opening) return this.opening;
-    const client = new WhiteboardDocumentClient(this.target, whiteboardDocumentBackend, outbox);
-    const task = client.ready.then(async () => {
+    // 先登记整段交接任务，再允许任何保存、释放或打开的异步操作执行。
+    const task = Promise.resolve()
+      .then(() => this.openOnce())
+      .finally(() => {
+        if (this.opening === task) this.opening = undefined;
+        if (!this.holders) void this.releaseIdle().catch(() => undefined);
+      });
+    this.opening = task;
+    return task;
+  }
+  private async openOnce(): Promise<WhiteboardDocumentClient> {
+    if (this.closing) await this.closing.catch(() => undefined);
+    const previous = this.client;
+    if (previous && !previous.needsReopen && !previous.isDisposed) {
+      this.attachRemote(previous);
+      remotes.get(previous)?.retry(false);
+      this.set({ phase: "ready", client: previous });
+      return previous;
+    }
+    this.set({ phase: "opening", client: previous });
+    let client: WhiteboardDocumentClient | undefined;
+    try {
+      if (previous) {
+        remotes.get(previous)?.dispose();
+        await previous.preservePending();
+      }
+      client = new WhiteboardDocumentClient(this.target, whiteboardDocumentBackend, outbox);
+      await client.ready;
       if (client.identity?.documentId !== this.documentId) throw new Error("白板页已指向另一文档");
       this.client = client;
+      const current = client;
       client.subscribe(() => {
-        if (client.needsReopen) {
-          void queryClient.invalidateQueries({
-            queryKey: ["whiteboard-document", this.target.databaseName, this.documentId],
-          });
-          void queryClient.invalidateQueries({
-            queryKey: whiteboardShareStatusKey(this.target.databaseName, this.documentId),
-          });
-        }
+        if (current !== this.client || !current.needsReopen) return;
+        remotes.get(current)?.dispose();
+        void queryClient.invalidateQueries({
+          queryKey: whiteboardShareStatusKey(this.target.databaseName, this.documentId),
+        });
+        if (this.holders) void this.open().catch(() => undefined);
       });
       this.attachRemote(client);
+      this.set({ phase: "ready", client });
+      if (previous) disposeClient(previous);
       return client;
-    });
-    this.opening = task;
-    try {
-      return await task;
     } catch (error) {
-      disposeClient(client);
-      if (client.leaseId)
-        void whiteboardDocumentBackend.release(client.leaseId).catch(() => undefined);
+      if (client) {
+        disposeClient(client);
+        if (client.leaseId)
+          void whiteboardDocumentBackend.release(client.leaseId).catch(() => undefined);
+      }
+      this.set({ phase: "error", client: previous, error });
       throw error;
-    } finally {
-      this.opening = undefined;
-      if (!this.holders)
-        queueMicrotask(() => {
-          void this.releaseIdle().catch(() => undefined);
-        });
     }
   }
   /** 共享状态与画布的共享入口共用一份查询缓存；读取失败时仍可本机编辑。 */
@@ -109,7 +135,7 @@ export class WhiteboardDocumentEntry {
     sync.start();
   }
   private async releaseIdle(): Promise<void> {
-    if (this.holders || this.closing || !this.client) return;
+    if (this.holders || this.opening || this.closing || !this.client) return;
     const client = this.client;
     const task = (async () => {
       if (!client.needsReopen && !client.isDisposed) {
@@ -118,12 +144,15 @@ export class WhiteboardDocumentEntry {
         } catch (error) {
           if (!client.needsReopen) throw error;
         }
-        if (this.holders && !client.needsReopen) return;
+        if (this.holders) return;
       }
       // 远端同步随最后一个持有者停止；未提交的差异仍在主进程日志中，下次打开再同步。
       await client.release();
       disposeClient(client);
-      if (this.client === client) this.client = undefined;
+      if (this.client === client) {
+        this.client = undefined;
+        this.set({ phase: "idle" });
+      }
     })();
     this.closing = task;
     try {

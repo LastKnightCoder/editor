@@ -54,6 +54,8 @@ export interface WhiteboardDocumentBinding {
   beginGesture(): void;
   splitHistory(): void;
   endGesture(commit: boolean): void;
+  canUndo(): boolean;
+  canRedo(): boolean;
   undo(): void;
   redo(): void;
   textDocument(elementId: string): EditorDocument | undefined;

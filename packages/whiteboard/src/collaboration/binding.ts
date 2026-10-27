@@ -1139,6 +1139,12 @@ class CanvasBinding implements WhiteboardDocumentBinding {
     for (const editor of this.editors) editor.flushNodeTreeInputs();
     for (const field of this.fields) field.flushInputs?.();
   }
+  canUndo(): boolean {
+    return !this.isBlocked() && this.history.undoStack.length > 0;
+  }
+  canRedo(): boolean {
+    return !this.isBlocked() && this.history.redoStack.length > 0;
+  }
   undo(): void {
     this.history.undo();
   }

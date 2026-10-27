@@ -96,7 +96,7 @@ export abstract class ContinuousArrowMoveState implements InteractionState {
 
     this.currentArrowKey = key;
     // 立即执行一次移动
-    this.handleArrowKeyNavigation(board, key);
+    if (!this.handleArrowKeyNavigation(board, key)) return;
 
     // 设置定时器持续移动
     this.arrowKeyMoveInterval = window.setInterval(() => {

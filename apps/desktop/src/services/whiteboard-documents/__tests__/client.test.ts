@@ -136,6 +136,28 @@ const edit = (client: WhiteboardDocumentClient, id: string, text: string) =>
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe("W4 渲染会话与耐久待发送队列", () => {
+  it("关闭会话立即拒绝保存，最后一个画布清理后才销毁模型且只销毁一次", async () => {
+    const f = await fixture();
+    const client = await f.open();
+    const releaseFirst = client.retainModel();
+    const releaseSecond = client.retainModel();
+    const dispose = vi.spyOn(client.model, "dispose");
+    client.dispose();
+    expect(client.isDisposed).toBe(true);
+    await expect(client.flush()).rejects.toThrow("白板会话已关闭");
+    expect(client.model.read().pages).toHaveLength(1);
+    releaseFirst();
+    await tick();
+    expect(dispose).not.toHaveBeenCalled();
+    releaseSecond();
+    releaseSecond();
+    expect(client.model.read().pages).toHaveLength(1);
+    await tick();
+    expect(dispose).toHaveBeenCalledTimes(1);
+    expect(() => client.model.read()).toThrow("白板文档已释放");
+    expect(client.getSummary()).toEqual({ title: "", pageCount: 1 });
+  });
+
   it("跨会话草稿按因果整体恢复并补发，反向窗口身份不丢输入", async () => {
     const f = await fixture(),
       firstBackend = f.backend(1);

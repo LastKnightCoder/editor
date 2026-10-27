@@ -2,6 +2,7 @@ import { ViewPort, Board, BoardElement } from "../types";
 import { BOARD_TO_CONTAINER } from "../constants/map.ts";
 
 export class ViewPortTransforms {
+  private static readonly animations = new WeakMap<Board, object>();
   static updateZoom(board: Board, newZoom: number, point?: [number, number]) {
     const originViewPort = board.viewPort;
     const container = BOARD_TO_CONTAINER.get(board);
@@ -146,10 +147,26 @@ export class ViewPortTransforms {
     duration = 500,
     easeFunction: (t: number) => number = t => 1 - Math.pow(1 - t, 3)
   ): Promise<void> {
+    const animation = {};
+    this.animations.set(board, animation);
+    let lastViewport = board.viewPort;
     return new Promise(resolve => {
       const startTime = Date.now();
+      const finish = () => {
+        if (this.animations.get(board) === animation) this.animations.delete(board);
+        resolve();
+      };
 
       const animateViewport = () => {
+        // 新动画或用户视口操作接管后，旧帧不得写回此前的视角。
+        if (
+          board.isDestroyed ||
+          this.animations.get(board) !== animation ||
+          board.viewPort !== lastViewport
+        ) {
+          finish();
+          return;
+        }
         const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
         // 使用缓动函数使动画更自然
@@ -171,11 +188,12 @@ export class ViewPortTransforms {
           },
           false
         );
+        lastViewport = board.viewPort;
 
         if (progress < 1) {
           requestAnimationFrame(animateViewport);
         } else {
-          resolve();
+          finish();
         }
       };
 

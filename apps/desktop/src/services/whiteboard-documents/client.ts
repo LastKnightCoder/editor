@@ -62,6 +62,8 @@ export class WhiteboardDocumentClient {
     revision: 0,
     projectedRevision: 0,
   };
+  private summary = { title: "", pageCount: 0 };
+  getSummary = () => this.summary;
   private inputFlushers = new Set<() => void>();
   private flushingInputs = false;
   registerInputFlush(flush: () => void): () => void {
@@ -87,6 +89,26 @@ export class WhiteboardDocumentClient {
   private persisted = new Map<string, Promise<void>>();
   private sequence = 0;
   private closed = false;
+  private modelHolders = 0;
+  private modelDisposed = false;
+  /** 会话关闭后，已挂载的画布仍需读取模型，直到 React 完成替换与清理。 */
+  retainModel(): () => void {
+    if (this.modelDisposed) throw new Error("白板文档已释放");
+    this.modelHolders++;
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.modelHolders--;
+      queueMicrotask(() => this.disposeModelIfIdle());
+    };
+  }
+  private disposeModelIfIdle(): void {
+    if (!this.closed || this.modelHolders || this.modelDisposed) return;
+    this.modelDisposed = true;
+    this.model.dispose();
+    this.doc.destroy();
+  }
   private initialized = false;
   private stale = false;
   private drains = new Map<string, string>();
@@ -143,6 +165,15 @@ export class WhiteboardDocumentClient {
     return () => this.listeners.delete(listener);
   };
   private set(patch: Partial<WhiteboardSaveState>) {
+    if (
+      this.opened &&
+      !this.closed &&
+      (this.initialized || patch.phase === "saved" || patch.phase === "saving")
+    ) {
+      const snapshot = this.model.read();
+      if (this.summary.title !== snapshot.title || this.summary.pageCount !== snapshot.pages.length)
+        this.summary = { title: snapshot.title, pageCount: snapshot.pages.length };
+    }
     this.state = { ...this.state, ...patch, pending: this.pending.length };
     for (const listener of this.listeners) listener();
   }
@@ -352,8 +383,7 @@ export class WhiteboardDocumentClient {
     this.closed = true;
     this.cleanup.splice(0).forEach(fn => fn());
     this.doc.off("update", this.local);
-    this.model.dispose();
-    this.doc.destroy();
+    this.disposeModelIfIdle();
     this.inputFlushers.clear();
     this.drains.clear();
     this.listeners.clear();

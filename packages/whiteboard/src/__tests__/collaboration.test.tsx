@@ -16,6 +16,7 @@ import Board from "../Board";
 import BoardOperations from "../utils/BoardOperations";
 import type { Operation } from "../types/operation";
 import WhiteBoard from "../WhiteBoard";
+import useEventHandlers from "../hooks/useEventHandlers";
 import { createWhiteboardBinding } from "../collaboration/binding";
 import type { WhiteboardCanvasType } from "../collaboration/binding";
 import { BOARD_TO_CONTAINER } from "../constants/map";
@@ -833,4 +834,42 @@ describe("W5 条件结果与视图历史", () => {
       expect(peer.text(f.shapeId, "source").toString()).toBe("条件替换");
     }
   );
+});
+
+it("方向键松开时焦点转到输入框仍结束手势，纯文本编辑不启动移动", async () => {
+  vi.useFakeTimers();
+  const f = await fixture(),
+    { board } = view(f.model, f.page, f.types);
+  board.selection.selectedElements = [board.children[0]];
+  const container = document.createElement("div");
+  container.setAttribute("data-whiteboard-root", "");
+  document.body.append(container);
+  BOARD_TO_CONTAINER.set(board, container);
+  let handlers!: ReturnType<typeof useEventHandlers>;
+  function Capture() {
+    handlers = useEventHandlers(board);
+    return <div contentEditable="plaintext-only" />;
+  }
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<Capture />));
+    const input = container.firstChild!;
+    Object.defineProperty(input, "isContentEditable", { value: true });
+    const key = (type: string, target: EventTarget) => {
+      const event = new KeyboardEvent(type, { key: "ArrowRight", cancelable: true });
+      Object.defineProperty(event, "target", { value: target });
+      return event;
+    };
+    handlers.handleKeyDown(key("keydown", input));
+    expect(board.children[0].x).toBe(0);
+    handlers.handleKeyDown(key("keydown", container));
+    expect(board.children[0].x).toBe(5);
+    handlers.handleKeyUp(key("keyup", input));
+    vi.advanceTimersByTime(240);
+    expect(board.children[0].x).toBe(5);
+    expect(f.model.read().pages[0].children[0].geometry.x).toBe(5);
+  } finally {
+    await act(async () => root.unmount());
+    vi.useRealTimers();
+  }
 });

@@ -63,6 +63,32 @@ export class WhiteboardTransitions {
   ) {
     this.publications = new WhiteboardPublications(store);
   }
+  /** 只读预检不建立发布任务、不冻结视图，也不创建远端房间。 */
+  async preflight(state: Uint8Array, documentId: string, pageIds: string[]) {
+    const doc = new Y.Doc();
+    const model = new WhiteboardModel(doc);
+    try {
+      Y.applyUpdate(doc, state);
+      const bundle = whiteboardPublicationScope(model, documentId, pageIds);
+      await this.checkResources(bundle, documentId);
+    } finally {
+      model.dispose();
+      doc.destroy();
+    }
+  }
+  private async checkResources(bundle: WhiteboardTransfer, documentId: string) {
+    if (
+      Object.values(bundle.contracts).some(contract =>
+        ["host.whiteboard.recovery", "tau.recovery"].includes(contract.owner)
+      )
+    )
+      throw new Error("旧不透明恢复元素须先确认资源与公开范围，不能直接发布");
+    for (const reference of bundle.resources) {
+      if (!reference.startsWith("tau-collab-")) continue;
+      const file = await this.assets.readTransferFile("", documentId, reference);
+      if (isVideoFile(file)) throw new Error("本机视频尚不支持共享发布，请移除视频后重试");
+    }
+  }
   blocked(name: string, documentId: string) {
     return Boolean(
       this.installation.pending(name, documentId) || this.publications.pending(name, documentId)
@@ -120,12 +146,8 @@ export class WhiteboardTransitions {
       const model = new WhiteboardModel(doc);
       try {
         const bundle = whiteboardPublicationScope(model, documentId, request.pageIds);
-        if (
-          Object.values(bundle.contracts).some(contract =>
-            ["host.whiteboard.recovery", "tau.recovery"].includes(contract.owner)
-          )
-        )
-          throw new Error("旧不透明恢复元素须先确认资源与公开范围，不能直接发布");
+        // 保存屏障可能补入预检后的输入，固定任务前再次核验实际候选。
+        await this.checkResources(bundle, documentId);
         if (repo.read(documentId)?.hash !== source.hash) throw new Error("发布准备期间白板已变化");
         job = {
           operationId: request.operationId,

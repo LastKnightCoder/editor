@@ -27,18 +27,12 @@ export function createInteractionContributions() {
   const commands: WhiteboardCommand[] = [
     {
       id: "tau.history.undo",
-      enabled: api => {
-        const board = boardOf(api);
-        return !board.readonly && board.undos.length > 0;
-      },
+      enabled: api => boardOf(api).canUndo(),
       execute: api => boardOf(api).undo(),
     },
     {
       id: "tau.history.redo",
-      enabled: api => {
-        const board = boardOf(api);
-        return !board.readonly && board.redos.length > 0;
-      },
+      enabled: api => boardOf(api).canRedo(),
       execute: api => boardOf(api).redo(),
     },
     {
@@ -59,7 +53,7 @@ export function createInteractionContributions() {
       id: "tau.selection.delete",
       enabled: api => {
         const board = boardOf(api);
-        return !board.readonly && board.selection.selectedElements.length > 0;
+        return board.captureSubmission()() && board.selection.selectedElements.length > 0;
       },
       execute: api => {
         const board = boardOf(api);
@@ -93,22 +87,6 @@ export function createInteractionContributions() {
         const selectedElements = [...board.selection.selectedElements];
         if (selectedElements.length > 0) {
           ViewPortTransforms.fitAllElements(board, FIT_VIEW_PADDING, true, selectedElements);
-          // 在下一个事件循环中恢复选中状态，避免被全局事件处理器清除
-          setTimeout(() => {
-            if (selectedElements.length > 0) {
-              board.apply(
-                {
-                  type: "set_selection",
-                  properties: board.selection,
-                  newProperties: {
-                    selectArea: null,
-                    selectedElements: selectedElements,
-                  },
-                },
-                false
-              );
-            }
-          }, 0);
         } else {
           ViewPortTransforms.fitAllElements(board, FIT_VIEW_PADDING, true);
         }
