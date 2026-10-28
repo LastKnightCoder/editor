@@ -564,7 +564,17 @@ class CollaborationManager {
     return { documentId, ...invitation };
   }
 
-  async project(documentId: string): Promise<void> {
+  async project(
+    documentId: string,
+    plugin?: {
+      token: string;
+      database: string;
+      pluginId: string;
+      taskOperationId?: number;
+      taskRestoreId?: number;
+      timeZone?: string;
+    }
+  ): Promise<void> {
     const session = this.sessions.get(documentId);
     if (
       !session?.info.source ||
@@ -572,11 +582,16 @@ class CollaborationManager {
       session.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION
     )
       return;
-    if (session.projection) return session.projection;
+    if (session.projection) {
+      if (!plugin) return session.projection;
+      await session.projection;
+      return this.project(documentId, plugin);
+    }
     session.projection = (async () => {
       await this.flushCache(documentId);
       const source = session.info.source!;
       const result = await tauri.collabProjectContent({
+        ...(plugin ? { plugin } : {}),
         documentId,
         contentId: source.contentId,
         content: readNodeDocument(session.doc).content,

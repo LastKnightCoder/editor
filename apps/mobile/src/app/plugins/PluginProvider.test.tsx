@@ -1,3 +1,4 @@
+vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn(async () => vi.fn()) }));
 vi.mock("./transport", () => ({ connectMobilePluginTransport: vi.fn(async () => vi.fn()) }));
 vi.mock("./shared-modules", () => ({ mobileSharedPluginModules: {} }));
 vi.mock("@tau/plugins/source-editor-host", () => ({}));

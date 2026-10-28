@@ -7,7 +7,7 @@ mod calendar_events;
 #[path = "calendar_pomodoro.rs"]
 mod calendar_pomodoro;
 #[path = "calendar_types.rs"]
-mod calendar_types;
+pub(super) mod calendar_types;
 
 pub use calendar_calendars::*;
 pub use calendar_events::*;

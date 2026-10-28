@@ -21,13 +21,22 @@ mod collaboration;
 mod common;
 mod content_contracts;
 mod diary;
+mod document_task_header;
 mod entity_context;
 mod entity_refs_index;
 mod flashcard;
 mod home_stats;
 mod index_db;
 mod migrator;
+mod plugin_data;
+mod plugin_document_tasks;
 mod plugin_kv;
+mod plugin_projects;
+mod plugin_task_dates;
+mod plugin_task_snapshots;
+mod plugin_tasks;
+pub use plugin_data::*;
+pub use plugin_tasks::*;
 mod pomodoro;
 pub use plugin_kv::*;
 mod project;
@@ -108,6 +117,42 @@ fn write_content_snapshot(
     expected_document_id: Option<&str>,
     expected_source_id: Option<&str>,
 ) -> Result<i64, String> {
+    write_content_snapshot_in_zone(
+        tx,
+        content_id,
+        content,
+        count,
+        now,
+        code,
+        contracts,
+        expected_revision,
+        expected_document_id,
+        expected_source_id,
+        None,
+    )
+}
+pub(super) fn write_content_snapshot_in_zone(
+    tx: &rusqlite::Transaction,
+    content_id: i64,
+    content: &Value,
+    count: i64,
+    now: i64,
+    code: &str,
+    contracts: Option<&Value>,
+    expected_revision: Option<&str>,
+    expected_document_id: Option<&str>,
+    expected_source_id: Option<&str>,
+    zone: Option<calendar_time::CalendarTimeZone>,
+) -> Result<i64, String> {
+    let had_tasks = tx
+        .query_row(
+            "SELECT COALESCE(instr(content,'check-list-item'),0)>0 FROM contents WHERE id=?1",
+            [content_id],
+            |row| row.get::<_, bool>(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?
+        .unwrap_or(false);
     content_contracts::write(
         tx,
         content_id,
@@ -139,7 +184,12 @@ fn write_content_snapshot(
     if content_changed == 0 {
         return Err("CONTENT_NOT_FOUND: content does not exist".to_string());
     }
-    assistant_tasks::reconcile_document_links(tx, content_id, Some(&normalized_content))?;
+    assistant_tasks::reconcile_document_links_in_zone(
+        tx,
+        content_id,
+        Some(&normalized_content),
+        zone,
+    )?;
 
     let mut linked_card_ids: Vec<i64> = vec![];
     {
@@ -196,6 +246,9 @@ fn write_content_snapshot(
         .map_err(|e| format!("{code}: Failed to write card operation: {e}"))?;
     }
 
+    if had_tasks {
+        common::write_operation(tx, "todo", "update", 0, now)?;
+    }
     diary::touch_content_diaries(tx, content_id, now)?;
     Ok(content_changed as i64)
 }

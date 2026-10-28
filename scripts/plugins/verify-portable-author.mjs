@@ -138,13 +138,13 @@ try {
     assert.equal(await readFile(pointer, "utf8"), originalPointer);
   }
   await writeFile(sourcePath, source);
-  for (const patch of [{ permissions: ["cards:read"] }, { version: "invalid-version" }]) {
+  for (const patch of [{ permissions: ["whiteboards:read"] }, { version: "invalid-version" }]) {
     await writeFile(manifestPath, JSON.stringify({ ...JSON.parse(manifestText), ...patch }));
     await assert.rejects(run(process.execPath, ["build.mjs"], author));
     assert.equal(await readFile(pointer, "utf8"), originalPointer);
   }
   await writeFile(manifestPath, manifestText);
-  report.checks.push("移动权限和无效版本在构建时拒绝");
+  report.checks.push("未开放的移动权限和无效版本在构建时拒绝");
   await assert.rejects(run(process.execPath, ["install-local.mjs"], author), /不能写入正式客户端/);
   report.checks.push("Node 与宿主入口依赖被拒绝", "构建失败保留上一产物", "正式目录安装被阻止");
   const archive = path.join(

@@ -197,7 +197,10 @@ export function applyNodeTreeContent(tree: NodeTree, content: ContentNode[], ori
   base.isInline = node => definition(node)?.kind === "inline";
   base.isVoid = node => definition(node)?.isVoid ?? false;
   base.normalizeNode = () => {};
-  const editor = withNodeTree(base, tree, origin, { normalizeOnConnect: false });
+  const editor = withNodeTree(base, tree, origin, {
+    normalizeOnConnect: false,
+    preserveInsertedIdentities: true,
+  });
   try {
     editor.connectNodeTree();
     projectNodeTree(editor, next as Descendant[]);

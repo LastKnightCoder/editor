@@ -1,3 +1,4 @@
+import { registerContentWriter } from "../services/contentWriteCoordinator";
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { useEffect, useRef, useState } from "react";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
@@ -179,6 +180,24 @@ export function useEditContent(
     return await saveContent(lastFailedContentRef.current);
   });
 
+  const [documentIdentity, setDocumentIdentity] = useState<{
+    library: string;
+    document: string;
+    contentId: number;
+  }>();
+  useEffect(() => {
+    if (
+      !documentIdentity ||
+      documentIdentity.contentId !== contentId ||
+      options?.saveMode === false
+    )
+      return;
+    return registerContentWriter(documentIdentity.library, documentIdentity.document, {
+      flush: flushNow,
+      clean: () => JSON.stringify(latestContentRef.current) === lastSavedSnapshotRef.current,
+    });
+  }, [documentIdentity, contentId, options?.saveMode, flushNow]);
+
   const refreshKey = options?.refreshKey;
   useEffect(() => {
     const nextId = contentId ?? -1;
@@ -203,6 +222,11 @@ export function useEditContent(
           return;
         }
         metadataRef.current = result;
+        setDocumentIdentity(
+          result.librarySourceId && result.documentId
+            ? { library: result.librarySourceId, document: result.documentId, contentId: nextId }
+            : undefined
+        );
         const loaded = normalizeEditorContent(result.content);
         const snapshot = JSON.stringify(loaded);
         latestContentRef.current = loaded;

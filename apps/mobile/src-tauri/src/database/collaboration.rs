@@ -191,9 +191,21 @@ pub fn assert_content_local(conn: &rusqlite::Connection, content_id: i64) -> Res
     Ok(())
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginProjectionOrigin {
+    time_zone: Option<super::calendar_time::CalendarTimeZone>,
+    task_operation_id: Option<i64>,
+    task_restore_id: Option<i64>,
+    token: String,
+    database: String,
+    plugin_id: String,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectContentPayload {
+    pub plugin: Option<PluginProjectionOrigin>,
     pub expected_source_id: Option<String>,
     pub document_id: String,
     pub contracts: Option<Value>,
@@ -212,7 +224,25 @@ pub fn collab_project_content(
     app: AppHandle,
     payload: ProjectContentPayload,
 ) -> Result<Value, String> {
+    if let Some(origin) = payload.plugin.clone() {
+        crate::provider_settings::validate_plugin_id(&origin.plugin_id)?;
+        return crate::plugin_transport::with_database(&origin.token, &origin.database, || {
+            project_content(app, payload)
+        });
+    }
+    project_content(app, payload)
+}
+
+fn project_content(app: AppHandle, payload: ProjectContentPayload) -> Result<Value, String> {
     let mut conn = open_active_database(&app)?;
+    if payload
+        .plugin
+        .as_ref()
+        .is_some_and(|origin| origin.database != conn.database_name())
+    {
+        return Err("插件工作区已失效".into());
+    }
+    let before = super::plugin_data::last_operation(&conn)?;
     let Some(binding) = read_binding(&conn, payload.content_id)? else {
         // 已解绑（结束共享/退出）后迟到的投影：幂等跳过
         return Ok(json!({ "projected": false, "reason": "unbound" }));
@@ -248,7 +278,7 @@ pub fn collab_project_content(
     if payload.document_id != binding.document_id {
         return Err("COLLAB_PROJECT_FAILED: 共享绑定已变化".into());
     }
-    let changed = super::write_content_snapshot(
+    let changed = super::write_content_snapshot_in_zone(
         &tx,
         payload.content_id,
         &payload.content,
@@ -259,7 +289,26 @@ pub fn collab_project_content(
         payload.expected_revision.as_deref(),
         payload.expected_document_id.as_deref(),
         payload.expected_source_id.as_deref(),
+        payload.plugin.as_ref().and_then(|origin| origin.time_zone),
     )?;
+    if let Some(origin) = &payload.plugin {
+        if let Some(id) = origin.task_operation_id {
+            super::plugin_document_tasks::finish_shared(
+                &tx,
+                &origin.plugin_id,
+                id,
+                &payload.document_id,
+            )?;
+        }
+        if let Some(id) = origin.task_restore_id {
+            super::plugin_document_tasks::finish_restore(
+                &tx,
+                &origin.plugin_id,
+                id,
+                &payload.document_id,
+            )?;
+        }
+    }
     let revision: Option<String> = tx
         .query_row(
             "SELECT revision FROM content_documents WHERE content_id=?1",
@@ -271,8 +320,10 @@ pub fn collab_project_content(
     tx.commit()
         .map_err(|e| db_err("COLLAB_PROJECT_FAILED", "commit projection", e))?;
 
-    let setting = crate::setting::load_or_init_setting(&app)?;
-    let db_name = crate::setting::get_active_database_name(&setting);
+    if let Some(origin) = &payload.plugin {
+        super::plugin_data::remember_origin(&conn, &origin.token, &origin.plugin_id, before)?;
+    }
+    let db_name = conn.database_name().to_owned();
     super::reconcile::trigger_reconcile(&app, &db_name);
     Ok(json!({ "projected": true, "changed": changed > 0, "revision": revision }))
 }

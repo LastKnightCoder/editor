@@ -122,6 +122,20 @@ pub(crate) fn install_download(
     local_version: u64,
     download: &std::path::PathBuf,
 ) -> Result<(), String> {
+    let result = crate::plugin_transport::replace_database(name, || {
+        install_download_locked(app, name, local_version, download)
+    });
+    use tauri::Emitter;
+    // 替换失败也要重建已终结的插件会话。
+    let _ = app.emit("plugin-workspace-reset", name);
+    result
+}
+fn install_download_locked(
+    app: &AppHandle,
+    name: &str,
+    local_version: u64,
+    download: &std::path::PathBuf,
+) -> Result<(), String> {
     let _cache_lock = crate::collaboration::CACHE_WRITE_LOCK
         .lock()
         .map_err(|_| "缓存保存锁不可用")?;

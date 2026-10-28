@@ -239,6 +239,14 @@ pub(crate) fn reconcile_document_links(
     content_id: i64,
     content: Option<&Value>,
 ) -> Result<(), String> {
+    reconcile_document_links_in_zone(conn, content_id, content, None)
+}
+pub(crate) fn reconcile_document_links_in_zone(
+    conn: &Connection,
+    content_id: i64,
+    content: Option<&Value>,
+    zone: Option<super::calendar_time::CalendarTimeZone>,
+) -> Result<(), String> {
     fn find<'a>(value: &'a Value, task: &str) -> Option<&'a Value> {
         if value["type"] == "check-list-item" && value["taskId"].as_str() == Some(task) {
             return Some(value);
@@ -269,45 +277,36 @@ pub(crate) fn reconcile_document_links(
         .map_err(|e| e.to_string())?;
     for (id, task, date, minute, all_day, detail) in rows {
         if let Some(node) = content.and_then(|value| find(value, &task)) {
-            let title =
-                super::common::json_content_plain_text(Some(node["children"][0].to_string()));
-            let mut title = title;
-            let mut groups = conn
-                .prepare("SELECT title FROM todo_group ORDER BY length(title) DESC")
+            let title = super::document_task_header::parse(conn, node)?.0;
+            let changed = conn
+                .execute(
+                    "UPDATE calendar_event SET title=?1,update_time=?2 WHERE id=?3 AND title<>?1",
+                    params![title, super::common::now_millis(), id],
+                )
                 .map_err(|e| e.to_string())?;
-            for group in groups
-                .query_map([], |row| row.get::<_, String>(0))
-                .map_err(|e| e.to_string())?
-            {
-                title = title.replacen(&format!("#{}", group.map_err(|e| e.to_string())?), "", 1);
+            if changed > 0 {
+                super::common::write_operation(
+                    conn,
+                    "calendar_event",
+                    "update",
+                    id,
+                    super::common::now_millis(),
+                )?;
             }
-            let title = title
-                .split_whitespace()
-                .filter(|word| {
-                    !["%Y-%m-%d", "%Y/%m/%d", "%Y年%m月%d日"]
-                        .iter()
-                        .any(|format| chrono::NaiveDate::parse_from_str(word, format).is_ok())
-                        && chrono::DateTime::parse_from_rfc3339(word).is_err()
-                })
-                .collect::<Vec<_>>()
-                .join(" ");
-            conn.execute(
-                "UPDATE calendar_event SET title=?1,update_time=?2 WHERE id=?3 AND title<>?1",
-                params![title, super::common::now_millis(), id],
-            )
-            .map_err(|e| e.to_string())?;
         } else {
             conn.execute(
                 "DELETE FROM doc_task_calendar_link WHERE calendar_event_id=?1",
                 [id],
             )
             .map_err(|e| e.to_string())?;
-            let starts = date
-                + if all_day != 0 {
-                    0
-                } else {
-                    minute.unwrap_or(0) * 60_000
-                };
+            let starts = schedule_start(date, minute.unwrap_or(0), all_day != 0, zone)?;
+            super::common::write_operation(
+                conn,
+                "calendar_event",
+                "update",
+                id,
+                super::common::now_millis(),
+            )?;
             if starts > super::common::now_millis() {
                 if detail > 0 {
                     super::common::release_content_reference(conn, detail)?;
@@ -321,19 +320,29 @@ pub(crate) fn reconcile_document_links(
 }
 
 pub(crate) fn release_todo_schedules(conn: &Connection, todo_id: i64) -> Result<(), String> {
-    let mut statement=conn.prepare("SELECT id,start_date+CASE WHEN all_day=1 THEN 0 ELSE COALESCE(start_time,0)*60000 END,detail_content_id FROM calendar_event WHERE todo_item_id=?1").map_err(|e|e.to_string())?;
+    release_todo_schedules_in_zone(conn, todo_id, None)
+}
+pub(crate) fn release_todo_schedules_in_zone(
+    conn: &Connection,
+    todo_id: i64,
+    zone: Option<super::calendar_time::CalendarTimeZone>,
+) -> Result<(), String> {
+    let mut statement=conn.prepare("SELECT id,start_date,detail_content_id,COALESCE(start_time,0),all_day FROM calendar_event WHERE todo_item_id=?1").map_err(|e|e.to_string())?;
     let rows = statement
         .query_map([todo_id], |row| {
             Ok((
                 row.get::<_, i64>(0)?,
                 row.get::<_, i64>(1)?,
                 row.get::<_, i64>(2)?,
+                row.get::<_, i64>(3)?,
+                row.get::<_, i64>(4)?,
             ))
         })
         .map_err(|e| e.to_string())?
         .collect::<rusqlite::Result<Vec<_>>>()
         .map_err(|e| e.to_string())?;
-    for (id, start, detail) in rows {
+    for (id, date, detail, minute, all_day) in rows {
+        let start = schedule_start(date, minute, all_day != 0, zone)?;
         conn.execute(
             "DELETE FROM todo_schedule_occurrence WHERE calendar_event_id=?1",
             [id],
@@ -354,4 +363,59 @@ pub(crate) fn release_todo_schedules(conn: &Connection, todo_id: i64) -> Result<
         }
     }
     Ok(())
+}
+
+fn schedule_start(
+    date: i64,
+    minute: i64,
+    all_day: bool,
+    zone: Option<super::calendar_time::CalendarTimeZone>,
+) -> Result<i64, String> {
+    use chrono::{Duration, TimeZone};
+    if all_day {
+        return Ok(date);
+    }
+    if !(0..1440).contains(&minute) {
+        return Err("日程时刻无效".into());
+    }
+    if let Some(zone) = zone {
+        let date = zone
+            .0
+            .timestamp_millis_opt(date)
+            .single()
+            .ok_or("日程日期无效")?
+            .date_naive();
+        let local = date.and_hms_opt(0, 0, 0).ok_or("日程日期无效")? + Duration::minutes(minute);
+        return zone
+            .0
+            .from_local_datetime(&local)
+            .earliest()
+            .map(|time| time.timestamp_millis())
+            .ok_or_else(|| "日程处于无效夏令时时刻".into());
+    }
+    Ok(date + minute * 60_000)
+}
+#[cfg(test)]
+mod schedule_time_tests {
+    use super::*;
+    use chrono::TimeZone;
+    #[test]
+    fn linked_event_cutoff_uses_target_day_offset() {
+        let zone = super::super::calendar_time::CalendarTimeZone(chrono_tz::America::New_York);
+        let midnight = zone
+            .0
+            .with_ymd_and_hms(2026, 3, 8, 0, 0, 0)
+            .unwrap()
+            .timestamp_millis();
+        let expected = zone
+            .0
+            .with_ymd_and_hms(2026, 3, 8, 3, 30, 0)
+            .unwrap()
+            .timestamp_millis();
+        assert_eq!(
+            schedule_start(midnight, 210, false, Some(zone)).unwrap(),
+            expected
+        );
+        assert_ne!(midnight + 210 * 60_000, expected);
+    }
 }
