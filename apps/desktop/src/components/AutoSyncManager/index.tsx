@@ -78,9 +78,6 @@ const AutoSyncManager = () => {
   const closingRef = useRef(false);
   const pendingCloseRef = useRef(false);
   const pendingQuitRef = useRef(false);
-  const uploadProgressTimerRef = useRef<number | null>(null);
-  const uploadStartProgressRef = useRef(0);
-  const smoothingDurationMs = 5000;
 
   const closeAfterSync = useCallback(async () => {
     closingRef.current = true;
@@ -98,42 +95,6 @@ const AutoSyncManager = () => {
     await closeAfterSync();
   }, [closeAfterSync]);
 
-  const stopFakeUploadProgress = useCallback(() => {
-    if (uploadProgressTimerRef.current !== null) {
-      window.clearInterval(uploadProgressTimerRef.current);
-      uploadProgressTimerRef.current = null;
-    }
-  }, []);
-
-  const startFakeUploadProgress = useCallback(
-    (startProgress = 5) => {
-      stopFakeUploadProgress();
-      const initial = Math.min(startProgress, 99);
-      uploadStartProgressRef.current = initial;
-      const startTime = Date.now();
-      setUploadState(prev => ({
-        ...prev,
-        open: true,
-        progress: initial,
-      }));
-      uploadProgressTimerRef.current = window.setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        const ratio = Math.min(elapsed / smoothingDurationMs, 1);
-        const nextProgress =
-          uploadStartProgressRef.current + (99 - uploadStartProgressRef.current) * ratio;
-        setUploadState(prev => ({
-          ...prev,
-          open: true,
-          progress: clampProgress(nextProgress),
-        }));
-        if (ratio >= 1) {
-          stopFakeUploadProgress();
-        }
-      }, 100);
-    },
-    [smoothingDurationMs, stopFakeUploadProgress]
-  );
-
   const startAutoUpload = useCallback(async () => {
     if (!shouldAutoSync || uploadInProgressRef.current) {
       return;
@@ -141,27 +102,21 @@ const AutoSyncManager = () => {
     uploadInProgressRef.current = true;
     setUploadState({
       open: true,
-      progress: 5,
+      progress: 0,
       status: "正在准备同步数据...",
     });
-    startFakeUploadProgress(5);
     let success = false;
     try {
       success = await upload({
         skipWhenRemoteNewer: true,
-        onProgress: ({ status }) => {
-          setUploadState(prev => ({
-            ...prev,
-            open: true,
-            status,
-          }));
+        onProgress: ({ value, status }) => {
+          setUploadState({ open: true, progress: clampProgress(value), status });
         },
       });
     } catch (error) {
       console.error("Auto sync upload failed", error);
     }
     uploadInProgressRef.current = false;
-    stopFakeUploadProgress();
     // 用量同步搭车但不参与退出等待：退出时主进程最多等 8 秒，用量宁可留到下次启动
     if (success && !pendingCloseRef.current && !pendingQuitRef.current) {
       void runUsageSync();
@@ -184,13 +139,7 @@ const AutoSyncManager = () => {
     } else if (!success) {
       pendingCloseRef.current = false;
     }
-  }, [
-    shouldAutoSync,
-    closeAfterSync,
-    handleUploadFailureWhileClosing,
-    startFakeUploadProgress,
-    stopFakeUploadProgress,
-  ]);
+  }, [shouldAutoSync, closeAfterSync, handleUploadFailureWhileClosing]);
 
   // 应用受控退出流程：先完成自动同步再放行退出（主进程最多等 8 秒）
   useEffect(() => {
@@ -219,7 +168,6 @@ const AutoSyncManager = () => {
   useEffect(() => {
     if (!shouldAutoSync) {
       pendingCloseRef.current = false;
-      stopFakeUploadProgress();
       return;
     }
     const handler = (event: BeforeUnloadEvent) => {
@@ -240,7 +188,7 @@ const AutoSyncManager = () => {
     return () => {
       window.removeEventListener("beforeunload", handler);
     };
-  }, [shouldAutoSync, startAutoUpload, stopFakeUploadProgress]);
+  }, [shouldAutoSync, startAutoUpload]);
 
   useEffect(() => {
     let canceled = false;
@@ -304,13 +252,6 @@ const AutoSyncManager = () => {
       canceled = true;
     };
   }, [shouldAutoSync, currentVersion, sync.active]);
-
-  useEffect(
-    () => () => {
-      stopFakeUploadProgress();
-    },
-    [stopFakeUploadProgress]
-  );
 
   return (
     <>

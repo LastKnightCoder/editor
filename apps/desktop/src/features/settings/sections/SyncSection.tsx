@@ -34,6 +34,7 @@ export function SyncSection() {
   const storedConfig = sync.plugin?.id ? sync.plugin.configurations[sync.plugin.id] : undefined;
 
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncPercent, setSyncPercent] = useState(0);
   const [isChecking, setIsChecking] = useState(false);
   const [downloadConfirmOpen, setDownloadConfirmOpen] = useState(false);
   const [forceSyncConfirmOpen, setForceSyncConfirmOpen] = useState(false);
@@ -74,8 +75,9 @@ export function SyncSection() {
 
   const doUpload = async () => {
     setIsSyncing(true);
+    setSyncPercent(0);
     try {
-      const ok = await upload();
+      const ok = await upload({ onProgress: ({ value }) => setSyncPercent(Math.round(value)) });
       if (ok) {
         queryClient.setQueryData(remoteKey, {
           version: localDatabaseVersion(
@@ -221,6 +223,7 @@ export function SyncSection() {
                         size="sm"
                         icon={CloudUpload}
                         loading={isSyncing}
+                        loadingText={`上传中 ${syncPercent}%`}
                         onClick={() => setForceSyncConfirmOpen(true)}
                       >
                         强制上传
@@ -233,7 +236,7 @@ export function SyncSection() {
                         size="sm"
                         icon={CloudUpload}
                         loading={isSyncing}
-                        loadingText="同步中…"
+                        loadingText={`同步中 ${syncPercent}%`}
                         disabled={!isReady}
                         onClick={onSyncClick}
                       >

@@ -16,7 +16,8 @@ export async function uploadChunkedPath(
   store: ObjectStorage,
   object: string,
   filePath: string,
-  name: string
+  name: string,
+  onChunk?: (bytes: number) => void
 ) {
   const size = await fileCall<number>("sync:file-size", filePath);
   return uploadChunkedFile(
@@ -31,7 +32,9 @@ export async function uploadChunkedPath(
           throw new Error("同步期间本地文件已变化");
       },
     },
-    chunkDigest
+    chunkDigest,
+    undefined,
+    onChunk
   );
 }
 export async function downloadChunkedPath(
@@ -47,6 +50,8 @@ export async function downloadChunkedPath(
     chunkDigest
   );
 }
+
+export const syncFileSize = (filePath: string) => fileCall<number>("sync:file-size", filePath);
 
 export const copySyncFile = (source: string, target: string) =>
   fileCall<void>("sync:file-copy", source, target);

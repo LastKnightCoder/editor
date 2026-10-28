@@ -88,7 +88,8 @@ export async function uploadChunkedFile(
     assertUnchanged?(): Promise<void>;
   },
   digest: Digest,
-  check: () => void = () => undefined
+  check: () => void = () => undefined,
+  onChunk: (bytes: number) => void = () => undefined
 ): Promise<ChunkManifest> {
   assertFileName(name);
   if (!Number.isSafeInteger(source.size) || source.size < 0) throw new Error("本地文件大小无效");
@@ -115,6 +116,7 @@ export async function uploadChunkedFile(
     if (!reusable && !(await store.uploadFile(key, bytes))) throw new Error("同步分块上传失败");
     manifest.chunks.push({ size: length, sha256: hash });
     if (manifest.chunks.length * 100 > MANIFEST_BYTES) throw new Error("同步文件清单过大");
+    onChunk(length);
   }
   await source.assertUnchanged?.();
   manifest.rootHash = await digest(rootPayload(manifest));
