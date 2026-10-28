@@ -47,7 +47,7 @@ const temporary = () => {
 };
 
 describe("通用内容和本地恢复", () => {
-  it("本地缓存带版本，离线增量跨重启恢复，未知新版本不覆盖", async () => {
+  it("本地缓存带版本，离线增量跨重启恢复，未知新版本备份后重建", async () => {
     const directory = temporary();
     const store = new CollaborationLocalStore(directory);
     const doc = await createTestDocument(
@@ -81,9 +81,12 @@ describe("通用内容和本地恢复", () => {
     const loaded = restored.load(session.id);
     expect(loaded.doc.getText("title").toString()).toBe("离线初始");
     loaded.doc.destroy();
+    // 较新版本写入的缓存同样备份后新建：缓存可按服务器重建，不阻断旧客户端使用
     restored.db.pragma("user_version=4");
     restored.db.close();
-    expect(() => new CollaborationLocalStore(directory)).toThrow("升级 Tau");
+    const rebuilt = new CollaborationLocalStore(directory);
+    expect(rebuilt.list()).toEqual([]);
+    rebuilt.db.close();
   });
 
   it("另存资源移动到独立资源目录，删除会话缓存后副本仍可读取", async () => {
@@ -140,10 +143,13 @@ describe("结束共享残留的重新发起判定", () => {
   });
 });
 
-it("旧缓存版本拒绝打开，不在启动时改写用户缓存", () => {
+it("旧缓存版本备份后新建，不阻断协作启动", () => {
   const directory = temporary();
   const store = new CollaborationLocalStore(directory);
+  store.set("identity:https://collab.example", "device");
   store.db.pragma("user_version=2");
   store.db.close();
-  expect(() => new CollaborationLocalStore(directory)).toThrow("CONTENT_FORMAT_UNSUPPORTED");
+  const rebuilt = new CollaborationLocalStore(directory);
+  expect(rebuilt.get("identity:https://collab.example", null)).toBe("device");
+  rebuilt.db.close();
 });

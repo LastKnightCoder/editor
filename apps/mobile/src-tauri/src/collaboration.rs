@@ -316,24 +316,48 @@ pub async fn collab_request(
 pub(crate) fn session_store(app: &AppHandle) -> Result<rusqlite::Connection, String> {
     let directory = resolve_app_dir(app)?.join("collaboration");
     fs::create_dir_all(&directory).map_err(|e| format!("COLLAB_CACHE_FAILED: {e}"))?;
-    let conn = rusqlite::Connection::open(directory.join("collaboration.db"))
-        .map_err(|e| format!("COLLAB_CACHE_FAILED: {e}"))?;
+    open_session_store(&directory)
+}
+
+/// 协作缓存可重建：文件版本不是当前格式（含较新版本写入）时整体移入 discarded/ 后新建，不阻断协作。
+fn open_session_store(directory: &std::path::Path) -> Result<rusqlite::Connection, String> {
+    let path = directory.join("collaboration.db");
+    let conn =
+        rusqlite::Connection::open(&path).map_err(|e| format!("COLLAB_CACHE_FAILED: {e}"))?;
     let version: i64 = conn
         .pragma_query_value(None, "user_version", |row| row.get(0))
-        .map_err(|e| e.to_string())?;
-    if version > 2 {
-        return Err("COLLAB_CACHE_VERSION: 本机文档格式较新".into());
-    }
+        .unwrap_or(-1);
     let existing: bool = conn
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='sessions')",
             [],
             |row| row.get(0),
         )
-        .map_err(|e| e.to_string())?;
-    if existing && version != 2 {
-        return Err("COLLAB_CACHE_VERSION: 本机协作缓存格式不受支持".into());
-    }
+        .unwrap_or(true);
+    let conn = if existing && version != 2 {
+        drop(conn);
+        let discarded = directory.join("discarded");
+        fs::create_dir_all(&discarded).map_err(|e| format!("COLLAB_CACHE_FAILED: {e}"))?;
+        let stamp = chrono::Local::now().format("%Y-%m-%d-%H-%M-%S");
+        for suffix in ["", "-wal", "-shm"] {
+            let source = directory.join(format!("collaboration.db{suffix}"));
+            if source.exists() {
+                fs::rename(
+                    &source,
+                    discarded.join(format!(
+                        "{stamp}-version-{version}-collaboration.db{suffix}"
+                    )),
+                )
+                .map_err(|e| format!("COLLAB_CACHE_FAILED: 备份旧协作缓存失败: {e}"))?;
+            }
+        }
+        crate::logger::warn(format!(
+            "[collaboration] 协作缓存版本 {version} 不是当前格式，已备份到 discarded/ 后重建"
+        ));
+        rusqlite::Connection::open(&path).map_err(|e| format!("COLLAB_CACHE_FAILED: {e}"))?
+    } else {
+        conn
+    };
     conn.pragma_update(None, "journal_mode", "WAL")
         .map_err(|e| e.to_string())?;
     conn.pragma_update(None, "synchronous", "FULL")
@@ -363,10 +387,32 @@ fn last_sequence(conn: &rusqlite::Connection, id: &str) -> Result<i64, String> {
 
 #[tauri::command]
 pub fn collab_cache_read(app: AppHandle, document_id: String) -> Result<Value, String> {
+    session_id(&document_id)?;
+    let _lock = CACHE_WRITE_LOCK.lock().map_err(|_| "缓存保存锁不可用")?;
+    let directory = resolve_app_dir(&app)?.join("collaboration");
+    let mut connection = session_store(&app)?;
+    read_cache_or_discard(&mut connection, &directory, &document_id)
+}
+
+/// 读不出的缓存（摘要不符、元数据损坏）备份到 discarded/ 后删除并返回空，调用方按主库或服务器重建。
+fn read_cache_or_discard(
+    connection: &mut rusqlite::Connection,
+    directory: &std::path::Path,
+    document_id: &str,
+) -> Result<Value, String> {
+    match read_cache(connection, document_id) {
+        Ok(value) => Ok(value),
+        Err(reason) => {
+            discard_cache(connection, directory, document_id, &reason)?;
+            Ok(Value::Null)
+        }
+    }
+}
+
+fn read_cache(connection: &mut rusqlite::Connection, document_id: &str) -> Result<Value, String> {
     use base64::Engine;
     use rusqlite::OptionalExtension;
-    session_id(&document_id)?;
-    let mut connection = session_store(&app)?;
+    let document_id = document_id.to_string();
     let conn = connection.transaction().map_err(|e| e.to_string())?;
     let row: Option<(String, Vec<u8>, Option<String>)> = conn
         .query_row(
@@ -423,6 +469,103 @@ pub fn collab_cache_read(app: AppHandle, document_id: String) -> Result<Value, S
         .map_err(|e| e.to_string())?;
     Ok(
         json!({"metadata":metadata,"state":base64::engine::general_purpose::STANDARD.encode(state),"updates":values,"revision":cache_revision(&conn,&document_id)?,"inputDrafts":drafts}),
+    )
+}
+
+/// 把一篇缓存的原始快照、增量与未确认草稿写入 discarded/ 后删除；没有这篇缓存时不做任何事。
+fn discard_cache(
+    conn: &mut rusqlite::Connection,
+    directory: &std::path::Path,
+    document_id: &str,
+    reason: &str,
+) -> Result<(), String> {
+    use base64::Engine;
+    use rusqlite::OptionalExtension;
+    let encode = |bytes: Vec<u8>| base64::engine::general_purpose::STANDARD.encode(bytes);
+    let tx = conn
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .map_err(|e| e.to_string())?;
+    let row: Option<(String, Vec<u8>)> = tx
+        .query_row(
+            "SELECT metadata,state FROM sessions WHERE id=?1",
+            [document_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    let Some((metadata, state)) = row else {
+        return Ok(());
+    };
+    let updates = tx
+        .prepare("SELECT state FROM updates WHERE document_id=?1 ORDER BY id")
+        .and_then(|mut statement| {
+            statement
+                .query_map([document_id], |row| row.get::<_, Vec<u8>>(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()
+        })
+        .map_err(|e| e.to_string())?;
+    let drafts = tx
+        .prepare("SELECT node_id,field,value FROM input_drafts WHERE document_id=?1 AND applied=0")
+        .and_then(|mut statement| {
+            statement
+                .query_map([document_id], |row| {
+                    Ok(json!({"nodeId":row.get::<_, String>(0)?,"field":row.get::<_, String>(1)?,"value":row.get::<_, String>(2)?}))
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()
+        })
+        .map_err(|e| e.to_string())?;
+    let discarded = directory.join("discarded");
+    fs::create_dir_all(&discarded).map_err(|e| format!("COLLAB_CACHE_FAILED: {e}"))?;
+    let name = format!(
+        "{}-{}.json",
+        chrono::Local::now().format("%Y-%m-%d-%H-%M-%S"),
+        &format!("{:x}", Sha256::digest(document_id.as_bytes()))[..16]
+    );
+    let backup = json!({
+        "id": document_id,
+        "reason": reason,
+        "metadata": metadata,
+        "state": encode(state),
+        "updates": updates.into_iter().map(encode).collect::<Vec<_>>(),
+        "inputDrafts": drafts,
+    });
+    fs::write(discarded.join(name), backup.to_string())
+        .map_err(|e| format!("COLLAB_CACHE_FAILED: 备份协作缓存失败: {e}"))?;
+    for table in ["updates", "resources", "input_drafts", "document_drafts"] {
+        tx.execute(
+            &format!("DELETE FROM {table} WHERE document_id=?1"),
+            [document_id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    tx.execute(
+        "DELETE FROM entity_holds WHERE holder=?1",
+        [format!("document:{document_id}")],
+    )
+    .map_err(|e| e.to_string())?;
+    tx.execute("DELETE FROM sessions WHERE id=?1", [document_id])
+        .map_err(|e| e.to_string())?;
+    tx.commit().map_err(|e| e.to_string())?;
+    crate::logger::warn(format!("[collaboration] 协作缓存已备份后丢弃: {reason}"));
+    Ok(())
+}
+
+/// 前端发现缓存与主库或服务器对不上时调用：备份后丢弃，随后按权威数据重建。
+#[tauri::command]
+pub fn collab_cache_discard(
+    app: AppHandle,
+    document_id: String,
+    reason: String,
+) -> Result<(), String> {
+    session_id(&document_id)?;
+    let _lock = CACHE_WRITE_LOCK.lock().map_err(|_| "缓存保存锁不可用")?;
+    let directory = resolve_app_dir(&app)?.join("collaboration");
+    let mut conn = session_store(&app)?;
+    discard_cache(
+        &mut conn,
+        &directory,
+        &document_id,
+        &reason.chars().take(200).collect::<String>(),
     )
 }
 
@@ -682,16 +825,32 @@ fn confirm_input_drafts(
 }
 #[tauri::command]
 pub fn collab_cache_list(app: AppHandle) -> Result<Vec<Value>, String> {
-    let conn = session_store(&app)?;
-    let mut statement = conn.prepare("SELECT metadata FROM sessions WHERE coalesce(json_extract(metadata,'$.mode'),'shared')='shared' ORDER BY id").map_err(|e| e.to_string())?;
-    let rows = statement
-        .query_map([], |row| row.get::<_, String>(0))
+    let _lock = CACHE_WRITE_LOCK.lock().map_err(|_| "缓存保存锁不可用")?;
+    let directory = resolve_app_dir(&app)?.join("collaboration");
+    let mut conn = session_store(&app)?;
+    list_cache(&mut conn, &directory)
+}
+/// 元数据读不出的缓存行备份后丢弃，不让整份列表失败。
+fn list_cache(
+    conn: &mut rusqlite::Connection,
+    directory: &std::path::Path,
+) -> Result<Vec<Value>, String> {
+    let rows = conn
+        .prepare("SELECT id,metadata FROM sessions WHERE json_valid(metadata)=0 OR coalesce(json_extract(metadata,'$.mode'),'shared')='shared' ORDER BY id")
+        .and_then(|mut statement| {
+            statement
+                .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
+                .collect::<rusqlite::Result<Vec<_>>>()
+        })
         .map_err(|e| e.to_string())?;
-    rows.map(|row| {
-        serde_json::from_str(&row.map_err(|e| e.to_string())?)
-            .map_err(|e| format!("COLLAB_CACHE_CORRUPT: {e}"))
-    })
-    .collect()
+    let mut values = Vec::new();
+    for (id, metadata) in rows {
+        match serde_json::from_str::<Value>(&metadata) {
+            Ok(value) if value.is_object() => values.push(value),
+            _ => discard_cache(conn, directory, &id, "协作缓存元数据不可读")?,
+        }
+    }
+    Ok(values)
 }
 
 #[cfg(test)]
@@ -849,6 +1008,85 @@ mod cache_tests {
                 .unwrap(),
             1
         );
+    }
+    fn discarded(directory: &std::path::Path) -> Vec<Value> {
+        fs::read_dir(directory.join("discarded"))
+            .map(|entries| {
+                entries
+                    .filter_map(|entry| fs::read_to_string(entry.ok()?.path()).ok())
+                    .filter_map(|text| serde_json::from_str(&text).ok())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+    #[test]
+    fn corrupt_cache_is_backed_up_and_read_as_missing() {
+        let directory = std::env::temp_dir().join(format!("tau-collab-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&directory).unwrap();
+        let mut db = open_session_store(&directory).unwrap();
+        write_cache_snapshot(&mut db, payload(&[1, 2], None)).unwrap();
+        write_cache_update(&mut db, payload(&[3], None)).unwrap();
+        db.execute("UPDATE sessions SET state_hash='broken'", [])
+            .unwrap();
+        assert_eq!(
+            read_cache_or_discard(&mut db, &directory, "doc").unwrap(),
+            Value::Null
+        );
+        let backups = discarded(&directory);
+        assert_eq!(backups.len(), 1);
+        assert_eq!(backups[0]["updates"].as_array().unwrap().len(), 1);
+        assert_eq!(
+            db.query_row("SELECT count(*) FROM updates", [], |r| r.get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+        // 丢弃后可按权威数据重新建立同一篇缓存
+        write_cache_snapshot(&mut db, payload(&[4], None)).unwrap();
+        assert!(read_cache_or_discard(&mut db, &directory, "doc")
+            .unwrap()
+            .is_object());
+        fs::remove_dir_all(&directory).unwrap();
+    }
+    #[test]
+    fn unreadable_metadata_does_not_fail_the_list() {
+        let directory = std::env::temp_dir().join(format!("tau-collab-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&directory).unwrap();
+        let mut db = open_session_store(&directory).unwrap();
+        write_cache_snapshot(&mut db, payload(&[1], None)).unwrap();
+        db.execute(
+            "INSERT INTO sessions(id,metadata,state,state_hash) VALUES ('bad','{oops',x'00',NULL)",
+            [],
+        )
+        .unwrap();
+        let listed = list_cache(&mut db, &directory).unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(discarded(&directory).len(), 1);
+        fs::remove_dir_all(&directory).unwrap();
+    }
+    #[test]
+    fn unexpected_cache_version_is_backed_up_and_recreated() {
+        let directory = std::env::temp_dir().join(format!("tau-collab-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&directory).unwrap();
+        {
+            let old = rusqlite::Connection::open(directory.join("collaboration.db")).unwrap();
+            old.execute_batch("CREATE TABLE sessions(id TEXT); PRAGMA user_version=9;")
+                .unwrap();
+        }
+        let mut db = open_session_store(&directory).unwrap();
+        write_cache_snapshot(&mut db, payload(&[1], None)).unwrap();
+        assert_eq!(
+            db.pragma_query_value(None, "user_version", |row| row.get::<_, i64>(0))
+                .unwrap(),
+            2
+        );
+        assert!(fs::read_dir(directory.join("discarded"))
+            .unwrap()
+            .any(|entry| entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .contains("version-9")));
+        fs::remove_dir_all(&directory).unwrap();
     }
     #[test]
     fn metadata_only_update_invalidates_old_compaction() {

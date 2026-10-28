@@ -1,6 +1,6 @@
 import cacheSchema from "@tau/db-schema/schema/collaboration.sql?raw";
 import Database from "better-sqlite3";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import * as Y from "yjs";
@@ -10,31 +10,67 @@ export class CollaborationLocalStore {
   readonly db: Database.Database;
   constructor(private readonly directory: string) {
     mkdirSync(directory, { recursive: true, mode: 0o700 });
-    this.db = new Database(join(directory, "collaboration.db"));
-    this.db.pragma("journal_mode = WAL");
-    this.db.pragma("synchronous = FULL");
+    const path = join(directory, "collaboration.db");
+    this.db = new Database(path);
     const version = Number(this.db.pragma("user_version", { simple: true }));
-    if (version > 3) {
-      this.db.close();
-      throw new Error("本地协作缓存版本较新，请升级 Tau");
-    }
     const existing = this.db
       .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sessions'")
       .get();
-    if (existing && version !== 3) {
-      this.db.close();
-      throw new Error("CONTENT_FORMAT_UNSUPPORTED: 本机协作缓存格式不受支持");
-    }
+    if (existing && version !== 3) this.db = this.rebuild(path, version);
+    this.db.pragma("journal_mode = WAL");
+    this.db.pragma("synchronous = FULL");
     this.db.transaction(() => {
       this.db.exec(cacheSchema);
       this.db.pragma("user_version=3");
     })();
   }
+  /**
+   * 缓存文件不是当前格式（含较新版本写入）：整份移入 discarded/ 后新建，不阻断协作。
+   * settings 里有设备身份与共享绑定，能读出的键值迁进新库；正文缓存随后按服务器或主库重建。
+   */
+  private rebuild(path: string, version: number): Database.Database {
+    let settings: { key: string; value: string }[] = [];
+    try {
+      settings = this.db.prepare("SELECT key,value FROM settings").all() as typeof settings;
+    } catch {
+      // 读不出的 settings 随原文件一起备份
+    }
+    this.db.close();
+    const discarded = join(this.directory, "discarded");
+    mkdirSync(discarded, { recursive: true, mode: 0o700 });
+    const stamp = `${Date.now()}-version-${version}`;
+    for (const suffix of ["", "-wal", "-shm"])
+      if (existsSync(path + suffix))
+        renameSync(path + suffix, join(discarded, `${stamp}-collaboration.db${suffix}`));
+    const db = new Database(path);
+    db.exec(cacheSchema);
+    const insert = db.prepare("INSERT OR IGNORE INTO settings VALUES (?,?)");
+    db.transaction(() => {
+      for (const row of settings)
+        if (typeof row.key === "string" && typeof row.value === "string")
+          insert.run(row.key, row.value);
+    })();
+    return db;
+  }
   get<T>(key: string, fallback: T): T {
     const row = this.db.prepare("SELECT value FROM settings WHERE key=?").get(key) as
       | { value: string }
       | undefined;
-    return row ? (JSON.parse(row.value) as T) : fallback;
+    if (!row) return fallback;
+    try {
+      return JSON.parse(row.value) as T;
+    } catch {
+      // 坏值备份后按缺省处理，不让读取方整体失败
+      const discarded = join(this.directory, "discarded");
+      mkdirSync(discarded, { recursive: true, mode: 0o700 });
+      writeFileSync(
+        join(discarded, `${Date.now()}-setting-${digest(Buffer.from(key)).slice(0, 16)}.json`),
+        JSON.stringify({ key, value: row.value }),
+        { mode: 0o600 }
+      );
+      this.delete(key);
+      return fallback;
+    }
   }
   set(key: string, value: unknown) {
     this.db

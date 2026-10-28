@@ -310,7 +310,7 @@ class CollaborationManager {
       this.changed();
       return;
     }
-    if (session.info.frozen) return;
+    if (session.info.frozen || this.sessions.get(documentId) !== session) return;
     session.provider?.destroy();
     session.provider = null;
     const transport = this.transports.get(session.info.serverUrl);
@@ -693,7 +693,8 @@ class CollaborationManager {
       };
       await this.refreshProtocol(existing);
       this.changed();
-      return Promise.resolve(existing);
+      // 换代重建后返回新会话
+      return this.sessions.get(info.id) ?? existing;
     }
     let pending = this.opening.get(info.id);
     if (!pending) {
@@ -713,34 +714,65 @@ class CollaborationManager {
       protocol.baselineId === meta.get("baselineId")
     )
       return;
-    session.info.frozen = true;
-    session.info.remoteVersionAvailable =
-      protocol.version === NODE_DOCUMENT_VERSION && protocol.epoch > Number(meta.get("epoch") ?? 0);
-    session.info.error = session.info.remoteVersionAvailable
-      ? "共享文档基线已变化，原本机输入已保留"
-      : "共享文档基线或协议不兼容，原本机输入已保留";
+    if (protocol.version !== NODE_DOCUMENT_VERSION) {
+      // 协作端是更新版本应用写入的格式：权威数据，不能用旧客户端改写
+      session.info.frozen = true;
+      session.info.error = "协作端需要更新版本的应用，请升级后再编辑";
+      session.provider?.destroy();
+      session.provider = null;
+      this.changed();
+      return;
+    }
+    await this.rebuildSession(session, "协作端基线已变化");
+  }
+
+  /** 远端已换代的活跃会话：备份本机缓存后按服务器内容原位换成新会话，编辑页随会话切换重新绑定。 */
+  private async rebuildSession(session: RuntimeSession, reason: string) {
+    const { id } = session.info;
     session.provider?.destroy();
     session.provider = null;
-    if (session.saveError) session.saveError.frozen = true;
-    this.changed();
-    await this.persist(session);
+    session.detachDocListener?.();
+    session.awareness.setLocalState(null);
+    await session.writeTail.catch(() => undefined);
+    if (this.sessions.get(id) !== session) return;
+    this.sessions.delete(id);
+    const cached = await tauri.collabReadCache(id);
+    if (cached) await this.discardCache(session.info, cached, reason);
+    const { connection: _connection, pending: _pending, leaving: _leaving, ...info } = session.info;
+    const next = this.createSession(info as SharedDocumentInfo).finally(() =>
+      this.opening.delete(id)
+    );
+    this.opening.set(id, next);
+    try {
+      await next;
+    } catch (failure) {
+      // 重建失败（如离线）：列表刷新或编辑页重试会再次按服务器内容建立
+      this.changed();
+      throw failure;
+    }
   }
 
   private async createSession(info: SharedDocumentInfo): Promise<RuntimeSession> {
     if (this.stopped) throw new Error("COLLAB_STOPPED: 协作运行时已停止");
-    const cached = await tauri.collabReadCache(info.id);
-    const doc = new Y.Doc({ guid: info.id, gc: false });
-    let frozen = false,
-      remoteVersionAvailable = false;
+    let cached = await tauri.collabReadCache(info.id);
+    // 本机发起的共享要把内容投影回原正文：重建缓存时沿用原来源绑定
+    const source = cached?.metadata.source;
+    let doc = new Y.Doc({ guid: info.id, gc: false });
     try {
       if (cached) {
-        Y.applyUpdate(doc, base64ToBytes(cached.state));
-        for (const update of cached.updates) Y.applyUpdate(doc, base64ToBytes(update));
-        await validateNodeDocument(doc, {
-          documentId: info.id,
-          baselineId: String(doc.getMap("meta").get("baselineId")),
-          epoch: Number(doc.getMap("meta").get("epoch")),
-        });
+        try {
+          Y.applyUpdate(doc, base64ToBytes(cached.state));
+          for (const update of cached.updates) Y.applyUpdate(doc, base64ToBytes(update));
+          await validateNodeDocument(doc, {
+            documentId: info.id,
+            baselineId: String(doc.getMap("meta").get("baselineId")),
+            epoch: Number(doc.getMap("meta").get("epoch")),
+          });
+        } catch (failure) {
+          doc.destroy();
+          doc = new Y.Doc({ guid: info.id, gc: false });
+          cached = await this.discardCache(info, cached, describeError(failure, "本机缓存不可读"));
+        }
       }
       try {
         const { state } = await this.loadState(info.id);
@@ -758,9 +790,12 @@ class CollaborationManager {
               key => doc.getMap("meta").get(key) !== remote.getMap("meta").get(key)
             )
           ) {
-            frozen = true;
-            remoteVersionAvailable = true;
-          } else Y.applyUpdate(doc, base64ToBytes(state));
+            // 远端已换代：旧缓存不能合入新基线，备份后按服务器内容重建
+            doc.destroy();
+            doc = new Y.Doc({ guid: info.id, gc: false });
+            cached = await this.discardCache(info, cached, "协作端基线已变化");
+          }
+          Y.applyUpdate(doc, base64ToBytes(state));
         } finally {
           remote.destroy();
         }
@@ -777,15 +812,16 @@ class CollaborationManager {
         ),
         info: {
           ...cached?.metadata,
+          ...(source ? { source } : {}),
           ...info,
           serverUrl: this.serverUrl,
           mode: "shared",
           connection: "connecting",
           pending: cached?.metadata.pending ?? false,
           leaving: false,
-          frozen,
-          remoteVersionAvailable,
-          ...(remoteVersionAvailable ? { error: "共享文档基线已变化，已暂停当前会话同步" } : {}),
+          frozen: false,
+          remoteVersionAvailable: false,
+          error: undefined,
         },
         doc,
         awareness: new Awareness(doc),
@@ -825,6 +861,23 @@ class CollaborationManager {
       doc.destroy();
       throw failure;
     }
+  }
+
+  /** 缓存可重建：备份后丢弃；备份里有未同步的改动时给一次轻提示。返回 null 表示已无缓存。 */
+  private async discardCache(
+    info: SharedDocumentInfo,
+    cached: NonNullable<Awaited<ReturnType<typeof tauri.collabReadCache>>>,
+    reason: string
+  ): Promise<null> {
+    await tauri.collabDiscardCache(info.id, reason);
+    if (cached.metadata.pending || cached.updates.length || cached.inputDrafts.length)
+      pushCollaborationNotice({
+        id: `${info.id}:rebuilt:${Date.now()}`,
+        kind: "rebuilt",
+        documentId: info.id,
+        title: info.title || cached.metadata.title || "未命名内容",
+      });
+    return null;
   }
 
   /** 服务端 state 采用 base64；弱网下允许有限重试，避免单个文档阻塞整个列表。 */

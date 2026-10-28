@@ -42,7 +42,12 @@ export function useCollaborationRuntime() {
       toast(
         notice.kind === "closed"
           ? { type: "warning", text: `「${notice.title}」的共享已被作者结束` }
-          : { type: "warning", text: `你已失去「${notice.title}」的访问权限` }
+          : notice.kind === "rebuilt"
+            ? {
+                type: "info",
+                text: `「${notice.title}」已按协作端最新内容打开，本机未同步的改动已另行备份`,
+              }
+            : { type: "warning", text: `你已失去「${notice.title}」的访问权限` }
       );
     }
   }, [notices]);

@@ -120,46 +120,58 @@ export default function useLocalContentDocument(options: {
       )
         throw new Error("正文来源身份尚未建立");
       const cacheId = `local:${current.metadata.librarySourceId}:${current.metadata.documentId}`;
-      const cached = await tauri.collabReadCache(cacheId);
-      let doc: Y.Doc;
+      let cached = await tauri.collabReadCache(cacheId);
+      let doc: Y.Doc | undefined;
       let metadata: tauri.CachedContentSession;
       if (cached) {
+        const restored = cached;
+        try {
+          if (
+            restored.metadata.source?.librarySourceId !== current.metadata.librarySourceId ||
+            restored.metadata.source?.contentDocumentId !== current.metadata.documentId
+          )
+            throw new Error("本机缓存来源与正文不一致");
+          doc = new Y.Doc({ gc: false });
+          Y.applyUpdate(doc, base64ToBytes(restored.state));
+          for (const update of restored.updates) Y.applyUpdate(doc, base64ToBytes(update));
+          await validateNodeDocument(doc, {
+            documentId: restored.metadata.source.contentDocumentId!,
+            baselineId: restored.metadata.baselineId,
+            epoch: restored.metadata.epoch,
+          });
+          const resourcePaths = new Map(Object.entries(restored.metadata.resourcePaths ?? {}));
+          const value = map(
+            readNodeDocument(doc).content,
+            reference => resourcePaths.get(reference) ?? reference,
+            doc.getMap("node-tree:contracts").toJSON() as ContentContractDictionary
+          );
+          if (
+            restored.metadata.source.projectionRevision !== current.metadata.revision &&
+            JSON.stringify(value) !== JSON.stringify(current.content)
+          )
+            throw new Error("主库正文已被其他入口更新");
+        } catch (failure) {
+          // 本机缓存可重建：读不出或与主库对不上时备份后按主库重建，不阻断编辑。
+          doc?.destroy();
+          doc = undefined;
+          await tauri.collabDiscardCache(
+            cacheId,
+            failure instanceof Error ? failure.message : "本机缓存不可读"
+          );
+          if (restored.metadata.pending)
+            toast.info("这篇正文已按最新内容打开，本机未保存的改动已另行备份");
+          cached = null;
+        }
+      }
+      if (cached && doc) {
         metadata = cached.metadata;
-        if (
-          metadata.source?.librarySourceId !== current.metadata.librarySourceId ||
-          metadata.source?.contentDocumentId !== current.metadata.documentId
-        )
-          throw new Error("本机缓存来源不匹配，原数据已保留");
         paths.clear();
         references.clear();
         for (const [reference, path] of Object.entries(metadata.resourcePaths ?? {})) {
           paths.set(reference, path);
           references.set(path, reference);
         }
-        doc = new Y.Doc({ gc: false });
-        try {
-          Y.applyUpdate(doc, base64ToBytes(cached.state));
-          for (const update of cached.updates) Y.applyUpdate(doc, base64ToBytes(update));
-          await validateNodeDocument(doc, {
-            documentId: metadata.source.contentDocumentId!,
-            baselineId: metadata.baselineId,
-            epoch: metadata.epoch,
-          });
-          const value = map(
-            readNodeDocument(doc).content,
-            reference => paths.get(reference) ?? reference,
-            doc.getMap("node-tree:contracts").toJSON() as ContentContractDictionary
-          );
-          if (
-            metadata.source.projectionRevision !== current.metadata.revision &&
-            JSON.stringify(value) !== JSON.stringify(current.content)
-          )
-            throw new Error("主库正文与本机缓存修订冲突，已暂停写入");
-          metadata.source.projectionRevision = current.metadata.revision;
-        } catch (failure) {
-          doc.destroy();
-          throw failure;
-        }
+        metadata.source!.projectionRevision = current.metadata.revision;
       } else {
         doc = await createNodeDocument(
           { documentId: current.metadata.documentId, baselineId: crypto.randomUUID(), epoch: 0 },

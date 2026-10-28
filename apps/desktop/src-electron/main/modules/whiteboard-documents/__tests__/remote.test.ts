@@ -1,8 +1,8 @@
 // @vitest-environment node
 import { afterEach, expect, it, vi } from "vitest";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { createHash } from "node:crypto";
 import * as Y from "yjs";
 import {
@@ -256,13 +256,20 @@ it.each([false, true])("换代先保全旧分支（待发送=%s），随后才�
   fresh.destroy();
   next.destroy();
 });
-it("损坏的分支日志不自动删除或重建", async () => {
+it("损坏的分支日志备份后按服务器确认快照重建", async () => {
   const f = await fixture();
   f.journal.db.prepare("UPDATE remote_branches SET value='broken'").run();
-  await expect(DocumentSyncSession.open(f.room.id, f.remote, f.transport)).rejects.toThrow("损坏");
-  expect(f.journal.db.prepare("SELECT value FROM remote_branches").get()).toEqual({
-    value: "broken",
-  });
+  const reopened = await DocumentSyncSession.open(
+    f.room.id,
+    new WhiteboardRemoteJournal(f.journal, f.room.id),
+    f.transport
+  );
+  expect(reopened.snapshot().blocked).toBe(false);
+  expect(reopened.snapshot().confirmed.protocol.id).toBe(f.room.id);
+  const [backup] = readdirSync(join(dirname(f.journal.db.name), "discarded"));
+  expect(
+    JSON.parse(readFileSync(join(dirname(f.journal.db.name), "discarded", backup), "utf8"))
+  ).toMatchObject({ value: "broken" });
 });
 
 it("旧日志实例不能覆盖另一实例的待确认操作，落盘失败也不推进读取修订", async () => {

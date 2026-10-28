@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import {
   DocumentSyncSession,
   type DocumentSyncJournal,
@@ -30,8 +32,11 @@ export class WhiteboardRemoteJournal implements DocumentSyncJournal {
       this.hash = null;
       return null;
     }
-    if (createHash("sha256").update(row.value).digest("hex") !== row.hash)
-      throw new Error("白板远端分支材料损坏，已保留原日志");
+    if (createHash("sha256").update(row.value).digest("hex") !== row.hash) {
+      // 网络分支可按服务器确认快照重建：备份坏行后丢弃，本机未确认的改动仍在白板日志里，会被重新补交
+      this.discard(row, "白板远端分支材料损坏");
+      return null;
+    }
     this.hash = row.hash;
     const saved = JSON.parse(row.value, (_key, value) =>
       value &&
@@ -63,9 +68,31 @@ export class WhiteboardRemoteJournal implements DocumentSyncJournal {
       .prepare("SELECT value,hash FROM remote_receipts WHERE scope=? AND operation_id=?")
       .get(this.key, operationId) as { value: string; hash: string } | undefined;
     if (!row) return null;
-    if (createHash("sha256").update(row.value).digest("hex") !== row.hash)
-      throw new Error("白板远端回执损坏，原记录已保留");
+    if (createHash("sha256").update(row.value).digest("hex") !== row.hash) {
+      // 回执只用于幂等查询：坏回执备份后视为未知，由服务端按操作身份重新确认
+      this.discard(row, "白板远端回执损坏", operationId);
+      return null;
+    }
     return JSON.parse(row.value);
+  }
+  private discard(row: { value: string; hash: string }, reason: string, operationId?: string) {
+    const directory = join(dirname(this.journal.db.name), "discarded");
+    if (!this.journal.db.memory) {
+      mkdirSync(directory, { recursive: true, mode: 0o700 });
+      writeFileSync(
+        join(
+          directory,
+          `${Date.now()}-remote-${createHash("sha256").update(this.key).digest("hex").slice(0, 16)}.json`
+        ),
+        JSON.stringify({ reason, scope: this.key, operationId, ...row }),
+        { mode: 0o600 }
+      );
+    }
+    if (operationId)
+      this.journal.db
+        .prepare("DELETE FROM remote_receipts WHERE scope=? AND operation_id=?")
+        .run(this.key, operationId);
+    else this.journal.db.prepare("DELETE FROM remote_branches WHERE scope=?").run(this.key);
   }
   async save(state: DocumentSyncState, receipt?: DocumentOperation): Promise<void> {
     this.write(state, receipt ? [receipt] : []);

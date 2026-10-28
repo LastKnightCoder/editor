@@ -247,9 +247,9 @@ export class CollaborationManager {
     const session: RuntimeSession = {
       info: {
         ...info,
-        frozen: Boolean(
-          info.remoteVersionAvailable || this.store.get(`publishing:${info.id}`, null)
-        ),
+        // 旧版本因远端换代冻结的缓存不再冻结：联网刷新时按远端快照重建
+        remoteVersionAvailable: false,
+        frozen: Boolean(this.store.get(`publishing:${info.id}`, null)),
         connection: info.mode === "local" ? "connected" : "connecting",
       },
       doc,
@@ -797,7 +797,7 @@ export class CollaborationManager {
     }
   }
   /** 对齐一篇远端共享：内存会话更新元数据，冷缓存先恢复，缓存缺失或损坏按远端快照重建。 */
-  private async syncRemoteDocument(url: string, info: SharedDocumentInfo) {
+  private async syncRemoteDocument(url: string, info: SharedDocumentInfo): Promise<void> {
     const roomKey = `${url}/${info.id}`;
     if (this.nonContentRooms.has(roomKey)) {
       if (this.whiteboardRooms.has(roomKey))
@@ -817,9 +817,9 @@ export class CollaborationManager {
         protocol.version === NODE_DOCUMENT_VERSION &&
         protocol.epoch > Number(existing.doc.getMap("meta").get("epoch") ?? 0)
       ) {
-        existing.info.remoteVersionAvailable = true;
-        if (!existing.info.frozen) await this.freeze(existing);
-        existing.provider?.detach();
+        // 远端已换代：旧缓存不能合入新基线，备份后按服务器确认快照重建，编辑视图随 replaced 事件重开
+        await this.releaseRemoteSession(existing, "协作端基线已变化");
+        return this.syncRemoteDocument(url, info);
       }
       this.store.metadata(existing.info);
       return;
@@ -1649,6 +1649,25 @@ export class CollaborationManager {
       resume();
       throw failure;
     }
+  }
+
+  /** 共享会话的缓存不能继续使用：原始字节备份后拆除会话，调用方随后按服务器内容重建。 */
+  private async releaseRemoteSession(session: RuntimeSession, reason: string) {
+    const id = session.info.id;
+    if (session.info.pending)
+      this.broadcast("collaboration:notice", {
+        message: `「${session.info.title || "未命名内容"}」已按协作端最新内容打开，本机未同步的改动已另行备份`,
+      });
+    for (const [viewId, view] of this.views) if (view.documentId === id) this.removeView(viewId);
+    unregisterContentSession(session);
+    session.provider?.destroy();
+    if (session.dirty) this.store.compact(id, session.doc);
+    this.store.discard(id, reason);
+    session.awareness.destroy();
+    session.doc.destroy();
+    this.sessions.delete(id);
+    this.contentState?.db.prepare("DELETE FROM entity_holds WHERE holder=?").run(`document:${id}`);
+    this.broadcast("collaboration:removed", { documentId: id, replaced: true });
   }
 
   private readonly replacementReleases = new Map<string, Promise<void>>();

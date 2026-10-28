@@ -19,11 +19,13 @@ const io = vi.hoisted(() => ({
   project: vi.fn(),
   adopt: vi.fn(),
   draft: vi.fn(),
+  discard: vi.fn(),
 }));
 vi.mock("../../../services/tauri", () => ({
   collabInputDraft: io.draft,
   collabAdoptCache: io.adopt,
   collabReadCache: io.read,
+  collabDiscardCache: io.discard,
   collabWriteCache: io.write,
   collabProjectContent: io.project,
   collabNodeViews: async () => ({}),
@@ -119,32 +121,50 @@ it("重启合入同一真实基线，未确认的本机输入不会被服务器�
   doc.destroy();
 });
 
-it("旧协议缓存拒绝打开，不拿远端新快照覆盖原缓存或投影", async () => {
+it("读不出的旧协议缓存备份后按服务器内容重建，不阻断打开", async () => {
   const { info } = await fixture();
   const old = new Y.Doc();
   old.getMap("meta").set("version", 1);
   old.get("content", Y.XmlText).insert(0, "未确认的旧输入");
   const state = bytesToBase64(Y.encodeStateAsUpdate(old));
   old.destroy();
-  io.read.mockResolvedValue({ metadata: info, state, updates: [], revision: "old-cache" });
-  await expect(manager.createSession(info)).rejects.toThrow();
-  expect(io.remote).not.toHaveBeenCalled();
-  expect(io.write).not.toHaveBeenCalled();
-  expect(io.project).not.toHaveBeenCalled();
+  io.read.mockResolvedValue({
+    metadata: info,
+    state,
+    updates: [],
+    revision: "old-cache",
+    inputDrafts: [],
+  });
+  const session = await manager.createSession(info);
+  expect(io.discard).toHaveBeenCalledWith("doc", expect.any(String));
+  expect(JSON.stringify(new NodeTree(session.doc).read())).toContain("原文");
+  expect(session.info).toMatchObject({ frozen: false, remoteVersionAvailable: false });
+  expect(io.write.mock.calls[0][0].expectedRevision).toBeUndefined();
   expect(io.adopt).not.toHaveBeenCalled();
 });
-it("远端换代时冻结旧副本，既不合并不同基线也不丢弃本机输入", async () => {
+it("远端换代时备份旧缓存并按新基线重建，有未同步改动时给出提示", async () => {
   const { doc, info, state, content, contracts } = await fixture();
-  io.read.mockResolvedValue({ metadata: info, state, updates: [], revision: "cache-revision" });
+  io.read.mockResolvedValue({
+    metadata: info,
+    state,
+    updates: [],
+    revision: "cache-revision",
+    inputDrafts: [],
+  });
   const remote = await createNodeDocument(
     { documentId: "doc", baselineId: "new-base", epoch: 1 },
     content,
     contracts
   );
   io.remote.mockResolvedValue({ state: bytesToBase64(Y.encodeStateAsUpdate(remote)) });
+  const { useCollaborationStore } = await import("../core/store");
+  useCollaborationStore.setState({ notices: [] });
   const session = await manager.createSession(info);
-  expect(session.info).toMatchObject({ frozen: true, remoteVersionAvailable: true });
-  expect(session.doc.getMap("meta").get("baselineId")).toBe("base");
+  expect(io.discard).toHaveBeenCalledWith("doc", "协作端基线已变化");
+  expect(session.info).toMatchObject({ frozen: false, remoteVersionAvailable: false });
+  expect(session.doc.getMap("meta").get("baselineId")).toBe("new-base");
+  expect(session.info.source?.contentId).toBe(7);
+  expect(useCollaborationStore.getState().notices.map(notice => notice.kind)).toEqual(["rebuilt"]);
   remote.destroy();
   doc.destroy();
 });
@@ -275,24 +295,46 @@ it("草稿保存失败后可显式冲刷重试，不跳过原草稿", async () =
 });
 
 it.each(["refresh", "reconnect"])(
-  "活跃会话经 %s 检出换代，保留输入且不再连接旧基线",
+  "活跃会话经 %s 检出换代，备份本机输入后按新基线重建，不再冻结",
   async trigger => {
-    const { doc, info, state } = await fixture();
-    io.read.mockResolvedValue({ metadata: info, state, updates: [], revision: "cache" });
+    const { doc, info, state, content, contracts } = await fixture();
+    io.read.mockResolvedValue({
+      metadata: info,
+      state,
+      updates: [],
+      revision: "cache",
+      inputDrafts: [],
+    });
     const session = await manager.createSession(info),
       tree = new NodeTree(session.doc);
     tree.insertText("p", 2, "离线输入", {});
     await collaborationManager.flushCache("doc");
-    const before = Y.encodeStateAsUpdate(session.doc);
+    const remote = await createNodeDocument(
+      { documentId: "doc", baselineId: "next", epoch: 1 },
+      content,
+      contracts
+    );
+    io.remote.mockResolvedValue({ state: bytesToBase64(Y.encodeStateAsUpdate(remote)) });
     io.protocol.mockResolvedValue({ id: "doc", version: 2, baselineId: "next", epoch: 1 });
+    io.read.mockResolvedValueOnce({
+      metadata: { ...info, pending: true },
+      state,
+      updates: [],
+      revision: "cache",
+      inputDrafts: [],
+    });
+    io.read.mockResolvedValue(null);
     if (trigger === "refresh") await manager.openSession(info);
     else await collaborationManager.reconnect("doc");
-    expect(session.info).toMatchObject({ frozen: true, remoteVersionAvailable: true });
-    expect(Y.encodeStateAsUpdate(session.doc)).toEqual(before);
-    expect(manager.attach).toHaveBeenCalledTimes(1);
-    await collaborationManager.flushCache("doc");
-    expect(session.info.frozen).toBe(true);
+    expect(io.discard).toHaveBeenCalledWith("doc", "协作端基线已变化");
+    const next = manager.sessions.get("doc")!;
+    expect(next).not.toBe(session);
+    expect(next.info).toMatchObject({ frozen: false, remoteVersionAvailable: false });
+    expect(next.doc.getMap("meta").get("baselineId")).toBe("next");
+    expect(next.info.source?.contentId).toBe(7);
+    expect(session.provider).toBeNull();
     tree.dispose();
+    remote.destroy();
     doc.destroy();
   }
 );
