@@ -84,7 +84,7 @@ import type { LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { ChatSessionMessage, RequestMessage } from "@/types";
 import type { AgentSession, ExtensionAPI, InlineExtension } from "@earendil-works/pi-coding-agent";
 import { basename, dirname, join } from "node:path";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { PiSessionAccess } from "./pi-session-access";
 import {
   acquireDatabaseSyncLock,
@@ -478,7 +478,13 @@ class PiSessionHostModule {
       async (_event, { databaseName }: { databaseName: string }) =>
         PiSessionHostModule.guard(async () => {
           const dir = chatSessionDirOf(databaseName);
-          return { files: listSessionFiles(dir).map(name => ({ name, path: join(dir, name) })) };
+          return {
+            files: listSessionFiles(dir).map(name => {
+              const path = join(dir, name);
+              const { size, mtimeMs } = statSync(path);
+              return { name, path, size, mtimeMs };
+            }),
+          };
         })
     );
     ipcMain.handle("pi-session:find-by-scope", async (event, { scope }: { scope: string }) => {

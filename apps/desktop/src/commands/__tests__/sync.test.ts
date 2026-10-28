@@ -5,6 +5,7 @@ const state = vi.hoisted(() => ({
   setting: {
     setting: {
       database: { active: "data.db", databases: [{ name: "data.db", version: 1 }] },
+      sync: { plugin: { id: "tau.sync-s3", configurations: { "tau.sync-s3": { bucket: "b" } } } },
     },
   },
   remote: new Map<string, Uint8Array>(),
@@ -19,6 +20,7 @@ const state = vi.hoisted(() => ({
   install: vi.fn(),
   factory: vi.fn(),
   unlock: vi.fn(async () => ({ ok: true })),
+  uploadCache: new Map<string, unknown>(),
 }));
 const provider = {
   uploadFile: state.upload,
@@ -53,6 +55,14 @@ vi.mock("@/stores/useSettingStore.ts", () => ({
     },
   },
 }));
+vi.mock("@/utils/sleep", () => ({ sleep: async () => undefined }));
+vi.mock("@/services/sessionUploadCache", () => ({
+  readSessionUploadCache: async (target: unknown) =>
+    structuredClone(state.uploadCache.get(JSON.stringify(target)) ?? null),
+  writeSessionUploadCache: async (target: unknown, cache: unknown) => {
+    state.uploadCache.set(JSON.stringify(target), structuredClone(cache));
+  },
+}));
 vi.mock("@/stores/useGlobalStateStore", () => ({ default: { setState: vi.fn() } }));
 vi.mock("@/commands/piSession", () => ({
   piSessionSyncFiles: state.sessions,
@@ -71,17 +81,19 @@ beforeEach(() => {
   state.setting = {
     setting: {
       database: { active: "data.db", databases: [{ name: "data.db", version: 1 }] },
+      sync: { plugin: { id: "tau.sync-s3", configurations: { "tau.sync-s3": { bucket: "b" } } } },
     },
   };
   state.remote.clear();
   state.remote.set(versionObject, encode({ version: 1 }));
   state.local.clear();
+  state.uploadCache.clear();
   state.local.set("/tmp/data.db", new Uint8Array([9, 9, 9]));
   state.local.set("/tmp/chat.jsonl", new Uint8Array([7, 7]));
   state.factory.mockReturnValue(provider);
   state.sessions.mockResolvedValue({
     ok: true,
-    files: [{ name: "chat.jsonl", path: "/tmp/chat.jsonl" }],
+    files: [{ name: "chat.jsonl", path: "/tmp/chat.jsonl", size: 2, mtimeMs: 1 }],
   });
   state.install.mockResolvedValue({ ok: true });
   state.upload.mockImplementation(async (name: string, bytes: Uint8Array) => {
@@ -147,6 +159,63 @@ it("上传中途失败不改版本号，释放锁并重连", async () => {
   expect(decode(state.remote.get(versionObject)).version).toBe(1);
   expect(state.setting.setting.database.databases[0].version).toBe(1);
   expect(state.unlock).toHaveBeenCalled();
+});
+const sessionUploads = () =>
+  state.upload.mock.calls.filter(([name]) => String(name).startsWith(`${root}/sessions/`));
+it("云端仍是本机上次写入的版本时，跳过未变的对话记录", async () => {
+  expect(await upload()).toBe(true);
+  vi.clearAllMocks();
+  expect(await upload()).toBe(true);
+  expect(sessionUploads()).toHaveLength(0);
+  expect(decode(state.remote.get(`${root}/sessions.json`))).toEqual({ files: ["chat.jsonl"] });
+  expect(decode(state.remote.get(versionObject)).version).toBe(3);
+});
+it("对话文件变化或云端被其他设备写过时重新上传", async () => {
+  expect(await upload()).toBe(true);
+  vi.clearAllMocks();
+  state.sessions.mockResolvedValue({
+    ok: true,
+    files: [{ name: "chat.jsonl", path: "/tmp/chat.jsonl", size: 2, mtimeMs: 2 }],
+  });
+  expect(await upload()).toBe(true);
+  expect(sessionUploads()).toHaveLength(1);
+  vi.clearAllMocks();
+  state.remote.set(versionObject, encode({ version: 9 }));
+  expect(await upload()).toBe(true);
+  expect(sessionUploads()).toHaveLength(1);
+});
+it("对话记录并发上传，单个失败会重试，进度只增不减并以 100 结束", async () => {
+  const files = Array.from({ length: 5 }, (_, index) => ({
+    name: `chat-${index}.jsonl`,
+    path: `/tmp/chat-${index}.jsonl`,
+    size: 2,
+    mtimeMs: 1,
+  }));
+  files.forEach((file, index) => state.local.set(file.path, new Uint8Array([index, 1])));
+  state.sessions.mockResolvedValue({ ok: true, files });
+  let failed = false;
+  state.upload.mockImplementation(async (name: string, bytes: Uint8Array) => {
+    if (!failed && name.endsWith("chat-2.jsonl")) {
+      failed = true;
+      return false;
+    }
+    state.remote.set(name, new Uint8Array(bytes));
+    return true;
+  });
+  const progress: number[] = [];
+  expect(await upload({ onProgress: ({ value }) => progress.push(value) })).toBe(true);
+  for (const file of files) expect(state.remote.has(`${root}/sessions/${file.name}`)).toBe(true);
+  expect(progress).toEqual([...progress].sort((left, right) => left - right));
+  expect(progress.at(-1)).toBe(100);
+});
+it("对话记录重试用尽后上传失败，版本号不变", async () => {
+  state.upload.mockImplementation(async (name: string, bytes: Uint8Array) => {
+    if (name.endsWith("chat.jsonl")) return false;
+    state.remote.set(name, new Uint8Array(bytes));
+    return true;
+  });
+  expect(await upload()).toBe(false);
+  expect(decode(state.remote.get(versionObject)).version).toBe(1);
 });
 async function uploadedFromOtherDevice() {
   expect(await upload()).toBe(true);

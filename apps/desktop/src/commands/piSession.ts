@@ -144,10 +144,17 @@ export function piSessionTree(
   return invoke("pi-session:tree", location);
 }
 
+export interface SessionSyncFile {
+  name: string;
+  path: string;
+  size: number;
+  mtimeMs: number;
+}
+
 /** 同步只枚举当前会话文件，内容由宿主逐块传输。 */
 export function piSessionSyncFiles(
   databaseName: string
-): Promise<Outcome & { files?: { name: string; path: string }[] }> {
+): Promise<Outcome & { files?: SessionSyncFile[] }> {
   return invoke("pi-session:sync-files", { databaseName });
 }
 

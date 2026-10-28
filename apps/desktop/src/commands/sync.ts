@@ -3,7 +3,9 @@ import {
   downloadChunkedPath,
   chunkDigest,
   copySyncFile,
+  syncFileSize,
 } from "@/services/chunkedSync";
+import { readSessionUploadCache, writeSessionUploadCache } from "@/services/sessionUploadCache";
 import {
   databaseSyncObjects,
   decodeSessionList,
@@ -37,8 +39,10 @@ import {
   piSessionLockLibrary,
   piSessionUnlockLibrary,
   piSessionInstallDownload,
+  type SessionSyncFile,
 } from "@/commands/piSession";
 import type { ISyncProvider } from "@/types/sync";
+import { sleep } from "@/utils/sleep";
 
 interface SyncCommandOptions {
   onProgress?: (payload: { value: number; status: string }) => void;
@@ -125,12 +129,48 @@ const withSyncProvider = async (run: (provider: ISyncProvider) => Promise<boolea
   }
 };
 
+/** 与资源同步的并发上限与重试退避一致：部分服务（如 GitHub 同分支提交）并发写会偶发冲突。 */
+const SESSION_UPLOAD_CONCURRENCY = 3;
+const SESSION_UPLOAD_RETRIES = 3;
+
+/** 有限并发执行；出错后不再领取新任务，等在途任务结束再抛出首个错误。 */
+async function runWithConcurrency<T>(items: T[], limit: number, run: (item: T) => Promise<void>) {
+  let next = 0;
+  let failure: { error: unknown } | null = null;
+  const worker = async () => {
+    while (!failure && next < items.length) {
+      const item = items[next++];
+      try {
+        await run(item);
+      } catch (error) {
+        failure ??= { error };
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  if (failure) throw (failure as { error: unknown }).error;
+}
+
+/** 云端版本仍是本机上次写入的版本时，期间没有其他设备上传，未变的对话文件可直接沿用云端副本。 */
+const sessionsToUpload = (
+  files: SessionSyncFile[],
+  cache: Awaited<ReturnType<typeof readSessionUploadCache>>,
+  remoteVersion: number
+) =>
+  cache && cache.version === remoteVersion
+    ? files.filter(file => {
+        const previous = cache.files[file.name];
+        return previous?.size !== file.size || previous.mtimeMs !== file.mtimeMs;
+      })
+    : files;
+
 /** 把本机库文件（及桌面对话记录）覆盖到云端固定位置，版本号最后写入。 */
 export const upload = (options?: UploadOptions) =>
   withSyncProvider(provider => uploadWithProvider(provider, options));
 
 const uploadWithProvider = async (syncProvider: ISyncProvider, options?: UploadOptions) => {
-  const { active: databaseName, databases } = useSettingStore.getState().setting.database;
+  const { database: databaseSetting, sync } = useSettingStore.getState().setting;
+  const { active: databaseName, databases } = databaseSetting;
   const database = databases.find(item => item.name === databaseName);
   if (!database) return false;
   const databasePath = await getDatabasePath(databaseName);
@@ -139,13 +179,19 @@ const uploadWithProvider = async (syncProvider: ISyncProvider, options?: UploadO
     return false;
   }
 
-  emitProgress(options, 5, "正在准备同步...");
+  emitProgress(options, 1, "正在准备同步...");
   const objects = await databaseSyncObjects(databaseName, chunkDigest);
   const remote = await readDatabaseSyncVersion(syncProvider, objects.version);
   if (options?.skipWhenRemoteNewer && remote.version > localDatabaseVersion(database)) {
     toast.warning(`云端 v${remote.version} 比本机新，已跳过自动上传`);
     return false;
   }
+  const pluginId = sync.plugin?.id;
+  const cacheTarget = [
+    pluginId,
+    pluginId ? sync.plugin?.configurations[pluginId] : null,
+    databaseName,
+  ];
 
   const locked = await piSessionLockLibrary(databaseName);
   if (!locked.ok) {
@@ -157,23 +203,69 @@ const uploadWithProvider = async (syncProvider: ISyncProvider, options?: UploadO
     // 关库会把编辑器缓存写回并合并 WAL，上传的才是完整的库文件
     await closeDatabase(databaseName);
 
-    emitProgress(options, 30, "正在上传数据库文件...");
-    await uploadChunkedPath(syncProvider, objects.database, databasePath, databaseName);
-
-    emitProgress(options, 60, "正在上传对话记录...");
     const prepared = await piSessionSyncFiles(databaseName);
     if (!prepared.ok || !prepared.files) throw new Error(prepared.error ?? "读取对话记录失败");
-    for (const file of prepared.files)
-      await uploadChunkedPath(syncProvider, objects.session(file.name), file.path, file.name);
-    const names = prepared.files.map(file => file.name);
+    const sessionFiles = prepared.files;
+    const pending = sessionsToUpload(
+      sessionFiles,
+      await readSessionUploadCache(cacheTarget),
+      remote.version
+    );
+
+    // 进度按已处理字节计：准备占 2%，库文件与待传对话记录占 2%–97%，清单与版本号收尾
+    const databaseSize = await syncFileSize(databasePath);
+    const totalBytes = databaseSize + pending.reduce((sum, file) => sum + file.size, 0);
+    let doneBytes = 0;
+    let shown = 0;
+    let status = "正在上传数据库文件...";
+    // 重试会回退已计字节，显示值只增不减，避免进度条倒退
+    const report = (bytes: number) => {
+      doneBytes += bytes;
+      shown = Math.max(shown, 2 + (totalBytes ? (doneBytes / totalBytes) * 95 : 95));
+      emitProgress(options, shown, status);
+    };
+    report(0);
+    await uploadChunkedPath(syncProvider, objects.database, databasePath, databaseName, report);
+
+    status = "正在上传对话记录...";
+    report(0);
+    await runWithConcurrency(pending, SESSION_UPLOAD_CONCURRENCY, async file => {
+      for (let attempt = 0; ; attempt++) {
+        let sent = 0;
+        try {
+          await uploadChunkedPath(
+            syncProvider,
+            objects.session(file.name),
+            file.path,
+            file.name,
+            bytes => {
+              sent += bytes;
+              report(bytes);
+            }
+          );
+          return;
+        } catch (error) {
+          report(-sent);
+          if (attempt >= SESSION_UPLOAD_RETRIES) throw error;
+          await sleep(1000 * 2 ** attempt);
+        }
+      }
+    });
+    const names = sessionFiles.map(file => file.name);
     if (!(await syncProvider.uploadFile(objects.sessions, encodeSessionList(names))))
       throw new Error("对话记录清单上传失败");
 
-    emitProgress(options, 85, "正在上传版本信息...");
+    emitProgress(options, 98, "正在上传版本信息...");
     const version = Math.max(localDatabaseVersion(database), remote.version) + 1;
     if (!(await syncProvider.uploadFile(objects.version, encodeDatabaseSyncVersion(version))))
       throw new Error("版本信息上传失败");
     setLocalVersion(databaseName, version);
+    await writeSessionUploadCache(cacheTarget, {
+      version,
+      files: Object.fromEntries(
+        sessionFiles.map(file => [file.name, { size: file.size, mtimeMs: file.mtimeMs }])
+      ),
+    }).catch(error => console.warn("记录对话上传状态失败，下次上传将全量检查:", error));
 
     emitProgress(options, 100, "同步完成");
     return true;
