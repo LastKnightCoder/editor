@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 import { createHash } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { WhiteboardDocumentIdentity } from "@/types/whiteboard-document";
 import type { ContentEntityReference } from "@tau/db-schema/content-identities";
@@ -28,13 +28,22 @@ export class WhiteboardJournal {
   constructor(filename: string) {
     if (filename !== ":memory:") mkdirSync(dirname(filename), { recursive: true, mode: 0o700 });
     this.db = new Database(filename);
+    const version = Number(this.db.pragma("user_version", { simple: true }));
+    if (version > 2 && filename !== ":memory:") {
+      // 日志可按主库检查点重建：较新版本写入的日志整份移入 discarded/ 后新建，不阻断白板
+      this.db.close();
+      const discarded = join(dirname(filename), "discarded");
+      mkdirSync(discarded, { recursive: true, mode: 0o700 });
+      for (const suffix of ["", "-wal", "-shm"])
+        if (existsSync(filename + suffix))
+          renameSync(
+            filename + suffix,
+            join(discarded, `${Date.now()}-version-${version}-journal.db${suffix}`)
+          );
+      this.db = new Database(filename);
+    }
     this.db.pragma("journal_mode=WAL");
     this.db.pragma("synchronous=FULL");
-    const version = Number(this.db.pragma("user_version", { simple: true }));
-    if (version > 2) {
-      this.db.close();
-      throw new Error("白板本机日志版本较新");
-    }
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS documents(document_id TEXT PRIMARY KEY, identity TEXT NOT NULL, state BLOB NOT NULL, revision INTEGER NOT NULL, hash TEXT NOT NULL, projected_revision INTEGER NOT NULL, projected_hash TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS updates(document_id TEXT NOT NULL, batch_id TEXT NOT NULL, revision INTEGER NOT NULL, update_hash TEXT NOT NULL, state BLOB NOT NULL, state_hash TEXT NOT NULL, PRIMARY KEY(document_id,batch_id), UNIQUE(document_id,revision));

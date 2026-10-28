@@ -307,6 +307,47 @@ describe("桌面生产会话与真实服务贯通", () => {
     expect(readdirSync(join(runtime.directory, "discarded"))).toHaveLength(1);
   });
 
+  it("共享会话遇到远端换代：备份旧缓存后按远端快照重建，不冻结", async () => {
+    const { runtime, store, event } = await setup();
+    const { documentId } = await runtime.createContent(event, 7);
+    const shared = runtime.sessions.get(documentId)!;
+    shared.info.pending = true;
+    const client = runtime.client as unknown as {
+      request: (url: string, path: string, ...rest: unknown[]) => Promise<unknown>;
+    };
+    const original = client.request.bind(client);
+    // 服务器报告更高代次：旧会话的缓存不能再合入
+    vi.spyOn(client, "request").mockImplementation(async (url, path, ...rest) => {
+      const value = await original(url, path, ...rest);
+      return path.endsWith("/protocol")
+        ? { ...(value as Record<string, unknown>), epoch: 9 }
+        : value;
+    });
+    const sync = runtime as unknown as {
+      syncRemoteDocument(url: string, info: unknown): Promise<void>;
+    };
+    // 重建后第二次对齐看到的是新会话自身的代次，恢复真实协议响应
+    const protocol = vi.mocked(client.request);
+    const send = vi.spyOn(
+      runtime as unknown as { broadcast(channel: string, value: unknown): void },
+      "broadcast"
+    );
+    await sync
+      .syncRemoteDocument("http://test", { ...shared.info })
+      .finally(() => protocol.mockRestore());
+    const rebuilt = runtime.sessions.get(documentId)!;
+    expect(rebuilt).not.toBe(shared);
+    expect(rebuilt.info.frozen).toBeFalsy();
+    expect(rebuilt.info.remoteVersionAvailable).toBeFalsy();
+    expect(rebuilt.info.source?.contentId).toBe(7);
+    expect(readdirSync(join(runtime.directory, "discarded"))).toHaveLength(1);
+    expect(
+      store.db.prepare("SELECT count(*) AS count FROM sessions WHERE id=?").get(documentId)
+    ).toEqual({ count: 1 });
+    expect(send).toHaveBeenCalledWith("collaboration:removed", { documentId, replaced: true });
+    expect(send).toHaveBeenCalledWith("collaboration:notice", expect.anything());
+  });
+
   it("重启后主库先被其它入口改写：打开正文显示新内容，旧缓存备份后重建，后续编辑能落库", async () => {
     const { runtime, db, store, localId, event } = await setup();
     vi.spyOn(console, "warn").mockImplementation(() => undefined);

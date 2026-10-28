@@ -256,6 +256,7 @@ pub fn run() {
             collaboration::collab_request,
             collaboration::collab_input_draft,
             collaboration::collab_cache_read,
+            collaboration::collab_cache_discard,
             collaboration::collab_cache_snapshot,
             collaboration::collab_cache_append,
             collaboration::collab_cache_list,

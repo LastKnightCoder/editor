@@ -32,6 +32,8 @@ function connect() {
   on("collaboration:save-blocked", (_event, payload: { message: string }) =>
     toast.error(payload.message)
   );
+  // 缓存备份后按权威内容重建：只提示一次，不阻断编辑
+  on("collaboration:notice", (_event, payload: { message: string }) => toast.info(payload.message));
   on("collaboration:state", (_event, state: CollaborationState) =>
     useCollaborationStore.setState({ ...state, synced: true })
   );

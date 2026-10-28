@@ -1033,6 +1033,10 @@ export function collabReadCache(documentId: string) {
     inputDrafts: CachedInputDraft[];
   } | null>("collab_cache_read", { documentId });
 }
+/** 缓存与主库或服务器对不上时备份到 collaboration/discarded/ 后删除，随后按权威数据重建。 */
+export function collabDiscardCache(documentId: string, reason: string) {
+  return trackedInvoke<void>("collab_cache_discard", { documentId, reason });
+}
 export function collabWriteCache(
   payload: {
     documentId: string;

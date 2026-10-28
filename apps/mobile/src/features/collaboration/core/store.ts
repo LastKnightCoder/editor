@@ -9,7 +9,8 @@ export type CollaborationStatus = "idle" | "starting" | "ready" | "error";
 /** 服务端侧被动事件（被撤权/被结束）产生的一次性提示，由 UI 消费后清除 */
 export type CollaborationNotice = {
   id: string;
-  kind: "revoked" | "closed";
+  /** rebuilt：本机缓存对不上，已备份并按服务器内容重建，备份里有未同步的改动 */
+  kind: "revoked" | "closed" | "rebuilt";
   documentId: string;
   title: string;
 };
@@ -44,9 +45,7 @@ export function pushCollaborationNotice(notice: CollaborationNotice) {
 
 /** 消费一条提示；返回是否真正消费（多个页面实例同时挂载时仅首个实例负责 toast） */
 export function consumeCollaborationNotice(id: string) {
-  const exists = useCollaborationStore
-    .getState()
-    .notices.some(notice => notice.id === id);
+  const exists = useCollaborationStore.getState().notices.some(notice => notice.id === id);
   if (!exists) return false;
   useCollaborationStore.setState(state => ({
     notices: state.notices.filter(notice => notice.id !== id),
