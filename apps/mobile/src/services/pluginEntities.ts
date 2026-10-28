@@ -18,6 +18,10 @@ const snapshot = () => revision;
 export function useMobileEntityHostRevision(): number {
   return useSyncExternalStore(subscribe, snapshot, snapshot);
 }
+export function isMobileEntityMentionable(pluginId: string, kind: string): boolean {
+  const registration = current?.entityKinds.get(JSON.stringify([pluginId, kind]));
+  return !!(registration?.definition.mentionable && current?.active(registration.context));
+}
 
 /** 普通应用入口使用当前宿主；迟到查询不能借新工作区的类型注册跳转。 */
 export function installMobileEntityHost(runtime: MobilePluginRuntime) {
@@ -66,5 +70,7 @@ export async function openMobilePluginEntity(
   if (current !== runtime || !runtime) throw new Error("工作区已切换");
   if (options?.expectedCreatedAt !== undefined && target.createdAt !== options.expectedCreatedAt)
     throw new Error("插件内容身份已变化");
-  await runtime.openEntityTarget(target, options?.at);
+  await runtime.openEntityTarget(target, options?.at, () => {
+    if (current !== runtime) throw new Error("工作区已切换");
+  });
 }

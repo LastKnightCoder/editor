@@ -6,6 +6,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const fixtures = vi.hoisted(() => ({
   query: vi.fn(),
   metadata: vi.fn(),
+  mentionable: vi.fn(),
   warning: vi.fn(),
   revision: 1,
   kinds: [{ pluginId: "test.notes", kind: "note" }],
@@ -15,6 +16,7 @@ vi.mock("../../../services/pluginEntities", () => ({
   useMobileMentionableEntityKinds: () => fixtures.kinds,
   useMobileEntityHostRevision: () => fixtures.revision,
   getMobilePluginEntityMetadata: fixtures.metadata,
+  isMobileEntityMentionable: fixtures.mentionable,
   openMobilePluginEntity: vi.fn(),
 }));
 vi.mock("../../../components/toast", () => ({ toast: fixtures.warning }));
@@ -52,6 +54,7 @@ const metadata = (id: number) => ({
 });
 
 beforeEach(() => {
+  fixtures.mentionable.mockReset().mockReturnValue(true);
   fixtures.revision = 1;
   fixtures.kinds = [{ pluginId: "test.notes", kind: "note" }];
   fixtures.query.mockReset().mockImplementation(async ({ page }: { page: number }) => ({
@@ -141,4 +144,19 @@ it("已复用的实体身份不插入引用，也不自动改成新内容", asyn
   expect(fixtures.warning).toHaveBeenCalledWith(
     expect.objectContaining({ text: expect.stringContaining("已变化") })
   );
+});
+
+it("插件停用尚未触发React重渲染时，最终选择仍被同步状态拒绝", async () => {
+  let finish!: (value: ReturnType<typeof metadata>) => void;
+  fixtures.metadata.mockReturnValue(
+    new Promise(resolve => {
+      finish = resolve;
+    })
+  );
+  await render();
+  await act(async () => button("周记1")?.click());
+  fixtures.mentionable.mockReturnValue(false);
+  await act(async () => finish(metadata(1)));
+  expect(select).not.toHaveBeenCalled();
+  expect(fixtures.mentionable).toHaveBeenCalledWith("test.notes", "note");
 });

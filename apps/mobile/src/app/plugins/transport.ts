@@ -288,8 +288,12 @@ export async function connectMobilePluginTransport(runtime: MobilePluginRuntime)
           (await context.permissions.query(permission)) === "granted"
         );
       },
-      (target, options) =>
-        runtime.openEntityTarget(target, options.at ? JSON.stringify(options.at) : undefined)
+      (target, options, callerGuard) =>
+        runtime.openEntityTarget(
+          target,
+          options.at ? JSON.stringify(options.at) : undefined,
+          callerGuard
+        )
     );
     const socketToken = token;
     runtime.websocket = createBridgeWebSocket({

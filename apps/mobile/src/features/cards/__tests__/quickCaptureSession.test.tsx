@@ -15,7 +15,10 @@ vi.mock("../../../services/editorKit", () => ({
   useMobileContentKit: () => ({}),
 }));
 vi.mock("../editorToolbar/useMobileEditorToolbarController", () => ({
-  useMobileEditorToolbarController: () => ({ syncSelection: () => undefined }),
+  useMobileEditorToolbarController: () => ({
+    syncSelection: () => undefined,
+    openContentMention: vi.fn(),
+  }),
 }));
 vi.mock("../editorToolbar/MobileEditorBottomToolbar", () => ({
   MobileEditorBottomToolbar: () => null,
@@ -31,7 +34,11 @@ vi.mock("@tau/editor", async () => {
   return {
     Editor: forwardRef(({ initValue }: { initValue: Descendant[] }, ref) => {
       const [initial] = useState(initValue);
-      useImperativeHandle(ref, () => ({ getEditor: () => ({ children: initial }) }), [initial]);
+      useImperativeHandle(
+        ref,
+        () => ({ getEditor: () => ({ children: initial }), getEditableElement: () => null }),
+        [initial]
+      );
       return <output>{JSON.stringify(initial)}</output>;
     }),
   };

@@ -378,7 +378,7 @@ it("共享编辑消费原协作文档并使用受约束投影，不启动本地�
   const options = io.shared.mock.calls.at(-1)?.[1];
   expect(options.canWrite()).toBe(true);
   await options.project();
-  expect(state.project).toHaveBeenCalledWith(state.context, "7:1");
+  expect(state.project).toHaveBeenCalledWith(state.context, "7:1", expect.any(Function));
   await act(async () => state.controller.abort());
   expect(options.canWrite()).toBe(false);
   expect(() => options.guard()).toThrow();

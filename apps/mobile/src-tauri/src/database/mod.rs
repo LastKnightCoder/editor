@@ -398,8 +398,14 @@ pub fn search_all_content(
     let conn = schema::open_active_database(&app)?;
     let page = page.unwrap_or(1);
     let page_size = page_size.unwrap_or(20);
-    let (search_mode, total, items) =
-        search::query_unified_search(&conn, &query, types.as_deref(), page, page_size, plugin_entity_kinds.as_deref())?;
+    let (search_mode, total, items) = search::query_unified_search(
+        &conn,
+        &query,
+        types.as_deref(),
+        page,
+        page_size,
+        plugin_entity_kinds.as_deref(),
+    )?;
     Ok(crate::models::UnifiedSearchResponse {
         total,
         page: page.max(1),

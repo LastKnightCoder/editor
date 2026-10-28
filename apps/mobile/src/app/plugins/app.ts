@@ -21,7 +21,11 @@ export function createMobileApp(
   token: string,
   navigation: Pick<Navigator, "push">,
   canRead: (context: PluginContext, kind: PluginEntityKind) => Promise<boolean>,
-  openEntity?: (target: MobilePluginEntityTarget, options: MobileEntityOpenOptions) => Promise<void>
+  openEntity?: (
+    target: MobilePluginEntityTarget,
+    options: MobileEntityOpenOptions,
+    callerGuard: () => void
+  ) => Promise<void>
 ) {
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   let disposed = false;
@@ -152,7 +156,7 @@ export function createMobileApp(
       active(context);
       if (target.kind === "plugin-entity") {
         if (!openEntity) throw new Error("插件内容打开入口尚未就绪");
-        await openEntity(target, options);
+        await openEntity(target, options, () => active(context));
         active(context);
         return;
       }

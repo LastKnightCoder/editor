@@ -384,3 +384,34 @@ it("插件条件写入等待旧投影结束后再次投影，并携带固定工�
     doc.destroy();
   }
 });
+
+it("插件组件投影在缓存落盘等待后重新核验访问，不把撤权结果写回主库", async () => {
+  const { doc, info, state } = await fixture();
+  io.read.mockResolvedValue({ metadata: info, state, updates: [], revision: "cache-revision" });
+  await manager.createSession(info);
+  let finish!: () => void;
+  const flush = vi.spyOn(collaborationManager, "flushCache").mockImplementationOnce(
+    () =>
+      new Promise<void>(resolve => {
+        finish = resolve;
+      })
+  );
+  let allowed = true;
+  const pending = collaborationManager.project(
+    "doc",
+    { pluginId: "example", token: "scope", database: "one.db" },
+    async () => {
+      if (!allowed) throw new Error("访问已撤回");
+    }
+  );
+  const rejected = expect(pending).rejects.toThrow("访问已撤回");
+  await vi.waitFor(() => expect(flush).toHaveBeenCalled());
+  allowed = false;
+  finish();
+  try {
+    await rejected;
+    expect(io.project).not.toHaveBeenCalled();
+  } finally {
+    doc.destroy();
+  }
+});

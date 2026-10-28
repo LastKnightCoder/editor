@@ -56,7 +56,11 @@ export interface MobileDataAdapter extends DataAdapter {
     contracts: ContentContractDictionary,
     expectedRevision: string
   ): Promise<ContentDetailResponse>;
-  projectComponentContent(context: PluginContext, ref: string): Promise<void>;
+  projectComponentContent(
+    context: PluginContext,
+    ref: string,
+    viewGuard?: () => void
+  ): Promise<void>;
   prepareContent(
     context: PluginContext,
     input?: PluginContentInput
@@ -295,19 +299,29 @@ export function createMobileData(
       });
       return result.document;
     },
-    async projectComponentContent(context, ref) {
+    async projectComponentContent(context, ref, viewGuard) {
+      viewGuard?.();
       const target = await componentWriteTarget(context, ref);
       if (!target.binding) return;
       const { collaborationManager } = await import("../../features/collaboration/core/manager");
       const current = await componentWriteTarget(context, ref);
       if (current.binding !== target.binding) throw new PluginConflictError("协作绑定已变化");
       check(context);
-      await collaborationManager.project(target.binding, {
-        token,
-        database,
-        pluginId: context.pluginId,
-        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      });
+      await collaborationManager.project(
+        target.binding,
+        {
+          token,
+          database,
+          pluginId: context.pluginId,
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        },
+        async () => {
+          viewGuard?.();
+          const latest = await componentWriteTarget(context, ref);
+          viewGuard?.();
+          if (latest.binding !== target.binding) throw new PluginConflictError("协作绑定已变化");
+        }
+      );
       check(context);
       changed();
     },
