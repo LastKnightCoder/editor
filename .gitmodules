@@ -73,3 +73,9 @@
 [submodule "plugins/tau-plugin-asr-seed"]
 	path = plugins/tau-plugin-asr-seed
 	url = https://github.com/LastKnightCoder/tau-plugin-asr-seed.git
+[submodule "plugins/tau-plugin-embedding-openai"]
+	path = plugins/tau-plugin-embedding-openai
+	url = https://github.com/LastKnightCoder/tau-plugin-embedding-openai.git
+[submodule "plugins/tau-blog-template-mochi"]
+	path = plugins/tau-blog-template-mochi
+	url = https://github.com/LastKnightCoder/tau-blog-template-mochi.git
