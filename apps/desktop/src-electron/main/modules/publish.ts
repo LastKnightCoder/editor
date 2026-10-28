@@ -35,6 +35,7 @@ import CardTable from "./tables/card";
 import ContentLinkTable from "./tables/content-link";
 import ArticleTable from "./tables/article";
 import ProjectTable from "./tables/project";
+import { ContentIdentityTable } from "./tables/content-identity";
 import { readTemplatePackage } from "../services/template-package";
 import { discoverPlugins } from "../services/plugin-discovery";
 import { assertLocalId } from "@tau/plugins/package";
@@ -56,6 +57,8 @@ function createPublishDataSource(db: Database.Database): PublishDataSource {
     getArticleByIds: ids => ArticleTable.getArticleByIds(db, ids),
     getProject: id => ProjectTable.getProjectOrNull(db, id),
     getProjectItemsByIds: ids => ProjectTable.getProjectItemsByIds(db, ids),
+    resolveProjectItemId: reference =>
+      reference.kind === "project-item" ? ContentIdentityTable.resolve(db, reference) : null,
   };
 }
 

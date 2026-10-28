@@ -3,6 +3,7 @@ import type {
   ContentRef,
   PublishedProjectCardListNode,
 } from "@tau/plugins/publish-data";
+import { isContentEntityReference } from "@tau/db-schema/content-identities";
 import type { Descendant } from "slate";
 import type { ProjectItem } from "@/types/project";
 import type { PublishDataSource } from "./publish-site-generator";
@@ -18,10 +19,17 @@ const summaryOf = (nodes: Descendant[]): string => {
   return texts.length ? texts.join("").slice(0, 80) : "空卡片";
 };
 
+const emptyList = (): PublishedProjectCardListNode => ({
+  type: "project-card-list",
+  items: [],
+  children: [{ type: "formatted", text: "" }],
+});
+
 /** 固定已发布子文档的卡片快照，不修改原正文，也不带出未发布条目。 */
 export function createPublishContentResolver(
-  db: Pick<PublishDataSource, "getProjectItemsByIds">,
-  targetFor: (identity: string) => ContentRef | undefined
+  db: Pick<PublishDataSource, "getProjectItemsByIds" | "resolveProjectItemId">,
+  targetFor: (identity: string) => ContentRef | undefined,
+  warn?: (message: string) => void
 ) {
   const items = new Map<number, ProjectItem | null>();
   const load = (ids: number[]) => {
@@ -33,9 +41,20 @@ export function createPublishContentResolver(
     }
   };
   const resolveList = (node: ContentNode): PublishedProjectCardListNode => {
-    const parentId = node.projectItemId;
-    if (typeof parentId !== "number" || !Number.isSafeInteger(parentId) || parentId <= 0)
-      throw new Error("项目卡片列表缺少有效的项目条目 ID");
+    const reference =
+      isContentEntityReference(node.entityRef) && node.entityRef.kind === "project-item"
+        ? node.entityRef
+        : undefined;
+    const legacyId = node.projectItemId;
+    const parentId = reference
+      ? db.resolveProjectItemId(reference)
+      : typeof legacyId === "number" && Number.isSafeInteger(legacyId) && legacyId > 0
+        ? legacyId
+        : null;
+    if (parentId === null) {
+      warn?.("项目卡片列表的来源项目条目无效或已删除，已按空列表处理");
+      return emptyList();
+    }
     load([parentId]);
     const children = (items.get(parentId)?.children ?? []).filter(id =>
       Boolean(targetFor(`project-item:${id}`))
@@ -54,7 +73,7 @@ export function createPublishContentResolver(
         },
       ];
     });
-    return { type: "project-card-list", items: cards, children: [{ type: "formatted", text: "" }] };
+    return { ...emptyList(), items: cards };
   };
   const visit = (value: unknown, forSearch: boolean): unknown => {
     if (!value || typeof value !== "object") return value;
