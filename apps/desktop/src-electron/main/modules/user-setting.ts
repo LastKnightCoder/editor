@@ -6,6 +6,10 @@ import fs from "node:fs/promises";
 import fsExtra from "fs-extra/esm";
 import { join } from "node:path";
 import { assertCurrentProviderSettings } from "../services/provider-settings";
+import {
+  DEFAULT_EMBEDDING_LOCAL_SETTING,
+  upgradeEmbeddingSetting,
+} from "../utils/embedding-config";
 
 type UserSetting = Record<string, any>;
 export interface SettingChangedPayload {
@@ -160,6 +164,20 @@ class UserSettingModule {
     }));
   }
 
+  /** 嵌入插件每个插件一份连接配置，不影响其他插件与当前选用。 */
+  async updateEmbeddingPlugin(pluginId: string, config: unknown): Promise<void> {
+    const snapshot = structuredClone(config);
+    await this.updateSetting(current => ({
+      ...current,
+      embedding: {
+        ...current.embedding,
+        active: current.embedding?.active ?? null,
+        local: current.embedding?.local ?? DEFAULT_EMBEDDING_LOCAL_SETTING,
+        plugins: { ...current.embedding?.plugins, [pluginId]: { config: snapshot } },
+      },
+    }));
+  }
+
   async updateImagePlugin(instanceId: string, pluginId: string, config: unknown, modelId: string) {
     if (typeof modelId !== "string" || !modelId.trim()) throw new Error("图片模型不能为空");
     const snapshot = structuredClone({ config, modelId });
@@ -306,6 +324,12 @@ class UserSettingModule {
     try {
       const parsedSetting = JSON.parse(setting);
       console.info("[UserSettingModule] 读取用户设置");
+      // 旧 embeddingProvider 必须在 assert（拒绝旧键）之前升级完成并落盘
+      if (upgradeEmbeddingSetting(parsedSetting)) {
+        await this.saveSetting(JSON.stringify(parsedSetting, null, 2)).catch(error => {
+          console.error("[UserSettingModule] 写入升级后的嵌入设置失败", error);
+        });
+      }
       return parsedSetting;
     } catch (e) {
       console.error("[UserSettingModule] 设置文件解析失败，尝试抢救", e);
@@ -317,6 +341,8 @@ class UserSettingModule {
       });
       const salvaged = salvageLeadingJsonObject(setting);
       if (salvaged) {
+        // 抢救出的对象升级后随本路径的 saveSetting 一并落盘
+        upgradeEmbeddingSetting(salvaged);
         assertCurrentProviderSettings(salvaged);
         console.info("[UserSettingModule] 已从损坏文件抢救设置", {
           backupPath,

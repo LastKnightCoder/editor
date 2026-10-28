@@ -380,7 +380,7 @@ class MainContentVecIndexQueue implements Module {
 
     if (!params.autoIndex) {
       log.info(
-        `[MainContentVecIndexQueue] Skip auto indexing: reason=${params.reason}, provider=${params.embeddingConfig.providerType}`
+        `[MainContentVecIndexQueue] Skip auto indexing: reason=${params.reason}, provider=${params.embeddingConfig.provider}`
       );
       return {
         generation,
@@ -401,15 +401,12 @@ class MainContentVecIndexQueue implements Module {
 
     this.startProgress(params.mainDbName, params.reason);
     const modelInfo = {
-      configId: params.embeddingConfig.configId,
-      providerType: params.embeddingConfig.providerType,
-      key: params.embeddingConfig.apiKey,
-      baseUrl: params.embeddingConfig.baseUrl,
+      provider: params.embeddingConfig.provider,
+      pluginId: params.embeddingConfig.pluginId,
       model: params.embeddingConfig.model,
       dimensions: params.embeddingConfig.dimensions,
       batchSize: params.embeddingConfig.batchSize,
       devicePolicy: params.embeddingConfig.devicePolicy,
-      localModelDir: params.embeddingConfig.localModelDir,
     };
 
     try {

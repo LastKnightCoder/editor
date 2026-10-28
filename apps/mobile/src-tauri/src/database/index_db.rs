@@ -39,28 +39,6 @@ fn parse_positive_dimension(value: Option<&Value>) -> Option<i64> {
     None
 }
 
-fn normalize_url(raw: Option<&str>) -> String {
-    let value = raw.unwrap_or("").trim().trim_end_matches('/').to_string();
-    if value == "/" {
-        String::new()
-    } else {
-        value
-    }
-}
-
-fn normalize_path(raw: Option<&str>) -> String {
-    raw.unwrap_or("").trim().to_string()
-}
-
-fn parse_distance(value: Option<&Value>) -> f64 {
-    let raw = value.and_then(|v| v.as_f64()).unwrap_or(0.0);
-    if raw.is_finite() && raw >= 0.0 {
-        raw
-    } else {
-        0.0
-    }
-}
-
 fn default_embedding_snapshot() -> EmbeddingSnapshot {
     let payload = json!({
         "providerType": "unknown",
@@ -79,88 +57,69 @@ fn default_embedding_snapshot() -> EmbeddingSnapshot {
 }
 
 fn resolve_embedding_snapshot_from_setting(setting: &Value) -> EmbeddingSnapshot {
-    let current_config_id = setting
-        .pointer("/embeddingProvider/currentConfigId")
+    let active = match setting.pointer("/embedding/active") {
+        Some(value) if value.is_object() => value,
+        _ => return default_embedding_snapshot(),
+    };
+
+    let model = active
+        .get("model")
         .and_then(|v| v.as_str())
         .unwrap_or("")
         .trim()
         .to_string();
-    if current_config_id.is_empty() {
+    if model.is_empty() {
         return default_embedding_snapshot();
     }
 
-    let configs = match setting
-        .pointer("/embeddingProvider/configs")
-        .and_then(|v| v.as_array())
-    {
+    let vec_dimensions = match parse_positive_dimension(active.get("dimensions")) {
         Some(value) => value,
         None => return default_embedding_snapshot(),
     };
 
-    let current_config = match configs.iter().find(|item| {
-        item.get("id")
-            .and_then(|v| v.as_str())
-            .map(|id| id == current_config_id.as_str())
-            .unwrap_or(false)
-    }) {
-        Some(value) => value,
-        None => return default_embedding_snapshot(),
-    };
-
-    let current_model_name = current_config
-        .get("currentModel")
+    let provider = active
+        .get("provider")
         .and_then(|v| v.as_str())
         .unwrap_or("")
         .trim()
         .to_string();
-    if current_model_name.is_empty() {
-        return default_embedding_snapshot();
-    }
 
-    let models = match current_config.get("models").and_then(|v| v.as_array()) {
-        Some(value) => value,
-        None => return default_embedding_snapshot(),
-    };
-
-    let current_model = match models.iter().find(|item| {
-        item.get("name")
+    let payload = if provider == "plugin" {
+        let plugin_id = active
+            .get("pluginId")
             .and_then(|v| v.as_str())
-            .map(|name| name == current_model_name.as_str())
-            .unwrap_or(false)
-    }) {
-        Some(value) => value,
-        None => return default_embedding_snapshot(),
+            .unwrap_or("")
+            .trim()
+            .to_string();
+        if plugin_id.is_empty() {
+            return default_embedding_snapshot();
+        }
+        json!({
+            "provider": "plugin",
+            "pluginId": plugin_id,
+            "model": model,
+            "dimensions": vec_dimensions,
+        })
+    } else {
+        // 本地向量指纹沿用旧 embeddingProvider 时代的 payload 形状（providerType "local_python"
+        // 等旧字段名），与桌面端本地指纹约定一致，避免跨端触发全量重建
+        let device_policy = setting
+            .pointer("/embedding/local/devicePolicy")
+            .and_then(|v| v.as_str())
+            .unwrap_or("auto")
+            .trim()
+            .to_string();
+        json!({
+            "providerType": "local_python",
+            "configId": "embedding-default-local",
+            "model": model,
+            "dimensions": vec_dimensions,
+            "distance": 0.6,
+            "devicePolicy": device_policy,
+            "baseUrl": "",
+            "localModelDir": "",
+        })
     };
-
-    let vec_dimensions = parse_positive_dimension(current_model.get("contextLength"))
-        .unwrap_or(DEFAULT_VEC_DIMENSION);
-    let provider_type = current_config
-        .get("providerType")
-        .and_then(|v| v.as_str())
-        .unwrap_or("unknown")
-        .trim()
-        .to_string();
-    let device_policy = current_config
-        .get("devicePolicy")
-        .and_then(|v| v.as_str())
-        .unwrap_or("auto")
-        .trim()
-        .to_string();
-    let base_url = normalize_url(current_config.get("baseUrl").and_then(|v| v.as_str()));
-    let local_model_dir =
-        normalize_path(current_config.get("localModelDir").and_then(|v| v.as_str()));
-    let distance = parse_distance(current_model.get("distance"));
-
-    let payload = json!({
-        "providerType": provider_type,
-        "configId": current_config_id,
-        "model": current_model_name,
-        "dimensions": vec_dimensions,
-        "distance": distance,
-        "devicePolicy": device_policy,
-        "baseUrl": base_url,
-        "localModelDir": local_model_dir,
-    });
 
     EmbeddingSnapshot {
         vec_dimensions,
@@ -356,4 +315,66 @@ pub fn ensure_index_database(
 
 pub fn set_rebuild_state(conn: &Connection, state: &str) -> Result<(), String> {
     set_meta(conn, REBUILD_STATE_KEY, state)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn active_missing_or_incomplete_falls_back_to_default_snapshot() {
+        for setting in [
+            json!({}),
+            json!({ "embedding": { "active": null } }),
+            json!({ "embedding": { "active": { "provider": "local", "model": "", "dimensions": 1024 } } }),
+            json!({ "embedding": { "active": { "provider": "local", "model": "bge-m3", "dimensions": 0 } } }),
+            json!({ "embedding": { "active": { "provider": "plugin", "model": "m", "dimensions": 3 } } }),
+        ] {
+            let snapshot = resolve_embedding_snapshot_from_setting(&setting);
+            let fallback = default_embedding_snapshot();
+            assert_eq!(snapshot.fingerprint, fallback.fingerprint, "{setting}");
+            assert_eq!(snapshot.vec_dimensions, DEFAULT_VEC_DIMENSION);
+        }
+    }
+
+    #[test]
+    fn local_active_keeps_legacy_payload_shape() {
+        let setting = json!({
+            "embedding": {
+                "active": { "provider": "local", "model": "bge-m3", "dimensions": 1024 },
+                "local": { "source": "modelscope", "devicePolicy": "cpu", "batchSize": 8 },
+                "plugins": {}
+            }
+        });
+        let snapshot = resolve_embedding_snapshot_from_setting(&setting);
+        assert_eq!(snapshot.vec_dimensions, 1024);
+        let payload: Value = serde_json::from_str(&snapshot.fingerprint).unwrap();
+        assert_eq!(payload["providerType"], json!("local_python"));
+        assert_eq!(payload["configId"], json!("embedding-default-local"));
+        assert_eq!(payload["model"], json!("bge-m3"));
+        assert_eq!(payload["dimensions"], json!(1024));
+        assert_eq!(payload["distance"], json!(0.6));
+        assert_eq!(payload["devicePolicy"], json!("cpu"));
+        assert_eq!(payload["baseUrl"], json!(""));
+        assert_eq!(payload["localModelDir"], json!(""));
+    }
+
+    #[test]
+    fn plugin_active_payload_contains_provider_identity_only() {
+        let setting = json!({
+            "embedding": {
+                "active": { "provider": "plugin", "pluginId": "test.embedding", "model": "m", "dimensions": 3 },
+                "local": { "source": "modelscope", "devicePolicy": "auto", "batchSize": 8 },
+                "plugins": { "test.embedding": { "config": { "apiKey": "secret" } } }
+            }
+        });
+        let snapshot = resolve_embedding_snapshot_from_setting(&setting);
+        assert_eq!(snapshot.vec_dimensions, 3);
+        let payload: Value = serde_json::from_str(&snapshot.fingerprint).unwrap();
+        assert_eq!(
+            payload,
+            json!({ "provider": "plugin", "pluginId": "test.embedding", "model": "m", "dimensions": 3 })
+        );
+        assert!(!snapshot.fingerprint.contains("secret"));
+    }
 }

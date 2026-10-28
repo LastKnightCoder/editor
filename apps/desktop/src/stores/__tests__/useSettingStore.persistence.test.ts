@@ -71,4 +71,45 @@ describe("useSettingStore persistence snapshot", () => {
       providers: [],
     });
   });
+
+  it("旧缓存携带的 embeddingProvider 键在合并时删除，避免回传被写入边界拒绝", () => {
+    const legacy = {
+      ...structuredClone(useSettingStore.getState().setting),
+      embeddingProvider: { currentConfigId: "embedding-default-local", configs: [] },
+    } as never;
+
+    const merged = mergeSettingWithDefaults(legacy);
+
+    expect("embeddingProvider" in merged).toBe(false);
+    expect(merged.embedding).toEqual({
+      active: null,
+      local: { source: "modelscope", devicePolicy: "auto", batchSize: 8 },
+      plugins: {},
+    });
+  });
+
+  it("已激活的嵌入模型与插件连接配置合并时不被默认值污染", () => {
+    const setting = {
+      embedding: {
+        active: { provider: "plugin", pluginId: "test.embedding", model: "m", dimensions: 3 },
+        local: { source: "huggingface", devicePolicy: "cpu", batchSize: 16 },
+        plugins: { "test.embedding": { config: { apiKey: "keep" } } },
+      },
+    } as never;
+
+    const merged = mergeSettingWithDefaults(setting);
+
+    expect(merged.embedding.active).toEqual({
+      provider: "plugin",
+      pluginId: "test.embedding",
+      model: "m",
+      dimensions: 3,
+    });
+    expect(merged.embedding.local).toEqual({
+      source: "huggingface",
+      devicePolicy: "cpu",
+      batchSize: 16,
+    });
+    expect(merged.embedding.plugins).toEqual({ "test.embedding": { config: { apiKey: "keep" } } });
+  });
 });

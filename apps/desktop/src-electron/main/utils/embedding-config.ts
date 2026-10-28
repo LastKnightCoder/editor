@@ -1,174 +1,185 @@
-import { DEFAULT_LOCAL_EMBEDDING_DISTANCE, LOCAL_EMBEDDING_CONFIG_ID } from "@/constants/embedding";
-import type { EmbeddingProviderType } from "@/types/embedding";
+import {
+  DEFAULT_LOCAL_EMBEDDING_DISTANCE,
+  DEFAULT_PLUGIN_EMBEDDING_DISTANCE,
+} from "@/constants/embedding";
+import type {
+  EmbeddingDevicePolicy,
+  EmbeddingProviderKind,
+  EmbeddingSetting,
+} from "@/types/embedding";
 
-export type { EmbeddingProviderType };
+export type { EmbeddingDevicePolicy, EmbeddingProviderKind, EmbeddingSetting };
 
-interface EmbeddingSettingModel {
-  name: string;
-  contextLength: number;
-  distance?: number;
-}
-
-interface EmbeddingSettingConfig {
-  id: string;
-  providerType?: EmbeddingProviderType;
-  apiKey?: string;
-  baseUrl?: string;
-  localModelDir?: string;
-  batchSize?: number;
-  devicePolicy?: "auto" | "cpu" | "cuda";
-  currentModel?: string;
-  models?: EmbeddingSettingModel[];
-}
-
-interface EmbeddingProviderSetting {
-  currentConfigId?: string;
-  configs?: EmbeddingSettingConfig[];
-}
-
-interface SettingWithEmbeddingProvider {
-  embeddingProvider?: EmbeddingProviderSetting;
-}
+/** 旧本地嵌入配置 id：设置中已不再存储，仅作为本地指纹字面量保留（见 buildLocalEmbeddingFingerprint） */
+const LEGACY_LOCAL_EMBEDDING_CONFIG_ID = "embedding-default-local";
 
 /** 本地嵌入管线版本；2 = 补 <s> + 480 token 分窗（修复 node-llama-cpp 下 bge-m3 长文本向量塌缩） */
 export const LOCAL_EMBEDDING_PIPELINE = 2;
 
-export interface EmbeddingFingerprintPayload {
-  providerType: EmbeddingProviderType;
-  configId: string;
-  model: string;
-  dimensions: number;
-  distance: number;
-  devicePolicy: "auto" | "cpu" | "cuda";
-  localModelDir?: string;
-  baseUrl?: string;
-  /**
-   * 推理运行时标识：llama（node-llama-cpp / GGUF）与旧 python（FlagEmbedding / torch）
-   * 的向量不可混检，该字段变化会触发全量索引重建
-   */
-  runtime?: "llama" | "python";
-  /**
-   * 本地嵌入管线版本：输入整形方式变化（如补 <s>、分窗，见 local-inference/embedding-input.ts）时递增，
-   * 旧向量随之失效、全量重建
-   */
-  pipeline?: number;
-}
-
 export type EmbeddingFingerprint = string;
 
 export interface ResolvedEmbeddingConfig {
-  providerType: EmbeddingProviderType;
-  configId: string;
+  provider: EmbeddingProviderKind;
+  /** provider === "plugin" 时的来源插件 */
+  pluginId?: string;
   model: string;
   dimensions: number;
   distance: number;
-  devicePolicy: "auto" | "cpu" | "cuda";
+  devicePolicy: EmbeddingDevicePolicy;
   batchSize: number;
-  apiKey?: string;
-  baseUrl?: string;
-  localModelDir?: string;
   fingerprint: EmbeddingFingerprint;
 }
 
-const normalizeUrl = (value?: string): string | undefined => {
-  if (!value) {
-    return undefined;
-  }
-  return value.trim().replace(/\/+$/, "");
+interface SettingWithEmbedding {
+  embedding?: EmbeddingSetting;
+}
+
+export const DEFAULT_EMBEDDING_LOCAL_SETTING: EmbeddingSetting["local"] = {
+  source: "modelscope",
+  devicePolicy: "auto",
+  batchSize: 8,
 };
 
-const normalizePath = (value?: string): string | undefined => {
-  if (!value) {
-    return undefined;
+/* ── 旧 embeddingProvider 结构：仅在升级时读取，升级完成后写入边界拒绝旧键 ── */
+
+type LegacyEmbeddingProviderType = "remote_openai" | "local_python";
+
+interface LegacyEmbeddingSettingConfig {
+  id: string;
+  providerType?: LegacyEmbeddingProviderType;
+  source?: "modelscope" | "huggingface";
+  batchSize?: number;
+  devicePolicy?: EmbeddingDevicePolicy;
+  currentModel?: string;
+  models?: Array<{ name: string; contextLength: number }>;
+}
+
+interface LegacyEmbeddingProviderSetting {
+  currentConfigId?: string;
+  configs?: LegacyEmbeddingSettingConfig[];
+}
+
+interface SettingWithLegacyEmbeddingProvider {
+  embeddingProvider?: LegacyEmbeddingProviderSetting;
+}
+
+const normalizeDevicePolicy = (value: unknown): EmbeddingDevicePolicy =>
+  value === "cpu" || value === "cuda" ? value : "auto";
+
+const isLegacyLocalConfig = (
+  config: LegacyEmbeddingSettingConfig | undefined
+): config is LegacyEmbeddingSettingConfig =>
+  !!config &&
+  (config.providerType === "local_python" || config.id === LEGACY_LOCAL_EMBEDDING_CONFIG_ID);
+
+/**
+ * 旧 `embeddingProvider` 键的一次性升级（原地改写，返回是否发生变化）：
+ * 本地生效配置保留并冻结维度（指纹与旧版一致，存量本地索引不重建），旧 API 配置直接丢弃。
+ * 非普通对象输入直接返回 false，由调用侧的设置校验负责报错。
+ */
+export const upgradeEmbeddingSetting = (setting: unknown): boolean => {
+  if (!setting || typeof setting !== "object" || Array.isArray(setting)) return false;
+  const record = setting as Record<string, unknown>;
+  if (!Object.hasOwn(record, "embeddingProvider")) {
+    return false;
   }
-  const trimmed = value.trim();
-  return trimmed || undefined;
-};
+  const legacy = record.embeddingProvider as LegacyEmbeddingProviderSetting | undefined;
+  delete record.embeddingProvider;
 
-export const buildEmbeddingFingerprint = (
-  payload: EmbeddingFingerprintPayload
-): EmbeddingFingerprint => {
-  return JSON.stringify({
-    providerType: payload.providerType,
-    configId: payload.configId,
-    model: payload.model,
-    dimensions: payload.dimensions,
-    distance: payload.distance,
-    devicePolicy: payload.devicePolicy,
-    localModelDir: payload.localModelDir || "",
-    baseUrl: payload.baseUrl || "",
-    runtime: payload.runtime || "",
-    // 只在本地管线带上，远端配置的指纹保持不变、不触发重建
-    ...(payload.pipeline ? { pipeline: payload.pipeline } : {}),
-  });
-};
+  const configs = legacy?.configs ?? [];
+  const currentConfig = configs.find(item => item.id === legacy?.currentConfigId);
+  const legacyLocal = configs.find(isLegacyLocalConfig);
 
-export const resolveEmbeddingConfig = (
-  setting: SettingWithEmbeddingProvider | null | undefined
-): ResolvedEmbeddingConfig | null => {
-  const provider = setting?.embeddingProvider;
-  if (!provider?.currentConfigId || !provider.configs?.length) {
-    return null;
-  }
-
-  const currentConfig = provider.configs.find(item => item.id === provider.currentConfigId);
-  if (!currentConfig?.currentModel) {
-    return null;
-  }
-
-  const currentModel = currentConfig.models?.find(item => item.name === currentConfig.currentModel);
-  if (!currentModel?.contextLength || currentModel.contextLength <= 0) {
-    return null;
-  }
-
-  const providerType: EmbeddingProviderType =
-    currentConfig.providerType === "local_python" || currentConfig.id === LOCAL_EMBEDDING_CONFIG_ID
-      ? "local_python"
-      : "remote_openai";
-
-  const normalizedBaseUrl = normalizeUrl(currentConfig.baseUrl);
-  if (providerType === "remote_openai") {
-    if (!currentConfig.apiKey?.trim() || !normalizedBaseUrl) {
-      return null;
+  let active: EmbeddingSetting["active"] = null;
+  if (isLegacyLocalConfig(currentConfig) && currentConfig.currentModel) {
+    const dimensions = Math.floor(
+      currentConfig.models?.find(item => item.name === currentConfig.currentModel)?.contextLength ??
+        0
+    );
+    if (dimensions > 0) {
+      active = { provider: "local", model: currentConfig.currentModel, dimensions };
     }
   }
 
-  const distance =
-    currentModel.distance ||
-    (providerType === "local_python" ? DEFAULT_LOCAL_EMBEDDING_DISTANCE : 0);
-
-  const fingerprintPayload: EmbeddingFingerprintPayload = {
-    providerType,
-    configId: currentConfig.id,
-    model: currentModel.name,
-    dimensions: Math.floor(currentModel.contextLength),
-    distance,
-    devicePolicy: currentConfig.devicePolicy || "auto",
-    localModelDir:
-      providerType === "local_python" ? normalizePath(currentConfig.localModelDir) : undefined,
-    baseUrl: providerType === "remote_openai" ? normalizedBaseUrl : undefined,
-    // 本地向量现由 node-llama-cpp(GGUF) 产生，与旧 torch 向量不兼容
-    runtime: providerType === "local_python" ? "llama" : undefined,
-    pipeline: providerType === "local_python" ? LOCAL_EMBEDDING_PIPELINE : undefined,
+  record.embedding = {
+    active,
+    local: {
+      source: legacyLocal?.source === "huggingface" ? "huggingface" : "modelscope",
+      devicePolicy: normalizeDevicePolicy(legacyLocal?.devicePolicy),
+      batchSize:
+        legacyLocal?.batchSize && legacyLocal.batchSize > 0
+          ? legacyLocal.batchSize
+          : DEFAULT_EMBEDDING_LOCAL_SETTING.batchSize,
+    },
+    plugins: {},
   };
+  return true;
+};
+
+/** 本地指纹沿用旧版字面量（providerType/configId 等旧字段名与键序），以免存量本地索引重建 */
+const buildLocalEmbeddingFingerprint = (
+  model: string,
+  dimensions: number,
+  devicePolicy: EmbeddingDevicePolicy
+): EmbeddingFingerprint =>
+  JSON.stringify({
+    providerType: "local_python",
+    configId: LEGACY_LOCAL_EMBEDDING_CONFIG_ID,
+    model,
+    dimensions,
+    distance: DEFAULT_LOCAL_EMBEDDING_DISTANCE,
+    devicePolicy,
+    localModelDir: "",
+    baseUrl: "",
+    runtime: "llama",
+    pipeline: LOCAL_EMBEDDING_PIPELINE,
+  });
+
+export const resolveEmbeddingConfig = (
+  setting: (SettingWithEmbedding & SettingWithLegacyEmbeddingProvider) | null | undefined
+): ResolvedEmbeddingConfig | null => {
+  const active = setting?.embedding?.active;
+  if (!active?.model || !(active.dimensions > 0)) {
+    return null;
+  }
+  const provider: EmbeddingProviderKind = active.provider === "plugin" ? "plugin" : "local";
+  const pluginId = active.pluginId?.trim();
+  if (provider === "plugin" && !pluginId) {
+    return null;
+  }
+
+  const local = setting?.embedding?.local;
+  const devicePolicy = normalizeDevicePolicy(local?.devicePolicy);
+  const batchSize =
+    local?.batchSize && local.batchSize > 0
+      ? local.batchSize
+      : DEFAULT_EMBEDDING_LOCAL_SETTING.batchSize;
+  const dimensions = Math.floor(active.dimensions);
+
+  if (provider === "plugin") {
+    return {
+      provider,
+      pluginId,
+      model: active.model,
+      dimensions,
+      distance: DEFAULT_PLUGIN_EMBEDDING_DISTANCE,
+      devicePolicy,
+      batchSize,
+      fingerprint: JSON.stringify({ provider, pluginId, model: active.model, dimensions }),
+    };
+  }
 
   return {
-    providerType,
-    configId: currentConfig.id,
-    model: currentModel.name,
-    dimensions: Math.floor(currentModel.contextLength),
-    distance,
-    devicePolicy: currentConfig.devicePolicy || "auto",
-    batchSize: currentConfig.batchSize || 8,
-    apiKey: currentConfig.apiKey,
-    baseUrl: normalizedBaseUrl,
-    localModelDir: normalizePath(currentConfig.localModelDir),
-    fingerprint: buildEmbeddingFingerprint(fingerprintPayload),
+    provider,
+    model: active.model,
+    dimensions,
+    distance: DEFAULT_LOCAL_EMBEDDING_DISTANCE,
+    devicePolicy,
+    batchSize,
+    fingerprint: buildLocalEmbeddingFingerprint(active.model, dimensions, devicePolicy),
   };
 };
 
 export const isLocalEmbeddingConfig = (
   config: ResolvedEmbeddingConfig | null | undefined
-): config is ResolvedEmbeddingConfig => {
-  return config?.providerType === "local_python";
-};
+): config is ResolvedEmbeddingConfig => config?.provider === "local";

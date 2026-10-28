@@ -6,7 +6,7 @@ const invokeEmbedding = <T = any>(channel: string, ...args: any[]): Promise<T> =
   withModule("embedding-model-manager", () => invoke<T>(channel, ...args));
 
 export type EmbeddingDownloadSource = "modelscope" | "huggingface";
-export type { EmbeddingProviderType } from "@/types/embedding";
+export type { EmbeddingProviderKind } from "@/types/embedding";
 export type EmbeddingDevicePolicy = "auto" | "cpu" | "cuda";
 
 export interface EmbeddingModelInfo {
@@ -138,9 +138,12 @@ export interface EmbeddingIndexProgress {
 export interface EmbeddingIndexStatus {
   mainDbName: string;
   configValid: boolean;
-  providerType: "local_python" | "remote_openai" | null;
+  provider: "local" | "plugin" | null;
+  pluginId: string | null;
   model: string | null;
   autoIndex: boolean;
+  /** 当前提供方是否可立即执行嵌入（本地看模型下载，插件看渲染宿主就绪） */
+  providerReady: boolean;
   stats: EmbeddingIndexStats | null;
   running: EmbeddingIndexProgress | null;
   lastRun: EmbeddingIndexProgress | null;

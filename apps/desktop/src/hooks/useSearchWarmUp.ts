@@ -27,15 +27,14 @@ const useSearchWarmUp = () => {
     }
 
     const canWarmUpLocalEmbedding =
-      !!modelInfo && modelInfo.providerType === "local_python" && !!modelInfo.model;
+      !!modelInfo && modelInfo.provider === "local" && !!modelInfo.model;
 
     const warmupKey = [
       activeDatabase,
-      modelInfo?.configId || "",
-      modelInfo?.providerType || "",
+      modelInfo?.provider || "",
+      modelInfo?.pluginId || "",
       modelInfo?.model || "",
       modelInfo?.devicePolicy || "auto",
-      modelInfo?.localModelDir || "",
     ].join("|");
 
     if (warmedKeysRef.current.has(warmupKey) || warmingKeysRef.current.has(warmupKey)) {

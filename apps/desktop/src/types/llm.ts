@@ -1,4 +1,4 @@
-import type { EmbeddingProviderType } from "./embedding";
+import type { EmbeddingProviderKind } from "./embedding";
 
 /**
  * 消息模型统一维护在 @tau/shared/chat-core/messages.ts，本文件仅 re-export；
@@ -38,15 +38,13 @@ export interface ModelFeatures {
 export interface KnowledgeOptions {
   enable: boolean;
   modelInfo?: {
-    providerType?: EmbeddingProviderType;
-    key?: string;
+    provider: EmbeddingProviderKind;
+    pluginId?: string;
     model: string;
-    baseUrl?: string;
     distance: number;
     dimensions: number;
     batchSize?: number;
     devicePolicy?: "auto" | "cpu" | "cuda";
-    localModelDir?: string;
   };
   limit: number;
 }
@@ -55,8 +53,4 @@ export interface KnowledgeOptions {
 export interface RAGConfig {
   enabled: boolean;
   searchLimit: number;
-  embeddingProvider?: {
-    id: string;
-    modelName: string;
-  };
 }

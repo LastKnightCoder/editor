@@ -144,6 +144,7 @@ Mac helper 独立打包在 `bin/darwin/Tau Speech Helper.app`，macOS 26 上采�
 - **TTS**：注册与会话核心为 `@tau/plugins/tts-host`（移动端共用），`context.tts` 实例只在主窗口渲染端创建，账号配置按实例 ID 隔离；设置页「试听」用已保存配置合成并页内播放，选择不写回当前服务；播客从脚本到提交固定实例，会话关闭使后续上传/保存失效，普通失败保留空片段。设置提交走 user-setting 串行队列（原子落盘→快照→广播），失败保留已提交快照可重试。
 - **图片生成/编辑**：`context.images.register` 注册实例（生成与编辑至少实现一项，输出图片字节与实际 MIME）；`target: "images"` 配置视图接收 imageConfig。聊天/编辑器/白板共用 `services/image-generation.ts`；输入输出各最多 16 张、总字节各 ≤128 MiB，只收 PNG/JPEG/WebP；能力状态按配置与激活代次异步刷新，执行时复核；历史工具来源与结果键稳定，已生成图片无需插件即可展示。
 - **在线视频**：`context.video.register` 注册实例（`matches / resolve / cacheKey / getPlayback`，返回播放源描述——file 单流 / split 音视频分离 / extract 走宿主 yt-dlp，不传视频字节）。宿主无平台代码：主窗口 `app/plugins/video-registry.ts` 执行并归一化结果，下载/合并/缓存统一在主进程 `online-video-cache`（缓存身份 = 插件 ID + cacheKey 摘要，已缓存不向插件取流）。视频元数据 `metaInfo.type` 即插件 ID（`type/title/thumbnail` 宿主占用，其余字段归插件）；编辑器/白板/视频笔记/学习资料共用 `useOnlineVideo` 与 `OnlineVideoSelectModal`，添加入口按插件生成、弹窗只用该插件解析（链接属其他插件时提示改入口）。界面文案不出现「视频插件」统称：能用来源名用来源名，统称叫「在线视频」；移动端/博客/浏览器扩展只显示降级提示。
+- **嵌入**：`context.embeddings.register` 注册提供方（maxBatchSize 可选），主窗口经 `app/plugins/embeddings-bridge.ts` 连接并上报 provider 集合；主进程 `PluginEmbeddingsRelay`（`services/plugin-embeddings.ts`）无会话地转发一次性请求/应答，按 requestId 管理 pending，reply 校验宿主与 generation，abort/超时（TimeoutError）/宿主断开时向宿主发 cancel 并回收。嵌入调用由主进程发起（检索与索引），`embedding-service` 插件分支从 `embedding.plugins[pluginId].config` 取连接配置、按 maxBatchSize（缺省 32）顺序分批并逐批回调进度，整体做维度断言；编排器在插件未就绪时跳过 reconcile 且不落指纹，宿主从未就绪翻转为就绪时自动恢复，插件仍按量计费不参与自动空闲索引。
 
 ### 插件 MCP 与 AI 服务
 
@@ -401,6 +402,8 @@ import）注册期即被调用，因此记录数据挂在模块级、import 期�
 离线知识地图只构建显式边、邻接与标签，不重复运行社区发现和种子布局。主题/子主题世界几何按场景身份缓存，替换地图即失效；静态地图命中树只在场景变化时重建，平移与缩放不失效。动态链接图仍按帧更新命中树与几何，不能共用静态缓存。
 
 本地嵌入由 `local-inference/client.ts` 懒建独立 Electron `utilityProcess`，模型加载、分词、480 token 分窗推理和向量合并只在 `local-inference-worker` 执行；主进程不加载 node-llama-cpp。CPU 推理线程数为可用核心的一半，最少 1、最多 4；context 固定 512 token，与现有分窗上限一致，避免为短窗口分配模型的完整上下文。后台重建每条文本之间让出 10ms，查询在文本边界优先调度，不中断正在计算的文本；主内容、PDF、Notebook、视频检索均显式标记交互优先级。子进程启动握手、请求超时或退出时拒绝在途及排队任务，下次请求可重新启动；应用 `quit` 时终止进程（受控退出用 `app.exit`，不能依赖 `will-quit`）。向量输入与合并算法不变，不提升嵌入指纹版本。同步数据库写入仍由主进程持有。
+
+嵌入提供方只有两类：宿主内置的本地模型与嵌入插件（见「领域提供方插件 · 嵌入」）。setting.json 的 `embedding` 为 `{ active, local, plugins }`：`active` 为 `null` 或 `{ provider: "local" | "plugin", pluginId?, model, dimensions }`，默认 `null`；`local` 是下载源、设备、批大小等本地运行参数；`plugins[pluginId].config` 是插件连接配置，由插件详情 › 设置保存（`plugin-local:embeddings-config`），保存不改变 `active`。主进程 `utils/embedding-config.ts` 的 `resolveEmbeddingConfig` 是唯一解析入口；本地指纹 payload 固定为历史字面量（测试守护，存量本地索引不重建），插件指纹为 `{provider, pluginId, model, dimensions}`、不含连接配置，指纹变化即清空重建向量库。设置 › 嵌入模型（`EmbeddingSection` + `EmbeddingActiveGroup`）浏览、下载、配置都不写 `active`，只有「设为当前」并在确认框确认后才写入：已有生效模型时为危险确认并显示将清除的索引数；插件模型确认时先经渲染端注册表探测一次 embed（30 秒超时），失败留在确认框且不写设置，成功以实测维度写入。本地模型启用后自动建立索引，插件模型只手动发起。
 
 ### 产品版本与下载统计
 

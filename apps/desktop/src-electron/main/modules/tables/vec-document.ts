@@ -2,11 +2,9 @@ import Database from "better-sqlite3";
 import { asynchronousDatabaseCommand } from "../database-command";
 import { VecDocument, IndexParams, SearchParams, SearchResult, IndexType } from "@/types";
 import type { ChatPromptIndexType, VecIndexParams } from "@/types/search";
-import type { EmbeddingProviderType } from "@/types/embedding";
 import type { ResolvedEmbeddingConfig } from "../../utils/embedding-config";
-import OpenAI from "openai";
 import log from "electron-log";
-import localInference from "../local-inference";
+import embeddingService from "../embedding-service";
 import { searchResultDetails } from "../search-details";
 import {
   pruneContentSections,
@@ -19,7 +17,6 @@ import {
 const CHUNKS_PER_RESULT = 4;
 const MAX_CHUNK_RECALL = 200;
 
-const LOCAL_EMBEDDING_CONFIG_ID = "embedding-default-local";
 const CHAT_PROMPT_TYPE: ChatPromptIndexType = "chat-prompt";
 
 const addTypePrefix = (id: number | string, type: string): string => {
@@ -37,7 +34,8 @@ export default class VecDocumentTable {
       return null;
     }
     const row = indexDb.prepare("SELECT value FROM index_meta WHERE key = ?").get(key) as
-      { value?: string } | undefined;
+      | { value?: string }
+      | undefined;
     return row?.value || null;
   }
 
@@ -46,54 +44,18 @@ export default class VecDocumentTable {
     modelInfo: NonNullable<IndexParams["modelInfo"]>,
     interactive = false
   ): Promise<number[][]> {
-    if (!texts.length) {
-      return [];
-    }
-
-    const resolvedProviderType: EmbeddingProviderType =
-      modelInfo.providerType === "local_python" || modelInfo.configId === LOCAL_EMBEDDING_CONFIG_ID
-        ? "local_python"
-        : "remote_openai";
-
-    if (resolvedProviderType === "local_python") {
-      const result = await localInference.embedTexts(texts, {
-        modelDir: modelInfo.localModelDir,
-        modelName: modelInfo.model,
-        batchSize: modelInfo.batchSize || 8,
-        devicePolicy: modelInfo.devicePolicy || "auto",
-        priority: interactive ? "interactive" : "background",
-      });
-
-      const embeddings = result.embeddings || [];
-      if (!embeddings.length) {
-        return [];
-      }
-
-      if (modelInfo.dimensions && embeddings[0] && embeddings[0].length !== modelInfo.dimensions) {
-        throw new Error(
-          `Embedding 维度不匹配：配置 ${modelInfo.dimensions}，实际 ${embeddings[0].length}`
-        );
-      }
-
-      return embeddings;
-    }
-
-    if (!modelInfo.key || !modelInfo.baseUrl) {
-      throw new Error("远端 embedding 缺少 key/baseUrl");
-    }
-
-    const client = new OpenAI({
-      apiKey: modelInfo.key,
-      baseURL: modelInfo.baseUrl,
-    });
-
-    const res = await client.embeddings.create({
-      model: modelInfo.model,
-      input: texts,
-      dimensions: modelInfo.dimensions,
-    });
-
-    return res.data.map(item => item.embedding);
+    return embeddingService.embedTexts(
+      {
+        provider: modelInfo.provider,
+        pluginId: modelInfo.pluginId,
+        model: modelInfo.model,
+        dimensions: modelInfo.dimensions,
+        batchSize: modelInfo.batchSize,
+        devicePolicy: modelInfo.devicePolicy,
+      },
+      texts,
+      { interactive }
+    );
   }
 
   /** 用当前嵌入配置嵌入查询文本（与索引同一模型，可直接与 vec_documents 里的向量比） */
@@ -101,16 +63,13 @@ export default class VecDocumentTable {
     return this.createEmbeddings(
       texts,
       {
-        configId: config.configId,
-        providerType: config.providerType,
-        key: config.apiKey,
-        baseUrl: config.baseUrl,
+        provider: config.provider,
+        pluginId: config.pluginId,
         model: config.model,
         dimensions: config.dimensions,
         batchSize: config.batchSize,
         devicePolicy: config.devicePolicy,
-        localModelDir: config.localModelDir,
-      } as NonNullable<IndexParams["modelInfo"]>,
+      },
       true
     );
   }

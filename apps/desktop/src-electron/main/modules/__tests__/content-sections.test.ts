@@ -50,7 +50,7 @@ describe("节级索引持久化", () => {
         type: "article",
         content: "正文",
         updateTime: 1,
-        modelInfo: { providerType: "local_python", model: "fixture", dimensions: 3 },
+        modelInfo: { provider: "local", model: "fixture", dimensions: 3 },
       });
       expect(main.inTransaction).toBe(false);
       expect(index.inTransaction).toBe(false);
@@ -123,7 +123,7 @@ describe("节级索引持久化", () => {
     expect(
       await VecDocumentTable.indexContent(db, {
         ...params,
-        modelInfo: { providerType: "local_python", model: "fixture", dimensions: 3 },
+        modelInfo: { provider: "local", model: "fixture", dimensions: 3 },
       })
     ).toBe(true);
     expect(await FTSTable.indexContent(db, params)).toBe(true);
@@ -152,7 +152,7 @@ describe("节级索引持久化", () => {
       type: "article",
       content: "新正文",
       updateTime: 2,
-      modelInfo: { providerType: "local_python", model: "fixture", dimensions: 3 },
+      modelInfo: { provider: "local", model: "fixture", dimensions: 3 },
     });
     expect(db.prepare("SELECT DISTINCT update_time FROM content_sections").all()).toEqual([
       { update_time: 2 },

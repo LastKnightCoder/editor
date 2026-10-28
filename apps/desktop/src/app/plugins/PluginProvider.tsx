@@ -26,6 +26,7 @@ import { connectSyncRenderer } from "./sync-bridge";
 import { connectUploadRenderer } from "./upload-bridge";
 import { connectTTSRenderer } from "./tts-bridge";
 import { connectImagesRenderer } from "./images-bridge";
+import { connectEmbeddingsRenderer } from "./embeddings-bridge";
 import { connectVideoRenderer, rendererVideoRegistry } from "./video-bridge";
 import { connectPublishRenderer } from "./publish-bridge";
 import { registerPluginMCP } from "@/tools/pluginMCP";
@@ -39,6 +40,7 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
   useEffect(connectUploadRenderer, []);
   useEffect(connectTTSRenderer, []);
   useEffect(connectImagesRenderer, []);
+  useEffect(connectEmbeddingsRenderer, []);
   useEffect(connectVideoRenderer, []);
   useEffect(connectPublishRenderer, []);
   const { navigator } = usePage();

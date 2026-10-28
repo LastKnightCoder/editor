@@ -126,7 +126,7 @@ class EmbeddingModelManagerService {
       });
       const modelDir = path.join(outputDir, entry.name);
       // 下载成功后恢复可能被跳过的索引重建
-      embeddingIndexOrchestrator.notifyEmbeddingModelReady();
+      embeddingIndexOrchestrator.notifyEmbeddingProviderReady();
       return { success: true, model_dir: modelDir };
     } catch (error) {
       if (error instanceof DownloadCancelledError || controller.signal.aborted) {

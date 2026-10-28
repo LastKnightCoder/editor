@@ -6,6 +6,7 @@ export type { PluginBackendClient, BackendStatus, BackendState } from "./backend
 export type * from "./upload";
 export type * from "./tts";
 export type * from "./images";
+export type * from "./embeddings";
 export type * from "./video";
 export type * from "./publish";
 export type {
@@ -22,6 +23,7 @@ export type {
   PluginSettingsDefinition,
   PluginProviderSettingsDefinition,
   PluginComponentSettingsDefinition,
+  PluginSettingsModel,
   PluginSettingsProps,
   PluginSettingsHandle,
 } from "./settings";

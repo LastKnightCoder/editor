@@ -7,6 +7,7 @@ import PathUtil from "../utils/PathUtil";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import { Module } from "../types/module";
 import { ensureIndexDbDir, getIndexDbDir, normalizeMainDbBase } from "./utils/index-db-storage";
+import { resolveEmbeddingConfig } from "../utils/embedding-config";
 
 interface VideoNoteIndexChunk {
   chunkIndex: number;
@@ -139,18 +140,9 @@ class VideoNoteIndexDBManager implements Module {
       }
       const settingContent = readFileSync(settingPath, "utf-8");
       const setting = JSON.parse(settingContent);
-      const { embeddingProvider } = setting;
-      if (!embeddingProvider || !embeddingProvider.currentConfigId) {
-        return;
-      }
-      const currentConfig = embeddingProvider.configs?.find(
-        (c: { id: string }) => c.id === embeddingProvider.currentConfigId
-      );
-      const modelConfig = currentConfig?.models?.find(
-        (m: { name: string }) => m.name === currentConfig.currentModel
-      );
-      if (modelConfig?.contextLength) {
-        this.currentVecDimensions = modelConfig.contextLength;
+      const dimensions = resolveEmbeddingConfig(setting)?.dimensions;
+      if (dimensions && dimensions > 0) {
+        this.currentVecDimensions = dimensions;
       }
     } catch (error) {
       log.error(`[VideoNoteIndexDB] load dimensions failed: ${error}`);

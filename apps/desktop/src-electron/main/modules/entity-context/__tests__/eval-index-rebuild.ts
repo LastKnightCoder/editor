@@ -1,15 +1,12 @@
 /**
  * 评估脚本共用：在新索引库路径上按主内容向量队列的口径（splitSections + VecDocumentTable.indexContent）
- * 为卡片、文章、项目文档重新嵌入。mode = `local` 用本地 bge-m3（本分支补 <s> + 分窗管线，模型目录
- * KL_LOCAL_MODEL_DIR），其他值为 setting.json 里该 id 的远端嵌入配置（按量计费）。只给 *.eval.test.ts 用。
- * 调用方的测试文件要 mock electron（app.getPath）与 video-note-index-queue。
+ * 为卡片、文章、项目文档重新嵌入。目前只支持 `local`（本地 bge-m3，模型目录 KL_LOCAL_MODEL_DIR）。
+ * 只给 *.eval.test.ts 用。调用方的测试文件要 mock electron（app.getPath）与 video-note-index-queue。
  */
 
 import Database from "better-sqlite3";
 import * as sqliteVec from "sqlite-vec";
-import { readFileSync, rmSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
+import { rmSync } from "node:fs";
 import { expect } from "vitest";
 import indexSchema from "@tau/db-schema/schema/index.sql?raw";
 import { mainEmbeddingFingerprint } from "@/entity/chunk-version";
@@ -35,43 +32,20 @@ export async function rebuildIndex(
   const db = new Database(path);
   sqliteVec.load(db);
   db.exec(indexSchema);
-  let modelInfo: Parameters<typeof VecDocumentTable.indexContent>[1]["modelInfo"];
-  let fingerprintPayload: Record<string, unknown>;
-  if (mode === "local") {
-    modelInfo = {
-      configId: "embedding-default-local",
-      providerType: "local_python",
-      key: "",
-      baseUrl: "",
-      model: "bge-m3",
-      dimensions: 1024,
-      batchSize: 8,
-      devicePolicy: "auto",
-      localModelDir: process.env.KL_LOCAL_MODEL_DIR,
-    } as never;
-    fingerprintPayload = { model: "bge-m3", pipeline: LOCAL_EMBEDDING_PIPELINE };
-  } else {
-    const setting = JSON.parse(readFileSync(join(homedir(), ".editor", "setting.json"), "utf8"));
-    const config = setting.embeddingProvider.configs.find((c: { id: string }) => c.id === mode);
-    expect(config, `setting.json 里没有嵌入配置 ${mode}`).toBeTruthy();
-    const model = config.models.find((m: { name: string }) => m.name === config.currentModel);
-    modelInfo = {
-      configId: config.id,
-      providerType: config.providerType ?? "openai",
-      key: config.apiKey,
-      baseUrl: config.baseUrl,
-      model: config.currentModel,
-      dimensions: Number(process.env.KL_REMOTE_DIMENSIONS ?? 0) || undefined,
-      batchSize: config.batchSize ?? 16,
-    } as never;
-    fingerprintPayload = {
-      model: config.currentModel,
-      baseUrl: config.baseUrl,
-      contextLength: model?.contextLength,
-    };
+  if (mode !== "local") {
+    throw new Error(`远端嵌入配置已下线，仅支持 local 模式：${mode}`);
   }
+  const modelInfo: Parameters<typeof VecDocumentTable.indexContent>[1]["modelInfo"] = {
+    provider: "local",
+    model: "bge-m3",
+    dimensions: 1024,
+    batchSize: 8,
+    devicePolicy: "auto",
+  };
   // 只用于阈值按指纹缓存：与应用里的指纹格式无关
-  const fingerprint = mainEmbeddingFingerprint(JSON.stringify(fingerprintPayload));
+  const fingerprint = mainEmbeddingFingerprint(
+    JSON.stringify({ model: "bge-m3", pipeline: LOCAL_EMBEDDING_PIPELINE })
+  );
   const tasks: Array<{
     id: number;
     type: IndexType;

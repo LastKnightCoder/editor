@@ -2,7 +2,6 @@ import { ipcMain } from "electron";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import OpenAI from "openai";
 import log from "electron-log";
 import type { Module } from "../types/module";
 import type {
@@ -12,15 +11,14 @@ import type {
   PdfOutlineNode,
   PdfSearchResult,
 } from "@/types";
-import type { EmbeddingProviderType } from "@/types/embedding";
 import databaseModule from "./database";
 import userSettingModule from "./user-setting";
 import pdfIndexDBManager, { type PdfIndexChunkRecord, type PdfSectionRecord } from "./pdf-index-db";
 import PdfTable from "./tables/pdf";
-import localInference from "./local-inference";
+import embeddingService, { type EmbeddingTarget } from "./embedding-service";
 import { runSearchPipeline } from "./search-core/pipeline";
 import { createPdfSearchAdapter } from "./search-core/pdf-search-adapter";
-import { resolveEmbeddingConfig } from "../utils/embedding-config";
+import { resolveEmbeddingConfig, type ResolvedEmbeddingConfig } from "../utils/embedding-config";
 import { shouldReusePdfIndex } from "./pdf-index-reuse";
 
 export interface EnsurePdfIndexParams {
@@ -38,18 +36,16 @@ interface SearchPdfParams {
   limit?: number;
 }
 
-interface ResolvedPdfEmbeddingConfig {
-  providerType: EmbeddingProviderType;
-  apiKey?: string;
-  baseUrl?: string;
-  model: string;
-  dimensions: number;
-  distance: number;
-  batchSize: number;
-  devicePolicy: "auto" | "cpu" | "cuda";
-  localModelDir?: string;
-  fingerprint: string;
-}
+type ResolvedPdfEmbeddingConfig = ResolvedEmbeddingConfig;
+
+const toEmbeddingTarget = (config: ResolvedPdfEmbeddingConfig): EmbeddingTarget => ({
+  provider: config.provider,
+  pluginId: config.pluginId,
+  model: config.model,
+  dimensions: config.dimensions,
+  batchSize: config.batchSize,
+  devicePolicy: config.devicePolicy,
+});
 
 interface PdfPageExtraction {
   pageNumber: number;
@@ -276,16 +272,18 @@ class PdfIndexQueue implements Module {
       let embeddings: number[][] | undefined;
       if (embeddingConfig) {
         if (chunks.length > 0) {
-          embeddings = await this.embedTexts(
+          embeddings = await embeddingService.embedTexts(
+            toEmbeddingTarget(embeddingConfig),
             chunks.map(chunk => chunk.content),
-            embeddingConfig,
-            current => {
-              this.updateProgress(taskKey, {
-                currentStage: "embedding",
-                progressCurrent: current,
-                progressTotal: chunks.length,
-                progressLabel: `生成向量 ${current}/${chunks.length}`,
-              });
+            {
+              onProgress: current => {
+                this.updateProgress(taskKey, {
+                  currentStage: "embedding",
+                  progressCurrent: current,
+                  progressTotal: chunks.length,
+                  progressLabel: `生成向量 ${current}/${chunks.length}`,
+                });
+              },
             }
           );
         }
@@ -327,57 +325,7 @@ class PdfIndexQueue implements Module {
 
   private async getEmbeddingConfig(): Promise<ResolvedPdfEmbeddingConfig | null> {
     const setting = await userSettingModule.getSettingSnapshot();
-    const resolved = resolveEmbeddingConfig(setting);
-    if (!resolved) {
-      return null;
-    }
-    return {
-      providerType: resolved.providerType,
-      apiKey: resolved.apiKey,
-      baseUrl: resolved.baseUrl,
-      model: resolved.model,
-      dimensions: resolved.dimensions,
-      distance: resolved.distance,
-      batchSize: resolved.batchSize,
-      devicePolicy: resolved.devicePolicy,
-      localModelDir: resolved.localModelDir,
-      fingerprint: resolved.fingerprint,
-    };
-  }
-
-  private async embedTexts(
-    texts: string[],
-    embeddingConfig: ResolvedPdfEmbeddingConfig,
-    onProgress?: (current: number, total: number) => void,
-    interactive = false
-  ): Promise<number[][]> {
-    if (embeddingConfig.providerType === "local_python") {
-      const result = await localInference.embedTexts(texts, {
-        modelDir: embeddingConfig.localModelDir,
-        modelName: embeddingConfig.model,
-        batchSize: embeddingConfig.batchSize || 8,
-        devicePolicy: embeddingConfig.devicePolicy || "auto",
-        priority: interactive ? "interactive" : "background",
-      });
-      onProgress?.(texts.length, texts.length);
-      return result.embeddings || [];
-    }
-
-    if (!embeddingConfig.apiKey || !embeddingConfig.baseUrl) {
-      return [];
-    }
-
-    const client = new OpenAI({
-      apiKey: embeddingConfig.apiKey,
-      baseURL: embeddingConfig.baseUrl,
-    });
-    const result = await client.embeddings.create({
-      model: embeddingConfig.model,
-      input: texts,
-      dimensions: embeddingConfig.dimensions,
-    });
-    onProgress?.(texts.length, texts.length);
-    return result.data.map(item => item.embedding);
+    return resolveEmbeddingConfig(setting);
   }
 
   private async extractPdf(
@@ -843,11 +791,10 @@ class PdfIndexQueue implements Module {
             ? {
                 distance: embeddingConfig.distance,
                 embedQuery: async (queryText: string) => {
-                  const embeddings = await this.embedTexts(
+                  const embeddings = await embeddingService.embedTexts(
+                    toEmbeddingTarget(embeddingConfig),
                     [queryText],
-                    embeddingConfig,
-                    undefined,
-                    true
+                    { interactive: true }
                   );
                   return embeddings[0] || null;
                 },

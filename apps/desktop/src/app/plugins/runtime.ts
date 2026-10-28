@@ -5,6 +5,7 @@ import { rendererSyncRegistry } from "./sync-registry";
 import { createPluginBackend } from "./backend";
 import { rendererTTSRegistry } from "./tts-registry";
 import { rendererImagesRegistry } from "./images-registry";
+import { rendererEmbeddingsRegistry } from "./embeddings-registry";
 import { rendererVideoRegistry } from "./video-bridge";
 import { rendererPublishRegistry } from "./publish-registry";
 import { rendererUploadRegistry } from "./upload-registry";
@@ -192,7 +193,7 @@ export class DesktopPluginRuntime {
       validateEditor?: (contributions: readonly PluginEditorContribution[]) => void;
       openSettings?: (
         key: PluginSettingsKey,
-        target?: "sync" | "upload" | "tts" | "asr" | "images" | "video" | "publish"
+        target?: "sync" | "upload" | "tts" | "asr" | "images" | "embeddings" | "video" | "publish"
       ) => void;
       fetch?: typeof globalThis.fetch;
       services?: PluginServices;
@@ -224,6 +225,7 @@ export class DesktopPluginRuntime {
       asr: rendererASRRegistry,
       websocket: desktopWebSocket,
       images: rendererImagesRegistry,
+      embeddings: rendererEmbeddingsRegistry,
       video: rendererVideoRegistry,
       publish: rendererPublishRegistry,
       upload: {
@@ -281,6 +283,7 @@ export class DesktopPluginRuntime {
     this.unsubscribe = this.host.subscribe(() => {
       this.publish();
       rendererImagesRegistry.notifyChanged();
+      rendererEmbeddingsRegistry.notifyChanged();
       rendererPublishRegistry.notifyChanged();
       notifyPluginSkillGateChanged();
     });

@@ -153,7 +153,7 @@ describe("实体检索：碎碎念（diary-moment）", () => {
       index.exec(indexSchema);
       VecDocumentTable.initTableByVecLength(index, 3);
       const modelInfo = {
-        providerType: "local_python" as const,
+        provider: "local" as const,
         model: "fixture",
         dimensions: 3,
         distance: 0.6,

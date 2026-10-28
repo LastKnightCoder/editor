@@ -1,6 +1,6 @@
 import { Descendant } from "slate";
 import type { MaterialInfo, MaterialKind } from "@/entity/material";
-import type { EmbeddingProviderType } from "./embedding";
+import type { EmbeddingProviderKind } from "./embedding";
 import type { ContentSection } from "@/entity/sections";
 
 /** 我的思考：卡片、文章、项目文档、日记 */
@@ -47,15 +47,12 @@ export interface IndexParams {
   type: IndexType;
   updateTime: number;
   modelInfo?: {
-    configId?: string;
-    providerType?: EmbeddingProviderType;
-    key?: string;
+    provider: EmbeddingProviderKind;
+    pluginId?: string;
     model: string;
-    baseUrl?: string;
     dimensions: number;
     batchSize?: number;
     devicePolicy?: "auto" | "cpu" | "cuda";
-    localModelDir?: string;
   };
   indexTypes?: ("fts" | "vec")[];
 }
@@ -65,15 +62,12 @@ export interface SearchParams {
   types?: IndexType[];
   limit?: number;
   modelInfo?: {
-    configId?: string;
-    providerType?: EmbeddingProviderType;
-    key?: string;
+    provider: EmbeddingProviderKind;
+    pluginId?: string;
     model: string;
-    baseUrl?: string;
     distance: number;
     dimensions: number;
     batchSize?: number;
     devicePolicy?: "auto" | "cpu" | "cuda";
-    localModelDir?: string;
   };
 }

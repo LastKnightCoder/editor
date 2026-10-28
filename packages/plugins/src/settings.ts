@@ -37,12 +37,19 @@ interface PluginSettingsBase {
   title: string;
   description?: string;
   /** 提供方可用的模型目录；账号已保存的模型优先于此初始目录。 */
-  models?: readonly { id: string; label?: string }[];
+  models?: readonly PluginSettingsModel[];
+}
+
+export interface PluginSettingsModel {
+  id: string;
+  label?: string;
+  /** 嵌入模型的向量维度；仅作展示提示，实际以 embed 返回为准。 */
+  dimensions?: number;
 }
 
 /** 提供方的连接配置：只声明字段，由宿主在插件设置页按平台渲染与保存。 */
 export interface PluginProviderSettingsDefinition extends PluginSettingsBase {
-  target: "sync" | "upload" | "tts" | "asr" | "images" | "video" | "publish";
+  target: "sync" | "upload" | "tts" | "asr" | "images" | "embeddings" | "video" | "publish";
   form: ProviderForm;
   component?: never;
 }

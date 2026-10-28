@@ -6,17 +6,20 @@ import type { PluginContext } from "@tau/plugins";
 import type { RegisteredPluginSettings } from "@/app/plugins/runtime";
 import useSettingStore from "@/stores/useSettingStore";
 import { ProviderAccountSettings } from "../components/ProviderAccountSettings";
-const mocks = vi.hoisted(() => ({ tts: vi.fn(), images: vi.fn() }));
+const mocks = vi.hoisted(() => ({ tts: vi.fn(), images: vi.fn(), embeddings: vi.fn() }));
 vi.mock("@/commands/plugin-tts", () => ({ savePluginTTSConfig: mocks.tts }));
 vi.mock("@/commands/plugin-images", () => ({
   savePluginImagesConfig: mocks.images,
+}));
+vi.mock("@/commands/plugin-embeddings", () => ({
+  savePluginEmbeddingConfig: mocks.embeddings,
 }));
 vi.mock("@/features/settings/sections/TTSPluginCloneSection", () => ({
   TTSPluginCloneSection: () => null,
 }));
 let container: HTMLDivElement, root: Root;
 const previous = useSettingStore.getState().setting;
-const section = (target: "tts" | "images"): RegisteredPluginSettings =>
+const section = (target: "tts" | "images" | "embeddings"): RegisteredPluginSettings =>
   ({
     key: "plugin:test.provider:account",
     mountId: 1,
@@ -59,6 +62,7 @@ async function type(value: string) {
 beforeEach(() => {
   mocks.tts.mockReset().mockResolvedValue(undefined);
   mocks.images.mockReset().mockResolvedValue(undefined);
+  mocks.embeddings.mockReset().mockResolvedValue(undefined);
   useSettingStore.setState({
     setting: {
       ...previous,
@@ -121,6 +125,27 @@ it.each(["tts", "images"] as const)(
     );
   }
 );
+it("embeddings 保存失败保留草稿，成功写主进程与 store 且不改 active", async () => {
+  await act(async () =>
+    root.render(
+      <UiProvider>
+        <ProviderAccountSettings section={section("embeddings")} />
+      </UiProvider>
+    )
+  );
+  await type("new-secret");
+  mocks.embeddings.mockRejectedValueOnce(new Error("写入失败"));
+  await act(async () => button("保存").click());
+  expect(container.textContent).toContain("写入失败");
+  expect(useSettingStore.getState().setting.embedding.plugins["test.provider"]).toBeUndefined();
+  await act(async () => button("保存").click());
+  expect(mocks.embeddings).toHaveBeenLastCalledWith("test.provider", { apiKey: "new-secret" });
+  expect(useSettingStore.getState().setting.embedding.plugins["test.provider"]).toEqual({
+    config: { apiKey: "new-secret" },
+  });
+  expect(useSettingStore.getState().setting.embedding.active).toBeNull();
+});
+
 it.each(["tts", "images"] as const)("%s 添加账号不自动选用", async target => {
   await act(async () =>
     root.render(

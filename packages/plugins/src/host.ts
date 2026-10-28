@@ -60,6 +60,7 @@ import type { TTSProviderDefinition } from "./tts";
 import type { ASRProviderDefinition } from "./asr";
 import type { PluginWebSocket, PluginSocketOptions } from "./websocket";
 import type { ImageProviderDefinition } from "./images";
+import type { EmbeddingProviderDefinition } from "./embeddings";
 import type { VideoProviderDefinition } from "./video";
 import type { PublishProviderDefinition } from "./publish";
 export { copyJson } from "./values";
@@ -1011,6 +1012,7 @@ export type PluginContributionKind =
   | "tts"
   | "asr"
   | "images"
+  | "embeddings"
   | "video"
   | "publish"
   | "mcp"
@@ -1128,6 +1130,9 @@ export class PluginHost {
       websocket?: PluginWebSocket;
       images?: {
         register(context: PluginContext, definition: ImageProviderDefinition): Disposable;
+      };
+      embeddings?: {
+        register(context: PluginContext, definition: EmbeddingProviderDefinition): Disposable;
       };
       video?: {
         register(context: PluginContext, definition: VideoProviderDefinition): Disposable;
@@ -1796,6 +1801,37 @@ export class PluginHost {
               create: (config, modelId) => {
                 this.assertActive(entry, activation);
                 if (entry.state !== "active") throw new Error("图片插件尚未激活");
+                return create(copyJson(config), modelId);
+              },
+            })
+          );
+        },
+      }),
+      embeddings: Object.freeze({
+        register: (definition: EmbeddingProviderDefinition) => {
+          this.assertActive(entry, activation);
+          if (
+            definition.id !== scope.pluginId ||
+            !definition.name.trim() ||
+            typeof definition.create !== "function"
+          )
+            throw new Error("嵌入提供方必须属于当前插件");
+          if (
+            definition.maxBatchSize !== undefined &&
+            (!Number.isInteger(definition.maxBatchSize) || definition.maxBatchSize < 1)
+          )
+            throw new Error("嵌入提供方单批上限必须是正整数");
+          if (!this.options.embeddings) throw new Error("当前宿主不支持嵌入提供方");
+          const create = definition.create.bind(definition);
+          return registerAs(
+            "embeddings",
+            this.options.embeddings.register(context, {
+              id: scope.pluginId,
+              name: definition.name,
+              maxBatchSize: definition.maxBatchSize,
+              create: (config, modelId) => {
+                this.assertActive(entry, activation);
+                if (entry.state !== "active") throw new Error("嵌入插件尚未激活");
                 return create(copyJson(config), modelId);
               },
             })

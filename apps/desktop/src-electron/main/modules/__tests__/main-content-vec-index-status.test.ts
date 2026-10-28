@@ -110,8 +110,7 @@ import mainContentVecIndexQueue from "../main-content-vec-index-queue";
 import { MAIN_CHUNK_BUILD_KEY, mainEmbeddingFingerprint } from "@/entity/chunk-version";
 
 const embeddingConfig = {
-  configId: "embedding-default-local",
-  providerType: "local_python",
+  provider: "local",
   model: "model-a",
   dimensions: 4,
   fingerprint: "fp-a",
