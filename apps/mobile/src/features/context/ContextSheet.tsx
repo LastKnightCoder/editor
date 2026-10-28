@@ -9,6 +9,7 @@ import { SnapSheet, type SnapSheetState } from "../../components/SnapSheet";
 import { useNavigator } from "../../router";
 import { ENTITY_KIND_META, LINEAGE_KIND_META, USAGE_KIND_META, contextCount } from "./model";
 import { canOpenContextEntity, openContextEntity, openContextNode } from "./open";
+import { EntityKindIcon } from "./EntityKindIcon";
 import type {
   ContextBacklink,
   ContextEntity,
@@ -38,7 +39,7 @@ function SectionHeader({ label, count }: { label: string; count: number }) {
   );
 }
 
-/** 实体的一行：有承载页面的可点击跳转，其余（日记片段、插件内容）只读展示 */
+/** 实体的一行：有承载页面的可点击跳转，其余只读展示。 */
 /** 条目跳转：先关浮层再推入目标页，浮层（含全局 touchmove 拦截）不随下层页残留 */
 type OpenHandlers = {
   onOpenEntity: (entity: ContextEntity) => void;
@@ -64,9 +65,13 @@ function EntityLine({
   const openable = canOpenContextEntity(entity);
   const content = (
     <>
-      <Icon size={15} className="text-ink-3 shrink-0" aria-hidden />
+      <EntityKindIcon
+        svg={entity.pluginEntity?.icon}
+        fallback={Icon}
+        className="text-ink-3 shrink-0"
+      />
       <span className="text-ink-2 w-[52px] shrink-0 truncate text-[11.5px]">
-        {entity.kindLabel || meta.label}
+        {entity.pluginEntity?.label || entity.kindLabel || meta.label}
       </span>
       <span className="text-ink-1 min-w-0 flex-1 truncate text-[13.5px] font-medium">
         {entity.title}
@@ -207,7 +212,7 @@ export function ContextSheet({ open, context, onClose }: ContextSheetProps) {
             </p>
           ) : null}
         </header>
-        <SnapSheet.Scroll className="px-4 pb-8 pt-2">
+        <SnapSheet.Scroll className="px-4 pt-2 pb-8">
           {count === 0 ? (
             <div className="py-12 text-center">
               <p className="text-ink-3 text-sm">暂无关联</p>

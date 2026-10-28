@@ -34,6 +34,8 @@ import {
   type ContentLinkTarget,
 } from "../editorExtensions/contentLinkModel";
 import { retargetContentLink, wrapContentLink } from "../editorExtensions/contentLinkTransforms";
+import type { ContentMentionRequest } from "../editorExtensions/useContentMention";
+import { toast } from "../../../components/toast";
 import {
   applyColorMark as applyColorMarkToEditor,
   applyGradientMark as applyGradientMarkToEditor,
@@ -198,6 +200,7 @@ export type MobileEditorToolbarController = {
   /** 把展开选区折叠到焦点端（退出格式模式） */
   collapseSelectionToFocus: () => void;
   isContentLinkPickerOpen: boolean;
+  openContentMention: (request: ContentMentionRequest) => void;
   contentLinkPickerIntent: ContentLinkPickerIntent;
   /** 引用模式「更换」：打开选择器，选中后改写光标所在引用的目标 */
   retargetContentLink: () => void;
@@ -258,6 +261,7 @@ export function useMobileEditorToolbarController(
   const lastSelectionRef = useRef<BaseSelection | null>(null);
   const pendingContentLinkSelectionRef = useRef<BaseSelection | null>(null);
   const contentLinkRetargetPathRef = useRef<Path | null>(null);
+  const mentionRef = useRef<ContentMentionRequest | null>(null);
   const contentLinkPreviewSelectionRef = useRef<BaseSelection | null>(null);
   // 同步记录面板开关，回键盘触发的编辑器 focus 据此与「点正文」区分
   const activePanelRef = useRef<EditorPanelKind | null>(null);
@@ -331,6 +335,7 @@ export function useMobileEditorToolbarController(
       }
 
       if (actionId === "content-link") {
+        mentionRef.current?.cancel();
         if (toggleContentLinkIfActive(editor)) {
           if (editor.selection) {
             lastSelectionRef.current = editor.selection;
@@ -389,11 +394,40 @@ export function useMobileEditorToolbarController(
   );
 
   const handleCloseContentLinkPicker = useCallback(() => {
+    const mention = mentionRef.current;
+    mentionRef.current = null;
+    mention?.cancel();
     setIsContentLinkPickerOpen(false);
     pendingContentLinkSelectionRef.current = null;
     contentLinkRetargetPathRef.current = null;
     markSelectionDirty();
   }, [markSelectionDirty]);
+
+  const openContentMention = useCallback(
+    (request: ContentMentionRequest) => {
+      mentionRef.current?.cancel();
+      mentionRef.current = request;
+      pendingContentLinkSelectionRef.current = null;
+      contentLinkRetargetPathRef.current = null;
+      setContentLinkPickerIntent(INSERT_PICKER_INTENT);
+      request.signal.addEventListener(
+        "abort",
+        () => {
+          if (mentionRef.current === request) {
+            mentionRef.current = null;
+            setIsContentLinkPickerOpen(false);
+          }
+        },
+        { once: true }
+      );
+      openSheetNextTick(() => {
+        if (!request.signal.aborted && mentionRef.current === request)
+          setIsContentLinkPickerOpen(true);
+      });
+    },
+    [openSheetNextTick]
+  );
+  useEffect(() => () => mentionRef.current?.cancel(), []);
 
   const applyHeadingLevel = useCallback(
     (level: 1 | 2 | 3 | "paragraph") => {
@@ -609,6 +643,22 @@ export function useMobileEditorToolbarController(
 
   const handleSelectContentLink = useCallback(
     (result: ContentLinkPickerResult) => {
+      const mention = mentionRef.current;
+      if (mention) {
+        mentionRef.current = null;
+        const applied = mention.select(result);
+        setIsContentLinkPickerOpen(false);
+        if (!applied) toast({ type: "warning", text: "引用位置已变化，请重新输入 @" });
+        else {
+          const editor = getEditorFromRef(editorRef);
+          if (editor) {
+            ReactEditor.focus(editor as ReactEditor);
+            lastSelectionRef.current = editor.selection;
+          }
+        }
+        markSelectionDirty();
+        return;
+      }
       const editor = restoreEditorSelection();
       if (!editor) {
         return;
@@ -643,7 +693,7 @@ export function useMobileEditorToolbarController(
       setIsContentLinkPickerOpen(false);
       markSelectionDirty();
     },
-    [markSelectionDirty, restoreEditorSelection]
+    [editorRef, markSelectionDirty, restoreEditorSelection]
   );
 
   const getEditableElement = useCallback(
@@ -893,6 +943,7 @@ export function useMobileEditorToolbarController(
   }, [editorRef, markSelectionDirty]);
 
   const retargetContentLinkAtCursor = useCallback(() => {
+    mentionRef.current?.cancel();
     const editor = getEditorFromRef(editorRef);
     const context = editor ? resolveContentLinkContext(editor) : null;
     if (!editor || !context) return;
@@ -1096,6 +1147,7 @@ export function useMobileEditorToolbarController(
 
   return useMemo(
     () => ({
+      openContentMention,
       pluginInsertItems,
       isEditorFocused,
       isToolbarVisible,
@@ -1154,6 +1206,7 @@ export function useMobileEditorToolbarController(
       redo,
     }),
     [
+      openContentMention,
       pluginInsertItems,
       isEditorFocused,
       isToolbarVisible,

@@ -301,3 +301,44 @@ it("每个 runtime 独立注册 TTS 并打开插件设置页", async () => {
     await other.dispose();
   }
 });
+
+it("跨端包的业务权限只从验证过的 manifest 注入", async () => {
+  vi.stubGlobal("crypto", webcrypto);
+  const { PluginPermissionBroker } = await import("@tau/plugins/permission-host");
+  const [page] = await portableFixtures();
+  const runtime = new MobilePluginRuntime(
+    environment("ios"),
+    createMemoryStorage(),
+    "A.db",
+    { push: vi.fn() },
+    appVersion
+  );
+  runtime.permissions = new PluginPermissionBroker(
+    { read: async () => ({}), write: vi.fn() },
+    () => true
+  );
+  const code = `module.exports.default={id:${JSON.stringify(page.manifest.id)},name:${JSON.stringify(page.manifest.name)},version:${JSON.stringify(page.manifest.version)},apiVersion:1,permissions:['articles:write'],create:()=>({activate(context){context.commands.register({id:'query',title:'查询',run:()=>context.permissions.query('cards:read')});}})};`;
+  const artifact = {
+    ...page,
+    code,
+    manifest: {
+      ...page.manifest,
+      permissions: ["cards:read" as const],
+      targets: { ios: { minAppVersion: "0.2.13" } },
+      integrity: {
+        ...page.manifest.integrity,
+        [page.manifest.main]: createHash("sha256").update(code).digest("hex"),
+      },
+    },
+  };
+  try {
+    await runtime.start(
+      [{ id: page.manifest.id, enabled: true, artifact }] as Parameters<typeof runtime.start>[0],
+      sharedPluginModules
+    );
+    expect(runtime.errors.size).toBe(0);
+    expect(runtime.host.listPlugins()[0].permissions).toEqual(["cards:read"]);
+  } finally {
+    await runtime.dispose();
+  }
+});

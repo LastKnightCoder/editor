@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { ContentCollaborationBinding } from "@tau/editor-collab";
 import { NODE_DOCUMENT_VERSION } from "@tau/collaboration";
 import { collaborationManager } from "../core/manager";
@@ -7,8 +7,11 @@ import { toast } from "../../../components/toast";
 /** 投影由持有缓存及观察修订的会话提交，视图只负责触发。 */
 export function useCollabProjection(
   binding: ContentCollaborationBinding | undefined,
-  boundContentId: number | undefined
+  boundContentId: number | undefined,
+  options: { guard?: () => void; canWrite?: () => boolean; project?: () => Promise<void> } = {}
 ) {
+  const latest = useRef(options);
+  latest.current = options;
   useEffect(() => {
     if (
       !binding ||
@@ -18,14 +21,22 @@ export function useCollabProjection(
       return;
     let notified = false;
     const project = () => {
-      void collaborationManager.project(binding.doc.guid).catch(failure => {
-        if (!notified) {
-          notified = true;
-          toast.warning(
-            failure instanceof Error ? failure.message : "正文投影失败，原协作缓存已保留"
-          );
+      try {
+        latest.current.guard?.();
+        if (latest.current.canWrite?.() === false) return;
+      } catch {
+        return;
+      }
+      void (latest.current.project?.() ?? collaborationManager.project(binding.doc.guid)).catch(
+        failure => {
+          if (!notified) {
+            notified = true;
+            toast.warning(
+              failure instanceof Error ? failure.message : "正文投影失败，原协作缓存已保留"
+            );
+          }
         }
-      });
+      );
     };
     const timer = setInterval(project, 2000);
     return () => {

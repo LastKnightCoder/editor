@@ -1,4 +1,4 @@
-// 脉络面板：插件内容按插件声明的类型名只读展示；可跳转条目先关浮层再推入目标页。
+// 脉络面板：插件内容按持久类型名展示，并由统一宿主入口打开。
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EntityContext } from "../types";
 
 const push = vi.fn();
+const pluginOpen = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock("../../../services/pluginEntities", () => ({ openMobilePluginEntity: pluginOpen }));
 vi.mock("../../../router", () => ({ useNavigator: () => ({ push }) }));
 
 import { ContextSheet } from "../ContextSheet";
@@ -44,7 +46,7 @@ afterEach(async () => {
 });
 
 describe("ContextSheet", () => {
-  it("被关联：显示插件声明的类型名，计入总数，不可点击", async () => {
+  it("被关联：保留插件声明的类型名，点击走统一宿主入口", async () => {
     const host = document.createElement("div");
     document.body.append(host);
     root = createRoot(host);
@@ -53,10 +55,17 @@ describe("ContextSheet", () => {
     expect(text).toContain("脉络 · 2");
     expect(text).toContain("被关联 · 1");
     expect(text).toContain("问题渲染为什么卡");
-    // 插件内容没有承载页面：行不是按钮
     const buttons = [...document.querySelectorAll("button")].map(button => button.textContent);
-    expect(buttons.some(label => label?.includes("渲染为什么卡"))).toBe(false);
-    expect(buttons.some(label => label?.includes("周记"))).toBe(false);
+    expect(buttons.some(label => label?.includes("渲染为什么卡"))).toBe(true);
+    expect(buttons.some(label => label?.includes("周记"))).toBe(true);
+    const button = [...document.querySelectorAll("button")].find(button =>
+      button.textContent?.includes("渲染为什么卡")
+    );
+    await act(async () => button?.click());
+    expect(pluginOpen).toHaveBeenCalledWith(7, {
+      expectedContentId: 0,
+      expectedCreatedAt: undefined,
+    });
   });
 
   it("点击可跳转条目：先关闭浮层再推入目标页", async () => {

@@ -239,6 +239,16 @@ pub(crate) fn assistant_occurrences(
     holidays: &HolidayDays,
 ) -> Result<Option<std::collections::BTreeMap<i64, i64>>, String> {
     let metadata = super::assistant_tasks::recurrence_state(tx, todo_id)?;
+    occurrences_for_metadata(&metadata, start, end, zone, holidays)
+}
+
+pub(crate) fn occurrences_for_metadata(
+    metadata: &Value,
+    start: i64,
+    end: i64,
+    zone: CalendarTimeZone,
+    holidays: &HolidayDays,
+) -> Result<Option<std::collections::BTreeMap<i64, i64>>, String> {
     let Some(segments) = metadata["segments"]
         .as_array()
         .filter(|values| !values.is_empty())

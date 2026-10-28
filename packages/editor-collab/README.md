@@ -43,3 +43,5 @@ disconnectNodeTree 用于临时断开，保留历史；最终关闭由拥有者�
 createNodeTreeDocument/withNodeTree 可接收 `mutate(write, origin)` 与动态 `canWrite`。mutate 只接收目标 NodeTree 的写入意图，宿主可先对隔离候选执行，再写真实根；节点身份和拆分身份在调用前固定。正文与节点源码字段均经过该入口，失败时 Slate 恢复到当前共享投影，不能遗留未持久的半个拆分。可选 `normalizeOnConnect: false` 禁止连接期运行写规范化，白板绑定使用此设置；原编辑器默认行为保持不变。
 
 `createSharedTextField` 复用字符串观察版本、增量事件、来源租约和宿主历史，供白板普通字符串绑定使用。白板及注入准入的节点源码绑定拒绝同步整段 replace，条件替换仍由异步宿主流程负责。动态只读、页切换、节点失效或最终释放后都拒绝输入；编辑器不另建 Slate 历史。
+
+`applyNodeTreeContent` 用于宿主已校验修订的隔离候选快照，插入节点保留输入的稳定身份，使后续属性和子节点差分仍指向同一节点；普通编辑与粘贴继续生成新身份。该开关不绕过 NodeTree 的重复身份、契约及删除状态校验。

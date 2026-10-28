@@ -47,6 +47,23 @@ pub async fn load_holidays(
     end: i64,
     zone: CalendarTimeZone,
 ) -> Result<HolidayDays, String> {
+    load_holidays_impl(app, start, end, zone, false).await
+}
+pub async fn load_task_holidays(
+    app: &tauri::AppHandle,
+    start: i64,
+    end: i64,
+    zone: CalendarTimeZone,
+) -> Result<HolidayDays, String> {
+    load_holidays_impl(app, start, end, zone, true).await
+}
+async fn load_holidays_impl(
+    app: &tauri::AppHandle,
+    start: i64,
+    end: i64,
+    zone: CalendarTimeZone,
+    strict: bool,
+) -> Result<HolidayDays, String> {
     static CACHE: OnceLock<tokio::sync::Mutex<HashMap<i32, (YearCache, i64)>>> = OnceLock::new();
     let mut cache = CACHE.get_or_init(Default::default).lock().await;
     let epoch = NaiveDate::from_ymd_opt(1970, 1, 1).unwrap();
@@ -118,6 +135,13 @@ pub async fn load_holidays(
                     entry.1 = now + RETRY_MS;
                 }
             }
+        }
+        if strict
+            && cache
+                .get(&year)
+                .is_none_or(|(saved, _)| saved.fetched_at == 0)
+        {
+            return Err(format!("{year} 年节假日数据不可用，未按周末替代周期规则"));
         }
         if let Some((saved, _)) = cache.get(&year) {
             for (date, holiday) in &saved.days {

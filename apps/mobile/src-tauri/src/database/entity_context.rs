@@ -152,6 +152,8 @@ pub struct ContextEntityData {
     pub diary: Option<DiaryLocator>,
     /// 插件内容的类型名（插件声明，随库保存）；其余类型为空，前端按 kind 取
     pub kind_label: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plugin_entity: Option<crate::models::PluginEntityMetadata>,
 }
 
 #[derive(Debug, Serialize)]
@@ -258,14 +260,13 @@ fn plugin_ref_kind(kind: &str) -> Option<(&'static str, &'static str)> {
 }
 
 /**
- * 「被关联」：哪些插件内容（plugin_links）关联了这个实体或共用正文的身份，对齐桌面
- * context-plugin-links.ts——同一来源合并、按最近关联排序；关联记下的目标创建时间与当前不一致
- * （编号被复用）、来源插件已卸载（孤儿）、插件内容关联自己时不算。
+ * 「被关联」按真实目标身份合并来源并按最近关联排序；现存孤立数据仍展示，
+ * 目标编号已复用或插件内容关联自己时不计入，打开能力由当前插件注册决定。
  */
 fn plugin_links_of(conn: &Connection, identities: &[EntityRefLite]) -> Vec<ContextEntityData> {
     let Ok(mut inbound) = conn.prepare(
         "SELECT l.from_id, MAX(l.create_time) FROM plugin_links l
-         JOIN plugin_entities e ON e.id = l.from_id AND e.orphaned_time IS NULL
+         JOIN plugin_entities e ON e.id = l.from_id
          WHERE l.to_kind = ?1 AND l.to_id = ?2 AND l.to_created_at = ?3
          GROUP BY l.from_id",
     ) else {
@@ -436,6 +437,7 @@ fn resolve_entity(conn: &Connection, kind: &str, id: i64) -> Option<ContextEntit
                 meta: String::new(),
                 diary: None,
                 kind_label: None,
+                plugin_entity: None,
             })
         }
         "article" => {
@@ -459,6 +461,7 @@ fn resolve_entity(conn: &Connection, kind: &str, id: i64) -> Option<ContextEntit
                 meta: String::new(),
                 diary: None,
                 kind_label: None,
+                plugin_entity: None,
             })
         }
         "project-item" => {
@@ -503,6 +506,7 @@ fn resolve_entity(conn: &Connection, kind: &str, id: i64) -> Option<ContextEntit
                 meta,
                 diary: None,
                 kind_label: None,
+                plugin_entity: None,
             })
         }
         "diary-moment" => {
@@ -539,43 +543,20 @@ fn resolve_entity(conn: &Connection, kind: &str, id: i64) -> Option<ContextEntit
                     moment_id: id,
                 }),
                 kind_label: None,
+                plugin_entity: None,
             })
         }
         "plugin-entity" => {
-            let row = conn
-                .query_row(
-                    "SELECT e.title, e.content_id, k.label FROM plugin_entities e
-                     LEFT JOIN plugin_entity_kinds k ON k.plugin_id = e.plugin_id AND k.kind = e.kind
-                     WHERE e.id = ?1",
-                    params![id],
-                    |row| {
-                        Ok((
-                            row.get::<_, String>(0)?,
-                            row.get::<_, i64>(1)?,
-                            row.get::<_, Option<String>>(2)?,
-                        ))
-                    },
-                )
-                .ok()?;
-            let (title, content_id, label) = row;
-            let title = if title.trim().is_empty() {
-                let first = content_first_text(content_raw_of(conn, content_id), TITLE_CHARS);
-                if first.is_empty() {
-                    "无标题".to_string()
-                } else {
-                    first
-                }
-            } else {
-                title
-            };
+            let target = super::plugin_app::entity_target(conn, id).ok()??;
             Some(ContextEntityData {
-                kind: kind.to_string(),
+                kind: kind.into(),
                 id,
-                content_id: Some(content_id),
-                title,
+                content_id: Some(target.content_id),
+                title: target.title.clone(),
                 meta: String::new(),
                 diary: None,
-                kind_label: label.filter(|label| !label.trim().is_empty()),
+                kind_label: Some(target.label.clone()),
+                plugin_entity: Some(target.metadata()),
             })
         }
         _ => None,
@@ -684,7 +665,7 @@ fn explicit_links_of(
 }
 
 /** 「被引用」分区：索引库 entity_refs 反查，按来源分组带片段；unresolved（白板正文等）丢弃 */
-fn backlinks_of(
+pub(super) fn backlinks_of(
     main_conn: &Connection,
     index_conn: &Connection,
     kind: &str,
@@ -1581,10 +1562,12 @@ mod tests {
         assert_eq!(
             rows,
             vec![
+                (7, "已卸载", Some("插件内容")),
                 (6, "无标题", Some("问题")),
                 (5, "为什么会这样", Some("问题"))
             ]
         );
+        assert_eq!(linked[0].plugin_entity.as_ref().unwrap().plugin_id, "gone");
         // 插件内容自身的脉络不列出自己
         let own = vec![EntityRefLite {
             kind: "plugin-entity".to_string(),

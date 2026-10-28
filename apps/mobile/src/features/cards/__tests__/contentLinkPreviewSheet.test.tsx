@@ -9,6 +9,13 @@ const push = vi.fn();
 vi.mock("../../../router", () => ({ getNavigator: () => ({ push }) }));
 
 const getContentDetail = vi.fn();
+const metadata = vi.hoisted(() => vi.fn());
+const pluginOpen = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock("../../../services/pluginEntities", () => ({
+  getMobilePluginEntityMetadata: metadata,
+  openMobilePluginEntity: pluginOpen,
+  useMobileEntityHostRevision: () => 1,
+}));
 vi.mock("../../../services/tauri", () => ({
   getContentDetail: (...args: unknown[]) => getContentDetail(...args),
 }));
@@ -34,7 +41,7 @@ const target: ContentLinkTarget = {
 
 let root: Root | null = null;
 
-async function renderSheet(onClose = vi.fn()) {
+async function renderSheet(onClose = vi.fn(), selected = target) {
   const host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -42,7 +49,7 @@ async function renderSheet(onClose = vi.fn()) {
   await act(async () =>
     root!.render(
       <QueryClientProvider client={client}>
-        <ContentLinkPreviewSheet open target={target} onClose={onClose} />
+        <ContentLinkPreviewSheet open target={selected} onClose={onClose} />
       </QueryClientProvider>
     )
   );
@@ -61,6 +68,48 @@ describe("ContentLinkPreviewSheet", () => {
     collaboration.value = undefined;
     push.mockReset();
     getContentDetail.mockReset();
+    metadata.mockReset();
+    pluginOpen.mockClear();
+  });
+
+  it("插件实体已删除时即使正文仍保留也显示失效，不读取残留正文", async () => {
+    metadata.mockResolvedValue(null);
+    getContentDetail.mockResolvedValue({ contentId: 100, content: [], count: 1 });
+    await renderSheet(vi.fn(), { ...target, contentType: "plugin-entity" });
+    expect(metadata).toHaveBeenCalledWith(12, 100);
+    expect(getContentDetail).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain("引用已失效");
+    expect(findButton("打开")).toBeUndefined();
+  });
+
+  it("插件引用保留自定义类型外观，并由实体入口打开", async () => {
+    metadata.mockResolvedValue({
+      kind: "plugin-entity",
+      id: 12,
+      pluginId: "test",
+      entityKind: "note",
+      contentId: 100,
+      contentCreatedAt: 2,
+      createdAt: 1,
+      title: "最新周记",
+      label: "周记",
+      icon: '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h10v10z"/></svg>',
+    });
+    getContentDetail.mockResolvedValue({
+      contentId: 100,
+      createTime: 2,
+      updateTime: 10,
+      content: [],
+      count: 3,
+    });
+    await renderSheet(vi.fn(), { ...target, contentType: "plugin-entity" });
+    await vi.waitFor(() => expect(findButton("打开周记")).toBeDefined());
+    expect(document.body.textContent).toContain("最新周记");
+    await act(async () => findButton("打开周记")?.click());
+    expect(pluginOpen).toHaveBeenCalledWith(12, {
+      expectedContentId: 100,
+      expectedCreatedAt: undefined,
+    });
   });
 
   afterEach(async () => {

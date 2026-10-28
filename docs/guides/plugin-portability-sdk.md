@@ -2,7 +2,7 @@
 
 ## 已发布 SDK 的作者验证
 
-模板使用已发布的插件 SDK 0.44.0 与 UI 0.5.0，以及真实 npm registry 锁文件。在仓库根运行：
+先核对[模板清单](/plugins/tau-plugin-template/package.json)声明的插件 SDK/UI 精确版本已可从 npm 安装，且模板锁文件来自真实 npm registry；源码版本号不作为发布证据。在仓库根运行：
 
 ```sh
 node scripts/plugins/verify-portable-author.mjs output/plugin-release/author-npm.json --published --frozen-template
@@ -29,14 +29,16 @@ node scripts/plugins/package-sdk.mjs output/plugin-phase-a/sdk
 进入 `plugins/tau-plugin-template`，使用实际生成的文件名：
 
 ```sh
-node use-local-sdk.mjs ../../output/plugin-phase-a/sdk/xiongtao.xt-tau-plugins-0.44.0.tgz ../../output/plugin-phase-a/sdk/xiongtao.xt-tau-ui-0.5.0.tgz
+plugin_sdk_version=$(node -p "require('../../packages/plugins/package.json').version")
+plugin_ui_version=$(node -p "require('../../packages/ui/package.json').version")
+node use-local-sdk.mjs "../../output/plugin-phase-a/sdk/xiongtao.xt-tau-plugins-${plugin_sdk_version}.tgz" "../../output/plugin-phase-a/sdk/xiongtao.xt-tau-ui-${plugin_ui_version}.tgz"
 pnpm install
 pnpm build
 ```
 
 tarball 保存在忽略的 `.sdk` 目录，依赖与锁文件只使用相对 file 地址。修改 SDK 导致输入内容变化时更新锁文件；旧锁仍引用已移除依赖而被策略拒绝时，先核对依赖变更，再 `pnpm clean --lockfile` 和重新 install。自有 SDK/UI 包使用按包名配置的发布时间例外，避免升级时旧锁文件阻止解析；第三方依赖年龄与完整性策略继续执行。
 
-产物必须保持 formatVersion 3、portable、web-v1。模板与中心共用 validatePortableDistributionManifest，无效版本、含移动目标的非空业务权限应在构建时失败；附加元信息被忽略，合法的预发布与构建标识可正常使用，上一产物保留。install:local 仍拒绝写入旧桌面正式目录；release 工作流可以提交格式 3，但服务端按既有身份与绑定规则决定本人 CI 自动批准或人工审核，平台测试由作者负责。正式发布前只声明实际通过验收且中心已开放的平台，本地构建验证不自动上传。
+产物必须保持 formatVersion 3、portable、web-v1。模板与中心共用 validatePortableDistributionManifest，无效版本、未开放的移动业务权限应在构建时失败；移动卡片/文章/项目/项目文档/待办/日程权限要求最低版本至少 0.2.13；附加元信息被忽略，合法的预发布与构建标识可正常使用，上一产物保留。install:local 仍拒绝写入旧桌面正式目录；release 工作流可以提交格式 3，但服务端按既有身份与绑定规则决定本人 CI 自动批准或人工审核，平台测试由作者负责。正式发布前只声明实际通过验收且中心已开放的平台，本地构建验证不自动上传。
 
 ## 仓库外验证
 
@@ -90,7 +92,7 @@ SDK/UI 可安装后，用 `TAU_AUTHOR_NAMES` 限定本次发行的作者仓库�
 
 ## 字数协议候选验证
 
-1. 构建 SDK 0.44.0 候选包；公共字段说明见 [正文字数与空文档](/plugins/tau-plugin-template/docs/editor.md#字数统计)。
+1. 按当前插件包 package.json 版本构建 SDK 候选包；公共字段说明见 [正文字数与空文档](/plugins/tau-plugin-template/docs/editor.md#字数统计)。
 2. 以 TAU_AUTHOR_NAMES 限定 tau-plugin-html、tau-plugin-tikz、tau-plugin-typst、tau-plugin-abc、tau-plugin-custom-block、tau-plugin-image-gallery 与 tau-plugin-template，运行 verify-official-authors.mjs，核对每个独立工程冻结安装、构建与已有测试结果。
 3. 候选阶段不改写模板正式 registry 锁文件。确认 SDK 已公开可安装后，在各作者仓库重新安装生成真实锁文件，再执行 published/frozen 验证。
 4. 不从源码版本号推断 SDK、插件或客户端已经发布；没有明确发布授权不执行 npm publish、上传或发布标签。

@@ -116,9 +116,9 @@ it("兼容检查在代码求值前拒绝平台、低版本和运行配置", () =
 });
 
 it("用户数据权限与实际资源、节点校验继续生效", () => {
-  const manifest = validatePortablePluginManifest({ ...raw(), permissions: ["cards:read"] });
-  expect(() => assertPortablePluginCompatibility(manifest, host("ios"))).toThrow("业务数据授权");
-  expect(() => validatePortableDistributionManifest(manifest)).toThrow("业务数据授权");
+  const manifest = validatePortablePluginManifest({ ...raw(), permissions: ["whiteboards:read"] });
+  expect(() => assertPortablePluginCompatibility(manifest, host("ios"))).toThrow("业务权限");
+  expect(() => validatePortableDistributionManifest(manifest)).toThrow("业务权限");
   expect(() =>
     buildPortablePluginManifest(
       {
@@ -168,4 +168,45 @@ it("Skill 和文件摘要由实际包结构生成，构建输入不可覆盖身�
     ).toThrow();
   for (const version of ["1.0.0-beta.1", "1.0.0+build"])
     expect(validatePortableDistributionManifest({ ...raw(), version }).version).toBe(version);
+});
+
+it("移动业务授权放行已实现领域并要求兼容版本", () => {
+  for (const platform of ["android", "ios"] as const) {
+    const input = {
+      ...raw(),
+      permissions: [
+        "cards:read",
+        "articles:write",
+        "projects:read",
+        "projects:write",
+        "projects:delete",
+        "documents:read",
+        "documents:write",
+        "documents:delete",
+        "todos:read",
+        "todos:write",
+        "todos:delete",
+        "calendar:read",
+        "calendar:write",
+        "calendar:delete",
+      ],
+      targets: { [platform]: { minAppVersion: "0.2.13" } },
+    };
+    const manifest = validatePortableDistributionManifest(input);
+    expect(() =>
+      assertPortablePluginCompatibility(manifest, { ...host(platform), appVersion: "0.2.13" })
+    ).not.toThrow();
+    expect(() =>
+      assertPortablePluginCompatibility(manifest, { ...host(platform), appVersion: "0.2.12" })
+    ).toThrow("客户端版本低于");
+    expect(() =>
+      validatePortableDistributionManifest({
+        ...input,
+        targets: { [platform]: { minAppVersion: "0.2.12" } },
+      })
+    ).toThrow("最低客户端");
+    expect(() =>
+      validatePortableDistributionManifest({ ...input, permissions: ["ai:chat"] })
+    ).toThrow();
+  }
 });

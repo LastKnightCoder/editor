@@ -8,6 +8,8 @@ import { PluginSettingsCard } from "./components/PluginSettingsCard";
 import { usePage } from "../../router";
 import { usePageInstanceContext, usePageGuard } from "../../router/pageLifecycle";
 import { useMobilePlugins, useMobilePluginStatus } from "../../app/plugins/context";
+import { PluginComponentScope } from "../../app/plugins/component-scope";
+import { PluginPageComponentScope } from "../../app/plugins/component-page-scope";
 
 /** 插件域页面外壳：全站 PageHeader 顶栏；header 传入时整体替换顶栏内容（如搜索展开态）。 */
 export function PluginPageShell({
@@ -77,6 +79,7 @@ export function PluginPageView() {
   const pageContext = useMemo<PluginPageContext>(
     () => ({
       isActive: () =>
+        (navigator.getTopOverlay() ?? navigator.getActiveScreen())?.id === entryId &&
         current.current.phase === "active" &&
         !!page &&
         current.current.page === page &&
@@ -130,7 +133,14 @@ export function PluginPageView() {
         <p role="alert">页面参数无效，请返回后重新打开。</p>
       ) : available && Component && cleanParams ? (
         <ErrorBoundary key={page.generation}>
-          <Component context={page.context} params={cleanParams} pageContext={pageContext} />
+          <PluginComponentScope
+            context={page.context}
+            active={lifecycle.phase === "active"}
+            activeNow={pageContext.isActive}
+            registerLeaveGuard={pageContext.registerLeaveGuard}
+          >
+            <Component context={page.context} params={cleanParams} pageContext={pageContext} />
+          </PluginComponentScope>
         </ErrorBoundary>
       ) : (
         <p className="text-ink-2 py-6 text-[14px]">插件已停用或无法加载，请返回插件中心查看。</p>
@@ -154,7 +164,9 @@ export function PluginSettingsView() {
             <MobileProviderSettings entry={setting} />
           ) : Component ? (
             <PluginSettingsCard>
-              <Component context={setting.context} />
+              <PluginPageComponentScope context={setting.context}>
+                <Component context={setting.context} />
+              </PluginPageComponentScope>
             </PluginSettingsCard>
           ) : null}
         </ErrorBoundary>

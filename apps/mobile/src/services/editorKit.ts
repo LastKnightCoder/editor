@@ -66,6 +66,26 @@ function createMobileKit(extras: readonly EditorExtension[] = []): EditorKit {
  */
 let contentSnapshot: readonly EditorExtension[] | undefined;
 let contentKit: EditorKit | undefined;
+let compactSnapshot: readonly EditorExtension[] | undefined;
+let compactKit: EditorKit | undefined;
+/** 简短内容保留底座与插件扩展，不装内容链接、附件、白板及数据库业务扩展。 */
+export function getMobileCompactKit(): EditorKit {
+  if (compactSnapshot !== mobileContentPlugins.extensions || !compactKit) {
+    compactSnapshot = mobileContentPlugins.extensions;
+    const support = new Map(mobilePluginElementSupport);
+    compactKit = createMobileKit().extend({
+      extensions: compactSnapshot,
+      services: [
+        register =>
+          register(IElementEditingPolicy, {
+            canEdit: type => !support.has(type) || support.get(type) === "edit",
+          }),
+        register => register(IUnknownElementNotice, { describe: describeUnknownElement }),
+      ],
+    });
+  }
+  return compactKit;
+}
 export function getMobileContentKit(): EditorKit {
   if (contentSnapshot !== mobileContentPlugins.extensions || !contentKit) {
     contentSnapshot = mobileContentPlugins.extensions;
@@ -100,13 +120,17 @@ const readPluginSettled = isMobilePluginSettled;
  * 组件内取内容 kit：read 随插件会话变化取最新 kit（只读编辑器重建无副作用）；
  * edit 在插件落定前返回 null（调用方显示占位），落定后锁定首个 kit，编辑中途不因会话重载而重建编辑器。
  */
-export function useMobileContentKit(mode: "read"): EditorKit;
-export function useMobileContentKit(mode: "edit"): EditorKit | null;
-export function useMobileContentKit(mode: "read" | "edit"): EditorKit | null {
+export function useMobileContentKit(mode: "read", kind?: "full" | "compact"): EditorKit;
+export function useMobileContentKit(mode: "edit", kind?: "full" | "compact"): EditorKit | null;
+export function useMobileContentKit(
+  mode: "read" | "edit",
+  kind: "full" | "compact" = "full"
+): EditorKit | null {
   const settled = useSyncExternalStore(subscribePluginPhase, readPluginSettled, readPluginSettled);
   const locked = useRef<EditorKit | null>(null);
-  if (mode === "read") return getMobileContentKit();
-  if (!locked.current && settled) locked.current = getMobileContentKit();
+  const getKit = kind === "compact" ? getMobileCompactKit : getMobileContentKit;
+  if (mode === "read") return getKit();
+  if (!locked.current && settled) locked.current = getKit();
   return locked.current;
 }
 

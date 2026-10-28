@@ -82,9 +82,19 @@ export type UnifiedSearchResultType =
   | "article"
   | "project-item"
   | "diary-daily"
+  | "plugin-entity"
   | "flashcard";
 
+export interface PluginEntityMetadata {
+  pluginId: string;
+  kind: string;
+  label: string;
+  icon: string;
+  createdAt: number;
+}
+
 export interface UnifiedSearchResult {
+  pluginEntity?: PluginEntityMetadata | null;
   id: number;
   type: UnifiedSearchResultType | string;
   title: string;

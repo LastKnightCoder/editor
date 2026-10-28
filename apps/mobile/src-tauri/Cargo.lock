@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "Tau"
-version = "0.2.12"
+version = "0.2.13"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -19,6 +19,7 @@ dependencies = [
  "jni",
  "objc2",
  "percent-encoding",
+ "regex",
  "reqwest 0.12.28",
  "rusqlite",
  "serde",

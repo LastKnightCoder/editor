@@ -373,7 +373,7 @@ fn query_calendar_title_color(
 
 // ── 事件写命令（系统日历事件 P0 硬拒绝，错误码前端本地化为 toast） ──
 
-fn assert_user_calendar(conn: &Connection, calendar_id: i64) -> Result<(), String> {
+pub(crate) fn assert_user_calendar(conn: &Connection, calendar_id: i64) -> Result<(), String> {
     let calendar = query_calendar_by_id(conn, calendar_id)?
         .ok_or_else(|| "CALENDAR_NOT_FOUND: 日历不存在".to_string())?;
     if calendar.is_in_system_group {
