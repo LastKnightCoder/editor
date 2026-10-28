@@ -6,6 +6,7 @@
  */
 
 import type { ContentRef, DataManifest, TreeItem } from "@tau/plugins/publish-data";
+import type { ContentEntityReference } from "@tau/db-schema/content-identities";
 import type { TemplatePackage } from "../services/template-package";
 import type { JsonValue } from "@tau/plugins";
 import { resolveSiteFields } from "@tau/plugins/template";
@@ -47,6 +48,7 @@ export interface PublishDataSource {
   getArticleByIds(ids: number[]): IArticle[];
   getProject(id: number): Project | null;
   getProjectItemsByIds(ids: number[]): ProjectItem[];
+  resolveProjectItemId(reference: ContentEntityReference): number | null;
 }
 
 export interface PublishSelectionInput {
@@ -195,7 +197,12 @@ export class PublishSiteGenerator {
     site: ISiteMeta,
     appearanceSettings?: IPublishAppearanceSettings
   ): Promise<{ files: IPublishFile[]; virtualProcessed: number; warnings: string[] }> {
-    this.contentNodes = createPublishContentResolver(db, identity => this.linkTargets[identity]);
+    const contentWarnings = new Set<string>();
+    this.contentNodes = createPublishContentResolver(
+      db,
+      identity => this.linkTargets[identity],
+      warning => contentWarnings.add(warning)
+    );
     this.output = new PublishDataOutput(
       (data, dataPath) => this.pluginCatalog.dependencies(data, dataPath),
       identity => this.linkTargets[identity]
@@ -295,7 +302,7 @@ export class PublishSiteGenerator {
           : {}),
       }),
       virtualProcessed: docResult.skippedDocItems,
-      warnings: this.pluginCatalog.warnings(),
+      warnings: [...this.pluginCatalog.warnings(), ...contentWarnings],
     };
   }
 

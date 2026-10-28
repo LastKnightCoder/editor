@@ -246,13 +246,14 @@ it("动态样式失败在生成阶段拒绝，不发布缺样式数据", async (
   ).rejects.toThrow("动态样式");
 });
 
-it("项目卡片列表保留卡片快照和文档目标，撤下目标后移除卡片且重复生成不读旧缓存", async () => {
+it("项目卡片列表解析 entityRef，保留卡片快照且撤下目标后移除卡片", async () => {
   const fixture = makePublishFixture();
   const list = {
     type: "project-card-list" as const,
-    projectItemId: 33,
+    entityRef: { sourceId: "library", kind: "project-item" as const, entityId: "parent-33" },
     children: [{ type: "formatted" as const, text: "" }],
   };
+  fixture.data.resolveProjectItemId = reference => (reference.entityId === "parent-33" ? 33 : null);
   fixture.articles[0].content = [list];
   fixture.cards[0].content = [list];
   const parent = fixture.data.getProjectItemsByIds([33])[0];

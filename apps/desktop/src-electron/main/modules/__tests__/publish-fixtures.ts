@@ -120,6 +120,7 @@ export function makePublishFixture(title = "第一篇文章") {
     getArticleByIds: ids => articles.filter(article => ids.includes(article.id)),
     getProject: () => project,
     getProjectItemsByIds: ids => items.filter(item => ids.includes(item.id)),
+    resolveProjectItemId: () => null,
   };
   const selections: PublishSelectionInput[] = [
     ...articles.map(article => ({
