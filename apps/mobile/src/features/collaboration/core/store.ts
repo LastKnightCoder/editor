@@ -9,8 +9,7 @@ export type CollaborationStatus = "idle" | "starting" | "ready" | "error";
 /** 服务端侧被动事件（被撤权/被结束）产生的一次性提示，由 UI 消费后清除 */
 export type CollaborationNotice = {
   id: string;
-  /** rebuilt：本机缓存对不上，已备份并按服务器内容重建，备份里有未同步的改动 */
-  kind: "revoked" | "closed" | "rebuilt";
+  kind: "revoked" | "closed";
   documentId: string;
   title: string;
 };

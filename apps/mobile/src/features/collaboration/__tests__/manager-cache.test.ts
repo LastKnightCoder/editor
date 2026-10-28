@@ -142,7 +142,7 @@ it("读不出的旧协议缓存备份后按服务器内容重建，不阻断打�
   expect(io.write.mock.calls[0][0].expectedRevision).toBeUndefined();
   expect(io.adopt).not.toHaveBeenCalled();
 });
-it("远端换代时备份旧缓存并按新基线重建，有未同步改动时给出提示", async () => {
+it("远端换代时备份旧缓存并按新基线重建，保持静默不提示", async () => {
   const { doc, info, state, content, contracts } = await fixture();
   io.read.mockResolvedValue({
     metadata: info,
@@ -164,7 +164,7 @@ it("远端换代时备份旧缓存并按新基线重建，有未同步改动时�
   expect(session.info).toMatchObject({ frozen: false, remoteVersionAvailable: false });
   expect(session.doc.getMap("meta").get("baselineId")).toBe("new-base");
   expect(session.info.source?.contentId).toBe(7);
-  expect(useCollaborationStore.getState().notices.map(notice => notice.kind)).toEqual(["rebuilt"]);
+  expect(useCollaborationStore.getState().notices).toEqual([]);
   remote.destroy();
   doc.destroy();
 });

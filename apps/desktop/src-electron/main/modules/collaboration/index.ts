@@ -1654,10 +1654,6 @@ export class CollaborationManager {
   /** 共享会话的缓存不能继续使用：原始字节备份后拆除会话，调用方随后按服务器内容重建。 */
   private async releaseRemoteSession(session: RuntimeSession, reason: string) {
     const id = session.info.id;
-    if (session.info.pending)
-      this.broadcast("collaboration:notice", {
-        message: `「${session.info.title || "未命名内容"}」已按协作端最新内容打开，本机未同步的改动已另行备份`,
-      });
     for (const [viewId, view] of this.views) if (view.documentId === id) this.removeView(viewId);
     unregisterContentSession(session);
     session.provider?.destroy();

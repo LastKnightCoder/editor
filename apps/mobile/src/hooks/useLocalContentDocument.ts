@@ -158,8 +158,6 @@ export default function useLocalContentDocument(options: {
             cacheId,
             failure instanceof Error ? failure.message : "本机缓存不可读"
           );
-          if (restored.metadata.pending)
-            toast.info("这篇正文已按最新内容打开，本机未保存的改动已另行备份");
           cached = null;
         }
       }

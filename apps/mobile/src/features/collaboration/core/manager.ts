@@ -737,7 +737,7 @@ class CollaborationManager {
     if (this.sessions.get(id) !== session) return;
     this.sessions.delete(id);
     const cached = await tauri.collabReadCache(id);
-    if (cached) await this.discardCache(session.info, cached, reason);
+    if (cached) await this.discardCache(session.info, reason);
     const { connection: _connection, pending: _pending, leaving: _leaving, ...info } = session.info;
     const next = this.createSession(info as SharedDocumentInfo).finally(() =>
       this.opening.delete(id)
@@ -771,7 +771,7 @@ class CollaborationManager {
         } catch (failure) {
           doc.destroy();
           doc = new Y.Doc({ guid: info.id, gc: false });
-          cached = await this.discardCache(info, cached, describeError(failure, "本机缓存不可读"));
+          cached = await this.discardCache(info, describeError(failure, "本机缓存不可读"));
         }
       }
       try {
@@ -793,7 +793,7 @@ class CollaborationManager {
             // 远端已换代：旧缓存不能合入新基线，备份后按服务器内容重建
             doc.destroy();
             doc = new Y.Doc({ guid: info.id, gc: false });
-            cached = await this.discardCache(info, cached, "协作端基线已变化");
+            cached = await this.discardCache(info, "协作端基线已变化");
           }
           Y.applyUpdate(doc, base64ToBytes(state));
         } finally {
@@ -863,20 +863,9 @@ class CollaborationManager {
     }
   }
 
-  /** 缓存可重建：备份后丢弃；备份里有未同步的改动时给一次轻提示。返回 null 表示已无缓存。 */
-  private async discardCache(
-    info: SharedDocumentInfo,
-    cached: NonNullable<Awaited<ReturnType<typeof tauri.collabReadCache>>>,
-    reason: string
-  ): Promise<null> {
+  /** 缓存可重建：备份后丢弃。返回 null 表示已无缓存。 */
+  private async discardCache(info: SharedDocumentInfo, reason: string): Promise<null> {
     await tauri.collabDiscardCache(info.id, reason);
-    if (cached.metadata.pending || cached.updates.length || cached.inputDrafts.length)
-      pushCollaborationNotice({
-        id: `${info.id}:rebuilt:${Date.now()}`,
-        kind: "rebuilt",
-        documentId: info.id,
-        title: info.title || cached.metadata.title || "未命名内容",
-      });
     return null;
   }
 

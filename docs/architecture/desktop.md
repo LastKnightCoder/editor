@@ -74,7 +74,7 @@ packages/database/src/   # 多视图 Database、投影、store 与通用字段�
 
 白板自愈（`whiteboard-documents/repair.ts`，由 `white-board-content:get-by-id` 与 `WhiteboardDocumentSessions.open` 触发，备份在 `whiteboard-documents/repairs/`）：主库检查点摘要不符或字节读不出时，按同事务写入的 JSON 快照投影经 `createWhiteboardBaseline` 重建状态。本机日志读不出或与主库分叉时，`WhiteboardJournal.quarantine` 把原始行写入 `whiteboard-documents/discarded/` 后按主库重建；日志文件版本高于当前客户端时整份移入 `discarded/` 后新建。主库是权威，日志只是可重建的缓存。来源基线或拥有者错位不改写、保持报错（身份问题，改写会掩盖它）；旧 JSON 页（无文档记录）不转换，所有用户已在 0.60.1 完成转换。
 
-正文与白板保留正常创建、保存、协作同步、输入草稿和撤销重做。共享发布、退出协作通过既有提交记录确认跨存储写入结果；这些记录保存本次待提交候选及回执，不用于备份或恢复历史正文。安装候选与回执使用共享的 `DocumentInstallFingerprint/DocumentInstallReceipt`，与服务端文档格式升级状态机无关。共享正文远端换代时，主进程在刷新共享列表时备份旧缓存后按远端确认快照重建会话（编辑视图经 `collaboration:removed` 的 replaced 事件重开），旧缓存含未同步改动时经 `collaboration:notice` 给一次轻提示；白板远端换代仍停止旧副本同步。结束共享在服务端确认后固定本机候选；落盘失败的重试和重新打开复用同一候选，不再受旧升级超时限制，也不重新生成文档身份。已存在的用户备份文件不由客户端删除。
+正文与白板保留正常创建、保存、协作同步、输入草稿和撤销重做。共享发布、退出协作通过既有提交记录确认跨存储写入结果；这些记录保存本次待提交候选及回执，不用于备份或恢复历史正文。安装候选与回执使用共享的 `DocumentInstallFingerprint/DocumentInstallReceipt`，与服务端文档格式升级状态机无关。共享正文远端换代时，主进程在刷新共享列表时备份旧缓存后按远端确认快照重建会话（编辑视图经 `collaboration:removed` 的 replaced 事件重开），重建保持静默不提示；白板远端换代仍停止旧副本同步。结束共享在服务端确认后固定本机候选；落盘失败的重试和重新打开复用同一候选，不再受旧升级超时限制，也不重新生成文档身份。已存在的用户备份文件不由客户端删除。
 
 ### 业务代码写正文
 
