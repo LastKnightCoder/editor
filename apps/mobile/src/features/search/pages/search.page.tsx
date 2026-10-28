@@ -8,6 +8,7 @@ import { useAppContext } from "../../../app/AppContext";
 import * as tauri from "../../../services/tauri";
 import { definePage, useNavigator } from "../../../router";
 import type { UnifiedSearchResponse, UnifiedSearchResult } from "../../../types";
+import { openMobilePluginEntity } from "../../../services/pluginEntities";
 
 const EMPTY_SEARCH_RESULT: UnifiedSearchResponse = {
   total: 0,
@@ -24,12 +25,12 @@ function SearchScreen() {
   const [isSearching, setIsSearching] = useState(false);
   const requestSeqRef = useRef(0);
 
-  const handleSearch = useMemoizedFn(async (query: string) => {
+  const handleSearch = useMemoizedFn(async (query: string, page = 1) => {
     const requestSeq = ++requestSeqRef.current;
     setIsSearching(true);
     try {
       return await tauri.searchAllContent({
-        page: 1,
+        page,
         pageSize: 20,
         query,
       });
@@ -45,6 +46,12 @@ function SearchScreen() {
 
   const openResult = (result: UnifiedSearchResult) => {
     switch (result.type) {
+      case "plugin-entity":
+        void openMobilePluginEntity(result.id, {
+          expectedContentId: result.contentId ?? undefined,
+          expectedCreatedAt: result.pluginEntity?.createdAt,
+        }).catch(error => app.presentError(error, "插件内容打开失败"));
+        break;
       case "card":
         navigator.push("contentDetail", { cardId: result.id });
         break;

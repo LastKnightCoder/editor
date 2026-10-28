@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 use jieba_rs::Jieba;
 use rusqlite::{params, Connection, OptionalExtension};
 
-use crate::models::UnifiedSearchResult;
+use crate::models::{PluginEntityKindFilter, UnifiedSearchResult};
 
 use super::common::{json_content_plain_text, parse_id_array};
 use super::query::RawCardRow;
@@ -337,6 +337,7 @@ const SEARCH_TYPES: &[&str] = &[
     "project-item",
     "diary-daily",
     "flashcard",
+    "plugin-entity",
 ];
 
 fn normalize_search_types(types: Option<&[String]>) -> Vec<String> {
@@ -407,6 +408,18 @@ fn hydrate_unified_result(
     score: f64,
 ) -> Result<Option<UnifiedSearchResult>, String> {
     let result: Result<Option<UnifiedSearchResult>, String> = match result_type {
+        "plugin-entity" => {
+            let Some(target)=super::plugin_app::entity_target(conn,id)? else { return Ok(None) };
+            let (raw,updated):(Option<String>,i64)=conn.query_row(
+                "SELECT c.content,MAX(e.update_time,c.update_time) FROM plugin_entities e JOIN contents c ON c.id=e.content_id WHERE e.id=?1",
+                [id],|row|Ok((row.get(0)?,row.get(1)?)),
+            ).map_err(|error|format!("DB_OPEN_FAILED: hydrate plugin entity failed: {error}"))?;
+            Ok(Some(UnifiedSearchResult {
+                id,result_type:result_type.into(),title:target.title.clone(),excerpt:content_excerpt(raw),
+                content_id:Some(target.content_id),update_time:updated,score,date:None,
+                container_id:None,container_title:None,plugin_entity:Some(target.metadata()),
+            }))
+        }
         "flashcard" => conn
             .query_row(
                 "SELECT f.deck_id, f.update_time, f.prompt, d.name
@@ -427,6 +440,7 @@ fn hydrate_unified_result(
                         date: None,
                         container_id: row.get(0)?,
                         container_title: row.get(3)?,
+                        plugin_entity: None,
                     })
                 },
             )
@@ -451,6 +465,7 @@ fn hydrate_unified_result(
                         date: None,
                         container_id: None,
                         container_title: None,
+                        plugin_entity: None,
                     })
                 },
             )
@@ -474,6 +489,7 @@ fn hydrate_unified_result(
                         date: None,
                         container_id: None,
                         container_title: None,
+                        plugin_entity: None,
                     })
                 },
             )
@@ -500,6 +516,7 @@ fn hydrate_unified_result(
                         date: None,
                         container_id,
                         container_title,
+                        plugin_entity: None,
                     })
                 },
             )
@@ -559,6 +576,7 @@ fn hydrate_unified_result(
                 date: Some(date),
                 container_id: None,
                 container_title: Some(diary_type),
+                plugin_entity: None,
             }))
         }
         _ => Ok(None),
@@ -588,8 +606,31 @@ fn unified_like_sql() -> &'static str {
        SELECT 'flashcard:' || f.id, 'flashcard', f.update_time
        FROM flashcards f
        WHERE f.prompt LIKE ?1 ESCAPE '\\' OR f.detail LIKE ?1 ESCAPE '\\' OR f.tags LIKE ?1 ESCAPE '\\'
+       UNION ALL
+       SELECT 'plugin-entity:' || e.id, 'plugin-entity', MAX(e.update_time,c.update_time)
+       FROM plugin_entities e JOIN contents c ON c.id=e.content_id
+       WHERE e.title LIKE ?1 ESCAPE '\\' OR c.content LIKE ?1 ESCAPE '\\'
      )"
 }
+
+fn plugin_kind_filter(kinds: Option<&[PluginEntityKindFilter]>) -> Result<Option<String>, String> {
+    let Some(kinds) = kinds else { return Ok(None) };
+    if kinds.len() > 1000 {
+        return Err("插件类型过滤超过数量限制".into());
+    }
+    for kind in kinds {
+        crate::provider_settings::validate_plugin_id(&kind.plugin_id)?;
+        if kind.kind.trim().is_empty() || kind.kind.encode_utf16().count() > 128 {
+            return Err("插件类型过滤无效".into());
+        }
+    }
+    serde_json::to_string(kinds)
+        .map(Some)
+        .map_err(|error| error.to_string())
+}
+
+// 白名单与真实存在性在分页前过滤，不把插件未安装误认为内容已删除。
+const PLUGIN_KIND_FILTER: &str = "(type<>'plugin-entity' OR EXISTS(SELECT 1 FROM plugin_entities pe JOIN contents pc ON pc.id=pe.content_id WHERE prefixed_id='plugin-entity:'||pe.id AND (?2 IS NULL OR EXISTS(SELECT 1 FROM json_each(?2) allowed WHERE pe.plugin_id=json_extract(allowed.value,'$.pluginId') AND pe.kind=json_extract(allowed.value,'$.kind')))))";
 
 fn hit_id(prefixed_id: &str) -> Option<(&str, i64)> {
     let (result_type, raw_id) = prefixed_id.split_once(':')?;
@@ -602,18 +643,27 @@ pub fn query_unified_search(
     types: Option<&[String]>,
     page: u32,
     page_size: u32,
+    plugin_entity_kinds: Option<&[PluginEntityKindFilter]>,
 ) -> Result<(String, u64, Vec<UnifiedSearchResult>), String> {
     let query = query.trim();
     let page = page.max(1);
     let page_size = page_size.clamp(1, 100);
-    let offset = ((page - 1) * page_size) as i64;
+    let offset = i64::from(page - 1) * i64::from(page_size);
     let limit = page_size as i64;
-    if query.is_empty() {
+    let recent_plugins = query.is_empty()
+        && types.is_some_and(|types| {
+            types
+                .iter()
+                .any(|kind| kind.trim().eq_ignore_ascii_case("plugin-entity"))
+        });
+    if query.is_empty() && !recent_plugins {
         return Ok(("none".to_string(), 0, Vec::new()));
     }
+    let allowed = plugin_kind_filter(plugin_entity_kinds)?;
     let types = normalize_search_types(types);
     let type_clause = type_sql(&types);
-    let fts_ready = has_fts5_support(conn)
+    let fts_ready = !recent_plugins
+        && has_fts5_support(conn)
         && ensure_index_attached(conn)
         && has_content_fts_table(conn)
         && is_index_ready(conn);
@@ -622,20 +672,23 @@ pub fn query_unified_search(
         if let Some(match_query) = build_match_query(query) {
             let count_sql = format!(
                 "SELECT COUNT(1) FROM (SELECT prefixed_id FROM idx.content_fts
-                 WHERE content_fts MATCH ?1 AND type IN ({type_clause}) GROUP BY prefixed_id)"
+                 WHERE content_fts MATCH ?1 AND type IN ({type_clause}) AND {PLUGIN_KIND_FILTER} GROUP BY prefixed_id)"
             );
-            let total =
-                conn.query_row(&count_sql, params![match_query], |row| row.get::<_, u64>(0));
+            let total = conn.query_row(&count_sql, params![match_query, allowed], |row| {
+                row.get::<_, u64>(0)
+            });
             let result_sql = format!(
                 "SELECT prefixed_id, MIN(rank) FROM idx.content_fts
-                 WHERE content_fts MATCH ?1 AND type IN ({type_clause})
-                 GROUP BY prefixed_id ORDER BY MIN(rank) ASC LIMIT ?2 OFFSET ?3"
+                 WHERE content_fts MATCH ?1 AND type IN ({type_clause}) AND {PLUGIN_KIND_FILTER}
+                 GROUP BY prefixed_id ORDER BY MIN(rank) ASC,prefixed_id ASC LIMIT ?3 OFFSET ?4"
             );
             if let Ok(total) = total {
                 if let Ok(mut stmt) = conn.prepare(&result_sql) {
-                    if let Ok(rows) = stmt.query_map(params![match_query, limit, offset], |row| {
-                        Ok((row.get::<_, String>(0)?, row.get::<_, f64>(1)?))
-                    }) {
+                    if let Ok(rows) = stmt
+                        .query_map(params![match_query, allowed, limit, offset], |row| {
+                            Ok((row.get::<_, String>(0)?, row.get::<_, f64>(1)?))
+                        })
+                    {
                         let hits = rows.filter_map(Result::ok).collect::<Vec<_>>();
                         ("fts", total, hits)
                     } else {
@@ -668,22 +721,22 @@ pub fn query_unified_search(
 
     let like_pattern = format!("%{}%", escape_like_text(query));
     let base_sql = unified_like_sql();
-    let type_filter = format!(" WHERE type IN ({type_clause})");
+    let type_filter = format!(" WHERE type IN ({type_clause}) AND {PLUGIN_KIND_FILTER}");
     let count_sql = format!("SELECT COUNT(1) FROM ({base_sql}) AS hits{type_filter}");
     let total = conn
-        .query_row(&count_sql, params![like_pattern], |row| {
+        .query_row(&count_sql, params![like_pattern, allowed], |row| {
             row.get::<_, u64>(0)
         })
         .map_err(|e| format!("DB_OPEN_FAILED: unified LIKE count query failed: {e}"))?;
     let result_sql = format!(
         "SELECT prefixed_id, type, update_time FROM ({base_sql}) AS hits{type_filter}
-         ORDER BY update_time DESC LIMIT ?2 OFFSET ?3"
+         ORDER BY update_time DESC,prefixed_id ASC LIMIT ?3 OFFSET ?4"
     );
     let mut stmt = conn
         .prepare(&result_sql)
         .map_err(|e| format!("DB_OPEN_FAILED: unified LIKE query prepare failed: {e}"))?;
     let rows = stmt
-        .query_map(params![like_pattern, limit, offset], |row| {
+        .query_map(params![like_pattern, allowed, limit, offset], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
         })
         .map_err(|e| format!("DB_OPEN_FAILED: unified LIKE query failed: {e}"))?;
@@ -695,7 +748,11 @@ pub fn query_unified_search(
             }
         }
     }
-    Ok(("like".to_string(), total, items))
+    Ok((
+        if recent_plugins { "recent" } else { "like" }.to_string(),
+        total,
+        items,
+    ))
 }
 
 #[cfg(test)]
@@ -716,6 +773,7 @@ mod tests {
             CREATE TABLE diary_segments (id INTEGER PRIMARY KEY, diary_id INTEGER, content_id INTEGER, create_time INTEGER);
             CREATE TABLE flashcards (id INTEGER PRIMARY KEY, deck_id INTEGER, update_time INTEGER, prompt TEXT, detail TEXT, tags TEXT);
             CREATE TABLE flashcard_decks (id INTEGER PRIMARY KEY, name TEXT);
+             CREATE TABLE plugin_entities(id INTEGER PRIMARY KEY,plugin_id TEXT,kind TEXT,content_id INTEGER,title TEXT,create_time INTEGER,update_time INTEGER);
             INSERT INTO contents VALUES
               (1, '[{\"text\":\"卡片统一搜索\"}]', 10),
               (2, '[{\"text\":\"文章统一搜索\"}]', 20),
@@ -734,7 +792,8 @@ mod tests {
         )
         .unwrap();
 
-        let (mode, total, items) = query_unified_search(&conn, "统一搜索", None, 1, 20).unwrap();
+        let (mode, total, items) =
+            query_unified_search(&conn, "统一搜索", None, 1, 20, None).unwrap();
         assert_eq!(mode, "like");
         assert_eq!(total, 5);
         assert_eq!(items.len(), 5);
@@ -767,6 +826,7 @@ mod tests {
              CREATE TABLE diary_segments (id INTEGER PRIMARY KEY, diary_id INTEGER, content_id INTEGER, create_time INTEGER);
              CREATE TABLE flashcards (id INTEGER PRIMARY KEY, deck_id INTEGER, update_time INTEGER, prompt TEXT, detail TEXT, tags TEXT);
              CREATE TABLE flashcard_decks (id INTEGER PRIMARY KEY, name TEXT);
+             CREATE TABLE plugin_entities(id INTEGER PRIMARY KEY,plugin_id TEXT,kind TEXT,content_id INTEGER,title TEXT,create_time INTEGER,update_time INTEGER);
              INSERT INTO contents VALUES (1, '[{\"text\":\"全文索引命中\"}]', 10);
              INSERT INTO articles VALUES (1, '文章标题', '', '[]', 1, 10, 0);
              INSERT INTO flashcard_decks VALUES (7, '英语高频词');
@@ -786,7 +846,8 @@ mod tests {
             )
             .unwrap();
 
-        let (mode, total, items) = query_unified_search(&conn, "全文索引", None, 1, 20).unwrap();
+        let (mode, total, items) =
+            query_unified_search(&conn, "全文索引", None, 1, 20, None).unwrap();
         assert_eq!(mode, "fts");
         assert_eq!(total, 2);
         assert!(items.iter().any(|item| item.result_type == "article"));
@@ -800,5 +861,134 @@ mod tests {
         drop(conn);
         let _ = std::fs::remove_file(&base);
         let _ = std::fs::remove_file(&index_path);
+    }
+}
+
+#[cfg(test)]
+mod plugin_entity_tests {
+    use super::*;
+    fn database() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        super::super::migrator::ensure_main_schema(&conn).unwrap();
+        for (id, plugin, kind, title, updated) in [
+            (1, "alpha", "note", "原生搜索第一", 30),
+            (2, "alpha", "note", "原生搜索第二", 20),
+            (3, "beta", "task", "原生搜索其他", 40),
+        ] {
+            conn.execute("INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES(?1,10,?2,'[{\"text\":\"查询正文\"}]',4,1)",params![id,updated]).unwrap();
+            conn.execute("INSERT INTO plugin_entities(id,plugin_id,kind,key,title,content_id,create_time,update_time,orphaned_time) VALUES(?1,?2,?3,?4,?5,?1,10,?6,1)",params![id,plugin,kind,id.to_string(),title,updated]).unwrap();
+        }
+        conn.execute("INSERT INTO plugin_entity_kinds(plugin_id,kind,label,icon,update_time) VALUES('alpha','note','笔记','<svg></svg>',1)",[]).unwrap();
+        conn
+    }
+    fn kinds() -> Vec<PluginEntityKindFilter> {
+        vec![PluginEntityKindFilter {
+            plugin_id: "alpha".into(),
+            kind: "note".into(),
+        }]
+    }
+    fn types() -> Vec<String> {
+        vec!["plugin-entity".into()]
+    }
+
+    #[test]
+    fn like_search_and_recent_candidates_filter_kinds_before_pagination() {
+        let conn = database();
+        let (mode, total, items) =
+            query_unified_search(&conn, "原生搜索", Some(&types()), 1, 1, Some(&kinds())).unwrap();
+        assert_eq!(mode, "like");
+        assert_eq!(total, 2);
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].id, 1);
+        let metadata = items[0].plugin_entity.as_ref().unwrap();
+        assert_eq!(metadata.plugin_id, "alpha");
+        assert_eq!(metadata.kind, "note");
+        assert_eq!(metadata.label, "笔记");
+        assert_eq!(metadata.created_at, 10);
+        assert_eq!(
+            query_unified_search(&conn, "原生搜索", Some(&types()), 2, 1, Some(&kinds()))
+                .unwrap()
+                .2[0]
+                .id,
+            2
+        );
+        assert_eq!(
+            query_unified_search(&conn, "查询正文", Some(&types()), 1, 20, None)
+                .unwrap()
+                .1,
+            3
+        );
+        assert_eq!(
+            query_unified_search(&conn, "", None, 1, 20, None)
+                .unwrap()
+                .0,
+            "none"
+        );
+        let recent = query_unified_search(&conn, "", Some(&types()), 1, 1, Some(&kinds())).unwrap();
+        assert_eq!(recent.0, "recent");
+        assert_eq!(recent.1, 2);
+        assert_eq!(recent.2[0].id, 1);
+        conn.execute("INSERT INTO cards(id,create_time,update_time,content_id,tags) VALUES(9,100,100,1,'[]')",[]).unwrap();
+        let mixed = vec![
+            "card".into(),
+            "article".into(),
+            "project-item".into(),
+            "plugin-entity".into(),
+        ];
+        let mixed_result =
+            query_unified_search(&conn, "", Some(&mixed), 1, 20, Some(&kinds())).unwrap();
+        assert_eq!(mixed_result.0, "recent");
+        assert_eq!(mixed_result.1, 3);
+        assert_eq!(mixed_result.2[0].result_type, "card");
+        assert_eq!(
+            mixed_result
+                .2
+                .iter()
+                .filter(|item| item.result_type == "plugin-entity")
+                .count(),
+            2
+        );
+        let no_plugins = query_unified_search(&conn, "", Some(&mixed), 1, 20, Some(&[])).unwrap();
+        assert_eq!(no_plugins.1, 1);
+        assert_eq!(no_plugins.2[0].result_type, "card");
+        assert_eq!(
+            query_unified_search(&conn, "", Some(&types()), 1, 20, Some(&[]))
+                .unwrap()
+                .1,
+            0
+        );
+        assert_eq!(
+            query_unified_search(&conn, "原生搜索", Some(&types()), 1, 20, Some(&[]))
+                .unwrap()
+                .1,
+            0
+        );
+    }
+
+    #[test]
+    fn fts_search_filters_deleted_entities_and_kind_whitelist_before_limit() {
+        let conn = database();
+        conn.execute_batch("ATTACH DATABASE ':memory:' AS idx; CREATE VIRTUAL TABLE idx.content_fts USING fts5(prefixed_id,update_time,content,type,title,chunk_index,tokenize='porter unicode61'); CREATE TABLE idx.index_meta(key TEXT PRIMARY KEY,value TEXT); INSERT INTO idx.index_meta VALUES('rebuild_state','ready');").unwrap();
+        for id in [1, 2, 3, 999] {
+            conn.execute("INSERT INTO idx.content_fts VALUES(?1,1,'原生 搜索 查询 正文','plugin-entity','原生 搜索',0)",[format!("plugin-entity:{id}")]).unwrap();
+        }
+        let (mode, total, items) =
+            query_unified_search(&conn, "原生搜索", Some(&types()), 1, 1, Some(&kinds())).unwrap();
+        assert_eq!(mode, "fts");
+        assert_eq!(total, 2);
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].plugin_entity.as_ref().unwrap().plugin_id, "alpha");
+        assert_eq!(
+            query_unified_search(&conn, "原生搜索", Some(&types()), 1, 20, None)
+                .unwrap()
+                .1,
+            3
+        );
+        conn.execute("DELETE FROM plugin_entities WHERE id=1", [])
+            .unwrap();
+        let (_, total, items) =
+            query_unified_search(&conn, "原生搜索", Some(&types()), 1, 20, Some(&kinds())).unwrap();
+        assert_eq!(total, 1);
+        assert_eq!(items[0].id, 2);
     }
 }

@@ -549,6 +549,7 @@ pub fn plugin_uninstall(app: AppHandle, id: String) -> Result<(), String> {
     management_only()?;
     identifier(&id)?;
     let _lock = STORE_LOCK.lock().map_err(fail)?;
+    crate::plugin_permissions::forget(&app, &id)?;
     remove(&root(&app)?.join(id))
 }
 

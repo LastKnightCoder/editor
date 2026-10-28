@@ -52,6 +52,8 @@ import { useBlockDrag } from "./blockSelection/useBlockDrag";
 import { useEditorBlockSelection } from "./blockSelection/useEditorBlockSelection";
 import { OutlineSheet } from "./outline/OutlineSheet";
 import { useOutlineSheet } from "./outline/useOutlineSheet";
+import { useTaskLocation } from "./useTaskLocation";
+import { useContentMention } from "./editorExtensions/useContentMention";
 
 // 原地协作编辑器按需加载：未使用协作的用户不加载协作组件与运行时
 const CollaborativeEditor = lazy(() =>
@@ -73,6 +75,7 @@ export type ContentDetailActions = {
 
 type ContentDetailPageProps = {
   contentId: number;
+  taskId?: string;
   contentTitle?: string;
   contentType?: string;
   refId?: number;
@@ -283,12 +286,27 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   );
   // 阅读态与强制只读时正文只读；块选择期间保持可写（块菜单命令要求可写编辑器，点击由覆盖层拦截）
   const editorReadonly = forcedReadonly || (!readingMode.editing && !blockSelection.active);
+  useContentMention({
+    editorRef,
+    documentKey: document,
+    enabled: !editorReadonly && !blockSelection.active && pageContext?.phase !== "paused",
+    onRequest: toolbarController.openContentMention,
+  });
   const readingSelection = useReadingSelection(
     editorRef,
     !readingMode.editing && readingMode.canEdit && !blockSelection.active
   );
   const [editorWrapEl, setEditorWrapEl] = useState<HTMLDivElement | null>(null);
   const kit = useMobileContentKit("edit");
+  useTaskLocation({
+    editorRef,
+    container: editorWrapEl,
+    contentId: props.contentId,
+    taskId: props.taskId,
+    ready: Boolean(detail && document && kit) && !contentLoading && editMode !== "collabConnecting",
+    active: pageContext?.phase !== "paused",
+    onUnavailable: text => toast({ type: "warning", text }),
+  });
   // 工具栏等页面级浮层挂进本页根容器，才能随页面转场动画一起平移、退场
   const [pageRootEl, setPageRootEl] = useState<HTMLDivElement | null>(null);
 

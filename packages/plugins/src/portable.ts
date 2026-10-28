@@ -2,6 +2,44 @@ import { comparePluginVersions, type PluginManifest } from "./package.ts";
 import { readPluginMetadata, readPluginFilePath, readPluginFiles } from "./package-fields.ts";
 import type { PluginEnvironment } from "./environment";
 
+export const MOBILE_DATA_MIN_VERSION = "0.2.13";
+export const MOBILE_DATA_PERMISSIONS = [
+  "cards:read",
+  "cards:write",
+  "cards:delete",
+  "articles:read",
+  "articles:write",
+  "articles:delete",
+  "projects:read",
+  "projects:write",
+  "projects:delete",
+  "documents:read",
+  "documents:write",
+  "documents:delete",
+  "todos:read",
+  "todos:write",
+  "todos:delete",
+  "calendar:read",
+  "calendar:write",
+  "calendar:delete",
+] as const;
+
+function assertMobilePermissions(manifest: PortablePluginManifest) {
+  if (!manifest.permissions?.length) return;
+  for (const platform of ["android", "ios"] as const) {
+    const target = manifest.targets[platform];
+    if (!target) continue;
+    if (
+      manifest.permissions.some(
+        permission => !(MOBILE_DATA_PERMISSIONS as readonly string[]).includes(permission)
+      )
+    )
+      throw new Error("移动端尚未开放此业务权限");
+    if (comparePluginVersions(target.minAppVersion, MOBILE_DATA_MIN_VERSION) < 0)
+      throw new Error(`移动端业务数据授权要求最低客户端版本 ${MOBILE_DATA_MIN_VERSION}`);
+  }
+}
+
 export const PORTABLE_PLATFORMS = ["desktop", "android", "ios"] as const;
 export type PortablePlatform = (typeof PORTABLE_PLATFORMS)[number];
 export const PORTABLE_SHARED_MODULES = [
@@ -88,8 +126,7 @@ function record(value: unknown, label: string): Record<string, unknown> {
 /** 构建器与中心共用发行范围；不代表中心已开放批准发布。 */
 export function validatePortableDistributionManifest(value: unknown): PortablePluginManifest {
   const manifest = validatePortablePluginManifest(value);
-  if ((manifest.targets.android || manifest.targets.ios) && manifest.permissions?.length)
-    throw new Error("移动端尚未接入业务数据授权，不能发布声明这些权限的移动目标");
+  assertMobilePermissions(manifest);
   return manifest;
 }
 
@@ -146,8 +183,7 @@ export function assertPortablePluginCompatibility(
     throw new Error("当前平台不能激活跨端应用插件");
   const target = manifest.targets[platform as PortablePlatform];
   if (!target) throw new Error("插件不支持当前平台");
-  if ((platform === "android" || platform === "ios") && manifest.permissions?.length)
-    throw new Error("移动宿主尚未接入业务数据授权");
+  if (platform === "android" || platform === "ios") assertMobilePermissions(manifest);
   if (comparePluginVersions(host.appVersion, target.minAppVersion) < 0)
     throw new Error("客户端版本低于插件要求");
   return target;

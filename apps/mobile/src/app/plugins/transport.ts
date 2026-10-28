@@ -1,3 +1,10 @@
+import { PluginPermissionError, PLUGIN_ENTITY_READ_PERMISSIONS } from "@tau/plugins";
+import { createMobileApp } from "./app";
+import { createMobileOwnData } from "./own-data";
+import { createMobileEvents } from "./events";
+import { createMobileData } from "./data";
+import { getQueryClient } from "../../router";
+import { createMobilePermissions } from "./permissions";
 import {
   createBridgeWebSocket,
   type SocketClosed,
@@ -235,6 +242,59 @@ export async function connectMobilePluginTransport(runtime: MobilePluginRuntime)
   });
   try {
     token = await invoke<string>("plugin_transport_connect", { database: runtime.workspaceId });
+    runtime.events = await createMobileEvents(runtime.workspaceId, token, () => {
+      void getQueryClient().invalidateQueries();
+    });
+    runtime.data = createMobileData(
+      runtime.workspaceId,
+      token,
+      () => {
+        void getQueryClient().invalidateQueries();
+      },
+      async (context, permission) => {
+        if (!runtime.permissions || (await context.permissions.query(permission)) !== "granted")
+          throw new PluginPermissionError(permission, "denied");
+      },
+      async context => {
+        await runtime.own?.ready(context);
+      }
+    );
+    runtime.permissions = createMobilePermissions(runtime.workspaceId, token);
+    runtime.own = createMobileOwnData(
+      runtime.workspaceId,
+      token,
+      runtime.data,
+      () => {
+        void getQueryClient().invalidateQueries();
+      },
+      async (context, kind) => {
+        const permission = PLUGIN_ENTITY_READ_PERMISSIONS[kind];
+        return !!(
+          permission &&
+          runtime.permissions &&
+          (await context.permissions.query(permission)) === "granted"
+        );
+      }
+    );
+    runtime.app = createMobileApp(
+      runtime.workspaceId,
+      token,
+      runtime.navigator,
+      async (context, kind) => {
+        const permission = PLUGIN_ENTITY_READ_PERMISSIONS[kind];
+        return !!(
+          permission &&
+          runtime.permissions &&
+          (await context.permissions.query(permission)) === "granted"
+        );
+      },
+      (target, options, callerGuard) =>
+        runtime.openEntityTarget(
+          target,
+          options.at ? JSON.stringify(options.at) : undefined,
+          callerGuard
+        )
+    );
     const socketToken = token;
     runtime.websocket = createBridgeWebSocket({
       open: (id, request) => networkCall("plugin_socket_open", { token: socketToken, id, request }),
@@ -267,12 +327,22 @@ export async function connectMobilePluginTransport(runtime: MobilePluginRuntime)
       pluginId && activeSync.has(pluginId) ? CHUNK_BYTES * 2 : undefined
     );
   } catch (error) {
+    runtime.own?.dispose();
+    runtime.app?.dispose();
+    runtime.events?.dispose();
+    runtime.permissions?.dispose();
+    if (token) void invoke("plugin_transport_disconnect", { token }).catch(() => undefined);
     stop();
     throw error;
   }
   return () => {
     disposed = true;
+    runtime.own?.dispose();
+    runtime.app?.dispose();
     stop();
+    runtime.permissions?.dispose();
+    runtime.data?.dispose();
+    runtime.events?.dispose();
     runtime.fetch = undefined;
     runtime.websocket = undefined;
     void invoke("plugin_transport_disconnect", { token }).catch(() => undefined);

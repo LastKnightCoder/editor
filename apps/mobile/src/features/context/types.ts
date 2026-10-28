@@ -10,6 +10,7 @@ export interface DiaryLocator {
 }
 
 export interface ContextEntity {
+  pluginEntity?: import("../../types").PluginEntityMetadata | null;
   kind: EntityKind;
   id: number;
   contentId: number | null;
@@ -67,7 +68,7 @@ export interface EntityContext {
   projections: ContextEntity[];
   backlinks: ContextBacklink[];
   backlinkTotal: number;
-  /** 哪些插件内容关联了我（或共用正文的身份），按最近关联排序；移动端只读展示 */
+  /** 哪些插件内容关联了我（或共用正文的身份），按最近关联排序。 */
   pluginLinks: ContextEntity[];
   sources: ContextLineageItem[];
   derived: ContextLineageItem[];

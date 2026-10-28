@@ -46,6 +46,8 @@ import { OutlineSheet } from "../cards/outline/OutlineSheet";
 import { useOutlineSheet } from "../cards/outline/useOutlineSheet";
 import { AvatarStack, StatusDot } from "./components/CollaborationUI";
 import { useCollabSession } from "./hooks/useCollabSession";
+import { useContentMention } from "../cards/editorExtensions/useContentMention";
+import { useOptionalPageInstanceContext } from "../../router/pageLifecycle";
 
 export function CollabEditorPage(props: {
   documentId: string;
@@ -116,6 +118,14 @@ export function CollabEditorPage(props: {
     !readingMode.editing && readingMode.canEdit && !blockSelection.active
   );
   const kit = useMobileContentKit("edit");
+  const page = useOptionalPageInstanceContext();
+  useContentMention({
+    editorRef,
+    documentKey: document,
+    enabled:
+      Boolean(kit && document) && contentReady && !toolbarReadonly && page?.phase !== "paused",
+    onRequest: toolbarController.openContentMention,
+  });
   // 工具条经 portal 挂进本页根容器，才能随页面转场动画一起平移、退场
   const [pageRootEl, setPageRootEl] = useState<HTMLDivElement | null>(null);
 

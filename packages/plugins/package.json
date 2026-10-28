@@ -37,6 +37,7 @@
     "./local-state": "./src/local-state.ts",
     "./sync": "./src/sync.ts",
     "./provider-host": "./src/provider-host.ts",
+    "./permission-host": "./src/permission-host.ts",
     "./fetch-bridge": "./src/fetch-bridge.ts",
     "./asr-host": "./src/asr-host.ts",
     "./tts-host": "./src/tts-host.ts",

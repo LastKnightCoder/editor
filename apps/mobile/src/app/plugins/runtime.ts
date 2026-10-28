@@ -13,6 +13,7 @@ import type {
   PluginPageDefinition,
   PluginNavigationEntry,
   PluginSettingsDefinition,
+  PluginOwnEntityKind,
 } from "@tau/plugins";
 import type { Navigator } from "../../router/navigatorTypes";
 import { verifyMobilePlugin, type MobilePluginPackage } from "../../services/plugins";
@@ -23,6 +24,15 @@ export interface MobilePluginPage {
   generation: number;
 }
 export class MobilePluginRuntime {
+  readonly entityKinds = new Map<
+    string,
+    { context: PluginContext; definition: PluginOwnEntityKind }
+  >();
+  own?: import("./own-data").MobileOwnData;
+  app?: import("./app").MobileAppAdapter;
+  events?: Awaited<ReturnType<typeof import("./events").createMobileEvents>>;
+  data?: import("./data").MobileDataAdapter;
+  permissions?: import("@tau/plugins/permission-host").PluginPermissionBroker;
   readonly host: PluginHost;
   readonly sync = new RendererSyncRegistry();
   readonly upload = new RendererUploadRegistry();
@@ -54,7 +64,7 @@ export class MobilePluginRuntime {
     readonly environment: PluginEnvironmentSource,
     storage: StorageAdapter,
     readonly workspaceId: string,
-    navigator: Pick<Navigator, "push">,
+    readonly navigator: Pick<Navigator, "push">,
     readonly appVersion: string,
     restartRequired?: Set<string>
   ) {
@@ -63,6 +73,77 @@ export class MobilePluginRuntime {
       restartRequired,
       environmentSource: environment,
       storage,
+      entities: {
+        create: (...args) => this.ownAdapter().entities.create(...args),
+        get: (...args) => this.ownAdapter().entities.get(...args),
+        find: (...args) => this.ownAdapter().entities.find(...args),
+        query: (...args) => this.ownAdapter().entities.query(...args),
+        count: (...args) => this.ownAdapter().entities.count(...args),
+        update: (...args) => this.ownAdapter().entities.update(...args),
+        delete: (...args) => this.ownAdapter().entities.delete(...args),
+        backlinks: (...args) => this.ownAdapter().entities.backlinks(...args),
+        registerKind: (context, definition) => this.registerEntityKind(context, definition),
+      },
+      records: {
+        insert: (...args) => this.ownAdapter().records.insert(...args),
+        get: (...args) => this.ownAdapter().records.get(...args),
+        query: (...args) => this.ownAdapter().records.query(...args),
+        count: (...args) => this.ownAdapter().records.count(...args),
+        update: (...args) => this.ownAdapter().records.update(...args),
+        delete: (...args) => this.ownAdapter().records.delete(...args),
+      },
+      links: {
+        add: (...args) => this.ownAdapter().links.add(...args),
+        list: (...args) => this.ownAdapter().links.list(...args),
+        remove: (...args) => this.ownAdapter().links.remove(...args),
+        reorder: (...args) => this.ownAdapter().links.reorder(...args),
+      },
+      transaction: {
+        reserveEntityId: (...args) => this.ownAdapter().transaction.reserveEntityId(...args),
+        commit: (...args) => this.ownAdapter().transaction.commit(...args),
+      },
+      app: {
+        pick: (...args) => this.appAdapter().pick(...args),
+        open: (...args) => this.appAdapter().open(...args),
+        describe: (...args) => this.appAdapter().describe(...args),
+        run: (...args) => this.appAdapter().run(...args),
+      },
+      events: {
+        subscribe: (context, listener) => {
+          if (!this.events) throw new Error("插件业务事件尚未就绪");
+          return this.events.adapter.subscribe(context, listener);
+        },
+      },
+      data: {
+        query: (...args) => this.dataAdapter().query(...args),
+        get: (...args) => this.dataAdapter().get(...args),
+        create: (...args) => this.dataAdapter().create(...args),
+        update: (...args) => this.dataAdapter().update(...args),
+        remove: (...args) => this.dataAdapter().remove(...args),
+        readContent: (...args) => this.dataAdapter().readContent(...args),
+        contentOwners: (...args) => this.dataAdapter().contentOwners(...args),
+        editContent: (...args) => this.dataAdapter().editContent(...args),
+        notebookResources: (...args) => this.dataAdapter().notebookResources(...args),
+        todos: (...args) => this.dataAdapter().todos(...args),
+        calendar: (...args) => this.dataAdapter().calendar(...args),
+        writeTodo: (...args) => this.dataAdapter().writeTodo(...args),
+        writeTodoOccurrence: (...args) => {
+          const adapter = this.dataAdapter();
+          if (!adapter.writeTodoOccurrence) throw new Error("当前宿主尚未开放周期实例写入");
+          return adapter.writeTodoOccurrence(...args);
+        },
+        writeCalendar: (...args) => this.dataAdapter().writeCalendar(...args),
+        projectTree: (...args) => this.dataAdapter().projectTree(...args),
+        createDocument: (...args) => this.dataAdapter().createDocument(...args),
+        moveDocument: (...args) => this.dataAdapter().moveDocument(...args),
+      },
+      permissions: {
+        query: (context, permission) => this.permissionBroker().query(context, permission),
+        ensure: (context, plugin, permissions) =>
+          this.permissionBroker().ensure(context, plugin, permissions),
+        request: (context, plugin, permissions) =>
+          this.permissionBroker().request(context, plugin, permissions),
+      },
       sync: this.sync,
       asr: this.asr,
       tts: this.tts,
@@ -172,6 +253,80 @@ export class MobilePluginRuntime {
     });
     this.unsubscribe = this.host.subscribe(this.publish);
   }
+  private dataAdapter() {
+    if (!this.data) throw new Error("插件数据尚未就绪");
+    return this.data;
+  }
+  private ownAdapter() {
+    if (!this.own) throw new Error("插件自有数据尚未就绪");
+    return this.own;
+  }
+  private registerEntityKind(context: PluginContext, definition: PluginOwnEntityKind) {
+    const key = JSON.stringify([context.pluginId, definition.kind]);
+    const registration = { context, definition };
+    const persisted = this.ownAdapter().entities.registerKind(context, definition);
+    this.entityKinds.set(key, registration);
+    this.publish();
+    return {
+      dispose: () => {
+        persisted.dispose();
+        if (this.entityKinds.get(key) === registration) {
+          this.entityKinds.delete(key);
+          this.publish();
+        }
+      },
+    };
+  }
+  async openEntityTarget(
+    target: import("./app-types").MobilePluginEntityTarget,
+    at?: string,
+    callerGuard?: () => void
+  ) {
+    callerGuard?.();
+    const registration = this.entityKinds.get(JSON.stringify([target.pluginId, target.entityKind]));
+    if (!registration || !this.active(registration.context))
+      throw new Error("请先安装并启用此内容所属的插件");
+    const live = () => {
+      if (
+        this.disposed ||
+        this.entityKinds.get(JSON.stringify([target.pluginId, target.entityKind])) !==
+          registration ||
+        !this.active(registration.context)
+      )
+        throw new Error("插件内容打开入口已失效");
+    };
+    const entity = await this.ownAdapter().entities.get(registration.context, String(target.id));
+    live();
+    if (
+      !entity ||
+      entity.createdAt !== target.createdAt ||
+      entity.kind !== target.entityKind ||
+      entity.contentRef !== `${target.contentId}:${target.contentCreatedAt}`
+    )
+      throw new Error("插件内容已删除或身份已变化");
+    const pageId = `${target.pluginId}:${registration.definition.open.page}`;
+    const page = this.pages.get(pageId);
+    if (!page || !this.active(page.context)) throw new Error("插件内容页面尚未注册或已停用");
+    const params = normalizePageParams(registration.definition.open.params?.(entity) ?? {});
+    const instance =
+      page.definition.match === "params"
+        ? (page.definition.getId?.(params) ?? JSON.stringify(params))
+        : "single";
+    if (typeof instance !== "string") throw new Error("页面身份必须是字符串");
+    const opened = normalizePageParams(at ? { ...params, at } : params);
+    live();
+    if (this.pages.get(pageId) !== page) throw new Error("插件内容页面已失效");
+    callerGuard?.();
+    this.navigator.push("pluginPage", { id: pageId, instance, params: JSON.stringify(opened) });
+  }
+  private appAdapter() {
+    if (!this.app) throw new Error("插件内容交互尚未就绪");
+    return this.app.adapter;
+  }
+  private permissionBroker() {
+    if (!this.permissions) throw new Error("插件授权尚未就绪");
+    return this.permissions;
+  }
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
     return () => {
@@ -204,7 +359,8 @@ export class MobilePluginRuntime {
   async start(
     packages: readonly MobilePluginPackage[],
     modules: Readonly<Record<string, unknown>>,
-    validateContent?: (registry: ContentPluginRegistry) => void
+    validateContent?: (registry: ContentPluginRegistry) => void,
+    contentReady?: () => void
   ) {
     const definitions = [];
     for (const item of packages) {
@@ -226,7 +382,7 @@ export class MobilePluginRuntime {
         const candidate = new ContentPluginRegistry();
         candidate.install([...this.content.list(), contentDefinition]);
         validateContent?.(candidate);
-        this.host.registerTrusted(definition);
+        this.host.registerTrusted({ ...definition, permissions: artifact.manifest.permissions });
         this.content.install(candidate.list());
         nodeTypes.forEach(type => this.elementSupport.set(type, "edit"));
         this.packageNodes.set(item.id, nodeTypes);
@@ -242,6 +398,7 @@ export class MobilePluginRuntime {
         this.errors.set(item.id, String(error));
       }
     }
+    contentReady?.();
     for (const definition of definitions) {
       if (this.disposed) return;
       try {
@@ -273,6 +430,11 @@ export class MobilePluginRuntime {
   }
   async dispose() {
     this.disposed = true;
+    this.app?.dispose();
+    this.own?.dispose();
+    this.permissions?.dispose();
+    this.data?.dispose();
+    this.events?.dispose();
     try {
       await this.host.dispose();
     } finally {
@@ -280,6 +442,7 @@ export class MobilePluginRuntime {
       this.styles.forEach(style => style.remove());
       this.styles = [];
       this.pages.clear();
+      this.entityKinds.clear();
       this.entries.clear();
       this.settings.clear();
       this.pageStates.clear();

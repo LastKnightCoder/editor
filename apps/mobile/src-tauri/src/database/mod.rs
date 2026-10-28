@@ -21,13 +21,30 @@ mod collaboration;
 mod common;
 mod content_contracts;
 mod diary;
+mod document_task_header;
 mod entity_context;
 mod entity_refs_index;
 mod flashcard;
 mod home_stats;
 mod index_db;
 mod migrator;
+mod plugin_app;
+pub use plugin_app::*;
+mod plugin_data;
+mod plugin_document_tasks;
+mod plugin_entities;
 mod plugin_kv;
+mod plugin_links;
+pub(crate) mod plugin_own_data;
+mod plugin_own_query;
+mod plugin_records;
+pub use plugin_own_data::*;
+mod plugin_projects;
+mod plugin_task_dates;
+mod plugin_task_snapshots;
+mod plugin_tasks;
+pub use plugin_data::*;
+pub use plugin_tasks::*;
 mod pomodoro;
 pub use plugin_kv::*;
 mod project;
@@ -108,6 +125,42 @@ fn write_content_snapshot(
     expected_document_id: Option<&str>,
     expected_source_id: Option<&str>,
 ) -> Result<i64, String> {
+    write_content_snapshot_in_zone(
+        tx,
+        content_id,
+        content,
+        count,
+        now,
+        code,
+        contracts,
+        expected_revision,
+        expected_document_id,
+        expected_source_id,
+        None,
+    )
+}
+pub(super) fn write_content_snapshot_in_zone(
+    tx: &rusqlite::Transaction,
+    content_id: i64,
+    content: &Value,
+    count: i64,
+    now: i64,
+    code: &str,
+    contracts: Option<&Value>,
+    expected_revision: Option<&str>,
+    expected_document_id: Option<&str>,
+    expected_source_id: Option<&str>,
+    zone: Option<calendar_time::CalendarTimeZone>,
+) -> Result<i64, String> {
+    let had_tasks = tx
+        .query_row(
+            "SELECT COALESCE(instr(content,'check-list-item'),0)>0 FROM contents WHERE id=?1",
+            [content_id],
+            |row| row.get::<_, bool>(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?
+        .unwrap_or(false);
     content_contracts::write(
         tx,
         content_id,
@@ -139,7 +192,12 @@ fn write_content_snapshot(
     if content_changed == 0 {
         return Err("CONTENT_NOT_FOUND: content does not exist".to_string());
     }
-    assistant_tasks::reconcile_document_links(tx, content_id, Some(&normalized_content))?;
+    assistant_tasks::reconcile_document_links_in_zone(
+        tx,
+        content_id,
+        Some(&normalized_content),
+        zone,
+    )?;
 
     let mut linked_card_ids: Vec<i64> = vec![];
     {
@@ -196,6 +254,9 @@ fn write_content_snapshot(
         .map_err(|e| format!("{code}: Failed to write card operation: {e}"))?;
     }
 
+    if had_tasks {
+        common::write_operation(tx, "todo", "update", 0, now)?;
+    }
     diary::touch_content_diaries(tx, content_id, now)?;
     Ok(content_changed as i64)
 }
@@ -332,12 +393,19 @@ pub fn search_all_content(
     page: Option<u32>,
     page_size: Option<u32>,
     types: Option<Vec<String>>,
+    plugin_entity_kinds: Option<Vec<crate::models::PluginEntityKindFilter>>,
 ) -> Result<crate::models::UnifiedSearchResponse, String> {
     let conn = schema::open_active_database(&app)?;
     let page = page.unwrap_or(1);
     let page_size = page_size.unwrap_or(20);
-    let (search_mode, total, items) =
-        search::query_unified_search(&conn, &query, types.as_deref(), page, page_size)?;
+    let (search_mode, total, items) = search::query_unified_search(
+        &conn,
+        &query,
+        types.as_deref(),
+        page,
+        page_size,
+        plugin_entity_kinds.as_deref(),
+    )?;
     Ok(crate::models::UnifiedSearchResponse {
         total,
         page: page.max(1),

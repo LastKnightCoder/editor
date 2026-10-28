@@ -9,11 +9,13 @@ import { useThemeStore } from "@tau/themes/react";
 
 import { SnapSheet, type SnapSheetState } from "../../../components/SnapSheet";
 import { formatTimeDisplay } from "../../../utils/formatTime";
+import { EntityKindIcon } from "../../context/EntityKindIcon";
 import {
   canOpenContentLink,
   getContentLinkKindMeta,
   openContentLink,
   useContentLinkDetail,
+  useContentLinkEntity,
   useIsUnsharedContentLink,
   type ContentLinkTarget,
 } from "./contentLinkModel";
@@ -72,15 +74,21 @@ const EMPTY_CONTENT = [{ type: "paragraph", children: [{ type: "formatted", text
 /** 底部操作条高度（不含安全区），正文滚动区据此留白 */
 const FOOTER_HEIGHT = 68;
 
-function Header(props: { icon: LucideIcon; tone: string; title: string; meta: ReactNode }) {
+function Header(props: {
+  icon: LucideIcon;
+  iconSvg?: string;
+  tone: string;
+  title: string;
+  meta: ReactNode;
+}) {
   const { icon: Icon, tone, title, meta } = props;
   return (
     <header className="flex items-start gap-3 px-5 pb-3">
       <span className={cn("grid size-[38px] shrink-0 place-items-center rounded-[11px]", tone)}>
-        <Icon size={19} strokeWidth={1.9} aria-hidden />
+        <EntityKindIcon svg={props.iconSvg} fallback={Icon} size={19} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-tau-title text-ink-1 line-clamp-2 font-bold leading-snug">{title}</p>
+        <p className="text-tau-title text-ink-1 line-clamp-2 leading-snug font-bold">{title}</p>
         <p className="text-tau-sm text-ink-2 mt-0.5 truncate">{meta}</p>
       </div>
     </header>
@@ -128,7 +136,12 @@ function PreviewSheet(props: ContentLinkPreviewSheetProps & { target: ContentLin
   const theme = useThemeStore(s => s.mode);
   const unshared = useIsUnsharedContentLink();
   const contentId = target.contentId;
-  const detail = useContentLinkDetail(contentId, open && !unshared);
+  const pluginEntity = target.contentType === "plugin-entity";
+  const entity = useContentLinkEntity(target, open && !unshared);
+  const detail = useContentLinkDetail(
+    contentId,
+    open && !unshared && (!pluginEntity || !!entity.data)
+  );
   const renderer = usePreviewRenderer(open && !unshared);
 
   useEffect(() => {
@@ -136,10 +149,17 @@ function PreviewSheet(props: ContentLinkPreviewSheetProps & { target: ContentLin
   }, [open]);
 
   const kind = getContentLinkKindMeta(target.contentType);
-  const title = target.contentTitle || kind.label;
-  const broken = !unshared && (contentId <= 0 || detail.data === null);
+  const label = entity.data?.label || kind.label;
+  const title = entity.data?.title || target.contentTitle || label;
+  const broken =
+    !unshared && (contentId <= 0 || detail.data === null || (pluginEntity && entity.data === null));
   const hasBody = !unshared && !broken;
-  const openable = hasBody && !detail.isError && canOpenContentLink(target);
+  const openable =
+    hasBody &&
+    !detail.isError &&
+    !entity.isError &&
+    (!pluginEntity || !!entity.data) &&
+    canOpenContentLink(target);
 
   const handleOpen = () => {
     onClose("open");
@@ -167,13 +187,21 @@ function PreviewSheet(props: ContentLinkPreviewSheetProps & { target: ContentLin
     );
   } else {
     let meta = "正在载入…";
-    if (detail.isError) meta = "预览加载失败";
+    if (detail.isError || entity.isError) meta = "预览加载失败";
     else if (detail.data) {
-      const parts = [kind.label, `更新于 ${formatTimeDisplay(detail.data.updateTime)}`];
+      const parts = [label, `更新于 ${formatTimeDisplay(detail.data.updateTime)}`];
       if (detail.data.count > 0) parts.push(`约 ${detail.data.count} 字`);
       meta = parts.join(" · ");
     }
-    header = <Header icon={kind.icon} tone={kind.tone} title={title} meta={meta} />;
+    header = (
+      <Header
+        icon={kind.icon}
+        iconSvg={entity.data?.icon}
+        tone={kind.tone}
+        title={title}
+        meta={meta}
+      />
+    );
   }
 
   const tags = detail.data?.card?.tags ?? [];
@@ -221,7 +249,7 @@ function PreviewSheet(props: ContentLinkPreviewSheetProps & { target: ContentLin
                   kit={renderer.getKit()}
                   className="mobile-card-editor-content"
                 />
-              ) : detail.isError ? null : (
+              ) : detail.isError || entity.isError ? null : (
                 <BodySkeleton />
               )}
             </SnapSheet.FixedFooterScroll>
@@ -239,7 +267,7 @@ function PreviewSheet(props: ContentLinkPreviewSheetProps & { target: ContentLin
                   className="bg-accent text-ink-inverse text-tau-body flex h-[46px] w-full items-center justify-center gap-1.5 rounded-[14px] font-semibold transition-transform active:scale-[0.98]"
                 >
                   <ArrowUpRight size={18} strokeWidth={2.2} aria-hidden />
-                  打开{kind.label}
+                  打开{label}
                 </button>
               </footer>
             ) : null}

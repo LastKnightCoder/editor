@@ -1,3 +1,6 @@
+import { PluginOperations } from "./PluginOperations";
+import { PluginPageComponentScope } from "../../app/plugins/component-page-scope";
+import { PluginPermissionControls } from "./PluginPermissionControls";
 import { MobileProviderSettings } from "./ProviderSettings";
 import { useId, useState, type ReactNode } from "react";
 import { ExternalLink, Github, Layers, MoreHorizontal, ShieldAlert } from "lucide-react";
@@ -220,6 +223,22 @@ export function PluginDetail() {
           )}
           {activeTab === "settings" && installed && (
             <SettingsTab runtime={runtime} item={installed} />
+          )}
+          {activeTab === "permissions" && runtime?.data && installed && (
+            <PluginOperations
+              data={runtime.data}
+              pluginId={pluginId}
+              database={runtime.workspaceId}
+            />
+          )}
+          {activeTab === "permissions" && runtime?.permissions && installed && (
+            <PluginPermissionControls
+              broker={runtime.permissions}
+              database={runtime.workspaceId}
+              pluginId={pluginId}
+              pluginName={installed.name ?? pluginId}
+              permissions={permissions}
+            />
           )}
           {activeTab === "permissions" && (
             <PermissionsTab
@@ -561,7 +580,9 @@ function SettingsTab({
         ) : Component ? (
           <ErrorBoundary key={id}>
             <PluginSettingsCard>
-              <Component context={active.context} />
+              <PluginPageComponentScope context={active.context}>
+                <Component context={active.context} />
+              </PluginPageComponentScope>
             </PluginSettingsCard>
           </ErrorBoundary>
         ) : null}

@@ -242,6 +242,7 @@ export function searchAllContent(params: {
   page?: number;
   pageSize?: number;
   types?: string[];
+  pluginEntityKinds?: readonly { pluginId: string; kind: string }[];
 }) {
   return withCardTimeout(
     trackedInvoke<UnifiedSearchResponse>("search_all_content", params),
@@ -1086,6 +1087,14 @@ export function collabUnbindContent(contentId: number) {
 
 /** 协作投影专用写通道：绑定漂移时服务端侧自动解绑并返回 reason=drift */
 export function collabProjectContent(params: {
+  plugin?: {
+    token: string;
+    database: string;
+    pluginId: string;
+    taskOperationId?: number;
+    taskRestoreId?: number;
+    timeZone?: string;
+  };
   documentId: string;
   contracts?: ContentContractDictionary;
   expectedRevision?: string;
