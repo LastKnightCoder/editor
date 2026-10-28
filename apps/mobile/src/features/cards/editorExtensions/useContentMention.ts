@@ -95,9 +95,10 @@ export function useContentMention(options: ContentMentionOptions): void {
   const current = useRef(options);
   current.current = options;
   useEffect(() => {
+    if (!enabled || !documentKey) return;
     const editor = editorRef.current?.getEditor();
     const editable = editorRef.current?.getEditableElement();
-    if (!enabled || !documentKey || !editor || !editable) return;
+    if (!editor || !editable) return;
     let composing = false;
     let compositionFrame = 0;
     let compositionCommit = false;

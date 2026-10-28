@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useMemoizedFn } from "ahooks";
 import { useMobileContentKit } from "../../services/editorKit";
 import { EditorKitPending } from "../../components/EditorKitPending";
@@ -9,6 +9,9 @@ import { SnapSheet } from "../../components/SnapSheet";
 import { MobileEditorBottomToolbar } from "./editorToolbar/MobileEditorBottomToolbar";
 import { useMobileEditorToolbarController } from "./editorToolbar/useMobileEditorToolbarController";
 import { EMPTY_EDITOR_CONTENT } from "./editorContentUtils";
+import { useContentMention } from "./editorExtensions/useContentMention";
+import { useOptionalPageInstanceContext } from "../../router/pageLifecycle";
+import { useMobileEntityHostRevision } from "../../services/pluginEntities";
 import {
   clearQuickCaptureDraft,
   readQuickCaptureDraft,
@@ -40,6 +43,23 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
   const [showDraftPrompt, setShowDraftPrompt] = useState(false);
   const toolbarController = useMobileEditorToolbarController({
     editorRef,
+  });
+  const page = useOptionalPageInstanceContext();
+  const hostRevision = useMobileEntityHostRevision();
+  const mentionDocument = useMemo(
+    () => ({ document: props.document, editorSession, hostRevision }),
+    [props.document, editorSession, hostRevision]
+  );
+  useContentMention({
+    editorRef,
+    documentKey: mentionDocument,
+    enabled:
+      Boolean(contentKit) &&
+      props.open &&
+      props.readonly === false &&
+      !props.document?.readonly &&
+      page?.phase !== "paused",
+    onRequest: toolbarController.openContentMention,
   });
 
   useEffect(() => {

@@ -277,7 +277,12 @@ export class MobilePluginRuntime {
       },
     };
   }
-  async openEntityTarget(target: import("./app-types").MobilePluginEntityTarget, at?: string) {
+  async openEntityTarget(
+    target: import("./app-types").MobilePluginEntityTarget,
+    at?: string,
+    callerGuard?: () => void
+  ) {
+    callerGuard?.();
     const registration = this.entityKinds.get(JSON.stringify([target.pluginId, target.entityKind]));
     if (!registration || !this.active(registration.context))
       throw new Error("请先安装并启用此内容所属的插件");
@@ -311,6 +316,7 @@ export class MobilePluginRuntime {
     const opened = normalizePageParams(at ? { ...params, at } : params);
     live();
     if (this.pages.get(pageId) !== page) throw new Error("插件内容页面已失效");
+    callerGuard?.();
     this.navigator.push("pluginPage", { id: pageId, instance, params: JSON.stringify(opened) });
   }
   private appAdapter() {

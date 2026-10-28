@@ -13,6 +13,7 @@ import * as tauri from "../../../services/tauri";
 import type { PluginEntityMetadata, UnifiedSearchResult } from "../../../types";
 import {
   getMobilePluginEntityMetadata,
+  isMobileEntityMentionable,
   useMobileEntityHostRevision,
   useMobileMentionableEntityKinds,
 } from "../../../services/pluginEntities";
@@ -192,6 +193,7 @@ export function ContentLinkPickerSheet(props: ContentLinkPickerSheetProps) {
         if (
           !metadata ||
           (result.pluginEntity && metadata.createdAt !== result.pluginEntity.createdAt) ||
+          !isMobileEntityMentionable(metadata.pluginId, metadata.entityKind) ||
           !current.current.kinds.some(
             kind => kind.pluginId === metadata.pluginId && kind.kind === metadata.entityKind
           )

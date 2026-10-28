@@ -11,7 +11,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
-import { Editor } from "@tau/editor";
+import { Editor, type EditorRef } from "@tau/editor";
 import type { Descendant } from "slate";
 import * as tauri from "../../services/tauri";
 import { getQueryClient } from "../../router";
@@ -45,6 +45,11 @@ import { ActionSheet } from "../../components/ActionSheet";
 import type { ActionSheetItem } from "../../components/ActionSheet";
 import { DateTimePickerSheet } from "../../components/DateTimePickerSheet";
 import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
+import { useContentMention } from "../cards/editorExtensions/useContentMention";
+import { useMobileEditorToolbarController } from "../cards/editorToolbar/useMobileEditorToolbarController";
+import { ContentLinkPickerSheet } from "../cards/editorExtensions/ContentLinkPickerSheet";
+import { useOptionalPageInstanceContext } from "../../router/pageLifecycle";
+import { useMobileEntityHostRevision } from "../../services/pluginEntities";
 
 type TodoDetailPageProps = {
   todoId: number;
@@ -159,6 +164,14 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
   // 否则「新描述首字符落库（contentId null→N）/外部内容同步」会改变 key，
   // 把正在输入的 Slate 编辑器整树重建、丢焦点
   const [descriptionEditorReady, setDescriptionEditorReady] = useState(false);
+  const descriptionEditorRef = useRef<EditorRef | null>(null);
+  const descriptionToolbar = useMobileEditorToolbarController({ editorRef: descriptionEditorRef });
+  const page = useOptionalPageInstanceContext();
+  const hostRevision = useMobileEntityHostRevision();
+  const mentionDocument = useMemo(
+    () => ({ todoId, createdAt: current?.createTime, descriptionEditorReady, hostRevision }),
+    [todoId, current?.createTime, descriptionEditorReady, hostRevision]
+  );
 
   const titleTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -174,6 +187,17 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
         store.patchItemDescriptionContent(current.id, current.groupId, next);
       }
     },
+  });
+  useContentMention({
+    editorRef: descriptionEditorRef,
+    documentKey: mentionDocument,
+    enabled:
+      Boolean(current && contentKit) &&
+      descriptionEditorReady &&
+      !descriptionLoading &&
+      !deleteLoading &&
+      page?.phase !== "paused",
+    onRequest: descriptionToolbar.openContentMention,
   });
 
   // 字段级依赖：invalidate 后 current 引用变化但值未变时，不回灌覆盖用户正在输入的内容
@@ -491,12 +515,12 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
                 }
               }}
               placeholder="任务标题"
-              className="text-ink-1 placeholder:text-ink-3 min-h-[27px] flex-1 resize-none border-none bg-transparent py-0 text-[18px] font-extrabold leading-[1.5] outline-none"
+              className="text-ink-1 placeholder:text-ink-3 min-h-[27px] flex-1 resize-none border-none bg-transparent py-0 text-[18px] leading-[1.5] font-extrabold outline-none"
             />
           </div>
 
           {/* 属性胶囊行：点击弹 Sheet 修改，按类型展示相关字段 */}
-          <div className="flex flex-wrap gap-1.5 pb-1 pl-[55px] pr-4 pt-3">
+          <div className="flex flex-wrap gap-1.5 pt-3 pr-4 pb-1 pl-[55px]">
             <button
               type="button"
               onClick={() => setTypeSheetOpen(true)}
@@ -559,7 +583,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
           </div>
 
           {/* 元信息小字：创建/完成时间，与胶囊行左对齐（非交互，弱化为辅助信息） */}
-          <div className="text-ink-3 pl-[55px] pr-4 pt-1.5 text-[10.5px] leading-4">
+          <div className="text-ink-3 pt-1.5 pr-4 pl-[55px] text-[10.5px] leading-4">
             创建于 {formatShortDateTime(current.createTime, true) || "-"}
             {current.completedAt
               ? ` · 完成于 ${formatShortDateTime(current.completedAt, true)}`
@@ -656,12 +680,15 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
                 <Editor
                   kit={contentKit}
                   key={`todo-description-${todoId}`}
+                  ref={descriptionEditorRef}
                   initValue={normalizeEditorContent(content ?? EMPTY_EDITOR_CONTENT)}
-                  readonly={false}
+                  readonly={deleteLoading}
                   placeHolder="添加备注…"
                   onChange={next => {
                     void handleDescriptionChange(next);
+                    descriptionToolbar.syncSelection();
                   }}
+                  onSelectionChange={descriptionToolbar.syncSelection}
                 />
               ) : (
                 <div className="text-ink-3 grid h-[200px] place-items-center text-[13px]">
@@ -674,7 +701,13 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
       </div>
 
       {/* 底部操作条：完成/打卡主操作（mobile-kb-screen 随键盘收缩视口自动上移） */}
-      <div className="border-line-1 bg-surface flex shrink-0 items-center gap-2.5 border-t px-4 pb-[calc(10px+var(--mobile-screen-safe-bottom))] pt-2.5">
+      <ContentLinkPickerSheet
+        open={descriptionToolbar.isContentLinkPickerOpen}
+        intent={descriptionToolbar.contentLinkPickerIntent}
+        onClose={descriptionToolbar.handleCloseContentLinkPicker}
+        onSelect={descriptionToolbar.handleSelectContentLink}
+      />
+      <div className="border-line-1 bg-surface flex shrink-0 items-center gap-2.5 border-t px-4 pt-2.5 pb-[calc(10px+var(--mobile-screen-safe-bottom))]">
         <button
           type="button"
           onClick={handleToggleMain}

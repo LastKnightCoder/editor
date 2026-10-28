@@ -15,6 +15,9 @@ import {
 } from "../cards/editorContentUtils";
 import { MobileEditorBottomToolbar } from "../cards/editorToolbar/MobileEditorBottomToolbar";
 import { useMobileEditorToolbarController } from "../cards/editorToolbar/useMobileEditorToolbarController";
+import { useContentMention } from "../cards/editorExtensions/useContentMention";
+import { useOptionalPageInstanceContext } from "../../router/pageLifecycle";
+import { useMobileEntityHostRevision } from "../../services/pluginEntities";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
 import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
 import { DateTimePickerSheet } from "../../components/DateTimePickerSheet";
@@ -101,6 +104,18 @@ export function CalendarEventEditPage({
   const [confirmExit, setConfirmExit] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [picker, setPicker] = useState<"none" | "calendar" | "color" | "start" | "end">("none");
+  const page = useOptionalPageInstanceContext();
+  const hostRevision = useMobileEntityHostRevision();
+  const mentionDocument = useMemo(
+    () => ({ eventId, loaded, hostRevision }),
+    [eventId, loaded, hostRevision]
+  );
+  useContentMention({
+    editorRef,
+    documentKey: mentionDocument,
+    enabled: Boolean(contentKit) && loaded && !loadFailed && !saving && page?.phase !== "paused",
+    onRequest: toolbarController.openContentMention,
+  });
 
   // 编辑态回填：以服务端数据为初始快照
   useEffect(() => {
@@ -340,7 +355,7 @@ export function CalendarEventEditPage({
                 }`}
               >
                 <span
-                  className="bg-surface absolute left-[3px] top-[3px] h-6 w-6 rounded-full shadow-[0_2px_6px_rgba(0,0,0,0.18)] transition-transform"
+                  className="bg-surface absolute top-[3px] left-[3px] h-6 w-6 rounded-full shadow-[0_2px_6px_rgba(0,0,0,0.18)] transition-transform"
                   style={{
                     transform: draft.allDay ? "translateX(20px)" : "translateX(0)",
                     transition: "transform 0.25s cubic-bezier(0.34, 1.56, 0.5, 1)",
@@ -403,7 +418,7 @@ export function CalendarEventEditPage({
             />
           </div>
 
-          <div className="bg-surface shadow-card mx-[18px] mb-1 mt-3 rounded-[20px] p-[18px]">
+          <div className="bg-surface shadow-card mx-[18px] mt-3 mb-1 rounded-[20px] p-[18px]">
             <div className="text-ink-3 mb-2.5 text-[11.5px] font-extrabold tracking-[1px]">
               详情
             </div>

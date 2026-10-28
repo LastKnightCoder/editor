@@ -239,14 +239,15 @@ function SharedBody(props: BodyProps) {
     guard,
     canWrite,
     kit,
-    project: () => state.runtime.data.projectComponentContent(state.scope.context, contentRef),
+    project: () =>
+      state.runtime.data.projectComponentContent(state.scope.context, contentRef, guard),
   });
   const flush = useCallback(async () => {
     guard();
     await collaborationManager.flushCache(documentId);
     guard();
     if (canWrite())
-      await state.runtime.data.projectComponentContent(state.scope.context, contentRef);
+      await state.runtime.data.projectComponentContent(state.scope.context, contentRef, guard);
     return true;
   }, [guard, documentId, canWrite, state.runtime, state.scope.context, contentRef]);
   const { refetch } = state;

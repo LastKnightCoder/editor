@@ -573,7 +573,8 @@ class CollaborationManager {
       taskOperationId?: number;
       taskRestoreId?: number;
       timeZone?: string;
-    }
+    },
+    guard?: () => Promise<void>
   ): Promise<void> {
     const session = this.sessions.get(documentId);
     if (
@@ -585,10 +586,11 @@ class CollaborationManager {
     if (session.projection) {
       if (!plugin) return session.projection;
       await session.projection;
-      return this.project(documentId, plugin);
+      return this.project(documentId, plugin, guard);
     }
     session.projection = (async () => {
       await this.flushCache(documentId);
+      await guard?.();
       const source = session.info.source!;
       const result = await tauri.collabProjectContent({
         ...(plugin ? { plugin } : {}),
