@@ -57,9 +57,7 @@ export function InstallSheet({
           <>
             <p className="text-ink-2 text-[13px] leading-relaxed">
               从插件中心下载 {formatSize(state.size)}，
-              {mode === "install"
-                ? "校验通过后自动启用。"
-                : "校验通过后，在插件中心点「立即生效」即可切换到新版本。"}
+              {mode === "install" ? "校验通过后自动启用。" : "校验通过后自动切换到新版本。"}
             </p>
             <section aria-label="插件权限" className="flex flex-col gap-1.5">
               <h4 className="text-ink-1 text-[14px] font-semibold">需要的权限</h4>
@@ -87,11 +85,11 @@ export function InstallSheet({
           <p role="status" className="text-ok text-[13px]">
             {mode === "install"
               ? `已安装 v${state.version}，正在启用。`
-              : `已下载 v${state.version}，在插件中心点「立即生效」即可切换。`}
+              : `已下载 v${state.version}，正在切换到新版本。`}
           </p>
         )}
         {state.kind === "failed" && (
-          <p role="alert" className="text-danger break-words text-[13px]">
+          <p role="alert" className="text-danger text-[13px] break-words">
             {verb}失败：{state.message}。已安装的旧版本不受影响。
           </p>
         )}

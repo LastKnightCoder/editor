@@ -26,6 +26,7 @@ import type { PluginCatalogEntry, PluginCatalogSort } from "@/types/plugin-cente
 import {
   STATE_LABELS,
   STATIC_PACKAGE_LABELS,
+  availableUpdates,
   catalogCategories,
   pendingCount,
   installState,
@@ -622,13 +623,7 @@ function Updates({
   const install = useInstallRelease(useDesktopPlugins());
   const installing = useInstallingReleases();
   // 已下载待重启的条目与正在下载的版本不再重复发起
-  const pending = entries.flatMap(entry => {
-    const plugin = installed.find(item => item.info.id === entry.pluginId);
-    const state = installState(entry, plugin, plugin?.update);
-    return state.kind === "update" && !installing.includes(state.releaseId)
-      ? [state.releaseId]
-      : [];
-  });
+  const pending = availableUpdates(entries, installed).filter(id => !installing.includes(id));
   if (!entries.length)
     return (
       <Empty icon={<RefreshCw />} title={catalogError ? "暂时无法检查更新" : "所有插件都是最新的"}>
@@ -638,7 +633,7 @@ function Updates({
   return (
     <Group
       title="可更新"
-      hint="更新在下次完整启动时切换，失败会保留旧版"
+      hint="下载后自动切换到新版，失败会保留旧版；编辑器和白板内容插件重启后生效"
       action={
         pending.length > 0 && (
           <Button

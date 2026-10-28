@@ -11,20 +11,16 @@ import { storeTaskPhase } from "./components/storeActions";
 import { releasePermissions } from "./components/centerDisplay";
 import { UpdateAllSheet, type UpdateAllEntry } from "./components/UpdateAllSheet";
 import {
-  useMobileCenterConfig,
+  checksUpdate,
+  useAvailablePluginUpdates,
   useMobileCenterInstall,
   useMobileCenterUpdate,
-  useMobileCenterUpdates,
 } from "./data/center-queries";
 
 const matches = (item: ManagedPluginItem, q: string) => {
   const query = q.toLowerCase();
   return !query || item.name.toLowerCase().includes(query) || item.id.toLowerCase().includes(query);
 };
-
-/** 中心来源、无待生效包且未被拦截的插件才检查更新；列表行与一键更新共用这一口径。 */
-const checksUpdate = (item: ManagedPluginItem) =>
-  !!item.centerSource && !item.pending && !item.blocked;
 
 function Row({
   item,
@@ -58,18 +54,14 @@ function Row({
 
 /** 有可用更新时提供一键更新：确认后全部进入应用级安装队列，各行就地显示进度。 */
 function UpdateAllBar({ items }: { items: readonly ManagedPluginItem[] }) {
-  const config = useMobileCenterConfig();
   const install = useMobileCenterInstall();
   // 打开时冻结清单：确认后各项进入安装队列会从可更新列表消失，面板仍需完整播完退场
   const [batch, setBatch] = useState<{ open: boolean; entries: UpdateAllEntry[] }>({
     open: false,
     entries: [],
   });
-  const entries: UpdateAllEntry[] = useMobileCenterUpdates(
-    items.map(item => ({ id: item.id, version: item.version, enabled: checksUpdate(item) }))
-  )
-    .filter(({ pluginId }) => install.task(pluginId)?.status !== "pending")
-    .map(({ pluginId, release }) => {
+  const entries: UpdateAllEntry[] = useAvailablePluginUpdates(items).map(
+    ({ pluginId, release }) => {
       const item = items.find(value => value.id === pluginId);
       return {
         id: pluginId,
@@ -81,11 +73,12 @@ function UpdateAllBar({ items }: { items: readonly ManagedPluginItem[] }) {
           .filter(permission => permission.newlyRequested)
           .map(permission => permission.label),
       };
-    });
+    }
+  );
   const close = () => setBatch(value => ({ ...value, open: false }));
   return (
     <>
-      {config.data?.installationEnabled && entries.length > 0 && (
+      {entries.length > 0 && (
         <div className="bg-accent-soft flex items-center gap-2.5 rounded-[14px] px-3 py-2.5">
           <span className="text-ink-1 min-w-0 flex-1 text-[13px] leading-snug">
             {entries.length} 个插件可更新
@@ -116,7 +109,7 @@ function UpdateAllBar({ items }: { items: readonly ManagedPluginItem[] }) {
   );
 }
 
-/** 已安装：开关 + 状态；变更经横幅「立即生效」重建插件会话，管理动作在详情页；开发构建保留受控开发安装。 */
+/** 已安装：开关 + 状态；中心更新下载完自动重建插件会话，启停经横幅「立即生效」，管理动作在详情页；开发构建保留受控开发安装。 */
 export function InstalledPluginsPanel({ q = "" }: { q?: string }) {
   const manager = usePluginManager();
   const [source, setSource] = useState("");

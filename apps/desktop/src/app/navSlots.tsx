@@ -18,7 +18,7 @@ import { useCardTagTree } from "@/features/cards/queries";
 import { ArticlesNavTags } from "@/features/articles/components/ArticlesNav";
 import { useArticleTagCounts } from "@/features/articles/queries";
 import { McpNavBadge } from "@/features/mcp/components/McpNavBadge";
-import { PluginPermissionNavBadge } from "@/features/plugins/permissions/PluginPermissionNavBadge";
+import { PluginNavBadge } from "@/features/plugins/components/PluginNavBadge";
 import { DiaryNavTags } from "@/features/diary/components/DiaryNav";
 import { useDiaryNavHasContent } from "@/features/diary/queries";
 import { WhiteboardNavTags } from "@/features/whiteboards/components/WhiteboardNav";
@@ -33,7 +33,7 @@ export const NAV_BADGE_SLOTS: Record<NavItemBadge, ComponentType<{ collapsed: bo
   "collab-requests": CollaborationNavBadge,
   "review-due": ReviewDueBadge,
   "mcp-errors": McpNavBadge,
-  "plugin-permission-requests": PluginPermissionNavBadge,
+  "plugin-status": PluginNavBadge,
 };
 
 export interface NavChildrenSlotProps {

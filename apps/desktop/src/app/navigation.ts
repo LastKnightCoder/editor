@@ -40,7 +40,11 @@ import type { PluginSidebarSnapshot } from "./plugins/runtime";
 
 /** 徽标槽 key（渲染组件注册于 navSlots.tsx） */
 export type NavItemBadge =
-  "review-due" | "pomodoro-live" | "collab-requests" | "mcp-errors" | "plugin-permission-requests";
+  | "review-due"
+  | "pomodoro-live"
+  | "collab-requests"
+  | "mcp-errors"
+  | "plugin-status";
 /** 子项槽 key：所属页在栈顶时于条目下方展开的列表（渲染组件注册于 navSlots.tsx） */
 export type NavItemChildren =
   | "collaboration-sessions"
@@ -57,7 +61,7 @@ export interface NavItem<Icon = PluginSidebarIcon> {
   icon: Icon;
   /** 徽标数据源标识（review-due = 待复习闪卡数；pomodoro-live = 专注中的实时计时；
    *  collab-requests = 待审批的加入申请数；mcp-errors = 连接失败的 MCP 服务器数；
-   *  plugin-permission-requests = 等待用户处理授权的插件数） */
+   *  plugin-status = 等待授权的插件数 + 可更新的插件数） */
   badge?: NavItemBadge;
   /** 该页在栈顶时于条目下方展开的子项（collaboration-sessions = 共享内容列表，协作页 A3；
    *  todo-groups = 待办项目；card-tags = 卡片标签树（限高滚动）；article-tags = 文章标签（限高滚动）；diary-tags = 日记标签频道，D-044；whiteboard-tags = 白板标签，D-047；chat-sessions = 置顶与最近 AI 会话） */
@@ -141,7 +145,7 @@ export const NAV_SECTIONS: NavSection<LucideIcon>[] = [
 export const NAV_FOOTER: NavItem<LucideIcon>[] = [
   // 设置入口打开壳层设置弹窗（D-028；legacy 全屏设置页已随 2026-09-29 第三批清理退役）
   // 插件中心与已安装管理（D-164）；插件设置在详情页，设置弹窗只留跳转
-  { key: "plugins", label: "插件", icon: Blocks, badge: "plugin-permission-requests" },
+  { key: "plugins", label: "插件", icon: Blocks, badge: "plugin-status" },
   { key: "feedback", label: "反馈", icon: MessageSquareHeart, opensWindow: "feedback" },
   { key: "settings", label: "设置", icon: SlidersHorizontal, opensOverlay: "settings" },
 ];

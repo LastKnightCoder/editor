@@ -18,6 +18,7 @@ import {
   type MobileCenterConfig,
 } from "../../../services/pluginCenter";
 import { getMobileCenterInstallStore } from "../../../app/plugins/center-install";
+import { MOBILE_PLUGIN_QUERY, readMobilePlugins } from "../../../services/plugins";
 import { comparePluginVersions } from "@tau/plugins/package";
 
 const client = createMobilePluginCenterClient();
@@ -160,6 +161,49 @@ export function useMobileCenterUpdates(
     const release = item.enabled ? updateOf(results[index]?.data, item.version) : null;
     return release ? [{ pluginId: item.id, release }] : [];
   });
+}
+/** 参与更新检查的已装插件字段；本机清单与管理视图都满足。 */
+export interface UpdateCandidate {
+  id: string;
+  version: string | null;
+  centerSource?: unknown;
+  pending?: boolean;
+  blocked?: boolean;
+}
+/** 中心来源、无待生效包且未被拦截的插件才检查更新；列表行、一键更新与入口角标共用这一口径。 */
+export const checksUpdate = (item: UpdateCandidate) =>
+  !!item.centerSource && !item.pending && !item.blocked;
+/** 可用且尚未进入安装队列的更新；安装开关关闭时为空。 */
+export function useAvailablePluginUpdates(items: readonly UpdateCandidate[]) {
+  const config = useMobileCenterConfig();
+  const install = useMobileCenterInstall();
+  const updates = useMobileCenterUpdates(
+    items.map(item => ({
+      id: item.id,
+      version: item.version,
+      enabled: checksUpdate(item),
+    }))
+  );
+  if (!config.data?.installationEnabled) return [];
+  return updates.filter(({ pluginId }) => install.task(pluginId)?.status !== "pending");
+}
+/** 插件中心入口的可更新数：读本机清单后复用同一更新口径与选版缓存。 */
+export function useInstalledPluginUpdateCount() {
+  const inventory = useQuery({
+    queryKey: [...MOBILE_PLUGIN_QUERY, "inventory"],
+    queryFn: readMobilePlugins,
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
+  return useAvailablePluginUpdates(
+    inventory.data?.packages.map(item => ({
+      ...item,
+      version:
+        item.currentVersion === undefined
+          ? (item.artifact?.manifest.version ?? null)
+          : item.currentVersion,
+    })) ?? []
+  ).length;
 }
 export function useMobileCenterInstall() {
   const queryClient = useQueryClient();

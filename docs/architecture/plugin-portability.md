@@ -40,7 +40,7 @@
 
 插件会话不阻塞应用：Provider 立即渲染子树，启动阶段（starting / ready / safe / failed）写入 `app/plugins/content` 的 mobilePluginState，供界面与编辑器 kit 层共用；插件环境 Provider 常驻（会话就绪前给占位快照），会话切换不重挂应用子树。消费方各自等待：插件页/设置页在 starting 时显示加载态；内容编辑器经 `useMobileContentKit`，只读模式随会话换最新 kit，编辑模式在落定前显示编辑区占位、落定后锁定首个 kit，编辑中途不因会话重建而重建编辑器；未注册节点经 IUnknownElementNotice 说明「插件内容加载中」或「插件未运行」，数据始终原样保留。启动只用本地缓存的撤回状态（已确认撤回的包拿不到包体、不会运行），联网核验在会话就绪后执行并按 blockFromCenter 停用新近撤回的版本。
 
-“我的”仍是 settings Tab；插件入口作为 props 插槽进入 SettingsPage 的独立插件功能区。pluginPage、pluginSettings、plugins 均由移动 definePage 自动注册。页面身份与标量参数规范化使用 SDK 规则，返回、转场、保活与 LRU 使用原 router。启停、更新与回退按新会话生效：插件中心「立即生效」重建插件会话（应用待生效包、重启全部插件），不重启应用；首装没有旧版本在运行，下载完成即自动重建。已打开的可编辑正文保留原 kit。
+“我的”仍是 settings Tab；插件入口作为 props 插槽进入 SettingsPage 的独立插件功能区。pluginPage、pluginSettings、plugins 均由移动 definePage 自动注册。页面身份与标量参数规范化使用 SDK 规则，返回、转场、保活与 LRU 使用原 router。启停、更新与回退按新会话生效：插件中心「立即生效」重建插件会话（应用待生效包、重启全部插件），不重启应用；中心安装与更新下载完成、安装队列清空后自动重建一次会话（安全模式除外），无需手动点按。「我的」插件中心入口显示可更新数（与已安装页更新条同一选版缓存与口径），有更新时直达已安装标签。已打开的可编辑正文保留原 kit。
 
 页面的活动状态与系统后台状态分别处理。作者应在操作时持久化数据，不依赖 deactivate 一定执行。启动标记位于本机 localStorage，仅用于发现上次插件启动未结束并跳过该次加载（安全模式，插件中心提供重新加载）；包文件与业务 KV 不放 localStorage。
 
