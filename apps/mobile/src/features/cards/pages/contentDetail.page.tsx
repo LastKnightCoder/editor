@@ -30,6 +30,7 @@ const contentDetailSchema = createPageSchema({
   // 两种入口二选一：内容 id（日记 / 编辑器内链）或卡片 id（列表/搜索/关联跳转）
   contentId: paramOptional(paramNumber()),
   cardId: paramOptional(paramNumber()),
+  taskId: paramOptional(paramString()),
   contentTitle: paramString(""),
   contentType: paramString(""),
   refId: paramOptional(paramNumber()),
@@ -255,6 +256,7 @@ function ContentDetailScreen() {
   return (
     <ContentDetailPage
       contentId={params.contentId ?? 0}
+      taskId={params.taskId}
       contentTitle={params.contentTitle}
       contentType={params.contentType}
       refId={params.refId}

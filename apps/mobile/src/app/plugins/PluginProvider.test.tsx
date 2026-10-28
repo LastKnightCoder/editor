@@ -6,6 +6,13 @@ vi.mock("../../services/editorKit", () => ({
   getMobileContentKit: () => ({ extend: vi.fn() }),
 }));
 vi.mock("../../services/editorMarkdown", () => ({ mobileCodecComposition: [] }));
+vi.mock("../../features/plugins/PluginEntityPicker", () => ({
+  PluginEntityPicker: ({
+    request,
+  }: {
+    request: import("./app-types").MobileEntityPickRequest | null;
+  }) => (request ? <button onClick={request.cancel}>选择窗口已挂载</button> : null),
+}));
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -16,6 +23,8 @@ import { MobilePluginRuntime } from "./runtime";
 import { mobilePluginState } from "./content";
 import { useMobilePluginStatus } from "./context";
 import { getMobileCenterInstallStore } from "./center-install";
+import { createMobileApp } from "./app";
+import { connectMobilePluginTransport } from "./transport";
 
 vi.mock("../../router", () => ({ useNavigator: () => navigator }));
 const navigator = { push: vi.fn() };
@@ -29,6 +38,70 @@ vi.mock("../../services/plugins", async importOriginal => ({
     development: true,
   })),
 }));
+it("激活等待选择时先挂选择器，取消后启动继续完成", async () => {
+  vi.stubGlobal("matchMedia", () => ({
+    matches: false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+  vi.stubGlobal("navigator", { userActivation: { isActive: true } });
+  vi.mocked(connectMobilePluginTransport).mockImplementationOnce(async runtime => {
+    runtime.app = createMobileApp(runtime.workspaceId, "startup", navigator, async () => false);
+    return () => runtime.app?.dispose();
+  });
+  const start = vi.spyOn(MobilePluginRuntime.prototype, "start").mockImplementation(async function (
+    this: MobilePluginRuntime
+  ) {
+    this.host.registerTrusted(
+      definePlugin({
+        id: "test.pick-startup",
+        name: "启动选择",
+        version: "1",
+        create: () => ({
+          activate: async context => {
+            await context.app.pick({ kinds: ["card"] });
+          },
+        }),
+      })
+    );
+    await this.host.enable("test.pick-startup");
+  });
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const settle = async (predicate: () => boolean) => {
+    for (let index = 0; index < 60 && !predicate(); index++)
+      await act(async () => {
+        await vi.dynamicImportSettled();
+        await new Promise(resolve => setTimeout(resolve, 10));
+      });
+  };
+  try {
+    await act(async () =>
+      root.render(
+        <QueryClientProvider client={client}>
+          <MobilePluginProvider database="A.db">
+            <p>工作区</p>
+          </MobilePluginProvider>
+        </QueryClientProvider>
+      )
+    );
+    await settle(() => !!container.querySelector("button"));
+    expect(container.textContent).toContain("选择窗口已挂载");
+    expect(mobilePluginState.get().phase).toBe("starting");
+    await act(async () => container.querySelector("button")!.click());
+    await settle(() => mobilePluginState.get().phase === "ready");
+    expect(mobilePluginState.get().phase).toBe("ready");
+  } finally {
+    await act(async () => root.unmount());
+    client.clear();
+    container.remove();
+    start.mockRestore();
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  }
+});
 it("切库立即失活旧 context，等待未完成启动收尾后才创建新会话", async () => {
   vi.stubGlobal("matchMedia", () => ({
     matches: false,

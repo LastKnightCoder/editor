@@ -19,7 +19,8 @@ const CONFIRMS: Record<
   },
   clearData: {
     title: name => `清除「${name}」在此工作区的数据`,
-    description: "只清除当前工作区里这个插件的私有数据，无法撤销；其他工作区与正文不受影响。",
+    description:
+      "清除当前工作区里这个插件的键值存储及已选择内容的标题访问授权，无法撤销；插件内容、结构化记录、正文和其他工作区保留。",
     confirmText: "清除",
     danger: true,
   },

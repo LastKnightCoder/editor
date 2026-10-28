@@ -2,7 +2,16 @@ import { listen } from "@tauri-apps/api/event";
 import { PluginPermissionPrompt } from "../../features/plugins/PluginPermissionPrompt";
 import type { PluginPermissionBroker } from "@tau/plugins/permission-host";
 import { refreshMobileCenterInstallations } from "../../services/pluginCenter";
-import { useCallback, useEffect, useState, useId, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  useId,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
+import { PluginEntityPicker } from "../../features/plugins/PluginEntityPicker";
+import type { MobileAppAdapter } from "./app";
 import { useQueryClient } from "@tanstack/react-query";
 import type { PluginEnvironment } from "@tau/plugins";
 import {
@@ -35,6 +44,11 @@ const PENDING_ENVIRONMENT: PluginEnvironment = {
 let cleanup: Promise<unknown> = Promise.resolve();
 const restartRequired = new Set<string>();
 
+function MobilePluginAppHost({ app }: { app: MobileAppAdapter }) {
+  const request = useSyncExternalStore(app.subscribe, app.getSnapshot);
+  return <PluginEntityPicker request={request} />;
+}
+
 /**
  * 插件会话随数据库作用域挂载，children 立即渲染、不等待插件；
  * 启动阶段经 mobilePluginState 广播，消费方（编辑器、插件页、插件中心）各自按需等待。
@@ -51,6 +65,7 @@ export function MobilePluginProvider({
   const sessionId = useId();
   const [generation, setGeneration] = useState(0);
   const [permissions, setPermissions] = useState<PluginPermissionBroker | null>(null);
+  const [app, setApp] = useState<MobileAppAdapter | null>(null);
   const [session, setSession] = useState<MobilePluginRuntime | null>(null);
   const reload = useCallback(() => setGeneration(value => value + 1), []);
 
@@ -90,6 +105,7 @@ export function MobilePluginProvider({
         return;
       }
       setPermissions(runtime.permissions ?? null);
+      setApp(runtime.app ?? null);
       const safe = localStorage.getItem(STARTING_KEY) !== null;
       localStorage.setItem(STARTING_KEY, "1");
       const { mobileSharedPluginModules } = await import("./shared-modules");
@@ -210,6 +226,7 @@ export function MobilePluginProvider({
     return () => {
       cancelled = true;
       setPermissions(null);
+      setApp(null);
       disposeMobileRuntimeStyles();
       disconnect?.();
       disconnectTransport?.();
@@ -267,6 +284,7 @@ export function MobilePluginProvider({
   return (
     <MobilePluginReloadContext.Provider value={reload}>
       <MobilePluginsContext.Provider value={session}>
+        {app && <MobilePluginAppHost app={app} />}
         {permissions && <PluginPermissionPrompt broker={permissions} />}
         {session ? (
           <PluginEnvironmentProvider source={session.environment}>

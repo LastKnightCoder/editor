@@ -56,7 +56,7 @@ fn source(conn: &Connection, content: i64) -> Result<Option<Value>, String> {
     let query="SELECT kind,id,title FROM (SELECT 'card' AS kind,id,'' AS title,0 AS priority FROM cards WHERE content_id=?1 UNION ALL SELECT 'article',id,title,1 FROM articles WHERE content_id=?1 AND is_delete=0 UNION ALL SELECT 'document',id,title,2 FROM project_item WHERE content_id=?1 AND COALESCE(ref_type,'')='' UNION ALL SELECT 'diary',id,'日记',3 FROM diary_segments WHERE content_id=?1 UNION ALL SELECT 'diary',id,date,4 FROM diary_entries WHERE content_id=?1) ORDER BY priority,id LIMIT 1";
     conn.query_row(query,[content],|row|Ok(json!({"kind":row.get::<_,String>(0)?,"id":row.get::<_,i64>(1)?.to_string(),"title":row.get::<_,String>(2)?}))).optional().map_err(sql_error)
 }
-fn visible(conn: &Connection, content: i64, task: &str) -> Result<bool, String> {
+pub(super) fn visible(conn: &Connection, content: i64, task: &str) -> Result<bool, String> {
     Ok(source(conn,content)?.is_some()&&!conn.query_row("SELECT EXISTS(SELECT 1 FROM doc_task_settings WHERE content_id=?1 AND (kind='excluded' OR (kind='promoted' AND task_id=?2)))",params![content,task],|row|row.get::<_,bool>(0)).map_err(sql_error)?)
 }
 pub(super) fn candidates(
@@ -100,7 +100,7 @@ pub(super) fn candidates(
     Ok(result)
 }
 
-fn meta(node: &Value) -> Result<Value, String> {
+pub(super) fn meta(node: &Value) -> Result<Value, String> {
     let segments = if node["taskRecurrence"].is_null() {
         vec![]
     } else {
