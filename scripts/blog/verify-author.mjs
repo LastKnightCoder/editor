@@ -6,7 +6,9 @@ import { execFileSync, spawn } from "node:child_process";
 import assert from "node:assert/strict";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const source = path.resolve(process.argv[2] ?? path.join(root, "../tau-blog-template-starter"));
+const source = path.resolve(
+  process.argv[2] ?? path.join(root, "plugins/tau-blog-template-starter")
+);
 const candidate = process.argv.includes("--candidate");
 const directory = await mkdtemp(path.join(tmpdir(), "tau-template-author-"));
 const author = path.join(directory, "author");

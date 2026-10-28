@@ -9,7 +9,7 @@ import { serveSite } from "./test-utils/server.mjs";
 import { checkProtocol } from "./test-utils/protocol-checks.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const plugin = path.resolve(process.argv[2] ?? path.join(root, "../tau-blog-template"));
+const plugin = path.resolve(process.argv[2] ?? path.join(root, "plugins/tau-blog-template"));
 const output = path.join(root, "output/blog-template-integration", randomUUID());
 await mkdir(output, { recursive: true });
 const requireDesktop = createRequire(path.join(root, "apps/desktop/package.json"));
@@ -136,7 +136,7 @@ const inspected = await bridge.inspectPackage(
     path.join(plugin, `output/${template.manifest.id}-${template.manifest.version}.zip`)
   )
 );
-assert.equal(inspected.manifest.id, "tau.blog");
+assert.equal(inspected.manifest.id, template.manifest.id);
 const cases = [
   "完整官方模板通过门户包限制及全部资产校验",
   "数据客户端的模块图没有 React、编辑器或 UI",

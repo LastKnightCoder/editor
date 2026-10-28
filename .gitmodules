@@ -79,3 +79,9 @@
 [submodule "plugins/tau-blog-template-mochi"]
 	path = plugins/tau-blog-template-mochi
 	url = https://github.com/LastKnightCoder/tau-blog-template-mochi.git
+[submodule "plugins/tau-blog-template"]
+	path = plugins/tau-blog-template
+	url = https://github.com/LastKnightCoder/tau-blog-template.git
+[submodule "plugins/tau-blog-template-starter"]
+	path = plugins/tau-blog-template-starter
+	url = https://github.com/LastKnightCoder/tau-blog-template-starter.git
