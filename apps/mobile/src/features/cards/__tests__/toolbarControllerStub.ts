@@ -37,6 +37,7 @@ export function createControllerStub(
     outdent: vi.fn(),
     collapseSelectionToFocus: vi.fn(),
     isContentLinkPickerOpen: false,
+    openContentMention: vi.fn(),
     contentLinkPickerIntent: { mode: "insert", text: "" },
     retargetContentLink: vi.fn(),
     contentLinkPreview: null,

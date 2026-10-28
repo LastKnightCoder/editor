@@ -393,12 +393,13 @@ pub fn search_all_content(
     page: Option<u32>,
     page_size: Option<u32>,
     types: Option<Vec<String>>,
+    plugin_entity_kinds: Option<Vec<crate::models::PluginEntityKindFilter>>,
 ) -> Result<crate::models::UnifiedSearchResponse, String> {
     let conn = schema::open_active_database(&app)?;
     let page = page.unwrap_or(1);
     let page_size = page_size.unwrap_or(20);
     let (search_mode, total, items) =
-        search::query_unified_search(&conn, &query, types.as_deref(), page, page_size)?;
+        search::query_unified_search(&conn, &query, types.as_deref(), page, page_size, plugin_entity_kinds.as_deref())?;
     Ok(crate::models::UnifiedSearchResponse {
         total,
         page: page.max(1),

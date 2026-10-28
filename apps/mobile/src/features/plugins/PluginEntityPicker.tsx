@@ -21,6 +21,7 @@ const KIND_LABELS: Record<MobileEntityKind, string> = {
   document: "项目文档",
   todo: "待办",
   event: "日程",
+  "plugin-entity": "插件内容",
 };
 const itemKey = (item: MobileEntityCandidate) =>
   JSON.stringify([item.ref.kind, item.ref.id, item.identity]);

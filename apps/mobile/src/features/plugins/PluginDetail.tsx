@@ -1,4 +1,5 @@
 import { PluginOperations } from "./PluginOperations";
+import { PluginPageComponentScope } from "../../app/plugins/component-page-scope";
 import { PluginPermissionControls } from "./PluginPermissionControls";
 import { MobileProviderSettings } from "./ProviderSettings";
 import { useId, useState, type ReactNode } from "react";
@@ -579,7 +580,9 @@ function SettingsTab({
         ) : Component ? (
           <ErrorBoundary key={id}>
             <PluginSettingsCard>
-              <Component context={active.context} />
+              <PluginPageComponentScope context={active.context}>
+                <Component context={active.context} />
+              </PluginPageComponentScope>
             </PluginSettingsCard>
           </ErrorBoundary>
         ) : null}

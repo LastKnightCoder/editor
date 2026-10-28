@@ -6,12 +6,21 @@ use super::{
     plugin_document_tasks, plugin_task_dates as dates, plugin_task_snapshots as snapshots,
     plugin_tasks::{self, TaskId},
 };
+use crate::models::PluginEntityTarget;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::{AppHandle, WebviewWindow};
 
-const KINDS: [&str; 6] = ["card", "article", "project", "document", "todo", "event"];
+const KINDS: [&str; 7] = [
+    "card",
+    "article",
+    "project",
+    "document",
+    "todo",
+    "event",
+    "plugin-entity",
+];
 const MAX_REFS: usize = 200;
 const SCAN_BATCH: usize = 100;
 const SCAN_BUDGET: usize = 500;
@@ -131,7 +140,32 @@ fn task_metadata(
     }
 }
 
-/// 仅返回存在且能由移动页面打开的目标；周期实例沿用原始日期校验。
+/// 持久实体外观与正文身份由主库决定；是否能打开由当前活跃的插件注册决定。
+pub(super) fn entity_target(
+    conn: &Connection,
+    id: i64,
+) -> Result<Option<PluginEntityTarget>, String> {
+    if !(1..=9_007_199_254_740_991).contains(&id) {
+        return Ok(None);
+    }
+    conn.query_row(
+        "SELECT e.plugin_id,e.kind,e.create_time,e.content_id,c.create_time,e.title,k.label,k.icon,c.content FROM plugin_entities e JOIN contents c ON c.id=e.content_id LEFT JOIN plugin_entity_kinds k ON k.plugin_id=e.plugin_id AND k.kind=e.kind WHERE e.id=?1",
+        [id], |row| {
+            let title:String=row.get(5)?;
+            let title=if title.trim().is_empty() { common::json_content_plain_text(row.get(8)?).chars().take(80).collect::<String>() } else { title };
+            let label:Option<String>=row.get(6)?;
+            Ok(PluginEntityTarget {
+                kind:"plugin-entity".into(),id,plugin_id:row.get(0)?,entity_kind:row.get(1)?,created_at:row.get(2)?,
+                content_id:row.get(3)?,content_created_at:row.get(4)?,
+                title:if title.is_empty() { "无标题".into() } else { title },
+                label:label.filter(|value|!value.trim().is_empty()).unwrap_or_else(||"插件内容".into()),
+                icon:row.get::<_,Option<String>>(7)?.unwrap_or_default(),
+            })
+        },
+    ).optional().map_err(sql_error)
+}
+
+/// 返回存在的导航目标；插件页面可用性由运行时复验，周期实例校验原始日期。
 pub(super) fn locate(
     conn: &Connection,
     reference: &EntityRef,
@@ -140,6 +174,20 @@ pub(super) fn locate(
 ) -> Result<Option<LocatedRef>, String> {
     validate_ref(reference)?;
     match reference.kind.as_str() {
+        "plugin-entity" => {
+            let Some(id) = numeric_id(&reference.id) else {
+                return Ok(None);
+            };
+            entity_target(conn, id)?
+                .map(|target| {
+                    Ok(LocatedRef {
+                        title: target.title.clone(),
+                        created_at: target.created_at,
+                        target: serde_json::to_value(target).map_err(|error| error.to_string())?,
+                    })
+                })
+                .transpose()
+        }
         "todo" => match plugin_tasks::parse_task(&reference.id)? {
             TaskId::Todo(id, created, date) => {
                 let Some(row) = snapshots::row(conn, "todo_item", id)? else {
@@ -242,6 +290,40 @@ fn grant_identity(
     ).optional().map_err(sql_error)
 }
 
+fn owns_entity(conn: &Connection, plugin: &str, reference: &EntityRef) -> Result<bool, String> {
+    conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM plugin_entities WHERE id=?1 AND plugin_id=?2)",
+        params![numeric_id(&reference.id), plugin],
+        |row| row.get(0),
+    )
+    .map_err(sql_error)
+}
+
+fn presentation(conn: &Connection, plugin: &str, reference: &EntityRef) -> Result<Value, String> {
+    validate_ref(reference)?;
+    if reference.kind != "plugin-entity" {
+        return Ok(Value::Null);
+    }
+    let owned = owns_entity(conn, plugin, reference)?;
+    let granted = grant_identity(conn, plugin, reference)?;
+    if !owned && granted.is_none() {
+        return Ok(Value::Null);
+    }
+    let row:Option<(i64,Option<String>,Option<String>)>=conn.query_row(
+        "SELECT e.create_time,k.label,k.icon FROM plugin_entities e LEFT JOIN plugin_entity_kinds k ON k.plugin_id=e.plugin_id AND k.kind=e.kind WHERE e.id=?1",
+        [numeric_id(&reference.id)],|row|Ok((row.get(0)?,row.get(1)?,row.get(2)?)),
+    ).optional().map_err(sql_error)?;
+    let Some((created, label, icon)) = row else {
+        return Ok(Value::Null);
+    };
+    if !owned && granted != Some(created) {
+        return Ok(Value::Null);
+    }
+    Ok(
+        json!({"label":label.filter(|value|!value.trim().is_empty()).unwrap_or_else(||"插件内容".into()),"icon":icon.unwrap_or_default()}),
+    )
+}
+
 /// 先验访问资格，未经选择或授权时不探测目标是否存在。
 pub(super) fn access(
     conn: &Connection,
@@ -253,7 +335,12 @@ pub(super) fn access(
 ) -> Result<RefAccess, String> {
     validate_ref(reference)?;
     let granted = grant_identity(conn, plugin, reference)?;
-    if !readable && granted.is_none() {
+    let allowed = if reference.kind == "plugin-entity" {
+        owns_entity(conn, plugin, reference)?
+    } else {
+        readable
+    };
+    if !allowed && granted.is_none() {
         return Ok(RefAccess::Denied);
     }
     let located = match locate(conn, reference, zone, holidays) {
@@ -263,13 +350,13 @@ pub(super) fn access(
     let Some(located) = located else {
         return Ok(RefAccess::Missing);
     };
-    if !readable && granted != Some(located.created_at) {
+    if !allowed && granted != Some(located.created_at) {
         return Ok(RefAccess::Missing);
     }
     Ok(RefAccess::Allowed(located))
 }
 
-/// 关联可引用插件实体，但不因此扩大移动页面的打开类型。
+/// 关联写入按目标归属与选择身份校验，不因调用方传入 readable 放行其他插件的实体。
 pub(super) fn access_link_target(
     conn: &Connection,
     plugin: &str,
@@ -432,6 +519,8 @@ fn query_refs(
         } else {
             let table = if kind == "event" {
                 "calendar_event"
+            } else if kind == "plugin-entity" {
+                "plugin_entities"
             } else {
                 plugin_data::table(kind)?
             };
@@ -509,6 +598,11 @@ fn handle_refs(
 ) -> Result<Value, String> {
     match request["method"].as_str() {
         Some("grant") => grant(conn, plugin, &selections(request)?, zone, holidays),
+        Some("presentation") => {
+            let reference =
+                serde_json::from_value(request["ref"].clone()).map_err(|_| "引用无效")?;
+            presentation(conn, plugin, &reference)
+        }
         Some("describe") => {
             let kinds = readable(request)?;
             let values = read_refs(&request["refs"])?;
@@ -558,6 +652,7 @@ pub(super) fn requested_holiday_ranges(
     zone: CalendarTimeZone,
 ) -> Result<Vec<(i64, i64)>, String> {
     let refs = match request["method"].as_str() {
+        Some("presentation") => vec![],
         Some("grant") => selections(request)?
             .into_iter()
             .map(|(reference, _)| reference)
@@ -607,6 +702,24 @@ pub(super) fn requested_holiday_ranges(
         }
     }
     Ok(ranges.into_iter().collect())
+}
+
+#[tauri::command]
+pub fn plugin_entity_target(
+    app: AppHandle,
+    window: WebviewWindow,
+    database: String,
+    token: String,
+    id: i64,
+) -> Result<Option<PluginEntityTarget>, String> {
+    crate::plugin_transport::window_allowed(&window)?;
+    crate::plugin_transport::with_database(&token, &database, || {
+        let conn = super::schema::open_active_database(&app)?;
+        if conn.database_name() != database {
+            return Err("插件工作区已失效".into());
+        }
+        entity_target(&conn, id)
+    })
 }
 
 #[tauri::command]
@@ -1095,6 +1208,181 @@ mod tests {
                 {"status":"missing"},
                 {"status":"missing"}
             ])
+        );
+    }
+}
+
+#[cfg(test)]
+mod plugin_entity_tests {
+    use super::*;
+    const ZONE: CalendarTimeZone = CalendarTimeZone(chrono_tz::Asia::Shanghai);
+    fn database() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        super::super::migrator::ensure_main_schema(&conn).unwrap();
+        conn.execute("INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES(1,10,10,'[]',0,1)",[]).unwrap();
+        conn.execute("INSERT INTO plugin_entities(id,plugin_id,kind,key,title,content_id,create_time,update_time,orphaned_time) VALUES(1,'owner','note','one','插件实体',1,20,20,1)",[]).unwrap();
+        conn.execute("INSERT INTO plugin_entity_kinds(plugin_id,kind,label,icon,update_time) VALUES('owner','note','笔记','<svg></svg>',1)",[]).unwrap();
+        conn
+    }
+    fn reference() -> EntityRef {
+        EntityRef {
+            kind: "plugin-entity".into(),
+            id: "1".into(),
+        }
+    }
+
+    #[test]
+    fn plugin_target_keeps_orphan_metadata_and_body_identity_without_choosing_a_page() {
+        let conn = database();
+        let target = entity_target(&conn, 1).unwrap().unwrap();
+        assert_eq!(
+            serde_json::to_value(&target).unwrap(),
+            json!({"kind":"plugin-entity","id":1,"pluginId":"owner","entityKind":"note","createdAt":20,"contentId":1,"contentCreatedAt":10,"title":"插件实体","label":"笔记","icon":"<svg></svg>"})
+        );
+        assert!(entity_target(&conn, 999).unwrap().is_none());
+        assert!(entity_target(&conn, -1).unwrap().is_none());
+    }
+
+    #[test]
+    fn plugin_descriptions_require_ownership_or_identity_grant_even_with_readable_flag() {
+        let mut conn = database();
+        assert!(matches!(
+            access(
+                &conn,
+                "owner",
+                &reference(),
+                false,
+                ZONE,
+                &HolidayDays::new()
+            )
+            .unwrap(),
+            RefAccess::Allowed(_)
+        ));
+        assert!(matches!(
+            access(
+                &conn,
+                "other",
+                &reference(),
+                true,
+                ZONE,
+                &HolidayDays::new()
+            )
+            .unwrap(),
+            RefAccess::Denied
+        ));
+        grant(
+            &mut conn,
+            "other",
+            &[(reference(), "20".into())],
+            ZONE,
+            &HolidayDays::new(),
+        )
+        .unwrap();
+        assert!(matches!(
+            access(
+                &conn,
+                "other",
+                &reference(),
+                false,
+                ZONE,
+                &HolidayDays::new()
+            )
+            .unwrap(),
+            RefAccess::Allowed(_)
+        ));
+        conn.execute("UPDATE plugin_entities SET create_time=21 WHERE id=1", [])
+            .unwrap();
+        assert!(matches!(
+            access(
+                &conn,
+                "other",
+                &reference(),
+                true,
+                ZONE,
+                &HolidayDays::new()
+            )
+            .unwrap(),
+            RefAccess::Missing
+        ));
+        assert!(grant(
+            &mut conn,
+            "other",
+            &[(reference(), "20".into())],
+            ZONE,
+            &HolidayDays::new()
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn plugin_picker_uses_host_only_identity_and_resolve_keeps_owner_boundary() {
+        let mut conn = database();
+        let items = query_refs(
+            &conn,
+            "scope",
+            "caller",
+            "plugin-entity",
+            "实体",
+            None,
+            20,
+            ZONE,
+        )
+        .unwrap();
+        assert_eq!(
+            items["items"],
+            json!([{"ref":{"kind":"plugin-entity","id":"1"},"title":"插件实体","identity":"20"}])
+        );
+        let target = handle_refs(
+            &mut conn,
+            "caller",
+            &json!({"method":"resolve","ref":reference()}),
+            ZONE,
+            &HolidayDays::new(),
+        )
+        .unwrap();
+        assert_eq!(target["pluginId"], "owner");
+        assert!(target.get("page").is_none());
+        assert!(target.get("meta").is_none());
+        assert!(target.get("content").is_none());
+    }
+
+    #[test]
+    fn presentation_rechecks_owner_and_selected_identity_without_body_or_meta() {
+        let mut conn = database();
+        let request = json!({"method":"presentation","ref":reference()});
+        assert!(requested_holiday_ranges(&conn, "other", &request, ZONE)
+            .unwrap()
+            .is_empty());
+        assert_eq!(
+            handle_refs(&mut conn, "other", &request, ZONE, &HolidayDays::new()).unwrap(),
+            Value::Null
+        );
+        assert_eq!(
+            presentation(&conn, "owner", &reference()).unwrap(),
+            json!({"label":"笔记","icon":"<svg></svg>"})
+        );
+        grant(
+            &mut conn,
+            "other",
+            &[(reference(), "20".into())],
+            ZONE,
+            &HolidayDays::new(),
+        )
+        .unwrap();
+        assert_eq!(
+            presentation(&conn, "other", &reference()).unwrap(),
+            json!({"label":"笔记","icon":"<svg></svg>"})
+        );
+        conn.execute("UPDATE plugin_entities SET create_time=21 WHERE id=1", [])
+            .unwrap();
+        assert_eq!(
+            presentation(&conn, "other", &reference()).unwrap(),
+            Value::Null
+        );
+        conn.execute("DELETE FROM plugin_ref_grants", []).unwrap();
+        assert_eq!(
+            presentation(&conn, "other", &reference()).unwrap(),
+            Value::Null
         );
     }
 }

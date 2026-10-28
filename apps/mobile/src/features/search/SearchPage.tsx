@@ -4,10 +4,13 @@ import { useSearchHistory } from "../../hooks/useSearchHistory";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import type { UnifiedSearchResponse, UnifiedSearchResult } from "../../types";
 import { SearchField } from "../../components/SearchField";
+import { useMobileEntityHostRevision } from "../../services/pluginEntities";
+import { EntityKindIcon } from "../context/EntityKindIcon";
+import { Puzzle } from "lucide-react";
 
 type SearchPageProps = {
   onClose: () => void;
-  onSearch: (query: string) => Promise<UnifiedSearchResponse>;
+  onSearch: (query: string, page?: number) => Promise<UnifiedSearchResponse>;
   onOpenResult: (result: UnifiedSearchResult) => void;
   isSearching: boolean;
 };
@@ -32,6 +35,7 @@ const RESULT_TYPE_LABEL: Record<string, string> = {
   "project-item": "项目文档",
   "diary-daily": "日记",
   flashcard: "闪卡",
+  "plugin-entity": "插件内容",
 };
 
 function SearchResultItem({ item, onClick }: { item: UnifiedSearchResult; onClick: () => void }) {
@@ -42,8 +46,11 @@ function SearchResultItem({ item, onClick }: { item: UnifiedSearchResult; onClic
       className="card w-full p-4 text-left transition-transform duration-200 active:scale-[0.97]"
     >
       <div className="flex items-center gap-2">
-        <span className="bg-accent-soft text-accent inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold">
-          {RESULT_TYPE_LABEL[item.type] ?? item.type}
+        <span className="bg-accent-soft text-accent inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold">
+          {item.type === "plugin-entity" && (
+            <EntityKindIcon svg={item.pluginEntity?.icon} fallback={Puzzle} size={13} />
+          )}
+          {item.pluginEntity?.label || RESULT_TYPE_LABEL[item.type] || item.type}
         </span>
         {item.containerTitle && item.type !== "diary-daily" ? (
           <span className="text-ink-3 max-w-[45%] truncate text-[11.5px]">
@@ -68,6 +75,9 @@ export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: Sea
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<UnifiedSearchResponse | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [moreError, setMoreError] = useState(false);
+  const hostRevision = useMobileEntityHostRevision();
   const inputRef = useRef<HTMLInputElement>(null);
   // 请求序号：快速连续搜索时只保留最后一次的结果，防止乱序覆盖
   const searchSeqRef = useRef(0);
@@ -78,6 +88,13 @@ export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: Sea
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+  useEffect(() => {
+    searchSeqRef.current++;
+    setResults(null);
+    setHasSearched(false);
+    setLoadingMore(false);
+    setMoreError(false);
+  }, [hostRevision]);
 
   const handleSearch = async (searchQuery: string) => {
     const trimmed = searchQuery.trim();
@@ -85,10 +102,40 @@ export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: Sea
 
     const seq = ++searchSeqRef.current;
     setHasSearched(true);
+    setLoadingMore(false);
+    setMoreError(false);
     addHistory(trimmed);
     const searchResults = await onSearch(trimmed);
     if (seq !== searchSeqRef.current) return;
     setResults(searchResults);
+  };
+
+  const loadMore = async () => {
+    if (!results || loadingMore) return;
+    const previous = results;
+    const seq = searchSeqRef.current;
+    setLoadingMore(true);
+    setMoreError(false);
+    try {
+      const next = await onSearch(previous.query, previous.page + 1);
+      if (seq !== searchSeqRef.current) return;
+      if (next.page !== previous.page + 1 || next.query !== previous.query) {
+        setMoreError(true);
+        return;
+      }
+      const seen = new Set(previous.items.map(item => `${item.type}:${item.id}`));
+      setResults({
+        ...next,
+        items: [
+          ...previous.items,
+          ...next.items.filter(item => !seen.has(`${item.type}:${item.id}`)),
+        ],
+      });
+    } catch {
+      if (seq === searchSeqRef.current) setMoreError(true);
+    } finally {
+      if (seq === searchSeqRef.current) setLoadingMore(false);
+    }
   };
 
   const handleHistoryClick = (historyQuery: string) => {
@@ -164,7 +211,7 @@ export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: Sea
 
           {hasSearched && (
             <div className="p-4">
-              {isSearching ? (
+              {isSearching && !loadingMore ? (
                 <div className="py-12 text-center">
                   <div className="border-accent mx-auto h-7 w-7 animate-spin rounded-full border-2 border-t-transparent" />
                   <p className="text-ink-3 mt-3 text-sm">搜索中...</p>
@@ -181,6 +228,16 @@ export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: Sea
                       onClick={() => onOpenResult(item)}
                     />
                   ))}
+                  {results.page * results.pageSize < results.total && (
+                    <button
+                      type="button"
+                      disabled={loadingMore}
+                      onClick={() => void loadMore()}
+                      className="text-accent w-full rounded-xl py-3 text-sm disabled:opacity-50"
+                    >
+                      {loadingMore ? "加载中…" : moreError ? "加载失败，点按重试" : "加载更多"}
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="py-12 text-center">

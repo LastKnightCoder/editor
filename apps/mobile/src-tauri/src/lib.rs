@@ -121,6 +121,7 @@ pub fn run() {
             database::plugin_data_read,
             database::plugin_app_query,
             database::plugin_app_refs,
+            database::plugin_entity_target,
             database::plugin_own_read,
             database::plugin_own_write,
             database::plugin_tasks_read,

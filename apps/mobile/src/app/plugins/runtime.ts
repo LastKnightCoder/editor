@@ -13,6 +13,7 @@ import type {
   PluginPageDefinition,
   PluginNavigationEntry,
   PluginSettingsDefinition,
+  PluginOwnEntityKind,
 } from "@tau/plugins";
 import type { Navigator } from "../../router/navigatorTypes";
 import { verifyMobilePlugin, type MobilePluginPackage } from "../../services/plugins";
@@ -23,6 +24,10 @@ export interface MobilePluginPage {
   generation: number;
 }
 export class MobilePluginRuntime {
+  readonly entityKinds = new Map<
+    string,
+    { context: PluginContext; definition: PluginOwnEntityKind }
+  >();
   own?: import("./own-data").MobileOwnData;
   app?: import("./app").MobileAppAdapter;
   events?: Awaited<ReturnType<typeof import("./events").createMobileEvents>>;
@@ -77,7 +82,7 @@ export class MobilePluginRuntime {
         update: (...args) => this.ownAdapter().entities.update(...args),
         delete: (...args) => this.ownAdapter().entities.delete(...args),
         backlinks: (...args) => this.ownAdapter().entities.backlinks(...args),
-        registerKind: (...args) => this.ownAdapter().entities.registerKind(...args),
+        registerKind: (context, definition) => this.registerEntityKind(context, definition),
       },
       records: {
         insert: (...args) => this.ownAdapter().records.insert(...args),
@@ -256,6 +261,58 @@ export class MobilePluginRuntime {
     if (!this.own) throw new Error("插件自有数据尚未就绪");
     return this.own;
   }
+  private registerEntityKind(context: PluginContext, definition: PluginOwnEntityKind) {
+    const key = JSON.stringify([context.pluginId, definition.kind]);
+    const registration = { context, definition };
+    const persisted = this.ownAdapter().entities.registerKind(context, definition);
+    this.entityKinds.set(key, registration);
+    this.publish();
+    return {
+      dispose: () => {
+        persisted.dispose();
+        if (this.entityKinds.get(key) === registration) {
+          this.entityKinds.delete(key);
+          this.publish();
+        }
+      },
+    };
+  }
+  async openEntityTarget(target: import("./app-types").MobilePluginEntityTarget, at?: string) {
+    const registration = this.entityKinds.get(JSON.stringify([target.pluginId, target.entityKind]));
+    if (!registration || !this.active(registration.context))
+      throw new Error("请先安装并启用此内容所属的插件");
+    const live = () => {
+      if (
+        this.disposed ||
+        this.entityKinds.get(JSON.stringify([target.pluginId, target.entityKind])) !==
+          registration ||
+        !this.active(registration.context)
+      )
+        throw new Error("插件内容打开入口已失效");
+    };
+    const entity = await this.ownAdapter().entities.get(registration.context, String(target.id));
+    live();
+    if (
+      !entity ||
+      entity.createdAt !== target.createdAt ||
+      entity.kind !== target.entityKind ||
+      entity.contentRef !== `${target.contentId}:${target.contentCreatedAt}`
+    )
+      throw new Error("插件内容已删除或身份已变化");
+    const pageId = `${target.pluginId}:${registration.definition.open.page}`;
+    const page = this.pages.get(pageId);
+    if (!page || !this.active(page.context)) throw new Error("插件内容页面尚未注册或已停用");
+    const params = normalizePageParams(registration.definition.open.params?.(entity) ?? {});
+    const instance =
+      page.definition.match === "params"
+        ? (page.definition.getId?.(params) ?? JSON.stringify(params))
+        : "single";
+    if (typeof instance !== "string") throw new Error("页面身份必须是字符串");
+    const opened = normalizePageParams(at ? { ...params, at } : params);
+    live();
+    if (this.pages.get(pageId) !== page) throw new Error("插件内容页面已失效");
+    this.navigator.push("pluginPage", { id: pageId, instance, params: JSON.stringify(opened) });
+  }
   private appAdapter() {
     if (!this.app) throw new Error("插件内容交互尚未就绪");
     return this.app.adapter;
@@ -379,6 +436,7 @@ export class MobilePluginRuntime {
       this.styles.forEach(style => style.remove());
       this.styles = [];
       this.pages.clear();
+      this.entityKinds.clear();
       this.entries.clear();
       this.settings.clear();
       this.pageStates.clear();

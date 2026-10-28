@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createNodeTreeDocument, type ContentCollaborationBinding } from "@tau/editor-collab";
 import { NodeTree, NODE_DOCUMENT_VERSION } from "@tau/collaboration";
-import type { EditorDocument } from "@tau/editor";
+import type { EditorDocument, EditorKit } from "@tau/editor";
 import { getMobileContentKit } from "../../../services/editorKit";
 import { mobileContentPlugins } from "../../../app/plugins/content";
 import { ASSET_PREFIX } from "@tau/collaboration/src/protocol";
@@ -20,7 +20,26 @@ function describe(error: unknown) {
   return "协作文档加载失败";
 }
 
-export default function useCollaborationDocument(documentId?: string) {
+export type CollaborationDocumentOptions = {
+  guard?: () => void;
+  canWrite?: () => boolean;
+  kit?: EditorKit;
+};
+export default function useCollaborationDocument(
+  documentId?: string,
+  options: CollaborationDocumentOptions = {}
+) {
+  const latest = useRef(options);
+  latest.current = options;
+  const assertActive = () => latest.current.guard?.();
+  const canWrite = () => {
+    try {
+      assertActive();
+      return latest.current.canWrite?.() !== false;
+    } catch {
+      return false;
+    }
+  };
   const [error, setError] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
   const [boundContentId, setBoundContentId] = useState<number>();
@@ -44,9 +63,13 @@ export default function useCollaborationDocument(documentId?: string) {
       return;
     }
     let disposed = false;
-    void tauri
-      .collabListBindings()
+    void Promise.resolve()
+      .then(() => {
+        assertActive();
+        return tauri.collabListBindings();
+      })
       .then(bindings => {
+        assertActive();
         const match = bindings.find(item => item.documentId === documentId);
         if (!disposed && match) setBoundContentId(match.contentId);
       })
@@ -65,8 +88,12 @@ export default function useCollaborationDocument(documentId?: string) {
     let disposed = false;
     setLoading(true);
     setError(undefined);
-    void collaborationManager
-      .openDocument(documentId)
+    void Promise.resolve()
+      .then(() => {
+        assertActive();
+        return collaborationManager.openDocument(documentId);
+      })
+      .then(() => assertActive())
       .catch(failure => {
         if (!disposed) setError(describe(failure));
       })
@@ -89,6 +116,8 @@ export default function useCollaborationDocument(documentId?: string) {
       awareness: runtime.awareness,
       origin: {},
       preserveInputDraft: (nodeId, field, draft) => {
+        assertActive();
+        if (!canWrite()) throw new Error("当前正文不可编辑");
         void collaborationManager
           .preserveInputDraft(runtime.info.id, {
             viewId,
@@ -100,13 +129,20 @@ export default function useCollaborationDocument(documentId?: string) {
           .catch(failure => setError(describe(failure)));
       },
       nodeViews: {
-        read: nodeId => runtime.nodeViews[nodeId] ?? {},
+        read: nodeId => {
+          assertActive();
+          return runtime.nodeViews[nodeId] ?? {};
+        },
         write: async (nodeId, patch) => {
+          assertActive();
+          if (!canWrite()) throw new Error("当前正文不可编辑");
           const tree = new NodeTree(runtime.doc);
           try {
             const owner = tree.contract(nodeId)?.owner;
             if (!owner || tree.isDeleted(nodeId)) throw new Error("节点已失效");
             const value = await tauri.collabUpdateNodeView(runtime.info.id, nodeId, owner, patch);
+            assertActive();
+            if (!canWrite()) throw new Error("当前正文不可编辑");
             runtime.nodeViews[nodeId] = value;
             return value;
           } finally {
@@ -119,6 +155,7 @@ export default function useCollaborationDocument(documentId?: string) {
         throw new Error("COLLAB_ASSET_UNSUPPORTED: 移动端暂不支持上传协作附件");
       },
       resolveResource: async url => {
+        assertActive();
         if (url.startsWith(ASSET_PREFIX)) {
           throw new Error("COLLAB_ASSET_UNSUPPORTED: 移动端暂不支持协作附件");
         }
@@ -149,12 +186,14 @@ export default function useCollaborationDocument(documentId?: string) {
     if (!binding || !tree || !runtime) return;
     let cancelled = false;
     void mobileContentPlugins
-      .prepareEditorContracts(getMobileContentKit().extensions)
+      .prepareEditorContracts((options.kit ?? getMobileContentKit()).extensions)
       .then(async catalog => {
         if (cancelled) return;
-        if (!runtime.info.frozen && runtime.info.status === "active")
+        assertActive();
+        if (canWrite() && !runtime.info.frozen && runtime.info.status === "active")
           await tree.installContracts(catalog.additionalContracts(tree.contracts.toJSON()), null);
         if (cancelled) return;
+        assertActive();
         setPrepared({
           binding,
           revision: pluginRevision,
@@ -162,8 +201,9 @@ export default function useCollaborationDocument(documentId?: string) {
             collaboration: binding,
             versions: catalog,
             normalizeOnConnect: false,
-            readonly: Boolean(runtime.info.frozen) || runtime.info.status !== "active",
-            canWrite: () => !runtime.info.frozen && runtime.info.status === "active",
+            readonly:
+              !canWrite() || Boolean(runtime.info.frozen) || runtime.info.status !== "active",
+            canWrite: () => canWrite() && !runtime.info.frozen && runtime.info.status === "active",
           }),
         });
       })
@@ -173,7 +213,7 @@ export default function useCollaborationDocument(documentId?: string) {
     return () => {
       cancelled = true;
     };
-  }, [binding, tree, runtime, pluginRevision, session?.frozen, session?.status]);
+  }, [binding, tree, runtime, pluginRevision, session?.frozen, session?.status, options.kit]);
   const editorDocument =
     prepared && prepared.binding === binding && prepared.revision === pluginRevision
       ? prepared.document
@@ -187,7 +227,12 @@ export default function useCollaborationDocument(documentId?: string) {
     error: binding && !tree ? "CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持" : error,
     /** 该房间对应的本地内容 id（由本机发起时才存在），投影回写的目标 */
     boundContentId,
-    frozen: Boolean(session?.frozen) || Boolean(session?.leaving) || !tree || !editorDocument,
+    frozen:
+      !canWrite() ||
+      Boolean(session?.frozen) ||
+      Boolean(session?.leaving) ||
+      !tree ||
+      !editorDocument,
     /** 曾就绪的会话已消失：共享被结束/退出/撤权（正常业务路径，不应提示重试） */
     ended,
     /** 会话建立失败或已有会话断线后的重试 */

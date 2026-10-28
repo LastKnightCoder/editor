@@ -15,6 +15,7 @@ import {
   CONTENT_LINK_TYPE,
   readContentLinkTarget,
   useContentLinkDetail,
+  useContentLinkEntity,
   useIsUnsharedContentLink,
   type ContentLinkElement,
 } from "./contentLinkModel";
@@ -44,7 +45,12 @@ function ContentLink(props: {
   const unshared = useIsUnsharedContentLink();
   // 只读缓存：打开过的预览判定内容已删除后，这里随之显示失效
   const cached = useContentLinkDetail(target.contentId, false);
-  const broken = !unshared && (target.contentId <= 0 || cached.data === null);
+  const entity = useContentLinkEntity(target, false);
+  const broken =
+    !unshared &&
+    (target.contentId <= 0 ||
+      cached.data === null ||
+      (target.contentType === "plugin-entity" && entity.data === null));
 
   const [previewOpen, setPreviewOpen] = useState(false);
   // 面板只在首次打开后挂载，关闭时保留以播完退场动画

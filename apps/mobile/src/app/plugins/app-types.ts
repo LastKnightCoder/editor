@@ -8,6 +8,7 @@ export const MOBILE_ENTITY_KINDS = [
   "document",
   "todo",
   "event",
+  "plugin-entity",
 ] as const;
 export type MobileEntityKind = (typeof MOBILE_ENTITY_KINDS)[number];
 
@@ -35,7 +36,20 @@ export interface MobileEntityPickRequest {
 export type MobileEntityOpenTarget =
   | { kind: "card" | "article" | "document" | "project" | "event"; id: number }
   | { kind: "todo"; id: number; groupId: number }
-  | { kind: "document-task"; contentId: number; taskId: string };
+  | { kind: "document-task"; contentId: number; taskId: string }
+  | MobilePluginEntityTarget;
+export interface MobilePluginEntityTarget {
+  kind: "plugin-entity";
+  id: number;
+  pluginId: string;
+  entityKind: string;
+  createdAt: number;
+  contentId: number;
+  contentCreatedAt: number;
+  title: string;
+  label: string;
+  icon: string;
+}
 export type MobileEntityOpenOptions = Parameters<AppAdapter["open"]>[2];
 
 export function mobileEntityKind(ref: Pick<PluginEntityRef, "kind">): MobileEntityKind {
