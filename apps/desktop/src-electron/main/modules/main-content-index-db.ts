@@ -7,6 +7,7 @@ import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import INDEX_SCHEMA_SQL from "@tau/db-schema/schema/index.sql?raw";
 import INDEX_VEC_TEMPLATE_SQL from "@tau/db-schema/schema/index/20_vec_template.sql?raw";
 import { ensureIndexDbDir, getIndexDbDir, normalizeMainDbBase } from "./utils/index-db-storage";
+import { resolveEmbeddingConfig } from "../utils/embedding-config";
 import {
   KNOWLEDGE_MAP_COMPUTED_AT_KEY,
   KNOWLEDGE_MAP_FINGERPRINT_KEY,
@@ -133,42 +134,18 @@ class MainContentIndexDBManager {
         );
         return DEFAULT_VEC_DIMENSION;
       }
-      const setting = JSON.parse(raw) as {
-        embeddingProvider?: {
-          currentConfigId?: string;
-          configs?: Array<{
-            id?: string;
-            currentModel?: string;
-            models?: Array<{ name?: string; contextLength?: number }>;
-          }>;
-        };
-      };
-      const provider = setting.embeddingProvider;
-      if (!provider?.currentConfigId || !provider.configs?.length) {
+      const setting = JSON.parse(raw) as Record<string, unknown>;
+      const dimensions = resolveEmbeddingConfig(setting)?.dimensions;
+      if (!dimensions || dimensions <= 0) {
         log.info(
           `[MainContentIndexDB] resolveVecDimensions fallback default: reason=config_missing, elapsedMs=${Date.now() - startedAt}`
         );
         return DEFAULT_VEC_DIMENSION;
       }
-      const currentConfig = provider.configs.find(config => config.id === provider.currentConfigId);
-      if (!currentConfig?.currentModel || !currentConfig.models?.length) {
-        log.info(
-          `[MainContentIndexDB] resolveVecDimensions fallback default: reason=model_missing, elapsedMs=${Date.now() - startedAt}`
-        );
-        return DEFAULT_VEC_DIMENSION;
-      }
-      const model = currentConfig.models.find(item => item.name === currentConfig.currentModel);
-      const dimension = Number(model?.contextLength ?? 0);
-      if (!Number.isFinite(dimension) || dimension <= 0) {
-        log.info(
-          `[MainContentIndexDB] resolveVecDimensions fallback default: reason=dimension_invalid, elapsedMs=${Date.now() - startedAt}`
-        );
-        return DEFAULT_VEC_DIMENSION;
-      }
       log.info(
-        `[MainContentIndexDB] resolveVecDimensions success: dimensions=${Math.floor(dimension)}, elapsedMs=${Date.now() - startedAt}`
+        `[MainContentIndexDB] resolveVecDimensions success: dimensions=${dimensions}, elapsedMs=${Date.now() - startedAt}`
       );
-      return Math.floor(dimension);
+      return dimensions;
     } catch (error) {
       log.warn(
         "[MainContentIndexDB] resolveVecDimensionsFromSetting failed, fallback default:",
@@ -290,7 +267,8 @@ class MainContentIndexDBManager {
 
   private getMeta(db: Database.Database, key: string): string | null {
     const row = db.prepare("SELECT value FROM index_meta WHERE key = ?").get(key) as
-      { value?: string } | undefined;
+      | { value?: string }
+      | undefined;
     return row?.value || null;
   }
 

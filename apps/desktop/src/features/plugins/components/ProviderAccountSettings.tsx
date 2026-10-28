@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { produce } from "immer";
-import { Clapperboard, Mic, Pencil, Plus, Send, type LucideIcon } from "lucide-react";
+import { Clapperboard, Layers, Mic, Pencil, Plus, Send, type LucideIcon } from "lucide-react";
 import { providerFormSummary, type JsonValue, type PluginSettingsProps } from "@tau/plugins";
 import { copyJson } from "@tau/plugins/host";
 import {
@@ -19,6 +19,7 @@ import useSettingStore, { EPublishProvider } from "@/stores/useSettingStore";
 import { savePluginTTSConfig } from "@/commands/plugin-tts";
 import { savePluginImagesConfig } from "@/commands/plugin-images";
 import { savePluginVideoConfig } from "@/commands/plugin-video";
+import { savePluginEmbeddingConfig } from "@/commands/plugin-embeddings";
 import { savePublishPluginConfig, checkPublishConnection } from "@/commands/publish";
 import { updateSpeechInput } from "@/services/speechInput";
 import { TTSPluginCloneSection } from "@/features/settings/sections/TTSPluginCloneSection";
@@ -396,7 +397,7 @@ function AccountForm({
   );
 }
 
-type SingleTarget = "asr" | "video" | "publish";
+type SingleTarget = "asr" | "video" | "publish" | "embeddings";
 const CAPABILITIES: Record<SingleTarget, { icon: LucideIcon; title: string; description: string }> =
   {
     asr: {
@@ -414,6 +415,11 @@ const CAPABILITIES: Record<SingleTarget, { icon: LucideIcon; title: string; desc
       title: "博客发布",
       description: "在发布页的站点设置中选择发布目标",
     },
+    embeddings: {
+      icon: Layers,
+      title: "嵌入模型",
+      description: "在 设置 › 嵌入模型 中设为当前后用于知识库检索",
+    },
   };
 
 function SingleAccount({ section }: { section: RegisteredPluginSettings }) {
@@ -426,7 +432,9 @@ function SingleAccount({ section }: { section: RegisteredPluginSettings }) {
       ? setting.onlineVideo.configurations[pluginId]
       : target === "publish"
         ? setting.publish.plugin.configurations[pluginId]
-        : (account?.config ?? {})) as JsonValue) ?? {}
+        : target === "embeddings"
+          ? setting.embedding.plugins[pluginId]?.config
+          : (account?.config ?? {})) as JsonValue) ?? {}
   );
   const [modelId, setModelId] = useState(
     account?.modelId || section.definition.models?.[0]?.id || ""
@@ -435,9 +443,12 @@ function SingleAccount({ section }: { section: RegisteredPluginSettings }) {
   const using =
     target === "asr"
       ? setting.speechInput?.active === "plugin" && setting.speechInput.plugin.id === pluginId
-      : target === "publish" &&
-        setting.publish.active === EPublishProvider.Plugin &&
-        setting.publish.plugin.id === pluginId;
+      : target === "embeddings"
+        ? setting.embedding.active?.provider === "plugin" &&
+          setting.embedding.active.pluginId === pluginId
+        : target === "publish" &&
+          setting.publish.active === EPublishProvider.Plugin &&
+          setting.publish.plugin.id === pluginId;
   const header = (
     <SettingsCardHeader
       icon={<SettingsCardIcon icon={capability.icon} />}
@@ -456,9 +467,11 @@ function SingleAccount({ section }: { section: RegisteredPluginSettings }) {
         config,
       });
     if (target === "video") await savePluginVideoConfig(pluginId, config);
+    else if (target === "embeddings") await savePluginEmbeddingConfig(pluginId, config);
     else await savePublishPluginConfig(pluginId, config);
     update(draft => {
       if (target === "video") draft.onlineVideo.configurations[pluginId] = config;
+      else if (target === "embeddings") draft.embedding.plugins[pluginId] = { config };
       else draft.publish.plugin.configurations[pluginId] = config;
     });
   };

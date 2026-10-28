@@ -129,9 +129,10 @@ fn default_setting_value() -> Value {
         "downloadSource": "modelscope",
         "device": "cuda"
       },
-      "embeddingProvider": {
-        "currentConfigId": "",
-        "configs": []
+      "embedding": {
+        "active": null,
+        "local": { "source": "modelscope", "devicePolicy": "auto", "batchSize": 8 },
+        "plugins": {}
       },
       "integration": {
         "weread": {
@@ -304,6 +305,10 @@ fn normalize_database_section(setting: &mut Value) {
 
 pub fn normalize_setting(raw: Value) -> Value {
     let mut setting = if raw.is_object() { raw } else { json!({}) };
+    if let Some(object) = setting.as_object_mut() {
+        // 旧 embeddingProvider 已由桌面端升级为 embedding，读到旧键直接丢弃
+        object.remove("embeddingProvider");
+    }
     merge_defaults(&mut setting, &default_setting_value());
     normalize_database_section(&mut setting);
     setting
@@ -611,6 +616,25 @@ mod tests {
         let setting = normalize_setting(json!({}));
         assert_eq!(setting["imageBed"]["active"], json!("local"));
         assert_eq!(setting["imageBed"]["enableCompression"], json!(true));
+    }
+
+    #[test]
+    fn embedding_defaults_and_legacy_key_removal() {
+        let setting = normalize_setting(json!({}));
+        assert_eq!(setting["embedding"]["active"], Value::Null);
+        assert_eq!(
+            setting["embedding"]["local"],
+            json!({ "source": "modelscope", "devicePolicy": "auto", "batchSize": 8 })
+        );
+        assert_eq!(setting["embedding"]["plugins"], json!({}));
+        assert!(setting.get("embeddingProvider").is_none());
+
+        let legacy = normalize_setting(json!({
+            "embeddingProvider": { "currentConfigId": "embedding-default-local", "configs": [] }
+        }));
+        assert!(legacy.get("embeddingProvider").is_none());
+        assert_eq!(legacy["embedding"]["active"], Value::Null);
+        assert!(validate_setting_shape(&legacy).is_ok());
     }
 
     #[test]

@@ -48,6 +48,10 @@ const mockContext = vi.hoisted(() => {
     mainContentQueueMock: {
       abortCurrentRun: vi.fn(),
       isRunning: vi.fn(() => false),
+      getIndexStats: vi.fn(async () => null),
+      getCurrentProgress: vi.fn(() => null),
+      getLastRun: vi.fn(() => null),
+      onProgress: vi.fn(),
       reconcileByPolicy: vi.fn(async () => ({
         stale: false,
         queued: 0,
@@ -74,6 +78,10 @@ const mockContext = vi.hoisted(() => {
         previousGeneration: 0,
         currentGeneration: 1,
       })),
+    },
+    pluginEmbeddingsRelayMock: {
+      isReady: vi.fn(() => true),
+      onProvidersChanged: vi.fn(() => () => {}),
     },
     resolveEmbeddingConfig: vi.fn(),
   };
@@ -111,6 +119,10 @@ vi.mock("../../utils/embedding-config", () => ({
   resolveEmbeddingConfig: mockContext.resolveEmbeddingConfig,
 }));
 
+vi.mock("../../services/plugin-embeddings", () => ({
+  pluginEmbeddingsRelay: mockContext.pluginEmbeddingsRelayMock,
+}));
+
 import embeddingIndexOrchestrator, {
   IDLE_INDEX_DELAY_MS,
   isMainContentWriteEvent,
@@ -130,8 +142,7 @@ describe("EmbeddingIndexOrchestrator(video-note)", () => {
     mockContext.databaseModuleMock.getIndexRebuildState.mockReturnValue("ready");
     mockContext.resolveEmbeddingConfig.mockReset();
     mockContext.resolveEmbeddingConfig.mockReturnValue({
-      configId: "embedding-config-a",
-      providerType: "local_python",
+      provider: "local",
       modelName: "model-a",
       dimensions: 1024,
       distance: 0.6,
@@ -155,10 +166,11 @@ describe("EmbeddingIndexOrchestrator(video-note)", () => {
   });
 
   it("远端升级部分失败后保留进度，下次启动只补失败项", async () => {
-    const fingerprint = mainEmbeddingFingerprint("fp-remote");
+    const fingerprint = mainEmbeddingFingerprint("fp-plugin");
     mockContext.resolveEmbeddingConfig.mockReturnValue({
-      providerType: "remote_openai",
-      fingerprint: "fp-remote",
+      provider: "plugin",
+      pluginId: "test.embedding",
+      fingerprint: "fp-plugin",
       dimensions: 3,
       model: "remote",
     });
@@ -331,13 +343,13 @@ describe("EmbeddingIndexOrchestrator(video-note)", () => {
       );
     });
 
-    it("API 模型不自动补索引", async () => {
+    it("插件提供方不自动补索引", async () => {
       mockContext.resolveEmbeddingConfig.mockReturnValue({
-        configId: "remote",
-        providerType: "remote_openai",
+        provider: "plugin",
+        pluginId: "test.embedding",
         model: "text-embedding-3-small",
         dimensions: 1536,
-        fingerprint: "fp-remote",
+        fingerprint: "fp-plugin",
       });
       (embeddingIndexOrchestrator as any).scheduleIdleIndex("data.db");
       await flush();
@@ -353,6 +365,86 @@ describe("EmbeddingIndexOrchestrator(video-note)", () => {
 
       expect(mockContext.mainContentQueueMock.reconcileByPolicy).not.toHaveBeenCalled();
       expect(orchestrator.idleIndexTimer).not.toBeNull();
+    });
+  });
+});
+
+describe("EmbeddingIndexOrchestrator(插件提供方)", () => {
+  beforeEach(() => {
+    mockContext.metaStore.clear();
+    mockContext.mainContentQueueMock.reconcileByPolicy.mockClear();
+    mockContext.vibeLearningQueueMock.handleEmbeddingSwitchByPolicy.mockClear();
+    mockContext.videoNoteQueueMock.handleEmbeddingSwitchByPolicy.mockClear();
+    mockContext.mainContentQueueMock.isRunning.mockReturnValue(false);
+    mockContext.userSettingModuleMock.getSettingSnapshot.mockResolvedValue({});
+    mockContext.pluginEmbeddingsRelayMock.isReady.mockReset();
+    mockContext.pluginEmbeddingsRelayMock.isReady.mockReturnValue(false);
+    mockContext.resolveEmbeddingConfig.mockReset();
+    mockContext.resolveEmbeddingConfig.mockReturnValue({
+      provider: "plugin",
+      pluginId: "test.embedding",
+      model: "m",
+      dimensions: 3,
+      distance: 0.6,
+      fingerprint: "fp-plugin",
+    });
+  });
+
+  it("插件未就绪时 reconcile 跳过且不落指纹", async () => {
+    await (embeddingIndexOrchestrator as any).reconcileForCurrentDb(
+      "data.db",
+      {},
+      "startup_reconcile"
+    );
+
+    expect(mockContext.mainContentQueueMock.reconcileByPolicy).not.toHaveBeenCalled();
+    expect(mockContext.vibeLearningQueueMock.handleEmbeddingSwitchByPolicy).not.toHaveBeenCalled();
+    expect(mockContext.videoNoteQueueMock.handleEmbeddingSwitchByPolicy).not.toHaveBeenCalled();
+    expect(mockContext.metaStore.get("main_content_embedding_fingerprint")).toBeUndefined();
+  });
+
+  it("插件未就绪时手动索引被拒绝，就绪后可发起", async () => {
+    await expect(embeddingIndexOrchestrator.startManualIndex()).resolves.toEqual({
+      started: false,
+      error: "嵌入插件未就绪",
+    });
+    expect(mockContext.mainContentQueueMock.reconcileByPolicy).not.toHaveBeenCalled();
+
+    mockContext.pluginEmbeddingsRelayMock.isReady.mockReturnValue(true);
+    await expect(embeddingIndexOrchestrator.startManualIndex()).resolves.toEqual({ started: true });
+    await (embeddingIndexOrchestrator as any).reconcileChain;
+    expect(mockContext.mainContentQueueMock.reconcileByPolicy).toHaveBeenCalled();
+  });
+
+  it("provider 未就绪翻转为就绪时恢复 reconcile，重复通知不重复恢复", async () => {
+    const orchestrator = embeddingIndexOrchestrator as any;
+    await orchestrator.reconcileForCurrentDb("data.db", {}, "startup_reconcile");
+    expect(mockContext.mainContentQueueMock.reconcileByPolicy).not.toHaveBeenCalled();
+
+    mockContext.pluginEmbeddingsRelayMock.isReady.mockReturnValue(true);
+    // handleProvidersChanged 内部异步读取设置后再排队 reconcile，先等内部 promise 落定
+    orchestrator.handleProvidersChanged();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await orchestrator.reconcileChain;
+    expect(mockContext.mainContentQueueMock.reconcileByPolicy).toHaveBeenCalledTimes(1);
+
+    // 就绪状态未再翻转时，后续 providers 变化不触发恢复
+    orchestrator.handleProvidersChanged();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await orchestrator.reconcileChain;
+    expect(mockContext.mainContentQueueMock.reconcileByPolicy).toHaveBeenCalledTimes(1);
+  });
+
+  it("getIndexStatus 的 providerReady 按提供方类型取值", async () => {
+    mockContext.pluginEmbeddingsRelayMock.isReady.mockReturnValue(false);
+    await expect(embeddingIndexOrchestrator.getIndexStatus()).resolves.toMatchObject({
+      provider: "plugin",
+      providerReady: false,
+    });
+
+    mockContext.pluginEmbeddingsRelayMock.isReady.mockReturnValue(true);
+    await expect(embeddingIndexOrchestrator.getIndexStatus()).resolves.toMatchObject({
+      providerReady: true,
     });
   });
 });

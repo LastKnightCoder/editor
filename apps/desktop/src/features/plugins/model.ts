@@ -26,6 +26,7 @@ export const CONTRIBUTION_LABELS: Record<PluginContributionKind, string> = {
   asr: "语音识别",
   tts: "语音服务",
   images: "图片服务",
+  embeddings: "嵌入服务",
   video: "视频来源",
   publish: "博客发布",
   mcp: "MCP 服务",

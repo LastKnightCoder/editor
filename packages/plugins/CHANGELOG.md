@@ -1,5 +1,10 @@
 # 更新记录
 
+## 0.49.0
+
+- 新增 `context.embeddings` 嵌入提供方：`register({ id: context.pluginId, name, maxBatchSize?, create(config, modelId) })`，`create` 返回 `{ embed(texts, signal) }`（与输入等长、同序的向量数组）；`maxBatchSize` 为单次 embed 可接受的最大文本条数，宿主据此分批。
+- 提供方设置 target 新增 `"embeddings"`；models 可带 `label` 显示名与 `dimensions` 维度（仅作展示提示，宿主以 embed 实测维度为准）。
+
 ## 0.48.0
 
 - 提供方表单新增 `switch` 字段（取值 "true" / "false"，不参与必填校验）与分组 `link`（https 外部链接，如服务商控制台）。

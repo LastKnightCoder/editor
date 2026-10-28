@@ -27,6 +27,7 @@ describe("服务设置格式边界", () => {
     { ttsProviders: [{ providerType: "qwen" }] },
     { imageGeneration: { providers: [{ pluginId: "test.images", providerType: "openai" }] } },
     { ttsProviders: {} },
+    { embeddingProvider: { currentConfigId: "embedding-default-local", configs: [] } },
   ])("拒绝未支持的输入且不转换：%j", setting => {
     const before = structuredClone(setting);
     expect(() => assertCurrentProviderSettings(setting)).toThrow("SETTING_INVALID");

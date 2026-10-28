@@ -7,7 +7,7 @@ import {
 } from "@tau/editor/extensions/media/types";
 
 import type { TTSProviderSetting, TTSUsageConfig } from "@/types/tts";
-import type { EmbeddingProviderType } from "@/types/embedding";
+import type { EmbeddingSetting } from "@/types/embedding";
 import type { IPublishFaviconConfig } from "@/types/publish";
 import type { ImageGenerationStoreShape } from "@/types/imageGeneration";
 
@@ -76,6 +76,8 @@ export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting):
   merge(mergedSetting, setting);
   for (const key of ["github", "s3"])
     delete (mergedSetting.publish as unknown as Record<string, unknown>)[key];
+  // 旧缓存可能带已退役的 embeddingProvider 键，残留会在回传主进程时被写入边界拒绝
+  delete (mergedSetting as unknown as Record<string, unknown>).embeddingProvider;
   if (!["local", "plugin"].includes(mergedSetting.publish.active))
     mergedSetting.publish.active = EPublishProvider.Local;
   if (imageGeneration) {
@@ -170,30 +172,8 @@ export interface ISetting {
     /** AI 洞见：在详情页点「AI 洞见」时对这一篇分析一次 */
     contentInsights: LLMUsageConfigV2 | null;
   };
-  embeddingProvider: {
-    currentConfigId: string;
-    configs: Array<{
-      id: string;
-      name: string;
-      providerType?: EmbeddingProviderType;
-      source?: "modelscope" | "huggingface";
-      apiKey: string;
-      baseUrl: string;
-      localModelDir?: string;
-      batchSize?: number;
-      devicePolicy?: "auto" | "cpu" | "cuda";
-      currentModel: string;
-      models: Array<{
-        name: string;
-        description: string;
-        contextLength: number;
-        features: {
-          multimodal: boolean;
-        };
-        distance: number;
-      }>;
-    }>;
-  };
+  /** 嵌入模型（提供方模型）：active 为当前生效模型，未启用时为 null */
+  embedding: EmbeddingSetting;
   /** 在线视频提供方插件配置，键为插件 ID，结构由插件定义。 */
   onlineVideo: {
     configurations: Record<string, unknown>;
@@ -415,9 +395,14 @@ const initialState: IState = {
       contentMetadata: null,
       contentInsights: null,
     },
-    embeddingProvider: {
-      currentConfigId: "",
-      configs: [],
+    embedding: {
+      active: null,
+      local: {
+        source: "modelscope",
+        devicePolicy: "auto",
+        batchSize: 8,
+      },
+      plugins: {},
     },
     onlineVideo: {
       configurations: {},

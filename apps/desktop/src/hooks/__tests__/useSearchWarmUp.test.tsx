@@ -9,14 +9,12 @@ import useSettingStore from "@/stores/useSettingStore";
 import { searchContent } from "@/utils/search";
 
 const modelInfo = {
-  configId: "local-python",
-  providerType: "local_python" as const,
+  provider: "local" as const,
   model: "bge-m3",
-  distance: 0.4,
+  distance: 0.6,
   dimensions: 1024,
   batchSize: 8,
   devicePolicy: "cpu" as const,
-  localModelDir: "/tmp/embedding-models",
 };
 
 vi.mock("@/hooks/useEmbeddingConfig", () => ({

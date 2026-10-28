@@ -1,5 +1,5 @@
 import { EventEmitter } from "events";
-import { ipcMain, BrowserWindow, app } from "electron";
+import { ipcMain, BrowserWindow } from "electron";
 import { promises as fs } from "fs";
 import { basename, join, dirname, extname } from "node:path";
 import { createWriteStream } from "node:fs";
@@ -9,7 +9,6 @@ import { spawn } from "node:child_process";
 import os from "node:os";
 import log from "electron-log";
 import fetch from "node-fetch";
-import OpenAI from "openai";
 import { rgPath } from "@vscode/ripgrep";
 import { Module } from "../types/module";
 import { toUnpackedAsarPath } from "../utils/asarPath";
@@ -33,7 +32,7 @@ import {
   type VLSearchResult,
 } from "@/types/vibe-learning";
 import { onlineVideoRef } from "@/types/online-video";
-import type { EmbeddingProviderType } from "@/types/embedding";
+import type { EmbeddingProviderKind } from "@/types/embedding";
 import ContentTable from "./tables/content";
 import { getMarkdownText } from "../services/content-conversion";
 import { buildMaterialResourceMarkdown } from "./vl-material-resource";
@@ -42,8 +41,8 @@ import {
   TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT,
   buildTranscriptionOptimizationUserPrompt,
 } from "@/constants/prompts/transcription-optimization";
-import { DEFAULT_LOCAL_EMBEDDING_DISTANCE, LOCAL_EMBEDDING_CONFIG_ID } from "@/constants/embedding";
-import localInference from "./local-inference";
+import embeddingService, { type EmbeddingTarget } from "./embedding-service";
+import { resolveEmbeddingConfig, type ResolvedEmbeddingConfig } from "../utils/embedding-config";
 import { smartChunk, smartChunkWithRanges } from "../utils/smart-chunk";
 import { runSearchPipeline } from "./search-core/pipeline";
 import { createVibeLearningAdapter } from "./search-core/vibe-learning-adapter";
@@ -70,41 +69,16 @@ const GREP_PREVIEW_RADIUS = 80;
 // 必须换成 app.asar.unpacked 中的实体文件，否则 grep 会报 spawn ENOENT
 const ripgrepBinaryPath = toUnpackedAsarPath(rgPath);
 
-interface EmbeddingSettingConfig {
-  id: string;
-  providerType?: EmbeddingProviderType;
-  source?: "modelscope" | "huggingface";
-  apiKey: string;
-  baseUrl: string;
-  localModelDir?: string;
-  batchSize?: number;
-  devicePolicy?: "auto" | "cpu" | "cuda";
-  currentModel: string;
-  models: Array<{
-    name: string;
-    contextLength: number;
-    distance?: number;
-  }>;
-}
+type EmbeddingConfig = ResolvedEmbeddingConfig;
 
-interface EmbeddingConfig {
-  providerType: EmbeddingProviderType;
-  baseUrl?: string;
-  apiKey?: string;
-  model: string;
-  dimensions: number;
-  distance: number;
-  batchSize: number;
-  devicePolicy: "auto" | "cpu" | "cuda";
-  localModelDir?: string;
-}
-
-interface SettingForEmbedding {
-  embeddingProvider?: {
-    currentConfigId?: string;
-    configs?: EmbeddingSettingConfig[];
-  };
-}
+const toEmbeddingTarget = (config: EmbeddingConfig): EmbeddingTarget => ({
+  provider: config.provider,
+  pluginId: config.pluginId,
+  model: config.model,
+  dimensions: config.dimensions,
+  batchSize: config.batchSize,
+  devicePolicy: config.devicePolicy,
+});
 
 interface TranscriptionConfig {
   model: string;
@@ -175,7 +149,7 @@ interface HandleEmbeddingSwitchByPolicyParams {
   mainDbName: string;
   dimensions: number;
   fingerprintChanged: boolean;
-  providerType: EmbeddingProviderType;
+  provider: EmbeddingProviderKind;
   reason: EmbeddingSwitchReason;
 }
 
@@ -255,75 +229,18 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     try {
       const settingPath = join(PathUtil.getAppDir(), "setting.json");
       const settingContent = await fs.readFile(settingPath, "utf-8");
-      const setting: SettingForEmbedding = JSON.parse(settingContent);
-
-      const { embeddingProvider } = setting;
-      if (!embeddingProvider || !embeddingProvider.currentConfigId) {
+      const resolved = resolveEmbeddingConfig(JSON.parse(settingContent));
+      if (!resolved) {
         this.cachedEmbeddingConfig = null;
         return null;
       }
-
-      const { configs, currentConfigId } = embeddingProvider;
-      const currentConfig = configs?.find(c => c.id === currentConfigId);
-
-      if (!currentConfig) {
-        this.cachedEmbeddingConfig = null;
-        return null;
-      }
-
-      const {
-        apiKey,
-        baseUrl,
-        currentModel,
-        models,
-        providerType,
-        batchSize,
-        devicePolicy,
-        localModelDir,
-      } = currentConfig;
-      const modelConfig = models?.find(m => m.name === currentModel);
-
-      if (!currentModel || !modelConfig) {
-        this.cachedEmbeddingConfig = null;
-        return null;
-      }
-
-      const resolvedProviderType: EmbeddingProviderType =
-        providerType === "local_python" || currentConfig.id === LOCAL_EMBEDDING_CONFIG_ID
-          ? "local_python"
-          : "remote_openai";
-
-      if (resolvedProviderType === "remote_openai" && (!apiKey || !baseUrl)) {
-        this.cachedEmbeddingConfig = null;
-        return null;
-      }
-
-      const distance =
-        modelConfig.distance ||
-        (resolvedProviderType === "local_python" ? DEFAULT_LOCAL_EMBEDDING_DISTANCE : 0);
-
-      if (distance <= 0) {
-        this.cachedEmbeddingConfig = null;
-        return null;
-      }
-
-      this.cachedEmbeddingConfig = {
-        providerType: resolvedProviderType,
-        baseUrl,
-        apiKey,
-        model: currentModel,
-        dimensions: modelConfig.contextLength, // contextLength 实际是维度
-        distance,
-        batchSize: batchSize || 8,
-        devicePolicy: devicePolicy || "auto",
-        localModelDir: localModelDir || join(app.getPath("userData"), "embedding-models"),
-      };
+      this.cachedEmbeddingConfig = resolved;
 
       // 更新 VibeLearningDBManager 的维度配置
-      vibeLearningDBManager.setVecDimensions(modelConfig.contextLength);
+      vibeLearningDBManager.setVecDimensions(resolved.dimensions);
 
       log.info(
-        `[VibeLearningIndexQueue] Loaded embedding config: model=${currentModel}, dimensions=${modelConfig.contextLength}`
+        `[VibeLearningIndexQueue] Loaded embedding config: model=${resolved.model}, dimensions=${resolved.dimensions}`
       );
 
       return this.cachedEmbeddingConfig;
@@ -332,45 +249,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       this.cachedEmbeddingConfig = null;
       return null;
     }
-  }
-
-  private async embedTexts(
-    texts: string[],
-    embeddingConfig: EmbeddingConfig,
-    interactive = false
-  ): Promise<number[][]> {
-    if (!texts.length) {
-      return [];
-    }
-
-    if (embeddingConfig.providerType === "local_python") {
-      const res = await localInference.embedTexts(texts, {
-        modelDir: embeddingConfig.localModelDir,
-        modelName: embeddingConfig.model,
-        batchSize: embeddingConfig.batchSize,
-        devicePolicy: embeddingConfig.devicePolicy,
-        priority: interactive ? "interactive" : "background",
-      });
-
-      return res.embeddings || [];
-    }
-
-    if (!embeddingConfig.apiKey || !embeddingConfig.baseUrl) {
-      throw new Error("远端 embedding 缺少 apiKey 或 baseUrl");
-    }
-
-    const client = new OpenAI({
-      apiKey: embeddingConfig.apiKey,
-      baseURL: embeddingConfig.baseUrl,
-    });
-
-    const res = await client.embeddings.create({
-      model: embeddingConfig.model,
-      input: texts,
-      dimensions: embeddingConfig.dimensions,
-    });
-
-    return res.data.map(item => item.embedding);
   }
 
   /**
@@ -689,7 +567,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       mainDbName: targetDbName,
       dimensions: targetDimensions,
       fingerprintChanged: true,
-      providerType: "local_python",
+      provider: "local",
       reason,
     });
 
@@ -724,7 +602,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     const { droppedPending } = this.clearQueueForNewGeneration();
 
     log.info(
-      `[VibeLearningIndexQueue] Handle embedding switch by policy: reason=${params.reason}, provider=${params.providerType}, dimensions=${params.dimensions}, fingerprintChanged=${params.fingerprintChanged}, generation=${previousGeneration}->${currentGeneration}, droppedPending=${droppedPending}`
+      `[VibeLearningIndexQueue] Handle embedding switch by policy: reason=${params.reason}, provider=${params.provider}, dimensions=${params.dimensions}, fingerprintChanged=${params.fingerprintChanged}, generation=${previousGeneration}->${currentGeneration}, droppedPending=${droppedPending}`
     );
 
     if (!Number.isFinite(params.dimensions) || params.dimensions <= 0) {
@@ -1870,7 +1748,10 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
               this.throwIfTaskStale(task, "create_index_embed");
             }
 
-            const embeddings = await this.embedTexts(batchTexts, embeddingConfig);
+            const embeddings = await embeddingService.embedTexts(
+              toEmbeddingTarget(embeddingConfig),
+              batchTexts
+            );
 
             for (let j = 0; j < batchChunks.length; j++) {
               const chunk = batchChunks[j];
@@ -2018,7 +1899,10 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
             this.throwIfTaskStale(task, "embedding_only_embed");
           }
 
-          const embeddings = await this.embedTexts(batchChunks, embeddingConfig);
+          const embeddings = await embeddingService.embedTexts(
+            toEmbeddingTarget(embeddingConfig),
+            batchChunks
+          );
 
           for (let j = 0; j < batchChunks.length; j++) {
             const chunkText = batchChunks[j];
@@ -2637,7 +2521,11 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
                 embedQuery: async (queryText: string) => {
                   try {
                     const queryEmbedding = (
-                      await this.embedTexts([queryText], embeddingConfig, true)
+                      await embeddingService.embedTexts(
+                        toEmbeddingTarget(embeddingConfig),
+                        [queryText],
+                        { interactive: true }
+                      )
                     )[0];
                     return queryEmbedding || null;
                   } catch (error) {

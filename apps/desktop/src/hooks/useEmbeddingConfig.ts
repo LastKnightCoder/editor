@@ -1,11 +1,9 @@
 import useSettingStore from "@/stores/useSettingStore";
-import { resolveEmbeddingModelInfoFromProvider } from "@/utils/embedding-model-info";
+import { resolveEmbeddingModelInfoFromSetting } from "@/utils/embedding-model-info";
 
 const useEmbeddingConfig = () => {
-  const embeddingProvider = useSettingStore(
-    (state) => state.setting.embeddingProvider,
-  );
-  return resolveEmbeddingModelInfoFromProvider(embeddingProvider);
+  const embedding = useSettingStore(state => state.setting.embedding);
+  return resolveEmbeddingModelInfoFromSetting({ embedding });
 };
 
 export default useEmbeddingConfig;

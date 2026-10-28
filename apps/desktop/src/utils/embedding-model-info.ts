@@ -1,76 +1,38 @@
 import type { ISetting } from "@/stores/useSettingStore";
 import type { SearchParams } from "@/types/search";
-import type { EmbeddingProviderType } from "@/types/embedding";
+import type { EmbeddingActiveModel } from "@/types/embedding";
 import {
   DEFAULT_LOCAL_EMBEDDING_DISTANCE,
-  LOCAL_EMBEDDING_CONFIG_ID,
+  DEFAULT_PLUGIN_EMBEDDING_DISTANCE,
 } from "@/constants/embedding";
 
 type EmbeddingModelInfo = SearchParams["modelInfo"];
 
-export const resolveEmbeddingModelInfoFromProvider = (
-  embeddingProvider: ISetting["embeddingProvider"] | undefined,
+const resolveEmbeddingModelInfoFromActive = (
+  active: EmbeddingActiveModel | null | undefined,
+  local: ISetting["embedding"]["local"] | undefined
 ): EmbeddingModelInfo | undefined => {
-  if (!embeddingProvider?.currentConfigId) {
+  if (!active?.model || !(active.dimensions > 0)) {
     return undefined;
   }
-
-  const currentConfig = embeddingProvider.configs.find(
-    (config) => config.id === embeddingProvider.currentConfigId,
-  );
-  if (!currentConfig?.currentModel) {
+  if (active.provider === "plugin" && !active.pluginId?.trim()) {
     return undefined;
   }
-
-  const currentModel = currentConfig.models.find(
-    (model) => model.name === currentConfig.currentModel,
-  );
-  if (!currentModel) {
-    return undefined;
-  }
-
-  const providerType: EmbeddingProviderType =
-    currentConfig.providerType === "local_python" ||
-    currentConfig.id === LOCAL_EMBEDDING_CONFIG_ID
-      ? "local_python"
-      : "remote_openai";
-
-  if (providerType === "remote_openai") {
-    if (!currentConfig.apiKey || !currentConfig.baseUrl) {
-      return undefined;
-    }
-  }
-
-  const rawDistance =
-    currentModel.distance ||
-    (providerType === "local_python" ? DEFAULT_LOCAL_EMBEDDING_DISTANCE : 0);
-
-  if (rawDistance <= 0) {
-    return undefined;
-  }
-
-  // 本地模型 cosine distance 阈值过小会导致大量相关结果被过滤（BGE-M3 等模型相关内容距离通常在 0.4~0.7）
-  const distance =
-    providerType === "local_python"
-      ? Math.max(rawDistance, DEFAULT_LOCAL_EMBEDDING_DISTANCE)
-      : rawDistance;
-
   return {
-    configId: currentConfig.id,
-    providerType,
-    key: currentConfig.apiKey,
-    baseUrl: currentConfig.baseUrl,
-    model: currentModel.name,
-    distance,
-    dimensions: currentModel.contextLength,
-    batchSize: currentConfig.batchSize,
-    devicePolicy: currentConfig.devicePolicy || "auto",
-    localModelDir: currentConfig.localModelDir,
+    provider: active.provider,
+    pluginId: active.provider === "plugin" ? active.pluginId!.trim() : undefined,
+    model: active.model,
+    distance:
+      active.provider === "plugin"
+        ? DEFAULT_PLUGIN_EMBEDDING_DISTANCE
+        : DEFAULT_LOCAL_EMBEDDING_DISTANCE,
+    dimensions: active.dimensions,
+    batchSize: local?.batchSize,
+    devicePolicy: local?.devicePolicy || "auto",
   };
 };
 
-export const resolveEmbeddingModelInfoFromSetting = (
-  setting: ISetting,
-): EmbeddingModelInfo | undefined => {
-  return resolveEmbeddingModelInfoFromProvider(setting.embeddingProvider);
-};
+export const resolveEmbeddingModelInfoFromSetting = (setting: {
+  embedding?: ISetting["embedding"];
+}): EmbeddingModelInfo | undefined =>
+  resolveEmbeddingModelInfoFromActive(setting.embedding?.active, setting.embedding?.local);

@@ -36,6 +36,7 @@ import { getMainWindows } from "../windows/main-window";
 import { pluginUploadRelay } from "../services/plugin-upload";
 import { pluginTTSRelay } from "../services/plugin-tts";
 import { pluginImagesRelay } from "../services/plugin-images";
+import { pluginEmbeddingsRelay } from "../services/plugin-embeddings";
 import { pluginVideoRelay } from "../services/plugin-video";
 import {
   pluginPublishSessions,
@@ -43,6 +44,10 @@ import {
   releasePublishRenderer,
 } from "../services/plugin-publish-provider";
 import type { ImagesRendererRequest, ImagesRendererReply } from "../../../shared/images-renderer";
+import type {
+  EmbeddingsProviderInfo,
+  EmbeddingsRendererReply,
+} from "../../../shared/embeddings-renderer";
 import type {
   VideoProvidersState,
   VideoRendererReply,
@@ -203,6 +208,38 @@ export default {
     );
     ipcMain.handle("plugin-local:images-cancel", (event, id: string) =>
       pluginImagesRelay.cancel(event.sender.id, id)
+    );
+    ipcMain.handle(
+      "plugin-local:embeddings-config",
+      async (_event, pluginId: string, config: import("@tau/plugins").JsonValue) => {
+        const artifact = await readPluginPackage(
+          path.join(directory(), pluginId),
+          app.getVersion()
+        );
+        if (artifact.manifest.id !== pluginId) throw new Error("插件身份无效");
+        await userSetting.updateEmbeddingPlugin(pluginId, copyJson(config));
+      }
+    );
+    ipcMain.handle(
+      "plugin-local:embeddings-connect",
+      (event, session: string, providers: EmbeddingsProviderInfo[]) => {
+        if (!getMainWindows().some(window => window.webContents.id === event.sender.id))
+          throw new Error("嵌入插件只能由主窗口执行");
+        pluginEmbeddingsRelay.connect(event.sender, session, providers);
+      }
+    );
+    ipcMain.handle(
+      "plugin-local:embeddings-changed",
+      (event, session: string, providers: EmbeddingsProviderInfo[]) => {
+        if (pluginEmbeddingsRelay.hasHost(event.sender.id, session))
+          pluginEmbeddingsRelay.update(event.sender.id, session, providers);
+      }
+    );
+    ipcMain.handle("plugin-local:embeddings-release", (event, session: string) =>
+      pluginEmbeddingsRelay.release(event.sender.id, session)
+    );
+    ipcMain.handle("plugin-local:embeddings-reply", (event, reply: EmbeddingsRendererReply) =>
+      pluginEmbeddingsRelay.reply(event.sender.id, reply)
     );
     ipcMain.handle(
       "plugin-local:video-config",

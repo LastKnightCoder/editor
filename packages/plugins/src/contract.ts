@@ -15,6 +15,7 @@ import type { PluginTTS } from "./tts";
 import type { PluginASR } from "./asr";
 import type { PluginWebSocket } from "./websocket";
 import type { PluginImages } from "./images";
+import type { PluginEmbeddings } from "./embeddings";
 import type { PluginVideo } from "./video";
 import type { PluginPublish } from "./publish";
 import type { PluginSidebar } from "./sidebar";
@@ -74,6 +75,8 @@ export interface PluginContext {
   readonly asr: PluginASR;
   readonly websocket: PluginWebSocket;
   readonly images: PluginImages;
+  /** API 嵌入提供方：渲染进程内实现，主进程经 relay 调用 */
+  readonly embeddings: PluginEmbeddings;
   readonly video: PluginVideo;
   readonly publish: PluginPublish;
   readonly sidebar: PluginSidebar;

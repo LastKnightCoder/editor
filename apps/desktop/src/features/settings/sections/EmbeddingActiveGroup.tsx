@@ -1,15 +1,17 @@
 /**
- * 嵌入模型 · 索引状态 —— 主内容（卡片 / 文章 / 项目文档 / 日记）向量索引覆盖情况。
+ * 嵌入模型 · 当前生效组 —— 首行是当前生效模型（或未启用空态），其后是主内容
+ * （卡片 / 文章 / 项目文档 / 日记）向量索引覆盖情况。
  *
  * 索引不是实时的：本地模型在启动、同步后、切换模型时由后台补齐，编辑内容后停止写入
- * 一段时间（IDLE_INDEX_DELAY_MS）再增量补索引；API 模型不自动索引。
+ * 一段时间（IDLE_INDEX_DELAY_MS）再增量补索引；插件模型不自动索引。
  * 这里展示「总数 / 已索引 / 待更新 / 未索引」、进行中的进度与上一轮记录，并支持手动发起
  * 一轮增量索引（只处理未索引与内容有更新的文档）。
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Play, RefreshCw } from "lucide-react";
-import { SettingRow, Button, toast } from "@tau/ui";
+import { CircleDashed, Play, RefreshCw } from "lucide-react";
+import { ROW_DIVIDER, SettingRow, Button, toast } from "@tau/ui";
+import type { EmbeddingActiveModel } from "@/types/embedding";
 import {
   getEmbeddingIndexStatus,
   onEmbeddingIndexProgress,
@@ -56,7 +58,17 @@ const formatDuration = (run: EmbeddingIndexProgress) => {
   return seconds < 60 ? `${seconds} 秒` : `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`;
 };
 
-export function EmbeddingIndexStatusGroup({ modelKey }: { modelKey: string }) {
+export function EmbeddingActiveGroup({
+  active,
+  label,
+  subtitle,
+}: {
+  active: EmbeddingActiveModel | null;
+  /** 当前模型显示名（本地取本地列表 label，插件取声明目录 label，兜底 id） */
+  label: string;
+  /** 来源摘要：「内置 · 本地模型 · N 维」/「插件 · 提供方 · N 维」 */
+  subtitle: string;
+}) {
   const [status, setStatus] = useState<EmbeddingIndexStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -86,7 +98,8 @@ export function EmbeddingIndexStatusGroup({ modelKey }: { modelKey: string }) {
     };
   }, []);
 
-  // 模型 / 来源切换后重新统计（切换会触发后台重建）
+  // 模型切换后重新统计（切换会触发后台重建）
+  const modelKey = active ? `${active.provider}:${active.pluginId ?? ""}:${active.model}` : "";
   useEffect(() => {
     void refresh();
   }, [refresh, modelKey]);
@@ -132,15 +145,25 @@ export function EmbeddingIndexStatusGroup({ modelKey }: { modelKey: string }) {
 
   const description = !status
     ? "正在读取…"
-    : !status.configValid
-      ? "尚未启用可用的嵌入模型"
-      : status.autoIndex
-        ? "本地模型会在启动、同步后、切换模型时自动补齐；编辑内容后停止编辑约 2 分钟自动更新"
-        : "API 模型不会自动索引，需要手动发起（会产生调用费用）";
+    : !active
+      ? undefined
+      : active.provider === "plugin"
+        ? "插件模型不会自动索引，需要手动发起（会产生调用费用）"
+        : "本地模型会在启动、同步后、切换模型时自动补齐；编辑内容后停止编辑约 2 分钟自动更新";
+
+  const activeChip = !status
+    ? { tone: "ok" as const, text: "生效中" }
+    : running
+      ? { tone: "accent" as const, text: "索引中" }
+      : !status.providerReady && active?.provider === "local"
+        ? { tone: "warn" as const, text: "等待下载" }
+        : !status.providerReady && active?.provider === "plugin"
+          ? { tone: "warn" as const, text: "插件未就绪" }
+          : { tone: "ok" as const, text: "生效中" };
 
   return (
     <SettingsGroup
-      title="索引状态"
+      title="当前生效"
       description={description}
       action={
         <>
@@ -166,6 +189,25 @@ export function EmbeddingIndexStatusGroup({ modelKey }: { modelKey: string }) {
         </>
       }
     >
+      {active ? (
+        <SettingRow title={label} description={subtitle}>
+          <StatusChip tone={activeChip.tone}>{activeChip.text}</StatusChip>
+        </SettingRow>
+      ) : (
+        <div className={`flex min-h-14 items-center gap-3 px-3 py-2 ${ROW_DIVIDER}`}>
+          <span className="text-ink-3 grid size-6 flex-none place-items-center">
+            <CircleDashed size={16} strokeWidth={1.75} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-tau-body-lg text-ink-1 font-medium">尚未启用嵌入模型</div>
+            <div className="text-tau-meta text-ink-2 mt-0.5">
+              在下方选择一个模型并点「设为当前」，确认后开始建立索引
+            </div>
+          </div>
+          <StatusChip>未启用</StatusChip>
+        </div>
+      )}
+
       <SettingRow
         title="索引覆盖"
         description={

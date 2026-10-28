@@ -1,54 +1,28 @@
 import { ipcMain } from "electron";
 import { promises as fs } from "node:fs";
 import { join } from "node:path";
-import { app } from "electron";
-import OpenAI from "openai";
 import log from "electron-log";
-import type { EmbeddingProviderType } from "@/types/embedding";
+import type { EmbeddingProviderKind } from "@/types/embedding";
 import { Module } from "../types/module";
 import databaseModule from "./database";
 import videoNoteIndexDBManager, { type VideoNoteIndexChunk } from "./video-note-index-db";
-import localInference from "./local-inference";
-import { DEFAULT_LOCAL_EMBEDDING_DISTANCE, LOCAL_EMBEDDING_CONFIG_ID } from "@/constants/embedding";
+import embeddingService, { type EmbeddingTarget } from "./embedding-service";
+import { resolveEmbeddingConfig, type ResolvedEmbeddingConfig } from "../utils/embedding-config";
 import { runSearchPipeline } from "./search-core/pipeline";
 import { createVideoNoteAdapter } from "./search-core/video-note-adapter";
 import PathUtil from "../utils/PathUtil";
 import { yieldEvery, yieldToEventLoop } from "../utils/event-loop-yield";
 
-interface EmbeddingSettingConfig {
-  id: string;
-  providerType?: EmbeddingProviderType;
-  apiKey?: string;
-  baseUrl?: string;
-  localModelDir?: string;
-  batchSize?: number;
-  devicePolicy?: "auto" | "cpu" | "cuda";
-  currentModel: string;
-  models: Array<{
-    name: string;
-    contextLength: number;
-    distance?: number;
-  }>;
-}
+type EmbeddingConfig = ResolvedEmbeddingConfig;
 
-interface EmbeddingConfig {
-  providerType: EmbeddingProviderType;
-  baseUrl?: string;
-  apiKey?: string;
-  model: string;
-  dimensions: number;
-  distance: number;
-  batchSize: number;
-  devicePolicy: "auto" | "cpu" | "cuda";
-  localModelDir?: string;
-}
-
-interface SettingForEmbedding {
-  embeddingProvider?: {
-    currentConfigId?: string;
-    configs?: EmbeddingSettingConfig[];
-  };
-}
+const toEmbeddingTarget = (config: EmbeddingConfig): EmbeddingTarget => ({
+  provider: config.provider,
+  pluginId: config.pluginId,
+  model: config.model,
+  dimensions: config.dimensions,
+  batchSize: config.batchSize,
+  devicePolicy: config.devicePolicy,
+});
 
 type EmbeddingSwitchReason =
   | "config_switch"
@@ -68,7 +42,7 @@ interface HandleEmbeddingSwitchByPolicyParams {
   mainDbName: string;
   dimensions: number;
   fingerprintChanged: boolean;
-  providerType: EmbeddingProviderType;
+  provider: EmbeddingProviderKind;
   reason: EmbeddingSwitchReason;
 }
 
@@ -287,9 +261,9 @@ class VideoNoteIndexQueue implements Module {
         return "done";
       }
       const batch = chunks.slice(i, i + batchSize);
-      const embeddings = await this.embedTexts(
-        batch.map(item => item.text),
-        embeddingConfig
+      const embeddings = await embeddingService.embedTexts(
+        toEmbeddingTarget(embeddingConfig),
+        batch.map(item => item.text)
       );
       for (let j = 0; j < batch.length; j++) {
         if (embeddings[j] && embeddings[j].length > 0) {
@@ -309,103 +283,20 @@ class VideoNoteIndexQueue implements Module {
     try {
       const settingPath = join(PathUtil.getAppDir(), "setting.json");
       const settingContent = await fs.readFile(settingPath, "utf-8");
-      const setting: SettingForEmbedding = JSON.parse(settingContent);
-      const { embeddingProvider } = setting;
-      if (!embeddingProvider || !embeddingProvider.currentConfigId) {
+      const resolved = resolveEmbeddingConfig(JSON.parse(settingContent));
+      if (!resolved) {
         this.cachedEmbeddingConfig = null;
         return null;
       }
+      this.cachedEmbeddingConfig = resolved;
 
-      const currentConfig = embeddingProvider.configs?.find(
-        item => item.id === embeddingProvider.currentConfigId
-      );
-      if (!currentConfig) {
-        this.cachedEmbeddingConfig = null;
-        return null;
-      }
-
-      const modelConfig = currentConfig.models?.find(
-        model => model.name === currentConfig.currentModel
-      );
-      if (!modelConfig) {
-        this.cachedEmbeddingConfig = null;
-        return null;
-      }
-
-      const resolvedProviderType: EmbeddingProviderType =
-        currentConfig.providerType === "local_python" ||
-        currentConfig.id === LOCAL_EMBEDDING_CONFIG_ID
-          ? "local_python"
-          : "remote_openai";
-
-      if (
-        resolvedProviderType === "remote_openai" &&
-        (!currentConfig.apiKey || !currentConfig.baseUrl)
-      ) {
-        this.cachedEmbeddingConfig = null;
-        return null;
-      }
-
-      const distance =
-        modelConfig.distance ||
-        (resolvedProviderType === "local_python" ? DEFAULT_LOCAL_EMBEDDING_DISTANCE : 0.6);
-
-      this.cachedEmbeddingConfig = {
-        providerType: resolvedProviderType,
-        apiKey: currentConfig.apiKey,
-        baseUrl: currentConfig.baseUrl,
-        model: currentConfig.currentModel,
-        dimensions: modelConfig.contextLength,
-        distance,
-        batchSize: currentConfig.batchSize || 8,
-        devicePolicy: currentConfig.devicePolicy || "auto",
-        localModelDir:
-          currentConfig.localModelDir || join(app.getPath("userData"), "embedding-models"),
-      };
-
-      videoNoteIndexDBManager.setVecDimensions(modelConfig.contextLength);
+      videoNoteIndexDBManager.setVecDimensions(resolved.dimensions);
       return this.cachedEmbeddingConfig;
     } catch (error) {
       log.error(`[VideoNoteIndexQueue] load embedding config failed: ${error}`);
       this.cachedEmbeddingConfig = null;
       return null;
     }
-  }
-
-  private async embedTexts(
-    texts: string[],
-    embeddingConfig: EmbeddingConfig,
-    interactive = false
-  ): Promise<number[][]> {
-    if (!texts.length) {
-      return [];
-    }
-
-    if (embeddingConfig.providerType === "local_python") {
-      const result = await localInference.embedTexts(texts, {
-        modelDir: embeddingConfig.localModelDir,
-        modelName: embeddingConfig.model,
-        batchSize: embeddingConfig.batchSize,
-        devicePolicy: embeddingConfig.devicePolicy,
-        priority: interactive ? "interactive" : "background",
-      });
-      return result.embeddings || [];
-    }
-
-    if (!embeddingConfig.apiKey || !embeddingConfig.baseUrl) {
-      return [];
-    }
-
-    const client = new OpenAI({
-      apiKey: embeddingConfig.apiKey,
-      baseURL: embeddingConfig.baseUrl,
-    });
-    const result = await client.embeddings.create({
-      model: embeddingConfig.model,
-      input: texts,
-      dimensions: embeddingConfig.dimensions,
-    });
-    return result.data.map(item => item.embedding);
   }
 
   clearEmbeddingConfigCache(): void {
@@ -547,7 +438,7 @@ class VideoNoteIndexQueue implements Module {
       mainDbName: targetDbName,
       dimensions: params.dimensions,
       fingerprintChanged: true,
-      providerType: "local_python",
+      provider: "local",
       reason: params.reason || "model_switch",
     });
   }
@@ -587,7 +478,11 @@ class VideoNoteIndexQueue implements Module {
                 distance: embeddingConfig.distance,
                 embedQuery: async (queryText: string) => {
                   try {
-                    const res = await this.embedTexts([queryText], embeddingConfig, true);
+                    const res = await embeddingService.embedTexts(
+                      toEmbeddingTarget(embeddingConfig),
+                      [queryText],
+                      { interactive: true }
+                    );
                     return res[0] || null;
                   } catch (error) {
                     log.error(`[VideoNoteIndexQueue] embed query failed: ${error}`);

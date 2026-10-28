@@ -12,6 +12,7 @@ import mainContentVecIndexQueue, {
 import vibeLearningIndexQueue from "./vibe-learning-index-queue";
 import localInference from "./local-inference";
 import videoNoteIndexQueue from "./video-note-index-queue";
+import { pluginEmbeddingsRelay } from "../services/plugin-embeddings";
 import { resolveEmbeddingConfig, type ResolvedEmbeddingConfig } from "../utils/embedding-config";
 import {
   MAIN_CHUNK_BUILD_KEY,
@@ -66,10 +67,13 @@ export const isMainContentWriteEvent = (eventName: string) =>
 export interface EmbeddingIndexStatus {
   mainDbName: string;
   configValid: boolean;
-  providerType: ResolvedEmbeddingConfig["providerType"] | null;
+  provider: ResolvedEmbeddingConfig["provider"] | null;
+  pluginId: string | null;
   model: string | null;
-  /** 该模型是否会被后台自动索引（仅本地模型） */
+  /** 该模型是否会被后台自动索引（仅本地提供方） */
   autoIndex: boolean;
+  /** 当前提供方是否可立即执行嵌入（本地看模型下载，插件看渲染宿主就绪） */
+  providerReady: boolean;
   stats: MainContentIndexStats | null;
   running: MainContentVecIndexProgress | null;
   lastRun: MainContentVecIndexProgress | null;
@@ -96,6 +100,8 @@ class EmbeddingIndexOrchestrator implements Module {
   private lastReconciledDbName: string | null = null;
   private idleIndexTimer: ReturnType<typeof setTimeout> | null = null;
   private idleIndexDbName: string | null = null;
+  /** 每个插件提供方的最近就绪状态，用于识别「未就绪 → 就绪」的翻转 */
+  private pluginReadyStates = new Map<string, boolean>();
 
   private async waitForStartupDelay(trigger: string) {
     log.info(
@@ -140,6 +146,9 @@ class EmbeddingIndexOrchestrator implements Module {
       }
     });
 
+    // 插件宿主上线/下线时按需恢复此前被跳过的索引（见 handleProvidersChanged）
+    pluginEmbeddingsRelay.onProvidersChanged(() => this.handleProvidersChanged());
+
     this.registerIpc();
 
     log.info("[EmbeddingIndexOrchestrator] Module initialized");
@@ -183,11 +192,8 @@ class EmbeddingIndexOrchestrator implements Module {
     const resolvedConfig = resolveEmbeddingConfig(setting);
     if (
       !resolvedConfig ||
-      resolvedConfig.providerType !== "local_python" ||
-      !localInference.isEmbeddingModelReady({
-        modelDir: resolvedConfig.localModelDir,
-        modelName: resolvedConfig.model,
-      })
+      resolvedConfig.provider !== "local" ||
+      !localInference.isEmbeddingModelReady({ modelName: resolvedConfig.model })
     ) {
       return;
     }
@@ -200,10 +206,11 @@ class EmbeddingIndexOrchestrator implements Module {
   }
 
   /**
-   * 本地向量模型下载完成后由 embedding-model-manager 调用，
-   * 恢复此前因模型缺失而跳过的索引重建
+   * 提供方就绪后恢复此前因未就绪而跳过的索引重建：
+   * 本地向量模型下载完成由 embedding-model-manager 调用；
+   * 插件提供方由 relay 的 provider 变化通知触发（见 handleProvidersChanged）。
    */
-  notifyEmbeddingModelReady() {
+  notifyEmbeddingProviderReady() {
     this.reconcileChain = this.reconcileChain
       .then(async () => {
         const dbName = databaseModule.getCurrentDatabaseName();
@@ -214,7 +221,29 @@ class EmbeddingIndexOrchestrator implements Module {
         await this.reconcileForCurrentDb(dbName, setting, "model_switch");
       })
       .catch(error => {
-        log.error("[EmbeddingIndexOrchestrator] model_ready reconcile failed:", error);
+        log.error("[EmbeddingIndexOrchestrator] provider_ready reconcile failed:", error);
+      });
+  }
+
+  /** 插件宿主变化时只在当前活跃插件「从未就绪变为就绪」的翻转上恢复一次 */
+  private handleProvidersChanged() {
+    void userSettingModule
+      .getSettingSnapshot()
+      .then(setting => {
+        const config = resolveEmbeddingConfig(setting);
+        if (!config || config.provider !== "plugin" || !config.pluginId) return;
+        const ready = pluginEmbeddingsRelay.isReady(config.pluginId);
+        const previous = this.pluginReadyStates.get(config.pluginId) ?? false;
+        this.pluginReadyStates.set(config.pluginId, ready);
+        if (!previous && ready) {
+          log.info(
+            `[EmbeddingIndexOrchestrator] Embedding plugin became ready: ${config.pluginId}`
+          );
+          this.notifyEmbeddingProviderReady();
+        }
+      })
+      .catch(error => {
+        log.error("[EmbeddingIndexOrchestrator] providers changed handler failed:", error);
       });
   }
 
@@ -229,9 +258,15 @@ class EmbeddingIndexOrchestrator implements Module {
     return {
       mainDbName,
       configValid: !!resolvedConfig,
-      providerType: resolvedConfig?.providerType ?? null,
+      provider: resolvedConfig?.provider ?? null,
+      pluginId: resolvedConfig?.pluginId ?? null,
       model: resolvedConfig?.model ?? null,
-      autoIndex: resolvedConfig?.providerType === "local_python",
+      autoIndex: resolvedConfig?.provider === "local",
+      providerReady: resolvedConfig
+        ? resolvedConfig.provider === "local"
+          ? localInference.isEmbeddingModelReady({ modelName: resolvedConfig.model })
+          : pluginEmbeddingsRelay.isReady(resolvedConfig.pluginId ?? "")
+        : false,
       stats,
       running: running && running.mainDbName === mainDbName ? running : null,
       lastRun: indexDb ? mainContentVecIndexQueue.getLastRun(indexDb) : null,
@@ -254,13 +289,16 @@ class EmbeddingIndexOrchestrator implements Module {
       return { started: false, error: "嵌入模型配置无效，请先启用一个模型" };
     }
     if (
-      resolvedConfig.providerType === "local_python" &&
-      !localInference.isEmbeddingModelReady({
-        modelDir: resolvedConfig.localModelDir,
-        modelName: resolvedConfig.model,
-      })
+      resolvedConfig.provider === "local" &&
+      !localInference.isEmbeddingModelReady({ modelName: resolvedConfig.model })
     ) {
       return { started: false, error: "本地向量模型尚未下载" };
+    }
+    if (
+      resolvedConfig.provider === "plugin" &&
+      !pluginEmbeddingsRelay.isReady(resolvedConfig.pluginId ?? "")
+    ) {
+      return { started: false, error: "嵌入插件未就绪" };
     }
     this.clearIdleIndex();
 
@@ -405,15 +443,10 @@ class EmbeddingIndexOrchestrator implements Module {
     if (!oldConfig) {
       return "config_switch";
     }
-
-    if (
-      oldConfig.configId !== newConfig.configId ||
-      oldConfig.providerType !== newConfig.providerType
-    ) {
-      return "config_switch";
-    }
-
-    return "model_switch";
+    // 提供方或来源插件变化 = 换配置；同一插件（或本地）内换模型 = 换模型
+    const providerChanged =
+      oldConfig.provider !== newConfig.provider || oldConfig.pluginId !== newConfig.pluginId;
+    return providerChanged ? "config_switch" : "model_switch";
   }
 
   private async reconcileForCurrentDb(
@@ -444,14 +477,23 @@ class EmbeddingIndexOrchestrator implements Module {
     // 本地向量模型未下载时跳过本轮索引（fingerprint 不落库，
     // 下载完成后下一次 reconcile 会自动恢复重建），避免逐条任务报错
     if (
-      resolvedConfig.providerType === "local_python" &&
-      !localInference.isEmbeddingModelReady({
-        modelDir: resolvedConfig.localModelDir,
-        modelName: resolvedConfig.model,
-      })
+      resolvedConfig.provider === "local" &&
+      !localInference.isEmbeddingModelReady({ modelName: resolvedConfig.model })
     ) {
       log.warn(
         `[EmbeddingIndexOrchestrator] 本地向量模型未下载，跳过索引重建（${resolvedConfig.model}）；请在「设置 → 向量模型」下载，完成后将自动继续`
+      );
+      return;
+    }
+
+    // 插件宿主未就绪同样跳过且不落指纹，宿主上线后由 onProvidersChanged 自动恢复
+    if (
+      resolvedConfig.provider === "plugin" &&
+      !pluginEmbeddingsRelay.isReady(resolvedConfig.pluginId ?? "")
+    ) {
+      this.pluginReadyStates.set(resolvedConfig.pluginId ?? "", false);
+      log.warn(
+        `[EmbeddingIndexOrchestrator] 嵌入插件未就绪，跳过索引重建（${resolvedConfig.pluginId}）；请确认插件已启用且主窗口已打开，就绪后将自动继续`
       );
       return;
     }
@@ -498,7 +540,7 @@ class EmbeddingIndexOrchestrator implements Module {
           failed: 0,
           stale: false,
           autoIndex:
-            resolvedConfig.providerType === "local_python" ||
+            resolvedConfig.provider === "local" ||
             needsMainChunkUpgrade(mainFingerprint) ||
             resumeMainBuild,
         }
@@ -507,7 +549,7 @@ class EmbeddingIndexOrchestrator implements Module {
           embeddingConfig: resolvedConfig,
           fingerprintChanged: mainFingerprintChanged,
           autoIndex:
-            resolvedConfig.providerType === "local_python" ||
+            resolvedConfig.provider === "local" ||
             needsMainChunkUpgrade(mainFingerprint) ||
             resumeMainBuild,
           reason,
@@ -532,7 +574,7 @@ class EmbeddingIndexOrchestrator implements Module {
       mainDbName,
       dimensions: resolvedConfig.dimensions,
       fingerprintChanged: vlFingerprintChanged,
-      providerType: resolvedConfig.providerType,
+      provider: resolvedConfig.provider,
       reason,
     });
 
@@ -544,7 +586,7 @@ class EmbeddingIndexOrchestrator implements Module {
       mainDbName,
       dimensions: resolvedConfig.dimensions,
       fingerprintChanged: videoNoteFingerprintChanged,
-      providerType: resolvedConfig.providerType,
+      provider: resolvedConfig.provider,
       reason,
     });
 
@@ -571,7 +613,8 @@ class EmbeddingIndexOrchestrator implements Module {
 
   private getMetaValue(db: Database.Database, key: string): string | null {
     const row = db.prepare("SELECT value FROM vec_index_meta WHERE key = ?").get(key) as
-      { value: string } | undefined;
+      | { value: string }
+      | undefined;
     return row?.value || null;
   }
 

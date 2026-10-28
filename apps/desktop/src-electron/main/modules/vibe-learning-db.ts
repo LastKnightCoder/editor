@@ -15,6 +15,7 @@ import PathUtil from "../utils/PathUtil";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 import { Module } from "../types/module";
 import { ensureIndexDbDir, getIndexDbDir, normalizeMainDbBase } from "./utils/index-db-storage";
+import { resolveEmbeddingConfig } from "../utils/embedding-config";
 
 class VibeLearningDBManager implements Module {
   name: string;
@@ -217,24 +218,10 @@ class VibeLearningDBManager implements Module {
 
       const settingContent = readFileSync(settingPath, "utf-8");
       const setting = JSON.parse(settingContent);
+      const dimensions = resolveEmbeddingConfig(setting)?.dimensions;
 
-      const { embeddingProvider } = setting;
-      if (!embeddingProvider || !embeddingProvider.currentConfigId) {
-        return;
-      }
-
-      const { configs, currentConfigId } = embeddingProvider;
-      const currentConfig = configs?.find((c: { id: string }) => c.id === currentConfigId);
-
-      if (!currentConfig) {
-        return;
-      }
-
-      const { currentModel, models } = currentConfig;
-      const modelConfig = models?.find((m: { name: string }) => m.name === currentModel);
-
-      if (modelConfig?.contextLength) {
-        this.currentVecDimensions = modelConfig.contextLength;
+      if (dimensions && dimensions > 0) {
+        this.currentVecDimensions = dimensions;
         log.info(
           `[VibeLearningDBManager] Loaded dimensions from config: ${this.currentVecDimensions}`
         );

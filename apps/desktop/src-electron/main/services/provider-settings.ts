@@ -9,6 +9,8 @@ function record(value: unknown, field: string): Settings {
 /** 读取和提交使用同一边界，旧账号配置不自动转换或覆盖。 */
 export function assertCurrentProviderSettings(value: unknown): asserts value is Settings {
   const setting = record(value, "设置");
+  if (Object.hasOwn(setting, "embeddingProvider"))
+    throw new Error("SETTING_INVALID: 旧嵌入配置不受支持，请在「设置 → 向量模型」重新启用模型");
   const integration =
     setting.integration === undefined ? {} : record(setting.integration, "integration");
   if (

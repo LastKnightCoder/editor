@@ -64,13 +64,11 @@ it.skipIf(!MAIN || !INDEX)(
     sqliteVec.load(index);
 
     const modelInfo = {
-      configId: "embedding-default-local",
-      providerType: "local_python",
+      provider: "local",
       model: "bge-m3",
       dimensions: 1024,
       batchSize: 8,
       devicePolicy: "auto",
-      localModelDir: process.env.KL_LOCAL_MODEL_DIR,
     };
     const embed = (texts: string[]) =>
       (
@@ -97,7 +95,8 @@ it.skipIf(!MAIN || !INDEX)(
           const [maybeId, ...rest] = line.split("\t");
           const row = rest.length
             ? (articleRow.get(Number(maybeId)) as
-                { id: number; title: string; content_id: number } | undefined)
+                | { id: number; title: string; content_id: number }
+                | undefined)
             : undefined;
           if (row)
             return {

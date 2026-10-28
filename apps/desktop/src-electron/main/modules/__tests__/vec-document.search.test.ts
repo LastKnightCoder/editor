@@ -18,14 +18,6 @@ const mockContext = vi.hoisted(() => {
   };
 });
 
-vi.mock("openai", () => ({
-  default: class OpenAI {
-    embeddings = {
-      create: mockContext.createEmbeddings,
-    };
-  },
-}));
-
 vi.mock("electron-log", () => ({
   default: {
     info: mockContext.logInfo,
@@ -42,7 +34,7 @@ vi.mock("electron", () => ({
 
 vi.mock("../local-inference", () => ({
   default: {
-    embedTexts: vi.fn(),
+    embedTexts: mockContext.createEmbeddings,
     embeddingHealth: vi.fn(),
   },
 }));
@@ -150,7 +142,7 @@ function createIndexDb(params: {
 
 describe("VecDocumentTable 按块召回", () => {
   it("多取几倍块再按实体去重，长文的多节不占满名额", async () => {
-    mockContext.createEmbeddings.mockResolvedValue({ data: [{ embedding: [0.1, 0.2, 0.3] }] });
+    mockContext.createEmbeddings.mockResolvedValue({ embeddings: [[0.1, 0.2, 0.3]] });
     const row = (id: number, distance: number) => ({
       prefixed_id: `card:${id}`,
       update_time: 1,
@@ -165,9 +157,7 @@ describe("VecDocumentTable 按块召回", () => {
       limit: 2,
       types: ["card"],
       modelInfo: {
-        providerType: "remote_openai",
-        key: "k",
-        baseUrl: "https://example.com/v1",
+        provider: "local",
         model: "m",
         dimensions: 3,
       },
@@ -180,13 +170,7 @@ describe("VecDocumentTable 按块召回", () => {
 describe("VecDocumentTable search gating", () => {
   beforeEach(() => {
     mockContext.createEmbeddings.mockReset();
-    mockContext.createEmbeddings.mockResolvedValue({
-      data: [
-        {
-          embedding: [0.1, 0.2, 0.3],
-        },
-      ],
-    });
+    mockContext.createEmbeddings.mockResolvedValue({ embeddings: [[0.1, 0.2, 0.3]] });
     mockContext.logInfo.mockClear();
     mockContext.logWarn.mockClear();
     mockContext.getCardById.mockClear();
@@ -210,9 +194,7 @@ describe("VecDocumentTable search gating", () => {
       limit: 10,
       types: ["card"],
       modelInfo: {
-        providerType: "remote_openai",
-        key: "test-key",
-        baseUrl: "https://example.com/v1",
+        provider: "local",
         model: "text-embedding-3-small",
         dimensions: 3,
       },
@@ -256,9 +238,7 @@ describe("VecDocumentTable search gating", () => {
       query: "失败状态查询",
       limit: 10,
       modelInfo: {
-        providerType: "remote_openai",
-        key: "test-key",
-        baseUrl: "https://example.com/v1",
+        provider: "local",
         model: "text-embedding-3-small",
         dimensions: 3,
       },
