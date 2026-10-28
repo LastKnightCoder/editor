@@ -1,3 +1,6 @@
+import { listen } from "@tauri-apps/api/event";
+import { PluginPermissionPrompt } from "../../features/plugins/PluginPermissionPrompt";
+import type { PluginPermissionBroker } from "@tau/plugins/permission-host";
 import { refreshMobileCenterInstallations } from "../../services/pluginCenter";
 import { useCallback, useEffect, useState, useId, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -47,6 +50,7 @@ export function MobilePluginProvider({
   const client = useQueryClient();
   const sessionId = useId();
   const [generation, setGeneration] = useState(0);
+  const [permissions, setPermissions] = useState<PluginPermissionBroker | null>(null);
   const [session, setSession] = useState<MobilePluginRuntime | null>(null);
   const reload = useCallback(() => setGeneration(value => value + 1), []);
 
@@ -85,6 +89,7 @@ export function MobilePluginProvider({
         disconnectTransport();
         return;
       }
+      setPermissions(runtime.permissions ?? null);
       const safe = localStorage.getItem(STARTING_KEY) !== null;
       localStorage.setItem(STARTING_KEY, "1");
       const { mobileSharedPluginModules } = await import("./shared-modules");
@@ -96,14 +101,23 @@ export function MobilePluginProvider({
           import("../../services/editorMarkdown"),
           import("@tau/plugins/rendering"),
         ]);
-      await runtime.start(safe ? [] : data.packages, mobileSharedPluginModules, registry => {
-        getMobileContentKit().extend({ extensions: registry.extensions });
-        assertUniqueEditorCodecs([...mobileCodecComposition, ...registry.codecs]);
-      });
+      await runtime.start(
+        safe ? [] : data.packages,
+        mobileSharedPluginModules,
+        registry => {
+          getMobileContentKit().extend({ extensions: registry.extensions });
+          assertUniqueEditorCodecs([...mobileCodecComposition, ...registry.codecs]);
+        },
+        () => {
+          if (!runtime || cancelled) return;
+          mobileContentPlugins.install(runtime.content.list());
+          mobilePluginElementSupport.clear();
+          runtime.elementSupport.forEach((value, key) =>
+            mobilePluginElementSupport.set(key, value)
+          );
+        }
+      );
       if (cancelled) return;
-      mobileContentPlugins.install(runtime.content.list());
-      mobilePluginElementSupport.clear();
-      runtime.elementSupport.forEach((value, key) => mobilePluginElementSupport.set(key, value));
       localStorage.removeItem(STARTING_KEY);
       setSession(runtime);
       mobilePluginState.set(
@@ -195,6 +209,7 @@ export function MobilePluginProvider({
       });
     return () => {
       cancelled = true;
+      setPermissions(null);
       disposeMobileRuntimeStyles();
       disconnect?.();
       disconnectTransport?.();
@@ -208,6 +223,23 @@ export function MobilePluginProvider({
       });
     };
   }, [client, database, navigator, sessionId, generation, reload]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let stop: (() => void) | undefined;
+    void listen<string>("plugin-workspace-reset", ({ payload }) => {
+      if (!cancelled && payload === database) reload();
+    })
+      .then(dispose => {
+        if (cancelled) dispose();
+        else stop = dispose;
+      })
+      .catch(error => console.warn("插件工作区事件订阅失败", error));
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [database, reload]);
 
   // 安装队列清空后重建一次会话，让新装与更新的插件直接生效；安全模式下不自动加载插件
   useEffect(() => {
@@ -235,6 +267,7 @@ export function MobilePluginProvider({
   return (
     <MobilePluginReloadContext.Provider value={reload}>
       <MobilePluginsContext.Provider value={session}>
+        {permissions && <PluginPermissionPrompt broker={permissions} />}
         {session ? (
           <PluginEnvironmentProvider source={session.environment}>
             {children}

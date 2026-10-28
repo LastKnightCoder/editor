@@ -23,6 +23,9 @@ export interface MobilePluginPage {
   generation: number;
 }
 export class MobilePluginRuntime {
+  events?: Awaited<ReturnType<typeof import("./events").createMobileEvents>>;
+  data?: import("./data").MobileDataAdapter;
+  permissions?: import("@tau/plugins/permission-host").PluginPermissionBroker;
   readonly host: PluginHost;
   readonly sync = new RendererSyncRegistry();
   readonly upload = new RendererUploadRegistry();
@@ -63,6 +66,42 @@ export class MobilePluginRuntime {
       restartRequired,
       environmentSource: environment,
       storage,
+      events: {
+        subscribe: (context, listener) => {
+          if (!this.events) throw new Error("插件业务事件尚未就绪");
+          return this.events.adapter.subscribe(context, listener);
+        },
+      },
+      data: {
+        query: (...args) => this.dataAdapter().query(...args),
+        get: (...args) => this.dataAdapter().get(...args),
+        create: (...args) => this.dataAdapter().create(...args),
+        update: (...args) => this.dataAdapter().update(...args),
+        remove: (...args) => this.dataAdapter().remove(...args),
+        readContent: (...args) => this.dataAdapter().readContent(...args),
+        contentOwners: (...args) => this.dataAdapter().contentOwners(...args),
+        editContent: (...args) => this.dataAdapter().editContent(...args),
+        notebookResources: (...args) => this.dataAdapter().notebookResources(...args),
+        todos: (...args) => this.dataAdapter().todos(...args),
+        calendar: (...args) => this.dataAdapter().calendar(...args),
+        writeTodo: (...args) => this.dataAdapter().writeTodo(...args),
+        writeTodoOccurrence: (...args) => {
+          const adapter = this.dataAdapter();
+          if (!adapter.writeTodoOccurrence) throw new Error("当前宿主尚未开放周期实例写入");
+          return adapter.writeTodoOccurrence(...args);
+        },
+        writeCalendar: (...args) => this.dataAdapter().writeCalendar(...args),
+        projectTree: (...args) => this.dataAdapter().projectTree(...args),
+        createDocument: (...args) => this.dataAdapter().createDocument(...args),
+        moveDocument: (...args) => this.dataAdapter().moveDocument(...args),
+      },
+      permissions: {
+        query: (context, permission) => this.permissionBroker().query(context, permission),
+        ensure: (context, plugin, permissions) =>
+          this.permissionBroker().ensure(context, plugin, permissions),
+        request: (context, plugin, permissions) =>
+          this.permissionBroker().request(context, plugin, permissions),
+      },
       sync: this.sync,
       asr: this.asr,
       tts: this.tts,
@@ -172,6 +211,14 @@ export class MobilePluginRuntime {
     });
     this.unsubscribe = this.host.subscribe(this.publish);
   }
+  private dataAdapter() {
+    if (!this.data) throw new Error("插件数据尚未就绪");
+    return this.data;
+  }
+  private permissionBroker() {
+    if (!this.permissions) throw new Error("插件授权尚未就绪");
+    return this.permissions;
+  }
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
     return () => {
@@ -204,7 +251,8 @@ export class MobilePluginRuntime {
   async start(
     packages: readonly MobilePluginPackage[],
     modules: Readonly<Record<string, unknown>>,
-    validateContent?: (registry: ContentPluginRegistry) => void
+    validateContent?: (registry: ContentPluginRegistry) => void,
+    contentReady?: () => void
   ) {
     const definitions = [];
     for (const item of packages) {
@@ -226,7 +274,7 @@ export class MobilePluginRuntime {
         const candidate = new ContentPluginRegistry();
         candidate.install([...this.content.list(), contentDefinition]);
         validateContent?.(candidate);
-        this.host.registerTrusted(definition);
+        this.host.registerTrusted({ ...definition, permissions: artifact.manifest.permissions });
         this.content.install(candidate.list());
         nodeTypes.forEach(type => this.elementSupport.set(type, "edit"));
         this.packageNodes.set(item.id, nodeTypes);
@@ -242,6 +290,7 @@ export class MobilePluginRuntime {
         this.errors.set(item.id, String(error));
       }
     }
+    contentReady?.();
     for (const definition of definitions) {
       if (this.disposed) return;
       try {
@@ -273,6 +322,9 @@ export class MobilePluginRuntime {
   }
   async dispose() {
     this.disposed = true;
+    this.permissions?.dispose();
+    this.data?.dispose();
+    this.events?.dispose();
     try {
       await this.host.dispose();
     } finally {

@@ -254,6 +254,8 @@ export interface PluginEntityWriter<T, Input, Patch> extends PluginEntityReader<
 }
 
 export interface PluginTodoQuery {
+  /** tasks 返回系列/普通任务；occurrences 返回原始日期标识的周期实例，须给 start/end。 */
+  view?: "tasks" | "occurrences";
   /** 缺省为全部：独立待办与正文里的勾选项 */
   source?: "all" | "todo" | "document";
   completed?: boolean;

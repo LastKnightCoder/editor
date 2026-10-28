@@ -461,6 +461,7 @@ pub fn todo_create_item(
         .transaction()
         .map_err(|e| format_db_error("TODO_CREATE_FAILED", "begin transaction", e))?;
     let item = create_item_with_payload(&tx, &payload, time_zone)?;
+    super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_CREATE_FAILED", "commit transaction", e))?;
     Ok(item)
@@ -545,11 +546,13 @@ pub fn todo_create_item_relative(
                 after_id,
             },
         )?;
+        super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
         tx.commit()
             .map_err(|e| format_db_error("TODO_CREATE_FAILED", "commit transaction", e))?;
         return Ok(moved);
     }
 
+    super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_CREATE_FAILED", "commit transaction", e))?;
     Ok(created)
@@ -597,6 +600,7 @@ pub fn todo_update_item(
     todo_calendar_sync::sync_single_item(&tx, payload.id, time_zone)?;
     let item = get_item_by_id(&tx, payload.id)?
         .ok_or_else(|| "TODO_NOT_FOUND: todo item does not exist".to_string())?;
+    super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_UPDATE_FAILED", "commit transaction", e))?;
     Ok(item)
@@ -637,6 +641,7 @@ pub fn todo_toggle_complete_cascade(
     let changed = tx
         .query_row("SELECT changes()", [], |row| row.get::<_, i64>(0))
         .map_err(|e| format_db_error("TODO_COMPLETE_FAILED", "query changed rows", e))?;
+    super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_COMPLETE_FAILED", "commit transaction", e))?;
     Ok(changed)
@@ -652,6 +657,7 @@ pub fn todo_move_and_reorder(
         .transaction()
         .map_err(|e| format_db_error("TODO_REORDER_FAILED", "begin transaction", e))?;
     let item = move_and_reorder_in_tx(&tx, &payload)?;
+    super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_REORDER_FAILED", "commit transaction", e))?;
     Ok(item)
@@ -682,6 +688,7 @@ pub fn todo_archive_item(
     } else {
         todo_calendar_sync::sync_single_item(&tx, payload.id, time_zone)?;
     }
+    super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_ARCHIVE_FAILED", "commit transaction", e))?;
     Ok(changed as i64)
@@ -709,6 +716,7 @@ pub fn todo_delete_item(app: AppHandle, payload: TodoIdPayload) -> Result<i64, S
     if let Some(content_id) = description_content_id {
         release_content_reference(&tx, content_id)?;
     }
+    super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_DELETE_FAILED", "commit transaction", e))?;
     Ok(changed as i64)
@@ -778,6 +786,7 @@ pub fn todo_delete_item_cascade(app: AppHandle, payload: TodoIdPayload) -> Resul
         release_content_reference(&tx, content_id)?;
     }
 
+    super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_DELETE_FAILED", "commit transaction", e))?;
     Ok(changed)

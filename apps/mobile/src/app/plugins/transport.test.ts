@@ -169,13 +169,17 @@ it("本机存储请求串行加载文件，上一提供方执行结束才读下�
     return () => undefined;
   });
   vi.mocked(invoke).mockImplementation(async (command, args) =>
-    command === "plugin_transport_connect"
-      ? "token"
-      : command === "plugin_file_read"
-        ? (args as { offset: number }).offset
-          ? null
-          : encodePluginBytes(new Uint8Array([1]))
-        : undefined
+    command === "plugin_data_read"
+      ? { cursor: 0, events: [] }
+      : command === "plugin_permissions_read"
+        ? {}
+        : command === "plugin_transport_connect"
+          ? "token"
+          : command === "plugin_file_read"
+            ? (args as { offset: number }).offset
+              ? null
+              : encodePluginBytes(new Uint8Array([1]))
+            : undefined
   );
   let finish!: () => void;
   const uploadOwned = vi
@@ -235,13 +239,17 @@ it("并发同步元数据调用共享响应预算，全部完成后才解除", a
     return () => undefined;
   });
   vi.mocked(invoke).mockImplementation(async command =>
-    command === "plugin_transport_connect"
-      ? "token"
-      : command === "plugin_fetch_open"
-        ? 1
-        : command === "plugin_fetch_response"
-          ? { ...metadata, status: 204, hasBody: false }
-          : undefined
+    command === "plugin_data_read"
+      ? { cursor: 0, events: [] }
+      : command === "plugin_permissions_read"
+        ? {}
+        : command === "plugin_transport_connect"
+          ? "token"
+          : command === "plugin_fetch_open"
+            ? 1
+            : command === "plugin_fetch_response"
+              ? { ...metadata, status: 204, hasBody: false }
+              : undefined
   );
   const complete: ((value: unknown) => void)[] = [];
   const execute = vi.fn(async (request: { kind: string }) =>

@@ -154,9 +154,9 @@ it("格式 3 上传严格校验，接受逐平台最低版本而非伪造顶层�
   await expect(inspectPackage(archive.toBuffer())).resolves.toBeDefined();
   archive.updateFile(
     "test.portable/manifest.json",
-    Buffer.from(JSON.stringify({ ...manifest, permissions: ["cards:read"] }))
+    Buffer.from(JSON.stringify({ ...manifest, permissions: ["whiteboards:read"] }))
   );
-  await expect(inspectPackage(archive.toBuffer())).rejects.toThrow("业务数据授权");
+  await expect(inspectPackage(archive.toBuffer())).rejects.toThrow("业务权限");
 });
 
 it("从既有 D1 schema 增量迁移会回填旧平台且不改变发布正文和外键", () => {

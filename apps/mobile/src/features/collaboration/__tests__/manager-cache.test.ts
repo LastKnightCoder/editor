@@ -354,3 +354,33 @@ it("同代次摘要刷新不下载正文，协议请求失败后可以重试", a
   expect(session.info.connection).toBe("connecting");
   doc.destroy();
 });
+
+it("插件条件写入等待旧投影结束后再次投影，并携带固定工作区来源", async () => {
+  const { doc, info, state } = await fixture();
+  io.read.mockResolvedValue({ metadata: info, state, updates: [], revision: "cache-revision" });
+  await manager.createSession(info);
+  let finish!: (value: unknown) => void;
+  io.project
+    .mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          finish = resolve;
+        })
+    )
+    .mockResolvedValue({ projected: true, revision: "plugin-written" });
+  const previous = collaborationManager.project("doc");
+  await vi.waitFor(() => expect(io.project).toHaveBeenCalledTimes(1));
+  const plugin = { pluginId: "example", token: "scope", database: "one.db" };
+  const pending = collaborationManager.project("doc", plugin);
+  finish({ projected: true, revision: "previous-written" });
+  try {
+    await Promise.all([previous, pending]);
+    expect(io.project).toHaveBeenCalledTimes(2);
+    expect(io.project.mock.calls[1][0]).toMatchObject({
+      plugin,
+      expectedRevision: "previous-written",
+    });
+  } finally {
+    doc.destroy();
+  }
+});

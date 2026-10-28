@@ -43,6 +43,8 @@ export interface NodeTreeEditorConfiguration {
   mutate?: (write: (target: NodeTree) => void, origin: object) => void;
   canWrite?: () => boolean;
   normalizeOnConnect?: boolean;
+  /** 宿主已校验的快照差分保留输入身份；普通编辑与粘贴仍分配新身份。 */
+  preserveInsertedIdentities?: boolean;
   readonly?: boolean;
   resolveVersion?: ElementVersionResolver;
   currentContract?: (type: string) => string | undefined;
@@ -352,7 +354,9 @@ export function withNodeTree<T extends Editor>(
     if (operation.type === "insert_node" && Element.isElement(operation.node))
       operation = {
         ...operation,
-        node: withIdentities(operation.node, configuration.currentContract),
+        node: configuration.preserveInsertedIdentities
+          ? operation.node
+          : withIdentities(operation.node, configuration.currentContract),
       };
     const splitIdentity = crypto.randomUUID();
     const write = (tree: NodeTree) => {

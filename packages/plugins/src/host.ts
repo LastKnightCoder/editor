@@ -330,6 +330,11 @@ export interface DataAdapter {
     expectedRevision: string
   ): Promise<void>;
   writeTodo(context: PluginContext, write: TodoWrite): Promise<PluginTodo | null>;
+  /** 实例写入独立接线，防止旧宿主忽略实例日期后修改整系列。 */
+  writeTodoOccurrence?(
+    context: PluginContext,
+    write: Exclude<TodoWrite, { action: "create" }>
+  ): Promise<PluginTodo | null>;
   writeCalendar(context: PluginContext, write: CalendarWrite): Promise<PluginCalendarEvent | null>;
   /** 正文的所属实体类型与是否为本插件实体的正文，供宿主在写入前校验权限；正文不存在时都为空 */
   contentOwners(
@@ -1548,6 +1553,15 @@ export class PluginHost {
       if (!this.options.data) throw new Error("当前宿主不支持业务数据");
       return this.options.data;
     };
+    const writeTodo = (write: TodoWrite) => {
+      const adapter = dataAdapter();
+      if (write.action !== "create" && /@\d{4}-\d{2}-\d{2}$/.test(write.id)) {
+        if (!adapter.writeTodoOccurrence)
+          throw new Error("当前宿主尚未开放周期实例写入，未修改整系列");
+        return adapter.writeTodoOccurrence(context, write);
+      }
+      return adapter.writeTodo(context, write);
+    };
     const entityKindDefinitions = new Map<string, PluginOwnEntityKind>();
     const recordCollections = new Map<string, Required<PluginRecordCollection>>();
     const linksAdapter = () => {
@@ -2412,9 +2426,7 @@ export class PluginHost {
               ["title"]
             );
             await guard("todos:write");
-            return deliver<PluginTodo>(
-              await dataAdapter().writeTodo(context, { action: "create", input: value })
-            );
+            return deliver<PluginTodo>(await writeTodo({ action: "create", input: value }));
           },
           update: async (id: string, patch: PluginTodoPatch, options: PluginWriteOptions) => {
             const value = readFields<PluginTodoPatch>(patch, {
@@ -2424,7 +2436,7 @@ export class PluginHost {
             const expectedRevision = readRevision(options);
             await guard("todos:write");
             return deliver<PluginTodo>(
-              await dataAdapter().writeTodo(context, {
+              await writeTodo({
                 action: "update",
                 id: readId(id),
                 patch: value,
@@ -2437,7 +2449,7 @@ export class PluginHost {
             const expectedRevision = readRevision(options);
             await guard("todos:write");
             return deliver<PluginTodo>(
-              await dataAdapter().writeTodo(context, {
+              await writeTodo({
                 action: "complete",
                 id: readId(id),
                 completed,
@@ -2448,7 +2460,7 @@ export class PluginHost {
           delete: async (id: string, options: PluginWriteOptions) => {
             const expectedRevision = readRevision(options);
             await guard("todos:delete");
-            await dataAdapter().writeTodo(context, {
+            await writeTodo({
               action: "delete",
               id: readId(id),
               expectedRevision,
@@ -2458,6 +2470,7 @@ export class PluginHost {
           query: async (query?: PluginTodoQuery) => {
             const picked = pickQuery<PluginTodoQuery>(query, {
               source: "string",
+              view: "string",
               completed: "boolean",
               keyword: "string",
               start: "string",
@@ -2466,6 +2479,10 @@ export class PluginHost {
             });
             if (picked.source !== undefined && !["all", "todo", "document"].includes(picked.source))
               throw new Error("查询参数 source 无效");
+            if (picked.view !== undefined && !["tasks", "occurrences"].includes(picked.view))
+              throw new Error("查询参数 view 无效");
+            if (picked.view === "occurrences" && (!picked.start || !picked.end))
+              throw new Error("周期实例查询须同时提供 start/end");
             const limit = readLimit(query?.limit, 100);
             await guard("todos:read");
             return deliver<PluginPage<PluginTodo>>(

@@ -1,3 +1,8 @@
+import { PluginPermissionError } from "@tau/plugins";
+import { createMobileEvents } from "./events";
+import { createMobileData } from "./data";
+import { getQueryClient } from "../../router";
+import { createMobilePermissions } from "./permissions";
 import {
   createBridgeWebSocket,
   type SocketClosed,
@@ -235,6 +240,24 @@ export async function connectMobilePluginTransport(runtime: MobilePluginRuntime)
   });
   try {
     token = await invoke<string>("plugin_transport_connect", { database: runtime.workspaceId });
+    runtime.events = await createMobileEvents(runtime.workspaceId, token, () => {
+      void getQueryClient().invalidateQueries();
+    });
+    runtime.data = createMobileData(
+      runtime.workspaceId,
+      token,
+      () => {
+        void getQueryClient().invalidateQueries();
+      },
+      async (context, permission) => {
+        if (
+          !runtime.permissions ||
+          (await runtime.permissions.query(context, permission)) !== "granted"
+        )
+          throw new PluginPermissionError(permission, "denied");
+      }
+    );
+    runtime.permissions = createMobilePermissions(runtime.workspaceId, token);
     const socketToken = token;
     runtime.websocket = createBridgeWebSocket({
       open: (id, request) => networkCall("plugin_socket_open", { token: socketToken, id, request }),
@@ -267,12 +290,18 @@ export async function connectMobilePluginTransport(runtime: MobilePluginRuntime)
       pluginId && activeSync.has(pluginId) ? CHUNK_BYTES * 2 : undefined
     );
   } catch (error) {
+    runtime.events?.dispose();
+    runtime.permissions?.dispose();
+    if (token) void invoke("plugin_transport_disconnect", { token }).catch(() => undefined);
     stop();
     throw error;
   }
   return () => {
     disposed = true;
     stop();
+    runtime.permissions?.dispose();
+    runtime.data?.dispose();
+    runtime.events?.dispose();
     runtime.fetch = undefined;
     runtime.websocket = undefined;
     void invoke("plugin_transport_disconnect", { token }).catch(() => undefined);

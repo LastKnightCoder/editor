@@ -11,6 +11,7 @@ mod models;
 mod plugin_center;
 mod plugin_fetch;
 mod plugin_files;
+mod plugin_permissions;
 mod plugin_provider;
 mod plugin_socket;
 mod plugin_transport;
@@ -105,6 +106,10 @@ pub fn run() {
             plugin_files::plugin_file_read,
             plugin_files::plugin_file_write,
             plugin_fetch::plugin_fetch_cancel,
+            plugin_permissions::plugin_permissions_read,
+            plugin_permissions::plugin_permissions_reset,
+            plugin_permissions::plugin_permissions_usage,
+            plugin_permissions::plugin_permissions_write,
             plugins::plugin_packages,
             plugins::plugin_apply_pending,
             plugins::plugin_stage,
@@ -113,6 +118,11 @@ pub fn run() {
             plugins::plugin_restore,
             plugins::plugin_set_enabled,
             plugins::plugin_uninstall,
+            database::plugin_data_read,
+            database::plugin_tasks_read,
+            database::plugin_tasks_write,
+            database::plugin_data_write,
+            database::plugin_data_operations,
             database::plugin_kv_read,
             database::plugin_kv_write,
             database::plugin_kv_clear,

@@ -158,6 +158,7 @@ pub fn todo_create_recurrence(
         .map_err(|e| format_db_error("TODO_RECURRENCE_CREATE_FAILED", "query created recurrence", e))?;
     super::super::assistant_tasks::record_rule_change(&tx, &recurrence, time_zone)?;
     todo_calendar_sync::rematerialize_recurring_item(&tx, payload.todo_item_id, time_zone)?;
+    super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_RECURRENCE_CREATE_FAILED", "commit transaction", e))?;
     Ok(recurrence)
@@ -269,6 +270,7 @@ pub fn todo_update_recurrence(
         .map_err(|e| format_db_error("TODO_RECURRENCE_UPDATE_FAILED", "query updated recurrence", e))?;
     super::super::assistant_tasks::record_rule_change(&tx, &recurrence, time_zone)?;
     todo_calendar_sync::rematerialize_recurring_item(&tx, current.todo_item_id, time_zone)?;
+    super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_RECURRENCE_UPDATE_FAILED", "commit transaction", e))?;
     Ok(recurrence)
@@ -312,6 +314,7 @@ pub fn todo_delete_recurrence(
         )
         .map_err(|e| format_db_error("TODO_RECURRENCE_DELETE_FAILED", "delete recurrence", e))?;
     todo_calendar_sync::remove_all_by_todo(&tx, todo_item_id)?;
+    super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_RECURRENCE_DELETE_FAILED", "commit transaction", e))?;
     Ok(changed as i64)
@@ -360,6 +363,7 @@ pub fn todo_delete_recurrence_by_item(
         .execute("DELETE FROM todo_recurrence WHERE id = ?1", params![id])
         .map_err(|e| format_db_error("TODO_RECURRENCE_DELETE_FAILED", "delete recurrence", e))?;
     todo_calendar_sync::remove_all_by_todo(&tx, payload.todo_item_id)?;
+    super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_RECURRENCE_DELETE_FAILED", "commit transaction", e))?;
     Ok(changed as i64)
@@ -552,6 +556,7 @@ pub fn todo_complete_recurrence(
             },
         )
         .map_err(|e| format_db_error("TODO_RECURRENCE_COMPLETE_FAILED", "query completion", e))?;
+    super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_RECURRENCE_COMPLETE_FAILED", "commit transaction", e))?;
     Ok(completion)
@@ -585,6 +590,7 @@ pub fn todo_uncomplete_recurrence(
             params![payload.recurrence_id, payload.scheduled_date],
         )
         .map_err(|e| format_db_error("TODO_RECURRENCE_COMPLETE_FAILED", "delete completion", e))?;
+    super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
     tx.commit().map_err(|e| e.to_string())?;
     Ok(changed as i64)
 }
@@ -681,6 +687,7 @@ pub fn todo_skip_recurrence(
                 e,
             )
         })?;
+    super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_RECURRENCE_COMPLETE_FAILED", "commit transaction", e))?;
     Ok(completion)

@@ -1,6 +1,6 @@
 use super::*;
 
-fn ensure_system_groups(tx: &Transaction<'_>) -> Result<(), String> {
+pub(crate) fn ensure_system_groups(tx: &Transaction<'_>) -> Result<(), String> {
     let now = now_millis();
     let mut stmt = tx
         .prepare("SELECT system_type FROM todo_group WHERE is_system = 1")
@@ -139,6 +139,7 @@ pub fn todo_create_group(
             parse_group_row,
         )
         .map_err(|e| format_db_error("TODO_GROUP_CREATE_FAILED", "query created group", e))?;
+    super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_GROUP_CREATE_FAILED", "commit transaction", e))?;
     Ok(group)
@@ -206,6 +207,7 @@ pub fn todo_update_group(
             parse_group_row,
         )
         .map_err(|e| format_db_error("TODO_GROUP_UPDATE_FAILED", "query updated group", e))?;
+    super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_GROUP_UPDATE_FAILED", "commit transaction", e))?;
     Ok(group)
@@ -239,6 +241,7 @@ pub fn todo_archive_group(app: AppHandle, payload: ArchiveTodoGroupPayload) -> R
             ],
         )
         .map_err(|e| format_db_error("TODO_GROUP_ARCHIVE_FAILED", "archive group", e))?;
+    super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_GROUP_ARCHIVE_FAILED", "commit transaction", e))?;
     Ok(changed as i64)
@@ -258,6 +261,7 @@ pub fn todo_reorder_groups(app: AppHandle, payload: ReorderGroupsPayload) -> Res
         )
         .map_err(|e| format_db_error("TODO_GROUP_REORDER_FAILED", "update group order", e))?;
     }
+    super::super::common::write_operation(&tx, "todo", "update", 0, now_millis())?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_GROUP_REORDER_FAILED", "commit transaction", e))?;
     Ok(payload.ordered_ids.len() as i64)

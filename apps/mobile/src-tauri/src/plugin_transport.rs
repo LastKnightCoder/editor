@@ -51,6 +51,23 @@ pub(crate) fn with_host<T>(
     assert_host(&state, token)?;
     run()
 }
+pub(crate) fn with_database<T>(
+    token: &str,
+    database: &str,
+    run: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    let state = transport().lock().map_err(|_| "插件传输状态不可用")?;
+    assert_host(&state, token)?;
+    if state
+        .host
+        .as_ref()
+        .is_none_or(|host| host.database != database)
+    {
+        return Err("插件工作区已失效".into());
+    }
+    run()
+}
+
 fn release(state: &mut Transport) {
     state.host = None;
     for (_, pending) in state.pending.drain() {
@@ -60,6 +77,21 @@ fn release(state: &mut Transport) {
     crate::plugin_socket::invalidate();
     crate::plugin_files::invalidate();
     crate::resource_upload::invalidate_uploads();
+}
+
+pub(crate) fn replace_database<T>(
+    database: &str,
+    run: impl FnOnce() -> Result<T, String>,
+) -> Result<T, String> {
+    let mut state = transport().lock().map_err(|_| "插件传输状态不可用")?;
+    if state
+        .host
+        .as_ref()
+        .is_some_and(|host| host.database == database)
+    {
+        release(&mut state);
+    }
+    run()
 }
 
 pub(crate) fn invalidate() {
@@ -169,6 +201,16 @@ pub(crate) fn test_host(token: &str) -> std::sync::MutexGuard<'static, ()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn replacement_invalidates_same_named_workspace_even_on_failure() {
+        let _guard = test_host("replacement");
+        assert!(with_database("replacement", "other.db", || Ok(())).is_err());
+        assert!(with_database("replacement", "fixture.db", || Ok(())).is_ok());
+        let result: Result<(), String> = replace_database("fixture.db", || Err("安装失败".into()));
+        assert!(result.is_err());
+        assert!(with_database("replacement", "fixture.db", || Ok(())).is_err());
+    }
+
     #[test]
     fn cancelled_wait_releases_its_request_slot() {
         let _guard = test_host("pending");

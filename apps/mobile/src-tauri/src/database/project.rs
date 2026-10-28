@@ -157,7 +157,7 @@ fn description_json(text: String) -> String {
     serde_json::json!([{ "type": "paragraph", "children": [{ "type": "formatted", "text": text }] }]).to_string()
 }
 
-fn next_project_id(conn: &Connection) -> Result<i64, String> {
+pub(super) fn next_project_id(conn: &Connection) -> Result<i64, String> {
     // 序列与桌面共用：id 在项目 / 数据库 / Vibe Learning 三张表间全局唯一且不复用
     let id: i64 = conn.query_row("SELECT MAX(COALESCE((SELECT MAX(id) FROM project),0),COALESCE((SELECT MAX(id) FROM database_item),0),COALESCE((SELECT MAX(id) FROM vibe_learning_project),0),COALESCE((SELECT CAST(value AS INTEGER) FROM migration_meta WHERE key='project:id-seq'),0))+1", [], |r| r.get(0)).map_err(|e| e.to_string())?;
     if id > 9_007_199_254_740_991 {
@@ -171,6 +171,31 @@ fn next_project_id(conn: &Connection) -> Result<i64, String> {
 mod project_model_tests {
     use super::*;
 
+    #[test]
+    fn application_attachment_notifies_every_shared_project() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(include_str!(
+            "../../../../../packages/db-schema/schema/main.sql"
+        ))
+        .unwrap();
+        conn.execute_batch("INSERT INTO project(id,title,children,create_time,update_time) VALUES(1,'甲','[10]',1,1),(2,'乙','[10]',1,1); INSERT INTO project_item(id,title,children,parents,projects,create_time,update_time) VALUES(10,'父','[]','[]','[1,2]',1,1),(11,'子','[]','[]','[]',1,1);").unwrap();
+        attach_item(&conn, 1, Some(10), 11).unwrap();
+        assert_eq!(
+            conn.query_row("SELECT projects FROM project_item WHERE id=11", [], |row| {
+                row.get::<_, String>(0)
+            })
+            .unwrap(),
+            "[1,2]"
+        );
+        assert_eq!(conn.query_row("SELECT COUNT(DISTINCT operation_id) FROM operation WHERE operation_content_type='project' AND operation_action='update'",[],|row|row.get::<_,i64>(0)).unwrap(),2);
+        assert!(conn
+            .query_row("SELECT update_time>1 FROM project WHERE id=2", [], |row| {
+                row.get::<_, bool>(0)
+            })
+            .unwrap());
+        detach_item_from_parent(&conn, Some(10), 11, 1).unwrap();
+        assert_eq!(load_item_children(&conn, 10).unwrap(), Vec::<i64>::new());
+    }
     #[test]
     fn detail_count_and_id_sequence_remain_compatible_with_desktop() {
         let conn = Connection::open_in_memory().unwrap();
@@ -203,6 +228,26 @@ fn load_item_children(tx: &Connection, item_id: i64) -> Result<Vec<i64>, String>
     Ok(parse_id_array(raw.flatten()))
 }
 
+/// 目录变化同时推进项目版本与提交日志，供列表和插件订阅使用。
+pub(super) fn touch_projects(
+    conn: &Connection,
+    projects: &std::collections::BTreeSet<i64>,
+) -> Result<(), String> {
+    for id in projects {
+        if conn
+            .execute(
+                "UPDATE project SET update_time=MAX(update_time+1,?1) WHERE id=?2",
+                params![now_millis(), id],
+            )
+            .map_err(|e| e.to_string())?
+            > 0
+        {
+            write_operation(conn, "project", "update", *id, now_millis())?;
+        }
+    }
+    Ok(())
+}
+
 /// 把 child 追加到 parent.children（parent 为 None 时挂到 project.children），并回写 parents/projects
 fn attach_item(
     tx: &Connection,
@@ -211,13 +256,24 @@ fn attach_item(
     child_id: i64,
 ) -> Result<(), String> {
     let now = now_millis();
+    let mut affected = std::collections::BTreeSet::from([project_id]);
+    if let Some(parent) = parent_id {
+        let projects: Option<String> = tx
+            .query_row(
+                "SELECT projects FROM project_item WHERE id=?1",
+                [parent],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        affected.extend(parse_id_array(projects));
+    }
     if let Some(pid) = parent_id {
         let mut children = load_item_children(tx, pid)?;
         if !children.contains(&child_id) {
             children.push(child_id);
         }
         tx.execute(
-            "UPDATE project_item SET children = ?1, update_time = ?2 WHERE id = ?3",
+            "UPDATE project_item SET children = ?1, update_time = MAX(update_time+1,?2) WHERE id = ?3",
             params![serialize_id_array(&children), now, pid],
         )
         .map_err(|e| db_err("PROJECT_UPDATE_FAILED", "attach to parent", e))?;
@@ -235,7 +291,7 @@ fn attach_item(
             children.push(child_id);
         }
         tx.execute(
-            "UPDATE project SET children = ?1, update_time = ?2 WHERE id = ?3",
+            "UPDATE project SET children = ?1, update_time = MAX(update_time+1,?2) WHERE id = ?3",
             params![serialize_id_array(&children), now, project_id],
         )
         .map_err(|e| db_err("PROJECT_UPDATE_FAILED", "attach to project", e))?;
@@ -261,8 +317,10 @@ fn attach_item(
             parents.push(pid);
         }
     }
-    if !projects.contains(&project_id) {
-        projects.push(project_id);
+    for project in &affected {
+        if !projects.contains(project) {
+            projects.push(*project);
+        }
     }
     tx.execute(
         "UPDATE project_item SET parents = ?1, projects = ?2 WHERE id = ?3",
@@ -273,7 +331,10 @@ fn attach_item(
         ],
     )
     .map_err(|e| db_err("PROJECT_UPDATE_FAILED", "update item parents", e))?;
-    Ok(())
+    if let Some(parent) = parent_id {
+        write_operation(tx, "project-item", "update", parent, now)?;
+    }
+    touch_projects(tx, &affected)
 }
 
 fn detach_item_from_parent(
@@ -283,11 +344,22 @@ fn detach_item_from_parent(
     project_id: i64,
 ) -> Result<(), String> {
     let now = now_millis();
+    let mut affected = std::collections::BTreeSet::from([project_id]);
+    if let Some(parent) = parent_id {
+        let projects: Option<String> = tx
+            .query_row(
+                "SELECT projects FROM project_item WHERE id=?1",
+                [parent],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        affected.extend(parse_id_array(projects));
+    }
     if let Some(pid) = parent_id {
         let children = load_item_children(tx, pid)?;
         let next: Vec<i64> = children.into_iter().filter(|id| *id != child_id).collect();
         tx.execute(
-            "UPDATE project_item SET children = ?1, update_time = ?2 WHERE id = ?3",
+            "UPDATE project_item SET children = ?1, update_time = MAX(update_time+1,?2) WHERE id = ?3",
             params![serialize_id_array(&next), now, pid],
         )
         .map_err(|e| db_err("PROJECT_DELETE_FAILED", "detach from parent", e))?;
@@ -303,12 +375,15 @@ fn detach_item_from_parent(
         let children = parse_id_array(raw.flatten());
         let next: Vec<i64> = children.into_iter().filter(|id| *id != child_id).collect();
         tx.execute(
-            "UPDATE project SET children = ?1, update_time = ?2 WHERE id = ?3",
+            "UPDATE project SET children = ?1, update_time = MAX(update_time+1,?2) WHERE id = ?3",
             params![serialize_id_array(&next), now, project_id],
         )
         .map_err(|e| db_err("PROJECT_DELETE_FAILED", "detach from project", e))?;
     }
-    Ok(())
+    if let Some(parent) = parent_id {
+        write_operation(tx, "project-item", "update", parent, now)?;
+    }
+    touch_projects(tx, &affected)
 }
 
 /// 收集 root_ids 及其全部后代（沿 children JSON 递归）

@@ -1086,6 +1086,14 @@ export function collabUnbindContent(contentId: number) {
 
 /** 协作投影专用写通道：绑定漂移时服务端侧自动解绑并返回 reason=drift */
 export function collabProjectContent(params: {
+  plugin?: {
+    token: string;
+    database: string;
+    pluginId: string;
+    taskOperationId?: number;
+    taskRestoreId?: number;
+    timeZone?: string;
+  };
   documentId: string;
   contracts?: ContentContractDictionary;
   expectedRevision?: string;
