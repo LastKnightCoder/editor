@@ -8,7 +8,9 @@ import useSettingStore from "@/stores/useSettingStore";
 import { ProviderAccountSettings } from "../components/ProviderAccountSettings";
 const mocks = vi.hoisted(() => ({ tts: vi.fn(), images: vi.fn() }));
 vi.mock("@/commands/plugin-tts", () => ({ savePluginTTSConfig: mocks.tts }));
-vi.mock("@/commands/plugin-images", () => ({ savePluginImagesConfig: mocks.images }));
+vi.mock("@/commands/plugin-images", () => ({
+  savePluginImagesConfig: mocks.images,
+}));
 vi.mock("@/features/settings/sections/TTSPluginCloneSection", () => ({
   TTSPluginCloneSection: () => null,
 }));
@@ -18,14 +20,22 @@ const section = (target: "tts" | "images"): RegisteredPluginSettings =>
   ({
     key: "plugin:test.provider:account",
     mountId: 1,
-    context: { pluginId: "test.provider", signal: new AbortController().signal } as PluginContext,
+    context: {
+      pluginId: "test.provider",
+      signal: new AbortController().signal,
+    } as PluginContext,
     definition: {
       id: "account",
       title: "测试提供方",
       target,
       models: [{ id: "default-model" }],
       form: {
-        groups: [{ title: "连接", fields: [{ key: "apiKey", label: "API Key", type: "secret" }] }],
+        groups: [
+          {
+            title: "连接",
+            fields: [{ key: "apiKey", label: "API Key", type: "secret" }],
+          },
+        ],
       },
     },
   }) as RegisteredPluginSettings;
@@ -53,8 +63,13 @@ beforeEach(() => {
     setting: {
       ...previous,
       ttsProviders: structuredClone(accounts),
-      ttsUsageSettings: { default: { providerId: "b", modelId: "custom-model", voiceId: "voice" } },
-      imageGeneration: { providers: structuredClone(accounts), currentProviderId: "b" },
+      ttsUsageSettings: {
+        default: { providerId: "b", modelId: "custom-model", voiceId: "voice" },
+      },
+      imageGeneration: {
+        providers: structuredClone(accounts),
+        currentProviderId: "b",
+      },
     },
   });
   container = document.createElement("div");
@@ -79,7 +94,7 @@ it.each(["tts", "images"] as const)(
     await type("new-secret");
     const save = target === "tts" ? mocks.tts : mocks.images;
     save.mockRejectedValueOnce(new Error("写入失败"));
-    await act(async () => button("保存").click());
+    await act(async () => button("保存账号").click());
     expect(container.textContent).toContain("写入失败");
     expect(useSettingStore.getState().setting.ttsProviders[0].config).toMatchObject({
       apiKey: "key-a",
@@ -87,7 +102,7 @@ it.each(["tts", "images"] as const)(
     expect(useSettingStore.getState().setting.imageGeneration.providers[0].config).toMatchObject({
       apiKey: "key-a",
     });
-    await act(async () => button("保存").click());
+    await act(async () => button("保存账号").click());
     const saved = useSettingStore.getState().setting;
     const list = target === "tts" ? saved.ttsProviders : saved.imageGeneration.providers;
     expect(list[0].config).toEqual({ apiKey: "new-secret", preserved: true });
@@ -122,3 +137,53 @@ it.each(["tts", "images"] as const)("%s 添加账号不自动选用", async targ
   expect(mocks.tts).not.toHaveBeenCalled();
   expect(mocks.images).not.toHaveBeenCalled();
 });
+
+it.each(["tts", "images"] as const)(
+  "%s 账号卡：胶囊切换、使用中标记、卡头改名与 ⋯ 删除",
+  async target => {
+    await act(async () =>
+      root.render(
+        <UiProvider>
+          <ProviderAccountSettings section={section(target)} />
+        </UiProvider>
+      )
+    );
+    const pills = () => [
+      ...container.querySelectorAll('nav[aria-label="账号"] button[aria-pressed]'),
+    ];
+    expect(pills().map(item => item.textContent)).toEqual(["a", "b"]);
+    expect(container.textContent).not.toContain("使用中");
+    await act(async () => (pills()[1] as HTMLButtonElement).click());
+    expect(container.textContent).toContain("使用中");
+
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[aria-label="重命名账号"]')!.click()
+    );
+    const input = container.querySelector<HTMLInputElement>('input[aria-label="账号名称"]')!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+        input,
+        "主账号"
+      );
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const list = () => {
+      const saved = useSettingStore.getState().setting;
+      return target === "tts" ? saved.ttsProviders : saved.imageGeneration.providers;
+    };
+    expect(list()[1].name).toBe("主账号");
+
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[aria-label="主账号 的更多操作"]')!.click()
+    );
+    const remove = [...document.querySelectorAll('[role="menuitem"]')].find(
+      node => node.textContent?.trim() === "删除账号…"
+    ) as HTMLElement;
+    await act(async () => remove.click());
+    await act(async () => button("删除").click());
+    expect(list().map(item => item.id)).toEqual(["a"]);
+    const saved = useSettingStore.getState().setting;
+    if (target === "tts") expect(saved.ttsUsageSettings.default).toBeNull();
+    else expect(saved.imageGeneration.currentProviderId).toBe("");
+  }
+);

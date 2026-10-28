@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SlidersHorizontal } from "lucide-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ProviderForm } from "@tau/plugins";
 import { Panel, UiProvider } from "@tau/ui";
@@ -6,6 +7,12 @@ import { ErrorState, RecoverableBoundary } from "@/components/ErrorState";
 import type { RegisteredPluginSettings } from "@/app/plugins/runtime";
 import { ProviderAccountSettings } from "../components/ProviderAccountSettings";
 import { ProviderFormView, useStorageBinding } from "../components/ProviderFormView";
+import {
+  SettingsCard,
+  SettingsCardBody,
+  SettingsCardHeader,
+  SettingsCardIcon,
+} from "../components/SettingsCard";
 
 export function PluginSettingsView({ section }: { section?: RegisteredPluginSettings }) {
   if (!section)
@@ -68,7 +75,9 @@ function SettingsScope({ section }: { section: RegisteredPluginSettings }) {
   const [client] = useState(
     () =>
       new QueryClient({
-        defaultOptions: { queries: { retry: false, gcTime: 0, refetchOnWindowFocus: false } },
+        defaultOptions: {
+          queries: { retry: false, gcTime: 0, refetchOnWindowFocus: false },
+        },
       })
   );
   const Component = section.definition.component;
@@ -78,7 +87,19 @@ function SettingsScope({ section }: { section: RegisteredPluginSettings }) {
         {section.definition.target ? (
           <ProviderAccountSettings section={section} />
         ) : Component ? (
-          <Component context={section.context} />
+          <SettingsCard
+            header={
+              <SettingsCardHeader
+                icon={<SettingsCardIcon icon={SlidersHorizontal} />}
+                title={section.definition.title}
+                description={section.definition.description}
+              />
+            }
+          >
+            <SettingsCardBody>
+              <Component context={section.context} />
+            </SettingsCardBody>
+          </SettingsCard>
         ) : null}
       </UiProvider>
     </QueryClientProvider>

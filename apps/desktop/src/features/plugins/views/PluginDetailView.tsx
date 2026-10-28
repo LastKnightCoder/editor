@@ -388,11 +388,8 @@ function SettingsTab({
         </nav>
       )}
       {active ? (
+        // 标题由卡头或分组导航承担，这里不再重复插件名
         <section aria-label={active.definition.title}>
-          <h3 className="text-tau-body text-ink-1 mb-1 font-semibold">{active.definition.title}</h3>
-          {active.definition.description && (
-            <p className="text-tau-meta text-ink-2 mb-4">{active.definition.description}</p>
-          )}
           <PluginSettingsView section={active} />
         </section>
       ) : section ? (

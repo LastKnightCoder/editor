@@ -4,7 +4,7 @@ import { VoiceClonePanel } from "@/components/PodcastGenerationModal/VoiceCloneP
 import type { CloneVoiceItem } from "@/components/PodcastGenerationModal/types";
 import type { PluginTTSProviderSetting } from "@/types/tts";
 import { TTSProviderFactory } from "@/utils/tts";
-import { ProviderSection } from "../components/ProviderLayout";
+import { SettingsCardSection } from "@/features/plugins/components/SettingsCard";
 
 export function TTSPluginCloneSection({
   provider,
@@ -18,9 +18,13 @@ export function TTSPluginCloneSection({
     ? selected
     : (provider.models[0]?.id ?? "");
   return (
-    <ProviderSection title="音色复刻" description="使用当前编辑账号的模型；不会切换默认语音账号">
+    <SettingsCardSection
+      title="音色复刻"
+      description="使用当前编辑账号的模型；不会切换默认语音账号"
+    >
       <SettingRow title="复刻目标模型">
         <Select
+          className="w-[300px] max-w-full"
           aria-label="复刻目标模型"
           value={modelId}
           options={provider.models.map(model => ({
@@ -30,7 +34,7 @@ export function TTSPluginCloneSection({
           onValueChange={setSelected}
         />
       </SettingRow>
-      {/* 描边容器自身无内距（靠 SettingRow 的 px-3），非行式内容需自带同等内收 */}
+      {/* 小节只给 1.5 内收，非行式内容补到与 SettingRow 的 px-3 对齐 */}
       <div className="px-3 pb-3">
         {modelId ? (
           <CloneForm
@@ -43,7 +47,7 @@ export function TTSPluginCloneSection({
           <p className="text-tau-meta text-ink-2">请先配置模型。</p>
         )}
       </div>
-    </ProviderSection>
+    </SettingsCardSection>
   );
 }
 function CloneForm({

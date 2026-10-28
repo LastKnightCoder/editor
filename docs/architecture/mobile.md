@@ -511,7 +511,7 @@ Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开
 
 ## 语音合成
 
-入口为「我的 → 语音」（设置模块 `voice`），应用设置选择当前账号 / 模型 / 音色并提供试听。插件详情及插件设置页的 `target: "tts"` 由 `MobileProviderSettings` 显示该插件的账号列表与添加入口，再进入 `ttsAccount`、`ttsModels`、`ttsClone` 子页；这些子页按 instanceId 保活。ASR 在语音设置中选用，账号与识别模型由插件页配置，保存不改变当前选用。
+入口为「我的 → 语音」（设置模块 `voice`），应用设置选择当前账号 / 模型 / 音色并提供试听。插件详情及插件设置页的 `target: "tts"` 由 `MobileProviderSettings` 显示该插件的账号列表与添加入口，再进入 `ttsAccount`、`ttsModels`、`ttsClone` 子页；这些子页按 instanceId 保活。ASR 在语音设置中选用，账号与识别模型由插件页配置，保存不改变当前选用。插件自绘的设置组件在插件详情与插件设置页都由 `PluginSettingsCard` 承载（surface 圆角卡），组件只写内容。
 
 - **数据**：沿用桌面形状，`ttsProviders[]`（宿主生成的账号实例 ID、插件 ID、名称、插件私有 config、models）与 `ttsUsageSettings.default`。写入只经原生 `plugin_tts_mutate`（`src-tauri/src/tts_settings.rs`），在 `mutate_setting_value` 串行队列内校验窗口、工作区、账号归属与模型去重，成功返回快照后前端才合并；普通全量设置写入由 `preserve_managed_fields` 保留这两个字段。删除当前模型回落到第一个模型并清空音色，没有剩余模型时清空当前选择。设置保存只接受当前插件账号结构，不转换旧内置凭据或同步账本；读取规则见「设置文件」。
 - **执行**：每个插件运行时持有一份 `@tau/plugins/tts-host` 的 `RendererTTSRegistry`（与桌面同一核心），`services/plugin-tts.ts` 在同一 WebView 内开会话：open 时冻结账号配置与模型，调用方取消、插件停用或工作区释放都会关闭会话并拒绝迟到结果。网络经插件 fetch 原生桥。

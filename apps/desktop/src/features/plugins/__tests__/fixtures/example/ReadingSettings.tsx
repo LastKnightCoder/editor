@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PluginSettingsProps } from "@tau/plugins";
-import { Button, Dialog, DialogBody, Panel, Switch } from "@tau/ui";
+import { Button, Dialog, DialogBody, Switch } from "@tau/ui";
 
 export function ReadingSettings({ context }: PluginSettingsProps) {
   const [help, setHelp] = useState(false);
@@ -23,7 +23,7 @@ export function ReadingSettings({ context }: PluginSettingsProps) {
     },
   });
   return (
-    <Panel>
+    <div>
       <div className="flex items-center gap-3">
         <Switch
           aria-label="启用阅读提示"
@@ -60,6 +60,6 @@ export function ReadingSettings({ context }: PluginSettingsProps) {
           设置仅保存在本机当前工作区。停用插件会关闭此分区，但不会删除已保存的偏好。
         </DialogBody>
       </Dialog>
-    </Panel>
+    </div>
   );
 }
