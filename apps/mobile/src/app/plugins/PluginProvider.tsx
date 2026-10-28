@@ -209,23 +209,24 @@ export function MobilePluginProvider({
     };
   }, [client, database, navigator, sessionId, generation, reload]);
 
-  // 首装没有旧版本在运行，下载完成即重载会话让它直接可用；更新由用户在插件中心确认生效
+  // 安装队列清空后重建一次会话，让新装与更新的插件直接生效；安全模式下不自动加载插件
   useEffect(() => {
     const store = getMobileCenterInstallStore(client);
     let previous = store.getSnapshot();
+    let finished = new Set<string>();
     return store.subscribe(() => {
       const snapshot = store.getSnapshot();
-      const finished = [...snapshot.values()]
-        .filter(task => task.status === "success" && previous.get(task.pluginId) !== task)
-        .map(task => task.pluginId);
+      for (const task of snapshot.values())
+        if (task.status === "success" && previous.get(task.pluginId) !== task)
+          finished.add(task.pluginId);
       previous = snapshot;
-      if (!finished.length) return;
+      if (!finished.size || [...snapshot.values()].some(task => task.status === "pending")) return;
+      const ids = finished;
+      finished = new Set();
+      if (mobilePluginState.get().phase === "safe") return;
       void readMobilePlugins()
         .then(inventory => {
-          const fresh = inventory.packages.some(
-            item => finished.includes(item.id) && item.pending && !item.currentVersion
-          );
-          if (fresh) reload();
+          if (inventory.packages.some(item => ids.has(item.id) && item.pending)) reload();
         })
         .catch(() => undefined);
     });

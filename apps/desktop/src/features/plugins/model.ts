@@ -191,6 +191,18 @@ export function installState(
   return { kind: "installed" };
 }
 
+/** 已安装且中心有更高兼容版本、尚未下载的更新；更新标签的「全部更新」与侧栏角标共用。 */
+export function availableUpdates(
+  entries: readonly PluginCatalogEntry[],
+  installed: readonly InstalledPlugin[]
+) {
+  return entries.flatMap(entry => {
+    const plugin = installed.find(item => item.info.id === entry.pluginId);
+    const state = installState(entry, plugin, plugin?.update);
+    return plugin && state.kind === "update" ? [state.releaseId] : [];
+  });
+}
+
 export interface VersionRowModel {
   version: string;
   notes: string[];

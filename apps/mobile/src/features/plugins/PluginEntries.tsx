@@ -1,7 +1,7 @@
 import { useMobilePlugins } from "../../app/plugins/context";
 import { useNavigator } from "../../router";
 import { toast } from "../../components/toast";
-import { useMobileCenterConfig } from "./data/center-queries";
+import { useInstalledPluginUpdateCount, useMobileCenterConfig } from "./data/center-queries";
 
 const ROW =
   "text-ink-1 active:bg-press flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-1 text-left text-[14px]";
@@ -12,6 +12,7 @@ export function PluginEntries() {
   const navigator = useNavigator();
   const config = useMobileCenterConfig();
   const canBrowse = config.data?.browsingEnabled === true;
+  const updates = useInstalledPluginUpdateCount();
   const entries = [...(runtime?.entries.values() ?? [])].filter(item =>
     runtime?.active(item.context)
   );
@@ -50,13 +51,24 @@ export function PluginEntries() {
       )}
       {canBrowse && (
         <div className="border-line-1 mt-2 border-t pt-2">
-          <button type="button" className={ROW} onClick={() => navigator.push("plugins")}>
+          <button
+            type="button"
+            className={ROW}
+            onClick={() => navigator.push("plugins", updates ? { tab: "installed" } : {})}
+          >
             <span className="flex flex-col">
               插件中心
               <span className="text-ink-3 text-[12px]">商店与已安装管理</span>
             </span>
-            <span aria-hidden="true" className="text-ink-3">
-              ›
+            <span className="flex shrink-0 items-center gap-2">
+              {updates > 0 && (
+                <span className="bg-accent-soft text-accent rounded-full px-2 py-0.5 text-[11.5px] font-bold tabular-nums">
+                  {updates} 个可更新
+                </span>
+              )}
+              <span aria-hidden="true" className="text-ink-3">
+                ›
+              </span>
             </span>
           </button>
         </div>

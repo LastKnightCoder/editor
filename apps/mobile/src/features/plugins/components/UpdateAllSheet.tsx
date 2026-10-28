@@ -27,7 +27,7 @@ export function UpdateAllSheet({
     <BottomSheet open={open} title={`更新 ${entries.length} 个插件`} onClose={onClose}>
       <div className="flex flex-col gap-4 px-5 pb-4">
         <p className="text-ink-2 text-[13px] leading-relaxed">
-          从插件中心依次下载并校验，关闭面板不影响下载。全部完成后在插件中心点「立即生效」即可切换到新版本。
+          从插件中心依次下载并校验，关闭面板不影响下载。全部完成后自动切换到新版本。
         </p>
         <ul aria-label="待更新插件" className="flex flex-col gap-2.5">
           {entries.map(entry => (

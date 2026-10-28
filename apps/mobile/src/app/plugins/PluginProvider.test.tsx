@@ -14,6 +14,7 @@ import { MobilePluginProvider } from "./PluginProvider";
 import { MobilePluginRuntime } from "./runtime";
 import { mobilePluginState } from "./content";
 import { useMobilePluginStatus } from "./context";
+import { getMobileCenterInstallStore } from "./center-install";
 
 vi.mock("../../router", () => ({ useNavigator: () => navigator }));
 const navigator = { push: vi.fn() };
@@ -156,6 +157,88 @@ it("children 不等待插件立即渲染；启动中为 starting，完成后 rea
     client.clear();
     container.remove();
     start.mockRestore();
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  }
+});
+
+it("中心更新下载完成且队列清空后自动重建会话，不需要点「立即生效」", async () => {
+  vi.stubGlobal("matchMedia", () => ({
+    matches: false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+  const center = await import("../../services/pluginCenter");
+  const plugins = await import("../../services/plugins");
+  const finish: (() => void)[] = [];
+  const install = vi
+    .spyOn(center, "installMobileCenterRelease")
+    .mockImplementation(() => new Promise<void>(resolve => finish.push(resolve)));
+  const start = vi.spyOn(MobilePluginRuntime.prototype, "start").mockResolvedValue(undefined);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const settle = async (predicate: () => boolean) => {
+    for (let index = 0; index < 60 && !predicate(); index++)
+      await act(async () => {
+        await vi.dynamicImportSettled();
+        await new Promise(resolve => setTimeout(resolve, 10));
+      });
+  };
+  try {
+    await act(async () =>
+      root.render(
+        <QueryClientProvider client={client}>
+          <MobilePluginProvider database="A.db">
+            <p>工作区</p>
+          </MobilePluginProvider>
+        </QueryClientProvider>
+      )
+    );
+    await settle(() => mobilePluginState.get().phase === "ready");
+    expect(start).toHaveBeenCalledTimes(1);
+    const store = getMobileCenterInstallStore(client);
+    let first!: Promise<void>, second!: Promise<void>;
+    await act(async () => {
+      first = store.install("test.a", "rel-a");
+      second = store.install("test.b", "rel-b");
+    });
+    await settle(() => finish.length === 2);
+    vi.mocked(plugins.readMobilePlugins).mockResolvedValue({
+      platform: "ios",
+      appVersion: "0.2.0",
+      development: true,
+      packages: [
+        { id: "test.a", enabled: true, pending: true, currentVersion: "1.0.0" },
+        { id: "test.b", enabled: true, pending: true, currentVersion: "1.0.0" },
+      ],
+    });
+    await act(async () => {
+      finish[0]();
+      await first;
+    });
+    await settle(() => false);
+    // 还有任务在下载，不中途重建
+    expect(start).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      finish[1]();
+      await second;
+    });
+    await settle(() => start.mock.calls.length === 2);
+    expect(start).toHaveBeenCalledTimes(2);
+  } finally {
+    await act(async () => root.unmount());
+    client.clear();
+    container.remove();
+    install.mockRestore();
+    start.mockRestore();
+    vi.mocked(plugins.readMobilePlugins).mockResolvedValue({
+      platform: "ios",
+      appVersion: "0.2.0",
+      packages: [],
+      development: true,
+    });
     vi.unstubAllGlobals();
     localStorage.clear();
   }
