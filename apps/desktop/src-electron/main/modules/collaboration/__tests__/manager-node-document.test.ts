@@ -345,7 +345,8 @@ describe("桌面生产会话与真实服务贯通", () => {
       store.db.prepare("SELECT count(*) AS count FROM sessions WHERE id=?").get(documentId)
     ).toEqual({ count: 1 });
     expect(send).toHaveBeenCalledWith("collaboration:removed", { documentId, replaced: true });
-    expect(send).toHaveBeenCalledWith("collaboration:notice", expect.anything());
+    // 重建保持静默：不再广播 collaboration:notice
+    expect(send).not.toHaveBeenCalledWith("collaboration:notice", expect.anything());
   });
 
   it("重启后主库先被其它入口改写：打开正文显示新内容，旧缓存备份后重建，后续编辑能落库", async () => {

@@ -201,7 +201,8 @@ it.each([
     expect(io.write.mock.calls[0][0].metadata.source.projectionRevision).toBe("new-revision");
     expect(io.write.mock.calls[0][0].expectedRevision).toBeUndefined();
     expect(toast.error).not.toHaveBeenCalled();
-    expect(toast.info).toHaveBeenCalledTimes(pending ? 1 : 0);
+    // 缓存重建保持静默，不弹提示
+    expect(toast.info).not.toHaveBeenCalled();
     for (const [value] of onChange.mock.calls)
       expect(JSON.stringify(value)).not.toContain("手机上的旧内容");
   } finally {
