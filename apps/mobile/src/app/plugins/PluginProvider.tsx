@@ -33,6 +33,7 @@ import { MobilePluginReloadContext, MobilePluginsContext } from "./context";
 import { subscribePluginForeground } from "./foreground";
 import { getMobileCenterInstallStore } from "./center-install";
 import { disposeMobileRuntimeStyles } from "../../services/runtimeStyles";
+import { installMobileEntityHost } from "../../services/pluginEntities";
 
 const STARTING_KEY = "tau-portable-plugins-starting";
 const SAFE_MESSAGE = "上次插件启动未结束，本次已跳过插件。可在插件中心停用问题插件后重新加载。";
@@ -74,6 +75,7 @@ export function MobilePluginProvider({
     let runtime: MobilePluginRuntime | undefined;
     let disconnect: (() => void) | undefined;
     let disconnectTransport: (() => void) | undefined;
+    let disconnectEntities: (() => void) | undefined;
     let stopStatusRefresh: (() => void) | undefined;
     const previous = cleanup;
     setSession(null);
@@ -106,6 +108,7 @@ export function MobilePluginProvider({
       }
       setPermissions(runtime.permissions ?? null);
       setApp(runtime.app ?? null);
+      disconnectEntities = installMobileEntityHost(runtime);
       const safe = localStorage.getItem(STARTING_KEY) !== null;
       localStorage.setItem(STARTING_KEY, "1");
       const { mobileSharedPluginModules } = await import("./shared-modules");
@@ -227,6 +230,7 @@ export function MobilePluginProvider({
       cancelled = true;
       setPermissions(null);
       setApp(null);
+      disconnectEntities?.();
       disposeMobileRuntimeStyles();
       disconnect?.();
       disconnectTransport?.();

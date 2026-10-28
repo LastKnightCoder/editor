@@ -11,11 +11,15 @@ import type { ContentDetailResponse } from "../../../types";
 import { ENTITY_KIND_META } from "../../context/model";
 import { canOpenContextEntity, openContextEntity } from "../../context/open";
 import type { ContextEntity, EntityKind } from "../../context/types";
+import {
+  getMobilePluginEntityMetadata,
+  useMobileEntityHostRevision,
+} from "../../../services/pluginEntities";
 
 export const CONTENT_LINK_TYPE = "content-link";
 
 /** 选择器能搜到、配件栏能引用的内容类型 */
-export const CONTENT_LINK_SEARCH_TYPES = ["card", "article", "project-item"];
+export const CONTENT_LINK_SEARCH_TYPES = ["card", "article", "project-item", "plugin-entity"];
 
 export type ContentLinkElement = {
   type: typeof CONTENT_LINK_TYPE;
@@ -88,7 +92,7 @@ export function canOpenContentLink(target: ContentLinkTarget): boolean {
   return target.refId > 0 && canOpenContextEntity(toContextEntity(target));
 }
 
-/** 按内容类型推入对应详情页（卡片 / 文章 / 项目文档） */
+/** 按内容类型打开对应业务页或所属插件注册页。 */
 export function openContentLink(target: ContentLinkTarget): void {
   if (!canOpenContentLink(target)) return;
   openContextEntity(getNavigator(), toContextEntity(target));
@@ -112,10 +116,21 @@ async function fetchContentLinkDetail(contentId: number): Promise<ContentDetailR
  * 避免一篇文档里每个引用都去拉一次完整正文。
  */
 export function useContentLinkDetail(contentId: number, enabled: boolean) {
+  const hostRevision = useMobileEntityHostRevision();
   return useQuery({
-    queryKey: contentLinkDetailKey(contentId),
+    queryKey: [...contentLinkDetailKey(contentId), hostRevision],
     queryFn: () => fetchContentLinkDetail(contentId),
     enabled: enabled && contentId > 0,
+    staleTime: 10_000,
+  });
+}
+
+export function useContentLinkEntity(target: ContentLinkTarget, enabled: boolean) {
+  const hostRevision = useMobileEntityHostRevision();
+  return useQuery({
+    queryKey: ["content-link", "entity", hostRevision, target.refId, target.contentId],
+    queryFn: () => getMobilePluginEntityMetadata(target.refId, target.contentId),
+    enabled: enabled && target.contentType === "plugin-entity" && target.refId > 0,
     staleTime: 10_000,
   });
 }

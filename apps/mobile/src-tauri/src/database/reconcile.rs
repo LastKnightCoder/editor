@@ -364,6 +364,33 @@ fn load_indexable_rows(main_conn: &Connection) -> Result<Vec<IndexableRow>, Stri
         ));
     }
 
+    let mut stmt=main_conn.prepare(
+        "SELECT e.id,e.title,e.update_time,c.update_time,c.content FROM plugin_entities e JOIN contents c ON c.id=e.content_id"
+    ).map_err(|error|format!("DB_OPEN_FAILED: Failed to prepare plugin entity index query: {error}"))?;
+    let entities = stmt
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, i64>(2)?,
+                row.get::<_, i64>(3)?,
+                row.get::<_, Option<String>>(4)?,
+            ))
+        })
+        .map_err(|error| format!("DB_OPEN_FAILED: Failed to query plugin entity index: {error}"))?;
+    for row in entities {
+        let (id, title, updated, content_updated, content) =
+            row.map_err(|error| error.to_string())?;
+        rows.push(make_indexable_row(
+            format!("plugin-entity:{id}"),
+            updated.max(content_updated),
+            "plugin-entity",
+            title,
+            content,
+            "",
+        ));
+    }
+
     Ok(rows)
 }
 
@@ -550,4 +577,71 @@ pub fn trigger_reconcile(app: &AppHandle, db_name: &str) {
             trigger_reconcile(&app_clone, &db_name_owned);
         }
     });
+}
+
+#[cfg(test)]
+mod plugin_entity_tests {
+    use super::*;
+    #[test]
+    fn plugin_index_tracks_title_body_and_delete_without_hiding_orphans() {
+        let conn = Connection::open_in_memory().unwrap();
+        super::super::migrator::ensure_main_schema(&conn).unwrap();
+        conn.execute("INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES(1,1,1,'[{\"text\":\"原正文\"}]',3,1)",[]).unwrap();
+        conn.execute("INSERT INTO plugin_entities(id,plugin_id,kind,key,title,content_id,create_time,update_time,orphaned_time) VALUES(1,'owner','note','one','初始标题',1,1,1,1)",[]).unwrap();
+        let index = Connection::open_in_memory().unwrap();
+        index.execute_batch("CREATE VIRTUAL TABLE content_fts USING fts5(prefixed_id,update_time,content,type,title,chunk_index,tokenize='porter unicode61');").unwrap();
+        let first = reconcile_content_indexes(&conn, &index).unwrap();
+        assert_eq!(first.indexed, 1);
+        let original = index
+            .query_row(
+                "SELECT content FROM content_fts WHERE prefixed_id='plugin-entity:1'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .unwrap();
+        assert!(original.contains("正文"));
+        conn.execute(
+            "UPDATE plugin_entities SET title='修改标题',update_time=2 WHERE id=1",
+            [],
+        )
+        .unwrap();
+        assert_eq!(reconcile_content_indexes(&conn, &index).unwrap().indexed, 1);
+        assert!(index
+            .query_row(
+                "SELECT title FROM content_fts WHERE prefixed_id='plugin-entity:1'",
+                [],
+                |row| row.get::<_, String>(0)
+            )
+            .unwrap()
+            .contains("修改"));
+        conn.execute(
+            "UPDATE contents SET content='[{\"text\":\"更新正文\"}]',update_time=3 WHERE id=1",
+            [],
+        )
+        .unwrap();
+        assert_eq!(reconcile_content_indexes(&conn, &index).unwrap().indexed, 1);
+        assert!(index
+            .query_row(
+                "SELECT content FROM content_fts WHERE prefixed_id='plugin-entity:1'",
+                [],
+                |row| row.get::<_, String>(0)
+            )
+            .unwrap()
+            .contains("更新"));
+        conn.execute("DELETE FROM plugin_entities WHERE id=1", [])
+            .unwrap();
+        assert_eq!(
+            reconcile_content_indexes(&conn, &index)
+                .unwrap()
+                .removed_stale,
+            1
+        );
+        assert_eq!(
+            index
+                .query_row("SELECT COUNT(*) FROM content_fts", [], |row| row
+                    .get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+    }
 }

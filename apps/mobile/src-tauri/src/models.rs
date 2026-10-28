@@ -94,6 +94,50 @@ pub struct CardsOverviewResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct PluginEntityKindFilter {
+    pub plugin_id: String,
+    pub kind: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginEntityMetadata {
+    pub plugin_id: String,
+    pub kind: String,
+    pub label: String,
+    pub icon: String,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginEntityTarget {
+    pub kind: String,
+    pub id: i64,
+    pub plugin_id: String,
+    pub entity_kind: String,
+    pub created_at: i64,
+    pub content_id: i64,
+    pub content_created_at: i64,
+    pub title: String,
+    pub label: String,
+    pub icon: String,
+}
+
+impl PluginEntityTarget {
+    pub fn metadata(&self) -> PluginEntityMetadata {
+        PluginEntityMetadata {
+            plugin_id: self.plugin_id.clone(),
+            kind: self.entity_kind.clone(),
+            label: self.label.clone(),
+            icon: self.icon.clone(),
+            created_at: self.created_at,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UnifiedSearchResult {
     pub id: i64,
     #[serde(rename = "type")]
@@ -106,6 +150,8 @@ pub struct UnifiedSearchResult {
     pub date: Option<String>,
     pub container_id: Option<i64>,
     pub container_title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plugin_entity: Option<PluginEntityMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

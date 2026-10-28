@@ -18,6 +18,12 @@ import {
 } from "../features/cards/contentSyncBus";
 
 type UseEditContentOptions = {
+  transport?: {
+    load(contentId: number): Promise<ContentDetailResponse>;
+    save(payload: Parameters<typeof tauri.updateContent>[0]): Promise<ContentDetailResponse>;
+  };
+  guard?: () => void;
+  canWrite?: () => boolean;
   wait?: number;
   beforeSave?: () => Promise<void>;
   onSaved?: (detail: ContentDetailResponse) => void;
@@ -26,7 +32,7 @@ type UseEditContentOptions = {
   /** 协作正文由会话负责保存；本机正文走 direct。 */
   saveMode?: "direct" | false;
   /** 变化时强制重拉一次（页面 onResume 等）；拉回内容与当前一致则不重建编辑器 */
-  refreshKey?: number;
+  refreshKey?: number | string;
   /** 首载/重拉成功：完整响应透出（含元数据），调用方不必再发一次 getContentDetail */
   onLoaded?: (detail: ContentDetailResponse) => void;
   onLoadError?: (error: unknown) => void;
@@ -64,6 +70,8 @@ export function useEditContent(
   onLoadedRef.current = options?.onLoaded;
   const onLoadErrorRef = useRef(options?.onLoadError);
   onLoadErrorRef.current = options?.onLoadError;
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
   const notifyContentSync = useMemoizedFn((next: Descendant[]) => {
     options?.onContentSync?.(next);
   });
@@ -89,10 +97,14 @@ export function useEditContent(
       setSaving(true);
       setError("");
       try {
+        options?.guard?.();
+        if (options?.canWrite?.() === false) throw new Error("当前正文不可编辑");
         await options?.beforeSave?.();
         if (generation !== loadRequestSeqRef.current) return false;
+        options?.guard?.();
+        if (options?.canWrite?.() === false) throw new Error("当前正文不可编辑");
         const count = getContentLength(normalized);
-        const updatedDetail = await tauri.updateContent({
+        const updatedDetail = await (options?.transport?.save ?? tauri.updateContent)({
           contentId,
           content: normalized,
           count,
@@ -101,6 +113,7 @@ export function useEditContent(
           expectedDocumentId: metadataRef.current?.documentId ?? undefined,
           expectedSourceId: metadataRef.current?.librarySourceId ?? undefined,
         });
+        options?.guard?.();
         const savedContent = normalizeEditorContent(updatedDetail.content);
         const savedCount = updatedDetail.count;
         const updateTime = updatedDetail.updateTime;
@@ -159,6 +172,8 @@ export function useEditContent(
 
   const handleEditorContentChange = useMemoizedFn(
     (next: Descendant[], contracts?: ContentContractDictionary) => {
+      if (options?.canWrite?.() === false) return;
+      options?.guard?.();
       if (metadataRef.current && contracts)
         metadataRef.current = { ...metadataRef.current, contracts };
       const normalized = normalizeEditorContent(next);
@@ -200,6 +215,7 @@ export function useEditContent(
 
   const refreshKey = options?.refreshKey;
   useEffect(() => {
+    const requestSeq = ++loadRequestSeqRef.current;
     const nextId = contentId ?? -1;
     if (nextId <= 0) {
       latestContentRef.current = EMPTY_EDITOR_CONTENT;
@@ -212,13 +228,27 @@ export function useEditContent(
       return;
     }
 
-    const requestSeq = ++loadRequestSeqRef.current;
     setLoading(true);
     setError("");
-    tauri
-      .getContentDetail(nextId)
+    const current = optionsRef.current;
+    Promise.resolve()
+      .then(() => {
+        current?.guard?.();
+        return (current?.transport?.load ?? tauri.getContentDetail)(nextId);
+      })
       .then(result => {
         if (loadRequestSeqRef.current !== requestSeq) {
+          return;
+        }
+        current?.guard?.();
+        const incoming = JSON.stringify(normalizeEditorContent(result.content));
+        if (
+          current?.transport &&
+          metadataRef.current?.contentId === nextId &&
+          JSON.stringify(latestContentRef.current) !== lastSavedSnapshotRef.current &&
+          incoming !== JSON.stringify(latestContentRef.current)
+        ) {
+          setError("正文已变化，本机输入仍保留，请先处理保存冲突");
           return;
         }
         metadataRef.current = result;
@@ -253,6 +283,9 @@ export function useEditContent(
           setLoading(false);
         }
       });
+    return () => {
+      if (loadRequestSeqRef.current === requestSeq) loadRequestSeqRef.current++;
+    };
   }, [contentId, refreshKey, notifyContentSync]);
 
   useEffect(() => {
@@ -261,6 +294,11 @@ export function useEditContent(
       return;
     }
     return subscribeContentUpdate(nextId, sourceIdRef.current, (nextContent, metadata) => {
+      try {
+        optionsRef.current?.guard?.();
+      } catch {
+        return;
+      }
       if (
         JSON.stringify(latestContentRef.current) !== lastSavedSnapshotRef.current &&
         JSON.stringify(nextContent) !== JSON.stringify(latestContentRef.current)

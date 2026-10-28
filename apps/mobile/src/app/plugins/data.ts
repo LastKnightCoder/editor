@@ -30,6 +30,10 @@ export interface MobileContentSnapshot {
   document: ContentDetailResponse;
   binding: string | null;
 }
+export type MobileComponentAccess =
+  | { status: "missing" | "denied" }
+  | { status: "prompt"; permission: PluginPermission }
+  | { status: "granted"; snapshot: MobileContentSnapshot };
 export interface PluginOperation {
   id: number;
   entity: "card" | "article" | "project" | "document" | "todo" | "event" | "plugin-entity";
@@ -40,6 +44,19 @@ export interface PluginOperation {
   restoredAt: number | null;
 }
 export interface MobileDataAdapter extends DataAdapter {
+  resolveComponentContent(
+    context: PluginContext,
+    ref: string,
+    mode: "read" | "write"
+  ): Promise<MobileComponentAccess>;
+  saveComponentContent(
+    context: PluginContext,
+    ref: string,
+    nodes: Descendant[],
+    contracts: ContentContractDictionary,
+    expectedRevision: string
+  ): Promise<ContentDetailResponse>;
+  projectComponentContent(context: PluginContext, ref: string): Promise<void>;
   prepareContent(
     context: PluginContext,
     input?: PluginContentInput
@@ -171,6 +188,46 @@ export function createMobileData(
     }
     return prepare(context, input);
   };
+  const componentAccess = async (
+    context: PluginContext,
+    value: MobileContentSnapshot | null,
+    mode: "read" | "write"
+  ): Promise<MobileComponentAccess> => {
+    check(context);
+    if (!value) return { status: "missing" };
+    if (value.own) return { status: "granted", snapshot: value };
+    const permissions = value.owners.map(
+      owner => `${permissionDomains[owner]}:${mode}` as PluginPermission
+    );
+    let prompt: PluginPermission | undefined;
+    for (const permission of permissions) {
+      const state = await context.permissions.query(permission);
+      check(context);
+      if (state === "granted") return { status: "granted", snapshot: value };
+      if (state === "prompt" && !prompt) prompt = permission;
+    }
+    return prompt ? { status: "prompt", permission: prompt } : { status: "denied" };
+  };
+  const resolveComponentContent = async (
+    context: PluginContext,
+    ref: string,
+    mode: "read" | "write"
+  ): Promise<MobileComponentAccess> => {
+    await prepareOwn?.(context);
+    const initial = (await read(context, {
+      method: "content",
+      ref,
+    })) as MobileContentSnapshot | null;
+    const access = await componentAccess(context, initial, mode);
+    if (access.status !== "granted") return access;
+    return componentAccess(context, await snapshot(context, ref), mode);
+  };
+  const componentWriteTarget = async (context: PluginContext, ref: string) => {
+    const access = await resolveComponentContent(context, ref, "write");
+    if (access.status !== "granted")
+      throw new Error(access.status === "missing" ? "正文不存在" : "插件正文写入授权已失效");
+    return access.snapshot;
+  };
   const editNodes = async (
     context: PluginContext,
     original: ContentDetailResponse,
@@ -199,6 +256,61 @@ export function createMobileData(
     };
   };
   return {
+    resolveComponentContent,
+    async saveComponentContent(context, ref, nodes, contracts, expectedRevision) {
+      const current = await componentWriteTarget(context, ref);
+      if (current.document.revision !== expectedRevision) throw new PluginConflictError();
+      const content = await prepare(context, { nodes, contracts });
+      const guard = async () => {
+        const latest = await componentWriteTarget(context, ref);
+        if (latest.binding !== current.binding || latest.document.revision !== expectedRevision)
+          throw new PluginConflictError();
+      };
+      if (current.binding) {
+        await writePluginSharedContent(
+          current.binding,
+          content.nodes as ContentNode[],
+          content.contracts,
+          expectedRevision,
+          guard,
+          {
+            token,
+            database,
+            pluginId: context.pluginId,
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          }
+        );
+        check(context);
+        const saved = await snapshot(context, ref);
+        if (!saved) throw new Error("保存后的正文不存在");
+        changed();
+        return saved.document;
+      }
+      await guard();
+      const result = await write<MobileContentSnapshot>(context, {
+        method: "content",
+        ref,
+        expectedRevision,
+        ...content,
+      });
+      return result.document;
+    },
+    async projectComponentContent(context, ref) {
+      const target = await componentWriteTarget(context, ref);
+      if (!target.binding) return;
+      const { collaborationManager } = await import("../../features/collaboration/core/manager");
+      const current = await componentWriteTarget(context, ref);
+      if (current.binding !== target.binding) throw new PluginConflictError("协作绑定已变化");
+      check(context);
+      await collaborationManager.project(target.binding, {
+        token,
+        database,
+        pluginId: context.pluginId,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      });
+      check(context);
+      changed();
+    },
     prepareContent: prepare,
     dispose: () => {
       closed = true;

@@ -242,6 +242,7 @@ export function searchAllContent(params: {
   page?: number;
   pageSize?: number;
   types?: string[];
+  pluginEntityKinds?: readonly { pluginId: string; kind: string }[];
 }) {
   return withCardTimeout(
     trackedInvoke<UnifiedSearchResponse>("search_all_content", params),

@@ -53,6 +53,7 @@ import { useEditorBlockSelection } from "./blockSelection/useEditorBlockSelectio
 import { OutlineSheet } from "./outline/OutlineSheet";
 import { useOutlineSheet } from "./outline/useOutlineSheet";
 import { useTaskLocation } from "./useTaskLocation";
+import { useContentMention } from "./editorExtensions/useContentMention";
 
 // 原地协作编辑器按需加载：未使用协作的用户不加载协作组件与运行时
 const CollaborativeEditor = lazy(() =>
@@ -285,6 +286,12 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   );
   // 阅读态与强制只读时正文只读；块选择期间保持可写（块菜单命令要求可写编辑器，点击由覆盖层拦截）
   const editorReadonly = forcedReadonly || (!readingMode.editing && !blockSelection.active);
+  useContentMention({
+    editorRef,
+    documentKey: document,
+    enabled: !editorReadonly && !blockSelection.active && pageContext?.phase !== "paused",
+    onRequest: toolbarController.openContentMention,
+  });
   const readingSelection = useReadingSelection(
     editorRef,
     !readingMode.editing && readingMode.canEdit && !blockSelection.active

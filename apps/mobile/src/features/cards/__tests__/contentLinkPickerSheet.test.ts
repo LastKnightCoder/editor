@@ -1,18 +1,19 @@
 import { describe, expect, it } from "vitest";
-import type { CardListItem } from "../../../types";
-import {
-  mapCardItemToContentLinkResult,
-  mapSearchResultToContentLinkResult,
-} from "../editorExtensions/ContentLinkPickerSheet";
+import type { UnifiedSearchResult } from "../../../types";
+import { mapSearchResultToContentLinkResult } from "../editorExtensions/ContentLinkPickerSheet";
 
-function createCardItem(partial?: Partial<CardListItem>): CardListItem {
+function createCardItem(partial?: Partial<UnifiedSearchResult>): UnifiedSearchResult {
   return {
     id: 12,
     contentId: 1201,
     updateTime: 1_736_000_000_000,
-    tags: [],
+    type: "card",
+    title: "",
+    score: 1,
+    date: null,
+    containerId: null,
+    containerTitle: null,
     excerpt: "第一行摘要\n第二行",
-    content: [],
     ...(partial ?? {}),
   };
 }
@@ -25,7 +26,8 @@ describe("contentLink picker mapping", () => {
       excerpt: "用于测试的摘要",
     });
 
-    const result = mapCardItemToContentLinkResult(item);
+    const result = mapSearchResultToContentLinkResult(item);
+    if (!result) throw new Error("卡片应当可引用");
 
     expect(result.contentId).toBe(9901);
     expect(result.refId).toBe(55);
@@ -40,7 +42,8 @@ describe("contentLink picker mapping", () => {
       excerpt: "   ",
     });
 
-    const result = mapCardItemToContentLinkResult(item);
+    const result = mapSearchResultToContentLinkResult(item);
+    if (!result) throw new Error("卡片应当可引用");
     expect(result.displayText).toBe("卡片 #88");
     expect(result.contentTitle).toBe("卡片 #88");
   });

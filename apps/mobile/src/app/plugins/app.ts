@@ -8,6 +8,8 @@ import {
   type MobileEntityCandidate,
   type MobileEntityOpenTarget,
   type MobileEntityPickRequest,
+  type MobilePluginEntityTarget,
+  type MobileEntityOpenOptions,
 } from "./app-types";
 
 let nextRequestId = 0;
@@ -18,7 +20,8 @@ export function createMobileApp(
   database: string,
   token: string,
   navigation: Pick<Navigator, "push">,
-  canRead: (context: PluginContext, kind: PluginEntityKind) => Promise<boolean>
+  canRead: (context: PluginContext, kind: PluginEntityKind) => Promise<boolean>,
+  openEntity?: (target: MobilePluginEntityTarget, options: MobileEntityOpenOptions) => Promise<void>
 ) {
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   let disposed = false;
@@ -143,9 +146,16 @@ export function createMobileApp(
       active(context);
       mobileEntityKind(ref);
       if (options.placement !== "page") throw new Error("移动端仅支持在页面中打开内容");
-      if (options.at) throw new Error("移动端尚未开放指定正文块位置");
+      if (options.at && ref.kind !== "plugin-entity")
+        throw new Error("移动端尚未开放指定正文块位置");
       const target = await refs<MobileEntityOpenTarget>(context, { method: "resolve", ref });
       active(context);
+      if (target.kind === "plugin-entity") {
+        if (!openEntity) throw new Error("插件内容打开入口尚未就绪");
+        await openEntity(target, options);
+        active(context);
+        return;
+      }
       navigateMobileEntity(navigation, target, options);
     },
     async describe(context, values, readable) {
@@ -171,6 +181,23 @@ export function createMobileApp(
     },
   };
   return {
+    async presentation(
+      context: PluginContext,
+      ref: import("@tau/plugins").PluginEntityRef
+    ): Promise<{ label: string; icon: string } | null> {
+      return refs(context, { method: "presentation", ref });
+    },
+    async getEntityTarget(id: number): Promise<MobilePluginEntityTarget | null> {
+      if (disposed) throw new Error("插件工作区已失效");
+      if (!Number.isSafeInteger(id) || id <= 0) throw new Error("插件内容身份无效");
+      const result = await invoke<MobilePluginEntityTarget | null>("plugin_entity_target", {
+        database,
+        token,
+        id,
+      });
+      if (disposed) throw new Error("插件工作区已失效");
+      return result;
+    },
     adapter,
     subscribe(listener: () => void) {
       listeners.add(listener);

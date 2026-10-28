@@ -17,7 +17,7 @@ import {
   type ContentNode,
 } from "@tau/collaboration";
 import { createNodeTreeDocument } from "@tau/editor-collab";
-import { createValueDocument, type EditorDocument } from "@tau/editor";
+import { createValueDocument, type EditorDocument, type EditorKit } from "@tau/editor";
 import { mapNodeResources } from "@tau/db-schema/content-resources";
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import { IEditorNodeViews } from "@tau/editor/source-contracts";
@@ -38,10 +38,22 @@ export default function useLocalContentDocument(options: {
   content: Descendant[];
   metadata?: ContentDetailResponse;
   version: number;
+  kit?: EditorKit;
+  guard?: () => void;
+  canWrite?: () => boolean;
   onChange: (value: Descendant[], contracts?: ContentContractDictionary) => void;
 }): LocalContentDocument | undefined {
   const latest = useRef(options);
   latest.current = options;
+  const assertActive = () => latest.current.guard?.();
+  const canWrite = () => {
+    try {
+      assertActive();
+      return latest.current.canWrite?.() !== false;
+    } catch {
+      return false;
+    }
+  };
   const identity = (value: typeof options) =>
     JSON.stringify([
       value.contentId,
@@ -113,6 +125,7 @@ export default function useLocalContentDocument(options: {
       return reference;
     });
     void (async () => {
+      assertActive();
       if (
         !current.metadata?.documentId ||
         !current.metadata.librarySourceId ||
@@ -121,6 +134,7 @@ export default function useLocalContentDocument(options: {
         throw new Error("正文来源身份尚未建立");
       const cacheId = `local:${current.metadata.librarySourceId}:${current.metadata.documentId}`;
       let cached = await tauri.collabReadCache(cacheId);
+      assertActive();
       let doc: Y.Doc | undefined;
       let metadata: tauri.CachedContentSession;
       if (cached) {
@@ -154,10 +168,12 @@ export default function useLocalContentDocument(options: {
           // 本机缓存可重建：读不出或与主库对不上时备份后按主库重建，不阻断编辑。
           doc?.destroy();
           doc = undefined;
+          assertActive();
           await tauri.collabDiscardCache(
             cacheId,
             failure instanceof Error ? failure.message : "本机缓存不可读"
           );
+          assertActive();
           cached = null;
         }
       }
@@ -211,6 +227,7 @@ export default function useLocalContentDocument(options: {
       );
       try {
         metadata.resourcePaths = Object.fromEntries(paths);
+        assertActive();
         await tauri.collabWriteCache(
           {
             documentId: cacheId,
@@ -222,6 +239,7 @@ export default function useLocalContentDocument(options: {
           },
           true
         );
+        assertActive();
         if (cancelled) {
           doc.destroy();
           return;
@@ -232,6 +250,7 @@ export default function useLocalContentDocument(options: {
           tail = tail
             .catch(() => undefined)
             .then(async () => {
+              assertActive();
               const updates = pendingUpdates.slice();
               const drafts = [...inputDrafts.values()];
               const confirmedDrafts = matchingInputDrafts(doc, drafts);
@@ -243,13 +262,16 @@ export default function useLocalContentDocument(options: {
                 baselineId: metadata.baselineId,
                 epoch: metadata.epoch,
               });
-              for (const draft of drafts)
+              for (const draft of drafts) {
+                assertActive();
                 await tauri.collabInputDraft({
                   ...draft,
                   documentId: cacheId,
                   baselineId: metadata.baselineId,
                   epoch: metadata.epoch,
                 });
+              }
+              assertActive();
               metadata.resourcePaths = Object.fromEntries(paths);
               await tauri.collabWriteCache({
                 documentId: cacheId,
@@ -258,6 +280,7 @@ export default function useLocalContentDocument(options: {
                 state,
                 confirmedDrafts,
               });
+              assertActive();
               pendingUpdates.splice(0, updates.length);
               for (const draft of confirmedDrafts) {
                 const key = JSON.stringify([draft.viewId, draft.nodeId, draft.field]);
@@ -281,7 +304,9 @@ export default function useLocalContentDocument(options: {
         };
         doc.on("update", update);
         dispose = () => doc.off("update", update);
+        assertActive();
         const views = await tauri.collabNodeViews(cacheId);
+        assertActive();
         if (cancelled) {
           dispose();
           tree.dispose();
@@ -293,6 +318,8 @@ export default function useLocalContentDocument(options: {
         const preserveDraft: NonNullable<
           import("@tau/editor-collab").ContentCollaborationBinding["preserveInputDraft"]
         > = (nodeId, field, draft) => {
+          assertActive();
+          if (!canWrite()) throw new Error("当前正文不可编辑");
           const payload = {
             documentId: cacheId,
             baselineId: metadata.baselineId,
@@ -350,25 +377,29 @@ export default function useLocalContentDocument(options: {
   useEffect(() => {
     if (!loaded || loaded.key !== key) return;
     let cancelled = false;
-    const kit = getMobileContentKit();
+    const kit = options.kit ?? getMobileContentKit();
     void mobileContentPlugins
       .prepareEditorContracts(kit.extensions)
       .then(async catalog => {
         if (cancelled) return;
-        await loaded.tree.installContracts(
-          catalog.additionalContracts(loaded.tree.contracts.toJSON()),
-          null
-        );
+        assertActive();
+        if (canWrite())
+          await loaded.tree.installContracts(
+            catalog.additionalContracts(loaded.tree.contracts.toJSON()),
+            null
+          );
         if (cancelled) return;
+        assertActive();
         const source = createNodeTreeDocument(loaded.tree, {
           lineage: contentLineage(options.contentId),
           versions: catalog,
           cursors: false,
           normalizeOnConnect: false,
-          readonly: !!storageError,
+          readonly: !!storageError || !canWrite(),
+          canWrite,
           preserveInputDraft: loaded.preserveDraft,
           onChange: value => {
-            if (identity(latest.current) !== key) return;
+            if (identity(latest.current) !== key || !canWrite()) return;
             const content = loaded.map(
               value as ContentNode[],
               reference => loaded.paths.get(reference) ?? reference
@@ -386,6 +417,8 @@ export default function useLocalContentDocument(options: {
             register(IEditorNodeViews, {
               read: nodeId => loaded.views[nodeId] ?? {},
               write: async (nodeId, patch) => {
+                assertActive();
+                if (!canWrite()) throw new Error("当前正文不可编辑");
                 const owner = loaded.tree.contract(nodeId)?.owner;
                 if (!owner || loaded.tree.isDeleted(nodeId)) throw new Error("节点已失效");
                 const value = await tauri.collabUpdateNodeView(
@@ -394,6 +427,8 @@ export default function useLocalContentDocument(options: {
                   owner,
                   patch
                 );
+                assertActive();
+                if (!canWrite()) throw new Error("当前正文不可编辑");
                 loaded.views[nodeId] = value;
                 return value;
               },
@@ -404,7 +439,11 @@ export default function useLocalContentDocument(options: {
                 resources.remoteResourceToLocal?.(loaded.paths.get(reference) ?? reference) ??
                 Promise.resolve(loaded.paths.get(reference) ?? reference),
               upload: async file => {
+                assertActive();
+                if (!canWrite()) throw new Error("当前正文不可编辑");
                 const path = await resources.upload(file);
+                assertActive();
+                if (!canWrite()) throw new Error("当前正文不可编辑");
                 if (isSafeResource(path)) return path;
                 const reference = LOCAL_ASSET_PREFIX + crypto.randomUUID();
                 loaded.paths.set(reference, path);
@@ -422,7 +461,7 @@ export default function useLocalContentDocument(options: {
     return () => {
       cancelled = true;
     };
-  }, [loaded, key, revision, options.contentId, storageError]);
+  }, [loaded, key, revision, options.contentId, options.kit, storageError]);
   useEffect(() => {
     if (!loaded || loaded.key !== key || !options.metadata?.revision || !loaded.metadata.source)
       return;
