@@ -23,6 +23,8 @@ export interface MobilePluginPage {
   generation: number;
 }
 export class MobilePluginRuntime {
+  own?: import("./own-data").MobileOwnData;
+  app?: import("./app").MobileAppAdapter;
   events?: Awaited<ReturnType<typeof import("./events").createMobileEvents>>;
   data?: import("./data").MobileDataAdapter;
   permissions?: import("@tau/plugins/permission-host").PluginPermissionBroker;
@@ -57,7 +59,7 @@ export class MobilePluginRuntime {
     readonly environment: PluginEnvironmentSource,
     storage: StorageAdapter,
     readonly workspaceId: string,
-    navigator: Pick<Navigator, "push">,
+    readonly navigator: Pick<Navigator, "push">,
     readonly appVersion: string,
     restartRequired?: Set<string>
   ) {
@@ -66,6 +68,41 @@ export class MobilePluginRuntime {
       restartRequired,
       environmentSource: environment,
       storage,
+      entities: {
+        create: (...args) => this.ownAdapter().entities.create(...args),
+        get: (...args) => this.ownAdapter().entities.get(...args),
+        find: (...args) => this.ownAdapter().entities.find(...args),
+        query: (...args) => this.ownAdapter().entities.query(...args),
+        count: (...args) => this.ownAdapter().entities.count(...args),
+        update: (...args) => this.ownAdapter().entities.update(...args),
+        delete: (...args) => this.ownAdapter().entities.delete(...args),
+        backlinks: (...args) => this.ownAdapter().entities.backlinks(...args),
+        registerKind: (...args) => this.ownAdapter().entities.registerKind(...args),
+      },
+      records: {
+        insert: (...args) => this.ownAdapter().records.insert(...args),
+        get: (...args) => this.ownAdapter().records.get(...args),
+        query: (...args) => this.ownAdapter().records.query(...args),
+        count: (...args) => this.ownAdapter().records.count(...args),
+        update: (...args) => this.ownAdapter().records.update(...args),
+        delete: (...args) => this.ownAdapter().records.delete(...args),
+      },
+      links: {
+        add: (...args) => this.ownAdapter().links.add(...args),
+        list: (...args) => this.ownAdapter().links.list(...args),
+        remove: (...args) => this.ownAdapter().links.remove(...args),
+        reorder: (...args) => this.ownAdapter().links.reorder(...args),
+      },
+      transaction: {
+        reserveEntityId: (...args) => this.ownAdapter().transaction.reserveEntityId(...args),
+        commit: (...args) => this.ownAdapter().transaction.commit(...args),
+      },
+      app: {
+        pick: (...args) => this.appAdapter().pick(...args),
+        open: (...args) => this.appAdapter().open(...args),
+        describe: (...args) => this.appAdapter().describe(...args),
+        run: (...args) => this.appAdapter().run(...args),
+      },
       events: {
         subscribe: (context, listener) => {
           if (!this.events) throw new Error("插件业务事件尚未就绪");
@@ -215,6 +252,14 @@ export class MobilePluginRuntime {
     if (!this.data) throw new Error("插件数据尚未就绪");
     return this.data;
   }
+  private ownAdapter() {
+    if (!this.own) throw new Error("插件自有数据尚未就绪");
+    return this.own;
+  }
+  private appAdapter() {
+    if (!this.app) throw new Error("插件内容交互尚未就绪");
+    return this.app.adapter;
+  }
   private permissionBroker() {
     if (!this.permissions) throw new Error("插件授权尚未就绪");
     return this.permissions;
@@ -322,6 +367,8 @@ export class MobilePluginRuntime {
   }
   async dispose() {
     this.disposed = true;
+    this.app?.dispose();
+    this.own?.dispose();
     this.permissions?.dispose();
     this.data?.dispose();
     this.events?.dispose();

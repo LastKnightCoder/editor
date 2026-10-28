@@ -322,6 +322,33 @@ pub(super) fn row_snapshot(conn: &Connection, table: &str, id: i64) -> Result<Va
         })
         .map_err(sql_error)
 }
+pub(super) fn create_content_input(
+    tx: &rusqlite::Transaction<'_>,
+    plugin_id: &str,
+    content: &Value,
+) -> Result<i64, String> {
+    if let Some(reference) = content.get("shareOf") {
+        if content.as_object().is_none_or(|value| value.len() != 1) {
+            return Err("共享正文输入无效".into());
+        }
+        return super::plugin_entities::share_content(
+            tx,
+            plugin_id,
+            reference.as_str().ok_or("共享正文引用无效")?,
+        );
+    }
+    let count = integer(content, "count")?;
+    if count < 0 || !content["nodes"].is_array() {
+        return Err("正文无效".into());
+    }
+    common::insert_content_record(
+        tx,
+        &content["nodes"],
+        content.get("contracts"),
+        count,
+        common::now_millis(),
+    )
+}
 fn change(conn: &mut Connection, plugin_id: &str, request: &Value) -> Result<Value, String> {
     let entity = string(request, "entity")?;
     if matches!(entity, "project" | "document") {
@@ -335,17 +362,26 @@ fn change(conn: &mut Connection, plugin_id: &str, request: &Value) -> Result<Val
         "create" => {
             let input = &request["input"];
             let content = &request["content"];
-            let count = integer(content, "count")?;
-            if count < 0 || !content["nodes"].is_array() {
-                return Err("正文无效".into());
+            let content_id = create_content_input(&tx, plugin_id, content)?;
+            if content.get("shareOf").is_some() {
+                let filter = if entity == "article" {
+                    " AND is_delete=0"
+                } else {
+                    ""
+                };
+                if tx
+                    .query_row(
+                        &format!(
+                            "SELECT EXISTS(SELECT 1 FROM {table} WHERE content_id=?1{filter})"
+                        ),
+                        [content_id],
+                        |row| row.get::<_, bool>(0),
+                    )
+                    .map_err(sql_error)?
+                {
+                    return Err("这份正文已经是同类内容，未重复创建".into());
+                }
             }
-            let content_id = common::insert_content_record(
-                &tx,
-                &content["nodes"],
-                content.get("contracts"),
-                count,
-                now,
-            )?;
             let tags = serde_json::to_string(input.get("tags").unwrap_or(&json!([])))
                 .map_err(|e| e.to_string())?;
             let pinned = input["pinned"].as_bool().unwrap_or(false);
@@ -503,7 +539,7 @@ pub fn plugin_data_write(
     Ok(result)
 }
 fn operations(conn: &Connection, plugin_id: &str) -> Result<Value, String> {
-    let mut statement=conn.prepare("SELECT id,entity,entity_id,title,create_time,restored_time,action FROM plugin_operations WHERE plugin_id=?1 AND entity IN ('card','article','project','document','todo','event') AND action IN ('delete','pending-delete','pending-restore') AND create_time>=?2 ORDER BY create_time DESC,id DESC LIMIT 200").map_err(sql_error)?;
+    let mut statement=conn.prepare("SELECT id,entity,entity_id,title,create_time,restored_time,action FROM plugin_operations WHERE plugin_id=?1 AND entity IN ('card','article','project','document','todo','event','plugin-entity') AND action IN ('delete','pending-delete','pending-restore') AND create_time>=?2 ORDER BY create_time DESC,id DESC LIMIT 200").map_err(sql_error)?;
     let items=statement.query_map(params![plugin_id,common::now_millis()-7*24*60*60*1000],|row|Ok(json!({"id":row.get::<_,i64>(0)?,"entity":row.get::<_,String>(1)?,"entityId":row.get::<_,String>(2)?,"title":row.get::<_,String>(3)?,"createdAt":row.get::<_,i64>(4)?,"restoredAt":row.get::<_,Option<i64>>(5)?,"pending":row.get::<_,String>(6)?.starts_with("pending-")}))).map_err(sql_error)?.collect::<Result<Vec<_>,_>>().map_err(sql_error)?;
     Ok(json!(items))
 }
@@ -512,6 +548,11 @@ pub(super) fn restore(conn: &mut Connection, plugin_id: &str, id: i64) -> Result
     let (entity,payload,created,restored):(String,String,i64,Option<i64>)=tx.query_row("SELECT entity,payload,create_time,restored_time FROM plugin_operations WHERE id=?1 AND plugin_id=?2",params![id,plugin_id],|row|Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?))).map_err(sql_error)?;
     if restored.is_some() || created < common::now_millis() - 7 * 24 * 60 * 60 * 1000 {
         return Err("操作已恢复或超过七天保留期".into());
+    }
+    if entity == "plugin-entity" {
+        let result = super::plugin_entities::restore(&tx, plugin_id, id)?;
+        tx.commit().map_err(sql_error)?;
+        return Ok(result);
     }
     let payload: Value = serde_json::from_str(&payload).map_err(|_| "恢复快照损坏")?;
     if matches!(entity.as_str(), "todo" | "event") {
@@ -867,23 +908,47 @@ pub(super) fn changes(conn: &Connection, token: &str, after: Option<i64>) -> Res
         let Some(id) = id else {
             continue;
         };
+        let origin = state
+            .entries
+            .get(&sequence)
+            .map(|id| json!({"kind":"plugin","pluginId":id}))
+            .unwrap_or(json!({"kind":"app"}));
+        if kind.as_deref() == Some("plugin-event") {
+            let value: Value = serde_json::from_str(action.as_deref().unwrap_or(""))
+                .map_err(|_| "插件事件日志损坏")?;
+            let domain = string(&value, "domain")?;
+            let action = string(&value, "action")?;
+            if !matches!(domain, "entity" | "record")
+                || !matches!(action, "created" | "updated" | "deleted")
+            {
+                return Err("插件事件日志无效".into());
+            }
+            let mut event = json!({"type":format!("{domain}.{action}"),"id":string(&value,"id")?,"ownerPluginId":string(&value,"pluginId")?,"at":at,"origin":origin});
+            event[if domain == "entity" {
+                "kind"
+            } else {
+                "collection"
+            }] = value["subtype"].clone();
+            events.push(event);
+            continue;
+        }
         let action = match action.as_deref() {
             Some("insert") => "created",
             Some("delete") => "deleted",
             Some("update") => "updated",
             _ => continue,
         };
-        let origin = state
-            .entries
-            .get(&sequence)
-            .map(|id| json!({"kind":"plugin","pluginId":id}))
-            .unwrap_or(json!({"kind":"app"}));
         match kind.as_deref(){
             Some("card")|Some("article")|Some("project")=>events.push(json!({"type":format!("{}.{action}",kind.unwrap()),"id":id.to_string(),"at":at,"origin":origin})),
             Some("todo")|Some("todo_item")|Some("todo_recurrence")=>events.push(json!({"type":"todos.changed","at":at,"origin":{"kind":"app"}})),
             Some("calendar_event")=>events.push(json!({"type":"calendar.changed","at":at,"origin":{"kind":"app"}})),
             Some("project-item")=>events.push(json!({"type":format!("document.{action}"),"id":id.to_string(),"at":at,"origin":origin})),
             Some("content")=>{
+                let mut owned=conn.prepare("SELECT id,plugin_id,kind FROM plugin_entities WHERE content_id=?1 AND orphaned_time IS NULL").map_err(sql_error)?;
+                for item in owned.query_map([id],|row|Ok((row.get::<_,i64>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).map_err(sql_error)? {
+                    let (entity,owner,kind)=item.map_err(sql_error)?;
+                    events.push(json!({"type":"entity.updated","id":entity.to_string(),"kind":kind,"ownerPluginId":owner,"at":at,"origin":origin}));
+                }
                 if conn.query_row("SELECT COALESCE(instr(content,'check-list-item'),0)>0 FROM contents WHERE id=?1",[id],|row|row.get::<_,bool>(0)).optional().map_err(sql_error)?.unwrap_or(false) {
                     events.push(json!({"type":"todos.changed","at":at,"origin":{"kind":"app"}}));
                 }
@@ -952,4 +1017,207 @@ pub(super) fn insert_snapshot(
     )
     .map_err(sql_error)?;
     Ok(row_id)
+}
+
+#[cfg(test)]
+mod share_of_tests {
+    use super::super::plugin_entities;
+    use super::*;
+
+    fn fixture() -> (Connection, Value) {
+        let mut conn = Connection::open_in_memory().unwrap();
+        super::super::migrator::ensure_main_schema(&conn).unwrap();
+        let id = plugin_entities::next_id(&conn).unwrap();
+        let tx = conn.transaction().unwrap();
+        let entity=plugin_entities::write(&tx,"alpha",&json!({"method":"entity.create","id":id,"input":{"kind":"note","key":"original","title":"原文"}})).unwrap();
+        tx.commit().unwrap();
+        (conn, entity)
+    }
+    fn content_id(entity: &Value) -> i64 {
+        entity["contentRef"]
+            .as_str()
+            .unwrap()
+            .split(':')
+            .next()
+            .unwrap()
+            .parse()
+            .unwrap()
+    }
+    fn count(conn: &Connection, entity: &Value) -> i64 {
+        conn.query_row(
+            "SELECT ref_count FROM contents WHERE id=?1",
+            [content_id(entity)],
+            |row| row.get(0),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn shared_cards_and_articles_keep_body_after_entity_delete_and_restore_retains_once() {
+        let (mut conn, entity) = fixture();
+        let mut natives = vec![];
+        for kind in ["card", "article"] {
+            let native=change(&mut conn,"alpha",&json!({"method":"create","entity":kind,"input":{"title":"投影"},"content":{"shareOf":entity["contentRef"]}})).unwrap();
+            assert_eq!(native["contentRef"], entity["contentRef"]);
+            natives.push((kind, native["id"].as_str().unwrap().parse::<i64>().unwrap()));
+        }
+        assert_eq!(count(&conn, &entity), 3);
+        let tx = conn.transaction().unwrap();
+        plugin_entities::write(&tx,"alpha",&json!({"method":"entity.delete","id":entity["id"],"expectedRevision":entity["revision"]})).unwrap();
+        let operation = tx
+            .query_row(
+                "SELECT MAX(id) FROM plugin_operations WHERE entity='plugin-entity'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap();
+        tx.commit().unwrap();
+        assert_eq!(count(&conn, &entity), 2);
+        for (kind, id) in natives {
+            assert_eq!(
+                get(&conn, kind, id).unwrap().unwrap()["contentRef"],
+                entity["contentRef"]
+            );
+        }
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM content_pending_releases", [], |row| {
+                row.get::<_, i64>(0)
+            })
+            .unwrap(),
+            0
+        );
+        restore(&mut conn, "alpha", operation).unwrap();
+        assert_eq!(count(&conn, &entity), 3);
+        assert!(restore(&mut conn, "alpha", operation).is_err());
+        assert_eq!(count(&conn, &entity), 3);
+    }
+
+    #[test]
+    fn invalid_shared_sources_and_failed_native_create_do_not_leak_retains() {
+        let (mut conn, entity) = fixture();
+        let stale = format!("{}:0", content_id(&entity));
+        for (plugin, reference, input) in [
+            (
+                "beta",
+                entity["contentRef"].clone(),
+                json!({"title":"越权"}),
+            ),
+            ("alpha", json!(stale), json!({"title":"旧身份"})),
+            ("alpha", entity["contentRef"].clone(), json!({})),
+        ] {
+            assert!(change(&mut conn,plugin,&json!({"method":"create","entity":"article","input":input,"content":{"shareOf":reference}})).is_err());
+            assert_eq!(count(&conn, &entity), 1);
+        }
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM articles", [], |row| row
+                .get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM plugin_ref_grants", [], |row| row
+                .get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM contents", [], |row| row
+                .get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+    }
+
+    #[test]
+    fn shared_body_has_one_card_and_one_live_article_without_duplicate_retains() {
+        let (mut conn, entity) = fixture();
+        for kind in ["card", "article"] {
+            let request = json!({"method":"create","entity":kind,"input":{"title":"投影"},"content":{"shareOf":entity["contentRef"]}});
+            change(&mut conn, "alpha", &request).unwrap();
+            let references = count(&conn, &entity);
+            let before = last_operation(&conn).unwrap();
+            assert!(change(&mut conn, "alpha", &request).is_err());
+            assert_eq!(count(&conn, &entity), references);
+            assert_eq!(last_operation(&conn).unwrap(), before);
+        }
+        assert_eq!(count(&conn, &entity), 3);
+        conn.execute(
+            "UPDATE articles SET is_delete=1 WHERE content_id=?1",
+            [content_id(&entity)],
+        )
+        .unwrap();
+        let references = count(&conn, &entity);
+        let restored=change(&mut conn,"alpha",&json!({"method":"create","entity":"article","input":{"title":"新文章"},"content":{"shareOf":entity["contentRef"]}})).unwrap();
+        assert_eq!(restored["contentRef"], entity["contentRef"]);
+        assert_eq!(count(&conn, &entity), references + 1);
+        assert_eq!(
+            conn.query_row(
+                "SELECT COUNT(*) FROM articles WHERE content_id=?1 AND is_delete=0",
+                [content_id(&entity)],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            1
+        );
+        assert_eq!(
+            conn.query_row(
+                "SELECT COUNT(*) FROM cards WHERE content_id=?1",
+                [content_id(&entity)],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            1
+        );
+    }
+}
+
+#[cfg(test)]
+mod own_event_tests {
+    use super::*;
+
+    #[test]
+    fn deleted_records_keep_owner_and_collection_in_committed_events() {
+        let _guard = crate::plugin_transport::test_host("own-record-events");
+        let mut conn = Connection::open_in_memory().unwrap();
+        super::super::migrator::ensure_main_schema(&conn).unwrap();
+        let before = last_operation(&conn).unwrap();
+        let tx = conn.transaction().unwrap();
+        super::super::plugin_own_data::event(
+            &tx,
+            "owner.one",
+            "record",
+            "deleted",
+            "removed-id",
+            "notes",
+        )
+        .unwrap();
+        tx.commit().unwrap();
+        remember_origin(&conn, "own-record-events", "writer.other", before).unwrap();
+        let batch = changes(&conn, "own-record-events", Some(before)).unwrap();
+        assert_eq!(
+            batch["events"],
+            json!([{"type":"record.deleted","id":"removed-id","collection":"notes","ownerPluginId":"owner.one","at":batch["events"][0]["at"],"origin":{"kind":"plugin","pluginId":"writer.other"}}])
+        );
+    }
+
+    #[test]
+    fn ordinary_body_changes_are_routed_to_each_actual_plugin_owner() {
+        let _guard = crate::plugin_transport::test_host("own-content-events");
+        let conn = Connection::open_in_memory().unwrap();
+        super::super::migrator::ensure_main_schema(&conn).unwrap();
+        conn.execute("INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES(1,1,1,'[]',0,2)",[]).unwrap();
+        for (id, plugin) in [(1, "owner.one"), (2, "owner.two")] {
+            conn.execute("INSERT INTO plugin_entities(id,plugin_id,kind,key,title,content_id,meta,create_time,update_time) VALUES(?1,?2,'note','key','标题',1,'{}',1,1)",params![id,plugin]).unwrap();
+        }
+        let before = last_operation(&conn).unwrap();
+        common::write_operation(&conn, "content", "update", 1, 2).unwrap();
+        let batch = changes(&conn, "own-content-events", Some(before)).unwrap();
+        assert_eq!(batch["events"].as_array().unwrap().len(), 2);
+        for (index, plugin) in ["owner.one", "owner.two"].iter().enumerate() {
+            assert_eq!(batch["events"][index]["ownerPluginId"], *plugin);
+            assert_eq!(batch["events"][index]["type"], "entity.updated");
+            assert_eq!(batch["events"][index]["kind"], "note");
+            assert_eq!(batch["events"][index]["origin"], json!({"kind":"app"}));
+        }
+    }
 }

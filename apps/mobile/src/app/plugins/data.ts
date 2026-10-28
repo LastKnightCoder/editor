@@ -32,7 +32,7 @@ export interface MobileContentSnapshot {
 }
 export interface PluginOperation {
   id: number;
-  entity: "card" | "article" | "project" | "document" | "todo" | "event";
+  entity: "card" | "article" | "project" | "document" | "todo" | "event" | "plugin-entity";
   pending?: boolean;
   entityId: string;
   title: string;
@@ -40,6 +40,14 @@ export interface PluginOperation {
   restoredAt: number | null;
 }
 export interface MobileDataAdapter extends DataAdapter {
+  prepareContent(
+    context: PluginContext,
+    input?: PluginContentInput
+  ): Promise<{
+    nodes: Descendant[];
+    contracts: ContentContractDictionary;
+    count: number;
+  }>;
   dispose(): void;
   operations(pluginId: string): Promise<PluginOperation[]>;
   restore(pluginId: string, id: number): Promise<void>;
@@ -59,7 +67,8 @@ export function createMobileData(
   database: string,
   token: string,
   changed: () => void,
-  checkPermission?: (context: PluginContext, permission: PluginPermission) => Promise<void>
+  checkPermission?: (context: PluginContext, permission: PluginPermission) => Promise<void>,
+  prepareOwn?: (context: PluginContext) => Promise<void>
 ): MobileDataAdapter {
   const tasks = createMobileTasks(database, token, changed, checkPermission);
   let closed = false;
@@ -87,6 +96,7 @@ export function createMobileData(
   const read = (context: PluginContext, request: Record<string, unknown>) =>
     call<unknown>("plugin_data_read", context.pluginId, { request }, context);
   const snapshot = async (context: PluginContext, ref: string) => {
+    await prepareOwn?.(context);
     const value = (await read(context, { method: "content", ref })) as MobileContentSnapshot | null;
     if (value?.binding) {
       const shared = await readPluginSharedContent(value.binding);
@@ -129,8 +139,7 @@ export function createMobileData(
   const prepare = async (context: PluginContext, input?: PluginContentInput) => {
     let nodes: Descendant[] = structuredClone(empty);
     let contracts: ContentContractDictionary | undefined;
-    if (input && "shareOf" in input)
-      throw new Error("移动端尚未开放插件自有实体，不能使用 shareOf");
+    if (input && "shareOf" in input) throw new Error("shareOf 只用于新建卡片、文章或项目文档");
     if (input && "copyOf" in input) {
       const source = await snapshot(context, input.copyOf);
       if (!source || (!source.addressable && !source.own && !source.owners.length))
@@ -153,6 +162,14 @@ export function createMobileData(
       contracts: value.contracts,
       count: mobileContentMetrics.count(value.content),
     };
+  };
+  const prepareNew = async (context: PluginContext, input?: PluginContentInput) => {
+    if (input && "shareOf" in input) {
+      await prepareOwn?.(context);
+      check(context);
+      return { shareOf: input.shareOf };
+    }
+    return prepare(context, input);
   };
   const editNodes = async (
     context: PluginContext,
@@ -182,6 +199,7 @@ export function createMobileData(
     };
   };
   return {
+    prepareContent: prepare,
     dispose: () => {
       closed = true;
       tasks.dispose();
@@ -199,7 +217,7 @@ export function createMobileData(
         method: "create",
         entity,
         input,
-        content: await prepare(context, "content" in input ? input.content : undefined),
+        content: await prepareNew(context, "content" in input ? input.content : undefined),
       });
     },
     update: (context, entity, id, patch, expectedRevision) =>
@@ -309,7 +327,7 @@ export function createMobileData(
         method: "create",
         entity: "document",
         input,
-        content: await prepare(context, input.content),
+        content: await prepareNew(context, input.content),
       }),
     moveDocument: (context, id, move, expectedRevision) =>
       write(context, { method: "move", entity: "document", id, move, expectedRevision }),

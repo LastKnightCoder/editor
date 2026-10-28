@@ -70,6 +70,7 @@ pub(crate) fn with_database<T>(
 
 fn release(state: &mut Transport) {
     state.host = None;
+    crate::database::plugin_own_data::clear_reservations();
     for (_, pending) in state.pending.drain() {
         let _ = pending.send(Err("插件宿主会话已结束".into()));
     }

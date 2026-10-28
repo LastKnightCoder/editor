@@ -76,11 +76,64 @@ pub fn plugin_kv_write(
 #[tauri::command]
 pub fn plugin_kv_clear(app: AppHandle, database: String, plugin_id: String) -> Result<(), String> {
     validate(&[&plugin_id])?;
-    let conn = connection(&app, &database)?;
-    conn.execute(
+    let mut conn = connection(&app, &database)?;
+    clear_plugin_storage(&mut conn, &plugin_id)
+}
+
+fn clear_plugin_storage(conn: &mut rusqlite::Connection, plugin_id: &str) -> Result<(), String> {
+    let tx = conn.transaction().map_err(|error| error.to_string())?;
+    tx.execute(
         "DELETE FROM plugin_kv WHERE plugin_id=?1",
         params![plugin_id],
     )
     .map_err(|error| error.to_string())?;
-    Ok(())
+    tx.execute(
+        "DELETE FROM plugin_ref_grants WHERE plugin_id=?1",
+        params![plugin_id],
+    )
+    .map_err(|error| error.to_string())?;
+    tx.commit().map_err(|error| error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn database() -> rusqlite::Connection {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        super::super::migrator::ensure_main_schema(&conn).unwrap();
+        for plugin in ["alpha", "beta"] {
+            conn.execute("INSERT INTO plugin_kv(plugin_id,key,value,update_time) VALUES(?1,'settings','{}',1)", [plugin]).unwrap();
+            conn.execute("INSERT INTO plugin_ref_grants(plugin_id,kind,ref_id,target_created_at,create_time) VALUES(?1,'card','1',10,1)", [plugin]).unwrap();
+        }
+        conn
+    }
+
+    fn counts(conn: &rusqlite::Connection, plugin: &str) -> (i64, i64) {
+        conn.query_row(
+            "SELECT (SELECT COUNT(*) FROM plugin_kv WHERE plugin_id=?1),(SELECT COUNT(*) FROM plugin_ref_grants WHERE plugin_id=?1)",
+            [plugin], |row| Ok((row.get(0)?, row.get(1)?)),
+        ).unwrap()
+    }
+
+    #[test]
+    fn clearing_storage_revokes_only_current_plugin_and_database_grants() {
+        let mut conn = database();
+        let other = database();
+        clear_plugin_storage(&mut conn, "alpha").unwrap();
+        assert_eq!(counts(&conn, "alpha"), (0, 0));
+        assert_eq!(counts(&conn, "beta"), (1, 1));
+        assert_eq!(counts(&other, "alpha"), (1, 1));
+        clear_plugin_storage(&mut conn, "alpha").unwrap();
+        assert_eq!(counts(&conn, "alpha"), (0, 0));
+    }
+
+    #[test]
+    fn grant_cleanup_failure_rolls_back_storage_deletion() {
+        let mut conn = database();
+        conn.execute_batch("CREATE TRIGGER refuse_grant_cleanup BEFORE DELETE ON plugin_ref_grants BEGIN SELECT RAISE(ABORT,'模拟授权清理失败'); END;").unwrap();
+        assert!(clear_plugin_storage(&mut conn, "alpha").is_err());
+        assert_eq!(counts(&conn, "alpha"), (1, 1));
+        assert_eq!(counts(&conn, "beta"), (1, 1));
+    }
 }

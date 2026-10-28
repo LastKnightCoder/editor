@@ -160,3 +160,76 @@ it("replaceText 拒绝重叠的多处命中，不发出正文写入", async () =
     data.dispose();
   }
 });
+
+it("shareOf 仅在新建原生内容时传递引用，先认领并复验目标写权限", async () => {
+  vi.mocked(invoke).mockResolvedValue({ id: "2" });
+  const ready = vi.fn(async () => undefined);
+  const permission = vi.fn(async (_context: PluginContext, _permission: string) => undefined);
+  const data = createMobileData("one.db", "session", vi.fn(), permission, ready);
+  try {
+    await data.create(context(), "card", { content: { shareOf: "8:9" } });
+    await data.create(context(), "article", { title: "文章", content: { shareOf: "8:9" } });
+    await data.createDocument(context(), {
+      projectId: "1",
+      title: "文档",
+      content: { shareOf: "8:9" },
+    });
+    expect(ready).toHaveBeenCalledTimes(3);
+    expect(permission.mock.calls.map(([, kind]) => kind)).toEqual([
+      "cards:write",
+      "articles:write",
+      "documents:write",
+    ]);
+    for (const [, args] of vi.mocked(invoke).mock.calls)
+      expect(args).toMatchObject({
+        database: "one.db",
+        token: "session",
+        request: { content: { shareOf: "8:9" } },
+      });
+    await expect(data.prepareContent(context(), { shareOf: "8:9" })).rejects.toThrow("只用于新建");
+  } finally {
+    data.dispose();
+  }
+});
+
+it("copyOf 沿用复制契约，正文准备不申请来源读取权限", async () => {
+  vi.mocked(invoke).mockResolvedValue(original);
+  const permission = vi.fn(async () => {
+    throw new Error("未获读取授权");
+  });
+  const data = createMobileData("one.db", "session", vi.fn(), permission);
+  try {
+    expect((await data.prepareContent(context(), { copyOf: "1:1" })).nodes.length).toBeGreaterThan(
+      0
+    );
+    expect(permission).not.toHaveBeenCalled();
+    expect(vi.mocked(invoke).mock.calls.every(([command]) => command === "plugin_data_read")).toBe(
+      true
+    );
+  } finally {
+    data.dispose();
+  }
+});
+
+it("shareOf 认领等待期间停用不会继续创建原生内容", async () => {
+  let finish!: () => void;
+  const data = createMobileData(
+    "one.db",
+    "session",
+    vi.fn(),
+    undefined,
+    () =>
+      new Promise<void>(resolve => {
+        finish = resolve;
+      })
+  );
+  const controller = new AbortController();
+  const pending = data.create({ ...context(), signal: controller.signal }, "card", {
+    content: { shareOf: "8:9" },
+  });
+  controller.abort();
+  finish();
+  await expect(pending).rejects.toThrow();
+  expect(invoke).not.toHaveBeenCalled();
+  data.dispose();
+});

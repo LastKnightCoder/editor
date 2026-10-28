@@ -684,7 +684,7 @@ fn explicit_links_of(
 }
 
 /** 「被引用」分区：索引库 entity_refs 反查，按来源分组带片段；unresolved（白板正文等）丢弃 */
-fn backlinks_of(
+pub(super) fn backlinks_of(
     main_conn: &Connection,
     index_conn: &Connection,
     kind: &str,

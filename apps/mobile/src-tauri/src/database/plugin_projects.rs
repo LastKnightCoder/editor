@@ -1,6 +1,4 @@
-use super::common::{
-    insert_content_record, now_millis, release_content_reference, write_operation,
-};
+use super::common::{now_millis, release_content_reference, write_operation};
 use super::plugin_data::{get, insert_snapshot, row_snapshot, sql_error, string, table};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::{json, Value};
@@ -288,13 +286,8 @@ fn create_document(
     let parent = optional_id(input, "parentId")?;
     let mut siblings = children_of(conn, project_id, parent)?;
     let content = &request["content"];
-    let count = content["count"]
-        .as_i64()
-        .filter(|count| *count >= 0)
-        .ok_or("正文字数无效")?;
     let now = now_millis();
-    let content_id =
-        insert_content_record(tx, &content["nodes"], content.get("contracts"), count, now)?;
+    let content_id = super::plugin_data::create_content_input(tx, plugin_id, content)?;
     let document_id = next_document_id(conn)?;
     let parents = parent.into_iter().collect::<Vec<_>>();
     conn.execute("INSERT INTO project_item(id,title,tags,children,parents,projects,project_item_type,ref_type,ref_id,content_id,create_time,update_time) VALUES(?1,?2,?3,'[]',?4,'[]','document','',0,?5,?6,?6)",params![document_id,string(input,"title")?,input.get("tags").unwrap_or(&json!([])).to_string(),json!(parents).to_string(),content_id,now]).map_err(sql_error)?;
@@ -1095,5 +1088,104 @@ mod tests {
             Vec::<i64>::new()
         );
         assert_eq!(item(&db, child).unwrap()["title"], "新内容");
+    }
+}
+
+#[cfg(test)]
+mod share_of_tests {
+    use super::super::plugin_entities;
+    use super::*;
+
+    #[test]
+    fn shared_project_document_preserves_body_and_reverts_retains_on_failed_creation() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        super::super::migrator::ensure_main_schema(&conn).unwrap();
+        let id = plugin_entities::next_id(&conn).unwrap();
+        let tx = conn.transaction().unwrap();
+        let entity = plugin_entities::write(
+            &tx,
+            "alpha",
+            &json!({"method":"entity.create","id":id,"input":{"kind":"note","key":"source"}}),
+        )
+        .unwrap();
+        tx.commit().unwrap();
+        let content_id: i64 = entity["contentRef"]
+            .as_str()
+            .unwrap()
+            .split(':')
+            .next()
+            .unwrap()
+            .parse()
+            .unwrap();
+        let project = change(
+            &mut conn,
+            "alpha",
+            &json!({"method":"create","entity":"project","input":{"title":"项目"}}),
+        )
+        .unwrap();
+        let mut request = json!({"method":"create","entity":"document","input":{"projectId":project["id"],"title":"共用正文"},"content":{"shareOf":entity["contentRef"]}});
+        let document = change(&mut conn, "alpha", &request).unwrap();
+        assert_eq!(document["contentRef"], entity["contentRef"]);
+        assert_eq!(
+            conn.query_row(
+                "SELECT ref_count FROM contents WHERE id=?1",
+                [content_id],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            2
+        );
+        request["input"].as_object_mut().unwrap().remove("title");
+        assert!(change(&mut conn, "alpha", &request).is_err());
+        assert_eq!(
+            conn.query_row(
+                "SELECT ref_count FROM contents WHERE id=?1",
+                [content_id],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            2
+        );
+        request["input"]["title"] = json!("越权");
+        assert!(change(&mut conn, "beta", &request).is_err());
+        request["content"]["shareOf"] = json!(format!("{content_id}:0"));
+        assert!(change(&mut conn, "alpha", &request).is_err());
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM project_item", [], |row| row
+                .get::<_, i64>(0))
+                .unwrap(),
+            1
+        );
+        let tx = conn.transaction().unwrap();
+        plugin_entities::write(&tx,"alpha",&json!({"method":"entity.delete","id":entity["id"],"expectedRevision":entity["revision"]})).unwrap();
+        let operation = tx
+            .query_row(
+                "SELECT MAX(id) FROM plugin_operations WHERE entity='plugin-entity'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap();
+        tx.commit().unwrap();
+        assert_eq!(
+            conn.query_row(
+                "SELECT ref_count FROM contents WHERE id=?1",
+                [content_id],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            1
+        );
+        let tx = conn.transaction().unwrap();
+        plugin_entities::restore(&tx, "alpha", operation).unwrap();
+        tx.commit().unwrap();
+        assert_eq!(
+            conn.query_row(
+                "SELECT ref_count FROM contents WHERE id=?1",
+                [content_id],
+                |row| row.get::<_, i64>(0)
+            )
+            .unwrap(),
+            2
+        );
     }
 }
