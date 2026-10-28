@@ -307,6 +307,7 @@ export function SyncSection() {
         open={downloadConfirmOpen}
         onOpenChange={setDownloadConfirmOpen}
         title="下载更新"
+        size="lg"
         context={database.active}
         description={`远程 v${remoteVersion} 有新版本，下载后将覆盖本地并刷新。`}
         impact="本地当前文件会备份至 backup 文件夹"
