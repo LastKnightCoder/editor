@@ -21,6 +21,7 @@ import { DetailTabs } from "./components/DetailTabs";
 import { PluginChangesBanner } from "./components/PluginChangesBanner";
 import { PluginIcon } from "./components/PluginIcon";
 import { PluginManageSheet } from "./components/PluginManageSheet";
+import { PluginSettingsCard } from "./components/PluginSettingsCard";
 import { PluginMarkdown } from "./components/PluginMarkdown";
 import { ReleaseHistoryList } from "./components/ReleaseHistoryList";
 import { StoreActionButton } from "./components/StoreActionButton";
@@ -559,7 +560,9 @@ function SettingsTab({
           </Button>
         ) : Component ? (
           <ErrorBoundary key={id}>
-            <Component context={active.context} />
+            <PluginSettingsCard>
+              <Component context={active.context} />
+            </PluginSettingsCard>
           </ErrorBoundary>
         ) : null}
       </section>

@@ -1,5 +1,5 @@
 /**
- * 声明式提供方表单的字段区：按插件声明的分组渲染 SettingsGroup 式面板，
+ * 声明式提供方表单的字段区：按插件声明的分组渲染为设置卡片的小节（SettingsCardSection），
  * 字段按类型选择控件（密钥 / 文本 / 地址 / 选择 / 远程选择 / 开关）。
  * 只负责展示与改值，保存与选用由 ProviderFormView 的绑定决定。
  */
@@ -17,18 +17,9 @@ import {
   type ProviderServiceChoiceField,
 } from "@tau/plugins";
 import { createContext, useContext, type ReactNode } from "react";
-import {
-  Button,
-  IconButton,
-  Input,
-  Panel,
-  Segmented,
-  Select,
-  SettingRow,
-  Switch,
-  cn,
-} from "@tau/ui";
+import { Button, IconButton, Input, Segmented, Select, SettingRow, Switch, cn } from "@tau/ui";
 import { openExternal } from "@/commands/extra";
+import { SettingsCardSection } from "./SettingsCard";
 
 type Values = Record<string, string>;
 
@@ -366,7 +357,7 @@ export function ProviderFormFields({
   disabled: boolean;
   context: PluginContext;
   /**
-   * rows：设置页的分组面板 + 左标题右控件；
+   * rows：插件详情设置卡片内的小节 + 左标题右控件，外层卡片由调用方提供；
    * inline：嵌进宿主已有的分组容器（发布抽屉），不再套面板，行为窄标签 + 整宽控件
    */
   layout?: "rows" | "inline";
@@ -398,21 +389,18 @@ export function ProviderFormFields({
             </InlineRow>
           ));
         return (
-          <section key={group.title} className="mb-6 last:mb-0" aria-label={group.title}>
-            <div className="flex items-end gap-3 px-1 pb-2">
-              <div className="min-w-0 flex-1">
-                <h3 className="text-tau-body-lg text-ink-1 font-semibold">{group.title}</h3>
-                {group.description && (
-                  <p className="text-tau-meta text-ink-2">{group.description}</p>
-                )}
-              </div>
-              {group.link && <GroupLink link={group.link} />}
-            </div>
-            <Panel pad="none" className="rounded-[14px] p-1.5">
-              {visible.map(field => {
-                const error = errors[field.key];
-                const note = fieldNote(field, values[field.key] ?? "");
-                const control = (
+          <SettingsCardSection
+            key={group.title}
+            title={group.title}
+            description={group.description}
+            action={group.link && <GroupLink link={group.link} />}
+          >
+            {visible.map(field => {
+              const error = errors[field.key];
+              const note = fieldNote(field, values[field.key] ?? "");
+              const description = error ? <span className="text-danger">{error}</span> : note;
+              return (
+                <SettingRow key={field.key} title={field.label} description={description}>
                   <FieldControl
                     field={field}
                     values={values}
@@ -423,16 +411,10 @@ export function ProviderFormFields({
                     onChange={value => onChange(field.key, value)}
                     onPatch={onChange}
                   />
-                );
-                const description = error ? <span className="text-danger">{error}</span> : note;
-                return (
-                  <SettingRow key={field.key} title={field.label} description={description}>
-                    {control}
-                  </SettingRow>
-                );
-              })}
-            </Panel>
-          </section>
+                </SettingRow>
+              );
+            })}
+          </SettingsCardSection>
         );
       })}
     </FieldWidthContext.Provider>

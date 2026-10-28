@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>插件详情 · 设置页层次方案</title>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+  /* 取值与 @tau/themes paper 浅/深同源 */
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-surface-hover: #f6f3ef;
+    --bg-hover: rgba(67, 57, 44, 0.05); --bg-selected: rgba(217, 119, 87, 0.12);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+    --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.75);
+    --accent: hsl(22 58% 42%); --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+    --ok: #61795f; --ok-soft: #e5ede2; --danger: #b0564d; --danger-soft: #f6e3e0;
+    --tag-2: #5c7d99; --tag-2-soft: #e2ebf3;
+    --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --stage: #e8e1d1;
+  }
+  [data-theme="dark"] {
+    --bg-page: #221d16; --bg-surface: #2e2820; --bg-surface-hover: #39332b;
+    --bg-hover: rgba(236, 226, 208, 0.06); --bg-selected: hsla(22, 62%, 65%, 0.2);
+    --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+    --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+    --accent: hsl(22 62% 65%); --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+    --ok: #8cab87; --ok-soft: #243023; --danger: #d97e66; --danger-soft: #34201a;
+    --tag-2: #83aecf; --tag-2-soft: #1e2a35;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+    --stage: #15110c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--stage); color: var(--ink-1);
+    font: 13px/1.65 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 36px 3vw 80px; }
+  svg.lucide { width: 1em; height: 1em; stroke-width: 1.75; flex: none; }
+  .mono { font-family: var(--mono); font-size: 12px; }
+  .intro { max-width: 1100px; }
+  .intro h1 { font-size: 20px; font-weight: 600; }
+  .intro h3 { font-size: 14.5px; font-weight: 600; margin: 18px 0 6px; }
+  .intro p, .intro li { color: var(--ink-2); max-width: 110ch; }
+  .intro ul { margin-left: 18px; } .intro li { margin-top: 3px; } .intro b { color: var(--ink-1); font-weight: 600; }
+  .cmp { margin-top: 10px; border-collapse: collapse; font-size: 12.5px; }
+  .cmp th, .cmp td { text-align: left; padding: 7px 18px 7px 0; vertical-align: top; border-bottom: 1px solid var(--line-1); }
+  .cmp th { color: var(--ink-3); font-weight: 500; } .cmp td { color: var(--ink-2); }
+  .cmp td:first-child { color: var(--ink-1); font-weight: 500; white-space: nowrap; }
+  .toolbar { display: flex; gap: 18px; align-items: center; margin: 28px 0 8px; font-size: 12.5px; color: var(--ink-2); }
+  .pills { display: flex; gap: 4px; }
+  .pills button { font: inherit; border: 0; cursor: pointer; padding: 4px 12px; border-radius: 99px; background: var(--bg-hover); color: var(--ink-1); }
+  .pills button.on { background: var(--ink-1); color: var(--ink-inverse); }
+  /* ---------- 画框：只复刻详情页主栏（设置 tab） ---------- */
+  .frame { margin-top: 34px; }
+  .frame-h { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .frame-h h2 { font-size: 16px; font-weight: 600; }
+  .frame-h .tag { font-size: 11.5px; padding: 1px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent-text); }
+  .frame-h .tag.muted { background: var(--bg-hover); color: var(--ink-2); }
+  .frame-body { display: grid; grid-template-columns: 820px minmax(260px, 360px); gap: 28px; align-items: start; }
+  .notes { font-size: 12.5px; color: var(--ink-2); }
+  .notes li { margin: 0 0 8px 16px; } .notes b { color: var(--ink-1); font-weight: 600; }
+  .paper { background: var(--bg-surface); box-shadow: var(--shadow-card); border-radius: 16px; padding: 22px 30px 26px 34px; }
+  .tabs { display: flex; gap: 22px; border-bottom: 1px solid var(--line-1); margin-bottom: 18px; color: var(--ink-2); font-size: 13.5px; }
+  .tabs span { padding: 0 2px 9px; } .tabs .on { color: var(--ink-1); font-weight: 500; box-shadow: inset 0 -2px var(--accent); }
+  .return { display: flex; align-items: center; gap: 8px; background: var(--accent-soft); color: var(--accent-text);
+    border-radius: 12px; padding: 7px 8px 7px 12px; font-size: 12px; margin-bottom: 20px; }
+  .return span { flex: 1; }
+
+  /* ---------- 基础控件 ---------- */
+  .row { display: flex; align-items: center; gap: 16px; min-height: 56px; padding: 11px 12px; position: relative; }
+  .row + .row::before { content: ""; position: absolute; left: 12px; right: 12px; top: 0; border-top: 1px solid var(--line-2); }
+  .row .t { flex: 1; min-width: 0; }
+  .row .t b { display: block; font-size: 13.5px; font-weight: 500; }
+  .row .t small { display: block; font-size: 12px; color: var(--ink-2); }
+  .ctl { display: flex; gap: 8px; align-items: center; flex: none; }
+  .input { width: 300px; height: 32px; border: 1px solid var(--line-1); border-radius: 8px; background: var(--bg-surface);
+    display: flex; align-items: center; padding: 0 10px; gap: 6px; font-size: 12.5px; color: var(--ink-1); }
+  .input.sm { width: 180px; } .input .grow { flex: 1; overflow: hidden; white-space: nowrap; }
+  .input svg { color: var(--ink-3); }
+  .btn { height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line-1); background: var(--bg-surface);
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-1); white-space: nowrap; }
+  .btn.sm { height: 26px; padding: 0 9px; font-size: 12px; }
+  .btn.ghost { border-color: transparent; background: none; color: var(--ink-2); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--ink-inverse); }
+  .btn.primary.off { opacity: .45; }
+  .btn.danger { background: var(--danger-soft); border-color: transparent; color: var(--danger); }
+  .icon-btn { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; color: var(--ink-2); }
+  .icon-btn:hover { background: var(--bg-hover); }
+  .chip { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; padding: 1px 8px; border-radius: 99px; }
+  .chip.ok { background: var(--ok-soft); color: var(--ok); }
+  .chip.muted { background: var(--bg-hover); color: var(--ink-2); }
+  .dot { width: 6px; height: 6px; border-radius: 99px; background: var(--ok); flex: none; }
+
+  /* ---------- 分组标题 & 保存栏 ---------- */
+  .gh { display: flex; align-items: flex-end; gap: 12px; padding: 0 4px 8px; }
+  .gh .t { flex: 1; } .gh b { font-size: 13.5px; font-weight: 600; display: block; }
+  .gh small { font-size: 12px; color: var(--ink-2); display: block; }
+  .savebar { display: flex; align-items: center; gap: 8px; margin-top: 16px; padding: 0 4px; }
+  .savebar .st { flex: 1; font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; }
+  .savebar .st.dirty::before { content: ""; width: 6px; height: 6px; border-radius: 99px; background: var(--accent); }
+  /* ---------- 容器变体 ---------- */
+  .grp { border-radius: 14px; padding: 6px; }
+  .grp.raised { background: var(--bg-surface); box-shadow: var(--shadow-card); }
+  .grp.outline { border: 1px solid var(--line-1); }
+  .stack > * + * { margin-top: 24px; }
+  /* 浅底变体：容器 surface-hover，内部输入框抬成 surface + 描边 */
+  body[data-fill="tint"] .grp.outline,
+  body[data-fill="tint"] .card { background: var(--bg-surface-hover); border-color: transparent; }
+  body[data-fill="tint"] .card-sec + .card-sec, body[data-fill="tint"] .card-h,
+  body[data-fill="tint"] .card-f { border-color: var(--line-1); }
+
+  /* 方案 B / C：账号卡 */
+  .switch { display: flex; gap: 6px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+  .acct { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px; border-radius: 99px;
+    border: 1px solid var(--line-1); font-size: 12.5px; color: var(--ink-2); }
+  .acct.on { background: var(--bg-selected); border-color: transparent; color: var(--ink-1); font-weight: 500; }
+  .acct.add { border-style: dashed; }
+  .switch .hint { margin-left: auto; font-size: 12px; color: var(--ink-3); }
+  .card { border: 1px solid var(--line-1); border-radius: 16px; overflow: hidden; }
+  .card-h { display: flex; align-items: center; gap: 12px; padding: 14px 14px 14px 18px; border-bottom: 1px solid var(--line-2); }
+  .avatar { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex: none;
+    background: var(--tag-2-soft); color: var(--tag-2); font-weight: 600; }
+  .card-h .t { flex: 1; min-width: 0; }
+  .card-h .name { display: flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 600; }
+  .card-h .name svg { color: var(--ink-3); font-size: 13px; }
+  .card-h small { display: block; font-size: 12px; color: var(--ink-2); }
+  .card-sec { padding: 12px 6px 6px; }
+  .card-sec + .card-sec { border-top: 1px solid var(--line-2); }
+  .sec-t { display: flex; align-items: baseline; gap: 8px; padding: 0 12px 2px; }
+  .sec-t b { font-size: 12.5px; font-weight: 600; color: var(--ink-1); }
+  .sec-t small { font-size: 12px; color: var(--ink-3); }
+  .sec-t .link { margin-left: auto; font-size: 12px; color: var(--ink-2); display: inline-flex; gap: 4px; align-items: center; }
+  .card-f { border-top: 1px solid var(--line-2); padding: 10px 14px 10px 18px; }
+  .card-f .savebar { margin: 0; padding: 0; }
+
+  /* 方案 C：列表 + 详情 */
+  .split { display: grid; grid-template-columns: 196px minmax(0, 1fr); gap: 16px; align-items: start; }
+  .list { display: flex; flex-direction: column; gap: 2px; }
+  .list .item { padding: 8px 10px; border-radius: 10px; display: flex; gap: 9px; align-items: center; }
+  .list .item.on { background: var(--bg-selected); }
+  .list .item .t { flex: 1; min-width: 0; }
+  .list .item b { display: block; font-size: 13px; font-weight: 500; }
+  .list .item small { display: block; font-size: 11.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .list .avatar { width: 26px; height: 26px; border-radius: 8px; font-size: 12px; }
+  .list .add { color: var(--ink-2); font-size: 12.5px; padding: 8px 10px; display: flex; gap: 8px; align-items: center; }
+
+  /* 现状标注 */
+  .pin { display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 99px; font-style: normal;
+    background: var(--accent); color: var(--ink-inverse); font-size: 10.5px; font-weight: 600; margin-left: 6px; vertical-align: 1px; }
+  .muted-h { font-size: 13.5px; font-weight: 600; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<section class="intro">
+  <h1>插件详情 › 设置：层次感方案</h1>
+  <p>以 OpenAI 图片（多账号 · 声明式表单）为样本，单账号插件（同步 / 发布 / 语音识别）走同一套容器。</p>
+  <h3>为什么看着没层次</h3>
+  <ul>
+    <li><b>白卡叠白纸</b>：详情页本身是 <span class="mono">bg-surface + shadow-card</span> 的整张纸，字段组却用默认 <span class="mono">Panel raised</span>（同色 + 阴影），只剩一圈若有若无的影子。Panel 自己的注释写着「纸上再叠阴影卡会糊成一片，用 outline」。</li>
+    <li><b>同一页四种容器</b>：账号 / 账号名称是裸行，「连接」是阴影卡，「模型」又是裸行，TTS 的音色复刻是描边框——用户分不清谁跟谁是一组。</li>
+    <li><b>层级被拍平</b>：真实结构是「账号 › 连接 / 模型」，现在账号行、连接组、模型行、保存栏是平级的，保存栏到底保存谁也不直观。</li>
+    <li><b>标题重复</b>：只有一个设置分组时，「OpenAI 图片」小标题与页头同名，白占一层。</li>
+  </ul>
+  <h3>三个方向</h3>
+  <table class="cmp">
+    <tr><th>方案</th><th>做法</th><th>改动</th><th>适合</th></tr>
+    <tr><td>A 统一描边分组</td><td>所有组一律 outline；账号行收进「账号」组，模型进「模型」组；单分组隐藏重复标题</td><td>小：ProviderFormFields 改 outline、ProviderAccountSettings 套组</td><td>先止血</td></tr>
+    <tr><td>B 账号即卡片（推荐）</td><td>顶部账号胶囊切换；当前账号是一张卡：卡头（名称 / 使用中 / ⋯）、卡身（连接、模型小节）、卡脚（保存栏）</td><td>中：新增 AccountCard，表单分组在卡内渲染为小节</td><td>多账号与单账号同一结构</td></tr>
+    <tr><td>C 列表 + 详情</td><td>左列账号列表（带摘要），右侧同 B 的卡片</td><td>中偏大：窄屏要回退</td><td>账号常 ≥4 个时</td></tr>
+  </table>
+</section>
+
+<div class="toolbar">
+  <span>主题</span>
+  <div class="pills" data-k="theme"><button class="on" data-v="light">浅色</button><button data-v="dark">深色</button></div>
+  <span>容器底</span>
+  <div class="pills" data-k="fill"><button class="on" data-v="line">仅描边</button><button data-v="tint">浅底（surface-hover）</button></div>
+</div>
+
+<div id="frames"></div>
+<script>
+// 示意数据：OpenAI 图片插件，两个账号
+const i = name => `<i data-lucide="${name}"></i>`;
+const row = (title, desc, ctl) =>
+  `<div class="row"><div class="t"><b>${title}</b>${desc ? `<small>${desc}</small>` : ""}</div><div class="ctl">${ctl}</div></div>`;
+const input = (text, extra = "", cls = "") =>
+  `<div class="input ${cls}"><span class="grow">${text}</span>${extra}</div>`;
+const select = (text, cls = "") => input(text, i("chevron-down"), cls);
+const btn = (text, cls = "") => `<span class="btn ${cls}">${text}</span>`;
+const gh = (title, desc, right = "") =>
+  `<div class="gh"><div class="t"><b>${title}</b>${desc ? `<small>${desc}</small>` : ""}</div>${right}</div>`;
+const savebar = (dirty = true, label = "保存") =>
+  `<div class="savebar"><span class="st ${dirty ? "dirty" : ""}">${dirty ? "有未保存的修改" : "已保存"}</span>${btn("还原", "ghost")}${btn(label, `primary ${dirty ? "" : "off"}`)}</div>`;
+const tabs = `<div class="tabs"><span>介绍</span><span class="on">设置</span><span>更新日志</span><span>版本</span><span>评论与喜欢</span></div>`;
+const ret = `<div class="return">${i("arrow-left")}<span>从「设置 › 图片生成」进入，保存后可回去继续</span>${btn("返回图片生成设置", "sm")}</div>`;
+const pin = n => `<em class="pin">${n}</em>`;
+
+const apiKey = row("API Key", "", input("••••••••••••••••••••••••••", i("eye")));
+const baseUrl = row("模型地址", "兼容 OpenAI 图片接口的服务可改为对应地址", input('<span class="mono">https://www.cctq.ai/v1</span>'));
+const model = row("图片模型", "生成与修改都用这个模型", select('<span class="mono">gpt-image-2.5-flare</span>'));
+
+const frame = (title, tag, body, notes) => `
+  <section class="frame">
+    <div class="frame-h"><h2>${title}</h2>${tag}</div>
+    <div class="frame-body"><div class="paper">${tabs}${ret}${body}</div><ul class="notes">${notes.map(n => `<li>${n}</li>`).join("")}</ul></div>
+  </section>`;
+
+/* ---------- 现状 ---------- */
+const current = frame("现状", '<span class="tag muted">复刻截图</span>', `
+  <div class="muted-h">OpenAI 图片${pin(4)}</div>
+  ${row(`账号${pin(2)}`, "可为同一插件保存多个账号；添加和保存不会切换当前服务。", select("cctq", "sm") + btn("添加账号"))}
+  ${row("账号名称", "", input("cctq", "", "sm") + btn("删除账号", "danger"))}
+  <div style="margin-top:14px">${gh("连接", "提示词与参考图会发送到所配置的模型服务。")}
+  <div class="grp raised">${apiKey}${baseUrl}</div></div>
+  <div style="margin-top:6px">${row(`模型${pin(1)}`, "", select('<span class="mono">gpt-image-2.5-flare</span>'))}</div>
+  ${savebar(false).replace("</div>", pin(3) + "</div>")}`, [
+  `${pin(1)} <b>阴影卡在白纸上几乎看不见</b>，只有「连接」这一组有容器，还是最弱的那种。`,
+  `${pin(2)} <b>账号、账号名称是裸行</b>，与下面的连接组平级，看不出「连接属于当前账号」。`,
+  `${pin(3)} <b>保存栏</b>悬在最底，不清楚是保存账号名、连接还是模型（实际三者都存）。`,
+  `${pin(4)} 只有一个设置分组时，<b>小标题与页头同名</b>。`,
+]);
+
+/* ---------- 方案 A ---------- */
+const planA = frame("方案 A · 统一描边分组", '<span class="tag muted">小改动</span>', `
+  <div class="stack">
+    <div>${gh("账号", "可保存多个账号；添加和保存不会切换当前服务。", btn("添加账号", "sm"))}
+      <div class="grp outline">
+        ${row("当前编辑", "", select("cctq", "sm"))}
+        ${row("账号名称", "", input("cctq", "", "sm") + btn("删除", "ghost"))}
+      </div></div>
+    <div>${gh("连接", "提示词与参考图会发送到所配置的模型服务。")}
+      <div class="grp outline">${apiKey}${baseUrl}</div></div>
+    <div>${gh("模型", "")}<div class="grp outline">${model}</div></div>
+  </div>
+  ${savebar()}`, [
+  "<b>所有组一律 outline</b>（Panel 的 <span class=\"mono\">variant=\"outline\"</span>），白纸上一眼分出三块。",
+  "账号行、模型行各自进组；「添加账号」挪到组标题右侧（同 SettingsGroup 的 action 槽）。",
+  "只有一个设置分组时<b>不再渲染「OpenAI 图片」小标题</b>。",
+  "删除降为 ghost，避免红色块抢视线；仍走 ConfirmDialog。",
+  "缺点：账号与连接仍是平级的兄弟组，「切账号会换掉下面两组」要靠用户自己理解。",
+]);
+
+/* ---------- 方案 B ---------- */
+const switcher = `<div class="switch">
+  <span class="acct on"><span class="dot"></span>cctq</span>
+  <span class="acct">OpenAI 官方</span>
+  <span class="acct add">${i("plus")}添加账号</span>
+  <span class="hint">添加和保存不会切换当前服务</span>
+</div>`;
+const card = (head = true) => `<div class="card">
+  ${head ? `<div class="card-h"><span class="avatar">c</span><div class="t">
+      <div class="name">cctq ${i("pencil")}<span class="chip ok">图片生成使用中</span></div>
+      <small class="mono">www.cctq.ai · gpt-image-2.5-flare</small></div>
+    <span class="icon-btn">${i("ellipsis")}</span></div>` : ""}
+  <div class="card-sec"><div class="sec-t"><b>连接</b><small>提示词与参考图会发送到所配置的模型服务</small></div>${apiKey}${baseUrl}</div>
+  <div class="card-sec"><div class="sec-t"><b>模型</b></div>${model}</div>
+  <div class="card-f">${savebar(true, "保存账号")}</div>
+</div>`;
+const planB = frame("方案 B · 账号即卡片", '<span class="tag">推荐</span>', switcher + card(), [
+  "<b>结构即层级</b>：账号胶囊 › 账号卡 › 小节 › 行，四层各用一种手段区分（胶囊 / 描边卡 / 细分隔线 / 行分隔），不靠阴影。",
+  "<b>卡头</b>：名称点铅笔原位改（替代「账号名称」整行）；绿点 +「图片生成使用中」说明哪个账号正被选用；摘要行复用表单的 <span class=\"mono\">summary</span> 字段。",
+  "<b>⋯ 菜单</b>收低频操作：删除账号（仍确认）。",
+  "插件声明的 <span class=\"mono\">groups</span> 在卡内渲染为<b>小节</b>而不是独立卡片；宿主的「模型」也是一个小节。",
+  "<b>保存栏在卡脚</b>，按钮写「保存账号」，保存范围一目了然。",
+  "账号 >4 个时胶囊收成下拉（同现有 Select）。",
+]);
+const planBSingle = frame("方案 B · 单账号插件", '<span class="tag muted">同一结构去掉胶囊</span>', `
+  <div class="card">
+    <div class="card-h"><span class="avatar" style="background:var(--ok-soft);color:var(--ok)">${i("refresh-cw")}</span><div class="t">
+      <div class="name">同步服务<span class="chip ok">使用中</span></div>
+      <small>数据库与资源文件正同步到这里</small></div></div>
+    <div class="card-sec"><div class="sec-t"><b>连接</b><span class="link">${i("external-link")}获取密钥</span></div>
+      ${row("Access Key", "", input("••••••••••••••••", i("eye")))}${row("Endpoint", "", input('<span class="mono">https://s3.example.com</span>'))}</div>
+    <div class="card-sec"><div class="sec-t"><b>存储位置</b></div>${row("Bucket", "", input("tau-notes"))}${row("路径前缀", "可选", input("vault/"))}</div>
+    <div class="card-f">${savebar(true, "保存并测试")}</div>
+  </div>`, [
+  "现有 <span class=\"mono\">CapabilityCard</span>（同步服务 / 资源存储的选用卡）直接成为<b>卡头</b>，不再是表单上方的另一张卡。",
+  "单账号插件没有胶囊、没有铅笔；其余小节 / 卡脚与多账号完全一致。",
+]);
+
+/* ---------- 方案 C ---------- */
+const planC = frame("方案 C · 列表 + 详情", '<span class="tag muted">账号多时</span>', `
+  <div class="split">
+    <div class="list">
+      <div class="item on"><span class="avatar">c</span><div class="t"><b>cctq</b><small>www.cctq.ai</small></div><span class="dot"></span></div>
+      <div class="item"><span class="avatar" style="background:var(--bg-hover);color:var(--ink-2)">O</span><div class="t"><b>OpenAI 官方</b><small>api.openai.com</small></div></div>
+      <div class="add">${i("plus")}添加账号</div>
+    </div>
+    ${card()}
+  </div>`, [
+  "左列账号带地址摘要，绿点 = 正在使用；右侧与方案 B 的卡片相同。",
+  "主栏只有 ~760px，列表占 196px 后表单控件要从 300px 收窄，<b>行式布局开始拥挤</b>。",
+  "适合账号常在 4 个以上的场景；目前 TTS / 图片插件大多 1–2 个账号，收益不如 B。",
+]);
+
+const render = () => {
+  document.getElementById("frames").innerHTML = current + planA + planB + planBSingle + planC;
+  if (window.lucide) lucide.createIcons();
+};
+document.querySelectorAll(".pills").forEach(group =>
+  group.addEventListener("click", event => {
+    const button = event.target.closest("button");
+    if (!button) return;
+    group.querySelectorAll("button").forEach(item => item.classList.toggle("on", item === button));
+    const key = group.dataset.k;
+    if (key === "theme") document.documentElement.dataset.theme = button.dataset.v;
+    else document.body.dataset.fill = button.dataset.v;
+  })
+);
+render();
+</script>
+</body>
+</html>

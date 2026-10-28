@@ -4,6 +4,7 @@ import { normalizePageParams } from "@tau/plugins/host";
 import type { PluginPageContext } from "@tau/plugins";
 import { ErrorBoundary, Loading, PortalScope, UiHostProvider, UiProvider } from "@tau/ui";
 import { PageHeader } from "../../components/PageHeader";
+import { PluginSettingsCard } from "./components/PluginSettingsCard";
 import { usePage } from "../../router";
 import { usePageInstanceContext, usePageGuard } from "../../router/pageLifecycle";
 import { useMobilePlugins, useMobilePluginStatus } from "../../app/plugins/context";
@@ -53,7 +54,10 @@ const PLUGIN_STARTING = <Loading minHeight={240} label="插件加载中…" />;
 export function PluginPageView() {
   const runtime = useMobilePlugins();
   const { phase } = useMobilePluginStatus();
-  const { params, navigator, entryId } = usePage<{ id: string; params: string }>();
+  const { params, navigator, entryId } = usePage<{
+    id: string;
+    params: string;
+  }>();
   const lifecycle = usePageInstanceContext();
   const page = runtime?.pages.get(params.id);
   const guards = useRef(new Set<() => boolean | Promise<boolean>>());
@@ -149,7 +153,9 @@ export function PluginSettingsView() {
           {setting.definition.target === "tts" || setting.definition.target === "asr" ? (
             <MobileProviderSettings entry={setting} />
           ) : Component ? (
-            <Component context={setting.context} />
+            <PluginSettingsCard>
+              <Component context={setting.context} />
+            </PluginSettingsCard>
           ) : null}
         </ErrorBoundary>
       ) : phase === "starting" ? (

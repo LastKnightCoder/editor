@@ -1,18 +1,37 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { produce } from "immer";
-import type { JsonValue, PluginSettingsProps } from "@tau/plugins";
+import { Clapperboard, Mic, Pencil, Plus, Send, type LucideIcon } from "lucide-react";
+import { providerFormSummary, type JsonValue, type PluginSettingsProps } from "@tau/plugins";
 import { copyJson } from "@tau/plugins/host";
-import { Button, ConfirmDialog, Input, Select, SettingRow } from "@tau/ui";
+import {
+  Button,
+  ConfirmDialog,
+  FilterPill,
+  IconButton,
+  Input,
+  Menu,
+  Select,
+  SettingRow,
+} from "@tau/ui";
 import type { RegisteredPluginSettings } from "@/app/plugins/runtime";
-import useSettingStore from "@/stores/useSettingStore";
+import useSettingStore, { EPublishProvider } from "@/stores/useSettingStore";
 import { savePluginTTSConfig } from "@/commands/plugin-tts";
 import { savePluginImagesConfig } from "@/commands/plugin-images";
 import { savePluginVideoConfig } from "@/commands/plugin-video";
 import { savePublishPluginConfig, checkPublishConnection } from "@/commands/publish";
 import { updateSpeechInput } from "@/services/speechInput";
 import { TTSPluginCloneSection } from "@/features/settings/sections/TTSPluginCloneSection";
+import { StatusChip } from "@/features/settings/components/StatusChip";
+import { MoreButton } from "./PluginParts";
 import { ProviderFormView } from "./ProviderFormView";
+import {
+  SettingsCard,
+  SettingsCardBody,
+  SettingsCardHeader,
+  SettingsCardIcon,
+  SettingsCardSection,
+} from "./SettingsCard";
 
 type Account = {
   id: string;
@@ -23,7 +42,9 @@ type Account = {
   modelId?: string;
 };
 const update = (recipe: (draft: ReturnType<typeof useSettingStore.getState>["setting"]) => void) =>
-  useSettingStore.setState(state => ({ setting: produce(state.setting, recipe) }));
+  useSettingStore.setState(state => ({
+    setting: produce(state.setting, recipe),
+  }));
 
 export function ProviderAccountSettings({ section }: { section: RegisteredPluginSettings }) {
   const { target } = section.definition;
@@ -47,6 +68,11 @@ function Accounts({
   const [selected, setSelected] = useState("");
   const [deleting, setDeleting] = useState<Account>();
   const account = accounts.find(item => item.id === selected) ?? accounts[0];
+  const usingId = useSettingStore(state =>
+    target === "tts"
+      ? state.setting.ttsUsageSettings.default?.providerId
+      : state.setting.imageGeneration.currentProviderId
+  );
   const add = () => {
     const id = crypto.randomUUID();
     update(draft => {
@@ -61,45 +87,60 @@ function Accounts({
     });
     setSelected(id);
   };
+  const header = account && (
+    <AccountHeader
+      key={account.id}
+      account={account}
+      using={usingId === account.id}
+      usage={target === "tts" ? "朗读与播客使用中" : "图片生成使用中"}
+      summary={
+        section.definition.form
+          ? providerFormSummary(section.definition.form, account.config as JsonValue)
+          : ""
+      }
+      onRename={name =>
+        update(draft => {
+          const current = (
+            target === "tts" ? draft.ttsProviders : draft.imageGeneration.providers
+          ).find(item => item.id === account.id && item.pluginId === pluginId);
+          if (current) current.name = name;
+        })
+      }
+      onDelete={() => setDeleting(account)}
+    />
+  );
   return (
-    <div className="flex flex-col gap-4">
-      <SettingRow title="账号" description="可为同一插件保存多个账号；添加和保存不会切换当前服务。">
-        {account && (
-          <Select
-            aria-label="配置账号"
-            value={account.id}
-            options={accounts.map(item => ({ value: item.id, label: item.name }))}
-            onValueChange={setSelected}
+    <div className="flex flex-col gap-3">
+      <nav aria-label="账号" className="flex flex-wrap items-center gap-1.5">
+        {accounts.map(item => (
+          <FilterPill
+            key={item.id}
+            active={item.id === account?.id}
+            label={item.name || "未命名账号"}
+            icon={usingId === item.id && <span className="bg-ok size-1.5 rounded-full" />}
+            onClick={() => setSelected(item.id)}
           />
-        )}
-        <Button onClick={add}>添加账号</Button>
-      </SettingRow>
+        ))}
+        <Button size="sm" variant="ghost" icon={Plus} onClick={add}>
+          添加账号
+        </Button>
+        <span className="text-tau-meta text-ink-3 ml-auto">添加和保存不会切换当前服务</span>
+      </nav>
       {account ? (
-        <>
-          <SettingRow title="账号名称">
-            <Input
-              aria-label="账号名称"
-              value={account.name}
-              onChange={event =>
-                update(draft => {
-                  const current = (
-                    target === "tts" ? draft.ttsProviders : draft.imageGeneration.providers
-                  ).find(item => item.id === account.id && item.pluginId === pluginId);
-                  if (current) current.name = event.target.value;
-                })
-              }
-            />
-            <Button variant="danger-soft" onClick={() => setDeleting(account)}>
-              删除账号
-            </Button>
-          </SettingRow>
-          <AccountForm key={account.id} section={section} account={account} target={target} />
-          {target === "tts" && "models" in account && (
-            <TTSPluginCloneSection provider={account} onCloned={() => undefined} />
-          )}
-        </>
+        <AccountForm
+          key={account.id}
+          section={section}
+          account={account}
+          target={target}
+          header={header}
+        />
       ) : (
         <p className="text-tau-meta text-ink-2">添加账号后填写连接信息，再到应用设置中选用。</p>
+      )}
+      {account && target === "tts" && "models" in account && (
+        <SettingsCard>
+          <TTSPluginCloneSection provider={account} onCloned={() => undefined} />
+        </SettingsCard>
       )}
       <ConfirmDialog
         open={!!deleting}
@@ -131,19 +172,83 @@ function Accounts({
   );
 }
 
+/** 账号卡头：名称原位改名，正被应用设置选用时显示状态，低频操作收进 ⋯ */
+function AccountHeader({
+  account,
+  using,
+  usage,
+  summary,
+  onRename,
+  onDelete,
+}: {
+  account: Account;
+  using: boolean;
+  usage: string;
+  summary: string;
+  onRename(name: string): void;
+  onDelete(): void;
+}) {
+  const [renaming, setRenaming] = useState(false);
+  return (
+    <SettingsCardHeader
+      icon={<SettingsCardIcon letter={(account.name.trim()[0] ?? "?").toUpperCase()} />}
+      title={
+        renaming ? (
+          <Input
+            size="sm"
+            wrapperClassName="w-[220px]"
+            aria-label="账号名称"
+            autoFocus
+            value={account.name}
+            onChange={event => onRename(event.target.value)}
+            onBlur={() => setRenaming(false)}
+            onKeyDown={event => {
+              if (event.key === "Enter" && !event.nativeEvent.isComposing) setRenaming(false);
+            }}
+          />
+        ) : (
+          <>
+            <span className="min-w-0 truncate">{account.name || "未命名账号"}</span>
+            <IconButton
+              className="size-6 flex-none"
+              aria-label="重命名账号"
+              onClick={() => setRenaming(true)}
+            >
+              <Pencil size={13} />
+            </IconButton>
+          </>
+        )
+      }
+      status={using && <StatusChip tone="ok">{usage}</StatusChip>}
+      description={summary ? <span className="font-tau-mono">{summary}</span> : "尚未填写连接信息"}
+      actions={
+        <MoreButton label={`${account.name || "账号"} 的更多操作`}>
+          <Menu.Item danger onSelect={onDelete}>
+            删除账号…
+          </Menu.Item>
+        </MoreButton>
+      }
+    />
+  );
+}
+
 function AccountForm({
   section,
   account,
   target,
+  header,
 }: {
   section: RegisteredPluginSettings;
   account: Account;
   target: "tts" | "images";
+  header: ReactNode;
 }) {
   const [client] = useState(
     () =>
       new QueryClient({
-        defaultOptions: { queries: { retry: false, gcTime: 0, refetchOnWindowFocus: false } },
+        defaultOptions: {
+          queries: { retry: false, gcTime: 0, refetchOnWindowFocus: false },
+        },
       })
   );
   const defaults = section.definition.models ?? [];
@@ -187,29 +292,33 @@ function AccountForm({
     if (!Component) return null;
     return (
       <QueryClientProvider client={client}>
-        <Component
-          context={section.context}
-          ttsConfig={
-            target === "tts"
-              ? {
-                  instanceId: account.id,
-                  value: stored,
-                  models: account.models ?? [],
-                  save: (value, items) => save(value, [...items]),
-                }
-              : undefined
-          }
-          imageConfig={
-            target === "images"
-              ? {
-                  instanceId: account.id,
-                  value: stored,
-                  modelId: account.modelId ?? "",
-                  save: (value, model) => save(value, models, model),
-                }
-              : undefined
-          }
-        />
+        <SettingsCard header={header}>
+          <SettingsCardBody>
+            <Component
+              context={section.context}
+              ttsConfig={
+                target === "tts"
+                  ? {
+                      instanceId: account.id,
+                      value: stored,
+                      models: account.models ?? [],
+                      save: (value, items) => save(value, [...items]),
+                    }
+                  : undefined
+              }
+              imageConfig={
+                target === "images"
+                  ? {
+                      instanceId: account.id,
+                      value: stored,
+                      modelId: account.modelId ?? "",
+                      save: (value, model) => save(value, models, model),
+                    }
+                  : undefined
+              }
+            />
+          </SettingsCardBody>
+        </SettingsCard>
       </QueryClientProvider>
     );
   }
@@ -217,7 +326,12 @@ function AccountForm({
     <ProviderFormView
       form={section.definition.form}
       context={section.context}
-      binding={{ stored, persist: config => save(config) }}
+      binding={{
+        stored,
+        persist: config => save(config),
+        header,
+        saveLabel: "保存账号",
+      }}
       changed={
         target === "tts"
           ? JSON.stringify(models) !== JSON.stringify(account.models)
@@ -229,7 +343,7 @@ function AccountForm({
       }}
     >
       {target === "tts" ? (
-        <section aria-label="模型" className="mb-4">
+        <SettingsCardSection title="模型" description="朗读与播客可选的模型">
           {models.map(model => (
             <SettingRow key={model.id} title={model.label ?? model.id}>
               <Button
@@ -241,33 +355,66 @@ function AccountForm({
               </Button>
             </SettingRow>
           ))}
-          <Select
-            aria-label="添加模型"
-            searchable
-            creatable
-            value={null}
-            placeholder="选择或输入模型 ID"
-            options={defaults.map(model => ({ value: model.id, label: model.label ?? model.id }))}
-            onValueChange={id =>
-              setModels(items => (items.some(item => item.id === id) ? items : [...items, { id }]))
-            }
-          />
-        </section>
+          <div className="px-3 py-2">
+            <Select
+              aria-label="添加模型"
+              searchable
+              creatable
+              value={null}
+              placeholder="选择或输入模型 ID"
+              options={defaults.map(model => ({
+                value: model.id,
+                label: model.label ?? model.id,
+              }))}
+              onValueChange={id =>
+                setModels(items =>
+                  items.some(item => item.id === id) ? items : [...items, { id }]
+                )
+              }
+            />
+          </div>
+        </SettingsCardSection>
       ) : (
-        <SettingRow title="模型">
-          <Select
-            aria-label="图片模型"
-            searchable
-            creatable
-            value={modelId || null}
-            options={defaults.map(model => ({ value: model.id, label: model.label ?? model.id }))}
-            onValueChange={setModelId}
-          />
-        </SettingRow>
+        <SettingsCardSection title="模型">
+          <SettingRow title="图片模型" description="生成与修改图片都用这个模型">
+            <Select
+              className="w-[300px] max-w-full"
+              aria-label="图片模型"
+              searchable
+              creatable
+              value={modelId || null}
+              options={defaults.map(model => ({
+                value: model.id,
+                label: model.label ?? model.id,
+              }))}
+              onValueChange={setModelId}
+            />
+          </SettingRow>
+        </SettingsCardSection>
       )}
     </ProviderFormView>
   );
 }
+
+type SingleTarget = "asr" | "video" | "publish";
+const CAPABILITIES: Record<SingleTarget, { icon: LucideIcon; title: string; description: string }> =
+  {
+    asr: {
+      icon: Mic,
+      title: "语音识别",
+      description: "在 设置 › 语音 › 语音输入 中选用",
+    },
+    video: {
+      icon: Clapperboard,
+      title: "视频网站",
+      description: "添加该网站的视频时使用这份配置",
+    },
+    publish: {
+      icon: Send,
+      title: "博客发布",
+      description: "在发布页的站点设置中选择发布目标",
+    },
+  };
 
 function SingleAccount({ section }: { section: RegisteredPluginSettings }) {
   const { target } = section.definition;
@@ -284,10 +431,30 @@ function SingleAccount({ section }: { section: RegisteredPluginSettings }) {
   const [modelId, setModelId] = useState(
     account?.modelId || section.definition.models?.[0]?.id || ""
   );
+  const capability = CAPABILITIES[target as SingleTarget];
+  const using =
+    target === "asr"
+      ? setting.speechInput?.active === "plugin" && setting.speechInput.plugin.id === pluginId
+      : target === "publish" &&
+        setting.publish.active === EPublishProvider.Plugin &&
+        setting.publish.plugin.id === pluginId;
+  const header = (
+    <SettingsCardHeader
+      icon={<SettingsCardIcon icon={capability.icon} />}
+      title={capability.title}
+      status={using && <StatusChip tone="ok">使用中</StatusChip>}
+      description={section.definition.description ?? capability.description}
+    />
+  );
   const save = async (config: JsonValue, model = modelId) => {
     section.context.signal.throwIfAborted();
     if (target === "asr")
-      return updateSpeechInput({ kind: "save", pluginId, modelId: model, config });
+      return updateSpeechInput({
+        kind: "save",
+        pluginId,
+        modelId: model,
+        config,
+      });
     if (target === "video") await savePluginVideoConfig(pluginId, config);
     else await savePublishPluginConfig(pluginId, config);
     update(draft => {
@@ -303,6 +470,7 @@ function SingleAccount({ section }: { section: RegisteredPluginSettings }) {
         binding={{
           stored,
           persist: config => save(config),
+          header,
           ...(target === "publish" && {
             afterSave: async config => {
               const connected = await checkPublishConnection({
@@ -323,31 +491,41 @@ function SingleAccount({ section }: { section: RegisteredPluginSettings }) {
         onReset={() => setModelId(account?.modelId || section.definition.models?.[0]?.id || "")}
       >
         {target === "asr" && (
-          <SettingRow title="识别模型">
-            <Select
-              aria-label="识别模型"
-              searchable
-              creatable
-              value={modelId || null}
-              options={(section.definition.models ?? []).map(model => ({
-                value: model.id,
-                label: model.label ?? model.id,
-              }))}
-              onValueChange={setModelId}
-            />
-          </SettingRow>
+          <SettingsCardSection title="模型">
+            <SettingRow title="识别模型">
+              <Select
+                className="w-[300px] max-w-full"
+                aria-label="识别模型"
+                searchable
+                creatable
+                value={modelId || null}
+                options={(section.definition.models ?? []).map(model => ({
+                  value: model.id,
+                  label: model.label ?? model.id,
+                }))}
+                onValueChange={setModelId}
+              />
+            </SettingRow>
+          </SettingsCardSection>
         )}
       </ProviderFormView>
     );
   const Component = section.definition.component;
   if (!Component) return null;
-  const binding: NonNullable<PluginSettingsProps["videoConfig"]> = { value: stored, save };
+  const binding: NonNullable<PluginSettingsProps["videoConfig"]> = {
+    value: stored,
+    save,
+  };
   return (
-    <Component
-      context={section.context}
-      videoConfig={target === "video" ? binding : undefined}
-      publishConfig={target === "publish" ? binding : undefined}
-      asrConfig={target === "asr" ? { value: stored, modelId, save } : undefined}
-    />
+    <SettingsCard header={header}>
+      <SettingsCardBody>
+        <Component
+          context={section.context}
+          videoConfig={target === "video" ? binding : undefined}
+          publishConfig={target === "publish" ? binding : undefined}
+          asrConfig={target === "asr" ? { value: stored, modelId, save } : undefined}
+        />
+      </SettingsCardBody>
+    </SettingsCard>
   );
 }

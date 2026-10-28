@@ -189,7 +189,7 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 
 ### 插件服务与提供方
 
-提供方连接配置归插件详情 › 设置：`ProviderAccountSettings` 管理 TTS/图片的多账号、模型和 ASR/视频/发布的单插件配置，复用现有持久化命令；`ProviderFormView`（字段区 `ProviderFormFields` + 宿主保存栏，按调用方绑定写回）统一渲染 form 并显式保存，保存失败保留草稿，添加或保存不自动切换服务。应用设置保留当前 TTS 账号/模型/音色与试听、图片账号选择、ASR 选用；视频按 URL 匹配多个来源，只显示来源及配置入口。发布页「站点设置」抽屉以 `inline` 布局嵌入同一份 publish 配置并自动保存，与插件详情写同一份配置。Bilibili 扫码登录保留专用插件组件，同样在插件页承载。
+提供方连接配置归插件详情 › 设置：`ProviderAccountSettings` 管理 TTS/图片的多账号、模型和 ASR/视频/发布的单插件配置，复用现有持久化命令；`ProviderFormView`（字段区 `ProviderFormFields` + 宿主保存栏，按调用方绑定写回）统一渲染 form 并显式保存，保存失败保留草稿，添加或保存不自动切换服务。插件详情 › 设置统一用 `SettingsCard`（描边卡，详情页本身是一整张纸，不叠阴影卡）：卡头为身份与选用状态（同步/存储的选用卡、ASR/视频/发布的能力头、多账号的账号头——名称原位改名、「使用中」、⋯ 删除），form 分组与宿主控件（模型、音色复刻）为卡内小节，保存栏在卡脚；多账号在卡片上方以胶囊切换。插件自绘组件放进卡片正文（`SettingsCardBody`），不自带 Panel；AI 配置同为一张卡片。只有一个设置分区时不再重复渲染分区标题。应用设置保留当前 TTS 账号/模型/音色与试听、图片账号选择、ASR 选用；视频按 URL 匹配多个来源，只显示来源及配置入口。发布页「站点设置」抽屉以 `inline` 布局嵌入同一份 publish 配置并自动保存，与插件详情写同一份配置。Bilibili 扫码登录保留专用插件组件，同样在插件页承载。
 
 **博客发布提供方**：GitHub 与 S3 发布由独立 tau.publish-github / tau.publish-s3 提供，`context.publish` 注册文件式或快照式实例；发布页只消费活动注册与当前选用，`target: publish` 配置表单在插件详情页承载（按应用级插件身份保存）；本地导出内置不要求发布插件，缺失或停用保留配置不回落其他提供方。渲染端 publish-registry 与常驻 publish-bridge 执行作者代码，主进程 PluginPublishSessions 绑定发起窗口/配置/任务 signal，只转发 open/call/close 与字节；发布占用阻止启停/更新/卸载/重启，切库回收实例。文件式并发受提供方上限约束、依赖成功后才更新入口；快照式整轮远端确认后才记账。Git Push 走受控 `services.git.publishSnapshot`：主进程只执行固定 Git 流程（输入为临时发布句柄、无凭据的 HTTPS 远端、分支、提交者、缓存授权 ID），目录选择由宿主返回句柄，插件不能传任意 cwd/shell；认证经任务级 askpass 环境传递不落盘；拒绝非快进。发布配置只接受 local/plugin 目标；无目标账本时完整上传不借用其他数据库全局历史。
 
