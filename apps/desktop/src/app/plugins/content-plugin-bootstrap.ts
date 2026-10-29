@@ -2,9 +2,8 @@ import { getPluginNodeTypes, assertUniqueEditorCodecs } from "@tau/plugins/rende
 import { evaluateDesktopPluginPackage } from "../../../shared/plugin-rendering";
 import { version as appVersion } from "../../../package.json";
 import { createMarkdownProcessor } from "@tau/markdown";
-import { isContentPlugin } from "@tau/plugins/package";
 import { isElectron } from "@/electron";
-import { scanLocalPlugins, getContentPluginStartup } from "@/commands/plugin-local";
+import { getContentPluginStartup } from "@/commands/plugin-local";
 import { getContentKit } from "@/services/editorKit";
 import { desktopCodecComposition } from "@/utils/markdown";
 import { desktopContentPlugins } from "../../../shared/content-plugins.ts";
@@ -34,15 +33,9 @@ async function prepareContentPlugins() {
   initializeContentPluginState(base.elementTypes);
   if (!isElectron) return;
   try {
-    const scan = await scanLocalPlugins();
-    for (const entry of scan.entries) {
-      if (
-        entry.artifact &&
-        (entry.artifact.manifest.formatVersion === 3 || isContentPlugin(entry.artifact.manifest))
-      )
-        setContentPluginIntent(entry.id, entry.enabled === true);
-    }
     const snapshot = await getContentPluginStartup();
+    for (const [id, enabled] of Object.entries(snapshot.intents))
+      setContentPluginIntent(id, enabled);
     for (const [id, error] of Object.entries(snapshot.errors)) setContentPluginError(id, error);
     if (!snapshot.artifacts.length) return;
     const { sharedPluginModules } = await import("./shared-modules");

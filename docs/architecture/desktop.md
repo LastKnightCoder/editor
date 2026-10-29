@@ -16,7 +16,7 @@
 - 今日页接真实数据（统计并入今日页）；项目只承载文档树，数据库与 Notebook 是独立模块。
 - 主题唯一归属 `@tau/themes`，UI 原语唯一归属 `@tau/ui`；样式载体 Tailwind，手写 CSS 仅限 §4 的四类白名单；Less 与 antd 全仓为零且有门禁。
 - 壳层启动时序：必须等设置 store 的 `inited` 再连接活动数据库——缓存已有库名不代表设置初始化完成；初始化期间保持等待，就绪后自动连接；真实开库失败继续显示错误并支持重试，不得以绕过失败代替连接成功。
-- 渲染入口在同步安装日志、性能观测、命令桥与全局样式后，立即挂载轻量启动界面，再异步加载应用模块、编辑器扩展与内容插件；扩展及插件初始化仍先于业务壳层，失败时显示启动错误，避免模块求值和异步初始化期间白屏。
+- 渲染入口在同步安装日志、性能观测、命令桥与全局样式后，立即挂载轻量启动界面，再异步加载应用模块、编辑器扩展与内容插件；启动界面按当前阶段更新提示，阶段耗时写入性能快照。启用插件的目录与清单仍在每次启动扫描，插件包文件按真实路径、文件身份、大小与时间指纹查询加密的 `plugin-package-integrity-cache.bin`，未变化时复用清单 SHA-256，指纹变化时重新读文件并校验。内容插件定义在隔离窗口一次批量装配与检查，结果加密缓存在 `plugin-content-inspection-cache.bin`，键包含应用版本与启用插件清单快照。缓存不含插件代码；缓存解密、结构校验或包指纹校验失败时重新校验。扩展及插件初始化仍先于业务壳层，失败时显示启动错误，避免模块求值和异步初始化期间白屏。
 - 窗口角色由 preload 的 `window.electron.windowRole` 提供，不在隔离渲染上下文读取 `process.argv`；设置完整初始化与微信读书启动校验只在主窗口执行。辅助窗口经 `setting-replica` 的 BroadcastChannel 请求主窗口运行时快照后置 `inited`（保留已校验状态、不回灌保存），各窗口仍订阅后端设置变更并可提交本地修改；无主窗口响应的独立窗口 1.5 秒后只读后端快照兜底，迟到响应不覆盖已收快照。主进程设置文件的首次并发读取共享在途任务，失败后允许重试。服务设置在读取与提交时经 `assertCurrentProviderSettings` 校验，只接受当前插件账号与选用；加载不转换旧凭据、不搬迁账本、不安装或启用插件，未支持的配置报错且原文件保留。
 - 切库按活动库名重建壳层与页面栈；`ensureDatabaseReady` 在连接成功且确认仍为当前库后、发布 ready 前清空全局查询缓存，并取消旧查询的结果接收——未带库名的查询不得跨库复用新鲜缓存或在途请求，迟到的旧连接结果不得清除当前库缓存（只作用于查询，不清 mutation 状态）。
 - 交互聊天与一次性带工具运行共用消息准备入口：图片传路径或 data URL、文件传本地定位提示；系统提示中的退役代理片段只从系统提示移除，用户正文保持原样。
@@ -502,7 +502,7 @@ export function useXxxSnapshot() {
 - Vite 开发、样板间与构建命令统一 `--configLoader runner`（默认 bundle 加载器会把工作区 TS 配置依赖外部化导致 `ERR_UNKNOWN_FILE_EXTENSION`）；配置用 `fileURLToPath(import.meta.url)` 取目录。
 - `node apps/desktop/scripts/verify-plugin-content.mjs --production` 使用已经构建的 dist 内容页面，在隔离的临时 Electron 工作区验证真实内容插件；不带该参数时独立编译源码进行验证。
 - 桌面消费的编辑器扩展包、@tau/ui、@tau/themes 由 Vite 编入产物，统一声明在桌面 devDependencies——放 dependencies 会让 electron-builder 再收集整条生产依赖链；运行时从磁盘加载的外置模块与原生依赖保留生产声明，调整后检查实际安装包与原生运行时。
-- 安装包排除依赖 `.js.map`/`.mjs.map`/`.cjs.map`（afterPack 补复制同样规则），不泛删 `.map` 数据文件；`verify:native-runtime` 用包内 Electron 与依赖执行 pi 冒烟（含 TypeScript 扩展加载、中文路径、JSONL 恢复），临时工作区隔离。
+- 安装包排除依赖 `.js.map`/`.mjs.map`/`.cjs.map`（afterPack 补复制同样规则），不泛删 `.map` 数据文件；`verify:native-runtime` 用包内 Electron 逐项执行包内依赖的原生模块加载断言。
 - pi 只带 SDK（不打包独立 CLI bundle 与 esbuild），`pi-packaging-boundary.mjs` 检查已审核版本与消费者，边界变化必须重新审核；主进程 Vite 的 `resolve.dedupe` 统一桌面入口的 `@earendil-works/pi-ai`（避免 peer 解析重复进 bundle 触发 Anthropic SDK 代码生成错误）。分词词典由外置 `@node-rs/jieba/dict` 从包内加载，不复制不劫持。
 - macOS 双架构：`pnpm build` 同时产出 x64 与 arm64 的 DMG/ZIP（共用一份 latest-mac.yml；DMG 供官网、ZIP 供自动更新），`supportedArchitectures.cpu` 含两架构；afterPack 按目标裁剪原生依赖，构建结束恢复本机 better-sqlite3。双架构发行经 `run-mac-builder.mjs`：顺序构建签名（原生依赖原地重编，禁止并发）→ 并行公证附票 → 全部成功才出 target；blockmap 与合并 latest-mac.yml 由同一 PublishManager 生成，不改包不手工合并；任一签名/公证失败不产发行物。凭据推荐 `APPLE_KEYCHAIN_PROFILE`（保留 electron-builder.env）。回归：`node --test scripts/parallel-mac-packager.test.mjs scripts/release-artifacts.test.mjs`。发布前校验清单引用文件、大小、摘要与双架构四件套，禁止半套产物覆盖更新源；官网 Pages 读发布清单缓存 60 秒。
 

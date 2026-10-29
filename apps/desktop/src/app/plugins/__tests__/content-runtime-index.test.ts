@@ -11,6 +11,11 @@ const execute = async (request: unknown) => {
   ).tauContentExecute({ hash: "unit-fixtures", artifacts: [], request });
 };
 
+it("批量检查已装配的内容定义", async () => {
+  const result = await execute({ operation: "inspect-many", ids: ["missing"] });
+  expect(result).toEqual({});
+});
+
 it("按契约建索引时内容链接导出为 Markdown 语法，不退化为无损载荷", async () => {
   const catalog = await prepareContentContracts();
   const document = await catalog.createDocument([

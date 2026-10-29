@@ -29,6 +29,7 @@ import type { DesktopPluginPackage as DevelopmentPluginPackage } from "../../sha
 export const getContentPluginStartup = (): Promise<{
   artifacts: DevelopmentPluginPackage[];
   errors: Record<string, string>;
+  intents: Record<string, boolean>;
 }> => withModule("plugin-local", () => invoke("plugin-local:content-startup"));
 export const setLocalPluginEnabled = (id: string, enabled: boolean): Promise<void> =>
   withModule("plugin-local", () => invoke("plugin-local:set-enabled", id, enabled));
