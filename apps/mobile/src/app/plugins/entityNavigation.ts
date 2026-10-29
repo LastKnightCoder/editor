@@ -1,5 +1,10 @@
 import type { Navigator } from "../../router/navigatorTypes";
 import type { MobileEntityOpenOptions, MobileEntityOpenTarget } from "./app-types";
+import {
+  describeDiaryPeriod,
+  getBaseDateFromDiaryKey,
+  getDiaryDateKey,
+} from "../../features/diary/dateKey";
 
 function positiveId(value: number): number {
   if (!Number.isSafeInteger(value) || value <= 0) throw new Error("内容打开目标无效");
@@ -12,7 +17,7 @@ export function navigateMobileEntity(
   options: MobileEntityOpenOptions
 ): void {
   if (options.placement !== "page") throw new Error("移动端只支持在当前应用页面打开内容");
-  if (options.at !== undefined && !["card", "article", "document"].includes(target.kind))
+  if (options.at !== undefined && !["card", "article", "document", "diary"].includes(target.kind))
     throw new Error("这类内容不支持按正文块序号定位");
   if (options.at && (!Number.isSafeInteger(options.at.block) || options.at.block < 0))
     throw new Error("正文块序号必须是非负整数");
@@ -20,6 +25,25 @@ export function navigateMobileEntity(
     ? { block: options.at.block, locationRequestId: crypto.randomUUID() }
     : {};
   switch (target.kind) {
+    case "diary": {
+      positiveId(target.id);
+      if (
+        !["daily", "weekly", "monthly"].includes(target.diaryType) ||
+        typeof target.date !== "string"
+      )
+        throw new Error("日记日期无效");
+      const baseDate = getBaseDateFromDiaryKey(target.diaryType, target.date);
+      if (getDiaryDateKey(target.diaryType, baseDate) !== target.date)
+        throw new Error("日记日期无效");
+      navigator.push("contentDetail", {
+        contentId: positiveId(target.contentId),
+        contentTitle: "",
+        fromDiary: true,
+        diaryDate: describeDiaryPeriod(target.diaryType, baseDate),
+        ...location,
+      });
+      return;
+    }
     case "card":
       navigator.push("contentDetail", { cardId: positiveId(target.id), ...location });
       return;

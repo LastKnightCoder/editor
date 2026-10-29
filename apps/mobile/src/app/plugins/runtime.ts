@@ -43,6 +43,7 @@ export class MobilePluginRuntime {
   events?: Awaited<ReturnType<typeof import("./events").createMobileEvents>>;
   data?: import("./data").MobileDataAdapter;
   permissions?: import("@tau/plugins/permission-host").PluginPermissionBroker;
+  flashcards?: import("./flashcards").MobileFlashcards;
   private readonly actions = new Map<string, MobilePluginAction>();
   readonly host: PluginHost;
   readonly sync = new RendererSyncRegistry();
@@ -84,6 +85,14 @@ export class MobilePluginRuntime {
       restartRequired,
       environmentSource: environment,
       storage,
+      flashcards: {
+        listDecks: (...args) => this.flashcardAdapter().listDecks(...args),
+        createDeck: (...args) => this.flashcardAdapter().createDeck(...args),
+        createCard: (...args) => this.flashcardAdapter().createCard(...args),
+        openCreate: (...args) => this.flashcardAdapter().openCreate(...args),
+        generate: (...args) => this.flashcardAdapter().generate(...args),
+        generateAndSave: (...args) => this.flashcardAdapter().generateAndSave(...args),
+      },
       entities: {
         create: (...args) => this.ownAdapter().entities.create(...args),
         get: (...args) => this.ownAdapter().entities.get(...args),
@@ -301,6 +310,10 @@ export class MobilePluginRuntime {
     if (!this.data) throw new Error("插件数据尚未就绪");
     return this.data;
   }
+  private flashcardAdapter() {
+    if (!this.flashcards) throw new Error("插件闪卡尚未就绪");
+    return this.flashcards.adapter;
+  }
   private ownAdapter() {
     if (!this.own) throw new Error("插件自有数据尚未就绪");
     return this.own;
@@ -474,6 +487,7 @@ export class MobilePluginRuntime {
   }
   async dispose() {
     this.disposed = true;
+    this.flashcards?.dispose();
     this.app?.dispose();
     this.own?.dispose();
     this.permissions?.dispose();

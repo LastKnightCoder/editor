@@ -42,6 +42,24 @@ const candidate = (
   title: `${kind}-${id}`,
   identity,
 });
+
+it("日记类别显示标题与日期，确认提交具体片段身份", async () => {
+  const item = { ...candidate("8", "diary", "123"), title: "早晨散步", subtitle: "2026-10-29" };
+  const { value } = request({
+    options: { kinds: ["diary"], multiple: false, title: "选择日记" },
+    query: vi.fn(async () => ({ items: [item] })),
+  });
+  const { container } = await harness(value);
+  await settle(() => container.textContent?.includes("早晨散步") === true);
+  expect(container.textContent).toContain("2026-10-29");
+  expect(container.querySelector("input")?.placeholder).toBe("搜索日记");
+  const row = [...container.querySelectorAll("button")].find(button =>
+    button.textContent?.includes("早晨散步")
+  );
+  if (!row) throw new Error("日记候选未显示");
+  await click(row);
+  expect(value.submit).toHaveBeenCalledWith([item]);
+});
 function request(overrides: Partial<MobileEntityPickRequest> = {}) {
   const controller = new AbortController();
   const value: MobileEntityPickRequest = {

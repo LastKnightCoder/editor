@@ -80,6 +80,8 @@ fn supported(permission: &str) -> bool {
             | "calendar:read"
             | "calendar:write"
             | "calendar:delete"
+            | "flashcards:read"
+            | "flashcards:write"
     )
 }
 #[tauri::command]

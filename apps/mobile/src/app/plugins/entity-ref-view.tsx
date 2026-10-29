@@ -1,6 +1,15 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Calendar, FileText, FolderKanban, Layers, ListTodo, Puzzle, Link } from "lucide-react";
+import {
+  Calendar,
+  FileText,
+  FolderKanban,
+  Layers,
+  ListTodo,
+  Puzzle,
+  Link,
+  BookOpen,
+} from "lucide-react";
 import type {
   PluginContext,
   PluginEntityDescription,
@@ -52,6 +61,7 @@ const META = {
   card: { label: "卡片", icon: Layers },
   article: { label: "文章", icon: FileText },
   document: { label: "项目文档", icon: FileText },
+  diary: { label: "日记", icon: BookOpen },
   project: { label: "项目", icon: FolderKanban },
   todo: { label: "待办", icon: ListTodo },
   event: { label: "日程", icon: Calendar },

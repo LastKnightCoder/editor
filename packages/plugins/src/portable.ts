@@ -22,6 +22,8 @@ export const MOBILE_DATA_PERMISSIONS = [
   "calendar:read",
   "calendar:write",
   "calendar:delete",
+  "flashcards:read",
+  "flashcards:write",
 ] as const;
 
 function assertMobilePermissions(manifest: PortablePluginManifest) {

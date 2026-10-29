@@ -102,7 +102,7 @@ fn collect_plain_text(value: &Value, out: &mut String) {
     }
 }
 
-fn content_first_text(content_json: Option<String>, chars: usize) -> String {
+pub(super) fn content_first_text(content_json: Option<String>, chars: usize) -> String {
     let Some(raw) = content_json else {
         return String::new();
     };

@@ -151,7 +151,10 @@ export function createMobileApp(
       active(context);
       mobileEntityKind(ref);
       if (options.placement !== "page") throw new Error("移动端仅支持在页面中打开内容");
-      if (options.at && !["card", "article", "document", "plugin-entity"].includes(ref.kind))
+      if (
+        options.at &&
+        !["card", "article", "document", "diary", "plugin-entity"].includes(ref.kind)
+      )
         throw new Error("这类内容不支持指定正文块位置");
       const target = await refs<MobileEntityOpenTarget>(context, { method: "resolve", ref });
       active(context);
