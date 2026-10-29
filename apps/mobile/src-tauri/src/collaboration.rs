@@ -1045,6 +1045,8 @@ mod cache_tests {
         assert!(read_cache_or_discard(&mut db, &directory, "doc")
             .unwrap()
             .is_object());
+        // Windows 不允许删除仍被 SQLite 打开着的数据库文件，清理前先关闭连接
+        drop(db);
         fs::remove_dir_all(&directory).unwrap();
     }
     #[test]
@@ -1061,6 +1063,7 @@ mod cache_tests {
         let listed = list_cache(&mut db, &directory).unwrap();
         assert_eq!(listed.len(), 1);
         assert_eq!(discarded(&directory).len(), 1);
+        drop(db);
         fs::remove_dir_all(&directory).unwrap();
     }
     #[test]
@@ -1086,6 +1089,7 @@ mod cache_tests {
                 .file_name()
                 .to_string_lossy()
                 .contains("version-9")));
+        drop(db);
         fs::remove_dir_all(&directory).unwrap();
     }
     #[test]

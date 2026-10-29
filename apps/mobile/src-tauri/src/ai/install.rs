@@ -1,4 +1,4 @@
-use std::fs::{self, File};
+use std::fs::{self, File, OpenOptions};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 
@@ -36,7 +36,11 @@ pub fn prepare(root: &Path, database: &str, replaces_sessions: bool) -> Result<(
     fs::create_dir_all(&backup).map_err(|error| error.to_string())?;
     if journal.had_database {
         fs::copy(root.join(database), backup.join("data.db")).map_err(|error| error.to_string())?;
-        File::open(backup.join("data.db"))
+        // Windows 的 FlushFileBuffers 要求句柄具备写权限，只读打开会被拒绝访问
+        OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(backup.join("data.db"))
             .and_then(|file| file.sync_all())
             .map_err(|error| error.to_string())?;
     }
@@ -55,11 +59,13 @@ pub fn install_sessions(
     download: Option<&Path>,
 ) -> Result<(), String> {
     let journal: Journal = serde_json::from_reader(
-        File::open(journal_path(root, database)?).map_err(|error| error.to_string())?,
+        File::open(journal_path(root, database)?)
+            .map_err(|error| format!("AI_STORAGE_FAILED:读取安装日志失败 {error}"))?,
     )
     .map_err(|error| error.to_string())?;
     let destination = session_dir(root, database)?;
-    fs::create_dir_all(destination.parent().unwrap()).map_err(|error| error.to_string())?;
+    fs::create_dir_all(destination.parent().unwrap())
+        .map_err(|error| format!("AI_STORAGE_FAILED:建立会话目录失败 {error}"))?;
     if destination.exists() {
         fs::rename(
             &destination,
@@ -68,15 +74,19 @@ pub fn install_sessions(
                 .join(&journal.id)
                 .join("sessions"),
         )
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| format!("AI_STORAGE_FAILED:备份原会话目录失败 {error}"))?;
     }
     match download {
-        Some(download) => fs::rename(download, destination).map_err(|error| error.to_string()),
+        Some(download) => fs::rename(download, destination)
+            .map_err(|error| format!("AI_STORAGE_FAILED:落位新会话目录失败 {error}")),
         // 未提供远端正文时保留原目录备份，不能把旧文件当成新库对应的历史。
-        None => fs::create_dir_all(destination).map_err(|error| error.to_string()),
+        None => fs::create_dir_all(destination)
+            .map_err(|error| format!("AI_STORAGE_FAILED:重建会话目录失败 {error}")),
     }?;
-    sync_directory(&root.join("sessions"))?;
+    sync_directory(&root.join("sessions"))
+        .map_err(|error| format!("AI_STORAGE_FAILED:同步会话根目录失败 {error}"))?;
     sync_directory(&root.join("backup").join("ai-installs").join(&journal.id))
+        .map_err(|error| format!("AI_STORAGE_FAILED:同步安装备份目录失败 {error}"))
 }
 pub fn finish(root: &Path, database: &str) -> Result<(), String> {
     let path = journal_path(root, database)?;
@@ -105,7 +115,11 @@ pub fn recover_locked(root: &Path, database: &str) -> Result<(), String> {
         let temporary = root.join(format!("{}.recovering", database));
         fs::copy(backup.join("data.db"), &temporary)
             .map_err(|error| format!("AI_STORAGE_FAILED:恢复原库失败：{error}"))?;
-        File::open(&temporary)
+        // Windows 的 FlushFileBuffers 要求句柄具备写权限，只读打开会被拒绝访问
+        OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&temporary)
             .and_then(|file| file.sync_all())
             .map_err(|error| error.to_string())?;
         fs::rename(temporary, &destination).map_err(|error| error.to_string())?;
