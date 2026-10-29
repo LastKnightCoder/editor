@@ -140,11 +140,13 @@ if (action === "secrets") {
     TOKEN_ENCRYPTION_KEY: key,
   });
 }
+const runPnpm = (args, options) =>
+  execFileSync("pnpm", args, { shell: process.platform === "win32", ...options });
 try {
   for (const args of plans[action]) {
     if (action === "secrets") {
       try {
-        execFileSync("pnpm", args, {
+        runPnpm(args, {
           cwd: packageRoot,
           env,
           input: secrets,
@@ -156,7 +158,7 @@ try {
       console.log("三个Secrets已上传，值未输出。");
     } else if (args.includes("export") && args.includes("d1")) {
       try {
-        execFileSync("pnpm", args, { cwd: packageRoot, env, stdio: ["inherit", "pipe", "pipe"] });
+        runPnpm(args, { cwd: packageRoot, env, stdio: ["inherit", "pipe", "pipe"] });
       } catch {
         throw new Error("D1备份失败，已停止；未输出可能包含临时下载凭据的CLI响应");
       }
@@ -166,7 +168,7 @@ try {
       // 已存在的桶只检查，不重复创建；新建桶默认私有、r2.dev关闭
       const exists = (() => {
         try {
-          execFileSync("pnpm", cf("r2", "bucket", "info", name), {
+          runPnpm(cf("r2", "bucket", "info", name), {
             cwd: packageRoot,
             env,
             stdio: "pipe",
@@ -177,13 +179,13 @@ try {
         }
       })();
       if (exists) console.log(`R2桶 ${name} 已存在，跳过创建。`);
-      else execFileSync("pnpm", args, { cwd: packageRoot, env, stdio: "inherit" });
-      execFileSync("pnpm", cf("r2", "bucket", "dev-url", "get", name), {
+      else runPnpm(args, { cwd: packageRoot, env, stdio: "inherit" });
+      runPnpm(cf("r2", "bucket", "dev-url", "get", name), {
         cwd: packageRoot,
         env,
         stdio: "inherit",
       });
-    } else execFileSync("pnpm", args, { cwd: packageRoot, env, stdio: "inherit" });
+    } else runPnpm(args, { cwd: packageRoot, env, stdio: "inherit" });
   }
   if (action === "smoke") await smoke();
   const directory = path.join(repoRoot, "output/plugin-portal-ops");
