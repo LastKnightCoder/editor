@@ -7,7 +7,8 @@
  * - 浏览器扩展对话：`browser-sessions/<页面键>/`，无索引表——列表、标题（pi session name）
  *   全部取自会话文件本身；分支在文件内部的会话树上。
  */
-import { existsSync, readdirSync, renameSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, renameSync, rmSync } from "node:fs";
+import { dirname } from "node:path";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 import type { ChatSessionMessage } from "@/types";
 import type { PiBrowserSessionInfo } from "@/types/pi-session";
@@ -109,6 +110,7 @@ export function installDatabaseDownload(
   for (const suffix of ["-wal", "-shm"]) rmSync(`${databasePath}${suffix}`, { force: true });
   renameSync(downloadPath, databasePath);
   if (downloadedSessions) {
+    mkdirSync(dirname(sessionDir), { recursive: true });
     rmSync(sessionDir, { recursive: true, force: true });
     renameSync(downloadedSessions, sessionDir);
   }

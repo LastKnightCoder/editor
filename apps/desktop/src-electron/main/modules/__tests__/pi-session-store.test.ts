@@ -119,4 +119,18 @@ describe("同步的会话目录", () => {
     expect(readdirSync(dir)).toEqual([local]);
     expect(listSessionFiles(join(root, "missing"))).toEqual([]);
   });
+  it("首次同步时自动创建缺失的会话父目录", () => {
+    const root = setup();
+    const file = join(root, "data.db");
+    const dir = join(root, "sessions", "data");
+    const stage = join(root, "stage");
+    writeFileSync(file, "local");
+    writeFileSync(`${file}.download.tmp`, "remote");
+    writeChat(stage, "remote", "远端");
+
+    installDatabaseDownload(file, `${file}.download.tmp`, dir, stage);
+
+    expect(readdirSync(dir)).toHaveLength(1);
+    expect(existsSync(join(root, "sessions"))).toBe(true);
+  });
 });
