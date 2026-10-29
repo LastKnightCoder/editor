@@ -110,6 +110,20 @@ async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
     let fail = |remote: u64, error: AppError| {
         response_err(&ctx.database_name, ctx.local_version, remote, error)
     };
+    let _maintenance = match crate::ai::lifecycle::maintenance(&ctx.database_name) {
+        Ok(value) => value,
+        Err(error) => return fail(0, AppError::new("AI_LIBRARY_BUSY", error)),
+    };
+    let sessions = match crate::setting::resolve_app_dir(&app).and_then(|root| {
+        crate::ai::store::Store {
+            root,
+            database: ctx.database_name.clone(),
+        }
+        .sync_files()
+    }) {
+        Ok(files) => files,
+        Err(error) => return fail(0, AppError::new("AI_SESSION_FILE_MISSING", error)),
+    };
     let remote_version = match read_remote_version(&ctx.provider, &ctx.version_object_name).await {
         Ok(version) => version,
         Err(error) => return fail(0, error),
@@ -140,6 +154,24 @@ async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
         return fail(remote_version, AppError::new("SYNC_UPLOAD_FAILED", error));
     }
     let next_version = ctx.local_version.max(remote_version) + 1;
+    if let Err(error) =
+        crate::ai::sync::upload(&app, &ctx.database_name, &ctx.provider, &sessions).await
+    {
+        return fail(remote_version, AppError::new("SYNC_UPLOAD_FAILED", error));
+    }
+    match read_remote_version(&ctx.provider, &ctx.version_object_name).await {
+        Ok(version) if version == remote_version => {}
+        Ok(version) => {
+            return fail(
+                version,
+                AppError::new(
+                    "SYNC_REMOTE_CHANGED",
+                    "传输期间云端版本发生变化，请重新同步",
+                ),
+            )
+        }
+        Err(error) => return fail(remote_version, error),
+    }
     if let Err(error) = ctx
         .provider
         .upload(&ctx.version_object_name, &version_payload(next_version))
@@ -195,6 +227,19 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
     let fail = |remote: u64, error: AppError| {
         response_err(&ctx.database_name, ctx.local_version, remote, error)
     };
+    let _maintenance = match crate::ai::lifecycle::maintenance(&ctx.database_name) {
+        Ok(value) => value,
+        Err(error) => return fail(0, AppError::new("AI_LIBRARY_BUSY", error)),
+    };
+    if let Err(error) = crate::setting::resolve_app_dir(&app).and_then(|root| {
+        crate::ai::store::Store {
+            root,
+            database: ctx.database_name.clone(),
+        }
+        .recover()
+    }) {
+        return fail(0, AppError::new("AI_STORAGE_FAILED", error));
+    }
     let remote_version = match read_remote_version(&ctx.provider, &ctx.version_object_name).await {
         Ok(version) => version,
         Err(error) => return fail(0, error),
@@ -213,17 +258,41 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
         Ok(file) => file,
         Err(error) => return fail(remote_version, AppError::new("SYNC_DOWNLOAD_FAILED", error)),
     };
+    let downloaded_sessions =
+        match crate::ai::sync::download(&app, &ctx.database_name, &ctx.provider).await {
+            Ok(sessions) => sessions,
+            Err(error) => {
+                return fail(remote_version, AppError::new("SYNC_DOWNLOAD_FAILED", error))
+            }
+        };
+    match read_remote_version(&ctx.provider, &ctx.version_object_name).await {
+        Ok(version) if version == remote_version => {}
+        Ok(version) => {
+            return fail(
+                version,
+                AppError::new(
+                    "SYNC_REMOTE_CHANGED",
+                    "下载期间云端版本发生变化，请重新同步",
+                ),
+            )
+        }
+        Err(error) => return fail(remote_version, error),
+    }
     if let Err(err) = crate::database::install_download(
         &app,
         &ctx.database_name,
         ctx.local_version,
         &downloaded.path,
+        downloaded_sessions
+            .as_ref()
+            .map(|sessions| sessions.path.as_path()),
     ) {
         return fail(
             remote_version,
             AppError::new("SYNC_INSTALL_FAILED", format!("替换本地数据库失败: {err}")),
         );
     }
+    crate::ai::lifecycle::invalidate_database(&ctx.database_name);
     // 主库已被远端内容替换，本地索引的 ID 空间整体失效，重置后按需全量重建
     if let Err(err) = crate::database::reset_index_database(&app, &ctx.database_name) {
         crate::logger::error(format!("[sync] reset index database failed: {}", err));

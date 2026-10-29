@@ -510,7 +510,11 @@ export function useXxxSnapshot() {
 
 视频学习台与白板视频抽屉共用 `VideoNoteChatPanel`，经 `useScopedChat` 接入 pi 会话；旧独立总结入口已移除，总结由视频对话承载。视频检索只保留页面作用域工具，不恢复全局视频笔记 MCP 工具。转录优化与电子书重写统一消费 `useLLMConfig` 的 `provider/model`，缺少配置时经 `openLLMSettingsSection` 打开新设置分区。
 
-纯聊天模型、消息迁移、归约器与运行协议经公共子入口 `@tau/shared/chat-core` 消费；该入口不加载 React/DOM，主进程可直接使用。调用方禁止导入 `@tau/shared/src/chat-core/*`，包内部文件布局由共享包自行维护。
+纯聊天模型、归约器与运行协议经公共子入口 `@tau/shared/chat-core` 消费；该入口不加载 React/DOM，主进程可直接使用，ThinkingLevel 与 MentionRef 也归该层，不反向引用输入组件目录。调用方禁止导入 `@tau/shared/src/chat-core/*`，包内部文件布局由共享包自行维护。
+
+跨端 AI 契约、模型配置与转换归 `@tau/ai/contracts` / `models`，桌面原类型入口只转导出。目录命中时模型 api、容量、输入模态和推理能力取目录值；自定义价格保留优先级，模型采样、headers、compat 与 stripThinkTags 沿用原语义。think 标签流转换从 `@tau/ai/think-stream` 消费，服务商协议仍交 pi-ai。
+
+`pi-session-transcript.ts` 转导出 `@tau/ai/session` 的公共投影，移动端也消费它。JSONL 原始消息保留签名与模型字段；展示仍是 ChatSessionMessage / assistant_blocks，完整展示路径与压缩后的模型上下文分开。会话交换继续使用当前 pi v3，不能替换成 pi-agent-core 新 JsonlSessionRepo 的另一种格式；公共层的格式约束由官方 SessionManager 双向读写与上下文差分测试守护。source 的解析保留 mobile，手机写入的同格式记录可以经相同历史投影展示；设备缺失的工具不会因查看历史而被执行。具体公共接口见 [AI 公共核心](/packages/ai/README.md)。
 
 会话键包含数据库身份，投影、树编辑和目录补丁显式携带创建时的库名。宿主在异步装配前占用文件租约；图片准备也是忙态，释放会话先取消并等待在途操作。删除后不得发布迟到的投影或标题。PDF / 学习项目工具的执行快照归会话持有，不依赖页面继续挂载；运行时 LRU 同时释放已打开投影。
 

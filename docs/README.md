@@ -56,6 +56,8 @@
 
 一个任务一个目录或单文件，收尾三步见 [tasks/README.md](./tasks/README.md)；期限 90 天。
 
+- [移动端 AI 基础能力](./tasks/mobile-ai-foundation/README.md)：公共会话 v3、移动无 UI 服务、原生网络存储、MCP/Skills 与聊天同步已接入，待实际存储插件往返及设备验收。
+
 - [移动插件业务授权与数据访问](./tasks/mobile-plugin-data/README.md)：六批授权、业务读写恢复、引用交互、自有数据事务、实体检索/@/打开与公共正文组件已实现并通过自动检查；待设备及真实共享服务验收，暂不发布。
 
 - [浏览器扩展重写：页内伴读](./tasks/browser-companion/README.md)：悬浮球 + 就地标注 / 笔记 / 提问，扩展经一次性授权连 Tau；已实现，待真实浏览器联调与视觉验收。

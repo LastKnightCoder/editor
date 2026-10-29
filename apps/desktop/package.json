@@ -22,8 +22,8 @@
   },
   "dependencies": {
     "7zip-min": "^2.1.0",
-    "@earendil-works/pi-ai": "~0.87.1",
-    "@earendil-works/pi-coding-agent": "~0.87.1",
+    "@earendil-works/pi-ai": "0.87.1",
+    "@earendil-works/pi-coding-agent": "0.87.1",
     "@firecrawl/anydoc": "^0.2.4",
     "@node-rs/jieba": "^2.0.1",
     "@silvia-odwyer/photon-node": "^0.3.4",
@@ -224,6 +224,7 @@
     "y-protocols": "1.0.7",
     "yaml": "^2.7.1",
     "yjs": "13.6.32",
-    "zustand": "^4.3.8"
+    "zustand": "^4.3.8",
+    "@tau/ai": "workspace:*"
   }
 }

@@ -1,3 +1,11 @@
+import { catalogCostOf, isCustomPriced, toPiModel } from "@tau/ai/models";
+export {
+  catalogCostOf,
+  hasCustomCost,
+  isCustomPriced,
+  resolveModelCost,
+  toPiModel,
+} from "@tau/ai/models";
 /**
  * pi-ai 运行时核心（纯逻辑，无 Electron 依赖，可单测）：
  * 设置 v2（LLMProviderSetting）→ pi Provider/Model 的构建、provider 注册表同步、单发请求组装。
@@ -18,7 +26,6 @@ import type {
 } from "@earendil-works/pi-ai";
 import type {
   LLMModelCost,
-  LLMModelSetting,
   LLMProviderSetting,
   PiApiKind,
   PiCatalogModel,
@@ -43,98 +50,6 @@ const API_STREAMS: Record<PiApiKind, ProviderStreams> = {
   "openai-responses": openAIResponsesApi,
   "anthropic-messages": anthropicMessagesApi,
 };
-
-const isValidRate = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value) && value >= 0;
-
-/** 模型设置里有有效的自定义单价（输入与输出都合法） */
-export const hasCustomCost = (model: LLMModelSetting | undefined): boolean =>
-  Boolean(model?.cost && isValidRate(model.cost.input) && isValidRate(model.cost.output));
-
-/** 目录单价（每百万 token）；目录没有价格信息（输入输出都为 0）时为 undefined */
-export function catalogCostOf(base: Model<Api> | undefined): LLMModelCost | undefined {
-  if (!base?.cost || (!base.cost.input && !base.cost.output)) return undefined;
-  return {
-    input: base.cost.input,
-    output: base.cost.output,
-    cacheRead: base.cost.cacheRead,
-    cacheWrite: base.cost.cacheWrite,
-  };
-}
-
-/**
- * 设置里的单价是否真的是用户改过的价格：目录价自动填入的不算
- * （仍按目录计费，保留分档价，用量记录标为 catalog）。
- */
-export function isCustomPriced(model: LLMModelSetting, catalog: LLMModelCost | undefined): boolean {
-  if (!hasCustomCost(model)) return false;
-  if (!catalog) return true;
-  const cost = model.cost!;
-  return (
-    cost.input !== catalog.input ||
-    cost.output !== catalog.output ||
-    (cost.cacheRead ?? 0) !== (catalog.cacheRead ?? 0) ||
-    (cost.cacheWrite ?? 0) !== (catalog.cacheWrite ?? 0)
-  );
-}
-
-/**
- * 单价：用户自定义优先（代理折扣、目录外模型），否则用目录价格。
- * 自定义时不继承目录的分档价（tiers）——用户填的是一口价；与目录价相同则仍用目录（含分档）。
- */
-export function resolveModelCost(model: LLMModelSetting, base?: Model<Api>): Model<Api>["cost"] {
-  const custom = model.cost;
-  if (custom && isCustomPriced(model, catalogCostOf(base))) {
-    return {
-      input: custom.input,
-      output: custom.output,
-      cacheRead: isValidRate(custom.cacheRead) ? custom.cacheRead : 0,
-      cacheWrite: isValidRate(custom.cacheWrite) ? custom.cacheWrite : 0,
-    };
-  }
-  return base?.cost ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
-}
-
-/** 内置目录基底：命中时目录值权威（含 compat/thinkingLevelMap），用户手填仅兜底未收录键；单价例外，用户自定义优先 */
-export function toPiModel(
-  model: LLMModelSetting,
-  provider: LLMProviderSetting,
-  base?: Model<Api>
-): Model<Api> {
-  const contextWindow = base?.contextWindow ?? model.contextWindow;
-  const maxTokens = base?.maxTokens ?? model.maxTokens;
-  if (
-    !contextWindow ||
-    !Number.isSafeInteger(contextWindow) ||
-    contextWindow <= 0 ||
-    !maxTokens ||
-    !Number.isSafeInteger(maxTokens) ||
-    maxTokens <= 0
-  ) {
-    throw new Error(
-      `模型 ${model.id} 缺少有效容量，请在模型设置中填写上下文窗口和最大输出 token 数`
-    );
-  }
-  const piModel: Model<Api> = {
-    id: model.id,
-    name: model.name ?? base?.name ?? model.id,
-    // 目录权威 → 模型自带（混合 api 服务商的兜底）→ 服务商级兜底
-    api: base?.api ?? model.api ?? provider.api,
-    provider: provider.id,
-    baseUrl: provider.baseUrl,
-    reasoning: base?.reasoning ?? model.reasoning,
-    input: base?.input ?? model.input,
-    cost: resolveModelCost(model, base),
-    contextWindow,
-    maxTokens,
-  };
-  if (base?.thinkingLevelMap) piModel.thinkingLevelMap = base.thinkingLevelMap;
-  if (base?.compat && !model.compat) piModel.compat = base.compat as never;
-  if (model.samplingParams) piModel.samplingParams = model.samplingParams;
-  if (model.headers) piModel.headers = model.headers;
-  if (model.compat) piModel.compat = model.compat as never;
-  return piModel;
-}
 
 /** 共享的内置目录查询（懒创建 ModelRuntime，仅用于查询，不注册自定义 provider） */
 let catalogRuntime: Promise<ModelRuntimeLike | null> | null = null;
