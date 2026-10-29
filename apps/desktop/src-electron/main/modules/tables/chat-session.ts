@@ -75,7 +75,7 @@ export default class ChatSessionTable {
       groupId: row.group_id,
       orderNum: row.order_num,
       archived: Boolean(row.archived),
-      source: row.source === "browser" ? "browser" : "desktop",
+      source: row.source === "browser" || row.source === "mobile" ? row.source : "desktop",
       messageCount: row.message_count,
       createTime: row.create_time,
       updateTime: row.update_time,

@@ -1,5 +1,6 @@
 import { createCenterMock } from "./center";
 import { centerManifestTargets, type CenterRelease } from "@tau/plugins/center";
+import { distributionPackageKind } from "@tau/plugins/template";
 import type { PortalApi } from "../types";
 import type {
   FeedbackMessage,
@@ -90,6 +91,7 @@ export function createMockApi(
           pluginId: release.pluginId,
           version: release.version,
           formatVersion: release.content.manifest.formatVersion,
+          packageKind: distributionPackageKind(release.content.manifest),
           apiVersion: 1,
           profile:
             release.content.manifest.formatVersion === 3 ? release.content.manifest.profile : null,
@@ -213,7 +215,10 @@ export function createMockApi(
     getCatalog: async ({ q, category, cursor }) => {
       const latest = new Map<string, PublicRelease>();
       for (const release of published.values())
-        if (release.content.manifest.formatVersion !== 3 && !disabledPlugins.has(release.pluginId))
+        if (
+          release.content.manifest.platform === "desktop" &&
+          !disabledPlugins.has(release.pluginId)
+        )
           latest.set(release.pluginId, release);
       const query = q.trim().toLowerCase();
       const matched = [...latest.values()].filter(release =>

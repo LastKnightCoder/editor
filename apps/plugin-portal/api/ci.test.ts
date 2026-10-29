@@ -195,6 +195,43 @@ describe("CI 发布", () => {
       autoApproved: false,
     });
   });
+
+  it("跨端独立Skill携带脚本时仍进入人工系统审核，不因移动安装而免审", async () => {
+    const archive = new AdmZip(zip());
+    const manifest = JSON.parse(archive.readAsText("test.reader/manifest.json"));
+    const readme = "---\ndescription: 整理时使用\n---\n# 技能";
+    const script = "print('保留脚本不等于手机执行')";
+    archive.deleteFile("test.reader/main.js");
+    archive.addFile("test.reader/skills/notes/SKILL.md", Buffer.from(readme));
+    archive.addFile("test.reader/skills/notes/scripts/run.py", Buffer.from(script));
+    const metadata = { ...manifest };
+    delete metadata.main;
+    delete metadata.format;
+    delete metadata.profile;
+    archive.updateFile(
+      "test.reader/manifest.json",
+      Buffer.from(
+        JSON.stringify({
+          ...metadata,
+          formatVersion: 1,
+          platform: "portable",
+          targets: { android: { minAppVersion: "0.2.13" } },
+          skills: ["notes"],
+          integrity: {
+            "skills/notes/SKILL.md": createHash("sha256").update(readme).digest("hex"),
+            "skills/notes/scripts/run.py": createHash("sha256").update(script).digest("hex"),
+          },
+        })
+      )
+    );
+    const response = await publish(await token(), archive.toBuffer());
+    expect(response.status).toBe(201);
+    expect((await response.json()).data).toMatchObject({
+      status: "pending_review",
+      autoApproved: false,
+      release: null,
+    });
+  });
   it("审核者本人推送 tag 时自动批准并发布，分类随包写入目录", async () => {
     const response = await publish(await token());
     expect(response.status).toBe(201);

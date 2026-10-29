@@ -17,7 +17,11 @@ export function testEnvironment(options: { portableSchema?: boolean; migrationsR
     "0010_app_feedback.sql",
     "0011_backend_review.sql",
     "0012_portable_distribution.sql",
-  ].filter(name => options.portableSchema !== false || name !== "0012_portable_distribution.sql"))
+    "0013_portable_skill_distribution.sql",
+  ].filter(
+    name =>
+      options.portableSchema !== false || (!name.startsWith("0012_") && !name.startsWith("0013_"))
+  ))
     sqlite.exec(readFileSync(new URL(name, migrations), "utf8"));
   class Statement {
     constructor(

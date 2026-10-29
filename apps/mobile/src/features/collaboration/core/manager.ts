@@ -448,22 +448,32 @@ class CollaborationManager {
   }
 
   /** 发布当前正文与契约，发布中的快照先保存在本机，重试复用同一房间。 */
-  async shareContent(source: {
-    contentId: number;
-    title: string;
-    content: unknown[];
-    bannerBg?: string;
-    bannerPosition?: string;
-    sourceType?: string;
-    sourceId?: number;
-  }): Promise<{ documentId: string; code: string; expiresAt: number }> {
+  async shareContent(
+    source: {
+      contentId: number;
+      title: string;
+      content: unknown[];
+      bannerBg?: string;
+      bannerPosition?: string;
+      sourceType?: string;
+      sourceId?: number;
+    },
+    guard?: () => void,
+    expectedRef?: string
+  ): Promise<{ documentId: string; code: string; expiresAt: number }> {
+    guard?.();
     await this.whenReady();
+    guard?.();
     const detail = await tauri.getContentDetail(source.contentId);
     if (!detail.contracts || !detail.documentId || !detail.librarySourceId || !detail.revision)
       throw new Error("正文格式不受支持，无法发起共享");
     if (JSON.stringify(detail.content) !== JSON.stringify(source.content))
       throw new Error("本机编辑尚未确认保存，请保存后重试共享");
+    guard?.();
+    if (expectedRef && `${detail.contentId}:${detail.createTime}` !== expectedRef)
+      throw new Error("正文身份已变化，请重新打开");
     const existing = await tauri.collabGetBinding(source.contentId);
+    guard?.();
     let documentId = existing?.documentId;
     if (existing && existing.serverUrl !== this.serverUrl)
       throw new Error("正文仍绑定另一协作服务，请先结束原共享");
@@ -476,6 +486,7 @@ class CollaborationManager {
             item.source?.librarySourceId === detail.librarySourceId
         )
         .sort((a, b) => b.updatedAt - a.updatedAt)[0];
+      guard?.();
       const pending = previous?.status === "active" ? previous : undefined;
       if (pending) documentId = pending.id;
       else {
@@ -488,9 +499,12 @@ class CollaborationManager {
             previous?.id ?? "initial",
           ])
         );
+        guard?.();
         documentId = (await rest.createDocument(this.serverUrl, key)).id;
+        guard?.();
       }
       let cached = await tauri.collabReadCache(documentId);
+      guard?.();
       if (!cached) {
         const doc = await createNodeDocument(
           { documentId, baselineId: crypto.randomUUID(), epoch: 0 },
@@ -503,6 +517,7 @@ class CollaborationManager {
           detail.contracts
         );
         try {
+          guard?.();
           const metadata: tauri.CachedContentSession = {
             id: documentId,
             baselineId: String(doc.getMap("meta").get("baselineId")),
@@ -542,11 +557,14 @@ class CollaborationManager {
         } finally {
           doc.destroy();
         }
+        guard?.();
         cached = await tauri.collabReadCache(documentId);
       }
+      guard?.();
       if (!cached || cached.metadata.source?.projectionRevision !== detail.revision)
         throw new Error("待发布副本与本机正文已变化，原发布快照已保留");
       await rest.publishDocument(this.serverUrl, documentId, cached.state);
+      guard?.();
       await tauri.collabBindContent({
         ...source,
         documentId,
@@ -556,10 +574,16 @@ class CollaborationManager {
         expectedRevision: detail.revision,
       });
     }
+    guard?.();
     await this.openDocument(documentId);
-    await this.project(documentId);
+    guard?.();
+    await this.project(documentId, undefined, async () => {
+      guard?.();
+    });
+    guard?.();
     const invitation =
       readCachedInvitation(documentId) ?? (await rest.rotateInvitation(this.serverUrl, documentId));
+    guard?.();
     writeCachedInvitation(documentId, invitation);
     return { documentId, ...invitation };
   }

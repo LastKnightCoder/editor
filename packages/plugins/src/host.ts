@@ -13,7 +13,6 @@ import type {
   PluginContext,
   PluginDefinition,
   PluginInstance,
-  PluginEditorContribution,
   PluginSettingsDefinition,
   PluginSettingsHandle,
   PluginSidebarGroupDefinition,
@@ -32,7 +31,6 @@ import type {
 } from "./index";
 import { assertLocalId, copyJson } from "./values";
 import { assertProviderForm } from "./provider-form";
-import { normalizePluginEditorExtension } from "./editor-fields";
 import {
   sidebarDragType,
   snapshotSidebarUpdate,
@@ -188,10 +186,6 @@ export type { PluginManifest, DevelopmentPluginPackage } from "./package";
 
 export interface PagesAdapter {
   register(context: PluginContext, definition: PluginPageDefinition): PluginPageHandle;
-}
-
-export interface EditorAdapter {
-  register(context: PluginContext, contribution: PluginEditorContribution): Disposable;
 }
 
 export interface SettingsAdapter {
@@ -1105,7 +1099,6 @@ export class PluginHost {
       backend?: (context: PluginContext) => import("./backend").PluginBackendClient;
       storage: StorageAdapter;
       pages?: PagesAdapter;
-      editor?: EditorAdapter;
       ai?: {
         bind(
           plugin: PluginOwner,
@@ -2184,31 +2177,6 @@ export class PluginHost {
             },
             dispose: resource.dispose,
           });
-        },
-      }),
-      editor: Object.freeze({
-        register: (contribution: PluginEditorContribution) => {
-          this.assertActive(entry, activation);
-          if (!this.options.editor) throw new Error("当前宿主不支持编辑器扩展");
-          if (contribution.scene !== "workbench") throw new Error("不支持的编辑器场景");
-          contribution = {
-            ...contribution,
-            extension: normalizePluginEditorExtension(contribution.extension),
-          };
-          if (contribution.extension.apiVersion !== 1) throw new Error("不支持的编辑器扩展协议");
-          assertLocalId(contribution.extension.id);
-          if (!contribution.extension.id.startsWith(`${scope.pluginId}.`))
-            throw new Error("编辑器扩展 ID 必须使用插件命名空间");
-          for (const id of [
-            ...(contribution.extension.elements ?? []).map(element => element.type),
-            ...(contribution.extension.commands ?? []).map(command => command.id),
-            ...(contribution.codecs ?? []).map(codec => codec.type),
-            ...(contribution.metrics ?? []).map(rule => rule.type),
-          ]) {
-            if (!id.startsWith(`${scope.pluginId}.`))
-              throw new Error("编辑器节点、命令与 codec 必须使用插件命名空间");
-          }
-          return registerAs("editor", this.options.editor.register(context, contribution));
         },
       }),
       commands: Object.freeze({

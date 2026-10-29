@@ -1,9 +1,17 @@
 import { readPluginIdentity } from "./package-fields.ts";
-import { comparePluginVersions } from "./version";
-import { validatePluginManifest, type PluginManifest } from "./package";
+import { comparePluginVersions } from "./version.ts";
+import { validatePluginManifest, type PluginManifest } from "./package.ts";
 import { readCatalogFields, type PluginCatalogFields } from "./categories.ts";
 import type { JsonValue } from "./json";
 import { hasSkillScripts, readSkillFiles, readSkillsField } from "./skills.ts";
+import {
+  readPackageTargets,
+  assertPackageTargetCompatibility,
+  type PackagePlatform,
+  type PackageTargets,
+  type PackageTarget,
+} from "./package-targets.ts";
+import { validatePortableDistributionManifest, type PortablePluginManifest } from "./portable.ts";
 export { hasSkillScripts, SKILL_README, SKILL_ROOT } from "./skills.ts";
 
 interface SiteFieldBase {
@@ -45,17 +53,25 @@ export interface TemplateManifest extends PluginCatalogFields {
 }
 
 /** 独立 Skill 包：没有代码入口，只分发 `skills/<id>/` 目录，安装后即可在 Skill 页使用。 */
-export interface SkillPackageManifest extends PluginCatalogFields {
+interface SkillPackageBase extends PluginCatalogFields {
   formatVersion: 1;
   apiVersion: 1;
-  platform: "desktop";
   id: string;
   name: string;
   version: string;
-  minAppVersion?: string;
   skills: readonly string[];
   integrity: Record<string, string>;
 }
+export interface DesktopSkillPackageManifest extends SkillPackageBase {
+  platform: "desktop";
+  minAppVersion?: string;
+}
+export interface PortableSkillPackageManifest extends SkillPackageBase {
+  platform: "portable";
+  targets: PackageTargets;
+  minAppVersion?: never;
+}
+export type SkillPackageManifest = DesktopSkillPackageManifest | PortableSkillPackageManifest;
 
 export type DistributionManifest = PluginManifest | TemplateManifest | SkillPackageManifest;
 export const DISTRIBUTION_LIMITS = {
@@ -177,12 +193,27 @@ export function resolveSiteFields(
   return result;
 }
 
-export function isTemplateManifest(value: DistributionManifest): value is TemplateManifest {
-  return "template" in value;
+export function isTemplateManifest(value: unknown): value is TemplateManifest {
+  return !!value && typeof value === "object" && !Array.isArray(value) && "template" in value;
 }
 
-export function isSkillPackageManifest(value: DistributionManifest): value is SkillPackageManifest {
-  return !("template" in value) && !("main" in value);
+export function isSkillPackageManifest(value: unknown): value is SkillPackageManifest {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    "formatVersion" in value &&
+    value.formatVersion === 1 &&
+    "apiVersion" in value &&
+    value.apiVersion === 1 &&
+    "platform" in value &&
+    (value.platform === "desktop" || value.platform === "portable") &&
+    "skills" in value &&
+    Array.isArray(value.skills) &&
+    value.skills.length > 0 &&
+    !("template" in value) &&
+    !("main" in value)
+  );
 }
 
 /** 模板与 Skill 包共用的身份字段校验。 */
@@ -198,10 +229,22 @@ function readStaticIdentity(item: Record<string, unknown>) {
   };
 }
 
-function validateSkillPackageManifest(item: Record<string, unknown>): SkillPackageManifest {
-  if (item.formatVersion !== 1 || item.apiVersion !== 1 || item.platform !== "desktop")
+export function validateSkillPackageManifest(value: unknown): SkillPackageManifest {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("Skill 包清单必须是对象");
+  const item = value as Record<string, unknown>;
+  if (
+    item.formatVersion !== 1 ||
+    item.apiVersion !== 1 ||
+    !["desktop", "portable"].includes(String(item.platform))
+  )
     throw new Error("Skill 包格式、API 版本或平台不兼容");
-  const identity = readStaticIdentity(item);
+  const codeFields =
+    item.platform === "portable"
+      ? ["main", "format", "profile", "styles", "backend", "template"]
+      : ["main", "template"];
+  if (codeFields.some(field => Object.hasOwn(item, field)))
+    throw new Error("独立 Skill 包不能包含代码入口或模板字段");
   const skills = readSkillsField(item.skills);
   if (!skills) throw new Error("Skill 包至少声明一个 Skill");
   if (!item.integrity || typeof item.integrity !== "object" || Array.isArray(item.integrity))
@@ -209,15 +252,72 @@ function validateSkillPackageManifest(item: Record<string, unknown>): SkillPacka
   const integrity = readSkillFiles(skills, item.integrity as Record<string, unknown>);
   if (Object.keys(integrity).length !== Object.keys(item.integrity).length)
     throw new Error("Skill 包只能包含已声明 Skill 目录内的文件");
-  return Object.freeze({
+  const common = {
     formatVersion: 1 as const,
     apiVersion: 1 as const,
-    platform: "desktop" as const,
-    ...identity,
+    ...readPluginIdentity(item),
     ...readCatalogFields(item),
     skills,
     integrity: Object.freeze(integrity),
-  });
+  };
+  return item.platform === "portable"
+    ? Object.freeze({
+        ...common,
+        platform: "portable" as const,
+        targets: readPackageTargets(item.targets),
+      })
+    : Object.freeze({ ...common, ...readStaticIdentity(item), platform: "desktop" as const });
+}
+
+export function validatePortableSkillPackageManifest(value: unknown): PortableSkillPackageManifest {
+  const manifest = validateSkillPackageManifest(value);
+  if (manifest.platform !== "portable") throw new Error("Skill 包未声明跨端目标平台");
+  return manifest;
+}
+
+export type DistributionPackageKind = "plugin" | "skills" | "template";
+export function distributionPackageKind(
+  manifest: DistributionManifest | PortablePluginManifest
+): DistributionPackageKind {
+  if (isSkillPackageManifest(manifest)) return "skills";
+  if (isTemplateManifest(manifest)) return "template";
+  return "plugin";
+}
+
+export function assertSkillPackageCompatibility(
+  manifest: SkillPackageManifest,
+  host: { platform: PackagePlatform; appVersion: string }
+): PackageTarget {
+  if (manifest.platform === "portable")
+    return assertPackageTargetCompatibility(manifest.targets, host);
+  if (host.platform !== "desktop") throw new Error("桌面 Skill 包不支持当前平台");
+  if (manifest.minAppVersion)
+    return assertPackageTargetCompatibility(
+      { desktop: { minAppVersion: manifest.minAppVersion } },
+      host
+    );
+  comparePluginVersions(host.appVersion, host.appVersion);
+  return { minAppVersion: "0.0.0" };
+}
+
+export function validateMobilePackageManifest(
+  value: unknown,
+  host?: { platform: "android" | "ios"; appVersion: string }
+): PortablePluginManifest | PortableSkillPackageManifest {
+  if (
+    value &&
+    typeof value === "object" &&
+    "skills" in value &&
+    !("main" in value) &&
+    !("template" in value)
+  ) {
+    const manifest = validatePortableSkillPackageManifest(value);
+    if (host) assertSkillPackageCompatibility(manifest, host);
+    return manifest;
+  }
+  const manifest = validatePortableDistributionManifest(value);
+  if (host) assertPackageTargetCompatibility(manifest.targets, host);
+  return manifest;
 }
 
 export function validateDistributionManifest(value: unknown): DistributionManifest {

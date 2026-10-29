@@ -1,7 +1,6 @@
 import { readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { assertPluginCompatibility } from "@tau/plugins/host";
 import {
   readDesktopPluginManifest,
   assertDesktopPluginCompatibility,
@@ -12,13 +11,16 @@ import {
   validateDistributionManifest,
   isSkillPackageManifest,
   isTemplateManifest,
+  assertSkillPackageCompatibility,
   type SkillPackageManifest,
   type TemplateManifest,
 } from "@tau/plugins/template";
 import { readTemplatePackage } from "./template-package";
 
 export type DistributionPackage =
-  DevelopmentPluginPackage | { manifest: TemplateManifest } | { manifest: SkillPackageManifest };
+  | DevelopmentPluginPackage
+  | { manifest: TemplateManifest }
+  | { manifest: SkillPackageManifest };
 export const isTemplatePackage = (
   artifact: DistributionPackage
 ): artifact is { manifest: TemplateManifest } =>
@@ -89,7 +91,7 @@ async function readSkillPackage(
   const manifestText = (await read("manifest.json")).toString("utf8");
   const manifest = validateDistributionManifest(JSON.parse(manifestText));
   if (!isSkillPackageManifest(manifest)) throw new Error("插件包类型已变化，请重试");
-  assertPluginCompatibility(manifest, clientVersion);
+  assertSkillPackageCompatibility(manifest, { platform: "desktop", appVersion: clientVersion });
   await readVerifiedFiles(read, manifest.integrity);
   if ((await read("manifest.json")).toString("utf8") !== manifestText)
     throw new Error("插件构建仍在变化，请构建完成后重试");

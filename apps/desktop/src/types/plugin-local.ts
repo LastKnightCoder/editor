@@ -10,7 +10,7 @@ export type LocalPluginSource =
       version: string;
       sha256: string;
       systemReviewed?: boolean;
-      /** 格式 3 保存完整审批清单，安装时与下载包再次对账。 */
+      /** 跨端包保存完整审批清单，安装时与下载包再次对账。 */
       manifest?: import("@tau/plugins/center").CenterManifest;
       apiOrigin?: string;
     };

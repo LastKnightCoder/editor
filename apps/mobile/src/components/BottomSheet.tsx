@@ -20,6 +20,7 @@ export type BottomSheetProps = {
    * 导致 settle 未落账）。
    */
   backDismiss?: boolean;
+  dismissible?: boolean;
   children: React.ReactNode;
 };
 
@@ -28,6 +29,7 @@ export function BottomSheet({
   title,
   onClose,
   backDismiss = true,
+  dismissible = true,
   children,
 }: BottomSheetProps) {
   const [shouldRender, setShouldRender] = useState(open);
@@ -40,13 +42,13 @@ export function BottomSheet({
   const contentRef = useRef<HTMLDivElement | null>(null);
 
   const requestClose = useCallback(() => {
-    if (!open || closing) return;
+    if (!open || closing || !dismissible) return;
     closeRequestedRef.current = true;
     setClosing(true);
-  }, [open, closing]);
+  }, [open, closing, dismissible]);
 
   const { y, dragging, panelBindings } = useSheetDragDismiss({
-    enabled: visible,
+    enabled: visible && dismissible,
     onClose: requestClose,
     scrollRef: contentRef,
   });
@@ -102,7 +104,7 @@ export function BottomSheet({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 26, stiffness: 300, mass: 0.9 }}
-            className={`bg-surface rounded-t-sheet absolute bottom-0 left-0 right-0 shadow-float${
+            className={`bg-surface rounded-t-sheet absolute right-0 bottom-0 left-0 shadow-float${
               dragging ? "select-none" : ""
             }`}
             // 面板贴屏幕底：键盘弹出时整体托到键盘上方，否则让出安全区
@@ -113,7 +115,7 @@ export function BottomSheet({
             <div data-sheet-drag-zone="true">
               <div className="sheet-grab" />
               {title && (
-                <div className="text-ink-1 px-5 pb-2 pt-1 text-center text-[15.5px] font-bold">
+                <div className="text-ink-1 px-5 pt-1 pb-2 text-center text-[15.5px] font-bold">
                   {title}
                 </div>
               )}
@@ -122,7 +124,7 @@ export function BottomSheet({
             <div
               ref={contentRef}
               data-allow-touchmove="true"
-              className="max-h-[min(72dvh,calc(var(--kb-viewport-height)-6rem))] overflow-y-auto overscroll-contain px-5 pb-7 pt-2"
+              className="max-h-[min(72dvh,calc(var(--kb-viewport-height)-6rem))] overflow-y-auto overscroll-contain px-5 pt-2 pb-7"
             >
               {children}
             </div>

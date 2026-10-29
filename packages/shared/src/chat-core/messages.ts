@@ -3,7 +3,17 @@
  * 桌面 src/types/llm.ts、src/types/chat-message.ts、src/types/tool.ts 对本文件为 re-export 关系，
  * 两端禁止再各自定义同名类型。
  */
-import type { MentionRef } from "../components/ChatInputArea/types";
+export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+export type ChatSessionSource = "desktop" | "mobile" | "browser";
+export type MentionEntityType = "card" | "article" | "project-item";
+
+export interface MentionRef {
+  entityType: MentionEntityType;
+  entityId: number;
+  contentId: number;
+  title: string;
+  previewText: string;
+}
 
 export enum Role {
   User = "user",
@@ -48,7 +58,13 @@ export interface ToolCallPayload {
 }
 
 export type ToolCallStatus =
-  "pending" | "executing" | "success" | "failed" | "retrying" | "cancelled" | "awaiting-approval";
+  | "pending"
+  | "executing"
+  | "success"
+  | "failed"
+  | "retrying"
+  | "cancelled"
+  | "awaiting-approval";
 
 /** 工具调用执行状态详情 */
 export interface ToolCallExecutionState {
@@ -192,8 +208,8 @@ export interface ChatSessionRecord {
   groupId?: number | null;
   archived?: boolean;
   orderNum?: number | null; // 排序序号（用于置顶和拖拽排序）
-  /** 会话来源：desktop 为桌面端创建，browser 为浏览器插件创建 */
-  source?: "desktop" | "browser";
+  /** 会话创建来源不限制其他设备继续读取或执行。 */
+  source?: ChatSessionSource;
   /** 相对会话目录的 JSONL 文件名；草稿（尚未登记）为空 */
   sessionFile?: string;
   /** 聊天场景（main-chat / pdf-chat / …）与所属对象 */

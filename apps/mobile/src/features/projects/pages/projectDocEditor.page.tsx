@@ -1,3 +1,4 @@
+import { useMobilePluginActionItems } from "../../../app/plugins/action-menu";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Ellipsis, FilePlus2, FolderKanban, Trash2 } from "lucide-react";
 import { PageHeaderButton } from "../../../components/PageHeader";
@@ -11,13 +12,14 @@ import { BottomSheet } from "../../../components/BottomSheet";
 import { MobileConfirmDialog } from "../../../components/MobileConfirmDialog";
 import { toast } from "../../../components/toast";
 import { useAppContext } from "../../../app/AppContext";
-import { useRefSourceLabel } from "../../../hooks/useRefSourceLabel";
+import { useQuery } from "@tanstack/react-query";
 import * as tauri from "../../../services/tauri";
 import { useContentCollabEntry } from "../../collaboration/useContentCollabEntry";
 import {
   createPageSchema,
   definePage,
   paramNumber,
+  paramOptional,
   paramString,
   useNavigator,
   usePage,
@@ -29,10 +31,12 @@ import {
   useProjectItemDelete,
   useProjectItemsQuery,
 } from "../queries";
-import { clampText } from "../../../utils/richTextText";
+import { clampText, richTextPlainText } from "../../../utils/richTextText";
 
 const projectDocEditorSchema = createPageSchema({
   itemId: paramNumber(),
+  block: paramOptional(paramNumber()),
+  locationRequestId: paramOptional(paramString()),
   projectTitle: paramString(""),
 });
 type ProjectDocEditorParams = typeof projectDocEditorSchema.type;
@@ -55,7 +59,40 @@ function ProjectDocEditorScreen() {
     () => (items ?? []).find(entry => entry.id === params.itemId) ?? null,
     [items, params.itemId]
   );
-  const sourceLabel = useRefSourceLabel(item?.refType ?? "", item?.refId ?? 0);
+  const refType = item?.refType;
+  const refId = item?.refId ?? 0;
+  const { data: source } = useQuery({
+    queryKey: ["project-action-source", refType, refId],
+    enabled: (refType === "card" || refType === "article") && refId > 0,
+    queryFn: async () => {
+      if (refType === "card") {
+        const card = await tauri.getCardDetail(refId);
+        return {
+          kind: "card" as const,
+          id: String(card.id),
+          createTime: card.createTime,
+          title:
+            clampText(richTextPlainText(card.content).split("\n")[0]?.trim() ?? "", 24) ||
+            `卡片 #${card.id}`,
+        };
+      }
+      const article = await tauri.articleGet(refId);
+      return {
+        kind: "article" as const,
+        id: String(article.id),
+        createTime: article.createTime,
+        title: article.title.trim() || `内容 #${article.id}`,
+      };
+    },
+  });
+  const sourceLabel = source?.title;
+  const pluginActionItems = useMobilePluginActionItems(
+    refType
+      ? (source ?? null)
+      : item?.contentId && item.projectItemType === "document"
+        ? { kind: "document", id: String(item.id), createTime: item.createTime }
+        : null
+  );
 
   // onResume 重拉正文（协作结束后本地内容更新）；绑定刷新由 useContentCollabEntry 内部处理
   const [refreshRev, setRefreshRev] = useState(0);
@@ -111,6 +148,8 @@ function ProjectDocEditorScreen() {
   return (
     <>
       <ContentDetailPage
+        block={params.block}
+        locationRequestId={params.locationRequestId}
         contentId={item.contentId ?? 0}
         contentTitle={item.title}
         refreshKey={refreshRev}
@@ -202,6 +241,7 @@ function ProjectDocEditorScreen() {
             onClick: () => setAddChildOpen(true),
           },
           ...collab.menuItems,
+          ...pluginActionItems,
           {
             label: "删除节点",
             danger: true,

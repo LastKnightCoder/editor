@@ -46,7 +46,11 @@ it("没有用户手势不打开选择器或导航，未支持组合不调用原�
     "仅支持"
   );
   await expect(
-    app.adapter.open(context(), candidate.ref, { placement: "page", at: { block: 1 } })
+    app.adapter.open(
+      context(),
+      { kind: "project", id: "1" },
+      { placement: "page", at: { block: 1 } }
+    )
   ).rejects.toThrow("正文块位置");
   expect(invoke).not.toHaveBeenCalled();
   expect(push).not.toHaveBeenCalled();
@@ -227,4 +231,84 @@ it("公共宿主未声明权限时仍可由用户选择引用，但不能批量�
   } finally {
     await host.dispose();
   }
+});
+
+it.each(["card", "article", "document"] as const)(
+  "%s 原生解析后传递块位置，不授予正文权限",
+  async kind => {
+    const { app, push, canRead } = setup();
+    vi.mocked(invoke).mockResolvedValue({ kind, id: 12 });
+    await app.adapter.open(context(), { kind, id: "12" }, { placement: "page", at: { block: 4 } });
+    expect(invoke).toHaveBeenCalledWith(
+      "plugin_app_refs",
+      expect.objectContaining({ request: { method: "resolve", ref: { kind, id: "12" } } })
+    );
+    expect(push).toHaveBeenCalledWith(
+      kind === "card" ? "contentDetail" : kind === "article" ? "articleEditor" : "projectDocEditor",
+      expect.objectContaining({ block: 4, locationRequestId: expect.any(String) })
+    );
+    expect(canRead).not.toHaveBeenCalled();
+  }
+);
+
+it("日记选择只交付引用与标题，创建身份和日期说明留在宿主", async () => {
+  const { app, push, canRead } = setup();
+  const item: MobileEntityCandidate = {
+    ref: { kind: "diary", id: "8" },
+    title: "日记摘要",
+    identity: "123",
+    subtitle: "2026-10-29",
+  };
+  vi.mocked(invoke).mockImplementation(async (command, args) => {
+    if (command === "plugin_app_query") return { items: [item] };
+    const method = (args as { request: { method: string } }).request.method;
+    if (method === "grant")
+      return [
+        { ref: item.ref, title: item.title, identity: item.identity, subtitle: item.subtitle },
+      ];
+    if (method === "describe") return [{ status: "ok", title: item.title }];
+    return { kind: "diary", id: 8, contentId: 88, diaryType: "daily", date: "2026-10-29" };
+  });
+  const pending = app.adapter.pick(context(), owner, {
+    kinds: ["diary"],
+    multiple: false,
+    title: "选择日记",
+  });
+  const request = app.getSnapshot();
+  if (!request) throw new Error("选择器未打开");
+  const page = await request.query({
+    kind: "diary",
+    keyword: "2026-10",
+    limit: 20,
+    signal: new AbortController().signal,
+  });
+  expect(page.items[0].subtitle).toBe("2026-10-29");
+  await request.submit(page.items);
+  await expect(pending).resolves.toEqual([{ ref: item.ref, title: item.title }]);
+  await expect(app.adapter.describe(context(), [item.ref], [])).resolves.toEqual([
+    { status: "ok", title: item.title },
+  ]);
+  await app.adapter.open(context(), item.ref, { placement: "page" });
+  expect(push).toHaveBeenCalledWith(
+    "contentDetail",
+    expect.objectContaining({ contentId: 88, fromDiary: true })
+  );
+  expect(canRead).not.toHaveBeenCalled();
+});
+
+it("日记打开在切库后不使用迟到的导航结果", async () => {
+  const { app, push } = setup();
+  let finish: (value: unknown) => void = () => undefined;
+  vi.mocked(invoke).mockImplementation(
+    () =>
+      new Promise(resolve => {
+        finish = resolve;
+      })
+  );
+  const pending = app.adapter.open(context(), { kind: "diary", id: "8" }, { placement: "page" });
+  const rejected = expect(pending).rejects.toThrow("工作区已失效");
+  app.dispose();
+  finish({ kind: "diary", id: 8, contentId: 88, diaryType: "daily", date: "2026-10-29" });
+  await rejected;
+  expect(push).not.toHaveBeenCalled();
 });

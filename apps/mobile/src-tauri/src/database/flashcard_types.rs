@@ -124,7 +124,11 @@ pub struct GetFlashcardPayload {
 #[serde(rename_all = "camelCase")]
 pub struct FlashcardReferenceInput {
     pub ref_type: String,
-    pub content_id: i64,
+    pub content_id: Option<i64>,
+    pub content_created_at: Option<i64>,
+    pub custom_content: Option<Value>,
+    pub contracts: Option<Value>,
+    pub count: Option<i64>,
     pub title: String,
 }
 

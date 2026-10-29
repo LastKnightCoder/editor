@@ -10,6 +10,7 @@ import { CheckBubble } from "./CheckBubble";
 export type ActionSheetTone = "sage" | "sky" | "apricot" | "lilac" | "butter" | "rose";
 
 export type ActionSheetItem = {
+  key?: string;
   label: string;
   /** 说明副文案（可选）：帮助用户理解操作后果，降低误触 */
   desc?: string;
@@ -122,7 +123,7 @@ export function ActionSheet({
         : "bg-page text-ink-2";
     return (
       <button
-        key={item.label}
+        key={item.key ?? item.label}
         type="button"
         className="active:bg-hover flex w-full items-center gap-3.5 rounded-[14px] px-3.5 py-[13px] text-left transition-colors"
         onClick={() => {
@@ -192,7 +193,7 @@ export function ActionSheet({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 26, stiffness: 300, mass: 0.9 }}
-            className={`bg-surface shadow-float absolute bottom-0 left-0 right-0 flex max-h-[88dvh] flex-col rounded-t-sheet${
+            className={`bg-surface shadow-float absolute right-0 bottom-0 left-0 flex max-h-[88dvh] flex-col rounded-t-sheet${
               dragging ? "select-none" : ""
             }`}
             data-allow-touchmove="true"
@@ -206,13 +207,13 @@ export function ActionSheet({
             <div data-sheet-drag-zone="true">
               <div className="sheet-grab" />
               {title ? (
-                <div className="border-line-2 border-b px-6 pb-[18px] pt-1.5">
+                <div className="border-line-2 border-b px-6 pt-1.5 pb-[18px]">
                   {kind && (
                     <div className="text-accent mb-1.5 text-[10.5px] font-bold tracking-[0.12em]">
                       {kind}
                     </div>
                   )}
-                  <div className="text-ink-1 truncate text-[19px] font-extrabold leading-snug">
+                  <div className="text-ink-1 truncate text-[19px] leading-snug font-extrabold">
                     {title}
                   </div>
                   {subtitle && <div className="text-ink-3 mt-1 truncate text-xs">{subtitle}</div>}

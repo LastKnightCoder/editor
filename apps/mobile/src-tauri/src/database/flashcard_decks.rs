@@ -16,6 +16,10 @@ use crate::database::schema;
 #[tauri::command]
 pub fn flashcard_list_decks(app: AppHandle) -> Result<Vec<FlashcardDeck>, String> {
     let conn = schema::open_active_database(&app)?;
+    list_decks(&conn)
+}
+
+pub(super) fn list_decks(conn: &rusqlite::Connection) -> Result<Vec<FlashcardDeck>, String> {
     let mut stmt = conn
         .prepare(&format!(
             "SELECT {DECK_COLUMNS} FROM flashcard_decks ORDER BY sort_order ASC, update_time DESC"
@@ -38,11 +42,18 @@ pub fn flashcard_create_deck(
     app: AppHandle,
     payload: CreateFlashcardDeckPayload,
 ) -> Result<FlashcardDeck, String> {
+    let conn = schema::open_active_database(&app)?;
+    create_deck(&conn, payload)
+}
+
+pub(super) fn create_deck(
+    conn: &rusqlite::Connection,
+    payload: CreateFlashcardDeckPayload,
+) -> Result<FlashcardDeck, String> {
     let name = payload.name.trim();
     if name.is_empty() {
         return Err("FLASHCARD_INVALID_NAME: 卡组名称不能为空".to_string());
     }
-    let conn = schema::open_active_database(&app)?;
     let now = now_millis();
     conn.execute(
         "INSERT INTO flashcard_decks (name, description, cover_color, emoji, sort_order, meta, create_time, update_time) \

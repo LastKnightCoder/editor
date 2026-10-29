@@ -19,6 +19,7 @@ const KIND_LABELS: Record<MobileEntityKind, string> = {
   article: "文章",
   project: "项目",
   document: "项目文档",
+  diary: "日记",
   todo: "待办",
   event: "日程",
   "plugin-entity": "插件内容",
@@ -245,7 +246,12 @@ function Picker({ request }: { request: MobileEntityPickRequest }) {
                     onClick={() => choose(item)}
                     className="active:bg-hover text-ink-1 text-tau-body flex w-full items-center gap-3 rounded-xl px-2 py-3 text-left disabled:opacity-50"
                   >
-                    <span className="min-w-0 flex-1 break-words">{item.title}</span>
+                    <span className="min-w-0 flex-1 break-words">
+                      <span className="block">{item.title}</span>
+                      {item.subtitle && (
+                        <span className="text-ink-3 text-tau-meta block">{item.subtitle}</span>
+                      )}
+                    </span>
                     {checked ? (
                       <Check className="text-accent-text shrink-0" size={18} aria-hidden />
                     ) : null}

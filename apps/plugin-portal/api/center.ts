@@ -1,4 +1,5 @@
 import { comparePluginVersions, isPluginCategory } from "@tau/plugins/package";
+import { distributionPackageKind } from "@tau/plugins/template";
 import {
   normalizeCenterHost,
   normalizeCenterQuery,
@@ -30,6 +31,8 @@ interface Metadata {
   plugin_id: string;
   version: string;
   format_version: 1 | 2 | 3;
+  package_kind: "plugin" | "skills" | "template";
+  distribution_platform: "desktop" | "portable";
   profile: "web-v1" | null;
   targets_json: string;
   published_at: string;
@@ -48,11 +51,11 @@ interface Position {
   time: string;
   id: string;
 }
-// 旧可执行包保留审计记录，不参与当前目录与选版；静态模板和 Skill 仍使用格式 1。
-const CURRENT_PACKAGE =
-  "(r.format_version <> 1 OR json_type(r.content_json, '$.manifest.main') IS NULL)";
-const columns =
-  "r.id,r.plugin_id,r.version,r.format_version,r.profile,r.targets_json,r.published_at,r.size,r.sha256,r.name,r.description,r.categories,r.keywords,r.repository,p.login,p.avatar_url";
+const skillShape = (alias: string) =>
+  `(${alias}.format_version=1 AND json_extract(${alias}.content_json,'$.manifest.apiVersion')=1 AND json_type(${alias}.content_json,'$.manifest.skills')='array' AND json_array_length(${alias}.content_json,'$.manifest.skills')>0 AND ${["main", "template", "backend", "format", "profile", "styles"].map(field => `json_type(${alias}.content_json,'$.manifest.${field}') IS NULL`).join(" AND ")})`;
+// 包类型来自实际结构，作者自填的 packageKind 不参与分发裁决。
+const CURRENT_PACKAGE = `(r.format_version<>1 OR (${skillShape("r")} AND (json_extract(r.content_json,'$.manifest.platform')='desktop' OR (json_extract(r.content_json,'$.manifest.platform')='portable' AND json_type(r.content_json,'$.manifest.targets')='object'))) OR (json_extract(r.content_json,'$.manifest.platform')='desktop' AND json_type(r.content_json,'$.manifest.template')='object' AND json_type(r.content_json,'$.manifest.main') IS NULL))`;
+const columns = `r.id,r.plugin_id,r.version,r.format_version,r.profile,r.targets_json,r.published_at,r.size,r.sha256,r.name,r.description,r.categories,r.keywords,r.repository,p.login,p.avatar_url,json_extract(r.content_json,'$.manifest.platform') AS distribution_platform,CASE WHEN ${skillShape("r")} THEN 'skills' WHEN r.format_version=1 AND json_type(r.content_json,'$.manifest.template')='object' THEN 'template' ELSE 'plugin' END AS package_kind`;
 const platformWhere =
   "(?='all' OR EXISTS(SELECT 1 FROM release_targets t WHERE t.release_id=r.id AND t.platform=?))";
 const strings = (value: string): string[] => JSON.parse(value);
@@ -64,6 +67,7 @@ const version = (row: Metadata, env: Env): CenterVersion => ({
   releaseId: row.id,
   version: row.version,
   formatVersion: row.format_version,
+  packageKind: row.package_kind,
   apiVersion: 1,
   profile: row.profile,
   targets: Object.fromEntries(
@@ -77,7 +81,16 @@ const version = (row: Metadata, env: Env): CenterVersion => ({
   downloadUrl: `${env.API_ORIGIN}/v2/releases/${row.id}/download`,
 });
 function compatibility(row: Metadata, env: Env, host?: CenterHost): CenterCompatibility {
-  if (host && row.format_version === 3 && !portablePlatformEnabled(env, host.platform))
+  if (host && host.platform !== "desktop" && row.distribution_platform !== "portable")
+    return {
+      status: "incompatible",
+      reasons: [{ code: "PLATFORM_UNSUPPORTED", platform: host.platform }],
+    };
+  if (
+    host &&
+    row.distribution_platform === "portable" &&
+    !portablePlatformEnabled(env, host.platform)
+  )
     return {
       status: "incompatible",
       reasons: [{ code: "DISTRIBUTION_UNAVAILABLE" }],
@@ -121,10 +134,18 @@ async function release(env: Env, id: string): Promise<CenterRelease> {
     .bind(id)
     .first<ReleaseRow & Metadata>();
   if (!row) fail(404, "NOT_FOUND", "该版本尚未发布或已下架");
+  const content: CenterRelease["content"] = JSON.parse(row.content_json);
   return {
-    ...version(row, env),
+    ...version(
+      {
+        ...row,
+        package_kind: distributionPackageKind(content.manifest),
+        distribution_platform: content.manifest.platform,
+      },
+      env
+    ),
     pluginId: row.plugin_id,
-    content: JSON.parse(row.content_json),
+    content,
     publisher: { login: row.login, avatarUrl: row.avatar_url },
     repository: row.repository,
     commit: row.source_commit,

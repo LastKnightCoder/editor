@@ -11,6 +11,7 @@
     "prebuild": "pnpm -w db:schema:prepare",
     "build": "tsc && vite build",
     "test": "vitest run --config vitest.config.ts",
+    "validate:ai": "vitest run --config validation/ai/vitest.config.ts && node validation/ai/check-browser.mjs && node validation/ai/check-browser.mjs --vite",
     "check:rust": "cargo fmt --check --manifest-path src-tauri/Cargo.toml && cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -A clippy::all -D warnings && cargo test --manifest-path src-tauri/Cargo.toml --lib",
     "preview": "vite preview",
     "tauri": "tauri",
@@ -69,7 +70,8 @@
     "y-protocols": "1.0.7",
     "yjs": "13.6.32",
     "zustand": "^4.5.7",
-    "@tau/asr": "workspace:*"
+    "@tau/asr": "workspace:*",
+    "@tau/ai": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",
@@ -79,6 +81,10 @@
     "@vitejs/plugin-react": "5.2.0",
     "esbuild": "^0.25.12",
     "typescript": "7.0.2",
-    "vite": "8.3.5"
+    "vite": "8.3.5",
+    "@earendil-works/pi-agent-core": "0.87.1",
+    "@earendil-works/pi-ai": "0.87.1",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "typebox": "1.3.27"
   }
 }

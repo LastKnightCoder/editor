@@ -16,9 +16,15 @@ type DeckFormSheetProps = {
   deck: FlashcardDeck | null;
   onClose: () => void;
   onError: (error: unknown, fallback: string) => void;
+  createDeck?: (input: {
+    name: string;
+    description: string;
+    coverColor: string;
+    emoji: string;
+  }) => Promise<unknown>;
 };
 
-export function DeckFormSheet({ open, deck, onClose, onError }: DeckFormSheetProps) {
+export function DeckFormSheet({ open, deck, onClose, onError, createDeck }: DeckFormSheetProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [emoji, setEmoji] = useState(DECK_EMOJIS[0]);
@@ -53,7 +59,7 @@ export function DeckFormSheet({ open, deck, onClose, onError }: DeckFormSheetPro
           emoji,
         });
       } else {
-        await tauri.flashcardCreateDeck({
+        await (createDeck ?? tauri.flashcardCreateDeck)({
           name: name.trim(),
           description: description.trim(),
           coverColor: color,
@@ -70,7 +76,12 @@ export function DeckFormSheet({ open, deck, onClose, onError }: DeckFormSheetPro
   };
 
   return (
-    <BottomSheet open={open} title={deck ? "编辑卡组" : "新建卡组"} onClose={onClose}>
+    <BottomSheet
+      open={open}
+      dismissible={!saving}
+      title={deck ? "编辑卡组" : "新建卡组"}
+      onClose={onClose}
+    >
       <div className="flex flex-col gap-4 px-5 pb-7">
         <div>
           <div className="text-ink-2 mb-2 text-[12.5px] font-extrabold">名称</div>

@@ -13,6 +13,7 @@ import {
   type MobilePluginPackage,
 } from "../../../services/plugins";
 import type { MobilePluginRuntime } from "../../../app/plugins/runtime";
+import { isSkillPackageManifest } from "@tau/plugins/template";
 import { readDevelopmentPluginSource } from "../../../services/plugins";
 import { getMobileCenterInstallStore } from "../../../app/plugins/center-install";
 
@@ -54,13 +55,14 @@ export function projectManagedPlugin(
   runtime: MobilePluginRuntime | null,
   blocked: string | null
 ): ManagedPluginItem {
-  const active = runtime?.isPluginActive(item.id) ?? false;
+  const standalone = item.artifact && isSkillPackageManifest(item.artifact.manifest);
+  const active = standalone ? (runtime?.isSkillPackageActive(item.id) ?? false) : (runtime?.isPluginActive(item.id) ?? false);
   const error =
     item.error || runtime?.errors.get(item.id) || (item.blocked ? "中心版本不可用" : null);
   const unavailable = !runtime || !runtime.isAvailable ? "插件会话未就绪" : null;
   const inactive = active ? "请先停用插件并点「立即生效」后再操作" : null;
   return {
-    permissions: item.artifact?.manifest.permissions ?? [],
+    permissions: item.artifact && !isSkillPackageManifest(item.artifact.manifest) ? (item.artifact.manifest.permissions ?? []) : [],
     pendingVersion: item.pendingVersion ?? null,
     revoked: item.revoked ?? null,
     statusStale: item.statusStale ?? false,
@@ -112,6 +114,10 @@ export function usePluginManager() {
     staleTime: 0,
     refetchOnWindowFocus: true,
   });
+  useEffect(() => {
+    if (!runtime?.isAvailable || !query.data) return;
+    void runtime.reconcileSkillPackages(query.data.packages).catch(() => undefined);
+  }, [runtime, query.data]);
   const [operation, setOperation] = useState<{
     kind: ManagerCommand["kind"];
     id: string | null;
@@ -191,7 +197,9 @@ export function usePluginManager() {
         case "enable":
           return setMobilePluginEnabled(item.id, true);
         case "disable":
-          return setMobilePluginEnabled(item.id, false);
+          await setMobilePluginEnabled(item.id, false);
+          runtime?.revokeSkillPackage(item.id);
+          return;
         case "uninstall":
           return removeMobilePlugin(item.id);
         case "restore":

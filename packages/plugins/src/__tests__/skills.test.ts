@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { validatePluginManifest } from "../package";
-import { isSkillPackageManifest, validateDistributionManifest } from "../template";
+import {
+  isSkillPackageManifest,
+  validateDistributionManifest,
+  validatePortableSkillPackageManifest,
+  validateMobilePackageManifest,
+  assertSkillPackageCompatibility,
+  distributionPackageKind,
+  requiresSystemReview,
+} from "../template";
 import { hasSkillScripts } from "../skills";
 
 const hash = (char: string) => char.repeat(64);
@@ -120,5 +128,82 @@ describe("独立 Skill 包", () => {
     expect(
       hasSkillScripts({ skills: ["a"], integrity: { "skills/a/tools/run.sh": hash("a") } })
     ).toBe(true);
+  });
+
+  it("跨端变体沿用格式1且完整保留脚本附件，平台最低版本独立声明", () => {
+    const raw = {
+      ...skillPackage,
+      platform: "portable",
+      targets: { android: { minAppVersion: "0.2.13" }, ios: { minAppVersion: "0.2.14" } },
+      minAppVersion: "99.0.0",
+      integrity: { ...skillPackage.integrity, "skills/writing/references/schema.json": hash("c") },
+    };
+    const manifest = validatePortableSkillPackageManifest(raw);
+    expect(manifest).toMatchObject({
+      formatVersion: 1,
+      platform: "portable",
+      targets: raw.targets,
+      integrity: raw.integrity,
+    });
+    expect(manifest).not.toHaveProperty("minAppVersion");
+    expect(manifest).not.toHaveProperty("main");
+    expect(distributionPackageKind(manifest)).toBe("skills");
+    expect(requiresSystemReview(manifest)).toBe(true);
+    expect(
+      validateMobilePackageManifest(raw, { platform: "android", appVersion: "0.2.13" })
+    ).toEqual(manifest);
+    expect(() =>
+      assertSkillPackageCompatibility(manifest, { platform: "ios", appVersion: "0.2.13" })
+    ).toThrow("版本");
+    expect(() =>
+      assertSkillPackageCompatibility(manifest, { platform: "desktop", appVersion: "1.0.0" })
+    ).toThrow("平台");
+  });
+
+  it("旧桌面声明仍只支持桌面，忽略既有额外字段而不擅自解释targets", () => {
+    const manifest = validateDistributionManifest({
+      ...skillPackage,
+      minAppVersion: "0.59.0",
+      targets: { android: { minAppVersion: "0.0.0" } },
+      profile: "web-v1",
+      format: "cjs",
+      documentation: "旧附加资料",
+    });
+    expect(isSkillPackageManifest(manifest)).toBe(true);
+    if (!isSkillPackageManifest(manifest)) throw new Error("应识别为独立 Skill");
+    expect(manifest).not.toHaveProperty("targets");
+    expect(manifest).not.toHaveProperty("profile");
+    expect(() =>
+      assertSkillPackageCompatibility(manifest, { platform: "desktop", appVersion: "0.59.0" })
+    ).not.toThrow();
+    expect(() =>
+      assertSkillPackageCompatibility(manifest, { platform: "android", appVersion: "9.0.0" })
+    ).toThrow("桌面");
+    expect(() => validateMobilePackageManifest(manifest)).toThrow("目标平台");
+  });
+
+  it("portable独立Skill拒绝入口字段、空targets和错误版本，不把模板或可执行格式1开放移动", () => {
+    const portable = {
+      ...skillPackage,
+      platform: "portable",
+      targets: { android: { minAppVersion: "0.2.13" } },
+    };
+    for (const field of ["main", "template", "backend", "format", "profile", "styles"])
+      expect(() => validatePortableSkillPackageManifest({ ...portable, [field]: null })).toThrow();
+    for (const targets of [
+      {},
+      { linux: { minAppVersion: "1.0.0" } },
+      { android: { minAppVersion: "invalid" } },
+    ])
+      expect(() => validatePortableSkillPackageManifest({ ...portable, targets })).toThrow();
+    expect(() =>
+      validateMobilePackageManifest({ ...portable, main: "main.js", format: "cjs" })
+    ).toThrow();
+    expect(() =>
+      validateMobilePackageManifest({
+        ...portable,
+        template: { protocolVersion: 1, root: "site", entries: ["index.html"] },
+      })
+    ).toThrow();
   });
 });

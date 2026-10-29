@@ -20,7 +20,7 @@ export function PackageCard({
   const facts = [
     manifest.id,
     size !== undefined ? formatBytes(size) : null,
-    manifest.formatVersion === 3
+    manifest.platform === "portable"
       ? `平台 ${declaredPlatforms(manifest.targets)
           .map(platform => PLATFORM_LABELS[platform])
           .join("、")}`

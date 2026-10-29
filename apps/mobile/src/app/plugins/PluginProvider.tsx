@@ -1,3 +1,4 @@
+import { PluginAppActionHost } from "../../features/plugins/PluginAppActionHost";
 import { listen } from "@tauri-apps/api/event";
 import { PluginPermissionPrompt } from "../../features/plugins/PluginPermissionPrompt";
 import type { PluginPermissionBroker } from "@tau/plugins/permission-host";
@@ -47,7 +48,12 @@ const restartRequired = new Set<string>();
 
 function MobilePluginAppHost({ app }: { app: MobileAppAdapter }) {
   const request = useSyncExternalStore(app.subscribe, app.getSnapshot);
-  return <PluginEntityPicker request={request} />;
+  return (
+    <>
+      <PluginEntityPicker request={request} />
+      {app.actions && <PluginAppActionHost actions={app.actions} />}
+    </>
+  );
 }
 
 /**
@@ -134,7 +140,8 @@ export function MobilePluginProvider({
           runtime.elementSupport.forEach((value, key) =>
             mobilePluginElementSupport.set(key, value)
           );
-        }
+        },
+        { safeMode: safe }
       );
       if (cancelled) return;
       localStorage.removeItem(STARTING_KEY);
@@ -267,7 +274,8 @@ export function MobilePluginProvider({
     const store = getMobileCenterInstallStore(client);
     let previous = store.getSnapshot();
     let finished = new Set<string>();
-    return store.subscribe(() => {
+    let cancelled = false;
+    const stop = store.subscribe(() => {
       const snapshot = store.getSnapshot();
       for (const task of snapshot.values())
         if (task.status === "success" && previous.get(task.pluginId) !== task)
@@ -279,10 +287,19 @@ export function MobilePluginProvider({
       if (mobilePluginState.get().phase === "safe") return;
       void readMobilePlugins()
         .then(inventory => {
-          if (inventory.packages.some(item => ids.has(item.id) && item.pending)) reload();
+          if (
+            !cancelled &&
+            mobilePluginState.get().phase !== "safe" &&
+            inventory.packages.some(item => ids.has(item.id))
+          )
+            reload();
         })
         .catch(() => undefined);
     });
+    return () => {
+      cancelled = true;
+      stop();
+    };
   }, [client, reload]);
 
   return (

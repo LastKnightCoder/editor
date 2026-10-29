@@ -6,9 +6,45 @@ import { handle } from "./index";
 import { inspectPackage } from "./package";
 import { testEnvironment } from "./testing";
 import { centerHost } from "../../../tests/fixtures/plugins/center";
+import { requiresSystemReview } from "../contracts/execution";
 
 let f: ReturnType<typeof testEnvironment>;
 const digest = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");
+function skillZip(
+  options: { desktop?: boolean; script?: boolean; manifest?: Record<string, unknown> } = {}
+) {
+  const archive = new AdmZip();
+  const files: Record<string, string> = {
+    "skills/guide/SKILL.md": "---\nname: guide\ndescription: 整理时加载\n---\n# 规范",
+    "skills/guide/references/rules.json": '{"rules":[]}',
+  };
+  if (options.script) files["skills/guide/scripts/run.py"] = "print('安装保留，不在手机执行')";
+  const manifest = {
+    id: "test.portable",
+    name: "独立技能",
+    description: "规范说明",
+    version: "1.0.0",
+    formatVersion: 1,
+    apiVersion: 1,
+    ...(options.desktop
+      ? { platform: "desktop", minAppVersion: "0.59.0" }
+      : {
+          platform: "portable",
+          targets: { android: { minAppVersion: "0.2.13" }, ios: { minAppVersion: "0.2.13" } },
+        }),
+    categories: ["skill"],
+    skills: ["guide"],
+    integrity: Object.fromEntries(
+      Object.entries(files).map(([name, bytes]) => [name, digest(bytes)])
+    ),
+    ...options.manifest,
+  };
+  archive.addFile("test.portable/manifest.json", Buffer.from(JSON.stringify(manifest)));
+  archive.addFile("test.portable/README.md", Buffer.from("# 独立技能"));
+  for (const [name, bytes] of Object.entries(files))
+    archive.addFile(`test.portable/${name}`, Buffer.from(bytes));
+  return archive.toBuffer();
+}
 function zip(
   version = "1.0.0",
   targets: Record<string, unknown> = {
@@ -139,6 +175,138 @@ afterEach(() => {
   f.sqlite.close();
   vi.restoreAllMocks();
 });
+
+it("格式1独立Skill按显式targets分发移动端，旧v1不会泄漏portable变体", async () => {
+  const uploaded = await inspectPackage(
+    skillZip({ script: true, manifest: { packageKind: "plugin" } })
+  );
+  expect(uploaded.manifest).toMatchObject({
+    formatVersion: 1,
+    platform: "portable",
+    skills: ["guide"],
+  });
+  expect(uploaded.manifest).not.toHaveProperty("main");
+  expect(uploaded.manifest).not.toHaveProperty("profile");
+  expect(uploaded.manifest).not.toHaveProperty("minAppVersion");
+  expect(requiresSystemReview(uploaded.manifest)).toBe(true);
+  expect(uploaded.manifest.integrity).toHaveProperty("skills/guide/scripts/run.py");
+  const published = await approve(skillZip({ script: true }));
+  const id = published.release.id;
+  expect(published.release.downloadUrl).toContain(`/v2/releases/${id}/download`);
+  const release = (await (await request(`/v2/releases/${id}`)).json()).data;
+  expect(release).toMatchObject({
+    formatVersion: 1,
+    packageKind: "skills",
+    profile: null,
+    targets: { android: { minAppVersion: "0.2.13" }, ios: { minAppVersion: "0.2.13" } },
+    systemReviewed: true,
+  });
+  const host = { ...centerHost, appVersion: "0.2.13", formatVersions: [1, 3], profiles: [] };
+  const resolved = (await (await request("/v2/plugins/test.portable/resolve", { host })).json())
+    .data;
+  expect(resolved.release.releaseId).toBe(id);
+  const catalog = (await (await request("/v2/catalog/query", { platform: "android", host })).json())
+    .data;
+  expect(catalog.items[0].compatible.packageKind).toBe("skills");
+  expect(catalog.platformCounts).toEqual({ all: 1, desktop: 0, android: 1, ios: 1 });
+  expect((await (await request("/v1/releases?pluginId=test.portable")).json()).data.items).toEqual(
+    []
+  );
+  expect((await (await request("/v1/catalog?appVersion=9.0.0")).json()).data.items).toEqual([]);
+  expect((await request(`/v1/releases/${id}`)).status).toBe(404);
+  expect((await request(`/v1/releases/${id}/download`)).status).toBe(404);
+  expect((await request(`/v2/releases/${id}/download`)).status).toBe(200);
+});
+
+it("portable独立Skill仍受发布开关和脚本人工审核约束", async () => {
+  const id = await stage(skillZip({ script: true }));
+  expect(
+    (
+      await request(
+        `/v1/submissions/${id}/review`,
+        { revision: 1, decision: "approve", comment: "未确认脚本" },
+        true
+      )
+    ).status
+  ).toBe(400);
+  f.env.PORTABLE_PUBLISH_ENABLED = "false";
+  expect(
+    (
+      await request(
+        `/v1/submissions/${id}/review`,
+        { revision: 1, decision: "approve", comment: "确认脚本", systemReviewConfirmed: true },
+        true
+      )
+    ).status
+  ).toBe(409);
+  expect(f.sqlite.prepare("SELECT COUNT(*) AS n FROM releases").get()).toEqual({ n: 0 });
+});
+
+it("旧desktop独立Skill不会因附带targets或自填kind被改判手机支持", async () => {
+  const published = await approve(
+    skillZip({
+      desktop: true,
+      manifest: {
+        targets: { android: { minAppVersion: "0.0.0" } },
+        profile: "web-v1",
+        packageKind: "skills",
+      },
+    })
+  );
+  const release = (await (await request(`/v2/releases/${published.release.id}`)).json()).data;
+  expect(release.packageKind).toBe("skills");
+  expect(release.targets).toEqual({ desktop: { minAppVersion: "0.59.0" } });
+  const resolved = (
+    await (
+      await request("/v2/plugins/test.portable/resolve", {
+        host: { ...centerHost, formatVersions: [1, 3] },
+      })
+    ).json()
+  ).data;
+  expect(resolved.release).toBeNull();
+  expect(
+    (await (await request("/v2/catalog/query", { platform: "android" })).json()).data.items
+  ).toEqual([]);
+});
+
+it("自填skills种类不能把历史模板或可执行格式1伪造成移动包", async () => {
+  const published = await approve();
+  const row = f.sqlite
+    .prepare("SELECT content_json FROM releases WHERE id=?")
+    .get(published.release.id)!;
+  const content = JSON.parse(row.content_json as string);
+  for (const extra of [
+    { main: "main.js" },
+    { template: { protocolVersion: 1, root: "site", entries: ["index.html"] } },
+  ]) {
+    content.manifest = {
+      id: "test.portable",
+      name: "伪造",
+      version: "1.0.0",
+      formatVersion: 1,
+      apiVersion: 1,
+      platform: "portable",
+      packageKind: "skills",
+      skills: ["guide"],
+      targets: { android: { minAppVersion: "0.2.13" } },
+      ...extra,
+    };
+    f.sqlite
+      .prepare("UPDATE releases SET content_json=?,format_version=1,profile=NULL WHERE id=?")
+      .run(JSON.stringify(content), published.release.id);
+    expect(
+      (
+        await (
+          await request("/v2/catalog/query", {
+            platform: "android",
+            host: { ...centerHost, formatVersions: [1, 3] },
+          })
+        ).json()
+      ).data.items
+    ).toEqual([]);
+    expect((await request(`/v2/releases/${published.release.id}`)).status).toBe(404);
+  }
+});
 it("格式 3 上传严格校验，接受逐平台最低版本而非伪造顶层版本", async () => {
   const result = await inspectPackage(zip());
   expect(result.manifest.formatVersion).toBe(3);
@@ -190,6 +358,90 @@ it("从既有 D1 schema 增量迁移会回填旧平台且不改变发布正文�
         )
         .get()
     ).toEqual({ platform: "desktop", minimum: "0.59.0" });
+    expect(previous.sqlite.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+  } finally {
+    previous.sqlite.close();
+  }
+});
+
+it("0013只修正明确portable的独立Skill投影，不将模板/旧代码/旧desktop包移动化", () => {
+  const previous = testEnvironment({ portableSchema: false });
+  try {
+    previous.sqlite.exec("INSERT INTO publishers VALUES('author','author','');");
+    const insert = (id: string, manifest: Record<string, unknown>) => {
+      previous.sqlite
+        .prepare(
+          "INSERT INTO uploads(id,publisher_id,status,file_name,size,created_at) VALUES(?,'author','ready','p.zip',1,'2026')"
+        )
+        .run(`u-${id}`);
+      previous.sqlite
+        .prepare(
+          "INSERT INTO submissions(id,publisher_id,client_request_id,status,created_at,updated_at) VALUES(?,'author',?,'approved','2026','2026')"
+        )
+        .run(`s-${id}`, `request-${id}`);
+      previous.sqlite
+        .prepare(
+          "INSERT INTO releases(id,plugin_id,version,submission_id,package_upload_id,publisher_id,object_key,sha256,size,content_json,repository,source_commit,state,created_at,min_app_version) VALUES(?,?, '1.0.0',?,?,'author','object','digest',1,?,'repository','commit','published','2026','0.59.0')"
+        )
+        .run(id, id, `s-${id}`, `u-${id}`, JSON.stringify({ manifest, readme: "保留审核资料" }));
+    };
+    const skill = {
+      formatVersion: 1,
+      apiVersion: 1,
+      platform: "portable",
+      id: "mobile",
+      name: "移动技能",
+      version: "1.0.0",
+      skills: ["guide"],
+      targets: { android: { minAppVersion: "0.2.13" }, ios: { minAppVersion: "0.2.14" } },
+    };
+    insert("mobile", skill);
+    insert("desktop", { ...skill, id: "desktop", platform: "desktop", minAppVersion: "0.59.0" });
+    insert("executable", { ...skill, id: "executable", main: "main.js", packageKind: "skills" });
+    insert("template", {
+      ...skill,
+      id: "template",
+      template: { root: "site", entries: ["index.html"] },
+      packageKind: "skills",
+    });
+    previous.sqlite.exec(
+      readFileSync(
+        new URL("../infra/migrations/0012_portable_distribution.sql", import.meta.url),
+        "utf8"
+      )
+    );
+    expect(
+      previous.sqlite
+        .prepare("SELECT platform FROM release_targets WHERE release_id='mobile'")
+        .all()
+    ).toEqual([{ platform: "desktop" }]);
+    const original = previous.sqlite
+      .prepare("SELECT id,content_json,sha256 FROM releases ORDER BY id")
+      .all();
+    previous.sqlite.exec(
+      readFileSync(
+        new URL("../infra/migrations/0013_portable_skill_distribution.sql", import.meta.url),
+        "utf8"
+      )
+    );
+    expect(
+      previous.sqlite
+        .prepare("SELECT platform FROM release_targets WHERE release_id='mobile' ORDER BY platform")
+        .all()
+    ).toEqual([{ platform: "android" }, { platform: "ios" }]);
+    for (const id of ["desktop", "executable", "template"])
+      expect(
+        previous.sqlite.prepare("SELECT platform FROM release_targets WHERE release_id=?").all(id)
+      ).toEqual([{ platform: "desktop" }]);
+    expect(
+      previous.sqlite.prepare("SELECT id,content_json,sha256 FROM releases ORDER BY id").all()
+    ).toEqual(original);
+    insert("future", { ...skill, id: "future" });
+    expect(
+      previous.sqlite
+        .prepare("SELECT platform FROM release_targets WHERE release_id='future' ORDER BY platform")
+        .all()
+    ).toEqual([{ platform: "android" }, { platform: "ios" }]);
     expect(previous.sqlite.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
   } finally {
     previous.sqlite.close();

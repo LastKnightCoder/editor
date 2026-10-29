@@ -107,7 +107,7 @@ packages/database/src/   # 多视图 Database、投影、store 与通用字段�
 - 页面从 `PluginPageProps.pageContext` 取实例级上下文登记：`useEffect` 中 `register(() => value)`（任意有限 JSON，宿主不规定结构；MCP 的 `get_current_context` 原样返回快照）、`isActive()`（Activity 可见即栈顶）、`registerDismiss(dismiss)`（显示时挂入 Esc 仲裁，隐藏摘下、再显示按序重挂，插件停用清除）。不提供显示状态通知——effect 生命周期即显示状态（`services/plugin-page-context.ts`）。页面操作由作者自注册 MCP，不加工具分发或导航协议。
 - 停用先取消上下文，当前页面改为不可用提示并卸载组件与 UI Portal；重新启用以新 mountId 创建组件，错误边界按代次重建。页面栈条目保留；功能入口随注册资源回收。pageContext.registerLeaveGuard 接通用 PageProvider 守卫，离开前依次检查，停用后不继续阻塞。
 - 作者从 `@tau/plugins` 用定义/上下文/页面 API，从 `@tau/ui` 用组件；SDK 根入口只引 React 类型不加载 UI/DOM。`ctx.pages.register` 返回可打开与注销的页面句柄，页面组件不直接导入 Page/store。私有存储 `context.storage` 在 Electron 存当前库 `plugin_kv`（随云同步），浏览器预览用 localStorage 适配。
-- 生产装配：`DesktopPluginProvider` 不默认注册任何业务插件（主题切换示例只在测试夹具）；用户从插件中心安装，生产包禁用 ZIP 安装（开发模式保留）；官方插件与模板以 plugins/ 下的 Git submodule 维护独立 GitHub 历史，主仓库固定提交，安装到 `~/.editor/plugins`。开发构建的「插件开发台」（plugin-workbench.page）与编辑器实验装配仅开发构建加载。
+- 生产装配：`DesktopPluginProvider` 不默认注册任何业务插件（主题切换示例只在测试夹具）；用户从插件中心安装，生产包禁用 ZIP 安装（开发模式保留）；官方插件与模板以 plugins/ 下的 Git submodule 维护独立 GitHub 历史，主仓库固定提交，安装到 `~/.editor/plugins`。开发构建的「插件开发台」（plugin-workbench.page）只提供已安装插件的调试命令，不承载动态编辑器实验。
 - 已启用状态：`plugin-local:set-enabled` 写主进程 `plugins/.enabled.json`（唯一写入者），窗口 localStorage 仅镜像，不反向导入；首次发现默认停用，旧 `.editor-enabled.json` 不读取；写入广播 `plugin-local:state-changed` 各窗口重读权威快照；SDK Node 入口 local-state 只读。普通页面插件即时启停，静态内容插件完整重启后生效；活跃内容插件须停用并重启后卸载，切库不改变编辑器快照。
 
 应用根部注入响应式插件环境，DesktopPluginRuntime 的语义 navigation 入口复用真实侧栏模型；插件页通过 PortalScope/UiHostProvider 接浮层仲裁。显式开发目录、格式 3 装配及独立内容转换边界见[跨端插件宿主](/docs/architecture/plugin-portability.md)。
@@ -115,6 +115,8 @@ packages/database/src/   # 多视图 Database、投影、store 与通用字段�
 桌面 0.59.1 的固定插件中心安装接受格式 3，目录/详情/版本/下载使用 v2，主进程提供 desktop 宿主版本与协议集合。格式 3 targets 只声明平台最低版本，不再携带能力列表、节点等级或贡献标记；宿主从实际定义识别静态贡献。安装复用原事务、启停和启动快照，清单不改写为旧格式；下载前后复查精确发布版本，暂存/恢复与启动对账原始清单及来源。正式构建忽略调试中心覆盖，拒绝无固定中心来源的格式 3；旧格式读取与系统后台审核保持。
 
 ### 聊天工具自定义渲染
+
+插件工具模型名称与稳定历史 ID 的纯函数统一位于 `@tau/ai/tool-identity`，桌面工具入口只做重导出，与移动宿主采用同一规则。
 
 唯一注册表在 `@tau/chat-ui/renderers`。作者在 activate 中 `await ctx.chat.registerToolRenderer({ mcpId, toolName, component })`，只引用本插件 MCP 的原始工具名；PluginHost 激活前校验、成功后发布；调用名与稳定内部 ID 分离，渲染器同时绑定二者，历史消息仍按原 SHA-256 标识命中。展示不受 MCP 执行开关/连接状态影响；signal 失效立即卸载，切库先清理旧运行时。本地工具返回 `{ content, render?: { version, data } }`（有限 JSON + 正整数版本），经 pi details 保存，实时与历史投影都保留 details；失败/取消回通用工具行，未知数据版本由插件 renderDefault 回退。渲染选择再校验绑定：只按实际 execution.toolName 命中，插件不能改选他人绑定；插件接收 execution 独立快照，不能改写宿主消息。不新增聊天 schema、内置工具覆盖或 MCP Apps 运行器。
 
@@ -169,11 +171,11 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 
 格式 3 的白板插件沿用 whiteboardExtensions，作者不重复声明类型或白板能力标签。宿主在内容进程求值实际定义，识别并校验扩展后沿用静态装配、重启生效与工作区偏好；安装兼容性统一使用目标平台与最低版本，桌面基线为 0.59.4。移动目标不承载白板插件。
 
-- SDK 的 `editorExtensions` / `editorCodecs` 是正式静态贡献（manifest `editor: true`）。主进程开库前按 `.enabled.json` 静态读取已启用内容包并交独立内容渲染进程校验定义，只保存通过校验的快照；`initializeContentPlugins` 在 React 挂载前读取快照，校验类型冲突并装配 CSS/codec；`createDesktopKit` 在底座上 extend 贡献不重建打开中的编辑器；开发台 `context.editor.register` 只用于实验。
+- SDK 的 `editorExtensions` / `editorCodecs` 是正式静态贡献（manifest `editor: true`）。主进程开库前按 `.enabled.json` 静态读取已启用内容包并交独立内容渲染进程校验定义，只保存通过校验的快照；`initializeContentPlugins` 在 React 挂载前读取快照，校验类型冲突并装配 CSS/codec；`createDesktopKit` 在底座上 extend 贡献不重建打开中的编辑器。
 - 桌面与博客的插件贡献由 `@tau/plugins/content` 的 ContentPluginRegistry 保存只读快照；博客发布按用户已安装版本收集 main.js/CSS 在浏览器加载。移动普通正文在自己的 EditorKit 上装配受控跨端快照；浏览器扩展仍用原生套件，未知节点按通用保护保留原数据。
 - 领域插件的节点边界：HTML 行内与块级归 tau.html 插件（SDK 的 useInlineSource/insertInlineSource，插件不得打包自己的 Slate；Markdown 认领归已启用插件，缺包保留文本或未知节点 JSON）；ABC 归 tau-plugin-abc（内置 diagram 只剩 Mermaid、PlantUML；HTML 导出优先插件 SVG，缺包保留转义源码）；Typst 使用插件自带的浏览器 WebAssembly 编译器（预览挂载不写文档，仅用户编辑源码编译成功后持久化缓存，博客用缓存或源码回退）；TikZ、custom-block 同为独立插件。两类 HTML 的静态导出 CSS 按 styleSources 收集，宿主无专属类型名单。
 - `SourceBlockEditor` / `useSourceBlock` 由 SDK 提供（内部复用 PreviewWithEditor）；宿主共享模块初始化 source-editor-host，作者入口只依赖 SDK。
-- 插件 Skill：包内 `skills/<id>/` 目录（manifest.skills 列出并进 integrity）；只声明 skills 的是独立 Skill 包（`packageKind: "skills"`，不进 PluginHost、不参与启停）。主进程收集声明目录，与「我的/关联目录」经 `skill:list` 返回（标识 `pluginId:skillId`），读取与脚本执行只放行声明目录；渲染端按本窗口 PluginHost active 状态过滤插件来源，Skill 包始终可见。带脚本的 Skill 与独立后台共用 `requiresSystemReview`（门户不能自动批准），脚本执行沿用 run_skill_script 的 execute 确认。
+- 插件 Skill：包内 `skills/<id>/` 目录（manifest.skills 列出并进 integrity）；只声明 skills 的是独立 Skill 包（`packageKind: "skills"`，不进 PluginHost、不参与代码启停）。独立包保留格式 1，支持旧 desktop/minAppVersion 和跨端 portable/targets 两种声明，桌面读取与安装均检查自身 target；跨端包与中心审批清单及固定来源对账。主进程收集声明目录，与「我的/关联目录」经 `skill:list` 返回（标识 `pluginId:skillId`），读取与脚本执行只放行声明目录；渲染端按本窗口 PluginHost active 状态过滤插件来源，兼容的 Skill 包安装后可见。带脚本的 Skill 与独立后台共用 `requiresSystemReview`（门户不能自动批准），脚本执行沿用 run_skill_script 的 execute 确认；跨端安装不授予手机脚本执行能力。
 
 ### 字数与空文档
 
@@ -252,7 +254,7 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 - **设置**：`context.settings.register(...).open()` 接 `navigator.push("plugin-detail", { pluginId, tab: "settings", section })`，设置组件只在插件启用且详情页挂载时渲染；自定义设置收拢为详情页「设置」标签的分组，`plugin:<pluginId>:<sectionId>` 精确定位；停用保留宿主管理、组件退出，重新启用恢复；分组单项注销显示不可用。保存用 `context.storage`，即时保存/失败重试/signal 校验规则不变。
 - **对象动作**：`context.actions.register` 经 PluginHost 包装（assertActive），runtime 以 `plugin:<pluginId>:<id>` 登记，`runAction` 先 `grantRefs` 把对象登记为插件选择过的引用。菜单渲染收口 `app/plugins/action-menu.tsx`：手写菜单放 `<PluginActionMenuItems target />`（内置项之后、删除分隔线之前——卡片 CardActionMenu/CardDetailView、文章 ArticleItemOps/ArticleDetailView）；数据驱动菜单用 `usePluginActions` + `insertPluginActionEntries`（key 前缀 `plugin-action:`）——项目文档目标由 `projectItemActionTarget` 决定（普通文档 document、引用型条目为被引用的卡片/文章），文档树行与网页剪藏共用 `usePluginMenuEntries(target)`（剪藏目标 `material web-clip:<id>`）；只有图标按钮的地方用 `PluginActionsMenu`（PDF 标注浮动工具条经 FloatToolbar extra 槽、标注列表悬停组末尾，目标 `material pdf-annotation:<id>`）；对话消息经 `@tau/chat-ui` MessageView 的 `renderExtraActions(text)`（删除之前），`MessageItem` 收到 `pluginSessionId`（四个插件可见场景）且有 piEntryIds 时才列；`text` 目标在命令面板「记录」组末尾每动作一行（副标题「来自插件名」），文字不登记引用。编辑器选区不经对象动作（归插件编辑器扩展，选区工具条不开放）；独立编辑窗口无插件运行时自然不列。新增菜单照此放置，不在业务域直接读 runtime。
 - **详情区块**：`context.views.registerEntityPanel` 以 `plugin:<pluginId>:<id>` 登记，渲染收口 `app/plugins/entity-panels.tsx` 的 `<PluginEntityPanels target />`——放在三个详情页洞见报告之后、正文之前，每块包 RecoverableBoundary（resetKeys 为目标）/UiProvider/PluginComponentScope，`empty:hidden` 不占位，key 用 mountId（换对象只换 target 不重挂）；宿主不加外框标题，不因挂载自动登记引用或放宽权限。
-- **编辑器扩展**：作者经 `defineEditorExtension/defineEditorElement/context.editor.register` 注册（UI 用 @tau/ui，SDK 复用原编辑器契约），当前仅 workbench 场景，不向生产正文/白板自动注入。运行时提取公开扩展字段，拒绝类型/命令/codec 冲突，activate 成功后发布、signal 取消立即撤销；每个 PluginEditorSession 只在贡献集合变化时重建 Slate（复制正文/选区/history，普通重绘不重建、不经 Markdown 中转）；旧代次回调不覆盖新会话；停用节点由内核保留未知占位，重启用恢复。实验编辑器由宿主工作台承载，文档只在页面内存（关闭/切库清空并提示）。
+- **编辑器扩展**：作者用 `defineEditorExtension/defineEditorElement` 定义节点、命令、热键与菜单，通过插件定义的 editorExtensions 静态装配；编解码和统计分别由 editorCodecs、editorMetrics 提供。SDK 不提供动态编辑器注册接口，也不保留开发台的实验编辑器或运行期贡献会话。正式装配与启停边界见本页「静态内容插件」。
 
 ### Whiteboard 公共画布与扩展装配
 
@@ -510,7 +512,11 @@ export function useXxxSnapshot() {
 
 视频学习台与白板视频抽屉共用 `VideoNoteChatPanel`，经 `useScopedChat` 接入 pi 会话；旧独立总结入口已移除，总结由视频对话承载。视频检索只保留页面作用域工具，不恢复全局视频笔记 MCP 工具。转录优化与电子书重写统一消费 `useLLMConfig` 的 `provider/model`，缺少配置时经 `openLLMSettingsSection` 打开新设置分区。
 
-纯聊天模型、消息迁移、归约器与运行协议经公共子入口 `@tau/shared/chat-core` 消费；该入口不加载 React/DOM，主进程可直接使用。调用方禁止导入 `@tau/shared/src/chat-core/*`，包内部文件布局由共享包自行维护。
+纯聊天模型、归约器与运行协议经公共子入口 `@tau/shared/chat-core` 消费；该入口不加载 React/DOM，主进程可直接使用，ThinkingLevel 与 MentionRef 也归该层，不反向引用输入组件目录。调用方禁止导入 `@tau/shared/src/chat-core/*`，包内部文件布局由共享包自行维护。
+
+跨端 AI 契约、模型配置与转换归 `@tau/ai/contracts` / `models`，桌面原类型入口只转导出。目录命中时模型 api、容量、输入模态和推理能力取目录值；自定义价格保留优先级，模型采样、headers、compat 与 stripThinkTags 沿用原语义。think 标签流转换从 `@tau/ai/think-stream` 消费，服务商协议仍交 pi-ai。
+
+`pi-session-transcript.ts` 转导出 `@tau/ai/session` 的公共投影，移动端也消费它。JSONL 原始消息保留签名与模型字段；展示仍是 ChatSessionMessage / assistant_blocks，完整展示路径与压缩后的模型上下文分开。会话交换继续使用当前 pi v3，不能替换成 pi-agent-core 新 JsonlSessionRepo 的另一种格式；公共层的格式约束由官方 SessionManager 双向读写与上下文差分测试守护。source 的解析保留 mobile，手机写入的同格式记录可以经相同历史投影展示；设备缺失的工具不会因查看历史而被执行。具体公共接口见 [AI 公共核心](/packages/ai/README.md)。
 
 会话键包含数据库身份，投影、树编辑和目录补丁显式携带创建时的库名。宿主在异步装配前占用文件租约；图片准备也是忙态，释放会话先取消并等待在途操作。删除后不得发布迟到的投影或标题。PDF / 学习项目工具的执行快照归会话持有，不依赖页面继续挂载；运行时 LRU 同时释放已打开投影。
 
