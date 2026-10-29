@@ -84,7 +84,7 @@ it("旧格式版本标为仅桌面，并保留本地安装说明", async () => {
     { ...base, formatVersion: 1, profile: null, targets: { desktop } },
   ]);
   expect(await screen.findByText("旧格式（仅桌面）")).toBeTruthy();
-  expect(screen.getAllByRole("list", { name: "支持平台：桌面（旧格式）" }).length).toBeGreaterThan(
+  expect(screen.getAllByRole("list", { name: "支持平台：桌面（仅桌面）" }).length).toBeGreaterThan(
     0
   );
   expect(screen.getByText(/在桌面端插件页选择本地安装/)).toBeTruthy();
