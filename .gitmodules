@@ -85,3 +85,6 @@
 [submodule "plugins/tau-blog-template-starter"]
 	path = plugins/tau-blog-template-starter
 	url = https://github.com/LastKnightCoder/tau-blog-template-starter.git
+[submodule "plugins/tau-plugin-weight"]
+	path = plugins/tau-plugin-weight
+	url = https://github.com/LastKnightCoder/tau-plugin-weight.git
