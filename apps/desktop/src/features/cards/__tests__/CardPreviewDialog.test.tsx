@@ -57,6 +57,7 @@ vi.mock("@tau/ui", async () => {
       ) : props.open ? (
         <div role="dialog">
           <button onClick={() => props.onOpenChange(false)}>关闭</button>
+          {props.header}
           {props.context}
           {props.children}
         </div>
