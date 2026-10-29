@@ -13,6 +13,7 @@ import { homedir } from "node:os";
 import { dirname, delimiter, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertReleaseNote, compareVersions, releaseNotesUpTo } from "./release-notes.mjs";
+import { runPnpm } from "./run-pnpm.mjs";
 import { R2_ENV_KEYS, R2_PUBLIC_BASE_URL, createR2Client, requiredEnv } from "./r2-client.mjs";
 import {
   ANDROID_MANIFEST_NAME,
@@ -201,22 +202,11 @@ async function main() {
 
   if (!options.skipBuild) {
     console.log(`▶ 构建 Android 正式包 ...`);
-    const buildArgs = ["--filter", "mobile", "build:android:release"];
-    // pnpm run 把自身入口给到 npm_execpath，用当前 node 直接执行，不依赖 PATH 查找 pnpm（Windows 下常失效）
-    if (process.env.npm_execpath) {
-      execFileSync(process.execPath, [process.env.npm_execpath, ...buildArgs], {
-        cwd: root,
-        stdio: "inherit",
-        env: android.env,
-      });
-    } else {
-      execFileSync("pnpm", buildArgs, {
-        cwd: root,
-        stdio: "inherit",
-        env: android.env,
-        shell: process.platform === "win32",
-      });
-    }
+    runPnpm(["--filter", "mobile", "build:android:release"], {
+      cwd: root,
+      stdio: "inherit",
+      env: android.env,
+    });
   } else {
     console.log(`▶ --skip-build: 跳过构建，使用现有 APK`);
   }
