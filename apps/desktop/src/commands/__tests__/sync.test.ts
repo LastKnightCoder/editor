@@ -242,9 +242,20 @@ it("下载先把旧库复制进 backup，再替换并维护重连", async () => 
 });
 it("替换失败不推进本机版本", async () => {
   await uploadedFromOtherDevice();
+  const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
   state.install.mockResolvedValue({ ok: false, error: "磁盘已满" });
   expect(await download()).toBe(false);
   expect(state.setting.setting.database.databases[0].version).toBe(1);
+  expect(errorLog).toHaveBeenCalledWith(
+    "[database-sync] download failed",
+    expect.objectContaining({
+      databaseName: "data.db",
+      databasePath: "/tmp/data.db",
+      remoteVersion: 2,
+      error: expect.objectContaining({ message: "磁盘已满" }),
+    })
+  );
+  errorLog.mockRestore();
   expect(state.unlock).toHaveBeenCalled();
 });
 it("云端没有这个库时不下载", async () => {
