@@ -12,11 +12,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::{AppHandle, WebviewWindow};
 
-const KINDS: [&str; 7] = [
+const KINDS: [&str; 8] = [
     "card",
     "article",
     "project",
     "document",
+    "diary",
     "todo",
     "event",
     "plugin-entity",
@@ -174,6 +175,23 @@ pub(super) fn locate(
 ) -> Result<Option<LocatedRef>, String> {
     validate_ref(reference)?;
     match reference.kind.as_str() {
+        "diary" => {
+            let Some(id) = numeric_id(&reference.id) else {
+                return Ok(None);
+            };
+            let row: Option<(i64, i64, String, String, String)> = conn.query_row(
+                "SELECT s.content_id,s.create_time,d.type,d.date,c.content FROM diary_segments s JOIN diary_entries d ON d.id=s.diary_id JOIN contents c ON c.id=s.content_id WHERE s.id=?1",
+                [id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+            ).optional().map_err(sql_error)?;
+            Ok(row.map(|(content_id, created_at, diary_type, date, content)| {
+                let title = super::entity_context::content_first_text(Some(content), 40);
+                LocatedRef {
+                    title: if title.is_empty() { "空白日记".into() } else { title },
+                    created_at,
+                    target: json!({"kind":"diary","id":id,"contentId":content_id,"diaryType":diary_type,"date":date}),
+                }
+            }))
+        }
         "plugin-entity" => {
             let Some(id) = numeric_id(&reference.id) else {
                 return Ok(None);
@@ -337,6 +355,8 @@ pub(super) fn access(
     let granted = grant_identity(conn, plugin, reference)?;
     let allowed = if reference.kind == "plugin-entity" {
         owns_entity(conn, plugin, reference)?
+    } else if reference.kind == "diary" {
+        false
     } else {
         readable
     };
@@ -521,6 +541,8 @@ fn query_refs(
                 "calendar_event"
             } else if kind == "plugin-entity" {
                 "plugin_entities"
+            } else if kind == "diary" {
+                "diary_segments"
             } else {
                 plugin_data::table(kind)?
             };
@@ -564,8 +586,16 @@ fn query_refs(
             };
             examined += 1;
             if let Some(located) = locate(conn, &reference, zone, &holidays)? {
-                if located.title.to_lowercase().contains(&keyword) {
-                    items.push(json!({"ref":reference,"title":located.title,"identity":located.created_at.to_string()}));
+                let diary_date =
+                    (kind == "diary").then(|| located.target["date"].as_str().unwrap_or_default());
+                if located.title.to_lowercase().contains(&keyword)
+                    || diary_date.is_some_and(|date| date.to_lowercase().contains(&keyword))
+                {
+                    let mut item = json!({"ref":reference,"title":located.title,"identity":located.created_at.to_string()});
+                    if let Some(date) = diary_date {
+                        item["subtitle"] = json!(date);
+                    }
+                    items.push(item);
                 }
             }
             if items.len() == limit || examined >= SCAN_BUDGET {
@@ -829,6 +859,168 @@ mod tests {
             [id],
         )
         .unwrap();
+    }
+    fn diary(conn: &Connection, id: i64, entry: i64, kind: &str, date: &str, text: &str) {
+        let content_id = id + 100;
+        content(
+            conn,
+            content_id,
+            json!([{"type":"paragraph","children":[{"text":text}]}]),
+        );
+        conn.execute("INSERT OR IGNORE INTO diary_entries(id,type,date,create_time,update_time) VALUES(?1,?2,?3,1,1)", params![entry, kind, date]).unwrap();
+        conn.execute("INSERT INTO diary_segments(id,diary_id,content_id,create_time,update_time) VALUES(?1,?2,?3,?4,?4)", params![id, entry, content_id, id + 10]).unwrap();
+    }
+    #[test]
+    fn diary_picker_addresses_segments_and_searches_titles_and_dates() {
+        let conn = database();
+        diary(&conn, 1, 10, "daily", "2026-10-29", "早晨散步");
+        diary(&conn, 2, 10, "daily", "2026-10-29", "夜间读书");
+        diary(&conn, 3, 11, "weekly", "2026-W44", "周记");
+        diary(&conn, 4, 12, "monthly", "2026-10", "");
+        let first = query_refs(
+            &conn,
+            "scope",
+            "alpha",
+            "diary",
+            "2026-10-29",
+            None,
+            1,
+            ZONE,
+        )
+        .unwrap();
+        assert_eq!(
+            first["items"][0],
+            json!({"ref":{"kind":"diary","id":"1"},"title":"早晨散步","identity":"11","subtitle":"2026-10-29"})
+        );
+        let cursor = first["nextCursor"].as_str().unwrap();
+        let next = query_refs(
+            &conn,
+            "scope",
+            "alpha",
+            "diary",
+            "2026-10-29",
+            Some(cursor),
+            1,
+            ZONE,
+        )
+        .unwrap();
+        assert_eq!(next["items"][0]["ref"]["id"], "2");
+        assert!(query_refs(
+            &conn,
+            "other-scope",
+            "alpha",
+            "diary",
+            "2026-10-29",
+            Some(cursor),
+            1,
+            ZONE
+        )
+        .is_err());
+        let found = query_refs(&conn, "scope", "alpha", "diary", "读书", None, 20, ZONE).unwrap();
+        assert_eq!(found["items"].as_array().unwrap().len(), 1);
+        assert_eq!(found["items"][0]["ref"]["id"], "2");
+        for (id, kind, date, title) in [
+            (3, "weekly", "2026-W44", "周记"),
+            (4, "monthly", "2026-10", "空白日记"),
+        ] {
+            let located = locate(
+                &conn,
+                &reference("diary", &id.to_string()),
+                ZONE,
+                &HolidayDays::new(),
+            )
+            .unwrap()
+            .unwrap();
+            assert_eq!(located.title, title);
+            assert_eq!(
+                located.target,
+                json!({"kind":"diary","id":id,"contentId":id+100,"diaryType":kind,"date":date})
+            );
+        }
+    }
+    #[test]
+    fn diary_titles_require_identity_bound_selection_even_with_readable_flag() {
+        let mut conn = database();
+        diary(&conn, 1, 10, "daily", "2026-10-29", "私有日记");
+        let refs = json!([{"kind":"diary","id":"1"},{"kind":"diary","id":"999"}]);
+        assert_eq!(
+            describe(&mut conn, "alpha", refs.clone(), json!(["diary"])),
+            json!([{"status":"denied"},{"status":"denied"}])
+        );
+        let selected = grant(
+            &mut conn,
+            "alpha",
+            &[(reference("diary", "1"), "11".into())],
+            ZONE,
+            &HolidayDays::new(),
+        )
+        .unwrap();
+        assert_eq!(
+            selected,
+            json!([{"ref":{"kind":"diary","id":"1"},"title":"私有日记"}])
+        );
+        assert_eq!(
+            describe(&mut conn, "alpha", refs.clone(), json!([]))[0],
+            json!({"status":"ok","title":"私有日记"})
+        );
+        assert_eq!(
+            describe(&mut conn, "beta", refs.clone(), json!([]))[0]["status"],
+            "denied"
+        );
+        let target = handle_refs(
+            &mut conn,
+            "alpha",
+            &json!({"method":"resolve","ref":{"kind":"diary","id":"1"}}),
+            ZONE,
+            &HolidayDays::new(),
+        )
+        .unwrap();
+        assert_eq!(target["contentId"], 101);
+        assert!(target.get("content").is_none());
+        conn.execute("DELETE FROM diary_segments WHERE id=1", [])
+            .unwrap();
+        assert_eq!(
+            describe(&mut conn, "alpha", refs.clone(), json!([]))[0]["status"],
+            "missing"
+        );
+        conn.execute("INSERT INTO diary_segments(id,diary_id,content_id,create_time,update_time) VALUES(1,10,101,99,99)", []).unwrap();
+        assert_eq!(
+            describe(&mut conn, "alpha", refs, json!(["diary"]))[0]["status"],
+            "missing"
+        );
+        assert!(handle_refs(
+            &mut conn,
+            "alpha",
+            &json!({"method":"resolve","ref":{"kind":"diary","id":"1"}}),
+            ZONE,
+            &HolidayDays::new()
+        )
+        .unwrap_err()
+        .contains("身份已变化"));
+    }
+    #[test]
+    fn diary_stale_picker_confirmation_rolls_back_all_grants() {
+        let mut conn = database();
+        diary(&conn, 1, 10, "daily", "2026-10-29", "第一条");
+        diary(&conn, 2, 10, "daily", "2026-10-29", "第二条");
+        let error = grant(
+            &mut conn,
+            "alpha",
+            &[
+                (reference("diary", "1"), "11".into()),
+                (reference("diary", "2"), "99".into()),
+            ],
+            ZONE,
+            &HolidayDays::new(),
+        )
+        .unwrap_err();
+        assert!(error.contains("身份已变化"));
+        assert_eq!(
+            conn.query_row("SELECT COUNT(*) FROM plugin_ref_grants", [], |row| row
+                .get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
     }
     fn document_task(conn: &Connection) -> EntityRef {
         content(

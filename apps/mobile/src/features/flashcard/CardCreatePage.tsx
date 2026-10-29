@@ -6,6 +6,8 @@ import { PageHeader } from "../../components/PageHeader";
 import { BottomSheet } from "../../components/BottomSheet";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { useFlashcardDecks } from "./queries";
+import { DeckFormSheet } from "./DeckFormSheet";
+import { toast } from "../../components/toast";
 import { FLASHCARD_TYPE_META, FLASHCARD_TYPE_ORDER, FLASHCARD_TYPE_TONE } from "./constants";
 import type { FlashcardType } from "./types";
 
@@ -17,6 +19,12 @@ type CardCreatePageProps = {
   referenceTitle?: string;
   onBack: () => void;
   onChoose: (deckId: number, type: FlashcardType) => void;
+  createDeck?: (input: {
+    name: string;
+    description: string;
+    coverColor: string;
+    emoji: string;
+  }) => Promise<{ id: number }>;
 };
 
 export function CardCreatePage({
@@ -24,6 +32,7 @@ export function CardCreatePage({
   referenceTitle,
   onBack,
   onChoose,
+  createDeck,
 }: CardCreatePageProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(scrollRef);
@@ -37,11 +46,35 @@ export function CardCreatePage({
     }
   }, [defaultDeckId, deckId, decks]);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
   const deck = decks.find(item => item.id === deckId);
 
   return (
     <div className="mobile-kb-screen bg-page flex h-full flex-col">
       <PageHeader title="新建闪卡" onBack={onBack} />
+      {createDeck && (
+        <button
+          type="button"
+          className="text-accent-text px-5 py-3 text-left"
+          onClick={() => setCreateOpen(true)}
+        >
+          新建卡组
+        </button>
+      )}
+      {createDeck && (
+        <DeckFormSheet
+          open={createOpen}
+          deck={null}
+          onClose={() => setCreateOpen(false)}
+          onError={(error, fallback) =>
+            toast.error(error instanceof Error ? error.message : fallback)
+          }
+          createDeck={async input => {
+            const deck = await createDeck(input);
+            setDeckId(deck.id);
+          }}
+        />
+      )}
       <div ref={scrollRef} className="edge-fade-scroll mobile-page-scroll flex-1 overflow-y-auto">
         <div className="flex flex-col gap-3.5 px-5 pt-2">
           <div className="bg-surface shadow-card rounded-[20px] p-4">

@@ -56,9 +56,8 @@ fn serialize_value(value: &serde_json::Value) -> Result<String, String> {
         .map_err(|e| format!("FLASHCARD_SAVE_FAILED: Failed to serialize json: {e}"))
 }
 
-/// 重写卡片参考资料（create 时挂接）。移动端只创建 content 型引用——
-/// 直接指向已有 contents 行并递增其 ref_count；桌面端写入的 custom 型引用
-/// 在读取/展示路径（LEFT JOIN contents）仍兼容。目前仅新建卡片时调用，
+/// 新建时在同一事务挂接已有正文或独立参考正文；已有引用可校验创建身份。
+/// 目前仅新建卡片时调用，
 /// 若将来用于更新，需先挂新引用再 release_references 释放旧引用，避免同一 content 被提前回收。
 fn replace_references(
     tx: &Transaction,
@@ -72,27 +71,37 @@ fn replace_references(
         if title.is_empty() {
             return Err("FLASHCARD_SAVE_FAILED: 参考资料标题不能为空".to_string());
         }
-        if reference.ref_type != "content" {
-            return Err(format!(
-                "FLASHCARD_SAVE_FAILED: 未知参考资料类型 {}",
-                reference.ref_type
-            ));
-        }
-        tx.execute(
-            "UPDATE contents SET ref_count = ref_count + 1 WHERE id = ?1",
-            params![reference.content_id],
-        )
-        .map_err(|e| format_db_error("FLASHCARD_SAVE_FAILED", "increment ref count", e))?;
+        let content_id = match reference.ref_type.as_str() {
+            "content" => {
+                let id = reference.content_id.ok_or("参考正文编号无效")?;
+                let changed = tx.execute(
+                    "UPDATE contents SET ref_count = ref_count + 1 WHERE id = ?1 AND (?2 IS NULL OR create_time = ?2)",
+                    params![id, reference.content_created_at],
+                ).map_err(|e| format_db_error("FLASHCARD_SAVE_FAILED", "increment ref count", e))?;
+                if changed != 1 {
+                    return Err("参考正文已删除或身份已变化".into());
+                }
+                id
+            }
+            "custom" => crate::database::common::insert_content_record(
+                tx,
+                reference.custom_content.as_ref().ok_or("参考正文缺失")?,
+                reference.contracts.as_ref(),
+                reference.count.unwrap_or(0),
+                now,
+            )?,
+            _ => return Err("参考资料类型无效".into()),
+        };
         tx.execute(
             "INSERT INTO flashcard_references (card_id, content_id, ref_type, title, create_time, update_time) \
              VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
-            params![card_id, reference.content_id, reference.ref_type, title, now],
+            params![card_id, content_id, reference.ref_type, title, now],
         )
         .map_err(|e| format_db_error("FLASHCARD_SAVE_FAILED", "insert reference", e))?;
         inserted.push(FlashcardReference {
             id: tx.last_insert_rowid(),
             card_id,
-            content_id: reference.content_id,
+            content_id,
             ref_type: reference.ref_type.clone(),
             title: title.to_string(),
             create_time: now,
@@ -149,11 +158,20 @@ pub fn flashcard_create_card(
     app: AppHandle,
     payload: CreateFlashcardPayload,
 ) -> Result<Flashcard, String> {
+    let mut conn = schema::open_active_database(&app)?;
+    let card = create_card(&mut conn, payload)?;
+    crate::database::common::trigger_reconcile(&app);
+    Ok(card)
+}
+
+pub(super) fn create_card(
+    conn: &mut rusqlite::Connection,
+    payload: CreateFlashcardPayload,
+) -> Result<Flashcard, String> {
     validate_card_type(&payload.card_type)?;
     if !payload.prompt.is_array() {
         return Err("FLASHCARD_SAVE_FAILED: 题干必须是富文本数组".to_string());
     }
-    let mut conn = schema::open_active_database(&app)?;
     let now = now_millis();
     let detail = payload.detail.clone().unwrap_or_else(empty_paragraph_text);
     let tx = conn
@@ -206,7 +224,6 @@ pub fn flashcard_create_card(
     tx.commit()
         .map_err(|e| format_db_error("FLASHCARD_SAVE_FAILED", "commit transaction", e))?;
     // reconcile 须在 commit 后触发：它另起连接异步读库，抢在提交前会读不到新卡且无补救
-    crate::database::common::trigger_reconcile(&app);
     query_card_by_id(&conn, card_id)?
         .ok_or_else(|| "FLASHCARD_SAVE_FAILED: 建后读取失败".to_string())
 }

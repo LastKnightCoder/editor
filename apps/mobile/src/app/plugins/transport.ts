@@ -1,4 +1,5 @@
 import { createMobileAppActions } from "./app-actions";
+import { createMobileFlashcards } from "./flashcards";
 import { PluginPermissionError, PLUGIN_ENTITY_READ_PERMISSIONS } from "@tau/plugins";
 import { createMobileApp } from "./app";
 import { createMobileOwnData } from "./own-data";
@@ -261,6 +262,15 @@ export async function connectMobilePluginTransport(runtime: MobilePluginRuntime)
       }
     );
     runtime.permissions = createMobilePermissions(runtime.workspaceId, token);
+    runtime.flashcards = createMobileFlashcards(
+      runtime.workspaceId,
+      token,
+      runtime.data,
+      runtime.navigator,
+      () => {
+        void getQueryClient().invalidateQueries({ queryKey: ["flashcard"] });
+      }
+    );
     runtime.own = createMobileOwnData(
       runtime.workspaceId,
       token,

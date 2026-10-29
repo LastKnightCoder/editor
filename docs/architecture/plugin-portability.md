@@ -8,7 +8,7 @@
 
 ## 中心数据边界
 
-逐 API 的支持与作者适配要求以 [SDK 支持矩阵](/plugins/tau-plugin-template/docs/portability.md#各平台可用的接口) 为准。作者、上传和客户端共用 `PortablePluginManifest` 与 `validatePortablePluginManifest` 读取格式 3 清单；发行入口 `validatePortableDistributionManifest` 额外检查移动业务权限，运行入口独立检查宿主兼容性。targets 只保留 minAppVersion，不再承载宿主能力、可选需求或节点等级。正文和白板从实际静态定义识别，不再复制进清单。permissions 继续约束用户数据访问，移动权限开放卡片、文章、项目、项目文档、待办与日程的 read/write/delete，目标最低版本必须不低于 0.2.13；其他业务权限在构建、中心和运行前拒绝。
+逐 API 的支持与作者适配要求以 [SDK 支持矩阵](/plugins/tau-plugin-template/docs/portability.md#各平台可用的接口) 为准。作者、上传和客户端共用 `PortablePluginManifest` 与 `validatePortablePluginManifest` 读取格式 3 清单；发行入口 `validatePortableDistributionManifest` 额外检查移动业务权限，运行入口独立检查宿主兼容性。targets 只保留 minAppVersion，不再承载宿主能力、可选需求或节点等级。正文和白板从实际静态定义识别，不再复制进清单。permissions 继续约束用户数据访问，移动权限开放卡片、文章、项目、项目文档、待办与日程的 read/write/delete，以及闪卡的 read/write，目标最低版本必须不低于 0.2.13；其他业务权限在构建、中心和运行前拒绝。
 
 `@tau/plugins/center` 提供中心与宿主共用的目标摘要、结构化兼容原因和客户端接口。兼容性检查平台、最低客户端版本、API/格式版本和 profile，调用方继续核验发布状态、来源和权限。宿主请求只携带真实平台、版本与协议集合；中心不执行插件代码，历史发布 ZIP 和审计内容保持原文，平台摘要仅返回最低版本，选版结果只包含状态与原因，不保留旧能力字段、空数组或旧客户端适配分支。读取器只提取协议字段，忽略不使用的附加元信息；不为已删除的字段建立禁止规则。该入口不进入作者 tarball。
 
@@ -65,6 +65,14 @@
 新建卡片使用独立 NodeTree 草稿与移动正文工具栏，预填正文和标签可修改，不读取或覆盖快速记录草稿，确认后才写库。项目文档选择项目与父级位置，项目分页读取；普通输入按正文契约复制，shareOf 只允许本插件活跃实体，预览只读，提交由原生事务再次检查归属并共用正文。保存互斥，失败留在面板重试；写入绑定工作区 token，取消不回滚已经提交的事务。
 
 协作引用按正文创建身份解析；未共享内容先展示来源与正文摘要，用户确认才打开发布流程，已有绑定打开成员管理。发布流程在异步步骤之间检查请求有效性及正文创建身份，失效后不继续绑定、投影或生成邀请码；已经发出的远端操作不承诺撤回。编辑器契约、copyOf 准备与分享内容复用现有数据和协作协议，不新增数据库表或业务授权。
+
+## 移动闪卡基础接口
+
+`context.flashcards` 支持 listDecks、createDeck、createCard 和手动 openCreate；generate、generateAndSave 与 mode: ai 明确拒绝。SDK 在查询牌组时要求 flashcards:read，直接创建牌组和闪卡要求 flashcards:write，移动适配器在异步准备参考资料后复验写权限。构建、中心与原生授权存储共用新增权限范围。
+
+原生 plugin_flashcards 固定工作区 token，核对活动库后复用现有闪卡事务；不新增表，不修改复习调度。正文参考先检查插件读取资格，写入事务再核验创建身份并增持引用；自定义参考资料按正文契约创建独立 contents 行，任何参考失败则整张卡片回滚。返回 SDK 公开字段，不交付复习统计等宿主内部字段。
+
+手动建卡是独立 pluginFlashcardCreate 页面，复用 CardCreatePage、CardEditPage 和牌组表单，可选择或新建牌组、选择五种题型并修改预填题干。请求固定发起插件与工作区，单会话互斥；保存由用户确认，不要求插件整类闪卡写权限，引用其他正文仍需读取权限。未指定 references 时把输入 content 作为自定义来源；显式空数组不添加来源。保存后返回 completed 与真实卡片，退出返回 cancelled 与已保存卡片；停用或切库撤销请求，旧页面不能继续保存，已经提交的数据不回滚。
 
 ## 同步与资源上传提供方
 
@@ -160,7 +168,9 @@ UiHostProvider 只接受平台中立的 dismiss 登记函数。真实 Dialog/Dra
 
 ### 移动引用选择与打开
 
-移动 `app.pick/describe/open` 支持 card、article、project、普通正文 document、todo、实体 event 及 plugin-entity。选择和打开必须来自当前用户手势；仅支持 page，window/dock 明确拒绝；at.block 支持卡片、文章、普通项目文档与插件实体；插件实体经注册页面传到正文组件。项目引用项仍归原实体，白板/视频等非普通正文文档不进入选择候选；日程虚拟标记须改用查询结果中的 todoId 打开待办。周期实例经历史规则验证后打开所属系列详情，不把系列完成按钮解释为所选历史实例的完成操作。
+移动 `app.pick/describe/open` 支持 card、article、project、普通正文 document、diary、todo、实体 event 及 plugin-entity。选择和打开必须来自当前用户手势；仅支持 page，window/dock 明确拒绝；at.block 支持卡片、文章、普通项目文档、日记片段与插件实体；插件实体经注册页面传到正文组件。项目引用项仍归原实体，白板/视频等非普通正文文档不进入选择候选；日程虚拟标记须改用查询结果中的 todoId 打开待办。周期实例经历史规则验证后打开所属系列详情，不把系列完成按钮解释为所选历史实例的完成操作。
+
+diary 引用与桌面一致，ID 为 diary_segments.id，创建身份取片段 create_time。候选按片段分页，标题复用脉络的正文摘要口径，空白内容显示「空白日记」；日期作为宿主选择器的副标题并参与搜索，不随 pick 结果交付插件。describe 只接受逐条选择授权，原生忽略 diary 的整类 readable 标记；授权仅含标题，未开放日记正文读写。片段、所属日记或正文缺失时不列候选，确认时整批复验创建身份，编号复用不会继承旧授权。打开经原生解析到片段 contentId，直接进入公共正文详情并带日记日期头与保存刷新，不调用可能创建片段的日记打开流程。
 
 `plugin_app_query` 与 `plugin_app_refs` 固定 token、数据库和插件身份。选择器请求隔离缓存、分页与取消信号；实体候选使用 ID keyset，正文待办使用有界扫描，游标绑定查询、插件、时区和会话。候选的创建身份仅在宿主内部传递，确认时在单一事务中复验整批身份并记录 plugin_ref_grants，插件只得到引用与当前标题。describe 按输入顺序返回状态，先检查读取权限或已有引用授权，未经许可不探测是否存在；引用授权绑定目标创建身份，不能落到复用编号的新实体。它不授予正文或整类数据读取权限。
 

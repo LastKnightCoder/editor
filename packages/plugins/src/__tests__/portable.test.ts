@@ -189,6 +189,8 @@ it("移动业务授权放行已实现领域并要求兼容版本", () => {
         "calendar:read",
         "calendar:write",
         "calendar:delete",
+        "flashcards:read",
+        "flashcards:write",
       ],
       targets: { [platform]: { minAppVersion: "0.2.13" } },
     };

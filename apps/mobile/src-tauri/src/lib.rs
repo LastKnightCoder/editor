@@ -119,6 +119,7 @@ pub fn run() {
             plugins::plugin_set_enabled,
             plugins::plugin_uninstall,
             database::plugin_data_read,
+            database::plugin_flashcards,
             database::plugin_app_query,
             database::plugin_app_refs,
             database::plugin_entity_target,
