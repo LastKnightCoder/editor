@@ -1,19 +1,24 @@
-import type { DistributionManifest } from "./template";
-import type { PortablePlatform, PortablePluginManifest } from "./portable";
-import { PORTABLE_PLATFORMS } from "./portable";
-import type { PluginCategory } from "./categories";
-import { isPluginCategory } from "./categories";
-import { comparePluginVersions } from "./version";
-import { PLUGIN_AI_CAPABILITIES, isPluginAICapability } from "./ai";
+import type {
+  DistributionManifest,
+  PortableSkillPackageManifest,
+  DistributionPackageKind,
+} from "./template";
+import type { PortablePlatform, PortablePluginManifest } from "./portable.ts";
+import { PORTABLE_PLATFORMS } from "./portable.ts";
+import type { PluginCategory } from "./categories.ts";
+import { isPluginCategory } from "./categories.ts";
+import { comparePluginVersions } from "./version.ts";
+import { PLUGIN_AI_CAPABILITIES, isPluginAICapability } from "./ai.ts";
 
 /** 分发契约供中心与客户端消费，不属于插件运行时能力。 */
-export type DesktopDistributionManifest = DistributionManifest & {
+export type DesktopDistributionManifest = Extract<DistributionManifest, { platform: "desktop" }> & {
   description: string;
   minAppVersion: string;
 };
 export type CenterManifest =
   | DesktopDistributionManifest
-  | (PortablePluginManifest & { description: string; minAppVersion?: never });
+  | (PortablePluginManifest & { description: string; minAppVersion?: never })
+  | (PortableSkillPackageManifest & { description: string; minAppVersion?: never });
 export type CenterPlatform = PortablePlatform | "all";
 export type CenterSort = "downloads7d" | "downloadsTotal" | "updated";
 export interface CenterHost {
@@ -51,6 +56,7 @@ export interface CenterVersion {
   releaseId: string;
   version: string;
   formatVersion: 1 | 2 | 3;
+  packageKind?: DistributionPackageKind;
   apiVersion: 1;
   profile: "web-v1" | null;
   targets: CenterTargets;
@@ -172,7 +178,7 @@ export function normalizeCenterQuery(input: CenterCatalogQuery) {
 }
 
 export function centerManifestTargets(manifest: CenterManifest): CenterTargets {
-  return manifest.formatVersion === 3
+  return manifest.platform === "portable"
     ? Object.fromEntries(
         Object.entries(manifest.targets).map(([platform, target]) => [
           platform,
@@ -198,7 +204,10 @@ export function evaluateCenterCompatibility(
   if (version.profile && !current.profiles.includes(version.profile))
     reasons.push({ code: "PROFILE_UNSUPPORTED", profile: version.profile });
   const target = version.targets[current.platform];
-  if (!target || (current.platform !== "desktop" && version.formatVersion !== 3))
+  const mobileFormat =
+    version.formatVersion === 3 ||
+    (version.formatVersion === 1 && version.packageKind === "skills" && version.profile === null);
+  if (!target || (current.platform !== "desktop" && !mobileFormat))
     reasons.push({ code: "PLATFORM_UNSUPPORTED", platform: current.platform });
   if (target && comparePluginVersions(current.appVersion, target.minAppVersion) < 0)
     reasons.push({ code: "APP_VERSION_TOO_LOW", minAppVersion: target.minAppVersion });

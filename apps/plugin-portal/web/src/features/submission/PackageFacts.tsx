@@ -46,7 +46,7 @@ export function PackageFacts({
         <Fact label="版本" mono>
           {manifest.version}
         </Fact>
-        {manifest.formatVersion === 3 ? (
+        {manifest.platform === "portable" ? (
           <Fact label="目标平台">
             {declaredPlatforms(manifest.targets)
               .map(platform => PLATFORM_LABELS[platform])

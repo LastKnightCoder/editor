@@ -4,7 +4,7 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { afterEach, expect, it, vi } from "vitest";
-import { AiMcpManager } from "../index";
+import { AiMcpManager, getPluginToolId, getPluginToolName } from "../index";
 import { AiToolRegistry } from "../../tools";
 import type { AiToolExecutionContext } from "../../contracts";
 
@@ -230,4 +230,54 @@ it("收到明确 isError 回执时保留工具失败，不误称未知结果", a
       permissionMode: "bypass",
     })
   ).rejects.toThrow("服务端明确拒绝");
+});
+
+it("插件映射保留稳定身份和render元数据，刷新后旧授权不复用", async () => {
+  const server = await serverFixture();
+  const registry = new AiToolRegistry();
+  const manager = new AiMcpManager(registry, { fetch, timeoutMs: 2000 });
+  cleanup.push(() => manager.dispose());
+  const state = await manager.connect(
+    {
+      id: "plugin:activation-1",
+      name: "插件服务",
+      transport: { type: "streamable-http", url: server.url },
+    },
+    {
+      resolveToolIdentity: async (_config, toolName) => {
+        const name = await getPluginToolName("test.reader", "books", toolName);
+        return {
+          id: await getPluginToolId("test.reader", "books", toolName),
+          name,
+          sourceId: "plugin:test.reader:books",
+          executionIdentity: "activation-1",
+          metadata: { render: { rendererKey: name } },
+        };
+      },
+    }
+  );
+  const id = await getPluginToolId("test.reader", "books", "read.card");
+  const name = await getPluginToolName("test.reader", "books", "read.card");
+  expect(state.toolIds).toEqual([id]);
+  const snapshot = registry.capture([id]);
+  expect(snapshot.specs[0]).toMatchObject({
+    name,
+    sourceId: "plugin:test.reader:books",
+    risk: "execute",
+  });
+  const result = await snapshot.execute(id, { id: 2 }, context(), {
+    interactionMode: "host",
+    approve: async () => "allow-session",
+  });
+  expect(result.metadata).toMatchObject({
+    render: { rendererKey: name },
+    mcp: { serverId: state.id, toolName: "read.card", structuredContent: { id: 2 } },
+  });
+  await manager.refreshTools(state.id);
+  expect(snapshot.isCurrent()).toBe(false);
+  const refreshed = registry.capture([id]);
+  expect(refreshed.specs[0].executionIdentity).not.toBe(snapshot.specs[0].executionIdentity);
+  await expect(
+    refreshed.execute(id, { id: 2 }, context(), { interactionMode: "none" })
+  ).rejects.toMatchObject({ code: "AI_INTERACTION_UNAVAILABLE" });
 });

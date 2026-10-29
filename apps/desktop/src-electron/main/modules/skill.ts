@@ -25,8 +25,10 @@ import { validatePortablePluginManifest, type PortablePluginManifest } from "@ta
 import {
   isSkillPackageManifest,
   validateDistributionManifest,
+  assertSkillPackageCompatibility,
   type DistributionManifest,
 } from "@tau/plugins/template";
+import client from "../../../package.json";
 import type {
   Skill,
   SkillDetail,
@@ -178,6 +180,11 @@ class SkillModule implements Module {
           raw?.formatVersion === 3
             ? validatePortablePluginManifest(raw)
             : validateDistributionManifest(raw);
+        if (manifest.formatVersion === 1 && isSkillPackageManifest(manifest))
+          assertSkillPackageCompatibility(manifest, {
+            platform: "desktop",
+            appVersion: client.version,
+          });
       } catch {
         continue;
       }

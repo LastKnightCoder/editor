@@ -18,10 +18,7 @@ import {
   type DistributionPackage,
 } from "./plugin-package";
 import { pluginSyncSessions } from "./plugin-sync";
-import {
-  assertDesktopPackageSource,
-  readDesktopPluginManifest,
-} from "../../../shared/plugin-package";
+import { assertDesktopPackageSource } from "../../../shared/plugin-package";
 
 interface UpdateRecord {
   id: string;
@@ -46,20 +43,26 @@ function assertPortableSource(
   source?: LocalPluginSource,
   expectedOrigin?: string
 ) {
-  if (artifact.manifest.formatVersion !== 3) return;
+  if (artifact.manifest.platform !== "portable") return;
   if (!source) throw new Error("跨端包缺少安装来源");
-  assertDesktopPackageSource(
-    artifact.manifest,
-    source,
-    expectedOrigin ?? "",
-    expectedOrigin !== undefined
-  );
+  if (artifact.manifest.formatVersion === 3)
+    assertDesktopPackageSource(
+      artifact.manifest,
+      source,
+      expectedOrigin ?? "",
+      expectedOrigin !== undefined
+    );
+  else if (
+    expectedOrigin !== undefined &&
+    (source.kind !== "center" || source.apiOrigin !== expectedOrigin)
+  )
+    throw new Error("正式构建只接受固定插件中心安装的跨端包");
   if (source.kind !== "center") return;
   if (
     !source.manifest ||
     source.pluginId !== artifact.manifest.id ||
     source.version !== artifact.manifest.version ||
-    JSON.stringify(readDesktopPluginManifest(source.manifest)) !== JSON.stringify(artifact.manifest)
+    JSON.stringify(validatePluginManifest(source.manifest)) !== JSON.stringify(artifact.manifest)
   )
     throw new Error("跨端插件清单与发布记录不一致");
 }
@@ -352,15 +355,15 @@ export class PluginUpdates {
     const manifest = validatePluginManifest(JSON.parse(unpack(manifestEntry).toString("utf8")));
     this.id(manifest.id);
     if (
-      manifest.formatVersion === 3 &&
+      manifest.platform === "portable" &&
       source.kind === "center" &&
       createHash("sha256").update(bytes).digest("hex") !== source.sha256
     )
       throw new Error("插件包与中心发布摘要不一致");
-    if (manifest.formatVersion === 3 && source.kind === "center") {
+    if (manifest.platform === "portable" && source.kind === "center") {
       if (
         !source.manifest ||
-        JSON.stringify(readDesktopPluginManifest(source.manifest)) !== JSON.stringify(manifest)
+        JSON.stringify(validatePluginManifest(source.manifest)) !== JSON.stringify(manifest)
       )
         throw new Error("跨端插件清单与发布记录不一致");
     }

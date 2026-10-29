@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { transferableAbortController } from "node:util";
 import {
   appendSessionEntries,
   parseSessionFile,
@@ -9,6 +10,7 @@ import {
 import { createMobileAiService, type MobileAiOptions, type MobileAiService } from "../service";
 import * as native from "../native";
 import { scriptedFetch } from "../../../../validation/ai/fixtures";
+import { createMobilePluginAI } from "../../../app/plugins/ai";
 
 vi.mock("../native", () => ({
   acquireLibrary: vi.fn(),
@@ -452,6 +454,28 @@ it("MCP连接失败时回收已创建的原生网络上下文", async () => {
 it("stdio显式不支持；维护关闭租约且释放前不接受新调用", async () => {
   const value = service();
   await create(value);
+  value.tools.register(
+    {
+      id: "maintenance-read",
+      name: "maintenance_read",
+      description: "读取",
+      risk: "read",
+      sourceId: "local",
+      executionIdentity: "v1",
+      inputSchema: { type: "object" },
+    },
+    async () => ({ content: "ok" }),
+    { databaseName: "test.db" }
+  );
+  value.skills.registerSource(
+    {
+      id: "maintenance",
+      revision: "v1",
+      list: async () => [{ id: "guide", path: "guide/SKILL.md" }],
+      read: async () => "---\nname: guide\ndescription: 维护后可用的说明\n---\n说明正文",
+    },
+    { databaseName: "test.db" }
+  );
   expect(
     await value.mcp.connect("test.db", {
       id: "local",
@@ -464,6 +488,8 @@ it("stdio显式不支持；维护关闭租约且释放前不接受新调用", as
   await expect(value.sessions.get(ref)).rejects.toMatchObject({ code: "AI_LIBRARY_BUSY" });
   expect(native.releaseLibrary).toHaveBeenCalledTimes(1);
   resume();
+  expect(value.tools.list().map(tool => tool.id)).toContain("maintenance-read");
+  expect((await value.skills.list()).map(skill => skill.id)).toContain("maintenance:guide");
   await value.sessions.get(ref);
   expect(native.acquireLibrary).toHaveBeenCalledTimes(2);
 });
@@ -685,4 +711,76 @@ it("前后台暂停保留限定库声明，显式新运行重新取得原生租�
   );
   expect((await second.result).outcome).toBe("completed");
   expect(leases).toEqual(["lease-1", "lease-2"]);
+});
+
+it("插件请求经正式移动服务与pi SDK完成流式单发及用量结算，不生成聊天文件", async () => {
+  const abortController = transferableAbortController();
+  vi.stubGlobal("AbortController", abortController.constructor);
+  vi.stubGlobal("AbortSignal", abortController.signal.constructor);
+  const value = service();
+  const api = scriptedFetch("anthropic-messages", [{ text: "插件总结" }]);
+  const modelConfig = structuredClone(config);
+  modelConfig.llmProviders[0].api = "anthropic-messages";
+  vi.mocked(native.getModelConfig).mockResolvedValue(modelConfig);
+  vi.mocked(native.createModelFetch).mockResolvedValue({
+    config: modelConfig,
+    fetch: api.fetch,
+    dispose: vi.fn().mockResolvedValue(undefined),
+  });
+  const call = vi.fn(async (command: string) => {
+    if (command === "plugin_ai_register") return "plugin-session";
+    if (command === "plugin_ai_prepare")
+      return { model: request("").model, revision: "assignment-1" };
+    if (command === "plugin_ai_begin")
+      return { model: request("").model, maxOutputTokens: 128, modelRevision: "a".repeat(64) };
+    if (command === "plugin_ai_finish") return { accepted: true };
+  });
+  const plugin = createMobilePluginAI({
+    databaseName: "test.db",
+    token: "plugin-transport",
+    ai: () => value,
+    call: call as never,
+  });
+  try {
+    const client = await plugin.adapter.bind(
+      { id: "test.summary", name: "摘要" },
+      [{ id: "summary", name: "摘要" }],
+      new AbortController().signal
+    );
+    const events = [];
+    for await (const event of client.stream({
+      feature: "summary",
+      messages: [
+        { role: "system", content: "请概括" },
+        { role: "user", content: "正文" },
+      ],
+    }))
+      events.push(event);
+    expect(
+      events
+        .filter(event => event.type === "text")
+        .map(event => event.delta)
+        .join("")
+    ).toBe("插件总结");
+    expect(events.at(-1)).toEqual({
+      type: "done",
+      result: { text: "插件总结", usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 } },
+    });
+    expect(call).toHaveBeenCalledWith(
+      "plugin_ai_finish",
+      expect.objectContaining({
+        status: "ok",
+        usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
+      })
+    );
+    expect(api.requests[0]).toMatchObject({
+      max_tokens: 128,
+      messages: [{ role: "user", content: [{ type: "text", text: "正文" }] }],
+    });
+    expect(records.size).toBe(0);
+    expect(native.commitSession).not.toHaveBeenCalled();
+  } finally {
+    await plugin.dispose();
+    vi.unstubAllGlobals();
+  }
 });

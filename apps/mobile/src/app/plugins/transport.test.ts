@@ -195,6 +195,9 @@ it("本机存储请求串行加载文件，上一提供方执行结束才读下�
     workspaceId: "db",
     upload: { uploadOwned },
     sync: { execute: vi.fn() },
+    host: { subscribe: vi.fn(() => vi.fn()) },
+    subscribe: vi.fn(() => vi.fn()),
+    getActiveAiPackages: () => [],
   } as unknown as MobilePluginRuntime;
   const disconnect = await connectMobilePluginTransport(runtime);
   const payload = {
@@ -259,6 +262,9 @@ it("并发同步元数据调用共享响应预算，全部完成后才解除", a
     workspaceId: "db",
     sync: { execute },
     upload: {},
+    host: { subscribe: vi.fn(() => vi.fn()) },
+    subscribe: vi.fn(() => vi.fn()),
+    getActiveAiPackages: () => [],
   } as unknown as MobilePluginRuntime;
   const disconnect = await connectMobilePluginTransport(runtime);
   const payload = {

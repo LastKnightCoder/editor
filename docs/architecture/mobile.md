@@ -245,6 +245,8 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 
 `services/ai/` 提供不依赖页面挂载的 MobileAiService。明确消费者通过 `createMobileAiService` 创建实例，或调用惰性的 `getMobileAiService`；模块不添加聊天界面、设置页面、业务工具或自动功能入口。公共契约、接口用法与默认行为见 [AI 公共核心](/packages/ai/README.md)。
 
+移动插件通过现有 PluginHost 的 `ai/mcp/chat` 适配器消费同一底座；包内 Markdown Skill 随激活代次注册与回收，独立 Skill 包按自身安装与启用资格加载，不进入代码激活链。权限、额度、来源校验及未开放界面的边界见 [移动 AI 插件宿主](/docs/architecture/plugin-portability.md#移动-ai-插件宿主)。
+
 运行层使用 `@tau/ai/runtime` 的 AiRuntime，底层为 pi-ai / pi-agent-core。桌面仍使用 Electron 主进程 AgentSession，两端共用 `@tau/shared/chat-core` 消息 DTO 和 `@tau/ai/session` 的持久历史投影。会话文件是桌面现有 pi v3；目录行沿用 chat_session，source 可为 desktop / mobile / browser。列表只查目录，单个会话分块读取并验证 revision，再投影成 messages、leafId 和 formatVersion；原模型消息与渲染投影分开，不能从展示 DTO 重建上下文。
 
 原生模块在 `src-tauri/src/ai/`：库租约包含库名与代次，会话运行占用按库/会话仲裁。切库和数据库同步忙时拒绝，替换后撤销旧租约、网络上下文及上传暂存；异步调用始终绑定原库，不通过执行时 activeDatabase 重定向。服务的 scoped 工具与 MCP 在调用前后复核库身份与租约，来源撤销或重连使旧快照失效。

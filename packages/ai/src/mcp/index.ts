@@ -3,6 +3,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { ToolListChangedNotificationSchema } from "@modelcontextprotocol/sdk/types.js";
 import { AiError, type AiToolExecutionContext } from "../contracts";
 import { AiToolRegistry } from "../tools";
+export { getPluginToolId, getPluginToolName } from "../tool-identity";
 
 export interface AiMcpServerConfig {
   id: string;
@@ -25,6 +26,19 @@ export interface AiMcpServerState {
   toolIds: readonly string[];
   error?: string;
 }
+export interface AiMcpToolIdentity {
+  id: string;
+  name: string;
+  sourceId: string;
+  executionIdentity?: string;
+  metadata?: Record<string, unknown>;
+}
+export interface AiMcpConnectionOptions {
+  resolveToolIdentity?: (
+    config: AiMcpServerConfig,
+    rawToolName: string
+  ) => Promise<AiMcpToolIdentity>;
+}
 type Connection = {
   config: AiMcpServerConfig;
   client: Client;
@@ -32,6 +46,7 @@ type Connection = {
   generation: string;
   tools: Array<() => void>;
   revision: number;
+  options: Readonly<AiMcpConnectionOptions>;
 };
 
 async function modelToolName(serverId: string, toolName: string) {
@@ -97,7 +112,10 @@ export class AiMcpManager {
     for (const dispose of connection.tools.splice(0)) dispose();
   }
 
-  async connect(input: AiMcpServerConfig): Promise<AiMcpServerState> {
+  async connect(
+    input: AiMcpServerConfig,
+    options: AiMcpConnectionOptions = {}
+  ): Promise<AiMcpServerState> {
     if (this.disposed) throw new AiError("AI_MCP_CONNECTION_FAILED", "MCP 管理器已释放");
     if (!input.id || !input.name)
       throw new AiError("AI_MCP_CONNECTION_FAILED", "MCP 配置必须声明身份与名称");
@@ -148,6 +166,7 @@ export class AiMcpManager {
       generation: crypto.randomUUID(),
       tools: [],
       revision: 0,
+      options: Object.freeze({ ...options }),
     };
     this.connections.set(config.id, connection);
     this.publish({
@@ -224,14 +243,23 @@ export class AiMcpManager {
         if (cursor) cursors.add(cursor);
       } while (cursor);
       const definitions = await Promise.all(
-        discovered.map(async tool => ({ tool, name: await modelToolName(id, tool.name) }))
+        discovered.map(async tool => ({
+          tool,
+          identity: connection.options.resolveToolIdentity
+            ? await connection.options.resolveToolIdentity(connection.config, tool.name)
+            : {
+                id: `mcp:${JSON.stringify([id, tool.name])}`,
+                name: await modelToolName(id, tool.name),
+                sourceId: `mcp:${id}`,
+              },
+        }))
       );
       if (!this.current(connection))
         throw new AiError("AI_MCP_CONNECTION_FAILED", "MCP 连接已变化");
       this.revoke(connection);
       const revision = ++connection.revision;
-      for (const { tool, name } of definitions) {
-        const toolId = `mcp:${JSON.stringify([id, tool.name])}`;
+      for (const { tool, identity } of definitions) {
+        const { id: toolId, name, sourceId } = identity;
         const dispose = this.registry.register(
           {
             id: toolId,
@@ -239,8 +267,8 @@ export class AiMcpManager {
             description: tool.description ?? tool.name,
             inputSchema: structuredClone(tool.inputSchema),
             risk: "execute",
-            sourceId: `mcp:${id}`,
-            executionIdentity: `${connection.generation}:${revision}`,
+            sourceId,
+            executionIdentity: `${identity.executionIdentity ?? "remote"}:${connection.generation}:${revision}`,
           },
           async (args, context) => {
             await this.options.validateContext?.(connection.config, context);
@@ -280,6 +308,7 @@ export class AiMcpManager {
             return {
               content: text || JSON.stringify(content),
               metadata: {
+                ...structuredClone(identity.metadata ?? {}),
                 mcp: {
                   serverId: id,
                   toolName: tool.name,

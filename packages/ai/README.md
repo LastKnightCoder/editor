@@ -13,6 +13,7 @@
 | `@tau/ai/tools`                 | 工具注册快照、参数校验、权限、审批与代次撤销              |
 | `@tau/ai/skills`                | SKILL.md 来源、目录、按需加载与参考资料读取               |
 | `@tau/ai/mcp`                   | 官方 SDK Streamable HTTP 客户端与工具注册适配             |
+| `@tau/ai/tool-identity`         | 插件工具的模型名称与历史稳定 ID，不加载模型或 MCP 客户端  |
 | `@tau/ai/think-stream`          | 显式启用的 think 标签流转换                               |
 
 根入口只加载公共契约；模型目录、运行时和 MCP 通过各自入口显式引入。文件、网络、凭据和数据库连接由宿主提供。桌面继续使用 pi-coding-agent 的 AgentSession；手机使用 pi-ai + pi-agent-core，不加载 Node 编码代理宿主。
@@ -48,7 +49,7 @@ preparePrompt 可返回具名 sections 更新，按名称替换或以 null 撤�
 
 用户消息和展示 entry 提交后才接受运行。assistant 的工具调用意图在执行前提交，工具结果在下一轮模型请求前提交；持久化失败结束运行。直播 partial 只存在运行快照中，块为 streaming；最终消息只取已提交历史，块为 final。保留的运行记录中，相同 runId 与相同请求复用同一运行，不同请求复用同一 runId 被拒绝；淘汰后的请求由持久用户 entry 阻止重复起跑。同一会话忙时不隐式排队；无观察者的已结束记录按会话保留最近一项、最多二十个会话，释放 Agent、模型和完整存储对象引用。
 
-`generate(request, onSnapshot?)` 是无工具单发，保留 system 与用户/助手历史，返回 AiGenerationHandle；result 为 outcome、中立 ResponseMessage 和可选错误，不返回 SDK 消息对象。用户消息可带 `images: { data, mimeType }[]`（data 为不带 data URL 前缀的 base64），与桌面单发请求同形；助手历史不接受图片字段。它占用宿主运行租约但不创建持久聊天文件。取消后的写入不能被当成“从未发生”，工具回执未知时返回 AI_TOOL_OUTCOME_UNKNOWN 并停止本轮继续推理。
+`generate(request, onSnapshot?)` 是无工具单发，保留 system 与用户/助手历史，返回 AiGenerationHandle；result 为 outcome、中立 ResponseMessage 和可选错误，不返回 SDK 消息对象。用户消息可带 `images: { data, mimeType }[]`（data 为不带 data URL 前缀的 base64），与桌面单发请求同形；助手历史不接受图片字段。它占用宿主运行租约但不创建持久聊天文件。可信宿主可传 `expectedModelRevision`，运行时将其交给模型解析端口；移动原生宿主以同一设置快照复验提供方配置指纹，再冻结凭据和网络上下文，冲突返回 AI_CONFIG_CHANGED，不发送模型请求。取消后的写入不能被当成“从未发生”，工具回执未知时返回 AI_TOOL_OUTCOME_UNKNOWN 并停止本轮继续推理。
 
 ## 移动宿主
 
@@ -63,7 +64,7 @@ preparePrompt 可返回具名 sections 更新，按名称替换或以 null 撤�
 | interactions | resolveApproval、requestQuestion、answerQuestion                              |
 | tools        | register、list                                                                |
 | skills       | registerSource、list、load、readResource                                      |
-| mcp          | list、connect、disconnect、refreshTools                                       |
+| mcp          | list、connect、disconnect、refreshTools、subscribe                            |
 | lifecycle    | assertExecution、suspend、resume、releaseLibrary、prepareMaintenance、dispose |
 
 sessions.list 按 offset / limit 查询目录行，默认每页 30、原生最多 100，不为列表读取消息文件。sessions.get 返回 row、document、revision、messages、leafId 和 formatVersion。修改使用读取到的 revision，库名和会话 id 显式传递；Rust 的库租约和代次负责拒绝切库/替换后的旧调用。
@@ -101,11 +102,13 @@ tools.register 与 skills.registerSource 返回释放函数，可附带 database
 
 Skills 来源通过 list/read 注入，来源宿主须校验真实路径与符号链接。目录只包含描述，正文按需加载；手动技能需明确选择，allowed-tools 只作为技能元数据保留，不授予能力。readResource 限于所选技能的相对路径，不提供脚本执行。
 
+移动 PluginHost 的 AI、MCP、聊天工具渲染器声明和包内 Skill 接线见 [移动 AI 插件宿主](/docs/architecture/plugin-portability.md#移动-ai-插件宿主)。插件继续使用 `@tau/plugins` 的公开 API，不直接取得 MobileAiService。`mcp.connect` 可由可信宿主传入第三个参数 `resolveToolIdentity(config, rawName)`，为插件工具分配共享名称、来源、执行身份和展示元数据；这不会改变默认 execute 风险或库租约检查。`mcp.subscribe(databaseName, listener)` 订阅连接状态，订阅取消不关闭连接。
+
 retryLast 使用 AiRetryRunRequest，按末尾用户 entryId 定位，复用问题与展示形态；空失败回答通过 context_edit 省略，以隐藏的 desktop-retry 消息触发续跑。已经有回答或工具调用时拒绝原位重试，调用者须显式选择历史编辑后重新发送。
 
 内置输入解析支持纯文本与 data URL 内联图片，允许没有文字的纯图片消息。包含图片的新输入、宿主解析结果或恢复上下文要求模型 input 包含 image；不支持时在网络请求与新用户消息落盘前拒绝，不由 SDK 静默丢图。跨端历史投影使用权威 pi 用户消息中的内联图片字节填充展示图片，原 display.path 只保留来源信息。文件、普通 URL、设备路径和其他附件必须由 `prepareInput` 解析成模型输入；服务不会把桌面绝对路径当成手机可用资源，也不因 JSONL 同步自动恢复外部附件。
 
-releaseLibrary 停止并等待该库运行、释放网络上下文与有作用域的注册；prepareMaintenance 忙时拒绝，成功返回用于结束本地维护门闩的函数；dispose 释放服务。suspend 停止并等待工作、关闭 MCP 和网络并释放原生租约，保留工具与 Skill 声明；resume 只解除暂停，新调用重新取得租约，不重放任务、不自动重连 MCP。工厂实例由宿主显式绑定 `bindMobileAiLifecycle`，返回函数可注销监听；惰性单例在首次调用时绑定 document 的 visibilitychange 与 pagehide / pageshow，不创建功能入口。系统立即冻结或杀进程时仍依靠已提交数据与事务恢复，不承诺后台继续运行。
+releaseLibrary 停止并等待该库运行、释放网络上下文与有作用域的注册；prepareMaintenance 忙时拒绝，释放连接与租约但保留工具与 Skill 声明，成功返回用于结束本地维护门闩的函数；dispose 释放服务。suspend 停止并等待工作、关闭 MCP 和网络并释放原生租约，保留工具与 Skill 声明；resume 只解除暂停，新调用重新取得租约，不重放任务、不自动重连 MCP。mcp.list 是纯内存观察接口，暂停/释放期间仍可读取断开状态。工厂实例由宿主显式绑定 `bindMobileAiLifecycle`，返回函数可注销监听；惰性单例在首次调用时绑定 document 的 visibilitychange 与 pagehide / pageshow，不创建功能入口。系统立即冻结或杀进程时仍依靠已提交数据与事务恢复，不承诺后台继续运行。
 
 ## 模型与传输
 

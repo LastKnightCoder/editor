@@ -58,7 +58,8 @@ const field = (manifest: PackageManifest, key: string) =>
 export function diffManifest(before: PackageManifest, after: PackageManifest) {
   const changes = FIELDS.filter(
     item =>
-      (item.key !== "minAppVersion" || (before.formatVersion !== 3 && after.formatVersion !== 3)) &&
+      (item.key !== "minAppVersion" ||
+        (before.platform !== "portable" && after.platform !== "portable")) &&
       field(before, item.key) !== field(after, item.key)
   ).map(item => ({
     label: item.label,

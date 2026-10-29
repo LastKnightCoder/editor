@@ -12,6 +12,8 @@ import {
   validatePortablePluginManifest,
   assertPortablePluginCompatibility,
   type PortablePluginHost,
+  MOBILE_AI_MIN_VERSION,
+  MOBILE_AI_PERMISSIONS,
 } from "../portable";
 
 const source = () => ({
@@ -209,6 +211,35 @@ it("移动业务授权放行已实现领域并要求兼容版本", () => {
     ).toThrow("最低客户端");
     expect(() =>
       validatePortableDistributionManifest({ ...input, permissions: ["ai:chat"] })
-    ).toThrow();
+    ).not.toThrow();
+  }
+});
+
+it("移动 AI 使用独立版本门槛，已有业务权限可与能力权限共存", () => {
+  for (const platform of ["android", "ios"] as const) {
+    for (const permissions of [
+      ["ai:chat"],
+      ["cards:read", "ai:titleSummary"],
+      [...MOBILE_AI_PERMISSIONS],
+    ]) {
+      const input = {
+        ...raw(),
+        permissions,
+        targets: { [platform]: { minAppVersion: MOBILE_AI_MIN_VERSION } },
+      };
+      const manifest = validatePortableDistributionManifest(input);
+      expect(() =>
+        assertPortablePluginCompatibility(manifest, {
+          ...host(platform),
+          appVersion: MOBILE_AI_MIN_VERSION,
+        })
+      ).not.toThrow();
+      expect(() =>
+        validatePortableDistributionManifest({
+          ...input,
+          targets: { [platform]: { minAppVersion: "0.2.12" } },
+        })
+      ).toThrow("最低客户端版本");
+    }
   }
 });

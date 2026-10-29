@@ -47,6 +47,20 @@ it("平台标识按固定顺序列出声明平台，旧格式标为仅桌面", (
   ).toEqual(["桌面", "仅桌面"]);
 });
 
+it("格式1独立Skill不是旧版桌面代码包，真实移动目标正常展示", () => {
+  render(
+    <PlatformBadges
+      version={{
+        formatVersion: 1,
+        packageKind: "skills",
+        targets: { android: { minAppVersion: "0.2.13" }, ios: { minAppVersion: "0.2.13" } },
+      }}
+    />
+  );
+  expect(screen.getByRole("list", { name: "支持平台：Android、iOS" })).toBeTruthy();
+  expect(screen.queryByText("旧格式")).toBeNull();
+});
+
 it("目标矩阵逐平台展示最低版本，未声明平台显示不支持", () => {
   render(<TargetMatrix targets={targets} highlight="android" />);
   const android = screen.getByRole("region", { name: "Android目标" });

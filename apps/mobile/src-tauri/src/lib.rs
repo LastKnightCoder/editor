@@ -9,6 +9,8 @@ mod incoming_file;
 mod ios_input_accessory;
 mod logger;
 mod models;
+mod plugin_ai;
+mod plugin_ai_skills;
 mod plugin_center;
 mod plugin_fetch;
 mod plugin_files;
@@ -133,6 +135,20 @@ pub fn run() {
             plugin_permissions::plugin_permissions_reset,
             plugin_permissions::plugin_permissions_usage,
             plugin_permissions::plugin_permissions_write,
+            plugin_ai::plugin_ai_register,
+            plugin_ai::plugin_ai_unregister,
+            plugin_ai::plugin_ai_prepare,
+            plugin_ai::plugin_ai_begin,
+            plugin_ai::plugin_ai_finish,
+            plugin_ai::plugin_ai_status,
+            plugin_ai::plugin_ai_info,
+            plugin_ai::plugin_ai_configure,
+            plugin_ai::plugin_ai_revoke,
+            plugin_ai::plugin_ai_running,
+            plugin_ai::plugin_ai_usage,
+            plugin_ai::plugin_ai_cancel,
+            plugin_ai_skills::plugin_ai_skill_sources,
+            plugin_ai_skills::plugin_ai_skill_read,
             plugins::plugin_packages,
             plugins::plugin_apply_pending,
             plugins::plugin_stage,

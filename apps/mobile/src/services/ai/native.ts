@@ -148,7 +148,8 @@ export const getModelConfig = () =>
 export async function createModelFetch(
   lease: NativeLibraryLease,
   providerId: string,
-  modelId?: string
+  modelId?: string,
+  expectedModelRevision?: string
 ) {
   const { contextId, config } = await invoke<{
     contextId: string;
@@ -157,6 +158,7 @@ export async function createModelFetch(
     ...leaseArgs(lease),
     providerId,
     modelId,
+    ...(expectedModelRevision === undefined ? {} : { expectedModelRevision }),
   });
   return { ...createContextFetch(contextId), config };
 }

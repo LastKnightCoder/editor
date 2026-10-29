@@ -7,6 +7,7 @@ import { createPluginEnvironmentStore } from "@tau/plugins/environment-host";
 import { MobilePluginRuntime } from "../../../app/plugins/runtime";
 import * as services from "../../../services/plugins";
 import { usePluginManager, type PluginManagerAction } from "./usePluginManager";
+import { projectManagedPlugin } from "./usePluginManager";
 
 let runtime: MobilePluginRuntime;
 let inventory: services.MobilePluginInventory;
@@ -103,6 +104,27 @@ it("未启用包可管理，清数据固定当前工作区，不删除正文或�
     await controller.actions.run("clearData", "test.plugin");
   });
   expect(services.clearMobilePluginData).toHaveBeenCalledWith("A.db", "test.plugin");
+});
+
+it("独立技能沿用管理动作，活动状态取技能来源且停用成功先撤销来源", async () => {
+  const item: services.MobilePluginPackage = {
+    id: "test.plugin", enabled: true, skillRevision: "install-1", artifact: {
+      kind: "skills", manifest: {
+        id: "test.plugin", name: "独立技能", version: "1.0.0", formatVersion: 1, apiVersion: 1,
+        platform: "portable", targets: { ios: { minAppVersion: "0.2.0" } }, skills: ["summary"],
+        integrity: { "skills/summary/SKILL.md": "a".repeat(64) },
+      },
+    },
+  };
+  vi.spyOn(runtime, "isSkillPackageActive").mockReturnValue(true);
+  expect(projectManagedPlugin(item, runtime, null)).toMatchObject({ active: true, permissions: [] });
+  inventory = { ...inventory, packages: [item] };
+  await act(async () => { await controller.refresh(); });
+  await render();
+  const revoke = vi.spyOn(runtime, "revokeSkillPackage");
+  await act(async () => { await controller.actions.run("disable", item.id); });
+  expect(services.setMobilePluginEnabled).toHaveBeenCalledWith(item.id, false);
+  expect(revoke).toHaveBeenCalledWith(item.id);
 });
 it("未开放环境拒绝管理操作", async () => {
   inventory = { ...inventory, development: false };
