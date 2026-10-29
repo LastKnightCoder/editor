@@ -60,8 +60,24 @@ Object.assign(globalThis, {
         return {
           editor: Boolean(definition.editorExtensions?.length),
           whiteboard: Boolean(definition.whiteboardExtensions?.length),
-          metrics: desktopContentPlugins.metrics,
+          metrics: definition.editorMetrics ?? [],
         };
+      }
+      case "inspect-many": {
+        const results: Record<
+          string,
+          { editor: boolean; whiteboard: boolean; metrics: typeof desktopContentPlugins.metrics }
+        > = Object.create(null);
+        for (const id of request.ids) {
+          const definition = currentDefinitions.find(value => value.id === id);
+          if (!definition) continue;
+          results[id] = {
+            editor: Boolean(definition.editorExtensions?.length),
+            whiteboard: Boolean(definition.whiteboardExtensions?.length),
+            metrics: definition.editorMetrics ?? [],
+          };
+        }
+        return results;
       }
       case "publish-search":
         return buildPublishSearchIndexPayload(request.input);

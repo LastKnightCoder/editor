@@ -1,10 +1,16 @@
 // @vitest-environment node
-import { mkdtemp, rm, writeFile, symlink } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile, symlink } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { readPluginPackage } from "../plugin-package";
+import { PluginPackageIntegrityCache } from "../plugin-package-integrity-cache";
+
+const cryptor = {
+  encrypt: (value: string) => Buffer.from(value, "utf8"),
+  decrypt: (value: Buffer) => value.toString("utf8"),
+};
 
 const directories: string[] = [];
 afterEach(async () => {
@@ -95,6 +101,49 @@ describe("开发插件包读取", () => {
     const result = await readPluginPackage(await fixture());
     expect(result.manifest.id).toBe("example.fixture");
     expect(result.code).toContain("目录扫描不能执行");
+  });
+  it("完整性校验覆盖未保留在运行时快照中的包文件", async () => {
+    const directory = await fixture();
+    const file = "skills/example/SKILL.md";
+    const content = Buffer.from("asset snapshot");
+    const manifestPath = path.join(directory, "manifest.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    await mkdir(path.dirname(path.join(directory, file)), { recursive: true });
+    await writeFile(path.join(directory, file), content);
+    manifest.integrity[file] = createHash("sha256").update(content).digest("hex");
+    manifest.skills = ["example"];
+    await writeFile(manifestPath, JSON.stringify(manifest));
+
+    const packageSnapshot = await readPluginPackage(directory);
+    expect(packageSnapshot.code).toContain("目录扫描不能执行");
+    expect(Object.keys(packageSnapshot)).not.toContain(file);
+
+    await writeFile(path.join(directory, file), "modified");
+    await expect(readPluginPackage(directory)).rejects.toThrow("产物不完整");
+  });
+  it("重复打开未变化插件包时复用 SHA 校验，文件变化后重新校验", async () => {
+    const directory = await fixture();
+    const cache = await PluginPackageIntegrityCache.load(
+      path.join(directories[0], "plugin-integrity.bin"),
+      cryptor
+    );
+
+    await readPluginPackage(directory, undefined, cache);
+    expect(cache.misses).toBe(1);
+    expect(cache.hits).toBe(0);
+    await cache.save();
+
+    const restored = await PluginPackageIntegrityCache.load(
+      path.join(directories[0], "plugin-integrity.bin"),
+      cryptor
+    );
+    await readPluginPackage(directory, undefined, restored);
+    expect(restored.hits).toBe(1);
+    expect(restored.misses).toBe(0);
+
+    await writeFile(path.join(directory, "main.js"), "changed");
+    await expect(readPluginPackage(directory, undefined, restored)).rejects.toThrow("产物不完整");
+    expect(restored.misses).toBe(1);
   });
   it.each([
     { formatVersion: 1 },

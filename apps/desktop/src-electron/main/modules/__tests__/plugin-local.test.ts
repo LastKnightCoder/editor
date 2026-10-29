@@ -17,7 +17,13 @@ const mock = vi.hoisted(() => ({
   openPath: vi.fn(async () => ""),
   download: vi.fn(),
   catalog: vi.fn(),
-  validateContent: vi.fn(async () => ({ editor: false, whiteboard: false, metrics: [] })),
+  validationResult: { editor: false, whiteboard: false, metrics: [] },
+  validateContent: vi.fn(async (...args: any[]) => {
+    const request = args[0] as { operation?: string; ids?: string[] };
+    if (request.operation === "inspect-many")
+      return Object.fromEntries((request.ids ?? []).map(id => [id, mock.validationResult]));
+    return mock.validationResult;
+  }),
 }));
 vi.mock("../../services/content-execution", () => ({
   contentExecutor: { execute: mock.validateContent },
@@ -35,6 +41,12 @@ vi.mock("electron", () => ({
   ipcMain: {
     handle: (name: string, handler: (...args: unknown[]) => unknown) =>
       mock.handlers.set(name, handler),
+  },
+  safeStorage: {
+    isEncryptionAvailable: () => true,
+    getSelectedStorageBackend: () => "gnome_libsecret",
+    encryptString: (value: string) => Buffer.from(value, "utf8"),
+    decryptString: (value: Buffer) => value.toString("utf8"),
   },
   shell: { openPath: mock.openPath },
 }));
@@ -54,9 +66,13 @@ beforeEach(async () => {
   mock.windows = [];
   mock.handlers.clear();
   mock.openPath.mockClear();
-  mock.validateContent
-    .mockReset()
-    .mockResolvedValue({ editor: false, whiteboard: false, metrics: [] });
+  mock.validateContent.mockReset().mockImplementation(async (...args: any[]) => {
+    const request = args[0] as { operation?: string; ids?: string[] };
+    if (request.operation === "inspect-many")
+      return Object.fromEntries((request.ids ?? []).map(id => [id, mock.validationResult]));
+    return mock.validationResult;
+  });
+  mock.validationResult = { editor: false, whiteboard: false, metrics: [] };
   mock.download.mockReset();
   const module = await import("../plugin-local");
   await module.default.init();
@@ -68,7 +84,7 @@ it("正式客户端不提供ZIP安装入口，初次启动没有预装插件", a
 });
 
 it("正式 IPC 安装跨端内容包，启用重启后从原始格式 3 快照装配；错来源不放行", async () => {
-  mock.validateContent.mockResolvedValue({ editor: true, whiteboard: false, metrics: [] });
+  mock.validationResult = { editor: true, whiteboard: false, metrics: [] };
   const id = "test.portable";
   const code = "throw new Error('主进程不得执行定义')";
   const manifest = {
@@ -115,6 +131,7 @@ it("正式 IPC 安装跨端内容包，启用重启后从原始格式 3 快照�
   await (await import("../plugin-local")).default.init();
   expect(await invoke("plugin-local:content-startup")).toMatchObject({
     artifacts: [{ manifest: { id, formatVersion: 3 } }],
+    intents: { [id]: true },
   });
   await writeFile(
     path.join(mock.root, ".editor/plugin-updates/sources", `${id}.json`),
@@ -127,7 +144,7 @@ it("正式 IPC 安装跨端内容包，启用重启后从原始格式 3 快照�
 });
 
 it("主进程恢复开发内容快照，将定义校验交给内容渲染进程", async () => {
-  mock.validateContent.mockResolvedValue({ editor: true, whiteboard: false, metrics: [] });
+  mock.validationResult = { editor: true, whiteboard: false, metrics: [] };
   mock.packaged = false;
   const id = "test.editor";
   const folder = path.join(mock.root, ".editor/plugins", id);
@@ -159,9 +176,10 @@ it("主进程恢复开发内容快照，将定义校验交给内容渲染进程"
   await (await import("../plugin-local")).default.init();
   expect(await invoke("plugin-local:content-startup")).toMatchObject({
     artifacts: [{ manifest: { id } }],
+    intents: { [id]: true },
   });
   expect(mock.validateContent).toHaveBeenCalledWith(
-    { operation: "inspect", id },
+    { operation: "inspect-many", ids: [id] },
     undefined,
     expect.arrayContaining([expect.objectContaining({ manifest: expect.objectContaining({ id }) })])
   );
@@ -175,10 +193,22 @@ it("主进程恢复开发内容快照，将定义校验交给内容渲染进程"
   vi.resetModules();
   mock.handlers.clear();
   await (await import("../plugin-local")).default.init();
-  expect(await invoke("plugin-local:content-startup")).toMatchObject({ artifacts: [] });
+  expect(await invoke("plugin-local:content-startup")).toMatchObject({
+    artifacts: [],
+    intents: { [id]: false },
+  });
   expect(
     (await import("../../../../shared/content-plugins.ts")).desktopContentPlugins.codecs
   ).toEqual([]);
+  await invoke("plugin-local:set-enabled", id, true);
+  vi.resetModules();
+  mock.handlers.clear();
+  await (await import("../plugin-local")).default.init();
+  expect(await invoke("plugin-local:content-startup")).toMatchObject({
+    artifacts: [{ manifest: { id } }],
+    intents: { [id]: true },
+  });
+  expect(mock.validateContent).toHaveBeenCalledTimes(1);
 });
 afterEach(async () => {
   await rm(mock.root, { recursive: true, force: true });
@@ -213,7 +243,7 @@ it("保留原工作区映射的稳定身份，不按扫描创建新身份", asyn
   expect(await invoke("plugin-local:workspace", "B")).not.toBe(first);
 });
 it.each([false, true])("中心版本安装即启用，更新保留意图，内容快照=%s", async editor => {
-  mock.validateContent.mockResolvedValue({ editor, whiteboard: false, metrics: [] });
+  mock.validationResult = { editor, whiteboard: false, metrics: [] };
   const id = "test.center";
   const download = (version: string) => {
     const code = `module.exports.default=require('@tau/plugins').definePlugin({id:'${id}',name:'中心插件',version:'${version}',${editor ? "editorExtensions:[{id:'test.center',apiVersion:1,elements:[{type:'test.center.node',kind:'block',render:()=>null}]}]," : ""}create:()=>({activate(){}})});`;

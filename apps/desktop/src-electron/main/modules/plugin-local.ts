@@ -1,11 +1,14 @@
 import log from "electron-log";
+import { createHash } from "node:crypto";
 import { installDesktopPluginMetrics } from "../../../shared/content-metrics";
-import type { ContentMetricRule } from "@tau/db-schema/content-metrics";
 import { portableDevelopmentArtifacts } from "../services/plugin-portable-development";
-import { assertDesktopPackageSource } from "../../../shared/plugin-package";
+import {
+  assertDesktopPackageSource,
+  type DesktopPluginPackage as DevelopmentPluginPackage,
+} from "../../../shared/plugin-package";
 import { isContentPlugin } from "@tau/plugins/package";
 import { copyJson } from "@tau/plugins/host";
-import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from "electron";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import PathUtil from "../utils/PathUtil";
@@ -17,8 +20,22 @@ import {
   protectPluginBackendChange,
 } from "./plugin-backend";
 import { PluginUpdates } from "../services/plugin-updates";
-import { isSkillPackage, isTemplatePackage, readPluginPackage } from "../services/plugin-package";
+import {
+  isSkillPackage,
+  isTemplatePackage,
+  readPluginPackage,
+  setPluginPackageIntegrityCache,
+} from "../services/plugin-package";
+import { PluginPackageIntegrityCache } from "../services/plugin-package-integrity-cache";
 import { PluginContentStartup } from "../services/plugin-content-startup";
+import type {
+  ContentPluginInspection,
+  ContentPluginInspectionBatch,
+} from "../services/plugin-content-startup";
+import {
+  PluginContentInspectionCache,
+  type PluginCacheCryptor,
+} from "../services/plugin-content-inspection-cache";
 import {
   appendContentPluginArtifact,
   getContentPluginArtifacts,
@@ -66,6 +83,8 @@ import {
   deletePluginComment,
   API_ORIGIN,
 } from "../services/plugin-center";
+import { recordStage } from "./perf-record";
+import type { LocalPluginSource, LocalPluginUpdate } from "@/types/plugin-local";
 
 const directory = () => path.join(PathUtil.getAppDir(), "plugins");
 const protectPluginTasks = <T>(id: string, action: () => Promise<T>) =>
@@ -74,50 +93,201 @@ const protectPluginTasks = <T>(id: string, action: () => Promise<T>) =>
 export default {
   name: "plugin-local",
   async init() {
+    let cacheCryptor: PluginCacheCryptor | undefined;
+    try {
+      if (
+        safeStorage.isEncryptionAvailable() &&
+        (process.platform !== "linux" ||
+          !["basic_text", "unknown"].includes(safeStorage.getSelectedStorageBackend()))
+      )
+        cacheCryptor = {
+          encrypt: value => safeStorage.encryptString(value),
+          decrypt: value => safeStorage.decryptString(value),
+        };
+    } catch (error) {
+      log.warn("[plugin-local] 插件缓存加密不可用", error);
+    }
+    const packageIntegrityCache = await measureStartup("package-integrity-cache", () =>
+      PluginPackageIntegrityCache.load(
+        path.join(PathUtil.getAppDir(), "plugin-package-integrity-cache.bin"),
+        cacheCryptor
+      )
+    );
+    setPluginPackageIntegrityCache(packageIntegrityCache);
     const updates = new PluginUpdates(directory(), app.getVersion(), {
       ...(app.isPackaged ? { portableCenterOrigin: API_ORIGIN } : {}),
     });
-    await updates.initialize();
+    await measureStartup("update-recovery", () => updates.initialize());
     const preferences = new LocalPluginPreferences(directory());
-    await userSetting.getSettingSnapshot();
-    await preferences.load();
-    const readManagedPackage = async (id: string) => {
-      const artifact = await readPluginPackage(path.join(directory(), id), app.getVersion());
+    await measureStartup("settings-load", () => userSetting.getSettingSnapshot());
+    await measureStartup("preferences-load", () => preferences.load());
+    const readManagedPackage = async (id: string, updateState?: readonly LocalPluginUpdate[]) => {
+      const maintenance = updateState ?? (await updates.list());
+      if (maintenance.some(item => item.id === id && item.blocked))
+        throw new Error("插件更新尚未恢复");
+      const artifact = await readPluginPackage(
+        path.join(directory(), id),
+        app.getVersion(),
+        packageIntegrityCache
+      );
       if (artifact.manifest.formatVersion === 3 && app.isPackaged) {
         const source = (await updates.sources([id]))[id];
         assertDesktopPackageSource(artifact.manifest, source, API_ORIGIN, app.isPackaged);
       }
       return artifact;
     };
-    const contentStartup = new PluginContentStartup(async id => {
-      const maintenance = await updates.list();
-      if (maintenance.some(item => item.id === id && item.blocked))
-        throw new Error("插件更新尚未恢复");
-      const artifact = await readManagedPackage(id);
-      if (artifact.manifest.id !== id) throw new Error("内容插件身份或声明无效");
-      const contribution = await contentExecutor.execute<{
-        editor: boolean;
-        whiteboard: boolean;
-        metrics: readonly ContentMetricRule[];
-      }>({ operation: "inspect", id }, undefined, [...getContentPluginArtifacts(), artifact]);
-      if (!contribution.editor && !contribution.whiteboard) return undefined;
-      installDesktopPluginMetrics(contribution.metrics);
-      appendContentPluginArtifact(artifact);
-      return artifact;
-    });
-    const initial = await discoverPlugins(directory(), app.getVersion());
-    const snapshot = await contentStartup.get(
-      initial.entries
-        .filter(
-          entry =>
-            entry.artifact &&
-            (entry.artifact.manifest.formatVersion === 3 ||
-              isContentPlugin(entry.artifact.manifest)) &&
-            preferences.enabled(entry.id, false)
-        )
-        .map(entry => entry.id)
+    const initial = await measureStartup(
+      "package-discovery",
+      () => discoverPlugins(directory(), app.getVersion(), packageIntegrityCache),
+      result => result.entries.length
     );
-    ipcMain.handle("plugin-local:content-startup", () => snapshot);
+    await packageIntegrityCache.save().catch(error => {
+      log.warn("[plugin-local] 插件完整性缓存写入失败", error);
+    });
+    const updateState = await measureStartup("update-state", () => updates.list());
+    const initialSources: Record<string, LocalPluginSource> = await measureStartup(
+      "source-records",
+      () => updates.sources(initial.entries.map(entry => entry.id)),
+      result => Object.keys(result).length
+    );
+    const initialArtifacts = new Map(
+      initial.entries.flatMap(entry =>
+        entry.artifact ? [[entry.id, entry.artifact] as const] : []
+      )
+    );
+    const contentPluginEntries = initial.entries.filter(
+      entry =>
+        entry.artifact &&
+        (entry.artifact.manifest.formatVersion === 3 || isContentPlugin(entry.artifact.manifest))
+    );
+    const contentPluginIds = contentPluginEntries
+      .filter(entry => preferences.enabled(entry.id, false))
+      .map(entry => entry.id);
+    const contentSnapshotKey = createHash("sha256")
+      .update(
+        JSON.stringify({
+          appVersion: app.getVersion(),
+          electronVersion: process.versions.electron,
+          plugins: contentPluginIds.map(id => initialArtifacts.get(id)?.manifest),
+        })
+      )
+      .digest("hex");
+    const contentInspectionCryptor = cacheCryptor;
+    const contentInspectionCache = await measureStartup("content-inspection-cache", () =>
+      PluginContentInspectionCache.load(
+        path.join(PathUtil.getAppDir(), "plugin-content-inspection-cache.bin"),
+        contentSnapshotKey,
+        contentInspectionCryptor
+      )
+    );
+    const contentInspectionResults = new Map<string, ContentPluginInspection>();
+    const contentStartup = new PluginContentStartup(
+      async id => {
+        if (updateState.some(item => item.id === id && item.blocked))
+          throw new Error("插件更新尚未恢复");
+        const artifact = initialArtifacts.get(id);
+        if (!artifact || artifact.manifest.id !== id) throw new Error("内容插件身份或声明无效");
+        if (artifact.manifest.formatVersion === 3 && app.isPackaged) {
+          const source = initialSources[id];
+          assertDesktopPackageSource(artifact.manifest, source, API_ORIGIN, app.isPackaged);
+        }
+        return artifact;
+      },
+      async artifacts => {
+        const results: Record<string, ContentPluginInspection> = Object.create(null);
+        const errors: Record<string, string> = Object.create(null);
+        const missing = artifacts.filter(artifact => {
+          const cached = contentInspectionCache.get(artifact.manifest.id);
+          if (!cached) return true;
+          results[artifact.manifest.id] = cached;
+          return false;
+        });
+        if (results && artifacts.length > missing.length)
+          recordStage(
+            "plugin-local:content-plugin-cache-hit",
+            0,
+            artifacts.length - missing.length
+          );
+
+        if (missing.length) {
+          try {
+            const inspected = await measureStartup("content-plugin-inspect-batch", () =>
+              contentExecutor.execute<Record<string, ContentPluginInspection>>(
+                { operation: "inspect-many", ids: missing.map(artifact => artifact.manifest.id) },
+                undefined,
+                [...getContentPluginArtifacts(), ...artifacts]
+              )
+            );
+            for (const artifact of missing) {
+              const id = artifact.manifest.id;
+              const result = inspected[id];
+              if (!result) {
+                errors[id] = "内容插件未返回检查结果";
+                continue;
+              }
+              results[id] = result;
+              contentInspectionCache.set(id, result);
+            }
+          } catch {
+            const accepted: DevelopmentPluginPackage[] = [];
+            for (const id of Object.keys(results)) delete results[id];
+            for (const artifact of artifacts) {
+              const id = artifact.manifest.id;
+              try {
+                const result = await contentExecutor.execute<ContentPluginInspection>(
+                  { operation: "inspect", id },
+                  undefined,
+                  [...getContentPluginArtifacts(), ...accepted, artifact]
+                );
+                results[id] = result;
+                if (result.editor || result.whiteboard) accepted.push(artifact);
+              } catch (error) {
+                errors[id] = error instanceof Error ? error.message : String(error);
+              }
+            }
+          }
+        }
+        for (const [id, result] of Object.entries(results))
+          contentInspectionResults.set(id, result);
+        return { results, errors } satisfies ContentPluginInspectionBatch;
+      }
+    );
+    const snapshot = await measureStartup(
+      "content-plugin-inspection",
+      () => contentStartup.get(contentPluginIds),
+      result => result.artifacts.length
+    );
+    for (const artifact of snapshot.artifacts) appendContentPluginArtifact(artifact);
+    installDesktopPluginMetrics(
+      snapshot.artifacts.flatMap(
+        artifact => contentInspectionResults.get(artifact.manifest.id)?.metrics ?? []
+      )
+    );
+    await contentInspectionCache.save().catch(error => {
+      log.warn("[plugin-local] 内容插件检查缓存写入失败", error);
+    });
+    const validContentPluginEntries = contentPluginEntries.filter(entry => {
+      if (!entry.artifact || updateState.some(item => item.id === entry.id && item.blocked))
+        return false;
+      try {
+        assertDesktopPackageSource(
+          entry.artifact.manifest,
+          initialSources[entry.id],
+          API_ORIGIN,
+          app.isPackaged
+        );
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    const startupSnapshot = {
+      ...snapshot,
+      intents: Object.fromEntries(
+        validContentPluginEntries.map(entry => [entry.id, preferences.enabled(entry.id, false)])
+      ),
+    };
+    ipcMain.handle("plugin-local:content-startup", () => startupSnapshot);
     if (!app.isPackaged)
       ipcMain.handle("plugin-local:portable-development", () => portableDevelopmentArtifacts());
     const broadcast = (channel: string) => {
@@ -349,7 +519,10 @@ export default {
     );
     ipcMain.handle("plugin-local:scan", async () => {
       const maintenance = await updates.list();
-      const result = await discoverPlugins(directory(), app.getVersion());
+      const result = await discoverPlugins(directory(), app.getVersion(), packageIntegrityCache);
+      await packageIntegrityCache.save().catch(error => {
+        log.warn("[plugin-local] 插件完整性缓存写入失败", error);
+      });
       const sources = await updates.sources(result.entries.map(entry => entry.id));
       return {
         ...result,
@@ -504,3 +677,14 @@ export default {
     });
   },
 };
+
+async function measureStartup<T>(
+  label: string,
+  run: () => Promise<T>,
+  count?: (value: T) => number
+): Promise<T> {
+  const startedAt = performance.now();
+  const value = await run();
+  recordStage(`plugin-local:${label}`, performance.now() - startedAt, count?.(value));
+  return value;
+}

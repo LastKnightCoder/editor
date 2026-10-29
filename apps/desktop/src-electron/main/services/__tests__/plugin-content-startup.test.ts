@@ -42,3 +42,32 @@ it("普通插件定义经检查后不进入静态快照，也不被当作已加�
   expect(await startup.uses("ordinary")).toBe(false);
   expect(await startup.uses("content")).toBe(true);
 });
+
+it("同批装配并检查内容插件快照，普通贡献不会进入内容快照", async () => {
+  const inspect = vi.fn(async (artifacts: readonly DevelopmentPluginPackage[]) => ({
+    results: Object.fromEntries(
+      artifacts.map(artifact => [
+        artifact.manifest.id,
+        {
+          editor: artifact.manifest.id === "editor",
+          whiteboard: false,
+          metrics: [],
+        },
+      ])
+    ),
+    errors: {},
+  }));
+  const startup = new PluginContentStartup(
+    async id => ({ manifest: { id, formatVersion: 3 }, code: id }) as DevelopmentPluginPackage,
+    inspect
+  );
+
+  const result = await startup.get(["editor", "ordinary"]);
+
+  expect(inspect).toHaveBeenCalledTimes(1);
+  expect(inspect.mock.calls[0][0].map(artifact => artifact.manifest.id)).toEqual([
+    "editor",
+    "ordinary",
+  ]);
+  expect(result.artifacts.map(artifact => artifact.manifest.id)).toEqual(["editor"]);
+});
