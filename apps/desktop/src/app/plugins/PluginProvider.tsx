@@ -61,13 +61,10 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
     };
     if (isElectron) on("plugin-local:state-changed", onLocalState);
     const previousCleanup = pendingCleanup;
-    const preparation = (
-      import.meta.env.DEV ? import("./editorComposition") : Promise.resolve(null)
-    )
-      .then(async modules => {
+    const preparation = Promise.resolve()
+      .then(async () => {
         await previousCleanup;
         if (cancelled) return;
-        const composePluginEditor = modules?.composePluginEditor;
         const persistentWorkspaceId = isElectron
           ? await getPluginWorkspace(workspaceId)
           : workspaceId;
@@ -112,7 +109,6 @@ export function DesktopPluginProvider({ children }: { children: ReactNode }) {
           ...(permissions ? { permissions } : {}),
           flashcards: createDesktopFlashcards(workspaceId),
           restartRequired,
-          validateEditor: composePluginEditor,
           openSettings: key =>
             navigator.push(PLUGIN_DETAIL_KEY, {
               pluginId: key.split(":")[1],

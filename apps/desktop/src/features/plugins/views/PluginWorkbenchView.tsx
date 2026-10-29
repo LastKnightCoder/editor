@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Button, Panel } from "@tau/ui";
 import { useDesktopPluginError, useDesktopPlugins } from "@/app/plugins/context";
 import { usePage } from "@/page/PageProvider";
-import { PluginEditorWorkbench } from "./PluginEditorWorkbench";
 
 export function PluginWorkbenchView() {
   const runtime = useDesktopPlugins();
@@ -31,7 +30,7 @@ export function PluginWorkbenchView() {
     <div className="mx-auto max-w-3xl space-y-4 p-6">
       <h1 className="text-tau-title text-ink-1">插件开发台</h1>
       <p className="text-tau-body text-ink-2">
-        这里提供已安装插件的调试命令与实验编辑器。请在插件管理中启用需要的插件。
+        这里提供已安装插件的调试命令。请在插件管理中启用需要的插件。
       </p>
       <Button onClick={() => navigator.push("plugins", { tab: "installed" })}>打开插件管理</Button>
       {error && (
@@ -66,7 +65,6 @@ export function PluginWorkbenchView() {
           </div>
         </Panel>
       ))}
-      <PluginEditorWorkbench runtime={runtime} />
     </div>
   );
 }

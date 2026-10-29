@@ -4,7 +4,6 @@ import type { PluginNavigation } from "./navigation";
 import type { PluginAI, PluginAIFeature } from "./ai";
 import type { WhiteboardExtension } from "./whiteboard";
 import type { PluginServices } from "./services";
-import type { PluginEditor } from "./editor";
 import type { PluginEditorExtension } from "./editor";
 import type { ContentMetricRule } from "@tau/db-schema/content-metrics";
 import type { MarkdownCodec } from "@tau/markdown";
@@ -67,7 +66,6 @@ export interface PluginContext {
   readonly commands: { register(command: PluginCommand): Disposable };
   readonly storage: PluginStorage;
   readonly pages: PluginPages;
-  readonly editor: PluginEditor;
   readonly settings: PluginSettings;
   readonly sync: PluginSync;
   readonly upload: PluginUpload;

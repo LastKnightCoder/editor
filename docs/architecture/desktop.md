@@ -107,7 +107,7 @@ packages/database/src/   # 多视图 Database、投影、store 与通用字段�
 - 页面从 `PluginPageProps.pageContext` 取实例级上下文登记：`useEffect` 中 `register(() => value)`（任意有限 JSON，宿主不规定结构；MCP 的 `get_current_context` 原样返回快照）、`isActive()`（Activity 可见即栈顶）、`registerDismiss(dismiss)`（显示时挂入 Esc 仲裁，隐藏摘下、再显示按序重挂，插件停用清除）。不提供显示状态通知——effect 生命周期即显示状态（`services/plugin-page-context.ts`）。页面操作由作者自注册 MCP，不加工具分发或导航协议。
 - 停用先取消上下文，当前页面改为不可用提示并卸载组件与 UI Portal；重新启用以新 mountId 创建组件，错误边界按代次重建。页面栈条目保留；功能入口随注册资源回收。pageContext.registerLeaveGuard 接通用 PageProvider 守卫，离开前依次检查，停用后不继续阻塞。
 - 作者从 `@tau/plugins` 用定义/上下文/页面 API，从 `@tau/ui` 用组件；SDK 根入口只引 React 类型不加载 UI/DOM。`ctx.pages.register` 返回可打开与注销的页面句柄，页面组件不直接导入 Page/store。私有存储 `context.storage` 在 Electron 存当前库 `plugin_kv`（随云同步），浏览器预览用 localStorage 适配。
-- 生产装配：`DesktopPluginProvider` 不默认注册任何业务插件（主题切换示例只在测试夹具）；用户从插件中心安装，生产包禁用 ZIP 安装（开发模式保留）；官方插件与模板以 plugins/ 下的 Git submodule 维护独立 GitHub 历史，主仓库固定提交，安装到 `~/.editor/plugins`。开发构建的「插件开发台」（plugin-workbench.page）与编辑器实验装配仅开发构建加载。
+- 生产装配：`DesktopPluginProvider` 不默认注册任何业务插件（主题切换示例只在测试夹具）；用户从插件中心安装，生产包禁用 ZIP 安装（开发模式保留）；官方插件与模板以 plugins/ 下的 Git submodule 维护独立 GitHub 历史，主仓库固定提交，安装到 `~/.editor/plugins`。开发构建的「插件开发台」（plugin-workbench.page）只提供已安装插件的调试命令，不承载动态编辑器实验。
 - 已启用状态：`plugin-local:set-enabled` 写主进程 `plugins/.enabled.json`（唯一写入者），窗口 localStorage 仅镜像，不反向导入；首次发现默认停用，旧 `.editor-enabled.json` 不读取；写入广播 `plugin-local:state-changed` 各窗口重读权威快照；SDK Node 入口 local-state 只读。普通页面插件即时启停，静态内容插件完整重启后生效；活跃内容插件须停用并重启后卸载，切库不改变编辑器快照。
 
 应用根部注入响应式插件环境，DesktopPluginRuntime 的语义 navigation 入口复用真实侧栏模型；插件页通过 PortalScope/UiHostProvider 接浮层仲裁。显式开发目录、格式 3 装配及独立内容转换边界见[跨端插件宿主](/docs/architecture/plugin-portability.md)。
@@ -169,7 +169,7 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 
 格式 3 的白板插件沿用 whiteboardExtensions，作者不重复声明类型或白板能力标签。宿主在内容进程求值实际定义，识别并校验扩展后沿用静态装配、重启生效与工作区偏好；安装兼容性统一使用目标平台与最低版本，桌面基线为 0.59.4。移动目标不承载白板插件。
 
-- SDK 的 `editorExtensions` / `editorCodecs` 是正式静态贡献（manifest `editor: true`）。主进程开库前按 `.enabled.json` 静态读取已启用内容包并交独立内容渲染进程校验定义，只保存通过校验的快照；`initializeContentPlugins` 在 React 挂载前读取快照，校验类型冲突并装配 CSS/codec；`createDesktopKit` 在底座上 extend 贡献不重建打开中的编辑器；开发台 `context.editor.register` 只用于实验。
+- SDK 的 `editorExtensions` / `editorCodecs` 是正式静态贡献（manifest `editor: true`）。主进程开库前按 `.enabled.json` 静态读取已启用内容包并交独立内容渲染进程校验定义，只保存通过校验的快照；`initializeContentPlugins` 在 React 挂载前读取快照，校验类型冲突并装配 CSS/codec；`createDesktopKit` 在底座上 extend 贡献不重建打开中的编辑器。
 - 桌面与博客的插件贡献由 `@tau/plugins/content` 的 ContentPluginRegistry 保存只读快照；博客发布按用户已安装版本收集 main.js/CSS 在浏览器加载。移动普通正文在自己的 EditorKit 上装配受控跨端快照；浏览器扩展仍用原生套件，未知节点按通用保护保留原数据。
 - 领域插件的节点边界：HTML 行内与块级归 tau.html 插件（SDK 的 useInlineSource/insertInlineSource，插件不得打包自己的 Slate；Markdown 认领归已启用插件，缺包保留文本或未知节点 JSON）；ABC 归 tau-plugin-abc（内置 diagram 只剩 Mermaid、PlantUML；HTML 导出优先插件 SVG，缺包保留转义源码）；Typst 使用插件自带的浏览器 WebAssembly 编译器（预览挂载不写文档，仅用户编辑源码编译成功后持久化缓存，博客用缓存或源码回退）；TikZ、custom-block 同为独立插件。两类 HTML 的静态导出 CSS 按 styleSources 收集，宿主无专属类型名单。
 - `SourceBlockEditor` / `useSourceBlock` 由 SDK 提供（内部复用 PreviewWithEditor）；宿主共享模块初始化 source-editor-host，作者入口只依赖 SDK。
@@ -252,7 +252,7 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 - **设置**：`context.settings.register(...).open()` 接 `navigator.push("plugin-detail", { pluginId, tab: "settings", section })`，设置组件只在插件启用且详情页挂载时渲染；自定义设置收拢为详情页「设置」标签的分组，`plugin:<pluginId>:<sectionId>` 精确定位；停用保留宿主管理、组件退出，重新启用恢复；分组单项注销显示不可用。保存用 `context.storage`，即时保存/失败重试/signal 校验规则不变。
 - **对象动作**：`context.actions.register` 经 PluginHost 包装（assertActive），runtime 以 `plugin:<pluginId>:<id>` 登记，`runAction` 先 `grantRefs` 把对象登记为插件选择过的引用。菜单渲染收口 `app/plugins/action-menu.tsx`：手写菜单放 `<PluginActionMenuItems target />`（内置项之后、删除分隔线之前——卡片 CardActionMenu/CardDetailView、文章 ArticleItemOps/ArticleDetailView）；数据驱动菜单用 `usePluginActions` + `insertPluginActionEntries`（key 前缀 `plugin-action:`）——项目文档目标由 `projectItemActionTarget` 决定（普通文档 document、引用型条目为被引用的卡片/文章），文档树行与网页剪藏共用 `usePluginMenuEntries(target)`（剪藏目标 `material web-clip:<id>`）；只有图标按钮的地方用 `PluginActionsMenu`（PDF 标注浮动工具条经 FloatToolbar extra 槽、标注列表悬停组末尾，目标 `material pdf-annotation:<id>`）；对话消息经 `@tau/chat-ui` MessageView 的 `renderExtraActions(text)`（删除之前），`MessageItem` 收到 `pluginSessionId`（四个插件可见场景）且有 piEntryIds 时才列；`text` 目标在命令面板「记录」组末尾每动作一行（副标题「来自插件名」），文字不登记引用。编辑器选区不经对象动作（归插件编辑器扩展，选区工具条不开放）；独立编辑窗口无插件运行时自然不列。新增菜单照此放置，不在业务域直接读 runtime。
 - **详情区块**：`context.views.registerEntityPanel` 以 `plugin:<pluginId>:<id>` 登记，渲染收口 `app/plugins/entity-panels.tsx` 的 `<PluginEntityPanels target />`——放在三个详情页洞见报告之后、正文之前，每块包 RecoverableBoundary（resetKeys 为目标）/UiProvider/PluginComponentScope，`empty:hidden` 不占位，key 用 mountId（换对象只换 target 不重挂）；宿主不加外框标题，不因挂载自动登记引用或放宽权限。
-- **编辑器扩展**：作者经 `defineEditorExtension/defineEditorElement/context.editor.register` 注册（UI 用 @tau/ui，SDK 复用原编辑器契约），当前仅 workbench 场景，不向生产正文/白板自动注入。运行时提取公开扩展字段，拒绝类型/命令/codec 冲突，activate 成功后发布、signal 取消立即撤销；每个 PluginEditorSession 只在贡献集合变化时重建 Slate（复制正文/选区/history，普通重绘不重建、不经 Markdown 中转）；旧代次回调不覆盖新会话；停用节点由内核保留未知占位，重启用恢复。实验编辑器由宿主工作台承载，文档只在页面内存（关闭/切库清空并提示）。
+- **编辑器扩展**：作者用 `defineEditorExtension/defineEditorElement` 定义节点、命令、热键与菜单，通过插件定义的 editorExtensions 静态装配；编解码和统计分别由 editorCodecs、editorMetrics 提供。SDK 不提供动态编辑器注册接口，也不保留开发台的实验编辑器或运行期贡献会话。正式装配与启停边界见本页「静态内容插件」。
 
 ### Whiteboard 公共画布与扩展装配
 

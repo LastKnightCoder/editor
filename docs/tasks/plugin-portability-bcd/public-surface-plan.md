@@ -20,16 +20,15 @@
 
 没有 ctx.editorCodec 或 ctx.editorSourceCode，也没有 ctx.dialogs。ctx 只是作者对 PluginContext 参数的命名。
 
-| 实际入口                                             | 含义                                                          | 所属文档领域                     |
-| ---------------------------------------------------- | ------------------------------------------------------------- | -------------------------------- |
-| definePlugin({ editorExtensions, editorCodecs })     | 静态声明正文节点、行为和文本转换规则                          | 编辑器扩展                       |
-| defineEditorExtension / defineEditorElement          | 定义节点渲染、插入动作和编辑行为                              | 编辑器扩展                       |
-| SourceBlockEditor / useSourceBlock / useInlineSource | 编辑节点内部的 ABC、HTML 等文本；提供保存、取消和节点更新能力 | 编辑器扩展 → 文本与源码编辑      |
-| ctx.editor.register                                  | 当前只用于桌面开发台的动态实验装配                            | 开发诊断附录，不作为普通跨端起点 |
-| ctx.pages / ctx.navigation                           | 页面与功能入口分别注册                                        | 页面与导航                       |
-| ctx.commands / ctx.settings / ctx.storage            | 命令、通用插件设置、工作区私有数据                            | 对应功能领域                     |
-| @tau/ui 的 Dialog / Drawer                           | 对话框、抽屉等公共浮层，宿主接入返回与关闭仲裁                | 公共 UI                          |
-| ctx.permissions                                      | 查询或提前申请 SDK 业务数据/宿主 AI 授权                      | 数据访问与授权                   |
+| 实际入口                                             | 含义                                                          | 所属文档领域                |
+| ---------------------------------------------------- | ------------------------------------------------------------- | --------------------------- |
+| definePlugin({ editorExtensions, editorCodecs })     | 静态声明正文节点、行为和文本转换规则                          | 编辑器扩展                  |
+| defineEditorExtension / defineEditorElement          | 定义节点渲染、插入动作和编辑行为                              | 编辑器扩展                  |
+| SourceBlockEditor / useSourceBlock / useInlineSource | 编辑节点内部的 ABC、HTML 等文本；提供保存、取消和节点更新能力 | 编辑器扩展 → 文本与源码编辑 |
+| ctx.pages / ctx.navigation                           | 页面与功能入口分别注册                                        | 页面与导航                  |
+| ctx.commands / ctx.settings / ctx.storage            | 命令、通用插件设置、工作区私有数据                            | 对应功能领域                |
+| @tau/ui 的 Dialog / Drawer                           | 对话框、抽屉等公共浮层，宿主接入返回与关闭仲裁                | 公共 UI                     |
+| ctx.permissions                                      | 查询或提前申请 SDK 业务数据/宿主 AI 授权                      | 数据访问与授权              |
 
 editorCodecs 是作者确实需要编写的转换规则，例如 ABC 文本与乐谱节点的往返，不是宿主内置转换表。源码中保留这一静态贡献字段，但在文档中放在编辑器章节下讲解；同名内部依赖标记由工具生成，作者不重复填写。
 

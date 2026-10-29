@@ -14,7 +14,7 @@
 
 核心与协议全部由 TypeScript 维护：`src/contract.ts` 是作者生命周期、命令和私有存储契约，`src/index.ts` 保留原公开导出；`src/host.ts` 是桌面和示例共用的正式宿主，`src/lifecycle.ts`、`src/storage.ts`、`src/file-storage.ts` 承担清理和存储。`scripts/` 只做构建/启动/验收编排，不维护第二套宿主。QuickJS/WASM 选型与权限隔离暂停，历史实验见专题 24/25，当前流程不依赖它们。
 
-面向作者的产品/领域 API 从 `@tau/plugins` 根入口获取，UI 组件从 `@tau/ui` 获取（PS-015）；不直接依赖 `@tau/editor/api` 等内部包。当前 SDK 提供基础、页面、自定义设置、摘录提供方和开发台编辑器契约。
+面向作者的产品/领域 API 从 `@tau/plugins` 根入口获取，UI 组件从 `@tau/ui` 获取（PS-015）；不直接依赖 `@tau/editor/api` 等内部包。当前 SDK 提供基础、页面、自定义设置、摘录提供方和静态编辑器扩展契约。
 
 - `@tau/plugins`：definePlugin、插件实例、上下文、命令、JSON 和资源清理契约。
 - `context.mcp.register`：注册多个 MCP，本地 tools 与外部 stdio / streamable-http 互斥；复用应用 MCP 页面、快捷面板及开关，激活成功才发布，停用自动回收。作者说明见 [mcp.md](../../plugins/tau-plugin-template/docs/mcp.md)。
@@ -52,13 +52,11 @@ C08-A 为 activate 设置 10 秒期限；取消后最多再等 5 秒，不延长
 
 ## 编辑器
 
-`context.editor.register({ scene: "workbench", extension, codecs? })` 返回自动回收的 Disposable。扩展通过根入口的 `defineEditorExtension`、`defineEditorElement` 与 `EditorElementRenderProps` 定义，沿用现有编辑器协议。当前开放节点、命令、热键、节点菜单、块菜单与 `behaviorsFor`，另有插件专用的 `styleSources`、`htmlSerializers`；其他字段在加载与注册时报错，不开放原始 Slate 包装器，也不承诺内部扩展接口全集。Slate/React 仍是作者声明的生态依赖。
+扩展通过根入口的 `defineEditorExtension`、`defineEditorElement` 与 `EditorElementRenderProps` 定义，在插件定义的 `editorExtensions` 中静态声明；Markdown 与字数规则分别放入 `editorCodecs`、`editorMetrics`。节点、命令、热键、节点菜单、块菜单与 `behaviorsFor` 沿用编辑器协议，另有插件专用的 `styleSources`、`htmlSerializers`；只提取公开字段，不开放原始 Slate 包装器，也不承诺内部扩展接口全集。Slate/React 仍是作者声明的生态依赖。
 
 扩展 ID、节点 type、命令 ID 和 codec type 使用 `插件ID.` 前缀，避免碰撞内核及其他插件。自定义节点可增强根入口 `EditorElementMap`，行内类型同时登记 `EditorInlineElementMap`。纯 codec 的类型为 `EditorMarkdownCodec`，定义放在独立文件，避免执行端加载 UI。
 
-宿主缺少编辑器适配器或场景不受支持时明确报错。桌面开发台统一检查注册冲突，并为编辑器命令补上只读和旧插件作用域守卫；异步任务仍须主动取消，不能持有旧编辑器在 await 后直接写入。生产正文、Y.Doc 协作、外部历史和异步编辑提交 API 尚未接入。
-
-开发台按贡献集合变化重建 Slate 实例，保存并恢复原始正文、历史与选区；组件本地状态、焦点和在途操作不迁移。
+SDK 不提供运行期动态注册编辑器扩展的接口。静态内容由 ContentPluginRegistry 统一校验和装配，启停与更新按宿主内容快照生效；已有命令、菜单和节点交互继续由编辑器内核执行。作者流程见[编辑器扩展](/plugins/tau-plugin-template/docs/editor.md)。
 
 ## 标准 fetch
 
