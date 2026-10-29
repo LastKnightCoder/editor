@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertReleaseNote, injectReleaseNotes, releaseNotesUpTo } from "./release-notes.mjs";
 import { assertReleaseArtifacts } from "./release-artifacts.mjs";
+import { runPnpm } from "./run-pnpm.mjs";
 import {
   R2_BUCKET,
   R2_ENV_KEYS,
@@ -194,10 +195,9 @@ async function main() {
 
   if (!options.skipBuild) {
     console.log(`▶ 构建桌面端 ...`);
-    execFileSync("pnpm", ["--filter", "desktop", "build"], {
+    runPnpm(["--filter", "desktop", "build"], {
       cwd: root,
       stdio: "inherit",
-      shell: process.platform === "win32",
     });
   } else {
     console.log(`▶ --skip-build: 跳过构建，使用现有产物`);
