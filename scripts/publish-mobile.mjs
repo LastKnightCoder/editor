@@ -201,13 +201,22 @@ async function main() {
 
   if (!options.skipBuild) {
     console.log(`▶ 构建 Android 正式包 ...`);
-    // Windows 上 pnpm 是 pnpm.cmd 批处理，需经 shell 执行
-    execFileSync("pnpm", ["--filter", "mobile", "build:android:release"], {
-      cwd: root,
-      stdio: "inherit",
-      env: android.env,
-      shell: process.platform === "win32",
-    });
+    const buildArgs = ["--filter", "mobile", "build:android:release"];
+    // pnpm run 把自身入口给到 npm_execpath，用当前 node 直接执行，不依赖 PATH 查找 pnpm（Windows 下常失效）
+    if (process.env.npm_execpath) {
+      execFileSync(process.execPath, [process.env.npm_execpath, ...buildArgs], {
+        cwd: root,
+        stdio: "inherit",
+        env: android.env,
+      });
+    } else {
+      execFileSync("pnpm", buildArgs, {
+        cwd: root,
+        stdio: "inherit",
+        env: android.env,
+        shell: process.platform === "win32",
+      });
+    }
   } else {
     console.log(`▶ --skip-build: 跳过构建，使用现有 APK`);
   }
