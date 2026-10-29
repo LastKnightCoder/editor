@@ -199,7 +199,7 @@ const OutlineItem = memo(function OutlineItem({
           "rounded-tau-sm text-ink-3 ease-tau-out mt-1 block border-l-2 border-transparent py-[5px] pl-2.5 pr-2 text-left leading-snug transition-colors duration-150",
           // 缩进用 margin 而非 padding：背景贴住缩进后的条目，左端不留空白块；
           // 宽度显式扣除缩进量，避免 w-full + margin 向右溢出
-          header.level >= 3 ? "text-tau-micro ml-4 w-[calc(100%-1rem)]" : "w-full",
+          header.level >= 2 ? "text-tau-micro ml-4 w-[calc(100%-1rem)]" : "w-full",
           // 选中项不再叠 hover 样式，避免高亮被 hover 底色盖掉
           active
             ? "border-accent bg-selected text-accent-text font-medium"
