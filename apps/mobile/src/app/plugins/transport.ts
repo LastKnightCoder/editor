@@ -1,3 +1,4 @@
+import { createMobileAppActions } from "./app-actions";
 import { PluginPermissionError, PLUGIN_ENTITY_READ_PERMISSIONS } from "@tau/plugins";
 import { createMobileApp } from "./app";
 import { createMobileOwnData } from "./own-data";
@@ -293,7 +294,18 @@ export async function connectMobilePluginTransport(runtime: MobilePluginRuntime)
           target,
           options.at ? JSON.stringify(options.at) : undefined,
           callerGuard
-        )
+        ),
+      createMobileAppActions(
+        runtime.workspaceId,
+        token,
+        runtime.data,
+        async context => {
+          await runtime.own?.ready(context);
+        },
+        () => {
+          void getQueryClient().invalidateQueries();
+        }
+      )
     );
     const socketToken = token;
     runtime.websocket = createBridgeWebSocket({

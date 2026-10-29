@@ -1,3 +1,4 @@
+import { PluginAppActionHost } from "../../features/plugins/PluginAppActionHost";
 import { listen } from "@tauri-apps/api/event";
 import { PluginPermissionPrompt } from "../../features/plugins/PluginPermissionPrompt";
 import type { PluginPermissionBroker } from "@tau/plugins/permission-host";
@@ -47,7 +48,12 @@ const restartRequired = new Set<string>();
 
 function MobilePluginAppHost({ app }: { app: MobileAppAdapter }) {
   const request = useSyncExternalStore(app.subscribe, app.getSnapshot);
-  return <PluginEntityPicker request={request} />;
+  return (
+    <>
+      <PluginEntityPicker request={request} />
+      {app.actions && <PluginAppActionHost actions={app.actions} />}
+    </>
+  );
 }
 
 /**

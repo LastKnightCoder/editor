@@ -14,9 +14,19 @@ import type {
   PluginNavigationEntry,
   PluginSettingsDefinition,
   PluginOwnEntityKind,
+  PluginActionDefinition,
+  PluginActionTargetKind,
 } from "@tau/plugins";
 import type { Navigator } from "../../router/navigatorTypes";
 import { verifyMobilePlugin, type MobilePluginPackage } from "../../services/plugins";
+
+export type MobileActionTarget = { kind: "card" | "article" | "document"; id: string };
+
+export interface MobilePluginAction {
+  id: string;
+  context: PluginContext;
+  definition: Readonly<PluginActionDefinition>;
+}
 
 export interface MobilePluginPage {
   context: PluginContext;
@@ -33,6 +43,7 @@ export class MobilePluginRuntime {
   events?: Awaited<ReturnType<typeof import("./events").createMobileEvents>>;
   data?: import("./data").MobileDataAdapter;
   permissions?: import("@tau/plugins/permission-host").PluginPermissionBroker;
+  private readonly actions = new Map<string, MobilePluginAction>();
   readonly host: PluginHost;
   readonly sync = new RendererSyncRegistry();
   readonly upload = new RendererUploadRegistry();
@@ -144,6 +155,22 @@ export class MobilePluginRuntime {
         request: (context, plugin, permissions) =>
           this.permissionBroker().request(context, plugin, permissions),
       },
+      actions: {
+        register: (context, definition) => {
+          const id = `${context.pluginId}:${definition.id}`;
+          if (this.actions.has(id)) throw new Error("对象动作已注册");
+          const action = { id, context, definition };
+          this.actions.set(id, action);
+          this.publish();
+          return {
+            dispose: () => {
+              if (this.actions.get(id) !== action) return;
+              this.actions.delete(id);
+              this.publish();
+            },
+          };
+        },
+      },
       sync: this.sync,
       asr: this.asr,
       tts: this.tts,
@@ -252,6 +279,23 @@ export class MobilePluginRuntime {
       },
     });
     this.unsubscribe = this.host.subscribe(this.publish);
+  }
+  listActions(kind: PluginActionTargetKind): MobilePluginAction[] {
+    if (!["card", "article", "document"].includes(kind)) return [];
+    return [...this.actions.values()].filter(
+      action => this.active(action.context) && action.definition.targets.includes(kind)
+    );
+  }
+  async runAction(action: MobilePluginAction, target: MobileActionTarget, identity: string) {
+    const ref = Object.freeze({ kind: target.kind, id: target.id });
+    const check = () => {
+      if (!this.listActions(ref.kind).includes(action)) throw new Error("插件动作不可用");
+    };
+    check();
+    if (!this.app) throw new Error("插件内容交互尚未就绪");
+    await this.app.grantActionRef(action.context, ref, identity);
+    check();
+    await action.definition.run(ref);
   }
   private dataAdapter() {
     if (!this.data) throw new Error("插件数据尚未就绪");
@@ -441,6 +485,7 @@ export class MobilePluginRuntime {
       this.unsubscribe();
       this.styles.forEach(style => style.remove());
       this.styles = [];
+      this.actions.clear();
       this.pages.clear();
       this.entityKinds.clear();
       this.entries.clear();

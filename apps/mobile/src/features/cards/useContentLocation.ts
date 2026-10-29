@@ -3,11 +3,13 @@ import type { EditorRef } from "@tau/editor";
 import { Element as SlateElement, Node } from "slate";
 import { ReactEditor } from "slate-react";
 
-type TaskLocationOptions = {
+type ContentLocationOptions = {
   editorRef: RefObject<EditorRef | null>;
   container: HTMLElement | null;
   contentId: number;
   taskId?: string;
+  block?: number;
+  requestId?: string;
   ready: boolean;
   active: boolean;
   onUnavailable?: (message: string) => void;
@@ -28,22 +30,24 @@ function hiddenWithin(element: HTMLElement, editable: HTMLElement): boolean {
   return false;
 }
 
-/** 待文档与 DOM 就绪后定位原待办，不改变选区、焦点或完成状态。 */
-export function useTaskLocation({
+/** 待正文与 DOM 就绪后定位待办或顶层块，不改变选区、焦点或正文。 */
+export function useContentLocation({
   editorRef,
   container,
   contentId,
   taskId,
+  block,
+  requestId,
   ready,
   active,
   onUnavailable,
-}: TaskLocationOptions): void {
+}: ContentLocationOptions): void {
   const located = useRef<string | null>(null);
   const unavailableRef = useRef(onUnavailable);
   unavailableRef.current = onUnavailable;
   useEffect(() => {
-    if (!taskId || !container || !ready || !active) return;
-    const request = JSON.stringify([contentId, taskId]);
+    if ((!taskId && block === undefined) || !container || !ready || !active) return;
+    const request = JSON.stringify([contentId, taskId, block, requestId]);
     if (located.current === request) return;
     let frame: number | null = null;
     let animation: Animation | undefined;
@@ -60,13 +64,24 @@ export function useTaskLocation({
       const editor = editorRef.current?.getEditor();
       const editable = editorRef.current?.getEditableElement();
       if (!editor || !editable || !container.contains(editable)) return;
-      for (const [node] of Node.descendants(editor)) {
-        if (
-          !SlateElement.isElement(node) ||
-          node.type !== "check-list-item" ||
-          node.taskId !== taskId
-        )
-          continue;
+      let node: Node | undefined =
+        editor.children[
+          typeof block === "number" && Number.isSafeInteger(block) && block >= 0 ? block : 0
+        ] ?? editor.children[0];
+      if (taskId) {
+        node = undefined;
+        for (const [candidate] of Node.descendants(editor)) {
+          if (
+            SlateElement.isElement(candidate) &&
+            candidate.type === "check-list-item" &&
+            candidate.taskId === taskId
+          ) {
+            node = candidate;
+            break;
+          }
+        }
+      }
+      if (node) {
         let element: HTMLElement;
         try {
           element = ReactEditor.toDOMNode(editor as ReactEditor, node);
@@ -75,7 +90,7 @@ export function useTaskLocation({
         }
         if (!editable.contains(element)) return;
         if (hiddenWithin(element, editable)) {
-          finish("待办位于折叠内容中，请展开后查看");
+          finish(taskId ? "待办位于折叠内容中，请展开后查看" : "内容位于折叠区域中，请展开后查看");
           return;
         }
         finish();
@@ -86,7 +101,7 @@ export function useTaskLocation({
         );
         return;
       }
-      finish("待办已不存在或已发生变化，请在原文中查看");
+      finish(taskId ? "待办已不存在或已发生变化，请在原文中查看" : "正文为空，暂不可定位");
     };
     const schedule = () => {
       if (!cancelled && frame === null) frame = window.requestAnimationFrame(locate);
@@ -94,7 +109,8 @@ export function useTaskLocation({
     const observer = new MutationObserver(schedule);
     observer.observe(container, { childList: true, subtree: true });
     const timeout = window.setTimeout(() => {
-      if (!cancelled && located.current !== request) finish("待办定位暂不可用，请在原文中查看");
+      if (!cancelled && located.current !== request)
+        finish(taskId ? "待办定位暂不可用，请在原文中查看" : "正文定位暂不可用，请稍后重试");
     }, 3000);
     schedule();
     return () => {
@@ -104,5 +120,5 @@ export function useTaskLocation({
       if (frame !== null) window.cancelAnimationFrame(frame);
       animation?.cancel();
     };
-  }, [editorRef, container, contentId, taskId, ready, active]);
+  }, [editorRef, container, contentId, taskId, block, requestId, ready, active]);
 }

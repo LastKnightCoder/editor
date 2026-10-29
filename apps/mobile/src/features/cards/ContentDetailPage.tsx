@@ -52,7 +52,7 @@ import { useBlockDrag } from "./blockSelection/useBlockDrag";
 import { useEditorBlockSelection } from "./blockSelection/useEditorBlockSelection";
 import { OutlineSheet } from "./outline/OutlineSheet";
 import { useOutlineSheet } from "./outline/useOutlineSheet";
-import { useTaskLocation } from "./useTaskLocation";
+import { useContentLocation } from "./useContentLocation";
 import { useContentMention } from "./editorExtensions/useContentMention";
 
 // 原地协作编辑器按需加载：未使用协作的用户不加载协作组件与运行时
@@ -76,6 +76,8 @@ export type ContentDetailActions = {
 type ContentDetailPageProps = {
   contentId: number;
   taskId?: string;
+  block?: number;
+  locationRequestId?: string;
   contentTitle?: string;
   contentType?: string;
   refId?: number;
@@ -298,12 +300,17 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   );
   const [editorWrapEl, setEditorWrapEl] = useState<HTMLDivElement | null>(null);
   const kit = useMobileContentKit("edit");
-  useTaskLocation({
+  useContentLocation({
     editorRef,
     container: editorWrapEl,
     contentId: props.contentId,
     taskId: props.taskId,
-    ready: Boolean(detail && document && kit) && !contentLoading && editMode !== "collabConnecting",
+    block: props.block,
+    requestId: props.locationRequestId,
+    ready:
+      Boolean(detail?.contentId === props.contentId && document && kit) &&
+      !contentLoading &&
+      editMode !== "collabConnecting",
     active: pageContext?.phase !== "paused",
     onUnavailable: text => toast({ type: "warning", text }),
   });

@@ -46,7 +46,11 @@ it("没有用户手势不打开选择器或导航，未支持组合不调用原�
     "仅支持"
   );
   await expect(
-    app.adapter.open(context(), candidate.ref, { placement: "page", at: { block: 1 } })
+    app.adapter.open(
+      context(),
+      { kind: "project", id: "1" },
+      { placement: "page", at: { block: 1 } }
+    )
   ).rejects.toThrow("正文块位置");
   expect(invoke).not.toHaveBeenCalled();
   expect(push).not.toHaveBeenCalled();
@@ -228,3 +232,21 @@ it("公共宿主未声明权限时仍可由用户选择引用，但不能批量�
     await host.dispose();
   }
 });
+
+it.each(["card", "article", "document"] as const)(
+  "%s 原生解析后传递块位置，不授予正文权限",
+  async kind => {
+    const { app, push, canRead } = setup();
+    vi.mocked(invoke).mockResolvedValue({ kind, id: 12 });
+    await app.adapter.open(context(), { kind, id: "12" }, { placement: "page", at: { block: 4 } });
+    expect(invoke).toHaveBeenCalledWith(
+      "plugin_app_refs",
+      expect.objectContaining({ request: { method: "resolve", ref: { kind, id: "12" } } })
+    );
+    expect(push).toHaveBeenCalledWith(
+      kind === "card" ? "contentDetail" : kind === "article" ? "articleEditor" : "projectDocEditor",
+      expect.objectContaining({ block: 4, locationRequestId: expect.any(String) })
+    );
+    expect(canRead).not.toHaveBeenCalled();
+  }
+);
