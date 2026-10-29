@@ -24,6 +24,7 @@ import { mathExtensions } from "@tau/editor/extensions/math";
 import emojiExtension from "@tau/editor/extensions/emoji";
 import { flashcardBlankExtension } from "../features/flashcard/blank/FlashcardBlankExtension";
 import { mobileCardPreviewExtensions } from "../features/cards/editorExtensions";
+import { dictationPreviewExtension } from "../features/speechInput/dictationPreview";
 import {
   mobileEditorServices,
   mobileImageAppearance,
@@ -48,6 +49,7 @@ function createMobileKit(extras: readonly EditorExtension[] = []): EditorKit {
         createMarkdownPasteImportExtension(mobileImportFromMarkdown),
         webviewExtension,
         ...createImageExtensions({ appearance: mobileImageAppearance }),
+        dictationPreviewExtension,
         ...extras,
       ],
       services: [mobileEditorServices],

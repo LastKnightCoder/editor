@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端语音输入 · 设计方案</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="voice.css" />
+<script src="../editor-mobile/icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>移动端语音输入 · 设计方案<small>颜色取自 @tau/themes · 手机帧 360×760 · 键盘为系统绘制示意</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="research">0 现状与原则</button>
+    <button class="tab" data-tab="c">1 按住说话<span class="rec">推荐</span></button>
+    <button class="tab" data-tab="polish">2 AI 润色<span class="rec">新增</span></button>
+    <button class="tab" data-tab="read">3 阅读态</button>
+    <button class="tab" data-tab="capture">4 快速捕获</button>
+    <button class="tab" data-tab="states">5 权限与异常</button>
+    <button class="tab" data-tab="a">备选 A：语音面板</button>
+    <button class="tab" data-tab="b">备选 B：录音条</button>
+  </nav>
+</header>
+
+<!-- ═══════════ 0 现状与原则 ═══════════ -->
+<section class="scene" data-scene="research">
+  <p class="scene-intro">底层已经齐了：<code>createMobileSpeechInputService</code> 负责麦克风采集、流式识别和 120 秒上限，<code>onPreview</code> 推送边说边出的文字，<code>cancel()</code> 保证不交付文字；<code>@tau/asr</code> 的 <code>refineSpeechInput</code> 做 AI 润色（流式 <code>onPreview</code>、30 秒超时、失败降级原文）。这一版组合：<b>入口 = 配件栏固定 🎤；输入 = 按住后从底部升起沉浸区；文字流式写在正文插入点；配了 AI 润色时，松手后原地润色再落定</b>。</p>
+  <div class="frames" style="gap:18px">
+    <div class="card" style="flex:1 1 640px">
+      <h3>一次语音输入的流程</h3>
+      <table class="cmp">
+        <tr><th>阶段</th><th>用户做什么</th><th>界面</th><th>正文里的文字</th></tr>
+        <tr><td><b>入口</b></td><td>按住配件栏 🎤</td><td>配件栏照常显示</td><td>光标处</td></tr>
+        <tr><td><b>说话</b></td><td>按住不放</td><td>底部升起弧形沉浸区，盖住键盘；上方渐变压暗</td><td>浅灰色流式出现，无底色</td></tr>
+        <tr><td><b>取消</b></td><td>手指上滑到 ✕ 松手</td><td>沉浸区泛红</td><td>预览文字消失</td></tr>
+        <tr><td><b>润色</b>（可选）</td><td>松手后等 1～3 秒</td><td>沉浸区退场，正文上方小胶囊「润色中」</td><td>原文上走一道流光，随后原地替换为润色结果</td></tr>
+        <tr><td><b>落定</b></td><td>—</td><td>胶囊显示「已润色 · 用原文 · 撤销」4 秒</td><td>正常颜色 + 浅下划线淡出</td></tr>
+      </table>
+    </div>
+    <div class="card" style="flex:1 1 360px">
+      <h3>设计原则</h3>
+      <ol>
+        <li><b>入口不打扰</b>：配件栏一个固定 🎤，跟「Aa」「+」同一排。</li>
+        <li><b>输入要沉浸</b>：按住时整块底部区域都是录音反馈，取消目标就在麦克风正上方，和微信「上滑取消」一致，只有一个手势。</li>
+        <li><b>看着正文说</b>：文字直接流在插入点，浅灰无底色；用户始终知道落在哪。</li>
+        <li><b>润色在原地</b>：不弹对比面板；流光表示「正在改」，改完直接替换，想要原文点一下。</li>
+        <li><b>一次撤销</b>：语音 + 润色合并为一次插入，撤销一下全部回退。</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 1 方案 A ═══════════ -->
+<section class="scene" data-scene="a">
+  <p class="scene-intro"><b>备选 A：配件栏 🎤 → 键盘位置升起语音面板。</b>沿用现有「Aa」「+」面板的顶替键盘机制（<code>resolvePanelHeight</code>），正文可视区不变；录音期间正文插入点变成红色标记并锁定。面板上半是预览区（流式文字），下半是控制区。停止后不立即写入，用户点「插入」才一次性落进正文，可选先「整理」。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="base"></div>
+        <div class="acc">
+          <span class="ab plus" data-i="plus" data-s="20"></span>
+          <div class="scroll">
+            <span class="ab txt">Aa</span>
+            <span class="ab" data-i="square-check" data-s="19"></span>
+            <span class="ab" data-i="list" data-s="19"></span>
+            <span class="ab" data-i="indent-decrease" data-s="19"></span>
+            <span class="ab" data-i="indent-increase" data-s="19"></span>
+            <span class="ab" data-i="file-text" data-s="19"></span>
+            <span class="ab" data-i="image" data-s="19"></span>
+          </div>
+          <span class="ab" data-i="mic" data-s="19"></span>
+          <span class="vsep"></span>
+          <span class="ab" data-i="keyboard-off" data-s="19"></span>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A1</span>入口：配件栏右侧固定 🎤</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>🎤 放在横滑区<b>之外</b>、「收起键盘」左边，永远可见、位置不变；不进可自定义的中段。</li>
+        <li>未配置识别服务时仍显示，点了进入 6 的引导态，让功能可被发现。</li>
+        <li>代码块、公式、表格等上下文模式下隐藏（这些地方不适合口述）。</li>
+        <li>系统键盘自带的听写键仍可用；我们的入口好处是走用户选定的识别插件、可 AI 整理、可整段撤销。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="mark"></div>
+        <div class="acc">
+          <span class="ab plus" data-i="plus" data-s="20"></span>
+          <div class="scroll">
+            <span class="ab txt">Aa</span>
+            <span class="ab" data-i="square-check" data-s="19"></span>
+            <span class="ab" data-i="list" data-s="19"></span>
+            <span class="ab" data-i="indent-decrease" data-s="19"></span>
+            <span class="ab" data-i="indent-increase" data-s="19"></span>
+            <span class="ab" data-i="file-text" data-s="19"></span>
+          </div>
+          <span class="ab rec" data-i="mic" data-s="19"></span>
+          <span class="vsep"></span>
+          <span class="ab" data-i="keyboard" data-s="19"></span>
+        </div>
+        <div class="vpanel">
+          <div class="vp-preview">把这张卡片拆成三个问答，<span class="live">加入今天的复</span><span class="caret blink"></span></div>
+          <div class="vp-row"><span class="timer">0:07 / 2:00</span><div class="wave" data-wave="26"></div></div>
+          <div class="vp-ctrl">
+            <span class="round lbl"><span data-i="x" data-s="20"></span>取消</span>
+            <span class="big-stop" data-i="square" data-s="22"></span>
+            <span class="round lbl"><span data-i="keyboard" data-s="20"></span>键盘</span>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A2</span>录音中：面板顶替键盘，落点锁定</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>正文里的光标换成红色「语音插入点」标记：用户一眼知道文字会落在哪。</li>
+        <li>预览区显示 <code>onPreview</code> 的流式文本，尾句（仍会被识别修正的部分）用浅色区分。</li>
+        <li>配件栏 🎤 变红表示进行中；再点它等同于「停止」。</li>
+        <li>计时显示上限 2:00（服务层 120 秒自动 stop）；剩 15 秒时计时变色提示。</li>
+        <li>「键盘」= 停止录音并回到键盘，已识别文字保留在面板里等确认（见 A3）。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="mark"></div>
+        <div class="acc">
+          <span class="ab plus" data-i="plus" data-s="20"></span>
+          <div class="scroll">
+            <span class="ab txt">Aa</span>
+            <span class="ab" data-i="square-check" data-s="19"></span>
+            <span class="ab" data-i="list" data-s="19"></span>
+            <span class="ab" data-i="indent-decrease" data-s="19"></span>
+            <span class="ab" data-i="indent-increase" data-s="19"></span>
+            <span class="ab" data-i="file-text" data-s="19"></span>
+          </div>
+          <span class="ab on" data-i="mic" data-s="19"></span>
+          <span class="vsep"></span>
+          <span class="ab" data-i="keyboard" data-s="19"></span>
+        </div>
+        <div class="vpanel">
+          <div class="vp-preview">把这张卡片拆成三个问答，加入今天的复习队列。<span class="tag">原文</span></div>
+          <div class="vp-row"><span class="timer idle">0:09</span><span class="vseg"><span class="on">原文</span><span>整理后</span></span></div>
+          <div class="vp-ctrl">
+            <span class="round lbl"><span data-i="rotate-ccw" data-s="20"></span>重说</span>
+            <span class="big-stop done" data-i="check" data-s="26"></span>
+            <span class="round lbl"><span data-i="sparkles" data-s="20"></span>整理</span>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A3</span>停止后：确认再插入</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>中间大按钮从「停止」变成「插入 ✓」，同一位置连点两下即「停止 + 插入」，熟手不多一步。</li>
+        <li>「重说」丢弃本段重新录；「整理」调 <code>refineSpeechInput</code>（去口头禅、补标点、可分段），整理中预览流式更新，可在「原文 / 整理后」间切换。</li>
+        <li>移动端尚无 LLM 整理适配：未配置时「整理」按钮不显示，不做假入口。</li>
+        <li>预览区文字可点选修改？<b>不做</b>：改字回正文里改，避免面板里再造一个编辑器。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="inserted"></div>
+        <div class="toast" style="bottom:312px">已插入 31 字<b>撤销</b></div>
+        <div class="acc">
+          <span class="ab plus" data-i="plus" data-s="20"></span>
+          <div class="scroll">
+            <span class="ab txt">Aa</span>
+            <span class="ab" data-i="square-check" data-s="19"></span>
+            <span class="ab" data-i="list" data-s="19"></span>
+            <span class="ab" data-i="indent-decrease" data-s="19"></span>
+            <span class="ab" data-i="indent-increase" data-s="19"></span>
+            <span class="ab" data-i="file-text" data-s="19"></span>
+          </div>
+          <span class="ab" data-i="mic" data-s="19"></span>
+          <span class="vsep"></span>
+          <span class="ab" data-i="keyboard-off" data-s="19"></span>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A4</span>插入后：回到键盘，下划线提示</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>整段作为一次 Slate 操作插入，光标停在末尾，键盘自动弹回，可以接着打字或再点 🎤。</li>
+        <li>新文字带一条浅色下划线约 1.5 秒后淡出；toast 提供「撤销」，与配件栏撤销等价。</li>
+        <li>整理结果含多段时按段落拆成多个块插入；原文模式只插一段纯文本。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 2 方案 B ═══════════ -->
+<section class="scene" data-scene="b">
+  <p class="scene-intro"><b>方案 B：键盘收起，配件栏本身变成录音条，文字直接流进正文。</b>识别中的文字以装饰层（不进 Slate 文档、不触发保存）显示在插入点，浅蓝底为已定稿、虚线为仍在修正的尾句；点「完成」才真正写入。离结果最近，但流式修正会让正文反复改写换行，长段落时正文会跳动。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="ghost"></div>
+        <div class="acc recbar">
+          <span class="pill-btn ghost-btn">取消</span>
+          <span class="timer">0:07</span>
+          <div class="wave" data-wave="22"></div>
+          <span class="pill-btn" data-i="check" data-s="15">完成</span>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B1</span>录音中：正文内联预览</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>键盘收起，正文可视区变大，适合看着上下文说。</li>
+        <li>配件栏变成：取消 · 计时 · 波形 · 完成；「完成」= 停止并等待尾句后写入。</li>
+        <li>实现：Slate <code>decorate</code> 在锁定位置渲染预览文字，或用绝对定位层；都要处理插入点在段中时的换行。</li>
+        <li>没有地方放「整理」「重说」——要加只能再弹 sheet，复杂度回到方案 A。</li>
+      </ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="inserted"></div>
+        <div class="acc">
+          <span class="ab plus" data-i="plus" data-s="20"></span>
+          <div class="scroll">
+            <span class="ab txt">Aa</span>
+            <span class="ab" data-i="square-check" data-s="19"></span>
+            <span class="ab" data-i="list" data-s="19"></span>
+            <span class="ab" data-i="indent-decrease" data-s="19"></span>
+            <span class="ab" data-i="indent-increase" data-s="19"></span>
+            <span class="ab" data-i="file-text" data-s="19"></span>
+          </div>
+          <span class="ab" data-i="mic" data-s="19"></span>
+          <span class="vsep"></span>
+          <span class="ab" data-i="keyboard-off" data-s="19"></span>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B2</span>完成：装饰层转为真实文字</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>与 A4 相同：一次插入、一次撤销、短暂高亮。</li>
+        <li>结论：B 可以作为 A 的「极简模式」开关留给以后，首期不做两套。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 1 按住说话 ═══════════ -->
+<section class="scene" data-scene="c">
+  <p class="scene-intro"><b>推荐：配件栏 🎤 入口 + 按住后沉浸式输入 + 正文流式出字。</b>按住 🎤 的瞬间，底部升起一块弧形沉浸区盖住键盘，上方渐变压暗但正文仍清晰可读；中间是波形和计时，正上方居中一个 ✕，手指上滑到 ✕ 松手即取消（同微信）。按下后整块沉浸区都算按住区域，手指不必一直压在 🎤 上。识别的文字以浅灰色直接流进正文插入点。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="base"></div>
+        <div data-acc></div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>入口：配件栏固定 🎤</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>🎤 在横滑区之外、「收起键盘」左边，位置固定。</li>
+        <li>代码块、公式、表格等上下文模式下隐藏。</li>
+        <li>短按不录音，弹「按住说话」气泡（见 5）。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="ghost"></div>
+        <div data-acc></div>
+        <div class="kb" data-kb></div>
+        <div class="imm">
+          <div class="imm-scrim"></div>
+          <div class="imm-x" data-i="x" data-s="24"></div>
+          <div class="imm-zone">
+            <div class="wave" data-wave="30"></div>
+            <span class="timer">0:07</span>
+            <span class="say">松手插入 · 上滑取消</span>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>按住：沉浸区 + 正文流式出字</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>按住 200ms 后进入，触感反馈一次；沉浸区 180ms 从底部弹起，盖住键盘但不收起键盘（松手后键盘直接可用，不会抖）。</li>
+        <li>正文里浅灰色是识别中的文字（Slate 装饰层，不写库），尾句颜色更浅；没有底色。</li>
+        <li>波形随音量跳动；计时在 1:45 后变红，2:00 自动停止并插入。</li>
+        <li>沉浸区居中对称，不跟随 🎤 的位置；手指在沉浸区内任意位置松手都算插入。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="cancelled"></div>
+        <div data-acc></div>
+        <div class="kb" data-kb></div>
+        <div class="imm cancel">
+          <div class="imm-scrim"></div>
+          <div class="imm-x hot" data-i="x" data-s="28"></div>
+          <div class="imm-zone">
+            <div class="wave still" data-wave="30"></div>
+            <span class="timer idle">0:09</span>
+            <span class="say hot">松手取消</span>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>上滑到 ✕：松手取消</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>手指上滑进入 ✕ 范围时 ✕ 放大变红、沉浸区泛红、触感反馈；正文里的预览文字变淡划掉。</li>
+        <li>松手调用 <code>cancel()</code>，正文恢复原样；滑回去可以继续说。</li>
+      </ul></details>
+    </div>
+
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="inserted"></div>
+        <div class="toast" style="bottom:312px">已插入<b>撤销</b></div>
+        <div data-acc></div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>松手：直接写入（未配 AI 润色）</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>松手 = <code>stop()</code>，沉浸区下沉退场，浅灰字原地变成正文颜色，键盘已在，可以接着打字。</li>
+        <li>刚写入的文字只有一条浅色下划线，1.5 秒后淡出。toast「撤销」停留 4 秒。</li>
+        <li>配了 AI 润色时，松手后进入润色中间态（见 2 AI 润色）。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 2 AI 润色 ═══════════ -->
+<section class="scene" data-scene="polish">
+  <p class="scene-intro"><b>配置了 AI 润色（设置 › 语音输入 › AI 整理）时，松手后多一个原地润色的中间态。</b>沉浸区退场，原文先留在正文，上面走一道主题色流光表示「正在润色」；编辑器上方浮一个小胶囊显示进度与「跳过」。润色完成后原地替换，胶囊变成「已润色 · 用原文 · 撤销」。整个过程不弹面板、不需要确认。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="polishing"></div>
+        <div class="cap-pill" style="bottom:312px"><span class="sp" data-i="sparkles" data-s="16"></span>AI 润色中<span class="div"></span><span class="btn">跳过</span></div>
+        <div data-acc></div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">P1</span>润色中：原文上走流光</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>松手后原文先以正文颜色写入的位置显示（还未提交），文字上一道主题色流光从左到右扫过，没有底色。</li>
+        <li>胶囊「跳过」= 不润色，直接以原文提交。</li>
+        <li>润色期间正文可以滚动，不能编辑这段（其他地方可以打字）；键盘保持。</li>
+        <li>对应 <code>refineSpeechInput</code>：30 秒超时或失败降级为原文，胶囊提示「润色失败，已用原文」。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="polished"></div>
+        <div class="cap-pill" style="bottom:312px"><span class="ok" data-i="sparkles" data-s="16"></span>已润色<span class="div"></span><span class="btn">用原文</span><span class="btn pri">撤销</span></div>
+        <div data-acc></div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">P2</span>润色完成：原地替换</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>润色结果整体替换原文（流式 <code>onPreview</code> 可逐字替换，但整体替换更稳，文字不会来回跳），浅色下划线淡出。</li>
+        <li>「用原文」换回识别原文；「撤销」整段删除。胶囊 4 秒后消失。</li>
+        <li>语音 + 润色合并为一次插入：之后配件栏撤销一次也是整段回退。</li>
+        <li>润色多段时按段落拆成多个块插入。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="rawBack"></div>
+        <div class="cap-pill" style="bottom:312px">已换回原文<span class="div"></span><span class="btn pri">用润色</span></div>
+        <div data-acc></div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">P3</span>点「用原文」后</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>可以在两版之间来回切，直到胶囊消失或用户开始打字。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="ghost"></div>
+        <div data-acc></div>
+        <div class="kb" data-kb></div>
+        <div class="imm">
+          <div class="imm-scrim"></div>
+          <div class="imm-x" data-i="x" data-s="24"></div>
+          <div class="imm-zone">
+            <div class="wave" data-wave="30"></div>
+            <span class="timer">0:07</span>
+            <span class="say"><span data-i="sparkles" data-s="13"></span>松手后 AI 润色 · 上滑取消</span>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">P4</span>录音时提前告知</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>开启润色时，沉浸区提示文案变为「✦ 松手后 AI 润色」，用户知道松手后还有一步。</li>
+        <li>要不要单次关闭润色？不在手势里加第三个目标，靠 P1 的「跳过」即可。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 3 阅读态 ═══════════ -->
+<section class="scene" data-scene="read">
+  <p class="scene-intro"><b>内容详情页的阅读态</b>（卡片、文章、日记共用 <code>ContentDetailPage</code>）：「编辑」悬浮按钮左边加一个圆形 🎤，按住后升起同一块沉浸区，正文自动滚到文末，文字作为新段落流式出现；松手写入（或先润色），<b>不进入编辑态、不弹键盘</b>。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="read"></div>
+        <div class="fab-stack">
+          <span class="fab-mini" data-i="mic" data-s="20"></span>
+          <span class="fab" data-i="pencil" data-s="17">编辑</span>
+        </div>
+        <div class="home-ind" style="position:absolute;bottom:0;left:0;right:0"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">R1</span>阅读态：🎤 与「编辑」并排</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>沿用 <code>ReadingModeFab</code> 的显隐规则；块选择、标注条等底部浮层出现时隐藏；只读内容不显示。</li>
+      </ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="readGhost"></div>
+        <div class="imm">
+          <div class="imm-scrim"></div>
+          <div class="imm-x" data-i="x" data-s="24"></div>
+          <div class="imm-zone">
+            <div class="wave" data-wave="30"></div>
+            <span class="timer">0:06</span>
+            <span class="say">松手追加到文末 · 上滑取消</span>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">R2</span>按住：同款沉浸区，文末出字</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>沉浸区与编辑态完全一致：底部居中弧形区，✕ 在正上方居中。</li>
+        <li>想插到中间：先点「编辑」放光标，再用配件栏 🎤。阅读态不做位置选择。</li>
+      </ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="readPolishing"></div>
+        <div class="cap-pill" style="bottom:100px"><span class="sp" data-i="sparkles" data-s="16"></span>AI 润色中<span class="div"></span><span class="btn">跳过</span></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">R3</span>松手：润色中（如已配置）</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>悬浮按钮暂时隐藏，胶囊出现在原位置上方；完成后胶囊变「已润色 · 用原文 · 撤销」，悬浮按钮回来。</li>
+      </ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="readDone"></div>
+        <div class="toast" style="bottom:104px">已追加到文末<b>撤销</b></div>
+        <div class="fab-stack">
+          <span class="fab-mini" data-i="mic" data-s="20"></span>
+          <span class="fab" data-i="pencil" data-s="17">编辑</span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">R4</span>写入后：仍在阅读态</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>阅读态没有配件栏撤销，toast「撤销」停留 5 秒。</li>
+        <li>写入走与编辑态相同的保存链路（落库 + <code>contentSyncBus</code> 广播）。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 4 快速捕获 ═══════════ -->
+<section class="scene" data-scene="capture">
+  <p class="scene-intro"><b>快速捕获（新建卡片）</b>用的是同一个 <code>MobileEditorBottomToolbar</code>，配件栏 🎤 和沉浸区自动生效。可选增强（第二期）：创建菜单里按住「卡片」直接说话，松手打开快速捕获并已填好文字。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="under"><div class="mini-card" style="margin-top:56px"></div><div class="mini-card"></div></div>
+        <div class="scrim" style="z-index:1"></div>
+        <div class="qc" style="z-index:2">
+          <div class="qc-head"><span class="chip">清空</span><span class="ib" data-i="x" data-s="18" style="color:var(--ink-3);width:32px;height:32px;display:flex;align-items:center;justify-content:center"></span></div>
+          <div class="doc" data-doc="capture"></div>
+          <div data-acc></div>
+          <div class="kb" data-kb></div>
+        </div>
+        <div class="imm">
+          <div class="imm-scrim"></div>
+          <div class="imm-x" data-i="x" data-s="24"></div>
+          <div class="imm-zone">
+            <div class="wave" data-wave="30"></div>
+            <span class="timer">0:04</span>
+            <span class="say">松手插入 · 上滑取消</span>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">Q1</span>快速捕获里按住 🎤</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>与编辑态完全一致，不需要额外设计。</li>
+      </ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="under"><div class="mini-card" style="margin-top:56px"></div><div class="mini-card"></div><div class="mini-card"></div></div>
+        <div class="scrim" style="z-index:1"></div>
+        <div style="position:absolute;right:0;left:0;bottom:120px;z-index:2;display:flex;flex-direction:column;align-items:center;gap:10px">
+          <div class="card" style="padding:12px 14px;border-radius:16px;width:250px;font-size:14px;line-height:1.6"><span style="color:var(--ink-2)">周五前把移动端语音输入的</span><span style="color:var(--ink-3)">方案定下来</span><span class="caret blink"></span></div>
+          <div class="card" style="padding:6px;border-radius:18px;width:200px;font-size:14px">
+            <div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;background:var(--brand-soft);color:var(--brand-text)"><span data-i="mic" data-s="18"></span>卡片<span class="timer" style="margin-left:auto;font-size:12px">0:03</span></div>
+            <div style="display:flex;align-items:center;gap:10px;padding:9px 10px"><span data-i="book-open" data-s="18"></span>日记</div>
+            <div style="display:flex;align-items:center;gap:10px;padding:9px 10px"><span data-i="pencil" data-s="18"></span>文章</div>
+            <div style="display:flex;align-items:center;gap:10px;padding:9px 10px"><span data-i="calendar-days" data-s="18"></span>日程</div>
+          </div>
+        </div>
+        <div style="position:absolute;left:12px;right:12px;bottom:26px;height:62px;border-radius:22px;background:var(--bg-surface);box-shadow:var(--shadow-float);z-index:2;display:flex;align-items:center;justify-content:center">
+          <span class="ab plus on" data-i="x" data-s="20" style="width:44px;height:44px;border-radius:50%"></span>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">Q2</span>第二期：按住「卡片」直接说</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>只在「卡片」「日记」两项支持；文章是长文，走正常编辑。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 5 权限与异常 ═══════════ -->
+<section class="scene" data-scene="states">
+  <p class="scene-intro">按住前就能判断的问题（未配置、没权限）用 🎤 上方的小气泡提示，带一个可点的下一步，4 秒后消失；录音中和润色中的问题在沉浸区或润色胶囊里就地显示。</p>
+  <div class="state-grid">
+    <div class="state">
+      <div class="mini"><div class="doc">下一步：<span class="caret blink"></span></div>
+        <div class="pop">按住说话，松手写入</div>
+        <div data-acc="on"></div>
+      </div>
+      <div class="cap"><b>短按</b>：不录音，只提示手势。</div>
+    </div>
+    <div class="state">
+      <div class="mini"><div class="doc">下一步：<span class="caret blink"></span></div>
+        <div class="pop">还没有选择语音识别服务<br><span class="go">去设置</span></div>
+        <div data-acc="on"></div>
+      </div>
+      <div class="cap"><b>未配置</b>：「去设置」跳 我的 › 语音 › 语音输入（<code>settingsModule</code> 的 <code>speech-input</code>）。</div>
+    </div>
+    <div class="state">
+      <div class="mini"><div class="doc">下一步：<span class="caret blink"></span></div>
+        <div class="pop">需要麦克风权限<br><span class="go">打开系统设置</span></div>
+        <div data-acc="on"></div>
+      </div>
+      <div class="cap"><b>权限被拒</b>：首次由系统弹窗申请；拒绝后才显示此提示。</div>
+    </div>
+    <div class="state">
+      <div class="mini"><div class="doc">下一步：<span class="caret blink"></span></div>
+        <div class="mini-zone"><span class="spin"></span><span style="font-size:12.5px;color:var(--ink-3)">正在连接识别服务…</span></div>
+      </div>
+      <div class="cap"><b>连接中</b>：按下即开始预热；超过 600ms 未就绪才显示，连上后波形接替。</div>
+    </div>
+    <div class="state">
+      <div class="mini"><div class="doc">下一步：<span class="caret blink"></span></div>
+        <div class="mini-zone"><div class="wave still" data-wave="26"></div><span style="font-size:12.5px;color:var(--ink-3)">没听清，靠近一点</span></div>
+      </div>
+      <div class="cap"><b>没识别出字</b>：3 秒无字时提示；松手不插入。</div>
+    </div>
+    <div class="state">
+      <div class="mini"><div class="doc">下一步：把这张卡片拆成三个问答，加入今天<span class="caret blink"></span></div>
+        <div class="pop">连接中断，已写入识别到的部分<br><span class="go">撤销</span></div>
+        <div data-acc></div>
+      </div>
+      <div class="cap"><b>录音中断</b>：已识别的文字照常写入（不丢）；没有文字时只提示「识别服务连接失败」。</div>
+    </div>
+    <div class="state">
+      <div class="mini"><div class="doc">下一步：嗯就是把这张卡片拆成三个问答吧，然后那个，加入今天的复习队列<span class="caret blink"></span></div>
+        <div class="cap-pill" style="bottom:60px">润色失败，已用原文<span class="div"></span><span class="btn pri">重试</span></div>
+        <div data-acc></div>
+      </div>
+      <div class="cap"><b>润色失败 / 超时</b>：按 <code>refineSpeechInput</code> 的 fallback 写入原文，可重试。</div>
+    </div>
+  </div>
+
+  <div class="card" style="max-width:1280px;margin-top:20px">
+    <h3>建议结论</h3>
+    <ol>
+      <li><b>首期</b>：配件栏 🎤（卡片、文章、日记、快速捕获的编辑态）+ 阅读态 🎤（追加到文末）；按住升起沉浸区，正文流式出字，松手写入，上滑取消；不做锁定，长段按住说，最长 2 分钟。</li>
+      <li><b>AI 润色</b>：配置后松手进入原地润色（流光 + 胶囊），完成后替换，可「用原文」「撤销」；移动端需先接 LLM 整理适配。</li>
+      <li><b>第二期</b>：创建菜单按住「卡片 / 日记」直接说。</li>
+      <li><b>落地结构</b>：<code>useHoldToDictate</code>（手势 + 会话状态：idle / connecting / holding / cancelling / polishing / committed）驱动装饰层预览与一次性插入；<code>DictationOverlay</code> 负责沉浸区；配件栏与阅读态按钮只是触发器。</li>
+    </ol>
+  </div>
+</section>
+
+<script src="voice.js"></script>
+</body>
+</html>

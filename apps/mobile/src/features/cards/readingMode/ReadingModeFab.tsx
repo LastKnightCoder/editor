@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pencil } from "lucide-react";
 import { cn } from "@tau/ui";
 
@@ -21,11 +21,13 @@ type ReadingModeFabProps = {
    * 末尾（最后一个子元素的底边）滚进按钮区域时按钮淡出，正文末尾不为按钮额外留白
    */
   getScrollContainer: () => HTMLElement | null;
+  /** 「编辑」左侧的附加按钮（语音输入），与「编辑」同显隐、同淡出 */
+  leading?: ReactNode;
 };
 
 /** 阅读态右下角的「编辑」悬浮按钮；编辑态由配件栏右端的「完成」退出 */
 export function ReadingModeFab(props: ReadingModeFabProps) {
-  const { visible, onEnter, getScrollContainer } = props;
+  const { visible, onEnter, getScrollContainer, leading } = props;
   const [collapsed, setCollapsed] = useState(false);
   const [nearEnd, setNearEnd] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -73,22 +75,35 @@ export function ReadingModeFab(props: ReadingModeFabProps) {
   if (!visible) return null;
 
   return (
-    <button
-      ref={buttonRef}
-      type="button"
-      aria-label="编辑"
-      aria-hidden={nearEnd}
-      tabIndex={nearEnd ? -1 : undefined}
-      onClick={onEnter}
-      className={cn(
-        "bg-accent text-ink-inverse shadow-lift absolute bottom-[calc(var(--mobile-safe-bottom)+20px)] right-5 z-20 flex h-[50px] items-center justify-center rounded-full text-[15px] font-bold transition-[padding,transform,opacity] duration-200 active:scale-95",
-        collapsed ? "w-[50px]" : "gap-1.5 pl-4 pr-[18px]",
-        nearEnd && "pointer-events-none opacity-0"
-      )}
-    >
-      <Pencil size={17} strokeWidth={2.4} aria-hidden />
-      {collapsed ? null : <span>编辑</span>}
-    </button>
+    <div className="pointer-events-none absolute right-5 bottom-[calc(var(--mobile-safe-bottom)+20px)] z-20 flex items-center gap-2.5">
+      {leading ? (
+        <div
+          aria-hidden={nearEnd}
+          className={cn(
+            "pointer-events-auto transition-opacity duration-200",
+            nearEnd && "pointer-events-none opacity-0"
+          )}
+        >
+          {leading}
+        </div>
+      ) : null}
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-label="编辑"
+        aria-hidden={nearEnd}
+        tabIndex={nearEnd ? -1 : undefined}
+        onClick={onEnter}
+        className={cn(
+          "bg-accent text-ink-inverse shadow-lift pointer-events-auto flex h-[50px] items-center justify-center rounded-full text-[15px] font-bold transition-[padding,transform,opacity] duration-200 active:scale-95",
+          collapsed ? "w-[50px]" : "gap-1.5 pl-4 pr-[18px]",
+          nearEnd && "pointer-events-none opacity-0"
+        )}
+      >
+        <Pencil size={17} strokeWidth={2.4} aria-hidden />
+        {collapsed ? null : <span>编辑</span>}
+      </button>
+    </div>
   );
 }
 
