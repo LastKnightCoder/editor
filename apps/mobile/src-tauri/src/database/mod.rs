@@ -277,6 +277,7 @@ pub fn get_active_database_size(app: AppHandle) -> Result<u64, String> {
 
 #[tauri::command]
 pub fn create_database(app: AppHandle, name: String) -> Result<DatabaseItem, String> {
+    let _ai_switch = crate::ai::lifecycle::begin_switch()?;
     let db_name = normalize_database_name(&name).map_err(|_| "DB_NAME_INVALID".to_string())?;
     ensure_database_file(&app, &db_name)?;
     let (setting, changed) = mutate_setting_value(&app, |setting| {
@@ -286,6 +287,7 @@ pub fn create_database(app: AppHandle, name: String) -> Result<DatabaseItem, Str
         Ok((setting.clone(), changed))
     })?;
     if changed {
+        crate::ai::lifecycle::invalidate_all();
         crate::plugin_transport::invalidate();
     }
     reconcile::trigger_reconcile(&app, &db_name);
@@ -302,6 +304,7 @@ pub fn create_database(app: AppHandle, name: String) -> Result<DatabaseItem, Str
 
 #[tauri::command]
 pub fn set_active_database(app: AppHandle, name: String) -> Result<ActiveDatabaseResponse, String> {
+    let _ai_switch = crate::ai::lifecycle::begin_switch()?;
     let db_name = normalize_database_name(&name).map_err(|_| "DB_NAME_INVALID".to_string())?;
     ensure_database_file(&app, &db_name)?;
     let (created, changed) = mutate_setting_value(&app, |setting| {
@@ -311,6 +314,7 @@ pub fn set_active_database(app: AppHandle, name: String) -> Result<ActiveDatabas
         Ok((created, changed))
     })?;
     if changed {
+        crate::ai::lifecycle::invalidate_all();
         crate::plugin_transport::invalidate();
     }
     reconcile::trigger_reconcile(&app, &db_name);

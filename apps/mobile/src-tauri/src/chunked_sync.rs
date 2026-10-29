@@ -56,6 +56,13 @@ pub(crate) fn database_version_object(name: &str) -> String {
 pub(crate) fn database_file_object(name: &str) -> String {
     format!("{}/data.db", database_root(name))
 }
+pub(crate) fn database_sessions_object(name: &str) -> String {
+    format!("{}/sessions.json", database_root(name))
+}
+pub(crate) fn database_session_object(name: &str, file: &str) -> Result<String, String> {
+    crate::ai::store::safe_file(file)?;
+    Ok(format!("{}/sessions/{file}", database_root(name)))
+}
 fn chunk_object(hash: &str) -> String {
     format!(
         "{}/chunks/{}/{}.bin",

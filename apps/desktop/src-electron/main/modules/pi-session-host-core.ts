@@ -25,11 +25,11 @@ import type {
   ResourceLoader,
 } from "@earendil-works/pi-coding-agent";
 import { buildPiProvider } from "./pi-ai-runtime-core";
-import type { PiTranscriptEntry, PiTranscriptMessage } from "./pi-session-transcript";
+import { getSessionTranscript, type SessionEntry as SharedSessionEntry } from "@tau/ai/session";
+import type { PiTranscriptEntry } from "./pi-session-transcript";
 import {
   DISPLAY_ENTRY_TYPE,
   closeDanglingToolCalls,
-  messageVersionsOf,
   type DesktopDisplayData,
 } from "./pi-session-files";
 import type { LLMProviderSetting } from "@/types/pi-llm";
@@ -109,50 +109,10 @@ export function transcriptOf(
   manager: Pick<SessionManager, "getBranch" | "getEntries">
 ): PiTranscriptEntry[] {
   const branch = manager.getBranch();
-  // 会话树（M4-d）：同一位置有多个版本的用户消息带上版本信息，界面据此显示 ‹ i/n ›
-  const versions = messageVersionsOf(manager.getEntries());
-  // 删除单条消息 = pi 原生 context_edit(target, null)：模型看不到，界面也不该再显示
-  const omitted = new Set(
-    branch
-      .filter(entry => entry.type === "context_edit")
-      .filter(entry => (entry as { replacement: unknown }).replacement === null)
-      .map(entry => (entry as { targetId: string }).targetId)
+  return getSessionTranscript(
+    { entries: manager.getEntries() as unknown as SharedSessionEntry[] },
+    branch.at(-1)?.id ?? null
   );
-  const out: PiTranscriptEntry[] = [];
-  // 展示 entry 按模型文本认领用户消息：插话的用户消息与它的展示 entry 之间可能隔着别的 entry，
-  // 不能按位置配对；同一文本多次出现时按顺序先到先得
-  const pendingUsers: PiTranscriptEntry[] = [];
-  for (const entry of branch) {
-    if (entry.type === "message") {
-      if (omitted.has(entry.id)) continue;
-      const version = versions.get(entry.id);
-      const item: PiTranscriptEntry = {
-        id: entry.id,
-        message: (entry as { message: PiTranscriptMessage }).message,
-        ...(version ? { versions: version } : {}),
-      };
-      out.push(item);
-      if (item.message.role === "user") pendingUsers.push(item);
-      continue;
-    }
-    if (
-      entry.type === "custom" &&
-      (entry as { customType?: string }).customType === DISPLAY_ENTRY_TYPE
-    ) {
-      const data = (entry as { data?: DesktopDisplayData }).data;
-      if (!data) continue;
-      const index = pendingUsers.findIndex(
-        user => userModelTextOf(user.message.content) === data.modelText
-      );
-      if (index < 0) continue;
-      const [user] = pendingUsers.splice(index, 1);
-      user.display = {
-        content: data.content,
-        ...(data.clientId ? { clientId: data.clientId } : {}),
-      };
-    }
-  }
-  return out;
 }
 
 /**

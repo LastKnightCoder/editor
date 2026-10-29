@@ -10,6 +10,7 @@ use super::migrator;
 use crate::setting::{get_active_database_name, load_or_init_setting, resolve_database_path};
 
 pub fn ensure_database_file(app: &AppHandle, db_name: &str) -> Result<(), String> {
+    crate::ai::install::recover(&crate::setting::resolve_app_dir(app)?, db_name)?;
     let database_path = resolve_database_path(app, db_name)
         .map_err(|e| format!("DB_OPEN_FAILED: Failed to resolve database path: {e}"))?;
     if !database_path.exists() {
@@ -121,9 +122,10 @@ pub(crate) fn install_download(
     name: &str,
     local_version: u64,
     download: &std::path::PathBuf,
+    downloaded_sessions: Option<&std::path::Path>,
 ) -> Result<(), String> {
     let result = crate::plugin_transport::replace_database(name, || {
-        install_download_locked(app, name, local_version, download)
+        install_download_locked(app, name, local_version, download, downloaded_sessions)
     });
     use tauri::Emitter;
     // 替换失败也要重建已终结的插件会话。
@@ -135,6 +137,7 @@ fn install_download_locked(
     name: &str,
     local_version: u64,
     download: &std::path::PathBuf,
+    downloaded_sessions: Option<&std::path::Path>,
 ) -> Result<(), String> {
     let _cache_lock = crate::collaboration::CACHE_WRITE_LOCK
         .lock()
@@ -143,6 +146,7 @@ fn install_download_locked(
         .get_or_init(|| Mutex::new(None))
         .lock()
         .map_err(|_| "数据库连接锁不可用")?;
+    let _install_guard = crate::ai::install::lock()?;
     *connections = None;
     let destination = resolve_database_path(app, name)?;
     if destination.exists() {
@@ -163,7 +167,17 @@ fn install_download_locked(
         &crate::collaboration::session_store(app)?,
         name,
     )?;
-    replace_database_file(download, &destination).map_err(|e| e.to_string())?;
+    let root = crate::setting::resolve_app_dir(app)?;
+    crate::ai::install::prepare(&root, name, true)?;
+    let installed = (|| {
+        replace_database_file(download, &destination).map_err(|e| e.to_string())?;
+        crate::ai::install::install_sessions(&root, name, downloaded_sessions)?;
+        crate::ai::install::finish(&root, name)
+    })();
+    if let Err(error) = installed {
+        crate::ai::install::recover_locked(&root, name)?;
+        return Err(error);
+    }
     for suffix in ["-wal", "-shm"] {
         let _ = fs::remove_file(format!("{}{suffix}", destination.to_string_lossy()));
     }

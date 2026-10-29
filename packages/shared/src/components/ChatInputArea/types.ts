@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import type { MentionRef, MessageContent, ThinkingLevel } from "../../chat-core/messages";
+export type { MentionEntityType, MentionRef, ThinkingLevel } from "../../chat-core/messages";
 
 /**
  * 模型下拉菜单项（antd Dropdown 时代的结构子集；ChatInputArea 换 @tau/ui Menu 后收敛为原语协议）。
@@ -14,29 +16,8 @@ export interface ChatDropdownItem {
   icon?: ReactNode;
 }
 
-/**
- * 思考档位——全仓唯一定义，取值与运行时（pi ThinkingLevel）逐项对齐。
- * 桌面端 `PiThinkingLevel` 即本类型；此前两侧各有一套（旧枚举用 "none" 且没有 "minimal"），
- * 导致 minimal 在界面上不可达、每处转换都要记得 none→off。
- */
-export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
-
-export type MentionEntityType = "card" | "article" | "project-item";
-
-/** 聊天 mention 引用 */
-export interface MentionRef {
-  entityType: MentionEntityType;
-  entityId: number;
-  contentId: number;
-  title: string;
-  previewText: string;
-}
-
 /** 消息内容类型；resourceId 仅兼容历史数据，新附件只写入路径。 */
-export type MessageContentItem =
-  | { type: "text"; text: string; mentions?: MentionRef[]; skills?: string[] }
-  | { type: "image"; image: string; path?: string; resourceId?: number }
-  | { type: "file"; file: string; resourceId?: number; fileName?: string };
+export type MessageContentItem = MessageContent;
 
 /** ChatInputArea 需要的服务函数 */
 export interface ChatInputAreaServices {

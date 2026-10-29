@@ -1,3 +1,4 @@
+mod ai;
 mod app_feedback;
 mod app_update;
 mod chunked_sync;
@@ -69,6 +70,28 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
+            ai::ai_library_acquire,
+            ai::ai_library_assert,
+            ai::ai_library_release,
+            ai::ai_run_active,
+            ai::ai_session_create,
+            ai::ai_session_read,
+            ai::ai_session_commit,
+            ai::ai_session_patch,
+            ai::ai_session_remove,
+            ai::ai_session_list,
+            ai::ai_session_stage_open,
+            ai::ai_session_stage_write,
+            ai::ai_session_stage_finish,
+            ai::ai_model_config,
+            ai::ai_http_context,
+            ai::ai_mcp_context,
+            ai::ai_http_dispose,
+            ai::ai_http_open,
+            ai::ai_http_upload,
+            ai::ai_http_response,
+            ai::ai_http_read,
+            ai::ai_http_cancel,
             logger::app_log,
             app_feedback::app_feedback_image_write,
             app_feedback::app_feedback_image_discard,
