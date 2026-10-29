@@ -31,6 +31,7 @@ export function createControllerStub(
     requestBlockSelection: vi.fn(() => false),
     focusAfterVoid: vi.fn(),
     getEditableElement: vi.fn(() => null),
+    getEditor: vi.fn(() => null),
     runMediaEdit: vi.fn(),
     runInPanel: vi.fn(),
     indent: vi.fn(),

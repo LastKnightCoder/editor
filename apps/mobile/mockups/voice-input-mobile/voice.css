@@ -1,0 +1,761 @@
+/* 语音输入 mockup：在 editor-mobile/styles.css 之上补充语音相关部件 */
+.scene-intro {
+  max-width: 1180px;
+}
+.mic-dot {
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+.ab.rec {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+}
+
+/* 插入点标记：录音期间正文里固定的落点 */
+.ins-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: -0.15em;
+}
+.ins-mark i {
+  width: 2px;
+  height: 1.15em;
+  border-radius: 1px;
+  background: var(--danger);
+  animation: blink 1.05s steps(1) infinite;
+}
+.ins-mark em {
+  font-style: normal;
+  font-size: 11px;
+  line-height: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
+.end-mark {
+  margin-top: 10px !important;
+}
+
+/* 流式预览：已定稿文字 / 仍在修正的尾句 */
+.ghost {
+  color: var(--ink-2);
+}
+.ghost.live {
+  color: var(--ink-3);
+}
+/* 刚写入的文字：只用一条浅色下划线提示落点，约 1.5 秒后淡出 */
+.just-in {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--brand) 45%, transparent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+.ph {
+  color: var(--ink-3);
+}
+
+/* 波形 */
+.wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 34px;
+}
+.wave i {
+  width: 3px;
+  height: var(--h);
+  border-radius: 2px;
+  background: var(--danger);
+  animation: wv 1s ease-in-out infinite alternate;
+}
+.wave.ink i {
+  background: var(--ink-2);
+}
+.wave.still i {
+  animation: none;
+  height: 14%;
+  background: var(--line-2);
+}
+@keyframes wv {
+  from {
+    transform: scaleY(0.35);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+.timer {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.timer::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  animation: blink 1.2s steps(1) infinite;
+}
+.timer.idle::before {
+  background: var(--ink-3);
+  animation: none;
+}
+
+/* 方案 A：语音面板顶替键盘 */
+.vpanel {
+  height: 250px;
+  flex-shrink: 0;
+  background: var(--bg-surface);
+  display: flex;
+  flex-direction: column;
+  padding: 12px 16px 0;
+}
+.vp-preview {
+  flex: 1;
+  min-height: 0;
+  padding: 6px 4px;
+  font-size: 15px;
+  line-height: 1.6;
+  overflow: hidden;
+  position: relative;
+}
+.vp-preview .hint {
+  color: var(--ink-3);
+  font-size: 14px;
+}
+.vp-preview .live {
+  color: var(--ink-3);
+}
+.vp-preview .tag {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand-text);
+}
+.vp-row {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 8px 2px 4px;
+}
+.vp-ctrl {
+  height: 82px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 6px 14px;
+}
+.round {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-press);
+  color: var(--ink-2);
+  flex-direction: column;
+  font-size: 10.5px;
+  gap: 1px;
+}
+.round.lbl {
+  width: auto;
+  height: auto;
+  background: none;
+  gap: 4px;
+}
+.round.lbl > span:first-child {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-press);
+}
+.big-stop {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 7px color-mix(in srgb, var(--danger) 16%, transparent);
+}
+.big-stop.done {
+  background: var(--ink-1);
+  color: var(--ink-inv);
+  box-shadow: none;
+}
+.big-stop.mic {
+  background: var(--brand);
+  color: var(--ink-inv);
+  box-shadow: none;
+}
+.vseg {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--bg-press);
+  font-size: 12px;
+}
+.vseg span {
+  padding: 3px 10px;
+  border-radius: 999px;
+  color: var(--ink-3);
+}
+.vseg span.on {
+  background: var(--bg-surface);
+  color: var(--ink-1);
+  font-weight: 600;
+  box-shadow: var(--shadow-card);
+}
+.spin {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--line-1);
+  border-top-color: var(--brand);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 方案 B：配件栏变形为录音条 */
+.acc.recbar {
+  gap: 8px;
+  padding: 0 8px;
+}
+.acc.recbar .wave {
+  flex: 1;
+  height: 26px;
+  justify-content: center;
+}
+.pill-btn {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  flex-shrink: 0;
+}
+.pill-btn.ghost-btn {
+  background: none;
+  color: var(--ink-3);
+  font-weight: 500;
+  padding: 0 6px;
+}
+
+/* 阅读态 */
+.fab-stack {
+  position: absolute;
+  right: 18px;
+  bottom: 34px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fab-stack .fab {
+  position: static;
+}
+.fab-mini {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  color: var(--ink-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-float);
+}
+.vsheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+  background: var(--bg-surface);
+  border-radius: 24px 24px 0 0;
+  box-shadow: var(--shadow-float);
+  padding: 8px 16px 0;
+}
+.vsheet .grab {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-2);
+  margin: 0 auto 10px;
+}
+.vsheet .to {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-bottom: 8px;
+}
+.vsheet .to b {
+  color: var(--ink-1);
+  font-weight: 600;
+}
+.vsheet .to .chev {
+  margin-left: auto;
+  color: var(--brand);
+  display: flex;
+  align-items: center;
+}
+.vsheet .vp-preview {
+  height: 104px;
+  flex: none;
+}
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: color-mix(in srgb, var(--tau-overlay) 55%, transparent);
+}
+.toast {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  height: 40px;
+  padding: 0 6px 0 16px;
+  border-radius: 999px;
+  background: var(--ink-1);
+  color: var(--ink-inv);
+  font-size: 13.5px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+  box-shadow: var(--shadow-float);
+}
+.toast b {
+  color: var(--ink-inv);
+  padding: 0 10px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink-inv) 16%, transparent);
+  font-weight: 600;
+}
+
+/* 快速捕获 */
+.qc {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 120px;
+  border-radius: 24px 24px 0 0;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-float);
+  display: flex;
+  flex-direction: column;
+}
+.qc-head {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 16px 10px;
+  border-bottom: 1px dashed var(--line-1);
+}
+.qc-head .chip {
+  height: 28px;
+  padding: 0 13px;
+  border: 1px solid var(--line-1);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  display: flex;
+  align-items: center;
+}
+.qc .doc {
+  padding: 12px 18px 0;
+}
+.qc-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 0;
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+.qc-empty .big-stop {
+  width: 58px;
+  height: 58px;
+}
+.under {
+  background: var(--shell);
+  position: absolute;
+  inset: 0;
+}
+.mini-card {
+  margin: 12px 16px;
+  height: 70px;
+  border-radius: 16px;
+  background: var(--bg-surface);
+  opacity: 0.7;
+}
+
+/* 异常态小帧 */
+.state-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  max-width: 1280px;
+}
+.state {
+  background: var(--bg-surface);
+  border-radius: 18px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.state .vpanel {
+  height: 200px;
+}
+.state .cap {
+  padding: 10px 14px 12px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--meta);
+  border-top: 1px solid var(--line-1);
+}
+.state .cap b {
+  color: var(--ink-1);
+}
+.notice {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  padding: 0 14px;
+}
+.notice .ico {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-press);
+  color: var(--ink-2);
+}
+.notice .ico.err {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
+.notice .act {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.notice .act span {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--bg-press);
+}
+.notice .act span.pri {
+  background: var(--ink-1);
+  color: var(--ink-inv);
+}
+.warn-line {
+  font-size: 11.5px;
+  color: var(--butter);
+  background: var(--butter-soft);
+  border-radius: 8px;
+  padding: 3px 8px;
+}
+
+/* 异常态：麦克风上方的小气泡 */
+.mini {
+  position: relative;
+  height: 210px;
+  background: var(--bg-page);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.mini .doc {
+  flex: 1;
+  font-size: 14px;
+  padding: 14px 18px 0;
+}
+.pop {
+  position: absolute;
+  right: 10px;
+  bottom: 54px;
+  max-width: 250px;
+  background: var(--ink-1);
+  color: var(--ink-inv);
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  box-shadow: var(--shadow-float);
+  z-index: 3;
+}
+.pop::after {
+  content: "";
+  position: absolute;
+  right: 54px;
+  bottom: -6px;
+  width: 12px;
+  height: 12px;
+  background: var(--ink-1);
+  transform: rotate(45deg);
+}
+.pop span.go {
+  display: inline-block;
+  color: var(--ink-inv);
+  width: auto;
+  height: auto;
+  margin-top: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--ink-inv) 18%, transparent);
+}
+
+/* ── 沉浸式按住说话：居中布局，按下后整块底部都是触控区 ─────────────────── */
+.imm {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+}
+.imm-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 46%,
+    color-mix(in srgb, var(--tau-overlay) 85%, transparent) 72%
+  );
+}
+.imm-x {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg-surface) 88%, transparent);
+  color: var(--ink-2);
+  margin-bottom: 26px;
+  box-shadow: var(--shadow-float);
+}
+.imm-x.hot {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 19px;
+  background: var(--danger);
+  color: #fff;
+}
+.imm-zone {
+  position: relative;
+  width: 100%;
+  /* 与实现一致：至少盖住键盘 + 配件栏（手机帧里 250 + 46） */
+  height: 310px;
+  border-radius: 50% 50% 0 0 / 70px 70px 0 0;
+  background: var(--bg-surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding-bottom: 10px;
+}
+.imm.cancel .imm-zone {
+  background: color-mix(in srgb, var(--danger) 10%, var(--bg-surface));
+}
+.imm-zone .wave {
+  height: 44px;
+  gap: 4px;
+}
+.imm-zone .wave i {
+  width: 3.5px;
+  background: var(--brand);
+}
+.imm-zone .wave.still i {
+  background: var(--line-2);
+}
+.imm-zone .timer::before {
+  background: var(--brand);
+}
+.imm-zone .say {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.imm-zone .say [data-i] {
+  color: var(--brand);
+}
+.imm-zone .say.hot {
+  color: var(--danger);
+  font-weight: 600;
+}
+.imm-finger {
+  position: absolute;
+  left: 157px;
+  bottom: 290px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink-1) 12%, transparent);
+  border: 2px solid color-mix(in srgb, var(--ink-1) 22%, transparent);
+  z-index: 5;
+}
+
+/* 润色中：文字上走一道流光，不加底色 */
+.polishing {
+  background: linear-gradient(
+    100deg,
+    var(--ink-3) 0%,
+    var(--ink-3) 35%,
+    var(--brand) 50%,
+    var(--ink-3) 65%,
+    var(--ink-3) 100%
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 1.6s linear infinite;
+}
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -150% 0;
+  }
+}
+
+/* 编辑器上方的润色状态胶囊 */
+.cap-pill {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  height: 38px;
+  padding: 0 4px 0 14px;
+  border-radius: 999px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-float);
+  font-size: 13.5px;
+  color: var(--ink-1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.cap-pill .sp {
+  color: var(--brand);
+  display: flex;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.cap-pill .ok {
+  color: var(--sage);
+  display: flex;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+}
+.cap-pill .div {
+  width: 1px;
+  height: 16px;
+  background: var(--line-1);
+}
+.cap-pill .btn {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  color: var(--ink-2);
+  font-weight: 600;
+}
+.cap-pill .btn.pri {
+  color: var(--brand-text);
+}
+
+/* 异常态小帧（沉浸区缩略） */
+.mini-zone {
+  position: absolute;
+  left: -20px;
+  right: -20px;
+  bottom: 0;
+  height: 104px;
+  border-radius: 50% 50% 0 0 / 36px 36px 0 0;
+  background: var(--bg-surface);
+  box-shadow: 0 -10px 30px -16px color-mix(in srgb, var(--ink-1) 30%, transparent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.mini-zone .wave i {
+  background: var(--brand);
+}
+.mini-zone .wave.still i {
+  background: var(--line-2);
+}
+.mini .cap-pill {
+  bottom: 60px;
+}

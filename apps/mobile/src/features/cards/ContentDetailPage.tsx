@@ -11,7 +11,7 @@ import {
 } from "react";
 import { useMobileContentKit } from "../../services/editorKit";
 import { EditorKitPending } from "../../components/EditorKitPending";
-import { CornerUpRight } from "lucide-react";
+import { CornerUpRight, Mic } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { useEdgeFade } from "../../hooks/useScrollState";
@@ -36,6 +36,7 @@ import type { CollaborativeEditorMode } from "../collaboration/CollaborativeEdit
 import { isEditorContentEmpty } from "./editorContentUtils";
 import { useReadingMode } from "./readingMode/useReadingMode";
 import { ReadingModeFab } from "./readingMode/ReadingModeFab";
+import { DictationTrigger } from "../speechInput/DictationTrigger";
 import { ReadingSelectionBar } from "./readingMode/ReadingSelectionBar";
 import { useReadingSelection } from "./readingMode/useReadingSelection";
 import { useEditorOpenMode } from "../../hooks/useEditorOpenMode";
@@ -737,6 +738,28 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         visible={fabVisible}
         onEnter={readingMode.enterEditing}
         getScrollContainer={getScrollContainer}
+        leading={
+          <DictationTrigger
+            getEditor={() => editorRef.current?.getEditor() ?? null}
+            mode="end"
+            portalContainer={pageRootEl}
+            pillBottom="calc(var(--mobile-safe-bottom) + 84px)"
+            renderButton={({ bind, active }) => (
+              <button
+                type="button"
+                aria-label="按住说话，追加到文末"
+                aria-pressed={active}
+                className={cn(
+                  "bg-surface text-ink-1 shadow-lift flex h-[50px] w-[50px] select-none items-center justify-center rounded-full transition-transform duration-200",
+                  active && "scale-95"
+                )}
+                {...bind}
+              >
+                <Mic size={20} strokeWidth={2.2} aria-hidden />
+              </button>
+            )}
+          />
+        }
       />
       <MobileEditorBottomToolbar
         controller={toolbarController}

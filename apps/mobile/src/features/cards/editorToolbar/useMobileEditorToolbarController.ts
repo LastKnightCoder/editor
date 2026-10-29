@@ -191,6 +191,8 @@ export type MobileEditorToolbarController = {
   focusAfterVoid: (place: (editor: SlateEditor) => void) => void;
   /** 编辑区 DOM（媒体档位换算可用宽度） */
   getEditableElement: () => HTMLElement | null | undefined;
+  /** 当前 Slate 编辑器实例，未挂载时为 null */
+  getEditor: () => SlateEditor | null;
   /** 在编辑器上执行媒体改动并刷新配件栏状态，不处理焦点 */
   runMediaEdit: (fn: (editor: SlateEditor) => void) => void;
   /** 在面板保存的选区上执行操作，不聚焦编辑器 */
@@ -700,6 +702,7 @@ export function useMobileEditorToolbarController(
     () => editorRef.current?.getEditableElement(),
     [editorRef]
   );
+  const getEditor = useCallback(() => getEditorFromRef(editorRef), [editorRef]);
 
   const openPanel = useCallback(
     (kind: EditorPanelKind, panelHeight: number) => {
@@ -1173,6 +1176,7 @@ export function useMobileEditorToolbarController(
       requestBlockSelection,
       focusAfterVoid,
       getEditableElement,
+      getEditor,
       runMediaEdit,
       runInPanel,
       indent,
@@ -1230,6 +1234,7 @@ export function useMobileEditorToolbarController(
       requestBlockSelection,
       focusAfterVoid,
       getEditableElement,
+      getEditor,
       runMediaEdit,
       runInPanel,
       indent,

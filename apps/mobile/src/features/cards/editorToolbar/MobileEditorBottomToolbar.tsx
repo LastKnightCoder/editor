@@ -26,6 +26,7 @@ import {
   KeyboardOff,
   Link2,
   List,
+  Mic,
   MessageSquarePlus,
   Plus,
   Replace,
@@ -74,6 +75,7 @@ import {
 } from "./sourceEditorInput";
 import { useSourceBlockAccessory } from "./sourceBlockAccessory";
 import StylePanel from "./StylePanel";
+import { DictationTrigger } from "../../speechInput/DictationTrigger";
 import {
   AccessoryButton,
   ContextChip,
@@ -104,6 +106,7 @@ export type AccessoryItemId =
   | "content-link"
   | "image"
   | "undo"
+  | "dictation"
   | "bold"
   | "italic"
   | "underline"
@@ -198,6 +201,7 @@ const ITEM_LABELS: Record<AccessoryItemId, string> = {
   "content-link": "引用内容",
   image: "图片",
   undo: "撤销",
+  dictation: "按住说话",
   bold: "加粗",
   italic: "斜体",
   underline: "下划线",
@@ -800,6 +804,39 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     );
   }
 
+  // 语音输入只在通用模式出现：上下文、格式模式、面板打开时都不适合口述
+  const isGeneralMode =
+    !codeContext &&
+    !sourceContext &&
+    !mediaContext &&
+    !sourceBlockContext &&
+    !linkContext &&
+    !tableContext &&
+    !isFormatMode &&
+    activePanel === null;
+  const dictationNode =
+    isGeneralMode && isVisible("dictation") && !readonly ? (
+      <DictationTrigger
+        getEditor={controller.getEditor}
+        mode="point"
+        portalContainer={portalRoot}
+        renderButton={({ bind, active }) => (
+          <button
+            type="button"
+            aria-label={ITEM_LABELS.dictation}
+            aria-pressed={active}
+            className={cn(
+              "flex h-10 w-10 shrink-0 select-none items-center justify-center rounded-[11px] transition-colors",
+              active ? "bg-accent-soft text-accent-text" : "text-ink-2 active:bg-press"
+            )}
+            {...bind}
+          >
+            <Mic size={ICON_SIZE} strokeWidth={ICON_STROKE} />
+          </button>
+        )}
+      />
+    ) : null;
+
   const selectLanguage = (context: CodeEditingContext, language: string) => {
     controller.setCodeBlockLanguage(context, language);
     // 在选项点击内同步聚焦，iOS 才会弹回键盘
@@ -841,6 +878,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
                 className="to-surface pointer-events-none absolute inset-y-0 right-0 w-[22px] bg-linear-to-r from-transparent"
               />
             </div>
+            {dictationNode}
             {middleNodes.length > 0 && rightNode ? (
               <span aria-hidden="true" className="bg-line-1 mx-1 h-[22px] w-px shrink-0" />
             ) : null}

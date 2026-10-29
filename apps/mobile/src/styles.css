@@ -867,3 +867,123 @@ code {
     transparent calc(100% - var(--edge-fade-bottom-anchor) * var(--edge-bottom-on, 0))
   );
 }
+
+/* ── 语音输入：沉浸区、波形、正文预览与润色流光 ── */
+.dictation-scrim {
+  background: linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 46%,
+    color-mix(in srgb, var(--tau-overlay) 85%, transparent) 72%
+  );
+  animation: mask-fade-in 0.18s ease-out;
+}
+
+.dictation-zone {
+  border-radius: 50% 50% 0 0 / 70px 70px 0 0;
+  animation: dictation-rise 0.18s var(--tau-ease-out);
+}
+
+@keyframes dictation-rise {
+  from {
+    transform: translateY(40%);
+    opacity: 0;
+  }
+}
+
+.dictation-wave i {
+  width: 3.5px;
+  border-radius: 2px;
+  background: var(--tau-accent);
+  animation: dictation-wave 1s ease-in-out infinite alternate;
+}
+
+.dictation-wave.is-still i {
+  animation: none;
+  height: 14% !important;
+  background: var(--tau-line-2);
+}
+
+@keyframes dictation-wave {
+  from {
+    transform: scaleY(0.35);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/* 识别中的预览文字：不进文档，仅颜色区分，尾句更浅 */
+.dictation-preview {
+  color: var(--tau-ink-2);
+  user-select: none;
+}
+
+/* 阅读态追加：文末另起一段显示，与写入后的段落位置一致 */
+.dictation-preview.is-block {
+  display: block;
+  margin-top: 0.5em;
+}
+
+.dictation-preview-tail {
+  color: var(--tau-ink-3);
+}
+
+.dictation-preview.is-cancel {
+  opacity: 0.35;
+  text-decoration: line-through;
+}
+
+/* 刚写入的语音文字：浅下划线 1.5 秒后淡出 */
+.dictation-just-in {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+  animation: dictation-underline 1.5s ease-out forwards;
+}
+
+@keyframes dictation-underline {
+  from {
+    text-decoration-color: color-mix(in srgb, var(--tau-accent) 45%, transparent);
+  }
+  to {
+    text-decoration-color: transparent;
+  }
+}
+
+/* 润色中：文字上扫过一道主题色流光，不加底色 */
+.dictation-polishing {
+  background: linear-gradient(
+    100deg,
+    var(--tau-ink-3) 0%,
+    var(--tau-ink-3) 35%,
+    var(--tau-accent) 50%,
+    var(--tau-ink-3) 65%,
+    var(--tau-ink-3) 100%
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: dictation-shimmer 1.6s linear infinite;
+}
+
+@keyframes dictation-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -150% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dictation-wave i,
+  .dictation-polishing {
+    animation: none;
+  }
+  .dictation-polishing {
+    color: var(--tau-ink-3);
+    background: none;
+  }
+}

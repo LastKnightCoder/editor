@@ -170,6 +170,7 @@ describe("MobileEditorBottomToolbar", () => {
       "引用内容",
       "图片",
       "撤销",
+      "按住说话",
       "收起键盘",
     ]);
 
