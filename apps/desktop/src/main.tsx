@@ -1,46 +1,72 @@
-// import { scan } from "react-scan";
-// scan({
-//   enabled: import.meta.env.DEV,
-// });
-import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
-import { QueryClientProvider } from "@tanstack/react-query";
 import ReactDOM from "react-dom/client";
 import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
 
 import "./init";
-// 命令契约桥装配须早于任何 command 调用（与 init 同步区执行）
+// 命令契约桥装配须早于异步加载的应用模块。
 import "./commands/contracts/install";
 import "./tailwind.css";
 import "./app/base.css";
 
-import App from "@/App.tsx";
-import { initializeTooling } from "@/tools";
-import { initToolCallRenderers } from "@/tool-call-renderers";
-import { useContentEditReviewSessionStore } from "@/services/content-editing";
-import { queryClient } from "./queryClient";
-import { initializeContentPlugins } from "./app/plugins/content-plugin-bootstrap";
-import { DesktopPluginServicesProvider } from "./app/plugins/ServiceProvider";
-
 dayjs.locale("zh-cn");
-useBackendWebsocketStore.getState().initClient();
-initializeTooling();
-initToolCallRenderers();
 
-// 清理刷新前遗留的 pending 会话（这些会话的 resolver 已丢失）
-useContentEditReviewSessionStore.getState().cleanupStalePendingSessions();
+const root = ReactDOM.createRoot(document.getElementById("root")!);
 
-const bootstrap = async () => {
+// 先挂载轻量启动界面，避免后台模块和编辑器扩展加载期间出现白屏。
+root.render(
+  <div className="bg-page text-tau-caption text-ink-2 grid h-screen place-items-center">
+    正在启动…
+  </div>
+);
+
+void bootstrap().catch(error => {
+  console.error("应用启动失败", error);
+  root.render(
+    <div className="bg-page text-tau-caption text-danger grid h-screen place-items-center p-6">
+      应用启动失败，请重启后重试。
+    </div>
+  );
+});
+
+async function bootstrap() {
+  // 应用模块全部改为首帧之后加载，保留原有初始化顺序与依赖关系。
+  const [
+    { useBackendWebsocketStore },
+    { default: useDynamicExtensionsStore },
+    { QueryClientProvider },
+    { default: App },
+    { initializeTooling },
+    { initToolCallRenderers },
+    { useContentEditReviewSessionStore },
+    { queryClient },
+    { initializeContentPlugins },
+    { DesktopPluginServicesProvider },
+  ] = await Promise.all([
+    import("@/stores/useBackendWebsocketStore"),
+    import("@/stores/useDynamicExtensionsStore"),
+    import("@tanstack/react-query"),
+    import("@/App.tsx"),
+    import("@/tools"),
+    import("@/tool-call-renderers"),
+    import("@/services/content-editing"),
+    import("./queryClient"),
+    import("./app/plugins/content-plugin-bootstrap"),
+    import("./app/plugins/ServiceProvider"),
+  ]);
+
+  useBackendWebsocketStore.getState().initClient();
+  initializeTooling();
+  initToolCallRenderers();
+  useContentEditReviewSessionStore.getState().cleanupStalePendingSessions();
+
   await useDynamicExtensionsStore.getState().initExtensions();
   await initializeContentPlugins();
-  ReactDOM.createRoot(document.getElementById("root")!).render(
+
+  root.render(
     <QueryClientProvider client={queryClient}>
       <DesktopPluginServicesProvider>
         <App />
       </DesktopPluginServicesProvider>
     </QueryClientProvider>
   );
-};
-
-void bootstrap();
+}
