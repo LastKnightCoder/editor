@@ -40,7 +40,7 @@ import {
   type PluginSidebarItemState,
   type PluginSidebarItemUpdate,
 } from "./sidebar";
-import type { PluginHomePanelDefinition } from "./home";
+import type { PluginHomePanelDefinition, RegisteredHomePanelDefinition } from "./home";
 import {
   PLUGIN_ACTION_TARGET_KINDS,
   snapshotActionTarget,
@@ -199,11 +199,8 @@ export interface SettingsAdapter {
 }
 
 export interface HomeAdapter {
-  /** 定义已冻结，size 已补成缺省值 */
-  registerPanel(
-    context: PluginContext,
-    definition: Readonly<Required<PluginHomePanelDefinition>>
-  ): Disposable;
+  /** 定义已冻结，size、action 已补成缺省值 */
+  registerPanel(context: PluginContext, definition: RegisteredHomePanelDefinition): Disposable;
 }
 
 export interface ViewsAdapter {
@@ -3230,6 +3227,15 @@ export class PluginHost {
             throw new Error("首页面板组件必须是 React 组件");
           const size = definition.size ?? "wide";
           if (size !== "compact" && size !== "wide") throw new Error("首页面板宽度无效");
+          const action = definition.action ?? null;
+          if (
+            action !== null &&
+            (typeof action !== "object" ||
+              typeof action.title !== "string" ||
+              !action.title.trim() ||
+              typeof action.run !== "function")
+          )
+            throw new Error("首页面板入口需要标题和 run 函数");
           if (!this.options.home) throw new Error("当前宿主不支持首页面板");
           return registerAs(
             "home",
@@ -3240,6 +3246,7 @@ export class PluginHost {
                 title: definition.title,
                 component: definition.component,
                 size,
+                action: action && Object.freeze({ title: action.title, run: action.run }),
               })
             )
           );
