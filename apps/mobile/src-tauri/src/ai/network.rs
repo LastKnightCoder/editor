@@ -6,6 +6,7 @@ use bytes::Bytes;
 use futures_util::stream;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use tokio::sync::{mpsc, oneshot, watch, Mutex as AsyncMutex};
 
 use super::lifecycle;
@@ -70,6 +71,28 @@ pub fn public_config(setting: &Value) -> Value {
         }
     }
     serde_json::json!({"llmProviders":providers,"llmUsageSettings":setting["llmUsageSettings"]})
+}
+pub fn assert_model_revision(
+    setting: &Value,
+    provider_id: &str,
+    expected: Option<&str>,
+) -> Result<(), String> {
+    let Some(expected) = expected else {
+        return Ok(());
+    };
+    let provider = setting["llmProviders"]
+        .as_array()
+        .and_then(|providers| {
+            providers
+                .iter()
+                .find(|provider| provider["id"] == provider_id)
+        })
+        .ok_or("AI_CONFIG_CHANGED:模型提供方已删除")?;
+    let bytes = serde_json::to_vec(provider).map_err(|_| "AI_CONFIG_CHANGED:模型配置无法复验")?;
+    if format!("{:x}", Sha256::digest(bytes)) != expected {
+        return Err("AI_CONFIG_CHANGED:模型配置已改变，请重新授权请求".into());
+    }
+    Ok(())
 }
 pub fn context(
     lease: &str,
@@ -465,6 +488,31 @@ pub fn release_leases(leases: &[String]) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn authorized_model_revision_rejects_changed_provider_before_network_context() {
+        let mut setting = serde_json::json!({"llmProviders":[{"id":"provider","baseUrl":"https://original.invalid/v1","apiKey":"test-only-original","models":[{"id":"model","maxTokens":512}]}]});
+        let expected = format!(
+            "{:x}",
+            sha2::Sha256::digest(serde_json::to_vec(&setting["llmProviders"][0]).unwrap())
+        );
+        assert!(super::assert_model_revision(&setting, "provider", Some(&expected)).is_ok());
+        for (key, value) in [
+            ("baseUrl", "https://changed.invalid/v1"),
+            ("apiKey", "test-only-changed"),
+        ] {
+            let mut changed = setting.clone();
+            changed["llmProviders"][0][key] = serde_json::json!(value);
+            assert!(
+                super::assert_model_revision(&changed, "provider", Some(&expected))
+                    .unwrap_err()
+                    .starts_with("AI_CONFIG_CHANGED:")
+            );
+        }
+        setting["llmProviders"][0]["models"][0]["maxTokens"] = serde_json::json!(4096);
+        assert!(super::assert_model_revision(&setting, "provider", Some(&expected)).is_err());
+        assert!(super::assert_model_revision(&setting, "missing", Some(&expected)).is_err());
+        assert!(super::assert_model_revision(&setting, "provider", None).is_ok());
+    }
     use super::*;
     #[test]
     fn boundary_does_not_allow_auth_to_other_origin_or_prefix() {

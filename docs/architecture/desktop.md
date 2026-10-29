@@ -116,6 +116,8 @@ packages/database/src/   # 多视图 Database、投影、store 与通用字段�
 
 ### 聊天工具自定义渲染
 
+插件工具模型名称与稳定历史 ID 的纯函数统一位于 `@tau/ai/tool-identity`，桌面工具入口只做重导出，与移动宿主采用同一规则。
+
 唯一注册表在 `@tau/chat-ui/renderers`。作者在 activate 中 `await ctx.chat.registerToolRenderer({ mcpId, toolName, component })`，只引用本插件 MCP 的原始工具名；PluginHost 激活前校验、成功后发布；调用名与稳定内部 ID 分离，渲染器同时绑定二者，历史消息仍按原 SHA-256 标识命中。展示不受 MCP 执行开关/连接状态影响；signal 失效立即卸载，切库先清理旧运行时。本地工具返回 `{ content, render?: { version, data } }`（有限 JSON + 正整数版本），经 pi details 保存，实时与历史投影都保留 details；失败/取消回通用工具行，未知数据版本由插件 renderDefault 回退。渲染选择再校验绑定：只按实际 execution.toolName 命中，插件不能改选他人绑定；插件接收 execution 独立快照，不能改写宿主消息。不新增聊天 schema、内置工具覆盖或 MCP Apps 运行器。
 
 ### 文件转录与 ASR
@@ -173,7 +175,7 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 - 桌面与博客的插件贡献由 `@tau/plugins/content` 的 ContentPluginRegistry 保存只读快照；博客发布按用户已安装版本收集 main.js/CSS 在浏览器加载。移动普通正文在自己的 EditorKit 上装配受控跨端快照；浏览器扩展仍用原生套件，未知节点按通用保护保留原数据。
 - 领域插件的节点边界：HTML 行内与块级归 tau.html 插件（SDK 的 useInlineSource/insertInlineSource，插件不得打包自己的 Slate；Markdown 认领归已启用插件，缺包保留文本或未知节点 JSON）；ABC 归 tau-plugin-abc（内置 diagram 只剩 Mermaid、PlantUML；HTML 导出优先插件 SVG，缺包保留转义源码）；Typst 使用插件自带的浏览器 WebAssembly 编译器（预览挂载不写文档，仅用户编辑源码编译成功后持久化缓存，博客用缓存或源码回退）；TikZ、custom-block 同为独立插件。两类 HTML 的静态导出 CSS 按 styleSources 收集，宿主无专属类型名单。
 - `SourceBlockEditor` / `useSourceBlock` 由 SDK 提供（内部复用 PreviewWithEditor）；宿主共享模块初始化 source-editor-host，作者入口只依赖 SDK。
-- 插件 Skill：包内 `skills/<id>/` 目录（manifest.skills 列出并进 integrity）；只声明 skills 的是独立 Skill 包（`packageKind: "skills"`，不进 PluginHost、不参与启停）。主进程收集声明目录，与「我的/关联目录」经 `skill:list` 返回（标识 `pluginId:skillId`），读取与脚本执行只放行声明目录；渲染端按本窗口 PluginHost active 状态过滤插件来源，Skill 包始终可见。带脚本的 Skill 与独立后台共用 `requiresSystemReview`（门户不能自动批准），脚本执行沿用 run_skill_script 的 execute 确认。
+- 插件 Skill：包内 `skills/<id>/` 目录（manifest.skills 列出并进 integrity）；只声明 skills 的是独立 Skill 包（`packageKind: "skills"`，不进 PluginHost、不参与代码启停）。独立包保留格式 1，支持旧 desktop/minAppVersion 和跨端 portable/targets 两种声明，桌面读取与安装均检查自身 target；跨端包与中心审批清单及固定来源对账。主进程收集声明目录，与「我的/关联目录」经 `skill:list` 返回（标识 `pluginId:skillId`），读取与脚本执行只放行声明目录；渲染端按本窗口 PluginHost active 状态过滤插件来源，兼容的 Skill 包安装后可见。带脚本的 Skill 与独立后台共用 `requiresSystemReview`（门户不能自动批准），脚本执行沿用 run_skill_script 的 execute 确认；跨端安装不授予手机脚本执行能力。
 
 ### 字数与空文档
 

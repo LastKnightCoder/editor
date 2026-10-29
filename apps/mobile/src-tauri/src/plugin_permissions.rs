@@ -60,29 +60,32 @@ fn write(path: &Path, store: &Store) -> Result<(), String> {
     result
 }
 fn supported(permission: &str) -> bool {
-    matches!(
-        permission,
-        "cards:read"
-            | "cards:write"
-            | "cards:delete"
-            | "articles:read"
-            | "articles:write"
-            | "articles:delete"
-            | "projects:read"
-            | "projects:write"
-            | "projects:delete"
-            | "documents:read"
-            | "documents:write"
-            | "documents:delete"
-            | "todos:read"
-            | "todos:write"
-            | "todos:delete"
-            | "calendar:read"
-            | "calendar:write"
-            | "calendar:delete"
-            | "flashcards:read"
-            | "flashcards:write"
-    )
+    permission
+        .strip_prefix("ai:")
+        .is_some_and(crate::plugin_ai::is_capability)
+        || matches!(
+            permission,
+            "cards:read"
+                | "cards:write"
+                | "cards:delete"
+                | "articles:read"
+                | "articles:write"
+                | "articles:delete"
+                | "projects:read"
+                | "projects:write"
+                | "projects:delete"
+                | "documents:read"
+                | "documents:write"
+                | "documents:delete"
+                | "todos:read"
+                | "todos:write"
+                | "todos:delete"
+                | "calendar:read"
+                | "calendar:write"
+                | "calendar:delete"
+                | "flashcards:read"
+                | "flashcards:write"
+        )
 }
 #[tauri::command]
 pub fn plugin_permissions_read(
@@ -163,7 +166,7 @@ mod tests {
             "whiteboards:read",
             "notebooks:read",
             "chats:read",
-            "ai:chat",
+            "ai:unknown",
         ] {
             assert!(!supported(permission));
         }
@@ -189,6 +192,25 @@ mod tests {
         assert_eq!(fs::read(&path).unwrap(), b"{broken");
         fs::remove_dir_all(dir).unwrap();
     }
+}
+
+pub(crate) fn ai_blocked(
+    app: &AppHandle,
+    database: &str,
+    plugin: &str,
+    permission: &str,
+) -> Result<bool, String> {
+    let _guard = STORE_LOCK.lock().map_err(|_| "插件授权存储不可用")?;
+    let path = crate::setting::resolve_app_dir(app)?.join("plugin-permissions.json");
+    let store = read(&path)?;
+    Ok(matches!(
+        store
+            .grants
+            .get(database)
+            .and_then(|plugins| plugins.get(plugin))
+            .and_then(|permissions| permissions.get(permission)),
+        Some(Grant::Blocked)
+    ))
 }
 
 #[derive(Default, Clone, Serialize, Deserialize)]

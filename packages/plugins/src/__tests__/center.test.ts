@@ -7,8 +7,48 @@ import {
   describeCenterPermissions,
   resolveCenterRelease,
 } from "../center";
+import { validatePortableSkillPackageManifest } from "../template";
 
 describe("平台感知分发契约", () => {
+  it("仅独立Skill种类的格式1按显式移动targets兼容，不将所有旧格式1放开", () => {
+    const manifest = {
+      ...validatePortableSkillPackageManifest({
+        formatVersion: 1,
+        apiVersion: 1,
+        platform: "portable",
+        id: "example.skill",
+        name: "规范",
+        version: "1.0.0",
+        targets: { android: { minAppVersion: "0.2.13" } },
+        skills: ["guide"],
+        integrity: { "skills/guide/SKILL.md": "a".repeat(64) },
+      }),
+      description: "测试",
+    };
+    expect(centerManifestTargets(manifest)).toEqual({ android: { minAppVersion: "0.2.13" } });
+    const version = {
+      ...centerRelease(),
+      formatVersion: 1 as const,
+      packageKind: "skills" as const,
+      profile: null,
+      targets: centerManifestTargets(manifest),
+    };
+    const host = { ...centerHost, formatVersions: [1, 3], appVersion: "0.2.13", profiles: [] };
+    expect(evaluateCenterCompatibility(version, host).status).toBe("compatible");
+    for (const packageKind of [undefined, "plugin", "template"] as const)
+      expect(evaluateCenterCompatibility({ ...version, packageKind }, host).status).toBe(
+        "incompatible"
+      );
+    expect(evaluateCenterCompatibility(version, { ...host, formatVersions: [3] }).status).toBe(
+      "incompatible"
+    );
+    expect(
+      evaluateCenterCompatibility(
+        { ...version, profile: "web-v1" },
+        { ...host, profiles: ["web-v1"] }
+      ).status
+    ).toBe("incompatible");
+  });
   it("安装只按平台与版本选版，不另比较能力标签", () => {
     const release = centerRelease();
     expect(resolveCenterRelease([release], { host: centerHost })).toMatchObject({

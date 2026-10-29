@@ -331,9 +331,11 @@ pub fn ai_http_context(
     lease_id: String,
     provider_id: String,
     model_id: Option<String>,
+    expected_model_revision: Option<String>,
 ) -> Result<Value, String> {
     window_allowed(&window)?;
     let setting = crate::setting::load_or_init_setting(&app)?;
+    network::assert_model_revision(&setting, &provider_id, expected_model_revision.as_deref())?;
     let context_id = network::context(&lease_id, &setting, &provider_id, model_id.as_deref())?;
     Ok(serde_json::json!({"contextId":context_id,"config":network::public_config(&setting)}))
 }

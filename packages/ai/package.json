@@ -12,6 +12,7 @@
     "./tools": "./src/tools/index.ts",
     "./skills": "./src/skills/index.ts",
     "./mcp": "./src/mcp/index.ts",
+    "./tool-identity": "./src/tool-identity.ts",
     "./think-stream": "./src/think-stream.ts"
   },
   "scripts": {

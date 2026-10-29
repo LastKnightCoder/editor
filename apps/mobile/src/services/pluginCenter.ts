@@ -6,7 +6,7 @@ import {
   type CenterRelease,
   type PluginCenterClient,
 } from "@tau/plugins/center";
-import { validatePortablePluginManifest } from "@tau/plugins/portable";
+import { validateMobilePackageManifest } from "@tau/plugins/template";
 import { cancelMobilePlugin, verifyMobilePlugin, type MobilePluginArtifact } from "./plugins";
 import { markCenterStatusFailure, markCenterStatusRefresh } from "./pluginCenterState";
 
@@ -113,8 +113,7 @@ export async function installMobileCenterRelease(
     if (
       staged.release.releaseId !== releaseId ||
       staged.release.pluginId !== pluginId ||
-      staged.release.sha256 !== staged.sha256 ||
-      staged.release.content.manifest.formatVersion !== 3
+      staged.release.sha256 !== staged.sha256
     )
       throw new Error("暂存包与中心发布记录不一致");
     const artifact = await verifyMobilePlugin(
@@ -127,7 +126,7 @@ export async function installMobileCenterRelease(
     );
     if (
       canonical(artifact.manifest) !==
-      canonical(validatePortablePluginManifest(staged.release.content.manifest))
+      canonical(validateMobilePackageManifest(staged.release.content.manifest))
     )
       throw new Error("包清单与审核记录不一致");
     signal?.throwIfAborted();

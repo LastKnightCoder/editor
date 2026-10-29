@@ -23,6 +23,11 @@ import {
 } from "@tau/plugins/fetch-bridge";
 import type { SyncProvider } from "@tau/plugins/sync";
 import type { MobilePluginRuntime } from "./runtime";
+import { createMobilePluginAI } from "./ai";
+import { createMobilePluginMcp } from "./ai-mcp";
+import { createMobilePluginAiSkills } from "./ai-skills";
+import type { MobileAiService } from "../../services/ai";
+const loadMobileAi = () => import("../../services/ai").then(module => module.getMobileAiService());
 
 export function encodePluginBytes(bytes: Uint8Array): string {
   let binary = "";
@@ -156,9 +161,19 @@ export async function writeProviderFile(
   }
 }
 
-export async function connectMobilePluginTransport(runtime: MobilePluginRuntime) {
+export interface MobilePluginAiHostOptions {
+  ai?: () => MobileAiService | Promise<MobileAiService>;
+  openSettings?: (pluginId: string, feature?: string) => void;
+}
+
+export async function connectMobilePluginTransport(
+  runtime: MobilePluginRuntime,
+  aiHost: MobilePluginAiHostOptions = {}
+) {
+  const ai = aiHost.ai ?? loadMobileAi;
   let token: string | undefined;
   let disposed = false;
+  let stopAiRefresh: (() => void) | undefined;
   const openings = new Map<string, Promise<unknown>>();
   let fileQueue = Promise.resolve();
   const activeSync = new Map<string, number>();
@@ -262,6 +277,34 @@ export async function connectMobilePluginTransport(runtime: MobilePluginRuntime)
       }
     );
     runtime.permissions = createMobilePermissions(runtime.workspaceId, token);
+    runtime.ai = createMobilePluginAI({
+      databaseName: runtime.workspaceId,
+      token,
+      ai,
+      openSettings: aiHost.openSettings,
+    });
+    runtime.aiMcp = createMobilePluginMcp({
+      databaseName: runtime.workspaceId,
+      ai,
+    });
+    runtime.aiSkills = createMobilePluginAiSkills(runtime.workspaceId, token, {
+      getActivePackages: () => runtime.getActiveAiPackages(),
+      subscribe: listener => runtime.subscribe(listener),
+      registerSource: async source =>
+        (await ai()).skills.registerSource(source, { databaseName: runtime.workspaceId }),
+    });
+    if (typeof document !== "undefined") {
+      const foreground = () => {
+        if (!disposed && document.visibilityState !== "hidden")
+          void runtime.aiSkills?.refresh().catch(() => undefined);
+      };
+      document.addEventListener("visibilitychange", foreground);
+      window.addEventListener("focus", foreground);
+      stopAiRefresh = () => {
+        document.removeEventListener("visibilitychange", foreground);
+        window.removeEventListener("focus", foreground);
+      };
+    }
     runtime.flashcards = createMobileFlashcards(
       runtime.workspaceId,
       token,
@@ -349,6 +392,10 @@ export async function connectMobilePluginTransport(runtime: MobilePluginRuntime)
       pluginId && activeSync.has(pluginId) ? CHUNK_BYTES * 2 : undefined
     );
   } catch (error) {
+    stopAiRefresh?.();
+    void runtime.ai?.dispose().catch(() => undefined);
+    void runtime.aiMcp?.dispose().catch(() => undefined);
+    void runtime.aiSkills?.dispose().catch(() => undefined);
     runtime.own?.dispose();
     runtime.app?.dispose();
     runtime.events?.dispose();
@@ -359,6 +406,10 @@ export async function connectMobilePluginTransport(runtime: MobilePluginRuntime)
   }
   return () => {
     disposed = true;
+    stopAiRefresh?.();
+    void runtime.ai?.dispose().catch(() => undefined);
+    void runtime.aiMcp?.dispose().catch(() => undefined);
+    void runtime.aiSkills?.dispose().catch(() => undefined);
     runtime.own?.dispose();
     runtime.app?.dispose();
     stop();

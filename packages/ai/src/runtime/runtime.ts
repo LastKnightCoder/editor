@@ -422,7 +422,7 @@ export class AiRuntime {
           throw new AiError("AI_SESSION_INVALID", "单次生成必须以用户消息结束");
         const ref = { databaseName: request.databaseName, sessionId: request.requestId };
         release = await this.options.store.beginRun(ref, request.requestId);
-        model = await this.options.resolveModel(request.model, ref);
+        model = await this.options.resolveModel(request.model, ref, request.expectedModelRevision);
         controller.signal.throwIfAborted();
         if (
           request.messages.some(

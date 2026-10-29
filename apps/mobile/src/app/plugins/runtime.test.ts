@@ -8,7 +8,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createMemoryStorage } from "@tau/plugins/host";
 import { createPluginEnvironmentStore } from "@tau/plugins/environment-host";
 import { portableSharedPluginModules as sharedPluginModules } from "@tau/plugins/portable-shared-modules";
-import { portableFixtures } from "../../../../../tests/fixtures/plugins/portable.mjs";
+import { portableFixtures as readPortableFixtures } from "../../../../../tests/fixtures/plugins/portable.mjs";
+const portableFixtures = async () =>
+  (await readPortableFixtures()).map(artifact => ({ ...artifact, kind: "plugin" as const }));
 import { MobilePluginRuntime } from "./runtime";
 import { mobileContentPlugins, mobilePluginElementSupport } from "./content";
 import { getMobileContentKit, getMobileFlashcardKit } from "../../services/editorKit";

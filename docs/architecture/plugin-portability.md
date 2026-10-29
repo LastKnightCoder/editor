@@ -2,13 +2,15 @@
 
 ## 范围与分发边界
 
-桌面、Android 和 iOS 共用一个 SDK、一套作者模板和格式 3 的 web-v1 包。旧可执行格式 1 在读取和上传时拒绝；格式 2 只承载有明确后台声明的桌面包，静态模板与独立 Skill 的格式 1 属于独立协议，继续支持。公共 API 与作者约定以 [SDK 跨端契约](/plugins/tau-plugin-template/docs/portability.md) 为准；本页描述客户端装配。仓库版本以 [插件 SDK](/packages/plugins/package.json) 和 [UI 包](/packages/ui/package.json) 为准，作者模板依赖以[模板清单](/plugins/tau-plugin-template/package.json)为准；发行状态与仓库实现分别核验。最低宿主版本由插件声明的 targets 与所用 API 共同约束。中心通过人工上架审核与 /v2 分发，具审核权限的作者本人经已绑定仓库 CI 发布可自动批准；作者负责平台适配和测试，审核者不承担平台测试或验证记录。平台开关独立于客户端安装能力，线上配置以[门户运维手册](/apps/plugin-portal/infra/运维手册.md)为准。正式构建只接受固定中心安装，拒绝任意开发来源安装。
+桌面、Android 和 iOS 共用一个 SDK 和一套作者模板。跨端应用插件使用格式 3 的 web-v1 包；独立 Skill 沿用格式 1 的文档目录协议，使用 portable/targets 声明跨端目标，没有 main、format 或 profile。旧可执行格式 1 在读取和上传时拒绝；格式 2 只承载有明确后台声明的桌面包，静态模板及旧 desktop 独立 Skill 保持原桌面声明。公共 API 与作者约定以 [SDK 跨端契约](/plugins/tau-plugin-template/docs/portability.md) 为准；本页描述客户端装配。仓库版本以 [插件 SDK](/packages/plugins/package.json) 和 [UI 包](/packages/ui/package.json) 为准，作者模板依赖以[模板清单](/plugins/tau-plugin-template/package.json)为准；发行状态与仓库实现分别核验。最低宿主版本由插件声明的 targets 与所用 API 共同约束。中心通过人工上架审核与 /v2 分发，具审核权限的作者本人经已绑定仓库 CI 发布可自动批准；作者负责平台适配和测试，审核者不承担平台测试或验证记录。平台开关独立于客户端安装能力，线上配置以[门户运维手册](/apps/plugin-portal/infra/运维手册.md)为准。正式构建只接受固定中心安装，拒绝任意开发来源安装。
+
+`formatVersion` 选择清单和文件布局的解析规则，不代表平台或能力等级；包自己的 `version` 用于更新排序，`apiVersion` 表示宿主契约版本，平台与最低客户端版本由 `platform/targets` 决定。中心从已校验清单派生 packageKind，移动宿主声明可读格式 1/3，但格式 1 只接收明确声明移动目标的独立 Skill，不能借此安装模板或旧可执行插件。
 
 可信插件与宿主共享 JavaScript、React 和 DOM；摘要、模块白名单、API 能力与数据授权不构成恶意代码沙箱。同线程同步死循环只能在后续启动恢复，不能承诺抢占或后台常驻。
 
 ## 中心数据边界
 
-逐 API 的支持与作者适配要求以 [SDK 支持矩阵](/plugins/tau-plugin-template/docs/portability.md#各平台可用的接口) 为准。作者、上传和客户端共用 `PortablePluginManifest` 与 `validatePortablePluginManifest` 读取格式 3 清单；发行入口 `validatePortableDistributionManifest` 额外检查移动业务权限，运行入口独立检查宿主兼容性。targets 只保留 minAppVersion，不再承载宿主能力、可选需求或节点等级。正文和白板从实际静态定义识别，不再复制进清单。permissions 继续约束用户数据访问，移动权限开放卡片、文章、项目、项目文档、待办与日程的 read/write/delete，以及闪卡的 read/write，目标最低版本必须不低于 0.2.13；其他业务权限在构建、中心和运行前拒绝。
+逐 API 的支持与作者适配要求以 [SDK 支持矩阵](/plugins/tau-plugin-template/docs/portability.md#各平台可用的接口) 为准。作者、上传和客户端共用 `PortablePluginManifest` 与 `validatePortablePluginManifest` 读取格式 3 清单；发行入口 `validatePortableDistributionManifest` 额外检查移动业务与 AI 权限，运行入口独立检查宿主兼容性。targets 只保留 minAppVersion，不再承载宿主能力、可选需求或节点等级。正文和白板从实际静态定义识别，不再复制进清单。permissions 继续约束用户数据访问，移动权限开放卡片、文章、项目、项目文档、待办与日程的 read/write/delete、闪卡的 read/write，以及 SDK 声明的 `ai:<能力名>`，目标最低版本必须不低于 0.2.13；其他业务权限在构建、中心和运行前拒绝。
 
 `@tau/plugins/center` 提供中心与宿主共用的目标摘要、结构化兼容原因和客户端接口。兼容性检查平台、最低客户端版本、API/格式版本和 profile，调用方继续核验发布状态、来源和权限。宿主请求只携带真实平台、版本与协议集合；中心不执行插件代码，历史发布 ZIP 和审计内容保持原文，平台摘要仅返回最低版本，选版结果只包含状态与原因，不保留旧能力字段、空数组或旧客户端适配分支。读取器只提取协议字段，忽略不使用的附加元信息；不为已删除的字段建立禁止规则。该入口不进入作者 tarball。
 
@@ -123,6 +125,22 @@ UiHostProvider 只接受平台中立的 dismiss 登记函数。真实 Dialog/Dra
 `plugin-validation` 模式保留正常 AppShell，只注入行为验证器；独立应用标识复用专用测试应用，输出 dist-plugin-validation。验证器调用正式原生安装服务，随后从真实“我的”页打开计数器、在正常卡片正文编辑 ABC；报告写入隔离测试库的 validation.host/report。普通构建不包含自动验证器或固定包来源。
 
 正式宿主复现见 [接入校验指南](/docs/guides/plugin-portability-hosts.md)。验证沿用正式 AppShell、原生安装、运行时和正文编辑入口。
+
+## 移动 AI 插件宿主
+
+`MobilePluginRuntime` 把 `context.ai`、`context.mcp` 与 `context.chat.registerToolRenderer` 接入已有 `MobileAiService`，实际模型运行与原生凭据注入沿用 [移动 AI 服务](/packages/ai/README.md#移动宿主)。AI 服务按需加载；普通插件启动不创建模型请求或聊天文件。SDK 的 AI 请求只做无工具单发，持久聊天仍经宿主 `sessions/runs` 接口管理。
+
+默认连接使用惰性单例；`connectMobilePluginTransport(runtime, { ai, openSettings })` 也允许宿主注入同一 AI 服务与设置打开回调。需要审批/提问时由宿主配置该服务的交互端口，插件不能修改权限模式。插件运行时只回收自己的请求、工具和来源，不销毁注入的共享 AI 服务。
+
+`context.ai.requestCapability` 复用 PluginHost 的清单声明、逐能力授权与撤权订阅，模型取 `llmUsageSettings` 对应项，不隐式回退。`ai.features` 自定义功能默认关闭，由宿主通过 `runtime.ai.info/configure` 维护功能模型分配和每日请求、Token、并发额度；`running/cancel/revoke` 管理在途请求，`usage` 分页读取当日额度与审计记录。额度与桌面一致，按同一设备的 pluginId 计数、跨工作区共享，调用授权仍绑定工作区。插件只收到文本增量、最终文本与可确认的 Token 用量；未知用量为 null。模型、网络与鉴权的原始错误不交付插件。
+
+原生 `plugin_ai_*` 命令使用当前插件 transport token 与数据库身份，模型分配由宿主读取。prepare 到 begin 之间比较配置指纹，begin 持久预占额度并返回提供方指纹；创建模型上下文时以同一设置快照复验指纹，再冻结凭据，冲突不发网。结束时按可确认的实际用量结算；未知用量保留预占，不把 SDK 默认零值当作免费调用；明确尚未接受生成或发网前配置冲突的请求按零用量结算。finish 再检查调用身份与配置，撤回后不能交付迟到成功。配额与请求账本放应用私有 `plugin-ai.json`，不进入主库插件 KV，不保存提示词、回复或凭据；已结束审计保留最近 30 天且最多 1000 条，未结束请求不丢弃，当日额度独立保留。插件停用、提前退出流、调用者取消及切库会停止模型调用并回收绑定。移动端没有独立 AI 配置页面，未注入宿主打开回调时 `openSettings` 返回 `AI_SETTINGS_UNAVAILABLE`。
+
+插件 MCP 支持内联工具及 Streamable HTTP；工具按当前库注册，默认 execute 风险，执行前后仍经过 AI 服务的库租约与工具权限检查。宿主暴露注册状态和等待就绪接口，连接失败不伪装为已可用。stdio 不受支持。工具名与稳定历史 ID 由 `@tau/ai/tool-identity` 同时供桌面与移动使用，展示数据沿用既有 render 版本与载荷。聊天工具渲染器保存为宿主注册表，按工具名或历史 ID 取用；此注册表不创建聊天界面，缺少渲染器时历史仍可使用公共工具投影。
+
+Skills 来源包括已激活的 portable 应用插件和已安装启用的独立 Skill 包。应用插件的 `skills` 元数据进入 PluginHost；独立包不求值 JS、不进入 PluginHost，沿用同一安装、待生效更新、恢复、卸载和来源校验事务。原生清单读取和资源读取核验工作区、当前安装代次、声明路径、完整性与文本预算，拒绝符号链接和越界资源。JS 再对照当前已加载包的 skillRevision 与包类型，旧实例不能读取更新后的包；安全模式不自动恢复独立来源。技能目录按需注册到 AI 服务，停用、重载、撤回、卸载及切库撤销来源；ID 采用桌面的 `包ID:目录ID`。移动端可安装和保留带脚本的独立包，但只暴露受限 Markdown 正文与参考资料，不执行脚本；桌面脚本继续沿用既有审核与执行确认。
+
+以上是宿主与数据能力；闪卡 AI 生成等领域流程、聊天/模型设置界面和 MCP 管理入口不随注册自动产生。API 行为测试和原生临时文件测试不能替代 iOS/Android 设备验收。
 
 ## ASR 与 WebSocket 宿主
 

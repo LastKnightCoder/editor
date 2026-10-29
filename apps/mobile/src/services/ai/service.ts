@@ -33,7 +33,7 @@ import {
   type AiSkillSnapshot,
   type AiSkillSource,
 } from "@tau/ai/skills";
-import { AiMcpManager, type AiMcpServerConfig } from "@tau/ai/mcp";
+import { AiMcpManager, type AiMcpServerConfig, type AiMcpConnectionOptions } from "@tau/ai/mcp";
 import * as native from "./native";
 
 type NativeContext = Pick<Awaited<ReturnType<typeof native.createModelFetch>>, "fetch" | "dispose">;
@@ -160,7 +160,8 @@ export class MobileAiService {
     this.runtime = new AiRuntime({
       store,
       tools: this.registry,
-      resolveModel: (model, session) => this.resolveModel(model, session),
+      resolveModel: (model, session, expectedModelRevision) =>
+        this.resolveModel(model, session, expectedModelRevision),
       prepareInput: options.prepareInput,
       prepareTools: (request, signal, base) => this.prepareTools(request, signal, base),
       preparePrompt: async (request, signal) => {
@@ -372,18 +373,21 @@ export class MobileAiService {
   };
 
   readonly mcp = {
-    list: (databaseName: string) => {
+    subscribe: (databaseName: string, listener: () => void) => {
       this.assertOpen(databaseName);
+      return this.mcpEntry(databaseName).manager.subscribe(listener);
+    },
+    list: (databaseName: string) => {
       return this.mcpEntries.get(databaseName)?.manager.list() ?? [];
     },
-    connect: (databaseName: string, config: AiMcpServerConfig) =>
+    connect: (databaseName: string, config: AiMcpServerConfig, options?: AiMcpConnectionOptions) =>
       this.action(databaseName, async () => {
         this.assertOpen(databaseName);
         const entry = this.mcpEntry(databaseName);
         await entry.manager.disconnect(config.id);
         await entry.contexts.get(config.id)?.dispose();
         entry.contexts.delete(config.id);
-        if (config.transport.type === "stdio") return entry.manager.connect(config);
+        if (config.transport.type === "stdio") return entry.manager.connect(config, options);
         const context = await native.createMcpFetch(await this.lease(databaseName), {
           id: config.id,
           transport: config.transport,
@@ -394,7 +398,7 @@ export class MobileAiService {
         }
         entry.contexts.set(config.id, context);
         try {
-          return await entry.manager.connect(config);
+          return await entry.manager.connect(config, options);
         } catch (error) {
           if (entry.contexts.get(config.id) === context) entry.contexts.delete(config.id);
           await context.dispose();
@@ -440,7 +444,7 @@ export class MobileAiService {
         throw new AiError("AI_LIBRARY_BUSY", "请先停止并等待本库操作完成");
       const unblock = this.block(databaseName);
       try {
-        await this.releaseLibrary(databaseName);
+        await this.releaseLibrary(databaseName, true);
         return unblock;
       } catch (error) {
         unblock();
@@ -697,11 +701,20 @@ export class MobileAiService {
     };
   }
 
-  private async resolveModel(ref: AiModelRef, session: AiSessionRef): Promise<AiResolvedModel> {
+  private async resolveModel(
+    ref: AiModelRef,
+    session: AiSessionRef,
+    expectedModelRevision?: string
+  ): Promise<AiResolvedModel> {
     const lease = await this.lease(session.databaseName);
     let context: Awaited<ReturnType<typeof native.createModelFetch>>;
     try {
-      context = await native.createModelFetch(lease, ref.providerId, ref.modelId);
+      context = await native.createModelFetch(
+        lease,
+        ref.providerId,
+        ref.modelId,
+        expectedModelRevision
+      );
     } catch (error) {
       throw errorOf(error);
     }
@@ -888,7 +901,6 @@ export class MobileAiService {
         );
         for (const { handle } of generations) await attempt(() => handle.abort());
         const entry = this.mcpEntries.get(databaseName);
-        this.mcpEntries.delete(databaseName);
         if (entry) {
           await attempt(() => entry.manager.dispose());
           await Promise.all(
@@ -896,6 +908,7 @@ export class MobileAiService {
           );
           entry.releaseScope();
         }
+        this.mcpEntries.delete(databaseName);
         await Promise.allSettled(generations.map(value => value.handle.result));
         await Promise.allSettled(
           [...this.actions].filter(([, name]) => name === databaseName).map(([action]) => action)

@@ -109,7 +109,11 @@ export interface AiRuntimeNotification {
 export interface AiRuntimeOptions {
   store: AiSessionStore;
   tools: AiToolRegistry;
-  resolveModel(ref: AiModelRef, session: AiSessionRef): Promise<AiResolvedModel>;
+  resolveModel(
+    ref: AiModelRef,
+    session: AiSessionRef,
+    expectedModelRevision?: string
+  ): Promise<AiResolvedModel>;
   prepareInput?(
     content: MessageContent[],
     signal: AbortSignal
@@ -138,6 +142,7 @@ export interface AiGenerationRequest {
   requestId: string;
   databaseName: string;
   model: AiModelRef;
+  expectedModelRevision?: string;
   messages: Array<
     | { role: "user"; content: string; images?: { data: string; mimeType: string }[] }
     | { role: "assistant"; content: string }

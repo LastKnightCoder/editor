@@ -8,6 +8,6 @@ export function portablePlatformEnabled(env: Env, platform: string) {
     .includes(platform);
 }
 export function assertPortablePublication(env: Env, manifest: PackageManifest) {
-  if (manifest.formatVersion === 3 && env.PORTABLE_PUBLISH_ENABLED !== "true")
+  if (manifest.platform === "portable" && env.PORTABLE_PUBLISH_ENABLED !== "true")
     fail(409, "SUBMISSION_LOCKED", "跨端插件发布尚未开放");
 }
