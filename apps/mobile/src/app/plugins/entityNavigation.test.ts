@@ -1,6 +1,7 @@
 import { expect, it, vi } from "vitest";
 import type { MobileEntityOpenOptions, MobileEntityOpenTarget } from "./app-types";
 import { navigateMobileEntity } from "./entityNavigation";
+import { describeDiaryPeriod, getBaseDateFromDiaryKey } from "../../features/diary/dateKey";
 
 it.each([
   [{ kind: "card", id: 1 }, "contentDetail", { cardId: 1 }],
@@ -20,15 +21,14 @@ it.each([
   expect(navigator.push).toHaveBeenCalledExactlyOnceWith(key, params);
 });
 
-it.each([
-  { placement: "window" },
-  { placement: "dock" },
-  { placement: "page", at: { block: 0 } },
-] satisfies MobileEntityOpenOptions[])("不默默降级不支持的打开选项 %j", options => {
-  const navigator = { push: vi.fn() };
-  expect(() => navigateMobileEntity(navigator, { kind: "card", id: 1 }, options)).toThrow();
-  expect(navigator.push).not.toHaveBeenCalled();
-});
+it.each([{ placement: "window" }, { placement: "dock" }] satisfies MobileEntityOpenOptions[])(
+  "不默默降级不支持的打开选项 %j",
+  options => {
+    const navigator = { push: vi.fn() };
+    expect(() => navigateMobileEntity(navigator, { kind: "card", id: 1 }, options)).toThrow();
+    expect(navigator.push).not.toHaveBeenCalled();
+  }
+);
 
 it.each([
   { kind: "event", id: -100 },
@@ -41,5 +41,76 @@ it.each([
   expect(() =>
     navigateMobileEntity(navigator, target as MobileEntityOpenTarget, { placement: "page" })
   ).toThrow();
+  expect(navigator.push).not.toHaveBeenCalled();
+});
+
+it.each(["card", "article", "document"] as const)(
+  "%s 携带定位参数，重复定位使用新请求标识",
+  kind => {
+    const navigator = { push: vi.fn() };
+    navigateMobileEntity(navigator, { kind, id: 1 }, { placement: "page", at: { block: 0 } });
+    navigateMobileEntity(navigator, { kind, id: 1 }, { placement: "page", at: { block: 0 } });
+    const first = navigator.push.mock.calls[0][1];
+    const second = navigator.push.mock.calls[1][1];
+    expect(first.block).toBe(0);
+    expect(second.block).toBe(0);
+    expect(first.locationRequestId).not.toBe(second.locationRequestId);
+  }
+);
+it.each([-1, 0.5, NaN, Infinity])("拒绝非法块序号 %s", block => {
+  const navigator = { push: vi.fn() };
+  expect(() =>
+    navigateMobileEntity(navigator, { kind: "card", id: 1 }, { placement: "page", at: { block } })
+  ).toThrow("非负整数");
+  expect(navigator.push).not.toHaveBeenCalled();
+});
+it("非正文类型不接受块定位", () => {
+  const navigator = { push: vi.fn() };
+  expect(() =>
+    navigateMobileEntity(
+      navigator,
+      { kind: "project", id: 1 },
+      { placement: "page", at: { block: 0 } }
+    )
+  ).toThrow("不支持");
+  expect(navigator.push).not.toHaveBeenCalled();
+});
+it.each([
+  ["daily", "2026-10-29"],
+  ["weekly", "2026-W44"],
+  ["monthly", "2026-10"],
+] as const)("%s 日记打开原片段正文，不创建新日记", (diaryType, date) => {
+  const navigator = { push: vi.fn() };
+  navigateMobileEntity(
+    navigator,
+    { kind: "diary", id: 12, contentId: 99, diaryType, date },
+    { placement: "page" }
+  );
+  expect(navigator.push).toHaveBeenCalledExactlyOnceWith("contentDetail", {
+    contentId: 99,
+    contentTitle: "",
+    fromDiary: true,
+    diaryDate: describeDiaryPeriod(diaryType, getBaseDateFromDiaryKey(diaryType, date)),
+  });
+});
+it("日记沿用正文块定位，非法日期不导航", () => {
+  const navigator = { push: vi.fn() };
+  navigateMobileEntity(
+    navigator,
+    { kind: "diary", id: 12, contentId: 99, diaryType: "daily", date: "2026-10-29" },
+    { placement: "page", at: { block: 2 } }
+  );
+  expect(navigator.push).toHaveBeenCalledWith(
+    "contentDetail",
+    expect.objectContaining({ block: 2, locationRequestId: expect.any(String) })
+  );
+  navigator.push.mockClear();
+  expect(() =>
+    navigateMobileEntity(
+      navigator,
+      { kind: "diary", id: 12, contentId: 99, diaryType: "daily", date: "2026-02-31" },
+      { placement: "page" }
+    )
+  ).toThrow("日期无效");
   expect(navigator.push).not.toHaveBeenCalled();
 });

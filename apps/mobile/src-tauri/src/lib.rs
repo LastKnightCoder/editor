@@ -1,3 +1,4 @@
+mod ai;
 mod app_feedback;
 mod app_update;
 mod chunked_sync;
@@ -8,6 +9,8 @@ mod incoming_file;
 mod ios_input_accessory;
 mod logger;
 mod models;
+mod plugin_ai;
+mod plugin_ai_skills;
 mod plugin_center;
 mod plugin_fetch;
 mod plugin_files;
@@ -69,6 +72,28 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
+            ai::ai_library_acquire,
+            ai::ai_library_assert,
+            ai::ai_library_release,
+            ai::ai_run_active,
+            ai::ai_session_create,
+            ai::ai_session_read,
+            ai::ai_session_commit,
+            ai::ai_session_patch,
+            ai::ai_session_remove,
+            ai::ai_session_list,
+            ai::ai_session_stage_open,
+            ai::ai_session_stage_write,
+            ai::ai_session_stage_finish,
+            ai::ai_model_config,
+            ai::ai_http_context,
+            ai::ai_mcp_context,
+            ai::ai_http_dispose,
+            ai::ai_http_open,
+            ai::ai_http_upload,
+            ai::ai_http_response,
+            ai::ai_http_read,
+            ai::ai_http_cancel,
             logger::app_log,
             app_feedback::app_feedback_image_write,
             app_feedback::app_feedback_image_discard,
@@ -110,6 +135,20 @@ pub fn run() {
             plugin_permissions::plugin_permissions_reset,
             plugin_permissions::plugin_permissions_usage,
             plugin_permissions::plugin_permissions_write,
+            plugin_ai::plugin_ai_register,
+            plugin_ai::plugin_ai_unregister,
+            plugin_ai::plugin_ai_prepare,
+            plugin_ai::plugin_ai_begin,
+            plugin_ai::plugin_ai_finish,
+            plugin_ai::plugin_ai_status,
+            plugin_ai::plugin_ai_info,
+            plugin_ai::plugin_ai_configure,
+            plugin_ai::plugin_ai_revoke,
+            plugin_ai::plugin_ai_running,
+            plugin_ai::plugin_ai_usage,
+            plugin_ai::plugin_ai_cancel,
+            plugin_ai_skills::plugin_ai_skill_sources,
+            plugin_ai_skills::plugin_ai_skill_read,
             plugins::plugin_packages,
             plugins::plugin_apply_pending,
             plugins::plugin_stage,
@@ -119,6 +158,7 @@ pub fn run() {
             plugins::plugin_set_enabled,
             plugins::plugin_uninstall,
             database::plugin_data_read,
+            database::plugin_flashcards,
             database::plugin_app_query,
             database::plugin_app_refs,
             database::plugin_entity_target,

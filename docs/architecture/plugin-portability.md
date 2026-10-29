@@ -2,13 +2,15 @@
 
 ## 范围与分发边界
 
-桌面、Android 和 iOS 共用一个 SDK、一套作者模板和格式 3 的 web-v1 包。旧可执行格式 1 在读取和上传时拒绝；格式 2 只承载有明确后台声明的桌面包，静态模板与独立 Skill 的格式 1 属于独立协议，继续支持。公共 API 与作者约定以 [SDK 跨端契约](/plugins/tau-plugin-template/docs/portability.md) 为准；本页描述客户端装配。仓库版本以 [插件 SDK](/packages/plugins/package.json) 和 [UI 包](/packages/ui/package.json) 为准，作者模板依赖以[模板清单](/plugins/tau-plugin-template/package.json)为准；发行状态与仓库实现分别核验。最低宿主版本由插件声明的 targets 与所用 API 共同约束。中心通过人工上架审核与 /v2 分发，具审核权限的作者本人经已绑定仓库 CI 发布可自动批准；作者负责平台适配和测试，审核者不承担平台测试或验证记录。平台开关独立于客户端安装能力，线上配置以[门户运维手册](/apps/plugin-portal/infra/运维手册.md)为准。正式构建只接受固定中心安装，拒绝任意开发来源安装。
+桌面、Android 和 iOS 共用一个 SDK 和一套作者模板。跨端应用插件使用格式 3 的 web-v1 包；独立 Skill 沿用格式 1 的文档目录协议，使用 portable/targets 声明跨端目标，没有 main、format 或 profile。旧可执行格式 1 在读取和上传时拒绝；格式 2 只承载有明确后台声明的桌面包，静态模板及旧 desktop 独立 Skill 保持原桌面声明。公共 API 与作者约定以 [SDK 跨端契约](/plugins/tau-plugin-template/docs/portability.md) 为准；本页描述客户端装配。仓库版本以 [插件 SDK](/packages/plugins/package.json) 和 [UI 包](/packages/ui/package.json) 为准，作者模板依赖以[模板清单](/plugins/tau-plugin-template/package.json)为准；发行状态与仓库实现分别核验。最低宿主版本由插件声明的 targets 与所用 API 共同约束。中心通过人工上架审核与 /v2 分发，具审核权限的作者本人经已绑定仓库 CI 发布可自动批准；作者负责平台适配和测试，审核者不承担平台测试或验证记录。平台开关独立于客户端安装能力，线上配置以[门户运维手册](/apps/plugin-portal/infra/运维手册.md)为准。正式构建只接受固定中心安装，拒绝任意开发来源安装。
+
+`formatVersion` 选择清单和文件布局的解析规则，不代表平台或能力等级；包自己的 `version` 用于更新排序，`apiVersion` 表示宿主契约版本，平台与最低客户端版本由 `platform/targets` 决定。中心从已校验清单派生 packageKind，移动宿主声明可读格式 1/3，但格式 1 只接收明确声明移动目标的独立 Skill，不能借此安装模板或旧可执行插件。
 
 可信插件与宿主共享 JavaScript、React 和 DOM；摘要、模块白名单、API 能力与数据授权不构成恶意代码沙箱。同线程同步死循环只能在后续启动恢复，不能承诺抢占或后台常驻。
 
 ## 中心数据边界
 
-逐 API 的支持与作者适配要求以 [SDK 支持矩阵](/plugins/tau-plugin-template/docs/portability.md#各平台可用的接口) 为准。作者、上传和客户端共用 `PortablePluginManifest` 与 `validatePortablePluginManifest` 读取格式 3 清单；发行入口 `validatePortableDistributionManifest` 额外检查移动业务权限，运行入口独立检查宿主兼容性。targets 只保留 minAppVersion，不再承载宿主能力、可选需求或节点等级。正文和白板从实际静态定义识别，不再复制进清单。permissions 继续约束用户数据访问，移动权限开放卡片、文章、项目、项目文档、待办与日程的 read/write/delete，目标最低版本必须不低于 0.2.13；其他业务权限在构建、中心和运行前拒绝。
+逐 API 的支持与作者适配要求以 [SDK 支持矩阵](/plugins/tau-plugin-template/docs/portability.md#各平台可用的接口) 为准。作者、上传和客户端共用 `PortablePluginManifest` 与 `validatePortablePluginManifest` 读取格式 3 清单；发行入口 `validatePortableDistributionManifest` 额外检查移动业务与 AI 权限，运行入口独立检查宿主兼容性。targets 只保留 minAppVersion，不再承载宿主能力、可选需求或节点等级。正文和白板从实际静态定义识别，不再复制进清单。permissions 继续约束用户数据访问，移动权限开放卡片、文章、项目、项目文档、待办与日程的 read/write/delete、闪卡的 read/write，以及 SDK 声明的 `ai:<能力名>`，目标最低版本必须不低于 0.2.13；其他业务权限在构建、中心和运行前拒绝。
 
 `@tau/plugins/center` 提供中心与宿主共用的目标摘要、结构化兼容原因和客户端接口。兼容性检查平台、最低客户端版本、API/格式版本和 profile，调用方继续核验发布状态、来源和权限。宿主请求只携带真实平台、版本与协议集合；中心不执行插件代码，历史发布 ZIP 和审计内容保持原文，平台摘要仅返回最低版本，选版结果只包含状态与原因，不保留旧能力字段、空数组或旧客户端适配分支。读取器只提取协议字段，忽略不使用的附加元信息；不为已删除的字段建立禁止规则。该入口不进入作者 tarball。
 
@@ -51,6 +53,28 @@
 已安装清单分别提供 currentVersion、pendingVersion、centerSource、撤回原因和状态刷新失败标记。首次仅有 next 时 currentVersion 为 null，不冒充已安装；固定中心新装包默认保存启用意图，下载完成即重建会话生效，更新保留已保存意图，损坏的 enabled.json 不会默认启用。权限说明不等于授权。Android/iOS 原生宿主提供 browsingEnabled/installationEnabled，正式安装仍由中心复验平台分发与发布状态；非移动宿主不能安装。
 
 中心包在启动及应用回到前台时核验发布状态。已有中心包的会话监听文档可见性、窗口 focus 和 Tauri 原生 focus；考虑 WKWebView 可能缺失前台事件，同时每 30 秒进行可见状态核验，后台不主动刷新，切库/卸载释放监听与定时器。原生按 origin/releaseId 保存撤回/禁用记录，确认撤回不会被后续 available/not_found 覆盖；断网保留既有记录，状态文件损坏时不装配中心包。前台获知不可用后回收页面并把节点写入策略设为 none；保留当前静态内容至下一会话，原文不删除。该机制不抢占主线程死循环，也不回滚已提交数据。
+
+## 移动对象动作
+
+移动运行时接入 `context.actions`，卡片、文章和项目文档详情页的「更多」菜单按注册顺序展示匹配动作，位于内置操作之后、删除之前，并标明插件来源。项目文档引用卡片或文章时，使用来源对象的类型、ID 与创建时间；普通文档使用项目节点身份。material、chat-message、text 暂无移动入口。
+
+菜单展示不授予权限。用户点击时，固定工作区的原生引用事务检查对象是否存在及创建身份是否匹配，再登记与 pick 相同的标题访问授权；正文读取仍按业务权限。授权前后检查插件与动作注册是否有效，停用、激活失败、注销及切库会回收入口，迟到授权结果不会调用旧实例。作者只收到冻结的 kind/id，不收到宿主创建身份或正文。执行错误通过移动 Toast 提示。
+
+## 移动宿主动作
+
+`app.run` 支持 `card.create`、`project.insertDocument` 与 `content.share`，其他动作明确拒绝。用户手势发起后，由会话级 `MobileAppActions` 保存唯一请求，PluginProvider 挂载宿主面板；与内容选择器互斥。切库、停用或会话释放使请求失效，返回与取消关闭未提交请求。新建返回对象引用，取消返回 null；协作只返回 void，不向插件交付宿主读取的正文。
+
+新建卡片使用独立 NodeTree 草稿与移动正文工具栏，预填正文和标签可修改，不读取或覆盖快速记录草稿，确认后才写库。项目文档选择项目与父级位置，项目分页读取；普通输入按正文契约复制，shareOf 只允许本插件活跃实体，预览只读，提交由原生事务再次检查归属并共用正文。保存互斥，失败留在面板重试；写入绑定工作区 token，取消不回滚已经提交的事务。
+
+协作引用按正文创建身份解析；未共享内容先展示来源与正文摘要，用户确认才打开发布流程，已有绑定打开成员管理。发布流程在异步步骤之间检查请求有效性及正文创建身份，失效后不继续绑定、投影或生成邀请码；已经发出的远端操作不承诺撤回。编辑器契约、copyOf 准备与分享内容复用现有数据和协作协议，不新增数据库表或业务授权。
+
+## 移动闪卡基础接口
+
+`context.flashcards` 支持 listDecks、createDeck、createCard 和手动 openCreate；generate、generateAndSave 与 mode: ai 明确拒绝。SDK 在查询牌组时要求 flashcards:read，直接创建牌组和闪卡要求 flashcards:write，移动适配器在异步准备参考资料后复验写权限。构建、中心与原生授权存储共用新增权限范围。
+
+原生 plugin_flashcards 固定工作区 token，核对活动库后复用现有闪卡事务；不新增表，不修改复习调度。正文参考先检查插件读取资格，写入事务再核验创建身份并增持引用；自定义参考资料按正文契约创建独立 contents 行，任何参考失败则整张卡片回滚。返回 SDK 公开字段，不交付复习统计等宿主内部字段。
+
+手动建卡是独立 pluginFlashcardCreate 页面，复用 CardCreatePage、CardEditPage 和牌组表单，可选择或新建牌组、选择五种题型并修改预填题干。请求固定发起插件与工作区，单会话互斥；保存由用户确认，不要求插件整类闪卡写权限，引用其他正文仍需读取权限。未指定 references 时把输入 content 作为自定义来源；显式空数组不添加来源。保存后返回 completed 与真实卡片，退出返回 cancelled 与已保存卡片；停用或切库撤销请求，旧页面不能继续保存，已经提交的数据不回滚。
 
 ## 同步与资源上传提供方
 
@@ -102,6 +126,22 @@ UiHostProvider 只接受平台中立的 dismiss 登记函数。真实 Dialog/Dra
 
 正式宿主复现见 [接入校验指南](/docs/guides/plugin-portability-hosts.md)。验证沿用正式 AppShell、原生安装、运行时和正文编辑入口。
 
+## 移动 AI 插件宿主
+
+`MobilePluginRuntime` 把 `context.ai`、`context.mcp` 与 `context.chat.registerToolRenderer` 接入已有 `MobileAiService`，实际模型运行与原生凭据注入沿用 [移动 AI 服务](/packages/ai/README.md#移动宿主)。AI 服务按需加载；普通插件启动不创建模型请求或聊天文件。SDK 的 AI 请求只做无工具单发，持久聊天仍经宿主 `sessions/runs` 接口管理。
+
+默认连接使用惰性单例；`connectMobilePluginTransport(runtime, { ai, openSettings })` 也允许宿主注入同一 AI 服务与设置打开回调。需要审批/提问时由宿主配置该服务的交互端口，插件不能修改权限模式。插件运行时只回收自己的请求、工具和来源，不销毁注入的共享 AI 服务。
+
+`context.ai.requestCapability` 复用 PluginHost 的清单声明、逐能力授权与撤权订阅，模型取 `llmUsageSettings` 对应项，不隐式回退。`ai.features` 自定义功能默认关闭，由宿主通过 `runtime.ai.info/configure` 维护功能模型分配和每日请求、Token、并发额度；`running/cancel/revoke` 管理在途请求，`usage` 分页读取当日额度与审计记录。额度与桌面一致，按同一设备的 pluginId 计数、跨工作区共享，调用授权仍绑定工作区。插件只收到文本增量、最终文本与可确认的 Token 用量；未知用量为 null。模型、网络与鉴权的原始错误不交付插件。
+
+原生 `plugin_ai_*` 命令使用当前插件 transport token 与数据库身份，模型分配由宿主读取。prepare 到 begin 之间比较配置指纹，begin 持久预占额度并返回提供方指纹；创建模型上下文时以同一设置快照复验指纹，再冻结凭据，冲突不发网。结束时按可确认的实际用量结算；未知用量保留预占，不把 SDK 默认零值当作免费调用；明确尚未接受生成或发网前配置冲突的请求按零用量结算。finish 再检查调用身份与配置，撤回后不能交付迟到成功。配额与请求账本放应用私有 `plugin-ai.json`，不进入主库插件 KV，不保存提示词、回复或凭据；已结束审计保留最近 30 天且最多 1000 条，未结束请求不丢弃，当日额度独立保留。插件停用、提前退出流、调用者取消及切库会停止模型调用并回收绑定。移动端没有独立 AI 配置页面，未注入宿主打开回调时 `openSettings` 返回 `AI_SETTINGS_UNAVAILABLE`。
+
+插件 MCP 支持内联工具及 Streamable HTTP；工具按当前库注册，默认 execute 风险，执行前后仍经过 AI 服务的库租约与工具权限检查。宿主暴露注册状态和等待就绪接口，连接失败不伪装为已可用。stdio 不受支持。工具名与稳定历史 ID 由 `@tau/ai/tool-identity` 同时供桌面与移动使用，展示数据沿用既有 render 版本与载荷。聊天工具渲染器保存为宿主注册表，按工具名或历史 ID 取用；此注册表不创建聊天界面，缺少渲染器时历史仍可使用公共工具投影。
+
+Skills 来源包括已激活的 portable 应用插件和已安装启用的独立 Skill 包。应用插件的 `skills` 元数据进入 PluginHost；独立包不求值 JS、不进入 PluginHost，沿用同一安装、待生效更新、恢复、卸载和来源校验事务。原生清单读取和资源读取核验工作区、当前安装代次、声明路径、完整性与文本预算，拒绝符号链接和越界资源。JS 再对照当前已加载包的 skillRevision 与包类型，旧实例不能读取更新后的包；安全模式不自动恢复独立来源。技能目录按需注册到 AI 服务，停用、重载、撤回、卸载及切库撤销来源；ID 采用桌面的 `包ID:目录ID`。移动端可安装和保留带脚本的独立包，但只暴露受限 Markdown 正文与参考资料，不执行脚本；桌面脚本继续沿用既有审核与执行确认。
+
+以上是宿主与数据能力；闪卡 AI 生成等领域流程、聊天/模型设置界面和 MCP 管理入口不随注册自动产生。API 行为测试和原生临时文件测试不能替代 iOS/Android 设备验收。
+
 ## ASR 与 WebSocket 宿主
 
 `ASRProviderRegistry` 统一提供方注册、配置快照、会话取消和最终结果校验；提供方注销、插件停用与工作区失效会使会话终止。`settings target: "asr"` 在两端插件页承载声明式配置表单与识别模型，程序化 open 打开插件设置；应用语音输入设置（桌面 设置 › 语音 › 语音输入，移动 我的 › 语音 › 语音输入）只选用已配置的提供方，未配置时跳到插件页填写。账号保存为 `{ modelId, config }`，保存不改变选用，选用核验配置未变化；选用的插件停用后保留选择并提示，不自动回退系统识别。聊天、搜索等使用入口不在设置范围。麦克风及输入目标由应用负责，协议解析属于独立插件仓库。
@@ -114,7 +154,7 @@ UiHostProvider 只接受平台中立的 dismiss 登记函数。真实 Dialog/Dra
 
 ## 移动业务授权与内容数据
 
-移动 0.2.13 的 PluginHost 从已验证清单注入权限，忽略入口代码自行附加的权限；通过 PermissionsAdapter、DataAdapter 和 EventsAdapter 接入卡片、文章、项目、项目文档、待办、日程及正文。公开 API 与桌面同名；app 仅开放下述选择、描述和页面打开，插件自有数据通过下述独立适配器接入，app.run 仍未开放。
+移动 0.2.13 的 PluginHost 从已验证清单注入权限，忽略入口代码自行附加的权限；通过 PermissionsAdapter、DataAdapter 和 EventsAdapter 接入卡片、文章、项目、项目文档、待办、日程及正文。公开 API 与桌面同名；app 开放下述选择、描述、页面打开及常用宿主动作，插件自有数据通过下述独立适配器接入。
 
 授权状态机在内部 `@tau/plugins/permission-host`，移动壳层在插件启动期间也承载授权提示，系统返回消费为拒绝。仅本次授权与拒绝属于激活实例，停用/重载/切库失效；持久允许与阻止保存到应用私有 plugin-permissions.json，按工作区和插件分区，不随主库同步。连续拒绝三次阻止，详情可撤销、解除与处理后台请求；读取失败不自动授予。卸载清理该插件的本机决定。授权约束 SDK，不构成代码沙箱。
 
@@ -146,13 +186,15 @@ UiHostProvider 只接受平台中立的 dismiss 登记函数。真实 Dialog/Dra
 
 ### 移动引用选择与打开
 
-移动 `app.pick/describe/open` 支持 card、article、project、普通正文 document、todo、实体 event 及 plugin-entity。选择和打开必须来自当前用户手势；仅支持 page，window/dock 明确拒绝；at.block 仅对插件实体开放，经注册页面传到正文组件。项目引用项仍归原实体，白板/视频等非普通正文文档不进入选择候选；日程虚拟标记须改用查询结果中的 todoId 打开待办。周期实例经历史规则验证后打开所属系列详情，不把系列完成按钮解释为所选历史实例的完成操作。
+移动 `app.pick/describe/open` 支持 card、article、project、普通正文 document、diary、todo、实体 event 及 plugin-entity。选择和打开必须来自当前用户手势；仅支持 page，window/dock 明确拒绝；at.block 支持卡片、文章、普通项目文档、日记片段与插件实体；插件实体经注册页面传到正文组件。项目引用项仍归原实体，白板/视频等非普通正文文档不进入选择候选；日程虚拟标记须改用查询结果中的 todoId 打开待办。周期实例经历史规则验证后打开所属系列详情，不把系列完成按钮解释为所选历史实例的完成操作。
+
+diary 引用与桌面一致，ID 为 diary_segments.id，创建身份取片段 create_time。候选按片段分页，标题复用脉络的正文摘要口径，空白内容显示「空白日记」；日期作为宿主选择器的副标题并参与搜索，不随 pick 结果交付插件。describe 只接受逐条选择授权，原生忽略 diary 的整类 readable 标记；授权仅含标题，未开放日记正文读写。片段、所属日记或正文缺失时不列候选，确认时整批复验创建身份，编号复用不会继承旧授权。打开经原生解析到片段 contentId，直接进入公共正文详情并带日记日期头与保存刷新，不调用可能创建片段的日记打开流程。
 
 `plugin_app_query` 与 `plugin_app_refs` 固定 token、数据库和插件身份。选择器请求隔离缓存、分页与取消信号；实体候选使用 ID keyset，正文待办使用有界扫描，游标绑定查询、插件、时区和会话。候选的创建身份仅在宿主内部传递，确认时在单一事务中复验整批身份并记录 plugin_ref_grants，插件只得到引用与当前标题。describe 按输入顺序返回状态，先检查读取权限或已有引用授权，未经许可不探测是否存在；引用授权绑定目标创建身份，不能落到复用编号的新实体。它不授予正文或整类数据读取权限。
 
 选择器在插件激活完成前即可挂载，使用全局确认层和当前页面的返回仲裁。确认前取消不登记授权；提交确认期间锁定取消，避免把已经确认的登记显示为取消。停用或切库仍强制终结旧请求，已在原库完成的授权不回滚，迟到结果不再交付旧插件。describe 返回前再次检查读权限，撤权期间的迟到标题不交付。
 
-打开目标由原生验证后返回宿主私有导航信息；独立待办携带真实分组，正文待办按 contentId/taskId 打开原文。正文加载与 DOM 就绪后只滚动并提示位置，不改变焦点、选区、折叠属性或完成状态；目标折叠、消失或暂不可定位时给明确提示，页面隐藏时取消定位。公开 EntityRef/ContentEditor/ContentPreview 通过移动共享模块装配，作用域与数据通道见下节。
+打开目标由原生验证后返回宿主私有导航信息；独立待办携带真实分组，正文待办按 contentId/taskId 打开原文。卡片、文章和项目文档页面通过 block/locationRequestId 参数交给公共详情页的 useContentLocation；块序号从零开始，越界回到首块。每次带 at 的打开产生新定位请求，重复打开同一块会重新定位，参数不参与页面身份；普通重渲染与返回页面不重复拉回视口。正文加载与 DOM 就绪后只滚动并提示位置，不改变焦点、选区、折叠属性或完成状态；目标折叠、消失或暂不可定位时给明确提示，页面隐藏时取消定位。公开 EntityRef/ContentEditor/ContentPreview 通过移动共享模块装配，作用域与数据通道见下节。
 
 ### 移动插件自有数据
 

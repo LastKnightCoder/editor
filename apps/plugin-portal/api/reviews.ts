@@ -238,7 +238,7 @@ export async function decideSubmission(
         row.source_commit,
         manifest.name,
         manifest.description,
-        manifest.formatVersion === 3 ? "" : manifest.minAppVersion,
+        manifest.platform === "portable" ? "" : manifest.minAppVersion,
         JSON.stringify(manifest.categories ?? []),
         JSON.stringify(manifest.keywords ?? []),
         time,

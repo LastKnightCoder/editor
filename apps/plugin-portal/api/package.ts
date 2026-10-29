@@ -55,7 +55,7 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
         : validatePluginManifest(raw);
     if (typeof raw.description !== "string" || !raw.description.trim())
       throw new Error("manifest.description必须为非空简介");
-    if (manifest.formatVersion !== 3 && !manifest.minAppVersion)
+    if (manifest.platform === "desktop" && !manifest.minAppVersion)
       throw new Error("发布包必须声明最低客户端版本");
     if (manifest.id === "web" || manifest.id.startsWith("core."))
       throw new Error("不能使用内置插件保留ID");
@@ -125,7 +125,7 @@ export async function inspectPackage(bytes: Uint8Array): Promise<PackageContent>
     };
     return {
       manifest:
-        manifest.formatVersion === 3
+        manifest.platform === "portable"
           ? { ...manifest, description: raw.description.trim() }
           : {
               ...manifest,

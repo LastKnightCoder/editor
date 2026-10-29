@@ -22,6 +22,8 @@ export function ShareContentSheet(props: {
   bannerPosition?: string;
   sourceType?: string;
   sourceId?: number;
+  guard?: () => void;
+  expectedRef?: string;
   onClose: () => void;
   onError: (error: unknown, fallback: string) => void;
 }) {
@@ -39,19 +41,31 @@ export function ShareContentSheet(props: {
     setMessage(undefined);
     try {
       const { collaborationManager } = await import("./core/manager");
+      props.guard?.();
       const content = props.content ?? (await tauri.getContentDetail(props.contentId)).content;
-      const shared = await collaborationManager.shareContent({
-        contentId: props.contentId,
-        title: props.title,
-        content,
-        bannerBg: props.bannerBg,
-        bannerPosition: props.bannerPosition,
-        sourceType: props.sourceType,
-        sourceId: props.sourceId,
-      });
+      props.guard?.();
+      const shared = await collaborationManager.shareContent(
+        {
+          contentId: props.contentId,
+          title: props.title,
+          content,
+          bannerBg: props.bannerBg,
+          bannerPosition: props.bannerPosition,
+          sourceType: props.sourceType,
+          sourceId: props.sourceId,
+        },
+        props.guard,
+        props.expectedRef
+      );
+      props.guard?.();
       setResult(shared);
       setPhase("done");
     } catch (failure) {
+      try {
+        props.guard?.();
+      } catch {
+        return;
+      }
       const parsed = parseInvokeError(failure);
       setMessage(parsed.message || "发起协作失败，请稍后重试");
       setPhase("error");
@@ -82,7 +96,7 @@ export function ShareContentSheet(props: {
   return (
     <BottomSheet open={props.open} title="发起协作" onClose={props.onClose}>
       {phase === "sharing" ? (
-        <div className="flex flex-col items-center pb-2 pt-4">
+        <div className="flex flex-col items-center pt-4 pb-2">
           <Loader2 size={34} className="text-accent animate-spin" />
           <p className="text-ink-1 mt-4 text-[16px] font-extrabold">正在创建协作房间…</p>
           <p className="text-ink-2 mt-2 text-center text-[12.5px] leading-relaxed">
@@ -94,7 +108,7 @@ export function ShareContentSheet(props: {
       ) : null}
 
       {phase === "error" ? (
-        <div className="flex flex-col items-center pb-2 pt-4">
+        <div className="flex flex-col items-center pt-4 pb-2">
           <p className="text-ink-1 text-[16px] font-extrabold">发起协作失败</p>
           <p className="text-ink-2 mt-2 text-center text-[12.5px] leading-relaxed">{message}</p>
           <button

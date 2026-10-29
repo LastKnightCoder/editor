@@ -137,7 +137,7 @@ function LegacyVersionDiff({ submission, manifest }: DiffProps) {
   );
 }
 
-/** 跨端包的历史只在 v2 可见；v1 公开版本列表不含格式 3。 */
+/** 跨端应用与独立 Skill 的历史均通过 v2 查询。 */
 function PortableVersionDiff({ submission, manifest }: DiffProps) {
   const releases = useCenterVersions(manifest.id, "all");
   const items = releases.data?.pages.flatMap(page => page.items) ?? [];
@@ -165,9 +165,9 @@ function PortableVersionDiff({ submission, manifest }: DiffProps) {
             : null
         }
       />
-      {manifest.formatVersion === 3 && loaded && (previous || !releases.hasNextPage) && (
+      {manifest.platform === "portable" && loaded && (previous || !releases.hasNextPage) && (
         <TargetsDiff
-          previous={previous?.content.manifest.formatVersion === 3 ? previous.targets : null}
+          previous={previous?.content.manifest.platform === "portable" ? previous.targets : null}
           current={manifest.targets}
           previousVersion={previous?.version ?? null}
         />
@@ -178,7 +178,7 @@ function PortableVersionDiff({ submission, manifest }: DiffProps) {
 
 /** 与上一发布版本对比：由已发布版本的 manifest 在前端计算，不需要额外接口 */
 export function VersionDiff(props: DiffProps) {
-  return props.manifest.formatVersion === 3 ? (
+  return props.manifest.platform === "portable" ? (
     <PortableVersionDiff {...props} />
   ) : (
     <LegacyVersionDiff {...props} />

@@ -49,6 +49,12 @@ describe.skipIf(!nativeAvailable)("ChatSessionTable", () => {
       ...extra,
     });
 
+  it("手机创建的会话保留来源，不伪装为桌面会话", () => {
+    create("mobile-session", { source: "mobile" });
+    expect(ChatSessionTable.getById(db, "mobile-session")?.source).toBe("mobile");
+    expect(ChatSessionTable.list(db, { scope: "main-chat" })[0].source).toBe("mobile");
+  });
+
   it("按场景与所属对象过滤，主聊天与 PDF 对话互不串", () => {
     create("main-1");
     create("pdf-a-1", { scope: "pdf-chat", domainRef: "7" });

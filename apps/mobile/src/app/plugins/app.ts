@@ -25,7 +25,8 @@ export function createMobileApp(
     target: MobilePluginEntityTarget,
     options: MobileEntityOpenOptions,
     callerGuard: () => void
-  ) => Promise<void>
+  ) => Promise<void>,
+  actions?: import("./app-actions").MobileAppActions
 ) {
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   let disposed = false;
@@ -59,7 +60,7 @@ export function createMobileApp(
       gesture();
       active(context);
       options.kinds.forEach(kind => mobileEntityKind({ kind }));
-      if (request) throw new Error("请先完成或取消当前内容选择");
+      if (request || actions?.getSnapshot()) throw new Error("请先完成或取消当前内容选择");
       return new Promise<PluginPickedEntity[]>(resolve => {
         const controller = new AbortController();
         const issued = new Set<string>();
@@ -150,8 +151,11 @@ export function createMobileApp(
       active(context);
       mobileEntityKind(ref);
       if (options.placement !== "page") throw new Error("移动端仅支持在页面中打开内容");
-      if (options.at && ref.kind !== "plugin-entity")
-        throw new Error("移动端尚未开放指定正文块位置");
+      if (
+        options.at &&
+        !["card", "article", "document", "diary", "plugin-entity"].includes(ref.kind)
+      )
+        throw new Error("这类内容不支持指定正文块位置");
       const target = await refs<MobileEntityOpenTarget>(context, { method: "resolve", ref });
       active(context);
       if (target.kind === "plugin-entity") {
@@ -180,11 +184,25 @@ export function createMobileApp(
       active(context);
       return result;
     },
-    async run() {
-      throw new Error("移动端尚未开放宿主界面动作");
+    async run(context, plugin, input) {
+      active(context);
+      if (request) throw new Error("请先完成或取消当前内容选择");
+      if (!actions) throw new Error("移动端尚未开放宿主界面动作");
+      return actions.run(context, plugin, input);
     },
   };
   return {
+    actions,
+    async grantActionRef(
+      context: PluginContext,
+      ref: import("./runtime").MobileActionTarget,
+      identity: string
+    ) {
+      gesture();
+      if (!["card", "article", "document"].includes(ref.kind))
+        throw new Error("移动端尚未开放此类对象动作");
+      await refs(context, { method: "grant", selections: [{ ref, identity }] });
+    },
     async presentation(
       context: PluginContext,
       ref: import("@tau/plugins").PluginEntityRef
@@ -210,6 +228,7 @@ export function createMobileApp(
     getSnapshot: () => request,
     dispose() {
       disposed = true;
+      actions?.dispose();
       abortPending?.();
       listeners.clear();
     },

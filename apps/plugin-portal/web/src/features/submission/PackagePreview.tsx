@@ -40,7 +40,7 @@ export function PackagePreview({
           },
         ]
       : []),
-    ...(content.manifest.formatVersion === 3
+    ...(content.manifest.platform === "portable"
       ? [
           {
             key: "platforms" as const,
@@ -69,7 +69,7 @@ export function PackagePreview({
   ];
   return (
     <section aria-label="插件包内容" className="relative">
-      <span className="text-tau-micro text-ink-3 absolute right-1 top-2.5 inline-flex items-center gap-1">
+      <span className="text-tau-micro text-ink-3 absolute top-2.5 right-1 inline-flex items-center gap-1">
         <Eye size={13} />
         插件中心会原样展示
       </span>

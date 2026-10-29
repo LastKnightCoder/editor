@@ -1,8 +1,21 @@
 import { comparePluginVersions, type PluginManifest } from "./package.ts";
 import { readPluginMetadata, readPluginFilePath, readPluginFiles } from "./package-fields.ts";
 import type { PluginEnvironment } from "./environment";
+import { PLUGIN_AI_CAPABILITIES, type PluginAICapability } from "./ai.ts";
+import {
+  PACKAGE_PLATFORMS,
+  readPackageTargets,
+  type PackagePlatform,
+  type PackageTarget,
+} from "./package-targets.ts";
 
 export const MOBILE_DATA_MIN_VERSION = "0.2.13";
+export const MOBILE_AI_MIN_VERSION = "0.2.13";
+export const MOBILE_AI_PERMISSIONS = Object.freeze(
+  (Object.keys(PLUGIN_AI_CAPABILITIES) as PluginAICapability[]).map(
+    capability => `ai:${capability}` as const
+  )
+);
 export const MOBILE_DATA_PERMISSIONS = [
   "cards:read",
   "cards:write",
@@ -22,6 +35,8 @@ export const MOBILE_DATA_PERMISSIONS = [
   "calendar:read",
   "calendar:write",
   "calendar:delete",
+  "flashcards:read",
+  "flashcards:write",
 ] as const;
 
 function assertMobilePermissions(manifest: PortablePluginManifest) {
@@ -31,17 +46,31 @@ function assertMobilePermissions(manifest: PortablePluginManifest) {
     if (!target) continue;
     if (
       manifest.permissions.some(
-        permission => !(MOBILE_DATA_PERMISSIONS as readonly string[]).includes(permission)
+        permission =>
+          !(MOBILE_DATA_PERMISSIONS as readonly string[]).includes(permission) &&
+          !(MOBILE_AI_PERMISSIONS as readonly string[]).includes(permission)
       )
     )
       throw new Error("移动端尚未开放此业务权限");
-    if (comparePluginVersions(target.minAppVersion, MOBILE_DATA_MIN_VERSION) < 0)
+    if (
+      manifest.permissions.some(permission =>
+        (MOBILE_DATA_PERMISSIONS as readonly string[]).includes(permission)
+      ) &&
+      comparePluginVersions(target.minAppVersion, MOBILE_DATA_MIN_VERSION) < 0
+    )
       throw new Error(`移动端业务数据授权要求最低客户端版本 ${MOBILE_DATA_MIN_VERSION}`);
+    if (
+      manifest.permissions.some(permission =>
+        (MOBILE_AI_PERMISSIONS as readonly string[]).includes(permission)
+      ) &&
+      comparePluginVersions(target.minAppVersion, MOBILE_AI_MIN_VERSION) < 0
+    )
+      throw new Error(`移动端 AI 授权要求最低客户端版本 ${MOBILE_AI_MIN_VERSION}`);
   }
 }
 
-export const PORTABLE_PLATFORMS = ["desktop", "android", "ios"] as const;
-export type PortablePlatform = (typeof PORTABLE_PLATFORMS)[number];
+export const PORTABLE_PLATFORMS = PACKAGE_PLATFORMS;
+export type PortablePlatform = PackagePlatform;
 export const PORTABLE_SHARED_MODULES = [
   "@tau/plugins",
   "@tau/plugins/whiteboard",
@@ -53,9 +82,7 @@ export const PORTABLE_SHARED_MODULES = [
   "react/jsx-dev-runtime",
 ] as const;
 
-export interface PortablePluginTarget {
-  readonly minAppVersion: string;
-}
+export type PortablePluginTarget = PackageTarget;
 
 export interface PortablePluginManifest extends Omit<
   PluginManifest,
@@ -140,16 +167,7 @@ export function validatePortablePluginManifest(value: unknown): PortablePluginMa
   const main = readPluginFilePath(item.main, ".js");
   const styles = item.styles === undefined ? undefined : readPluginFilePath(item.styles, ".css");
   const files = readPluginFiles(item, [main, ...(styles ? [styles] : [])]);
-  const rawTargets = record(item.targets, "目标平台");
-  const targets: Partial<Record<PortablePlatform, PortablePluginTarget>> = {};
-  for (const platform of PORTABLE_PLATFORMS) {
-    if (!Object.hasOwn(rawTargets, platform)) continue;
-    const target = record(rawTargets[platform], "平台配置");
-    if (typeof target.minAppVersion !== "string") throw new Error("平台缺少最低客户端版本");
-    comparePluginVersions(target.minAppVersion, target.minAppVersion);
-    targets[platform] = Object.freeze({ minAppVersion: target.minAppVersion });
-  }
-  if (!Object.keys(targets).length) throw new Error("需要至少一个支持的目标平台");
+  const targets = readPackageTargets(item.targets);
   const declaredFiles = item.integrity as Record<string, unknown>;
   if (Object.keys(declaredFiles).some(file => !Object.hasOwn(files.integrity, file)))
     throw new Error("跨端包包含未声明文件");

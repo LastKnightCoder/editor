@@ -3,18 +3,20 @@ import { invoke } from "@tauri-apps/api/core";
 import type { StorageAdapter } from "@tau/plugins/host";
 import { copyJson } from "@tau/plugins/host";
 import type { PortablePluginManifest } from "@tau/plugins/portable";
+import { assertPortablePluginCompatibility } from "@tau/plugins/portable";
 import {
-  validatePortablePluginManifest,
-  assertPortablePluginCompatibility,
-} from "@tau/plugins/portable";
+  validateMobilePackageManifest,
+  isSkillPackageManifest,
+  assertSkillPackageCompatibility,
+  type PortableSkillPackageManifest,
+} from "@tau/plugins/template";
 import type { PluginEnvironment } from "@tau/plugins";
 import { isCenterStatusStale } from "./pluginCenterState";
-export interface MobilePluginArtifact {
-  manifest: PortablePluginManifest;
-  code: string;
-  css?: string;
-}
+export type MobilePluginArtifact =
+  | { kind: "plugin"; manifest: PortablePluginManifest; code?: string; css?: string }
+  | { kind: "skills"; manifest: PortableSkillPackageManifest; code?: never; css?: never };
 export interface MobilePluginPackage {
+  skillRevision?: string;
   name?: string | null;
   currentVersion?: string | null;
   pendingVersion?: string | null;
@@ -102,12 +104,20 @@ export async function verifyMobilePlugin(
   environment: PluginEnvironment,
   appVersion: string
 ) {
-  const manifest = validatePortablePluginManifest(artifact.manifest);
+  const manifest = validateMobilePackageManifest(artifact.manifest);
+  if (isSkillPackageManifest(manifest)) {
+    if (environment.platform === "web") throw new Error("Skill 包未声明当前宿主平台");
+    assertSkillPackageCompatibility(manifest, { platform: environment.platform, appVersion });
+    if (artifact.code !== undefined || artifact.css !== undefined)
+      throw new Error("独立 Skill 包不接受代码或样式入口");
+    return { kind: "skills" as const, manifest };
+  }
   assertPortablePluginCompatibility(manifest, {
     environment,
     appVersion,
     profiles: ["web-v1"],
   });
+  if (typeof artifact.code !== "string") throw new Error("包入口缺失");
   for (const [file, text] of [
     [manifest.main, artifact.code],
     ...(manifest.styles ? [[manifest.styles, artifact.css]] : []),
@@ -119,7 +129,12 @@ export async function verifyMobilePlugin(
       .join("");
     if (actual !== manifest.integrity[file]) throw new Error("插件摘要不匹配");
   }
-  return { ...artifact, manifest };
+  return {
+    kind: "plugin" as const,
+    manifest,
+    code: artifact.code,
+    ...(manifest.styles ? { css: artifact.css } : {}),
+  };
 }
 
 export async function installMobilePlugin(

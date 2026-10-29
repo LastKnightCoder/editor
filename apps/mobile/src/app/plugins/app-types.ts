@@ -6,6 +6,7 @@ export const MOBILE_ENTITY_KINDS = [
   "article",
   "project",
   "document",
+  "diary",
   "todo",
   "event",
   "plugin-entity",
@@ -15,6 +16,7 @@ export type MobileEntityKind = (typeof MOBILE_ENTITY_KINDS)[number];
 /** 选择窗口保留创建身份，确认时阻止同编号的新内容继承授权。 */
 export interface MobileEntityCandidate extends PluginPickedEntity {
   identity: string;
+  subtitle?: string;
 }
 
 export interface MobileEntityPickRequest {
@@ -37,6 +39,13 @@ export type MobileEntityOpenTarget =
   | { kind: "card" | "article" | "document" | "project" | "event"; id: number }
   | { kind: "todo"; id: number; groupId: number }
   | { kind: "document-task"; contentId: number; taskId: string }
+  | {
+      kind: "diary";
+      id: number;
+      contentId: number;
+      diaryType: import("../../types").DiaryType;
+      date: string;
+    }
   | MobilePluginEntityTarget;
 export interface MobilePluginEntityTarget {
   kind: "plugin-entity";

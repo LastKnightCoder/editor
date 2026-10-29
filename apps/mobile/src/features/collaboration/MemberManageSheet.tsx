@@ -28,6 +28,8 @@ type PendingConfirm = {
 
 export function MemberManageSheet(props: {
   documentId: string;
+  backDismiss?: boolean;
+  guard?: () => void;
   onClose: () => void;
   onExit: () => void;
   onError: (error: unknown, fallback: string) => void;
@@ -52,7 +54,9 @@ export function MemberManageSheet(props: {
   const rotate = async () => {
     setBusy(true);
     try {
+      props.guard?.();
       const result = await collaborationManager.rotateInvitation(props.documentId);
+      props.guard?.();
       writeCachedInvitation(props.documentId, result);
       setInvitation(result);
       toast.success("已生成新的协作码");
@@ -74,7 +78,9 @@ export function MemberManageSheet(props: {
   const decide = async (request: JoinRequest, approve: boolean) => {
     setBusy(true);
     try {
+      props.guard?.();
       await collaborationManager.decideJoinRequest(request.id, approve);
+      props.guard?.();
       toast.success(approve ? `已批准 ${request.nickname}` : `已拒绝 ${request.nickname}`);
     } catch (failure) {
       props.onError(failure, approve ? "批准加入失败" : "拒绝加入失败");
@@ -88,7 +94,9 @@ export function MemberManageSheet(props: {
     if (!pending) return;
     setBusy(true);
     try {
+      props.guard?.();
       await pending.action();
+      props.guard?.();
       setConfirming(undefined);
     } catch (failure) {
       props.onError(failure, "操作失败");
@@ -100,7 +108,12 @@ export function MemberManageSheet(props: {
   return (
     // backDismiss=false：本 Sheet 用 finish("ended") 回传结束结果，内置返回拦截会吞掉
     // 弹栈请求；普通返回由路由直接弹出 overlay（见 memberSheet.page）。
-    <BottomSheet open title="共享与成员" onClose={props.onClose} backDismiss={false}>
+    <BottomSheet
+      open
+      title="共享与成员"
+      onClose={props.onClose}
+      backDismiss={props.backDismiss ?? false}
+    >
       <div className="scrollbar-hide -mx-1 max-h-[68dvh] overflow-y-auto px-1 pb-2">
         {status ? (
           <div className="mb-3 flex items-center justify-center">

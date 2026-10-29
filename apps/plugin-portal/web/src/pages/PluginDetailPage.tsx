@@ -193,12 +193,12 @@ export function PluginDetailPage() {
   ];
 
   return (
-    <main className="mx-auto max-w-[1080px] px-8 pb-20 pt-7">
+    <main className="mx-auto max-w-[1080px] px-8 pt-7 pb-20">
       {back}
       <header className="flex items-start gap-5">
         <PluginMark pluginId={pluginId} name={manifest.name} size="xl" />
         <div className="min-w-0 flex-1">
-          <h1 className="text-tau-hero text-ink-1 font-semibold leading-tight tracking-[-0.01em]">
+          <h1 className="text-tau-hero text-ink-1 leading-tight font-semibold tracking-[-0.01em]">
             {manifest.name}
           </h1>
           <p className="text-tau-meta text-ink-3 mt-1 flex flex-wrap items-center gap-1.5">
@@ -241,9 +241,11 @@ export function PluginDetailPage() {
               <span className="font-tau-mono">v{manifest.version}</span>
             </Fact>
             <Fact label="包格式">
-              {release.data.formatVersion === 3
-                ? `跨端 · ${release.data.profile}`
-                : "旧格式（仅桌面）"}
+              {release.data.packageKind === "skills"
+                ? "独立 Skill 包"
+                : release.data.formatVersion === 3
+                  ? `跨端 · ${release.data.profile}`
+                  : "旧格式（仅桌面）"}
             </Fact>
             <Fact label="大小">{formatBytes(release.data.size)}</Fact>
             <Fact label="发布于">{formatTime(release.data.publishedAt)}</Fact>
@@ -279,11 +281,12 @@ export function PluginDetailPage() {
               compatible={null}
               compatibility={evaluateCenterCompatibility(release.data)}
             />
-            {release.data.formatVersion !== 3 && (
-              <p className="text-tau-sm text-ink-3 leading-[1.7]">
-                也可以下载 ZIP，在桌面端插件页选择本地安装；本地安装的插件默认停用。
-              </p>
-            )}
+            {release.data.formatVersion !== 3 &&
+              !(release.data.packageKind === "skills" && manifest.platform === "portable") && (
+                <p className="text-tau-sm text-ink-3 leading-[1.7]">
+                  也可以下载 ZIP，在桌面端插件页选择本地安装；本地安装的插件默认停用。
+                </p>
+              )}
           </div>
         </aside>
       </div>

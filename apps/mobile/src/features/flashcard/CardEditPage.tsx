@@ -65,6 +65,10 @@ type CardEditPageProps = {
   type: FlashcardType;
   /** 从内容详情进入时携带的参考资料（仅新建生效） */
   reference?: { refType: "content"; contentId: number; title: string };
+  initialPrompt?: Descendant[];
+  createCard?: (
+    input: import("@tau/plugins").PluginFlashcardDraft & { deckId: number }
+  ) => Promise<void>;
   onBack: () => void;
   onSaved: () => void;
   onError: (error: unknown, fallback: string) => void;
@@ -75,6 +79,8 @@ export function CardEditPage({
   cardId,
   type: initialType,
   reference,
+  initialPrompt,
+  createCard,
   onBack,
   onSaved,
   onError,
@@ -90,7 +96,9 @@ export function CardEditPage({
 
   const [cardType, setCardType] = useState<FlashcardType>(initialType);
   // 各自独立副本：同屏两个编辑器共享同一 EMPTY 引用会触发 slate WeakMap 映射冲突（findPath 崩溃）
-  const [promptValue, setPromptValue] = useState<Descendant[]>(createEmptyEditorContent);
+  const [promptValue, setPromptValue] = useState<Descendant[]>(() =>
+    initialPrompt?.length ? structuredClone(initialPrompt) : createEmptyEditorContent()
+  );
   const [detailValue, setDetailValue] = useState<Descendant[]>(createEmptyEditorContent);
   const [options, setOptions] = useState<Array<{ id: string; label: string; isCorrect: boolean }>>([
     { id: genId(), label: "", isCorrect: true },
@@ -104,6 +112,7 @@ export function CardEditPage({
   const [tags, setTags] = useState<string[]>([]);
   const [tagDraft, setTagDraft] = useState("");
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [confirmExit, setConfirmExit] = useState(false);
 
   const promptEditorRef = useRef<EditorRef | null>(null);
@@ -201,6 +210,7 @@ export function CardEditPage({
   const dirty = loaded && draftSnapshot !== initialSnapshotRef.current;
 
   const requestExit = () => {
+    if (savingRef.current) return;
     if (dirty) setConfirmExit(true);
     else onBack();
   };
@@ -209,6 +219,7 @@ export function CardEditPage({
   // 外层 historyBack 的并发守卫会拒绝嵌套调用，手势会被双重消费后无声失败）；
   // 有未保存改动则弹确认，确认后的退出走 goBackBypassed
   useBackHandler(() => {
+    if (savingRef.current) return true;
     if (!dirty) return false;
     setConfirmExit(true);
     return true;
@@ -287,11 +298,13 @@ export function CardEditPage({
   };
 
   const save = async () => {
+    if (savingRef.current) return;
     const problem = validate();
     if (problem) {
       toast({ type: "warning", text: problem });
       return;
     }
+    savingRef.current = true;
     setSaving(true);
     try {
       const payload = {
@@ -305,6 +318,8 @@ export function CardEditPage({
       };
       if (isEditing) {
         await tauri.flashcardUpdateCard(cardId, payload);
+      } else if (createCard) {
+        await createCard({ deckId, ...payload });
       } else {
         await tauri.flashcardCreateCard({
           deckId,
@@ -318,6 +333,7 @@ export function CardEditPage({
     } catch (error) {
       onError(error, "保存闪卡失败");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
@@ -601,7 +617,7 @@ export function CardEditPage({
                 {tags.map((tag, index) => (
                   <span
                     key={tag}
-                    className="bg-accent-soft text-ink-1 inline-flex items-center gap-1.5 rounded-full py-[7px] pl-3 pr-1.5 text-[12.5px] font-bold"
+                    className="bg-accent-soft text-ink-1 inline-flex items-center gap-1.5 rounded-full py-[7px] pr-1.5 pl-3 text-[12.5px] font-bold"
                   >
                     #{tag}
                     <button
@@ -628,7 +644,7 @@ export function CardEditPage({
                 }
               }}
               placeholder="输入后按回车，如：期货"
-              className="text-ink-1 placeholder:text-ink-3 input-text w-full bg-transparent px-1 pb-1 pt-1.5 font-semibold outline-none placeholder:font-medium"
+              className="text-ink-1 placeholder:text-ink-3 input-text w-full bg-transparent px-1 pt-1.5 pb-1 font-semibold outline-none placeholder:font-medium"
             />
           </div>
         </div>
@@ -767,7 +783,7 @@ function OptionRow({
           placeholder={`选项 ${String.fromCharCode(65 + index)}`}
           onChange={event => onLabelChange(event.target.value)}
           onFocus={() => setExpanded(true)}
-          className="text-ink-1 placeholder:text-ink-3 input-text w-full resize-none overflow-hidden border-0 bg-transparent p-0 font-semibold leading-[1.6] outline-none placeholder:font-medium"
+          className="text-ink-1 placeholder:text-ink-3 input-text w-full resize-none overflow-hidden border-0 bg-transparent p-0 leading-[1.6] font-semibold outline-none placeholder:font-medium"
           style={
             folded
               ? {

@@ -4,6 +4,31 @@ import { afterEach, expect, it } from "vitest";
 import { PackageCard } from "./PackageCard";
 import { PackageFacts } from "./PackageFacts";
 afterEach(cleanup);
+it("格式1跨端Skill按targets展示平台，没有虚构最低版本或代码入口", () => {
+  const manifest = {
+    formatVersion: 1 as const,
+    apiVersion: 1 as const,
+    platform: "portable" as const,
+    id: "test.skill",
+    name: "写作技能",
+    description: "写作说明",
+    version: "1.0.0",
+    targets: { android: { minAppVersion: "0.2.13" }, ios: { minAppVersion: "0.2.13" } },
+    skills: ["writing"],
+    integrity: { "skills/writing/SKILL.md": "a".repeat(64) },
+  };
+  render(
+    <>
+      <PackageFacts manifest={manifest} upload={null} />
+      <PackageCard manifest={manifest} />
+    </>
+  );
+  expect(screen.getByText("目标平台").nextSibling?.textContent).toBe("Android、iOS");
+  expect(screen.getByText("无（Skill 包）")).toBeTruthy();
+  expect(screen.getByText(/平台 Android、iOS/)).toBeTruthy();
+  expect(screen.queryByText(/最低 Tau undefined/)).toBeNull();
+  expect(screen.queryByText("最低应用版本")).toBeNull();
+});
 it("纯模板展示静态目录与作者入口，不要求代码 main/styles", () => {
   render(
     <PackageFacts

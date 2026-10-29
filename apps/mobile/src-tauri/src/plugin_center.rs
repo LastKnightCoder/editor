@@ -91,7 +91,22 @@ pub(crate) fn trusted_source(source: &Value) -> bool {
         && source["url"] == format!("{origin}/v2/releases/{release}/download")
 }
 fn host(platform: &str, version: &str) -> Value {
-    json!({"platform":platform,"appVersion":version,"apiVersions":[1],"formatVersions":[3],"profiles":["web-v1"]})
+    json!({"platform":platform,"appVersion":version,"apiVersions":[1],"formatVersions":[1,3],"profiles":["web-v1"]})
+}
+fn assert_install_release(record: &Value, current_host: &Value) -> Result<(), CenterError> {
+    let manifest = &record["content"]["manifest"];
+    let kind = crate::plugins::assert_mobile_package_manifest(
+        manifest,
+        current_host["platform"].as_str().unwrap_or("unknown"),
+        current_host["appVersion"].as_str().unwrap_or_default(),
+    )
+    .map_err(|message| error(409, "INCOMPATIBLE", &message))?;
+    if (manifest["formatVersion"] == 1 && record["packageKind"] != "skills")
+        || record.get("packageKind").is_some_and(|value| value != kind)
+    {
+        return Err(error(502, "BAD_RESPONSE", "发布类型与实际清单不一致"));
+    }
+    Ok(())
 }
 #[tauri::command]
 pub fn plugin_center_config(app: AppHandle) -> Result<Value, CenterError> {
@@ -396,6 +411,7 @@ pub async fn plugin_center_stage(
         return Err(error(409, "INCOMPATIBLE", "该版本不兼容或分发未开放"));
     }
     let record = &resolved["release"];
+    assert_install_release(record, &current)?;
     let source = install_source(&origin, record, &plugin_id, &release_id)?;
     let mut result=crate::plugins::stage_package(app,source,Some(json!({"origin":origin.origin().ascii_serialization(),"releaseId":release_id,"manifest":record["content"]["manifest"]}))).await.map_err(|message|error(400,"INVALID_PACKAGE",&message))?;
     result["release"] = record.clone();
@@ -432,12 +448,14 @@ pub async fn plugin_center_commit(
         return Err(error(409, "INCOMPATIBLE", "发布状态或版本已变化"));
     }
     install_source(&origin, &resolved["release"], &plugin_id, &release_id)?;
+    assert_install_release(&resolved["release"], &current)?;
     crate::plugins::commit_center_package(
         app,
         plugin_id,
         sha256,
         &origin.origin().ascii_serialization(),
         &release_id,
+        &resolved["release"]["content"]["manifest"],
     )
     .map_err(|message| error(409, "INVALID_PACKAGE", &message))
 }
@@ -532,6 +550,30 @@ mod tests {
             &current
         )
         .is_err());
+    }
+    #[test]
+    fn independent_skill_install_requires_derived_kind_and_mobile_target() {
+        let manifest = json!({"formatVersion":1,"apiVersion":1,"platform":"portable","id":"example.notes","name":"Notes","version":"1.0.0","skills":["summary"],"targets":{"ios":{"minAppVersion":"0.2.13"}},"integrity":{"skills/summary/SKILL.md":"a".repeat(64)}});
+        let mut record = json!({"packageKind":"skills","content":{"manifest":manifest}});
+        let current = host("ios", "0.2.13");
+        assert_eq!(current["formatVersions"], json!([1, 3]));
+        assert!(assert_install_release(&record, &current).is_ok());
+        record["packageKind"] = Value::Null;
+        assert!(assert_install_release(&record, &current).is_err());
+        record["packageKind"] = json!("template");
+        assert!(assert_install_release(&record, &current).is_err());
+        record["packageKind"] = json!("skills");
+        record["content"]["manifest"]["template"] = Value::Null;
+        assert!(assert_install_release(&record, &current).is_err());
+        record["content"]["manifest"]
+            .as_object_mut()
+            .unwrap()
+            .remove("template");
+        record["content"]["manifest"]["platform"] = json!("desktop");
+        assert!(assert_install_release(&record, &current).is_err());
+        record["content"]["manifest"]["platform"] = json!("portable");
+        assert!(assert_install_release(&record, &host("android", "99.0.0")).is_err());
+        assert!(assert_install_release(&record, &host("ios", "0.2.12")).is_err());
     }
     #[test]
     fn fixed_origin_and_identity_for_install() {

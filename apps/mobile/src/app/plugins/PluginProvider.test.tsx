@@ -317,3 +317,87 @@ it("中心更新下载完成且队列清空后自动重建会话，不需要点�
     localStorage.clear();
   }
 });
+
+it("中心首次安装无需管理页消费者，队列清空后重建会话加载独立技能", async () => {
+  vi.stubGlobal("matchMedia", () => ({
+    matches: false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+  const center = await import("../../services/pluginCenter");
+  const plugins = await import("../../services/plugins");
+  const install = vi.spyOn(center, "installMobileCenterRelease").mockResolvedValue(undefined);
+  const start = vi.spyOn(MobilePluginRuntime.prototype, "start").mockResolvedValue(undefined);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const settle = async (predicate: () => boolean) => {
+    for (let index = 0; index < 60 && !predicate(); index++)
+      await act(async () => {
+        await vi.dynamicImportSettled();
+        await new Promise(resolve => setTimeout(resolve, 10));
+      });
+  };
+  const packages: import("../../services/plugins").MobilePluginPackage[] = [
+    {
+      id: "example.summary",
+      enabled: true,
+      pending: false,
+      skillRevision: "new-install",
+      artifact: {
+        kind: "skills",
+        manifest: {
+          id: "example.summary",
+          name: "独立技能",
+          version: "1.0.0",
+          formatVersion: 1,
+          apiVersion: 1,
+          platform: "portable",
+          targets: { ios: { minAppVersion: "0.2.0" } },
+          skills: ["summary"],
+          integrity: { "skills/summary/SKILL.md": "a".repeat(64) },
+        },
+      },
+    },
+  ];
+  try {
+    await act(async () =>
+      root.render(
+        <QueryClientProvider client={client}>
+          <MobilePluginProvider database="A.db">
+            <p>工作区</p>
+          </MobilePluginProvider>
+        </QueryClientProvider>
+      )
+    );
+    await settle(() => mobilePluginState.get().phase === "ready");
+    vi.mocked(plugins.readMobilePlugins).mockResolvedValue({
+      platform: "ios",
+      appVersion: "0.2.0",
+      development: true,
+      packages,
+    });
+    await act(async () => {
+      await getMobileCenterInstallStore(client).install("example.summary", "rel-skill");
+    });
+    await settle(() => start.mock.calls.length === 2);
+    expect(start).toHaveBeenCalledTimes(2);
+    expect(start.mock.calls[1][0]).toEqual(packages);
+    expect(start.mock.calls[1][4]).toEqual({ safeMode: false });
+  } finally {
+    await act(async () => root.unmount());
+    client.clear();
+    container.remove();
+    install.mockRestore();
+    start.mockRestore();
+    vi.mocked(plugins.readMobilePlugins).mockResolvedValue({
+      platform: "ios",
+      appVersion: "0.2.0",
+      development: true,
+      packages: [],
+    });
+    vi.unstubAllGlobals();
+    localStorage.clear();
+  }
+});

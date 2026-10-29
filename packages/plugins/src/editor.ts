@@ -1,8 +1,5 @@
-import type { ContentMetricRule } from "@tau/db-schema/content-metrics";
 import { defineExtension } from "@tau/editor/contracts";
 import type { EditorExtension as InternalExtension } from "@tau/editor/contracts";
-import type { MarkdownCodec } from "@tau/markdown";
-import type { Disposable } from "./index";
 import { normalizePluginEditorExtension, type OpenEditorExtensionField } from "./editor-fields";
 
 export { defineElement as defineEditorElement } from "@tau/editor/contracts";
@@ -48,17 +45,4 @@ export function defineEditorExtension(
   definition: Omit<PluginEditorExtension, "apiVersion">
 ): PluginEditorExtension {
   return defineExtension(normalizePluginEditorExtension(definition)) as PluginEditorExtension;
-}
-
-export interface PluginEditorContribution {
-  /** 目前只有开发台场景；其他场景需宿主明确接入后开放。 */
-  scene: "workbench";
-  extension: PluginEditorExtension;
-  /** 纯函数定义可由主进程独立导入，本次只在开发台装配。 */
-  codecs?: readonly MarkdownCodec[];
-  metrics?: readonly ContentMetricRule[];
-}
-
-export interface PluginEditor {
-  register(contribution: PluginEditorContribution): Disposable;
 }

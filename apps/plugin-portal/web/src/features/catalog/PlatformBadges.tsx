@@ -5,17 +5,17 @@ import { PLATFORM_LABELS, PORTABLE_PLATFORMS } from "./platforms";
 
 const ICONS = { desktop: Monitor, android: Smartphone, ios: Smartphone } as const;
 
-/** 版本声明的平台标识；旧格式包只投影为桌面并额外标注。 */
+/** 平台来自 targets，独立文档包的格式号不表示旧版代码协议。 */
 export function PlatformBadges({
   version,
   className,
 }: {
-  version: Pick<CenterVersion, "targets" | "formatVersion">;
+  version: Pick<CenterVersion, "targets" | "formatVersion" | "packageKind">;
   className?: string;
 }) {
   const ordered = PORTABLE_PLATFORMS.filter(platform => version.targets[platform]);
   if (!ordered.length) return null;
-  const legacy = version.formatVersion !== 3;
+  const legacy = version.formatVersion !== 3 && version.packageKind !== "skills";
   const names = ordered.map(platform => PLATFORM_LABELS[platform]).join("、");
   return (
     <ul

@@ -241,6 +241,26 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 
 正文只支持当前格式，不提供旧格式转换、恢复包生成与导出、采用远端新基线或覆盖式本机恢复。正常同步、保存和输入草稿确认仍沿原会话执行。协作缓存已经建立时可离线编辑并在重连后同步；会话未建立时保持只读和重试，不通过主库投影绕过协作写入守卫，不记录本地兜底选择标记。
 
+## 本机 AI 服务
+
+`services/ai/` 提供不依赖页面挂载的 MobileAiService。明确消费者通过 `createMobileAiService` 创建实例，或调用惰性的 `getMobileAiService`；模块不添加聊天界面、设置页面、业务工具或自动功能入口。公共契约、接口用法与默认行为见 [AI 公共核心](/packages/ai/README.md)。
+
+移动插件通过现有 PluginHost 的 `ai/mcp/chat` 适配器消费同一底座；包内 Markdown Skill 随激活代次注册与回收，独立 Skill 包按自身安装与启用资格加载，不进入代码激活链。权限、额度、来源校验及未开放界面的边界见 [移动 AI 插件宿主](/docs/architecture/plugin-portability.md#移动-ai-插件宿主)。
+
+运行层使用 `@tau/ai/runtime` 的 AiRuntime，底层为 pi-ai / pi-agent-core。桌面仍使用 Electron 主进程 AgentSession，两端共用 `@tau/shared/chat-core` 消息 DTO 和 `@tau/ai/session` 的持久历史投影。会话文件是桌面现有 pi v3；目录行沿用 chat_session，source 可为 desktop / mobile / browser。列表只查目录，单个会话分块读取并验证 revision，再投影成 messages、leafId 和 formatVersion；原模型消息与渲染投影分开，不能从展示 DTO 重建上下文。
+
+原生模块在 `src-tauri/src/ai/`：库租约包含库名与代次，会话运行占用按库/会话仲裁。切库和数据库同步忙时拒绝，替换后撤销旧租约、网络上下文及上传暂存；异步调用始终绑定原库，不通过执行时 activeDatabase 重定向。服务的 scoped 工具与 MCP 在调用前后复核库身份与租约，来源撤销或重连使旧快照失效。
+
+会话文件与目录提交通过 `ai-journals/<库名>/` 的暂存文件和事务日志协调：校验文件/目录 revision，完整暂存后刷盘，日志刷盘，再安装文件并更新 SQLite；打开存储和同步前完成遗留事务。相同 entry 已存在且内容相同时不重复追加；版本不符或恢复时文件已变化返回冲突。删除把原文件及目录元数据保存在 `backup/ai-sessions/`。主库保存标题、分组、归档等管理数据，messageCount 只统计当前路径的用户提问。
+
+原生会话读取每块最多 128 KiB，JS 使用 UTF-8 增量解码；超过 64 KiB 的提交按 64 KiB 原始字节切片暂存，完整重组后提交。模型和 MCP 都使用标准 fetch / ReadableStream 适配原生 HTTP：上下文冻结目标地址与鉴权配置，只允许同源同路径前缀且不跟随重定向。模型 Key 不返回 WebView；公开配置移除 Key 与请求头，Rust 按真实 SDK 请求形状选择鉴权头，显式配置头优先。
+
+设置继续使用 llmProviders / llmUsageSettings，模型转换与桌面同源。data URL 内联图片和文本可直接准备，纯图片消息不要求文字；新输入或恢复上下文含图时要求模型 input 支持 image，否则在请求前拒绝。单发用户消息的 images 字段与桌面同形。其他附件由调用者的 prepareInput 解析；同步会话不会让另一设备的绝对路径自动可用。
+
+工具默认 manual 权限，没有审批/提问宿主时拒绝对应操作。说明类 Skills 由宿主注册受限 list/read 来源，手动技能需显式选择，脚本不执行；MCP 使用官方 Streamable HTTP 客户端，stdio 返回不支持。历史工具结果不要求本机安装原执行器，仍可按公共工具块投影。运行快照中的 partial 与已提交结果分开，持久化屏障保证工具意图先落盘、结果落盘后才请求下一轮；回执未知时停止本轮，不自动重放写操作。
+
+releaseLibrary / prepareMaintenance / dispose 由宿主显式调用，订阅取消不等于运行取消。工厂实例通过 `bindMobileAiLifecycle` 显式绑定文档生命周期，惰性单例在首次获取时绑定 visibilitychange 和 pagehide / pageshow：进入后台调用 suspend，等待已有工作结束并阻止新操作；回前台调用 resume，不重放任务。系统冻结或杀进程时依靠原生已提交数据与事务恢复；历史投影把缺回执工具标为结果未知，纯读取不改写文件，续聊前才补正式中断结果，不自动恢复授权或重跑旧工具。数据库与会话文件的上传、下载和成对安装规则见 [宿主分块同步](/docs/architecture/storage-sync.md)。
+
 ## 预加载与 DevTools
 
 - `navigator.preload(key, params)`：按页面 `data` 声明预取 query 缓存（不挂载组件），
