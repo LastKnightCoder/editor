@@ -1,8 +1,8 @@
 /**
  * 卡片预览弹窗：
  * 纯粹的编辑 / 预览定位——正文可直接编辑（节流自动保存，关闭时兜底一次），
- * 标签增删改经既有 AddTag。无 footer；右上区（× 下方）平铺「进入详情」+
- * More 菜单（域内共享 CardActionMenu；「进入详情」菜单项与演示前落盘为预览
+ * 标签增删改经既有 AddTag。无 footer；自定义头部把标题、meta 与「进入详情」/
+ * More 菜单 / × 排在同一行（More 为域内共享 CardActionMenu；「进入详情」菜单项与演示前落盘为预览
  * 特有差异，经 props 注入）。元数据由卡片查询同步，标签仅提交字段补丁；
  * 正文经 ContentEditor 文档会话同步。「进入详情」落盘后交 actions.onOpenDetail，
  * 由宿主在同一次形变里收起预览并 push 详情（D-106）；ref 指向弹窗卡体，宿主据此
@@ -14,7 +14,7 @@ import { useEffect, useMemo, useRef, useState, type Ref } from "react";
 import { useRafInterval, useUnmount } from "ahooks";
 import { produce } from "immer";
 import type { Descendant, Editor as SlateEditor } from "slate";
-import { Maximize2, MoreHorizontal } from "lucide-react";
+import { Maximize2, MoreHorizontal, X } from "lucide-react";
 import type { EditorRef } from "@tau/editor";
 import AddTag from "@/components/AddTag";
 import ContentEditor from "@/components/ContentEditor";
@@ -152,6 +152,74 @@ export function CardPreviewDialog({
   };
 
   const loadFailed = Boolean(displayError && !card);
+  const title = editing ? `卡片 #${editing.id}` : "卡片预览";
+
+  const close = () => {
+    void saveCard()
+      .then(() => onOpenChange(false))
+      .catch(() => {});
+  };
+
+  /* 标题行与操作组同排：左 = 标题 + meta，右 = 进入详情 / More / ×，三枚图标同尺寸同基线 */
+  const header = (
+    <div className="flex items-start gap-3 pt-3 pr-3 pl-6">
+      <div className="min-w-0 flex-1 pt-[10px]">
+        <h2
+          title={title}
+          className="text-ink-1 truncate text-[16px] leading-[1.45] font-[650] tracking-[-0.01em]"
+        >
+          {title}
+        </h2>
+        {editing && !loadFailed && (
+          <p className="text-ink-3 text-tau-meta mt-[3px] truncate">{meta}</p>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-0.5">
+        {editing && !loadFailed && (
+          <>
+            <IconButton
+              title="进入详情"
+              className="size-[28px] rounded-[8px]"
+              onClick={() => {
+                void openDetail().catch(() => {});
+              }}
+            >
+              <Maximize2 className="size-[14px]" />
+            </IconButton>
+            <CardActionMenu
+              card={editing}
+              actions={actions}
+              trigger={
+                <IconButton title="更多操作" className="size-[28px] rounded-[8px]">
+                  <MoreHorizontal className="size-[14px]" />
+                </IconButton>
+              }
+              detailItem={{
+                onSelect: () => {
+                  void openDetail().catch(() => {});
+                },
+              }}
+              onBeforePresent={async () => {
+                /* 先落盘编辑中的内容再进入演示，并关掉预览弹窗（演示退出回列表，不恢复弹窗） */
+                await saveCard();
+                onOpenChange(false);
+              }}
+            />
+            <span aria-hidden className="bg-line-2 mx-1 h-4 w-px" />
+          </>
+        )}
+        <IconButton
+          aria-label="关闭"
+          title="关闭"
+          disabled={patch.isPending}
+          className="size-[28px] rounded-[8px]"
+          onClick={close}
+        >
+          <X className="size-[14px]" />
+        </IconButton>
+      </div>
+    </div>
+  );
 
   return (
     <Dialog
@@ -166,13 +234,11 @@ export function CardPreviewDialog({
       }}
       onOpenChange={open => {
         if (open) onOpenChange(true);
-        else
-          void saveCard()
-            .then(() => onOpenChange(false))
-            .catch(() => {});
+        else close();
       }}
       locked={patch.isPending}
-      title={editing ? `卡片 #${editing.id}` : "卡片预览"}
+      title={title}
+      header={header}
       width={680}
     >
       {!card && displayError && (
@@ -185,43 +251,9 @@ export function CardPreviewDialog({
           </div>
         </DialogBody>
       )}
-      {/* 只有正文滚动：meta 行与标签栏放在 DialogBody 之外，钉在滚动区上下 */}
+      {/* 只有正文滚动：头部与标签栏放在 DialogBody 之外，钉在滚动区上下 */}
       {editing && !loadFailed && (
         <>
-          {/* meta 与操作组同行：左 = 创建/修改/字数，右 = 进入详情 + More 菜单（与卡面 ⋯ 同源） */}
-          <div className="text-ink-3 flex shrink-0 items-center gap-3.5 px-6 pt-[8px]">
-            <span className="min-w-0 flex-1 truncate">{meta}</span>
-            <span className="flex items-center gap-0.5">
-              <IconButton
-                title="进入详情"
-                className="size-[24px] rounded-[7px]"
-                onClick={() => {
-                  void openDetail().catch(() => {});
-                }}
-              >
-                <Maximize2 className="size-[14px]" strokeWidth={1.75} />
-              </IconButton>
-              <CardActionMenu
-                card={editing}
-                actions={actions}
-                trigger={
-                  <IconButton title="更多操作" className="size-[24px] rounded-[7px]">
-                    <MoreHorizontal className="size-[14px]" strokeWidth={1.75} />
-                  </IconButton>
-                }
-                detailItem={{
-                  onSelect: () => {
-                    void openDetail().catch(() => {});
-                  },
-                }}
-                onBeforePresent={async () => {
-                  /* 先落盘编辑中的内容再进入演示，并关掉预览弹窗（演示退出回列表，不恢复弹窗） */
-                  await saveCard();
-                  onOpenChange(false);
-                }}
-              />
-            </span>
-          </div>
           <DialogBody className="mb-0 pt-3">
             <ErrorBoundary>
               <ContentEditor
@@ -244,7 +276,7 @@ export function CardPreviewDialog({
               />
             </ErrorBoundary>
           </DialogBody>
-          <div className="shrink-0 px-6 pb-[22px] pt-3">
+          <div className="shrink-0 px-6 pt-3 pb-[22px]">
             <AddTag
               tags={editing.tags}
               addTag={tag => {
