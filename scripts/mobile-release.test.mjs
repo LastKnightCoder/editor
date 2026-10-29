@@ -26,9 +26,10 @@ function withMobileDir(run) {
     join(dir, "src-tauri/Cargo.toml"),
     '[package]\nname = "Tau"\nversion = "0.2.4"\n\n[dependencies]\nserde = { version = "1" }\n'
   );
+  // Windows autocrlf 检出后 Cargo.lock 为 CRLF，fixture 用同款换行覆盖该场景
   writeFileSync(
     join(dir, "src-tauri/Cargo.lock"),
-    '[[package]]\nname = "Serde"\nversion = "1.0.0"\n\n[[package]]\nname = "Tau"\nversion = "0.2.4"\n'
+    '[[package]]\nname = "Serde"\nversion = "1.0.0"\n\n[[package]]\r\nname = "Tau"\r\nversion = "0.2.4"\r\ndependencies = ["serde"]\r\n'
   );
   try {
     run(dir);
@@ -49,6 +50,11 @@ test("回写版本号覆盖四处且不改依赖版本", () => {
     assert.match(
       readFileSync(join(dir, "src-tauri/Cargo.lock"), "utf8"),
       /"Serde"\nversion = "1\.0\.0"/
+    );
+    // Tau 条目的 CRLF 换行在回写后原样保留
+    assert.match(
+      readFileSync(join(dir, "src-tauri/Cargo.lock"), "utf8"),
+      /version = "0\.3\.0"\r\ndependencies = /
     );
   });
 });

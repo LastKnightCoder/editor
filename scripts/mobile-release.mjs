@@ -18,8 +18,8 @@ const VERSION_FILES = {
   cargoLock: "src-tauri/Cargo.lock",
 };
 
-// Cargo.lock 中移动包自身的条目；依赖里没有同名包
-const CARGO_LOCK_RE = /(\[\[package\]\]\nname = "Tau"\nversion = ")([^"]+)(")/;
+// Cargo.lock 中移动包自身的条目；依赖里没有同名包。Windows autocrlf 检出为 CRLF，两种换行都要匹配
+const CARGO_LOCK_RE = /(\[\[package\]\]\r?\nname = "Tau"\r?\nversion = ")([^"]+)(")/;
 // Cargo.toml 的 [package] 段位于文件开头，第一处 version 即包版本
 const CARGO_TOML_RE = /^(version = ")([^"]+)(")/m;
 
