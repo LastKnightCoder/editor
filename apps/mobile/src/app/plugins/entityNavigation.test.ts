@@ -20,15 +20,14 @@ it.each([
   expect(navigator.push).toHaveBeenCalledExactlyOnceWith(key, params);
 });
 
-it.each([
-  { placement: "window" },
-  { placement: "dock" },
-  { placement: "page", at: { block: 0 } },
-] satisfies MobileEntityOpenOptions[])("不默默降级不支持的打开选项 %j", options => {
-  const navigator = { push: vi.fn() };
-  expect(() => navigateMobileEntity(navigator, { kind: "card", id: 1 }, options)).toThrow();
-  expect(navigator.push).not.toHaveBeenCalled();
-});
+it.each([{ placement: "window" }, { placement: "dock" }] satisfies MobileEntityOpenOptions[])(
+  "不默默降级不支持的打开选项 %j",
+  options => {
+    const navigator = { push: vi.fn() };
+    expect(() => navigateMobileEntity(navigator, { kind: "card", id: 1 }, options)).toThrow();
+    expect(navigator.push).not.toHaveBeenCalled();
+  }
+);
 
 it.each([
   { kind: "event", id: -100 },
@@ -41,5 +40,37 @@ it.each([
   expect(() =>
     navigateMobileEntity(navigator, target as MobileEntityOpenTarget, { placement: "page" })
   ).toThrow();
+  expect(navigator.push).not.toHaveBeenCalled();
+});
+
+it.each(["card", "article", "document"] as const)(
+  "%s 携带定位参数，重复定位使用新请求标识",
+  kind => {
+    const navigator = { push: vi.fn() };
+    navigateMobileEntity(navigator, { kind, id: 1 }, { placement: "page", at: { block: 0 } });
+    navigateMobileEntity(navigator, { kind, id: 1 }, { placement: "page", at: { block: 0 } });
+    const first = navigator.push.mock.calls[0][1];
+    const second = navigator.push.mock.calls[1][1];
+    expect(first.block).toBe(0);
+    expect(second.block).toBe(0);
+    expect(first.locationRequestId).not.toBe(second.locationRequestId);
+  }
+);
+it.each([-1, 0.5, NaN, Infinity])("拒绝非法块序号 %s", block => {
+  const navigator = { push: vi.fn() };
+  expect(() =>
+    navigateMobileEntity(navigator, { kind: "card", id: 1 }, { placement: "page", at: { block } })
+  ).toThrow("非负整数");
+  expect(navigator.push).not.toHaveBeenCalled();
+});
+it("非正文类型不接受块定位", () => {
+  const navigator = { push: vi.fn() };
+  expect(() =>
+    navigateMobileEntity(
+      navigator,
+      { kind: "project", id: 1 },
+      { placement: "page", at: { block: 0 } }
+    )
+  ).toThrow("不支持");
   expect(navigator.push).not.toHaveBeenCalled();
 });

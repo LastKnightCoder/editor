@@ -4,10 +4,10 @@ import type { EditorRef } from "@tau/editor";
 import { createEditor, type Descendant } from "slate";
 import { ReactEditor } from "slate-react";
 import { afterEach, beforeEach, expect, it, vi, type MockInstance } from "vitest";
-import { useTaskLocation } from "../useTaskLocation";
+import { useContentLocation } from "../useContentLocation";
 
-function Probe(props: Parameters<typeof useTaskLocation>[0]) {
-  useTaskLocation(props);
+function Probe(props: Parameters<typeof useContentLocation>[0]) {
+  useContentLocation(props);
   return null;
 }
 
@@ -82,7 +82,15 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function render(options: { taskId?: string; ready?: boolean; active?: boolean } = {}) {
+function render(
+  options: {
+    taskId?: string;
+    block?: number;
+    requestId?: string;
+    ready?: boolean;
+    active?: boolean;
+  } = {}
+) {
   act(() =>
     root.render(
       <Probe
@@ -204,4 +212,43 @@ it("DOM 未就绪的等待有界，协作未就绪时不提前报错", () => {
   act(() => vi.advanceTimersByTime(3000));
   expect(unavailable).toHaveBeenCalledExactlyOnceWith("待办定位暂不可用，请在原文中查看");
   expect(scroll).not.toHaveBeenCalled();
+});
+
+it("按顶层块序号定位，不变更正文或唤起键盘", () => {
+  editor.children.push({ type: "paragraph", children: [{ type: "formatted", text: "第二块" }] });
+  const before = JSON.stringify(editor.children);
+  render({ taskId: undefined, block: 1, requestId: "open-1" });
+  nextFrame();
+  expect(toDOMNode).toHaveBeenCalledWith(editor, editor.children[1]);
+  expect(scroll).toHaveBeenCalledOnce();
+  expect(JSON.stringify(editor.children)).toBe(before);
+  expect(editor.operations).toEqual([]);
+  expect(editorRef.current?.focus).not.toHaveBeenCalled();
+});
+it.each([999, -1, 0.5])("块序号 %s 越界或无效时回到文首", block => {
+  render({ taskId: undefined, block });
+  nextFrame();
+  expect(toDOMNode).toHaveBeenCalledWith(editor, editor.children[0]);
+});
+it("同一块的新打开请求重新定位，普通重渲染不抢滚动", () => {
+  render({ taskId: undefined, block: 0, requestId: "first" });
+  nextFrame();
+  render({ taskId: undefined, block: 0, requestId: "first" });
+  nextFrame();
+  expect(scroll).toHaveBeenCalledTimes(1);
+  render({ taskId: undefined, block: 0, requestId: "second" });
+  nextFrame();
+  expect(scroll).toHaveBeenCalledTimes(2);
+});
+it("块定位等待正文就绪，隐藏时取消，恢复时执行当前请求", () => {
+  render({ taskId: undefined, block: 0, ready: false });
+  nextFrame();
+  expect(scroll).not.toHaveBeenCalled();
+  render({ taskId: undefined, block: 0 });
+  render({ taskId: undefined, block: 0, active: false });
+  nextFrame();
+  expect(scroll).not.toHaveBeenCalled();
+  render({ taskId: undefined, block: 0 });
+  nextFrame();
+  expect(scroll).toHaveBeenCalledOnce();
 });

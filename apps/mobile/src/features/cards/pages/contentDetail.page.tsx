@@ -1,3 +1,4 @@
+import { useMobilePluginActionItems } from "../../../app/plugins/action-menu";
 import { useEffect, useRef, useState } from "react";
 import { Layers, ChevronRight, Copy, Ellipsis, Link2, Trash2 } from "lucide-react";
 import { ContentDetailPage, type ContentDetailActions } from "../ContentDetailPage";
@@ -31,6 +32,8 @@ const contentDetailSchema = createPageSchema({
   contentId: paramOptional(paramNumber()),
   cardId: paramOptional(paramNumber()),
   taskId: paramOptional(paramString()),
+  block: paramOptional(paramNumber()),
+  locationRequestId: paramOptional(paramString()),
   contentTitle: paramString(""),
   contentType: paramString(""),
   refId: paramOptional(paramNumber()),
@@ -45,7 +48,12 @@ const contentDetailSchema = createPageSchema({
 type ContentDetailParams = typeof contentDetailSchema.type;
 
 /** 卡片入口：cardId → contentId 解析 + ⋯ 操作（关联卡片 / 复制正文 / 删除） */
-function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
+function CardEntryScreen(props: {
+  cardId: number;
+  refreshKey: number;
+  block?: number;
+  locationRequestId?: string;
+}) {
   const navigator = useNavigator();
   const app = useAppContext();
   const [card, setCard] = useState<CardDetailResponse | null>(null);
@@ -57,6 +65,9 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
   // 关联写回后 bump：脉络胶囊（含「连接」分区）走自己的查询，经 refreshKey 强制重拉同步
   const [linksRev, setLinksRev] = useState(0);
   const detailActionsRef = useRef<ContentDetailActions>(null);
+  const pluginActionItems = useMobilePluginActionItems(
+    card ? { kind: "card", id: String(card.id), createTime: card.createTime } : null
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -133,6 +144,8 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
     <>
       <ContentDetailPage
         contentId={card.contentId}
+        block={props.block}
+        locationRequestId={props.locationRequestId}
         refreshKey={props.refreshKey + linksRev}
         actionsRef={detailActionsRef}
         contextEntity={{ kind: "card", id: card.id }}
@@ -188,6 +201,7 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
             },
           },
           ...collab.menuItems,
+          ...pluginActionItems,
           {
             label: "删除卡片",
             danger: true,
@@ -250,13 +264,22 @@ function ContentDetailScreen() {
   });
 
   if (params.cardId && params.contentId == null) {
-    return <CardEntryScreen cardId={params.cardId} refreshKey={refreshRev} />;
+    return (
+      <CardEntryScreen
+        cardId={params.cardId}
+        refreshKey={refreshRev}
+        block={params.block}
+        locationRequestId={params.locationRequestId}
+      />
+    );
   }
 
   return (
     <ContentDetailPage
       contentId={params.contentId ?? 0}
       taskId={params.taskId}
+      block={params.block}
+      locationRequestId={params.locationRequestId}
       contentTitle={params.contentTitle}
       contentType={params.contentType}
       refId={params.refId}

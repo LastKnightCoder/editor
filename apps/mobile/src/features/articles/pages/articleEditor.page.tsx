@@ -1,3 +1,4 @@
+import { useMobilePluginActionItems } from "../../../app/plugins/action-menu";
 import { useEffect, useRef, useState } from "react";
 import { Layers, Ellipsis, Newspaper, Star, Trash2 } from "lucide-react";
 import { PageHeaderButton } from "../../../components/PageHeader";
@@ -16,6 +17,8 @@ import {
   createPageSchema,
   definePage,
   paramNumber,
+  paramOptional,
+  paramString,
   useNavigator,
   usePage,
   usePageLifecycle,
@@ -31,6 +34,8 @@ import { clampText } from "../../../utils/richTextText";
 
 const articleEditorSchema = createPageSchema({
   articleId: paramNumber(),
+  block: paramOptional(paramNumber()),
+  locationRequestId: paramOptional(paramString()),
 });
 type ArticleEditorParams = typeof articleEditorSchema.type;
 
@@ -43,6 +48,9 @@ function ArticleEditorScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const detailActionsRef = useRef<ContentDetailActions>(null);
+  const pluginActionItems = useMobilePluginActionItems(
+    article ? { kind: "article", id: String(article.id), createTime: article.createTime } : null
+  );
   // onResume 重拉正文（协作结束后本地内容更新）；绑定刷新由 useContentCollabEntry 内部处理
   const [refreshRev, setRefreshRev] = useState(0);
   usePageLifecycle({ onResume: () => setRefreshRev(value => value + 1) });
@@ -82,6 +90,8 @@ function ArticleEditorScreen() {
   return (
     <>
       <ContentDetailPage
+        block={params.block}
+        locationRequestId={params.locationRequestId}
         contentId={article.contentId ?? 0}
         contentTitle={article.title}
         titleEditable
@@ -150,6 +160,7 @@ function ArticleEditorScreen() {
             },
           },
           ...collab.menuItems,
+          ...pluginActionItems,
           {
             label: "删除文章",
             danger: true,
