@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, delimiter, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertReleaseNote, compareVersions, releaseNotesUpTo } from "./release-notes.mjs";
 import { R2_ENV_KEYS, R2_PUBLIC_BASE_URL, createR2Client, requiredEnv } from "./r2-client.mjs";
@@ -115,7 +115,9 @@ function resolveAndroidEnv() {
   if (!env.NDK_HOME) throw new Error("未找到 NDK，请设置 NDK_HOME");
   const buildTools = latestSubdir(join(env.ANDROID_HOME, "build-tools"));
   if (!buildTools) throw new Error(`${env.ANDROID_HOME}/build-tools 下没有可用的构建工具`);
-  env.PATH = `${join(env.JAVA_HOME, "bin")}:${join(env.ANDROID_HOME, "platform-tools")}:${env.PATH}`;
+  env.PATH = [join(env.JAVA_HOME, "bin"), join(env.ANDROID_HOME, "platform-tools"), env.PATH].join(
+    delimiter
+  );
   return { env, buildTools };
 }
 
@@ -199,10 +201,12 @@ async function main() {
 
   if (!options.skipBuild) {
     console.log(`▶ 构建 Android 正式包 ...`);
+    // Windows 上 pnpm 是 pnpm.cmd 批处理，需经 shell 执行
     execFileSync("pnpm", ["--filter", "mobile", "build:android:release"], {
       cwd: root,
       stdio: "inherit",
       env: android.env,
+      shell: process.platform === "win32",
     });
   } else {
     console.log(`▶ --skip-build: 跳过构建，使用现有 APK`);
