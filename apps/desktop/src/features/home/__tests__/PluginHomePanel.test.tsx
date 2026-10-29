@@ -132,4 +132,23 @@ describe("插件首页面板", () => {
     );
     expect(container.textContent).toContain("恢复了");
   });
+
+  it("标题行右侧画插件入口，点击调用 run", async () => {
+    await render();
+    const run = vi.fn();
+    await act(async () => {
+      context.home.registerPanel({
+        id: "shelf",
+        title: "书架",
+        component: () => <p>三本</p>,
+        action: { title: "查看书架", run },
+      });
+    });
+    const button = [...container.querySelectorAll("h2 button")].find(
+      b => b.textContent === "查看书架"
+    );
+    expect(button).toBeTruthy();
+    await act(async () => (button as HTMLButtonElement).click());
+    expect(run).toHaveBeenCalledTimes(1);
+  });
 });

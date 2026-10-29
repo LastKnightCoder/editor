@@ -26,7 +26,7 @@ import type {
   PluginPageParams,
   PluginSidebarIcon,
   PluginOwnEntityKind,
-  PluginHomePanelDefinition,
+  RegisteredHomePanelDefinition,
   PluginActionDefinition,
   PluginActionTarget,
   PluginActionTargetKind,
@@ -112,7 +112,7 @@ const EMPTY_SIDEBAR_STATE: PluginSidebarItemState = Object.freeze({
 export interface RegisteredPluginHomePanel {
   /** 布局 ID：plugin:<pluginId>:<id> */
   id: string;
-  definition: Readonly<Required<PluginHomePanelDefinition>>;
+  definition: RegisteredHomePanelDefinition;
   context: PluginContext;
   mountId: number;
 }
@@ -462,10 +462,7 @@ export class DesktopPluginRuntime {
     };
   }
 
-  private registerHomePanel(
-    context: PluginContext,
-    definition: Readonly<Required<PluginHomePanelDefinition>>
-  ) {
+  private registerHomePanel(context: PluginContext, definition: RegisteredHomePanelDefinition) {
     if (this.disposed) throw new Error("插件运行时已关闭");
     const id = `plugin:${context.pluginId}:${definition.id}`;
     if (this.homePanels.has(id)) throw new Error(`首页面板已注册：${definition.id}`);

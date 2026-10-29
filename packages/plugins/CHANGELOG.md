@@ -1,5 +1,9 @@
 # 更新记录
 
+## 0.50.0
+
+- 首页面板新增可选 `action: { title, run }`：宿主画在面板标题行右侧（如「查看账本」），点击调用 `run`，出错只弹通知。`HomeAdapter` 收到的定义改为 `RegisteredHomePanelDefinition`，未声明时 `action` 为 `null`。
+
 ## 0.49.0
 
 - 新增 `context.embeddings` 嵌入提供方：`register({ id: context.pluginId, name, maxBatchSize?, create(config, modelId) })`，`create` 返回 `{ embed(texts, signal) }`（与输入等长、同序的向量数组）；`maxBatchSize` 为单次 embed 可接受的最大文本条数，宿主据此分批。

@@ -37,17 +37,48 @@ describe("首页面板", () => {
     expect(() =>
       context.home.registerPanel({ id: "p", title: "x", component, size: "half" as never })
     ).toThrow("宽度");
+    expect(() =>
+      context.home.registerPanel({
+        id: "p",
+        title: "x",
+        component,
+        action: { title: " ", run: () => {} },
+      })
+    ).toThrow("入口");
+    expect(() =>
+      context.home.registerPanel({
+        id: "p",
+        title: "x",
+        component,
+        action: { title: "看", run: 1 as never },
+      })
+    ).toThrow("入口");
     context.home.registerPanel({ id: "p", title: "阅读", component });
     expect(registerPanel).toHaveBeenCalledWith(context, {
       id: "p",
       title: "阅读",
       component,
       size: "wide",
+      action: null,
     });
-    expect(host.listContributions("sample")).toMatchObject({ home: 1 });
+    const run = vi.fn();
+    context.home.registerPanel({
+      id: "q",
+      title: "书架",
+      component,
+      action: { title: "查看书架", run },
+    });
+    expect(registerPanel).toHaveBeenLastCalledWith(context, {
+      id: "q",
+      title: "书架",
+      component,
+      size: "wide",
+      action: { title: "查看书架", run },
+    });
+    expect(host.listContributions("sample")).toMatchObject({ home: 2 });
     await host.disable("sample");
-    expect(dispose).toHaveBeenCalledTimes(1);
-    expect(() => context.home.registerPanel({ id: "q", title: "x", component })).toThrow();
+    expect(dispose).toHaveBeenCalledTimes(2);
+    expect(() => context.home.registerPanel({ id: "r", title: "x", component })).toThrow();
     await host.dispose();
   });
 
