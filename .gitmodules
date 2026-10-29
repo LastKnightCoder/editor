@@ -88,3 +88,6 @@
 [submodule "plugins/tau-plugin-weight"]
 	path = plugins/tau-plugin-weight
 	url = https://github.com/LastKnightCoder/tau-plugin-weight.git
+[submodule "plugins/tau-plugin-expense"]
+	path = plugins/tau-plugin-expense
+	url = https://github.com/LastKnightCoder/tau-plugin-expense.git
