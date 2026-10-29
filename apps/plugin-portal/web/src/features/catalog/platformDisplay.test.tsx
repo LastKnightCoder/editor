@@ -32,19 +32,19 @@ it("平台筛选单选并报告选择；选中具体平台时说明只是浏览�
   expect(screen.getByText(/仅显示声明支持Android的插件/)).toBeTruthy();
 });
 
-it("平台标识按固定顺序列出声明平台，旧格式额外标注", () => {
+it("平台标识按固定顺序列出声明平台，旧格式标为仅桌面", () => {
   const ios = { minAppVersion: "0.3.0" };
   const { rerender } = render(
     <PlatformBadges version={{ formatVersion: 3, targets: { ios, android: ios } }} />
   );
   expect(screen.getByRole("list", { name: "支持平台：Android、iOS" })).toBeTruthy();
   rerender(<PlatformBadges version={{ formatVersion: 1, targets: { desktop: ios } }} />);
-  const list = screen.getByRole("list", { name: "支持平台：桌面（旧格式）" });
+  const list = screen.getByRole("list", { name: "支持平台：桌面（仅桌面）" });
   expect(
     within(list)
       .getAllByRole("listitem")
       .map(item => item.textContent)
-  ).toEqual(["桌面", "旧格式"]);
+  ).toEqual(["桌面", "仅桌面"]);
 });
 
 it("目标矩阵逐平台展示最低版本，未声明平台显示不支持", () => {
