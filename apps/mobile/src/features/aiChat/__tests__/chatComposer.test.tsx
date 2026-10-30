@@ -1,0 +1,126 @@
+// 输入区：麦克风切到语音模式（微信式「按住 说话」），按住录音松手发送；键盘图标切回打字并聚焦。
+
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { HOLD_DELAY_MS } from "../../speechInput/useHoldGesture";
+
+const speech = vi.hoisted(() => {
+  let resolve: (value: { text: string }) => void = () => undefined;
+  return {
+    get resolve() {
+      return resolve;
+    },
+    service: {
+      start: vi.fn(async () => ({
+        result: new Promise(done => {
+          resolve = done as typeof resolve;
+        }),
+        stop: vi.fn(async () => resolve({ text: "明天提醒我交周报" })),
+        cancel: vi.fn(async () => undefined),
+      })),
+    },
+    unavailable: null as string | null,
+  };
+});
+vi.mock("../../speechInput/speechService", () => ({
+  useSpeechInputService: () => speech.service,
+  useSpeechUnavailableReason: () => speech.unavailable,
+}));
+vi.mock("../../../components/toast", () => ({
+  toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), info: vi.fn() }),
+}));
+vi.mock("../../cards/editorExtensions/ContentLinkPickerSheet", () => ({
+  ContentLinkPickerSheet: () => null,
+}));
+
+import { ChatComposer } from "../ChatComposer";
+import { toast } from "../../../components/toast";
+
+let host: HTMLDivElement;
+let root: Root;
+const onSend = vi.fn();
+
+function mount() {
+  act(() => root.render(<ChatComposer running={false} onSend={onSend} onStop={vi.fn()} />));
+}
+const byLabel = (label: string) => host.querySelector<HTMLElement>(`[aria-label="${label}"]`);
+const textarea = () => host.querySelector("textarea")!;
+
+/** jsdom 没有 PointerEvent，用 MouseEvent 补上 pointerId（与 useHoldGesture 测试同法） */
+function pointer(target: HTMLElement, type: string) {
+  const event = new MouseEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    clientX: 100,
+    clientY: 700,
+  });
+  Object.defineProperty(event, "pointerId", { value: 1 });
+  act(() => {
+    (type === "pointerdown" ? target : window).dispatchEvent(event);
+  });
+}
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.clearAllMocks();
+  speech.unavailable = null;
+  host = document.createElement("div");
+  document.body.append(host);
+  root = createRoot(host);
+});
+afterEach(() => {
+  act(() => root.unmount());
+  host.remove();
+  vi.useRealTimers();
+});
+
+it("点麦克风只切到语音模式，不开始录音；键盘图标切回并聚焦输入框", () => {
+  mount();
+  act(() => byLabel("切换到语音输入")!.click());
+  expect(speech.service.start).not.toHaveBeenCalled();
+  expect(byLabel("按住说话")?.textContent).toBe("按住 说话");
+  expect(textarea().hidden).toBe(true);
+
+  act(() => byLabel("切换到键盘")!.click());
+  expect(byLabel("按住说话")).toBeNull();
+  expect(textarea().hidden).toBe(false);
+  expect(document.activeElement).toBe(textarea());
+});
+
+it("语音模式下按住录音，松手把识别结果直接发送", async () => {
+  mount();
+  act(() => byLabel("切换到语音输入")!.click());
+  const bar = byLabel("按住说话")!;
+  pointer(bar, "pointerdown");
+  await act(async () => vi.advanceTimersByTimeAsync(HOLD_DELAY_MS + 10));
+  expect(speech.service.start).toHaveBeenCalledTimes(1);
+  expect(bar.textContent).toBe("松开 发送");
+  pointer(bar, "pointerup");
+  await act(async () => vi.advanceTimersByTimeAsync(10));
+  expect(onSend).toHaveBeenCalledWith({ text: "明天提醒我交周报", mentions: [], images: [] });
+});
+
+it("短按只提示手势；识别服务不可用时按住也不录音并提示原因", async () => {
+  mount();
+  act(() => byLabel("切换到语音输入")!.click());
+  const bar = byLabel("按住说话")!;
+  pointer(bar, "pointerdown");
+  pointer(bar, "pointerup");
+  expect(speech.service.start).not.toHaveBeenCalled();
+  expect(toast.info).toHaveBeenCalledWith(expect.objectContaining({ text: "按住说话，松手发送" }));
+
+  speech.unavailable = "识别插件账号尚未配置";
+  mount();
+  pointer(byLabel("按住说话")!, "pointerdown");
+  await act(async () => vi.advanceTimersByTimeAsync(HOLD_DELAY_MS + 10));
+  expect(speech.service.start).not.toHaveBeenCalled();
+  expect(toast.info).toHaveBeenLastCalledWith(
+    expect.objectContaining({ text: "识别插件账号尚未配置" })
+  );
+});
+
+it("输入区不参与键盘自动露出，聚焦时不把整页往上卷", () => {
+  mount();
+  expect(textarea().closest('[data-kb-optout="true"]')).not.toBeNull();
+});
