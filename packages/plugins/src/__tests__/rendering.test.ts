@@ -6,6 +6,7 @@ import {
   getPluginNodeTypes,
   assertRenderTypes,
   assertUniqueEditorCodecs,
+  readPublishedPluginManifest,
 } from "../rendering";
 
 const manifest = {
@@ -24,6 +25,17 @@ const manifest = {
   targets: { desktop: { minAppVersion: "0.0.0" } },
 };
 const code = `module.exports.default = require('@tau/plugins').definePlugin({id:'test.editor',name:'测试',version:'1.0.0',editorExtensions:[{id:'test.block',apiVersion:1,elements:[{type:'test.block',kind:'block',render:()=>null}]}]});`;
+
+it("发布正文拒绝格式 1 插件清单", () => {
+  expect(() =>
+    readPublishedPluginManifest({
+      ...manifest,
+      formatVersion: 1,
+      platform: "desktop",
+      editor: true,
+    })
+  ).toThrow("不兼容");
+});
 
 it("静态贡献只定义一次，读取定义不执行 activate，纯编辑器插件可省略 create", () => {
   const factory = vi.fn(definePlugin);

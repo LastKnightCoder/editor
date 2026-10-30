@@ -39,11 +39,12 @@ function result(initial: number): DataResult {
           styles: "widget.css",
           nodeTypes: ["example.widget"],
           manifest: {
-            formatVersion: 1,
+            formatVersion: 3,
             apiVersion: 1,
-            platform: "desktop",
+            platform: "portable",
+            profile: "web-v1",
+            targets: { desktop: { minAppVersion: "0.59.1" }, android: { minAppVersion: "0.2.2" } },
             format: "cjs",
-            editor: true,
             id: "example.widget",
             name: "示例",
             version: "1.0.0",
@@ -58,37 +59,9 @@ function result(initial: number): DataResult {
 }
 afterEach(() => vi.unstubAllGlobals());
 
-function portableResult(initial: number): DataResult {
-  const content = result(initial);
-  const dependency = content.data.pluginRenderers![0];
-  const manifest = dependency.manifest;
-  dependency.manifest = {
-    id: manifest.id,
-    name: manifest.name,
-    version: manifest.version,
-    apiVersion: 1,
-    format: "cjs",
-    main: manifest.main,
-    styles: manifest.styles,
-    integrity: manifest.integrity,
-    formatVersion: 3,
-    platform: "portable",
-    profile: "web-v1",
-    targets: {
-      desktop: {
-        minAppVersion: "0.59.1",
-      },
-      android: {
-        minAppVersion: "0.2.2",
-      },
-    },
-  };
-  return content;
-}
-
 it("渲染协议 1 加载原始格式 3 清单，只求值正文而不激活插件", async () => {
   setup();
-  const content = portableResult(7);
+  const content = result(7);
   const dependency = content.data.pluginRenderers![0];
   const prepared = await prepareContent(content, new AbortController().signal);
   expect(dependency.runtimeVersion).toBe(1);
@@ -100,7 +73,7 @@ it("渲染协议 1 加载原始格式 3 清单，只求值正文而不激活插�
 
 it("格式 3 内容包必须实际提供编辑器贡献", async () => {
   setup();
-  const content = portableResult(7);
+  const content = result(7);
   const dependency = content.data.pluginRenderers![0];
   const withoutEditor =
     "module.exports.default=require('@tau/plugins').definePlugin({id:'example.widget',name:'示例',version:'1.0.0',create(){throw Error('不得激活')}});";
@@ -211,6 +184,43 @@ function setup() {
   );
   if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {};
 }
+
+it.each(["父节点源码", "步骤源码"])("只读正文显示代码块的%s", async model => {
+  setup();
+  const content = result(1);
+  content.data.pluginRenderers = [];
+  const source = "body {\n  color: CanvasText;\n}";
+  const leaf = { type: "formatted", text: "" };
+  const block = {
+    type: "code-block",
+    uuid: `published-${model}`,
+    language: "css",
+    ...(model === "父节点源码"
+      ? { code: source, children: [leaf] }
+      : { children: [{ type: "code-step", code: source, children: [leaf] }] }),
+  };
+  if ("content" in content.data.content) content.data.content.content = [block];
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<ContentRenderer content={content} />));
+    await vi.waitFor(
+      async () => {
+        await act(async () => new Promise(resolve => setTimeout(resolve, 5)));
+        expect(container.querySelector(".code-block-shiki-layer")?.textContent).toContain(
+          "CanvasText"
+        );
+        expect(container.querySelector("textarea")?.value).toBe(source);
+      },
+      { timeout: 10000 }
+    );
+    expect(content.data.content).toMatchObject({ content: [block] });
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+  }
+});
 
 it("准备界面由调用方提供，加载错误交给模板错误边界", async () => {
   setup();
