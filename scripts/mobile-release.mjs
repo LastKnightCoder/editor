@@ -78,7 +78,10 @@ export function parseBadging(output) {
 
 /** apksigner verify --print-certs 输出里首个签名者的证书 SHA-256 */
 export function parseSignerDigest(output) {
-  const digest = /Signer #1 certificate SHA-256 digest:\s*([0-9a-f]{64})/i.exec(output)?.[1];
+  const digest =
+    /(?:Signer #1 certificate|V\d+ Signer: certificate) SHA-256 digest:\s*([0-9a-f]{64})/i.exec(
+      output
+    )?.[1];
   if (!digest) throw new Error("apksigner 输出中没有找到签名证书 SHA-256");
   return digest.toLowerCase();
 }
