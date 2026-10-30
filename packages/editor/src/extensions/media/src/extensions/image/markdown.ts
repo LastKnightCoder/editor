@@ -1,6 +1,7 @@
 import { v4 as uuid } from "uuid";
 import type { Descendant } from "slate";
 import type { MarkdownCodec } from "@tau/markdown";
+import { normalizeLocalResourcePath } from "@tau/shared/resource-path";
 
 export const imageCodec: MarkdownCodec = {
   type: "image",
@@ -17,6 +18,7 @@ export const imageCodec: MarkdownCodec = {
   },
   importNode: (node, context) => {
     if (node.type !== "image") return null;
+    const url = normalizeLocalResourcePath(node.url || "");
     // 段落独子为块级图片，否则降为行内图片
     const isOnlyChildInParagraph =
       context.parent?.type === "paragraph" &&
@@ -25,14 +27,14 @@ export const imageCodec: MarkdownCodec = {
     if (isOnlyChildInParagraph) {
       return {
         type: "image",
-        url: node.url,
+        url,
         alt: node.alt,
         children: [{ type: "formatted", text: "" }],
       } as Descendant;
     }
     return {
       type: "inline-image",
-      url: node.url,
+      url,
       alt: node.alt,
       uuid: uuid(),
       children: [{ type: "formatted", text: "" }],
@@ -50,6 +52,7 @@ export const imageCodec: MarkdownCodec = {
   serializer: {
     isBlock: true,
     // 裁剪过的图导出裁剪结果（Markdown 表达不了裁剪参数）
-    toMarkdown: element => `![${element.alt || ""}](${element.previewUrl || element.url})`,
+    toMarkdown: element =>
+      `![${element.alt || ""}](${normalizeLocalResourcePath(element.previewUrl || element.url)})`,
   },
 };

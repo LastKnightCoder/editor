@@ -7,7 +7,7 @@ import { validateContentContractsSync } from "@tau/db-schema/content-contracts-n
 import { ContentIdentityTable } from "../content-identity";
 import { ContentDocumentTable, type ContentDocumentWrite } from "../content-document";
 import ContentTable from "../content";
-import { createNodeDocument } from "@tau/collaboration";
+import { createNodeDocument, readNodeDocument } from "@tau/collaboration";
 import {
   registerContentSession,
   unregisterContentSession,
@@ -95,6 +95,73 @@ const count = (db: Database.Database) =>
   ).ref_count;
 
 describe("正文身份、契约与关系账的持久化", () => {
+  it.each(["missing", "invalid", "available"])(
+    "会话附件%s时正文读取和文本转换保持可用且不改写原引用",
+    async availability => {
+      const db = database();
+      const saved = await payload(db);
+      ContentDocumentTable.commit(db, 1, saved, { installDocument: true, count: 0 });
+      const image = await prepareContentContract("tau.image", {
+        type: "image",
+        dataVersion: 1,
+        kind: "block",
+        isVoid: true,
+        resources: [{ path: "url", kind: "image" }],
+      });
+      const reference = "tau-collab-asset:11111111-1111-4111-8111-111111111111";
+      const contracts = { [image.id]: image.contract };
+      const content = [
+        {
+          type: "image",
+          collabId: "image",
+          tauContract: image.id,
+          url: reference,
+          children: [{ text: "" }],
+        },
+      ];
+      const doc = await createNodeDocument(
+        { documentId: saved.documentId, baselineId: "baseline", epoch: 0 },
+        { title: "", bannerBg: "", bannerPosition: "center", content },
+        contracts
+      );
+      const resolveLocalFile = vi.fn(() => {
+        if (availability === "invalid") throw new Error("附件路径不合法");
+        return availability === "available" ? "/cache/image.png" : null;
+      });
+      const session = {
+        doc,
+        assets: { resolveLocalFile },
+        info: {
+          id: saved.documentId,
+          mode: "local",
+          source: {
+            contentId: 1,
+            contentCreatedAt: 1,
+            contentDocumentId: saved.documentId,
+          },
+        },
+      } as unknown as RuntimeSession;
+      registerContentSession(db, 1, session);
+      execution.execute.mockReset();
+      execution.execute.mockResolvedValue({ content: "正文文本" });
+      try {
+        const expected = availability === "available" ? "/cache/image.png" : reference;
+        expect(ContentTable.getContentById(db, 1)?.content[0]).toMatchObject({ url: expected });
+        await expect(ContentTable.readText(db, 1)).resolves.toMatchObject({ content: "正文文本" });
+        expect(JSON.parse(execution.execute.mock.calls[0][0].input.raw)[0]).toMatchObject({
+          url: expected,
+        });
+        expect(doc.getMap("node-tree:contracts").toJSON()).toEqual(contracts);
+        expect(readNodeDocument(doc).content[0]).toMatchObject({
+          url: reference,
+        });
+      } finally {
+        unregisterContentSession(session);
+        doc.destroy();
+      }
+    }
+  );
+
   it("一次读取正文及契约，原始正文不在主进程解析或重编码，并保留取消信号", async () => {
     const db = database();
     const old = await prepareContentContract("example.source", {

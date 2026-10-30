@@ -1,11 +1,11 @@
 // 全局底部 Dock（v2 模板）：4 个 Tab 根（今天/卡片/日记/我的）+ 中央 FAB。
-// FAB 向上展开快捷创建（新卡片/新文章/新日程/写日记），图标沿用首页模块语义。
+// FAB 轻点向上展开快捷创建（新卡片/新文章/新日程/写日记/说一段），长按直接语音速记。
 // 由 AppShell 在 RouterProvider 内挂载：只在 4 个 Tab 根显示，
 // 编辑器/详情/任务中心/番茄专注等二级页自动隐藏；Tab 切换 = popTo 已有实例或 push 新页。
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { House, Layers, NotebookPen, Plus, User } from "lucide-react";
-import { Article, BookOpen, CalendarPlus, Stack } from "@phosphor-icons/react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { House, Layers, Mic, NotebookPen, Plus, User } from "lucide-react";
+import { Article, BookOpen, CalendarPlus, Microphone, Stack } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import {
   useRouterContext,
@@ -22,7 +22,11 @@ import { useDiaryStore, warmupDiaryTabCache } from "../features/diary/store/useD
 import { getTodayDateKey } from "../features/diary/feedUtils";
 import { describeDiaryPeriod } from "../features/diary/dateKey";
 import { useInvalidateArticles } from "../features/articles/queries";
+import { toast } from "./toast";
 import * as tauri from "../services/tauri";
+import { useHoldGesture } from "../features/speechInput/useHoldGesture";
+import { useVoiceCapture } from "../features/speechInput/useVoiceCapture";
+import { VoiceCaptureCard } from "../features/speechInput/VoiceCaptureCard";
 
 // 视觉映射与顺序解耦：顺序契约（TAB_ORDER）在 router/tabs.ts，供滑动手势共用
 const TAB_VISUALS: Record<TabKey, { label: string; icon: typeof House }> = {
@@ -39,7 +43,7 @@ const WARMUP_DELAY_MS = 600;
 
 // FAB 环绕菜单：以 FAB 中心为原点，angle（度，-90 为正上方）/ radius 决定弧上落点
 type FabAction = {
-  key: "card" | "article" | "calendar" | "diary";
+  key: "card" | "article" | "calendar" | "diary" | "voice";
   label: string;
   icon: Icon;
   tone: string;
@@ -48,8 +52,8 @@ type FabAction = {
   delay: string;
 };
 
-// 四项菜单在导航上方另抬高 32px，保证外侧按钮也完全离开导航点击区域。
-const FAB_ARC_RADIUS = 84;
+// 五项菜单在导航上方另抬高 32px，保证外侧按钮也完全离开导航点击区域。
+const FAB_ARC_RADIUS = 96;
 
 /** 深色主题下单层 -soft 几乎与底色同色，叠此层数累积浓度，得到可感知的实色高亮 */
 const HIGHLIGHT_SOFT_LAYERS = 3;
@@ -74,8 +78,8 @@ const FAB_ACTIONS: readonly FabAction[] = [
     icon: Stack,
     tone: "var(--tau-tag-2)",
     soft: "var(--tau-tag-2-soft)",
-    angle: -157.5,
-    delay: "0.06s",
+    angle: -162,
+    delay: "0.08s",
   },
   {
     key: "article",
@@ -83,7 +87,16 @@ const FAB_ACTIONS: readonly FabAction[] = [
     icon: Article,
     tone: "var(--tau-accent)",
     soft: "var(--tau-accent-soft)",
-    angle: -112.5,
+    angle: -126,
+    delay: "0.04s",
+  },
+  {
+    key: "voice",
+    label: "说一段",
+    icon: Microphone,
+    tone: "var(--tau-tag-5)",
+    soft: "var(--tau-tag-5-soft)",
+    angle: -90,
     delay: "0.02s",
   },
   {
@@ -92,8 +105,8 @@ const FAB_ACTIONS: readonly FabAction[] = [
     icon: CalendarPlus,
     tone: "var(--tau-tag-3)",
     soft: "var(--tau-tag-3-soft)",
-    angle: -67.5,
-    delay: "0.02s",
+    angle: -54,
+    delay: "0.04s",
   },
   {
     key: "diary",
@@ -101,10 +114,23 @@ const FAB_ACTIONS: readonly FabAction[] = [
     icon: BookOpen,
     tone: "var(--tau-tag-1)",
     soft: "var(--tau-tag-1-soft)",
-    angle: -22.5,
-    delay: "0.06s",
+    angle: -18,
+    delay: "0.08s",
   },
 ];
+
+/** 首次从菜单「说一段」进入时提示长按快捷方式 */
+const HOLD_TIP_STORAGE_KEY = "tau.mobile.dock-voice-hold-tip-seen";
+
+function consumeHoldTip(): boolean {
+  try {
+    if (window.localStorage.getItem(HOLD_TIP_STORAGE_KEY) === "1") return false;
+    window.localStorage.setItem(HOLD_TIP_STORAGE_KEY, "1");
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function AppDock() {
   const { state, navigator } = useRouterContext();
@@ -166,6 +192,11 @@ function AppDock() {
       navigator.push("quickCapture");
       return;
     }
+    if (key === "voice") {
+      if (consumeHoldTip()) toast.info({ text: "下次可以直接长按 ＋ 说", duration: 2400 });
+      navigator.push("quickCapture", { voice: true });
+      return;
+    }
     if (key === "calendar") {
       // 预填今天：新建页自行取本地 0 点
       navigator.push("calendarEventEdit", { eventId: 0, prefillDate: Date.now() });
@@ -202,6 +233,37 @@ function AppDock() {
       }
     })();
   };
+
+  const openSpeechSettings = () => navigator.push("settingsModule", { module: "speech-input" });
+  const capture = useVoiceCapture({
+    onOpen: cardId => navigator.push("contentDetail", { cardId }),
+    onSaved: () => void app.refreshCardsSafe({ page: 1 }),
+    onOpenSettings: openSpeechSettings,
+  });
+  const cancelTargetRef = useRef<HTMLDivElement | null>(null);
+  const holdStartedRef = useRef(false);
+  const fabGesture = useHoldGesture(
+    {
+      onHoldStart: () => {
+        setMenuOpen(false);
+        holdStartedRef.current = capture.begin();
+        if (!holdStartedRef.current) fabGesture.abort();
+      },
+      onRelease: () => {
+        if (holdStartedRef.current) capture.finish();
+        holdStartedRef.current = false;
+      },
+      onCancel: () => {
+        if (holdStartedRef.current) capture.cancel();
+        holdStartedRef.current = false;
+      },
+      onTap: () => setMenuOpen(open => !open),
+    },
+    cancelTargetRef
+  );
+  const { setCancelArmed } = capture;
+  useEffect(() => setCancelArmed(fabGesture.cancelArmed), [fabGesture.cancelArmed, setCancelArmed]);
+  const holding = fabGesture.holding && holdStartedRef.current;
 
   if (!visible) return null;
 
@@ -250,7 +312,7 @@ function AppDock() {
                   onClick={() => onFabAction(item.key)}
                   tabIndex={menuOpen ? 0 : -1}
                   aria-label={item.label}
-                  className="shadow-card absolute left-0 top-0 grid h-[46px] w-[46px] place-items-center rounded-[16px]"
+                  className="shadow-card absolute top-0 left-0 grid h-[46px] w-[46px] place-items-center rounded-[16px]"
                   style={{
                     ...highlightBackground(item.soft, "var(--surface)"),
                     opacity: menuOpen ? 1 : 0,
@@ -264,7 +326,7 @@ function AppDock() {
                     ].join(", "),
                   }}
                 >
-                  <span className="bg-surface text-ink-1 shadow-card absolute bottom-full left-1/2 mb-2 -translate-x-1/2 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold">
+                  <span className="bg-surface text-ink-1 shadow-card absolute bottom-full left-1/2 mb-2 -translate-x-1/2 rounded-full px-2.5 py-1 text-[11px] font-bold whitespace-nowrap">
                     {item.label}
                   </span>
                   <Icon size={23} weight="duotone" color={item.tone} aria-hidden="true" />
@@ -285,17 +347,26 @@ function AppDock() {
           <div className="grid w-[74px] shrink-0 justify-center">
             <button
               type="button"
-              onClick={() => setMenuOpen(open => !open)}
-              aria-label="新建"
+              aria-label="新建，长按直接说"
               aria-expanded={menuOpen}
-              className="text-ink-inverse z-10 grid h-[54px] w-[54px] place-items-center rounded-[19px] transition-transform duration-200"
+              className="text-ink-inverse z-10 grid h-[54px] w-[54px] place-items-center rounded-[19px] transition-transform duration-200 select-none"
               style={{
+                ...fabGesture.bind.style,
                 background: "var(--tau-accent)",
-                boxShadow: "var(--tau-shadow-lift)",
-                transform: menuOpen ? "rotate(45deg)" : undefined,
+                boxShadow: holding
+                  ? "0 0 0 10px var(--tau-accent-soft), var(--tau-shadow-lift)"
+                  : "var(--tau-shadow-lift)",
+                transform: holding ? "scale(1.12)" : menuOpen ? "rotate(45deg)" : undefined,
               }}
+              onPointerDown={fabGesture.bind.onPointerDown}
+              onMouseDown={fabGesture.bind.onMouseDown}
+              onContextMenu={fabGesture.bind.onContextMenu}
             >
-              <Plus size={24} strokeWidth={2.6} aria-hidden="true" />
+              {holding ? (
+                <Mic size={26} strokeWidth={2.4} aria-hidden="true" />
+              ) : (
+                <Plus size={24} strokeWidth={2.6} aria-hidden="true" />
+              )}
             </button>
           </div>
 
@@ -309,6 +380,15 @@ function AppDock() {
           ))}
         </div>
       </nav>
+      <VoiceCaptureCard
+        open={holding}
+        connecting={capture.phase === "connecting"}
+        startedAt={capture.startedAt}
+        preview={capture.preview}
+        cancelArmed={capture.cancelArmed}
+        cancelTargetRef={cancelTargetRef}
+        bottom="calc(var(--dock-visual-height) + 14px)"
+      />
     </>
   );
 }

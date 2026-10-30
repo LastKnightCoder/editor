@@ -78,6 +78,7 @@ describe("MobileEditorBottomToolbar", () => {
   };
 
   beforeEach(() => {
+    window.localStorage.setItem("tau.mobile.voice-mode-coach-seen", "1");
     keyboardViewportState.reservedHeight = 0;
     host = document.createElement("div");
     document.body.appendChild(host);
@@ -161,6 +162,7 @@ describe("MobileEditorBottomToolbar", () => {
     render(controller);
 
     expect(getButtonLabels()).toEqual([
+      "语音输入",
       "插入",
       "样式",
       "待办",
@@ -170,7 +172,6 @@ describe("MobileEditorBottomToolbar", () => {
       "引用内容",
       "图片",
       "撤销",
-      "按住说话",
       "收起键盘",
     ]);
 

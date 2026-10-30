@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent, type RefObject } from "react";
 
-/** 按住达到该时长才开始录音，更短视为短按 */
-export const HOLD_DELAY_MS = 200;
+/** 按住达到该时长进入按住说，更短视为轻点 */
+export const HOLD_DELAY_MS = 250;
 /** ✕ 命中区在按钮外再放宽的半径，手指大致滑到即可 */
 const CANCEL_SLOP_PX = 24;
 
@@ -28,8 +28,8 @@ function isInside(target: HTMLElement | null, x: number, y: number) {
 }
 
 /**
- * 按住说话手势：按下后在 window 上跟踪同一根手指，手指离开触发按钮也不中断；
- * 是否落在 ✕ 内按 cancelTargetRef 的实时位置判断。
+ * 轻点 / 按住二合一手势：不足 HOLD_DELAY_MS 松手为轻点；按住后在 window 上跟踪同一根手指，
+ * 手指离开按钮也不中断，是否落在 ✕ 内按 cancelTargetRef 的实时位置判断。
  */
 export function useHoldGesture(
   handlers: HoldGestureHandlers,
@@ -61,7 +61,7 @@ export function useHoldGesture(
 
   const onPointerDown = useCallback(
     (event: PointerEvent<HTMLElement>) => {
-      // 不抢编辑器焦点，键盘保持
+      // 按下不抢编辑器焦点，避免语音模式下唤起键盘
       event.preventDefault();
       if (pointerRef.current !== null) return;
       pointerRef.current = event.pointerId;

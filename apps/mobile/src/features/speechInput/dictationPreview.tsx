@@ -9,6 +9,8 @@ export type DictationPreviewState = {
   cancel: boolean;
   /** 文末追加时预览另起一段显示 */
   asBlock?: boolean;
+  /** 在预览文字之后画语音插入点（阅读态正文没有系统光标） */
+  caret?: boolean;
 };
 
 type Listener = () => void;
@@ -57,6 +59,9 @@ function DictationPreviewMark({ leaf, children }: MarkRenderProps) {
       >
         {preview.stable}
         <span className="dictation-preview-tail">{preview.tail}</span>
+        {preview.caret && !preview.cancel ? (
+          <span aria-hidden data-voice-caret="" className="voice-caret" />
+        ) : null}
       </span>
     </>
   );

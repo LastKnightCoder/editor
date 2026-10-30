@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>团子小镇 · 首页房子改法</title>
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+<style>
+:root{--cream:#FFF8F0;--paper:#FFFDF9;--ink:#3B2F3A;--ink2:#64555F;--line:#3B2F3A;--pink:#FFC9D9;--mint:#C3EEDA;--lilac:#E0D2FF;--butter:#FFE9A3;--peach:#FFD9BF;--sky:#C6E3FF;--hill:#CDEFC9;--accent:#E8628C;--body:#FFD6E2;--spring:cubic-bezier(.34,1.56,.64,1)}
+*{box-sizing:border-box;margin:0}
+body{background:#F3EEE8;color:var(--ink);font:15px/1.7 "PingFang SC",sans-serif;padding:36px}
+h1{font:30px "ZCOOL KuaiLe"}h2{font:22px "ZCOOL KuaiLe";margin:0 0 4px}
+.lead{color:var(--ink2);max-width:860px;margin:8px 0 26px}
+.opt{background:#fff;border-radius:18px;padding:18px 22px 22px;margin-bottom:26px;box-shadow:0 8px 24px #0000000d}
+.opt p{color:var(--ink2);font-size:14px;margin-bottom:12px}
+.rec{font:12px system-ui;background:#FFE4EC;color:#B8336A;border-radius:99px;padding:1px 10px;margin-left:8px;vertical-align:middle}
+.scene{position:relative;height:300px;border-radius:14px;overflow:hidden;background:linear-gradient(var(--sky) 0 46%,var(--hill) 46%);display:flex;align-items:flex-end;justify-content:center;gap:56px;padding-bottom:26px;border:2.5px solid var(--line)}
+.scene::before{content:"";position:absolute;left:-10%;right:-10%;top:42%;height:80px;background:var(--hill);border-top:2.5px solid var(--line);border-radius:50% 50% 0 0/40px 40px 0 0}
+a{color:inherit;text-decoration:none;position:relative;z-index:1;text-align:center;display:block;cursor:pointer}
+a svg{display:block;overflow:visible;transition:transform .45s var(--spring)}
+a:hover svg{transform:translateY(-8px) rotate(-1.5deg)}
+.sign{font:19px "ZCOOL KuaiLe";margin-top:6px}.sign small{display:block;font:12px "PingFang SC";color:var(--ink2)}
+.door{transition:transform .45s var(--spring);transform-origin:left center;transform-box:fill-box}
+a:hover .door{transform:scaleX(.15)}
+.peek{transition:transform .45s var(--spring) .08s;transform:translateY(26px)}
+a:hover .peek{transform:translateY(0)}
+.blink{animation:b 3s infinite}@keyframes b{0%,90%,100%{opacity:1}95%{opacity:.2}}
+.smoke{animation:sm 3s ease-out infinite;opacity:0}.smoke:nth-of-type(2){animation-delay:1.5s}
+@keyframes sm{0%{opacity:.9;transform:translate(0,0) scale(.5)}100%{opacity:0;transform:translate(10px,-34px) scale(1.3)}}
+.awn{transition:transform .45s var(--spring);transform-origin:top;transform-box:fill-box}
+a:hover .awn{transform:scaleY(1.15)}
+.badge{position:absolute;top:-6px;right:-8px;font:13px "ZCOOL KuaiLe";background:#B8336A;color:#fff;border:2.5px solid var(--line);border-radius:99px;padding:0 9px;z-index:2}
+</style>
+</head>
+<body>
+<h1>首页房子的三种改法</h1>
+<p class="lead">现在的房子丑主要有三个原因：屋顶是一个圆角长方块，不像屋顶；墙、窗、门都是规整的矩形，看不出是「团子的小镇」；三栋房子一模一样只换颜色，没有性格。下面三版都能直接悬停看效果（开门、团子探头），选一版我就照着改代码。</p>
+
+<div class="opt">
+  <h2>A · 绘本小屋<span class="rec">推荐</span></h2>
+  <p>尖尖的三角屋顶、歪一点的烟囱和圆窗，像儿童绘本里的房子。三栋各有一个招牌：邮局门口有邮筒，便签屋窗上贴满便签，图书馆是两层带书形招牌。最「小镇」，也最耐看。</p>
+  <div class="scene" id="a"></div>
+</div>
+
+<div class="opt">
+  <h2>B · 团子房子</h2>
+  <p>房子本身就是一只团子：屋顶是半颗麻薯，窗户就是它的眼睛，会眨；门在嘴的位置。辨识度最高、最可爱，但三个团子房子加上主角团子，画面里「脸」会比较多。</p>
+  <div class="scene" id="b"></div>
+</div>
+
+<div class="opt">
+  <h2>C · 集市小摊</h2>
+  <p>把三栋房子换成三个市集摊位：条纹遮阳棚 + 柜台，摊上摆着信封、便签、书。更轻快，占的高度也小，适合首页再往下放更多内容；但「小镇」的感觉弱一些。</p>
+  <div class="scene" id="c"></div>
+</div>
+
+<script>
+const L='stroke="#3B2F3A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"';
+const face=(x,y,s=1)=>`<g transform="translate(${x} ${y}) scale(${s})"><path d="M-18 14C-20 0-10-12 0-12S20 0 18 14c0 3-4 4-18 4s-18-1-18-4z" fill="#FFD6E2" ${L}/><circle cx="-6" cy="2" r="2.4" fill="#3B2F3A"/><circle cx="6" cy="2" r="2.4" fill="#3B2F3A"/><path d="M-3 8q1.5 2 3 0q1.5 2 3 0" fill="none" ${L} stroke-width="1.8"/></g>`;
+const door=(x,y,w,h,color)=>`<clipPath id="d${x}${y}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${w/2}" ry="${w/2}"/></clipPath>
+  <g clip-path="url(#d${x}${y})"><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#3B2F3A"/><g class="peek">${face(x+w/2,y+h-8,.8)}</g></g>
+  <rect class="door" x="${x}" y="${y}" width="${w}" height="${h}" rx="${w/2}" ry="${w/2}" fill="${color}" ${L}/><circle cx="${x+w-7}" cy="${y+h*.6}" r="2" fill="#3B2F3A"/>`;
+const house=(svg,name,count,badge)=>`<a>${badge?`<span class="badge">${badge}</span>`:""}${svg}<div class="sign">${name}<small>${count}</small></div></a>`;
+
+// A：绘本小屋
+const postOffice=`<svg width="150" height="170" viewBox="0 0 150 170">
+  <rect x="98" y="22" width="16" height="30" fill="#FFD9BF" ${L}/><circle class="smoke" cx="106" cy="16" r="6" fill="#fff" stroke="#C9BCC4" stroke-width="2"/><circle class="smoke" cx="106" cy="16" r="6" fill="#fff" stroke="#C9BCC4" stroke-width="2"/>
+  <path d="M10 76L75 18l65 58z" fill="#FFC9D9" ${L}/><path d="M28 64l47-40" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".7"/>
+  <path d="M22 72h106v86H22z" fill="#FFFDF9" ${L}/>
+  <circle cx="75" cy="56" r="10" fill="#FFE9A3" ${L}/><path d="M65 56h20M75 46v20" ${L} stroke-width="2"/>
+  ${door(60,112,30,46,"#FFD9BF")}
+  <rect x="32" y="92" width="20" height="18" rx="4" fill="#FFE9A3" ${L}/><rect x="98" y="92" width="20" height="18" rx="4" fill="#FFE9A3" ${L}/>
+  <g transform="translate(124 120)"><rect x="0" y="0" width="18" height="24" rx="8" fill="#E8628C" ${L}/><rect x="7" y="24" width="4" height="14" fill="#3B2F3A"/><path d="M4 8h10" ${L} stroke="#fff"/></g>
+</svg>`;
+const notes=`<svg width="150" height="170" viewBox="0 0 150 170">
+  <path d="M14 80q6-52 61-60q55 8 61 60z" fill="#C3EEDA" ${L}/><path d="M34 54q14-22 38-26" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".7"/>
+  <path d="M24 76h102v82H24z" fill="#FFFDF9" ${L}/>
+  <rect x="34" y="88" width="34" height="28" rx="6" fill="#FFE9A3" ${L}/>
+  <rect x="38" y="84" width="12" height="12" fill="#FFC9D9" ${L} stroke-width="2" transform="rotate(-10 44 90)"/><rect x="52" y="96" width="12" height="12" fill="#C6E3FF" ${L} stroke-width="2" transform="rotate(8 58 102)"/>
+  <rect x="84" y="88" width="30" height="24" rx="6" fill="#FFE9A3" ${L}/>
+  <rect x="88" y="84" width="11" height="11" fill="#E0D2FF" ${L} stroke-width="2" transform="rotate(12 93 90)"/>
+  ${door(62,114,26,44,"#C3EEDA")}
+  <path d="M104 132l14-6v28h-14z" fill="#FFD9BF" ${L}/>
+</svg>`;
+const library=`<svg width="150" height="190" viewBox="0 0 150 190">
+  <path d="M20 54L75 14l55 40z" fill="#E0D2FF" ${L}/>
+  <rect x="58" y="4" width="34" height="22" rx="4" fill="#FFE9A3" ${L} transform="rotate(-6 75 15)"/><path d="M75 6v18" ${L} stroke-width="2" transform="rotate(-6 75 15)"/>
+  <path d="M28 52h94v54H28z" fill="#FFFDF9" ${L}/>
+  <circle cx="52" cy="78" r="11" fill="#FFE9A3" ${L}/><circle cx="98" cy="78" r="11" fill="#FFE9A3" ${L}/>
+  <path d="M14 108L75 90l61 18z" fill="#E0D2FF" ${L}/>
+  <path d="M22 106h106v72H22z" fill="#FFFDF9" ${L}/>
+  ${door(60,134,30,44,"#E0D2FF")}
+  <g ${L} stroke-width="2"><rect x="32" y="122" width="7" height="22" fill="#FFC9D9"/><rect x="39" y="118" width="7" height="26" fill="#C3EEDA"/><rect x="46" y="124" width="7" height="20" fill="#C6E3FF"/></g>
+  <g ${L} stroke-width="2"><rect x="98" y="120" width="7" height="24" fill="#FFE9A3"/><rect x="105" y="124" width="7" height="20" fill="#FFC9D9"/><rect x="112" y="118" width="7" height="26" fill="#C3EEDA"/></g>
+</svg>`;
+document.getElementById("a").innerHTML=house(postOffice,"邮局","42 篇文章","+2")+house(notes,"便签屋","318 张卡片")+house(library,"图书馆","4 个项目");
+
+// B：团子房子
+const mochiHouse=(color,eyes)=>`<svg width="160" height="160" viewBox="0 0 160 160">
+  <path d="M14 150C8 80 40 30 80 30s72 50 66 120z" fill="${color}" ${L}/>
+  <path d="M38 70q12-22 32-28" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity=".8"/>
+  <ellipse cx="34" cy="112" rx="10" ry="6" fill="#E8628C" opacity=".35"/><ellipse cx="126" cy="112" rx="10" ry="6" fill="#E8628C" opacity=".35"/>
+  <g class="blink">${eyes}</g>
+  ${door(64,106,32,44,"#FFFDF9")}
+</svg>`;
+const roundWin=`<circle cx="52" cy="84" r="13" fill="#FFE9A3" ${L}/><circle cx="108" cy="84" r="13" fill="#FFE9A3" ${L}/><circle cx="55" cy="82" r="5" fill="#3B2F3A"/><circle cx="111" cy="82" r="5" fill="#3B2F3A"/>`;
+const winkWin=`<path d="M40 86q12-12 24 0" fill="none" ${L} stroke-width="3"/><circle cx="108" cy="84" r="13" fill="#FFE9A3" ${L}/><circle cx="111" cy="82" r="5" fill="#3B2F3A"/>`;
+const sleepWin=`<path d="M40 82q12 10 24 0M96 82q12 10 24 0" fill="none" ${L} stroke-width="3"/>`;
+document.getElementById("b").innerHTML=house(mochiHouse("#FFC9D9",roundWin),"邮局","42 篇文章","+2")+house(mochiHouse("#C3EEDA",winkWin),"便签屋","318 张卡片")+house(mochiHouse("#E0D2FF",sleepWin),"图书馆","4 个项目");
+
+// C：集市小摊
+const stall=(color,goods)=>`<svg width="160" height="150" viewBox="0 0 160 150">
+  <rect x="22" y="40" width="6" height="96" fill="#EDCFA6" ${L}/><rect x="132" y="40" width="6" height="96" fill="#EDCFA6" ${L}/>
+  <g class="awn"><path d="M10 22h140l-6 30H16z" fill="#FFFDF9" ${L}/>
+  ${[0,1,2,3,4,5,6].map(i=>`<path d="M${16+i*18.3} 22h9.2l-1 30h-9z" fill="${color}"/>`).join("")}
+  <path d="M10 22h140l-6 30H16z" fill="none" ${L}/>
+  <path d="M16 52${[0,1,2,3,4,5,6].map(i=>`q${9.15} 10 18.3 0`).join("")}" fill="${color}" ${L}/></g>
+  <rect x="14" y="96" width="132" height="40" rx="6" fill="#FFFDF9" ${L}/>
+  ${goods}
+  <g class="peek" style="transform:none">${face(80,92,.9)}</g>
+</svg>`;
+const letters=`<g ${L} stroke-width="2"><rect x="24" y="84" width="26" height="18" fill="#FFE9A3"/><path d="M24 84l13 10 13-10" fill="none"/><rect x="112" y="80" width="26" height="18" fill="#FFC9D9" transform="rotate(8 125 89)"/></g>`;
+const cards=`<g ${L} stroke-width="2"><rect x="26" y="80" width="20" height="20" fill="#FFE9A3" transform="rotate(-8 36 90)"/><rect x="114" y="80" width="20" height="20" fill="#C6E3FF" transform="rotate(10 124 90)"/></g>`;
+const books=`<g ${L} stroke-width="2"><rect x="24" y="76" width="8" height="24" fill="#FFC9D9"/><rect x="32" y="80" width="8" height="20" fill="#C3EEDA"/><rect x="118" y="78" width="8" height="22" fill="#FFE9A3"/><rect x="126" y="74" width="8" height="26" fill="#E0D2FF"/></g>`;
+document.getElementById("c").innerHTML=house(stall("#FFC9D9",letters),"邮局","42 篇文章","+2")+house(stall("#C3EEDA",cards),"便签屋","318 张卡片")+house(stall("#E0D2FF",books),"图书馆","4 个项目");
+</script>
+</body>
+</html>

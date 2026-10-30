@@ -203,6 +203,10 @@ MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `b
 
 **资源上传**：默认本地，远端由渲染进程插件经 `context.upload.register` 提供（设置分区 `target: "upload"` 挂「资源存储」）；宿主负责压缩、唯一命名与配置快照；独立编辑/Markdown 窗口经 plugin-local IPC 转发到已连接的主窗口渲染宿主（主进程不加载插件、不建隐藏窗口）；窗口关闭/导航/宿主释放/插件停用后拒绝在途结果。GitHub/OSS/S3 旧图床与 WebDAV 图床已退役；GitHub/S3 博客账号已迁到发布插件配置。
 
+本地上传返回 `~/.editor/resources/...` 形式的引用，目录分隔符固定为 `/`。图片与行内图片的 Markdown 导入、导出，以及桌面媒体和协作资源的路径解析共用 `@tau/shared/resource-path`：规范 Windows 本地路径，并修复旧引用 `~.editor/...` 缺失的主目录分隔符；带协议的资源地址保持原样。存量正文在读取时兼容，不执行整库改写；Markdown 再保存时输出规范引用。
+
+会话正文读取将可解析的附件引用转为本机路径；附件未下载、仅在其他设备上或路径解析失败时，保留原引用，不阻断正文读取、再次打开和文本索引。仅本机附件在当前设备缺失时仍可编辑、保存正文。资源组件独立处理加载失败，读取过程不删除节点、不改写会话原引用；实际请求附件文件的命令仍返回资源不可用错误。
+
 **标准 fetch**：插件经 `@tau/plugins` 的 `context.fetch`，其他桌面调用用 `commands/fetch` 的 desktopFetch——原生 fetch 类型（RequestInit/Headers/FormData/AbortSignal → Response），无兼容层。两端复用内部 `@tau/plugins/fetch-bridge`，上传按最多 256 KiB 分块并等待背压，响应按需读取；该入口不进入作者 tarball。fetch 模块为 BACKGROUND（ensureModule 保证就绪）：主进程原生执行，内部 IPC 支持上传/响应流与取消并恢复 URL、redirected、type 与完整响应头；请求属于发起窗口，窗口销毁或导航回收。执行环境是宿主 Node，不自动继承页面 Cookie/CORS（显式 Cookie/Referer 与 Set-Cookie 须保留）；业务自行决定认证与状态处理。
 
 数据库、资源及会话文件同步的对象布局、校验、发布和首次使用边界见[宿主分块同步](/docs/architecture/storage-sync.md)。

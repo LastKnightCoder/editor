@@ -11,6 +11,7 @@ import {
   getHomeDir,
   generateCacheKey,
 } from "@/commands";
+import { normalizeLocalResourcePath } from "@tau/shared/resource-path";
 
 // 将远程资源下载到本地
 // 先查看是否已经下载过，如果没有则下载
@@ -143,6 +144,9 @@ export const copyFileToLocal = async (file: File, fileName = file.name) => {
   const ext = await getFileExtension(fileName);
   const resourcePath = resourceDirPath + sep + cacheKey + (ext ? "." + ext : "");
   await writeBinaryFile(resourcePath, new Uint8Array(await file.arrayBuffer()));
-  const homeDir = await getHomeDir();
-  return resourcePath.replace(homeDir, "~");
+  const homeDir = normalizeLocalResourcePath(await getHomeDir()).replace(/\/+$/, "");
+  const normalizedPath = normalizeLocalResourcePath(resourcePath);
+  return normalizedPath.startsWith(`${homeDir}/`)
+    ? `~${normalizedPath.slice(homeDir.length)}`
+    : normalizedPath;
 };

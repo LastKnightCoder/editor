@@ -6,6 +6,7 @@
   "exports": {
     "./performance": "./src/utils/performance.ts",
     "./media-types": "./media-types.ts",
+    "./resource-path": "./resource-path.ts",
     "./color-utils": "./color-utils.ts",
     "./rich-text-text": "./rich-text-text.ts",
     "./entity-ref": "./entity-ref.ts",

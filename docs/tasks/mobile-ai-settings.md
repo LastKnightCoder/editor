@@ -36,8 +36,8 @@
 
 ### 语音整理执行
 
-- `services/speechRefinement.ts` 的 `prepareSpeechRefinement(setting)`：读 `speechInputRefinement` 分配与 `speechInput.refinement`，录音开始时固定；执行用 `getMobileAiService().generation.start`（单发、不建会话），系统提示与桌面同文（抽到 `@tau/asr` 的 `buildSpeechRefinementPrompt`，两端共用）；流式快照经 `onPreview` 回传；`stopReason !== "stop"` 或空文本视为失败。
-- `MobileEditorBottomToolbar` 与 `ContentDetailPage` 的 `DictationTrigger` 传入 `refine`；分配为空时不传。
+- `services/speechRefinement.ts` 的 `prepareSpeechRefinement(setting)`：读 `speechInputRefinement` 分配与 `speechInput.refinement`，录音开始时固定；执行用 `getMobileAiService().generation.start`（单发、不建会话），系统提示与桌面同文（抽到 `@tau/asr` 的 `buildSpeechRefinementPrompt`，两端共用）；流式快照经 `onPreview` 回传；`outcome !== "completed"` 或空文本视为失败。
+- `MobileEditorBottomToolbar` 与 `ContentDetailPage` 的语音面板统一经 `useVoiceDictation` 按分配生成 `refine`；分配为空时不进入润色。对话按住发送与 Dock 长按速记保留识别原文。
 
 ### UI 规格（Tailwind，消费 --tau-* 语义类）
 

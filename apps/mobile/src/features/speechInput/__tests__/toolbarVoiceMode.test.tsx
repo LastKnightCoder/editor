@@ -14,7 +14,7 @@ vi.mock("../../../components/KeyboardViewportProvider", async importOriginal => 
     keyboardHeight: 300,
     isKeyboardVisible: true,
     rawKeyboardHeight: 300,
-    reservedHeight: 0,
+    reservedHeight: 300,
     lastKeyboardHeight: 300,
   }),
 }));
@@ -26,9 +26,10 @@ import {
 import type { MobileEditorToolbarController } from "../../cards/editorToolbar/useMobileEditorToolbarController";
 import { createControllerStub } from "../../cards/__tests__/toolbarControllerStub";
 
-const LABEL = "按住说话";
+const VOICE = "语音输入";
+const KEYBOARD = "切换到键盘";
 
-describe("配件栏「按住说话」入口", () => {
+describe("配件栏输入方式切换键", () => {
   let host: HTMLDivElement;
   let root: Root;
 
@@ -40,10 +41,11 @@ describe("配件栏「按住说话」入口", () => {
       root.render(<MobileEditorBottomToolbar controller={controller} {...extraProps} />);
     });
   };
-  const micButton = () =>
-    document.querySelector<HTMLButtonElement>(`button[aria-label="${LABEL}"]`);
+  const button = (label: string) =>
+    document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
 
   beforeEach(() => {
+    window.localStorage.setItem("tau.mobile.voice-mode-coach-seen", "1");
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
@@ -52,37 +54,55 @@ describe("配件栏「按住说话」入口", () => {
   afterEach(() => {
     act(() => root.unmount());
     document.body.innerHTML = "";
+    window.localStorage.clear();
     vi.restoreAllMocks();
   });
 
-  it("通用模式显示，按下时 preventDefault 不抢编辑器焦点", () => {
-    render(createControllerStub());
-    const button = micButton();
-    expect(button).toBeTruthy();
-    expect(button?.getAttribute("aria-pressed")).toBe("false");
+  it("通用模式在「插入」左侧显示，点一下打开等高语音面板", () => {
+    const controller = createControllerStub();
+    render(controller);
+    const mic = button(VOICE)!;
+    const plus = button("插入")!;
+    expect(mic.compareDocumentPosition(plus) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     const mouseDown = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
     act(() => {
-      button?.dispatchEvent(mouseDown);
+      mic.dispatchEvent(mouseDown);
     });
     expect(mouseDown.defaultPrevented).toBe(true);
+    act(() => mic.click());
+    expect(controller.openPanel).toHaveBeenCalledWith("voice", 300);
+  });
 
-    const pointerDown = new MouseEvent("pointerdown", { bubbles: true, cancelable: true });
-    Object.defineProperty(pointerDown, "pointerId", { value: 1 });
-    act(() => {
-      button?.dispatchEvent(pointerDown);
+  it("语音面板打开时切换键变为键盘，点击回到键盘", () => {
+    const controller = createControllerStub({ activePanel: "voice" });
+    render(controller);
+    expect(button(VOICE)).toBeNull();
+    expect(document.querySelector('[data-mobile-editor-panel="voice"]')).toBeTruthy();
+    expect(button("开始说话")).toBeTruthy();
+    act(() => button(KEYBOARD)!.click());
+    expect(controller.closePanel).toHaveBeenCalledWith({
+      showKeyboard: true,
+      restoreSelection: true,
     });
-    expect(pointerDown.defaultPrevented).toBe(true);
-    act(() => {
-      const up = new MouseEvent("pointerup", { bubbles: true });
-      Object.defineProperty(up, "pointerId", { value: 1 });
-      window.dispatchEvent(up);
-    });
+  });
+
+  it("首次显示引导气泡，点掉后不再出现", () => {
+    window.localStorage.clear();
+    render(createControllerStub());
+    const coach = () =>
+      [...document.querySelectorAll("button")].find(node =>
+        node.textContent?.includes("用说的输入")
+      );
+    expect(coach()).toBeTruthy();
+    act(() => coach()!.click());
+    expect(coach()).toBeUndefined();
+    expect(window.localStorage.getItem("tau.mobile.voice-mode-coach-seen")).toBe("1");
   });
 
   it("格式模式不显示", () => {
     render(createControllerStub({ editingContext: { kind: "selection" } }));
-    expect(micButton()).toBeNull();
+    expect(button(VOICE)).toBeNull();
   });
 
   it("表格上下文不显示", () => {
@@ -91,25 +111,20 @@ describe("配件栏「按住说话」入口", () => {
         editingContext: { kind: "table", tablePath: [0], row: 0, col: 0, rowCount: 2, colCount: 2 },
       })
     );
-    expect(micButton()).toBeNull();
-  });
-
-  it("面板打开时不显示", () => {
-    render(createControllerStub({ activePanel: "style" }));
-    expect(micButton()).toBeNull();
+    expect(button(VOICE)).toBeNull();
   });
 
   it("只读时不显示", () => {
     render(createControllerStub(), { readonly: true });
-    expect(micButton()).toBeNull();
+    expect(button(VOICE)).toBeNull();
   });
 
   it("白名单不含 dictation 时不显示，含时显示", () => {
     render(createControllerStub(), { visibleButtons: new Set<AccessoryItemId>(["undo"]) });
-    expect(micButton()).toBeNull();
+    expect(button(VOICE)).toBeNull();
     render(createControllerStub(), {
       visibleButtons: new Set<AccessoryItemId>(["undo", "dictation"]),
     });
-    expect(micButton()).toBeTruthy();
+    expect(button(VOICE)).toBeTruthy();
   });
 });
