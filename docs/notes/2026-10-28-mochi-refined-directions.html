@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>团子小镇 · 精致化的三个方向</title>
+<link href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/lxgwwenkaigbscreen.css" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#E9E6E3;color:#2E2A30;font:15px/1.7 "PingFang SC","Hiragino Sans GB",sans-serif}
+.doc{max-width:1240px;margin:0 auto;padding:44px 28px 120px}
+.doc>h1{font:600 28px/1.3 "PingFang SC",sans-serif;letter-spacing:.01em}
+.doc>p{color:#5E5660;max-width:860px;margin-top:10px}
+.diag{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:26px 0 34px}
+.diag div{background:#F6F4F2;border-radius:12px;padding:14px 16px;font-size:14px;color:#4A444C}
+.diag b{display:block;font-size:15px;color:#2E2A30;margin-bottom:4px}
+.bar{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;gap:18px;align-items:center;padding:12px 0;background:#E9E6E3E6;backdrop-filter:blur(8px)}
+.seg{display:flex;background:#DAD5D1;border-radius:10px;padding:3px}
+.seg button{border:0;background:transparent;font:14px "PingFang SC",sans-serif;color:#4A444C;padding:6px 14px;border-radius:8px;cursor:pointer}
+.seg button[aria-pressed=true]{background:#fff;color:#2E2A30;box-shadow:0 1px 2px #0000001f}
+.seg button:focus-visible{outline:2px solid #2E5EAA;outline-offset:2px}
+.note{margin:14px 0 0;font-size:14px;color:#4A444C;max-width:980px}
+.note b{color:#2E2A30}
+.frame{margin-top:14px;border-radius:14px;overflow:hidden;box-shadow:0 30px 60px -30px #2e2a3066,0 0 0 1px #0000000d;background:#fff}
+.chrome{display:flex;align-items:center;gap:7px;padding:9px 14px;background:#F1EFED;border-bottom:1px solid #0000000d}
+.chrome i{width:10px;height:10px;border-radius:50%;background:#D9D4D0}
+.chrome span{margin-left:10px;font:12px ui-monospace,Menlo,monospace;color:#8A8389}
+.view{height:760px;overflow:auto;position:relative}
+.page{display:none;min-height:100%}
+.page.on{display:block}
+table.cmp{width:100%;border-collapse:collapse;margin-top:30px;font-size:14px;background:#F6F4F2;border-radius:12px;overflow:hidden}
+.cmp th,.cmp td{text-align:left;padding:10px 14px;border-bottom:1px solid #E4DFDB;vertical-align:top}
+.cmp th{color:#5E5660;font-weight:600;white-space:nowrap}
+/* ============ A · 团子铺（和果子店的包装纸） ============ */
+.A{--paper:#FBF8F6;--wash:#F3ECEA;--ink:#2E2A30;--ink2:#6B6168;--rule:#E3D9D6;--sakura:#F4D3DB;--sakura-ink:#A6466A;--seal:#BF4A68;--on-seal:#FFF8F6;--matcha:#C9D3A8;--matcha-ink:#56642F;--mochi:#FBE7EC;
+  background:var(--paper);color:var(--ink);font-family:"LXGW WenKai Screen","PingFang SC",serif;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .4 0 0 0 0 .3 0 0 0 0 .33 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23f)'/%3E%3C/svg%3E")}
+.A[data-mode=dark]{--paper:#1C191E;--wash:#25212A;--ink:#EEE7EA;--ink2:#B9AFB6;--rule:#3A3440;--sakura:#4A2F3B;--sakura-ink:#F2B6C6;--seal:#D25C7A;--on-seal:#1C191E;--matcha:#3A4230;--matcha-ink:#C3CF9B;--mochi:#F1D6DE}
+.A .top{display:flex;align-items:center;gap:28px;padding:22px 56px;max-width:1120px;margin:0 auto}
+.A .brand{display:flex;align-items:center;gap:10px;font-size:19px;letter-spacing:.12em;color:var(--ink);text-decoration:none}
+.A .brand svg{width:34px}
+.A .top nav{display:flex;gap:26px;margin-left:auto;font-size:15px}
+.A .top nav a{color:var(--ink2);text-decoration:none;padding-bottom:3px;border-bottom:1px solid transparent;transition:color .2s,border-color .2s}
+.A .top nav a:hover,.A .top nav a[aria-current]{color:var(--ink);border-color:var(--seal)}
+.A .tool{display:flex;gap:10px;margin-left:18px}
+.A .tool button{width:34px;height:34px;border-radius:50%;border:1px solid var(--rule);background:transparent;color:var(--ink2);cursor:pointer;font-size:14px}
+.A .tool button:hover{border-color:var(--ink2);color:var(--ink)}
+/* 首页：一张包装纸，中间是大团子，下方是招牌菜单 */
+.A .hero{max-width:1120px;margin:0 auto;padding:46px 56px 30px;display:grid;grid-template-columns:1fr 360px;gap:60px;align-items:center}
+.A .hero h1{font-size:68px;line-height:1.12;letter-spacing:.06em;font-weight:400}
+.A .hero .say{margin-top:22px;font-size:17px;line-height:2;color:var(--ink2);max-width:430px}
+.A .hero .counts{margin-top:30px;display:flex;gap:30px;font-size:14px;color:var(--ink2)}
+.A .hero .counts b{display:block;font-size:30px;font-weight:400;color:var(--ink);font-family:"Iowan Old Style","Palatino",serif;line-height:1.1}
+.A .stage{position:relative;aspect-ratio:1;display:grid;place-items:center}
+.A .stage .ring{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 50% 60%,var(--sakura) 0 55%,transparent 56%)}
+.A .stage .ring::after{content:"";position:absolute;inset:-14px;border-radius:50%;border:1px dashed var(--rule)}
+.A .stage .mochi{position:relative;width:62%;cursor:pointer;transition:transform .5s cubic-bezier(.34,1.56,.64,1)}
+.A .stage .mochi:hover{transform:translateY(-6px) rotate(-3deg)}
+.A .stage .tag{position:absolute;right:-6px;top:22%;writing-mode:vertical-rl;font-size:14px;letter-spacing:.3em;color:var(--ink2);background:var(--paper);padding:14px 6px;border:1px solid var(--rule);border-radius:2px}
+.A .stage .stamp{position:absolute;left:6%;bottom:10%;width:64px;height:64px;border-radius:12px;background:var(--seal);color:var(--on-seal);display:grid;place-items:center;font-size:15px;line-height:1.15;text-align:center;letter-spacing:.1em;transform:rotate(-8deg);box-shadow:inset 0 0 0 3px var(--paper),inset 0 0 0 4px var(--seal)}
+.A .menu{max-width:1120px;margin:20px auto 0;padding:0 56px 60px;display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--rule)}
+.A .menu a{display:block;padding:28px 30px 30px;color:inherit;text-decoration:none;border-right:1px solid var(--rule);position:relative;transition:background .3s}
+.A .menu a:last-child{border-right:0}
+.A .menu a:hover{background:var(--wash)}
+.A .menu svg{width:58px;margin-bottom:14px;transition:transform .45s cubic-bezier(.34,1.56,.64,1)}
+.A .menu a:hover svg{transform:translateY(-4px) rotate(-4deg)}
+.A .menu h3{font-size:22px;font-weight:400;letter-spacing:.08em}
+.A .menu p{font-size:14px;color:var(--ink2);margin-top:4px}
+.A .menu .new{position:absolute;top:28px;right:30px;font-size:13px;color:var(--sakura-ink)}
+.A .fresh{max-width:1120px;margin:0 auto;padding:0 56px 70px}
+.A .fresh h2{font-size:15px;font-weight:400;color:var(--ink2);letter-spacing:.1em;margin-bottom:12px}
+.A .fresh a{display:grid;grid-template-columns:70px 1fr auto;gap:18px;padding:13px 0;border-bottom:1px dotted var(--rule);color:inherit;text-decoration:none;font-size:16px;align-items:baseline}
+.A .fresh a:hover .t{color:var(--sakura-ink)}
+.A .fresh time{font-size:13px;color:var(--ink2);font-family:"Iowan Old Style","Palatino",serif}
+.A .fresh em{font-style:normal;font-size:12.5px;color:var(--ink2)}
+/* 文章页：宽留白、竖排章节号、团子坐在页边 */
+.A .read{max-width:1120px;margin:0 auto;padding:30px 56px 90px;display:grid;grid-template-columns:150px minmax(0,640px) 1fr;gap:48px}
+.A .read aside.l{position:sticky;top:20px;align-self:start;font-size:13.5px;color:var(--ink2)}
+.A .read aside.l ol{list-style:none;border-left:1px solid var(--rule)}
+.A .read aside.l li{padding:5px 0 5px 14px;margin-left:-1px;border-left:1px solid transparent;cursor:pointer}
+.A .read aside.l li.on{color:var(--ink);border-color:var(--seal)}
+.A .read aside.l .eat{margin-top:22px;display:flex;align-items:center;gap:8px}
+.A .read aside.l .eat svg{width:30px}
+.A article h1{font-size:40px;line-height:1.35;font-weight:400;letter-spacing:.04em}
+.A article .meta{margin:16px 0 34px;font-size:14px;color:var(--ink2);display:flex;gap:18px}
+.A article p{font-size:17.5px;line-height:2.05;margin-bottom:1.15em}
+.A article h2{font-size:23px;font-weight:400;margin:2em 0 .6em;display:flex;gap:12px;align-items:baseline}
+.A article h2 small{font-size:13px;color:var(--sakura-ink);font-family:"Iowan Old Style","Palatino",serif}
+.A article blockquote{margin:1.4em 0;padding:4px 0 4px 22px;border-left:2px solid var(--sakura);color:var(--ink2);font-size:16.5px;line-height:2}
+.A article mark{background:linear-gradient(transparent 62%,var(--sakura) 62%);color:inherit}
+.A article .code{background:var(--wash);border-radius:6px;padding:14px 18px;font:13.5px/1.75 ui-monospace,Menlo,monospace;margin:1.2em 0;color:var(--ink)}
+.A article .code i{font-style:normal;color:var(--sakura-ink)}
+.A article .end{margin-top:48px;padding-top:26px;border-top:1px solid var(--rule);display:flex;align-items:center;gap:16px;font-size:14px;color:var(--ink2)}
+.A article .end button{border:1px solid var(--rule);background:transparent;border-radius:999px;padding:6px 16px;font:14px "LXGW WenKai Screen",serif;color:var(--ink);cursor:pointer}
+.A article .end button:hover{border-color:var(--seal);color:var(--sakura-ink)}
+.A .read aside.r{position:sticky;top:30px;align-self:start;padding-top:80px}
+.A .read aside.r svg{width:84px}
+.A .read aside.r p{font-size:13px;color:var(--ink2);margin-top:6px;max-width:140px}
+/* 卡片列表：一盒和果子，每张卡片是一块点心 */
+.A .box{max-width:1120px;margin:0 auto;padding:26px 56px 80px}
+.A .box h1{font-size:34px;font-weight:400;letter-spacing:.08em}
+.A .box .sub{color:var(--ink2);font-size:15px;margin:6px 0 24px}
+.A .filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:26px}
+.A .filters button{border:1px solid var(--rule);background:transparent;border-radius:999px;padding:4px 14px;font:14px "LXGW WenKai Screen",serif;color:var(--ink2);cursor:pointer}
+.A .filters button[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.A .tray{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:4px;overflow:hidden}
+.A .tray a{background:var(--paper);padding:24px 24px 20px;color:inherit;text-decoration:none;display:flex;flex-direction:column;gap:12px;min-height:200px;transition:background .3s}
+.A .tray a:hover{background:var(--wash)}
+.A .tray .dot{width:14px;height:14px;border-radius:50%}
+.A .tray p{font-size:15.5px;line-height:1.9;flex:1}
+.A .tray footer{font-size:12.5px;color:var(--ink2);display:flex;justify-content:space-between}
+
+/* ============ B · 纸艺小镇（剪纸立体书） ============ */
+.B{--paper:#FAF7F1;--ink:#26333A;--ink2:#55646B;--sky:#DDE8EC;--sky2:#EEF3F1;--l1:#F6E3D7;--l2:#E9D5E6;--l3:#D6E6DA;--accent:#2F6A5A;--warm:#E8B7A4;--shade:rgb(38 51 58/.16);--mochi:#FBEDEF;
+  background:var(--paper);color:var(--ink);font-family:"PingFang SC","Hiragino Sans GB",sans-serif}
+.B[data-mode=dark]{--paper:#1A2226;--ink:#E9EEF0;--ink2:#A9B6BC;--sky:#22303A;--sky2:#1E282E;--l1:#3A3133;--l2:#352F40;--l3:#2A3A33;--accent:#8FCDB8;--warm:#9C6F62;--shade:rgb(0 0 0/.45);--mochi:#F2DDE2}
+.B .top{display:flex;align-items:center;padding:20px 56px;max-width:1160px;margin:0 auto;gap:24px}
+.B .brand{font-weight:600;font-size:17px;letter-spacing:.02em;display:flex;align-items:center;gap:10px;color:var(--ink);text-decoration:none}
+.B .brand svg{width:30px}
+.B .top nav{display:flex;gap:4px;margin-left:auto;background:color-mix(in srgb,var(--paper) 70%,transparent);padding:4px;border-radius:999px;box-shadow:0 1px 0 var(--shade),0 8px 18px -12px var(--shade)}
+.B .top nav a{padding:6px 16px;border-radius:999px;color:var(--ink2);text-decoration:none;font-size:14.5px}
+.B .top nav a[aria-current],.B .top nav a:hover{background:var(--paper);color:var(--ink);box-shadow:0 1px 2px var(--shade)}
+.B .pop{position:relative;height:430px;background:linear-gradient(var(--sky),var(--sky2));overflow:hidden}
+.B .pop .layer{position:absolute;left:0;right:0;bottom:0}
+.B .pop .layer path{filter:drop-shadow(0 -6px 10px var(--shade))}
+.B .pop .copy{position:absolute;left:56px;top:56px;max-width:420px}
+.B .pop h1{font-size:52px;font-weight:600;line-height:1.15;letter-spacing:.01em}
+.B .pop p{margin-top:16px;font-size:16.5px;line-height:1.9;color:var(--ink2)}
+.B .pop .moon{position:absolute;right:120px;top:52px;width:66px;height:66px;border-radius:50%;background:var(--paper);box-shadow:0 10px 26px -12px var(--shade)}
+.B .doors{max-width:1160px;margin:-62px auto 0;position:relative;padding:0 56px 70px;display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+.B .door{background:var(--paper);border-radius:22px;padding:22px 24px 22px;box-shadow:0 1px 0 var(--shade),0 22px 40px -26px var(--shade);color:inherit;text-decoration:none;position:relative;overflow:hidden;transition:transform .5s cubic-bezier(.22,1,.36,1),box-shadow .5s}
+.B .door:hover{transform:translateY(-6px);box-shadow:0 1px 0 var(--shade),0 30px 50px -26px var(--shade)}
+.B .door .art{height:110px;margin:-22px -24px 16px;position:relative;overflow:hidden}
+.B .door h3{font-size:19px;font-weight:600}
+.B .door p{font-size:14px;color:var(--ink2);margin-top:3px}
+.B .door .n{position:absolute;right:20px;bottom:20px;font-size:13px;color:var(--accent);font-weight:600}
+.B .latest{max-width:1160px;margin:0 auto;padding:0 56px 70px}
+.B .latest h2{font-size:17px;font-weight:600;margin-bottom:12px}
+.B .latest a{display:flex;gap:16px;align-items:baseline;padding:12px 0;border-top:1px solid color-mix(in srgb,var(--ink) 10%,transparent);color:inherit;text-decoration:none}
+.B .latest a:hover .t{color:var(--accent)}
+.B .latest time{font-size:13px;color:var(--ink2);width:60px;flex:none}
+.B .read{max-width:1160px;margin:0 auto;padding:36px 56px 90px;display:grid;grid-template-columns:minmax(0,680px) 220px;gap:60px;justify-content:center}
+.B article{background:var(--paper);border-radius:24px;padding:48px 56px;box-shadow:0 1px 0 var(--shade),0 30px 60px -36px var(--shade)}
+.B article h1{font-size:36px;font-weight:600;line-height:1.35}
+.B article .meta{margin:14px 0 30px;font-size:14px;color:var(--ink2)}
+.B article p{font-size:17px;line-height:1.95;margin-bottom:1.1em;font-family:"LXGW WenKai Screen",serif}
+.B article h2{font-size:22px;font-weight:600;margin:1.8em 0 .6em}
+.B article blockquote{margin:1.3em 0;padding:16px 20px;border-radius:16px;background:var(--l3);font-family:"LXGW WenKai Screen",serif;font-size:16px;line-height:1.9}
+.B article .code{background:color-mix(in srgb,var(--sky) 60%,var(--paper));border-radius:14px;padding:14px 18px;font:13.5px/1.75 ui-monospace,Menlo,monospace;margin:1.2em 0}
+.B article .code i{font-style:normal;color:var(--accent)}
+.B .read aside{position:sticky;top:24px;align-self:start;font-size:14px}
+.B .read aside .card{background:var(--paper);border-radius:18px;padding:16px 18px;box-shadow:0 1px 0 var(--shade),0 16px 30px -22px var(--shade)}
+.B .read aside li{list-style:none;padding:5px 0;color:var(--ink2);cursor:pointer}
+.B .read aside li.on{color:var(--ink);font-weight:600}
+.B .read aside .meter{margin-top:12px;height:6px;border-radius:999px;background:var(--sky);overflow:hidden}
+.B .read aside .meter i{display:block;height:100%;width:38%;background:var(--accent);border-radius:inherit}
+.B .shelf{max-width:1160px;margin:0 auto;padding:30px 56px 80px}
+.B .shelf h1{font-size:32px;font-weight:600}
+.B .shelf .sub{color:var(--ink2);margin:6px 0 22px}
+.B .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:26px}
+.B .filters button{border:0;background:var(--paper);border-radius:999px;padding:6px 15px;font:14px "PingFang SC",sans-serif;color:var(--ink2);cursor:pointer;box-shadow:0 1px 0 var(--shade),0 6px 14px -10px var(--shade)}
+.B .filters button[aria-pressed=true]{background:var(--ink);color:var(--paper)}
+.B .stack{columns:3 240px;column-gap:22px}
+.B .stack a{break-inside:avoid;display:block;margin-bottom:22px;background:var(--paper);border-radius:20px;padding:20px 22px;color:inherit;text-decoration:none;box-shadow:0 1px 0 var(--shade),0 18px 32px -24px var(--shade);transition:transform .5s cubic-bezier(.22,1,.36,1)}
+.B .stack a:hover{transform:translateY(-4px)}
+.B .stack .chip{display:inline-block;font-size:12px;border-radius:999px;padding:1px 10px;margin-bottom:10px}
+.B .stack p{font-family:"LXGW WenKai Screen",serif;font-size:15.5px;line-height:1.9}
+.B .stack footer{font-size:12.5px;color:var(--ink2);margin-top:10px}
+/* ============ C · 孔版小报（双色 Risograph） ============ */
+.C{--paper:#F1F3F4;--blue:#2E5EAA;--blue-ink:#233F73;--ink2:#4F5F7E;--pink:#FF8FB8;--pink-tint:#FFD9E8;--blue-tint:#D3DFF2;
+  background:var(--paper);color:var(--blue-ink);font-family:"PingFang SC","Hiragino Sans GB",sans-serif;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .14 0 0 0 0 .25 0 0 0 0 .45 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23g)'/%3E%3C/svg%3E")}
+.C[data-mode=dark]{--paper:#141B2B;--blue:#8DB0EA;--blue-ink:#DCE6F7;--ink2:#A8B6D1;--pink:#FF8FB8;--pink-tint:#3A2338;--blue-tint:#22314F}
+.C .mis{mix-blend-mode:multiply}
+.C[data-mode=dark] .mis{mix-blend-mode:screen}
+.C .top{display:flex;align-items:center;gap:22px;padding:18px 48px;border-bottom:2px solid var(--blue);max-width:1180px;margin:0 auto}
+.C .brand{display:flex;gap:10px;align-items:center;font-weight:800;font-size:20px;letter-spacing:-.01em;color:var(--blue-ink);text-decoration:none}
+.C .brand svg{width:36px}
+.C .top nav{display:flex;gap:22px;margin-left:auto;font-weight:600;font-size:15px}
+.C .top nav a{color:var(--blue);text-decoration:none;position:relative;isolation:isolate}
+.C .top nav a[aria-current]::after,.C .top nav a:hover::after{content:"";position:absolute;left:-4px;right:-4px;bottom:-2px;height:8px;background:var(--pink);z-index:-1;mix-blend-mode:multiply}
+.C .mast{max-width:1180px;margin:0 auto;padding:34px 48px 26px;display:grid;grid-template-columns:1.2fr 1fr;gap:36px;align-items:end;position:relative}
+.C .mast h1{font-size:92px;line-height:.98;font-weight:900;letter-spacing:-.03em;color:var(--blue);position:relative;isolation:isolate}
+.C .mast h1 span{display:block}
+.C .mast h1 .ghost{position:absolute;inset:0;color:var(--pink);transform:translate(5px,4px);z-index:-1;mix-blend-mode:multiply}
+.C .mast p{font-size:17px;line-height:1.85;color:var(--blue-ink);max-width:420px}
+.C .mast .big{position:relative;justify-self:center;width:300px;isolation:isolate}
+.C .mast .big svg{width:100%;display:block;cursor:pointer;transition:transform .4s cubic-bezier(.34,1.56,.64,1)}
+.C .mast .big:hover svg{transform:rotate(-4deg) scale(1.03)}
+.C .mast .big .halftone{position:absolute;inset:8% -10% -6% 10%;border-radius:50%;background:radial-gradient(var(--pink) 1.6px,transparent 2px) 0 0/9px 9px;opacity:.9;z-index:-1;mix-blend-mode:multiply}
+.C .strip{max-width:1180px;margin:0 auto;padding:0 48px;display:grid;grid-template-columns:repeat(3,1fr);border-top:2px solid var(--blue);border-bottom:2px solid var(--blue)}
+.C .strip a{padding:22px 24px;color:inherit;text-decoration:none;border-right:2px solid var(--blue);display:grid;grid-template-columns:70px 1fr;gap:16px;align-items:center;transition:background .2s}
+.C .strip a:last-child{border-right:0}
+.C .strip a:hover{background:var(--pink-tint)}
+.C .strip h3{font-size:22px;font-weight:800;color:var(--blue)}
+.C .strip p{font-size:13.5px;color:var(--ink2)}
+.C .strip svg{width:70px}
+.C .issue{max-width:1180px;margin:0 auto;padding:30px 48px 70px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:30px}
+.C .issue a{color:inherit;text-decoration:none}
+.C .issue .lead{grid-column:span 2;display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+.C .issue .pic{aspect-ratio:4/3;background:var(--blue-tint);position:relative;overflow:hidden}
+.C .issue .pic::after{content:"";position:absolute;inset:0;background:radial-gradient(var(--blue) 1.3px,transparent 1.7px) 0 0/8px 8px;opacity:.35}
+.C .issue .pic svg{position:absolute;width:56%;left:22%;bottom:8%}
+.C .issue h3{font-size:24px;font-weight:800;line-height:1.3;color:var(--blue)}
+.C .issue .lead h3{font-size:30px}
+.C .issue p{font-size:15px;line-height:1.85;margin-top:8px;color:var(--blue-ink)}
+.C .issue time{font-size:13px;font-weight:700;color:var(--ink2)}
+.C .issue .side a{display:block;padding:12px 0;border-bottom:1px solid color-mix(in srgb,var(--blue) 35%,transparent)}
+.C .issue .side a:hover h3{text-decoration:underline;text-decoration-color:var(--pink);text-decoration-thickness:4px;text-underline-offset:2px}
+.C .issue .side h3{font-size:17px}
+.C .read{max-width:1180px;margin:0 auto;padding:30px 48px 90px;display:grid;grid-template-columns:minmax(0,660px) 1fr;gap:60px}
+.C article h1{font-size:48px;font-weight:900;line-height:1.15;letter-spacing:-.02em;color:var(--blue)}
+.C article .meta{margin:16px 0 30px;font-size:14px;font-weight:600;color:var(--ink2);display:flex;gap:16px}
+.C article p{font-size:17px;line-height:1.95;margin-bottom:1.1em;color:var(--blue-ink)}
+.C article p:first-of-type::first-letter{float:left;font-size:58px;line-height:.9;font-weight:900;color:var(--pink);margin:6px 8px 0 0}
+.C article h2{font-size:24px;font-weight:800;color:var(--blue);margin:1.8em 0 .5em}
+.C article blockquote{margin:1.4em 0;padding:18px 22px;background:var(--pink-tint);font-size:16px;line-height:1.85;font-weight:600}
+.C article .code{background:var(--blue-tint);padding:14px 18px;font:13.5px/1.75 ui-monospace,Menlo,monospace;margin:1.2em 0;color:var(--blue-ink)}
+.C .read aside{position:sticky;top:24px;align-self:start;border-top:2px solid var(--blue);padding-top:14px;font-size:14px}
+.C .read aside h4{font-size:14px;font-weight:800;color:var(--blue);margin-bottom:8px}
+.C .read aside li{list-style:none;padding:5px 0;color:var(--ink2);cursor:pointer;font-weight:600}
+.C .read aside li.on{color:var(--blue-ink);background:linear-gradient(transparent 60%,var(--pink) 60%);display:inline-block}
+.C .read aside .mochi{width:90px;margin-top:30px}
+.C .zine{max-width:1180px;margin:0 auto;padding:26px 48px 80px}
+.C .zine h1{font-size:52px;font-weight:900;color:var(--blue);letter-spacing:-.02em}
+.C .filters{display:flex;gap:8px;margin:16px 0 26px;flex-wrap:wrap}
+.C .filters button{border:2px solid var(--blue);background:transparent;padding:3px 14px;font:700 14px "PingFang SC",sans-serif;color:var(--blue);cursor:pointer}
+.C .filters button[aria-pressed=true]{background:var(--blue);color:var(--paper)}
+.C .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:2px solid var(--blue);border-left:2px solid var(--blue)}
+.C .grid a{border-right:2px solid var(--blue);border-bottom:2px solid var(--blue);padding:18px 18px 16px;color:inherit;text-decoration:none;min-height:190px;display:flex;flex-direction:column;transition:background .2s}
+.C .grid a:hover{background:var(--pink-tint)}
+.C .grid p{font-size:15px;line-height:1.85;flex:1;font-weight:500}
+.C .grid footer{font-size:12.5px;font-weight:700;color:var(--ink2);display:flex;justify-content:space-between;margin-top:10px}
+.C .grid a.feature{grid-column:span 2;background:var(--blue);color:var(--paper)}
+.C .grid a.feature p{font-size:22px;line-height:1.6;font-weight:800}
+.C .grid a.feature footer{color:var(--pink-tint)}
+.C[data-mode=dark] .grid a.feature{color:#141B2B}
+@media (prefers-reduced-motion:reduce){.A *,.B *,.C *{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="doc">
+<h1>团子小镇 · 精致化的三个方向</h1>
+<p>不在现有设计上修修补补，而是从「可爱的东西怎样才显得贵」出发，重新定材质、字体和版式。三个方向都能明暗切换，页面内容一样，方便直接比。</p>
+
+<div class="diag">
+  <div><b>现在为什么显得粗糙</b>每样东西都在用力：粗墨线、硬投影、马卡龙色、表情、动画同时出现，没有哪里在休息。精致的可爱是「一处出彩，其余克制」。</div>
+  <div><b>可爱靠插画，不靠界面</b>按钮、卡片、标签都做成了卡通贴纸，界面本身就很吵；插画却很简单。应该反过来：界面安静、规矩，团子和小插画画得细，才是视觉中心。</div>
+  <div><b>缺一个真实的材质</b>「小镇」是概念，落到页面上只剩色块。精致的设计都借一个真实世界的材料：包装纸、剪纸、印刷品。有了材料，纹理、线、颜色才有依据。</div>
+</div>
+
+<div class="bar">
+  <div class="seg" role="group" aria-label="方向" id="dirSeg">
+    <button aria-pressed="true" data-dir="A">A · 团子铺</button>
+    <button aria-pressed="false" data-dir="B">B · 纸艺小镇</button>
+    <button aria-pressed="false" data-dir="C">C · 孔版小报</button>
+  </div>
+  <div class="seg" role="group" aria-label="页面" id="pageSeg">
+    <button aria-pressed="true" data-page="home">首页</button>
+    <button aria-pressed="false" data-page="read">文章</button>
+    <button aria-pressed="false" data-page="cards">卡片</button>
+  </div>
+  <div class="seg" role="group" aria-label="明暗" id="modeSeg">
+    <button aria-pressed="true" data-mode="light">白天</button>
+    <button aria-pressed="false" data-mode="dark">夜晚</button>
+  </div>
+</div>
+<p class="note" id="dirNote"></p>
+
+<div class="frame">
+  <div class="chrome"><i></i><i></i><i></i><span id="url">mochi.blog/</span></div>
+  <div class="view" id="view"></div>
+</div>
+
+<table class="cmp">
+  <tr><th></th><th>A · 团子铺</th><th>B · 纸艺小镇</th><th>C · 孔版小报</th></tr>
+  <tr><th>借的材料</th><td>和果子店的包装纸、店印、竖排招牌</td><td>剪纸立体书：一层层纸叠出景深</td><td>双色孔版印刷的小报：蓝 + 粉，套色错位</td></tr>
+  <tr><th>可爱的出处</th><td>团子当店主，印章与竖排小字很有手作感</td><td>首页像翻开一本立体书，小镇是纸做的</td><td>大字标题与半调网点，像社团自印的刊物</td></tr>
+  <tr><th>界面多安静</th><td>最安静：细线、留白、几乎无阴影</td><td>中等：柔和投影承担层次</td><td>最大胆：粗线框与大字，但只用两种颜色</td></tr>
+  <tr><th>正文阅读</th><td>最好：霞鹜文楷 + 宽行距 + 宽页边</td><td>好：正文在一张浮起的纸上</td><td>好：黑体为主，首字下沉</td></tr>
+  <tr><th>字体</th><td>全站霞鹜文楷一套，数字用系统衬线</td><td>标题系统黑体，正文霞鹜文楷</td><td>全站系统黑体粗细对比</td></tr>
+  <tr><th>包体积</th><td>比现在小：去掉站酷快乐体与 Baloo 2</td><td>同 A</td><td>最小：只保留代码等宽字体，正文用系统字体</td></tr>
+  <tr><th>和现有代码</th><td>团子、数据层、交互全部保留，换 token 与页面版式</td><td>同 A，另需画三层剪纸场景</td><td>同 A，团子要改成双色版</td></tr>
+</table>
+</div>
+<script>
+// —— 共用内容（与开发夹具一致）
+const POSTS = [
+  { d: "10·25", t: "在家做一杯好喝的手冲咖啡", s: "秋天的早上，最适合慢慢磨一把豆子。这篇是我练了三个月后的一些小心得。", k: "文章" },
+  { d: "10·12", t: "费曼学习法：讲给小朋友听", s: "如果你不能用简单的话把一件事讲给小朋友听，说明你还没真正懂它。", k: "卡片" },
+  { d: "10·08", t: "Tau 指南 · 卡片与双链", s: "一张卡片只讲一件事，写完之后用双链把它和别的卡片连起来。", k: "文档" },
+  { d: "09·30", t: "第一次用 Rust 写命令行工具", s: "从 cargo new 到发布，记录一个周末里踩过的坑。", k: "文章" },
+  { d: "09·26", t: "间隔重复的最佳时机", s: "在快忘记的时候复习，记得最牢。", k: "卡片" },
+];
+const CARDS = [
+  ["费曼学习法的核心只有一句话：如果你不能用简单的话把一件事讲给小朋友听，说明你还没真正懂它。", "学习", "10·12"],
+  ["Rust 的所有权其实就是「谁负责收拾房间」：同一时间只能有一个主人，借出去要按时还。", "编程", "10·10"],
+  ["薄荷扦插：剪下 10 厘米带节的枝条，泡水一周就会长根。", "生活", "10·06"],
+  ["写不下去的时候，先写一个糟糕的版本。改比写容易得多。", "写作", "10·03"],
+  ["《小王子》：「正是你为你的玫瑰花费的时间，才使你的玫瑰变得如此重要。」", "读书", "09·29"],
+  ["间隔重复：在快忘记的时候复习，记得最牢。", "学习", "09·26"],
+];
+const TAGS = ["全部", "学习", "编程", "生活", "写作", "读书"];
+const ARTICLE = {
+  t: "在家做一杯好喝的手冲咖啡", m: ["团子", "2026 年 10 月 25 日", "约 6 分钟"],
+  toc: ["先选一包新鲜的豆子", "水温和粉水比", "注水的节奏", "写在最后"],
+};
+
+// —— 团子：A 细墨线 / B 剪纸 / C 双色印刷
+const mochiA = (mood = "happy", w = 2) => `<svg viewBox="0 0 120 104" aria-hidden="true">
+  <ellipse cx="60" cy="98" rx="34" ry="3.5" fill="currentColor" opacity=".08"/>
+  <path d="M15 84C9 52 31 24 60 24s51 28 45 60c-1 7-8 10-45 10S16 91 15 84z" fill="var(--mochi)" stroke="var(--ink)" stroke-width="${w}" stroke-linejoin="round"/>
+  <path d="M33 42q6-9 15-12" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".9"/>
+  <ellipse cx="33" cy="68" rx="7" ry="4" fill="var(--seal)" opacity=".22"/><ellipse cx="87" cy="68" rx="7" ry="4" fill="var(--seal)" opacity=".22"/>
+  ${mood === "sleepy" ? `<path d="M38 56q6 4 12 0M70 56q6 4 12 0" fill="none" stroke="var(--ink)" stroke-width="${w}" stroke-linecap="round"/>`
+    : `<ellipse cx="44" cy="55" rx="3.6" ry="4.6" fill="var(--ink)"/><ellipse cx="76" cy="55" rx="3.6" ry="4.6" fill="var(--ink)"/><circle cx="45.4" cy="53" r="1.2" fill="#fff"/><circle cx="77.4" cy="53" r="1.2" fill="#fff"/>`}
+  <path d="M56 65q2 2.6 4 0q2 2.6 4 0" fill="none" stroke="var(--ink)" stroke-width="${w * 0.8}" stroke-linecap="round"/>
+  <path d="M60 24q-2-8 4-12" fill="none" stroke="var(--matcha-ink)" stroke-width="${w}" stroke-linecap="round"/><path d="M64 12q8-2 12 4q-8 3-12-4z" fill="var(--matcha)" stroke="var(--matcha-ink)" stroke-width="${w * 0.7}"/>
+</svg>`;
+const mochiB = (mood = "happy") => `<svg viewBox="0 0 120 104" aria-hidden="true">
+  <defs><filter id="bshade${mood}" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="5" stdDeviation="4" flood-color="#26333A" flood-opacity=".22"/></filter></defs>
+  <g filter="url(#bshade${mood})"><path d="M15 84C9 52 31 24 60 24s51 28 45 60c-1 7-8 10-45 10S16 91 15 84z" fill="var(--mochi)"/>
+  <path d="M28 82C24 58 40 36 60 36" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" opacity=".5"/></g>
+  <circle cx="33" cy="68" r="6" fill="var(--warm)" opacity=".55"/><circle cx="87" cy="68" r="6" fill="var(--warm)" opacity=".55"/>
+  ${mood === "sleepy" ? `<path d="M38 56q6 4 12 0M70 56q6 4 12 0" fill="none" stroke="#26333A" stroke-width="2.4" stroke-linecap="round"/>`
+    : `<circle cx="44" cy="55" r="4.2" fill="#26333A"/><circle cx="76" cy="55" r="4.2" fill="#26333A"/>`}
+  <path d="M56 65q2 2.6 4 0q2 2.6 4 0" fill="none" stroke="#26333A" stroke-width="2" stroke-linecap="round"/>
+</svg>`;
+const mochiC = () => `<svg viewBox="0 0 120 104" aria-hidden="true">
+  <path class="mis" d="M19 86C13 54 35 26 64 26s51 28 45 60c-1 7-8 10-45 10S20 93 19 86z" fill="var(--pink)"/>
+  <path class="mis" d="M15 84C9 52 31 24 60 24s51 28 45 60c-1 7-8 10-45 10S16 91 15 84z" fill="none" stroke="var(--blue)" stroke-width="3.2" stroke-linejoin="round"/>
+  <g class="mis" fill="var(--blue)"><ellipse cx="44" cy="55" rx="4.2" ry="5.4"/><ellipse cx="76" cy="55" rx="4.2" ry="5.4"/></g>
+  <path class="mis" d="M55 66q2.5 3 5 0q2.5 3 5 0" fill="none" stroke="var(--blue)" stroke-width="2.6" stroke-linecap="round"/>
+  <g class="mis" fill="var(--blue)" opacity=".5">${Array.from({ length: 18 }, (_, i) => `<circle cx="${30 + (i % 6) * 6}" cy="${72 + Math.floor(i / 6) * 6}" r="1.4"/>`).join("")}</g>
+</svg>`;
+
+// —— A 的小插画：印章式的三间铺子
+const iconA = {
+  post: `<svg viewBox="0 0 60 60"><rect x="8" y="16" width="44" height="32" rx="3" fill="var(--sakura)" stroke="var(--ink)" stroke-width="1.6"/><path d="M8 18l22 16 22-16" fill="none" stroke="var(--ink)" stroke-width="1.6"/><circle cx="46" cy="16" r="7" fill="var(--seal)"/><path d="M43 16h6" stroke="var(--on-seal)" stroke-width="1.6"/></svg>`,
+  card: `<svg viewBox="0 0 60 60"><rect x="12" y="10" width="34" height="40" rx="3" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.6" transform="rotate(-6 29 30)"/><rect x="16" y="12" width="34" height="40" rx="3" fill="var(--matcha)" stroke="var(--ink)" stroke-width="1.6" transform="rotate(5 33 32)"/><path d="M23 26h18M23 33h14" stroke="var(--ink)" stroke-width="1.4" stroke-linecap="round" transform="rotate(5 33 32)"/></svg>`,
+  book: `<svg viewBox="0 0 60 60"><path d="M8 14q11-4 22 2v32q-11-6-22-2z" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.6"/><path d="M52 14q-11-4-22 2v32q11-6 22-2z" fill="var(--sakura)" stroke="var(--ink)" stroke-width="1.6"/><path d="M14 24h10M14 30h10M36 24h10" stroke="var(--ink)" stroke-width="1.3" stroke-linecap="round"/></svg>`,
+};
+const sun = `<svg viewBox="0 0 24 24" width="16"><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+const search = `<svg viewBox="0 0 24 24" width="16"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>`;
+// —— A · 团子铺
+const prose = (variant) => `
+  <p>秋天的早上，最适合慢慢磨一把豆子。这篇是我练了三个月后的<mark>一些小心得</mark>，不追求专业，只求每天那一杯能让自己开心。</p>
+  <h2>${variant === "A" ? "<small>一</small>" : ""}先选一包新鲜的豆子</h2>
+  <p>烘焙日期在两周以内最好。浅烘的果酸更明亮，中深烘更像巧克力和坚果。第一次买可以选中烘的单品，容错率高。</p>
+  <blockquote>豆子开封后用带单向阀的罐子装，放在阴凉处，不要进冰箱。</blockquote>
+  <h2>${variant === "A" ? "<small>二</small>" : ""}水温和粉水比</h2>
+  <p>我常用 1:15 的粉水比，15 克粉配 225 克水，水温 92 度左右。先用 30 克水闷蒸 30 秒，看着粉层鼓起来，像一个小小的面包。</p>
+  <div class="code"><i>const</i> water = (beans: <i>number</i>, ratio = 15) =&gt; beans * ratio;</div>
+  <p>分三段注水，每段之间等水位降到一半。手要稳，水流细，绕着中心画小圈。</p>`;
+
+const A = {
+  head: (on) => `<header class="top"><a class="brand" href="#">${mochiA("happy", 2.4)}团子的小窝</a>
+    <nav><a ${on === "read" ? "aria-current" : ""}>文章</a><a ${on === "cards" ? "aria-current" : ""}>卡片</a><a>项目</a></nav>
+    <div class="tool"><button aria-label="搜索">${search}</button><button aria-label="切换明暗" data-flip>${sun}</button></div></header>`,
+  home: () => `${A.head("home")}
+    <section class="hero">
+      <div>
+        <h1>团子的<br>小窝</h1>
+        <p class="say">我在这里写字、记卡片、整理做过的小项目。慢慢写，慢慢长大。</p>
+        <div class="counts"><span><b>42</b>篇文章</span><span><b>318</b>张卡片</span><span><b>4</b>个项目</span></div>
+      </div>
+      <div class="stage"><div class="ring"></div><div class="mochi" title="戳一下">${mochiA("happy", 1.8)}</div>
+        <span class="tag">今日现做</span><span class="stamp">团子<br>之印</span></div>
+    </section>
+    <nav class="menu" aria-label="分区">
+      <a><span class="new">新到 2 篇</span>${iconA.post}<h3>文章</h3><p>写给你的长信，42 篇</p></a>
+      <a>${iconA.card}<h3>卡片</h3><p>随手记下的小想法，318 张</p></a>
+      <a>${iconA.book}<h3>项目</h3><p>一本本做完的小册子，4 本</p></a>
+    </nav>
+    <section class="fresh"><h2>最近做好的</h2>
+      ${POSTS.map((p) => `<a><time>${p.d}</time><span class="t">${p.t}</span><em>${p.k}</em></a>`).join("")}
+    </section>`,
+  read: () => `${A.head("read")}
+    <div class="read">
+      <aside class="l"><ol>${ARTICLE.toc.map((t, i) => `<li class="${i === 1 ? "on" : ""}">${t}</li>`).join("")}</ol>
+        <div class="eat">${mochiA("happy", 2.6)}读到四成</div></aside>
+      <article><h1>${ARTICLE.t}</h1><div class="meta">${ARTICLE.m.map((m) => `<span>${m}</span>`).join("")}</div>${prose("A")}
+        <div class="end"><button>喜欢这篇</button><button>投喂团子</button><span>最后更新于 10 月 27 日</span></div></article>
+      <aside class="r">${mochiA("sleepy", 2)}<p>团子在页边打盹，读完会醒。</p></aside>
+    </div>`,
+  cards: () => `${A.head("cards")}
+    <section class="box"><h1>卡片</h1><p class="sub">一盒随手记下的小想法，按标签挑着看。</p>
+      <div class="filters">${TAGS.map((t, i) => `<button aria-pressed="${i === 0}">${t}</button>`).join("")}</div>
+      <div class="tray">${CARDS.map(([b, tag, d], i) => `<a><span class="dot" style="background:${["var(--sakura)", "var(--matcha)", "var(--wash)", "var(--sakura)", "var(--matcha)", "var(--wash)"][i]};box-shadow:inset 0 0 0 1px var(--rule)"></span><p>${b}</p><footer><span>${tag}</span><span>${d}</span></footer></a>`).join("")}</div>
+    </section>`,
+};
+
+// —— B · 纸艺小镇：三层剪纸叠出景深
+const layersB = `
+  <svg class="layer" viewBox="0 0 1200 300" preserveAspectRatio="none" style="height:300px"><path d="M0 170 Q200 110 380 150 T760 130 T1200 150 V300 H0z" fill="var(--l2)"/></svg>
+  <svg class="layer" viewBox="0 0 1200 260" preserveAspectRatio="none" style="height:240px"><path d="M0 150 Q260 90 520 140 T1000 120 T1200 140 V260 H0z" fill="var(--l1)"/>
+    <g transform="translate(760 40)"><path d="M0 100V48L40 18l40 30v52z" fill="var(--paper)"/><path d="M-6 50L40 12l46 38" fill="none" stroke="var(--warm)" stroke-width="10" stroke-linejoin="round"/><rect x="30" y="66" width="20" height="34" rx="10" fill="var(--warm)"/></g>
+    <g transform="translate(900 66)"><path d="M0 76V36L30 12l30 24v40z" fill="var(--paper)"/><path d="M-5 38L30 8l35 30" fill="none" stroke="var(--accent)" stroke-width="8" stroke-linejoin="round" opacity=".6"/><circle cx="30" cy="40" r="7" fill="var(--l1)"/></g>
+  </svg>
+  <svg class="layer" viewBox="0 0 1200 160" preserveAspectRatio="none" style="height:150px"><path d="M0 70 Q300 20 600 60 T1200 50 V160 H0z" fill="var(--l3)"/></svg>`;
+const artB = {
+  post: `<svg viewBox="0 0 300 110" preserveAspectRatio="xMidYMid slice" width="100%" height="110"><rect width="300" height="110" fill="var(--l1)"/><path d="M0 80Q80 50 160 74T300 66V110H0z" fill="var(--l3)"/><g transform="translate(120 22)"><rect width="60" height="40" rx="6" fill="var(--paper)" style="filter:drop-shadow(0 6px 8px var(--shade))"/><path d="M0 4l30 20 30-20" fill="none" stroke="var(--warm)" stroke-width="4" stroke-linejoin="round"/></g></svg>`,
+  card: `<svg viewBox="0 0 300 110" preserveAspectRatio="xMidYMid slice" width="100%" height="110"><rect width="300" height="110" fill="var(--l3)"/><g style="filter:drop-shadow(0 6px 8px var(--shade))"><rect x="104" y="20" width="56" height="64" rx="8" fill="var(--paper)" transform="rotate(-8 132 52)"/><rect x="138" y="24" width="56" height="64" rx="8" fill="var(--l1)" transform="rotate(7 166 56)"/></g></svg>`,
+  book: `<svg viewBox="0 0 300 110" preserveAspectRatio="xMidYMid slice" width="100%" height="110"><rect width="300" height="110" fill="var(--l2)"/><g style="filter:drop-shadow(0 6px 8px var(--shade))"><path d="M90 30q30-10 60 4v56q-30-12-60-4z" fill="var(--paper)"/><path d="M210 30q-30-10-60 4v56q30-12 60-4z" fill="var(--l1)"/></g></svg>`,
+};
+const B = {
+  head: (on) => `<header class="top"><a class="brand" href="#">${mochiB()}团子的小窝</a>
+    <nav><a ${on === "read" ? "aria-current" : ""}>文章</a><a ${on === "cards" ? "aria-current" : ""}>卡片</a><a>项目</a></nav></header>`,
+  home: () => `<div class="pop">${B.head("home")}<span class="moon"></span>
+      <div class="copy"><h1>欢迎来到<br>团子的纸做小镇</h1><p>我在这里写字、记卡片、整理做过的小项目。</p></div>
+      ${layersB}
+      <div style="position:absolute;left:46%;bottom:58px;width:120px">${mochiB()}</div></div>
+    <div class="doors">
+      <a class="door"><div class="art">${artB.post}</div><h3>文章</h3><p>写给你的长信</p><span class="n">42 篇 · 新到 2</span></a>
+      <a class="door"><div class="art">${artB.card}</div><h3>卡片</h3><p>随手记下的小想法</p><span class="n">318 张</span></a>
+      <a class="door"><div class="art">${artB.book}</div><h3>项目</h3><p>做完的小册子</p><span class="n">4 本</span></a>
+    </div>
+    <section class="latest"><h2>最近更新</h2>${POSTS.map((p) => `<a><time>${p.d}</time><span class="t">${p.t}</span></a>`).join("")}</section>`,
+  read: () => `${B.head("read")}<div class="read"><article><h1>${ARTICLE.t}</h1><div class="meta">${ARTICLE.m.join("，")}</div>${prose("B")}</article>
+      <aside><div class="card"><ol>${ARTICLE.toc.map((t, i) => `<li class="${i === 1 ? "on" : ""}">${t}</li>`).join("")}</ol><div class="meter"><i></i></div></div>
+      <div style="width:90px;margin:24px auto 0">${mochiB("sleepy")}</div></aside></div>`,
+  cards: () => `${B.head("cards")}<section class="shelf"><h1>卡片</h1><p class="sub">随手记下的小想法</p>
+      <div class="filters">${TAGS.map((t, i) => `<button aria-pressed="${i === 0}">${t}</button>`).join("")}</div>
+      <div class="stack">${CARDS.map(([b, tag, d], i) => `<a><span class="chip" style="background:${["var(--l1)", "var(--l2)", "var(--l3)"][i % 3]}">${tag}</span><p>${b}</p><footer>${d}</footer></a>`).join("")}</div></section>`,
+};
+
+// —— C · 孔版小报
+const iconC = {
+  post: `<svg viewBox="0 0 70 60"><rect class="mis" x="12" y="14" width="50" height="34" fill="var(--pink)"/><rect class="mis" x="8" y="10" width="50" height="34" fill="none" stroke="var(--blue)" stroke-width="3"/><path class="mis" d="M8 12l25 18 25-18" fill="none" stroke="var(--blue)" stroke-width="3"/></svg>`,
+  card: `<svg viewBox="0 0 70 60"><rect class="mis" x="20" y="10" width="36" height="44" fill="var(--pink)" transform="rotate(8 38 32)"/><rect class="mis" x="12" y="8" width="36" height="44" fill="none" stroke="var(--blue)" stroke-width="3" transform="rotate(-6 30 30)"/></svg>`,
+  book: `<svg viewBox="0 0 70 60"><path class="mis" d="M38 14q14-6 26 2v34q-12-6-26 0z" fill="var(--pink)"/><path class="mis" d="M8 12q13-6 26 2v34q-13-6-26 0zM34 14q13-8 26-2v34q-13-6-26 2" fill="none" stroke="var(--blue)" stroke-width="3" stroke-linejoin="round"/></svg>`,
+};
+const C = {
+  head: (on) => `<header class="top"><a class="brand" href="#">${mochiC()}团子小报</a>
+    <nav><a ${on === "read" ? "aria-current" : ""}>文章</a><a ${on === "cards" ? "aria-current" : ""}>卡片</a><a>项目</a><a>搜索</a></nav></header>`,
+  home: () => `${C.head("home")}
+    <section class="mast"><div><h1><span>团子的</span><span>小窝</span><span class="ghost" aria-hidden="true"><span>团子的</span><span>小窝</span></span></h1></div>
+      <div style="display:grid;grid-template-columns:1fr 200px;gap:20px;align-items:end"><p>我在这里写字、记卡片、整理做过的小项目。慢慢写，慢慢长大。</p><div class="big"><span class="halftone"></span>${mochiC()}</div></div></section>
+    <nav class="strip" aria-label="分区"><a>${iconC.post}<div><h3>文章</h3><p>42 篇，本周新到 2 篇</p></div></a><a>${iconC.card}<div><h3>卡片</h3><p>318 张随手记</p></div></a><a>${iconC.book}<div><h3>项目</h3><p>4 本小册子</p></div></a></nav>
+    <section class="issue"><a class="lead"><div class="pic">${mochiC()}</div><div><time>10 月 25 日</time><h3>${POSTS[0].t}</h3><p>${POSTS[0].s}</p></div></a>
+      <div class="side">${POSTS.slice(1, 5).map((p) => `<a><time>${p.d}</time><h3>${p.t}</h3></a>`).join("")}</div></section>`,
+  read: () => `${C.head("read")}<div class="read"><article><h1>${ARTICLE.t}</h1><div class="meta">${ARTICLE.m.map((m) => `<span>${m}</span>`).join("")}</div>${prose("C")}</article>
+      <aside><h4>这一期的目录</h4><ol>${ARTICLE.toc.map((t, i) => `<li class="${i === 1 ? "on" : ""}">${t}</li>`).join("")}</ol><div class="mochi">${mochiC()}</div></aside></div>`,
+  cards: () => `${C.head("cards")}<section class="zine"><h1>卡片</h1>
+      <div class="filters">${TAGS.map((t, i) => `<button aria-pressed="${i === 0}">${t}</button>`).join("")}</div>
+      <div class="grid">${CARDS.map(([b, tag, d], i) => `<a class="${i === 0 ? "feature" : ""}"><p>${b}</p><footer><span>${tag}</span><span>${d}</span></footer></a>`).join("")}</div></section>`,
+};
+// —— 切换
+const DIRS = { A, B, C };
+const NOTES = {
+  A: "<b>A · 团子铺</b>：把博客当成一家和果子小店。米白和纸底带极淡的纤维纹，颜色只有樱粉、抹茶和一枚朱红店印；全站一套霞鹜文楷，标题靠字距和留白显得考究。界面几乎没有边框和投影，只用细线分隔，团子画成细墨线头顶一片叶子，是全页唯一的主角。可爱来自「店主是只团子」的设定和手作感的小细节（竖排招牌、店印、读到几成）。",
+  B: "<b>B · 纸艺小镇</b>：首页像翻开一本立体书，三层剪纸叠出景深，小镇是纸做的；内容是一张张浮起的纸片，用柔和投影表达层次，没有描边。团子也是剪纸质感。最有「小镇」氛围，但首页场景要画得精，否则容易变成廉价的扁平插画。",
+  C: "<b>C · 孔版小报</b>：只用两种油墨（蓝与粉），像社团自印的小报：大字标题带一点套色错位，团子与插画是双色叠印加半调网点，版面用粗线框分栏。最有个性、最省字体，但风格很强，偏「酷可爱」而不是「软可爱」。",
+};
+const URLS = { home: "mochi.blog/", read: "mochi.blog/articles/1", cards: "mochi.blog/cards" };
+const state = { dir: "A", page: "home", mode: "light" };
+const view = document.getElementById("view");
+function render() {
+  const d = DIRS[state.dir];
+  view.innerHTML = `<div class="page on ${state.dir}" data-mode="${state.mode}">${d[state.page]()}</div>`;
+  document.getElementById("dirNote").innerHTML = NOTES[state.dir];
+  document.getElementById("url").textContent = URLS[state.page];
+  for (const [id, key] of [["dirSeg", "dir"], ["pageSeg", "page"], ["modeSeg", "mode"]])
+    document.querySelectorAll(`#${id} button`).forEach((b) => b.setAttribute("aria-pressed", String(b.dataset[key] === state[key])));
+  view.scrollTop = 0;
+}
+for (const [id, key] of [["dirSeg", "dir"], ["pageSeg", "page"], ["modeSeg", "mode"]])
+  document.getElementById(id).addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    state[key] = b.dataset[key];
+    render();
+  });
+view.addEventListener("click", (e) => {
+  if (e.target.closest("[data-flip]")) { state.mode = state.mode === "light" ? "dark" : "light"; render(); return; }
+  const f = e.target.closest(".filters button");
+  if (f) f.parentElement.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b === f)));
+  const m = e.target.closest(".stage .mochi");
+  if (m) m.animate([{ transform: "scale(1)" }, { transform: "scale(1.12,.86)" }, { transform: "translateY(-14px) scale(.94,1.06)" }, { transform: "none" }], { duration: 650, easing: "cubic-bezier(.34,1.56,.64,1)" });
+});
+render();
+</script>
+</body>
+</html>
