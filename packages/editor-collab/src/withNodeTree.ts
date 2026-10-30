@@ -358,6 +358,36 @@ export function withNodeTree<T extends Editor>(
           ? operation.node
           : withIdentities(operation.node, configuration.currentContract),
       };
+    let mergeContract: string | undefined;
+    if (operation.type === "merge_node") {
+      const node = Node.get(editor, operation.path);
+      const previousPath = Path.previous(operation.path);
+      const previous = Node.get(editor, previousPath);
+      if (Element.isElement(node) && Element.isElement(previous)) {
+        if (!editablePath(previousPath)) return;
+        const sourceContract = tree.contract(nodeIdentity(node)!);
+        const targetContract = tree.contract(nodeIdentity(previous)!);
+        const sourceId = (node as unknown as Record<string, unknown>)[NODE_CONTRACT_PROPERTY];
+        const targetId = (previous as unknown as Record<string, unknown>)[NODE_CONTRACT_PROPERTY];
+        if (sourceId !== targetId) {
+          if (
+            !sourceContract ||
+            !targetContract ||
+            typeof targetId !== "string" ||
+            sourceContract.type === targetContract.type ||
+            sourceContract.kind !== targetContract.kind ||
+            sourceContract.isVoid ||
+            targetContract.isVoid ||
+            sourceContract.textFields.length ||
+            targetContract.textFields.length ||
+            sourceContract.resources.length ||
+            targetContract.resources.length
+          )
+            return;
+          mergeContract = targetId;
+        }
+      }
+    }
     const splitIdentity = crypto.randomUUID();
     const write = (tree: NodeTree) => {
       if (operation.type === "insert_node" && Element.isElement(operation.node)) {
@@ -450,7 +480,16 @@ export function withNodeTree<T extends Editor>(
         } else if (operation.type === "merge_node") {
           const previous = Node.get(editor, Path.previous(operation.path)) as Descendant;
           if (Element.isElement(node) && Element.isElement(previous)) {
-            tree.mergeNodes(nodeIdentity(node)!, nodeIdentity(previous)!, origin);
+            tree.doc.transact(() => {
+              if (mergeContract)
+                tree.convertNode(
+                  nodeIdentity(node)!,
+                  mergeContract,
+                  { type: previous.type },
+                  origin
+                );
+              tree.mergeNodes(nodeIdentity(node)!, nodeIdentity(previous)!, origin);
+            }, origin);
           } else if (Text.isText(node) && Text.isText(previous) && location.parent) {
             const marks = {
               ...Object.fromEntries(Object.keys(properties(node)).map(key => [key, null])),

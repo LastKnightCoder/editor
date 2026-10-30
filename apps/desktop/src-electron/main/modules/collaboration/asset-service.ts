@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, rmSync } from "node:fs";
 import { basename, extname, isAbsolute, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -154,13 +154,21 @@ export class CollaborationAssetService {
     return join(this.appDirectory, "collaboration", "assets");
   }
 
+  private documentCacheDirectory(documentId: string) {
+    return join(this.cacheDirectory, encodeURIComponent(documentId));
+  }
+
+  removeDocumentCache(documentId: string) {
+    rmSync(this.documentCacheDirectory(documentId), { recursive: true, force: true });
+  }
+
   private async cache(
     documentId: string,
     file: { name: string; mime: string; bytes: Uint8Array },
     uploaded: number
   ) {
     const id = randomUUID();
-    const directory = join(this.cacheDirectory, documentId);
+    const directory = this.documentCacheDirectory(documentId);
     await mkdir(directory, { recursive: true });
     // 视频按原扩展名缓存，本机播放依赖扩展名识别格式
     const extension = extname(file.name).toLowerCase();
@@ -378,7 +386,7 @@ export class CollaborationAssetService {
       parts.push(result.value);
     }
     const mime = response.headers.get("content-type")?.split(";")[0] || "application/octet-stream";
-    const directory = join(this.cacheDirectory, documentId);
+    const directory = this.documentCacheDirectory(documentId);
     await mkdir(directory, { recursive: true });
     const named = response.headers
       .get("content-disposition")
