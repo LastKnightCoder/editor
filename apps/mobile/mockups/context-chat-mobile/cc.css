@@ -1,0 +1,364 @@
+/* 内容页就近对话 mockup：外壳、手机帧、对话元素复用 editor-mobile + chat-polish-mobile */
+
+/* 背后的内容页 */
+.doc {
+  position: absolute;
+  inset: 40px 0 0;
+  display: flex;
+  flex-direction: column;
+}
+.doc .dnav {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 2px;
+  color: var(--ink-2);
+}
+.doc .dnav .sp {
+  flex: 1;
+}
+.doc .dnav > span {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+}
+.doc .dnav .ai {
+  color: var(--brand);
+}
+.doc .body {
+  padding: 4px 22px;
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--ink-1);
+}
+.doc .body h2 {
+  font-size: 22px;
+  line-height: 1.35;
+  margin: 4px 0 12px;
+}
+.doc .body p + p {
+  margin-top: 10px;
+}
+.doc .body .sel {
+  background: color-mix(in srgb, var(--brand) 22%, transparent);
+  border-radius: 3px;
+}
+
+/* 抽屉 */
+.mask {
+  position: absolute;
+  inset: 0;
+  background: var(--mask);
+  z-index: 3;
+}
+.sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+  background: var(--bg-page);
+  border-radius: 22px 22px 0 0;
+  box-shadow: var(--shadow-float);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sheet.full {
+  top: 40px;
+  border-radius: 0;
+}
+.sheet.ghost {
+  outline: 2px dashed var(--danger);
+  outline-offset: -2px;
+}
+.handle {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 8px;
+}
+.handle i {
+  width: 40px;
+  height: 5px;
+  border-radius: 9px;
+  background: var(--line-2);
+}
+.shead {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 6px 18px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.shead .t {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.shead .ic-accent {
+  color: var(--brand);
+}
+.shead .ib {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  color: var(--ink-2);
+}
+.drag-zone {
+  position: relative;
+}
+.drag-zone.hl::after {
+  content: "";
+  position: absolute;
+  inset: 2px 6px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+  outline: 1.5px dashed var(--brand);
+  pointer-events: none;
+}
+.sthread {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  padding: 2px 18px 0;
+  display: flex;
+  flex-direction: column;
+}
+.sthread > * {
+  flex-shrink: 0;
+}
+.sthread.hl {
+  outline: 1.5px dashed var(--tau-ok);
+  outline-offset: -4px;
+  border-radius: 12px;
+}
+.sthread .a {
+  margin-top: 10px;
+  font-size: 14.5px;
+}
+.sthread .u {
+  font-size: 14.5px;
+}
+.sthread .fade-top {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 18px;
+  background: linear-gradient(var(--bg-page), transparent);
+}
+.sheet .cmp {
+  padding-bottom: 28px;
+}
+.chips {
+  display: flex;
+  gap: 8px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.chips span {
+  flex: none;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 99px;
+  background: var(--bg-surface);
+  color: var(--ink-2);
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+}
+.quote {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: var(--bg-surface);
+  border-radius: 12px;
+  padding: 6px 10px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+.quote::before {
+  content: "";
+  width: 2px;
+  height: 13px;
+  margin-top: 3px;
+  border-radius: 2px;
+  background: var(--brand);
+  flex: none;
+}
+
+/* 手势示意 */
+.finger {
+  position: absolute;
+  z-index: 9;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ink-1) 22%, transparent);
+  border: 2px solid color-mix(in srgb, var(--ink-1) 45%, transparent);
+}
+.trail {
+  position: absolute;
+  z-index: 8;
+  width: 3px;
+  border-radius: 3px;
+  background: linear-gradient(transparent, color-mix(in srgb, var(--ink-1) 40%, transparent));
+}
+.trail.down {
+  background: linear-gradient(color-mix(in srgb, var(--ink-1) 40%, transparent), transparent);
+}
+.tip {
+  position: absolute;
+  z-index: 9;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 8px;
+  background: var(--ink-1);
+  color: var(--ink-inv);
+  white-space: nowrap;
+}
+.tip.bad {
+  background: var(--danger);
+  color: #fff;
+}
+.tip.ok {
+  background: var(--tau-ok);
+  color: #fff;
+}
+.offscreen {
+  position: absolute;
+  z-index: 9;
+  left: 12px;
+  right: 12px;
+  bottom: 8px;
+  border: 1.5px dashed var(--danger);
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, var(--bg-page));
+  line-height: 1.5;
+}
+
+/* 键盘 */
+.kb {
+  flex: none;
+  background: var(--kb-bg);
+  padding: 6px 3px 0;
+}
+.kb-row {
+  display: flex;
+  gap: 5px;
+  padding: 0 2px;
+  margin-bottom: 9px;
+}
+.kb-key {
+  flex: 1;
+  height: 38px;
+  border-radius: 6px;
+  background: var(--kb-key);
+  color: var(--kb-ink);
+  box-shadow: 0 1px 0 var(--kb-shadow);
+  font-size: 16px;
+  display: grid;
+  place-items: center;
+}
+.kb-key.f {
+  flex: none;
+  background: var(--kb-key-2);
+  font-size: 13px;
+}
+.kb-key.space {
+  flex: 1;
+  font-size: 13px;
+}
+.kb-home {
+  height: 22px;
+}
+.phone.kbd .sheet {
+  bottom: 0;
+}
+
+/* 方案 B：全屏页里的上下文条 */
+.ctx-bar {
+  margin: 0 14px 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: var(--bg-surface);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.ctx-bar b {
+  color: var(--ink-1);
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ctx-bar .go {
+  color: var(--brand-text);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.page-chat {
+  position: absolute;
+  inset: 40px 0 0;
+  background: var(--bg-page);
+  display: flex;
+  flex-direction: column;
+}
+
+/* 方案 C：内容收成顶部条 */
+.peek {
+  position: absolute;
+  z-index: 4;
+  left: 0;
+  right: 0;
+  top: 40px;
+  height: 118px;
+  padding: 8px 18px 0;
+  overflow: hidden;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  background: var(--bg-page);
+}
+.peek h3 {
+  font-size: 15px;
+  color: var(--ink-1);
+  margin-bottom: 4px;
+}
+.peek::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 40px;
+  background: linear-gradient(transparent, var(--bg-page));
+}
+
+table.cmp td,
+table.cmp th {
+  vertical-align: top;
+}

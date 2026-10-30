@@ -1,6 +1,8 @@
 // 对话页：二级页面（隐藏 Dock）。新对话首条消息发出时才建会话；副标题是当前模型，点按只为本会话切换。
+// 带来源内容时是就近对话：顶部原文条，输入框上方预置整篇 / 选中片段引用与快捷问法。
 
 import { useEffect, useState } from "react";
+import type { MentionRef } from "@tau/shared/chat-core";
 import { ChevronDown, CircleAlert, History, SquarePen } from "lucide-react";
 import { PortalScope } from "@tau/ui";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
@@ -12,13 +14,37 @@ import { ChatComposer } from "./ChatComposer";
 import { ChatEmpty, ChatSetup } from "./ChatEmpty";
 import { ChatMessages } from "./ChatMessages";
 import { describeChatError } from "./chatErrors";
+import {
+  CONTENT_KIND_TITLE,
+  mentionOf,
+  QUOTE_PROMPTS,
+  WHOLE_PROMPTS,
+  type ContentChatTarget,
+} from "./contentChat";
 import { useMessageActions } from "./MessageActions";
+import { SourceBar } from "./SourceBar";
 import { useChatSession } from "./useChatSession";
 
-export function ChatPage(props: { sessionId: string; isNew: boolean; prompt?: string }) {
+export function ChatPage(props: {
+  sessionId: string;
+  isNew: boolean;
+  prompt?: string;
+  /** 就近对话的来源内容 */
+  content?: ContentChatTarget;
+}) {
   const navigator = useNavigator();
+  const { content } = props;
   const { chat, providers, model, modelInfo, running, loadError, send, pickModel } = useChatSession(
-    { sessionId: props.sessionId, isNew: props.isNew }
+    {
+      sessionId: props.sessionId,
+      isNew: props.isNew,
+      ...(content && {
+        domain: { contentId: content.contentId, title: content.title || "未命名" },
+      }),
+    }
+  );
+  const [mentions, setMentions] = useState<MentionRef[]>(() =>
+    content ? [mentionOf(content)] : []
   );
   const [picking, setPicking] = useState(false);
   const actions = useMessageActions(props.sessionId);
@@ -48,7 +74,11 @@ export function ChatPage(props: { sessionId: string; isNew: boolean; prompt?: st
               className="flex max-w-full flex-col items-center"
             >
               <span className="text-ink-1 max-w-full truncate text-[16px] font-bold">
-                {chat?.title && chat.title !== "新对话" ? chat.title : "新对话"}
+                {content
+                  ? CONTENT_KIND_TITLE[content.entityType]
+                  : chat?.title && chat.title !== "新对话"
+                    ? chat.title
+                    : "新对话"}
               </span>
               {model && (
                 <span className="text-ink-2 text-tau-sm flex max-w-full items-center gap-1">
@@ -69,18 +99,23 @@ export function ChatPage(props: { sessionId: string; isNew: boolean; prompt?: st
                 className="text-ink-2 [&_svg]:stroke-2"
                 onClick={() => navigator.push("aiChatHistory", {})}
               />
-              <PageHeaderButton
-                icon={<SquarePen size={19} />}
-                className="text-ink-2 [&_svg]:stroke-2"
-                disabled={!chat?.messages.length}
-                aria-label="新对话"
-                onClick={() =>
-                  navigator.replace("aiChat", { sessionId: crypto.randomUUID(), isNew: "1" })
-                }
-              />
+              {!content && (
+                <PageHeaderButton
+                  icon={<SquarePen size={19} />}
+                  className="text-ink-2 [&_svg]:stroke-2"
+                  disabled={!chat?.messages.length}
+                  aria-label="新对话"
+                  onClick={() =>
+                    navigator.replace("aiChat", { sessionId: crypto.randomUUID(), isNew: "1" })
+                  }
+                />
+              )}
             </>
           }
         />
+        {content && (
+          <SourceBar contentId={content.contentId} title={content.title} quote={content.quote} />
+        )}
         {!model ? (
           <div className="flex-1 overflow-y-auto px-4">
             <ChatSetup hasProvider={providers.length > 0} onSetup={openSettings} />
@@ -90,7 +125,15 @@ export function ChatPage(props: { sessionId: string; isNew: boolean; prompt?: st
             <ChatMessages
               messages={chat?.messages ?? []}
               running={running}
-              empty={<ChatEmpty onPick={text => void send(text)} />}
+              empty={
+                content ? (
+                  <p className="text-ink-3 text-tau-meta px-6 pt-10 text-center leading-relaxed">
+                    {content.quote ? "问问选中的这段，或用下面的快捷问法。" : "问问这篇内容。"}
+                  </p>
+                ) : (
+                  <ChatEmpty onPick={text => void send(text)} />
+                )
+              }
               onAction={actions.onAction}
               onMenu={actions.onMenu}
             />
@@ -130,6 +173,12 @@ export function ChatPage(props: { sessionId: string; isNew: boolean; prompt?: st
               running={running}
               disabled={!!loadError}
               imageInput={!!modelInfo?.input.includes("image")}
+              {...(content && {
+                placeholder: "问问这段内容…",
+                mentions,
+                onMentionsChange: setMentions,
+                quickPrompts: content.quote ? QUOTE_PROMPTS : WHOLE_PROMPTS,
+              })}
               onSend={input => void send(input)}
               onStop={() => void stopRun(props.sessionId)}
             />

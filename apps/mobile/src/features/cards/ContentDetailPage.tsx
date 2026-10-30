@@ -56,15 +56,11 @@ import { useOutlineSheet } from "./outline/useOutlineSheet";
 import { useContentLocation } from "./useContentLocation";
 import { useContentMention } from "./editorExtensions/useContentMention";
 import type { MentionEntityType } from "@tau/shared/chat-core";
-import type { ContextChatTarget } from "../aiChat/ContextChatSheet";
+import { getNavigator } from "../../router";
+import type { ContentChatTarget } from "../aiChat/contentChat";
 import { richTextPlainText } from "../../utils/richTextText";
 
 // 原地协作编辑器按需加载：未使用协作的用户不加载协作组件与运行时
-// 半屏就近对话带上聊天渲染与 AI 运行时，打开时才加载
-const ContextChatSheet = lazy(() =>
-  import("../aiChat/ContextChatSheet").then(module => ({ default: module.ContextChatSheet }))
-);
-
 const CollaborativeEditor = lazy(() =>
   import("../collaboration/CollaborativeEditor").then(module => ({
     default: module.CollaborativeEditor,
@@ -430,7 +426,6 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   ) : null;
 
   // 顶栏只放返回 / 标题 / 宿主操作；编辑入口是右下角悬浮按钮，退出编辑在配件栏「完成」
-  const [askTarget, setAskTarget] = useState<ContextChatTarget | null>(null);
   const aiContext = props.aiContext;
   /** 引用标题：显式标题（文章 / 项目文档 / 日记）优先，卡片取正文首句 */
   const askTitle = () =>
@@ -440,13 +435,14 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     resolveTitle(props);
   const openAsk = (quote?: string) => {
     if (!aiContext) return;
-    setAskTarget({
+    const target: ContentChatTarget = {
       contentId: props.contentId,
       entityType: aiContext.entityType,
       entityId: aiContext.entityId,
       title: askTitle(),
       ...(quote ? { quote } : {}),
-    });
+    };
+    getNavigator().push("aiContentChat", { ...target });
   };
   const headerActions =
     aiContext && detail ? (
@@ -824,11 +820,6 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           onAsk={aiContext ? openAsk : undefined}
         />
       )}
-      {askTarget ? (
-        <Suspense fallback={null}>
-          <ContextChatSheet target={askTarget} onClose={() => setAskTarget(null)} />
-        </Suspense>
-      ) : null}
       <OutlineSheet open={outline.open} editorRef={editorRef} onClose={outline.close} />
     </div>
   );

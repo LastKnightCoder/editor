@@ -1,4 +1,4 @@
-// 全屏对话页与半屏就近对话共用：模型（默认分配 + 会话内临时切换）、读取 / 首发建会话、发送。
+// 对话页（含就近对话）：模型（默认分配 + 会话内临时切换）、读取 / 首发建会话、发送。
 
 import { useEffect, useMemo, useState } from "react";
 import type { LLMUsageConfigV2 } from "@tau/ai/models";
