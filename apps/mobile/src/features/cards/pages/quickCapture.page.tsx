@@ -4,11 +4,25 @@
 import { QuickCaptureSheet } from "../QuickCaptureSheet";
 import { useQuickCaptureController } from "../quickCapture/useQuickCaptureController";
 import { useAppContext } from "../../../app/AppContext";
-import { definePage, useBackHandler, useNavigator } from "../../../router";
+import {
+  createPageSchema,
+  definePage,
+  paramBoolean,
+  paramOptional,
+  useBackHandler,
+  useNavigator,
+  usePage,
+} from "../../../router";
+
+const quickCaptureSchema = createPageSchema({
+  // 从「说一段」进入：打开即是语音面板
+  voice: paramOptional(paramBoolean()),
+});
 
 function QuickCaptureScreen() {
   const app = useAppContext();
   const navigator = useNavigator();
+  const { params } = usePage<typeof quickCaptureSchema.type>();
   const controller = useQuickCaptureController({
     presentError: (error, fallback) => app.presentError(error, fallback),
     refreshCards: () => app.refreshCardsSafe({ page: 1 }),
@@ -29,6 +43,7 @@ function QuickCaptureScreen() {
       document={controller.document}
       editorRef={controller.editorRef}
       readonly={controller.readonly}
+      startWithVoice={params.voice === true}
       onContentChange={controller.onContentChange}
       onClear={controller.onClear}
       onRequestClose={() => {
@@ -42,6 +57,6 @@ export default definePage({
   key: "quickCapture",
   layer: "overlay",
   match: "single",
-  params: {},
+  params: quickCaptureSchema.schema,
   component: QuickCaptureScreen,
 });

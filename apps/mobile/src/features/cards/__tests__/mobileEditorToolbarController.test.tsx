@@ -751,6 +751,54 @@ describe("useMobileEditorToolbarController", () => {
     expect(reservation.releaseWhenKeyboardShown).toHaveBeenCalledTimes(1);
   });
 
+  it("语音面板：inputmode=none 下重新聚焦，点正文只移动插入点，关闭时恢复键盘", () => {
+    const editable = document.createElement("div");
+    const editor = createFormattedEditor();
+    const editorRef = createEditorRef(editor);
+    editorRef.current!.getEditableElement = () => editable;
+    let latest: MobileEditorToolbarController | null = null;
+    act(() => {
+      root.render(<ControllerProbe editorRef={editorRef} onController={c => (latest = c)} />);
+    });
+    const getController = () => requireController(latest);
+    vi.mocked(ReactEditor.focus).mockClear();
+
+    act(() => {
+      getController().openPanel("voice", 280);
+    });
+    expect(editable.getAttribute("inputmode")).toBe("none");
+
+    act(() => {
+      getController().handleEditorFocus();
+    });
+    expect(getController().activePanel).toBe("voice");
+
+    act(() => {
+      getController().closePanel({ showKeyboard: true, restoreSelection: true });
+    });
+    expect(editable.hasAttribute("inputmode")).toBe(false);
+    expect(getController().activePanel).toBeNull();
+  });
+
+  it("从语音面板切到 Aa 面板：去掉 inputmode", () => {
+    const editable = document.createElement("div");
+    const editor = createFormattedEditor();
+    const editorRef = createEditorRef(editor);
+    editorRef.current!.getEditableElement = () => editable;
+    let latest: MobileEditorToolbarController | null = null;
+    act(() => {
+      root.render(<ControllerProbe editorRef={editorRef} onController={c => (latest = c)} />);
+    });
+    act(() => {
+      requireController(latest).openPanel("voice", 280);
+    });
+    act(() => {
+      requireController(latest).openPanel("style", 280);
+    });
+    expect(requireController(latest).activePanel).toBe("style");
+    expect(editable.hasAttribute("inputmode")).toBe(false);
+  });
+
   it("runInPanel 与面板期间的配件栏动作作用于面板选区且不聚焦", () => {
     const editor = createFormattedEditor();
     const getController = renderController(editor);
