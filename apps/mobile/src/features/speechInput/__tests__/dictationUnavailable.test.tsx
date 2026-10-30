@@ -56,15 +56,14 @@ afterEach(() => {
   setMobileSettingSnapshot(null);
 });
 
-it("选了系统识别：按住不进入录音，提示手机端不支持", () => {
+it("选了系统识别：允许开始原生识别", () => {
   setMobileSettingSnapshot({
     speechInput: defaultSpeechInputSetting(),
   } as unknown as SettingCompat);
   const button = mount();
   holdFor(button, 300);
-  expect(document.querySelector("[data-dictation-overlay]")).toBeNull();
-  expect(getEditor).not.toHaveBeenCalled();
-  expect(toasts()).toEqual(["手机端暂不支持系统识别，请选择识别插件"]);
+  expect(getEditor).toHaveBeenCalled();
+  expect(toasts()).toEqual([]);
 });
 
 it("选了插件但没有账号：提示账号尚未配置", () => {

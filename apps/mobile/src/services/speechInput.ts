@@ -3,12 +3,14 @@ import {
   defaultSpeechInputSetting,
   MAC_NATIVE_ASR_DEFAULTS,
 } from "@tau/asr";
+import type { SpeechInputService } from "@tau/asr";
 import type { ASRProviderRegistry } from "@tau/plugins/asr-host";
 import { copyJson } from "@tau/plugins/host";
 import { getMobileSettingSnapshot } from "./mobileSettingsBridge";
+import { startNativeSpeechInput } from "./nativeSpeechInput";
 
 export function createMobileSpeechInputService(registry: ASRProviderRegistry) {
-  return createSpeechInputService(async (taskId, signal, onEvent) => {
+  const pluginService = createSpeechInputService(async (taskId, signal, onEvent) => {
     const setting = structuredClone(
       getMobileSettingSnapshot()?.speechInput ?? defaultSpeechInputSetting()
     );
@@ -35,4 +37,25 @@ export function createMobileSpeechInputService(registry: ASRProviderRegistry) {
     );
     return { session, format, release: async () => undefined };
   });
+  let active = false;
+  return {
+    async start(options) {
+      if (active) throw new Error("已有语音输入正在进行");
+      active = true;
+      try {
+        const setting = getMobileSettingSnapshot()?.speechInput ?? defaultSpeechInputSetting();
+        const session = await (setting.active === "native"
+          ? startNativeSpeechInput(setting.language, options)
+          : pluginService.start(options));
+        const result = session.result.finally(() => {
+          active = false;
+        });
+        void result.catch(() => undefined);
+        return { ...session, result };
+      } catch (error) {
+        active = false;
+        throw error;
+      }
+    },
+  } satisfies SpeechInputService;
 }

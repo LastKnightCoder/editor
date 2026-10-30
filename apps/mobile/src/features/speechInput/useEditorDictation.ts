@@ -254,10 +254,10 @@ export function useEditorDictation(options: EditorDictationOptions) {
     [pill, releaseCommit, session, showPill, showUndoToast]
   );
 
-  /** 不能开始录音的原因，可用时为 null；移动端识别只走插件，系统识别尚未接入 */
+  /** 不能开始录音的原因，可用时为 null */
   const unavailableReason = useMemo(() => {
     const speech = setting?.speechInput ?? defaultSpeechInputSetting();
-    if (speech.active === "native") return "手机端暂不支持系统识别，请选择识别插件";
+    if (speech.active === "native") return null;
     if (!speech.plugin.configurations[speech.plugin.id]) return "识别插件账号尚未配置";
     return null;
   }, [setting]);
