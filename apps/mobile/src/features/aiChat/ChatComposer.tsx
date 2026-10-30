@@ -1,6 +1,6 @@
-// 输入区：右侧一个位置三种状态——生成中为停止、有文字或附件为发送、否则为语音 / 键盘切换。
-// 语音模式与微信一致：输入框换成整条「按住 说话」，松手发送；再点键盘图标回到打字并弹出键盘。
-// 输入框上方是待发送的引用条与图片；左侧 ＋ 打开拍照 / 相册 / 引用笔记，@ 直接引用笔记。
+// 输入区是两行的一体卡片：上行写字，下行左边 ＋ 与「引用笔记」，右下角一个位置三种状态——
+// 生成中为停止、有文字或附件为发送、否则为语音 / 键盘切换。待发送的引用与图片挂在卡片第一行。
+// 语音模式与微信一致：上行换成「按住 说话」，松手发送；再点键盘图标回到打字并弹出键盘。
 
 import { useRef, useState } from "react";
 import {
@@ -21,11 +21,14 @@ import { toast } from "../../components/toast";
 import type { ChatInput } from "../../services/aiChat/chatController";
 import { ContentLinkPickerSheet } from "../cards/editorExtensions/ContentLinkPickerSheet";
 import { imageFileToDataUrl, mentionFromPicker } from "./attachments";
-import { MentionQuote } from "./ChatMessages";
+import { MentionChip } from "./ChatMessages";
 import { HoldToTalkBar } from "./VoiceSendButton";
 
 const ROUND_BUTTON =
-  "grid h-9 w-9 shrink-0 place-items-center rounded-full transition-transform active:scale-90";
+  "grid h-[38px] w-[38px] shrink-0 place-items-center rounded-full transition-transform active:scale-90";
+/** 下排工具：细描边圆钮 / 胶囊，与右侧主按钮区分轻重 */
+const TOOL_BUTTON =
+  "border-line-2 text-ink-2 flex h-[34px] shrink-0 items-center justify-center rounded-full border transition-transform active:scale-95";
 const MAX_IMAGES = 4;
 
 export function ChatComposer(props: {
@@ -147,34 +150,6 @@ export function ChatComposer(props: {
       className="bg-page shrink-0 px-3 pt-2"
       style={{ paddingBottom: "calc(var(--mobile-screen-safe-bottom) + 10px)" }}
     >
-      {(mentions.length > 0 || images.length > 0) && (
-        <div className="mb-2 flex flex-col gap-1.5">
-          {mentions.map((mention, index) => (
-            <MentionQuote
-              key={`${mention.contentId}:${index}`}
-              mention={mention}
-              onRemove={() => setMentions(mentions.filter((_, other) => other !== index))}
-            />
-          ))}
-          {images.length > 0 && (
-            <div className="flex gap-2">
-              {images.map((image, index) => (
-                <span key={index} className="relative h-14 w-14 shrink-0">
-                  <img src={image} alt="" className="h-14 w-14 rounded-xl object-cover" />
-                  <button
-                    type="button"
-                    aria-label="去掉图片"
-                    onClick={() => setImages(images.filter((_, other) => other !== index))}
-                    className="bg-ink-1 text-ink-inverse absolute -top-1.5 -right-1.5 grid h-5 w-5 place-items-center rounded-full"
-                  >
-                    <X size={12} aria-hidden="true" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
       {mentions.length > 0 && !hasPayload && !props.running && props.quickPrompts?.length ? (
         <div className="scrollbar-hide -mx-3 mb-2 flex gap-2 overflow-x-auto px-3">
           {props.quickPrompts.map(prompt => (
@@ -190,20 +165,38 @@ export function ChatComposer(props: {
           ))}
         </div>
       ) : null}
-      <div className="bg-surface shadow-card flex items-end gap-0.5 rounded-[24px] p-1.5">
-        <button
-          type="button"
-          aria-label="添加图片或引用"
-          onClick={() => setPlusOpen(true)}
-          className={cn(ROUND_BUTTON, "text-ink-2")}
-        >
-          <Plus size={20} aria-hidden="true" />
-        </button>
+      <div className="bg-surface shadow-card rounded-[26px] pt-3 pr-2.5 pb-2.5 pl-3.5">
+        {(mentions.length > 0 || images.length > 0) && (
+          <div className="scrollbar-hide mb-2.5 flex items-center gap-2 overflow-x-auto">
+            {mentions.map((mention, index) => (
+              <MentionChip
+                key={`${mention.contentId}:${index}`}
+                mention={mention}
+                onRemove={() => setMentions(mentions.filter((_, other) => other !== index))}
+              />
+            ))}
+            {images.map((image, index) => (
+              <span key={index} className="relative h-12 w-12 shrink-0">
+                <img src={image} alt="" className="h-12 w-12 rounded-xl object-cover" />
+                <button
+                  type="button"
+                  aria-label="去掉图片"
+                  onClick={() => setImages(images.filter((_, other) => other !== index))}
+                  className="bg-ink-1 text-ink-inverse absolute -top-1.5 -right-1.5 grid h-5 w-5 place-items-center rounded-full"
+                >
+                  <X size={12} aria-hidden="true" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
         {voiceMode ? (
-          <HoldToTalkBar
-            disabled={props.disabled || props.running}
-            onSend={spoken => send({ text: spoken, mentions, images })}
-          />
+          <div className="mr-1 flex">
+            <HoldToTalkBar
+              disabled={props.disabled || props.running}
+              onSend={spoken => send({ text: spoken, mentions, images })}
+            />
+          </div>
         ) : null}
         <textarea
           ref={inputRef}
@@ -227,17 +220,29 @@ export function ChatComposer(props: {
               submit();
             }
           }}
-          className="text-tau-body text-ink-1 placeholder:text-ink-3 field-sizing-content max-h-32 min-h-9 flex-1 resize-none bg-transparent px-1 py-[7px] leading-[1.45] outline-none"
+          className="text-ink-1 placeholder:text-ink-3 block field-sizing-content max-h-36 min-h-6 w-full resize-none bg-transparent pr-2 text-[15.5px] leading-normal outline-none"
         />
-        <button
-          type="button"
-          aria-label="引用笔记"
-          onClick={() => setPickerOpen(true)}
-          className={cn(ROUND_BUTTON, "text-ink-2")}
-        >
-          <AtSign size={18} aria-hidden="true" />
-        </button>
-        {trailing}
+        <div className="mt-2.5 flex items-center gap-1.5">
+          <button
+            type="button"
+            aria-label="添加图片或引用"
+            onClick={() => setPlusOpen(true)}
+            className={cn(TOOL_BUTTON, "w-[34px]")}
+          >
+            <Plus size={18} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            aria-label="引用笔记"
+            onClick={() => setPickerOpen(true)}
+            className={cn(TOOL_BUTTON, "text-tau-sm gap-1 pr-3 pl-2.5")}
+          >
+            <AtSign size={15} aria-hidden="true" />
+            引用笔记
+          </button>
+          <span className="flex-1" />
+          {trailing}
+        </div>
       </div>
       <input
         ref={cameraRef}

@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="ocean" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端对话页 v2 · 设计方案</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="v2.css" />
+<script src="icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>移动端对话页 v2<small>颜色取自 @tau/themes · 手机帧 360×760 · 对话内容为示意</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="composer">1 两行输入区<span class="rec">3 选</span></button>
+    <button class="tab" data-tab="actions">2 回答操作<span class="rec">3 选</span></button>
+    <button class="tab" data-tab="look">3 整体观感</button>
+    <button class="tab" data-tab="history">4 对话记录管理</button>
+    <button class="tab" data-tab="edit">5 AI 修改笔记</button>
+    <button class="tab" data-tab="cmp">6 待确认</button>
+  </nav>
+</header>
+
+<section class="scene" data-scene="composer">
+  <p class="scene-intro">输入区改成两行：上行写字，下行放工具。三种排法的共同点：右下角一个位置三态（麦克风 / 发送 / 停止），引用和图片挂在输入框里面，而不是飘在输入框上方。<b>A 一体卡片</b>最像现在的风格，<b>B 托盘</b>更像系统输入法的延伸，<b>C 语音优先</b>把麦克风做成大按钮。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="明天的日程"></div>
+        <div class="v-thread">
+          <div class="v-u">明天有哪些日程</div>
+          <div class="v-a"><p>明天（<b>10 月 31 日，周六</b>）没有日程，也没有到期的待办，整天都空着。</p></div>
+        </div>
+        <div data-cmp="A-idle"></div>
+      </div></div>
+      <div class="frame-cap">A 一体卡片 · 空闲<span class="rec-badge">推荐</span><small>白卡片 26px 圆角，上行占位文字，下行左边 ＋ 和「引用笔记」，右边麦克风。整体高约 92px，比现在高 40px。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="明天的日程"></div>
+        <div class="v-thread">
+          <div class="v-u">明天有哪些日程</div>
+          <div class="v-a"><p>明天（<b>10 月 31 日，周六</b>）没有日程，也没有到期的待办，整天都空着。</p></div>
+        </div>
+        <div data-cmp="A-typing"></div>
+      </div></div>
+      <div class="frame-cap">A · 带引用和图片<small>引用与图片在卡片里面第一行，像邮件附件；文字多了向上长，最多 6 行后内部滚动。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="明天的日程"></div>
+        <div class="v-thread">
+          <div class="v-u">明天有哪些日程</div>
+          <div class="v-a"><p>明天（<b>10 月 31 日，周六</b>）没有日程，也没有到期的待办，整天都空着。</p></div>
+        </div>
+        <div data-cmp="A-voice"></div>
+      </div></div>
+      <div class="frame-cap">A · 语音模式按住中<small>上行整块变成 48px 高的「按住 说话」，比单行时好按得多；右下角变成键盘图标。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="明天的日程"></div>
+        <div class="v-thread">
+          <div class="v-u">明天有哪些日程</div>
+          <div class="v-a"><p>明天（<b>10 月 31 日，周六</b>）没有日程，也没有到期的待办，整天都空着。</p></div>
+        </div>
+        <div data-cmp="B"></div>
+      </div></div>
+      <div class="frame-cap">B 托盘<small>输入区是贴底的表面色托盘，顶部大圆角，工具是浅底胶囊。和键盘弹起后连成一体，但和应用其他页面的浮动卡片不太统一。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="明天的日程"></div>
+        <div class="v-thread">
+          <div class="v-u">明天有哪些日程</div>
+          <div class="v-a"><p>明天（<b>10 月 31 日，周六</b>）没有日程，也没有到期的待办，整天都空着。</p></div>
+        </div>
+        <div data-cmp="C"></div>
+      </div></div>
+      <div class="frame-cap">C 语音优先<small>右侧一枚跨两行的 accent 大麦克风，按住即说，不用先切语音模式。打字时它变成发送。适合常用语音的人，但视觉最重。</small></div>
+    </div>
+  </div>
+</section>
+
+<section class="scene" data-scene="actions">
+  <p class="scene-intro">现在回答下面是三个 16px 的灰色图标，确实是桌面端悬停工具条的搬运，手指难点、意思也不明。手机上更自然的做法有三种：<b>A 文字胶囊</b>把最常用的动作写成字；<b>B 只留 ⋯</b>，所有操作进底部面板；<b>C 落地条</b>突出「存为卡片」这一个主动作（回答能落进笔记是 Tau 和普通聊天的区别）。三种都保留长按菜单。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="本周日记总结"></div>
+        <div class="v-thread">
+          <div class="v-u">这周日记里有什么值得记下来的</div>
+          <div class="v-a">
+            <div class="v-steps"><span class="ok" data-i="check" data-s="13"></span>搜索笔记、读取笔记<em>· 3 步</em><span data-i="chevron-right" data-s="12" style="color:var(--ink-3)"></span></div>
+            <p>这周有两件事值得单独记下来：</p>
+            <ul>
+              <li><b>语音输入要「随口补一句」</b>：阅读时也能直接说一句追加到文末 <span class="ref diary" data-i="notebook-pen" data-s="12">10 月 29 日</span></li>
+              <li><b>同步冲突改按字段合并</b>：比整篇覆盖少丢数据 <span class="ref diary" data-i="notebook-pen" data-s="12">10 月 27 日</span></li>
+            </ul>
+          </div>
+          <div class="v-acts">
+            <span class="pill accent" data-i="bookmark-plus" data-s="15">存为卡片</span>
+            <span class="pill" data-i="copy" data-s="15">复制</span>
+            <span class="pill icon" data-i="refresh-cw" data-s="15"></span>
+            <span class="pill icon" data-i="ellipsis" data-s="16"></span>
+          </div>
+        </div>
+        <div data-cmp="A-idle"></div>
+      </div></div>
+      <div class="frame-cap">A 文字胶囊<span class="rec-badge">推荐</span><small>34px 高的浅底胶囊，「存为卡片」用 accent 浅底，「复制」写字，重新生成和 ⋯ 只留图标。⋯ 里放分享、选择文字、删除。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="本周日记总结"></div>
+        <div class="v-thread">
+          <div class="v-u">这周日记里有什么值得记下来的</div>
+          <div class="v-a">
+            <p>这周有两件事值得单独记下来：</p>
+            <ul>
+              <li><b>语音输入要「随口补一句」</b> <span class="ref diary" data-i="notebook-pen" data-s="12">10 月 29 日</span></li>
+              <li><b>同步冲突改按字段合并</b> <span class="ref diary" data-i="notebook-pen" data-s="12">10 月 27 日</span></li>
+            </ul>
+          </div>
+          <div class="v-acts min"><span class="dot" data-i="ellipsis" data-s="20"></span></div>
+        </div>
+        <div class="v-scrim"></div>
+        <div class="v-sheet">
+          <div class="grab"></div>
+          <div class="grid">
+            <span><b data-i="bookmark-plus" data-s="21"></b>存为卡片</span>
+            <span><b data-i="copy" data-s="20"></b>复制</span>
+            <span><b data-i="refresh-cw" data-s="20"></b>重新生成</span>
+            <span><b data-i="share-2" data-s="20"></b>分享</span>
+          </div>
+          <div class="row" data-i="text-select" data-s="18">选择文字</div>
+          <div class="row danger" data-i="trash-2" data-s="18">删除</div>
+        </div>
+      </div></div>
+      <div class="frame-cap">B 只留 ⋯<small>回答下面只有一枚 40px 的 ⋯，点开（或长按回答）弹底部面板，上面一排大图标。最干净，但每个动作都多点一下。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="本周日记总结"></div>
+        <div class="v-thread">
+          <div class="v-u">这周日记里有什么值得记下来的</div>
+          <div class="v-a">
+            <div class="v-steps"><span class="ok" data-i="check" data-s="13"></span>搜索笔记、读取笔记<em>· 3 步</em><span data-i="chevron-right" data-s="12" style="color:var(--ink-3)"></span></div>
+            <p>这周有两件事值得单独记下来：</p>
+            <ul>
+              <li><b>语音输入要「随口补一句」</b> <span class="ref diary" data-i="notebook-pen" data-s="12">10 月 29 日</span></li>
+              <li><b>同步冲突改按字段合并</b> <span class="ref diary" data-i="notebook-pen" data-s="12">10 月 27 日</span></li>
+            </ul>
+          </div>
+          <div class="v-land">
+            <span>有用的话存下来</span><span class="sp"></span>
+            <span class="b ic" data-i="copy" data-s="16"></span>
+            <span class="b ic" data-i="refresh-cw" data-s="16"></span>
+            <span class="b main" data-i="bookmark-plus" data-s="15">存为卡片</span>
+          </div>
+        </div>
+        <div data-cmp="A-idle"></div>
+      </div></div>
+      <div class="frame-cap">C 落地条<small>回答下方一块浅底条，右侧实色「存为卡片」。最能引导「回答 → 笔记」，但每条回答都带一块底，长对话里比较吵，建议只在最后一条显示。</small></div>
+    </div>
+  </div>
+</section>
+
+<section class="scene" data-scene="look">
+  <p class="scene-intro">「不够美观」主要来自三处：正文字号、行高偏紧，段落挤在一起；引用是一串带下划线的蓝字，看不出是什么；页面底色与回答之间缺少层次。这一页把 A 输入区 + A 操作组合起来，同时调整：正文 15.5px / 1.75 行高、段距 10px；<b>引用改成带类型图标与标签色的小胶囊</b>（日记紫、卡片绿、文章蓝），点开就是笔记预览；输入区上方加一层页面底色的渐隐，消息滚到下面不会生硬地切断。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="新对话"></div>
+        <div class="v-thread">
+          <div class="v-hello">
+            <div class="g">晚上好，<br /><span>今天想整理点什么？</span></div>
+            <p>可以问笔记里的内容，也能帮你查日程、排待办。</p>
+            <div class="v-sugs">
+              <div class="v-sug"><b class="t1" data-i="calendar-days" data-s="16"></b>明天有哪些日程</div>
+              <div class="v-sug"><b class="t2" data-i="list-checks" data-s="16"></b>这周还有哪些没完成的待办</div>
+              <div class="v-sug"><b class="t3" data-i="notebook-pen" data-s="16"></b>总结一下今天的日记</div>
+              <div class="v-sug"><b class="t4" data-i="lightbulb" data-s="16"></b>这周日记里有什么值得记下来的</div>
+            </div>
+          </div>
+        </div>
+        <div data-cmp="A-idle"></div>
+      </div></div>
+      <div class="frame-cap">空态<small>沿用已上线的问候 + 2×2 建议，配合两行输入区，底部更稳。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="本周日记总结"></div>
+        <div class="v-thread">
+          <div class="day">今天 20:41</div>
+          <div class="v-u">这周日记里有什么值得记下来的</div>
+          <div class="v-a">
+            <div class="v-steps"><span class="ok" data-i="check" data-s="13"></span>搜索笔记、读取笔记<em>· 3 步</em><span data-i="chevron-right" data-s="12" style="color:var(--ink-3)"></span></div>
+            <p>这周有三件事值得单独记下来：</p>
+            <h4>1. 阅读时也能补一句</h4>
+            <p>你在 <span class="ref diary" data-i="notebook-pen" data-s="12">10 月 29 日</span> 写到，阅读态里应该能随口说一句追加到文末，不用先切到编辑。</p>
+            <h4>2. 同步按字段合并</h4>
+            <p>周二把冲突处理改成按字段合并，见 <span class="ref card" data-i="layers" data-s="12">同步冲突策略</span>。</p>
+          </div>
+          <div class="v-acts">
+            <span class="pill accent" data-i="bookmark-plus" data-s="15">存为卡片</span>
+            <span class="pill" data-i="copy" data-s="15">复制</span>
+            <span class="pill icon" data-i="refresh-cw" data-s="15"></span>
+            <span class="pill icon" data-i="ellipsis" data-s="16"></span>
+          </div>
+        </div>
+        <div data-cmp="A-idle" class="fade"></div>
+      </div></div>
+      <div class="frame-cap">长回答<small>小标题加粗、段距拉开；引用胶囊一眼能看出「这是日记」「这是卡片」。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="复习计划"></div>
+        <div class="v-thread">
+          <div class="v-u">把「间隔重复」那张卡片拆成 3 个问答</div>
+          <div class="v-a">
+            <div class="v-steps"><span class="run" data-i="loader-circle" data-s="13"></span>正在读取笔记<em>· 间隔重复为什么有效</em></div>
+            <p>好的，我准备了 3 个问答：</p>
+            <p><b>Q1</b> 为什么记忆在学习后最初几天衰减最快？<span class="v-cursor"></span></p>
+          </div>
+        </div>
+        <div data-cmp="A-run"></div>
+      </div></div>
+      <div class="frame-cap">生成中<small>生成时不显示操作行；右下角变停止。</small></div>
+    </div>
+  </div>
+</section>
+
+<section class="scene" data-scene="history">
+  <p class="scene-intro">左滑删除在代码里本来就有，但列表行没有声明 <code>touch-action</code>，手指一动就被浏览器接管成纵向滚动，左滑永远触发不了。<b>这个 bug 已经修了，长按菜单（重命名 / 删除）也已上线。</b>下面是更完整的管理方案：左滑露出置顶与删除，顶部加搜索，长按后可进入多选批量删除。置顶、搜索、多选属于新功能，需要你确认。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="v-nav"><span class="ib back" data-i="chevron-left" data-s="23"></span><span class="h1">对话记录</span><span class="ib" data-i="square-pen" data-s="19"></span></div>
+        <div class="h-search" data-i="search" data-s="16">搜索对话</div>
+        <div class="h-body">
+          <div class="h-label">置顶</div>
+          <div class="h-group">
+            <div class="h-row"><div class="fg"><span class="av" data-i="message-circle" data-s="17"></span><span class="tt"><b><span class="pinned" data-i="pin" data-s="13"></span>复习计划</b><small>好的，我准备了 3 个问答…</small></span><em>昨天</em></div></div>
+          </div>
+          <div class="h-label">今天</div>
+          <div class="h-group">
+            <div class="h-row"><div class="fg"><span class="av" data-i="message-circle" data-s="17"></span><span class="tt"><b>明天的日程</b><small>明天没有日程，也没有到期待办</small></span><em>19:23</em></div></div>
+            <div class="h-row open"><div class="acts"><span class="pin" data-i="pin" data-s="17">置顶</span><span class="del" data-i="trash-2" data-s="17">删除</span></div><div class="fg"><span class="av" data-i="message-circle" data-s="17"></span><span class="tt"><b>本周日记总结</b><small>这周有三件事值得单独记下来…</small></span><em>18:05</em></div></div>
+            <div class="h-row"><div class="fg"><span class="av note" data-i="notebook-pen" data-s="17"></span><span class="tt"><b>关于「间隔重复」</b><small>来自笔记 · 4 次提问</small></span><em>14:12</em></div></div>
+          </div>
+          <div class="h-label">本周</div>
+          <div class="h-group">
+            <div class="h-row"><div class="fg"><span class="av" data-i="message-circle" data-s="17"></span><span class="tt"><b>同步方案对比</b><small>按字段合并比整篇覆盖少丢数据</small></span><em>周二</em></div></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap">左滑：置顶 + 删除<small>每行第二行改成最后一条回答的开头，比「3 次提问」更好认；就近对话用日记紫图标区分。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="v-nav"><span class="ib back" data-i="chevron-left" data-s="23"></span><span class="h1">对话记录</span><span class="ib" data-i="square-pen" data-s="19"></span></div>
+        <div class="h-search" data-i="search" data-s="16">搜索对话</div>
+        <div class="h-body">
+          <div class="h-label">今天</div>
+          <div class="h-group">
+            <div class="h-row"><div class="fg"><span class="av" data-i="message-circle" data-s="17"></span><span class="tt"><b>明天的日程</b><small>明天没有日程，也没有到期待办</small></span><em>19:23</em></div></div>
+            <div class="h-row" style="visibility:hidden"></div>
+            <div class="h-row"><div class="fg"><span class="av note" data-i="notebook-pen" data-s="17"></span><span class="tt"><b>关于「间隔重复」</b><small>来自笔记 · 4 次提问</small></span><em>14:12</em></div></div>
+          </div>
+        </div>
+        <div class="v-scrim"></div>
+        <div class="lifted" style="top:196px"><div class="h-row"><div class="fg" style="border-radius:18px"><span class="av" data-i="message-circle" data-s="17"></span><span class="tt"><b>本周日记总结</b><small>这周有三件事值得单独记下来…</small></span><em>18:05</em></div></div></div>
+        <div class="v-sheet">
+          <div class="grab"></div>
+          <div class="row" style="border-top:0" data-i="pencil" data-s="18">重命名</div>
+          <div class="row" data-i="pin" data-s="18">置顶</div>
+          <div class="row" data-i="check" data-s="18">多选</div>
+          <div class="row danger" data-i="trash-2" data-s="18">删除</div>
+        </div>
+      </div></div>
+      <div class="frame-cap">长按：操作面板<small>被按的那一行浮起，下方弹出面板。「重命名」「删除」已上线，「置顶」「多选」待确认。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="v-nav"><span class="ib back" data-i="x" data-s="21"></span><span class="h1">已选 2 项</span><span class="ib" style="width:auto;padding:0 10px;color:var(--brand-text);font-size:15px;font-weight:600">全选</span></div>
+        <div class="h-body">
+          <div class="h-label">今天</div>
+          <div class="h-group">
+            <div class="h-row sel"><div class="fg"><span class="ck" data-i="check" data-s="13"></span><span class="tt"><b>明天的日程</b><small>明天没有日程，也没有到期待办</small></span><em>19:23</em></div></div>
+            <div class="h-row sel"><div class="fg"><span class="ck" data-i="check" data-s="13"></span><span class="tt"><b>本周日记总结</b><small>这周有三件事值得单独记下来…</small></span><em>18:05</em></div></div>
+            <div class="h-row"><div class="fg"><span class="ck"></span><span class="tt"><b>关于「间隔重复」</b><small>来自笔记 · 4 次提问</small></span><em>14:12</em></div></div>
+          </div>
+          <div class="h-label">本周</div>
+          <div class="h-group">
+            <div class="h-row"><div class="fg"><span class="ck"></span><span class="tt"><b>同步方案对比</b><small>按字段合并比整篇覆盖少丢数据</small></span><em>周二</em></div></div>
+          </div>
+        </div>
+        <div class="h-bulk"><span data-i="pin" data-s="20">置顶</span><span class="danger" data-i="trash-2" data-s="20">删除 2 项</span></div>
+      </div></div>
+      <div class="frame-cap">多选批量删除<small>从长按面板的「多选」进入，底部操作栏，删除前仍二次确认。</small></div>
+    </div>
+  </div>
+</section>
+
+<section class="scene" data-scene="edit">
+  <p class="scene-intro">移动端 AI 现在只能读笔记、改待办和日程，不能改笔记正文。这不是有意禁止：桌面端的改写工具（按文本替换、全文改写、按位置批量修改）依赖桌面里一套文本定位与审阅逻辑，第二期迁移时标为「后续」，没有搬过来。要做的话，先把这套逻辑抽成桌面和手机共用的包，再给手机做一张<b>修改提案卡</b>：AI 先给出改动，你看过差异点「应用」才写入，写入后能撤销。和待办写入一样，每次都要你确认。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="改卡片措辞"></div>
+        <div class="v-thread">
+          <div class="v-u">把「同步冲突策略」那张卡片第二段写得更清楚一点</div>
+          <div class="v-a">
+            <div class="v-steps"><span class="ok" data-i="check" data-s="13"></span>搜索笔记、读取笔记<em>· 2 步</em><span data-i="chevron-right" data-s="12" style="color:var(--ink-3)"></span></div>
+            <p>我把第二段改成了先讲结论、再讲原因：</p>
+            <div class="prop">
+              <div class="hd"><span class="k" data-i="layers" data-s="14"></span><b>同步冲突策略</b><em>修改 1 处</em></div>
+              <div class="bd">
+                <span class="ctx">…两台设备同时编辑时，</span><del>我们之前是直接用后保存的那份覆盖掉前一份，这样会丢数据，所以</del><ins>按字段合并：标题、标签、正文分别取最新的一方，</ins>只有同一字段两边都改过才提示冲突。
+              </div>
+              <div class="ft"><span>不用了</span><span class="go">应用修改</span></div>
+            </div>
+          </div>
+        </div>
+        <div data-cmp="A-idle"></div>
+      </div></div>
+      <div class="frame-cap">修改提案<small>卡片头是被改的笔记（点开预览全文），正文只展示改动处及前后文：删除划线红底，新增绿底。不点「应用」不会写入。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-nav="改卡片措辞"></div>
+        <div class="v-thread">
+          <div class="v-u">把「同步冲突策略」那张卡片第二段写得更清楚一点</div>
+          <div class="v-a">
+            <p>我把第二段改成了先讲结论、再讲原因：</p>
+            <div class="prop done">
+              <div class="hd"><span class="k" data-i="check" data-s="14"></span><b>同步冲突策略</b><em>已应用</em></div>
+              <div class="applied"><span>第二段已更新</span><span class="sp"></span><a>撤销</a><a style="margin-left:14px">打开笔记</a></div>
+            </div>
+            <p>还需要我把第三段的例子也换成按字段合并的场景吗？</p>
+          </div>
+          <div class="v-acts">
+            <span class="pill accent" data-i="bookmark-plus" data-s="15">存为卡片</span>
+            <span class="pill" data-i="copy" data-s="15">复制</span>
+            <span class="pill icon" data-i="refresh-cw" data-s="15"></span>
+            <span class="pill icon" data-i="ellipsis" data-s="16"></span>
+          </div>
+        </div>
+        <div data-cmp="A-idle"></div>
+      </div></div>
+      <div class="frame-cap">应用后<small>提案卡收成一行「已应用」，保留撤销与打开笔记；撤销恢复到修改前的版本。</small></div>
+    </div>
+    <div class="cards" style="flex:1;min-width:320px;margin-top:0">
+      <div class="card">
+        <h3>工作量与边界</h3>
+        <ul>
+          <li>把桌面 <code>services/content-editing</code> 里的文本定位、匹配、批量修改抽成共享包（桌面同步改用它），这是主要工作量。</li>
+          <li>移动端注册 <code>replace_content_by_text</code>、<code>rewrite_content_full</code> 等同名工具，风险等级 write，每次都需确认。</li>
+          <li>写入走移动端现有的保存正文接口，带版本校验：笔记在 AI 读完之后被改过，就拒绝写入并请 AI 重新读取。</li>
+          <li>正在编辑器里打开的笔记不改，避免和你手上的编辑冲突。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="scene" data-scene="cmp">
+  <div class="cards" style="grid-template-columns:1fr;max-width:980px">
+    <div class="card">
+      <h3>本次已修复（已在代码里，未提交）</h3>
+      <ul>
+        <li><b>引用点不开</b>：回答里的引用之前根本没接点击。现在点按会弹出笔记预览面板，卡片、文章、项目文档还能「打开」跳到详情；日记（按日或按段）可以预览，手机上没有单独的日记片段页，所以不给跳转。</li>
+        <li><b>对话记录左滑无效</b>：列表行补了 <code>touch-action: pan-y</code>，左滑删除恢复；新增长按菜单（重命名 / 删除），重命名后不再按首句自动改名。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>需要你确认</h3>
+      <ol>
+        <li>输入区选 <b>A 一体卡片</b>、B 托盘还是 C 语音优先？</li>
+        <li>回答操作选 <b>A 文字胶囊</b>、B 只留 ⋯ 还是 C 落地条？</li>
+        <li>引用改成彩色小胶囊、正文加大行距（第 3 页）是否认可？</li>
+        <li>对话记录的<b>置顶、搜索、多选</b>要做哪些？（都是新功能）</li>
+        <li><b>AI 修改笔记</b>要不要做？工作量较大，建议单独作为一个任务。</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<script src="v2.js"></script>
+<script src="../ai-mobile/ai.js"></script>
+</body>
+</html>

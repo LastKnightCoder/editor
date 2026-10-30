@@ -124,3 +124,33 @@ it("输入区不参与键盘自动露出，聚焦时不把整页往上卷", () =
   mount();
   expect(textarea().closest('[data-kb-optout="true"]')).not.toBeNull();
 });
+
+it("两行卡片：引用挂在卡片第一行可删除，下排是 ＋、引用笔记与右下角主按钮", () => {
+  const onMentionsChange = vi.fn();
+  act(() =>
+    root.render(
+      <ChatComposer
+        running={false}
+        onSend={onSend}
+        onStop={vi.fn()}
+        mentions={[
+          {
+            entityType: "diary",
+            entityId: 3,
+            contentId: 9,
+            title: "10 月 29 日",
+            previewText: "",
+          },
+        ]}
+        onMentionsChange={onMentionsChange}
+      />
+    )
+  );
+  const card = textarea().parentElement!;
+  expect(card.textContent).toContain("10 月 29 日 · 日记");
+  expect(card.contains(byLabel("引用笔记"))).toBe(true);
+  expect(card.contains(byLabel("添加图片或引用"))).toBe(true);
+  expect(card.contains(byLabel("切换到语音输入"))).toBe(true);
+  act(() => byLabel("去掉引用")!.click());
+  expect(onMentionsChange).toHaveBeenCalledWith([]);
+});
