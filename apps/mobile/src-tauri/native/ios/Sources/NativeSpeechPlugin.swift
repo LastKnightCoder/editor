@@ -14,7 +14,9 @@ struct SessionArgs: Decodable {
 }
 
 class NativeSpeechPlugin: Plugin {
-  private let engine = AVAudioEngine()
+  // 音频操作与会话状态共用串行队列，避免阻塞界面或在取消时并发清理。
+  private let audioQueue = DispatchQueue(label: "app.tauri.native-speech.audio", qos: .userInitiated)
+  private lazy var engine = AVAudioEngine()
   private var recognizer: SFSpeechRecognizer?
   private var request: SFSpeechAudioBufferRecognitionRequest?
   private var task: SFSpeechRecognitionTask?
@@ -32,7 +34,7 @@ class NativeSpeechPlugin: Plugin {
     let args = try invoke.parseArgs(StartArgs.self)
     SFSpeechRecognizer.requestAuthorization { speechStatus in
       AVAudioSession.sharedInstance().requestRecordPermission { microphoneAllowed in
-        DispatchQueue.main.async {
+        self.audioQueue.async {
           if self.cancelledIds.remove(args.id) != nil {
             invoke.reject("语音识别已取消")
             return
@@ -91,29 +93,32 @@ class NativeSpeechPlugin: Plugin {
     audioSessionActive = true
     try engine.start()
     task = recognizer.recognitionTask(with: audioRequest) { [weak self] result, error in
-      guard let self, self.sessionId == args.id, self.taskGeneration == generation else { return }
-      if let result {
-        let text = result.bestTranscription.formattedString
-        if result.isFinal {
-          self.committed += text
-          if self.committed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            self.fail("没有识别到语音，请重试", code: "invalid-input")
+      guard let self else { return }
+      self.audioQueue.async {
+        guard self.sessionId == args.id, self.taskGeneration == generation else { return }
+        if let result {
+          let text = result.bestTranscription.formattedString
+          if result.isFinal {
+            self.committed += text
+            if self.committed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+              self.fail("没有识别到语音，请重试", code: "invalid-input")
+              return
+            }
+            if self.stopping || (self.startedAt.map { Date().timeIntervalSince($0) >= 120 } ?? false) {
+              self.publish("final", text: self.committed)
+              self.clearSession()
+            } else {
+              self.publish("partial", text: self.committed)
+              self.restart(args)
+            }
             return
-          }
-          if self.stopping || (self.startedAt.map { Date().timeIntervalSince($0) >= 120 } ?? false) {
-            self.publish("final", text: self.committed)
-            self.clearSession()
           } else {
-            self.publish("partial", text: self.committed)
-            self.restart(args)
+            self.publish("partial", text: self.committed + text)
           }
-          return
-        } else {
-          self.publish("partial", text: self.committed + text)
         }
-      }
-      if let error {
-        self.fail(error.localizedDescription)
+        if let error {
+          self.fail(error.localizedDescription)
+        }
       }
     }
   }
@@ -145,7 +150,7 @@ class NativeSpeechPlugin: Plugin {
     task?.cancel()
     task = nil
     recognizer = nil
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+    audioQueue.asyncAfter(deadline: .now() + 0.15) { [weak self] in
       guard let self, self.sessionId == args.id, !self.stopping else { return }
       do { try self.begin(args) } catch { self.fail(error.localizedDescription) }
     }
@@ -171,23 +176,27 @@ class NativeSpeechPlugin: Plugin {
 
   @objc public func stop(_ invoke: Invoke) throws {
     let args = try invoke.parseArgs(SessionArgs.self)
-    guard sessionId == args.id else {
+    audioQueue.async {
+      guard self.sessionId == args.id else {
+        invoke.resolve()
+        return
+      }
+      self.stopping = true
+      self.endAudio()
       invoke.resolve()
-      return
     }
-    stopping = true
-    endAudio()
-    invoke.resolve()
   }
 
   @objc public func cancel(_ invoke: Invoke) throws {
     let args = try invoke.parseArgs(SessionArgs.self)
-    if sessionId == args.id { fail("语音识别已取消", code: "cancelled") }
-    else {
-      cancelledIds.insert(args.id)
-      if cancelledIds.count > 32, let oldest = cancelledIds.first { cancelledIds.remove(oldest) }
+    audioQueue.async {
+      if self.sessionId == args.id { self.fail("语音识别已取消", code: "cancelled") }
+      else {
+        self.cancelledIds.insert(args.id)
+        if self.cancelledIds.count > 32, let oldest = self.cancelledIds.first { self.cancelledIds.remove(oldest) }
+      }
+      invoke.resolve()
     }
-    invoke.resolve()
   }
 }
 
