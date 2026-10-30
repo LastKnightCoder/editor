@@ -1,4 +1,15 @@
 import { execFileSync } from "node:child_process";
+import { delimiter } from "node:path";
+
+/** 在不同平台上按实际存在的环境变量键拼接 PATH，避免 Windows 上出现 Path/PATH 双键。 */
+export function prependEnvPath(env, entries) {
+  const pathKeys = Object.keys(env).filter(key => key.toLowerCase() === "path");
+  const pathKey = pathKeys[0] ?? "PATH";
+  const existingPath = env[pathKey] ?? "";
+  for (const key of pathKeys) delete env[key];
+  env[pathKey] = [...entries, existingPath].filter(Boolean).join(delimiter);
+  return env;
+}
 
 /** 运行 pnpm 子命令。
  * pnpm run 会把自身入口给到 npm_execpath，用当前 node 直接执行；

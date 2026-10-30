@@ -76,6 +76,8 @@ test("解析 aapt2 与 apksigner 输出", () => {
   });
   const signer = `Signer #1 certificate DN: CN=Tau\nSigner #1 certificate SHA-256 digest: ${"AB".repeat(32)}\n`;
   assert.equal(parseSignerDigest(signer), "ab".repeat(32));
+  const windowsSigner = `V2 Signer: certificate SHA-256 digest: ${"CD".repeat(32)}\n`;
+  assert.equal(parseSignerDigest(windowsSigner), "cd".repeat(32));
   assert.throws(() => parseSignerDigest("Verifies"), /SHA-256/);
 });
 

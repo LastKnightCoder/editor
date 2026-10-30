@@ -4,16 +4,19 @@ import {
   copyFileSync,
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   readdirSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
-import { homedir } from "node:os";
-import { dirname, delimiter, join, resolve } from "node:path";
+import { homedir, tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import AdmZip from "adm-zip";
 import { assertReleaseNote, compareVersions, releaseNotesUpTo } from "./release-notes.mjs";
-import { runPnpm } from "./run-pnpm.mjs";
+import { prependEnvPath, runPnpm } from "./run-pnpm.mjs";
 import { R2_ENV_KEYS, R2_PUBLIC_BASE_URL, createR2Client, requiredEnv } from "./r2-client.mjs";
 import {
   ANDROID_MANIFEST_NAME,
@@ -116,24 +119,44 @@ function resolveAndroidEnv() {
   if (!env.NDK_HOME) throw new Error("未找到 NDK，请设置 NDK_HOME");
   const buildTools = latestSubdir(join(env.ANDROID_HOME, "build-tools"));
   if (!buildTools) throw new Error(`${env.ANDROID_HOME}/build-tools 下没有可用的构建工具`);
-  env.PATH = [join(env.JAVA_HOME, "bin"), join(env.ANDROID_HOME, "platform-tools"), env.PATH].join(
-    delimiter
-  );
+  prependEnvPath(env, [join(env.JAVA_HOME, "bin"), join(env.ANDROID_HOME, "platform-tools")]);
   return { env, buildTools };
 }
 
 function run(command, args, env) {
   // dexdump 会输出整个 dex 的结构（十几 MB），默认 1 MB 缓冲不够
+  const batchFile = process.platform === "win32" && existsSync(`${command}.bat`);
   return execFileSync(command, args, {
     cwd: root,
     encoding: "utf8",
     env,
+    shell: batchFile,
     maxBuffer: 512 * 1024 * 1024,
   });
 }
 
 function sha256Of(file) {
   return createHash("sha256").update(readFileSync(file)).digest("hex");
+}
+
+function dumpDexFiles(apk, env, buildTools) {
+  const dexEntries = new AdmZip(apk)
+    .getEntries()
+    .filter(entry => /^classes\d*\.dex$/.test(entry.entryName));
+  if (dexEntries.length === 0) throw new Error(`安装包中没有找到 classes.dex: ${apk}`);
+
+  const tempDir = mkdtempSync(join(tmpdir(), "tau-dexdump-"));
+  try {
+    return dexEntries
+      .map(entry => {
+        const dexFile = join(tempDir, entry.entryName);
+        writeFileSync(dexFile, entry.getData());
+        return run(join(buildTools, "dexdump"), [dexFile], env);
+      })
+      .join("\n");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
 }
 
 /** 核对安装包身份与完整性：应用 ID、版本号、签名证书与 JNI 方法都来自 APK 本身，而不是构建配置 */
@@ -150,7 +173,7 @@ function inspectApk(apk, version, { env, buildTools }) {
   );
   if (!existsSync(jniRulesFile)) throw new Error(`没有找到 JNI 保留规则: ${jniRulesFile}`);
   const missing = findMissingJniMethods(
-    run(join(buildTools, "dexdump"), [apk], env),
+    dumpDexFiles(apk, env, buildTools),
     parseJniKeepRules(readFileSync(jniRulesFile, "utf8"))
   );
   if (missing.length > 0) {
