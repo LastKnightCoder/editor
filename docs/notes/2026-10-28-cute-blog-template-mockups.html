@@ -1,0 +1,1242 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tau 博客可爱风模板 · 设计方案与 Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/style.css" rel="stylesheet">
+<style>
+:root{
+  --f-head:"ZCOOL KuaiLe","Baloo 2","PingFang SC",sans-serif;
+  --f-body:"LXGW WenKai Screen","PingFang SC","Hiragino Sans GB",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#F3EEE8;color:#2E2A2D;font:15px/1.75 "PingFang SC","Hiragino Sans GB",system-ui,sans-serif}
+/* 文档外壳 */
+.doc{max-width:1240px;margin:0 auto;padding:48px 28px 120px}
+.doc>h1{font:34px/1.25 var(--f-head);letter-spacing:.02em}
+.doc>h2{font:26px/1.3 var(--f-head);margin:80px 0 8px;scroll-margin-top:70px}
+.doc>h3{font-size:17px;margin:28px 0 8px}
+.doc p.lead{color:#6B6268;max-width:820px;margin-top:12px}
+.doc-nav{position:sticky;top:0;z-index:60;display:flex;gap:6px;padding:10px 0;margin-top:24px;background:#F3EEE8E6;backdrop-filter:blur(8px)}
+.doc-nav a{padding:6px 14px;border-radius:999px;color:#5B5358;text-decoration:none;font-size:14px}
+.doc-nav a:hover{background:#E8E0D8}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:20px}
+.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;margin-top:20px}
+.panel{background:#fff;border-radius:16px;padding:20px 22px;box-shadow:0 1px 2px #0000000d,0 8px 24px #00000008}
+.panel h4{font:19px var(--f-head);margin-bottom:6px}
+.panel dl dt{font-weight:600;color:#5B5358;margin-top:10px;font-size:13px}
+.panel dl dd{font-size:14px;color:#4A4347}
+.panel ul{padding-left:18px}.panel li{margin:5px 0}
+.dir .panel{border-radius:0 0 16px 16px}
+.rec{display:inline-block;background:#FFE4EC;color:#C2416B;font:12px/1.8 system-ui;padding:0 10px;border-radius:999px;margin-left:8px;vertical-align:middle}
+table.spec{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px;background:#fff;border-radius:12px;overflow:hidden}
+table.spec th,table.spec td{text-align:left;padding:10px 14px;border-bottom:1px solid #EFE8E2;vertical-align:top}
+table.spec th{background:#FBF7F3;font-weight:600;color:#5B5358;white-space:nowrap}
+.ptabs{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.ptab{border:0;background:#fff;padding:7px 14px;border-radius:999px;font:14px system-ui;cursor:pointer;box-shadow:0 1px 2px #0000001a;color:#4A4347}
+.ptab small{opacity:.55;margin-left:4px}
+.ptab.on{background:#3B2F3A;color:#fff}
+.anno{margin-top:18px}
+/* 团子小镇 token：落地时映射为模板自己的 --tau-* 与 --color-* */
+.town{
+  --cream:#FFF8F0;--paper:#FFFDF9;--ink:#3B2F3A;--ink-2:#7A6B76;--ink-3:#C9BCC4;--line:#3B2F3A;--mochi:#FFD6E2;
+  --pink:#FFC9D9;--pink-d:#E8628C;--mint:#C3EEDA;--mint-d:#33A77A;--butter:#FFE9A3;--sky:#C6E3FF;--lilac:#E0D2FF;--peach:#FFD9BF;
+  --hill:#CDEFC9;--hill-2:#B4E3AF;--cork:#EDCFA6;--glow:#FFE9A3;--code:#2F2838;
+  --shadow:0 4px 0 var(--line);--shadow-s:0 2px 0 var(--line);--spring:cubic-bezier(.34,1.56,.64,1);
+  background:var(--cream);color:var(--ink);font-family:var(--f-body);
+}
+.town[data-mode=dark]{
+  --cream:#1F1B2D;--paper:#2A253C;--ink:#F5EDF7;--ink-2:#C2B5CB;--ink-3:#5A5070;--line:#0E0B16;--mochi:#F1C3D2;
+  --pink:#6B3F5C;--pink-d:#FF8FB3;--mint:#2F5548;--mint-d:#7FE0B5;--butter:#5E5233;--sky:#2F4766;--lilac:#4A3D6E;--peach:#5E4236;
+  --hill:#2B3A3A;--hill-2:#243131;--cork:#5B4637;--glow:#FFD86B;--code:#16121F;
+}
+/* 浏览器外框 */
+.browser{border-radius:18px;overflow:hidden;margin-top:14px;background:#fff;box-shadow:0 30px 60px -24px #3b2f3a55,0 0 0 1px #0000000f}
+.chrome{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#EAE3DC}
+.chrome i{width:11px;height:11px;border-radius:50%;background:#F2827B}.chrome i:nth-child(2){background:#F5C451}.chrome i:nth-child(3){background:#6CCB7E}
+.url{flex:1;margin-left:10px;background:#fff;border-radius:8px;padding:3px 12px;font:12px ui-monospace,Menlo,monospace;color:#7a6b76}
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:18px;font-size:14px;color:#5B5358}
+.toolbar button{border:1px solid #D9CFC6;background:#fff;border-radius:999px;padding:5px 14px;cursor:pointer;font:13px system-ui;color:#4A4347}
+.toolbar button[aria-pressed=true]{background:#3B2F3A;color:#fff;border-color:#3B2F3A}
+.town{height:800px;display:flex;flex-direction:column;position:relative;overflow:hidden;transition:background .6s}
+.town ::selection{background:var(--butter)}
+/* 页头 */
+.t-head{display:flex;align-items:center;gap:14px;padding:14px 28px;position:relative;z-index:20;border-bottom:2.5px dashed var(--ink-3)}
+.t-logo{display:flex;align-items:center;gap:6px;font:24px var(--f-head);cursor:pointer;user-select:none}
+.t-logo .mochi{width:40px}
+.t-nav{display:flex;gap:10px;margin-left:14px;position:relative}
+.pill{font:15px/1 var(--f-head);padding:9px 16px 8px;border:2.5px solid var(--line);border-radius:999px;background:var(--paper);box-shadow:var(--shadow-s);color:var(--ink);cursor:pointer;position:relative;transition:transform .3s var(--spring),box-shadow .3s var(--spring),background .3s}
+.pill:hover{transform:translateY(-3px) rotate(-2deg);box-shadow:0 5px 0 var(--line)}
+.pill:active{transform:translateY(2px);box-shadow:0 0 0 var(--line)}
+.pill.on{background:var(--butter)}
+.pill.on::after{content:"";position:absolute;left:50%;bottom:-13px;width:6px;height:6px;border-radius:50%;background:var(--pink-d);transform:translateX(-50%)}
+.t-tools{margin-left:auto;display:flex;gap:12px;align-items:center}
+.find{display:flex;align-items:center;gap:8px;padding:7px 10px 7px 14px;border:2.5px solid var(--line);border-radius:14px;background:var(--paper);color:var(--ink-2);font:14px var(--f-body);cursor:pointer;box-shadow:var(--shadow-s);transition:transform .3s var(--spring)}
+.find:hover{transform:translateY(-2px)}
+.find kbd{font:11px ui-monospace,monospace;background:var(--cream);border:1.5px solid var(--ink-3);border-radius:6px;padding:1px 6px;color:var(--ink-2)}
+.dn{width:66px;height:34px;border-radius:999px;border:2.5px solid var(--line);background:var(--sky);position:relative;cursor:pointer;box-shadow:var(--shadow-s);overflow:hidden;transition:background .5s}
+.dn .knob{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#FFD45C;border:2px solid var(--line);transition:transform .5s var(--spring),background .5s}
+.dn .knob::after{content:"";position:absolute;inset:3px 3px auto auto;width:9px;height:9px;border-radius:50%;background:transparent;transition:background .5s}
+.town[data-mode=dark] .dn{background:#3A3361}
+.town[data-mode=dark] .dn .knob{transform:translateX(32px);background:#F7F1D9}
+.town[data-mode=dark] .dn .knob::after{background:#3A3361;inset:0 -2px auto auto;width:14px;height:14px}
+.dn .st{position:absolute;width:3px;height:3px;border-radius:50%;background:#fff;opacity:0;transition:opacity .5s}
+.town[data-mode=dark] .dn .st{opacity:1}
+/* 书架下拉：文档合集 */
+.shelf-pop::before{content:"";position:absolute;left:0;right:0;top:-18px;height:18px}
+.shelf-pop{position:absolute;top:calc(100% + 14px);left:0;padding:14px 16px 0;background:var(--paper);border:2.5px solid var(--line);border-radius:18px;box-shadow:var(--shadow);display:flex;gap:6px;align-items:flex-end;opacity:0;pointer-events:none;transform:translateY(-8px) scale(.96);transform-origin:top left;transition:all .3s var(--spring);z-index:30}
+.nav-doc:hover .shelf-pop,.nav-doc:focus-within .shelf-pop{opacity:1;pointer-events:auto;transform:none}
+.shelf-pop::after{content:"";position:absolute;left:-2px;right:-2px;bottom:-2px;height:10px;background:var(--cork);border-top:2.5px solid var(--line);border-radius:0 0 16px 16px}
+.spine{width:34px;border:2.5px solid var(--line);border-bottom:0;border-radius:6px 6px 0 0;writing-mode:vertical-rl;font:14px var(--f-head);padding:10px 0 18px;text-align:center;cursor:pointer;transition:transform .3s var(--spring);color:var(--ink)}
+.spine:hover{transform:translateY(-12px) rotate(-3deg)}
+.shelf-pop .tip{position:absolute;top:-28px;left:0;font:12px var(--f-body);color:var(--ink-2);white-space:nowrap}
+/* 页面容器 */
+.t-main{flex:1;min-height:0;position:relative;overflow:auto;scrollbar-width:thin;scrollbar-color:var(--pink) transparent}
+.t-page{display:none;min-height:100%;position:relative}
+.t-page.on{display:block;animation:pageIn .55s var(--spring)}
+@keyframes pageIn{from{opacity:0;transform:translateY(18px) scale(.985)}to{opacity:1;transform:none}}
+[data-mochi]{display:inline-block;vertical-align:middle;line-height:0}
+[data-mochi]>svg{display:block;width:100%;height:auto;overflow:visible}
+.balloon>[data-mochi]{display:block}
+.mochi .body{transform-origin:50% 95%}
+.mochi .eye{transition:transform .12s linear}
+.mochi .pupil{transform-box:fill-box;transform-origin:center;transition:transform .08s}
+.mochi.blink .pupil{transform:scaleY(.12)}
+.mochi .body{animation:breathe 4s ease-in-out infinite}
+@keyframes breathe{50%{transform:scale(1.025,.975)}}
+.mochi .nightcap{display:none}
+.town[data-mode=dark] .mochi .nightcap{display:inline}
+.zzz{font:16px var(--f-head);fill:var(--ink-2);animation:zz 2.4s ease-in-out infinite}
+@keyframes zz{0%{opacity:0;transform:translate(0,6px)}50%{opacity:1}100%{opacity:0;transform:translate(8px,-12px)}}
+.rain{position:absolute;top:-80px;z-index:90;pointer-events:none;animation:rain linear forwards}
+@keyframes rain{to{transform:translateY(960px) rotate(var(--r))}}
+.mochi .body.boing{animation:boing .7s var(--spring)}
+@keyframes boing{0%{transform:scale(1,1)}20%{transform:scale(1.18,.78)}45%{transform:scale(.86,1.16) translateY(-26px)}70%{transform:scale(1.05,.95)}100%{transform:none}}
+.bubble{position:relative;background:var(--paper);border:2.5px solid var(--line);border-radius:20px;padding:12px 16px;box-shadow:var(--shadow-s)}
+.bubble::after{content:"";position:absolute;left:28px;bottom:-11px;width:16px;height:16px;background:inherit;border:inherit;border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}
+.say{position:absolute;white-space:nowrap;font:14px var(--f-body);padding:6px 12px;border-radius:14px;opacity:0;transform:translateY(6px) scale(.8);transition:all .35s var(--spring);pointer-events:none;z-index:40}
+.say.show{opacity:1;transform:none}
+/* 首页 · 小镇广场 */
+.p-home{background:linear-gradient(var(--sky) 0 55%,var(--cream) 55%);min-height:100%;overflow:hidden}
+.town[data-mode=dark] .p-home{background:linear-gradient(#2A2F57 0 55%,var(--cream) 55%)}
+.cloud{position:absolute;height:34px;background:#fff;border-radius:999px;border:2.5px solid var(--line);opacity:.9;animation:drift linear infinite}
+.cloud::before,.cloud::after{content:"";position:absolute;background:#fff;border:2.5px solid var(--line);border-bottom:0;border-radius:50% 50% 0 0}
+.cloud::before{width:40%;height:120%;left:16%;bottom:60%}.cloud::after{width:30%;height:90%;left:48%;bottom:60%}
+.cloud i{position:absolute;inset:2px 6px;background:#fff;border-radius:999px;z-index:1}
+.town[data-mode=dark] .cloud,.town[data-mode=dark] .cloud::before,.town[data-mode=dark] .cloud::after,.town[data-mode=dark] .cloud i{background:#4A4878}
+@keyframes drift{from{transform:translateX(-160px)}to{transform:translateX(1300px)}}
+.stars{position:absolute;inset:0 0 45% 0;opacity:0;transition:opacity 1s;pointer-events:none}
+.town[data-mode=dark] .stars{opacity:1}
+.stars b{position:absolute;width:4px;height:4px;border-radius:50%;background:#FFF6C9;animation:twinkle 2.4s ease-in-out infinite}
+@keyframes twinkle{50%{opacity:.2;transform:scale(.6)}}
+.sun{position:absolute;right:36px;top:22px;width:70px;height:70px;border-radius:50%;background:#FFD45C;border:2.5px solid var(--line);transition:all 1s var(--spring)}
+.town[data-mode=dark] .sun{background:#F7F1D9;box-shadow:inset -18px -4px 0 #D9D1B4}
+.hero{position:relative;z-index:5;display:grid;grid-template-columns:1.1fr .9fr;gap:40px;padding:46px 56px 0}
+.hello{font:13px var(--f-body);display:inline-flex;gap:8px;align-items:center;background:var(--paper);border:2px solid var(--line);border-radius:999px;padding:3px 12px;box-shadow:var(--shadow-s)}
+.site-title{font:64px/1.1 var(--f-head);margin:18px 0 6px;display:flex;flex-wrap:wrap;cursor:default}
+.site-title span{display:inline-block;transition:transform .5s var(--spring),color .3s}
+.site-title span:hover{transform:translateY(-14px) rotate(-8deg) scale(1.1);color:var(--pink-d)}
+.site-title span.in{animation:charIn .7s var(--spring) both}
+@keyframes charIn{from{opacity:0;transform:translateY(40px) scale(.4)}}
+.desc{max-width:420px;margin-top:20px;font-size:17px;line-height:1.9}
+.stats{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}
+.stat{font:14px var(--f-body);background:var(--paper);border:2px dashed var(--ink-2);border-radius:12px;padding:4px 12px;color:var(--ink-2)}
+.stat b{font:20px var(--f-head);color:var(--ink);margin-right:2px}
+.hero-mascot{position:relative;display:flex;justify-content:center;align-items:flex-end;padding-top:30px}
+.hero-mascot .mochi{width:200px;cursor:pointer}
+.hero-mascot .bubble{position:absolute;top:0;left:20px;font-size:15px;max-width:240px;transition:opacity .3s}
+.hill{position:absolute;left:-10%;right:-10%;top:360px;height:600px;background:var(--hill);border-top:2.5px solid var(--line);border-radius:50% 50% 0 0/90px 90px 0 0;z-index:1}
+.hill.h2{top:400px;left:40%;right:-30%;background:var(--hill-2);z-index:0}
+.street{position:relative;z-index:6;display:grid;grid-template-columns:repeat(3,1fr) 1.15fr;gap:22px;padding:40px 56px 40px;align-items:end}
+.house{position:relative;cursor:pointer;text-align:center;text-decoration:none;color:inherit}
+.house .roof{height:56px;margin:0 14px -2.5px;border:2.5px solid var(--line);border-radius:22px 22px 0 0;position:relative}
+.house .roof::before{content:"";position:absolute;inset:8px 10px auto;height:8px;border-radius:999px;background:#ffffff80}
+.house .wall{background:var(--paper);border:2.5px solid var(--line);border-radius:6px 6px 14px 14px;height:132px;position:relative;box-shadow:var(--shadow);overflow:hidden;transition:transform .4s var(--spring)}
+.house:hover .wall{transform:translateY(-6px)}
+.house .roof{transition:transform .4s var(--spring)}
+.house:hover .roof{transform:translateY(-6px) rotate(-1.5deg)}
+.house .door{position:absolute;bottom:0;left:50%;width:46px;height:70px;margin-left:-23px;background:var(--ink);border-radius:23px 23px 0 0;overflow:hidden}
+.house .door .peek{position:absolute;bottom:-4px;left:4px;width:38px;transition:transform .45s var(--spring) .1s;transform:translateY(40px)}
+.house .door::after{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--peach);border:2.5px solid var(--line);border-bottom:0;transform-origin:left;transition:transform .45s var(--spring)}
+.house:hover .door::after{transform:perspective(200px) rotateY(-70deg)}
+.house:hover .door .peek{transform:translateY(8px)}
+.house .win{position:absolute;top:22px;width:28px;height:28px;border:2.5px solid var(--line);border-radius:8px;background:var(--glow)}
+.house .win.l{left:18px}.house .win.r{right:18px}
+.house .sign{font:20px var(--f-head);margin-top:12px}
+.house .sign small{display:block;font:13px var(--f-body);color:var(--ink-2)}
+.house .badge{position:absolute;top:-12px;right:4px;z-index:3;font:13px var(--f-head);background:var(--pink-d);color:#fff;border:2.5px solid var(--line);border-radius:999px;padding:2px 9px;animation:bob 2.6s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-5px) rotate(4deg)}}
+.chimney{position:absolute;top:-28px;right:30px;width:18px;height:28px;background:var(--peach);border:2.5px solid var(--line);border-bottom:0}
+.smoke{position:absolute;top:-40px;right:30px;width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid var(--ink-3);animation:smoke 3s ease-out infinite;opacity:0}
+.smoke:nth-of-type(2){animation-delay:1s}.smoke:nth-of-type(3){animation-delay:2s}
+@keyframes smoke{0%{opacity:.9;transform:translate(0,0) scale(.5)}100%{opacity:0;transform:translate(16px,-50px) scale(1.4)}}
+.mailbox{background:var(--paper);border:2.5px solid var(--line);border-radius:22px;box-shadow:var(--shadow);padding:14px 16px 10px;align-self:stretch;position:relative}
+.mailbox h5{font:18px var(--f-head);display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.mailbox .flag{display:inline-block;width:12px;height:20px;background:var(--pink-d);border:2px solid var(--line);border-radius:2px;transform-origin:bottom;animation:flag 2.2s var(--spring) infinite}
+@keyframes flag{0%,70%{transform:rotate(0)}80%{transform:rotate(-25deg)}90%{transform:rotate(8deg)}}
+.letter{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;padding:7px 8px;border-radius:12px;font-size:14px;cursor:pointer;transition:background .2s,transform .3s var(--spring)}
+.letter:hover{background:var(--cream);transform:translateX(4px) rotate(-.6deg)}
+.letter .env{width:24px;height:17px;border:2px solid var(--line);border-radius:3px;background:var(--butter);position:relative;overflow:hidden}
+.letter .env::before{content:"";position:absolute;left:1px;right:1px;top:-9px;height:14px;border:2px solid var(--line);transform:rotate(45deg) skew(10deg,10deg);background:var(--paper);transform-origin:center;transition:top .3s}
+.letter:hover .env::before{top:-15px}
+.letter .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.letter time{font-size:12px;color:var(--ink-2)}
+.chip{display:inline-block;font:12px/1.6 var(--f-head);padding:0 8px;border:2px solid var(--line);border-radius:999px}
+/* 通用页内框架 */
+.wrap{max-width:960px;margin:0 auto;padding:40px 40px 80px}
+.ptitle{display:flex;align-items:center;gap:14px;font:40px var(--f-head)}
+.ptitle .mochi{width:62px}
+.psub{color:var(--ink-2);margin:6px 0 22px}
+.candy-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:26px}
+.candy{font:14px var(--f-head);padding:6px 14px 5px;border-radius:999px;border:2.5px solid var(--line);cursor:pointer;background:var(--paper);transition:transform .3s var(--spring),background .2s;position:relative}
+.candy:hover{transform:translateY(-3px) rotate(3deg)}
+.candy.on{background:var(--pink);transform:translateY(-2px)}
+.candy.on::before{content:"✿";margin-right:4px;color:var(--pink-d)}
+/* 文章列表 · 信笺 */
+.letters{display:flex;flex-direction:column;gap:22px}
+.post{display:grid;grid-template-columns:92px 1fr 96px;gap:22px;align-items:center;background:var(--paper);border:2.5px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:20px 22px;cursor:pointer;position:relative;transition:transform .45s var(--spring),box-shadow .45s var(--spring);background-image:repeating-linear-gradient(transparent 0 31px,var(--mochi) 31px 33px);background-position:0 18px}
+.post:nth-child(odd){transform:rotate(-.6deg)}.post:nth-child(even){transform:rotate(.5deg)}
+.post:hover{transform:translateY(-6px) rotate(0);box-shadow:0 10px 0 var(--line)}
+.post .date{text-align:center;border:2.5px solid var(--line);border-radius:14px;background:var(--butter);padding:6px 0;line-height:1.1}
+.post .date b{display:block;font:30px var(--f-head)}
+.post .date span{font-size:12px}
+.post h3{font:22px/1.35 var(--f-head);margin-bottom:4px}
+.post p{color:var(--ink-2);font-size:14.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.post .tags{margin-top:8px;display:flex;gap:6px}
+.stamp{width:84px;height:96px;justify-self:end;background:var(--sky);border:2.5px dashed var(--line);border-radius:8px;display:grid;place-items:center;position:relative;transform:rotate(4deg);transition:transform .4s var(--spring)}
+.stamp .mochi{width:52px}
+.post:hover .stamp{transform:rotate(-6deg) scale(1.06)}
+.postmark{position:absolute;right:58px;top:14px;width:86px;height:86px;border:3px solid var(--pink-d);border-radius:50%;color:var(--pink-d);font:12px/1.2 var(--f-head);display:grid;place-items:center;text-align:center;opacity:0;transform:scale(1.8) rotate(-30deg);transition:all .25s cubic-bezier(.5,0,.75,0);pointer-events:none;mix-blend-mode:multiply}
+.town[data-mode=dark] .postmark{mix-blend-mode:normal}
+.post:hover .postmark{opacity:.85;transform:scale(1) rotate(-14deg)}
+.post .read{font-size:12px;color:var(--ink-2);margin-left:8px}
+/* 文章页 · 手帐 */
+.journal{display:grid;grid-template-columns:1fr 210px;gap:34px;max-width:1040px;margin:0 auto;padding:34px 40px 80px}
+.sheet{background:var(--paper);border:2.5px solid var(--line);border-radius:6px 22px 22px 6px;box-shadow:var(--shadow);padding:44px 54px 50px 70px;position:relative;background-image:repeating-linear-gradient(transparent 0 33px,var(--mochi) 33px 34px);background-position:0 30px}
+.sheet::before{content:"";position:absolute;top:24px;bottom:24px;left:22px;width:14px;background:radial-gradient(circle at 7px 7px,var(--cream) 0 5px,var(--line) 5px 7px,transparent 7.5px) 0 0/14px 34px repeat-y}
+.washi{position:absolute;top:-14px;width:120px;height:30px;background:repeating-linear-gradient(45deg,var(--pink) 0 10px,var(--paper) 10px 20px);opacity:.92;border:2px solid var(--line);transform:rotate(-4deg)}
+.washi.l{left:60px}.washi.r{right:50px;transform:rotate(5deg);background:repeating-linear-gradient(-45deg,var(--mint) 0 10px,var(--paper) 10px 20px)}
+.sheet .meta{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--ink-2);flex-wrap:wrap}
+.weather{display:inline-flex;gap:4px;align-items:center;border:2px solid var(--line);border-radius:999px;padding:0 10px;background:var(--butter);color:var(--ink)}
+.sheet h1{font:40px/1.3 var(--f-head);margin:14px 0 22px}
+.sheet .prose{font-size:17px;line-height:34px}
+.prose p{margin-bottom:34px}
+.prose h2{font:26px/34px var(--f-head);margin:0 0 17px;display:flex;align-items:center;gap:8px}
+.prose h2::before{content:"";width:22px;height:22px;border-radius:50% 50% 50% 0;background:var(--pink);border:2.5px solid var(--line);transform:rotate(-45deg)}
+.prose mark{background:linear-gradient(transparent 55%,var(--butter) 55%);color:inherit;padding:0 2px}
+.prose code{font:14px ui-monospace,Menlo,monospace;background:var(--lilac);border-radius:6px;padding:2px 6px}
+.prose a{color:var(--pink-d);text-decoration:none;background:linear-gradient(var(--pink),var(--pink)) 0 100%/100% 3px no-repeat;transition:background-size .3s}
+.prose a:hover{background-size:100% 100%}
+.prose blockquote{margin:0 0 34px;padding:16px 20px 16px 64px;border:2.5px solid var(--line);border-radius:22px;background:var(--mint);position:relative;line-height:30px}
+.prose blockquote .mochi{position:absolute;left:12px;top:14px;width:40px}
+.codebox{border:2.5px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:34px;box-shadow:var(--shadow-s)}
+.codebox .bar{display:flex;align-items:center;gap:6px;background:var(--lilac);padding:6px 12px;border-bottom:2.5px solid var(--line);font:13px var(--f-head)}
+.codebox .bar i{width:11px;height:11px;border-radius:50%;border:2px solid var(--line);background:var(--pink)}
+.codebox .bar i:nth-child(2){background:var(--butter)}.codebox .bar i:nth-child(3){background:var(--mint)}
+.codebox .bar button{margin-left:auto;font:12px var(--f-head);border:2px solid var(--line);border-radius:999px;background:var(--paper);padding:0 10px;cursor:pointer;color:var(--ink)}
+.codebox pre{background:var(--code);color:#F5EDF7;font:13.5px/1.7 ui-monospace,Menlo,monospace;padding:14px 18px;overflow:auto}
+.codebox pre .k{color:#FF9EC1}.codebox pre .s{color:#A8F0C8}.codebox pre .c{color:#9C8FB0}
+/* 目录 · 书签 + 读到哪里的团子 */
+.toc{position:sticky;top:20px;align-self:start}
+.toc h6{font:16px var(--f-head);margin-bottom:10px}
+.toc ol{list-style:none;position:relative;padding-left:22px}
+.toc ol::before{content:"";position:absolute;left:8px;top:6px;bottom:6px;border-left:2.5px dashed var(--ink-3)}
+.toc li{font-size:14px;padding:5px 0;color:var(--ink-2);cursor:pointer;transition:color .2s,transform .3s var(--spring)}
+.toc li:hover{transform:translateX(3px);color:var(--ink)}
+.toc li.on{color:var(--ink);font-weight:600}
+.toc .rider{position:absolute;left:-4px;top:0;width:26px;transition:top .5s var(--spring)}
+.progress-pot{margin-top:22px;border:2.5px solid var(--line);border-radius:16px;background:var(--paper);padding:10px 12px;font-size:13px;color:var(--ink-2);box-shadow:var(--shadow-s)}
+.pot-bar{height:14px;border:2px solid var(--line);border-radius:999px;margin-top:6px;overflow:hidden;background:var(--cream)}
+.pot-bar i{display:block;height:100%;width:0;background:repeating-linear-gradient(-45deg,var(--pink) 0 8px,var(--mochi) 8px 16px);transition:width .2s;animation:stripe 1s linear infinite}
+@keyframes stripe{to{background-position:22px 0}}
+.react{display:flex;gap:10px;justify-content:center;margin-top:30px;flex-wrap:wrap}
+.react button{font:15px var(--f-head);display:flex;gap:6px;align-items:center;border:2.5px solid var(--line);border-radius:999px;background:var(--paper);padding:8px 16px;cursor:pointer;box-shadow:var(--shadow-s);color:var(--ink);transition:transform .3s var(--spring)}
+.react button:hover{transform:translateY(-3px)}
+.react button:active{transform:scale(.92)}
+.react .n{font:14px var(--f-body);color:var(--ink-2)}
+.particle{position:fixed;pointer-events:none;z-index:999;font-size:18px;animation:fly .9s cubic-bezier(.2,.7,.3,1) forwards}
+@keyframes fly{to{transform:translate(var(--dx),var(--dy)) rotate(var(--r)) scale(.4);opacity:0}}
+/* 卡片 · 软木板 */
+.p-cards{background-color:var(--cork);background-image:radial-gradient(#00000014 1.2px,transparent 1.6px),radial-gradient(#ffffff26 1px,transparent 1.4px);background-size:14px 14px,19px 19px;min-height:100%}
+.board{display:grid;grid-template-columns:220px 1fr;gap:28px;padding:30px 36px 60px}
+.drawer{background:var(--paper);border:2.5px solid var(--line);border-radius:20px;padding:14px;box-shadow:var(--shadow);align-self:start;position:sticky;top:20px}
+.drawer h6{font:18px var(--f-head);margin-bottom:8px}
+.jar{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:12px;cursor:pointer;font-size:14px;transition:background .2s}
+.jar:hover{background:var(--cream)}
+.jar.on{background:var(--pink)}
+.jar .glass{width:22px;height:26px;border:2px solid var(--line);border-radius:5px 5px 8px 8px;position:relative;overflow:hidden;background:var(--cream)}
+.jar .glass::before{content:"";position:absolute;top:-1px;left:-2px;right:-2px;height:5px;background:var(--peach);border-bottom:2px solid var(--line)}
+.jar .glass i{position:absolute;bottom:0;left:0;right:0;background:var(--c,var(--pink-d));transition:height .4s var(--spring)}
+.jar .n{margin-left:auto;font:12px var(--f-head);color:var(--ink-2)}
+.jar.sub{padding-left:26px;font-size:13px}
+.notes{columns:3 220px;column-gap:22px}
+.note{break-inside:avoid;margin:10px 0 26px;padding:24px 18px 16px;border:2.5px solid var(--line);border-radius:4px 4px 18px 4px;box-shadow:var(--shadow);position:relative;cursor:pointer;font-size:14.5px;line-height:1.85;transition:transform .45s var(--spring);transform:rotate(var(--rot,0deg));background:var(--bg,var(--butter));color:#3B2F3A}
+.town[data-mode=dark] .note{color:var(--ink)}
+.note:hover{transform:rotate(0) translateY(-8px) scale(1.03);z-index:3}
+.note .pin{position:absolute;top:-11px;left:50%;width:20px;height:20px;margin-left:-10px;border-radius:50%;background:var(--pin,var(--pink-d));border:2.5px solid var(--line);box-shadow:inset -4px -4px 0 #00000026;transition:transform .4s var(--spring)}
+.note:hover .pin{transform:translateY(-6px) rotate(20deg)}
+.note .foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:12px;opacity:.75}
+.note.fly{animation:noteOut .55s var(--spring) forwards}
+@keyframes noteOut{to{transform:translateY(-40px) rotate(12deg) scale(.3);opacity:0}}
+.note.drop{animation:noteIn .6s var(--spring) both}
+@keyframes noteIn{from{transform:translateY(-60px) rotate(-14deg) scale(.6);opacity:0}}
+.n-pink{--bg:var(--pink);--rot:-2deg}.n-mint{--bg:var(--mint);--rot:1.6deg;--pin:var(--mint-d)}.n-sky{--bg:var(--sky);--rot:-1deg}.n-lilac{--bg:var(--lilac);--rot:2.2deg}.n-butter{--bg:var(--butter);--rot:-1.4deg;--pin:var(--mint-d)}.n-peach{--bg:var(--peach);--rot:1deg}
+/* 卡片详情 · 拿在手上的便签 + 红线相连 */
+.card-stage{display:grid;grid-template-columns:1fr 300px;gap:40px;max-width:1040px;margin:0 auto;padding:40px 40px 60px;position:relative}
+.big-note{--bg:var(--butter);background:var(--bg);color:#3B2F3A;border:2.5px solid var(--line);border-radius:6px 6px 26px 6px;box-shadow:0 6px 0 var(--line);padding:46px 44px 34px;position:relative;transform:rotate(-.8deg);font-size:17px;line-height:1.95}
+.town[data-mode=dark] .big-note{color:var(--ink)}
+.big-note .tape{position:absolute;top:-16px;left:50%;margin-left:-60px;width:120px;height:32px;background:#ffffffaa;border:2px solid var(--line);transform:rotate(2deg)}
+.big-note .corner{position:absolute;right:-2.5px;bottom:-2.5px;width:44px;height:44px;background:linear-gradient(135deg,var(--bg) 50%,var(--cork) 50%);border-left:2.5px solid var(--line);border-top:2.5px solid var(--line);border-radius:14px 0 26px 0;cursor:pointer;transition:all .4s var(--spring)}
+.big-note .corner:hover{width:66px;height:66px}
+.big-note .meta{font-size:13px;opacity:.75;display:flex;gap:10px;align-items:center;margin-bottom:14px}
+.linked{position:relative}
+.linked h6{font:18px var(--f-head);margin-bottom:12px;background:var(--paper);display:inline-block;padding:2px 12px;border:2.5px solid var(--line);border-radius:999px}
+.mini{position:relative;background:var(--bg);color:#3B2F3A;border:2.5px solid var(--line);border-radius:4px 4px 14px 4px;padding:14px 14px 10px;margin:0 0 20px;font-size:13.5px;box-shadow:var(--shadow-s);cursor:pointer;transform:rotate(var(--rot));transition:transform .4s var(--spring)}
+.town[data-mode=dark] .mini{color:var(--ink)}
+.mini:hover{transform:rotate(0) translateX(-6px) scale(1.03)}
+.mini .pin{position:absolute;top:-9px;left:16px;width:16px;height:16px;border-radius:50%;background:var(--pink-d);border:2px solid var(--line)}
+svg.yarn{position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:2}
+svg.yarn path{fill:none;stroke:var(--pink-d);stroke-width:2.5;stroke-linecap:round;stroke-dasharray:6 7;animation:march 1.2s linear infinite}
+@keyframes march{to{stroke-dashoffset:-26}}
+/* 文档 · 绘本 / 地图 */
+.p-doc .layout{display:grid;grid-template-columns:250px 1fr;gap:30px;padding:28px 36px 60px;max-width:1160px;margin:0 auto}
+.map{background:var(--paper);border:2.5px solid var(--line);border-radius:22px;padding:16px 14px;box-shadow:var(--shadow);align-self:start;position:sticky;top:20px}
+.map h6{font:18px var(--f-head);display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.map .crumb{font-size:12px;color:var(--ink-2);margin-bottom:12px}
+.trail{position:relative;list-style:none}
+.trail>li{position:relative;padding:6px 0 6px 34px;font-size:14px;cursor:pointer}
+.trail>li::before{content:"";position:absolute;left:9px;top:12px;width:14px;height:14px;border-radius:50%;border:2.5px solid var(--line);background:var(--paper);z-index:1;transition:transform .3s var(--spring)}
+.trail>li:hover::before{transform:scale(1.25)}
+.trail>li.done::before{background:var(--mint)}
+.trail>li.here::before{background:var(--pink-d);box-shadow:0 0 0 4px var(--pink)}
+.trail::before{content:"";position:absolute;left:16px;top:16px;bottom:16px;border-left:3px dotted var(--ink-3)}
+.trail>li.grp{font:14px var(--f-head);color:var(--ink-2);padding-left:34px;cursor:default}
+.trail>li.grp::before{border-radius:4px;background:var(--butter);width:16px;height:12px;top:13px}
+.trail .flag{position:absolute;left:-8px;top:-4px;width:30px;pointer-events:none}
+.book{background:var(--paper);border:2.5px solid var(--line);border-radius:26px;box-shadow:var(--shadow);overflow:hidden}
+.book .cover{background:var(--mint);border-bottom:2.5px solid var(--line);padding:26px 40px 22px;position:relative;overflow:hidden}
+.book .cover h1{font:34px var(--f-head)}
+.book .cover p{color:var(--ink-2);font-size:13px}
+.book .cover .mochi{position:absolute;right:40px;bottom:-26px;width:110px;transform:rotate(-8deg)}
+.book .prose{padding:30px 40px 10px;font-size:16px;line-height:1.95}
+.book .prose p{margin-bottom:18px}
+.book .prose h2{line-height:1.4}
+.callout{display:flex;gap:12px;border:2.5px solid var(--line);background:var(--sky);border-radius:18px;padding:12px 16px;margin-bottom:20px;font-size:15px}
+.turn{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:10px 40px 34px}
+.page-turn{border:2.5px solid var(--line);border-radius:18px;padding:12px 16px;cursor:pointer;background:var(--cream);transition:transform .35s var(--spring),background .2s;position:relative;overflow:hidden}
+.page-turn small{color:var(--ink-2);font-size:12px}
+.page-turn div{font:17px var(--f-head)}
+.page-turn.next{text-align:right}
+.page-turn:hover{background:var(--butter);transform:translateY(-3px)}
+.page-turn.next::after{content:"";position:absolute;right:0;bottom:0;width:0;height:0;background:linear-gradient(135deg,var(--butter) 50%,var(--ink-3) 50%);transition:all .3s var(--spring);border-radius:10px 0 0 0}
+.page-turn.next:hover::after{width:28px;height:28px}
+/* 搜索 · 团子叼着放大镜 */
+.scrim{position:absolute;inset:0;background:#3B2F3A59;backdrop-filter:blur(3px);z-index:80;display:none;align-items:flex-start;justify-content:center;padding-top:90px}
+.scrim.on{display:flex;animation:fade .25s}
+@keyframes fade{from{opacity:0}}
+.sbox{width:600px;background:var(--paper);border:2.5px solid var(--line);border-radius:26px;box-shadow:0 8px 0 var(--line);padding:18px;position:relative;animation:pop .45s var(--spring)}
+@keyframes pop{from{transform:translateY(-30px) scale(.85);opacity:0}}
+.sbox .sniff{position:absolute;top:-58px;left:30px;width:74px}
+.sinput{display:flex;align-items:center;gap:10px;border:2.5px solid var(--line);border-radius:16px;padding:10px 14px;background:var(--cream)}
+.sinput input{flex:1;border:0;background:transparent;font:17px var(--f-body);color:var(--ink);outline:none}
+.sinput input::placeholder{color:var(--ink-2)}
+.stabs{display:flex;gap:6px;margin:12px 0 6px}
+.sres{max-height:300px;overflow:auto}
+.hit{display:grid;grid-template-columns:auto 1fr;gap:10px;padding:10px;border-radius:14px;cursor:pointer;animation:hitIn .4s var(--spring) both}
+.hit:hover,.hit.sel{background:var(--pink)}
+.hit .ic{width:34px;height:34px;border:2.5px solid var(--line);border-radius:12px;display:grid;place-items:center;font-size:16px}
+.hit h6{font:16px var(--f-head)}
+.hit p{font-size:13px;color:var(--ink-2)}
+.hit em{font-style:normal;background:var(--butter);border-radius:4px;padding:0 2px;color:var(--ink)}
+@keyframes hitIn{from{opacity:0;transform:translateX(-14px)}}
+.sempty{text-align:center;padding:26px 0 10px;color:var(--ink-2)}
+.sempty .mochi{width:80px;margin:0 auto 6px}
+.skeys{display:flex;gap:12px;font-size:12px;color:var(--ink-2);margin-top:8px;padding-top:8px;border-top:2px dashed var(--ink-3)}
+.skeys kbd{font:11px ui-monospace,monospace;border:1.5px solid var(--ink-3);border-radius:5px;padding:0 5px}
+/* 空态 / 加载 / 404 */
+.p-lost{display:grid;place-items:center;text-align:center;min-height:100%;padding:40px}
+.p-lost .big{font:120px/1 var(--f-head);display:flex;align-items:center;gap:6px;color:var(--pink-d)}
+.p-lost .big .mochi{width:120px}
+.loader{display:flex;gap:10px;justify-content:center;margin-top:30px}
+.loader .mochi{width:34px;animation:hop 1s var(--spring) infinite}
+.loader .mochi:nth-child(2){animation-delay:.15s}.loader .mochi:nth-child(3){animation-delay:.3s}
+@keyframes hop{0%,100%{transform:translateY(0) scale(1.1,.9)}40%{transform:translateY(-22px) scale(.92,1.08)}}
+.btn{display:inline-flex;gap:8px;align-items:center;font:16px var(--f-head);padding:10px 20px;border:2.5px solid var(--line);border-radius:999px;background:var(--butter);box-shadow:var(--shadow-s);cursor:pointer;color:var(--ink);transition:transform .3s var(--spring)}
+.btn:hover{transform:translateY(-3px) rotate(-2deg)}
+/* 回到顶部 · 气球 */
+.balloon{position:absolute;right:24px;bottom:24px;z-index:50;width:54px;cursor:pointer;transition:transform .5s var(--spring),opacity .3s;animation:sway 3s ease-in-out infinite}
+.balloon.hide{opacity:0;pointer-events:none;transform:translateY(30px)}
+.balloon.up{animation:float-away 1s cubic-bezier(.5,0,.8,.4) forwards}
+@keyframes sway{50%{transform:rotate(5deg) translateY(-4px)}}
+@keyframes float-away{to{transform:translateY(-700px) rotate(-10deg);opacity:0}}
+/* 鼠标星尘 */
+.dust{position:absolute;pointer-events:none;z-index:70;font-size:12px;animation:dust .8s ease-out forwards;color:var(--pink-d)}
+@keyframes dust{to{transform:translateY(18px) scale(.2);opacity:0}}
+/* 页脚 · 小草地 */
+.t-foot{position:relative;padding:26px 56px 18px;font-size:13px;color:var(--ink-2);display:flex;align-items:flex-end;gap:16px;background:var(--hill);border-top:2.5px solid var(--line)}
+.t-foot .grass{position:absolute;top:-14px;left:0;right:0;height:14px;background:radial-gradient(circle at 7px 14px,var(--hill) 6px,transparent 7px) 0 0/14px 14px repeat-x}
+.t-foot .snail{width:46px;animation:crawl 26s linear infinite}
+@keyframes crawl{from{transform:translateX(0)}to{transform:translateX(560px)}}
+/* 交互实验室 */
+.lab{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:18px}
+.lab .cell{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 1px 2px #0000000d,0 8px 24px #00000008}
+.lab .demo{height:170px;display:grid;place-items:center;position:relative;overflow:hidden}
+.lab .cap{padding:12px 16px 14px;font-size:13.5px;color:#4A4347}
+.lab .cap b{display:block;font:16px var(--f-head);color:#2E2A2D;margin-bottom:2px}
+.lab .cap code{font-size:12px;background:#F4EEE8;border-radius:4px;padding:0 4px}
+.swatches{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.sw{width:96px;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 1px 2px #0000001a;font-size:12px}
+.sw i{display:block;height:54px;border-bottom:2px solid #3B2F3A}
+.sw span{display:block;padding:6px 8px;line-height:1.35}
+@media (prefers-reduced-motion:reduce){.town *,.lab *{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div class="doc">
+<h1>Tau 博客 · 可爱风模板设计方案</h1>
+<p class="lead">现有官方模板（tau.blog 1.5.0）走的是克制的编辑风：大字逐字揭幕、细分割线、灰阶层次。这份方案保留它的数据与路由（首页 / 文章列表 / 卡片列表 / 文章 / 卡片 / 项目文档 / 搜索），只换「皮」和「手感」。先给三个风格方向，再把推荐方向做成可交互的完整 mockup，最后列出每个可爱元素的实现与降级方式。</p>
+<nav class="doc-nav">
+  <a href="#dirs">① 三个方向</a><a href="#mock">② 完整 Mockup</a><a href="#elements">③ 可爱元素清单</a><a href="#system">④ 视觉系统</a><a href="#ship">⑤ 落地建议</a>
+</nav>
+
+<h2 id="dirs">① 三个风格方向</h2>
+<p class="lead">三者共享同一套页面结构，差别在「隐喻」和「材质」。可爱的关键不是堆贴图，而是有一个统一的世界观，让每个页面都是这个世界里的一处地方。</p>
+<div class="grid3 dir">
+  <div>
+    <div class="browser" style="margin:0;border-radius:16px 16px 0 0"><div class="town" style="height:220px;padding:16px;font-family:var(--f-head);background:linear-gradient(var(--sky) 0 60%,var(--hill) 60%)">
+      <div style="display:flex;gap:6px"><span class="pill" style="font-size:12px;padding:4px 10px">文章</span><span class="pill on" style="font-size:12px;padding:4px 10px">卡片</span></div>
+      <div style="font-size:30px;margin-top:12px">团子的小窝</div>
+      <div style="position:absolute;right:22px;bottom:34px;width:86px" data-mochi="mochi" data-mood="happy"></div>
+      <div style="position:absolute;left:22px;bottom:18px;display:flex;gap:10px;align-items:flex-end">
+        <div style="width:46px;height:38px;background:var(--paper);border:2.5px solid var(--line);border-radius:4px 4px 10px 10px;box-shadow:var(--shadow-s);position:relative"><i style="position:absolute;top:-16px;left:4px;right:4px;height:18px;background:var(--pink);border:2.5px solid var(--line);border-radius:12px 12px 0 0"></i></div>
+        <div style="width:46px;height:46px;background:var(--paper);border:2.5px solid var(--line);border-radius:4px 4px 10px 10px;box-shadow:var(--shadow-s);position:relative"><i style="position:absolute;top:-16px;left:4px;right:4px;height:18px;background:var(--mint);border:2.5px solid var(--line);border-radius:12px 12px 0 0"></i></div>
+      </div>
+    </div></div>
+    <div class="panel"><h4>A · 团子小镇 <span class="rec">推荐</span></h4>
+      <dl><dt>隐喻</dt><dd>站点是一座小镇，主角是一只会看你、会被戳、会睡着的团子。首页是广场，文章是寄来的信，卡片是软木板便签，项目文档是绘本地图。</dd>
+      <dt>材质</dt><dd>粗描边贴纸感（2.5px 墨色描边 + 硬投影），奶油底，马卡龙色块。</dd>
+      <dt>可爱来源</dt><dd>角色 + 场景叙事 + Q 弹物理。</dd>
+      <dt>风险</dt><dd>角色设计要统一，否则显得幼稚；正文区必须收敛，保证长文可读。</dd></dl></div>
+  </div>
+  <div>
+    <div class="browser" style="margin:0;border-radius:16px 16px 0 0"><div style="height:220px;padding:16px;background:#F4E6CF;background-image:radial-gradient(#0000000f 1px,transparent 1.5px);background-size:9px 9px;position:relative;font-family:var(--f-body);overflow:hidden">
+      <div style="position:absolute;top:22px;left:20px;width:150px;padding:14px 12px;background:#fff;transform:rotate(-3deg);box-shadow:2px 3px 0 #0001;font:13px var(--f-body)">今天读完了《小王子》。<br>想把玫瑰的那一段抄下来。</div>
+      <i style="position:absolute;top:14px;left:62px;width:70px;height:20px;background:repeating-linear-gradient(90deg,#F7B6C8 0 8px,#FBD5DF 8px 16px);transform:rotate(-8deg);opacity:.85"></i>
+      <div style="position:absolute;right:26px;top:26px;width:70px;height:70px;border-radius:50%;background:#FFE08A;display:grid;place-items:center;font-size:30px;transform:rotate(12deg);box-shadow:0 0 0 4px #fff,2px 4px 0 4px #0001">🌼</div>
+      <div style="position:absolute;right:40px;bottom:30px;padding:8px 14px;background:#C9E8D8;border-radius:4px;transform:rotate(4deg);font:14px var(--f-head);box-shadow:0 0 0 4px #fff,2px 4px 0 4px #0001">#读书笔记</div>
+      <div style="position:absolute;left:24px;bottom:22px;font:26px var(--f-head);color:#8A5A44">Scrapbook</div>
+    </div></div>
+    <div class="panel"><h4>B · 糖果手帐</h4>
+      <dl><dt>隐喻</dt><dd>整站是一本拼贴手帐。每篇内容是贴上去的纸片，标签是贴纸，可以拖动、撕下和重新贴。</dd>
+      <dt>材质</dt><dd>牛皮纸 / 点阵纸底，和纸胶带，白边贴纸，手写字体。</dd>
+      <dt>可爱来源</dt><dd>纸质触感 + 随手拼贴的松弛感。</dd>
+      <dt>风险</dt><dd>没有角色，记忆点弱一些；随机旋转与纹理多了容易乱。</dd></dl></div>
+  </div>
+  <div>
+    <div class="browser" style="margin:0;border-radius:16px 16px 0 0"><div style="height:220px;padding:18px;background:linear-gradient(160deg,#FDE7F1,#E6E9FF 55%,#DDF7EE);position:relative;overflow:hidden;font-family:'Baloo 2',var(--f-head)">
+      <i style="position:absolute;width:150px;height:150px;right:-30px;top:-40px;border-radius:46% 54% 60% 40%;background:linear-gradient(140deg,#FFC6DD,#FF9EC5);box-shadow:inset -10px -14px 24px #E86A9E66,inset 10px 12px 20px #fff9"></i>
+      <i style="position:absolute;width:90px;height:90px;left:40px;bottom:-30px;border-radius:50%;background:linear-gradient(140deg,#C6F2E1,#8EDCC0);box-shadow:inset -8px -10px 18px #3BAA8466,inset 8px 10px 16px #fffb"></i>
+      <div style="font-size:30px;color:#5B4B8A;font-weight:700">Jellyfish ✦</div>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <span style="padding:8px 18px;border-radius:999px;background:#fff;box-shadow:0 8px 16px #B39BE055,inset 0 -4px 0 #E9E2FF;color:#5B4B8A;font-size:14px">文章</span>
+        <span style="padding:8px 18px;border-radius:999px;background:linear-gradient(#B9A6FF,#9B85F2);box-shadow:0 8px 16px #9B85F288,inset 0 -4px 0 #7F68DD,inset 0 3px 0 #fff6;color:#fff;font-size:14px">卡片</span>
+      </div>
+      <div style="position:absolute;left:150px;bottom:30px;width:150px;padding:12px 14px;border-radius:22px;background:#ffffffb3;backdrop-filter:blur(6px);box-shadow:0 12px 24px #9B85F233;font:13px var(--f-body);color:#5B4B8A">像果冻一样，按下去会回弹。</div>
+    </div></div>
+    <div class="panel"><h4>C · 软糯果冻</h4>
+      <dl><dt>隐喻</dt><dd>一切元素都是软软的果冻或黏土，按下会凹陷、松手会回弹，背景有缓慢漂浮的泡泡。</dd>
+      <dt>材质</dt><dd>无描边，渐变 + 内阴影做出体积，玻璃拟态卡片。</dd>
+      <dt>可爱来源</dt><dd>形体软 + 物理反馈。</dd>
+      <dt>风险</dt><dd>质感很「流行」，三年后容易过时；渐变和模糊多，低端机滚动掉帧，深色模式难调。</dd></dl></div>
+  </div>
+</div>
+<table class="spec">
+  <tr><th></th><th>A 团子小镇</th><th>B 糖果手帐</th><th>C 软糯果冻</th></tr>
+  <tr><th>辨识度</th><td>高：角色就是品牌，适合做头像、favicon、404</td><td>中：风格辨识，但无具体形象</td><td>中：质感辨识</td></tr>
+  <tr><th>长文可读性</th><td>好：正文区回到纸面，可爱集中在边角</td><td>中：纸纹与旋转要克制</td><td>好</td></tr>
+  <tr><th>深色模式</th><td>自然：小镇入夜，窗户亮灯，本身就是一个可爱时刻</td><td>较难：牛皮纸入夜不自然</td><td>难：渐变体积要整套重调</td></tr>
+  <tr><th>性能</th><td>轻：纯 SVG + CSS，无模糊滤镜</td><td>轻</td><td>重：backdrop-filter + 大面积渐变</td></tr>
+  <tr><th>站长定制</th><td>团子名字、颜色、口头禅可做成站点字段</td><td>贴纸主题色</td><td>主色</td></tr>
+</table>
+<p class="lead">推荐 A。它把「可爱」落在一个能持续表演的角色上，每个页面都有自己的场景和互动，又能把正文保护在干净的纸面里。B 的和纸胶带、横线纸，C 的按压回弹，都已经吸收进 A 的细节里。</p>
+
+<h2 id="mock">② 完整 Mockup · 团子小镇</h2>
+<p class="lead">下面的窗口可以直接操作：页头按钮和下方标签都能切页，所有悬停、点击、日夜切换都是真的。数据用的是模板现有字段（timeline、ListItem、CardData.linkedCards、DocData.prevPage/nextPage 等），没有虚构新数据。</p>
+<div class="ptabs" id="ptabs">
+  <button class="ptab on" data-go="home">首页 <small>小镇广场</small></button>
+  <button class="ptab" data-go="articles">文章列表 <small>邮局</small></button>
+  <button class="ptab" data-go="article">文章详情 <small>手帐信纸</small></button>
+  <button class="ptab" data-go="cards">卡片列表 <small>软木板</small></button>
+  <button class="ptab" data-go="card">卡片详情 <small>便签 + 红线</small></button>
+  <button class="ptab" data-go="doc">项目文档 <small>绘本地图</small></button>
+  <button class="ptab" data-go="lost">404 / 加载 <small>迷路的团子</small></button>
+  <button class="ptab" data-go="search">搜索 <small>⌘K</small></button>
+</div>
+<div class="toolbar">
+  <span>小镇时间</span>
+  <button id="tb-day" aria-pressed="true">白天</button><button id="tb-night" aria-pressed="false">夜晚</button>
+  <span style="margin-left:14px">鼠标星尘</span>
+  <button id="tb-dust" aria-pressed="false">开</button>
+  <span style="margin-left:14px;color:#9A8F96">提示：戳一下团子 · 连点站名 Logo 5 次 · 在文章页滚动</span>
+</div>
+
+<div class="browser">
+  <div class="chrome"><i></i><i></i><i></i><div class="url" id="url">mochi.blog/</div></div>
+  <div class="town" id="town" data-mode="light">
+    <header class="t-head">
+      <div class="t-logo" id="logo" title="连点 5 次试试"><span data-mochi="mochi" data-mood="happy" data-size="40"></span>团子的小窝</div>
+      <nav class="t-nav">
+        <button class="pill" data-go="articles">文章</button>
+        <button class="pill" data-go="cards">卡片</button>
+        <div class="nav-doc" style="position:relative">
+          <button class="pill" data-go="doc">项目 ▾</button>
+          <div class="shelf-pop">
+            <span class="tip">从书架上抽一本 ↓</span>
+            <div class="spine" style="background:var(--mint);height:120px" data-go="doc">Tau 指南</div>
+            <div class="spine" style="background:var(--pink);height:100px" data-go="doc">手工咖啡</div>
+            <div class="spine" style="background:var(--sky);height:132px" data-go="doc">Rust 小抄</div>
+            <div class="spine" style="background:var(--butter);height:92px" data-go="doc">旅行地图</div>
+          </div>
+        </div>
+      </nav>
+      <div class="t-tools">
+        <button class="find" data-go="search">🔍 找点什么 <kbd>⌘K</kbd></button>
+        <button class="dn" id="dn" aria-label="切换白天 / 夜晚"><span class="knob"></span><i class="st" style="left:12px;top:8px"></i><i class="st" style="left:20px;top:20px"></i><i class="st" style="left:8px;top:22px"></i></button>
+      </div>
+    </header>
+
+    <div class="t-main" id="tmain">
+      <!-- 首页 -->
+      <section class="t-page p-home on" data-page="home">
+        <div class="stars" id="stars"></div>
+        <div class="sun"></div>
+        <div class="cloud" style="top:40px;width:110px;animation-duration:60s;animation-delay:-20s"><i></i></div>
+        <div class="cloud" style="top:120px;width:80px;animation-duration:80s;animation-delay:-55s"><i></i></div>
+        <div class="hill"></div><div class="hill h2"></div>
+        <div class="hero">
+          <div>
+            <span class="hello"><span id="greet">☀️ 早上好</span> · 欢迎来到我的小镇</span>
+            <h1 class="site-title" id="siteTitle" aria-label="团子的小窝"></h1>
+            <p class="desc">我在这里写字、记卡片、整理做过的小项目。慢慢写，慢慢长大。</p>
+            <div class="stats"><span class="stat"><b>42</b>封信</span><span class="stat"><b>318</b>张便签</span><span class="stat"><b>4</b>本绘本</span></div>
+          </div>
+          <div class="hero-mascot">
+            <div class="bubble" id="heroBubble">嗨，戳戳我也可以哦～</div>
+            <span id="heroMochi" data-mochi="mochi" data-mood="happy" data-track="1"></span>
+          </div>
+        </div>
+        <div class="street">
+          <a class="house" data-go="articles">
+            <span class="badge">+2</span>
+            <div class="roof" style="background:var(--pink)"><span class="chimney"></span><span class="smoke"></span><span class="smoke"></span><span class="smoke"></span></div>
+            <div class="wall"><i class="win l"></i><i class="win r"></i><div class="door"><span class="peek" data-mochi="mochi" data-mood="happy"></span></div></div>
+            <div class="sign">邮局<small>42 篇文章</small></div>
+          </a>
+          <a class="house" data-go="cards">
+            <div class="roof" style="background:var(--mint)"></div>
+            <div class="wall"><i class="win l"></i><i class="win r"></i><div class="door"><span class="peek" data-mochi="mochi" data-mood="wink"></span></div></div>
+            <div class="sign">便签屋<small>318 张卡片</small></div>
+          </a>
+          <a class="house" data-go="doc">
+            <div class="roof" style="background:var(--lilac)"><span class="chimney" style="right:auto;left:30px"></span></div>
+            <div class="wall"><i class="win l"></i><i class="win r"></i><div class="door"><span class="peek" data-mochi="mochi" data-mood="sleepy"></span></div></div>
+            <div class="sign">图书馆<small>4 个项目</small></div>
+          </a>
+          <div class="mailbox">
+            <h5><span class="flag"></span>最近寄到</h5>
+            <div id="recent"></div>
+          </div>
+        </div>
+        <footer class="t-foot"><span class="grass"></span><span class="snail" data-mochi="snail"></span><span style="margin-left:auto">© 2026 团子的小窝 · 用 Tau 写成</span></footer>
+      </section>
+
+      <!-- 文章列表 -->
+      <section class="t-page" data-page="articles">
+        <div class="wrap">
+          <div class="ptitle"><span data-mochi="mochi" data-mood="happy" data-hat="post"></span>邮局</div>
+          <p class="psub">这里存着我寄出的 42 封信。点一下标签糖果，只看某一类。</p>
+          <div class="candy-row" id="articleTags"></div>
+          <div class="letters" id="letters"></div>
+        </div>
+      </section>
+      <!-- 文章详情 -->
+      <section class="t-page" data-page="article">
+        <div class="journal">
+          <article class="sheet">
+            <span class="washi l"></span><span class="washi r"></span>
+            <div class="meta"><span class="weather">☀️ 晴</span><span>团子</span><span>2026 年 10 月 21 日</span><span>约 6 分钟</span></div>
+            <h1>在家做一杯好喝的手冲咖啡</h1>
+            <div class="prose" id="prose">
+              <p>秋天的早上，最适合慢慢磨一把豆子。这篇是我练了三个月后的<mark>一些小心得</mark>，不追求专业，只求每天那一杯能让自己开心。</p>
+              <h2 data-h="0">先选一包新鲜的豆子</h2>
+              <p>烘焙日期在两周以内最好。浅烘的果酸更明亮，中深烘更像巧克力和坚果。第一次买可以选<a href="#">中烘的单品</a>，容错率高。</p>
+              <blockquote><span data-mochi="mochi" data-mood="wink"></span>小提示：豆子开封后用带单向阀的罐子装，放在阴凉处，不要进冰箱。</blockquote>
+              <h2 data-h="1">水温和粉水比</h2>
+              <p>我常用 <code>1:15</code> 的粉水比，15 克粉配 225 克水，水温 92 度左右。先用 30 克水闷蒸 30 秒，看着粉层鼓起来，像一个小小的面包。</p>
+              <div class="codebox"><div class="bar"><i></i><i></i><i></i><span style="margin-left:6px">brew.ts</span><button id="copyBtn">复制</button></div>
+<pre><span class="c">// 按豆子重量算出注水量</span>
+<span class="k">const</span> water = (beans: <span class="k">number</span>, ratio = <span class="s">15</span>) =&gt; beans * ratio;
+console.<span class="k">log</span>(water(<span class="s">15</span>)); <span class="c">// 225</span></pre></div>
+              <h2 data-h="2">注水的节奏</h2>
+              <p>分三段注水，每段之间等水位降到一半。手要稳，水流细，绕着中心画小圈。听起来很玄，其实练几天手就记住了。</p>
+              <p>最后一段注完，整个萃取时间控制在两分半到三分钟。如果太苦，就把研磨调粗一点；太酸，就调细一点。</p>
+              <h2 data-h="3">写在最后</h2>
+              <p>好喝的咖啡没有标准答案。记录下每一次的参数和感受，慢慢就会找到属于自己的那一杯。</p>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:4px"><span class="chip" style="background:var(--peach)">#咖啡</span><span class="chip" style="background:var(--mint)">#生活</span></div>
+            <div class="react">
+              <button data-burst="💗">💗 喜欢 <span class="n">128</span></button>
+              <button data-burst="🍡">🍡 投喂团子 <span class="n">56</span></button>
+              <button data-burst="✨">✨ 学到了 <span class="n">34</span></button>
+            </div>
+            <p style="text-align:center;font-size:12px;color:var(--ink-2);margin-top:10px">最后更新于 2026 年 10 月 24 日</p>
+          </article>
+          <aside class="toc">
+            <h6>📑 目录</h6>
+            <ol id="toc">
+              <span class="rider" id="rider" data-mochi="mochi" data-mood="happy"></span>
+              <li class="on" data-h="0">先选一包新鲜的豆子</li>
+              <li data-h="1">水温和粉水比</li>
+              <li data-h="2">注水的节奏</li>
+              <li data-h="3">写在最后</li>
+            </ol>
+            <div class="progress-pot">团子吃饱程度 <span id="potPct">0%</span><div class="pot-bar"><i id="pot"></i></div></div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- 卡片列表 -->
+      <section class="t-page p-cards" data-page="cards">
+        <div class="board">
+          <aside class="drawer">
+            <h6>🫙 标签罐子</h6>
+            <div id="jars"></div>
+          </aside>
+          <div>
+            <div class="ptitle" style="font-size:34px;margin-bottom:6px"><span data-mochi="mochi" data-mood="happy"></span>便签屋</div>
+            <p class="psub" id="cardCount" style="color:#5B4636"></p>
+            <div class="notes" id="notes"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 卡片详情 -->
+      <section class="t-page p-cards" data-page="card">
+        <div class="card-stage" id="cardStage">
+          <svg class="yarn" id="yarn"></svg>
+          <div>
+            <div class="big-note" id="bigNote">
+              <span class="tape"></span>
+              <div class="meta">📌 2026 年 10 月 12 日 · 约 1 分钟 <span class="chip" style="background:#ffffff99">#思考/学习</span></div>
+              <p><b>费曼学习法</b>的核心只有一句话：如果你不能用简单的话把一件事讲给小朋友听，说明你还没真正懂它。</p>
+              <p style="margin-top:12px">所以每读完一章，我都试着写一张这样的便签：只用三句话，不用术语。写不出来的地方，就是要回头再读的地方。</p>
+              <span class="corner" title="翻到背面"></span>
+            </div>
+            <p style="font-size:12px;color:#5B4636;margin-top:16px">最后更新于 2026 年 10 月 13 日</p>
+          </div>
+          <div class="linked">
+            <h6>🧶 用红线连着的便签</h6>
+            <div class="mini" style="--bg:var(--mint);--rot:1.5deg" data-go="card"><span class="pin"></span>间隔重复：在快忘记的时候复习，记得最牢。</div>
+            <div class="mini" style="--bg:var(--sky);--rot:-1.2deg" data-go="card"><span class="pin"></span>输出倒逼输入：写作是检验理解最便宜的方法。</div>
+            <div class="mini" style="--bg:var(--pink);--rot:2deg" data-go="card"><span class="pin"></span>知识的诅咒：懂了之后，就很难想象不懂的样子。</div>
+          </div>
+        </div>
+      </section>
+      <!-- 项目文档 -->
+      <section class="t-page p-doc" data-page="doc">
+        <div class="layout">
+          <aside class="map">
+            <h6>🗺️ Tau 指南</h6>
+            <div class="crumb">图书馆 › Tau 指南 › 写作</div>
+            <ul class="trail">
+              <li class="grp">起步</li>
+              <li class="done">安装 Tau</li>
+              <li class="done">第一篇文档</li>
+              <li class="grp">写作</li>
+              <li class="here"><span class="flag" data-mochi="mochi" data-mood="happy"></span>卡片与双链</li>
+              <li>数据库视图</li>
+              <li>白板</li>
+              <li class="grp">发布</li>
+              <li>选一个博客模板</li>
+              <li>发布到 S3</li>
+            </ul>
+          </aside>
+          <div class="book">
+            <div class="cover">
+              <p>第 2 章 · 写作</p>
+              <h1>卡片与双链</h1>
+              <span data-mochi="mochi" data-mood="happy" data-hat="book"></span>
+            </div>
+            <div class="prose">
+              <p>卡片是 Tau 里最小的思考单位。一张卡片只讲一件事，写完之后用双链把它和别的卡片连起来，慢慢就会长成一张属于你的知识网。</p>
+              <div class="callout"><span>💡</span><div>在任意位置输入 <code>[[</code>，就能搜索并链接到另一张卡片。</div></div>
+              <h2>什么时候该新建一张卡片</h2>
+              <p>当你发现一段话可以脱离上下文单独成立，它就值得变成一张卡片。不要怕卡片太短，三句话也很好。</p>
+            </div>
+            <div class="turn">
+              <div class="page-turn" data-go="doc"><small>← 上一页</small><div>第一篇文档</div></div>
+              <div class="page-turn next" data-go="doc"><small>下一页 →</small><div>数据库视图</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 404 / 加载 -->
+      <section class="t-page" data-page="lost">
+        <div class="p-lost">
+          <div>
+            <div class="big">4<span data-mochi="mochi" data-mood="dizzy"></span>4</div>
+            <h2 style="font:28px var(--f-head);margin-top:14px">团子找不到这一页了</h2>
+            <p style="color:var(--ink-2);margin:8px 0 22px">它可能被搬走了，或者从来没有存在过。</p>
+            <button class="btn" data-go="home">🏠 带团子回家</button>
+            <div style="margin-top:46px;font-size:13px;color:var(--ink-2)">加载中的样子（替换现在的「正在加载…」文字）</div>
+            <div class="loader"><span data-mochi="mochi" data-mood="happy"></span><span data-mochi="mochi" data-mood="happy" data-color="mint"></span><span data-mochi="mochi" data-mood="happy" data-color="sky"></span></div>
+            <div style="font-size:13px;color:var(--ink-2);margin-top:12px">团子们正在搬运文字……</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="scrim" id="scrim">
+      <div class="sbox">
+        <span class="sniff" data-mochi="mochi" data-mood="sniff"></span>
+        <div class="sinput">🔍<input id="sq" placeholder="团子帮你闻一闻……试试「咖啡」或「Rust」" autocomplete="off"><kbd style="font:11px ui-monospace;border:1.5px solid var(--ink-3);border-radius:5px;padding:0 5px;color:var(--ink-2)">Esc</kbd></div>
+        <div class="stabs" id="stabs"><span class="candy on" data-t="all">全部</span><span class="candy" data-t="article">文章</span><span class="candy" data-t="card">卡片</span><span class="candy" data-t="doc">文档</span></div>
+        <div class="sres" id="sres"></div>
+        <div class="skeys"><span><kbd>↑</kbd><kbd>↓</kbd> 挑选</span><span><kbd>↵</kbd> 打开</span><span><kbd>Esc</kbd> 让团子回家</span></div>
+      </div>
+    </div>
+    <div class="balloon hide" id="balloon" title="回到顶部"><span data-mochi="balloon"></span></div>
+  </div>
+</div>
+
+<div class="grid2 anno" id="anno"></div>
+
+<h2 id="elements">③ 可爱元素清单</h2>
+<p class="lead">按「常驻 / 响应 / 彩蛋」三层分配，避免每处都在动。常驻层只有呼吸、云和烟这种低频动画；响应层只在用户操作时出现；彩蛋层要主动发现。</p>
+<h3>交互实验室（每格都能玩）</h3>
+<div class="lab town" style="height:auto;display:grid;background:transparent" data-mode="light">
+  <div class="cell"><div class="demo" style="background:var(--sky)" id="labEyes"><span data-mochi="mochi" data-mood="happy" data-track="1" style="width:110px"></span></div>
+    <div class="cap"><b>眼睛跟随鼠标</b>瞳孔在眼眶内按鼠标方向偏移 3px，40 秒无操作会闭眼打瞌睡、头顶冒 Zzz。<br><code>pointermove</code> + rAF 节流</div></div>
+  <div class="cell"><div class="demo" style="background:var(--pink)"><span data-mochi="mochi" data-mood="happy" class="pokeable" style="width:110px;cursor:pointer"></span></div>
+    <div class="cap"><b>戳一戳</b>点击压扁再弹起，随机说一句话；连戳 10 下会变成晕晕脸。口头禅可由站长在站点字段里填写。</div></div>
+  <div class="cell"><div class="demo" style="background:var(--butter)"><button class="pill" id="labPill" style="font-size:18px;padding:12px 24px">按下我</button></div>
+    <div class="cap"><b>贴纸按钮</b>悬停上抬并歪 2°，按下时硬投影归零，像把贴纸按进纸面。弹簧曲线 <code>cubic-bezier(.34,1.56,.64,1)</code></div></div>
+  <div class="cell"><div class="demo" style="background:var(--mint)"><div class="react" style="margin:0"><button data-burst="💗">💗 喜欢</button><button data-burst="🍡">🍡 投喂</button></div></div>
+    <div class="cap"><b>表情喷泉</b>点击后 8 颗表情沿抛物线散开。静态站点无后端，计数只存 <code>localStorage</code>，作为「自己点过」的记号，不显示全站总数（mockup 里的数字仅示意）。</div></div>
+  <div class="cell"><div class="demo" style="background:var(--lilac)"><div class="post" style="grid-template-columns:1fr 80px;width:88%;padding:14px 16px;transform:none"><div><h3 style="font-size:17px">悬停盖邮戳</h3><p>邮戳从空中落下盖在信上</p></div><div class="stamp" style="width:66px;height:76px"><span data-mochi="mochi" data-mood="happy" style="width:40px"></span></div><span class="postmark" style="right:36px;top:4px;width:70px;height:70px">MOCHI<br>10·21</span></div></div>
+    <div class="cap"><b>邮戳</b>文章列表悬停时出现，日期就是发布时间，用 <code>mix-blend-mode: multiply</code> 让它像真的盖在纸上。</div></div>
+  <div class="cell"><div class="demo" style="background:var(--peach)"><div style="display:flex;gap:6px" id="labJars"></div></div>
+    <div class="cap"><b>标签罐子</b>罐里的糖果高度 = 该标签卡片数占比，选中时罐子摇一摇。对应现有的 <code>cardTagTree</code>。</div></div>
+</div>
+<table class="spec" style="margin-top:22px">
+  <tr><th>层</th><th>元素</th><th>出现位置</th><th>说明</th></tr>
+  <tr><th rowspan="4">常驻</th><td>团子呼吸</td><td>首页、页头 Logo</td><td>4 秒一次的轻微缩放，几乎察觉不到，但让页面「活着」</td></tr>
+  <tr><td>云、烟囱的烟、蜗牛</td><td>首页</td><td>周期 26–80 秒，慢到不打扰阅读；只在首页出现</td></tr>
+  <tr><td>邮箱小旗</td><td>首页「最近寄到」</td><td>有 7 天内的新内容才挥动，没有就静止，承载信息而非纯装饰</td></tr>
+  <tr><td>新内容角标</td><td>首页房子</td><td>「+2」= 7 天内新增数，来自 timeline 的 publishTime</td></tr>
+  <tr><th rowspan="7">响应</th><td>开门探头</td><td>首页房子</td><td>悬停时门向内打开，团子从门里探出头</td></tr>
+  <tr><td>书架抽书</td><td>页头「项目」下拉</td><td>把现有 DocCollectionsMenu 画成书脊，书脊高度按文档数</td></tr>
+  <tr><td>书签团子 + 吃饱进度</td><td>文章目录</td><td>团子沿目录虚线滑到当前章节；阅读进度是团子的「吃饱程度」，读完会打个嗝</td></tr>
+  <tr><td>便签飞走 / 落下</td><td>卡片列表筛选</td><td>切换标签时不符合的便签被风吹走，新的从上方钉下来</td></tr>
+  <tr><td>红线相连</td><td>卡片详情</td><td>linkedCards 用一根流动的红毛线连到主便签，呼应「双链」</td></tr>
+  <tr><td>团子闻一闻</td><td>搜索</td><td>输入时团子歪头嗅，无结果时翻个白眼；结果逐条滑入</td></tr>
+  <tr><td>气球回到顶部</td><td>所有长页</td><td>滚过一屏后出现，点击后气球飘走、页面回顶</td></tr>
+  <tr><th rowspan="4">彩蛋</th><td>Logo 连点 5 次</td><td>页头</td><td>全屏下一阵小团子雨</td></tr>
+  <tr><td>入夜</td><td>日夜切换</td><td>太阳落山变月亮，窗户亮灯，团子换成睡帽；按访客本地时间给出「早上好 / 晚上好」</td></tr>
+  <tr><td>读完一篇</td><td>文章页底部</td><td>团子吃饱了，打个嗝弹出「谢谢投喂」</td></tr>
+  <tr><td>节日装扮</td><td>团子</td><td>按日期给团子换帽子（圣诞帽、灯笼、南瓜），纯前端判断，无需数据</td></tr>
+</table>
+
+<h2 id="system">④ 视觉系统</h2>
+<div class="grid2">
+  <div class="panel"><h4>颜色</h4>
+    <p style="font-size:14px;color:#6B6268">奶油底 + 一根墨色描边 + 六个马卡龙色。马卡龙色只做色块填充，文字一律用墨色，所以对比度只需校验墨色与各色块（全部 ≥ 7:1）。</p>
+    <div class="swatches" id="swatches"></div>
+  </div>
+  <div class="panel"><h4>字体、描边、动效</h4>
+    <ul style="font-size:14px">
+      <li><b>标题</b>：站酷快乐体（ZCOOL KuaiLe），圆润、可商用；拉丁字符用 Baloo 2。</li>
+      <li><b>正文</b>：霞鹜文楷屏幕阅读版，温柔但长文不累；代码保持等宽。</li>
+      <li><b>描边</b>：统一 2.5px 墨色；投影只用硬投影 <code>0 4px 0</code>，不用模糊阴影，这是「贴纸感」的来源。</li>
+      <li><b>圆角</b>：胶囊 999px、卡片 18–26px；便签保留一个直角，像撕下来的纸。</li>
+      <li><b>动效</b>：响应类统一弹簧曲线 300–550ms；常驻类慢于 3 秒。遵守 <code>prefers-reduced-motion</code>，开启后全部改为瞬时，角色变静态插画。</li>
+      <li><b>正文区收敛</b>：Content 渲染区只换字体、行高、标题小图标、引用块和代码块外框，不加旋转和纹理，保证编辑器内容（表格、公式、图册）原样可读。</li>
+    </ul>
+  </div>
+</div>
+<h2 id="ship">⑤ 落地建议</h2>
+<div class="grid2">
+  <div class="panel"><h4>做成新模板还是换皮</h4>
+    <ul style="font-size:14px">
+      <li><b>推荐：新建独立模板仓库</b>（如 <code>tau-blog-template-mochi</code>），从 tau-blog-template 复制数据层与路由（<code>services/</code>、<code>utils/navigation</code>、<code>utils/search</code>、<code>main.tsx</code>），只重写 <code>templates/</code>、<code>components/Layout</code> 与样式。官方模板保持克制风，两者在插件中心并列，用户自己选。</li>
+      <li>不建议在官方模板里加「可爱主题」开关：两套布局差异太大（首页是场景、列表是信件和便签板），共用组件会让两边都变复杂。</li>
+      <li>依赖可以全部沿用：<code>motion</code> 做弹簧与布局动画（便签飞走用 <code>AnimatePresence</code>），<code>lucide-react</code> 只保留少量功能图标，角色全部是内联 SVG 组件。</li>
+    </ul>
+  </div>
+  <div class="panel"><h4>站点字段（siteFields）</h4>
+    <table class="spec" style="margin:0">
+      <tr><th>字段</th><th>用途</th></tr>
+      <tr><td><code>description</code></td><td>首页介绍，沿用现有字段</td></tr>
+      <tr><td><code>mascotName</code></td><td>团子的名字，出现在问候和 404</td></tr>
+      <tr><td><code>mascotColor</code></td><td>团子颜色：粉 / 薄荷 / 天蓝 / 奶黄</td></tr>
+      <tr><td><code>mascotLines</code></td><td>戳一戳时的口头禅，每行一句</td></tr>
+      <tr><td><code>ambient</code></td><td>布尔，关掉云、烟、蜗牛等常驻动画</td></tr>
+    </table>
+  </div>
+</div>
+<div class="panel" style="margin-top:20px"><h4>建议的实现顺序</h4>
+  <ol style="font-size:14px;padding-left:20px">
+    <li><b>视觉系统与团子组件</b>：token、字体、<code>&lt;Mochi mood track /&gt;</code> SVG 组件、贴纸按钮。这一步决定成败，建议先出团子的 6 个表情给你确认。</li>
+    <li><b>文章页与卡片页</b>：用户停留最久的页面，优先保证 Content 渲染区的可读性，再加目录书签团子、红线、表情喷泉。</li>
+    <li><b>两个列表页</b>：信件与便签板，含标签筛选动画。</li>
+    <li><b>首页小镇与日夜</b>：场景最重，放后面，等组件稳定。</li>
+    <li><b>搜索、404、加载与彩蛋</b>。</li>
+  </ol>
+  <p style="font-size:14px;color:#6B6268;margin-top:8px">需要你拍板的：风格方向（A/B/C 或混合）、团子的形象（这里是占位造型，正式版建议请插画师或再迭代几版）、是否做表情反馈按钮（静态站没有全站计数，只能记录访客自己点过）。</p>
+</div>
+<script>
+// —— 团子 SVG：模板里对应 <Mochi mood hat color track /> 组件
+const FILL = { pink: "var(--mochi)", mint: "var(--mint)", sky: "var(--sky)" };
+const L = 'stroke="var(--line)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"';
+function eyes(mood) {
+  if (mood === "sleepy") return `<path d="M36 54q8 6 16 0M68 54q8 6 16 0" fill="none" ${L}/>`;
+  if (mood === "dizzy") return `<path d="M38 46l12 12M50 46L38 58M70 46l12 12M82 46L70 58" fill="none" ${L}/>`;
+  const left = mood === "wink"
+    ? `<path d="M37 54q7-7 14 0" fill="none" ${L}/>`
+    : `<g class="eye"><ellipse class="pupil" cx="44" cy="53" rx="5.5" ry="7" fill="var(--line)"/><circle cx="46" cy="50" r="2" fill="#fff"/></g>`;
+  const right = `<g class="eye"><ellipse class="pupil" cx="76" cy="53" rx="5.5" ry="7" fill="var(--line)"/><circle cx="78" cy="50" r="2" fill="#fff"/></g>`;
+  return left + right;
+}
+function mouth(mood) {
+  if (mood === "sniff") return `<ellipse cx="60" cy="66" rx="4" ry="3" fill="var(--line)"/>`;
+  if (mood === "dizzy") return `<path d="M52 70q4-4 8 0t8 0" fill="none" ${L}/>`;
+  if (mood === "sleepy") return `<ellipse cx="60" cy="68" rx="3" ry="4" fill="none" ${L}/>`;
+  return `<path d="M54 64q3 4 6 0q3 4 6 0" fill="none" ${L}/>`;
+}
+function hat(kind) {
+  if (kind === "post") return `<g transform="rotate(-8 60 18)"><rect x="40" y="10" width="40" height="14" rx="5" fill="var(--sky)" ${L}/><path d="M36 24h48" ${L}/></g>`;
+  if (kind === "book") return `<g transform="rotate(10 60 16)"><path d="M40 22l20-10 20 10-20 8z" fill="var(--butter)" ${L}/><path d="M78 22v10" ${L}/></g>`;
+  return `<g class="nightcap"><path d="M38 26q18-26 44-6l14 4q-4 4-8 2" fill="#8C7BD8" ${L}/><circle cx="94" cy="26" r="5" fill="#fff" ${L}/></g>`;
+}
+function mochiSvg(mood = "happy", opts = {}) {
+  const fill = FILL[opts.color] || FILL.pink;
+  const extra = mood === "sleepy" ? `<text class="zzz" x="92" y="22">z</text>` : "";
+  return `<svg class="mochi" viewBox="0 0 120 100" aria-hidden="true">
+    <ellipse cx="60" cy="94" rx="34" ry="4" fill="#3B2F3A22"/>
+    <g class="body">
+      <path d="M14 82C8 50 30 22 60 22s52 28 46 60c-1 7-8 10-46 10S15 89 14 82z" fill="${fill}" ${L}/>
+      <path d="M30 40q8-10 18-12" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".8"/>
+      <ellipse cx="32" cy="66" rx="8" ry="5" fill="var(--pink-d)" opacity=".35"/><ellipse cx="88" cy="66" rx="8" ry="5" fill="var(--pink-d)" opacity=".35"/>
+      ${eyes(mood)}${mouth(mood)}${hat(opts.hat)}
+    </g>${extra}</svg>`;
+}
+const balloonSvg = `<svg viewBox="0 0 60 110" aria-hidden="true"><path d="M30 70q-6 16 4 38" fill="none" stroke="var(--line)" stroke-width="2.5"/>
+  <path d="M30 4C14 4 6 18 6 32c0 18 16 32 24 36 8-4 24-18 24-36C54 18 46 4 30 4z" fill="var(--pink)" ${L}/>
+  <path d="M26 68l4 6 4-6z" fill="var(--pink)" ${L}/><path d="M16 22q4-8 10-10" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+  <path d="M22 34v2M38 34v2" ${L}/><path d="M27 42q3 3 6 0" fill="none" ${L}/></svg>`;
+const snailSvg = `<svg viewBox="0 0 70 44" aria-hidden="true"><path d="M4 40h50q8 0 10-8l2-14" fill="var(--butter)" ${L}/>
+  <circle cx="30" cy="24" r="16" fill="var(--peach)" ${L}/><path d="M30 24m-6 0a6 6 0 1 0 6-6a10 10 0 1 1-10 10" fill="none" ${L}/>
+  <path d="M62 18l-2-12M66 18l4-11" ${L}/><circle cx="60" cy="5" r="2.5" fill="var(--line)"/><circle cx="70" cy="6" r="2.5" fill="var(--line)"/></svg>`;
+
+function hydrate(root = document) {
+  root.querySelectorAll("[data-mochi]").forEach((el) => {
+    if (el.dataset.ready) return;
+    el.dataset.ready = "1";
+    const kind = el.dataset.mochi;
+    el.innerHTML = kind === "balloon" ? balloonSvg : kind === "snail" ? snailSvg
+      : mochiSvg(el.dataset.mood, { hat: el.dataset.hat, color: el.dataset.color });
+    if (!el.style.width && el.dataset.size) el.style.width = el.dataset.size + "px";
+  });
+}
+hydrate();
+// —— 示意数据（字段对齐模板的 TimelineItem / ListItem）
+const timeline = [
+  { type: "article", title: "在家做一杯好喝的手冲咖啡", date: "10·21", fresh: true },
+  { type: "card", title: "费曼学习法：讲给小朋友听", date: "10·12", fresh: true },
+  { type: "doc", title: "Tau 指南 · 卡片与双链", date: "10·08" },
+  { type: "article", title: "第一次用 Rust 写命令行工具", date: "09·30" },
+  { type: "card", title: "间隔重复的最佳时机", date: "09·26" },
+];
+const typeChip = { article: ["信", "var(--pink)"], card: ["签", "var(--mint)"], doc: ["书", "var(--lilac)"] };
+const articles = [
+  { m: 10, d: 21, title: "在家做一杯好喝的手冲咖啡", sum: "秋天的早上，最适合慢慢磨一把豆子。这篇是我练了三个月后的一些小心得，不追求专业，只求每天那一杯能让自己开心。", tags: ["生活", "咖啡"], min: 6, stamp: "var(--peach)" },
+  { m: 9, d: 30, title: "第一次用 Rust 写命令行工具", sum: "从 cargo new 到发布到 crates.io，记录一个周末里踩过的坑：借用检查器、错误处理，以及 clap 的派生宏。", tags: ["编程", "Rust"], min: 12, stamp: "var(--sky)" },
+  { m: 9, d: 14, title: "给阳台的薄荷换了个大盆", sum: "薄荷长得太快了，根都从盆底钻出来。换盆那天顺便学会了扦插，现在阳台有五盆小薄荷。", tags: ["生活", "植物"], min: 4, stamp: "var(--mint)" },
+  { m: 8, d: 28, title: "我的卡片笔记工作流", sum: "每天三张卡片，每周一次回顾。半年下来，卡片之间长出了很多意想不到的连接。", tags: ["学习", "Tau"], min: 8, stamp: "var(--lilac)" },
+];
+const cardTags = [
+  { tag: "思考", n: 86, c: "var(--pink-d)", sub: [["学习", 41], ["写作", 22]] },
+  { tag: "编程", n: 74, c: "#5B8DEF" },
+  { tag: "生活", n: 63, c: "var(--mint-d)" },
+  { tag: "读书", n: 52, c: "#E2A33A" },
+  { tag: "设计", n: 43, c: "#9B7BE8" },
+];
+const cards = [
+  { tags: ["思考", "思考/学习"], t: "费曼学习法的核心只有一句话：如果你不能用简单的话把一件事讲给小朋友听，说明你还没真正懂它。", c: "n-butter", d: "10·12" },
+  { tags: ["编程"], t: "Rust 的所有权其实就是「谁负责收拾房间」：同一时间只能有一个主人，借出去要按时还。", c: "n-sky", d: "10·10" },
+  { tags: ["生活"], t: "薄荷扦插：剪下 10 厘米带节的枝条，泡水一周就会长根。", c: "n-mint", d: "10·06" },
+  { tags: ["思考", "思考/写作"], t: "写不下去的时候，先写一个糟糕的版本。改比写容易得多。", c: "n-pink", d: "10·03" },
+  { tags: ["读书"], t: "《小王子》：「正是你为你的玫瑰花费的时间，才使你的玫瑰变得如此重要。」", c: "n-peach", d: "09·29" },
+  { tags: ["设计"], t: "留白不是空，是让眼睛休息的地方。一个页面最多只让一处在动。", c: "n-lilac", d: "09·27" },
+  { tags: ["思考", "思考/学习"], t: "间隔重复：在快忘记的时候复习，记得最牢。", c: "n-mint", d: "09·26" },
+  { tags: ["编程"], t: "写测试之前先写下「我期望它怎样失败」，往往能提前发现设计问题。", c: "n-butter", d: "09·20" },
+  { tags: ["读书"], t: "《被讨厌的勇气》：课题分离，别人怎么看你，是别人的课题。", c: "n-sky", d: "09·16" },
+];
+const searchIndex = [
+  { type: "article", title: "在家做一杯好喝的手冲咖啡", sum: "水温 92 度，粉水比 1:15，分三段注水", go: "article" },
+  { type: "article", title: "第一次用 Rust 写命令行工具", sum: "借用检查器、错误处理与 clap", go: "articles" },
+  { type: "card", title: "Rust 的所有权", sum: "谁负责收拾房间：同一时间只能有一个主人", go: "card" },
+  { type: "card", title: "费曼学习法", sum: "用简单的话讲给小朋友听", go: "card" },
+  { type: "doc", title: "Tau 指南 · 卡片与双链", sum: "输入 [[ 就能链接另一张卡片", go: "doc" },
+  { type: "doc", title: "手工咖啡 · 器具清单", sum: "手冲壶、滤杯、磨豆机、电子秤", go: "doc" },
+];
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const town = $("#town");
+const tmain = $("#tmain");
+// —— 渲染
+$("#siteTitle").innerHTML = [..."团子的小窝"].map((ch, i) => `<span class="in" style="animation-delay:${0.1 + i * 0.08}s">${ch}</span>`).join("");
+const hour = new Date().getHours();
+$("#greet").textContent = hour < 11 ? "☀️ 早上好" : hour < 18 ? "🌤️ 下午好" : "🌙 晚上好";
+$("#recent").innerHTML = timeline.map((it) => {
+  const [label, bg] = typeChip[it.type];
+  return `<div class="letter" data-go="${it.type === "doc" ? "doc" : it.type}"><span class="chip" style="background:${bg}">${label}</span><span class="t">${it.fresh ? "🆕 " : ""}${it.title}</span><time>${it.date}</time></div>`;
+}).join("");
+$("#stars").innerHTML = Array.from({ length: 30 }, (_, i) =>
+  `<b style="left:${(i * 37) % 100}%;top:${(i * 53) % 90}%;animation-delay:${(i % 7) * 0.35}s"></b>`).join("");
+
+const allArticleTags = ["全部", ...new Set(articles.flatMap((a) => a.tags))];
+let articleTag = "全部";
+function renderArticles() {
+  $("#articleTags").innerHTML = allArticleTags.map((t) => `<span class="candy ${t === articleTag ? "on" : ""}" data-atag="${t}">${t}</span>`).join("");
+  $("#letters").innerHTML = articles.filter((a) => articleTag === "全部" || a.tags.includes(articleTag)).map((a) => `
+    <div class="post" data-go="article">
+      <div class="date"><b>${a.d}</b><span>${a.m} 月</span></div>
+      <div><h3>${a.title}</h3><p>${a.sum}</p>
+        <div class="tags">${a.tags.map((t) => `<span class="chip" style="background:var(--cream)">#${t}</span>`).join("")}<span class="read">✉️ 约 ${a.min} 分钟</span></div></div>
+      <div class="stamp" style="background:${a.stamp}"><span data-mochi="mochi" data-mood="happy"></span></div>
+      <span class="postmark">MOCHI<br>2026·${a.m}·${a.d}</span>
+    </div>`).join("");
+  hydrate($("#letters"));
+}
+renderArticles();
+
+let cardTag = "";
+const maxTag = Math.max(...cardTags.map((t) => t.n));
+function jarHtml(name, n, color, cls = "", label = name.split("/").pop()) {
+  const fill = Math.min(100, Math.round((n / maxTag) * 100));
+  return `<div class="jar ${cls} ${cardTag === name ? "on" : ""}" data-ctag="${name}"><span class="glass"><i style="height:${fill}%;--c:${color}"></i></span>${label}<span class="n">${n}</span></div>`;
+}
+function renderJars() {
+  $("#jars").innerHTML = jarHtml("", 318, "var(--ink-2)", "", "全部") +
+    cardTags.map((t) => jarHtml(t.tag, t.n, t.c) + (t.sub || []).map(([s, n]) => jarHtml(`${t.tag}/${s}`, n, t.c, "sub")).join("")).join("");
+}
+function matchTag(card) { return !cardTag || card.tags.some((t) => t === cardTag || t.startsWith(cardTag + "/")); }
+function renderNotes(animate) {
+  const list = cards.filter(matchTag);
+  $("#cardCount").textContent = cardTag ? `「${cardTag}」罐子里有 ${list.length} 张便签` : `墙上钉着 318 张便签，这里先展示 ${list.length} 张`;
+  $("#notes").innerHTML = list.map((c, i) => `
+    <div class="note ${c.c} ${animate ? "drop" : ""}" style="animation-delay:${i * 0.05}s" data-go="card"><span class="pin"></span>${c.t}
+      <div class="foot"><span>${c.tags.map((t) => "#" + t.split("/").pop()).join(" ")}</span><span>${c.d}</span></div></div>`).join("");
+}
+renderJars(); renderNotes(false);
+
+$("#swatches").innerHTML = [["奶油底", "#FFF8F0"], ["麻薯粉", "#FFC9D9"], ["薄荷", "#C3EEDA"], ["奶黄", "#FFE9A3"], ["天蓝", "#C6E3FF"], ["丁香", "#E0D2FF"], ["蜜桃", "#FFD9BF"], ["墨色描边", "#3B2F3A"]]
+  .map(([n, c]) => `<div class="sw"><i style="background:${c}"></i><span>${n}<br><code>${c}</code></span></div>`).join("");
+$("#labJars").innerHTML = cardTags.map((t) => `<div class="jar" style="flex-direction:column;gap:2px;font-size:12px" data-labjar><span class="glass" style="width:34px;height:42px"><i style="height:${Math.round((t.n / maxTag) * 100)}%;--c:${t.c}"></i></span>${t.tag}</div>`).join("");
+// —— 页面切换
+const urls = { home: "/", articles: "/articles", article: "/articles/hand-drip-coffee", cards: "/cards", card: "/cards/feynman", doc: "/projects/tau-guide/cards-and-links", lost: "/whatever" };
+const notes = {
+  home: ["小镇广场", "首页 = HomeData。三栋房子对应文章 / 卡片 / 项目入口，房顶角标是 7 天内新增数；右侧邮箱是 timeline 前 5 条。悬停房子会开门，团子探头。", "站名逐字弹跳入场（替代现在的逐字揭幕），每个字悬停会跳起来。团子眼睛跟随鼠标，40 秒不动会睡着。日夜切换会把天空、窗户、团子的帽子一起换掉。"],
+  articles: ["邮局 · 文章列表", "每篇文章是一封横线信纸，左侧是日期邮票，右侧是团子邮票；悬停时信纸扶正抬起，一枚带发布日期的邮戳盖上来。", "标签做成糖果按钮，点击原地筛选（文章列表现在没有标签筛选，这是新增的轻量能力，只用已有的 ListItem.tags）。"],
+  article: ["手帐信纸 · 文章详情", "正文铺在一张活页纸上：左侧打孔、顶部两条和纸胶带、横线与行高对齐。可爱元素只出现在标题图标、引用块里的团子、代码块的三色按钮上，正文本身保持清爽。", "滚动正文，右侧目录里的团子会沿虚线滑到当前章节，「吃饱程度」就是阅读进度。读到底团子会打个嗝。底部表情按钮点击有喷泉效果。"],
+  cards: ["软木板 · 卡片列表", "卡片是钉在软木板上的便签，颜色按主标签分配，轻微随机旋转；悬停扶正、图钉抬起。左侧标签树（cardTagTree）画成糖果罐，罐子里的高度就是卡片数占比。", "点击罐子筛选：不符合的便签直接消失，新的便签从上方钉下来，有先后错落。"],
+  card: ["便签 + 红线 · 卡片详情", "当前卡片是拿在手里的大便签，胶带固定，右下角可以掀起（预留：翻到背面看引用来源）。", "linkedCards 钉在右侧，用一根流动的红毛线连回主便签，把「双链」画出来。悬停小便签会向主便签靠近一点。"],
+  doc: ["绘本地图 · 项目文档", "左侧侧边栏（SidebarItem 树）画成一条寻宝小路：分组是路牌，读过的是绿色脚印，当前页插着团子小旗。", "正文是一本绘本，章节标题做成封面色块；上一页 / 下一页（prevPage / nextPage）是两张书页，下一页悬停时右下角会卷起来。"],
+  lost: ["迷路的团子 · 404 与加载", "404 页的 0 就是晕乎乎的团子。现在模板的错误和加载状态都是一行纯文字，这里各给了一个角色化的版本。", "加载时三只不同颜色的团子轮流跳，跳的节奏错开 0.15 秒。"],
+};
+function go(page) {
+  if (page === "search") return openSearch();
+  $$(".t-page", town).forEach((p) => p.classList.toggle("on", p.dataset.page === page));
+  $$(".pill[data-go]", town).forEach((p) => p.classList.toggle("on", p.dataset.go === page || (page === "article" && p.dataset.go === "articles") || (page === "card" && p.dataset.go === "cards")));
+  $$("#ptabs .ptab").forEach((t) => t.classList.toggle("on", t.dataset.go === page));
+  $("#url").textContent = "mochi.blog" + urls[page];
+  tmain.scrollTop = 0;
+  const [title, a, b] = notes[page];
+  $("#anno").innerHTML = `<div class="panel"><h4>${title}</h4><p style="font-size:14px">${a}</p></div><div class="panel"><h4>交互</h4><p style="font-size:14px">${b}</p></div>`;
+  if (page === "card") { requestAnimationFrame(drawYarn); setTimeout(drawYarn, 600); }
+  if (page === "article") onArticleScroll();
+}
+document.addEventListener("click", (e) => {
+  const target = e.target.closest("[data-go]");
+  if (target && !e.target.closest(".shelf-pop .tip")) {
+    e.preventDefault();
+    if (target.classList.contains("post") || target.classList.contains("note")) {
+      target.style.transition = "transform .25s"; target.style.transform = "scale(.96)";
+      setTimeout(() => { target.style.transform = ""; target.style.transition = ""; go(target.dataset.go); }, 160);
+    } else go(target.dataset.go);
+  }
+  const atag = e.target.closest("[data-atag]");
+  if (atag) { articleTag = atag.dataset.atag; renderArticles(); }
+  const ctag = e.target.closest("[data-ctag]");
+  if (ctag) filterCards(ctag.dataset.ctag);
+  const labJar = e.target.closest("[data-labjar]");
+  if (labJar) labJar.animate([{ transform: "rotate(0)" }, { transform: "rotate(-12deg)" }, { transform: "rotate(10deg)" }, { transform: "rotate(0)" }], { duration: 500, easing: "cubic-bezier(.34,1.56,.64,1)" });
+  const burst = e.target.closest("[data-burst]");
+  if (burst) fountain(burst, burst.dataset.burst);
+});
+function filterCards(tag) {
+  const outgoing = $$(".note", $("#notes"));
+  const keep = cards.filter((c) => !tag || c.tags.some((t) => t === tag || t.startsWith(tag + "/"))).map((c) => c.t);
+  outgoing.forEach((n, i) => { if (!keep.some((t) => n.textContent.includes(t.slice(0, 12)))) { n.style.animationDelay = i * 0.03 + "s"; n.classList.add("fly"); } });
+  setTimeout(() => { cardTag = tag; renderJars(); renderNotes(true); }, 380);
+  const jar = $(`[data-ctag="${tag}"]`);
+  jar && jar.animate([{ transform: "rotate(0)" }, { transform: "rotate(-6deg)" }, { transform: "rotate(5deg)" }, { transform: "rotate(0)" }], { duration: 450 });
+}
+
+// —— 团子：眼睛跟随、眨眼、睡着、戳一戳
+let lastMove = Date.now();
+let sleeping = false;
+let pending = false;
+document.addEventListener("pointermove", (e) => {
+  lastMove = Date.now();
+  if (sleeping) wake();
+  if (pending) return;
+  pending = true;
+  requestAnimationFrame(() => {
+    pending = false;
+    $$('[data-track="1"]').forEach((el) => {
+      const r = el.getBoundingClientRect();
+      if (!r.width) return;
+      const dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+      const len = Math.hypot(dx, dy) || 1, k = Math.min(1, len / 300);
+      $$(".eye", el).forEach((eye) => (eye.style.transform = `translate(${(dx / len) * 3.5 * k}px,${(dy / len) * 3 * k}px)`));
+    });
+  });
+});
+setInterval(() => {
+  $$(".mochi").forEach((m) => { if (Math.random() < 0.3) { m.classList.add("blink"); setTimeout(() => m.classList.remove("blink"), 160); } });
+  if (!sleeping && Date.now() - lastMove > 40000) sleep();
+}, 2200);
+const heroMochi = $("#heroMochi");
+function sleep() {
+  sleeping = true;
+  heroMochi.dataset.ready = ""; heroMochi.dataset.mood = "sleepy"; hydrate(heroMochi.parentElement);
+  $("#heroBubble").textContent = "Zzz……（动一动鼠标叫醒我）";
+}
+function wake() {
+  sleeping = false;
+  heroMochi.dataset.ready = ""; heroMochi.dataset.mood = "happy"; hydrate(heroMochi.parentElement);
+  $("#heroBubble").textContent = "啊，你回来啦！";
+}
+const lines = ["嘿嘿，好痒～", "今天也要好好写字哦", "要不要读读最新那封信？", "我是麻薯做的，不能吃！", "再戳就要变形啦", "晚安前记得喝水"];
+let pokes = 0;
+function poke(el, bubble) {
+  const body = el.querySelector(".body");
+  body.classList.remove("boing"); void body.getBoundingClientRect(); body.classList.add("boing");
+  pokes++;
+  if (pokes % 10 === 0) {
+    el.dataset.ready = ""; el.dataset.mood = "dizzy"; hydrate(el.parentElement);
+    if (bubble) bubble.textContent = "@_@ 晕了晕了……";
+    setTimeout(() => { el.dataset.ready = ""; el.dataset.mood = "happy"; hydrate(el.parentElement); }, 2000);
+  } else if (bubble) bubble.textContent = lines[pokes % lines.length];
+  else say(el, lines[pokes % lines.length]);
+}
+heroMochi.addEventListener("click", () => poke(heroMochi, $("#heroBubble")));
+$$(".pokeable").forEach((el) => el.addEventListener("click", () => poke(el)));
+function say(anchor, text) {
+  const host = anchor.closest(".demo") || town;
+  const tip = document.createElement("div");
+  tip.className = "say bubble";
+  tip.textContent = text;
+  host.appendChild(tip);
+  const hr = host.getBoundingClientRect(), ar = anchor.getBoundingClientRect();
+  tip.style.left = ar.left - hr.left + "px"; tip.style.top = ar.top - hr.top - 46 + "px";
+  requestAnimationFrame(() => tip.classList.add("show"));
+  setTimeout(() => { tip.classList.remove("show"); setTimeout(() => tip.remove(), 400); }, 1400);
+}
+// —— 表情喷泉
+function fountain(btn, emoji) {
+  const r = btn.getBoundingClientRect();
+  for (let i = 0; i < 8; i++) {
+    const p = document.createElement("span");
+    p.className = "particle";
+    p.textContent = emoji;
+    const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.8;
+    const dist = 50 + Math.random() * 60;
+    p.style.left = r.left + r.width / 2 - 9 + "px";
+    p.style.top = r.top - 4 + "px";
+    p.style.setProperty("--dx", Math.cos(ang) * dist + "px");
+    p.style.setProperty("--dy", Math.sin(ang) * dist + "px");
+    p.style.setProperty("--r", (Math.random() - 0.5) * 120 + "deg");
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 950);
+  }
+  const n = btn.querySelector(".n");
+  if (n && !btn.dataset.done) { n.textContent = +n.textContent + 1; btn.dataset.done = "1"; btn.style.background = "var(--pink)"; }
+  btn.animate([{ transform: "scale(1)" }, { transform: "scale(.85)" }, { transform: "scale(1.12)" }, { transform: "scale(1)" }], { duration: 450, easing: "cubic-bezier(.34,1.56,.64,1)" });
+}
+
+// —— 文章页：目录团子、吃饱进度、读完打嗝；全局气球回顶
+let burped = false;
+function onArticleScroll() {
+  const page = $('[data-page="article"]');
+  if (!page.classList.contains("on")) return;
+  const max = tmain.scrollHeight - tmain.clientHeight;
+  const pct = max > 0 ? Math.round((tmain.scrollTop / max) * 100) : 0;
+  $("#pot").style.width = pct + "%";
+  $("#potPct").textContent = pct >= 98 ? "100% 吃饱啦" : pct + "%";
+  const heads = $$("#prose h2");
+  const top = tmain.getBoundingClientRect().top;
+  let active = 0;
+  heads.forEach((h, i) => { if (h.getBoundingClientRect().top - top < 160) active = i; });
+  $$("#toc li").forEach((li, i) => li.classList.toggle("on", i === active));
+  const li = $$("#toc li")[active];
+  $("#rider").style.top = li.offsetTop - 2 + "px";
+  if (pct >= 98 && !burped) {
+    burped = true;
+    say($("#rider"), "嗝～谢谢投喂！");
+  }
+}
+tmain.addEventListener("scroll", () => {
+  onArticleScroll();
+  $("#balloon").classList.toggle("hide", tmain.scrollTop < 300);
+}, { passive: true });
+$$("#toc li").forEach((li, i) => li.addEventListener("click", () => {
+  const h = $$("#prose h2")[i];
+  tmain.scrollTo({ top: tmain.scrollTop + h.getBoundingClientRect().top - tmain.getBoundingClientRect().top - 30, behavior: "smooth" });
+}));
+$("#balloon").addEventListener("click", () => {
+  const b = $("#balloon");
+  b.classList.add("up");
+  tmain.scrollTo({ top: 0, behavior: "smooth" });
+  setTimeout(() => { b.classList.remove("up"); b.classList.add("hide"); }, 1000);
+});
+$("#copyBtn").addEventListener("click", (e) => {
+  e.target.textContent = "复制好啦 ✓";
+  setTimeout(() => (e.target.textContent = "复制"), 1400);
+});
+
+// —— 卡片详情：红毛线
+function drawYarn() {
+  const stage = $("#cardStage"), svg = $("#yarn"), big = $("#bigNote");
+  const sr = stage.getBoundingClientRect(), br = big.getBoundingClientRect();
+  if (!sr.width) return;
+  const x0 = br.right - sr.left - 30, y0 = br.top - sr.top + 40;
+  svg.setAttribute("width", sr.width); svg.setAttribute("height", sr.height);
+  svg.innerHTML = $$(".mini", stage).map((m) => {
+    const r = m.getBoundingClientRect();
+    const x1 = r.left - sr.left + 24, y1 = r.top - sr.top + 2;
+    const cx = (x0 + x1) / 2, cy = Math.max(y0, y1) + 50;
+    return `<path d="M${x0} ${y0} Q${cx} ${cy} ${x1} ${y1}"/>`;
+  }).join("") + `<circle cx="${x0}" cy="${y0}" r="7" fill="var(--pink-d)" stroke="var(--line)" stroke-width="2.5"/>`;
+}
+function followYarn() {
+  const until = performance.now() + 500;
+  const tick = (t) => { drawYarn(); if (t < until) requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+}
+$$(".mini").forEach((m) => { m.addEventListener("mouseenter", followYarn); m.addEventListener("mouseleave", followYarn); });
+window.addEventListener("resize", drawYarn);
+
+// —— 搜索
+const scrim = $("#scrim"), sq = $("#sq");
+let stype = "all", sel = 0;
+const icons = { article: ["✉️", "var(--pink)"], card: ["📌", "var(--mint)"], doc: ["📖", "var(--lilac)"] };
+function setSniff(mood) {
+  const el = $(".sniff");
+  if (el.dataset.mood === mood) return;
+  el.dataset.ready = ""; el.dataset.mood = mood; hydrate(el.parentElement);
+}
+function renderSearch() {
+  const q = sq.value.trim().replace(/[<>&"]/g, "");
+  const hl = (s) => (q ? s.replaceAll(q, `<em>${q}</em>`) : s);
+  const hits = searchIndex.filter((it) => (stype === "all" || it.type === stype) && (!q || (it.title + it.sum).toLowerCase().includes(q.toLowerCase())));
+  sel = Math.min(sel, Math.max(0, hits.length - 1));
+  setSniff(q && !hits.length ? "dizzy" : q ? "sniff" : "happy");
+  $("#sres").innerHTML = hits.length
+    ? hits.map((h, i) => `<div class="hit ${i === sel ? "sel" : ""}" style="animation-delay:${i * 0.04}s" data-hit="${h.go}"><span class="ic" style="background:${icons[h.type][1]}">${icons[h.type][0]}</span><div><h6>${hl(h.title)}</h6><p>${hl(h.sum)}</p></div></div>`).join("")
+    : `<div class="sempty"><span data-mochi="mochi" data-mood="dizzy"></span>闻了一圈，什么也没找到……换个词试试？</div>`;
+  hydrate($("#sres"));
+}
+function openSearch() { scrim.classList.add("on"); sq.value = ""; sel = 0; renderSearch(); setTimeout(() => sq.focus(), 50); }
+function closeSearch() { scrim.classList.remove("on"); }
+sq.addEventListener("input", () => { sel = 0; renderSearch(); });
+$("#stabs").addEventListener("click", (e) => {
+  const t = e.target.closest("[data-t]");
+  if (!t) return;
+  stype = t.dataset.t;
+  $$("#stabs .candy").forEach((c) => c.classList.toggle("on", c === t));
+  renderSearch();
+});
+$("#sres").addEventListener("click", (e) => { const h = e.target.closest("[data-hit]"); if (h) { closeSearch(); go(h.dataset.hit); } });
+scrim.addEventListener("click", (e) => { if (e.target === scrim) closeSearch(); });
+document.addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openSearch(); return; }
+  if (!scrim.classList.contains("on")) return;
+  const hits = $$("#sres .hit");
+  if (e.key === "Escape") closeSearch();
+  else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    sel = (sel + (e.key === "ArrowDown" ? 1 : -1) + hits.length) % Math.max(1, hits.length);
+    hits.forEach((h, i) => h.classList.toggle("sel", i === sel));
+  } else if (e.key === "Enter" && hits[sel]) { closeSearch(); go(hits[sel].dataset.hit); }
+});
+// —— 日夜、星尘、Logo 彩蛋
+function setMode(mode) {
+  town.dataset.mode = mode;
+  $("#tb-day").setAttribute("aria-pressed", mode === "light");
+  $("#tb-night").setAttribute("aria-pressed", mode === "dark");
+  $("#heroBubble").textContent = mode === "dark" ? "天黑啦，我戴上睡帽了～" : "早上好！今天也要开心";
+}
+$("#dn").addEventListener("click", () => setMode(town.dataset.mode === "dark" ? "light" : "dark"));
+$("#tb-day").addEventListener("click", () => setMode("light"));
+$("#tb-night").addEventListener("click", () => setMode("dark"));
+let dustOn = false, lastDust = 0;
+$("#tb-dust").addEventListener("click", (e) => { dustOn = !dustOn; e.target.setAttribute("aria-pressed", dustOn); e.target.textContent = dustOn ? "关" : "开"; });
+town.addEventListener("pointermove", (e) => {
+  if (!dustOn || performance.now() - lastDust < 45) return;
+  lastDust = performance.now();
+  const r = town.getBoundingClientRect();
+  const d = document.createElement("span");
+  d.className = "dust";
+  d.textContent = ["✦", "♥", "·", "✿"][Math.floor(Math.random() * 4)];
+  d.style.left = e.clientX - r.left + "px"; d.style.top = e.clientY - r.top + "px";
+  town.appendChild(d);
+  setTimeout(() => d.remove(), 800);
+});
+let logoClicks = 0, logoTimer;
+$("#logo").addEventListener("click", () => {
+  const logoMochi = $("#logo .mochi .body");
+  logoMochi.classList.remove("boing"); void logoMochi.getBoundingClientRect(); logoMochi.classList.add("boing");
+  logoClicks++;
+  clearTimeout(logoTimer);
+  logoTimer = setTimeout(() => (logoClicks = 0), 1200);
+  if (logoClicks >= 5) { logoClicks = 0; mochiRain(); } else if (logoClicks === 1) go("home");
+});
+function mochiRain() {
+  const colors = ["pink", "mint", "sky"];
+  for (let i = 0; i < 26; i++) {
+    const m = document.createElement("span");
+    m.className = "rain";
+    m.dataset.mochi = "mochi"; m.dataset.mood = ["happy", "wink", "sleepy"][i % 3]; m.dataset.color = colors[i % 3];
+    m.style.left = Math.random() * 96 + "%";
+    m.style.width = 30 + Math.random() * 30 + "px";
+    m.style.animationDuration = 1.6 + Math.random() * 1.6 + "s";
+    m.style.animationDelay = Math.random() * 0.8 + "s";
+    m.style.setProperty("--r", (Math.random() - 0.5) * 360 + "deg");
+    town.appendChild(m);
+    setTimeout(() => m.remove(), 4200);
+  }
+  hydrate(town);
+}
+setMode(hour >= 19 || hour < 6 ? "dark" : "light");
+go("home");
+</script>
+</div>
+</body>
+</html>
