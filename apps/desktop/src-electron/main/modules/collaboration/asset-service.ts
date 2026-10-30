@@ -3,6 +3,7 @@ import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { basename, extname, isAbsolute, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { normalizeLocalResourcePath } from "@tau/shared/resource-path";
 import {
   ASSET_PREFIX,
   LOCAL_ASSET_PREFIX,
@@ -105,6 +106,7 @@ export class CollaborationAssetService {
   ) {}
 
   private localPath(value: string): string | null {
+    value = normalizeLocalResourcePath(value);
     if (value.startsWith("file:")) return fileURLToPath(value);
     if (value.startsWith("ltoh:///")) return decodeURIComponent(value.slice("ltoh:///".length));
     if (value.startsWith("~/") || value.startsWith("~\\")) {

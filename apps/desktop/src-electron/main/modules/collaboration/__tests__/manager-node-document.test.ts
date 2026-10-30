@@ -205,6 +205,58 @@ async function setup() {
 }
 
 describe("桌面生产会话与真实服务贯通", () => {
+  it.each([false, true])("附件仅在其他设备上时仍能打开、编辑和保存（共享=%s）", async shared => {
+    const { runtime, localId, event, db } = await setup();
+    let session = runtime.sessions.get(localId)!;
+    const image = await prepareContentContract("tau.image", {
+      type: "image",
+      dataVersion: 1,
+      kind: "block",
+      isVoid: true,
+      resources: [{ path: "url", kind: "image" }],
+    });
+    const reference = `tau-collab-local:${crypto.randomUUID()}`;
+    const tree = new NodeTree(session.doc);
+    await tree.installContracts({ [image.id]: image.contract }, null);
+    tree.insertNode(
+      {
+        type: "image",
+        collabId: "missing-image",
+        tauContract: image.id,
+        url: reference,
+        children: [{ text: "" }],
+      },
+      null,
+      1,
+      null,
+      true
+    );
+    tree.dispose();
+    await runtime.project(session);
+    if (shared) session = runtime.sessions.get((await runtime.createContent(event, 7)).documentId)!;
+
+    await expect(runtime.openContent(event, { contentId: 7 })).resolves.toMatchObject({
+      documentId: session.info.id,
+      frozen: false,
+    });
+    const before = (await ContentTable.readContent(db, 7))!;
+    expect(before.content[1]).toMatchObject({ url: reference });
+    const content = structuredClone(before.content) as ContentNode[];
+    content[0].children = [{ text: "附件不可用时仍可编辑" }];
+    await ContentTable.writeContent(db, 7, {
+      content: content as never,
+      contracts: before.contracts,
+      expectedRevision: before.revision,
+    });
+    const saved = ContentDocumentTable.read(db, 7)!;
+    expect(saved.content[0].children).toMatchObject([{ text: "附件不可用时仍可编辑" }]);
+    expect(saved.content[1]).toMatchObject({ collabId: "missing-image", url: reference });
+    expect(readNodeDocument(session.doc).content[1]).toMatchObject({ url: reference });
+    await expect(runtime.openContent(event, { contentId: 7 })).resolves.toMatchObject({
+      frozen: false,
+    });
+  });
+
   it("正文退出屏障必须收到保存确认，超时恢复编辑，重试成功才保持冻结", async () => {
     const { runtime, localId } = await setup();
     const session = runtime.sessions.get(localId)!;

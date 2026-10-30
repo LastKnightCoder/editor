@@ -7,6 +7,7 @@ import {
   readBinaryFile,
 } from "@/commands/file";
 import { resolvePath } from "@/commands/extra";
+import { normalizeLocalResourcePath } from "@tau/shared/resource-path";
 
 const DIRECT_PREFIXES = ["data:", "blob:", "http://localhost", "ltoh://"];
 
@@ -140,7 +141,7 @@ const expandHomeDir = async (value: string) => {
   if (!value.startsWith("~")) {
     return value;
   }
-  const homeDir = await getHomeDir();
+  const homeDir = normalizeSlash(await getHomeDir()).replace(/\/+$/, "");
   return `${homeDir}${value.slice(1)}`;
 };
 
@@ -184,7 +185,7 @@ export const resolveLocalMediaPath = async (rawValue: string) => {
   }
 
   const fileUrlPath = parseFileUrlToPath(trimmedValue);
-  const value = fileUrlPath || trimmedValue;
+  const value = normalizeLocalResourcePath(fileUrlPath || trimmedValue);
 
   const homeExpandedPath = await expandHomeDir(value);
 

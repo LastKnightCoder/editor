@@ -40,6 +40,57 @@ const legacy = createMarkdownProcessor({
 });
 
 describe("图片 codec 拥有段落提升规则", () => {
+  it.each(["image", "inline-image"])("%s 的 Windows 地址导出往返不丢失分隔符", type => {
+    const image = {
+      type,
+      url: String.raw`~\.editor\resources\图片.png`,
+      alt: "图片",
+      children: [{ type: "formatted", text: "" }],
+    };
+    const content = (
+      type === "image"
+        ? [image]
+        : [
+            {
+              type: "paragraph",
+              children: [
+                { type: "formatted", text: "前文 " },
+                image,
+                { type: "formatted", text: " 后文" },
+              ],
+            },
+          ]
+    ) as Descendant[];
+    const markdown = processor.getMarkdown(content);
+    expect(markdown).toContain("![图片](~/.editor/resources/图片.png)");
+    expect(processor.getMarkdown(processor.importFromMarkdown(markdown))).toBe(markdown);
+  });
+
+  it.each(["~.editor\\resources\\old.png", "~.editor/resources/old.png"])(
+    "导入已有损坏引用后导出为可移植路径：%s",
+    reference => {
+      const markdown = processor.getMarkdown(processor.importFromMarkdown(`![图片](${reference})`));
+      expect(markdown.trim()).toBe("![图片](~/.editor/resources/old.png)");
+    }
+  );
+
+  it("裁剪预览也规范化路径，远程地址保持原样", () => {
+    const image = {
+      type: "image",
+      url: "https://images.test/original.png?signature=%5C.foo&key=a%2Fb",
+      alt: "图片",
+      children: [{ type: "formatted", text: "" }],
+    };
+    expect(processor.getMarkdown([image] as Descendant[]).trim()).toBe(`![图片](${image.url})`);
+    expect(
+      processor
+        .getMarkdown([
+          { ...image, previewUrl: String.raw`~\.editor\resources\crop.png` },
+        ] as Descendant[])
+        .trim()
+    ).toBe("![图片](~/.editor/resources/crop.png)");
+  });
+
   it("单图段落提升保持正文和元素位置，两种导入一致", () => {
     const markdown = "前文\n\n![说明](image.png)\n\n后文";
     const ordinary = processor.importFromMarkdown(markdown);

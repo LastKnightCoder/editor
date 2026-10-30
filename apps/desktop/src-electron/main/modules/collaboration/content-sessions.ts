@@ -90,7 +90,7 @@ export function readSessionContent(session: RuntimeSession) {
   return readNodeDocument(session.doc);
 }
 
-/** 主库读取和复制返回可解析资源路径，不把原房间的资源标识带到新正文。 */
+/** 正文读取优先返回本机资源路径；未就绪的附件保留引用，不阻断整篇正文。 */
 export function readLocalSessionContent(session: RuntimeSession) {
   const value = readSessionContent(session);
   const contracts = session.doc
@@ -103,9 +103,12 @@ export function readLocalSessionContent(session: RuntimeSession) {
       ...mapNodeResources(node, definition?.resources, reference => {
         if (!isLocalAssetReference(reference) && !reference.startsWith(ASSET_PREFIX))
           return reference;
-        const path = session.assets?.resolveLocalFile(reference, session.info.id);
-        if (!path) throw new Error("正文资源尚未在本机就绪，请下载后重试复制或导出");
-        return path;
+        try {
+          return session.assets?.resolveLocalFile(reference, session.info.id) || reference;
+        } catch {
+          // 附件解析失败只影响该附件，原引用保留以便资源恢复后重新加载。
+          return reference;
+        }
       }),
       children: node.children.map(visit),
     };
