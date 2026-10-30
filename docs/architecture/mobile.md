@@ -247,7 +247,7 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 
 ## 本机 AI 服务
 
-`services/ai/` 提供不依赖页面挂载的 MobileAiService。明确消费者通过 `createMobileAiService` 创建实例，或调用惰性的 `getMobileAiService`（动态 import，不进首屏包）；服务本身不注册业务工具或功能入口，当前消费者是插件宿主与语音输入整理。公共契约、接口用法与默认行为见 [AI 公共核心](/packages/ai/README.md)。
+`services/ai/` 提供不依赖页面挂载的 MobileAiService。明确消费者通过 `createMobileAiService` 创建实例，或调用惰性的 `getMobileAiService`（动态 import，不进首屏包）；服务本身不注册业务工具或功能入口，消费者是插件宿主、语音输入整理与 AI 对话。惰性单例固定 manual 权限（只读不问，写入与执行每次确认），带审批 / 提问回调（挂起到页面经 `interactions.*` 作答或运行结束），仅 `interactionMode: "host"` 的运行注入对话系统提示。公共契约、接口用法与默认行为见 [AI 公共核心](/packages/ai/README.md)。
 
 移动插件通过现有 PluginHost 的 `ai/mcp/chat` 适配器消费同一底座；包内 Markdown Skill 随激活代次注册与回收，独立 Skill 包按自身安装与启用资格加载，不进入代码激活链。权限、额度、来源校验及未开放界面的边界见 [移动 AI 插件宿主](/docs/architecture/plugin-portability.md#移动-ai-插件宿主)。
 
@@ -269,6 +269,14 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 工具默认 manual 权限，没有审批/提问宿主时拒绝对应操作。说明类 Skills 由宿主注册受限 list/read 来源，手动技能需显式选择，脚本不执行；MCP 使用官方 Streamable HTTP 客户端，stdio 返回不支持。历史工具结果不要求本机安装原执行器，仍可按公共工具块投影。运行快照中的 partial 与已提交结果分开，持久化屏障保证工具意图先落盘、结果落盘后才请求下一轮；回执未知时停止本轮，不自动重放写操作。
 
 releaseLibrary / prepareMaintenance / dispose 由宿主显式调用，订阅取消不等于运行取消。工厂实例通过 `bindMobileAiLifecycle` 显式绑定文档生命周期，惰性单例在首次获取时绑定 visibilitychange 和 pagehide / pageshow：进入后台调用 suspend，等待已有工作结束并阻止新操作；回前台调用 resume，不重放任务。系统冻结或杀进程时依靠原生已提交数据与事务恢复；历史投影把缺回执工具标为结果未知，纯读取不改写文件，续聊前才补正式中断结果，不自动恢复授权或重跑旧工具。数据库与会话文件的上传、下载和成对安装规则见 [宿主分块同步](/docs/architecture/storage-sync.md)。
+
+## AI 对话
+
+入口是「今天」页大标题下的问答条（`features/aiChat/AskBar.tsx`，点按进新对话，建议问题按时段变化并带着问题进入后自动发出）。对话页 `aiChat`（params：sessionId、isNew、prompt）与对话记录 `aiChatHistory` 均懒加载；会话作用域为 `main-chat`，与桌面主对话同一份，随数据库同步互通。
+
+- **控制器**（`services/aiChat/chatController.ts`）：模块级 zustand store 按 sessionId 持有消息、运行状态与等待项，订阅运行快照（已投影的 ChatSessionMessage），收尾后重读会话文件校正；离开页面生成继续，对话记录据此显示脉冲点。新对话首条消息发出时才建会话并以首句命名。每个库一次注册宿主能力，切库时 `releaseChatLibrary` 释放。
+- **宿主工具**（`services/aiChat/`）：工具名、入参与桌面同名同义，描述写明手机端差异。只读：`get_current_date`、`search_knowledge`（FTS5 全文检索，无向量）、`get_content_markdown`、`sql_query`（原生 `ai_sql_query`：query_only + 只读语句校验 + 进度回调超时，规则与桌面一致，错误串 `CODE: message|hint`）、`query_todos`、`query_calendar_events`；写入：`create_todo` / `update_todo` / `set_todo_completed` / `delete_todo` / `create_calendar_event` / `update_calendar_event` / `delete_calendar_event`。待办与日程执行端是应用页面用的原生命令（不借插件数据层身份），只处理独立待办，版本以 updateTime 承担，写后失效 todo / calendar 查询。另注册 `ask-question` 与内置 Skill 来源（`@tau/ai/skills/internal`，与桌面同一份正文）。周期规则、单次实例、撤销、正文待办与内容改写未迁移。
+- **界面**：消息、工具行、审批条与提问卡复用 `@tau/chat-ui/conversation`；`features/aiChat/interactions.ts` 是工具交互宿主（等待项按原对象缓存视图，满足 useSyncExternalStore 的引用稳定），宿主工具行用可读叫法（`ToolCallRow` / `ToolCallBlock` 的 title）。输入区右侧一个位置三态：空为按住说话（复用听写手势与沉浸区，松手发送，不经语音整理）、有字为发送、生成中为停止；上滑阅读时停止跟随并出现「回到最新」。副标题为当前模型，点按只为本会话切换。未给「对话」分配模型时显示引导；运行错误按鉴权 / 余额 / 限流 / 网络给出下一步。
 
 ## 预加载与 DevTools
 

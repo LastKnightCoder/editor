@@ -80,6 +80,8 @@ export function ModelPickerSheet(props: {
   providers: MobileLlmProvider[];
   value: LLMUsageConfigV2 | null | undefined;
   busy?: boolean;
+  /** 允许「不使用模型」清除分配（功能分配用）；对话里临时切换不提供 */
+  clearable?: boolean;
   onSelect: (value: LLMUsageConfigV2 | null) => void;
   onOpenProvider: (providerId: string) => void;
   onClose: () => void;
@@ -128,7 +130,7 @@ export function ModelPickerSheet(props: {
           </GroupCard>
         </section>
       ))}
-      {props.value && (
+      {props.clearable !== false && props.value && (
         <button
           type="button"
           disabled={props.busy}

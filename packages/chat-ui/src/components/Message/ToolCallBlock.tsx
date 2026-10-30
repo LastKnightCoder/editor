@@ -17,6 +17,7 @@ export const ToolCallBlock = memo(function ToolCallBlock({
   rendererContext,
   renderApproval,
   renderDefaultItem,
+  toolTitle,
 }: {
   execution: ToolCallExecutionState;
   isDark: boolean;
@@ -24,11 +25,13 @@ export const ToolCallBlock = memo(function ToolCallBlock({
   renderApproval?: (execution: ToolCallExecutionState) => ReactNode;
   /** 没有自定义渲染器时的单项渲染（缺省 ToolCallRow） */
   renderDefaultItem?: (params: ToolCallDefaultItemRenderParams) => ReactNode;
+  /** 等待确认时通用行的标题（宿主给工具的可读叫法）；缺省显示工具名 */
+  toolTitle?: (execution: ToolCallExecutionState) => ReactNode;
 }) {
   if (execution.status === "awaiting-approval") {
     return (
       <div className="min-w-0">
-        <ToolCallRow execution={execution} />
+        <ToolCallRow execution={execution} title={toolTitle?.(execution)} />
         {renderApproval?.(execution)}
       </div>
     );

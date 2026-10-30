@@ -19,7 +19,7 @@ import type { PolishPillState } from "./PolishPill";
 
 const services = new WeakMap<object, SpeechInputService>();
 
-function useSpeechInputService(): SpeechInputService | null {
+export function useSpeechInputService(): SpeechInputService | null {
   const runtime = useMobilePlugins();
   if (!runtime) return null;
   let service = services.get(runtime.asr);

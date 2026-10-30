@@ -71,6 +71,7 @@
     "yjs": "13.6.32",
     "zustand": "^4.5.7",
     "@tau/asr": "workspace:*",
+    "@tau/chat-ui": "workspace:*",
     "@tau/ai": "workspace:*"
   },
   "devDependencies": {

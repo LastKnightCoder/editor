@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import Database from "better-sqlite3";
 import mainSchemaSql from "@tau/db-schema/schema/main.sql?raw";
-import databaseSchemaDoc from "../database-schema.md?raw";
+import databaseSchemaDoc from "@tau/ai/skills/internal/database-schema.md?raw";
 
 /** 由 SQLite 读取定义，跳过虚拟表的内部影子表。 */
 function parseSchemaTables(sql: string): Map<string, string[]> {

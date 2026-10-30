@@ -2,7 +2,7 @@
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, expect, it, vi } from "vitest";
 import { PageHost, RouterProvider, getNavigator } from "../../../../router";
 import { AppContext, type AppContextValue } from "../../../../app/AppContext";
 import type {
@@ -149,6 +149,12 @@ function type(input: HTMLInputElement, value: string) {
 }
 const input = (label: string) =>
   activePage().querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
+
+// 详情页与添加面板为懒加载（含内置模型目录），先加载，避免冷启动转译计入各用例的等待
+beforeAll(async () => {
+  await import("../AiProviderPage");
+  await import("../AddProviderSheet");
+}, 60_000);
 
 beforeEach(() => {
   vi.clearAllMocks();

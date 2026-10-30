@@ -5,6 +5,7 @@ import { useMemo, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Search } from "lucide-react";
 import { HomeDashboard } from "../features/home/HomeDashboard";
+import { AskBar } from "../features/aiChat/AskBar";
 import { useTodayAgenda } from "../features/home/useTodayAgenda";
 import { useTodoStore } from "../features/todo/store/useTodoStore";
 import { useEdgeFade } from "../hooks/useScrollState";
@@ -133,7 +134,7 @@ export function HomeScreen() {
           type="button"
           onClick={onOpenSearch}
           aria-label="搜索所有内容"
-          className="bg-surface text-ink-2 shadow-card active:scale-88 grid h-[42px] w-[42px] place-items-center rounded-[15px] transition-transform duration-200"
+          className="bg-surface text-ink-2 shadow-card grid h-[42px] w-[42px] place-items-center rounded-[15px] transition-transform duration-200 active:scale-88"
         >
           <Search size={20} strokeWidth={1.9} aria-hidden="true" />
         </button>
@@ -142,6 +143,7 @@ export function HomeScreen() {
         ref={scrollRef}
         className="edge-fade-scroll dock-pad scrollbar-hide flex-1 overflow-y-auto overscroll-y-contain"
       >
+        <AskBar />
         <HomeDashboard
           cardsTotal={cards?.total ?? 0}
           recentCards={recentItems}
