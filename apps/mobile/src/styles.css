@@ -34,6 +34,7 @@
 @source "../../../packages/editor/src/extensions/webview/src";
 @source "../../../packages/shared/src";
 @source "../../../packages/ui/src";
+@source "../../../packages/chat-ui/src";
 
 /* ── 深色模式变体：深色时 html 携带 .dark（@tau/themes 运行时写入，编辑器包依赖） ── */
 @custom-variant dark (.dark &);

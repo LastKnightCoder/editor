@@ -11,6 +11,7 @@ import { findContentChat, stopRun, useChatStore } from "../../services/aiChat/ch
 import { ChatComposer } from "./ChatComposer";
 import { ChatSetup } from "./ChatEmpty";
 import { ChatMessages } from "./ChatMessages";
+import { useMessageActions } from "./MessageActions";
 import { describeChatError } from "./chatErrors";
 import { useChatSession } from "./useChatSession";
 
@@ -59,6 +60,7 @@ function SheetBody(props: {
     domain: { contentId: target.contentId, title: target.title || "未命名" },
   });
   const [mentions, setMentions] = useState<MentionRef[]>(() => [mentionOf(target)]);
+  const actions = useMessageActions(props.sessionId);
   const error = session.chat?.error ? describeChatError(session.chat.error) : null;
 
   return (
@@ -106,7 +108,10 @@ function SheetBody(props: {
                 {target.quote ? "问问选中的这段，或用下面的快捷问法。" : "问问这篇内容。"}
               </p>
             }
+            onAction={actions.onAction}
+            onMenu={actions.onMenu}
           />
+          {actions.sheets}
           {(error || session.loadError) && (
             <p role="alert" className="text-danger text-tau-sm px-5 pb-1">
               {error ? `${error.title}：${error.detail}` : session.loadError}

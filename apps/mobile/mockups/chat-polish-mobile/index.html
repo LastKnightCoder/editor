@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="ocean" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端对话页 UI 优化 · 设计方案</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="cp.css" />
+<script src="../ai-mobile/icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>移动端对话页 UI 优化<small>颜色取自 @tau/themes · 手机帧 360×760 · 对话内容为示意</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="diag">0 现状问题</button>
+    <button class="tab" data-tab="a">1 方案 A 轻整理<span class="rec">推荐</span></button>
+    <button class="tab" data-tab="b">2 方案 B 卡片化</button>
+    <button class="tab" data-tab="result">3 结果卡（可选）</button>
+    <button class="tab" data-tab="composer">4 输入区<span class="rec">3 选</span></button>
+    <button class="tab" data-tab="detail">5 交互细节</button>
+    <button class="tab" data-tab="cmp">6 对比与待确认</button>
+  </nav>
+</header>
+
+<!-- ═══════════ 0 现状 ═══════════ -->
+<section class="scene" data-scene="diag">
+  <p class="scene-intro">左边按截图还原现状，红点对应右侧问题。整体不是配色问题，而是<b>桌面端的消息组件直接搬到了手机</b>：桌面靠鼠标悬停显示的操作行在手机上永远不出现，却仍然占着高度；用户气泡的底色在海盐主题上几乎看不见；工具过程行比答案还抢眼。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <span class="mark" style="top:44px;left:250px">5</span><div class="cnav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="mid"><b>明天有哪些日程</b><span class="model">DeepSeek V4.1 Flash<span data-i="chevron-down" data-s="11"></span></span></span><span class="ib" data-i="history" data-s="20"></span><span class="ib" data-i="pencil" data-s="19"></span></div>
+        <div class="thread">
+          <div class="u" style="background:color-mix(in srgb,var(--brand) 6%,var(--bg-page));margin-top:22px">明天有哪些日程</div>
+          <div style="height:62px"></div>
+          <div class="steps flat" style="margin-bottom:4px"><span class="ok" data-i="check" data-s="14"></span>查询日程 <em>· 完成</em><span data-i="chevron-right" data-s="12" style="color:var(--ink-3)"></span></div>
+          <div class="steps flat"><span class="ok" data-i="check" data-s="14"></span>查询待办 <em>· 完成</em><span data-i="chevron-right" data-s="12" style="color:var(--ink-3)"></span></div>
+          <div class="a" style="margin-top:4px">明天（10 月 31 日，周六）没有任何日程，也没有截止到明天的待办。要不要我帮你安排点什么？</div>
+          <span class="mark" style="top:28px;left:150px">1</span>
+          <span class="gap-hint" style="top:52px;left:18px;right:18px;height:58px"></span>
+          <span class="mark" style="top:70px;left:150px">2</span>
+          <span class="mark" style="top:116px;left:150px">3</span>
+          <span class="mark" style="top:250px;left:150px">4</span>
+          
+        </div>
+        <div class="cmp"><div class="cbox"><span class="rb" data-i="plus" data-s="20"></span><div class="tx"><span class="ph">发消息，或按住麦克风说话</span></div><span class="rb" data-i="at-sign" data-s="18"></span><span class="rb fill" data-i="mic" data-s="18"></span></div><span class="mark" style="top:-4px;left:180px">6</span></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">0</span>现状（按截图还原）</div>
+    </div>
+    <div class="cards" style="flex:1;min-width:340px;margin-top:0">
+      <div class="card"><h3><span class="bad">1</span> 用户气泡看不见</h3><p><code>bg-accent/[0.18]</code> 叠在海盐的浅蓝页面底上，和背景几乎同色，用户消息像一行飘着的文字，分不清谁在说话。</p></div>
+      <div class="card"><h3><span class="bad">2</span> 消息之间莫名的大空白</h3><p><code>MessageView</code> 每条消息下都有一行 26px 的操作行，桌面靠 hover 淡入；手机没有 hover，它永远透明却永远占位。再叠上外层 <code>my-3.5</code>，一问一答之间空了近 60px。</p></div>
+      <div class="card"><h3><span class="bad">3</span> 过程行喧宾夺主</h3><p>「查询日程 · 完成 ›」「查询待办 · 完成 ›」两行，字号和颜色接近正文。「完成」是废话，用户关心的是答案；调了 5 个工具就会堆 5 行。</p></div>
+      <div class="card"><h3><span class="bad">4</span> 回答没有任何操作</h3><p>复制、重新生成、存为卡片都在 hover 行里，手机上摸不到。想复制答案只能长按系统选择文字。</p></div>
+      <div class="card"><h3><span class="bad">5</span> 顶栏信息重复、图标偏重</h3><p>标题就是第一条消息原文，与下方重复；历史和新对话两个 20px 深色图标比标题还重；模型名灰色小字，看不出可以点。</p></div>
+      <div class="card"><h3><span class="bad">6</span> 输入区还行，但缺层次</h3><p>白色输入框浮在页面上，问题不大。只是 ＋、@、麦克风三个图标权重相同，主动作（说话 / 发送）不突出。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 1 方案 A ═══════════ -->
+<section class="scene" data-scene="a">
+  <p class="scene-intro"><b>方案 A：轻整理</b>。沿用「用户气泡 + 助手通栏」的结构（桌面、浏览器扩展同一套，D-048），只修手机上的毛病：气泡加深到看得见、过程行合成一枚胶囊、操作行常显且只在最后一条回答下出现、回答末尾给 2–3 个追问建议。改动集中在 <code>ChatMessages</code> 和 <code>MessageView</code> 的移动端分支，风险最小。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="cnav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="mid"><b>明天的日程</b><span class="model"><span class="dot"></span>DeepSeek V4.1 Flash<span data-i="chevron-down" data-s="11"></span></span></span><span class="ib" data-i="history" data-s="19" style="color:var(--ink-2)"></span><span class="ib" data-i="pencil" data-s="18" style="color:var(--ink-2)"></span></div>
+        <div class="thread">
+          <div class="day">今天 19:23</div>
+          <div class="cp-turn">
+            <div class="u">明天有哪些日程</div>
+            <div class="a">
+              <div class="steps"><span class="ok" data-i="check" data-s="13"></span>查了日程和待办<em>· 2 步</em><span data-i="chevron-right" data-s="12" style="color:var(--ink-3)"></span></div>
+              <p>明天（<b>10 月 31 日，周六</b>）没有任何日程，也没有截止到明天的待办。</p>
+              <p>要不要我帮你安排点什么？</p>
+              <div class="acts"><span data-i="copy" data-s="16"></span><span data-i="refresh-cw" data-s="16"></span><span data-i="bookmark-plus" data-s="16"></span><span data-i="share-2" data-s="16"></span></div>
+              <div class="follow">
+                <span><span data-i="calendar-days" data-s="14"></span>帮我安排一个周末计划</span>
+                <span><span data-i="list-checks" data-s="14"></span>下周有哪些待办快到期</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="cmp"><div class="cbox"><span class="rb" data-i="plus" data-s="20"></span><div class="tx"><span class="ph">发消息</span></div><span class="rb" data-i="at-sign" data-s="18"></span><span class="rb fill" data-i="mic" data-s="18"></span></div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>回答完成<small>气泡用 accent 16% 混表面色，各主题都看得见。两个工具合成「查了日程和待办 · 2 步」，点开看明细。操作行只挂在最后一条回答下，常显、32px 触控区。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="cnav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="mid"><b>复习计划</b><span class="model"><span class="dot"></span>DeepSeek V4.1 Flash<span data-i="chevron-down" data-s="11"></span></span></span><span class="ib" data-i="history" data-s="19" style="color:var(--ink-2)"></span><span class="ib" data-i="pencil" data-s="18" style="color:var(--ink-2)"></span></div>
+        <div class="thread">
+          <div class="cp-turn">
+            <div class="u">把「间隔重复」那张卡片拆成 3 个问答</div>
+            <div class="a">
+              <div class="steps"><span class="run" data-i="loader-circle" data-s="13"></span>正在读取卡片<em>· 间隔重复为什么有效</em></div>
+              <div class="steps-open">
+                <div><span class="ok" data-i="check" data-s="12"></span>搜索卡片<em>0.4 秒</em></div>
+                <div><span class="run" data-i="loader-circle" data-s="12"></span>读取卡片<em>…</em></div>
+              </div>
+              <p>好的，我准备了 3 个问答：</p>
+              <p><b>Q1</b> 为什么记忆在学习后最初几天衰减最快？<span class="cursor-dot"></span></p>
+            </div>
+          </div>
+          <div class="float-pill" data-i="arrow-down" data-s="13">回到最新</div>
+        </div>
+        <div class="cmp"><div class="cbox"><span class="rb" data-i="plus" data-s="20"></span><div class="tx"><span class="ph">生成中，可以先写下一条</span></div><span class="rb" data-i="at-sign" data-s="18"></span><span class="rb stop" data-i="square" data-s="13"></span></div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>生成中<small>胶囊实时显示当前这一步，转圈用 accent。展开态是左侧细线 + 缩进的明细，不再每步一行占满宽度。生成中不显示操作行与追问。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="cnav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="mid"><b>新对话</b><span class="model"><span class="dot"></span>DeepSeek V4.1 Flash<span data-i="chevron-down" data-s="11"></span></span></span><span class="ib" data-i="history" data-s="19" style="color:var(--ink-2)"></span><span class="ib" data-i="pencil" data-s="18" style="color:var(--ink-3);opacity:.5"></span></div>
+        <div class="thread">
+          <div class="hello">
+            <div class="greet">晚上好，<br /><span>今天想整理点什么？</span></div>
+            <p>可以问笔记里的内容，也能帮你查日程、排待办。</p>
+            <div class="sugs">
+              <div class="sug"><span class="ico t1" data-i="calendar-days" data-s="15"></span>明天有哪些日程</div>
+              <div class="sug"><span class="ico t2" data-i="list-checks" data-s="15"></span>这周还有哪些待办没做</div>
+              <div class="sug"><span class="ico t3" data-i="notebook-pen" data-s="15"></span>总结一下本周日记</div>
+              <div class="sug"><span class="ico t4" data-i="lightbulb" data-s="15"></span>最近收藏里有什么值得看</div>
+            </div>
+            <div class="recent">
+              <h4>最近对话</h4>
+              <div><span data-i="message-circle" data-s="16"></span>复习计划<em>昨天</em></div>
+              <div><span data-i="message-circle" data-s="16"></span>本周日记总结<em>周二</em></div>
+            </div>
+          </div>
+        </div>
+        <div class="cmp"><div class="cbox"><span class="rb" data-i="plus" data-s="20"></span><div class="tx"><span class="ph">发消息</span></div><span class="rb" data-i="at-sign" data-s="18"></span><span class="rb fill" data-i="mic" data-s="18"></span></div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>空态<small>去掉居中的大图标，改成左对齐问候（按时段），建议改 2×2 卡片、用标签色区分类型；下方接两条最近对话，省一次进历史页。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 2 方案 B ═══════════ -->
+<section class="scene" data-scene="b">
+  <p class="scene-intro"><b>方案 B：卡片化</b>。助手回答放进表面色卡片，带小头像；顶栏中间换成可点的模型胶囊，对话标题移到历史页。层次最清楚、最像「一个助手在回答」，代价是和桌面端 D-048 的「助手通栏、不加气泡」分叉，长回答（代码、表格）可用宽度少 28px。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="cnav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="mid"><span class="model-pill"><span class="logo" data-i="sparkles" data-s="11"></span>DeepSeek V4.1 Flash<span data-i="chevron-down" data-s="12" style="color:var(--ink-3)"></span></span></span><span class="ib" data-i="history" data-s="19" style="color:var(--ink-2)"></span><span class="ib" data-i="pencil" data-s="18" style="color:var(--ink-2)"></span></div>
+        <div class="thread">
+          <div class="day">今天 19:23</div>
+          <div class="cp-turn">
+            <div class="u solid">明天有哪些日程</div>
+            <div class="a boxed">
+              <div class="who"><span class="av" data-i="sparkles" data-s="11"></span>查了日程和待办 · 2 步<span data-i="chevron-right" data-s="11" style="color:var(--ink-3)"></span></div>
+              <p>明天（<b>10 月 31 日，周六</b>）没有任何日程，也没有截止到明天的待办。</p>
+              <p>要不要我帮你安排点什么？</p>
+              <div class="acts"><span data-i="copy" data-s="16"></span><span data-i="refresh-cw" data-s="16"></span><span data-i="bookmark-plus" data-s="16"></span><span class="sp"></span><span data-i="ellipsis" data-s="16"></span></div>
+            </div>
+            <div class="follow">
+              <span><span data-i="calendar-days" data-s="14"></span>帮我安排一个周末计划</span>
+            </div>
+          </div>
+        </div>
+        <div class="cmp"><div class="cbox"><span class="rb" data-i="plus" data-s="20"></span><div class="tx"><span class="ph">发消息</span></div><span class="rb" data-i="at-sign" data-s="18"></span><span class="rb fill" data-i="mic" data-s="18"></span></div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>回答完成<small>用户气泡实色 accent，助手卡片表面色；过程摘要并进卡片头部，不再单独占行。操作行在卡片底部分隔线下。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="cnav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="mid"><span class="model-pill"><span class="logo" data-i="sparkles" data-s="11"></span>DeepSeek V4.1 Flash<span data-i="chevron-down" data-s="12" style="color:var(--ink-3)"></span></span></span><span class="ib" data-i="history" data-s="19" style="color:var(--ink-2)"></span><span class="ib" data-i="pencil" data-s="18" style="color:var(--ink-2)"></span></div>
+        <div class="thread">
+          <div class="cp-turn">
+            <div class="u solid">总结一下这周的日记</div>
+            <div class="a boxed">
+              <div class="who"><span class="av" data-i="sparkles" data-s="11"></span>搜索了 6 篇日记<span data-i="chevron-right" data-s="11" style="color:var(--ink-3)"></span></div>
+              <p>这周主要在做三件事：</p>
+              <ul>
+                <li><b>同步模块重写</b>：冲突处理改成按字段合并</li>
+                <li><b>语音输入</b>：定了按住说话的入口</li>
+                <li><b>跑步</b>：配速比上周快十几秒</li>
+              </ul>
+              <p>周三那句「阅读态里也应该能随口补一句」值得存成一张卡片。</p>
+              <div class="acts"><span data-i="copy" data-s="16"></span><span data-i="refresh-cw" data-s="16"></span><span data-i="bookmark-plus" data-s="16"></span><span class="sp"></span><span data-i="ellipsis" data-s="16"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="cmp"><div class="cbox"><span class="rb" data-i="plus" data-s="20"></span><div class="tx"><span class="ph">发消息</span></div><span class="rb" data-i="at-sign" data-s="18"></span><span class="rb fill" data-i="mic" data-s="18"></span></div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>长回答<small>列表、段落在卡片里读起来像一张便签。缺点：卡片内边距吃掉宽度，代码块和表格会更挤。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 3 结果卡 ═══════════ -->
+<section class="scene" data-scene="result">
+  <p class="scene-intro"><b>可选增强：工具结果直接画出来</b>。日程、待办这类宿主工具返回的是结构化数据，比起让模型复述「没有任何日程」，在答案上方直接给一张可点的小卡片更直观，点一行跳到对应日程或待办。只覆盖宿主自带的几个查询工具，插件工具仍走过程胶囊。<b>这是新入口，要不要做请单独确认。</b></p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="cnav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="mid"><b>明天的日程</b><span class="model"><span class="dot"></span>DeepSeek V4.1 Flash<span data-i="chevron-down" data-s="11"></span></span></span><span class="ib" data-i="history" data-s="19" style="color:var(--ink-2)"></span><span class="ib" data-i="pencil" data-s="18" style="color:var(--ink-2)"></span></div>
+        <div class="thread">
+          <div class="cp-turn">
+            <div class="u">明天有哪些日程</div>
+            <div class="a">
+              <div class="rcard">
+                <div class="h"><span data-i="calendar-days" data-s="14"></span><b>10 月 31 日 周六</b><em>打开日历</em></div>
+                <div class="week">
+                  <span>一<b>26</b><i></i></span><span>二<b>27</b><i></i></span><span>三<b>28</b><i class="n"></i></span><span>四<b>29</b><i></i></span><span>五<b>30</b><i></i></span><span class="on">六<b>31</b><i class="n"></i></span><span>日<b>1</b><i></i></span>
+                </div>
+                <div class="empty"><span data-i="circle-check" data-s="18"></span>这天没有日程和到期待办</div>
+              </div>
+              <p>明天是空的，整天都可以自由安排。要不要我帮你排一个周末计划？</p>
+              <div class="acts"><span data-i="copy" data-s="16"></span><span data-i="refresh-cw" data-s="16"></span><span data-i="bookmark-plus" data-s="16"></span><span data-i="share-2" data-s="16"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="cmp"><div class="cbox"><span class="rb" data-i="plus" data-s="20"></span><div class="tx"><span class="ph">发消息</span></div><span class="rb" data-i="at-sign" data-s="18"></span><span class="rb fill" data-i="mic" data-s="18"></span></div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>空结果<small>周条里有日程的日子带小点，选中天实色。空态一句话，不用模型重复解释。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="cnav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="mid"><b>周一的安排</b><span class="model"><span class="dot"></span>DeepSeek V4.1 Flash<span data-i="chevron-down" data-s="11"></span></span></span><span class="ib" data-i="history" data-s="19" style="color:var(--ink-2)"></span><span class="ib" data-i="pencil" data-s="18" style="color:var(--ink-2)"></span></div>
+        <div class="thread">
+          <div class="cp-turn">
+            <div class="u">下周一有什么安排</div>
+            <div class="a">
+              <div class="rcard">
+                <div class="h"><span data-i="calendar-days" data-s="14"></span><b>11 月 2 日 周一</b><em>2 项日程</em></div>
+                <div class="row"><span class="bar"></span><span class="tt">产品周会<small>10:00–11:00 · 会议室 B</small></span><span data-i="chevron-right" data-s="14" style="color:var(--ink-3)"></span></div>
+                <div class="row"><span class="bar"></span><span class="tt">和小林对同步方案<small>15:30–16:00</small></span><span data-i="chevron-right" data-s="14" style="color:var(--ink-3)"></span></div>
+              </div>
+              <div class="rcard">
+                <div class="h"><span data-i="list-checks" data-s="14"></span><b>当天到期</b><em>1 项待办</em></div>
+                <div class="row"><span class="box"></span><span class="tt">提交 0.60.7 发布说明<small>来自「发布清单」</small></span></div>
+              </div>
+              <p>上午开周会，下午和小林有个半小时的同步，记得先把发布说明交了。</p>
+            </div>
+          </div>
+        </div>
+        <div class="cmp"><div class="cbox"><span class="rb" data-i="plus" data-s="20"></span><div class="tx"><span class="ph">发消息</span></div><span class="rb" data-i="at-sign" data-s="18"></span><span class="rb fill" data-i="mic" data-s="18"></span></div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>有结果<small>日程一行一条，左侧色条取日历颜色；待办可直接勾选完成。模型只说一句总结。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 4 输入区 ═══════════ -->
+<section class="scene" data-scene="composer">
+  <p class="scene-intro">输入区三种排法。共同点：右侧一个位置三态（麦克风 / 发送 / 停止）保持不变，语音模式仍是微信式整条「按住 说话」。差别在附件按钮放哪、输入框长什么样。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="cnav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="mid"><b>明天的日程</b><span class="model"><span class="dot"></span>DeepSeek V4.1 Flash</span></span><span class="ib" data-i="history" data-s="19" style="color:var(--ink-2)"></span><span class="ib" data-i="pencil" data-s="18" style="color:var(--ink-2)"></span></div>
+        <div class="thread"><div class="cp-turn"><div class="u">明天有哪些日程</div><div class="a"><p>明天没有任何日程，也没有到期待办。</p></div></div></div>
+        <div class="cmp">
+          <div class="attach"><div class="q"><i></i><span>间隔重复为什么有效 · 卡片</span><span data-i="x" data-s="13"></span></div></div>
+          <div class="cbox"><span class="rb" data-i="plus" data-s="20"></span><div class="tx">周末适合做点什么</div><span class="rb" data-i="at-sign" data-s="18"></span><span class="rb send" data-i="arrow-up" data-s="18"></span></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A</span>单行（现状微调）<span class="rec-badge">推荐</span><small>结构不动，只把引用条改成单行可删的胶囊。改动最小。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="cnav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="mid"><b>明天的日程</b><span class="model"><span class="dot"></span>DeepSeek V4.1 Flash</span></span><span class="ib" data-i="history" data-s="19" style="color:var(--ink-2)"></span><span class="ib" data-i="pencil" data-s="18" style="color:var(--ink-2)"></span></div>
+        <div class="thread"><div class="cp-turn"><div class="u">明天有哪些日程</div><div class="a"><p>明天没有任何日程，也没有到期待办。</p></div></div></div>
+        <div class="cmp">
+          <div class="cbox two">
+            <div class="tx"><span class="ph">发消息</span></div>
+            <div class="bar"><span class="rb ghost" data-i="plus" data-s="18"></span><span class="rb ghost" data-i="at-sign" data-s="16"></span><span class="sp"></span><span class="rb fill" data-i="mic" data-s="18"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B</span>双层（ChatGPT 式）<small>文字一层、工具一层，长输入时视觉更稳；但空闲时比单行高 40px，占屏更多。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="cnav line"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="mid"><b>明天的日程</b><span class="model"><span class="dot"></span>DeepSeek V4.1 Flash</span></span><span class="ib" data-i="history" data-s="19" style="color:var(--ink-2)"></span><span class="ib" data-i="pencil" data-s="18" style="color:var(--ink-2)"></span></div>
+        <div class="thread"><div class="cp-turn"><div class="u">明天有哪些日程</div><div class="a"><p>明天没有任何日程，也没有到期待办。</p></div></div></div>
+        <div class="cmp docked">
+          <div class="cbox"><span class="rb fill" data-i="mic" data-s="18"></span><div class="hold">按住 说话</div><span class="rb fill" data-i="plus" data-s="20"></span></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">C</span>贴底栏（微信式）<small>输入区是整条表面色底栏，语音模式最像微信。缺点：和应用其他页面的浮动卡片风格不一致。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 5 细节 ═══════════ -->
+<section class="scene" data-scene="detail">
+  <p class="scene-intro">手机上补齐桌面 hover 才有的操作：<b>长按任意消息</b>弹出菜单（复制、选择文字、存为卡片、重新生成、删除），消息浮起、背景虚化。最后一条回答的常显操作行只放 4 个最常用的，其余都进长按菜单。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="cnav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="mid"><b>本周日记总结</b><span class="model"><span class="dot"></span>DeepSeek V4.1 Flash</span></span><span class="ib" data-i="history" data-s="19"></span><span class="ib" data-i="pencil" data-s="18"></span></div>
+        <div class="thread">
+          <div class="u">总结一下这周的日记</div>
+          <div class="a"><p>这周主要在做三件事……</p></div>
+        </div>
+        <div class="cp-mask"></div>
+        <div class="lift" style="top:150px">
+          <div class="a"><p>这周主要在做三件事：同步模块重写、语音输入入口、跑步配速提升。</p><p>周三那句「阅读态里也应该能随口补一句」值得存成一张卡片。</p></div>
+          <div class="cp-menu">
+            <div>复制<span data-i="copy" data-s="17"></span></div>
+            <div>选择文字<span data-i="text-select" data-s="17"></span></div>
+            <div>存为卡片<span data-i="bookmark-plus" data-s="17"></span></div>
+            <div>重新生成<span data-i="refresh-cw" data-s="17"></span></div>
+            <div class="danger">删除<span data-i="trash-2" data-s="17"></span></div>
+          </div>
+        </div>
+        <div class="cmp"><div class="cbox"><span class="rb" data-i="plus" data-s="20"></span><div class="tx"><span class="ph">发消息</span></div><span class="rb fill" data-i="mic" data-s="18"></span></div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>长按助手消息<small>菜单紧贴消息下方；用户消息长按多一个「编辑重发」。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="cnav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="mid"><b>明天的日程</b><span class="model"><span class="dot"></span>DeepSeek V4.1 Flash</span></span><span class="ib" data-i="history" data-s="19" style="color:var(--ink-2)"></span><span class="ib" data-i="pencil" data-s="18" style="color:var(--ink-2)"></span></div>
+        <div class="thread">
+          <div class="cp-turn">
+            <div class="u">明天有哪些日程</div>
+            <div class="a">
+              <div class="steps"><span class="ok" data-i="check" data-s="13"></span>查了日程和待办<em>· 2 步</em><span data-i="chevron-down" data-s="12" style="color:var(--ink-3)"></span></div>
+              <div class="steps-open">
+                <div><span class="ok" data-i="check" data-s="12"></span>查询日程 · 10 月 31 日<em>0.3 秒</em></div>
+                <div><span class="ok" data-i="check" data-s="12"></span>查询待办 · 截止 10 月 31 日<em>0.2 秒</em></div>
+              </div>
+              <p>明天（<b>10 月 31 日，周六</b>）没有任何日程，也没有截止到明天的待办。</p>
+            </div>
+          </div>
+          <div class="cp-turn">
+            <div class="u">那下周一呢</div>
+            <div class="a">
+              <div class="think"><span data-i="brain" data-s="13"></span>思考了 3 秒<span data-i="chevron-right" data-s="11"></span></div>
+              <p>下周一上午 10 点有产品周会，下午 3 点半和小林对同步方案。</p>
+              <div class="acts"><span data-i="copy" data-s="16"></span><span data-i="refresh-cw" data-s="16"></span><span data-i="bookmark-plus" data-s="16"></span><span data-i="share-2" data-s="16"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="cmp"><div class="cbox"><span class="rb" data-i="plus" data-s="20"></span><div class="tx"><span class="ph">发消息</span></div><span class="rb" data-i="at-sign" data-s="18"></span><span class="rb fill" data-i="mic" data-s="18"></span></div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>多轮 + 展开过程<small>轮与轮之间 22px，一问一答之间 14px。旧回答不显示操作行（靠长按），只有最后一条常显。思考过程淡墨一行。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="cnav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="mid"><b>明天的日程</b><span class="model"><span class="dot"></span>DeepSeek V4.1 Flash</span></span><span class="ib" data-i="history" data-s="19" style="color:var(--ink-2)"></span><span class="ib" data-i="pencil" data-s="18" style="color:var(--ink-2)"></span></div>
+        <div class="thread">
+          <div class="cp-turn">
+            <div class="u">明天有哪些日程</div>
+            <div class="a"><p>明天没有任何日程，也没有到期待办。要不要我帮你安排点什么？</p></div>
+          </div>
+        </div>
+        <div class="cmp"><div class="cbox"><span class="rb" data-i="plus" data-s="20"></span><div class="hold on">松开 发送</div><span class="rb fill" data-i="keyboard" data-s="18"></span></div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>语音模式按住中<small>「按住 说话」改成全圆角胶囊，与输入框外形一致；按住时 accent 浅底。录音浮层沿用现有 DictationOverlay。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 6 对比 ═══════════ -->
+<section class="scene" data-scene="cmp">
+  <div class="cards" style="grid-template-columns:1fr;max-width:980px">
+    <div class="card">
+      <h3>方案对比</h3>
+      <table class="cmp">
+        <tr><th></th><th>A 轻整理（推荐）</th><th>B 卡片化</th></tr>
+        <tr><td>和桌面 / 扩展一致</td><td><b>一致</b>（D-048 助手通栏）</td><td>分叉，移动端单独一套</td></tr>
+        <tr><td>长回答、代码、表格</td><td>满宽，最好读</td><td>少 28px，代码块更挤</td></tr>
+        <tr><td>层次感</td><td>靠气泡 + 留白</td><td>最强，像在和助手聊</td></tr>
+        <tr><td>改动范围</td><td><code>ChatMessages</code> + <code>MessageView</code> 加触屏分支（操作行常显、过程合并）</td><td>A 的全部 + 移动端自有助手卡片与顶栏</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>两个方案都要做的修复</h3>
+      <ul>
+        <li>触屏下不渲染 hover 操作行（去掉看不见的 26px 占位），只在最后一条回答下常显 4 个操作。</li>
+        <li>用户气泡底色改为 accent 与表面色混合（约 16%），六个主题明暗都看得见，对比度用单测兜住。</li>
+        <li>相邻工具调用合成一枚胶囊「查了日程和待办 · 2 步」，成功不再写「完成」；失败、待确认仍单独展开。</li>
+        <li>长按消息弹菜单：复制 / 选择文字 / 存为卡片 / 重新生成 / 删除（用户消息加编辑重发）。</li>
+        <li>顶栏两个图标降为 ink-2；模型名前加状态小点，提示可点。</li>
+        <li>空态改左对齐问候 + 2×2 建议 + 最近两条对话。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>需要你确认</h3>
+      <ol>
+        <li>主方案选 <b>A 轻整理</b> 还是 <b>B 卡片化</b>？</li>
+        <li>输入区选 A 单行 / B 双层 / C 贴底栏？</li>
+        <li>回答末尾的<b>追问建议</b>要不要做？需要模型额外输出建议（或一次小模型调用），属于新入口。</li>
+        <li>日程 / 待办的<b>结果卡</b>（第 3 页）要不要做？同样是新入口。</li>
+        <li>空态下的「最近对话」要不要放？</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<script src="../ai-mobile/ai.js"></script>
+</body>
+</html>
