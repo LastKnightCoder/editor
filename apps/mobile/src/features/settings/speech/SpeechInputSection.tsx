@@ -1,5 +1,5 @@
 // 语音输入设置（我的 › 语音 › 语音输入）：选识别插件；账号在插件页（pluginSettings）填写。
-// 系统识别仅桌面端可用，手机端显示为不可选。
+// 手机端系统识别由原生语音识别服务提供。
 // 插件停用时不改写选择，只提示；选用要求账号已保存且与当前保存的配置一致。
 
 import { useState } from "react";
@@ -34,12 +34,14 @@ export function SpeechInputSection() {
   const [busy, setBusy] = useState("");
   const activePlugin = speech.active === "plugin" ? speech.plugin.id : "";
   const missing = !!activePlugin && !providers.some(item => item.id === activePlugin);
-  // 移动端尚未接入系统识别，存量选择保留但不可用
   const nativeSelected = speech.active === NATIVE;
 
   const select = async (pluginId: string) => {
     if (!setting || !runtime || busy) return;
-    const expected = copyJson(speech.plugin.configurations[pluginId] as JsonValue) as JsonValue;
+    const expected =
+      pluginId === NATIVE
+        ? null
+        : (copyJson(speech.plugin.configurations[pluginId] as JsonValue) as JsonValue);
     setBusy(pluginId);
     try {
       await enqueueProviderConfigWrite(async () => {
@@ -62,20 +64,27 @@ export function SpeechInputSection() {
         </TtsStatus>
       )}
       {nativeSelected && (
-        <TtsStatus tone="warning" title="手机端暂不支持系统识别">
-          语音输入需要选择一个识别插件，下方点已配置的插件即可切换。
+        <TtsStatus tone="warning" title="系统识别依赖设备语音服务">
+          Android
+          识别能力由设备厂商提供，可能需要联网或安装语言包；没有可用识别服务时请改用识别插件。
         </TtsStatus>
       )}
       <GroupLabel>识别服务</GroupLabel>
       <GroupCard>
-        <GroupRow disabled>
+        <GroupRow
+          disabled={!!busy}
+          onClick={() => {
+            if (speech.active !== NATIVE) void select(NATIVE);
+          }}
+        >
           <span className="bg-page text-ink-3 grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl">
             <Mic size={17} strokeWidth={1.9} aria-hidden="true" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="text-ink-3 text-tau-body block font-medium">系统识别</span>
-            <span className="text-ink-3 text-tau-sm block">手机端暂不支持</span>
+            <span className="text-ink-1 text-tau-body block font-medium">系统识别</span>
+            <span className="text-ink-3 text-tau-sm block">使用设备当前可用的系统识别服务</span>
           </span>
+          {nativeSelected && <CheckBubble />}
         </GroupRow>
         {providers.map(provider => {
           const configured = provider.isConfigured(speech);

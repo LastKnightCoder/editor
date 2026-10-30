@@ -251,7 +251,7 @@ it("已配置的插件点选即切换；选用的插件停用后保留选择并�
   expect(setting.speechInput?.plugin.id).toBe("tau.asr-seed");
 });
 
-it("手机端系统识别不可选；存量选择为系统识别时提示改选插件", async () => {
+it("手机端系统识别可选；存量选择为系统识别时显示设备差异提示", async () => {
   setting = makeSetting({
     active: "native",
     language: "zh-CN",
@@ -260,13 +260,33 @@ it("手机端系统识别不可选；存量选择为系统识别时提示改选�
   mount();
   await open("settingsModule", { module: "speech-input" });
   await waitFor(() => text().includes("豆包语音"));
-  expect(text()).toContain("手机端暂不支持系统识别");
-  expect(text()).toContain("手机端暂不支持");
-  // 系统识别行不可点：不是按钮，点击也不会切换
-  expect(button("系统识别")).toBeUndefined();
+  expect(text()).toContain("系统识别依赖设备语音服务");
+  expect(text()).toContain("可能需要联网或安装语言包");
+  expect(button("系统识别")).toBeDefined();
   const nativeRow = [...activePage().querySelectorAll<HTMLElement>(".setting-row")].find(node =>
     node.textContent?.includes("系统识别")
   )!;
   await click(nativeRow);
   expect(tauriMock.selectPluginProvider).not.toHaveBeenCalled();
+});
+
+it("从云端服务切换到系统识别时不要求虚构账号配置", async () => {
+  setting = makeSetting({
+    active: "plugin",
+    language: "zh-CN",
+    plugin: {
+      id: "tau.asr-seed",
+      configurations: { "tau.asr-seed": { modelId: "seed-asr-2.0", config: { apiKey: "k1" } } },
+    },
+  });
+  mount();
+  await open("settingsModule", { module: "speech-input" });
+  const nativeRow = [...activePage().querySelectorAll<HTMLElement>(".setting-row")].find(node =>
+    node.textContent?.includes("系统识别")
+  )!;
+
+  await click(nativeRow);
+  await waitFor(() => tauriMock.selectPluginProvider.mock.calls.length === 1);
+  expect(tauriMock.selectPluginProvider).toHaveBeenCalledWith("data.db", "asr", "native", null);
+  expect(setting.speechInput?.active).toBe("native");
 });

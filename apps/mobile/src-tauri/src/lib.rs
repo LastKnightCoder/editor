@@ -71,6 +71,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_native_speech::init())
         .invoke_handler(tauri::generate_handler![
             ai::ai_library_acquire,
             ai::ai_library_assert,
