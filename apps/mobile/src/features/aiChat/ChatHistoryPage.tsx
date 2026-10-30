@@ -1,7 +1,7 @@
 // 对话记录：只列「对话」作用域（与桌面主对话同一份），按今天 / 本周 / 更早分组；左滑删除。
 // 后台还在生成的会话带脉冲点。数据按当前库读取，切库后随之切换。
 
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SquarePen, Trash2 } from "lucide-react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { GroupLabel } from "../../components/GroupLabel";
@@ -11,12 +11,24 @@ import { toast } from "../../components/toast";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { useAppContext } from "../../app/AppContext";
 import { useNavigator } from "../../router";
-import { listChats, removeChat, useChatStore } from "../../services/aiChat/chatController";
+import {
+  CONTENT_CHAT_SCOPE,
+  listChats,
+  removeChat,
+  useChatStore,
+} from "../../services/aiChat/chatController";
 
 const DAY = 86_400_000;
 const SWIPE_OPEN_PX = 72;
 
-type Row = { id: string; title: string; updateTime: number; messageCount: number };
+type Row = {
+  id: string;
+  title: string;
+  updateTime: number;
+  messageCount: number;
+  /** 就近对话的来源内容 */
+  contentId: number | null;
+};
 
 function bucketOf(time: number, now = new Date()) {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -104,8 +116,16 @@ export function ChatHistoryPage() {
       title: item.title || "新对话",
       updateTime: item.updateTime,
       messageCount: item.messageCount,
+      contentId:
+        item.scope === CONTENT_CHAT_SCOPE && item.domainRef?.startsWith("content:")
+          ? Number(item.domainRef.slice("content:".length)) || null
+          : null,
     }))
   );
+  // 一页可能全是其他功能的会话、过滤后为空：还有下一页就继续取，直到凑出内容或取完
+  useEffect(() => {
+    if (!query.isFetching && query.hasNextPage && rows.length < 12) void query.fetchNextPage();
+  }, [query, rows.length]);
   const groups = new Map<string, Row[]>();
   for (const row of rows) {
     const key = bucketOf(row.updateTime);
@@ -177,8 +197,12 @@ export function ChatHistoryPage() {
                           )}
                           <span className="truncate">{row.title}</span>
                         </span>
-                        <span className="text-ink-3 text-tau-sm block">
-                          {live ? "正在生成…" : `${row.messageCount} 次提问`}
+                        <span className="text-ink-3 text-tau-sm block truncate">
+                          {live
+                            ? "正在生成…"
+                            : row.contentId
+                              ? `来自笔记 · ${row.messageCount} 次提问`
+                              : `${row.messageCount} 次提问`}
                         </span>
                       </span>
                       <span className="text-ink-3 text-tau-sm shrink-0 pt-0.5 tabular-nums">

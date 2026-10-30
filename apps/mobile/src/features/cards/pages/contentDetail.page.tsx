@@ -149,6 +149,7 @@ function CardEntryScreen(props: {
         refreshKey={props.refreshKey + linksRev}
         actionsRef={detailActionsRef}
         contextEntity={{ kind: "card", id: card.id }}
+        aiContext={{ entityType: "card", entityId: card.id }}
         collaboration={collab.collaboration}
         onCollaborationEnded={collab.onCollaborationEnded}
         headerRight={
@@ -284,6 +285,16 @@ function ContentDetailScreen() {
       contentType={params.contentType}
       refId={params.refId}
       diaryDate={params.diaryDate}
+      // 按 contentId 直入的只有日记能确定身份；正文待办跳转等其他来源不挂就近提问
+      aiContext={
+        params.contentId && params.diaryDate
+          ? {
+              entityType: "diary",
+              entityId: params.contentId,
+              title: [params.diaryDate.title, params.diaryDate.sub].filter(Boolean).join(" "),
+            }
+          : undefined
+      }
       refreshKey={refreshRev}
       collaboration={collab.collaboration}
       onCollaborationEnded={() => {

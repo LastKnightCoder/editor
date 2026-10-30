@@ -11,9 +11,9 @@ import {
 } from "react";
 import { useMobileContentKit } from "../../services/editorKit";
 import { EditorKitPending } from "../../components/EditorKitPending";
-import { CornerUpRight, Mic } from "lucide-react";
+import { CornerUpRight, Mic, Sparkles } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { PageHeader } from "../../components/PageHeader";
+import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { Editor, type EditorDocument, type EditorRef } from "@tau/editor";
 import { cn } from "@tau/ui";
@@ -55,8 +55,16 @@ import { OutlineSheet } from "./outline/OutlineSheet";
 import { useOutlineSheet } from "./outline/useOutlineSheet";
 import { useContentLocation } from "./useContentLocation";
 import { useContentMention } from "./editorExtensions/useContentMention";
+import type { MentionEntityType } from "@tau/shared/chat-core";
+import type { ContextChatTarget } from "../aiChat/ContextChatSheet";
+import { richTextPlainText } from "../../utils/richTextText";
 
 // 原地协作编辑器按需加载：未使用协作的用户不加载协作组件与运行时
+// 半屏就近对话带上聊天渲染与 AI 运行时，打开时才加载
+const ContextChatSheet = lazy(() =>
+  import("../aiChat/ContextChatSheet").then(module => ({ default: module.ContextChatSheet }))
+);
+
 const CollaborativeEditor = lazy(() =>
   import("../collaboration/CollaborativeEditor").then(module => ({
     default: module.CollaborativeEditor,
@@ -122,6 +130,8 @@ type ContentDetailPageProps = {
   onCollaborationEnded?: () => void;
   /** 强制已有内容打开时直接编辑；未传时按「打开文档时」偏好（默认阅读态），空文档总是直接编辑 */
   openInEditMode?: boolean;
+  /** 就近提问的身份：传入即在顶栏显示 ✦、阅读态选区出现「问 AI」 */
+  aiContext?: { entityType: MentionEntityType; entityId: number; title?: string };
 };
 
 function formatTimeLabel(value: number): string {
@@ -419,7 +429,37 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   ) : null;
 
   // 顶栏只放返回 / 标题 / 宿主操作；编辑入口是右下角悬浮按钮，退出编辑在配件栏「完成」
-  const headerActions = props.headerRight;
+  const [askTarget, setAskTarget] = useState<ContextChatTarget | null>(null);
+  const aiContext = props.aiContext;
+  /** 引用标题：显式标题（文章 / 项目文档 / 日记）优先，卡片取正文首句 */
+  const askTitle = () =>
+    aiContext?.title?.trim() ||
+    titleDraft.trim() ||
+    richTextPlainText(detail?.content).slice(0, 40) ||
+    resolveTitle(props);
+  const openAsk = (quote?: string) => {
+    if (!aiContext) return;
+    setAskTarget({
+      contentId: props.contentId,
+      entityType: aiContext.entityType,
+      entityId: aiContext.entityId,
+      title: askTitle(),
+      ...(quote ? { quote } : {}),
+    });
+  };
+  const headerActions =
+    aiContext && detail ? (
+      <>
+        <PageHeaderButton
+          icon={<Sparkles size={19} className="text-accent" />}
+          aria-label="问 AI"
+          onClick={() => openAsk()}
+        />
+        {props.headerRight}
+      </>
+    ) : (
+      props.headerRight
+    );
   const fabVisible =
     Boolean(detail && kit) &&
     readingMode.canEdit &&
@@ -784,8 +824,14 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           range={readingSelection.range}
           onClear={readingSelection.clear}
           portalContainer={pageRootEl}
+          onAsk={aiContext ? openAsk : undefined}
         />
       )}
+      {askTarget ? (
+        <Suspense fallback={null}>
+          <ContextChatSheet target={askTarget} onClose={() => setAskTarget(null)} />
+        </Suspense>
+      ) : null}
       <OutlineSheet open={outline.open} editorRef={editorRef} onClose={outline.close} />
     </div>
   );

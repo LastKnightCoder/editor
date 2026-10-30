@@ -10,11 +10,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { ArrowDown } from "lucide-react";
+import { ArrowDown, X } from "lucide-react";
 import {
   getAssistantContentBlocks,
   Role,
   type ChatSessionMessage,
+  type MentionRef,
   type ResponseMessage,
 } from "@tau/shared/chat-core";
 import type { ContentBlock, ToolCallExecutionState } from "@tau/shared/chat-renderers";
@@ -37,6 +38,51 @@ function userText(content: ChatSessionMessage["content"]) {
     .join("")
     .trim();
 }
+
+function userParts(content: ChatSessionMessage["content"]) {
+  if (typeof content === "string") return { mentions: [], images: [] };
+  return {
+    mentions: content.flatMap(part => (part.type === "text" ? (part.mentions ?? []) : [])),
+    images: content.flatMap(part => (part.type === "image" ? [{ url: part.image }] : [])),
+  };
+}
+
+/** 用户消息上方的引用：选中片段显示原文两行，整篇与 @ 笔记显示标题 */
+export function MentionQuote(props: { mention: MentionRef; onRemove?: () => void }) {
+  const { mention } = props;
+  return (
+    <div className="bg-surface text-tau-sm text-ink-2 flex max-w-full items-start gap-2 rounded-xl px-2.5 py-1.5">
+      <span className="bg-accent mt-[3px] h-[13px] w-[2px] shrink-0 rounded-full" aria-hidden />
+      <span className="min-w-0 flex-1">
+        {mention.quote ? (
+          <span className="line-clamp-2 leading-snug">{mention.previewText}</span>
+        ) : (
+          <span className="block truncate">
+            <span className="text-ink-3">{MENTION_KIND[mention.entityType] ?? "笔记"} · </span>
+            {mention.title || "未命名"}
+          </span>
+        )}
+      </span>
+      {props.onRemove && (
+        <button
+          type="button"
+          aria-label="去掉引用"
+          onClick={props.onRemove}
+          className="text-ink-3 -mr-1 grid h-5 w-5 shrink-0 place-items-center"
+        >
+          <X size={13} aria-hidden="true" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+const MENTION_KIND: Record<string, string> = {
+  card: "卡片",
+  article: "文章",
+  "project-item": "项目文档",
+  diary: "日记",
+};
 
 /** 宿主工具的可读叫法；插件与未知工具返回 undefined，回落为工具名 */
 function toolTitle(execution: ToolCallExecutionState) {
@@ -64,12 +110,21 @@ const ChatMessage = memo(function ChatMessage(props: {
     ({ execution }: { execution: ToolCallExecutionState }) => <ToolLine execution={execution} />,
     []
   );
+  const parts = isUser ? userParts(message.content) : null;
   return (
     <div className="my-3.5">
+      {parts?.mentions.length ? (
+        <div className="mb-1.5 ml-auto flex max-w-[85%] flex-col items-end gap-1">
+          {parts.mentions.map((mention, mentionIndex) => (
+            <MentionQuote key={mentionIndex} mention={mention} />
+          ))}
+        </div>
+      ) : null}
       <MessageView
         role={isUser ? "user" : "assistant"}
         messageIndex={index}
         userText={isUser ? userText(message.content) : undefined}
+        images={parts?.images}
         assistantBlocks={blocks}
         renderMarkdown={({ content }) => (
           <MarkdownRenderer content={content} isDark={isDark} enableDocumentReference />

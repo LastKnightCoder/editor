@@ -1,7 +1,7 @@
 import { useContext, useEffect, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { FileSymlink, Highlighter, MessageSquarePlus, TextQuote } from "lucide-react";
+import { FileSymlink, Highlighter, MessageSquarePlus, Sparkles, TextQuote } from "lucide-react";
 import type { EditorRef } from "@tau/editor";
 import type { NodeTreeEditor } from "@tau/editor-collab";
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
@@ -39,6 +39,8 @@ type ReadingSelectionBarProps = {
   range: Range | null;
   /** 清空选区（DOM 与 range） */
   onClear: () => void;
+  /** 就近提问：收到选中的原文；未传时不显示「问 AI」 */
+  onAsk?: (quote: string) => void;
   portalContainer?: HTMLElement | null;
 };
 
@@ -79,7 +81,7 @@ function SelectionBarButton(props: { label: string; icon: ReactNode; onPress: ()
 
 /** 阅读态选中文字后底部浮出的标注条：高亮、批注、摘录成卡片、引用内容 */
 export function ReadingSelectionBar(props: ReadingSelectionBarProps) {
-  const { editorRef, controller, readingMode, range, onClear, portalContainer } = props;
+  const { editorRef, controller, readingMode, range, onClear, onAsk, portalContainer } = props;
   // 可选读取：宿主不在 AppContext 内时摘录后不刷新卡片列表
   const app = useContext(AppContext);
   const portalRoot = portalContainer ?? (typeof document === "undefined" ? null : document.body);
@@ -161,6 +163,14 @@ export function ReadingSelectionBar(props: ReadingSelectionBarProps) {
     })();
   };
 
+  const handleAsk = () => {
+    const target = resolveTarget();
+    if (!target || !onAsk) return;
+    const quote = Editor.string(target.editor, target.range).trim();
+    onClear();
+    if (quote) onAsk(quote);
+  };
+
   if (!portalRoot) return null;
 
   return createPortal(
@@ -181,6 +191,13 @@ export function ReadingSelectionBar(props: ReadingSelectionBarProps) {
           exit={{ y: 16, opacity: 0 }}
           transition={{ duration: 0.18, ease: TAU_EASE_OUT }}
         >
+          {onAsk ? (
+            <SelectionBarButton
+              label="问 AI"
+              icon={<Sparkles size={ICON_SIZE} className="text-accent" />}
+              onPress={handleAsk}
+            />
+          ) : null}
           <SelectionBarButton
             label={highlighted ? "取消高亮" : "高亮"}
             icon={<Highlighter size={ICON_SIZE} />}
