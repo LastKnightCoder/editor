@@ -259,6 +259,34 @@
         "--strictPort"
       ],
       "port": 5181
+    },
+    {
+      "name": "weight-mock",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8839",
+        "--bind",
+        "127.0.0.1",
+        "-d",
+        "apps/desktop/mockups/weight"
+      ],
+      "port": 8839
+    },
+    {
+      "name": "expense-mock",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8840",
+        "--bind",
+        "127.0.0.1",
+        "-d",
+        "apps/desktop/mockups/expense"
+      ],
+      "port": 8840
     }
   ]
 }

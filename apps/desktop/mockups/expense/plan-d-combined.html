@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>记账 · 方案 D 综合</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .page { height: 100%; overflow-y: auto; padding: 2px 4px 24px 2px; margin: -2px; }
+  /* 两栏等高：右栏由左栏撑开，流水卡吃掉剩余高度并内部滚动 */
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 344px; gap: 14px; align-items: stretch; }
+  .left, .right { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+  /* 顶部一条：还能花多少（A 的核心）+ 今天 + 同期对比 */
+  .hero { display: grid; grid-template-columns: minmax(0, 1.7fr) 1px minmax(0, 0.8fr) 1px minmax(0, 0.9fr); gap: 20px; padding: 16px 20px; align-items: stretch; }
+  .hero .div { background: var(--line-1); }
+  .hero .blk { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .lbl { font-size: 12px; color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
+  .lbl .icon { width: 13px; height: 13px; }
+  .big { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .big b { font-size: 40px; font-weight: 600; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .big.md b { font-size: 26px; }
+  .big .u { font-size: 12px; color: var(--ink-3); }
+  .hero .meter { height: 10px; border-radius: 5px; }
+  .meter-cap { display: flex; font-size: 11.5px; color: var(--ink-3); }
+  .meter-cap span:last-child { margin-left: auto; }
+  .meter-cap b { color: var(--ink-1); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 99px; font-size: 11.5px; font-weight: 500; }
+  .pill .icon { width: 12px; height: 12px; }
+  .pill.warn { background: var(--danger-soft); color: var(--danger); }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .small-facts { font-size: 12px; color: var(--ink-2); line-height: 1.7; margin-top: auto; }
+  .small-facts b { color: var(--ink-1); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  /* 日历（B）：格子底部是当天的分类堆叠条，长度 = 金额，颜色 = 分布 */
+  .cal-head { display: flex; align-items: center; gap: 6px; padding: 14px 18px 0; }
+  .cal-head h2 { font-size: 14.5px; font-weight: 600; margin: 0 4px; font-variant-numeric: tabular-nums; }
+  .cal { padding: 10px 18px 4px; position: relative; }
+  .cal-g { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+  .cal-g .wh { font-size: 11px; color: var(--ink-3); padding: 0 0 2px 8px; }
+  .cell { height: 64px; border-radius: 10px; padding: 6px 8px 7px; display: flex; flex-direction: column; text-align: left; position: relative; background: var(--bg-hover); transition: background 120ms var(--ease-out); }
+  .cell:not(.future):not(.blank):hover { background: var(--bg-press); }
+  .cell .top { display: flex; align-items: baseline; gap: 4px; }
+  .cell .dn { font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .cell .am { margin-left: auto; font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .cell .am.over { color: var(--danger); }
+  .cell .am.zero { color: var(--ink-3); font-weight: 400; }
+  .cell .note { font-size: 10.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .cell .sbar { margin-top: auto; display: flex; gap: 2px; height: 6px; }
+  .cell .sbar i { display: block; height: 100%; background: var(--c); }
+  .cell .sbar i:first-child { border-radius: 3px 0 0 3px; }
+  .cell .sbar i:last-child { border-radius: 0 3px 3px 0; }
+  .cell .sbar i:only-child { border-radius: 3px; }
+  .cell .sbar .cap { width: 0; height: 0; border-left: 5px solid var(--ink-2); border-top: 3px solid transparent; border-bottom: 3px solid transparent; background: none; margin-left: 1px; }
+  .cell .fx { position: absolute; top: 8px; left: 26px; width: 5px; height: 5px; border-radius: 50%; background: var(--ink-3); }
+  .cell.today { box-shadow: inset 0 0 0 1.5px var(--ink-1); }
+  .cell.sel { background: var(--bg-surface); box-shadow: 0 0 0 2px var(--accent-text), var(--shadow-card); }
+  .cell.future { background: none; box-shadow: inset 0 0 0 1px var(--line-2); }
+  .cell.blank { background: none; }
+  .wk-sum { font-size: 10.5px; color: var(--ink-3); }
+  .cal-leg { display: flex; align-items: center; gap: 14px; font-size: 11px; color: var(--ink-3); padding: 8px 18px 14px; flex-wrap: wrap; }
+  .cal-leg span { display: inline-flex; align-items: center; gap: 5px; }
+  .cal-leg .lb { width: 22px; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--c-food) 0 55%, transparent 55% calc(55% + 2px), var(--c-shop) calc(55% + 2px)); }
+
+  /* 分类（A 的信封 + C 的比平均）：一行一类，点一下联动日历和流水 */
+  .cats .body { padding: 6px 12px 12px; }
+  .cr { display: grid; grid-template-columns: 104px minmax(0, 1fr) 128px 84px; gap: 14px; align-items: center; height: 42px; padding: 0 8px; border-radius: 10px; width: 100%; text-align: left; }
+  .cr:hover { background: var(--bg-hover); }
+  .cr.on { background: var(--bg-hover); box-shadow: inset 0 0 0 1.5px var(--c); }
+  .cr.dim { opacity: 0.5; }
+  .cr.head { height: 22px; font-size: 11px; color: var(--ink-3); }
+  .cr.head:hover { background: none; }
+  .cr .nm { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 500; }
+  .cr .nm .st { font-size: 10.5px; font-weight: 500; display: inline-flex; align-items: center; gap: 2px; }
+  .cr .nm .st .icon { width: 11px; height: 11px; }
+  .st.over { color: var(--danger); }
+  .st.fast { color: var(--warn); }
+  .cr .meter { height: 8px; }
+  .cr .avgmark { position: absolute; top: -4px; bottom: -4px; width: 2px; border-radius: 1px; background: var(--ink-1); opacity: 0.35; }
+  .cr .v { text-align: right; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .cr .v b { font-weight: 600; }
+  .cr .v span { color: var(--ink-3); font-size: 11.5px; }
+  .cr .chg { text-align: right; font-size: 12px; }
+  .cats-foot { display: flex; align-items: center; gap: 14px; font-size: 11px; color: var(--ink-3); padding: 2px 20px 14px; }
+  .cats-foot span { display: inline-flex; align-items: center; gap: 5px; }
+  .cats-foot i { display: inline-block; }
+
+  /* 回顾（C）：近 6 个月构成 + 一周规律 + AI 复盘 */
+  .review { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 0; }
+  .review .col { display: flex; flex-direction: column; min-width: 0; }
+  .review .col + .col { border-left: 1px solid var(--line-1); }
+  .review .chart { margin: 6px 12px 0 4px; }
+  .review .legend { padding: 2px 18px 14px; flex-wrap: wrap; gap: 6px 12px; }
+  .legend i.sq { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+  .wk-g { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; grid-template-rows: minmax(0, 1fr); flex: 1; min-height: 132px; padding: 12px 18px 10px; position: relative; }
+  .wk-g .c { display: grid; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; gap: 4px; height: 100%; min-height: 0; }
+  /* 数值标签跟着柱顶走：轨道里先放标签再放柱子，柱高按比例占轨道剩余空间 */
+  .wk-g .c .trk { width: 100%; max-width: 30px; height: 100%; min-height: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 3px; }
+  .wk-g .c i { display: block; width: 100%; border-radius: 4px 4px 0 0; background: var(--accent); opacity: 0.45; }
+  .wk-g .c.hi i { opacity: 1; }
+  .wk-g .c span { font-size: 10.5px; color: var(--ink-3); }
+  .wk-g .c b { font-size: 10.5px; font-weight: 500; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .wk-note { font-size: 11.5px; color: var(--ink-3); padding: 0 18px 14px; }
+
+  .quick { padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 10px; }
+  .flow { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .flow .body { padding: 2px 10px 10px; display: flex; flex-direction: column; flex: 1 1 0; min-height: 240px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; }
+  .flow .ctx { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 18px 2px; }
+  .ctx-chip { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 4px 0 8px; border-radius: 99px; font-size: 11.5px; background: var(--bg-hover); color: var(--ink-1); }
+  .ctx-chip button { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; color: var(--ink-3); }
+  .ctx-chip button:hover { background: var(--bg-press); color: var(--ink-1); }
+  .ctx-chip .icon { width: 11px; height: 11px; }
+  .subs-line { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 6px 18px 0; font-size: 11.5px; color: var(--ink-2); }
+  .subs-line b { font-weight: 600; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  .flow-sum { display: flex; align-items: baseline; gap: 6px; padding: 8px 18px 0; font-size: 12px; color: var(--ink-3); }
+  .flow-sum b { font-size: 16px; color: var(--ink-1); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .ai-card { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .ai-head { display: flex; align-items: center; gap: 8px; }
+  .ai-head b { font-size: 13px; font-weight: 600; }
+  .ai-text { font-size: 12.5px; line-height: 1.8; }
+  .ai-text h4 { font-size: 12px; color: var(--ink-3); font-weight: 500; margin: 8px 0 0; }
+  .ai-text h4:first-child { margin-top: 0; }
+  .ai-text ul { padding-left: 18px; }
+  .sv { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 5px; font-size: 11px; background: var(--ok-soft); color: var(--ok); font-weight: 600; margin-left: 4px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="data.js"></script>
+<script src="shared.js"></script>
+<script>
+  const root = E.mountShell({ crumb: "<b>记账</b>" });
+  const icon = E.icon;
+  // vm = 正在看的月份；day / cat = 日历和分类的联动筛选，右侧流水跟随
+  const state = { vm: E.monthStart(E.TODAY), day: null, cat: null, aiTab: "tip" };
+  const WK = "一二三四五六日";
+  const status = (used, budget, pace) => (used > budget ? "over" : used / budget > pace + 0.1 ? "fast" : "ok");
+
+  function monthsChart(el) {
+    const ms = E.months();
+    const draw = () => {
+      const width = el.clientWidth || 500;
+      const h = 196;
+      const padL = 36, padR = 8, padT = 18;
+      const plotH = h - padT - 24;
+      const hi = Math.ceil(Math.max(E.BUDGET, ...ms.map(m => m.total)) / 3000) * 3000;
+      const y = v => padT + (1 - v / hi) * plotH;
+      const slot = (width - padL - padR) / ms.length;
+      const bw = Math.min(40, slot * 0.46);
+      let s = `<svg width="${width}" height="${h}"><g class="grid">`;
+      for (let v = 0; v <= hi; v += 3000) s += `<line x1="${padL}" x2="${width - padR}" y1="${y(v)}" y2="${y(v)}"/>`;
+      s += `</g><g class="ax">`;
+      for (let v = 0; v <= hi; v += 3000) s += `<text x="${padL - 8}" y="${y(v) + 3.5}" text-anchor="end">${v ? v / 1000 + "k" : 0}</text>`;
+      s += `</g><line x1="${padL}" x2="${width - padR}" y1="${y(E.BUDGET)}" y2="${y(E.BUDGET)}" stroke="var(--ink-2)" stroke-width="1.2" stroke-dasharray="4 4"/>`;
+      s += `<text x="${width - padR}" y="${y(E.BUDGET) - 6}" text-anchor="end" font-size="10.5" fill="var(--ink-2)">预算 ${E.money(E.BUDGET)}</text>`;
+      ms.forEach((m, k) => {
+        const cx = padL + slot * (k + 0.5);
+        const on = m.from === state.vm;
+        const op = on ? 1 : 0.42;
+        let acc = 0;
+        const segs = E.CATS.filter(c => m.cats[c.id]);
+        segs.forEach((c, j) => {
+          const v = m.cats[c.id];
+          const y0 = y(acc), y1 = y(acc + v);
+          s += j === segs.length - 1
+            ? `<path d="M${cx - bw / 2},${y0 - 2} V${y1 + 4} a4,4 0 0 1 4,-4 H${cx + bw / 2 - 4} a4,4 0 0 1 4,4 V${y0 - 2}Z" fill="var(--c-${c.id})" opacity="${op}"/>`
+            : `<rect x="${cx - bw / 2}" y="${y1}" width="${bw}" height="${Math.max(0, y0 - y1 - 2)}" fill="var(--c-${c.id})" opacity="${op}"/>`;
+          acc += v;
+        });
+        s += `<text x="${cx}" y="${y(acc) - 6}" text-anchor="middle" font-size="10.5" font-weight="${on ? 600 : 400}" fill="${on ? "var(--ink-1)" : "var(--ink-3)"}">${E.money(acc)}</text>`;
+        s += `<text x="${cx}" y="${padT + plotH + 16}" text-anchor="middle" font-size="11" font-weight="${on ? 600 : 400}" fill="${on ? "var(--ink-1)" : "var(--ink-3)"}">${m.label}</text>`;
+        s += `<rect class="col-hit" data-m="${m.from}" x="${cx - slot / 2}" y="0" width="${slot}" height="${h}" fill="transparent" style="cursor:pointer"/>`;
+      });
+      el.innerHTML = s + `</svg>`;
+      E.bindTip(el, ".col-hit", r => {
+        const m = ms.find(x => x.from === +r.dataset.m);
+        return `<div class="t-date">2026 年 ${m.label}${m.live ? "（截至 29 日）" : ""} · 点击查看</div>
+          ${[...E.CATS].reverse().filter(c => m.cats[c.id]).map(c => `<div class="t-row"><span class="sw" style="background:var(--c-${c.id});height:2px;width:10px"></span>${c.name}<b>¥${E.money(m.cats[c.id])}</b></div>`).join("")}
+          <div class="t-row" style="border-top:1px solid var(--line-1);margin-top:3px;padding-top:2px">合计<b>¥${E.money(m.total)}</b></div>`;
+      });
+      el.querySelectorAll(".col-hit").forEach(r => r.addEventListener("click", () => ((state.vm = +r.dataset.m), (state.day = null), render())));
+    };
+    draw();
+    new ResizeObserver(draw).observe(el);
+  }
+
+  function calendarHTML(vm, days, allowance) {
+    const first = (new Date(vm.from).getDay() + 6) % 7;
+    const cells = [];
+    for (let k = 0; k < first; k++) cells.push(null);
+    for (let k = 0; k < vm.n; k++) cells.push(vm.from + k * E.D);
+    while (cells.length % 7) cells.push(null);
+    // 条长基准：半格 = 日均额度（选了分类时用该分类的日均额度）
+    const scale = (state.cat ? E.cat(state.cat).budget / vm.n : allowance) * 2;
+    let cal = WK.split("").map(c => `<span class="wh">${c}</span>`).join("") + `<span class="wh" style="text-align:right;padding:0 4px 2px 0">周合计</span>`;
+    for (let w = 0; w < cells.length / 7; w++) {
+      let wsum = 0;
+      for (let k = 0; k < 7; k++) {
+        const t = cells[w * 7 + k];
+        if (t == null) {
+          cal += `<span class="cell blank"></span>`;
+          continue;
+        }
+        const d = days.find(x => x.t === t);
+        const dn = new Date(t).getDate();
+        if (!d) {
+          cal += `<span class="cell future"><span class="top"><span class="dn">${dn}</span></span></span>`;
+          continue;
+        }
+        const list = d.list.filter(x => !x.fixed && (!state.cat || x.cat === state.cat));
+        const amt = E.sum(list);
+        wsum += amt;
+        const cats = E.byCat(list);
+        const top = [...list].sort((a, b) => b.amt - a.amt)[0];
+        const full = Math.min(1, amt / scale);
+        const bar = E.CATS.filter(c => cats[c.id] > 0)
+          .map(c => `<i class="k-${c.id}" style="width:calc(${(cats[c.id] / amt) * full * 100}% - 2px)"></i>`)
+          .join("") + (amt > scale ? '<i class="cap"></i>' : "");
+        const over = amt > scale / 2;
+        cal += `<button class="cell ${t === E.TODAY ? "today" : ""} ${t === state.day ? "sel" : ""}" data-t="${t}">
+          <span class="top"><span class="dn">${dn}</span><span class="am ${amt ? (over ? "over" : "") : "zero"}">${amt ? E.money(amt) : "0"}</span></span>
+          <span class="note">${top ? top.note : t === E.TODAY ? "记录中" : "没花钱"}</span>
+          <span class="sbar">${bar}</span>${d.list.some(x => x.fixed) && !state.cat ? '<i class="fx"></i>' : ""}</button>`;
+      }
+      cal += `<span class="wk-sum num" style="text-align:right;align-self:center;padding-right:4px">${wsum ? "¥" + E.money(wsum) : ""}</span>`;
+    }
+    return cal;
+  }
+
+  function catRowsHTML(vm, isNow, avg3) {
+    return E.CATS.map(c => {
+      const used = vm.cats[c.id];
+      const st = c.fixed ? (used > c.budget ? "over" : "ok") : status(used, c.budget, vm.pace);
+      const a = avg3(c.id);
+      const d = used - a;
+      return `<button class="cr k-${c.id} ${state.cat === c.id ? "on" : state.cat ? "dim" : ""}" data-cat="${c.id}">
+        <span class="nm">${E.catIc(c.id)}${c.name}${st !== "ok" ? `<span class="st ${st}">${icon("alert")}${st === "over" ? "超" : "快"}</span>` : ""}</span>
+        <span class="meter ${used > c.budget ? "over" : ""}"><i style="width:${Math.min(100, (used / c.budget) * 100)}%"></i>${c.fixed || !isNow ? "" : `<span class="pace" style="left:${vm.pace * 100}%"></span>`}</span>
+        <span class="v"><b>¥${E.money(used)}</b> <span>/ ${E.money(c.budget)}</span></span>
+        <span class="chg delta ${!a || Math.abs(d) < 30 ? "flat" : d > 0 ? "up" : "down"}">${!a ? "—" : Math.abs(d) < 30 ? "持平" : (d > 0 ? "+" : "−") + E.money(Math.abs(d))}</span>
+      </button>`;
+    }).join("");
+  }
+
+  function flowHTML(list) {
+    if (!list.length) return `<div style="color:var(--ink-3);font-size:12px;padding:24px 8px;text-align:center">这里没有支出</div>`;
+    let out = "";
+    let lastT = null;
+    for (const x of list) {
+      if (x.t !== lastT) {
+        out += `<div class="day-h">${E.dayLabel(x.t)}<b>¥${E.money(E.sum(list.filter(y => y.t === x.t)))}</b></div>`;
+        lastT = x.t;
+      }
+      out += E.txRow(x);
+    }
+    return out;
+  }
+
+  function render() {
+    const now = E.month();
+    const left = E.BUDGET - now.total;
+    const ratio = now.total / E.BUDGET;
+    const perDay = Math.max(0, left) / now.daysLeft;
+    const todayList = E.tx.filter(x => x.t === E.TODAY);
+    const ms = E.months();
+    const lastSame = E.sum(E.inRange(ms[4].from, ms[4].from + ((now.to - now.from) / E.D) * E.D));
+
+    const vm = E.month(state.vm);
+    const isNow = state.vm === now.from;
+    const mLabel = `${new Date(vm.from).getMonth() + 1} 月`;
+    const fixedSum = E.sum(vm.list.filter(x => x.fixed));
+    const allowance = (E.BUDGET - fixedSum) / vm.n; // 月预算扣掉固定支出后平均到每天
+    const days = E.daily(vm.from, vm.to);
+    const prev3 = ms.filter(m => m.from < state.vm).slice(-3);
+    const avg3 = id => (prev3.length ? prev3.reduce((s, m) => s + m.cats[id], 0) / prev3.length : 0);
+    const flowList = vm.list.filter(x => (!state.day || x.t === state.day) && (!state.cat || x.cat === state.cat));
+    const subs = state.cat ? E.subs(flowList, state.cat) : [];
+
+    const wk = [0, 0, 0, 0, 0, 0, 0], wn = [0, 0, 0, 0, 0, 0, 0];
+    E.daily(E.TODAY - 90 * E.D, E.TODAY - E.D).forEach(d => {
+      const i = (new Date(d.t).getDay() + 6) % 7;
+      wk[i] += d.flex;
+      wn[i]++;
+    });
+    const wavg = wk.map((v, i) => v / wn[i]);
+    const wmax = Math.max(...wavg);
+
+    root.innerHTML = `
+    <div class="page scroller"><div class="grid">
+      <div class="left">
+        <div class="panel hero">
+          <div class="blk">
+            <span class="lbl">${icon("wallet")}10 月还能花 · 剩 ${now.daysLeft} 天</span>
+            <div class="big"><b style="${left < 0 ? "color:var(--danger)" : ""}">${left < 0 ? "−" : ""}¥${E.money(Math.abs(left))}</b>
+              <span class="pill ${ratio > now.pace ? "warn" : "ok"}">${icon(ratio > now.pace ? "alert" : "check")}${ratio > now.pace ? "比时间进度快 " + E.pct(ratio - now.pace) : "节奏正常"}</span>
+              <span class="u">剩下每天最多 <b class="num" style="color:var(--ink-1);font-size:13px">¥${E.money(perDay)}</b></span></div>
+            <div class="meter ${left < 0 ? "over" : ""}" style="--c:${ratio > now.pace ? "var(--danger)" : "var(--accent)"}"><i style="width:${Math.min(100, ratio * 100)}%"></i><span class="pace" style="left:${now.pace * 100}%"></span></div>
+            <div class="meter-cap"><span>已花 <b>¥${E.money(now.total)}</b> / ${E.money(E.BUDGET)}</span><span>竖线 = 时间进度 ${E.pct(now.pace)}</span></div>
+          </div>
+          <span class="div"></span>
+          <div class="blk">
+            <span class="lbl">${icon("calendar")}今天</span>
+            <div class="big md"><b>¥${E.money(E.sum(todayList))}</b><span class="u">${todayList.length} 笔</span></div>
+            <div class="small-facts">昨天 <b>¥${E.money(E.sum(E.tx.filter(x => x.t === E.TODAY - E.D)))}</b><br>日均额度 <b>¥${E.money((E.BUDGET - E.sum(now.list.filter(x => x.fixed))) / now.n)}</b></div>
+          </div>
+          <span class="div"></span>
+          <div class="blk">
+            <span class="lbl">${icon("trend")}比 9 月同期</span>
+            <div class="big md"><b class="delta ${now.total > lastSame ? "up" : "down"}">${now.total > lastSame ? "+" : "−"}¥${E.money(Math.abs(now.total - lastSame))}</b></div>
+            <div class="small-facts">多出的主要是 ${E.catIc("fun", true)} <b>旅行</b>（国庆成都）</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="cal-head">
+            <button class="icon-btn" id="prev" ${state.vm <= ms[0].from ? "disabled style='opacity:.35'" : ""}>${icon("chev-left")}</button>
+            <h2>2026 年 ${mLabel}</h2>
+            <button class="icon-btn" id="next" ${isNow ? "disabled style='opacity:.35'" : ""}>${icon("chev-right")}</button>
+            ${isNow ? "" : `<button class="btn btn-ghost" id="back-now">回到本月</button>`}
+            <span class="panel-sub" style="margin-left:6px">${state.cat ? `只看${E.cat(state.cat).name}` : `可控 ¥${E.money(E.sum(vm.list.filter(x => !x.fixed)))} · 固定 ¥${E.money(fixedSum)}`}</span>
+            <span class="spacer"></span>
+            <div class="seg"><button class="on">${icon("calendar")}日历</button><button id="as-table">${icon("list")}列表</button></div>
+          </div>
+          <div class="cal"><div class="cal-g" style="grid-template-columns:repeat(7,minmax(0,1fr)) 64px">${calendarHTML(vm, days, allowance)}</div></div>
+          <div class="cal-leg">
+            <span><i class="lb"></i>条 = 当天支出的分类构成</span>
+            <span>满半格 = 日均额度 ¥${E.money(state.cat ? E.cat(state.cat).budget / vm.n : allowance)}${state.cat ? "（该分类）" : ""}，超过显示红字</span>
+            ${state.cat ? "" : '<span><i style="width:5px;height:5px;border-radius:50%;background:var(--ink-3)"></i>有固定支出（不计入）</span>'}
+          </div>
+        </div>
+
+        <div class="panel cats">
+          <div class="panel-head"><span class="panel-title">${mLabel}分类预算</span><span class="panel-sub">${isNow ? "竖线 = 时间进度 · " : ""}点一类，日历和流水只看它</span><span class="spacer"></span>
+            <button class="btn btn-ghost">${icon("sliders")}调整预算</button></div>
+          <div class="body">
+            <div class="cr head"><span>分类</span><span>已用 / 预算</span><span style="text-align:right">金额</span><span style="text-align:right">比前 3 月平均</span></div>
+            ${catRowsHTML(vm, isNow, avg3)}
+          </div>
+        </div>
+
+        <div class="panel review">
+          <div class="col">
+            <div class="panel-head"><span class="panel-title">近 6 个月</span><span class="panel-sub">点柱子切换月份</span></div>
+            <div class="chart" id="months"></div>
+            <div class="legend">${E.CATS.map(c => `<span class="k-${c.id}"><i class="sq"></i>${c.name}</span>`).join("")}</div>
+          </div>
+          <div class="col">
+            <div class="panel-head"><span class="panel-title">一周里哪天花得多</span><span class="panel-sub">近 90 天日均</span></div>
+            <div class="wk-g">${wavg.map((v, i) => `<div class="c ${v === wmax ? "hi" : ""}" data-i="${i}"><span class="trk"><b>${E.money(v)}</b><i style="height:calc((100% - 18px) * ${(v / wmax).toFixed(3)})"></i></span><span>${WK[i]}</span></div>`).join("")}</div>
+            <div class="wk-note">周${WK[wavg.indexOf(wmax)]}偏高来自 10/1 出发的高铁和酒店；平时周末比工作日花得多，主要是聚餐和打车。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="right">
+        <div class="panel quick">${E.quickHTML()}</div>
+        <div class="panel flow">
+          <div class="panel-head" style="padding-bottom:0"><span class="panel-title">流水</span><span class="spacer"></span><button class="btn btn-ghost">${icon("search")}搜索</button></div>
+          <div class="ctx"><span class="ctx-chip" style="padding-right:8px">${mLabel}</span>
+            ${state.day ? `<span class="ctx-chip">${E.mdw(state.day)}<button data-clear="day">${icon("x")}</button></span>` : ""}
+            ${state.cat ? `<span class="ctx-chip">${E.catIc(state.cat, true)}${E.cat(state.cat).name}<button data-clear="cat">${icon("x")}</button></span>` : ""}</div>
+          <div class="flow-sum"><b>¥${E.money(E.sum(flowList))}</b>${flowList.length} 笔</div>
+          ${subs.length > 1 ? `<div class="subs-line">${subs.map(s => `<span>${s.name} <b>${E.money(s.amt)}</b></span>`).join("")}</div>` : ""}
+          <div class="body">${flowHTML(flowList)}</div>
+        </div>
+        <div class="ai-card">
+          <div class="ai-head"><span class="ai-mark">${icon("sparkles")}</span><b>AI</b><span class="spacer"></span>
+            <div class="seg" id="ai-tab"><button data-k="tip" class="${state.aiTab === "tip" ? "on" : ""}">提醒</button><button data-k="review" class="${state.aiTab === "review" ? "on" : ""}">月度复盘</button></div></div>
+          <div class="ai-text" id="ai"></div>
+        </div>
+      </div>
+    </div></div>`;
+
+    monthsChart(root.querySelector("#months"));
+    E.bindQuick(root.querySelector(".quick"), render);
+    E.bindTip(root.querySelector(".cal"), ".cell[data-t]", b => {
+      const d = days.find(x => x.t === +b.dataset.t);
+      const cats = E.byCat(d.list.filter(x => !x.fixed));
+      const fx = d.list.filter(x => x.fixed);
+      return `<div class="t-date">${E.mdw(d.t)}</div>
+        ${E.CATS.filter(c => cats[c.id]).map(c => `<div class="t-row"><span class="sw" style="background:var(--c-${c.id});height:2px;width:10px"></span>${c.name}<b>¥${E.money(cats[c.id])}</b></div>`).join("") || '<div class="t-row" style="color:var(--ink-3)">没有支出</div>'}
+        ${fx.length ? `<div class="t-date" style="margin:4px 0 0">另有固定支出 ¥${E.money(E.sum(fx))}（${fx.map(x => x.note).join("、")}）</div>` : ""}`;
+    });
+    E.bindTip(root.querySelector(".wk-g"), ".c", c => `<div class="t-date">周${WK[+c.dataset.i]} · ${wn[+c.dataset.i]} 天</div><div class="t-row">日均可控支出<b>¥${E.money(wavg[+c.dataset.i])}</b></div>`);
+    root.querySelectorAll(".cell[data-t]").forEach(b => b.addEventListener("click", () => ((state.day = state.day === +b.dataset.t ? null : +b.dataset.t), render())));
+    root.querySelectorAll(".cr[data-cat]").forEach(b => b.addEventListener("click", () => ((state.cat = state.cat === b.dataset.cat ? null : b.dataset.cat), render())));
+    root.querySelectorAll("[data-clear]").forEach(b => b.addEventListener("click", () => ((state[b.dataset.clear] = null), render())));
+    const shift = dir => {
+      const d = new Date(state.vm);
+      state.vm = new Date(d.getFullYear(), d.getMonth() + dir, 1).getTime();
+      state.day = null;
+      render();
+    };
+    root.querySelector("#prev").onclick = () => shift(-1);
+    root.querySelector("#next").onclick = () => shift(1);
+    root.querySelector("#back-now")?.addEventListener("click", () => ((state.vm = now.from), (state.day = null), render()));
+    root.querySelector("#as-table").onclick = () => E.toast("列表 = 方案 B 的流水表（搜索、筛选、导出），这里不重复演示");
+
+    const snack = l => E.subs(l, "food").find(s => s.name === "零食夜宵")?.amt || 0;
+    const snackAvg = snack(E.inRange(ms[2].from, ms[5].from - E.D)) / 3;
+    const avgTotal = ms.slice(2, 5).reduce((s, m) => s + m.total, 0) / 3;
+    const AI = {
+      tip: [
+        `<p>还剩 <b>¥${E.money(left)}</b>，接下来 ${now.daysLeft} 天每天 <b>¥${E.money(perDay)}</b> 以内就不超。</p>`,
+        `<p><b>交通</b>只剩 ¥${E.money(Math.max(0, E.cat("trans").budget - now.cats.trans))}，这几天尽量坐地铁；<b>娱乐</b>超支是国庆旅行，属于一次性支出，不用在日常里省回来。</p>`,
+      ],
+      review: [
+        `<h4>一句话</h4><p>10 月比平时多 <b>¥${E.money(now.total - avgTotal)}</b>，几乎都是国庆旅行；去掉旅行，日常开销和前 3 个月持平。</p>`,
+        `<h4>可以试试</h4><ul><li>夜宵本月 ¥${E.money(snack(now.list))}，平时 ¥${E.money(snackAvg)}；设 ¥150 子预算<span class="sv">约省 ¥${E.money(Math.max(0, snack(now.list) - 150))}</span></li><li>视频、音乐会员留一个<span class="sv">省 ¥180 / 年</span></li><li>旅行改成年度预算，不占月额度</li></ul>`,
+      ],
+    };
+    const ai = () => E.streamAI(root.querySelector("#ai"), AI[state.aiTab]);
+    ai();
+    root.querySelectorAll("#ai-tab button").forEach(b =>
+      b.addEventListener("click", () => {
+        state.aiTab = b.dataset.k;
+        root.querySelectorAll("#ai-tab button").forEach(x => x.classList.toggle("on", x === b));
+        ai();
+      })
+    );
+  }
+  render();
+</script>
+</body>
+</html>
