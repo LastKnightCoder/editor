@@ -1,8 +1,19 @@
-// 输入区：右侧一个位置三种状态——空内容为按住说话、有文字或附件为发送、生成中为停止。
+// 输入区：右侧一个位置三种状态——生成中为停止、有文字或附件为发送、否则为语音 / 键盘切换。
+// 语音模式与微信一致：输入框换成整条「按住 说话」，松手发送；再点键盘图标回到打字并弹出键盘。
 // 输入框上方是待发送的引用条与图片；左侧 ＋ 打开拍照 / 相册 / 引用笔记，@ 直接引用笔记。
 
 import { useRef, useState } from "react";
-import { ArrowUp, AtSign, Camera, Image as ImageIcon, Mic, Plus, Square, X } from "lucide-react";
+import {
+  ArrowUp,
+  AtSign,
+  Camera,
+  Image as ImageIcon,
+  Keyboard,
+  Mic,
+  Plus,
+  Square,
+  X,
+} from "lucide-react";
 import { cn } from "@tau/ui";
 import type { MentionRef } from "@tau/shared/chat-core";
 import { ActionSheet } from "../../components/ActionSheet";
@@ -11,7 +22,7 @@ import type { ChatInput } from "../../services/aiChat/chatController";
 import { ContentLinkPickerSheet } from "../cards/editorExtensions/ContentLinkPickerSheet";
 import { imageFileToDataUrl, mentionFromPicker } from "./attachments";
 import { MentionQuote } from "./ChatMessages";
-import { VoiceSendButton } from "./VoiceSendButton";
+import { HoldToTalkBar } from "./VoiceSendButton";
 
 const ROUND_BUTTON =
   "grid h-9 w-9 shrink-0 place-items-center rounded-full transition-transform active:scale-90";
@@ -32,7 +43,7 @@ export function ChatComposer(props: {
   onStop(): void;
 }) {
   const [value, setValue] = useState("");
-  const [voicePreview, setVoicePreview] = useState("");
+  const [voiceMode, setVoiceMode] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [localMentions, setLocalMentions] = useState<MentionRef[]>([]);
   const [plusOpen, setPlusOpen] = useState(false);
@@ -44,6 +55,8 @@ export function ChatComposer(props: {
   const setMentions = props.onMentionsChange ?? setLocalMentions;
   const text = value.trim();
   const hasPayload = !!text || images.length > 0;
+  // 语音模式下只有图片（没写字）时也走「按住说话」，图片随这条语音一起发出
+  const showSend = hasPayload && !(voiceMode && !text);
 
   const send = (input: ChatInput) => {
     if (props.running || props.disabled) return;
@@ -90,7 +103,7 @@ export function ChatComposer(props: {
     >
       <Square size={13} fill="currentColor" aria-hidden="true" />
     </button>
-  ) : hasPayload ? (
+  ) : showSend ? (
     <button
       type="button"
       aria-label="发送"
@@ -100,31 +113,37 @@ export function ChatComposer(props: {
     >
       <ArrowUp size={18} strokeWidth={2.4} aria-hidden="true" />
     </button>
+  ) : voiceMode ? (
+    <button
+      type="button"
+      aria-label="切换到键盘"
+      onClick={() => {
+        setVoiceMode(false);
+        // 在点击里同步聚焦，移动端才会弹出键盘
+        inputRef.current?.focus();
+      }}
+      className={cn(ROUND_BUTTON, "bg-page text-ink-1")}
+    >
+      <Keyboard size={18} aria-hidden="true" />
+    </button>
   ) : (
-    <VoiceSendButton
-      disabled={props.disabled}
-      onSend={spoken => send({ text: spoken, mentions })}
-      onPreview={setVoicePreview}
-      renderButton={({ bind, active }) => (
-        <button
-          type="button"
-          aria-label="按住说话"
-          aria-pressed={active}
-          className={cn(
-            ROUND_BUTTON,
-            "select-none",
-            active ? "bg-accent text-ink-inverse scale-95" : "bg-page text-ink-1"
-          )}
-          {...bind}
-        >
-          <Mic size={18} aria-hidden="true" />
-        </button>
-      )}
-    />
+    <button
+      type="button"
+      aria-label="切换到语音输入"
+      onClick={() => {
+        inputRef.current?.blur();
+        setVoiceMode(true);
+      }}
+      className={cn(ROUND_BUTTON, "bg-page text-ink-1")}
+    >
+      <Mic size={18} aria-hidden="true" />
+    </button>
   );
 
   return (
     <div
+      // 输入区由外壳贴在键盘上沿，本就可见；自动露出会对它 scrollIntoView，把整页往上卷
+      data-kb-optout="true"
       className="bg-page shrink-0 px-3 pt-2"
       style={{ paddingBottom: "calc(var(--mobile-screen-safe-bottom) + 10px)" }}
     >
@@ -180,12 +199,18 @@ export function ChatComposer(props: {
         >
           <Plus size={20} aria-hidden="true" />
         </button>
+        {voiceMode ? (
+          <HoldToTalkBar
+            disabled={props.disabled || props.running}
+            onSend={spoken => send({ text: spoken, mentions, images })}
+          />
+        ) : null}
         <textarea
           ref={inputRef}
           rows={1}
-          value={voicePreview || value}
-          readOnly={!!voicePreview}
-          placeholder={props.placeholder ?? "发消息，或按住麦克风说话"}
+          hidden={voiceMode}
+          value={value}
+          placeholder={props.placeholder ?? "发消息"}
           onChange={event => {
             const next = event.currentTarget.value;
             // 输入 @ 直接打开笔记选择，@ 本身不留在正文里
@@ -202,10 +227,7 @@ export function ChatComposer(props: {
               submit();
             }
           }}
-          className={cn(
-            "text-tau-body placeholder:text-ink-3 field-sizing-content max-h-32 min-h-9 flex-1 resize-none bg-transparent px-1 py-[7px] leading-[1.45] outline-none",
-            voicePreview ? "text-ink-3" : "text-ink-1"
-          )}
+          className="text-tau-body text-ink-1 placeholder:text-ink-3 field-sizing-content max-h-32 min-h-9 flex-1 resize-none bg-transparent px-1 py-[7px] leading-[1.45] outline-none"
         />
         <button
           type="button"
