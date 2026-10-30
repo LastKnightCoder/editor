@@ -541,14 +541,14 @@ Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开
 
 ## 语音输入
 
-移动宿主保留 ASR 注册表、WebSocket 原生传输、配置存储和 `createMobileSpeechInputService` 编排工厂；壳层不挂载录音 Provider。我的 › 语音 › 语音输入（`settingsModule` 的 `speech-input`）列出系统识别与已启用的识别插件，点已配置的插件即切换，未配置或点箭头进入插件设置页 `pluginSettings`（插件 form 与识别模型）；选用的插件停用后保留选择并提示。插件设置 open 同样打开插件设置页。
+移动宿主保留 ASR 注册表、WebSocket 原生传输、配置存储和 `createMobileSpeechInputService` 编排工厂；壳层不挂载录音 Provider。我的 › 语音 › 语音输入（`settingsModule` 的 `speech-input`）列出已启用的识别插件，点已配置的插件即切换；手机端没有系统识别实现，「系统识别」行显示为不可选，存量选择为系统识别时页面提示改选插件，未配置或点箭头进入插件设置页 `pluginSettings`（插件 form 与识别模型）；选用的插件停用后保留选择并提示。插件设置 open 同样打开插件设置页。
 
 Android 清单包含 RECORD_AUDIO/MODIFY_AUDIO_SETTINGS，iOS 包信息包含麦克风用途说明。`plugin_socket` 命令按工作区 token 及窗口作用域校验，系统网络实现使用 tokio-tungstenite；作者契约见 [WebSocket](/plugins/tau-plugin-template/docs/storage-and-network.md#websocket)。采集仅在用户按住语音按钮时申请，插件停用和工作区释放取消会话。普通设置快照保留原生管理的 speechInput 数据。
 
 编辑器入口在 `features/speechInput/`，交互为按住说话：
 
 - **入口**：配件栏通用模式右侧「按住说话」（`AccessoryItemId` 的 `dictation`，白名单可裁剪；上下文、格式模式、面板打开、只读时不显示），以及内容详情阅读态「编辑」悬浮按钮左侧的圆形按钮（`ReadingModeFab` 的 `leading`）。两者都由 `DictationTrigger` 承载。
-- **手势**（`useHoldGesture`）：按下 200ms 后开始录音，之后在 window 上跟踪同一指针；松手写入，在 ✕（矩形外扩 24px）内松手或 `pointercancel` 取消；不足 200ms 视为短按，只提示手势或引导去设置。
+- **手势**（`useHoldGesture`）：按下 200ms 后开始录音，之后在 window 上跟踪同一指针；松手写入，在 ✕（矩形外扩 24px）内松手或 `pointercancel` 取消；不足 200ms 视为短按，只提示手势。当前选的是系统识别或插件没有账号时（`useEditorDictation` 的 `unavailableReason`），短按和按住都不录音，只提示原因并给「去设置」。
 - **会话**（`useDictationSession`）：包装 `SpeechInputService`，松手与服务层 120 秒自动停止都经 `result` 定稿；连上前松手按取消处理。
 - **预览**（`dictationPreview`）：内容 Kit 都装 `host.dictation-preview` 扩展，在锁定插入点放折叠装饰，叶子后接 `contentEditable=false` 的预览文字，不进文档；编辑态锁按下时的光标（`pointRef` 跟随文档变化），阅读态锁文末并另起一段显示。
 - **沉浸区**（`DictationOverlay`）：盖在键盘位置上，键盘不收起，正文不跳；样式与关键帧在 `styles.css` 的 `.dictation-*`。

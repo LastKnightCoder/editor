@@ -1,4 +1,5 @@
-// 语音输入设置（我的 › 语音 › 语音输入）：选识别服务；账号在插件页（pluginSettings）填写。
+// 语音输入设置（我的 › 语音 › 语音输入）：选识别插件；账号在插件页（pluginSettings）填写。
+// 系统识别仅桌面端可用，手机端显示为不可选。
 // 插件停用时不改写选择，只提示；选用要求账号已保存且与当前保存的配置一致。
 
 import { useState } from "react";
@@ -33,20 +34,19 @@ export function SpeechInputSection() {
   const [busy, setBusy] = useState("");
   const activePlugin = speech.active === "plugin" ? speech.plugin.id : "";
   const missing = !!activePlugin && !providers.some(item => item.id === activePlugin);
+  // 移动端尚未接入系统识别，存量选择保留但不可用
+  const nativeSelected = speech.active === NATIVE;
 
   const select = async (pluginId: string) => {
     if (!setting || !runtime || busy) return;
-    const expected =
-      pluginId === NATIVE
-        ? null
-        : (copyJson(speech.plugin.configurations[pluginId] as JsonValue) as JsonValue);
+    const expected = copyJson(speech.plugin.configurations[pluginId] as JsonValue) as JsonValue;
     setBusy(pluginId);
     try {
       await enqueueProviderConfigWrite(async () => {
         const saved = await selectPluginProvider(runtime.workspaceId, "asr", pluginId, expected);
         app.syncSettings.updateSetting(previous => mergeProviderSettings(previous, saved));
       });
-      toast.success(pluginId === NATIVE ? "已改用系统识别" : "已切换识别服务");
+      toast.success("已切换识别服务");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "切换失败");
     } finally {
@@ -58,20 +58,24 @@ export function SpeechInputSection() {
     <div className="page-enter space-y-1">
       {missing && (
         <TtsStatus tone="warning" title="识别插件已停用">
-          当前选用的识别插件不可用，账号配置仍保留。启用插件后恢复使用，或改选系统识别。
+          当前选用的识别插件不可用，账号配置仍保留。启用插件后恢复使用，或改选其他识别插件。
+        </TtsStatus>
+      )}
+      {nativeSelected && (
+        <TtsStatus tone="warning" title="手机端暂不支持系统识别">
+          语音输入需要选择一个识别插件，下方点已配置的插件即可切换。
         </TtsStatus>
       )}
       <GroupLabel>识别服务</GroupLabel>
       <GroupCard>
-        <GroupRow onClick={() => void select(NATIVE)} disabled={!!busy}>
-          <span className="bg-page text-ink-2 grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl">
+        <GroupRow disabled>
+          <span className="bg-page text-ink-3 grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl">
             <Mic size={17} strokeWidth={1.9} aria-hidden="true" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="text-ink-1 text-tau-body block font-medium">系统识别</span>
-            <span className="text-ink-3 text-tau-sm block">使用手机自带的语音识别</span>
+            <span className="text-ink-3 text-tau-body block font-medium">系统识别</span>
+            <span className="text-ink-3 text-tau-sm block">手机端暂不支持</span>
           </span>
-          {speech.active === "native" && <CheckBubble />}
         </GroupRow>
         {providers.map(provider => {
           const configured = provider.isConfigured(speech);

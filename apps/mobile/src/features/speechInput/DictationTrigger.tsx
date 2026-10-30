@@ -32,23 +32,30 @@ export function DictationTrigger(props: DictationTriggerProps) {
     mode: props.mode,
     refine: props.refine,
   });
+  // 识别服务不可用时按住也不进入录音，直接引导去设置
+  const showUnavailable = (reason: string) =>
+    toast({
+      id: TAP_HINT_ID,
+      type: "info",
+      text: reason,
+      action: dictation.openSettings
+        ? { label: "去设置", onClick: dictation.openSettings }
+        : undefined,
+    });
   const gesture = useHoldGesture(
     {
-      onHoldStart: dictation.begin,
+      onHoldStart: () => {
+        if (dictation.unavailableReason) {
+          gesture.abort();
+          showUnavailable(dictation.unavailableReason);
+          return;
+        }
+        dictation.begin();
+      },
       onRelease: dictation.finish,
       onCancel: dictation.cancel,
       onTap: () => {
-        if (!dictation.configured) {
-          toast({
-            id: TAP_HINT_ID,
-            type: "info",
-            text: "还没有选择语音识别服务",
-            action: dictation.openSettings
-              ? { label: "去设置", onClick: dictation.openSettings }
-              : undefined,
-          });
-          return;
-        }
+        if (dictation.unavailableReason) return showUnavailable(dictation.unavailableReason);
         toast.info({
           id: TAP_HINT_ID,
           text: "按住说话，松手写入",

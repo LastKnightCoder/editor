@@ -107,7 +107,7 @@ export function OverviewSection(props: OverviewSectionProps) {
   const speechInputName =
     speech?.active === "plugin"
       ? (speechProviders.find(item => item.id === speech.plugin.id)?.name ?? "插件已停用")
-      : "系统识别";
+      : "未选择";
   // 桌面端旧设置 shadow 为布尔（true 视作中阴影），展示前归一为 preset
   const imageAppearanceValue = `${findPresetLabel(
     IMAGE_BORDER_RADIUS_OPTIONS,
