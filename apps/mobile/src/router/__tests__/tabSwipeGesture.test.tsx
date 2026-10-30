@@ -10,13 +10,18 @@ import { useTabSwipeGesture, type TabSwipeGestureConfig } from "../tabSwipeGestu
 import { setTabSwipeOrigin, useTabSwipeOrigin } from "../tabSwipeOrigin";
 import { TAB_ORDER, isTabRoot, resolveTabNeighbor } from "../tabs";
 
+// 手势按 performance.now 估计速度：测试用可控时钟，每个触点默认间隔一帧
+let clock = 0;
+
 // jsdom 的 TouchEvent 构造器不可靠：用通用 Event 补上手势读取的触点属性
 function dispatchTouch(
   target: Element,
   phase: "touchstart" | "touchmove" | "touchend" | "touchcancel",
   x: number,
-  y: number
+  y: number,
+  advanceMs = 16
 ): void {
+  clock += advanceMs;
   const event = new Event(phase, { bubbles: true, cancelable: true });
   const point = { clientX: x, clientY: y };
   Object.defineProperty(event, "touches", { value: [point] });
@@ -107,6 +112,8 @@ describe("useTabSwipeGesture", () => {
   let root: Root | null = null;
 
   beforeEach(() => {
+    clock = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => clock);
     Object.defineProperty(window, "innerWidth", { value: 375, configurable: true });
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -119,6 +126,7 @@ describe("useTabSwipeGesture", () => {
     });
     container?.remove();
     Object.defineProperty(window, "innerWidth", { value: 1024, configurable: true });
+    vi.restoreAllMocks();
   });
 
   function renderProbe(config: TabSwipeGestureConfig): void {
@@ -159,6 +167,61 @@ describe("useTabSwipeGesture", () => {
     dispatchTouch(document.body, "touchmove", 260, 301);
     expect(config.onEngage).toHaveBeenCalledTimes(1);
     dispatchTouch(document.body, "touchend", 290, 301);
+    expect(config.onCancel).toHaveBeenCalledTimes(1);
+    expect(config.onCommit).not.toHaveBeenCalled();
+  });
+
+  it("真机快扫（松手坐标同最后一次 move）：短距离即 commit", () => {
+    const config = makeConfig({ activeTabKey: "home" });
+    renderProbe(config);
+    dispatchTouch(document.body, "touchstart", 300, 300);
+    dispatchTouch(document.body, "touchmove", 285, 301);
+    dispatchTouch(document.body, "touchmove", 260, 301);
+    dispatchTouch(document.body, "touchend", 260, 301, 0);
+    expect(config.onCommit).toHaveBeenCalledTimes(1);
+    expect(config.onCancel).not.toHaveBeenCalled();
+  });
+
+  it("快扫距离不足 24px：cancel", () => {
+    const config = makeConfig({ activeTabKey: "home" });
+    renderProbe(config);
+    dispatchTouch(document.body, "touchstart", 300, 300);
+    dispatchTouch(document.body, "touchmove", 285, 301);
+    dispatchTouch(document.body, "touchend", 285, 301, 0);
+    expect(config.onCancel).toHaveBeenCalledTimes(1);
+    expect(config.onCommit).not.toHaveBeenCalled();
+  });
+
+  it("拖一段后停顿再松手：速度归零，未过半屏 cancel", () => {
+    const config = makeConfig({ activeTabKey: "home" });
+    renderProbe(config);
+    dispatchTouch(document.body, "touchstart", 300, 300);
+    dispatchTouch(document.body, "touchmove", 250, 301);
+    dispatchTouch(document.body, "touchmove", 200, 301);
+    dispatchTouch(document.body, "touchend", 200, 301, 150);
+    expect(config.onCancel).toHaveBeenCalledTimes(1);
+    expect(config.onCommit).not.toHaveBeenCalled();
+  });
+
+  it("慢拖过半屏停住松手：commit", () => {
+    const config = makeConfig({ activeTabKey: "home" });
+    renderProbe(config);
+    dispatchTouch(document.body, "touchstart", 300, 300);
+    dispatchTouch(document.body, "touchmove", 200, 301);
+    dispatchTouch(document.body, "touchmove", 100, 301);
+    dispatchTouch(document.body, "touchend", 100, 301, 150);
+    expect(config.onCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it("拖过半屏后反向快扫：cancel", () => {
+    const config = makeConfig({ activeTabKey: "home" });
+    renderProbe(config);
+    dispatchTouch(document.body, "touchstart", 300, 300);
+    dispatchTouch(document.body, "touchmove", 200, 301);
+    dispatchTouch(document.body, "touchmove", 80, 301, 200);
+    dispatchTouch(document.body, "touchmove", 100, 301);
+    dispatchTouch(document.body, "touchmove", 110, 301);
+    dispatchTouch(document.body, "touchend", 110, 301, 0);
     expect(config.onCancel).toHaveBeenCalledTimes(1);
     expect(config.onCommit).not.toHaveBeenCalled();
   });

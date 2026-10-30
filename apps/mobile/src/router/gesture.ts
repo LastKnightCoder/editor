@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useAnimationControls } from "motion/react";
+import { createVelocityTracker, shouldCommitSwipe } from "./swipeCommit";
 import { SCREEN_PARALLAX_RATIO } from "./transition";
 
 // motion/react 未直接导出 AnimationControls 类型名，从 hook 推导
@@ -7,8 +8,6 @@ export type GestureAnimationControls = ReturnType<typeof useAnimationControls>;
 
 export const EDGE_START_WIDTH = 28;
 const LOCK_THRESHOLD_PX = 8;
-const COMMIT_PROGRESS = 0.4;
-const COMMIT_VELOCITY_PX_PER_MS = 0.5;
 const FALLBACK_VIEWPORT_WIDTH = 375;
 
 export type EdgeBackGestureConfig = {
@@ -53,8 +52,7 @@ export function useEdgeBackGesture(config: EdgeBackGestureConfig): void {
     let locked = false;
     let startX = 0;
     let startY = 0;
-    let lastX = 0;
-    let lastT = 0;
+    const tracker = createVelocityTracker();
 
     const underlayRatio = (): number =>
       configRef.current.underlayOffscreen ? 1 : SCREEN_PARALLAX_RATIO;
@@ -92,8 +90,7 @@ export function useEdgeBackGesture(config: EdgeBackGestureConfig): void {
       locked = false;
       startX = touch.clientX;
       startY = touch.clientY;
-      lastX = touch.clientX;
-      lastT = performance.now();
+      tracker.reset(touch.clientX, performance.now());
     };
 
     const onTouchMove = (event: TouchEvent) => {
@@ -113,8 +110,7 @@ export function useEdgeBackGesture(config: EdgeBackGestureConfig): void {
       if (event.cancelable) {
         event.preventDefault();
       }
-      lastX = touch.clientX;
-      lastT = performance.now();
+      tracker.add(touch.clientX, performance.now());
       applyDrag(Math.max(0, dx));
     };
 
@@ -144,16 +140,19 @@ export function useEdgeBackGesture(config: EdgeBackGestureConfig): void {
       }
 
       const touch = event.changedTouches[0];
-      const dx = Math.max(0, touch.clientX - startX);
       const now = performance.now();
-      const dt = Math.max(now - lastT, 1);
-      const velocity = Math.max(0, (touch.clientX - lastX) / dt);
-      const progress = applyDrag(dx);
+      tracker.add(touch.clientX, now);
+      const progress = applyDrag(Math.max(0, touch.clientX - startX));
       const { controlsMap, activeEntryId, underlayEntryId, onBack } = configRef.current;
       const activeControls = activeEntryId ? controlsMap.get(activeEntryId) : undefined;
       const underlayControls = underlayEntryId ? controlsMap.get(underlayEntryId) : undefined;
 
-      if (progress >= COMMIT_PROGRESS || velocity >= COMMIT_VELOCITY_PX_PER_MS) {
+      const shouldCommit = shouldCommitSwipe({
+        distance: touch.clientX - startX,
+        velocity: tracker.velocity(now),
+        viewportWidth: getViewportWidth(),
+      });
+      if (shouldCommit) {
         const remaining = Math.max(1 - progress, 0.05);
         void activeControls?.start({
           x: "100%",

@@ -204,7 +204,10 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 ## 手势与转场
 
 - 双页同动：push 时栈顶滑入 + 下层 25% 视差；pop 反向（AnimatePresence exit）
-- 左边缘 28px 跟手返回：位移>40% 或速度>0.5px/ms 判定完成/回弹；仅 slideRight 顶层且无 overlay；
+- 横向跟手手势（左边缘返回、tab 根左右滑）共用 `router/swipeCommit.ts` 的松手判定：速度取松手前 100ms 内触点样本估计
+  （停顿超 100ms 记 0）；位移 <24px 或反向速度 ≥0.3px/ms 回弹，速度 ≥0.3px/ms 快扫提交，否则按惯性落点
+  （位移 + 速度×200ms）过半屏提交
+- 左边缘 28px 跟手返回：仅 slideRight 顶层且无 overlay；
   起手点在 `data-no-edge-back` 标记内（编辑器块把手等自带拖拽的控件）时不跟手；栈顶页有声明 `blockEdgeBack` 的返回消费器
   （`useSheetBackDismiss` 一律声明：页内浮层、块选择、拖拽等打开期间必定消费返回）时也不跟手，否则页面被拖出、松手后弹回。
   条件消费的 `useBackHandler`（未保存确认等）不声明，手势照常跟手。页内多级浏览不要用 `useBackHandler` 消费返回来退级
