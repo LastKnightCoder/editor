@@ -173,7 +173,10 @@ describe("标准 WebSocket 宿主桥", () => {
     const { socket, bridge } = create();
     vi.mocked(bridge.open).mockRejectedValue(new Error("sensitive"));
     const events: string[] = [];
-    socket.onerror = () => events.push("error");
+    socket.onerror = event => {
+      events.push("error");
+      expect(event).toMatchObject({ message: "WebSocket 连接失败" });
+    };
     socket.onclose = event => {
       events.push("close");
       expect(event.code).toBe(1006);
@@ -182,6 +185,23 @@ describe("标准 WebSocket 宿主桥", () => {
     await tick();
     expect(events).toEqual(["error", "close"]);
     expect(socket.readyState).toBe(socket.CLOSED);
+  });
+  it.each([
+    ["WebSocket 握手失败（HTTP 401）", "服务鉴权失败（HTTP 401），请检查连接凭据"],
+    ["WebSocket 握手失败（HTTP 403）", "服务拒绝访问（HTTP 403），请检查服务权限与配额"],
+    ["WebSocket 握手失败（HTTP 429）", "WebSocket 握手失败（HTTP 429）"],
+    ["WebSocket TLS 安全连接失败", "WebSocket TLS 安全连接失败"],
+    ["WebSocket 握手超时", "WebSocket 握手超时"],
+    ["WebSocket 网络连接失败", "WebSocket 网络连接失败"],
+    ["WebSocket 握手失败（HTTP 403） secret", "WebSocket 连接失败"],
+  ])("握手错误仅传递允许的诊断：%s", async (nativeMessage, message) => {
+    const { socket, bridge } = create();
+    vi.mocked(bridge.open).mockRejectedValue(new Error(nativeMessage));
+    const error = vi.fn();
+    socket.onerror = error;
+    await tick();
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(error.mock.calls[0][0]).toMatchObject({ type: "error", message });
   });
   it("连接中取消回收迟到连接，没有 open 事件", async () => {
     const { socket, bridge, controller } = create();
