@@ -27,6 +27,8 @@ export type DictationOverlayProps = {
   /** ✕ 按钮节点：手势层据此计算命中区 */
   cancelTargetRef?: Ref<HTMLDivElement>;
   portalContainer?: HTMLElement | null;
+  /** 开始录音时锁定的键盘高度。 */
+  panelHeight?: number;
 };
 
 function formatElapsed(ms: number) {
@@ -45,7 +47,7 @@ function useElapsed(startedAt: number | null, running: boolean) {
   return startedAt === null ? 0 : Math.max(0, now - startedAt);
 }
 
-/** 按住说话时的底部沉浸区：盖在键盘位置之上，键盘本身不收起，正文位置不变 */
+/** 按住说话时的底部沉浸区，与软键盘在同一预留区域内等高切换。 */
 export function DictationOverlay(props: DictationOverlayProps) {
   const {
     open,
@@ -57,6 +59,7 @@ export function DictationOverlay(props: DictationOverlayProps) {
     quiet = false,
     cancelTargetRef,
     portalContainer,
+    panelHeight = 250,
   } = props;
   const elapsed = useElapsed(startedAt, open);
   if (!open) return null;
@@ -93,7 +96,7 @@ export function DictationOverlay(props: DictationOverlayProps) {
           "dictation-zone relative flex w-full flex-col items-center justify-center gap-3 pb-[calc(10px+var(--mobile-safe-bottom))] transition-colors duration-150",
           cancelArmed ? "bg-danger-soft" : "bg-surface"
         )}
-        style={{ height: "max(250px, calc(var(--kb-height) + 46px))" }}
+        style={{ height: panelHeight }}
       >
         {connecting ? (
           <span

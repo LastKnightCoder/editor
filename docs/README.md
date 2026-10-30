@@ -64,7 +64,7 @@
 - [提供方表单两端渲染补全](./tasks/provider-form-hosts/README.md)：TTS / ASR / 图片 / 视频 / 发布的声明式表单由宿主渲染，入口统一在插件详情 › 设置，发布抽屉内嵌、语音输入设置接回；SDK 0.48.0 与九个插件已发布，待包含本任务的客户端发布与视觉验收。
 - [长文档视口级挂载](./tasks/long-document-viewport.md)：暂缓、未排期，保留范围与业务验收边界。
 - [移动端字号规范](./tasks/mobile-typography.md)：9 档字号阶梯；档位覆盖与卡片列表/详情同字号已落地，存量字面字号待分批迁移。
-- [移动端语音输入入口](./tasks/mobile-voice-input.md)：配件栏与阅读态「按住说话」、正文流式预览、一次性写入及 Android/iOS 原生系统识别已实现；Android 厂商识别差异、iOS 识别行为待真机验收；AI 润色界面已备好、待 AI 配置接入；视觉验收待用户完成。
+- [移动端语音输入入口](./tasks/mobile-voice-input.md)：配件栏与阅读态「按住说话」、键盘与语音面板等高切换、正文流式预览、一次性写入及 Android/iOS 原生系统识别已实现；Android 厂商识别差异、iOS 识别行为待真机验收；AI 润色界面已备好、待 AI 配置接入；视觉验收待用户完成。
 - [移动端源码块交互](./tasks/mobile-source-block.md)：TikZ / Typst / HTML 等源码块改为点选 + 配件栏 + 分屏源码页；方案已确认，未开工。
 - [移动端正文字体](./tasks/mobile-reading-font.md)：可选霞鹜文楷 / 思源宋体，按需下载、全量字库；字体已上线，待真机验收。
 - [桌面语音输入与统一 ASR](./tasks/desktop-asr/README.md)：Windows 验证完成，保留 NSIS、本轮不开放原生；产品入口仍撤回，其他设备与真实账号验收保留。当前只整理文档、不发布新 SDK，0.44.0 发布包与源码差异见任务发行记录。
