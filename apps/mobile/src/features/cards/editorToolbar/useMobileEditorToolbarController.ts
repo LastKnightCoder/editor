@@ -112,8 +112,8 @@ export type InsertSheetItemKind =
   | "annotation"
   | "content-link";
 
-/** 占用键盘位置的面板：Aa 样式面板 / + 插入面板 / 媒体尺寸面板（选中媒体时，键盘已收起） */
-export type EditorPanelKind = "style" | "insert" | "media";
+/** 占用键盘位置的面板：Aa 样式面板 / + 插入面板 / 媒体尺寸面板（选中媒体时，键盘已收起）/ 语音面板 */
+export type EditorPanelKind = "style" | "insert" | "media" | "voice";
 
 export type ClosePanelOptions = {
   /** 是否弹回键盘；用户点正文时键盘由系统弹出，传 false */
@@ -709,6 +709,13 @@ export function useMobileEditorToolbarController(
       const editor = getEditorFromRef(editorRef);
       if (!editor) return;
       if (activePanelRef.current) {
+        const editable = getEditableElement();
+        if (kind === "voice") editable?.setAttribute("inputmode", "none");
+        else if (activePanelRef.current === "voice") {
+          // 离开语音面板前先失焦，去掉 inputmode 后不会唤起键盘顶掉新面板
+          if (ReactEditor.isFocused(editor as ReactEditor)) ReactEditor.blur(editor as ReactEditor);
+          clearKeyboardSwap(editable);
+        }
         activePanelRef.current = kind;
         setActivePanel(kind);
         return;
@@ -720,7 +727,19 @@ export function useMobileEditorToolbarController(
         reservation.reserve(panelHeight);
         setActivePanel(kind);
       });
-      hideKeyboard(editor, DEFAULT_KEYBOARD_SWAP_STRATEGY, getEditableElement());
+      if (kind !== "voice") {
+        hideKeyboard(editor, DEFAULT_KEYBOARD_SWAP_STRATEGY, getEditableElement());
+        return;
+      }
+      // 语音面板：失焦收键盘后以 inputmode=none 重新聚焦，保留系统光标，点正文只移动插入点不唤起键盘
+      const editable = getEditableElement();
+      editable?.setAttribute("inputmode", "none");
+      hideKeyboard(editor, DEFAULT_KEYBOARD_SWAP_STRATEGY, editable);
+      const saved = panelSelectionRef.current;
+      window.requestAnimationFrame(() => {
+        if (activePanelRef.current !== "voice") return;
+        restoreSelectionAndFocus(editor, saved);
+      });
     },
     [editorRef, getEditableElement, rememberPanelSelection, reservation]
   );
@@ -728,9 +747,16 @@ export function useMobileEditorToolbarController(
   const closePanel = useCallback(
     (closeOptions: ClosePanelOptions) => {
       if (!activePanelRef.current) return;
+      const wasVoice = activePanelRef.current === "voice";
       // 先置位，回键盘触发的编辑器 focus 不再走点正文路径
       activePanelRef.current = null;
       const editor = getEditorFromRef(editorRef);
+      if (wasVoice) {
+        clearKeyboardSwap(getEditableElement());
+        // 语音面板期间编辑器可能以 inputmode=none 保持焦点，先失焦才能重新唤起键盘
+        if (editor && closeOptions.showKeyboard && ReactEditor.isFocused(editor as ReactEditor))
+          ReactEditor.blur(editor as ReactEditor);
+      }
       if (editor && closeOptions.showKeyboard) {
         const saved = panelSelectionRef.current;
         if (closeOptions.restoreSelection && saved) {
@@ -858,8 +884,9 @@ export function useMobileEditorToolbarController(
   const handleEditorFocus = useCallback(() => {
     const editor = getEditorFromRef(editorRef);
     if (!editor) return;
-    // 面板打开时编辑器重新获得焦点 = 用户点了正文：选区由点击位置决定，只关面板
-    if (activePanelRef.current) {
+    // 面板打开时编辑器重新获得焦点 = 用户点了正文：选区由点击位置决定，只关面板；
+    // 语音面板保持打开，点正文只移动语音插入点
+    if (activePanelRef.current && activePanelRef.current !== "voice") {
       closePanel({ showKeyboard: false });
     }
     setIsEditorFocused(true);

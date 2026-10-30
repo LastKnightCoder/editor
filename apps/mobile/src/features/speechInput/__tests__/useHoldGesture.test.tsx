@@ -79,7 +79,7 @@ describe("useHoldGesture", () => {
     expect(press().defaultPrevented).toBe(true);
   });
 
-  it("不足 200ms 松手视为短按", () => {
+  it("不足按住时长松手视为轻点", () => {
     press();
     act(() => vi.advanceTimersByTime(HOLD_DELAY_MS - 1));
     onWindow("pointerup");
@@ -89,7 +89,7 @@ describe("useHoldGesture", () => {
     expect(handlers.onHoldStart).not.toHaveBeenCalled();
   });
 
-  it("按满 200ms 开始录音，window 上松手提交", () => {
+  it("按满按住时长开始录音，window 上松手提交", () => {
     press();
     hold();
     expect(handlers.onHoldStart).toHaveBeenCalledTimes(1);

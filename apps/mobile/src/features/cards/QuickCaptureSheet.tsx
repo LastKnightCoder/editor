@@ -27,6 +27,8 @@ type QuickCaptureSheetProps = {
   onRequestClose: (content: Descendant[]) => void;
   onContentChange?: (content: Descendant[]) => void;
   onClear?: () => Promise<boolean>;
+  /** 打开即进入语音面板并开始录音 */
+  startWithVoice?: boolean;
 };
 
 export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
@@ -198,7 +200,10 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
           )}
         </SnapSheet.FixedFooterScroll>
 
-        <MobileEditorBottomToolbar controller={toolbarController} />
+        <MobileEditorBottomToolbar
+          controller={toolbarController}
+          autoStartVoice={props.startWithVoice && Boolean(contentKit)}
+        />
       </>
     </SnapSheet>
   );

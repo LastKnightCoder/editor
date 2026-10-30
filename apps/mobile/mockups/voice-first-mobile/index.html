@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端语音输入 · 重新设计</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="vf.css" />
+<script src="../editor-mobile/icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>移动端语音输入 · 重新设计<small>语音和键盘平级 · 颜色取自 @tau/themes · 手机帧 360×760 · 键盘为系统绘制示意</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="why">0 问题与方案对比</button>
+    <button class="tab" data-tab="mode">1 编辑：语音模式<span class="rec">推荐</span></button>
+    <button class="tab" data-tab="hold">2 按住说（熟手）</button>
+    <button class="tab" data-tab="polish">3 AI 润色</button>
+    <button class="tab" data-tab="read">4 阅读态与速记</button>
+    <button class="tab" data-tab="dock">5 全局：长按 + 直接说</button>
+    <button class="tab" data-tab="states">6 权限与异常</button>
+  </nav>
+</header>
+
+<!-- ═══════════ 0 问题与对比 ═══════════ -->
+<section class="scene" data-scene="why">
+  <p class="scene-intro">现在的语音入口是配件栏右侧一个 40px 的 🎤，必须<b>按住</b>才能说，短按只弹一句提示。它有三个问题：<b>找不到</b>（和十几个格式按钮挤在一排，还在右边，右手单手拇指够不着靠右上的位置也不自然）；<b>不会用</b>（手机上没有人默认长按一个小图标，第一次点下去只看到 toast）；<b>定位错</b>（放在格式工具里，它就是「一个格式功能」，而口述在手机上本该和打字平级）。新方案把语音当成<b>和键盘并列的一种输入方式</b>：像微信聊天框左边的「语音 / 键盘」切换键一样，一键切过去，键盘的位置变成语音面板，轻点开始、轻点停止，可以连续说好几段。</p>
+  <div class="frames" style="gap:18px">
+    <div class="card" style="flex:1 1 720px">
+      <h3>入口方案对比</h3>
+      <table class="cmp">
+        <tr><th>方案</th><th>做法</th><th>优点</th><th>代价</th></tr>
+        <tr><td><b>现状</b></td><td>配件栏右侧 🎤，按住说</td><td>不占新位置</td><td class="bad">难发现、要长按、每说一段都要重新按住</td></tr>
+        <tr class="pick"><td><b>A 输入方式切换</b>（推荐）</td><td>配件栏<b>最左端</b>固定一个 🎤/⌨ 切换键；语音模式下键盘位置换成语音面板，正中大麦克风轻点开始 / 停止，也支持按住说</td><td class="good">和键盘平级、左下拇指区；连续多段口述不用反复切换；沿用现有键盘等高替换机制</td><td>配件栏左端少一格给格式按钮；语音模式下点正文移动落点要禁止弹键盘（<code>inputmode="none"</code>）</td></tr>
+        <tr><td><b>B 浮动麦克风</b></td><td>键盘右上方悬浮圆形 🎤，键盘出现就在</td><td>醒目</td><td class="bad">挡正文、和系统听写键重复、仍是「附属按钮」心智</td></tr>
+        <tr><td><b>C 全局直接说</b>（与 A 搭配）</td><td>首页 Dock 中央 ＋ 长按直接说，松手存进速记；不进任何页面</td><td class="good">想法来了 1 步记下，是「语音成为主要输入方式」最直接的体现</td><td>长按仍需教育：用 ＋ 菜单里的「说一段」做可见入口，长按是快捷方式</td></tr>
+      </table>
+      <p style="margin-top:10px;font-size:13px;color:var(--meta)">推荐 <b>A + C</b>：A 解决「在文档里说」，C 解决「随时说一句」。阅读态的悬浮按钮和速记都打开同一个语音面板，只有一套交互。</p>
+    </div>
+    <div class="card" style="flex:1 1 380px">
+      <h3>设计原则</h3>
+      <ol>
+        <li><b>平级，不附属</b>：🎤 是输入方式切换键，不是格式按钮；放在配件栏最左、永远在同一位置。</li>
+        <li><b>轻点为主，按住为辅</b>：轻点开始 / 再点停止，人人会用；按住说、上滑取消留给熟手，同一个按钮两种手势自动区分（按下 &lt; 250ms 算轻点）。</li>
+        <li><b>可以一直说</b>：停止后留在语音模式，再点继续说下一段；面板两侧给「撤回这段」「换行」，口述长文不用切回键盘。</li>
+        <li><b>看着正文说</b>：沿用现在的预览：文字浅灰流在插入点，停止时一次写入，一个撤销步。</li>
+        <li><b>记住习惯</b>：用户上次用语音结束编辑，下次打开速记直接进语音模式 <span class="ask">待确认</span>。</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 1 编辑：语音模式 ═══════════ -->
+<section class="scene" data-scene="mode">
+  <p class="scene-intro"><b>编辑态：配件栏最左端的 🎤 是输入方式切换键。</b>点一下，键盘收起，同一块高度换成语音面板（复用现在的 <code>useDictationKeyboardSwap</code> 等高预留，正文不跳）。面板中间是大麦克风：轻点开始，再点停止并写入，然后停在待命态，可以继续说。左端的键变成 ⌨，点它回到键盘。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="base"></div>
+        <div data-acc="kb coach"></div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>键盘模式：左端常驻 🎤</div>
+      <details class="note" open><summary>说明</summary><ul>
+        <li>🎤 在「＋」左边，用强调色浅底，和格式按钮区分开：它切换的是输入方式。</li>
+        <li>右侧原来的 🎤 删除；横滑区不变。</li>
+        <li>第一次进入编辑显示一次引导气泡，点任意处消失，之后不再出现。</li>
+        <li>代码块、公式、表格、源码等上下文模式仍隐藏 🎤（和现在一致）。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="voiceCaret"></div>
+        <div data-acc="voice"></div>
+        <div data-vp="ready"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>语音模式待命：键盘位置换成语音面板</div>
+      <details class="note" open><summary>说明</summary><ul>
+        <li>切过来<b>不自动开始录音</b>：避免误触就开麦；大按钮在拇指正下方，点一下即开始。<span class="ask">待确认</span> 也可以改成切过来立即开始。</li>
+        <li>正文光标换成强调色的「语音插入点」，说的话落在这里。</li>
+        <li>配件栏保留：格式按钮照常可用，说完一段可以直接加粗、转列表。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="ghost"></div>
+        <div data-acc="voice"></div>
+        <div data-vp="listening"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>说话中：再点一下停止</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>大按钮变成 ■，外圈扩散表示在听；上方计时 + 波形。</li>
+        <li>识别文字浅灰流在插入点，尾句更浅（沿用现有 <code>dictationPreview</code>）。</li>
+        <li>停止方式：再点 ■；或停顿 10 秒自动停 <span class="ask">待确认时长</span>；或到 2:00 上限。三种都写入。</li>
+        <li>录音中点「⌨」= 停止并写入，再切回键盘。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="committed"></div>
+        <div data-acc="voice"></div>
+        <div data-vp="committed"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>写入后：留在语音模式，可以接着说</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>写入后不弹 toast：面板顶部显示「已写入 21 字」，左侧「撤回这段」亮起（一个撤销步，替代现在的 toast 撤销）。</li>
+        <li>插入点停在新文字末尾，再点麦克风继续追加。</li>
+        <li>「换行」= 在插入点新起一段，口述时分段不用切键盘。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="tapMove"></div>
+        <div data-acc="voice"></div>
+        <div data-vp="ready"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">5</span>点正文：只移动插入点，不弹键盘</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>语音模式下点正文任意位置，语音插入点移过去，键盘<b>不弹出</b>；想打字点左端 ⌨。</li>
+        <li>实现：语音模式期间给编辑器加 <code>inputmode="none"</code>，iOS / Android WebView 都会保留选区但不唤起键盘；需真机验证。</li>
+        <li>长按选中文字照常出系统菜单，可以选中后重说替换 <span class="ask">后续</span>。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 2 按住说 ═══════════ -->
+<section class="scene" data-scene="hold">
+  <p class="scene-intro"><b>同一个大麦克风也支持按住说</b>，给习惯微信的人：按下超过 250ms 进入按住模式，松手写入，上滑到 ✕ 松手取消。按钮在面板正中、直径 84px，按住和上滑都比现在 40px 的小图标好操作得多。轻点和按住由同一个手势层区分，用户不用学两套。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="ghost"></div>
+        <div class="hold-scrim"></div>
+        <div data-acc="voice"></div>
+        <div data-vp="hold"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>按住中：上方出现 ✕</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>按住后两侧按钮淡出，✕ 出现在麦克风正上方约 80px，上方正文渐变压暗。</li>
+        <li>和现在的沉浸区相比：不再另起一块浮层，就在同一个面板里变化。</li>
+      </ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="ghostCancel"></div>
+        <div class="hold-scrim"></div>
+        <div data-acc="voice"></div>
+        <div data-vp="cancel"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>上滑到 ✕：松手取消</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>✕ 变红放大，面板泛红，预览文字变淡并划掉；松手正文不变。</li>
+        <li>轻点模式没有上滑取消：说错了用「撤回这段」，更直接。</li>
+      </ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="second"></div>
+        <div data-acc="voice"></div>
+        <div data-vp="listening"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>连续多段：换行后接着说</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>说完一段点「换行」，再点麦克风说下一段；整篇口述都不离开语音面板。</li>
+        <li>每段是独立撤销步，「撤回这段」只撤最近一段。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 3 AI 润色 ═══════════ -->
+<section class="scene" data-scene="polish">
+  <p class="scene-intro"><b>配了 AI 时，润色状态放进面板顶部</b>，替代现在悬在正文上的润色胶囊。原文先写入并走一道流光，润色结果原地替换；润色期间可以直接说下一段，不用等。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="polishing"></div>
+        <div data-acc="voice"></div>
+        <div data-vp="polishing"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>润色中</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>「跳过」= 保留原文，结束润色。</li>
+        <li>润色中再点麦克风开始下一段，上一段润色在后台继续。</li>
+      </ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="polished"></div>
+        <div data-acc="voice"></div>
+        <div data-vp="polished"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>润色完成</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>顶部「已润色 · 用原文」，开始下一段前一直可点；「撤回这段」连同润色一起撤。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 4 阅读态与速记 ═══════════ -->
+<section class="scene" data-scene="read">
+  <p class="scene-intro"><b>阅读态和速记打开的是同一个语音面板</b>，只是以底部抽屉出现。阅读态把现在的圆形 🎤 换成和「编辑」同等分量的按钮；速记沿用上次的输入方式。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="read"></div>
+        <div class="fab-stack">
+          <span class="fab-mini brand" data-i="mic" data-s="21"></span>
+          <span class="fab-pill"><span data-i="pencil" data-s="17"></span>编辑</span>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>阅读态：🎤 用强调色，和「编辑」并排</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>位置不变，改为强调色实心，让它看起来是主要操作之一。</li>
+        <li>点一下打开语音抽屉并直接开始录音（目的已经很明确）；按住说照样可用。</li>
+      </ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="readVoice"></div>
+        <div class="sheet-vp">
+          <div class="to">追加到<b>文末</b><span class="x" data-i="x" data-s="18"></span></div>
+          <div data-vp="listening"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>阅读态说话：追加到文末</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>抽屉顶部写明落点「追加到文末」；正文自动滚到末尾显示预览。</li>
+        <li>可以连续说几段；关闭抽屉回到阅读态，不进入编辑。</li>
+      </ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="home-body"><h1>今天</h1><div class="hcard"><b>3 张卡片待复习</b>间隔重复为什么有效 · 遗忘曲线</div></div>
+        <div class="qc">
+          <div class="qc-head">速记<span class="save">保存</span></div>
+          <div class="doc" data-doc="capture"></div>
+          <div data-acc="voice"></div>
+          <div data-vp="listening"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>速记：沿用上次的输入方式</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>上次用语音，这次打开速记就是语音面板 <span class="ask">待确认是否立即开始录音</span>。</li>
+        <li>切回键盘也只是点左端 ⌨，两种方式随时互换。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 5 全局 ═══════════ -->
+<section class="scene" data-scene="dock">
+  <p class="scene-intro"><b>首页 Dock 的 ＋ 长按直接说，松手存成一条速记。</b>这是「语音是主要输入方式」最直接的体现：想法来了不用选去哪、不用进页面。＋ 菜单里加一项「说一段」作为看得见的入口，长按是它的快捷方式；第一次点「说一段」时提示「下次可以直接长按 ＋」。<span class="ask">待确认</span></p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="home-body">
+          <h1>今天</h1>
+          <div class="hcard"><b>3 张卡片待复习</b>间隔重复为什么有效 · 遗忘曲线</div>
+          <div class="hcard"><b>14:00 设计评审</b>移动端语音输入</div>
+          <div class="hold-card">
+            <div class="row"><span class="timer">0:05</span><div class="wave" data-wave="18"></div></div>
+            <p><span class="ghost">周五前把移动端语音输入的方案定下来，</span><span class="ghost live">顺便问一下</span></p>
+            <div class="foot">松手存进速记 · 上滑取消</div>
+          </div>
+        </div>
+        <div data-dock="held"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>长按 ＋：直接开始说</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>＋ 变成 🎤 并放大，上方浮出识别卡片，文字实时出现。</li>
+        <li>和 ＋ 的轻点（展开新建菜单）不冲突：按下 &gt; 250ms 才进入语音。</li>
+      </ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="home-body">
+          <h1>今天</h1>
+          <div class="hcard"><b>3 张卡片待复习</b>间隔重复为什么有效 · 遗忘曲线</div>
+          <div class="hcard"><b>14:00 设计评审</b>移动端语音输入</div>
+          <div class="toast" style="bottom:16px">已存进速记<b>打开</b><b>撤销</b></div>
+        </div>
+        <div data-dock="idle"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>松手：存为一条速记</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>toast 给「打开」（进速记继续编辑）和「撤销」。</li>
+        <li>配了 AI 时后台润色，不打断用户。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 6 异常 ═══════════ -->
+<section class="scene" data-scene="states">
+  <p class="scene-intro"><b>异常直接显示在面板里</b>，不再用 toast：用户正看着面板，引导按钮就在大麦克风下面。🎤 切换键在未配置时也照常显示，保证功能可被发现。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="voiceCaret"></div>
+        <div data-acc="voice"></div>
+        <div data-vp="unconfigured"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>未设置识别服务</div>
+      <details class="note"><summary>说明</summary><ul>
+        <li>跳到「我的 › 语音 › 语音输入」；设好返回后面板自动变为待命。</li>
+      </ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="voiceCaret"></div>
+        <div data-acc="voice"></div>
+        <div data-vp="denied"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>麦克风权限被拒</div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left"></span><span class="t"></span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc" data-doc="voiceCaret"></div>
+        <div data-acc="voice"></div>
+        <div data-vp="quiet"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>一直没听到声音</div>
+    </div>
+  </div>
+</section>
+
+<script src="vf.js"></script>
+</body>
+</html>

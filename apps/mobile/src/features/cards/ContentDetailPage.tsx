@@ -36,7 +36,7 @@ import type { CollaborativeEditorMode } from "../collaboration/CollaborativeEdit
 import { isEditorContentEmpty } from "./editorContentUtils";
 import { useReadingMode } from "./readingMode/useReadingMode";
 import { ReadingModeFab } from "./readingMode/ReadingModeFab";
-import { DictationTrigger } from "../speechInput/DictationTrigger";
+import { ReadingVoiceSheet } from "../speechInput/ReadingVoiceSheet";
 import { ReadingSelectionBar } from "./readingMode/ReadingSelectionBar";
 import { useReadingSelection } from "./readingMode/useReadingSelection";
 import { useEditorOpenMode } from "../../hooks/useEditorOpenMode";
@@ -317,6 +317,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   });
   // 工具栏等页面级浮层挂进本页根容器，才能随页面转场动画一起平移、退场
   const [pageRootEl, setPageRootEl] = useState<HTMLDivElement | null>(null);
+  const [voiceSheetOpen, setVoiceSheetOpen] = useState(false);
 
   const [titleDraft, setTitleDraft] = useState(() =>
     resolveTitle({
@@ -420,13 +421,15 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
 
   // 顶栏只放返回 / 标题 / 宿主操作；编辑入口是右下角悬浮按钮，退出编辑在配件栏「完成」
   const headerActions = props.headerRight;
-  const fabVisible =
+  const fabVisibleBase =
     Boolean(detail && kit) &&
     readingMode.canEdit &&
     !readingMode.editing &&
     !blockSelection.active &&
     blockDrag.dragging === null &&
     readingSelection.range === null;
+  // 语音抽屉打开时让出右下角
+  const fabVisible = fabVisibleBase && !voiceSheetOpen;
 
   const renderBlockSelectionHeader = (floating: boolean) => (
     <BlockSelectionHeader
@@ -739,27 +742,21 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         onEnter={readingMode.enterEditing}
         getScrollContainer={getScrollContainer}
         leading={
-          <DictationTrigger
-            getEditor={() => editorRef.current?.getEditor() ?? null}
-            mode="end"
-            portalContainer={pageRootEl}
-            pillBottom="calc(var(--mobile-safe-bottom) + 84px)"
-            renderButton={({ bind, active }) => (
-              <button
-                type="button"
-                aria-label="按住说话，追加到文末"
-                aria-pressed={active}
-                className={cn(
-                  "bg-surface text-ink-1 shadow-lift flex h-[50px] w-[50px] select-none items-center justify-center rounded-full transition-transform duration-200",
-                  active && "scale-95"
-                )}
-                {...bind}
-              >
-                <Mic size={20} strokeWidth={2.2} aria-hidden />
-              </button>
-            )}
-          />
+          <button
+            type="button"
+            aria-label="语音输入，追加到文末"
+            className="bg-accent text-ink-inverse shadow-lift flex h-[50px] w-[50px] items-center justify-center rounded-full transition-transform duration-200 active:scale-95"
+            onClick={() => setVoiceSheetOpen(true)}
+          >
+            <Mic size={20} strokeWidth={2.2} aria-hidden />
+          </button>
         }
+      />
+      <ReadingVoiceSheet
+        open={voiceSheetOpen && fabVisibleBase}
+        getEditor={() => editorRef.current?.getEditor() ?? null}
+        onClose={() => setVoiceSheetOpen(false)}
+        portalContainer={pageRootEl}
       />
       <MobileEditorBottomToolbar
         controller={toolbarController}
