@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="ocean" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端内容页就近对话 · 问题与方案</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="../chat-polish-mobile/cp.css" />
+<link rel="stylesheet" href="cc.css" />
+<script src="../ai-mobile/icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>内容页就近对话<small>颜色取自 @tau/themes · 手机帧 360×760 · 内容为示意</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="diag">0 现状与根因</button>
+    <button class="tab" data-tab="a">1 方案 A 修好半屏抽屉</button>
+    <button class="tab" data-tab="b">2 方案 B 直接进全屏对话<span class="rec">推荐</span></button>
+    <button class="tab" data-tab="cmp">3 对比与待确认</button>
+  </nav>
+</header>
+
+<section class="scene" data-scene="diag">
+  <p class="scene-intro">两个问题都出在抽屉底座 <code>PanContainer</code>，对话组件本身没有问题。<b>输入框看不见</b>：抽屉面板永远是整屏高，半屏只是把它往下平移 44%，贴在面板底部的输入框跟着移出了屏幕。<b>消息滚不动</b>：整个面板都监听拖拽，半屏时上滑一律当成「展开抽屉」、下滑一律当成「收起」；全屏时本该看消息列表是否滚到顶，但消息列表没有登记给抽屉，抽屉读到的滚动位置永远是 0，于是下滑也被抢走。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="doc"><div class="dnav"><span data-i="chevron-left" data-s="22"></span><span class="sp"></span><span class="ai" data-i="sparkles" data-s="19"></span><span data-i="ellipsis" data-s="20"></span></div>
+          <div class="body"><h2>间隔重复为什么有效</h2><p>遗忘曲线告诉我们，新学的内容在最初几天衰减最快。</p></div></div>
+        <div class="mask"></div>
+        <div class="sheet" style="top:334px;bottom:-334px">
+          <div class="handle"><i></i></div>
+          <div class="shead"><span class="ic-accent" data-i="sparkles" data-s="16"></span><span class="t">关于这张卡片</span><span class="ib" data-i="maximize-2" data-s="16"></span><span class="ib" data-i="x" data-s="18"></span></div>
+          <div class="sthread"><p class="text-ink-3" style="color:var(--ink-3);font-size:13px;text-align:center;padding-top:24px">问问这篇内容。</p></div>
+          <div class="cmp"><div class="chips"><span>总结这篇</span><span>列出要点</span><span>出几道问答题</span></div><div class="cbox"><span class="rb" data-i="plus" data-s="20"></span><div class="tx"><span class="ph">问问这段内容…</span></div><span class="rb fill" data-i="mic" data-s="18"></span></div></div>
+        </div>
+        <div class="offscreen">屏幕下沿以下还有 334px 面板：快捷问法和输入框都在这里，要拖到全屏才露出来</div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>打开后看不到输入框<small>面板 <code>top-0 bottom-0</code> 占满整屏，半屏 = <code>translateY(44%)</code>。<code>SnapSheet.Scroll</code> 用 <code>--pan-occluded-bottom</code> 补了内边距，但对话没用它，输入框直接贴在面板底。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="doc"><div class="dnav"><span data-i="chevron-left" data-s="22"></span><span class="sp"></span><span class="ai" data-i="sparkles" data-s="19"></span><span data-i="ellipsis" data-s="20"></span></div>
+          <div class="body"><h2>间隔重复为什么有效</h2><p>遗忘曲线告诉我们，新学的内容在最初几天衰减最快。</p></div></div>
+        <div class="mask"></div>
+        <div class="sheet" style="top:250px;bottom:0">
+          <div class="handle"><i></i></div>
+          <div class="shead"><span class="ic-accent" data-i="sparkles" data-s="16"></span><span class="t">关于这张卡片</span><span class="ib" data-i="maximize-2" data-s="16"></span><span class="ib" data-i="x" data-s="18"></span></div>
+          <div class="sthread">
+            <div class="u">总结这篇</div>
+            <div class="a"><p>这张卡片讲了三件事：遗忘曲线、复习间隔逐步拉长、主动回忆比重读更有效。</p><p>核心结论是：在快要忘掉时复习一次，记忆保持时间会成倍延长……</p></div>
+          </div>
+        </div>
+        <span class="trail" style="left:178px;top:440px;height:120px"></span>
+        <span class="finger" style="left:162px;top:420px"></span>
+        <span class="tip bad" style="left:110px;top:384px">想往下读 → 抽屉被拖上去</span>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>滚动被抽屉抢走<small>半屏：上滑 = 展开、下滑 = 收起，消息列表永远轮不到。全屏：<code>ChatMessages</code> 自己建了滚动容器，没接 <code>SnapSheet</code> 的 <code>scrollRef</code>，抽屉读到 <code>scrollTop</code> 恒为 0，下滑照样被当成收起。</small></div>
+    </div>
+
+    <div class="cards" style="flex:1;min-width:320px;margin-top:0;grid-template-columns:1fr">
+      <div class="card"><h3>根因 1：半屏的面板高度不对</h3><p><code>PanContainer</code> 把面板画成整屏高再向下平移。普通列表靠 <code>SnapSheet.Scroll</code> 的底部补白能看到末尾，但「底部固定输入框」这种布局在这套机制下天然会被推出屏幕。设置页那些抽屉没有底栏，所以一直没暴露。</p></div>
+      <div class="card"><h3>根因 2：整个面板都是拖拽区</h3><p>拖拽判定只看方向和「是否最高档」，不看手指落在哪里、底下的列表还能不能滚。对一个内容会持续变长的对话来说，这条规则必然冲突。</p></div>
+      <div class="card"><h3>根因 3：键盘弹起后空间更小</h3><p>半屏高度按「键盘之上的可视高度」×56% 计算，键盘一弹，消息区只剩一两行。现在因为输入框不可见，这个问题被前两个盖住了。</p></div>
+      <div class="card"><h3>结论</h3><p>不需要推翻。修三处就能用：面板半屏时按可见高度布局、拖拽只认把手和标题栏、聚焦输入框自动升到全屏。也可以干脆不用抽屉，见方案 B。</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="scene" data-scene="a">
+  <p class="scene-intro"><b>方案 A：保留半屏抽屉，修好底座</b>。交互和现在一样（边看原文边问），只改三条规则：① 半屏时面板就是可见那么高，输入框始终在屏幕里；② 只有把手和标题栏（蓝色虚线）能拖动抽屉，消息区（绿色虚线）只负责滚动；③ 点输入框时抽屉自动升到全屏，键盘上方留出完整的消息区。改动在 <code>PanContainer</code> 加一个「仅把手拖拽」选项，其他 <code>SnapSheet</code> 不受影响。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="doc"><div class="dnav"><span data-i="chevron-left" data-s="22"></span><span class="sp"></span><span class="ai" data-i="sparkles" data-s="19"></span><span data-i="ellipsis" data-s="20"></span></div>
+          <div class="body"><h2>间隔重复为什么有效</h2><p>遗忘曲线告诉我们，<span class="sel">新学的内容在最初几天衰减最快</span>，之后逐渐变平。</p></div></div>
+        <div class="mask"></div>
+        <div class="sheet" style="top:300px">
+          <div class="drag-zone hl"><div class="handle"><i></i></div>
+          <div class="shead"><span class="ic-accent" data-i="sparkles" data-s="16"></span><span class="t">关于这张卡片</span><span class="ib" data-i="maximize-2" data-s="16"></span><span class="ib" data-i="x" data-s="18"></span></div></div>
+          <div class="sthread"><p style="color:var(--ink-3);font-size:13px;text-align:center;padding-top:30px">问问选中的这段，或用下面的快捷问法。</p></div>
+          <div class="cmp">
+            <div class="chips"><span>解释这段</span><span>总结这段</span><span>翻译成英文</span></div>
+            <div class="quote">新学的内容在最初几天衰减最快</div>
+            <div class="cbox"><span class="rb" data-i="plus" data-s="20"></span><div class="tx"><span class="ph">问问这段内容…</span></div><span class="rb fill" data-i="mic" data-s="18"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>打开：输入框直接可见<small>半屏高度约 60%，面板高度 = 可见高度，输入区贴着屏幕底。蓝色区域是唯一的拖拽区：上拉展开、下拉关闭。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="doc"><div class="dnav"><span data-i="chevron-left" data-s="22"></span><span class="sp"></span><span class="ai" data-i="sparkles" data-s="19"></span><span data-i="ellipsis" data-s="20"></span></div>
+          <div class="body"><h2>间隔重复为什么有效</h2><p>遗忘曲线告诉我们，新学的内容在最初几天衰减最快。</p></div></div>
+        <div class="mask"></div>
+        <div class="sheet" style="top:300px">
+          <div class="handle"><i></i></div>
+          <div class="shead"><span class="ic-accent" data-i="sparkles" data-s="16"></span><span class="t">关于这张卡片</span><span class="ib" data-i="maximize-2" data-s="16"></span><span class="ib" data-i="x" data-s="18"></span></div>
+          <div class="sthread hl">
+            <div class="fade-top"></div>
+            <div class="a" style="margin-top:0"><p>核心结论有三点：</p><p><b>1. 遗忘先快后慢。</b>学完一天内会忘掉一半以上。</p><p><b>2. 间隔逐步拉长。</b>1 天、3 天、7 天、15 天……每次复习都让下一次遗忘来得更晚。</p><p><b>3. 主动回忆更有效。</b>闭卷回想比重读一遍更能巩固。</p></div>
+          </div>
+          <div class="cmp"><div class="cbox"><span class="rb" data-i="plus" data-s="20"></span><div class="tx"><span class="ph">继续问…</span></div><span class="rb fill" data-i="mic" data-s="18"></span></div></div>
+        </div>
+        <span class="trail" style="left:178px;top:470px;height:110px"></span>
+        <span class="finger" style="left:162px;top:450px"></span>
+        <span class="tip ok" style="left:120px;top:414px">消息区：只滚动，不拖抽屉</span>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>在半屏里读长回答<small>手指落在消息区就是滚动，滚到顶也不会把抽屉拉下来（<code>overscroll-contain</code> 吃掉回弹）。想关掉就拉把手、点 ×、点遮罩或系统返回。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone kbd">
+        <div class="status" data-status></div>
+        <div class="sheet full" style="bottom:auto;height:calc(760px - 40px - 250px)">
+          <div class="drag-zone hl"><div class="handle"><i></i></div>
+          <div class="shead"><span class="ic-accent" data-i="sparkles" data-s="16"></span><span class="t">关于这张卡片</span><span class="ib" data-i="minimize-2" data-s="16"></span><span class="ib" data-i="x" data-s="18"></span></div></div>
+          <div class="sthread">
+            <div class="u">总结这篇</div>
+            <div class="a"><p>核心结论有三点：遗忘先快后慢、间隔逐步拉长、主动回忆比重读更有效。</p></div>
+            <div class="u" style="margin-top:16px">那我该怎么安排第一周？</div>
+          </div>
+          <div class="cmp" style="padding-bottom:8px"><div class="cbox"><span class="rb" data-i="plus" data-s="20"></span><div class="tx">那我该怎么安排第一周？</div><span class="rb send" data-i="arrow-up" data-s="18"></span></div></div>
+        </div>
+        <div class="kb" data-kb style="position:absolute;left:0;right:0;bottom:0"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>点输入框：自动升到全屏<small>半屏 + 键盘只剩两行消息，所以聚焦即升全屏，键盘收起后保持全屏。全屏时顶部的「展开」换成「收起」，回到半屏继续看原文。</small></div>
+    </div>
+
+    <div class="cards" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">
+      <div class="card"><h3>改动点</h3><ul>
+        <li><code>PanContainer</code>：半屏时面板 <code>height</code> 取可见高度（而不是整屏 + 平移），全屏才铺满；动画仍走 transform。</li>
+        <li><code>PanContainer</code> 新增 <code>dragHandleOnly</code>：只有标了 <code>data-pan-handle</code> 的区域能拖，对话抽屉开启，其他抽屉保持现状。</li>
+        <li><code>ContextChatSheet</code>：输入框 focus 时 <code>setState("full")</code>；全屏时按钮换成收起。</li>
+      </ul></div>
+      <div class="card"><h3>保留不变</h3><ul>
+        <li>半屏默认、续上同一篇最近一次对话、首条消息才建会话。</li>
+        <li>「展开」推入全屏对话页，会话不变。</li>
+        <li>快捷问法、选中原文作为引用。</li>
+      </ul></div>
+      <div class="card"><h3>风险</h3><p>改的是共享底座，需要回归设置页、日历、协作里所有 <code>SnapSheet</code>；高度改法会影响 <code>--pan-occluded-bottom</code> 补白，<code>SnapSheet.Scroll</code> 在半屏时不再需要它。</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="scene" data-scene="b">
+  <p class="scene-intro"><b>方案 B：不要抽屉，点「问 AI」直接推入全屏对话页</b>。复用已经调好的 <code>ChatPage</code>（滚动、键盘、按住说话都已验证），顶部加一条可收起的「原文条」代替看原文的需求。没有拖拽，就没有手势冲突；代价是对话时看不到原文全文，只能看引用和原文条。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="page-chat">
+          <div class="cnav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="mid"><b>问这张卡片</b><span class="model"><span class="dot"></span>DeepSeek V4.1 Flash<span data-i="chevron-down" data-s="11"></span></span></span><span class="ib" data-i="history" data-s="19" style="color:var(--ink-2)"></span></div>
+          <div class="ctx-bar"><span data-i="layers" data-s="15"></span><b>间隔重复为什么有效</b><span class="go">看原文<span data-i="chevron-down" data-s="12"></span></span></div>
+          <div class="thread">
+            <p style="color:var(--ink-3);font-size:13px;text-align:center;padding-top:60px">问问选中的这段，或用下面的快捷问法。</p>
+          </div>
+          <div class="cmp">
+            <div class="chips"><span>解释这段</span><span>总结这段</span><span>翻译成英文</span></div>
+            <div class="quote">新学的内容在最初几天衰减最快</div>
+            <div class="cbox"><span class="rb" data-i="plus" data-s="20"></span><div class="tx"><span class="ph">问问这段内容…</span></div><span class="rb fill" data-i="mic" data-s="18"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>打开：整页对话<small>从右侧推入，返回即回到内容页原位置。原文条只占一行，标明这是哪篇的对话。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="page-chat">
+          <div class="cnav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="mid"><b>问这张卡片</b><span class="model"><span class="dot"></span>DeepSeek V4.1 Flash<span data-i="chevron-down" data-s="11"></span></span></span><span class="ib" data-i="history" data-s="19" style="color:var(--ink-2)"></span></div>
+          <div class="ctx-bar" style="flex-direction:column;align-items:stretch;gap:6px"><div style="display:flex;gap:8px;align-items:center"><span data-i="layers" data-s="15"></span><b>间隔重复为什么有效</b><span class="go">收起<span data-i="chevron-up" data-s="12"></span></span></div>
+            <div style="font-size:13px;line-height:1.65;color:var(--ink-2);max-height:120px;overflow:hidden">遗忘曲线告诉我们，<span style="background:color-mix(in srgb,var(--brand) 22%,transparent);border-radius:3px">新学的内容在最初几天衰减最快</span>，之后逐渐变平。每次在快要忘掉时复习，记忆保持时间都会成倍延长。主动回忆（闭卷回想）比重读……</div></div>
+          <div class="thread">
+            <div class="u">解释这段</div>
+            <div class="a"><p>这句话说的是遗忘曲线的形状：刚学完时遗忘最快，一天内可能忘掉一半以上……</p></div>
+          </div>
+          <div class="cmp"><div class="cbox"><span class="rb" data-i="plus" data-s="20"></span><div class="tx"><span class="ph">继续问…</span></div><span class="rb fill" data-i="mic" data-s="18"></span></div></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>展开原文条<small>点「看原文」就地展开前几段（最多 120px，可滚动），选中的那句高亮；再点收起。不做跳转，避免丢掉对话。</small></div>
+    </div>
+
+    <div class="cards" style="flex:1;min-width:320px;margin-top:0;grid-template-columns:1fr">
+      <div class="card"><h3>改动点</h3><ul>
+        <li>内容页「问 AI」和选区「问 AI」改为 <code>navigator.push("aiChat", { contextContentId, quote })</code>。</li>
+        <li><code>ChatPage</code> 接收内容上下文：带入引用、快捷问法、续上这篇最近一次对话（逻辑从 <code>ContextChatSheet</code> 搬过来）。</li>
+        <li>新增原文条组件；删除 <code>ContextChatSheet</code>。</li>
+        <li>不碰 <code>PanContainer</code>，其他抽屉零风险。</li>
+      </ul></div>
+      <div class="card"><h3>取舍</h3><p>失去「上半屏看原文、下半屏聊」。但手机上半屏只能露出几行原文，而键盘一弹两边都不够用，实际上用户多半还是会展开到全屏。</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="scene" data-scene="cmp">
+  <div class="cards" style="grid-template-columns:1fr;max-width:980px">
+    <div class="card">
+      <h3>方案对比</h3>
+      <table class="cmp">
+        <tr><th></th><th>A 修好半屏抽屉</th><th>B 直接进全屏对话（推荐）</th></tr>
+        <tr><td>边看原文边问</td><td><b>能</b>，半屏时上方露出原文</td><td>只能看原文条（一行，可展开几段）</td></tr>
+        <tr><td>手势冲突</td><td>靠「仅把手拖拽」规避，仍有把手 / 消息区两种手势</td><td><b>没有</b>，只有页面滚动和返回</td></tr>
+        <tr><td>键盘弹起</td><td>自动升全屏，体验接近 B</td><td>复用 <code>ChatPage</code> 现有处理</td></tr>
+        <tr><td>改动范围</td><td>共享底座 <code>PanContainer</code> + 对话抽屉，需回归所有抽屉</td><td>入口改跳转 + <code>ChatPage</code> 接上下文 + 原文条，删掉 <code>ContextChatSheet</code></td></tr>
+        <tr><td>维护成本</td><td>两套对话外壳（抽屉 / 整页）</td><td><b>一套</b></td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>为什么推荐 B</h3>
+      <p>半屏对话在手机上的空间本来就不够：输入区约 130px、标题栏约 70px，56% 高度留给消息的只有 220px 左右；一旦打字，键盘再吃掉 300px，A 也只能升到全屏。也就是说 A 的「边看边问」只在不打字、只点快捷问法时成立。B 把这个场景交给原文条，换来零手势冲突和一套代码。</p>
+      <p>如果你经常「点一下快捷问法、看一眼答案、关掉」，A 更合适；它也顺带修好了底座，以后别的底栏抽屉不会再踩同样的坑。</p>
+    </div>
+    <div class="card">
+      <h3>需要你确认</h3>
+      <ol>
+        <li>选 <b>A 修好半屏抽屉</b> 还是 <b>B 直接进全屏对话</b>？</li>
+        <li>选 B 的话，原文条要不要做「展开前几段」？不做就只显示标题。</li>
+        <li>选 A 的话，聚焦输入框自动升到全屏，可以接受吗？</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<script src="../ai-mobile/ai.js"></script>
+</body>
+</html>
