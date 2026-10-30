@@ -1,8 +1,7 @@
 /**
  * M0 前提冒烟：pi harness 在 Electron 主进程（ELECTRON_RUN_AS_NODE）下的可用性验证。
  * 用法（在 apps/desktop 下）：ELECTRON_RUN_AS_NODE=1 npx electron scripts/pi-smoke.mjs
- * 安装包验证：设置 TAU_SMOKE_ASAR 为包内 app.asar 的绝对路径，并用包内 Electron 执行。
- * 必须用 electron 而非系统 node 运行——验证的就是 Electron 内置 Node 与打包产物。
+ * 必须用 electron 而非系统 node 运行——验证的就是 Electron 内置 Node。
  *
  * 覆盖项：
  *  1. Electron 内置 Node ≥ 22.19（pi 三包 engines 门槛）；
@@ -11,23 +10,15 @@
  *  4. 内建 write/read 工具对中文文件名与中文路径的读写；
  *  5. 全程不写 ~/.pi（agentDir 与 cwd 均指到临时目录）。
  */
-import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, existsSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
-import { pathToFileURL } from "node:url";
 
-const loadPackage = name => {
-  if (!process.env.TAU_SMOKE_ASAR) return import(name);
-  const directory = join(process.env.TAU_SMOKE_ASAR, "node_modules", name);
-  const manifest = JSON.parse(readFileSync(join(directory, "package.json"), "utf8"));
-  return import(pathToFileURL(join(directory, manifest.exports["."].import)).href);
-};
-console.log(`[依赖来源] ${process.env.TAU_SMOKE_ASAR ?? "开发目录"}`);
 const { createAgentSession, DefaultResourceLoader, SessionManager, ModelRuntime, SettingsManager } =
-  await loadPackage("@earendil-works/pi-coding-agent");
+  await import("@earendil-works/pi-coding-agent");
 const { createModels, fauxProvider, fauxAssistantMessage, fauxText, fauxThinking, fauxToolCall } =
-  await loadPackage("@earendil-works/pi-ai");
+  await import("@earendil-works/pi-ai");
 
 const failures = [];
 const check = (name, ok, detail = "") => {
