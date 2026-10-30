@@ -2,13 +2,15 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { assertBlogRuntimeInputs } from "../blog/runtime-boundary.mjs";
 
-test("博客正文允许资源协议、字数协议与浏览器依赖", () => {
+test("博客正文允许资源、字数、节点版本协议与浏览器依赖", () => {
   assert.doesNotThrow(() =>
     assertBlogRuntimeInputs([
       "packages/blog/src/index.ts",
       "packages/editor/src/core/CoreEditor.tsx",
       "packages/db-schema/content-resources.ts",
       "packages/db-schema/content-metrics.ts",
+      "packages/db-schema/data-versions.ts",
+      "packages/db-schema/content-contracts.ts",
       "node_modules/words-count/index.js",
     ])
   );
