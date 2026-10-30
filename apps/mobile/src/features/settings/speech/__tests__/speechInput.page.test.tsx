@@ -250,3 +250,23 @@ it("已配置的插件点选即切换；选用的插件停用后保留选择并�
   await waitFor(() => text().includes("识别插件已停用"));
   expect(setting.speechInput?.plugin.id).toBe("tau.asr-seed");
 });
+
+it("手机端系统识别不可选；存量选择为系统识别时提示改选插件", async () => {
+  setting = makeSetting({
+    active: "native",
+    language: "zh-CN",
+    plugin: { id: "", configurations: {} },
+  });
+  mount();
+  await open("settingsModule", { module: "speech-input" });
+  await waitFor(() => text().includes("豆包语音"));
+  expect(text()).toContain("手机端暂不支持系统识别");
+  expect(text()).toContain("手机端暂不支持");
+  // 系统识别行不可点：不是按钮，点击也不会切换
+  expect(button("系统识别")).toBeUndefined();
+  const nativeRow = [...activePage().querySelectorAll<HTMLElement>(".setting-row")].find(node =>
+    node.textContent?.includes("系统识别")
+  )!;
+  await click(nativeRow);
+  expect(tauriMock.selectPluginProvider).not.toHaveBeenCalled();
+});

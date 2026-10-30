@@ -169,7 +169,7 @@ export function useEditorDictation(options: EditorDictationOptions) {
       const notConfigured = /尚未配置/.test(message);
       toast({
         type: "error",
-        text: notConfigured ? "还没有选择语音识别服务" : message,
+        text: message,
         action:
           notConfigured && navigator
             ? {
@@ -254,10 +254,12 @@ export function useEditorDictation(options: EditorDictationOptions) {
     [pill, releaseCommit, session, showPill, showUndoToast]
   );
 
-  const configured = useMemo(() => {
+  /** 不能开始录音的原因，可用时为 null；移动端识别只走插件，系统识别尚未接入 */
+  const unavailableReason = useMemo(() => {
     const speech = setting?.speechInput ?? defaultSpeechInputSetting();
-    // 移动端识别只走插件，系统识别尚未接入
-    return speech.active === "plugin" && Boolean(speech.plugin.configurations[speech.plugin.id]);
+    if (speech.active === "native") return "手机端暂不支持系统识别，请选择识别插件";
+    if (!speech.plugin.configurations[speech.plugin.id]) return "识别插件账号尚未配置";
+    return null;
   }, [setting]);
 
   return {
@@ -267,7 +269,7 @@ export function useEditorDictation(options: EditorDictationOptions) {
     cancelArmed,
     setCancelArmed,
     polishEnabled: Boolean(options.refine),
-    configured,
+    unavailableReason,
     openSettings,
     begin,
     finish,
