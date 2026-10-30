@@ -1,6 +1,7 @@
 // 编辑页「⋯」菜单的「选择块」「整理结构」入口：卡片详情、文章编辑、项目文档三个 page 都提供，点击经 actionsRef 调用。
 import { act, useImperativeHandle, type ReactNode, type Ref } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const harness = vi.hoisted(() => ({
@@ -110,6 +111,7 @@ const cases = [
 describe("编辑页「⋯ → 选择块 / 整理结构」入口", () => {
   let host: HTMLDivElement;
   let root: Root;
+  let client: QueryClient;
 
   beforeEach(() => {
     harness.enterBlockSelection.mockClear();
@@ -117,17 +119,23 @@ describe("编辑页「⋯ → 选择块 / 整理结构」入口", () => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
+    client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   });
 
   afterEach(() => {
     act(() => root.unmount());
+    client.clear();
     document.body.innerHTML = "";
   });
 
   async function openMenu(page: (typeof cases)[number]["page"], menuLabel: string) {
     const Screen = page.component;
     await act(async () => {
-      root.render(<Screen />);
+      root.render(
+        <QueryClientProvider client={client}>
+          <Screen />
+        </QueryClientProvider>
+      );
     });
     await act(async () => {
       await Promise.resolve();
@@ -160,19 +168,8 @@ describe("编辑页「⋯ → 选择块 / 整理结构」入口", () => {
     "$name：菜单出现「选择块」，点击进入块选择",
     async ({ page, params, menuLabel }) => {
       harness.params = params;
-      const Screen = page.component;
-      await act(async () => {
-        root.render(<Screen />);
-      });
-      await act(async () => {
-        await Promise.resolve();
-      });
-      await act(async () => {
-        document.querySelector<HTMLButtonElement>(`button[aria-label="${menuLabel}"]`)?.click();
-      });
-      const item = Array.from(
-        document.querySelectorAll<HTMLButtonElement>('[data-testid="action-sheet"] button')
-      ).find(button => button.textContent === "选择块");
+      await openMenu(page, menuLabel);
+      const item = findItem("选择块");
       expect(item).toBeDefined();
       await act(async () => {
         item?.click();
