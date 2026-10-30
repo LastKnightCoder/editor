@@ -14,7 +14,6 @@ import { WebSocket } from "ws";
 import * as Y from "yjs";
 import { Awareness, encodeAwarenessUpdate, removeAwarenessStates } from "y-protocols/awareness";
 import { createHash, randomUUID } from "node:crypto";
-import { rmSync } from "node:fs";
 import { basename, join } from "node:path";
 import {
   DEFAULT_COLLABORATION_URL,
@@ -1480,10 +1479,7 @@ export class CollaborationManager {
     this.contentState?.db
       .prepare("DELETE FROM entity_holds WHERE holder=?")
       .run(`document:${session.info.id}`);
-    rmSync(join(this.directory, "assets", session.info.id), {
-      recursive: true,
-      force: true,
-    });
+    this.assets.removeDocumentCache(session.info.id);
     this.broadcast("collaboration:removed", { documentId: session.info.id });
     this.changed();
   }
@@ -1690,7 +1686,7 @@ export class CollaborationManager {
         this.contentState?.db
           .prepare("DELETE FROM entity_holds WHERE holder=?")
           .run(`document:${id}`);
-        rmSync(join(this.directory, "assets", id), { recursive: true, force: true });
+        this.assets.removeDocumentCache(id);
       } else {
         session.info.source = undefined;
         this.retainNodeState(session, session.doc);

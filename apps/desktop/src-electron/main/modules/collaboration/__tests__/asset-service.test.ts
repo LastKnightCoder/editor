@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, dirname, join, relative } from "node:path";
 import { tmpdir } from "node:os";
 import { ASSET_PREFIX, LOCAL_ASSET_PREFIX } from "@tau/collaboration";
 import { CollaborationLocalStore } from "../local-store";
 import { CollaborationAssetService } from "../asset-service";
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
+import { localSessionId } from "../session-identity";
 
 const SERVER = "https://collab.example";
 const DOCUMENT = "doc-1";
@@ -48,6 +49,66 @@ function setup() {
 }
 
 describe("发起共享时的资源处理", () => {
+  it("本机会话的图片与视频可在 Windows 缓存，清理只删除目标文档", async () => {
+    const { assets, root } = setup();
+    const documentId = localSessionId("data.db", 1, 123);
+    const otherId = localSessionId("data.db", 2, 123);
+    const bytes = new Uint8Array([0, 255, 128]);
+    const image = await assets.enqueue(documentId, { name: "图片.png", mime: "image/png", bytes });
+    const video = await assets.keepLocalFile(documentId, {
+      name: "视频.mp4",
+      mime: "video/mp4",
+      bytes,
+    });
+    const other = await assets.keepLocalFile(otherId, {
+      name: "另一张.png",
+      mime: "image/png",
+      bytes,
+    });
+    const imagePath = assets.resolveLocalFile(image, documentId)!;
+    const videoPath = assets.resolveLocalFile(video, documentId)!;
+    const otherPath = assets.resolveLocalFile(other, otherId)!;
+    expect(relative(join(root, ".editor", "collaboration", "assets"), imagePath)).not.toMatch(
+      /[<>:"|?*]/
+    );
+    expect(dirname(imagePath)).toBe(dirname(videoPath));
+    expect(readFileSync(imagePath)).toEqual(Buffer.from(bytes));
+    expect(readFileSync(videoPath)).toEqual(Buffer.from(bytes));
+    expect(assets.hasPending(documentId)).toBe(true);
+    expect(assets.resolveLocalFile(image, otherId)).toBeNull();
+    assets.removeDocumentCache(documentId);
+    expect(existsSync(dirname(imagePath))).toBe(false);
+    expect(readFileSync(otherPath)).toEqual(Buffer.from(bytes));
+    expect(basename(dirname(otherPath))).not.toContain(":");
+  });
+
+  it("资源下载使用相同的安全目录，已有共享文档目录名保持不变", async () => {
+    const { assets } = setup();
+    const bytes = new Uint8Array([0, 255, 128]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(bytes, {
+            headers: { "content-type": "image/png" },
+          })
+      )
+    );
+    for (const documentId of [
+      localSessionId("data.db", 3, 123),
+      "11111111-1111-4111-8111-111111111111",
+    ]) {
+      const assetId = crypto.randomUUID();
+      const path = await assets.resolve(SERVER, documentId, assetId);
+      expect(basename(dirname(path))).toBe(encodeURIComponent(documentId));
+      expect(readFileSync(path)).toEqual(Buffer.from(bytes));
+      expect(await assets.resolve(SERVER, documentId, assetId)).toBe(path);
+      assets.removeDocumentCache(documentId);
+      expect(existsSync(path)).toBe(false);
+    }
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
   it("内嵌资源在本机转换为可保全文件，上传使用同一资源路径", async () => {
     const { assets } = setup();
     const uri = "data:image/png;base64," + Buffer.from("image-data").toString("base64");
