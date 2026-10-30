@@ -796,6 +796,25 @@ export function mutateAiSettings(mutation: import("../types").AiSettingsMutation
   return trackedInvoke<import("../types").AiSettingsSnapshot>("ai_settings_mutate", { mutation });
 }
 
+export interface AiSqlQueryInput {
+  sql: string;
+  params?: Record<string, string | number | boolean | null> | (string | number | boolean | null)[];
+  maxRows?: number;
+  timeoutMs?: number;
+}
+
+/** 只读 SQL（AI 工具 sql_query）；错误串为 `CODE: message|hint` */
+export function aiSqlQuery(database: string, input: AiSqlQueryInput) {
+  return trackedInvoke<{
+    columns: { name: string; declaredType?: string }[];
+    rows: Record<string, unknown>[];
+    rowCount: number;
+    returnedRowCount: number;
+    truncated: boolean;
+    durationMs: number;
+  }>("ai_sql_query", { database, input });
+}
+
 export function syncCheckVersions(provider?: string) {
   return withTimeout(
     trackedInvoke<SyncVersionResponse>("sync_check_versions", provider ? { provider } : undefined),

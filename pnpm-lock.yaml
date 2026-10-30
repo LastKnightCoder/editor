@@ -970,6 +970,9 @@ importers:
       '@tau/asr':
         specifier: workspace:*
         version: link:../../packages/asr
+      '@tau/chat-ui':
+        specifier: workspace:*
+        version: link:../../packages/chat-ui
       '@tau/collaboration':
         specifier: workspace:*
         version: link:../../packages/collaboration

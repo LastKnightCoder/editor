@@ -12,6 +12,8 @@
     "./runtime": "./src/runtime/index.ts",
     "./tools": "./src/tools/index.ts",
     "./skills": "./src/skills/index.ts",
+    "./skills/internal": "./src/skills/internal/index.ts",
+    "./skills/internal/*.md": "./src/skills/internal/*.md",
     "./mcp": "./src/mcp/index.ts",
     "./tool-identity": "./src/tool-identity.ts",
     "./think-stream": "./src/think-stream.ts"

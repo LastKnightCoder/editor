@@ -52,6 +52,7 @@ mod query;
 mod reconcile;
 mod schema;
 mod search;
+mod sql_query;
 mod todo;
 mod todo_calendar_sync;
 
@@ -69,6 +70,7 @@ pub use pomodoro::*;
 pub use project::*;
 pub use schema::ensure_database_file;
 pub(crate) use schema::install_download;
+pub use sql_query::*;
 pub use todo::*;
 
 #[derive(Debug, Deserialize)]

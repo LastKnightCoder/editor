@@ -92,8 +92,11 @@ function Section({
 
 export const ToolCallRow = memo(function ToolCallRow({
   execution,
+  title,
 }: {
   execution: ToolCallExecutionState;
+  /** 宿主给工具的可读叫法（如「新建待办」）；缺省显示工具名 */
+  title?: ReactNode;
 }) {
   const [expanded, setExpanded] = useState(
     execution.status === "failed" || execution.status === "retrying"
@@ -104,7 +107,7 @@ export const ToolCallRow = memo(function ToolCallRow({
     <div className="min-w-0">
       <FoldRow
         icon={statusIcon(execution)}
-        title={<span className="font-tau-mono text-[12px]">{execution.toolName}</span>}
+        title={title ?? <span className="font-tau-mono text-[12px]">{execution.toolName}</span>}
         meta={<span className="tabular-nums">{toolStatusText(execution)}</span>}
         tone={failed ? "danger" : "default"}
         expanded={expanded}

@@ -13,7 +13,7 @@
 1. 主库改 `packages/db-schema/schema/main/*.sql`，索引库改 `schema/index/*.sql`。
 2. 新增分片时，在 `scripts/db/build-schema-bundles.mjs` 的对应分片清单登记。
 3. 检查并更新 `scripts/db/check-schema-parity.mjs` 的表/索引数量及相关断言；数量不变时保留原常量。
-4. 表字段变化同步 `apps/desktop/src/constants/internal-skills/database-schema.md`，包括全字段及建表顺序。
+4. 表字段变化同步 `packages/ai/src/skills/internal/database-schema.md`，包括全字段及建表顺序。
 5. 必需的初始记录放共享 SQL 或现有初始化函数，不借历史升级函数写入。
 
 ## 3. 同步读写消费者

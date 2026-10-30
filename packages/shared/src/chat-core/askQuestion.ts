@@ -2,6 +2,57 @@
 
 export const ASK_QUESTION_TOOL_NAME = "ask-question" as const;
 
+export const ASK_QUESTION_DESCRIPTION =
+  "当需要进一步澄清用户意图时，向用户发起结构化问题。支持单选、多选和一次提出多个问题。";
+
+/** ask-question 的模型入参 schema：桌面 pi 会话与移动运行时共用 */
+export const ASK_QUESTION_PARAMETERS = {
+  type: "object",
+  properties: {
+    title: { type: "string", description: "问题分组标题，可选。" },
+    description: { type: "string", description: "对问题分组的补充说明，可选。" },
+    submitLabel: { type: "string", description: "提交按钮文案，可选。" },
+    questions: {
+      type: "array",
+      description: "问题列表，至少一个。",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "问题唯一标识，可选，不传会自动生成。" },
+          question: { type: "string", description: "问题文本。" },
+          type: {
+            type: "string",
+            enum: ["single", "multiple"],
+            description: "题型：single 单选，multiple 多选。",
+          },
+          required: { type: "boolean", description: "是否必答，默认 true。" },
+          options: {
+            type: "array",
+            description: "选项列表。每项可为字符串，或 {label,value,description} 对象。",
+            // pi 执行前按 schema 校验参数：必须与描述一致地接受字符串选项
+            items: {
+              anyOf: [
+                { type: "string" },
+                {
+                  type: "object",
+                  properties: {
+                    label: { type: "string" },
+                    value: { type: "string" },
+                    description: { type: "string" },
+                  },
+                },
+              ],
+            },
+          },
+        },
+        required: ["question", "type", "options"],
+      },
+    },
+  },
+  required: ["questions"],
+  additionalProperties: false,
+};
+
 export type AskQuestionType = "single" | "multiple";
 
 export interface AskQuestionOption {

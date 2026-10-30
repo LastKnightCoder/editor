@@ -22,6 +22,8 @@ export type DictationOverlayProps = {
   polishEnabled?: boolean;
   /** 阅读态追加到文末：提示文案改为「松手追加到文末」 */
   appendToEnd?: boolean;
+  /** 松手后的动作说明，覆盖插入 / 追加的缺省文案（如对话里「松手发送」） */
+  releaseHint?: string;
   /** 一段时间没识别出字时的提示 */
   quiet?: boolean;
   /** ✕ 按钮节点：手势层据此计算命中区 */
@@ -54,6 +56,7 @@ export function DictationOverlay(props: DictationOverlayProps) {
     cancelArmed,
     polishEnabled = false,
     appendToEnd = false,
+    releaseHint,
     quiet = false,
     cancelTargetRef,
     portalContainer,
@@ -65,7 +68,7 @@ export function DictationOverlay(props: DictationOverlayProps) {
     ? "松手取消"
     : quiet
       ? "没听清，靠近一点"
-      : `${polishEnabled ? "松手后 AI 润色" : appendToEnd ? "松手追加到文末" : "松手插入"} · 上滑取消`;
+      : `${releaseHint ?? (polishEnabled ? "松手后 AI 润色" : appendToEnd ? "松手追加到文末" : "松手插入")} · 上滑取消`;
 
   const node = (
     <div
