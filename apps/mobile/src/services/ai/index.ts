@@ -39,6 +39,9 @@ export const getMobileAiService = () => {
       permissionMode: () => "manual",
       approve: waitForHost,
       question: waitForHost,
+      // 引用（mentions）只来自对话输入；展开成正文前缀，无引用时与缺省处理一致
+      prepareInput: async content =>
+        (await import("../aiChat/mentions")).prepareMobileInput(content),
       // 只有对话页（宿主交互）带系统提示；插件调用不受影响
       preparePrompt: async request =>
         request.interactionMode === "host"

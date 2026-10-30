@@ -1,76 +1,25 @@
 // 对话页：二级页面（隐藏 Dock）。新对话首条消息发出时才建会话；副标题是当前模型，点按只为本会话切换。
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown, CircleAlert, History, SquarePen } from "lucide-react";
 import { PortalScope } from "@tau/ui";
-import type { LLMUsageConfigV2 } from "@tau/ai/models";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
-import { useAppContext } from "../../app/AppContext";
 import { useNavigator } from "../../router";
-import { findAssignedModel, modelLabel } from "../../services/ai-settings";
-import {
-  createChat,
-  openChat,
-  sendMessage,
-  setChatModel,
-  stopRun,
-  useChatStore,
-} from "../../services/aiChat/chatController";
+import { modelLabel } from "../../services/ai-settings";
+import { stopRun } from "../../services/aiChat/chatController";
 import { ModelPickerSheet } from "../settings/ai/AiUi";
 import { ChatComposer } from "./ChatComposer";
 import { ChatEmpty, ChatSetup } from "./ChatEmpty";
 import { ChatMessages } from "./ChatMessages";
 import { describeChatError } from "./chatErrors";
-import { ensureChatInteractions } from "./interactions";
+import { useChatSession } from "./useChatSession";
 
 export function ChatPage(props: { sessionId: string; isNew: boolean; prompt?: string }) {
   const navigator = useNavigator();
-  const setting = useAppContext().syncSettings.safeSetting;
-  const databaseName = setting?.database?.active ?? "";
-  const providers = setting?.llmProviders ?? [];
-  const assigned = findAssignedModel(setting, "chat");
-  const defaultModel = useMemo(
-    () => (assigned ? { providerId: assigned.provider.id, modelId: assigned.model.id } : null),
-    [assigned]
+  const { chat, providers, model, modelInfo, running, loadError, send, pickModel } = useChatSession(
+    { sessionId: props.sessionId, isNew: props.isNew }
   );
-  const chat = useChatStore(state => state.chats[props.sessionId]);
-  const [loadError, setLoadError] = useState("");
   const [picking, setPicking] = useState(false);
-  const [created, setCreated] = useState(!props.isNew);
-  // 会话建好前临时选的模型；建好后以会话状态里的为准
-  const [override, setOverride] = useState<LLMUsageConfigV2 | null>(null);
-  const model = chat?.model ?? override ?? defaultModel;
-  const modelInfo = useMemo(() => {
-    const provider = providers.find(item => item.id === model?.providerId);
-    return provider?.models.find(item => item.id === model?.modelId);
-  }, [providers, model]);
-  const running = !!chat?.runId;
-
-  useEffect(() => {
-    ensureChatInteractions();
-  }, []);
-  useEffect(() => {
-    if (props.isNew || !databaseName) return;
-    openChat(databaseName, props.sessionId, defaultModel).catch(error =>
-      setLoadError(error instanceof Error ? error.message : "对话读取失败")
-    );
-    // 只在进入页面时读取一次
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.sessionId, databaseName]);
-
-  const send = async (text: string) => {
-    if (!model || !databaseName) return;
-    if (!created) {
-      try {
-        await createChat(databaseName, props.sessionId, model);
-        setCreated(true);
-      } catch (error) {
-        setLoadError(error instanceof Error ? error.message : "对话创建失败");
-        return;
-      }
-    }
-    await sendMessage(props.sessionId, text);
-  };
 
   // 从首页问答条带着问题进来：自动发出
   const [promptSent, setPromptSent] = useState(false);
@@ -84,13 +33,6 @@ export function ChatPage(props: { sessionId: string; isNew: boolean; prompt?: st
 
   const openSettings = () => navigator.push("settingsModule", { module: "ai-models" });
   const error = chat?.error ? describeChatError(chat.error) : null;
-  const pickModel = (next: LLMUsageConfigV2 | null) => {
-    if (!next) return;
-    if (chat) setChatModel(props.sessionId, next);
-    else setOverride(next);
-    setPicking(false);
-  };
-
   return (
     <PortalScope>
       <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
@@ -177,7 +119,8 @@ export function ChatPage(props: { sessionId: string; isNew: boolean; prompt?: st
             <ChatComposer
               running={running}
               disabled={!!loadError}
-              onSend={text => void send(text)}
+              imageInput={!!modelInfo?.input.includes("image")}
+              onSend={input => void send(input)}
               onStop={() => void stopRun(props.sessionId)}
             />
           </>
@@ -189,7 +132,10 @@ export function ChatPage(props: { sessionId: string; isNew: boolean; prompt?: st
           providers={providers}
           value={model}
           clearable={false}
-          onSelect={pickModel}
+          onSelect={next => {
+            pickModel(next);
+            setPicking(false);
+          }}
           onOpenProvider={providerId => {
             setPicking(false);
             navigator.push("aiProvider", { providerId });

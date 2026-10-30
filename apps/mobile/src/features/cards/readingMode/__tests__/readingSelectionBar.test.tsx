@@ -70,6 +70,7 @@ describe("ReadingSelectionBar", () => {
       readingMode?: ReadingModeState;
       range?: Range | null;
       wrap?: (node: ReactNode) => ReactNode;
+      onAsk?: (quote: string) => void;
     } = {}
   ) {
     const editor = createDocEditor();
@@ -93,6 +94,7 @@ describe("ReadingSelectionBar", () => {
           readingMode={readingMode}
           range={range}
           onClear={onClear}
+          onAsk={options.onAsk}
           portalContainer={host}
         />
       );
@@ -122,6 +124,19 @@ describe("ReadingSelectionBar", () => {
     const event = new MouseEvent("pointerdown", { bubbles: true, cancelable: true });
     button("高亮").dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("就近提问：传入 onAsk 时最前面多出「问 AI」，交出选中原文并清空选区", () => {
+    const onAsk = vi.fn();
+    const { onClear, readingMode } = setup({
+      onAsk,
+      range: { anchor: { path: [0, 0], offset: 1 }, focus: { path: [0, 0], offset: 4 } },
+    });
+    expect(host.querySelector("button")?.textContent).toBe("问 AI");
+    act(() => button("问 AI").click());
+    expect(onAsk).toHaveBeenCalledWith("ell");
+    expect(onClear).toHaveBeenCalled();
+    expect(readingMode.enterEditingWithSelection).not.toHaveBeenCalled();
   });
 
   it("无选区、不可编辑或编辑中不显示", () => {

@@ -155,6 +155,7 @@ function ProjectDocEditorScreen() {
         refreshKey={refreshRev}
         actionsRef={detailActionsRef}
         contextEntity={{ kind: "project-item", id: params.itemId }}
+        aiContext={{ entityType: "project-item", entityId: params.itemId, title: item.title }}
         collaboration={collab.collaboration}
         onCollaborationEnded={() => {
           collab.onCollaborationEnded();

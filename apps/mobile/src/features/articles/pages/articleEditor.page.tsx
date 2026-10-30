@@ -104,6 +104,7 @@ function ArticleEditorScreen() {
         refreshKey={refreshRev}
         actionsRef={detailActionsRef}
         contextEntity={{ kind: "article", id: article.id }}
+        aiContext={{ entityType: "article", entityId: article.id, title: article.title }}
         collaboration={collab.collaboration}
         onCollaborationEnded={() => {
           collab.onCollaborationEnded();

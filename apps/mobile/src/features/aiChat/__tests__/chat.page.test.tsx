@@ -342,9 +342,11 @@ it("对话记录：按时间分组，点按打开会话", async () => {
   service.sessions.list.mockResolvedValue({
     items: [
       row("a", "复习计划"),
+      { ...row("c", "关于「间隔重复」"), scope: "content-chat", domainRef: "content:12" },
+      { ...row("d", "插件里的会话"), scope: "plugin:x" },
       { ...row("b", "旧对话"), updateTime: Date.now() - 30 * 86_400_000 },
     ],
-    nextOffset: 2,
+    nextOffset: 4,
     hasMore: false,
   });
   service.sessions.get.mockResolvedValue(session("a", [], "复习计划"));
@@ -353,9 +355,7 @@ it("对话记录：按时间分组，点按打开会话", async () => {
   await waitFor(() => text().includes("复习计划"));
   expect(text()).toContain("今天");
   expect(text()).toContain("更早");
-  expect(service.sessions.list).toHaveBeenCalledWith("data.db", {
-    scope: "main-chat",
-    offset: 0,
-    limit: 30,
-  });
+  expect(service.sessions.list).toHaveBeenCalledWith("data.db", { offset: 0, limit: 30 });
+  expect(text()).toContain("来自笔记");
+  expect(text()).not.toContain("插件里的会话");
 });

@@ -5,7 +5,7 @@
  */
 export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 export type ChatSessionSource = "desktop" | "mobile" | "browser";
-export type MentionEntityType = "card" | "article" | "project-item";
+export type MentionEntityType = "card" | "article" | "project-item" | "diary";
 
 export interface MentionRef {
   entityType: MentionEntityType;
@@ -13,6 +13,8 @@ export interface MentionRef {
   contentId: number;
   title: string;
   previewText: string;
+  /** previewText 是用户在正文里选中的原文（就近提问），而非整篇的摘要 */
+  quote?: boolean;
 }
 
 export enum Role {
