@@ -23,6 +23,7 @@ import {
   IconMessageSquare,
   IconMic,
   IconMoon,
+  IconSparkles,
   IconType,
   IconUsers,
 } from "./ui";
@@ -44,6 +45,7 @@ import {
 import { normalizeReadingFontId, readingFontOption } from "../readingFont/fonts";
 import { useInstalledReadingFonts } from "../readingFont/queries";
 import type { SettingModule } from "./types";
+import { findAssignedModel, modelLabel } from "../../../services/ai-settings";
 
 export const APPEARANCE_LABELS = { light: "浅色", dark: "深色", system: "跟随系统" } as const;
 
@@ -153,6 +155,13 @@ export function OverviewSection(props: OverviewSectionProps) {
       </div>
 
       <div className="space-y-3 px-1">
+        <h2 className="text-ink-1 text-[16.5px] font-extrabold">AI</h2>
+      </div>
+      <div className="list-group">
+        <AiModelsItem onOpen={() => props.onOpenModule("ai-models")} />
+      </div>
+
+      <div className="space-y-3 px-1">
         <h2 className="text-ink-1 text-[16.5px] font-extrabold">语音</h2>
       </div>
       <div className="list-group">
@@ -209,6 +218,14 @@ export function OverviewSection(props: OverviewSectionProps) {
       </div>
     </div>
   );
+}
+
+/** 「AI 模型」：行尾显示对话所用模型，未分配时提示去设置 */
+function AiModelsItem(props: { onOpen: () => void }) {
+  const setting = useAppContext().syncSettings.safeSetting;
+  const chat = findAssignedModel(setting, "chat");
+  const value = chat ? modelLabel(chat.model) : setting?.llmProviders?.length ? "未分配" : "未设置";
+  return <ListItem icon={<IconSparkles />} label="AI 模型" value={value} onClick={props.onOpen} />;
 }
 
 /** 「正文字体」：行尾显示所选字体；所选字体未下载（被清理）时提示需重新下载 */

@@ -287,6 +287,13 @@
         "apps/desktop/mockups/expense"
       ],
       "port": 8840
+    },
+    {
+      "name": "mobile-ai-mock",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8841", "--bind", "127.0.0.1", "-d", "."],
+      "port": 8841,
+      "url": "http://localhost:8841"
     }
   ]
 }

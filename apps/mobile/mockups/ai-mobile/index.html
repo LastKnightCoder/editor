@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端 AI 能力接入 · 设计方案</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="../sync-mobile/sync.css" />
+<link rel="stylesheet" href="ai-base.css" />
+<link rel="stylesheet" href="chat.css" />
+<script src="icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>移动端 AI 能力接入 · 设计方案<small>颜色取自 @tau/themes · 手机帧 360×760 · 模型、对话与笔记内容均为示意</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="principle">0 信息架构与原则</button>
+    <button class="tab" data-tab="models">1 AI 模型设置</button>
+    <button class="tab" data-tab="entry">2 聊天入口<span class="rec">4 选</span></button>
+    <button class="tab" data-tab="chat">3 对话页</button>
+    <button class="tab" data-tab="gesture">4 移动端交互</button>
+    <button class="tab" data-tab="voice">5 语音输入整理</button>
+    <button class="tab" data-tab="states">6 状态与异常</button>
+    <button class="tab" data-tab="cmp">7 对比与待确认</button>
+  </nav>
+</header>
+
+<!-- ═══════════ 0 原则 ═══════════ -->
+<section class="scene" data-scene="principle">
+  <p class="scene-intro">移动端已有 <code>MobileAiService</code>（会话持久化、工具、MCP、原生网络桥）和语音输入的 <code>refine</code> 钩子，但<b>没有任何产品入口</b>，模型配置也只能读取。本方案分三层：<b>一处配置服务商 → 按功能分配模型 → 各功能就近消费</b>。配置结构直接沿用桌面端的 <code>llmProviders</code> + <code>llmUsageSettings</code>，功能键名与桌面一致（<code>chat</code>、<code>speechInputRefinement</code>），以后接入闪卡生成、标题总结时只是多一行分配，不用再改设置页结构。</p>
+  <div class="cards">
+    <div class="card">
+      <h3>三层结构</h3>
+      <div class="layer host"><h4>① 服务商（我的 › AI 模型）</h4>DeepSeek / 通义 / OpenRouter / 自定义 OpenAI 兼容……每个服务商填一次 API Key 和地址，勾选要用的模型。</div>
+      <div class="layer prov"><h4>② 功能分配</h4>「对话」→ DeepSeek V3；「语音输入整理」→ Qwen Turbo。一个功能一个模型，未分配的功能入口显示引导，不偷偷回落。</div>
+      <div class="layer store"><h4>③ 功能消费</h4>对话页、语音整理胶囊、以后的闪卡生成……只认分配结果，不关心服务商细节。</div>
+    </div>
+    <div class="card">
+      <h3>移动端设计原则</h3>
+      <ul>
+        <li><b>拇指区优先</b>：主动作（发送、按住说话、停止）都在屏幕下 1/3，顶部只放返回与历史。</li>
+        <li><b>就近提问</b>：在卡片、日记里选中文字就能问，问题自动带上引用，不用复制粘贴。</li>
+        <li><b>语音是一等输入</b>：对话里按住说话直接发送，复用现有按住说话手势（上滑取消）。</li>
+        <li><b>结果能落地</b>：每条回答都能一键「存为卡片 / 追加到日记」，AI 写入笔记前必须确认。</li>
+        <li><b>可中断</b>：切后台、断网、来电时生成暂停并提示，回来能继续，不丢已生成内容。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>本稿覆盖范围</h3>
+      <p><span class="tag">设置</span> 服务商列表、添加服务商、服务商详情、功能分配选择器。</p>
+      <p><span class="tag">对话</span> 4 种入口方案对比、全屏对话页、半屏对话、会话记录、写入确认。</p>
+      <p><span class="tag">交互</span> 按住说话、长按消息、选中文字提问、@ 引用笔记、半屏/全屏切换。</p>
+      <p><span class="tag">语音</span> 语音输入整理的开关、模型、整理风格与效果预览。</p>
+      <p class="muted">不覆盖：MCP 与技能管理、多模态生成、用量统计（建议后续单独出稿）。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 1 模型设置 ═══════════ -->
+<section class="scene" data-scene="models">
+  <p class="scene-intro">入口放在「<b>我的 › AI 模型</b>」，与「语音输入」「朗读」同组。主页把<b>功能分配放在最上面</b>：用户来这里多半是想知道「对话用的是哪个模型」，服务商只是背后的账号。添加服务商走预设模板（填一个 Key 就能用），自定义 OpenAI 兼容地址作为兜底。API Key 只存本机，不进同步（与桌面一致，原生层读取后从不回传给页面）。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">AI 模型</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="gl">功能分配</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-acc" data-i="messages-square" data-s="17"></span><span class="mid"><b>对话</b><span>聊天、提问笔记、整理内容</span></span><span class="val">DeepSeek V3</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row"><span class="tile t-sage" data-i="audio-lines" data-s="17"></span><span class="mid"><b>语音输入整理</b><span>识别后补标点、去口头禅</span></span><span class="val">Qwen Turbo</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row"><span class="tile t-mute" data-i="layers" data-s="17"></span><span class="mid"><b>闪卡生成</b><span>即将支持</span></span><span class="val" style="opacity:.6">未分配</span></div>
+          </div>
+          <div class="gn">每个功能单独选模型：对话用强模型，语音整理用便宜快的。</div>
+          <div class="gl">服务商<a>添加</a></div>
+          <div class="grp">
+            <div class="row"><span class="tile t-sky">D</span><span class="mid"><b>DeepSeek<span class="pill-tag ok">可用</span></b><span>2 个模型 · sk-…a91f</span></span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row"><span class="tile t-lilac">通</span><span class="mid"><b>通义千问<span class="pill-tag ok">可用</span></b><span>3 个模型 · sk-…7c20</span></span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row"><span class="tile t-butter">O</span><span class="mid"><b>OpenRouter<span class="pill-tag warn">未填 Key</span></b><span>1 个模型 · 填写 Key 后可用</span></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gn">API Key 只保存在这台手机上，不随数据库同步。</div>
+          <div class="gl">高级</div>
+          <div class="grp">
+            <div class="row noicon"><span class="mid"><b>远程 MCP 服务器</b></span><span class="val">1 个</span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>AI 模型主页：分配在上，服务商在下<small>功能行右侧直接显示当前模型；服务商行显示可用状态与 Key 尾号。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">AI 模型</span><span class="ib"></span></div>
+        <div class="scr" style="opacity:.5">
+          <div class="gl">功能分配</div><div class="grp"><div class="row"><span class="tile t-acc" data-i="messages-square" data-s="17"></span><span class="mid"><b>对话</b><span>聊天</span></span></div></div>
+        </div>
+        <div class="mask"></div>
+        <div class="sheet" style="padding-bottom:20px">
+          <div class="grab"></div>
+          <div class="sh-t"><span>添加服务商</span><span class="x-btn" data-i="x" data-s="16"></span></div>
+          <div class="sh-d">选一个预设，只需要填 API Key；地址和模型清单自动带好。</div>
+          <div class="svc"><span class="tile t-sky">D</span><span class="mid"><b>DeepSeek</b><span>deepseek-chat · deepseek-reasoner</span></span><span class="chev" data-i="chevron-right" style="color:var(--ink-3)"></span></div>
+          <div class="svc"><span class="tile t-lilac">通</span><span class="mid"><b>通义千问 · 阿里云百炼</b><span>qwen-max · qwen-plus · qwen-turbo</span></span><span class="chev" data-i="chevron-right" style="color:var(--ink-3)"></span></div>
+          <div class="svc"><span class="tile t-rose">K</span><span class="mid"><b>Kimi · 月之暗面</b><span>kimi-k2 · moonshot-v1</span></span><span class="chev" data-i="chevron-right" style="color:var(--ink-3)"></span></div>
+          <div class="svc"><span class="tile t-butter">O</span><span class="mid"><b>OpenRouter</b><span>一个 Key 调用多家模型</span></span><span class="chev" data-i="chevron-right" style="color:var(--ink-3)"></span></div>
+          <div class="svc"><span class="tile t-sage">A</span><span class="mid"><b>Anthropic</b><span>Claude 系列</span></span><span class="chev" data-i="chevron-right" style="color:var(--ink-3)"></span></div>
+          <div class="svc" style="border-style:dashed;border-color:var(--line-1)"><span class="tile t-mute" data-i="server" data-s="17"></span><span class="mid"><b>自定义</b><span>OpenAI / Anthropic 兼容地址、本地网关</span></span><span class="chev" data-i="chevron-right" style="color:var(--ink-3)"></span></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>添加服务商：预设优先<small>预设对应 pi 内置目录，上下文窗口与价格自动带出；自定义才需要手填协议与容量。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">DeepSeek</span><span class="txt brand">完成</span></div>
+        <div class="scr">
+          <div class="gl">账号</div>
+          <div class="grp">
+            <div class="fld"><label>API Key</label><div class="in">sk-••••••••••••a91f<span class="chev" data-i="eye-off" data-s="16"></span></div></div>
+            <div class="fld"><label>接口地址</label><div class="in" style="color:var(--ink-2)">https://api.deepseek.com/v1</div></div>
+          </div>
+          <div class="btns" style="padding-top:10px"><span class="btn soft sm" data-i="zap" data-s="16">测试连接</span></div>
+          <div class="gn" style="display:flex;gap:5px;align-items:center;padding-top:8px;color:var(--sage)"><span data-i="circle-check" data-s="14"></span>连接成功 · 首字 0.6 秒</div>
+          <div class="gl">模型<a>添加模型</a></div>
+          <div class="grp">
+            <div class="row noicon"><span class="mid"><b>DeepSeek V3<span class="cap f">对话</span></b><span>deepseek-chat · 64K 上下文</span></span><span class="sw on"></span></div>
+            <div class="row noicon"><span class="mid"><b>DeepSeek R1<span class="cap r">推理</span></b><span>deepseek-reasoner · 64K 上下文</span></span><span class="sw on"></span></div>
+          </div>
+          <div class="gn">关闭的模型不会出现在功能分配和对话的模型切换里。</div>
+          <div class="grp" style="margin-top:22px"><div class="row action danger">删除服务商</div></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>服务商详情<small>Key 默认遮挡，测试连接用最短请求验证；模型行的「对话」小标签提示它正被哪个功能使用。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">AI 模型</span><span class="ib"></span></div>
+        <div class="scr" style="opacity:.5"><div class="gl">功能分配</div><div class="grp"><div class="row"><span class="tile t-acc" data-i="messages-square" data-s="17"></span><span class="mid"><b>对话</b><span>聊天</span></span></div></div></div>
+        <div class="mask"></div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="sh-t"><span>对话使用的模型</span><span class="x-btn" data-i="x" data-s="16"></span></div>
+          <div class="sh-d">对话中也可以临时切换，只影响当前会话。</div>
+          <div class="gl" style="padding-top:6px">DeepSeek</div>
+          <div class="grp">
+            <div class="mrow"><span class="mid"><b>DeepSeek V3</b><span>快 · 便宜 · 64K</span></span><span class="rb on" data-i="check" data-s="13"></span></div>
+            <div class="mrow"><span class="mid"><b>DeepSeek R1 <span class="cap r">推理</span></b><span>慢，适合复杂问题</span></span><span class="rb"></span></div>
+          </div>
+          <div class="gl">通义千问</div>
+          <div class="grp">
+            <div class="mrow"><span class="mid"><b>Qwen Max <span class="cap i">图片</span></b><span>支持拍照提问</span></span><span class="rb"></span></div>
+            <div class="mrow"><span class="mid"><b>Qwen Turbo</b><span>最快，适合语音整理</span></span><span class="rb"></span></div>
+          </div>
+          <div class="gl">OpenRouter</div>
+          <div class="grp">
+            <div class="mrow dis"><span class="mid"><b>Claude Sonnet</b><span>未填 API Key，去配置</span></span><span class="rb"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>功能模型选择器<small>按服务商分组，能力标签（推理 / 图片）帮助选择；不可用的模型置灰并说明原因。</small></div>
+    </div>
+  </div>
+  <details class="note" style="max-width:900px;margin-top:16px"><summary>实现备注</summary><ul>
+    <li>数据沿用 <code>setting.json</code> 的 <code>llmProviders</code> / <code>llmUsageSettings</code>，原生 <code>public_config</code> 已经剥离 apiKey，页面只看到 <code>configured</code>。</li>
+    <li>需要新增原生写入命令（保存服务商、保存分配），沿用 <code>enqueueProviderConfigWrite</code> 串行写入。</li>
+    <li>设置文件不参与同步，手机端服务商独立配置。</li>
+  </ul></details>
+</section>
+
+<!-- ═══════════ 2 入口 ═══════════ -->
+<section class="scene" data-scene="entry">
+  <p class="scene-intro">现有底部是「今天 / 卡片 / ＋ / 日记 / 我的」。聊天入口有四种放法，区别在于<b>AI 是一个「地方」还是一个「随手的动作」</b>。我推荐 <b>A + D 组合</b>：首页问答条承担「主动想问」，内容页的选中提问承担「看到就问」；不新增 Tab，不打乱现有导航。B、C 作为备选列出。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="scr" style="padding-bottom:0">
+          <div class="home-h"><div class="d">10 月 30 日 周五</div><h2>今天<span class="sp"></span><span class="ib3" data-i="search" data-s="18"></span></h2></div>
+          <div class="askbar"><span class="spk" data-i="sparkles" data-s="18"></span><span class="sp">问问你的笔记…</span><span class="m" data-i="mic" data-s="18"></span></div>
+          <div class="suggest"><span data-i="calendar-days" data-s="13">总结这周日记</span><span data-i="list-checks" data-s="13">今天该做什么</span><span data-i="history" data-s="13">继续上次</span></div>
+          <div class="sk-sec">接下来</div>
+          <div class="sk-row"><i></i>评审同步冲突方案<s>10:30</s></div>
+          <div class="sk-row"><i></i>整理语音输入反馈<s>14:00</s></div>
+          <div class="sk-row"><i></i>跑步 5 公里<s>19:00</s></div>
+          <div class="sk-sec">最近动态</div>
+          <div class="sk-row" style="height:62px">间隔重复为什么有效<s>3 天前</s></div>
+          <span class="ring good" style="left:10px;right:10px;top:84px;height:94px"></span>
+          <span class="anno good" style="right:14px;top:180px">点条进入对话；按住麦克风直接说</span>
+        </div>
+        <div data-dock="home"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A</span>首页问答条<span class="rec-badge">推荐 · 主入口</span><small>「今天」页大标题下常驻一条输入框，下面 3 个建议问题按时间变化（早上问计划、晚上问总结）。会话记录从对话页右上角进入。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="scr" style="padding-bottom:0">
+          <div class="home-h"><div class="d">10 月 30 日 周五</div><h2>今天<span class="sp"></span></h2></div>
+          <div class="sk-sec">接下来</div>
+          <div class="sk-row"><i></i>评审同步冲突方案<s>10:30</s></div>
+          <div class="sk-row"><i></i>整理语音输入反馈<s>14:00</s></div>
+          <div class="sk-row"><i></i>跑步 5 公里<s>19:00</s></div>
+          <div class="fab-mask"></div>
+          <div class="fab-item" style="left:46px;top:478px"><span class="c" style="background:var(--sky-soft);color:var(--sky)" data-i="layers" data-s="20"></span>新卡片</div>
+          <div class="fab-item" style="left:96px;top:410px"><span class="c" style="background:var(--brand-soft);color:var(--brand-text)" data-i="file-text" data-s="20"></span>新文章</div>
+          <div class="fab-item ai" style="left:151px;top:370px"><span class="c" data-i="sparkles" data-s="24"></span>问 AI</div>
+          <div class="fab-item" style="left:214px;top:410px"><span class="c" style="background:var(--butter-soft);color:var(--butter)" data-i="calendar-days" data-s="20"></span>新日程</div>
+          <div class="fab-item" style="left:262px;top:478px"><span class="c" style="background:var(--sage-soft);color:var(--sage)" data-i="notebook-pen" data-s="20"></span>写日记</div>
+          <span class="anno good" style="left:96px;top:330px;z-index:9">长按 ＋ 直接进入「按住说话问 AI」</span>
+        </div>
+        <div data-dock="home" data-fab="pressed" style="position:relative;z-index:6"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B</span>＋ 菜单加入「问 AI」<span class="alt-badge">备选</span><small>任何 Tab 都能触达，和「新建」同属创作动作。缺点：弧形菜单从 4 项变 5 项，AI 被藏在一次点击之后，不够显眼。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="history" data-s="20"></span><span class="t">助手</span><span class="ib" data-i="pencil" data-s="19"></span></div>
+        <div class="scr" style="padding-bottom:0">
+          <div class="empty" style="padding-top:40px"><div class="big" data-i="sparkles" data-s="32"></div><h3>想聊点什么？</h3><p>可以问笔记里的内容，也可以让我帮你整理今天的日记。</p></div>
+          <div class="steps" style="margin-top:22px">
+            <div><span class="n" data-i="calendar-days" data-s="13"></span><span class="mid">总结本周日记<span>读取 10/24–10/30 共 6 篇</span></span></div>
+            <div><span class="n" data-i="layers" data-s="13"></span><span class="mid">把最近卡片出成问答<span>适合睡前复习</span></span></div>
+          </div>
+        </div>
+        <div class="composer"><div class="box"><div class="tx"><span class="ph">发消息或按住说话</span></div><div class="bar2"><span class="ib2" data-i="plus" data-s="18"></span><span class="model">DeepSeek V3<span data-i="chevron-down" data-s="12"></span></span><span class="sp"></span><span class="send mic" data-i="mic" data-s="18"></span></div></div></div>
+        <div class="dock"><span data-i="house" data-s="22">今天</span><span data-i="layers" data-s="22">卡片</span><span class="on" data-i="sparkles" data-s="22">助手</span><span data-i="notebook-pen" data-s="22">日记</span><span data-i="user" data-s="22">我的</span></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">C</span>独立「助手」Tab<span class="alt-badge">备选</span><small>最显眼，也最像通用聊天 App。代价是中央 ＋ 要让位，「新建」改到各页右上角，左右滑动切 Tab 的顺序也要重排。适合 AI 将来是产品主线时再考虑。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="ib" data-i="sparkles" data-s="19" style="color:var(--brand)"></span><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+        <div class="doc2">
+          <div class="meta">卡片 · 3 天前编辑</div>
+          <h1>间隔重复为什么有效</h1>
+          <p>艾宾浩斯遗忘曲线说明，<span class="selt">记忆在学习后的最初几天衰减最快</span>。每次成功回忆都会让下一次遗忘来得更慢。</p>
+          <h2>核心机制</h2>
+          <ul><li>主动回忆比重复阅读更能巩固记忆</li><li>间隔逐步拉长，复习成本递减</li></ul>
+          <div class="sel-menu" style="left:60px;top:34px"><span>复制</span><span>高亮</span><span class="ai" data-i="sparkles" data-s="13">问 AI</span><span class="ai">解释</span></div>
+        </div>
+        <div class="half" style="height:300px">
+          <div class="grab"></div>
+          <div class="hh"><span data-i="sparkles" data-s="16" style="color:var(--brand)"></span>关于这张卡片<span class="sp"></span><span class="ib" data-i="maximize-2" data-s="16"></span><span class="ib" data-i="x" data-s="16"></span></div>
+          <div class="chat" style="padding-top:2px;gap:10px">
+            <div class="msg-u quoted"><div class="qt">记忆在学习后的最初几天衰减最快</div>为什么是最初几天？</div>
+            <div class="msg-a">新信息刚进入时只存在不稳定的短期痕迹，睡眠和回忆还没来得及巩固它<span class="cursor-dot"></span></div>
+          </div>
+        </div>
+        <span class="anno good" style="right:96px;top:44px">右上角 ✦：带上整篇卡片提问</span>
+      </div></div>
+      <div class="frame-cap"><span class="no">D</span>内容页就近提问<span class="rec-badge">推荐 · 上下文入口</span><small>卡片、日记、文章的选中菜单加「问 AI / 解释」，顶栏加 ✦ 按钮。打开半屏对话，自动带引用；上拉变全屏，会话存入记录。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 3 对话页 ═══════════ -->
+<section class="scene" data-scene="chat">
+  <p class="scene-intro">对话页是一个普通的二级页面（隐藏 Dock）。助手消息<b>不用气泡</b>，全宽排版，长回答读起来像笔记；用户消息用浅色气泡靠右。AI 查笔记、读卡片的过程收成一行小胶囊，引用的笔记以卡片横排在回答下方，可以点开原文。输入框在空内容时右侧是麦克风，有文字时变成发送，生成中变成停止，一个位置三种状态。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">本周日记总结<small>DeepSeek V3</small></span><span class="ib" data-i="history" data-s="19"></span><span class="ib" data-i="pencil" data-s="18" style="margin-left:-6px"></span></div>
+        <div class="chat">
+          <div class="msg-u">总结一下我这周的日记，有哪些值得记下来的</div>
+          <div class="msg-a">
+            <div class="tool" data-i="search" data-s="13">搜索日记 <em>10/24–10/30 · 6 篇</em><span data-i="chevron-right" data-s="12"></span></div>
+            <p>这周主要在做三件事：</p>
+            <ul>
+              <li><b>同步模块重写</b>：周二把冲突处理改成按字段合并 <span class="cite">1</span></li>
+              <li><b>语音输入</b>：确定了按住说话的入口，开始想 AI 润色 <span class="cite">2</span></li>
+              <li><b>跑步</b>：配速比上周快了十几秒，周四状态最好 <span class="cite">3</span></li>
+            </ul>
+            <p>值得单独记下来的是周三那句「阅读态里也应该能随口补一句」，它可以变成一张产品原则卡片。</p>
+            <div class="refs">
+              <div class="ref"><b><span data-i="notebook-pen" data-s="12"></span>10 月 27 日</b><span>上午把同步模块的冲突…</span></div>
+              <div class="ref"><b><span data-i="notebook-pen" data-s="12"></span>10 月 29 日</b><span>下午整理了语音输入的…</span></div>
+            </div>
+            <div class="acts"><span data-i="copy" data-s="15"></span><span data-i="bookmark-plus" data-s="15"></span><span data-i="refresh-cw" data-s="15"></span><span data-i="share-2" data-s="15"></span></div>
+          </div>
+        </div>
+        <div class="composer">
+          <div class="box"><div class="tx"><span class="ph">继续问，或按住麦克风说话</span></div><div class="bar2"><span class="ib2" data-i="plus" data-s="18"></span><span class="ib2" data-i="at-sign" data-s="17"></span><span class="sp"></span><span class="send mic" data-i="mic" data-s="18"></span></div></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>对话页：回答完成<small>标题由首条消息自动生成，副标题显示当前模型（点击切换）。回答下方：复制 / 存为卡片 / 重新生成 / 分享。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">复习计划<small>DeepSeek V3</small></span><span class="ib" data-i="history" data-s="19"></span><span class="ib" data-i="pencil" data-s="18" style="margin-left:-6px"></span></div>
+        <div class="chat">
+          <div class="msg-u">把「间隔重复」那张卡片拆成 3 个问答，加到今天的复习里</div>
+          <div class="msg-a">
+            <div class="tool" data-i="file-text" data-s="13">读取卡片 <em>间隔重复为什么有效</em></div>
+            <div class="tool run" data-i="loader-circle" data-s="13">生成问答中…</div>
+            <p>好的，我准备了 3 个问答：</p>
+            <p><b>Q1</b> 为什么记忆在学习后最初几天衰减最快？<span class="cursor-dot"></span></p>
+          </div>
+          <div class="float-pill" style="bottom:12px" data-i="arrow-down" data-s="13">回到最新</div>
+        </div>
+        <div class="composer">
+          <div class="box"><div class="tx"><span class="ph">生成中，可以先输入下一条</span></div><div class="bar2"><span class="ib2" data-i="plus" data-s="18"></span><span class="ib2" data-i="at-sign" data-s="17"></span><span class="sp"></span><span class="send stop" data-i="square" data-s="14"></span></div></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>生成中<small>工具调用逐行出现；用户上滑阅读时停止自动滚动，出现「回到最新」。发送键变停止，轻触停止、已生成内容保留。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">复习计划<small>DeepSeek V3</small></span><span class="ib" data-i="history" data-s="19"></span><span class="ib" data-i="pencil" data-s="18" style="margin-left:-6px"></span></div>
+        <div class="chat">
+          <div class="msg-a">
+            <p><b>Q3</b> 为什么间隔要逐步拉长？</p>
+            <p>每次成功回忆都会提高记忆稳定性，下次遗忘来得更晚，所以复习间隔可以更长。</p>
+            <div class="write-card">
+              <div class="h" data-i="layers" data-s="14">新建 3 张闪卡 · 加入今天复习</div>
+              <div class="b">来源：间隔重复为什么有效<br />Q1 为什么记忆在最初几天衰减最快？<br />Q2 主动回忆和重复阅读的区别？<br />Q3 为什么间隔要逐步拉长？</div>
+              <div class="f"><span class="btn pri sm">确认写入</span><span class="btn soft sm">先看看</span><span class="btn ghost sm fix">不用了</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="composer">
+          <div class="box"><div class="tx"><span class="ph">继续问，或按住麦克风说话</span></div><div class="bar2"><span class="ib2" data-i="plus" data-s="18"></span><span class="ib2" data-i="at-sign" data-s="17"></span><span class="sp"></span><span class="send mic" data-i="mic" data-s="18"></span></div></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>写入笔记前确认<small>AI 要新建或修改内容时，以「待确认卡片」出现在回答里，列出改动摘要。确认后变成「已写入 · 打开」，并支持撤销。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">对话记录</span><span class="ib" data-i="pencil" data-s="18"></span></div>
+        <div class="scr">
+          <div style="padding:0 16px 8px"><div class="askbar" style="margin:0;height:38px;border-radius:12px;box-shadow:none"><span data-i="search" data-s="16"></span><span class="sp">搜索对话</span></div></div>
+          <div class="gl">今天</div>
+          <div class="grp">
+            <div class="sess"><span class="mid"><b><span class="run-dot"></span>复习计划</b><span>正在生成：Q1 为什么记忆在学习后…</span></span><span class="t">刚刚</span></div>
+            <div class="sess"><span class="mid"><b>本周日记总结</b><span>这周主要在做三件事：同步模块…</span></span><span class="t">9:12</span></div>
+          </div>
+          <div class="gl">本周</div>
+          <div class="grp">
+            <div class="sess-wrap">
+              <div class="under"><span style="background:var(--ink-3)" data-i="pin" data-s="16"></span><span style="background:var(--danger)" data-i="trash-2" data-s="16"></span></div>
+              <div class="sess slid"><span class="mid"><b>关于这张卡片</b><span>来自「间隔重复为什么有效」</span></span><span class="t">周三</span></div>
+            </div>
+            <div class="sess"><span class="mid"><b>同步冲突怎么合并</b><span>按字段合并的好处是…</span></span><span class="t">周二</span></div>
+            <div class="sess"><span class="mid"><b>跑步配速计划</b><span>建议每周一次间歇跑…</span></span><span class="t">周一</span></div>
+          </div>
+          <div class="gn">左滑置顶或删除。从卡片里发起的对话会显示来源，点来源回到原卡片。</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>对话记录<small>按时间分组；后台还在生成的会话带脉冲点。会话按数据库存放，切换数据库时列表跟着切换。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 4 移动端交互 ═══════════ -->
+<section class="scene" data-scene="gesture">
+  <p class="scene-intro">这些交互是手机上才有、也是手机上最顺手的部分。按住说话<b>直接复用编辑器里的听写手势</b>（按住录、上滑取消、松手发送），用户只需学一次。长按消息、左滑会话、下拉半屏都是系统级习惯，不额外教学。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">新对话<small>DeepSeek V3</small></span><span class="ib" data-i="history" data-s="19"></span></div>
+        <div class="chat" style="opacity:.35">
+          <div class="msg-u">今天该做什么？</div>
+          <div class="msg-a"><p>你今天有 3 个安排：10:30 评审同步冲突方案……</p></div>
+        </div>
+        <div class="hold-ov">
+          <div class="cancel-zone"><span class="c" data-i="x" data-s="20"></span>上滑到这里取消</div>
+          <div class="live">帮我把刚才的会议要点<em>整理成一张卡片</em></div>
+          <div class="wave" data-wave="34"></div>
+          <div class="hold-btn" data-i="mic" data-s="30"></div>
+          <div class="hint">松手发送 · 上滑取消</div>
+        </div>
+        <span class="touch hold" style="left:158px;top:640px"></span>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>按住说话，松手即发送<small>实时字幕上屏，灰字为未确定部分。默认发送前不经过语音整理（AI 自己能理解口语），省一次调用。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">新对话<small>DeepSeek V3</small></span><span class="ib" data-i="history" data-s="19"></span></div>
+        <div class="chat" style="opacity:.35"><div class="msg-u">今天该做什么？</div></div>
+        <div class="hold-ov cancel">
+          <div class="cancel-zone"><span class="c" data-i="x" data-s="20"></span>松手取消</div>
+          <div class="live">帮我把刚才的会议要点<em>整理成一张卡片</em></div>
+          <div class="wave" data-wave="34"></div>
+          <div class="hold-btn" data-i="mic-off" data-s="30"></div>
+          <div class="hint">松手将丢弃这段语音</div>
+        </div>
+        <span class="touch" style="left:158px;top:118px"></span>
+        <span class="swipe-arrow" style="left:200px;top:300px" data-i="arrow-up" data-s="22">上滑</span>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>上滑取消<small>与编辑器听写同一套手势与配色，取消区在屏幕上方，手指滑过即变红并轻震。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">本周日记总结<small>DeepSeek V3</small></span><span class="ib" data-i="history" data-s="19"></span></div>
+        <div class="chat">
+          <div class="msg-u">总结一下我这周的日记</div>
+          <div class="blur-layer"></div>
+          <div class="msg-a sel" style="margin-top:6px">
+            <p>这周主要在做三件事：<b>同步模块重写</b>、<b>语音输入</b>入口定稿、跑步配速提升。值得记下的是「阅读态里也应该能随口补一句」。</p>
+          </div>
+        </div>
+        <div class="sheet" style="z-index:7;padding-bottom:18px">
+          <div class="grab"></div>
+          <div class="acts-grid">
+            <span class="pri"><span class="c" data-i="bookmark-plus" data-s="21"></span>存为卡片</span>
+            <span class="pri"><span class="c" data-i="notebook-pen" data-s="21"></span>追加到日记</span>
+            <span><span class="c" data-i="copy" data-s="21"></span>复制</span>
+            <span><span class="c" data-i="text-select" data-s="21"></span>选择文本</span>
+            <span><span class="c" data-i="refresh-cw" data-s="21"></span>重新生成</span>
+            <span><span class="c" data-i="git-branch" data-s="21"></span>从这里分叉</span>
+            <span><span class="c" data-i="share-2" data-s="21"></span>分享图片</span>
+            <span><span class="c" data-i="trash-2" data-s="21"></span>删除</span>
+          </div>
+        </div>
+        <span class="touch hold" style="left:150px;top:196px"></span>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>长按消息：动作面板<small>背景模糊、消息浮起，底部面板给出最常用的「存为卡片 / 追加到日记」。用户消息长按则是「编辑并重发」。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">新对话<small>DeepSeek V3</small></span><span class="ib" data-i="history" data-s="19"></span></div>
+        <div class="chat" style="justify-content:flex-end;padding-bottom:4px">
+          <div class="grp" style="margin:0;box-shadow:var(--shadow-float)">
+            <div class="gl" style="padding:10px 14px 4px">引用笔记</div>
+            <div class="row" style="min-height:44px"><span class="tile t-sky" data-i="layers" data-s="15"></span><span class="mid"><b>间隔重复为什么有效</b><span>卡片 · 3 天前</span></span></div>
+            <div class="row" style="min-height:44px"><span class="tile t-sage" data-i="notebook-pen" data-s="15"></span><span class="mid"><b>10 月 29 日 日记</b><span>日记 · 昨天</span></span></div>
+            <div class="row" style="min-height:44px"><span class="tile t-acc" data-i="file-text" data-s="15"></span><span class="mid"><b>间隔学习的实践笔记</b><span>文章 · 上周</span></span></div>
+          </div>
+        </div>
+        <div class="composer" style="padding-bottom:6px">
+          <div class="ctx"><span class="chip on" data-i="layers" data-s="12">间隔重复为什么有效<span class="x" data-i="x" data-s="11"></span></span></div>
+          <div class="box"><div class="tx">对比一下 @间隔<span class="caret"></span></div><div class="bar2"><span class="ib2" data-i="plus" data-s="18"></span><span class="ib2" data-i="at-sign" data-s="17" style="color:var(--brand)"></span><span class="sp"></span><span class="send" data-i="arrow-up" data-s="18"></span></div></div>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>@ 引用笔记<small>输入 @ 或点 @ 按钮，就地搜索卡片、日记、文章；选中后变成输入框上方的引用条，可随时删除。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">新对话</span><span class="ib" data-i="history" data-s="19"></span></div>
+        <div class="chat" style="opacity:.4"></div>
+        <div class="mask"></div>
+        <div class="sheet" style="padding-bottom:20px">
+          <div class="grab"></div>
+          <div class="acts-grid">
+            <span class="pri"><span class="c" data-i="camera" data-s="21"></span>拍照提问</span>
+            <span><span class="c" data-i="image" data-s="21"></span>相册</span>
+            <span><span class="c" data-i="at-sign" data-s="21"></span>引用笔记</span>
+            <span><span class="c" data-i="calendar-days" data-s="21"></span>今天的日程</span>
+          </div>
+          <div class="gn" style="padding-top:2px">拍照需要模型支持图片；当前模型不支持时，第一项显示「切换到 Qwen Max」。</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">5</span>＋ 附件面板<small>手机特有的拍照提问：拍书页、白板、票据直接问。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="ib" data-i="sparkles" data-s="19" style="color:var(--brand)"></span><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+        <div class="doc2"><div class="meta">日记 · 10 月 29 日 周四</div><h1>今天</h1><p>上午把同步模块的冲突处理重写了一遍。</p></div>
+        <div class="half" style="top:120px">
+          <div class="grab"></div>
+          <div class="hh"><span data-i="sparkles" data-s="16" style="color:var(--brand)"></span>关于这篇日记<span class="sp"></span><span class="ib" data-i="minimize-2" data-s="16"></span><span class="ib" data-i="x" data-s="16"></span></div>
+          <div class="chat" style="gap:10px">
+            <div class="msg-u">帮我把今天的内容整理成三条要点</div>
+            <div class="msg-a"><ul><li>同步冲突处理改为按字段合并</li><li>语音输入入口方案完成</li><li>跑步配速提升十几秒</li></ul>
+              <div class="acts"><span data-i="copy" data-s="15"></span><span data-i="notebook-pen" data-s="15"></span><span data-i="refresh-cw" data-s="15"></span></div></div>
+          </div>
+          <div class="composer"><div class="box"><div class="tx"><span class="ph">继续问</span></div><div class="bar2"><span class="sp"></span><span class="send mic" data-i="mic" data-s="18"></span></div></div></div>
+        </div>
+        <span class="swipe-arrow" style="right:30px;top:150px" data-i="chevron-down" data-s="22">下拉收起</span>
+      </div></div>
+      <div class="frame-cap"><span class="no">6</span>半屏对话的三档高度<small>40% / 85% / 关闭三档（复用 SnapSheet），上拉到顶跳转为全屏对话页，下拉收起。回答「追加到日记」直接写入当前这篇。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 5 语音输入整理 ═══════════ -->
+<section class="scene" data-scene="voice">
+  <p class="scene-intro">编辑器听写已经有 <code>refine</code> 钩子和「AI 润色中 / 已润色 / 换回原文」胶囊，缺的是<b>开关和模型来源</b>。建议放在「我的 › 语音输入」页内新增一组「AI 整理」，模型行直接跳到「AI 模型 › 语音输入整理」的同一个选择器，两个入口改的是同一份分配。整理风格只给两档，避免过度设计。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">语音输入</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="gl">识别服务</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-mute" data-i="mic" data-s="17"></span><span class="mid"><b>系统语音识别</b><span>离线可用 · 由手机系统提供</span></span><span class="tile t-acc" style="width:22px;height:22px;border-radius:50%" data-i="check" data-s="13"></span></div>
+            <div class="row"><span class="tile t-sky">豆</span><span class="mid"><b>豆包语音识别</b><span>插件 · 已配置</span></span></div>
+          </div>
+          <div class="gl">AI 整理</div>
+          <div class="grp">
+            <div class="row noicon"><span class="mid"><b>松手后自动整理</b><span>补标点、去口头禅、修正同音字</span></span><span class="sw on"></span></div>
+            <div class="row noicon"><span class="mid"><b>整理模型</b></span><span class="val">Qwen Turbo</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row noicon"><span class="mid"><b>整理方式</b></span><span class="val">轻度</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row noicon"><span class="mid"><b>对话里也整理</b><span>默认关：AI 能直接理解口语</span></span><span class="sw"></span></div>
+          </div>
+          <div class="gn">整理会把识别文字发给所选模型。整理失败时自动保留原文，不会丢字。</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>语音输入页新增「AI 整理」<small>整理模型行与「AI 模型」页同源；未配置任何服务商时，开关下方显示「先添加 AI 服务商」。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">整理方式</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="gl">选择一种</div>
+          <div class="style-opt">
+            <span class="on"><b>轻度</b>只补标点、去掉「嗯、那个」，保留原话</span>
+            <span><b>书面</b>改成通顺书面语，可能调整语序</span>
+          </div>
+          <div class="gl">效果预览</div>
+          <div class="diff">
+            <div class="lbl" data-i="mic" data-s="12">识别原文</div>
+            <div class="raw"><del>嗯</del>就是说下一步<del>那个</del>把这张卡片拆成三个问答<del>然后</del>加入今天的复习队列<del>吧</del></div>
+            <hr />
+            <div class="lbl" data-i="sparkles" data-s="12">轻度整理</div>
+            <div class="new">下一步<ins>，</ins>把这张卡片拆成三个问答<ins>，</ins>加入今天的复习队列<ins>。</ins></div>
+          </div>
+          <div class="btns"><span class="btn soft sm" data-i="mic" data-s="16">按住说一句试试</span></div>
+          <div class="gn" style="padding-top:10px">预览用你刚说的话实时演示，不会写入任何笔记。</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>整理方式与预览<small>原文删除部分标红划线，新增标点标绿，用户一眼看出 AI 改了什么。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc2">
+          <div class="meta">卡片 · 刚刚编辑</div>
+          <h1>间隔重复为什么有效</h1>
+          <p>艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。</p>
+          <p>下一步，把这张卡片拆成三个问答，加入今天的复习队列。<span class="caret" style="display:inline-block;width:2px;height:18px;background:var(--brand);vertical-align:-3px"></span></p>
+          <div class="float-pill" style="bottom:14px;position:absolute;gap:8px;padding:0 6px 0 12px;height:38px;font-size:13px"><span data-i="sparkles" data-s="15" style="color:var(--sage)"></span>已整理<span style="width:1px;height:16px;background:var(--line-1)"></span><span style="padding:0 8px">看原文</span><span style="padding:0 8px">撤销</span></div>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>编辑器里的结果（已有组件）<small>沿用现有 PolishPill：已整理 / 看原文 / 撤销，几秒后自动淡出。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 6 状态 ═══════════ -->
+<section class="scene" data-scene="states">
+  <p class="scene-intro">手机比桌面多出三类异常：<b>没配置</b>（新用户第一次点入口）、<b>被系统打断</b>（切后台、锁屏、来电）、<b>网络不稳</b>。原则是：入口永远可点，点进去再说明；打断不丢内容；错误信息说人话并给出下一步。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">新对话</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="empty"><div class="big" data-i="key-round" data-s="30"></div><h3>先接一个 AI 服务</h3><p>对话需要你自己的模型服务。填一个 API Key 就能开始，Key 只保存在这台手机上。</p></div>
+          <div class="steps">
+            <div class="done"><span class="n" data-i="check" data-s="12"></span><span class="mid">添加服务商<span>已添加 OpenRouter</span></span></div>
+            <div><span class="n">2</span><span class="mid">填写 API Key<span>大约 30 秒</span></span><span data-i="chevron-right" data-s="16" style="color:var(--ink-3)"></span></div>
+            <div><span class="n">3</span><span class="mid">为「对话」选模型</span></div>
+          </div>
+          <div class="btns"><span class="btn pri">去填写 API Key</span></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>未配置：引导而非报错<small>根据当前进度显示步骤，已完成的步骤打勾。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">复习计划<small>DeepSeek V3</small></span><span class="ib" data-i="history" data-s="19"></span></div>
+        <div class="chat">
+          <div class="msg-u">把「间隔重复」那张卡片拆成 3 个问答</div>
+          <div class="msg-a">
+            <p><b>Q1</b> 为什么记忆在学习后最初几天衰减最快？</p>
+            <p>新信息刚进入时只存在不稳定的短期痕迹……</p>
+            <div class="banner warn" style="margin:8px 0 0"><span data-i="clock" data-s="16"></span><span>生成在后台被系统暂停<br /><span style="color:var(--ink-2)">已保留前面的内容</span></span><span class="act">继续</span></div>
+          </div>
+        </div>
+        <div class="composer"><div class="box"><div class="tx"><span class="ph">继续问，或按住麦克风说话</span></div><div class="bar2"><span class="ib2" data-i="plus" data-s="18"></span><span class="sp"></span><span class="send mic" data-i="mic" data-s="18"></span></div></div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>切后台被打断<small>回到前台时停在原处，一键「继续」从断点重试；对话记录里该会话显示「已暂停」。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">新对话<small>OpenRouter · Claude</small></span><span class="ib" data-i="history" data-s="19"></span></div>
+        <div class="chat">
+          <div class="msg-u">今天该做什么？</div>
+          <div class="banner err" style="margin:0"><span data-i="circle-alert" data-s="16"></span><span><b>API Key 无效</b>OpenRouter 拒绝了这次请求（401）。检查 Key 是否过期或填错。</span></div>
+          <div class="btns" style="padding:0"><span class="btn soft sm">去检查 Key</span><span class="btn soft sm">换个模型重试</span></div>
+          <div class="msg-u" style="margin-top:8px">总结这周日记</div>
+          <div class="banner warn" style="margin:0"><span data-i="wifi-off" data-s="16"></span><span><b>网络断开</b>恢复后会自动重发这条消息</span></div>
+        </div>
+        <div class="composer"><div class="box"><div class="tx"><span class="ph">发消息</span></div><div class="bar2"><span class="sp"></span><span class="send mic" data-i="mic" data-s="18"></span></div></div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>错误：说人话 + 下一步<small>鉴权、余额、限流、断网分别给出对应动作；「换个模型重试」只换当前会话。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 7 对比 ═══════════ -->
+<section class="scene" data-scene="cmp">
+  <div class="cards" style="grid-template-columns:1fr;max-width:1100px;margin-top:0">
+    <div class="card">
+      <h3>聊天入口对比</h3>
+      <table class="cmp">
+        <tr><th></th><th>A 首页问答条</th><th>B ＋ 菜单「问 AI」</th><th>C 独立助手 Tab</th><th>D 内容页就近提问</th></tr>
+        <tr><th>可发现性</th><td><b>高</b>，打开 App 第一屏</td><td>中，要先点 ＋</td><td><b>最高</b></td><td>中，看内容时出现</td></tr>
+        <tr><th>改动现有导航</th><td>无</td><td>弧形菜单 4→5 项</td><td><b>大</b>：＋ 让位、Tab 滑动重排</td><td>无，加在选中菜单和顶栏</td></tr>
+        <tr><th>上下文</th><td>全库 / 今天</td><td>全库</td><td>全库</td><td><b>自动带当前笔记</b></td></tr>
+        <tr><th>适合场景</th><td>主动想问、规划、回顾</td><td>任何页面临时问一句</td><td>AI 是主要用途的用户</td><td>阅读时解释、整理、追问</td></tr>
+        <tr><th>实现成本</th><td>小</td><td>小</td><td>中</td><td>中（半屏对话 + 选区菜单）</td></tr>
+      </table>
+      <p style="margin-top:10px"><b>建议：A + D 先上</b>，B 作为长按 ＋ 的快捷手势可以顺手加；C 等 AI 使用频率数据出来再定。</p>
+    </div>
+    <div class="card">
+      <h3>建议的分期</h3>
+      <ol>
+        <li><b>第一期</b>：AI 模型设置（服务商 + 功能分配）、语音输入 AI 整理开关。改动集中在设置页，风险最低，也让聊天上线时已经有可用模型。</li>
+        <li><b>第二期</b>：全屏对话页 + 首页问答条 + 对话记录，工具先开「搜索 / 读取笔记」只读能力。</li>
+        <li><b>第三期</b>：内容页就近提问（半屏对话）、@ 引用、写入确认卡片、拍照提问。</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3>需要你确认的问题</h3>
+      <ol>
+        <li><b>服务商同步</b>：手机和电脑的服务商列表要不要互相同步（只同步地址和模型，不同步 Key）？还是手机完全独立配置？</li>
+        <li><b>入口选择</b>：是否同意 A + D？还是希望 AI 有独立 Tab（C）？</li>
+        <li><b>写入权限</b>：第二期是否就允许 AI 新建卡片 / 追加日记（每次确认），还是先只读？</li>
+        <li><b>语音整理默认值</b>：配置了模型后，「松手后自动整理」默认开还是关？</li>
+        <li><b>功能列表</b>：除了「对话」「语音输入整理」，第一期要不要把「闪卡生成」「标题总结」也放进分配列表（显示即将支持）？</li>
+      </ol>
+    </div>
+  </div>
+</section>
+</body>
+<script src="ai.js"></script>
+</html>

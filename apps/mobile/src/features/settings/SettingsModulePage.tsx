@@ -14,6 +14,7 @@ import { SyncCenterSection } from "./sync/SyncCenterSection";
 import { UploadCenterSection } from "./upload/UploadCenterSection";
 import { TtsSettingsSection } from "./tts/TtsSettingsSection";
 import { SpeechInputSection } from "./speech/SpeechInputSection";
+import { AiModelsSection } from "./ai/AiModelsSection";
 import type { SettingModuleKey, SettingsPageProps } from "./components/types";
 import { CheckBubble } from "../../components/CheckBubble";
 import { GroupCard, GroupNote, GroupRow, IconDatabase } from "./components/ui";
@@ -42,6 +43,8 @@ function getTitle(module: SettingModuleKey): string {
       return "语音合成";
     case "speech-input":
       return "语音输入";
+    case "ai-models":
+      return "AI 模型";
     case "feedback":
       return "反馈";
     default:
@@ -119,6 +122,8 @@ function ModuleSection(props: ModuleSectionProps) {
       return <TtsSettingsSection />;
     case "speech-input":
       return <SpeechInputSection />;
+    case "ai-models":
+      return <AiModelsSection />;
     case "about":
       return <AboutSection />;
     case "feedback":

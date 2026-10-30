@@ -247,7 +247,7 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 
 ## 本机 AI 服务
 
-`services/ai/` 提供不依赖页面挂载的 MobileAiService。明确消费者通过 `createMobileAiService` 创建实例，或调用惰性的 `getMobileAiService`；模块不添加聊天界面、设置页面、业务工具或自动功能入口。公共契约、接口用法与默认行为见 [AI 公共核心](/packages/ai/README.md)。
+`services/ai/` 提供不依赖页面挂载的 MobileAiService。明确消费者通过 `createMobileAiService` 创建实例，或调用惰性的 `getMobileAiService`（动态 import，不进首屏包）；服务本身不注册业务工具或功能入口，当前消费者是插件宿主与语音输入整理。公共契约、接口用法与默认行为见 [AI 公共核心](/packages/ai/README.md)。
 
 移动插件通过现有 PluginHost 的 `ai/mcp/chat` 适配器消费同一底座；包内 Markdown Skill 随激活代次注册与回收，独立 Skill 包按自身安装与启用资格加载，不进入代码激活链。权限、额度、来源校验及未开放界面的边界见 [移动 AI 插件宿主](/docs/architecture/plugin-portability.md#移动-ai-插件宿主)。
 
@@ -259,7 +259,12 @@ hook 可在任意宿主使用：页面树外（rootContent/AppDock 等无 PageIn
 
 原生会话读取每块最多 128 KiB，JS 使用 UTF-8 增量解码；超过 64 KiB 的提交按 64 KiB 原始字节切片暂存，完整重组后提交。模型和 MCP 都使用标准 fetch / ReadableStream 适配原生 HTTP：上下文冻结目标地址与鉴权配置，只允许同源同路径前缀且不跟随重定向。模型 Key 不返回 WebView；公开配置移除 Key 与请求头，Rust 按真实 SDK 请求形状选择鉴权头，显式配置头优先。
 
-设置继续使用 llmProviders / llmUsageSettings，模型转换与桌面同源。data URL 内联图片和文本可直接准备，纯图片消息不要求文字；新输入或恢复上下文含图时要求模型 input 支持 image，否则在请求前拒绝。单发用户消息的 images 字段与桌面同形。其他附件由调用者的 prepareInput 解析；同步会话不会让另一设备的绝对路径自动可用。
+设置继续使用 llmProviders / llmUsageSettings，模型转换与桌面同源。
+
+**AI 模型设置**（我的 › AI › AI 模型，设置模块 `ai-models`；`features/settings/ai/`）：上方按功能分配模型（`chat`、`speechInputRefinement`，键与桌面一致），下方是服务商列表。添加服务商从 `@tau/ai/catalog` 的内置目录选预设（只列三种受支持协议、有官方地址的服务商），或选「自定义」；两者都先推入 `aiProvider` 页作为未保存草稿，点「保存」才写入，返回有未保存修改时先确认。详情页填 API Key、地址（自定义另填名称与协议）、测试连接（保存后经 `models.verify` 单发），预设模型按目录开关，目录外模型手填 id 与容量。目录含全部内置模型元数据，添加面板与详情页均懒加载，不进首屏包。设置文件不参与数据库同步，手机服务商独立配置。
+
+- **Key 不进 WebView**：凡是把设置交给页面的命令（`read_setting_json`、`ai_settings_mutate`、`plugin_provider_*`、`plugin_tts_mutate`）都经 `ai_settings::public_setting`，删去服务商与模型的 apiKey/headers，加 `configured` 与 `keyHint`（Key 末 4 位，短于 8 位时为空）。原生其他模块直接读完整设置。
+- **写入**：只经原生 `ai_settings_mutate`（`src-tauri/src/ai_settings.rs`，`mutate_setting_value` 串行队列，前端经 `enqueueProviderConfigWrite` 排队）：`upsertProvider`（apiKey 缺省保留原值、空串清除；校验 id/名称/http(s) 地址/协议/模型 id 唯一与正整数容量；缺失的 headers 按原值补回；丢弃 configured/keyHint）、`removeProvider`、`assign`（功能白名单，目标须存在）、`setSpeechRefinement`（保留 instructions）。任何写入后清除指向已不存在服务商或模型的分配。返回 `{ llmProviders, llmUsageSettings, speechInput }` 脱敏快照，前端 `mergeAiSettings` 并回设置。普通全量写入由 `preserve_managed_fields` 保留这两个字段。data URL 内联图片和文本可直接准备，纯图片消息不要求文字；新输入或恢复上下文含图时要求模型 input 支持 image，否则在请求前拒绝。单发用户消息的 images 字段与桌面同形。其他附件由调用者的 prepareInput 解析；同步会话不会让另一设备的绝对路径自动可用。
 
 工具默认 manual 权限，没有审批/提问宿主时拒绝对应操作。说明类 Skills 由宿主注册受限 list/read 来源，手动技能需显式选择，脚本不执行；MCP 使用官方 Streamable HTTP 客户端，stdio 返回不支持。历史工具结果不要求本机安装原执行器，仍可按公共工具块投影。运行快照中的 partial 与已提交结果分开，持久化屏障保证工具意图先落盘、结果落盘后才请求下一轮；回执未知时停止本轮，不自动重放写操作。
 
@@ -557,7 +562,7 @@ Android 清单包含 RECORD_AUDIO/MODIFY_AUDIO_SETTINGS，iOS 包信息包含麦
 - **预览**（`dictationPreview`）：内容 Kit 都装 `host.dictation-preview` 扩展，在锁定插入点放折叠装饰，叶子后接 `contentEditable=false` 的预览文字，不进文档；编辑态锁按下时的光标（`pointRef` 跟随文档变化），阅读态锁文末并另起一段显示。
 - **沉浸区**（`DictationOverlay`）：盖在键盘位置上，键盘不收起，正文不跳；样式与关键帧在 `styles.css` 的 `.dictation-*`。
 - **写入**（`commitDictation`）：定稿文本按换行拆段一次写入，作为一个撤销步，toast 提供「撤销」。
-- **AI 润色**：`useEditorDictation` / `DictationTrigger` 接受可选 `refine`（`SpeechRefiner`）。传入后松手先写原文，再经 `refineSpeechInput` 原地替换，`PolishPill` 显示润色中 / 已润色（用原文、撤销）/ 失败，替换与首次写入合并为一个撤销步。移动端尚未接入 LLM 整理执行适配，当前两处入口都不传 `refine`；「重试」暂只关闭提示。
+- **AI 润色**：`useEditorDictation` 缺省按「语音输入整理」的模型分配生成润色器（`services/speechRefinement.ts` 的 `prepareSpeechRefinement`），未分配时不进入润色；调用方也可显式传 `refine`。润色器与风格在录音开始时固定，执行走 `generation.start` 单发（不建会话），提示词与桌面共用 `@tau/asr` 的 `buildSpeechRefinementPrompt`，非 completed 或空正文视为失败。松手先写原文，再经 `refineSpeechInput` 原地替换，`PolishPill` 显示润色中 / 已润色（用原文、撤销）/ 失败（重试：用同一识别结果与润色器再润色一次），替换与首次写入合并为一个撤销步。开关与风格在「我的 › 语音输入」的「AI 整理」分组：选了整理模型即开启，「不使用模型」即关闭，与桌面同义。
 
 ## 日志与反馈
 

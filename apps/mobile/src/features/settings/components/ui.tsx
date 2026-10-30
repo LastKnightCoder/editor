@@ -9,6 +9,7 @@ import {
   Folder,
   Image as ImageIcon,
   MessageSquare,
+  Sparkles,
   Mic,
   Moon,
   Type,
@@ -121,6 +122,14 @@ export function IconUsers() {
   return (
     <IconTile className="bg-accent-soft text-accent">
       <Users size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
+}
+
+export function IconSparkles() {
+  return (
+    <IconTile className="bg-accent-soft text-accent-text">
+      <Sparkles size={17} strokeWidth={1.9} aria-hidden="true" />
     </IconTile>
   );
 }

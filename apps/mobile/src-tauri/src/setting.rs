@@ -483,7 +483,8 @@ pub fn set_active_database_name(setting: &mut Value, db_name: &str) {
 
 #[tauri::command]
 pub fn read_setting_json(app: AppHandle) -> Result<String, String> {
-    let setting = load_or_init_setting(&app)?;
+    // 页面不应拿到 API Key，原生模块仍直接读完整设置
+    let setting = crate::ai_settings::public_setting(&load_or_init_setting(&app)?);
     serde_json::to_string_pretty(&setting).map_err(|e| format!("Failed to serialize setting: {e}"))
 }
 

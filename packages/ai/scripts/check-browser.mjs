@@ -63,6 +63,7 @@ const context = createContext({
 runInContext(code, context, { timeout: 10000 });
 const browser = context.AiBrowserValidation;
 assert(browser.models);
+assert(browser.catalog.listCatalogProviders().some(provider => provider.id === "deepseek"));
 const sessions = new Map();
 const modelRequests = [];
 let mcpCalls = 0;
@@ -162,7 +163,7 @@ try {
 }
 const report = {
   environment: "无 process / Buffer / require 的 VM，仅注入 Web 标准 API",
-  entries: ["runtime", "models", "tools", "skills", "mcp"],
+  entries: ["runtime", "models", "catalog", "tools", "skills", "mcp"],
   protocol: "真实 pi-ai + pi-agent-core；本机 HTTP 模拟模型 SSE；官方 MCP HTTP 服务",
   native: "内存 v3 仓库，未使用 Rust、真实模型或手机设备",
   outcome: result.outcome,

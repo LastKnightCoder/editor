@@ -1,4 +1,5 @@
 mod ai;
+mod ai_settings;
 mod app_feedback;
 mod app_update;
 mod chunked_sync;
@@ -116,6 +117,7 @@ pub fn run() {
             provider_settings::plugin_provider_save,
             provider_settings::plugin_provider_select,
             tts_settings::plugin_tts_mutate,
+            ai_settings::ai_settings_mutate,
             plugin_transport::plugin_transport_connect,
             plugin_transport::plugin_transport_disconnect,
             plugin_transport::plugin_transport_reply,

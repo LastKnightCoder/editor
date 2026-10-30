@@ -1,0 +1,286 @@
+/* 移动端 AI mockup：外壳/手机帧复用 editor-mobile，分组列表/抽屉/按钮复用 sync-mobile，这里放公共小件 */
+.scene {
+  padding-bottom: 80px;
+}
+.frames {
+  gap: 30px;
+}
+.frame-cap small {
+  display: block;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--meta);
+  margin-top: 3px;
+  line-height: 1.6;
+}
+.rec-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 99px;
+  background: var(--brand);
+  color: var(--ink-inv);
+  margin-left: 6px;
+  vertical-align: 1px;
+}
+.alt-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 99px;
+  background: var(--bg-surface);
+  color: var(--ink-2);
+  margin-left: 6px;
+  vertical-align: 1px;
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  max-width: 1180px;
+  margin-top: 18px;
+}
+.card h3 .tag {
+  margin-left: 6px;
+}
+.card p + p {
+  margin-top: 6px;
+}
+.card .muted {
+  color: var(--meta);
+}
+
+/* 底部 Dock：4 个 Tab + 中央 FAB，与 AppDock 一致 */
+.dock {
+  height: 74px;
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-around;
+  padding: 8px 6px 0;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--line-2);
+  color: var(--ink-3);
+  font-size: 10.5px;
+  position: relative;
+}
+.dock > span {
+  display: grid;
+  place-items: center;
+  gap: 3px;
+  min-width: 52px;
+}
+.dock > span.on {
+  color: var(--brand-text);
+  font-weight: 600;
+}
+.dock .dock-fab {
+  width: 50px;
+  height: 50px;
+  border-radius: 18px;
+  background: var(--brand);
+  color: var(--ink-inv);
+  display: grid;
+  place-items: center;
+  margin-top: -4px;
+  box-shadow: var(--shadow-float);
+}
+.dock .dock-fab.pressed {
+  transform: scale(0.92);
+}
+
+/* 开关 */
+.sw {
+  width: 46px;
+  height: 28px;
+  border-radius: 99px;
+  background: var(--line-1);
+  position: relative;
+  flex: none;
+}
+.sw::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.sw.on {
+  background: var(--brand);
+}
+.sw.on::after {
+  left: 21px;
+}
+.sw.dis {
+  opacity: 0.4;
+}
+
+/* 分段控件 */
+.seg {
+  display: flex;
+  background: var(--bg-sunken);
+  border-radius: 12px;
+  padding: 3px;
+  gap: 2px;
+  margin: 0 16px;
+}
+.seg span {
+  flex: 1;
+  height: 32px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.seg span.on {
+  background: var(--bg-surface);
+  color: var(--ink-1);
+  font-weight: 650;
+  box-shadow: var(--shadow-card);
+}
+
+/* 能力标签 */
+.cap {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--bg-page);
+  color: var(--ink-2);
+  margin-left: 4px;
+  vertical-align: 1px;
+}
+.cap.r {
+  background: var(--lilac-soft);
+  color: var(--lilac);
+}
+.cap.i {
+  background: var(--sky-soft);
+  color: var(--sky);
+}
+.cap.f {
+  background: var(--sage-soft);
+  color: var(--sage);
+}
+
+/* 横幅 */
+.banner {
+  margin: 8px 16px 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.banner b {
+  display: block;
+  font-size: 13.5px;
+}
+.banner.warn {
+  background: var(--butter-soft);
+  color: var(--ink-1);
+}
+.banner.warn > .ic {
+  color: var(--butter);
+}
+.banner.err {
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg-surface));
+}
+.banner.err > .ic {
+  color: var(--danger);
+}
+.banner.info {
+  background: var(--brand-soft);
+}
+.banner.info > .ic {
+  color: var(--brand-text);
+}
+.banner .act {
+  margin-left: auto;
+  align-self: center;
+  font-weight: 650;
+  color: var(--brand-text);
+  white-space: nowrap;
+}
+
+/* 浮动胶囊（回到底部 / 新消息） */
+.float-pill {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 99px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-float);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.float-pill.ink {
+  background: var(--ink-1);
+  color: var(--ink-inv);
+}
+
+/* 手势标识 */
+.touch {
+  position: absolute;
+  z-index: 9;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--brand) 28%, transparent);
+  border: 2px solid color-mix(in srgb, var(--brand) 70%, transparent);
+  pointer-events: none;
+}
+.touch.hold::after {
+  content: "";
+  position: absolute;
+  inset: -9px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--brand) 40%, transparent);
+}
+.swipe-arrow {
+  position: absolute;
+  z-index: 9;
+  color: var(--brand);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.blur-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  backdrop-filter: blur(6px);
+  background: color-mix(in srgb, var(--bg-page) 55%, transparent);
+}
+
+/* 行内徽标不随 .row .mid span 变成整行块；抽屉关闭按钮保持正圆 */
+.row .mid span.pill-tag,
+.row .mid span.cap,
+.mrow .mid span.cap {
+  display: inline-flex;
+  width: auto;
+  margin-top: 0;
+}
+.sheet .sh-t .x-btn {
+  flex: none;
+}

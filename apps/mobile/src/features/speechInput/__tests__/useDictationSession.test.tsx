@@ -114,7 +114,7 @@ describe("useDictationSession", () => {
     act(() => session.finish());
     await flush();
     expect(fake.state.stop).toHaveBeenCalledTimes(1);
-    expect(callbacks.onCommit).toHaveBeenCalledWith("你好世界");
+    expect(callbacks.onCommit).toHaveBeenCalledWith("你好世界", false);
     expect(callbacks.onPolished).not.toHaveBeenCalled();
     expect(session.phase).toBe("idle");
     expect(session.startedAt).toBeNull();
@@ -135,7 +135,7 @@ describe("useDictationSession", () => {
     render({ service: fake.service });
     await startListening(fake);
     await act(async () => fake.state.resolve({ text: "两分钟" }));
-    expect(callbacks.onCommit).toHaveBeenCalledWith("两分钟");
+    expect(callbacks.onCommit).toHaveBeenCalledWith("两分钟", false);
     expect(session.phase).toBe("idle");
     act(() => session.finish());
     await flush();
@@ -177,7 +177,7 @@ describe("useDictationSession", () => {
     await startListening(fake);
     act(() => session.finish());
     await flush();
-    expect(callbacks.onCommit).toHaveBeenCalledWith("你好世界");
+    expect(callbacks.onCommit).toHaveBeenCalledWith("你好世界", false);
   });
 
   it("连接失败：onError 并进入 error", async () => {
@@ -204,7 +204,7 @@ describe("useDictationSession", () => {
     await startListening(fake);
     act(() => session.finish());
     await flush();
-    expect(callbacks.onCommit).toHaveBeenCalledWith("嗯你好");
+    expect(callbacks.onCommit).toHaveBeenCalledWith("嗯你好", true);
     expect(refine).toHaveBeenCalledWith(
       "嗯你好",
       expect.objectContaining({ signal: expect.any(AbortSignal) })
@@ -225,6 +225,39 @@ describe("useDictationSession", () => {
     expect(callbacks.onPolished).toHaveBeenCalledWith("原话", "fallback");
     expect(callbacks.onError).not.toHaveBeenCalled();
     expect(session.phase).toBe("idle");
+  });
+
+  it("润色失败后重试：用同一识别结果再次润色", async () => {
+    const fake = createFakeService("原话");
+    const refine = vi
+      .fn<SpeechRefiner>()
+      .mockRejectedValueOnce(new Error("模型出错"))
+      .mockResolvedValueOnce("原话。");
+    render({ service: fake.service, refine });
+    await startListening(fake);
+    act(() => session.finish());
+    await flush();
+    expect(callbacks.onPolished).toHaveBeenLastCalledWith("原话", "fallback");
+    act(() => session.retryPolish());
+    await flush();
+    expect(refine).toHaveBeenCalledTimes(2);
+    expect(callbacks.onPolished).toHaveBeenLastCalledWith("原话。", "refined");
+    expect(session.phase).toBe("idle");
+    act(() => session.retryPolish());
+    await flush();
+    expect(refine).toHaveBeenCalledTimes(2);
+  });
+
+  it("录音开始时固定润色器：录音中撤掉润色器仍按开始时润色", async () => {
+    const fake = createFakeService("原话");
+    const refine: SpeechRefiner = vi.fn(async () => "原话。");
+    render({ service: fake.service, refine });
+    await startListening(fake);
+    render({ service: fake.service });
+    act(() => session.finish());
+    await flush();
+    expect(callbacks.onCommit).toHaveBeenCalledWith("原话", true);
+    expect(callbacks.onPolished).toHaveBeenCalledWith("原话。", "refined");
   });
 
   it("润色中跳过：中止润色，不调 onPolished，回 idle", async () => {

@@ -21,6 +21,7 @@ import { selectPluginProvider } from "../../../services/tauri";
 import { GroupCard, GroupNote, GroupRow } from "../components/ui";
 import { TtsStatus } from "../tts/components/TtsUi";
 import { useSpeechInputProviders } from "./providers";
+import { SpeechRefinementGroup } from "./SpeechRefinementGroup";
 
 const NATIVE = "native";
 
@@ -127,6 +128,7 @@ export function SpeechInputSection() {
       <GroupNote>
         识别服务用于搜索、聊天与编辑器的语音输入。点已配置的服务即切换，点右侧箭头修改账号。
       </GroupNote>
+      <SpeechRefinementGroup />
       {providers.length === 0 && (
         <>
           <div className="h-2" />

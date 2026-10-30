@@ -11,6 +11,7 @@ import {
 } from "../../services/mobileSettingsBridge";
 import type { SpeechInputService, SpeechRefiner } from "@tau/asr";
 import { defaultSpeechInputSetting } from "@tau/asr";
+import { prepareSpeechRefinement } from "../../services/speechRefinement";
 import { commitDictation, type DictationCommit, type DictationTarget } from "./commitDictation";
 import { setDictationPreview, splitPreviewText } from "./dictationPreview";
 import { useDictationSession } from "./useDictationSession";
@@ -33,7 +34,7 @@ export type EditorDictationOptions = {
   getEditor: () => Editor | null;
   /** point：按下时的光标处插入；end：文末追加新段落（阅读态） */
   mode: "point" | "end";
-  /** AI 润色器；未配置 AI 时不传，松手即写入 */
+  /** AI 润色器；缺省按「语音输入整理」的模型分配生成，未分配时松手即写入 */
   refine?: SpeechRefiner;
 };
 
@@ -65,6 +66,8 @@ export function useEditorDictation(options: EditorDictationOptions) {
     getMobileSettingSnapshot
   );
   const service = useSpeechInputService();
+  const assignedRefine = useMemo(() => prepareSpeechRefinement(setting), [setting]);
+  const refine = options.refine ?? assignedRefine;
   const [cancelArmed, setCancelArmedState] = useState(false);
   const [pill, setPill] = useState<PolishPillState | null>(null);
   const editorRef = useRef<Editor | null>(null);
@@ -125,12 +128,12 @@ export function useEditorDictation(options: EditorDictationOptions) {
 
   const session = useDictationSession({
     service,
-    refine: options.refine,
+    refine,
     onPreview: text => {
       previewTextRef.current = text;
       renderPreview();
     },
-    onCommit: text => {
+    onCommit: (text, willPolish) => {
       const editor = editorRef.current;
       const pointTarget = pointRef.current;
       const target: DictationTarget =
@@ -144,7 +147,7 @@ export function useEditorDictation(options: EditorDictationOptions) {
       releaseCommit();
       commitRef.current = commit;
       originalRef.current = text;
-      if (optionsRef.current.refine) {
+      if (willPolish) {
         showPill({ kind: "polishing" });
         return;
       }
@@ -246,9 +249,9 @@ export function useEditorDictation(options: EditorDictationOptions) {
         releaseCommit();
       },
       onRetry: () => {
-        // 重新润色需要会话层支持，接入 AI 时补齐；目前只关闭提示
-        showPill(null);
-        releaseCommit();
+        if (!commitRef.current) return showPill(null);
+        showPill({ kind: "polishing" });
+        session.retryPolish();
       },
     }),
     [pill, releaseCommit, session, showPill, showUndoToast]
@@ -268,7 +271,7 @@ export function useEditorDictation(options: EditorDictationOptions) {
     active: session.phase === "connecting" || session.phase === "listening",
     cancelArmed,
     setCancelArmed,
-    polishEnabled: Boolean(options.refine),
+    polishEnabled: Boolean(refine),
     unavailableReason,
     openSettings,
     begin,
