@@ -367,6 +367,17 @@ export async function findContentChat(databaseName: string, contentId: number) {
   return page.items[0] ?? null;
 }
 
+/** 用户改名：记 titleDirty，之后不再按首句自动命名 */
+export async function renameChat(databaseName: string, sessionId: string, title: string) {
+  const { service } = await capabilitiesFor(databaseName);
+  const ref = { databaseName, sessionId };
+  const snapshot = await service.sessions.get(ref);
+  const patched = await service.sessions.patch(ref, snapshot.revision, { title, titleDirty: true });
+  useChatStore
+    .getState()
+    .patch(sessionId, { title: patched.row.title, revision: patched.revision });
+}
+
 export async function removeChat(databaseName: string, sessionId: string) {
   const { service } = await capabilitiesFor(databaseName);
   const ref = { databaseName, sessionId };

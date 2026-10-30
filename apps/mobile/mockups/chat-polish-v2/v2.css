@@ -1,0 +1,909 @@
+/* 对话页 v2 mockup：外壳、手机帧、主题切换复用 editor-mobile + ai-mobile/ai.js */
+.scene {
+  padding-bottom: 80px;
+}
+.frames {
+  gap: 30px;
+}
+.frame-cap small {
+  display: block;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--meta);
+  margin-top: 3px;
+  line-height: 1.6;
+}
+.rec-badge,
+.new-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 99px;
+  margin-left: 6px;
+  vertical-align: 1px;
+}
+.rec-badge {
+  background: var(--brand);
+  color: var(--ink-inv);
+}
+.new-badge {
+  background: var(--butter-soft);
+  color: var(--butter);
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  max-width: 1180px;
+  margin-top: 18px;
+}
+
+/* ── 顶栏 ── */
+.v-nav {
+  height: 52px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 2px;
+}
+.v-nav .ib {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-2);
+  border-radius: 50%;
+}
+.v-nav .ib.back {
+  color: var(--ink-1);
+}
+.v-nav .mid {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.v-nav .mid b {
+  font-size: 15.5px;
+  font-weight: 650;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.v-nav .mid span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+  margin-top: 1px;
+}
+.v-nav .mid span i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tau-ok);
+}
+.v-nav.plain .mid {
+  align-items: flex-start;
+  padding-left: 4px;
+}
+.v-nav .h1 {
+  flex: 1;
+  font-size: 18px;
+  font-weight: 750;
+  padding-left: 6px;
+}
+
+/* ── 消息区 ── */
+.v-thread {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  padding: 6px 20px 0;
+  display: flex;
+  flex-direction: column;
+}
+.v-thread > * {
+  flex-shrink: 0;
+}
+.v-thread .day {
+  align-self: center;
+  font-size: 11px;
+  color: var(--ink-3);
+  margin: 2px 0 10px;
+}
+.v-u {
+  align-self: flex-end;
+  margin-left: auto;
+  width: fit-content;
+  max-width: 80%;
+  background: color-mix(in srgb, var(--brand) 16%, var(--bg-surface));
+  padding: 9px 14px;
+  border-radius: 20px 20px 6px 20px;
+  font-size: 15px;
+  line-height: 1.55;
+}
+.v-a {
+  margin-top: 16px;
+  font-size: 15.5px;
+  line-height: 1.75;
+}
+.v-a + .v-u,
+.v-acts + .v-u,
+.v-land + .v-u {
+  margin-top: 26px;
+}
+.v-a p + p,
+.v-a p + ul,
+.v-a ul + p {
+  margin-top: 10px;
+}
+.v-a ul {
+  padding-left: 20px;
+}
+.v-a li + li {
+  margin-top: 4px;
+}
+.v-a b {
+  font-weight: 650;
+}
+.v-a h4 {
+  font-size: 15.5px;
+  font-weight: 700;
+  margin: 12px 0 4px;
+}
+
+/* 引用：可点的小胶囊，带类型图标与标签色 */
+.ref {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+  padding: 0 7px 0 5px;
+  margin: 0 1px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  vertical-align: 1px;
+  line-height: 1;
+}
+.ref.diary {
+  background: var(--lilac-soft);
+  color: var(--lilac);
+}
+.ref.card {
+  background: var(--sage-soft);
+  color: var(--sage);
+}
+.ref.article {
+  background: var(--sky-soft);
+  color: var(--sky);
+}
+
+/* 过程胶囊 */
+.v-steps {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px 0 9px;
+  border-radius: 99px;
+  background: var(--bg-surface);
+  color: var(--ink-2);
+  font-size: 12.5px;
+  margin-bottom: 8px;
+}
+.v-steps .ok {
+  color: var(--tau-ok);
+}
+.v-steps .run {
+  color: var(--brand);
+  animation: v-spin 1.1s linear infinite;
+}
+.v-steps em {
+  font-style: normal;
+  color: var(--ink-3);
+}
+@keyframes v-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.v-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand);
+  margin-left: 4px;
+  vertical-align: 1px;
+  animation: v-pulse 1s ease-in-out infinite;
+}
+@keyframes v-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* ── 回答操作 A：文字胶囊 ── */
+.v-acts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.v-acts .pill {
+  height: 34px;
+  padding: 0 13px 0 11px;
+  border-radius: 99px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--ink-2);
+  background: var(--bg-surface);
+}
+.v-acts .pill.icon {
+  width: 34px;
+  padding: 0;
+  justify-content: center;
+}
+.v-acts .pill.accent {
+  background: var(--brand-soft);
+  color: var(--brand-text);
+}
+/* B：极简 —— 只有一枚 ⋯，点开底部面板 */
+.v-acts.min {
+  gap: 4px;
+  margin-left: -6px;
+}
+.v-acts.min .dot {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--ink-3);
+}
+/* C：落地条 —— 回答下方一块浅底，主动作「存为卡片」 */
+.v-land {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 5px 5px 14px;
+  border-radius: 18px;
+  background: var(--bg-surface);
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.v-land .sp {
+  flex: 1;
+}
+.v-land .b {
+  height: 32px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.v-land .b.main {
+  background: var(--brand);
+  color: var(--ink-inv);
+}
+.v-land .b.ic {
+  width: 32px;
+  padding: 0;
+  justify-content: center;
+  color: var(--ink-2);
+}
+
+/* 底部操作面板（方案 B 用） */
+.v-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--mask);
+  z-index: 5;
+}
+.v-sheet {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 6;
+  background: var(--bg-surface);
+  border-radius: 26px;
+  padding: 8px 8px 22px;
+  box-shadow: var(--shadow-float);
+}
+.v-sheet .grab {
+  width: 36px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--line-2);
+  margin: 2px auto 10px;
+}
+.v-sheet .grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 0 4px 10px;
+}
+.v-sheet .grid span {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.v-sheet .grid span b {
+  width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  background: var(--bg-page);
+  color: var(--ink-1);
+}
+.v-sheet .row {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+  font-size: 15px;
+  border-top: 1px solid var(--line-1);
+}
+.v-sheet .row.danger {
+  color: var(--danger);
+}
+
+/* ── 输入区 ── */
+.v-cmp {
+  flex: none;
+  padding: 8px 12px 30px;
+  position: relative;
+}
+.v-cmp::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 9px;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--ink-1);
+  opacity: 0.85;
+}
+.v-cmp.fade {
+  background: linear-gradient(to bottom, transparent, var(--bg-page) 18px);
+  margin-top: -18px;
+  padding-top: 22px;
+}
+/* A：一体卡片 —— 上行文字、下行工具 */
+.cA {
+  background: var(--bg-surface);
+  border-radius: 26px;
+  box-shadow: var(--shadow-card);
+  padding: 12px 10px 10px 14px;
+}
+.cA .tx {
+  min-height: 24px;
+  font-size: 15.5px;
+  line-height: 1.5;
+  color: var(--ink-1);
+  padding-right: 8px;
+}
+.cA .ph {
+  color: var(--ink-3);
+}
+.cA .tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+.cA .tools .sp {
+  flex: 1;
+}
+.t-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--ink-2);
+  border: 1px solid var(--line-2);
+  flex: none;
+}
+.t-chip {
+  height: 34px;
+  padding: 0 12px 0 9px;
+  border-radius: 99px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--ink-2);
+  border: 1px solid var(--line-2);
+}
+.t-main {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.t-main.mic {
+  background: var(--bg-page);
+  color: var(--ink-1);
+}
+.t-main.send {
+  background: var(--brand);
+  color: var(--ink-inv);
+}
+.t-main.stop {
+  background: var(--ink-1);
+  color: var(--ink-inv);
+}
+.cA .hold {
+  height: 48px;
+  margin-right: 4px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  font-size: 15.5px;
+  font-weight: 600;
+  background: var(--bg-page);
+}
+.cA .hold.on {
+  background: var(--brand-soft);
+  color: var(--brand-text);
+}
+.cA .att {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.cA .att .q {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  height: 34px;
+  padding: 0 9px 0 10px;
+  border-radius: 12px;
+  background: var(--bg-page);
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.cA .att .q span:nth-child(2) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cA .att .img {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--sky-soft), var(--lilac-soft));
+  position: relative;
+}
+.cA .att .img::after {
+  content: "×";
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--ink-1);
+  color: var(--ink-inv);
+  font-size: 12px;
+  line-height: 17px;
+  text-align: center;
+}
+/* B：托盘 —— 贴底的表面色托盘，顶部大圆角 */
+.v-cmp.tray {
+  background: var(--bg-surface);
+  border-radius: 26px 26px 0 0;
+  box-shadow: 0 -10px 30px -18px rgba(0, 0, 0, 0.25);
+  padding: 14px 12px 30px 18px;
+}
+.cB .tx {
+  min-height: 26px;
+  font-size: 15.5px;
+  color: var(--ink-3);
+}
+.cB .tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  margin-left: -4px;
+}
+.cB .tools .sp {
+  flex: 1;
+}
+.cB .t-chip {
+  border: 0;
+  background: var(--bg-page);
+}
+/* C：语音优先 —— 右侧一枚跨两行的大麦克风 */
+.cC {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+.cC .box {
+  flex: 1;
+  background: var(--bg-surface);
+  border-radius: 24px;
+  box-shadow: var(--shadow-card);
+  padding: 11px 10px 8px 15px;
+}
+.cC .tx {
+  min-height: 24px;
+  font-size: 15.5px;
+  color: var(--ink-3);
+}
+.cC .tools {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  margin-left: -6px;
+}
+.cC .tools .t-btn {
+  border: 0;
+  width: 32px;
+  height: 32px;
+}
+.cC .big {
+  width: 64px;
+  border-radius: 24px;
+  background: var(--brand);
+  color: var(--ink-inv);
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow-card);
+}
+
+/* ── 空态 ── */
+.v-hello {
+  padding: 26px 2px 0;
+}
+.v-hello .g {
+  font-size: 25px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+.v-hello .g span {
+  color: var(--brand-text);
+}
+.v-hello p {
+  font-size: 13.5px;
+  color: var(--ink-2);
+  margin-top: 6px;
+}
+.v-sugs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 22px;
+}
+.v-sug {
+  background: var(--bg-surface);
+  border-radius: 20px;
+  padding: 13px;
+  box-shadow: var(--shadow-card);
+  font-size: 14px;
+  line-height: 1.45;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.v-sug b {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+}
+.v-sug .t1 {
+  background: var(--sky-soft);
+  color: var(--sky);
+}
+.v-sug .t2 {
+  background: var(--sage-soft);
+  color: var(--sage);
+}
+.v-sug .t3 {
+  background: var(--lilac-soft);
+  color: var(--lilac);
+}
+.v-sug .t4 {
+  background: var(--butter-soft);
+  color: var(--butter);
+}
+
+/* ── 对话记录 ── */
+.h-search {
+  margin: 2px 16px 6px;
+  height: 40px;
+  border-radius: 14px;
+  background: var(--bg-surface);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  color: var(--ink-3);
+  font-size: 14.5px;
+}
+.h-body {
+  flex: 1;
+  overflow: hidden;
+  padding: 0 16px;
+  position: relative;
+}
+.h-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+  margin: 14px 4px 6px;
+}
+.h-group {
+  background: var(--bg-surface);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.h-row {
+  position: relative;
+  height: 64px;
+  overflow: hidden;
+}
+.h-row + .h-row::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 14px;
+  right: 0;
+  height: 1px;
+  background: var(--line-1);
+  z-index: 2;
+}
+.h-row .acts {
+  position: absolute;
+  inset: 0 0 0 auto;
+  display: flex;
+}
+.h-row .acts span {
+  width: 72px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 3px;
+  font-size: 11.5px;
+  color: #fff;
+}
+.h-row .acts .pin {
+  background: var(--butter);
+}
+.h-row .acts .del {
+  background: var(--danger);
+}
+.h-row .fg {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-surface);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+}
+.h-row.open .fg {
+  transform: translateX(-144px);
+}
+.h-row .fg .av {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: var(--brand-soft);
+  color: var(--brand-text);
+}
+.h-row .fg .av.note {
+  background: var(--lilac-soft);
+  color: var(--lilac);
+}
+.h-row .fg .tt {
+  flex: 1;
+  min-width: 0;
+}
+.h-row .fg .tt b {
+  display: block;
+  font-size: 15px;
+  font-weight: 550;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.h-row .fg .tt small {
+  display: block;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+.h-row .fg em {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--ink-3);
+  align-self: flex-start;
+  margin-top: 14px;
+}
+.h-row .fg .pinned {
+  color: var(--butter);
+  margin-right: 3px;
+  vertical-align: -2px;
+  display: inline-block;
+}
+.h-row.sel .fg {
+  background: color-mix(in srgb, var(--brand) 8%, var(--bg-surface));
+}
+.h-row .fg .ck {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-2);
+  flex: none;
+}
+.h-row.sel .fg .ck {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--ink-inv);
+  display: grid;
+  place-items: center;
+}
+.h-bulk {
+  flex: none;
+  display: flex;
+  justify-content: space-around;
+  padding: 10px 16px 30px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--line-1);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.h-bulk span {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+.h-bulk .danger {
+  color: var(--danger);
+}
+.lifted {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  z-index: 6;
+  border-radius: 18px;
+  box-shadow: var(--shadow-float);
+}
+
+/* ── AI 修改笔记：提案卡 ── */
+.prop {
+  margin: 4px 0 2px;
+  background: var(--bg-surface);
+  border-radius: 20px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  font-size: 13.5px;
+}
+.prop .hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px 9px;
+  border-bottom: 1px solid var(--line-1);
+}
+.prop .hd b {
+  font-size: 14px;
+  font-weight: 650;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.prop .hd .k {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: var(--sage-soft);
+  color: var(--sage);
+}
+.prop .hd em {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.prop .bd {
+  padding: 10px 14px;
+  line-height: 1.7;
+}
+.prop del {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: color-mix(in srgb, var(--danger) 80%, var(--ink-1));
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--danger) 55%, transparent);
+  border-radius: 4px;
+  padding: 0 2px;
+}
+.prop ins {
+  background: color-mix(in srgb, var(--tau-ok) 16%, transparent);
+  color: var(--ink-1);
+  text-decoration: none;
+  border-radius: 4px;
+  padding: 0 2px;
+}
+.prop .ctx {
+  color: var(--ink-3);
+}
+.prop .ft {
+  display: flex;
+  gap: 8px;
+  padding: 4px 10px 10px;
+}
+.prop .ft span {
+  flex: 1;
+  height: 40px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--bg-page);
+  color: var(--ink-1);
+}
+.prop .ft span.go {
+  background: var(--brand);
+  color: var(--ink-inv);
+}
+.prop.done .hd .k {
+  background: var(--tau-ok);
+  color: var(--ink-inv);
+}
+.prop .applied {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.prop .applied .sp {
+  flex: 1;
+}
+.prop .applied a {
+  color: var(--brand-text);
+  font-weight: 600;
+}

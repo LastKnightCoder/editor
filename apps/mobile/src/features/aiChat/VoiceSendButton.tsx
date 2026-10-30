@@ -59,7 +59,7 @@ export function HoldToTalkBar(props: {
         aria-pressed={holding}
         disabled={props.disabled}
         className={cn(
-          "text-tau-body h-9 min-w-0 flex-1 rounded-full font-semibold transition-colors select-none disabled:opacity-50",
+          "h-12 min-w-0 flex-1 rounded-[18px] text-[15.5px] font-semibold transition-colors select-none disabled:opacity-50",
           holding
             ? gesture.cancelArmed
               ? "bg-danger-soft text-danger"

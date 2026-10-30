@@ -39,6 +39,15 @@ const service = vi.hoisted(() => {
   };
 });
 vi.mock("../../../services/ai", () => ({ getMobileAiService: () => service }));
+const sql = vi.hoisted(() => vi.fn());
+vi.mock("../../../services/tauri", async importOriginal => ({
+  ...(await importOriginal<object>()),
+  aiSqlQuery: sql,
+}));
+vi.mock("../../cards/editorExtensions/ContentLinkPreviewSheet", () => ({
+  ContentLinkPreviewSheet: (props: { open: boolean; target: { contentTitle: string } | null }) =>
+    props.open ? <div data-testid="ref-preview">预览：{props.target?.contentTitle}</div> : null,
+}));
 vi.mock("../../../services/aiChat/hostTools", () => ({
   registerHostCapabilities: () => ({ toolIds: ["host:create_todo"], dispose: vi.fn() }),
 }));
@@ -380,6 +389,30 @@ it("回答完成：相邻工具收成一枚过程胶囊，最后一条回答常�
   expect(activePage().querySelectorAll("[aria-expanded='true']").length).toBeGreaterThan(0);
 });
 
+it("回答操作：文字胶囊「存为卡片 / 复制」，⋯ 打开操作面板；引用胶囊点开预览", async () => {
+  setting = makeSetting(true);
+  const chat = answeredChat();
+  const answer = chat.messages[1] as { assistant_blocks: { content?: string }[] };
+  answer.assistant_blocks[2].content = "见 :ref[10 月 29 日]{id=5 type=diary-daily}";
+  service.sessions.get.mockResolvedValue(session("s4", chat.messages, "明天的日程"));
+  sql.mockResolvedValue({ rows: [{ contentId: 88, title: "2026-10-29" }] });
+  useChatStore.setState({ chats: { s4: chat } });
+  mount();
+  await open("aiChat", { sessionId: "s4" });
+  await waitFor(() => text().includes("10 月 29 日"));
+  expect(pressable("存为卡片")?.textContent).toBe("存为卡片");
+  expect(pressable("复制")?.textContent).toBe("复制");
+
+  await click(pressable("日记：10 月 29 日"));
+  await waitFor(() => !!document.querySelector('[data-testid="ref-preview"]'));
+  expect(sql.mock.calls[0][1].params).toEqual({ id: 5 });
+  expect(document.body.textContent).toContain("预览：2026-10-29");
+
+  await click(pressable("更多操作"));
+  await waitFor(() => !!pressable("选择文字", document.body));
+  expect(pressable("删除", document.body)).toBeTruthy();
+});
+
 it("重新生成：会话先回退到最后一个问题之前，再原样发出", async () => {
   setting = makeSetting(true);
   service.sessions.get.mockResolvedValue(session("s4", answeredChat().messages, "明天的日程"));
@@ -465,4 +498,46 @@ it("对话记录：按时间分组，点按打开会话", async () => {
   expect(service.sessions.list).toHaveBeenCalledWith("data.db", { offset: 0, limit: 30 });
   expect(text()).toContain("来自笔记");
   expect(text()).not.toContain("插件里的会话");
+});
+
+it("对话记录：长按弹出重命名与删除，重命名记 titleDirty", async () => {
+  setting = makeSetting(true);
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  service.sessions.list.mockResolvedValue({
+    items: [row("a", "复习计划")],
+    nextOffset: 1,
+    hasMore: false,
+  });
+  service.sessions.get.mockResolvedValue(session("a", [], "复习计划"));
+  service.sessions.patch.mockResolvedValue(session("a", [], "间隔复习"));
+  try {
+    mount();
+    await open("aiChatHistory", {});
+    await waitFor(() => text().includes("复习计划"));
+    const item = pressable("复习计划")!;
+    act(() => {
+      item.dispatchEvent(
+        new MouseEvent("pointerdown", { bubbles: true, clientX: 50, clientY: 50 })
+      );
+      vi.advanceTimersByTime(500);
+    });
+    await waitFor(() => !!pressable("重命名", document.body));
+    await click(pressable("重命名", document.body));
+    await waitFor(() => !!document.querySelector('input[aria-label="对话标题"]'));
+    const input = document.querySelector<HTMLInputElement>('input[aria-label="对话标题"]')!;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+    act(() => {
+      setter.call(input, "间隔复习");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await click(pressable("保存", document.body));
+    await waitFor(() => service.sessions.patch.mock.calls.length === 1);
+    expect(service.sessions.patch).toHaveBeenCalledWith(
+      { databaseName: "data.db", sessionId: "a" },
+      "r1",
+      { title: "间隔复习", titleDirty: true }
+    );
+  } finally {
+    vi.useRealTimers();
+  }
 });

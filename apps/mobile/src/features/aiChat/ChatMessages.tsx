@@ -14,7 +14,16 @@ import {
   type PointerEvent,
   type ReactNode,
 } from "react";
-import { ArrowDown, BookmarkPlus, Copy, RefreshCw, X } from "lucide-react";
+import {
+  ArrowDown,
+  BookmarkPlus,
+  Copy,
+  Ellipsis,
+  FileText,
+  RefreshCw,
+  TextQuote,
+  X,
+} from "lucide-react";
 import {
   getAssistantContentBlocks,
   Role,
@@ -38,6 +47,12 @@ import { useThemeStore } from "@tau/themes/react";
 import { cn } from "@tau/ui";
 import { TOOL_LABELS } from "./interactions";
 import { ToolSteps } from "./ToolSteps";
+import { createReferenceSpan } from "./ReferencePill";
+import { resolveChatReference } from "./references";
+import { useAppContext } from "../../app/AppContext";
+import { toast } from "../../components/toast";
+import { ContentLinkPreviewSheet } from "../cards/editorExtensions/ContentLinkPreviewSheet";
+import type { ContentLinkTarget } from "../cards/editorExtensions/contentLinkModel";
 
 const FOLLOW_SLOP_PX = 80;
 
@@ -84,6 +99,30 @@ export function MentionQuote(props: { mention: MentionRef; onRemove?: () => void
         </button>
       )}
     </div>
+  );
+}
+
+/** 输入框里待发送的引用：一行可删的小签，选中片段显示原文开头，整篇显示标题 */
+export function MentionChip(props: { mention: MentionRef; onRemove(): void }) {
+  const { mention } = props;
+  const Icon = mention.quote ? TextQuote : FileText;
+  return (
+    <span className="bg-page text-ink-2 text-tau-sm flex h-[34px] max-w-[240px] shrink-0 items-center gap-1.5 rounded-[12px] pr-1 pl-2.5">
+      <Icon size={14} className="text-accent shrink-0" aria-hidden="true" />
+      <span className="min-w-0 truncate">
+        {mention.quote
+          ? mention.previewText
+          : `${mention.title || "未命名"} · ${MENTION_KIND[mention.entityType] ?? "笔记"}`}
+      </span>
+      <button
+        type="button"
+        aria-label="去掉引用"
+        onClick={props.onRemove}
+        className="text-ink-3 grid h-6 w-6 shrink-0 place-items-center rounded-full"
+      >
+        <X size={13} aria-hidden="true" />
+      </button>
+    </span>
   );
 }
 
@@ -154,6 +193,7 @@ const ChatMessage = memo(function ChatMessage(props: {
   showActions: boolean;
   onAction?(action: ChatMessageAction, index: number, text: string): void;
   onMenu?(index: number, text: string): void;
+  onReference?(id: number, type: string, text: string): void;
 }) {
   const { message, index, streaming, isDark, onAction } = props;
   const isUser = message.role === Role.User;
@@ -175,6 +215,11 @@ const ChatMessage = memo(function ChatMessage(props: {
     [isDark]
   );
   const press = useLongPress(() => props.onMenu?.(index, plainText));
+  const { onReference } = props;
+  const markdownComponents = useMemo(
+    () => (onReference ? { span: createReferenceSpan(onReference) } : undefined),
+    [onReference]
+  );
   const parts = isUser ? userParts(message.content) : null;
   return (
     <div
@@ -197,7 +242,13 @@ const ChatMessage = memo(function ChatMessage(props: {
         hideActions
         userBubbleClassName="bg-[color-mix(in_srgb,var(--tau-accent)_16%,var(--tau-bg-surface))] text-tau-body-lg rounded-[18px_18px_5px_18px] px-[13px] py-2 max-w-[80%]"
         renderMarkdown={({ content }) => (
-          <MarkdownRenderer content={content} isDark={isDark} enableDocumentReference />
+          <MarkdownRenderer
+            content={content}
+            isDark={isDark}
+            enableDocumentReference
+            components={markdownComponents}
+            className={isUser ? undefined : ANSWER_TYPOGRAPHY}
+          />
         )}
         renderImage={(image, imageIndex, className) => (
           <img key={imageIndex} src={image.url} alt={image.alt ?? ""} className={className} />
@@ -215,29 +266,54 @@ const ChatMessage = memo(function ChatMessage(props: {
         <span className="bg-accent inline-block h-2 w-2 animate-pulse rounded-full" />
       )}
       {props.showActions && onAction && (
-        <div className="text-ink-3 mt-1 -ml-2 flex items-center">
-          {ANSWER_ACTIONS.map(({ action, label, Icon }) => (
+        <div className="mt-3 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onAction("card", index, plainText)}
+            className={cn(ANSWER_PILL, "bg-accent-soft text-accent-text gap-1.5 pr-3.5 pl-3")}
+          >
+            <BookmarkPlus size={15} aria-hidden="true" />
+            存为卡片
+          </button>
+          <button
+            type="button"
+            onClick={() => onAction("copy", index, plainText)}
+            className={cn(ANSWER_PILL, "gap-1.5 pr-3.5 pl-3")}
+          >
+            <Copy size={15} aria-hidden="true" />
+            复制
+          </button>
+          <button
+            type="button"
+            aria-label="重新生成"
+            onClick={() => onAction("regenerate", index, plainText)}
+            className={cn(ANSWER_PILL, "w-[34px]")}
+          >
+            <RefreshCw size={15} aria-hidden="true" />
+          </button>
+          {props.onMenu && (
             <button
-              key={action}
               type="button"
-              aria-label={label}
-              onClick={() => onAction(action, index, plainText)}
-              className="active:bg-press grid h-8 w-8 place-items-center rounded-[10px]"
+              aria-label="更多操作"
+              onClick={() => props.onMenu?.(index, plainText)}
+              className={cn(ANSWER_PILL, "w-[34px]")}
             >
-              <Icon size={16} aria-hidden="true" />
+              <Ellipsis size={16} aria-hidden="true" />
             </button>
-          ))}
+          )}
         </div>
       )}
     </div>
   );
 });
 
-const ANSWER_ACTIONS = [
-  { action: "copy", label: "复制", Icon: Copy },
-  { action: "regenerate", label: "重新生成", Icon: RefreshCw },
-  { action: "card", label: "存为卡片", Icon: BookmarkPlus },
-] as const;
+/** 回答正文排版：手机上读长回答，字号行距比桌面稍大、段距拉开 */
+const ANSWER_TYPOGRAPHY =
+  "text-[15.5px] leading-[1.75] [&_h1]:text-[17px] [&_h2]:text-[16px] [&_h3]:text-[15.5px] [&_h4]:text-[15.5px] [&_li]:my-1 [&_p]:my-2.5";
+
+/** 回答下方的文字胶囊：手指好点，意思一眼能懂 */
+const ANSWER_PILL =
+  "bg-surface text-ink-2 text-tau-sm flex h-[34px] shrink-0 items-center justify-center rounded-full font-medium transition-transform active:scale-95";
 
 export function ChatMessages(props: {
   messages: ChatSessionMessage[];
@@ -252,6 +328,16 @@ export function ChatMessages(props: {
   const followRef = useRef(true);
   const [detached, setDetached] = useState(false);
   const isDark = useThemeStore(state => state.mode === "dark");
+  const databaseName = useAppContext().syncSettings.safeSetting?.database?.active ?? "";
+  const [preview, setPreview] = useState<ContentLinkTarget | null>(null);
+  const openReference = useCallback(
+    (id: number, type: string, text: string) => {
+      resolveChatReference(databaseName, id, type, text)
+        .then(target => (target ? setPreview(target) : toast.info("引用的内容不存在或已被删除")))
+        .catch(() => toast.error("引用读取失败"));
+    },
+    [databaseName]
+  );
 
   useLayoutEffect(() => {
     const node = scrollRef.current;
@@ -297,6 +383,7 @@ export function ChatMessages(props: {
                 }
                 onAction={props.onAction}
                 onMenu={props.onMenu}
+                onReference={openReference}
               />
             ))}
       </div>
@@ -310,6 +397,11 @@ export function ChatMessages(props: {
           {props.running ? "回到最新" : "回到底部"}
         </button>
       )}
+      <ContentLinkPreviewSheet
+        open={preview !== null}
+        target={preview}
+        onClose={() => setPreview(null)}
+      />
     </div>
   );
 }
