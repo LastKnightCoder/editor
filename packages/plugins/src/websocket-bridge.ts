@@ -66,6 +66,23 @@ export function validateSocketClose(code?: number, reason = ""): void {
     throw new DOMException("WebSocket 关闭原因超过 123 字节", "SyntaxError");
 }
 const nextTask = () => new Promise<void>(resolve => setTimeout(resolve, 0));
+function connectionErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  const status = /^WebSocket 握手失败（HTTP ([1-5]\d{2})）$/.exec(message)?.[1];
+  if (status === "401") return "服务鉴权失败（HTTP 401），请检查连接凭据";
+  if (status === "403") return "服务拒绝访问（HTTP 403），请检查服务权限与配额";
+  if (status) return `WebSocket 握手失败（HTTP ${status}）`;
+  if (
+    ["WebSocket TLS 安全连接失败", "WebSocket 握手超时", "WebSocket 网络连接失败"].includes(message)
+  )
+    return message;
+  return "WebSocket 连接失败";
+}
+class SocketErrorEvent extends Event {
+  constructor(readonly message: string) {
+    super("error");
+  }
+}
 class HostSocket extends EventTarget implements WebSocket {
   readonly CONNECTING = 0;
   readonly OPEN = 1;
@@ -201,8 +218,8 @@ class HostSocket extends EventTarget implements WebSocket {
         const data = bytes ? (this.binary === "blob" ? new Blob([bytes]) : bytes) : incoming.data;
         this.dispatchEvent(new MessageEvent("message", { data, origin: new URL(this.url).origin }));
       }
-    } catch {
-      this.fail();
+    } catch (error) {
+      this.fail(connectionErrorMessage(error));
     }
   }
   send(data: string | ArrayBufferLike | Blob | ArrayBufferView): void {
@@ -257,10 +274,10 @@ class HostSocket extends EventTarget implements WebSocket {
       )
       .catch(() => this.fail());
   }
-  private fail() {
+  private fail(message = "WebSocket 连接失败") {
     if (this.state === this.CLOSED) return;
     this.state = this.CLOSED;
-    this.dispatchEvent(new Event("error"));
+    this.dispatchEvent(new SocketErrorEvent(message));
     this.finish({ type: "close", code: 1006, reason: "", wasClean: false });
   }
   private finished = false;

@@ -547,7 +547,7 @@ Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开
 
 移动宿主保留 ASR 注册表、WebSocket 原生传输、配置存储和 `createMobileSpeechInputService` 编排工厂；壳层不挂载录音 Provider。我的 › 语音 › 语音输入（`settingsModule` 的 `speech-input`）列出系统识别与已启用的识别插件，点已配置的服务即切换，未配置或点箭头进入插件设置页 `pluginSettings`（插件 form 与识别模型）；选用的插件停用后保留选择并提示。插件设置 open 同样打开插件设置页，原生识别接线见[系统语音输入](#系统语音输入)。
 
-Android 清单包含 RECORD_AUDIO/MODIFY_AUDIO_SETTINGS，iOS 包信息包含麦克风用途说明。`plugin_socket` 命令按工作区 token 及窗口作用域校验，系统网络实现使用 tokio-tungstenite；作者契约见 [WebSocket](/plugins/tau-plugin-template/docs/storage-and-network.md#websocket)。采集仅在用户开始语音输入时申请，插件停用和工作区释放取消会话。普通设置快照保留原生管理的 speechInput 数据。
+Android 清单包含 RECORD_AUDIO/MODIFY_AUDIO_SETTINGS，iOS 包信息包含麦克风用途说明。`plugin_socket` 命令按工作区 token 及窗口作用域校验，系统网络实现使用 tokio-tungstenite；握手失败只保留 HTTP 状态码或 TLS、网络、超时类别，公共连接桥经白名单映射后放入 `error` 事件的 `message`，不传递原始错误、请求头或响应正文。作者契约见 [WebSocket](/plugins/tau-plugin-template/docs/storage-and-network.md#websocket)。采集仅在用户开始语音输入时申请，插件停用和工作区释放取消会话。普通设置快照保留原生管理的 speechInput 数据。
 
 语音输入与键盘平级，代码在 `features/speechInput/`：
 

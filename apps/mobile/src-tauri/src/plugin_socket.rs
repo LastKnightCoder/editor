@@ -12,7 +12,7 @@ use tokio_tungstenite::{
     tungstenite::{
         client::IntoClientRequest,
         protocol::{frame::coding::CloseCode, CloseFrame, WebSocketConfig},
-        Message,
+        Error as SocketError, Message,
     },
 };
 
@@ -115,6 +115,20 @@ fn get(token: &str, id: &str) -> Result<Arc<Connection>, String> {
     })
 }
 
+fn handshake_error(error: SocketError) -> String {
+    match error {
+        SocketError::Http(response) => {
+            format!("WebSocket 握手失败（HTTP {}）", response.status().as_u16())
+        }
+        SocketError::Tls(_) => "WebSocket TLS 安全连接失败".into(),
+        SocketError::Io(error) if error.kind() == std::io::ErrorKind::TimedOut => {
+            "WebSocket 握手超时".into()
+        }
+        SocketError::Io(_) => "WebSocket 网络连接失败".into(),
+        _ => "WebSocket 握手失败".into(),
+    }
+}
+
 #[tauri::command]
 pub async fn plugin_socket_open(
     window: WebviewWindow,
@@ -203,7 +217,7 @@ pub async fn plugin_socket_open(
     );
     let opened = tokio::select! {
         _ = cancelled.changed() => Err("WebSocket 已取消".to_string()),
-        result = connecting => match result { Ok(value) => value.map_err(|_| "WebSocket 握手失败，请检查网络与账号".to_string()), Err(_) => Err("WebSocket 握手超时".to_string()) },
+        result = connecting => match result { Ok(value) => value.map_err(handshake_error), Err(_) => Err("WebSocket 握手超时".to_string()) },
     };
     let (mut socket, response) = match opened {
         Ok(value) => value,
@@ -277,6 +291,39 @@ pub async fn plugin_socket_open(
         protocol,
         extensions,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn handshake_http_error_keeps_status_without_headers_or_body() {
+        let response = tokio_tungstenite::tungstenite::http::Response::builder()
+            .status(403)
+            .header("x-private", "secret-header")
+            .body(Some(b"secret-body".to_vec()))
+            .unwrap();
+        assert_eq!(
+            handshake_error(SocketError::Http(Box::new(response))),
+            "WebSocket 握手失败（HTTP 403）"
+        );
+    }
+
+    #[test]
+    fn handshake_network_error_keeps_category_without_native_details() {
+        assert_eq!(
+            handshake_error(SocketError::Io(std::io::Error::new(
+                std::io::ErrorKind::ConnectionRefused,
+                "secret-address"
+            ))),
+            "WebSocket 网络连接失败"
+        );
+        assert_eq!(
+            handshake_error(SocketError::Io(std::io::ErrorKind::TimedOut.into())),
+            "WebSocket 握手超时"
+        );
+    }
 }
 
 #[tauri::command]
