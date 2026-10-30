@@ -401,6 +401,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
   const { controller, portalContainer, readonly = false, visibleButtons, showDoneButton } = props;
   const keyboardViewport = useKeyboardViewport();
   const [panelSearching, setPanelSearching] = useState(false);
+  const [dictationKeyboardActive, setDictationKeyboardActive] = useState(false);
   const [languageSheet, setLanguageSheet] = useState<CodeLanguageSheetState | null>(null);
   const openAllLanguagesRef = useRef(false);
   const { exitEditing } = controller;
@@ -448,6 +449,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
   const showToolbar =
     !readonly &&
     (controller.isToolbarVisible ||
+      dictationKeyboardActive ||
       languageSheet !== null ||
       media.sheetOpen ||
       sourceBlock.sheetOpen);
@@ -820,6 +822,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
         getEditor={controller.getEditor}
         mode="point"
         portalContainer={portalRoot}
+        onKeyboardSwapChange={setDictationKeyboardActive}
         renderButton={({ bind, active }) => (
           <button
             type="button"

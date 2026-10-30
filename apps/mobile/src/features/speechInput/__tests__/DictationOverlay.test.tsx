@@ -37,6 +37,12 @@ describe("DictationOverlay", () => {
     expect(overlay()).toBeNull();
   });
 
+  it("沉浸区使用锁定的键盘高度，不额外叠加工具栏高度", () => {
+    render({ panelHeight: 312 });
+    const panel = overlay()?.querySelector<HTMLElement>(".dictation-zone");
+    expect(panel?.style.height).toBe("312px");
+  });
+
   it("连接中显示「正在连接…」", () => {
     render({ connecting: true });
     expect(overlay()?.textContent).toContain("正在连接…");

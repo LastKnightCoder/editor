@@ -17,6 +17,8 @@ export type DictationTriggerProps = {
   portalContainer?: HTMLElement | null;
   /** 润色胶囊底边位置，缺省贴在配件栏上方 */
   pillBottom?: string;
+  /** 失焦收键盘期间让调用方保留入口，避免中断正在跟踪的手势。 */
+  onKeyboardSwapChange?: (active: boolean) => void;
   /** 按钮外观由入口决定（配件栏 / 阅读态悬浮），手势与事件由本组件绑定 */
   renderButton(props: {
     bind: ReturnType<typeof useHoldGesture>["bind"];
@@ -31,6 +33,7 @@ export function DictationTrigger(props: DictationTriggerProps) {
     getEditor: props.getEditor,
     mode: props.mode,
     refine: props.refine,
+    onKeyboardSwapChange: props.onKeyboardSwapChange,
   });
   // 识别服务不可用时按住也不进入录音，直接引导去设置
   const showUnavailable = (reason: string) =>
@@ -81,6 +84,7 @@ export function DictationTrigger(props: DictationTriggerProps) {
         appendToEnd={props.mode === "end"}
         cancelTargetRef={cancelTargetRef}
         portalContainer={props.portalContainer}
+        panelHeight={dictation.panelHeight}
       />
       <PolishPill
         state={dictation.pill}

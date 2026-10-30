@@ -61,7 +61,7 @@ export function useHoldGesture(
 
   const onPointerDown = useCallback(
     (event: PointerEvent<HTMLElement>) => {
-      // 不抢编辑器焦点，键盘保持
+      // 短按不改变焦点，长按后的键盘切换由语音入口负责。
       event.preventDefault();
       if (pointerRef.current !== null) return;
       pointerRef.current = event.pointerId;

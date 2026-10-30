@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Editor, Point, type PointRef } from "slate";
 import { ReactEditor } from "slate-react";
 import { createMobileSpeechInputService } from "../../services/speechInput";
@@ -15,6 +15,7 @@ import { commitDictation, type DictationCommit, type DictationTarget } from "./c
 import { setDictationPreview, splitPreviewText } from "./dictationPreview";
 import { useDictationSession } from "./useDictationSession";
 import type { PolishPillState } from "./PolishPill";
+import { useDictationKeyboardSwap } from "./useDictationKeyboardSwap";
 
 const services = new WeakMap<object, SpeechInputService>();
 
@@ -35,6 +36,7 @@ export type EditorDictationOptions = {
   mode: "point" | "end";
   /** AI 润色器；未配置 AI 时不传，松手即写入 */
   refine?: SpeechRefiner;
+  onKeyboardSwapChange?: (active: boolean) => void;
 };
 
 /** 阅读态追加到文末：先把正文末尾滚进视口，预览文字出现在用户眼前 */
@@ -185,6 +187,11 @@ export function useEditorDictation(options: EditorDictationOptions) {
       navigator ? () => navigator.push("settingsModule", { module: "speech-input" }) : undefined,
     [navigator]
   );
+  const keyboard = useDictationKeyboardSwap(options.onKeyboardSwapChange);
+  const { restore: restoreKeyboard } = keyboard;
+  useEffect(() => {
+    if (session.phase !== "connecting" && session.phase !== "listening") restoreKeyboard();
+  }, [session.phase, restoreKeyboard]);
 
   const begin = useCallback(() => {
     const editor = optionsRef.current.getEditor();
@@ -201,8 +208,9 @@ export function useEditorDictation(options: EditorDictationOptions) {
     pointRef.current = Editor.pointRef(editor, at);
     previewTextRef.current = "";
     if (optionsRef.current.mode === "end") scrollToEnd(editor);
+    if (service) keyboard.begin(editor);
     session.start();
-  }, [releaseCommit, session, showPill]);
+  }, [keyboard, releaseCommit, service, session, showPill]);
 
   const setCancelArmed = useCallback(
     (armed: boolean) => {
@@ -217,12 +225,14 @@ export function useEditorDictation(options: EditorDictationOptions) {
     session.cancel();
     releaseTarget();
     setCancelArmed(false);
-  }, [releaseTarget, session, setCancelArmed]);
+    restoreKeyboard();
+  }, [releaseTarget, restoreKeyboard, session, setCancelArmed]);
 
   const finish = useCallback(() => {
     setCancelArmed(false);
     session.finish();
-  }, [session, setCancelArmed]);
+    restoreKeyboard();
+  }, [restoreKeyboard, session, setCancelArmed]);
 
   const pillActions = useMemo(
     () => ({
@@ -266,6 +276,7 @@ export function useEditorDictation(options: EditorDictationOptions) {
     phase: session.phase,
     startedAt: session.startedAt,
     active: session.phase === "connecting" || session.phase === "listening",
+    panelHeight: keyboard.panelHeight,
     cancelArmed,
     setCancelArmed,
     polishEnabled: Boolean(options.refine),
