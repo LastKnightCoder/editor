@@ -6,7 +6,7 @@ import { toast } from "../../components/toast";
 import { DictationOverlay } from "../speechInput/DictationOverlay";
 import { useDictationSession } from "../speechInput/useDictationSession";
 import { useHoldGesture } from "../speechInput/useHoldGesture";
-import { useSpeechInputService } from "../speechInput/useEditorDictation";
+import { useSpeechInputService } from "../speechInput/speechService";
 
 const TAP_HINT_ID = "chat-voice-hint";
 

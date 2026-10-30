@@ -261,6 +261,8 @@ it("旧 Windows 附件路径跨平台并随资料目录迁移，本机引用指�
   });
   for (const reference of [
     "~\\.editor\\resources\\历史附件.png",
+    "~.editor\\resources\\历史附件.png",
+    "~.editor/resources/历史附件.png",
     "~/.editor/resources/历史附件.png",
   ]) {
     expect(assets.resolveLocalFile(reference)).toBe(file);

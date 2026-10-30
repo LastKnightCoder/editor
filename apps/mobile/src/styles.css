@@ -868,13 +868,13 @@ code {
   );
 }
 
-/* ── 语音输入：沉浸区、波形、正文预览与润色流光 ── */
+/* ── 语音输入：语音面板、波形、正文预览与润色流光 ── */
 .dictation-scrim {
   background: linear-gradient(
     to bottom,
     transparent 0,
-    transparent 46%,
-    color-mix(in srgb, var(--tau-overlay) 85%, transparent) 72%
+    transparent 30%,
+    color-mix(in srgb, var(--tau-overlay) 70%, transparent) 100%
   );
   animation: mask-fade-in 0.18s ease-out;
 }
@@ -887,6 +887,33 @@ code {
 @keyframes dictation-rise {
   from {
     transform: translateY(40%);
+    opacity: 0;
+  }
+}
+
+/* 录音中的大麦克风：两道外圈交替扩散 */
+.voice-mic.is-live::before,
+.voice-mic.is-live::after {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--tau-accent) 30%, transparent);
+  animation: voice-ring 1.6s ease-out infinite;
+  pointer-events: none;
+}
+
+.voice-mic.is-live::after {
+  animation-delay: 0.8s;
+}
+
+@keyframes voice-ring {
+  from {
+    transform: scale(0.9);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.35);
     opacity: 0;
   }
 }
@@ -923,6 +950,25 @@ code {
 .dictation-preview.is-block {
   display: block;
   margin-top: 0.5em;
+}
+
+/* 语音插入点：语音面板打开时代替系统光标 */
+.voice-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.15em;
+  margin-left: 1px;
+  vertical-align: -0.2em;
+  border-radius: 1px;
+  background: var(--tau-accent);
+  box-shadow: 0 0 0 3px var(--tau-accent-soft);
+  animation: voice-caret-blink 1.05s steps(1) infinite;
+}
+
+@keyframes voice-caret-blink {
+  50% {
+    opacity: 0;
+  }
 }
 
 .dictation-preview-tail {
@@ -979,6 +1025,9 @@ code {
 
 @media (prefers-reduced-motion: reduce) {
   .dictation-wave i,
+  .voice-mic.is-live::before,
+  .voice-mic.is-live::after,
+  .voice-caret,
   .dictation-polishing {
     animation: none;
   }

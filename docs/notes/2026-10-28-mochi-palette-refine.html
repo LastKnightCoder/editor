@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>团子小镇 · 配色精修方向</title>
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/style.css" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0}
+body{background:#EFEAE4;color:#3B2F3A;font:15px/1.7 "PingFang SC",sans-serif;padding:36px 32px 80px}
+.doc{max-width:1240px;margin:0 auto}
+h1{font:30px "ZCOOL KuaiLe"}
+h2{font:22px "ZCOOL KuaiLe";display:flex;align-items:center;gap:8px}
+.lead{color:#64555F;max-width:900px;margin:8px 0 18px}
+.why{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:30px}
+.why div{background:#fff;border-radius:14px;padding:12px 16px;font-size:14px;color:#4A4347}
+.why b{display:block;font:16px "ZCOOL KuaiLe";color:#3B2F3A;margin-bottom:2px}
+.row{background:#fff;border-radius:18px;padding:18px 20px 20px;margin-bottom:24px;box-shadow:0 8px 24px #0000000d}
+.row p{font-size:14px;color:#64555F;margin:2px 0 12px;max-width:980px}
+.rec{font:12px system-ui;background:#FFE4EC;color:#B8336A;border-radius:99px;padding:1px 10px}
+.tag{font:12px system-ui;background:#F1EDE8;color:#64555F;border-radius:99px;padding:1px 10px}
+.panels{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.cap{font-size:12px;color:#8A7E86;margin-top:6px;text-align:center}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:14px;overflow:hidden;font-size:14px;margin-top:8px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid #EFE8E2;vertical-align:top}
+th{background:#FBF7F3;color:#5B5358;white-space:nowrap}
+
+/* —— 三套 token：同一份结构，只换变量 —— */
+.d-now{
+  --bg:#FFF8F0;--paper:#FFFDF9;--ink:#3B2F3A;--ink2:#64555F;--art:#3B2F3A;--art-w:2.5px;
+  --c-bd:2.5px solid #3B2F3A;--c-sh:0 4px 0 #3B2F3A;--s-bd:2.5px solid #3B2F3A;--s-sh:0 2px 0 #3B2F3A;
+  --sky:#C6E3FF;--hill:#CDEFC9;--hill-bd:2.5px solid #3B2F3A;
+  --board:radial-gradient(#00000014 1.2px,transparent 1.6px) 0 0/14px 14px,#EDCFA6;
+  --n1:#FFE9A3;--n2:#C6E3FF;--n3:#C3EEDA;--n4:#FFC9D9;--l1:#3B2F3A;--l2:#3B2F3A;--l3:#3B2F3A;--l4:#3B2F3A;
+  --note-bw:2.5px;--note-sh:0 4px 0 #3B2F3A;--big:#FFE9A3;--pin:block;--tape:none;
+  --roof:#FFC9D9;--wall:#FFFDF9;--glow:#FFE9A3;--accent:#E8628C;--chip:#FFC9D9;--mochi:#FFD6E2;--jar-bg:#FFFDF9;
+}
+.d-a{
+  --bg:#FBF6EE;--paper:#FFFDFA;--ink:#3B2F3A;--ink2:#64555F;--art:#3B2F3A;--art-w:2px;
+  --c-bd:1.5px solid rgb(59 47 58/.2);--c-sh:0 1px 0 rgb(59 47 58/.05),0 14px 26px -20px rgb(59 47 58/.5);
+  --s-bd:2px solid #3B2F3A;--s-sh:0 2px 0 #3B2F3A;
+  --sky:linear-gradient(#D9E9FA,#EEF4F4 62%,#FBF6EE);--hill:#E4F1DC;--hill-bd:1.5px solid rgb(59 47 58/.28);
+  --board:radial-gradient(rgb(59 47 58/.14) 1px,transparent 1.5px) 0 0/18px 18px,#FBF6EE;
+  --n1:#FFF5D6;--n2:#E8F2FD;--n3:#E4F4EB;--n4:#FDE8EE;--l1:#E9CF7E;--l2:#A9CBEF;--l3:#9FD6B8;--l4:#F2AFC2;
+  --note-bw:1.5px;--note-sh:0 10px 18px -14px rgb(59 47 58/.55);--big:#FFFDFA;--pin:none;--tape:block;
+  --roof:#F7BFCF;--wall:#FFFDFA;--glow:#FFEDB0;--accent:#E8628C;--chip:#FDE8EE;--mochi:#FFD6E2;--jar-bg:#FFFDFA;
+}
+.d-b{
+  --bg:#FFF7F3;--paper:#FFFFFF;--ink:#4A3A48;--ink2:#75656F;--art:#5A4757;--art-w:2px;
+  --c-bd:2px solid #F2DCE2;--c-sh:0 4px 0 #F2DCE2;--s-bd:2px solid #EBC2CE;--s-sh:0 3px 0 #EBC2CE;
+  --sky:#EAF3FF;--hill:#E6F5E1;--hill-bd:2px solid #C9E6C0;
+  --board:repeating-linear-gradient(0deg,rgb(232 98 140/.06) 0 1px,transparent 1px 22px),repeating-linear-gradient(90deg,rgb(232 98 140/.06) 0 1px,transparent 1px 22px),#FFF7F3;
+  --n1:#FFF1C4;--n2:#DFEEFF;--n3:#DDF4E8;--n4:#FFE3EB;--l1:#EFD27A;--l2:#B7D5F3;--l3:#A8DDC2;--l4:#F3B8C8;
+  --note-bw:2px;--note-sh:0 4px 0 var(--nl);--big:#FFFFFF;--pin:none;--tape:block;
+  --roof:#FFC9D9;--wall:#FFFFFF;--glow:#FFF1C4;--accent:#E8628C;--chip:#FFE3EB;--mochi:#FFD6E2;--jar-bg:#FFFFFF;
+}
+
+/* —— 共用结构 —— */
+.pane{height:320px;border-radius:14px;overflow:hidden;position:relative;background:var(--bg);color:var(--ink);font-family:"LXGW WenKai Screen",sans-serif;border:1px solid #0000000f}
+.art{stroke:var(--art);stroke-width:var(--art-w);stroke-linejoin:round;stroke-linecap:round}
+.head{font-family:"ZCOOL KuaiLe",sans-serif}
+.btn{display:inline-block;font:13px "ZCOOL KuaiLe";padding:4px 11px 3px;border-radius:99px;border:var(--s-bd);box-shadow:var(--s-sh);background:var(--paper)}
+.btn.on{background:var(--glow)}
+.chip{display:inline-block;font:11px "ZCOOL KuaiLe";padding:0 7px;border-radius:99px;border:var(--s-bd);border-width:1.5px;box-shadow:none;background:var(--chip)}
+
+/* 首页一角 */
+.home .sky{position:absolute;inset:0 0 40% 0;background:var(--sky)}
+.home .hill{position:absolute;left:-10%;right:-10%;top:52%;bottom:0;background:var(--hill);border-top:var(--hill-bd);border-radius:50% 50% 0 0/40px 40px 0 0}
+.home .sun{position:absolute;right:22px;top:18px;width:42px;height:42px;border-radius:50%;background:#FFD45C;border:var(--s-bd);border-width:2px}
+.home .title{position:absolute;left:20px;top:22px;font-size:34px;line-height:1.1}
+.home .sub{position:absolute;left:20px;top:66px;font-size:12px;color:var(--ink2)}
+.home .nav{position:absolute;left:20px;top:94px;display:flex;gap:6px}
+.home .house{position:absolute;left:24px;bottom:16px;width:104px}
+.home .mochi{position:absolute;right:26px;bottom:24px;width:98px}
+.home .bubble{position:absolute;right:20px;bottom:126px;font-size:12px;background:var(--paper);border:var(--s-bd);border-width:2px;border-radius:14px;padding:3px 10px;box-shadow:var(--s-sh)}
+.home .mail{position:absolute;left:142px;bottom:18px;width:120px;background:var(--paper);border:var(--c-bd);box-shadow:var(--c-sh);border-radius:14px;padding:8px 10px;font-size:11px}
+.home .mail b{font:13px "ZCOOL KuaiLe";display:block;margin-bottom:2px}
+.home .mail i{display:block;font-style:normal;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* 卡片列表 */
+.cards{background:var(--board)}
+.cards .jar{position:absolute;left:12px;top:14px;width:104px;background:var(--jar-bg);border:var(--c-bd);box-shadow:var(--c-sh);border-radius:14px;padding:8px}
+.cards .jar b{font:13px "ZCOOL KuaiLe";display:block;margin-bottom:4px}
+.cards .jar span{display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 4px;border-radius:8px}
+.cards .jar span.on{background:var(--chip)}
+.cards .jar em{width:10px;height:13px;border:1.5px solid var(--art);border-radius:3px 3px 5px 5px;background:linear-gradient(transparent 40%,var(--accent) 40%);font-style:normal}
+.cards .grid{position:absolute;left:130px;right:12px;top:14px;display:grid;grid-template-columns:1fr 1fr;gap:16px 12px}
+.cards h4{grid-column:1/-1;font:20px "ZCOOL KuaiLe";margin-bottom:-6px}
+.note{position:relative;border:var(--note-bw) solid var(--nl);box-shadow:var(--note-sh);border-radius:4px 4px 14px 4px;padding:14px 10px 8px;font-size:11.5px;line-height:1.7;background:var(--nt)}
+.note::before{content:"";display:var(--pin);position:absolute;top:-8px;left:50%;margin-left:-7px;width:14px;height:14px;border-radius:50%;background:var(--accent);border:2px solid #3B2F3A}
+.note::after{content:"";display:var(--tape);position:absolute;top:-7px;left:50%;margin-left:-22px;width:44px;height:14px;background:var(--nl);opacity:.55;transform:rotate(-4deg);border-radius:2px}
+.n1{--nt:var(--n1);--nl:var(--l1)}.n2{--nt:var(--n2);--nl:var(--l2)}.n3{--nt:var(--n3);--nl:var(--l3)}.n4{--nt:var(--n4);--nl:var(--l4)}
+.note small{display:block;margin-top:4px;color:var(--ink2);font-size:10px}
+.t1{transform:rotate(-1.6deg)}.t2{transform:rotate(1.2deg)}.t3{transform:rotate(.8deg)}.t4{transform:rotate(-1deg)}
+
+/* 卡片详情 */
+.detail{background:var(--board)}
+.detail .big{position:absolute;left:16px;top:22px;width:58%;bottom:22px;background:var(--big);border:var(--c-bd);box-shadow:var(--c-sh);border-radius:6px 6px 22px 6px;padding:26px 18px 14px;font-size:12.5px;line-height:1.9;transform:rotate(-.6deg)}
+.detail .big .washi{position:absolute;top:-9px;left:50%;margin-left:-36px;width:72px;height:18px;background:repeating-linear-gradient(45deg,var(--chip) 0 6px,var(--paper) 6px 12px);border:1.5px solid rgb(59 47 58/.35);transform:rotate(2deg)}
+.detail .big .meta{font-size:10.5px;color:var(--ink2);margin-bottom:6px;display:flex;gap:6px;align-items:center}
+.detail .big h5{font:16px "ZCOOL KuaiLe";margin-bottom:2px}
+.detail .side{position:absolute;right:14px;top:22px;width:33%;display:flex;flex-direction:column;gap:16px}
+.detail .side b{font:13px "ZCOOL KuaiLe";background:var(--paper);border:var(--s-bd);border-width:1.5px;border-radius:99px;padding:0 8px;align-self:flex-start}
+.detail .side .note{font-size:10.5px;padding:12px 8px 6px}
+.detail svg.yarn{position:absolute;inset:0;pointer-events:none}
+.detail svg.yarn path{fill:none;stroke:var(--accent);stroke-width:2;stroke-dasharray:5 6;opacity:.85}
+</style>
+</head>
+<body>
+<div class="doc">
+<h1>配色精修：三个方向</h1>
+<p class="lead">「像色块」不是哪一个颜色选错了，而是三件事叠在一起。下面三行用同一份页面结构、只换配色规则，左边是首页一角，中间是卡片列表，右边是卡片详情，可以直接对比。</p>
+<div class="why">
+  <div><b>大面积都是满色</b>天空整块蓝、草地整块绿、便签整张黄、背景整片软木色。马卡龙色本来只适合点缀，铺满就成了儿童贴纸。</div>
+  <div><b>每样东西一样「重」</b>页面、卡片、按钮、标签全是同样粗的黑描边加硬投影，没有主次，眼睛不知道先看哪里。</div>
+  <div><b>卡片页换了材质</b>其他页面都是奶油色的纸，只有卡片页是棕色软木板 + 图钉，像进了另一个网站。</div>
+</div>
+
+<div class="row d-now"><h2>现状 <span class="tag">对照</span></h2><p>全部满色、全部 2.5px 黑描边、卡片页是软木板。</p><div class="panels" data-panes></div></div>
+
+<div class="row d-a"><h2>A · 水彩手帐 <span class="rec">推荐</span></h2>
+<p>整站统一成「一本手帐」：底色、天空、草地都退成淡淡的水彩晕染；大面积的纸面改用细而浅的线和柔和的落影，粗黑描边只留给按钮、标签、团子这些「贴纸」，主次一下就出来了。卡片页不再是软木板，而是手帐里的点阵页，便签用浅色纸 + 同色和纸胶带固定，和文章页的手帐纸是一套。团子与插画保留墨线，可爱的记忆点不丢。</p>
+<div class="panels" data-panes></div></div>
+
+<div class="row d-b"><h2>B · 糖霜软陶</h2>
+<p>彻底去掉黑线：每个元素用比自己深一点的同色系描边和投影，像捏出来的软陶、蛋糕上的糖霜。更柔、更「现代」，但贴纸感和绘本感会弱很多，团子和房子的墨线放在这种画面里会显得突兀，需要一起改成彩色线。</p>
+<div class="panels" data-panes></div></div>
+
+<h2 style="margin-top:8px">A 方向具体改什么</h2>
+<table>
+  <tr><th>项</th><th>现在</th><th>改成</th></tr>
+  <tr><td>大面积底色</td><td>奶油底 + 满色天空 / 草地 / 软木板</td><td>奶油底不变；天空改为由浅蓝晕到奶油的渐变，草地退到很浅的绿，软木板取消</td></tr>
+  <tr><td>描边分两级</td><td>所有东西 2.5px 墨线 + 硬投影</td><td>「纸」（页面容器、卡片、信纸、便签）：1.5px 浅墨线 + 柔和落影；「贴纸」（按钮、标签糖果、开关、团子、插画）：保留墨线</td></tr>
+  <tr><td>填充色分两档</td><td>同一套马卡龙色既铺大面积又做点缀</td><td>新增一组「淡色」用于大面积（便签纸、高亮区）；原来的马卡龙色只用于小面积点缀与胶带</td></tr>
+  <tr><td>卡片列表</td><td>软木板 + 图钉 + 满色便签</td><td>手帐点阵页 + 浅色便签 + 同色和纸胶带；标签罐子保留</td></tr>
+  <tr><td>卡片详情</td><td>满黄色大便签</td><td>和文章页同一种手帐纸，顶部一条和纸胶带；红毛线保留</td></tr>
+  <tr><td>夜晚</td><td>同样的规则</td><td>同样分两级：纸面用深紫灰细线，贴纸保留浅紫灰描边；淡色组按夜晚重新取值，对比度测试照常守护</td></tr>
+</table>
+</div>
+
+<template id="tpl">
+  <div><div class="pane home">
+    <div class="sky"></div><div class="sun"></div><div class="hill"></div>
+    <div class="title head">团子的小窝</div>
+    <div class="sub">慢慢写，慢慢长大。</div>
+    <div class="nav"><span class="btn on">文章</span><span class="btn">卡片</span><span class="btn">项目 ▾</span></div>
+    <svg class="house" viewBox="0 0 150 170"><path class="art" d="M10 76L75 18l65 58z" fill="var(--roof)"/><path class="art" d="M22 72h106v86H22z" fill="var(--wall)"/><circle class="art" cx="75" cy="56" r="10" fill="var(--glow)"/><rect class="art" x="32" y="92" width="20" height="18" rx="4" fill="var(--glow)"/><rect class="art" x="98" y="92" width="20" height="18" rx="4" fill="var(--glow)"/><rect class="art" x="60" y="112" width="30" height="46" rx="15" fill="#FFD9BF"/></svg>
+    <div class="mail"><b>最近寄到</b><i>🆕 手冲咖啡</i><i>费曼学习法</i><i>卡片与双链</i></div>
+    <div class="bubble">戳戳我～</div>
+    <svg class="mochi" viewBox="0 0 120 100"><path class="art" d="M14 82C8 50 30 22 60 22s52 28 46 60c-1 7-8 10-46 10S15 89 14 82z" fill="var(--mochi)"/><ellipse cx="31" cy="66" rx="8" ry="5" fill="#E8628C" opacity=".35"/><ellipse cx="89" cy="66" rx="8" ry="5" fill="#E8628C" opacity=".35"/><ellipse cx="44" cy="53" rx="5.5" ry="7" fill="var(--art)"/><ellipse cx="76" cy="53" rx="5.5" ry="7" fill="var(--art)"/><path class="art" d="M54 64q3 4 6 0q3 4 6 0" fill="none"/></svg>
+  </div><div class="cap">首页一角</div></div>
+  <div><div class="pane cards">
+    <div class="jar"><b>🫙 标签罐子</b><span class="on"><em></em>全部</span><span><em></em>思考</span><span><em></em>编程</span><span><em></em>生活</span></div>
+    <div class="grid">
+      <h4 class="head">便签屋</h4>
+      <div class="note n1 t1">费曼学习法：讲给小朋友听，讲不明白就是没懂。<small>#学习 · 10·12</small></div>
+      <div class="note n2 t2">Rust 的所有权就是「谁负责收拾房间」。<small>#编程 · 10·10</small></div>
+      <div class="note n3 t3">薄荷扦插：剪 10 厘米带节的枝条泡水。<small>#生活 · 10·06</small></div>
+      <div class="note n4 t4">写不下去时，先写一个糟糕的版本。<small>#写作 · 10·03</small></div>
+    </div>
+  </div><div class="cap">卡片列表</div></div>
+  <div><div class="pane detail">
+    <svg class="yarn" viewBox="0 0 400 320" preserveAspectRatio="none"><path d="M220 70 Q250 140 278 72"/><path d="M220 70 Q250 200 278 156"/></svg>
+    <div class="big"><span class="washi"></span><div class="meta">📌 10 月 12 日 · 约 1 分钟 <span class="chip">#学习</span></div><h5 class="head">费曼学习法</h5>如果你不能用简单的话把一件事讲给小朋友听，说明你还没真正懂它。每读完一章，我都试着写一张这样的便签。</div>
+    <div class="side"><b>🧶 红线连着的</b><div class="note n3 t2">间隔重复：在快忘记时复习。</div><div class="note n2 t4">输出倒逼输入：写作是检验理解最便宜的方法。</div></div>
+  </div><div class="cap">卡片详情</div></div>
+</template>
+<script>
+const tpl = document.getElementById("tpl").innerHTML;
+document.querySelectorAll("[data-panes]").forEach((el) => (el.innerHTML = tpl));
+</script>
+</body>
+</html>

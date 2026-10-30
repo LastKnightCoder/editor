@@ -48,7 +48,7 @@ import {
   useKeyboardViewport,
 } from "../../../components/KeyboardViewportProvider";
 import { ActionSheet, type ActionSheetItem } from "../../../components/ActionSheet";
-import { Node as SlateNode } from "slate";
+import { Editor as SlateEditor, Node as SlateNode, Transforms } from "slate";
 
 import ContentLinkPickerSheet from "../editorExtensions/ContentLinkPickerSheet";
 import ContentLinkPreviewSheet from "../editorExtensions/ContentLinkPreviewSheet";
@@ -75,7 +75,9 @@ import {
 } from "./sourceEditorInput";
 import { useSourceBlockAccessory } from "./sourceBlockAccessory";
 import StylePanel from "./StylePanel";
-import { DictationTrigger } from "../../speechInput/DictationTrigger";
+import { VoicePanel } from "../../speechInput/VoicePanel";
+import { useVoiceDictation } from "../../speechInput/useVoiceDictation";
+import { VoiceModeCoach, useVoiceModeCoach } from "../../speechInput/VoiceModeCoach";
 import {
   AccessoryButton,
   ContextChip,
@@ -154,6 +156,8 @@ type MobileEditorBottomToolbarProps = {
    * 各模式下的「收起键盘」由它取代；其余宿主仍只收起键盘。
    */
   showDoneButton?: boolean;
+  /** 挂载后（编辑器就绪时）直接打开语音面板并开始录音，用于「说一段」入口 */
+  autoStartVoice?: boolean;
 };
 
 /** 配件栏高度，同时作为滚动容器的遮挡留白（键盘与面板由外壳收缩避让，不计入） */
@@ -201,7 +205,7 @@ const ITEM_LABELS: Record<AccessoryItemId, string> = {
   "content-link": "引用内容",
   image: "图片",
   undo: "撤销",
-  dictation: "按住说话",
+  dictation: "语音输入",
   bold: "加粗",
   italic: "斜体",
   underline: "下划线",
@@ -398,7 +402,14 @@ function resolveSourceContext(
 }
 
 export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps) {
-  const { controller, portalContainer, readonly = false, visibleButtons, showDoneButton } = props;
+  const {
+    controller,
+    portalContainer,
+    readonly = false,
+    visibleButtons,
+    showDoneButton,
+    autoStartVoice = false,
+  } = props;
   const keyboardViewport = useKeyboardViewport();
   const [panelSearching, setPanelSearching] = useState(false);
   const [languageSheet, setLanguageSheet] = useState<CodeLanguageSheetState | null>(null);
@@ -479,8 +490,30 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     };
   }, [showToolbar]);
 
+  const voice = useVoiceDictation({ getEditor: controller.getEditor, mode: "point" });
+  const voiceOpen = activePanel === "voice";
+
   const returnToKeyboard = () => {
+    // 录音中切回键盘 = 停止并写入，写入经会话异步完成，不依赖面板仍挂载
+    if (voiceOpen && voice.active) voice.finish();
     controller.closePanel({ showKeyboard: true, restoreSelection: true });
+  };
+
+  const autoStartedRef = useRef(false);
+  useEffect(() => {
+    if (!autoStartVoice || autoStartedRef.current || readonly) return;
+    const editor = controller.getEditor();
+    if (!editor) return;
+    autoStartedRef.current = true;
+    // 光标放到文末再打开面板，说的话接在已有内容之后
+    Transforms.select(editor, SlateEditor.end(editor, []));
+    controller.openPanel("voice", resolvePanelHeight(keyboardViewport));
+    voice.begin();
+  });
+
+  const exitVoiceEditing = () => {
+    if (voice.active) voice.finish();
+    exitEditing();
   };
 
   // 媒体面板打开时键盘本就收起，返回只关面板
@@ -676,6 +709,46 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
       .map(renderItem);
   }
 
+  // 输入方式切换键只在通用模式出现：上下文、格式模式都不适合口述
+  const isGeneralMode =
+    !codeContext &&
+    !sourceContext &&
+    !mediaContext &&
+    !sourceBlockContext &&
+    !linkContext &&
+    !tableContext &&
+    !isFormatMode;
+  const showVoiceMode = isGeneralMode && isVisible("dictation") && !readonly;
+  const coach = useVoiceModeCoach(showToolbar && showVoiceMode && !voiceOpen);
+  const toggleVoiceMode = () => {
+    coach.dismiss();
+    if (voiceOpen) returnToKeyboard();
+    else controller.openPanel("voice", resolvePanelHeight(keyboardViewport));
+  };
+  const voiceModeNode = showVoiceMode ? (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        aria-label={voiceOpen ? "切换到键盘" : ITEM_LABELS.dictation}
+        aria-pressed={voiceOpen}
+        className={cn(
+          "mx-0.5 flex h-[34px] w-10 items-center justify-center rounded-[10px] transition-colors",
+          voiceOpen ? "bg-press text-ink-1" : "bg-accent-soft text-accent-text"
+        )}
+        onPointerDown={keepEditorFocus}
+        onMouseDown={keepEditorFocus}
+        onClick={toggleVoiceMode}
+      >
+        {voiceOpen ? (
+          <Keyboard size={20} strokeWidth={ICON_STROKE} />
+        ) : (
+          <Mic size={20} strokeWidth={ICON_STROKE} />
+        )}
+      </button>
+      {coach.visible ? <VoiceModeCoach onDismiss={coach.dismiss} /> : null}
+    </div>
+  ) : null;
+
   let leftNode: ReactNode = null;
   if (codeContext) {
     const languageLabel = getCodeLanguageLabel(codeContext.language);
@@ -726,24 +799,29 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
   } else if (isVisible("plus")) {
     const insertOpen = activePanel === "insert";
     leftNode = (
-      <button
-        type="button"
-        aria-label={insertOpen ? "关闭插入面板" : "插入"}
-        className={cn(
-          "text-ink-inverse mx-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] transition-colors",
-          insertOpen ? "bg-ink-1" : "bg-accent"
-        )}
-        onPointerDown={keepEditorFocus}
-        onMouseDown={keepEditorFocus}
-        onClick={() => pressItem("plus")}
-      >
-        {insertOpen ? (
-          <X size={20} strokeWidth={ICON_STROKE} />
-        ) : (
-          <Plus size={20} strokeWidth={ICON_STROKE} />
-        )}
-      </button>
+      <>
+        {voiceModeNode}
+        <button
+          type="button"
+          aria-label={insertOpen ? "关闭插入面板" : "插入"}
+          className={cn(
+            "text-ink-inverse mx-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] transition-colors",
+            insertOpen ? "bg-ink-1" : "bg-accent"
+          )}
+          onPointerDown={keepEditorFocus}
+          onMouseDown={keepEditorFocus}
+          onClick={() => pressItem("plus")}
+        >
+          {insertOpen ? (
+            <X size={20} strokeWidth={ICON_STROKE} />
+          ) : (
+            <Plus size={20} strokeWidth={ICON_STROKE} />
+          )}
+        </button>
+      </>
     );
+  } else {
+    leftNode = voiceModeNode;
   }
 
   let rightNode: ReactNode;
@@ -775,6 +853,13 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
         <Ellipsis size={ICON_SIZE} strokeWidth={ICON_STROKE} />
       </AccessoryButton>
     );
+  } else if (voiceOpen) {
+    keyboardExit = exitVoiceEditing;
+    rightNode = (
+      <AccessoryButton label="收起" onPress={exitVoiceEditing}>
+        <KeyboardOff size={ICON_SIZE} strokeWidth={ICON_STROKE} />
+      </AccessoryButton>
+    );
   } else if (activePanel) {
     rightNode = (
       <AccessoryButton label="键盘" onPress={returnToKeyboard}>
@@ -803,39 +888,6 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
       </AccessoryButton>
     );
   }
-
-  // 语音输入只在通用模式出现：上下文、格式模式、面板打开时都不适合口述
-  const isGeneralMode =
-    !codeContext &&
-    !sourceContext &&
-    !mediaContext &&
-    !sourceBlockContext &&
-    !linkContext &&
-    !tableContext &&
-    !isFormatMode &&
-    activePanel === null;
-  const dictationNode =
-    isGeneralMode && isVisible("dictation") && !readonly ? (
-      <DictationTrigger
-        getEditor={controller.getEditor}
-        mode="point"
-        portalContainer={portalRoot}
-        renderButton={({ bind, active }) => (
-          <button
-            type="button"
-            aria-label={ITEM_LABELS.dictation}
-            aria-pressed={active}
-            className={cn(
-              "flex h-10 w-10 shrink-0 select-none items-center justify-center rounded-[11px] transition-colors",
-              active ? "bg-accent-soft text-accent-text" : "text-ink-2 active:bg-press"
-            )}
-            {...bind}
-          >
-            <Mic size={ICON_SIZE} strokeWidth={ICON_STROKE} />
-          </button>
-        )}
-      />
-    ) : null;
 
   const selectLanguage = (context: CodeEditingContext, language: string) => {
     controller.setCodeBlockLanguage(context, language);
@@ -878,7 +930,6 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
                 className="to-surface pointer-events-none absolute inset-y-0 right-0 w-[22px] bg-linear-to-r from-transparent"
               />
             </div>
-            {dictationNode}
             {middleNodes.length > 0 && rightNode ? (
               <span aria-hidden="true" className="bg-line-1 mx-1 h-[22px] w-px shrink-0" />
             ) : null}
@@ -893,36 +944,47 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
   // 键盘升起前按预计高度先把面板抬到键盘位置之上：搜索框聚焦时已可见，iOS 不会为露出它平移整个视口
   const panelBottom = panelSearching ? resolveExpectedKeyboardHeight(keyboardViewport) : 0;
   const panelNode =
-    activePanel && portalRoot
+    activePanel === "voice" && portalRoot
       ? createPortal(
-          // 面板自行贴住键盘定位，内部输入框（插入面板搜索）不参与自动露出，否则会被卷到上方工具条下
           <div
-            data-mobile-editor-panel={activePanel}
-            data-kb-optout="true"
-            className="bg-surface fixed inset-x-0"
-            style={{
-              zIndex: Z_INDEX.POPOVER,
-              bottom: panelBottom,
-              height: Math.max(0, keyboardViewport.reservedHeight - panelBottom),
-            }}
+            data-mobile-editor-panel="voice"
+            className="fixed inset-x-0 bottom-0"
+            style={{ zIndex: Z_INDEX.POPOVER }}
           >
-            <div className="h-full overflow-y-auto pb-[var(--mobile-safe-bottom)]">
-              <div data-testid={`editor-panel-${activePanel}`}>
-                {activePanel === "style" ? (
-                  <StylePanel controller={controller} visibleButtons={visibleButtons} />
-                ) : activePanel === "media" ? (
-                  mediaContext ? (
-                    <MediaPanel controller={controller} context={mediaContext} />
-                  ) : null
-                ) : (
-                  <InsertPanel controller={controller} onSearchingChange={setPanelSearching} />
-                )}
-              </div>
-            </div>
+            <VoicePanel dictation={voice} height={keyboardViewport.reservedHeight} />
           </div>,
           portalRoot
         )
-      : null;
+      : activePanel && portalRoot
+        ? createPortal(
+            // 面板自行贴住键盘定位，内部输入框（插入面板搜索）不参与自动露出，否则会被卷到上方工具条下
+            <div
+              data-mobile-editor-panel={activePanel}
+              data-kb-optout="true"
+              className="bg-surface fixed inset-x-0"
+              style={{
+                zIndex: Z_INDEX.POPOVER,
+                bottom: panelBottom,
+                height: Math.max(0, keyboardViewport.reservedHeight - panelBottom),
+              }}
+            >
+              <div className="h-full overflow-y-auto pb-[var(--mobile-safe-bottom)]">
+                <div data-testid={`editor-panel-${activePanel}`}>
+                  {activePanel === "style" ? (
+                    <StylePanel controller={controller} visibleButtons={visibleButtons} />
+                  ) : activePanel === "media" ? (
+                    mediaContext ? (
+                      <MediaPanel controller={controller} context={mediaContext} />
+                    ) : null
+                  ) : (
+                    <InsertPanel controller={controller} onSearchingChange={setPanelSearching} />
+                  )}
+                </div>
+              </div>
+            </div>,
+            portalRoot
+          )
+        : null;
 
   return (
     <>

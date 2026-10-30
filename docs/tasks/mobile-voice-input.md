@@ -1,81 +1,79 @@
-# 移动端语音输入入口
+# 移动端语音输入
 
 状态：进行中
-目标：在移动端卡片、文章、日记、快速捕获的编辑器里接入按住说话的语音输入，并预留 AI 润色的界面。
+目标：让语音成为移动端和键盘平级的输入方式：编辑时一键切到语音面板连续口述，首页长按 ＋ 随时说一段存进速记。
 
 ## 需求
 
-- 入口：编辑态在配件栏右侧固定一个 🎤（「收起键盘 / 完成」左侧，不进可横滑的中段）；阅读态在「编辑」悬浮按钮左侧加圆形 🎤。代码块、公式、表格、源码块等上下文模式和格式模式不显示。
-- 手势：按住 🎤 开始录音，松手写入，手指上滑到 ✕ 松手取消；不做锁定。按下不足 200ms 视为短按，只提示「按住说话，松手写入」。
-- 录音中：底部升起居中弧形沉浸区（波形、计时、「松手插入 · 上滑取消」），✕ 居中悬在弧形上方，上方渐变压暗。键盘不收起，沉浸区盖在键盘位置上，正文不跳。按下后整块屏幕都跟踪这根手指，不要求手指停在 🎤 上。
-- 流式插入：识别中的文字以浅灰色出现在锁定的插入点（编辑态为按下时的光标，阅读态为文末新段落），不写进文档、无底色；尾句（仍会被修正）更浅。松手后一次性写入正文，作为一个撤销步；toast 提供「撤销」。
-- 取消：上滑进入 ✕ 范围时 ✕ 变红放大、沉浸区泛红、提示「松手取消」，预览文字变淡并划掉；松手调用 `cancel()`，正文不变。
-- 上限：2:00 由服务层自动停止，按松手处理（写入）；剩 15 秒计时变红。
-- 异常：未配置识别服务、麦克风权限被拒、连接失败、没识别出字分别提示，未配置给「去设置」（我的 › 语音 › 语音输入）。
-- 系统识别：设置页可选系统识别；Android 走原生 `SpeechRecognizer`，iOS 走原生 `SFSpeechRecognizer`，partial 继续显示编辑器预览，final 仍由同一提交流程一次写入。没有识别引擎、语言包或权限时显示系统错误并引导改用识别插件；Android 厂商引擎可能联网或要求先安装语言包。
-- AI 润色：已接入，按「语音输入整理」的模型分配生效，未分配时不显示润色流程。
+- **编辑态（方案 A）**：配件栏最左端（「插入」左侧）固定一个输入方式切换键 🎤；点一下，键盘位置换成等高的语音面板，键变为 ⌨，再点回到键盘。代码块、公式、表格、源码块等上下文模式、格式模式和只读时不显示。首次出现时显示一次引导气泡。
+- **语音面板**：正中大麦克风轻点开始、再点停止并写入；按住超过 250ms 为按住说，松手写入、上滑到 ✕ 松手取消。两侧「撤回这段」「换行」。停止后留在面板，可以连续说多段。切到面板不自动开始录音。
+- **焦点**：语音面板期间正文保持焦点但不弹键盘（`inputmode="none"`），点正文只移动插入点。
+- **流式预览与写入**：识别中的文字以浅灰色出现在插入点，不写进文档，尾句更浅；停止后一次写入，每段一个撤销步。写入后面板顶部显示「已写入 N 字」，不再弹 toast。
+- **自动停止**：识别文字 7 秒无变化提示「没听到声音」，10 秒无变化自动停止并写入；2:00 上限由服务层自动停止；剩 15 秒计时变红。
+- **阅读态**：「编辑」左侧强调色 🎤，点击打开底部语音抽屉并立即开始录音，追加到文末，可连续多段，关闭不进入编辑。
+- **全局直接说（方案 C）**：首页 Dock 中央 ＋ 轻点展开新建菜单；按住直接说，Dock 上方浮出识别卡片，松手存成一条速记，toast 给「打开」；上滑取消。新建菜单增加「说一段」，打开速记并直接进入语音面板开始录音；首次点击提示可以长按 ＋。
+- **异常**：未配置识别服务、麦克风权限被拒、连接失败等显示在面板内；配置类给「去设置语音识别」（我的 › 语音 › 语音输入）。Dock 长按没有面板，仍用 toast。
+- **系统识别**：Android `SpeechRecognizer`、iOS `SFSpeechRecognizer` 经 Tauri `native-speech` 插件接入，与插件识别共用同一套会话、预览和写入。
+- **AI 润色**：按「语音输入整理」的模型分配生效，未分配时只写原文；面板内可跳过、切换原文与润色、失败重试，下一段开始时中止上一段未完成的润色。
 
 ## 方案
 
-### 结构
+### 结构（`apps/mobile/src/features/speechInput/`）
 
-| 位置                                    | 内容                                                                                                                                                                                              |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/mobile/src/features/speechInput/` | 新功能域                                                                                                                                                                                          |
-| `useDictationSession.ts`                | 会话状态机：`idle → connecting → listening → (cancel-armed) → committing → polishing? → done`；包装 `SpeechInputService.start`，维护预览文字、计时、取消判定；可选润色器 `refine?: SpeechRefiner` |
-| `dictationPreview.ts`                   | 编辑器装饰扩展：在锁定插入点（Slate Point，经 `Editor.pointRef` 跟随文档变化）渲染预览文字；状态存在模块级小 store，`subscribe` 触发装饰重算                                                      |
-| `commitDictation.ts`                    | 一次性写入：编辑态在插入点插入文本（多段拆成段落），阅读态在文末追加段落；`HistoryEditor.withNewBatch` 合并为一个撤销步；返回撤销函数                                                             |
-| `DictationOverlay.tsx`                  | 沉浸区视图（portal 到页面根），纯展示，props 驱动：`state`、`elapsedMs`、`cancelArmed`、`level`                                                                                                   |
-| `PolishPill.tsx`                        | 润色胶囊：润色中（✦ 脉动 +「AI 润色中」+「跳过」）、完成（「已润色 · 用原文 · 撤销」）、失败（「润色失败，已用原文 · 重试」）；本期只在测试与开发预览中挂载                                       |
-| `useHoldGesture.ts`                     | 按住手势：pointerdown 后 200ms 进入录音，在 window 上跟踪同一指针；pointermove 判断是否进入 ✕ 命中区（按钮矩形外扩 24px）；pointerup / pointercancel 分别提交或取消                               |
-| `DictationTrigger.tsx`                  | 按钮 + 手势 + 沉浸区 + 润色胶囊的组合；按钮外观由入口经 `renderButton` 提供                                                                                                                       |
-| `useEditorDictation.ts`                 | 编辑器侧编排：锁定插入点、预览、写入、润色胶囊状态、未配置引导                                                                                                                                    |
+| 文件                     | 内容                                                                                   |
+| ------------------------ | -------------------------------------------------------------------------------------- |
+| `useDictationSession.ts` | 会话状态机，包装 `SpeechInputService.start`，可选润色                                  |
+| `useHoldGesture.ts`      | 轻点 / 按住二合一手势（250ms 阈值），window 上跟踪同一指针与 ✕ 命中区                  |
+| `dictationPreview.tsx`   | 编辑器装饰扩展：插入点预览文字，阅读态另起一段并画插入点                               |
+| `commitDictation.ts`     | 一次性写入、润色替换、撤销                                                             |
+| `speechService.ts`       | 识别服务实例复用、可用性判断                                                           |
+| `useVoiceDictation.ts`   | 编辑器侧编排：锁插入点、预览、写入、撤回这段、换行、静音自动停止、润色状态、面板内错误 |
+| `VoicePanel.tsx`         | 语音面板视图：大麦克风、计时波形、结果条、两侧按钮、按住时的 ✕ 与压暗                  |
+| `VoiceModeCoach.tsx`     | 配件栏切换键首次引导                                                                   |
+| `ReadingVoiceSheet.tsx`  | 阅读态底部抽屉                                                                         |
+| `useVoiceCapture.ts`     | 不经编辑器的语音速记：识别后存成速记卡片                                               |
+| `VoiceCaptureCard.tsx`   | Dock 长按时的识别卡片                                                                  |
 
-### 关键约定
-
-- 预览不写文档：装饰扩展用 Slate 折叠装饰范围切出空叶子，`LeafRenderer` 经 MarkSpec 渲染 `contentEditable={false}` 的预览 span。预览期间编辑器正常可写，插入点用 `pointRef` 跟随。
-- 写入在 `stop()` 拿到 `result` 后执行；`onPreview` 只更新预览 store。
-- 插件 ASR 通过 `createMobileSpeechInputService(runtime.asr)` 采集 PCM 流；系统识别经 Tauri `native-speech` 插件直接访问平台 API，不调用 WebView 语音识别或 WebView 音频采集。两条路径共用手势、预览、取消和一次性写入状态机。
-- 润色：`refine` 缺省为 `undefined`，`useDictationSession` 不进入 `polishing`；有润色器时松手后先写原文（灰色流光样式），`refineSpeechInput` 结果替换同一段，「用原文」可来回切换，整个过程一个撤销步。
-- 样式：Tailwind 语义类 + `--tau-*`；流光、波形等关键帧放 `styles.css`（D-087 允许）。
+接入点：`MobileEditorBottomToolbar`（切换键与 `voice` 面板、`autoStartVoice`）、`useMobileEditorToolbarController`（`EditorPanelKind` 增加 `voice`，inputmode 处理）、`ContentDetailPage`（阅读态抽屉）、`AppDock`（长按与「说一段」）、`quickCapture.page.tsx`（`voice` 参数）。
 
 ### 视觉
 
-以 mockup `apps/mobile/mockups/voice-input-mobile/`（分页 1 按住说话、2 AI 润色、3 阅读态、5 权限与异常）为准；视觉验收由用户完成。
+以 mockup `apps/mobile/mockups/voice-first-mobile/` 为准（0 问题与方案对比、1 语音模式、2 按住说、3 AI 润色、4 阅读态与速记、5 全局长按、6 权限与异常）；视觉验收由用户完成。
 
 ## 决策
 
-- 交互用「按住说话」，不做录音前后的确认面板；松手即写入，靠撤销回退。
-- 取消用上滑（同微信），去掉锁定，长段按住说，最长 2 分钟。
-- 沉浸区居中对称，不跟随 🎤 位置。
-- 录音时键盘不收起，沉浸区覆盖键盘，保证正文不跳。
-- AI 润色本期不接入，界面先实现，后续接入只传润色器。
+- 语音是和键盘平级的输入方式，入口是配件栏最左端的切换键，不再是右侧需要长按的小按钮。
+- 轻点为主、按住为辅，同一个按钮按 250ms 区分。
+- 切到语音面板不自动开始录音；阅读态抽屉和「说一段」目的明确，打开即开始。
+- 停顿 10 秒自动停止并写入。
+- 写入反馈放在面板里（已写入字数 + 撤回这段），不再用 toast 撤销；润色胶囊并入面板顶部。
+- 首页长按 ＋ 直接说并存成速记，菜单「说一段」是可见入口。
+- 速记暂不记住上次的输入方式。
 - 原生识别按 session ID 隔离事件，权限弹窗中取消、应用切后台和旧识别器迟到事件均不能写入正文；Android 系统识别器自动断句后续听，最长两分钟。
 
 ## 进度
 
-- [x] Investigate/Triage/Understand the problem：服务层、装饰扩展机制、配件栏、阅读态悬浮按钮、权限声明已确认（Android `RECORD_AUDIO`、iOS `NSMicrophoneUsageDescription` 已有）。
-- [x] 会话状态机与写入（`useDictationSession` / `commitDictation`）+ 测试
-- [x] 预览装饰扩展接入移动端内容 Kit + 测试
-- [x] 沉浸区、手势与配件栏 / 阅读态入口 + 测试
-- [x] 润色胶囊与润色状态（缺省关闭）+ 测试
-- [x] 文档同步（`docs/architecture/mobile.md` 语音输入小节）、类型检查、构建
-- [x] Tauri `native-speech` 插件：Android `SpeechRecognizer`、iOS `SFSpeechRecognizer`、麦克风与语音权限、partial/final/错误事件和统一写入接线
-- [x] Android 识别服务包可见性声明、引擎/语言包/网络错误提示、连续断句与取消竞态覆盖
-- [x] 系统识别设置可选；设备不提供识别服务时提示改用已配置插件
-- [x] 移动端生产构建、Android APK 构建、Android Kotlin 插件编译、Rust 测试与前端会话测试
-- [ ] 真机验收（用户）：按住 / 上滑取消手势、预览位置、键盘不收起、Android 与 iOS 麦克风权限弹窗
-- [ ] Android 厂商验证：无识别服务、联网识别、语言包未安装、断网、长按跨自动断句、切后台和连续使用
-- [ ] iOS 真机验证：语音权限拒绝/允许、语言不可用、切后台取消与长按跨断句
-- [x] 接入 AI 配置后：入口按模型分配生成 `refine`，补「重试」的重新润色（见 mobile-ai-settings 任务）
+### 语音优先重做
 
-遗留：✕ 命中区按按钮矩形外扩 24px 判定（不是需求里写的圆形半径），真机手感不对再调。
+- [x] Investigate/Triage/Understand the problem：现有入口在配件栏右侧、需长按；确认可复用会话、预览、写入与面板等高预留机制。
+- [x] 设计稿 `apps/mobile/mockups/voice-first-mobile/`，用户选定 A + C。
+- [x] 语音面板与编排（`VoicePanel` / `useVoiceDictation`），删除 `DictationTrigger` / `PolishPill` / `useEditorDictation` / `useDictationKeyboardSwap`；`DictationOverlay` 与样式由对话按住发送继续使用。
+- [x] 配件栏切换键、`voice` 面板与 inputmode 焦点处理。
+- [x] 阅读态抽屉、Dock 长按速记与「说一段」。
+- [x] 测试、类型检查、构建、文档同步。
+- [ ] 真机验收（用户）：`inputmode="none"` 下点正文是否真的不弹键盘（iOS / Android WebView）、面板与键盘切换不跳动、Dock 长按与菜单轻点不冲突、阅读态抽屉。
+
+### 系统识别（已完成部分）
+
+- [x] Tauri `native-speech` 插件：Android `SpeechRecognizer`、iOS `SFSpeechRecognizer`、权限、partial/final/错误事件
+- [x] Android 识别服务包可见性、引擎/语言包/网络错误提示、连续断句与取消竞态
+- [ ] Android 厂商验证：无识别服务、联网识别、语言包未安装、断网、跨自动断句、切后台和连续使用
+- [ ] iOS 真机验证：语音权限拒绝/允许、语言不可用、切后台取消与跨断句
+- [x] 接入 AI 配置：`useVoiceDictation` 按模型分配生成润色器，面板支持失败重试。
 
 ## 验证
 
-- `pnpm --filter mobile exec vitest run src/features/speechInput src/features/cards/__tests__/mobileEditorBottomToolbar.test.tsx src/features/cards/readingMode src/features/cards/__tests__/contentDetail`：15 个文件 131 项通过（语音输入新增 54 项）。
-- `features/cards` 与 `services` 全量里另有 8 项失败（块选择入口、快速捕获正文绑定、内容计数、插件中心与安装），撤下本任务改动后同样失败，不属于本任务。
-- `apps/mobile` 的 `tsc --noEmit` 0 错误。
-- 系统识别提示补丁后：`src/features/settings` 与 `src/features/speechInput` 共 198 项通过（新增设置页 1 项、按住提示 3 项）。
-- 系统识别接入：ASR 服务接线、会话和设置相关用例共 23 项通过；Android 插件 Gradle 编译、`tauri android build --apk --debug -t aarch64 --ci`、Rust `cargo test --lib`（306 项）、移动端生产构建与 `pnpm check:docs` 通过。
-- 当前执行环境为 Windows，未连接 Android 设备且无 Xcode，因此没有完成 Android/iOS 真机与 iOS 原生编译；视觉验收仍由用户完成。
+- `pnpm --filter mobile exec vitest run`（全量）：188 个文件通过，1263 项通过；`features/cards/__tests__/pageBlockSelectionEntry.test.tsx` 的 2 项「项目文档」用例失败，撤下本次改动后同样失败，不属于本任务。
+- 语音相关 7 个测试文件 52 项通过（新增语音面板 7 项、语音速记 4 项、切换键 7 项）；工具栏控制器新增 voice 面板 2 项。
+- `apps/mobile` 的 `tsc --noEmit` 0 错误，Vite 生产构建通过，变更文件 oxfmt 检查通过。
+- 未在真机或手机客户端运行；视觉验收由用户完成。

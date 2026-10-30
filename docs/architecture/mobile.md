@@ -560,19 +560,23 @@ Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开
 
 ## 语音输入
 
-移动宿主保留 ASR 注册表、WebSocket 原生传输、配置存储和 `createMobileSpeechInputService` 编排工厂；壳层不挂载录音 Provider。我的 › 语音 › 语音输入（`settingsModule` 的 `speech-input`）列出已启用的识别插件，点已配置的插件即切换；手机端没有系统识别实现，「系统识别」行显示为不可选，存量选择为系统识别时页面提示改选插件，未配置或点箭头进入插件设置页 `pluginSettings`（插件 form 与识别模型）；选用的插件停用后保留选择并提示。插件设置 open 同样打开插件设置页。
+移动宿主保留 ASR 注册表、WebSocket 原生传输、配置存储和 `createMobileSpeechInputService` 编排工厂；壳层不挂载录音 Provider。我的 › 语音 › 语音输入（`settingsModule` 的 `speech-input`）列出系统识别与已启用的识别插件，点已配置的服务即切换，未配置或点箭头进入插件设置页 `pluginSettings`（插件 form 与识别模型）；选用的插件停用后保留选择并提示。插件设置 open 同样打开插件设置页，原生识别接线见[系统语音输入](#系统语音输入)。
 
-Android 清单包含 RECORD_AUDIO/MODIFY_AUDIO_SETTINGS，iOS 包信息包含麦克风用途说明。`plugin_socket` 命令按工作区 token 及窗口作用域校验，系统网络实现使用 tokio-tungstenite；作者契约见 [WebSocket](/plugins/tau-plugin-template/docs/storage-and-network.md#websocket)。采集仅在用户按住语音按钮时申请，插件停用和工作区释放取消会话。普通设置快照保留原生管理的 speechInput 数据。
+Android 清单包含 RECORD_AUDIO/MODIFY_AUDIO_SETTINGS，iOS 包信息包含麦克风用途说明。`plugin_socket` 命令按工作区 token 及窗口作用域校验，系统网络实现使用 tokio-tungstenite；握手失败只保留 HTTP 状态码或 TLS、网络、超时类别，公共连接桥经白名单映射后放入 `error` 事件的 `message`，不传递原始错误、请求头或响应正文。作者契约见 [WebSocket](/plugins/tau-plugin-template/docs/storage-and-network.md#websocket)。采集仅在用户开始语音输入时申请，插件停用和工作区释放取消会话。普通设置快照保留原生管理的 speechInput 数据。
 
-编辑器入口在 `features/speechInput/`，交互为按住说话：
+语音输入与键盘平级，代码在 `features/speechInput/`：
 
-- **入口**：配件栏通用模式右侧「按住说话」（`AccessoryItemId` 的 `dictation`，白名单可裁剪；上下文、格式模式、面板打开、只读时不显示），以及内容详情阅读态「编辑」悬浮按钮左侧的圆形按钮（`ReadingModeFab` 的 `leading`）。两者都由 `DictationTrigger` 承载。
-- **手势**（`useHoldGesture`）：按下 200ms 后开始录音，之后在 window 上跟踪同一指针；松手写入，在 ✕（矩形外扩 24px）内松手或 `pointercancel` 取消；不足 200ms 视为短按，只提示手势。当前选的是系统识别或插件没有账号时（`useEditorDictation` 的 `unavailableReason`），短按和按住都不录音，只提示原因并给「去设置」。
-- **会话**（`useDictationSession`）：包装 `SpeechInputService`，松手与服务层 120 秒自动停止都经 `result` 定稿；连上前松手按取消处理。
-- **预览**（`dictationPreview`）：内容 Kit 都装 `host.dictation-preview` 扩展，在锁定插入点放折叠装饰，叶子后接 `contentEditable=false` 的预览文字，不进文档；编辑态锁按下时的光标（`pointRef` 跟随文档变化），阅读态锁文末并另起一段显示。
-- **沉浸区**（`DictationOverlay`）：盖在键盘位置上，键盘不收起，正文不跳；样式与关键帧在 `styles.css` 的 `.dictation-*`。
-- **写入**（`commitDictation`）：定稿文本按换行拆段一次写入，作为一个撤销步，toast 提供「撤销」。
-- **AI 润色**：`useEditorDictation` 缺省按「语音输入整理」的模型分配生成润色器（`services/speechRefinement.ts` 的 `prepareSpeechRefinement`），未分配时不进入润色；调用方也可显式传 `refine`。润色器与风格在录音开始时固定，执行走 `generation.start` 单发（不建会话），提示词与桌面共用 `@tau/asr` 的 `buildSpeechRefinementPrompt`，非 completed 或空正文视为失败。松手先写原文，再经 `refineSpeechInput` 原地替换，`PolishPill` 显示润色中 / 已润色（用原文、撤销）/ 失败（重试：用同一识别结果与润色器再润色一次），替换与首次写入合并为一个撤销步。开关与风格在「我的 › 语音输入」的「AI 整理」分组：选了整理模型即开启，「不使用模型」即关闭，与桌面同义。
+- **编辑态入口**：配件栏通用模式最左端（「插入」左侧）的输入方式切换键（`AccessoryItemId` 的 `dictation`，白名单可裁剪；上下文、格式模式、只读时不显示）。点击经 `controller.openPanel("voice")` 打开语音面板，与 Aa / ＋ 面板共用键盘等高预留；面板打开时切换键变为 ⌨，点击回到键盘，录音中切回即停止并写入。首次显示时由 `VoiceModeCoach` 提示一次（localStorage 记录）。
+- **语音面板期间的焦点**：`openPanel("voice")` 先失焦收起键盘，再给编辑区加 `inputmode="none"` 并重新聚焦，保留系统光标；此时点正文只移动插入点，`handleEditorFocus` 不关语音面板。关闭面板或切到其他面板时移除 `inputmode`，需要弹回键盘时先失焦再聚焦。
+- **面板**（`VoicePanel`）：正中大麦克风由 `useHoldGesture` 驱动，按下不足 250ms 为轻点（开始 / 停止并写入），按住超过 250ms 为按住说（松手写入，上滑到 ✕ 松手取消，矩形外扩 24px 判定）。两侧「撤回这段」（撤销上一段写入及其润色）与「换行」（插入点另起一段）。顶部显示计时与波形、上一段结果（已写入字数 / 润色状态）或错误；未配置识别服务、识别出错都显示在面板内，配置类错误给「去设置语音识别」。停止后留在面板，可以连续说多段。
+- **编排**（`useVoiceDictation`）：开始时把当前选区（阅读态为文末）锁成 `pointRef`，经 `dictationPreview` 在插入点显示预览，停止后经 `commitDictation` 一次写入、每段一个撤销步；识别文字 7 秒无变化提示「没听到声音」，10 秒无变化自动停止并写入。识别服务实例与可用性判断在 `speechService.ts`。
+- **阅读态**（`ReadingVoiceSheet`）：「编辑」悬浮按钮左侧的强调色 🎤 打开底部抽屉版语音面板并立即开始录音，追加到文末（预览另起一段并画出插入点），可连续多段，关闭抽屉不进入编辑。抽屉打开时悬浮按钮隐藏，正文末尾经 `--mobile-editor-toolbar-occlusion` 留白。
+- **全局直接说**：首页 Dock 中央 ＋ 轻点展开新建菜单，按住超过 250ms 直接录音（`useVoiceCapture` + `VoiceCaptureCard`），松手把识别原文按行拆段存成一张速记卡片，toast 给「打开」；上滑到 ✕ 取消。新建菜单里的「说一段」打开快速捕获并直接进入语音面板开始录音（`quickCapture` 参数 `voice`，经 `MobileEditorBottomToolbar` 的 `autoStartVoice`），首次点击提示可以长按 ＋。
+- **会话**（`useDictationSession`）：包装 `SpeechInputService`，停止、自动停止与服务层 120 秒上限都经 `result` 定稿；连上前停止按取消处理。
+- **预览**（`dictationPreview`）：内容 Kit 都装 `host.dictation-preview` 扩展，在锁定插入点放折叠装饰，叶子后接 `contentEditable=false` 的预览文字，不进文档；尾句更浅，取消时变淡划掉。样式与关键帧在 `styles.css` 的 `.dictation-*` / `.voice-*`。
+- **AI 润色**：`useVoiceDictation` 缺省按「语音输入整理」的模型分配生成润色器（`services/speechRefinement.ts` 的 `prepareSpeechRefinement`），未分配时不进入润色，调用方也可显式传 `refine`。润色器与风格在录音开始时固定，执行走 `generation.start` 单发（不建会话），提示词与桌面共用 `@tau/asr` 的 `buildSpeechRefinementPrompt`，非 completed 或空正文视为失败。停止先写原文，再经 `refineSpeechInput` 原地替换，面板顶部显示润色中（可跳过）/ 已润色（用原文 / 用润色）/ 失败（重试同一识别结果与润色器）；替换与首次写入合并为一个撤销步，开始下一段时中止上一段未完成的润色。开关与风格在「我的 › 语音输入」的「AI 整理」分组：选了整理模型即开启，「不使用模型」即关闭。
+
+对话输入框的按住说话复用 `useDictationSession`、`useHoldGesture` 与 `speechService`，保留 `DictationOverlay` 及其沉浸区样式；松手发送识别原文，不经 AI 整理。
 
 ## 日志与反馈
 
