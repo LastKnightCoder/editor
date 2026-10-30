@@ -190,7 +190,7 @@ export function ChatComposer(props: {
           ))}
         </div>
       ) : null}
-      <div className="bg-surface shadow-card flex items-end gap-1 rounded-[22px] py-1.5 pr-1.5 pl-1.5">
+      <div className="bg-surface shadow-card flex items-end gap-0.5 rounded-[24px] p-1.5">
         <button
           type="button"
           aria-label="添加图片或引用"

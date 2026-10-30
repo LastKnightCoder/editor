@@ -12,6 +12,7 @@ import { ChatComposer } from "./ChatComposer";
 import { ChatEmpty, ChatSetup } from "./ChatEmpty";
 import { ChatMessages } from "./ChatMessages";
 import { describeChatError } from "./chatErrors";
+import { useMessageActions } from "./MessageActions";
 import { useChatSession } from "./useChatSession";
 
 export function ChatPage(props: { sessionId: string; isNew: boolean; prompt?: string }) {
@@ -20,6 +21,7 @@ export function ChatPage(props: { sessionId: string; isNew: boolean; prompt?: st
     { sessionId: props.sessionId, isNew: props.isNew }
   );
   const [picking, setPicking] = useState(false);
+  const actions = useMessageActions(props.sessionId);
 
   // 从首页问答条带着问题进来：自动发出
   const [promptSent, setPromptSent] = useState(false);
@@ -45,13 +47,16 @@ export function ChatPage(props: { sessionId: string; isNew: boolean; prompt?: st
               onClick={() => setPicking(true)}
               className="flex max-w-full flex-col items-center"
             >
-              <span className="text-ink-1 max-w-full truncate text-[16px] font-extrabold">
+              <span className="text-ink-1 max-w-full truncate text-[16px] font-bold">
                 {chat?.title && chat.title !== "新对话" ? chat.title : "新对话"}
               </span>
               {model && (
-                <span className="text-ink-3 text-tau-sm flex items-center gap-0.5">
-                  {modelInfo ? modelLabel(modelInfo) : model.modelId}
-                  <ChevronDown size={12} aria-hidden="true" />
+                <span className="text-ink-2 text-tau-sm flex max-w-full items-center gap-1">
+                  <span className="bg-ok h-1.5 w-1.5 shrink-0 rounded-full" aria-hidden="true" />
+                  <span className="truncate">
+                    {modelInfo ? modelLabel(modelInfo) : model.modelId}
+                  </span>
+                  <ChevronDown size={12} className="shrink-0" aria-hidden="true" />
                 </span>
               )}
             </button>
@@ -61,10 +66,13 @@ export function ChatPage(props: { sessionId: string; isNew: boolean; prompt?: st
               <PageHeaderButton
                 icon={<History size={20} />}
                 aria-label="对话记录"
+                className="text-ink-2 [&_svg]:stroke-2"
                 onClick={() => navigator.push("aiChatHistory", {})}
               />
               <PageHeaderButton
                 icon={<SquarePen size={19} />}
+                className="text-ink-2 [&_svg]:stroke-2"
+                disabled={!chat?.messages.length}
                 aria-label="新对话"
                 onClick={() =>
                   navigator.replace("aiChat", { sessionId: crypto.randomUUID(), isNew: "1" })
@@ -83,6 +91,8 @@ export function ChatPage(props: { sessionId: string; isNew: boolean; prompt?: st
               messages={chat?.messages ?? []}
               running={running}
               empty={<ChatEmpty onPick={text => void send(text)} />}
+              onAction={actions.onAction}
+              onMenu={actions.onMenu}
             />
             {(error || loadError) && (
               <div
@@ -125,6 +135,7 @@ export function ChatPage(props: { sessionId: string; isNew: boolean; prompt?: st
             />
           </>
         )}
+        {actions.sheets}
         <ModelPickerSheet
           open={picking}
           title="本次对话使用的模型"

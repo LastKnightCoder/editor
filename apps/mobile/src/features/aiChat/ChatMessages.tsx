@@ -1,16 +1,20 @@
-// 消息列表：与桌面、浏览器扩展同一套 MessageView（用户气泡、助手通栏、思考与工具行按原序），
-// 宿主工具行换成可读叫法；生成中用户上滑阅读时停止跟随，出现「回到最新」。
+// 消息列表：与桌面、浏览器扩展同一套 MessageView（用户气泡、助手通栏、思考与工具行按原序）。
+// 触屏没有悬停：相邻工具收成过程胶囊，操作行只常显在最后一条回答下，其余操作靠长按菜单。
+// 生成中用户上滑阅读时停止跟随，出现「回到最新」。
 
 import {
   memo,
   useCallback,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  type MouseEvent,
+  type PointerEvent,
   type ReactNode,
 } from "react";
-import { ArrowDown, X } from "lucide-react";
+import { ArrowDown, BookmarkPlus, Copy, RefreshCw, X } from "lucide-react";
 import {
   getAssistantContentBlocks,
   Role,
@@ -18,7 +22,11 @@ import {
   type MentionRef,
   type ResponseMessage,
 } from "@tau/shared/chat-core";
-import type { ContentBlock, ToolCallExecutionState } from "@tau/shared/chat-renderers";
+import {
+  getDisplayTextFromBlocks,
+  type ContentBlock,
+  type ToolCallExecutionState,
+} from "@tau/shared/chat-renderers";
 import {
   MarkdownRenderer,
   MessageView,
@@ -27,7 +35,9 @@ import {
   ToolCallRow,
 } from "@tau/chat-ui/conversation";
 import { useThemeStore } from "@tau/themes/react";
+import { cn } from "@tau/ui";
 import { TOOL_LABELS } from "./interactions";
+import { ToolSteps } from "./ToolSteps";
 
 const FOLLOW_SLOP_PX = 80;
 
@@ -94,25 +104,83 @@ const ToolLine = memo(function ToolLine({ execution }: { execution: ToolCallExec
   return <ToolCallRow execution={execution} title={toolTitle(execution)} />;
 });
 
+const LONG_PRESS_MS = 450;
+const LONG_PRESS_SLOP_PX = 10;
+
+/** 长按：按住不动达到时长触发；移动（滚动）或松手取消。系统长按菜单一并拦掉 */
+function useLongPress(onLongPress: () => void) {
+  const timer = useRef<number | null>(null);
+  const origin = useRef<{ x: number; y: number } | null>(null);
+  const clear = () => {
+    if (timer.current != null) window.clearTimeout(timer.current);
+    timer.current = null;
+    origin.current = null;
+  };
+  useEffect(() => clear, []);
+  return {
+    onPointerDown: (event: PointerEvent) => {
+      if (event.button !== 0) return;
+      // 链接、按钮、展开行等可点元素保持原有点按
+      if ((event.target as HTMLElement).closest("a, button, input, textarea, pre")) return;
+      origin.current = { x: event.clientX, y: event.clientY };
+      timer.current = window.setTimeout(() => {
+        clear();
+        navigator.vibrate?.(10);
+        onLongPress();
+      }, LONG_PRESS_MS);
+    },
+    onPointerMove: (event: PointerEvent) => {
+      const start = origin.current;
+      if (
+        start &&
+        Math.hypot(event.clientX - start.x, event.clientY - start.y) > LONG_PRESS_SLOP_PX
+      )
+        clear();
+    },
+    onPointerUp: clear,
+    onPointerCancel: clear,
+    onContextMenu: (event: MouseEvent) => event.preventDefault(),
+  };
+}
+
+export type ChatMessageAction = "copy" | "select" | "card" | "regenerate" | "delete";
+
 const ChatMessage = memo(function ChatMessage(props: {
   message: ChatSessionMessage;
   index: number;
   streaming: boolean;
   isDark: boolean;
+  /** 最后一条回答：常显操作行（其余消息靠长按） */
+  showActions: boolean;
+  onAction?(action: ChatMessageAction, index: number, text: string): void;
+  onMenu?(index: number, text: string): void;
 }) {
-  const { message, index, streaming, isDark } = props;
+  const { message, index, streaming, isDark, onAction } = props;
   const isUser = message.role === Role.User;
   const blocks = useMemo(
     () => (isUser ? [] : (getAssistantContentBlocks(message as ResponseMessage) as ContentBlock[])),
     [isUser, message]
   );
-  const renderDefaultItem = useCallback(
-    ({ execution }: { execution: ToolCallExecutionState }) => <ToolLine execution={execution} />,
-    []
+  const plainText = isUser ? userText(message.content) : getDisplayTextFromBlocks(blocks);
+  const renderStandalone = useCallback(
+    (execution: ToolCallExecutionState) => (
+      <ToolCallBlock
+        execution={execution}
+        isDark={isDark}
+        renderApproval={item => <ToolApprovalBar execution={item} />}
+        renderDefaultItem={({ execution: item }) => <ToolLine execution={item} />}
+        toolTitle={toolTitle}
+      />
+    ),
+    [isDark]
   );
+  const press = useLongPress(() => props.onMenu?.(index, plainText));
   const parts = isUser ? userParts(message.content) : null;
   return (
-    <div className="my-3.5">
+    <div
+      className={cn(isUser ? "mt-6 first:mt-3" : "mt-3.5")}
+      {...(props.onMenu && plainText.trim() ? press : {})}
+    >
       {parts?.mentions.length ? (
         <div className="mb-1.5 ml-auto flex max-w-[85%] flex-col items-end gap-1">
           {parts.mentions.map((mention, mentionIndex) => (
@@ -126,18 +194,19 @@ const ChatMessage = memo(function ChatMessage(props: {
         userText={isUser ? userText(message.content) : undefined}
         images={parts?.images}
         assistantBlocks={blocks}
+        hideActions
+        userBubbleClassName="bg-[color-mix(in_srgb,var(--tau-accent)_16%,var(--tau-bg-surface))] text-tau-body-lg rounded-[18px_18px_5px_18px] px-[13px] py-2 max-w-[80%]"
         renderMarkdown={({ content }) => (
           <MarkdownRenderer content={content} isDark={isDark} enableDocumentReference />
         )}
         renderImage={(image, imageIndex, className) => (
           <img key={imageIndex} src={image.url} alt={image.alt ?? ""} className={className} />
         )}
-        renderToolCall={execution => (
-          <ToolCallBlock
-            execution={execution}
-            isDark={isDark}
-            renderApproval={item => <ToolApprovalBar execution={item} />}
-            renderDefaultItem={renderDefaultItem}
+        renderToolCall={renderStandalone}
+        renderToolGroup={executions => (
+          <ToolSteps
+            executions={executions}
+            renderStandalone={renderStandalone}
             toolTitle={toolTitle}
           />
         )}
@@ -145,15 +214,39 @@ const ChatMessage = memo(function ChatMessage(props: {
       {streaming && !isUser && blocks.length === 0 && (
         <span className="bg-accent inline-block h-2 w-2 animate-pulse rounded-full" />
       )}
+      {props.showActions && onAction && (
+        <div className="text-ink-3 mt-1 -ml-2 flex items-center">
+          {ANSWER_ACTIONS.map(({ action, label, Icon }) => (
+            <button
+              key={action}
+              type="button"
+              aria-label={label}
+              onClick={() => onAction(action, index, plainText)}
+              className="active:bg-press grid h-8 w-8 place-items-center rounded-[10px]"
+            >
+              <Icon size={16} aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 });
+
+const ANSWER_ACTIONS = [
+  { action: "copy", label: "复制", Icon: Copy },
+  { action: "regenerate", label: "重新生成", Icon: RefreshCw },
+  { action: "card", label: "存为卡片", Icon: BookmarkPlus },
+] as const;
 
 export function ChatMessages(props: {
   messages: ChatSessionMessage[];
   running: boolean;
   /** 列表为空时的内容（建议问题） */
   empty?: ReactNode;
+  /** 回答下方操作与长按菜单；不传则只读 */
+  onAction?(action: ChatMessageAction, index: number, text: string): void;
+  onMenu?(index: number, text: string): void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const followRef = useRef(true);
@@ -197,6 +290,13 @@ export function ChatMessages(props: {
                 index={index}
                 isDark={isDark}
                 streaming={props.running && index === props.messages.length - 1}
+                showActions={
+                  !props.running &&
+                  index === props.messages.length - 1 &&
+                  message.role !== Role.User
+                }
+                onAction={props.onAction}
+                onMenu={props.onMenu}
               />
             ))}
       </div>

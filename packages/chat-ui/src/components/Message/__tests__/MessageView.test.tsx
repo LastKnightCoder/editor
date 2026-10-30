@@ -124,4 +124,38 @@ describe("MessageView", () => {
 
     await unmount(root, container);
   });
+  it("触屏宿主可隐藏悬停操作行，并整组渲染相邻工具调用", async () => {
+    const execution = (toolCallId: string, toolName: string) => ({
+      toolCallId,
+      toolName,
+      status: "success" as const,
+      input: "{}",
+      timestamp: 0,
+    });
+    const renderToolGroup = vi.fn((executions: { toolName: string }[]) => (
+      <span>组：{executions.map(item => item.toolName).join("+")}</span>
+    ));
+    const { root, container } = await mount(
+      <MessageView
+        {...renderers}
+        role="assistant"
+        messageIndex={1}
+        hideActions
+        renderToolGroup={renderToolGroup}
+        onDelete={vi.fn()}
+        assistantBlocks={[
+          { type: "tool_calls", executions: [execution("a", "查日程")] },
+          { type: "tool_calls", executions: [execution("b", "查待办")] },
+          { type: "text", content: "明天没有安排" },
+        ]}
+      />
+    );
+
+    expect(container.textContent).toContain("组：查日程+查待办");
+    expect(renderToolGroup).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('button[aria-label="复制"]')).toBeNull();
+    expect(container.querySelector('button[aria-label="删除"]')).toBeNull();
+
+    await unmount(root, container);
+  });
 });

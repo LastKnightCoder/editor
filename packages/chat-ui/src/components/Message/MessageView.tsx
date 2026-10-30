@@ -63,6 +63,12 @@ export interface MessageViewProps {
   /** 切到第 versionIndex 个版本（缺省或运行中则按钮禁用） */
   onSwitchVersion?: (messageIndex: number, versionIndex: number) => void;
   onOpenFile?: (file: MessageViewFile) => void;
+  /** 不渲染消息下方的悬停操作行（触屏没有悬停，宿主改用常显操作或长按菜单） */
+  hideActions?: boolean;
+  /** 覆盖用户气泡底色等外观（经 cn 合并，宿主页面底色与桌面不同时用） */
+  userBubbleClassName?: string;
+  /** 相邻工具调用合并后的整组渲染（如触屏的过程胶囊）；缺省逐条 renderToolCall */
+  renderToolGroup?: (executions: ToolCallExecutionState[], index: number) => ReactNode;
   renderMarkdown: (params: MessageMarkdownParams) => ReactNode;
   renderImage: (image: MessageViewImage, index: number, className: string) => ReactNode;
   renderToolCall: (execution: ToolCallExecutionState, index: number) => ReactNode;
@@ -102,6 +108,9 @@ export const MessageView = memo(function MessageView({
   versions,
   onSwitchVersion,
   onOpenFile,
+  hideActions = false,
+  userBubbleClassName,
+  renderToolGroup,
   renderMarkdown,
   renderImage,
   renderToolCall,
@@ -219,7 +228,7 @@ export const MessageView = memo(function MessageView({
     </div>
   );
 
-  const actions = versionSwitcher ? (
+  const actions = hideActions ? null : versionSwitcher ? (
     <div className="flex items-center justify-end gap-1">
       {hoverActions}
       {versionSwitcher}
@@ -250,7 +259,7 @@ export const MessageView = memo(function MessageView({
                 key={`${file.path}-${index}`}
                 onClick={() => onOpenFile?.(file)}
                 title="在文件夹中显示"
-                className="border-line-1 bg-surface hover:bg-surface-hover rounded-tau-sm group/file flex max-w-full items-center gap-2 border py-1.5 pl-2.5 pr-3 text-left"
+                className="border-line-1 bg-surface hover:bg-surface-hover rounded-tau-sm group/file flex max-w-full items-center gap-2 border py-1.5 pr-3 pl-2.5 text-left"
               >
                 <FileText size={15} strokeWidth={1.75} className="text-danger shrink-0" />
                 <span className="text-tau-meta text-ink-1 min-w-0 truncate">{file.name}</span>
@@ -264,7 +273,12 @@ export const MessageView = memo(function MessageView({
           </div>
         )}
         {userText.trim() && (
-          <div className="bg-accent/[0.18] text-tau-body-lg text-ink-1 max-w-[82%] rounded-[14px_14px_4px_14px] px-3.5 py-2 [overflow-wrap:anywhere]">
+          <div
+            className={cn(
+              "bg-accent/[0.18] text-tau-body-lg text-ink-1 max-w-[82%] rounded-[14px_14px_4px_14px] px-3.5 py-2 [overflow-wrap:anywhere]",
+              userBubbleClassName
+            )}
+          >
             {renderMarkdown({ content: userText })}
           </div>
         )}
@@ -302,6 +316,12 @@ export const MessageView = memo(function MessageView({
             );
           }
           if (block.type === "tool_calls") {
+            if (renderToolGroup)
+              return (
+                <div key={`tools-${index}`} className="my-1.5 min-w-0 first:mt-0">
+                  {renderToolGroup(block.executions, index)}
+                </div>
+              );
             return (
               <div key={`tools-${index}`} className="my-1.5 flex flex-col gap-0.5 first:mt-0">
                 {block.executions.map((execution, execIndex) => (
@@ -315,7 +335,7 @@ export const MessageView = memo(function MessageView({
           return null;
         })}
       </div>
-      <div className="mt-1">{actions}</div>
+      {actions && <div className="mt-1">{actions}</div>}
     </div>
   );
 });

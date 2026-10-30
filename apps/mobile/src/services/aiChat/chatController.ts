@@ -2,11 +2,12 @@
 // 消息以运行快照为准（已投影成 ChatSessionMessage），收尾后重读会话文件校正。
 
 import { create } from "zustand";
-import type {
-  AskQuestionSubmission,
-  ChatSessionMessage,
-  MentionRef,
-  MessageContent,
+import {
+  Role,
+  type AskQuestionSubmission,
+  type ChatSessionMessage,
+  type MentionRef,
+  type MessageContent,
 } from "@tau/shared/chat-core";
 import type { AiModelRef } from "@tau/ai/contracts";
 import type { AiApproval, AiQuestion, AiRunSnapshot, MobileAiService } from "../ai";
@@ -212,9 +213,68 @@ export function buildMessage(input: ChatInput): MessageContent[] {
 export async function sendMessage(sessionId: string, input: ChatInput | string) {
   const value = typeof input === "string" ? { text: input } : input;
   const message = buildMessage(value);
+  if (!message.length) return;
   const text = value.text.trim();
+  await runChat(sessionId, message, async (service, state, ref) => {
+    // 就近对话的标题是「关于《篇名》」，不随首句改名
+    if (state.messages.length || state.title !== "新对话") return;
+    const titled = await service.sessions.patch(ref, state.revision, {
+      title: titleFrom(text || value.mentions?.[0]?.title || "图片提问"),
+    });
+    useChatStore
+      .getState()
+      .patch(sessionId, { title: titled.row.title, revision: titled.revision });
+  });
+}
+
+/** 重新生成最后一个问题的回答：会话回退到这条问题之前再原样发出，旧回答留在会话树上 */
+export async function regenerateLast(sessionId: string) {
   const state = useChatStore.getState().chats[sessionId];
-  if (!state || state.runId || !message.length) return;
+  const question = [...(state?.messages ?? [])].reverse().find(item => item.role === Role.User);
+  const entryId = question?.piEntryIds?.[0];
+  if (!question || !entryId) return;
+  const message: MessageContent[] =
+    typeof question.content === "string"
+      ? [{ type: "text", text: question.content }]
+      : structuredClone(question.content);
+  await runChat(sessionId, message, async (service, current, ref) => {
+    const rewound = await service.sessions.editHistory(ref, current.revision, {
+      kind: "rewind",
+      entryId,
+    });
+    useChatStore.getState().patch(sessionId, { revision: rewound.revision });
+  });
+}
+
+/** 删除一条消息：一条回答由多个 entry 组成，要一起省略；生成中不可删 */
+export async function deleteMessage(sessionId: string, index: number) {
+  const state = useChatStore.getState().chats[sessionId];
+  const entryIds = state?.messages[index]?.piEntryIds ?? [];
+  if (!state || state.runId || !entryIds.length) return false;
+  const { service } = await capabilitiesFor(state.databaseName);
+  const ref = { databaseName: state.databaseName, sessionId };
+  const edited = await service.sessions.editHistory(ref, state.revision, {
+    kind: "omit",
+    entryIds,
+  });
+  useChatStore
+    .getState()
+    .patch(sessionId, { messages: edited.messages, revision: edited.revision, error: null });
+  return true;
+}
+
+/** 发起一次运行：prepare 在运行前改写会话（命名、回退），失败统一落到 error */
+async function runChat(
+  sessionId: string,
+  message: MessageContent[],
+  prepare: (
+    service: MobileAiService,
+    state: ChatState,
+    ref: { databaseName: string; sessionId: string }
+  ) => Promise<void>
+) {
+  const state = useChatStore.getState().chats[sessionId];
+  if (!state || state.runId) return;
   if (!state.model) {
     useChatStore.getState().patch(sessionId, {
       error: { code: "AI_MODEL_UNAVAILABLE", message: "还没有为对话选择模型" },
@@ -224,18 +284,9 @@ export async function sendMessage(sessionId: string, input: ChatInput | string) 
   const { service, toolIds } = await capabilitiesFor(state.databaseName);
   const runId = crypto.randomUUID();
   const ref = { databaseName: state.databaseName, sessionId };
-  const isFirst = !state.messages.length;
   useChatStore.getState().patch(sessionId, { runId, status: "preparing", error: null });
   try {
-    // 就近对话的标题是「关于《篇名》」，不随首句改名
-    if (isFirst && state.title === "新对话") {
-      const titled = await service.sessions.patch(ref, state.revision, {
-        title: titleFrom(text || value.mentions?.[0]?.title || "图片提问"),
-      });
-      useChatStore
-        .getState()
-        .patch(sessionId, { title: titled.row.title, revision: titled.revision });
-    }
+    await prepare(service, state, ref);
     const current = useChatStore.getState().chats[sessionId] ?? state;
     await service.runs.start({
       runId,

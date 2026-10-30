@@ -1,5 +1,5 @@
 // 对话页：经真实 router 入栈；AI 服务替身只在运行层发快照，覆盖新对话首发建会话、
-// 流式回答、写入审批走宿主作答、未配置引导与对话记录。
+// 流式回答、写入审批走宿主作答、过程胶囊与回答操作、未配置引导与对话记录。
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -8,7 +8,7 @@ import { Role } from "@tau/shared/chat-core";
 import { PageHost, RouterProvider, getNavigator } from "../../../router";
 import { PageQueryProvider } from "../../../router/query/PageQueryProvider";
 import { AppContext, type AppContextValue } from "../../../app/AppContext";
-import { useChatStore } from "../../../services/aiChat/chatController";
+import { useChatStore, type ChatState } from "../../../services/aiChat/chatController";
 import type { SettingCompat } from "../../../types";
 import "../../cards/pages/home.page";
 import "../pages/aiChat.page";
@@ -25,6 +25,7 @@ const service = vi.hoisted(() => {
       list: vi.fn(),
       patch: vi.fn(),
       remove: vi.fn(),
+      editHistory: vi.fn(),
     },
     runs: {
       start: vi.fn(),
@@ -205,7 +206,7 @@ it("新对话：首条消息才建会话，命名标题，流式回答后收尾"
   service.sessions.get.mockResolvedValue(session("s1", [], "今天该做什么"));
   mount();
   await open("aiChat", { sessionId: "s1", isNew: "1" });
-  await waitFor(() => text().includes("想聊点什么"));
+  await waitFor(() => text().includes("今天想整理点什么"));
   expect(text()).toContain("DeepSeek V4");
   expect(service.sessions.create).not.toHaveBeenCalled();
 
@@ -312,6 +313,112 @@ it("写入工具等待审批：确认条可见，点「允许」经宿主作答"
   });
 });
 
+const doneTool = (toolCallId: string, toolName: string) => ({
+  toolCallId,
+  toolName,
+  status: "success",
+  input: "{}",
+  timestamp: 0,
+});
+function answeredChat(): ChatState {
+  return {
+    sessionId: "s4",
+    databaseName: "data.db",
+    title: "明天的日程",
+    revision: "r1",
+    messages: [
+      { role: Role.User, piEntryIds: ["u1"], content: [{ type: "text", text: "明天有哪些日程" }] },
+      {
+        role: Role.Assistant,
+        piEntryIds: ["a1", "a2"],
+        content: "明天没有安排",
+        assistant_blocks: [
+          {
+            id: "t1",
+            turnId: "t",
+            type: "tool_call",
+            state: "done",
+            toolCall: { id: "c1", type: "function", function: { name: "query_calendar_events" } },
+            execution: doneTool("c1", "query_calendar_events"),
+          },
+          {
+            id: "t2",
+            turnId: "t",
+            type: "tool_call",
+            state: "done",
+            toolCall: { id: "c2", type: "function", function: { name: "query_todos" } },
+            execution: doneTool("c2", "query_todos"),
+          },
+          { id: "t3", turnId: "t", type: "text", state: "done", content: "明天没有安排" },
+        ],
+      },
+    ],
+    runId: null,
+    status: "idle",
+    approvals: [],
+    questions: [],
+    error: null,
+    model: { providerId: "p", modelId: "m" },
+  } as unknown as ChatState;
+}
+
+it("回答完成：相邻工具收成一枚过程胶囊，最后一条回答常显操作", async () => {
+  setting = makeSetting(true);
+  service.sessions.get.mockResolvedValue(session("s4", answeredChat().messages, "明天的日程"));
+  useChatStore.setState({ chats: { s4: answeredChat() } });
+  mount();
+  await open("aiChat", { sessionId: "s4" });
+  await waitFor(() => text().includes("明天没有安排"));
+  expect(text()).toContain("查询日程、查询待办");
+  expect(text()).toContain("2 步");
+  // 未展开时不逐条列出，也不出现「完成」
+  expect(text()).not.toContain("完成");
+  expect(pressable("复制")).toBeTruthy();
+  expect(pressable("重新生成")).toBeTruthy();
+  expect(pressable("存为卡片")).toBeTruthy();
+  await click(pressable("查询日程"));
+  expect(activePage().querySelectorAll("[aria-expanded='true']").length).toBeGreaterThan(0);
+});
+
+it("重新生成：会话先回退到最后一个问题之前，再原样发出", async () => {
+  setting = makeSetting(true);
+  service.sessions.get.mockResolvedValue(session("s4", answeredChat().messages, "明天的日程"));
+  service.sessions.editHistory.mockResolvedValue({ ...session("s4"), revision: "r2" });
+  service.runs.start.mockResolvedValue({ runId: "x" });
+  useChatStore.setState({ chats: { s4: answeredChat() } });
+  mount();
+  await open("aiChat", { sessionId: "s4" });
+  await waitFor(() => text().includes("明天没有安排"));
+  await click(pressable("重新生成"));
+  await waitFor(() => service.runs.start.mock.calls.length === 1);
+  expect(service.sessions.editHistory).toHaveBeenCalledWith(
+    { databaseName: "data.db", sessionId: "s4" },
+    "r1",
+    { kind: "rewind", entryId: "u1" }
+  );
+  expect(service.runs.start.mock.calls[0][0]).toMatchObject({
+    expectedRevision: "r2",
+    message: [{ type: "text", text: "明天有哪些日程" }],
+  });
+});
+
+it("删除消息：一条回答的全部 entry 一起省略", async () => {
+  setting = makeSetting(true);
+  const { deleteMessage } = await import("../../../services/aiChat/chatController");
+  service.sessions.editHistory.mockResolvedValue({
+    ...session("s4", answeredChat().messages.slice(0, 1)),
+    revision: "r2",
+  });
+  useChatStore.setState({ chats: { s4: answeredChat() } });
+  await expect(deleteMessage("s4", 1)).resolves.toBe(true);
+  expect(service.sessions.editHistory).toHaveBeenCalledWith(
+    { databaseName: "data.db", sessionId: "s4" },
+    "r1",
+    { kind: "omit", entryIds: ["a1", "a2"] }
+  );
+  expect(useChatStore.getState().chats.s4.messages).toHaveLength(1);
+});
+
 it("运行失败：401 显示 Key 无效与去检查", async () => {
   setting = makeSetting(true);
   service.sessions.create.mockResolvedValue(session("s3"));
@@ -320,7 +427,7 @@ it("运行失败：401 显示 Key 无效与去检查", async () => {
   service.sessions.get.mockResolvedValue(session("s3"));
   mount();
   await open("aiChat", { sessionId: "s3", isNew: "1" });
-  await waitFor(() => text().includes("想聊点什么"));
+  await waitFor(() => text().includes("今天想整理点什么"));
   type("你好");
   await click(pressable("发送"));
   await waitFor(() => service.runs.start.mock.calls.length === 1);
