@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>减重 · 方案 A 趋势仪表盘</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .page { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; }
+  .col { min-height: 0; display: flex; flex-direction: column; gap: 14px; padding: 2px 4px 20px 2px; margin: -2px; }
+
+  /* 头部：今日 + 指标 */
+  .hero { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 14px; }
+  .today { padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 12px; }
+  .today .lbl { font-size: 12px; color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
+  .today .big { display: flex; align-items: baseline; gap: 8px; }
+  .today .big b { font-size: 44px; font-weight: 600; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .today .big .u { font-size: 14px; color: var(--ink-3); }
+  .today .big .delta { margin-left: 4px; font-size: 13px; }
+  .weigh-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .slot { display: flex; align-items: center; gap: 9px; padding: 9px 11px; border-radius: 12px; background: var(--bg-hover); text-align: left; transition: background 150ms var(--ease-out); }
+  .slot:hover { background: var(--bg-press); }
+  .slot .icon { width: 15px; height: 15px; color: var(--ink-3); }
+  .slot div { display: flex; flex-direction: column; line-height: 1.35; }
+  .slot span { font-size: 11px; color: var(--ink-3); }
+  .slot b { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .slot.todo { background: none; box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .slot.todo b { color: var(--accent-text); font-weight: 500; font-size: 13px; }
+  .slot.todo .icon { color: var(--accent-text); }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+  .kpi { padding: 16px 18px 14px; display: flex; flex-direction: column; gap: 4px; }
+  .kpi .lbl { font-size: 12px; color: var(--ink-3); }
+  .kpi .v { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.3; }
+  .kpi .v small { font-size: 12px; font-weight: 400; color: var(--ink-3); margin-left: 3px; }
+  .kpi .s { font-size: 11.5px; color: var(--ink-2); margin-top: auto; }
+  .goal-bar { height: 6px; border-radius: 3px; background: var(--bg-track); overflow: hidden; margin-top: 6px; }
+  .goal-bar i { display: block; height: 100%; background: var(--ok); border-radius: 3px; }
+
+  .trend { padding-bottom: 14px; }
+  .trend .chart { margin: 8px 14px 0 4px; }
+  .trend .legend { padding: 10px 18px 0; }
+
+  .row2 { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 14px; }
+  .eff { padding-bottom: 12px; }
+  .eff .body { padding: 8px 12px 0; }
+  .heatp .body { padding: 14px 18px 16px; display: flex; flex-direction: column; gap: 12px; }
+  .heat-head { display: flex; gap: 3px; font-size: 10px; color: var(--ink-3); }
+
+  /* 右栏 */
+  .ai-card { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+  .ai-head { display: flex; align-items: center; gap: 8px; }
+  .ai-head b { font-size: 13.5px; font-weight: 600; }
+  .ai-foot { display: flex; align-items: center; gap: 8px; }
+  .log { padding-bottom: 12px; }
+  .log .body { padding: 8px 18px 0; display: flex; flex-direction: column; gap: 12px; }
+  .meal { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 8px; font-size: 12.5px; align-items: baseline; }
+  .meal .slotn { color: var(--ink-3); font-size: 11.5px; }
+  .meal .k { color: var(--ink-3); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  .meal.ghost { color: var(--ink-3); }
+  .chips-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+  .sub-h { font-size: 11.5px; color: var(--ink-3); font-weight: 600; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="data.js"></script>
+<script src="shared.js"></script>
+<script>
+  const root = W.mountShell();
+  const icon = W.icon;
+  function render() {
+    const S = W.summary();
+    const t = S.today;
+    const prev = W.days[t.i - 1];
+    const totalToLose = S.start - W.GOAL;
+    const progress = Math.min(1, S.lost / totalToLose);
+    const weeksLeft = S.week < 0 ? S.toGoal / -S.week : null;
+    root.innerHTML = `
+    <div class="page">
+      <div class="col scroller fade-y">
+        <div class="hero">
+          <div class="panel today">
+            <div class="lbl">${icon("calendar")}今天 · ${W.mdw(t.t)}</div>
+            <div class="big"><b>${W.kg(t.am)}</b><span class="u">kg</span><span class="delta ${W.deltaCls(t.am - prev.am)}">${W.signed(t.am - prev.am)} 较昨晨</span></div>
+            <div class="weigh-slots">
+              <button class="slot" data-log>${icon("sunrise")}<div><span>起床 07:12</span><b>${W.kg(t.am)}</b></div></button>
+              <button class="slot todo" data-log>${icon("sunset")}<div><span>睡前</span><b>＋ 记一下</b></div></button>
+            </div>
+          </div>
+          <div class="kpis">
+            <div class="panel kpi"><span class="lbl">7 日均值</span><span class="v">${W.kg(S.latest.avg)}<small>kg</small></span><span class="s">比单日读数稳，趋势只看它</span></div>
+            <div class="panel kpi"><span class="lbl">近两周速率</span><span class="v delta down">${W.signed(S.week, 2)}<small>kg/周</small></span><span class="s">健康区间 −0.5 ~ −1.0</span></div>
+            <div class="panel kpi"><span class="lbl">已减 · 起点 ${W.kg(S.start)}</span><span class="v">${S.lost.toFixed(1)}<small>kg</small></span>
+              <div class="goal-bar"><i style="width:${(progress * 100).toFixed(0)}%"></i></div><span class="s">完成 ${(progress * 100).toFixed(0)}% · 目标 ${W.GOAL} kg</span></div>
+            <div class="panel kpi"><span class="lbl">按当前速率</span><span class="v">${weeksLeft ? Math.ceil(weeksLeft) : "—"}<small>周后到达</small></span><span class="s">BMI ${S.bmi.toFixed(1)} · 连续记录 ${S.streak} 天</span></div>
+          </div>
+        </div>
+
+        <div class="panel trend">
+          <div class="panel-head"><span class="panel-title">体重趋势</span><span class="panel-sub">点 = 每日晨重，线 = 7 日均值，底带 = 实验阶段</span><span class="spacer"></span>
+            <div class="seg" id="range"><button data-r="14">2 周</button><button data-r="30">月</button><button data-r="90" class="on">3 月</button></div>
+            <div class="seg" id="pmseg"><button data-pm="0" class="on">晨重</button><button data-pm="1">+ 睡前</button></div>
+          </div>
+          <div class="chart" id="trend"></div>
+          <div class="legend"><span><i class="dot"></i>晨重</span><span><i></i>7 日均值</span><span><i class="dash"></i>目标</span><span><i class="band"></i>实验阶段</span>
+            <span class="spacer"></span><span style="color:var(--ink-3)">下方条带：当天做了哪类行动</span></div>
+        </div>
+
+        <div class="row2">
+          <div class="panel eff">
+            <div class="panel-head"><span class="panel-title">哪些行动最有效</span><span class="panel-sub">做了 vs 没做，次日晨重平均差</span><span class="spacer"></span><button class="icon-btn" title="口径说明">${icon("info")}</button></div>
+            <div class="body" id="eff"></div>
+          </div>
+          <div class="panel heatp">
+            <div class="panel-head"><span class="panel-title">每日变化</span><span class="panel-sub">次日晨重 − 当日晨重</span></div>
+            <div class="body"><div id="heat"></div>${W.heatLegend()}
+              <div style="font-size:12px;color:var(--ink-2);line-height:1.7">深红集中在周五、周六：聚餐和夜宵基本都落在周末。悬停格子看当天做了什么。</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col scroller fade-y">
+        <div class="ai-card">
+          <div class="ai-head"><span class="ai-mark">${icon("sparkles")}</span><b>AI 分析</b><span class="spacer"></span><span class="ai-meta">基于 90 天记录</span></div>
+          <div class="ai-text" id="ai"></div>
+          <div class="ai-prompts"><button>本周为什么没掉秤？</button><button>下一个实验做什么？</button><button>帮我估今天热量</button></div>
+          <div class="ai-input"><input placeholder="问问你的数据…"><button class="icon-btn">${icon("send")}</button></div>
+          <div class="ai-foot"><span class="ai-meta">AI 能看到体重、行动和饮食文字，不会上传照片原图</span><span class="spacer"></span><button class="icon-btn" id="ai-re" title="重新分析">${icon("refresh")}</button></div>
+        </div>
+        <div class="panel log">
+          <div class="panel-head"><span class="panel-title">今天的记录</span><span class="spacer"></span><button class="btn btn-ghost" data-log>${icon("plus")}添加</button></div>
+          <div class="body">
+            <span class="sub-h">行动</span>
+            <div class="chips-wrap">${t.actions.map(a => W.chip(a)).join("")}<button class="chip add" data-log>${icon("plus")}行动</button></div>
+            <span class="sub-h">饮食 · 估算 ${t.meals.reduce((s, m) => s + m.kcal, 0)} kcal</span>
+            ${t.meals.map(m => `<div class="meal"><span class="slotn">${m.slot}餐</span><span>${m.text}</span><span class="k">${m.kcal}</span></div>`).join("")}
+            <div class="meal ghost"><span class="slotn">午餐</span><span>还没记</span><span></span></div>
+          </div>
+        </div>
+        <div class="panel log">
+          <div class="panel-head"><span class="panel-title">当前实验</span><span class="panel-sub">第 ${Math.round((W.TODAY - W.EXPERIMENTS[4].from) / W.D) + 1} 天</span></div>
+          <div class="body">
+            <div style="display:flex;align-items:center;gap:6px">${W.EXPERIMENTS[4].tags.map(a => W.chip(a)).join("")}</div>
+            <div style="display:flex;align-items:flex-end;gap:14px">
+              <div><div class="delta down" style="font-size:20px">${W.signed(W.expStats(W.EXPERIMENTS[4]).rate, 2)}</div><div class="ai-meta">kg / 周 · 基线 ${W.signed(W.expStats(W.EXPERIMENTS[0]).rate, 2)}</div></div>
+              <span class="spacer"></span>${W.spark(W.days.filter(d => d.t >= W.EXPERIMENTS[4].from), 120, 34)}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+    const trend = W.trendChart(root.querySelector("#trend"), { height: 290 });
+    root.querySelectorAll("#range button").forEach(b =>
+      b.addEventListener("click", () => {
+        root.querySelectorAll("#range button").forEach(x => x.classList.toggle("on", x === b));
+        trend.redraw({ from: W.TODAY - (+b.dataset.r - 1) * W.D, goal: +b.dataset.r > 30 });
+      })
+    );
+    root.querySelectorAll("#pmseg button").forEach(b =>
+      b.addEventListener("click", () => {
+        root.querySelectorAll("#pmseg button").forEach(x => x.classList.toggle("on", x === b));
+        trend.redraw({ pm: b.dataset.pm === "1" });
+      })
+    );
+    W.effectBars(root.querySelector("#eff"));
+    W.heatmap(root.querySelector("#heat"), { weeks: 13 });
+    W.streamAI(root.querySelector("#ai"));
+    root.querySelector("#ai-re").onclick = () => W.streamAI(root.querySelector("#ai"));
+    root.querySelectorAll("[data-log]").forEach(b => b.addEventListener("click", () => W.openLog("weight", render)));
+  }
+  render();
+</script>
+</body>
+</html>

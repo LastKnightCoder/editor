@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>记账插件 · 设计方案总览</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg-page); color: var(--ink-1); font: 14px/1.75 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif; -webkit-font-smoothing: antialiased; padding: 40px 8vw 80px; }
+  header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .sub { color: var(--ink-2); margin-top: 6px; max-width: 86ch; }
+  .meta { margin-top: 10px; font-size: 12.5px; color: var(--ink-3); }
+  h2 { font-size: 16px; margin: 40px 0 12px; font-weight: 600; }
+  .sub2 { color: var(--ink-2); max-width: 86ch; margin-bottom: 12px; }
+  ul.tight { padding-left: 20px; color: var(--ink-2); max-width: 94ch; }
+  ul.tight li + li { margin-top: 5px; }
+  ul.tight b { color: var(--ink-1); font-weight: 600; }
+  .flow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 16px; font-size: 13px; }
+  .flow span { background: var(--bg-surface); box-shadow: var(--shadow-card); border-radius: 10px; padding: 6px 12px; }
+  .flow i { color: var(--ink-3); font-style: normal; }
+  .flow .ok { color: var(--ok); font-weight: 600; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+  .card { background: var(--bg-surface); border-radius: 16px; padding: 20px 22px; box-shadow: var(--shadow-card); text-decoration: none; color: inherit; display: flex; flex-direction: column; outline: 1px solid transparent; transition: box-shadow 200ms, outline-color 200ms; }
+  .card:hover { outline-color: var(--line-1); box-shadow: var(--shadow-float); }
+  .card .no { font: 600 12px/1 ui-monospace, Consolas, monospace; color: var(--accent-text); }
+  .card h3 { font-size: 15.5px; margin: 6px 0 2px; font-weight: 600; }
+  .card .who { font-size: 12px; color: var(--ink-3); font-weight: 400; }
+  .card p { font-size: 13px; color: var(--ink-2); margin-top: 8px; }
+  .wire { margin-top: 14px; height: 104px; border-radius: 10px; background: var(--bg-page); padding: 8px; display: grid; gap: 5px; }
+  .wire div { border-radius: 5px; }
+  .wire .s { background: var(--bg-surface); box-shadow: var(--shadow-card); }
+  .verdict { margin-top: 12px; font-size: 12.5px; display: flex; flex-direction: column; gap: 2px; }
+  .verdict .good { color: var(--ok); } .verdict .bad { color: var(--danger); }
+  .card .open { margin-top: auto; padding-top: 12px; font-size: 12.5px; color: var(--accent-text); font-weight: 500; }
+  table { border-collapse: collapse; width: 100%; background: var(--bg-surface); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow-card); font-size: 13px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { font-size: 12px; font-weight: 600; color: var(--ink-2); border-bottom: 1px solid var(--line-1); }
+  td { color: var(--ink-2); border-top: 1px solid var(--line-1); }
+  td:first-child { color: var(--ink-1); font-weight: 500; white-space: nowrap; }
+  code { font: 12px/1.5 ui-monospace, Consolas, monospace; background: var(--bg-surface); border: 1px solid var(--line-1); padding: 1px 6px; border-radius: 5px; color: var(--accent-text); }
+  ol.q { padding-left: 22px; color: var(--ink-2); max-width: 94ch; }
+  ol.q li + li { margin-top: 8px; }
+  ol.q b { color: var(--ink-1); }
+  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+  .theme-btn { position: fixed; top: 18px; right: 22px; font-size: 12px; color: var(--ink-2); background: var(--bg-surface); box-shadow: var(--shadow-card); border: 0; border-radius: 8px; padding: 5px 10px; cursor: pointer; }
+</style>
+</head>
+<body>
+<script>document.documentElement.dataset.theme = localStorage.getItem("w-mock-theme") || "cream";</script>
+<button class="theme-btn" onclick="const n=document.documentElement.dataset.theme==='cream'?'cocoa':'cream';document.documentElement.dataset.theme=n;localStorage.setItem('w-mock-theme',n)">切换明暗</button>
+
+<header>
+  <h1>记账插件 · 页面设计方案</h1>
+  <p class="sub">一个页面型插件（<code>categories: ["page"]</code>），目标是两件事：<b>看清钱花在哪</b>（分布），<b>知道还能花多少</b>（数量），从而控制支出。三个方案共用同一份半年模拟数据（5/1–10/29，约 820 笔，含 618 耳机、国庆成都旅行、婚礼红包这些「故事」），用 cream / cocoa 两套主题的真实取值，右上角可切换明暗。一句话记账、分类筛选、日历选日、图例开关、AI 流式输出都可以直接点。</p>
+  <p class="meta">2026-10-29 · 演示日期固定为 10 月 29 日 12:40 · mockup 只作视觉参考，实现时用 @tau/ui + Tailwind 重写</p>
+</header>
+
+<h2>二轮 · 综合方案</h2>
+<p class="sub2">你的反馈：喜欢 A 的精简、B 的日历、C 的分析。D 把三者合成一页，从上往下按「每天看 → 偶尔查 → 月底复盘」排列，一个页面看完，不用切子视图。</p>
+<div class="cards" style="grid-template-columns:1fr">
+  <a class="card" href="plan-d-combined.html">
+    <div class="no">方案 D（二轮推荐）</div>
+    <h3>预算 + 日历 + 分析 <span class="who">· 一页，联动筛选</span></h3>
+    <p>顶部一条 A 的核心：<b>还能花多少 / 剩下每天最多多少 / 今天 / 比上月同期</b>。中间是 B 的月历，但每个格子不只是一个数，底部有一根<b>分类构成条</b>：条的长度表示当天花了多少（满半格 = 日均额度，超过就红字），颜色表示花在哪，所以日历同时显示「数量」和「分布」。再往下是分类预算行（A 的信封压成一行一类，加上 C 的「比前 3 月平均」），最底部是 C 的近 6 个月构成和一周规律。</p>
+    <div class="verdict">
+      <span class="good">✓ 三处联动：点日历某天 / 点某个分类 / 点某个月柱，右侧流水按「月 → 日 → 分类」逐级收窄，顶部有可移除的筛选标签</span>
+      <span class="good">✓ 选了分类后，日历只画这一类，额度也换成该分类的日均额度，「这个月餐饮哪几天超了」一眼能看到</span>
+      <span class="good">✓ AI 合成一张卡，分「提醒」（今天、本月）和「月度复盘」两个标签</span>
+      <span class="good">✓ B 的完整流水表（搜索、多选筛选、导出）收进日历右上角的「列表」切换，不占首屏</span>
+      <span class="bad">✗ 页面比 A 长，首屏只到日历；分析部分需要往下滚（本来就是月底才看的）</span>
+    </div>
+    <span class="open">打开方案 D →</span>
+  </a>
+</div>
+
+<h2>先说清楚：专业记账软件都在做什么</h2>
+<p class="sub2">YNAB、Copilot Money、Monarch、MoneyWiz，国内的随手记、鲨鱼记账、钱迹，形态各异，但核心都是同一个循环：</p>
+<div class="flow"><span>花钱时 3 秒记一笔</span><i>→</i><span>自动归到分类</span><i>→</i><span>和预算比：还剩多少</span><i>→</i><span>月底看分布和变化</span><i>→</i><span class="ok">调整下个月预算</span></div>
+<ul class="tight">
+  <li><b>记录要快，否则坚持不下去</b>。这是所有记账软件流失的第一原因。专业软件的做法：数字键盘优先、分类记住上次选择、常用项一键重复、固定支出（房租、订阅）自动入账，以及银行账单导入。这里用<b>一句话记账</b>：「午饭 牛肉面 28」，本地规则识别金额和分类，认不出时让你点一下，记过一次后自动归类；</li>
+  <li><b>预算比记录更能控制支出</b>。只记账不设预算，月底只能看到一个已经发生的数字。YNAB 的核心是「每一块钱都有去处」，简化版就是<b>分类预算（信封法）</b>：给每个分类一个月额度，花之前就能看到这个信封还剩多少；</li>
+  <li><b>拿时间进度做参照</b>。29 号花了 90% 是正常的，10 号花了 60% 就该警惕。所以每个预算条上都有一根「今天的时间进度」竖线，花费超过竖线 10 个点就标「偏快」。本月累计图也是同一个思路：实线（实际累计）在虚线（均匀花完预算）上方，就是花快了；</li>
+  <li><b>固定支出和可控支出分开看</b>。房租、话费、订阅每月不变，混在一起会让日均、日历颜色、和上月比较都失真。三个方案里固定支出单独标注、不参与日历着色和日均计算；</li>
+  <li><b>分布要和「平时」比才有意义</b>。「餐饮 ¥2,837」本身说明不了什么，「比前 3 个月平均多 ¥200，多在夜宵」才能指导行动。分析一律以前 3 个月平均为基准；</li>
+  <li><b>AI 是解读者，不是计算器</b>。所有金额由插件本地算好，AI 只拿到汇总后的结构化数据（分类合计、子分类、大额、周几分布），负责找原因和给可执行的建议，并估算能省多少。</li>
+</ul>
+
+<h2>一轮 · 三个方案（参考）</h2>
+<div class="cards">
+  <a class="card" href="plan-a-budget.html">
+    <div class="no">方案 A（推荐做主页）</div>
+    <h3>预算信封 <span class="who">· 本月还能花多少</span></h3>
+    <p>打开就回答最重要的问题：<b>10 月还能花 ¥346，剩 3 天每天最多 ¥115</b>。下面是 7 个分类信封，每个都有预算、已花、时间进度竖线和状态（正常 / 偏快 / 已超）；本月累计图把实际支出、理想节奏和月底预计画在一起。右栏一句话记账，记之前就预览「记下后这个分类还剩多少」。</p>
+    <div class="wire" style="grid-template-columns: 3fr 1.1fr;">
+      <div style="display:grid;gap:5px;grid-template-rows:30px 1fr 30px"><div style="display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:4px"><div class="s"></div><div class="s"></div><div class="s"></div></div><div class="s" style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;padding:5px"><div style="background:var(--bg-hover)"></div><div style="background:var(--bg-hover)"></div><div style="background:var(--bg-hover)"></div><div style="background:var(--bg-hover)"></div></div><div class="s"></div></div>
+      <div style="display:grid;gap:5px;grid-template-rows:0.5fr 1.4fr 1fr"><div class="s"></div><div class="s"></div><div class="s" style="background:linear-gradient(135deg,var(--accent-soft),var(--bg-surface))"></div></div>
+    </div>
+    <div class="verdict">
+      <span class="good">✓ 控制支出最直接：花之前就知道还剩多少、哪个分类快超了</span>
+      <span class="good">✓ 时间进度竖线让「快 / 慢」不用算</span>
+      <span class="bad">✗ 需要先设一次预算（可按前 3 个月平均自动生成初值）；回看历史弱</span>
+    </div>
+    <span class="open">打开方案 A →</span>
+  </a>
+  <a class="card" href="plan-b-ledger.html">
+    <div class="no">方案 B</div>
+    <h3>流水日历 <span class="who">· 记录与查找</span></h3>
+    <p>经典记账软件的样子。左侧是月历，格子颜色深浅 = 当天可控支出多少，一眼看出哪几天花得多；点一天，下方显示当天的分类分布和每一笔。右侧是完整流水表：按天分组、搜索备注、按分类和账户筛选，筛选结果实时给出合计和分类分布条，可导出 CSV。</p>
+    <div class="wire" style="grid-template-columns: 1fr 1.9fr;">
+      <div style="display:grid;gap:5px;grid-template-rows:1.3fr 1fr"><div class="s" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:5px"><div style="background:var(--accent-soft)"></div><div style="background:var(--bg-hover)"></div><div style="background:var(--accent);opacity:.5"></div><div style="background:var(--bg-hover)"></div><div style="background:var(--accent-soft)"></div><div style="background:var(--accent);opacity:.8"></div><div style="background:var(--bg-hover)"></div></div><div class="s"></div></div>
+      <div style="display:grid;gap:5px;grid-template-rows:22px 1fr"><div class="s"></div><div class="s" style="display:grid;gap:3px;padding:6px;align-content:start"><div style="height:7px;background:var(--bg-hover)"></div><div style="height:6px;background:var(--line-1)"></div><div style="height:6px;background:var(--line-1)"></div><div style="height:7px;background:var(--bg-hover)"></div><div style="height:6px;background:var(--line-1)"></div></div></div>
+    </div>
+    <div class="verdict">
+      <span class="good">✓ 查账、改账、找某一笔最顺手；日历热度很直观</span>
+      <span class="good">✓ 筛选 = 临时报表：「10 月打车一共多少」一步得到</span>
+      <span class="bad">✗ 对「还能花多少」只给一个数字，约束感弱</span>
+    </div>
+    <span class="open">打开方案 B →</span>
+  </a>
+  <a class="card" href="plan-c-report.html">
+    <div class="no">方案 C</div>
+    <h3>分析报告 <span class="who">· 钱去哪了，能省哪里</span></h3>
+    <p>月度复盘。顶部四个指标（本月支出、比平均、日均可控、固定占比）；近 6 个月堆叠柱看构成变化；分类排行同时给金额、占比、和前 3 月平均的差（条上的竖线就是平均），点开看子分类；还有「一周里哪天花得多」和本月大额。右栏 AI 复盘给出原因和带金额的省钱建议，可追问。</p>
+    <div class="wire" style="grid-template-columns: 3fr 1.2fr;">
+      <div style="display:grid;gap:5px;grid-template-rows:18px 1.2fr 1fr"><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px"><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div></div><div class="s" style="display:flex;align-items:flex-end;gap:8px;padding:6px 10px"><div style="flex:1;height:60%;background:linear-gradient(var(--c-shop) 30%,var(--c-food) 30% 60%,var(--c-home) 60%)"></div><div style="flex:1;height:70%;background:linear-gradient(var(--c-shop) 40%,var(--c-food) 40% 70%,var(--c-home) 70%)"></div><div style="flex:1;height:65%;background:linear-gradient(var(--c-shop) 30%,var(--c-food) 30% 60%,var(--c-home) 60%)"></div><div style="flex:1;height:85%;background:linear-gradient(var(--c-fun) 30%,var(--c-food) 30% 60%,var(--c-home) 60%)"></div></div><div class="s"></div></div>
+      <div class="s" style="background:linear-gradient(135deg,var(--accent-soft),var(--bg-surface))"></div>
+    </div>
+    <div class="verdict">
+      <span class="good">✓ 「分布」最完整：构成、排行、子分类、时间规律都有</span>
+      <span class="good">✓ AI 建议带金额（「约省 ¥208 / 月」），能直接变成下个月的预算调整</span>
+      <span class="bad">✗ 事后视角，适合每月看一次，不适合每天打开</span>
+    </div>
+    <span class="open">打开方案 C →</span>
+  </a>
+</div>
+
+<h2>对比</h2>
+<table>
+  <thead><tr><th>维度</th><th>A 预算信封</th><th>B 流水日历</th><th>C 分析报告</th></tr></thead>
+  <tbody>
+    <tr><td>回答的问题</td><td>还能花多少？哪个分类快超了？</td><td>哪天花了什么？某类一共多少？</td><td>钱去哪了？比平时多在哪？能省哪？</td></tr>
+    <tr><td>打开频率</td><td>每天</td><td>记账 / 查账时</td><td>每月一次</td></tr>
+    <tr><td>支出数量</td><td>最强：余额 + 日均可花 + 月底预计</td><td>月合计 + 日历热度</td><td>月度对比 + 前 3 月平均</td></tr>
+    <tr><td>支出分布</td><td>信封（按分类）</td><td>分布条（随筛选变化）</td><td>最强：堆叠柱 + 排行 + 子分类 + 周几</td></tr>
+    <tr><td>记录入口</td><td>右栏一句话 + 预览余额</td><td>顶部一句话，可粘贴多笔</td><td>按钮</td></tr>
+    <tr><td>AI 位置</td><td>短提醒（今天 / 本月）</td><td>无（或拆分粘贴的账单）</td><td>完整复盘 + 追问</td></tr>
+    <tr><td>前置配置</td><td>分类预算</td><td>无</td><td>无（有历史数据就行）</td></tr>
+  </tbody>
+</table>
+
+<h2>推荐组合</h2>
+<ul class="tight">
+  <li>插件页做三个子视图 <code>预算 | 流水 | 分析</code>（页内 segmented 切换），默认打开 <b>A 预算</b>：每天看它，记账也在这里；查账去 B，月底复盘去 C；</li>
+  <li>点 A 的某个信封 → 跳到 B 并带上分类筛选；点 C 的某个月柱 / 分类 → 同样跳到 B 的对应筛选。三个视图共用一套筛选状态，数字永远对得上；</li>
+  <li>首页卡片（<code>home</code> 扩展点）放「本月还能花 ¥346 · 今天 ¥56」+ 一句话输入框，不进插件页也能记一笔；</li>
+  <li>月初第一次打开时，C 的 AI 复盘以「上月报告」形式出现在 A 顶部，一键采纳它建议的预算调整。</li>
+</ul>
+
+<h2>三个方案共用的视觉与图表规范</h2>
+<ul class="tight">
+  <li><b>分类色</b>（数据色，不进主题词表），顺序固定：<span class="sw" style="background:var(--c-food)"></span>餐饮 <span class="sw" style="background:var(--c-shop)"></span>购物 <span class="sw" style="background:var(--c-trans)"></span>交通 <span class="sw" style="background:var(--c-fun)"></span>娱乐 <span class="sw" style="background:var(--c-home)"></span>居住 <span class="sw" style="background:var(--c-social)"></span>人情 <span class="sw" style="background:var(--c-other)"></span>其他（中性灰）。已用色盲校验脚本验过：浅色主题相邻对色盲 ΔE ≥ 9.1，深色 ≥ 8.4。黄、青、粉在浅色背景上对比度低于 3:1，所以分类始终 <b>图标 + 文字</b> 一起出现，颜色只染小圆底；颜色跟着分类走，排序、筛选都不改色；</li>
+  <li><b>金额</b>一律等宽数字，支出写 <code>−28</code>；超支、比平均多用 danger 红，省下来用 ok 绿，且都带正负号，不只靠颜色；</li>
+  <li><b>不用饼图</b>：7 个分类、数值接近时饼图分不清大小。分布用横向排行条（能比大小）或 100% 堆叠条（看占比），段间留 2px 缝；</li>
+  <li><b>日历热度</b>用 accent 单色深浅（顺序色阶），不用红绿；固定支出用小圆点标出、不参与着色；</li>
+  <li>图表只有一根纵轴（金额），每个图都有悬停提示，后续补「表格视图」满足无障碍和导出。</li>
+</ul>
+
+<h2>技术方案草图（定方案后细化）</h2>
+<table>
+  <thead><tr><th>关注点</th><th>做法</th></tr></thead>
+  <tbody>
+    <tr><td>插件形态</td><td>独立仓库 <code>plugins/tau-plugin-expense</code>（以 <code>tau-plugin-template</code> 为起点，结构同 <code>tau-plugin-weight</code>），manifest <code>categories: ["page"]</code>，可选 <code>home</code> 卡片</td></tr>
+    <tr><td>数据存储</td><td><code>context.records</code> 插件记录，随笔记库同步。集合：<code>tx</code>（日期、时间、金额（分，整数）、分类、子分类、备注、账户、是否固定）、<code>recurring</code>（固定支出规则：金额、每月几号）、<code>alias</code>（「瑞幸」→ 餐饮 / 咖啡奶茶，免重复识别）；预算与分类配置走插件设置。按月读取，不全量拉表</td></tr>
+    <tr><td>统计</td><td>插件内纯函数：月合计、分类合计、时间进度、偏快判定、月底预计、前 3 月平均、周几分布；有单元测试，AI 和图表共用同一份结果</td></tr>
+    <tr><td>一句话记账</td><td>本地规则先解析金额和关键词 → alias 表 → 都没命中时可选调用 <code>ai:chat</code> 归类；没配置 AI 也能用（手动点分类）</td></tr>
+    <tr><td>AI</td><td><code>context.ai.requestCapability("chat")</code>，流式输出；只发汇总数据和备注文字，不发账户</td></tr>
+    <tr><td>图表 / UI</td><td>插件内手写 SVG（燃尽线、堆叠柱、排行条、日历都很简单）；<code>@tau/ui</code> + Tailwind + lucide 图标，颜色消费 <code>--tau-*</code> 变量</td></tr>
+  </tbody>
+</table>
+
+<h2>需要你拍板的问题</h2>
+<ol class="q">
+  <li><b>主视图</b>：同意默认打开「预算」吗？还是你更习惯打开先看流水？</li>
+  <li><b>只记支出，还是也记收入</b>？只记支出最简单；记收入就能算结余和储蓄率，但每月要多记几笔；</li>
+  <li><b>账户</b>要不要？（微信 / 支付宝 / 信用卡）。不需要对账的话可以去掉，记账更快；</li>
+  <li><b>导入</b>：要不要支持导入微信 / 支付宝导出的账单 CSV？能省掉大部分手动记录，但需要去重和分类映射；</li>
+  <li><b>分类</b>：上面 7 个大类 + 子分类够用吗？有没有你特别想单独盯的（比如「咖啡奶茶」「打车」）可以设子预算；</li>
+  <li><b>大额一次性支出</b>（旅行、电子产品）：放进月预算，还是单独设年度预算不占月额度？</li>
+</ol>
+</body>
+</html>

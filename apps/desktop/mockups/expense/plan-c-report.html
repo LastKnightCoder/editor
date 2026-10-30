@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>记账 · 方案 C 分析报告</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .page { height: 100%; overflow-y: auto; padding: 2px 4px 24px 2px; margin: -2px; }
+  .bar-top { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .bar-top h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; align-items: start; }
+  .left, .right { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .kpi { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+  .kpi span { font-size: 11.5px; color: var(--ink-3); }
+  .kpi b { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.25; }
+  .kpi small { font-size: 11.5px; color: var(--ink-2); }
+
+  /* 月度堆叠柱：每月一根，分类堆叠，段间 2px 缝 */
+  .months .chart { margin: 8px 14px 0 4px; }
+  .months .legend { padding: 4px 18px 14px; flex-wrap: wrap; gap: 6px 14px; }
+  .legend i.sq { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+  .legend button { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-2); padding: 2px 6px; border-radius: 6px; }
+  .legend button:hover { background: var(--bg-hover); }
+  .legend button.off { opacity: 0.4; }
+
+  /* 分类排行：横向条（量）+ 与前 3 月均值的差（变化） */
+  .rank .body { padding: 8px 14px 14px; }
+  .rk { display: grid; grid-template-columns: 112px minmax(0, 1fr) 82px 92px; gap: 12px; align-items: center; height: 40px; padding: 0 6px; border-radius: 9px; }
+  .rk:hover { background: var(--bg-hover); }
+  .rk.head { height: 24px; font-size: 11px; color: var(--ink-3); }
+  .rk.head:hover { background: none; }
+  .rk .nm { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+  .rk .bar { height: 12px; border-radius: 0 4px 4px 0; background: var(--c); position: relative; }
+  .rk .avgmark { position: absolute; top: -4px; bottom: -4px; width: 2px; border-radius: 1px; background: var(--ink-1); opacity: 0.5; }
+  .rk .v { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+  .rk .v small { display: block; font-weight: 400; color: var(--ink-3); font-size: 10.5px; line-height: 1.1; }
+  .rk .chg { text-align: right; font-size: 12px; }
+  .rk.open { background: var(--bg-hover); }
+  .subs { margin: 2px 6px 8px 126px; display: flex; flex-direction: column; gap: 3px; }
+  .subs .s { display: grid; grid-template-columns: 90px minmax(0, 1fr) 64px; gap: 10px; align-items: center; font-size: 11.5px; color: var(--ink-2); }
+  .subs .s i { height: 6px; border-radius: 0 3px 3px 0; background: var(--c); opacity: 0.55; }
+  .subs .s b { text-align: right; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+  .row2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+  .wk .body { padding: 12px 18px 16px; position: relative; }
+  .wk-g { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; align-items: end; height: 120px; }
+  .wk-g .c { display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+  .wk-g .c i { width: 100%; max-width: 28px; border-radius: 4px 4px 0 0; background: var(--accent); opacity: 0.75; }
+  .wk-g .c.hi i { opacity: 1; }
+  .wk-g .c span { font-size: 10.5px; color: var(--ink-3); }
+  .wk-g .c b { font-size: 10.5px; font-weight: 500; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .big-list .body { padding: 4px 10px 10px; }
+  .big-list .tx small { white-space: nowrap; }
+
+  .ai-card { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+  .ai-head { display: flex; align-items: center; gap: 8px; }
+  .ai-head b { font-size: 13.5px; font-weight: 600; }
+  .ai-text { font-size: 12.5px; line-height: 1.85; min-height: 220px; }
+  .ai-text h4 { font-size: 12px; color: var(--ink-3); font-weight: 500; margin: 10px 0 2px; }
+  .ai-text h4:first-child { margin-top: 0; }
+  .ai-text ul { padding-left: 18px; }
+  .ai-text li + li { margin-top: 4px; }
+  .sv { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 5px; font-size: 11px; background: var(--ok-soft); color: var(--ok); font-weight: 600; margin-left: 4px; }
+  .subs-card .body { padding: 6px 10px 12px; }
+  .subs-card .tx .amt { font-weight: 500; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="data.js"></script>
+<script src="shared.js"></script>
+<script>
+  const root = E.mountShell({ crumb: "<b>记账</b> · 分析" });
+  const icon = E.icon;
+  const hidden = new Set();
+  let open = "food";
+  let range = "month";
+
+  function monthsChart(el) {
+    const ms = E.months();
+    const draw = () => {
+      const width = el.clientWidth || 600;
+      const h = 230;
+      const padL = 40, padR = 12, padT = 12;
+      const plotH = h - padT - 26;
+      const vis = E.CATS.filter(c => !hidden.has(c.id));
+      const totals = ms.map(m => vis.reduce((s, c) => s + m.cats[c.id], 0));
+      const hi = Math.ceil(Math.max(E.BUDGET, ...totals) / 3000) * 3000;
+      const y = v => padT + (1 - v / hi) * plotH;
+      const slot = (width - padL - padR) / ms.length;
+      const bw = Math.min(56, slot * 0.5);
+      let s = `<svg width="${width}" height="${h}"><g class="grid">`;
+      for (let v = 0; v <= hi; v += 3000) s += `<line x1="${padL}" x2="${width - padR}" y1="${y(v)}" y2="${y(v)}"/>`;
+      s += `</g><g class="ax">`;
+      for (let v = 0; v <= hi; v += 3000) s += `<text x="${padL - 8}" y="${y(v) + 3.5}" text-anchor="end">${v ? v / 1000 + "k" : 0}</text>`;
+      s += `</g>`;
+      if (!hidden.size) {
+        s += `<line x1="${padL}" x2="${width - padR}" y1="${y(E.BUDGET)}" y2="${y(E.BUDGET)}" stroke="var(--ink-2)" stroke-width="1.2" stroke-dasharray="4 4"/>`;
+        s += `<text x="${width - padR}" y="${y(E.BUDGET) - 6}" text-anchor="end" font-size="10.5" fill="var(--ink-2)">月预算 ${E.money(E.BUDGET)}</text>`;
+      }
+      ms.forEach((m, k) => {
+        const cx = padL + slot * (k + 0.5);
+        let acc = 0;
+        vis.forEach((c, j) => {
+          const v = m.cats[c.id];
+          if (!v) return;
+          const y0 = y(acc), y1 = y(acc + v);
+          const top = j === vis.length - 1 || vis.slice(j + 1).every(cc => !m.cats[cc.id]);
+          const hgt = Math.max(0, y0 - y1 - 2);
+          s += top
+            ? `<path d="M${cx - bw / 2},${y0 - 2} V${y1 + 4} a4,4 0 0 1 4,-4 H${cx + bw / 2 - 4} a4,4 0 0 1 4,4 V${y0 - 2}Z" fill="var(--c-${c.id})" opacity="${m.live ? 0.55 : 1}" class="seg" data-m="${k}" data-c="${c.id}"/>`
+            : `<rect x="${cx - bw / 2}" y="${y1}" width="${bw}" height="${hgt}" fill="var(--c-${c.id})" opacity="${m.live ? 0.55 : 1}" class="seg" data-m="${k}" data-c="${c.id}"/>`;
+          acc += v;
+        });
+        s += `<text x="${cx}" y="${y(acc) - 6}" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink-1)" class="num">${E.money(acc)}</text>`;
+        s += `<text x="${cx}" y="${padT + plotH + 17}" text-anchor="middle" font-size="11" fill="${m.live ? "var(--ink-1)" : "var(--ink-3)"}">${m.label}${m.live ? " · 进行中" : ""}</text>`;
+        s += `<rect class="col-hit" data-m="${k}" x="${cx - slot / 2}" y="0" width="${slot}" height="${h}" fill="transparent"/>`;
+      });
+      s += `</svg>`;
+      el.innerHTML = s;
+      E.bindTip(el, ".col-hit", r => {
+        const m = ms[+r.dataset.m];
+        const tot = vis.reduce((a, c) => a + m.cats[c.id], 0);
+        return `<div class="t-date">2026 年 ${m.label}${m.live ? "（截至 29 日）" : ""}</div>
+          ${[...vis].reverse().filter(c => m.cats[c.id]).map(c => `<div class="t-row"><span class="sw" style="background:var(--c-${c.id});height:2px;width:10px"></span>${c.name}<b>¥${E.money(m.cats[c.id])}</b></div>`).join("")}
+          <div class="t-row" style="border-top:1px solid var(--line-1);margin-top:3px;padding-top:2px">合计<b>¥${E.money(tot)}</b></div>`;
+      });
+    };
+    draw();
+    new ResizeObserver(draw).observe(el);
+  }
+
+  function render() {
+    const ms = E.months();
+    const cur = ms[5];
+    const prev3 = ms.slice(2, 5);
+    const avg3 = id => prev3.reduce((s, m) => s + m.cats[id], 0) / 3;
+    const avgTotal = prev3.reduce((s, m) => s + m.total, 0) / 3;
+    const m = E.month();
+    const flex = m.list.filter(x => !x.fixed);
+    const maxCat = Math.max(...E.CATS.map(c => Math.max(m.cats[c.id], avg3(c.id))));
+    const ranked = [...E.CATS].sort((a, b) => m.cats[b.id] - m.cats[a.id]);
+
+    const rankRows = ranked.map(c => {
+      const v = m.cats[c.id];
+      const a = avg3(c.id);
+      const d = v - a;
+      const pct = a ? d / a : 0;
+      const subs = E.subs(m.list, c.id);
+      const subMax = subs[0]?.amt || 1;
+      return `<div class="rk k-${c.id} ${open === c.id ? "open" : ""}" data-cat="${c.id}" role="button">
+          <span class="nm">${E.catIc(c.id)}${c.name}</span>
+          <span style="position:relative"><div class="bar" style="width:${(v / maxCat) * 100}%"></div><span class="avgmark" style="left:${(a / maxCat) * 100}%"></span></span>
+          <span class="v">¥${E.money(v)}<small>${E.pct(v / m.total)}</small></span>
+          <span class="chg delta ${Math.abs(d) < 30 ? "flat" : d > 0 ? "up" : "down"}">${Math.abs(d) < 30 ? "持平" : (d > 0 ? "+" : "−") + "¥" + E.money(Math.abs(d))}${a && Math.abs(d) >= 30 ? `<small style="display:block;font-weight:400;font-size:10.5px">${d > 0 ? "+" : "−"}${E.pct(Math.abs(pct))}</small>` : ""}</span>
+        </div>
+        ${open === c.id && subs.length ? `<div class="subs k-${c.id}">${subs.map(s => `<div class="s"><span>${s.name}</span><i style="width:${(s.amt / subMax) * 100}%"></i><b>¥${E.money(s.amt)}</b></div>`).join("")}</div>` : ""}`;
+    }).join("");
+
+    // 星期分布：近 3 个月可控支出，按周几求日均
+    const from = E.TODAY - 90 * E.D;
+    const wk = [0, 0, 0, 0, 0, 0, 0];
+    const wn = [0, 0, 0, 0, 0, 0, 0];
+    E.daily(from, E.TODAY - E.D).forEach(d => {
+      const i = (new Date(d.t).getDay() + 6) % 7;
+      wk[i] += d.flex;
+      wn[i]++;
+    });
+    const wavg = wk.map((v, i) => v / wn[i]);
+    const wmax = Math.max(...wavg);
+    const big = [...flex].sort((a, b) => b.amt - a.amt).slice(0, 6);
+    const recurring = E.tx.filter(x => x.fixed && x.t >= m.from);
+
+    root.innerHTML = `
+    <div class="page scroller">
+      <div class="bar-top">
+        <h1>10 月支出报告</h1>
+        <div class="seg" id="range"><button data-r="month" class="${range === "month" ? "on" : ""}">本月</button><button data-r="q">近 3 个月</button><button data-r="y">今年</button><button data-r="c">自定义</button></div>
+        <span class="mock-note">${icon("info")}对比基准：前 3 个月（7–9 月）平均</span>
+        <span class="spacer"></span>
+        <button class="btn btn-soft">${icon("table")}表格视图</button>
+        <button class="btn btn-primary">${icon("plus")}记一笔</button>
+      </div>
+      <div class="grid">
+        <div class="left">
+          <div class="kpis">
+            <div class="panel kpi"><span>本月支出（截至 29 日）</span><b>¥${E.money(m.total)}</b><small>预算 ¥${E.money(E.BUDGET)} · 已用 ${E.pct(m.total / E.BUDGET)}</small></div>
+            <div class="panel kpi"><span>比前 3 月平均</span><b class="delta ${m.total > avgTotal ? "up" : "down"}">${m.total > avgTotal ? "+" : "−"}¥${E.money(Math.abs(m.total - avgTotal))}</b><small>平均 ¥${E.money(avgTotal)} / 月</small></div>
+            <div class="panel kpi"><span>日均可控支出</span><b>¥${E.money(E.sum(flex) / 28.5)}</b><small>不含房租、话费、订阅</small></div>
+            <div class="panel kpi"><span>固定支出占比</span><b>${E.pct(E.sum(recurring) / m.total)}</b><small>¥${E.money(E.sum(recurring))} · 每月不变</small></div>
+          </div>
+
+          <div class="panel months">
+            <div class="panel-head"><span class="panel-title">每月支出构成</span><span class="panel-sub">近 6 个月 · 点图例隐藏某类</span></div>
+            <div class="chart" id="months"></div>
+            <div class="legend">${E.CATS.map(c => `<button class="k-${c.id} ${hidden.has(c.id) ? "off" : ""}" data-hide="${c.id}"><i class="sq"></i>${c.name}</button>`).join("")}</div>
+          </div>
+
+          <div class="panel rank">
+            <div class="panel-head"><span class="panel-title">分类排行</span><span class="panel-sub">竖线 = 前 3 月平均 · 点开看子分类</span></div>
+            <div class="body">
+              <div class="rk head"><span>分类</span><span>本月金额</span><span style="text-align:right">金额 · 占比</span><span style="text-align:right">比平均</span></div>
+              ${rankRows}
+            </div>
+          </div>
+
+          <div class="row2">
+            <div class="panel wk">
+              <div class="panel-head"><span class="panel-title">一周里哪天花得多</span><span class="panel-sub">近 90 天 · 日均可控支出</span></div>
+              <div class="body"><div class="wk-g">${wavg.map((v, i) => `<div class="c ${v === wmax ? "hi" : ""}" data-i="${i}"><b>${E.money(v)}</b><i style="height:${(v / wmax) * 80}%"></i><span>周${"一二三四五六日"[i]}</span></div>`).join("")}</div></div>
+            </div>
+            <div class="panel big-list">
+              <div class="panel-head"><span class="panel-title">本月大额</span><span class="panel-sub">可控支出前 6 笔</span></div>
+              <div class="body">${big.map(E.txRow).join("")}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="right">
+          <div class="ai-card">
+            <div class="ai-head"><span class="ai-mark">${icon("sparkles")}</span><b>本月复盘</b><span class="panel-sub">AI · 基于汇总数据</span><span class="spacer"></span><button class="icon-btn" id="ai-re">${icon("refresh")}</button></div>
+            <div class="ai-text" id="ai"></div>
+            <div class="ai-prompts"><button>夜宵都是哪几天？</button><button>旅行花费拆开看</button><button>下个月预算怎么定</button></div>
+            <div class="ai-input"><input placeholder="追问，例如：咖啡一年花多少？"><button class="icon-btn">${icon("send")}</button></div>
+          </div>
+          <div class="panel subs-card">
+            <div class="panel-head" style="padding-bottom:2px"><span class="panel-title">固定与订阅</span><span class="spacer"></span><span class="panel-sub num">¥${E.money(E.sum(recurring))} / 月 · ¥${E.money(E.sum(recurring) * 12)} / 年</span></div>
+            <div class="body">${recurring.map(E.txRow).join("")}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+    monthsChart(root.querySelector("#months"));
+    E.bindTip(root.querySelector(".wk .body"), ".wk-g .c", c => {
+      const i = +c.dataset.i;
+      return `<div class="t-date">周${"一二三四五六日"[i]} · ${wn[i]} 天</div><div class="t-row">日均<b>¥${E.money(wavg[i])}</b></div>`;
+    });
+    root.querySelectorAll("[data-hide]").forEach(b =>
+      b.addEventListener("click", () => {
+        const c = b.dataset.hide;
+        hidden.has(c) ? hidden.delete(c) : hidden.add(c);
+        render();
+      })
+    );
+    root.querySelectorAll(".rk[data-cat]").forEach(r => r.addEventListener("click", () => ((open = open === r.dataset.cat ? null : r.dataset.cat), render())));
+    root.querySelectorAll("#range button").forEach(b => b.addEventListener("click", () => E.toast("演示只做了「本月」，其他范围同一套布局")));
+    const snack = E.subs(m.list, "food").find(s => s.name === "零食夜宵")?.amt || 0;
+    const snackAvg = prev3.length ? E.subs(E.inRange(ms[2].from, ms[5].from - E.D), "food").find(s => s.name === "零食夜宵")?.amt / 3 : 0;
+    const ai = () =>
+      E.streamAI(root.querySelector("#ai"), [
+        `<h4>一句话</h4><p>10 月比平时多花 <b>¥${E.money(m.total - avgTotal)}</b>，几乎全部来自国庆成都旅行（¥${E.money(E.subs(m.list, "fun").find(s => s.name === "旅行")?.amt || 0)}）；去掉旅行，日常开销和前 3 个月持平。</p>`,
+        `<h4>值得注意</h4><ul><li><b>零食夜宵</b> ¥${E.money(snack)}，前 3 月平均 ¥${E.money(snackAvg)}，多了 ${E.pct(snack / snackAvg - 1)}，基本都在晚上 10 点以后。</li><li><b>周${"一二三四五六日"[wavg.indexOf(wmax)]}</b>日均最高（¥${E.money(wmax)}），主要被 10/1 出发去成都的高铁和酒店拉高；去掉这一天，周末仍比工作日多，主要是聚餐和打车。</li><li>固定支出占 ${E.pct(E.sum(recurring) / m.total)}，其中 3 个会员订阅一年 ¥${E.money((21 + 25 + 15) * 12)}。</li></ul>`,
+        `<h4>可以试试</h4><ul><li>夜宵设一个 ¥150 / 月的子预算，超了首页提醒<span class="sv">约省 ¥${E.money(Math.max(0, snack - 150))}</span></li><li>视频会员和音乐会员只留一个<span class="sv">省 ¥180 / 年</span></li><li>旅行改成年度预算（例如 ¥6,000），不占月预算</li></ul>`,
+      ]);
+    ai();
+    root.querySelector("#ai-re").onclick = ai;
+  }
+  render();
+</script>
+</body>
+</html>

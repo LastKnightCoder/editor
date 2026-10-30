@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>减重 · 方案 B 每日日志</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .page { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 14px; }
+  .top { padding: 14px 18px 10px; display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 18px; align-items: center; }
+  .top .now { display: flex; flex-direction: column; gap: 2px; }
+  .top .now .lbl { font-size: 12px; color: var(--ink-3); }
+  .top .now b { font-size: 34px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .top .now b small { font-size: 13px; color: var(--ink-3); font-weight: 400; margin-left: 4px; }
+  .top .now .s { font-size: 12px; color: var(--ink-2); }
+  .top .now .btn { margin-top: 10px; align-self: flex-start; }
+
+  .bottom { min-height: 0; display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 14px; }
+
+  /* 日志流 */
+  .feed { display: flex; flex-direction: column; }
+  .feed .list { flex: 1; padding: 4px 8px 12px; }
+  .wk { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--ink-3); padding: 12px 10px 4px; font-weight: 600; }
+  .wk .delta { font-weight: 600; }
+  .dr { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; padding: 8px 10px; border-radius: 11px; text-align: left; }
+  .dr:hover { background: var(--bg-hover); }
+  .dr.sel { background: var(--bg-selected); }
+  .dr .dd { display: flex; flex-direction: column; line-height: 1.25; }
+  .dr .dd b { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .dr .dd span { font-size: 10.5px; color: var(--ink-3); }
+  .dr .ws { display: flex; align-items: baseline; gap: 8px; font-variant-numeric: tabular-nums; font-size: 13px; }
+  .dr .ws .pm { font-size: 11.5px; color: var(--ink-3); }
+  .dr .ics { display: flex; gap: 3px; margin-top: 3px; }
+  .dr .ics .ci { width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--c) 16%, transparent); color: var(--c); }
+  .dr .ics .icon { width: 10px; height: 10px; stroke-width: 2.2; }
+  .dr .delta { font-size: 12.5px; text-align: right; }
+  .dr .miss { font-size: 11.5px; color: var(--ink-3); }
+
+  /* 日详情 */
+  .day { display: grid; grid-template-columns: minmax(0, 1fr) 300px; overflow: hidden; }
+  .day-main { padding: 22px 28px 24px; min-height: 0; }
+  .day-h { display: flex; align-items: center; gap: 10px; }
+  .day-h h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+  .wpair { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+  .wcard { border-radius: 14px; background: var(--bg-hover); padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+  .wcard .lbl { font-size: 11.5px; color: var(--ink-3); display: flex; align-items: center; gap: 5px; }
+  .wcard .lbl .icon { width: 13px; height: 13px; }
+  .wcard b { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .wcard .s { font-size: 11.5px; color: var(--ink-2); }
+  .h3 { font-size: 13px; font-weight: 600; margin: 24px 0 10px; display: flex; align-items: center; gap: 8px; }
+  .h3 .n { font-weight: 400; color: var(--ink-3); font-size: 12px; }
+  .chips-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+  .meals { display: flex; flex-direction: column; gap: 4px; }
+  .meal { display: grid; grid-template-columns: 52px minmax(0, 1fr) 70px; gap: 10px; padding: 10px 12px; border-radius: 12px; align-items: center; }
+  .meal:hover { background: var(--bg-hover); }
+  .meal .slotn { font-size: 12px; color: var(--ink-3); }
+  .meal .k { text-align: right; font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .meal .k small { color: var(--ink-3); }
+  .kbar { height: 8px; border-radius: 4px; background: var(--bg-track); display: flex; gap: 2px; overflow: hidden; margin-top: 4px; }
+  .kbar i { display: block; height: 100%; background: var(--cat-diet); border-radius: 4px; }
+  .meal-input { margin-top: 8px; }
+
+  .day-rail { padding: 22px 22px 22px 6px; display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+  .ai-card.inline { padding: 14px 16px; box-shadow: none; background: radial-gradient(120% 140% at 100% 0%, var(--accent-soft), transparent 60%), var(--bg-hover); }
+  .ai-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .ai-head b { font-size: 13px; font-weight: 600; }
+  .ai-text { font-size: 12.5px; line-height: 1.8; }
+  .ctx-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); }
+  .ctx-row b { margin-left: auto; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="data.js"></script>
+<script src="shared.js"></script>
+<script>
+  const root = W.mountShell();
+  const icon = W.icon;
+  let sel = W.TODAY - W.D;
+
+  const DAY_AI = {
+    default: d =>
+      d.next == null
+        ? `<p>今天的次晨变化要等明早称完才知道。今天已经 <b>控碳水</b>，晚上如果再走 30 分钟，按你过去的数据，明早大概率会降 0.1–0.2 kg。</p>`
+        : d.actions.some(a => W.tag(a).cat === "cheat")
+          ? `<p>次晨 <b>${W.signed(d.next)}</b> kg，主要是 <b>${d.actions.filter(a => W.tag(a).cat === "cheat").map(a => W.tag(a).name).join("、")}</b>：高盐高碳水会让身体多存水。按你以往的记录，这类上涨通常 2–3 天回落，第二天照常控碳水就行。</p>`
+          : d.next < -0.15
+            ? `<p>次晨 <b>${W.signed(d.next)}</b> kg，这天的组合（${d.actions.map(a => W.tag(a).name).join(" + ")}）在你的记录里出现过 ${3 + (d.i % 5)} 次，次晨平均都在下降，可以当作「标准日」模板。</p>`
+            : `<p>次晨 <b>${W.signed(d.next)}</b> kg，属于正常波动（±0.3 kg 内都不用在意）。看 7 日均值，这周仍在按 ${W.signed(W.summary().week, 2)} kg/周 往下走。</p>`,
+  };
+
+  function render() {
+    const S = W.summary();
+    const list = [...W.days].reverse();
+    let feed = "";
+    let curWeek = null;
+    for (const d of list) {
+      const wd = new Date(d.t).getDay();
+      const weekKey = d.t - ((wd + 6) % 7) * W.D;
+      if (weekKey !== curWeek) {
+        curWeek = weekKey;
+        const wdays = W.days.filter(x => x.t >= weekKey && x.t < weekKey + 7 * W.D && x.avg != null);
+        const ch = wdays.length > 1 ? wdays[wdays.length - 1].avg - W.days[Math.max(0, wdays[0].i - 1)].avg : 0;
+        feed += `<div class="wk">${W.md(weekKey)} 这周<span class="spacer"></span>均值 <span class="delta ${W.deltaCls(ch)}">${W.signed(ch)}</span></div>`;
+      }
+      const cats = [...new Set(d.actions.map(a => W.tag(a).cat))];
+      feed += `<button class="dr ${d.t === sel ? "sel" : ""}" data-t="${d.t}">
+        <div class="dd"><b>${new Date(d.t).getDate()}</b><span>周${"日一二三四五六"[wd]}</span></div>
+        <div><div class="ws">${d.am != null ? `<span>${W.kg(d.am)}</span>` : `<span class="miss">晨重未记</span>`}${d.pm != null ? `<span class="pm">睡前 ${W.kg(d.pm)}</span>` : ""}</div>
+          <div class="ics">${cats.map(c => `<span class="ci c-${c}" title="${W.CATS[c].name}">${icon(W.CATS[c].icon)}</span>`).join("")}</div></div>
+        <div class="delta ${d.next == null ? "flat" : W.deltaCls(d.next)}">${d.next == null ? "—" : W.signed(d.next)}</div>
+      </button>`;
+    }
+    const d = W.dayAt(sel);
+    const prev = W.days[d.i - 1];
+    const kcal = d.meals.reduce((s, m) => s + m.kcal, 0);
+    root.innerHTML = `
+    <div class="page">
+      <div class="panel top">
+        <div class="now"><span class="lbl">7 日均值 · ${W.mdw(W.TODAY)}</span><b>${W.kg(S.latest.avg)}<small>kg</small></b>
+          <span class="s"><span class="delta down">${W.signed(S.week, 2)}</span> kg/周 · 距目标 ${S.toGoal.toFixed(1)} kg</span>
+          <button class="btn btn-primary" data-log>${icon("plus")}记录今天</button></div>
+        <div class="chart" id="trend"></div>
+      </div>
+      <div class="bottom">
+        <div class="panel feed"><div class="panel-head"><span class="panel-title">日志</span><span class="panel-sub">右侧数字 = 次日晨重变化</span></div>
+          <div class="list scroller fade-y">${feed}</div></div>
+        <div class="panel day">
+          <div class="day-main scroller fade-y">
+            <div class="day-h"><h2>${W.mdw(d.t)}</h2>${d.t === W.TODAY ? `<span class="chip">今天</span>` : ""}<span class="spacer"></span><button class="btn btn-soft" data-log>${icon("pen")}编辑</button></div>
+            <div class="wpair">
+              <div class="wcard"><span class="lbl">${icon("sunrise")}起床</span><b>${W.kg(d.am)}</b><span class="s">${prev && prev.am != null && d.am != null ? `较前一天 <span class="delta ${W.deltaCls(d.am - prev.am)}">${W.signed(d.am - prev.am)}</span>` : "&nbsp;"}</span></div>
+              <div class="wcard"><span class="lbl">${icon("sunset")}睡前</span><b>${W.kg(d.pm)}</b><span class="s">${d.pm != null && d.am != null ? `日内 +${(d.pm - d.am).toFixed(1)}（正常 0.5–1.5）` : "未记录"}</span></div>
+              <div class="wcard"><span class="lbl">${icon("trend")}次日晨重</span><b class="delta ${d.next == null ? "flat" : W.deltaCls(d.next)}">${d.next == null ? "明早揭晓" : W.signed(d.next)}</b><span class="s">这一天行动的「回报」</span></div>
+            </div>
+            <div class="h3">行动 <span class="n">${d.actions.length} 项</span></div>
+            <div class="chips-wrap">${d.actions.map(a => W.chip(a)).join("")}<button class="chip add" data-log>${icon("plus")}行动</button></div>
+            <div class="h3">饮食 <span class="n">估算 ${kcal || "—"} kcal</span></div>
+            ${kcal ? `<div class="kbar">${d.meals.map(m => `<i style="width:${(m.kcal / 2400) * 100}%;opacity:${0.45 + 0.15 * ["早", "午", "晚", "加餐"].indexOf(m.slot)}"></i>`).join("")}</div>` : ""}
+            <div class="meals" style="margin-top:8px">${d.meals.map(m => `<div class="meal"><span class="slotn">${m.slot}${m.slot === "加餐" ? "" : "餐"}</span><span>${m.text}</span><span class="k">${m.kcal} <small>kcal</small></span></div>`).join("") || `<div class="meal"><span class="slotn"></span><span style="color:var(--ink-3)">这天没记饮食</span><span></span></div>`}</div>
+            <div class="meal-input"><input placeholder="写一句吃了什么，回车后 AI 估热量…"><button class="btn btn-soft lg">${icon("camera")}拍照</button></div>
+          </div>
+          <div class="day-rail scroller">
+            <div class="ai-card inline"><div class="ai-head"><span class="ai-mark">${icon("sparkles")}</span><b>这一天怎么样</b></div><div class="ai-text" id="ai"></div></div>
+            <div class="sec">
+              <div class="h3" style="margin-top:4px">当时的背景</div>
+              <div class="ctx-row">7 日均值<b>${W.kg(d.avg)}</b></div>
+              <div class="ctx-row">所在阶段<b>${(W.EXPERIMENTS.find(e => d.t >= e.from && d.t <= e.to) || {}).name || "—"}</b></div>
+              <div class="ctx-row">本周速率<b>${W.signed(W.rate(d.t - 13 * W.D, d.t) || 0, 2)} kg/周</b></div>
+            </div>
+            <div><div class="h3" style="margin-top:4px">相似的日子</div>
+              <div style="font-size:12px;color:var(--ink-2);line-height:1.8">行动组合相同的 ${2 + (d.i % 4)} 天，次晨平均 <span class="delta ${W.deltaCls(d.next ?? -0.1)}">${W.signed((d.next ?? -0.1) * 0.8, 2)}</span> kg</div></div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+    W.trendChart(root.querySelector("#trend"), {
+      from: W.TODAY - 44 * W.D,
+      height: 150,
+      strip: false,
+      goal: false,
+      bands: true,
+    });
+    root.querySelectorAll(".dr").forEach(b =>
+      b.addEventListener("click", () => {
+        sel = +b.dataset.t;
+        const top = root.querySelector(".list").scrollTop;
+        render();
+        root.querySelector(".list").scrollTop = top;
+      })
+    );
+    W.streamAI(root.querySelector("#ai"), [DAY_AI.default(d)]);
+    root.querySelectorAll("[data-log]").forEach(b => b.addEventListener("click", () => W.openLog("weight", render)));
+  }
+  render();
+</script>
+</body>
+</html>

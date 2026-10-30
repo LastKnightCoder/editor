@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>减重 · 方案 C 减重实验室</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .page { height: 100%; display: grid; grid-template-columns: 268px minmax(0, 1fr); gap: 16px; }
+  /* 左：实验索引，落在纸面 */
+  .idx { min-height: 0; display: flex; flex-direction: column; gap: 10px; padding-top: 2px; }
+  .quick { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .quick .row { display: flex; align-items: baseline; gap: 8px; }
+  .quick .row b { font-size: 28px; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .quick .row small { color: var(--ink-3); }
+  .quick .btn { justify-content: center; }
+  .idx-h { font-size: 11.5px; color: var(--ink-3); font-weight: 600; padding: 8px 8px 0; display: flex; align-items: center; }
+  .ex { display: flex; flex-direction: column; gap: 3px; width: 100%; padding: 9px 10px; border-radius: 12px; text-align: left; }
+  .ex:hover { background: var(--bg-hover); }
+  .ex.sel { background: var(--bg-selected); }
+  .ex .t { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 500; }
+  .ex .t .live { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .ex .m { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .ex .m .delta { font-size: 12px; }
+  .ex .rbar { height: 4px; border-radius: 2px; background: var(--bg-track); overflow: hidden; margin-top: 3px; }
+  .ex .rbar i { display: block; height: 100%; border-radius: 2px; background: var(--div-lose-3); }
+  .ex .rbar i.gain { background: var(--div-gain-3); }
+  .ex.off .t { color: var(--ink-2); }
+
+  /* 右：实验报告 */
+  .report { min-height: 0; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) 300px; }
+  .doc { padding: 24px 30px 30px 34px; min-height: 0; }
+  .crumb { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-3); }
+  .doc h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.015em; margin-top: 6px; display: flex; align-items: center; gap: 10px; }
+  .hypo { margin-top: 8px; font-size: 13.5px; color: var(--ink-2); line-height: 1.8; max-width: 70ch; }
+  .verdict { margin-top: 18px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .vc { border-radius: 14px; background: var(--bg-hover); padding: 12px 14px; }
+  .vc .lbl { font-size: 11.5px; color: var(--ink-3); }
+  .vc b { display: block; font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1.35; }
+  .vc b small { font-size: 11.5px; font-weight: 400; color: var(--ink-3); margin-left: 3px; }
+  .vc .s { font-size: 11.5px; color: var(--ink-2); }
+  .h2 { display: flex; align-items: center; gap: 8px; margin: 26px 0 10px; font-size: 14px; font-weight: 600; }
+  .h2 .n { font-weight: 400; color: var(--ink-3); font-size: 12px; }
+  /* 阶段对比条：横向，每个阶段一条，0 在左 */
+  .cmp { display: flex; flex-direction: column; gap: 6px; }
+  .cmp-row { display: grid; grid-template-columns: 130px minmax(0, 1fr) 86px; gap: 12px; align-items: center; height: 30px; padding: 0 8px; border-radius: 8px; }
+  .cmp-row.me { background: var(--bg-selected); }
+  .cmp-row .nm { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cmp-row .track { height: 12px; position: relative; }
+  .cmp-row .track i { position: absolute; left: 0; top: 0; height: 12px; border-radius: 0 4px 4px 0; background: var(--div-lose-3); }
+  .cmp-row .track i.gain { background: var(--div-gain-3); }
+  .cmp-row .track i.base { background: var(--ink-3); opacity: 0.5; }
+  .cmp-row .v { text-align: right; font-size: 12.5px; }
+  .cmp-row .v small { color: var(--ink-3); font-weight: 400; font-size: 11px; }
+  .adh { display: grid; grid-template-columns: repeat(21, 1fr); gap: 3px; }
+  .adh i { height: 22px; border-radius: 5px; background: var(--bg-track); }
+  .adh i.done { background: color-mix(in srgb, var(--cat-move) 70%, transparent); }
+  .adh i.part { background: color-mix(in srgb, var(--cat-move) 30%, transparent); }
+  .adh i.future { background: none; box-shadow: inset 0 0 0 1px var(--line-1); }
+
+  .rail { padding: 24px 22px 22px 4px; min-height: 0; display: flex; flex-direction: column; gap: 14px; }
+  .ai-card.inline { padding: 14px 16px; box-shadow: none; background: radial-gradient(120% 140% at 100% 0%, var(--accent-soft), transparent 60%), var(--bg-hover); display: flex; flex-direction: column; gap: 10px; }
+  .ai-head { display: flex; align-items: center; gap: 8px; }
+  .ai-head b { font-size: 13px; font-weight: 600; }
+  .ai-text { font-size: 12.5px; line-height: 1.8; }
+  .next { border-radius: 14px; border: 1.5px dashed var(--line-1); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .next .t { font-size: 12.5px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .next p { font-size: 12px; color: var(--ink-2); line-height: 1.7; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="data.js"></script>
+<script src="shared.js"></script>
+<script>
+  const root = W.mountShell({ crumb: "<b>减重</b> · 实验" });
+  const icon = W.icon;
+  let selId = "e4";
+  const HYPO = {
+    e0: "什么都不改，只是每天称重、记录行动。用来量化「自然状态」下的速率，作为后面所有实验的对照组。",
+    e1: "每天晚饭后散步 30 分钟，其他照旧。验证：单独加低强度运动，能比基线快多少。",
+    e2: "每天 12:00–20:00 进食，其余时间只喝水和黑咖啡。验证：压缩进食窗口能否在不刻意少吃的情况下减重。",
+    e3: "假期不设实验，用来观察集中聚餐的影响和恢复时间。",
+    e4: "控制精制碳水（米饭、面条减半，不喝含糖饮料）+ 继续饭后散步。验证：饮食 + 运动的组合是否优于单项。",
+  };
+  const AI = {
+    e4: [`<p>这是目前<b>最快的阶段</b>：${W.signed(W.expStats(W.EXPERIMENTS[4]).rate, 2)} kg/周，接近基线的 4 倍。不过完全做到两项的天数只占一半左右，<b>散步更稳，控碳水常在周末破功</b>。</p><p>建议再跑 1 周凑满 4 周，周末提前定好「能吃什么」，结论会更可靠。</p>`],
+    e2: [`<p>速率 ${W.signed(W.expStats(W.EXPERIMENTS[2]).rate, 2)} kg/周，比散步阶段快。执行率 2/3，没做到的日子多半是加班晚饭推迟。<b>对你来说断食有效，但难坚持</b>，可以考虑改成 14:10。</p>`],
+    e1: [`<p>比基线快约一倍，执行率接近 100%，是<b>最容易坚持的一项</b>。单独效果有限，适合作为其他实验的「底座」，后面的组合实验也保留了它。</p>`],
+    e0: [`<p>基线速率 ${W.signed(W.expStats(W.EXPERIMENTS[0]).rate, 2)} kg/周：只靠记录本身就有轻微下降，这是「被观察效应」，后面的实验都应该减去这一部分再比较。</p>`],
+    e3: [`<p>6 天均值涨了 ${W.expStats(W.EXPERIMENTS[3]).change.toFixed(1)} kg，节后约 9 天回到假前水平。<b>恢复期比放纵期长</b>，下次长假可以只在 2–3 个饭局放开。</p>`],
+  };
+
+  function render() {
+    const S = W.summary();
+    const exps = [...W.EXPERIMENTS].reverse();
+    const maxRate = Math.max(...W.EXPERIMENTS.map(e => Math.abs(W.expStats(e).rate)));
+    const e = W.EXPERIMENTS.find(x => x.id === selId);
+    const st = W.expStats(e);
+    const base = W.expStats(W.EXPERIMENTS[0]);
+    const dayN = Math.round((Math.min(e.to, W.TODAY) - e.from) / W.D) + 1;
+    const adh = [];
+    for (let k = 0; k < 21; k++) {
+      const d = W.dayAt(e.from + k * W.D);
+      if (!d) adh.push(`<i class="future"></i>`);
+      else if (!e.tags) adh.push(`<i></i>`);
+      else {
+        const hit = e.tags.filter(t => d.actions.includes(t)).length;
+        adh.push(`<i class="${hit === e.tags.length ? "done" : hit ? "part" : ""}" title="${W.md(d.t)} · ${hit}/${e.tags.length}"></i>`);
+      }
+    }
+    root.innerHTML = `
+    <div class="page">
+      <div class="idx">
+        <div class="panel quick">
+          <span class="ai-meta">今天晨重 · 7 日均值 ${W.kg(S.latest.avg)}</span>
+          <div class="row"><b>${W.kg(S.today.am)}</b><small>kg</small><span class="spacer"></span><span class="delta down">${W.signed(S.week, 2)}/周</span></div>
+          ${W.spark(W.days.slice(-30), 232, 30)}
+          <button class="btn btn-primary lg" data-log>${icon("plus")}记录今天</button>
+        </div>
+        <div class="idx-h">实验<span class="spacer"></span><button class="icon-btn" title="新实验">${icon("plus")}</button></div>
+        <div class="scroller fade-y" style="flex:1;margin-right:-6px;padding-right:6px">
+          ${exps
+            .map(x => {
+              const s = W.expStats(x);
+              return `<button class="ex ${x.id === selId ? "sel" : ""} ${x.off ? "off" : ""}" data-id="${x.id}">
+                <span class="t">${x.running ? `<span class="live"></span>` : icon(x.base ? "target" : x.off ? "cake" : "flask")}${x.name}</span>
+                <span class="m">${W.md(x.from)} – ${x.running ? "进行中" : W.md(x.to)}<span class="spacer"></span><span class="delta ${W.deltaCls(s.rate)}">${W.signed(s.rate, 2)}</span> kg/周</span>
+                <span class="rbar"><i class="${s.rate > 0 ? "gain" : ""}" style="width:${(Math.abs(s.rate) / maxRate) * 100}%"></i></span>
+              </button>`;
+            })
+            .join("")}
+        </div>
+      </div>
+
+      <div class="panel report">
+        <div class="doc scroller fade-y">
+          <div class="crumb">${icon(e.base ? "target" : e.off ? "cake" : "flask")}${e.base ? "对照" : e.off ? "观察期" : "实验"} · ${W.md(e.from)} – ${e.running ? "今天" : W.md(e.to)} · 第 ${dayN} 天${e.running ? ` / 计划 28 天` : ""}</div>
+          <h1>${e.name}${e.running ? `<span class="chip" style="color:var(--accent-text)">进行中</span>` : ""}</h1>
+          <p class="hypo">${HYPO[e.id]}</p>
+          ${e.tags ? `<div style="display:flex;gap:6px;margin-top:10px">${e.tags.map(t => W.chip(t)).join("")}</div>` : ""}
+          <div class="verdict">
+            <div class="vc"><span class="lbl">周速率</span><b class="delta ${W.deltaCls(st.rate)}">${W.signed(st.rate, 2)}<small>kg/周</small></b><span class="s">7 日均值回归斜率</span></div>
+            <div class="vc"><span class="lbl">相比基线</span><b>${e.base ? "—" : (st.rate / base.rate).toFixed(1) + "×"}</b><span class="s">基线 ${W.signed(base.rate, 2)}</span></div>
+            <div class="vc"><span class="lbl">区间变化</span><b class="delta ${W.deltaCls(st.change)}">${W.signed(st.change)}<small>kg</small></b><span class="s">${st.days} 天</span></div>
+            <div class="vc"><span class="lbl">执行率</span><b>${st.adherence == null ? "—" : Math.round(st.adherence * 100) + "%"}</b><span class="s">${e.tags ? "全部行动都做到的天数" : "无实验行动"}</span></div>
+          </div>
+
+          <div class="h2">这段时间的趋势 <span class="n">前后各带 7 天对照</span></div>
+          <div class="chart" id="trend"></div>
+
+          ${e.tags ? `<div class="h2">执行情况 <span class="n">前 21 天 · 深 = 全做到，浅 = 做到一部分</span></div><div class="adh">${adh.join("")}</div>` : ""}
+
+          <div class="h2">和其他阶段比 <span class="n">周速率，越长减得越快</span></div>
+          <div class="cmp">${W.EXPERIMENTS.map(x => {
+            const s = W.expStats(x);
+            return `<div class="cmp-row ${x.id === selId ? "me" : ""}"><span class="nm">${x.name}</span><div class="track"><i class="${x.base ? "base" : s.rate > 0 ? "gain" : ""}" style="width:${(Math.abs(s.rate) / maxRate) * 100}%"></i></div><span class="v delta ${W.deltaCls(s.rate)}">${W.signed(s.rate, 2)} <small>kg/周</small></span></div>`;
+          }).join("")}</div>
+
+          <div class="h2">单项行动效果 <span class="n">全部 90 天 · 做了 vs 没做的次晨差</span></div>
+          <div id="eff"></div>
+        </div>
+        <div class="rail scroller">
+          <div class="ai-card inline">
+            <div class="ai-head"><span class="ai-mark">${icon("sparkles")}</span><b>AI 实验结论</b><span class="spacer"></span><button class="icon-btn" id="ai-re">${icon("refresh")}</button></div>
+            <div class="ai-text" id="ai"></div>
+            <div class="ai-input"><input placeholder="追问这个实验…"><button class="icon-btn">${icon("send")}</button></div>
+          </div>
+          <div class="next">
+            <span class="t">${icon("sparkles")}AI 建议的下一个实验</span>
+            <p><b>晚饭主食减半 + 散步</b>，跑 3 周。你记录里「晚饭减半」次晨效果排第 3，但只做过 ${W.effects().find(r => r.id === "less").n} 天，样本不够，值得单独验证。</p>
+            <button class="btn btn-soft" style="align-self:flex-start">${icon("flask")}从建议创建</button>
+          </div>
+          <div>
+            <div class="sec-h" style="font-size:12px;font-weight:600;color:var(--ink-2);margin-bottom:8px">每日变化 · 最近 13 周</div>
+            <div id="heat"></div><div style="margin-top:8px">${W.heatLegend()}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+    W.trendChart(root.querySelector("#trend"), {
+      from: Math.max(W.days[0].t, e.from - 7 * W.D),
+      to: Math.min(W.TODAY, e.to + 7 * W.D),
+      height: 230,
+      goal: false,
+    });
+    W.effectBars(root.querySelector("#eff"));
+    W.heatmap(root.querySelector("#heat"), { weeks: 13 });
+    W.streamAI(root.querySelector("#ai"), AI[e.id]);
+    root.querySelector("#ai-re").onclick = () => W.streamAI(root.querySelector("#ai"), AI[e.id]);
+    root.querySelectorAll(".ex").forEach(b => b.addEventListener("click", () => ((selId = b.dataset.id), render())));
+    root.querySelectorAll("[data-log]").forEach(b => b.addEventListener("click", () => W.openLog("weight", render)));
+  }
+  render();
+</script>
+</body>
+</html>

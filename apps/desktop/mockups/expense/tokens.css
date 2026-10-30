@@ -1,0 +1,94 @@
+/* 记账插件 mockup 主题色 —— 【视觉参考，非导出源】页面 token 取自 cream / cocoa 实测值。 */
+:root {
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --font:
+    -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans",
+    "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, "SF Mono", Consolas, monospace;
+}
+[data-theme="cream"] {
+  color-scheme: light;
+  --bg-page: #f3eee2;
+  --bg-surface: #fffdf9;
+  --bg-sunken: #ece4d5;
+  --bg-track: #e0d6c3;
+  --bg-hover: rgba(67, 57, 44, 0.05);
+  --bg-press: rgba(67, 57, 44, 0.09);
+  --bg-selected: rgba(217, 119, 87, 0.12);
+  --ink-1: #43392c;
+  --ink-2: #6a5c49;
+  --ink-3: #a89a85;
+  --ink-inverse: #fff8ef;
+  --line-1: #e9e1d2;
+  --line-2: rgba(233, 225, 210, 0.6);
+  --accent: hsl(22 58% 42%);
+  --accent-hover: hsl(22 58% 35%);
+  --accent-soft: hsla(22, 58%, 42%, 0.12);
+  --accent-text: #a05236;
+  --focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.28);
+  --ok: #61795f;
+  --ok-soft: #e5ede2;
+  --warn: #a38c4d;
+  --warn-soft: #f6efd6;
+  --danger: #b0564d;
+  --danger-soft: #f6e3e0;
+  --overlay: rgba(67, 57, 44, 0.35);
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+  --shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+  --scroll-thumb: rgba(67, 57, 44, 0.22);
+
+  /* 分类色（数据色，不进主题词表）：顺序固定 餐饮→购物→交通→娱乐→居住→人情，「其他」用中性灰。
+     dataviz validate_palette：light 相邻对 CVD ΔE ≥ 9.1、常视 ≥ 19.6；娱乐黄 / 交通青 / 居住粉对比度 < 3:1 → 始终配图标 + 文字 */
+  --c-food: #eb6834;
+  --c-shop: #2a78d6;
+  --c-trans: #1baf7a;
+  --c-fun: #eda100;
+  --c-home: #e87ba4;
+  --c-social: #6250d6;
+  --c-other: #b3a690;
+  --chart-grid: rgba(67, 57, 44, 0.07);
+}
+[data-theme="cocoa"] {
+  color-scheme: dark;
+  --bg-page: #221d16;
+  --bg-surface: #2e2820;
+  --bg-sunken: #1a1611;
+  --bg-track: #463d31;
+  --bg-hover: rgba(236, 226, 208, 0.06);
+  --bg-press: rgba(236, 226, 208, 0.11);
+  --bg-selected: hsla(22, 62%, 65%, 0.2);
+  --ink-1: #ece2d0;
+  --ink-2: #a89a85;
+  --ink-3: #857768;
+  --ink-inverse: #241a10;
+  --line-1: #3a3227;
+  --line-2: rgba(58, 50, 39, 0.6);
+  --accent: hsl(22 62% 65%);
+  --accent-hover: hsl(22 62% 72%);
+  --accent-soft: hsla(22, 62%, 65%, 0.16);
+  --accent-text: hsl(22 66% 70%);
+  --focus-ring: 0 0 0 3px hsla(22, 62%, 65%, 0.4);
+  --ok: #8cab87;
+  --ok-soft: #243023;
+  --warn: #c4a458;
+  --warn-soft: #302917;
+  --danger: #d97e66;
+  --danger-soft: #34201a;
+  --overlay: rgba(10, 8, 5, 0.55);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+  --scroll-thumb: rgba(236, 226, 208, 0.18);
+
+  /* dark：相邻对 CVD ΔE ≥ 8.4，全部 ≥ 3:1 */
+  --c-food: #d95926;
+  --c-shop: #3987e5;
+  --c-trans: #199e70;
+  --c-fun: #c98500;
+  --c-home: #d55181;
+  --c-social: #9085e9;
+  --c-other: #7d7061;
+  --chart-grid: rgba(236, 226, 208, 0.07);
+}

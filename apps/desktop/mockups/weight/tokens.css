@@ -1,0 +1,109 @@
+/*
+  减重插件 mockup 主题色 —— 【视觉参考，非导出源】
+  页面 token 取自 cream / cocoa 实测值（同 mockups/questions/shared.css）。
+  图表类别色（--cat-*）经 dataviz validate_palette 校验：
+    light（surface #fffdf9）相邻对 CVD ΔE ≥ 8.2、常视 ΔE ≥ 19，断食黄对比度 2.67 → 必须配文字标签；
+    dark（surface #2e2820）相邻对 CVD ΔE 7.5 落在 6–8 区间 → 必须配图标 + 文字（已做）。
+  顺序固定：饮食 → 运动 → 断食 → 作息 → 放纵，不随筛选重排。
+*/
+:root {
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --font:
+    -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans",
+    "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, "SF Mono", Consolas, monospace;
+}
+[data-theme="cream"] {
+  color-scheme: light;
+  --bg-page: #f3eee2;
+  --bg-surface: #fffdf9;
+  --bg-sunken: #ece4d5;
+  --bg-track: #e0d6c3;
+  --bg-hover: rgba(67, 57, 44, 0.05);
+  --bg-press: rgba(67, 57, 44, 0.09);
+  --bg-selected: rgba(217, 119, 87, 0.12);
+  --ink-1: #43392c;
+  --ink-2: #6a5c49;
+  --ink-3: #a89a85;
+  --ink-inverse: #fff8ef;
+  --line-1: #e9e1d2;
+  --line-2: rgba(233, 225, 210, 0.6);
+  --accent: hsl(22 58% 42%);
+  --accent-hover: hsl(22 58% 35%);
+  --accent-soft: hsla(22, 58%, 42%, 0.12);
+  --accent-text: #a05236;
+  --focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.28);
+  --ok: #61795f;
+  --ok-soft: #e5ede2;
+  --warn: #a38c4d;
+  --warn-soft: #f6efd6;
+  --danger: #b0564d;
+  --danger-soft: #f6e3e0;
+  --overlay: rgba(67, 57, 44, 0.35);
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+  --shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+  --scroll-thumb: rgba(67, 57, 44, 0.22);
+
+  --cat-diet: #c0602f;
+  --cat-move: #2a78c0;
+  --cat-fast: #c99418;
+  --cat-rest: #2e9a78;
+  --cat-cheat: #a8579e;
+  /* 趋势图：晨重主线用 accent；发散色（减 ↔ 增）两极 + 中性中点 */
+  --chart-grid: rgba(67, 57, 44, 0.07);
+  --div-lose-3: #2a6fae;
+  --div-lose-2: #6f9fcc;
+  --div-lose-1: #b9cfe4;
+  --div-mid: #ebe4d6;
+  --div-gain-1: #eec2b4;
+  --div-gain-2: #d9826a;
+  --div-gain-3: #b4492f;
+}
+[data-theme="cocoa"] {
+  color-scheme: dark;
+  --bg-page: #221d16;
+  --bg-surface: #2e2820;
+  --bg-sunken: #1a1611;
+  --bg-track: #463d31;
+  --bg-hover: rgba(236, 226, 208, 0.06);
+  --bg-press: rgba(236, 226, 208, 0.11);
+  --bg-selected: hsla(22, 62%, 65%, 0.2);
+  --ink-1: #ece2d0;
+  --ink-2: #a89a85;
+  --ink-3: #857768;
+  --ink-inverse: #241a10;
+  --line-1: #3a3227;
+  --line-2: rgba(58, 50, 39, 0.6);
+  --accent: hsl(22 62% 65%);
+  --accent-hover: hsl(22 62% 72%);
+  --accent-soft: hsla(22, 62%, 65%, 0.16);
+  --accent-text: hsl(22 66% 70%);
+  --focus-ring: 0 0 0 3px hsla(22, 62%, 65%, 0.4);
+  --ok: #8cab87;
+  --ok-soft: #243023;
+  --warn: #c4a458;
+  --warn-soft: #302917;
+  --danger: #d97e66;
+  --danger-soft: #34201a;
+  --overlay: rgba(10, 8, 5, 0.55);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+  --scroll-thumb: rgba(236, 226, 208, 0.18);
+
+  --cat-diet: #cf7038;
+  --cat-move: #4a90c8;
+  --cat-fast: #b98a12;
+  --cat-rest: #2f9e7a;
+  --cat-cheat: #b565ac;
+  --chart-grid: rgba(236, 226, 208, 0.07);
+  --div-lose-3: #5a9bd4;
+  --div-lose-2: #3d6c94;
+  --div-lose-1: #2f4558;
+  --div-mid: #3a332a;
+  --div-gain-1: #5a3a2e;
+  --div-gain-2: #9a5a43;
+  --div-gain-3: #d97e66;
+}

@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>减重插件 · 设计方案总览</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg-page); color: var(--ink-1); font: 14px/1.75 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif; -webkit-font-smoothing: antialiased; padding: 40px 8vw 80px; }
+  header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .sub { color: var(--ink-2); margin-top: 6px; max-width: 86ch; }
+  .meta { margin-top: 10px; font-size: 12.5px; color: var(--ink-3); }
+  h2 { font-size: 16px; margin: 40px 0 12px; font-weight: 600; }
+  .sub2 { color: var(--ink-2); max-width: 86ch; margin-bottom: 12px; }
+  ul.tight { padding-left: 20px; color: var(--ink-2); max-width: 94ch; }
+  ul.tight li + li { margin-top: 5px; }
+  ul.tight b { color: var(--ink-1); font-weight: 600; }
+  .flow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 16px; font-size: 13px; }
+  .flow span { background: var(--bg-surface); box-shadow: var(--shadow-card); border-radius: 10px; padding: 6px 12px; }
+  .flow i { color: var(--ink-3); font-style: normal; }
+  .flow .ok { color: var(--ok); font-weight: 600; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+  .card { background: var(--bg-surface); border-radius: 16px; padding: 20px 22px; box-shadow: var(--shadow-card); text-decoration: none; color: inherit; display: flex; flex-direction: column; outline: 1px solid transparent; transition: box-shadow 200ms, outline-color 200ms; }
+  .card:hover { outline-color: var(--line-1); box-shadow: var(--shadow-float); }
+  .card .no { font: 600 12px/1 ui-monospace, Consolas, monospace; color: var(--accent-text); }
+  .card h3 { font-size: 15.5px; margin: 6px 0 2px; font-weight: 600; }
+  .card .who { font-size: 12px; color: var(--ink-3); font-weight: 400; }
+  .card p { font-size: 13px; color: var(--ink-2); margin-top: 8px; }
+  .wire { margin-top: 14px; height: 104px; border-radius: 10px; background: var(--bg-page); padding: 8px; display: grid; gap: 5px; }
+  .wire div { border-radius: 5px; }
+  .wire .s { background: var(--bg-surface); box-shadow: var(--shadow-card); }
+  .verdict { margin-top: 12px; font-size: 12.5px; display: flex; flex-direction: column; gap: 2px; }
+  .verdict .good { color: var(--ok); } .verdict .bad { color: var(--danger); }
+  .card .open { margin-top: auto; padding-top: 12px; font-size: 12.5px; color: var(--accent-text); font-weight: 500; }
+  table { border-collapse: collapse; width: 100%; background: var(--bg-surface); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow-card); font-size: 13px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { font-size: 12px; font-weight: 600; color: var(--ink-2); border-bottom: 1px solid var(--line-1); }
+  td { color: var(--ink-2); border-top: 1px solid var(--line-1); }
+  td:first-child { color: var(--ink-1); font-weight: 500; white-space: nowrap; }
+  code { font: 12px/1.5 ui-monospace, Consolas, monospace; background: var(--bg-surface); border: 1px solid var(--line-1); padding: 1px 6px; border-radius: 5px; color: var(--accent-text); }
+  ol.q { padding-left: 22px; color: var(--ink-2); max-width: 94ch; }
+  ol.q li + li { margin-top: 8px; }
+  ol.q b { color: var(--ink-1); }
+  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+</style>
+</head>
+<body data-theme="cream">
+<script>document.body.dataset.theme = localStorage.getItem("w-mock-theme") || "cream";</script>
+
+<header>
+  <h1>减重插件 · 页面设计方案</h1>
+  <p class="sub">一个页面型插件（<code>categories: ["page"]</code>），覆盖你提的四件事：记录早晚体重、记录减肥行动和饮食、接入 AI 分析、用图表看趋势。三个方案共用同一份 90 天模拟数据（8/1 起，经历基线 → 饭后散步 → 16:8 断食 → 国庆 → 控碳水 + 散步五个阶段），用 cream / cocoa 两套主题的真实取值，右上角可切换明暗。图表悬停有提示，「记录今天」弹窗、范围切换、AI 流式输出都可以直接点。</p>
+  <p class="meta">2026-10-29 · 演示日期固定为 10 月 29 日 · mockup 只作视觉参考，实现时用 @tau/ui + Tailwind 重写</p>
+</header>
+
+<h2>二轮 · 记录为主，看见数字就能克制</h2>
+<p class="sub2">你的反馈：方法只有两个，<b>少吃、多动</b>，用不上「实验」；页面主要是记录，让自己看到数字从而克制。据此重做了一个方案 D，一轮的 A/B/C 保留在下面作参考。</p>
+<div class="cards" style="grid-template-columns:1fr">
+  <a class="card" href="plan-d-ledger.html">
+    <div class="no">方案 D（二轮推荐）</div>
+    <h3>减重记账本 <span class="who">· 体重 + 热量余额 + 运动，一屏记完看完</span></h3>
+    <p>把「少吃」变成一个随时可见的数字：<b>今天还能吃多少 kcal</b>。吃之前在右上角写一句「奶茶一杯」，还没回车就能看到「≈ 380 kcal，记下后还能吃 N，相当于散步 95 分钟」，这一步就是克制发生的地方。少吃 / 多动不用手动打勾：摄入没超预算就算少吃，运动满 30 分钟就算多动，由记录自动判定。</p>
+    <div class="verdict">
+      <span class="good">✓ 顶部三张卡：今天晨重（早晚两个记录位）/ 热量余额环 / 运动进度 + 连续天数</span>
+      <span class="good">✓ 体重趋势和每日摄入柱上下对齐同一时间轴（不做双轴），超预算的日子一眼看出来，对得上后面的体重回升</span>
+      <span class="good">✓ 打卡格（8 周 × 7 天，两颗点 = 少吃 / 多动）和「做到了，第二天轻多少」四组对比，回答「少吃和多动哪个更管用」</span>
+      <span class="good">✓ AI 分「今天 / 本周」两段：今天提醒晚饭余量和还差多少运动，本周总结速率和破功规律</span>
+      <span class="bad">✗ 依赖饮食记录完整：漏记一餐，余额和打卡都会偏乐观（缓解：晚饭时段若无记录，流水里显示「还没记」占位）</span>
+    </div>
+    <span class="open">打开方案 D →</span>
+  </a>
+</div>
+<ul class="tight" style="margin-top:14px">
+  <li><b>删掉了</b>：实验概念、阶段底带、行动标签库、单项行动排行。行动只剩两个，且自动判定；</li>
+  <li><b>新增配置</b>（插件设置里填一次）：每日热量预算（默认 1800）、运动目标（默认 30 分钟）、目标体重、身高；</li>
+  <li><b>热量来源</b>：一句话记录由 AI 估算，可点开修改；常吃的东西记住上次的数值，第二次不再调用 AI；</li>
+  <li><b>称重弹窗</b>只剩体重一项（起床 / 睡前），饮食和运动都走右上角一句话记录。</li>
+</ul>
+
+<h2>一轮 · 先想清楚：这个页面要帮你做什么决定</h2>
+<p class="sub2">你说的核心诉求是「看什么样的方式减肥最有效」。所以页面的主线不是记账，而是一个反馈循环：</p>
+<div class="flow"><span>每天称重</span><i>→</i><span>记下当天做了什么、吃了什么</span><i>→</i><span>系统算出每种行动的效果</span><i>→</i><span>AI 解读、给出下一步</span><i>→</i><span class="ok">留下有效的，换掉无效的</span></div>
+<ul class="tight">
+  <li><b>单日体重是噪声，趋势才是信号</b>：一天之内水分、盐、胃容物能让读数差 1–2 kg。三个方案的主线都是 <b>晨重的 7 日滑动均值</b>，单日读数只作浅色散点。睡前体重单独保留，用来看日内波动和「吃多了」的即时反馈，但不参与趋势计算（早晚混算会让曲线锯齿化）；</li>
+  <li><b>两种「效果」口径</b>：
+    <br>① <b>行动的短期效果</b> = 做了某行动的日子，第二天晨重的平均变化，减去没做的日子。能回答「聚餐让我涨多少」「睡够 7 小时有没有用」，但会被水分干扰，样本少于 8 天时标「样本少」并淡化；
+    <br>② <b>阶段的长期效果</b> = 一段时间内 7 日均值的回归斜率（kg/周）。能回答「断食那三周和控碳水这三周哪个更有效」，更可靠，这是 <b>「实验」</b> 概念的来源；</li>
+  <li><b>记录必须快</b>：称完体重 5 秒内记完。弹窗打开即聚焦数字框、预填昨天读数，按早上 / 晚上自动选「起床 / 睡前」；行动是可点选的标签（可自定义），饮食是一句自然语言，AI 负责估热量，不做食物数据库；</li>
+  <li><b>AI 是解读者，不是计算器</b>：所有数字由插件本地算好，AI 只拿到汇总后的结构化数据（每日体重、行动、饮食文字、阶段统计），负责解释原因、找规律、提建议，回答里引用的数字可点击定位到图表。</li>
+</ul>
+
+<h2>一轮 · 三个方案（参考）</h2>
+<div class="cards">
+  <a class="card" href="plan-a-dashboard.html">
+    <div class="no">方案 A</div>
+    <h3>趋势仪表盘 <span class="who">· 一屏总览 + AI 常驻右栏</span></h3>
+    <p>打开就是全局：今日体重 + 早晚两个记录位、四个关键指标（7 日均值 / 周速率 / 目标进度 / 预计到达）、90 天大趋势图（实验阶段作底带，下方是行动条带）、行动效果排行、每日变化热力图。右栏常驻 AI 分析卡、今日记录和当前实验。</p>
+    <div class="wire" style="grid-template-columns: 3fr 1.1fr;">
+      <div style="display:grid;gap:5px;grid-template-rows:20px 1fr 26px"><div style="display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr 1fr;gap:4px"><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div></div><div class="s"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px"><div class="s"></div><div class="s"></div></div></div>
+      <div style="display:grid;gap:5px;grid-template-rows:1.4fr 1fr 0.6fr"><div class="s" style="background:linear-gradient(135deg,var(--accent-soft),var(--bg-surface))"></div><div class="s"></div><div class="s"></div></div>
+    </div>
+    <div class="verdict">
+      <span class="good">✓ 信息最全，一眼能看到「在不在正轨上」；AI 结论常驻，不用点</span>
+      <span class="bad">✗ 内容多，单项深度有限；每天打开只为记一个数时略重</span>
+    </div>
+    <span class="open">打开方案 A →</span>
+  </a>
+  <a class="card" href="plan-b-journal.html">
+    <div class="no">方案 B</div>
+    <h3>每日日志 <span class="who">· 时间线 + 单日详情</span></h3>
+    <p>以「天」为单位：顶部是 45 天趋势条，左侧按周分组的日志流（每天的早晚体重、行动类别图标、次晨变化），右侧是选中那一天的完整记录：起床 / 睡前 / 次日晨重三格、行动标签、按餐的饮食和热量，以及 AI 对这一天的点评和「相似的日子」。</p>
+    <div class="wire" style="grid-template-rows: 26px 1fr;">
+      <div class="s"></div>
+      <div style="display:grid;grid-template-columns:1fr 2.4fr;gap:5px"><div class="s" style="display:grid;gap:3px;padding:5px;align-content:start"><div style="height:8px;background:var(--line-1)"></div><div style="height:8px;background:var(--bg-selected)"></div><div style="height:8px;background:var(--line-1)"></div><div style="height:8px;background:var(--line-1)"></div></div><div class="s" style="display:grid;grid-template-columns:2fr 1fr;gap:5px;padding:5px"><div style="display:grid;gap:3px;align-content:start"><div style="height:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px"><div style="background:var(--bg-hover)"></div><div style="background:var(--bg-hover)"></div><div style="background:var(--bg-hover)"></div></div><div style="height:6px;background:var(--line-1)"></div><div style="height:6px;background:var(--line-1)"></div></div><div style="background:var(--accent-soft)"></div></div></div>
+    </div>
+    <div class="verdict">
+      <span class="good">✓ 记录与回看最顺手，饮食细节最清楚；「这一天为什么涨了」最直观</span>
+      <span class="bad">✗ 宏观对比弱，「哪种方式最有效」要靠 AI 和相似日推断，没有正式的对比视图</span>
+    </div>
+    <span class="open">打开方案 B →</span>
+  </a>
+  <a class="card" href="plan-c-lab.html">
+    <div class="no">方案 C</div>
+    <h3>减重实验室 <span class="who">· 实验索引 + 实验报告</span></h3>
+    <p>把「找到最有效的方法」做成一等概念：每段时期是一个实验（假设 + 行动 + 起止日期），左侧列出所有实验和它们的周速率，右侧是选中实验的报告：结论四格（速率 / 相比基线倍数 / 区间变化 / 执行率）、带前后对照的趋势图、执行日历、和其他阶段的对比、单项行动排行；AI 写实验结论并建议下一个实验。</p>
+    <div class="wire" style="grid-template-columns: 1fr 3.2fr;">
+      <div style="display:grid;gap:4px;align-content:start"><div class="s" style="height:30px"></div><div style="height:9px;background:var(--bg-selected)"></div><div style="height:9px;background:var(--line-1)"></div><div style="height:9px;background:var(--line-1)"></div><div style="height:9px;background:var(--line-1)"></div></div>
+      <div class="s" style="display:grid;grid-template-columns:2.6fr 1fr;gap:6px;padding:6px"><div style="display:grid;gap:4px;align-content:start"><div style="height:8px;width:60%;background:var(--ink-3);opacity:.5"></div><div style="height:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:3px"><div style="background:var(--bg-hover)"></div><div style="background:var(--bg-hover)"></div><div style="background:var(--bg-hover)"></div><div style="background:var(--bg-hover)"></div></div><div style="height:26px;background:var(--bg-hover)"></div><div style="height:5px;width:80%;background:var(--div-lose-3)"></div><div style="height:5px;width:50%;background:var(--div-lose-2)"></div></div><div style="background:var(--accent-soft)"></div></div>
+    </div>
+    <div class="verdict">
+      <span class="good">✓ 最贴合「量化哪种方式有效」：结论有对照、有执行率，不靠感觉；AI 能推荐下一个实验</span>
+      <span class="bad">✗ 多一个「实验」概念要维护；只想随手记的日子要多走一步（左上角快捷记录缓解）</span>
+    </div>
+    <span class="open">打开方案 C →</span>
+  </a>
+</div>
+
+<h2>对比</h2>
+<table>
+  <thead><tr><th>维度</th><th>A 趋势仪表盘</th><th>B 每日日志</th><th>C 减重实验室</th></tr></thead>
+  <tbody>
+    <tr><td>主轴</td><td>全局指标</td><td>单日</td><td>阶段（实验）</td></tr>
+    <tr><td>记录入口</td><td>今日卡的早晚两个位 + 右栏</td><td>顶部按钮 + 单日详情直接编辑</td><td>左上角快捷卡</td></tr>
+    <tr><td>回答「哪种方式有效」</td><td>行动效果排行 + 趋势底带</td><td>AI 点评 + 相似日</td><td>实验对比 + 执行率 + 行动排行</td></tr>
+    <tr><td>饮食展示</td><td>右栏今日列表</td><td>最完整：按餐、热量条</td><td>弱（只进 AI 上下文）</td></tr>
+    <tr><td>AI 位置</td><td>右栏常驻，全局报告 + 追问</td><td>单日点评</td><td>实验结论 + 下一个实验建议</td></tr>
+    <tr><td>图表</td><td>大趋势 / 效果排行 / 热力 / 迷你线</td><td>趋势条</td><td>区间趋势 / 执行日历 / 阶段对比 / 效果排行 / 热力</td></tr>
+    <tr><td>数据变多以后</td><td>好（范围切换）</td><td>中（日志流按周折叠）</td><td>好（实验数增长慢）</td></tr>
+    <tr><td>与已有页面同构</td><td>中（首页式卡片）</td><td>高（列表 + 详情，同问题页 A）</td><td>高（索引 + 正文 + 信息栏，同问题页 C）</td></tr>
+  </tbody>
+</table>
+
+<h2>可以混搭</h2>
+<ul class="tight">
+  <li><b>推荐组合</b>：以 C 为骨架做两个子视图 <code>概览 | 实验</code>（页内 segmented 切换）：「概览」= A 的仪表盘，「实验」= C 的报告；B 的单日详情做成点击趋势图某一天、或热力格子时弹出的侧抽屉；</li>
+  <li>A 的「今日卡早晚两个记录位」可以放进任意方案，也适合额外贡献一个首页卡片（<code>home</code> 扩展点），不用进插件页就能记体重；</li>
+  <li>C 的「AI 建议下一个实验」可以作为 A 右栏 AI 卡的固定一节。</li>
+</ul>
+
+<h2>三个方案共用的视觉与图表规范</h2>
+<ul class="tight">
+  <li><b>体重主线</b>用 accent（赭橙）2px 线，单日读数为 ink-3 浅点，睡前为空心圈，目标为 ok 绿虚线。全页只有一条 accent 线，视线自然落在趋势上；</li>
+  <li><b>行动类别色</b>（数据色，不进主题词表）：<span class="sw" style="background:var(--cat-diet)"></span>饮食 <span class="sw" style="background:var(--cat-move)"></span>运动 <span class="sw" style="background:var(--cat-fast)"></span>断食 <span class="sw" style="background:var(--cat-rest)"></span>作息 <span class="sw" style="background:var(--cat-cheat)"></span>放纵。顺序固定，已用色盲校验脚本验过：浅色主题相邻对色盲 ΔE ≥ 8.2，深色主题 7.5，所以标签始终 <b>图标 + 文字</b> 一起出现，颜色只染小图标底；</li>
+  <li><b>变化方向用发散色</b>：<span class="sw" style="background:var(--div-lose-3)"></span>蓝 = 变轻，<span class="sw" style="background:var(--div-gain-3)"></span>红 = 变重，中点是中性米灰。不用「绿好红坏」，避免和类别色、状态色撞色；数字上的 <span style="color:var(--ok)">−0.3</span> / <span style="color:var(--danger)">+0.3</span> 仍用 ok / danger 文字色，并带正负号，不只靠颜色；</li>
+  <li>图表只有一根纵轴（kg），不做双轴；热量这类不同量纲的数据单独成图或只出现在列表；</li>
+  <li>每个图表都有悬停提示（趋势图十字线 + 当天行动标签），后续实现补「表格视图」切换，满足无障碍与导出。</li>
+</ul>
+
+<h2>技术方案草图（定方案后细化）</h2>
+<table>
+  <thead><tr><th>关注点</th><th>做法</th></tr></thead>
+  <tbody>
+    <tr><td>插件形态</td><td>独立仓库 <code>plugins/tau-plugin-weight</code>（以 <code>tau-plugin-template</code> 为起点），manifest <code>categories: ["page"]</code>，侧边栏「插件」分组下一个入口</td></tr>
+    <tr><td>数据存储</td><td><code>context.records</code> 插件记录（随笔记库保存与同步，不需要业务权限）。二轮只需三个集合：<code>weigh</code>（日期、起床/睡前、kg）、<code>entry</code>（日期、时间、类型 饮食/运动、文字、kcal、分钟）、<code>food</code>（常吃食物 → 上次的 kcal，免重复调用 AI）；预算等配置走插件设置。按日期建索引，图表按窗口读取，不全量拉表</td></tr>
+    <tr><td>统计</td><td>插件内纯函数：7 日均值、回归周速率、当日余额、少吃/多动自动判定、四组次晨对比（带样本量）；有单元测试，AI 和图表共用同一份结果</td></tr>
+    <tr><td>AI</td><td><code>context.ai.requestCapability("chat")</code>（manifest 声明 <code>ai:chat</code>），流式输出；只发汇总后的结构化数据，饮食照片默认不发。未配置模型时显示空态并跳转 AI 设置</td></tr>
+    <tr><td>图表</td><td>插件内手写 SVG 组件（趋势 / 发散条 / 热力 / 迷你线这几种形状简单，避免把 echarts 打进插件包）；颜色全部消费 <code>--tau-*</code> 变量，自动跟随主题</td></tr>
+    <tr><td>UI</td><td><code>@tau/ui</code> + Tailwind + lucide 图标，遵循插件作者约定</td></tr>
+  </tbody>
+</table>
+
+<h2>需要你拍板的问题（二轮）</h2>
+<ol class="q">
+  <li><b>热量预算</b>：默认 1800 kcal 合适吗？还是按身高体重自动算（基础代谢 − 500）？</li>
+  <li><b>热量估算精度</b>：一句话 + AI 估算够用吗？还是希望能选份量（小 / 中 / 大）微调？</li>
+  <li><b>运动的口径</b>：「多动」按分钟（≥ 30 分钟）还是按步数？步数需要手动填或接手机数据，目前插件拿不到；</li>
+  <li><b>首页卡片</b>：要不要在应用首页放「今天还能吃 N kcal」的快捷卡，不进插件页就能记一笔？</li>
+  <li><b>隐私</b>：饮食和体重发给 AI，首次确认一次之后记住，可以吗？</li>
+</ol>
+</body>
+</html>
