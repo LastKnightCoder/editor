@@ -5,11 +5,10 @@
 
 import { useEffect, useRef } from "react";
 import { EDGE_START_WIDTH, getViewportWidth } from "./gesture";
+import { createVelocityTracker, shouldCommitSwipe } from "./swipeCommit";
 import { resolveTabNeighbor } from "./tabs";
 
 const LOCK_THRESHOLD_PX = 8;
-const COMMIT_PROGRESS = 0.4;
-const COMMIT_VELOCITY_PX_PER_MS = 0.5;
 
 /** 1 = 从右向左滑（下一个 tab），-1 = 从左向右滑（上一个 tab） */
 export type TabSwipeDirection = 1 | -1;
@@ -24,7 +23,7 @@ export type TabSwipeGestureConfig = {
   onEngage: (targetKey: string, direction: TabSwipeDirection) => void;
   /** 跟手进度，已按锁定方向投影到 (0,1] */
   onMove: (progress: number) => void;
-  /** 松手达到提交阈值（progress / velocity） */
+  /** 松手达到提交阈值（惯性落点 / 快扫） */
   onCommit: (progress: number) => void;
   /** 松手未达阈值或 touchcancel：回弹并清理 */
   onCancel: () => void;
@@ -69,8 +68,7 @@ export function useTabSwipeGesture(config: TabSwipeGestureConfig): void {
     let direction: TabSwipeDirection = 1;
     let startX = 0;
     let startY = 0;
-    let lastX = 0;
-    let lastT = 0;
+    const tracker = createVelocityTracker();
 
     const onTouchStart = (event: TouchEvent) => {
       if (event.touches.length !== 1) {
@@ -91,8 +89,7 @@ export function useTabSwipeGesture(config: TabSwipeGestureConfig): void {
       locked = false;
       startX = touch.clientX;
       startY = touch.clientY;
-      lastX = touch.clientX;
-      lastT = performance.now();
+      tracker.reset(touch.clientX, performance.now());
     };
 
     const onTouchMove = (event: TouchEvent) => {
@@ -122,8 +119,7 @@ export function useTabSwipeGesture(config: TabSwipeGestureConfig): void {
       if (event.cancelable) {
         event.preventDefault();
       }
-      lastX = touch.clientX;
-      lastT = performance.now();
+      tracker.add(touch.clientX, performance.now());
       configRef.current.onMove(projectProgress(touch.clientX - startX, direction));
     };
 
@@ -139,11 +135,12 @@ export function useTabSwipeGesture(config: TabSwipeGestureConfig): void {
       }
       const touch = event.changedTouches[0];
       const now = performance.now();
-      const dt = Math.max(now - lastT, 1);
-      // 速度沿手势前进方向投影：next 前进为 clientX 减小，回拖（撤销手势）得负速度不提交
-      const velocity = ((touch.clientX - lastX) * -direction) / dt;
+      tracker.add(touch.clientX, now);
+      // 位移与速度沿手势前进方向投影：next 前进为 clientX 减小，回拖得负值不提交
+      const distance = (touch.clientX - startX) * -direction;
+      const velocity = tracker.velocity(now) * -direction;
       const progress = projectProgress(touch.clientX - startX, direction);
-      if (progress >= COMMIT_PROGRESS || velocity >= COMMIT_VELOCITY_PX_PER_MS) {
+      if (shouldCommitSwipe({ distance, velocity, viewportWidth: getViewportWidth() })) {
         configRef.current.onCommit(progress);
       } else {
         configRef.current.onCancel();
