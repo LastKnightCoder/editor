@@ -8,6 +8,7 @@
     "./contracts": "./src/contracts.ts",
     "./session": "./src/session/index.ts",
     "./models": "./src/models.ts",
+    "./catalog": "./src/catalog.ts",
     "./runtime": "./src/runtime/index.ts",
     "./tools": "./src/tools/index.ts",
     "./skills": "./src/skills/index.ts",

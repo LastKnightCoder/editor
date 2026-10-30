@@ -37,6 +37,9 @@ pub(crate) fn check_database(setting: &Value, database: &str) -> Result<(), Stri
     }
     Ok(())
 }
+pub(crate) fn default_speech_input() -> Value {
+    json!({"active":"native","language":"zh-CN","plugin":{"id":"","configurations":{}}})
+}
 #[tauri::command]
 pub fn plugin_provider_save(
     app: AppHandle,
@@ -61,7 +64,7 @@ pub fn plugin_provider_save(
     crate::setting::mutate_setting_value(&app, |setting| {
         check_database(setting, &database)?;
         if target == "asr" && !setting["speechInput"].is_object() {
-            setting["speechInput"] = json!({"active":"native","language":"zh-CN","plugin":{"id":"","configurations":{}}});
+            setting["speechInput"] = default_speech_input();
         }
         if !setting[section]["plugin"].is_object() {
             setting[section]["plugin"] = json!({ "id": "", "configurations": {} });
@@ -70,7 +73,7 @@ pub fn plugin_provider_save(
             return Err("插件配置存储损坏".into());
         }
         setting[section]["plugin"]["configurations"][&plugin_id] = config;
-        Ok(setting.clone())
+        Ok(crate::ai_settings::public_setting(setting))
     })
 }
 #[tauri::command]
@@ -87,7 +90,7 @@ pub fn plugin_provider_select(
     crate::setting::mutate_setting_value(&app, |setting| {
         check_database(setting, &database)?;
         if target == "asr" && !setting["speechInput"].is_object() {
-            setting["speechInput"] = json!({"active":"native","language":"zh-CN","plugin":{"id":"","configurations":{}}});
+            setting["speechInput"] = default_speech_input();
         }
         if target == "upload" && plugin_id == "local" {
             setting[section]["active"] = json!("local");
@@ -103,14 +106,20 @@ pub fn plugin_provider_select(
             setting[section]["active"] = json!("plugin");
             setting[section]["plugin"]["id"] = json!(plugin_id);
         }
-        Ok(setting.clone())
+        Ok(crate::ai_settings::public_setting(setting))
     })
 }
 
 /// 普通设置提交不回写原生管理的数据库状态和提供方配置。
 pub(crate) fn preserve_managed_fields(next: &mut Value, current: &Value) {
     next["database"] = current["database"].clone();
-    for field in ["speechInput", "ttsProviders", "ttsUsageSettings"] {
+    for field in [
+        "speechInput",
+        "ttsProviders",
+        "ttsUsageSettings",
+        "llmProviders",
+        "llmUsageSettings",
+    ] {
         if let Some(value) = current.get(field) {
             next[field] = value.clone();
         } else if let Some(object) = next.as_object_mut() {
@@ -211,15 +220,24 @@ mod tests {
             "imageBed": { "active": "local", "plugin": { "id": "", "configurations": {} } },
             "speechInput": { "active": "plugin", "plugin": { "id": "fixture.asr", "configurations": {} } },
             "ttsProviders": [{ "id": "a", "name": "账号", "pluginId": "tau.tts-minimax", "config": { "apiKey": "new" }, "models": [{ "id": "m1" }] }],
-            "ttsUsageSettings": { "default": { "providerId": "a", "modelId": "m1", "voiceId": "voice" } } });
+            "ttsUsageSettings": { "default": { "providerId": "a", "modelId": "m1", "voiceId": "voice" } },
+            "llmProviders": [{ "id": "p", "name": "服务商", "apiKey": "secret-key", "models": [{ "id": "m" }] }],
+            "llmUsageSettings": { "chat": { "providerId": "p", "modelId": "m" } } });
         let mut stale = json!({ "database": {}, "sync": {}, "imageBed": { "enableCompression": false },
-            "speechInput": { "active": "native" }, "ttsProviders": [], "ttsUsageSettings": { "default": null } });
+            "speechInput": { "active": "native" }, "ttsProviders": [], "ttsUsageSettings": { "default": null },
+            "llmProviders": [{ "id": "p", "name": "服务商", "models": [] }], "llmUsageSettings": { "chat": null } });
         preserve_managed_fields(&mut stale, &current);
         assert_eq!(stale["sync"], current["sync"]);
         assert_eq!(stale["database"], current["database"]);
         assert_eq!(stale["speechInput"], current["speechInput"]);
         assert_eq!(stale["ttsProviders"], current["ttsProviders"]);
         assert_eq!(stale["ttsUsageSettings"], current["ttsUsageSettings"]);
+        assert_eq!(stale["llmProviders"], current["llmProviders"]);
+        assert_eq!(stale["llmUsageSettings"], current["llmUsageSettings"]);
+        let mut without_llm = json!({ "llmProviders": [{ "id": "x" }], "llmUsageSettings": {} });
+        preserve_managed_fields(&mut without_llm, &json!({}));
+        assert!(without_llm.get("llmProviders").is_none());
+        assert!(without_llm.get("llmUsageSettings").is_none());
         assert_eq!(stale["imageBed"]["enableCompression"], false);
         assert!(check_database(&current, "A.db").is_err());
     }

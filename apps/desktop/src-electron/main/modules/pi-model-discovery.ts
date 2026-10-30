@@ -8,12 +8,8 @@
  * 凭据只发往用户自己配置的 baseUrl。
  */
 import type { LLMProviderSetting, PiDiscoveredModel } from "@/types/pi-llm";
-import {
-  isSupportedModel,
-  lookupBuiltinModel,
-  resolveBuiltinId,
-  toCatalogModel,
-} from "./pi-ai-runtime-core";
+import { isSupportedModel, toCatalogModel } from "@tau/ai/catalog";
+import { lookupBuiltinModel, resolveBuiltinId } from "./pi-ai-runtime-core";
 
 type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
 

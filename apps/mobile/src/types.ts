@@ -610,8 +610,34 @@ export type PluginTtsMutation =
   | { type: "deleteModel"; instanceId: string; modelId: string }
   | { type: "select"; selection: TTSUsageConfig | null };
 
+/** 页面可见的服务商：原生读取时删去 apiKey，只给出是否已填与末 4 位提示 */
+export type MobileLlmProvider = Omit<import("@tau/ai/models").LLMProviderSetting, "apiKey"> & {
+  configured?: boolean;
+  keyHint?: string;
+};
+
+export type LlmFeatureKey = "chat" | "speechInputRefinement";
+
+export type AiSettingsMutation =
+  | { kind: "upsertProvider"; provider: MobileLlmProvider; apiKey?: string }
+  | { kind: "removeProvider"; providerId: string }
+  | {
+      kind: "assign";
+      feature: LlmFeatureKey;
+      model: import("@tau/ai/models").LLMUsageConfigV2 | null;
+    }
+  | { kind: "setSpeechRefinement"; style: "light" | "paragraphs" };
+
+export interface AiSettingsSnapshot {
+  llmProviders: MobileLlmProvider[];
+  llmUsageSettings: Partial<Record<string, import("@tau/ai/models").LLMUsageConfigV2 | null>>;
+  speechInput?: import("@tau/asr").SpeechInputSetting;
+}
+
 export interface SettingCompat {
   speechInput?: import("@tau/asr").SpeechInputSetting;
+  llmProviders?: MobileLlmProvider[];
+  llmUsageSettings?: AiSettingsSnapshot["llmUsageSettings"];
   ttsProviders?: TTSProviderSetting[];
   ttsUsageSettings?: {
     default: TTSUsageConfig | null;

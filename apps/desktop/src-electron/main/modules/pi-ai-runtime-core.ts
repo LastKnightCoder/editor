@@ -1,4 +1,5 @@
 import { catalogCostOf, isCustomPriced, toPiModel } from "@tau/ai/models";
+import { isSupportedModel, toCatalogModel } from "@tau/ai/catalog";
 export {
   catalogCostOf,
   hasCustomCost,
@@ -86,44 +87,6 @@ export async function resolveBuiltinId(setting: LLMProviderSetting): Promise<str
     .getProviders()
     .find(p => p.baseUrl && p.baseUrl.replace(/\/+$/, "").toLowerCase() === normalized);
   return match?.id;
-}
-
-/** 本项目支持的线协议：目录里另有 7 种（bedrock/google/vertex 等）本运行时跑不起来，一律不暴露 */
-const SUPPORTED_APIS = new Set<string>([
-  "openai-completions",
-  "openai-responses",
-  "anthropic-messages",
-]);
-
-export const isSupportedModel = (model: Model<Api>): boolean => SUPPORTED_APIS.has(model.api);
-
-/** 目录模型 → 渲染端形状（含真实推理档位；不支持推理时为空数组） */
-export function toCatalogModel(model: Model<Api>): PiCatalogModel {
-  const levels = model.reasoning
-    ? (getSupportedThinkingLevels(model) as PiThinkingLevel[])
-    : ([] as PiThinkingLevel[]);
-  return {
-    id: model.id,
-    name: model.name ?? model.id,
-    api: model.api as PiApiKind,
-    reasoning: model.reasoning,
-    input: (model.input ?? ["text"]).filter(
-      (kind): kind is "text" | "image" => kind === "text" || kind === "image"
-    ),
-    contextWindow: model.contextWindow,
-    maxTokens: model.maxTokens,
-    ...(model.cost && (model.cost.input || model.cost.output)
-      ? {
-          cost: {
-            input: model.cost.input,
-            output: model.cost.output,
-            cacheRead: model.cost.cacheRead,
-            cacheWrite: model.cost.cacheWrite,
-          },
-        }
-      : {}),
-    thinkingLevels: levels,
-  };
 }
 
 /**

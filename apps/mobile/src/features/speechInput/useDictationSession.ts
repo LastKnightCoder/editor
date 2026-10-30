@@ -21,8 +21,8 @@ export interface DictationSessionOptions {
   refine?: SpeechRefiner;
   /** 识别中的预览文字 */
   onPreview(text: string): void;
-  /** 定稿原文 */
-  onCommit(text: string): void;
+  /** 定稿原文；willPolish 表示本次随后会进入润色 */
+  onCommit(text: string, willPolish: boolean): void;
   onPolished?(text: string, status: "refined" | "fallback"): void;
   onError(error: unknown): void;
 }
@@ -39,6 +39,8 @@ export interface DictationSession {
   cancel(): void;
   /** 润色中点「跳过」：中止润色，保留原文 */
   skipPolish(): void;
+  /** 润色失败后「重试」：用上次的识别结果与润色器重新润色 */
+  retryPolish(): void;
 }
 
 function isCancellation(error: unknown): boolean {
@@ -51,8 +53,12 @@ interface Run {
   controller: AbortController;
   session?: SpeechInputSession;
   polish?: AbortController;
+  /** 开始录音时固定的润色器，录音中设置变化不影响本次 */
+  refine?: SpeechRefiner;
   cancelled: boolean;
 }
+
+type Transcript = Parameters<typeof refineSpeechInput>[0];
 
 export function useDictationSession(options: DictationSessionOptions): DictationSession {
   const [phase, setPhase] = useState<DictationPhase>("idle");
@@ -60,6 +66,7 @@ export function useDictationSession(options: DictationSessionOptions): Dictation
   const optionsRef = useRef(options);
   optionsRef.current = options;
   const runRef = useRef<Run | null>(null);
+  const lastPolishRef = useRef<{ transcript: Transcript; refine: SpeechRefiner } | null>(null);
 
   const settle = useCallback((run: Run, next: DictationPhase) => {
     if (runRef.current !== run) return;
@@ -79,8 +86,9 @@ export function useDictationSession(options: DictationSessionOptions): Dictation
   );
 
   const polish = useCallback(
-    async (run: Run, transcript: Parameters<typeof refineSpeechInput>[0]) => {
-      const { refine } = optionsRef.current;
+    async (run: Run, transcript: Transcript) => {
+      const { refine } = run;
+      lastPolishRef.current = null;
       if (!refine) return settle(run, "idle");
       run.polish = new AbortController();
       setPhase("polishing");
@@ -90,6 +98,7 @@ export function useDictationSession(options: DictationSessionOptions): Dictation
           onPreview: () => undefined,
         });
         if (runRef.current !== run) return;
+        if (result.status === "fallback") lastPolishRef.current = { transcript, refine };
         if (result.status !== "original")
           optionsRef.current.onPolished?.(result.text, result.status);
         settle(run, "idle");
@@ -109,8 +118,13 @@ export function useDictationSession(options: DictationSessionOptions): Dictation
       optionsRef.current.onError(new Error("语音输入不可用"));
       return;
     }
-    const run: Run = { controller: new AbortController(), cancelled: false };
+    const run: Run = {
+      controller: new AbortController(),
+      refine: optionsRef.current.refine,
+      cancelled: false,
+    };
     runRef.current = run;
+    lastPolishRef.current = null;
     setPhase("connecting");
     setStartedAt(null);
     service
@@ -135,7 +149,7 @@ export function useDictationSession(options: DictationSessionOptions): Dictation
               if (run.cancelled || runRef.current !== run) return;
               if (!transcript.text.trim()) return settle(run, "idle");
               setPhase("committing");
-              optionsRef.current.onCommit(transcript.text);
+              optionsRef.current.onCommit(transcript.text, !!run.refine);
               void polish(run, transcript);
             },
             error => fail(run, error)
@@ -175,6 +189,14 @@ export function useDictationSession(options: DictationSessionOptions): Dictation
     settle(run, "idle");
   }, [settle]);
 
+  const retryPolish = useCallback(() => {
+    const last = lastPolishRef.current;
+    if (!last || runRef.current) return;
+    const run: Run = { controller: new AbortController(), refine: last.refine, cancelled: false };
+    runRef.current = run;
+    void polish(run, last.transcript);
+  }, [polish]);
+
   useEffect(
     () => () => {
       const run = runRef.current;
@@ -188,5 +210,5 @@ export function useDictationSession(options: DictationSessionOptions): Dictation
     []
   );
 
-  return { phase, startedAt, start, finish, cancel, skipPolish };
+  return { phase, startedAt, start, finish, cancel, skipPolish, retryPolish };
 }

@@ -792,6 +792,10 @@ export function mutatePluginTts(database: string, mutation: import("../types").P
   return trackedInvoke<SettingCompat>("plugin_tts_mutate", { database, mutation });
 }
 
+export function mutateAiSettings(mutation: import("../types").AiSettingsMutation) {
+  return trackedInvoke<import("../types").AiSettingsSnapshot>("ai_settings_mutate", { mutation });
+}
+
 export function syncCheckVersions(provider?: string) {
   return withTimeout(
     trackedInvoke<SyncVersionResponse>("sync_check_versions", provider ? { provider } : undefined),

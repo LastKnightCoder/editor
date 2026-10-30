@@ -5,6 +5,7 @@ import { AiMcpManager } from "../../mcp";
 import { memoryStore, request, model, encodeTurn } from "./fixtures";
 
 export * as models from "../../models";
+export * as catalog from "../../catalog";
 export { AiRuntime, AiToolRegistry, AiSkillRegistry, AiMcpManager, encodeTurn };
 export const turns = [
   { tool: "load_skill", args: { id: "builtin:summary" } },

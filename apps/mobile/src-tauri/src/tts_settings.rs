@@ -285,6 +285,7 @@ pub fn plugin_tts_mutate(
     crate::plugin_transport::window_allowed(&window)?;
     crate::setting::mutate_setting_value(&app, |setting| {
         apply_mutation(setting, &database, mutation)
+            .map(|snapshot| crate::ai_settings::public_setting(&snapshot))
     })
 }
 
