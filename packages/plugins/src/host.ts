@@ -1876,6 +1876,11 @@ export class PluginHost {
                 for (const method of ["matches", "resolve", "cacheKey", "getPlayback"] as const)
                   if (typeof instance?.[method] !== "function")
                     throw new Error(`视频提供方缺少 ${method} 方法`);
+                if (
+                  instance.getCaptions !== undefined &&
+                  typeof instance.getCaptions !== "function"
+                )
+                  throw new Error("视频提供方 getCaptions 必须是方法");
                 return instance;
               },
             })

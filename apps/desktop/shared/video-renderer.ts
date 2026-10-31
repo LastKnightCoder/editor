@@ -1,4 +1,4 @@
-import type { ResolvedVideo, VideoPlaybackSource, VideoRef } from "@tau/plugins";
+import type { ResolvedVideo, VideoPlaybackSource, VideoRef, VideoCaptions } from "@tau/plugins";
 
 /** 在线视频提供方请求：主窗口渲染宿主按当前设置创建插件实例后执行。 */
 export type VideoRendererRequest =
@@ -6,13 +6,15 @@ export type VideoRendererRequest =
   | { kind: "match"; url: string; pluginId?: string }
   | { kind: "resolve"; pluginId: string; url: string }
   | { kind: "cacheKey"; pluginId: string; ref: VideoRef }
-  | { kind: "playback"; pluginId: string; ref: VideoRef };
+  | { kind: "playback"; pluginId: string; ref: VideoRef }
+  | { kind: "captions"; pluginId: string; ref: VideoRef };
 
 export interface VideoRendererResults {
   match: string | null;
   resolve: ResolvedVideo;
   cacheKey: string;
   playback: VideoPlaybackSource;
+  captions: VideoCaptions | null;
 }
 
 export interface VideoProviderInfo {

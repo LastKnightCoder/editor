@@ -50,5 +50,7 @@ export const desktopPluginServices: PluginServices = {
   videoExtractor: {
     probe: (url, options) =>
       withModule("online-video-cache", () => invoke("video-extractor:probe", url, options?.proxy)),
+    getCaptions: (url, options) =>
+      invokeCompiler({ kind: "video-captions", url, proxy: options?.proxy }, options),
   },
 };

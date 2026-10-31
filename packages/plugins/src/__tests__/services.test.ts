@@ -36,6 +36,9 @@ it("缺少适配器时明确报错，尚未开始的取消请求不会执行", a
   expect(services.ffmpeg).not.toHaveProperty("probe");
   await expect(services.tailwind.compile({ source: "x" })).rejects.toThrow("未提供");
   await expect(services.videoExtractor.probe("https://example.com")).rejects.toThrow("未提供");
+  await expect(services.videoExtractor.getCaptions("https://example.com")).rejects.toThrow(
+    "未提供"
+  );
   const compile = vi.fn();
   const supported = bindPluginServices(
     { tailwind: { compile } } as unknown as PluginServices,

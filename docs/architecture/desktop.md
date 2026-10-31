@@ -516,6 +516,8 @@ export function useXxxSnapshot() {
 
 视频学习台与白板视频抽屉共用 `VideoNoteChatPanel`，经 `useScopedChat` 接入 pi 会话；旧独立总结入口已移除，总结由视频对话承载。视频检索只保留页面作用域工具，不恢复全局视频笔记 MCP 工具。转录优化与电子书重写统一消费 `useLLMConfig` 的 `provider/model`，缺少配置时经 `openLLMSettingsSection` 打开新设置分区。
 
+两处视频笔记共用 `useVideoNoteTranscription`：空白在线视频笔记经 `useVideoNoteCaptions` 的 react-query 查询优先调用插件可选的 `getCaptions(ref, signal)`（毫秒时间戳、无字幕为 null），30 秒超时后保留手动转录；查询按库、笔记身份和来源引用隔离，取消后不写库。字幕读取与模型配置无关；结果经原库命令 `import-video-note-captions` 仅在笔记修订一致且仍为空时写入，复用转录字段和检索索引；重新打开不会替换已有内容。用户的「开始 / 重新转录」直接走音频识别，不再次优先取字幕。YouTube 消费通用 `videoExtractor.getCaptions`，经 plugin-services 的任务生命周期调用 yt-dlp，只下载选定 JSON3 字幕（人工优先、同类原语言优先），沿用代理并在结束后清理任务目录；Bilibili 的认证和字幕 API 留在插件内。
+
 纯聊天模型、归约器与运行协议经公共子入口 `@tau/shared/chat-core` 消费；该入口不加载 React/DOM，主进程可直接使用，ThinkingLevel 与 MentionRef 也归该层，不反向引用输入组件目录。调用方禁止导入 `@tau/shared/src/chat-core/*`，包内部文件布局由共享包自行维护。
 
 跨端 AI 契约、模型配置与转换归 `@tau/ai/contracts` / `models`，桌面原类型入口只转导出。目录命中时模型 api、容量、输入模态和推理能力取目录值；自定义价格保留优先级，模型采样、headers、compat 与 stripThinkTags 沿用原语义。think 标签流转换从 `@tau/ai/think-stream` 消费，服务商协议仍交 pi-ai。

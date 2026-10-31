@@ -7,6 +7,7 @@ import type {
   VideoProviderDefinition,
   ResolvedVideo,
   VideoRef,
+  VideoCaptions,
 } from "@tau/plugins";
 import { copyJson } from "@tau/plugins/host";
 import type {
@@ -86,6 +87,31 @@ function validatePlayback(value: VideoPlaybackSource): VideoPlaybackSource {
     };
   }
   throw new Error("插件返回的播放源无效");
+}
+
+function validateCaptions(value: VideoCaptions | null): VideoCaptions | null {
+  if (value === null) return null;
+  if (!isRecord(value) || !Array.isArray(value.segments)) throw new Error("插件返回的字幕无效");
+  const segments = value.segments
+    .map(segment => {
+      if (
+        !isRecord(segment) ||
+        typeof segment.text !== "string" ||
+        typeof segment.start !== "number" ||
+        typeof segment.end !== "number" ||
+        !Number.isFinite(segment.start) ||
+        !Number.isFinite(segment.end) ||
+        segment.start < 0 ||
+        segment.end <= segment.start
+      )
+        throw new Error("插件返回的字幕时间戳无效");
+      return { text: segment.text.trim(), start: segment.start, end: segment.end };
+    })
+    .filter(segment => segment.text)
+    .sort((a, b) => a.start - b.start);
+  if (!segments.length) return null;
+  const language = optionalText(value.language);
+  return { ...(language ? { language } : {}), segments };
 }
 
 /** 视频提供方只在主窗口渲染进程执行，每次调用按当前插件配置创建实例。 */
@@ -211,6 +237,15 @@ export class RendererVideoRegistry {
         return validatePlayback(
           await this.run(request.pluginId, signal, (instance, scoped) =>
             instance.getPlayback(copyJson(request.ref) as VideoRef, scoped)
+          )
+        );
+      case "captions":
+        return validateCaptions(
+          await this.run(
+            request.pluginId,
+            signal,
+            (instance, scoped) =>
+              instance.getCaptions?.(copyJson(request.ref) as VideoRef, scoped) ?? null
           )
         );
     }

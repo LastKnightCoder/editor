@@ -1,5 +1,13 @@
 import { invoke } from "@/electron";
 import { VideoNote, TranscriptSegment } from "@/types";
+import type { VideoCaptions } from "@tau/plugins";
+
+export const importVideoNoteCaptions = (
+  id: number,
+  expectedUpdateTime: number,
+  captions: VideoCaptions
+): Promise<VideoNote | null> =>
+  invoke("import-video-note-captions", { id, expectedUpdateTime, captions });
 
 export const createEmptyVideoNote = async (
   metaInfo: VideoNote["metaInfo"]

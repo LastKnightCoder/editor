@@ -123,3 +123,65 @@ it("调用中插件停用或调用方取消时立即结束，注销后不再列�
   await handle.dispose();
   expect(registry.state().providers).toEqual([]);
 });
+
+it("字幕为可选能力，空结果返回 null，有效字幕按时间排序并复制", async () => {
+  const registry = new RendererVideoRegistry(() => ({}));
+  const captions = {
+    language: "zh",
+    segments: [
+      { text: " 第二句 ", start: 2000, end: 3000 },
+      { text: "第一句", start: 0, end: 1000 },
+    ],
+  };
+  const getCaptions = vi.fn(async () => captions);
+  registry.register(
+    context("a.video"),
+    definition("a.video", () => instance())
+  );
+  expect(await registry.execute({ kind: "captions", pluginId: "a.video", ref: {} })).toBeNull();
+  registry.register(
+    context("b.video"),
+    definition("b.video", () => instance({ getCaptions }))
+  );
+  const result = await registry.execute({
+    kind: "captions",
+    pluginId: "b.video",
+    ref: { id: "1" },
+  });
+  expect(result).toEqual({
+    language: "zh",
+    segments: [
+      { text: "第一句", start: 0, end: 1000 },
+      { text: "第二句", start: 2000, end: 3000 },
+    ],
+  });
+  expect(result?.segments[0]).not.toBe(captions.segments[1]);
+  getCaptions.mockResolvedValue({ language: "zh", segments: [] });
+  expect(await registry.execute({ kind: "captions", pluginId: "b.video", ref: {} })).toBeNull();
+  getCaptions.mockResolvedValue({ language: "zh", segments: [{ text: "错", start: 10, end: 5 }] });
+  await expect(
+    registry.execute({ kind: "captions", pluginId: "b.video", ref: {} })
+  ).rejects.toThrow("时间戳");
+});
+
+it("停用字幕提供方后拒绝迟到结果", async () => {
+  const registry = new RendererVideoRegistry(() => ({}));
+  const lifetime = new AbortController();
+  let finish!: (value: null) => void;
+  registry.register(
+    context("a.video", lifetime),
+    definition("a.video", () =>
+      instance({
+        getCaptions: () =>
+          new Promise(resolve => {
+            finish = resolve;
+          }),
+      })
+    )
+  );
+  const result = registry.execute({ kind: "captions", pluginId: "a.video", ref: {} });
+  await Promise.resolve();
+  lifetime.abort();
+  finish(null);
+  await expect(result).rejects.toMatchObject({ name: "AbortError" });
+});

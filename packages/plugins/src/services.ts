@@ -1,6 +1,7 @@
 import type { Descendant } from "slate";
 import type { MarkdownCodec } from "@tau/markdown";
 import type { GitSnapshotRequest, GitCacheDirectory } from "./publish";
+import type { VideoCaptions } from "./video";
 
 export type { Descendant } from "slate";
 
@@ -91,9 +92,13 @@ export interface PluginServices {
       options?: ServiceOptions & { onProgress?: (progress: MediaProgress) => void }
     ): Promise<{ files: ServiceFile[]; log: string }>;
   };
-  /** 宿主视频解析器（yt-dlp），只查询页面的标题与可下载格式，下载经视频播放源交给宿主。 */
+  /** 宿主视频解析器（yt-dlp）；视频下载经播放源交给宿主。 */
   videoExtractor: {
     probe(url: string, options?: ServiceOptions & { proxy?: string }): Promise<VideoProbeResult>;
+    getCaptions(
+      url: string,
+      options?: ServiceOptions & { proxy?: string }
+    ): Promise<VideoCaptions | null>;
   };
 }
 
@@ -129,6 +134,9 @@ export function bindPluginServices(
       render: bind(adapter?.markdown?.render),
     }),
     ffmpeg: Object.freeze({ run: bind(adapter?.ffmpeg?.run) }),
-    videoExtractor: Object.freeze({ probe: bind(adapter?.videoExtractor?.probe) }),
+    videoExtractor: Object.freeze({
+      probe: bind(adapter?.videoExtractor?.probe),
+      getCaptions: bind(adapter?.videoExtractor?.getCaptions),
+    }),
   });
 }

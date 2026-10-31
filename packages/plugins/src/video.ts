@@ -39,6 +39,18 @@ export interface ResolvedVideo {
   defaultVariant?: number;
 }
 
+export interface VideoCaptionSegment {
+  text: string;
+  /** 相对于视频起点的毫秒时间戳。 */
+  start: number;
+  end: number;
+}
+
+export interface VideoCaptions {
+  language?: string;
+  segments: readonly VideoCaptionSegment[];
+}
+
 export interface VideoInstance {
   /** 同步识别链接是否属于本提供方，不发网络请求。 */
   matches(url: string): boolean;
@@ -46,6 +58,8 @@ export interface VideoInstance {
   /** 稳定的缓存身份（应包含清晰度）；已缓存时宿主不再调用 getPlayback。 */
   cacheKey(ref: VideoRef): string;
   getPlayback(ref: VideoRef, signal: AbortSignal): Promise<VideoPlaybackSource>;
+  /** 读取平台字幕；无字幕返回 null。不提供此能力时可省略，用户仍可手动转录。 */
+  getCaptions?(ref: VideoRef, signal: AbortSignal): Promise<VideoCaptions | null>;
 }
 
 export interface VideoProviderDefinition {

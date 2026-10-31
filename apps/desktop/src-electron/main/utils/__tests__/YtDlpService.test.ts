@@ -5,6 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const spawnMock = vi.fn();
 const rmMock = vi.fn();
 const statMock = vi.fn();
+const readFileMock = vi.fn();
+const writeFileMock = vi.fn();
+const readdirMock = vi.fn();
 
 vi.mock("node:child_process", () => ({
   spawn: (...args: any[]) => spawnMock(...args),
@@ -19,6 +22,10 @@ vi.mock("node:fs/promises", () => ({
   access: vi.fn(),
   mkdir: vi.fn(),
   chmod: vi.fn(),
+  mkdtemp: vi.fn(async () => "/tmp/tau-captions-test"),
+  writeFile: (...args: unknown[]) => writeFileMock(...args),
+  readFile: (...args: unknown[]) => readFileMock(...args),
+  readdir: (...args: unknown[]) => readdirMock(...args),
 }));
 
 import FfmpegService from "../FfmpegService";
@@ -113,15 +120,72 @@ describe("YtDlpService", () => {
     const [bin, args, options] = spawnMock.mock.calls[0];
     expect(bin).toBe("/tmp/yt-dlp");
     expect(args).toEqual([
+      "--ignore-config",
+      "--no-playlist",
       "-J",
       "--no-js-runtimes",
       "--js-runtimes",
       `node:${process.execPath}`,
       "--proxy",
       proxy,
+      "--",
       url,
     ]);
     expect(options.env.ELECTRON_RUN_AS_NODE).toBe("1");
+  });
+
+  it("只下载选定字幕，复用探测信息与代理，完成后清理临时目录", async () => {
+    spawnPlans.push(
+      {
+        code: 0,
+        stdout: JSON.stringify({
+          language: "en",
+          subtitles: { en: [{ ext: "json3", url: "https://cdn.test/sub" }] },
+        }),
+      },
+      { code: 0 }
+    );
+    readdirMock.mockResolvedValue(["info.json", "captions.en.json3"]);
+    readFileMock.mockResolvedValue(
+      JSON.stringify({ events: [{ tStartMs: 10, dDurationMs: 900, segs: [{ utf8: "hello" }] }] })
+    );
+    const result = await YtDlpService.getCaptions(
+      "https://video.test/v",
+      "http://proxy.test:7890",
+      new AbortController().signal
+    );
+    expect(result).toEqual({ language: "en", segments: [{ text: "hello", start: 10, end: 910 }] });
+    const args = spawnMock.mock.calls[1][1];
+    expect(args).toEqual(
+      expect.arrayContaining([
+        "--skip-download",
+        "--write-subs",
+        "--sub-format",
+        "json3",
+        "--sub-langs",
+        "^en$",
+        "--load-info-json",
+        "--proxy",
+        "http://proxy.test:7890",
+      ])
+    );
+    expect(args).not.toContain("--write-auto-subs");
+    expect(writeFileMock).toHaveBeenCalledWith(expect.any(String), expect.any(String), {
+      mode: 0o600,
+    });
+    expect(rmMock).toHaveBeenCalledWith("/tmp/tau-captions-test", { recursive: true, force: true });
+  });
+
+  it("无字幕时不启动下载，取消时不开始探测", async () => {
+    spawnPlans.push({ code: 0, stdout: "{}" });
+    await expect(
+      YtDlpService.getCaptions("https://video.test/v", undefined, new AbortController().signal)
+    ).resolves.toBeNull();
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    await expect(
+      YtDlpService.getCaptions("https://video.test/v", undefined, AbortSignal.abort())
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(spawnMock).toHaveBeenCalledTimes(1);
   });
 
   it("downloadVideo 在格式不可用时应自动回退到 best 格式", async () => {
