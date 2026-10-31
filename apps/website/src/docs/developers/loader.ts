@@ -6,6 +6,9 @@ import type { Descendant } from "slate";
 import type { DocLoader } from "../DocsApp.tsx";
 import { docsMarkdown } from "../editorMarkdown.ts";
 import { TEMPLATE_BLOB_URL, developerDocs, docSlugOfFile } from "./manifest.ts";
+import { stripDocHeader } from "./source.ts";
+
+export { stripDocHeader } from "./source.ts";
 
 const sources = import.meta.glob<string>(
   "../../../../../plugins/tau-plugin-template/docs/**/*.md",
@@ -30,11 +33,6 @@ export function rewriteDocLink(url: string, file: string): string {
   if (path.startsWith("docs/") && path.endsWith(".md"))
     return developerDocs.href(docSlugOfFile(path.slice("docs/".length))) + hash;
   return TEMPLATE_BLOB_URL + path + hash;
-}
-
-/** 去掉同步脚本写在开头的生成注释与一级标题 */
-export function stripDocHeader(markdown: string): string {
-  return markdown.replace(/^(\s*<!--[\s\S]*?-->)*\s*#\s[^\n]*\n/, "");
 }
 
 type LinkLike = { type?: string; url?: string; children?: Descendant[] };

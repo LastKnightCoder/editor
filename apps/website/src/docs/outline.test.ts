@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { docsMarkdown } from "./editorMarkdown.ts";
-import { extractOutline } from "./outline.ts";
+import { extractOutline, headingAnchors } from "./outline.ts";
+
+it("重复标题生成唯一锚点，包含已有数字后缀时仍不冲突", () => {
+  expect(headingAnchors(["安装", "安装", "安装-1", "安装"])).toEqual([
+    "安装",
+    "安装-1",
+    "安装-1-1",
+    "安装-2",
+  ]);
+});
 
 describe("extractOutline", () => {
   it("按正文顺序列出各级标题", () => {

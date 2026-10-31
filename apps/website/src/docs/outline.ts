@@ -25,3 +25,16 @@ export const headingAnchor = (title: string) =>
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s_-]/gu, "")
     .replace(/\s/g, "-");
+
+/** 同名标题按文档顺序追加后缀，搜索与正文定位共用。 */
+export function headingAnchors(titles: string[]): string[] {
+  const used = new Set<string>();
+  return titles.map(title => {
+    const base = headingAnchor(title);
+    let anchor = base;
+    let suffix = 0;
+    while (used.has(anchor)) anchor = `${base}-${++suffix}`;
+    used.add(anchor);
+    return anchor;
+  });
+}

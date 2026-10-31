@@ -9,6 +9,7 @@ import {
   type ReleaseInfo,
 } from "./build/release.ts";
 import { renderSiteNav } from "./build/siteNav.ts";
+import { docsSearchPlugin } from "./build/docsSearch.ts";
 import type { DocCollection, DocEntry } from "./src/docs/collection.ts";
 import { developerDocs } from "./src/docs/developers/manifest.ts";
 import { userDocs } from "./src/docs/manifest.ts";
@@ -129,7 +130,7 @@ function docsPagesPlugin(): Plugin {
 
 export default defineConfig({
   root,
-  plugins: [react(), tailwindcss(), releaseInfoPlugin(), docsPagesPlugin()],
+  plugins: [react(), tailwindcss(), releaseInfoPlugin(), docsPagesPlugin(), docsSearchPlugin()],
   resolve: {
     // 编辑器各包自带的开发依赖里也有 React / Slate，必须收敛到同一份
     dedupe: [
