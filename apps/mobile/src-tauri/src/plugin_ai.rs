@@ -13,7 +13,7 @@ const MAX_SAFE: u64 = 9_007_199_254_740_991;
 const MAX_SESSIONS: usize = 128;
 const MAX_ACTIVE: usize = 128;
 const MAX_STORE_BYTES: u64 = 32 * 1024 * 1024;
-const CAPABILITIES: &[(&str, &str)] = &[("chat", "对话功能"), ("flashcardGeneration", "闪卡制作")];
+const CAPABILITIES: &[(&str, &str)] = &[("chat", "对话功能"), ("flashcardGeneration", "闪卡")];
 
 pub(crate) fn is_capability(value: &str) -> bool {
     CAPABILITIES.iter().any(|(id, _)| *id == value)

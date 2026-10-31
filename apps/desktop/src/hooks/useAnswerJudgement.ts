@@ -5,7 +5,8 @@ import useLLMConfig from "./useLLMConfig";
 import {
   ANSWER_JUDGEMENT_SYSTEM_PROMPT,
   buildAnswerJudgementUserPrompt,
-} from "@/constants/prompts";
+  parseAnswerJudgementResponse,
+} from "@tau/ai/flashcards";
 import { Role } from "@/constants";
 import type { RequestMessage } from "@/types";
 import type { AIJudgementResult, AIJudgementStatus, Flashcard } from "@/types/flashcard";
@@ -20,43 +21,6 @@ interface UseAnswerJudgementResult {
   reset: () => void;
 }
 
-const parseJudgementResponse = (response: string): AIJudgementResult => {
-  // Clean possible markdown code blocks
-  let cleaned = response.trim();
-  if (cleaned.startsWith("```json")) {
-    cleaned = cleaned.slice(7);
-  }
-  if (cleaned.startsWith("```")) {
-    cleaned = cleaned.slice(3);
-  }
-  if (cleaned.endsWith("```")) {
-    cleaned = cleaned.slice(0, -3);
-  }
-  cleaned = cleaned.trim();
-
-  // Try to find JSON object
-  const startIdx = cleaned.indexOf("{");
-  const endIdx = cleaned.lastIndexOf("}");
-  if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-    cleaned = cleaned.slice(startIdx, endIdx + 1);
-  }
-
-  const parsed = JSON.parse(cleaned);
-
-  // Validate required fields
-  if (typeof parsed.score !== "number" || parsed.score < 1 || parsed.score > 10) {
-    throw new Error("Invalid score");
-  }
-
-  return {
-    score: Math.round(parsed.score),
-    comment: parsed.comment || "",
-    highlights: Array.isArray(parsed.highlights) ? parsed.highlights : [],
-    missingPoints: Array.isArray(parsed.missingPoints) ? parsed.missingPoints : [],
-    suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [],
-  };
-};
-
 export const useAnswerJudgement = (): UseAnswerJudgementResult => {
   const [status, setStatus] = useState<AIJudgementStatus>("idle");
   const [result, setResult] = useState<AIJudgementResult | null>(null);
@@ -69,13 +33,13 @@ export const useAnswerJudgement = (): UseAnswerJudgementResult => {
     []
   );
 
-  const { provider, model } = useLLMConfig("aiJudgement");
+  const { provider, model } = useLLMConfig("flashcardGeneration");
   const isConfigured = !!(provider && model);
 
   const judge = useMemoizedFn(async (userAnswer: string, flashcard: Flashcard) => {
     const version = ++requestVersion.current;
     if (!provider || !model) {
-      setError(new Error("未配置答案评判的模型"));
+      setError(new Error("请先在设置中配置闪卡模型"));
       setStatus("error");
       return;
     }
@@ -122,7 +86,7 @@ export const useAnswerJudgement = (): UseAnswerJudgementResult => {
         provider,
         model,
         messages,
-        source: { feature: "aiJudgement" },
+        source: { feature: "flashcardGeneration" },
       });
       if (version !== requestVersion.current) return;
 
@@ -135,7 +99,7 @@ export const useAnswerJudgement = (): UseAnswerJudgementResult => {
         throw new Error("AI 返回空响应");
       }
 
-      const judgementResult = parseJudgementResponse(response);
+      const judgementResult = parseAnswerJudgementResponse(response);
       setResult(judgementResult);
       setStatus("success");
     } catch (err) {

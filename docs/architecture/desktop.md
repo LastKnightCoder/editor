@@ -154,7 +154,7 @@ Mac helper 独立打包在 `bin/darwin/Tau Speech Helper.app`，macOS 26 上采�
 MCP 本机设置只接受带 `transport` 的当前服务器结构，不将旧 `baseUrl/apiKey` 配置转换为传输配置。读取失败保留原存储且不装配服务器；当前提供方默认开关仍按注册表补齐，已保存意图优先。
 
 - `ctx.mcp.register` 可注册多项本地 tools 或外部 transport（stdio / streamable-http），两者互斥。激活成功才发布，失败/停用/切库回收；调用名使用可读的「插件 ID__MCP 局部 ID__工具名」（插件 ID 的点转下划线，工具名的下划线转连字符，MCP ID 与插件 ID 末段相同时省去重复段）；有损输入或超长名称带摘要消歧，名称限制为模型接口支持的字符及 64 字符以内。界面显示「MCP ID:工具名」，不展示内部摘要；逐工具开关使用独立 settingsKey，沿用原 SHA-256 稳定 ID。激活/重连代次进执行身份；执行复核实例、数据库、整项与逐工具开关，合并取消信号、限时 60 秒。MCP 页面与聊天快捷面板经 useMcpServers 同源展示并注明插件来源；外部项复用配置/日志/重连，本地项只展示工具；外部连接绑定窗口，窗口关闭/崩溃断开不改变手动服务器生命周期。
-- 插件 AI 两条路径：自定义功能由 `ai.features` 声明并独立分配模型；`context.ai.requestCapability(name)` 复用应用已有分配。仅开放聊天 `chat` 与闪卡生成 `flashcardGeneration`，其他内置用途保留为应用内部能力。能力名/显示名由 SDK 的 PLUGIN_AI_CAPABILITIES 提供，公开能力必须对应 llmUsageSettings 中的模型分配；新增内置分配不自动对插件开放。PluginHost 统一校验声明、懒申请、逐次检查与撤权取消；主进程 BACKGROUND 模块 plugin-ai 用同一插件额度、并发与审计执行 pi-ai，模型解析前登记取消句柄。chat/stream 支持文本与 user 图片（图片与正文不入审计、总大小有界）；插件设置对宿主能力只显示继承模型与额度。作者用法见 `plugins/tau-plugin-template/docs/ai.md`。
+- 插件 AI 两条路径：自定义功能由 `ai.features` 声明并独立分配模型；`context.ai.requestCapability(name)` 复用应用已有分配。仅开放聊天 `chat` 与闪卡 `flashcardGeneration`，其他内置用途保留为应用内部能力。能力名/显示名由 SDK 的 PLUGIN_AI_CAPABILITIES 提供，公开能力必须对应 llmUsageSettings 中的模型分配；新增内置分配不自动对插件开放。PluginHost 统一校验声明、懒申请、逐次检查与撤权取消；主进程 BACKGROUND 模块 plugin-ai 用同一插件额度、并发与审计执行 pi-ai，模型解析前登记取消句柄。chat/stream 支持文本与 user 图片（图片与正文不入审计、总大小有界）；插件设置对宿主能力只显示继承模型与额度。作者用法见 `plugins/tau-plugin-template/docs/ai.md`。
 
 ### 独立后台
 
@@ -869,6 +869,8 @@ find-by-scope 返回模型身份、真实忙态、当前会话投影与未落盘
 - 作答输入框隔离空格、字母、数字和撤销等按键，外层复习快捷键同时检查事件目标与当前输入焦点；空输入框也不触发复习撤销。问答保留 Ctrl/⌘+Enter 提交、普通 Enter 换行，填空保留 Enter 跳空/提交，输入法组合期间不提交；Esc 仍交给页面浮层仲裁。
 - 暂停与移动在主进程写入成功后更新缓存；失败保留原状态。评分、撤销和暂停互斥，写入期间禁止跳过与结束；AI 评判通过请求版本丢弃换卡后迟到的响应。输入框不自行拦截 Esc，退场统一经页面浮层仲裁。
 - `flashcard:submit-review` 在事务中更新排期并写入复习记录，返回卡片及 `undo` 凭据（记录 ID、主进程读取的评分前排期）。`flashcard:undo-review` 只接受仍指向最新评分的凭据，校验、删除记录与恢复排期在同一事务中完成，拒绝旧凭据与重复撤销。
+
+闪卡制作与简答题答案评判共用 `llmUsageSettings.flashcardGeneration`，设置中只显示「闪卡」，判分的用量也归入该功能。提示词、结果类型与 JSON 校验由 `@tau/ai/flashcards` 与移动端共享。`user-setting.ts` 在设置加载及提交时幂等合并旧 `aiJudgement`：已有闪卡分配优先，未分配时承接旧判分模型，然后删除旧键；加载升级必须成功落盘才发布快照，失败允许重试，不保留运行时双模型回退。历史用量中的旧判分标识继续可读。
 
 ### PDF 列表、阅读页与阅读状态
 

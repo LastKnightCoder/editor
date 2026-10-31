@@ -82,7 +82,7 @@ export default function useFlashcardCreation(options: UseFlashcardCreationOption
   // 打开 AI 制卡
   const openAiFlashcard = useMemoizedFn(() => {
     if (!options.generate && (!flashcardLLMProviderSetting || !flashcardLLMModelSetting)) {
-      toast.error("请先在设置中配置闪卡生成的模型");
+      toast.error("请先在设置中配置闪卡模型");
       onFinish(false);
       return;
     }

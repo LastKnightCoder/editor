@@ -147,7 +147,7 @@ describe("插件 AI 主进程边界", () => {
       expect.any(Function),
       expect.any(Function)
     );
-    expect(audits[0]).toMatchObject({ pluginId: "native.cards", pluginFeatureName: "闪卡制作" });
+    expect(audits[0]).toMatchObject({ pluginId: "native.cards", pluginFeatureName: "闪卡" });
     await expect(service.run(1, session, "native-2", input, vi.fn())).rejects.toThrow(
       "AI_QUOTA_EXCEEDED"
     );
@@ -161,7 +161,7 @@ describe("插件 AI 主进程边界", () => {
     deps.hostModel = async () => null;
     await expect(
       service.run(1, session, "1", { ...request, feature: "flashcardGeneration" }, vi.fn())
-    ).rejects.toThrow("应用设置中分配闪卡制作模型");
+    ).rejects.toThrow("应用设置中分配闪卡模型");
     await expect(
       service.run(2, session, "2", { ...request, feature: "flashcardGeneration" }, vi.fn())
     ).rejects.toThrow("AI_DISABLED");

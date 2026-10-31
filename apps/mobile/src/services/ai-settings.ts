@@ -12,7 +12,7 @@ import { mutateAiSettings } from "./tauri";
 /** 设置页列出的功能分配，键与桌面 llmUsageSettings 一致 */
 export const LLM_FEATURES: ReadonlyArray<{ key: LlmFeatureKey; label: string; desc: string }> = [
   { key: "chat", label: "对话", desc: "聊天、提问笔记、整理内容" },
-  { key: "flashcardGeneration", label: "闪卡制作", desc: "从资料生成题目、答案与解析" },
+  { key: "flashcardGeneration", label: "闪卡", desc: "制作闪卡与简答题答案评判" },
   { key: "speechInputRefinement", label: "语音输入整理", desc: "识别后补标点、去口头禅" },
 ];
 

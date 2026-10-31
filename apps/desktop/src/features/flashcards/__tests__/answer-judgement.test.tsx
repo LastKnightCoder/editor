@@ -1,4 +1,5 @@
 import useAnswerJudgement from "@/hooks/useAnswerJudgement";
+import useLLMConfig from "@/hooks/useLLMConfig";
 import { piCompleteChat } from "@/services/piLLM";
 import type { Flashcard } from "@/types";
 import { act } from "react";
@@ -9,7 +10,7 @@ vi.mock("@/services/piLLM", () => ({
   piCompleteChat: vi.fn(),
 }));
 vi.mock("@/hooks/useLLMConfig", () => ({
-  default: () => ({
+  default: vi.fn(() => ({
     provider: {
       id: "p",
       name: "p",
@@ -19,7 +20,7 @@ vi.mock("@/hooks/useLLMConfig", () => ({
       models: [],
     },
     model: { id: "m", reasoning: false, input: ["text"], contextWindow: 128_000, maxTokens: 8_192 },
-  }),
+  })),
 }));
 
 let root: Root;
@@ -59,6 +60,10 @@ it("换卡重置后丢弃上一张迟到的 AI 评判", async () => {
     pending = judgement.judge("回答", card);
   });
   expect(judgement.status).toBe("loading");
+  expect(useLLMConfig).toHaveBeenCalledWith("flashcardGeneration");
+  expect(piCompleteChat).toHaveBeenCalledWith(
+    expect.objectContaining({ source: { feature: "flashcardGeneration" } })
+  );
   await act(async () => judgement.reset());
   await act(async () => {
     finish(JSON.stringify({ score: 10 }));

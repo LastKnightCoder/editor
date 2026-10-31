@@ -73,7 +73,7 @@ export function PluginFlashcardAiCreation({
               />
             </label>
             <p className="text-ink-3 text-tau-sm">
-              使用「AI 模型」中为「闪卡制作」分配的模型。生成后可逐张编辑保存。
+              使用「AI 模型」中为「闪卡」分配的模型。生成后可逐张编辑保存。
             </p>
             {generation.error && (
               <p role="alert" className="text-danger text-tau-sm">
