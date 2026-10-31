@@ -154,6 +154,11 @@ const DEVELOPER_GROUPS: DocGroup[] = [
         summary: "用你接入的模型生成或编辑图片。",
       },
       {
+        slug: "providers/embeddings",
+        title: "嵌入模型",
+        summary: "用你接入的模型为笔记建立语义索引。",
+      },
+      {
         slug: "providers/video",
         title: "视频来源",
         summary: "从视频网站或自建服务添加视频。",
