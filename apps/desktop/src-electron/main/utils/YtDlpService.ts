@@ -7,7 +7,9 @@ import * as path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { HttpsProxyAgent } from "https-proxy-agent";
 import log from "electron-log";
-import type { VideoFormat, VideoProbeResult } from "@tau/plugins";
+import type { VideoCaptions, VideoFormat, VideoProbeResult } from "@tau/plugins";
+import { parseJson3Captions, selectCaptionTrack, type SubtitleInfo } from "./video-captions";
+import { waitForCompiler } from "../services/compiler-process";
 import PathUtil from "./PathUtil";
 import FfmpegService from "./FfmpegService";
 
@@ -42,7 +44,7 @@ interface RawFormat {
   url?: string;
 }
 
-interface RawYtDlpInfo {
+interface RawYtDlpInfo extends SubtitleInfo {
   formats?: RawFormat[];
   title?: string;
   fulltitle?: string;
@@ -141,6 +143,48 @@ export default class YtDlpService {
       duration: info.duration,
       formats,
     };
+  }
+
+  static async getCaptions(
+    url: string,
+    proxy: string | undefined,
+    signal: AbortSignal
+  ): Promise<VideoCaptions | null> {
+    const info = await this.fetchRawInfo(url, proxy, signal);
+    signal.throwIfAborted();
+    const track = selectCaptionTrack(info);
+    if (!track) return null;
+    const directory = await fs.mkdtemp(path.join(os.tmpdir(), "tau-video-captions-"));
+    try {
+      const infoFile = path.join(directory, "info.json");
+      await fs.writeFile(infoFile, JSON.stringify(info), { mode: 0o600 });
+      const bin = await waitForCompiler(() => this.ensureBinary(proxy), signal);
+      const args = [
+        "--ignore-config",
+        "--no-playlist",
+        "--skip-download",
+        track.automatic ? "--write-auto-subs" : "--write-subs",
+        "--sub-langs",
+        `^${track.language.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+        "--sub-format",
+        "json3",
+        "--load-info-json",
+        infoFile,
+        "--output",
+        path.join(directory, "captions.%(ext)s"),
+        ...this.buildJsRuntimeArgs(),
+      ];
+      if (proxy) args.push("--proxy", proxy);
+      await this.exec(bin, args, signal);
+      signal.throwIfAborted();
+      const files = (await fs.readdir(directory)).filter(file => file.endsWith(".json3"));
+      if (!files.length) return null;
+      const file = path.join(directory, files[0]);
+      if ((await fs.stat(file)).size > 8 * 1024 * 1024) throw new Error("字幕文件过大");
+      return parseJson3Captions(JSON.parse(await fs.readFile(file, "utf-8")), track.language);
+    } finally {
+      await fs.rm(directory, { recursive: true, force: true });
+    }
   }
 
   static async downloadVideo(
@@ -343,41 +387,59 @@ export default class YtDlpService {
     });
   }
 
-  private static async exec(bin: string, args: string[]): Promise<ExecResult> {
+  private static async exec(
+    bin: string,
+    args: string[],
+    signal?: AbortSignal
+  ): Promise<ExecResult> {
+    signal?.throwIfAborted();
     return new Promise((resolve, reject) => {
-      log.info(`[YtDlp] Exec command: ${bin} ${args.join(" ")}`);
       const child = spawn(bin, args, {
         stdio: ["ignore", "pipe", "pipe"],
         env: this.getYtDlpSpawnEnv(),
       });
       let stdout = "";
       let stderr = "";
+      let failure: Error | undefined;
+      const cancel = () => child.kill("SIGKILL");
+      signal?.addEventListener("abort", cancel, { once: true });
       child.stdout.on("data", chunk => {
-        const text = chunk.toString();
-        log.info(`[YtDlp] Exec stdout: ${text}`);
-        stdout += text;
-        log.info(`[YtDlp] Exec stdout: ${stdout}`);
+        stdout += chunk.toString();
+        if (stdout.length > 8 * 1024 * 1024) {
+          failure = new Error("视频探测输出过大");
+          cancel();
+        }
       });
       child.stderr.on("data", chunk => {
-        stderr += chunk.toString();
-        log.info(`[YtDlp] Exec stderr: ${stderr}`);
+        stderr = (stderr + chunk.toString()).slice(-65536);
       });
-      child.once("error", reject);
+      child.once("error", error => {
+        signal?.removeEventListener("abort", cancel);
+        reject(error);
+      });
       child.once("close", code => {
-        if (code === 0) resolve({ stdout, stderr });
+        signal?.removeEventListener("abort", cancel);
+        if (signal?.aborted) reject(signal.reason);
+        else if (failure) reject(failure);
+        else if (code === 0) resolve({ stdout, stderr });
         else reject(new Error(stderr || `yt-dlp exited with code ${code}`));
       });
+      if (signal?.aborted) cancel();
     });
   }
 
-  private static async fetchRawInfo(url: string, proxy?: string): Promise<RawYtDlpInfo> {
-    const bin = await this.ensureBinary(proxy);
-    const args = ["-J", ...this.buildJsRuntimeArgs()];
+  private static async fetchRawInfo(
+    url: string,
+    proxy?: string,
+    signal?: AbortSignal
+  ): Promise<RawYtDlpInfo> {
+    const bin = signal
+      ? await waitForCompiler(() => this.ensureBinary(proxy), signal)
+      : await this.ensureBinary(proxy);
+    const args = ["--ignore-config", "--no-playlist", "-J", ...this.buildJsRuntimeArgs()];
     if (proxy) args.push("--proxy", proxy);
-    args.push(url);
-
-    log.info(`[YtDlp] Fetch info command: ${args}`);
-    const { stdout } = await this.exec(bin, args);
+    args.push("--", url);
+    const { stdout } = await this.exec(bin, args, signal);
     return JSON.parse(stdout) as RawYtDlpInfo;
   }
 

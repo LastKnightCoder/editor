@@ -2,6 +2,7 @@ import path from "node:path";
 import os from "node:os";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import FfmpegService from "../utils/FfmpegService";
+import YtDlpService from "../utils/YtDlpService";
 import { runCompilerWorker, runMediaProcess, waitForCompiler } from "./compiler-process";
 import type { CompilerFile, CompilerRequest } from "../../../src/types/plugin-services";
 import themeCss from "@tau/themes/tailwind.css?raw";
@@ -25,6 +26,8 @@ export async function executePluginCompiler(
   progress: (time: number) => void
 ): Promise<unknown> {
   signal.throwIfAborted();
+  if (request.kind === "video-captions")
+    return YtDlpService.getCaptions(request.url, request.proxy, signal);
   if (request.kind === "tailwind" && !request.source.trim()) return { css: "" };
   const directory = await mkdtemp(path.join(os.tmpdir(), "tau-plugin-service-"));
   try {

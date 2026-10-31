@@ -46,6 +46,37 @@ describe("VideoNoteTable.deleteVideoNote", () => {
     db.close();
   });
 
+  it("平台字幕只填充原空白笔记，不覆盖已有结果或来源变化后的笔记", () => {
+    const note = VideoNoteTable.createEmptyVideoNote(db, { type: "local", filePath: "/v.mp4" });
+    const captions = { segments: [{ text: "平台字幕", start: 100, end: 900 }] };
+    expect(
+      VideoNoteTable.importCaptions(db, {
+        id: note.id,
+        expectedUpdateTime: note.updateTime - 1,
+        captions,
+      })
+    ).toBeNull();
+    const saved = VideoNoteTable.importCaptions(db, {
+      id: note.id,
+      expectedUpdateTime: note.updateTime,
+      captions,
+    });
+    expect(saved).toMatchObject({ transcript: "平台字幕", transcriptSegments: captions.segments });
+    const manual = VideoNoteTable.updateTranscript(db, {
+      id: note.id,
+      transcript: "自行转录",
+      transcriptSegments: [{ text: "自行转录", start: 0, end: 1000 }],
+    });
+    expect(
+      VideoNoteTable.importCaptions(db, {
+        id: note.id,
+        expectedUpdateTime: manual.updateTime,
+        captions,
+      })
+    ).toBeNull();
+    expect(VideoNoteTable.getVideoNoteById(db, note.id).transcript).toBe("自行转录");
+  });
+
   it("删除视频笔记时应清理卡片内容、聊天记录与索引清理调用", () => {
     const videoNote = VideoNoteTable.createEmptyVideoNote(db, {
       type: "local",

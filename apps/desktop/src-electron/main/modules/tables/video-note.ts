@@ -2,6 +2,7 @@ import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
 import { basename } from "node:path";
 import { VideoNote } from "@/types";
+import type { VideoCaptions } from "@tau/plugins";
 import Operation from "./operation";
 import VideoNoteItemTable from "./video-note-item";
 import ChatSessionTable from "./chat-session";
@@ -31,6 +32,7 @@ export default class VideoNoteTable {
       "get-all-video-notes": this.getAllVideoNotes.bind(this),
       "update-video-note-description": this.updateDescription.bind(this),
       "update-video-note-transcript": this.updateTranscript.bind(this),
+      "import-video-note-captions": this.importCaptions.bind(this),
       "update-video-note-summary": this.updateSummary.bind(this),
       "update-video-note-highlights": this.updateHighlights.bind(this),
       "update-video-note-insights": this.updateInsights.bind(this),
@@ -159,6 +161,25 @@ export default class VideoNoteTable {
     `);
     stmt.run(now, payload.description, payload.id);
     return this.getVideoNoteById(db, payload.id);
+  }
+
+  static importCaptions(
+    db: Database.Database,
+    payload: { id: number; expectedUpdateTime: number; captions: VideoCaptions }
+  ): VideoNote | null {
+    const note = this.getVideoNoteById(db, payload.id);
+    if (
+      !note ||
+      note.updateTime !== payload.expectedUpdateTime ||
+      note.transcript?.trim() ||
+      note.transcriptSegments?.length
+    )
+      return null;
+    return this.updateTranscript(db, {
+      id: payload.id,
+      transcript: payload.captions.segments.map(segment => segment.text).join(" "),
+      transcriptSegments: [...payload.captions.segments],
+    });
   }
 
   static updateTranscript(

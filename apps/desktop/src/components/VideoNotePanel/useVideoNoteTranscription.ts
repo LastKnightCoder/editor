@@ -33,6 +33,7 @@ import {
 } from "@/types";
 import { onlineVideoRef } from "@/types/online-video";
 import { resolveVideoNoteOptimizationLanguage } from "./transcription-language";
+import { useVideoNoteCaptions } from "./useVideoNoteCaptions";
 
 export interface TranscriptPatch {
   transcript: string;
@@ -70,6 +71,7 @@ export function useVideoNoteTranscription({
   } = useTranscriptionOptimization(provider, model);
 
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const isLoadingCaptions = useVideoNoteCaptions(videoNote, isTranscribing, onTranscriptSaved);
   const [progress, setProgress] = useState("");
   const [pendingWordSegments, setPendingWordSegments] = useState<TranscriptSegment[] | null>(null);
   const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
@@ -281,8 +283,8 @@ export function useVideoNoteTranscription({
   });
 
   return {
-    isTranscribing,
-    progress,
+    isTranscribing: isTranscribing || isLoadingCaptions,
+    progress: isLoadingCaptions ? "正在读取平台字幕…" : progress,
     isOptimizing,
     streamingSegments,
     canOptimize: !!videoNote?.transcriptWordSegments?.length,

@@ -1,5 +1,11 @@
 # 更新记录
 
+## 0.52.0
+
+- 插件可申请的内置 AI 能力按当前宿主契约收敛为 `chat` 与 `flashcardGeneration`，相应 `ai:*` 权限同步收敛；其他需求通过插件自定义 AI 功能声明。
+- 视频实例新增可选 `getCaptions(ref, signal)`，返回 `VideoCaptions | null`；字幕片段使用毫秒时间戳，无可用字幕返回 null。视频笔记优先读取字幕，已有结果保留，用户仍可手动重新转录。
+- `context.services.videoExtractor.getCaptions(url, { proxy?, signal? })` 通过宿主解析器读取一条平台字幕，优先人工字幕与原语言，支持代理、取消与临时文件回收；目前支持 JSON3 字幕轨。该服务只在已接入字幕能力的桌面客户端提供。
+
 ## 0.51.0
 
 - 新增 `context.speech` 语音输入：`unavailableReason()` 判断能否录音，`start({ signal, onPreview })` 返回 `{ result, stop, cancel }`，识别方式沿用应用的语音输入设置。需要在 manifest 声明新权限 `speech:input`，首次调用时询问用户；宿主未接入时 `start` 抛 `SPEECH_UNAVAILABLE`。新增宿主接口 `SpeechAdapter`。

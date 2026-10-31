@@ -5,6 +5,7 @@ export interface CompilerFile {
 
 export type CompilerRequest =
   | { kind: "tailwind"; source: string; language: string }
+  | { kind: "video-captions"; url: string; proxy?: string }
   | {
       kind: "ffmpeg";
       files: CompilerFile[];
@@ -13,4 +14,5 @@ export type CompilerRequest =
     };
 
 export type CompilerReply<T> =
-  { ok: true; value: T } | { ok: false; name: string; message: string };
+  | { ok: true; value: T }
+  | { ok: false; name: string; message: string };
