@@ -32,7 +32,8 @@ const openInsertWebviewModal = (editor: Editor) => {
   render(true);
 };
 
-const blockPanelItems: IBlockPanelListItem[] = [
+// 打开菜单时读取图标，避免生产分块的循环依赖提前固化未初始化的导入。
+const blockPanelItems = (): IBlockPanelListItem[] => [
   {
     icon: Globe,
     title: "网页",
