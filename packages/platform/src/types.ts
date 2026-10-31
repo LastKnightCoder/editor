@@ -54,6 +54,8 @@ export interface SystemNotificationAction {
   primary?: boolean;
   /** 作答成功后的结果行文案；不给则直接退场 */
   resolvedText?: string;
+  /** 在系统通知窗口点击时先把来源窗口带到前台（「查看」类按钮） */
+  reveal?: boolean;
 }
 
 /** 通知载荷：主进程裁决路由后在系统通知窗口 / 应用内卡栈 / 原窗口之间传递 */
