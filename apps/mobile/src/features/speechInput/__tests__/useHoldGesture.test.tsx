@@ -16,13 +16,20 @@ function pointer(type: string, init: { pointerId?: number; x?: number; y?: numbe
 }
 
 /** ✕ 位于 (100,100)-(150,150) */
-const CANCEL_RECT = { left: 100, top: 100, right: 150, bottom: 150, width: 50, height: 50 };
+const CANCEL_RECT = {
+  left: 100,
+  top: 100,
+  right: 150,
+  bottom: 150,
+  width: 50,
+  height: 50,
+};
 
 let latest: ReturnType<typeof useHoldGesture>;
 
-function Harness({ handlers }: { handlers: HoldGestureHandlers }) {
+function Harness({ handlers, immediate }: { handlers: HoldGestureHandlers; immediate?: boolean }) {
   const cancelRef = useRef<HTMLDivElement | null>(null);
-  latest = useHoldGesture(handlers, cancelRef);
+  latest = useHoldGesture(handlers, cancelRef, { immediate });
   return (
     <>
       <button type="button" data-testid="trigger" {...latest.bind} />
@@ -61,7 +68,12 @@ describe("useHoldGesture", () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    handlers = { onHoldStart: vi.fn(), onRelease: vi.fn(), onCancel: vi.fn(), onTap: vi.fn() };
+    handlers = {
+      onHoldStart: vi.fn(),
+      onRelease: vi.fn(),
+      onCancel: vi.fn(),
+      onTap: vi.fn(),
+    };
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
@@ -156,6 +168,51 @@ describe("useHoldGesture", () => {
     onWindow("pointerup");
     expect(handlers.onRelease).not.toHaveBeenCalled();
     expect(handlers.onTap).not.toHaveBeenCalled();
+  });
+
+  describe("immediate：按下即开始录音", () => {
+    const remount = () =>
+      act(() => root.render(<Harness handlers={handlers as HoldGestureHandlers} immediate />));
+
+    it("按下立即触发 onHoldStart，pressed 立即为真、holding 等到按住时长", () => {
+      remount();
+      press();
+      expect(handlers.onHoldStart).toHaveBeenCalledTimes(1);
+      expect(latest.pressed).toBe(true);
+      expect(latest.holding).toBe(false);
+      hold();
+      expect(latest.holding).toBe(true);
+      expect(handlers.onHoldStart).toHaveBeenCalledTimes(1);
+      onWindow("pointerup", { x: 10, y: 10 });
+      expect(handlers.onRelease).toHaveBeenCalledTimes(1);
+      expect(latest.pressed).toBe(false);
+    });
+
+    it("不足按住时长松手仍视为轻点，录音已开始由调用方处理", () => {
+      remount();
+      press();
+      onWindow("pointerup", { x: 10, y: 10 });
+      expect(handlers.onTap).toHaveBeenCalledTimes(1);
+      expect(handlers.onRelease).not.toHaveBeenCalled();
+      expect(handlers.onCancel).not.toHaveBeenCalled();
+    });
+
+    it("按住时长内就滑到 ✕ 松手，按取消处理", () => {
+      remount();
+      press();
+      onWindow("pointermove", { x: 120, y: 120 });
+      expect(latest.cancelArmed).toBe(true);
+      onWindow("pointerup", { x: 120, y: 120 });
+      expect(handlers.onCancel).toHaveBeenCalledTimes(1);
+      expect(handlers.onTap).not.toHaveBeenCalled();
+    });
+
+    it("pointercancel 在录音开始后即取消", () => {
+      remount();
+      press();
+      onWindow("pointercancel");
+      expect(handlers.onCancel).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("卸载后移除 window 监听并清掉计时器", () => {

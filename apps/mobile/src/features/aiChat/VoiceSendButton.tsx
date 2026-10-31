@@ -26,7 +26,10 @@ export function HoldToTalkBar(props: {
     onPreview: () => undefined,
     onCommit: text => onSendRef.current(text),
     onError: error =>
-      toast({ type: "error", text: error instanceof Error ? error.message : "语音输入失败" }),
+      toast({
+        type: "error",
+        text: error instanceof Error ? error.message : "语音输入失败",
+      }),
   });
   const gesture = useHoldGesture(
     {
@@ -40,17 +43,17 @@ export function HoldToTalkBar(props: {
       },
       onRelease: session.finish,
       onCancel: session.cancel,
-      onTap: () =>
-        toast.info({
-          id: HINT_ID,
-          text: unavailableReason ?? "按住说话，松手发送",
-          duration: 1800,
-        }),
+      // 按下时已开始录音，按得太短不发送
+      onTap: () => {
+        session.cancel();
+        toast.info({ id: HINT_ID, text: "按住说话，松手发送", duration: 1800 });
+      },
     },
-    cancelTargetRef
+    cancelTargetRef,
+    { immediate: true }
   );
   const active = session.phase === "connecting" || session.phase === "listening";
-  const holding = gesture.holding;
+  const holding = gesture.pressed;
   return (
     <>
       <button

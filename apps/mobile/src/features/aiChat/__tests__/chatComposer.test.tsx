@@ -28,7 +28,11 @@ vi.mock("../../speechInput/speechService", () => ({
   useSpeechUnavailableReason: () => speech.unavailable,
 }));
 vi.mock("../../../components/toast", () => ({
-  toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn(), info: vi.fn() }),
+  toast: Object.assign(vi.fn(), {
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+  }),
 }));
 vi.mock("../../cards/editorExtensions/ContentLinkPickerSheet", () => ({
   ContentLinkPickerSheet: () => null,
@@ -94,27 +98,34 @@ it("语音模式下按住录音，松手把识别结果直接发送", async () =
   act(() => byLabel("切换到语音输入")!.click());
   const bar = byLabel("按住说话")!;
   pointer(bar, "pointerdown");
-  await act(async () => vi.advanceTimersByTimeAsync(HOLD_DELAY_MS + 10));
   expect(speech.service.start).toHaveBeenCalledTimes(1);
   expect(bar.textContent).toBe("松开 发送");
+  await act(async () => vi.advanceTimersByTimeAsync(HOLD_DELAY_MS + 10));
   pointer(bar, "pointerup");
   await act(async () => vi.advanceTimersByTimeAsync(10));
-  expect(onSend).toHaveBeenCalledWith({ text: "明天提醒我交周报", mentions: [], images: [] });
+  expect(onSend).toHaveBeenCalledWith({
+    text: "明天提醒我交周报",
+    mentions: [],
+    images: [],
+  });
 });
 
-it("短按只提示手势；识别服务不可用时按住也不录音并提示原因", async () => {
+it("短按取消录音、不发送并提示手势；识别服务不可用时按下不录音并提示原因", async () => {
   mount();
   act(() => byLabel("切换到语音输入")!.click());
   const bar = byLabel("按住说话")!;
   pointer(bar, "pointerdown");
   pointer(bar, "pointerup");
-  expect(speech.service.start).not.toHaveBeenCalled();
+  await act(async () => vi.advanceTimersByTimeAsync(10));
+  expect(speech.service.start).toHaveBeenCalledTimes(1);
+  expect(onSend).not.toHaveBeenCalled();
+  expect(bar.textContent).toBe("按住 说话");
   expect(toast.info).toHaveBeenCalledWith(expect.objectContaining({ text: "按住说话，松手发送" }));
 
+  speech.service.start.mockClear();
   speech.unavailable = "识别插件账号尚未配置";
   mount();
   pointer(byLabel("按住说话")!, "pointerdown");
-  await act(async () => vi.advanceTimersByTimeAsync(HOLD_DELAY_MS + 10));
   expect(speech.service.start).not.toHaveBeenCalled();
   expect(toast.info).toHaveBeenLastCalledWith(
     expect.objectContaining({ text: "识别插件账号尚未配置" })

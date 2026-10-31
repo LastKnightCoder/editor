@@ -236,8 +236,9 @@ describe("语音面板", () => {
     expect(Node.string(editor.children[1])).toBe("");
   });
 
-  it("按住说：松手写入；上滑到 ✕ 松手取消", async () => {
+  it("按住说：按下即开始录音，松手写入；上滑到 ✕ 松手取消", async () => {
     act(() => pointer("pointerdown", mic()));
+    expect(mocks.start).toHaveBeenCalledTimes(1);
     act(() => vi.advanceTimersByTime(HOLD_DELAY_MS));
     await flush();
     const cancelTarget = document.querySelector<HTMLElement>('[aria-label="上滑到此处取消"]')!;
