@@ -157,7 +157,16 @@ export function PanContainer(props: PanContainerProps) {
     setTransition(nextTransition);
   });
 
+  const clearOffsetRaf = useMemoizedFn(() => {
+    if (offsetRafRef.current !== null) {
+      window.cancelAnimationFrame(offsetRafRef.current);
+      offsetRafRef.current = null;
+    }
+    pendingOffsetRef.current = null;
+  });
+
   const animateOffset = useMemoizedFn((targetOffset: number) => {
+    clearOffsetRaf();
     const current = offsetRef.current;
     setTransitionMode(targetOffset > current ? TRANSITION_DOWN : TRANSITION_UP);
     setOffset(targetOffset);
@@ -171,6 +180,7 @@ export function PanContainer(props: PanContainerProps) {
       const pending = pendingOffsetRef.current;
       if (pending === null) return;
       pendingOffsetRef.current = null;
+      offsetRef.current = pending;
       setOffset(pending);
     });
   });
@@ -192,6 +202,7 @@ export function PanContainer(props: PanContainerProps) {
   });
 
   const beginDrag = useMemoizedFn((clientY: number, pointerId: number | null) => {
+    clearOffsetRaf();
     setTransitionMode("none");
     dragRef.current = {
       active: true,
@@ -251,6 +262,9 @@ export function PanContainer(props: PanContainerProps) {
     clearTouchListeners();
     const session = dragRef.current;
     if (!session.active) return;
+    // 松手时最后一次移动可能尚未绘制，先取最新位置，再清掉可能覆盖吸附结果的旧帧。
+    const releaseOffset = pendingOffsetRef.current ?? offsetRef.current;
+    clearOffsetRaf();
     dragRef.current.active = false;
 
     if (!session.dragging) {
@@ -262,7 +276,7 @@ export function PanContainer(props: PanContainerProps) {
     const decision = resolveReleaseDecision({
       layout,
       startState: session.startState,
-      offset: offsetRef.current,
+      offset: releaseOffset,
       deltaY: session.latestY - session.startY,
       velocityY: session.velocityY,
       thresholdPx: props.snapThresholdPx ?? 56,
@@ -324,6 +338,9 @@ export function PanContainer(props: PanContainerProps) {
 
   useEffect(() => {
     if (props.open || !shouldRender) return;
+    clearOffsetRaf();
+    clearTouchListeners();
+    dragRef.current.active = false;
     setIsDragging(false);
     setTransitionMode(EXIT_TRANSITION);
     setOffset(layout.viewportHeight);
@@ -336,7 +353,14 @@ export function PanContainer(props: PanContainerProps) {
         closeTimerRef.current = null;
       }
     };
-  }, [layout.viewportHeight, props.open, setTransitionMode, shouldRender]);
+  }, [
+    clearOffsetRaf,
+    clearTouchListeners,
+    layout.viewportHeight,
+    props.open,
+    setTransitionMode,
+    shouldRender,
+  ]);
 
   useEffect(() => {
     if (!props.open || !shouldRender || isDragging) return;
@@ -345,10 +369,12 @@ export function PanContainer(props: PanContainerProps) {
       animateState(nextState);
       return;
     }
+    clearOffsetRaf();
     setTransitionMode("none");
     setOffset(layout.offsets[activeStateRef.current]);
   }, [
     animateState,
+    clearOffsetRaf,
     isDragging,
     layout.enabledStates,
     layout.offsets,
@@ -382,12 +408,10 @@ export function PanContainer(props: PanContainerProps) {
       if (closeTimerRef.current) {
         window.clearTimeout(closeTimerRef.current);
       }
-      if (offsetRafRef.current !== null) {
-        window.cancelAnimationFrame(offsetRafRef.current);
-      }
+      clearOffsetRaf();
       clearTouchListeners();
     };
-  }, [clearTouchListeners]);
+  }, [clearOffsetRaf, clearTouchListeners]);
 
   const timelineCssVars: CSSProperties = {
     "--pan-progress-overall": timeline.overallProgress,
