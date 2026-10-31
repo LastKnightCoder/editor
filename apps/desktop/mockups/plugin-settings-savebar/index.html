@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>插件设置 · 悬浮保存条与离开确认</title>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+  /* 取值与 @tau/themes paper 浅/深同源 */
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-surface-hover: #f6f3ef;
+    --bg-hover: rgba(67, 57, 44, 0.05); --bg-selected: rgba(217, 119, 87, 0.12);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+    --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.75);
+    --accent: hsl(22 58% 42%); --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+    --ok: #61795f; --ok-soft: #e5ede2; --danger: #b0564d; --danger-soft: #f6e3e0;
+    --tag-4: #8a6fa6; --tag-4-soft: #efe8f4;
+    --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+    --shadow-float: 0 1px 2px rgba(120, 100, 70, 0.08), 0 14px 32px -12px rgba(120, 100, 70, 0.32);
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --stage: #e8e1d1; --scrim: rgba(40, 30, 20, 0.28);
+  }
+  [data-theme="dark"] {
+    --bg-page: #221d16; --bg-surface: #2e2820; --bg-surface-hover: #39332b;
+    --bg-hover: rgba(236, 226, 208, 0.06); --bg-selected: hsla(22, 62%, 65%, 0.2);
+    --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+    --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+    --accent: hsl(22 62% 65%); --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+    --ok: #8cab87; --ok-soft: #243023; --danger: #d97e66; --danger-soft: #34201a;
+    --tag-4: #b59ad0; --tag-4-soft: #2c2433;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+    --shadow-float: 0 1px 2px rgba(0, 0, 0, 0.3), 0 16px 36px -12px rgba(0, 0, 0, 0.65);
+    --stage: #15110c; --scrim: rgba(0, 0, 0, 0.5);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--stage); color: var(--ink-1);
+    font: 13px/1.65 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 36px 3vw 80px; }
+  svg.lucide { width: 1em; height: 1em; stroke-width: 1.75; flex: none; }
+  .mono { font-family: var(--mono); font-size: 12px; }
+  .intro { max-width: 1100px; }
+  .intro h1 { font-size: 20px; font-weight: 600; }
+  .intro h3 { font-size: 14.5px; font-weight: 600; margin: 18px 0 6px; }
+  .intro p, .intro li { color: var(--ink-2); max-width: 110ch; }
+  .intro ul { margin-left: 18px; } .intro li { margin-top: 3px; } .intro b { color: var(--ink-1); font-weight: 600; }
+  .cmp { margin-top: 10px; border-collapse: collapse; font-size: 12.5px; }
+  .cmp th, .cmp td { text-align: left; padding: 7px 18px 7px 0; vertical-align: top; border-bottom: 1px solid var(--line-1); }
+  .cmp th { color: var(--ink-3); font-weight: 500; } .cmp td { color: var(--ink-2); }
+  .cmp td:first-child { color: var(--ink-1); font-weight: 500; white-space: nowrap; }
+  .toolbar { display: flex; gap: 18px; align-items: center; margin: 28px 0 8px; font-size: 12.5px; color: var(--ink-2); flex-wrap: wrap; }
+  .pills { display: flex; gap: 4px; flex-wrap: wrap; }
+  .pills button { font: inherit; border: 0; cursor: pointer; padding: 4px 12px; border-radius: 99px; background: var(--bg-hover); color: var(--ink-1); }
+  .pills button.on { background: var(--ink-1); color: var(--ink-inverse); }
+  .frame { margin-top: 30px; }
+  .frame-h { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .frame-h h2 { font-size: 16px; font-weight: 600; }
+  .frame-h .tag { font-size: 11.5px; padding: 1px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent-text); }
+  .frame-body { display: grid; grid-template-columns: 860px minmax(260px, 380px); gap: 28px; align-items: start; }
+  .notes { font-size: 12.5px; color: var(--ink-2); }
+  .notes li { margin: 0 0 8px 16px; } .notes b { color: var(--ink-1); font-weight: 600; }
+
+  /* ---------- 应用窗口：侧栏 + 可滚动主栏 ---------- */
+  .win { height: 640px; border-radius: 14px; overflow: hidden; background: var(--bg-page); display: grid;
+    grid-template-columns: 168px 1fr; box-shadow: var(--shadow-card); position: relative; }
+  .side { padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--line-1); }
+  .side a { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; color: var(--ink-2);
+    font-size: 12.5px; cursor: pointer; text-decoration: none; }
+  .side a:hover { background: var(--bg-hover); }
+  .side a.on { background: var(--bg-selected); color: var(--ink-1); font-weight: 500; }
+  .main { overflow-y: auto; padding: 18px 22px 0; position: relative; }
+  .paper { background: var(--bg-surface); box-shadow: var(--shadow-card); border-radius: 16px; padding: 20px 26px 0 28px;
+    min-height: calc(100% - 18px); display: flex; flex-direction: column; }
+  .ph { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .ph .logo { width: 38px; height: 38px; border-radius: 11px; background: var(--tag-4-soft); color: var(--tag-4);
+    display: grid; place-items: center; font-size: 18px; }
+  .ph b { font-size: 16px; font-weight: 600; display: block; } .ph small { color: var(--ink-2); font-size: 12px; }
+  .tabs { display: flex; gap: 22px; border-bottom: 1px solid var(--line-1); margin-bottom: 18px; color: var(--ink-2); font-size: 13.5px; }
+  .tabs span { padding: 0 2px 9px; cursor: pointer; } .tabs .on { color: var(--ink-1); font-weight: 500; box-shadow: inset 0 -2px var(--accent); }
+  .tabs .on.dirty::after { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 99px;
+    background: var(--accent); margin-left: 6px; vertical-align: 2px; }
+
+  /* ---------- 基础控件 ---------- */
+  .card { border: 1px solid var(--line-1); border-radius: 16px; }
+  .card + .card { margin-top: 16px; }
+  .card-h { display: flex; align-items: center; gap: 12px; padding: 12px 14px 12px 18px; border-bottom: 1px solid var(--line-2); }
+  .avatar { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; flex: none;
+    background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+  .card-h .t { flex: 1; min-width: 0; } .card-h b { font-size: 14.5px; font-weight: 600; }
+  .card-h small { display: block; font-size: 12px; color: var(--ink-2); }
+  .card-sec { padding: 12px 6px 6px; } .card-sec + .card-sec { border-top: 1px solid var(--line-2); }
+  .sec-t { padding: 0 12px 2px; } .sec-t b { font-size: 12.5px; font-weight: 600; }
+  .sec-t small { font-size: 12px; color: var(--ink-3); margin-left: 8px; }
+  .row { display: flex; align-items: center; gap: 16px; min-height: 54px; padding: 10px 12px; position: relative; }
+  .row + .row::before { content: ""; position: absolute; left: 12px; right: 12px; top: 0; border-top: 1px solid var(--line-2); }
+  .row .t { flex: 1; min-width: 0; } .row .t b { display: block; font-size: 13.5px; font-weight: 500; }
+  .row .t small { display: block; font-size: 12px; color: var(--ink-2); }
+  .row .err { display: block; font-size: 11.5px; color: var(--danger); margin-top: 3px; text-align: right; }
+  .ctl { display: flex; flex-direction: column; align-items: flex-end; flex: none; }
+  input.in, select.in { width: 280px; height: 32px; border: 1px solid var(--line-1); border-radius: 8px; background: var(--bg-surface);
+    padding: 0 10px; font: inherit; font-size: 12.5px; color: var(--ink-1); outline: none; }
+  input.in:focus, select.in:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  input.in.sm { width: 120px; text-align: right; } input.in[aria-invalid="true"] { border-color: var(--danger); }
+  .sw { width: 34px; height: 20px; border-radius: 99px; background: var(--line-1); position: relative; cursor: pointer; border: 0; }
+  .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 99px;
+    background: var(--bg-surface); transition: transform .16s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .sw[aria-checked="true"] { background: var(--accent); } .sw[aria-checked="true"]::after { transform: translateX(14px); }
+  .btn { height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line-1); background: var(--bg-surface);
+    display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 12.5px; color: var(--ink-1); white-space: nowrap; cursor: pointer; }
+  .btn.ghost { border-color: transparent; background: none; color: var(--ink-2); } .btn.ghost:hover { background: var(--bg-hover); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--ink-inverse); }
+  .btn[disabled] { opacity: .45; cursor: default; }
+  .spacer { flex: 1; min-height: 24px; }
+
+  /* ---------- 悬浮保存条 ---------- */
+  .dock { position: sticky; bottom: 0; z-index: 5; pointer-events: none; padding: 20px 0 18px; margin-top: 8px;
+    display: flex; justify-content: center; }
+  .bar { pointer-events: auto; display: flex; align-items: center; gap: 8px; background: var(--bg-surface);
+    border: 1px solid var(--line-1); box-shadow: var(--shadow-float); border-radius: 14px; padding: 7px 7px 7px 14px;
+    transition: transform .22s cubic-bezier(.2,.8,.2,1), opacity .18s; min-width: 420px; }
+  .bar.hide { transform: translateY(calc(100% + 24px)); opacity: 0; pointer-events: none; }
+  .bar .st { flex: 1; display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-1); min-width: 0; }
+  .bar .st .dot { width: 7px; height: 7px; border-radius: 99px; background: var(--accent); flex: none; }
+  .bar .st.err { color: var(--danger); } .bar .st.err .dot { background: var(--danger); }
+  .bar .st.ok { color: var(--ok); }
+  .bar .st small { color: var(--ink-3); font-size: 12px; }
+  .bar.shake { animation: shake .36s; }
+  @keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+  .spin { animation: spin .8s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+  /* 变体：贴边通栏 */
+  body[data-bar="edge"] .dock { padding: 0; margin: 8px -26px 0 -28px; }
+  body[data-bar="edge"] .bar { width: 100%; border-radius: 0 0 16px 16px; border-width: 1px 0 0; box-shadow: 0 -8px 20px -14px rgba(120,100,70,.35);
+    padding: 9px 20px 9px 28px; }
+  body[data-bar="edge"] .bar.hide { transform: translateY(100%); }
+
+  /* ---------- 离开确认 ---------- */
+  .scrim { position: absolute; inset: 0; background: var(--scrim); display: grid; place-items: center; z-index: 20;
+    opacity: 0; pointer-events: none; transition: opacity .16s; }
+  .scrim.on { opacity: 1; pointer-events: auto; }
+  .dialog { width: 400px; background: var(--bg-surface); border-radius: 16px; box-shadow: var(--shadow-float); padding: 20px 20px 16px; }
+  .dialog b { font-size: 15px; font-weight: 600; display: block; margin-bottom: 6px; }
+  .dialog p { color: var(--ink-2); font-size: 12.5px; }
+  .dialog ul { margin: 10px 0 0 16px; color: var(--ink-2); font-size: 12.5px; }
+  .dialog .acts { display: flex; gap: 8px; margin-top: 18px; }
+  .dialog .acts .grow { flex: 1; }
+  .btn.danger-ghost { border-color: transparent; background: none; color: var(--danger); }
+  .btn.danger-ghost:hover { background: var(--danger-soft); }
+  .toast { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: var(--ink-1); color: var(--ink-inverse);
+    font-size: 12px; padding: 6px 12px; border-radius: 99px; opacity: 0; transition: opacity .2s; z-index: 30; pointer-events: none; }
+  .toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+<section class="intro">
+  <h1>插件设置：悬浮保存条 + 离开确认</h1>
+  <p>以「体重」插件的「身体数据与目标」为样本。改任意字段，保存条从底部升起；点侧栏、其他 tab 或「模拟关闭窗口」看离开确认。</p>
+  <h3>为什么不全改成即时生效</h3>
+  <table class="cmp">
+    <tr><th>场景</th><th>即时生效</th><th>草稿 + 保存</th></tr>
+    <tr><td>开关、单选、主题等偏好</td><td>合适，改完就看到效果</td><td>多余的一步</td></tr>
+    <tr><td>API Key、地址、账号</td><td>每敲一个字都去连一次服务；填一半就落盘成坏配置</td><td>填完整、校验通过再写入，可附带「保存并测试」</td></tr>
+    <tr><td>互相约束的一组字段（身高+年份+目标→预算）</td><td>中间态会让预算忽大忽小，甚至写入非法值</td><td>整组校验，一次提交</td></tr>
+    <tr><td>有副作用的修改（记账删分类会迁移流水）</td><td>误操作立即生效，无法反悔</td><td>保存前可还原</td></tr>
+  </table>
+  <p style="margin-top:8px">所以两种都要：<b>宿主表单（ProviderForm）已支持 autoSave</b>，适合简单偏好；需要校验或有副作用的设置，用下面这套保存条。保存条由宿主统一画，插件只报告「有没有改动、怎么保存、怎么还原」。</p>
+</section>
+
+<div class="toolbar">
+  <span>主题</span>
+  <div class="pills" data-k="theme"><button class="on" data-v="light">浅色</button><button data-v="dark">深色</button></div>
+  <span>保存条样式</span>
+  <div class="pills" data-k="bar"><button class="on" data-v="float">悬浮胶囊</button><button data-v="edge">贴边通栏</button></div>
+  <span>下次保存</span>
+  <div class="pills" data-k="result"><button class="on" data-v="ok">成功</button><button data-v="fail">失败</button></div>
+</div>
+
+<section class="frame">
+  <div class="frame-h"><h2>插件详情 › 设置</h2><span class="tag">可交互</span></div>
+  <div class="frame-body">
+    <div class="win" id="win">
+      <nav class="side" id="side">
+        <a data-nav><i data-lucide="house"></i>主页</a>
+        <a data-nav><i data-lucide="layers"></i>卡片</a>
+        <a data-nav><i data-lucide="file-text"></i>文章</a>
+        <a data-nav class="on"><i data-lucide="puzzle"></i>插件</a>
+        <a data-nav><i data-lucide="settings"></i>设置</a>
+        <div style="flex:1"></div>
+        <a id="close-win"><i data-lucide="x"></i>模拟关闭窗口</a>
+      </nav>
+      <div class="main" id="main">
+        <div class="paper">
+          <div class="ph"><span class="logo"><i data-lucide="scale"></i></span><div><b>体重</b><small>记录体重、算每日热量预算</small></div></div>
+          <div class="tabs"><span data-nav>介绍</span><span class="on" id="tab-settings">设置</span><span data-nav>更新日志</span><span data-nav>版本</span></div>
+          <div id="form"></div>
+          <div class="spacer"></div>
+          <div class="dock">
+            <div class="bar hide" id="bar" role="region" aria-label="未保存的修改">
+              <span class="st" id="st"></span>
+              <button class="btn ghost" id="reset">还原</button>
+              <button class="btn primary" id="save">保存 <span class="mono" style="opacity:.6;font-size:11px">⌘S</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="scrim" id="scrim">
+        <div class="dialog" role="alertdialog" aria-labelledby="dlg-t">
+          <b id="dlg-t">有修改还没保存</b>
+          <p>「身体数据与目标」中的这些修改离开后会丢失：</p>
+          <ul id="dlg-list"></ul>
+          <div class="acts">
+            <button class="btn danger-ghost" id="dlg-discard">放弃修改</button>
+            <span class="grow"></span>
+            <button class="btn" id="dlg-cancel">继续编辑</button>
+            <button class="btn primary" id="dlg-save">保存并离开</button>
+          </div>
+        </div>
+      </div>
+      <div class="toast" id="toast"></div>
+    </div>
+    <ul class="notes">
+      <li><b>出现时机</b>：草稿与已存值不同即升起，改回原值自动收起；不打扰没改动的浏览。</li>
+      <li><b>位置</b>：吸附在设置区可视底部（sticky），表单短时停在内容下方，长时贴住视口；永远在用户眼前。</li>
+      <li><b>文案</b>：说出改了几项；有校验错误时变红、「保存」点了会把页面滚到第一处错误并抖一下。</li>
+      <li><b>保存中 / 成功 / 失败</b>：保存中按钮转圈、字段不锁；成功后显示「已保存」1.2 秒收起；失败留在条上显示原因，可重试。</li>
+      <li><b>⌘S</b> 在设置页内触发保存；条上显示快捷键提示。</li>
+      <li><b>离开确认</b>：切 tab、侧栏导航、后退、切设置分组、关窗口都拦。三个出口：<b>保存并离开</b>（默认，回车）/ 继续编辑（Esc）/ 放弃修改；校验未过时「保存并离开」不可用。</li>
+      <li><b>tab 圆点</b>：有未保存修改时「设置」tab 带一个强调色圆点，滚出视口也有提示。</li>
+      <li><b>关闭窗口</b>：Electron 主进程收到 close 时询问渲染端，有守卫才弹同一个对话框；应用退出、系统杀进程时不保证。</li>
+    </ul>
+  </div>
+</section>
+
+<script>
+const $ = s => document.querySelector(s);
+const fields = [
+  { sec: "身体数据", key: "sex", label: "性别", desc: "用于估算基础代谢", type: "select", options: ["男", "女"] },
+  { sec: "身体数据", key: "height", label: "身高", unit: "cm", type: "num", check: v => v >= 100 && v <= 250 ? "" : "身高在 100–250 cm 之间" },
+  { sec: "身体数据", key: "birth", label: "出生年份", unit: "年", type: "num", check: v => v >= 1920 && v <= 2020 ? "" : "年份不对" },
+  { sec: "身体数据", key: "activity", label: "日常活动", desc: "不含你记录的运动，运动消耗会另外加回预算", type: "select", options: ["久坐", "轻度", "中度", "高强度"] },
+  { sec: "目标", key: "target", label: "目标体重", unit: "kg", type: "num", check: v => v >= 30 && v <= 200 ? "" : "目标体重在 30–200 kg 之间" },
+  { sec: "目标", key: "pace", label: "每周减重", desc: "过快会让预算低于基础代谢", unit: "kg", type: "num", check: v => v > 0 && v <= 1 ? "" : "建议 0.1–1 kg" },
+  { sec: "目标", key: "exercise", label: "每周运动", unit: "次", type: "num", check: v => v >= 0 && v <= 14 ? "" : "0–14 次" },
+  { sec: "预算", key: "override", label: "手动预算", desc: "开启后不再按身体数据计算", type: "switch" },
+  { sec: "预算", key: "budget", label: "每日预算", unit: "kcal", type: "num", check: v => v >= 800 && v <= 5000 ? "" : "800–5000 kcal" },
+];
+let saved = { sex: "男", height: "176", birth: "1994", activity: "轻度", target: "68", pace: "0.5", exercise: "3", override: false, budget: "1900" };
+let draft = { ...saved };
+let phase = "idle"; // idle | saving | done | fail
+let failText = "";
+let pending = null; // 待执行的离开动作
+
+const changed = () => fields.filter(f => draft[f.key] !== saved[f.key]);
+const errors = () => Object.fromEntries(fields.filter(f => f.check && !(f.key === "budget" && !draft.override))
+  .map(f => [f.key, f.check(Number(draft[f.key]))]).filter(([, e]) => e));
+
+function renderForm() {
+  const errs = errors();
+  const secs = [...new Set(fields.map(f => f.sec))];
+  $("#form").innerHTML = secs.map(sec => `<div class="card"><div class="card-sec"><div class="sec-t"><b>${sec}</b></div>${
+    fields.filter(f => f.sec === sec).map(f => {
+      if (f.key === "budget" && !draft.override) return "";
+      let ctl;
+      if (f.type === "select") ctl = `<select class="in" style="width:140px" data-k="${f.key}">${f.options.map(o => `<option${o === draft[f.key] ? " selected" : ""}>${o}</option>`).join("")}</select>`;
+      else if (f.type === "switch") ctl = `<button class="sw" role="switch" aria-checked="${draft[f.key]}" data-k="${f.key}"></button>`;
+      else ctl = `<span style="display:flex;gap:8px;align-items:center"><input class="in sm" inputmode="decimal" data-k="${f.key}" value="${draft[f.key]}" aria-invalid="${!!errs[f.key]}"><span style="color:var(--ink-3);font-size:12px;width:30px">${f.unit}</span></span>`;
+      return `<div class="row" data-row="${f.key}"><div class="t"><b>${f.label}</b>${f.desc ? `<small>${f.desc}</small>` : ""}</div><div class="ctl">${ctl}${errs[f.key] ? `<span class="err">${errs[f.key]}</span>` : ""}</div></div>`;
+    }).join("")}</div></div>`).join("");
+}
+
+function renderBar() {
+  const n = changed().length, errs = Object.keys(errors()).length, bar = $("#bar"), st = $("#st");
+  const show = n > 0 || phase === "saving" || phase === "done";
+  bar.classList.toggle("hide", !show);
+  $("#tab-settings").classList.toggle("dirty", n > 0);
+  $("#save").disabled = phase === "saving";
+  $("#reset").disabled = phase === "saving";
+  $("#save").innerHTML = phase === "saving" ? `<i data-lucide="loader-circle" class="spin"></i>保存中…` : `保存 <span class="mono" style="opacity:.6;font-size:11px">⌘S</span>`;
+  if (phase === "done") st.className = "st ok", st.innerHTML = `<i data-lucide="circle-check"></i>已保存`;
+  else if (phase === "fail") st.className = "st err", st.innerHTML = `<i data-lucide="circle-alert"></i>${failText}`;
+  else if (errs) st.className = "st err", st.innerHTML = `<span class="dot"></span>${errs} 项填写有误<small>· 修正后才能保存</small>`;
+  else st.className = "st", st.innerHTML = `<span class="dot"></span>${n} 项修改未保存`;
+  lucide.createIcons();
+}
+const render = () => { renderForm(); renderBar(); lucide.createIcons(); };
+
+$("#form").addEventListener("input", e => {
+  const k = e.target.dataset.k; if (!k) return;
+  draft[k] = e.target.value.replace(/[^\d.]/g, "") || (e.target.tagName === "SELECT" ? e.target.value : "");
+  if (e.target.tagName === "SELECT") draft[k] = e.target.value;
+  if (phase !== "saving") phase = "idle";
+  const pos = e.target.selectionStart;
+  renderForm(); renderBar();
+  const el = document.querySelector(`[data-k="${k}"]`); el.focus(); if (pos != null && el.setSelectionRange) el.setSelectionRange(pos, pos);
+});
+$("#form").addEventListener("click", e => {
+  const k = e.target.closest(".sw")?.dataset.k; if (!k) return;
+  draft[k] = !draft[k]; phase = "idle"; render();
+});
+
+function toast(text) { const t = $("#toast"); t.textContent = text; t.classList.add("on"); setTimeout(() => t.classList.remove("on"), 1400); }
+
+function save() {
+  if (phase === "saving") return Promise.resolve(false);
+  const errs = errors();
+  if (Object.keys(errs).length) {
+    const bar = $("#bar"); bar.classList.remove("shake"); void bar.offsetWidth; bar.classList.add("shake");
+    document.querySelector(`[data-row="${Object.keys(errs)[0]}"]`).scrollIntoView({ behavior: "smooth", block: "center" });
+    document.querySelector(`[data-k="${Object.keys(errs)[0]}"]`).focus({ preventScroll: true });
+    return Promise.resolve(false);
+  }
+  phase = "saving"; renderBar();
+  const willFail = document.body.dataset.result === "fail";
+  return new Promise(res => setTimeout(() => {
+    if (willFail) { phase = "fail"; failText = "保存失败：数据库正忙，请重试"; renderBar(); return res(false); }
+    saved = { ...draft }; phase = "done"; renderBar();
+    setTimeout(() => { if (phase === "done") { phase = "idle"; renderBar(); } }, 1200);
+    res(true);
+  }, 800));
+}
+$("#save").onclick = save;
+$("#reset").onclick = () => { draft = { ...saved }; phase = "idle"; render(); };
+document.addEventListener("keydown", e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); if (changed().length) save(); }
+  if (!$("#scrim").classList.contains("on")) return;
+  if (e.key === "Escape") closeDialog();
+  if (e.key === "Enter" && !$("#dlg-save").disabled) $("#dlg-save").click();
+});
+
+// 离开守卫：有改动时拦下导航
+function guard(action) {
+  if (!changed().length) return action();
+  pending = action;
+  $("#dlg-list").innerHTML = changed().map(f => `<li>${f.label}：${fmt(f, saved[f.key])} → <b style="color:var(--ink-1)">${fmt(f, draft[f.key])}</b></li>`).join("");
+  $("#dlg-save").disabled = Object.keys(errors()).length > 0;
+  $("#dlg-save").title = $("#dlg-save").disabled ? "有填写错误，修正后才能保存" : "";
+  $("#scrim").classList.add("on");
+  setTimeout(() => ($("#dlg-save").disabled ? $("#dlg-cancel") : $("#dlg-save")).focus(), 50);
+}
+const fmt = (f, v) => f.type === "switch" ? (v ? "开" : "关") : `${v}${f.unit ? " " + f.unit : ""}`;
+const closeDialog = () => { $("#scrim").classList.remove("on"); pending = null; };
+$("#dlg-cancel").onclick = closeDialog;
+$("#dlg-discard").onclick = () => { const a = pending; draft = { ...saved }; phase = "idle"; closeDialog(); render(); a?.(); };
+$("#dlg-save").onclick = async () => { const a = pending; $("#scrim").classList.remove("on"); if (await save()) a?.(); pending = null; };
+document.querySelectorAll("[data-nav]").forEach(el => el.addEventListener("click", () => guard(() => toast(`已离开到「${el.textContent.trim()}」（示意）`))));
+$("#close-win").onclick = () => guard(() => toast("窗口已关闭（示意）"));
+
+document.querySelectorAll(".pills").forEach(p => p.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  p.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+  if (p.dataset.k === "theme") document.documentElement.dataset.theme = b.dataset.v;
+  else document.body.dataset[p.dataset.k] = b.dataset.v;
+}));
+document.body.dataset.bar = "float"; document.body.dataset.result = "ok";
+render();
+</script>
+</body>
+</html>

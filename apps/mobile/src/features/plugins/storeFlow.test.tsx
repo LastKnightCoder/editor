@@ -1,4 +1,5 @@
-import { act, type ReactNode } from "react";
+import { act, useState, type ReactNode } from "react";
+import { useSettingsDraft } from "@tau/plugins";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { AppContext, type AppContextValue } from "../../app/AppContext";
@@ -6,7 +7,13 @@ import type { CenterCatalogEntry, CenterRelease, CenterResolution } from "@tau/p
 import { centerRelease } from "../../../../../tests/fixtures/plugins/center";
 import { storePrimaryAction } from "./components/storeActions";
 
-const navigator = { push: vi.fn(), getActiveScreen: () => ({ id: "test-entry" }) };
+const navigator = {
+  push: vi.fn(),
+  getActiveScreen: () => ({ id: "test-entry" }),
+  getTopOverlay: () => null,
+  registerGuard: vi.fn(),
+  registerBackHandler: vi.fn(() => () => undefined),
+};
 const state = vi.hoisted(() => ({
   config: { host: null as unknown, installationEnabled: true },
   catalog: [] as unknown[],
@@ -98,9 +105,14 @@ vi.mock("./components/PluginMarkdown", () => ({
 }));
 vi.mock("../../router", () => ({
   useNavigator: () => navigator,
-  usePage: () => ({ params: state.pageParams }),
+  usePage: () => ({ params: state.pageParams, navigator, entryId: "test-entry" }),
   usePageInstanceContext: () => ({ entry: { id: "test-entry" }, navigator, phase: "active" }),
   usePageLifecycle: () => undefined,
+}));
+vi.mock("../../router/pageLifecycle", async importOriginal => ({
+  ...(await importOriginal<typeof import("../../router/pageLifecycle")>()),
+  usePageInstanceContext: () => ({ entry: { id: "test-entry" }, navigator, phase: "active" }),
+  usePageGuard: vi.fn(),
 }));
 vi.mock("./PluginPageView", () => ({
   PluginPageShell: (props: {
@@ -505,4 +517,39 @@ it("插件中心默认商店，可切到已安装；右上角搜索横向展开�
   state.pageParams = { tab: "installed" };
   await mount(<PluginManager />);
   expect(document.body.textContent).toContain("已安装列表");
+});
+
+it("详情：插件设置有修改时显示保存条，换标签前询问", async () => {
+  const save = vi.fn(async () => undefined);
+  function Draft() {
+    const [value, setValue] = useState("旧值");
+    useSettingsDraft({
+      dirty: value !== "旧值",
+      changes: [{ label: "名称", from: "旧值", to: value }],
+      save,
+      reset: () => setValue("旧值"),
+    });
+    return <button onClick={() => setValue("新值")}>改名称</button>;
+  }
+  const context = { pluginId: "example.counter", signal: new AbortController().signal };
+  state.runtime = {
+    settings: new Map([
+      ["main", { context, definition: { id: "main", title: "偏好", component: Draft } }],
+    ]),
+    active: () => true,
+  };
+  state.installed = [installedItem()];
+  state.pageParams = { pluginId: context.pluginId };
+  await mount(<PluginDetail />);
+  await click(button("设置"));
+  await click(button("改名称"));
+  expect(document.body.textContent).toContain("1 项修改未保存");
+  await click(button("版本"));
+  expect(document.body.textContent).toContain("名称：旧值 → 新值");
+  await click(button("继续编辑"));
+  expect(button("改名称")).toBeDefined();
+  await click(button("版本"));
+  await click(button("保存并离开"));
+  await vi.waitFor(() => expect(save).toHaveBeenCalled());
+  await vi.waitFor(() => expect(button("改名称")).toBeUndefined());
 });

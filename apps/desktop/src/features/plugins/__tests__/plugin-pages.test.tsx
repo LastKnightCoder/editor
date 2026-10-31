@@ -1,9 +1,14 @@
-import { act, StrictMode, useEffect } from "react";
+import { act, StrictMode, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createBrowserStorage, createMemoryStorage, type StorageAdapter } from "@tau/plugins/host";
-import { definePlugin, type PluginDefinition, type PluginSettingsHandle } from "@tau/plugins";
+import {
+  definePlugin,
+  useSettingsDraft,
+  type PluginDefinition,
+  type PluginSettingsHandle,
+} from "@tau/plugins";
 import { PluginRuntimeContext } from "@/app/plugins/context";
 import { DesktopPluginRuntime, PLUGIN_DETAIL_KEY } from "@/app/plugins/runtime";
 import { PageProvider, usePage, type Navigator } from "@/page/PageProvider";
@@ -526,4 +531,69 @@ it("激活失败后管理页保留错误与重试入口，不遗留半注册设�
   await setEnabled("可重试插件", true);
   expect(page().querySelector('[role="alert"]')).toBeNull();
   expect(page().textContent).toContain("重试设置已恢复");
+});
+
+it("插件设置有未保存修改时显示保存条，离开前确认", async () => {
+  const saved: string[] = [];
+  function Draft() {
+    const [value, setValue] = useState("旧值");
+    const [stored, setStored] = useState("旧值");
+    useSettingsDraft({
+      dirty: value !== stored,
+      changes: [{ label: "名称", from: stored, to: value }],
+      save: async () => {
+        saved.push(value);
+        setStored(value);
+      },
+      reset: () => setValue(stored),
+    });
+    return (
+      <input aria-label="名称" value={value} onChange={event => setValue(event.target.value)} />
+    );
+  }
+  register(
+    definePlugin({
+      id: "draft",
+      name: "草稿插件",
+      version: "1",
+      create: () => ({
+        activate(ctx) {
+          ctx.settings.register({ id: "main", title: "草稿设置", component: Draft });
+        },
+      }),
+    })
+  );
+  await act(async () => runtime.host.enable("draft"));
+  await openDetail("draft");
+  const bar = () => page().querySelector('[role="region"][aria-label="未保存的修改"]');
+  expect(bar()?.getAttribute("aria-hidden")).toBe("true");
+  const input = page().querySelector<HTMLInputElement>('input[aria-label="名称"]')!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(input, "新值");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await settle();
+  expect(bar()?.getAttribute("aria-hidden")).toBeNull();
+  expect(bar()?.textContent).toContain("1 项修改未保存");
+  expect(page().querySelector('[aria-label="有未保存的修改"]')).not.toBeNull();
+
+  await act(async () => navigator?.push("plugins", { tab: "installed" }));
+  await settle();
+  const dialog = () => document.querySelector('[role="dialog"]');
+  expect(dialog()?.textContent).toContain("名称：旧值 → 新值");
+  const answer = async (label: string) => {
+    const button = [...dialog()!.querySelectorAll("button")].find(
+      item => item.textContent === label
+    )!;
+    await act(async () => button.click());
+    await settle();
+  };
+  await answer("继续编辑");
+  expect(navigator?.current()?.key).toBe(PLUGIN_DETAIL_KEY);
+
+  await act(async () => navigator?.push("plugins", { tab: "installed" }));
+  await settle();
+  await answer("保存并离开");
+  expect(saved).toEqual(["新值"]);
+  expect(navigator?.current()?.key).toBe("plugins");
 });

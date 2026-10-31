@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components -- 表单视图与同域的存储绑定 hook 一起导出 */
 /**
- * 声明式提供方设置（插件详情 › 设置）：渲染为一张设置卡片，字段分组是卡内小节，保存栏在卡脚。
+ * 声明式提供方设置（插件详情 › 设置）：渲染为一张设置卡片，字段分组是卡内小节。
+ * 在插件设置分区内经 useSettingsDraft 交给宿主的悬浮保存条与离开确认；分区外（无草稿控制器）保存栏在卡脚。
  * 配置存哪里、保存后是否测试、卡头显示什么，由调用方传入的绑定决定；
  * 同步与资源存储的绑定见 useStorageBinding（保存不改变当前选用）。
  */
@@ -10,6 +11,8 @@ import { CircleAlert, CircleCheck, Image, LoaderCircle, RefreshCw } from "lucide
 import {
   isProviderFieldError,
   isProviderFormComplete,
+  providerFormFields,
+  useSettingsDraft,
   mergeProviderFormValues,
   patchProviderFormValues,
   readProviderFormValues,
@@ -17,6 +20,7 @@ import {
   type JsonValue,
   type PluginContext,
   type ProviderForm,
+  type SettingsDraftChange,
 } from "@tau/plugins";
 import { Button, cn } from "@tau/ui";
 import { StatusChip } from "@/features/settings/components/StatusChip";
@@ -34,6 +38,28 @@ type Values = Record<string, string>;
 type Outcome = { tone: "ok" | "danger"; text: string } | null;
 
 const errorText = (error: unknown) => (error instanceof Error ? error.message : String(error));
+
+/** 离开确认里的修改清单：密钥只说改了，选项显示选项名 */
+function describeChanges(form: ProviderForm, baseline: Values, values: Values) {
+  const changes: SettingsDraftChange[] = [];
+  for (const field of providerFormFields(form)) {
+    if (values[field.key] === baseline[field.key]) continue;
+    if (field.type === "secret") {
+      changes.push({ label: field.label });
+      continue;
+    }
+    const show = (source: Values) => {
+      const value = source[field.key] ?? "";
+      if (field.type === "choice")
+        return field.options.find(option => option.value === value)?.label ?? value;
+      if (field.type === "switch") return value === "true" ? "开" : "关";
+      if (field.type === "service-choice") return value ? source[field.labelKey] || value : "默认";
+      return value;
+    };
+    changes.push({ label: field.label, from: show(baseline), to: show(values) });
+  }
+  return changes;
+}
 
 function useStoredConfig(target: "sync" | "upload", pluginId: string) {
   return useSettingStore(state => {
@@ -202,6 +228,29 @@ export function ProviderFormView({
   const valuesRef = useRef(values);
   valuesRef.current = values;
 
+  // 写入并返回结果文案；字段错误标在字段上后抛出，由调用方显示
+  const commit = async (values: Values): Promise<string> => {
+    let prepared: Values;
+    try {
+      prepared = form.beforeSave ? { ...(await form.beforeSave(values, context.signal)) } : values;
+    } catch (error) {
+      if (isProviderFieldError(error)) setErrors({ [error.key]: error.message });
+      throw error;
+    }
+    context.signal.throwIfAborted();
+    const config = mergeProviderFormValues(stored, prepared);
+    await binding.persist(config);
+    context.signal.throwIfAborted();
+    // 保存期间用户继续输入时保留输入，基线随已存配置更新
+    if (valuesRef.current === values) setValues(readProviderFormValues(form, config));
+    if (!binding.afterSave) return "配置已保存";
+    try {
+      return await binding.afterSave(config);
+    } catch (error) {
+      throw new Error(`配置已保存，但连接失败：${errorText(error)}`, { cause: error });
+    }
+  };
+
   const save = async () => {
     if (inFlight.current) {
       again.current = true;
@@ -216,38 +265,10 @@ export function ProviderFormView({
     setSaving(true);
     setOutcome(null);
     try {
-      let prepared: Values;
-      try {
-        prepared = form.beforeSave
-          ? { ...(await form.beforeSave(values, context.signal)) }
-          : values;
-      } catch (error) {
-        if (isProviderFieldError(error)) {
-          setErrors({ [error.key]: error.message });
-          return;
-        }
-        throw error;
-      }
-      context.signal.throwIfAborted();
-      const config = mergeProviderFormValues(stored, prepared);
-      await binding.persist(config);
-      context.signal.throwIfAborted();
-      // 保存期间用户继续输入时保留输入，基线随已存配置更新
-      if (valuesRef.current === values) setValues(readProviderFormValues(form, config));
-      if (!binding.afterSave) {
-        setOutcome({ tone: "ok", text: "配置已保存" });
-        return;
-      }
-      try {
-        setOutcome({ tone: "ok", text: await binding.afterSave(config) });
-      } catch (error) {
-        setOutcome({
-          tone: "danger",
-          text: `配置已保存，但连接失败：${errorText(error)}`,
-        });
-      }
+      setOutcome({ tone: "ok", text: await commit(values) });
     } catch (error) {
-      if (!context.signal.aborted) setOutcome({ tone: "danger", text: errorText(error) });
+      if (!context.signal.aborted && !isProviderFieldError(error))
+        setOutcome({ tone: "danger", text: errorText(error) });
     } finally {
       inFlight.current = false;
       if (!context.signal.aborted) setSaving(false);
@@ -257,6 +278,27 @@ export function ProviderFormView({
       }
     }
   };
+
+  const reset = () => {
+    setValues(baseline);
+    onReset?.();
+    setErrors({});
+    setOutcome(null);
+  };
+
+  // 插件设置分区内：保存条、⌘S 与离开确认由宿主承担
+  const missing = validateProviderFormValues(form, values);
+  const errorCount = Object.keys(missing).length;
+  const draft = useSettingsDraft({
+    dirty: !binding.autoSave && dirty,
+    errors: errorCount,
+    changes: [...describeChanges(form, baseline, values), ...(changed ? [{ label: "模型" }] : [])],
+    saveLabel: binding.saveLabel,
+    savingText: binding.savingText,
+    onInvalid: () => setErrors(missing),
+    save: () => commit(valuesRef.current),
+    reset,
+  });
 
   // 自动保存：值变化后防抖落盘，卸载时冲掉未到期的修改；校验未过时等用户补全
   const saveRef = useRef(save);
@@ -281,7 +323,7 @@ export function ProviderFormView({
       form={form}
       values={values}
       errors={errors}
-      disabled={saving && !binding.autoSave}
+      disabled={(saving || !!draft?.saving) && !binding.autoSave}
       context={context}
       layout={binding.layout}
       onChange={patch}
@@ -302,6 +344,29 @@ export function ProviderFormView({
           </p>
         )}
       </div>
+    );
+
+  if (draft)
+    return (
+      <SettingsCard
+        header={binding.header}
+        footer={
+          // 默认值已可用但从未保存：没有改动不会出现保存条，这里给一个保存入口
+          stored === undefined &&
+          !dirty &&
+          errorCount === 0 && (
+            <div className="flex items-center gap-2">
+              <p className="text-tau-meta text-ink-2 min-w-0 flex-1">尚未保存，保存后即可使用</p>
+              <Button variant="primary" loading={draft.saving} onClick={() => void draft.save()}>
+                {binding.saveLabel ?? "保存"}
+              </Button>
+            </div>
+          )
+        }
+      >
+        {fields}
+        {children}
+      </SettingsCard>
     );
 
   const saveBar = (
@@ -331,16 +396,7 @@ export function ProviderFormView({
           "有未保存的修改"
         ) : null}
       </p>
-      <Button
-        variant="ghost"
-        disabled={!dirty || saving}
-        onClick={() => {
-          setValues(baseline);
-          onReset?.();
-          setErrors({});
-          setOutcome(null);
-        }}
-      >
+      <Button variant="ghost" disabled={!dirty || saving} onClick={reset}>
         还原
       </Button>
       <Button variant="primary" disabled={!dirty && configured} loading={saving} onClick={save}>

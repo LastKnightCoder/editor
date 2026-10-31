@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { produce } from "immer";
 import { Clapperboard, Layers, Mic, Pencil, Plus, Send, type LucideIcon } from "lucide-react";
 import { providerFormSummary, type JsonValue, type PluginSettingsProps } from "@tau/plugins";
+import { useSettingsDraftController } from "@tau/plugins/settings-draft";
 import { copyJson } from "@tau/plugins/host";
 import {
   Button,
@@ -68,13 +69,18 @@ function Accounts({
   const accounts = all.filter(account => account.pluginId === pluginId);
   const [selected, setSelected] = useState("");
   const [deleting, setDeleting] = useState<Account>();
+  const draft = useSettingsDraftController();
+  // 换账号会卸下当前账号的表单，未保存的修改先问
+  const select = (id: string) =>
+    void (draft?.confirmLeave() ?? Promise.resolve(true)).then(leave => leave && setSelected(id));
   const account = accounts.find(item => item.id === selected) ?? accounts[0];
   const usingId = useSettingStore(state =>
     target === "tts"
       ? state.setting.ttsUsageSettings.default?.providerId
       : state.setting.imageGeneration.currentProviderId
   );
-  const add = () => {
+  const add = async () => {
+    if (draft && !(await draft.confirmLeave())) return;
     const id = crypto.randomUUID();
     update(draft => {
       const base = {
@@ -119,10 +125,10 @@ function Accounts({
             active={item.id === account?.id}
             label={item.name || "未命名账号"}
             icon={usingId === item.id && <span className="bg-ok size-1.5 rounded-full" />}
-            onClick={() => setSelected(item.id)}
+            onClick={() => item.id !== account?.id && select(item.id)}
           />
         ))}
-        <Button size="sm" variant="ghost" icon={Plus} onClick={add}>
+        <Button size="sm" variant="ghost" icon={Plus} onClick={() => void add()}>
           添加账号
         </Button>
         <span className="text-tau-meta text-ink-3 ml-auto">添加和保存不会切换当前服务</span>

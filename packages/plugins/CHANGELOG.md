@@ -1,5 +1,10 @@
 # 更新记录
 
+## 0.53.0
+
+- 新增 `useSettingsDraft({ dirty, errors?, changes?, save, reset, onInvalid?, saveLabel?, savingText? })`：插件设置组件报告草稿状态，Tau 在有改动时显示悬浮保存条（⌘S 保存），切换页面、标签、设置分组或关闭窗口前询问「保存并离开 / 继续编辑 / 放弃修改」。`save` 抛错时保存条显示错误；`errors` 大于 0 时不能保存。返回 `{ saving, save }`，不在 Tau 设置分区内时返回 null，组件需要自己提供保存入口。
+- 宿主提供方表单（form）在插件设置里同样改用悬浮保存条。
+
 ## 0.52.0
 
 - 插件可申请的内置 AI 能力按当前宿主契约收敛为 `chat` 与 `flashcardGeneration`，相应 `ai:*` 权限同步收敛；其他需求通过插件自定义 AI 功能声明。

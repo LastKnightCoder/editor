@@ -1,8 +1,13 @@
 import { PluginOperations } from "./PluginOperations";
+import {
+  createSettingsDraftController,
+  SettingsDraftProvider,
+  type SettingsDraftController,
+} from "@tau/plugins/settings-draft";
 import { PluginPageComponentScope } from "../../app/plugins/component-page-scope";
 import { PluginPermissionControls } from "./PluginPermissionControls";
 import { MobileProviderSettings } from "./ProviderSettings";
-import { useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { ExternalLink, Github, Layers, MoreHorizontal, ShieldAlert } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { comparePluginVersions } from "@tau/plugins/package";
@@ -25,6 +30,7 @@ import { PluginChangesBanner } from "./components/PluginChangesBanner";
 import { PluginIcon } from "./components/PluginIcon";
 import { PluginManageSheet } from "./components/PluginManageSheet";
 import { PluginSettingsCard } from "./components/PluginSettingsCard";
+import { SettingsDraftBar, SettingsLeaveSheet } from "./components/SettingsDraftBar";
 import { PluginMarkdown } from "./components/PluginMarkdown";
 import { ReleaseHistoryList } from "./components/ReleaseHistoryList";
 import { StoreActionButton } from "./components/StoreActionButton";
@@ -67,7 +73,12 @@ export function PluginDetail() {
   const install = useMobileCenterInstall();
   const runtime = useMobilePlugins();
   const idPrefix = useId();
-  const [tab, setTab] = useState<DetailTab>("intro");
+  const [tab, setActiveTab] = useState<DetailTab>("intro");
+  // 设置分区的草稿跟随详情页实例：切 tab、切分组、返回都先问
+  const [draft] = useState(() => createSettingsDraftController());
+  useEffect(() => () => draft.dispose(), [draft]);
+  const setTab = (next: DetailTab) =>
+    void draft.confirmLeave().then(leave => leave && setActiveTab(next));
   const [installing, setInstalling] = useState(false);
   const [managing, setManaging] = useState(false);
 
@@ -222,7 +233,7 @@ export function PluginDetail() {
             />
           )}
           {activeTab === "settings" && installed && (
-            <SettingsTab runtime={runtime} item={installed} />
+            <SettingsTab runtime={runtime} item={installed} draft={draft} />
           )}
           {activeTab === "permissions" && runtime?.data && installed && (
             <PluginOperations
@@ -529,9 +540,11 @@ function IntroTab({
 function SettingsTab({
   runtime,
   item,
+  draft,
 }: {
   runtime: MobilePluginRuntime | null;
   item: ManagedPluginItem;
+  draft: SettingsDraftController;
 }) {
   const navigator = useNavigator();
   const { phase } = useMobilePluginStatus();
@@ -561,7 +574,7 @@ function SettingsTab({
               size="sm"
               variant={key === id ? "soft" : "ghost"}
               aria-current={key === id ? "page" : undefined}
-              onClick={() => setSelected(key)}
+              onClick={() => void draft.confirmLeave().then(leave => leave && setSelected(key))}
             >
               {entry.definition.title}
             </Button>
@@ -587,13 +600,17 @@ function SettingsTab({
             {active.definition.target === "sync" ? "打开同步配置" : "打开上传配置"}
           </Button>
         ) : Component ? (
-          <ErrorBoundary key={id}>
-            <PluginSettingsCard>
-              <PluginPageComponentScope context={active.context}>
-                <Component context={active.context} />
-              </PluginPageComponentScope>
-            </PluginSettingsCard>
-          </ErrorBoundary>
+          <SettingsDraftProvider controller={draft}>
+            <ErrorBoundary key={id}>
+              <PluginSettingsCard>
+                <PluginPageComponentScope context={active.context} guard={draft.confirmLeave}>
+                  <Component context={active.context} />
+                </PluginPageComponentScope>
+              </PluginSettingsCard>
+            </ErrorBoundary>
+            <SettingsDraftBar controller={draft} />
+            <SettingsLeaveSheet controller={draft} />
+          </SettingsDraftProvider>
         ) : null}
       </section>
     </>
