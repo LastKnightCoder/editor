@@ -1,7 +1,14 @@
 #!/usr/bin/env node
 
-import { execFileSync } from "node:child_process";
-import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
+import { execFileSync, spawn } from "node:child_process";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -106,6 +113,7 @@ function help() {
   --details             显示每个项目的语言明细
   --files               显示实际计入的文件；JSON 中附带 files 清单
   --json                输出 JSON，可用重定向保存
+  --html                生成可视化报告 output/code-stats.html 并用默认浏览器打开
   -h, --help            显示帮助
 
 可用语言：${Object.keys(languageExtensions).join(", ")}`);
@@ -253,6 +261,44 @@ function printTable(title, entries, key) {
   console.log();
 }
 
+// 报告模板是多文件，生成时内联成单文件，便于直接打开或转发
+function writeHtmlReport(report, scope) {
+  const templateDir = resolve(root, "scripts/code-stats-report");
+  const read = file => readFileSync(resolve(templateDir, file), "utf8");
+  const data = {
+    generatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
+    scope,
+    groups: report.groups.map(group => group.group),
+    files: report.files.map(file => [file.path, file.language, file.nonEmpty, file.blank]),
+  };
+  const html = read("index.html")
+    .replace(
+      '<link rel="stylesheet" href="style.css">',
+      () => `<style>\n${read("style.css")}</style>`
+    )
+    .replace("/* 数据占位 */ null", () => JSON.stringify(data).replaceAll("<", "\\u003c"))
+    .replace(
+      /<script src="([\w-]+\.js)"><\/script>/g,
+      (_, file) => `<script>\n${read(file)}</script>`
+    );
+  const output = resolve(root, "output/code-stats.html");
+  mkdirSync(dirname(output), { recursive: true });
+  writeFileSync(output, html);
+  return output;
+}
+
+function openInBrowser(file) {
+  const [command, args] =
+    process.platform === "darwin"
+      ? ["open", [file]]
+      : process.platform === "win32"
+        ? ["cmd", ["/c", "start", "", file]]
+        : ["xdg-open", [file]];
+  const child = spawn(command, args, { detached: true, stdio: "ignore" });
+  child.on("error", () => console.log("无法自动打开浏览器，请手动打开上面的文件。"));
+  child.unref();
+}
+
 function main() {
   const { values } = parseArgs({
     options: {
@@ -263,6 +309,7 @@ function main() {
       details: { type: "boolean", default: false },
       files: { type: "boolean", default: false },
       json: { type: "boolean", default: false },
+      html: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
   });
@@ -295,8 +342,20 @@ function main() {
   const report = collect(projects, {
     languages,
     excludes: (values.exclude ?? []).map(normalize),
-    files: values.files,
+    files: values.files || values.html,
   });
+  if (values.html) {
+    const scope = [
+      filters.length ? filters.join(", ") : "",
+      languages.size ? [...languages].join(", ") : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    const output = writeHtmlReport(report, scope);
+    console.log(`已生成报告：${output}`);
+    openInBrowser(output);
+    return;
+  }
   if (values.json) {
     console.log(JSON.stringify(report, null, 2));
     return;
