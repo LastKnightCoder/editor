@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { cn } from "@tau/ui";
 import { pluginTone } from "@tau/plugins/center";
 
@@ -10,18 +11,21 @@ const TONES = [
 ];
 const SIZES = {
   md: "size-11 rounded-[13px] text-[17px]",
+  grid: "size-[46px] rounded-[17px] text-[18px]",
   xl: "size-[68px] rounded-[19px] text-[28px]",
 };
 
-/** manifest 尚无图标字段，使用名称首字；配色按 ID 稳定散列，与桌面端一致。 */
+/** manifest 尚无图标字段，使用名称首字；功能入口带图标时 children 为图标。配色按 ID 稳定散列，与桌面端一致。 */
 export function PluginIcon({
   id,
   name,
   size = "md",
+  children,
 }: {
   id: string;
   name: string;
   size?: keyof typeof SIZES;
+  children?: ReactNode;
 }) {
   return (
     <span
@@ -32,7 +36,7 @@ export function PluginIcon({
         TONES[pluginTone(id) - 1]
       )}
     >
-      {name.slice(0, 1)}
+      {children ?? name.slice(0, 1)}
     </span>
   );
 }

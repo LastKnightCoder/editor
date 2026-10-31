@@ -513,7 +513,7 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
 
 ## 插件宿主
 
-正常 AppShell 按数据库作用域挂载插件宿主，“我的”消费语义入口，通用页面/设置页走本 router 的身份、保活、返回与守卫。包事务、私有 KV、正文快照和公共源码组件见[跨端插件宿主](/docs/architecture/plugin-portability.md)。
+正常 AppShell 按数据库作用域挂载插件宿主，“我的”功能宫格与今天页插件卡片消费语义入口，通用页面/设置页走本 router 的身份、保活、返回与守卫。包事务、私有 KV、正文快照和公共源码组件见[跨端插件宿主](/docs/architecture/plugin-portability.md)。
 
 插件会话异步启动，不阻塞首屏；阶段广播、编辑器 kit 的读/写两种取法与「立即生效」见[跨端插件宿主](/docs/architecture/plugin-portability.md)的移动宿主小节。
 
@@ -522,6 +522,10 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
 普通正文的插入面板消费已装配插件的 blockPanel 贡献，复用面板选区和键盘预留协议；能力分级及过滤见[跨端插件宿主](/docs/architecture/plugin-portability.md)。插件中心页面与开发验证入口也消费 @tau/themes，不保留旧移动主题变量或类名。
 
 数据库、资源及会话文件的跨端对象布局、分块预算和首次使用边界见[宿主分块同步](/docs/architecture/storage-sync.md)。
+
+## 全局提示
+
+提示只有 `@tau/ui` 的 toast 一套实现：`components/ToastViewport` 挂 `ToastHost variant="inverse"`（墨色胶囊，停靠在顶栏下方，层级 `Z_INDEX.TOAST`）。`components/toast` 保留移动端的调用形态（`toast({ type, text })`、`toast.success(...)`），内部转到 `@tau/ui`，`id` 映射为同 key 原位替换；`toastQueue` 供测试读取当前提示。插件、编辑器与公共包直接调用的 `@tau/ui` toast 走同一队列显示；编辑器进行中提示用 `loading` → `resolve/reject` 落定。
 
 ## 外部打开 Markdown（导入预览）
 

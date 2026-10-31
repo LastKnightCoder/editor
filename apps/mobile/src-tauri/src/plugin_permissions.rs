@@ -85,6 +85,7 @@ fn supported(permission: &str) -> bool {
                 | "calendar:delete"
                 | "flashcards:read"
                 | "flashcards:write"
+                | "speech:input"
         )
 }
 #[tauri::command]

@@ -1,4 +1,5 @@
 import { readNotificationOptions, type PluginNotificationOptions } from "./notifications";
+import type { PluginSpeechSession, PluginSpeechStartOptions } from "./speech";
 import {
   createPluginEnvironmentStore,
   snapshotPluginEnvironment,
@@ -1077,6 +1078,15 @@ export interface NotificationsAdapter {
   send(context: PluginContext, plugin: PluginOwner, options: PluginNotificationOptions): Disposable;
 }
 
+/** 宿主语音输入：授权已由 PluginHost 检查；signal 在插件停用时同样中止 */
+export interface SpeechAdapter {
+  unavailableReason(): string | null;
+  start(
+    context: PluginContext,
+    options: { signal: AbortSignal; onPreview(text: string): void }
+  ): Promise<PluginSpeechSession>;
+}
+
 /** 只接收宿主显式信任的代码；此宿主不提供第三方沙箱或授权界面。 */
 export class PluginHost {
   private readonly entries = new Map<string, Entry>();
@@ -1150,6 +1160,7 @@ export class PluginHost {
       events?: EventsAdapter;
       app?: AppAdapter;
       notifications?: NotificationsAdapter;
+      speech?: SpeechAdapter;
       fetch?: (
         input: RequestInfo | URL,
         init?: RequestInit,
@@ -2575,6 +2586,41 @@ export class PluginHost {
               disposed = true;
               return resource.dispose();
             },
+          });
+        },
+      }),
+      speech: Object.freeze({
+        unavailableReason: () => {
+          this.assertActive(entry, activation);
+          if (!this.options.speech) return "当前设备不支持插件语音输入";
+          return this.options.speech.unavailableReason();
+        },
+        start: async (options: PluginSpeechStartOptions = {}): Promise<PluginSpeechSession> => {
+          this.assertActive(entry, activation);
+          if (options.onPreview !== undefined && typeof options.onPreview !== "function")
+            throw new Error("onPreview 必须是函数");
+          const adapter = this.options.speech;
+          if (!adapter) throw new Error("SPEECH_UNAVAILABLE：当前宿主不支持插件语音输入");
+          await guard("speech:input");
+          const onPreview = options.onPreview;
+          const signal = options.signal
+            ? AbortSignal.any([options.signal, activation.controller.signal])
+            : activation.controller.signal;
+          signal.throwIfAborted();
+          const session = await adapter.start(context, {
+            signal,
+            onPreview: text => {
+              if (!signal.aborted) onPreview?.(String(text));
+            },
+          });
+          this.assertActive(entry, activation);
+          return Object.freeze({
+            result: session.result.then(text => {
+              this.assertActive(entry, activation);
+              return String(text);
+            }),
+            stop: () => session.stop(),
+            cancel: () => session.cancel(),
           });
         },
       }),

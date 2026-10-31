@@ -6,6 +6,11 @@ export type PluginHomePanelSize = "compact" | "wide";
 
 export interface PluginHomePanelProps {
   readonly context: PluginContext;
+  /**
+   * 登记面板里打开的浮层（底部面板等）的关闭函数：系统返回 / Esc 先关最后登记的浮层。
+   * 宿主不支持时为 undefined；@tau/ui 的模态 Dialog / Drawer 已自带，不必登记。
+   */
+  readonly registerDismiss?: (dismiss: () => void) => Disposable;
 }
 
 /** 面板标题行右侧的入口，如「查看账本」 */

@@ -1,4 +1,7 @@
-import { create } from "zustand";
+// 移动端提示的调用形态：toast({ type, text })、toast.success("…")。显示统一由 @tau/ui 的 toast
+// 承担（ToastViewport 挂深色外观的 ToastHost），插件与公共包里调用的 @tau/ui toast 走同一条通道。
+
+import { toast as uiToast } from "@tau/ui";
 
 export type ToastType = "success" | "info" | "warning" | "error";
 
@@ -9,6 +12,7 @@ export type ToastAction = {
 };
 
 export type ToastOptions = {
+  /** 同 id 的提示只保留一条：新提示原位替换并重新计时 */
   id?: string;
   type: ToastType;
   text: string;
@@ -16,47 +20,7 @@ export type ToastOptions = {
   action?: ToastAction;
 };
 
-export type ToastMessage = {
-  id: string;
-  type: ToastType;
-  text: string;
-  duration: number;
-  action?: ToastAction;
-};
-
-type ToastStore = {
-  toasts: ToastMessage[];
-  addToast: (toast: ToastMessage) => void;
-  removeToast: (id: string) => void;
-  clearAll: () => void;
-};
-
-const MAX_TOASTS = 3;
 const DEFAULT_DURATION = 3000;
-
-function createToastId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  return `toast-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-export const useToastStore = create<ToastStore>(set => ({
-  toasts: [],
-  addToast: toast =>
-    set(state => {
-      const merged = [...state.toasts.filter(item => item.id !== toast.id), toast];
-      const overflow = merged.length - MAX_TOASTS;
-      return {
-        toasts: overflow > 0 ? merged.slice(overflow) : merged,
-      };
-    }),
-  removeToast: id =>
-    set(state => ({
-      toasts: state.toasts.filter(toast => toast.id !== id),
-    })),
-  clearAll: () => set({ toasts: [] }),
-}));
 
 type TypedToastInput = {
   text: string;
@@ -75,43 +39,22 @@ export type ToastAPI = {
 };
 
 function pushToast(options: ToastOptions): () => void {
-  const id = options.id?.trim() || createToastId();
-  const message: ToastMessage = {
-    id,
-    type: options.type,
-    text: options.text,
+  const id = uiToast.show(options.type, options.text, {
+    key: options.id?.trim() || undefined,
     duration: options.duration ?? DEFAULT_DURATION,
     action: options.action,
-  };
-  useToastStore.getState().addToast(message);
-  return () => {
-    useToastStore.getState().removeToast(message.id);
-  };
+  });
+  return () => uiToast.dismiss(id);
 }
 
 function createTypedToast(type: ToastType): TypedToastFunction {
-  return (content, duration) => {
-    if (typeof content === "string") {
-      return pushToast({
-        type,
-        text: content,
-        duration: duration ?? DEFAULT_DURATION,
-      });
-    }
-    return pushToast({
-      id: content.id,
-      type,
-      text: content.text,
-      duration: content.duration ?? duration ?? DEFAULT_DURATION,
-    });
-  };
+  return (content, duration) =>
+    typeof content === "string"
+      ? pushToast({ type, text: content, duration })
+      : pushToast({ type, ...content, duration: content.duration ?? duration });
 }
 
-function toastFunction(options: ToastOptions): () => void {
-  return pushToast(options);
-}
-
-export const toast: ToastAPI = Object.assign(toastFunction, {
+export const toast: ToastAPI = Object.assign(pushToast, {
   success: createTypedToast("success"),
   info: createTypedToast("info"),
   warning: createTypedToast("warning"),
@@ -119,4 +62,26 @@ export const toast: ToastAPI = Object.assign(toastFunction, {
 });
 
 export const TOAST_DEFAULT_DURATION = DEFAULT_DURATION;
-export const TOAST_MAX_COUNT = MAX_TOASTS;
+
+export type ToastMessage = {
+  id: number;
+  key?: string;
+  type: ToastType | "loading";
+  text: string;
+  duration: number;
+  action?: ToastAction;
+};
+
+/** 当前显示的提示（按出现顺序）；clearAll 清空，供测试与少量状态读取 */
+export const toastQueue = {
+  list: (): ToastMessage[] =>
+    uiToast.items().map(item => ({
+      id: item.id,
+      key: item.key,
+      type: item.type,
+      text: item.message,
+      duration: item.duration,
+      action: item.action,
+    })),
+  clearAll: () => uiToast.dismiss(),
+};

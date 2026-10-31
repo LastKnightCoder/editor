@@ -268,6 +268,8 @@ export function describeCenterPermissions(
     let label = permission;
     if (extra === undefined && domain === "ai" && isPluginAICapability(action)) {
       label = `使用 AI ${PLUGIN_AI_CAPABILITIES[action].name}`;
+    } else if (permission === "speech:input") {
+      label = "使用语音输入";
     } else if (
       extra === undefined &&
       Object.hasOwn(permissionDomains, domain) &&

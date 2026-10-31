@@ -15,7 +15,7 @@ vi.mock("../../../services/speechInput", () => ({
 vi.mock("../../../services/tauri", () => ({ createQuickCard: mocks.createQuickCard }));
 
 import { transcriptToContent, useVoiceCapture } from "../useVoiceCapture";
-import { useToastStore } from "../../../components/toast";
+import { toastQueue } from "../../../components/toast";
 import { setMobileSettingSnapshot } from "../../../services/mobileSettingsBridge";
 import type { SettingCompat } from "../../../types";
 
@@ -34,7 +34,7 @@ function Harness() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  useToastStore.getState().clearAll();
+  toastQueue.clearAll();
   setMobileSettingSnapshot({
     speechInput: defaultSpeechInputSetting(),
   } as unknown as SettingCompat);
@@ -80,7 +80,7 @@ it("松手存成速记卡片，toast 可打开", async () => {
     count: "周五前定方案\n顺便问一下".length,
   });
   expect(onSaved).toHaveBeenCalled();
-  const [toast] = useToastStore.getState().toasts;
+  const [toast] = toastQueue.list();
   expect(toast.text).toBe("已存进速记");
   toast.action?.onClick();
   expect(onOpen).toHaveBeenCalledWith(42);
@@ -110,7 +110,7 @@ it("识别插件未配置：不开始，提示去设置", () => {
   });
   expect(started).toBe(false);
   expect(mocks.start).not.toHaveBeenCalled();
-  const [toast] = useToastStore.getState().toasts;
+  const [toast] = toastQueue.list();
   expect(toast.text).toBe("识别插件账号尚未配置");
   toast.action?.onClick();
   expect(onOpenSettings).toHaveBeenCalled();

@@ -1,4 +1,5 @@
 import { PluginEntries } from "../../plugins/PluginEntries";
+import { usePluginFeatureEntries } from "../../plugins/usePluginFeatureEntries";
 import { SettingsPage } from "../SettingsPage";
 import { useAppContext } from "../../../app/AppContext";
 import { definePage, useNavigator } from "../../../router";
@@ -7,10 +8,12 @@ import { useTodoStore } from "../../todo/store/useTodoStore";
 function SettingsScreen() {
   const navigator = useNavigator();
   const app = useAppContext();
+  const pluginFeatures = usePluginFeatureEntries();
 
   return (
     <SettingsPage
       pluginEntries={<PluginEntries />}
+      pluginFeatures={pluginFeatures}
       safeSetting={app.syncSettings.safeSetting}
       databases={app.bootstrap.databases}
       versions={app.bootstrap.versions}

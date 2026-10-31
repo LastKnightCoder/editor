@@ -16,6 +16,7 @@ import type {
   PluginOwnEntityKind,
   PluginActionDefinition,
   PluginActionTargetKind,
+  RegisteredHomePanelDefinition,
 } from "@tau/plugins";
 import type { Navigator } from "../../router/navigatorTypes";
 import { verifyMobilePlugin, type MobilePluginPackage } from "../../services/plugins";
@@ -31,6 +32,16 @@ export interface MobilePluginAction {
   context: PluginContext;
   definition: Readonly<PluginActionDefinition>;
 }
+
+export interface MobilePluginHomePanel {
+  id: string;
+  context: PluginContext;
+  definition: RegisteredHomePanelDefinition;
+  /** 每次注册递增，作为渲染出错后重试的挂载键 */
+  mountId: number;
+}
+
+let nextHomePanelMount = 0;
 
 export interface MobilePluginPage {
   context: PluginContext;
@@ -49,6 +60,7 @@ export class MobilePluginRuntime {
   permissions?: import("@tau/plugins/permission-host").PluginPermissionBroker;
   flashcards?: import("./flashcards").MobileFlashcards;
   ai?: MobilePluginAI;
+  speech?: import("@tau/plugins/host").SpeechAdapter;
   aiMcp?: ReturnType<typeof import("./ai-mcp").createMobilePluginMcp>;
   aiSkills?: ReturnType<typeof import("./ai-skills").createMobilePluginAiSkills>;
   readonly aiChat = createMobilePluginChat();
@@ -74,6 +86,7 @@ export class MobilePluginRuntime {
     string,
     { context: PluginContext; definition: PluginSettingsDefinition }
   >();
+  readonly homePanels = new Map<string, MobilePluginHomePanel>();
   readonly elementSupport = new Map<string, "none" | "render" | "edit">();
   readonly pageStates = new Map<string, () => import("@tau/plugins").JsonValue>();
   readonly errors = new Map<string, string>();
@@ -262,6 +275,29 @@ export class MobilePluginRuntime {
               this.publish();
             },
           };
+        },
+      },
+      home: {
+        registerPanel: (context, definition) => {
+          const id = `${context.pluginId}:${definition.id}`;
+          if (this.homePanels.has(id)) throw new Error(`首页面板已注册：${definition.id}`);
+          const panel = { id, context, definition, mountId: ++nextHomePanelMount };
+          this.homePanels.set(id, panel);
+          this.publish();
+          return {
+            dispose: () => {
+              if (this.homePanels.get(id) !== panel) return;
+              this.homePanels.delete(id);
+              this.publish();
+            },
+          };
+        },
+      },
+      speech: {
+        unavailableReason: () => this.speech?.unavailableReason() ?? "插件语音输入尚未就绪",
+        start: (context, options) => {
+          if (!this.speech) throw new Error("SPEECH_UNAVAILABLE：插件语音输入尚未就绪");
+          return this.speech.start(context, options);
         },
       },
       navigation: {
@@ -654,6 +690,7 @@ export class MobilePluginRuntime {
       pages: count(this.pages),
       entries: count(this.entries),
       settings: count(this.settings),
+      homePanels: count(this.homePanels),
     };
   }
   async blockFromCenter(id: string) {
@@ -690,6 +727,7 @@ export class MobilePluginRuntime {
     this.entityKinds.clear();
     this.entries.clear();
     this.settings.clear();
+    this.homePanels.clear();
     this.pageStates.clear();
     this.content.install([]);
     this.elementSupport.clear();

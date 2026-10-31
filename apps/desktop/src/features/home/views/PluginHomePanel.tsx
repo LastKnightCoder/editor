@@ -4,12 +4,14 @@
  * 渲染出错只影响这一块，可重试；入口回调出错只弹通知。
  */
 
+import { useCallback } from "react";
 import { ChevronRight } from "lucide-react";
 import { Button, EmptyNote, Panel, PanelAction, PanelTitle, UiProvider } from "@tau/ui";
 import { RecoverableBoundary } from "@/components/ErrorState";
 import { PluginComponentScope } from "@/app/plugins/content-components";
 import { appNotify } from "@/features/notifications/notify";
 import type { RegisteredPluginHomePanel } from "@/app/plugins/runtime";
+import { usePageOptional } from "@/page/PageProvider";
 import type { HomePanelDefinition } from "../layout";
 
 function runAction(run: () => unknown) {
@@ -28,6 +30,12 @@ function runAction(run: () => unknown) {
 
 function PluginHomePanel({ panel }: { panel: RegisteredPluginHomePanel }) {
   const { component: Component, action } = panel.definition;
+  // 面板里的浮层按 Esc 先关（与插件页面的 registerDismiss 同一仲裁）
+  const registerOverlayDismiss = usePageOptional()?.registerOverlayDismiss;
+  const registerDismiss = useCallback(
+    (dismiss: () => void) => ({ dispose: registerOverlayDismiss?.(dismiss) ?? (() => undefined) }),
+    [registerOverlayDismiss]
+  );
   return (
     <Panel variant="outline" pad="compact">
       <PanelTitle className="mb-2.5">
@@ -56,7 +64,7 @@ function PluginHomePanel({ panel }: { panel: RegisteredPluginHomePanel }) {
           <PluginComponentScope context={panel.context}>
             {/* 标记放在 UiProvider 里面：它自己会渲染一层 div */}
             <div data-home-panel-body className="min-w-0">
-              <Component context={panel.context} />
+              <Component context={panel.context} registerDismiss={registerDismiss} />
             </div>
           </PluginComponentScope>
         </UiProvider>

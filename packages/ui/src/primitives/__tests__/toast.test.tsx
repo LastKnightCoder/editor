@@ -212,3 +212,29 @@ describe("Toast onClose 关闭回调", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 });
+
+describe("同 key 原位替换与深色外观", () => {
+  it("同 key 的提示只留一条，新内容重新计时", async () => {
+    const first = toast.info("按住说话", { key: "hint" });
+    await flush();
+    advance(DEFAULT_DURATION - 500);
+    const second = toast.info("松手发送", { key: "hint" });
+    expect(second).toBe(first);
+    await flush();
+    expect(texts()).toEqual(["松手发送"]);
+    advance(DEFAULT_DURATION - 500);
+    expect(texts()).toEqual(["松手发送"]);
+    advance(500 + LEAVE_BUFFER);
+    expect(texts()).toEqual([]);
+  });
+
+  it("inverse 外观用墨色底，停靠区可由宿主覆盖", async () => {
+    act(() => root.render(<ToastHost variant="inverse" zoneClassName="top-[100px] z-[80]" />));
+    toast.success("已记下", { action: { label: "撤销", onClick: () => undefined } });
+    await flush();
+    const pill = document.querySelector<HTMLElement>('[role="status"]')!;
+    expect(pill.className).toContain("bg-ink-1");
+    expect(pill.parentElement!.className).toContain("z-[80]");
+    expect(pill.parentElement!.className).not.toContain("z-[360]");
+  });
+});

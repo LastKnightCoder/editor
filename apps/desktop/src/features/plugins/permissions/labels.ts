@@ -39,6 +39,7 @@ export const PERMISSION_LABELS: Record<PluginPermission, { label: string; detail
   },
   "flashcards:read": { label: "读取闪卡卡组", detail: "卡组名称与说明" },
   "flashcards:write": { label: "创建闪卡", detail: "创建卡组与闪卡，包括 AI 自动保存" },
+  "speech:input": { label: "语音输入", detail: "按住说话时录音，识别方式沿用应用的语音输入设置" },
   ...(Object.fromEntries(
     Object.entries(PLUGIN_AI_CAPABILITIES).map(([id, { name }]) => [
       `ai:${id}`,

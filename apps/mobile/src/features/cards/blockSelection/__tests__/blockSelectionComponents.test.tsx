@@ -38,7 +38,7 @@ vi.mock("@tau/editor/api", () => ({
     menus.byType[element.type]?.(element) ?? [],
 }));
 
-import { useToastStore } from "../../../../components/toast";
+import { toastQueue } from "../../../../components/toast";
 import { createControllerStub } from "../../__tests__/toolbarControllerStub";
 import { BlockActionBar } from "../BlockActionBar";
 import { BlockHandle } from "../BlockHandle";
@@ -129,7 +129,7 @@ describe("块选择组件", () => {
     document.body.append(host, container);
     root = createRoot(host);
     setupBlocks(container);
-    useToastStore.getState().clearAll();
+    toastQueue.clearAll();
   });
 
   afterEach(() => {
@@ -311,7 +311,7 @@ describe("块选择组件", () => {
       act(() => buttonByLabel("删除")?.click());
       expect(texts(editor)).toEqual(["B"]);
       expect(selection.exit).toHaveBeenCalledTimes(1);
-      const message = useToastStore.getState().toasts.at(-1);
+      const message = toastQueue.list().at(-1);
       expect(message?.text).toBe("已删除 2 个块");
       expect(message?.action?.label).toBe("撤销");
       act(() => message?.action?.onClick());
