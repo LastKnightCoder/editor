@@ -2,6 +2,13 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "context-chat-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8843", "--bind", "127.0.0.1", "-d", "."],
+      "port": 8843,
+      "autoPort": false
+    },
+    {
       "name": "sbtest",
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "8791", "-d", "/tmp/sbtest"],
@@ -294,6 +301,13 @@
       "runtimeArgs": ["-m", "http.server", "8841", "--bind", "127.0.0.1", "-d", "."],
       "port": 8841,
       "url": "http://localhost:8841"
+    },
+    {
+      "name": "weight-mobile-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8842", "--bind", "127.0.0.1", "-d", "."],
+      "port": 8842,
+      "url": "http://localhost:8842"
     }
   ]
 }
