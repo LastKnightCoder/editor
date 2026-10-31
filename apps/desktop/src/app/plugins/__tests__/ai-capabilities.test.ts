@@ -18,23 +18,23 @@ afterEach(() => vi.resetAllMocks());
 it("通用能力绑定保留插件身份并固定模型来源，不要求自定义功能声明", async () => {
   mocks.invoke.mockImplementation(async channel => {
     if (channel === "register") return "capability-session";
-    if (channel === "run") return { ok: true, result: { text: "标题", usage: null } };
+    if (channel === "run") return { ok: true, result: { text: "回答", usage: null } };
     return undefined;
   });
   const lifetime = new AbortController();
   const client = await desktopPluginAI.bindCapability(
-    { id: "test.title", name: "标题插件" },
-    "titleSummary",
+    { id: "test.chat", name: "聊天插件" },
+    "chat",
     lifetime.signal
   );
   expect(mocks.invoke).toHaveBeenCalledWith("register", {
-    id: "test.title",
-    name: "标题插件",
+    id: "test.chat",
+    name: "聊天插件",
     features: [],
-    hostFeature: "titleSummary",
+    hostFeature: "chat",
   });
   expect(await client.chat({ messages: [{ role: "user", content: "资料" }] })).toEqual({
-    text: "标题",
+    text: "回答",
     usage: null,
   });
   expect(mocks.invoke).toHaveBeenCalledWith(
@@ -42,7 +42,7 @@ it("通用能力绑定保留插件身份并固定模型来源，不要求自定�
     expect.objectContaining({
       session: "capability-session",
       input: expect.objectContaining({
-        feature: "titleSummary",
+        feature: "chat",
         messages: [{ role: "user", content: "资料" }],
       }),
     })

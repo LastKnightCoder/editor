@@ -138,7 +138,7 @@ UiHostProvider 只接受平台中立的 dismiss 登记函数。真实 Dialog/Dra
 
 默认连接使用惰性单例；`connectMobilePluginTransport(runtime, { ai, openSettings })` 也允许宿主注入同一 AI 服务与设置打开回调。需要审批/提问时由宿主配置该服务的交互端口，插件不能修改权限模式。插件运行时只回收自己的请求、工具和来源，不销毁注入的共享 AI 服务。
 
-`context.ai.requestCapability` 复用 PluginHost 的清单声明、逐能力授权与撤权订阅，模型取 `llmUsageSettings` 对应项，不隐式回退。`ai.features` 自定义功能默认关闭，由宿主通过 `runtime.ai.info/configure` 维护功能模型分配和每日请求、Token、并发额度；`running/cancel/revoke` 管理在途请求，`usage` 分页读取当日额度与审计记录。额度与桌面一致，按同一设备的 pluginId 计数、跨工作区共享，调用授权仍绑定工作区。插件只收到文本增量、最终文本与可确认的 Token 用量；未知用量为 null。模型、网络与鉴权的原始错误不交付插件。
+`context.ai.requestCapability` 仅开放聊天 `chat` 与闪卡生成 `flashcardGeneration`，原生能力表与 SDK 保持一致；复用 PluginHost 的清单声明、逐能力授权与撤权订阅，模型取 `llmUsageSettings` 对应项，不隐式回退。`ai.features` 自定义功能默认关闭，由宿主通过 `runtime.ai.info/configure` 维护功能模型分配和每日请求、Token、并发额度；`running/cancel/revoke` 管理在途请求，`usage` 分页读取当日额度与审计记录。额度与桌面一致，按同一设备的 pluginId 计数、跨工作区共享，调用授权仍绑定工作区。插件只收到文本增量、最终文本与可确认的 Token 用量；未知用量为 null。模型、网络与鉴权的原始错误不交付插件。
 
 原生 `plugin_ai_*` 命令使用当前插件 transport token 与数据库身份，模型分配由宿主读取。prepare 到 begin 之间比较配置指纹，begin 持久预占额度并返回提供方指纹；创建模型上下文时以同一设置快照复验指纹，再冻结凭据，冲突不发网。结束时按可确认的实际用量结算；未知用量保留预占，不把 SDK 默认零值当作免费调用；明确尚未接受生成或发网前配置冲突的请求按零用量结算。finish 再检查调用身份与配置，撤回后不能交付迟到成功。配额与请求账本放应用私有 `plugin-ai.json`，不进入主库插件 KV，不保存提示词、回复或凭据；已结束审计保留最近 30 天且最多 1000 条，未结束请求不丢弃，当日额度独立保留。插件停用、提前退出流、调用者取消及切库会停止模型调用并回收绑定。移动端没有独立 AI 配置页面，未注入宿主打开回调时 `openSettings` 返回 `AI_SETTINGS_UNAVAILABLE`。
 
