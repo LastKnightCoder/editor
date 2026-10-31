@@ -1,6 +1,8 @@
 import { forwardRef, useEffect, useState } from "react";
 import type { SyntheticEvent } from "react";
 import { resolveLocalMediaSource } from "./localMedia";
+import { useOptionalService } from "@tau/editor";
+import { IResourceService } from "@tau/shared/host-services";
 import { AudioPlayer, type AudioPlayerProps } from "@tau/shared";
 
 type LocalAudioProps = AudioPlayerProps & {
@@ -9,6 +11,7 @@ type LocalAudioProps = AudioPlayerProps & {
 
 const LocalAudio = forwardRef<HTMLAudioElement, LocalAudioProps>(
   ({ src, onError, ...restProps }, ref) => {
+    const resolveResource = useOptionalService(IResourceService)?.remoteResourceToLocal;
     const [resolvedSrc, setResolvedSrc] = useState(src);
 
     useEffect(() => {
@@ -17,7 +20,7 @@ const LocalAudio = forwardRef<HTMLAudioElement, LocalAudioProps>(
 
       void (async () => {
         try {
-          const nextSrc = await resolveLocalMediaSource(src);
+          const nextSrc = await resolveLocalMediaSource(src, { resolveResource });
           if (!cancelled) {
             setResolvedSrc(nextSrc);
           }
@@ -32,7 +35,7 @@ const LocalAudio = forwardRef<HTMLAudioElement, LocalAudioProps>(
       return () => {
         cancelled = true;
       };
-    }, [src]);
+    }, [src, resolveResource]);
 
     const handleError = (event: SyntheticEvent<HTMLAudioElement, Event>) => {
       if (resolvedSrc !== src) {

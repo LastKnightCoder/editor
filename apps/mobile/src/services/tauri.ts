@@ -864,12 +864,14 @@ export async function uploadResource(params: {
   content: Blob;
   database?: string;
   signal?: AbortSignal;
+  collaboration?: CollaborationResourceContext;
 }) {
   params.signal?.throwIfAborted();
   const id = await trackedInvoke<string>("resource_upload_begin", {
     fileName: params.fileName,
     mimeType: params.mimeType,
     database: params.database,
+    ...(params.collaboration ? { collaboration: params.collaboration } : {}),
   });
   try {
     const chunkSize = 256 * 1024;
@@ -1035,6 +1037,22 @@ export function getHomeStats() {
 
 /* ── 协作 ── */
 
+export interface CollaborationResourceContext {
+  serverUrl: string;
+  documentId: string;
+}
+
+export function collabResource<T>(
+  context: CollaborationResourceContext,
+  action: "prepare" | "resolve" | "localize" | "flush" | "pending" | "release",
+  references: string[] = [],
+  required = false
+): Promise<T> {
+  return trackedInvoke<T>("collab_resource", {
+    payload: { ...context, action, references, required },
+  });
+}
+
 export function collabBindContent(params: {
   contentId: number;
   expectedDocumentId: string;
@@ -1050,6 +1068,7 @@ export function collabBindContent(params: {
 }
 
 export type CachedContentSession = import("@tau/collaboration").CollaborationSession & {
+  close?: { revision: string; confirmed: boolean };
   baselineId: string;
   epoch: number;
   resourcePaths?: Record<string, string>;
@@ -1069,6 +1088,12 @@ export function collabReadCache(documentId: string) {
 /** 缓存与主库或服务器对不上时备份到 collaboration/discarded/ 后删除，随后按权威数据重建。 */
 export function collabDiscardCache(documentId: string, reason: string) {
   return trackedInvoke<void>("collab_cache_discard", { documentId, reason });
+}
+export function collabRecovery(
+  documentId: string,
+  action: "read" | "confirm-close" | "clear-close" | "release" = "read"
+) {
+  return trackedInvoke<CachedContentSession | null>("collab_recovery", { documentId, action });
 }
 export function collabWriteCache(
   payload: {
@@ -1113,8 +1138,15 @@ export function collabListBindings() {
   return trackedInvoke<CollaborationBinding[]>("collab_list_bindings");
 }
 
-export function collabUnbindContent(contentId: number) {
-  return trackedInvoke<void>("collab_unbind_content", { contentId });
+export function collabUnbindContent(
+  contentId: number,
+  expected?: { documentId: string; sourceId?: string }
+) {
+  return trackedInvoke<void>("collab_unbind_content", {
+    contentId,
+    expectedDocumentId: expected?.documentId,
+    expectedSourceId: expected?.sourceId,
+  });
 }
 
 /** 协作投影专用写通道：绑定漂移时服务端侧自动解绑并返回 reason=drift */

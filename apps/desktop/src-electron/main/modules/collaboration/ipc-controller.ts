@@ -8,6 +8,7 @@ import {
   NodeTree,
   createNodeDocument,
   collectNodeDocumentResources,
+  isSafeResource,
   ASSET_PREFIX,
   LOCAL_ASSET_PREFIX,
   type ContentNode,
@@ -17,10 +18,15 @@ import {
   type ContentSessionTarget,
 } from "@tau/collaboration";
 import type { CollaborationIpcContext } from "./types";
-import { isVideoFile } from "./asset-service";
 import { NodeSessionUpdates } from "./node-session-updates";
 import { validateContentContractsSync } from "@tau/db-schema/content-contracts-node";
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
+import { isVideoFile } from "./asset-service";
+import { collaborationImageStorage } from "../../services/collaboration-image-storage";
+import type {
+  CollaborationImageFile,
+  OwnerImageReply,
+} from "../../../../shared/collaboration-image-storage";
 
 export function registerCollaborationIpc(context: CollaborationIpcContext) {
   const nodeUpdates = new NodeSessionUpdates(context.store, context.contentState);
@@ -29,6 +35,18 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
     fn: (event: IpcMainInvokeEvent, ...args: Args) => unknown
   ) => ipcMain.handle(`collaboration:${name}`, fn);
   handle("state", () => context.state());
+  handle("owner-image-connect", async (event, session: string) => {
+    const { getMainWindows } = await import("../../windows");
+    if (!getMainWindows().some(window => window.webContents.id === event.sender.id))
+      throw new Error("作者图片只能交给主窗口保存");
+    collaborationImageStorage.connect(event.sender, session);
+  });
+  handle("owner-image-release", (event, session: string) =>
+    collaborationImageStorage.release(event.sender.id, session)
+  );
+  handle("owner-image-reply", (event, reply: OwnerImageReply) =>
+    collaborationImageStorage.reply(event.sender.id, reply)
+  );
   handle(
     "prepare-fragment",
     async (
@@ -48,10 +66,14 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
       const candidate = await createNodeDocument(
         { documentId: "clipboard", baselineId: "clipboard", epoch: 0 },
         value,
-        contracts
+        contracts,
+        { allowLocalResources: true }
       );
       const references = collectNodeDocumentResources(candidate).filter(
-        reference => reference.startsWith(ASSET_PREFIX) || reference.startsWith(LOCAL_ASSET_PREFIX)
+        reference =>
+          reference.startsWith(ASSET_PREFIX) ||
+          reference.startsWith(LOCAL_ASSET_PREFIX) ||
+          (!isSafeResource(reference) && !reference.startsWith("data:"))
       );
       candidate.destroy();
       const source = context.findSession(sourceId);
@@ -366,23 +388,67 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
     session.provider?.detach();
     context.changed(session);
     await context.finishLeave(session);
+    if (context.findSession(id) === session && session.info.error)
+      throw new Error(session.info.error);
   });
-  handle(
-    "upload-resource",
-    async (_event, id: string, file: { name: string; mime: string; bytes: Uint8Array }) => {
-      const session = context.requireSession(id);
-      // 视频不上传服务器，只在插入者本机可播放，其他成员看到占位
-      if (session.info.mode === "local" || isVideoFile(file))
-        return context.assets.keepLocalFile(session.info.id, file);
-      if (file.bytes.byteLength > 25 * 1024 * 1024) throw new Error("文件超过 25 MB");
+  const resourceView = (event: IpcMainInvokeEvent, viewId: string) => {
+    const view = context.views.get(viewId);
+    if (!view || view.windowId !== BrowserWindow.fromWebContents(event.sender)?.id)
+      throw new Error("资源上传视图已失效");
+    const session = context.requireSession(view.documentId);
+    const check = () => {
+      if (
+        context.views.get(viewId) !== view ||
+        context.findSession(view.documentId) !== session ||
+        session.info.frozen ||
+        session.info.leaving ||
+        session.info.status !== "active"
+      )
+        throw new Error("资源上传会话已变化");
+    };
+    check();
+    return { session, check };
+  };
+  handle("upload-shared-resource", async (event, viewId: string, file: CollaborationImageFile) => {
+    const { session, check } = resourceView(event, viewId);
+    if (!(file.bytes instanceof Uint8Array)) throw new Error("文件数据无效");
+    if (session.info.mode === "local" || (session.info.role !== "editor" && !isVideoFile(file)))
+      throw new Error("作者图片必须使用自己的存储配置");
+    if (!isVideoFile(file) && file.bytes.byteLength > 25 * 1024 * 1024)
+      throw new Error("文件超过 25 MB");
+    const reference = isVideoFile(file)
+      ? await context.assets.keepLocalFile(session.info.id, file)
+      : await context.assets.enqueue(session.info.id, file);
+    check();
+    if (context.assets.hasPending(session.info.id)) {
       session.provider?.detach();
-      const reference = await context.assets.enqueue(session.info.id, file);
       session.info.pending = true;
       context.changed(session);
       void context.flushResources();
-      return reference;
     }
-  );
+    return reference;
+  });
+  handle("prepare-resource", async (event, viewId: string, reference: string) => {
+    const { session, check } = resourceView(event, viewId);
+    if (typeof reference !== "string" || !reference) throw new Error("上传未返回资源地址");
+    if (session.info.mode === "local") return reference;
+    if (session.info.role !== "owner") throw new Error("成员图片必须先上传到协作服务器");
+    const prepared = await context.assets.shareReference(
+      session.info.serverUrl,
+      session.info.id,
+      reference,
+      "",
+      true
+    );
+    check();
+    if (context.assets.hasPending(session.info.id)) {
+      session.provider?.detach();
+      session.info.pending = true;
+      context.changed(session);
+      void context.flushResources();
+    }
+    return prepared;
+  });
   handle("resource", (_event, id: string, reference: string) => {
     const session = context.requireSession(id);
     return context.assets.resolveReference(session.info.serverUrl, session.info.id, reference);

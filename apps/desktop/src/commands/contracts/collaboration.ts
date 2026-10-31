@@ -1,4 +1,8 @@
 import { command } from "@tau/rpc";
+import type {
+  CollaborationImageFile,
+  OwnerImageReply,
+} from "../../../shared/collaboration-image-storage";
 import type { ContentContractDictionary } from "@tau/db-schema/content-contracts";
 import type {
   CollaborationSession,
@@ -27,12 +31,6 @@ export interface CollaborationSubscribeSnapshot {
   awareness?: Uint8Array;
   session: CollaborationSession;
   user: { id: string; name: string; color: string };
-}
-
-export interface CollaborationUploadResourcePayload {
-  name: string;
-  mime: string;
-  bytes: Uint8Array;
 }
 
 /** 协作域命令契约（主进程注册于 collaboration/ipc-controller，模式 A 直连注册） */
@@ -70,9 +68,13 @@ export const collaborationCommands = {
     "collaboration:document-draft"
   ),
   freezeAck: command<[string, string?], void>("collaboration:freeze-ack"),
-  uploadResource: command<[string, CollaborationUploadResourcePayload], string>(
-    "collaboration:upload-resource"
+  prepareResource: command<[string, string], string>("collaboration:prepare-resource"),
+  uploadSharedResource: command<[string, CollaborationImageFile], string>(
+    "collaboration:upload-shared-resource"
   ),
+  ownerImageConnect: command<[string], void>("collaboration:owner-image-connect"),
+  ownerImageRelease: command<[string], void>("collaboration:owner-image-release"),
+  ownerImageReply: command<[OwnerImageReply], void>("collaboration:owner-image-reply"),
   resolveResource: command<[string, string], string>("collaboration:resource"),
   awareness: command<[string, string, Uint8Array, number], void>("collaboration:awareness"),
 };

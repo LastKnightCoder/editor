@@ -22,8 +22,11 @@ it.each([2, 9])("版本 %i 的缓存备份后新建，设置项迁进新库", ve
   const directory = workspace();
   const old = new Database(join(directory, "collaboration.db"));
   old.exec(
-    "CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL); CREATE TABLE sessions (id TEXT PRIMARY KEY, metadata TEXT NOT NULL, state BLOB NOT NULL);"
+    "CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL); CREATE TABLE sessions (id TEXT PRIMARY KEY, metadata TEXT NOT NULL, state BLOB NOT NULL); CREATE TABLE resources(id TEXT PRIMARY KEY,document_id TEXT,name TEXT,mime TEXT,path TEXT,uploaded INTEGER);"
   );
+  old
+    .prepare("INSERT INTO resources VALUES (?,?,?,?,?,?)")
+    .run("asset", "doc", "image.png", "image/png", "/resources/image.png", 0);
   old.prepare("INSERT INTO settings VALUES (?,?)").run("identity:https://collab", '"device"');
   old.prepare("INSERT INTO sessions VALUES (?,?,?)").run("doc", "{}", Buffer.from([1]));
   old.pragma(`user_version=${version}`);
@@ -33,9 +36,36 @@ it.each([2, 9])("版本 %i 的缓存备份后新建，设置项迁进新库", ve
   expect(store.get("identity:https://collab", null)).toBe("device");
   expect(store.db.pragma("user_version", { simple: true })).toBe(3);
   expect(store.db.prepare("SELECT count(*) AS count FROM sessions").get()).toEqual({ count: 0 });
+  expect(store.db.prepare("SELECT path,uploaded FROM resources WHERE id='asset'").get()).toEqual({
+    path: "/resources/image.png",
+    uploaded: 0,
+  });
   const backups = readdirSync(join(directory, "discarded"));
   expect(backups.some(name => name.includes(`version-${version}-collaboration.db`))).toBe(true);
   store.db.close();
+});
+
+it("单篇缓存重建保留上传队列和作者完成映射，明确移除才释放", () => {
+  const store = new CollaborationLocalStore(workspace());
+  try {
+    store.db
+      .prepare("INSERT INTO sessions(id,metadata,state) VALUES (?,?,?)")
+      .run("doc", '{"id":"doc"}', Buffer.from([0, 0]));
+    store.db
+      .prepare("INSERT INTO resources VALUES (?,?,?,?,?,?)")
+      .run("asset", "doc", "image.png", "image/png", "/resources/image.png", 0);
+    store.set("owner-images:doc", { asset: "https://owner.test/image.png" });
+    store.discard("doc", "缓存校验失败");
+    expect(store.db.prepare("SELECT uploaded FROM resources WHERE id='asset'").get()).toEqual({
+      uploaded: 0,
+    });
+    expect(store.get("owner-images:doc", null)).toEqual({ asset: "https://owner.test/image.png" });
+    store.remove("doc");
+    expect(store.db.prepare("SELECT * FROM resources").all()).toEqual([]);
+    expect(store.get("owner-images:doc", null)).toBeNull();
+  } finally {
+    store.db.close();
+  }
 });
 
 it("读不出的设置值备份后按缺省处理", () => {

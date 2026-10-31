@@ -37,6 +37,7 @@ import { createTextFieldBinding } from "./textFieldBinding";
 import { findNodePath, nodeIdentity, projectNodeTree } from "./nodeTreeProjection";
 
 export interface NodeTreeEditorConfiguration {
+  clipboardDocumentId?: string;
   prepareFragment?: import("./types").ContentCollaborationBinding["prepareFragment"];
   preserveInputDraft?: (nodeId: string, field: string, snapshot: TextFieldSnapshot) => void;
   history?: NodeTreeHistory;
@@ -148,7 +149,10 @@ export function withNodeTree<T extends Editor>(
         mime,
         JSON.stringify({
           format: 2,
-          sourceDocumentId: tree.doc.getMap("meta").get("documentId") ?? tree.doc.guid,
+          sourceDocumentId:
+            configuration.clipboardDocumentId ??
+            tree.doc.getMap("meta").get("documentId") ??
+            tree.doc.guid,
           content,
           contracts,
         })
@@ -172,7 +176,8 @@ export function withNodeTree<T extends Editor>(
         const candidate = await createNodeDocument(
           { documentId: "clipboard", baselineId: "clipboard", epoch: 0 },
           { title: "", bannerBg: "", bannerPosition: "center", content },
-          { ...tree.contracts.toJSON(), ...contracts }
+          { ...tree.contracts.toJSON(), ...contracts },
+          { allowLocalResources: true }
         );
         candidate.destroy();
         if (configuration.prepareFragment)

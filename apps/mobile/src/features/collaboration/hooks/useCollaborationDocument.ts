@@ -3,11 +3,11 @@
 // 不存在桌面端的副本与 IPC 同步。
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createNodeTreeDocument, type ContentCollaborationBinding } from "@tau/editor-collab";
-import { NodeTree, NODE_DOCUMENT_VERSION } from "@tau/collaboration";
+import { NodeTree, NODE_DOCUMENT_VERSION, isVideoResource } from "@tau/collaboration";
 import type { EditorDocument, EditorKit } from "@tau/editor";
 import { getMobileContentKit } from "../../../services/editorKit";
 import { mobileContentPlugins } from "../../../app/plugins/content";
-import { ASSET_PREFIX } from "@tau/collaboration/src/protocol";
+import { IResourceService } from "@tau/shared/host-services";
 import * as tauri from "../../../services/tauri";
 import { collaborationManager } from "../core/manager";
 import { useCollaborationStore } from "../core/store";
@@ -35,7 +35,13 @@ export default function useCollaborationDocument(
   const canWrite = () => {
     try {
       assertActive();
-      return latest.current.canWrite?.() !== false;
+      const current = collaborationManager.session(documentId);
+      return (
+        latest.current.canWrite?.() !== false &&
+        !current?.info.leaving &&
+        !current?.info.frozen &&
+        current?.info.status === "active"
+      );
     } catch {
       return false;
     }
@@ -150,16 +156,29 @@ export default function useCollaborationDocument(
           }
         },
       },
-      // 附件上传/下载为 P2 范围：此前移动端仅消费远端资源，遇到协作附件给出明确提示
-      uploadResource: async () => {
-        throw new Error("COLLAB_ASSET_UNSUPPORTED: 移动端暂不支持上传协作附件");
+      uploadResource: async file => {
+        assertActive();
+        if (!canWrite()) throw new Error("当前正文不可编辑");
+        const result =
+          runtime.info.role === "owner" && !isVideoResource(file.name, file.type)
+            ? await collaborationManager.prepareResource(
+                runtime.info.id,
+                await (latest.current.kit ?? getMobileContentKit()).registry
+                  .get(IResourceService)
+                  .upload(file)
+              )
+            : await collaborationManager.uploadSharedResource(runtime.info.id, file);
+        assertActive();
+        if (!canWrite()) throw new Error("当前正文不可编辑");
+        return result;
       },
+      prepareResource: reference =>
+        collaborationManager.prepareResource(runtime.info.id, reference),
+      prepareFragment: (sourceId, content, contracts) =>
+        collaborationManager.prepareFragment(runtime.info.id, sourceId, content, contracts),
       resolveResource: async url => {
         assertActive();
-        if (url.startsWith(ASSET_PREFIX)) {
-          throw new Error("COLLAB_ASSET_UNSUPPORTED: 移动端暂不支持协作附件");
-        }
-        return url;
+        return collaborationManager.resolveResource(runtime.info.id, url);
       },
     };
   }, [runtime]);
@@ -194,17 +213,27 @@ export default function useCollaborationDocument(
           await tree.installContracts(catalog.additionalContracts(tree.contracts.toJSON()), null);
         if (cancelled) return;
         assertActive();
+        const document = createNodeTreeDocument(tree, {
+          collaboration: binding,
+          versions: catalog,
+          normalizeOnConnect: false,
+          readonly: !canWrite() || Boolean(runtime.info.frozen) || runtime.info.status !== "active",
+          canWrite: () => canWrite() && !runtime.info.frozen && runtime.info.status === "active",
+        });
+        const baseServices = document.services;
         setPrepared({
           binding,
           revision: pluginRevision,
-          document: createNodeTreeDocument(tree, {
-            collaboration: binding,
-            versions: catalog,
-            normalizeOnConnect: false,
-            readonly:
-              !canWrite() || Boolean(runtime.info.frozen) || runtime.info.status !== "active",
-            canWrite: () => canWrite() && !runtime.info.frozen && runtime.info.status === "active",
-          }),
+          document: {
+            ...document,
+            services: register => {
+              baseServices?.(register);
+              register(IResourceService, {
+                upload: file => binding.uploadResource(file),
+                remoteResourceToLocal: url => binding.resolveResource(url),
+              });
+            },
+          },
         });
       })
       .catch(failure => {

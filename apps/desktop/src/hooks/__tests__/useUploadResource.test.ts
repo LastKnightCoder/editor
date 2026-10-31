@@ -1,4 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
+import { File as NodeFile } from "node:buffer";
 import { uploadResource } from "../useUploadResource";
 import useSettingStore, { EImageBed } from "@/stores/useSettingStore";
 const mocks = vi.hoisted(() => ({ local: vi.fn(), remote: vi.fn(), compress: vi.fn() }));
@@ -44,3 +45,41 @@ it("选择插件固定配置与字节，失败不回退到本地", async () => {
   await expect(uploadResource(file("a.png"))).rejects.toThrow("已停用");
   expect(mocks.local).not.toHaveBeenCalled();
 });
+
+it.each([EImageBed.Local, EImageBed.Plugin])(
+  "压缩后的类型、字节与文件名交给所选存储：%s",
+  async active => {
+    vi.stubGlobal("File", NodeFile);
+    const compressed = new Uint8Array([1, 2, 3]);
+    mocks.compress.mockResolvedValue(compressed);
+    useSettingStore.setState({
+      setting: {
+        ...initial,
+        imageBed: {
+          active,
+          enableCompression: true,
+          plugin: { id: "test.upload", configurations: { "test.upload": { path: "images" } } },
+        },
+      },
+    });
+    try {
+      await uploadResource(file("a.png"));
+      expect(mocks.compress).toHaveBeenCalledWith(new Uint8Array([0, 255]), "image/png");
+      if (active === EImageBed.Local) {
+        const [saved, name] = mocks.local.mock.calls[0];
+        expect(saved.type).toBe("image/webp");
+        expect(name).toMatch(/^a_[\w-]+\.webp$/);
+        expect(new Uint8Array(await saved.arrayBuffer())).toEqual(compressed);
+        expect(mocks.remote).not.toHaveBeenCalled();
+      } else {
+        const { file: saved } = mocks.remote.mock.calls[0][0];
+        expect(saved.mimeType).toBe("image/webp");
+        expect(saved.name).toMatch(/^a_[\w-]+\.webp$/);
+        expect(saved.content).toEqual(compressed);
+        expect(mocks.local).not.toHaveBeenCalled();
+      }
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  }
+);
