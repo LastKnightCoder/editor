@@ -6,7 +6,7 @@ export interface PluginAIFeature {
 
 export const PLUGIN_AI_CAPABILITIES = {
   chat: { name: "对话功能" },
-  flashcardGeneration: { name: "闪卡制作" },
+  flashcardGeneration: { name: "闪卡" },
 } as const;
 
 export type PluginAICapability = keyof typeof PLUGIN_AI_CAPABILITIES;

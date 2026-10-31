@@ -170,7 +170,7 @@ afterEach(() => {
 
 it.each([
   ["对话", "chat"],
-  ["闪卡制作", "flashcardGeneration"],
+  ["闪卡", "flashcardGeneration"],
 ])("功能分配：%s 选中后写入对应分配并显示模型名", async (label, feature) => {
   setting = makeSetting([deepseek]);
   mount();

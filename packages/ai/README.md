@@ -9,6 +9,7 @@
 | `@tau/ai` / `@tau/ai/contracts` | AiError、会话/模型身份、运行请求、工具定义与执行上下文    |
 | `@tau/ai/session`               | pi 会话 v3 编解码、树导航、历史投影、模型上下文与消息转换 |
 | `@tau/ai/models`                | 三种 PiApiKind、配置 DTO、目录与自定义配置的合并规则      |
+| `@tau/ai/flashcards`            | 两端简答题评判的提示词、结果类型与 JSON 校验              |
 | `@tau/ai/runtime`               | AiRuntime、宿主存储端口、运行/单发结果与订阅协议          |
 | `@tau/ai/tools`                 | 工具注册快照、参数校验、权限、审批与代次撤销              |
 | `@tau/ai/skills`                | SKILL.md 来源、目录、按需加载与参考资料读取               |

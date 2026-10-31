@@ -107,10 +107,10 @@ describe("checkAnswer", () => {
     expect(checkAnswer(card, {})).toBe(false);
   });
 
-  it("问答题：恒 true（自评）", () => {
+  it("问答题：等待 AI 或用户自评，不预判为正确", () => {
     const card = makeCard({ type: "qa", data: { answer: "参考答案" } });
-    expect(checkAnswer(card, { qa: "随便写" })).toBe(true);
-    expect(checkAnswer(card, {})).toBe(true);
+    expect(checkAnswer(card, { qa: "随便写" })).toBeNull();
+    expect(checkAnswer(card, {})).toBeNull();
   });
 });
 
