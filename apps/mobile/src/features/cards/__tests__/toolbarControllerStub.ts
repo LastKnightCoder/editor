@@ -64,6 +64,11 @@ export function createControllerStub(
     handleSelectContentLink: vi.fn(),
     undo: vi.fn(),
     redo: vi.fn(),
+    ttsTarget: null,
+    openTtsForSelection: vi.fn(),
+    openTtsForAudio: vi.fn(),
+    closeTts: vi.fn(),
+    handleTtsInserted: vi.fn(),
     ...overrides,
   };
 }

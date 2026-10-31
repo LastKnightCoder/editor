@@ -110,6 +110,48 @@ describe("配件栏媒体模式", () => {
     }
   });
 
+  it("生成音频多出「重新生成」，预填原文并按元素与路径打开面板", () => {
+    const element = {
+      type: "audio",
+      src: "a.mp3",
+      isFromGenerate: true,
+      audioText: "原文",
+      children: [{ type: "formatted", text: "" }],
+    } as never;
+    const controller = createControllerStub({
+      isEditorFocused: false,
+      editingContext: mediaContext("audio", { element, path: [2] }),
+    });
+    render(controller);
+    expect(getLabels()).toEqual(["重新生成", "重命名", "替换", "音频菜单", "键盘"]);
+    press("重新生成");
+    expect(controller.openTtsForAudio).toHaveBeenCalledWith(element, [2], "原文");
+  });
+
+  it("音频「替换」菜单提供「用文字生成」，面板退场后打开", async () => {
+    const controller = createControllerStub({
+      isEditorFocused: false,
+      editingContext: mediaContext("audio"),
+    });
+    render(controller);
+    press("替换");
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    const item = Array.from(document.querySelectorAll("button")).find(button =>
+      button.textContent?.includes("用文字生成")
+    );
+    expect(item).toBeTruthy();
+    act(() => item?.click());
+    const start = Date.now();
+    while (!vi.mocked(controller.openTtsForAudio).mock.calls.length && Date.now() - start < 2000) {
+      await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 25));
+      });
+    }
+    expect(controller.openTtsForAudio).toHaveBeenCalledWith(expect.anything(), [0], "");
+  });
+
   it("图片说明编辑中只留「完成」", () => {
     render(
       createControllerStub({

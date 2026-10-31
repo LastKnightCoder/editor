@@ -222,6 +222,7 @@ describe("MobileEditorBottomToolbar", () => {
       "高亮",
       "链接",
       "批注",
+      "转语音",
       "行内代码",
       "样式",
     ]);
@@ -240,6 +241,8 @@ describe("MobileEditorBottomToolbar", () => {
       clickButton(label);
       expect(controller.executeAction).toHaveBeenLastCalledWith(actionId);
     }
+    clickButton("转语音");
+    expect(controller.openTtsForSelection).toHaveBeenCalledTimes(1);
 
     clickButton("样式");
     expect(controller.togglePanel).toHaveBeenLastCalledWith("style", 300);

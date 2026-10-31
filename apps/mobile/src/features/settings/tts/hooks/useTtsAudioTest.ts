@@ -5,7 +5,7 @@ import { withMobilePluginTTS } from "../../../../services/plugin-tts";
 import type { TTSProviderSetting } from "../../../../types";
 import { isTtsAbort, ttsErrorMessage } from "../errors";
 
-export type TtsAudioResult = { url: string; mime: string; size: number };
+export type TtsAudioResult = { url: string; mime: string; size: number; blob: Blob };
 
 export function useTtsAudioTest({
   runtime,
@@ -13,12 +13,17 @@ export function useTtsAudioTest({
   modelId,
   voiceId,
   enabled,
+  speed,
+  maxLength = 500,
 }: {
   runtime: MobilePluginRuntime | null;
   account: TTSProviderSetting | undefined;
   modelId: string;
   voiceId: string;
   enabled: boolean;
+  /** 语速倍率，缺省交给服务商默认值 */
+  speed?: number;
+  maxLength?: number;
 }) {
   const { phase } = usePageInstanceContext();
   const activeRef = useRef(phase === "active");
@@ -75,7 +80,7 @@ export function useTtsAudioTest({
       disposeAudio();
     };
   }, [disposeAudio]);
-  const contextKey = `${account?.id ?? ""}:${modelId}:${voiceId}:${enabled}`;
+  const contextKey = `${account?.id ?? ""}:${modelId}:${voiceId}:${speed ?? ""}:${enabled}`;
   const previousContextRef = useRef(contextKey);
   useEffect(() => {
     if (previousContextRef.current === contextKey) return;
@@ -91,11 +96,11 @@ export function useTtsAudioTest({
         return;
       }
       if (!cleanText) {
-        setError("请输入测试文本");
+        setError("请输入要合成的文本");
         return;
       }
-      if (cleanText.length > 500) {
-        setError("测试文本不能超过 500 字");
+      if (cleanText.length > maxLength) {
+        setError(`文本不能超过 ${maxLength} 字`);
         return;
       }
       if (!voiceId.trim()) {
@@ -120,7 +125,14 @@ export function useTtsAudioTest({
           runtime,
           { pluginId: account.pluginId, config: account.config, modelId },
           session =>
-            session.synthesize({ text: cleanText, voiceId: voiceId.trim() }, controller.signal),
+            session.synthesize(
+              {
+                text: cleanText,
+                voiceId: voiceId.trim(),
+                ...(speed === undefined ? {} : { options: { speed } }),
+              },
+              controller.signal
+            ),
           controller.signal
         );
         if (!isCurrent()) return;
@@ -133,7 +145,7 @@ export function useTtsAudioTest({
           return;
         }
         objectUrlRef.current = url;
-        setAudio({ url, mime: blob.type, size: blob.size });
+        setAudio({ url, mime: blob.type, size: blob.size, blob });
         setGenerated(true);
       } catch (issue) {
         if (!isCurrent()) return;
@@ -150,7 +162,18 @@ export function useTtsAudioTest({
         }
       }
     },
-    [abortPending, account, clearAudio, disposeAudio, enabled, modelId, runtime, voiceId]
+    [
+      abortPending,
+      account,
+      clearAudio,
+      disposeAudio,
+      enabled,
+      maxLength,
+      modelId,
+      runtime,
+      speed,
+      voiceId,
+    ]
   );
 
   return { audio, pending, generated, error, audioRef, synthesize, cancel, stop };

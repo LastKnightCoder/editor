@@ -16,6 +16,7 @@ import {
   StickyNote,
   Table as TableIcon,
   Video,
+  Volume2,
   Workflow,
   type LucideIcon,
 } from "lucide-react";
@@ -136,6 +137,24 @@ export const INSERT_ITEMS: InsertItem[] = [
     tone: 2,
   },
   {
+    kind: "tts",
+    label: "文字转语音",
+    keywords: [
+      "朗读",
+      "配音",
+      "语音合成",
+      "wenzizhuanyuyin",
+      "wzzyy",
+      "langdu",
+      "peiyin",
+      "tts",
+      "speech",
+    ],
+    group: "media",
+    icon: Volume2,
+    tone: 2,
+  },
+  {
     kind: "image-url",
     label: "网络图片",
     keywords: ["wangluotupian", "wltp", "url", "image", "link"],
@@ -237,6 +256,7 @@ export const OVERLAY_INSERT_KINDS: ReadonlySet<InsertSheetItemKind> = new Set<In
   "audio-url",
   "webview",
   "content-link",
+  "tts",
 ]);
 
 /** 空查询返回全部；否则按 label 或任一关键词包含查询词过滤（大小写不敏感），保持原顺序 */
