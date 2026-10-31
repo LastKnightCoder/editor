@@ -315,6 +315,13 @@
       "runtimeArgs": ["-m", "http.server", "8844", "--bind", "127.0.0.1", "-d", "."],
       "port": 8844,
       "url": "http://localhost:8844"
+    },
+    {
+      "name": "release-history-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8845", "--bind", "127.0.0.1", "-d", "."],
+      "port": 8845,
+      "url": "http://localhost:8845"
     }
   ]
 }

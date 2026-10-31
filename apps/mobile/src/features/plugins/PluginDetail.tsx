@@ -250,20 +250,27 @@ export function PluginDetail() {
           {activeTab === "versions" && (
             <section className="flex flex-col gap-3">
               {history.length > 0 ? (
-                <div className="bg-surface rounded-2xl px-3.5">
+                <div className="bg-surface overflow-hidden rounded-2xl">
                   <ReleaseHistoryList
                     platformLabel={host ? PLATFORM_LABELS[host.platform] : "本平台"}
-                    items={history.map((item, index) => ({
-                      releaseId: item.releaseId,
-                      version: item.version,
-                      publishedAt: item.publishedAt,
-                      minAppVersion: host
-                        ? (item.targets[host.platform]?.minAppVersion ?? null)
-                        : null,
-                      latest: index === 0,
-                      compatible: item.releaseId === compatible?.releaseId,
-                      installed: item.version === installed?.version,
-                    }))}
+                    items={history.map((item, index) => {
+                      const minAppVersion = host && item.targets[host.platform]?.minAppVersion;
+                      return {
+                        releaseId: item.releaseId,
+                        version: item.version,
+                        publishedAt: item.publishedAt,
+                        declared: !host || !!item.targets[host.platform],
+                        requiredAppVersion:
+                          host &&
+                          minAppVersion &&
+                          comparePluginVersions(host.appVersion, minAppVersion) < 0
+                            ? minAppVersion
+                            : undefined,
+                        latest: index === 0,
+                        compatible: item.releaseId === compatible?.releaseId,
+                        installed: item.version === installed?.version,
+                      };
+                    })}
                   />
                 </div>
               ) : (

@@ -92,7 +92,12 @@ it("详情大按钮写明版本；安装未开放时禁用", async () => {
     <>
       <StoreActionButton
         size="lg"
-        primary={{ kind: "install", version: "1.4.0", allowed: false, reason: "未开放" }}
+        primary={{
+          kind: "install",
+          version: "1.4.0",
+          allowed: false,
+          reason: "未开放",
+        }}
         onPress={vi.fn()}
         onCancel={vi.fn()}
         onRetry={vi.fn()}
@@ -234,7 +239,10 @@ it("管理菜单：卸载与清除数据分别确认，不允许的动作说明�
       item={managed({
         actions: {
           ...managed().actions,
-          restore: { allowed: false, reason: "请先停用插件并点「立即生效」后再操作" },
+          restore: {
+            allowed: false,
+            reason: "请先停用插件并点「立即生效」后再操作",
+          },
         },
       })}
       onClose={vi.fn()}
@@ -315,7 +323,7 @@ it("列表状态覆盖加载、失败重试、空态与加载更多失败", asyn
   expect(onLoadMore).toHaveBeenCalled();
 });
 
-it("版本历史标记最新、可安装、已安装与未声明本平台的版本", async () => {
+it("版本历史标记最新、当前，并说明可安装、未声明本平台与应用版本过低", async () => {
   const view = await mount(
     <ReleaseHistoryList
       platformLabel="iOS"
@@ -324,26 +332,34 @@ it("版本历史标记最新、可安装、已安装与未声明本平台的版�
           releaseId: "r3",
           version: "2.0.0",
           publishedAt: "2026-10-20T00:00:00Z",
-          minAppVersion: null,
+          declared: false,
           latest: true,
         },
         {
           releaseId: "r2",
           version: "1.4.0",
           publishedAt: "2026-10-10T00:00:00Z",
-          minAppVersion: "0.3.0",
+          declared: true,
           compatible: true,
           installed: true,
+        },
+        {
+          releaseId: "r1",
+          version: "1.0.0",
+          publishedAt: "2026-10-01T00:00:00Z",
+          declared: true,
+          requiredAppVersion: "0.9.0",
         },
       ]}
     />
   );
   const rows = [...view.querySelectorAll("li")].map(item => item.textContent);
   expect(rows[0]).toContain("最新");
-  expect(rows[0]).toContain("未声明iOS");
-  expect(rows[1]).toContain("可安装");
-  expect(rows[1]).toContain("已安装");
-  expect(rows[1]).toContain("iOS最低 0.3.0");
+  expect(rows[0]).toContain("未声明支持iOS");
+  expect(rows[1]).toContain("当前");
+  expect(rows[1]).toContain("2026-10-10 · 可安装");
+  expect(rows[1]).not.toContain("Tau");
+  expect(rows[2]).toContain("需 Tau 0.9.0 或更高");
 });
 
 it("安装面板确认步骤显示确切版本、大小与权限", async () => {
@@ -353,7 +369,12 @@ it("安装面板确认步骤显示确切版本、大小与权限", async () => {
       open
       mode="update"
       name="计数器"
-      state={{ kind: "confirm", version: "1.4.0", size: 300 * 1024, permissions: ["cards:read"] }}
+      state={{
+        kind: "confirm",
+        version: "1.4.0",
+        size: 300 * 1024,
+        permissions: ["cards:read"],
+      }}
       onConfirm={onConfirm}
       onCancelInstall={vi.fn()}
       onClose={vi.fn()}
@@ -382,7 +403,10 @@ it("安装面板覆盖不可安装、下载中可取消、待生效与失败重�
   await mount(
     <InstallSheet
       {...props}
-      state={{ kind: "unavailable", reasons: [{ code: "DISTRIBUTION_UNAVAILABLE" }] }}
+      state={{
+        kind: "unavailable",
+        reasons: [{ code: "DISTRIBUTION_UNAVAILABLE" }],
+      }}
     />
   );
   expect(document.body.querySelector('[role="alert"]')?.textContent).toContain(

@@ -375,7 +375,7 @@ it("安装中可关闭面板转后台，其他插件仍可并行发起安装", a
   expect(state.install).toHaveBeenLastCalledWith("example.other", "r1");
 });
 
-it("详情：已安装可更新时头部有启停开关与更新按钮，版本标签标记最新、可安装、已安装与未声明", async () => {
+it("详情：已安装可更新时头部有启停开关与更新按钮，版本标签标记最新、可安装、当前与未声明", async () => {
   const ios = centerRelease("2.0.0", "r3");
   const target = ios.targets.android;
   if (!target) throw new Error("样本缺少 Android 目标");
@@ -398,9 +398,9 @@ it("详情：已安装可更新时头部有启停开关与更新按钮，版本�
     item => item.textContent
   );
   expect(rows[0]).toContain("最新");
-  expect(rows[0]).toContain("未声明Android");
+  expect(rows[0]).toContain("未声明支持Android");
   expect(rows[1]).toContain("可安装");
-  expect(rows[2]).toContain("已安装");
+  expect(rows[2]).toContain("当前");
   expect(document.body.querySelector('[aria-label="平台声明"]')?.textContent).toContain(
     "Tau 0.2.0"
   );
