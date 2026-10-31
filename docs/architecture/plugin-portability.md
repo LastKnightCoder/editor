@@ -56,7 +56,7 @@
 
 ## 移动首页面板与语音输入
 
-`home.registerPanel` 由 `MobilePluginRuntime.homePanels` 登记，今天页在问答条与日程之间渲染 `features/home/PluginHomePanels`：两列网格，`compact` 占一格，`wide` 与紧邻 wide 之前落单的 compact 占整行；宿主画 surface 圆角卡、标题与 action，正文为空（组件返回 null）时整块收起，渲染出错只影响该卡。正文经 `PluginPageComponentScope` 获得页面作用域，`PluginHomePanelProps.registerDismiss` 接今天页的返回仲裁（阻断边缘返回），桌面首页传同名回调接 Esc 浮层仲裁。手机没有面板排序与隐藏，按注册顺序排列。
+`home.registerPanel` 由 `MobilePluginRuntime.homePanels` 登记，今天页在问答条与日程之间渲染 `features/home/PluginHomePanels`：两列网格，`compact` 占一格，`wide` 与紧邻 wide 之前落单的 compact 占整行；宿主画 surface 圆角卡、标题与 action；声明 action 时，点击卡片主体也执行该入口，插件内部的独立按钮与浮层自行阻止点击冒泡，宿主不识别其 DOM 结构。正文为空（组件返回 null）时整块收起，渲染出错只影响该卡。正文经 `PluginPageComponentScope` 获得页面作用域，`PluginHomePanelProps.registerDismiss` 接今天页的返回仲裁（阻断边缘返回），桌面首页传同名回调接 Esc 浮层仲裁。手机没有面板排序与隐藏，按注册顺序排列。
 
 `context.speech` 经 `app/plugins/speech` 的 `createMobilePluginSpeech` 接入：PluginHost 先校验 `speech:input` 声明与授权、把激活 signal 并入录音 signal，再调用与应用听写同一个识别服务实例（`speechServiceFor(runtime.asr)`，应用与插件录音互斥）；不可用原因与应用听写共用 `speechUnavailableReason`。插件只拿到识别文字，不接触音频。`speech:input` 在 TS（`portable.ts`）与原生（`plugin_permissions.rs`）白名单中开放，移动目标最低版本 `MOBILE_SPEECH_MIN_VERSION`（0.2.16）；桌面未接 `SpeechAdapter`，`start` 抛 `SPEECH_UNAVAILABLE`。
 
