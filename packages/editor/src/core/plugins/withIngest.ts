@@ -112,7 +112,7 @@ export const withIngest = (
       if (!source.text) continue;
       let claimed: boolean;
       try {
-        claimed = source.text.when(data);
+        claimed = source.text.when(data, editor);
       } catch (error) {
         breaker.record(source.owner, "ingest", error);
         continue;

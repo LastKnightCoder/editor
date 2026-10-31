@@ -1,5 +1,6 @@
 import "./extensions/annotation/src/augmentations";
 import "./extensions/blockquote/src/augmentations";
+import "./extensions/bookmark/src/augmentations";
 import "./extensions/callout/src/augmentations";
 import "./extensions/code-block/src/augmentations";
 import "./extensions/comment/src/augmentations";

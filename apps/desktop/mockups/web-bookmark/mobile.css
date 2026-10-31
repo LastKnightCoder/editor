@@ -1,0 +1,430 @@
+/* 移动端手机帧与书签卡（移动版） */
+.phones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 34px 30px;
+}
+.phone-wrap .cap {
+  max-width: 360px;
+}
+.phone {
+  width: 360px;
+  height: 760px;
+  border-radius: 42px;
+  overflow: hidden;
+  position: relative;
+  background: var(--tau-bg-page);
+  box-shadow:
+    0 0 0 9px #26221d,
+    0 24px 50px -18px rgba(60, 45, 25, 0.5);
+  display: flex;
+  flex-direction: column;
+  font-size: 17px;
+  line-height: 1.75;
+}
+.phone .status {
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 28px 0 32px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.phone .nav {
+  height: 46px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  color: var(--tau-ink-2);
+}
+.phone .nav .t {
+  flex: 1;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tau-ink-1);
+}
+.phone .nav .ib {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.phone .body {
+  flex: 1;
+  overflow: hidden;
+  padding: 6px 20px;
+  position: relative;
+}
+.phone .body p {
+  margin: 8px 0;
+}
+.phone .body h2 {
+  font-size: 21px;
+  line-height: 1.4;
+  margin: 4px 0 10px;
+}
+.phone .meta {
+  font-size: 12.5px;
+  color: var(--tau-ink-3);
+  margin-bottom: 8px;
+}
+.phone .home {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  width: 120px;
+  height: 5px;
+  margin-left: -60px;
+  border-radius: 3px;
+  background: var(--tau-ink-1);
+  opacity: 0.85;
+  z-index: 9;
+}
+
+/* 移动版书签卡 */
+.mbm {
+  display: flex;
+  gap: 12px;
+  padding: 11px 11px 11px 13px;
+  margin: 12px 0;
+  border: 1px solid var(--tau-line-1);
+  border-radius: 12px;
+  background: var(--tau-bg-surface);
+  line-height: 1.45;
+  position: relative;
+}
+.mbm.pressed {
+  background: var(--tau-bg-press);
+}
+.mbm.selected {
+  border-color: var(--tau-accent);
+  box-shadow: var(--tau-focus-ring);
+}
+.mbm .txt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.mbm .ttl {
+  font-size: 14.5px;
+  font-weight: 500;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mbm .desc {
+  font-size: 12.5px;
+  color: var(--tau-ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mbm .src {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--tau-ink-3);
+  margin-top: auto;
+  padding-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.mbm .thumb {
+  width: 76px;
+  height: 76px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  background-size: cover;
+}
+.ripple {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--tau-accent);
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+/* 底部面板 */
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--tau-overlay);
+  z-index: 5;
+}
+.sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  background: var(--tau-bg-surface);
+  border-radius: 18px 18px 0 0;
+  padding: 8px 14px 30px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+.sheet .handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--tau-line-1);
+  margin: 0 auto 10px;
+}
+.sheet .head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 4px 4px 12px;
+  border-bottom: 1px solid var(--tau-line-1);
+  margin-bottom: 6px;
+}
+.sheet .head .t {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sheet .head .u {
+  font-size: 12px;
+  color: var(--tau-ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sheet .row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 48px;
+  padding: 0 6px;
+  border-radius: 10px;
+  color: var(--tau-ink-1);
+  width: 100%;
+}
+.sheet .row svg {
+  color: var(--tau-ink-2);
+}
+.sheet .row.danger,
+.sheet .row.danger svg {
+  color: var(--tau-danger);
+}
+.sheet .quick {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 6px 0 8px;
+}
+.sheet .quick button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 0 10px;
+  border-radius: 12px;
+  background: var(--tau-bg-surface-hover);
+  font-size: 12.5px;
+  color: var(--tau-ink-2);
+}
+.sheet .quick button svg {
+  color: var(--tau-ink-1);
+}
+.sheet .field {
+  width: 100%;
+  border: 1px solid var(--tau-line-1);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 15px;
+  margin: 6px 0 12px;
+}
+.sheet .pri {
+  width: 100%;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--tau-accent);
+  color: var(--tau-ink-inverse);
+  font-weight: 500;
+}
+
+/* 粘贴提示条（键盘上方） */
+.kb {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 270px;
+  background: color-mix(in srgb, var(--tau-bg-sunken) 70%, var(--tau-bg-page));
+  z-index: 4;
+  padding: 8px 4px 0;
+}
+.kb .keys {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 8px 5px;
+  padding: 6px 3px;
+}
+.kb .keys span {
+  height: 40px;
+  border-radius: 6px;
+  background: var(--tau-bg-surface);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
+}
+.acc {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 270px;
+  height: 46px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  background: var(--tau-bg-surface);
+  border-top: 1px solid var(--tau-line-1);
+  font-size: 13.5px;
+}
+.acc .chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 13.5px;
+  border-radius: 99px;
+}
+.toast {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 330px;
+  z-index: 7;
+  white-space: nowrap;
+  background: var(--tau-ink-1);
+  color: var(--tau-ink-inverse);
+  font-size: 13px;
+  padding: 7px 14px;
+  border-radius: 99px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.toast b {
+  color: var(--tau-ink-inverse);
+  opacity: 0.85;
+  font-weight: 500;
+}
+
+/* 宿主能力页 */
+.cap-doc {
+  max-width: 1080px;
+}
+.cap-doc h2 {
+  font-size: 16px;
+  margin: 26px 0 8px;
+}
+.cap-doc h2:first-child {
+  margin-top: 0;
+}
+.cap-doc p,
+.cap-doc li {
+  font-size: 13.5px;
+  color: var(--tau-ink-2);
+}
+.cap-doc li {
+  margin-left: 18px;
+}
+.cap-doc b {
+  color: var(--tau-ink-1);
+}
+.cap-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
+  border-radius: 10px;
+  overflow: hidden;
+  font-size: 13px;
+  margin: 8px 0 4px;
+}
+.cap-table th,
+.cap-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--tau-line-1);
+  line-height: 1.6;
+}
+.cap-table th {
+  font-weight: 500;
+  color: var(--tau-ink-3);
+  font-size: 12px;
+  background: var(--tau-bg-surface-hover);
+}
+.cap-table tr:last-child td {
+  border-bottom: 0;
+}
+.st {
+  font-size: 11.5px;
+  padding: 1px 8px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+.st.have {
+  background: var(--tau-ok-soft);
+  color: var(--tau-ok);
+}
+.st.new {
+  background: var(--tau-accent-soft);
+  color: var(--tau-accent-text);
+}
+.st.opt {
+  background: var(--tau-bg-hover);
+  color: var(--tau-ink-2);
+}
+pre.code {
+  font: 12px/1.65 var(--mono);
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
+  border-radius: 10px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  color: var(--tau-ink-1);
+  margin: 8px 0;
+}
+pre.code .c {
+  color: var(--tau-ink-3);
+}
+.flow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  margin: 8px 0;
+}
+.flow span.n {
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--tau-line-1);
+  background: var(--tau-bg-surface);
+}
+.flow span.n.hl {
+  border-color: var(--tau-accent);
+  color: var(--tau-accent-text);
+}
+.flow i {
+  color: var(--tau-ink-3);
+  font-style: normal;
+}

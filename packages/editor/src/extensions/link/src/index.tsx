@@ -39,5 +39,6 @@ const linkExtension = defineExtension({
 
 export default linkExtension;
 export type { LinkElement } from "./types";
-export { wrapLink, unwrapLink } from "./operations";
+export { wrapLink, unwrapLink, pasteUrl, isLinkElement } from "./operations";
+export { isPastedUrl } from "./url";
 export { openLinkPanel } from "./panel/controller";

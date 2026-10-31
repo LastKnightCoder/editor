@@ -2,7 +2,12 @@
  * Desktop 编辑器服务注册表：组合各服务实现并注册到 token。
  * 与 getContentKit() 共用同一份注册项。
  */
-import { IFileService, IOpenerService, IResourceService } from "@tau/shared/host-services";
+import {
+  IFetchService,
+  IFileService,
+  IOpenerService,
+  IResourceService,
+} from "@tau/shared/host-services";
 
 import { createServiceRegistry, type ServiceRegistration, type ServiceRegistry } from "@tau/editor";
 import {
@@ -22,6 +27,7 @@ import {
 import { ttsInsertSource } from "@/editor-providers/TtsPanel";
 import { aiImageEditAction, aiImageInsertSource } from "@/editor-providers/AIImagePanel";
 import { openExternal } from "@/commands/extra";
+import { desktopFetch } from "@/commands/fetch";
 import { IDocTaskGroups } from "@/editor-extensions/doc-tasks/service";
 import { desktopDocTaskGroups } from "./docTaskGroups";
 
@@ -45,6 +51,8 @@ export const desktopEditorServices: ServiceRegistration = register => {
       void openExternal(url);
     },
   });
+  // 跨域请求经主进程 fetch 模块（网页书签读取网页信息）
+  register(IFetchService, { fetch: desktopFetch });
 
   // UI 插槽
   register(IEditorSlots, desktopEditorSlots);

@@ -1,0 +1,396 @@
+/* 书签卡片本体：A 横向（推荐）/ B 封面 / C 紧凑，以及加载、失败等状态 */
+.doc {
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
+  border-radius: 14px;
+  box-shadow: var(--tau-shadow-card);
+  padding: 30px 44px 34px 64px;
+  font-size: 15px;
+  line-height: 1.75;
+  position: relative;
+}
+.doc p {
+  margin: 6px 0;
+}
+.doc .muted {
+  color: var(--tau-ink-3);
+}
+.doc a.lnk {
+  color: var(--tau-accent-text);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--tau-accent-text) 35%, transparent);
+  text-underline-offset: 3px;
+}
+.blk {
+  position: relative;
+  margin: 10px 0;
+}
+.blk .grip {
+  position: absolute;
+  left: -30px;
+  top: 8px;
+  width: 22px;
+  height: 24px;
+  border-radius: 6px;
+  color: var(--tau-ink-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+}
+.blk:hover .grip,
+.blk.show-ui .grip {
+  opacity: 1;
+}
+
+/* A 横向 */
+.bm {
+  display: flex;
+  min-height: 104px;
+  border: 1px solid var(--tau-line-1);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--tau-bg-surface);
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background 0.15s var(--ease),
+    border-color 0.15s var(--ease);
+}
+.bm:hover,
+.blk.show-ui .bm {
+  background: var(--tau-bg-surface-hover);
+}
+.blk.selected .bm {
+  border-color: var(--tau-accent);
+  box-shadow: var(--tau-focus-ring);
+}
+.bm .txt {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px 11px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.bm .ttl {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--tau-ink-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bm .desc {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--tau-ink-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.bm .src {
+  margin-top: auto;
+  padding-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--tau-ink-3);
+  min-width: 0;
+}
+.bm .src span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bm .src .site {
+  color: var(--tau-ink-2);
+  flex-shrink: 0;
+}
+.fav {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: 700 9.5px/1 var(--font);
+  color: #fff;
+}
+.fav.none {
+  background: var(--tau-bg-hover);
+  color: var(--tau-ink-3);
+}
+.bm .cover {
+  width: 34%;
+  max-width: 220px;
+  min-width: 120px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--tau-line-1);
+  background-size: cover;
+  background-position: center;
+}
+
+/* 悬停操作条（与其他块的右上角操作条一致） */
+.ops {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
+  box-shadow: var(--tau-shadow-lift);
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: 0.15s var(--ease);
+  z-index: 2;
+}
+.blk:hover .ops,
+.blk.show-ui .ops {
+  opacity: 1;
+  transform: none;
+}
+.ops button {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tau-ink-2);
+}
+.ops button:hover,
+.ops button.on {
+  background: var(--tau-bg-hover);
+  color: var(--tau-ink-1);
+}
+.ops .sep {
+  width: 1px;
+  margin: 4px 2px;
+  background: var(--tau-line-1);
+}
+
+/* B 封面 */
+.bm.cover-top {
+  flex-direction: column;
+  max-width: 340px;
+}
+.bm.cover-top .cover {
+  width: 100%;
+  max-width: none;
+  aspect-ratio: 1.91;
+  border-left: 0;
+  border-bottom: 1px solid var(--tau-line-1);
+  order: -1;
+}
+
+/* C 紧凑：一行 */
+.bm.compact {
+  min-height: 0;
+  align-items: center;
+  padding: 0 12px;
+  height: 42px;
+  gap: 10px;
+}
+.bm.compact .ttl {
+  font-size: 13.5px;
+  flex: 0 1 auto;
+}
+.bm.compact .host {
+  font-size: 12px;
+  color: var(--tau-ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bm.compact .go {
+  margin-left: auto;
+  color: var(--tau-ink-3);
+}
+
+/* 加载骨架 */
+.sk {
+  border-radius: 5px;
+  background: linear-gradient(
+    90deg,
+    var(--tau-bg-hover) 0%,
+    var(--tau-bg-press) 50%,
+    var(--tau-bg-hover) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+.bm.loading {
+  cursor: default;
+}
+.bm.loading .cover {
+  background: var(--tau-bg-hover);
+}
+
+/* 失败 / 无元数据：退化为网址卡 */
+.bm .retry {
+  font-size: 12px;
+  color: var(--tau-accent-text);
+  padding: 0 4px;
+  border-radius: 4px;
+}
+.bm .retry:hover {
+  background: var(--tau-accent-soft);
+}
+.badge {
+  font-size: 11px;
+  padding: 0 6px;
+  border-radius: 99px;
+  background: var(--tau-warn-soft);
+  color: var(--tau-warn);
+  flex-shrink: 0;
+}
+
+/* 粘贴菜单 / 输入框浮层 */
+.pop {
+  position: absolute;
+  z-index: 5;
+  background: var(--tau-bg-surface);
+  border: 1px solid var(--tau-line-1);
+  border-radius: 10px;
+  box-shadow: var(--tau-shadow-float);
+  padding: 4px;
+  font-size: 13px;
+}
+.pop .hd {
+  font-size: 11.5px;
+  color: var(--tau-ink-3);
+  padding: 4px 8px 2px;
+}
+.pop .it {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  color: var(--tau-ink-1);
+  width: 100%;
+  text-align: left;
+}
+.pop .it .k {
+  margin-left: auto;
+}
+.pop .it.on,
+.pop .it:hover {
+  background: var(--tau-bg-hover);
+}
+.pop .it svg {
+  color: var(--tau-ink-2);
+}
+.url-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 10px;
+  width: 420px;
+}
+.url-input input {
+  flex: 1;
+  font-size: 13.5px;
+  height: 30px;
+}
+.url-input input::placeholder {
+  color: var(--tau-ink-3);
+}
+.btn {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  font-weight: 500;
+  background: var(--tau-accent);
+  color: var(--tau-ink-inverse);
+}
+.btn.ghost {
+  background: none;
+  color: var(--tau-ink-2);
+  border: 1px solid var(--tau-line-1);
+}
+.caret {
+  display: inline-block;
+  width: 1.5px;
+  height: 1.1em;
+  background: var(--tau-accent);
+  vertical-align: -0.15em;
+  animation: blink 1s steps(1) infinite;
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* 编辑面板（改标题/描述/封面） */
+.edit-panel {
+  width: 340px;
+  padding: 12px;
+}
+.edit-panel label {
+  display: block;
+  font-size: 11.5px;
+  color: var(--tau-ink-3);
+  margin: 8px 0 4px;
+}
+.edit-panel .field {
+  width: 100%;
+  border: 1px solid var(--tau-line-1);
+  border-radius: 7px;
+  padding: 5px 9px;
+  font-size: 13px;
+  background: var(--tau-bg-surface);
+}
+.edit-panel .field.multi {
+  height: 54px;
+  line-height: 1.5;
+}
+.edit-panel .row {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+}
+.edit-panel .seg-row {
+  display: flex;
+  gap: 6px;
+}
+.chip {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--tau-line-1);
+  color: var(--tau-ink-2);
+}
+.chip.on {
+  border-color: var(--tau-accent);
+  color: var(--tau-accent-text);
+  background: var(--tau-accent-soft);
+}
+
+/* 窄容器隐藏封面 */
+.blk {
+  container-type: inline-size;
+}
+@container (max-width: 360px) {
+  .bm:not(.cover-top) .cover {
+    display: none;
+  }
+}

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>网页书签块 · 设计方案</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="bookmark.css" />
+<link rel="stylesheet" href="card.css" />
+<link rel="stylesheet" href="mobile.css" />
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>网页书签块（bookmark）· 设计方案<small>块级链接卡：网站图标 + 名称 + 标题 + 描述 + 封面 · 颜色取自 @tau/themes · 封面和网站图标是示意图</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="style">1 卡片样式<span class="rec">三种可切换</span></button>
+    <button class="tab" data-tab="state">2 状态</button>
+    <button class="tab" data-tab="insert">3 插入方式</button>
+    <button class="tab" data-tab="ops">4 悬停与编辑</button>
+    <button class="tab" data-tab="mobile">5 移动端</button>
+    <button class="tab" data-tab="host">6 宿主能力</button>
+  </nav>
+</header>
+
+<section class="scene" data-scene="style">
+  <p class="intro">三种外观都做，存在节点的 <code>appearance</code> 上，从操作条「⋯ → 外观」随时切换，切换不重新抓取。<b>A 横向卡</b>是默认，高度约 104px，夹在段落之间不抢戏；<b>B 封面卡</b>像社交分享卡，适合单独推荐一个站点；<b>C 紧凑行</b>适合一组参考资料连续排列。页面没有封面时 B 自动按 A 显示。</p>
+  <div class="grid" id="style-grid"></div>
+</section>
+
+<section class="scene" data-scene="state">
+  <p class="intro">元数据在<b>插入时抓取一次并存进文档</b>，之后渲染只读文档里的快照，不会每次打开都联网。所以「加载中」只出现在插入后的一两秒；抓取失败或页面没有 Open Graph 信息时，卡片退化成「网站图标 + 域名 + 完整网址」，依旧可点。</p>
+  <div class="grid" id="state-grid"></div>
+</section>
+
+<section class="scene" data-scene="insert">
+  <p class="intro">「粘贴为」菜单<b>只在空段落里粘贴单个网址时出现</b>，默认项仍是链接，<span class="kbd">↵</span> 即确认；<b>行内粘贴（段落里已有文字）不出现菜单</b>，和今天一样直接成链接。另一个入口是斜杠菜单 / 块菜单里的「网页书签」。</p>
+  <div class="grid" id="insert-grid"></div>
+</section>
+
+<section class="scene" data-scene="ops">
+  <p class="intro">书签是 void 块，桌面<b>单击整卡直接打开网页</b>（编辑态也一样，卡片里没有可放光标的文字），交给 <code>IOpenerService</code> 用系统浏览器打开。选中、拖拽靠左侧手柄，其余操作放右上角悬停条。标题不理想可以在编辑面板里改，改过的字段刷新时不会被覆盖。</p>
+  <div class="grid" id="ops-grid"></div>
+</section>
+
+<section class="scene" data-scene="mobile">
+  <p class="intro">手机帧 360×760。正文宽度只有 320px 左右，横向卡改为<b>右侧 76px 方形缩略图</b>，标题允许两行、描述一行。<b>阅读态点一下直接打开</b>（交给系统浏览器）；<b>编辑态点一下只选中</b>，底部弹出操作面板，避免误触跳出应用。返回手势先关面板。</p>
+  <div class="phones" id="mobile-phones"></div>
+</section>
+
+<section class="scene" data-scene="host">
+  <div id="host-doc"></div>
+</section>
+
+<script src="icons.js"></script>
+<script src="data.js"></script>
+<script src="desktop.js"></script>
+<script src="mobile.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
