@@ -34,6 +34,12 @@ try {
     if (Object.hasOwn(protocol, "migrationId") || Object.hasOwn(protocol, "frozen"))
       throw new Error("来源包含已退役的格式迁移状态，不能导出为当前备份");
   }
+  for (const table of ["identity_merges", "collaboration_migrations"])
+    tables[table] = db
+      .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?")
+      .get(table)
+      ? db.prepare("SELECT * FROM " + table).all()
+      : [];
   const signingKey = readFileSync(join(source, "signing.key")).toString("hex");
   if (signingKey.length !== 64) throw new Error("来源签名密钥无效");
   for (const row of tables.documents.filter(doc => doc.status === "active")) {
@@ -58,7 +64,7 @@ try {
     if (!/^[a-f0-9]{64}$/.test(digest)) throw new Error("来源资源摘要无效");
     copyFileSync(join(source, "assets", digest), join(target, "assets", digest));
   }
-  writeFileSync(join(target, "metadata.json"), JSON.stringify({ format: 5, signingKey, tables }), {
+  writeFileSync(join(target, "metadata.json"), JSON.stringify({ format: 6, signingKey, tables }), {
     mode: 0o600,
   });
   console.log(
