@@ -21,7 +21,7 @@ function PresetCard(props: { preset: PiCatalogProvider; onClick: () => void }) {
     <button
       type="button"
       onClick={props.onClick}
-      className="bg-page flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-left transition-transform active:scale-[0.98]"
+      className="bg-page flex w-full min-w-0 items-center gap-3 rounded-2xl px-3.5 py-3 text-left transition-transform active:scale-[0.98]"
     >
       <ProviderTile provider={{ id: props.preset.id, name: catalogName(props.preset) }} />
       <span className="min-w-0 flex-1">
@@ -61,7 +61,7 @@ export function AddProviderSheet(props: {
         description="选一个预设，只需要填 API Key；地址和模型清单自动带好。"
         onClose={props.onClose}
       />
-      <div className="mt-3 grid gap-2">
+      <div className="mt-3 grid grid-cols-1 gap-2">
         {presets.featured.map(preset => (
           <PresetCard key={preset.id} preset={preset} onClick={() => addPreset(preset)} />
         ))}
