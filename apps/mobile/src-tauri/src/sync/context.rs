@@ -32,6 +32,7 @@ pub(crate) fn build_sync_context_for(
         AppError::new("SETTING_INVALID", format!("读取 setting.json 失败: {err}"))
     })?;
     let provider = SyncProvider::from_setting(app, &setting, "sync", provider_override)
+        .map(SyncProvider::with_transfer_retries)
         .map_err(|error| AppError::new("SYNC_CONFIG_MISSING", error))?;
     let database_name = get_active_database_name(&setting);
     let local_version = get_database_version(&setting, &database_name);

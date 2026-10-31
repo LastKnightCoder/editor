@@ -3,6 +3,7 @@ pub(crate) mod lifecycle;
 mod network;
 pub(crate) mod store;
 pub(crate) mod sync;
+pub(crate) mod sync_cache;
 
 use std::collections::HashMap;
 use std::fs::{self, OpenOptions};

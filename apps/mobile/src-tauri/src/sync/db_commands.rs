@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
 use tauri::AppHandle;
@@ -103,13 +103,25 @@ pub async fn sync_upload_database(app: AppHandle) -> SyncActionResponse {
 
 /// 把本机库文件覆盖到云端固定位置，版本号最后写入；云端比本机新时由界面先确认。
 async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
+    let started = Instant::now();
     let ctx = match build_sync_context(&app) {
         Ok(ctx) => ctx,
         Err(error) => return response_err(DEFAULT_DB_NAME, 0, 0, error),
     };
     let fail = |remote: u64, error: AppError| {
+        crate::logger::warn(format!(
+            "[sync] upload-failed db={} elapsed_ms={}",
+            ctx.database_name,
+            started.elapsed().as_millis()
+        ));
         response_err(&ctx.database_name, ctx.local_version, remote, error)
     };
+    crate::logger::info(format!(
+        "[sync] upload-start db={} plugin={} local={}",
+        ctx.database_name,
+        ctx.provider.id(),
+        ctx.local_version
+    ));
     let _maintenance = match crate::ai::lifecycle::maintenance(&ctx.database_name) {
         Ok(value) => value,
         Err(error) => return fail(0, AppError::new("AI_LIBRARY_BUSY", error)),
@@ -128,12 +140,28 @@ async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
         Ok(version) => version,
         Err(error) => return fail(0, error),
     };
+    let target =
+        crate::provider_settings::status_file_name(ctx.provider.id(), ctx.provider.config());
+    let plan = match crate::setting::resolve_app_dir(&app).and_then(|root| {
+        crate::ai::sync_cache::UploadPlan::prepare(
+            &root,
+            &ctx.database_name,
+            &target,
+            remote_version,
+            &sessions,
+        )
+    }) {
+        Ok(plan) => plan,
+        Err(error) => return fail(remote_version, AppError::new("AI_STORAGE_FAILED", error)),
+    };
     if !ctx.database_path.exists() {
         return fail(
             remote_version,
             AppError::new("DB_OPEN_FAILED", "本地数据库文件不存在"),
         );
     }
+    let snapshot_started = Instant::now();
+    crate::logger::info(format!("[sync] snapshot-start db={}", ctx.database_name));
     let snapshot = match TemporaryFile::new(&app)
         .and_then(|snapshot| create_database_snapshot(&ctx.database_path, snapshot))
     {
@@ -145,6 +173,17 @@ async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
             )
         }
     };
+    crate::logger::info(format!(
+        "[sync] snapshot-done db={} bytes={} elapsed_ms={}",
+        ctx.database_name,
+        std::fs::metadata(&snapshot.path)
+            .map(|metadata| metadata.len())
+            .unwrap_or(0),
+        snapshot_started.elapsed().as_millis()
+    ));
+    if let Err(error) = plan.invalidate() {
+        return fail(remote_version, AppError::new("AI_STORAGE_FAILED", error));
+    }
     let data_object = crate::chunked_sync::database_file_object(&ctx.database_name);
     if let Err(error) = ctx
         .provider
@@ -155,7 +194,7 @@ async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
     }
     let next_version = ctx.local_version.max(remote_version) + 1;
     if let Err(error) =
-        crate::ai::sync::upload(&app, &ctx.database_name, &ctx.provider, &sessions).await
+        crate::ai::sync::upload(&app, &ctx.database_name, &ctx.provider, &sessions, &plan).await
     {
         return fail(remote_version, AppError::new("SYNC_UPLOAD_FAILED", error));
     }
@@ -182,6 +221,17 @@ async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
     if let Err(error) = save_local_version(&app, &ctx, next_version) {
         return fail(next_version, error);
     }
+    if plan.commit(next_version).is_err() {
+        crate::logger::warn(format!(
+            "[sync] session-cache-save-failed db={}",
+            ctx.database_name
+        ));
+    }
+    crate::logger::info(format!(
+        "[sync] upload-done db={} version={next_version} elapsed_ms={}",
+        ctx.database_name,
+        started.elapsed().as_millis()
+    ));
     response_ok(
         &ctx.database_name,
         next_version,
@@ -299,6 +349,28 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
     }
     if let Err(error) = save_local_version(&app, &ctx, remote_version) {
         return fail(remote_version, error);
+    }
+    if let Some(sessions) = downloaded_sessions.as_ref() {
+        let saved = crate::setting::resolve_app_dir(&app).and_then(|root| {
+            let target = crate::provider_settings::status_file_name(
+                ctx.provider.id(),
+                ctx.provider.config(),
+            );
+            crate::ai::sync_cache::UploadPlan::prepare(
+                &root,
+                &ctx.database_name,
+                &target,
+                remote_version,
+                &sessions.files,
+            )?
+            .commit(remote_version)
+        });
+        if saved.is_err() {
+            crate::logger::warn(format!(
+                "[sync] session-cache-save-failed db={}",
+                ctx.database_name
+            ));
+        }
     }
     crate::database::trigger_reconcile_for_database(&app, &ctx.database_name);
     response_ok(

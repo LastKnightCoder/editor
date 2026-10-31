@@ -40,14 +40,23 @@ export async function uploadChunkedPath(
 export async function downloadChunkedPath(
   store: Pick<ObjectStorage, "downloadFile">,
   object: string,
-  target: string
+  target: string,
+  options: { expectedName?: string; localPath?: string } = {}
 ) {
   await fileCall("sync:file-write", target, 0, new Uint8Array());
   return downloadChunkedFile(
     store,
     object,
     (bytes, offset) => fileCall<void>("sync:file-write", target, offset, bytes),
-    chunkDigest
+    chunkDigest,
+    undefined,
+    {
+      expectedName: options.expectedName,
+      readLocalChunk: options.localPath
+        ? (offset, length) =>
+            fileCall<Uint8Array | null>("sync:file-read-local", options.localPath, offset, length)
+        : undefined,
+    }
   );
 }
 

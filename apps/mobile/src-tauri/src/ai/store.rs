@@ -67,8 +67,8 @@ pub fn safe_file(value: &str) -> Result<(), String> {
 }
 const HASH_CACHE_CAPACITY: usize = 128;
 
-#[derive(Clone, PartialEq, Eq)]
-struct FileFingerprint {
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub(super) struct FileFingerprint {
     size: u64,
     modified: SystemTime,
     #[cfg(unix)]
@@ -77,7 +77,7 @@ struct FileFingerprint {
     changed: (i64, i64),
 }
 impl FileFingerprint {
-    fn of(metadata: &fs::Metadata) -> Result<Self, String> {
+    pub(super) fn of(metadata: &fs::Metadata) -> Result<Self, String> {
         #[cfg(unix)]
         use std::os::unix::fs::MetadataExt;
         Ok(Self {
@@ -692,7 +692,7 @@ impl Store {
             .collect::<Result<Vec<_>, _>>()
             .map_err(failure)?;
         for id in ids {
-            self.info(&id)?;
+            self.path(&self.row(&id)?)?;
         }
         let directory = self.directory()?;
         if !directory.exists() {

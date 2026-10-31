@@ -12,10 +12,11 @@ use crate::plugin_transport::{window_allowed, with_host};
 use crate::setting::resolve_app_dir;
 
 pub(crate) const CHUNK_BYTES: usize = 256 * 1024;
+pub(crate) const MAX_FILE_TRANSFERS: usize = 3;
 pub(crate) async fn memory_permit() -> Result<tokio::sync::OwnedSemaphorePermit, String> {
     static LIMIT: OnceLock<Arc<tokio::sync::Semaphore>> = OnceLock::new();
     LIMIT
-        .get_or_init(|| Arc::new(tokio::sync::Semaphore::new(1)))
+        .get_or_init(|| Arc::new(tokio::sync::Semaphore::new(MAX_FILE_TRANSFERS)))
         .clone()
         .acquire_owned()
         .await
@@ -214,6 +215,24 @@ pub async fn plugin_file_write(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn file_transfer_permits_bound_concurrency_and_release_capacity() {
+        let first = memory_permit().await.unwrap();
+        let second = memory_permit().await.unwrap();
+        let third = memory_permit().await.unwrap();
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(20), memory_permit())
+                .await
+                .is_err()
+        );
+        drop(first);
+        let next = tokio::time::timeout(std::time::Duration::from_secs(1), memory_permit())
+            .await
+            .unwrap()
+            .unwrap();
+        drop((second, third, next));
+    }
+
     #[test]
     fn large_file_handles_are_bounded_ordered_owned_and_cleaned() {
         let _guard = crate::plugin_transport::test_host("files");

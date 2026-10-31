@@ -3,9 +3,10 @@ use crate::plugin_provider::PluginProvider;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
 use std::sync::OnceLock;
+use std::time::Instant;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -176,6 +177,12 @@ async fn upload_chunks(
         return Err("同步文件名无效".into());
     }
     let before = file.metadata().map_err(|e| e.to_string())?;
+    let started = Instant::now();
+    let mut reused_bytes = 0;
+    crate::logger::info(format!(
+        "[sync] file-upload-start file={name:?} bytes={}",
+        before.len()
+    ));
     let mut manifest = Manifest {
         format: protocol().format.clone(),
         version: protocol().version,
@@ -192,14 +199,15 @@ async fn upload_chunks(
         file.read_exact(&mut bytes).map_err(|e| e.to_string())?;
         let sha256 = hash(&bytes);
         let key = chunk_object(&sha256);
-        let reusable = if store.exists(&key).await? {
-            let existing = store.get(&key, protocol().chunk_bytes as u64).await?;
-            existing.len() == length && hash(&existing) == sha256
-        } else {
-            false
-        };
+        crate::logger::info(format!(
+            "[sync] chunk-check file={name:?} index={} bytes={length} object={key}",
+            manifest.chunks.len()
+        ));
+        let reusable = store.exists(&key).await?;
         if !reusable {
             store.put(&key, &bytes).await?;
+        } else {
+            reused_bytes += length;
         }
         manifest.chunks.push(Chunk {
             size: length as u64,
@@ -221,25 +229,53 @@ async fn upload_chunks(
     }
     check()?;
     store.put(object, &bytes).await?;
+    crate::logger::info(format!("[sync] file-upload-done file={name:?} bytes={} reused_bytes={reused_bytes} chunks={} elapsed_ms={}",
+        before.len(), manifest.chunks.len(), started.elapsed().as_millis()));
     Ok(manifest)
 }
 async fn download_chunks(
     store: &impl ObjectStore,
     object: &str,
     file: &mut File,
+    expected_name: Option<&str>,
+    local: Option<&Path>,
     check: impl Fn() -> Result<(), String>,
 ) -> Result<Manifest, String> {
     check()?;
     let manifest = Manifest::parse(&store.get(object, protocol().manifest_bytes as u64).await?)?;
+    if expected_name.is_some_and(|name| manifest.name != name) {
+        return Err("同步文件身份不匹配".into());
+    }
+    let mut local = local.and_then(|path| {
+        let metadata = path.symlink_metadata().ok()?;
+        if !metadata.is_file() || metadata.file_type().is_symlink() {
+            return None;
+        }
+        File::open(path).ok()
+    });
+    let mut offset = 0;
     for chunk in &manifest.chunks {
         check()?;
-        let bytes = store
-            .get(&chunk_object(&chunk.sha256), protocol().chunk_bytes as u64)
-            .await?;
-        if bytes.len() as u64 != chunk.size || hash(&bytes) != chunk.sha256 {
-            return Err("同步分块内容校验失败".into());
-        }
+        let reused = local.as_mut().and_then(|source| {
+            let mut bytes = vec![0; chunk.size as usize];
+            source.seek(SeekFrom::Start(offset)).ok()?;
+            source.read_exact(&mut bytes).ok()?;
+            (hash(&bytes) == chunk.sha256).then_some(bytes)
+        });
+        let bytes = match reused {
+            Some(bytes) => bytes,
+            None => {
+                let bytes = store
+                    .get(&chunk_object(&chunk.sha256), protocol().chunk_bytes as u64)
+                    .await?;
+                if bytes.len() as u64 != chunk.size || hash(&bytes) != chunk.sha256 {
+                    return Err("同步分块内容校验失败".into());
+                }
+                bytes
+            }
+        };
         file.write_all(&bytes).map_err(|e| e.to_string())?;
+        offset += chunk.size;
     }
     check()?;
     file.sync_all().map_err(|e| e.to_string())?;
@@ -279,20 +315,30 @@ impl PluginProvider {
         Manifest::parse(&self.download_bytes(object).await?)
     }
     pub(crate) async fn download_chunked(&self, object: &str) -> Result<TemporaryFile, String> {
-        self.download_checked(object, None, || Ok(())).await
+        self.download_checked(object, None, None, || Ok(())).await
+    }
+    pub(crate) async fn download_session_chunked(
+        &self,
+        object: &str,
+        name: &str,
+        local: &Path,
+    ) -> Result<TemporaryFile, String> {
+        self.download_checked(object, Some(name), Some(local), || Ok(()))
+            .await
     }
     pub(crate) async fn download_resource_chunked(
         &self,
         object: &str,
         name: &str,
     ) -> Result<TemporaryFile, String> {
-        self.download_checked(object, Some(name), resource_check)
+        self.download_checked(object, Some(name), None, resource_check)
             .await
     }
     async fn download_checked(
         &self,
         object: &str,
         expected_name: Option<&str>,
+        local: Option<&Path>,
         check: impl Fn() -> Result<(), String>,
     ) -> Result<TemporaryFile, String> {
         let temp = self.new_temporary()?;
@@ -300,10 +346,7 @@ impl PluginProvider {
             .write(true)
             .open(&temp.path)
             .map_err(|e| e.to_string())?;
-        let manifest = download_chunks(self, object, &mut file, check).await?;
-        if expected_name.is_some_and(|name| manifest.name != name) {
-            return Err("资源文件身份不匹配".into());
-        }
+        download_chunks(self, object, &mut file, expected_name, local, check).await?;
         Ok(temp)
     }
 }
@@ -311,14 +354,20 @@ impl PluginProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::cell::Cell;
+    use std::cell::{Cell, RefCell};
     struct DiskStore {
         root: std::path::PathBuf,
         max: Cell<usize>,
         fail: Cell<bool>,
+        reads: RefCell<Vec<String>>,
+        writes: RefCell<Vec<String>>,
     }
     impl ObjectStore for DiskStore {
+        async fn exists(&self, object: &str) -> Result<bool, String> {
+            Ok(self.root.join(object).is_file())
+        }
         async fn put(&self, object: &str, bytes: &[u8]) -> Result<(), String> {
+            self.writes.borrow_mut().push(object.into());
             self.max.set(self.max.get().max(bytes.len()));
             if self.fail.get() {
                 return Err("断网".into());
@@ -328,6 +377,7 @@ mod tests {
             std::fs::write(path, bytes).map_err(|e| e.to_string())
         }
         async fn get(&self, object: &str, limit: u64) -> Result<Vec<u8>, String> {
+            self.reads.borrow_mut().push(object.into());
             let path = self.root.join(object);
             if std::fs::metadata(&path).map_err(|e| e.to_string())?.len() > limit {
                 return Err("对象过大".into());
@@ -358,6 +408,265 @@ mod tests {
         assert!(Manifest::parse(&serde_json::to_vec(&corrupt).unwrap()).is_err());
     }
     #[tokio::test]
+    async fn repeated_upload_never_downloads_existing_chunks_and_uploads_only_new_content() {
+        let root = std::env::temp_dir().join(format!("tau-upload-reuse-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let source = root.join("session.jsonl");
+        std::fs::write(&source, b"first").unwrap();
+        let store = DiskStore {
+            root: root.join("remote"),
+            max: Cell::new(0),
+            fail: Cell::new(false),
+            reads: RefCell::new(vec![]),
+            writes: RefCell::new(vec![]),
+        };
+        let object = database_session_object("data.db", "session.jsonl").unwrap();
+        upload_chunks(
+            &store,
+            &object,
+            "session.jsonl",
+            &mut File::open(&source).unwrap(),
+            || Ok(()),
+        )
+        .await
+        .unwrap();
+        store.writes.borrow_mut().clear();
+        upload_chunks(
+            &store,
+            &object,
+            "session.jsonl",
+            &mut File::open(&source).unwrap(),
+            || Ok(()),
+        )
+        .await
+        .unwrap();
+        assert!(store.reads.borrow().is_empty());
+        assert_eq!(*store.writes.borrow(), vec![object.clone()]);
+        std::fs::write(&source, b"changed").unwrap();
+        store.writes.borrow_mut().clear();
+        upload_chunks(
+            &store,
+            &object,
+            "session.jsonl",
+            &mut File::open(&source).unwrap(),
+            || Ok(()),
+        )
+        .await
+        .unwrap();
+        assert!(store.reads.borrow().is_empty());
+        assert_eq!(
+            *store.writes.borrow(),
+            vec![chunk_object(&hash(b"changed")), object]
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[tokio::test]
+    async fn session_download_reuses_verified_chunks_and_fetches_only_changes() {
+        let root = std::env::temp_dir().join(format!("tau-session-reuse-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let local = root.join("local.jsonl");
+        let target = root.join("received.jsonl");
+        let mut content = vec![7; protocol().chunk_bytes];
+        content.extend_from_slice(b"end");
+        std::fs::write(&local, &content).unwrap();
+        let store = DiskStore {
+            root: root.join("remote"),
+            max: Cell::new(0),
+            fail: Cell::new(false),
+            reads: RefCell::new(vec![]),
+            writes: RefCell::new(vec![]),
+        };
+        let object = database_session_object("data.db", "session.jsonl").unwrap();
+        let manifest = upload_chunks(
+            &store,
+            &object,
+            "session.jsonl",
+            &mut File::open(&local).unwrap(),
+            || Ok(()),
+        )
+        .await
+        .unwrap();
+        download_chunks(
+            &store,
+            &object,
+            &mut File::create(&target).unwrap(),
+            Some("session.jsonl"),
+            Some(&local),
+            || Ok(()),
+        )
+        .await
+        .unwrap();
+        assert_eq!(*store.reads.borrow(), vec![object.clone()]);
+        assert_eq!(std::fs::read(&target).unwrap(), content);
+
+        let mut changed = content.clone();
+        changed[protocol().chunk_bytes] = b'x';
+        std::fs::write(&local, &changed).unwrap();
+        store.reads.borrow_mut().clear();
+        download_chunks(
+            &store,
+            &object,
+            &mut File::create(&target).unwrap(),
+            Some("session.jsonl"),
+            Some(&local),
+            || Ok(()),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            *store.reads.borrow(),
+            vec![object.clone(), chunk_object(&manifest.chunks[1].sha256)]
+        );
+        assert_eq!(std::fs::read(&target).unwrap(), content);
+        assert_eq!(std::fs::read(&local).unwrap(), changed);
+
+        store.reads.borrow_mut().clear();
+        assert!(download_chunks(
+            &store,
+            &object,
+            &mut File::create(&target).unwrap(),
+            Some("other.jsonl"),
+            Some(&local),
+            || Ok(()),
+        )
+        .await
+        .unwrap_err()
+        .contains("身份不匹配"));
+        assert_eq!(*store.reads.borrow(), vec![object]);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[tokio::test]
+    async fn session_download_handles_missing_damaged_empty_and_non_file_local_paths() {
+        let root =
+            std::env::temp_dir().join(format!("tau-session-fallback-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let source = root.join("source.jsonl");
+        let local = root.join("local.jsonl");
+        let target = root.join("received.jsonl");
+        std::fs::write(&source, b"remote").unwrap();
+        let store = DiskStore {
+            root: root.join("remote"),
+            max: Cell::new(0),
+            fail: Cell::new(false),
+            reads: RefCell::new(vec![]),
+            writes: RefCell::new(vec![]),
+        };
+        let object = database_session_object("data.db", "session.jsonl").unwrap();
+        let manifest = upload_chunks(
+            &store,
+            &object,
+            "session.jsonl",
+            &mut File::open(&source).unwrap(),
+            || Ok(()),
+        )
+        .await
+        .unwrap();
+        for bytes in [
+            None,
+            Some(&b"broken"[..]),
+            Some(&b"short"[..]),
+            Some(&b"remote plus local"[..]),
+        ] {
+            if let Some(bytes) = bytes {
+                std::fs::write(&local, bytes).unwrap();
+            }
+            store.reads.borrow_mut().clear();
+            download_chunks(
+                &store,
+                &object,
+                &mut File::create(&target).unwrap(),
+                Some("session.jsonl"),
+                Some(&local),
+                || Ok(()),
+            )
+            .await
+            .unwrap();
+            assert_eq!(std::fs::read(&target).unwrap(), b"remote");
+            assert_eq!(
+                store.reads.borrow().len(),
+                if bytes == Some(&b"remote plus local"[..]) {
+                    1
+                } else {
+                    2
+                }
+            );
+        }
+        std::fs::remove_file(&local).unwrap();
+        std::fs::create_dir(&local).unwrap();
+        download_chunks(
+            &store,
+            &object,
+            &mut File::create(&target).unwrap(),
+            Some("session.jsonl"),
+            Some(&local),
+            || Ok(()),
+        )
+        .await
+        .unwrap();
+        std::fs::remove_dir(&local).unwrap();
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(&source, &local).unwrap();
+            store.reads.borrow_mut().clear();
+            download_chunks(
+                &store,
+                &object,
+                &mut File::create(&target).unwrap(),
+                Some("session.jsonl"),
+                Some(&local),
+                || Ok(()),
+            )
+            .await
+            .unwrap();
+            assert_eq!(store.reads.borrow().len(), 2);
+            std::fs::remove_file(&local).unwrap();
+        }
+        std::fs::write(&local, b"broken").unwrap();
+        std::fs::write(
+            store.root.join(chunk_object(&manifest.chunks[0].sha256)),
+            b"broken",
+        )
+        .unwrap();
+        assert!(download_chunks(
+            &store,
+            &object,
+            &mut File::create(&target).unwrap(),
+            Some("session.jsonl"),
+            Some(&local),
+            || Ok(()),
+        )
+        .await
+        .is_err());
+
+        std::fs::write(&source, []).unwrap();
+        upload_chunks(
+            &store,
+            &object,
+            "session.jsonl",
+            &mut File::open(&source).unwrap(),
+            || Ok(()),
+        )
+        .await
+        .unwrap();
+        store.reads.borrow_mut().clear();
+        download_chunks(
+            &store,
+            &object,
+            &mut File::create(&target).unwrap(),
+            Some("session.jsonl"),
+            Some(&local),
+            || Ok(()),
+        )
+        .await
+        .unwrap();
+        assert!(std::fs::read(&target).unwrap().is_empty());
+        assert_eq!(*store.reads.borrow(), vec![object]);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[tokio::test]
     async fn cross_runtime_reads_typescript_and_exports_rust_chunks() {
         let Ok(directory) = std::env::var("TAU_CHUNK_INTEROP_DIR") else {
             return;
@@ -367,9 +676,19 @@ mod tests {
             root: root.clone(),
             max: Cell::new(0),
             fail: Cell::new(false),
+            reads: RefCell::new(vec![]),
+            writes: RefCell::new(vec![]),
         };
         let mut result = File::create(root.join("typescript-received.bin")).unwrap();
-        let manifest = download_chunks(&store, "typescript.json", &mut result, || Ok(()))
+        let manifest =
+            download_chunks(
+                &store,
+                "typescript.json",
+                &mut result,
+                None,
+                None,
+                || Ok(()),
+            )
             .await
             .unwrap();
         assert_eq!(manifest.size, protocol().chunk_bytes as u64 + 3);
@@ -408,6 +727,8 @@ mod tests {
             root: root.join("remote"),
             max: Cell::new(0),
             fail: Cell::new(false),
+            reads: RefCell::new(vec![]),
+            writes: RefCell::new(vec![]),
         };
         let object = database_file_object("roundtrip.db");
         let mut input = File::open(&source).unwrap();
@@ -417,7 +738,7 @@ mod tests {
         assert_eq!(manifest.size, length as u64);
         assert_eq!(manifest.chunks.len(), 17);
         let mut output = File::create(root.join("result.bin")).unwrap();
-        download_chunks(&store, &object, &mut output, || Ok(()))
+        download_chunks(&store, &object, &mut output, None, None, || Ok(()))
             .await
             .unwrap();
         assert_eq!(output.metadata().unwrap().len(), length as u64);
@@ -438,9 +759,11 @@ mod tests {
         )
         .unwrap();
         let mut output = File::create(root.join("bad.bin")).unwrap();
-        assert!(download_chunks(&store, &object, &mut output, || Ok(()))
-            .await
-            .is_err());
+        assert!(
+            download_chunks(&store, &object, &mut output, None, None, || Ok(()))
+                .await
+                .is_err()
+        );
         let mut input = File::open(&source).unwrap();
         assert!(
             upload_chunks(&store, &failed, "source.bin", &mut input, || Err(

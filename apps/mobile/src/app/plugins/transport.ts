@@ -251,7 +251,7 @@ export async function connectMobilePluginTransport(
           error: error ?? null,
         }).catch(() => undefined);
     };
-    if (payload.file) {
+    if (payload.file && payload.kind === "upload") {
       const pending = fileQueue.then(execute);
       fileQueue = pending.catch(() => undefined);
       await pending;
