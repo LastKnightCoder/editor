@@ -571,6 +571,8 @@ plugins 页使用 single 身份与 tab 参数（商店 / 已安装文字标签�
 
 提示只有 `@tau/ui` 的 toast 一套实现：`components/ToastViewport` 挂 `ToastHost variant="inverse"`（墨色胶囊，停靠在顶栏下方，层级 `Z_INDEX.TOAST`）。`components/toast` 保留移动端的调用形态（`toast({ type, text })`、`toast.success(...)`），内部转到 `@tau/ui`，`id` 映射为同 key 原位替换；`toastQueue` 供测试读取当前提示。插件、编辑器与公共包直接调用的 `@tau/ui` toast 走同一队列显示；编辑器进行中提示用 `loading` → `resolve/reject` 落定。
 
+停靠区按内容取宽，两侧至少留 16px；提示文字保持单行，超出胶囊上限时省略，动作按钮保持可见。
+
 ## 外部打开 Markdown（导入预览）
 
 Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开」`.md` 时可选 Tau；文件进入只读预览页 `markdownImport`（`features/markdownImport/`），由用户选择存为卡片、存为文章或加入项目（项目根目录文档），导入后 `replace` 到对应编辑页。
@@ -614,6 +616,8 @@ Tau 注册为 Markdown 的打开方式，微信等应用「用其他应用打开
 ## 语音输入
 
 移动宿主保留 ASR 注册表、WebSocket 原生传输、配置存储和 `createMobileSpeechInputService` 编排工厂；壳层不挂载录音 Provider。我的 › 语音 › 语音输入（`settingsModule` 的 `speech-input`）列出系统识别与已启用的识别插件，点已配置的服务即切换，未配置或点箭头进入插件设置页 `pluginSettings`（插件 form 与识别模型）；选用的插件停用后保留选择并提示。插件设置 open 同样打开插件设置页，原生识别接线见[系统语音输入](#系统语音输入)。
+
+业务插件通过 `context.speech` 使用同一识别设置，`app/plugins/speech` 为应用听写与插件录音复用服务实例并互斥占用麦克风。`unavailableReason()` 返回 `null` 表示可用，宿主原样透传；只有语音适配器尚未装配时才返回「插件语音输入尚未就绪」。
 
 Android 清单包含 RECORD_AUDIO/MODIFY_AUDIO_SETTINGS，iOS 包信息包含麦克风用途说明。`plugin_socket` 命令按工作区 token 及窗口作用域校验，系统网络实现使用 tokio-tungstenite；握手失败只保留 HTTP 状态码或 TLS、网络、超时类别，公共连接桥经白名单映射后放入 `error` 事件的 `message`，不传递原始错误、请求头或响应正文。作者契约见 [WebSocket](/plugins/tau-plugin-template/docs/storage-and-network.md#websocket)。采集仅在用户开始语音输入时申请，插件停用和工作区释放取消会话。普通设置快照保留原生管理的 speechInput 数据。
 
