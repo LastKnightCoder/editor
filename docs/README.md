@@ -15,7 +15,7 @@
 | [collaboration.md](./architecture/collaboration.md)           | 实时协作、白板推送与在线状态、同步诊断、当前格式边界与提交协议                                                                 |
 | [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点                                                 |
 | [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                             |
-| [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、外部打开 Markdown、正文统计与空文档判断                                                                |
+| [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、AI 对话与图片生成、外部打开 Markdown、正文统计与空文档判断                                             |
 | [plugin-system.md](./architecture/plugin-system.md)           | 插件体系目标架构与能力                                                                                                         |
 | [plugin-portability.md](./architecture/plugin-portability.md) | 桌面与移动插件宿主、AI 接线、私有包事务及正文适配；作者契约见 [SDK 包内文档](/plugins/tau-plugin-template/docs/portability.md) |
 | [plugin-system/](./architecture/plugin-system/)               | 插件体系：安全模型、运行架构、API 闭环、边界约定与能力说明                                                                     |

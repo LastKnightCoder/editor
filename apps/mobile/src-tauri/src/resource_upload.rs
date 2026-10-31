@@ -2,7 +2,7 @@ use crate::plugin_files::{FileLease, TemporaryFile};
 use crate::plugin_transport::{window_allowed, with_host};
 use std::collections::HashMap;
 use std::fs;
-use std::io::Cursor;
+use std::io::{Cursor, Read};
 use std::path::Path;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
@@ -303,9 +303,13 @@ pub fn resource_upload_begin(
     window: WebviewWindow,
     file_name: String,
     mime_type: String,
+    database: Option<String>,
 ) -> Result<String, String> {
     window_allowed(&window)?;
     let setting = load_or_init_setting(&app)?;
+    if let Some(database) = database {
+        crate::provider_settings::check_database(&setting, &database)?;
+    }
     let token =
         crate::plugin_transport::host_token(&crate::setting::get_active_database_name(&setting))?;
     let provider = parse_resource_provider(
@@ -542,6 +546,54 @@ pub async fn read_resource_bytes(app: AppHandle, path: String) -> Result<String,
     })
     .await
     .map_err(|e| format!("RESOURCE_READ_FAILED: {e}"))?
+}
+
+#[tauri::command]
+pub async fn read_image_resource(
+    app: AppHandle,
+    window: WebviewWindow,
+    database: String,
+    path: String,
+) -> Result<String, String> {
+    window_allowed(&window)?;
+    let token = crate::plugin_transport::host_token(&database)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::plugin_transport::with_database(&token, &database, || Ok(()))?;
+        let root = resolve_app_dir(&app)?;
+        let path = Path::new(&path);
+        let path = if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            root.join(path)
+        };
+        let canonical = resolve_resource_path(&app, &path.to_string_lossy())?;
+        let size = fs::metadata(&canonical)
+            .map_err(|_| "无法读取参考图片")?
+            .len();
+        if size == 0 || size > 128 * 1024 * 1024 {
+            return Err("参考图片大小必须在 1 字节到 128 MiB 之间".into());
+        }
+        let mut bytes = Vec::with_capacity(size as usize);
+        fs::File::open(canonical)
+            .map_err(|_| "无法读取参考图片")?
+            .take(128 * 1024 * 1024 + 1)
+            .read_to_end(&mut bytes)
+            .map_err(|_| "无法读取参考图片")?;
+        if bytes.len() > 128 * 1024 * 1024 {
+            return Err("参考图片不能超过 128 MiB".into());
+        }
+        if !matches!(
+            image::guess_format(&bytes),
+            Ok(image::ImageFormat::Png | image::ImageFormat::Jpeg | image::ImageFormat::WebP)
+        ) {
+            return Err("参考图只支持 PNG、JPEG 或 WebP".into());
+        }
+        crate::plugin_transport::with_database(&token, &database, || {
+            Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
+        })
+    })
+    .await
+    .map_err(|_| "读取参考图片失败")?
 }
 
 /// 列表缩略图最长边：覆盖列表小图（76px）与置顶特写卡（全宽），72 质量 webp 约几十 KB，

@@ -4,6 +4,11 @@ import { AiToolRegistry } from "@tau/ai/tools";
 import { AiSkillRegistry } from "@tau/ai/skills";
 
 vi.mock("../../tauri", () => ({}));
+vi.mock("../../image-generation", () => ({
+  generateMobileImageResources: vi.fn(async () => [
+    { url: "/resources/result.png", mimeType: "image/png", fileName: "result.png" },
+  ]),
+}));
 vi.mock("../../editorMarkdown", () => ({ mobileMarkdown: {} }));
 vi.mock("../../../features/calendar/cache", () => ({ invalidateCalendarQueries: vi.fn() }));
 vi.mock("../../../router/query/PageQueryProvider", () => ({ getQueryClient: vi.fn() }));
@@ -11,18 +16,24 @@ vi.mock("../../../router/query/PageQueryProvider", () => ({ getQueryClient: vi.f
 import { buildChatSystemPrompt, registerHostCapabilities } from "../hostTools";
 import { internalSkillSource } from "../skills";
 import type { MobileAiService } from "../../ai";
+import { generateMobileImageResources } from "../../image-generation";
 
 /** 用真实注册表与技能表装配，只替身 MobileAiService 的注册入口 */
 function fakeService() {
   const registry = new AiToolRegistry();
   const skills = new AiSkillRegistry();
   const requestQuestion = vi.fn(async () => ({ content: "{}" }));
+  const getSnapshot = vi.fn(() => ({
+    session: { databaseName: "data.db", sessionId: "s" },
+    messages: [{ role: "user", content: [{ type: "image", image: "current-attachment" }] }],
+  }));
   const service = {
+    runs: { getSnapshot },
     tools: { register: (spec: never, execute: never) => registry.register(spec, execute) },
     skills: { registerSource: (source: never) => skills.registerSource(source) },
     interactions: { requestQuestion },
   } as unknown as MobileAiService;
-  return { service, registry, skills, requestQuestion };
+  return { service, registry, skills, requestQuestion, getSnapshot };
 }
 
 const context = (): AiToolExecutionContext => ({
@@ -48,6 +59,8 @@ it("注册与桌面同名的宿主工具，读写风险分级，释放后全部�
       "create_todo",
       "delete_calendar_event",
       "ask-question",
+      "generate_image",
+      "edit_image",
     ])
   );
   expect(toolIds).toHaveLength(specs.length);
@@ -99,6 +112,20 @@ it("ask-question 交给运行时承载提问", async () => {
     permissionMode: "manual",
   });
   expect(requestQuestion).toHaveBeenCalledWith({ questions: [] }, expect.anything());
+});
+
+it("图片编辑从注册服务的当前运行快照读取附件，不重读会话文件", async () => {
+  const { service, registry, getSnapshot } = fakeService();
+  const { toolIds } = registerHostCapabilities(service, "data.db");
+  const snapshot = registry.capture(toolIds);
+  await snapshot.execute("host:edit_image", { prompt: "换背景" }, context(), {
+    interactionMode: "host",
+    permissionMode: "manual",
+  });
+  expect(getSnapshot).toHaveBeenCalledWith("r");
+  expect(generateMobileImageResources).toHaveBeenCalledWith(
+    expect.objectContaining({ imagePaths: ["current-attachment"], database: "data.db" })
+  );
 });
 
 it("内置技能可被技能注册表解析，含 database-schema", async () => {

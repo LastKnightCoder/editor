@@ -159,6 +159,16 @@ export function OverviewSection(props: OverviewSectionProps) {
       </div>
       <div className="list-group">
         <AiModelsItem onOpen={() => props.onOpenModule("ai-models")} />
+        <ListItem
+          icon={<IconImage />}
+          label="图片生成"
+          value={
+            syncSettings.safeSetting?.imageGeneration?.providers.find(
+              account => account.id === syncSettings.safeSetting?.imageGeneration?.currentProviderId
+            )?.name ?? "未设置"
+          }
+          onClick={() => props.onOpenModule("image-generation")}
+        />
       </div>
 
       <div className="space-y-3 px-1">

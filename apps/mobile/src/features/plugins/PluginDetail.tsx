@@ -569,7 +569,9 @@ function SettingsTab({
         </nav>
       )}
       <section aria-label={active.definition.title} className="min-w-0">
-        {active.definition.target === "tts" || active.definition.target === "asr" ? (
+        {active.definition.target === "tts" ||
+        active.definition.target === "asr" ||
+        active.definition.target === "images" ? (
           <MobileProviderSettings key={id} entry={active} />
         ) : active.definition.target === "sync" || active.definition.target === "upload" ? (
           <Button

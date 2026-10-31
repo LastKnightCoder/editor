@@ -10,9 +10,11 @@ import { getMobileSettingSnapshot } from "../../services/mobileSettingsBridge";
 import { GroupRow } from "../settings/components/ui";
 import { useTtsDomain } from "../settings/tts/hooks/useTtsDomain";
 import { ProviderConfigForm } from "./ProviderConfigForm";
+import { ImagePluginAccounts } from "../settings/images/ImagePluginAccounts";
 
 type Entry = { context: PluginContext; definition: PluginSettingsDefinition };
 export function MobileProviderSettings({ entry }: { entry: Entry }) {
+  if (entry.definition.target === "images") return <ImagePluginAccounts entry={entry} />;
   if (entry.definition.target === "tts") return <TtsPluginAccounts entry={entry} />;
   if (entry.definition.target === "asr") return <AsrPluginSettings entry={entry} />;
   return null;

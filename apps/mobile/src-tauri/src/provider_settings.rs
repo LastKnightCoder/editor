@@ -117,6 +117,7 @@ pub(crate) fn preserve_managed_fields(next: &mut Value, current: &Value) {
         "speechInput",
         "ttsProviders",
         "ttsUsageSettings",
+        "imageGeneration",
         "llmProviders",
         "llmUsageSettings",
     ] {
@@ -221,6 +222,7 @@ mod tests {
             "speechInput": { "active": "plugin", "plugin": { "id": "fixture.asr", "configurations": {} } },
             "ttsProviders": [{ "id": "a", "name": "账号", "pluginId": "tau.tts-minimax", "config": { "apiKey": "new" }, "models": [{ "id": "m1" }] }],
             "ttsUsageSettings": { "default": { "providerId": "a", "modelId": "m1", "voiceId": "voice" } },
+            "imageGeneration": { "currentProviderId": "img", "providers": [{ "id": "img", "config": { "apiKey": "new" } }] },
             "llmProviders": [{ "id": "p", "name": "服务商", "apiKey": "secret-key", "models": [{ "id": "m" }] }],
             "llmUsageSettings": { "chat": { "providerId": "p", "modelId": "m" } } });
         let mut stale = json!({ "database": {}, "sync": {}, "imageBed": { "enableCompression": false },
@@ -232,6 +234,7 @@ mod tests {
         assert_eq!(stale["speechInput"], current["speechInput"]);
         assert_eq!(stale["ttsProviders"], current["ttsProviders"]);
         assert_eq!(stale["ttsUsageSettings"], current["ttsUsageSettings"]);
+        assert_eq!(stale["imageGeneration"], current["imageGeneration"]);
         assert_eq!(stale["llmProviders"], current["llmProviders"]);
         assert_eq!(stale["llmUsageSettings"], current["llmUsageSettings"]);
         let mut without_llm = json!({ "llmProviders": [{ "id": "x" }], "llmUsageSettings": {} });

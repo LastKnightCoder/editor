@@ -862,23 +862,32 @@ export async function uploadResource(params: {
   fileName: string;
   mimeType: string;
   content: Blob;
+  database?: string;
+  signal?: AbortSignal;
 }) {
+  params.signal?.throwIfAborted();
   const id = await trackedInvoke<string>("resource_upload_begin", {
     fileName: params.fileName,
     mimeType: params.mimeType,
+    database: params.database,
   });
   try {
     const chunkSize = 256 * 1024;
     for (let offset = 0; offset < params.content.size; offset += chunkSize) {
+      params.signal?.throwIfAborted();
       const bytes = new Uint8Array(
         await params.content.slice(offset, offset + chunkSize).arrayBuffer()
       );
+      params.signal?.throwIfAborted();
       let binary = "";
       for (let index = 0; index < bytes.length; index += 32768)
         binary += String.fromCharCode(...bytes.subarray(index, index + 32768));
       await trackedInvoke("resource_upload_write", { id, offset, chunk: btoa(binary) });
     }
-    return await trackedInvoke<string>("upload_resource", { id, size: params.content.size });
+    params.signal?.throwIfAborted();
+    const url = await trackedInvoke<string>("upload_resource", { id, size: params.content.size });
+    params.signal?.throwIfAborted();
+    return url;
   } finally {
     await trackedInvoke("resource_upload_cancel", { id }).catch(() => undefined);
   }

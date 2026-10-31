@@ -160,7 +160,9 @@ export function PluginSettingsView() {
     <PluginPageShell title={setting?.definition.title ?? "插件设置"}>
       {setting && runtime?.active(setting.context) ? (
         <ErrorBoundary>
-          {setting.definition.target === "tts" || setting.definition.target === "asr" ? (
+          {setting.definition.target === "tts" ||
+          setting.definition.target === "asr" ||
+          setting.definition.target === "images" ? (
             <MobileProviderSettings entry={setting} />
           ) : Component ? (
             <PluginSettingsCard>

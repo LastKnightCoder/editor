@@ -634,7 +634,26 @@ export interface AiSettingsSnapshot {
   speechInput?: import("@tau/asr").SpeechInputSetting;
 }
 
+export interface ImageProviderConfig {
+  id: string;
+  name: string;
+  pluginId: string;
+  modelId: string;
+  config: import("@tau/plugins").JsonValue;
+}
+
+export interface ImageGenerationSetting {
+  currentProviderId: string;
+  providers: ImageProviderConfig[];
+}
+
+export type ImageSettingsMutation =
+  | { type: "save"; provider: ImageProviderConfig }
+  | { type: "delete"; id: string }
+  | { type: "select"; id: string; expectedProvider: ImageProviderConfig | null };
+
 export interface SettingCompat {
+  imageGeneration?: ImageGenerationSetting;
   speechInput?: import("@tau/asr").SpeechInputSetting;
   llmProviders?: MobileLlmProvider[];
   llmUsageSettings?: AiSettingsSnapshot["llmUsageSettings"];

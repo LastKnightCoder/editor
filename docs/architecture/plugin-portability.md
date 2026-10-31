@@ -96,9 +96,13 @@
 
 配置界面由宿主按插件声明渲染，连接配置住在插件详情 › 设置：桌面为一张设置卡片（卡头选用状态、分组为小节、卡脚保存栏），移动为服务页（`syncProvider` / `uploadProvider`）的分组行，选择类字段推入全屏选择层。两端都是显式保存：必填校验 → 插件 beforeSave → 与已存配置合并写回，未声明的键保留；同步目标保存后读取一次云端版本作为连接测试，失败时说明配置已保存。保存只写配置、不改变选用；选用是独立动作：设置 › 同步 / 资源存储（移动为同步服务、上传位置列表页）列出各服务的摘要与状态，切换同步服务前探测目标云端，已有数据时确认。移动保存经原生固定库、固定插件的串行原子更新，选用核验配置未变化。旧版以组件注册的存储设置仍可激活与同步，宿主不渲染其表单，只提示更新插件。普通设置快照不能覆盖提供方配置、选择及原生数据库同步元数据。
 
-其余提供方（tts / asr / images / video / publish / embeddings）的 form 同样由宿主渲染，配置入口统一在插件详情 › 设置（应用设置页只选用服务、点「配置」跳回插件详情）：桌面 `ProviderFormView` 接收调用方给出的绑定（已存值、写回、可选的保存后测试与头部卡片），sync / upload 走 `useStorageBinding`，tts / images 的多账号与 asr / video / publish / embeddings 的单份配置由 `ProviderAccountSettings` 绑定到各自的保存命令；embeddings 目前只有桌面宿主，移动端不注入 `context.embeddings`；发布页抽屉另以 `inline` 布局嵌入同一份 publish 配置并自动保存（`autoSave`），不显示保存栏。移动插件设置页（`pluginSettings`）承载 tts 账号列表与 asr 账号表单，TTS 账号页复用 `MobileProviderForm` + `useProviderDraft`，保存在导航栏。字段类型为 text / secret / url / choice / remote-choice / switch / service-choice（宿主服务选择，目前仅桌面 `git.cacheDirectory`，移动只读展示）；字段可用 `visibleWhen` 条件显示，隐藏时不校验；分组可带外部链接；≤3 项且带说明的 choice 在移动平铺为整行单选、在桌面短选项为分段器；beforeSave 抛 `ProviderFieldError` 时宿主把文案标在对应字段。
+其余提供方（tts / asr / images / video / publish / embeddings）的 form 同样由宿主渲染，配置入口统一在插件详情 › 设置（应用设置页只选用服务、点「配置」跳回插件详情）：桌面 `ProviderFormView` 接收调用方给出的绑定（已存值、写回、可选的保存后测试与头部卡片），sync / upload 走 `useStorageBinding`，tts / images 的多账号与 asr / video / publish / embeddings 的单份配置由 `ProviderAccountSettings` 绑定到各自的保存命令；embeddings 目前只有桌面宿主，移动端不注入 `context.embeddings`；发布页抽屉另以 `inline` 布局嵌入同一份 publish 配置并自动保存（`autoSave`），不显示保存栏。移动插件设置页（`pluginSettings`）承载 tts / images 账号列表与 asr 账号表单，图片账号页复用 `ProviderConfigForm` 显式保存；TTS 账号页复用 `MobileProviderForm` + `useProviderDraft`，保存在导航栏。字段类型为 text / secret / url / choice / remote-choice / switch / service-choice（宿主服务选择，目前仅桌面 `git.cacheDirectory`，移动只读展示）；字段可用 `visibleWhen` 条件显示，隐藏时不校验；分组可带外部链接；≤3 项且带说明的 choice 在移动平铺为整行单选、在桌面短选项为分段器；beforeSave 抛 `ProviderFieldError` 时宿主把文案标在对应字段。
 
 账号与目标配置分别存 sync.plugin/imageBed.plugin 的 configurations，按插件 ID 隔离，不使用共享账号引用或主库 KV。提交校验当前服务选择，不转换旧 integration 凭据或搬迁资源账本；移动端读取时先备份原文件，剔除不支持的服务配置，服务选择回落到插件（同步）或本地（上传）。WebDAV 一个包可同时注册同步和上传，二者配置独立。
+
+## 移动图片提供方
+
+移动 `context.images` 支持生成和编辑，`target: images` 设置声明由插件设置页管理多账号与连接表单，应用设置选择当前服务。注册表 `@tau/plugins/images-host` 按激活代次执行单次任务，停用与取消后拒绝迟到结果；对话工具、资源保存及账号存储见[移动图片生成与编辑](/docs/architecture/mobile.md#图片生成与编辑)。图片插件使用既有格式 3 安装链，Android/iOS 目标的最低客户端为 0.2.16。
 
 ## 原生文件事务与数据
 
