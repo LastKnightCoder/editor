@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端提醒与系统通知 · 设计方案</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="../sync-mobile/sync.css" />
+<link rel="stylesheet" href="reminder.css" />
+<script src="icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>移动端提醒与系统通知 · 设计方案<small>颜色取自 @tau/themes · 手机帧 360×760 · 锁屏/系统弹窗由 OS 绘制，不随主题</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="now">1 能不能用系统通知</button>
+    <button class="tab" data-tab="a">2 方案 A：单选提醒</button>
+    <button class="tab" data-tab="b">3 方案 B：多个提醒<span class="rec">推荐</span></button>
+    <button class="tab" data-tab="c">4 方案 C：快捷格 + 自定义</button>
+    <button class="tab" data-tab="look">5 通知长什么样</button>
+    <button class="tab" data-tab="perm">6 权限与设置</button>
+    <button class="tab" data-tab="cmp">7 对比与待确认</button>
+  </nav>
+</header>
+
+<!-- ═══════════ 1 可行性 ═══════════ -->
+<section class="scene" data-scene="now">
+  <p class="scene-intro"><b>结论：能用系统通知，而且应该用。</b>移动端是 Tauri 2，官方 <code>tauri-plugin-notification</code> 在 iOS / Android 上支持<b>预约本地通知</b>（<code>Schedule.at</code>）：提醒交给系统排期，App 被划掉、手机锁屏也会准时弹，不需要推送服务器。现状是移动端待办详情里已经能选「15 分钟前」，但只是写进数据库，<b>手机上从来不会响</b>；日程（calendar_event）连提醒字段都没有。</p>
+  <div class="cards">
+    <div class="card">
+      <h3>平台能力（tauri-plugin-notification v2）</h3>
+      <table class="cmp">
+        <tr><th>能力</th><th>iOS</th><th>Android</th></tr>
+        <tr><td>预约到点弹出（App 不在后台也行）</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>通知上的按钮（完成 / 稍后提醒）</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>点通知跳到对应待办 / 日程</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>撤销已排期的提醒</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>通知分类（待办 / 日程 分开静音）</td><td>—</td><td class="yes">✓ 渠道</td></tr>
+        <tr><td>App 在前台时也弹</td><td colspan="2">系统横幅照常弹；应用内另加一条横幅（见 5）</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>必须处理的限制</h3>
+      <ul>
+        <li><b>iOS 最多排 64 条</b>：只排最近的 N 条（按时间滚动），每次打开 App / 同步完 / 改动后重排。</li>
+        <li><b>Android 13+ 要通知权限</b>，Android 12+ 准点提醒要「闹钟和提醒」权限；没有就会被系统延后几分钟。</li>
+        <li><b>部分国产 ROM</b>（小米/华为等）省电策略可能吞掉提醒，需要在设置页给出「去允许后台」的引导。</li>
+        <li><b>别的设备改的提醒</b>：桌面端新建的待办，要等手机同步后才会排进系统；没打开过 App 的这段时间不会响。</li>
+        <li><b>「完成」按钮</b>：iOS 后台改数据库要原生侧配合，首版点「完成」会先拉起 App 再勾选，体验上多一下动画。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>需要你拍板的两件事</h3>
+      <ul>
+        <li><b>一项能设几个提醒？</b>你说的「前 15 分钟 + 前一天」是两个提醒。现在桌面端和数据库都只存一个（<code>remind_before</code>）。方案 A 不动数据结构；方案 B / C 要改成多个，桌面端一起改。</li>
+        <li><b>桌面和手机会不会都响？</b>默认两边都响（和系统日历一致），在任一端处理后另一端下次同步时撤销。也可以做成「只在手机响」的开关。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 2 方案 A ═══════════ -->
+<section class="scene" data-scene="a">
+  <p class="scene-intro"><b>方案 A：每项只设一个提醒。</b>沿用现在的「提醒」胶囊和单选面板，只做两件事：真正排进系统通知；日程编辑页加一行「提醒」。数据结构不变（待办用 <code>remind_before</code>，日程新增同名字段），改动最小，但「前 15 分钟 + 前一天」这种组合做不到。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">编辑任务</span><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+        <div class="scr">
+          <div class="detail-title"><span class="ck"></span>提交季度复盘报告</div>
+          <div class="pills">
+            <span class="pc sky" data-i="calendar-days" data-s="12">11/03 09:00</span>
+            <span class="pc sage" data-i="clock" data-s="12">11/04 18:00</span>
+            <span class="pc on ring" data-i="bell" data-s="12">15 分钟前</span>
+          </div>
+          <div class="desc-ph">添加描述…</div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>待办详情：胶囊不变</div>
+      <details class="note"><summary>要点</summary><ul><li>截止任务以截止时间为基准；只有开始时间的以开始为基准。</li><li>都没设时胶囊置灰，点开提示「先设截止时间」。</li></ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">编辑任务</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="detail-title"><span class="ck"></span>提交季度复盘报告</div>
+        </div>
+        <div class="mask"></div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="sh-t">提醒<span></span></div>
+          <div class="opt-list">
+            <div class="opt">不提醒</div>
+            <div class="opt">准时</div>
+            <div class="opt">5 分钟前</div>
+            <div class="opt">15 分钟前<span class="mark" data-i="check" data-s="18"></span></div>
+            <div class="opt">1 小时前</div>
+            <div class="opt">1 天前<span class="sub">11/03 18:00</span></div>
+          </div>
+          <div class="foot-note">将在 11/04 17:45 提醒</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>单选面板 + 实际时间</div>
+      <details class="note"><summary>要点</summary><ul><li>底部写出算出来的提醒时刻，避免「1 天前」到底是哪天的困惑。</li><li>首次选提醒时才请求系统通知权限（见 6）。</li></ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="txt">取消</span><span class="t">编辑日程</span><span class="txt brand">保存</span></div>
+        <div class="scr">
+          <div class="grp" style="margin-top:8px"><div class="row noicon"><span class="mid"><b>产品评审会</b></span></div></div>
+          <div class="gl">时间</div>
+          <div class="grp">
+            <div class="row noicon"><span class="mid"><b>全天</b></span><span class="toggle"></span></div>
+            <div class="row noicon"><span class="mid"><b>开始</b></span><span class="val">11/05 周三 14:00</span></div>
+            <div class="row noicon"><span class="mid"><b>结束</b></span><span class="val">15:30</span></div>
+          </div>
+          <div class="grp" style="margin-top:14px">
+            <div class="row"><span class="tile t-acc" data-i="bell" data-s="16"></span><span class="mid"><b>提醒</b></span><span class="val">15 分钟前</span><span class="chev" data-i="chevron-right" data-s="16"></span></div>
+          </div>
+          <div class="gl">日历</div>
+          <div class="grp"><div class="row noicon"><span class="mid"><b>工作</b></span><span class="chev" data-i="chevron-right" data-s="16"></span></div></div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>日程编辑页新增「提醒」</div>
+      <details class="note"><summary>要点</summary><ul><li>全天日程的选项换成「当天 9:00 / 前一天 9:00 / 前两天 9:00」。</li><li>新建日程默认「不提醒」，可在设置里改默认值。</li></ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 3 方案 B ═══════════ -->
+<section class="scene" data-scene="b">
+  <p class="scene-intro"><b>方案 B：每项可设多个提醒（最多 3 个）。</b>面板改成多选：勾「15 分钟前」和「1 天前」就是两个提醒，胶囊合并显示「15 分钟前 · 1 天前」。这是系统日历和滴答清单的做法，覆盖你说的场景。代价是数据结构从单个数值改成列表，桌面端的提醒下拉框要一起改成多选。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">编辑任务</span><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+        <div class="scr">
+          <div class="detail-title"><span class="ck"></span>提交季度复盘报告</div>
+          <div class="pills">
+            <span class="pc sky" data-i="calendar-days" data-s="12">11/03 09:00</span>
+            <span class="pc sage" data-i="clock" data-s="12">11/04 18:00</span>
+            <span class="pc on ring" data-i="bell" data-s="12">15 分钟前 · 1 天前</span>
+          </div>
+          <div class="desc-ph">添加描述…</div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>胶囊合并显示多个提醒</div>
+      <details class="note"><summary>要点</summary><ul><li>超过两个时显示「15 分钟前 +2」。</li></ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">编辑任务</span><span class="ib"></span></div>
+        <div class="scr"><div class="detail-title"><span class="ck"></span>提交季度复盘报告</div></div>
+        <div class="mask"></div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="sh-t">提醒<span></span><span style="margin-left:auto;font-size:14px;font-weight:600;color:var(--brand-text)">完成</span></div>
+          <div class="opt-list">
+            <div class="opt">准时<span class="box"></span></div>
+            <div class="opt">5 分钟前<span class="box"></span></div>
+            <div class="opt">15 分钟前<span class="sub" style="margin-right:10px">17:45</span><span class="box on" style="margin-left:0" data-i="check" data-s="13"></span></div>
+            <div class="opt">30 分钟前<span class="box"></span></div>
+            <div class="opt">1 小时前<span class="box"></span></div>
+            <div class="opt">1 天前<span class="sub" style="margin-right:10px">11/03 18:00</span><span class="box on" style="margin-left:0" data-i="check" data-s="13"></span></div>
+            <div class="opt">自定义…<span class="chev" style="margin-left:auto;color:var(--ink-3)" data-i="chevron-right" data-s="16"></span></div>
+          </div>
+          <div class="foot-note">已选 2 个，最多 3 个</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>多选面板</div>
+      <details class="note"><summary>要点</summary><ul><li>勾选的行旁边直接显示算出的时刻。</li><li>「不提醒」= 全不勾，不单独占一行。</li><li>满 3 个后其余行置灰。</li></ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">编辑任务</span><span class="ib"></span></div>
+        <div class="scr"><div class="detail-title"><span class="ck"></span>提交季度复盘报告</div></div>
+        <div class="mask"></div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="sh-t"><span data-i="chevron-left" data-s="20" style="margin-right:6px;color:var(--ink-2)"></span>自定义提醒<span></span><span style="margin-left:auto;font-size:14px;font-weight:600;color:var(--brand-text)">添加</span></div>
+          <div class="wheel">
+            <div><i>2</i>3<i>4</i></div>
+            <div><i>小时前</i>天前<i>周前</i></div>
+          </div>
+          <div class="sh-cap">或者指定时刻</div>
+          <div class="opt-list"><div class="opt">前一天<span class="sub">20:00</span></div></div>
+          <div class="foot-note">将在 11/01 18:00 提醒</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>自定义（二级）</div>
+      <details class="note"><summary>要点</summary><ul><li>「N 分钟/小时/天/周前」覆盖大部分需求；「前一天 20:00」适合晚上提前准备的场景。</li><li>可以首版不做自定义，只给预设。</li></ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="txt">取消</span><span class="t">编辑日程</span><span class="txt brand">保存</span></div>
+        <div class="scr">
+          <div class="grp" style="margin-top:8px"><div class="row noicon"><span class="mid"><b>团队周年聚餐</b></span></div></div>
+          <div class="gl">时间</div>
+          <div class="grp">
+            <div class="row noicon"><span class="mid"><b>全天</b></span><span class="toggle on"></span></div>
+            <div class="row noicon"><span class="mid"><b>日期</b></span><span class="val">11/08 周六</span></div>
+          </div>
+          <div class="gl">提醒</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-acc" data-i="bell" data-s="16"></span><span class="mid"><b>前一天 9:00</b></span><span class="val" data-i="x" data-s="15"></span></div>
+            <div class="row"><span class="tile t-acc" data-i="bell" data-s="16"></span><span class="mid"><b>当天 9:00</b></span><span class="val" data-i="x" data-s="15"></span></div>
+            <div class="row"><span class="tile t-mute" data-i="plus" data-s="16"></span><span class="mid"><b style="color:var(--brand-text)">添加提醒</b></span></div>
+          </div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>日程：提醒逐行列出</div>
+      <details class="note"><summary>要点</summary><ul><li>日程编辑是表单页，逐行列出比胶囊更清楚，每行可删。</li><li>全天日程的选项以「当天/前 N 天 + 时刻」表达。</li></ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 4 方案 C ═══════════ -->
+<section class="scene" data-scene="c">
+  <p class="scene-intro"><b>方案 C：快捷格 + 已选胶囊。</b>和 B 一样支持多个提醒，但面板更紧凑：常用时间排成 3×3 格子一次点选，已选的在顶部排成可删的胶囊。面板矮，单手好点；缺点是格子里放不下「11/03 18:00」这样的实际时刻，只能在顶部胶囊里显示。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">编辑任务</span><span class="ib"></span></div>
+        <div class="scr"><div class="detail-title"><span class="ck"></span>提交季度复盘报告</div></div>
+        <div class="mask"></div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="sh-t">提醒<span></span><span style="margin-left:auto;font-size:14px;font-weight:600;color:var(--brand-text)">完成</span></div>
+          <div class="picked">
+            <span class="pc on" data-i="bell" data-s="12">17:45 · 15 分钟前 <span class="x" data-i="x" data-s="12"></span></span>
+            <span class="pc on" data-i="bell" data-s="12">11/03 18:00 · 1 天前 <span class="x" data-i="x" data-s="12"></span></span>
+          </div>
+          <div class="sh-cap">截止 11/04 周二 18:00</div>
+          <div class="grid-chips">
+            <span>准时</span><span>5 分钟前</span><span class="on">15 分钟前</span>
+            <span>30 分钟前</span><span>1 小时前</span><span>2 小时前</span>
+            <span class="on">1 天前</span><span>2 天前</span><span>自定义</span>
+          </div>
+          <div class="foot-note">最多 3 个</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>待办：格子点选</div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="txt">取消</span><span class="t">编辑日程</span><span class="txt brand">保存</span></div>
+        <div class="scr"><div class="grp" style="margin-top:8px"><div class="row noicon"><span class="mid"><b>团队周年聚餐</b></span></div></div></div>
+        <div class="mask"></div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="sh-t">提醒<span></span><span style="margin-left:auto;font-size:14px;font-weight:600;color:var(--brand-text)">完成</span></div>
+          <div class="picked">
+            <span class="pc on" data-i="bell" data-s="12">11/07 9:00 · 前一天 <span class="x" data-i="x" data-s="12"></span></span>
+          </div>
+          <div class="sh-cap">全天 · 11/08 周六</div>
+          <div class="grid-chips">
+            <span>当天 9:00</span><span class="on">前一天 9:00</span><span>前两天 9:00</span>
+            <span>前一天 20:00</span><span>一周前</span><span>自定义</span>
+          </div>
+          <div class="foot-note">全天日程的格子换成「当天 / 前 N 天 + 时刻」</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>全天日程</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 5 通知外观 ═══════════ -->
+<section class="scene" data-scene="look">
+  <p class="scene-intro"><b>通知的样子三个方案共用。</b>锁屏和下拉通知栏由系统绘制，我们只决定标题、正文和按钮。标题写事情本身，正文写时间，按钮只放两个：<b>完成</b>（日程是「知道了」）和<b>10 分钟后</b>。点通知本体打开对应的待办或日程。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone lock">
+        <div class="status" data-status></div>
+        <div class="lock-time"><div class="d">11月4日 星期二</div><div class="t">17:45</div></div>
+        <div class="os-stack">
+          <div class="os-n dim"><div class="hd"><span class="app-ic">τ</span>TAU · 日程<span class="when">昨天</span></div><b>产品评审会</b>明天 14:00 – 15:30</div>
+          <div class="os-n"><div class="hd"><span class="app-ic">τ</span>TAU · 待办<span class="when">现在</span></div><b>提交季度复盘报告</b>15 分钟后截止 · 18:00</div>
+        </div>
+        <div class="lock-hint">长按通知出现按钮</div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>iOS 锁屏</div>
+      <details class="note"><summary>文案规则</summary><ul><li>待办：「N 分钟后截止 · 18:00」/「明天截止」/「已逾期 10 分钟」（稍后提醒后）。</li><li>日程：「明天 14:00 – 15:30」/「全天 · 周六」。</li><li>同一项多个提醒用同一通知 id，后一个替换前一个，不堆积。</li></ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone lock">
+        <div class="status" data-status></div>
+        <div class="lock-time" style="opacity:.35"><div class="d">11月4日 星期二</div><div class="t">17:45</div></div>
+        <div class="os-stack" style="bottom:200px">
+          <div class="os-n"><div class="hd"><span class="app-ic">τ</span>TAU · 待办<span class="when">现在</span></div><b>提交季度复盘报告</b>15 分钟后截止 · 18:00
+            <div class="acts"><span>完成</span><span>10 分钟后</span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>iOS 长按展开按钮</div>
+      <details class="note"><summary>要点</summary><ul><li>「10 分钟后」直接在系统里重排一次，不打开 App。</li><li>「完成」首版会打开 App 并勾选（原因见 1）。</li></ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone lock" style="background:linear-gradient(170deg,#1e2a35,#2f3e3a 60%,#4b4a3a)">
+        <div class="status" data-status></div>
+        <div class="os-stack" style="top:60px;bottom:auto">
+          <div class="os-n android"><div class="hd"><span class="app-ic">τ</span>TAU · 日程 · 现在</div><b>产品评审会</b>15 分钟后开始 · 14:00 – 15:30 · 工作
+            <div class="acts"><span>知道了</span><span>10 分钟后</span></div>
+          </div>
+          <div class="os-n android"><div class="hd"><span class="app-ic">τ</span>TAU · 待办 · 2 小时前</div><b>给房东转账</b>今天截止</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>Android 通知栏</div>
+      <details class="note"><summary>要点</summary><ul><li>建两个渠道「待办提醒」「日程提醒」，用户可在系统设置分别关掉或改铃声。</li></ul></details>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="in-banner">
+          <span class="tile t-acc" data-i="bell-ring" data-s="16"></span>
+          <div class="mid"><small>待办 · 15 分钟后截止</small><b>提交季度复盘报告</b>
+            <div class="ops"><span class="pri">完成</span><span>10 分钟后</span><span>查看</span></div>
+          </div>
+          <span data-i="x" data-s="16" style="color:var(--ink-3)"></span>
+        </div>
+        <div class="nav" style="margin-top:110px"><span class="ib"></span><span class="t">卡片</span><span class="ib" data-i="search" data-s="20"></span></div>
+        <div class="scr" style="padding:0 16px">
+          <div class="grp" style="margin:0;height:90px;opacity:.6"></div>
+          <div class="grp" style="margin:10px 0 0;height:120px;opacity:.6"></div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>App 在前台：应用内横幅</div>
+      <details class="note"><summary>要点</summary><ul><li>前台时不弹系统横幅（会和应用内重复），只在顶部滑下应用内横幅，8 秒后收起。</li><li>按钮能直接完成，不用跳页。</li></ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 6 权限与设置 ═══════════ -->
+<section class="scene" data-scene="perm">
+  <p class="scene-intro"><b>权限只在第一次设提醒时要。</b>iOS 的系统弹窗只出现一次，被拒后只能去系统设置开，所以先用一屏说明再弹系统窗。被拒后不反复打扰，只在提醒面板和设置页标出「通知已关闭」。设置页新增「提醒与通知」，三个方案共用。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib"></span><span class="t"></span><span class="ib" data-i="x" data-s="20"></span></div>
+        <div class="perm">
+          <div class="big" data-i="bell-ring" data-s="36"></div>
+          <h2>到点提醒你</h2>
+          <p>需要通知权限，才能在截止前、日程开始前提醒你。关掉 App 也会准时响。</p>
+          <div class="os-n eg" style="background:var(--bg-surface);color:var(--ink-1)"><div class="hd" style="color:var(--ink-3)"><span class="app-ic">τ</span>TAU · 待办<span class="when">现在</span></div><b>提交季度复盘报告</b>15 分钟后截止 · 18:00</div>
+        </div>
+        <div class="btns" style="position:absolute;bottom:40px;left:0;right:0;flex-direction:column"><span class="btn pri">开启通知</span><span class="btn ghost">以后再说</span></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>首次设提醒：先说明</div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib"></span><span class="t"></span><span class="ib"></span></div>
+        <div class="perm" style="opacity:.4"><div class="big" data-i="bell-ring" data-s="36"></div><h2>到点提醒你</h2></div>
+        <div class="mask"></div>
+        <div class="os-alert"><div class="bd"><b>“TAU”想给你发送通知</b>通知可能包括提醒、声音和图标标记。</div><div class="bt"><span>不允许</span><span>允许</span></div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>系统权限弹窗</div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">编辑任务</span><span class="ib"></span></div>
+        <div class="scr"><div class="detail-title"><span class="ck"></span>提交季度复盘报告</div></div>
+        <div class="mask"></div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="sh-t">提醒<span></span></div>
+          <div class="warn-bar" style="margin:0 14px 10px"><span data-i="bell-off" data-s="16"></span><span><b>通知已关闭</b>，提醒会保存但不会响。<span style="color:var(--brand-text);font-weight:600">去开启</span></span></div>
+          <div class="opt-list">
+            <div class="opt">准时<span class="box"></span></div>
+            <div class="opt">15 分钟前<span class="box on" data-i="check" data-s="13"></span></div>
+            <div class="opt">1 天前<span class="box"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>被拒后：面板顶部提示</div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">提醒与通知</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="grp" style="margin-top:6px">
+            <div class="row"><span class="tile t-sage" data-i="circle-check" data-s="16"></span><span class="mid"><b>系统通知</b><span>已开启</span></span></div>
+            <div class="row"><span class="tile t-butter" data-i="alarm-clock" data-s="16"></span><span class="mid"><b>准点提醒</b><span>未允许，可能延后几分钟</span></span><span class="val" style="color:var(--brand-text)">去允许</span></div>
+          </div>
+          <div class="foot-note">「准点提醒」只在 Android 显示</div>
+          <div class="gl">默认提醒</div>
+          <div class="grp">
+            <div class="row noicon"><span class="mid"><b>新建截止任务</b></span><span class="val">15 分钟前</span><span class="chev" data-i="chevron-right" data-s="16"></span></div>
+            <div class="row noicon"><span class="mid"><b>新建日程</b></span><span class="val">15 分钟前</span><span class="chev" data-i="chevron-right" data-s="16"></span></div>
+            <div class="row noicon"><span class="mid"><b>新建全天日程</b></span><span class="val">前一天 9:00</span><span class="chev" data-i="chevron-right" data-s="16"></span></div>
+          </div>
+          <div class="gl">其他</div>
+          <div class="grp">
+            <div class="row noicon"><span class="mid"><b>App 在前台时显示横幅</b></span><span class="toggle on"></span></div>
+            <div class="row noicon"><span class="mid"><b>稍后提醒间隔</b></span><span class="val">10 分钟</span><span class="chev" data-i="chevron-right" data-s="16"></span></div>
+          </div>
+          <div class="foot-note">接下来 7 天有 12 个提醒已排进系统</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>设置 › 提醒与通知</div>
+      <details class="note"><summary>要点</summary><ul><li>底部那行用来自查「为什么没响」。</li><li>默认提醒只影响新建项，不改已有项。</li></ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 7 对比 ═══════════ -->
+<section class="scene" data-scene="cmp">
+  <div class="cards">
+    <div class="card" style="grid-column:1/-1">
+      <h3>三个方案对比</h3>
+      <table class="cmp">
+        <tr><th></th><th>A 单选提醒</th><th>B 多个提醒（推荐）</th><th>C 快捷格 + 胶囊</th></tr>
+        <tr><th>「前 15 分钟 + 前一天」</th><td class="no">做不到</td><td class="yes">能</td><td class="yes">能</td></tr>
+        <tr><th>面板</th><td>单选列表，和现在一样</td><td>多选列表，每行显示实际时刻</td><td>3×3 格子，实际时刻只在顶部胶囊</td></tr>
+        <tr><th>日程编辑页</th><td>一行「提醒」</td><td>提醒逐行列出 + 添加</td><td>一行「提醒」打开格子面板</td></tr>
+        <tr><th>数据改动</th><td>日程加 1 个字段；待办不变</td><td colspan="2">待办、日程都改成提醒列表；桌面端提醒下拉改多选；旧的 <code>remind_before</code> 自动迁移</td></tr>
+        <tr><th>工作量（粗估）</th><td>小</td><td>中</td><td>中（与 B 相同，只是面板不同）</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>推荐 B 的理由</h3>
+      <ul>
+        <li>你举的例子本身就是两个提醒，A 满足不了，后面还得返工改数据。</li>
+        <li>列表比格子多一行高度，但每行都能写出「11/03 18:00」，用户不用心算。</li>
+        <li>日程表单逐行列出提醒，和系统日历的习惯一致。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>待你确认</h3>
+      <ul>
+        <li>选 A / B / C 哪个？</li>
+        <li>首版要不要「自定义」时间，还是只给预设？</li>
+        <li>桌面和手机都响，还是加「只在手机提醒」开关？</li>
+        <li>周期任务（每天打卡）是否也提醒？桌面端现在会提醒。</li>
+        <li>文档里的待办（正文里的 <code>reminder_at</code>）首版是否纳入手机提醒？</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<script src="mock.js"></script>
+</body>
+</html>
