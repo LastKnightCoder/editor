@@ -161,7 +161,11 @@ export function InstallButton({
               <Checkbox
                 checked={skipNotice}
                 onChange={event => setSkipNotice(event.target.checked)}
-                label="以后安装不再提示（含后台的插件仍会提示，可在插件页「⋯」中恢复）"
+                label={
+                  <span className="whitespace-normal">
+                    以后安装不再提示（含后台的插件仍会提示，可在插件页「⋯」中恢复）
+                  </span>
+                }
               />
             </div>
           )
