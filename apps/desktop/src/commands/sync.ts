@@ -6,6 +6,7 @@ import {
   syncFileSize,
 } from "@/services/chunkedSync";
 import { readSessionUploadCache, writeSessionUploadCache } from "@/services/sessionUploadCache";
+import { withSyncRequestRetry } from "@/services/syncRequestRetry";
 import {
   databaseSyncObjects,
   decodeSessionList,
@@ -42,7 +43,6 @@ import {
   type SessionSyncFile,
 } from "@/commands/piSession";
 import type { ISyncProvider } from "@/types/sync";
-import { sleep } from "@/utils/sleep";
 
 interface SyncCommandOptions {
   onProgress?: (payload: { value: number; status: string }) => void;
@@ -128,15 +128,14 @@ const withSyncProvider = async (run: (provider: ISyncProvider) => Promise<boolea
     return false;
   }
   try {
-    return await run(syncProvider);
+    return await run(withSyncRequestRetry(syncProvider));
   } finally {
     await syncProvider.dispose?.();
   }
 };
 
-/** 与资源同步的并发上限与重试退避一致：部分服务（如 GitHub 同分支提交）并发写会偶发冲突。 */
-const SESSION_UPLOAD_CONCURRENCY = 3;
-const SESSION_UPLOAD_RETRIES = 3;
+/** 会话传输最多三个并发，请求重试由提供方包装层负责。 */
+const SESSION_TRANSFER_CONCURRENCY = 3;
 
 /** 有限并发执行；出错后不再领取新任务，等在途任务结束再抛出首个错误。 */
 async function runWithConcurrency<T>(items: T[], limit: number, run: (item: T) => Promise<void>) {
@@ -239,7 +238,7 @@ const uploadWithProvider = async (syncProvider: ISyncProvider, options?: UploadO
     let doneBytes = 0;
     let shown = 0;
     let status = "正在上传数据库文件...";
-    // 重试会回退已计字节，显示值只增不减，避免进度条倒退
+    // 完整分块成功后才累计进度，失败请求重试不重复计数。
     const report = (bytes: number) => {
       doneBytes += bytes;
       shown = Math.max(shown, 2 + (totalBytes ? (doneBytes / totalBytes) * 95 : 95));
@@ -250,27 +249,14 @@ const uploadWithProvider = async (syncProvider: ISyncProvider, options?: UploadO
 
     status = "正在上传对话记录...";
     report(0);
-    await runWithConcurrency(pending, SESSION_UPLOAD_CONCURRENCY, async file => {
-      for (let attempt = 0; ; attempt++) {
-        let sent = 0;
-        try {
-          await uploadChunkedPath(
-            syncProvider,
-            objects.session(file.name),
-            file.path,
-            file.name,
-            bytes => {
-              sent += bytes;
-              report(bytes);
-            }
-          );
-          return;
-        } catch (error) {
-          report(-sent);
-          if (attempt >= SESSION_UPLOAD_RETRIES) throw error;
-          await sleep(1000 * 2 ** attempt);
-        }
-      }
+    await runWithConcurrency(pending, SESSION_TRANSFER_CONCURRENCY, async file => {
+      await uploadChunkedPath(
+        syncProvider,
+        objects.session(file.name),
+        file.path,
+        file.name,
+        report
+      );
     });
     const names = sessionFiles.map(file => file.name);
     if (!(await syncProvider.uploadFile(objects.sessions, encodeSessionList(names))))
@@ -392,16 +378,31 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
         await removeFile(sessionDirectory).catch(() => undefined);
         await createDir(sessionDirectory);
         const sessionNames = decodeSessionList(await syncProvider.downloadFile(objects.sessions));
+        const localFiles = new Map<string, SessionSyncFile>();
+        try {
+          const local = await piSessionSyncFiles(databaseName);
+          if (!local.ok || !local.files) throw new Error(local.error ?? "读取本地会话列表失败");
+          for (const file of local.files) localFiles.set(file.name, file);
+        } catch (error) {
+          console.warn("[database-sync] local session reuse unavailable", {
+            databaseName,
+            error: describeSyncError(error),
+          });
+        }
         console.info("[database-sync] downloading session files", {
           databaseName,
           count: sessionNames.length,
           names: sessionNames,
           targetDirectory: sessionDirectory,
+          concurrency: SESSION_TRANSFER_CONCURRENCY,
         });
-        for (const name of sessionNames) {
+        await runWithConcurrency(sessionNames, SESSION_TRANSFER_CONCURRENCY, async name => {
           const target = `${sessionDirectory}${sep}${name}`;
           try {
-            await downloadChunkedPath(syncProvider, objects.session(name), target);
+            await downloadChunkedPath(syncProvider, objects.session(name), target, {
+              expectedName: name,
+              localPath: localFiles.get(name)?.path,
+            });
           } catch (error) {
             console.error("[database-sync] session file download failed", {
               databaseName,
@@ -411,7 +412,7 @@ const downloadWithProvider = async (syncProvider: ISyncProvider, options?: SyncC
             });
             throw error;
           }
-        }
+        });
       }
 
       emitProgress(options, 85, "正在替换本地数据库...");
@@ -465,7 +466,7 @@ export const getRemoteDatabaseVersion = async (): Promise<DatabaseSyncVersion> =
   const { active: databaseName } = useSettingStore.getState().setting.database;
   try {
     const objects = await databaseSyncObjects(databaseName, chunkDigest);
-    return await readDatabaseSyncVersion(syncProvider, objects.version);
+    return await readDatabaseSyncVersion(withSyncRequestRetry(syncProvider), objects.version);
   } finally {
     await syncProvider.dispose?.();
   }

@@ -1,4 +1,4 @@
-import { open, mkdir, rename, rm, stat } from "node:fs/promises";
+import { open, mkdir, rename, rm, stat, lstat } from "node:fs/promises";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import {
@@ -52,7 +52,8 @@ export async function downloadChunkedPath(
   object: string,
   target: string,
   check?: () => void,
-  expectedName?: string
+  expectedName?: string,
+  localPath?: string
 ) {
   await mkdir(path.dirname(target), { recursive: true });
   const temporary = `${target}.${randomUUID()}.chunks.tmp`;
@@ -70,9 +71,14 @@ export async function downloadChunkedPath(
         }
       },
       chunkDigest,
-      check
+      check,
+      {
+        expectedName,
+        readLocalChunk: localPath
+          ? (offset, length) => readLocalFileSlice(localPath, offset, length)
+          : undefined,
+      }
     );
-    if (expectedName && manifest.name !== expectedName) throw new Error("资源文件身份不匹配");
     await file.sync();
     await file.close();
     check?.();
@@ -81,6 +87,24 @@ export async function downloadChunkedPath(
   } finally {
     await file.close().catch(() => undefined);
     await rm(temporary, { force: true });
+  }
+}
+export async function readLocalFileSlice(
+  filePath: string,
+  offset: number,
+  length: number
+): Promise<Uint8Array | null> {
+  try {
+    const metadata = await lstat(filePath);
+    if (
+      !metadata.isFile() ||
+      metadata.isSymbolicLink() ||
+      (await lstat(path.dirname(filePath))).isSymbolicLink()
+    )
+      return null;
+    return await readFileSlice(filePath, offset, length);
+  } catch {
+    return null;
   }
 }
 export async function readFileSlice(filePath: string, offset: number, length: number) {

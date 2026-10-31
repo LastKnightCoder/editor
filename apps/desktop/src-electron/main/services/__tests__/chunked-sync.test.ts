@@ -1,11 +1,26 @@
 // @vitest-environment node
-import { mkdtemp, writeFile, readFile, open, mkdir, rm, readdir, stat } from "node:fs/promises";
+import {
+  mkdtemp,
+  writeFile,
+  readFile,
+  open,
+  mkdir,
+  rm,
+  readdir,
+  stat,
+  symlink,
+} from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { tmpdir } from "node:os";
-import { afterEach, beforeEach, expect, it } from "vitest";
-import { uploadChunkedPath, downloadChunkedPath, chunkDigest } from "../chunked-sync";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import {
+  uploadChunkedPath,
+  downloadChunkedPath,
+  chunkDigest,
+  readLocalFileSlice,
+} from "../chunked-sync";
 import {
   CHUNK_BYTES,
   chunkObject,
@@ -156,6 +171,118 @@ it("对话记录清单拒绝路径穿越的文件名", () => {
   expect(() => decodeSessionList(encode(["../escape"]))).toThrow();
 });
 
+it("已有内容块只检查存在性，不下载校验，变化块才上传", async () => {
+  const objects = new Map<string, Uint8Array>();
+  const store = {
+    fileExists: vi.fn(async (name: string) => objects.has(name)),
+    uploadFile: vi.fn(async (name: string, bytes: Uint8Array) => {
+      objects.set(name, bytes.slice());
+      return true;
+    }),
+    downloadFile: vi.fn(async () => {
+      throw new Error("上传不应下载内容块");
+    }),
+  };
+  const source = path.join(root, "session.jsonl");
+  await writeFile(source, "original");
+  await uploadChunkedPath(store, "manifest", source);
+  store.uploadFile.mockClear();
+  await uploadChunkedPath(store, "manifest", source);
+  expect(store.uploadFile.mock.calls.map(([name]) => name)).toEqual(["manifest"]);
+  await writeFile(source, "changed");
+  store.uploadFile.mockClear();
+  await uploadChunkedPath(store, "manifest", source);
+  expect(store.uploadFile.mock.calls.map(([name]) => name)).toEqual([
+    chunkObject(await chunkDigest(new TextEncoder().encode("changed"))),
+    "manifest",
+  ]);
+  expect(store.downloadFile).not.toHaveBeenCalled();
+});
+
+it("下载复用本地已校验块，只下载变化的块，文件名不匹配时提前拒绝", async () => {
+  const source = path.join(root, "session.jsonl");
+  const local = path.join(root, "local.jsonl");
+  const target = path.join(root, "received.jsonl");
+  const bytes = Buffer.alloc(CHUNK_BYTES + 3, 7);
+  await writeFile(source, bytes);
+  await writeFile(local, bytes);
+  const remote = backend();
+  const manifest = await uploadChunkedPath(remote.store, "manifest", source);
+  const downloadFile = vi.fn(remote.store.downloadFile);
+  await downloadChunkedPath(
+    { downloadFile },
+    "manifest",
+    target,
+    undefined,
+    "session.jsonl",
+    local
+  );
+  expect(downloadFile.mock.calls.map(([name]) => name)).toEqual(["manifest"]);
+  expect(await fileHash(target)).toBe(await chunkDigest(bytes));
+  const changed = Buffer.from(bytes);
+  changed[CHUNK_BYTES] = 8;
+  await writeFile(local, changed);
+  downloadFile.mockClear();
+  await downloadChunkedPath(
+    { downloadFile },
+    "manifest",
+    target,
+    undefined,
+    "session.jsonl",
+    local
+  );
+  expect(downloadFile.mock.calls.map(([name]) => name)).toEqual([
+    "manifest",
+    chunkObject(manifest.chunks[1].sha256),
+  ]);
+  expect(await fileHash(target)).toBe(await chunkDigest(bytes));
+  expect(await fileHash(local)).toBe(await chunkDigest(changed));
+  downloadFile.mockClear();
+  await expect(
+    downloadChunkedPath({ downloadFile }, "manifest", target, undefined, "other.jsonl", local)
+  ).rejects.toThrow("身份不匹配");
+  expect(downloadFile.mock.calls.map(([name]) => name)).toEqual(["manifest"]);
+  expect(await fileHash(target)).toBe(await chunkDigest(bytes));
+});
+
+it("本地多余字节不混入远端文件，空文件仍完整恢复", async () => {
+  const source = path.join(root, "session.jsonl");
+  const local = path.join(root, "local.jsonl");
+  const target = path.join(root, "received.jsonl");
+  const remote = backend();
+  await writeFile(source, "remote");
+  await writeFile(local, "remote with extra local bytes");
+  await uploadChunkedPath(remote.store, "manifest", source);
+  const downloadFile = vi.fn(remote.store.downloadFile);
+  await downloadChunkedPath(
+    { downloadFile },
+    "manifest",
+    target,
+    undefined,
+    "session.jsonl",
+    local
+  );
+  expect(await readFile(target, "utf8")).toBe("remote");
+  expect(downloadFile).toHaveBeenCalledTimes(1);
+  await writeFile(source, "");
+  await uploadChunkedPath(remote.store, "manifest", source);
+  await downloadChunkedPath(remote.store, "manifest", target, undefined, "session.jsonl", local);
+  expect((await stat(target)).size).toBe(0);
+});
+
+it.skipIf(process.platform === "win32")("目录、符号链接与缺失文件不作为本地复用来源", async () => {
+  const source = path.join(root, "session.jsonl");
+  const link = path.join(root, "link.jsonl");
+  const linkedDirectory = path.join(root, "linked-directory");
+  await writeFile(source, "remote");
+  await symlink(source, link);
+  await symlink(root, linkedDirectory);
+  expect(await readLocalFileSlice(root, 0, 6)).toBeNull();
+  expect(await readLocalFileSlice(link, 0, 6)).toBeNull();
+  expect(await readLocalFileSlice(path.join(linkedDirectory, "session.jsonl"), 0, 6)).toBeNull();
+  expect(await readLocalFileSlice(path.join(root, "missing.jsonl"), 0, 6)).toBeNull();
+});
+
 it.runIf(Boolean(process.env.TAU_CHUNK_INTEROP_DIR))(
   "跨语言导出 TypeScript 分块并读取 Rust 分块",
   async () => {
@@ -184,7 +311,7 @@ it.runIf(Boolean(process.env.TAU_CHUNK_INTEROP_DIR))(
   }
 );
 
-it("重试复用已校验的内容块，损坏的同名块会修复后再发布", async () => {
+it("重传复用已有块，损坏内容由下载校验拒绝", async () => {
   const files = new Map<string, Uint8Array>();
   const puts: string[] = [];
   let failed = false;
@@ -214,5 +341,8 @@ it("重试复用已校验的内容块，损坏的同名块会修复后再发布"
   expect(puts.filter(name => name === first)).toHaveLength(1);
   files.set(first, new Uint8Array([9]));
   await uploadChunkedFile(store, "manifest", "file.bin", source, chunkDigest);
-  expect(puts.filter(name => name === first)).toHaveLength(2);
+  expect(puts.filter(name => name === first)).toHaveLength(1);
+  await expect(
+    downloadChunkedPath(store, "manifest", path.join(root, "rejected.bin"))
+  ).rejects.toThrow("校验");
 });

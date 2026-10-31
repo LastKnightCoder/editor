@@ -21,6 +21,10 @@ export interface ObjectStorage {
   uploadFile(name: string, bytes: Uint8Array): Promise<boolean>;
   downloadFile(name: string): Promise<Uint8Array>;
 }
+export interface ChunkDownloadOptions {
+  expectedName?: string;
+  readLocalChunk?(offset: number, length: number): Promise<Uint8Array | null>;
+}
 export const chunkObject = (hash: string) =>
   `${protocol.namespace}/chunks/${hash.slice(0, 2)}/${hash.slice(2)}.bin`;
 export async function resourceManifestObject(name: string, digest: Digest): Promise<string> {
@@ -107,12 +111,8 @@ export async function uploadChunkedFile(
     const bytes = await source.read(offset, length);
     if (bytes.length !== length) throw new Error("本地文件读取不完整");
     const hash = await digest(bytes);
-    let reusable = false;
     const key = chunkObject(hash);
-    if (await store.fileExists?.(key)) {
-      const existing = await store.downloadFile(key);
-      reusable = existing.length === length && (await digest(existing)) === hash;
-    }
+    const reusable = await store.fileExists?.(key);
     if (!reusable && !(await store.uploadFile(key, bytes))) throw new Error("同步分块上传失败");
     manifest.chunks.push({ size: length, sha256: hash });
     if (manifest.chunks.length * 100 > MANIFEST_BYTES) throw new Error("同步文件清单过大");
@@ -131,16 +131,24 @@ export async function downloadChunkedFile(
   object: string,
   write: (bytes: Uint8Array, offset: number) => Promise<void>,
   digest: Digest,
-  check: () => void = () => undefined
+  check: () => void = () => undefined,
+  options: ChunkDownloadOptions = {}
 ): Promise<ChunkManifest> {
   check();
   const manifest = await decodeChunkManifest(await store.downloadFile(object), digest);
+  if (options.expectedName !== undefined && manifest.name !== options.expectedName)
+    throw new Error("同步文件身份不匹配");
   let offset = 0;
   for (const chunk of manifest.chunks) {
     check();
-    const bytes = await store.downloadFile(chunkObject(chunk.sha256));
-    if (bytes.length !== chunk.size || (await digest(bytes)) !== chunk.sha256)
-      throw new Error("同步分块内容校验失败");
+    let bytes = options.readLocalChunk
+      ? await options.readLocalChunk(offset, chunk.size).catch(() => null)
+      : null;
+    if (!bytes || bytes.length !== chunk.size || (await digest(bytes)) !== chunk.sha256) {
+      bytes = await store.downloadFile(chunkObject(chunk.sha256));
+      if (bytes.length !== chunk.size || (await digest(bytes)) !== chunk.sha256)
+        throw new Error("同步分块内容校验失败");
+    }
     await write(bytes, offset);
     offset += bytes.length;
   }

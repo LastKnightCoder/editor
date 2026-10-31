@@ -162,7 +162,7 @@ it("输出逐块等待写入完成，再写下一块", async () => {
     [FETCH_CHUNK_BYTES, 17],
   ]);
 });
-it("本机存储请求串行加载文件，上一提供方执行结束才读下一文件", async () => {
+it("本机上传请求串行加载文件，上一提供方执行结束才读下一文件", async () => {
   let receive!: (event: { payload: unknown }) => Promise<void>;
   vi.mocked(listen).mockImplementation(async (_event, handler) => {
     receive = handler as typeof receive;
@@ -220,6 +220,83 @@ it("本机存储请求串行加载文件，上一提供方执行结束才读下�
   expect(uploadOwned).toHaveBeenCalledTimes(2);
   disconnect();
 });
+
+it.each(["downloadFile", "uploadFile"] as const)(
+  "同步 %s 并发执行，同一会话只打开一次",
+  async method => {
+    let receive!: (event: { payload: unknown }) => Promise<void>;
+    vi.mocked(listen).mockImplementation(async (_event, handler) => {
+      receive = handler as typeof receive;
+      return () => undefined;
+    });
+    vi.mocked(invoke).mockImplementation(async (command, args) =>
+      command === "plugin_data_read"
+        ? { cursor: 0, events: [] }
+        : command === "plugin_permissions_read"
+          ? {}
+          : command === "plugin_transport_connect"
+            ? "token"
+            : command === "plugin_file_read"
+              ? (args as { offset: number }).offset
+                ? null
+                : encodePluginBytes(new Uint8Array([1]))
+              : undefined
+    );
+    const complete: ((value: unknown) => void)[] = [];
+    const execute = vi.fn(async (request: { kind: string; args?: unknown[] }) =>
+      request.kind === "call" ? new Promise(resolve => complete.push(resolve)) : undefined
+    );
+    const runtime = {
+      workspaceId: "db",
+      sync: { execute },
+      upload: {},
+      host: { subscribe: vi.fn(() => vi.fn()) },
+      subscribe: vi.fn(() => vi.fn()),
+      getActiveAiPackages: () => [],
+    } as unknown as MobilePluginRuntime;
+    const disconnect = await connectMobilePluginTransport(runtime);
+    const requests = ["one", "two", "three"].map(id =>
+      receive({
+        payload: {
+          token: "token",
+          requestId: id,
+          kind: "sync",
+          session: "session",
+          pluginId: "sync.plugin",
+          config: {},
+          method,
+          name: id,
+          file: { id, size: method === "downloadFile" ? 0 : 1 },
+        },
+      })
+    );
+    await vi.waitFor(() => expect(complete).toHaveLength(3));
+    expect(execute.mock.calls.filter(([request]) => request.kind === "open")).toHaveLength(1);
+    complete[1](method === "downloadFile" ? new Uint8Array([2]) : true);
+    complete[0](method === "downloadFile" ? new Uint8Array([1]) : true);
+    complete[2](method === "downloadFile" ? new Uint8Array([3]) : true);
+    await Promise.all(requests);
+    const writes = vi
+      .mocked(invoke)
+      .mock.calls.filter(([command]) => command === "plugin_file_write")
+      .map(([, args]) => args as { id: string; chunk: string });
+    expect(
+      Object.fromEntries(writes.map(({ id, chunk }) => [id, [...decodePluginBytes(chunk)]]))
+    ).toEqual(method === "downloadFile" ? { one: [1], two: [2], three: [3] } : {});
+    if (method === "uploadFile") {
+      const calls = execute.mock.calls.filter(([request]) => request.kind === "call");
+      expect(calls.map(([request]) => request.args)).toEqual([
+        ["one", new Uint8Array([1])],
+        ["two", new Uint8Array([1])],
+        ["three", new Uint8Array([1])],
+      ]);
+    }
+    expect(
+      vi.mocked(invoke).mock.calls.filter(([command]) => command === "plugin_transport_reply")
+    ).toHaveLength(3);
+    disconnect();
+  }
+);
 
 it("宿主可给同步对象设置响应预算，普通公网请求不附加预算", async () => {
   vi.mocked(invoke).mockImplementation(async command =>

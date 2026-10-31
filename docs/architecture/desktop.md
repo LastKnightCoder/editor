@@ -526,6 +526,10 @@ export function useXxxSnapshot() {
 
 数据库同步只搬运库文件：库文件与会话目录的 JSONL 文件分块上传到固定对象名，最后写版本文件；下载先复制旧库进 backup/，再在主进程替换库文件与会话目录。不做内容校验与格式门禁，版本冲突由设置页确认，自动上传遇到云端更新时跳过。协议与流程见 [宿主分块同步](/docs/architecture/storage-sync.md)。会话运行中拒绝同步，锁持有到维护重连完成。当前任务的跨存储提交仍使用原幂等记录；实体编号高水位不复用。
 
+数据库同步的提供方由 `src/services/syncRequestRetry.ts` 按对象请求包装，会话编排不重放整个文件；资源同步不经该包装，保留主进程自身的重试策略。请求退避、进度计数与分块复用规则以[宿主分块同步](/docs/architecture/storage-sync.md)为准。
+
+会话下载与上传共用 `commands/sync.ts` 的有限并发调度器；下载通过 `piSessionSyncFiles` 取得本地候选，`services/chunkedSync.ts` 经分块文件 IPC 提供可选本地字节来源，公共下载算法先校验远端文件名，再按块校验并复用本地内容，临时目录全部完成后才进入原安装入口。本地候选不可读时回退为远端下载，不影响修复缺失会话。
+
 桌面同步使用公共 Node 入口 `@tau/db-schema/sync` 的数据库锁。CLI已整体退役；数据库访问仍检查维护锁并保留必要的崩溃恢复，不允许并发写入正在维护的数据库。
 
 同步存储插件只在渲染进程通过 `context.sync.register` 注册五方法提供方，沿用 main.js，不读取旧 manifest.sync 入口；新的显式 backend 独立声明与授权，不自动承载同步提供方。S3使用浏览器SDK构建，网络经已有context.fetch由宿主传输；主进程不执行同步插件代码。同步设置以 target 声明 form，由插件详情 › 设置统一渲染，应用级配置保留。数据库与用量流程直接调用渲染端提供方；资源扫描、计划、账本和重试仍在主进程，存储操作按任务转发给发起窗口。PluginSyncSessions只登记任务与归属并转发数据，任务期间阻止停用、卸载和更新；窗口断开时拒绝待响应请求、清理任务，不转移到Node执行。CLI同步命令、TUI入口、Provider及cli-sync协调接口已删除；通用数据库维护锁保留。S3旧包不再从安装包中自动替换；用户从中心选择新版后仍走原安装事务，配置与启用意图不变。OSS也已按同一渲染进程边界拆分，使用ali-oss官方浏览器构建和宿主fetch；配置和资源账本只使用当前插件格式。旧OSS同步Provider、资源Adapter及同步IPC已删除，资源上传/列桶及其共享凭据仍保留。WebDAV同步同样使用独立插件与官方浏览器客户端，通过SDK公开传输扩展绑定context.fetch；旧Provider/Adapter和exists/list同步IPC已删除。宿主upload/download仍服务资源上传下载。条件创建正确返回412失败，列举仅忽略404；所有插件资源调度统一使用现有插件参数，不按插件身份特判。WebDAV验收见 `docs/plugin-system/57-WebDAV渲染进程拆分.md`。GitHub同步也已通过context.fetch调用原Contents API，普通写入先取SHA，条件创建不传SHA；旧同步Provider/Adapter与同步专用工具已删除。四种同步方式现统一为插件，设置 › 同步只列出服务摘要与选用，连接配置在插件详情 › 设置，GitHub 资源按原始地址加载，不做 CDN 地址改写；桌面账号及博客查询工具已迁入发布插件，移动端仍有独立原生消费者。资源调度复用通用插件参数（并发配置5，经现有执行器上限收敛为3），无插件身份特判。GitHub验收见docs/plugin-system/58-GitHub渲染进程拆分.md。codec 的既有 Node 执行链已由 独立后台 M4 迁入独立内容渲染进程，现行边界与验证见插件专题 78。OSS实现与验收见 `docs/plugin-system/56-OSS渲染进程拆分.md`；执行边界见 `docs/plugin-system/55-插件渲染进程边界纠偏.md`。
