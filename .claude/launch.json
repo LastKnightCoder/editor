@@ -308,6 +308,13 @@
       "runtimeArgs": ["-m", "http.server", "8842", "--bind", "127.0.0.1", "-d", "."],
       "port": 8842,
       "url": "http://localhost:8842"
+    },
+    {
+      "name": "expense-mobile-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8844", "--bind", "127.0.0.1", "-d", "."],
+      "port": 8844,
+      "url": "http://localhost:8844"
     }
   ]
 }
