@@ -76,6 +76,12 @@ import {
   type EditingContext,
 } from "./editingContext";
 import { promptInsertWebview } from "./mediaActions";
+import {
+  captureTtsInsertTarget,
+  selectedPlainText,
+  type TtsInsertIntent,
+  type TtsInsertTarget,
+} from "../tts/ttsInsertTarget";
 import { setCodeBlockLanguage as setCodeBlockLanguageOnEditor } from "./codeBlockInput";
 import {
   getColumnAlign,
@@ -110,7 +116,8 @@ export type InsertSheetItemKind =
   | "mermaid"
   | "webview"
   | "annotation"
-  | "content-link";
+  | "content-link"
+  | "tts";
 
 /** 占用键盘位置的面板：Aa 样式面板 / + 插入面板 / 媒体尺寸面板（选中媒体时，键盘已收起）/ 语音面板 */
 export type EditorPanelKind = "style" | "insert" | "media" | "voice";
@@ -233,6 +240,15 @@ export type MobileEditorToolbarController = {
   handleSelectContentLink: (result: ContentLinkPickerResult) => void;
   undo: () => void;
   redo: () => void;
+  /** 文字转语音面板锁定的写入位置，面板关闭时为 null */
+  ttsTarget: TtsInsertTarget | null;
+  /** 选中文字转语音：预填选中内容，生成后插在选区所在块之后 */
+  openTtsForSelection: () => void;
+  /** 已有音频重新生成 / 用文字替换：原地改写该音频块 */
+  openTtsForAudio: (element: SlateElement, path: Path, text: string) => void;
+  closeTts: () => void;
+  /** 写入成功：关闭面板、光标落到新内容后，并给出可撤销提示 */
+  handleTtsInserted: (kind: TtsInsertIntent["kind"]) => void;
 };
 
 function getListIndentCommand(node: unknown, direction: ListIndentDirection): string | null {
@@ -258,6 +274,7 @@ export function useMobileEditorToolbarController(
   const [panelSelection, setPanelSelection] = useState<BaseSelection | null>(null);
   const [isTableMenuOpen, setIsTableMenuOpen] = useState(false);
   const [dismissedContextKey, setDismissedContextKey] = useState<string | null>(null);
+  const [ttsTarget, setTtsTarget] = useState<TtsInsertTarget | null>(null);
   const reservation = useKeyboardReservation();
 
   const lastSelectionRef = useRef<BaseSelection | null>(null);
@@ -446,6 +463,27 @@ export function useMobileEditorToolbarController(
     [markSelectionDirty, restoreEditorSelection]
   );
 
+  const ttsTargetRef = useRef<TtsInsertTarget | null>(null);
+  // 插入成功提示里的「撤销」：undo 定义在后，经 ref 取最新实现
+  const undoRef = useRef<() => void>(() => undefined);
+  /** 锁定写入位置后下一拍打开面板；位置不可写时提示，不打开 */
+  const openTts = useCallback(
+    (editor: SlateEditor, intent: TtsInsertIntent) => {
+      const target = captureTtsInsertTarget(editor, intent);
+      if (!target) {
+        toast.warning("当前位置无法插入音频，请把光标放到正文空行后重试");
+        return;
+      }
+      ttsTargetRef.current?.dispose();
+      ttsTargetRef.current = target;
+      openSheetNextTick(() => {
+        if (ttsTargetRef.current === target) setTtsTarget(target);
+      });
+    },
+    [openSheetNextTick]
+  );
+  useEffect(() => () => ttsTargetRef.current?.dispose(), []);
+
   /** 块插入/媒体类条目：共享包 setOrInsertNode 要求 collapsed 选区 */
   const COLLAPSE_BEFORE_INSERT_KINDS = new Set<InsertSheetItemKind>([
     "image",
@@ -463,6 +501,7 @@ export function useMobileEditorToolbarController(
     "math",
     "mermaid",
     "webview",
+    "tts",
   ]);
 
   /** 插入面板条目分发；面板打开时作用于面板选区且不聚焦，面板开合由调用方负责 */
@@ -546,6 +585,9 @@ export function useMobileEditorToolbarController(
         case "content-link":
           executeAction(kind);
           return;
+        case "tts":
+          openTts(editor, { kind: "insert" });
+          break;
       }
       if (editor.selection) {
         lastSelectionRef.current = editor.selection;
@@ -553,7 +595,7 @@ export function useMobileEditorToolbarController(
       markSelectionDirty();
     },
     // executeAction 为稳定引用（依赖均为 useCallback），此处引用安全
-    [executeAction, markSelectionDirty, restoreEditorSelection]
+    [executeAction, markSelectionDirty, openTts, restoreEditorSelection]
   );
 
   /** 工具条图片直达按钮：一步拉起系统选图（上传/占位/回填由共享包 mediaInsert 完成），
@@ -878,6 +920,50 @@ export function useMobileEditorToolbarController(
     markSelectionDirty();
   }, [editorRef, markSelectionDirty]);
 
+  const openTtsForSelection = useCallback(() => {
+    const editor = getEditorFromRef(editorRef);
+    if (!editor) return;
+    const selection = editor.selection ?? lastSelectionRef.current;
+    if (!selection || Range.isCollapsed(selection)) return;
+    Transforms.select(editor, selection);
+    lastSelectionRef.current = selection;
+    const text = selectedPlainText(editor);
+    // 面板里要输入，先收起正文键盘；选区保留用于定位插入点
+    dismissKeyboard();
+    openTts(editor, { kind: "after-selection", text });
+  }, [dismissKeyboard, editorRef, openTts]);
+
+  const openTtsForAudio = useCallback(
+    (element: SlateElement, path: Path, text: string) => {
+      const editor = getEditorFromRef(editorRef);
+      if (!editor) return;
+      openTts(editor, { kind: "replace", element, path, text });
+    },
+    [editorRef, openTts]
+  );
+
+  const closeTts = useCallback(() => {
+    ttsTargetRef.current?.dispose();
+    ttsTargetRef.current = null;
+    setTtsTarget(null);
+  }, []);
+
+  const handleTtsInserted = useCallback(
+    (kind: TtsInsertIntent["kind"]) => {
+      closeTts();
+      const editor = getEditorFromRef(editorRef);
+      if (!editor) return;
+      if (editor.selection) lastSelectionRef.current = editor.selection;
+      markSelectionDirty();
+      toast({
+        type: "success",
+        text: kind === "replace" ? "已替换音频" : "已插入音频",
+        action: { label: "撤销", onClick: () => undoRef.current() },
+      });
+    },
+    [closeTts, editorRef, markSelectionDirty]
+  );
+
   const indent = useCallback(() => runListIndent("indent"), [runListIndent]);
   const outdent = useCallback(() => runListIndent("outdent"), [runListIndent]);
 
@@ -1130,6 +1216,8 @@ export function useMobileEditorToolbarController(
     markSelectionDirty();
   }, [editorRef, markSelectionDirty]);
 
+  undoRef.current = undo;
+
   const redo = useCallback(() => {
     const editor = getEditorFromRef(editorRef);
     if (!editor) return;
@@ -1235,6 +1323,11 @@ export function useMobileEditorToolbarController(
       handleSelectContentLink,
       undo,
       redo,
+      ttsTarget,
+      openTtsForSelection,
+      openTtsForAudio,
+      closeTts,
+      handleTtsInserted,
     }),
     [
       openContentMention,
@@ -1293,6 +1386,11 @@ export function useMobileEditorToolbarController(
       redo,
       syncSelection,
       undo,
+      ttsTarget,
+      openTtsForSelection,
+      openTtsForAudio,
+      closeTts,
+      handleTtsInserted,
     ]
   );
 }

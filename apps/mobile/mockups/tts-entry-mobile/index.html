@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端文字转语音入口 · 方案 mockup</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="../media-mobile/media.css" />
+<link rel="stylesheet" href="tts-entry.css" />
+<script src="../editor-mobile/icons.js"></script>
+<script src="../media-mobile/icons-media.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>移动端文字转语音入口<small>决策稿 · 手机帧 360×760 · 颜色取自 @tau/themes · 虚线框 = 新增入口 · 音色与文字均为示意</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="entry">1 入口位置</button>
+    <button class="tab" data-tab="sheet">2 生成面板<span class="rec">推荐</span></button>
+    <button class="tab" data-tab="inline">3 备选：先插占位块</button>
+    <button class="tab" data-tab="after">4 插入后的音频块</button>
+    <button class="tab" data-tab="states">5 异常与边界</button>
+    <button class="tab" data-tab="decisions">6 实现要点与待决策</button>
+  </nav>
+</header>
+
+<!-- ═══════════ 1 入口位置 ═══════════ -->
+<section class="scene" data-scene="entry">
+  <p class="scene-intro"><b>三个编辑态入口，最后都打开同一个「文字转语音」面板。</b>① 「+」插入面板的媒体组新增一格，从空白开始写；② 选中文字后格式栏多一个「转语音」，选中内容预填进面板，生成的音频插在所在段落之后；③ 已经插入的 AI 音频，可以在配件栏里改文字、换音色后重新生成。④ 阅读态「⋯」里的「朗读全文」只播放、不插入，属于另一类需求，列在这里供你决定要不要一起做。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>间隔重复为什么有效</h1>
+          <p>艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。</p>
+          <p>下一步：把这张卡片做成一段可以通勤时听的音频。<span class="caret"></span></p>
+        </div>
+        <div class="acc">
+          <span class="ab plus on" data-i="x" data-s="20"></span>
+          <div class="scroll">
+            <span class="ab txt">Aa</span>
+            <span class="ab" data-i="square-check" data-s="19"></span>
+            <span class="ab" data-i="list" data-s="19"></span>
+            <span class="ab" data-i="indent-decrease" data-s="19"></span>
+            <span class="ab" data-i="indent-increase" data-s="19"></span>
+            <span class="ab" data-i="file-text" data-s="19"></span>
+            <span class="ab" data-i="image" data-s="19"></span>
+          </div>
+          <span class="vsep"></span>
+          <span class="ab" data-i="keyboard" data-s="19"></span>
+        </div>
+        <div class="panel"><div class="panel-in">
+          <div class="search"><span data-i="search" data-s="16"></span>搜索块，或在正文输入 /</div>
+          <div class="p-label"><span>媒体</span></div>
+          <div class="grid">
+            <div class="tile"><span class="ti c2" data-i="image" data-s="20"></span>照片</div>
+            <div class="tile"><span class="ti c2" data-i="camera" data-s="20"></span>拍照</div>
+            <div class="tile"><span class="ti c2" data-i="video" data-s="20"></span>视频</div>
+            <div class="tile"><span class="ti c2" data-i="audio-lines" data-s="20"></span>音频</div>
+            <div class="tile"><span class="ti c2 hot" data-i="volume-2" data-s="20"></span>文字转语音</div>
+            <div class="tile"><span class="ti c2" data-i="link-2" data-s="20"></span>网络图片</div>
+            <div class="tile"><span class="ti c2" data-i="link-2" data-s="20"></span>网络视频</div>
+            <div class="tile"><span class="ti c2" data-i="link-2" data-s="20"></span>网络音频</div>
+          </div>
+        </div><div class="fade-b"></div></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">①</span>插入面板：媒体组新增「文字转语音」</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>紧跟「音频」放置：本地音频是“选文件”，这一格是“用文字生成”，两者产物都是同一个音频块。</li>
+        <li>搜索关键词：wenzizhuanyuyin / wzzyy / langdu / tts / peiyin。</li>
+        <li>没有配置语音服务时这一格照常显示，点开后面板里给出“去设置”（见 5）。不隐藏，避免用户找不到功能。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>间隔重复为什么有效</h1>
+          <p><span class="sel">艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。<i class="h1"></i><i class="h2"></i></span></p>
+          <h2>核心机制</h2>
+          <ul><li>主动回忆比重复阅读更能巩固记忆</li><li>间隔逐步拉长，复习成本递减</li></ul>
+        </div>
+        <div class="sys-menu" style="top:150px;left:70px"><span>剪切</span><span>拷贝</span><span>粘贴</span><span>▸</span></div>
+        <div class="acc">
+          <span class="ctx-chip"><span data-i="text-select" data-s="14"></span>格式</span>
+          <div class="scroll">
+            <span class="ab" data-i="bold" data-s="19"></span>
+            <span class="ab" data-i="italic" data-s="19"></span>
+            <span class="ab" data-i="highlighter" data-s="19"></span>
+            <span class="ab" data-i="link" data-s="19"></span>
+            <span class="ab" data-i="message-square-plus" data-s="19"></span>
+            <span class="ab hot" data-i="volume-2" data-s="19"></span>
+            <span class="ab" data-i="code" data-s="19"></span>
+          </div>
+          <span class="vsep"></span>
+          <span class="ab txt">Aa</span>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">②</span>选中文字：格式栏「转语音」</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>放在批注之后：它不改原文，只在后面追加一个音频块，和“加粗、高亮”这些改样式的按钮分开。</li>
+        <li>点击后收起键盘，选中文字预填到面板，可以再改；正文选区保留，用来定位插入点。</li>
+        <li>插入位置：选区所在<b>最后一个块之后</b>，不拆分段落。</li>
+        <li>选区跨表格、代码块等结构时只取纯文本；超过单次上限会在面板里提示（见 5）。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>间隔重复为什么有效</h1>
+          <p>艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。</p>
+          <div class="aud sel">
+            <span class="mtag">音频</span>
+            <div class="aud-top"><span class="aplay" data-i="play" data-s="20"></span><span class="aud-t">遗忘曲线 · 朗读<small><span style="color:var(--brand)">AI 生成</span> · 中文女声 · 00:09</small></span><span class="spd">1.0×</span></div>
+            <div class="wave" data-wave="56,0"></div>
+            <div class="aud-text"><span data-i="file-text" data-s="14"></span>查看原文<span data-i="chevron-down" data-s="14" style="margin-left:auto"></span></div>
+          </div>
+          <p>主动回忆比重复阅读更能巩固记忆。</p>
+        </div>
+        <div class="acc">
+          <span class="ctx-chip"><span data-i="music" data-s="14"></span>音频</span>
+          <div class="scroll" style="gap:2px">
+            <span class="ab txt hot" style="gap:4px"><span data-i="refresh-cw" data-s="16"></span>重新生成</span>
+            <span class="ab txt" style="gap:4px"><span data-i="square-pen" data-s="16"></span>重命名</span>
+            <span class="ab txt" style="gap:4px"><span data-i="replace" data-s="16"></span>替换</span>
+          </div>
+          <span class="vsep"></span>
+          <span class="ab" data-i="ellipsis" data-s="19"></span>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">③</span>AI 音频块：配件栏「重新生成」</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>只对带 <code>isFromGenerate + audioText</code> 的音频出现；普通录音不显示。</li>
+        <li>打开同一面板，预填原文和上次的音色、语速，改完生成后<b>原地替换</b>这个块的音频，标题不变。</li>
+        <li>「替换」菜单里也加一项「用文字生成」，让普通音频也能换成合成音频。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib dim" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="edit-btn dim">编辑</span><span class="ib dim" data-i="ellipsis"></span></div>
+        <div class="doc read-doc">
+          <h1>间隔重复为什么有效</h1>
+          <p>艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。</p>
+          <h2>核心机制</h2>
+        </div>
+        <div class="mask" style="top:0"></div>
+        <div class="sheet" style="bottom:0;background:var(--bg-page);padding-bottom:26px">
+          <div class="grabber"></div>
+          <div class="as-group" style="margin-top:6px">
+            <div class="as-item"><span data-i="search" data-s="19"></span>在文档中查找</div>
+            <div class="as-item"><span data-i="list-tree" data-s="19"></span>目录</div>
+          </div>
+          <div class="as-group hot" style="border-radius:14px">
+            <div class="as-item"><span data-i="volume-2" data-s="19"></span>朗读全文<span class="sub">中文女声</span></div>
+          </div>
+          <div class="as-group">
+            <div class="as-item"><span data-i="square-check" data-s="19"></span>选择块<span class="sub">移动 · 删除 · 转换</span></div>
+            <div class="as-item"><span data-i="move-vertical" data-s="19"></span>整理结构</div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">④</span>待定：阅读态「朗读全文」</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>只播放，不写入文档，播放时顶部出现迷你播放条（沿用媒体稿的 miniplayer）。</li>
+        <li>长文要按段分批合成、边合成边播，比插入音频复杂一档，还牵涉锁屏/后台播放。</li>
+        <li><b>建议这次不做</b>，先把插入链路做完；见 6 · D3。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+<!-- ═══════════ 2 生成面板 ═══════════ -->
+<section class="scene" data-scene="sheet">
+  <p class="scene-intro"><b>推荐：底部大面板，先试听、再插入。</b>流程是 写文字 → 选音色 → 生成 → 试听 → 插入。生成要几秒到十几秒，而且按次计费，所以用户应该听过满意了再落到文档里。面板从底部升起约 85% 屏高，系统返回 = 关闭（有未插入的结果时先确认）。音色、语速默认取「我的 → 语音合成」的当前服务，改动只对这一次生效。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib dim" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt dim">完成</span></div>
+        <div class="mask" style="top:0"></div>
+        <div class="gen" style="top:96px">
+          <div class="grabber"></div>
+          <div class="gen-h"><span class="l">取消</span><span class="t">文字转语音</span><span class="r off">插入</span></div>
+          <div class="gen-text" style="min-height:128px">艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。<span class="caret blink"></span>
+            <div class="count"><span>28 / 1000 字</span><a>粘贴</a></div>
+          </div>
+          <div class="voice-chips">
+            <span class="vc on"><span class="av">女</span>中文女声</span>
+            <span class="vc"><span class="av">男</span>沉稳男声</span>
+            <span class="vc"><span class="av" style="background:var(--lilac-soft);color:var(--lilac)">我</span>我的声音</span>
+            <span class="vc more">全部<span data-i="chevron-right" data-s="14"></span></span>
+          </div>
+          <div class="gen-foot" style="padding-top:12px">
+            <span class="gbtn"><span data-i="sparkles" data-s="18"></span>生成</span>
+          </div>
+          <div class="acc" style="margin-top:auto;border-radius:0">
+            <div class="scroll"><span class="ab txt" style="color:var(--ink-3);font-weight:400">MiniMax 主账号 · speech-2.8-hd</span></div>
+            <span class="ab" data-i="sliders-horizontal" data-s="18"></span>
+            <span class="vsep"></span>
+            <span class="ab" data-i="keyboard-off" data-s="19"></span>
+          </div>
+          <div class="kb" data-kb></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">S1</span>输入：键盘弹起，音色一行可点</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>从「+」进入时文本框自动聚焦；从选中文字进入时预填、不弹键盘（见 S2）。</li>
+        <li>常用 3 个音色横排成胶囊，当前服务的音色排第一；「全部」打开音色列表（S4）。</li>
+        <li>键盘上方一条信息栏：显示用哪个账号和模型，右侧「调节」打开语速等参数（S3）。</li>
+        <li>文字为空时「插入」置灰、「生成」不可点。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib dim" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt dim">完成</span></div>
+        <div class="mask" style="top:0"></div>
+        <div class="gen" style="top:110px;padding-bottom:22px">
+          <div class="grabber"></div>
+          <div class="gen-h"><span class="l">取消</span><span class="t">文字转语音</span><span class="r off">插入</span></div>
+          <div class="gen-text">艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。
+            <div class="count"><span>来自选中内容 · 28 字</span><a>编辑</a></div>
+          </div>
+          <div class="gen-rows">
+            <div class="gen-row"><span data-i="audio-lines" data-s="17" style="color:var(--ink-2)"></span><span class="k">音色</span><span class="v">中文女声<span data-i="chevron-right" data-s="15"></span></span></div>
+            <div class="gen-row"><span data-i="gauge" data-s="17" style="color:var(--ink-2)"></span><span class="k">语速</span><span class="speed-seg"><span>0.8</span><span class="on">1.0</span><span>1.25</span><span>1.5</span></span></div>
+            <div class="gen-row"><span data-i="settings-2" data-s="17" style="color:var(--ink-2)"></span><span class="k">语音服务</span><span class="v">MiniMax 主账号<span data-i="chevron-right" data-s="15"></span></span></div>
+          </div>
+          <div class="result-meta"><span data-i="info" data-s="13"></span>默认值来自「我的 → 语音合成」，这里的改动只用于本次</div>
+          <div style="flex:1"></div>
+          <div class="gen-foot">
+            <span class="gbtn"><span data-i="sparkles" data-s="18"></span>生成并试听</span>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">S2</span>收起键盘：完整参数</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>键盘收起后显示完整列表：音色、语速、语音服务三行，都是 48px 高的整行点击。</li>
+        <li>语速用 4 档按钮，不做滑杆：手机上拖滑杆难以精确，常用值也就这几档。音量、音调不放出来，插件支持也不一致。</li>
+        <li>「语音服务」只在有多个账号时显示，切换后音色列表跟着刷新。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib dim" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt dim">完成</span></div>
+        <div class="mask" style="top:0"></div>
+        <div class="gen" style="top:110px;padding-bottom:22px">
+          <div class="grabber"></div>
+          <div class="gen-h"><span class="l">取消</span><span class="t">文字转语音</span><span class="r off">插入</span></div>
+          <div class="gen-text dim">艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。
+            <div class="count"><span>28 字</span><span></span></div>
+          </div>
+          <div class="gen-progress">
+            <span class="spin" data-i="loader-circle" data-s="22"></span>
+            <span class="mid">正在生成…<small>中文女声 · 1.0× · 一般需要 3–10 秒</small>
+              <div class="bar"><i style="width:46%"></i></div>
+            </span>
+          </div>
+          <div style="flex:1"></div>
+          <div class="gen-foot">
+            <span class="gbtn ghost wide">停止</span>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">S3</span>生成中：可停止</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>文字和参数变灰锁定，防止“改了但没生效”。</li>
+        <li>进度条是估计值（服务商不返回进度），按字数推一个时长，到 90% 停住等结果。</li>
+        <li>「停止」走 <code>AbortSignal</code> 取消请求；下拉或点遮罩不关闭面板，避免误触丢掉请求。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib dim" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt dim">完成</span></div>
+        <div class="mask" style="top:0"></div>
+        <div class="gen" style="top:110px;padding-bottom:22px">
+          <div class="grabber"></div>
+          <div class="gen-h"><span class="l">取消</span><span class="t">文字转语音</span><span class="r">插入</span></div>
+          <div class="gen-text">艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。
+            <div class="count"><span>28 字</span><a>编辑</a></div>
+          </div>
+          <div class="aud">
+            <div class="aud-top"><span class="aplay" data-i="pause" data-s="20"></span><span class="aud-t">试听<small>中文女声 · 1.0× · 00:09</small></span><span class="spd">1.0×</span></div>
+            <div class="wave" data-wave="52,0.42"></div>
+            <div class="aud-meta"><span>00:04</span><span></span><span>−00:05</span></div>
+          </div>
+          <div class="result-meta"><span data-i="info" data-s="13"></span>改了文字或音色需要重新生成</div>
+          <div style="flex:1"></div>
+          <div class="gen-foot">
+            <span class="gbtn ghost"><span data-i="refresh-cw" data-s="17"></span>重新生成</span>
+            <span class="gbtn"><span data-i="plus" data-s="18"></span>插入到文档</span>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">S4</span>生成完成：自动试听，确认后插入</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>生成完成后自动播放一次，播放器与文档里的音频块长得一样，用户能预见插进去的样子。</li>
+        <li>主按钮「插入到文档」在拇指区；右上角「插入」是同一动作，给习惯点顶栏的人。</li>
+        <li>修改文字或音色后，试听卡片变灰并显示“已修改，重新生成”，「插入」置灰，避免插入和文字对不上的音频。</li>
+        <li>插入时先把音频写成本地文件再插块（复用 <code>uploadResource</code>），成功后面板关闭、键盘回到插入点之后。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib dim" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt dim">完成</span></div>
+        <div class="mask" style="top:0"></div>
+        <div class="gen" style="top:70px;padding-bottom:22px">
+          <div class="grabber"></div>
+          <div class="gen-h"><span class="l" style="display:flex;align-items:center"><span data-i="chevron-left" data-s="20"></span></span><span class="t">选择音色</span><span class="r"></span></div>
+          <div class="search" style="margin:0 14px 4px"><span data-i="search" data-s="16"></span>搜索音色或输入音色 ID</div>
+          <div class="voice-sec">我的音色</div>
+          <div class="voice-list">
+            <div class="vrow2"><span class="av cl">我</span><span class="mid">我的声音<small>复刻 · 10 月 12 日</small></span><span class="pv" data-i="play" data-s="14"></span><span class="ck"></span></div>
+          </div>
+          <div class="voice-sec">系统音色</div>
+          <div class="voice-list">
+            <div class="vrow2"><span class="av">女</span><span class="mid">中文女声<small>温和 · 适合讲解</small></span><span class="pv" data-i="pause" data-s="14" style="background:var(--brand-soft);color:var(--brand-text)"></span><span class="ck" data-i="check" data-s="18"></span></div>
+            <div class="vrow2"><span class="av">男</span><span class="mid">沉稳男声<small>低沉 · 适合播报</small></span><span class="pv" data-i="play" data-s="14"></span><span class="ck"></span></div>
+            <div class="vrow2"><span class="av">童</span><span class="mid">活泼童声<small>明亮</small></span><span class="pv" data-i="play" data-s="14"></span><span class="ck"></span></div>
+            <div class="vrow2"><span class="av">EN</span><span class="mid">English Female<small>英文</small></span><span class="pv" data-i="play" data-s="14"></span><span class="ck"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">S5</span>音色列表：面板内二级页</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>在同一个面板里推入二级页，左上角返回，不再叠第二层 Sheet。</li>
+        <li>点整行选中并返回；点右侧 ▶ 只试听，用固定短句合成，结果按音色缓存，避免反复计费。</li>
+        <li>复用设置里 <code>TtsVoicePicker</code> 的数据（含复刻音色和手动输入 ID），只换外层承载。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+<!-- ═══════════ 3 备选：先插占位块 ═══════════ -->
+<section class="scene" data-scene="inline">
+  <p class="scene-intro"><b>备选：先在文档里插一个“待生成”音频块，在块上输入和生成。</b>好处是不离开文档，生成期间可以继续写别的内容；缺点是块里要塞输入框、音色、生成按钮，手机宽度下很挤，生成失败或不满意时文档里会留下半成品块，撤销栈也会多出几步。适合“一篇文档插很多段配音”的场景。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>间隔重复为什么有效</h1>
+          <p>艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。</p>
+          <div class="aud pending sel">
+            <div class="aud-top"><span class="aplay" data-i="volume-2" data-s="20"></span><span class="aud-t">文字转语音<small>中文女声 · 1.0×<span data-i="chevron-down" data-s="12" style="display:inline-block;vertical-align:-1px;margin-left:2px"></span></small></span></div>
+            <div style="margin-top:8px;font-size:14.5px;line-height:1.65">把这张卡片做成一段可以通勤时听的音频<span class="caret blink"></span></div>
+            <div class="act-row"><span class="pri"><span data-i="sparkles" data-s="14"></span>生成</span><span>取消</span></div>
+          </div>
+        </div>
+        <div class="acc">
+          <span class="ctx-chip"><span data-i="volume-2" data-s="14"></span>语音</span>
+          <div class="scroll"><span class="ab txt" style="color:var(--ink-3);font-weight:400">输入要朗读的文字</span></div>
+          <span class="vsep"></span>
+          <span class="ab" data-i="keyboard-off" data-s="19"></span>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B1</span>占位块里直接输入</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>块内文本就是将来的 <code>audioText</code>，块头点击换音色和语速。</li>
+        <li>需要在 Slate 里给音频块加一个可编辑的子区域，或者新增临时块类型，<b>编辑器改动比方案 A 大</b>。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>间隔重复为什么有效</h1>
+          <p>艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。</p>
+          <div class="aud pending">
+            <div class="aud-top"><span class="aplay" data-i="loader-circle" data-s="20"></span><span class="aud-t">正在生成…<small>中文女声 · 预计 6 秒</small></span><span class="spd">停止</span></div>
+            <div class="bar" style="margin-top:12px"><i style="width:58%"></i></div>
+          </div>
+          <p>主动回忆比重复阅读更能巩固记忆。<span class="caret blink"></span></p>
+        </div>
+        <div class="acc">
+          <span class="ab plus" data-i="plus" data-s="20"></span>
+          <div class="scroll">
+            <span class="ab txt">Aa</span>
+            <span class="ab" data-i="square-check" data-s="19"></span>
+            <span class="ab" data-i="list" data-s="19"></span>
+            <span class="ab" data-i="indent-increase" data-s="19"></span>
+            <span class="ab" data-i="image" data-s="19"></span>
+          </div>
+          <span class="vsep"></span>
+          <span class="ab" data-i="keyboard-off" data-s="19"></span>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B2</span>生成在后台，继续写作</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>这是方案 B 最大的优势：生成不阻塞，光标可以移到别处继续写。</li>
+        <li>代价：离开文档或切到后台时要决定任务怎么办（取消 / 继续 / 留下失败块），同步到其他设备时占位块也要能正确显示。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>间隔重复为什么有效</h1>
+          <p>艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。</p>
+          <div class="aud failed">
+            <div class="aud-top"><span class="aplay" data-i="triangle-alert" data-s="20"></span><span class="aud-t">生成失败<small>网络连接中断</small></span></div>
+            <div class="act-row"><span class="pri"><span data-i="refresh-cw" data-s="14"></span>重试</span><span>编辑文字</span><span>删除</span></div>
+          </div>
+          <p>主动回忆比重复阅读更能巩固记忆。</p>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B3</span>失败会留在文档里</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>失败块必须可重试、可删除，还要决定它能不能被保存、同步、导出 Markdown。</li>
+        <li>这些边界都不是方案 A 需要面对的，所以 <b>不推荐作为首版</b>；以后需要批量配音时再考虑。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 4 插入后的音频块 ═══════════ -->
+<section class="scene" data-scene="after">
+  <p class="scene-intro"><b>插入后就是普通音频块</b>，沿用媒体稿 AU-A 卡片形态。标题默认取文字前 12 个字加“· 朗读”；块上带「AI 生成」标记和「查看原文」。从选中文字生成时，插在该段落之后，并给出可撤销的提示。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt brand">完成</span></div>
+        <div class="doc">
+          <h1>间隔重复为什么有效</h1>
+          <p><span class="under">艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。</span></p>
+          <div class="aud">
+            <div class="aud-top"><span class="aplay" data-i="play" data-s="20"></span><span class="aud-t">艾宾浩斯遗忘曲线说明 · 朗读<small><span style="color:var(--brand)">AI 生成</span> · 00:09</small></span><span class="spd">1.0×</span></div>
+            <div class="wave" data-wave="56,0"></div>
+            <div class="aud-text"><span data-i="file-text" data-s="14"></span>查看原文<span data-i="chevron-down" data-s="14" style="margin-left:auto"></span></div>
+          </div>
+          <h2>核心机制</h2>
+          <ul><li>主动回忆比重复阅读更能巩固记忆</li><li>间隔逐步拉长，复习成本递减</li></ul>
+        </div>
+        <div class="toast" style="bottom:330px">已插入音频<b>撤销</b></div>
+        <div class="acc">
+          <span class="ab plus" data-i="plus" data-s="20"></span>
+          <div class="scroll">
+            <span class="ab txt">Aa</span>
+            <span class="ab" data-i="square-check" data-s="19"></span>
+            <span class="ab" data-i="list" data-s="19"></span>
+            <span class="ab" data-i="indent-increase" data-s="19"></span>
+            <span class="ab" data-i="image" data-s="19"></span>
+          </div>
+          <span class="vsep"></span>
+          <span class="ab" data-i="keyboard-off" data-s="19"></span>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">P1</span>插在选中段落之后</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>原选区短暂浅色标记 1.5 秒，提示“这段被转成了下面的音频”。</li>
+        <li>光标落在音频块之后的新段落，可以直接继续写。</li>
+        <li>撤销一次即删除整个音频块（插入是一个 Slate 批次）。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="edit-btn"><span data-i="pencil" data-s="14"></span>编辑</span><span class="ib" data-i="ellipsis"></span></div>
+        <div class="doc read-doc">
+          <h1>间隔重复为什么有效</h1>
+          <p>艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。</p>
+          <div class="aud">
+            <div class="aud-top"><span class="aplay" data-i="pause" data-s="20"></span><span class="aud-t">艾宾浩斯遗忘曲线说明 · 朗读<small><span style="color:var(--brand)">AI 生成</span> · 00:09</small></span><span class="spd">1.25×</span></div>
+            <div class="wave" data-wave="56,0.55"></div>
+            <div class="aud-meta"><span>00:05</span><span></span><span>−00:04</span></div>
+            <div class="aud-text open"><div style="display:flex;gap:6px;align-items:center"><span data-i="file-text" data-s="14"></span>原文<span data-i="chevron-down" data-s="14" style="margin-left:auto;transform:rotate(180deg)"></span></div>
+              <div class="src">艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。</div>
+            </div>
+          </div>
+          <h2>核心机制</h2>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap"><span class="no">P2</span>阅读态：播放与查看原文</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>阅读态只播放和展开原文，不显示「重新生成」，避免误触计费。</li>
+        <li>原文展开后可长按复制。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib dim" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt dim">完成</span></div>
+        <div class="mask" style="top:0"></div>
+        <div class="sheet" style="bottom:0;background:var(--bg-page);padding-bottom:26px">
+          <div class="grabber"></div>
+          <div class="sheet-h" style="justify-content:center"><span>替换音频</span></div>
+          <div class="as-group">
+            <div class="as-item"><span data-i="file-audio" data-s="19"></span>选择文件</div>
+            <div class="as-item"><span data-i="link-2" data-s="19"></span>网络地址</div>
+            <div class="as-item hot" style="border-radius:0"><span data-i="volume-2" data-s="19"></span>用文字生成</div>
+          </div>
+          <div class="as-group"><div class="as-item" style="justify-content:center;color:var(--ink-2)">取消</div></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">P3</span>任意音频「替换」→ 用文字生成</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>普通录音也能替换成合成音频；替换后补上 <code>isFromGenerate</code> 与 <code>audioText</code>，块上出现「AI 生成」。</li>
+        <li>和 ③「重新生成」打开的是同一面板，差别只是有没有预填文字。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+<!-- ═══════════ 5 异常与边界 ═══════════ -->
+<section class="scene" data-scene="states">
+  <p class="scene-intro"><b>入口始终可见，问题在面板里说清楚并给出下一步。</b>未配置时直接跳到设置，配好后返回仍回到这个面板，已写的文字保留。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib dim" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt dim">完成</span></div>
+        <div class="mask" style="top:0"></div>
+        <div class="gen" style="top:300px;padding-bottom:26px">
+          <div class="grabber"></div>
+          <div class="gen-h"><span class="l">取消</span><span class="t">文字转语音</span><span class="r"></span></div>
+          <div class="gen-empty">
+            <div class="ei" data-i="audio-lines" data-s="24"></div>
+            <h3>还没有语音服务</h3>
+            <p>安装 MiniMax 或通义千问语音插件，并添加账号后，就能把文字生成为音频。</p>
+          </div>
+          <div class="gen-foot" style="padding-top:14px">
+            <span class="gbtn">去设置语音合成</span>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">E1</span>没有配置语音服务</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>面板变矮，只放说明和一个按钮，跳到「我的 → 语音 → 语音合成」。</li>
+        <li>插件已安装但被停用，文案改为“语音插件已停用”，按钮去插件详情。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib dim" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt dim">完成</span></div>
+        <div class="mask" style="top:0"></div>
+        <div class="gen" style="top:110px;padding-bottom:22px">
+          <div class="grabber"></div>
+          <div class="gen-h"><span class="l">取消</span><span class="t">文字转语音</span><span class="r off">插入</span></div>
+          <div class="gen-text" style="max-height:190px;overflow:hidden">艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。间隔重复利用这一规律，在即将遗忘时安排复习，把每次复习间隔逐步拉长……
+            <div class="count"><span style="color:var(--danger)">1 286 / 1000 字</span><span></span></div>
+          </div>
+          <div class="inline-err"><span data-i="triangle-alert" data-s="15"></span><span>超出单次上限 286 字。可以删减，或只生成前 1000 字。</span></div>
+          <div style="flex:1"></div>
+          <div class="gen-foot">
+            <span class="gbtn ghost">只生成前 1000 字</span>
+            <span class="gbtn off">生成</span>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">E2</span>文字超出上限</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>上限由宿主统一定（建议 1000 字），不同厂商实际上限不同，取最保守值。</li>
+        <li>不自动分段拼接：拼接需要解码合并音频，首版不做。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib dim" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt dim">完成</span></div>
+        <div class="mask" style="top:0"></div>
+        <div class="gen" style="top:110px;padding-bottom:22px">
+          <div class="grabber"></div>
+          <div class="gen-h"><span class="l">取消</span><span class="t">文字转语音</span><span class="r off">插入</span></div>
+          <div class="gen-text">艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。
+            <div class="count"><span>28 字</span><a>编辑</a></div>
+          </div>
+          <div class="inline-err"><span data-i="triangle-alert" data-s="15"></span><span>账号余额不足（MiniMax 返回 1008）。充值后重试，或切换其他语音服务。</span></div>
+          <div class="gen-rows">
+            <div class="gen-row"><span data-i="settings-2" data-s="17" style="color:var(--ink-2)"></span><span class="k">语音服务</span><span class="v">MiniMax 主账号<span data-i="chevron-right" data-s="15"></span></span></div>
+          </div>
+          <div style="flex:1"></div>
+          <div class="gen-foot">
+            <span class="gbtn"><span data-i="refresh-cw" data-s="17"></span>重试</span>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">E3</span>生成失败</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>复用 <code>tts/errors.ts</code> 的 <code>ttsErrorMessage</code>，和设置页测试的文案一致。</li>
+        <li>失败时文字和参数都保留，同时把「语音服务」行露出来，方便切账号。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib dim" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="txt dim">完成</span></div>
+        <div class="mask" style="top:0"></div>
+        <div class="gen" style="top:110px;padding-bottom:22px">
+          <div class="grabber"></div>
+          <div class="gen-h"><span class="l">取消</span><span class="t">文字转语音</span><span class="r">插入</span></div>
+          <div class="gen-text">艾宾浩斯遗忘曲线说明，记忆在学习后的最初几天衰减最快。</div>
+          <div class="aud" style="opacity:.55">
+            <div class="aud-top"><span class="aplay" data-i="play" data-s="20"></span><span class="aud-t">试听<small>中文女声 · 00:09</small></span></div>
+            <div class="wave" data-wave="52,0"></div>
+          </div>
+        </div>
+        <div class="mask" style="top:0;z-index:4"></div>
+        <div class="sheet" style="bottom:0;z-index:5;background:var(--bg-page);padding:6px 0 26px">
+          <div class="grabber"></div>
+          <div style="text-align:center;padding:8px 24px 14px;font-size:13px;color:var(--ink-3);line-height:1.6">已生成的音频还没有插入，<br>关闭后需要重新生成。</div>
+          <div class="as-group">
+            <div class="as-item" style="justify-content:center;color:var(--brand);font-weight:600">插入到文档</div>
+            <div class="as-item danger" style="justify-content:center">放弃</div>
+          </div>
+          <div class="as-group"><div class="as-item" style="justify-content:center;color:var(--ink-2)">继续编辑</div></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">E4</span>关闭时还有未插入的结果</div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>取消、系统返回、下拉关闭都会走这个确认；只写了文字没生成时直接关闭，不打扰。</li>
+        <li>App 切到后台再回来：面板与结果保留在内存里；进程被系统杀掉则丢失（不做持久化）。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+<!-- ═══════════ 6 实现要点与待决策 ═══════════ -->
+<section class="scene" data-scene="decisions">
+  <div class="cards">
+    <div class="card">
+      <h3>为什么推荐「面板先试听」而不是「占位块」</h3>
+      <table class="cmp"><thead><tr><th></th><th>A 面板（推荐）</th><th>B 占位块</th></tr></thead><tbody>
+        <tr><td>编辑器改动</td><td>无，只调用现有音频插入</td><td>新增可编辑子区或临时块类型</td></tr>
+        <tr><td>失败残留</td><td>无，失败只留在面板</td><td>文档里有失败块，要处理同步与导出</td></tr>
+        <tr><td>生成时能否继续写</td><td>不能（几秒）</td><td>能</td></tr>
+        <tr><td>插入前能否试听</td><td>能</td><td>只能插入后再听</td></tr>
+        <tr><td>与桌面一致性</td><td>与桌面 TTSGenerateModal 流程一致</td><td>移动端独有</td></tr>
+      </tbody></table>
+    </div>
+    <div class="card">
+      <h3>接线位置</h3>
+      <ul>
+        <li>插入项：<code>editorToolbar/insertItems.ts</code> 新增 <code>kind: "tts"</code>，<code>useMobileEditorToolbarController</code> 打开面板。</li>
+        <li>格式栏：<code>MobileEditorBottomToolbar</code> 的 selection 模式加一个按钮。</li>
+        <li>音频配件栏：<code>mediaAccessory.tsx</code> 的 audio 分支加「重新生成」，<code>replaceButton</code> 菜单加「用文字生成」。</li>
+        <li>面板：新建 <code>features/cards/tts/</code>，复用 <code>openMobilePluginTTS</code>、<code>useTtsDomain</code>、<code>TtsVoicePicker</code>、<code>ttsErrorMessage</code>。</li>
+        <li>落库：音频字节 → 本地资源（<code>uploadResource</code>）→ 插入音频元素，属性带 <code>isFromGenerate: true, audioText</code>，与桌面 <code>ttsInsertSource</code> 同形。</li>
+      </ul>
+    </div>
+    <div class="card wide"><h3 style="font-size:16px">需要你决策的 4 件事</h3><p>标了推荐的是默认值，确认后再动手实现。</p></div>
+    <div class="card">
+      <h3>D1 · 生成交互用哪种？<span class="pick">推荐 A 面板</span></h3>
+      <p><b>A：</b>底部面板，先试听再插入（第 2 页）。</p>
+      <p><b>B：</b>先插占位块，在块上生成（第 3 页）。</p>
+    </div>
+    <div class="card">
+      <h3>D2 · 首版做哪些入口？<span class="pick">推荐 ①②③</span></h3>
+      <p>① 插入面板「文字转语音」：必做。</p>
+      <p>② 选中文字「转语音」：使用频率可能最高，改动小。</p>
+      <p>③ AI 音频「重新生成」与替换菜单「用文字生成」：复用同一面板，成本低。</p>
+      <p>也可以只做 ①，②③ 之后再加。</p>
+    </div>
+    <div class="card">
+      <h3>D3 · 阅读态「朗读全文」这次做不做？<span class="pick">推荐不做</span></h3>
+      <p>它是“只播放不插入”，需要分段合成、连续播放、迷你播放条，最好还支持锁屏播放，复杂度和成本都明显更高。建议单独立项。</p>
+    </div>
+    <div class="card">
+      <h3>D4 · 面板里能调哪些参数？<span class="pick">推荐 音色 + 语速</span></h3>
+      <p>音色 + 4 档语速；账号只在多账号时出现。改动只对本次生效，不回写设置。</p>
+      <p>备选：额外记住“上次使用的音色”，下次打开优先用它。好处是连续配音不用每次切换，坏处是和设置里的“当前音色”可能不一致。</p>
+    </div>
+    <div class="card wide">
+      <h3>不在本次范围</h3>
+      <ul>
+        <li>白板、闪卡等其他地方插入音频（桌面白板已有入口，移动端白板编辑另算）。</li>
+        <li>超长文本自动分段拼接、播客式多角色对话。</li>
+        <li>生成历史和音频缓存管理。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<script src="tts-entry.js"></script>
+</body>
+</html>

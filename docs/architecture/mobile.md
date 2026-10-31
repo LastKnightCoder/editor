@@ -365,7 +365,7 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
   `dismissEditingContext`，按上下文 key（表格为 `table:<路径>`，引用为 `content-link:<路径>`）记录退回，光标离开该上下文即恢复；代码块标签打开语言选择，
   公式标签为不可点的静态标签。
 - **模式**：通用模式（+ / Aa / 待办 / 列表 / 缩进 / 引用内容 / 图片 / 撤销）；光标折叠在内容引用的文字里为引用模式（左端标签为
-  引用的显示文字，中段预览 / 更换 / 移除，见下方「内容引用」）；展开选区为格式模式（行内样式，「格式」标签
+  引用的显示文字，中段预览 / 更换 / 移除，见下方「内容引用」）；展开选区为格式模式（行内样式与「转语音」，「格式」标签
   点击折叠选区）；光标在表格为表格模式（下方插行 / 右侧插列 / 删行 / 删列 / 对齐循环，「⋯」用 `ActionSheet` 列移动行列与
   删除表格；菜单打开期间动作作用于打开时保存的选区，关闭时恢复选区并聚焦），动作见 `tableActions.ts`；焦点在代码块 textarea 为代码块模式（语言标签点击打开
   常用语言 / 完整语言两级 `ActionSheet`，经 `tau.code-block.set-language` 设置后在点击内回焦；中段按语言族给符号键，见
@@ -468,6 +468,15 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，留白只放在滚�
   配件栏源码块模式由 `sourceBlockAccessory.tsx` 渲染：左端块名标签，中段「编辑」（可编辑时）/「复制」，右端「⋯」（块操作、删除，
   不可编辑时无删除）与「键盘」（`focusAfterVoid` + `placeCaretAfterBlock`，与媒体共用）。不提供符号行。
 - **开发实验页**：`features/editorLab/`（仅开发构建注册，入口 RouterDevTools「editor lab」）用同一套预留与收键盘策略，
+- **文字转语音**：三个入口打开同一个生成面板 `features/cards/tts/TtsGenerateSheet`（`BottomSheet`）：插入面板媒体组「文字转语音」（`kind: "tts"`，光标处新插）、
+  格式模式「转语音」（`openTtsForSelection`：选中纯文本预填，收起键盘，插到选区最后一个顶层块之后）、音频媒体模式「重新生成」（仅
+  `isFromGenerate` 音频）与「替换」菜单「用文字生成」（`openTtsForAudio`：原地改写该音频，预填 `audioText`）。controller 打开前经
+  `captureTtsInsertTarget` 锁定写入位置（插入用 `captureInsertionSubmission`，选区与替换用 `captureElementSubmission`；替换在音频 src 被换掉后放弃），
+  位置不可写时提示不打开；面板打开期间配件栏隐藏。面板复用设置域的 `useTtsDomain` / `useTtsVoices` / `useTtsAudioTest` / `TtsVoicePicker`：
+  默认账号、模型、音色取 `ttsUsageSettings.default`，面板内只改本次的音色、语速（0.8 / 1.0 / 1.25 / 1.5，经 `TTSSynthesizeOptions.speed`）与多账号时的语音服务，
+  单次上限 1000 字。生成后自动试听；文字改动后旧结果不能插入；有未插入结果或生成中时遮罩与下拉不关闭，返回弹确认。确认后音频经 `IResourceService.upload`
+  落为资源，再以一个撤销批次写入 `{ src, title: 前 12 字 · 朗读, isFromGenerate: true, audioText }`（替换时用户起的标题保留），光标落到音频之后，
+  toast 提供「撤销」。没有可用语音服务时面板只给「去设置语音合成」。
   可切换策略并复制键盘、位移、输入法、选区恢复日志，用于真机验证。
 
 ## 主题与样式

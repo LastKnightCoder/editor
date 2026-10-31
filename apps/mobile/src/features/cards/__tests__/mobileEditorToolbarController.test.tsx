@@ -861,6 +861,32 @@ describe("useMobileEditorToolbarController", () => {
     expect(getController().activePanel).toBeNull();
   });
 
+  it("文字转语音：插入面板与选中文字各自锁定写入位置，下一拍打开面板，关闭释放", () => {
+    const editor = createFormattedEditor("第一段文字");
+    const getController = renderController(editor);
+
+    act(() => {
+      getController().openTtsForSelection();
+    });
+    expect(getController().ttsTarget).toBeNull();
+    act(() => vi.runAllTimers());
+    const selectionTarget = getController().ttsTarget;
+    expect(selectionTarget?.intent).toEqual({ kind: "after-selection", text: "第一段文字" });
+
+    act(() => {
+      getController().closeTts();
+    });
+    expect(getController().ttsTarget).toBeNull();
+    expect(selectionTarget?.signal.aborted).toBe(true);
+
+    act(() => {
+      Transforms.select(editor, { path: [0, 0], offset: 2 });
+      getController().handleSelectInsertItem("tts");
+      vi.runAllTimers();
+    });
+    expect(getController().ttsTarget?.intent).toEqual({ kind: "insert" });
+  });
+
   it("插件插入沿用面板保存选区，插入后更新选区且不唤起键盘", () => {
     const editor = createFormattedEditor("hello", {
       anchor: { path: [0, 0], offset: 2 },

@@ -39,6 +39,7 @@ import {
   Underline,
   Undo2,
   Unlink,
+  Volume2,
   X,
 } from "lucide-react";
 
@@ -75,6 +76,7 @@ import {
 } from "./sourceEditorInput";
 import { useSourceBlockAccessory } from "./sourceBlockAccessory";
 import StylePanel from "./StylePanel";
+import { TtsGenerateSheet } from "../tts/TtsGenerateSheet";
 import { VoicePanel } from "../../speechInput/VoicePanel";
 import { useVoiceDictation } from "../../speechInput/useVoiceDictation";
 import { VoiceModeCoach, useVoiceModeCoach } from "../../speechInput/VoiceModeCoach";
@@ -116,6 +118,7 @@ export type AccessoryItemId =
   | "highlight"
   | "link"
   | "comment"
+  | "tts"
   | "code"
   | "block-paragraph"
   | "block-heading"
@@ -129,7 +132,15 @@ export type AccessoryItemId =
 
 type FormatItemId = Extract<
   AccessoryItemId,
-  "bold" | "italic" | "underline" | "strikethrough" | "highlight" | "link" | "comment" | "code"
+  | "bold"
+  | "italic"
+  | "underline"
+  | "strikethrough"
+  | "highlight"
+  | "link"
+  | "comment"
+  | "tts"
+  | "code"
 >;
 
 type MobileEditorBottomToolbarProps = {
@@ -187,6 +198,7 @@ const FORMAT_MIDDLE_ITEMS: FormatItemId[] = [
   "highlight",
   "link",
   "comment",
+  "tts",
   "code",
 ];
 
@@ -213,6 +225,7 @@ const ITEM_LABELS: Record<AccessoryItemId, string> = {
   highlight: "高亮",
   link: "链接",
   comment: "批注",
+  tts: "转语音",
   code: "行内代码",
   "block-paragraph": "正文",
   "block-heading": "标题",
@@ -240,6 +253,7 @@ const ITEM_ICONS: Partial<Record<AccessoryItemId, ReactNode>> = {
   highlight: <Highlighter size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
   link: <Link2 size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
   comment: <MessageSquarePlus size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
+  tts: <Volume2 size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
   code: <Code size={ICON_SIZE} strokeWidth={ICON_STROKE} />,
 };
 
@@ -458,6 +472,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
   // 语言选择 / 媒体与源码块菜单期间焦点可能离开编辑器，配件栏按打开时的上下文保持显示
   const showToolbar =
     !readonly &&
+    controller.ttsTarget === null &&
     (controller.isToolbarVisible ||
       languageSheet !== null ||
       media.sheetOpen ||
@@ -553,6 +568,9 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
         break;
       case "undo":
         controller.undo();
+        break;
+      case "tts":
+        controller.openTtsForSelection();
         break;
     }
   };
@@ -1042,6 +1060,11 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
         intent={controller.contentLinkPickerIntent}
         onClose={controller.handleCloseContentLinkPicker}
         onSelect={controller.handleSelectContentLink}
+      />
+      <TtsGenerateSheet
+        target={controller.ttsTarget}
+        onClose={controller.closeTts}
+        onInserted={controller.handleTtsInserted}
       />
     </>
   );

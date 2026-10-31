@@ -27,6 +27,7 @@ import {
   ScanText,
   Trash2,
   MoveVertical,
+  Volume2,
 } from "lucide-react";
 import { openImageLightbox, openLocalMediaPicker } from "@tau/editor/extensions/media";
 import type { Editor as SlateEditor } from "slate";
@@ -188,25 +189,40 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
         },
       ];
     }
-    const mediaType = target.mediaType === "video" ? "video" : "audio";
     const element = target.element as Parameters<typeof openLocalMediaPicker>[2];
+    if (target.mediaType === "audio") {
+      return [
+        {
+          label: "选择文件",
+          icon: menuIcon(FileAudio),
+          onClick: () => run(editor => openLocalMediaPicker(editor, "audio", element)),
+        },
+        {
+          label: "用文字生成",
+          icon: menuIcon(Volume2),
+          onClick: afterSheet(() => openTtsForAudio(target)),
+        },
+      ];
+    }
     return [
       {
-        label: mediaType === "video" ? "从相册选择" : "选择文件",
-        icon: menuIcon(mediaType === "video" ? Images : FileAudio),
-        onClick: () => run(editor => openLocalMediaPicker(editor, mediaType, element)),
+        label: "从相册选择",
+        icon: menuIcon(Images),
+        onClick: () => run(editor => openLocalMediaPicker(editor, "video", element)),
       },
-      ...(mediaType === "video"
-        ? [
-            {
-              label: "拍摄",
-              icon: menuIcon(Camera),
-              onClick: () =>
-                run(editor => openLocalMediaPicker(editor, "video", element, { capture: true })),
-            },
-          ]
-        : []),
+      {
+        label: "拍摄",
+        icon: menuIcon(Camera),
+        onClick: () =>
+          run(editor => openLocalMediaPicker(editor, "video", element, { capture: true })),
+      },
     ];
+  };
+
+  /** 生成音频带原文，重新生成时预填 */
+  const openTtsForAudio = (target: MediaEditingContext) => {
+    const { audioText } = target.element as { audioText?: string };
+    controller.openTtsForAudio(target.element, target.path, audioText ?? "");
   };
 
   const renderAlignButton = (target: MediaEditingContext) => {
@@ -267,6 +283,16 @@ export function useMediaAccessory(options: UseMediaAccessoryOptions) {
         return [sizeButton, renderAlignButton(target), replaceButton(target)];
       case "audio":
         return [
+          ...((target.element as { isFromGenerate?: boolean }).isFromGenerate
+            ? [
+                <LabeledButton
+                  key="regenerate"
+                  label="重新生成"
+                  icon={icon(RefreshCw)}
+                  onPress={() => openTtsForAudio(target)}
+                />,
+              ]
+            : []),
           <LabeledButton
             key="rename"
             label="重命名"
