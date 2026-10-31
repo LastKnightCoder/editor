@@ -17,6 +17,11 @@ import {
 import { cn } from "@tau/ui";
 import type { MentionRef } from "@tau/shared/chat-core";
 import { ActionSheet } from "../../components/ActionSheet";
+import {
+  resolveExpectedKeyboardHeight,
+  useKeyboardReservation,
+  useKeyboardViewport,
+} from "../../components/KeyboardViewportProvider";
 import { toast } from "../../components/toast";
 import type { ChatInput } from "../../services/aiChat/chatController";
 import { ContentLinkPickerSheet } from "../cards/editorExtensions/ContentLinkPickerSheet";
@@ -52,6 +57,19 @@ export function ChatComposer(props: {
   const [plusOpen, setPlusOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const reservation = useKeyboardReservation();
+  const keyboardViewport = useKeyboardViewport();
+  // 聚焦前先按预计键盘高度收起外壳，输入框在键盘升起前已在其上方，iOS 就不会平移整页把顶栏推出屏幕；
+  // 键盘升到预留高度（或超时）后释放，之后按真实键盘布局
+  const liftAboveKeyboard = () => {
+    if (keyboardViewport.isKeyboardVisible) return;
+    reservation.reserve(resolveExpectedKeyboardHeight(keyboardViewport));
+    reservation.releaseWhenKeyboardShown();
+  };
+  const focusInput = () => {
+    liftAboveKeyboard();
+    inputRef.current?.focus();
+  };
   const cameraRef = useRef<HTMLInputElement>(null);
   const albumRef = useRef<HTMLInputElement>(null);
   const mentions = props.mentions ?? localMentions;
@@ -123,7 +141,7 @@ export function ChatComposer(props: {
       onClick={() => {
         setVoiceMode(false);
         // 在点击里同步聚焦，移动端才会弹出键盘
-        inputRef.current?.focus();
+        focusInput();
       }}
       className={cn(ROUND_BUTTON, "bg-page text-ink-1")}
     >
@@ -204,6 +222,9 @@ export function ChatComposer(props: {
           hidden={voiceMode}
           value={value}
           placeholder={props.placeholder ?? "发消息"}
+          onPointerDown={() => {
+            if (document.activeElement !== inputRef.current) liftAboveKeyboard();
+          }}
           onChange={event => {
             const next = event.currentTarget.value;
             // 输入 @ 直接打开笔记选择，@ 本身不留在正文里
@@ -297,7 +318,7 @@ export function ChatComposer(props: {
           if (!mentions.some(item => !item.quote && item.contentId === mention.contentId))
             setMentions([...mentions, mention]);
           setPickerOpen(false);
-          inputRef.current?.focus();
+          focusInput();
         }}
       />
     </div>
