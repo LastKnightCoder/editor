@@ -18,7 +18,7 @@ type Listener = (notification: unknown) => void;
 const service = vi.hoisted(() => {
   const listeners = new Map<string, Listener>();
   const skills = {
-    list: vi.fn(async (): Promise<object[]> => []),
+    list: vi.fn<(signal?: AbortSignal) => Promise<object[]>>(async () => []),
     available: (_databaseName: string, signal?: AbortSignal) => skills.list(signal),
   };
   return {

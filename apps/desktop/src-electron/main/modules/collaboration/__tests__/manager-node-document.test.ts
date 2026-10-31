@@ -1,10 +1,13 @@
 // @vitest-environment node
 import Database from "better-sqlite3";
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
+import { WebSocket } from "ws";
+import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
 import {
   NodeTree,
   readNodeDocument,
@@ -12,6 +15,7 @@ import {
   type ContentSessionSnapshot,
   type CollaborationSession,
   type ContentNode,
+  type SharedDocumentInfo,
 } from "@tau/collaboration";
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
 import { applyNodeTreeContent } from "@tau/editor-collab";
@@ -28,11 +32,13 @@ import ContentTable from "../../tables/content";
 import { ContentDocumentTable } from "../../tables/content-document";
 import { ContentIdentityTable } from "../../tables/content-identity";
 import { unregisterContentSession } from "../content-sessions";
+import { collaborationImageStorage } from "../../../services/collaboration-image-storage";
 import type { DocumentDrain, DocumentDrainScope } from "../../durable-document-lifecycle";
 import { TaskAssistantEngine, readTask } from "../../task-assistant/engine";
 
 const host = vi.hoisted(() => ({
   dir: "",
+  serverUrl: "http://test",
   databases: new Map<string, Database.Database>(),
   windowToDatabase: new Map([[1, "library"]]),
 }));
@@ -48,13 +54,15 @@ vi.mock("../../database", () => ({
   default: { ...host, getDatabase: (name: string) => host.databases.get(name) },
 }));
 vi.mock("../../../utils/PathUtil", () => ({ default: { getAppDir: () => host.dir } }));
-vi.mock("../dev-server", () => ({ getDevelopmentServerUrl: () => "http://test" }));
+vi.mock("../dev-server", () => ({ getDevelopmentServerUrl: () => host.serverUrl }));
 const cleanup: (() => Promise<void> | void)[] = [];
 afterEach(async () => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   for (const run of cleanup.splice(0).reverse()) await run();
   host.databases.clear();
+  host.serverUrl = "http://test";
 });
 type Runtime = {
   store: CollaborationLocalStore;
@@ -80,8 +88,12 @@ type Runtime = {
   releaseLibrary(name: string): Promise<void>;
   project(session: RuntimeSession): Promise<void>;
   restore(info: CollaborationSession, doc: Y.Doc): RuntimeSession;
+  transports: Map<string, HocuspocusProviderWebsocket>;
+  startAutoFlush(): void;
+  shutdown(): void;
+  syncRemoteDocument(url: string, info: SharedDocumentInfo): Promise<void>;
 };
-async function setup() {
+async function setup(realtime = false) {
   const root = mkdtempSync(join(tmpdir(), "tau-manager-flow-"));
   host.dir = root;
   const db = new Database(join(root, "library.db"));
@@ -96,11 +108,14 @@ async function setup() {
   );
   const server = await createServer({ dataDir: join(root, "server"), logger: false });
   await server.app.ready();
+  if (realtime) {
+    host.serverUrl = await server.app.listen({ host: "127.0.0.1", port: 0 });
+  }
   const owner = server.store.register("作者");
   let losePublish = false;
   let loseCommit = false;
   const client = {
-    identities: new Map([["http://test", owner]]),
+    identities: new Map([[host.serverUrl, owner]]),
     identity: async () => owner,
     request: async (
       _url: string,
@@ -147,13 +162,16 @@ async function setup() {
     stopped: true,
     assets: new CollaborationAssetService(store, root, async () => owner),
   });
-  vi.spyOn(runtime, "attach").mockImplementation(() => {});
+  if (!realtime) vi.spyOn(runtime, "attach").mockImplementation(() => {});
   cleanup.push(async () => {
+    runtime.shutdown();
     for (const session of runtime.sessions.values()) {
+      session.provider?.destroy();
       unregisterContentSession(session);
       session.awareness.destroy();
       session.doc.destroy();
     }
+    for (const transport of runtime.transports.values()) transport.destroy();
     store.db.close();
     db.close();
     await server.app.close();
@@ -205,6 +223,309 @@ async function setup() {
 }
 
 describe("桌面生产会话与真实服务贯通", () => {
+  it.each([false, true])(
+    "作者离线期间的成员图片在上线后自动补存，无需打开正文（冷缓存=%s）",
+    async cold => {
+      const { runtime, event, db, server, owner, store } = await setup(true);
+      const url = host.serverUrl;
+      const shared = await runtime.createContent(event, 7);
+      let session = runtime.sessions.get(shared.documentId)!;
+      await vi.waitFor(() => expect(session.provider?.synced).toBe(true), { timeout: 5000 });
+      runtime.startAutoFlush();
+      await vi.waitFor(() => expect(session.projectionDirty).toBe(false), { timeout: 3000 });
+      const save = vi
+        .spyOn(collaborationImageStorage, "save")
+        .mockRejectedValue(new Error("作者存储宿主尚未就绪"));
+      session.provider!.detach();
+      for (const transport of runtime.transports.values()) transport.disconnect();
+      store.compact(shared.documentId, session.doc);
+      if (cold) {
+        session.provider!.destroy();
+        unregisterContentSession(session);
+        session.awareness.destroy();
+        session.doc.destroy();
+        runtime.sessions.delete(shared.documentId);
+        for (const transport of runtime.transports.values()) transport.destroy();
+        runtime.transports.clear();
+      }
+
+      const member = server.store.register("离线期间的成员");
+      const request = server.store.requestJoin(
+        server.store.rotateCode(shared.documentId, owner.id).code,
+        member.id
+      );
+      if (request.status !== "pending") throw new Error("未创建成员申请");
+      server.store.decide(request.id, owner.id, true);
+      const memberDoc = new Y.Doc({ gc: false });
+      const memberSocket = new HocuspocusProviderWebsocket({
+        url: url.replace(/^http/, "ws") + "/ws",
+        WebSocketPolyfill: WebSocket,
+      });
+      const memberProvider = new HocuspocusProvider({
+        name: shared.documentId,
+        document: memberDoc,
+        websocketProvider: memberSocket,
+        token: () => server.store.ticket(member.id, shared.documentId, 2),
+      });
+      cleanup.push(() => {
+        memberProvider.destroy();
+        memberSocket.destroy();
+        memberDoc.destroy();
+      });
+      memberProvider.attach();
+      await vi.waitFor(() => expect(memberProvider.synced).toBe(true), { timeout: 5000 });
+      const bytes = new TextEncoder().encode("IMAGE_UPLOADED_WHILE_OWNER_OFFLINE");
+      const assetId = crypto.randomUUID();
+      const form = new FormData();
+      form.append("file", new Blob([bytes], { type: "image/png" }), "offline-member.png");
+      const uploaded = await fetch(`${url}/v1/documents/${shared.documentId}/assets`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${member.id}:${member.secret}`, "X-Asset-Id": assetId },
+        body: form,
+      });
+      expect(uploaded.ok).toBe(true);
+      const reference = `tau-collab-asset:${assetId}`;
+      const image = await prepareContentContract("tau.image", {
+        type: "image",
+        dataVersion: 1,
+        kind: "block",
+        isVoid: true,
+        resources: [{ path: "url", kind: "image" }],
+      });
+      const tree = new NodeTree(memberDoc);
+      try {
+        await tree.installContracts({ [image.id]: image.contract }, null);
+        tree.insertNode(
+          {
+            type: "image",
+            collabId: "offline-image",
+            tauContract: image.id,
+            url: reference,
+            children: [{ text: "" }],
+          },
+          null,
+          1,
+          null,
+          true
+        );
+        await vi.waitFor(
+          () => {
+            const remote = server.store.loadDocument(shared.documentId);
+            try {
+              expect(readNodeDocument(remote).content[1]).toMatchObject({ url: reference });
+            } finally {
+              remote.destroy();
+            }
+          },
+          { timeout: 5000 }
+        );
+      } finally {
+        tree.dispose();
+      }
+      expect(save).not.toHaveBeenCalled();
+      expect(ContentDocumentTable.read(db, 7)!.content).toHaveLength(1);
+
+      if (cold) {
+        const attach = vi.spyOn(runtime, "attach").mockImplementation(() => {});
+        const { documents } = await runtime.client.request<{ documents: SharedDocumentInfo[] }>(
+          url,
+          "/v1/documents"
+        );
+        await runtime.syncRemoteDocument(
+          url,
+          documents.find(info => info.id === shared.documentId)!
+        );
+        session = runtime.sessions.get(shared.documentId)!;
+        await vi.waitFor(() => expect(session.projectionDirty).toBe(false), { timeout: 3000 });
+        expect(readNodeDocument(session.doc).content).toHaveLength(1);
+        attach.mockRestore();
+        host.databases.delete("library");
+        runtime.attach(session);
+      } else {
+        session.provider!.attach();
+        for (const transport of runtime.transports.values()) await transport.connect();
+      }
+      await vi.waitFor(() => expect(save).toHaveBeenCalled(), { timeout: 5000 });
+      expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ mime: "image/png", bytes }));
+      await vi.waitFor(() => expect(session.info.error).toContain("作者存储宿主尚未就绪"));
+      expect(session.projectionDirty).toBe(true);
+      mkdirSync(join(host.dir, "resources"), { recursive: true });
+      const owned = cold
+        ? "https://owner.test/after-restart.webp"
+        : join(host.dir, "resources", "after-reconnect.webp");
+      if (!cold) writeFileSync(owned, "OWNER_COMPRESSED_IMAGE");
+      save.mockResolvedValue(owned);
+      await vi.waitFor(
+        () => expect(runtime.assets.ownerImageReference(shared.documentId, reference)).toBe(owned),
+        { timeout: 5000 }
+      );
+      if (cold) {
+        expect(ContentDocumentTable.read(db, 7)!.content).toHaveLength(1);
+        host.databases.set("library", db);
+      }
+      await vi.waitFor(
+        () => expect(ContentDocumentTable.read(db, 7)!.content[1]).toMatchObject({ url: owned }),
+        { timeout: 5000 }
+      );
+      expect(session.info.error).toBeUndefined();
+      expect(runtime.views.size).toBe(0);
+      expect(server.store.document(shared.documentId).status).toBe("active");
+    },
+    20_000
+  );
+
+  it("远端图片先按作者配置保存，失败不关闭共享，成功后本机正文使用作者图床地址", async () => {
+    const { runtime, event, db, server, owner } = await setup();
+    const shared = await runtime.createContent(event, 7);
+    const session = runtime.sessions.get(shared.documentId)!;
+    session.provider = {
+      attach: vi.fn(),
+      detach: vi.fn(),
+      destroy: vi.fn(),
+    } as unknown as RuntimeSession["provider"];
+    const image = await prepareContentContract("tau.image", {
+      type: "image",
+      dataVersion: 1,
+      kind: "block",
+      isVoid: true,
+      resources: [{ path: "url", kind: "image" }],
+    });
+    const assetId = crypto.randomUUID();
+    const bytes = Buffer.from("REMOTE_MEMBER_IMAGE");
+    const hash = createHash("sha256").update(bytes).digest("hex");
+    writeFileSync(join(host.dir, "server", "assets", hash), bytes);
+    server.store.insertAsset(
+      shared.documentId,
+      assetId,
+      hash,
+      "member.png",
+      "image/png",
+      bytes.length
+    );
+    const remote = server.store.loadDocument(shared.documentId);
+    const fork = new Y.Doc({ gc: false });
+    Y.applyUpdate(fork, Y.encodeStateAsUpdate(remote));
+    const vector = Y.encodeStateVector(fork);
+    const tree = new NodeTree(fork);
+    try {
+      await tree.installContracts({ [image.id]: image.contract }, null);
+      tree.insertNode(
+        {
+          type: "image",
+          collabId: "member-image",
+          tauContract: image.id,
+          url: `tau-collab-asset:${assetId}`,
+          children: [{ text: "" }],
+        },
+        null,
+        1,
+        null,
+        true
+      );
+      await server.store.appendUpdate(
+        shared.documentId,
+        owner.id,
+        Y.encodeStateAsUpdate(fork, vector),
+        remote
+      );
+    } finally {
+      tree.dispose();
+      fork.destroy();
+      remote.destroy();
+    }
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init: RequestInit) => {
+        const result = await server.app.inject({
+          method: "GET",
+          url: new URL(url).pathname,
+          headers: init.headers as Record<string, string>,
+        });
+        return new Response(new Uint8Array(result.rawPayload), {
+          status: result.statusCode,
+          headers: {
+            "content-type": String(result.headers["content-type"]),
+            "content-disposition": String(result.headers["content-disposition"]),
+          },
+        });
+      })
+    );
+    const save = vi
+      .spyOn(collaborationImageStorage, "save")
+      .mockRejectedValue(new Error("作者图床连接失败"));
+    await expect(runtime.prepareLeave(session)).rejects.toThrow("作者图床连接失败");
+    expect(session.info.frozen).toBe(false);
+    expect(server.store.document(shared.documentId).status).toBe("active");
+    const owned = "https://owner.test/compressed.webp";
+    save.mockResolvedValue(owned);
+    await runtime.prepareLeave(session);
+    expect(server.store.document(shared.documentId).status).toBe("active");
+    expect(ContentDocumentTable.read(db, 7)!.content[1]).toMatchObject({ url: owned });
+    expect(save).toHaveBeenLastCalledWith(
+      expect.objectContaining({ mime: "image/png", bytes: new Uint8Array(bytes) })
+    );
+    expect((await ContentTable.readContent(db, 7))!.content[1]).toMatchObject({ url: owned });
+    session.info.leaving = true;
+    await runtime.finishLeave(session);
+    expect(server.store.document(shared.documentId).status).toBe("closed");
+    expect((await ContentTable.readContent(db, 7))!.content[1]).toMatchObject({ url: owned });
+    expect((await runtime.openContent(event, { contentId: 7 })).mode).toBe("local");
+    expect((await ContentTable.readContent(db, 7))!.content[1]).toMatchObject({ url: owned });
+  });
+  it("本机图片保存保留路径和图床 URL，存量编号转存后缓存重建仍能读取", async () => {
+    const { runtime, localId, event, db, store } = await setup();
+    const image = await prepareContentContract("tau.image", {
+      type: "image",
+      dataVersion: 1,
+      kind: "block",
+      isVoid: true,
+      resources: [
+        { path: "url", kind: "image" },
+        { path: "previewUrl", kind: "image" },
+      ],
+    });
+    const legacy = await runtime.assets.keepLocalFile(localId, {
+      name: "legacy.png",
+      mime: "image/png",
+      bytes: new TextEncoder().encode("LEGACY_IMAGE"),
+    });
+    const local = "~/.editor/resources/new.webp";
+    const remote = "https://images.test/compressed.webp";
+    const before = (await ContentTable.readContent(db, 7))!;
+    await ContentTable.writeContent(db, 7, {
+      expectedRevision: before.revision,
+      contracts: { ...before.contracts, [image.id]: image.contract },
+      content: [
+        ...before.content,
+        ...[legacy, local, remote].map((url, index) => ({
+          type: "image",
+          collabId: `image-${index}`,
+          tauContract: image.id,
+          url,
+          previewUrl: url,
+          children: [{ text: "" }],
+        })),
+      ] as never,
+    });
+    const saved = ContentDocumentTable.read(db, 7)!;
+    const path = String(saved.content[1].url);
+    expect(path).toContain(join("resources", "collaboration"));
+    expect(readFileSync(path, "utf8")).toBe("LEGACY_IMAGE");
+    expect(saved.content[1].previewUrl).toBe(path);
+    expect(saved.content.slice(2).map(node => node.url)).toEqual([local, remote]);
+    expect(readNodeDocument(runtime.sessions.get(localId)!.doc).content).toEqual(saved.content);
+
+    const session = runtime.sessions.get(localId)!;
+    unregisterContentSession(session);
+    session.awareness.destroy();
+    session.doc.destroy();
+    runtime.sessions.delete(localId);
+    store.discard(localId, "验证按主库重建本机会话");
+    await runtime.openContent(event, { contentId: 7 });
+    expect(readNodeDocument(runtime.sessions.get(localId)!.doc).content).toEqual(saved.content);
+    expect(readFileSync(path, "utf8")).toBe("LEGACY_IMAGE");
+  });
+
   it.each([false, true])("附件仅在其他设备上时仍能打开、编辑和保存（共享=%s）", async shared => {
     const { runtime, localId, event, db } = await setup();
     let session = runtime.sessions.get(localId)!;
@@ -715,13 +1036,52 @@ describe("桌面生产会话与真实服务贯通", () => {
   it("同步替换释放未加载的冷缓存，之后按新库重新打开", async () => {
     const { runtime, event, store, localId } = await setup();
     const session = runtime.sessions.get(localId)!;
+    const image = await prepareContentContract("tau.image", {
+      type: "image",
+      kind: "block",
+      dataVersion: 1,
+      isVoid: true,
+      resources: [{ path: "url", kind: "image" }],
+    });
+    const reference = await runtime.assets.keepLocalFile(localId, {
+      name: "unprojected.png",
+      mime: "image/png",
+      bytes: new TextEncoder().encode("待保全的图片"),
+    });
+    const path = runtime.assets.resolveLocalFile(reference, localId)!;
+    const tree = new NodeTree(session.doc);
+    await tree.installContracts({ [image.id]: image.contract }, null);
+    tree.insertNode(
+      {
+        type: "image",
+        collabId: "pending-image",
+        tauContract: image.id,
+        url: reference,
+        children: [{ text: "" }],
+      },
+      null,
+      1,
+      null,
+      true
+    );
+    tree.dispose();
+    store.compact(localId, session.doc);
     unregisterContentSession(session);
     session.awareness.destroy();
     session.doc.destroy();
     runtime.sessions.delete(localId);
     await runtime.releaseLibrary("library");
     expect(store.list().some(info => info.id === localId)).toBe(false);
+    expect(readFileSync(path, "utf8")).toBe("待保全的图片");
+    const discarded = join(host.dir, "collaboration", "discarded");
+    expect(
+      readdirSync(discarded).some(name =>
+        readFileSync(join(discarded, name), "utf8").includes(path)
+      )
+    ).toBe(true);
     expect((await runtime.openContent(event, { contentId: 7 })).frozen).toBe(false);
+    runtime.assets.removeDocumentCache(localId);
+    expect(readFileSync(path, "utf8")).toBe("待保全的图片");
   });
 
   it("旧来源冷缓存按当前主库重建，并发打开得到同一会话", async () => {
@@ -793,6 +1153,13 @@ describe("桌面生产会话与真实服务贯通", () => {
     const identity = ContentDocumentTable.read(db, 7)!.documentId;
     const shared = await runtime.createContent(event, 7);
     const session = runtime.sessions.get(shared.documentId)!;
+    session.provider = {
+      synced: true,
+      hasUnsyncedChanges: false,
+      attach: vi.fn(),
+      detach: vi.fn(),
+      destroy: vi.fn(),
+    } as unknown as RuntimeSession["provider"];
     expect(readNodeDocument(session.doc).content[0]).toMatchObject({
       type: "paragraph",
       svg: "用户业务内容",
@@ -815,9 +1182,38 @@ describe("桌面生产会话与真实服务贯通", () => {
       remote.destroy();
       current.destroy();
     }
+    host.databases.delete("library");
+    await expect(runtime.prepareLeave(session)).rejects.toThrow("原内容所在数据库");
+    expect(server.store.document(shared.documentId).status).toBe("active");
+    expect(session.info.frozen).toBe(false);
+    host.databases.set("library", db);
+    const project = vi.spyOn(runtime, "project").mockRejectedValueOnce(new Error("正文落库失败"));
+    await expect(runtime.prepareLeave(session)).rejects.toThrow("正文落库失败");
+    expect(server.store.document(shared.documentId).status).toBe("active");
+    project.mockRestore();
     await runtime.prepareLeave(session);
+    expect(JSON.stringify(ContentDocumentTable.read(db, 7)!.content)).toContain("远端输入正文");
     session.info.leaving = true;
+    const request = runtime.client.request.bind(runtime.client);
+    let loseClose = true;
+    const closeRequests = vi
+      .spyOn(runtime.client, "request")
+      .mockImplementation(async (...args) => {
+        const result = await request(...args);
+        if (String(args[1]).endsWith("/close") && loseClose) {
+          loseClose = false;
+          throw new Error("关闭回执丢失");
+        }
+        return result;
+      });
     await runtime.finishLeave(session);
+    expect(server.store.document(shared.documentId).status).toBe("closed");
+    expect(session.info.leaving).toBe(true);
+    expect(runtime.sessions.has(shared.documentId)).toBe(true);
+    await runtime.finishLeave(session);
+    expect(
+      closeRequests.mock.calls.filter(args => String(args[1]).endsWith("/close"))
+    ).toHaveLength(2);
     expect(server.store.document(shared.documentId).status).toBe("closed");
     const local = [...runtime.sessions.values()].find(value => value.info.mode === "local")!;
     expect(local).toBeDefined();

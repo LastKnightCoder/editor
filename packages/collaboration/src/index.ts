@@ -30,7 +30,12 @@ export {
 } from "./whiteboard-transfer";
 export type { WhiteboardTransfer } from "./whiteboard-types";
 
-export { isSafeResource } from "./resource-policy";
+export {
+  isSafeResource,
+  isVideoResource,
+  imageMimeFromBytes,
+  collaborationAssetMime,
+} from "./resource-policy";
 
 export * from "./whiteboard-baseline";
 export { assertPresenceBudget } from "./presence-budget";

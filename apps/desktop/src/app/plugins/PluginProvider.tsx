@@ -24,6 +24,7 @@ import { createDesktopFlashcards } from "./flashcards";
 import { desktopPluginServices } from "./services";
 import { connectSyncRenderer } from "./sync-bridge";
 import { connectUploadRenderer } from "./upload-bridge";
+import { connectCollaborationImageStorage } from "@/services/collaboration-image-storage";
 import { connectTTSRenderer } from "./tts-bridge";
 import { connectImagesRenderer } from "./images-bridge";
 import { connectEmbeddingsRenderer } from "./embeddings-bridge";
@@ -38,6 +39,7 @@ let pendingCleanup: Promise<void> = Promise.resolve();
 export function DesktopPluginProvider({ children }: { children: ReactNode }) {
   useEffect(connectSyncRenderer, []);
   useEffect(connectUploadRenderer, []);
+  useEffect(connectCollaborationImageStorage, []);
   useEffect(connectTTSRenderer, []);
   useEffect(connectImagesRenderer, []);
   useEffect(connectEmbeddingsRenderer, []);

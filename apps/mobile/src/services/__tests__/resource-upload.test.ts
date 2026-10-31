@@ -37,6 +37,29 @@ it("Blob 分块暂存而不读取整文件；提交完成后回收暂存句柄",
   expect(invoke).toHaveBeenCalledWith("upload_resource", { id: "input", size: blob.size });
   expect(vi.mocked(invoke).mock.calls.at(-1)).toEqual(["resource_upload_cancel", { id: "input" }]);
 });
+
+it("成员图片的协作目标随分块任务传入原生层，避免采用成员图床", async () => {
+  vi.mocked(invoke).mockImplementation(async command =>
+    command === "resource_upload_begin"
+      ? "member"
+      : command === "upload_resource"
+        ? "tau-collab-asset:member"
+        : undefined
+  );
+  const collaboration = { documentId: "shared", serverUrl: "https://collab.test" };
+  await expect(
+    uploadResource({
+      fileName: "member.png",
+      mimeType: "image/png",
+      content: new Blob(["image"]),
+      collaboration,
+    })
+  ).resolves.toBe("tau-collab-asset:member");
+  expect(invoke).toHaveBeenCalledWith(
+    "resource_upload_begin",
+    expect.objectContaining({ collaboration })
+  );
+});
 it("分块写失败时不提交上传，并清理暂存文件", async () => {
   vi.mocked(invoke).mockImplementation(async command => {
     if (command === "resource_upload_begin") return "failed";

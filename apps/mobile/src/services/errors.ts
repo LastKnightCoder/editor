@@ -110,7 +110,6 @@ export function mapErrorToMessage(code: string, fallback: string): string {
     COLLAB_BIND_FAILED: "建立协作绑定失败，请重试",
     COLLAB_BIND_READ_FAILED: "读取协作绑定失败",
     COLLAB_UNBIND_FAILED: "解除协作绑定失败",
-    COLLAB_ASSET_UNSUPPORTED: "移动端暂不支持协作附件",
     COLLABORATION_WRITE_REQUIRED: "这段内容正在协作，请在协作编辑页修改，或先结束共享",
     COLLAB_UNSYNCED: "改动尚未同步完成，请稍后再试",
     COLLAB_PROJECT_FAILED: "协作内容同步到本地失败，请稍后重试",

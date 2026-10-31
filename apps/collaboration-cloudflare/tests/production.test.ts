@@ -409,6 +409,35 @@ describe("正式 Cloudflare 协作能力", () => {
     ).toBe(410);
   });
 
+  it("BMP 与缺失图片 MIME 的附件均按图片类型写入 R2", async () => {
+    await initialize();
+    const owner = await register("作者"),
+      id = await create(owner);
+    const bytes = new Uint8Array(58);
+    bytes.set([0x42, 0x4d]);
+    bytes[2] = 58;
+    bytes[10] = 54;
+    bytes[14] = 40;
+    bytes[18] = 1;
+    bytes[22] = 1;
+    bytes[26] = 1;
+    bytes[28] = 24;
+    for (const mime of ["image/bmp", "image/x-ms-bmp", "application/octet-stream"]) {
+      const form = new FormData();
+      form.append("file", new Blob([bytes], { type: mime }), "photo.bmp");
+      const result = await fetch(`${url}/v1/documents/${id}/assets`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${owner.id}:${owner.secret}`,
+          "x-asset-id": crypto.randomUUID(),
+        },
+        body: form,
+      });
+      expect(result.status).toBe(200);
+      expect((await result.json()).mime).toBe("image/bmp");
+    }
+  });
+
   it("设备身份与成员状态原样导入，退役合并接口不能转移权限", async () => {
     const source = {
       id: crypto.randomUUID(),

@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
-import { existsSync, rmSync } from "node:fs";
+import { existsSync, realpathSync, rmSync } from "node:fs";
 import { basename, extname, isAbsolute, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeLocalResourcePath } from "@tau/shared/resource-path";
@@ -9,6 +9,8 @@ import {
   LOCAL_ASSET_PREFIX,
   isLocalAssetReference,
   isSafeResource,
+  isVideoResource,
+  imageMimeFromBytes,
   type DeviceIdentity,
   type SharedContent,
 } from "@tau/collaboration";
@@ -25,6 +27,7 @@ import {
   type ContentContractDictionary,
 } from "@tau/db-schema/content-contracts";
 import type { CollaborationLocalStore } from "./local-store";
+import type { CollaborationImageFile } from "../../../../shared/collaboration-image-storage";
 
 export interface ResourceRow {
   id: string;
@@ -47,6 +50,7 @@ const MIME_EXTENSIONS: Record<string, string> = {
   "image/webp": ".webp",
   "image/avif": ".avif",
   "image/svg+xml": ".svg",
+  "image/bmp": ".bmp",
   "audio/mpeg": ".mp3",
   "audio/wav": ".wav",
   "audio/ogg": ".ogg",
@@ -68,7 +72,7 @@ const EXTENSION_MIMES: Record<string, string> = {
 const VIDEO_EXTENSIONS = new Set([".mp4", ".webm", ".mov", ".m4v", ".mkv", ".avi", ".ogv"]);
 
 export const isVideoFile = (file: { name: string; mime: string }) =>
-  file.mime.startsWith("video/") || VIDEO_EXTENSIONS.has(extname(file.name).toLowerCase());
+  isVideoResource(file.name, file.mime);
 
 const isUploadableFile = async (path: string) => {
   try {
@@ -98,6 +102,7 @@ async function mapResources(
 
 export class CollaborationAssetService {
   private downloads = new Map<string, Promise<string>>();
+  private ownerImages = new Map<string, Promise<void>>();
 
   constructor(
     private store: CollaborationLocalStore,
@@ -144,6 +149,30 @@ export class CollaborationAssetService {
       );
   }
 
+  private assertUploadPath(path: string, documentId: string) {
+    const root = realpathSync(this.appDirectory);
+    const actual = realpathSync(path);
+    const directories = [
+      join(root, "resources"),
+      join(root, "remote-resources"),
+      join(root, "collaboration", "assets", encodeURIComponent(documentId)),
+    ];
+    if (!directories.some(directory => actual.startsWith(directory + sep)))
+      throw new Error("资源不在允许的资源目录中，请通过文件上传入口添加");
+  }
+
+  private isPersistentReference(reference: string): boolean {
+    const path = this.localPath(reference);
+    if (!path) return /^https?:\/\//i.test(reference) && isSafeResource(reference);
+    try {
+      return realpathSync(path).startsWith(
+        join(realpathSync(this.appDirectory), "resources") + sep
+      );
+    } catch {
+      return false;
+    }
+  }
+
   hasPending(documentId: string) {
     return Boolean(
       this.store.db
@@ -161,6 +190,7 @@ export class CollaborationAssetService {
   }
 
   removeDocumentCache(documentId: string) {
+    if (this.store.get(`resource-backup:${documentId}`, false)) return;
     rmSync(this.documentCacheDirectory(documentId), { recursive: true, force: true });
   }
 
@@ -229,6 +259,7 @@ export class CollaborationAssetService {
   }
 
   private async upload(url: string, resource: ResourceRow) {
+    this.assertUploadPath(resource.path, resource.document_id);
     const identity = await this.identity(url);
     const bytes = await readFile(resource.path);
     if (bytes.byteLength > MAX_BYTES) throw new Error("资源超过 25 MB");
@@ -250,14 +281,14 @@ export class CollaborationAssetService {
   }
 
   /**
-   * 发起共享时逐引用调用（会话升级）：可上传的本地资源换资产引用；视频、丢失、超限或
-   * 无法识别的本地资源换仅本机引用，不阻止共享；远程地址原样返回。
+   * 共享时只转换本地资源，远程地址原样返回；编辑期延迟上传，首次发布等待上传完成。
    */
   async shareReference(
     url: string,
     documentId: string,
     reference: string,
-    field = ""
+    field = "",
+    deferUpload = false
   ): Promise<string> {
     if (reference.startsWith("data:")) {
       const local = await this.keepLocalReference(documentId, reference);
@@ -265,7 +296,8 @@ export class CollaborationAssetService {
         url,
         documentId,
         await this.resolveReference(url, documentId, local),
-        field
+        field,
+        deferUpload
       );
     }
     if (reference.startsWith(ASSET_PREFIX) || isLocalAssetReference(reference)) return reference;
@@ -280,8 +312,12 @@ export class CollaborationAssetService {
         ? reference
         : this.keepLocalReference(documentId, reference);
     const extension = extname(path).toLowerCase();
-    if (VIDEO_EXTENSIONS.has(extension) || !(await isUploadableFile(path)))
+    if (VIDEO_EXTENSIONS.has(extension)) return this.keepLocalReference(documentId, reference);
+    if (!(await isUploadableFile(path))) {
+      if (deferUpload) throw new Error("资源无法读取或超过 25 MB");
       return this.keepLocalReference(documentId, reference);
+    }
+    this.assertUploadPath(path, documentId);
     const resource: ResourceRow = {
       id: randomUUID(),
       document_id: documentId,
@@ -290,7 +326,8 @@ export class CollaborationAssetService {
       path,
       uploaded: PENDING,
     };
-    await this.upload(url, resource);
+    if (deferUpload) this.record(resource);
+    else await this.upload(url, resource);
     return ASSET_PREFIX + resource.id;
   }
 
@@ -311,10 +348,15 @@ export class CollaborationAssetService {
       .get(reference.slice(reference.indexOf(":") + 1), documentId) as
       | { name: string; mime: string }
       | undefined;
+    const bytes = new Uint8Array(await readFile(path));
     return {
       name: row?.name || basename(path),
-      mime: row?.mime || EXTENSION_MIMES[extname(path).toLowerCase()] || "application/octet-stream",
-      bytes: new Uint8Array(await readFile(path)),
+      mime:
+        imageMimeFromBytes(bytes) ||
+        row?.mime ||
+        EXTENSION_MIMES[extname(path).toLowerCase()] ||
+        "application/octet-stream",
+      bytes,
     };
   }
   async resolveReference(url: string, documentId: string, reference: string) {
@@ -387,7 +429,11 @@ export class CollaborationAssetService {
       }
       parts.push(result.value);
     }
-    const mime = response.headers.get("content-type")?.split(";")[0] || "application/octet-stream";
+    const bytes = Buffer.concat(parts);
+    const mime =
+      imageMimeFromBytes(bytes) ||
+      response.headers.get("content-type")?.split(";")[0] ||
+      "application/octet-stream";
     const directory = this.documentCacheDirectory(documentId);
     await mkdir(directory, { recursive: true });
     const named = response.headers
@@ -406,7 +452,7 @@ export class CollaborationAssetService {
         (MIME_EXTENSIONS[mime] ||
           (extension === ".html" || extension === ".htm" ? ".html" : ".bin"))
     );
-    await writeFile(path, Buffer.concat(parts), { mode: 0o600 });
+    await writeFile(path, bytes, { mode: 0o600 });
     this.record({
       id: assetId,
       document_id: documentId,
@@ -430,7 +476,53 @@ export class CollaborationAssetService {
       return row.path.startsWith(this.cacheDirectory + sep) ? this.persist(row.path) : row.path;
     }
     if (!reference.startsWith(ASSET_PREFIX)) return reference;
+    const saved = this.ownerImageReference(documentId, reference);
+    if (saved) return saved;
     return this.persist(await this.resolve(url, documentId, reference.slice(ASSET_PREFIX.length)));
+  }
+
+  ownerImageReference(documentId: string, reference: string): string | undefined {
+    const saved = this.store.get<Record<string, string>>(`owner-images:${documentId}`, {})[
+      reference
+    ];
+    return saved && this.isPersistentReference(saved) ? saved : undefined;
+  }
+
+  async preserveOwnerImages(
+    url: string,
+    documentId: string,
+    references: Iterable<string>,
+    save: (file: CollaborationImageFile) => Promise<string>
+  ): Promise<void> {
+    for (const reference of new Set(references)) {
+      if (!reference.startsWith(ASSET_PREFIX)) continue;
+      if (this.ownerImageReference(documentId, reference)) continue;
+      const key = `${documentId}/${reference}`;
+      let pending = this.ownerImages.get(key);
+      if (!pending) {
+        pending = this.preserveOwnerImage(url, documentId, reference, save).finally(() =>
+          this.ownerImages.delete(key)
+        );
+        this.ownerImages.set(key, pending);
+      }
+      await pending;
+    }
+  }
+
+  private async preserveOwnerImage(
+    url: string,
+    documentId: string,
+    reference: string,
+    save: (file: CollaborationImageFile) => Promise<string>
+  ) {
+    const path = await this.resolveReference(url, documentId, reference);
+    const file = await this.readTransferFile(url, documentId, reference);
+    if (!file.mime.startsWith("image/")) return;
+    this.assertUploadPath(path, documentId);
+    const saved = this.isPersistentReference(path) ? path : await save(file);
+    if (!this.isPersistentReference(saved)) throw new Error("作者图片未保存到持久资源存储");
+    const key = `owner-images:${documentId}`;
+    this.store.set(key, { ...this.store.get<Record<string, string>>(key, {}), [reference]: saved });
   }
 
   /** 协作缓存文件转存到资源目录（按内容去重），会话缓存目录随结束共享清理 */
@@ -477,9 +569,21 @@ export class CollaborationAssetService {
     value: SharedContent,
     contracts: ContentContractDictionary
   ): Promise<SharedContent> {
-    return this.mapContractDocument(value, contracts, async (reference, field) =>
-      isSafeResource(reference, field) ? reference : this.keepLocalReference(documentId, reference)
-    );
+    return this.mapContractDocument(value, contracts, async reference => {
+      const local = isLocalAssetReference(reference);
+      const row = local ? this.localRow(documentId, reference) : undefined;
+      if (local && !row) return reference;
+      let path: string | null;
+      try {
+        path = this.localPath(row?.path ?? reference);
+      } catch {
+        return reference;
+      }
+      if (!path || !existsSync(path)) return reference;
+      return path.startsWith(this.cacheDirectory + sep)
+        ? this.persist(path)
+        : (row?.path ?? reference);
+    });
   }
 
   async shareDocument(

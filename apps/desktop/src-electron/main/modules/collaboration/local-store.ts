@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 import * as Y from "yjs";
 import type { CollaborationSession } from "@tau/collaboration";
+import type { ResourceRow } from "./asset-service";
 
 export class CollaborationLocalStore {
   readonly db: Database.Database;
@@ -30,10 +31,18 @@ export class CollaborationLocalStore {
    */
   private rebuild(path: string, version: number): Database.Database {
     let settings: { key: string; value: string }[] = [];
+    let resources: ResourceRow[] = [];
     try {
       settings = this.db.prepare("SELECT key,value FROM settings").all() as typeof settings;
     } catch {
       // 读不出的 settings 随原文件一起备份
+    }
+    try {
+      resources = this.db
+        .prepare("SELECT id,document_id,name,mime,path,uploaded FROM resources")
+        .all() as ResourceRow[];
+    } catch {
+      // 读不出的资源清单保留在原文件备份中。
     }
     this.db.close();
     const discarded = join(this.directory, "discarded");
@@ -45,10 +54,13 @@ export class CollaborationLocalStore {
     const db = new Database(path);
     db.exec(cacheSchema);
     const insert = db.prepare("INSERT OR IGNORE INTO settings VALUES (?,?)");
+    const insertResource = db.prepare("INSERT OR IGNORE INTO resources VALUES (?,?,?,?,?,?)");
     db.transaction(() => {
       for (const row of settings)
         if (typeof row.key === "string" && typeof row.value === "string")
           insert.run(row.key, row.value);
+      for (const row of resources)
+        insertResource.run(row.id, row.document_id, row.name, row.mime, row.path, row.uploaded);
     })();
     return db;
   }
@@ -170,6 +182,7 @@ export class CollaborationLocalStore {
     const updates = this.db
       .prepare("SELECT state FROM updates WHERE document_id=? ORDER BY id")
       .all(id) as { state: Buffer }[];
+    const resources = this.db.prepare("SELECT * FROM resources WHERE document_id=?").all(id);
     const directory = join(this.directory, "discarded");
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     writeFileSync(
@@ -180,17 +193,25 @@ export class CollaborationLocalStore {
         metadata: row.metadata,
         state: row.state.toString("base64"),
         updates: updates.map(update => update.state.toString("base64")),
+        resources,
       }),
       { mode: 0o600 }
     );
-    this.remove(id);
+    if (resources.length) this.set(`resource-backup:${id}`, true);
+    this.remove(id, true);
   }
-  remove(id: string) {
+  remove(id: string, preserveResources = false) {
     this.db.transaction(() => {
       this.db.prepare("DELETE FROM updates WHERE document_id=?").run(id);
       this.db.prepare("DELETE FROM sessions WHERE id=?").run(id);
-      this.db.prepare("DELETE FROM resources WHERE document_id=?").run(id);
+      if (!preserveResources) {
+        this.db.prepare("DELETE FROM resources WHERE document_id=?").run(id);
+        this.db.prepare("DELETE FROM settings WHERE key=?").run(`owner-images:${id}`);
+      }
       this.db.prepare("DELETE FROM settings WHERE key=?").run(`invitation:${id}`);
+      this.db.prepare("DELETE FROM settings WHERE key=?").run(`close-revision:${id}`);
+      this.db.prepare("DELETE FROM settings WHERE key=?").run(`close-attempted:${id}`);
+      this.db.prepare("DELETE FROM settings WHERE key=?").run(`close-confirmed:${id}`);
     })();
   }
 }

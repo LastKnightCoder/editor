@@ -65,6 +65,7 @@ import { getDevelopmentServerUrl } from "./dev-server";
 import { findCollaborationBinding } from "../collaboration-guard";
 import { emitContentWritten } from "../content-events";
 import { localSessionId } from "./session-identity";
+import { collaborationImageStorage } from "../../services/collaboration-image-storage";
 import {
   findContentTitle,
   projectContentTitle,
@@ -472,7 +473,8 @@ export class CollaborationManager {
       const doc = await createNodeDocument(
         { documentId: id, baselineId: randomUUID(), epoch: 0 },
         await this.assets.prepareLocalDocument(id, value, stored.contracts),
-        stored.contracts
+        stored.contracts,
+        { allowLocalResources: true }
       );
       if (!db.open || databaseModule.getDatabase(name) !== db) {
         doc.destroy();
@@ -649,7 +651,14 @@ export class CollaborationManager {
     if (session.info.frozen) throw new Error("内容正在切换，请稍后重试");
     try {
       await this.freeze(session);
-      if (session.info.pending) throw new Error("仍有未同步改动，请等待同步后再退出");
+      if (
+        session.info.pending ||
+        this.assets.hasPending(session.info.id) ||
+        session.provider?.hasUnsyncedChanges ||
+        session.provider?.synced === false
+      )
+        throw new Error("仍有未同步改动，请等待同步后再退出");
+      session.provider?.detach();
       if (session.info.role === "owner" && session.info.mode !== "local") {
         const { state } = await this.client.request<{ state: string }>(
           session.info.serverUrl,
@@ -677,12 +686,17 @@ export class CollaborationManager {
           session.info.serverUrl,
           `/v1/documents/${session.info.id}/assets`
         );
+        await this.preserveOwnerImages(
+          session,
+          resources.ids.map(id => ASSET_PREFIX + id)
+        );
         for (const id of resources.ids)
           await this.assets.localizeReference(
             session.info.serverUrl,
             session.info.id,
             ASSET_PREFIX + id
           );
+        await this.persistBeforeClose(session);
         this.store.set(`close-revision:${session.info.id}`, protocol.revision);
       } else {
         const references = collectNodeDocumentResources(session.doc);
@@ -692,6 +706,7 @@ export class CollaborationManager {
       }
     } catch (error) {
       this.unfreeze(session);
+      if (!this.assets.hasPending(session.info.id)) session.provider?.attach();
       throw error;
     }
   }
@@ -1151,6 +1166,14 @@ export class CollaborationManager {
       }
       const stored = ContentDocumentTable.read(db, source.contentId);
       if (!stored) throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
+      const expectedRevision = source.projectionRevision;
+      if (
+        stored.revision !== expectedRevision ||
+        (source.contentDocumentId && stored.documentId !== source.contentDocumentId) ||
+        (source.librarySourceId &&
+          ContentIdentityTable.library(db)?.sourceId !== source.librarySourceId)
+      )
+        throw new Error("最终正文的来源或修订已变化，已保留共享副本");
       const nextId = localSessionId(db.name, source.contentId, source.contentCreatedAt);
       if (this.sessions.has(nextId)) throw new Error("本机正文仍在编辑，请稍后重试");
       // 共享期间的本机冷缓存早于共享内容，备份后让位给结束共享的最终正文
@@ -1169,7 +1192,8 @@ export class CollaborationManager {
       const doc = await createNodeDocument(
         { documentId: nextId, baselineId, epoch },
         await this.assets.prepareLocalDocument(nextId, value, contracts),
-        contracts
+        contracts,
+        { allowLocalResources: true }
       );
       try {
         if (!db.open || databaseModule.getDatabase(source.databaseName) !== db)
@@ -1182,7 +1206,7 @@ export class CollaborationManager {
             { documentId: stored.documentId, contracts, content: value.content },
             {
               installDocument: true,
-              expectedRevision: stored.revision,
+              expectedRevision,
               count: getContentLength(value.content as import("slate").Descendant[]),
             }
           );
@@ -1308,7 +1332,9 @@ export class CollaborationManager {
           baselineId: String(meta.get("baselineId")),
           epoch: Number(meta.get("epoch")),
         };
-      await validateNodeDocument(candidate, identity, session.doc);
+      await validateNodeDocument(candidate, identity, session.doc, {
+        allowLocalResources: session.info.mode === "local",
+      });
       check();
       const update = Y.encodeStateAsUpdate(candidate, vector),
         operationId = randomUUID();
@@ -1370,16 +1396,27 @@ export class CollaborationManager {
 
   private async project(session: RuntimeSession) {
     if (session.doc.getMap("meta").get("version") !== NODE_DOCUMENT_VERSION) return;
-    if (!session.info.source || this.projecting.has(session.info.id)) return;
-    const database = databaseModule.getDatabase(session.info.source.databaseName);
-    if (!database?.open) return;
+    if (this.projecting.has(session.info.id)) return;
     this.projecting.add(session.info.id);
     try {
-      const source = session.info.source;
-      if (!source) return;
-      const local = session.info.mode === "local";
-      if (local && findCollaborationBinding(database, source.contentId)) return;
+      // 异步补存期间收到的新更新仍须触发下一轮投影。
       session.projectionDirty = false;
+      await this.preserveOwnerImages(session);
+      const source = session.info.source;
+      if (!source) {
+        session.projectionDirty = true;
+        return;
+      }
+      const database = databaseModule.getDatabase(source.databaseName);
+      if (!database?.open) {
+        session.projectionDirty = true;
+        return;
+      }
+      const local = session.info.mode === "local";
+      if (local && findCollaborationBinding(database, source.contentId)) {
+        session.projectionDirty = true;
+        return;
+      }
       const stored = ContentDocumentTable.read(database, source.contentId);
       if (!stored) throw new Error("CONTENT_FORMAT_UNSUPPORTED: 正文格式不受支持");
       const contracts = session.doc
@@ -1394,9 +1431,11 @@ export class CollaborationManager {
       if (
         databaseModule.getDatabase(source.databaseName) !== database ||
         !database.open ||
-        !this.sessions.has(session.info.id)
-      )
+        this.sessions.get(session.info.id) !== session
+      ) {
+        session.projectionDirty = true;
         return;
+      }
       const count = getContentLength(value.content as import("slate").Descendant[]);
       const changed = projectContractContent(
         database,
@@ -1430,6 +1469,30 @@ export class CollaborationManager {
       throw error;
     } finally {
       this.projecting.delete(session.info.id);
+    }
+  }
+
+  private async preserveOwnerImages(session: RuntimeSession, references?: Iterable<string>) {
+    if (session.info.mode === "local" || session.info.role !== "owner") return;
+    try {
+      await this.assets.preserveOwnerImages(
+        session.info.serverUrl,
+        session.info.id,
+        references ?? collectNodeDocumentResources(session.doc),
+        async file => {
+          const reference = await collaborationImageStorage.save(file);
+          if (this.sessions.get(session.info.id) !== session) throw new Error("作者正文会话已变化");
+          return reference;
+        }
+      );
+    } catch (error) {
+      throw new Error(
+        `作者图片尚未保存：${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+    if (session.info.error?.startsWith("作者图片尚未保存：")) {
+      session.info.error = undefined;
+      this.changed(session);
     }
   }
 
@@ -1507,23 +1570,32 @@ export class CollaborationManager {
     const closingId = session.info.id;
     if (this.finishingLeaves.has(closingId)) return;
     this.finishingLeaves.add(closingId);
+    const closeConfirmed = this.store.get(`close-confirmed:${closingId}`, false);
+    let closeAttempted = closeConfirmed || this.store.get(`close-attempted:${closingId}`, false);
     try {
       if (session.info.role === "owner") {
-        await this.client.request(
-          session.info.serverUrl,
-          `/v1/documents/${session.info.id}/close`,
-          "POST",
-          {
-            expectedRevision: this.store.get<string | undefined>(
-              `close-revision:${session.info.id}`,
-              undefined
-            ),
-          }
-        );
+        if (!closeConfirmed) {
+          const revision = this.store.get<string | undefined>(
+            `close-revision:${closingId}`,
+            undefined
+          );
+          if (!revision) throw new Error("尚未确认最终共享快照，请重新结束共享");
+          await this.persistBeforeClose(session);
+          this.store.set(`close-attempted:${closingId}`, true);
+          closeAttempted = true;
+          await this.client.request(
+            session.info.serverUrl,
+            `/v1/documents/${session.info.id}/close`,
+            "POST",
+            {
+              expectedRevision: revision,
+            }
+          );
+          this.store.set(`close-confirmed:${closingId}`, true);
+        }
         // 作者结束共享：本机还有这篇内容，会话降级回本机继续编辑（同一个 Y.Doc）；
         // 没有本地内容（源已删除等）才拆除会话
         if (session.info.source) {
-          session.info.leaving = false;
           await this.demoteSession(session);
           this.unfreeze(session);
         } else await this.removeSession(session);
@@ -1537,9 +1609,10 @@ export class CollaborationManager {
         await this.removeSession(session);
       }
     } catch (error) {
-      if ((error as { code?: string }).code === "REVISION_CONFLICT") {
+      if (!closeAttempted || (error as { code?: string }).code === "REVISION_CONFLICT") {
         session.info.leaving = false;
         this.store.delete(`close-revision:${closingId}`);
+        this.store.delete(`close-attempted:${closingId}`);
         this.unfreeze(session);
         session.provider?.attach();
       }
@@ -1548,6 +1621,19 @@ export class CollaborationManager {
     } finally {
       this.finishingLeaves.delete(closingId);
     }
+  }
+
+  private async persistBeforeClose(session: RuntimeSession) {
+    if (this.projecting.has(session.info.id)) throw new Error("正文正在保存，请稍后重试");
+    const source = session.info.source;
+    if (!source) throw new Error("原正文关联缺失，请打开原资料库后重试结束共享");
+    if (!databaseModule.getDatabase(source.databaseName)?.open)
+      throw new Error("请打开原内容所在数据库以完成结束共享");
+    await this.project(session);
+    if (this.sessions.get(session.info.id) !== session || session.projectionDirty)
+      throw new Error("最终正文尚未确认保存，请重试结束共享");
+    this.store.compact(session.info.id, session.doc);
+    this.store.metadata(session.info);
   }
 
   documentStorage() {
@@ -1773,6 +1859,13 @@ export class CollaborationManager {
     });
     for (const window of BrowserWindow.getAllWindows()) this.registerWindow(window);
     app.on("browser-window-created", (_event, window) => this.registerWindow(window));
+    this.startAutoFlush();
+    this.refreshInterval = setInterval(() => void this.refresh(), 15000);
+    this.refreshInterval.unref();
+    void this.refresh();
+  }
+
+  private startAutoFlush() {
     this.autoFlushInterval = setInterval(() => {
       for (const session of this.sessions.values()) {
         try {
@@ -1793,9 +1886,6 @@ export class CollaborationManager {
       void this.flushResources();
     }, 1000);
     this.autoFlushInterval.unref();
-    this.refreshInterval = setInterval(() => void this.refresh(), 15000);
-    this.refreshInterval.unref();
-    void this.refresh();
   }
 
   /** 受控退出收尾：停止后台任务并断开所有协作连接 */

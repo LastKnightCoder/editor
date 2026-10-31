@@ -1,6 +1,8 @@
 import { forwardRef, useEffect, useState } from "react";
 import type { SyntheticEvent } from "react";
 import { resolveLocalMediaSource } from "./localMedia";
+import { useOptionalService } from "@tau/editor";
+import { IResourceService } from "@tau/shared/host-services";
 
 type LocalImageProps = Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src"> & {
   url: string;
@@ -12,6 +14,7 @@ type LocalImageProps = Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src"> & 
 
 const LocalImage = forwardRef<HTMLImageElement, LocalImageProps>(
   ({ url, thumbnail = false, onError, onLoadError, ...restProps }, ref) => {
+    const resolveResource = useOptionalService(IResourceService)?.remoteResourceToLocal;
     const [resolvedUrl, setResolvedUrl] = useState(url);
 
     useEffect(() => {
@@ -20,7 +23,7 @@ const LocalImage = forwardRef<HTMLImageElement, LocalImageProps>(
 
       void (async () => {
         try {
-          const nextUrl = await resolveLocalMediaSource(url, { thumbnail });
+          const nextUrl = await resolveLocalMediaSource(url, { thumbnail, resolveResource });
           if (!cancelled) {
             setResolvedUrl(nextUrl);
           }
@@ -35,7 +38,7 @@ const LocalImage = forwardRef<HTMLImageElement, LocalImageProps>(
       return () => {
         cancelled = true;
       };
-    }, [url, thumbnail]);
+    }, [url, thumbnail, resolveResource]);
 
     const handleError = (event: SyntheticEvent<HTMLImageElement, Event>) => {
       if (resolvedUrl !== url) {

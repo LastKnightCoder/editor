@@ -46,6 +46,7 @@ import { HomeScreen } from "./HomeScreen";
 import { StartupFailure } from "./StartupFailure";
 import { writeLastSyncTime } from "../features/settings/sync/syncState";
 import { IncomingFileHost } from "../features/markdownImport/IncomingFileHost";
+import { CollaborationBackground } from "../features/collaboration/CollaborationBackground";
 import "../pages";
 
 const remoteVideoDeps: UseRemoteVideoDeps = {
@@ -469,6 +470,7 @@ function AppShellInner() {
                     key={bootstrap.databases?.activeDatabase}
                     database={bootstrap.databases?.activeDatabase ?? ""}
                   >
+                    <CollaborationBackground />
                     <main className="bg-page min-h-dvh">
                       <PageHost rootContent={<HomeScreen />} />
                       <AppDock />

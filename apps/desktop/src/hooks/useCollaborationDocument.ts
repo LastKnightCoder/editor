@@ -8,13 +8,13 @@ import {
   subscribeCollaborationDocument,
   unsubscribeCollaborationDocument,
   updateCollaborationDocument,
-  uploadCollaborationResource,
 } from "@/commands";
 import { flushSync } from "react-dom";
 import * as Y from "yjs";
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protocols/awareness";
 import {
   isCollaborationResource,
+  isVideoResource,
   readNodeDocument,
   NODE_DOCUMENT_VERSION,
   validateNodeDocument,
@@ -24,6 +24,7 @@ import {
 import type { ContentCollaborationBinding } from "@tau/editor-collab";
 import { on, off } from "@/electron";
 import { collaborationCommands } from "@/commands/contracts/collaboration";
+import { uploadResource } from "@/hooks/useUploadResource";
 
 const IPC_ORIGIN = Symbol("main-process");
 
@@ -168,11 +169,16 @@ export default function useCollaborationDocument(documentId?: string) {
         Y.applyUpdate(doc, new Uint8Array(snapshot.state), IPC_ORIGIN);
         for (const update of updates) Y.applyUpdate(doc, new Uint8Array(update), IPC_ORIGIN);
         updates.length = 0;
-        await validateNodeDocument(doc, {
-          documentId: id,
-          baselineId: String(doc.getMap("meta").get("baselineId")),
-          epoch: Number(doc.getMap("meta").get("epoch")),
-        });
+        await validateNodeDocument(
+          doc,
+          {
+            documentId: id,
+            baselineId: String(doc.getMap("meta").get("baselineId")),
+            epoch: Number(doc.getMap("meta").get("epoch")),
+          },
+          undefined,
+          { allowLocalResources: snapshot.session.mode === "local" }
+        );
         if (disposed) return;
         for (const update of updates) Y.applyUpdate(doc, new Uint8Array(update), IPC_ORIGIN);
         updates.length = 0;
@@ -209,6 +215,8 @@ export default function useCollaborationDocument(documentId?: string) {
           viewId,
         });
         setFrozen(Boolean(snapshot.session.frozen));
+        const prepareResource = (reference: string) =>
+          collaborationCommands.prepareResource.call(viewId, reference);
         activeBinding = {
           prepareFragment: (sourceId, content, contracts) =>
             collaborationCommands.prepareFragment.call(viewId, sourceId, content, contracts),
@@ -235,11 +243,15 @@ export default function useCollaborationDocument(documentId?: string) {
             void sendDrafts().catch(() => {});
           },
           uploadResource: async file =>
-            uploadCollaborationResource(id, {
-              name: file.name,
-              mime: file.type,
-              bytes: new Uint8Array(await file.arrayBuffer()),
-            }),
+            snapshot.session.mode === "local" ||
+            (snapshot.session.role === "owner" && !isVideoResource(file.name, file.type))
+              ? prepareResource(await uploadResource(file))
+              : collaborationCommands.uploadSharedResource.call(viewId, {
+                  name: file.name,
+                  mime: file.type,
+                  bytes: new Uint8Array(await file.arrayBuffer()),
+                }),
+          prepareResource,
           resolveResource: async url =>
             isCollaborationResource(url) ? resolveCollaborationResource(id, url) : url,
         };

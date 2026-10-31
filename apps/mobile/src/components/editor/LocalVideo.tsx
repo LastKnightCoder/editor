@@ -1,6 +1,8 @@
 import { forwardRef, useEffect, useState } from "react";
 import type { SyntheticEvent } from "react";
 import { resolveLocalMediaSource } from "./localMedia";
+import { useOptionalService } from "@tau/editor";
+import { IResourceService } from "@tau/shared/host-services";
 import { VideoPlayer, type VideoPlayerProps } from "@tau/shared";
 
 type LocalVideoProps = VideoPlayerProps & {
@@ -9,6 +11,7 @@ type LocalVideoProps = VideoPlayerProps & {
 
 const LocalVideo = forwardRef<HTMLVideoElement, LocalVideoProps>(
   ({ src, onError, ...restProps }, ref) => {
+    const resolveResource = useOptionalService(IResourceService)?.remoteResourceToLocal;
     const [resolvedSrc, setResolvedSrc] = useState(src);
 
     useEffect(() => {
@@ -17,7 +20,7 @@ const LocalVideo = forwardRef<HTMLVideoElement, LocalVideoProps>(
 
       void (async () => {
         try {
-          const nextSrc = await resolveLocalMediaSource(src);
+          const nextSrc = await resolveLocalMediaSource(src, { resolveResource });
           if (!cancelled) {
             setResolvedSrc(nextSrc);
           }
@@ -32,7 +35,7 @@ const LocalVideo = forwardRef<HTMLVideoElement, LocalVideoProps>(
       return () => {
         cancelled = true;
       };
-    }, [src]);
+    }, [src, resolveResource]);
 
     const handleError = (event: SyntheticEvent<HTMLVideoElement, Event>) => {
       if (resolvedSrc !== src) {

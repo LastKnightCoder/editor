@@ -1,10 +1,11 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream, createWriteStream, existsSync, renameSync, unlinkSync } from "node:fs";
+import { open } from "node:fs/promises";
 import { join } from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { CollaborationError } from "@tau/collaboration";
+import { CollaborationError, collaborationAssetMime } from "@tau/collaboration";
 import type { CollaborationStore } from "./store";
 import type { ServerConfig } from "./config";
 const params = (request: FastifyRequest) => request.params as Record<string, string>;
@@ -44,6 +45,15 @@ export function registerAssetRoutes(
       if (file.file.truncated)
         throw new CollaborationError("FILE_TOO_LARGE", "文件超过上传限制", 413);
       const digest = hash.digest("hex");
+      const header = Buffer.alloc(64);
+      const input = await open(temporary, "r");
+      let mime: string;
+      try {
+        const { bytesRead } = await input.read(header, 0, header.length, 0);
+        mime = collaborationAssetMime(file.mimetype, header.subarray(0, bytesRead));
+      } finally {
+        await input.close();
+      }
       return store.db.transaction(() => {
         store.authorize(id, identity.id, false, true);
         const requestedId = request.headers["x-asset-id"];
@@ -76,12 +86,6 @@ export function registerAssetRoutes(
             )
             .join("")
             .slice(0, 200) || "附件";
-        const mime =
-          /^(image\/(png|jpeg|gif|webp|avif|svg\+xml)|audio\/[a-z0-9.+-]+|video\/[a-z0-9.+-]+|application\/pdf)$/.test(
-            file.mimetype
-          )
-            ? file.mimetype
-            : "application/octet-stream";
         const target = join(config.dataDir, "assets", digest);
         if (!existsSync(target)) renameSync(temporary, target);
         store.insertAsset(id, assetId, digest, name, mime, size);

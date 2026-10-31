@@ -68,7 +68,10 @@ export const toLocalMediaPreviewUrl = async (
   absolutePath: string
 ): Promise<{ url: string; method: LocalMediaPreviewMethod }> => {
   const editorDir = await getEditorDir();
-  if (isSubPath(absolutePath, editorDir)) {
+  if (
+    isSubPath(absolutePath, editorDir) &&
+    !isSubPath(absolutePath, `${normalizeSlash(editorDir)}/collaboration`)
+  ) {
     const url = await convertFileSrc(absolutePath);
     return { url, method: "app-protocol" };
   }

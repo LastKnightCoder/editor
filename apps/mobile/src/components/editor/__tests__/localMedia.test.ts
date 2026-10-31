@@ -29,6 +29,17 @@ vi.mock("../../../services/tauri", () => ({
 import { isDirectMediaSource, resolveLocalMediaSource } from "../localMedia";
 
 describe("localMedia", () => {
+  it("协作图片先经所属会话解析，再读取本地缓存文件", async () => {
+    const reference = "tau-collab-asset:11111111-1111-4111-8111-111111111111";
+    const resolveResource = vi.fn(async () => "/app/data/.editor/collaboration/assets/image.png");
+    expect(await resolveLocalMediaSource(reference, { resolveResource })).toBe(
+      "asset:///app/data/.editor/collaboration/assets/image.png"
+    );
+    expect(resolveResource).toHaveBeenCalledWith(reference);
+    expect(mockRemoteResourceToLocal).not.toHaveBeenCalledWith(reference);
+    await expect(resolveLocalMediaSource(reference)).rejects.toThrow("所属文档");
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

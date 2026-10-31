@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { tmpdir } from "node:os";
 import { ASSET_PREFIX, LOCAL_ASSET_PREFIX } from "@tau/collaboration";
@@ -41,14 +49,79 @@ function setup() {
     nickname: "作者",
   }));
   const file = (name: string, content = "FIXTURE") => {
-    const path = join(root, name);
+    const path = join(appDirectory, "resources", name);
+    mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, content);
     return path;
   };
-  return { assets, file, uploads, root };
+  return { assets, file, uploads, root, store };
 }
 
 describe("发起共享时的资源处理", () => {
+  it.each(["cached", "download"])(
+    "通用 MIME 的 BMP 图片仍按作者配置补存且重连不重复：%s",
+    async kind => {
+      const { assets } = setup();
+      const bytes = new Uint8Array(58);
+      bytes.set([0x42, 0x4d]);
+      bytes[2] = 58;
+      bytes[10] = 54;
+      bytes[14] = 40;
+      bytes[18] = 1;
+      bytes[22] = 1;
+      bytes[26] = 1;
+      bytes[28] = 24;
+      const reference =
+        kind === "cached"
+          ? await assets.enqueue(DOCUMENT, {
+              name: "legacy.bin",
+              mime: "application/octet-stream",
+              bytes,
+            })
+          : ASSET_PREFIX + crypto.randomUUID();
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          async () =>
+            new Response(bytes, { headers: { "content-type": "application/octet-stream" } })
+        )
+      );
+      const save = vi.fn(async (file: { mime: string; bytes: Uint8Array }) => {
+        expect(file.mime).toBe("image/bmp");
+        expect(file.bytes).toEqual(bytes);
+        return "https://owner.test/saved.bmp";
+      });
+      await assets.preserveOwnerImages(SERVER, DOCUMENT, [reference], save);
+      await assets.preserveOwnerImages(SERVER, DOCUMENT, [reference], save);
+      expect(save).toHaveBeenCalledTimes(1);
+      expect(await assets.localizeReference(SERVER, DOCUMENT, reference)).toBe(
+        "https://owner.test/saved.bmp"
+      );
+    }
+  );
+  it("拒绝应用私有文件及越界链接，普通缓存必须经作者存储才能标记完成", async () => {
+    const { assets, root, file, uploads, store } = setup();
+    const secret = join(root, ".editor", "setting.json");
+    writeFileSync(secret, "DUMMY_PRIVATE_SETTING");
+    await expect(assets.shareReference(SERVER, DOCUMENT, secret)).rejects.toThrow("资源目录");
+    const link = file("link.png");
+    rmSync(link);
+    symlinkSync(secret, link);
+    await expect(assets.shareReference(SERVER, DOCUMENT, link)).rejects.toThrow("资源目录");
+    expect(uploads).toEqual([]);
+    const cached = join(root, ".editor", "remote-resources", "cached.png");
+    mkdirSync(dirname(cached), { recursive: true });
+    writeFileSync(cached, "IMAGE");
+    const reference = await assets.shareReference(SERVER, DOCUMENT, cached, "", true);
+    store.set(`owner-images:${DOCUMENT}`, { [reference]: cached });
+    expect(assets.ownerImageReference(DOCUMENT, reference)).toBeUndefined();
+    const save = vi.fn(async () => file("owned.webp"));
+    await assets.preserveOwnerImages(SERVER, DOCUMENT, [reference], save);
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(assets.ownerImageReference(DOCUMENT, reference)).toContain(
+      join("resources", "owned.webp")
+    );
+  });
   it("本机会话的图片与视频可在 Windows 缓存，清理只删除目标文档", async () => {
     const { assets, root } = setup();
     const documentId = localSessionId("data.db", 1, 123);
@@ -109,8 +182,8 @@ describe("发起共享时的资源处理", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
-  it("内嵌资源在本机转换为可保全文件，上传使用同一资源路径", async () => {
-    const { assets } = setup();
+  it("本机保留内嵌资源，发起共享时才转成服务器资产", async () => {
+    const { assets, uploads } = setup();
     const uri = "data:image/png;base64," + Buffer.from("image-data").toString("base64");
     const definition = await prepareContentContract("tau.image", {
       type: "image",
@@ -136,11 +209,14 @@ describe("发起共享时的资源处理", () => {
     const prepared = await assets.prepareLocalDocument(DOCUMENT, value, {
       [definition.id]: definition.contract,
     });
-    expect(String(prepared.content[0].url).startsWith(LOCAL_ASSET_PREFIX)).toBe(true);
-    const path = await assets.resolveReference(SERVER, DOCUMENT, String(prepared.content[0].url));
+    expect(prepared).toEqual(value);
+    expect(uploads).toEqual([]);
+    const shared = await assets.shareReference(SERVER, DOCUMENT, uri);
+    expect(shared.startsWith(ASSET_PREFIX)).toBe(true);
+    const path = await assets.resolveReference(SERVER, DOCUMENT, shared);
     expect(readFileSync(path).toString()).toBe("image-data");
   });
-  it("新文档按每个节点的历史契约映射资源，本机会话不上传文件", async () => {
+  it("本机保留图片路径，发起共享才按历史契约转换且不改业务字段", async () => {
     const { assets, file, uploads } = setup();
     const first = await prepareContentContract("plugin.example", {
       type: "example",
@@ -178,15 +254,74 @@ describe("发起共享时的资源处理", () => {
       ],
     };
     const prepared = await assets.prepareLocalDocument(DOCUMENT, value, contracts);
-    expect(prepared.content[0]).toMatchObject({
-      oldCover: expect.stringMatching(/^tau-collab-local:/),
+    expect(prepared).toEqual(value);
+    expect(uploads).toEqual([]);
+    const shared = await assets.shareDocument(SERVER, DOCUMENT, "shared", prepared, contracts);
+    expect(shared.content[0]).toMatchObject({
+      oldCover: expect.stringMatching(/^tau-collab-asset:/),
       cover: "业务字符串",
     });
-    expect(prepared.content[1]).toMatchObject({
-      cover: prepared.content[0].oldCover,
+    expect(shared.content[1]).toMatchObject({
+      cover: shared.content[0].oldCover,
       oldCover: "旧业务字段",
     });
-    expect(await assets.localizeDocument(SERVER, DOCUMENT, prepared, contracts)).toEqual(value);
+    expect(uploads).toHaveLength(1);
+  });
+
+  it("存量本机图片编号转存为持久资源，丢失与外来编号保留且不阻断正文", async () => {
+    const { assets, uploads } = setup();
+    const image = await prepareContentContract("tau.image", {
+      type: "image",
+      dataVersion: 1,
+      kind: "block",
+      isVoid: true,
+      resources: [
+        { path: "url", kind: "image" },
+        { path: "previewUrl", kind: "image" },
+      ],
+    });
+    const reference = await assets.keepLocalFile(DOCUMENT, {
+      name: "image.png",
+      mime: "image/png",
+      bytes: new TextEncoder().encode("IMAGE"),
+    });
+    const foreign = LOCAL_ASSET_PREFIX + crypto.randomUUID();
+    const value = {
+      title: "存量图片",
+      bannerBg: "",
+      bannerPosition: "center",
+      content: [reference, foreign].map((url, index) => ({
+        type: "image",
+        collabId: `image-${index}`,
+        tauContract: image.id,
+        url,
+        previewUrl: url,
+        children: [{ text: "" }],
+      })),
+    };
+    const contracts = { [image.id]: image.contract };
+    const prepared = await assets.prepareLocalDocument(DOCUMENT, value, contracts);
+    const path = String(prepared.content[0].url);
+    expect(path).toContain(join("resources", "collaboration"));
+    expect(prepared.content[0].previewUrl).toBe(path);
+    expect(readFileSync(path, "utf8")).toBe("IMAGE");
+    expect(prepared.content[1].url).toBe(foreign);
+    expect(await assets.prepareLocalDocument(DOCUMENT, prepared, contracts)).toEqual(prepared);
+    const cached = assets.resolveLocalFile(reference, DOCUMENT)!;
+    const fromPath = await assets.prepareLocalDocument(
+      DOCUMENT,
+      {
+        ...value,
+        content: [{ ...value.content[0], url: cached, previewUrl: cached }],
+      },
+      contracts
+    );
+    expect(fromPath.content[0].url).toBe(path);
+    assets.removeDocumentCache(DOCUMENT);
+    expect(readFileSync(path, "utf8")).toBe("IMAGE");
+    expect((await assets.prepareLocalDocument(DOCUMENT, value, contracts)).content[0].url).toBe(
+      reference
+    );
     expect(uploads).toEqual([]);
   });
   it("可读取的本地图片上传为服务器资产", async () => {
@@ -194,6 +329,101 @@ describe("发起共享时的资源处理", () => {
     const shared = await assets.shareReference(SERVER, DOCUMENT, file("a.png"));
     expect(shared.startsWith(ASSET_PREFIX)).toBe(true);
     expect(uploads).toEqual([shared.slice(ASSET_PREFIX.length)]);
+  });
+
+  it("新插入的本地图片先排队，上传使用已压缩文件，公网地址不登记资产", async () => {
+    const { assets, file, uploads, root } = setup();
+    const remote = "https://images.test/compressed.webp";
+    expect(await assets.shareReference(SERVER, DOCUMENT, remote, "", true)).toBe(remote);
+    expect(assets.hasPending(DOCUMENT)).toBe(false);
+    const path = file("compressed.webp", "COMPRESSED");
+    const reference = await assets.shareReference(SERVER, DOCUMENT, path, "", true);
+    expect(reference.startsWith(ASSET_PREFIX)).toBe(true);
+    expect(assets.hasPending(DOCUMENT)).toBe(true);
+    expect(uploads).toEqual([]);
+    expect(await assets.resolveReference(SERVER, DOCUMENT, reference)).toBe(path);
+    await assets.flush(SERVER, DOCUMENT);
+    expect(assets.hasPending(DOCUMENT)).toBe(false);
+    expect(uploads).toEqual([reference.slice(ASSET_PREFIX.length)]);
+    const body = vi.mocked(fetch).mock.calls[0][1]!.body as FormData;
+    const uploaded = body.get("file") as File;
+    expect(uploaded.type).toBe("image/webp");
+    expect(
+      await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(uploaded);
+      })
+    ).toBe("COMPRESSED");
+    await expect(
+      assets.shareReference(SERVER, DOCUMENT, join(root, "missing.png"), "", true)
+    ).rejects.toThrow("无法读取");
+  });
+
+  it.each(["local", "remote"])(
+    "作者按自身存储保存成员图片，映射持久化且并发不重复：%s",
+    async kind => {
+      const { assets, file, store } = setup();
+      const reference = ASSET_PREFIX + crypto.randomUUID();
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          async () =>
+            new Response(new TextEncoder().encode("MEMBER_IMAGE"), {
+              headers: { "content-type": "image/png" },
+            })
+        )
+      );
+      const owned =
+        kind === "local" ? file("owned.webp", "COMPRESSED") : "https://owner.test/image.webp";
+      const save = vi.fn(async (input: { name: string; mime: string; bytes: Uint8Array }) => {
+        expect(input.mime).toBe("image/png");
+        expect(new TextDecoder().decode(input.bytes)).toBe("MEMBER_IMAGE");
+        return owned;
+      });
+      await Promise.all([
+        assets.preserveOwnerImages(SERVER, DOCUMENT, [reference], save),
+        assets.preserveOwnerImages(SERVER, DOCUMENT, [reference], save),
+      ]);
+      expect(save).toHaveBeenCalledTimes(1);
+      expect(await assets.localizeReference(SERVER, DOCUMENT, reference)).toBe(owned);
+      assets.removeDocumentCache(DOCUMENT);
+      await assets.preserveOwnerImages(SERVER, DOCUMENT, [reference], save);
+      expect(save).toHaveBeenCalledTimes(1);
+      expect(await assets.localizeReference(SERVER, DOCUMENT, reference)).toBe(owned);
+      store.remove(DOCUMENT);
+      expect(assets.ownerImageReference(DOCUMENT, reference)).toBeUndefined();
+      if (kind === "local") expect(readFileSync(owned, "utf8")).toBe("COMPRESSED");
+    }
+  );
+
+  it("作者自己保存的图片不再压缩上传，成员图片保存失败时保留服务器资产供重试", async () => {
+    const { assets, file } = setup();
+    const path = file("owner.webp", "OWN_IMAGE");
+    const own = await assets.shareReference(SERVER, DOCUMENT, path, "", true);
+    const save = vi.fn(async () => {
+      throw new Error("作者图床不可用");
+    });
+    await assets.preserveOwnerImages(SERVER, DOCUMENT, [own], save);
+    expect(save).not.toHaveBeenCalled();
+    expect(await assets.localizeReference(SERVER, DOCUMENT, own)).toBe(path);
+    const member = await assets.enqueue(DOCUMENT, {
+      name: "member.png",
+      mime: "image/png",
+      bytes: new Uint8Array([1, 2, 3]),
+    });
+    await expect(assets.preserveOwnerImages(SERVER, DOCUMENT, [member], save)).rejects.toThrow(
+      "图床不可用"
+    );
+    expect(readFileSync(await assets.resolveReference(SERVER, DOCUMENT, member))).toEqual(
+      Buffer.from([1, 2, 3])
+    );
+    const retry = vi.fn(async () => "https://owner.test/saved.webp");
+    await assets.preserveOwnerImages(SERVER, DOCUMENT, [member], retry);
+    expect(await assets.localizeReference(SERVER, DOCUMENT, member)).toBe(
+      "https://owner.test/saved.webp"
+    );
   });
 
   it("远程地址与渐变横幅原样保留", async () => {

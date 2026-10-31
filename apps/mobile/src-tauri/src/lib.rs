@@ -4,6 +4,7 @@ mod app_feedback;
 mod app_update;
 mod chunked_sync;
 mod collaboration;
+mod collaboration_assets;
 mod database;
 mod image_settings;
 mod incoming_file;
@@ -319,12 +320,14 @@ pub fn run() {
             collaboration::collab_get_identity,
             collaboration::collab_update_nickname,
             collaboration::collab_request,
+            collaboration_assets::collab_resource,
             collaboration::collab_input_draft,
             collaboration::collab_cache_read,
             collaboration::collab_cache_discard,
             collaboration::collab_cache_snapshot,
             collaboration::collab_cache_append,
             collaboration::collab_cache_list,
+            collaboration::collab_recovery,
             collaboration::collab_node_views,
             collaboration::collab_update_node_view,
             database::collab_bind_content,

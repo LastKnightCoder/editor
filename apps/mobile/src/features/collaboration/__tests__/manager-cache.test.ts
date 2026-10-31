@@ -6,6 +6,8 @@ import {
   NodeTree,
   bytesToBase64,
   base64ToBytes,
+  readNodeDocument,
+  DEFAULT_COLLABORATION_URL,
   type SharedDocumentInfo,
 } from "@tau/collaboration";
 import { prepareContentContract } from "@tau/db-schema/content-contracts";
@@ -20,6 +22,14 @@ const io = vi.hoisted(() => ({
   adopt: vi.fn(),
   draft: vi.fn(),
   discard: vi.fn(),
+  resource: vi.fn(),
+  upload: vi.fn(),
+  close: vi.fn(),
+  assets: vi.fn(),
+  leave: vi.fn(),
+  recovery: vi.fn(),
+  records: new Map<string, CachedContentSession>(),
+  unbind: vi.fn(),
 }));
 vi.mock("../../../services/tauri", () => ({
   collabInputDraft: io.draft,
@@ -29,28 +39,57 @@ vi.mock("../../../services/tauri", () => ({
   collabWriteCache: io.write,
   collabProjectContent: io.project,
   collabNodeViews: async () => ({}),
+  collabResource: io.resource,
+  uploadResource: io.upload,
+  collabListBindings: async () => [],
+  collabRecovery: io.recovery,
+  collabListCache: async () => [...io.records.values()],
+  collabUnbindContent: io.unbind,
 }));
-vi.mock("../core/rest", () => ({ getDocumentState: io.remote, getDocumentProtocol: io.protocol }));
+vi.mock("../core/rest", () => ({
+  getDocumentState: io.remote,
+  getDocumentProtocol: io.protocol,
+  listAssets: io.assets,
+  closeDocument: io.close,
+  leaveDocument: io.leave,
+  listDocuments: async () => ({ documents: [] }),
+  listJoinRequests: async () => ({ requests: [] }),
+}));
 const manager = collaborationManager as unknown as {
   stopped: boolean;
   sessions: Map<string, RuntimeSession>;
   attach(session: RuntimeSession): void;
   createSession(info: SharedDocumentInfo): Promise<RuntimeSession>;
   openSession(info: SharedDocumentInfo): Promise<RuntimeSession>;
+  processResources(session: RuntimeSession): Promise<void>;
+  startPolling(): void;
+  resourceTimer: ReturnType<typeof setInterval> | null;
+  refreshTimer: ReturnType<typeof setInterval> | null;
+  connectEvents(url: string): Promise<void>;
 };
-afterEach(() => {
+afterEach(async () => {
+  if (manager.resourceTimer) clearInterval(manager.resourceTimer);
+  if (manager.refreshTimer) clearInterval(manager.refreshTimer);
+  manager.resourceTimer = manager.refreshTimer = null;
+  vi.useRealTimers();
   for (const session of manager.sessions.values()) {
+    await session.resourceTask?.catch(() => {});
+    await session.writeTail.catch(() => {});
     session.detachDocListener?.();
+    session.releaseResourceSource?.();
     session.awareness.destroy();
     session.doc.destroy();
   }
   manager.sessions.clear();
+  Object.assign(manager, { serverUrl: DEFAULT_COLLABORATION_URL });
+  io.records.clear();
   vi.restoreAllMocks();
   vi.clearAllMocks();
 });
 async function fixture() {
   manager.stopped = false;
   vi.spyOn(manager, "attach").mockImplementation(() => {});
+  vi.spyOn(manager, "connectEvents").mockResolvedValue();
   const contract = await prepareContentContract("tau.paragraph", {
     type: "paragraph",
     dataVersion: 1,
@@ -77,7 +116,7 @@ async function fixture() {
     status: "active",
     members: [],
     updatedAt: 1,
-    serverUrl: "https://test",
+    serverUrl: DEFAULT_COLLABORATION_URL,
     connection: "offline",
     pending: true,
     leaving: false,
@@ -94,10 +133,421 @@ async function fixture() {
   };
   const state = bytesToBase64(Y.encodeStateAsUpdate(doc));
   io.remote.mockResolvedValue({ state });
-  io.write.mockResolvedValue("new-cache-revision");
+  io.write.mockImplementation(async payload => {
+    if (!io.records.get(payload.documentId)?.close)
+      io.records.set(payload.documentId, structuredClone(payload.metadata));
+    return "new-cache-revision";
+  });
+  io.recovery.mockImplementation(async (id: string, action = "read") => {
+    const record = io.records.get(id);
+    if (!record) return null;
+    if (action === "confirm-close") {
+      record.close!.confirmed = true;
+      record.status = "closed";
+    } else if (action === "clear-close") {
+      delete record.close;
+      record.leaving = false;
+    } else if (action === "release") io.records.delete(id);
+    return structuredClone(record);
+  });
+  io.close.mockImplementation(async (_url, _id, revision) => ({ ok: true, revision }));
+  io.unbind.mockResolvedValue(undefined);
   io.protocol.mockResolvedValue({ id: "doc", version: 2, baselineId: "base", epoch: 0 });
+  io.resource.mockImplementation(async (_context, action: string, references: string[]) => {
+    if (action === "pending") return false;
+    if (action === "localize")
+      return Object.fromEntries(
+        references.map(reference => [reference, "https://owner.test/image.webp"])
+      );
+    if (action === "prepare")
+      return Object.fromEntries(references.map(reference => [reference, reference]));
+    return undefined;
+  });
+  io.assets.mockResolvedValue({ ids: [] });
+  io.project.mockResolvedValue({ projected: true, revision: "projected" });
   return { doc, content, info, state, contracts: { [contract.id]: contract.contract } };
 }
+
+async function imageFixture() {
+  const value = await fixture();
+  const image = await prepareContentContract("tau.image", {
+    type: "image",
+    dataVersion: 1,
+    kind: "block",
+    isVoid: true,
+    resources: [{ path: "url", kind: "image", preview: "previewUrl" }],
+  });
+  const tree = new NodeTree(value.doc);
+  const reference = "tau-collab-asset:11111111-1111-4111-8111-111111111111";
+  await tree.installContracts({ [image.id]: image.contract }, null);
+  tree.insertNode(
+    {
+      type: "image",
+      collabId: "image",
+      tauContract: image.id,
+      url: reference,
+      previewUrl: reference,
+      children: [{ text: "" }],
+    },
+    null,
+    1,
+    null,
+    true
+  );
+  tree.dispose();
+  const state = bytesToBase64(Y.encodeStateAsUpdate(value.doc));
+  io.remote.mockResolvedValue({ state });
+  io.read.mockResolvedValue({ metadata: value.info, state, updates: [], revision: "cache" });
+  return { ...value, reference, state };
+}
+
+it("作者新图保留图床地址，成员上传显式走协作通道且不走作者转换", async () => {
+  const { doc, info, state } = await fixture();
+  io.read.mockResolvedValue({ metadata: info, state, updates: [], revision: "cache" });
+  const session = await manager.createSession(info);
+  const remote = "https://owner.test/uploaded.webp";
+  await expect(collaborationManager.prepareResource("doc", remote)).resolves.toBe(remote);
+  expect(io.upload).not.toHaveBeenCalled();
+  session.info.role = "editor";
+  io.upload.mockResolvedValue("tau-collab-asset:member");
+  const file = { name: "member.png", type: "image/png" } as File;
+  await expect(collaborationManager.uploadSharedResource("doc", file)).resolves.toBe(
+    "tau-collab-asset:member"
+  );
+  expect(io.upload).toHaveBeenCalledWith(
+    expect.objectContaining({
+      fileName: "member.png",
+      content: file,
+      collaboration: { documentId: "doc", serverUrl: session.info.serverUrl },
+    })
+  );
+  await expect(collaborationManager.prepareResource("doc", "~/local.png")).rejects.toThrow(
+    "成员图片"
+  );
+  doc.destroy();
+});
+
+it("冷缓存恢复后的作者图片无需正文或原库打开，存储失败后由后台自动重试", async () => {
+  const { doc, info, state, reference } = await imageFixture();
+  delete info.source;
+  io.read.mockResolvedValue({ metadata: info, state, updates: [], revision: "cache" });
+  const session = await manager.createSession(info);
+  io.resource.mockImplementation(async (_context, action: string, refs: string[]) => {
+    if (action === "pending") return false;
+    if (action === "localize") throw new Error("作者图床暂不可用");
+    return Object.fromEntries(refs.map(ref => [ref, ref]));
+  });
+  vi.useFakeTimers();
+  manager.startPolling();
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(session.info.error).toContain("作者图床暂不可用");
+  expect(session.resourcesDirty).toBe(true);
+  expect(io.project).not.toHaveBeenCalled();
+  io.resource.mockImplementation(async (_context, action: string, refs: string[]) =>
+    action === "localize"
+      ? Object.fromEntries(refs.map(ref => [ref, "~/.editor/resources/received.webp"]))
+      : undefined
+  );
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(io.resource).toHaveBeenLastCalledWith(
+    expect.objectContaining({ documentId: "doc" }),
+    "localize",
+    [reference]
+  );
+  expect(session.info.error).toBeUndefined();
+  expect(session.resourcesDirty).toBe(false);
+  doc.destroy();
+});
+
+it("上传期间新入队的图片在恢复正文发送前继续冲刷", async () => {
+  const { doc, info, state } = await fixture();
+  info.role = "editor";
+  delete info.source;
+  io.read.mockResolvedValue({ metadata: info, state, updates: [], revision: "cache" });
+  const session = await manager.createSession(info);
+  const pending = new Set(["A"]);
+  let release!: () => void;
+  const blocked = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  let flushes = 0;
+  const attach = vi.fn();
+  session.provider = {
+    attach,
+    detach: vi.fn(),
+    hasUnsyncedChanges: false,
+  } as unknown as RuntimeSession["provider"];
+  session.assetsPending = true;
+  io.resource.mockImplementation(async (_context, action: string) => {
+    if (action === "pending") return pending.size > 0;
+    if (action === "flush") {
+      const batch = [...pending];
+      if (++flushes === 1) await blocked;
+      batch.forEach(id => pending.delete(id));
+    }
+  });
+  const running = manager.processResources(session);
+  await vi.waitFor(() => expect(flushes).toBe(1));
+  io.upload.mockImplementationOnce(async () => {
+    pending.add("B");
+    return "tau-collab-asset:B";
+  });
+  await collaborationManager.uploadSharedResource("doc", {
+    name: "b.png",
+    type: "image/png",
+  } as File);
+  expect(attach).not.toHaveBeenCalled();
+  release();
+  await running;
+  expect(flushes).toBe(2);
+  expect(pending.size).toBe(0);
+  expect(session.assetsPending).toBe(false);
+  expect(attach).toHaveBeenCalledTimes(1);
+  doc.destroy();
+});
+
+it("服务器资产进入主库前使用作者的持久地址，原共享文档保持资产引用", async () => {
+  const { doc, info, reference } = await imageFixture();
+  const session = await manager.createSession(info);
+  await collaborationManager.project("doc");
+  expect(io.project.mock.calls[0][0].content[1]).toMatchObject({
+    url: "https://owner.test/image.webp",
+    previewUrl: "https://owner.test/image.webp",
+  });
+  expect(readNodeDocument(session.doc).content[1]).toMatchObject({ url: reference });
+  doc.destroy();
+});
+
+it("作者图片补存失败不关闭共享，重试后最终正文使用持久地址再关闭", async () => {
+  const { doc, info, state } = await imageFixture();
+  const session = await manager.createSession(info);
+  session.provider = {
+    synced: true,
+    hasUnsyncedChanges: false,
+    attach: vi.fn(),
+    detach: vi.fn(),
+    destroy: vi.fn(),
+  } as unknown as RuntimeSession["provider"];
+  const digest = await crypto.subtle.digest("SHA-256", Uint8Array.from(base64ToBytes(state)));
+  const revision = [...new Uint8Array(digest)]
+    .map(byte => byte.toString(16).padStart(2, "0"))
+    .join("");
+  io.protocol.mockResolvedValue({ version: 2, baselineId: "base", epoch: 0, revision });
+  io.assets.mockResolvedValue({ ids: ["11111111-1111-4111-8111-111111111111"] });
+  io.resource.mockRejectedValueOnce(new Error("作者图床失败"));
+  await expect(collaborationManager.leave("doc")).rejects.toThrow("作者图床失败");
+  expect(io.close).not.toHaveBeenCalled();
+  expect(session.info.leaving).toBe(false);
+  await collaborationManager.leave("doc");
+  expect(io.project.mock.calls[0][0].content[1]).toMatchObject({
+    url: "https://owner.test/image.webp",
+  });
+  expect(io.close).toHaveBeenCalledWith(session.info.serverUrl, "doc", revision);
+  expect(io.project.mock.invocationCallOrder[0]).toBeLessThan(io.close.mock.invocationCallOrder[0]);
+  session.awareness.destroy();
+  session.doc.destroy();
+  doc.destroy();
+});
+
+async function setFinalProtocol(state: string) {
+  const digest = await crypto.subtle.digest("SHA-256", Uint8Array.from(base64ToBytes(state)));
+  const revision = [...new Uint8Array(digest)]
+    .map(byte => byte.toString(16).padStart(2, "0"))
+    .join("");
+  io.protocol.mockResolvedValue({ version: 2, baselineId: "base", epoch: 0, revision });
+  return revision;
+}
+function syncedProvider(session: RuntimeSession) {
+  session.provider = {
+    synced: true,
+    hasUnsyncedChanges: false,
+    attach: vi.fn(),
+    detach: vi.fn(),
+    destroy: vi.fn(),
+  } as unknown as RuntimeSession["provider"];
+}
+
+it("结束共享等待旧投影，禁止定时器插队，并在最终远端快照落库后才关闭", async () => {
+  const { doc, info, state } = await imageFixture();
+  const session = await manager.createSession(info);
+  syncedProvider(session);
+  let release!: () => void;
+  const delayed = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  let main = "";
+  io.project
+    .mockImplementationOnce(async payload => {
+      await delayed;
+      main = JSON.stringify(payload.content);
+      return { projected: true, revision: "old-projection" };
+    })
+    .mockImplementation(async payload => {
+      main = JSON.stringify(payload.content);
+      return { projected: true, revision: "final-projection" };
+    });
+  const old = collaborationManager.project("doc");
+  await vi.waitFor(() => expect(io.project).toHaveBeenCalledTimes(1));
+  const remote = new Y.Doc({ gc: false });
+  Y.applyUpdate(remote, base64ToBytes(state));
+  const tree = new NodeTree(remote);
+  tree.insertText("p", 2, "最终远端输入", {});
+  tree.dispose();
+  const final = bytesToBase64(Y.encodeStateAsUpdate(remote));
+  io.remote.mockResolvedValue({ state: final });
+  const revision = await setFinalProtocol(final);
+  io.close.mockImplementation(async (_url, _id, expected) => {
+    expect(main).toContain("最终远端输入");
+    expect(main).toContain("https://owner.test/image.webp");
+    return { ok: true, revision: expected };
+  });
+  const closing = collaborationManager.leave("doc");
+  await vi.waitFor(() => expect(session.info.leaving).toBe(true));
+  await collaborationManager.project("doc");
+  expect(io.project).toHaveBeenCalledTimes(1);
+  expect(io.close).not.toHaveBeenCalled();
+  release();
+  await old;
+  await closing;
+  expect(io.project).toHaveBeenCalledTimes(2);
+  expect(io.close).toHaveBeenCalledWith(session.info.serverUrl, "doc", revision);
+  session.awareness.destroy();
+  session.doc.destroy();
+  remote.destroy();
+  doc.destroy();
+});
+
+it.each(["response", "receipt-storage", "receipt-ack", "cleanup", "cleanup-ack"])(
+  "关闭结果未知或收尾失败保持只读，重启且缓存丢失后按耐久记录继续：%s",
+  async failureAt => {
+    const { doc, info, state } = await fixture();
+    io.read.mockResolvedValue({ metadata: info, state, updates: [], revision: "cache" });
+    const session = await manager.createSession(info);
+    syncedProvider(session);
+    const revision = await setFinalProtocol(state);
+    if (failureAt === "response") io.close.mockRejectedValueOnce(new Error("关闭已执行但响应丢失"));
+    if (failureAt === "cleanup") io.unbind.mockRejectedValueOnce(new Error("请切回原资料库"));
+    if (["receipt-storage", "receipt-ack", "cleanup-ack"].includes(failureAt)) {
+      const recover = io.recovery.getMockImplementation()!;
+      let fail = true;
+      io.recovery.mockImplementation(async (id, action) => {
+        if (action === (failureAt === "cleanup-ack" ? "release" : "confirm-close") && fail) {
+          fail = false;
+          if (failureAt !== "receipt-storage") await recover(id, action);
+          throw new Error("回执确认失败");
+        }
+        return recover(id, action);
+      });
+    }
+    await expect(collaborationManager.leave("doc")).rejects.toThrow();
+    expect(session.info.leaving).toBe(true);
+    if (failureAt !== "cleanup-ack") {
+      expect(io.records.get("doc")?.close?.revision).toBe(revision);
+      expect(io.resource.mock.calls.some(call => call[1] === "release")).toBe(false);
+    }
+    await expect(
+      collaborationManager.uploadSharedResource("doc", { name: "x.mp4", type: "video/mp4" } as File)
+    ).rejects.toThrow("会话已变化");
+    if (failureAt !== "cleanup-ack") {
+      session.detachDocListener?.();
+      session.releaseResourceSource?.();
+      manager.sessions.delete("doc");
+      session.awareness.destroy();
+      session.doc.destroy();
+    }
+    io.read.mockResolvedValue(null);
+    if (failureAt === "response") Object.assign(manager, { serverUrl: "https://new-default.test" });
+    io.remote.mockClear();
+    io.project.mockClear();
+    await collaborationManager.refresh();
+    expect(io.close).toHaveBeenCalledTimes(
+      ["cleanup", "receipt-ack", "cleanup-ack"].includes(failureAt) ? 1 : 2
+    );
+    expect(io.close).toHaveBeenLastCalledWith(session.info.serverUrl, "doc", revision);
+    expect(io.remote).not.toHaveBeenCalled();
+    expect(io.project).not.toHaveBeenCalled();
+    expect(io.unbind).toHaveBeenLastCalledWith(7, { documentId: "doc", sourceId: "source" });
+    expect(io.records.has("doc")).toBe(false);
+    if (failureAt === "cleanup-ack") {
+      session.awareness.destroy();
+      session.doc.destroy();
+    }
+    doc.destroy();
+  }
+);
+
+it("原生层丢弃损坏缓存后，从独立恢复记录还原来源与观察修订", async () => {
+  const { doc, info } = await fixture();
+  io.records.set("doc", structuredClone(info));
+  io.read.mockResolvedValue(null);
+  const { source: _source, ...remoteInfo } = info;
+  const session = await manager.createSession(remoteInfo);
+  expect(session.info.source).toEqual(info.source);
+  await collaborationManager.project("doc");
+  expect(io.project).toHaveBeenCalledWith(
+    expect.objectContaining({
+      expectedSourceId: "source",
+      expectedDocumentId: "body",
+      expectedRevision: "observed",
+    })
+  );
+  doc.destroy();
+});
+
+it("旧投影与后台补存重叠后，保留下一轮投影并写入最新正文", async () => {
+  const { doc, info, state } = await fixture();
+  io.read.mockResolvedValue({ metadata: info, state, updates: [], revision: "cache" });
+  const session = await manager.createSession(info);
+  let release!: () => void;
+  const blocked = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  let main = "";
+  io.project
+    .mockImplementationOnce(async payload => {
+      await blocked;
+      main = JSON.stringify(payload.content);
+      return { projected: true, revision: "older" };
+    })
+    .mockImplementation(async payload => {
+      main = JSON.stringify(payload.content);
+      return { projected: true, revision: "latest" };
+    });
+  const first = collaborationManager.project("doc");
+  await vi.waitFor(() => expect(io.project).toHaveBeenCalledTimes(1));
+  const tree = new NodeTree(session.doc);
+  tree.insertText("p", 2, "新输入", {});
+  tree.dispose();
+  const background = manager.processResources(session);
+  await vi.waitFor(() => expect(session.resourcesDirty).toBe(true));
+  release();
+  await first;
+  await background;
+  expect(session.resourcesDirty).toBe(true);
+  await manager.processResources(session);
+  expect(main).toContain("新输入");
+  doc.destroy();
+});
+
+it("只有确认房间仍活动的修订冲突才解除关闭标记，下一次重新保全", async () => {
+  const { doc, info, state } = await fixture();
+  io.read.mockResolvedValue({ metadata: info, state, updates: [], revision: "cache" });
+  const session = await manager.createSession(info);
+  syncedProvider(session);
+  await setFinalProtocol(state);
+  io.close.mockRejectedValueOnce(
+    Object.assign(new Error("正文已变化"), { code: "REVISION_CONFLICT" })
+  );
+  await expect(collaborationManager.leave("doc")).rejects.toThrow("正文已变化");
+  expect(session.info.leaving).toBe(false);
+  expect(session.close).toBeUndefined();
+  expect(io.recovery).toHaveBeenCalledWith("doc", "clear-close");
+  await collaborationManager.leave("doc");
+  expect(io.close).toHaveBeenCalledTimes(2);
+  session.awareness.destroy();
+  session.doc.destroy();
+  doc.destroy();
+});
 it("重启合入同一真实基线，未确认的本机输入不会被服务器旧快照覆盖", async () => {
   const { doc, info, state } = await fixture();
   const before = Y.encodeStateVector(doc),
