@@ -72,7 +72,7 @@ const session = (id: string, messages: unknown[] = [], title = "新对话") => (
   messages,
 });
 
-function makeSetting(assigned: boolean): SettingCompat {
+function makeSetting(assigned: boolean, { reasoning = false } = {}): SettingCompat {
   return {
     database: { active: "data.db", databases: [] },
     llmProviders: [
@@ -82,7 +82,7 @@ function makeSetting(assigned: boolean): SettingCompat {
         baseUrl: "https://x.test",
         api: "openai-completions",
         configured: true,
-        models: [{ id: "m", name: "DeepSeek V4", reasoning: false, input: ["text"] }],
+        models: [{ id: "m", name: "DeepSeek V4", reasoning, input: ["text"] }],
       },
     ],
     llmUsageSettings: { chat: assigned ? { providerId: "p", modelId: "m" } : null },

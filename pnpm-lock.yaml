@@ -16,7 +16,7 @@ overrides:
 
 patchedDependencies:
   better-sqlite3@12.10.0: 28e507a141733e7011377e4879c00f5fc51e4360f7736bbfeee8fe8ed0c8126f
-  slate-react@0.126.4: f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e
+  slate-react@0.126.4: 8b19b73a1dff38040f2b952b5b597934040cda22b14957410898b9fce8790062
 
 importers:
 
@@ -196,7 +196,7 @@ importers:
         version: 0.113.1(slate@0.126.2)
       slate-react:
         specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
+        version: 0.126.4(patch_hash=8b19b73a1dff38040f2b952b5b597934040cda22b14957410898b9fce8790062)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
       zustand:
         specifier: ^4.3.8
         version: 4.5.7(@types/react@19.2.0)(immer@10.2.0)(react@19.2.0)
@@ -839,7 +839,7 @@ importers:
         version: 0.113.1(slate@0.126.2)
       slate-react:
         specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
+        version: 0.126.4(patch_hash=8b19b73a1dff38040f2b952b5b597934040cda22b14957410898b9fce8790062)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
       tailwind-merge:
         specifier: ^3.7.0
         version: 3.7.0
@@ -1050,7 +1050,7 @@ importers:
         version: 0.113.1(slate@0.126.2)
       slate-react:
         specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
+        version: 0.126.4(patch_hash=8b19b73a1dff38040f2b952b5b597934040cda22b14957410898b9fce8790062)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
       tailwindcss:
         specifier: 4.1.18
         version: 4.1.18
@@ -1339,7 +1339,7 @@ importers:
         version: 0.113.1(slate@0.126.2)
       slate-react:
         specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
+        version: 0.126.4(patch_hash=8b19b73a1dff38040f2b952b5b597934040cda22b14957410898b9fce8790062)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
       zustand:
         specifier: ^4.5.7
         version: 4.5.7(@types/react@19.2.0)(immer@10.2.0)(react@19.2.0)
@@ -1461,7 +1461,7 @@ importers:
         version: 0.126.2
       slate-react:
         specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
+        version: 0.126.4(patch_hash=8b19b73a1dff38040f2b952b5b597934040cda22b14957410898b9fce8790062)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
     devDependencies:
       '@tailwindcss/vite':
         specifier: 4.3.3
@@ -1541,7 +1541,7 @@ importers:
         version: 0.126.2
       slate-react:
         specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
+        version: 0.126.4(patch_hash=8b19b73a1dff38040f2b952b5b597934040cda22b14957410898b9fce8790062)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
     devDependencies:
       '@tailwindcss/vite':
         specifier: 4.3.3
@@ -1658,7 +1658,7 @@ importers:
         version: 0.126.2
       slate-react:
         specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
+        version: 0.126.4(patch_hash=8b19b73a1dff38040f2b952b5b597934040cda22b14957410898b9fce8790062)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -1988,7 +1988,7 @@ importers:
         version: 0.113.1(slate@0.126.2)
       slate-react:
         specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
+        version: 0.126.4(patch_hash=8b19b73a1dff38040f2b952b5b597934040cda22b14957410898b9fce8790062)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
       tailwindcss:
         specifier: ^4.1.18
         version: 4.2.0
@@ -2009,7 +2009,7 @@ importers:
         version: 1.0.2(slate@0.126.2)(yjs@13.6.32)
       '@slate-yjs/react':
         specifier: 1.1.0
-        version: 1.1.0(@slate-yjs/core@1.0.2(slate@0.126.2)(yjs@13.6.32))(react@19.2.0)(slate-react@0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2))(slate@0.126.2)(yjs@13.6.32)
+        version: 1.1.0(@slate-yjs/core@1.0.2(slate@0.126.2)(yjs@13.6.32))(react@19.2.0)(slate-react@0.126.4(patch_hash=8b19b73a1dff38040f2b952b5b597934040cda22b14957410898b9fce8790062)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2))(slate@0.126.2)(yjs@13.6.32)
       '@tau/collaboration':
         specifier: workspace:*
         version: link:../collaboration
@@ -2052,7 +2052,7 @@ importers:
         version: 0.126.0(slate@0.126.2)
       slate-react:
         specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
+        version: 0.126.4(patch_hash=8b19b73a1dff38040f2b952b5b597934040cda22b14957410898b9fce8790062)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -2116,7 +2116,7 @@ importers:
         version: 0.126.2
       slate-react:
         specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
+        version: 0.126.4(patch_hash=8b19b73a1dff38040f2b952b5b597934040cda22b14957410898b9fce8790062)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -2234,7 +2234,7 @@ importers:
         version: 0.126.2
       slate-react:
         specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
+        version: 0.126.4(patch_hash=8b19b73a1dff38040f2b952b5b597934040cda22b14957410898b9fce8790062)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
     devDependencies:
       '@types/node':
         specifier: ^20.2.1
@@ -2551,7 +2551,7 @@ importers:
         version: 0.126.2
       slate-react:
         specifier: 0.126.4
-        version: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
+        version: 0.126.4(patch_hash=8b19b73a1dff38040f2b952b5b597934040cda22b14957410898b9fce8790062)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
       typescript:
         specifier: 7.0.2
         version: 7.0.2
@@ -16176,12 +16176,12 @@ snapshots:
       y-protocols: 1.0.7(yjs@13.6.32)
       yjs: 13.6.32
 
-  '@slate-yjs/react@1.1.0(@slate-yjs/core@1.0.2(slate@0.126.2)(yjs@13.6.32))(react@19.2.0)(slate-react@0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2))(slate@0.126.2)(yjs@13.6.32)':
+  '@slate-yjs/react@1.1.0(@slate-yjs/core@1.0.2(slate@0.126.2)(yjs@13.6.32))(react@19.2.0)(slate-react@0.126.4(patch_hash=8b19b73a1dff38040f2b952b5b597934040cda22b14957410898b9fce8790062)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2))(slate@0.126.2)(yjs@13.6.32)':
     dependencies:
       '@slate-yjs/core': 1.0.2(slate@0.126.2)(yjs@13.6.32)
       react: 19.2.0
       slate: 0.126.2
-      slate-react: 0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
+      slate-react: 0.126.4(patch_hash=8b19b73a1dff38040f2b952b5b597934040cda22b14957410898b9fce8790062)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2)
       use-sync-external-store: 1.6.0(react@19.2.0)
       y-protocols: 1.0.7(yjs@13.6.32)
       yjs: 13.6.32
@@ -22973,7 +22973,7 @@ snapshots:
       is-plain-object: 5.1.0
       slate: 0.126.2
 
-  slate-react@0.126.4(patch_hash=f17999b756ae4ac189470755851ace55f92bb05325d25f8ca69a15b827e9c92e)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2):
+  slate-react@0.126.4(patch_hash=8b19b73a1dff38040f2b952b5b597934040cda22b14957410898b9fce8790062)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(slate-dom@0.126.0(slate@0.126.2))(slate@0.126.2):
     dependencies:
       '@juggle/resize-observer': 3.4.0
       direction: 1.0.4
