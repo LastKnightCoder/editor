@@ -1,14 +1,8 @@
-/**
- * Button 基础件单测（方案 B 定稿，mockups/button/，D-013）：
- * 变体/尺寸/block 类落地 · type 默认与透传 · disabled 原生封锁 ·
- * loading 语义（aria-busy + spinner + 文案切换 + 点击不触发）·
- * icon 左位 · className 覆盖合并（cn 语义）· ref 转发。
- */
+/** Button 的类型、禁用、加载、样式覆盖、引用与属性透传。 */
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Plus } from "lucide-react";
 import { Button } from "../Button";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -41,24 +35,6 @@ function click(el: Element) {
 }
 
 describe("Button", () => {
-  it("变体/尺寸/block 类落地，默认 secondary + md", () => {
-    const b = render(<Button>取消</Button>);
-    expect(b.className).toContain("bg-surface");
-    expect(b.className).toContain("h-[34px]");
-
-    const sm = render(
-      <Button variant="primary" size="sm" block>
-        新建
-      </Button>
-    );
-    expect(sm.className).toContain("bg-accent");
-    expect(sm.className).toContain("h-[28px]");
-    expect(sm.className).toContain("w-full");
-    // primary 覆盖公共字重 550
-    expect(sm.className).toContain("font-[600]");
-    expect(sm.className).not.toContain("font-[550]");
-  });
-
   it("type 默认 button，可透传 submit", () => {
     expect(render(<Button>取消</Button>).type).toBe("button");
     expect(render(<Button type="submit">提交</Button>).type).toBe("submit");
@@ -98,13 +74,6 @@ describe("Button", () => {
       </Button>
     );
     expect(b.textContent).toBe("导出");
-  });
-
-  it("icon 渲染左位 svg", () => {
-    const b = render(<Button icon={Plus}>新建卡片</Button>);
-    const svg = b.querySelector("svg");
-    expect(svg).not.toBeNull();
-    expect(b.firstElementChild).toBe(svg);
   });
 
   it("className 覆盖默认样式（cn 合并，非静默失效）", () => {

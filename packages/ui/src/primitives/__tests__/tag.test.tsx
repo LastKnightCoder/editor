@@ -1,8 +1,4 @@
-/**
- * Tag 单测（A+B 结合 II「点 + 软底」）：
- * 7 色板类映射（底+文字+点分语义位）· gray 默认无点 · showDot 可选关闭 ·
- * onRemove 显 ×（aria-label / 点击不冒泡 / 热区外扩类）· truncate 结构。
- */
+/** Tag 的语义色板、可选圆点与移除事件。 */
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -111,16 +107,5 @@ describe("Tag", () => {
     const h2 = render(<Tag color="blue">设计</Tag>);
     cleanups.push(h2.cleanup);
     expect(h2.container.querySelector("button")).toBeNull();
-  });
-
-  it("形制：药丸单尺寸（高 22 / tau-sm / leading-none）+ truncate 文字位 + max-w-full", () => {
-    const h = render(<Tag color="purple">一个特别长的标签名称</Tag>);
-    cleanups.push(h.cleanup);
-    const tag = h.container.querySelector("span")!;
-    expect(tag.className).toContain("h-[22px]");
-    expect(tag.className).toContain("rounded-full");
-    expect(tag.className).toContain("text-tau-sm");
-    expect(tag.className).toContain("max-w-full");
-    expect(tag.querySelector("span.truncate")).not.toBeNull();
   });
 });

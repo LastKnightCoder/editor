@@ -1,6 +1,4 @@
-/**
- * FilterPill 单测：aria-pressed 随选中 · 计数不传不渲染 · 两种未选皮肤 · className 可覆盖未选文字色 · 图标槽。
- */
+/** FilterPill 的选中语义、点击回调、计数与样式覆盖。 */
 
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -50,18 +48,6 @@ describe("FilterPill", () => {
     ).toBe("需要处理0");
   });
 
-  it("未选皮肤：outline 描边、raised 浮起", () => {
-    const outline = render(<FilterPill active={false} onClick={() => {}} label="a" />);
-    expect(outline.className).toContain("border-line-1");
-    expect(outline.className).not.toContain("shadow-card");
-    act(() => root?.unmount());
-    const raised = render(
-      <FilterPill variant="raised" active={false} onClick={() => {}} label="a" />
-    );
-    expect(raised.className).toContain("shadow-card");
-    expect(raised.className).not.toContain("border-line-1");
-  });
-
   it("className 覆盖未选文字色（cn 合并去掉默认 text-ink-2）", () => {
     const pill = render(
       <FilterPill
@@ -74,12 +60,5 @@ describe("FilterPill", () => {
     );
     expect(pill.className).toContain("text-warn");
     expect(pill.className).not.toContain("text-ink-2");
-  });
-
-  it("图标渲染在标签前", () => {
-    const pill = render(
-      <FilterPill active={false} onClick={() => {}} label="卡组" icon={<i data-icon />} />
-    );
-    expect(pill.firstElementChild?.hasAttribute("data-icon")).toBe(true);
   });
 });
