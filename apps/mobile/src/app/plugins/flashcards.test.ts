@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { definePlugin, type PluginContext, type PluginFlashcardDraft } from "@tau/plugins";
@@ -7,6 +8,9 @@ import type { MobileDataAdapter } from "./data";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("../../services/editorMarkdown", () => ({
+  mobileMarkdown: {
+    getMarkdown: (nodes: typeof draft.prompt) => (JSON.stringify(nodes) === "[]" ? "" : "资料"),
+  },
   mobileImportFromMarkdown: vi.fn(async (text: string) => [
     { type: "paragraph", children: [{ type: "formatted", text }] },
   ]),
@@ -22,12 +26,19 @@ function setup() {
   const lifetime = new AbortController();
   const query = vi.fn(async () => "granted" as const);
   const read = vi.fn(async () => ({ nodes: draft.prompt }));
+  const chat = vi.fn<(request: unknown) => Promise<{ text: string }>>().mockResolvedValue({
+    text: JSON.stringify([{ ...draft, prompt: "题干" }]),
+  });
+  const requestCapability = vi
+    .fn<(capability: string) => Promise<{ chat: typeof chat }>>()
+    .mockResolvedValue({ chat });
   const context = {
     pluginId: "test.flashcards",
     workspaceId: "one.db",
     signal: lifetime.signal,
     permissions: { query },
     content: { read },
+    ai: { requestCapability },
   } as unknown as PluginContext;
   const prepareContent = vi.fn(async () => ({ nodes: draft.prompt, contracts: {}, count: 2 }));
   const push = vi.fn();
@@ -40,7 +51,18 @@ function setup() {
     changed
   );
   cleanups.push(service.dispose);
-  return { service, context, lifetime, query, read, prepareContent, push, changed };
+  return {
+    service,
+    context,
+    lifetime,
+    query,
+    read,
+    prepareContent,
+    push,
+    changed,
+    chat,
+    requestCapability,
+  };
 }
 function request(service: ReturnType<typeof createMobileFlashcards>) {
   const value = service.getSnapshot();
@@ -184,20 +206,102 @@ it.each(["abort", "dispose"])("%s 关闭未完成请求并阻止旧回调", asyn
   await expect(current.save(draft)).rejects.toThrow();
   expect(invoke).not.toHaveBeenCalled();
 });
-it("拒绝无手势、重复打开及 AI 能力", async () => {
+it("拒绝无手势和重复打开", async () => {
   const { service, context } = setup();
   vi.stubGlobal("navigator", { userActivation: { isActive: false } });
   expect(() => service.adapter.openCreate(context)).toThrow("用户点击");
   vi.stubGlobal("navigator", { userActivation: { isActive: true } });
-  await expect(service.adapter.openCreate(context, { mode: "ai" })).rejects.toThrow("AI");
-  await expect(service.adapter.generate(context, { content: "内容" })).rejects.toThrow("AI");
-  await expect(
-    service.adapter.generateAndSave(context, { content: "内容", deckId: 1 })
-  ).rejects.toThrow("AI");
   const pending = service.adapter.openCreate(context);
   expect(() => service.adapter.openCreate(context)).toThrow("当前建卡");
   request(service).close();
   await pending;
+});
+it("AI 生成沿用宿主授权，草稿校验后返回且不落库", async () => {
+  const { service, context, chat, requestCapability, query } = setup();
+  chat.mockResolvedValueOnce({
+    text: '```json\n[{"type":"cloze","prompt":"首都是{{blank:北京}}","data":{}}]\n```',
+  });
+  const cards = await service.adapter.generate(context, { content: "资料", references: [] });
+  expect(requestCapability).toHaveBeenCalledWith("flashcardGeneration");
+  expect(cards[0].prompt).toMatchObject([
+    { children: [{ text: "首都是" }, { type: "flashcard-blank", answer: "北京" }, { text: "" }] },
+  ]);
+  expect(cards[0].references).toEqual([]);
+  expect(query).not.toHaveBeenCalled();
+  expect(invoke).not.toHaveBeenCalled();
+});
+it("AI 审阅流程以修改后的资料为默认来源，取消保留已保存卡片", async () => {
+  const { service, context, prepareContent } = setup();
+  const pending = service.adapter.openCreate(context, { mode: "ai", content: "资料" });
+  const current = request(service);
+  const cards = await current.generate("修订后的资料");
+  const source = [
+    {
+      type: "paragraph" as const,
+      children: [{ type: "formatted" as const, text: "修订后的资料" }],
+    },
+  ];
+  expect(cards[0].references).toMatchObject([{ refType: "custom", customContent: source }]);
+  prepareContent.mockResolvedValue({ nodes: source, contracts: {}, count: 6 });
+  vi.mocked(invoke).mockResolvedValue({ ...draft, id: 7 });
+  await current.save({ ...cards[0], deckId: 1 });
+  current.close();
+  await expect(pending).resolves.toMatchObject({
+    status: "cancelled",
+    cards: [
+      { id: 7, references: [{ refType: "custom", title: "参考资料", customContent: source }] },
+    ],
+  });
+});
+it.each(["abort", "dispose", "close"])("AI 生成期间 %s 中止调用并拒收迟到结果", async operation => {
+  const { service, context, lifetime, chat } = setup();
+  let release!: (value: { text: string }) => void;
+  chat.mockImplementationOnce(
+    async () =>
+      new Promise(resolve => {
+        release = resolve;
+      })
+  );
+  const pending = service.adapter.openCreate(context, { mode: "ai", references: [] });
+  const current = request(service);
+  const generating = current.generate("资料");
+  await vi.waitFor(() => expect(chat).toHaveBeenCalledOnce());
+  const signal = (chat.mock.calls[0][0] as { signal: AbortSignal }).signal;
+  if (operation === "abort") lifetime.abort();
+  else if (operation === "dispose") service.dispose();
+  else current.close();
+  expect(signal.aborted).toBe(true);
+  release({ text: JSON.stringify([draft]) });
+  await expect(generating).rejects.toThrow();
+  await expect(pending).resolves.toEqual({ status: "cancelled", cards: [] });
+  expect(invoke).not.toHaveBeenCalled();
+});
+it("生成后批量保存逐张复验权限并返回部分失败", async () => {
+  const { service, context, chat, query } = setup();
+  chat.mockResolvedValueOnce({ text: JSON.stringify([draft, draft]) });
+  vi.mocked(invoke)
+    .mockResolvedValueOnce({ ...draft, id: 8 })
+    .mockRejectedValueOnce(new Error("卡组不可用"));
+  const result = await service.adapter.generateAndSave(context, {
+    content: "资料",
+    deckId: 1,
+    references: [],
+  });
+  expect(result.cards.map(card => card.id)).toEqual([8]);
+  expect(result.failed).toEqual([{ index: 1, message: "卡组不可用" }]);
+  expect(query).toHaveBeenCalledTimes(2);
+});
+it("无模型或输出无效时明确失败且不落库", async () => {
+  const { service, context, requestCapability, chat } = setup();
+  requestCapability.mockRejectedValueOnce(new Error("AI_MODEL_NOT_CONFIGURED"));
+  await expect(service.adapter.generate(context, { content: "资料" })).rejects.toThrow(
+    "AI_MODEL_NOT_CONFIGURED"
+  );
+  chat.mockResolvedValueOnce({ text: JSON.stringify([{ ...draft, data: {} }]) });
+  await expect(
+    service.adapter.generateAndSave(context, { content: "资料", deckId: 1 })
+  ).rejects.toThrow("参考答案");
+  expect(invoke).not.toHaveBeenCalled();
 });
 it("写权限撤销后不落库，已保存后取消保留真实结果", async () => {
   const { service, context } = setup();

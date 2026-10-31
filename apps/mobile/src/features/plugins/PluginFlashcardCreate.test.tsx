@@ -3,13 +3,18 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
-import type { PluginContext, PluginFlashcardDraft } from "@tau/plugins";
+import type {
+  PluginContext,
+  PluginFlashcardDraft,
+  PluginFlashcardCreateOptions,
+} from "@tau/plugins";
 import { createMobileFlashcards } from "../../app/plugins/flashcards";
 import type { MobileDataAdapter } from "../../app/plugins/data";
 import { PluginFlashcardCreate } from "./PluginFlashcardCreate";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("../../services/editorMarkdown", () => ({
+  mobileMarkdown: { getMarkdown: () => "预填资料" },
   mobileImportFromMarkdown: async (text: string) => [
     { type: "paragraph", children: [{ type: "formatted", text }] },
   ],
@@ -23,9 +28,14 @@ vi.mock("./PluginPageView", () => ({
   PluginPageShell: (props: { children: import("react").ReactNode }) => <div>{props.children}</div>,
 }));
 vi.mock("../flashcard/CardCreatePage", () => ({
-  CardCreatePage: (props: { onChoose(id: number, type: string): void; onBack(): void }) => (
+  CardCreatePage: (props: {
+    onChoose(id: number, type: string): void;
+    onGenerate?(id: number): void;
+    onBack(): void;
+  }) => (
     <>
       <button onClick={() => props.onChoose(1, "qa")}>问答题</button>
+      {props.onGenerate && <button onClick={() => props.onGenerate?.(1)}>AI 制作</button>}
       <button onClick={props.onBack}>取消</button>
     </>
   ),
@@ -33,15 +43,16 @@ vi.mock("../flashcard/CardCreatePage", () => ({
 vi.mock("../flashcard/CardEditPage", () => ({
   CardEditPage: (props: {
     initialPrompt: unknown;
+    initialDraft?: PluginFlashcardDraft;
     createCard(input: unknown): Promise<void>;
     onSaved(): void;
     onBack(): void;
   }) => (
     <>
-      <div>{JSON.stringify(props.initialPrompt)}</div>
+      <div>{JSON.stringify(props.initialDraft ?? props.initialPrompt)}</div>
       <button
         onClick={async () => {
-          await props.createCard(draft);
+          await props.createCard(props.initialDraft ? { ...props.initialDraft, deckId: 1 } : draft);
           props.onSaved();
         }}
       >
@@ -67,7 +78,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
-async function mount() {
+async function mount(options: PluginFlashcardCreateOptions = {}) {
   vi.stubGlobal("navigator", { userActivation: { isActive: true } });
   const context = {
     pluginId: "test",
@@ -85,7 +96,11 @@ async function mount() {
     },
     vi.fn()
   );
-  const result = service.adapter.openCreate(context, { content: "预填题干", references: [] });
+  const result = service.adapter.openCreate(context, {
+    content: "预填题干",
+    references: [],
+    ...options,
+  });
   const container = document.createElement("div");
   const root = createRoot(container);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -142,4 +157,28 @@ it("会话结束使编辑页移除并拒绝后续保存", async () => {
     [...container.querySelectorAll("button")].some(button => button.textContent === "保存")
   ).toBe(false);
   await expect(result).resolves.toEqual({ status: "cancelled", cards: [] });
+});
+it("AI 草稿进入编辑页时带上完整答案，保存后可完成流程", async () => {
+  const { container, result, click } = await mount({ mode: "ai" });
+  const current = service.getSnapshot();
+  if (!current) throw new Error("建卡请求缺失");
+  const generate = vi.spyOn(current, "generate").mockResolvedValue([draft]);
+  await click("AI 制作");
+  expect(container.querySelector("textarea")?.value).toBe("预填资料");
+  await click("生成闪卡");
+  await act(async () => {
+    await new Promise(resolve => setTimeout(resolve, 20));
+  });
+  expect(generate).toHaveBeenCalledWith("预填资料");
+  const edit = [...container.querySelectorAll("button")].find(button =>
+    button.textContent?.includes("编辑并保存")
+  );
+  if (!edit) throw new Error("未显示闪卡草稿");
+  await act(async () => edit.click());
+  expect(container.textContent).toContain("答案");
+  vi.mocked(invoke).mockResolvedValue({ ...draft, id: 9 });
+  await click("保存");
+  expect(container.textContent).toContain("已保存 1 张");
+  await click("完成");
+  await expect(result).resolves.toMatchObject({ status: "completed", cards: [{ id: 9 }] });
 });

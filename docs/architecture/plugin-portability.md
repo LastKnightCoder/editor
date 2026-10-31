@@ -74,13 +74,15 @@
 
 协作引用按正文创建身份解析；未共享内容先展示来源与正文摘要，用户确认才打开发布流程，已有绑定打开成员管理。发布流程在异步步骤之间检查请求有效性及正文创建身份，失效后不继续绑定、投影或生成邀请码；已经发出的远端操作不承诺撤回。编辑器契约、copyOf 准备与分享内容复用现有数据和协作协议，不新增数据库表或业务授权。
 
-## 移动闪卡基础接口
+## 移动闪卡接口
 
-`context.flashcards` 支持 listDecks、createDeck、createCard 和手动 openCreate；generate、generateAndSave 与 mode: ai 明确拒绝。SDK 在查询牌组时要求 flashcards:read，直接创建牌组和闪卡要求 flashcards:write，移动适配器在异步准备参考资料后复验写权限。构建、中心与原生授权存储共用新增权限范围。
+`context.flashcards` 支持 listDecks、createDeck、createCard、手动与 AI openCreate、generate 和 generateAndSave。SDK 在查询牌组时要求 flashcards:read，直接创建牌组和闪卡要求 flashcards:write，移动适配器在异步准备参考资料后复验写权限。AI 生成通过 context.ai.requestCapability("flashcardGeneration") 取得宿主能力，沿用逐能力授权与 llmUsageSettings.flashcardGeneration 模型分配；不隐式回退。构建、中心与原生授权存储共用权限范围。
 
 原生 plugin_flashcards 固定工作区 token，核对活动库后复用现有闪卡事务；不新增表，不修改复习调度。正文参考先检查插件读取资格，写入事务再核验创建身份并增持引用；自定义参考资料按正文契约创建独立 contents 行，任何参考失败则整张卡片回滚。返回 SDK 公开字段，不交付复习统计等宿主内部字段。
 
 手动建卡是独立 pluginFlashcardCreate 页面，复用 CardCreatePage、CardEditPage 和牌组表单，可选择或新建牌组、选择五种题型并修改预填题干。请求固定发起插件与工作区，单会话互斥；保存由用户确认，不要求插件整类闪卡写权限，引用其他正文仍需读取权限。未指定 references 时把输入 content 作为自定义来源；显式空数组不添加来源。保存后返回 completed 与真实卡片，退出返回 cancelled 与已保存卡片；停用或切库撤销请求，旧页面不能继续保存，已经提交的数据不回滚。
+
+AI 建卡复用同一页面与卡组选择，确认资料后生成五题型草稿，逐张进入 CardEditPage 审阅、修改并保存；题干、答案、解析、背面补充、难度和标签均预填，选项解析在编辑保存时保留。未指定 references 时，默认来源使用用户确认生成的资料；显式提供的引用保持原意，空数组不添加来源。`features/flashcard/generation.ts` 提供生成提示与 JSON 解析，填空标记转换为 flashcard-blank 节点，整批草稿通过保存校验后才交付。generate 只返回草稿，generateAndSave 逐张复验写权限并返回成功卡片及失败索引，取消、停用或切库阻止后续写入，保留已提交卡片。关闭宿主流程会中止在途 AI 请求并拒收迟到结果。
 
 ## 同步与资源上传提供方
 
@@ -150,7 +152,7 @@ UiHostProvider 只接受平台中立的 dismiss 登记函数。真实 Dialog/Dra
 
 Skills 来源包括已激活的 portable 应用插件和已安装启用的独立 Skill 包。应用插件的 `skills` 元数据进入 PluginHost；独立包不求值 JS、不进入 PluginHost，沿用同一安装、待生效更新、恢复、卸载和来源校验事务。原生清单读取和资源读取核验工作区、当前安装代次、声明路径、完整性与文本预算，拒绝符号链接和越界资源。JS 再对照当前已加载包的 skillRevision 与包类型，旧实例不能读取更新后的包；安全模式不自动恢复独立来源。技能目录按需注册到 AI 服务，停用、重载、撤回、卸载及切库撤销来源；ID 采用桌面的 `包ID:目录ID`。移动端可安装和保留带脚本的独立包，但只暴露受限 Markdown 正文与参考资料，不执行脚本；桌面脚本继续沿用既有审核与执行确认。
 
-以上是宿主与数据能力；闪卡 AI 生成等领域流程不随注册自动产生。插件 Skill 与 MCP 的管理界面见 [移动端 Skill 与 MCP 管理](/docs/architecture/mobile.md)。API 行为测试和原生临时文件测试不能替代 iOS/Android 设备验收。
+宿主与数据能力由领域流程显式调用，闪卡接入见 [移动闪卡接口](#移动闪卡接口)。插件 Skill 与 MCP 的管理界面见 [移动端 Skill 与 MCP 管理](/docs/architecture/mobile.md)。API 行为测试和原生临时文件测试不能替代 iOS/Android 设备验收。
 
 ## ASR 与 WebSocket 宿主
 
