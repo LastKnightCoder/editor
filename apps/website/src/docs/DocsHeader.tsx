@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Download, Menu, Star, X } from "lucide-react";
 import { formatStars, loadGithubStars } from "../lib/githubStars.ts";
 import { GITHUB_MARK_PATH, GITHUB_URL, SITE_LINKS, type SiteLink } from "../lib/site.ts";
@@ -37,13 +37,14 @@ interface DocsHeaderProps {
   current: SiteLink["key"];
   /** 窄屏目录开关；页面没有侧栏目录时不传 */
   nav?: { open: boolean; onToggle: () => void };
+  search?: ReactNode;
 }
 
 /** 使用文档与更新日志共用的吸顶导航 */
-export function DocsHeader({ current, nav }: DocsHeaderProps) {
+export function DocsHeader({ current, nav, search }: DocsHeaderProps) {
   return (
     <header className="border-line-1 bg-page/85 sticky top-0 z-40 border-b backdrop-blur-md">
-      <div className="mx-auto flex h-[60px] max-w-[1440px] items-center gap-6 px-6 max-sm:px-4">
+      <div className="mx-auto flex h-[60px] max-w-[1440px] items-center gap-6 px-6 max-sm:gap-2 max-sm:px-4">
         {nav && (
           <button
             type="button"
@@ -73,13 +74,15 @@ export function DocsHeader({ current, nav }: DocsHeaderProps) {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-2.5">
+          {search}
           <GithubLink />
           <a
             href="/#download"
-            className="bg-ink-1 text-page inline-flex h-9 items-center gap-2 rounded-[10px] px-4 text-[14px] font-medium transition-transform hover:-translate-y-px"
+            aria-label="下载 Tau"
+            className="bg-ink-1 text-page inline-flex h-9 items-center gap-2 rounded-[10px] px-4 text-[14px] font-medium transition-transform hover:-translate-y-px max-sm:px-2.5"
           >
             <Download className="size-4" strokeWidth={1.75} />
-            下载
+            <span className="max-sm:hidden">下载</span>
           </a>
         </div>
       </div>

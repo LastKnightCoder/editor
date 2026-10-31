@@ -16,7 +16,7 @@ pnpm build:website    # 类型检查 + 构建到 apps/website/dist
 pnpm deploy:website   # 构建并上传到 Cloudflare Pages（项目 tau-website，生产分支 master）
 ```
 
-在本目录可以单独执行 `pnpm test`（下载信息解析、芯片识别及 Workers 运行时回归）和 `pnpm preview`（预览构建快照）。
+在本目录可以单独执行 `pnpm test`（文档目录、搜索索引与交互、下载信息解析、芯片识别及 Workers 运行时回归）和 `pnpm preview`（预览构建快照）。
 
 ## 下载信息
 
@@ -41,6 +41,15 @@ pnpm deploy:website   # 构建并上传到 Cloudflare Pages（项目 tau-website
 - 站内链接写 `/docs/<slug>/`，点击时在文档页内切换，不整页刷新。
 - 构建时为每篇文档各生成一份 `docs/<slug>/index.html`（标题和描述已填好），静态托管直接命中；开发服务器把 `/docs/<slug>/` 改写到同一个模板。
 - 文档页的样式只用 Tailwind 和 `@tau/themes` 的语义类，不引入首页的 `src/styles/*.css`：那里有不在 layer 里的通配规则，会压过 Tailwind 工具类。
+
+## 文档搜索
+
+使用文档与插件开发文档的顶栏提供搜索入口，也可按 `⌘K` / `Ctrl+K` 打开；输入中文、正文关键词或 API 名称搜索，支持拼写容错、摘要高亮、方向键选择与 Enter 打开对应章节。输入框和可编辑内容中不接管打开快捷键。
+
+- `build/docsSearch.ts` 复用文档页面的 Markdown 解析器，按正文标题切段，提取目录标题、描述、正文、表格、代码示例和示意说明；隐藏文档不进入索引。开发文档直接读取模板子模块，与页面正文保持同源。
+- Vite 构建时为两个文档集分别生成包含正文与 `Fuse.createIndex()` 结果的 `assets/<文档集>-search-<哈希>.json`，页面通过虚拟模块取得对应地址。文档更新后执行原有构建或部署命令即可刷新索引，不需要手动维护生成文件。
+- 首次打开搜索才加载 Fuse.js 与当前文档集的索引，通过 `Fuse.parseIndex()` 恢复；同一页面会话内复用搜索实例，加载失败可重试。索引使用带哈希的静态资源缓存，页面与索引随同一构建发布。
+- 开发服务器按搜索请求读取当前 Markdown；重新加载页面后即可搜索修改过的正文。章节锚点与正文定位共用规则，同名标题按顺序生成唯一后缀。
 
 ## 插件开发文档
 
@@ -93,6 +102,7 @@ src/changelog/        更新日志：读取两端发布说明、页面组件
 src/lib/              两个入口共用的工具：站点链接、GitHub 星标、平台识别
 build/release.ts      构建与运行时共用的清单解析和下载信息渲染
 build/siteNav.ts      首页导航与页脚的入口标记
+build/docsSearch.ts   两类文档的章节索引、Fuse 预索引及 Vite 构建与开发接入
 functions/            首页请求时更新下载信息，异常时保留快照
 public/               原样拷贝：图标、_headers、仅匹配首页的 _routes.json
 ```

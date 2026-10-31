@@ -8,11 +8,12 @@ import type { DocCollection, DocEntry } from "./collection.ts";
 import { DocsHeader } from "./DocsHeader.tsx";
 import { DocsNav } from "./DocsNav.tsx";
 import { DocsOutline } from "./DocsOutline.tsx";
+import { DocsSearch } from "./DocsSearch.tsx";
 import { getDocsKit } from "./editorKit.ts";
 import { DocDemo } from "./showcase/DocDemo.tsx";
 import {
   extractOutline,
-  headingAnchor,
+  headingAnchors,
   queryHeadingElements,
   type OutlineItem,
 } from "./outline.ts";
@@ -109,11 +110,12 @@ function useHashScroll(doc: LoadedDoc | null) {
   useEffect(() => {
     if (!doc || !hash) return;
     const anchor = decodeURIComponent(hash.slice(1));
-    const index = doc.outline.findIndex(item => headingAnchor(item.title) === anchor);
+    const index = headingAnchors(doc.outline.map(item => item.title)).indexOf(anchor);
     if (index < 0) return;
     const align = () => scrollToHeading(index, "instant");
     const observer = new ResizeObserver(align);
     observer.observe(document.body);
+    align();
     const stop = () => {
       observer.disconnect();
       clearTimeout(timer);
@@ -272,7 +274,15 @@ function NotFound({ collection }: { collection: DocCollection }) {
 }
 
 /** 一个文档集的单页应用：左侧目录、中间正文、右侧本页大纲 */
-export function DocsApp({ collection, load }: { collection: DocCollection; load: DocLoader }) {
+export function DocsApp({
+  collection,
+  load,
+  searchIndexUrl,
+}: {
+  collection: DocCollection;
+  load: DocLoader;
+  searchIndexUrl: string;
+}) {
   const entry = collection.find(usePathname());
   const [loadDoc] = useState(() => createDocCache(load));
   const [navOpen, setNavOpen] = useState(false);
@@ -291,6 +301,7 @@ export function DocsApp({ collection, load }: { collection: DocCollection; load:
       <DocsHeader
         current={collection.site}
         nav={{ open: navOpen, onToggle: () => setNavOpen(open => !open) }}
+        search={<DocsSearch collection={collection} indexUrl={searchIndexUrl} onOpen={closeNav} />}
       />
       {navOpen && entry && (
         <div className="bg-page fixed inset-x-0 top-[60px] bottom-0 z-30 overflow-y-auto px-4 py-6 lg:hidden">
