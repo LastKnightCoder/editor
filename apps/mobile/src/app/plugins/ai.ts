@@ -9,6 +9,7 @@ import type {
   PluginAIResult,
 } from "@tau/plugins";
 import type { AiModelRef } from "@tau/ai/contracts";
+import { reservePluginInputTokens } from "@tau/ai/plugin-quota";
 import type { MobileAiService } from "../../services/ai";
 
 export interface MobilePluginAIConfig {
@@ -316,7 +317,11 @@ export function createMobilePluginAI(options: Options) {
         requestId,
         input: { feature: input.feature, maxOutputTokens: input.maxOutputTokens ?? null },
         reference,
-        capacity: { contextWindow: model.model.contextWindow, maxTokens: model.model.maxTokens },
+        capacity: {
+          contextWindow: model.model.contextWindow,
+          maxTokens: model.model.maxTokens,
+          inputTokens: reservePluginInputTokens(input.messages, model.model.contextWindow),
+        },
       });
       started = true;
       if (!/^[a-f0-9]{64}$/.test(authorized.modelRevision ?? ""))

@@ -17,6 +17,7 @@
     "./skills/internal/*.md": "./src/skills/internal/*.md",
     "./mcp": "./src/mcp/index.ts",
     "./tool-identity": "./src/tool-identity.ts",
+    "./plugin-quota": "./src/plugin-quota.ts",
     "./think-stream": "./src/think-stream.ts"
   },
   "scripts": {
