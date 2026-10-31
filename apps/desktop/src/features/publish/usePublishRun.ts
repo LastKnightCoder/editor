@@ -11,6 +11,7 @@ import { selectFile } from "@/commands";
 import { getPublishHistory, getPublishSelections, previewPublishPlan } from "@/commands/publish";
 import type { PublishConfig } from "./usePublishConfig";
 import { usePublishRunStore } from "./publishRunStore";
+import type { PublishImageWarning } from "@/types/publish";
 
 export type { RunState } from "./publishRunStore";
 
@@ -18,6 +19,7 @@ export interface PlanSummary {
   upload: string[];
   remove: string[];
   computedAt: number;
+  imageWarnings?: PublishImageWarning[];
 }
 
 export function usePublishRun(config: PublishConfig) {
@@ -75,6 +77,7 @@ export function usePublishRun(config: PublishConfig) {
         upload: result.toUpload,
         remove: result.toDelete,
         computedAt: Date.now(),
+        imageWarnings: result.imageWarnings,
       });
       setPlanStale(false);
     } catch (error) {

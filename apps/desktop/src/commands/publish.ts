@@ -8,6 +8,7 @@ import {
   IPublishResult,
   IPublishAppearanceSettings,
   PublishContentType,
+  PublishExportResult,
 } from "@/types/publish";
 
 // ============ 发布选择相关 ============
@@ -108,7 +109,7 @@ export async function exportPublishOutput(options: {
   basePath?: string;
   siteConfig: import("@/types/publish").PublishSiteConfig;
   settings?: IPublishAppearanceSettings;
-}): Promise<string[]> {
+}): Promise<PublishExportResult> {
   await ensureModule("publish");
   return invoke("export-publish-output", {
     ...options,

@@ -8,14 +8,20 @@ import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 import { executePublish } from "@/commands";
 import { exportPublishOutput } from "@/commands/publish";
 import { openPage } from "@/services/page-navigation";
-import type { IPublishProgress, IPublishResult } from "@/types/publish";
+import type { IPublishProgress, IPublishResult, PublishImageWarning } from "@/types/publish";
 import type { PublishConfig } from "./usePublishConfig";
 
 export type RunState =
   | { kind: "idle" }
   | { kind: "running"; startedAt: number; progress: IPublishProgress | null }
   | { kind: "done"; finishedAt: number; duration: number; result: IPublishResult }
-  | { kind: "exported"; finishedAt: number; duration: number; targetDir: string }
+  | {
+      kind: "exported";
+      finishedAt: number;
+      duration: number;
+      targetDir: string;
+      imageWarnings: PublishImageWarning[];
+    }
   | { kind: "error"; message: string };
 
 export interface PublishRunParams {
@@ -52,14 +58,20 @@ export const usePublishRunStore = create<PublishRunStore>()((set, get) => ({
     try {
       if (!publish.site.templateId) throw new Error("请先在站点设置中选择模板插件");
       if (active === EPublishProvider.Local) {
-        await exportPublishOutput({
+        const result = await exportPublishOutput({
           targetDir,
           basePath: publish.local.basePath,
           siteConfig: publish.site,
           settings: { appearance },
         });
         const finishedAt = Date.now();
-        next = { kind: "exported", finishedAt, duration: finishedAt - startedAt, targetDir };
+        next = {
+          kind: "exported",
+          finishedAt,
+          duration: finishedAt - startedAt,
+          targetDir,
+          imageWarnings: result.imageWarnings,
+        };
       } else {
         const result = await executePublish({
           providerType: active,
@@ -101,13 +113,15 @@ function notifyFinished(run: RunState) {
 
   if (run.kind === "done") {
     const { uploaded, failed } = run.result;
+    const imageCount = run.result.imageWarnings?.length ?? 0;
     if (failed.length === 0) {
       appNotify({
         id: NOTICE_ID,
-        title: "站点已发布",
-        body: `${uploaded.length} 个文件已上传 · 用时 ${seconds(run.duration)} 秒`,
+        title: imageCount ? "站点已发布，存在图片缺失" : "站点已发布",
+        body: `${uploaded.length} 个文件已上传 · 用时 ${seconds(run.duration)} 秒${imageCount ? `；${imageCount} 处图片未能发布，请查看详情` : ""}`,
         source: "发布",
-        tone: "ok",
+        tone: imageCount ? "neutral" : "ok",
+        sticky: imageCount > 0,
         actions: [view],
       });
     } else {
@@ -122,12 +136,16 @@ function notifyFinished(run: RunState) {
       });
     }
   } else if (run.kind === "exported") {
+    const imageCount = run.imageWarnings.length;
     appNotify({
       id: NOTICE_ID,
-      title: "静态站点已导出",
-      body: run.targetDir,
+      title: imageCount ? "静态站点已导出，存在图片缺失" : "静态站点已导出",
+      body: imageCount
+        ? `${run.targetDir}；${imageCount} 处图片未能导出，请查看详情`
+        : run.targetDir,
       source: "发布",
-      tone: "ok",
+      tone: imageCount ? "neutral" : "ok",
+      sticky: imageCount > 0,
       actions: [view],
     });
   } else if (run.kind === "error") {

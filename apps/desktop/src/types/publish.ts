@@ -66,6 +66,10 @@ export interface IPublishFile {
   path: string;
   content: Buffer | string;
   hash: string;
+  /** 本文件引用的宿主资源，使用发布根目录内的路径。 */
+  dependencies?: string[];
+  /** 正文以链接引用的发布图片候选，仅保留当前目标账本中已知的资源。 */
+  referencedMedia?: string[];
   sourceType?: PublishContentType;
   sourceId?: number;
 }
@@ -75,6 +79,7 @@ export type PublishFileDescriptor = Omit<IPublishFile, "content">;
  * 发布计划
  */
 export interface IPublishPlan {
+  imageWarnings?: PublishImageWarning[];
   releaseState?: PublishReleaseState;
   toUpload: IPublishFile[];
   toDelete: string[];
@@ -102,6 +107,7 @@ export interface PublishReleaseState {
  */
 export interface IPublishPlanPreview {
   warnings?: string[];
+  imageWarnings?: PublishImageWarning[];
   toUpload: string[];
   toDelete: string[];
 }
@@ -175,11 +181,24 @@ export interface IUploadResult {
  * 发布结果
  */
 export interface IPublishResult {
+  imageWarnings?: PublishImageWarning[];
   success: boolean;
   uploaded: string[];
   deleted: string[];
   failed: { path: string; error: string }[];
   skipped: string[];
+}
+
+export interface PublishImageWarning {
+  content: ContentRef;
+  title: string;
+  url: string;
+  reason: string;
+}
+
+export interface PublishExportResult {
+  files: string[];
+  imageWarnings: PublishImageWarning[];
 }
 
 /**

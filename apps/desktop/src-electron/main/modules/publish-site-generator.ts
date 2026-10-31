@@ -11,6 +11,8 @@ import type { TemplatePackage } from "../services/template-package";
 import type { JsonValue } from "@tau/plugins";
 import { resolveSiteFields } from "@tau/plugins/template";
 import { PublishDataOutput, type PublishDataBody } from "./publish-data-output";
+import { PublishImages } from "./publish-images";
+import type { ContentResourceDeclarations } from "@tau/db-schema/content-resources";
 import { existsSync, readFileSync } from "fs";
 import type { Descendant } from "slate";
 import { PublishPluginCatalog, type PublishPluginSnapshot } from "../services/plugin-publish";
@@ -22,6 +24,7 @@ import type {
   IPublishListItem,
   IPublishAppearanceSettings,
   IPublishFaviconConfig,
+  PublishImageWarning,
 } from "@/types/publish";
 import type { ICard } from "@/types/card";
 import type { IArticle } from "@/types/article";
@@ -58,6 +61,7 @@ export interface PublishSelectionInput {
 }
 
 export interface PublishGeneratorOptions {
+  resourceDeclarations?: ContentResourceDeclarations;
   buildSearchIndex?: (
     input: BuildPublishSearchIndexInput
   ) => Promise<import("@tau/plugins/publish-data").SearchFile>;
@@ -147,6 +151,7 @@ export class PublishSiteGenerator {
   private contentNodes!: ReturnType<typeof createPublishContentResolver>;
   private readonly pluginCatalog: PublishPluginCatalog;
   private readonly buildSearchIndex: NonNullable<PublishGeneratorOptions["buildSearchIndex"]>;
+  private readonly resourceDeclarations: ContentResourceDeclarations;
 
   constructor(options: PublishGeneratorOptions) {
     if (options.plugins?.plugins.length && !options.buildSearchIndex)
@@ -157,6 +162,7 @@ export class PublishSiteGenerator {
     this.compileTailwind = options.compileTailwind;
     this.logger = options.logger;
     this.pluginCatalog = new PublishPluginCatalog(options.plugins);
+    this.resourceDeclarations = options.resourceDeclarations ?? {};
   }
 
   /** 生成全部发布文件 */
@@ -165,7 +171,12 @@ export class PublishSiteGenerator {
     selections: PublishSelectionInput[],
     site: ISiteMeta,
     appearanceSettings?: IPublishAppearanceSettings
-  ): Promise<{ files: IPublishFile[]; virtualProcessed: number; warnings: string[] }> {
+  ): Promise<{
+    files: IPublishFile[];
+    virtualProcessed: number;
+    warnings: string[];
+    imageWarnings: PublishImageWarning[];
+  }> {
     return this.generatePublishFiles(db, selections, site, appearanceSettings);
   }
 
@@ -196,16 +207,23 @@ export class PublishSiteGenerator {
     selections: PublishSelectionInput[],
     site: ISiteMeta,
     appearanceSettings?: IPublishAppearanceSettings
-  ): Promise<{ files: IPublishFile[]; virtualProcessed: number; warnings: string[] }> {
+  ): Promise<{
+    files: IPublishFile[];
+    virtualProcessed: number;
+    warnings: string[];
+    imageWarnings: PublishImageWarning[];
+  }> {
     const contentWarnings = new Set<string>();
     this.contentNodes = createPublishContentResolver(
       db,
       identity => this.linkTargets[identity],
       warning => contentWarnings.add(warning)
     );
+    const images = new PublishImages(site.basePath, this.resourceDeclarations);
     this.output = new PublishDataOutput(
       (data, dataPath) => this.pluginCatalog.dependencies(data, dataPath),
-      identity => this.linkTargets[identity]
+      identity => this.linkTargets[identity],
+      images
     );
     this.pluginCatalog.reset();
     this.tailwindCssCache.clear();
@@ -278,6 +296,7 @@ export class PublishSiteGenerator {
       this.buildHomeInitData(cards, articles, docResult.timelineEntries, projects.length)
     );
     for (const file of this.pluginCatalog.files()) this.output.add(file);
+    for (const file of images.files()) this.output.add(file);
     if (this.favicon) {
       this.output.add({
         path: this.favicon.output.outputPath,
@@ -303,6 +322,7 @@ export class PublishSiteGenerator {
       }),
       virtualProcessed: docResult.skippedDocItems,
       warnings: [...this.pluginCatalog.warnings(), ...contentWarnings],
+      imageWarnings: images.warnings(),
     };
   }
 

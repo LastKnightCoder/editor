@@ -13,6 +13,7 @@ import type {
 } from "@tau/plugins/publish-data";
 import type { IPublishFile } from "@/types/publish";
 import type { TemplatePackage } from "../services/template-package";
+import type { PublishImages } from "./publish-images";
 
 type DataKind = PublishedData["meta"]["type"];
 /** 单条内容的正文数据；版本、key、发布时间与资源依赖由输出层补齐。 */
@@ -34,7 +35,8 @@ export class PublishDataOutput {
       dataPath: string
     ) => import("@tau/plugins/rendering").PublishedPluginRender[],
     /** 站内链接目标键（`${contentType}:${refId}`）→ 已发布内容。 */
-    private readonly linkTarget: (identity: string) => ContentRef | undefined
+    private readonly linkTarget: (identity: string) => ContentRef | undefined,
+    private readonly images?: PublishImages
   ) {}
   private readonly output = new Map<string, IPublishFile>();
   private readonly items: ManifestItem[] = [];
@@ -70,7 +72,8 @@ export class PublishDataOutput {
       if (!this.output.has(path)) this.add({ path, content: css });
       contentStyles.push({ href: posix.relative(posix.dirname(dataPath), path), integrity: hash });
     }
-    const content = body.content;
+    const prepared = this.images?.prepare(ref, body.content);
+    const content = prepared?.content ?? body.content;
     const revisions: number[] = [];
     const links: Record<string, ContentRef> = {};
     const visit = (value: unknown): void => {
@@ -106,6 +109,8 @@ export class PublishDataOutput {
     const file = this.add({
       path: `data/${stem}.${hash}.json`,
       content: text,
+      ...(prepared?.dependencies.length ? { dependencies: prepared.dependencies } : {}),
+      ...(prepared?.referencedMedia.length ? { referencedMedia: prepared.referencedMedia } : {}),
       ...(ref.type === "card" || ref.type === "article"
         ? { sourceType: ref.type, sourceId: ref.id }
         : ref.type === "doc"

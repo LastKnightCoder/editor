@@ -6,20 +6,20 @@
 
 每个常设子系统一个文件或目录，替换式更新：只写「现在是什么」，改代码的同一提交里更新对应小节。
 
-| 位置                                                          | 内容                                                                                                                           |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| [desktop.md](./architecture/desktop.md)                       | 桌面端权威交接文档：Page 协议、三大协议、交互规范、数据接线、视频平台字幕、Markdown 会话、只读首屏、目录性能及扩展字数协议     |
-| [design-system.md](./architecture/design-system.md)           | UI 设计系统：token 三层体系、多主题机制、组件分层                                                                              |
-| 包内文档                                                      | database / whiteboard / editor 架构手册在各包 `docs/architecture.md`；editor-collab / markdown 的投影与缓存边界见各包 README   |
-| [storage-sync.md](./architecture/storage-sync.md)             | 数据库、资源与会话文件的宿主分块协议及内存边界                                                                                 |
-| [collaboration.md](./architecture/collaboration.md)           | 实时协作、白板推送与在线状态、同步诊断、当前格式边界与提交协议                                                                 |
-| [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点                                                 |
-| [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                             |
-| [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、AI 对话与图片生成、外部打开 Markdown、正文统计与空文档判断                                             |
-| [plugin-system.md](./architecture/plugin-system.md)           | 插件体系目标架构与能力                                                                                                         |
-| [plugin-portability.md](./architecture/plugin-portability.md) | 桌面与移动插件宿主、AI 接线、私有包事务及正文适配；作者契约见 [SDK 包内文档](/plugins/tau-plugin-template/docs/portability.md) |
-| [plugin-system/](./architecture/plugin-system/)               | 插件体系：安全模型、运行架构、API 闭环、边界约定与能力说明                                                                     |
-| [knowledge-loop/](./architecture/knowledge-loop/)             | 知识闭环：产品方向与技术方案                                                                                                   |
+| 位置                                                          | 内容                                                                                                                                         |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| [desktop.md](./architecture/desktop.md)                       | 桌面端权威交接文档：Page 协议、三大协议、交互规范、数据接线、博客本地图片发布、视频平台字幕、Markdown 会话、只读首屏、目录性能及扩展字数协议 |
+| [design-system.md](./architecture/design-system.md)           | UI 设计系统：token 三层体系、多主题机制、组件分层                                                                                            |
+| 包内文档                                                      | database / whiteboard / editor 架构手册在各包 `docs/architecture.md`；editor-collab / markdown 的投影与缓存边界见各包 README                 |
+| [storage-sync.md](./architecture/storage-sync.md)             | 数据库、资源与会话文件的宿主分块协议及内存边界                                                                                               |
+| [collaboration.md](./architecture/collaboration.md)           | 实时协作、白板推送与在线状态、同步诊断、当前格式边界与提交协议                                                                               |
+| [browser-companion.md](./architecture/browser-companion.md)   | 浏览器伴读扩展：/browser 连接与一次性授权、scope、标注与笔记数据、页内实现要点                                                               |
+| [platform-rpc.md](./architecture/platform-rpc.md)             | 跨端架构：命令/能力分离与 Web 适配                                                                                                           |
+| [mobile.md](./architecture/mobile.md)                         | 移动端页面栈与返回策略、AI 对话与图片生成、外部打开 Markdown、正文统计与空文档判断                                                           |
+| [plugin-system.md](./architecture/plugin-system.md)           | 插件体系目标架构与能力                                                                                                                       |
+| [plugin-portability.md](./architecture/plugin-portability.md) | 桌面与移动插件宿主、AI 接线、私有包事务及正文适配；作者契约见 [SDK 包内文档](/plugins/tau-plugin-template/docs/portability.md)               |
+| [plugin-system/](./architecture/plugin-system/)               | 插件体系：安全模型、运行架构、API 闭环、边界约定与能力说明                                                                                   |
+| [knowledge-loop/](./architecture/knowledge-loop/)             | 知识闭环：产品方向与技术方案                                                                                                                 |
 
 ## decisions.md — 裁决规则
 

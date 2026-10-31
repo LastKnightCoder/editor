@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   handlers: new Map<string, (data: unknown) => void>(),
   resolvePublish: (_: unknown) => {},
   executePublish: vi.fn(),
+  exportPublishOutput: vi.fn(),
   // appNotify 会触达 notify 的完整命令式 API（isActive / update / dismiss）
   notify: Object.assign(vi.fn(), {
     update: vi.fn(),
@@ -25,7 +26,7 @@ vi.mock("@/stores/useBackendWebsocketStore", () => {
 vi.mock("@/commands", () => ({
   executePublish: mocks.executePublish,
 }));
-vi.mock("@/commands/publish", () => ({ exportPublishOutput: vi.fn() }));
+vi.mock("@/commands/publish", () => ({ exportPublishOutput: mocks.exportPublishOutput }));
 vi.mock("@tau/ui", () => ({ notify: mocks.notify }));
 vi.mock("@/services/page-navigation", () => ({ openPage: mocks.openPage }));
 
@@ -52,6 +53,13 @@ const params = {
   appearance: {},
 } as unknown as Parameters<ReturnType<typeof usePublishRunStore.getState>["start"]>[0];
 
+const imageWarning = {
+  content: { key: "article:1", type: "article", id: 1 },
+  title: "第一篇文章",
+  url: "/missing.png",
+  reason: "本地图片不存在",
+};
+
 beforeEach(() => {
   usePublishRunStore.setState({ run: { kind: "idle" }, finishSeq: 0 });
   mocks.executePublish.mockReset();
@@ -59,6 +67,7 @@ beforeEach(() => {
     () => new Promise(resolve => (mocks.resolvePublish = resolve))
   );
   mocks.notify.mockReset();
+  mocks.exportPublishOutput.mockReset();
   mocks.openPage.mockReset();
 });
 
@@ -77,13 +86,46 @@ it("发布中再次 start 被忽略，进度经常驻 handler 写入", async () 
   usePublishRunStore.getState().reset();
   expect(usePublishRunStore.getState().run.kind).toBe("running");
 
-  mocks.resolvePublish({ success: true, uploaded: ["a"], failed: [], deleted: [], skipped: [] });
+  mocks.resolvePublish({
+    success: true,
+    uploaded: ["a"],
+    failed: [],
+    deleted: [],
+    skipped: [],
+    imageWarnings: [imageWarning],
+  });
   await first;
   await flush();
   expect(usePublishRunStore.getState().run.kind).toBe("done");
   expect(usePublishRunStore.getState().finishSeq).toBe(1);
-  expect(lastNotice()).toMatchObject({ title: "站点已发布", tone: "ok" });
-  expect(lastNotice().sticky).toBeFalsy();
+  expect(lastNotice()).toMatchObject({
+    title: "站点已发布，存在图片缺失",
+    tone: "neutral",
+    sticky: true,
+  });
+  const done = usePublishRunStore.getState().run;
+  expect(done.kind === "done" && done.result.success).toBe(true);
+  expect(done.kind === "done" && done.result.imageWarnings).toEqual([imageWarning]);
+});
+
+it("本地导出完成时保留缺图清单并提示，不转为失败", async () => {
+  mocks.exportPublishOutput.mockResolvedValueOnce({
+    files: ["/site/index.html"],
+    imageWarnings: [imageWarning],
+  });
+  await usePublishRunStore
+    .getState()
+    .start({ ...params, active: EPublishProvider.Local, targetDir: "/site" });
+  await flush();
+  expect(usePublishRunStore.getState().run).toMatchObject({
+    kind: "exported",
+    imageWarnings: [imageWarning],
+  });
+  expect(lastNotice()).toMatchObject({
+    title: "静态站点已导出，存在图片缺失",
+    tone: "neutral",
+    sticky: true,
+  });
 });
 
 it("部分失败与异常：常驻 danger 通知，异常转 error 态", async () => {

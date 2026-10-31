@@ -5,7 +5,7 @@ import { useState, type ReactNode } from "react";
 import { Check, ChevronRight, ExternalLink, RotateCw, Upload } from "lucide-react";
 import { Button, PanelAction, PanelNote, PanelTitle } from "@tau/ui";
 import { EPublishProvider } from "@/stores/useSettingStore";
-import type { IPublishProgress } from "@/types/publish";
+import type { IPublishProgress, PublishImageWarning } from "@/types/publish";
 import { type PublishConfig } from "../usePublishConfig";
 import type { PlanSummary, RunState } from "../usePublishRun";
 import { formatAgo } from "@/utils/formatAgo";
@@ -13,7 +13,7 @@ import { formatDuration } from "./format";
 
 /** 右栏一节：左右内距与纸左侧内容对称（右侧扣掉 FadeScroll 的 6px 滚动条透明边） */
 function RailSection({ children }: { children: ReactNode }) {
-  return <section className="py-5 pl-8 pr-[26px]">{children}</section>;
+  return <section className="py-5 pr-[26px] pl-8">{children}</section>;
 }
 
 /* ─────────────── 首次引导 ─────────────── */
@@ -91,6 +91,29 @@ export function GuideCard({
 
 const FILE_PREVIEW_LIMIT = 6;
 
+function ImageWarnings({ warnings = [] }: { warnings?: PublishImageWarning[] }) {
+  if (!warnings.length) return null;
+  return (
+    <details className="bg-warn-soft rounded-tau-sm mt-3 p-3">
+      <summary className="text-tau-sm text-warn cursor-pointer font-medium">
+        {warnings.length} 处图片无法发布
+      </summary>
+      <p className="text-tau-sm text-ink-2 mt-2">不影响继续发布，你可以稍后修复这些图片。</p>
+      <ul className="text-tau-sm mt-2 flex max-h-64 flex-col gap-3 overflow-auto">
+        {warnings.map(warning => (
+          <li key={JSON.stringify([warning.content.key, warning.url])} className="min-w-0">
+            <div className="text-ink-1 font-medium break-words">{warning.title}</div>
+            <div className="text-ink-2 font-tau-mono mt-0.5 break-all select-text">
+              {warning.url}
+            </div>
+            <div className="text-ink-3 mt-0.5">{warning.reason}</div>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
 function PlanRow({
   color,
   label,
@@ -137,7 +160,7 @@ function PlanRow({
         </b>
       </button>
       {open && (
-        <div className="font-tau-mono text-ink-2 mb-1 ml-6 mt-0.5 text-[11px] leading-[1.9]">
+        <div className="font-tau-mono text-ink-2 mt-0.5 mb-1 ml-6 text-[11px] leading-[1.9]">
           {files.slice(0, FILE_PREVIEW_LIMIT).map(path => (
             <div key={path} className="truncate" title={path}>
               {path}
@@ -186,7 +209,7 @@ export function PlanCard({
       )}
 
       {/* 比例条：上传 accent / 删除 danger，空计划为纯轨道 */}
-      <div className="bg-track mb-3 mt-3.5 flex h-2 gap-0.5 overflow-hidden rounded-full">
+      <div className="bg-track mt-3.5 mb-3 flex h-2 gap-0.5 overflow-hidden rounded-full">
         {upload > 0 && <i className="bg-accent block h-full" style={{ flex: upload }} />}
         {remove > 0 && <i className="bg-danger block h-full" style={{ flex: remove }} />}
       </div>
@@ -215,6 +238,7 @@ export function PlanCard({
       {plan && (
         <div className="text-tau-tiny text-ink-3 mt-2 px-1.5">{formatAgo(plan.computedAt)}计算</div>
       )}
+      <ImageWarnings warnings={plan?.imageWarnings} />
     </RailSection>
   );
 }
@@ -232,7 +256,7 @@ const PHASES: { key: IPublishProgress["phase"]; label: string }[] = [
 function Steps({ phase }: { phase: IPublishProgress["phase"] | null }) {
   const current = phase ? PHASES.findIndex(p => p.key === phase) : 0;
   return (
-    <div className="mb-3 mt-4 flex">
+    <div className="mt-4 mb-3 flex">
       {PHASES.map((p, i) => {
         const done = i < current;
         const cur = i === current;
@@ -340,10 +364,16 @@ export function ActionCard({
     let title: ReactNode;
     let desc: ReactNode = null;
     let failures: { path: string; error: string }[] = [];
+    const imageWarnings =
+      run.kind === "done"
+        ? run.result.imageWarnings
+        : run.kind === "exported"
+          ? run.imageWarnings
+          : [];
     if (run.kind === "done") {
       const { result } = run;
       failures = result.failed;
-      tone = result.success && failures.length === 0 ? "ok" : "warn";
+      tone = result.success && failures.length === 0 && !imageWarnings?.length ? "ok" : "warn";
       title =
         failures.length === 0
           ? `${result.uploaded.length} 个文件已上传`
@@ -355,6 +385,7 @@ export function ActionCard({
         .filter(Boolean)
         .join("，");
     } else if (run.kind === "exported") {
+      if (imageWarnings?.length) tone = "warn";
       title = "静态站点已导出";
       desc = <span className="font-tau-mono break-all">{run.targetDir}</span>;
     } else {
@@ -411,6 +442,7 @@ export function ActionCard({
             ))}
           </div>
         )}
+        <ImageWarnings warnings={imageWarnings} />
         <div className="mt-3 flex gap-2">
           <Button
             variant="primary"
