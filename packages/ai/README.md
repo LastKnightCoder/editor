@@ -98,7 +98,7 @@ export async function startConversation(databaseName: string, model: AiModelRef)
 
 默认权限为 manual；read 工具可执行，write / execute 需要确认。没有 approve / question 宿主时明确拒绝对应交互，不永久等待、不默认同意。`toolIds: []` 禁止工具；显式 skillIds 可以直接准备用户点名的说明，但不会授予额外工具权限。acceptEdits / bypass 必须由宿主显式配置，不能由模型参数决定。
 
-tools.register 与 skills.registerSource 返回释放函数，可附带 databaseName 作用域。执行上下文中的库身份必须贯穿实际业务命令；不能在异步结束后重新读取 activeDatabase。MCP 使用每个服务冻结的原生网络上下文，工具调用前后复核库归属和租约；stdio 返回 unsupported_transport。所有 MCP 工具默认 execute，服务的只读注解不会自动降低风险。
+tools.register 与 skills.registerSource 返回释放函数，可附带 databaseName 作用域。tools.list({ databaseName }) 只返回全局工具和该库当前注册的工具，供聊天逐轮选择；不传参数时观察全部注册。执行上下文中的库身份必须贯穿实际业务命令；不能在异步结束后重新读取 activeDatabase。MCP 使用每个服务冻结的原生网络上下文，工具调用前后复核库归属和租约；stdio 返回 unsupported_transport。所有 MCP 工具默认 execute，服务的只读注解不会自动降低风险。
 
 Skills 来源通过 list/read 注入，来源宿主须校验真实路径与符号链接。目录只包含描述，正文按需加载；手动技能需明确选择，allowed-tools 只作为技能元数据保留，不授予能力。readResource 限于所选技能的相对路径，不提供脚本执行。
 
@@ -108,7 +108,7 @@ retryLast 使用 AiRetryRunRequest，按末尾用户 entryId 定位，复用问�
 
 内置输入解析支持纯文本与 data URL 内联图片，允许没有文字的纯图片消息。包含图片的新输入、宿主解析结果或恢复上下文要求模型 input 包含 image；不支持时在网络请求与新用户消息落盘前拒绝，不由 SDK 静默丢图。跨端历史投影使用权威 pi 用户消息中的内联图片字节填充展示图片，原 display.path 只保留来源信息。文件、普通 URL、设备路径和其他附件必须由 `prepareInput` 解析成模型输入；服务不会把桌面绝对路径当成手机可用资源，也不因 JSONL 同步自动恢复外部附件。
 
-releaseLibrary 停止并等待该库运行、释放网络上下文与有作用域的注册；prepareMaintenance 忙时拒绝，释放连接与租约但保留工具与 Skill 声明，成功返回用于结束本地维护门闩的函数；dispose 释放服务。suspend 停止并等待工作、关闭 MCP 和网络并释放原生租约，保留工具与 Skill 声明；resume 只解除暂停，新调用重新取得租约，不重放任务、不自动重连 MCP。mcp.list 是纯内存观察接口，暂停/释放期间仍可读取断开状态。工厂实例由宿主显式绑定 `bindMobileAiLifecycle`，返回函数可注销监听；惰性单例在首次调用时绑定 document 的 visibilitychange 与 pagehide / pageshow，不创建功能入口。系统立即冻结或杀进程时仍依靠已提交数据与事务恢复，不承诺后台继续运行。
+releaseLibrary 停止并等待该库运行、释放网络上下文与有作用域的注册；prepareMaintenance 忙时拒绝，释放连接与租约但保留工具、Skill 和 MCP 声明，成功返回用于结束本地维护门闩的函数；dispose 释放服务。suspend 停止并等待工作、关闭 MCP 和网络并释放原生租约，保留工具、Skill 和 MCP 声明；resume 解除暂停并恢复尚未连接的远程 MCP，重新取得租约与执行身份，不重放任务或继承旧授权。同一声明的在途连接去重，恢复全部服务后报告失败项；显式 disconnect 或 releaseLibrary 撤销声明，迟到连接只回收、不注册工具。mcp.list 是纯内存观察接口，暂停/释放期间仍可读取断开状态。工厂实例由宿主显式绑定 `bindMobileAiLifecycle`，返回函数可注销监听；惰性单例在首次调用时绑定 document 的 visibilitychange 与 pagehide / pageshow，不创建功能入口。系统立即冻结或杀进程时仍依靠已提交数据与事务恢复，不承诺后台继续运行。
 
 ## 模型与传输
 

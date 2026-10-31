@@ -11,6 +11,8 @@ import { createMobileAiService, type MobileAiOptions, type MobileAiService } fro
 import * as native from "../native";
 import { scriptedFetch } from "../../../../validation/ai/fixtures";
 import { createMobilePluginAI } from "../../../app/plugins/ai";
+import { createMobilePluginMcp } from "../../../app/plugins/ai-mcp";
+import type { PluginContext } from "@tau/plugins";
 
 vi.mock("../native", () => ({
   acquireLibrary: vi.fn(),
@@ -327,6 +329,103 @@ it("自动技能使用run局部辅助工具，目录和执行来自同一技能�
   expect(JSON.stringify(network.requests[0])).toContain("builtin:summary");
   expect(JSON.stringify(network.requests[1])).toContain("提取行动项");
   expect(value.tools.list().map(tool => tool.id)).toEqual(["local-read"]);
+});
+
+it("插件 MCP 工具按库加入模型循环，执行仍需审批，停用后退出目录", async () => {
+  const approve = vi.fn(async () => "allow" as const);
+  const value = service({ permissionMode: () => "manual", approve });
+  const initial = await create(value);
+  const plugin = createMobilePluginMcp({ databaseName: "test.db", ai: () => value });
+  const execute = vi.fn(async () => ({ content: "插件读取的笔记" }));
+  try {
+    plugin.adapter.register(
+      {
+        pluginId: "test.notes",
+        workspaceId: "test.db",
+        signal: new AbortController().signal,
+      } as PluginContext,
+      {
+        id: "notes",
+        name: "笔记",
+        tools: [
+          { name: "lookup", description: "读取笔记", inputSchema: { type: "object" }, execute },
+        ],
+      },
+      { id: "test.notes", name: "笔记插件", executionIdentity: "activation-1" }
+    );
+    await plugin.ready();
+    const tools = value.tools.list({ databaseName: "test.db" });
+    expect(tools).toHaveLength(1);
+    expect(value.tools.list({ databaseName: "other.db" })).toEqual([]);
+    const network = scriptedFetch("openai-completions", [
+      { name: tools[0].name, args: {} },
+      { text: "已查到笔记" },
+    ]);
+    vi.mocked(native.createModelFetch).mockResolvedValue({
+      config: structuredClone(config),
+      fetch: network.fetch,
+      dispose: vi.fn(),
+    });
+    const handle = await value.runs.start(
+      request(initial.revision, {
+        toolIds: tools.map(tool => tool.id),
+        interactionMode: "host",
+      })
+    );
+    expect((await handle.result).outcome).toBe("completed");
+    expect(approve).toHaveBeenCalledTimes(1);
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(network.requests[1])).toContain("插件读取的笔记");
+  } finally {
+    await plugin.dispose();
+  }
+  expect(value.tools.list({ databaseName: "test.db" })).toEqual([]);
+});
+
+it("显式选择才能将手动 Skill 正文注入首轮，并随用户消息落盘", async () => {
+  const value = service();
+  const initial = await create(value);
+  value.skills.registerSource({
+    id: "notes",
+    revision: "1",
+    list: async () => [
+      { id: "weekly", path: "weekly/SKILL.md" },
+      { id: "private", path: "private/SKILL.md" },
+    ],
+    read: async path =>
+      `---\nname: ${path.split("/")[0]}\ndescription: 手动技能\ndisable-model-invocation: true\n---\n${path.startsWith("weekly") ? "按本周成果与下周计划整理" : "未被选择的独立说明"}`,
+  });
+  value.tools.register(
+    {
+      id: "read",
+      name: "read",
+      sourceId: "host",
+      executionIdentity: "1",
+      risk: "read",
+      description: "读取",
+      inputSchema: { type: "object" },
+    },
+    async () => ({ content: "ok" })
+  );
+  const network = scriptedFetch("openai-completions", [{ text: "本周成果" }]);
+  vi.mocked(native.createModelFetch).mockResolvedValue({
+    config: structuredClone(config),
+    fetch: network.fetch,
+    dispose: vi.fn(),
+  });
+  const handle = await value.runs.start(
+    request(initial.revision, {
+      message: [{ type: "text", text: "帮我写周报", skills: ["notes:weekly"] }],
+      toolIds: ["read"],
+      skillIds: ["notes:weekly"],
+    })
+  );
+  expect((await handle.result).outcome).toBe("completed");
+  expect(JSON.stringify(network.requests[0])).toContain("按本周成果与下周计划整理");
+  expect(JSON.stringify(network.requests[0])).not.toContain("未被选择的独立说明");
+  expect((await value.sessions.get(ref)).messages[0].content).toEqual([
+    { type: "text", text: "帮我写周报", skills: ["notes:weekly"] },
+  ]);
 });
 
 it("toolIds为空时不向模型提供技能或业务工具", async () => {
