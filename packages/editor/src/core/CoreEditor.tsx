@@ -535,8 +535,10 @@ const Index = memo(
       ref,
       () => ({
         focus: () => {
+          const end = Editor.end(editor, []);
+          const voidEntry = Editor.void(editor, { at: end, mode: "highest" });
+          Transforms.select(editor, voidEntry ? Editor.start(editor, voidEntry[1]) : end);
           ReactEditor.focus(editor);
-          Transforms.select(editor, Editor.end(editor, []));
         },
         deselect: () => {
           ReactEditor.deselect(editor);

@@ -1,5 +1,5 @@
 diff --git a/dist/index.es.js b/dist/index.es.js
-index a8f0916..159601a 100644
+index a8f091669685f590c4abd10e72b4de26ffb7ae1e..605131cb0c99ff5c41e33bf47a6616748f6f9236 100644
 --- a/dist/index.es.js
 +++ b/dist/index.es.js
 @@ -113,7 +113,20 @@ var COMPOSITION_IDLE_TIMEOUT = 5000;
@@ -159,7 +159,34 @@ index a8f0916..159601a 100644
    };
    var handleCompositionEnd = _event => {
      if (compositionEndTimeoutId) {
-@@ -2878,16 +2979,37 @@ var Editable = /*#__PURE__*/forwardRef((props, forwardedRef) => {
+@@ -1458,7 +1559,7 @@ var Element = props => {
+       attributes.contentEditable = false;
+     }
+     var Tag = isInline ? 'span' : 'div';
+-    var [[_text]] = Node.texts(element);
++    var [[_text, _textPath]] = Node.texts(element);
+     children = /*#__PURE__*/React.createElement(Tag, {
+       "data-slate-spacer": true,
+       style: {
+@@ -1474,8 +1575,15 @@ var Element = props => {
+       parent: element,
+       text: _text
+     }));
+-    NODE_TO_INDEX.set(_text, 0);
+-    NODE_TO_PARENT.set(_text, element);
++    // 保留嵌套 void 内的真实祖先链，避免把容器误作文本叶子。
++    var _textParent = element;
++    for (var _textDepth = 0; _textDepth < _textPath.length; _textDepth++) {
++      var _textIndex = _textPath[_textDepth];
++      var _textChild = _textParent.children[_textIndex];
++      NODE_TO_INDEX.set(_textChild, _textIndex);
++      NODE_TO_PARENT.set(_textChild, _textParent);
++      _textParent = _textChild;
++    }
+   }
+   return renderElement({
+     attributes,
+@@ -2878,16 +2986,37 @@ var Editable = /*#__PURE__*/forwardRef((props, forwardedRef) => {
            domSelection.setBaseAndExtent(newDomRange.startContainer, newDomRange.startOffset, newDomRange.endContainer, newDomRange.endOffset);
          }
          scrollSelectionIntoView(editor, newDomRange);
@@ -203,7 +230,7 @@ index a8f0916..159601a 100644
        setTimeout(() => {
          state.isUpdatingSelection = false;
 diff --git a/dist/index.js b/dist/index.js
-index aa05da8..52ab659 100644
+index aa05da81ca617b8bcdf45dbb49ca5a2ed0baccda..9d99bc596d9859a75517590e97300c2c3b9a2378 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -240,7 +240,20 @@ var COMPOSITION_IDLE_TIMEOUT = 5000;
@@ -353,7 +380,37 @@ index aa05da8..52ab659 100644
    };
    var handleCompositionEnd = function handleCompositionEnd(_event) {
      if (compositionEndTimeoutId) {
-@@ -3332,16 +3431,37 @@ var Editable = /*#__PURE__*/React.forwardRef(function (props, forwardedRef) {
+@@ -1688,8 +1787,9 @@ var Element = function Element(props) {
+     var Tag = isInline ? 'span' : 'div';
+     var _Node$texts = slate.Node.texts(element),
+       _Node$texts2 = _slicedToArray(_Node$texts, 1),
+-      _Node$texts2$ = _slicedToArray(_Node$texts2[0], 1),
+-      _text = _Node$texts2$[0];
++      _Node$texts2$ = _slicedToArray(_Node$texts2[0], 2),
++      _text = _Node$texts2$[0],
++      _textPath = _Node$texts2$[1];
+     children = /*#__PURE__*/React.createElement(Tag, {
+       "data-slate-spacer": true,
+       style: {
+@@ -1705,8 +1805,15 @@ var Element = function Element(props) {
+       parent: element,
+       text: _text
+     }));
+-    slateDom.NODE_TO_INDEX.set(_text, 0);
+-    slateDom.NODE_TO_PARENT.set(_text, element);
++    // 保留嵌套 void 内的真实祖先链，避免把容器误作文本叶子。
++    var _textParent = element;
++    for (var _textDepth = 0; _textDepth < _textPath.length; _textDepth++) {
++      var _textIndex = _textPath[_textDepth];
++      var _textChild = _textParent.children[_textIndex];
++      slateDom.NODE_TO_INDEX.set(_textChild, _textIndex);
++      slateDom.NODE_TO_PARENT.set(_textChild, _textParent);
++      _textParent = _textChild;
++    }
+   }
+   return renderElement({
+     attributes: attributes,
+@@ -3332,16 +3439,37 @@ var Editable = /*#__PURE__*/React.forwardRef(function (props, forwardedRef) {
            domSelection.setBaseAndExtent(newDomRange.startContainer, newDomRange.startOffset, newDomRange.endContainer, newDomRange.endOffset);
          }
          scrollSelectionIntoView(editor, newDomRange);
@@ -397,7 +454,7 @@ index aa05da8..52ab659 100644
        setTimeout(function () {
          state.isUpdatingSelection = false;
 diff --git a/dist/slate-react.js b/dist/slate-react.js
-index e40b5aa..57c92f1 100644
+index e40b5aa45c9e56f0dda6201eae87619b8f340995..2ddebd495627695c1e9405f89880bb4f5eaece2e 100644
 --- a/dist/slate-react.js
 +++ b/dist/slate-react.js
 @@ -33670,7 +33670,20 @@
@@ -553,7 +610,37 @@ index e40b5aa..57c92f1 100644
  	  };
  	  var handleCompositionEnd = function handleCompositionEnd(_event) {
  	    if (compositionEndTimeoutId) {
-@@ -37261,16 +37360,37 @@
+@@ -35617,8 +35716,9 @@
+ 	    var Tag = isInline ? 'span' : 'div';
+ 	    var _Node$texts = slate.Node.texts(element),
+ 	      _Node$texts2 = _slicedToArray(_Node$texts, 1),
+-	      _Node$texts2$ = _slicedToArray(_Node$texts2[0], 1),
+-	      _text = _Node$texts2$[0];
++	      _Node$texts2$ = _slicedToArray(_Node$texts2[0], 2),
++	      _text = _Node$texts2$[0],
++	      _textPath = _Node$texts2$[1];
+ 	    children = /*#__PURE__*/React.createElement(Tag, {
+ 	      "data-slate-spacer": true,
+ 	      style: {
+@@ -35634,8 +35734,15 @@
+ 	      parent: element,
+ 	      text: _text
+ 	    }));
+-	    NODE_TO_INDEX.set(_text, 0);
+-	    NODE_TO_PARENT.set(_text, element);
++	    // 保留嵌套 void 内的真实祖先链，避免把容器误作文本叶子。
++	    var _textParent = element;
++	    for (var _textDepth = 0; _textDepth < _textPath.length; _textDepth++) {
++	      var _textIndex = _textPath[_textDepth];
++	      var _textChild = _textParent.children[_textIndex];
++	      NODE_TO_INDEX.set(_textChild, _textIndex);
++	      NODE_TO_PARENT.set(_textChild, _textParent);
++	      _textParent = _textChild;
++	    }
+ 	  }
+ 	  return renderElement({
+ 	    attributes: attributes,
+@@ -37261,16 +37368,37 @@
  	          domSelection.setBaseAndExtent(newDomRange.startContainer, newDomRange.startOffset, newDomRange.endContainer, newDomRange.endOffset);
  	        }
  	        scrollSelectionIntoView(editor, newDomRange);
