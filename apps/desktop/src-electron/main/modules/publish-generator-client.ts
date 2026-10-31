@@ -6,7 +6,7 @@
 import { MessageChannel, Worker } from "node:worker_threads";
 import { join } from "node:path";
 import log from "electron-log";
-import type { IPublishFile } from "@/types/publish";
+import type { IPublishFile, PublishImageWarning } from "@/types/publish";
 import type { PublishDataSource } from "./publish-site-generator";
 import TailwindRuntimeModule from "./tailwind-runtime";
 import { contentExecutor } from "../services/content-execution";
@@ -138,12 +138,17 @@ const toBuffer = (content: IPublishFile["content"] | Uint8Array): IPublishFile["
 export async function generatePublishFilesInWorker(
   data: PublishDataSource,
   request: Omit<PublishGeneratorRequest, "pathsOnly">
-): Promise<{ files: IPublishFile[]; virtualProcessed: number }> {
+): Promise<{
+  files: IPublishFile[];
+  virtualProcessed: number;
+  imageWarnings: PublishImageWarning[];
+}> {
   const result = await runWorker(data, { ...request, pathsOnly: false });
   if (result.type !== "done") throw new Error("发布生成 worker 返回了非预期结果");
   return {
     files: result.files.map(file => ({ ...file, content: toBuffer(file.content) })),
     virtualProcessed: result.virtualProcessed,
+    imageWarnings: result.imageWarnings,
   };
 }
 

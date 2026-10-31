@@ -7,7 +7,11 @@
  */
 
 import type { MessagePort } from "node:worker_threads";
-import type { IPublishAppearanceSettings, IPublishFile } from "@/types/publish";
+import type {
+  IPublishAppearanceSettings,
+  IPublishFile,
+  PublishImageWarning,
+} from "@/types/publish";
 import type { ISiteMeta, PublishDataSource, PublishSelectionInput } from "./publish-site-generator";
 import type { PublishPluginSnapshot } from "../services/plugin-publish";
 
@@ -17,6 +21,7 @@ export interface PublishGeneratorRequest {
   site: ISiteMeta;
   settings?: IPublishAppearanceSettings;
   plugins?: PublishPluginSnapshot;
+  resourceDeclarations?: import("@tau/db-schema/content-resources").ContentResourceDeclarations;
   /** 计划预览只回传路径、摘要与依赖描述，不拷回文件字节。 */
   pathsOnly: boolean;
 }
@@ -45,10 +50,17 @@ export type WorkerToMain =
       input: import("./publish-search-index").BuildPublishSearchIndexInput;
     }
   | { type: "tailwind"; reqId: number; code: string; extension: "tsx" | "html" }
-  | { type: "done"; files: IPublishFile[]; virtualProcessed: number; warnings: string[] }
+  | {
+      type: "done";
+      files: IPublishFile[];
+      virtualProcessed: number;
+      warnings: string[];
+      imageWarnings: PublishImageWarning[];
+    }
   | {
       type: "done-paths";
       warnings: string[];
+      imageWarnings: PublishImageWarning[];
       paths: string[];
       files: import("@/types/publish").PublishFileDescriptor[];
       release: import("@/types/publish").PublishedRelease;

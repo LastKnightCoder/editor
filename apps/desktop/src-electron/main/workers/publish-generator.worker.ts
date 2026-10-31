@@ -80,8 +80,9 @@ async function run() {
     compileTailwind,
     logger: console,
     plugins: request.plugins,
+    resourceDeclarations: request.resourceDeclarations,
   });
-  const { files, virtualProcessed, warnings } = await generator.generate(
+  const { files, virtualProcessed, warnings, imageWarnings } = await generator.generate(
     dataSource,
     request.selections,
     request.site,
@@ -91,13 +92,14 @@ async function run() {
     post({
       type: "done-paths",
       warnings,
+      imageWarnings,
       paths: files.map(file => file.path),
       files: files.map(({ content: _content, ...file }) => file),
       release: describeRelease(files),
       virtualProcessed,
     });
   } else {
-    post({ type: "done", files, virtualProcessed, warnings });
+    post({ type: "done", files, virtualProcessed, warnings, imageWarnings });
   }
 }
 

@@ -89,7 +89,21 @@ afterEach(() => {
 
 it("就绪时显示页头身份、计划与发布按钮", () => {
   mocks.config = makeConfig();
-  mocks.runner = makeRunner();
+  mocks.runner = makeRunner({
+    plan: {
+      upload: ["index.html", "a.html"],
+      remove: ["old.html"],
+      computedAt: Date.now(),
+      imageWarnings: [
+        {
+          content: { key: "article:1", type: "article", id: 1 },
+          title: "缺图文章",
+          url: "/missing.png",
+          reason: "本地图片不存在",
+        },
+      ],
+    },
+  });
   render();
   expect(text()).toContain("我的站点");
   expect(text()).toContain("me.github.io/blog/");
@@ -98,6 +112,10 @@ it("就绪时显示页头身份、计划与发布按钮", () => {
   expect(text()).toContain("本次发布");
   expect(text()).toContain("上传文件2");
   expect(text()).toContain("删除（已取消勾选）1");
+  expect(text()).toContain("1 处图片无法发布");
+  expect(text()).toContain("缺图文章");
+  expect(text()).toContain("/missing.png");
+  expect(text()).toContain("本地图片不存在");
   const publish = [...container.querySelectorAll("button")].find(b => b.textContent === "发布");
   expect(publish?.disabled).toBe(false);
   act(() => publish!.click());

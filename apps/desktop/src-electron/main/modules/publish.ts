@@ -17,6 +17,8 @@ import {
   IPublishAppearanceSettings,
   PublishRequest,
   PublishSiteConfig,
+  PublishExportResult,
+  PublishImageWarning,
   IUploadOptions,
   DEFAULT_UPLOAD_OPTIONS,
 } from "@/types/publish";
@@ -36,6 +38,7 @@ import ContentLinkTable from "./tables/content-link";
 import ArticleTable from "./tables/article";
 import ProjectTable from "./tables/project";
 import { ContentIdentityTable } from "./tables/content-identity";
+import PluginElementResourcesTable from "./tables/plugin-element-resources";
 import { readTemplatePackage } from "../services/template-package";
 import { discoverPlugins } from "../services/plugin-discovery";
 import { assertLocalId } from "@tau/plugins/package";
@@ -225,9 +228,9 @@ class PublishModule implements Module {
     targetDir: string,
     settings?: IPublishAppearanceSettings,
     editorContext?: PluginRenderContext
-  ): Promise<string[]> {
+  ): Promise<PublishExportResult> {
     const selections = PublishSelectionTable.getAll(db);
-    const { files } = await this.generatePublishFiles(
+    const { files, imageWarnings } = await this.generatePublishFiles(
       db,
       selections,
       site,
@@ -257,7 +260,7 @@ class PublishModule implements Module {
       recordSyncIo(`write:${filePath}`, file.content.length, Date.now() - syncIoStart);
     }
 
-    return files.map(file => join(targetDir, file.path));
+    return { files: files.map(file => join(targetDir, file.path)), imageWarnings };
   }
 
   setBackendServer(server: BackendWebSocketServer) {
@@ -315,7 +318,7 @@ class PublishModule implements Module {
     // 获取选中的内容
     const selections = PublishSelectionTable.getAll(db);
 
-    const { files, virtualProcessed } = await this.generatePublishFiles(
+    const { files, virtualProcessed, imageWarnings } = await this.generatePublishFiles(
       db,
       selections,
       site,
@@ -329,7 +332,7 @@ class PublishModule implements Module {
       plan.toUpload = files;
       plan.unchanged = [];
     }
-    return { ...plan, virtualProcessed };
+    return { ...plan, virtualProcessed, imageWarnings };
   }
 
   private async publicationHistory(_db: Database.Database, site: ISiteMeta) {
@@ -355,13 +358,14 @@ class PublishModule implements Module {
     const selections = PublishSelectionTable.getAll(db);
     const result = await generatePublishPathsInWorker(
       createPublishDataSource(db),
-      await this.generatorRequest(selections, site, settings, editorContext)
+      await this.generatorRequest(db, selections, site, settings, editorContext)
     );
     const { state, history } = await this.publicationHistory(db, site);
     const plan = planPublication(result.files, history, state, result.release);
     return {
       toUpload: state ? plan.toUpload.map(file => file.path) : result.paths,
       warnings: result.warnings,
+      imageWarnings: result.imageWarnings,
       toDelete: plan.toDelete,
     };
   }
@@ -375,14 +379,19 @@ class PublishModule implements Module {
     site: ISiteMeta,
     settings?: IPublishAppearanceSettings,
     editorContext?: PluginRenderContext
-  ): Promise<{ files: IPublishFile[]; virtualProcessed: number }> {
+  ): Promise<{
+    files: IPublishFile[];
+    virtualProcessed: number;
+    imageWarnings: PublishImageWarning[];
+  }> {
     return generatePublishFilesInWorker(
       createPublishDataSource(db),
-      await this.generatorRequest(selections, site, settings, editorContext)
+      await this.generatorRequest(db, selections, site, settings, editorContext)
     );
   }
 
   private async generatorRequest(
+    db: Database.Database,
     selections: PublishSelectionInput[],
     site: ISiteMeta,
     settings?: IPublishAppearanceSettings,
@@ -393,6 +402,7 @@ class PublishModule implements Module {
       selections,
       site,
       settings,
+      resourceDeclarations: PluginElementResourcesTable.catalog(db),
       plugins: editorContext
         ? await readPublishPlugins(join(PathUtil.getAppDir(), "plugins"), editorContext)
         : undefined,
@@ -482,6 +492,7 @@ class PublishModule implements Module {
           deleted: plan.toDelete,
           failed: [],
           skipped: plan.unchanged,
+          imageWarnings: plan.imageWarnings,
         };
       } finally {
         publication.dispose();
@@ -494,6 +505,7 @@ class PublishModule implements Module {
       deleted: [],
       failed: [],
       skipped: plan.unchanged,
+      imageWarnings: plan.imageWarnings,
     };
 
     const extraProcessed = plan.virtualProcessed || 0;

@@ -1,5 +1,6 @@
 import { posix } from "node:path";
 import { assertPublishPath } from "@tau/plugins/template";
+import { publishedImageHash } from "./publish-media-paths";
 import type {
   IPublishFile,
   IPublishHistory,
@@ -32,13 +33,23 @@ export function describeRelease(files: IPublishFile[]): PublishedRelease {
           dependencies.push(path);
         };
         for (const style of value.contentStyles ?? []) resource(style.href);
+        for (const path of file.dependencies ?? []) {
+          assertPublishPath(path);
+          if (!paths.has(path)) throw new Error(`发布依赖缺失：${path}`);
+          dependencies.push(path);
+        }
+        for (const path of file.referencedMedia ?? []) {
+          assertPublishPath(path);
+          if (!publishedImageHash(path)) throw new Error(`发布图片引用无效：${path}`);
+          if (!dependencies.includes(path)) dependencies.push(path);
+        }
         for (const plugin of value.pluginRenderers ?? []) {
           resource(plugin.entry);
           if (plugin.styles) resource(plugin.styles);
         }
         release.data[value.key] = { type: value.meta.type, path: file.path, dependencies };
       } else release.shared.push(file.path);
-    } else if (!file.publicationEntry && !/^(?:data|plugin-assets)\//.test(file.path))
+    } else if (!file.publicationEntry && !/^(?:data|plugin-assets|_tau\/media)\//.test(file.path))
       release.assets.push(file.path);
   }
   return release;
@@ -66,7 +77,7 @@ export function planPublication(
 ): Plan<PublishFileDescriptor> {
   for (const file of files) assertPublishPath(file.path);
   for (const file of history) assertPublishPath(file.filePath);
-  const current =
+  const generated =
     release ??
     describeRelease(
       files.map(file => {
@@ -78,6 +89,21 @@ export function planPublication(
         return { ...file, content: file.content };
       })
     );
+  const hashes = new Map(history.map(item => [item.filePath, item.contentHash]));
+  const currentHashes = { ...generated.hashes };
+  for (const item of Object.values(generated.data)) {
+    for (const path of item.dependencies) {
+      const hash = hashes.get(path);
+      if (!Object.hasOwn(currentHashes, path) && hash && hash === publishedImageHash(path))
+        currentHashes[path] = hash;
+    }
+  }
+  const current = {
+    ...generated,
+    hashes: Object.fromEntries(
+      Object.entries(currentHashes).sort(([left], [right]) => left.localeCompare(right))
+    ),
+  };
   const changed = !state || JSON.stringify(current.hashes) !== JSON.stringify(state.current.hashes);
   const previous = changed ? state?.current : state?.previous;
   const retained = new Set(Object.keys(current.hashes));
@@ -94,7 +120,6 @@ export function planPublication(
     if (!withdrawn) previous.shared.forEach(path => retained.add(path));
     previous.assets.forEach(path => retained.add(path));
   }
-  const hashes = new Map(history.map(item => [item.filePath, item.contentHash]));
   return {
     toUpload: files.filter(file => hashes.get(file.path) !== file.hash),
     unchanged: files.filter(file => hashes.get(file.path) === file.hash).map(file => file.path),
