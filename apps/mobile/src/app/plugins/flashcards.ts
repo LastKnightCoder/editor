@@ -15,10 +15,18 @@ import type { Navigator } from "../../router/navigatorTypes";
 import type { Flashcard, FlashcardDeck } from "../../features/flashcard/types";
 import { extractBlanks } from "../../features/flashcard/reviewFlow";
 import { isEditorContentEmpty } from "../../features/cards/editorContentUtils";
-import { mobileImportFromMarkdown } from "../../services/editorMarkdown";
+import { mobileImportFromMarkdown, mobileMarkdown } from "../../services/editorMarkdown";
+import {
+  FLASHCARD_GENERATION_PROMPT,
+  parseMobileFlashcardResponse,
+} from "../../features/flashcard/generation";
 
 export function validateMobileFlashcard(input: PluginFlashcardDraft & { deckId: number }) {
   if (!Number.isSafeInteger(input.deckId) || input.deckId <= 0) throw new Error("卡组编号无效");
+  validateMobileFlashcardDraft(input);
+}
+
+function validateMobileFlashcardDraft(input: PluginFlashcardDraft) {
   assertContentNodes(input.prompt);
   if (input.detail !== undefined) assertContentNodes(input.detail);
   if (isEditorContentEmpty(input.prompt)) throw new Error("请填写题干");
@@ -92,6 +100,7 @@ export interface MobileFlashcardRequest {
   options: PluginFlashcardCreateOptions;
   signal: AbortSignal;
   prepare(): Promise<import("slate").Descendant[]>;
+  generate(content: string): Promise<PluginFlashcardDraft[]>;
   save(input: PluginFlashcardDraft & { deckId: number }): Promise<void>;
   createDeck(input: {
     name: string;
@@ -113,6 +122,7 @@ export function createMobileFlashcards(
   changed: () => void
 ) {
   let disposed = false;
+  const lifetime = new AbortController();
   let current: MobileFlashcardRequest | null = null;
   let abortPending: (() => void) | undefined;
   const listeners = new Set<() => void>();
@@ -223,8 +233,48 @@ export function createMobileFlashcards(
       references: savedReferences,
     };
   };
-  const unavailable = async (): Promise<never> => {
-    throw new Error("移动端尚未开放闪卡 AI 生成");
+  const generate = async (
+    context: PluginContext,
+    options: Omit<PluginFlashcardCreateOptions, "mode" | "deckId">,
+    callerSignal?: AbortSignal
+  ): Promise<PluginFlashcardDraft[]> => {
+    check(context);
+    options = structuredClone(options);
+    const signal = AbortSignal.any([
+      lifetime.signal,
+      context.signal,
+      ...(callerSignal ? [callerSignal] : []),
+    ]);
+    const content =
+      typeof options.content === "string"
+        ? await mobileImportFromMarkdown(options.content)
+        : (options.content ?? []);
+    assertContentNodes(content);
+    const markdown = mobileMarkdown.getMarkdown(content);
+    if (!markdown.trim()) throw new Error("AI 制卡内容不能为空");
+    const source = options.references ?? [
+      {
+        refType: "custom" as const,
+        customContent: content,
+        title: options.title?.trim() || "参考资料",
+      },
+    ];
+    await references(context, source);
+    signal.throwIfAborted();
+    const ai = await context.ai.requestCapability("flashcardGeneration");
+    signal.throwIfAborted();
+    const result = await ai.chat({
+      signal,
+      messages: [
+        { role: "system", content: FLASHCARD_GENERATION_PROMPT },
+        { role: "user", content: `请从以下资料生成闪卡：\n\n${markdown}` },
+      ],
+    });
+    signal.throwIfAborted();
+    check(context);
+    const drafts = parseMobileFlashcardResponse(result.text);
+    for (const draft of drafts) validateMobileFlashcardDraft(draft);
+    return drafts.map(draft => ({ ...draft, references: source }));
   };
   const adapter: FlashcardsAdapter = {
     async listDecks(context) {
@@ -251,7 +301,8 @@ export function createMobileFlashcards(
       if (!globalThis.navigator?.userActivation?.isActive)
         throw new Error("只能在用户点击或按键后打开建卡");
       check(context);
-      if (options.mode !== undefined && options.mode !== "manual") return unavailable();
+      if (options.mode !== undefined && !["manual", "ai"].includes(options.mode))
+        throw new Error("建卡模式无效");
       if (options.title !== undefined && typeof options.title !== "string")
         throw new Error("建卡标题无效");
       if (
@@ -260,10 +311,12 @@ export function createMobileFlashcards(
       )
         throw new Error("卡组编号无效");
       if (current) throw new Error("请先完成或关闭当前建卡流程");
+      options = structuredClone(options);
       return new Promise<PluginFlashcardCreateResult>((resolve, reject) => {
         const controller = new AbortController();
         const cards: PluginCreatedFlashcard[] = [];
         let saving = false;
+        let generating = false;
         let initialReferences = options.references;
         let prepared: Promise<import("slate").Descendant[]> | undefined;
         const guard = () => {
@@ -309,6 +362,29 @@ export function createMobileFlashcards(
               throw error;
             });
             return prepared;
+          },
+          async generate(content) {
+            guard();
+            if (options.mode !== "ai") throw new Error("当前不是 AI 制卡流程");
+            if (generating || saving) throw new Error("正在处理，请稍候");
+            generating = true;
+            try {
+              await request.prepare();
+              const drafts = await generate(
+                context,
+                {
+                  content,
+                  title: options.title,
+                  references: options.references,
+                },
+                controller.signal
+              );
+              guard();
+              initialReferences = drafts[0].references;
+              return drafts;
+            } finally {
+              generating = false;
+            }
           },
           async save(input) {
             guard();
@@ -365,8 +441,27 @@ export function createMobileFlashcards(
         }
       });
     },
-    generate: unavailable,
-    generateAndSave: unavailable,
+    generate,
+    async generateAndSave(context, options) {
+      check(context);
+      options = structuredClone(options);
+      if (!Number.isSafeInteger(options.deckId) || options.deckId <= 0)
+        throw new Error("卡组编号无效");
+      const drafts = await generate(context, options);
+      const cards: PluginCreatedFlashcard[] = [];
+      const failed: { index: number; message: string }[] = [];
+      for (const [index, draft] of drafts.entries()) {
+        check(context);
+        try {
+          cards.push(await create(context, { ...draft, deckId: options.deckId }));
+        } catch (error) {
+          check(context);
+          if (error instanceof PluginPermissionError) throw error;
+          failed.push({ index, message: error instanceof Error ? error.message : "保存闪卡失败" });
+        }
+      }
+      return { cards, failed };
+    },
   };
   return {
     adapter,
@@ -379,6 +474,7 @@ export function createMobileFlashcards(
     },
     dispose() {
       disposed = true;
+      lifetime.abort();
       abortPending?.();
       listeners.clear();
     },

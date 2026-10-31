@@ -168,7 +168,10 @@ afterEach(() => {
   host.remove();
 });
 
-it("功能分配：选择器按服务商分组，选中后写入分配并显示模型名", async () => {
+it.each([
+  ["对话", "chat"],
+  ["闪卡制作", "flashcardGeneration"],
+])("功能分配：%s 选中后写入对应分配并显示模型名", async (label, feature) => {
   setting = makeSetting([deepseek]);
   mount();
   await open("settingsModule", { module: "ai-models" });
@@ -177,13 +180,13 @@ it("功能分配：选择器按服务商分组，选中后写入分配并显示�
   expect(text()).toContain("可用");
   expect(text()).toContain("…a91f");
 
-  await click(pressable(activePage(), "对话"));
-  await waitFor(() => document.body.textContent!.includes("对话使用的模型"));
+  await click(pressable(activePage(), label));
+  await waitFor(() => document.body.textContent!.includes(`${label}使用的模型`));
   await click(pressable(document.body, "DeepSeek V4 Pro"));
   await waitFor(() => text().includes("DeepSeek V4 Pro"));
   expect(tauriMock.mutateAiSettings).toHaveBeenCalledWith({
     kind: "assign",
-    feature: "chat",
+    feature,
     model: { providerId: "deepseek", modelId: "deepseek-v4-pro" },
   });
 });
