@@ -35,6 +35,7 @@ vi.mock("../../cards/editorExtensions/ContentLinkPickerSheet", () => ({
 }));
 
 import { ChatComposer } from "../ChatComposer";
+import { KeyboardViewportProvider } from "../../../components/KeyboardViewportProvider";
 import { toast } from "../../../components/toast";
 
 let host: HTMLDivElement;
@@ -153,4 +154,21 @@ it("两行卡片：引用挂在卡片第一行可删除，下排是 ＋、引用
   expect(card.contains(byLabel("切换到语音输入"))).toBe(true);
   act(() => byLabel("去掉引用")!.click());
   expect(onMentionsChange).toHaveBeenCalledWith([]);
+});
+
+it("按下输入框时先按预计键盘高度收起外壳，聚焦时输入框已在键盘上方，iOS 不会平移整页", () => {
+  act(() =>
+    root.render(
+      <KeyboardViewportProvider>
+        <ChatComposer running={false} onSend={onSend} onStop={vi.fn()} />
+      </KeyboardViewportProvider>
+    )
+  );
+  const kbHeight = () => document.documentElement.style.getPropertyValue("--kb-height");
+  expect(kbHeight()).toBe("0px");
+  pointer(textarea(), "pointerdown");
+  expect(Number.parseInt(kbHeight(), 10)).toBeGreaterThan(0);
+  // 键盘迟迟没升起（只是滑动、没有聚焦）：超时后释放，外壳回到原高
+  act(() => vi.advanceTimersByTime(700));
+  expect(kbHeight()).toBe("0px");
 });
