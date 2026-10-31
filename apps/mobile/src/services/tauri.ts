@@ -42,7 +42,7 @@ import type {
   ResourceSyncStatusFile,
   SettingWriteResponse,
   SyncActionResponse,
-  SyncDownloadProgress,
+  SyncProgress,
   SyncVersionResponse,
   UploadTestResponse,
   PomodoroDailySummary,
@@ -826,15 +826,22 @@ export function syncCheckVersions(provider?: string) {
   );
 }
 
-export function syncUploadDatabase() {
-  return trackedInvoke<SyncActionResponse>("sync_upload_database");
+export function syncUploadDatabase(onProgress?: (progress: SyncProgress) => void) {
+  return runDatabaseSync("sync_upload_database", onProgress);
 }
 
-export async function syncDownloadDatabase(onProgress?: (progress: SyncDownloadProgress) => void) {
-  const channel = new Channel<SyncDownloadProgress>();
+export function syncDownloadDatabase(onProgress?: (progress: SyncProgress) => void) {
+  return runDatabaseSync("sync_download_database", onProgress);
+}
+
+async function runDatabaseSync(
+  command: "sync_upload_database" | "sync_download_database",
+  onProgress?: (progress: SyncProgress) => void
+) {
+  const channel = new Channel<SyncProgress>();
   channel.onmessage = progress => onProgress?.(progress);
   try {
-    return await trackedInvoke<SyncActionResponse>("sync_download_database", {
+    return await trackedInvoke<SyncActionResponse>(command, {
       onProgress: channel,
     });
   } finally {

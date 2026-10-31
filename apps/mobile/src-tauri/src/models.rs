@@ -185,7 +185,7 @@ pub struct SyncActionResponse {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct SyncDownloadProgress {
+pub struct SyncProgress {
     pub value: f64,
     pub status: String,
 }

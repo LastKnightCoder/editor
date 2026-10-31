@@ -5,7 +5,7 @@ import type {
   ResourceSyncStatusFile,
   SettingCompat,
   SyncActionResponse,
-  SyncDownloadProgress,
+  SyncProgress,
   SyncVersionResponse,
 } from "../../../types";
 
@@ -34,7 +34,7 @@ export type SettingsPageProps = {
   versions: SyncVersionResponse | null;
   isSavingSetting: boolean;
   isSyncing: boolean;
-  downloadProgress?: SyncDownloadProgress | null;
+  syncProgress?: SyncProgress | null;
   resourceSyncProgress: ResourceSyncProgress;
   resourceSyncStatusFile: ResourceSyncStatusFile | null;
   isResourceSyncing: boolean;

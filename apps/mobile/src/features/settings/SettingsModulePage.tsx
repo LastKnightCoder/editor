@@ -91,7 +91,7 @@ function ModuleSection(props: ModuleSectionProps) {
           setting={props.safeSetting}
           versions={props.versions}
           isSyncing={props.isSyncing}
-          downloadProgress={props.downloadProgress}
+          syncProgress={props.syncProgress}
           activeDatabase={props.databases?.activeDatabase ?? null}
           onCheckVersions={props.onCheckVersions}
           onSyncUpload={props.onSyncUpload}
@@ -110,7 +110,7 @@ function ModuleSection(props: ModuleSectionProps) {
         <OverwriteSection
           versions={props.versions}
           isSyncing={props.isSyncing}
-          downloadProgress={props.downloadProgress}
+          syncProgress={props.syncProgress}
           onSyncUpload={props.onSyncUpload}
           onSyncDownload={props.onSyncDownload}
         />
@@ -181,7 +181,7 @@ export function SettingsModulePage(props: { module: SettingModuleKey }) {
           versions={app.bootstrap.versions}
           isSavingSetting={app.syncSettings.isSavingSetting}
           isSyncing={app.syncSettings.isSyncing}
-          downloadProgress={app.syncSettings.downloadProgress}
+          syncProgress={app.syncSettings.syncProgress}
           resourceSyncProgress={app.resourceSync.progress}
           resourceSyncStatusFile={app.resourceSync.statusFile}
           isResourceSyncing={app.resourceSync.isResourceSyncing}

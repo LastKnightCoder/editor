@@ -21,7 +21,7 @@ import type {
   ResourceSyncStatusFile,
   SettingCompat,
   SyncActionResponse,
-  SyncDownloadProgress,
+  SyncProgress,
   SyncVersionResponse,
 } from "../../../types";
 import { GroupLabel } from "../../../components/GroupLabel";
@@ -45,7 +45,7 @@ export type SyncCenterProps = {
   setting: SettingCompat | null;
   versions: SyncVersionResponse | null;
   isSyncing: boolean;
-  downloadProgress?: SyncDownloadProgress | null;
+  syncProgress?: SyncProgress | null;
   activeDatabase: string | null;
   onCheckVersions: () => Promise<SyncVersionResponse>;
   onSyncUpload: () => Promise<SyncActionResponse>;
@@ -255,12 +255,9 @@ export function SyncCenterSection(props: SyncCenterProps) {
   return (
     <div className="page-enter space-y-1">
       <SyncHero hero={hero} lastSyncText={lastSyncText} versions={props.versions} />
-      {props.isSyncing && props.downloadProgress && (
+      {props.isSyncing && props.syncProgress && (
         <div className="setting-group px-[18px] py-4">
-          <ProgressStatus
-            value={props.downloadProgress.value}
-            label={props.downloadProgress.status}
-          />
+          <ProgressStatus value={props.syncProgress.value} label={props.syncProgress.status} />
         </div>
       )}
 

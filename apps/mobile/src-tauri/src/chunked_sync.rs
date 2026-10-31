@@ -172,6 +172,7 @@ async fn upload_chunks(
     name: &str,
     file: &mut File,
     check: impl Fn() -> Result<(), String>,
+    on_progress: Option<&(dyn Fn(u64, u64) + Send + Sync)>,
 ) -> Result<Manifest, String> {
     if !valid_name(name) {
         return Err("同步文件名无效".into());
@@ -192,6 +193,9 @@ async fn upload_chunks(
         chunks: vec![],
     };
     let mut remaining = before.len();
+    if let Some(report) = on_progress {
+        report(0, before.len());
+    }
     while remaining > 0 {
         check()?;
         let length = remaining.min(protocol().chunk_bytes as u64) as usize;
@@ -216,6 +220,9 @@ async fn upload_chunks(
         remaining -= length as u64;
         if manifest.chunks.len() * 100 > protocol().manifest_bytes {
             return Err("同步文件清单过大".into());
+        }
+        if let Some(report) = on_progress {
+            report(before.len() - remaining, before.len());
         }
     }
     let after = file.metadata().map_err(|e| e.to_string())?;
@@ -301,9 +308,10 @@ impl PluginProvider {
         object: &str,
         name: &str,
         path: &Path,
+        on_progress: &(dyn Fn(u64, u64) + Send + Sync),
     ) -> Result<(), String> {
         let mut file = File::open(path).map_err(|e| e.to_string())?;
-        upload_chunks(self, object, name, &mut file, || Ok(()))
+        upload_chunks(self, object, name, &mut file, || Ok(()), Some(on_progress))
             .await
             .map(|_| ())
     }
@@ -314,7 +322,7 @@ impl PluginProvider {
         path: &Path,
     ) -> Result<(), String> {
         let mut file = File::open(path).map_err(|e| e.to_string())?;
-        upload_chunks(self, object, name, &mut file, resource_check)
+        upload_chunks(self, object, name, &mut file, resource_check, None)
             .await
             .map(|_| ())
     }
@@ -456,6 +464,7 @@ mod tests {
             "session.jsonl",
             &mut File::open(&source).unwrap(),
             || Ok(()),
+            None,
         )
         .await
         .unwrap();
@@ -466,6 +475,7 @@ mod tests {
             "session.jsonl",
             &mut File::open(&source).unwrap(),
             || Ok(()),
+            None,
         )
         .await
         .unwrap();
@@ -479,6 +489,7 @@ mod tests {
             "session.jsonl",
             &mut File::open(&source).unwrap(),
             || Ok(()),
+            None,
         )
         .await
         .unwrap();
@@ -513,6 +524,7 @@ mod tests {
             "session.jsonl",
             &mut File::open(&local).unwrap(),
             || Ok(()),
+            None,
         )
         .await
         .unwrap();
@@ -592,6 +604,7 @@ mod tests {
             "session.jsonl",
             &mut File::open(&source).unwrap(),
             || Ok(()),
+            None,
         )
         .await
         .unwrap();
@@ -683,6 +696,7 @@ mod tests {
             "session.jsonl",
             &mut File::open(&source).unwrap(),
             || Ok(()),
+            None,
         )
         .await
         .unwrap();
@@ -738,6 +752,7 @@ mod tests {
             "rust.bin",
             &mut File::open(source).unwrap(),
             || Ok(()),
+            None,
         )
         .await
         .unwrap();
@@ -769,7 +784,7 @@ mod tests {
         };
         let object = database_file_object("roundtrip.db");
         let mut input = File::open(&source).unwrap();
-        let manifest = upload_chunks(&store, &object, "source.bin", &mut input, || Ok(()))
+        let manifest = upload_chunks(&store, &object, "source.bin", &mut input, || Ok(()), None)
             .await
             .unwrap();
         assert_eq!(manifest.size, length as u64);
@@ -784,7 +799,7 @@ mod tests {
         store.fail.set(true);
         let mut input = File::open(&source).unwrap();
         assert!(
-            upload_chunks(&store, &failed, "source.bin", &mut input, || Ok(()))
+            upload_chunks(&store, &failed, "source.bin", &mut input, || Ok(()), None)
                 .await
                 .is_err()
         );
@@ -802,13 +817,16 @@ mod tests {
                 .is_err()
         );
         let mut input = File::open(&source).unwrap();
-        assert!(
-            upload_chunks(&store, &failed, "source.bin", &mut input, || Err(
-                "已取消".into()
-            ))
-            .await
-            .is_err()
-        );
+        assert!(upload_chunks(
+            &store,
+            &failed,
+            "source.bin",
+            &mut input,
+            || Err("已取消".into()),
+            None
+        )
+        .await
+        .is_err());
         assert!(!store.root.join(&failed).exists());
         drop(input);
         drop(output);
