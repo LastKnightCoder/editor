@@ -1,6 +1,6 @@
 {
   "name": "@tau/plugins",
-  "version": "0.52.0",
+  "version": "0.53.0",
   "private": true,
   "type": "module",
   "description": "应用插件契约与受信任开发宿主",
@@ -28,6 +28,7 @@
     "./components": "./src/components.ts",
     "./media": "./src/media.ts",
     "./element": "./src/element.ts",
+    "./settings-draft": "./src/settings-draft.ts",
     "./tailwind.css": "./tailwind.css",
     "./portable-shared-modules": "./src/portable-shared-modules.ts",
     "./shared-modules": "./src/shared-modules.ts",

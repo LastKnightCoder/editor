@@ -1,12 +1,17 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ProviderFieldError,
   type PluginContext,
   type PluginProviderSettingsDefinition,
   type ProviderForm,
 } from "@tau/plugins";
+import {
+  createSettingsDraftController,
+  SettingsDraftProvider,
+  type SettingsDraftController,
+} from "@tau/plugins/settings-draft";
 import { UiProvider } from "@tau/ui";
 import useSettingStore, { EImageBed, ESync } from "@/stores/useSettingStore";
 import type { RegisteredPluginSettings } from "@/app/plugins/runtime";
@@ -251,4 +256,67 @@ it("发布抽屉内嵌：自动保存，开关控制缓存目录，服务选择�
   await act(async () => container.querySelector<HTMLButtonElement>('[role="switch"]')!.click());
   expect(text()).not.toContain("缓存目录");
   vi.useRealTimers();
+});
+
+describe("插件设置分区内交给宿主保存条", () => {
+  const renderInDraft = (controller: SettingsDraftController) =>
+    act(() =>
+      root.render(
+        <UiProvider>
+          <SettingsDraftProvider controller={controller}>
+            <PluginSettingsView section={section(definition("upload"))} />
+          </SettingsDraftProvider>
+        </UiProvider>
+      )
+    );
+
+  it("报告修改清单，保存条保存后回到干净状态；密钥只说改了", async () => {
+    const controller = createSettingsDraftController();
+    renderInDraft(controller);
+    expect(button("保存")).toBeUndefined();
+    expect(controller.getSnapshot()).toMatchObject({ attached: true, dirty: false });
+    await type("Bucket", "new");
+    await type("密钥", "s");
+    expect(controller.getSnapshot().changes).toEqual([
+      { label: "密钥" },
+      { label: "Bucket", from: "old", to: "new" },
+    ]);
+    await act(async () => void (await controller.save()));
+    expect(mocks.saveUpload).toHaveBeenCalledWith("test.s3", {
+      legacy: "keep",
+      secret: "s",
+      bucket: "new",
+      prefix: "",
+    });
+    expect(controller.getSnapshot()).toMatchObject({
+      dirty: false,
+      phase: "saved",
+      message: "配置已保存",
+    });
+  });
+
+  it("必填为空时拒绝保存并把错误标到字段", async () => {
+    const controller = createSettingsDraftController();
+    renderInDraft(controller);
+    await type("Bucket", "");
+    expect(controller.getSnapshot().errors).toBe(2);
+    await act(async () => void (await controller.save()));
+    expect(mocks.saveUpload).not.toHaveBeenCalled();
+    expect(text()).toContain("请填写Bucket");
+  });
+
+  it("离开时放弃修改还原为已保存的值", async () => {
+    const controller = createSettingsDraftController();
+    renderInDraft(controller);
+    await type("Bucket", "new");
+    let leave!: Promise<boolean>;
+    act(() => {
+      leave = controller.confirmLeave();
+    });
+    act(() => controller.answerLeave("discard"));
+    expect(await leave).toBe(true);
+    expect(container.querySelector<HTMLInputElement>('input[aria-label="Bucket"]')!.value).toBe(
+      "old"
+    );
+  });
 });

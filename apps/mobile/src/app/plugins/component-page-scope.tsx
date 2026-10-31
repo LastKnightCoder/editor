@@ -6,9 +6,12 @@ import { PluginComponentScope } from "./component-scope";
 
 export function PluginPageComponentScope({
   context,
+  guard,
   children,
 }: {
   context: PluginContext;
+  /** 宿主自己的离开确认（如设置草稿），先于插件登记的守卫询问；页面只有一个守卫位 */
+  guard?: () => boolean | Promise<boolean>;
   children: ReactNode;
 }) {
   const { navigator, entryId } = usePage();
@@ -23,6 +26,7 @@ export function PluginPageComponentScope({
     };
   }, []);
   usePageGuard(async () => {
+    if (guard && !(await guard())) return false;
     if (context.signal.aborted) return true;
     for (const guard of guards.current) if (!(await guard())) return false;
     return true;

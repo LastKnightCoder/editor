@@ -1,5 +1,5 @@
 import { SETTINGS_SECTIONS } from "@/features/settings/sections";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, ExternalLink, Github, Layers, ShieldAlert } from "lucide-react";
 import { Button, FadeScroll, Switch, Tabs } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
@@ -13,6 +13,11 @@ import { openExternal } from "@/commands/extra";
 import { useSettingsStore } from "@/app/settingsStore";
 import type { PluginCatalogEntry, PluginRelease } from "@/types/plugin-center";
 import { formatSize, pluginPortalUrl } from "@tau/plugins/center";
+import {
+  createSettingsDraftController,
+  SettingsDraftProvider,
+  type SettingsDraftController,
+} from "@tau/plugins/settings-draft";
 import {
   CONTRIBUTION_LABELS,
   STATE_LABELS,
@@ -42,6 +47,12 @@ import { PluginMenu } from "./PluginsView";
 import { PluginCommunityTab } from "../components/PluginCommunityTab";
 import { PluginPermissionsTab } from "../permissions/PluginPermissionsTab";
 import { PluginBackendPanel } from "../components/PluginBackendPanel";
+import {
+  SettingsDraftBar,
+  SettingsLeaveDialog,
+  useSettingsDraftGuards,
+  useSettingsDraftSnapshot,
+} from "../components/SettingsDraftBar";
 
 type DetailTab =
   | "readme"
@@ -70,6 +81,11 @@ export function PluginDetailView() {
     ? installedPlugins(runtime).find(item => item.info.id === params.pluginId)
     : undefined;
   const release = usePluginRelease(installed?.releaseId ?? entry?.latest.releaseId);
+  // 设置分区的草稿跟随详情页实例：切 tab、切分组、离开页面都先问
+  const [draft] = useState(() => createSettingsDraftController());
+  useEffect(() => () => draft.dispose(), [draft]);
+  useSettingsDraftGuards(draft);
+  const settingsDirty = useSettingsDraftSnapshot(draft).dirty;
 
   if (!runtime)
     return (
@@ -93,6 +109,7 @@ export function PluginDetailView() {
       </Paper>
     );
 
+  // 换 tab 或分组也是页面导航，由离开守卫拦下未保存的修改
   const setTab = (tab: DetailTab, section?: string) =>
     navigator.push(PLUGIN_DETAIL_KEY, {
       pluginId: params.pluginId,
@@ -101,7 +118,7 @@ export function PluginDetailView() {
       ...(tab === "settings" && params.from ? { from: params.from } : {}),
     });
   const changelog = release.data?.content.changelog;
-  const tabs: { key: DetailTab; label: string; children: ReactNode }[] = [
+  const tabs: { key: DetailTab; label: ReactNode; children: ReactNode }[] = [
     {
       key: "readme",
       label: "介绍",
@@ -121,13 +138,21 @@ export function PluginDetailView() {
   if (installed)
     tabs.push({
       key: "settings",
-      label: "设置",
+      label: settingsDirty ? (
+        <span className="inline-flex items-center gap-1.5">
+          设置
+          <span aria-label="有未保存的修改" className="bg-accent size-1.5 rounded-full" />
+        </span>
+      ) : (
+        "设置"
+      ),
       children: (
         <SettingsTab
           runtime={runtime}
           plugin={installed}
           section={params.section}
           from={params.from}
+          draft={draft}
           onSection={key => setTab("settings", key)}
         />
       ),
@@ -339,14 +364,17 @@ function SettingsTab({
   plugin,
   section,
   from,
+  draft,
   onSection,
 }: {
   runtime: DesktopPluginRuntime;
   plugin: InstalledPlugin;
   section?: string;
   from?: string;
+  draft: SettingsDraftController;
   onSection: (key: PluginSettingsKey) => void;
 }) {
+  const region = useRef<HTMLElement | null>(null);
   const sections = runtime.listSettings().filter(item => item.context.pluginId === plugin.info.id);
   const active = section ? sections.find(item => item.key === section) : sections[0];
 
@@ -389,9 +417,13 @@ function SettingsTab({
       )}
       {active ? (
         // 标题由卡头或分组导航承担，这里不再重复插件名
-        <section aria-label={active.definition.title}>
-          <PluginSettingsView section={active} />
-        </section>
+        <SettingsDraftProvider controller={draft}>
+          <section ref={region} aria-label={active.definition.title}>
+            <PluginSettingsView section={active} />
+          </section>
+          <SettingsDraftBar controller={draft} region={region} />
+          <SettingsLeaveDialog controller={draft} title={active.definition.title} />
+        </SettingsDraftProvider>
       ) : section ? (
         <PluginSettingsView />
       ) : (
