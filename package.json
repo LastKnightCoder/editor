@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.60.6",
   "scripts": {
+    "code:stats": "node scripts/count-code.mjs",
     "check:whiteboard-boundaries": "node scripts/check-whiteboard-boundaries.mjs",
     "check:plugin-process-boundaries": "node scripts/check-plugin-process-boundaries.mjs",
     "check:database-boundaries": "node scripts/check-database-boundaries.mjs",

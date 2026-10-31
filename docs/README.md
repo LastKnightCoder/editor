@@ -31,7 +31,7 @@
 
 ## guides/ — 操作指南
 
-日常代码检查、格式化、提交钩子与性能验证见 [代码检查与格式化](./guides/development-quality.md)。
+日常代码检查、格式化、代码行数统计、提交钩子与性能验证见 [代码检查与格式化](./guides/development-quality.md)。
 
 跨端 SDK、统一模板与官方格式 3 插件的候选验证、真实 npm 冻结验证、发行顺序与分发包摘要核验见 [plugin-portability-sdk.md](./guides/plugin-portability-sdk.md)，真实客户端接入校验见 [plugin-portability-hosts.md](./guides/plugin-portability-hosts.md)。
 
