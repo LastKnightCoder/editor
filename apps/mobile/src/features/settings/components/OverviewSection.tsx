@@ -23,7 +23,9 @@ import {
   IconMessageSquare,
   IconMic,
   IconMoon,
+  IconPlug,
   IconSparkles,
+  IconWandSparkles,
   IconType,
   IconUsers,
 } from "./ui";
@@ -46,6 +48,9 @@ import { normalizeReadingFontId, readingFontOption } from "../readingFont/fonts"
 import { useInstalledReadingFonts } from "../readingFont/queries";
 import type { SettingModule } from "./types";
 import { findAssignedModel, modelLabel } from "../../../services/ai-settings";
+import { useSkillCatalog, useToolSources } from "../../aiCapabilities/data";
+import { useSourceEnabled } from "../../aiCapabilities/sources";
+import { skillModeOf, useLibraryPreferences } from "../../../services/aiChat/capabilityPreferences";
 
 export const APPEARANCE_LABELS = { light: "浅色", dark: "深色", system: "跟随系统" } as const;
 
@@ -169,6 +174,8 @@ export function OverviewSection(props: OverviewSectionProps) {
           }
           onClick={() => props.onOpenModule("image-generation")}
         />
+        <SkillsItem />
+        <McpItem />
       </div>
 
       <div className="space-y-3 px-1">
@@ -227,6 +234,40 @@ export function OverviewSection(props: OverviewSectionProps) {
         <AboutUpdateItem onOpen={() => props.onOpenModule("about")} />
       </div>
     </div>
+  );
+}
+
+/** 「Skill」：行尾显示可用（未停用）的数量 */
+function SkillsItem() {
+  const navigator = useNavigator();
+  const { databaseName, items, query } = useSkillCatalog();
+  const preferences = useLibraryPreferences(databaseName);
+  const available = items.filter(item => skillModeOf(preferences, item.skill) !== "off").length;
+  return (
+    <ListItem
+      icon={<IconWandSparkles />}
+      label="Skill"
+      value={query.isSuccess ? `${available} 个` : undefined}
+      onClick={() => navigator.push("aiSkills", {})}
+    />
+  );
+}
+
+/** 「MCP 服务器」：正常显示来源数，有连接失败时换成红色提示 */
+function McpItem() {
+  const navigator = useNavigator();
+  const { databaseName, all } = useToolSources({ passive: true });
+  const { isEnabled } = useSourceEnabled(databaseName);
+  const failed = all.filter(source => isEnabled(source) && source.status === "error").length;
+  const enabled = all.filter(source => isEnabled(source) && source.status !== "unavailable").length;
+  return (
+    <ListItem
+      icon={<IconPlug />}
+      label="MCP 服务器"
+      value={failed ? `${failed} 个连接失败` : `${enabled} 个`}
+      valueTone={failed ? "danger" : "muted"}
+      onClick={() => navigator.push("aiMcp", {})}
+    />
   );
 }
 
@@ -321,12 +362,15 @@ function ListItem({
   icon,
   label,
   value,
+  valueTone = "muted",
   badge,
   onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   value?: string;
+  /** danger 用于提示异常（如 MCP 连接失败） */
+  valueTone?: "muted" | "danger";
   badge?: React.ReactNode;
   onClick?: () => void;
 }) {
@@ -341,7 +385,13 @@ function ListItem({
       <span className="text-ink-1 flex-1 text-[14px] font-medium">{label}</span>
       <span className="flex max-w-[55%] items-center gap-1.5">
         {badge}
-        {value && <span className="text-ink-3 truncate text-[12.5px]">{value}</span>}
+        {value && (
+          <span
+            className={`truncate text-[12.5px] ${valueTone === "danger" ? "text-danger" : "text-ink-3"}`}
+          >
+            {value}
+          </span>
+        )}
         {onClick && <span className="text-ink-3">›</span>}
       </span>
     </button>

@@ -350,6 +350,19 @@ pub fn ai_mcp_context(
     window_allowed(&window)?;
     network::mcp_context(&lease_id, &url, headers)
 }
+/// 用户添加的服务器：请求头由原生从设置读取，不经过页面。
+#[tauri::command]
+pub fn ai_custom_mcp_context(
+    app: AppHandle,
+    window: WebviewWindow,
+    lease_id: String,
+    server_id: String,
+) -> Result<String, String> {
+    window_allowed(&window)?;
+    let setting = crate::setting::load_or_init_setting(&app)?;
+    let (url, headers) = crate::mcp_settings::connection(&setting, &server_id)?;
+    network::mcp_context(&lease_id, &url, headers.into_iter().collect())
+}
 #[tauri::command]
 pub fn ai_http_dispose(window: WebviewWindow, context_id: String) -> Result<(), String> {
     window_allowed(&window)?;

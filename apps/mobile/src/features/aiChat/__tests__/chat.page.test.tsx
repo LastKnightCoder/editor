@@ -17,10 +17,14 @@ import "../pages/aiChatHistory.page";
 type Listener = (notification: unknown) => void;
 const service = vi.hoisted(() => {
   const listeners = new Map<string, Listener>();
+  const skills = {
+    list: vi.fn(async (): Promise<object[]> => []),
+    available: (_databaseName: string, signal?: AbortSignal) => skills.list(signal),
+  };
   return {
     listeners,
     tools: { list: vi.fn((): Array<{ id: string }> => []) },
-    skills: { list: vi.fn(async (): Promise<object[]> => []) },
+    skills,
     sessions: {
       create: vi.fn(),
       get: vi.fn(),

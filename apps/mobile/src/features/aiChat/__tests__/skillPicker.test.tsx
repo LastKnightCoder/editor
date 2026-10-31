@@ -85,7 +85,7 @@ it("插件来源变化后重新读取目录，移除已停用 Skill", async () =
     revision++;
     for (const listener of listeners) listener();
   });
-  await flushUntil(() => document.body.textContent?.includes("暂无可用 Skill") ?? false);
+  await flushUntil(() => document.body.textContent?.includes("没有可用的 Skill") ?? false);
   expect(byText("周报整理")).toBeUndefined();
 });
 

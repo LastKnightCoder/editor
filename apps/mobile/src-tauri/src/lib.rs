@@ -10,6 +10,7 @@ mod incoming_file;
 #[cfg(target_os = "ios")]
 mod ios_input_accessory;
 mod logger;
+mod mcp_settings;
 mod models;
 mod plugin_ai;
 mod plugin_ai_skills;
@@ -91,6 +92,7 @@ pub fn run() {
             ai::ai_model_config,
             ai::ai_http_context,
             ai::ai_mcp_context,
+            ai::ai_custom_mcp_context,
             ai::ai_http_dispose,
             ai::ai_http_open,
             ai::ai_http_upload,
@@ -120,6 +122,7 @@ pub fn run() {
             tts_settings::plugin_tts_mutate,
             image_settings::plugin_images_mutate,
             ai_settings::ai_settings_mutate,
+            mcp_settings::ai_mcp_servers_mutate,
             plugin_transport::plugin_transport_connect,
             plugin_transport::plugin_transport_disconnect,
             plugin_transport::plugin_transport_reply,

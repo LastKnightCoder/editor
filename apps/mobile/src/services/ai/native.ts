@@ -176,6 +176,14 @@ export async function createMcpFetch(
   });
   return createContextFetch(contextId);
 }
+/** 用户添加的服务器：地址与请求头都由原生从设置读取，页面只给服务器 id。 */
+export async function createCustomMcpFetch(lease: NativeLibraryLease, serverId: string) {
+  const contextId = await invoke<string>("ai_custom_mcp_context", {
+    ...leaseArgs(lease),
+    serverId,
+  });
+  return createContextFetch(contextId);
+}
 function createContextFetch(contextId: string) {
   let disposed = false;
   const active = new Set<string>();

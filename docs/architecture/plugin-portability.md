@@ -150,7 +150,7 @@ UiHostProvider 只接受平台中立的 dismiss 登记函数。真实 Dialog/Dra
 
 Skills 来源包括已激活的 portable 应用插件和已安装启用的独立 Skill 包。应用插件的 `skills` 元数据进入 PluginHost；独立包不求值 JS、不进入 PluginHost，沿用同一安装、待生效更新、恢复、卸载和来源校验事务。原生清单读取和资源读取核验工作区、当前安装代次、声明路径、完整性与文本预算，拒绝符号链接和越界资源。JS 再对照当前已加载包的 skillRevision 与包类型，旧实例不能读取更新后的包；安全模式不自动恢复独立来源。技能目录按需注册到 AI 服务，停用、重载、撤回、卸载及切库撤销来源；ID 采用桌面的 `包ID:目录ID`。移动端可安装和保留带脚本的独立包，但只暴露受限 Markdown 正文与参考资料，不执行脚本；桌面脚本继续沿用既有审核与执行确认。
 
-以上是宿主与数据能力；闪卡 AI 生成等领域流程、聊天/模型设置界面和 MCP 管理入口不随注册自动产生。API 行为测试和原生临时文件测试不能替代 iOS/Android 设备验收。
+以上是宿主与数据能力；闪卡 AI 生成等领域流程不随注册自动产生。插件 Skill 与 MCP 的管理界面见 [移动端 Skill 与 MCP 管理](/docs/architecture/mobile.md)。API 行为测试和原生临时文件测试不能替代 iOS/Android 设备验收。
 
 ## ASR 与 WebSocket 宿主
 

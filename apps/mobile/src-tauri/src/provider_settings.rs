@@ -120,6 +120,7 @@ pub(crate) fn preserve_managed_fields(next: &mut Value, current: &Value) {
         "imageGeneration",
         "llmProviders",
         "llmUsageSettings",
+        "mcpServers",
     ] {
         if let Some(value) = current.get(field) {
             next[field] = value.clone();
