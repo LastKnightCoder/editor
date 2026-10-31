@@ -8,6 +8,7 @@ import {
   type ChatSessionMessage,
   type MentionRef,
   type MessageContent,
+  type ThinkingLevel,
 } from "@tau/shared/chat-core";
 import type { AiModelRef } from "@tau/ai/contracts";
 import type { AiApproval, AiQuestion, AiRunSnapshot, MobileAiService } from "../ai";
@@ -210,12 +211,16 @@ export function buildMessage(input: ChatInput): MessageContent[] {
   ];
 }
 
-export async function sendMessage(sessionId: string, input: ChatInput | string) {
+export async function sendMessage(
+  sessionId: string,
+  input: ChatInput | string,
+  thinkingLevel?: ThinkingLevel
+) {
   const value = typeof input === "string" ? { text: input } : input;
   const message = buildMessage(value);
   if (!message.length) return;
   const text = value.text.trim();
-  await runChat(sessionId, message, async (service, state, ref) => {
+  await runChat(sessionId, message, thinkingLevel, async (service, state, ref) => {
     // 就近对话的标题是「关于《篇名》」，不随首句改名
     if (state.messages.length || state.title !== "新对话") return;
     const titled = await service.sessions.patch(ref, state.revision, {
@@ -228,7 +233,7 @@ export async function sendMessage(sessionId: string, input: ChatInput | string) 
 }
 
 /** 重新生成最后一个问题的回答：会话回退到这条问题之前再原样发出，旧回答留在会话树上 */
-export async function regenerateLast(sessionId: string) {
+export async function regenerateLast(sessionId: string, thinkingLevel?: ThinkingLevel) {
   const state = useChatStore.getState().chats[sessionId];
   const question = [...(state?.messages ?? [])].reverse().find(item => item.role === Role.User);
   const entryId = question?.piEntryIds?.[0];
@@ -237,7 +242,7 @@ export async function regenerateLast(sessionId: string) {
     typeof question.content === "string"
       ? [{ type: "text", text: question.content }]
       : structuredClone(question.content);
-  await runChat(sessionId, message, async (service, current, ref) => {
+  await runChat(sessionId, message, thinkingLevel, async (service, current, ref) => {
     const rewound = await service.sessions.editHistory(ref, current.revision, {
       kind: "rewind",
       entryId,
@@ -263,10 +268,11 @@ export async function deleteMessage(sessionId: string, index: number) {
   return true;
 }
 
-/** 发起一次运行：prepare 在运行前改写会话（命名、回退），失败统一落到 error */
+/** 发起一次运行：prepare 在运行前改写会话（命名、回退），失败统一落到 error；未给档位时用模型默认 */
 async function runChat(
   sessionId: string,
   message: MessageContent[],
+  thinkingLevel: ThinkingLevel | undefined,
   prepare: (
     service: MobileAiService,
     state: ChatState,
@@ -294,6 +300,7 @@ async function runChat(
       expectedRevision: current.revision,
       message,
       model: state.model,
+      ...(thinkingLevel && { thinkingLevel }),
       toolIds,
       skillIds: [],
       interactionMode: "host",

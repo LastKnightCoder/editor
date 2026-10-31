@@ -34,20 +34,19 @@ export function ChatPage(props: {
 }) {
   const navigator = useNavigator();
   const { content } = props;
-  const { chat, providers, model, modelInfo, running, loadError, send, pickModel } = useChatSession(
-    {
+  const { chat, providers, model, modelInfo, running, loadError, thinking, send, pickModel } =
+    useChatSession({
       sessionId: props.sessionId,
       isNew: props.isNew,
       ...(content && {
         domain: { contentId: content.contentId, title: content.title || "未命名" },
       }),
-    }
-  );
+    });
   const [mentions, setMentions] = useState<MentionRef[]>(() =>
     content ? [mentionOf(content)] : []
   );
   const [picking, setPicking] = useState(false);
-  const actions = useMessageActions(props.sessionId);
+  const actions = useMessageActions(props.sessionId, thinking.level);
 
   // 从首页问答条带着问题进来：自动发出
   const [promptSent, setPromptSent] = useState(false);
@@ -173,6 +172,13 @@ export function ChatPage(props: {
               running={running}
               disabled={!!loadError}
               imageInput={!!modelInfo?.input.includes("image")}
+              {...(thinking.level && {
+                thinking: {
+                  level: thinking.level,
+                  options: thinking.options,
+                  onPick: thinking.pick,
+                },
+              })}
               {...(content && {
                 placeholder: "问问这段内容…",
                 mentions,

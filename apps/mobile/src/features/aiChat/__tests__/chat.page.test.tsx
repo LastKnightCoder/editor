@@ -233,6 +233,9 @@ it("新对话：首条消息才建会话，命名标题，流式回答后收尾"
     toolIds: ["host:create_todo"],
     interactionMode: "host",
   });
+  // 不支持推理的模型没有思考强度胶囊，也不带档位
+  expect(pressable("思考强度")).toBeUndefined();
+  expect(request).not.toHaveProperty("thinkingLevel");
   const runId = request.runId as string;
   emit(runId, {
     type: "snapshot",
@@ -255,6 +258,30 @@ it("新对话：首条消息才建会话，命名标题，流式回答后收尾"
   });
   await waitFor(() => !pressable("停止生成"));
   expect(text()).toContain("今天该做什么");
+});
+
+it("推理模型：下排胶囊选思考强度，记在本机，发送时带上所选档位", async () => {
+  setting = makeSetting(true, { reasoning: true });
+  localStorage.removeItem("tau-mobile-chat-thinking-level");
+  service.sessions.create.mockResolvedValue(session("s1"));
+  service.sessions.patch.mockResolvedValue(session("s1", [], "想想"));
+  service.runs.start.mockResolvedValue({ runId: "x" });
+  mount();
+  await open("aiChat", { sessionId: "s1", isNew: "1" });
+  await waitFor(() => !!pressable("思考强度"));
+  expect(pressable("思考强度")?.textContent).toContain("立答");
+
+  await click(pressable("思考强度"));
+  await waitFor(() => !!pressable("细致推演", document));
+  expect(pressable("极尽推演", document)).toBeUndefined();
+  await click(pressable("细致推演", document));
+  await waitFor(() => !!pressable("思考强度")?.textContent?.includes("细致"));
+  expect(localStorage.getItem("tau-mobile-chat-thinking-level")).toBe("medium");
+
+  type("想想");
+  await click(pressable("发送"));
+  await waitFor(() => service.runs.start.mock.calls.length === 1);
+  expect(service.runs.start.mock.calls[0][0]).toMatchObject({ thinkingLevel: "medium" });
 });
 
 it("写入工具等待审批：确认条可见，点「允许」经宿主作答", async () => {

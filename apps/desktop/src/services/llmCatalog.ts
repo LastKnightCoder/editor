@@ -66,11 +66,7 @@ export const resolveThinkingLevelOptions = (options: {
       ? options.catalogLevels
       : GENERIC_THINKING_LEVELS;
 
-/** 选中的档位落到可选集合内（换模型后旧选择可能不被支持，界面显示要与实际一致） */
-export const clampThinkingLevel = (
-  picked: PiThinkingLevel,
-  options: readonly PiThinkingLevel[]
-): PiThinkingLevel => (options.includes(picked) ? picked : (options[0] ?? "off"));
+export { clampThinkingLevel } from "@tau/shared/chat-core";
 
 /** 内置服务商列表（首次渲染异步填充；目录不可用时为空数组，界面退回自定义） */
 export function useCatalogProviders(): { providers: PiCatalogProvider[]; loading: boolean } {

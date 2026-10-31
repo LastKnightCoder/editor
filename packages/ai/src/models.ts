@@ -131,7 +131,7 @@ export interface LLMUsageConfigV2 {
   modelId: string;
 }
 
-import type { Api, Model } from "@earendil-works/pi-ai";
+import { getSupportedThinkingLevels, type Api, type Model } from "@earendil-works/pi-ai";
 import { AiError, type AiModelRef } from "./contracts";
 import {
   getBuiltinModels,
@@ -278,4 +278,24 @@ export function resolveConfiguredModel(config: AiModelConfig, ref: AiModelRef) {
   if (!supportedApis.has(model.api as PiApiKind))
     throw new AiError("AI_MODEL_UNAVAILABLE", "当前宿主不支持该模型协议");
   return { provider: structuredClone(provider), setting: structuredClone(setting), model };
+}
+
+/** 目录外模型的通用档（pi 会按模型能力 clamp，多给不会出错但可能无效） */
+const GENERIC_THINKING_LEVELS: PiThinkingLevel[] = ["off", "low", "medium", "high"];
+
+/**
+ * 某个已配置模型能选的思考档位：目录命中时以目录的推理能力与真实档位为准，
+ * 目录外按设置里的「推理」开关给通用档；不支持推理只有 off。
+ */
+export function thinkingLevelsOf(
+  providers: readonly AiPublicProvider[],
+  ref: AiModelRef
+): PiThinkingLevel[] {
+  const provider = providers.find(item => item.id === ref.providerId);
+  const setting = provider?.models.find(item => item.id === ref.modelId);
+  if (!provider || !setting) return ["off"];
+  const base = findBuiltinModel(provider, setting.id);
+  if (base)
+    return base.reasoning ? (getSupportedThinkingLevels(base) as PiThinkingLevel[]) : ["off"];
+  return setting.reasoning ? [...GENERIC_THINKING_LEVELS] : ["off"];
 }

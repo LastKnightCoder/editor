@@ -1,4 +1,4 @@
-// 输入区是两行的一体卡片：上行写字，下行左边 ＋ 与「引用笔记」，右下角一个位置三种状态——
+// 输入区是两行的一体卡片：上行写字，下行左边 ＋、「引用笔记」与思考强度，右下角一个位置三种状态——
 // 生成中为停止、有文字或附件为发送、否则为语音 / 键盘切换。待发送的引用与图片挂在卡片第一行。
 // 语音模式与微信一致：上行换成「按住 说话」，松手发送；再点键盘图标回到打字并弹出键盘。
 
@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import {
   ArrowUp,
   AtSign,
+  Brain,
   Camera,
   Image as ImageIcon,
   Keyboard,
@@ -15,7 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@tau/ui";
-import type { MentionRef } from "@tau/shared/chat-core";
+import { THINKING_LEVEL_OPTIONS, type MentionRef, type ThinkingLevel } from "@tau/shared/chat-core";
 import { ActionSheet } from "../../components/ActionSheet";
 import {
   resolveExpectedKeyboardHeight,
@@ -47,6 +48,12 @@ export function ChatComposer(props: {
   onMentionsChange?(mentions: MentionRef[]): void;
   /** 引用存在且没写字时，输入框下方的快捷问法 */
   quickPrompts?: string[];
+  /** 思考强度：当前模型可选不止一档时才传，下排显示档位胶囊 */
+  thinking?: {
+    level: ThinkingLevel;
+    options: readonly ThinkingLevel[];
+    onPick(level: ThinkingLevel): void;
+  };
   onSend(input: ChatInput): void;
   onStop(): void;
 }) {
@@ -56,6 +63,7 @@ export function ChatComposer(props: {
   const [localMentions, setLocalMentions] = useState<MentionRef[]>([]);
   const [plusOpen, setPlusOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [thinkingOpen, setThinkingOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const reservation = useKeyboardReservation();
   const keyboardViewport = useKeyboardViewport();
@@ -73,6 +81,8 @@ export function ChatComposer(props: {
   const cameraRef = useRef<HTMLInputElement>(null);
   const albumRef = useRef<HTMLInputElement>(null);
   const mentions = props.mentions ?? localMentions;
+  const { thinking } = props;
+  const thinkingOption = THINKING_LEVEL_OPTIONS.find(option => option.value === thinking?.level);
   const setMentions = props.onMentionsChange ?? setLocalMentions;
   const text = value.trim();
   const hasPayload = !!text || images.length > 0;
@@ -261,6 +271,18 @@ export function ChatComposer(props: {
             <AtSign size={15} aria-hidden="true" />
             引用笔记
           </button>
+          {thinking && (
+            <button
+              type="button"
+              aria-label={`思考强度：${thinkingOption?.label ?? ""}`}
+              disabled={props.running}
+              onClick={() => setThinkingOpen(true)}
+              className={cn(TOOL_BUTTON, "text-tau-sm gap-1 pr-3 pl-2.5 disabled:opacity-50")}
+            >
+              <Brain size={15} aria-hidden="true" />
+              {thinkingOption?.short ?? "立答"}
+            </button>
+          )}
           <span className="flex-1" />
           {trailing}
         </div>
@@ -310,6 +332,23 @@ export function ChatComposer(props: {
         ]}
         onClose={() => setPlusOpen(false)}
       />
+      {thinking && (
+        <ActionSheet
+          open={thinkingOpen}
+          title="思考强度"
+          subtitle="想得越多回答越慢；记在本机，所有对话共用"
+          items={THINKING_LEVEL_OPTIONS.filter(option =>
+            thinking.options.includes(option.value)
+          ).map(option => ({
+            key: option.value,
+            label: option.label,
+            desc: option.description,
+            selected: option.value === thinking.level,
+            onClick: () => thinking.onPick(option.value),
+          }))}
+          onClose={() => setThinkingOpen(false)}
+        />
+      )}
       <ContentLinkPickerSheet
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
