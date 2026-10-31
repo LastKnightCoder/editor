@@ -12,6 +12,47 @@ export interface HostTool {
 export const HOST_TOOL_SOURCE = "host";
 export const hostToolId = (name: string) => `${HOST_TOOL_SOURCE}:${name}`;
 
+/** 宿主工具按功能分组，供管理页整组开关；ask-question 属于对话交互，不分组、不可关 */
+export const HOST_TOOL_GROUPS = [
+  {
+    id: "host:knowledge",
+    name: "笔记与搜索",
+    description: "检索、阅读笔记，按只读 SQL 查询数据库",
+    tools: ["get_current_date", "search_knowledge", "get_content_markdown", "sql_query"],
+  },
+  {
+    id: "host:tasks",
+    name: "待办与日程",
+    description: "查询、创建、修改独立待办与日程。正文里的待办暂不支持",
+    tools: [
+      "query_todos",
+      "query_calendar_events",
+      "create_todo",
+      "update_todo",
+      "set_todo_completed",
+      "delete_todo",
+      "create_calendar_event",
+      "update_calendar_event",
+      "delete_calendar_event",
+    ],
+  },
+  {
+    id: "host:images",
+    name: "图片生成",
+    description: "用「图片生成」里选用的插件生成或编辑图片",
+    tools: ["generate_image", "edit_image"],
+  },
+] as const;
+
+/** 工具分组身份：宿主工具取所属功能组，其他工具取注册时的 sourceId */
+export function toolSourceOf(tool: { name: string; sourceId: string }) {
+  if (tool.sourceId !== HOST_TOOL_SOURCE) return tool.sourceId;
+  return (
+    HOST_TOOL_GROUPS.find(group => (group.tools as readonly string[]).includes(tool.name))?.id ??
+    tool.sourceId
+  );
+}
+
 export const ok = (value: unknown, metadata?: Record<string, unknown>): AiToolResult => ({
   content: JSON.stringify(value),
   ...(metadata ? { metadata } : {}),

@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端 Skill 与 MCP 管理 · 设计方案</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="../sync-mobile/sync.css" />
+<link rel="stylesheet" href="../ai-mobile/ai-base.css" />
+<link rel="stylesheet" href="../ai-mobile/chat.css" />
+<link rel="stylesheet" href="caps.css" />
+<script src="../ai-mobile/icons.js"></script>
+<script src="icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>移动端 Skill 与 MCP 管理 · 设计方案<small>决策稿 · 手机帧 360×760 · 颜色取自 @tau/themes · 虚线框 = 新增入口 · 插件名、服务器与工具均为示意</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="entry">1 入口位置<span class="rec">推荐 A</span></button>
+    <button class="tab" data-tab="skill">2 Skill 管理</button>
+    <button class="tab" data-tab="mcp">3 MCP 管理</button>
+    <button class="tab" data-tab="custom">4 添加远程 MCP<span class="rec">待定</span></button>
+    <button class="tab" data-tab="states">5 状态与异常</button>
+    <button class="tab" data-tab="cmp">6 对照、实现要点与待决策</button>
+  </nav>
+</header>
+
+<!-- ═══════════ 1 入口位置 ═══════════ -->
+<section class="scene" data-scene="entry">
+  <p class="scene-intro"><b>推荐 A：主入口放在「我的 › AI」分组，和「AI 模型」「图片生成」并列，Skill 与 MCP 各占一行。</b>这和桌面侧边栏的两个独立页面一一对应，行尾直接显示数量和异常，用户不用点进去就知道有没有坏掉的服务器。另外在两个“正在用它”的地方放直达入口：聊天的「选择 Skill」抽屉底部、插件详情的「此插件提供」。不建议放进「AI 模型」页（备选 B），Skill 与 MCP 和选哪个模型无关，藏一层后很难找到。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="big-title">我的</div>
+        <div class="scr">
+          <div class="sec-h" style="padding-top:4px">数据</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-sky" data-i="cloud" data-s="17"></span><span class="mid"><b>同步</b></span><span class="val">工作 · 82 MB</span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="sec-h">AI</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-acc" data-i="sparkles" data-s="17"></span><span class="mid"><b>AI 模型</b></span><span class="val">DeepSeek V3</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row"><span class="tile t-sky" data-i="image" data-s="17"></span><span class="mid"><b>图片生成</b></span><span class="val">OpenAI</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row hot"><span class="tile t-lilac" data-i="wand-sparkles" data-s="17"></span><span class="mid"><b>Skill</b></span><span class="val">8 个</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row hot"><span class="tile t-sage" data-i="plug" data-s="17"></span><span class="mid"><b>MCP 服务器</b></span><span class="val"><span class="st err">1 个连接失败</span></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="sec-h">语音</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-rose" data-i="audio-lines" data-s="17"></span><span class="mid"><b>语音合成</b></span><span class="val">豆包</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row"><span class="tile t-butter" data-i="mic" data-s="17"></span><span class="mid"><b>语音输入</b></span><span class="val">未选择</span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A</span>我的 › AI：新增两行<span class="rec-badge">推荐</span><small>行尾值：Skill 显示可用总数；MCP 正常时显示「3 个」，有失败时换成红色「1 个连接失败」。</small></div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>两行而不是合成一行「Skill 与 MCP」：两者的心智不同（Skill 是“说明书”，MCP 是“能动手的工具”），行尾状态也各自独立。合成一行的写法见 6 · D1。</li>
+        <li>顺序：模型 → 图片 → Skill → MCP，按“配了才能用”到“锦上添花”排列。</li>
+        <li>没配 AI 模型时两行照常显示，详情页顶部提示去配模型（见 5）。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="ib"></span></div>
+        <div class="scr" style="opacity:.45">
+          <div class="msg-a" style="padding:0 20px"><p>把这篇读书笔记整理成一张思维导图……</p></div>
+        </div>
+        <div class="mask"></div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="sh-t"><span>选择 Skill</span><span class="x-btn" data-i="x" data-s="16"></span></div>
+          <div class="sh-d">选择的 Skill 用于下一条消息，发送后清空。</div>
+          <div class="pick"><span class="mid"><b>思维导图</b><span class="s">创建思维导图、脑图、知识图谱或组织结构图</span></span><span class="check" data-i="check" data-s="13"></span></div>
+          <div class="pick"><span class="mid"><b>Markdown 扩展语法</b><span class="s">编辑或创建文档时使用 Markdown 扩展语法</span></span></div>
+          <div class="pick"><span class="mid"><b>周报模板 <span class="mode man">仅手动</span></b><span class="s">按「完成 / 进行中 / 风险」三段整理本周工作</span></span></div>
+          <div class="pick"><span class="mid"><b>论文精读</b><span class="s">逐段提炼论点、证据与可质疑之处</span></span></div>
+          <div class="btns" style="padding-top:8px"><span class="btn pri">完成</span></div>
+          <div class="link-row hot" style="margin:8px 60px 0;padding:6px 0"><b>管理 Skill</b><span data-i="chevron-right" data-s="14" style="color:var(--brand-text)"></span></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">②</span>聊天 › 选择 Skill：底部「管理 Skill」<small>只在列表里找不到想要的、或想停用某个时才用，所以放在「完成」下面，弱化成文字链接。</small></div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>点击后关闭抽屉、push Skill 页；返回时回到聊天，已选标签保留。</li>
+        <li>抽屉里不放开关：这里是“这条消息用哪个”，管理页才是“平时让不让 AI 用”。两种操作放一处容易误关。</li>
+        <li>已停用的 Skill 不出现在这个列表里（见 2 · 停用语义）。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+        <div class="scr">
+          <div class="dhead"><span class="tile lg t-lilac" data-i="puzzle" data-s="22"></span><span class="mid"><b>Zotero 文献助手</b><span class="sub">@lastknight · v0.6.1 · 已启用</span></span><span class="sw on"></span></div>
+          <div class="pills" style="padding-bottom:10px"><span class="on">介绍</span><span>设置</span><span>权限</span><span>更新日志</span></div>
+          <div class="gl" style="padding-top:4px">此插件提供</div>
+          <div class="prov">
+            <span>页面<i>1</i></span>
+            <span>设置页<i>1</i></span>
+            <span class="hot"><span data-i="wand-sparkles" data-s="13"></span>Skill<i>2</i><span data-i="chevron-right" data-s="12" style="color:var(--ink-3)"></span></span>
+            <span class="hot"><span data-i="plug" data-s="13"></span>MCP<i>1 · 4 个工具</i><span data-i="chevron-right" data-s="12" style="color:var(--ink-3)"></span></span>
+          </div>
+          <div class="gl">插件声明的权限</div>
+          <div class="grp">
+            <div class="row noicon plain"><span class="mid"><b style="font-size:13px">读取卡片与文章</b></span></div>
+            <div class="row noicon plain"><span class="mid"><b style="font-size:13px">访问 api.zotero.org</b></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">③</span>插件详情：「此插件提供」补 Skill 与 MCP<small>现在只统计正文块 / 页面 / 功能入口 / 设置页 / 今天页卡片，AI 贡献看不到。</small></div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>点 Skill 胶囊 → Skill 页并按来源过滤到这个插件；点 MCP 胶囊 → 直接进这个服务器的详情。</li>
+        <li>MCP 胶囊附带工具数，连接失败时胶囊里的数字换成红点。</li>
+        <li>反向也成立：Skill / MCP 详情里的「来自插件」可以跳回插件详情，管理启停回到插件自身。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">AI 模型</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="gl">功能分配</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-acc" data-i="messages-square" data-s="17"></span><span class="mid"><b>对话</b><span>聊天、提问笔记</span></span><span class="val">DeepSeek V3</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row"><span class="tile t-sage" data-i="audio-lines" data-s="17"></span><span class="mid"><b>语音输入整理</b></span><span class="val">Qwen Turbo</span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gl">服务商</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-sky">D</span><span class="mid"><b>DeepSeek</b><span>2 个模型</span></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gl">能力扩展</div>
+          <div class="grp hot">
+            <div class="row noicon"><span class="mid"><b>Skill</b></span><span class="val">8 个</span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row noicon"><span class="mid"><b>MCP 服务器</b></span><span class="val">3 个</span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B</span>备选：收进「AI 模型」页底部<span class="alt-badge">不推荐</span><small>「我的」页少两行，但入口深一层。</small></div>
+      <details class="note" open><summary>为什么不推荐</summary><ul>
+        <li>「AI 模型」页的主语是“哪个模型干哪件事”，Skill / MCP 是另一条轴，放在底部像附录。</li>
+        <li>MCP 连接失败的提示要多一层才能被看到。</li>
+        <li>桌面端是侧边栏两个独立页面，A 方案两端心智一致。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 2 Skill 管理 ═══════════ -->
+<section class="scene" data-scene="skill">
+  <p class="scene-intro"><b>手机端只管理、不编写。</b>Skill 来自三处：随应用提供的内置 Skill、已启用插件附带的 Skill、从插件中心安装的独立 Skill 包。每个 Skill 有三种使用方式：<b>自动</b>（AI 根据描述自己决定何时读取，描述常驻每轮对话）、<b>仅手动</b>（只在「选择 Skill」里点了才用）、<b>停用</b>。列表按来源分组，行尾开关管“停用 / 启用”，细分自动与手动进详情。新建、编辑正文、关联其他 AI 工具的目录都留在桌面端。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">Skill</span><span class="ib" data-i="search" data-s="19"></span></div>
+        <div class="scr">
+          <div class="pills" style="padding:2px 16px 4px"><span class="on">全部 <i>8</i></span><span>已启用 <i>7</i></span><span>仅手动 <i>2</i></span></div>
+          <div class="gl">内置<span>随应用更新</span></div>
+          <div class="grp">
+            <div class="row top"><span class="tile t-acc" data-i="wand-sparkles" data-s="16"></span><span class="mid"><b>思维导图</b><span class="two">创建思维导图、脑图、知识图谱或组织结构图</span></span><span class="sw on"></span></div>
+            <div class="row top"><span class="tile t-acc" data-i="wand-sparkles" data-s="16"></span><span class="mid"><b>知识库搜索与引用</b><span class="two">回答问题前先检索笔记，并用 :ref 标出出处</span></span><span class="sw on"></span></div>
+            <div class="row top off"><span class="tile t-acc" data-i="wand-sparkles" data-s="16"></span><span class="mid"><b>主数据库结构与只读 SQL</b><span class="two">已停用 · 说明表结构与安全查询方式</span></span><span class="sw"></span></div>
+          </div>
+          <div class="gl">插件提供<span>随插件启停</span></div>
+          <div class="grp">
+            <div class="row top"><span class="tile t-lilac" data-i="puzzle" data-s="16"></span><span class="mid"><b>文献引用格式 <span class="mode man">仅手动</span></b><span class="two">Zotero 文献助手 · 按 GB/T 7714 生成参考文献</span></span><span class="sw on"></span></div>
+          </div>
+          <div class="gl">Skill 包<span>从插件中心安装</span></div>
+          <div class="grp">
+            <div class="row top"><span class="tile t-sky" data-i="package" data-s="16"></span><span class="mid"><b>论文精读</b><span class="two">逐段提炼论点、证据与可质疑之处</span></span><span class="sw on"></span></div>
+            <div class="row top"><span class="tile t-sky" data-i="package" data-s="16"></span><span class="mid"><b>周报模板 <span class="mode man">仅手动</span></b><span class="two">按「完成 / 进行中 / 风险」三段整理</span></span><span class="sw on"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>Skill 列表<small>筛选用胶囊而不是分段控件。「仅手动」标签只在非默认时出现，自动不打标，减少噪音。停用行整体变淡、描述前缀「已停用」。</small></div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>开关语义 = 启用 / 停用；从停用打开时恢复上次的自动或手动方式。</li>
+        <li>插件 Skill 的开关只影响这个 Skill，不会停用插件；插件被停用时整组消失（不是变灰），因为来源已经撤销。</li>
+        <li>搜索在导航栏右侧，展开后匹配名称与描述；数量少（&lt; 10）时也可以不做，见 6 · D4。</li>
+        <li>不做“需要处理”筛选：手机端没有本地编写的 Skill，缺描述、同名遮蔽这类问题由包作者负责，出现时在行内提示即可。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="dhead"><span class="tile lg t-acc" data-i="wand-sparkles" data-s="22"></span><span class="mid"><b>思维导图</b><span class="sub">内置 · 随应用更新</span></span></div>
+          <div class="desc">创建思维导图、脑图、知识图谱或组织结构图</div>
+          <div class="gl">使用方式</div>
+          <div class="grp">
+            <div class="row noicon"><span class="mid"><b>自动</b><span>AI 根据描述决定何时读取</span></span><span class="val"></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gn">自动模式下，名称与描述（约 30 tokens）会随每轮对话发送。</div>
+          <div class="gl">正文<span>SKILL.md · 2.1 KB</span></div>
+          <div class="md">
+            <h4>思维导图</h4>
+            <p>当用户要求整理结构、梳理大纲或画脑图时，输出 <code>```mindmap</code> 代码块，用缩进表示层级……</p>
+            <h4>节点规则</h4>
+            <p>每个节点不超过 12 个字；根节点用主题名；同级节点保持 3–7 个……</p>
+          </div>
+          <div class="more">查看完整正文</div>
+          <div class="gl">最近使用</div>
+          <div class="grp">
+            <div class="row noicon plain"><span class="mid"><b style="font-size:13.5px">《设计心理学》读书笔记整理</b><span>今天 10:42 · 自动</span></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>Skill 详情<small>一页看完：它是什么、怎么被用、里面写了什么。正文只读，按 Markdown 渲染。</small></div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>「使用方式」一行打开底部抽屉（下一帧），不用分段控件。</li>
+        <li>tokens 提示解释“为什么要关掉不常用的自动 Skill”，与桌面描述偏长的提示同口径。</li>
+        <li>「最近使用」来自会话里 <code>TextContent.skills</code> 与工具调用记录，点开回到那次对话；没有数据就不显示这一组，不造数据。见 6 · D5。</li>
+        <li>「查看完整正文」push 一个只读阅读页，同时列出参考资料文件。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="ib"></span></div>
+        <div class="scr" style="opacity:.45">
+          <div class="dhead"><span class="tile lg t-acc" data-i="wand-sparkles" data-s="22"></span><span class="mid"><b>思维导图</b><span class="sub">内置</span></span></div>
+        </div>
+        <div class="mask"></div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="sh-t"><span>使用方式</span><span class="x-btn" data-i="x" data-s="16"></span></div>
+          <div class="opt cur"><span class="mid"><b>自动</b><span>AI 根据描述判断何时需要，自己读取正文。适合常用、描述清楚的 Skill。</span></span><span class="rb" data-i="check" data-s="13"></span></div>
+          <div class="opt"><span class="mid"><b>仅手动</b><span>只在输入框「＋ › 选择 Skill」里选中时使用，不占每轮对话的上下文。</span></span><span class="rb"></span></div>
+          <div class="opt"><span class="mid"><b>停用</b><span>AI 和「选择 Skill」里都看不到它。</span></span><span class="rb"></span></div>
+          <div class="gn" style="padding-top:2px">只在这台手机上生效，不随数据库同步。</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>使用方式抽屉<small>三选一，点选即生效并收起，toast「已改为仅手动」。</small></div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>作者在 frontmatter 写了 <code>disable-model-invocation: true</code> 的 Skill，默认值为「仅手动」，用户仍可改成自动。</li>
+        <li>“只在这台手机上生效”：桌面的偏好也存本机（<code>skill-preferences</code>），两端各自管理，避免手机改了影响电脑。见 6 · D2。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+        <div class="scr">
+          <div class="dhead"><span class="tile lg t-sky" data-i="package" data-s="22"></span><span class="mid"><b>论文精读</b><span class="sub">Skill 包 · @scholar · v1.2.0</span></span></div>
+          <div class="desc">逐段提炼论点、证据与可质疑之处，最后给出一页摘要</div>
+          <div class="banner warn" style="margin-top:6px"><span data-i="triangle-alert" data-s="16"></span><span>这个包带有 2 个脚本，手机端只读取说明与参考资料，不运行脚本。<br><span style="color:var(--ink-2)">脚本步骤需要在电脑上使用。</span></span></div>
+          <div class="gl">使用方式</div>
+          <div class="grp">
+            <div class="row noicon"><span class="mid"><b>自动</b></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gl">包含的文件</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-mute" data-i="file-text" data-s="15"></span><span class="mid"><b class="mono">SKILL.md</b><span>说明 · 3.4 KB</span></span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row"><span class="tile t-mute" data-i="book-open" data-s="15"></span><span class="mid"><b class="mono">references/rubric.md</b><span>参考资料 · 1.2 KB</span></span><span class="chev" data-i="chevron-right"></span></div>
+            <div class="row" style="opacity:.55"><span class="tile t-mute" data-i="file-code-2" data-s="15"></span><span class="mid"><b class="mono">scripts/extract.py</b><span>脚本 · 手机端不运行</span></span></div>
+          </div>
+          <div class="gl">来源</div>
+          <div class="grp">
+            <div class="row noicon"><span class="mid"><b>在插件中心查看</b><span>更新、卸载在那里进行</span></span><span class="chev" data-i="external-link" data-s="15"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>Skill 包详情<small>与内置的差别：显示作者与版本、脚本提示、文件清单，以及回到插件中心的入口。</small></div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>安装、更新、卸载只在插件中心做，这里不重复按钮；「⋯」只放「在插件中心查看」「复制 ID」。</li>
+        <li>插件提供的 Skill 详情同理，来源行写「Zotero 文献助手 · 插件」，跳插件详情。</li>
+        <li>脚本行置灰不可点，避免用户以为能在手机上看或运行。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 3 MCP 管理 ═══════════ -->
+<section class="scene" data-scene="mcp">
+  <p class="scene-intro"><b>MCP 页回答三个问题：AI 现在能用哪些工具、哪个服务器坏了、怎么修。</b>手机端的工具有两类来源：<b>Tau 自带</b>（笔记检索、只读 SQL、待办日程、图片生成，等同桌面的“内置”）和<b>插件提供</b>（插件内联工具或远程 Streamable HTTP 服务）。列表行尾是服务器级开关，详情里可以逐个关工具。写入类工具每次执行前都要用户确认，这一点保持不变，管理页只说明、不提供“总是允许”。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">MCP 服务器</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="banner err" style="margin-top:0"><span data-i="circle-alert" data-s="16"></span><span><b>1 个服务器连接失败</b>对话里暂时用不了它的工具</span><span class="act">查看</span></div>
+          <div class="gl">Tau 自带<span>随应用提供</span></div>
+          <div class="grp">
+            <div class="row"><span class="tile t-acc" data-i="search" data-s="16"></span><span class="mid"><b>笔记与搜索</b><span class="st ok">4 个工具 · 只读</span></span><span class="sw on"></span></div>
+            <div class="row"><span class="tile t-acc" data-i="list-checks" data-s="16"></span><span class="mid"><b>待办与日程</b><span class="st ok">9 个工具 · 7 个会修改</span></span><span class="sw on"></span></div>
+            <div class="row"><span class="tile t-acc" data-i="image" data-s="16"></span><span class="mid"><b>图片生成</b><span class="st">需要先配置图片生成服务</span></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gl">插件提供<span>随插件启停</span></div>
+          <div class="grp">
+            <div class="row"><span class="tile t-lilac" data-i="puzzle" data-s="16"></span><span class="mid"><b>Zotero 文献库</b><span class="st ok">Zotero 文献助手 · 4 个工具</span></span><span class="sw on"></span></div>
+            <div class="row"><span class="tile t-sky" data-i="globe" data-s="16"></span><span class="mid"><b>Notion</b><span class="st err">连接失败 · 鉴权已过期</span></span><span class="sw on"></span></div>
+            <div class="row off"><span class="tile t-butter" data-i="puzzle" data-s="16"></span><span class="mid"><b>天气</b><span class="st">已停用 · 天气卡片插件</span></span><span class="sw"></span></div>
+          </div>
+          <div class="gn">插件被停用后，它的服务器会从这里消失；在插件中心重新启用即可。</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>MCP 列表<small>状态写在副标题：绿点 = 可用、黄点 = 连接中、红色 = 失败。顶部红条只在有失败时出现，点「查看」滚到并展开失败项。</small></div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>Tau 自带工具按功能分三组，而不是把 15 个工具平铺；这和桌面「内置」一致，也让开关有意义（关掉“待办与日程”= AI 不碰你的待办）。</li>
+        <li>「图片生成」依赖设置：未配置时不给开关，行尾箭头直接跳「我的 › 图片生成」。</li>
+        <li>远程服务的地址、请求头属于插件，不在这里展示或修改。</li>
+        <li>移动端不支持 stdio；插件声明了 stdio 服务器时显示「手机端不支持」并置灰（见 5）。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+        <div class="scr">
+          <div class="dhead"><span class="tile lg t-lilac" data-i="puzzle" data-s="22"></span><span class="mid"><b>Zotero 文献库</b><span class="sub"><span class="st ok">已连接 · 插件内联工具</span></span></span><span class="sw on"></span></div>
+          <div class="desc">检索 Zotero 条目、读取摘要与批注、把文献插入为引用</div>
+          <div class="gl">工具 · 已启用 3 / 4<a>全部关闭</a></div>
+          <div class="grp">
+            <div class="row noicon top"><span class="mid"><b class="mono">search_items<span class="risk">只读</span></b><span class="two">按标题、作者、标签检索文献条目</span></span><span class="sw on"></span></div>
+            <div class="row noicon top"><span class="mid"><b class="mono">get_annotations<span class="risk">只读</span></b><span class="two">读取 PDF 批注与高亮</span></span><span class="sw on"></span></div>
+            <div class="row noicon top"><span class="mid"><b class="mono">insert_citation<span class="risk w">会修改</span></b><span class="two">在当前文档插入引用标记与参考文献</span></span><span class="sw on"></span></div>
+            <div class="row noicon top"><span class="mid"><b class="mono">sync_library<span class="risk x">执行操作</span></b><span class="two">触发 Zotero 云端同步</span></span><span class="sw"></span></div>
+          </div>
+          <div class="gn">会修改或执行操作的工具，每次运行前都会在对话里请你确认。</div>
+          <div class="gl">来源</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-lilac" data-i="puzzle" data-s="15"></span><span class="mid"><b>Zotero 文献助手</b><span>插件 · v0.6.1</span></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>服务器详情<small>头部总开关 + 逐个工具开关。工具名保留英文等宽（AI 看到的就是它），中文描述放下面。</small></div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>风险标签三档：只读 / 会修改 / 执行操作。插件工具宿主默认按“执行”对待，作者没声明只读时显示「执行操作」。</li>
+        <li>点工具行（非开关区）展开参数说明：入参列表 + 必填标记，方便判断要不要关它。</li>
+        <li>「⋯」：重新连接、复制服务器 ID。远程服务才有「重新连接」。</li>
+        <li>关工具立即对下一轮对话生效；正在跑的这一轮不受影响（与 chatController 每轮读取工具目录一致）。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="ib" data-i="ellipsis" data-s="20"></span></div>
+        <div class="scr">
+          <div class="dhead"><span class="tile lg t-sky" data-i="globe" data-s="22"></span><span class="mid"><b>Notion</b><span class="sub"><span class="st err">连接失败</span></span></span><span class="sw on"></span></div>
+          <div class="banner err" style="margin-top:0"><span data-i="circle-alert" data-s="16"></span><span><b>鉴权已过期（401）</b><span style="color:var(--ink-2)">10:42 · 服务器拒绝了这次连接。重新在插件里登录 Notion 后再试。</span></span></div>
+          <div class="btns" style="padding-top:10px"><span class="btn soft sm" data-i="refresh-cw" data-s="15">重新连接</span><span class="btn soft sm" data-i="settings-2" data-s="15">打开插件设置</span></div>
+          <div class="gl">连接信息</div>
+          <div class="grp">
+            <div class="row noicon"><span class="mid"><b>方式</b></span><span class="val">远程 · Streamable HTTP</span></div>
+            <div class="row noicon"><span class="mid"><b>地址</b></span><span class="val mono">mcp.notion.com/…</span></div>
+            <div class="row noicon"><span class="mid"><b>上次成功</b></span><span class="val">昨天 21:08 · 12 个工具</span></div>
+          </div>
+          <div class="gl">工具</div>
+          <div class="blank" style="padding-top:14px"><b style="font-size:13.5px">连接成功后显示工具列表</b>上次连接时的 12 个工具开关会保留</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>连接失败<small>先说原因，再给两个修复动作。错误文本做翻译：401 → 鉴权已过期，网络错误 → 网络不可用，超时 → 服务器无响应。</small></div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>「打开插件设置」只在插件声明了设置页时出现。</li>
+        <li>地址只显示主机名并截断，不显示路径里的 token；请求头完全不展示。</li>
+        <li>回到前台时服务会自动重连，所以这页可能自己从红变绿，不需要用户每次手动点。</li>
+        <li>不做桌面的「日志」页：手机上排查价值低，错误摘要 + 时间足够；需要细节时用反馈附带诊断信息。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="dhead"><span class="tile lg t-acc" data-i="list-checks" data-s="22"></span><span class="mid"><b>待办与日程</b><span class="sub">Tau 自带 · 随应用更新</span></span><span class="sw on"></span></div>
+          <div class="desc">让 AI 查询、创建、修改你的独立待办与日程。正文里的待办暂不支持。</div>
+          <div class="gl">查询</div>
+          <div class="grp">
+            <div class="row noicon"><span class="mid"><b class="mono">query_todos<span class="risk">只读</span></b><span>按状态、日期查询待办</span></span><span class="sw on"></span></div>
+            <div class="row noicon"><span class="mid"><b class="mono">query_calendar_events<span class="risk">只读</span></b><span>查询某段时间的日程</span></span><span class="sw on"></span></div>
+          </div>
+          <div class="gl">修改<span>每次执行前确认</span></div>
+          <div class="grp">
+            <div class="row noicon"><span class="mid"><b class="mono">create_todo<span class="risk w">会修改</span></b><span>新建待办</span></span><span class="sw on"></span></div>
+            <div class="row noicon"><span class="mid"><b class="mono">update_todo<span class="risk w">会修改</span></b><span>修改标题、日期、优先级</span></span><span class="sw on"></span></div>
+            <div class="row noicon"><span class="mid"><b class="mono">delete_todo<span class="risk w">会修改</span></b><span>删除待办</span></span><span class="sw"></span></div>
+            <div class="row noicon" style="justify-content:center;color:var(--ink-3);font-size:12.5px;min-height:40px">还有 4 个 · 展开</div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>Tau 自带工具详情<small>工具多时按“查询 / 修改”分组，修改组默认折叠到 3 个。示意中用户关掉了 delete_todo。</small></div>
+      <details class="note" open><summary>设计说明</summary><ul>
+        <li>工具名、入参和桌面同名同义，所以桌面上关掉的习惯可以照搬；但开关状态本机保存、不同步。</li>
+        <li><code>ask-question</code>（AI 向你提问）不列出、不可关，它是对话交互的一部分。</li>
+      </ul></details>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 4 添加远程 MCP（待定） ═══════════ -->
+<section class="scene" data-scene="custom">
+  <p class="scene-intro"><b>这一项超出“管理已有”，需要你先决定做不做。</b>现在手机端的 MCP 只来自插件；桌面可以自己添加服务器。手机能支持的只有远程 Streamable HTTP（不能起本地进程），所以“自定义”在手机上就是填一个 URL 和可选的请求头。如果做，列表多一个「我添加的」分组；如果不做，列表底部只放一句说明。下面两帧分别是两种结果。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">MCP 服务器</span><span class="ib hot" data-i="plus" data-s="20"></span></div>
+        <div class="scr">
+          <div class="gl">我添加的</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-rose" data-i="server" data-s="16"></span><span class="mid"><b>团队知识库</b><span class="st ok">远程 · 6 个工具</span></span><span class="sw on"></span></div>
+          </div>
+          <div class="gl">Tau 自带</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-acc" data-i="search" data-s="16"></span><span class="mid"><b>笔记与搜索</b><span class="st ok">4 个工具</span></span><span class="sw on"></span></div>
+            <div class="row"><span class="tile t-acc" data-i="list-checks" data-s="16"></span><span class="mid"><b>待办与日程</b><span class="st ok">9 个工具</span></span><span class="sw on"></span></div>
+          </div>
+          <div class="gl">插件提供</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-lilac" data-i="puzzle" data-s="16"></span><span class="mid"><b>Zotero 文献库</b><span class="st ok">4 个工具</span></span><span class="sw on"></span></div>
+          </div>
+        </div>
+        <div class="mask"></div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="sh-t"><span>添加远程 MCP</span><span class="x-btn" data-i="x" data-s="16"></span></div>
+          <div class="sh-d">手机端只支持 Streamable HTTP 地址，不能启动本地命令。</div>
+          <div class="grp">
+            <div class="fld"><label>名称</label><div class="in">团队知识库</div></div>
+            <div class="fld"><label>地址</label><div class="in mono" style="font-size:13px">https://kb.example.com/mcp</div></div>
+            <div class="fld"><label>请求头（可选）</label><div class="in"><span class="ph">Authorization: Bearer …</span></div></div>
+          </div>
+          <div class="gn">请求头只保存在这台手机上，不随数据库同步。</div>
+          <div class="btns"><span class="btn soft">取消</span><span class="btn pri">连接并添加</span></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">A</span>做：右上角「＋」添加<small>先连接、拿到工具列表再保存；失败停在表单上显示原因。</small></div>
+      <details class="note" open><summary>代价</summary><ul>
+        <li>要新增本机配置存储与原生写入命令；请求头属于凭据，需要和模型 Key 一样只存原生侧、不回传 WebView。</li>
+        <li>桌面配置不同步过来，用户要在手机上再填一遍；可以加「从桌面导出的 JSON 导入」，但又多一个流程。</li>
+        <li>建议：本次先不做，等确实有人在手机上要接自己的服务器再加。</li>
+      </ul></details>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">MCP 服务器</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="gl">Tau 自带</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-acc" data-i="search" data-s="16"></span><span class="mid"><b>笔记与搜索</b><span class="st ok">4 个工具</span></span><span class="sw on"></span></div>
+            <div class="row"><span class="tile t-acc" data-i="list-checks" data-s="16"></span><span class="mid"><b>待办与日程</b><span class="st ok">9 个工具</span></span><span class="sw on"></span></div>
+          </div>
+          <div class="gl">插件提供</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-lilac" data-i="puzzle" data-s="16"></span><span class="mid"><b>Zotero 文献库</b><span class="st ok">4 个工具</span></span><span class="sw on"></span></div>
+          </div>
+          <div class="grp hot" style="margin-top:22px">
+            <div class="row"><span class="tile t-mute" data-i="store" data-s="16"></span><span class="mid"><b>找更多工具</b><span>插件中心里带 MCP 的插件</span></span><span class="chev" data-i="chevron-right"></span></div>
+          </div>
+          <div class="gn">想接自己的服务器？在电脑上添加自定义 MCP；手机端目前只使用 Tau 自带与插件提供的工具。</div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">B</span>不做：底部引导去插件中心<span class="rec-badge">推荐</span><small>「找更多工具」打开插件中心并按“提供 MCP”筛选。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 5 状态与异常 ═══════════ -->
+<section class="scene" data-scene="states">
+  <p class="scene-intro">管理页的空态和异常都要给出下一步，不只写“暂无”。数据来自运行时快照（插件 MCP 的 preparing / connected / disconnected / error，Skill 来源的 pending / error），没就绪就显示加载，不预填假数据。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">MCP 服务器</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="banner info" style="margin-top:0"><span data-i="info" data-s="16"></span><span><b>还没有设置 AI 模型</b>工具会在配好模型后用于对话</span><span class="act">去设置</span></div>
+          <div class="gl">Tau 自带</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-acc" data-i="search" data-s="16"></span><span class="mid"><b>笔记与搜索</b><span>4 个工具 · 只读</span></span><span class="sw on"></span></div>
+            <div class="row"><span class="tile t-acc" data-i="list-checks" data-s="16"></span><span class="mid"><b>待办与日程</b><span>9 个工具</span></span><span class="sw on"></span></div>
+          </div>
+          <div class="gl">插件提供</div>
+          <div class="blank" style="padding-top:18px"><span class="tile lg t-mute" data-i="puzzle" data-s="20"></span><b>还没有插件提供工具</b>部分插件会给 AI 增加工具，比如读取文献库、查天气。<div class="btns" style="padding:12px 30px 0"><span class="btn soft sm">去插件中心看看</span></div></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">1</span>未配模型 + 没有插件工具<small>开关照常可调，提前设好偏好；顶部提示去「AI 模型」。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">MCP 服务器</span><span class="ib"></span></div>
+        <div class="scr">
+          <div class="gl">插件提供</div>
+          <div class="grp">
+            <div class="row"><span class="tile t-lilac" data-i="puzzle" data-s="16"></span><span class="mid"><b>Zotero 文献库</b><span class="st wait">正在连接…</span></span><span class="sw on"></span></div>
+            <div class="row"><span class="tile t-sky" data-i="globe" data-s="16"></span><span class="mid"><b>Notion</b><span class="st wait">正在重新连接…</span></span><span class="sw on"></span></div>
+            <div class="row" style="opacity:.55"><span class="tile t-mute" data-i="server" data-s="16"></span><span class="mid"><b>本地文件系统</b><span>手机端不支持本地命令（stdio）</span></span></div>
+          </div>
+          <div class="gn">从后台回来时会自动重连远程服务器，不需要手动操作。</div>
+        </div>
+        <div class="toast" style="bottom:40px"><span data-i="circle-check" data-s="14"></span>已关闭 delete_todo，下一条消息起生效</div>
+      </div></div>
+      <div class="frame-cap"><span class="no">2</span>连接中 / 不支持 / 操作反馈<small>stdio 服务器灰显、无开关；toast 说明生效时机。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t">Skill</span><span class="ib" data-i="search" data-s="19"></span></div>
+        <div class="scr">
+          <div class="gl">内置</div>
+          <div class="grp">
+            <div class="row top"><span class="tile t-acc" data-i="wand-sparkles" data-s="16"></span><span class="mid"><b>思维导图</b><span class="two">创建思维导图、脑图、知识图谱或组织结构图</span></span><span class="sw on"></span></div>
+          </div>
+          <div class="gl">插件提供</div>
+          <div class="banner err" style="margin-top:0"><span data-i="circle-alert" data-s="16"></span><span><b>插件 Skill 读取失败</b><span style="color:var(--ink-2)">技能安装版本与当前活动插件不一致</span></span><span class="act">重试</span></div>
+          <div class="gl">Skill 包</div>
+          <div class="grp">
+            <div class="row top"><span class="tile t-sky" data-i="package" data-s="16"></span><span class="mid"><b>论文精读</b><span class="two">待生效更新 v1.3.0 · 重启应用后使用新版本</span></span><span class="sw on"></span></div>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">3</span>Skill 来源异常<small>只让出错的那组变成错误条，其他来源照常可用；待生效更新沿用插件中心的口径。</small></div>
+    </div>
+
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="nav"><span class="ib" data-i="chevron-left" data-s="22"></span><span class="t"></span><span class="ib"></span></div>
+        <div class="scr" style="opacity:.45"><div class="msg-a" style="padding:0 20px"><p>帮我把明天的会议加到日程</p></div></div>
+        <div class="mask"></div>
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="sh-t"><span>选择 Skill</span><span class="x-btn" data-i="x" data-s="16"></span></div>
+          <div class="blank" style="padding:18px 30px 6px"><span class="tile lg t-mute" data-i="wand-sparkles" data-s="20"></span><b>所有 Skill 都已停用</b>在 Skill 管理里启用后可以在这里选择。</div>
+          <div class="btns"><span class="btn soft">管理 Skill</span></div>
+        </div>
+      </div></div>
+      <div class="frame-cap"><span class="no">4</span>聊天抽屉的空态<small>和现在的「暂无可用 Skill」相比，多给一个去处。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 6 对照与待决策 ═══════════ -->
+<section class="scene" data-scene="cmp">
+  <div class="cmp-wrap">
+    <p class="scene-intro">桌面端已经有完整的 Skill 页与 MCP 页（侧边栏两个入口，卡片库 + 抽屉 + 整页编辑）。手机端按“只管理、不编写”裁剪：保留看、开关、使用方式与排障，去掉新建、编辑、关联目录、日志和 JSON 导入导出。</p>
+    <div class="card">
+      <h3>桌面 ↔ 手机能力对照</h3>
+      <table class="cmp">
+        <tr><th style="width:22%">能力</th><th style="width:26%">桌面</th><th style="width:26%">手机（本方案）</th><th>原因</th></tr>
+        <tr><td>入口</td><td>侧边栏「Skill」「MCP 服务器」</td><td>我的 › AI 两行 + 聊天抽屉 + 插件详情</td><td>手机没有侧边栏，「我的」是设置总入口</td></tr>
+        <tr><td>Skill 来源</td><td>内置 / 我的 / 插件 / Skill 包 / 关联目录</td><td>内置 / 插件 / Skill 包</td><td>手机没有本地 Skill 目录，也读不到其他 AI 工具的目录</td></tr>
+        <tr><td>Skill 启停与自动/手动</td><td>有</td><td>有</td><td>核心诉求</td></tr>
+        <tr><td>新建 / 编辑 Skill</td><td>有（整页编辑器）</td><td>无，正文只读</td><td>手机写长 Markdown 体验差，且没有“我的”目录</td></tr>
+        <tr><td>MCP 服务器启停 / 逐个工具开关</td><td>有</td><td>有</td><td>核心诉求</td></tr>
+        <tr><td>自定义 MCP</td><td>stdio + HTTP，表单 / JSON</td><td>待定（见 4），推荐暂不做</td><td>手机只能 HTTP；凭据存储需要新原生命令</td></tr>
+        <tr><td>连接日志</td><td>有</td><td>只显示最近一次错误摘要</td><td>手机排查价值低</td></tr>
+        <tr><td>重新连接</td><td>有</td><td>有（远程服务）+ 回前台自动重连</td><td>沿用现有生命周期</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>实现要点（给后续开发）</h3>
+      <ul>
+        <li><b>页面</b>：<code>features/aiCapabilities/pages/</code> 下新增 <code>skills</code>、<code>skillDetail</code>、<code>mcp</code>、<code>mcpDetail</code> 四个 definePage；「我的」的 AI 分组加两行 ListItem，沿用现有 <code>IconTile</code> 风格。</li>
+        <li><b>数据</b>：Skill 列表复用 <code>listChatSkills</code>（<code>service.skills.list</code>）+ <code>runtime.aiSkills</code> 快照的 revision 做 react-query key，和 <code>SkillPickerSheet</code> 一致；MCP 列表合并宿主工具（<code>registerChatHostCapabilities</code> 的工具清单）与 <code>runtime.aiMcp.getSnapshot()</code>，用 <code>useSyncExternalStore</code> 订阅状态变化。</li>
+        <li><b>偏好存储（新增）</b>：手机端目前没有 Skill 启停 / 使用方式、工具禁用的持久化。新增本机偏好（按工作区分区，不进同步）：<code>skills: { [skillId]: { disabled?, invocation? } }</code>、<code>tools: { disabledSources: string[], disabledTools: string[] }</code>。ID 用已有的稳定标识（Skill 用 <code>包ID:目录ID</code> / 内置目录名，工具用 tool id）。</li>
+        <li><b>生效点</b>：<code>chatController</code> 每轮组装 <code>toolIds</code> / Skill 目录时按偏好过滤；“仅手动”需要在 Skill 注册表外加一层覆盖（现在只认 frontmatter 的 <code>disableModelInvocation</code>），或在传给运行时的自动目录里剔除。停用的 Skill 同时从「选择 Skill」抽屉中隐藏。</li>
+        <li><b>插件详情</b>：<code>CONTRIBUTION_LABELS</code> 增加 Skill 与 MCP 两项，数量取自对应快照；点击跳转带过滤参数。</li>
+        <li><b>文档</b>：<code>docs/architecture/mobile.md</code> 的 AI 小节与 <code>plugin-portability.md</code>「MCP 管理入口不随注册自动产生」一句需同步改写。</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>待你决定</h3>
+      <ul>
+        <li><b>D1 入口</b>：A「我的 › AI」两行（推荐）/ A′ 合成一行「Skill 与 MCP」进二级页再分两组 / B 收进 AI 模型页。</li>
+        <li><b>D2 偏好是否同步</b>：推荐只存本机，与桌面 <code>skill-preferences</code>、MCP 本地存储一致；如果你希望手机和电脑的启停一致，需要先定同步载体（setting.json 不同步）。</li>
+        <li><b>D3 自定义远程 MCP</b>：推荐本次不做（场景 4 · B）。</li>
+        <li><b>D4 Skill 搜索</b>：Skill 数 &lt; 10 时可以先不做搜索，只留筛选胶囊。</li>
+        <li><b>D5 「最近使用」</b>：需要从会话文件反查，成本中等；可以第一版不做，详情页只保留使用方式与正文。</li>
+        <li><b>D6 Tau 自带工具是否允许关闭</b>：推荐允许（按功能组 + 逐个工具），让不想让 AI 碰待办的人有办法；<code>ask-question</code> 不可关。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+</body>
+<script src="../ai-mobile/ai.js"></script>
+</html>

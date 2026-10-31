@@ -1,0 +1,380 @@
+/* 移动端 MCP / Skill 管理 mockup：外壳复用 editor-mobile，列表/抽屉复用 sync-mobile，开关/横幅复用 ai-mobile */
+
+/* 「我的」分组标题，对应 OverviewSection 的 h2 */
+.sec-h {
+  font-size: 16.5px;
+  font-weight: 800;
+  padding: 18px 20px 8px;
+}
+.big-title small {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-3);
+  letter-spacing: 0;
+  margin-top: 2px;
+}
+
+/* 状态点 + 状态行 */
+.st {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.st::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-3);
+  flex: none;
+}
+.st.ok::before {
+  background: var(--sage);
+}
+.st.wait::before {
+  background: var(--butter);
+}
+.st.err {
+  color: var(--danger) !important;
+}
+.st.err::before {
+  background: var(--danger);
+}
+.row .mid span.st {
+  display: inline-flex;
+}
+
+/* 描述两行 */
+.row .mid span.two {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.5;
+  margin-top: 2px;
+}
+.row.top {
+  align-items: flex-start;
+}
+.row.top .sw,
+.row.top .chev {
+  margin-top: 4px;
+}
+
+/* 使用方式小标 */
+.mode {
+  font-size: 10.5px;
+  font-weight: 650;
+  padding: 1px 7px;
+  border-radius: 99px;
+  white-space: nowrap;
+  background: var(--brand-soft);
+  color: var(--brand-text);
+  flex: none;
+}
+.mode.man {
+  background: var(--sky-soft);
+  color: var(--sky);
+}
+.mode.off {
+  background: var(--bg-page);
+  color: var(--ink-3);
+}
+.row.off .mid b,
+.row.off .tile {
+  opacity: 0.5;
+}
+
+/* 风险标签 */
+.risk {
+  font-size: 10px;
+  font-weight: 650;
+  padding: 0 6px;
+  border-radius: 6px;
+  margin-left: 5px;
+  vertical-align: 1px;
+  background: var(--bg-page);
+  color: var(--ink-3);
+}
+.risk.w {
+  background: var(--butter-soft);
+  color: var(--butter);
+}
+.risk.x {
+  background: var(--rose-soft);
+  color: var(--rose);
+}
+.mono {
+  font-family: var(--mono);
+  font-size: 11px !important;
+}
+
+/* 筛选胶囊（替代分段控件） */
+.pills {
+  display: flex;
+  gap: 6px;
+  padding: 0 16px 4px;
+}
+.pills span {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 99px;
+  background: var(--bg-surface);
+  font-size: 12.5px;
+  color: var(--ink-2);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.pills span.on {
+  background: var(--ink-1);
+  color: var(--ink-inv);
+  font-weight: 600;
+}
+.pills span i {
+  font-style: normal;
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 详情头 */
+.dhead {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 2px 20px 12px;
+}
+.dhead .mid {
+  flex: 1;
+  min-width: 0;
+}
+.dhead b {
+  font-size: 19px;
+  font-weight: 800;
+  display: block;
+}
+.dhead span.sub {
+  font-size: 12px;
+  color: var(--ink-3);
+  display: block;
+  margin-top: 2px;
+}
+.desc {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  padding: 0 20px 4px;
+}
+
+/* 正文预览 */
+.md {
+  margin: 0 16px;
+  background: var(--bg-surface);
+  border-radius: 16px;
+  padding: 12px 14px;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  max-height: 210px;
+  overflow: hidden;
+  position: relative;
+}
+.md h4 {
+  font-size: 13.5px;
+  color: var(--ink-1);
+  margin: 6px 0 2px;
+}
+.md h4:first-child {
+  margin-top: 0;
+}
+.md code {
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--bg-page);
+  padding: 0 4px;
+  border-radius: 4px;
+}
+.md::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 48px;
+  background: linear-gradient(transparent, var(--bg-surface));
+}
+.more {
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--brand-text);
+  padding: 8px 0 0;
+}
+
+/* 抽屉里的单选行 */
+.opt {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  background: var(--bg-surface);
+  margin: 0 16px 8px;
+  border-radius: 16px;
+  border: 1.5px solid transparent;
+}
+.opt.cur {
+  border-color: var(--brand);
+}
+.opt .mid {
+  flex: 1;
+}
+.opt .mid b {
+  font-size: 14.5px;
+  font-weight: 600;
+  display: block;
+}
+.opt .mid span {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.55;
+  margin-top: 2px;
+}
+.opt .rb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-1);
+  flex: none;
+  margin-top: 1px;
+}
+.opt.cur .rb {
+  border: 0;
+  background: var(--brand);
+  color: var(--ink-inv);
+  display: grid;
+  place-items: center;
+}
+
+/* 新增入口高亮 */
+.hot {
+  outline: 2px dashed var(--brand);
+  outline-offset: -2px;
+  border-radius: 14px;
+}
+.row.hot {
+  border-radius: 0;
+}
+
+/* 选择 Skill 抽屉里的简化行 */
+.pick {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 20px;
+}
+.pick .mid {
+  flex: 1;
+  min-width: 0;
+}
+.pick b {
+  font-size: 14px;
+  display: block;
+}
+.pick span.s {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.check {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--brand);
+  color: var(--ink-inv);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.link-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--ink-2);
+  padding: 10px 0 0;
+}
+.link-row b {
+  color: var(--brand-text);
+  font-weight: 650;
+}
+
+/* 插件详情「此插件提供」 */
+.prov {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 16px;
+}
+.prov span {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: var(--bg-surface);
+  font-size: 12.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.prov span i {
+  font-style: normal;
+  color: var(--ink-3);
+}
+.prov span.hot {
+  border-radius: 10px;
+}
+
+/* 空态 */
+.blank {
+  text-align: center;
+  padding: 40px 30px 0;
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.blank .tile {
+  margin: 0 auto 12px;
+}
+.blank b {
+  display: block;
+  color: var(--ink-1);
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+/* 对照表 */
+.cmp-wrap {
+  max-width: 1100px;
+}
+.cmp-wrap h3 {
+  font-size: 14px;
+  margin: 22px 0 8px;
+}
+.cmp-wrap .card + .card {
+  margin-top: 12px;
+}
+
+/* 行内标签不随 .row .mid span 变成整行块 */
+.row .mid span.mode,
+.row .mid span.risk,
+.pick .mid span.mode {
+  display: inline-flex;
+  width: auto;
+  margin-top: 0;
+  vertical-align: 1px;
+}

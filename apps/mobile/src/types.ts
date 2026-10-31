@@ -652,8 +652,28 @@ export type ImageSettingsMutation =
   | { type: "delete"; id: string }
   | { type: "select"; id: string; expectedProvider: ImageProviderConfig | null };
 
+/** 用户添加的远程 MCP：页面只看到请求头名称，值由原生保存 */
+export interface CustomMcpServer {
+  id: string;
+  name: string;
+  url: string;
+  enabled: boolean;
+  headerNames: string[];
+}
+
+export type CustomMcpServersMutation =
+  | {
+      kind: "upsert";
+      server: { id: string; name: string; url: string };
+      /** 省略时沿用已保存的请求头；传入时整体替换 */
+      headers?: Record<string, string>;
+    }
+  | { kind: "remove"; id: string }
+  | { kind: "setEnabled"; id: string; enabled: boolean };
+
 export interface SettingCompat {
   imageGeneration?: ImageGenerationSetting;
+  mcpServers?: CustomMcpServer[];
   speechInput?: import("@tau/asr").SpeechInputSetting;
   llmProviders?: MobileLlmProvider[];
   llmUsageSettings?: AiSettingsSnapshot["llmUsageSettings"];

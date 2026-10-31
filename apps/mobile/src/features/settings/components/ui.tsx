@@ -9,7 +9,9 @@ import {
   Folder,
   Image as ImageIcon,
   MessageSquare,
+  Plug,
   Sparkles,
+  WandSparkles,
   Mic,
   Moon,
   Type,
@@ -130,6 +132,22 @@ export function IconSparkles() {
   return (
     <IconTile className="bg-accent-soft text-accent-text">
       <Sparkles size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
+}
+
+export function IconWandSparkles() {
+  return (
+    <IconTile className="bg-tag-3-soft text-tag-3">
+      <WandSparkles size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
+}
+
+export function IconPlug() {
+  return (
+    <IconTile className="bg-tag-1-soft text-tag-1">
+      <Plug size={17} strokeWidth={1.9} aria-hidden="true" />
     </IconTile>
   );
 }

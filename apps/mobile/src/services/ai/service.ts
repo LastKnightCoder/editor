@@ -30,6 +30,7 @@ import {
   AiSkillRegistry,
   createSkillTools,
   formatSkillCatalog,
+  type AiSkillDescriptor,
   type AiSkillSnapshot,
   type AiSkillSource,
 } from "@tau/ai/skills";
@@ -48,6 +49,8 @@ type GenerationHandle = Awaited<ReturnType<AiRuntime["generate"]>>;
 type McpRegistration = {
   config: AiMcpServerConfig;
   options: AiMcpConnectionOptions;
+  /** 用户添加的服务器：请求头由原生按服务器 id 从设置读取 */
+  customServerId?: string;
   pending?: Promise<AiMcpServerState>;
 };
 type McpEntry = {
@@ -70,6 +73,11 @@ export interface MobileAiOptions {
   prepareInput?: AiRuntimeOptions["prepareInput"];
   preparePrompt?: AiRuntimeOptions["preparePrompt"];
   maxTurns?: number;
+  /** 本机 Skill 偏好：返回本库可用目录，disableModelInvocation 表示仅手动 */
+  skillPolicy?: (
+    databaseName: string,
+    skills: readonly Readonly<AiSkillDescriptor>[]
+  ) => readonly Readonly<AiSkillDescriptor>[];
 }
 
 const keyOf = (ref: AiSessionRef) => JSON.stringify([ref.databaseName, ref.sessionId]);
@@ -131,7 +139,7 @@ export class MobileAiService {
   private pauseIntent = 0;
   private suspendPromise?: Promise<void>;
 
-  constructor(options: MobileAiOptions = {}) {
+  constructor(private readonly options: MobileAiOptions = {}) {
     this.capabilities = Object.freeze({
       persistentSessions: true,
       historyEdit: true,
@@ -378,6 +386,12 @@ export class MobileAiService {
       this.assertOpen();
       return this.skillRegistry.list(signal);
     },
+    /** 经本机偏好过滤后的本库目录（停用的不在其中，仅手动的带 disableModelInvocation） */
+    available: async (databaseName: string, signal?: AbortSignal) => {
+      this.assertOpen(databaseName);
+      const skills = await this.skillRegistry.list(signal);
+      return this.options.skillPolicy?.(databaseName, skills) ?? skills;
+    },
     load: (...args: Parameters<AiSkillRegistry["load"]>) => {
       this.assertOpen();
       return this.skillRegistry.load(...args);
@@ -399,7 +413,8 @@ export class MobileAiService {
     connect: async (
       databaseName: string,
       config: AiMcpServerConfig,
-      options?: AiMcpConnectionOptions
+      options?: AiMcpConnectionOptions,
+      customServerId?: string
     ) => {
       this.assertOpen(databaseName);
       const entry = this.mcpEntry(databaseName);
@@ -407,6 +422,7 @@ export class MobileAiService {
       const registration: McpRegistration = {
         config: structuredClone(config),
         options: Object.freeze({ ...options }),
+        ...(customServerId ? { customServerId } : {}),
       };
       entry.registrations.set(config.id, registration);
       const closing = entry.manager.disconnect(config.id);
@@ -778,10 +794,25 @@ export class MobileAiService {
   private async skillSnapshot(request: AiRunStartRequest, signal: AbortSignal) {
     let snapshot = this.skillSnapshots.get(request.runId);
     if (!snapshot) {
-      snapshot = await this.skillRegistry.captureAvailable(request.skillIds, signal);
+      snapshot = await this.captureSkills(request, signal);
       this.skillSnapshots.set(request.runId, snapshot);
     }
     return snapshot;
+  }
+
+  private async captureSkills(request: AiRunStartRequest, signal: AbortSignal) {
+    const policy = this.options.skillPolicy;
+    if (!policy) return this.skillRegistry.captureAvailable(request.skillIds, signal);
+    const allowed = policy(request.session.databaseName, await this.skillRegistry.list(signal));
+    const manual = new Set(request.skillIds);
+    for (const id of manual)
+      if (!allowed.some(skill => skill.id === id))
+        throw new AiError("AI_SKILL_UNAVAILABLE", `技能不可用：${id}`);
+    const ids = allowed
+      .filter(skill => !skill.disableModelInvocation || manual.has(skill.id))
+      .map(skill => skill.id);
+    // 用户改为自动的仅手动 Skill 视为已授权，注册表不再按 frontmatter 拒绝
+    return this.skillRegistry.capture(ids, ids, signal);
   }
 
   private async prepareTools(
@@ -870,10 +901,10 @@ export class MobileAiService {
       await previousContext?.dispose();
       check();
       if (config.transport.type === "stdio") return entry.manager.connect(config, options);
-      const context = await native.createMcpFetch(await this.lease(databaseName), {
-        id: config.id,
-        transport: config.transport,
-      });
+      const lease = await this.lease(databaseName);
+      const context = registration.customServerId
+        ? await native.createCustomMcpFetch(lease, registration.customServerId)
+        : await native.createMcpFetch(lease, { id: config.id, transport: config.transport });
       let attached = false;
       try {
         check();

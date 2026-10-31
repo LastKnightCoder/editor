@@ -52,11 +52,14 @@ fn key_hint(key: &str) -> String {
     chars[chars.len() - 4..].iter().collect()
 }
 
-/// 返回给页面的整份设置快照：凡是把设置交给 WebView 的命令都经过这里。
+/// 返回给页面的整份设置快照：凡是把设置交给 WebView 的命令都经过这里（去掉 Key 与请求头）。
 pub(crate) fn public_setting(setting: &Value) -> Value {
     let mut public = setting.clone();
     if public.get("llmProviders").is_some() {
         public["llmProviders"] = public_llm_providers(setting);
+    }
+    if public.get("mcpServers").is_some() {
+        public["mcpServers"] = crate::mcp_settings::public_servers(setting);
     }
     public
 }

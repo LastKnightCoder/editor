@@ -26,6 +26,7 @@ export type { SessionEdit } from "@tau/ai/session";
 
 import { createMobileAiService } from "./service";
 import { bindMobileAiLifecycle } from "./lifecycle";
+import { applySkillPreferences } from "../aiChat/capabilityPreferences";
 let instance: ReturnType<typeof createMobileAiService> | undefined;
 
 /** 审批与提问由页面经运行快照里的等待项作答（interactions.*）；回调只挂起到作答或运行结束 */
@@ -47,6 +48,7 @@ export const getMobileAiService = () => {
         request.interactionMode === "host"
           ? (await import("../aiChat/hostTools")).buildChatSystemPrompt()
           : undefined,
+      skillPolicy: applySkillPreferences,
     });
     bindMobileAiLifecycle(instance);
   }
