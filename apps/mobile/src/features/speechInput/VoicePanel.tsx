@@ -102,11 +102,13 @@ export function VoicePanel(props: VoicePanelProps) {
         dictation.cancel();
       },
       onTap: () => {
-        if (active) dictation.finish();
-        else dictation.begin();
+        // 按下时已开始录音，轻点松手就转为点按模式继续录，再点一下停止
+        if (holdModeRef.current) holdModeRef.current = false;
+        else if (active) dictation.finish();
       },
     },
-    cancelTargetRef
+    cancelTargetRef,
+    { immediate: true }
   );
   const holding = gesture.holding && holdModeRef.current;
   const { setCancelArmed } = dictation;
