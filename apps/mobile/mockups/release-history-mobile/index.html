@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>插件详情 · 版本历史重设计</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="rh.css" />
+</head>
+<body>
+<div class="head">
+  <h1>插件详情 · 版本历史重设计<small>颜色全部取 --tau-*，切换主题检查深浅色</small></h1>
+  <select id="fam">
+    <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+    <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+  </select>
+  <button class="btn" id="mode">浅色</button>
+</div>
+
+<div class="frames">
+  <!-- 0 现状 -->
+  <div class="frame">
+    <div class="phone">
+      <div class="tabs"><span>介绍</span><span>设置</span><span>权限</span><span class="on">版本</span></div>
+      <ol class="old bad">
+        <li><span class="ver">v0.2.0</span><span class="mk new">最新</span><span class="mk ok">可安装</span><span class="meta">Android最低 0.1.11 · 2026-10-31</span></li>
+        <li><span class="ver">v0.1.0</span><span class="mk info">已安装</span><span class="meta">Android最低 0.1.11 · 2026-10-31</span></li>
+      </ol>
+      <p class="foot">切换版本只替换插件代码，不回退已保存的数据；上一版代码可在 ⋯ 菜单中恢复。</p>
+    </div>
+    <div class="cap">0 现状</div>
+    <ul class="note">
+      <li>黑线是 bug：<code>divide-line</code> 不是有效类（token 叫 <code>line-1</code>），边框颜色回落到 currentColor，也就是正文墨色。</li>
+      <li>三枚彩色胶囊挤在一行，元信息被挤到右侧换行，每行都重复「Android最低 0.1.11」。</li>
+    </ul>
+  </div>
+
+  <!-- A -->
+  <div class="frame">
+    <div class="phone">
+      <div class="tabs"><span>介绍</span><span>设置</span><span>权限</span><span class="on">版本</span></div>
+      <ol class="a">
+        <li><span class="dot"></span>
+          <div class="row1"><span class="ver">v0.2.0</span><span class="mk new">最新</span></div>
+          <div class="meta">2026-10-31 · 可安装</div></li>
+        <li class="cur"><span class="dot"></span>
+          <div class="row1"><span class="ver">v0.1.0</span><span class="mk info">当前</span></div>
+          <div class="meta">2026-10-31</div></li>
+        <li><span class="dot"></span>
+          <div class="row1"><span class="ver">v0.0.3</span></div>
+          <div class="meta">2026-10-12</div></li>
+        <li><span class="dot"></span>
+          <div class="row1"><span class="ver">v0.0.2</span></div>
+          <div class="meta">2026-09-28 · 需应用 0.1.20 以上</div></li>
+      </ol>
+      <p class="foot">切换版本只替换插件代码，不回退已保存的数据；上一版代码可在 ⋯ 菜单中恢复。</p>
+    </div>
+    <div class="cap">A 两行行式<span class="rec">推荐</span></div>
+    <ul class="note">
+      <li>版本号 + 至多一枚标记一行，日期与兼容说明一行，不再挤行。</li>
+      <li>分隔线用 <code>line-1</code> 细线，从左侧圆点后起画，和设置页分组列表一致。</li>
+      <li>「最低版本」只在不满足时出现；满足时不写，去掉每行重复的噪音。</li>
+      <li>已安装版本用强调色圆点 + 「当前」标记，一眼定位。</li>
+    </ul>
+  </div>
+
+  <!-- B -->
+  <div class="frame">
+    <div class="phone">
+      <div class="tabs"><span>介绍</span><span>设置</span><span>权限</span><span class="on">版本</span></div>
+      <ol class="b">
+        <li><div class="row1"><span class="ver">v0.2.0</span><span class="mk new">最新</span><span class="meta date">10-31</span></div>
+          <div class="meta">可安装</div></li>
+        <li class="cur"><div class="row1"><span class="ver">v0.1.0</span><span class="mk info">当前</span><span class="meta date">10-31</span></div></li>
+        <li><div class="row1"><span class="ver">v0.0.3</span><span class="meta date">10-12</span></div></li>
+        <li><div class="row1"><span class="ver">v0.0.2</span><span class="meta date">09-28</span></div>
+          <div class="meta">需应用 0.1.20 以上</div></li>
+      </ol>
+      <p class="foot">切换版本只替换插件代码，不回退已保存的数据；上一版代码可在 ⋯ 菜单中恢复。</p>
+    </div>
+    <div class="cap">B 时间线</div>
+    <ul class="note">
+      <li>没有横向分隔线，靠左侧竖线串起各版本，表达「历史」的先后。</li>
+      <li>日期右对齐成一列，便于扫读；版本多时比 A 更紧凑。</li>
+      <li>代价：时间线的视觉语言在应用里别处没有用过。</li>
+    </ul>
+  </div>
+
+  <!-- C -->
+  <div class="frame">
+    <div class="phone">
+      <div class="tabs"><span>介绍</span><span>设置</span><span>权限</span><span class="on">版本</span></div>
+      <ol class="c">
+        <li><div class="main"><div class="row1"><span class="ver">v0.2.0</span><span class="mk new">最新</span></div><div class="meta">2026-10-31</div></div>
+          <div class="side"><span class="state">可安装</span></div></li>
+        <li class="cur"><div class="main"><div class="row1"><span class="ver">v0.1.0</span></div><div class="meta">2026-10-31</div></div>
+          <div class="side"><span class="state">当前版本</span></div></li>
+        <li><div class="main"><div class="row1"><span class="ver">v0.0.3</span></div><div class="meta">2026-10-12</div></div></li>
+        <li><div class="main"><div class="row1"><span class="ver">v0.0.2</span></div><div class="meta">2026-09-28 · 需应用 0.1.20 以上</div></div></li>
+      </ol>
+      <p class="foot">切换版本只替换插件代码，不回退已保存的数据；上一版代码可在 ⋯ 菜单中恢复。</p>
+    </div>
+    <div class="cap">C 独立行块</div>
+    <ul class="note">
+      <li>每个版本一张小块，用 6px 间距代替分隔线，彻底没有线。</li>
+      <li>当前版本整块铺 <code>accent-soft</code>，状态文字放右侧。</li>
+      <li>代价：版本多时块堆叠显得重，和页内其他分组卡片层级接近。</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  const root = document.documentElement;
+  document.getElementById("fam").onchange = e => (root.dataset.theme = e.target.value);
+  document.getElementById("mode").onclick = e => {
+    const dark = root.dataset.mode === "light";
+    root.dataset.mode = dark ? "dark" : "light";
+    e.target.textContent = dark ? "深色" : "浅色";
+  };
+</script>
+</body>
+</html>

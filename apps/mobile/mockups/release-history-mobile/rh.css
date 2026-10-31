@@ -1,0 +1,290 @@
+/* 版本历史重设计 mockup：颜色全部取 --tau-*，手机帧 360 宽 */
+* {
+  box-sizing: border-box;
+  margin: 0;
+}
+body {
+  background: var(--tau-bg-sunken);
+  color: var(--tau-ink-1);
+  font:
+    14px/1.5 -apple-system,
+    "PingFang SC",
+    sans-serif;
+  padding: 24px;
+}
+.head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.head h1 {
+  font-size: 18px;
+  flex: 1;
+}
+.head small {
+  display: block;
+  font-size: 12px;
+  color: var(--tau-ink-3);
+  font-weight: 400;
+}
+select,
+.btn {
+  font: inherit;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--tau-line-1);
+  background: var(--tau-bg-surface);
+  color: var(--tau-ink-1);
+}
+.frames {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+  align-items: flex-start;
+}
+.frame {
+  width: 360px;
+}
+.phone {
+  background: var(--tau-bg-page);
+  border-radius: 28px;
+  padding: 14px 16px 18px;
+  min-height: 560px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+.cap {
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.cap .rec {
+  margin-left: 6px;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: var(--tau-accent-soft);
+  color: var(--tau-accent-text);
+}
+.note {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--tau-ink-2);
+}
+.note li {
+  margin-left: 16px;
+}
+
+/* 页内公共：分段 Tab + 底部说明 */
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--tau-bg-surface);
+  border-radius: 14px;
+  margin-bottom: 14px;
+}
+.tabs span {
+  flex: 1;
+  text-align: center;
+  padding: 6px 0;
+  border-radius: 11px;
+  color: var(--tau-ink-2);
+  font-size: 13px;
+}
+.tabs span.on {
+  background: var(--tau-bg-press);
+  color: var(--tau-ink-1);
+  font-weight: 600;
+}
+.foot {
+  font-size: 12px;
+  color: var(--tau-ink-3);
+  padding: 12px 4px 0;
+}
+.ver {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-weight: 600;
+  font-size: 14px;
+}
+.meta {
+  font-size: 12px;
+  color: var(--tau-ink-3);
+}
+.mk {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+.mk.new {
+  background: var(--tau-accent-soft);
+  color: var(--tau-accent-text);
+}
+.mk.ok {
+  background: var(--tau-ok-soft);
+  color: var(--tau-ok);
+}
+.mk.info {
+  background: var(--tau-info-soft);
+  color: var(--tau-info);
+}
+
+/* 0 现状：分隔线回落 currentColor */
+.old {
+  background: var(--tau-bg-surface);
+  border-radius: 16px;
+  padding: 0 14px;
+}
+.old li {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 10px 0;
+}
+.old li + li {
+  border-top: 1px solid var(--tau-ink-1);
+}
+.old .meta {
+  margin-left: auto;
+}
+.bad {
+  outline: 2px solid var(--tau-danger);
+  outline-offset: 2px;
+  border-radius: 16px;
+}
+
+/* A 两行行式：细线 line-2 缩进分隔，右侧不放元信息 */
+.a {
+  background: var(--tau-bg-surface);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.a li {
+  list-style: none;
+  position: relative;
+  padding: 11px 14px 11px 34px;
+}
+.a li + li::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 34px;
+  right: 0;
+  border-top: 1px solid var(--tau-line-1);
+}
+.a .row1 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.a .dot {
+  position: absolute;
+  left: 14px;
+  top: 18px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tau-line-1);
+}
+.a li.cur .dot {
+  background: var(--tau-accent);
+  box-shadow: 0 0 0 3px var(--tau-accent-soft);
+}
+.a .row1 .mk:first-of-type {
+  margin-left: 2px;
+}
+
+/* B 时间线：竖线串点，无分隔线 */
+.b {
+  background: var(--tau-bg-surface);
+  border-radius: 16px;
+  padding: 6px 14px;
+}
+.b li {
+  list-style: none;
+  position: relative;
+  padding: 10px 0 10px 24px;
+}
+.b li::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--tau-line-1);
+}
+.b li:first-child::before {
+  top: 18px;
+}
+.b li:last-child::before {
+  bottom: calc(100% - 18px);
+}
+.b li::after {
+  content: "";
+  position: absolute;
+  left: 1px;
+  top: 14px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--tau-bg-surface);
+  border: 2px solid var(--tau-line-1);
+}
+.b li.cur::after {
+  background: var(--tau-accent);
+  border-color: var(--tau-accent);
+}
+.b .row1 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.b .row1 .date {
+  margin-left: auto;
+}
+
+/* C 独立行块：无线，间距分组，当前版本整行着色 */
+.c {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.c li {
+  list-style: none;
+  background: var(--tau-bg-surface);
+  border-radius: 14px;
+  padding: 11px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.c li.cur {
+  background: var(--tau-accent-soft);
+}
+.c .main {
+  flex: 1;
+  min-width: 0;
+}
+.c .row1 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.c .side {
+  text-align: right;
+}
+.c .state {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tau-accent-text);
+}
+.sec {
+  font-size: 12px;
+  color: var(--tau-ink-3);
+  padding: 8px 4px 2px;
+}
