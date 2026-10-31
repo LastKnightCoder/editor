@@ -215,8 +215,9 @@ describe("插件 AI 主进程边界", () => {
     ).rejects.toThrow("AI_UNDECLARED_FEATURE");
     expect(deps.execute).not.toHaveBeenCalled();
   });
-  it("宿主归属审计，不保存正文；已知用量释放预占", async () => {
-    const { service, session, audits, disk } = fixture();
+  it("大上下文模型按本次短请求预占，已知用量结算且审计不保存正文", async () => {
+    const { service, session, audits, disk, deps } = fixture();
+    deps.capacity = async () => ({ contextWindow: 2_000_000, maxTokens: 40 });
     const result = await service.run(1, session, "1", request, vi.fn());
     expect(result).toEqual({
       text: "摘要",
@@ -234,7 +235,8 @@ describe("插件 AI 主进程边界", () => {
   });
   it("多窗口并发预占相同额度，重启服务不能重置已消费额度", async () => {
     const { service, session, deps, config } = fixture();
-    service.configure("test.ai", { ...config, dailyTokens: 120 });
+    deps.capacity = async () => ({ contextWindow: 2_000_000, maxTokens: 40 });
+    service.configure("test.ai", { ...config, dailyTokens: 400 });
     let finish!: () => void;
     deps.execute = vi.fn(
       () =>

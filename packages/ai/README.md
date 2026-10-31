@@ -15,6 +15,7 @@
 | `@tau/ai/skills`                | SKILL.md 来源、目录、按需加载与参考资料读取               |
 | `@tau/ai/mcp`                   | 官方 SDK Streamable HTTP 客户端与工具注册适配             |
 | `@tau/ai/tool-identity`         | 插件工具的模型名称与历史稳定 ID，不加载模型或 MCP 客户端  |
+| `@tau/ai/plugin-quota`          | 两端插件宿主共用的单次输入预占估算，不加载模型运行时      |
 | `@tau/ai/think-stream`          | 显式启用的 think 标签流转换                               |
 
 根入口只加载公共契约；模型目录、运行时和 MCP 通过各自入口显式引入。文件、网络、凭据和数据库连接由宿主提供。桌面继续使用 pi-coding-agent 的 AgentSession；手机使用 pi-ai + pi-agent-core，不加载 Node 编码代理宿主。
