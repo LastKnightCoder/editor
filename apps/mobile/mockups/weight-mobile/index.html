@@ -1,0 +1,625 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="paper" data-mode="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>减重 · 移动端设计方案 v2</title>
+<link rel="stylesheet" href="/packages/themes/src/tokens.css" />
+<link rel="stylesheet" href="../editor-mobile/styles.css" />
+<link rel="stylesheet" href="../ai-mobile/ai-base.css" />
+<link rel="stylesheet" href="wt.css" />
+<script src="icons.js"></script>
+</head>
+<body>
+<header class="page-head">
+  <div class="head-row">
+    <h1>减重 · 移动端设计方案 v2<small>按已确认的方向定稿 · 颜色取自 @tau/themes · 手机帧 360×760 · 体重与饮食为示意数据</small></h1>
+    <div class="theme-pick">
+      <select id="theme-family" aria-label="主题族">
+        <option value="paper">暖纸</option><option value="ocean">海盐</option><option value="mint">薄荷</option>
+        <option value="wisteria">紫藤</option><option value="sakura">樱花</option><option value="ink">水墨</option>
+      </select>
+      <button id="theme-mode" class="tab">浅色</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab" data-tab="principle">0 定稿与改动</button>
+    <button class="tab" data-tab="entry">1 入口</button>
+    <button class="tab" data-tab="onboard">2 首次引导</button>
+    <button class="tab" data-tab="layout">3 主页与趋势页</button>
+    <button class="tab" data-tab="log">4 一句话记录</button>
+    <button class="tab" data-tab="voice">5 语音 + AI 整理</button>
+    <button class="tab" data-tab="weigh">6 称体重</button>
+    <button class="tab" data-tab="list">7 今天流水</button>
+    <button class="tab" data-tab="cmp">8 定稿汇总</button>
+  </nav>
+</header>
+
+<!-- ───────────── 0 定稿与改动 ───────────── -->
+<section class="scene" data-scene="principle">
+  <p class="scene-intro">这一版按你的选择定稿：<b>主页 C</b>（主页只放今天，趋势、打卡、对比和 AI 进二级页）；<b>语音记录</b>说一段话，由 AI 拆成几条并评估；<b>今天页插件卡片</b>首屏可见；<b>AI 估算放到后台</b>，发送不用等；<b>首次打开整页引导</b>；入口放进<b>「我的」顶部功能宫格</b>，和任务、文章并列。称重用刻度尺，点数字可切到键盘。</p>
+  <div class="cards">
+    <div class="card"><h3>1 · 入口：我的 · 功能宫格</h3><p>插件页面入口和任务、文章、闪卡放在同一个 4 列宫格里，图标取插件声明的图标。原来「插件功能」卡里的列表改由宫格承载，「插件中心」保留为一行。</p></div>
+    <div class="card"><h3>2 · 今天页：首屏插件卡片</h3><p>放在问答条下面、日程上面，两列小卡，每张 132px 高，一屏能看到。减重卡显示还能吃多少、晨重，并提供「称重」「记一笔」两个按钮。插件用的是和桌面相同的 <code>home.registerPanel</code>，只多声明一个手机尺寸。</p></div>
+    <div class="card"><h3>3 · 后台估算</h3><p>发送后马上记入，热量位置显示「估算中」，余额先不扣这一笔。估算回来后自动补上，并用吐司告知结果（可点开修改）。离开页面也会继续估算；失败的行显示「填热量」。</p></div>
+    <div class="card"><h3>4 · 语音 + AI 整理</h3><p>说一段话，比如「中午牛肉面加个蛋，下午喝了杯奶茶，晚上走了四十分钟」，AI 拆成三条，各自估算热量，再用一两句话评估今天的情况。你确认后一次记入，任何一条都能先删掉或修改。</p></div>
+    <div class="card"><h3>5 · 首次引导</h3><p>两步：先填身体数据并预览预算，再用三行说明怎么用（称重、一句话记、看效果）。可以跳过，跳过后主卡显示「填身体数据后显示还能吃多少」。</p></div>
+    <div class="card"><h3>6 · 数据与口径不变</h3><p>记录、常吃记忆、预算公式、少吃/多动的判定都沿用插件的 <code>data/</code> 与 <code>stats.ts</code>，桌面和手机读写同一份数据。</p></div>
+  </div>
+</section>
+
+<!-- ───────────── 1 入口 ───────────── -->
+<section class="scene" data-scene="entry">
+  <p class="scene-intro">有两个入口。<b>「我的」顶部功能宫格</b>：插件页面和内置功能并列，内置功能排在前面，插件按启用顺序接在后面，满 4 个换一行。<b>今天页插件卡片</b>：每天打开 App 就能看到，称重和记一笔不用进减重页。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="t-head"><h2>我的</h2><span class="sb" data-i="search" data-s="20"></span></div>
+        <div class="w-body" style="padding-top:16px">
+          <div class="fgrid">
+            <span><b style="background:var(--tau-tag-4-soft);color:var(--tau-tag-4)" data-i="list-checks" data-s="24"></b>任务</span>
+            <span><b style="background:var(--brand-soft);color:var(--brand)" data-i="file-text" data-s="24"></b>文章</span>
+            <span><b style="background:var(--tau-tag-3-soft);color:var(--tau-tag-3)" data-i="folder-open" data-s="24"></b>项目</span>
+            <span><b style="background:var(--tau-tag-3-soft);color:var(--tau-tag-3)" data-i="layers" data-s="24"></b>闪卡</span>
+            <span><em>即将</em><b style="background:var(--tau-tag-5-soft);color:var(--tau-tag-5)" data-i="palette" data-s="24"></b>白板</span>
+            <span><b style="background:var(--tau-tag-5-soft);color:var(--tau-tag-5)" data-i="timer" data-s="24"></b>番茄</span>
+            <span class="new"><b style="background:var(--tau-tag-1-soft);color:var(--tau-tag-1)" data-i="scale" data-s="24"></b>减重</span>
+            <span><b style="background:var(--tau-tag-2-soft);color:var(--tau-tag-2)" data-i="wallet" data-s="24"></b>记账本</span>
+          </div>
+          <div class="w-card w-form" style="padding:2px 16px">
+            <div class="row"><span data-i="puzzle" data-s="18" style="color:var(--ink-2)"></span>插件中心<span class="val"><span class="chip acc" style="height:22px;font-size:11px;padding:0 8px">1 个可更新</span><span data-i="chevron-right" data-s="16"></span></span></div>
+          </div>
+          <div class="w-card w-form" style="padding:2px 16px">
+            <div class="row"><span data-i="refresh-cw" data-s="18" style="color:var(--ink-2)"></span>同步<span class="val">刚刚<span data-i="chevron-right" data-s="16"></span></span></div>
+            <div class="row"><span data-i="sparkles" data-s="18" style="color:var(--ink-2)"></span>AI 模型<span class="val"><span data-i="chevron-right" data-s="16"></span></span></div>
+            <div class="row"><span data-i="settings" data-s="18" style="color:var(--ink-2)"></span>设置<span class="val"><span data-i="chevron-right" data-s="16"></span></span></div>
+          </div>
+        </div>
+        <div data-dock="me"></div>
+      </div></div>
+      <div class="frame-cap">我的 · 功能宫格<small>减重、记账本这类插件页面和任务、文章放在同一个宫格。插件按启用顺序排、不做拖动排序；超过 8 个时最后一格变成「更多」。图标底色按插件 id 从 tag 色里固定分配；首次出现时图标带一圈 accent 描边，点过一次后消失。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="t-head"><div><h2>下午好</h2><p>10 月 31 日 周六 · 今天还有 3 件事</p></div><span class="sb" data-i="search" data-s="20"></span></div>
+        <div class="w-body" style="padding-top:14px">
+          <div class="askbar"><span data-i="sparkles" data-s="18" style="color:var(--brand)"></span>问问你的笔记…<span class="go" data-i="arrow-up" data-s="17"></span></div>
+          <div class="pcards">
+            <div class="pcard">
+              <div class="h"><span data-i="scale" data-s="13" style="color:var(--tau-tag-1)"></span>减重<span class="sp"></span><span data-i="chevron-right" data-s="13" style="color:var(--ink-3)"></span></div>
+              <div class="big num">900<small>kcal</small></div>
+              <div class="sub">还能吃 · 晨重 <b class="num">72.2</b> <span class="lose num">−0.1</span></div>
+              <div class="ops"><span data-i="scale" data-s="13">称重</span><span class="acc" data-i="plus" data-s="13">记一笔</span></div>
+            </div>
+            <div class="pcard">
+              <div class="h"><span data-i="wallet" data-s="13" style="color:var(--tau-tag-2)"></span>记账本<span class="sp"></span><span data-i="chevron-right" data-s="13" style="color:var(--ink-3)"></span></div>
+              <div class="big num">¥1,260<small></small></div>
+              <div class="sub">本月还能花 · 今天 ¥48</div>
+              <div class="ops"><span class="acc" data-i="plus" data-s="13">记一笔</span></div>
+            </div>
+          </div>
+          <div class="agenda">
+            <div class="r"><span class="i" style="background:var(--tau-tag-4-soft);color:var(--tau-tag-4)" data-i="list-checks" data-s="18"></span><span>3 项待办<small>整理语音输入的想法 等</small></span><span class="a">查看</span></div>
+            <div class="r"><span class="i" style="background:var(--tau-tag-2-soft);color:var(--tau-tag-2)" data-i="calendar" data-s="18"></span><span>19:30 和朋友吃饭<small>日程</small></span><span class="a">2 小时后</span></div>
+            <div class="r"><span class="i" style="background:var(--tau-tag-5-soft);color:var(--tau-tag-5)" data-i="notebook-pen" data-s="18"></span><span>今天还没写日记<small>日记</small></span><span class="a">写</span></div>
+          </div>
+        </div>
+        <div data-dock="home"></div>
+      </div></div>
+      <div class="frame-cap">今天页 · 插件卡片（首屏）<small>插在问答条和日程之间。两列小卡，一张卡就是一个插件的首页面板，按「我的」宫格的顺序排；只有一个插件时占满一行。「称重」直接弹出称重面板，「记一笔」进减重页并聚焦输入条。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="t-head"><div><h2>早上好</h2><p>11 月 1 日 周日 · 今天还有 2 件事</p></div><span class="sb" data-i="search" data-s="20"></span></div>
+        <div class="w-body" style="padding-top:14px">
+          <div class="askbar"><span data-i="sparkles" data-s="18" style="color:var(--brand)"></span>问问你的笔记…<span class="go" data-i="arrow-up" data-s="17"></span></div>
+          <div class="pcards">
+            <div class="pcard" style="box-shadow:var(--shadow-card), inset 0 0 0 1.5px var(--brand)">
+              <div class="h"><span data-i="scale" data-s="13" style="color:var(--tau-tag-1)"></span>减重<span class="sp"></span><span data-i="chevron-right" data-s="13" style="color:var(--ink-3)"></span></div>
+              <div class="big" style="font-size:18px;margin-top:8px">起床称一下</div>
+              <div class="sub">昨天晨重 <b class="num">72.2</b> · 7 日均值 72.4</div>
+              <div class="ops"><span class="acc" data-i="scale" data-s="13" style="background:var(--brand);color:var(--ink-inv)">称重</span></div>
+            </div>
+            <div class="pcard">
+              <div class="h"><span data-i="wallet" data-s="13" style="color:var(--tau-tag-2)"></span>记账本<span class="sp"></span><span data-i="chevron-right" data-s="13" style="color:var(--ink-3)"></span></div>
+              <div class="big num">¥1,212<small></small></div>
+              <div class="sub">本月还能花 · 今天 ¥0</div>
+              <div class="ops"><span class="acc" data-i="plus" data-s="13">记一笔</span></div>
+            </div>
+          </div>
+          <div class="agenda">
+            <div class="r"><span class="i" style="background:var(--tau-tag-4-soft);color:var(--tau-tag-4)" data-i="list-checks" data-s="18"></span><span>2 项待办<small>周报 等</small></span><span class="a">查看</span></div>
+            <div class="r"><span class="i" style="background:var(--tau-tag-5-soft);color:var(--tau-tag-5)" data-i="timer" data-s="18"></span><span>番茄钟<small>今天还没开始</small></span><span class="a">开始</span></div>
+          </div>
+        </div>
+        <div data-dock="home"></div>
+      </div></div>
+      <div class="frame-cap">早上还没称 · 点「称重」<small>14 点前且没有晨重时，卡片换成「起床称一下」并加 accent 描边。点「称重」在今天页直接弹出称重面板（同第 6 页），记下后留在今天页，不进减重页。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 2 首次引导 ───────────── -->
+<section class="scene" data-scene="onboard">
+  <p class="scene-intro">第一次打开减重页（从宫格或今天页卡片进入都算）时整页引导，共两步。<b>第一步</b>填身体数据，下方实时显示算出来的每日预算；<b>第二步</b>用三行说明日常怎么用，最后一个按钮直接打开称重面板。右上「跳过」随时可用，跳过后的主页见第三帧。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="w-nav"><span class="ib" data-i="chevron-left" data-s="23"></span><span class="t"></span><span style="font-size:14px;color:var(--ink-3);padding:0 12px">跳过</span></div>
+        <div class="w-body">
+          <div class="steps"><i class="on"></i><i></i></div>
+          <div style="text-align:center;padding:6px 0 2px">
+            <div style="font-size:21px;font-weight:750;letter-spacing:-.01em">先算出你每天能吃多少</div>
+            <div style="font-size:12.5px;color:var(--ink-3);margin-top:5px;line-height:1.6">按身高、年龄、性别和体重估算日常消耗，再减 500 kcal</div>
+          </div>
+          <div class="w-card w-form" style="padding:2px 16px">
+            <div class="row">身高<span class="val"><b class="num">170</b> cm</span></div>
+            <div class="row">出生年份<span class="val"><b class="num">1994</b><span data-i="chevron-down" data-s="15"></span></span></div>
+            <div class="row">性别<span class="val"><span class="chip on" style="height:30px">男</span><span class="chip" style="height:30px">女</span></span></div>
+            <div class="row">现在体重<span class="val"><b class="num">75.0</b> kg</span></div>
+            <div class="row">日常活动<span class="val">久坐<span data-i="chevron-right" data-s="16"></span></span></div>
+            <div class="row">目标体重<span class="val muted">选填 · <b class="num" style="color:var(--ink-1)">70</b> kg</span></div>
+          </div>
+          <div class="w-card" style="display:flex;align-items:center;gap:12px;background:var(--brand-soft);box-shadow:none">
+            <span data-i="flame" data-s="22" style="color:var(--brand-text)"></span>
+            <div style="flex:1"><div style="font-size:12px;color:var(--brand-text)">每日预算</div><div class="num" style="font-size:22px;font-weight:750;color:var(--brand-text)">1,680 <small style="font-size:12px;font-weight:500">kcal</small></div></div>
+            <div style="font-size:11.5px;color:var(--brand-text);text-align:right;line-height:1.5">消耗约 2,180<br>体重降了会自动下调</div>
+          </div>
+        </div>
+        <div style="padding:6px 16px 0"><div class="w-btn">下一步</div></div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">第一步 · 身体数据<small>比设置页多一行「现在体重」，填了就当作今天的晨重，预算立即可算。每改一项，预算数字跟着变。数字行点按后从底部弹出滚轮选择。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div class="w-nav"><span class="ib" data-i="chevron-left" data-s="23"></span><span class="t"></span><span style="font-size:14px;color:var(--ink-3);padding:0 12px">跳过</span></div>
+        <div class="w-body">
+          <div class="steps"><i></i><i class="on"></i></div>
+          <div style="text-align:center;padding:6px 0 2px">
+            <div style="font-size:21px;font-weight:750;letter-spacing:-.01em">每天只做三件小事</div>
+            <div style="font-size:12.5px;color:var(--ink-3);margin-top:5px">少吃、多动不用打卡，记录会自动判定</div>
+          </div>
+          <div class="w-card" style="padding:4px 16px">
+            <div class="tip"><span class="n" style="background:var(--tau-tag-1-soft);color:var(--tau-tag-1)" data-i="sunrise" data-s="18"></span><div><b>起床称一次</b><p>趋势只看晨重的 7 日均值，单日波动不用在意。睡前可以再称一次，看当天吃得多不多。</p></div></div>
+            <div class="tip"><span class="n" style="background:var(--tau-tag-5-soft);color:var(--food)" data-i="utensils-crossed" data-s="18"></span><div><b>吃之前写一句或说一句</b><p>「奶茶一杯」「跑步 30 分钟」，AI 在后台估算热量，常吃的东西记一次以后自动带出。</p></div></div>
+            <div class="tip"><span class="n" style="background:var(--tau-tag-2-soft);color:var(--move)" data-i="chart-line" data-s="18"></span><div><b>一两周后看效果</b><p>比较少吃、多动的日子第二天轻多少，看哪样对你更管用。</p></div></div>
+          </div>
+          <div class="w-card w-form" style="padding:2px 16px">
+            <div class="row"><span data-i="house" data-s="17" style="color:var(--ink-2)"></span>在今天页显示减重卡片<span class="val"><span class="sw on" style="background:var(--brand)"></span></span></div>
+          </div>
+        </div>
+        <div style="padding:6px 16px 0"><div class="w-btn" data-i="scale" data-s="17">现在称一下</div></div>
+        <div style="text-align:center;font-size:13px;color:var(--ink-2);padding:10px 0 0">先看看</div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">第二步 · 怎么用<small>三行说明 + 「在今天页显示」开关（默认开）。主按钮进入主页并弹出称重面板；第一步填过「现在体重」时，主按钮改为「开始记录」。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body">
+          <div class="w-card">
+            <div class="w-hero"><div class="ring" style="opacity:.45"><svg width="96" height="96" viewBox="0 0 96 96"><circle cx="48" cy="48" r="42" fill="none" stroke="var(--tau-bg-track)" stroke-width="9"/></svg><b style="font-size:13px;color:var(--ink-3)">?</b></div>
+              <div class="txt"><div class="lbl">今天还能吃</div><div style="font-size:14.5px;font-weight:600;margin:4px 0">填身体数据后显示</div><div class="eq">不填也能记体重和饮食</div><span class="w-btn sm" style="display:inline-flex;margin-top:8px;height:32px">去填写</span></div></div>
+            <div class="w-tiles"><div class="w-tile empty"><span class="k" data-i="sunrise" data-s="12">晨重</span><span class="v" data-i="plus" data-s="14">起床称</span></div><div class="w-tile empty" style="box-shadow:inset 0 0 0 1.5px var(--line-1);color:var(--ink-3)"><span class="k" style="color:var(--ink-3)" data-i="sunset" data-s="12">睡前</span><span class="v">晚上再称</span></div><div class="w-tile"><span class="k" data-i="footprints" data-s="12">运动</span><span class="v num">0<small class="muted">/ 30 分</small></span><div class="bar"><i style="width:0"></i></div></div></div>
+          </div>
+          <div class="w-card" style="text-align:center;padding:26px 16px">
+            <div style="font-size:14px;font-weight:600">今天还没有记录</div>
+            <div style="font-size:12.5px;color:var(--ink-3);margin-top:5px;line-height:1.6">在下面写一句「早饭两个包子」，<br>或者按住麦克风说今天吃了什么</div>
+          </div>
+        </div>
+        <div data-tpl="log-chips-empty"></div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">跳过引导后<small>余额环变成灰色占位，主卡给「去填写」，打开的是引导第一步那张表单。流水为空时给一句示例，常吃胶囊位置换成示例胶囊。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 3 主页与趋势页 ───────────── -->
+<section class="scene" data-scene="layout">
+  <p class="scene-intro">主页只放今天：主卡 → 趋势迷你卡 → 今天流水，底部固定记录条。趋势迷你卡（或顶栏的图表按钮）进二级页「趋势与效果」，包含体重趋势、打卡、四组对比和 AI 分析。二级页不放记录条，往下滚一屏半就到底。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body">
+          <div data-tpl="hero"></div>
+          <div data-tpl="trend-mini"></div>
+          <div data-tpl="today"></div>
+        </div>
+        <div data-tpl="log"></div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">主页 · 今天<span class="rec-badge">已选 C</span><small>趋势迷你卡显示 30 天的 7 日均值变化和一句结论（来自四组对比，样本不够时显示「再记一周就能看出效果」）。流水超出一屏时整页滚动，记录条始终不动。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="趋势与效果" data-right="<span class='ib'></span>"></div>
+        <div class="w-body" style="padding-top:0">
+          <div class="w-card">
+            <div class="w-head">体重<span class="sp"></span><span class="w-ranges"><span>2 周</span><span class="on">月</span><span>3 月</span></span></div>
+            <div style="display:flex;gap:16px;font-size:12px;color:var(--ink-2);margin:-2px 0 10px"><span>7 日均值 <b class="num" style="color:var(--ink-1)">72.4</b></span><span>30 天 <b class="lose num">−2.6</b></span><span>距目标 <b class="num" style="color:var(--ink-1)">2.4</b></span></div>
+            <div data-chart="30" data-h="200" data-goal="70" data-scrub="6"></div>
+            <div class="w-legend"><span><i style="width:14px;height:2px;background:var(--brand)"></i>7 日均值</span><span><i style="width:14px;height:0;border-top:1.5px dashed var(--tau-ok)"></i>目标</span><span><i style="width:8px;height:10px;border-radius:2px;background:var(--food);opacity:.75"></i>没超预算</span><span><i style="width:8px;height:10px;border-radius:2px;background:var(--ink-3);opacity:.35"></i>超预算</span></div>
+          </div>
+          <div class="hand drag" style="left:236px;top:150px"></div>
+          <div class="w-card">
+            <div class="w-head">打卡<small>由记录自动判定</small></div>
+            <div data-habit="3"></div>
+          </div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">趋势与效果 · 上半<small>按住图表左右拖看某天读数（拖动时页面不滚动），松手后气泡消失。范围用文字胶囊。打卡格默认 5 周，点格子弹出当天摘要。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="趋势与效果" data-right="<span class='ib'></span>"></div>
+        <div class="w-body" style="padding-top:0">
+          <div class="w-card">
+            <div class="w-head">做到了，第二天轻多少</div>
+            <div class="grp"><span class="n"><i class="dt food f"></i><i class="dt move f"></i><span>都做到</span></span><span class="track"><i style="right:38%;width:52%;background:var(--lose);border-radius:4px 0 0 4px"></i></span><span class="v lose num">−0.21<small>23 天</small></span></div>
+            <div class="grp"><span class="n"><i class="dt food f"></i><i class="dt move"></i><span>只少吃</span></span><span class="track"><i style="right:38%;width:38%;background:var(--lose);border-radius:4px 0 0 4px"></i></span><span class="v lose num">−0.15<small>31 天</small></span></div>
+            <div class="grp"><span class="n"><i class="dt food"></i><i class="dt move f"></i><span>只多动</span></span><span class="track"><i style="right:38%;width:10%;background:var(--lose);border-radius:4px 0 0 4px"></i></span><span class="v lose num">−0.04<small>19 天</small></span></div>
+            <div class="grp"><span class="n"><i class="dt food"></i><i class="dt move"></i><span>都没做</span></span><span class="track"><i style="left:62%;width:28%;background:var(--gain);border-radius:0 4px 4px 0"></i></span><span class="v gain num">+0.18<small>16 天</small></span></div>
+            <p class="concl">次日晨重减当日晨重的平均值。对你来说少吃比多动管用，两样都做到效果最好。</p>
+          </div>
+          <div class="w-card w-ai">
+            <div class="w-head"><span data-i="sparkles" data-s="15" style="color:var(--brand)"></span>AI 分析<span class="sp"></span><span class="w-ranges"><span>今天</span><span class="on">本周</span></span></div>
+            <p>这周均值降了 <b>0.6 kg</b>，比上周快。5 天没超预算，3 次超预算都在 21 点以后。</p>
+            <p>周四、周五都没运动，体重第二天各涨了 0.3。<b>晚饭后走 20 分钟</b>最容易坚持。</p>
+            <div class="stale"><span data-i="info" data-s="13"></span>今天又记了 2 笔<span class="sp"></span><span class="w-btn ghost sm" data-i="refresh-cw" data-s="14" style="height:30px;font-size:12.5px">重新分析</span></div>
+          </div>
+        </div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">趋势与效果 · 下半<small>四组对比口径同桌面，样本少于 5 天的行变淡。AI 点了才分析；数据变了只提示可能过时。没配模型时按钮变成「去配置模型」。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 4 一句话记录 ───────────── -->
+<section class="scene" data-scene="log">
+  <p class="scene-intro">写一句就能发送，不用等估算。常吃的东西本地就有热量，直接显示预览；没记过的发送后马上进流水，热量那一格显示「估算中」，<b>AI 在后台算</b>，算好后自动补上并提示一次。余额只扣已经有热量的条目，所以估算中的那一笔不会让余额先跳到错的数字。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body tight">
+          <div class="mini-hero"><span data-i="utensils-crossed" data-s="15" style="color:var(--food)"></span>还能吃 <b class="num">900</b> kcal<span class="sp"></span><span class="muted">已吃 920</span></div>
+        </div>
+        <div class="w-log">
+          <div class="w-est">
+            <div class="top"><span class="ico" data-i="utensils-crossed" data-s="17"></span><span class="t">燕麦拿铁<small class="src" data-i="history" data-s="11">常吃 · 上次 180</small></span>
+              <div class="stepper"><span data-i="minus" data-s="16"></span><b class="num">180<small>kcal</small></b><span data-i="plus" data-s="16"></span></div></div>
+            <div class="after">记下后还剩 <b class="num">720</b><span class="meter"><i style="width:50%"></i><em style="left:50%;width:10%"></em></span></div>
+          </div>
+          <div class="bar"><span class="tx">燕麦拿铁<i></i></span><span class="b" data-i="mic" data-s="20"></span><span class="b main" data-i="arrow-up" data-s="19"></span></div>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap">常吃 · 立即预览<small>本地记忆命中时直接显示热量、± 步进和记下后的余额（深色是已吃，浅色是这一笔）。键盘弹起后主卡收成一行。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body tight">
+          <div class="mini-hero"><span data-i="utensils-crossed" data-s="15" style="color:var(--food)"></span>还能吃 <b class="num">900</b> kcal<span class="sp"></span><span class="muted">已吃 920</span></div>
+        </div>
+        <div class="w-log">
+          <div class="w-est" style="padding:10px 14px">
+            <div class="top"><span class="ico" data-i="utensils-crossed" data-s="17"></span><span class="t">奶茶一杯<small class="src" data-i="sparkles" data-s="11">没记过 · 发送后 AI 在后台估算</small></span></div>
+          </div>
+          <div class="bar"><span class="tx">奶茶一杯<i></i></span><span class="b" data-i="mic" data-s="20"></span><span class="b main" data-i="arrow-up" data-s="19"></span></div>
+        </div>
+        <div class="kb" data-kb></div>
+      </div></div>
+      <div class="frame-cap">没记过 · 直接发送<small>不等估算，预览只有一行说明。想自己填热量，就在句子里写数字，比如「奶茶一杯 380」，会直接用这个数，不再估算。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body">
+          <div data-tpl="hero"></div>
+          <div class="w-card" style="padding-bottom:6px"><div class="w-head">今天<small>4 条饮食 · 1 次运动</small><span class="sp"></span><span class="more">前 2 条<span data-i="chevron-up" data-s="13"></span></span></div><div class="w-list">
+            <div class="w-row"><span class="ico move" data-i="footprints" data-s="15"></span><span class="tx">快走 20 分钟<small>13:10</small></span><span class="kc num move">+140</span></div>
+            <div class="w-row"><span class="ico food" data-i="utensils-crossed" data-s="15"></span><span class="tx">苹果一个<small>15:40 · 常吃</small></span><span class="kc num">220</span></div>
+            <div class="w-row hl"><span class="ico food" data-i="utensils-crossed" data-s="15"></span><span class="tx">奶茶一杯<small class="pend" data-i="sparkles" data-s="10">17:05 · 估算中</small></span><span class="shimmer"></span></div>
+          </div></div>
+        </div>
+        <div data-tpl="log"></div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">发送后 · 后台估算中<small>新的一条立刻出现在流水末尾，热量位置是灰色占位。余额仍是 900，等估算回来才扣。这时可以接着记下一笔，也可以离开页面，估算会继续。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body">
+          <div class="w-card"><div class="w-hero"><div data-ring="1300,1820"></div><div class="txt"><div class="lbl">今天还能吃 · 10 月 31 日 周六</div><div class="big num">520<small>kcal</small></div><div class="eq">预算 <b class="num">1680</b> + 运动 <b class="num">140</b> − 已吃 <b class="num">1300</b></div></div></div>
+            <div class="w-tiles"><div class="w-tile"><span class="k" data-i="sunrise" data-s="12">晨重</span><span class="v num">72.2<small class="lose">−0.1</small></span></div><div class="w-tile empty"><span class="k" data-i="sunset" data-s="12">睡前</span><span class="v" data-i="plus" data-s="14">称一下</span></div><div class="w-tile"><span class="k" data-i="footprints" data-s="12">运动</span><span class="v num">20<small class="muted">/ 30 分</small></span><div class="bar"><i style="width:66%"></i></div></div></div></div>
+          <div class="w-card" style="padding-bottom:6px"><div class="w-head">今天<small>4 条饮食 · 1 次运动</small><span class="sp"></span><span class="more">前 2 条<span data-i="chevron-up" data-s="13"></span></span></div><div class="w-list">
+            <div class="w-row"><span class="ico move" data-i="footprints" data-s="15"></span><span class="tx">快走 20 分钟<small>13:10</small></span><span class="kc num move">+140</span></div>
+            <div class="w-row"><span class="ico food" data-i="utensils-crossed" data-s="15"></span><span class="tx">苹果一个<small>15:40 · 常吃</small></span><span class="kc num">220</span></div>
+            <div class="w-row hl"><span class="ico food" data-i="utensils-crossed" data-s="15"></span><span class="tx">奶茶一杯<small>17:05 · AI 估算 · 中杯全糖</small></span><span class="kc num">380</span></div>
+          </div></div>
+        </div>
+        <div class="w-toast" style="bottom:96px"><span data-i="sparkles" data-s="16"></span>奶茶一杯 ≈ 380 kcal · 还剩 520<span class="sp"></span><span class="u">修改</span></div>
+        <div data-tpl="log"></div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">估算回来<small>热量补上，余额环动画走到新值，吐司说明结果，「修改」打开编辑面板。如果你已经离开减重页，会在下次打开时把这一条高亮一下，不发系统通知。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body">
+          <div data-tpl="hero"></div>
+          <div class="w-card" style="padding-bottom:6px"><div class="w-head">今天<small>4 条饮食 · 1 次运动</small><span class="sp"></span><span class="more">前 2 条<span data-i="chevron-up" data-s="13"></span></span></div><div class="w-list">
+            <div class="w-row"><span class="ico move" data-i="footprints" data-s="15"></span><span class="tx">快走 20 分钟<small>13:10</small></span><span class="kc num move">+140</span></div>
+            <div class="w-row"><span class="ico food" data-i="utensils-crossed" data-s="15"></span><span class="tx">苹果一个<small>15:40 · 常吃</small></span><span class="kc num">220</span></div>
+            <div class="w-row"><span class="ico food" data-i="utensils-crossed" data-s="15"></span><span class="tx">奶茶一杯<small style="color:var(--danger)">17:05 · 没估算出来</small></span><span class="fill">填热量</span></div>
+          </div></div>
+        </div>
+        <div data-tpl="log"></div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">估算失败 / 没配模型<small>行尾变成「填热量」，点按打开编辑面板。没配 AI 模型时也是这样，主卡上方再给一行「配置 AI 模型后自动估算」（只显示一次，可关）。这一条没填之前不计入余额，也不影响少吃的判定。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 5 语音 + AI 整理 ───────────── -->
+<section class="scene" data-scene="voice">
+  <p class="scene-intro">按住输入条的麦克风说一段话，松开后 AI 做两件事：<b>整理</b>，把一段话拆成若干条饮食和运动，分别估算热量；<b>评估</b>，用一两句话说这些记下后今天怎么样、接下来吃什么、动多少。整理结果先给你看，确认后一次记入；说错的条目可以先删或改。识别沿用 App 的语音输入设置。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body">
+          <div data-tpl="hero"></div>
+          <div data-tpl="today"></div>
+        </div>
+        <div class="w-scrim" style="opacity:.6"></div>
+        <div class="w-log" style="position:relative;z-index:6;background:transparent">
+          <div class="w-est" style="text-align:center;padding:16px 14px 14px">
+            <div style="font-size:15px;font-weight:600;line-height:1.6;min-height:48px;text-align:left">中午吃了一碗牛肉面加了个蛋，下午喝了杯奶茶<span style="color:var(--ink-3)">，晚上</span></div>
+            <div class="wave" data-wave="34" style="margin:10px 0 4px"></div>
+            <div style="font-size:11.5px;color:var(--ink-3)">松开 整理 · 上滑 取消</div>
+          </div>
+          <div class="bar" style="background:var(--brand);justify-content:center;padding-left:6px"><span style="flex:1;text-align:center;color:var(--ink-inv);font-size:15px;font-weight:600">松开 整理</span></div>
+        </div>
+        <div class="home-ind" style="position:relative;z-index:6"></div>
+      </div></div>
+      <div class="frame-cap">按住说<small>识别的文字实时出现在上方。说的可以很随意，一次说几样也行。上滑取消；说完不到 1 秒的当作误触。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body"><div data-tpl="hero"></div><div data-tpl="today"></div></div>
+        <div class="w-scrim"></div>
+        <div class="w-sheet">
+          <div class="grab"></div>
+          <div class="sh-t">整理成 3 条<span class="sp"></span><span style="font-size:13px;font-weight:500;color:var(--ink-3)">重说</span></div>
+          <p class="heard">听到：<b>中午吃了一碗牛肉面加了个蛋，下午喝了杯奶茶，晚上走了四十分钟</b></p>
+          <div class="ai-items">
+            <div class="it"><span class="ico food" data-i="utensils-crossed" data-s="15"></span><span class="tx">牛肉面 + 鸡蛋<small>12:30 · 中午</small></span><span class="kc num">650</span><span class="x" data-i="x" data-s="15"></span></div>
+            <div class="it"><span class="ico food" data-i="utensils-crossed" data-s="15"></span><span class="tx">奶茶一杯<small>15:30 · 下午 · 按中杯全糖算</small></span><span class="kc num">380</span><span class="x" data-i="x" data-s="15"></span></div>
+            <div class="it"><span class="ico move" data-i="footprints" data-s="15"></span><span class="tx">走路 40 分钟<small>19:30 · 晚上</small></span><span class="kc num" style="color:var(--move)">+160</span><span class="x" data-i="x" data-s="15"></span></div>
+          </div>
+          <div class="ai-eval"><span data-i="sparkles" data-s="14"></span><span>记下后还能吃 <b>30 kcal</b>，晚饭基本没有余量了。今天运动已经达标，如果饿了，一杯无糖豆浆（约 90）比再吃一顿好。奶茶换成无糖能省 200 左右。</span></div>
+          <div class="w-btn">全部记下</div>
+          <div class="home-ind" style="margin-top:6px"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap">整理与评估<small>每条带推断的时间（「中午」→ 12:30），点条目可改文字、时间、热量，× 去掉。评估在记入前就算好，看到「晚饭没余量」可以先去掉奶茶再记。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body"><div data-tpl="hero"></div><div data-tpl="today"></div></div>
+        <div class="w-scrim"></div>
+        <div class="w-sheet">
+          <div class="grab"></div>
+          <div class="sh-t">正在整理<span class="sp"></span><span class="dots3"><i></i><i></i><i></i></span></div>
+          <p class="heard">听到：<b>中午吃了一碗牛肉面加了个蛋，下午喝了杯奶茶，晚上走了四十分钟</b></p>
+          <div class="ai-items">
+            <div class="it"><span class="ico food" data-i="utensils-crossed" data-s="15"></span><span class="tx">牛肉面 + 鸡蛋<small>12:30 · 中午</small></span><span class="shimmer"></span></div>
+            <div class="it"><span class="ico food" data-i="utensils-crossed" data-s="15"></span><span class="tx">奶茶一杯<small>15:30 · 下午</small></span><span class="shimmer"></span></div>
+            <div class="it"><span class="ico move" data-i="footprints" data-s="15"></span><span class="tx">走路 40 分钟<small>19:30 · 晚上</small></span><span class="shimmer"></span></div>
+          </div>
+          <div class="ai-eval" style="background:var(--tau-bg-hover);color:var(--ink-3)"><span data-i="sparkles" data-s="14"></span><span>热量算好后给出评估…</span></div>
+          <div class="w-btns"><div class="w-btn ghost">先记下，后台算</div></div>
+          <div class="home-ind" style="margin-top:6px"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap">整理中 · 不想等<small>拆条通常一两秒先出来，热量随后补上。等不及可以点「先记下，后台算」，三条按第 4 页的后台估算处理，评估就不显示了。没配模型时语音只转文字填进输入条。</small></div>
+    </div>
+  </div>
+</section>
+<section class="scene" data-scene="weigh">
+  <p class="scene-intro">点主卡的「晨重 / 睡前」格，或今天页卡片的「称重」，从底部弹出称重面板。时段按当前时间默认（14 点前是起床，之后是睡前），预填同时段上一次的读数。默认用<b>刻度尺</b>，每格 0.1 kg，左右拨；<b>点大数字</b>切到面板自带的数字键盘，适合读数相差较多的时候。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body"><div data-tpl="hero-empty"></div><div data-tpl="today"></div></div>
+        <div class="w-scrim"></div>
+        <div class="w-sheet">
+          <div class="grab"></div>
+          <div class="sh-t">称重<small>11 月 1 日 周日</small></div>
+          <div class="slot-pick" style="margin-top:12px"><span class="on" data-i="sunrise" data-s="16">起床 <small>07:32</small></span><span data-i="sunset" data-s="16">睡前</span></div>
+          <div class="kg-big num">72.0<small>kg</small></div>
+          <div class="kg-sub">比昨天晨重 <b class="lose">−0.2</b> · 7 日均值 72.4</div>
+          <div data-ruler="72.0" data-prev="72.2"></div>
+          <div class="w-btn">记下</div>
+          <div class="home-ind" style="margin-top:6px"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap">默认 · 刻度尺<small>指针下是当前值，灰点是昨天晨重 72.2。拨动时每过 0.1 有轻触感反馈，过整数时稍重一下；点大数字可切到 B 的键盘。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body"><div data-tpl="hero-empty"></div></div>
+        <div class="w-scrim"></div>
+        <div class="w-sheet">
+          <div class="grab"></div>
+          <div class="sh-t">称重<small>11 月 1 日 周日</small><span class="sp"></span><span style="font-size:13px;font-weight:500;color:var(--brand-text)">刻度尺</span></div>
+          <div class="slot-pick" style="margin-top:12px"><span class="on" data-i="sunrise" data-s="16">起床 <small>07:32</small></span><span data-i="sunset" data-s="16">睡前</span></div>
+          <div class="kg-big num">71.8<small>kg</small></div>
+          <div class="kg-sub">比昨天晨重 <b class="lose">−0.4</b> · 7 日均值 72.4</div>
+          <div class="numpad"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span class="f">.</span><span>0</span><span class="f" data-i="delete" data-s="20"></span></div>
+          <div class="w-btn">记下</div>
+          <div class="home-ind" style="margin-top:6px"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap">点数字后 · 面板键盘<small>右上角有「刻度尺」可以切回去。不调系统键盘，按键 46px 高。预填值显示为灰色，按第一个数字时清空重输；最多一位小数。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body"><div data-tpl="hero"></div><div data-tpl="today"></div></div>
+        <div class="w-scrim"></div>
+        <div class="w-sheet">
+          <div class="grab"></div>
+          <div class="sh-t">称重<small>10 月 31 日 周六</small><span class="sp"></span><span style="font-size:13px;font-weight:500;color:var(--danger)">删除这次</span></div>
+          <div class="slot-pick" style="margin-top:12px"><span data-i="sunrise" data-s="16">起床 <small>72.2</small></span><span class="on" data-i="sunset" data-s="16">睡前 <small>22:40</small></span></div>
+          <div class="kg-big num">73.1<small>kg</small></div>
+          <div class="kg-sub">比今早 <b class="gain">+0.9</b> · 吃得多的晚上通常会涨 1 kg 左右，不用在意</div>
+          <div data-ruler="73.1" data-prev="72.2"></div>
+          <div class="w-btn">更新</div>
+          <div class="home-ind" style="margin-top:6px"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap">睡前 · 改已有读数<small>睡前的参照是今早晨重，并解释晚上偏重的原因，减少焦虑。已经记过的时段按钮变成「更新」，右上可删除。</small></div>
+    </div>
+  </div>
+</section>
+<section class="scene" data-scene="list">
+  <p class="scene-intro">桌面上流水行悬停出现删除、点数字改热量。手机上<b>左滑</b>露出「改」和「删」，<b>点按行</b>打开编辑面板（文字、时间、热量都能改），删除后吐司撤销。末尾的占位行（还没记的晚饭、还差的运动）可以直接点，等于在输入条里预填「晚饭」。</p>
+  <div class="frames">
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body">
+          <div data-tpl="hero"></div>
+          <div class="w-card" style="padding-bottom:6px"><div class="w-head">今天<small>3 条饮食 · 1 次运动</small></div><div class="w-list">
+            <div class="w-row"><span class="ico food" data-i="utensils-crossed" data-s="15"></span><span class="tx">燕麦拿铁<small>08:12 · 常吃</small></span><span class="kc num">180</span></div>
+            <div class="swipe"><div class="acts"><span class="edit" data-i="pencil" data-s="17">改</span><span class="del" data-i="trash-2" data-s="17">删除</span></div><div class="w-row"><span class="ico food" data-i="utensils-crossed" data-s="15"></span><span class="tx">鸡胸沙拉 + 全麦面包<small>12:30 · AI 估算</small></span><span class="kc num">520</span></div></div>
+            <div class="w-row"><span class="ico move" data-i="footprints" data-s="15"></span><span class="tx">快走 20 分钟<small>13:10</small></span><span class="kc num move">+140</span></div>
+            <div class="w-row"><span class="ico food" data-i="utensils-crossed" data-s="15"></span><span class="tx">苹果一个<small>15:40 · 常吃</small></span><span class="kc num">220</span></div>
+            <div class="w-row ph"><span class="ico" data-i="utensils-crossed" data-s="15"></span><span class="tx"><b>晚饭</b> 还没记 · 建议 ≤ 800 kcal</span></div>
+          </div></div>
+        </div>
+        <div data-tpl="log"></div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">左滑一行<small>露出 64px 宽的「改」和「删除」；滑过一半松手直接删除（同系统邮件）。同时只展开一行，点别处收起。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body"><div data-tpl="hero"></div><div data-tpl="today"></div></div>
+        <div class="w-scrim"></div>
+        <div class="w-sheet">
+          <div class="grab"></div>
+          <div class="sh-t">改一笔<span class="sp"></span><span data-i="trash-2" data-s="18" style="color:var(--danger)"></span></div>
+          <div class="w-form" style="margin-top:6px">
+            <div class="row"><span class="muted" style="width:44px">内容</span><b style="font-weight:500">鸡胸沙拉 + 全麦面包</b></div>
+            <div class="row"><span class="muted" style="width:44px">时间</span><span>今天 12:30</span><span class="val" data-i="chevron-right" data-s="16"></span></div>
+            <div class="row"><span class="muted" style="width:44px">热量</span><span class="sp"></span><div class="stepper"><span data-i="minus" data-s="16"></span><b class="num">480<small>kcal</small></b><span data-i="plus" data-s="16"></span></div></div>
+          </div>
+          <div class="w-form"><p class="note">原估算 520 kcal。改过的数字会记进常吃，下次写「鸡胸沙拉 + 全麦面包」直接用 480。</p></div>
+          <div class="w-btn" style="margin-top:14px">保存</div>
+          <div class="home-ind" style="margin-top:6px"></div>
+        </div>
+      </div></div>
+      <div class="frame-cap">点按 / 点「改」<small>编辑面板：内容、时间、热量。热量步进同记录预览；点数字也可以直接输入。时间默认今天，可以补记昨天漏掉的。</small></div>
+    </div>
+    <div class="frame">
+      <div class="phone-box"><div class="phone">
+        <div class="status" data-status></div>
+        <div data-wnav="减重"></div>
+        <div class="w-body">
+          <div class="w-card"><div class="w-hero"><div data-ring="400,1820"></div><div class="txt"><div class="lbl">今天还能吃 · 10 月 31 日 周六</div><div class="big num">1420<small>kcal</small></div><div class="eq">预算 <b class="num">1680</b> + 运动 <b class="num">140</b> − 已吃 <b class="num">400</b></div></div></div>
+            <div class="w-tiles"><div class="w-tile"><span class="k" data-i="sunrise" data-s="12">晨重</span><span class="v num">72.2<small class="lose">−0.1</small></span></div><div class="w-tile empty"><span class="k" data-i="sunset" data-s="12">睡前</span><span class="v" data-i="plus" data-s="14">称一下</span></div><div class="w-tile"><span class="k" data-i="footprints" data-s="12">运动</span><span class="v num">20<small class="muted">/ 30 分</small></span><div class="bar"><i style="width:66%"></i></div></div></div></div>
+          <div class="w-card" style="padding-bottom:6px"><div class="w-head">今天<small>2 条饮食 · 1 次运动</small></div><div class="w-list">
+            <div class="w-row"><span class="ico food" data-i="utensils-crossed" data-s="15"></span><span class="tx">燕麦拿铁<small>08:12 · 常吃</small></span><span class="kc num">180</span></div>
+            <div class="w-row"><span class="ico move" data-i="footprints" data-s="15"></span><span class="tx">快走 20 分钟<small>13:10</small></span><span class="kc num move">+140</span></div>
+            <div class="w-row"><span class="ico food" data-i="utensils-crossed" data-s="15"></span><span class="tx">苹果一个<small>15:40 · 常吃</small></span><span class="kc num">220</span></div>
+            <div class="w-row ph press"><span class="ico" data-i="utensils-crossed" data-s="15"></span><span class="tx"><b>晚饭</b> 还没记 · 建议 ≤ 1300 kcal</span><span data-i="plus" data-s="16" style="color:var(--ink-3)"></span></div>
+          </div></div>
+        </div>
+        <div class="w-toast" style="bottom:96px"><span data-i="trash-2" data-s="16"></span>已删除「鸡胸沙拉 + 全麦面包」<span class="sp"></span><span class="u">撤销</span></div>
+        <div data-tpl="log"></div>
+        <div class="home-ind"></div>
+      </div></div>
+      <div class="frame-cap">删除后 · 点占位行<small>余额即时回升，吐司给撤销。占位行带 ＋，点按后输入条预填「晚饭 」并弹出键盘，接着写吃了什么。</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 8 定稿汇总 ───────────── -->
+<section class="scene" data-scene="cmp">
+  <div class="cards" style="grid-template-columns:1fr;max-width:980px">
+    <div class="card">
+      <h3>本版已按你的选择定稿</h3>
+      <ul>
+        <li>主页结构 <b>C</b>：主页只放今天，趋势与效果进二级页（第 3 页）。</li>
+        <li><b>语音记录</b>：AI 把一段话整理成多条并评估，确认后记入（第 5 页）。</li>
+        <li><b>今天页插件卡片</b>：首屏可见，两列小卡（第 1 页）。</li>
+        <li><b>AI 后台估算</b>：发送不等估算，回来后自动补上（第 4 页）。</li>
+        <li><b>首次打开整页引导</b>，共两步（第 2 页）。</li>
+        <li><b>入口</b>：「我的」顶部功能宫格（第 1 页）。称重默认刻度尺，点数字切键盘（第 6 页）。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>其余细节（已确认）</h3>
+      <ul>
+        <li><b>宫格顺序</b>：内置功能在前，插件按启用顺序接在后面，不做拖动排序。</li>
+        <li><b>今天页卡片位置</b>：放在问答条下面、日程上面。</li>
+        <li><b>宫格太多时</b>：超过 2 行（8 个）后，最后一格变成「更多」，点开是全部功能的面板。</li>
+        <li><b>估算回来时已离开页面</b>：不发系统通知，下次打开减重页时把这一条高亮一下。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>实现边界（供评估）</h3>
+      <ul>
+        <li>减重插件 manifest 只有 <code>targets.desktop</code>，要加 <code>mobile</code>；移动 UI 按 <code>context.environment.platform</code> 分出，<code>data/</code>、<code>stats.ts</code>、<code>ai.ts</code> 两端共用。</li>
+        <li><b>宿主侧新增三项能力</b>：① 「我的」功能宫格展示插件页面入口（现在是「插件功能」卡里的列表，<code>navigation.registerEntry</code> 已有，补图标即可）；② 今天页挂载 <code>home.registerPanel</code>（移动端目前未实现，内置功能也能用，建议单独作为一个任务）；③ 插件调用 App 的语音识别（插件现在用不了麦克风，需要新权限）。</li>
+        <li>后台估算要在页面卸载后继续跑：估算任务挂在插件运行时（不随页面销毁），结果写回记录。数据模型要允许 kcal 为空，或加一个「待估算」标记，<code>stats.ts</code> 的余额和少吃判定跳过这类条目，桌面端同步显示「估算中」。</li>
+        <li>左滑、按住拖图表、刻度尺都是插件页内的手势；拖刻度尺和图表时要阻止页面的侧滑返回。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<script src="wt.js"></script>
+<script src="../ai-mobile/ai.js"></script>
+</body>
+</html>
