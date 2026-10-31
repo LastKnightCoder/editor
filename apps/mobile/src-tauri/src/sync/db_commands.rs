@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use serde_json::{json, Value};
 use tauri::AppHandle;
 
-use crate::models::{SyncActionResponse, SyncDownloadProgress, SyncVersionResponse};
+use crate::models::{SyncActionResponse, SyncProgress, SyncVersionResponse};
 use crate::plugin_files::TemporaryFile;
 use crate::setting::{set_database_version, update_setting_value};
 use tauri::ipc::Channel;
@@ -85,10 +85,13 @@ async fn sync_check_versions_impl(
 }
 
 #[tauri::command]
-pub async fn sync_upload_database(app: AppHandle) -> SyncActionResponse {
+pub async fn sync_upload_database(
+    app: AppHandle,
+    on_progress: Channel<SyncProgress>,
+) -> SyncActionResponse {
     let handle = tauri::async_runtime::handle();
     match tauri::async_runtime::spawn_blocking(move || {
-        handle.block_on(sync_upload_database_impl(app))
+        handle.block_on(sync_upload_database_impl(app, on_progress))
     })
     .await
     {
@@ -103,7 +106,14 @@ pub async fn sync_upload_database(app: AppHandle) -> SyncActionResponse {
 }
 
 /// 把本机库文件覆盖到云端固定位置，版本号最后写入；云端比本机新时由界面先确认。
-async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
+async fn sync_upload_database_impl(
+    app: AppHandle,
+    on_progress: Channel<SyncProgress>,
+) -> SyncActionResponse {
+    let report = |value: f64, status: String| {
+        let _ = on_progress.send(SyncProgress { value, status });
+    };
+    report(0.0, "正在准备上传...".into());
     let started = Instant::now();
     let ctx = match build_sync_context(&app) {
         Ok(ctx) => ctx,
@@ -127,6 +137,7 @@ async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
         Ok(value) => value,
         Err(error) => return fail(0, AppError::new("AI_LIBRARY_BUSY", error)),
     };
+    report(1.0, "正在检查本地对话记录...".into());
     let sessions = match crate::setting::resolve_app_dir(&app).and_then(|root| {
         crate::ai::store::Store {
             root,
@@ -162,6 +173,7 @@ async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
         );
     }
     let snapshot_started = Instant::now();
+    report(3.0, "正在创建数据库快照...".into());
     crate::logger::info(format!("[sync] snapshot-start db={}", ctx.database_name));
     let snapshot = match TemporaryFile::new(&app)
         .and_then(|snapshot| create_database_snapshot(&ctx.database_path, snapshot))
@@ -188,17 +200,55 @@ async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
     let data_object = crate::chunked_sync::database_file_object(&ctx.database_name);
     if let Err(error) = ctx
         .provider
-        .upload_chunked(&data_object, &ctx.database_name, &snapshot.path)
+        .upload_chunked(
+            &data_object,
+            &ctx.database_name,
+            &snapshot.path,
+            &|done, total| {
+                let fraction = if total == 0 {
+                    1.0
+                } else {
+                    done as f64 / total as f64
+                };
+                report(
+                    5.0 + fraction * 55.0,
+                    format!(
+                        "正在上传数据库文件 · {:.1} / {:.1} MiB",
+                        done as f64 / 1048576.0,
+                        total as f64 / 1048576.0
+                    ),
+                );
+            },
+        )
         .await
     {
         return fail(remote_version, AppError::new("SYNC_UPLOAD_FAILED", error));
     }
     let next_version = ctx.local_version.max(remote_version) + 1;
-    if let Err(error) =
-        crate::ai::sync::upload(&app, &ctx.database_name, &ctx.provider, &sessions, &plan).await
+    if let Err(error) = crate::ai::sync::upload(
+        &app,
+        &ctx.database_name,
+        &ctx.provider,
+        &sessions,
+        &plan,
+        &|fraction, done, total| {
+            let skipped = sessions.len() - plan.pending.len();
+            let detail = if skipped == 0 {
+                String::new()
+            } else {
+                format!("，已跳过 {skipped} 个未变化文件")
+            };
+            report(
+                60.0 + fraction * 30.0,
+                format!("正在上传对话记录 · {done} / {total} 个{detail}"),
+            );
+        },
+    )
+    .await
     {
         return fail(remote_version, AppError::new("SYNC_UPLOAD_FAILED", error));
     }
+    report(92.0, "正在复核云端版本...".into());
     match read_remote_version(&ctx.provider, &ctx.version_object_name).await {
         Ok(version) if version == remote_version => {}
         Ok(version) => {
@@ -212,6 +262,7 @@ async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
         }
         Err(error) => return fail(remote_version, error),
     }
+    report(95.0, "正在发布版本信息...".into());
     if let Err(error) = ctx
         .provider
         .upload(&ctx.version_object_name, &version_payload(next_version))
@@ -219,6 +270,7 @@ async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
     {
         return fail(remote_version, error);
     }
+    report(98.0, "正在保存本机同步状态...".into());
     if let Err(error) = save_local_version(&app, &ctx, next_version) {
         return fail(next_version, error);
     }
@@ -233,6 +285,7 @@ async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
         ctx.database_name,
         started.elapsed().as_millis()
     ));
+    report(100.0, "上传完成".into());
     response_ok(
         &ctx.database_name,
         next_version,
@@ -254,7 +307,7 @@ fn create_database_snapshot(
 #[tauri::command]
 pub async fn sync_download_database(
     app: AppHandle,
-    on_progress: Channel<SyncDownloadProgress>,
+    on_progress: Channel<SyncProgress>,
 ) -> SyncActionResponse {
     let handle = tauri::async_runtime::handle();
     match tauri::async_runtime::spawn_blocking(move || {
@@ -275,10 +328,10 @@ pub async fn sync_download_database(
 /// 下载云端库文件覆盖本机，覆盖前旧库复制进 backup/；本机比云端新时由界面先确认。
 async fn sync_download_database_impl(
     app: AppHandle,
-    on_progress: Channel<SyncDownloadProgress>,
+    on_progress: Channel<SyncProgress>,
 ) -> SyncActionResponse {
     let report = |value: f64, status: String| {
-        let _ = on_progress.send(SyncDownloadProgress { value, status });
+        let _ = on_progress.send(SyncProgress { value, status });
     };
     report(0.0, "正在准备下载...".into());
     let ctx = match build_sync_context(&app) {

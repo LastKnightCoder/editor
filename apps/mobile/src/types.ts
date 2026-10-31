@@ -217,7 +217,7 @@ export interface SyncActionResponse {
   remoteVersion: number;
 }
 
-export interface SyncDownloadProgress {
+export interface SyncProgress {
   value: number;
   status: string;
 }

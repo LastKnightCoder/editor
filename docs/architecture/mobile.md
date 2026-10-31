@@ -539,7 +539,7 @@ iOS 与 Android 共用一套模型：外壳贴住可见区，每个变量只有�
 
 同步入口为设置「数据 · 同步」，上传入口为「数据 · 图片与附件」。前者保留状态卡、版本检查、数据库切换、整库覆盖和资源文件进度；后者保留目的地卡、本地保存、压缩开关和最近上传结果。数据库成功后继续触发资源文件同步；资源仍只增不删，失败保留真实错误。
 
-数据库下载通过本次命令的 Tauri Channel 推送 `{ value, status }`，`useSyncSettings` 在应用壳层持有进度，同步中心与整库覆盖页消费同一快照；切页不取消下载，返回可继续查看，命令结束后清理通道回调与进度。两端使用公共 `ProgressStatus` 展示百分比和当前阶段；具体计数口径见[宿主分块同步](/docs/architecture/storage-sync.md#分块传输与重试)。
+数据库上传与下载通过本次命令的 Tauri Channel 推送 `SyncProgress`（`{ value, status }`），`useSyncSettings` 在应用壳层持有同一份同步进度，同步中心与整库覆盖页消费该快照；切页不取消传输，返回可继续查看，命令结束后清理通道回调与进度。两端使用公共 `ProgressStatus` 展示百分比和当前阶段；具体计数口径见[宿主分块同步](/docs/architecture/storage-sync.md#分块传输与重试)。
 
 服务列表由当前插件会话的同步/上传注册表生成。syncProvider/uploadProvider 按插件 ID 区分页面，挂载插件通过 settings.register 声明的组件；未启用或未安装时保留已保存配置，并提供插件中心入口。服务名称来自注册声明，宿主没有服务商配置分支。服务页以局部 PortalScope 承载插件浮层，UiHostProvider 将 Dialog 返回交给当前 Page；页面隐藏时浮层随作用域隐藏，不遗留到其他页面。
 
