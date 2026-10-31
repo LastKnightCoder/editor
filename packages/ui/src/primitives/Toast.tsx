@@ -11,17 +11,22 @@
  *
  * 用法：app 壳层挂载 <ToastHost /> 一次；任意处调用 toast.success("已保存")、
  * toast.error("失败")、toast.loading → toast.resolve(id) 或 toast.promise(p, {...})。
+ * 外观两档：default 浅色胶囊（桌面）、inverse 深色胶囊（移动端）；zoneClassName 覆盖停靠位置与层级。
+ * key：同 key 的新提示原位替换旧的一条并重新计时，用于「同一件事只留一条」（如反复轻点的说明）。
  */
 
 import { useEffect, useRef, useState } from "react";
 import { create } from "zustand";
 import { CircleAlert, CircleCheck, CircleX, Info, LoaderCircle } from "lucide-react";
 import clsx from "clsx";
+import { cn } from "../cn";
 
 export type ToastType = "success" | "error" | "warning" | "info" | "loading";
 export type ToastPosition = "top-center" | "top-right" | "bottom-right" | "bottom-center";
 
 export interface ToastOptions {
+  /** 同 key 的提示只保留一条：新提示原位替换并重新计时 */
+  key?: string;
   /** 内联动作（如「撤销」），点击后 toast 关闭 */
   action?: { label: string; onClick: () => void };
   position?: ToastPosition;
@@ -37,6 +42,9 @@ export interface ToastOptions {
  */
 export interface ToastItem {
   id: number;
+  key?: string;
+  /** 原位替换时递增，重新开始计时 */
+  revision?: number;
   type: ToastType;
   message: string;
   action?: ToastOptions["action"];
@@ -81,8 +89,22 @@ export const toast = {
   },
 
   show(type: ToastType, message: string, opts: ToastOptions = {}): number {
+    const store = useToastStore.getState();
+    const same = opts.key ? store.items.find(i => i.key === opts.key) : undefined;
+    if (same) {
+      store.update(same.id, {
+        type,
+        message,
+        action: opts.action,
+        duration: opts.duration ?? defaults.duration,
+        onClose: opts.onClose,
+        revision: (same.revision ?? 0) + 1,
+      });
+      return same.id;
+    }
     const id = seq++;
-    useToastStore.getState().push({
+    store.push({
+      key: opts.key,
       id,
       type,
       message,
@@ -117,6 +139,10 @@ export const toast = {
   },
   reject(id: number, message?: string) {
     useToastStore.getState().update(id, { type: "error", message: message ?? "失败" });
+  },
+  /** 当前在显示的提示（按出现顺序），供宿主读取状态与测试断言 */
+  items(): readonly ToastItem[] {
+    return useToastStore.getState().items;
   },
   dismiss(id?: number) {
     if (id === undefined) useToastStore.setState({ items: [] });
@@ -194,7 +220,17 @@ const POSITION_ORDER: ToastPosition[] = [
   "bottom-center",
 ];
 
-export function ToastHost() {
+export type ToastVariant = "default" | "inverse";
+
+export function ToastHost({
+  variant = "default",
+  zoneClassName,
+}: {
+  /** default 浅色描边胶囊；inverse 深色胶囊（墨色底、反白字） */
+  variant?: ToastVariant;
+  /** 覆盖停靠区的位置与层级（如移动端顶栏下方、低于系统层） */
+  zoneClassName?: string;
+} = {}) {
   const items = useToastStore(s => s.items);
   return (
     <>
@@ -204,13 +240,14 @@ export function ToastHost() {
         return (
           <div
             key={pos}
-            className={clsx(
+            className={cn(
               "pointer-events-none fixed z-[360] flex flex-col gap-[9px]",
-              POSITION_ZONE[pos]
+              POSITION_ZONE[pos],
+              zoneClassName
             )}
           >
             {list.map(item => (
-              <ToastPill key={item.id} item={item} />
+              <ToastPill key={item.id} item={item} variant={variant} />
             ))}
           </div>
         );
@@ -219,7 +256,28 @@ export function ToastHost() {
   );
 }
 
-export function ToastPill({ item }: { item: ToastItem }) {
+const VARIANT_PILL: Record<ToastVariant, string> = {
+  default:
+    "border-line-1 bg-surface text-ink-1 shadow-float text-tau-sm min-h-[36px] max-w-[420px] gap-2.5 border px-[15px]",
+  inverse:
+    "bg-ink-1 text-ink-inverse min-h-[42px] max-w-[min(92vw,520px)] gap-2.5 px-[20px] text-[13px] font-[550] shadow-[0_14px_30px_rgba(0,0,0,0.22)]",
+};
+/** 深底上的图标色：语义色在墨色底上同样可读 */
+const INVERSE_COLOR: Record<ToastType, string> = {
+  success: "text-tag-1",
+  error: "text-danger",
+  warning: "text-tag-4",
+  info: "text-accent",
+  loading: "text-ink-inverse",
+};
+
+export function ToastPill({
+  item,
+  variant = "default",
+}: {
+  item: ToastItem;
+  variant?: ToastVariant;
+}) {
   const remove = useToastStore(s => s.remove);
   const [entered, setEntered] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -283,7 +341,7 @@ export function ToastPill({ item }: { item: ToastItem }) {
       timerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.type, item.duration]);
+  }, [item.type, item.duration, item.revision]);
 
   const pause = () => {
     hoveredRef.current = true;
@@ -308,7 +366,8 @@ export function ToastPill({ item }: { item: ToastItem }) {
       onClick={close}
       title="点击关闭"
       className={clsx(
-        "border-line-1 bg-surface text-ink-1 shadow-float text-tau-sm ease-tau-out pointer-events-auto flex min-h-[36px] max-w-[420px] cursor-pointer items-center gap-2.5 rounded-full border px-[15px] transition-[opacity,transform] duration-200",
+        "ease-tau-out pointer-events-auto flex cursor-pointer items-center rounded-full transition-[opacity,transform] duration-200",
+        VARIANT_PILL[variant],
         leaving
           ? clsx("opacity-0", POSITION_LEAVE[item.position])
           : entered
@@ -321,16 +380,29 @@ export function ToastPill({ item }: { item: ToastItem }) {
         strokeWidth={2}
         className={clsx(
           "flex-none",
-          TYPE_COLOR[item.type],
+          (variant === "inverse" ? INVERSE_COLOR : TYPE_COLOR)[item.type],
           item.type === "loading" && "animate-spin"
         )}
       />
       {/* 竖直 padding 只在这一层（模板同款 7px），胶囊本身不叠 py——否则高度胀到 ~40px */}
-      <span className="truncate py-[7px]">{item.message}</span>
+      <span
+        className={clsx(
+          "py-[7px]",
+          // 手机上提示常带原因，换行而不截断
+          variant === "inverse" ? "break-words [overflow-wrap:anywhere]" : "truncate"
+        )}
+      >
+        {item.message}
+      </span>
       {item.action && (
         <button
           type="button"
-          className="text-accent-text hover:bg-accent-soft flex-none cursor-pointer rounded-[7px] px-[7px] py-1 text-[12px] font-semibold"
+          className={clsx(
+            "flex-none cursor-pointer rounded-[7px] px-[7px] py-1 font-semibold",
+            variant === "inverse"
+              ? "text-accent-soft -mr-2 text-[13px] font-[750] active:opacity-65"
+              : "text-accent-text hover:bg-accent-soft text-[12px]"
+          )}
           onClick={e => {
             e.stopPropagation();
             item.action!.onClick();

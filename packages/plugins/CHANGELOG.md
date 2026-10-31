@@ -1,5 +1,11 @@
 # 更新记录
 
+## 0.51.0
+
+- 新增 `context.speech` 语音输入：`unavailableReason()` 判断能否录音，`start({ signal, onPreview })` 返回 `{ result, stop, cancel }`，识别方式沿用应用的语音输入设置。需要在 manifest 声明新权限 `speech:input`，首次调用时询问用户；宿主未接入时 `start` 抛 `SPEECH_UNAVAILABLE`。新增宿主接口 `SpeechAdapter`。
+- `PluginHomePanelProps` 新增可选 `registerDismiss(dismiss)`：面板里打开的浮层登记后，系统返回先关浮层（用法同 `pageContext.registerDismiss`）。
+- 移动端开放 `home` 首页面板（「今天」页问答条下，`compact` 为两列小卡）与功能入口宫格；`speech:input` 在移动端要求最低客户端版本 0.2.16（`MOBILE_SPEECH_MIN_VERSION`）。
+
 ## 0.50.0
 
 - 首页面板新增可选 `action: { title, run }`：宿主画在面板标题行右侧（如「查看账本」），点击调用 `run`，出错只弹通知。`HomeAdapter` 收到的定义改为 `RegisteredHomePanelDefinition`，未声明时 `action` 为 `null`。

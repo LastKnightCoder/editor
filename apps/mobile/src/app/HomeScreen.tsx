@@ -6,6 +6,7 @@ import { useMemoizedFn } from "ahooks";
 import { Search } from "lucide-react";
 import { HomeDashboard } from "../features/home/HomeDashboard";
 import { AskBar } from "../features/aiChat/AskBar";
+import { PluginHomePanels } from "../features/home/PluginHomePanels";
 import { useTodayAgenda } from "../features/home/useTodayAgenda";
 import { useTodoStore } from "../features/todo/store/useTodoStore";
 import { useEdgeFade } from "../hooks/useScrollState";
@@ -144,6 +145,7 @@ export function HomeScreen() {
         className="edge-fade-scroll dock-pad scrollbar-hide flex-1 overflow-y-auto overscroll-y-contain"
       >
         <AskBar />
+        <PluginHomePanels />
         <HomeDashboard
           cardsTotal={cards?.total ?? 0}
           recentCards={recentItems}

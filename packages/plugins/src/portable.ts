@@ -38,6 +38,9 @@ export const MOBILE_DATA_PERMISSIONS = [
   "flashcards:read",
   "flashcards:write",
 ] as const;
+/** 语音输入与首页面板随同一客户端版本开放 */
+export const MOBILE_SPEECH_MIN_VERSION = "0.2.16";
+export const MOBILE_SPEECH_PERMISSIONS = ["speech:input"] as const;
 
 function assertMobilePermissions(manifest: PortablePluginManifest) {
   if (!manifest.permissions?.length) return;
@@ -48,7 +51,8 @@ function assertMobilePermissions(manifest: PortablePluginManifest) {
       manifest.permissions.some(
         permission =>
           !(MOBILE_DATA_PERMISSIONS as readonly string[]).includes(permission) &&
-          !(MOBILE_AI_PERMISSIONS as readonly string[]).includes(permission)
+          !(MOBILE_AI_PERMISSIONS as readonly string[]).includes(permission) &&
+          !(MOBILE_SPEECH_PERMISSIONS as readonly string[]).includes(permission)
       )
     )
       throw new Error("移动端尚未开放此业务权限");
@@ -66,6 +70,13 @@ function assertMobilePermissions(manifest: PortablePluginManifest) {
       comparePluginVersions(target.minAppVersion, MOBILE_AI_MIN_VERSION) < 0
     )
       throw new Error(`移动端 AI 授权要求最低客户端版本 ${MOBILE_AI_MIN_VERSION}`);
+    if (
+      manifest.permissions.some(permission =>
+        (MOBILE_SPEECH_PERMISSIONS as readonly string[]).includes(permission)
+      ) &&
+      comparePluginVersions(target.minAppVersion, MOBILE_SPEECH_MIN_VERSION) < 0
+    )
+      throw new Error(`移动端语音输入授权要求最低客户端版本 ${MOBILE_SPEECH_MIN_VERSION}`);
   }
 }
 

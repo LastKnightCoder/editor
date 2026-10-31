@@ -35,6 +35,7 @@ import type { PluginLinks } from "./links";
 import type { PluginTransactionRunner } from "./transaction";
 import type { PluginFlashcards } from "./flashcards";
 import type { PluginNotifications } from "./notifications";
+import type { PluginSpeech } from "./speech";
 
 import type { JsonValue } from "./json";
 export type { JsonValue } from "./json";
@@ -111,6 +112,8 @@ export interface PluginContext {
   readonly transaction: PluginTransactionRunner;
   readonly flashcards: PluginFlashcards;
   readonly notifications: PluginNotifications;
+  /** 语音输入；需要 speech:input 权限 */
+  readonly speech: PluginSpeech;
   /** 将订阅等资源交给宿主，在停用或激活失败时逆序回收。 */
   register(resource: Disposable): Disposable;
 }

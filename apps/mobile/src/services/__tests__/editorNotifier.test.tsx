@@ -1,8 +1,8 @@
-// mobile 的编辑器提示服务：提示进 mobile 自己的 toast，确认走 MobileConfirmDialog，输入走 BottomSheet（返回手势见 router 集成测试）。
+// mobile 的编辑器提示服务：提示进统一的 @tau/ui toast，确认走 MobileConfirmDialog，输入走 BottomSheet（返回手势见 router 集成测试）。
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useToastStore } from "../../components/toast";
+import { toastQueue } from "../../components/toast";
 import {
   EditorConfirmHost,
   EditorPromptHost,
@@ -16,15 +16,15 @@ import { recordUploadFailure, resetUploadOutcomeForTest } from "../uploadOutcome
 
 describe("mobileEditorNotifier", () => {
   beforeEach(() => {
-    useToastStore.getState().clearAll();
+    toastQueue.clearAll();
     useEditorConfirmStore.setState({ pending: null });
   });
 
-  it("提示进 mobile 的 toast 队列", () => {
+  it("提示进统一的 toast 队列", () => {
     mobileEditorNotifier.success("已复制");
     mobileEditorNotifier.error("上传失败");
     mobileEditorNotifier.warning("请输入地址");
-    expect(useToastStore.getState().toasts.map(item => [item.type, item.text])).toEqual([
+    expect(toastQueue.list().map(item => [item.type, item.text])).toEqual([
       ["success", "已复制"],
       ["error", "上传失败"],
       ["warning", "请输入地址"],
@@ -36,7 +36,7 @@ describe("mobileEditorNotifier", () => {
     recordUploadFailure("github", new Error("RESOURCE_UPLOAD_FAILED:HTTP 401 Bad credentials"));
     mobileEditorNotifier.error("图片上传失败");
     mobileEditorNotifier.error("上传失败");
-    const [enriched, plain] = useToastStore.getState().toasts;
+    const [enriched, plain] = toastQueue.list();
     expect(enriched).toMatchObject({
       type: "error",
       text: "图片没传上去：账号已失效或没有写入权限",
@@ -48,9 +48,9 @@ describe("mobileEditorNotifier", () => {
 
   it("进行中提示用同一条落定为结果", () => {
     const progress = mobileEditorNotifier.loading("正在上传…");
-    expect(useToastStore.getState().toasts).toHaveLength(1);
+    expect(toastQueue.list()).toMatchObject([{ type: "loading", text: "正在上传…" }]);
     progress.success("已插入");
-    const toasts = useToastStore.getState().toasts;
+    const toasts = toastQueue.list();
     expect(toasts).toHaveLength(1);
     expect(toasts[0]).toMatchObject({ type: "success", text: "已插入" });
   });

@@ -596,6 +596,7 @@ const CONTRIBUTION_LABELS = {
   pages: "页面",
   entries: "功能入口",
   settings: "设置页",
+  homePanels: "今天页卡片",
 } as const;
 
 function PermissionsTab({

@@ -1,13 +1,14 @@
 /**
- * Mobile 的编辑器提示服务（IEditorNotifier）：提示走 mobile 自己的 toast，确认走 MobileConfirmDialog，
- * 单行输入走 BottomSheet。编辑器的默认实现是 @tau/ui 的 toast 与对话框，mobile 没挂 @tau/ui 的 ToastHost，
- * 确认框与输入框也必须接返回手势（AGENTS.md 移动端浮层规范），所以注册自己的实现。
+ * Mobile 的编辑器提示服务（IEditorNotifier）：提示与桌面同为 @tau/ui 的 toast（移动端挂深色外观），
+ * 上传失败补原因与入口；确认走 MobileConfirmDialog，单行输入走 BottomSheet——它们必须接返回手势
+ * （AGENTS.md 移动端浮层规范），所以注册自己的实现。
  */
 import { useState } from "react";
 import { create } from "zustand";
 import type { EditorConfirmOptions, EditorNotifier, EditorPromptOptions } from "@tau/editor";
 import { BottomSheet } from "../components/BottomSheet";
 import { MobileConfirmDialog } from "../components/MobileConfirmDialog";
+import { toast as uiToast } from "@tau/ui";
 import { toast } from "../components/toast";
 import { getNavigator } from "../router";
 import { takeRecentUploadFailure } from "./uploadOutcome";
@@ -58,10 +59,6 @@ export const useEditorPromptStore = createPendingRequestStore<EditorPromptOption
   null
 );
 
-/** 进行中提示的常驻时长：上传等操作结束时会用同一个 id 覆盖成结果 */
-const LOADING_DURATION = 60_000;
-let loadingSeq = 0;
-
 /** 编辑器只报一句「上传失败」：紧随上传失败的提示补上原因，并给出去「图片与附件」的入口 */
 function notifyError(message: string) {
   const failure = takeRecentUploadFailure();
@@ -85,11 +82,10 @@ export const mobileEditorNotifier: EditorNotifier = {
   error: notifyError,
   warning: message => void toast.warning(message),
   loading: message => {
-    const id = `editor-loading-${++loadingSeq}`;
-    toast({ id, type: "info", text: message, duration: LOADING_DURATION });
+    const id = uiToast.loading(message);
     return {
-      success: next => void toast.success({ id, text: next }),
-      error: next => void toast.error({ id, text: next }),
+      success: next => uiToast.resolve(id, next),
+      error: next => uiToast.reject(id, next),
     };
   },
   confirm: options => useEditorConfirmStore.getState().request(options),

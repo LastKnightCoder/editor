@@ -10,7 +10,7 @@ const navigatorMock = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("../../../../router", () => ({ getNavigator: () => navigatorMock }));
 
 import { AppContext, type AppContextValue } from "../../../../app/AppContext";
-import { useToastStore } from "../../../../components/toast";
+import { toastQueue } from "../../../../components/toast";
 import { getContentLength } from "../../editorContentUtils";
 import { createControllerStub } from "../../__tests__/toolbarControllerStub";
 import type { MobileEditorToolbarController } from "../../editorToolbar/useMobileEditorToolbarController";
@@ -56,7 +56,7 @@ describe("ReadingSelectionBar", () => {
     root = createRoot(host);
     tauriMock.createQuickCard.mockReset();
     navigatorMock.push.mockReset();
-    useToastStore.getState().clearAll();
+    toastQueue.clearAll();
   });
 
   afterEach(() => {
@@ -212,7 +212,7 @@ describe("ReadingSelectionBar", () => {
     expect(onClear).toHaveBeenCalled();
     expect(readingMode.enterEditingWithSelection).not.toHaveBeenCalled();
     expect(refreshCardsSafe).toHaveBeenCalledWith({ page: 1 });
-    const [toastItem] = useToastStore.getState().toasts;
+    const [toastItem] = toastQueue.list();
     expect(toastItem).toMatchObject({ type: "success", text: "已摘录为卡片" });
     toastItem.action?.onClick();
     expect(navigatorMock.push).toHaveBeenCalledWith("contentDetail", { cardId: 42 });
@@ -222,7 +222,7 @@ describe("ReadingSelectionBar", () => {
     tauriMock.createQuickCard.mockRejectedValue(new Error("boom"));
     setup();
     await act(async () => button("摘录成卡片").click());
-    const [toastItem] = useToastStore.getState().toasts;
+    const [toastItem] = toastQueue.list();
     expect(toastItem?.type).toBe("error");
   });
 

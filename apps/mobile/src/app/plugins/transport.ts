@@ -26,6 +26,7 @@ import type { MobilePluginRuntime } from "./runtime";
 import { createMobilePluginAI } from "./ai";
 import { createMobilePluginMcp } from "./ai-mcp";
 import { createMobilePluginAiSkills } from "./ai-skills";
+import { createMobilePluginSpeech } from "./speech";
 import type { MobileAiService } from "../../services/ai";
 const loadMobileAi = () => import("../../services/ai").then(module => module.getMobileAiService());
 
@@ -277,6 +278,7 @@ export async function connectMobilePluginTransport(
       }
     );
     runtime.permissions = createMobilePermissions(runtime.workspaceId, token);
+    runtime.speech = createMobilePluginSpeech(runtime.asr);
     runtime.ai = createMobilePluginAI({
       databaseName: runtime.workspaceId,
       token,

@@ -14,6 +14,7 @@ import {
   type PortablePluginHost,
   MOBILE_AI_MIN_VERSION,
   MOBILE_AI_PERMISSIONS,
+  MOBILE_SPEECH_MIN_VERSION,
 } from "../portable";
 
 const source = () => ({
@@ -241,5 +242,22 @@ it("移动 AI 使用独立版本门槛，已有业务权限可与能力权限共
         })
       ).toThrow("最低客户端版本");
     }
+  }
+});
+
+it("移动语音输入权限要求对应的最低客户端版本", () => {
+  for (const platform of ["android", "ios"] as const) {
+    const input = {
+      ...raw(),
+      permissions: ["speech:input", "ai:chat"],
+      targets: { [platform]: { minAppVersion: MOBILE_SPEECH_MIN_VERSION } },
+    };
+    expect(() => validatePortableDistributionManifest(input)).not.toThrow();
+    expect(() =>
+      validatePortableDistributionManifest({
+        ...input,
+        targets: { [platform]: { minAppVersion: "0.2.15" } },
+      })
+    ).toThrow("语音输入授权要求最低客户端版本");
   }
 });

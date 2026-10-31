@@ -42,7 +42,7 @@
 
 插件会话不阻塞应用：Provider 立即渲染子树，启动阶段（starting / ready / safe / failed）写入 `app/plugins/content` 的 mobilePluginState，供界面与编辑器 kit 层共用；插件环境 Provider 常驻（会话就绪前给占位快照），会话切换不重挂应用子树。消费方各自等待：插件页/设置页在 starting 时显示加载态；内容编辑器经 `useMobileContentKit`，只读模式随会话换最新 kit，编辑模式在落定前显示编辑区占位、落定后锁定首个 kit，编辑中途不因会话重建而重建编辑器；未注册节点经 IUnknownElementNotice 说明「插件内容加载中」或「插件未运行」，数据始终原样保留。启动只用本地缓存的撤回状态（已确认撤回的包拿不到包体、不会运行），联网核验在会话就绪后执行并按 blockFromCenter 停用新近撤回的版本。
 
-“我的”仍是 settings Tab；插件入口作为 props 插槽进入 SettingsPage 的独立插件功能区。pluginPage、pluginSettings、plugins 均由移动 definePage 自动注册。页面身份与标量参数规范化使用 SDK 规则，返回、转场、保活与 LRU 使用原 router。启停、更新与回退按新会话生效：插件中心「立即生效」重建插件会话（应用待生效包、重启全部插件），不重启应用；中心安装与更新下载完成、安装队列清空后自动重建一次会话（安全模式除外），无需手动点按。「我的」插件中心入口显示可更新数（与已安装页更新条同一选版缓存与口径），有更新时直达已安装标签。已打开的可编辑正文保留原 kit。
+“我的”仍是 settings Tab；插件 `navigation.registerEntry` 入口经 `usePluginFeatureEntries` 并入 SettingsPage 顶部功能宫格，排在内置功能之后、按注册顺序，`icon` 渲染进 `PluginIcon` 的 grid 档（缺省用名称首字）；宫格超过 8 格时第 8 格为「更多」，ActionSheet 列出其余项。插件中心另起一行 `PluginEntries`。pluginPage、pluginSettings、plugins 均由移动 definePage 自动注册。页面身份与标量参数规范化使用 SDK 规则，返回、转场、保活与 LRU 使用原 router。启停、更新与回退按新会话生效：插件中心「立即生效」重建插件会话（应用待生效包、重启全部插件），不重启应用；中心安装与更新下载完成、安装队列清空后自动重建一次会话（安全模式除外），无需手动点按。「我的」插件中心入口显示可更新数（与已安装页更新条同一选版缓存与口径），有更新时直达已安装标签。已打开的可编辑正文保留原 kit。
 
 页面的活动状态与系统后台状态分别处理。作者应在操作时持久化数据，不依赖 deactivate 一定执行。启动标记位于本机 localStorage，仅用于发现上次插件启动未结束并跳过该次加载（安全模式，插件中心提供重新加载）；包文件与业务 KV 不放 localStorage。
 
@@ -53,6 +53,12 @@
 已安装清单分别提供 currentVersion、pendingVersion、centerSource、撤回原因和状态刷新失败标记。首次仅有 next 时 currentVersion 为 null，不冒充已安装；固定中心新装包默认保存启用意图，下载完成即重建会话生效，更新保留已保存意图，损坏的 enabled.json 不会默认启用。权限说明不等于授权。Android/iOS 原生宿主提供 browsingEnabled/installationEnabled，正式安装仍由中心复验平台分发与发布状态；非移动宿主不能安装。
 
 中心包在启动及应用回到前台时核验发布状态。已有中心包的会话监听文档可见性、窗口 focus 和 Tauri 原生 focus；考虑 WKWebView 可能缺失前台事件，同时每 30 秒进行可见状态核验，后台不主动刷新，切库/卸载释放监听与定时器。原生按 origin/releaseId 保存撤回/禁用记录，确认撤回不会被后续 available/not_found 覆盖；断网保留既有记录，状态文件损坏时不装配中心包。前台获知不可用后回收页面并把节点写入策略设为 none；保留当前静态内容至下一会话，原文不删除。该机制不抢占主线程死循环，也不回滚已提交数据。
+
+## 移动首页面板与语音输入
+
+`home.registerPanel` 由 `MobilePluginRuntime.homePanels` 登记，今天页在问答条与日程之间渲染 `features/home/PluginHomePanels`：两列网格，`compact` 占一格，`wide` 与紧邻 wide 之前落单的 compact 占整行；宿主画 surface 圆角卡、标题与 action，正文为空（组件返回 null）时整块收起，渲染出错只影响该卡。正文经 `PluginPageComponentScope` 获得页面作用域，`PluginHomePanelProps.registerDismiss` 接今天页的返回仲裁（阻断边缘返回），桌面首页传同名回调接 Esc 浮层仲裁。手机没有面板排序与隐藏，按注册顺序排列。
+
+`context.speech` 经 `app/plugins/speech` 的 `createMobilePluginSpeech` 接入：PluginHost 先校验 `speech:input` 声明与授权、把激活 signal 并入录音 signal，再调用与应用听写同一个识别服务实例（`speechServiceFor(runtime.asr)`，应用与插件录音互斥）；不可用原因与应用听写共用 `speechUnavailableReason`。插件只拿到识别文字，不接触音频。`speech:input` 在 TS（`portable.ts`）与原生（`plugin_permissions.rs`）白名单中开放，移动目标最低版本 `MOBILE_SPEECH_MIN_VERSION`（0.2.16）；桌面未接 `SpeechAdapter`，`start` 抛 `SPEECH_UNAVAILABLE`。
 
 ## 移动对象动作
 

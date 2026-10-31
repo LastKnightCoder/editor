@@ -121,6 +121,7 @@ export type {
   PluginNotificationMode,
   PluginNotificationAction,
 } from "./notifications";
+export type { PluginSpeech, PluginSpeechSession, PluginSpeechStartOptions } from "./speech";
 export type {
   PluginApp,
   PluginAppAction,
