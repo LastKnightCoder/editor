@@ -206,7 +206,7 @@ describe("正式 Cloudflare 协作能力", () => {
         (await request("/v1/tickets", "POST", { documentId: id }, owner)).response.status
       ).toBe(409);
       const exported = (await admin("export", undefined, "GET")).value;
-      expect(exported.tables.collaboration_migrations).toBeUndefined();
+      expect(exported.tables.collaboration_migrations).toEqual([]);
       await worker.dispose();
       await startWorker();
       expect((await admin("import", exported)).response.status).toBe(200);
@@ -261,14 +261,14 @@ describe("正式 Cloudflare 协作能力", () => {
         (await request(`/v1/documents/${id}/protocol`, "GET", undefined, owner)).value
       ).toEqual(before);
       const exported = (await admin("export", undefined, "GET")).value;
-      expect(exported.format).toBe(5);
-      expect(exported.tables).not.toHaveProperty("collaboration_migrations");
+      expect(exported.format).toBe(6);
+      expect(exported.tables.collaboration_migrations).toEqual([]);
     } finally {
       doc.destroy();
     }
   });
 
-  it.each([1, 2, 3, 4])("旧备份格式 %s 在导入写入前被拒绝", async format => {
+  it.each([1, 2, 7])("不支持的备份格式 %s 在导入写入前被拒绝", async format => {
     expect((await admin("import", { ...empty(), format })).response.status).toBe(400);
     const status = (await admin("status", undefined, "GET")).value;
     expect(status.ready).toBe(false);
@@ -276,8 +276,10 @@ describe("正式 Cloudflare 协作能力", () => {
     await initialize();
   });
 
-  it("当前备份也不能携带退役账本或未完成迁移状态", async () => {
+  it("备份格式必须完整声明历史账本，活动协议仍拒绝未完成迁移状态", async () => {
     const input = empty();
+    for (const format of [3, 4, 6])
+      expect((await admin("import", { ...input, format })).response.status).toBe(400);
     expect(
       (await admin("import", { ...input, tables: { ...input.tables, identity_merges: [] } }))
         .response.status
@@ -306,8 +308,102 @@ describe("正式 Cloudflare 协作能力", () => {
         })
       ).response.status
     ).toBe(400);
+    expect(
+      (await admin("import", { ...input, tables: { ...input.tables, unknown_history: [] } }))
+        .response.status
+    ).toBe(400);
+    expect(
+      (
+        await admin("import", {
+          ...input,
+          tables: {
+            ...input.tables,
+            devices: [
+              { id: "device", nickname: "设备", secret_hash: "hash", banned: 0, future_field: 1 },
+            ],
+          },
+        })
+      ).response.status
+    ).toBe(400);
     await initialize();
   });
+
+  it.each([3, 4, 5, 6])(
+    "备份格式 %s 保全历史、身份和正文，恢复后可继续鉴权并备份",
+    async format => {
+      await initialize();
+      const owner = await register("当前作者"),
+        retired = await register("旧设备");
+      const id = await create(owner);
+      const doc = await createTestDocument(
+        {
+          title: "保全测试",
+          content: [{ type: "paragraph", children: [{ text: "原正文" }] }],
+          bannerBg: "",
+          bannerPosition: "center",
+        },
+        { documentId: id, baselineId: "base", epoch: 0 }
+      );
+      const state = Buffer.from(Y.encodeStateAsUpdate(doc)).toString("base64");
+      doc.destroy();
+      expect(
+        (await request(`/v1/documents/${id}/publish`, "POST", { state }, owner)).response.status
+      ).toBe(200);
+      const source = (await admin("export", undefined, "GET")).value;
+      source.format = format;
+      source.tables.devices.find((device: { id: string }) => device.id === retired.id).banned = 1;
+      const merges = [{ source_id: retired.id, target_id: owner.id, created_at: 1 }];
+      const migrations = [
+        {
+          operation_id: "historical",
+          document_id: id,
+          value: JSON.stringify({
+            id: "historical",
+            documentId: id,
+            actorId: retired.id,
+            state: "COMMITTED",
+            receipt: { documentId: id, epoch: 0, baselineId: "base", version: 2 },
+          }),
+        },
+      ];
+      if (format !== 5) source.tables.identity_merges = merges;
+      else delete source.tables.identity_merges;
+      if (format === 3 || format === 6) source.tables.collaboration_migrations = migrations;
+      else delete source.tables.collaboration_migrations;
+      await worker.dispose();
+      await startWorker();
+      expect((await admin("import", source)).response.status).toBe(200);
+      expect((await admin(`state/${id}`, { state })).response.status).toBe(200);
+      expect((await admin("finish-import")).response.status).toBe(200);
+      const snapshot = await fetch(`${url}/v1/documents/${id}/state`, {
+        headers: {
+          authorization: `Bearer ${owner.id}:${owner.secret}`,
+          "x-tau-document-version": "2",
+        },
+      });
+      expect(snapshot.status).toBe(200);
+      expect((await snapshot.json()).state).toBe(state);
+      expect((await request("/v1/documents", "GET", undefined, retired)).response.status).toBe(401);
+      const restored = (await admin("export", undefined, "GET")).value;
+      expect(restored.signingKey).toBe(source.signingKey);
+      for (const [table, rows] of Object.entries(source.tables))
+        expect(restored.tables[table]).toEqual(rows);
+      expect(restored.tables.identity_merges).toEqual(format === 5 ? [] : merges);
+      expect(restored.tables.collaboration_migrations).toEqual(
+        format === 3 || format === 6 ? migrations : []
+      );
+      const backup = (await admin("backup")).value;
+      const bucket = await worker.getR2Bucket("BACKUPS");
+      const metadata = JSON.parse(
+        await (await bucket.get(backup.prefix + "/metadata.json"))!.text()
+      );
+      expect(metadata.format).toBe(6);
+      expect(metadata.tables.identity_merges).toEqual(restored.tables.identity_merges);
+      expect(metadata.tables.collaboration_migrations).toEqual(
+        restored.tables.collaboration_migrations
+      );
+    }
+  );
 
   it("导入完成前拒绝业务写入，开放后禁止覆盖导入", async () => {
     expect((await request("/health/ready")).response.status).toBe(503);
@@ -535,9 +631,7 @@ describe("正式 Cloudflare 协作能力", () => {
     const original = await request("/v1/documents", "GET", undefined, source);
     expect(original.response.status).toBe(200);
     expect(original.value.documents[0]).toMatchObject({ id, ownerId: source.id, role: "owner" });
-    expect((await admin("export", undefined, "GET")).value.tables).not.toHaveProperty(
-      "identity_merges"
-    );
+    expect((await admin("export", undefined, "GET")).value.tables.identity_merges).toEqual([]);
     expect((await admin("backup")).response.status).toBe(200);
   });
 });
@@ -639,7 +733,7 @@ it("白板条件提交、缺依赖与回执备份在真实 Worker SQLite 中贯�
       (await request(`/v1/documents/${id}/publication/cancel`, "POST", {}, owner)).value.state
     ).toBe("COMMITTED");
     const exported = (await admin("export", undefined, "GET")).value;
-    expect(exported.format).toBe(5);
+    expect(exported.format).toBe(6);
     expect(exported.tables.collaboration_operations).toHaveLength(3);
     const vector = Y.encodeStateVector(doc);
     board.submit([{ type: "edit_title", edit: { offset: 0, remove: 1, text: "丙" } }], {});

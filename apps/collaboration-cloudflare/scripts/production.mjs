@@ -1,8 +1,8 @@
-import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from "node:fs";
-import { randomBytes, createHash } from "node:crypto";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { homedir } from "node:os";
-import { resolve, join, dirname } from "node:path";
+import { resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "@typescript/typescript6";
 
@@ -49,9 +49,6 @@ if (flags.some(flag => flag !== "--execute")) throw new Error("未知参数");
 const secretFile =
   process.env.COLLABORATION_ENV_FILE ??
   join(homedir(), ".local/share/tau/collaboration-cloudflare/production.env");
-if (execute) mkdirSync(dirname(secretFile), { recursive: true, mode: 0o700 });
-if (!existsSync(secretFile) && execute)
-  writeFileSync(secretFile, "ADMIN_KEY=" + randomBytes(32).toString("hex") + "\n", { mode: 0o600 });
 const secrets = existsSync(secretFile)
   ? Object.fromEntries(
       readFileSync(secretFile, "utf8")
@@ -141,12 +138,12 @@ if (!execute && action !== "status") {
   process.exit(0);
 }
 if (action === "deploy") {
-  wrangler(["deploy"]);
-  if (secrets.ADMIN_KEY) wrangler(["secret", "put", "ADMIN_KEY"], secrets.ADMIN_KEY + "\n");
   const extra = process.env.COLLAB_INSTANCE_NAME
     ? ["--var", "INSTANCE_NAME:" + process.env.COLLAB_INSTANCE_NAME]
     : [];
-  wrangler(["deploy", ...extra]);
+  const build = process.env.COLLAB_BUILD_REV;
+  if (build && !/^[A-Za-z0-9._-]{1,100}$/.test(build)) throw new Error("构建标识无效");
+  wrangler(["deploy", "--keep-vars", ...extra, ...(build ? ["--var", "BUILD_REV:" + build] : [])]);
 } else if (action === "status") {
   console.log(JSON.stringify(await service("/_admin/status"), null, 2));
 } else if (action === "import" && directory) {
